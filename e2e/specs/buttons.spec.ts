@@ -15,6 +15,7 @@
  */
 import type { Locator, Page } from '@playwright/test';
 import { expect, test } from '../fixtures/test';
+import { expectFieldsAtLeast16px } from '../support/a11y';
 import { chooseCard } from '../support/poker';
 import { openTopicTool, setTopic } from '../support/topic';
 import { createRoom as createTimerRoom } from '../support/timer';
@@ -282,6 +283,17 @@ test.describe('お題ツールのボタンは部品で、押せる大きさが�
 // 幅の広い字を 30 字、切れ目なしで並べる（名簿の名前が `overflow-wrap` で折れないと 22rem の脇から溢れる）
 const LONG_NAME = 'W'.repeat(30);
 
+/** 欄の親（行）が横に溢れず、ページも横に溢れない（欄が 100% になってボタンを押し出さない）。 */
+async function expectRowFits(field: Locator, label: string): Promise<void> {
+  const m = await field.evaluate((el) => {
+    const row = el.parentElement!;
+    const doc = document.documentElement;
+    return { rowScrollW: row.scrollWidth, rowClientW: row.clientWidth, pageScrollW: doc.scrollWidth, pageClientW: doc.clientWidth };
+  });
+  expect(m.rowScrollW, `${label}: 行が横に溢れる（ボタンが押し出されている）`).toBeLessThanOrEqual(m.rowClientW);
+  expect(m.pageScrollW, `${label}: ページが横に溢れる`).toBeLessThanOrEqual(m.pageClientW);
+}
+
 async function addProxies(page: Page, names: string[]): Promise<void> {
   for (const name of names) {
     const input = page.getByLabel('代理参加者の名前');
@@ -384,6 +396,9 @@ test.describe('timer の各画面（ロビー・セッション・確認・ま�
     await createTimerRoom(page, 'buttons-timer');
     await expect(page.getByRole('button', { name: 'セッションを開始' })).toBeVisible();
     await expectScreen(page, 'timer ロビー（390）', 2);
+    // パスフレーズの欄（文字を入れる欄全体を測る。部品の当て忘れも拾う）
+    await expect(page.getByLabel('パスフレーズ', { exact: true })).toBeVisible();
+    await expectFieldsAtLeast16px(page);
 
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.getByRole('button', { name: 'セッションを開始' }).click();
@@ -404,6 +419,31 @@ test.describe('timer の各画面（ロビー・セッション・確認・ま�
     for (const r of wide.rows) expect(r.actionsH, `名簿の行「${r.name}」の操作の行が 1 段に収まらない（${r.actionsH}px）`).toBeLessThanOrEqual(44 + 2);
     await expectScreen(page, 'timer セッション（1280）', 8);
     await expectMiniHitTargets(page, 'timer セッション（1280）');
+
+    // 入力欄（#316 PR 4）: 代理追加・改名・共有メモの欄は 16px 以上で、脇（22rem）の行から押し出されない。1280 と 320 で見る
+    const toggleProxy = page.getByRole('button', { name: '代理参加者を追加' });
+    const proxyInput = page.getByLabel('代理参加者の名前');
+    await toggleProxy.click();
+    await expect(proxyInput).toBeVisible();
+    await expectFieldsAtLeast16px(page);
+    await expectRowFits(proxyInput, '代理追加の行');
+    const selfRow = page.locator('.ui-workspace-side .roster-panel-row').filter({ hasText: 'buttons-timer' });
+    await selfRow.getByRole('button', { name: /を改名$/ }).click();
+    const renameInput = page.getByLabel(/の新しい名前$/);
+    await expect(renameInput).toBeVisible();
+    await expectFieldsAtLeast16px(page);
+    await expectRowFits(renameInput, '改名の行');
+    await page.setViewportSize({ width: 320, height: 900 });
+    await expectRowFits(proxyInput, '代理追加の行（320）');
+    await expectRowFits(renameInput, '改名の行（320）');
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.getByRole('button', { name: '取消' }).click();
+    await toggleProxy.click();
+    await expect(proxyInput).toBeHidden();
+    await page.getByRole('button', { name: '編集', exact: true }).click();
+    await expect(page.getByLabel('共有メモ', { exact: true })).toBeVisible();
+    await expectFieldsAtLeast16px(page);
+    await page.getByRole('button', { name: 'プレビューに戻る' }).click();
 
     // 終える区画: 主は最後（完成!）、危険の 2 つは .ui-actions-start に入って左に離れる
     const end = (await scanButtons(page)).groups.find((g) => g.names.includes('完成!'));

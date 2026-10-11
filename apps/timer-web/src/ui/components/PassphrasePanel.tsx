@@ -46,7 +46,7 @@ export function PassphrasePanel({ protectedNow, onSet }: PassphrasePanelProps) {
             aria-label="パスフレーズ"
             maxLength={MAX_PASSPHRASE}
             placeholder="任意。設定すると参加に必要"
-            className="passphrase-panel-input"
+            className="ui-input passphrase-panel-input"
           />
           <button type="button" onClick={submit} disabled={!value} className="ui-button ui-button--secondary ui-button--sm">
             設定

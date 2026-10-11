@@ -212,14 +212,17 @@ export async function expectPickerInPage(select: Locator, groundToken: string): 
   await select.page().keyboard.press('Escape');
 }
 
+/** 文字を入れる欄（iOS Safari が 16px 未満でフォーカス時に画面を拡大する対象）。部品のクラスで絞らない —— 当て忘れた欄こそ測る */
+const TEXT_FIELD = 'textarea, select, input:not([type="checkbox"], [type="radio"], [type="range"], [type="hidden"], [type="button"], [type="submit"], [type="color"], [type="file"])';
+
 /**
- * 部品を当てた入力欄の字が 16px を下回らないこと（#320・E6）。
+ * 画面にある文字を入れる欄の字が 16px を下回らないこと（#320・E6・#316 PR 4）。
  *
  * 16px 未満の入力欄は iOS Safari がフォーカス時に画面を拡大する。部品は 1rem で持つが、画面の CSS が
  * 後から字の大きさを当てると同じ詳細度の後勝ちで潰れる。**計算後の値で見る**（CSS の検査より広いオラクル）。
  */
 export async function expectFieldsAtLeast16px(page: Page): Promise<void> {
-  const sizes = await page.locator('.ui-input, .ui-select').evaluateAll((els) =>
+  const sizes = await page.locator(TEXT_FIELD).evaluateAll((els) =>
     els
       .filter((el) => (el as HTMLElement).offsetParent !== null)
       .map((el) => ({
@@ -228,6 +231,6 @@ export async function expectFieldsAtLeast16px(page: Page): Promise<void> {
       })),
   );
   // 当たる欄が無いまま空回りすると、下の判定は 1 度も走らずに緑になる
-  expect(sizes.length, '部品を当てた入力欄が画面に無い（判定が空振りする）').toBeGreaterThan(0);
+  expect(sizes.length, '文字を入れる欄が画面に無い（判定が空振りする）').toBeGreaterThan(0);
   for (const s of sizes) expect(s.px, `${s.name} の字が 16px を下回る`).toBeGreaterThanOrEqual(16);
 }

@@ -86,25 +86,6 @@
 
 .roster-panel-proxy-input {
   flex: 1 1 0%;
-  border-radius: var(--radius-md);
-  border-width: 1px;
-  border-color: var(--hairline-strong);
-  background-color: var(--panel-2);
-  padding-inline: 0.75rem;
-  padding-block: 0.5rem;
-  font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 PR 4 で段へ寄せる） */
-  line-height: var(--timer-never-defined, calc(1.25 / 0.875)); /* 行の高さは status-strip.css 冒頭の注釈 */
-}
-
-.roster-panel-proxy-input:focus {
-  border-color: var(--signal);
-}
-
-/* ring-offset → ring の順に合成する（Tailwind の `box-shadow` の並び） */
-.roster-panel-proxy-input:focus-visible {
-  box-shadow:
-    0 0 0 2px var(--ink),
-    0 0 0 4px var(--signal);
 }
 
 /* 受け付けられなかった理由の行（代理追加・改名。比較に描かれない） */
@@ -258,24 +239,4 @@
 .roster-panel-edit-input {
   min-width: 0;
   flex: 1 1 0%;
-  border-radius: var(--radius-md);
-  border-width: 1px;
-  border-color: var(--hairline-strong);
-  background-color: var(--panel-2);
-  padding-inline: 0.5rem;
-  padding-block: 0.25rem;
-  font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 PR 4 で段へ寄せる） */
-  line-height: var(--timer-never-defined, calc(1.25 / 0.875)); /* 行の高さは status-strip.css 冒頭の注釈 */
-  color: var(--bone);
-}
-
-.roster-panel-edit-input:focus {
-  border-color: var(--signal);
-}
-
-/* ring-offset → ring の順に合成する（Tailwind の `box-shadow` の並び） */
-.roster-panel-edit-input:focus-visible {
-  box-shadow:
-    0 0 0 2px var(--ink),
-    0 0 0 4px var(--signal);
 }

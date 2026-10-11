@@ -45,34 +45,10 @@
   color: var(--signal);
 }
 
-/* 編集中のテキストエリア（比較に描かれない） */
+/* 編集中のテキストエリア。見た目（枠・地・padding・字・輪）は部品の `.ui-input`、ここは配置と等幅の書体だけ */
 .shared-memo-editor {
-  width: 100%;
   min-height: 200px;
-  resize: vertical;
-  border-radius: var(--radius-md);
-  background-color: var(--panel-2);
-  border-width: 1px;
-  border-color: var(--hairline-strong);
-  padding-inline: 0.75rem;
-  padding-block: 0.5rem;
-  font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 PR 4 で段へ寄せる） */
-  line-height: var(--timer-never-defined, calc(1.25 / 0.875)); /* 行の高さは status-strip.css 冒頭の注釈 */
   font-family: var(--font-mono);
-  transition-property: color, background-color, border-color, outline-color, text-decoration-color, fill, stroke;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
-}
-
-.shared-memo-editor:focus {
-  border-color: var(--signal);
-}
-
-/* ring-offset → ring の順に合成する（Tailwind の `box-shadow` の並び） */
-.shared-memo-editor:focus-visible {
-  box-shadow:
-    0 0 0 2px var(--ink),
-    0 0 0 4px var(--signal);
 }
 
 /* プレビューの枠 */

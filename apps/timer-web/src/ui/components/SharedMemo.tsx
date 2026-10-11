@@ -112,7 +112,7 @@ export function SharedMemo({ note, onCommit }: SharedMemoProps) {
           rows={10}
           maxLength={MAX_HANDOFF_NOTE}
           placeholder={"例（Markdown 可）:\n## 参加方法\nVSCode Live Share に参加してください:\nhttps://prod.liveshare.vsengsaas.visualstudio.com/...\n\n## ルール\n- 5分で交代\n- 困ったら一時停止"}
-          className="shared-memo-editor"
+          className="ui-input shared-memo-editor"
         />
       ) : (
         <div className="shared-memo-preview" aria-live="polite">
