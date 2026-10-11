@@ -17,19 +17,29 @@ import type { Locator, Page } from '@playwright/test';
 import { expect, test } from '../fixtures/test';
 import { chooseCard } from '../support/poker';
 import { openTopicTool, setTopic } from '../support/topic';
+import { createRoom as createTimerRoom } from '../support/timer';
 
 /**
  * 画面固有の理由で `.ui-button` を持たない `<button>` の許可一覧（クラスの選択子）。
  * - `.card`: poker の手札（札の形をした投票の選択肢。ボタンの形ではない）
  * - `.topic-tab`: お題ツールの読む面のタブ（`role="tab"`）
+ * - `.tab`: timer のセッション／ルームのタブ（`role="tab"`）
+ * - `.roster-panel-mini-button`: timer の名簿の行の小さな操作（見た目を保ち、当たりだけ 44px に広げる・Task 4b で別に測る）
+ * - `.notify-hint-close`・`.notify-settings-trigger`: timer の通知のヒントの閉じる・ステータスの「通知」（ボタンの形をしない操作）
+ * - `.session-config-interval`: timer の交代間隔の選択肢（排他の選択肢の札。ボタンの形をした操作ではない）
+ * - `.notify-settings-switch-on`・`.notify-settings-switch-off`: timer の通知の ON/OFF（`role="switch"` のスイッチ）
+ * - `.notify-settings-preview`: timer の通知音の「試聴」（設定の行の中の小さな文字の操作で、画面の操作の並びに入らない）
  */
-const BARE_ALLOWED = ['.card', '.topic-tab'];
+const BARE_ALLOWED = [
+  '.card', '.topic-tab', '.tab', '.roster-panel-mini-button', '.notify-hint-close', '.notify-settings-trigger',
+  '.session-config-interval', '.notify-settings-switch-on', '.notify-settings-switch-off', '.notify-settings-preview',
+];
 
 interface Rect { left: number; top: number; width: number; height: number }
 
 /** 画面に描かれた（箱を持つ）ボタンを集め、素のもの・並びごとの主・当たりを返す。 */
-async function scanButtons(page: Page) {
-  return page.evaluate((allowed) => {
+async function scanButtons(page: Page, hitScope = 'body') {
+  return page.evaluate(([allowed, scope]) => {
     const visible = (el: Element) => el.getClientRects().length > 0 && el.getBoundingClientRect().width > 0;
     const name = (el: Element) => (el.getAttribute('aria-label') ?? el.textContent ?? '').trim().slice(0, 24);
 
@@ -37,9 +47,10 @@ async function scanButtons(page: Page) {
       .filter((b) => !b.classList.contains('ui-button') && !allowed.some((sel) => b.matches(sel)))
       .map((b) => `${name(b)}（class="${b.className}"）`);
 
-    const isPrimary = (el: Element) => !el.classList.contains('ui-button--secondary') && !el.classList.contains('ui-button--quiet');
+    const isPrimary = (el: Element) => !el.classList.contains('ui-button--secondary') && !el.classList.contains('ui-button--quiet') && !el.classList.contains('ui-button--danger');
     const groups = Array.from(document.querySelectorAll('.ui-actions')).map((group) => {
-      const buttons = Array.from(group.querySelectorAll('.ui-button'));
+      // 入れ子の並び（timer は確認ダイアログを「終える区画」の DOM の中に描く）のボタンは、内側の並びだけに数える
+      const buttons = Array.from(group.querySelectorAll('.ui-button')).filter((b) => b.closest('.ui-actions') === group);
       const primaries = buttons.filter(isPrimary);
       const last = buttons[buttons.length - 1];
       return {
@@ -50,7 +61,7 @@ async function scanButtons(page: Page) {
     });
 
     // 当たり: 見た目の箱。::before が絶対配置なら、その広がりを含める（--sm の上下 +4px）
-    const hits = Array.from(document.querySelectorAll('.ui-button'))
+    const hits = Array.from(document.querySelectorAll(`${scope} .ui-button`))
       .filter(visible)
       .map((el) => {
         const r = el.getBoundingClientRect();
@@ -67,7 +78,7 @@ async function scanButtons(page: Page) {
       });
 
     return { bare, groups, hits, uiButtons: document.querySelectorAll('.ui-button').length };
-  }, BARE_ALLOWED);
+  }, [BARE_ALLOWED, hitScope] as const);
 }
 
 /** E6・E7: 素のボタンが無く、並びごとの主が 1 つ以下で最後にある。`minButtons` は測ったボタンの数の下限。 */
@@ -82,8 +93,8 @@ async function expectButtonContract(page: Page, label: string, minButtons: numbe
 }
 
 /** 当たりが 44×44 以上で、どの 2 つも重ならない。 */
-async function expectHitTargets(page: Page, label: string, minButtons: number): Promise<void> {
-  const { hits } = await scanButtons(page);
+async function expectHitTargets(page: Page, label: string, minButtons: number, hitScope = 'body'): Promise<void> {
+  const { hits } = await scanButtons(page, hitScope);
   expect(hits.length, `${label}: 描かれたボタンが少ない（判定が空振りする）`).toBeGreaterThanOrEqual(minButtons);
   for (const h of hits) {
     expect(h.rect.width, `${label}: ${h.name} の当たりの幅`).toBeGreaterThanOrEqual(44 - 0.01);
@@ -101,15 +112,17 @@ async function expectHitTargets(page: Page, label: string, minButtons: number): 
   }
 }
 
-async function expectScreen(page: Page, label: string, minButtons: number): Promise<void> {
+/** `hitScope`: 当たりを測る範囲。モーダルの確認ダイアログは背景の画面の上に重なるので、ダイアログの中だけで測る。 */
+async function expectScreen(page: Page, label: string, minButtons: number, hitScope = 'body'): Promise<void> {
   await expectButtonContract(page, label, minButtons);
-  await expectHitTargets(page, label, minButtons);
+  await expectHitTargets(page, label, minButtons, hitScope);
 }
 
 /*
- * **ルームは 2 つしか作らない。** 同期サーバーのルームの枠（既定 100・アイドル 30 分で解放）を E2E 全件が使い切りに近い。
+ * **ルームは画面の種類ごとに 1 つ（玄関・poker・帯 / お題ツール / timer の 3 つ）しか作らない。** 同期サーバーのルームの枠（既定 100・アイドル 30 分で解放）を E2E 全件が使い切りに近い。
  * 画面ごとにルームを作ると、全件を流したときに末尾のテストが「操作を完了できませんでした」で落ちる（実測: 6 ルーム足して 2 件落ちた）。
- * そのため、玄関・poker・帯は 1 つのルームで、お題ツールは別の 1 つで、幅を変えながら続けて測る。
+ * そのため、玄関・poker・帯は 1 つのルームで、お題ツールは別の 1 つで、timer も 1 つ（ロビー → セッション → 確認 → まとめの順）で、
+ * 幅を変えながら続けて測る。timer は layout.spec.ts にも 1 室ある（#316 PR 3 で 6 室から 2 室に減らした。main は 1 室）。
  */
 
 /** 帯の箱と、帯の外にある中身の最下端、画面の高さ・スクロール位置を測る。 */
@@ -257,3 +270,235 @@ test.describe('お題ツールのボタンは部品で、押せる大きさが�
     await expectScreen(page, 'お題ツール（下書き）', 3);
   });
 });
+
+/**
+ * timer の各画面（#316 PR 3・Task 4b）。ルームは 1 つ。参加者 6 人（うち 1 人は 30 字の名前）は代理追加で作る
+ * （ページを増やさずに、名簿の行と操作を同じに描かせる）。
+ *
+ * 帯は計器のカード（`.session-driver-card`）の最後の子で、**カードの範囲の中でだけ**留まる。
+ * 「完成!」は次のカードにあるので `expectFocusNotHiddenByDock`（辿った先の下端 ≤ 帯の上端）は当てはまらない。
+ * そこで、Tab の一歩ごとに「辿った先の箱が帯の箱と重ならない（帯の中の操作を除く）」を見る。
+ */
+// 幅の広い字を 30 字、切れ目なしで並べる（名簿の名前が `overflow-wrap` で折れないと 22rem の脇から溢れる）
+const LONG_NAME = 'W'.repeat(30);
+
+async function addProxies(page: Page, names: string[]): Promise<void> {
+  for (const name of names) {
+    const input = page.getByLabel('代理参加者の名前');
+    // 追加フォームは「名簿に載った次の描画の後」で閉じる（RosterPanel の効果）。行が見えた直後は
+    // まだ開いて見えるので、そのまま次の名前で `isVisible()` を見ると「開いている」と読んで押さず、
+    // その後に閉じて `fill` が待ち続ける。毎回、閉じるのを待ってから次の名前へ進む。
+    await expect(input, '代理の追加フォームが閉じていない（前の代理が名簿に届いていない）').toBeHidden();
+    await page.getByRole('button', { name: '代理参加者を追加' }).click();
+    await input.fill(name);
+    await input.press('Enter');
+    await expect(page.locator('.roster-panel-name', { hasText: name }).first(), `代理 ${name} が名簿に載らない`).toBeVisible();
+    await expect(input, `代理 ${name} を載せたあとフォームが閉じない`).toBeHidden();
+  }
+}
+
+/** 名簿の行の小さな操作（`.roster-panel-mini-button`）の当たり（擬似要素の広がりを含む）が 44×44 以上で、重ならない。 */
+async function expectMiniHitTargets(page: Page, label: string): Promise<void> {
+  const hits = await page.evaluate(() => Array.from(document.querySelectorAll('.roster-panel-mini-button'))
+    .filter((el) => el.getBoundingClientRect().width > 0)
+    .map((el) => {
+      const r = el.getBoundingClientRect();
+      const cs = getComputedStyle(el);
+      const p = getComputedStyle(el, '::before');
+      const hit = p.content !== 'none' && p.position === 'absolute'
+        ? { left: r.left + parseFloat(cs.borderLeftWidth) + parseFloat(p.left), top: r.top + parseFloat(cs.borderTopWidth) + parseFloat(p.top), width: parseFloat(p.width), height: parseFloat(p.height) }
+        : { left: r.left, top: r.top, width: r.width, height: r.height };
+      return { name: (el.getAttribute('aria-label') ?? el.textContent ?? '').slice(0, 20), hit };
+    }));
+  expect(hits.length, `${label}: 名簿の小さな操作が描かれていない`).toBeGreaterThanOrEqual(10);
+  for (const h of hits) {
+    // 0.05px の余裕は Chromium のレイアウトの丸め（1/64px 単位。実測 43.984）
+    expect(Math.min(h.hit.width, h.hit.height) >= 44 - 0.05, `${label}: ${h.name} の当たり ${h.hit.width}x${h.hit.height}`).toBe(true);
+  }
+  const overlap = (a: Rect, b: Rect) =>
+    Math.min(a.left + a.width, b.left + b.width) - Math.max(a.left, b.left) > 0.5 &&
+    Math.min(a.top + a.height, b.top + b.height) - Math.max(a.top, b.top) > 0.5;
+  for (let i = 0; i < hits.length; i += 1) {
+    for (let j = i + 1; j < hits.length; j += 1) {
+      expect(overlap(hits[i]!.hit, hits[j]!.hit), `${label}: ${hits[i]!.name} と ${hits[j]!.name} の当たりが重なる`).toBe(false);
+    }
+  }
+}
+
+/** 名簿の内側のスクロールと、行ごとの横溢れ、ページの横溢れを測る。 */
+async function measureRoster(page: Page) {
+  return page.evaluate(() => {
+    const lists = Array.from(document.querySelectorAll('.roster-panel-list')).map((el) => ({
+      scrollH: el.scrollHeight, clientH: el.clientHeight, overflowY: getComputedStyle(el).overflowY,
+    }));
+    const rows = Array.from(document.querySelectorAll('.ui-workspace-side .roster-panel-row')).map((el) => ({
+      name: (el.querySelector('.roster-panel-name')?.textContent ?? '').slice(0, 12), scrollW: el.scrollWidth, clientW: el.clientWidth,
+      actionsH: el.querySelector('.roster-panel-actions')?.getBoundingClientRect().height ?? 0,
+    }));
+    const doc = document.documentElement;
+    return { lists, rows, pageScrollW: doc.scrollWidth, pageClientW: doc.clientWidth };
+  });
+}
+
+/** Tab を一歩ずつ進め、辿った先が帯と重ならないことを見る。帯が留まっている間に帯の上の要素を通ったことも固定する。 */
+async function expectTabNeverUnderDock(page: Page, target: string, label: string): Promise<void> {
+  await page.evaluate(() => window.scrollTo(0, 0));
+  // Tab の起点を頁の左上へ戻す（`body.focus()` では起点が前のフォーカスに残り、先頭の要素を飛ばして帯から始まる）
+  await page.mouse.click(1, 1);
+  let reached = false;
+  let sawAboveWhilePinned = 0;
+  const trace: string[] = [];
+  for (let i = 0; i < 80 && !reached; i += 1) {
+    await page.keyboard.press('Tab');
+    const m = await page.evaluate(() => {
+      const f = document.activeElement!;
+      const d = document.querySelector('.ui-actions--dock')!;
+      const fr = f.getBoundingClientRect();
+      const dr = d.getBoundingClientRect();
+      return {
+        text: (f.textContent ?? '').trim(),
+        inDock: d.contains(f),
+        fTop: fr.top, fBottom: fr.bottom, fLeft: fr.left, fRight: fr.right,
+        dTop: dr.top, dBottom: dr.bottom, dLeft: dr.left, dRight: dr.right,
+        viewport: innerHeight,
+      };
+    });
+    trace.push(`${m.text.slice(0, 8)}|f${Math.round(m.fBottom)}|d${Math.round(m.dTop)}-${Math.round(m.dBottom)}|vh${m.viewport}`);
+    if (!m.inDock) {
+      const overlapV = Math.min(m.fBottom, m.dBottom) - Math.max(m.fTop, m.dTop);
+      const overlapH = Math.min(m.fRight, m.dRight) - Math.max(m.fLeft, m.dLeft);
+      expect(overlapV > 0.5 && overlapH > 0.5, `${label}: Tab で辿った「${m.text}」が帯に隠れる（縦 ${overlapV.toFixed(1)}px）`).toBe(false);
+      if (m.fBottom <= m.dTop + 0.5 && Math.abs(m.dBottom - m.viewport) <= 1) sawAboveWhilePinned += 1;
+    }
+    reached = m.text === target;
+  }
+  expect(reached, `${label}: Tab で「${target}」に届かない`).toBe(true);
+  expect(sawAboveWhilePinned, `${label}: 帯が留まっている間に帯の上の要素を通っていない（判定が空振りする）\n${trace.join('\n')}`).toBeGreaterThan(0);
+}
+
+test.describe('timer の各画面（ロビー・セッション・確認・まとめ）のボタンは部品で、押せる大きさがあり、帯は留まり、名簿は内側でスクロールしない', () => {
+  test('Given 幅 390 の timer のロビー / When セッション（参加者 6 人・30 字の名前を含む。1280 と 390）・「途中で終える」の確認・まとめの順に開く / Then 素のボタンは許可したものだけで、主は 1 つ以下で最後にあり、当たりが 44px 以上で重ならず、名簿に内側のスクロールが無く行は横に溢れず、帯は計器のカードの中で留まり、終える区画の主は最後で危険は左に離れ、Tab は帯に隠れない', async ({ page }) => {
+    // ルームの枠が逼迫しているので、timer は 1 室で画面の流れの順に全てを見る（まとめは戻れないので最後）。
+    // ロビー: 開始ボタンが見えてから測る
+    await page.setViewportSize({ width: 390, height: 800 });
+    await createTimerRoom(page, 'buttons-timer');
+    await expect(page.getByRole('button', { name: 'セッションを開始' })).toBeVisible();
+    await expectScreen(page, 'timer ロビー（390）', 2);
+
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.getByRole('button', { name: 'セッションを開始' }).click();
+    await expect(page.getByRole('timer')).toBeVisible();
+    await addProxies(page, [LONG_NAME, 'proxy-b', 'proxy-c', 'proxy-e', 'proxy-f']);
+    await expect(page.locator('.ui-workspace-side .roster-panel-row'), '名簿は 6 人').toHaveCount(6);
+
+    // Then 1280（脇 22rem）: 内側のスクロールが無く、行は横に溢れない
+    const wide = await measureRoster(page);
+    expect(wide.lists.length, '名簿の一覧が描かれていない').toBeGreaterThan(0);
+    for (const l of wide.lists) {
+      expect(l.scrollH, `名簿の一覧に内側のスクロールがある（overflow-y: ${l.overflowY}）`).toBeLessThanOrEqual(l.clientH);
+    }
+    expect(wide.rows.length).toBe(6);
+    for (const r of wide.rows) expect(r.scrollW, `名簿の行「${r.name}」が横に溢れる`).toBeLessThanOrEqual(r.clientW);
+    expect(wide.pageScrollW, '1280: ページが横に溢れる').toBeLessThanOrEqual(wide.pageClientW);
+    // 行の操作の行は 1 段（アイコンの操作は名前の行の右端にある）。22rem の脇で 3 段に折れると 1 行が約 180px になる
+    for (const r of wide.rows) expect(r.actionsH, `名簿の行「${r.name}」の操作の行が 1 段に収まらない（${r.actionsH}px）`).toBeLessThanOrEqual(44 + 2);
+    await expectScreen(page, 'timer セッション（1280）', 8);
+    await expectMiniHitTargets(page, 'timer セッション（1280）');
+
+    // 終える区画: 主は最後（完成!）、危険の 2 つは .ui-actions-start に入って左に離れる
+    const end = (await scanButtons(page)).groups.find((g) => g.names.includes('完成!'));
+    expect(end?.names, '終える区画の並びは「途中で終える」「最初から」「完成!」').toEqual(['途中で終える', '最初から', '完成!']);
+    expect(end?.primaries).toEqual(['完成!']);
+    const endBox = await page.getByRole('group', { name: 'セッションを終える' }).evaluate((el) => {
+      const r = (e: Element) => e.getBoundingClientRect();
+      const start = el.querySelector('.ui-actions-start');
+      const complete = Array.from(el.querySelectorAll('button')).find((b) => b.textContent?.trim() === '完成!')!;
+      return {
+        isActions: el.classList.contains('ui-actions'),
+        dangersInStart: start !== null && start.querySelectorAll('.ui-button--danger').length === 2,
+        startLeft: start ? r(start).left : -1, groupLeft: r(el).left, completeRight: r(complete).right, groupRight: r(el).right,
+      };
+    });
+    expect(endBox.isActions, '終える区画が .ui-actions でない').toBe(true);
+    expect(endBox.dangersInStart, '危険の 2 つが .ui-actions-start に入っていない').toBe(true);
+    expect(Math.abs(endBox.startLeft - endBox.groupLeft), '危険が左端に離れていない').toBeLessThanOrEqual(1);
+    expect(Math.abs(endBox.groupRight - endBox.completeRight), '完成! が右端でない').toBeLessThanOrEqual(1);
+
+    // 390: 操作は下端の帯。順は時間リセット → スキップ → 一時停止（主が最後）
+    await page.setViewportSize({ width: 390, height: 460 });
+    const dock = page.locator('.session-driver-card > .ui-actions--dock');
+    await expect(dock, '操作の並びが .ui-actions--dock でない').toBeVisible();
+    const ops = (await scanButtons(page)).groups.find((g) => g.names.includes('一時停止'));
+    expect(ops?.names, '操作の並びは「時間リセット」「スキップ」「一時停止」').toEqual(['時間リセット', 'スキップ', '一時停止']);
+    expect(ops?.primaries).toEqual(['一時停止']);
+    await expect(page.locator('.session-driver-card')).toBeVisible();
+    await expectTimerDockPinned(page, dock);
+    expect((await measureRoster(page)).pageScrollW, '390: ページが横に溢れる').toBeLessThanOrEqual(390);
+    await expectMiniHitTargets(page, 'timer セッション（390）');
+
+    // 区切りのない 30 字の名前（次のドライバー）が「次:」の行と交代順の札で、カードの縁に切られない
+    const clip = await page.locator('.session-driver-card').evaluate((card, long) => {
+      const c = card.getBoundingClientRect();
+      const inner = c.right - parseFloat(getComputedStyle(card).paddingRight);
+      const rights = (sel: string) => Array.from(card.querySelectorAll(sel))
+        .filter((e) => e.textContent?.includes(long))
+        .map((e) => e.getBoundingClientRect().right);
+      return { inner, next: rights('.session-next-name'), chips: rights('.rotation-lineup-name') };
+    }, LONG_NAME);
+    expect(clip.next.length, '「次:」の名前が 30 字の名前でない').toBe(1);
+    expect(clip.chips.length, '交代順の札に 30 字の名前が無い').toBe(1);
+    for (const right of [...clip.next, ...clip.chips]) expect(right, `390: 長い名前がカードの縁（${clip.inner}）で切れる`).toBeLessThanOrEqual(clip.inner + 0.5);
+
+    // timer は要素層（`reset.css`）を読まないので、帯の逃がし余白（`scroll-padding-block-end`）は timer の `base.css` が持つ。
+    // 帯は計器のカードの中で留まり、カードには帯より上に隠れうる操作対象が無いので、Tab の行き先が帯の下に潜る場面はこの配置では作れない（下の一歩ごとの検査は予防）。
+    // 余白そのものは値で固定する（要素層と同じ 6rem・40rem 未満だけ）。
+    expect(await page.evaluate(() => getComputedStyle(document.documentElement).scrollPaddingBottom), '390: scroll-padding-block-end が 6rem でない').toBe('96px');
+
+    // Tab は「完成!」まで帯に隠れない
+    await expectTabNeverUnderDock(page, '完成!', 'timer セッション（390）');
+
+    // 40rem 以上は流れの中
+    await page.setViewportSize({ width: 1280, height: 900 });
+    expect((await measureDock(dock)).position, '40rem 以上で帯が流れの中に戻っていない').toBe('static');
+    expect(await page.evaluate(() => getComputedStyle(document.documentElement).scrollPaddingBottom), '1280: scroll-padding は 40rem 以上に掛けない').not.toBe('96px');
+
+    // セッション（390・高い画面）: 計器の帯の主（一時停止）と終える区画の「完成!」が見えてから測る
+    await page.setViewportSize({ width: 390, height: 800 });
+    await expect(page.getByRole('button', { name: '一時停止', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: '完成!', exact: true })).toBeVisible();
+    await expectScreen(page, 'timer セッション（390）', 6);
+
+    // 確認ダイアログ（「途中で終える」）: 取消と確定が見えてから測る。測ったら取り消す
+    await page.getByRole('button', { name: '途中で終える' }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog.getByRole('button', { name: '終える（記録なし）' })).toBeVisible();
+    // 最小数は当たりを測るダイアログの中のボタン数（取消と確定の 2 つ）。背景の画面のボタンは別に数える
+    await expectScreen(page, 'timer 確認ダイアログ（390）', 2, '[role="dialog"]');
+    expect((await scanButtons(page)).uiButtons, '確認ダイアログ: 背景の画面のボタンが描かれていない').toBeGreaterThanOrEqual(8);
+    expect((await scanButtons(page, '[role="dialog"]')).hits, '確認ダイアログの当たりは取消と確定の 2 つ').toHaveLength(2);
+    await dialog.getByRole('button', { name: 'キャンセル' }).click();
+    await expect(dialog).toBeHidden();
+
+    // まとめ: 完成! → 確認 → まとめ画面（新しいセッション）が見えてから測る
+    await page.getByRole('button', { name: '完成!', exact: true }).click();
+    await page.getByRole('dialog').getByRole('button', { name: '完成として記録する' }).click();
+    await expect(page.locator('.summary')).toBeVisible();
+    await expect(page.getByRole('button', { name: /新しいセッション/ })).toBeVisible();
+    await expectScreen(page, 'timer まとめ（390）', 1);
+  });
+});
+/** 帯が計器のカードの中で留まる: 先頭で下端に接し、最下部ではカードの中身（円盤・統計）の下に出る。 */
+async function expectTimerDockPinned(page: Page, dock: Locator): Promise<void> {
+  await page.locator('.session-driver-card').evaluate((el) => el.scrollIntoView({ block: 'start' }));
+  const top = await measureDock(dock);
+  expect(top.position, '帯が sticky でない').toBe('sticky');
+  expect(top.bottom, '先頭で帯が画面の下端に接していない').toBeCloseTo(top.viewport, 0);
+  await scrollToBottom(page);
+  const end = await page.evaluate(() => {
+    const d = document.querySelector('.ui-actions--dock')!.getBoundingClientRect();
+    const body = document.querySelector('.session-driver-body')!.getBoundingClientRect();
+    return { dockTop: d.top, dockBottom: d.bottom, bodyBottom: body.bottom, viewport: innerHeight };
+  });
+  expect(end.bodyBottom, '最下部で計器の中身が帯に隠れる').toBeLessThanOrEqual(end.dockTop + 0.5);
+  expect(end.dockBottom, '最下部で帯が画面から出ている').toBeLessThanOrEqual(end.viewport + 0.5);
+}

@@ -15,23 +15,50 @@ describe("お題の札", () => {
     // Then
     const region = screen.getByRole("region", { name: "お題" });
     expect(within(region).getByRole("heading", { level: 3, name: "FizzBuzz" })).toBeInTheDocument();
-    expect(within(region).getByRole("heading", { level: 4, name: "振る舞い" })).toBeInTheDocument();
-    expect(within(region).getByRole("listitem")).toHaveTextContent("3 のときは Fizz");
+    // シートは閉じていて a11y ツリーに出ない。本文の領域（読む面）の中だけを見る
+    const body = within(region).getByRole("region", { name: "FizzBuzz" });
+    expect(within(body).getByRole("heading", { level: 4, name: "振る舞い" })).toBeInTheDocument();
+    expect(within(body).getByRole("listitem")).toHaveTextContent("3 のときは Fizz");
   });
 
-  it("Given 本文が空 / When 描く / Then タイトルの見出しの後ろに本文の要素が続かない", () => {
+  it("Given 本文がある / When 描く / Then h2「お題」→ h3 タイトル → 本文の見出しは h4 の順で、読む面とシートを持つ", () => {
+    // Given
+    const topic = { title: "FizzBuzz", body: "# 振る舞い\n\n本文です", source: "manual" as const };
+    // When
+    const { container } = render(<TopicCard topic={topic} />);
+    // Then
+    const levels = Array.from(container.querySelectorAll("h2, h3, h4, h5, h6")).map((h) => `${h.tagName}:${h.textContent}`);
+    // シートの中の h3（タイトルの写し）も数える。本文の見出しは `headingBase={4}` で h4 から
+    expect(levels).toEqual(["H2:お題", "H3:FizzBuzz", "H4:振る舞い", "H3:FizzBuzz", "H4:振る舞い"]);
+    expect(container.querySelector("section.ui-reader")).not.toBeNull();
+    expect(container.querySelector(".ui-reader-body .ui-md")).not.toBeNull();
+    expect(container.querySelector(".markdown")).toBeNull();
+    expect(screen.getByRole("button", { name: "続きを読む", hidden: true })).toBeInTheDocument();
+    expect(container.querySelector("dialog.ui-drawer")).not.toBeNull();
+  });
+
+  it("Given 本文がある / When 描く / Then シートの h3 も札の h3 と同じ文字の段のクラスを持つ（reset.css が h3 を本文の字に戻すため）", () => {
+    // Given
+    const topic = { title: "FizzBuzz", body: "本文です", source: "manual" as const };
+    // When
+    const { container } = render(<TopicCard topic={topic} />);
+    // Then
+    const titles = Array.from(container.querySelectorAll("h3"));
+    expect(titles).toHaveLength(2);
+    for (const h of titles) expect(h).toHaveClass("timer-topic-title");
+    expect(container.querySelector(".ui-drawer-head h3")).toHaveClass("timer-topic-title");
+  });
+
+  it("Given 本文が空 / When 描く / Then 「続きを読む」もシートも本文の領域も描かない", () => {
     // Given
     const topic = { title: "FizzBuzz", body: "", source: "manual" as const };
     // When
-    render(<TopicCard topic={topic} />);
+    const { container } = render(<TopicCard topic={topic} />);
     // Then
-    // 「お題」領域の最後の子要素がタイトルの見出し（h3）であること。
-    // Markdown の外側の div が本文の有無に関わらず描かれると、それが
-    // 最後の子要素になってこの比較が崩れる（`TopicCard.tsx` の
-    // `topic.body !== ""` の条件を外すと赤になることを確認済み・
-    // task-3-report.md「修正 1 回目」参照）。
-    const region = screen.getByRole("region", { name: "お題" });
-    const heading = within(region).getByRole("heading", { level: 3, name: "FizzBuzz" });
-    expect(region.lastElementChild).toBe(heading);
+    // `topic.body !== ""` の条件を外すと、空の読む面・ボタン・シートが描かれて赤になる
+    expect(screen.queryByRole("button", { name: "続きを読む", hidden: true })).toBeNull();
+    expect(container.querySelector("dialog")).toBeNull();
+    expect(container.querySelector(".ui-reader-body")).toBeNull();
+    expect(screen.getByRole("heading", { level: 3, name: "FizzBuzz" })).toBeInTheDocument();
   });
 });

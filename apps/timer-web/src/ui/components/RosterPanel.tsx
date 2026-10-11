@@ -15,7 +15,7 @@ import React, { useState, useEffect, useId, useRef } from "react";
 import { Users, ChevronUp, ChevronDown, X } from "lucide-react";
 import type { Participant, Seat } from "@tasuki/timer-core";
 import { conflictsWithExisting, MAX_DISPLAY_NAME, normalizeDisplayName } from "@tasuki/room-core";
-import { GhostButton, PrimaryButton, SectionHeader } from "../primitives.js";
+import { SectionHeader } from "../primitives.js";
 import { presenceLabel } from "../presence.js";
 import { PresenceDot } from "./PresenceDot.js";
 import { RemovalConfirmDialog } from "./RemovalConfirmDialog.js";
@@ -102,8 +102,6 @@ interface RosterPanelProps {
   /** ドライバー順の入れ替え（v2.3 #1）。fromIndex→toIndex（rotation 内の位置）。
    *  ドライバー行（rotation に含まれる）にのみ上/下ボタンを出す。 */
   onMove?: ((fromIndex: number, toIndex: number) => void) | undefined;
-  /** 参加者リストに高さ上限＋内部スクロールを付ける（項目4・Session で有効化）。 */
-  scrollable?: boolean | undefined;
   /** 自分のローテーション操作（一時離脱/復帰）を外部の自己トグルが担うか。
    *  true（Session）なら自分の行には一時離脱/復帰を出さず重複を避ける。
    *  false/未指定（Solo 等・自己トグル無し）なら自分の行にも出す。 */
@@ -130,7 +128,6 @@ export function RosterPanel({
   rotation,
   onMove,
   onAssignDriver,
-  scrollable = false,
   seats,
 }: RosterPanelProps) {
   // 呼び名の同名判定プール（`participant-label.ts` に1つだけ置く規則の呼び出し口）。
@@ -448,6 +445,48 @@ export function RosterPanel({
                   ▶ 今
                 </span>
               )}
+              {/* アイコンだけの操作（並べ替え・退出）は名前の行の右端へ置く。文字の操作と同じ段に
+                  並べると 22rem の脇の列で 3 段に折れ、1 行が縦に長くなる（#316 PR 3・B2）。 */}
+              {(canMove || (!isMine && onRemove)) && (
+                <span className="roster-panel-icon-actions">
+                  {/* ドライバー順を入れ替えられる（v2.3 #1）。
+                      ドライバー行（rotation に含まれる）にのみ上/下を出す。先頭/末尾は無効化。 */}
+                  {canMove && (
+                    <>
+                      <MiniButton
+                        onClick={() => onMove!(rotationIndex, rotationIndex - 1)}
+                        disabled={rotationIndex === 0}
+                        aria-label={`${label} を前の順番へ`}
+                        title="前の順番へ"
+                      >
+                        <ChevronUp className="roster-panel-icon" aria-hidden="true" />
+                      </MiniButton>
+                      <MiniButton
+                        onClick={() => onMove!(rotationIndex, rotationIndex + 1)}
+                        disabled={rotationIndex === rotationLen - 1}
+                        aria-label={`${label} を後の順番へ`}
+                        title="後の順番へ"
+                      >
+                        <ChevronDown className="roster-panel-icon" aria-hidden="true" />
+                      </MiniButton>
+                    </>
+                  )}
+                  {/* 他の参加者を退出させる（⑪）。誰でも実行できる（#95 S3）。
+                      自分の行には出さない（自己退出は SelfDriverToggle 側・FR-078）。
+                      取り返しがつかない操作なので確認を挟む（FR-075）。
+                      同名が並ぶときはラベルに識別子を添える。二重参加の幽霊は本人と同名なので、
+                      名前だけだと「どちらを消すのか」を選ぶ時点で区別できない（FR-084）。 */}
+                  {!isMine && onRemove && (
+                    <MiniButton
+                      onClick={() => setPendingRemovalId(p.participantId)}
+                      aria-label={`${label} を退出させる`}
+                      title="退出させる"
+                    >
+                      <X className="roster-panel-icon" aria-hidden="true" />
+                    </MiniButton>
+                  )}
+                </span>
+              )}
             </div>
 
             {/* 2段目: 操作。バッジと分離し行幅いっぱいで右寄せ＋折返し（flex-wrap）にして、
@@ -490,42 +529,6 @@ export function RosterPanel({
                   ドライバーにする
                 </MiniButton>
               )}
-              {/* ドライバー順を入れ替えられる（v2.3 #1）。
-                  ドライバー行（rotation に含まれる）にのみ上/下を出す。先頭/末尾は無効化。 */}
-              {canMove && (
-                <>
-                  <MiniButton
-                    onClick={() => onMove!(rotationIndex, rotationIndex - 1)}
-                    disabled={rotationIndex === 0}
-                    aria-label={`${label} を前の順番へ`}
-                    title="前の順番へ"
-                  >
-                    <ChevronUp className="roster-panel-icon" aria-hidden="true" />
-                  </MiniButton>
-                  <MiniButton
-                    onClick={() => onMove!(rotationIndex, rotationIndex + 1)}
-                    disabled={rotationIndex === rotationLen - 1}
-                    aria-label={`${label} を後の順番へ`}
-                    title="後の順番へ"
-                  >
-                    <ChevronDown className="roster-panel-icon" aria-hidden="true" />
-                  </MiniButton>
-                </>
-              )}
-              {/* 他の参加者を退出させる（⑪）。誰でも実行できる（#95 S3）。
-                  自分の行には出さない（自己退出は SelfDriverToggle 側・FR-078）。
-                  取り返しがつかない操作なので確認を挟む（FR-075）。
-                  同名が並ぶときはラベルに識別子を添える。二重参加の幽霊は本人と同名なので、
-                  名前だけだと「どちらを消すのか」を選ぶ時点で区別できない（FR-084）。 */}
-              {!isMine && onRemove && (
-                <MiniButton
-                  onClick={() => setPendingRemovalId(p.participantId)}
-                  aria-label={`${label} を退出させる`}
-                  title="退出させる"
-                >
-                  <X className="roster-panel-icon" aria-hidden="true" />
-                </MiniButton>
-              )}
             </div>
           </>
         )}
@@ -553,7 +556,8 @@ export function RosterPanel({
         icon={Users}
         title="参加者"
         right={
-          <GhostButton
+          <button
+            type="button"
             onClick={() => {
               // 開閉で理由は持ち越さない。閉じて開き直した先に前回の赤が残っていると、
               // いま打っている名前について言っているように読める（#291）。
@@ -564,10 +568,10 @@ export function RosterPanel({
               setShowProxyInput((v) => !v);
             }}
             aria-label="代理参加者を追加"
-            className="roster-panel-proxy-toggle"
+            className="ui-button ui-button--secondary ui-button--sm"
           >
             代理追加
-          </GhostButton>
+          </button>
         }
       />
 
@@ -592,7 +596,7 @@ export function RosterPanel({
               aria-describedby={activeProxyRejection !== null ? proxyErrorId : undefined}
               className="roster-panel-proxy-input"
             />
-            <PrimaryButton onClick={handleAddProxy} className="roster-panel-proxy-add">追加</PrimaryButton>
+            <button type="button" onClick={handleAddProxy} className="ui-button ui-button--secondary ui-button--sm">追加</button>
           </div>
           {activeProxyRejection !== null && (
             // `role="alert"` にして、目で追っていない人にも即時に読み上げさせる。
@@ -618,7 +622,6 @@ export function RosterPanel({
           <ul
             aria-label="ドライバー一覧"
             className="roster-panel-list"
-            data-scrollable={scrollable ? "" : undefined}
           >
             {drivers.map(renderRow)}
           </ul>
@@ -632,7 +635,6 @@ export function RosterPanel({
           <ul
             aria-label="見学一覧"
             className="roster-panel-list"
-            data-scrollable={scrollable ? "" : undefined}
           >
             {watchers.map(renderRow)}
           </ul>

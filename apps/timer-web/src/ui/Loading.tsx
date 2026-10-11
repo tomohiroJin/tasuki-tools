@@ -30,7 +30,7 @@
  */
 import React from "react";
 import { CloudOff, RotateCcw, ArrowLeft } from "lucide-react";
-import { Card, PrimaryButton, GhostButton } from "./primitives.js";
+import { Card } from "./primitives.js";
 import type { ConnectionStatus } from "./components/StatusStrip.js";
 
 /**
@@ -130,18 +130,21 @@ export function Loading({ connectionStatus, timedOut, onReload, onLeave }: Loadi
           </p>
 
           <p className="loading-next-hint">次にできること</p>
-          <PrimaryButton onClick={onReload} className="loading-reload">
-            <span className="loading-button-label">
-              <RotateCcw className="loading-button-icon" aria-hidden="true" />
-              この画面を再読み込みする
-            </span>
-          </PrimaryButton>
-          <GhostButton onClick={onLeave} className="loading-leave">
-            <span className="loading-button-label">
-              <ArrowLeft className="loading-button-icon" aria-hidden="true" />
-              最初の画面へ戻る
-            </span>
-          </GhostButton>
+          {/* 並びは戻る → 再読み込み（主は最後） */}
+          <div className="ui-actions loading-actions">
+            <button type="button" onClick={onLeave} className="ui-button ui-button--quiet">
+              <span className="loading-button-label">
+                <ArrowLeft className="loading-button-icon" aria-hidden="true" />
+                最初の画面へ戻る
+              </span>
+            </button>
+            <button type="button" onClick={onReload} className="ui-button">
+              <span className="loading-button-label">
+                <RotateCcw className="loading-button-icon" aria-hidden="true" />
+                この画面を再読み込みする
+              </span>
+            </button>
+          </div>
         </Card>
       </div>
     );

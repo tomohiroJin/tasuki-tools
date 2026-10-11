@@ -12,13 +12,25 @@ import React from "react";
 import type { LucideIcon } from "lucide-react";
 
 /** 全画面共通の舞台。計器盤面（grid+grain+vignette は CSS の ::before/::after）＋中央寄せコンテナ。 */
-export function Stage({ children }: { children: React.ReactNode }) {
+export function Stage({ page, children }: { page: "prose" | "default" | "wide"; children: React.ReactNode }) {
   return (
     <div className="instrument-stage stage">
-      {/* 器は部品層の `.ui-page`（72rem・#316）。`stage-inner` は timer の計器の縦の余白と重なりの基準だけを持つ。
-          timer は `<main>` ではなくこの `<div>` に器を当てる（`<main>` は各画面が持つ）。縦の余白は計器の都合で
-          `.stage-inner` が器の `padding-block` を上書きする。#316 PR 3 で `--wide` へ寄せるときに見直す。 */}
-      <div className="ui-page stage-inner">{children}</div>
+      {/* 器は部品層の `.ui-page`（#316）。段（`prose` 40rem・`default` 72rem・`wide` 96rem）は画面の用途で
+          呼び出し側が選ぶ（既定値は置かない。新しい画面を足す人に段を選ばせる）。`stage-inner` は timer の
+          計器の縦の余白と重なりの基準だけを持つ。timer は `<main>` ではなくこの `<div>` に器を当てる
+          （`<main>` は各画面が持つ）。縦の余白は計器の都合で `.stage-inner` が器の `padding-block` を上書きする。
+          `className` は `audit-timer-classes` が読めるよう、枝ごとの文字列リテラルで書く。 */}
+      <div
+        className={
+          page === "wide"
+            ? "ui-page ui-page--wide stage-inner"
+            : page === "prose"
+              ? "ui-page ui-page--prose stage-inner"
+              : "ui-page stage-inner"
+        }
+      >
+        {children}
+      </div>
     </div>
   );
 }
@@ -50,36 +62,6 @@ export function Card({
       <CornerTicks />
       {children}
     </div>
-  );
-}
-
-interface BtnProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  children: React.ReactNode;
-}
-
-/** 主操作ボタン（シグナル朱・実体ボタン＝計測開始/確定の唯一の朱）。 */
-export function PrimaryButton({ children, className = "", ...rest }: BtnProps) {
-  return (
-    <button
-      type="button"
-      className={`signal-button ${className}`}
-      {...rest}
-    >
-      {children}
-    </button>
-  );
-}
-
-/** 副操作ボタン（スチール枠のゴースト）。 */
-export function GhostButton({ children, className = "", ...rest }: BtnProps) {
-  return (
-    <button
-      type="button"
-      className={`ghost-button ${className}`}
-      {...rest}
-    >
-      {children}
-    </button>
   );
 }
 

@@ -33,106 +33,21 @@
 }
 
 .confirm-dialog-title {
-  font-size: 1.125rem; /* scale-exempt: Tailwind の text-lg の写し（#316 で段へ寄せる） */
-  line-height: var(--timer-never-defined, calc(1.75 / 1.125)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  /* ダイアログの題は区画の見出しと同じ段（§11） */
+  font-size: var(--font-size-lg);
+  line-height: var(--line-tight);
   font-weight: 700;
 }
 
 .confirm-dialog-description {
   margin-top: 0.5rem;
-  font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 で段へ寄せる） */
+  font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 PR 4 で段へ寄せる） */
   line-height: var(--timer-never-defined, calc(1.25 / 0.875)); /* 行の高さは status-strip.css 冒頭の注釈 */
   color: var(--bone-muted);
 }
 
+/* 並び（取り消し → 確定）は部品の `.ui-actions`。ここは本文との間隔だけ */
 .confirm-dialog-actions {
   margin-top: 1.25rem;
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
 }
 
-.confirm-dialog-cancel {
-  padding-inline: 1rem;
-  padding-block: 0.5rem;
-  border-radius: var(--radius-md);
-  font-weight: 500;
-  background-color: var(--panel-2);
-  border-width: 1px;
-  border-color: var(--hairline-strong);
-  transition-property: all;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
-}
-
-@media (hover: hover) {
-  .confirm-dialog-cancel:hover {
-    background-color: var(--panel-hover);
-  }
-}
-
-/* ring-offset → ring の順に合成する（Tailwind の `box-shadow` の並び） */
-.confirm-dialog-cancel:focus-visible {
-  box-shadow:
-    0 0 0 2px var(--ink),
-    0 0 0 4px var(--signal);
-}
-
-.confirm-dialog-confirm {
-  padding-inline: 1.25rem;
-  padding-block: 0.5rem;
-  border-radius: var(--radius-md);
-  font-weight: 700;
-  transition-property: all;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
-}
-
-.confirm-dialog-confirm:active {
-  scale: 95% 95%;
-}
-
-.confirm-dialog-confirm-primary {
-  background-color: var(--signal);
-  color: var(--on-signal);
-  box-shadow:
-    0 0 0 1px var(--signal-edge),
-    0 6px 20px var(--signal-glow);
-}
-
-@media (hover: hover) {
-  .confirm-dialog-confirm-primary:hover {
-    background-color: var(--signal-hover);
-  }
-}
-
-/* ring の色は `ring-2` に色を渡していないので文字色（`currentColor` = `--on-signal`）になる */
-.confirm-dialog-confirm-primary:focus-visible {
-  box-shadow:
-    0 0 0 2px var(--ink),
-    0 0 0 4px var(--on-signal),
-    0 0 0 1px var(--signal-edge),
-    0 6px 20px var(--signal-glow);
-}
-
-/* 危険の確認。ring-1 の色（`--urgent-edge`）が focus の ring-2 にも引き継がれる。 */
-.confirm-dialog-confirm-danger {
-  background-color: var(--urgent);
-  color: var(--on-urgent);
-  box-shadow:
-    0 0 0 1px var(--urgent-edge),
-    0 4px 16px var(--urgent-veil);
-}
-
-@media (hover: hover) {
-  .confirm-dialog-confirm-danger:hover {
-    background-color: var(--urgent-hover);
-  }
-}
-
-.confirm-dialog-confirm-danger:focus-visible {
-  box-shadow:
-    0 0 0 2px var(--ink),
-    0 0 0 4px var(--urgent-edge),
-    0 4px 16px var(--urgent-veil);
-}

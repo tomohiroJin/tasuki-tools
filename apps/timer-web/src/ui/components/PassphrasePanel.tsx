@@ -6,7 +6,7 @@
 import React, { useState } from "react";
 import { Lock } from "lucide-react";
 import { MAX_PASSPHRASE } from "@tasuki/timer-core/aggregate";
-import { PrimaryButton, GhostButton, SectionHeader } from "../primitives.js";
+import { SectionHeader } from "../primitives.js";
 
 interface PassphrasePanelProps {
   /** 現在パスフレーズ保護中か（snapshot の passphraseProtected）。 */
@@ -30,9 +30,9 @@ export function PassphrasePanel({ protectedNow, onSet }: PassphrasePanelProps) {
         <div className="passphrase-panel-active">
           {/* 状態は色ではなくテキストで明示（アイコンは SectionHeader の Lock に統一）。 */}
           <span className="passphrase-panel-status">パスフレーズ設定中</span>
-          <GhostButton onClick={() => onSet("")} className="passphrase-panel-button">
+          <button type="button" onClick={() => onSet("")} className="ui-button ui-button--secondary ui-button--sm">
             解除
-          </GhostButton>
+          </button>
         </div>
       ) : (
         <div className="passphrase-panel-form">
@@ -48,9 +48,9 @@ export function PassphrasePanel({ protectedNow, onSet }: PassphrasePanelProps) {
             placeholder="任意。設定すると参加に必要"
             className="passphrase-panel-input"
           />
-          <PrimaryButton onClick={submit} disabled={!value} className="passphrase-panel-button">
+          <button type="button" onClick={submit} disabled={!value} className="ui-button ui-button--secondary ui-button--sm">
             設定
-          </PrimaryButton>
+          </button>
         </div>
       )}
     </div>

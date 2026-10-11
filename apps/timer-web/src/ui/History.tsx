@@ -8,7 +8,7 @@
 import React, { useEffect, useState } from "react";
 import { History as HistoryIcon, Trash2, ArrowLeft } from "lucide-react";
 import type { CompletionRecord } from "@tasuki/timer-core";
-import { Card, GhostButton, SectionHeader } from "./primitives.js";
+import { Card, SectionHeader } from "./primitives.js";
 import { EmptyHint } from "./components/EmptyHint.js";
 import { loadRecords, deleteRecord } from "../records/indexeddb.js";
 
@@ -81,12 +81,12 @@ export function History({ onBack }: HistoryProps) {
           icon={HistoryIcon}
           title="完了記録の履歴"
           right={
-            <GhostButton onClick={onBack}>
+            <button type="button" className="ui-button ui-button--quiet ui-button--sm" onClick={onBack}>
               <span className="history-back">
                 <ArrowLeft className="history-icon" aria-hidden="true" />
                 戻る
               </span>
-            </GhostButton>
+            </button>
           }
         />
 
@@ -107,18 +107,19 @@ export function History({ onBack }: HistoryProps) {
                         {record.topicTitle ?? NO_TOPIC_LABEL}
                       </p>
                     </div>
-                    <GhostButton
+                    <button
+                      type="button"
                       onClick={() => handleDelete(record.id)}
                       // **完了日時を名前に入れる**（E23）。タイトルだけだと、お題なしの記録や同じお題の記録が
                       // 並んだとき、支援技術から削除ボタンを区別できない。
                       aria-label={`${formatCompletedAt(record.completedAt)} に完了した「${record.topicTitle ?? NO_TOPIC_LABEL}」の記録を削除`}
-                      className="history-delete"
+                      className="ui-button ui-button--danger ui-button--sm history-delete"
                     >
                       <span className="history-delete-label">
                         <Trash2 className="history-icon" aria-hidden="true" />
                         削除
                       </span>
-                    </GhostButton>
+                    </button>
                   </div>
 
                   <dl className="history-facts">

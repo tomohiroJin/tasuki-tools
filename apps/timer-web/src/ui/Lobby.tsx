@@ -8,7 +8,7 @@ import React, { useState } from "react";
 import { Users, Play, UserPlus, UserMinus, ChevronUp, ChevronDown, X, Shuffle, Bell } from "lucide-react";
 import type { Room } from "@tasuki/timer-core";
 import type { Topic } from "@tasuki/topic-core";
-import { Card, PrimaryButton, GhostButton, SectionHeader } from "./primitives.js";
+import { Card, SectionHeader } from "./primitives.js";
 import { TopicCard } from "./components/TopicCard.js";
 import { SessionConfigPanel } from "./components/SessionConfigPanel.js";
 import { InvitePanel } from "./components/InvitePanel.js";
@@ -113,9 +113,9 @@ export function Lobby({
   // **お題の有無では止めない**（#91 PR 3）。お題はお題ツールが配る任意の札になり、
   // 無いのが既定になったので、待つと誰も始められなくなる。
   const startButton = (
-    <PrimaryButton className="lobby-start" onClick={onStartSession}>
+    <button type="button" className="ui-button ui-button--lg lobby-start" onClick={onStartSession}>
       <span className="lobby-start-label"><Play className="lobby-start-icon" aria-hidden="true" /> セッションを開始</span>
-    </PrimaryButton>
+    </button>
   );
 
   return (
@@ -134,9 +134,10 @@ export function Lobby({
           onCancel={() => setPendingRemovalId(null)}
         />
       )}
-      <div className="lobby">
-        {/* いまのお題（#91）。timer は読むだけで、変えるのはお題ツールの仕事（spec T4）。 */}
-        {topic && <TopicCard topic={topic} />}
+      {/* 段組みは部品層の `.ui-workspace`（#316 PR 3）。操作の面＝開始・設定・通知（狭い幅でも先に見える）、
+          脇（右・22rem）＝お題・参加者・招待・パスフレーズ。 */}
+      <div className="ui-workspace ui-workspace--side-end">
+        <div className="ui-workspace-main lobby-column">
         {startButton}
         {/* セッション設定（交代間隔・詳細設定）。誰でも変更できる。 */}
         <Card>
@@ -145,21 +146,9 @@ export function Lobby({
             onChange={(patch) => onConfigSet?.(patch)}
           />
         </Card>
-        <InvitePanel code={room.code} roomUrl={inviteUrl} />
-        {/* ルームのパスフレーズ設定/解除（R4-2）。招待のすぐ下に置く。 */}
-        {onSetPassphrase && (
-          <Card>
-            <PassphrasePanel
-              protectedNow={!!room.passphraseProtected}
-              onSet={onSetPassphrase}
-            />
-          </Card>
-        )}
         {/* 通知設定カード。セッション開始前に音通知を整えておける。 */}
         <Card>
-          <div className="lobby-notify-heading">
-            <Bell className="lobby-notify-icon" aria-hidden="true" /> 交代通知
-          </div>
+          <SectionHeader icon={Bell} title="交代通知" />
           <NotifySettingsPanel
             prefs={notifyPrefs}
             onChange={(patch) => {
@@ -170,6 +159,13 @@ export function Lobby({
             onPreview={() => playChime(notifyPrefs.soundId, notifyPrefs.volume)}
           />
         </Card>
+        </div>
+        <div className="ui-workspace-side lobby-column">
+        {/* いまのお題（#91）。timer は読むだけで、変えるのはお題ツールの仕事（spec T4）。 */}
+        {topic && <TopicCard topic={topic} />}
+        {/* 招待はお題のすぐ下（#316 PR 3）。狭い幅では脇が操作の面の後に積まれるので、参加者の一覧より後ろに置くと
+            ルームを作った直後にコードを探してスクロールすることになる（下の一覧のヒントも「上の招待リンク」を指す）。 */}
+        <InvitePanel code={room.code} roomUrl={inviteUrl} />
         {/* 参加者一覧 */}
         <Card>
           <SectionHeader
@@ -178,9 +174,9 @@ export function Lobby({
             right={
               /* ドライバー順をランダムに（v2.3 #1）。2人以上で意味を持つ。 */
               onShuffle && room.session.rotation.length > 1 ? (
-                <GhostButton onClick={onShuffle} aria-label="ドライバー順をランダムに並べ替える" className="lobby-shuffle">
+                <button type="button" onClick={onShuffle} aria-label="ドライバー順をランダムに並べ替える" className="ui-button ui-button--secondary ui-button--sm">
                   <span className="lobby-shuffle-label"><Shuffle className="lobby-shuffle-icon" aria-hidden="true" /> ランダム</span>
-                </GhostButton>
+                </button>
               ) : undefined
             }
           />
@@ -221,31 +217,33 @@ export function Lobby({
                   <span className="lobby-participant-actions">
                     {isMe && (
                       inRotation ? (
-                        <GhostButton
+                        <button
+                          type="button"
                           onClick={() => onLeaveRotation?.(p.participantId)}
                           disabled={isLastDriver}
                           title={isLastDriver ? "最後のドライバーは外れられません" : undefined}
-                          className="lobby-row-action"
+                          className="ui-button ui-button--secondary ui-button--sm"
                         >
                           列から外れる
-                        </GhostButton>
+                        </button>
                       ) : (
-                        <PrimaryButton onClick={() => onJoinRotation?.(p.participantId)} className="lobby-row-action lobby-row-join">
+                        <button type="button" onClick={() => onJoinRotation?.(p.participantId)} className="ui-button ui-button--secondary ui-button--sm">
                           ドライバーに加わる
-                        </PrimaryButton>
+                        </button>
                       )
                     )}
                     {/* ルームから抜ける（自己退出・Issue #37）。自分の操作なので確認は課さない（FR-079）。
                         かつては「編集者以上が1名以上残る」という不変条件で無効化していた
                         （#95 S3 でその不変条件ごと消え、いつでも抜けられる）。 */}
                     {isMe && onRemoveParticipant && (
-                      <GhostButton
+                      <button
+                        type="button"
                         onClick={() => onRemoveParticipant(p.participantId)}
                         title="この端末をルームから外します。招待から再参加できます。"
-                        className="lobby-row-action"
+                        className="ui-button ui-button--quiet ui-button--sm"
                       >
                         ルームから抜ける
-                      </GhostButton>
+                      </button>
                     )}
                     {/* 他参加者のドライバー加入/離脱を制御できる（②） */}
                     {!isMe && (
@@ -303,6 +301,16 @@ export function Lobby({
             </div>
           )}
         </Card>
+        {/* ルームのパスフレーズ設定/解除（R4-2）。設定はまれなので脇の最後に置く（#316 PR 3）。 */}
+        {onSetPassphrase && (
+          <Card>
+            <PassphrasePanel
+              protectedNow={!!room.passphraseProtected}
+              onSet={onSetPassphrase}
+            />
+          </Card>
+        )}
+        </div>
       </div>
     </>
   );

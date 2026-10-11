@@ -10,7 +10,7 @@ import {
 import { secondsLeft, elapsedMs } from "@tasuki/timer-core/aggregate";
 import type { Room } from "@tasuki/timer-core";
 import type { Topic } from "@tasuki/topic-core";
-import { Card, GhostButton, PrimaryButton } from "./primitives.js";
+import { Card } from "./primitives.js";
 import { TopicCard } from "./components/TopicCard.js";
 import { CircularProgress } from "./components/CircularProgress.js";
 import { TeamOrbit } from "./components/TeamOrbit.js";
@@ -213,8 +213,6 @@ export function Session({
   // 「セッション」タブのコンテンツ（既存 UI をそのまま移動）。
   const sessionPanel = (
     <div className="session-panel">
-      {/* いまのお題（#91）。timer は読むだけで、変えるのはお題ツールの仕事（spec T4）。 */}
-      {topic && <TopicCard topic={topic} />}
       {/* 初回ヒント（未読かつ通知 OFF のときのみ）。閉じる or 通知 ON で消える。 */}
       {!hintDismissed && !notifyPrefs.enabled && <NotifyHint onDismiss={dismissHint} />}
 
@@ -294,31 +292,35 @@ export function Session({
           </div>
         </div>
 
-        {/* 操作（スキップ／一時停止・再開）。誰でも操作できる（#95 S3）。 */}
-        <div className="session-actions boot-reveal" style={{ animationDelay: "230ms" }}>
-          {isPaused || !running ? (
-            <PrimaryButton onClick={onResume} disabled={!isPaused}>
-              <span className="session-action-label"><Play className="session-action-icon-lg" aria-hidden="true" /> 再開</span>
-            </PrimaryButton>
-          ) : (
-            <GhostButton onClick={onPause}>
-              <span className="session-action-label"><Pause className="session-action-icon" aria-hidden="true" /> 一時停止</span>
-            </GhostButton>
-          )}
-          <GhostButton onClick={onSkip} disabled={!running}>
-            <span className="session-action-label"><SkipForward className="session-action-icon" aria-hidden="true" /> スキップ</span>
-          </GhostButton>
+        {/* 操作（時間リセット／スキップ／一時停止・再開）。誰でも操作できる（#95 S3）。
+            40rem 未満は画面の下端の帯（`.ui-actions--dock`）。帯は計器のカードの最後の子なので、
+            カードの範囲の中でだけ留まり、次のカード（終える区画）には被らない。主は最後（ADR 0025 決定 5）。 */}
+        <div className="ui-actions ui-actions--dock session-actions boot-reveal" style={{ animationDelay: "230ms" }}>
           {/* 「時間リセット」＝持ち時間のやり直し（Issue #14）。人は変えず、現ドライバーの
               時間だけ満タンから走り直す。「最初から」（先頭ドライバーへ戻す全体リセット・
-              EndSessionZone の赤いボタン）とは文言・アイコン・置き場所で区別する。
+              EndSessionZone の朱の枠のボタン）とは文言・アイコン・置き場所で区別する。
               ラベルは短く保ち、詳細は title 属性で補う。
               一時停止中でも押せる（押すと走行再開する）ため disabled にしない。 */}
-          <GhostButton
+          <button
+            type="button"
+            className="ui-button ui-button--secondary"
             onClick={onRestartTimer}
             title="同じドライバーのまま、持ち時間を最初からやり直します"
           >
             <span className="session-action-label"><TimerReset className="session-action-icon" aria-hidden="true" /> 時間リセット</span>
-          </GhostButton>
+          </button>
+          <button type="button" className="ui-button ui-button--secondary" onClick={onSkip} disabled={!running}>
+            <span className="session-action-label"><SkipForward className="session-action-icon" aria-hidden="true" /> スキップ</span>
+          </button>
+          {isPaused || !running ? (
+            <button type="button" className="ui-button" onClick={onResume} disabled={!isPaused}>
+              <span className="session-action-label"><Play className="session-action-icon-lg" aria-hidden="true" /> 再開</span>
+            </button>
+          ) : (
+            <button type="button" className="ui-button" onClick={onPause}>
+              <span className="session-action-label"><Pause className="session-action-icon" aria-hidden="true" /> 一時停止</span>
+            </button>
+          )}
         </div>
       </Card>
 
@@ -336,6 +338,9 @@ export function Session({
 
       {/* ── 右（サイド）: 参加者一覧＋引き継ぎメモ ── */}
       <div className="ui-workspace-side session-column">
+      {/* いまのお題（#91）。timer は読むだけで、変えるのはお題ツールの仕事（spec T4）。
+          脇の先頭に置く読む面（#316 PR 3・#314）。長い説明はここで切れるので、タイマーを押し下げない。 */}
+      {topic && <TopicCard topic={topic} />}
       {/* 在席一覧（RosterPanel）。改名・一時離脱・代理追加・現ドライバー
           ハイライト（FR-046/047/048/050/051/061）。現ドライバーは rotation の識別子で判定。 */}
       <Card>
@@ -361,9 +366,9 @@ export function Session({
             2人以上で意味を持つ。RosterPanel 内の上/下並べ替え（onMove）と対で配置。 */}
         {onShuffle && rotationLen > 1 && (
           <div className="session-toolbar">
-            <GhostButton onClick={onShuffle} aria-label="ドライバー順をランダムに並べ替える" className="session-button-sm">
+            <button type="button" onClick={onShuffle} aria-label="ドライバー順をランダムに並べ替える" className="ui-button ui-button--secondary ui-button--sm">
               <span className="session-shuffle-label"><Shuffle className="session-action-icon" aria-hidden="true" /> ランダム</span>
-            </GhostButton>
+            </button>
           </div>
         )}
         <RosterPanel
@@ -382,7 +387,6 @@ export function Session({
           onAddProxy={onAddProxy}
           onRemove={onRemoveParticipant}
           isShared={room.code !== "SOLO"}
-          scrollable
         />
       </Card>
 
@@ -422,21 +426,22 @@ export function Session({
                       Room タブだけを見ている場合に導線が消えないよう、ここにも出す。 */}
                   {currentParticipant && onRemoveParticipant && (
                     <div className="session-toolbar">
-                      <GhostButton
+                      <button
+                        type="button"
                         onClick={() => onRemoveParticipant(currentParticipant.participantId)}
-                        className="session-button-xs"
+                        className="ui-button ui-button--quiet ui-button--sm"
                         title="この端末をルームから外します。招待から再参加できます。"
                       >
                         ルームから抜ける
-                      </GhostButton>
+                      </button>
                     </div>
                   )}
                   {/* ルームタブでもランダム化できる（v2.3 #1・セッションタブと同等）。 */}
                   {onShuffle && rotationLen > 1 && (
                     <div className="session-toolbar">
-                      <GhostButton onClick={onShuffle} aria-label="ドライバー順をランダムに並べ替える" className="session-button-sm">
+                      <button type="button" onClick={onShuffle} aria-label="ドライバー順をランダムに並べ替える" className="ui-button ui-button--secondary ui-button--sm">
                         <span className="session-shuffle-label"><Shuffle className="session-action-icon" aria-hidden="true" /> ランダム</span>
-                      </GhostButton>
+                      </button>
                     </div>
                   )}
                   <RosterPanel
@@ -454,7 +459,6 @@ export function Session({
                     onAddProxy={onAddProxy}
                     onRemove={onRemoveParticipant}
                     isShared={room.code !== "SOLO"}
-                    scrollable
                   />
                 </Card>
               </div>

@@ -75,17 +75,20 @@ export function SharedMemo({ note, onCommit }: SharedMemoProps) {
     <Card className={updated ? "meter-panel-highlight" : ""}>
       {updateAnnouncement}
       <div className="shared-memo-header">
-        <span className="shared-memo-title">
-          <ArrowRight className="shared-memo-icon" aria-hidden="true" />
-          共有メモ
+        <div className="shared-memo-lead">
+          <h2 className="shared-memo-title">
+            <ArrowRight className="shared-memo-icon" aria-hidden="true" />
+            共有メモ
+          </h2>
           <span className="instrument-label">Markdown</span>
-        </span>
-        {/* モード切替ボタン。プレビュー時→「編集」、編集時→「プレビューに戻る」（未確定分を送信してから切替）。 */}
+        </div>
+        {/* モード切替ボタン（部品の副）。押すたびに文言が入れ替わる 1 つのボタンなので `aria-pressed` は付けない（付けると名前の変化と状態が食い違って読み上げられる）。
+            プレビュー時→「編集」、編集時→「プレビューに戻る」（未確定分を送信してから切替）。 */}
         {mode === "preview" ? (
           <button
             type="button"
             onClick={() => setMode("edit")}
-            className="shared-memo-toggle"
+            className="ui-button ui-button--secondary ui-button--sm"
           >
             編集
           </button>
@@ -93,7 +96,7 @@ export function SharedMemo({ note, onCommit }: SharedMemoProps) {
           <button
             type="button"
             onClick={() => { commit(); setMode("preview"); }}
-            className="shared-memo-toggle"
+            className="ui-button ui-button--secondary ui-button--sm"
           >
             プレビューに戻る
           </button>

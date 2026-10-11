@@ -372,41 +372,6 @@ describe("RosterPanel", () => {
       expect(screen.queryByRole("button", { name: /後の順番へ/ })).toBeNull();
     });
   });
-
-  describe("RosterPanel scrollable", () => {
-    it("scrollable=true でリストに高さ上限とスクロールを付ける", () => {
-      // Given
-      const participants = [mk("a", "Alice")];
-      // When
-      render(
-        <RosterPanel
-          {...baseProps}
-          participants={participants}
-          currentDriverId="a"
-          rotation={["a"]}
-          scrollable
-        />,
-      );
-      // Then
-      expect(screen.getByRole("list")).toHaveAttribute("data-scrollable");
-    });
-
-    it("scrollable 未指定ならスクロールを付けない", () => {
-      // Given
-      const participants = [mk("a", "Alice")];
-      // When
-      render(
-        <RosterPanel
-          {...baseProps}
-          participants={participants}
-          currentDriverId="a"
-          rotation={["a"]}
-        />,
-      );
-      // Then
-      expect(screen.getByRole("list")).not.toHaveAttribute("data-scrollable");
-    });
-  });
 });
 
 // ─── セクション分割テスト ────────────────────────────────────────────

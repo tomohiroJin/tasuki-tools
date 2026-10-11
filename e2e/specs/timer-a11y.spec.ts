@@ -140,7 +140,7 @@ test.describe('文字が背景に対して読める（WCAG AA）', () => {
     expectReadable(scan, 10, [pairKey(signal!, `${signalTint!} ← ${panel2!}`)]);
   });
 
-  test('Given 3 人のセッション中の画面 / When 主要な文字を測る / Then すべて AA を満たす', async ({
+  test('Given 3 人のセッション中の画面 / When 主要な文字と「途中で終える」の確認ダイアログを測る / Then すべて AA を満たし、ダイアログは取り消しにフォーカスが来る', async ({
     page,
     openPeer,
   }) => {
@@ -162,6 +162,47 @@ test.describe('文字が背景に対して読める（WCAG AA）', () => {
 
     // Then
     expectReadable(scan, 15, [pairKey(subtle!, panel2!)]);
+
+    // 危険の確認ダイアログ（#316 PR 3）。同じセッションで続けて測る（E2E 全件が同期サーバーのルーム枠 100 に近く、
+    // ルームを足すと末尾のテストが「操作を完了できませんでした」で落ちる。`buttons.spec.ts` 冒頭の注釈）。
+    // When: 「途中で終える」を押す。危険の確定（`ui-button--danger`・字 `--rose-bright`）はダイアログの面（`--panel`）に載る
+    await page.getByRole('button', { name: /途中で終える/ }).click();
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible();
+    // Then: 最初のフォーカスは安全側（取り消し）
+    await expect(dialog.getByRole('button', { name: 'キャンセル' })).toBeFocused();
+    // Then: 朱の枠の確定が測られ、AA を満たす（走査は画面全体。ダイアログの外も同じ基準）
+    const confirm = dialog.locator('.ui-button--danger');
+    await expect(confirm, '朱の枠の確定ボタンが無い（判定が空振りする）').toHaveCount(1);
+    //   朱の字（`--rose-bright`）がダイアログの面（`--panel`）に載る組を測ったことも固定する
+    const [rose, panel] = await resolveColors(page, ['--rose-bright', '--panel']);
+    expectReadable(await scanContrast(page), 10, [pairKey(rose!, panel!)]);
+    // Then: ホバーの敷き（`--rose-tint`）の上でも字が AA（敷きは半透明なので、ダイアログの面に重ねて測る）
+    await confirm.hover();
+    const hoverRatio = await confirm.evaluate((el) => {
+      const parse = (c: string) => (c.match(/[\d.]+/g) ?? []).map(Number);
+      const lin = (v: number) => ((v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+      const lum = (c: number[]) => 0.2126 * lin(c[0]!) + 0.7152 * lin(c[1]!) + 0.0722 * lin(c[2]!);
+      const fg = parse(getComputedStyle(el).color);
+      const tint = parse(getComputedStyle(el).backgroundColor);
+      let base = el.parentElement;
+      let under = [0, 0, 0];
+      while (base) {
+        const b = parse(getComputedStyle(base).backgroundColor);
+        if (b.length === 3 || (b.length === 4 && b[3] === 1)) { under = b.slice(0, 3); break; }
+        base = base.parentElement;
+      }
+      const a = tint[3] ?? 1;
+      const bg = [0, 1, 2].map((i) => tint[i]! * a + under[i]! * (1 - a));
+      const [hi, lo] = [lum(fg), lum(bg)].sort((x, y) => y - x);
+      return (hi! + 0.05) / (lo! + 0.05);
+    });
+    expect(hoverRatio, '朱の枠の確定のホバーの字が AA（4.5:1）を割る').toBeGreaterThanOrEqual(4.5);
+    // Then: 朱の枠の確定もキーボードのフォーカスが見える
+    await page.keyboard.press('Tab');
+    await expect(confirm).toBeFocused();
+    const ringed = await confirm.evaluate((el) => getComputedStyle(el).outlineStyle !== 'none');
+    expect(ringed, '朱の枠の確定にフォーカスの輪郭が出ていない').toBe(true);
   });
 });
 

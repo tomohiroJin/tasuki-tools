@@ -25,9 +25,11 @@
   margin-block-end: 1.5rem;
 }
 
-/* ドライバーのパネル（`Card` に渡す）。登場の演出を切らないよう overflow を隠す */
+/* ドライバーのパネル（`Card` に渡す）。登場の演出を切らないよう はみ出しを切る。
+ * **`hidden` でなく `clip`**: `hidden` は縦のスクロール容器になり、中の下端の帯（`position: sticky`）が
+ * 画面でなくこのパネルの中に留まってしまう。`clip` は容器にならないので帯が画面の下端に留まる。 */
 .session-driver-card {
-  overflow: hidden;
+  overflow: clip;
   transition-property: all;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
@@ -65,8 +67,7 @@
   color: var(--signal);
 }
 
-/* ui-exempt: #316 PR 3 で段へ寄せる */
-@media (width >= 48rem) {
+@media (width >= 40rem) {
   .session-driver-crown {
     width: 3rem;
     height: 3rem;
@@ -81,14 +82,14 @@
 
 /* タイマーの数字。緊急（残り 10 秒以下）は朱の点滅、一時停止は半透明（`data-urgent` / `data-paused`） */
 .session-timer {
-  font-size: 3.75rem; /* scale-exempt: Tailwind の text-6xl の写し（#316 で段へ寄せる） */
+  font-size: 3.75rem; /* scale-exempt: Tailwind の text-6xl の写し（計器の数字は段の外） */
   line-height: 1;
   font-weight: 900;
 }
 
 @media (width >= 64rem) {
   .session-timer {
-    font-size: 4.5rem; /* scale-exempt: Tailwind の text-7xl の写し（#316 で段へ寄せる） */
+    font-size: 4.5rem; /* scale-exempt: Tailwind の text-7xl の写し（計器の数字は段の外） */
     line-height: 1;
   }
 }
@@ -122,7 +123,7 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  font-size: 1.125rem; /* scale-exempt: Tailwind の text-lg の写し（#316 で段へ寄せる） */
+  font-size: 1.125rem; /* scale-exempt: Tailwind の text-lg の写し（#316 PR 4 で段へ寄せる） */
   line-height: var(--timer-never-defined, calc(1.75 / 1.125)); /* 行の高さは status-strip.css 冒頭の注釈 */
   color: var(--bone-muted);
 }
@@ -134,6 +135,9 @@
 }
 
 .session-next-name {
+  /* 区切りのない長い名前は折れて札の中に収まる（カードの clip で切れない） */
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-weight: 700;
   color: var(--bone);
 }
@@ -162,7 +166,7 @@
   display: flex;
   justify-content: center;
   gap: 1.5rem;
-  font-size: 1rem; /* scale-exempt: Tailwind の text-base の写し（#316 で段へ寄せる） */
+  font-size: 1rem; /* scale-exempt: Tailwind の text-base の写し（#316 PR 4 で段へ寄せる） */
   line-height: 1.5;
   color: var(--bone-subtle);
 }
@@ -171,14 +175,15 @@
   color: var(--bone-muted);
 }
 
-/* 操作（スキップ・一時停止・再開・時間リセット） */
-.session-actions {
-  position: relative;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.5rem;
-  padding-top: 0.5rem;
+/* 操作（時間リセット・スキップ・一時停止・再開）。並びと下端の帯は部品層の `.ui-actions` / `.ui-actions--dock`。
+ * ここは「計器のカードの中に置く」ための寸法だけ: 部品の帯は器の左右の余白ぶん外へ広がるが、
+ * カードの内側の余白は 1.5rem（`.meter-panel`）なので、そのままだと帯の左右に 0.5rem 前後の隙間が空く。
+ * 帯をカードの左右の縁まで広げ、カードの下の余白（1.5rem）の手前で止まるようにする。 */
+@media (width < 40rem) {
+  .session-driver-card > .session-actions {
+    margin-inline: -1.5rem;
+    padding-inline: 1.5rem;
+  }
 }
 
 .session-action-label {
@@ -208,15 +213,4 @@
   display: flex;
   align-items: center;
   gap: 0.375rem;
-}
-
-/* `GhostButton` に渡す文字の大きさ */
-.session-button-sm {
-  font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 で段へ寄せる） */
-  line-height: var(--timer-never-defined, calc(1.25 / 0.875)); /* 行の高さは status-strip.css 冒頭の注釈 */
-}
-
-.session-button-xs {
-  font-size: 0.75rem; /* scale-exempt: Tailwind の text-xs の写し（#316 で段へ寄せる） */
-  line-height: var(--timer-never-defined, calc(1 / 0.75)); /* 行の高さは status-strip.css 冒頭の注釈 */
 }

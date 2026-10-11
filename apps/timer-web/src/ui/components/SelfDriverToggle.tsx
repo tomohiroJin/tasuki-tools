@@ -13,7 +13,6 @@
  */
 
 import React from "react";
-import { GhostButton, PrimaryButton } from "../primitives.js";
 
 interface SelfDriverToggleProps {
   inRotation: boolean;
@@ -48,13 +47,14 @@ export function SelfDriverToggle({
    * 事故と、自分が抜けるだけの操作は取り返しのつき方が違う（FR-078）。
    */
   const leaveRoomButton = onLeaveRoom ? (
-    <GhostButton
+    <button
+      type="button"
       onClick={() => onLeaveRoom(participantId)}
-      className="self-driver-toggle-button-xs"
+      className="ui-button ui-button--quiet ui-button--sm"
       title="この端末をルームから外します。招待から再参加できます。"
     >
       ルームから抜ける
-    </GhostButton>
+    </button>
   ) : null;
   // rotation 外の場合は目立つバナーを表示（加入を促す）
   if (!inRotation) {
@@ -68,9 +68,9 @@ export function SelfDriverToggle({
           進行の操作はできます。交代の輪に入ると、ドライバーとして順番が回ってきます。
         </p>
         <div className="self-driver-toggle-outside-actions">
-          <PrimaryButton onClick={() => onJoin?.(participantId)} className="self-driver-toggle-button-sm">
+          <button type="button" onClick={() => onJoin?.(participantId)} className="ui-button ui-button--sm">
             ドライバーに加わる
-          </PrimaryButton>
+          </button>
           {/* 輪の外でも部屋からは抜けられる。ここに導線が無いと取り残される。 */}
           {leaveRoomButton}
         </div>
@@ -89,23 +89,24 @@ export function SelfDriverToggle({
       <span className="self-driver-toggle-label">あなた: {status}</span>
       <span className="self-driver-toggle-actions">
         {isSkipping && (
-          <PrimaryButton onClick={() => onResume?.(participantId)} className="self-driver-toggle-button-xs">
+          <button type="button" onClick={() => onResume?.(participantId)} className="ui-button ui-button--secondary ui-button--sm">
             復帰
-          </PrimaryButton>
+          </button>
         )}
         {!isSkipping && (
-          <GhostButton onClick={() => onSkip?.(participantId)} className="self-driver-toggle-button-xs">
+          <button type="button" onClick={() => onSkip?.(participantId)} className="ui-button ui-button--secondary ui-button--sm">
             一時離脱
-          </GhostButton>
+          </button>
         )}
-        <GhostButton
+        <button
+          type="button"
           onClick={() => onLeave?.(participantId)}
           disabled={!canLeave}
           title={canLeave ? undefined : "最後のドライバーは外れられません"}
-          className="self-driver-toggle-button-xs"
+          className="ui-button ui-button--secondary ui-button--sm"
         >
           列から外れる
-        </GhostButton>
+        </button>
         {leaveRoomButton}
       </span>
     </div>

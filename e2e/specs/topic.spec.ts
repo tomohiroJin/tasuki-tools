@@ -95,7 +95,7 @@ test.describe('@core お題をツールへ配る', () => {
 
     // Then その1: timer の札にタイトルと本文が出る
     await expect(timerTopic.getByRole('heading', { level: 3, name: TITLE, exact: true })).toBeVisible();
-    await expect(timerTopic.getByText(BODY, { exact: true })).toBeVisible();
+    await expect(timerTopic.getByRole('region', { name: TITLE, exact: true }).getByText(BODY, { exact: true })).toBeVisible();
     //   poker は見出しとタイトルが出て、本文は読む面（名前はタイトルの region）にそのまま出る
     await expect(pokerTopic.getByRole('heading', { level: 2, name: 'お題', exact: true })).toBeVisible();
     await expect(pokerTopic.getByRole('heading', { level: 3, name: TITLE, exact: true })).toBeVisible();

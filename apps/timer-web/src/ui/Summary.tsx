@@ -9,7 +9,7 @@
 import React, { useState } from "react";
 import { Trophy, Sparkles, Check } from "lucide-react";
 import type { CompletionRecord } from "@tasuki/timer-core";
-import { Card, PrimaryButton, GhostButton } from "./primitives.js";
+import { Card } from "./primitives.js";
 
 export type EndType = "complete" | "abort";
 
@@ -68,15 +68,15 @@ export function Summary({ endType, record, onNewSession, onSaveRecord }: Summary
               所要時間（「120分00秒」等）が whitespace-nowrap ではみ出さないよう、
               モバイルは text-lg、sm 以上で text-xl に上げる（R5-3）。 */}
           <div className="summary-stats">
-            <Card className="summary-stat">
+            <Card>
               <p className="instrument-label">所要時間</p>
               <p className="summary-stat-value tabular">{formatTime(record.elapsedSeconds)}</p>
             </Card>
-            <Card className="summary-stat">
+            <Card>
               <p className="instrument-label">交代回数</p>
               <p className="summary-stat-value tabular">{record.totalSwitches}回</p>
             </Card>
-            <Card className="summary-stat">
+            <Card>
               <p className="instrument-label">周回数</p>
               <p className="summary-stat-value tabular">{record.rounds ?? 0}周</p>
             </Card>
@@ -106,24 +106,6 @@ export function Summary({ endType, record, onNewSession, onSaveRecord }: Summary
               </ul>
             </Card>
           )}
-
-          <div className="summary-save">
-            <GhostButton
-              className="summary-button"
-              onClick={() => {
-                onSaveRecord(record);
-                setSaved(true);
-              }}
-            >
-              <span className="summary-button-label">
-                {saved ? <Check className="summary-saved-icon" aria-hidden="true" /> : null}
-                {saved ? "保存しました" : "記録を保存"}
-              </span>
-            </GhostButton>
-            <p className="summary-hint">
-              完了時に自動保存されています。手動で再保存もできます。
-            </p>
-          </div>
         </>
       )}
 
@@ -134,12 +116,36 @@ export function Summary({ endType, record, onNewSession, onSaveRecord }: Summary
         </p>
       )}
 
-      {/* 次の行動導線（共通） */}
-      <PrimaryButton className="summary-button" onClick={onNewSession}>
-        <span className="summary-button-label">
-          <Sparkles className="summary-new-icon" aria-hidden="true" /> 新しいセッション
-        </span>
-      </PrimaryButton>
+      {/* 次の行動導線。並びは保存 → 新しいセッション（主は最後）。保存の添え書きは並びの下。 */}
+      <div className="summary-next">
+      <div className="ui-actions summary-actions">
+        {isComplete && record && (
+          <button
+            type="button"
+            className="ui-button ui-button--secondary"
+            onClick={() => {
+              onSaveRecord(record);
+              setSaved(true);
+            }}
+          >
+            <span className="summary-button-label">
+              {saved ? <Check className="summary-saved-icon" aria-hidden="true" /> : null}
+              {saved ? "保存しました" : "記録を保存"}
+            </span>
+          </button>
+        )}
+        <button type="button" className="ui-button ui-button--lg" onClick={onNewSession}>
+          <span className="summary-button-label">
+            <Sparkles className="summary-new-icon" aria-hidden="true" /> 新しいセッション
+          </span>
+        </button>
+      </div>
+      {isComplete && record && (
+        <p className="summary-hint">
+          完了時に自動保存されています。手動で再保存もできます。
+        </p>
+      )}
+      </div>
     </div>
   );
 }

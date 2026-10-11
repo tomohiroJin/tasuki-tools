@@ -1,17 +1,42 @@
-/* いまのお題の札（`TopicCard.tsx`・#321）。Tailwind のユーティリティの写し。
- * 値は基準（`ba9249d`）の計算済みスタイルと比較で確かめる（設計正本 D2）。
- * 写さなかった宣言（除去検査で dead）: タイトルの `text-[var(--bone)]`（親から継ぐので不要）。
- * 行の高さ（`var(--timer-never-defined, calc(…))`）は status-strip.css 冒頭の注釈。 */
+/* いまのお題の札（`TopicCard.tsx`・#321・#316 PR 3）。札の地・枠・影・字の色（`--coal`）と本文のスクロールは
+ * 部品（`.ui-reader`・`.ui-drawer`）が持つ。ここには見出しの頭と、timer の脇に置くための高さの上限だけを書く。
+ * timer は要素層を読まないので、h2・h3 の文字の段（§11）はここで当てる（poker の `.topic-head` / `.topic h2` と同じ構え）。 */
 
-/* 区切りの無い長いタイトルが横へはみ出さないように折り返す（PR 2 の実画面で topic-web が踏んだ） */
-.topic-card-title {
-  font-size: 1.125rem; /* scale-exempt: Tailwind の text-lg の写し（#316 で段へ寄せる） */
-  line-height: var(--timer-never-defined, calc(1.75 / 1.125)); /* 行の高さは status-strip.css 冒頭の注釈 */
+.timer-topic-head {
+  box-sizing: border-box;
+  padding: var(--space-5) var(--space-5) var(--space-3);
+  border-bottom: 1px solid var(--card-inline);
+}
+
+/* 区画の見出し（h2）。札は象牙なので、明るい字（`--bone`）は読めない。`--coal-soft` にする（poker と同じ） */
+.timer-topic-heading {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--coal-soft);
+}
+
+/* 小見出し（h3）。区切りの無い長いタイトルが横へはみ出さないように折り返す（PR 2 の実画面で topic-web が踏んだ） */
+.timer-topic-title {
+  margin: 0;
+  font-size: var(--font-size-base);
   font-weight: 700;
   overflow-wrap: anywhere;
 }
 
-/* `Markdown` へ `className` で渡す。 */
-.topic-card-body {
-  margin-top: 0.75rem;
+/* 64rem 以上: 札の高さに上限を付ける。部品の `max-height: calc(100dvh - 14rem)` は脇がお題だけの画面の式で、
+ * timer は札の下に参加者の盤が続くので、札だけで脇を使い切らない。部品の規則（(0,1,0)）に勝つよう要素名を足して (0,1,1) にする
+ * （timer の CSS は部品のクラス名 `.ui-reader` を書けない・`audit-timer-classes`）。 */
+@media (width >= 64rem) {
+  section.timer-topic {
+    max-height: min(24rem, 45dvh);
+  }
+}
+
+/* 札の上のフォーカスの輪は濃い色（`--coal`）にする。既定の金（`--signal`）は象牙の上で 1.2〜1.6:1 しかなく、
+ * 3:1（WCAG 1.4.11）を割る。timer は要素層の `.ui-reader :focus-visible` を読まないのでここで当てる。
+ * 続きを読むのシート（`dialog.ui-drawer`）も `section.timer-topic` の中にあるので、同じ規則が届く。 */
+.timer-topic :focus-visible {
+  outline-color: var(--coal);
 }

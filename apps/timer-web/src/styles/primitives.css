@@ -13,8 +13,7 @@
   padding-block: 2.5rem;
 }
 
-/* ui-exempt: #316 PR 3 で段へ寄せる */
-@media (width >= 48rem) {
+@media (width >= 40rem) {
   .stage-inner {
     padding-block: 3rem;
   }
@@ -33,8 +32,7 @@
     var(--shadow-panel);
 }
 
-/* ui-exempt: #316 PR 3 で段へ寄せる */
-@media (width >= 48rem) {
+@media (width >= 40rem) {
   .meter-panel {
     padding: 1.75rem;
   }
@@ -85,96 +83,6 @@
   border-bottom-width: 1px;
 }
 
-/* 主操作（シグナル朱）。 */
-.signal-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding-inline: 1.5rem;
-  padding-block: 0.75rem;
-  border-radius: var(--radius-md);
-  font-weight: 700;
-  letter-spacing: 0.025em;
-  color: var(--on-signal);
-  background-color: var(--signal);
-  transition-property: all;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
-  box-shadow:
-    0 0 0 1px var(--signal-edge),
-    0 6px 20px var(--signal-glow);
-}
-
-@media (hover: hover) {
-  .signal-button:hover {
-    background-color: var(--signal-hover);
-  }
-}
-
-.signal-button:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.signal-button:active {
-  scale: 95% 95%;
-}
-
-/* ring-offset → ring → 自前の影の順に合成する（Tailwind の `box-shadow` の並び） */
-.signal-button:focus-visible {
-  box-shadow:
-    0 0 0 2px var(--ink),
-    0 0 0 4px var(--signal),
-    0 0 0 1px var(--signal-edge),
-    0 6px 20px var(--signal-glow);
-}
-
-/* 副操作（スチール枠のゴースト）。 */
-.ghost-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding-inline: 1rem;
-  padding-block: 0.5rem;
-  min-height: 44px;
-  border-radius: var(--radius-md);
-  font-weight: 500;
-  color: var(--bone);
-  background-color: var(--panel-2);
-  transition-property: all;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
-  border-width: 1px;
-  border-color: var(--hairline-strong);
-}
-
-@media (width >= 40rem) {
-  .ghost-button {
-    min-height: 0;
-  }
-}
-
-@media (hover: hover) {
-  .ghost-button:hover {
-    background-color: var(--panel-hover);
-  }
-}
-
-.ghost-button:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.ghost-button:active {
-  scale: 95% 95%;
-}
-
-.ghost-button:focus-visible {
-  box-shadow:
-    0 0 0 2px var(--ink),
-    0 0 0 4px var(--signal);
-}
-
 /* カード見出し。 */
 .section-header {
   display: flex;
@@ -196,9 +104,12 @@
 }
 
 .section-header-title {
+  /* 区画の見出し（§11）。timer は要素層を読まないので、h2 の段をここで当てる */
+  margin: 0;
+  font-size: var(--font-size-lg);
+  line-height: var(--line-tight);
   font-weight: 700;
-  font-size: 1rem; /* scale-exempt: Tailwind の text-base の写し（#316 で段へ寄せる） */
-  line-height: 1.5;
-  letter-spacing: 0.025em;
+  letter-spacing: 0;
+  text-transform: none;
   color: var(--bone);
 }

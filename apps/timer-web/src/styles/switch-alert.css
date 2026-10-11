@@ -26,15 +26,14 @@
   display: flex;
   align-items: center;
   gap: 1rem;
-  font-size: 3rem; /* scale-exempt: Tailwind の text-5xl の写し（#316 で段へ寄せる） */
+  font-size: 3rem; /* scale-exempt: Tailwind の text-5xl の写し（計器の数字は段の外） */
   line-height: 1;
   font-weight: 900;
 }
 
-/* ui-exempt: #316 PR 3 で段へ寄せる */
-@media (width >= 48rem) {
+@media (width >= 40rem) {
   .switch-alert-driver {
-    font-size: 4.5rem; /* scale-exempt: Tailwind の text-7xl の写し（#316 で段へ寄せる） */
+    font-size: 4.5rem; /* scale-exempt: Tailwind の text-7xl の写し（計器の数字は段の外） */
     line-height: 1;
   }
 }
@@ -46,8 +45,7 @@
   color: var(--signal);
 }
 
-/* ui-exempt: #316 PR 3 で段へ寄せる */
-@media (width >= 48rem) {
+@media (width >= 40rem) {
   .switch-alert-crown {
     height: 4rem;
     width: 4rem;
@@ -56,7 +54,7 @@
 
 .switch-alert-hint {
   margin-top: 2rem;
-  font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 で段へ寄せる） */
+  font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 PR 4 で段へ寄せる） */
   line-height: var(--timer-never-defined, calc(1.25 / 0.875)); /* 行の高さは status-strip.css 冒頭の注釈 */
   color: var(--bone-subtle);
 }
