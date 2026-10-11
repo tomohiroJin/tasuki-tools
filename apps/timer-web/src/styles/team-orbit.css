@@ -37,8 +37,8 @@
   transition-duration: 700ms;
 }
 
-/* 番が回らない席は薄く置く。 */
-.team-orbit-avatar-skipped {
+/* 番が回らない席は薄く置く（`TeamOrbit.tsx` が `data-skipped` を付ける）。 */
+.team-orbit-avatar[data-skipped] {
   opacity: 0.5;
 }
 

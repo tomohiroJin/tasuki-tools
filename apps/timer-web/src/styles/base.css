@@ -121,6 +121,16 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* 画面の下端の帯（`.ui-actions--dock`・40rem 未満）が Tab の行き先を隠さない余白。
+ * timer は要素層（`reset.css`）を読まないので、同じ値（6rem）をここに書く。
+ * 帯の高さ（縦積み 3 段 ≒ 11rem）より小さいが、行き先が帯の「上」で止まるぶんだけあればよい
+ * （ブラウザは行き先を `scroll-padding` の内側へ入れる）。 */
+@media (width < 40rem) {
+  html {
+    scroll-padding-block-end: 6rem;
+  }
+}
+
 /* キーボードフォーカスを常に視認可能に（a11y）。
  * 計器の朱で統一する。これをしないと outline-none していない
  * 入力/select/textarea にブラウザ既定のリングが漏れる。 */

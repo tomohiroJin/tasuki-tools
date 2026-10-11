@@ -69,8 +69,26 @@ export function EndSessionZone({
     <div
       role="group"
       aria-label="セッションを終える"
-      className="end-session-zone"
+      className="ui-actions"
     >
+      {/* 取り消せない操作（朱の枠・危険）は左端へ離し、正常完了の主を右端（最後）に置く。
+          押し間違えが「記録を残さずに終える」側へ倒れないよう、主から距離を取る（ADR 0025 決定 5）。 */}
+      <div className="ui-actions-start">
+        {/* 途中で終える（記録なし・確認あり）*/}
+        <button type="button" className="ui-button ui-button--danger" onClick={() => setPending("abort")}>
+          <span className="end-session-zone-label"><XCircle className="end-session-zone-icon" aria-hidden="true" /> 途中で終える</span>
+        </button>
+
+        {/* 最初から（先頭・満タンへ戻して走り直す・確認あり・v2.3 #3）*/}
+        <button
+          type="button"
+          onClick={() => setPending("reset")}
+          className="ui-button ui-button--danger"
+        >
+          <span className="end-session-zone-label"><RotateCcw className="end-session-zone-icon" aria-hidden="true" /> 最初から</span>
+        </button>
+      </div>
+
       {/* 完成（達成として記録する）。正常完了は主（金）、中断・リセットは朱の枠（危険）で峻別する。 */}
       <button
         type="button"
@@ -78,20 +96,6 @@ export function EndSessionZone({
         className="ui-button"
       >
         <span className="end-session-zone-label"><Flag className="end-session-zone-icon" aria-hidden="true" /> 完成!</span>
-      </button>
-
-      {/* 途中で終える（記録なし・確認あり）*/}
-      <button type="button" className="ui-button ui-button--danger" onClick={() => setPending("abort")}>
-        <span className="end-session-zone-label"><XCircle className="end-session-zone-icon" aria-hidden="true" /> 途中で終える</span>
-      </button>
-
-      {/* 最初から（先頭・満タンへ戻して走り直す・確認あり・v2.3 #3）*/}
-      <button
-        type="button"
-        onClick={() => setPending("reset")}
-        className="ui-button ui-button--danger"
-      >
-        <span className="end-session-zone-label"><RotateCcw className="end-session-zone-icon" aria-hidden="true" /> 最初から</span>
       </button>
 
       {/* 確認ダイアログ */}

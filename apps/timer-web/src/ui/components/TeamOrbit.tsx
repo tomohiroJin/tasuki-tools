@@ -52,19 +52,15 @@ export function TeamOrbit({ members, currentIndex, nextIndex, size = 340, childr
         return (
           <div
             key={participantId}
+            // 状態の変種（現・次・他）はクラスで、番が回らない席は `data-skipped`（`RotationLineup` と同じ形）。
             className={
-              skipReason !== null
-                ? isCurrent
-                  ? "team-orbit-avatar team-orbit-avatar-skipped team-orbit-avatar-current tabular animate-pop-in"
-                  : isNext
-                    ? "team-orbit-avatar team-orbit-avatar-skipped team-orbit-avatar-next tabular animate-pop-in"
-                    : "team-orbit-avatar team-orbit-avatar-skipped team-orbit-avatar-other tabular animate-pop-in"
-                : isCurrent
-                  ? "team-orbit-avatar team-orbit-avatar-current tabular animate-pop-in"
-                  : isNext
-                    ? "team-orbit-avatar team-orbit-avatar-next tabular animate-pop-in"
-                    : "team-orbit-avatar team-orbit-avatar-other tabular animate-pop-in"
+              isCurrent
+                ? "team-orbit-avatar team-orbit-avatar-current tabular animate-pop-in"
+                : isNext
+                  ? "team-orbit-avatar team-orbit-avatar-next tabular animate-pop-in"
+                  : "team-orbit-avatar team-orbit-avatar-other tabular animate-pop-in"
             }
+            data-skipped={skipReason !== null ? "true" : undefined}
             style={{
               width: avatarSize,
               height: avatarSize,

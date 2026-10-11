@@ -102,8 +102,6 @@ interface RosterPanelProps {
   /** ドライバー順の入れ替え（v2.3 #1）。fromIndex→toIndex（rotation 内の位置）。
    *  ドライバー行（rotation に含まれる）にのみ上/下ボタンを出す。 */
   onMove?: ((fromIndex: number, toIndex: number) => void) | undefined;
-  /** 参加者リストに高さ上限＋内部スクロールを付ける（項目4・Session で有効化）。 */
-  scrollable?: boolean | undefined;
   /** 自分のローテーション操作（一時離脱/復帰）を外部の自己トグルが担うか。
    *  true（Session）なら自分の行には一時離脱/復帰を出さず重複を避ける。
    *  false/未指定（Solo 等・自己トグル無し）なら自分の行にも出す。 */
@@ -130,7 +128,6 @@ export function RosterPanel({
   rotation,
   onMove,
   onAssignDriver,
-  scrollable = false,
   seats,
 }: RosterPanelProps) {
   // 呼び名の同名判定プール（`participant-label.ts` に1つだけ置く規則の呼び出し口）。
@@ -619,7 +616,6 @@ export function RosterPanel({
           <ul
             aria-label="ドライバー一覧"
             className="roster-panel-list"
-            data-scrollable={scrollable ? "" : undefined}
           >
             {drivers.map(renderRow)}
           </ul>
@@ -633,7 +629,6 @@ export function RosterPanel({
           <ul
             aria-label="見学一覧"
             className="roster-panel-list"
-            data-scrollable={scrollable ? "" : undefined}
           >
             {watchers.map(renderRow)}
           </ul>

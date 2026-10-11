@@ -25,9 +25,11 @@
   margin-block-end: 1.5rem;
 }
 
-/* ドライバーのパネル（`Card` に渡す）。登場の演出を切らないよう overflow を隠す */
+/* ドライバーのパネル（`Card` に渡す）。登場の演出を切らないよう はみ出しを切る。
+ * **`hidden` でなく `clip`**: `hidden` は縦のスクロール容器になり、中の下端の帯（`position: sticky`）が
+ * 画面でなくこのパネルの中に留まってしまう。`clip` は容器にならないので帯が画面の下端に留まる。 */
 .session-driver-card {
-  overflow: hidden;
+  overflow: clip;
   transition-property: all;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
@@ -170,14 +172,15 @@
   color: var(--bone-muted);
 }
 
-/* 操作（スキップ・一時停止・再開・時間リセット） */
-.session-actions {
-  position: relative;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 0.5rem;
-  padding-top: 0.5rem;
+/* 操作（時間リセット・スキップ・一時停止・再開）。並びと下端の帯は部品層の `.ui-actions` / `.ui-actions--dock`。
+ * ここは「計器のカードの中に置く」ための寸法だけ: 部品の帯は器の左右の余白ぶん外へ広がるが、
+ * カードの内側の余白は 1.5rem（`.meter-panel`）なので、そのままだと帯の左右に 0.5rem 前後の隙間が空く。
+ * 帯をカードの左右の縁まで広げ、カードの下の余白（1.5rem）の手前で止まるようにする。 */
+@media (width < 40rem) {
+  .session-driver-card > .session-actions {
+    margin-inline: -1.5rem;
+    padding-inline: 1.5rem;
+  }
 }
 
 .session-action-label {

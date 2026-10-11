@@ -292,20 +292,10 @@ export function Session({
           </div>
         </div>
 
-        {/* 操作（スキップ／一時停止・再開）。誰でも操作できる（#95 S3）。 */}
-        <div className="session-actions boot-reveal" style={{ animationDelay: "230ms" }}>
-          {isPaused || !running ? (
-            <button type="button" className="ui-button" onClick={onResume} disabled={!isPaused}>
-              <span className="session-action-label"><Play className="session-action-icon-lg" aria-hidden="true" /> 再開</span>
-            </button>
-          ) : (
-            <button type="button" className="ui-button" onClick={onPause}>
-              <span className="session-action-label"><Pause className="session-action-icon" aria-hidden="true" /> 一時停止</span>
-            </button>
-          )}
-          <button type="button" className="ui-button ui-button--secondary" onClick={onSkip} disabled={!running}>
-            <span className="session-action-label"><SkipForward className="session-action-icon" aria-hidden="true" /> スキップ</span>
-          </button>
+        {/* 操作（時間リセット／スキップ／一時停止・再開）。誰でも操作できる（#95 S3）。
+            40rem 未満は画面の下端の帯（`.ui-actions--dock`）。帯は計器のカードの最後の子なので、
+            カードの範囲の中でだけ留まり、次のカード（終える区画）には被らない。主は最後（ADR 0025 決定 5）。 */}
+        <div className="ui-actions ui-actions--dock session-actions boot-reveal" style={{ animationDelay: "230ms" }}>
           {/* 「時間リセット」＝持ち時間のやり直し（Issue #14）。人は変えず、現ドライバーの
               時間だけ満タンから走り直す。「最初から」（先頭ドライバーへ戻す全体リセット・
               EndSessionZone の朱の枠のボタン）とは文言・アイコン・置き場所で区別する。
@@ -319,6 +309,18 @@ export function Session({
           >
             <span className="session-action-label"><TimerReset className="session-action-icon" aria-hidden="true" /> 時間リセット</span>
           </button>
+          <button type="button" className="ui-button ui-button--secondary" onClick={onSkip} disabled={!running}>
+            <span className="session-action-label"><SkipForward className="session-action-icon" aria-hidden="true" /> スキップ</span>
+          </button>
+          {isPaused || !running ? (
+            <button type="button" className="ui-button" onClick={onResume} disabled={!isPaused}>
+              <span className="session-action-label"><Play className="session-action-icon-lg" aria-hidden="true" /> 再開</span>
+            </button>
+          ) : (
+            <button type="button" className="ui-button" onClick={onPause}>
+              <span className="session-action-label"><Pause className="session-action-icon" aria-hidden="true" /> 一時停止</span>
+            </button>
+          )}
         </div>
       </Card>
 
@@ -385,7 +387,6 @@ export function Session({
           onAddProxy={onAddProxy}
           onRemove={onRemoveParticipant}
           isShared={room.code !== "SOLO"}
-          scrollable
         />
       </Card>
 
@@ -458,7 +459,6 @@ export function Session({
                     onAddProxy={onAddProxy}
                     onRemove={onRemoveParticipant}
                     isShared={room.code !== "SOLO"}
-                    scrollable
                   />
                 </Card>
               </div>
