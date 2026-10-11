@@ -140,7 +140,7 @@ test.describe('文字が背景に対して読める（WCAG AA）', () => {
     expectReadable(scan, 10, [pairKey(signal!, `${signalTint!} ← ${panel2!}`)]);
   });
 
-  test('Given 3 人のセッション中の画面 / When 主要な文字を測る / Then すべて AA を満たす', async ({
+  test('Given 3 人のセッション中の画面 / When 主要な文字と「途中で終える」の確認ダイアログを測る / Then すべて AA を満たし、ダイアログは取り消しにフォーカスが来る', async ({
     page,
     openPeer,
   }) => {
@@ -162,35 +162,22 @@ test.describe('文字が背景に対して読める（WCAG AA）', () => {
 
     // Then
     expectReadable(scan, 15, [pairKey(subtle!, panel2!)]);
-  });
-});
 
-test.describe('危険の確認ダイアログが暗い面の上で読める（#316 PR 3）', () => {
-  test('Given セッション中に「途中で終える」を押した / When ダイアログを測る / Then 取り消しへ最初のフォーカスが来て、朱の枠の確定も AA を満たす', async ({
-    page,
-  }) => {
-    // Given: 危険の確定（`ui-button--danger`・字 `--rose-bright`）はダイアログの面（`--panel`）に載る
-    await createRoom(page, HOST);
-    await page.getByRole('button', { name: 'セッションを開始' }).click();
-    await expect(page.getByRole('timer')).toBeVisible();
-
-    // When
+    // 危険の確認ダイアログ（#316 PR 3）。同じセッションで続けて測る（E2E 全件が同期サーバーのルーム枠 100 に近く、
+    // ルームを足すと末尾のテストが「操作を完了できませんでした」で落ちる。`buttons.spec.ts` 冒頭の注釈）。
+    // When: 「途中で終える」を押す。危険の確定（`ui-button--danger`・字 `--rose-bright`）はダイアログの面（`--panel`）に載る
     await page.getByRole('button', { name: /途中で終える/ }).click();
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible();
-
-    // Then その1: 最初のフォーカスは安全側（取り消し）
+    // Then: 最初のフォーカスは安全側（取り消し）
     await expect(dialog.getByRole('button', { name: 'キャンセル' })).toBeFocused();
-
-    // Then その2: 朱の枠の確定が測られ、AA を満たす（走査は画面全体。ダイアログの外も同じ基準）
+    // Then: 朱の枠の確定が測られ、AA を満たす（走査は画面全体。ダイアログの外も同じ基準）
     const confirm = dialog.locator('.ui-button--danger');
     await expect(confirm, '朱の枠の確定ボタンが無い（判定が空振りする）').toHaveCount(1);
     //   朱の字（`--rose-bright`）がダイアログの面（`--panel`）に載る組を測ったことも固定する
     const [rose, panel] = await resolveColors(page, ['--rose-bright', '--panel']);
-    const scan = await scanContrast(page);
-    expectReadable(scan, 10, [pairKey(rose!, panel!)]);
-
-    // Then その3: 朱の枠の確定もキーボードのフォーカスが見える
+    expectReadable(await scanContrast(page), 10, [pairKey(rose!, panel!)]);
+    // Then: 朱の枠の確定もキーボードのフォーカスが見える
     await page.keyboard.press('Tab');
     await expect(confirm).toBeFocused();
     const ringed = await confirm.evaluate((el) => getComputedStyle(el).outlineStyle !== 'none');
