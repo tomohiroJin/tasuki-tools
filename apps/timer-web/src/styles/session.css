@@ -65,8 +65,7 @@
   color: var(--signal);
 }
 
-/* ui-exempt: #316 PR 3 で段へ寄せる */
-@media (width >= 48rem) {
+@media (width >= 40rem) {
   .session-driver-crown {
     width: 3rem;
     height: 3rem;

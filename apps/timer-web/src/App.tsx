@@ -24,6 +24,18 @@ import { useTimerSync } from "./sync/use-timer-sync.js";
 // 注: `records/indexeddb.js` は import しない。永続化は同期フックの
 // `saveRecordManually` を通す（画面は表示に徹する・ADR-0015 MUST 3）。
 
+/**
+ * 画面ごとの器の段（`Stage` の `page`・#316 D2）。分岐の優先順は `renderBody` と同じ。
+ * 履歴は記録の一覧なので 72rem、ロビー・セッションは脇を持つ段組みなので 96rem、
+ * まとめ・喪失・読み込み中は短い読み物なので 40rem。
+ */
+function pageOf(historyOpen: boolean, sessionLost: boolean, mode: string | null | undefined, hasRoom: boolean): "prose" | "default" | "wide" {
+  if (historyOpen) return "default";
+  if (sessionLost) return "prose";
+  if ((mode === "lobby" || mode === "session") && hasRoom) return "wide";
+  return "prose";
+}
+
 export default function App() {
   // バナーは同期フックと画面の両方が出す（前者は WS 由来、後者は記録保存の失敗）。
   // コントローラを 1 つ作って共有する（ADR-0015 MUST 2 の対象外・use-banner.ts 参照）。
@@ -194,7 +206,7 @@ export default function App() {
   };
 
   return (
-    <Stage>
+    <Stage page={pageOf(entry.kind === "history", sessionLost, mode, room != null)}>
       {/* 永続ステータスストリップ（全画面共通・FR-036）。ルームの画面が決まるまで（`mode` が
           null の間）は出さない —— 履歴だけを開いたときと、復帰の snapshot を待つ間がここに当たる。
           セッション喪失時も出さない。ルームはもう無いのに「セッション中」と言い続けることになり、

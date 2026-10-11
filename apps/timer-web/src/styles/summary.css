@@ -10,8 +10,6 @@
   flex-direction: column;
   align-items: center;
   gap: 1.5rem;
-  margin-inline: auto;
-  max-width: 28rem;
   text-align: center;
 }
 
@@ -67,14 +65,6 @@
   width: 100%;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.75rem;
-}
-
-/* 640〜767px にだけ効く（Card 既定の 1.5rem を 1rem へ）。`.meter-panel` と詳細度が同じで、後に読まれて勝つ。 */
-/* ui-exempt: #316 PR 3 で段へ寄せる */
-@media (40rem <= width < 48rem) {
-  .summary-stat {
-    padding: 1rem;
-  }
 }
 
 .summary-stat-value {

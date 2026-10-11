@@ -28,8 +28,12 @@ async function boxOf(page: Page, selector: string): Promise<Box> {
 }
 
 /** 器の外寸と、余白を除いた内側の幅・右端。 */
-async function pageBox(page: Page): Promise<{ outer: number; inner: number; innerRight: number }> {
-  return page.locator('main.ui-page').evaluate((el) => {
+async function pageBox(
+  page: Page,
+  // timer は器を `<main>` ではなく `Stage` の `div` に当てる。
+  selector = 'main.ui-page',
+): Promise<{ outer: number; inner: number; innerRight: number }> {
+  return page.locator(selector).first().evaluate((el) => {
     const s = getComputedStyle(el);
     const r = el.getBoundingClientRect();
     return {
@@ -381,5 +385,21 @@ test.describe('timer のセッションは脇を右に持つ', () => {
     // 行は 1 本: 段組みの下端は主と脇の低い方で、gap だけの空き行を下に残さない。
     const ws = await boxOf(page, '.ui-workspace');
     expect(ws.y + ws.height).toBeCloseTo(Math.max(main.y + main.height, side.y + side.height), 0);
+  });
+
+  test('Given timer / When 幅 1920 のロビー・幅 1280 のロビー・セッション・まとめ / Then 器は画面の用途の段（ロビー・セッションは wide・まとめは prose）', async ({ page }) => {
+    const TIMER_PAGE = 'div.ui-page.stage-inner';
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    await createTimerRoom(page, 'layout-timer-tier');
+    expect((await pageBox(page, TIMER_PAGE)).outer).toBe(96 * REM);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    expect((await pageBox(page, TIMER_PAGE)).inner).toBeGreaterThanOrEqual(72 * REM);
+    await page.getByRole('button', { name: 'セッションを開始' }).click();
+    await expect(page.getByRole('timer')).toBeVisible();
+    expect((await pageBox(page, TIMER_PAGE)).inner).toBeGreaterThanOrEqual(72 * REM);
+    await page.getByRole('button', { name: /完成!/ }).click();
+    await page.getByRole('dialog').getByRole('button', { name: '完成として記録する' }).click();
+    await expect(page.locator('.summary')).toBeVisible();
+    expect((await pageBox(page, TIMER_PAGE)).outer).toBe(40 * REM);
   });
 });

@@ -68,15 +68,15 @@ export function Summary({ endType, record, onNewSession, onSaveRecord }: Summary
               所要時間（「120分00秒」等）が whitespace-nowrap ではみ出さないよう、
               モバイルは text-lg、sm 以上で text-xl に上げる（R5-3）。 */}
           <div className="summary-stats">
-            <Card className="summary-stat">
+            <Card>
               <p className="instrument-label">所要時間</p>
               <p className="summary-stat-value tabular">{formatTime(record.elapsedSeconds)}</p>
             </Card>
-            <Card className="summary-stat">
+            <Card>
               <p className="instrument-label">交代回数</p>
               <p className="summary-stat-value tabular">{record.totalSwitches}回</p>
             </Card>
-            <Card className="summary-stat">
+            <Card>
               <p className="instrument-label">周回数</p>
               <p className="summary-stat-value tabular">{record.rounds ?? 0}周</p>
             </Card>
