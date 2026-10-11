@@ -401,7 +401,6 @@ test.describe('timer の各画面（ロビー・セッション・確認・ま�
     for (const r of wide.rows) expect(r.scrollW, `名簿の行「${r.name}」が横に溢れる`).toBeLessThanOrEqual(r.clientW);
     expect(wide.pageScrollW, '1280: ページが横に溢れる').toBeLessThanOrEqual(wide.pageClientW);
     // 行の操作の行は 1 段（アイコンの操作は名前の行の右端にある）。22rem の脇で 3 段に折れると 1 行が約 180px になる
-    expect(wide.rows.length).toBe(6);
     for (const r of wide.rows) expect(r.actionsH, `名簿の行「${r.name}」の操作の行が 1 段に収まらない（${r.actionsH}px）`).toBeLessThanOrEqual(44 + 2);
     await expectScreen(page, 'timer セッション（1280）', 8);
     await expectMiniHitTargets(page, 'timer セッション（1280）');

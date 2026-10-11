@@ -68,7 +68,7 @@ export function SelfDriverToggle({
           進行の操作はできます。交代の輪に入ると、ドライバーとして順番が回ってきます。
         </p>
         <div className="self-driver-toggle-outside-actions">
-          <button type="button" onClick={() => onJoin?.(participantId)} className="ui-button ui-button--secondary ui-button--sm">
+          <button type="button" onClick={() => onJoin?.(participantId)} className="ui-button ui-button--sm">
             ドライバーに加わる
           </button>
           {/* 輪の外でも部屋からは抜けられる。ここに導線が無いと取り残される。 */}

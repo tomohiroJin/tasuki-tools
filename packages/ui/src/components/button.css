@@ -116,8 +116,11 @@
   color: var(--rose-bright);
 }
 
+/* ホバーの敷き（rose-tint）の上では rose-bright が 4.01:1（felt-800）で AA を割るので、字を rose-pale にする（6.67:1 / felt-950 は 8.77:1）。
+   象牙の札の上は下の規則が字を card-back に固定し、rose-tint の敷きの上でも sheen 7.09:1 / shade 5.70:1 で足りるので触らない */
 .ui-button--danger:where(:hover:not(:disabled)) {
   background: var(--rose-tint);
+  color: var(--rose-pale);
 }
 
 .ui-button--danger:where(:active:not(:disabled)) {

@@ -143,6 +143,8 @@
 
 .summary-actions {
   width: 100%;
+  /* まとめの画面は中央寄せ。部品の `.ui-actions` は 40rem 以上で右に寄せるので、同じ詳細度で後に読む timer 側で中央へ戻す */
+  justify-content: center;
 }
 
 .summary-button-label {

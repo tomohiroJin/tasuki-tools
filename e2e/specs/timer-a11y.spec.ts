@@ -177,6 +177,27 @@ test.describe('文字が背景に対して読める（WCAG AA）', () => {
     //   朱の字（`--rose-bright`）がダイアログの面（`--panel`）に載る組を測ったことも固定する
     const [rose, panel] = await resolveColors(page, ['--rose-bright', '--panel']);
     expectReadable(await scanContrast(page), 10, [pairKey(rose!, panel!)]);
+    // Then: ホバーの敷き（`--rose-tint`）の上でも字が AA（敷きは半透明なので、ダイアログの面に重ねて測る）
+    await confirm.hover();
+    const hoverRatio = await confirm.evaluate((el) => {
+      const parse = (c: string) => (c.match(/[\d.]+/g) ?? []).map(Number);
+      const lin = (v: number) => ((v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+      const lum = (c: number[]) => 0.2126 * lin(c[0]!) + 0.7152 * lin(c[1]!) + 0.0722 * lin(c[2]!);
+      const fg = parse(getComputedStyle(el).color);
+      const tint = parse(getComputedStyle(el).backgroundColor);
+      let base = el.parentElement;
+      let under = [0, 0, 0];
+      while (base) {
+        const b = parse(getComputedStyle(base).backgroundColor);
+        if (b.length === 3 || (b.length === 4 && b[3] === 1)) { under = b.slice(0, 3); break; }
+        base = base.parentElement;
+      }
+      const a = tint[3] ?? 1;
+      const bg = [0, 1, 2].map((i) => tint[i]! * a + under[i]! * (1 - a));
+      const [hi, lo] = [lum(fg), lum(bg)].sort((x, y) => y - x);
+      return (hi! + 0.05) / (lo! + 0.05);
+    });
+    expect(hoverRatio, '朱の枠の確定のホバーの字が AA（4.5:1）を割る').toBeGreaterThanOrEqual(4.5);
     // Then: 朱の枠の確定もキーボードのフォーカスが見える
     await page.keyboard.press('Tab');
     await expect(confirm).toBeFocused();
