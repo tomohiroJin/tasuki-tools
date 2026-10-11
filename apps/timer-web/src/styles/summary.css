@@ -14,13 +14,13 @@
 }
 
 .summary-title {
-  font-size: 1.875rem; /* scale-exempt: Tailwind の text-3xl の写し（計器の数字は段の外） */
+  font-size: var(--font-size-xl); /* 画面の主見出し（§11） */
   line-height: 1.2;
   font-weight: 900;
 }
 
 .summary-title-abort {
-  font-size: 1.5rem; /* scale-exempt: Tailwind の text-2xl の写し（計器の数字は段の外） */
+  font-size: var(--font-size-xl); /* 画面の主見出し（§11） */
   line-height: var(--timer-never-defined, calc(2 / 1.5)); /* 行の高さは status-strip.css 冒頭の注釈 */
   font-weight: 700;
   color: var(--bone-muted);
@@ -42,7 +42,7 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  font-size: 1.5rem; /* scale-exempt: Tailwind の text-2xl の写し（計器の数字は段の外） */
+  font-size: var(--font-size-lg); /* 区画の見出し（§11） */
   line-height: var(--timer-never-defined, calc(2 / 1.5)); /* 行の高さは status-strip.css 冒頭の注釈 */
   font-weight: 700;
 }

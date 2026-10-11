@@ -17,13 +17,25 @@
   gap: 0.5rem;
 }
 
+/* 題と「Markdown」の小さな印を並べる（印は h2 の外に置き、見出しの名前に混ぜない） */
+.shared-memo-lead {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .shared-memo-title {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 PR 4 で段へ寄せる） */
-  line-height: var(--timer-never-defined, calc(1.25 / 0.875)); /* 行の高さは status-strip.css 冒頭の注釈 */
-  font-weight: 600;
+  margin: 0;
+  /* 区画の見出し（§11）。timer は要素層を読まないので段をここで当てる */
+  font-size: var(--font-size-lg);
+  line-height: var(--line-tight);
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--bone);
 }
 
 /* アイコン（除去検査で alive・lucide のクラスつきの行） */
