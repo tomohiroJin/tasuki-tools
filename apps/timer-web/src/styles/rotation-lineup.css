@@ -26,6 +26,8 @@
   display: flex;
   align-items: center;
   gap: 0.375rem;
+  /* 長い名前の札は列の幅で折れる（名前の min-width: 0 と対） */
+  max-width: 100%;
   border-radius: var(--radius-md);
   padding-inline: 0.625rem;
   padding-block: 0.375rem;
@@ -72,6 +74,9 @@
 }
 
 .rotation-lineup-name {
+  /* 区切りのない長い名前は札の中で折れる */
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-weight: 500;
 }
 

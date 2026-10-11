@@ -193,11 +193,22 @@
 
 /* 名前 */
 .roster-panel-name {
+  /* 名前は残りの幅を取る。区切りのない長い名前は自分の段へ回り、その中で折れて札に収まる（アイコンの操作は次の段の右端） */
+  flex: 1 1 auto;
   min-width: 0;
   font-size: 1rem; /* scale-exempt: Tailwind の text-base の写し（#316 で段へ寄せる） */
   line-height: var(--timer-never-defined, calc(1.5 / 1)); /* 行の高さは status-strip.css 冒頭の注釈 */
   font-weight: 500;
-  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
+}
+
+/* アイコンだけの操作（並べ替え・退出）。名前の行の右端 */
+.roster-panel-icon-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  margin-inline-start: auto;
+  column-gap: 0.25rem;
 }
 
 /* チップ（「代理」「離脱中」「▶ 今」）。色と太さは種類ごと */
@@ -221,7 +232,8 @@
 
 /* 2 段目: 操作 */
 .roster-panel-actions {
-  margin-top: 0.375rem;
+  /* 上の段のアイコンの操作の当たり（44px）と重ならない間隔（見た目 36px の幅 ≥40rem で 8px 要る） */
+  margin-top: 0.5rem;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -229,7 +241,6 @@
   /* 縦は当たり（44px）が隣の段と重ならない間隔（見た目 36px の幅 ≥40rem で 8px 要る） */
   column-gap: 0.25rem;
   row-gap: 0.5rem;
-  padding-inline-start: 1rem;
 }
 
 /* 改名中の行（比較に描かれない） */

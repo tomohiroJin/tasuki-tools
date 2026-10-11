@@ -135,6 +135,9 @@
 }
 
 .session-next-name {
+  /* 区切りのない長い名前は折れて札の中に収まる（カードの clip で切れない） */
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-weight: 700;
   color: var(--bone);
 }

@@ -445,6 +445,48 @@ export function RosterPanel({
                   ▶ 今
                 </span>
               )}
+              {/* アイコンだけの操作（並べ替え・退出）は名前の行の右端へ置く。文字の操作と同じ段に
+                  並べると 22rem の脇の列で 3 段に折れ、1 行が縦に長くなる（#316 PR 3・B2）。 */}
+              {(canMove || (!isMine && onRemove)) && (
+                <span className="roster-panel-icon-actions">
+                  {/* ドライバー順を入れ替えられる（v2.3 #1）。
+                      ドライバー行（rotation に含まれる）にのみ上/下を出す。先頭/末尾は無効化。 */}
+                  {canMove && (
+                    <>
+                      <MiniButton
+                        onClick={() => onMove!(rotationIndex, rotationIndex - 1)}
+                        disabled={rotationIndex === 0}
+                        aria-label={`${label} を前の順番へ`}
+                        title="前の順番へ"
+                      >
+                        <ChevronUp className="roster-panel-icon" aria-hidden="true" />
+                      </MiniButton>
+                      <MiniButton
+                        onClick={() => onMove!(rotationIndex, rotationIndex + 1)}
+                        disabled={rotationIndex === rotationLen - 1}
+                        aria-label={`${label} を後の順番へ`}
+                        title="後の順番へ"
+                      >
+                        <ChevronDown className="roster-panel-icon" aria-hidden="true" />
+                      </MiniButton>
+                    </>
+                  )}
+                  {/* 他の参加者を退出させる（⑪）。誰でも実行できる（#95 S3）。
+                      自分の行には出さない（自己退出は SelfDriverToggle 側・FR-078）。
+                      取り返しがつかない操作なので確認を挟む（FR-075）。
+                      同名が並ぶときはラベルに識別子を添える。二重参加の幽霊は本人と同名なので、
+                      名前だけだと「どちらを消すのか」を選ぶ時点で区別できない（FR-084）。 */}
+                  {!isMine && onRemove && (
+                    <MiniButton
+                      onClick={() => setPendingRemovalId(p.participantId)}
+                      aria-label={`${label} を退出させる`}
+                      title="退出させる"
+                    >
+                      <X className="roster-panel-icon" aria-hidden="true" />
+                    </MiniButton>
+                  )}
+                </span>
+              )}
             </div>
 
             {/* 2段目: 操作。バッジと分離し行幅いっぱいで右寄せ＋折返し（flex-wrap）にして、
@@ -485,42 +527,6 @@ export function RosterPanel({
                   title="ドライバーにする"
                 >
                   ドライバーにする
-                </MiniButton>
-              )}
-              {/* ドライバー順を入れ替えられる（v2.3 #1）。
-                  ドライバー行（rotation に含まれる）にのみ上/下を出す。先頭/末尾は無効化。 */}
-              {canMove && (
-                <>
-                  <MiniButton
-                    onClick={() => onMove!(rotationIndex, rotationIndex - 1)}
-                    disabled={rotationIndex === 0}
-                    aria-label={`${label} を前の順番へ`}
-                    title="前の順番へ"
-                  >
-                    <ChevronUp className="roster-panel-icon" aria-hidden="true" />
-                  </MiniButton>
-                  <MiniButton
-                    onClick={() => onMove!(rotationIndex, rotationIndex + 1)}
-                    disabled={rotationIndex === rotationLen - 1}
-                    aria-label={`${label} を後の順番へ`}
-                    title="後の順番へ"
-                  >
-                    <ChevronDown className="roster-panel-icon" aria-hidden="true" />
-                  </MiniButton>
-                </>
-              )}
-              {/* 他の参加者を退出させる（⑪）。誰でも実行できる（#95 S3）。
-                  自分の行には出さない（自己退出は SelfDriverToggle 側・FR-078）。
-                  取り返しがつかない操作なので確認を挟む（FR-075）。
-                  同名が並ぶときはラベルに識別子を添える。二重参加の幽霊は本人と同名なので、
-                  名前だけだと「どちらを消すのか」を選ぶ時点で区別できない（FR-084）。 */}
-              {!isMine && onRemove && (
-                <MiniButton
-                  onClick={() => setPendingRemovalId(p.participantId)}
-                  aria-label={`${label} を退出させる`}
-                  title="退出させる"
-                >
-                  <X className="roster-panel-icon" aria-hidden="true" />
                 </MiniButton>
               )}
             </div>

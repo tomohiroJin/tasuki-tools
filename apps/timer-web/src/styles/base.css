@@ -121,10 +121,10 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* 画面の下端の帯（`.ui-actions--dock`・40rem 未満）が Tab の行き先を隠さない余白。
+/* 画面の下端の帯（`.ui-actions--dock`・40rem 未満）の逃がし余白。
  * timer は要素層（`reset.css`）を読まないので、同じ値（6rem）をここに書く。
- * 帯の高さ（縦積み 3 段 ≒ 11rem）より小さいが、行き先が帯の「上」で止まるぶんだけあればよい
- * （ブラウザは行き先を `scroll-padding` の内側へ入れる）。 */
+ * 帯は計器のカードの中でだけ留まり、カードには帯より上に隠れうる操作対象が無い。
+ * そのためこの余白が実際に効く場面は今は無く、要素層と同じ値にそろえた予防である。 */
 @media (width < 40rem) {
   html {
     scroll-padding-block-end: 6rem;

@@ -319,6 +319,7 @@ async function measureRoster(page: Page) {
     }));
     const rows = Array.from(document.querySelectorAll('.ui-workspace-side .roster-panel-row')).map((el) => ({
       name: (el.querySelector('.roster-panel-name')?.textContent ?? '').slice(0, 12), scrollW: el.scrollWidth, clientW: el.clientWidth,
+      actionsH: el.querySelector('.roster-panel-actions')?.getBoundingClientRect().height ?? 0,
     }));
     const doc = document.documentElement;
     return { lists, rows, pageScrollW: doc.scrollWidth, pageClientW: doc.clientWidth };
@@ -326,7 +327,7 @@ async function measureRoster(page: Page) {
 }
 
 /** Tab を一歩ずつ進め、辿った先が帯と重ならないことを見る。帯が留まっている間に帯の上の要素を通ったことも固定する。 */
-async function expectTabNeverUnderDock(page: Page, dock: Locator, target: string, label: string): Promise<void> {
+async function expectTabNeverUnderDock(page: Page, target: string, label: string): Promise<void> {
   await page.evaluate(() => window.scrollTo(0, 0));
   // Tab の起点を頁の左上へ戻す（`body.focus()` では起点が前のフォーカスに残り、先頭の要素を飛ばして帯から始まる）
   await page.mouse.click(1, 1);
@@ -359,7 +360,6 @@ async function expectTabNeverUnderDock(page: Page, dock: Locator, target: string
   }
   expect(reached, `${label}: Tab で「${target}」に届かない`).toBe(true);
   expect(sawAboveWhilePinned, `${label}: 帯が留まっている間に帯の上の要素を通っていない（判定が空振りする）\n${trace.join('\n')}`).toBeGreaterThan(0);
-  void dock;
 }
 
 test.describe('timer のセッションの操作は下端の帯と終える区画で、名簿は内側でスクロールしない', () => {
@@ -368,7 +368,7 @@ test.describe('timer のセッションの操作は下端の帯と終える区�
     await createTimerRoom(page, 'buttons-timer');
     await page.getByRole('button', { name: 'セッションを開始' }).click();
     await expect(page.getByRole('timer')).toBeVisible();
-    await addProxies(page, ['proxy-b', 'proxy-c', LONG_NAME, 'proxy-e', 'proxy-f']);
+    await addProxies(page, [LONG_NAME, 'proxy-b', 'proxy-c', 'proxy-e', 'proxy-f']);
     await expect(page.locator('.ui-workspace-side .roster-panel-row'), '名簿は 6 人').toHaveCount(6);
 
     // Then 1280（脇 22rem）: 内側のスクロールが無く、行は横に溢れない
@@ -380,6 +380,9 @@ test.describe('timer のセッションの操作は下端の帯と終える区�
     expect(wide.rows.length).toBe(6);
     for (const r of wide.rows) expect(r.scrollW, `名簿の行「${r.name}」が横に溢れる`).toBeLessThanOrEqual(r.clientW);
     expect(wide.pageScrollW, '1280: ページが横に溢れる').toBeLessThanOrEqual(wide.pageClientW);
+    // 行の操作の行は 1 段（アイコンの操作は名前の行の右端にある）。22rem の脇で 3 段に折れると 1 行が約 180px になる
+    expect(wide.rows.length).toBe(6);
+    for (const r of wide.rows) expect(r.actionsH, `名簿の行「${r.name}」の操作の行が 1 段に収まらない（${r.actionsH}px）`).toBeLessThanOrEqual(44 + 2);
     await expectScreen(page, 'timer セッション（1280）', 8);
     await expectMiniHitTargets(page, 'timer セッション（1280）');
 
@@ -414,13 +417,26 @@ test.describe('timer のセッションの操作は下端の帯と終える区�
     expect((await measureRoster(page)).pageScrollW, '390: ページが横に溢れる').toBeLessThanOrEqual(390);
     await expectMiniHitTargets(page, 'timer セッション（390）');
 
+    // 区切りのない 30 字の名前（次のドライバー）が「次:」の行と交代順の札で、カードの縁に切られない
+    const clip = await page.locator('.session-driver-card').evaluate((card, long) => {
+      const c = card.getBoundingClientRect();
+      const inner = c.right - parseFloat(getComputedStyle(card).paddingRight);
+      const rights = (sel: string) => Array.from(card.querySelectorAll(sel))
+        .filter((e) => e.textContent?.includes(long))
+        .map((e) => e.getBoundingClientRect().right);
+      return { inner, next: rights('.session-next-name'), chips: rights('.rotation-lineup-name') };
+    }, LONG_NAME);
+    expect(clip.next.length, '「次:」の名前が 30 字の名前でない').toBe(1);
+    expect(clip.chips.length, '交代順の札に 30 字の名前が無い').toBe(1);
+    for (const right of [...clip.next, ...clip.chips]) expect(right, `390: 長い名前がカードの縁（${clip.inner}）で切れる`).toBeLessThanOrEqual(clip.inner + 0.5);
+
     // timer は要素層（`reset.css`）を読まないので、帯の逃がし余白（`scroll-padding-block-end`）は timer の `base.css` が持つ。
-    // 帯は計器のカードの中で留まるため、Tab の行き先が帯の下に潜る場面はこの配置では作れない（下の一歩ごとの検査は予防）。
+    // 帯は計器のカードの中で留まり、カードには帯より上に隠れうる操作対象が無いので、Tab の行き先が帯の下に潜る場面はこの配置では作れない（下の一歩ごとの検査は予防）。
     // 余白そのものは値で固定する（要素層と同じ 6rem・40rem 未満だけ）。
     expect(await page.evaluate(() => getComputedStyle(document.documentElement).scrollPaddingBottom), '390: scroll-padding-block-end が 6rem でない').toBe('96px');
 
     // Tab は「完成!」まで帯に隠れない
-    await expectTabNeverUnderDock(page, dock, '完成!', 'timer セッション（390）');
+    await expectTabNeverUnderDock(page, '完成!', 'timer セッション（390）');
 
     // 40rem 以上は流れの中
     await page.setViewportSize({ width: 1280, height: 900 });
