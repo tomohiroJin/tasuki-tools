@@ -4,3 +4,6 @@ export { INITIAL_ROULETTE_STATE } from "./types.js";
 export type { Entry, EntryId, Member, RouletteState, Spin } from "./types.js";
 
 export { poolOf } from "./pool.js";
+
+export { drawWinner } from "./draw.js";
+export type { DrawResult } from "./draw.js";

@@ -1406,6 +1406,22 @@ export const MUTATIONS = [
     tests: ["tests/pool.test.ts"],
     note: "#94 E4・spec R7。外した参加者が入ってしまう。",
   },
+  {
+    id: 151,
+    label: "drawWinner が drawn を見ずに pool 全体から引く",
+    patch: "m151-draw-ignores-drawn.patch",
+    pkg: "packages/roulette-core",
+    tests: ["tests/draw.test.ts"],
+    note: "#94 E2・spec R6。1 回目では見分けが付かないので 2 回目で見る。",
+  },
+  {
+    id: 152,
+    label: "周を閉じたとき直前の当たりを除かない",
+    patch: "m152-draw-keeps-last-winner.patch",
+    pkg: "packages/roulette-core",
+    tests: ["tests/draw.test.ts"],
+    note: "#94 E3・spec R6。周の境目で同じ人が 2 回続く。",
+  },
 ];
 
 /**
