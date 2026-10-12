@@ -1566,6 +1566,14 @@ export const MUTATIONS = [
     tests: ["tests/use-roulette-sync.test.tsx"],
     note: "#94 E17・spec §6.4。同じ回転（seq が同じ）の状態を繰り返し受けるたびに経過が 0 に戻り、円盤が回し直しになる。",
   },
+  {
+    id: 180,
+    label: "同じ回転のフレームで基準の時刻は古いまま新しい経過を採る",
+    patch: "m180-web-same-seq-takes-new-elapsed.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/use-roulette-sync.test.tsx"],
+    note: "#94 E17・spec §6.4（PR #357 のレビュー）。回転中の外す・戻すや再接続で同じ seq が届くたびに経過を二重に数え、止まる時刻が前へずれる。",
+  },
 ];
 
 /**
