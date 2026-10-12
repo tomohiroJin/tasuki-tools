@@ -54,7 +54,7 @@
 ### タスク 1.1 パッケージの骨組み
 
 - **変えるファイル**: `packages/roulette-core/{package.json,tsconfig.json,vitest.config.ts,src/index.ts}`（`packages/topic-core` の 4 つを写す。`name` は `@tasuki/roulette-core`・依存は `valibot` と `neverthrow`（topic-core と同じ版の指定）だけ）、`turbo.json`（topic-core と同じ扱いの行があれば並べる）
-- **先に書く赤いテスト**: `packages/roulette-core/tests/limits.test.ts` —— `SPIN_DURATION_MS === 4800`・`MAX_GUESTS === 12`・`MAX_WHEEL === 24`・`SETTLE_MIN < SETTLE_MAX` かつ両方が `(0,1)` の中
+- **先に書く赤いテスト**: `packages/roulette-core/tests/limits.test.ts` —— `SPIN_DURATION_MS === 4000`・`MAX_GUESTS === 12`・`MAX_WHEEL === 24`・`SETTLE_MIN < SETTLE_MAX` かつ両方が `(0,1)` の中
 - **止まる点**: `package.json` を足したら**統括に lockfile の更新を依頼して待つ**
 - **確かめる**: `pnpm --filter @tasuki/roulette-core test`
 
@@ -238,18 +238,21 @@
 
 ### タスク 3.1 円盤の幾何（純粋関数）
 
-- **変えるファイル**: `apps/roulette-web/src/wheel-motion.ts`（`TURNS = 5`・`finalAngle(n, winnerIndex, settle)`・`easeOutQuart`・`angleAt(elapsedMs, durationMs, n, winnerIndex, settle)`・`segmentBoundaryIndex(angle, n)`（指し針の弾みに使う））、`src/wheel-geometry.ts`（`polar`・`arcPath`・`fitLabel(name, maxEm)`）
+- **変えるファイル**: `apps/roulette-web/src/wheel-motion.ts`（`TURNS = 4`・`stageLayoutFor(widthPx)`・`pointerDegFor(layout)`・`finalAngle(n, winnerIndex, settle, pointerDeg, startDeg)`・`easeOutCubic`・`angleAt(elapsedMs, durationMs, n, winnerIndex, settle, pointerDeg, startDeg)`・`segmentBoundaryIndex(angle, n, pointerDeg)`（指し針の弾みに使う））、`src/wheel-geometry.ts`（`polar`・`arcPath`・`toneOf(i, n)`・`labelPlacement(mid, rotorDeg)`・`fitLabel(name, maxEm)`）。spec §6.3・§6.4・§6.7（2 版）
 - **先に書く赤いテスト**: `tests/wheel-motion.test.ts`
-  - **オラクルは別の計算で組む**: 止まった角度 θ で回転子を回したとき、指し針の先（円盤の座標で `(0, -60)`）を回転子の座標へ戻し（`(x, y)` を `-θ` 回す）、`Math.atan2` で出した角が席 `winnerIndex` の扇形 `[i·s, (i+1)·s)` に**入っていて、境目から `0.2·s` 以上離れている**ことを、n = 2〜24・全席・`settle` ∈ {0.2, 0.5, 0.8} で見る。`finalAngle` を逆算して比べない〈m163〉
-  - `angleAt(0) === 0`・`angleAt(durationMs) === finalAngle(...)`・`angleAt` が単調に増える（100 点で見る）
+  - **オラクルは別の計算で組む**: 止まった角度 θ で回転子を回したとき、指し針の先（下なら `(0, 60)`・右なら `(60, 0)`）を回転子の座標へ戻し（`(x, y)` を `-θ` 回す）、`Math.atan2` で出した角が席 `winnerIndex` の扇形 `[i·s, (i+1)·s)` に**入っていて、境目から `0.2·s` 以上離れている**ことを、n = 2〜24・全席・`settle` ∈ {0.2, 0.5, 0.8}・指し針 2 か所・`startDeg` ∈ {0, 37.5, 123, 359} で見る。`finalAngle` を逆算して比べない〈m163〉（モックの下書きでこのオラクルを流し、食い違い 0 を確かめてある）
+  - `angleAt(0) === startDeg`・`angleAt(durationMs) === finalAngle(...)`・`angleAt` が単調に増える（100 点で見る）・`finalAngle − startDeg ≥ 360·TURNS`
+  - `toneOf`: n = 2〜24 で、隣り合う席（最後と最初を含む）が同じ色にならない
+  - `labelPlacement`: 回転子の角度 0〜359 と席の位置の全組で、画面上の字の向き（`rotate + rotorDeg` の剰余）が `[270, 360) ∪ [0, 90]` に入る（頭が上）
+  - `stageLayoutFor(719) === 'stack'`・`stageLayoutFor(720) === 'row'`、`pointerDegFor` が stack→180・row→90
   - `fitLabel`: 全角 6 字で切って `…`・半角は 0.6 で数える・ちょうど収まる名前は切らない
 - **確かめる**: `pnpm --filter @tasuki/roulette-web test -- tests/wheel-motion.test.ts`
 
 ### タスク 3.2 円盤の部品と回転
 
-- **変えるファイル**: `src/components/Wheel.tsx`（SVG。spec §6.3。`aria-hidden`・`focusable="false"`。名前は `<text>` の子に文字列）、`src/hooks/use-wheel-rotation.ts`（`seq` が変わったときだけ rAF を始める・`receivedAt` と `elapsedMs` から経過を出す・動きを減らす設定では最終の角度へ置くだけ・アンマウントで rAF を止める）、`src/components/ResultCard.tsx`（伏せ札とめくり。表の pip は `aria-hidden`）、`src/index.css`（spec §6.2・§6.7。モックの `roulette.css` を写す）
+- **変えるファイル**: `src/components/Wheel.tsx`（SVG。spec §6.3。`aria-hidden`・`focusable="false"`。名前は `<text>` の子に文字列）、`src/hooks/use-wheel-rotation.ts`（`seq` が変わったときだけ rAF を始める・`receivedAt` と `elapsedMs` から経過を出す・動きを減らす設定では最終の角度へ置くだけ・アンマウントで rAF を止める）、`src/components/ResultCard.tsx`（伏せ札とめくり。表は「次の進行役」と名前だけ・隅のピップは置かない）、`src/hooks/use-stage-layout.ts`（`ResizeObserver` で舞台の幅を読み `stageLayoutFor` を返す。回っている間は変えない）、`src/index.css`（spec §6.2・§6.7。モックの `roulette.css` を写す）
 - **先に書く赤いテスト**: `tests/wheel.test.tsx`（偽の rAF と偽の時計）
-  - 新しい `seq` を受けると角度が増えていき、`durationMs` の後に `finalAngle` で止まり、当たりの席に `--winner` のクラスが付く
+  - 新しい `seq` を受けると、**その画面がいま見せている角度から**角度が増えていき（0° へ跳ばない）、`durationMs` の後に `finalAngle` で止まり、当たりの席に `--winner` のクラスが付き、名前が止まった角度の向きで描き直される
   - **外す操作で同じ `seq` の状態が配り直された直後も、角度が巻き戻らない**（直前の角度以上）〈m162 の画面側〉
   - 動きを減らす設定では、受け取った直後の最初の描画で角度が `finalAngle`・当たりの席が付く・rAF を 1 度も呼ばない〈m164〉
   - 途中から合流（`elapsedMs = 3000`）した画面の最初の角度が `angleAt(3000)` 付近（0 ではない）
