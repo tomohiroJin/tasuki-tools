@@ -56,10 +56,16 @@ describe('ルーレットが受け取るフレーム', () => {
   });
 
   it('Given どれにも合わないフレーム / When 検める / Then 受け取らない', () => {
-    // Given / When / Then
-    expect(parseRouletteWebMessage('not json')).toBeNull();
-    expect(parseRouletteWebMessage(JSON.stringify({ type: 'roulette', state: { excluded: [] } }))).toBeNull();
-    expect(parseRouletteWebMessage(JSON.stringify({ type: 'topic', state: { topic: 'broken' } }))).toBeNull();
-    expect(parseRouletteWebMessage(JSON.stringify({ type: 'unknown' }))).toBeNull();
+    // Given: 壊れた JSON・項目が足りない 2 種・未知の type
+    const raws = [
+      'not json',
+      JSON.stringify({ type: 'roulette', state: { excluded: [] } }),
+      JSON.stringify({ type: 'topic', state: { topic: 'broken' } }),
+      JSON.stringify({ type: 'unknown' }),
+    ];
+    // When
+    const results = raws.map(parseRouletteWebMessage);
+    // Then
+    expect(results).toEqual([null, null, null, null]);
   });
 });

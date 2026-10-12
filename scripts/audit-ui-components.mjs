@@ -66,7 +66,7 @@ import { listWebAppDirs } from "./audit-web-sync-boundary.mjs";
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 /** web アプリの宣言。実体（`vite.config.ts` の実在）と全単射で照合する。 */
-export const WEB_APPS = ["apps/landing", "apps/poker-web", "apps/timer-web", "apps/topic-web"];
+export const WEB_APPS = ["apps/landing", "apps/poker-web", "apps/timer-web", "apps/topic-web", "apps/roulette-web"];
 
 /** 部品層。ここは「画面の CSS」から外し、部品の規則で見る。 */
 export const COMPONENTS_DIR = "packages/ui/src/components/";

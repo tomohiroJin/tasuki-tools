@@ -158,6 +158,15 @@ export const WEB_APPS = [
     allowedImporters: [],
     wsHolders: [],
   },
+  {
+    app: "apps/roulette-web",
+    // #94 PR 2。topic-web と同じ宣言（接続の実体は `@tasuki/sync-client`。src は WS を自分で持たない）。
+    // 画面（`.tsx`）が `@tasuki/sync-client` を直接 import することは、この宣言は見ない。
+    // その守りは `tests/screens-do-not-import-sync-client.test.ts` が roulette-web の中で持つ。
+    syncModules: [],
+    allowedImporters: [],
+    wsHolders: [],
+  },
 ];
 
 /**

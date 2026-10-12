@@ -89,7 +89,11 @@ describe('入る人の一覧', () => {
   const members = membersOf(ROSTER);
 
   it('Given 名簿 / When 名簿の断片に直す / Then 参加者 ID・表示名・在室になる', () => {
-    expect(members).toEqual([
+    // Given: あや・ゆうは在室、れんは離席
+    // When
+    const result = membersOf(ROSTER);
+    // Then
+    expect(result).toEqual([
       { id: 'p1', name: 'Aya', present: true },
       { id: 'p2', name: 'Yu', present: true },
       { id: 'p3', name: 'Ren', present: false },
@@ -191,26 +195,28 @@ describe('結果の一言と主ボタン', () => {
 
 describe('接続の告知', () => {
   it('Given 参加済みで繋がっている / When 操作可否を見る / Then 操作できる。参加前や切断中は操作できない', () => {
-    expect(canOperate('open', true)).toBe(true);
-    expect(canOperate('open', false)).toBe(false);
-    expect(canOperate('closed', true)).toBe(false);
+    // Given: 状態の組 3 つ
+    // When
+    const operable = canOperate('open', true);
+    const beforeJoin = canOperate('open', false);
+    const disconnected = canOperate('closed', true);
+    // Then
+    expect(operable).toBe(true);
+    expect(beforeJoin).toBe(false);
+    expect(disconnected).toBe(false);
   });
 
   it('Given 接続の状態 / When 告知を決める / Then 一度も繋がらないなら繋がらない、使えていたなら再接続中、捨てたなら同期できていない', () => {
-    expect(connectionNotice({ status: 'closed', everConnected: false, failedAttempts: 1, syncStale: false })).toEqual({
-      kind: 'unreachable',
-      text: UNREACHABLE_TEXT,
-    });
-    expect(connectionNotice({ status: 'closed', everConnected: true, failedAttempts: 1, syncStale: false })).toEqual({
-      kind: 'reconnecting',
-      text: RECONNECTING_TEXT,
-    });
-    expect(connectionNotice({ status: 'open', everConnected: true, failedAttempts: 0, syncStale: true })).toEqual({
-      kind: 'stale',
-      text: STALE_TEXT,
-    });
-    expect(connectionNotice({ status: 'connecting', everConnected: false, failedAttempts: 0, syncStale: false })).toEqual({
-      kind: 'none',
-    });
+    // Given: 4 つの状態
+    // When
+    const neverConnected = connectionNotice({ status: 'closed', everConnected: false, failedAttempts: 1, syncStale: false });
+    const dropped = connectionNotice({ status: 'closed', everConnected: true, failedAttempts: 1, syncStale: false });
+    const stale = connectionNotice({ status: 'open', everConnected: true, failedAttempts: 0, syncStale: true });
+    const starting = connectionNotice({ status: 'connecting', everConnected: false, failedAttempts: 0, syncStale: false });
+    // Then
+    expect(neverConnected).toEqual({ kind: 'unreachable', text: UNREACHABLE_TEXT });
+    expect(dropped).toEqual({ kind: 'reconnecting', text: RECONNECTING_TEXT });
+    expect(stale).toEqual({ kind: 'stale', text: STALE_TEXT });
+    expect(starting).toEqual({ kind: 'none' });
   });
 });

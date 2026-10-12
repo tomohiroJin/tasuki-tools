@@ -137,7 +137,8 @@ describe('結果の一言は止まってから当たりを言う', () => {
   });
 
   it('Given 回す前 / When 画面を見る / Then 回すとの案内と主ボタン', () => {
-    // Given / When
+    // Given
+    // When
     enterRoom();
     // Then
     expect(caption()).toHaveTextContent(CAPTION_IDLE);
@@ -290,8 +291,9 @@ describe('お題の添え書き', () => {
   });
 
   it('Given お題が無い / When 画面を見る / Then 添え書きは出ない。お題が下りたら消える', () => {
-    // Given / When
+    // Given
     enterRoom();
+    // When
     act(() => latestSocket().deliver(topicFrame(null)));
     // Then
     expect(screen.queryByText(/の進行役を決めます/)).toBeNull();
@@ -304,7 +306,8 @@ describe('お題の添え書き', () => {
 
 describe('入り方と戻り方', () => {
   it('Given 復帰の組が無い / When 開く / Then 繋がずに玄関のそのルームへ送り返す', () => {
-    // Given / When
+    // Given: 復帰の組を置いていない
+    // When
     render(<App />);
     // Then
     expect(ScriptedWebSocket.instances).toHaveLength(0);

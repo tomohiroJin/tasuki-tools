@@ -416,6 +416,9 @@ importers:
       '@tasuki/poker-web':
         specifier: workspace:*
         version: link:../apps/poker-web
+      '@tasuki/roulette-web':
+        specifier: workspace:*
+        version: link:../apps/roulette-web
       '@tasuki/timer-web':
         specifier: workspace:*
         version: link:../apps/timer-web

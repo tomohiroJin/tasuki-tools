@@ -60,7 +60,8 @@ describe('ルーレットのルームへの入り方', () => {
   });
 
   it('Given 復帰の組が無い / When 繋ぐ / Then 繋がずに玄関へ戻す印を立てる', () => {
-    // Given / When
+    // Given: 復帰の組を置いていない
+    // When
     const { result } = renderHook(() => useRouletteSync('R1'));
     // Then
     expect(ScriptedWebSocket.instances).toHaveLength(0);
@@ -68,7 +69,8 @@ describe('ルーレットのルームへの入り方', () => {
   });
 
   it('Given 入れた / When 参加の応答が届く / Then 自分の参加者 ID を覚え、入れたと分かる', () => {
-    // Given / When
+    // Given
+    // When: 入室した（参加の応答が届く）
     const { result } = joinedHook();
     // Then
     expect(result.current.joined).toBe(true);

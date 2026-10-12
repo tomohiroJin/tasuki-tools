@@ -169,6 +169,20 @@ export const ALLOWED = {
     "@tasuki/topic-core",
     "@tasuki/ui",
   ],
+  // #94 PR 2: ルーレット。名簿の断片（在室の人）を作るために room-core の名簿の型と
+  // 参加の応答の検めを使い、入る人の計算は roulette-core の `poolOf` を呼ぶ（サーバーと同じ関数・spec R7）。
+  // お題の添え書きのために topic-core の `topic` フレームを検める。
+  // **timer-core・poker-core を知らない**（ツール同士は直接の関係を持たない）。
+  "apps/roulette-web": [
+    "@tasuki/dev-hub-redirect",
+    "@tasuki/invite-ui",
+    "@tasuki/protocol",
+    "@tasuki/room-core",
+    "@tasuki/roulette-core",
+    "@tasuki/sync-client",
+    "@tasuki/topic-core",
+    "@tasuki/ui",
+  ],
   // #95 S2 で apps/timer-sync と apps/poker-sync がここへ統合された。
   // poker-core が加わったのはそのため（統合前は poker-sync 側の依存）。
   "apps/tasuki-sync": [
@@ -180,7 +194,7 @@ export const ALLOWED = {
     "@tasuki/timer-core",
     "@tasuki/topic-core",
   ],
-  e2e: ["@tasuki/landing", "@tasuki/poker-web", "@tasuki/timer-web", "@tasuki/topic-web"],
+  e2e: ["@tasuki/landing", "@tasuki/poker-web", "@tasuki/roulette-web", "@tasuki/timer-web", "@tasuki/topic-web"],
 };
 
 /**

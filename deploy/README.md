@@ -15,6 +15,7 @@ Tasuki の各アプリは「自分の systemd ユニット + 固有ポート + C
 | `timer` | `tasuki-sync` | 8787 | `/opt/tasuki` / `/var/www/tasuki` | `/timer/` | 公開中 |
 | `poker` | （無し・静的） | — | `/var/www/tasuki-poker` | `/poker/` | 公開中 |
 | `topic` | （無し・静的） | — | `/var/www/tasuki-topic` | `/topic/` | 公開中 |
+| `roulette` | （無し・静的） | — | `/var/www/tasuki-roulette` | `/roulette/` | 未配布（#94。順序は roulette → landing → timer・[`roulette/NOTES.md`](roulette/NOTES.md)） |
 
 > **#91（お題）は 4 本をまとめて 1 回で配った**（2026-09-27）。順序は topic → poker → landing → timer で、
 > `/topic/` の断片を先に置き、間を空けずに続けて流す。配布中の窓と手順は

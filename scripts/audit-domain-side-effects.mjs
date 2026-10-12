@@ -91,6 +91,7 @@ export const EXCLUDED_PACKAGES = [
   { pkg: "apps/landing", reason: "アプリ層。副作用を置いてよい境界" },
   { pkg: "apps/poker-web", reason: "アプリ層。副作用を置いてよい境界" },
   { pkg: "apps/topic-web", reason: "アプリ層。副作用を置いてよい境界" },
+  { pkg: "apps/roulette-web", reason: "アプリ層。副作用を置いてよい境界" },
   {
     pkg: "apps/tasuki-sync",
     reason:
