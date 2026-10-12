@@ -4,6 +4,26 @@
 - **日付**: 2026-10-12・**実測時点**: main `7d141f63`
 - **型にした先例**: #91 の PR 1（`3cddcdce`）・PR 2（`42872e3d`）。迷ったら `git show <SHA> -- <ファイル>` で同じ場所の差分を読む
 
+## Constitution Check
+
+憲法（[`docs/constitution.md`](../../constitution.md) v2.1.4）のコンプライアンスゲート。設計正本の番号（R・E・m）で根拠を指す。
+
+| 原則 | 判定 | 根拠 |
+|---|---|---|
+| I. テスト駆動開発 | 通過 | 全タスクが「先に書く赤いテスト」から始まる。オラクルは実装と別の計算で組む（spec §8.2 の E16） |
+| II. 技術選定は ADR を通す | 通過 | 新しい文脈（`packages/roulette-core`）と乱数・時刻の扱いを ADR 0026 で決める（タスク 1.11）。外部の依存は足さない（`valibot`・`neverthrow` は既存の版の指定） |
+| III. 揮発インメモリと単純運用 | 通過 | ルーレットの状態はルームの揮発メモリだけに置き、履歴を持たない（spec R8）。新しいサーバー・ユニットを立てない（spec R1）。配布は静的サイト 1 本ぶん（`STATIC_ONLY=1`） |
+| IV. 境界の型安全 | 通過 | コマンドは valibot の `strictObject`、フレームは非 strict の `object`。境界の検証は同期サーバーのメッセージ層と web のフレームの見分けの 1 か所ずつ（spec §5.3） |
+| V. 実画面検証 | 通過 | 2〜3 つのブラウザで同じ席に止まること・途中参加・動きを減らす設定・4 つの幅を撮る（タスク 3.5・spec §8.4）。撮影は統括 |
+| VI. 依存は内向き | 通過 | `roulette-core` はどの `@tasuki/*` にも依存しない（spec R3・ADR 0026 決定 1）。`audit-dependency-direction` の `ALLOWED` に登録する（タスク 1.6・2.5） |
+| VII. 検査は壊して確かめる | 通過 | 変異 m150〜m169 を足し、1 本ずつ赤を見る（§5）。全件は統括 |
+| VIII. 記録が正本 | 通過 | 決定は ADR 0026、設計と実測は設計正本、PR 1 のずれは設計正本 §5.1 に戻した |
+| IX. 小さく回す | 通過 | PR を 3 本に分け（spec §10）、配布は最後に 1 回 |
+| X. 抽象は実需で | 通過 | timer の rotation と共通化しない（spec R12）。表示部品は `packages/ui` に置かない（spec R17） |
+| XI. 秘密と個人情報を持ち込まない | 通過 | ゲストの名前・表示名をログへ出さない（spec R13・E14）。ログ衛生の検査の射程に新しいファイルを入れる |
+
+**逸脱なし。** Complexity Tracking での正当化を要する項目はない。
+
 ## 0. この計画の読み方と取り決め
 
 - **PR は 3 本**（spec §10）。main へ順に入れ、本番への配布は最後に 1 回（統括が利用者の指示を待って行う）
@@ -189,7 +209,7 @@
 ### タスク 2.3 見え方の純粋関数と画面（円盤なし）
 
 - **変えるファイル**: `src/roulette-view.ts`（`poolOf` を roulette-core から呼んで一覧の行を作る・`phaseOf(view, nowMs)` で「回す前 / 回っている / 止まった」・**回っている間は今回の当たりを `drawn` から除いた一覧と数**・結果の一言・主ボタンの文言と押せるか）、`src/screens/RouletteRoom.tsx`、`src/components/{PeoplePanel,GuestForm,SpinControls}.tsx`
-- **段組み**: `<main className="ui-page ui-page--wide">` → 見出しと招待 → `<div className="ui-workspace ui-workspace--side-end">`（main: お題の添え書き・結果の一言・回す / side: `.ui-panel` の入る人）。spec §6.7
+- **段組み**: `<main className="ui-page ui-page--wide">` → 見出し（h1 と戻る）→ `<div className="ui-workspace ui-workspace--side-end">`（main: お題の添え書き・結果の一言・回す / side: `.ui-panel` の入る人と、2 つ目の `.ui-panel`「仲間を招く」（`InviteLink`））。**招待は見出しの下に置かない**（spec §6.7 の 3 版・利用者が承認）。「一周をやり直す」は `.ui-button--secondary --sm`（状態を変える操作。控えの下線の字にしない）。spec §6.7
 - **先に書く赤いテスト**: `tests/roulette-view.test.ts` と `tests/roulette-room.test.tsx`（偽の WebSocket と偽の時計）
   - 回り始めてから止まるまで、`role="status"` の領域に**当たりの名前が無い**。止まった後に「次の進行役は {名前} さんです」〈m165。**回っている間に見る**〉
   - 回っている間、一覧の当たりの行に「選ばれた」が無く、一周の数も今回を数えない。止まった後に出る〈m166〉
@@ -243,19 +263,22 @@
   - **オラクルは別の計算で組む**: 止まった角度 θ で回転子を回したとき、指し針の先（下なら `(0, 60)`・右なら `(60, 0)`）を回転子の座標へ戻し（`(x, y)` を `-θ` 回す）、`Math.atan2` で出した角が席 `winnerIndex` の扇形 `[i·s, (i+1)·s)` に**入っていて、境目から `0.2·s` 以上離れている**ことを、n = 2〜24・全席・`settle` ∈ {0.2, 0.5, 0.8}・指し針 2 か所・`startDeg` ∈ {0, 37.5, 123, 359} で見る。`finalAngle` を逆算して比べない〈m163〉（モックの下書きでこのオラクルを流し、食い違い 0 を確かめてある）
   - `angleAt(0) === startDeg`・`angleAt(durationMs) === finalAngle(...)`・`angleAt` が単調に増える（100 点で見る）・`finalAngle − startDeg ≥ 360·TURNS`
   - `toneOf`: n = 2〜24 で、隣り合う席（最後と最初を含む）が同じ色にならない
-  - `labelPlacement`: 回転子の角度 0〜359 と席の位置の全組で、画面上の字の向き（`rotate + rotorDeg` の剰余）が `[270, 360) ∪ [0, 90]` に入る（頭が上）
+  - `labelPlacement`（spec §6.3 の 3 版）: 回転子の角度 0〜359 と席の位置の全組で、画面上の字の傾き（`rotate + rotorDeg` を −180〜180 に畳んだ値）が ±45° 以内で、行の向き（横書きは傾きそのもの・縦書きは 90° ＋ 傾き）が半径に沿う（外向きの半径との差が 0° か 180°）。横書きと縦書きの切り替えを具体値で固定する: 画面上 150° の席は縦書き・傾き −30°、真右（90°）と真左（270°）は横書き・傾き 0°、真下（180°）は縦書き・傾き 0°。行が外へ進むなら `text-anchor: end`、内へ進むなら `start`
   - `stageLayoutFor(719) === 'stack'`・`stageLayoutFor(720) === 'row'`、`pointerDegFor` が stack→180・row→90
   - `fitLabel`: 全角 6 字で切って `…`・半角は 0.6 で数える・ちょうど収まる名前は切らない
 - **確かめる**: `pnpm --filter @tasuki/roulette-web test -- tests/wheel-motion.test.ts`
 
 ### タスク 3.2 円盤の部品と回転
 
-- **変えるファイル**: `src/components/Wheel.tsx`（SVG。spec §6.3。`aria-hidden`・`focusable="false"`。名前は `<text>` の子に文字列）、`src/hooks/use-wheel-rotation.ts`（`seq` が変わったときだけ rAF を始める・`receivedAt` と `elapsedMs` から経過を出す・動きを減らす設定では最終の角度へ置くだけ・アンマウントで rAF を止める）、`src/components/ResultCard.tsx`（伏せ札とめくり。表は「次の進行役」と名前だけ・隅のピップは置かない）、`src/hooks/use-stage-layout.ts`（`ResizeObserver` で舞台の幅を読み `stageLayoutFor` を返す。回っている間は変えない）、`src/index.css`（spec §6.2・§6.7。モックの `roulette.css` を写す）
+- **変えるファイル**: `src/components/Wheel.tsx`（SVG。spec §6.3。`aria-hidden`・`focusable="false"`。名前は `<text>` の子に文字列）、`src/hooks/use-wheel-rotation.ts`（`seq` が変わったときだけ rAF を始める・`receivedAt` と `elapsedMs` から経過を出す・**毎フレーム名前の向きを決め直す**・**残り時間の `setTimeout` で終わりを保証する（rAF に頼らない）・止める処理は二重に効かない・前の回転の timer と rAF を消す**・止まったら札が見えていなければ `scrollIntoView({ block: 'nearest' })` で寄せる（動きを減らす設定では `behavior: 'auto'`）・動きを減らす設定では最終の角度へ置くだけ・アンマウントで rAF と timer を止める）、`src/components/ResultCard.tsx`（伏せ札とめくり。表は「次の進行役」と名前だけ・隅のピップは置かない）、`src/hooks/use-stage-layout.ts`（`ResizeObserver` で舞台の幅を読み `stageLayoutFor` を返す。回っている間は変えない）、`src/index.css`（spec §6.2・§6.7。モックの `roulette.css` を写す）
 - **先に書く赤いテスト**: `tests/wheel.test.tsx`（偽の rAF と偽の時計）
   - 新しい `seq` を受けると、**その画面がいま見せている角度から**角度が増えていき（0° へ跳ばない）、`durationMs` の後に `finalAngle` で止まり、当たりの席に `--winner` のクラスが付き、名前が止まった角度の向きで描き直される
   - **外す操作で同じ `seq` の状態が配り直された直後も、角度が巻き戻らない**（直前の角度以上）〈m162 の画面側〉
   - 動きを減らす設定では、受け取った直後の最初の描画で角度が `finalAngle`・当たりの席が付く・rAF を 1 度も呼ばない〈m164〉
   - 途中から合流（`elapsedMs = 3000`）した画面の最初の角度が `angleAt(3000)` 付近（0 ではない）
+  - **rAF を 1 度も呼ばない偽物でも、`durationMs` の後に当たりの席と札の表が出る**（timer で止まる）〈m164 の広げた説明〉
+  - 前の回転の timer が、次の回転を途中で止めない（2 回続けて回し、1 回目の timer の時刻で 2 回目がまだ回っている）
+  - 札が見えているときは `scrollIntoView` を呼ばず、見えていないときだけ `block: 'nearest'` で呼ぶ（`getBoundingClientRect` を差し替える）〈spec E22〉
 - **確かめる**: 同上 ＋ `node scripts/audit-ui-components.mjs`（生の色・字の大きさ・`ui-exempt`）・`pnpm --filter @tasuki/ui test`
 - **SVG の `<stop>` の色**: JSX の `style={{ stopColor: 'var(--gold)' }}` が検査に掛かるかを先に実測する（spec §11）。掛かるなら CSS のクラスで当てる
 
@@ -268,7 +291,7 @@
 
 - **変えるファイル**:
   - `e2e/specs/roulette.spec.ts`（PR 2 の 1 本の中に足す）: 止まった後の画面に `scanContrast` と `expectReadable`（a11y の走査）・`document.fonts` の各面の `status` が `loaded`（`landing-design.spec.ts` の形）・`expectFocusVisibleOnTab`・`expectFieldsAtLeast16px`（名前の欄）。**アサーションを書く前に 1 回「探索」を走らせて、SVG の `<text>` が走査に入るかを見る**（統括に依頼）
-  - `e2e/specs/buttons.spec.ts` の「お題ツールのボタンは…」のテストの**同じルームの中で**、お題ツールから玄関へ戻ってルーレットの札を開き、`expectScreenAcrossWidths(page, 'ルーレット（回す前）', …)` と、回して止まった後の `expectScreenAcrossWidths(page, 'ルーレット（止まった後）', …)` を足す（320・768・1280・1920）。入る人を 2 人にするには名前を 1 つ追加する（別の文脈を開かない）
+  - `e2e/specs/buttons.spec.ts` の「お題ツールのボタンは…」のテストの**同じルームの中で**、お題ツールから玄関へ戻ってルーレットの札を開き、`expectScreenAcrossWidths(page, 'ルーレット（回す前）', …)` と、回して止まった後の `expectScreenAcrossWidths(page, 'ルーレット（止まった後）', …)` を足す（320・768・1280・1920）。入る人を 2 人にするには名前を 1 つ追加する（別の文脈を開かない）。さらに **320×640 で回して止まった後、札の名前の中心を `elementFromPoint` で突いて、下端の帯ではなく札の要素が返る**ことを見る（spec E22。ルームは 0 のまま）
 - **ルームの増分**: **0**
 - **確かめる**: `pnpm --filter @tasuki/e2e test`。実行は統括
 
@@ -322,10 +345,10 @@
 for p in m13 m36 m82 m83 m28 m81 m85 m96 m80 m87; do git apply --check scripts/mutations/$p-*.patch 2>/dev/null && echo "ok $p" || echo "NG $p"; done
 ```
 
-## 6. 統括が判断すること・利用者に確かめること
+## 6. 利用者の決定と、統括が判断すること
 
-- 玄関の札の名前「Facilitator Roulette」（320px で 1 行に収まらなければ「Roulette」）
-- 離席中の人を既定で外す（spec R7・X8）
-- 足した名前の上限 12・円盤の上限 24
-- 一周の規則で「新しい周の最初に直前の当たりを入れない」（spec R6）
+**2026-10-12 利用者が推奨のまま承認**（spec §11.1）: 見た目はモック 3 版のとおり・招待は脇の「仲間を招く」・離席中は自動で外す・新しい一周の最初は直前の当たりを外す・名前 12 件／席 24・他の人が回したときも札が見えなければ寄せる・玄関の札の名前は「Facilitator Roulette」（1 行に収まらなければ「Roulette」）。
+
+統括が判断すること:
+
 - PR 2 の段（円盤の無い画面）を利用者に見せるか
