@@ -1,11 +1,18 @@
-// 公開後の結果表示（各票・平均・最頻値。FR-010）
-import type { ParticipantView, RoundStats, VoteView } from '@tasuki/poker-core';
+// 公開後の結果表示（平均・最頻値。FR-010）
+// 各自の票は場の席の札がめくれて見せる（#348）。ここは集計だけを持つ
+import type { CSSProperties } from 'react';
+import type { RoundStats } from '@tasuki/poker-core';
 import { cardLabel } from './CardHand';
 
 interface Props {
-  participants: ParticipantView[];
-  votes: VoteView[];
   stats: RoundStats;
+  /** 席の数。集計を最後の札のめくりの後に出すための待ち時間に使う */
+  seatCount: number;
+  /**
+   * 席の札がめくれる公開か（投票中から公開を見届けた）。`false`（再読み込み・途中入室などで最初から公開済み）では
+   * 札はめくれないので、集計を待たせない
+   */
+  afterFlip: boolean;
 }
 
 /** 平均は小数 1 桁に丸めて表示（core は生値を返す。data-model 集計ルール） */
@@ -14,26 +21,13 @@ function formatAverage(average: number | null): string {
   return String(Math.round(average * 10) / 10);
 }
 
-export function Results({ participants, votes, stats }: Props) {
-  const voteByParticipant = new Map(votes.map((v) => [v.participantId, v.card]));
+export function Results({ stats, seatCount, afterFlip }: Props) {
   return (
-    <section>
+    <section
+      className={`results${afterFlip ? ' results--after-flip' : ''}`}
+      style={{ '--seat-count': seatCount } as CSSProperties}
+    >
       <h2>結果</h2>
-      <ul className="votes">
-        {participants.map((p) => {
-          const vote = voteByParticipant.get(p.id);
-          return (
-            <li key={p.id}>
-              <span className="name">{p.name}</span>
-              {vote ? (
-                <span className="card small">{cardLabel(vote)}</span>
-              ) : (
-                <span className="no-vote">未投票</span>
-              )}
-            </li>
-          );
-        })}
-      </ul>
       <dl className="stats">
         <div>
           <dt>平均</dt>

@@ -1,0 +1,21 @@
+# 変異 140: seat-card-remounts-on-reveal
+#
+# 検出を期待するテスト:
+#   - apps/poker-web/tests/participant-list.test.tsx
+#     U2「Given 投票中 / When votes を足して描き直す / Then 席の札は同じ要素」。公開で行ごと作り直され、めくれずに表が出る。
+#
+# #348・設計正本 D1 / D2 / D6。
+#
+diff --git a/apps/poker-web/src/components/ParticipantList.tsx b/apps/poker-web/src/components/ParticipantList.tsx
+index 8965cad3..10af3f7c 100644
+--- a/apps/poker-web/src/components/ParticipantList.tsx
++++ b/apps/poker-web/src/components/ParticipantList.tsx
+@@ -37,7 +37,7 @@ export function ParticipantList({ participants, you, votes }: Props) {
+       {participants.map((p, order) => {
+         const vote = votes?.get(p.id);
+         return (
+-          <li key={p.id} className={p.connected ? '' : 'disconnected'}>
++          <li key={`${p.id}:${votes === null ? 'v' : 'r'}`} className={p.connected ? '' : 'disconnected'}>
+             <SeatCard hasVoted={p.hasVoted} vote={vote} order={order} />
+             <span className="name">
+               {p.name}

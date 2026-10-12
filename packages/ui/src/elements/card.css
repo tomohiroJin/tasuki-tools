@@ -65,36 +65,6 @@
     var(--shadow-lift-far);
 }
 
-/* 一覧に並べる小カード（めくり演出付き。遅延は利用側で指定する） */
-.card.small {
-  width: auto;
-  min-width: 2.2rem;
-  height: 3rem;
-  padding: 0 0.5rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--font-size-lg);
-  font-style: italic;
-  cursor: default;
-  animation: flip-in 0.45s ease both;
-}
-
-.card.small::after {
-  content: none;
-}
-
-@keyframes flip-in {
-  from {
-    opacity: 0;
-    transform: rotateY(90deg);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
 /* ---------- モバイル ---------- */
 
 @media (width < 40rem) {

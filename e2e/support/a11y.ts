@@ -23,18 +23,24 @@ export function pairKey(ink: string, ground: string): string {
 /**
  * トークン（`var(--*)`）を画面上で解いて、計算値の色にする。
  * **テストへ色の数値を直書きしない** —— パレットを動かしたら一緒に動く。
+ *
+ * **トークンごとに新しい探り針を作り、移り変わりも切る。** 動きを抑える設定では要素層の一括の手当てが
+ * すべての要素に `transition-duration: 0.01ms` を当てる。`transition-property` の既定は `all` なので、
+ * 1 本の探り針の `color` を書き換えると移り変わりが走り、計算値は動き出す前の色（＝最初のトークン）のまま返る。
+ * 実測（#348）: 動きを抑える設定で 4 つのトークンがすべて `--ivory-faint` に解け、固定した組が
+ * 「地と字が同じ色」の存在しない組になって「測っていない」で落ちた。
  */
 export async function resolveColors(page: Page, tokens: readonly string[]): Promise<string[]> {
-  return page.evaluate((list) => {
-    const probe = document.createElement('div');
-    document.body.append(probe);
-    const resolved = list.map((token) => {
+  return page.evaluate((list) =>
+    list.map((token) => {
+      const probe = document.createElement('div');
+      probe.style.transitionProperty = 'none';
       probe.style.color = `var(${token})`;
-      return getComputedStyle(probe).color;
-    });
-    probe.remove();
-    return resolved;
-  }, tokens);
+      document.body.append(probe);
+      const color = getComputedStyle(probe).color;
+      probe.remove();
+      return color;
+    }), tokens);
 }
 
 /**

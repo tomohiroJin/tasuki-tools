@@ -19,9 +19,11 @@ import {
   createRoom,
   joinRoom,
   participantRow,
+  recordSeatFlips,
+  seatFlips,
   sendJoinToMissingRoom,
-  resultRow,
   resultsSection,
+  seatCard,
   roomStateFrames,
   showsVoted,
 } from '../support/poker';
@@ -97,7 +99,10 @@ test.describe('@core poker は公開まで他人の票を配らない', () => {
       expect(describeCards(collectCards(frame)), '公開前のフレームにカードが含まれている').toBe('');
     }
 
-    // When: 最後の 1 人が投票する
+    // When: 最後の 1 人が投票する。公開の前に、2 人目の席の札の要素を掴み、めくりの記録を始める（#348）
+    const guestSeat = await guestRow.locator('.seat-card').elementHandle();
+    expect(guestSeat, '2人目の席の札が掴めない').not.toBeNull();
+    await recordSeatFlips(page);
     await chooseCard(page, '5');
 
     // Then その4: **誰も公開操作をしていないのに**両方の画面に結果が出る。
@@ -107,8 +112,21 @@ test.describe('@core poker は公開まで他人の票を配らない', () => {
       ['作成者', page],
       ['参加者', guest.page],
     ] as const) {
-      await expect(resultRow(target, HOST), `${label}の画面`).toContainText('5');
-      await expect(resultRow(target, GUEST), `${label}の画面`).toContainText('☕');
+      await expect(seatCard(target, HOST), `${label}の画面`).toHaveAccessibleName('5');
+      await expect(seatCard(target, GUEST), `${label}の画面`).toHaveAccessibleName('☕');
+      // 各自の票は席の札だけが見せる。結果の節は集計だけで、票の行を持たない（#348）
+      await expect(resultsSection(target).getByRole('listitem'), `${label}の画面`).toHaveCount(0);
+    }
+
+    // Then その5（#348）: **同じ札がその場でめくれている。** 公開で席の札が作り直されると、
+    //   transition の起点が無く、めくれずに表が出る。要素が生きていること、ブラウザが実際に
+    //   移り変わりを走らせたこと（計算値ではなく CSSTransition）、席順に遅れていることを見る
+    expect(await guestSeat!.evaluate((el) => el.isConnected), '公開で席の札が作り直された').toBe(true);
+    await expect.poll(() => seatFlips(page).then((f) => f.length), 'めくりの移り変わりが走っていない').toBe(2);
+    const flips = await seatFlips(page);
+    expect(flips[1]!.delay, '席順に遅れてめくれていない').toBeGreaterThan(flips[0]!.delay);
+    for (const flip of flips) {
+      expect(flip.end - flip.delay, 'めくりが一瞬で終わっている').toBeGreaterThanOrEqual(300);
     }
   });
 });
@@ -154,8 +172,16 @@ test.describe('poker は 2 人目の参加者が公開でき、次のラウン�
 
     // Then その2: **中身も伴っている。** 2 人目の票が公開され、作成者は未投票のまま出る。
     // バナーが無いだけでは「押しても何も起きていない」との区別がつかない
-    await expect(resultRow(page, GUEST), '公開後の2人目の行').toContainText('5');
-    await expect(resultRow(page, HOST), '公開後の作成者の行').toContainText('未投票');
+    await expect(seatCard(page, GUEST), '公開後の2人目の札').toHaveAccessibleName('5');
+    await expect(participantRow(page, HOST).getByText('未投票', { exact: true }), '公開後の作成者の席').toBeVisible();
+
+    // Then その2b（#348 のレビュー）: 集計は札がめくれる公開のときだけ最後の札の後まで待つ。目の前で公開された
+    //   作成者の画面では待ち（2 席: 90ms + 0.45s）があり、再読み込みで最初から公開済みで描くと札はめくれないので待たない
+    const statsDelay = () => page.locator('.results .stats').evaluate((el) => parseFloat(getComputedStyle(el).animationDelay));
+    expect(await statsDelay(), '目の前の公開で集計が最後の札を待っていない').toBeGreaterThan(0.4);
+    await page.reload();
+    await expect(resultsSection(page), '再読み込み後の作成者の画面').toBeVisible();
+    expect(await statsDelay(), '最初から公開済みで描いたのに集計が待っている').toBe(0);
 
     // When その2: **同じ、ルームを作った本人ではない**2人目が「次のラウンドへ」を押す
     await guest.page.getByRole('button', { name: '次のラウンドへ' }).click();
@@ -172,6 +198,9 @@ test.describe('poker は 2 人目の参加者が公開でき、次のラウン�
         participantRow(target, GUEST).getByRole('img', { name: '未投票' }),
         `${label}の画面：前ラウンドで投票済みだった2人目が未投票に戻っている`,
       ).toBeVisible();
+      // 前のラウンドの値が席に残らない。名前の定数（e2e-a / e2e-b）は 5 を含まない。
+      // 5 を含む名前に変えると、この否定は名前に当たって恒真になる
+      await expect(participantRow(target, GUEST), `${label}の画面：前ラウンドの値が残っている`).not.toContainText('5');
     }
   });
 });
@@ -489,7 +518,7 @@ test.describe('poker の room-state に契約が知らないキーが乗って�
 
     // Then その2: 公開後の表示も届く（votes / stats に余剰キーが乗った状態で通っている）
     await expect(resultsSection(page)).toBeVisible();
-    await expect(resultRow(page, HOST), '公開後の結果の行').toHaveCount(1);
+    await expect(seatCard(page, HOST), '公開後の席の札').toHaveAccessibleName('5');
 
     // Then その3: **書き換え屋が実際に働いた**
     expect(augmented, '余剰キーを足した room-state の数').toBeGreaterThan(0);

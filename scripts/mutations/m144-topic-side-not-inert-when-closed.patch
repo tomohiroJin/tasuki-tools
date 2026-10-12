@@ -1,0 +1,20 @@
+# 変異 144: topic-side-not-inert-when-closed
+#
+# 検出を期待するテスト:
+#   - apps/poker-web/tests/current-topic.test.tsx
+#     U5・U6。閉じた札が Tab の行き先と読み上げに残る。
+#
+# #348・設計正本 D7。
+#
+diff --git a/apps/poker-web/src/pages/RoomPage.tsx b/apps/poker-web/src/pages/RoomPage.tsx
+index 42e46e7f..ed7e631a 100644
+--- a/apps/poker-web/src/pages/RoomPage.tsx
++++ b/apps/poker-web/src/pages/RoomPage.tsx
+@@ -252,7 +252,6 @@ export function RoomPage({ roomId, sync }: Props) {
+           <div
+             className="ui-workspace-side room-topic-side"
+             data-state={topicOpen ? 'open' : 'closed'}
+-            inert={!topicOpen}
+           >
+             <CurrentTopic topic={sync.topic} />
+           </div>

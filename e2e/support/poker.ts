@@ -64,14 +64,14 @@ export function invitedUrlText(page: Page): Locator {
 /**
  * 参加者一覧（名簿）。
  *
- * 公開後は「結果」側にもリストが出るので、**席札（`role="img"` の投票済み／未投票）を
- * 持つリスト**という中身で見分ける。位置（`first()` 等）で選ぶと、
- * 公開の前後でどちらを指しているか変わる。
+ * **席札（`role="img"`）を持つリスト**という中身で見分ける。位置（`first()` 等）で選ぶと
+ * ページ内のリストが増えたとき指す先が変わる。席札の名前は投票中が投票済み／未投票、
+ * 公開後は表の値（数字・`?`・`☕`）に変わる（#348）ので、そのどれでも掴む。
  */
 function participantList(page: Page): Locator {
   return page
     .getByRole('list')
-    .filter({ has: page.getByRole('img', { name: /^(投票済み|未投票)$/ }) });
+    .filter({ has: page.getByRole('img', { name: /^(投票済み|未投票|\d+|\?|☕)$/ }) });
 }
 
 /** 名簿のうち、指定した名前の行。**否定の判定はこの範囲に限定して行う。** */
@@ -84,9 +84,12 @@ export function resultsSection(page: Page): Locator {
   return page.locator('section').filter({ has: page.getByRole('heading', { name: '結果' }) });
 }
 
-/** 結果セクションのうち、指定した名前の行。 */
-export function resultRow(page: Page, name: string): Locator {
-  return resultsSection(page).getByRole('listitem').filter({ hasText: name });
+/**
+ * 指定した名前の席の札（`role="img"`）。公開後は札がめくれて表の値が名前になる（#348）。
+ * 値は `toHaveAccessibleName('5')` で見る。`toContainText` は名前に数字を含む人で恒真になりうる。
+ */
+export function seatCard(page: Page, name: string): Locator {
+  return participantRow(page, name).getByRole('img');
 }
 
 /**
@@ -244,4 +247,50 @@ export function corruptRoomStateFrame(payload: string): string {
     ...frame,
     participants: [{ ...participants[0], name: 1 }, ...participants.slice(1)],
   });
+}
+
+/** 席の札のめくりの記録 1 件。`order` は席順、`delay` と `end` は ms（`end` は遅延を含む終わり）。 */
+export interface SeatFlip {
+  order: number;
+  delay: number;
+  end: number;
+}
+
+/**
+ * 公開で席の札がめくれる移り変わりを、ブラウザが作った CSSTransition から記録する（#348）。
+ * 計算値（transition-delay）を読むのではなく、実際に走った移り変わりを見る。**公開の前に呼ぶ。**
+ */
+export async function recordSeatFlips(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const log: { order: number; delay: number; end: number }[] = [];
+    (window as unknown as { __seatFlips: typeof log }).__seatFlips = log;
+    const seen = new WeakSet<Element>();
+    const list = document.querySelector('.participants');
+    if (list === null) throw new Error('席の一覧が無い');
+    new MutationObserver(() =>
+      requestAnimationFrame(() => {
+        list.querySelectorAll(':scope > li').forEach((li, order) => {
+          const rotor = li.querySelector('.seat-card.revealed .seat-card-rotor');
+          if (rotor === null || seen.has(rotor)) return;
+          seen.add(rotor);
+          for (const a of rotor.getAnimations()) {
+            if (!(a instanceof CSSTransition) || a.transitionProperty !== 'transform') continue;
+            log.push({
+              order,
+              delay: Number(a.effect?.getTiming().delay ?? 0),
+              end: Number(a.effect?.getComputedTiming().endTime ?? 0),
+            });
+          }
+        });
+      }),
+    ).observe(list, { subtree: true, attributes: true, attributeFilter: ['class'] });
+  });
+}
+
+/** `recordSeatFlips` が記録した、席の札のめくり（席順に並べて返す）。 */
+export async function seatFlips(page: Page): Promise<SeatFlip[]> {
+  const flips = await page.evaluate(
+    () => (window as unknown as { __seatFlips: SeatFlip[] }).__seatFlips,
+  );
+  return [...flips].sort((a, b) => a.order - b.order);
 }

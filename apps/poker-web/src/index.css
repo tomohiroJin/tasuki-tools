@@ -57,22 +57,100 @@
 .room-main {
   display: grid;
   gap: var(--space-5);
-}
-
-/* 脇（お題の札）を隠したとき・お題が無いときは、部品が操作の面を器いっぱいの 1 列にする。
-   広い画面で場と手札が左へ寄って見えるので、約 46rem の幅で中央に寄せる（#316 PR 1・利用者の指摘）。 */
-.ui-workspace:not(:has(> .ui-workspace-side)) > .room-main {
+  /* 幅と中央寄せ（下の `max-width`）。手札の並びは、脇の有無ではなく操作の面の幅で決める（#348 D9）ので、
+     操作の面をコンテナにする。 */
   width: 100%;
-  max-width: 46rem;
+  max-width: 100%;
   margin-inline: auto;
+  container: room-main / inline-size;
 }
 
-/* 札を開いたときの比。部品の 0.85fr（札約 46%）より札を狭く（約 43%）して、手札の側を広げる。
-   poker は手札が横に並ぶので、お題は「あれば見られる程度」に留める。
-   **脇があるときだけ**当てる。脇が無いときの 1 列は部品の規則が決める（同じ詳細度で、ここが後ろだと 2 列に戻してしまう）。 */
+/* 脇（お題の札）を閉じたとき・お題が無いときは、操作の面を約 46rem の幅で中央に寄せる。広い画面で場と手札が
+   左へ寄って見えるため（#316 PR 1・利用者の指摘）。幅を問わず当てる（#348 より前の規則と同じ）。
+   64rem 以上では `max-width` を移り変わらせ、`margin-inline: auto` が毎フレーム中央に寄せ直すので、お題の出し入れで
+   操作の面が跳ばず滑る（#348 D7。移り変わりは下の 64rem 以上の media の中）。
+   詳細度: 部品の `.ui-workspace:not(:has(> .ui-workspace-side)) > …` ではなく、閉じた状態そのものを見る。 */
+.room .ui-workspace--reader:not(:has(> .room-topic-side[data-state='open'])) > .room-main {
+  max-width: 46rem;
+}
+
+/* ---------- お題の脇の出し入れ（#348 D7・D8） ---------- */
+
+/* 閉じた読む面は DOM に残し、幅 0 で持つ。閉じるときは不透明度を先に落とし、列が縮み切ってから
+   `visibility` を外す（縮む間は見えない・触れない）。`inert` と合わせて Tab の行き先にも読み上げにもならない。
+   `max-height` も縮み切ってから 0 にする（64rem 以上の media の中）。幅 0 の読む面は本文が 1 字ずつ折り返して
+   札の最大の高さまで伸びるので、高さを残すと行の背丈が伸び、操作の面の下に空白が残る（#348 のレビュー）。 */
+.room-topic-side[data-state='closed'] {
+  opacity: 0;
+  visibility: hidden;
+  overflow: clip;
+  transition:
+    opacity 0.15s ease,
+    visibility 0s linear 0.32s,
+    max-height 0s linear 0.32s;
+}
+
+/* 開くときは列が広がり始めてから不透明度を上げる。高さはすぐ戻す。 */
+.room-topic-side[data-state='open'] {
+  opacity: 1;
+  transition:
+    opacity 0.2s ease 0.12s,
+    visibility 0s,
+    max-height 0s;
+}
+
+/* お題が届いて区画が足された瞬間は、不透明度 0 から立ち上げる。 */
+@starting-style {
+  .room-topic-side[data-state='open'] {
+    opacity: 0;
+  }
+}
+
+/* 64rem 未満は縦に積まれているので、閉じた区画は描かない（移り変わりは無し）。 */
+@media (width < 64rem) {
+  .room-topic-side[data-state='closed'] {
+    display: none;
+  }
+}
+
 @media (width >= 64rem) {
-  .room .ui-workspace--reader:has(> .ui-workspace-side) {
+  /* 列をいつも 2 本持つ。本数が変わると `grid-template-columns` は補間できない。閉じた状態・お題が無い状態は
+     脇の列が幅 0（間隔も 0）で、開くと今の比（札約 43%）と間隔に移り変わる。
+     部品の `.ui-workspace--reader`（(0,1,0)）と `.ui-workspace:not(:has(> .ui-workspace-side))`（(0,2,0)）より、
+     ここ（(0,2,0)・後に読む）が勝つ。札を開いたときの比は、部品の 0.85fr（札約 46%）より狭く（約 43%）して
+     手札の側を広げる（poker は手札が横に並ぶので、お題は「あれば見られる程度」に留める）。 */
+  .room .ui-workspace--reader {
+    grid-template-columns: minmax(0, 0fr) minmax(0, 1fr);
+    column-gap: 0;
+    transition:
+      grid-template-columns 0.32s cubic-bezier(0.2, 0.8, 0.2, 1),
+      column-gap 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .room .ui-workspace--reader:has(> .room-topic-side[data-state='open']) {
     grid-template-columns: minmax(0, 0.75fr) minmax(0, 1fr);
+    column-gap: var(--space-6);
+  }
+
+  /* 操作の面はいつも 2 列目（部品は脇が無いと 1 列目へ寄せる。(0,3,0) でそれに勝つ）。 */
+  .room .ui-workspace--reader > .ui-workspace-main {
+    grid-column: 2;
+  }
+
+  /* 中央寄せの幅の移り変わり。64rem 未満では脇が縦に積まれ、閉じると即座に消える（`display: none`）ので、
+     ここで移り変わらせると「脇が消える → 操作の面が遅れて狭まる」の 2 段の動きになる。だから 64rem 以上だけ */
+  .room-main {
+    transition: max-width 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  /* 開いた読む面の高さの上限。`max-height` は長さどうしでないと遅延つきで切り替えられない（`none` は補間できず、
+     遅延を待たずに即座に変わる）。札の高さは `100dvh - 14rem` 以下なので、画面の高さは届かない上限になる。 */
+  .room-topic-side[data-state='open'] {
+    max-height: 100dvh;
+  }
+
+  .room-topic-side[data-state='closed'] {
+    max-height: 0;
   }
 }
 
@@ -134,18 +212,51 @@
   font-size: 0.8em; /* scale-exempt: 名前の横の小さな印。名前の字に対する相対値で、名前の段に付いて動く */
 }
 
-/* 席のカード: 伏せたカード = 投票済み、枠だけ = 考え中。
-   裏模様は今のところここでしか使わないので @tasuki/ui へは出していない。 */
+/* 席の札（#348 D1・D4）: 回る軸・裏・表の 3 枚。伏せた札 = 投票済み、枠だけ = 考え中。
+   公開で回る軸を 180° 回し、同じ札がその場でめくれて表の値を見せる。
+   裏模様とめくりは今のところここでしか使わないので @tasuki/ui へは出していない。 */
 .seat-card {
+  position: relative;
   flex: none;
-  width: 22px;
-  height: 30px;
-  border-radius: 4px;
+  width: 2.4rem;
+  height: 3.3rem;
+  border-radius: 6px;
   border: 1.5px dashed var(--line-strong);
-  transition: all 0.25s ease;
+  perspective: 30rem;
 }
 
 .seat-card.facedown {
+  border-color: transparent;
+}
+
+.seat-card-rotor {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+
+/* transition は公開の側にだけ置く。次のラウンドで投票中へ戻るときはめくり返さず、値は残さない。
+   めくる順は席順（--seat-order）で 90ms ずつ、8 席で頭打ち。 */
+.seat-card.revealed .seat-card-rotor {
+  transform: rotateY(180deg);
+  transition: transform 0.5s cubic-bezier(0.3, 0.7, 0.2, 1);
+  transition-delay: calc(min(var(--seat-order, 0), 8) * 90ms);
+}
+
+.seat-card-back,
+.seat-card-face {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  backface-visibility: hidden;
+}
+
+.seat-card-back {
+  display: none;
+}
+
+.seat-card.facedown .seat-card-back {
+  display: block;
   border: 1px solid var(--gold-deep);
   background:
     repeating-linear-gradient(45deg, var(--gold-edge) 0 2px, transparent 2px 5px),
@@ -153,6 +264,23 @@
     var(--card-back);
   box-shadow: var(--shadow-chip);
   animation: flip-down 0.3s ease;
+}
+
+/* 表: 象牙の地・縁・字（.card と同じ材質。.card は当てない: :hover が span にも効くため） */
+.seat-card-face {
+  transform: rotateY(180deg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border: 1px solid var(--card-edge);
+  background: linear-gradient(165deg, var(--card-sheen) 0%, var(--ivory) 60%, var(--card-shade) 100%);
+  color: var(--coal);
+  font-family: var(--font-display);
+  font-size: var(--font-size-lg);
+  font-style: italic;
+  font-weight: 600;
+  box-shadow: var(--shadow-chip);
 }
 
 @keyframes flip-down {
@@ -178,53 +306,49 @@
   perspective: 800px;
 }
 
-/* 広い幅の操作の面（半分の幅）では 10 枚が 9 + 1 に割れるので、5 枚 × 2 段に揃える。
-   脇（お題の札）があるときだけ。脇が無い 1 列（46rem）では 5 列の grid が左へ寄って右半分が空くので、flex-wrap のまま列の幅を使う。 */
-@media (width >= 64rem) {
-  .ui-workspace:has(> .ui-workspace-side) .card-hand {
+/* 操作の面が 10 枚を 1 行に並べられない幅（10 × 3.4rem + 9 × 0.55rem = 38.95rem）では、9 + 1 に割れるので
+   5 枚 × 2 段に揃える。脇の有無ではなく操作の面の幅で決めるので、お題の出し入れで列が滑る途中でも
+   切り替えの瞬間に手札が組み替わらない（#348 D9）。 */
+@container room-main (width < 39rem) {
+  .card-hand {
     display: grid;
     grid-template-columns: repeat(5, max-content);
   }
 }
 
-/* 結果一覧の小カードのめくり遅延（何番目かは poker の都合） */
-.votes li:nth-child(1) .card.small { animation-delay: 0.05s; }
-.votes li:nth-child(2) .card.small { animation-delay: 0.12s; }
-.votes li:nth-child(3) .card.small { animation-delay: 0.19s; }
-.votes li:nth-child(4) .card.small { animation-delay: 0.26s; }
-.votes li:nth-child(5) .card.small { animation-delay: 0.33s; }
-.votes li:nth-child(n + 6) .card.small { animation-delay: 0.4s; }
-
 /* ---------- 結果 ---------- */
 
-.votes {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-}
-
-.votes li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.4rem 0.8rem;
-  background: var(--felt-sink);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-}
-
 /* 未投票の印。字は `--ivory-faint`（12px の本文で AA を満たす最も淡い段）。α 0.4 では最も明るい卓の面で
-   2.65:1（計算）・票の行の上で 2.98:1（E2E の実測）と AA を割っていた（#320 PR 5 で発見。それまで E2E は未投票を出していなかった）。 */
+   2.65:1（計算）・かつての票の行（席と同じ `--felt-sink` の地）の上で 2.98:1（E2E の実測）と AA を割っていた（#320 PR 5 で発見。それまで E2E は未投票を出していなかった）。 */
 .no-vote {
   font-size: var(--font-size-xs);
   color: var(--ivory-faint);
   border: 1.5px dashed var(--line-strong);
   border-radius: 6px;
   padding: 0.3rem 0.6rem;
+}
+
+/* 集計は最後の札のめくりが終わるころに現れる（#348 D5）。待ちは席の数で決まる。
+   待つのは札がめくれる公開（投票中から見届けた・`.results--after-flip`）だけ。再読み込み・途中入室で最初から
+   公開済みで描くと札はめくれないので、待たずに立ち上げる（#348 のレビュー）。
+   遅延は要素層の reduced-motion の一括の手当てが 0 にする（timer は要素層を読まないが、poker は読む）。 */
+.results .stats {
+  animation: stats-rise 0.3s ease both;
+}
+
+.results--after-flip .stats {
+  animation-delay: calc(min(var(--seat-count, 1) - 1, 8) * 90ms + 0.45s);
+}
+
+@keyframes stats-rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.4rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .stats {

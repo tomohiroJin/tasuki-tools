@@ -15,7 +15,7 @@
  */
 import { expect, test } from '../fixtures/test';
 import { expectReadable, pairKey, resolveColors, scanContrast } from '../support/a11y';
-import { chooseCard, createRoom, joinRoom, resultsSection } from '../support/poker';
+import { chooseCard, createRoom, joinRoom, participantRow, recordSeatFlips, resultsSection, seatFlips } from '../support/poker';
 import { openTopicTool, setTopic } from '../support/topic';
 
 /** 文面は書体の常用の層に収まるもの（`topic.spec.ts` と同じ）。 */
@@ -31,6 +31,8 @@ test.describe('poker の文字が背景に対して読める（WCAG AA）', () =
     const inviteUrl = await openTopicTool(page, 'a11y-topic');
     await setTopic(page, TITLE, BODY);
     const poker = await openPeer('a11y-poker');
+    // 動きを抑える設定（#348）。お題の出し入れの遅延も止まることを、公開後の走査の後に見る
+    await poker.page.emulateMedia({ reducedMotion: 'reduce' });
     await joinRoom(poker.page, inviteUrl, 'a11y-poker');
     const topic = poker.page.getByRole('region', { name: 'お題', exact: true });
     await expect(topic.getByRole('region', { name: TITLE, exact: true }).getByText(BODY, { exact: true })).toBeVisible();
@@ -57,27 +59,57 @@ test.describe('poker の文字が背景に対して読める（WCAG AA）', () =
     await chooseCard(poker.page, '5');
     await expect(resultsSection(poker.page)).toBeVisible();
     const revealed = await scanContrast(poker.page, 10);
-    expectReadable(revealed, 8, []);
+    //   席の札の表の字（`--coal` on 札の地のグラデーション・#348）も固定する。公開後は手札が無いので、
+    //   この組を描くのは席の札の表だけ（めくりで表が裏返ったまま・背面が隠れたままだと測られない）
+    const faceGround = `rgba(0, 0, 0, 0) + linear-gradient(165deg, ${sheen} 0%, ${ivory} 60%, ${shade} 100%)`;
+    expectReadable(revealed, 8, [pairKey(coal!, faceGround)]);
     //   公開後にだけ出る「結果」の見出しも羅紗の上で測られていること
     expect([...revealed.pairs].some((p) => p.startsWith(ivoryOnFelt)), `公開後の見出し（${ivoryOnFelt}）を測っていない`).toBe(true);
+
+    // When / Then その3（#348）: 動きを抑える設定では、お題を隠したときの読む面の移り変わりに遅延が残らない。
+    //   遅延（`visibility` の 0.32 秒）が残ると、その間 `visible` のまま幅だけ縮む。64rem 未満は `display: none` で
+    //   遅延が効かず何も測れないので、広い幅にしてから押す。
+    //   **フレームを数えて幅と `visibility` を読む形はやめた。** 移り変わりは書き換えの次のフレームで作られ、
+    //   その次で始まる（start time が決まる）ので、並列で流すと 2 フレームでは終わっていない回があった
+    //   （実測: 幅 493.7px のまま）。閉じた区画の計算値の遅延を直に読み、終わった姿は待って確かめる
+    await poker.page.setViewportSize({ width: 1280, height: 900 });
+    await poker.page.getByRole('button', { name: 'お題を隠す' }).click();
+    const side = poker.page.locator('.room-topic-side');
+    await expect(side).toHaveAttribute('data-state', 'closed');
+    const delays = await side.evaluate((el) => getComputedStyle(el).transitionDelay.split(',').map((d) => d.trim()));
+    expect(delays.every((d) => d === '0s'), `動きを抑える設定で閉じた区画の移り変わりの遅延が残っている（${delays.join(', ')}）`).toBe(true);
+    await expect.poll(() => side.evaluate((el) => el.getBoundingClientRect().width), '閉じた区画が幅 0 にならない').toBeLessThanOrEqual(1);
+    await expect.poll(() => side.evaluate((el) => getComputedStyle(el).visibility), '閉じた区画が隠れない').toBe('hidden');
   });
 
-  test('Given 2 人のルームで 1 人だけが投票 / When 票を公開する / Then 未投票の印も AA を満たす', async ({ page, openPeer }) => {
-    // Given: 2 人目が居るので、1 人が投票しても自動では公開されない
-    const inviteUrl = await createRoom(page, 'a11y-voter');
-    const idle = await openPeer('a11y-idle');
-    await joinRoom(idle.page, inviteUrl, 'a11y-idle');
-    await chooseCard(page, '5');
+  test('Given 2 人のルームで 1 人だけが投票 / When 票を公開する / Then 未投票の印も AA を満たし、動きを抑える設定ではめくりの遅延も止まる', async ({ page, openPeer }) => {
+    // Given: 動きを抑える設定。2 人目が居るので、1 人が投票しても自動では公開されない。
+    //   **投票するのは 2 人目（席順 1）で、作成者（席順 0）は未投票のまま。** 席順 0 は遅延が元から 0 なので、
+    //   遅延を止めない誤りと区別できない（#348）
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    const inviteUrl = await createRoom(page, 'a11y-creator');
+    const voter = await openPeer('a11y-voter');
+    await joinRoom(voter.page, inviteUrl, 'a11y-voter');
+    await chooseCard(voter.page, '5');
+    await expect(participantRow(page, 'a11y-voter').getByRole('img', { name: '投票済み' })).toBeVisible();
 
-    // When: 投票した側が票を公開する
+    // When: 作成者が票を公開する（めくりの記録は公開の前から始める）
+    await recordSeatFlips(page);
     await page.getByRole('button', { name: '票を公開する' }).click();
     await expect(resultsSection(page)).toBeVisible();
-    await expect(resultsSection(page).getByText('未投票', { exact: true })).toBeVisible();
+    await expect(participantRow(page, 'a11y-creator').getByText('未投票', { exact: true })).toBeVisible();
 
-    // Then: 未投票の印（`.no-vote`）を含めて、画面の字がすべて AA を満たす
+    // Then その1: めくりは 1 本走り、席順 1 の終わりが 1ms 以内（遅延 90ms が止まっている）。
+    //   0 本なら何も測っていない
+    await expect.poll(() => seatFlips(page).then((f) => f.length), 'めくりの移り変わりが走っていない').toBe(1);
+    const [flip] = await seatFlips(page);
+    expect(flip!.order, '投票したのは席順 1').toBe(1);
+    expect(flip!.end, '動きを抑える設定でめくりの遅延が残っている（ms）').toBeLessThanOrEqual(1);
+
+    // Then その2: 未投票の印（`.no-vote`）を含めて、画面の字がすべて AA を満たす
     const scan = await scanContrast(page, 8);
     expectReadable(scan, 6, []);
-    //   未投票の印（`--ivory-faint` on 票の行の沈んだ敷き `--felt-sink`）を測ったことも固定する。
+    //   未投票の印（`--ivory-faint` on 席の沈んだ敷き `--felt-sink`）を測ったことも固定する。
     //   地の記述は羅紗の重なりまで続くので、先頭の組で照合する。印が走査の外の要素（`<div>` など）に
     //   変わると AA の判定は緑のまま、印を誰も測らなくなる（#320 PR 5 の最終レビュー）
     const [faint, sink] = await resolveColors(page, ['--ivory-faint', '--felt-sink']);

@@ -1,0 +1,29 @@
+# 変異 143: topic-side-unmounts-when-closed
+#
+# 検出を期待するテスト:
+#   - apps/poker-web/tests/current-topic.test.tsx
+#     U5「Given お題が開いている / When 「お題を隠す」を押す / Then 札は DOM に残り inert で閉じる」。閉じると区画ごと消え、滑って閉じられない。
+#
+# #348・設計正本 D7。
+#
+diff --git a/apps/poker-web/src/pages/RoomPage.tsx b/apps/poker-web/src/pages/RoomPage.tsx
+--- a/apps/poker-web/src/pages/RoomPage.tsx
++++ b/apps/poker-web/src/pages/RoomPage.tsx
+@@ -230,7 +230,7 @@
+                 開いている間はモーダルなので、この切り替えは押せない（フォーカスが失われる経路が無い）。
+                 ただし切り替えのボタンにフォーカスがあるまま他の人がお題を下ろすと、ボタンごと消えて
+                 フォーカスが body に落ちる（受け入れた限界・札の場合と同じ）。 */}
+-            {sync.topic && (
++            {sync.topic && topicOpen && (
+               <button
+                 type="button"
+                 className="ui-button ui-button--secondary ui-button--sm"
+@@ -259,7 +259,7 @@
+           64rem 以上では段組みが列を 2 本のまま持って脇の列を幅 0 へ移り変わらせる。お題が無いときは脇が無い。
+           どちらも操作の面は約 46rem で中央に寄る（幅・中央寄せ・移り変わりは index.css の `.room-main` が持つ・#348）。 */}
+       <div className="ui-workspace ui-workspace--reader">
+-        {sync.topic && (
++        {sync.topic && topicOpen && (
+           <div
+             className="ui-workspace-side room-topic-side"
+             data-state={topicOpen ? 'open' : 'closed'}

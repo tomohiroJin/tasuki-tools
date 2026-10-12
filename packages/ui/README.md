@@ -326,8 +326,7 @@ src/
 - **`.card` の中の数字は `.card-face` に入れ、コーナーピップは `data-label` 属性で渡す。**
   `::after` が `attr(data-label)` を出す。**読み上げ名が二重になる**ので、
   利用側は `aria-label` を明示すること（実測で確認済み）
-- `.card.small` はめくり演出（`flip-in`）を持つが、**遅延は利用側で指定する**
-- 動きを抑える設定（`prefers-reduced-motion`）は `elements/reset.css` が一括で面倒を見る
+- 動きを抑える設定（`prefers-reduced-motion`）は `elements/reset.css` が一括で面倒を見る（長さに加えて**遅延も止める**。`tests/reduced-motion.test.mjs`）
 - **フォーカス可視化は `elements/reset.css` のグローバル `:focus-visible` が担う。**
   要素層を読まない timer-web は自前で持つ（部品層もリングを持たない・ADR 0022 決定 4）
 
@@ -343,7 +342,7 @@ node scripts/audit-ui-components.mjs  # 部品層の写しと規則・画面の 
 
 ## ここに**入れていない**もの
 
-- **伏せ札の裏模様**: 現時点で poker の座席インジケータ（`.seat-card.facedown`）でしか
+- **伏せ札の裏模様とめくり**（`.seat-card`）: 現時点で poker の座席の札でしか
   使っておらず、利用者が 1 つしかないため poker 側に残している
 
 ## 書体の大きさ
