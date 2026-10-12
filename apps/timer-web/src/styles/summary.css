@@ -8,7 +8,7 @@
  *   compact（40rem 未満）: 1 列。統計の札は縦に積み、札の中はラベルを左・値を右（計器の読み）
  *   medium（40rem 以上）: 1 列・最大 40rem。統計の札は横に 3 枚
  *   wide（64rem 以上）: 最大 64rem・2 列。題と達成の帯は上で、次の行動は下で 2 列にまたがる。ドライバー別があれば
- *     左に統計（縦に積む）・右にドライバー別。無ければ統計も 2 列にまたがって横に 3 枚 */
+ *     左に統計（縦に積む）・右にドライバー別（どちらも上詰め）。無ければ統計も 2 列にまたがって横に 3 枚 */
 
 .summary {
   display: flex;
@@ -102,11 +102,11 @@
 }
 
 @media (width >= 64rem) {
-  /* 2 列。行の高さは揃える（ドライバー別の札が統計の高さまで伸びる） */
+  /* 2 列。どの子も自分の高さのまま上詰め（統計の札を引き伸ばさない。ドライバー別が多くても札は縦長にならない） */
   .summary {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: stretch;
+    align-items: start;
     max-width: 64rem;
   }
 
@@ -115,7 +115,12 @@
     grid-column: 1 / -1;
   }
 
-  /* ドライバー別があるときだけ、統計を左の列に縦に積み、ドライバー別を右の列に置く */
+  /* ドライバー別があるときだけ、統計を左の列に縦に積み、ドライバー別を右の列に置く。
+   * 列の置き場は 2 つとも同じ `:has()` の中に置く（`:has()` が効かない環境では 1 列に落ちる） */
+  .summary:has(> .summary-drivers) > .summary-drivers {
+    grid-column: 2;
+  }
+
   .summary:has(> .summary-drivers) > .summary-stats {
     grid-column: 1;
     grid-template-columns: minmax(0, 1fr);
@@ -123,10 +128,6 @@
 
   .summary:has(> .summary-drivers) .summary-stat {
     display: flex;
-  }
-
-  .summary > .summary-drivers {
-    grid-column: 2;
   }
 
   .summary-stat-value {
