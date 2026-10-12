@@ -43,8 +43,10 @@ describe("drawWinner（一周の規則）", () => {
   });
 
   it("選べる人の数を randomInt へ渡す（pool 全体の数ではない）", () => {
+    // Given
     const rec = recordingRandom();
     drawWinner([A, B, C], stateWith({ drawn: ["p-a"] }), rec.randomInt);
+    // When
     expect(rec.calls).toEqual([2]);
   });
 
@@ -69,24 +71,28 @@ describe("drawWinner（一周の規則）", () => {
   });
 
   it("3 人 [A,B,C]・drawn=[A,B,C]・直前の当たり C なら、新しい周の 1 回目は 2 人から引き、C は選ばれない", () => {
+    // Given
     const rec = recordingRandom();
     const state = stateWith({
       drawn: ["p-a", "p-b", "p-c"],
       lastSpin: { seq: 3, wheel: [A, B, C], winnerIndex: 2, settle: 0.5, spunBy: "x", startedAt: 0 },
     });
     const { winnerIndex, drawn } = drawWinner([A, B, C], state, rec.randomInt);
+    // When
     expect(rec.calls).toEqual([2]);
     expect(winnerIndex).toBe(0);
     expect(drawn).toEqual(["p-a"]);
   });
 
   it("直前の当たりは lastSpin から引く（drawn の末尾ではなく）", () => {
+    // Given
     const state = stateWith({
       drawn: ["p-c", "p-a", "p-b"],
       lastSpin: { seq: 3, wheel: [A, B, C], winnerIndex: 1, settle: 0.5, spunBy: "x", startedAt: 0 },
     });
     // 直前の当たりは B（wheel[1]）。末尾でも同じなので、C を入れ替えた並びで区別する
     const { winnerIndex } = drawWinner([A, B, C], state, alwaysZero);
+    // When
     expect(winnerIndex).toBe(0);
     const state2 = stateWith({
       drawn: ["p-a", "p-b", "p-c"],
@@ -97,8 +103,10 @@ describe("drawWinner（一周の規則）", () => {
   });
 
   it("周の途中で入ってきた D（drawn に居ない）は、残りの周に入る", () => {
+    // Given
     const rec = recordingRandom();
     const { winnerIndex } = drawWinner([A, B, D], stateWith({ drawn: ["p-a", "p-b"] }), rec.randomInt);
+    // When
     expect(rec.calls).toEqual([1]);
     expect(winnerIndex).toBe(2);
   });

@@ -1438,6 +1438,14 @@ export const MUTATIONS = [
     tests: ["tests/roulette.test.ts"],
     note: "#94 E13・spec R13。",
   },
+  {
+    id: 168,
+    label: "ルーレットのコマンドの strictObject を object に戻す",
+    patch: "m168-command-schema-loosened.patch",
+    pkg: "packages/roulette-core",
+    tests: ["tests/schemas.test.ts"],
+    note: "#94 E15・docs/adr/0011 決定 2 S3。余剰フィールドが黙って通る。",
+  },
 ];
 
 /**

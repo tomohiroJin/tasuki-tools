@@ -96,6 +96,9 @@ export const ALLOWED = {
   // お題の文脈（#91）。**@tasuki/* に依存しない** —— ツールのドメインと同格の文脈であり、
   // 文脈をつなぐのはアプリ層である（docs/adr/0017）。
   "packages/topic-core": [],
+  // ルーレットの文脈（#94）。**@tasuki/* に依存しない**（room-core にも依存しない・spec R3）。
+  // 参加者 ID は不透明な文字列で、名簿の断片はアプリ層が引数で渡す（docs/adr/0017 決定 1・2）。
+  "packages/roulette-core": [],
   // 同期クライアントの接続部分（#95 S5a・D18）。**@tasuki/* に依存しない** ——
   // ツールの語彙を持たないことが、4 つの web アプリから使える条件である。
   "packages/sync-client": [],
@@ -173,6 +176,7 @@ export const ALLOWED = {
     "@tasuki/protocol",
     "@tasuki/rate-limit",
     "@tasuki/room-core",
+    "@tasuki/roulette-core",
     "@tasuki/timer-core",
     "@tasuki/topic-core",
   ],

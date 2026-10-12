@@ -79,6 +79,8 @@ export const DOMAIN_PACKAGES = [
   "packages/room-core",
   // お題の文脈（#91）。timer・poker・room と同格のドメインパッケージ。
   "packages/topic-core",
+  // ルーレットの文脈（#94）。時計と乱数は引数で受ける（Date.now() や Math.random() を置いたら赤になるべき）。
+  "packages/roulette-core",
   "packages/timer-core",
   // #91 PR 3 で新設。純粋な関数のみ（Date.now() や Math.random() を置いたら赤になるべき）。
   "packages/markdown",

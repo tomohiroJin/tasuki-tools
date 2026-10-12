@@ -28,6 +28,7 @@ describe("poolOf（入る人）", () => {
   });
 
   it("外したゲストは入らない", () => {
+    // Given
     const state = stateWith({
       guests: [
         { id: "g-1", name: "ゲスト一" },
@@ -35,10 +36,12 @@ describe("poolOf（入る人）", () => {
       ],
       excluded: ["g-1"],
     });
+    // When
     expect(poolOf([A], state).map((e) => e.id)).toEqual(["p-a", "g-2"]);
   });
 
   it("並びは名簿の順 → ゲストの足した順で、同じ入力から常に同じ", () => {
+    // Given
     const state = stateWith({
       guests: [
         { id: "g-2", name: "後から" },
@@ -46,6 +49,7 @@ describe("poolOf（入る人）", () => {
       ],
     });
     const first = poolOf([B, A], state);
+    // When
     expect(first.map((e) => e.id)).toEqual(["p-b", "p-a", "g-2", "g-1"]);
     expect(poolOf([B, A], state)).toEqual(first);
   });

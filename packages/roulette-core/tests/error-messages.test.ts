@@ -12,12 +12,16 @@ const WS_ADAPTER_INTERNAL_ERROR_TEXT = "サーバー内部でエラーが発生�
  */
 describe("ルーレットのエラーの文言", () => {
   it("すべてのコードが空でない文言を持つ", () => {
+    // Given
     for (const code of ROULETTE_ERROR_CODES) {
+    // When
       expect(rouletteErrorMessageFor(code).length).toBeGreaterThan(0);
     }
   });
 
   it("画面に出る文は設計の文言どおり", () => {
+    // Given
+    // When
     expect(rouletteErrorMessageFor("ROULETTE_TOO_FEW")).toBe("2 人から回せます");
     expect(rouletteErrorMessageFor("ROULETTE_SPINNING")).toBe("回っている間は回せません");
     expect(rouletteErrorMessageFor("GUEST_NAME_TAKEN")).toBe("この名前はすでにいます");

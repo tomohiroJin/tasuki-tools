@@ -70,6 +70,8 @@ export const SCANNED_PACKAGES = [
   "packages/timer-core",
   // お題の文脈（#91）で新設。
   "packages/topic-core",
+  // ルーレットの文脈（#94）で新設。
+  "packages/roulette-core",
 ];
 
 /** 走査から外すパッケージ。**理由が要る。** 実在しなくなったら落ちる。 */
