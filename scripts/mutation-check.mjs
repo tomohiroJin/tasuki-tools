@@ -1527,6 +1527,14 @@ export const MUTATIONS = [
     note: "#94 §5.2（PR #355 のレビュー）。名簿から消えた記録を落とした状態を保管だけして配らず、保管と画面が食い違う。",
   },
   {
+    id: 173,
+    label: "同名で外れたゲストに印を付けない",
+    patch: "m173-twin-guest-unmarked.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/roulette-view.test.ts"],
+    note: "#94 spec R13。在室者と同じ名前のゲストが、理由の分からないまま円盤から居なくなる（黙って外れる姿）。",
+  },
+  {
     id: 165,
     label: "回し始めた時点で結果の一言に当たりの名前を出す",
     patch: "m165-caption-names-winner-while-spinning.patch",
