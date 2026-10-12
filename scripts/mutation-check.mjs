@@ -1422,6 +1422,22 @@ export const MUTATIONS = [
     tests: ["tests/draw.test.ts"],
     note: "#94 E3・spec R6。周の境目で同じ人が 2 回続く。",
   },
+  {
+    id: 153,
+    label: "回転中の拒否を外す",
+    patch: "m153-spin-allows-while-spinning.patch",
+    pkg: "packages/roulette-core",
+    tests: ["tests/roulette.test.ts"],
+    note: "#94 E5・spec R9。2 回目の回転が 1 回目を上書きし、画面ごとにどちらを見ているかがずれる。",
+  },
+  {
+    id: 157,
+    label: "ゲストの上限を見ない",
+    patch: "m157-guest-limit-unchecked.patch",
+    pkg: "packages/roulette-core",
+    tests: ["tests/roulette.test.ts"],
+    note: "#94 E13・spec R13。",
+  },
 ];
 
 /**

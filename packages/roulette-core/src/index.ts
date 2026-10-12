@@ -7,3 +7,18 @@ export { poolOf } from "./pool.js";
 
 export { drawWinner } from "./draw.js";
 export type { DrawResult } from "./draw.js";
+
+export {
+  startSpin,
+  isSpinning,
+  setIncluded,
+  addGuest,
+  removeGuest,
+  resetCycle,
+  prune,
+  toView,
+} from "./roulette.js";
+export type { SpinInput, RouletteView } from "./roulette.js";
+
+export { ROULETTE_ERROR_CODES } from "./errors.js";
+export type { RouletteError, RouletteDomainErrorCode, RouletteErrorCode } from "./errors.js";

@@ -1,0 +1,23 @@
+# 変異 157: guest-limit-unchecked
+#
+# 検出を期待するテスト:
+#   - packages/roulette-core/tests/roulette.test.ts
+#
+# #94 E13・spec R13。ゲストの上限を見ない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m157-*.patch
+# 復元: git apply -R scripts/mutations/m157-*.patch
+diff --git a/packages/roulette-core/src/roulette.ts b/packages/roulette-core/src/roulette.ts
+index c87234c7..2231d4b4 100644
+--- a/packages/roulette-core/src/roulette.ts
++++ b/packages/roulette-core/src/roulette.ts
+@@ -71,7 +71,7 @@ export function addGuest(
+   name: string,
+   takenNames: readonly string[],
+ ): Result<RouletteState, RouletteError> {
+-  if (state.guests.length >= MAX_GUESTS) return err({ code: "TOO_MANY_GUESTS" });
++
+   if (takenNames.includes(name) || state.guests.some((g) => g.name === name)) {
+     return err({ code: "GUEST_NAME_TAKEN" });
+   }
