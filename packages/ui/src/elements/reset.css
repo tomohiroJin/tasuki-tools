@@ -137,5 +137,8 @@ a {
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+    /* 遅延も止める。止めないと `fill-mode: both` の 0% の姿で消えたまま待つ（#348） */
+    animation-delay: 0s !important;
+    transition-delay: 0s !important;
   }
 }

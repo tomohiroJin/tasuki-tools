@@ -1,0 +1,21 @@
+# 変異 145: reduced-motion-keeps-delays
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/reduced-motion.test.mjs
+#     「動きを抑える設定のブロックは演出の遅延も 0 にする」
+#
+# #348・設計正本 D5。動きを抑える設定で遅延が残り、fill-mode: both の演出が消えたまま待つ。
+#
+diff --git a/packages/ui/src/elements/reset.css b/packages/ui/src/elements/reset.css
+index 794c87ed..85a061cc 100644
+--- a/packages/ui/src/elements/reset.css
++++ b/packages/ui/src/elements/reset.css
+@@ -137,8 +137,5 @@ a {
+   *::after {
+     animation-duration: 0.01ms !important;
+     transition-duration: 0.01ms !important;
+-    /* 遅延も止める。止めないと `fill-mode: both` の 0% の姿で消えたまま待つ（#348） */
+-    animation-delay: 0s !important;
+-    transition-delay: 0s !important;
+   }
+ }

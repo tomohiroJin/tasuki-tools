@@ -326,7 +326,7 @@ src/
 - **`.card` の中の数字は `.card-face` に入れ、コーナーピップは `data-label` 属性で渡す。**
   `::after` が `attr(data-label)` を出す。**読み上げ名が二重になる**ので、
   利用側は `aria-label` を明示すること（実測で確認済み）
-- 動きを抑える設定（`prefers-reduced-motion`）は `elements/reset.css` が一括で面倒を見る
+- 動きを抑える設定（`prefers-reduced-motion`）は `elements/reset.css` が一括で面倒を見る（長さに加えて**遅延も止める**。`tests/reduced-motion.test.mjs`）
 - **フォーカス可視化は `elements/reset.css` のグローバル `:focus-visible` が担う。**
   要素層を読まない timer-web は自前で持つ（部品層もリングを持たない・ADR 0022 決定 4）
 
