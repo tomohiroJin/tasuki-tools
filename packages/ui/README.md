@@ -45,7 +45,7 @@ src/
 | `.ui-md` | Markdown の根。各要素に `.ui-md-h`・`.ui-md-p`・`.ui-md-ul`・`.ui-md-ol`・`.ui-md-quote`・`.ui-md-code`・`.ui-md-pre`・`.ui-md-link` を当てる。暗い面ではつまみ `--ui-md-edge`（コード・引用の枠）・`--ui-md-link`（リンクの字）を面が宣言する | `--ui-md-edge`・`--ui-md-link` |
 | `.ui-page` | 画面の器（`<main>`）。最大幅・中央寄せ・外の余白を持つ。`--prose`（`40rem`）・既定（`72rem`）・`--wide`（`96rem`）の 3 段 | なし |
 | `.ui-workspace` | 操作の面と脇を並べる段組みの根。`.ui-workspace-main`（操作の面）・`.ui-workspace-side`（脇）を子に置く。`--side-end`・`--reader` で脇の側と幅を変える。使い方は下の「画面を組む」 | なし |
-| `.ui-reader` | 読む面。象牙の札に見出し（固定）と本文 `.ui-reader-body`（札の中でスクロール）を載せる。64rem 未満は本文を 3 行で切り、`.ui-reader-more`（続きを読む）で `.ui-drawer` を開く | なし |
+| `.ui-reader` | 読む面。象牙の札に見出し（固定）と本文 `.ui-reader-body`（64rem 以上だけ・札の中でスクロール）を載せる。64rem 未満は本文の代わりに 3 行の写し `.ui-reader-preview`（`inert`）を見せ、`.ui-reader-more`（続きを読む）で `.ui-drawer` を開く | なし |
 | `.ui-drawer` | 下からせり上がるシート（`<dialog>`）。`.ui-drawer-head`（見出しと閉じる）・`.ui-drawer-body`（スクロールする本文）を持つ。地と字は `.ui-reader` と同じ | なし |
 
 **使い方**
@@ -160,6 +160,8 @@ src/
         <h3 id="topic-title">タイトル</h3>
       </div>
       <!-- 本文は名前つきの region にし、tabindex="0" でキーボードから届かせる（64rem 以上で本文が札の中でスクロールするため） -->
+      <!-- 64rem 未満だけ見える 3 行の写し。inert を付けて置く（切った中のリンクやコードを Tab の行き先にしない）。role・aria-*・tabindex は付けない -->
+      <div class="ui-reader-preview" inert>本文</div>
       <div class="ui-reader-body" role="region" aria-labelledby="topic-title" tabindex="0">本文</div>
       <!-- 札の上のボタンの色（--coal 系）は部品が持つ。画面は役割のクラスを当てるだけ -->
       <button type="button" class="ui-button ui-button--secondary ui-button--sm ui-reader-more">続きを読む</button>
@@ -172,7 +174,7 @@ src/
 （実際の作りは `apps/poker-web/src/components/CurrentTopic.tsx` が正。区画は `<aside>` ではなく `<div>` にする。読む面の `<section>` が名前つきの region になるので、区画で目印を重ねない）
 
 - **64rem 以上**: 読む面は画面の高さに収まり、本文だけが札の中でスクロールする。**ページを伸ばさない**のは、説明が長いと操作が下へ押し出されるため。続きがあることはスクロールバーが知らせる。`.ui-reader-more` は出ない。上に見出しと招待の行（約 9.5rem）があり、下に器の余白（4rem）がある画面を前提にした高さ（`100dvh - 14rem`）。操作の面が札より短ければページは画面 1 枚に収まる。見出しの低い画面で使うと札が短くなる。
-- **64rem 未満**: 本文を 3 行で切り、`.ui-reader-more` で `<dialog class="ui-drawer">` を `showModal()` で開いて全文を出す。閉じるボタンと Esc で閉じ、開いたボタンへフォーカスを戻すのは画面の側の仕事
+- **64rem 未満**: 本文は描かず、同じ内容の写し（`.ui-reader-preview`）を 3 行で切って見せる。写しは `inert`（Tab の行き先にも読み上げにもならない）。全文とその中のリンクは、`.ui-reader-more` で `<dialog class="ui-drawer">` を `showModal()` で開いて全文を出す。閉じるボタンと Esc で閉じ、開いたボタンへフォーカスを戻すのは画面の側の仕事
 - 読む面の見出し行やタブは画面が `.ui-reader` の中に置く（部品は札・本文・続きを読むだけを持つ）
 - 札の上の字とボタンは象牙の地で AA を満たす色にする（金は札の上で AA を割る）。フォーカスの輪の色は要素層が持つので、画面で `outline` を書かない
 - 画面の文言は書体の base 層に収める（`apps/*/tests/*fits-font-base*` が測る）

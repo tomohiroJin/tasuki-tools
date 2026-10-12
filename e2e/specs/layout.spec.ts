@@ -14,7 +14,15 @@ import type { Page, TestInfo } from '@playwright/test';
 import { expect, test } from '../fixtures/test';
 import { chooseCard, createRoom as createPokerRoom, joinRoom as joinPokerRoom, participantRow } from '../support/poker';
 import { createRoom as createTimerRoom, joinAsDriver } from '../support/timer';
-import { joinTopicTool, openTopicTool, setTopic } from '../support/topic';
+import {
+  AFTER_LINK_HREF,
+  AFTER_LINK_NAME,
+  expectNarrowTabSkipsPreviewLink,
+  expectWideTabReachesBodyLink,
+  joinTopicTool,
+  openTopicTool,
+  setTopic,
+} from '../support/topic';
 
 const REM = 16;
 const MAIN_MIN = 32 * REM;
@@ -61,6 +69,8 @@ async function noteSmallTargets(page: Page, testInfo: TestInfo, label: string): 
 
 /** 40 行ほどの長い説明（Markdown の段落）。読む面の本文が札の中でスクロールすることを見る。 */
 const LONG_BODY = Array.from({ length: 40 }, (_, i) => `${i + 1} 行目の説明です。`).join('\n\n');
+/** LONG_BODY の 4 段落目にリンクを足したもの（3 行で切った先に来る。Tab が止まるかを見る・#316 PR 4）。 */
+const LINKED_LONG_BODY = LONG_BODY.replace('4 行目の説明です。', `4 行目の説明です。[${AFTER_LINK_NAME}](${AFTER_LINK_HREF})`);
 
 type OpenPeer = (label: string) => Promise<{ page: Page }>;
 
@@ -281,7 +291,7 @@ test.describe('poker のルームは広い画面で読む面と操作の面を�
     expect(side.y + side.height).toBeLessThanOrEqual(main.y);
     expect(main.x).toBeCloseTo(side.x, 0);
     // 本文は 3 行で切れる（行の高さ × 3.5 まで）。続きは「続きを読む」のシート（invite-sheet-md.spec.ts が見る）
-    const { height, lineHeight } = await page.locator('.ui-reader-body').evaluate((el) => ({
+    const { height, lineHeight } = await page.locator('.ui-reader-preview').evaluate((el) => ({
       height: el.getBoundingClientRect().height,
       lineHeight: parseFloat(getComputedStyle(el).lineHeight),
     }));
@@ -403,7 +413,7 @@ test.describe('timer は 1 つのルームでロビー・セッション・お�
     expect((await pageBox(page, TIMER_PAGE)).inner).toBeGreaterThanOrEqual(72 * REM);
     const tool = await openPeer('layout-timer-tool');
     await joinTopicTool(tool.page, `/?room=${encodeURIComponent(code)}`, 'layout-timer-t');
-    await setTopic(tool.page, 'FizzBuzz', LONG_BODY);
+    await setTopic(tool.page, 'FizzBuzz', LINKED_LONG_BODY);
     const card = page.getByRole('region', { name: 'お題', exact: true });
     await expect(card).toContainText('40 行目の説明です。');
     await expectNoHorizontalOverflow(page);
@@ -510,10 +520,12 @@ test.describe('timer は 1 つのルームでロビー・セッション・お�
     });
     expect(ringColors.focused).toBe(true);
     expect(ringColors.ring).toBe(ringColors.coal);
+    // 本文の領域から Tab で、本文の中のリンクに着く（64rem 以上）
+    await expectWideTabReachesBodyLink(page.locator('section.timer-topic .ui-reader-body'));
     const longHeight = await page.evaluate(() => document.documentElement.scrollHeight);
 
     // When 80 段落の説明に差し替える
-    await setTopic(tool.page, 'FizzBuzz', `${LONG_BODY}\n\n${LONG_BODY.replaceAll('行目', '行目（続き）')}`);
+    await setTopic(tool.page, 'FizzBuzz', `${LINKED_LONG_BODY}\n\n${LONG_BODY.replaceAll('行目', '行目（続き）')}`);
     await expect(card).toContainText('40 行目（続き）の説明です。');
     // Then ページの高さは説明の長さで伸びない（40 段落と 80 段落で 1px 以内）
     const longerHeight = await page.evaluate(() => document.documentElement.scrollHeight);
@@ -522,7 +534,7 @@ test.describe('timer は 1 つのルームでロビー・セッション・お�
     // When 幅 390
     await page.setViewportSize({ width: 390, height: 844 });
     // Then 札は 3 行で切れ、タイマーは最初の画面に収まる
-    const clamp = await page.locator('.ui-reader-body').first().evaluate((el) => ({
+    const clamp = await page.locator('.ui-reader-preview').first().evaluate((el) => ({
       client: el.clientHeight,
       line: parseFloat(getComputedStyle(el).lineHeight),
       scroll: el.scrollHeight,
@@ -534,6 +546,9 @@ test.describe('timer は 1 つのルームでロビー・セッション・お�
     const dockBox = await boxOf(page, '.ui-actions--dock');
     expect(narrowTimer.y + narrowTimer.height).toBeLessThanOrEqual(dockBox.y);
     await expectNoHorizontalOverflow(page);
+
+    // 切った本文の中のリンクには Tab が止まらず、「続きを読む」とシートの中のリンクには止まる（#316 PR 4）
+    await expectNarrowTabSkipsPreviewLink(page, card);
 
     // 「続きを読む」でシートに全文が出て、Esc で閉じるとフォーカスが戻る
     const more = page.getByRole('button', { name: '続きを読む' });

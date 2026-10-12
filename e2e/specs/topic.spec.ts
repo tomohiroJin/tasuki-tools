@@ -14,7 +14,15 @@ import { expect, test } from '../fixtures/test';
 import { expectFieldsAtLeast16px, expectFocusVisibleOnTab, expectPickerInPage, expectReadable, pairKey, resolveColors, scanContrast } from '../support/a11y';
 import { joinRoom as joinPoker } from '../support/poker';
 import { joinViaHubAt as joinTimer } from '../support/timer';
-import { currentTopic, openTopicTool, setTopic } from '../support/topic';
+import {
+  AFTER_LINK_HREF,
+  currentTopic,
+  expectNarrowTabSkipsPreviewLink,
+  expectWideTabReachesBodyLink,
+  LINKED_BODY,
+  openTopicTool,
+  setTopic,
+} from '../support/topic';
 
 const TITLE = 'FizzBuzz';
 const BODY = '3 のときは Fizz を出す';
@@ -503,6 +511,22 @@ test.describe('お題ツールを書く主役にする（#316 PR 1 の手直し�
     // Then: 画面いっぱい（800 − 余白）にはならず、中身の高さで収まる
     const box = await currentTopic(page).boundingBox();
     expect(box!.height).toBeLessThan(400);
+    // 切った本文の中のリンクには Tab が止まらず、「続きを読む」とシートの中のリンクには止まる。広い幅では本文のリンクに止まる（#316 PR 4）
+    await setTopic(page, TITLE, LINKED_BODY);
+    await expectNarrowTabSkipsPreviewLink(page, currentTopic(page));
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await expectWideTabReachesBodyLink(currentTopic(page).locator('.ui-reader-body'));
+    // 下書きのタブの写しにも Tab は止まらない（下書きは本文を書く欄に全文がある）
+    await page.setViewportSize({ width: 390, height: 800 });
+    await page.getByLabel('タイトル').fill(TITLE);
+    await page.getByLabel('説明（なくてもよい）').fill(LINKED_BODY);
+    const draft = currentTopic(page).locator('.ui-reader-preview');
+    await expect(draft.locator(`a[href="${AFTER_LINK_HREF}"]`), '下書きの写しにリンクが無い（判定が空振りする）').toHaveCount(1);
+    await currentTopic(page).getByRole('tab', { name: '下書き' }).focus();
+    for (let i = 0; i < 12; i += 1) {
+      await page.keyboard.press('Tab');
+      expect(await page.evaluate(() => document.activeElement?.getAttribute('href')), `下書きの写しのリンクに Tab が止まった（${i + 1} 回目）`).not.toBe(AFTER_LINK_HREF);
+    }
   });
 
   test('Given 幅 1280 でお題がある / When 札の下端を見る / Then 下書きにコピーは左・場から下げるは右、書く側の操作は場に出すが右端', async ({ page, consoleWatcher }) => {

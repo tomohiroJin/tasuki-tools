@@ -28,10 +28,17 @@ describe("お題の札", () => {
     const { container } = render(<TopicCard topic={topic} />);
     // Then
     const levels = Array.from(container.querySelectorAll("h2, h3, h4, h5, h6")).map((h) => `${h.tagName}:${h.textContent}`);
-    // シートの中の h3（タイトルの写し）も数える。本文の見出しは `headingBase={4}` で h4 から
-    expect(levels).toEqual(["H2:お題", "H3:FizzBuzz", "H4:振る舞い", "H3:FizzBuzz", "H4:振る舞い"]);
+    // 64rem 未満の写し（inert）とシートの中の h3（タイトルの写し）も数える。本文の見出しは `headingBase={4}` で h4 から
+    expect(levels).toEqual(["H2:お題", "H3:FizzBuzz", "H4:振る舞い", "H4:振る舞い", "H3:FizzBuzz", "H4:振る舞い"]);
     expect(container.querySelector("section.ui-reader")).not.toBeNull();
     expect(container.querySelector(".ui-reader-body .ui-md")).not.toBeNull();
+    // 3 行の写しは inert（Tab の行き先と読み上げから外す）で、本文の領域でも操作の対象でもない。実際の Tab は E2E が見る
+    const preview = container.querySelector(".ui-reader-preview");
+    expect(preview).not.toBeNull();
+    expect(preview).toHaveAttribute("inert");
+    expect(preview).not.toHaveAttribute("role");
+    expect(preview).not.toHaveAttribute("tabindex");
+    expect(preview?.nextElementSibling).toBe(container.querySelector(".ui-reader-body"));
     expect(container.querySelector(".markdown")).toBeNull();
     expect(screen.getByRole("button", { name: "続きを読む", hidden: true })).toBeInTheDocument();
     expect(container.querySelector("dialog.ui-drawer")).not.toBeNull();

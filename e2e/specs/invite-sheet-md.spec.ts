@@ -11,7 +11,14 @@ import type { Locator, Page } from '@playwright/test';
 import { expect, test } from '../fixtures/test';
 import { expectReadable, pairKey, resolveColors, scanContrast } from '../support/a11y';
 import { invitedUrlText, joinRoom } from '../support/poker';
-import { currentTopic, openTopicTool, setTopic } from '../support/topic';
+import {
+  currentTopic,
+  expectNarrowTabSkipsPreviewLink,
+  expectWideTabReachesBodyLink,
+  LINKED_BODY,
+  openTopicTool,
+  setTopic,
+} from '../support/topic';
 
 /** 見出し・リスト・引用・インラインコード・リンクを 1 つずつ持つ本文。書体の base 層に収まる英数字だけで書く。 */
 const TITLE = 'FizzBuzz';
@@ -175,7 +182,7 @@ test.describe('招待リンクの表示・象牙の札・Markdown の見た目�
   test('Given 象牙の札の上 / When Tab で本文と「続きを読む」へフォーカスが来る / Then 輪の色は `--coal`', async ({ page, openPeer }) => {
     // Given: 本文は 64rem 以上、「続きを読む」は 64rem 未満で出るので、幅を替えて 1 つずつ測る
     const inviteUrl = await openTopicTool(page, 'ring-host');
-    await setTopic(page, TITLE, BODY);
+    await setTopic(page, TITLE, LINKED_BODY);
     const poker = await openPeer('ring-poker');
     await joinRoom(poker.page, inviteUrl, 'ring-poker');
     const [coal] = await resolveColors(poker.page, ['--coal']);
@@ -192,5 +199,9 @@ test.describe('招待リンクの表示・象牙の札・Markdown の見た目�
     expect(await tabTo(poker.page.getByRole('region', { name: TITLE, exact: true })), '本文の輪').toBe(coal);
     await poker.page.setViewportSize({ width: 390, height: 800 });
     expect(await tabTo(poker.page.getByRole('button', { name: '続きを読む' })), '「続きを読む」の輪').toBe(coal);
+    // 切った本文の中のリンクには Tab が止まらず、シートの中のリンクには止まる。広い幅では本文のリンクに止まる（#316 PR 4）
+    await expectNarrowTabSkipsPreviewLink(poker.page, poker.page.getByRole('region', { name: 'お題', exact: true }));
+    await poker.page.setViewportSize({ width: 1280, height: 800 });
+    await expectWideTabReachesBodyLink(poker.page.getByRole('region', { name: TITLE, exact: true }));
   });
 });

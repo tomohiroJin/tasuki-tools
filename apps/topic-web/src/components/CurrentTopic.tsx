@@ -49,7 +49,9 @@ const TABS: readonly { readonly id: TabId; readonly label: string }[] = [
  * 画面の高さから引いてあり、札の上に知らせを載せると区画がその背丈ぶん画面を超える（#316 最終レビュー I3）。
  * `aria-busy` 自体は section に残す（既存テストが region の aria-busy を見ている）。
  *
- * 狭い幅（64rem 未満）の「下書き」のタブは本文を 3 行で切り、「続きを読む」は持たない
+ * 本文（`.ui-reader-body`）は 64rem 以上だけ描く。64rem 未満は同じ本文を `inert` の写し（`.ui-reader-preview`）で
+ * 3 行に切って見せ、切った中身のリンクを Tab の行き先から外す（部品 `reader.css`）。
+ * 狭い幅（64rem 未満）の「下書き」のタブも写しで 3 行に切り、「続きを読む」は持たない
  * （全文は書く欄の中のプレビューで見る。シートはいまのお題だけ）。
  *
  * **自動切り替えの規則**: 下書きが「空 → 空でない」に変わった瞬間だけ「下書き」へ、
@@ -150,6 +152,10 @@ export function CurrentTopic({ state, enabled, draft, onCopyToDraft, onClear }: 
                   <h3 id={titleId} className="topic-title topic-reader-pad">{topic.title}</h3>
                   {hasBody && (
                     <>
+                      {/* 64rem 未満の 3 行の写し。inert で Tab の行き先と読み上げから外す（全文は「続きを読む」のシート） */}
+                      <div className="ui-reader-preview" inert>
+                        <Markdown source={topic.body} className="topic-body" />
+                      </div>
                       <div className="ui-reader-body" role="region" aria-labelledby={titleId} tabIndex={0}>
                         <Markdown source={topic.body} className="topic-body" />
                       </div>
@@ -177,6 +183,10 @@ export function CurrentTopic({ state, enabled, draft, onCopyToDraft, onClear }: 
                   {draftTitle.trim() !== '' && (
                     <h3 id={draftTitleId} className="topic-title topic-reader-pad">{draftTitle}</h3>
                   )}
+                  {/* 64rem 未満の 3 行の写し（シートは無い。全文は書く欄にある） */}
+                  <div className="ui-reader-preview" inert>
+                    <Markdown source={draftBody} className="topic-body" />
+                  </div>
                   <div
                     className="ui-reader-body"
                     role="region"

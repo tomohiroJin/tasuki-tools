@@ -97,6 +97,12 @@ describe('poker のルーム画面がいまのお題を出す(#91・#316)', () =
     const region = screen.getByRole('region', { name: 'FizzBuzz' });
     expect(region.getAttribute('tabindex')).toBe('0');
     expect(region.classList.contains('ui-reader-body')).toBe(true);
+    // 64rem 未満の 3 行の写しは inert で、役割も止まり先も持たない（切った中身のリンクを Tab の行き先にしない）
+    const preview = region.previousElementSibling;
+    expect(preview?.classList.contains('ui-reader-preview')).toBe(true);
+    expect(preview?.hasAttribute('inert')).toBe(true);
+    expect(preview?.hasAttribute('role')).toBe(false);
+    expect(preview?.hasAttribute('tabindex')).toBe(false);
     expect(region.textContent).toContain('3 のときは Fizz');
     expect(document.querySelector('details')).toBeNull();
   });

@@ -9,7 +9,8 @@
  * 見出しの段: h2「お題」→ h3 タイトル → 本文の見出しは h4 から（`headingBase={4}`）。
  * 本文は `Markdown`（部品の `.ui-md-*`）で描く。
  * シートが開いたままアンマウントされたとき、または幅が 64rem を超えたときは、フォーカスが body に落ちる（直さない・poker の `CurrentTopic.tsx` と同じ受容）。
- * 本文の `tabIndex={0}` は 64rem 以上で本文をキーボードでスクロールするため。
+ * 本文（`.ui-reader-body`）は 64rem 以上だけ描き、`tabIndex={0}` は本文をキーボードでスクロールするため。
+ * 64rem 未満は同じ本文を `inert` の写し（`.ui-reader-preview`）で 3 行に切って見せ、切った中身のリンクを Tab の行き先から外す。
  */
 import React, { useId, useRef } from "react";
 import type { Topic } from "@tasuki/topic-core";
@@ -39,6 +40,10 @@ export function TopicCard({ topic }: { topic: Topic }) {
       </div>
       {hasBody && (
         <>
+          {/* 64rem 未満の 3 行の写し。inert で Tab の行き先と読み上げから外す（全文は「続きを読む」のシート） */}
+          <div className="ui-reader-preview" inert>
+            <Markdown source={topic.body} headingBase={4} />
+          </div>
           <div className="ui-reader-body" role="region" aria-labelledby={titleId} tabIndex={0}>
             <Markdown source={topic.body} headingBase={4} />
           </div>
