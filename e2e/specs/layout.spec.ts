@@ -427,9 +427,11 @@ test.describe('poker のルームは広い画面で読む面と操作の面を�
     await expect.poll(() => cardHandRowSizes(page), '1100 の開いた状態の手札は 5 × 2').toEqual([5, 5]);
   });
 
-  test('Given 幅 1280・お題を開いている / When 「お題を隠す」「お題を見る」を押す / Then 操作の面は途中の位置を通って滑り、閉じた読む面は幅 0・Tab の行き先にならない', async ({ page, openPeer }) => {
+  // 隠す・見せる・下ろす・掲げ直すを 1 つのルームで測る。同期サーバーのルーム枠（100）は E2E 全件でちょうど使い切るので、
+  // 1 本に分けるとルームが 1 つ増えて最後の spec が落ちる（#348）
+  test('Given 幅 1280・お題を開いている / When 「お題を隠す」「お題を見る」を押し、お題が下ろされ、掲げ直される / Then 操作の面は途中の位置を通って滑り、閉じた読む面は幅 0・Tab の行き先にならず、下ろす・掲げ直すでも列が移り変わる（跳ばない）', async ({ page, openPeer }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
-    await openPokerWithTopic(page, openPeer);
+    const { topicPage } = await openPokerWithTopicTool(page, openPeer);
 
     // 隠す: 列が補間され（gridCount）、操作の面が開いた位置から中央へ、途中の位置を通って動く
     const hide = await slideMidway(page, 'お題を隠す');
@@ -468,11 +470,9 @@ test.describe('poker のルームは広い画面で読む面と操作の面を�
     expect(openProgress, '開く途中の位置が端に張り付いている（跳んでいる）').toBeGreaterThan(0.05);
     expect(openProgress, '開く途中の位置が端に張り付いている（跳んでいる）').toBeLessThan(0.95);
     await expect(page.getByRole('region', { name: 'お題', exact: true })).toBeVisible();
-  });
 
-  test('Given 幅 1280・お題を開いている / When お題が下ろされ、掲げ直される / Then どちらも操作の面の列が移り変わる（跳ばない）', async ({ page, openPeer }) => {
-    await page.setViewportSize({ width: 1280, height: 900 });
-    const { topicPage } = await openPokerWithTopicTool(page, openPeer);
+    // 同じルームで続けて、お題が下ろされ・掲げ直されるときの列を見る。見せた後の移り変わりが終わってから数え始める
+    await settleWorkspace(page);
     await watchGridTransitions(page);
 
     // 下ろす: 区画は DOM から外れる（お題の中身が無いので残せない）が、列は移り変わる
