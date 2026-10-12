@@ -180,17 +180,24 @@ describe('poker のお題は手元で隠せる（#316 PR 1）', () => {
     expect(toggle.closest('.ui-page-header')).not.toBeNull();
   });
 
-  it('Given お題が開いている / When 「お題を隠す」を押す / Then 札が描かれず、「お題を見る」になる。もう一度押すと札が戻る', () => {
+  it('U5: Given お題が開いている / When 「お題を隠す」を押す / Then 札は DOM に残り inert で閉じ、「お題を見る」になる。もう一度押すと開く', () => {
     render(<RoomPage roomId={ROOM_ID} sync={makeSync(topic)} />);
+    const side = document.querySelector('.ui-workspace-side');
+    expect(side?.getAttribute('data-state')).toBe('open');
+    expect(side?.hasAttribute('inert')).toBe(false);
     fireEvent.click(screen.getByRole('button', { name: TOPIC_HIDE }));
-    expect(document.getElementById(TOPIC_CARD_ID)).toBeNull();
-    expect(document.querySelector('.ui-workspace-side')).toBeNull();
+    // 閉じても札は DOM に残る（幅 0・inert）。滑って閉じるために作り直さない（#348 D7）
+    expect(document.getElementById(TOPIC_CARD_ID)).not.toBeNull();
+    expect(document.querySelector('.ui-workspace-side')).toBe(side);
+    expect(side?.getAttribute('data-state')).toBe('closed');
+    expect(side?.hasAttribute('inert')).toBe(true);
     const show = screen.getByRole('button', { name: TOPIC_SHOW });
     expect(show.getAttribute('aria-expanded')).toBe('false');
-    // 隠している間は、DOM から消えた id を指さない
-    expect(show.hasAttribute('aria-controls')).toBe(false);
+    // 札が残るので、指し先も残る
+    expect(show.getAttribute('aria-controls')).toBe(TOPIC_CARD_ID);
     fireEvent.click(show);
-    expect(document.getElementById(TOPIC_CARD_ID)).not.toBeNull();
+    expect(side?.getAttribute('data-state')).toBe('open');
+    expect(side?.hasAttribute('inert')).toBe(false);
     expect(screen.getByRole('button', { name: TOPIC_HIDE }).getAttribute('aria-expanded')).toBe('true');
   });
 
@@ -200,11 +207,13 @@ describe('poker のお題は手元で隠せる（#316 PR 1）', () => {
     expect(screen.queryByRole('button', { name: TOPIC_SHOW })).toBeNull();
   });
 
-  it('Given 隠している / When お題が差し替わる / Then 隠したまま', () => {
+  it('U6: Given 隠している / When お題が差し替わる / Then 閉じて inert のまま', () => {
     const { rerender } = render(<RoomPage roomId={ROOM_ID} sync={makeSync(topic)} />);
     fireEvent.click(screen.getByRole('button', { name: TOPIC_HIDE }));
     rerender(<RoomPage roomId={ROOM_ID} sync={makeSync({ ...topic, title: '次のお題' })} />);
-    expect(document.getElementById(TOPIC_CARD_ID)).toBeNull();
+    const side = document.querySelector('.ui-workspace-side');
+    expect(side?.getAttribute('data-state')).toBe('closed');
+    expect(side?.hasAttribute('inert')).toBe(true);
     expect(screen.getByRole('button', { name: TOPIC_SHOW })).not.toBeNull();
   });
 });

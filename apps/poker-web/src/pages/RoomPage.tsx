@@ -215,7 +215,7 @@ export function RoomPage({ roomId, sync }: Props) {
               子が 3 つだと戻る導線が真ん中に浮く（#316 PR 1）。 */}
           <div className="room-title">
             <h1>プランニングポーカー</h1>
-            {/* お題があるときだけ。隠すのは札ごと（React で描かない）。シートは札の中の `<dialog>` で、
+            {/* お題があるときだけ。隠すのは札を閉じて `inert` にする（DOM には残す。残すから滑って閉じられる・#348）。シートは札の中の `<dialog>` で、
                 開いている間はモーダルなので、この切り替えは押せない（フォーカスが失われる経路が無い）。
                 ただし切り替えのボタンにフォーカスがあるまま他の人がお題を下ろすと、ボタンごと消えて
                 フォーカスが body に落ちる（受け入れた限界・札の場合と同じ）。 */}
@@ -224,8 +224,8 @@ export function RoomPage({ roomId, sync }: Props) {
                 type="button"
                 className="ui-button ui-button--secondary ui-button--sm"
                 aria-expanded={topicOpen}
-                // 隠している間は札が DOM に無い。消えた id を指さない
-                aria-controls={topicOpen ? TOPIC_CARD_ID : undefined}
+                // 閉じても札は DOM に残る（幅 0・`inert`）ので、指し先はいつも在る
+                aria-controls={TOPIC_CARD_ID}
                 onClick={() => setTopicOpen((open) => !open)}
               >
                 {topicOpen ? TOPIC_HIDE : TOPIC_SHOW}
@@ -245,10 +245,15 @@ export function RoomPage({ roomId, sync }: Props) {
       <ErrorNote error={sync.error} onClose={sync.clearError} />
       {/* 段組み（#316・ADR 0025）。64rem 以上は左に読む面（お題）・右に操作の面（場 → 手札 → 結果）。
           DOM は狭い幅で見せたい順（お題 → 場 → 手札）。お題が無い・隠したときは脇が無く、部品が主を 1 列にし、
-          幅と中央寄せは index.css の `.room-main` が持つ。 */}
+          幅と中央寄せは index.css の `.room-main` が持つ。
+          閉じた脇は幅 0・`inert` で DOM に残し、段組みの列を移り変わらせる（#348）。 */}
       <div className="ui-workspace ui-workspace--reader">
-        {sync.topic && topicOpen && (
-          <div className="ui-workspace-side">
+        {sync.topic && (
+          <div
+            className="ui-workspace-side room-topic-side"
+            data-state={topicOpen ? 'open' : 'closed'}
+            inert={!topicOpen}
+          >
             <CurrentTopic topic={sync.topic} />
           </div>
         )}

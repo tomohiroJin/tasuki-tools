@@ -1374,6 +1374,22 @@ export const MUTATIONS = [
     tests: ["tests/reduced-motion.test.mjs"],
     note: "#348・設計正本 D5。遅延が残ると fill-mode: both の演出が 0% の姿で消えたまま待つ。実際の効きは poker-a11y の E2E も見る。",
   },
+  {
+    id: 143,
+    label: "閉じたお題の脇を DOM から外す",
+    patch: "m143-topic-side-unmounts-when-closed.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/current-topic.test.tsx"],
+    note: "#348・設計正本 D7。閉じると区画ごと消え、列が滑って閉じられない。U5 が区画が同じ要素で残ることを見る。",
+  },
+  {
+    id: 144,
+    label: "閉じたお題の脇が inert にならない",
+    patch: "m144-topic-side-not-inert-when-closed.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/current-topic.test.tsx"],
+    note: "#348・設計正本 D7。閉じた札が Tab の行き先と読み上げに残る。U5・U6 が inert を見る。",
+  },
 ];
 
 /**
