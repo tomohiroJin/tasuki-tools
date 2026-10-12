@@ -1326,6 +1326,22 @@ export const MUTATIONS = [
     tests: ["tests/typography-scale.test.mjs"],
     note: "#316 PR 4。射程からアプリが落ちても、部品層だけを見て緑になる。射程の自己テストが捕まえる。",
   },
+  {
+    id: 130,
+    label: "まとめの器を部屋の器から外す（完了の瞬間に帯ごと幅が跳ねる）",
+    patch: "m130-timer-summary-page-prose.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/App.page-tier.test.tsx"],
+    note: "#352・設計 D1。まとめはロビー・セッションと同じ部屋の段階。器を変えると、上のステータスの帯ごと 1536px から 640px へ縮む。",
+  },
+  {
+    id: 131,
+    label: "器の既定の枝を wide にする（読み込み中まで 96rem になる）",
+    patch: "m131-timer-default-page-wide.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/App.page-tier.test.tsx"],
+    note: "#352・設計 D1。「全部 wide にすれば跳ねない」という直し方を止める。読み込み中と行き先の無い URL の画面は読む画面の段のまま。",
+  },
 ];
 
 /**

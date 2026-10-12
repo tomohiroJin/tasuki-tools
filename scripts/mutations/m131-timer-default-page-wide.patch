@@ -1,0 +1,25 @@
+# 変異 131: timer-default-page-wide
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/ui/App.page-tier.test.tsx
+#     「Given ルームへ入る途中 / When snapshot がまだ届かない / Then 器は読む画面の段（--prose）のまま」
+#
+# #352・設計 D1。`pageOf` の既定の枝を wide にする（「全部 wide にすれば跳ねない」という直し方）。
+# 読み込み中・行き先の無い URL の短い画面まで 96rem の器になり、ADR 0025 決定 2 の段の選び方が崩れる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m131-*.patch
+# 復元: git apply -R scripts/mutations/m131-*.patch
+diff --git a/apps/timer-web/src/App.tsx b/apps/timer-web/src/App.tsx
+index 09e7fe74..75fa7805 100644
+--- a/apps/timer-web/src/App.tsx
++++ b/apps/timer-web/src/App.tsx
+@@ -34,7 +34,7 @@ function pageOf(historyOpen: boolean, sessionLost: boolean, mode: string | null
+   if (historyOpen) return "default";
+   if (sessionLost) return "prose";
+   if ((mode === "lobby" || mode === "session" || mode === "celebration") && hasRoom) return "wide";
+-  return "prose";
++  return "wide";
+ }
+ 
+ export default function App() {

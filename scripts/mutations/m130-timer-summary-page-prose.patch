@@ -1,0 +1,25 @@
+# 変異 130: timer-summary-page-prose
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/ui/App.page-tier.test.tsx
+#     「Given ルームのセッション / When 完了の snapshot が届く / Then 器の段は変わらない（帯ごと幅が跳ねない）」
+#
+# #352・設計 D1。`pageOf` がまとめ（celebration）を部屋の器から外し、既定の 40rem に落とす。
+# 完了した瞬間に、ステータスの帯ごと画面の幅が 1536px から 640px へ縮む（#352 の利用者のフィードバック）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m130-*.patch
+# 復元: git apply -R scripts/mutations/m130-*.patch
+diff --git a/apps/timer-web/src/App.tsx b/apps/timer-web/src/App.tsx
+index 09e7fe74..f5e54735 100644
+--- a/apps/timer-web/src/App.tsx
++++ b/apps/timer-web/src/App.tsx
+@@ -33,7 +33,7 @@ import { useTimerSync } from "./sync/use-timer-sync.js";
+ function pageOf(historyOpen: boolean, sessionLost: boolean, mode: string | null | undefined, hasRoom: boolean): "prose" | "default" | "wide" {
+   if (historyOpen) return "default";
+   if (sessionLost) return "prose";
+-  if ((mode === "lobby" || mode === "session" || mode === "celebration") && hasRoom) return "wide";
++  if ((mode === "lobby" || mode === "session") && hasRoom) return "wide";
+   return "prose";
+ }
+ 
