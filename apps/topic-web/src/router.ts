@@ -2,7 +2,7 @@
  * URL からルートを決める（#91・`docs/adr/0018`）。
  *
  * **入口は玄関の札（`/topic/?room=CODE`）だけである。** 名乗りと合言葉の入力は玄関に 1 つだけあり、
- * ルームコードを伴わない URL には行き先が無いので玄関へ送る。新しいアプリなので、poker の
+ * ルームコードを伴わない URL には行き先が無いので玄関へ送る（知らない下位パスはコードを保って玄関のそのルームへ）。新しいアプリなので、poker の
  * 旧リンク（`/poker/room/<id>`）のような救済は持たない。
  *
  * ルームコードには日本語が入りうるので、復号は `URLSearchParams` に任せる。
@@ -15,8 +15,13 @@ const BASE = '/topic';
 
 export function parseRoute(pathname: string, search = ''): Route {
   const rest = pathname.startsWith(BASE) ? pathname.slice(BASE.length) : null;
-  if (rest !== '' && rest !== '/') return { name: 'redirect', to: '/' };
+  // 空のコードでは入室させない（`?room=` だけが付いた URL も行き先が無い）。
   const roomCode = new URLSearchParams(search).get('room');
+  if (rest !== '' && rest !== '/') {
+    // 知らない下位パスでも、**ルームコードは落とさない**（玄関のそのルームへ送る。
+    // 落とすと、玄関でコードを打ち直させることになる。poker の旧リンクの救済と同じ考え方）。
+    return { name: 'redirect', to: roomCode ? hubPathFor(roomCode) : '/' };
+  }
   return roomCode ? { name: 'room', roomCode } : { name: 'redirect', to: '/' };
 }
 

@@ -1033,7 +1033,9 @@ export const MUTATIONS = [
     label: "planForError が抜けた知らせを left ではなく show へ落とす",
     patch: "m93-join-error-plan-left-falls-to-show.patch",
     pkg: "apps/topic-web",
-    tests: ["tests/use-topic-sync.test.tsx", "tests/join-error-plan.test.ts"],
+    // #94 PR 2 で規則を `@tasuki/sync-client` の `planForJoinError` へ寄せた（パッチの対象もそちら）。
+    // 単体は sync-client のテストが持ち、ここでは利用側の同期フックの配線で見る。
+    tests: ["tests/use-topic-sync.test.tsx"],
     note:
       "#91 PR 2。`LEFT_ROOM` / `REMOVED_FROM_ROOM` / `REMOVED_BY_HOST` の 2 行を消す。" +
       "抜けた・外された知らせが、玄関へ理由つきで戻す `left` ではなく「その場でサーバーの" +
@@ -1525,6 +1527,70 @@ export const MUTATIONS = [
     pkg: "apps/tasuki-sync",
     tests: ["test/roulette-handlers.test.ts"],
     note: "#94 §5.2（PR #355 のレビュー）。名簿から消えた記録を落とした状態を保管だけして配らず、保管と画面が食い違う。",
+  },
+  {
+    id: 173,
+    label: "同名で外れたゲストに印を付けない",
+    patch: "m173-twin-guest-unmarked.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/roulette-view.test.ts"],
+    note: "#94 spec R13。在室者と同じ名前のゲストが、理由の分からないまま円盤から居なくなる（黙って外れる姿）。",
+  },
+  {
+    id: 165,
+    label: "回し始めた時点で結果の一言に当たりの名前を出す",
+    patch: "m165-caption-names-winner-while-spinning.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/roulette-room.test.tsx", "tests/roulette-view.test.ts"],
+    note: "#94 E19・spec §6.8。読み上げが演出（回転）より先に結果を言う。止まった後に見るだけのテストでは殺せない（最後は同じ文になる）ので、回っている最中に見る。",
+  },
+  {
+    id: 166,
+    label: "回っている間も選ばれた印と一周の数に今回の当たりを入れる",
+    patch: "m166-drawn-mark-includes-current-winner.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/roulette-room.test.tsx", "tests/roulette-view.test.ts"],
+    note: "#94 E19・spec §6.8。円盤が止まる前に脇の一覧と一周の数で結果が分かってしまう。",
+  },
+  {
+    id: 169,
+    label: "玄関の札の ID が同期サーバーの綴りとずれる",
+    patch: "m169-hub-tool-id-mismatch.patch",
+    pkg: "apps/landing",
+    tests: ["tests/room-choice-layout.test.tsx"],
+    note: "#94 spec §7.3。在席の表示がルーレットに居る人を札の名前で出せず、「roulette にいます」と生の綴りが出る。型は綴りのずれを拾わない。",
+  },
+  {
+    id: 162,
+    label: "web が状態を受けるたびに回転の時刻の基準を取り直す",
+    patch: "m162-web-receivedat-refreshed-every-frame.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/use-roulette-sync.test.tsx"],
+    note: "#94 E17・spec §6.4。同じ回転（seq が同じ）の状態を繰り返し受けるたびに経過が 0 に戻り、円盤が回し直しになる。",
+  },
+  {
+    id: 180,
+    label: "同じ回転のフレームで基準の時刻は古いまま新しい経過を採る",
+    patch: "m180-web-same-seq-takes-new-elapsed.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/use-roulette-sync.test.tsx"],
+    note: "#94 E17・spec §6.4（PR #357 のレビュー）。回転中の外す・戻すや再接続で同じ seq が届くたびに経過を二重に数え、止まる時刻が前へずれる。",
+  },
+  {
+    id: 181,
+    label: "同名で外れたゲストのチェックを押せるままにする",
+    patch: "m181-twin-guest-check-enabled.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/roulette-view.test.ts", "tests/roulette-room.test.tsx"],
+    note: "#94 spec R13（PR #357 のレビュー）。押しても入る人に戻らない（何も起きない）チェックが残る。",
+  },
+  {
+    id: 182,
+    label: "結果の一言で入る人の数を止まった結果より先に見る",
+    patch: "m182-caption-too-few-hides-result.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/roulette-view.test.ts"],
+    note: "#94 spec §6.8（PR #357 のレビュー）。発表の後で入る人が 1 人に減ると、発表した結果が「2 人から回せます」に消える。",
   },
 ];
 

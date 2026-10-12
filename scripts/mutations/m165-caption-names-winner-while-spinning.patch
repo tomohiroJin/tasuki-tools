@@ -1,0 +1,31 @@
+# 変異 165: 回し始めた時点で結果の一言に当たりの名前を出す
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/roulette-room.test.tsx
+#     describe「結果の一言は止まってから当たりを言う」の
+#     「Given 回し始めた / When 回っている間 / Then 一言は回した人だけを言い、当たりの名前は出ない」
+#   - apps/roulette-web/tests/roulette-view.test.ts
+#     describe「結果の一言と主ボタン」の「Given 回っている / When 一言を決める / Then 回した人だけを言い…」
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m165-*.patch
+# 復元: git apply -R scripts/mutations/m165-*.patch
+#
+# #94 E19・spec §6.8。回し始めた時点で当たりの名前を言うと、読み上げが演出（回転）より先に結果を
+# 言ってしまう。変異は「回している間」の分岐を外し、局面に関わらず当たりを言う。
+# **止まった後に見るだけのテストでは殺せない**（最後は同じ文になる）。回っている最中に見る。
+diff --git a/apps/roulette-web/src/roulette-view.ts b/apps/roulette-web/src/roulette-view.ts
+index 3f5808ea..1c68bd7a 100644
+--- a/apps/roulette-web/src/roulette-view.ts
++++ b/apps/roulette-web/src/roulette-view.ts
+@@ -170,9 +170,8 @@ export function cycleLineOf(drawnCount: number, poolCount: number): string {
+  */
+ export function captionOf(input: { view: RouletteView; phase: Phase; poolCount: number }): string {
+   const { view, phase, poolCount } = input;
+-  if (phase === 'spinning' && view.spin !== null) return spunByText(view.spin.spunBy);
+   // 止まった結果を先に言う。**発表した結果は、後から入る人が減っても消さない**（次の回転までは結果が主役）。
+-  const winner = phase === 'settled' ? winnerOf(view) : null;
++  const winner = winnerOf(view);
+   if (winner !== null) return resultText(winner.name);
+   return poolCount < 2 ? TOO_FEW_TEXT : CAPTION_IDLE;
+ }

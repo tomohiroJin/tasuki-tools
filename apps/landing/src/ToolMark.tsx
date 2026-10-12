@@ -5,7 +5,7 @@
  * （札の上では線の太さが世界観に直結する）。
  */
 interface Props {
-  readonly kind: "ring" | "spade" | "flag";
+  readonly kind: "ring" | "spade" | "flag" | "wheel";
 }
 
 export function ToolMark({ kind }: Props) {
@@ -35,6 +35,25 @@ export function ToolMark({ kind }: Props) {
       <svg viewBox="0 0 48 48" className="tool-mark" aria-hidden="true" focusable="false">
         <line x1="14" y1="6" x2="14" y2="42" strokeWidth="2.5" strokeLinecap="round" />
         <path d="M15 8c6-3 11 3 19 0v14c-8 3-13-3-19 0z" strokeWidth="0" />
+      </svg>
+    );
+  }
+
+  if (kind === "wheel") {
+    // 進行役ルーレットの円盤。円と 6 本の仕切りに、上から小さな三角の指し針が差す。
+    // 線の太さは ring・flag と同じ 2.5。
+    return (
+      <svg viewBox="0 0 48 48" className="tool-mark" aria-hidden="true" focusable="false">
+        <circle cx="24" cy="26" r="16" fill="none" strokeWidth="2.5" />
+        <g strokeWidth="2.5" strokeLinecap="round">
+          <line x1="24" y1="26" x2="24" y2="10" />
+          <line x1="24" y1="26" x2="37.9" y2="18" />
+          <line x1="24" y1="26" x2="37.9" y2="34" />
+          <line x1="24" y1="26" x2="24" y2="42" />
+          <line x1="24" y1="26" x2="10.1" y2="34" />
+          <line x1="24" y1="26" x2="10.1" y2="18" />
+        </g>
+        <path d="M24 12 L19.5 3.5 H28.5 Z" strokeWidth="0" />
       </svg>
     );
   }

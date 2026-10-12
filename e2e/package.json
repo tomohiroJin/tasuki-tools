@@ -13,6 +13,7 @@
   "dependencies": {
     "@tasuki/landing": "workspace:*",
     "@tasuki/poker-web": "workspace:*",
+    "@tasuki/roulette-web": "workspace:*",
     "@tasuki/timer-web": "workspace:*",
     "@tasuki/topic-web": "workspace:*"
   },

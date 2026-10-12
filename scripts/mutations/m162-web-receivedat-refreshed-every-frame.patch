@@ -1,0 +1,29 @@
+# 変異 162: web が状態を受けるたびに回転の時刻の基準を取り直す
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/use-roulette-sync.test.tsx
+#     describe「受け取った状態の保持」の
+#     「Given ある回転を受けた / When 同じ seq の状態をもう一度受ける / Then 受け取った時刻は変わらない」
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m162-*.patch
+# 復元: git apply -R scripts/mutations/m162-*.patch
+#
+# #94 E17・spec §6.4。回転は seq ごとに 1 回で、同じ回転の状態を繰り返し受けても
+# 基準を取り直してはならない（取り直すと、経過が 0 に戻って円盤が回し直しになる）。
+# 変異は seq の比較を外し、毎回 `performance.now()` を取る。
+diff --git a/apps/roulette-web/src/hooks/use-roulette-sync.ts b/apps/roulette-web/src/hooks/use-roulette-sync.ts
+index ebbc63f9..d861d81a 100644
+--- a/apps/roulette-web/src/hooks/use-roulette-sync.ts
++++ b/apps/roulette-web/src/hooks/use-roulette-sync.ts
+@@ -203,8 +203,8 @@ export function useRouletteSync(roomCode: string): RouletteSync {
+             // 基準は `receivedAt` と `elapsedMs` の**組**で、片方だけ新しくすると経過を二重に数える
+             // （回転中の外す・戻すや再接続で同じ seq が届くたびに、止まる時刻が前へずれる）。
+             // 回転以外（外した人・ゲスト・一周の記録）は新しいフレームのものを採る。
+-            prev !== null && prev.view.spin !== null && prev.view.spin.seq === view.spin?.seq
+-              ? { view: { ...view, spin: prev.view.spin }, receivedAt: prev.receivedAt }
++            prev !== null
++              ? { view, receivedAt: now }
+               : { view, receivedAt: now },
+           );
+           setError(null);

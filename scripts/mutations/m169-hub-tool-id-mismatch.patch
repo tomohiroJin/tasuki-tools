@@ -1,0 +1,37 @@
+# 変異 169: 玄関の札の ID が同期サーバーの綴りとずれる
+#
+# 検出を期待するテスト:
+#   - apps/landing/tests/room-choice-layout.test.tsx
+#     describe「どのツールに居るか」の
+#     「Given ルーレットに居る人 / When 選択画面を開く / Then Facilitator Roulette にいますと札の名前で出る」
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m169-*.patch
+# 復元: git apply -R scripts/mutations/m169-*.patch
+#
+# #94 spec §7.3。在席の表示（`whereLabel`）は、名簿の `tools` に載るサーバーの綴り（`roulette`）で
+# 札を `id` から引く。札の `id` がずれると引けず、知らない綴りは隠さずそのまま出す設計なので
+# 「roulette にいます」と生の綴りが出る。型の綴りも合わせて変えてあるので型検査は通る
+# （綴りのずれを型は拾えない）。
+diff --git a/apps/landing/src/tools.ts b/apps/landing/src/tools.ts
+index 5c5daaff..fb4162e2 100644
+--- a/apps/landing/src/tools.ts
++++ b/apps/landing/src/tools.ts
+@@ -12,7 +12,7 @@ export interface Tool {
+    * 名簿の `tools` に載る値と同じ。在席の表示（`RoomChoice.tsx`）はこれで名前を引く
+    * —— 並び順で引くと、札を足したときに名前がずれる（#91 PR 2 で直した）。
+    */
+-  readonly id: "timer" | "poker" | "topic" | "roulette";
++  readonly id: "timer" | "poker" | "topic" | "wheel";
+   /** 札の左上に出る一語。そのツールが扱うもの。 */
+   readonly pip: string;
+   /** ツール名（札の下端） */
+@@ -51,7 +51,7 @@ export const TOOLS: readonly Tool[] = [
+     mark: "flag",
+   },
+   {
+-    id: "roulette",
++    id: "wheel",
+     pip: "進行",
+     name: "Facilitator Roulette",
+     summary: "その場で進行役を決める",

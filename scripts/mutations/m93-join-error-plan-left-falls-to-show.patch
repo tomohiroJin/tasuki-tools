@@ -7,28 +7,30 @@
 #       持って玄関へ戻る」
 #     「Given 入れた / When 外された知らせが届く / Then 組を捨て、接続を畳んで外された理由を
 #       持って玄関へ戻る」
-#   - apps/topic-web/tests/join-error-plan.test.ts
-#     describe「参加の失敗から次の一手を決める」の
-#     「Given 自分で抜けた・外された知らせ / When 決める / Then 理由を持って玄関へ戻す」
+#   （規則の単体は packages/sync-client/tests/join-error-plan.test.ts が持つ。変異の pkg は
+#    topic-web のままにし、利用側の配線が壊れることを見る）
 #
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m93-*.patch
 # 復元: git apply -R scripts/mutations/m93-*.patch
 #
-# #91 PR 2。`planForError` から `LEFT_ROOM` / `REMOVED_FROM_ROOM` / `REMOVED_BY_HOST` の
+# #91 PR 2。#94 PR 2 のレビューで規則を `@tasuki/sync-client` の `planForJoinError` へ寄せたので、
+# パッチの対象を共有のファイルへ移した（意図は同じ）。`planForJoinError` から `LEFT_ROOM` / `REMOVED_FROM_ROOM` / `REMOVED_BY_HOST` の
 # 2 行を消す。抜けた・外されたの知らせが、玄関へ理由つきで戻す `left` ではなく
 # 「その場でサーバーの文を伝える」`show` へ落ちる。抜けた本人・外された本人は、
 # 玄関へ戻らずお題の画面にエラー文だけが出た状態に取り残される。
-diff --git a/apps/topic-web/src/join-error-plan.ts b/apps/topic-web/src/join-error-plan.ts
---- a/apps/topic-web/src/join-error-plan.ts
-+++ b/apps/topic-web/src/join-error-plan.ts
-@@ -16,9 +16,6 @@ export type ErrorPlan =
-
- export function planForError(code: string, message: string): ErrorPlan {
-   if (code === 'ROOM_NOT_FOUND') return { kind: 'gone' };
+diff --git a/packages/sync-client/src/join-error-plan.ts b/packages/sync-client/src/join-error-plan.ts
+index a525ad25..1af0fe1f 100644
+--- a/packages/sync-client/src/join-error-plan.ts
++++ b/packages/sync-client/src/join-error-plan.ts
+@@ -22,9 +22,7 @@ export type JoinErrorPlan =
+ 
+ export function planForJoinError(code: string, message: string, defaultText: string): JoinErrorPlan {
+   if (code === "ROOM_NOT_FOUND") return { kind: "gone" };
 -  // 抜けた・外された（timer の `error-action.ts` と同じ対応。`REMOVED_BY_HOST` は旧名で、同じ扱いにする）。
--  if (code === 'LEFT_ROOM') return { kind: 'left', reason: 'self' };
--  if (code === 'REMOVED_FROM_ROOM' || code === 'REMOVED_BY_HOST') return { kind: 'left', reason: 'removed' };
-   if (code === 'PASSPHRASE_REQUIRED' || code === 'PASSPHRASE_MISMATCH') return { kind: 'to-hub' };
-   if (code === 'JOIN_RATE_LIMITED') return { kind: 'retry' };
+-  if (code === "LEFT_ROOM") return { kind: "left", reason: "self" };
+-  if (code === "REMOVED_FROM_ROOM" || code === "REMOVED_BY_HOST") return { kind: "left", reason: "removed" };
++
+   if (code === "PASSPHRASE_REQUIRED" || code === "PASSPHRASE_MISMATCH") return { kind: "to-hub" };
+   if (code === "JOIN_RATE_LIMITED") return { kind: "retry" };
    // 未知のコードも含め、文はサーバーのものを使う（意味を知るのは向こうだけ）。

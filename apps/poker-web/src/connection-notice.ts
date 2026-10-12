@@ -5,6 +5,7 @@
 // 一時的な状態にしか見えず、待っても直らないことも、なぜ押せないのかも分からなかった。
 //
 // 「まだ繋ぎに行っている途中」「切れたが戻る見込みがある」「繋がらない」を区別する。
+import { connectionNoticeKind } from '@tasuki/sync-client';
 import type { ConnectionStatus } from './hooks/useSync';
 
 export type ConnectionNotice =
@@ -13,9 +14,6 @@ export type ConnectionNotice =
   | { kind: 'unreachable'; text: string }
   /** 接続は生きているのに、契約に合わないフレームを捨てて画面が古いまま（#212）。 */
   | { kind: 'stale'; text: string };
-
-/** 一度繋がった後、ここまで連続で失敗したら「戻る見込み」を諦めて伝え方を変える。 */
-const GIVE_UP_AFTER_ATTEMPTS = 3;
 
 const RECONNECTING_TEXT = '接続中です…（切断された場合は自動で再接続します）';
 // **「作成」とは言わない**（#95 S5c・R9）。ルームを作る口は玄関に移り、poker に残るのは
@@ -36,27 +34,20 @@ export interface ConnectionNoticeInput {
   readonly syncStale: boolean;
 }
 
-export function connectionNotice({
-  status,
-  everConnected,
-  failedAttempts,
-  syncStale,
-}: ConnectionNoticeInput): ConnectionNotice {
-  // **接続が切れているなら、そちらが先に伝えるべきことである。** 同期が古いのは
-  // 切断の結果でもあり、再接続すれば新しい room-state が届いて解消しうる。
-  if (status === 'open') {
-    return syncStale ? { kind: 'stale', text: STALE_TEXT } : { kind: 'none' };
+/**
+ * 種類を決める規則（諦めるまでの回数を含む）は `@tasuki/sync-client` の `connectionNoticeKind` にある
+ * （お題ツール・ルーレットと同じ規則。#94 PR 2 で写しを寄せた）。ここは poker の文言を当てるだけである。
+ */
+export function connectionNotice(input: ConnectionNoticeInput): ConnectionNotice {
+  const kind = connectionNoticeKind(input);
+  switch (kind) {
+    case 'none':
+      return { kind };
+    case 'stale':
+      return { kind, text: STALE_TEXT };
+    case 'unreachable':
+      return { kind, text: UNREACHABLE_TEXT };
+    case 'reconnecting':
+      return { kind, text: RECONNECTING_TEXT };
   }
-
-  // 開いた直後のまだ失敗していない一瞬に警告を出すと、正常時にちらつくだけで害になる。
-  if (failedAttempts === 0) return { kind: 'none' };
-
-  // 一度も繋がっていないなら「切断された」わけではない。待っても直らないので最初から伝える。
-  if (!everConnected) return { kind: 'unreachable', text: UNREACHABLE_TEXT };
-
-  // 使えていた接続が切れた場合は、まず自動復帰に賭ける。戻らないと分かったら言い方を変える。
-  if (failedAttempts >= GIVE_UP_AFTER_ATTEMPTS) {
-    return { kind: 'unreachable', text: UNREACHABLE_TEXT };
-  }
-  return { kind: 'reconnecting', text: RECONNECTING_TEXT };
 }

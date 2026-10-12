@@ -1,0 +1,25 @@
+# 変異 182: 結果の一言で入る人の数を止まった結果より先に見る
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/roulette-view.test.ts
+#
+# describe「結果の一言と主ボタン」の「Given 止まって当たりを発表した / When その後で入る人が 1 人に減る / …」
+# (PR #357 の /code-review)
+# #94 spec §6.8。入る人の数を止まった結果より先に見ると、発表の後で誰かが外れて 1 人に減ったとき
+# 「次の進行役は … さんです」が「2 人から回せます」に置き換わり、発表が消える。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m182-*.patch
+# 復元: git apply -R scripts/mutations/m182-*.patch
+diff --git a/apps/roulette-web/src/roulette-view.ts b/apps/roulette-web/src/roulette-view.ts
+index 3f5808ea..6afcce74 100644
+--- a/apps/roulette-web/src/roulette-view.ts
++++ b/apps/roulette-web/src/roulette-view.ts
+@@ -172,6 +172,7 @@ export function captionOf(input: { view: RouletteView; phase: Phase; poolCount:
+   const { view, phase, poolCount } = input;
+   if (phase === 'spinning' && view.spin !== null) return spunByText(view.spin.spunBy);
+   // 止まった結果を先に言う。**発表した結果は、後から入る人が減っても消さない**（次の回転までは結果が主役）。
++  if (poolCount < 2) return TOO_FEW_TEXT;
+   const winner = phase === 'settled' ? winnerOf(view) : null;
+   if (winner !== null) return resultText(winner.name);
+   return poolCount < 2 ? TOO_FEW_TEXT : CAPTION_IDLE;

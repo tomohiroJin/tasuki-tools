@@ -1,11 +1,11 @@
 /**
- * 選択画面から timer / poker / topic へ移動する遷移中の白画面対策
+ * 選択画面から各ツールへ移動する遷移中の白画面対策
  * （#95 S5c 追補・#91 PR 2・利用者の実画面フィードバック）。
  *
  * React が起動する前（HTML が届いて JS をダウンロード・パースする間）は
  * `Loading`（`apps/timer-web/src/ui/Loading.tsx`）を描けない。この区間を
  * 埋められるのは `index.html` の `<div id="root">` に置いた静的なプレースホルダ
- * だけである。4 つのアプリすべてに置かないと、置き忘れたアプリだけ
+ * だけである。画面を持つアプリすべてに置かないと、置き忘れたアプリだけ
  * 白い画面が残る —— それを個別の `it` で検出する（まとめて OR で見ると
  * 1 つ消しても通ってしまう）。
  *
@@ -15,7 +15,7 @@
  * 機械的に固定する（`caddy-fragment-port.test.ts` と同じ作法）。
  */
 import { describe, expect, it } from 'vitest';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 /**
@@ -50,14 +50,22 @@ function paletteHex(name: string): string {
 }
 
 const BG_HEX = paletteHex('felt-950'); // #071f18（timer-web の --ink の出所）
-const TEXT_HEX = paletteHex('ivory'); // #f5efdd（4 アプリ共通の最明テキスト）
+const TEXT_HEX = paletteHex('ivory'); // #f5efdd（全アプリ共通の最明テキスト）
 
-const APPS: { name: string; indexHtml: string }[] = [
-  { name: 'landing', indexHtml: 'apps/landing/index.html' },
-  { name: 'timer-web', indexHtml: 'apps/timer-web/index.html' },
-  { name: 'poker-web', indexHtml: 'apps/poker-web/index.html' },
-  { name: 'topic-web', indexHtml: 'apps/topic-web/index.html' },
-];
+/**
+ * 対象は列挙しない。`apps/` 直下で `index.html` を持つアプリを全部見る（手書きの表は、アプリを足したときに
+ * 黙って取り残す。#94 PR 2 で roulette-web が漏れていた）。
+ */
+const APPS: { name: string; indexHtml: string }[] = readdirSync(path.join(REPO_ROOT, 'apps'), { withFileTypes: true })
+  .filter((entry) => entry.isDirectory() && existsSync(path.join(REPO_ROOT, 'apps', entry.name, 'index.html')))
+  .map((entry) => ({ name: entry.name, indexHtml: `apps/${entry.name}/index.html` }))
+  .sort((a, b) => a.name.localeCompare(b.name));
+
+it('対象のアプリを apps/ から導けている（導出が空振りすると下の検査は全部 0 件で緑になる）', () => {
+  // 玄関と、画面を持つツールが少なくとも 1 つ
+  expect(APPS.map((app) => app.name)).toContain('landing');
+  expect(APPS.length).toBeGreaterThan(1);
+});
 
 describe('index.html の #root に、React 起動前を埋めるプレースホルダがある', () => {
   for (const app of APPS) {

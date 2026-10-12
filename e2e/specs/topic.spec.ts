@@ -600,31 +600,31 @@ test.describe('お題ツールを書く主役にする（#316 PR 1 の手直し�
     expect(consoleWatcher.errors).toEqual([]);
   });
 
-  test('Given 幅 1920・高さ 1080（操作の面が札より短い） / When 短い本文のお題を出す / Then ページは画面 1 枚に収まり、スクロールバーが出ない', async ({ page, consoleWatcher }) => {
-    // Given: 書く欄と作る欄を合わせても札より短い高さ
-    await page.setViewportSize({ width: 1920, height: 1080 });
-    await openTopicTool(page, 'no-scroll-topic');
-    // When
-    await setTopic(page, TITLE, SHORT_BODY);
-    await expect(currentTopic(page).getByRole('region', { name: TITLE, exact: true }).getByText(SHORT_BODY, { exact: true })).toBeVisible();
-    // Then: 札の高さの式が器の下の余白を引いていないと、どの高さでもページが約 3.5rem はみ出す（2026-10-11 に利用者が指摘）
-    const { pageHeight, viewport } = await page.evaluate(() => ({ pageHeight: document.documentElement.scrollHeight, viewport: innerHeight }));
-    expect(pageHeight, 'ページが画面より高く、スクロールバーが出る').toBeLessThanOrEqual(viewport);
-    expect(consoleWatcher.errors).toEqual([]);
-  });
-
-  test('Given 幅 1280・高さ 800 / When お題ツールを開いた直後 / Then スクロール前に札の下端（ボタン）が画面に収まる', async ({ page, consoleWatcher }) => {
-    // Given
+  // 1 ルームで 2 つの高さを測る（E2E 全件は同期サーバーのルーム枠 100 ぎりぎり。#94 PR 2 で 1 本増えたので、ここでまとめた）。
+  // **1280×800 を先に測る** —— 元の検査は「開いた直後」の姿を見ていた。広い画面からの縮めた後に測ると、
+  // リサイズで初めて出る崩れ（または隠れる崩れ）と取り違える。広げる向きは 1920 の検査が見たいもの（ページの高さ）に影響しない。
+  test('Given 幅 1280・高さ 800 で開き、幅 1920・高さ 1080 へ広げる / When 短い本文のお題を出す / Then 1280 ではスクロール前に札の下端（ボタン）が画面に収まり、1920 ではページが画面 1 枚に収まる', async ({ page, consoleWatcher }) => {
+    // Given: 1280×800 で開いた直後
     await page.setViewportSize({ width: 1280, height: 800 });
     await openTopicTool(page, 'fits-topic');
     // When
     await setTopic(page, TITLE, SHORT_BODY);
+    await expect(currentTopic(page).getByRole('region', { name: TITLE, exact: true }).getByText(SHORT_BODY, { exact: true })).toBeVisible();
     await page.evaluate(() => window.scrollTo(0, 0));
-    // Then
+    // Then その1: 開いた直後の 1280×800 で、札の下端（ボタン）がスクロール前に画面に収まる
     const clear = await currentTopic(page).getByRole('button', { name: '場から下げる' }).boundingBox();
     const card = await currentTopic(page).boundingBox();
     expect(clear!.y + clear!.height, '下端のボタンが画面の外').toBeLessThanOrEqual(800);
     expect(card!.y + card!.height, '札の下端が画面の外').toBeLessThanOrEqual(800);
+
+    // When: 同じお題のまま 1920×1080 へ広げる（書く欄と作る欄を合わせても札より短い高さ）
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    // Then その2: 札の高さの式が器の下の余白を引いていないと、どの高さでもページが約 3.5rem はみ出す（2026-10-11 に利用者が指摘）
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.scrollHeight - innerHeight), {
+        message: 'ページが画面より高く、スクロールバーが出る',
+      })
+      .toBeLessThanOrEqual(0);
     expect(consoleWatcher.errors).toEqual([]);
   });
 });

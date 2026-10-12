@@ -22,13 +22,15 @@ import {
   SyncConnection,
   buildInviteUrl,
   clearResumeIdentity,
+  connectionNoticeKind,
   joinRetryDelayMs,
   loadResumeIdentity,
+  planForJoinError,
   saveResumeIdentity,
+  type ConnectionNoticeKind,
 } from '@tasuki/sync-client';
 import type { Difficulty, Language, TopicCommand, TopicState } from '@tasuki/topic-core';
-import { RETRY_EXHAUSTED_TEXT, RETRY_WAITING_TEXT } from '../copy';
-import { planForError } from '../join-error-plan';
+import { DEFAULT_ERROR_TEXT, RETRY_EXHAUSTED_TEXT, RETRY_WAITING_TEXT } from '../copy';
 import { parseTopicWebMessage } from '../server-message';
 import type { ConnectionStatus } from '../topic-view';
 
@@ -43,6 +45,8 @@ export interface TopicSync {
   readonly everConnected: boolean;
   readonly failedAttempts: number;
   readonly syncStale: boolean;
+  /** 接続の告知の種類（規則は `@tasuki/sync-client` が持つ。文言は画面が `connectionNotice` で引く） */
+  readonly notice: ConnectionNoticeKind;
   /** この接続で `room.joined` を受け取ったか（再接続で下りる） */
   readonly joined: boolean;
   /** ルームが見つからないと分かった */
@@ -120,7 +124,8 @@ export function useTopicSync(roomCode: string): TopicSync {
     };
 
     const applyError = (code: string, message: string): void => {
-      const plan = planForError(code, message);
+      // 規則は玄関以外のツールの画面で共通（`@tasuki/sync-client`。写しを持たない）。
+      const plan = planForJoinError(code, message, DEFAULT_ERROR_TEXT);
       switch (plan.kind) {
         case 'gone':
           // 残すと、消えたルームへ毎回入り直そうとする（poker・玄関と同じ扱い）。
@@ -267,6 +272,7 @@ export function useTopicSync(roomCode: string): TopicSync {
       everConnected,
       failedAttempts,
       syncStale,
+      notice: connectionNoticeKind({ status, everConnected, failedAttempts, syncStale }),
       joined,
       gone,
       needsHub,

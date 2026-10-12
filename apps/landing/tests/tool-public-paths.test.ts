@@ -17,6 +17,7 @@ const LOCATIONS: Record<string, { app: string; deploy: string }> = {
   timer: { app: 'timer-web', deploy: 'timer' },
   poker: { app: 'poker-web', deploy: 'poker' },
   topic: { app: 'topic-web', deploy: 'topic' },
+  roulette: { app: 'roulette-web', deploy: 'roulette' },
 };
 
 const read = (rel: string): string => readFileSync(path.join(REPO_ROOT, rel), 'utf8');

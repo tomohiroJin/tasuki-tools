@@ -25,6 +25,14 @@ describe('お題ツールの URL', () => {
     expect(parseRoute('/topic/room/R1', '')).toEqual({ name: 'redirect', to: '/' });
   });
 
+  /** 下位パスが知らないものでも、ルームコードは落とさない（poker の旧リンクの救済と同じ考え方） */
+  it('Given ルームコードの付いた知らない下位パス / When 開く / Then コードを保ったまま玄関のそのルームへ送る', () => {
+    const code = '朝会 a&b';
+    const search = `?room=${encodeURIComponent(code)}`;
+    expect(parseRoute('/topic/x', search)).toEqual({ name: 'redirect', to: hubPathFor(code) });
+    expect(parseRoute('/topic/room/R1/', '?room=R1')).toEqual({ name: 'redirect', to: '/?room=R1' });
+  });
+
   it('Given ルームコード / When 玄関のそのルームを組み立てる / Then 符号化した ?room= になる', () => {
     // Given: 記号を含むルームコード。
     // 玄関は `URLSearchParams` で読む（`apps/landing/src/hub/room-param.ts`）ので、読み戻して比べる

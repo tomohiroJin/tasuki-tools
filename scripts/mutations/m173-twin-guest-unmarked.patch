@@ -1,0 +1,26 @@
+# 変異 173: 同名で外れたゲストに印を付けない（黙って外れる姿へ戻す）
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/roulette-view.test.ts
+#     describe「在室者と同じ名前のゲスト」の
+#     「Given 在室者と大文字小文字だけ違うゲストと外したゲスト / When 一覧を作る / Then 前者だけ印が付き入る人に数えない」
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m173-*.patch
+# 復元: git apply -R scripts/mutations/m173-*.patch
+#
+# #94 spec R13・§5.1。在室者と同じ名前のゲストは入る人から外れる。その行に印が無いと、
+# 足したはずの人が理由の分からないまま円盤に居なくなる。変異は印の導出を常に偽にする。
+diff --git a/apps/roulette-web/src/roulette-view.ts b/apps/roulette-web/src/roulette-view.ts
+index 63ebe69a..6e5d01e8 100644
+--- a/apps/roulette-web/src/roulette-view.ts
++++ b/apps/roulette-web/src/roulette-view.ts
+@@ -126,7 +126,7 @@ export function peopleOf(input: {
+   const poolIds = new Set(poolOf(members, stateOf(view), conflictsWithExisting).map((e) => e.id));
+ 
+   const markOf = (id: string, away: boolean, twin = false): RowMark =>
+-    away ? 'away' : twin ? 'twin' : poolIds.has(id) && drawn.has(id) ? 'drawn' : null;
++    away ? 'away' : false && twin ? 'twin' : poolIds.has(id) && drawn.has(id) ? 'drawn' : null;
+   const memberRows = members.map(
+     (m): PersonRow => ({
+       id: m.id,
