@@ -50,3 +50,85 @@ export function roulettePhrase(page: Page): Locator {
 export function spinButton(page: Page): Locator {
   return page.getByRole('button', { name: /^(ルーレットを回す|回しています…|もう一度回す)$/ });
 }
+
+/** 選択画面（玄関の道具選び）からルーレットの札を開く。**同じルームのまま**別のツールから移るときに使う。 */
+export async function openRouletteFromHub(page: Page): Promise<void> {
+  await toolCard(page, 'Facilitator Roulette').click();
+  await expectRouletteOpen(page);
+}
+
+/** ルームにいない人を名前で足し、入る人の一覧に載るのを待つ。 */
+export async function addRouletteGuest(page: Page, name: string): Promise<void> {
+  await page.getByLabel('ルームにいない人も、名前を追加すれば入れられます').fill(name);
+  await page.getByRole('button', { name: '名前を追加' }).click();
+  await expect(page.getByRole('list').getByText(name, { exact: true })).toBeVisible();
+}
+
+/** `rgb(r, g, b)` / `rgba(r, g, b, a)` の計算値を 0〜255 の三つ組にする（読めなければ null）。 */
+function parseRgb(value: string): [number, number, number] | null {
+  const m = /^rgba?\(\s*([\d.]+)[ ,]+([\d.]+)[ ,]+([\d.]+)/.exec(value);
+  return m === null ? null : [Number(m[1]), Number(m[2]), Number(m[3])];
+}
+
+function luminance([r, g, b]: [number, number, number]): number {
+  const lin = (v: number): number => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+}
+
+/**
+ * 円盤の席の名前が読める。**`scanContrast` は SVG の `<text>` を数えない**（対象が button / a / h1〜h3 / label / p / span
+ * だけ。2026-10-13 の探索で、円盤の名前が 0 件と分かった）ので、ここで測る。席の名前（`.wheel-label`）の塗りと、
+ * 同じ席の地（直前の `<path>`）の塗りの比が AA（4.5:1）以上。止まった席（真鍮の地）は 1 つだけ。
+ *
+ * 地の上に重なる光沢（`--ivory-inset` → `--felt-grain` の放射状）は測っていない（席の地そのものとの比）。
+ * 光沢は席の明度を数 % しか動かさない。
+ */
+export async function expectWheelLabelsReadable(page: Page, minLabels: number): Promise<void> {
+  const labels = await page.evaluate(() =>
+    Array.from(document.querySelectorAll('.wheel-label')).map((text) => ({
+      text: text.textContent ?? '',
+      ink: getComputedStyle(text).fill,
+      ground: getComputedStyle(text.previousElementSibling as Element).fill,
+      winner: text.classList.contains('wheel-label--winner'),
+    })),
+  );
+  expect(labels.length, '円盤の席の名前が描かれていない').toBeGreaterThanOrEqual(minLabels);
+  const low: string[] = [];
+  for (const label of labels) {
+    const ink = parseRgb(label.ink);
+    const ground = parseRgb(label.ground);
+    expect(ink, `席の名前の色が読めない: ${label.ink}`).not.toBeNull();
+    expect(ground, `席の地の色が読めない: ${label.ground}`).not.toBeNull();
+    const [a, b] = [luminance(ink!), luminance(ground!)];
+    const ratio = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+    if (ratio < 4.5) low.push(`「${label.text}」 ${ratio.toFixed(2)}:1（${label.ink} on ${label.ground}）`);
+  }
+  expect(low, '席の名前が AA を満たさない').toEqual([]);
+  expect(labels.filter((l) => l.winner).length, '止まった席が 1 つではない').toBe(1);
+}
+
+/**
+ * 止まった後、札の名前の中心を**突く**と札の要素が返る（下端に留まる「回す」の帯に隠れていない・spec E22）。
+ * 札の位置を計算で出して比べるのではなく、`elementFromPoint` で実際に突く（#316 PR 4）。寄せるスクロールが
+ * 滑らかに動く間は札が動くので、収まるまで待つ。
+ */
+export async function expectCardNameNotCovered(page: Page): Promise<void> {
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const name = document.querySelector('.roulette-card-name');
+          if (name === null) return 'no-card';
+          const r = name.getBoundingClientRect();
+          const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+          if (hit === null) return 'outside-viewport';
+          if (hit.closest('.roulette-controls') !== null) return 'covered-by-dock';
+          return hit.closest('.roulette-card') !== null ? 'card' : `other:${hit.className}`;
+        }),
+      { message: '札の名前の中心を突いても札に当たらない', timeout: 4000 },
+    )
+    .toBe('card');
+}

@@ -6,13 +6,16 @@
  *   タグは describe のタイトルの先頭に置く（`e2e/tests/spec-tags.test.ts`）。
  *
  * **ルームを作るのはこの 1 本だけ**（E2E 全件はルーム枠 100 にぎりぎり）。配信と転送の確認も同じ本の
- * 頭に入れて、本数もルームも増やさない。見た目・a11y の検査は PR 3 で既存のテストへ相乗りさせる。
+ * 頭に入れて、本数もルームも増やさない。見た目・a11y の検査（PR 3）も同じ本の終わりに足した
+ * （止まった後の文字の読みやすさ・書体・円盤の席の名前・フォーカス・名前の欄）。幅ごとの当たりと
+ * 札の隠れは `buttons.spec.ts` のお題ツールの本（同じルーム）に足した。
  *
  * 入る人は 2 人だけにする。**2 人のときは当たりが必ず交互になる**（spec §5.1）ので、
  * サーバーが一周の規則で引いていることを、乱数に頼らず決定的に確かめられる。
  */
 import { expect, test } from '../fixtures/test';
-import { joinRouletteTool, openRouletteTool, roulettePhrase, spinButton } from '../support/roulette';
+import { expectFieldsAtLeast16px, expectFocusVisibleOnTab, expectReadable, pairKey, resolveColors, scanContrast } from '../support/a11y';
+import { expectWheelLabelsReadable, joinRouletteTool, openRouletteTool, roulettePhrase, spinButton } from '../support/roulette';
 
 const NAME_A = 'e2e-roulette-a';
 const NAME_B = 'e2e-roulette-b';
@@ -30,6 +33,12 @@ test.describe('@core ルーレットは全員の画面で同じ人に止まる',
     openPeer,
     consoleWatcher,
   }) => {
+    // 取りにいった書体を記録する（常用の層の外を引いていないことを、止まった後に見る）
+    const fonts: string[] = [];
+    page.on('request', (request) => {
+      if (request.url().endsWith('.woff2')) fonts.push(request.url().split('/').pop() ?? request.url());
+    });
+
     // Given その0: 配信と転送（ブラウザを開く前に HTTP だけで確かめる。落ちたら Caddy 断片・base が壊れている）
     const served = await request.get('/roulette/');
     expect(served.status(), '/roulette/ の応答').toBe(200);
@@ -81,6 +90,28 @@ test.describe('@core ルーレットは全員の画面で同じ人に止まる',
     expect(winners[1]).not.toBe(winners[0]);
     expect([NAME_A, NAME_B]).toContain(winners[1]);
     expect(winners[2]).toBe(winners[0]);
+
+    // Then 見た目と a11y（3 回目が止まった後の A の画面。幅は既定の 1280 で、横並びになる）
+    //   文字が読める。余裕の薄い組として、札の上の炭の字（`--coal` on 象牙の札）を測ったことも固定する。
+    //   札の面と円盤の席の名前は `scanContrast` の対象（button / a / h1〜h3 / label / p / span）の外にあるものがあるので、
+    //   円盤の席の名前は別に測る（`expectWheelLabelsReadable`）
+    const [coal, sheen, shade] = await resolveColors(page, ['--coal', '--card-sheen', '--card-shade']);
+    expectReadable(await scanContrast(page, 10), 8, [pairKey(coal!, `rgba(0, 0, 0, 0) + linear-gradient(160deg, ${sheen}, ${shade})`)]);
+    await expectWheelLabelsReadable(page, 2);
+    //   書体: 取りにいったものが常用の層だけで、読めている（URL を数えるだけでは全滅を緑と判定した・#297）
+    expect(fonts.length, `書体を 1 つも取っていない（${fonts.join(', ')}）`).toBeGreaterThan(0);
+    expect(fonts.filter((f) => f.includes('-ext-') || f.includes('-ext.')), '常用の層に無い字が画面に出ている').toEqual([]);
+    const faces = await page.evaluate(async () => {
+      await document.fonts.ready;
+      return Array.from(document.fonts)
+        .filter((face) => face.status !== 'unloaded')
+        .map((face) => `${face.family} ${face.weight} ${face.status}`);
+    });
+    expect(faces.filter((f) => f.endsWith(' error')), `読めなかった書体（${faces.join(', ')}）`).toEqual([]);
+    expect(faces.filter((f) => f.endsWith(' loaded')).length, `読めた書体が無い（${faces.join(', ')}）`).toBeGreaterThan(0);
+    //   名前の欄が 16px 以上（iOS の拡大を起こさない）・Tab でフォーカスが見える
+    await expectFieldsAtLeast16px(page);
+    await expectFocusVisibleOnTab(page);
 
     // どの画面も例外を出していない
     expect(consoleWatcher.errors).toEqual([]);

@@ -59,7 +59,10 @@
   --wheel-size: clamp(14rem, min(100cqi, 100dvh - 24rem), 32rem);
 }
 .roulette-stage[data-layout='row'] {
-  grid-template-columns: var(--wheel-size) minmax(15rem, 18rem);
+  /* 円盤の列は円盤の幅に任せる（auto）。**`var(--wheel-size)` をここへ入れない**: `--wheel-size` は `cqi`
+     （舞台の幅）で書いてあり、舞台自身のこのプロパティでは `cqi` が舞台の外の容器を指して
+     画面の幅で解かれ、列が舞台より広くなって札と円盤が左右へはみ出す（1280px で実測・モックの 1440px では出なかった） */
+  grid-template-columns: auto minmax(15rem, 18rem);
   grid-template-rows: 1fr auto 1fr;
   grid-template-areas:
     'wheel topic'
@@ -339,11 +342,16 @@
 /* ---------- 脇（ルーレットに入る人・仲間を招く） ---------- */
 .roulette-side {
   display: grid;
+  /* 列の最小幅を 0 にする。名前は 1 行で切る（nowrap）ので、既定の auto だと名前の長さで列が広がり、
+     320px で脇のパネルが画面の右へはみ出す（選ばれた印と名前を消すが並ぶ行で実測） */
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
   gap: var(--space-4);
   align-content: start;
 }
 .roulette-invite {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-3);
 }
 .roulette-invite h2 {
@@ -351,6 +359,7 @@
 }
 .roulette-people {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-4);
 }
 .roulette-people h2 {
@@ -371,6 +380,7 @@
   margin: 0;
   padding: 0;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-1);
 }
 /* 1 行 = [チェック][名前][印][名前を消す]。行の地は沈んだ敷き */
