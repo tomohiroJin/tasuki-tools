@@ -1454,6 +1454,22 @@ export const MUTATIONS = [
     tests: ["test/destroy-room.test.ts"],
     note: "#94 E10・spec §5.4。破棄したルームのコードを引き継いだ別のルームに、古い一周の記録が残る。",
   },
+  {
+    id: 156,
+    label: "ゲストの名前を表示名の規約に通さない",
+    patch: "m156-guest-name-skips-display-rule.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/roulette-handlers.test.ts"],
+    note: "#94 E13・spec R13。空白だけ・不可視文字だけの名前が全員の画面に出る。",
+  },
+  {
+    id: 161,
+    label: "elapsedMs を回した時点の値のまま送る",
+    patch: "m161-elapsed-sent-as-started.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/roulette-handlers.test.ts"],
+    note: "#94 E7・E8・spec R5。回転の途中で参加した接続で見る（回した直後の 1 通では見分けが付かない）。",
+  },
 ];
 
 /**
