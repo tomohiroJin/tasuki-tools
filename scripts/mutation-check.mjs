@@ -1470,6 +1470,38 @@ export const MUTATIONS = [
     tests: ["test/roulette-handlers.test.ts"],
     note: "#94 E7・E8・spec R5。回転の途中で参加した接続で見る（回した直後の 1 通では見分けが付かない）。",
   },
+  {
+    id: 150,
+    label: "ハブの層からルーレットのハンドラも呼ぶ",
+    patch: "m150-hub-message-reaches-roulette.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/live-ws.roulette.test.ts"],
+    note: "#94 E9・spec R11。ルーレットの層は『ルーレットとして在席しているか』で 2 段目を守るので状態は変わらないが、ハブの接続が 2 通目の拒否を受け取る。4 種の接続で拒否が 1 通ずつであることを見る。",
+  },
+  {
+    id: 158,
+    label: "名簿の宛先からルーレットの接続を落とす",
+    patch: "m158-roster-excludes-roulette.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/live-ws.roulette.test.ts"],
+    note: "#94 E11・spec R14。ルーレットの画面が入る人を描けない。",
+  },
+  {
+    id: 159,
+    label: "お題の配信先からルーレットを落とす",
+    patch: "m159-topic-excludes-roulette.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/live-ws.roulette.test.ts"],
+    note: "#94 E12・spec R15。ルーレットの画面が『お題「…」の進行役を決めます』を出せない。",
+  },
+  {
+    id: 167,
+    label: "ルーレットの接続の受理で onConnect を通さない",
+    patch: "m167-roulette-skips-on-connect.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/live-ws.roulette.test.ts"],
+    note: "#94 §5.2。poker の早期 return に足す。レート制限の鍵が接続 ID に落ち、room.join の総当たりが接続を張り直すだけで枠を回避できる。",
+  },
 ];
 
 /**

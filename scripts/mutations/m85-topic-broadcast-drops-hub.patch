@@ -14,14 +14,15 @@
 #       git apply scripts/mutations/m85-*.patch
 # 復元: git apply -R scripts/mutations/m85-*.patch
 diff --git a/apps/tasuki-sync/src/application/topic-broadcast.ts b/apps/tasuki-sync/src/application/topic-broadcast.ts
-index 30b5a59..a8db483 100644
+index b367cbdd..f523d1fc 100644
 --- a/apps/tasuki-sync/src/application/topic-broadcast.ts
 +++ b/apps/tasuki-sync/src/application/topic-broadcast.ts
-@@ -23,7 +23,6 @@ import { TOOL_TOPIC, TOOL_TIMER, TOOL_POKER } from "./tool-id.js";
+@@ -24,7 +24,7 @@ import { TOOL_TOPIC, TOOL_TIMER, TOOL_POKER, TOOL_ROULETTE } from "./tool-id.js"
   */
  export const TOPIC_RECIPIENT_TOOLS: readonly (ToolId | null)[] = [
    TOOL_TOPIC,
 -  TOOL_HUB,
++
    TOOL_TIMER,
    TOOL_POKER,
- ];
+   TOOL_ROULETTE,
