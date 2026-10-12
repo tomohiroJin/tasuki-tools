@@ -37,6 +37,19 @@ describe('どのツールに居るか', () => {
     // Then
     expect(screen.getByText('Topic Board / TDD Mob Pro Timer にいます')).toBeVisible();
   });
+
+  /** m169 の対象: 札に無い ID は生の綴りのまま出る（`roulette にいます`）。札の名前で出ることを見る */
+  it('Given ルーレットに居る人 / When 選択画面を開く / Then Facilitator Roulette にいますと札の名前で出る', () => {
+    // Given
+    const roster = { code: 'R1', participants: [
+      { participantId: 'a', displayName: 'あや', presence: 'online' as const, tools: ['roulette'] },
+    ] };
+    // When
+    render(<RoomChoice code="R1" inviteUrl="https://example.test/?room=R1" roster={roster} connection="online" topicTitle={null} />);
+    // Then
+    expect(screen.getByText('Facilitator Roulette にいます')).toBeVisible();
+    expect(screen.queryByText(/roulette にいます/)).toBeNull();
+  });
 });
 
 /**
