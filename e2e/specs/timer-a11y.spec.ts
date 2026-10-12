@@ -178,6 +178,7 @@ test.describe('文字が背景に対して読める（WCAG AA）', () => {
     const memoScan = await scanContrast(page);
     //   （空表示の組はメモを書くと消えるので、余裕の薄い組の固定は上の走査が担う）
     expectReadable(memoScan, 15, []);
+    // コード・引用・コードブロックの字は走査の対象に入らない（色は本文から継ぐので、本文と同じ組を共有する）
     // 走査が実際にプレビューの文字を測った: リンク（--signal）と本文（--bone-muted）の組がある
     //   （走査は `<p>`・`<a>`・`<h3>` などを測る。`<div>` 直下の文字は測らないので、組の有無で空振りを見る）
     expect([...memoScan.pairs].some((k) => k.startsWith(`${signal!} on`)), 'リンクの字（--signal）を測っていない').toBe(true);

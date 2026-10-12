@@ -299,7 +299,10 @@ async function scanTargets(page: Page, scope: string): Promise<{ hits: Hit[]; wr
   }, [scope, TARGET] as const);
 }
 
-/** 当たりが 44×44 以上で、どの 2 つも重ならず、部品のボタンの字が折れない。`minTargets` は測った操作の数の下限（空振りの防止） */
+/**
+ * 当たりが 44×44 以上で、どの 2 つも重ならず、部品のボタンの字が折れない。`minTargets` は測った操作の数の下限（空振りの防止）。
+ * モーダル（dialog / ドロワー）が開いているときは `scope` を渡す（後ろの操作を重なりとして測らないため）。
+ */
 export async function expectTouchTargets(page: Page, label: string, minTargets: number, scope = 'body'): Promise<void> {
   const { hits, wrapped } = await scanTargets(page, scope);
   expect(hits.length, `${label}: 測った操作が少ない（描かれる前に測っていないか）`).toBeGreaterThanOrEqual(minTargets);

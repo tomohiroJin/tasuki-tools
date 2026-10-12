@@ -73,13 +73,6 @@
   font-weight: 700;
 }
 
-@media (width >= 40rem) {
-  .summary-stat-value {
-    font-size: var(--font-size-lg);
-    line-height: 1.4;
-  }
-}
-
 /* ドライバー別の回数 */
 .summary-drivers {
   width: 100%;
