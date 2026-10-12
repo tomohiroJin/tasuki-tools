@@ -57,22 +57,80 @@
 .room-main {
   display: grid;
   gap: var(--space-5);
-}
-
-/* 脇（お題の札）を隠したとき・お題が無いときは、部品が操作の面を器いっぱいの 1 列にする。
-   広い画面で場と手札が左へ寄って見えるので、約 46rem の幅で中央に寄せる（#316 PR 1・利用者の指摘）。 */
-.ui-workspace:not(:has(> .ui-workspace-side)) > .room-main {
+  /* 幅と中央寄せ（下の `max-width`）。手札の並びは、脇の有無ではなく操作の面の幅で決める（#348 D9）ので、
+     操作の面をコンテナにする。 */
   width: 100%;
-  max-width: 46rem;
+  max-width: 100%;
   margin-inline: auto;
+  container: room-main / inline-size;
+  transition: max-width 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-/* 札を開いたときの比。部品の 0.85fr（札約 46%）より札を狭く（約 43%）して、手札の側を広げる。
-   poker は手札が横に並ぶので、お題は「あれば見られる程度」に留める。
-   **脇があるときだけ**当てる。脇が無いときの 1 列は部品の規則が決める（同じ詳細度で、ここが後ろだと 2 列に戻してしまう）。 */
+/* 脇（お題の札）を閉じたとき・お題が無いときは、操作の面を約 46rem の幅で中央に寄せる。広い画面で場と手札が
+   左へ寄って見えるため（#316 PR 1・利用者の指摘）。`max-width` の移り変わりで、`margin-inline: auto` が毎フレーム
+   中央に寄せ直すので、お題の出し入れで操作の面が跳ばず滑る（#348 D7）。
+   詳細度: 部品の `.ui-workspace:not(:has(> .ui-workspace-side)) > …` ではなく、閉じた状態そのものを見る。 */
+.room .ui-workspace--reader:not(:has(> .room-topic-side[data-state='open'])) > .room-main {
+  max-width: 46rem;
+}
+
+/* ---------- お題の脇の出し入れ（#348 D7・D8） ---------- */
+
+/* 閉じた読む面は DOM に残し、幅 0 で持つ。閉じるときは不透明度を先に落とし、列が縮み切ってから
+   `visibility` を外す（縮む間は見えない・触れない）。`inert` と合わせて Tab の行き先にも読み上げにもならない。 */
+.room-topic-side[data-state='closed'] {
+  opacity: 0;
+  visibility: hidden;
+  overflow: clip;
+  transition:
+    opacity 0.15s ease,
+    visibility 0s linear 0.32s;
+}
+
+/* 開くときは列が広がり始めてから不透明度を上げる。 */
+.room-topic-side[data-state='open'] {
+  opacity: 1;
+  transition:
+    opacity 0.2s ease 0.12s,
+    visibility 0s;
+}
+
+/* お題が届いて区画が足された瞬間は、不透明度 0 から立ち上げる。 */
+@starting-style {
+  .room-topic-side[data-state='open'] {
+    opacity: 0;
+  }
+}
+
+/* 64rem 未満は縦に積まれているので、閉じた区画は描かない（移り変わりは無し）。 */
+@media (width < 64rem) {
+  .room-topic-side[data-state='closed'] {
+    display: none;
+  }
+}
+
 @media (width >= 64rem) {
-  .room .ui-workspace--reader:has(> .ui-workspace-side) {
+  /* 列をいつも 2 本持つ。本数が変わると `grid-template-columns` は補間できない。閉じた状態・お題が無い状態は
+     脇の列が幅 0（間隔も 0）で、開くと今の比（札約 43%）と間隔に移り変わる。
+     部品の `.ui-workspace--reader`（(0,1,0)）と `.ui-workspace:not(:has(> .ui-workspace-side))`（(0,2,0)）より、
+     ここ（(0,2,0)・後に読む）が勝つ。札を開いたときの比は、部品の 0.85fr（札約 46%）より狭く（約 43%）して
+     手札の側を広げる（poker は手札が横に並ぶので、お題は「あれば見られる程度」に留める）。 */
+  .room .ui-workspace--reader {
+    grid-template-columns: minmax(0, 0fr) minmax(0, 1fr);
+    column-gap: 0;
+    transition:
+      grid-template-columns 0.32s cubic-bezier(0.2, 0.8, 0.2, 1),
+      column-gap 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .room .ui-workspace--reader:has(> .room-topic-side[data-state='open']) {
     grid-template-columns: minmax(0, 0.75fr) minmax(0, 1fr);
+    column-gap: var(--space-6);
+  }
+
+  /* 操作の面はいつも 2 列目（部品は脇が無いと 1 列目へ寄せる。(0,3,0) でそれに勝つ）。 */
+  .room .ui-workspace--reader > .ui-workspace-main {
+    grid-column: 2;
   }
 }
 
@@ -228,10 +286,11 @@
   perspective: 800px;
 }
 
-/* 広い幅の操作の面（半分の幅）では 10 枚が 9 + 1 に割れるので、5 枚 × 2 段に揃える。
-   脇（お題の札）があるときだけ。脇が無い 1 列（46rem）では 5 列の grid が左へ寄って右半分が空くので、flex-wrap のまま列の幅を使う。 */
-@media (width >= 64rem) {
-  .ui-workspace:has(> .ui-workspace-side) .card-hand {
+/* 操作の面が 10 枚を 1 行に並べられない幅（10 × 3.4rem + 9 × 0.55rem = 38.95rem）では、9 + 1 に割れるので
+   5 枚 × 2 段に揃える。脇の有無ではなく操作の面の幅で決めるので、お題の出し入れで列が滑る途中でも
+   切り替えの瞬間に手札が組み替わらない（#348 D9）。 */
+@container room-main (width < 39rem) {
+  .card-hand {
     display: grid;
     grid-template-columns: repeat(5, max-content);
   }

@@ -115,6 +115,98 @@ async function openPokerWithTopic(page: Page, openPeer: OpenPeer, body = '3 の�
   return url;
 }
 
+/**
+ * `openPokerWithTopic` と同じ状態にし、お題ツールの頁も返す（お題を下ろす・掲げ直すテストが使う・#348）。
+ * 既存の呼び出し（`openPokerWithTopic`）は変えない。
+ */
+async function openPokerWithTopicTool(
+  page: Page,
+  openPeer: OpenPeer,
+  body = '3 のときは Fizz を出す',
+): Promise<{ url: string; topicPage: Page }> {
+  const url = await createPokerRoom(page, 'layout-a');
+  const topic = await openPeer('layout-topic');
+  await joinTopicTool(topic.page, url, 'layout-t');
+  await setTopic(topic.page, 'FizzBuzz', body);
+  await expect(page.getByRole('region', { name: 'お題', exact: true })).toBeVisible();
+  return { url, topicPage: topic.page };
+}
+
+/**
+ * 切り替えのボタンを押し、段組みの移り変わりの**途中**で操作の面の左端を測る（#348 D7）。
+ * 終わった後の位置だけ見ると、跳んで終わる実装（transition が無い・列の本数が変わって補間できない）と
+ * 滑って終わる実装が区別できない。ブラウザが作った CSSTransition を一時停止し、進みを 3 割に合わせて測る。
+ * `gridCount` は `grid-template-columns` の移り変わりの本数（0 なら列が補間されていない）。
+ */
+async function slideMidway(
+  page: Page,
+  buttonName: string,
+): Promise<{ count: number; gridCount: number; from: number; mid: number; to: number }> {
+  return page.evaluate(async (name) => {
+    const workspace = document.querySelector('.room .ui-workspace--reader');
+    const main = document.querySelector('.ui-workspace-main');
+    const button = [...document.querySelectorAll('button')].find((b) => b.textContent?.trim() === name);
+    if (workspace === null || main === null || button === undefined) throw new Error('段組みか切り替えのボタンが無い');
+    const left = () => main.getBoundingClientRect().left;
+    const from = left();
+    // 実際の操作と同じく、押したボタンにフォーカスがある状態にする（`click()` はフォーカスを動かさない）
+    button.focus();
+    button.click();
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const transitions = workspace.getAnimations({ subtree: true }).filter((a): a is CSSTransition => a instanceof CSSTransition);
+    for (const t of transitions) {
+      t.pause();
+      const timing = t.effect?.getTiming();
+      t.currentTime = Number(timing?.delay ?? 0) + Number(timing?.duration ?? 0) * 0.3;
+    }
+    const mid = left();
+    for (const t of transitions) t.finish();
+    const to = left();
+    return {
+      count: transitions.length,
+      gridCount: transitions.filter((t) => t.transitionProperty === 'grid-template-columns').length,
+      from,
+      mid,
+      to,
+    };
+  }, buttonName);
+}
+
+/** 段組みの子の出入り（お題の区画が足される・外れる）の次のフレームに走っている `grid-template-columns` の移り変わりの本数の最大を数え始める。 */
+async function watchGridTransitions(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const workspace = document.querySelector('.room .ui-workspace--reader');
+    if (workspace === null) throw new Error('段組みが無い');
+    const w = window as unknown as { __gridTransitions: number };
+    w.__gridTransitions = 0;
+    new MutationObserver(() =>
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          const n = workspace.getAnimations().filter((a) => a instanceof CSSTransition && a.transitionProperty === 'grid-template-columns').length;
+          w.__gridTransitions = Math.max(w.__gridTransitions, n);
+        }),
+      ),
+    ).observe(workspace, { childList: true });
+  });
+}
+
+/** `watchGridTransitions` の本数を読み、0 に戻す。 */
+async function takeGridTransitions(page: Page): Promise<number> {
+  return page.evaluate(() => {
+    const w = window as unknown as { __gridTransitions: number };
+    const n = w.__gridTransitions;
+    w.__gridTransitions = 0;
+    return n;
+  });
+}
+
+/** 手札の札の上端の集合の大きさ（1 なら 1 行、2 なら 2 段）。 */
+async function cardHandRows(page: Page): Promise<number> {
+  const tops = await page.locator('.card-hand .card').evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().top)));
+  expect(tops.length).toBe(10);
+  return new Set(tops).size;
+}
+
 /** 区切りの無い ASCII の長い名前（表示名の上限 40 字の内）。折り返す場所が無く、flex の子が縮まないと行からはみ出す。 */
 const LONG_NAME = 'A'.repeat(30);
 
@@ -244,6 +336,8 @@ test.describe('poker のルームは広い画面で読む面と操作の面を�
     expect(reader.y).toBeCloseTo(main.y, 0);
     await expectPageFitsScreen(page);
     await expectBodyScrolls(page);
+    // 手札は操作の面の幅で決まる（#348 D9）。1920 では約 53rem あるので、お題を開いていても 1 行に並ぶ
+    expect(await cardHandRows(page), '1920 の開いた状態の手札は 1 行').toBe(1);
   });
 
   test('Given 幅 1280・長い説明・長い名前の参加者 / When ルームを開く / Then 器の内側は 1152px 以上で、読む面が左・操作の面が右に揃い、席は場の右端を越えない', async ({ page, openPeer }) => {
@@ -298,16 +392,67 @@ test.describe('poker のルームは広い画面で読む面と操作の面を�
     const ratio = reader.width / (reader.width + main.width);
     expect(ratio).toBeGreaterThan(0.41);
     expect(ratio).toBeLessThan(0.45);
+    // 操作の面が 10 枚を 1 行に並べられない幅（約 39rem）なので、手札は 5 × 2 段（#348 D9）
+    expect(await cardHandRows(page), '1280 の開いた状態の手札は 2 段').toBe(2);
   });
 
-  test('Given 幅 1280・お題を開いている / When 「お題を隠す」を押す / Then 場と手札は約 46rem で中央に寄り、「お題を見る」で札が戻る', async ({ page, openPeer }) => {
+  test('Given 幅 1280・お題を開いている / When 「お題を隠す」「お題を見る」を押す / Then 操作の面は途中の位置を通って滑り、閉じた読む面は幅 0・Tab の行き先にならない', async ({ page, openPeer }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await openPokerWithTopic(page, openPeer);
-    await page.getByRole('button', { name: 'お題を隠す' }).click();
+
+    // 隠す: 列が補間され（gridCount）、操作の面が開いた位置から中央へ、途中の位置を通って動く
+    const hide = await slideMidway(page, 'お題を隠す');
+    expect(hide.gridCount, '段組みの列が移り変わっていない（跳んでいる）').toBeGreaterThanOrEqual(1);
+    // 前提: 開いた位置と閉じた位置が離れている（近いと途中の判定が何も測らない）
+    expect(Math.abs(hide.to - hide.from), '開いた位置と閉じた位置が近すぎる').toBeGreaterThan(100);
+    const hideSpan = hide.to - hide.from;
+    const hideProgress = (hide.mid - hide.from) / hideSpan;
+    expect(hideProgress, '隠す途中の位置が端に張り付いている（跳んでいる）').toBeGreaterThan(0.05);
+    expect(hideProgress, '隠す途中の位置が端に張り付いている（跳んでいる）').toBeLessThan(0.95);
+
+    // 隠した後: 区画は幅 0 で DOM に残り、読み上げからも外れ、操作の面は中央にある
+    await expect.poll(() => page.locator('.ui-workspace-side').evaluate((el) => el.getBoundingClientRect().width), '閉じた区画が幅 0 にならない').toBeLessThanOrEqual(1);
     await expect(page.getByRole('region', { name: 'お題', exact: true })).toHaveCount(0);
+    await expect(page.locator('#poker-topic-card'), 'aria-controls の指し先が消えた').toHaveCount(1);
+    const show = page.getByRole('button', { name: 'お題を見る' });
+    await expect(show).toHaveAttribute('aria-expanded', 'false');
+    await expect(show, '押したボタンからフォーカスが落ちた').toBeFocused();
     await expectMainCentered(page);
-    await page.getByRole('button', { name: 'お題を見る' }).click();
+
+    // Tab: 閉じた読む面（見えない）へフォーカスが入らない
+    for (let i = 0; i < 6; i += 1) {
+      await page.keyboard.press('Tab');
+      expect(
+        await page.evaluate(() => document.activeElement?.closest('.ui-workspace-side') ?? null),
+        `Tab ${i + 1} 回目で閉じた読む面にフォーカスが入った`,
+      ).toBeNull();
+    }
+    await show.focus();
+
+    // 見せる: 同じく途中の位置を通って、中央から開いた位置へ戻る
+    const open = await slideMidway(page, 'お題を見る');
+    expect(open.gridCount, '開くとき段組みの列が移り変わっていない（跳んでいる）').toBeGreaterThanOrEqual(1);
+    expect(Math.abs(open.to - open.from)).toBeGreaterThan(100);
+    const openProgress = (open.mid - open.from) / (open.to - open.from);
+    expect(openProgress, '開く途中の位置が端に張り付いている（跳んでいる）').toBeGreaterThan(0.05);
+    expect(openProgress, '開く途中の位置が端に張り付いている（跳んでいる）').toBeLessThan(0.95);
     await expect(page.getByRole('region', { name: 'お題', exact: true })).toBeVisible();
+  });
+
+  test('Given 幅 1280・お題を開いている / When お題が下ろされ、掲げ直される / Then どちらも操作の面の列が移り変わる（跳ばない）', async ({ page, openPeer }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const { topicPage } = await openPokerWithTopicTool(page, openPeer);
+    await watchGridTransitions(page);
+
+    // 下ろす: 区画は DOM から外れる（お題の中身が無いので残せない）が、列は移り変わる
+    await topicPage.getByRole('button', { name: '場から下げる' }).click();
+    await expect(page.locator('.ui-workspace-side')).toHaveCount(0);
+    await expect.poll(() => takeGridTransitions(page), '下ろされたとき列が移り変わっていない').toBeGreaterThanOrEqual(1);
+
+    // 掲げ直す: 区画が足され、列が広がる
+    await setTopic(topicPage, 'FizzBuzz2', '次のお題');
+    await expect(page.getByRole('region', { name: 'お題', exact: true })).toBeVisible();
+    await expect.poll(() => takeGridTransitions(page), '掲げ直されたとき列が移り変わっていない').toBeGreaterThanOrEqual(1);
   });
 
   test('Given 幅 320・長い説明・長い名前の参加者 / When ルームを開く / Then 横に溢れず、お題 → 操作の面の順に積み、本文は 3 行で切れる', async ({ page, openPeer }) => {
