@@ -9,15 +9,15 @@
 #       git apply scripts/mutations/m153-*.patch
 # 復元: git apply -R scripts/mutations/m153-*.patch
 diff --git a/packages/roulette-core/src/roulette.ts b/packages/roulette-core/src/roulette.ts
-index c87234c7..9082ce20 100644
+index 90f32874..d46caa57 100644
 --- a/packages/roulette-core/src/roulette.ts
 +++ b/packages/roulette-core/src/roulette.ts
-@@ -34,7 +34,7 @@ export function isSpinning(state: RouletteState, now: number): boolean {
-  * 通れば `lastSpin` と `drawn` を更新した状態を返す（`wheel` は pool の凍結した写し）。
-  */
- export function startSpin(state: RouletteState, input: SpinInput): Result<RouletteState, RouletteError> {
+@@ -39,7 +39,7 @@ export function startSpin(
+   state: RouletteState,
+   input: SpinInput,
+ ): Result<RouletteState, RouletteError<"ROULETTE_SPINNING" | "ROULETTE_TOO_FEW" | "ROULETTE_TOO_MANY" | "INVALID_SETTLE">> {
 -  if (isSpinning(state, input.now)) return err({ code: "ROULETTE_SPINNING" });
 +
-   const pool = poolOf(input.members, state);
+   const pool = poolOf(input.members, state, input.conflicts);
    if (pool.length < 2) return err({ code: "ROULETTE_TOO_FEW" });
    if (pool.length > MAX_WHEEL) return err({ code: "ROULETTE_TOO_MANY" });

@@ -9,7 +9,7 @@
 #       git apply scripts/mutations/m168-*.patch
 # 復元: git apply -R scripts/mutations/m168-*.patch
 diff --git a/packages/roulette-core/src/schemas.ts b/packages/roulette-core/src/schemas.ts
-index e03d3b0a..85558d59 100644
+index 775a4dd9..4aa28722 100644
 --- a/packages/roulette-core/src/schemas.ts
 +++ b/packages/roulette-core/src/schemas.ts
 @@ -17,8 +17,8 @@ const entrySchema = v.object({ id: v.string(), name: v.string() });
@@ -20,6 +20,6 @@ index e03d3b0a..85558d59 100644
 -  v.strictObject({ command: v.literal("roulette.include"), id: idStr, included: v.boolean() }),
 +  v.object({ command: v.literal("roulette.spin") }),
 +  v.object({ command: v.literal("roulette.include"), id: idStr, included: v.boolean() }),
-   // 正規化と 24 字の上限は表示名の規約（同期サーバー）が持つ。ここは巨大入力を落とすだけ。
-   v.strictObject({ command: v.literal("roulette.guest.add"), name: v.pipe(v.string(), v.maxLength(64)) }),
-   v.strictObject({ command: v.literal("roulette.guest.remove"), id: idStr }),
+   // 名前の長さは**ここで縛らない**（`room.join` の `displayName` と同じ扱い・`room-core/src/wire.ts`）。
+   // 上限は表示名の規約（`apps/tasuki-sync/src/application/display-name-rule.ts`）が正規化の前後で課す。
+   // 境界に別の狭い上限を置くと、`room.join` では通る名前（前後の空白を含むなど）がここだけで落ちる。

@@ -9,24 +9,22 @@
 #       git apply scripts/mutations/m156-*.patch
 # 復元: git apply -R scripts/mutations/m156-*.patch
 diff --git a/apps/tasuki-sync/src/application/roulette-handlers.ts b/apps/tasuki-sync/src/application/roulette-handlers.ts
-index 75505c02..a19f7ab0 100644
+index 8ed0a8a9..274fe5b6 100644
 --- a/apps/tasuki-sync/src/application/roulette-handlers.ts
 +++ b/apps/tasuki-sync/src/application/roulette-handlers.ts
-@@ -190,16 +190,10 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
+@@ -201,14 +201,9 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
          );
          return;
        case "roulette.guest.add": {
 -        const applied = applyDisplayNameRule(cmd.name);
 -        if (applied.isErr()) {
--          roulettes.put(room.code, state);
 -          fail(connId, "INVALID_GUEST_NAME");
 -          return;
 -        }
-         // 同名の判定には、名簿の全参加者（在室を問わない）の表示名を渡す。ゲスト同士は addGuest が見る。
-         const added = addGuest(
-           state,
--          applied.value,
-+          cmd.name,
-           room.participants.map((p) => p.displayName),
-         );
+         // 同名の判定は参加の重複拒否と同じ関数・同じキー（`conflictsWithExisting`・spec R13）。
+         // 比べる相手は名簿の全参加者（在室を問わない）とゲスト（ゲスト同士は addGuest が見る）。
+-        const added = addGuest(state, applied.value, membersOf(room), conflictsWithExisting);
++        const added = addGuest(state, cmd.name, membersOf(room), conflictsWithExisting);
          if (added.isErr()) {
+           fail(connId, added.error.code);
+           return;
