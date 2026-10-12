@@ -74,6 +74,17 @@ test.describe('動きを抑える設定に追従する', () => {
     for (const d of durations) {
       expect(Number.parseFloat(d), `animation-duration=${d}`).toBeLessThan(0.05);
     }
+
+    // Then その3: 段階的に立ち上がる要素（`.boot-reveal`）は遅延も 0。長さだけ縮めても、
+    //   `fill-mode: both` の遅延の間は 0% の姿（不可視）のまま残る（#348 で poker 側に見つかった穴）。
+    //   遅延はインラインの `style` で付くので、件数を先に固定してから値を見る
+    const delays = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('.boot-reveal')).map((el) => getComputedStyle(el).animationDelay),
+    );
+    expect(delays.length, '段階的に立ち上がる要素が見当たらない（判定が空振りする）').toBeGreaterThanOrEqual(3);
+    for (const d of delays) {
+      expect(Number.parseFloat(d), `animation-delay=${d}`).toBeLessThan(0.05);
+    }
   });
 });
 
