@@ -1502,6 +1502,30 @@ export const MUTATIONS = [
     tests: ["test/live-ws.roulette.test.ts"],
     note: "#94 §5.2。poker の早期 return に足す。レート制限の鍵が接続 ID に落ち、room.join の総当たりが接続を張り直すだけで枠を回避できる。",
   },
+  {
+    id: 170,
+    label: "poolOf が在室者と同じ名前のゲストを外さない",
+    patch: "m170-pool-keeps-same-name-guest.patch",
+    pkg: "packages/roulette-core",
+    tests: ["tests/pool.test.ts"],
+    note: "#94 E4・E13・spec R13（PR #355 のレビュー）。ゲストを足した後で同じ名前の人が参加すると、同じ人が円盤に 2 席になる。",
+  },
+  {
+    id: 171,
+    label: "ルーレットの commit が状態の変わらないときも保管・配信する",
+    patch: "m171-commit-publishes-unchanged.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/roulette-handlers.test.ts"],
+    note: "#94 §5.2（PR #355 のレビュー）。知らない ID の押下や連打のたびに全接続へ同じフレームが飛ぶ。",
+  },
+  {
+    id: 172,
+    label: "回す要求の失敗の経路で状態を保管する",
+    patch: "m172-failed-spin-stores-pruned.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/roulette-handlers.test.ts"],
+    note: "#94 §5.2（PR #355 のレビュー）。名簿から消えた記録を落とした状態を保管だけして配らず、保管と画面が食い違う。",
+  },
 ];
 
 /**

@@ -1,0 +1,22 @@
+# 変異 172: failed-spin-stores-pruned
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/roulette-handlers.test.ts
+#
+# #94 §5.2。失敗した回す要求で、名簿から消えた記録を落とした状態を保管だけして配らない（保管と画面が食い違う）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m172-*.patch
+# 復元: git apply -R scripts/mutations/m172-*.patch
+diff --git a/apps/tasuki-sync/src/application/roulette-handlers.ts b/apps/tasuki-sync/src/application/roulette-handlers.ts
+index 8ed0a8a9..07333626 100644
+--- a/apps/tasuki-sync/src/application/roulette-handlers.ts
++++ b/apps/tasuki-sync/src/application/roulette-handlers.ts
+@@ -184,6 +184,7 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
+           conflicts: conflictsWithExisting,
+         });
+         if (next.isErr()) {
++          roulettes.put(room.code, state);
+           const code = next.error.code;
+           // INVALID_SETTLE は乱数源の誤りで、利用者の操作では起きない。内部の誤りとして返す。
+           fail(connId, code === "INVALID_SETTLE" ? "INTERNAL_ERROR" : code);
