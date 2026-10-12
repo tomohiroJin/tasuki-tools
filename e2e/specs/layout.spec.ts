@@ -61,7 +61,7 @@ async function expectNoHorizontalOverflow(page: Page): Promise<void> {
  * 収まりは値の文字の Range の矩形と、札の矩形から枠と余白を引いた内側で比べる（`scrollWidth` やクラスの値を読まない）。
  */
 async function summaryStatCards(page: Page): Promise<Array<{ top: number; left: number; fits: boolean; text: string }>> {
-  return page.locator('.summary-stats > .meter-panel').evaluateAll((cards) =>
+  return page.locator('.summary-stats > .summary-stat').evaluateAll((cards) =>
     cards.map((card) => {
       const r = card.getBoundingClientRect();
       const s = getComputedStyle(card);
@@ -623,6 +623,10 @@ test.describe('timer は 1 つのルームでロビー・セッション・お�
     expect(mDrivers.y, '768: ドライバー別が統計の下に無い').toBeGreaterThanOrEqual(mStats.y + mStats.height - 0.5);
     expect((await boxOf(page, '.summary')).width, '768: 中身が 40rem を超える').toBeLessThanOrEqual(40 * REM + 0.5);
     await expectStatCards(page, 'row', 'まとめ（768）');
+
+    // Then（640・中の段の下端）: 札は横に 3 枚のまま、値は札の内側に収まる
+    await page.setViewportSize({ width: 640, height: 1024 });
+    await expectStatCards(page, 'row', 'まとめ（640）');
 
     // Then L5・L4・L6（320）: 統計の札は縦に積み、数字は札に収まり、横に溢れない
     await page.setViewportSize({ width: 320, height: 640 });
