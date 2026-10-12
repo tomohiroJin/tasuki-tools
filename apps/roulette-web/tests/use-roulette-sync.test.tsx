@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { joinRetryDelayMs, loadResumeIdentity, saveResumeIdentity } from '@tasuki/sync-client';
 import { RETRY_EXHAUSTED_TEXT, RETRY_WAITING_TEXT } from '../src/copy';
 import { useRouletteSync } from '../src/hooks/use-roulette-sync';
+import { phaseOf } from '../src/roulette-view';
 import {
   IDLE_ROULETTE,
   RESUME,
@@ -218,6 +219,26 @@ describe('受け取った状態の保持', () => {
     act(() => latestSocket().deliver({ type: 'roulette', state: spinState(1, 1600) }));
     // Then
     expect(result.current.receivedAt).toBe(1000);
+  });
+
+  it('Given 回転中 / When 誰かの操作で同じ seq・進んだ elapsedMs の状態を受ける / Then 止まる時刻も局面も変わらず、回転以外の中身は新しくなる', () => {
+    // Given: 1000ms の時点で経過 100ms の回転を受けた（止まるのは 1000 + 4000 - 100 = 4900ms）
+    const now = vi.spyOn(performance, 'now');
+    const { result } = joinedHook();
+    now.mockReturnValue(1000);
+    act(() => latestSocket().deliver({ type: 'roulette', state: spinState(1, 100) }));
+    // When: 回転中に誰かが外す（サーバーは同じ回転の状態を、その時点で計った経過つきで配り直す）
+    now.mockReturnValue(2500);
+    act(() =>
+      latestSocket().deliver({ type: 'roulette', state: { ...spinState(1, 1600), excluded: ['p2'] } }),
+    );
+    // Then: 新しい経過を古い基準に足すと 1500ms 先取りし、4000ms の時点で止まって当たりが出る
+    const at = (nowMs: number) =>
+      phaseOf({ view: result.current.roulette!, receivedAt: result.current.receivedAt, nowMs, reducedMotion: false });
+    expect(at(4000)).toBe('spinning');
+    expect(at(4899)).toBe('spinning');
+    expect(at(4900)).toBe('settled');
+    expect(result.current.roulette?.excluded).toEqual(['p2']);
   });
 
   it('Given ある回転を受けた / When 新しい seq の状態を受ける / Then 受け取った時刻が新しくなる', () => {

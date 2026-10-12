@@ -200,7 +200,12 @@ export function useRouletteSync(roomCode: string): RouletteSync {
           const now = performance.now();
           setRouletteSlot((prev) =>
             // **同じ回転（`seq` が同じ）なら基準を取り直さない。** 取り直すと円盤が回し直しになる。
-            prev !== null && prev.view.spin?.seq === view.spin?.seq ? { view, receivedAt: prev.receivedAt } : { view, receivedAt: now },
+            // 基準は `receivedAt` と `elapsedMs` の**組**で、片方だけ新しくすると経過を二重に数える
+            // （回転中の外す・戻すや再接続で同じ seq が届くたびに、止まる時刻が前へずれる）。
+            // 回転以外（外した人・ゲスト・一周の記録）は新しいフレームのものを採る。
+            prev !== null && prev.view.spin !== null && prev.view.spin.seq === view.spin?.seq
+              ? { view: { ...view, spin: prev.view.spin }, receivedAt: prev.receivedAt }
+              : { view, receivedAt: now },
           );
           setError(null);
           return;
