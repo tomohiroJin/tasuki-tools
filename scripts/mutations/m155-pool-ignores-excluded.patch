@@ -1,0 +1,23 @@
+# 変異 155: pool-ignores-excluded
+#
+# 検出を期待するテスト:
+#   - packages/roulette-core/tests/pool.test.ts
+#
+# #94 E4・spec R7。`poolOf` が外した人（参加者もゲストも）を除かない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m155-*.patch
+# 復元: git apply -R scripts/mutations/m155-*.patch
+diff --git a/packages/roulette-core/src/pool.ts b/packages/roulette-core/src/pool.ts
+index ff7ee176..9cf6a9f7 100644
+--- a/packages/roulette-core/src/pool.ts
++++ b/packages/roulette-core/src/pool.ts
+@@ -14,7 +14,7 @@ import type { Entry, Member, RouletteState } from "./types.js";
+ export function poolOf(members: readonly Member[], state: RouletteState): Entry[] {
+   const excluded = new Set(state.excluded);
+   const fromMembers = members
+-    .filter((m) => m.present && !excluded.has(m.id))
++    .filter((m) => m.present)
+     .map((m): Entry => ({ id: m.id, name: m.name }));
+   const fromGuests = state.guests.filter((g) => !excluded.has(g.id)).map((g): Entry => ({ id: g.id, name: g.name }));
+   return [...fromMembers, ...fromGuests];

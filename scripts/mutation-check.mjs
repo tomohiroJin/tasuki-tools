@@ -1390,6 +1390,22 @@ export const MUTATIONS = [
     tests: ["tests/reduced-motion.test.mjs"],
     note: "#348・設計正本 D5。遅延が残ると fill-mode: both の演出が 0% の姿で消えたまま待つ。実際の効きは poker-a11y の E2E も見る。",
   },
+  {
+    id: 154,
+    label: "poolOf が離席中の参加者も入れる",
+    patch: "m154-pool-includes-offline.patch",
+    pkg: "packages/roulette-core",
+    tests: ["tests/pool.test.ts"],
+    note: "#94 E4・spec R7。離席中の 1 人を除くと 2 人未満になる局面で、回せてしまう誤りとして出る。",
+  },
+  {
+    id: 155,
+    label: "poolOf が外した人を除かない",
+    patch: "m155-pool-ignores-excluded.patch",
+    pkg: "packages/roulette-core",
+    tests: ["tests/pool.test.ts"],
+    note: "#94 E4・spec R7。外した参加者が入ってしまう。",
+  },
 ];
 
 /**
