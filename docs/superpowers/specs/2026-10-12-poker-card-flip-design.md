@@ -214,3 +214,17 @@ CSS の移り変わりそのもの（列の補間・回る軸の transition）�
 
 - 新しい依存を足さない。CSS の `@starting-style`・`@container`・`grid-template-columns` の補間・Web Animations の `getAnimations()`（E2E の物差しだけ）は、利用者の Chrome と E2E の Chromium が持つ（**推測**。`grid-template-columns` の `fr` の補間は Chrome 107 以降と理解している。E2E の最初の赤で確かめる）
 - 同期サーバーと wire の形に触れない（`RoomStateMessage` はそのまま）
+
+## 12. 実装で決めたこと
+
+実装役（Sonnet）が計画から外れた点と、E2E を流す前の未確認事項。数字は実測が入ったら統括が書き換える。
+
+- **利用者の確認事項（Q1〜Q3）は推奨のまま進める。** Q1 結果の節の票の行を消す／Q2 席順に 90ms ずつ・8 席で頭打ち・1 枚 0.5 秒・集計は最後の札の後／Q3 1920px でお題を開いた状態の手札は 1 行。実物の確認で利用者に見てもらう
+- **`toHaveAccessibleName` は vitest に無い。** poker-web の単体テストは `jest-dom` を持たないので、席の札の名前は `getAttribute('aria-label')` で見る（E2E の `toHaveAccessibleName` は Playwright のもので使える）
+- **E2E の `participantList` の選択子を広げた。** 公開後は席の札の名前が表の値（数字・`?`・`☕`）に変わるので、`role="img"` の名前を「投票済み／未投票／数字／`?`／`☕`」のどれでも掴むようにした。結果の節にリストが無くなったので、元の「結果側にもリストが出る」注釈も直した
+- **`poker-a11y.spec.ts` の 2 つ目は参加者の名前を入れ替えた。** 作成者 `a11y-creator`（席順 0・未投票のまま）と 2 人目 `a11y-voter`（席順 1・投票）。席順 0 は遅延が元から 0 で、遅延を止めない誤りと区別できないため
+- **`.room-main` に `width: 100%` / `max-width` / `margin-inline: auto` / `container` / `transition: max-width` を持たせた。** 計画の骨子どおり。46rem の中央寄せの規則は、部品の `:not(:has(> .ui-workspace-side))` ではなく、`.room-topic-side[data-state='open']` の有無（`:not(:has(> .room-topic-side[data-state='open']))`）で当てる（閉じた脇が DOM に残るため）
+- **未確認（E2E で確かめる）**
+  - `grid-template-columns` の `fr`（`0fr` ⇄ `0.75fr`）が Chromium で補間されるか。`layout.spec` の `gridCount` が 0 なら止めて作り直す（代案: 脇の区画の `width` を移り変わらせ、列を `auto` にする）
+  - **1280px でお題を開いた状態の操作の面の幅。** §3 D9 は約 39.4rem としたが、器の余白（`clamp(1rem, 4vw, 3rem)` = 3rem）と間隔（2rem）から計算すると `(1280 - 96 - 32) / 1.75 = 約 658px = 約 41.1rem` で、コンテナクエリの境目（39rem）を超え、手札は **1 行**になる。その場合は `layout.spec` の「1280 の開いた状態は 2 段」の期待が落ちる。直し方は 2 通りで、境目を 42rem に上げて 1280 を 5 × 2 に保つか、期待を 1 行に改める。実測してから決める
+  - 札の表の字（`--font-size-lg`）が 2.4 × 3.3rem の札に「13」「21」で収まるか
