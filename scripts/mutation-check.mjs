@@ -1592,6 +1592,14 @@ export const MUTATIONS = [
     tests: ["tests/roulette-view.test.ts"],
     note: "#94 spec §6.8（PR #357 のレビュー）。発表の後で入る人が 1 人に減ると、発表した結果が「2 人から回せます」に消える。",
   },
+  {
+    id: 163,
+    label: "止まる角度の端数が回し始めの角度を引かない",
+    patch: "m163-final-angle-ignores-start.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/wheel-motion.test.ts"],
+    note: "#94 spec §6.4。回し始めの角度が 0° 以外の画面（前の回転の止まった位置から回す画面）だけ別の席で止まる。開始角 0° だけのテストでは殺せない。",
+  },
 ];
 
 /**
