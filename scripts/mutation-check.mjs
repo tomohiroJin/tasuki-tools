@@ -1527,6 +1527,22 @@ export const MUTATIONS = [
     note: "#94 §5.2（PR #355 のレビュー）。名簿から消えた記録を落とした状態を保管だけして配らず、保管と画面が食い違う。",
   },
   {
+    id: 165,
+    label: "回し始めた時点で結果の一言に当たりの名前を出す",
+    patch: "m165-caption-names-winner-while-spinning.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/roulette-room.test.tsx", "tests/roulette-view.test.ts"],
+    note: "#94 E19・spec §6.8。読み上げが演出（回転）より先に結果を言う。止まった後に見るだけのテストでは殺せない（最後は同じ文になる）ので、回っている最中に見る。",
+  },
+  {
+    id: 166,
+    label: "回っている間も選ばれた印と一周の数に今回の当たりを入れる",
+    patch: "m166-drawn-mark-includes-current-winner.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/roulette-room.test.tsx", "tests/roulette-view.test.ts"],
+    note: "#94 E19・spec §6.8。円盤が止まる前に脇の一覧と一周の数で結果が分かってしまう。",
+  },
+  {
     id: 162,
     label: "web が状態を受けるたびに回転の時刻の基準を取り直す",
     patch: "m162-web-receivedat-refreshed-every-frame.patch",

@@ -1,0 +1,198 @@
+/* ============================================================
+   Tasuki 進行役ルーレット（#94）
+   共通の世界観「夜のカードテーブル」は @tasuki/ui が持つ。
+   ここにはルーレット固有のもの（舞台・入る人の一覧・名前の追加・一周の行）だけを置く。
+   見た目の参照: モック 3 版（利用者承認済み・spec §6.7）。円盤と札は PR 3 で舞台に足す。
+   **Tailwind と併用しない**（#297：`@import` の書体の url() が解決されず全滅した）。
+   **生の色を書かない**（語彙のトークンを使う）。字の大きさは 5 段のトークン。
+   ============================================================ */
+
+@import '@tasuki/ui';
+
+/* 遷移中・参加中の一言。卓の上で控えめに置く（topic-web・poker-web と同じ置き方）。色は部品（`.ui-note`）が持つ。 */
+.loading-note {
+  margin: 0;
+  padding: var(--space-6) 0;
+  text-align: center;
+}
+
+/* ---------- 見出しと戻る導線は部品層（`.ui-page-header`・ADR 0022）が持つ ---------- */
+.roulette-room-header {
+  margin-block-end: var(--space-5);
+}
+
+/* 入り直しの途中の混雑・操作の失敗。色は部品（`.ui-note`）が持つ */
+.roulette-notice {
+  margin: 0 0 var(--space-4);
+}
+
+/* 目に出さず、支援技術には残す（舞台の見出し h2） */
+.roulette-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---------- 舞台（操作の面） ----------
+   PR 2 の舞台は お題の添え書き・結果の一言・回す だけ。円盤と札は PR 3 で足し、
+   そのとき 2 つの並び（縦積み / 横並び）を舞台の幅で決める（spec §6.7）。
+   **`--dock` は親の中でだけ留まる**ので、回すの並びは舞台の直下の最後の子に置く（README「ボタンの選び方」）。 */
+.roulette-stage {
+  container-type: inline-size;
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  justify-items: center;
+  gap: var(--space-4);
+}
+.roulette-topic {
+  margin: 0;
+  max-width: 100%;
+  color: var(--ivory-dim);
+  font-size: var(--font-size-sm);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+/* 結果の一言。ここが PR 2 の主役（止まってから当たりの名前が入る） */
+.roulette-caption {
+  margin: 0;
+  min-height: 1.7em;
+  max-width: 100%;
+  color: var(--ivory);
+  font-size: var(--font-size-lg);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+/* 回すの並び。40rem 未満は部品の --dock で下端に留まる。中央寄せと幅だけ画面が持つ */
+.roulette-controls {
+  width: min(100%, 22rem);
+  justify-content: center;
+}
+.roulette-controls .ui-button {
+  width: 100%;
+}
+
+/* ---------- 脇（ルーレットに入る人・仲間を招く） ---------- */
+.roulette-side {
+  display: grid;
+  gap: var(--space-4);
+  align-content: start;
+}
+.roulette-invite {
+  display: grid;
+  gap: var(--space-3);
+}
+.roulette-invite h2 {
+  margin: 0;
+}
+.roulette-people {
+  display: grid;
+  gap: var(--space-4);
+}
+.roulette-people h2 {
+  margin: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.roulette-count {
+  font-family: var(--font-display);
+  font-style: italic;
+  color: var(--gold-bright);
+  font-size: var(--font-size-base);
+}
+.roulette-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+/* 1 行 = [チェック][名前][印][名前を消す]。行の地は沈んだ敷き */
+.roulette-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 0 var(--space-2) 0 var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--felt-sink);
+}
+/* ⚠ 要素層の `label` は縦積み（flex-direction: column）。行の中のラベルは横に戻す */
+.roulette-row-label {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-3);
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  color: var(--ivory);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+.roulette-check {
+  width: 1.1rem;
+  height: 1.1rem;
+  margin: 0;
+  flex: none;
+}
+.roulette-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.roulette-row--out .roulette-name {
+  color: var(--ivory-faint);
+}
+/* 印（色だけで状態を示さない：離席中・選ばれたは文字で出る） */
+.roulette-chip {
+  flex: none;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  line-height: 1.6;
+  background: var(--gold-tint);
+  color: var(--gold-bright);
+  border: 1px solid var(--gold-edge);
+}
+.roulette-chip--away {
+  background: transparent;
+  color: var(--ivory-dim);
+  border-color: var(--line-strong);
+}
+.roulette-row .ui-button {
+  flex: none;
+}
+.roulette-add {
+  display: grid;
+  gap: var(--space-2);
+}
+.roulette-add-row {
+  display: flex;
+  gap: var(--space-2);
+}
+.roulette-add-row .ui-input {
+  flex: 1;
+  min-width: 0;
+}
+.roulette-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line);
+  color: var(--ivory-dim);
+  font-size: var(--font-size-sm);
+}
+.roulette-foot p {
+  margin: 0;
+}
