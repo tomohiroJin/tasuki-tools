@@ -80,14 +80,15 @@
  * 部品の段（h4 から始まる札向け）のままだと h3 と h4 が同じ大きさで並び、段が消える。部品へ移す前の段（h3 は本文・h4 以下は sm）に戻す。
  * 地の字は `--bone-muted` なので、見出しと強調は `--bone` で浮かせる（部品へ移す前の見た目）。h3 から始まる面はここだけなので、h3 の段も部品でなくここに置く。
  * 部品のクラス（`ui-`）は名指ししない（timer の CSS は部品を定義し直さない・`audit-timer-classes.mjs`・設計正本 D3）。要素で指す。
- * `.shared-memo-preview h4`（0,1,1）は部品の `h4.ui-md-h`（0,1,1）と同じ詳細度で、部品より後に読み込む（`index.css`）ので勝つ */
-.shared-memo-preview h3 {
+ * 段の規則はクラスを重ねて（`.shared-memo-preview.shared-memo-preview h4` = 0,2,1）部品の `h4.ui-md-h`（0,1,1）に**詳細度で**勝たせる。
+ * 同じ詳細度だと読み込みの順（`index.css`）だけで勝ち負けが決まり、順を入れ替えると黙って部品の段に戻る */
+.shared-memo-preview.shared-memo-preview h3 {
   font-size: var(--font-size-base);
 }
-.shared-memo-preview :is(h4, h5) {
+.shared-memo-preview.shared-memo-preview :is(h4, h5) {
   font-size: var(--font-size-sm);
 }
-.shared-memo-preview h6 {
+.shared-memo-preview.shared-memo-preview h6 {
   font-size: var(--font-size-sm);
   font-weight: 600;
 }

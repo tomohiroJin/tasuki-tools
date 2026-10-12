@@ -317,11 +317,16 @@ async function scanTargets(page: Page, scope: string): Promise<Scan> {
     // 角を囲む矩形でなく箱ごとに取るのは、横に長い箱と 44px 四方の擬似要素の和が十字形で、囲む矩形の角はどちらの箱にも無いため。
     // 角は丸みの分だけさらに内へ寄せる（半径 r の角で、角から 0.3r より内側の対角線上の点は丸みの内にある。
     // 寄せないと、丸い箱の角は親に当たって外れと読まれる）。画面の外の点は null を返し、外れに数える
-    const identity = (cs: CSSStyleDeclaration): boolean =>
-      (cs.transform === 'none' || new DOMMatrix(cs.transform).isIdentity)
-      && ['none', '0deg'].includes(cs.rotate) && ['none', '1'].includes(cs.scale) && ['none', '0px'].includes(cs.translate);
+    // 平行移動だけの変形（`translateY(-12px)` や `translate`）は箱の形を変えず、箱と擬似要素が一緒に動くので角も突ける。
+    // 傾き・拡大・歪み（行列の a / b / c / d が恒等でない・3D の行列）と、個別の `rotate` / `scale` があるときだけ中央に絞る
+    const shapeKept = (cs: CSSStyleDeclaration): boolean => {
+      if (!['none', '0deg'].includes(cs.rotate) || !['none', '1'].includes(cs.scale)) return false;
+      if (cs.transform === 'none') return true;
+      const m = new DOMMatrix(cs.transform);
+      return m.is2D && m.a === 1 && m.b === 0 && m.c === 0 && m.d === 1;
+    };
     const transformed = (el: Element): boolean => {
-      for (let e: Element | null = el; e !== null; e = e.parentElement) if (!identity(getComputedStyle(e))) return true;
+      for (let e: Element | null = el; e !== null; e = e.parentElement) if (!shapeKept(getComputedStyle(e))) return true;
       return false;
     };
     const misses: string[] = [];
@@ -334,7 +339,7 @@ async function scanTargets(page: Page, scope: string): Promise<Scan> {
       const c = claim(list);
       if (c.left < -0.5 || c.right > width + 0.5) outside.push(`${name(el)} ${Math.round(c.left)}〜${Math.round(c.right)}（幅 ${width}）`);
       const points: [string, number, number][] = [['中央', (c.left + c.right) / 2, (c.top + c.bottom) / 2]];
-      // 傾けた（変形を持つ）操作は中央だけ突く。外接矩形の角は傾いた箱の外にあり、計算値の `left` は変形の前を返す（玄関の傾けて配った札）
+      // 傾けた・拡大した操作は中央だけ突く。外接矩形の角は傾いた箱の外にあり、計算値の `left` は変形の前を返す（玄関の傾けて配った札）
       if (!transformed(el)) list.forEach((b, i) => {
         const k = 1 + 0.3 * b.round;
         const box = i === 0 ? '箱' : '擬似要素';
