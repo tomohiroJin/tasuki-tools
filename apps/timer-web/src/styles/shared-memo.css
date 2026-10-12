@@ -1,6 +1,6 @@
 /* 共有メモの外枠（`SharedMemo.tsx`・#321）。Tailwind のユーティリティの写し。
  * 値は基準（`ba9249d`）の計算済みスタイルと比較で確かめる（設計正本 D2）。
- * メモの本文は `Markdown`（`markdown.css`）が描く。外枠の `Card` の更新時の強調は `.meter-panel-highlight`（`primitives.css`）。
+ * メモの本文は `Markdown`（部品の `.ui-md-*`）が描く。外枠の `Card` の更新時の強調は `.meter-panel-highlight`（`primitives.css`）。
  * 写さなかった宣言: 見出しの `text-[var(--bone)]`（除去検査で dead・親から継ぐ）、
  * 編集中のテキストエリアの `text-[var(--bone)]` と `outline-none`（文字色は preflight の `textarea { color: inherit }` で親の `Card` から継ぎ、
  * 同じ `Card` の子の見出しの `text-[var(--bone)]` が除去検査で dead。輪郭は基準（`ba9249d`）ではレイヤー外のグローバルな `:focus-visible { outline: … }` が
@@ -54,6 +54,12 @@
 /* プレビューの枠 */
 .shared-memo-preview {
   min-height: 200px;
+  /* 部品 `.ui-md` のつまみ。暗い面なので、枠は象牙向けの既定（--coal-soft）でなく読める色にする */
+  --ui-md-edge: var(--hairline-strong);
+  --ui-md-link: var(--signal);
+  color: var(--bone-muted);
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
   border-radius: var(--radius-md);
   background-color: var(--panel-2);
   border-width: 1px;

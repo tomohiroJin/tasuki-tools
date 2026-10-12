@@ -7,7 +7,7 @@
  * （`.ui-drawer` の `<dialog>`）に全文を出す。長い説明がタイマーを最初の画面から押し出さない。
  * 構造は poker の `CurrentTopic.tsx` と同じ。
  * 見出しの段: h2「お題」→ h3 タイトル → 本文の見出しは h4 から（`headingBase={4}`）。
- * 本文は象牙の札の上なので `Markdown` の `surface="card"`（部品の `.ui-md-*`）で描く。
+ * 本文は `Markdown`（部品の `.ui-md-*`）で描く。
  * シートが開いたままアンマウントされたとき、または幅が 64rem を超えたときは、フォーカスが body に落ちる（直さない・poker の `CurrentTopic.tsx` と同じ受容）。
  * 本文の `tabIndex={0}` は 64rem 以上で本文をキーボードでスクロールするため。
  */
@@ -40,7 +40,7 @@ export function TopicCard({ topic }: { topic: Topic }) {
       {hasBody && (
         <>
           <div className="ui-reader-body" role="region" aria-labelledby={titleId} tabIndex={0}>
-            <Markdown source={topic.body} headingBase={4} surface="card" />
+            <Markdown source={topic.body} headingBase={4} />
           </div>
           <button
             ref={moreRef}
@@ -63,7 +63,7 @@ export function TopicCard({ topic }: { topic: Topic }) {
               </button>
             </div>
             <div className="ui-drawer-body">
-              <Markdown source={topic.body} headingBase={4} surface="card" />
+              <Markdown source={topic.body} headingBase={4} />
             </div>
           </dialog>
         </>

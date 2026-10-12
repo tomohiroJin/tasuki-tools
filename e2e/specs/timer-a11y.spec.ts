@@ -163,6 +163,43 @@ test.describe('文字が背景に対して読める（WCAG AA）', () => {
     // Then
     expectReadable(scan, 15, [pairKey(subtle!, panel2!)]);
 
+    // 共有メモ（暗い面）の Markdown（#316 PR 4）。部品の `.ui-md-*` は象牙の札向けの既定を持つので、
+    // 暗い面では置く側（`.shared-memo-preview`）がつまみで枠とリンクの色を宣言する。同じセッションで続けて測る
+    //   （ルームを足さない）。リンク・インラインコード・引用・コードブロックを含む本文を書いて、プレビューに戻す
+    await page.getByRole('button', { name: '編集', exact: true }).click();
+    await page.getByLabel('共有メモ', { exact: true }).fill(
+      '# 見出し\n\n本文に[リンク](https://example.com)と`code`を含む。\n\n> 引用の行\n\n```\nconst a = 1;\n```',
+    );
+    await page.getByRole('button', { name: 'プレビューに戻る' }).click();
+    const preview = page.locator('.shared-memo-preview');
+    await expect(preview.locator('.ui-md'), '共有メモのプレビューが部品の .ui-md で描かれていない').toHaveCount(1);
+    await expect(preview.locator('.ui-md-link, .ui-md-code, .ui-md-quote, .ui-md-pre')).toHaveCount(4);
+    const [signal, boneMuted, coalSoft] = await resolveColors(page, ['--signal', '--bone-muted', '--coal-soft']);
+    const memoScan = await scanContrast(page);
+    //   （空表示の組はメモを書くと消えるので、余裕の薄い組の固定は上の走査が担う）
+    expectReadable(memoScan, 15, []);
+    // 走査が実際にプレビューの文字を測った: リンク（--signal）と本文（--bone-muted）の組がある
+    //   （走査は `<p>`・`<a>`・`<h3>` などを測る。`<div>` 直下の文字は測らないので、組の有無で空振りを見る）
+    expect([...memoScan.pairs].some((k) => k.startsWith(`${signal!} on`)), 'リンクの字（--signal）を測っていない').toBe(true);
+    expect([...memoScan.pairs].some((k) => k.startsWith(`${boneMuted!} on`)), '本文の字（--bone-muted）を測っていない').toBe(true);
+    // 枠は暗い地で読める色（--hairline-strong）。部品の既定の --coal-soft（暗い地で約 2:1）のままではない
+    const edges = await preview.evaluate((el) => {
+      const probe = document.createElement('div');
+      probe.style.borderTop = '1px solid var(--coal-soft)';
+      el.append(probe);
+      const coal = getComputedStyle(probe).borderTopColor;
+      probe.remove();
+      const border = (sel: string, side: 'Top' | 'Left') => {
+        const target = el.querySelector(sel)!;
+        return getComputedStyle(target)[`border${side}Color`];
+      };
+      return { coal, code: border('.ui-md-code', 'Top'), pre: border('.ui-md-pre', 'Top'), quote: border('.ui-md-quote', 'Left') };
+    });
+    expect(edges.coal, '--coal-soft を解けない').toBe(coalSoft);
+    for (const part of ['code', 'pre', 'quote'] as const) {
+      expect(edges[part], `共有メモの ${part} の枠が部品の既定（--coal-soft）のままで、暗い地で読めない`).not.toBe(edges.coal);
+    }
+
     // 危険の確認ダイアログ（#316 PR 3）。同じセッションで続けて測る（E2E 全件が同期サーバーのルーム枠 100 に近く、
     // ルームを足すと末尾のテストが「操作を完了できませんでした」で落ちる。`buttons.spec.ts` 冒頭の注釈）。
     // When: 「途中で終える」を押す。危険の確定（`ui-button--danger`・字 `--rose-bright`）はダイアログの面（`--panel`）に載る
