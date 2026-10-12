@@ -19,6 +19,8 @@ import {
   createRoom,
   joinRoom,
   participantRow,
+  recordSeatFlips,
+  seatFlips,
   sendJoinToMissingRoom,
   resultsSection,
   seatCard,
@@ -97,7 +99,10 @@ test.describe('@core poker は公開まで他人の票を配らない', () => {
       expect(describeCards(collectCards(frame)), '公開前のフレームにカードが含まれている').toBe('');
     }
 
-    // When: 最後の 1 人が投票する
+    // When: 最後の 1 人が投票する。公開の前に、2 人目の席の札の要素を掴み、めくりの記録を始める（#348）
+    const guestSeat = await guestRow.locator('.seat-card').elementHandle();
+    expect(guestSeat, '2人目の席の札が掴めない').not.toBeNull();
+    await recordSeatFlips(page);
     await chooseCard(page, '5');
 
     // Then その4: **誰も公開操作をしていないのに**両方の画面に結果が出る。
@@ -111,6 +116,17 @@ test.describe('@core poker は公開まで他人の票を配らない', () => {
       await expect(seatCard(target, GUEST), `${label}の画面`).toHaveAccessibleName('☕');
       // 各自の票は席の札だけが見せる。結果の節は集計だけで、票の行を持たない（#348）
       await expect(resultsSection(target).getByRole('listitem'), `${label}の画面`).toHaveCount(0);
+    }
+
+    // Then その5（#348）: **同じ札がその場でめくれている。** 公開で席の札が作り直されると、
+    //   transition の起点が無く、めくれずに表が出る。要素が生きていること、ブラウザが実際に
+    //   移り変わりを走らせたこと（計算値ではなく CSSTransition）、席順に遅れていることを見る
+    expect(await guestSeat!.evaluate((el) => el.isConnected), '公開で席の札が作り直された').toBe(true);
+    await expect.poll(() => seatFlips(page).then((f) => f.length), 'めくりの移り変わりが走っていない').toBe(2);
+    const flips = await seatFlips(page);
+    expect(flips[1]!.delay, '席順に遅れてめくれていない').toBeGreaterThan(flips[0]!.delay);
+    for (const flip of flips) {
+      expect(flip.end - flip.delay, 'めくりが一瞬で終わっている').toBeGreaterThanOrEqual(300);
     }
   });
 });

@@ -248,3 +248,49 @@ export function corruptRoomStateFrame(payload: string): string {
     participants: [{ ...participants[0], name: 1 }, ...participants.slice(1)],
   });
 }
+
+/** 席の札のめくりの記録 1 件。`order` は席順、`delay` と `end` は ms（`end` は遅延を含む終わり）。 */
+export interface SeatFlip {
+  order: number;
+  delay: number;
+  end: number;
+}
+
+/**
+ * 公開で席の札がめくれる移り変わりを、ブラウザが作った CSSTransition から記録する（#348）。
+ * 計算値（transition-delay）を読むのではなく、実際に走った移り変わりを見る。**公開の前に呼ぶ。**
+ */
+export async function recordSeatFlips(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const log: { order: number; delay: number; end: number }[] = [];
+    (window as unknown as { __seatFlips: typeof log }).__seatFlips = log;
+    const seen = new WeakSet<Element>();
+    const list = document.querySelector('.participants');
+    if (list === null) throw new Error('席の一覧が無い');
+    new MutationObserver(() =>
+      requestAnimationFrame(() => {
+        list.querySelectorAll(':scope > li').forEach((li, order) => {
+          const rotor = li.querySelector('.seat-card.revealed .seat-card-rotor');
+          if (rotor === null || seen.has(rotor)) return;
+          seen.add(rotor);
+          for (const a of rotor.getAnimations()) {
+            if (!(a instanceof CSSTransition) || a.transitionProperty !== 'transform') continue;
+            log.push({
+              order,
+              delay: Number(a.effect?.getTiming().delay ?? 0),
+              end: Number(a.effect?.getComputedTiming().endTime ?? 0),
+            });
+          }
+        });
+      }),
+    ).observe(list, { subtree: true, attributes: true, attributeFilter: ['class'] });
+  });
+}
+
+/** `recordSeatFlips` が記録した、席の札のめくり（席順に並べて返す）。 */
+export async function seatFlips(page: Page): Promise<SeatFlip[]> {
+  const flips = await page.evaluate(
+    () => (window as unknown as { __seatFlips: SeatFlip[] }).__seatFlips,
+  );
+  return [...flips].sort((a, b) => a.order - b.order);
+}

@@ -134,18 +134,51 @@
   font-size: 0.8em; /* scale-exempt: 名前の横の小さな印。名前の字に対する相対値で、名前の段に付いて動く */
 }
 
-/* 席のカード: 伏せたカード = 投票済み、枠だけ = 考え中。
-   裏模様は今のところここでしか使わないので @tasuki/ui へは出していない。 */
+/* 席の札（#348 D1・D4）: 回る軸・裏・表の 3 枚。伏せた札 = 投票済み、枠だけ = 考え中。
+   公開で回る軸を 180° 回し、同じ札がその場でめくれて表の値を見せる。
+   裏模様とめくりは今のところここでしか使わないので @tasuki/ui へは出していない。 */
 .seat-card {
+  position: relative;
   flex: none;
-  width: 22px;
-  height: 30px;
-  border-radius: 4px;
+  width: 2.4rem;
+  height: 3.3rem;
+  border-radius: 6px;
   border: 1.5px dashed var(--line-strong);
-  transition: all 0.25s ease;
+  perspective: 30rem;
 }
 
 .seat-card.facedown {
+  border-color: transparent;
+}
+
+.seat-card-rotor {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+}
+
+/* transition は公開の側にだけ置く。次のラウンドで投票中へ戻るときはめくり返さず、値は残さない。
+   めくる順は席順（--seat-order）で 90ms ずつ、8 席で頭打ち。 */
+.seat-card.revealed .seat-card-rotor {
+  transform: rotateY(180deg);
+  transition: transform 0.5s cubic-bezier(0.3, 0.7, 0.2, 1);
+  transition-delay: calc(min(var(--seat-order, 0), 8) * 90ms);
+}
+
+.seat-card-back,
+.seat-card-face {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  backface-visibility: hidden;
+}
+
+.seat-card-back {
+  display: none;
+}
+
+.seat-card.facedown .seat-card-back {
+  display: block;
   border: 1px solid var(--gold-deep);
   background:
     repeating-linear-gradient(45deg, var(--gold-edge) 0 2px, transparent 2px 5px),
@@ -153,6 +186,23 @@
     var(--card-back);
   box-shadow: var(--shadow-chip);
   animation: flip-down 0.3s ease;
+}
+
+/* 表: 象牙の地・縁・字（.card と同じ材質。.card は当てない: :hover が span にも効くため） */
+.seat-card-face {
+  transform: rotateY(180deg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border: 1px solid var(--card-edge);
+  background: linear-gradient(165deg, var(--card-sheen) 0%, var(--ivory) 60%, var(--card-shade) 100%);
+  color: var(--coal);
+  font-family: var(--font-display);
+  font-size: var(--font-size-lg);
+  font-style: italic;
+  font-weight: 600;
+  box-shadow: var(--shadow-chip);
 }
 
 @keyframes flip-down {
@@ -187,44 +237,34 @@
   }
 }
 
-/* 結果一覧の小カードのめくり遅延（何番目かは poker の都合） */
-.votes li:nth-child(1) .card.small { animation-delay: 0.05s; }
-.votes li:nth-child(2) .card.small { animation-delay: 0.12s; }
-.votes li:nth-child(3) .card.small { animation-delay: 0.19s; }
-.votes li:nth-child(4) .card.small { animation-delay: 0.26s; }
-.votes li:nth-child(5) .card.small { animation-delay: 0.33s; }
-.votes li:nth-child(n + 6) .card.small { animation-delay: 0.4s; }
-
 /* ---------- 結果 ---------- */
 
-.votes {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
-}
-
-.votes li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0.4rem 0.8rem;
-  background: var(--felt-sink);
-  border: 1px solid var(--line);
-  border-radius: 10px;
-}
-
 /* 未投票の印。字は `--ivory-faint`（12px の本文で AA を満たす最も淡い段）。α 0.4 では最も明るい卓の面で
-   2.65:1（計算）・票の行の上で 2.98:1（E2E の実測）と AA を割っていた（#320 PR 5 で発見。それまで E2E は未投票を出していなかった）。 */
+   2.65:1（計算）・かつての票の行（席と同じ `--felt-sink` の地）の上で 2.98:1（E2E の実測）と AA を割っていた（#320 PR 5 で発見。それまで E2E は未投票を出していなかった）。 */
 .no-vote {
   font-size: var(--font-size-xs);
   color: var(--ivory-faint);
   border: 1.5px dashed var(--line-strong);
   border-radius: 6px;
   padding: 0.3rem 0.6rem;
+}
+
+/* 集計は最後の札のめくりが終わるころに現れる（#348 D5）。待ちは席の数で決まる。
+   遅延は要素層の reduced-motion の一括の手当てが 0 にする（timer は要素層を読まないが、poker は読む）。 */
+.results .stats {
+  animation: stats-rise 0.3s ease both;
+  animation-delay: calc(min(var(--seat-count, 1) - 1, 8) * 90ms + 0.45s);
+}
+
+@keyframes stats-rise {
+  from {
+    opacity: 0;
+    transform: translateY(0.4rem);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .stats {
