@@ -61,8 +61,8 @@ LP の dev サーバーが本番の Caddy と同じ役割を担い、`/timer/` �
 
 ## 個別起動
 
-Tasuki は **5 つのプロセス**（web 4 + 同期サーバー 1）で構成されます。
-同期サーバーが 1 本なのは #95 S2 で timer と poker を統合したためです。
+Tasuki は **画面ごとの web プロセス**（玄関とツールごとに 1 本）と**同期サーバー 1 本**で構成されます。
+同期サーバーが 1 本なのは #95 S2 で timer と poker を統合したためで、後から足したツールも同じ 1 本を使います。
 用途に応じて必要なものだけ起動してください。
 
 | プロセス | コマンド | 開く URL |
@@ -72,7 +72,7 @@ Tasuki は **5 つのプロセス**（web 4 + 同期サーバー 1）で構成�
 | poker の画面 | `pnpm --filter @tasuki/poker-web dev` | <http://localhost:5174/poker/> |
 | お題ツールの画面 | `pnpm --filter @tasuki/topic-web dev` | <http://localhost:5176/topic/> |
 | 進行役ルーレットの画面 | `pnpm --filter @tasuki/roulette-web dev` | <http://localhost:5177/roulette/> |
-| 同期サーバー（timer・poker・お題ツールで共用） | `pnpm --filter @tasuki/sync dev` | （:8787・画面から使う） |
+| 同期サーバー（すべての画面で共用） | `pnpm --filter @tasuki/sync dev` | （:8787・画面から使う） |
 
 各アプリは本番と同じ `base` で配信されます。ブラウザで `http://localhost:5173/` のように
 base を省いて開いた場合は、Vite が **302 で `/timer/` へリダイレクト**するので表示できます。

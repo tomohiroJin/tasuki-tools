@@ -36,11 +36,12 @@ Tasuki の各アプリは「自分の systemd ユニット + 固有ポート + C
 
 ### 公開範囲の方針
 
-**4 本すべてが公開中である**（timer / poker / landing は 2026-08-28・#66、`topic` は 2026-09-27・#91）。
-同期サーバーは 4 本で共用の 1 本（`tasuki-sync`）のままで、`topic` は `poker` / `landing` と同じ静的アプリである。
+公開中かどうかはアプリごとに上の表の「状態」が正本である（timer / poker / landing は 2026-08-28・#66、
+`topic` は 2026-09-27・#91 に初回公開）。同期サーバーはすべてのアプリで共用の 1 本（`tasuki-sync`）で、
+`topic`・`roulette` は `poker` / `landing` と同じ静的アプリである。
 デプロイはアプリ単位（`./deploy/deploy.sh <app>`）で、指定したアプリだけが転送される。
 
-`landing`・`poker`・`topic` は **sync サーバーを持たない静的サイト**で、Caddy が直接配信する。`app.env` に
+`timer` 以外（表で「サービス」が無いもの）は **sync サーバーを持たない静的サイト**で、Caddy が直接配信する。`app.env` に
 `STATIC_ONLY=1` を置くと、`deploy.sh` はバンドルとサービス再起動の段を飛ばし、
 `setup.sh`（systemd ユニット・sudoers）も不要になる。
 

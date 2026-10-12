@@ -8,7 +8,7 @@ export default defineConfig({
   base: '/',
   plugins: [react()],
   server: {
-    // 既定ポートを明示する。4 アプリを同時に起動するため、既定（5173）のままだと
+    // 既定ポートを明示する。画面のアプリを同時に起動するため、既定（5173）のままだと
     // 取り合いになって毎回別のポートに逃げ、起動手順を書けなくなる。
     // 値は @tasuki/dev-hub-redirect の HUB_PORT と共有する（timer / poker / topic / roulette の
     // dev-only リダイレクト先と同じ値を 2 箇所に書くと食い違うため）。
