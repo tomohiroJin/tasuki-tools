@@ -259,7 +259,7 @@ describe("ルーレット（?tool=roulette）の接続の振り分け", () => {
     }
   });
 
-  it("Given ?tool=roulette で繋ぐ / When 受理されてから閉じる / Then onConnect が (connId, rateKey) で 1 回、onDisconnect が 1 回呼ばれる", async () => {
+  it("Given ?tool=roulette で繋ぐ / When 受理されてから閉じる / Then 受理と切断が 1 回ずつ通知される（接続 ID と鍵つき）", async () => {
     // Given
     const connectCalls: Array<[string, string]> = [];
     const disconnectCalls: string[] = [];

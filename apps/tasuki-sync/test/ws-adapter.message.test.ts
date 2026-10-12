@@ -368,7 +368,7 @@ describe("WsAdapter お題（topic）のメッセージ経路", () => {
  */
 describe("ハブ（選択画面）のメッセージ層が同期 throw しても隔離される", () => {
   it("throw は on-message-error として記録され、INTERNAL_ERROR フレームを返して接続もサーバーも生き残る", async () => {
-    // Given: 最初の呼び出しだけ同期 throw する onHubMessage
+    // Given: 最初の 1 通だけ同期 throw する onHubMessage
     const { logger, lines } = collectingLogger();
     let calls = 0;
     adapter = newTestWsAdapter({
@@ -439,7 +439,7 @@ describe("ハブ（選択画面）のメッセージ層が同期 throw しても
  */
 describe("お題（topic）のメッセージ層が同期 throw しても隔離される", () => {
   it("throw は on-message-error として記録され、INTERNAL_ERROR フレームを返して接続もサーバーも生き残る", async () => {
-    // Given: 最初の呼び出しだけ同期 throw する onTopicMessage
+    // Given: 最初の 1 通だけ同期 throw する onTopicMessage
     const { logger, lines } = collectingLogger();
     let calls = 0;
     adapter = newTestWsAdapter({
@@ -527,7 +527,7 @@ describe("WsAdapter ルーレットのメッセージ経路", () => {
     ws.close();
   });
 
-  it("Given 最初の呼び出しだけ同期 throw するルーレットの層 / When 2 通送る / Then INTERNAL_ERROR を返し、接続もプロセスも落ちず 2 通目が届く", async () => {
+  it("Given 最初の 1 通だけ同期 throw するルーレットの層 / When 2 通送る / Then INTERNAL_ERROR を返し、接続もプロセスも落ちず 2 通目が届く", async () => {
     // Given
     const { logger, lines } = collectingLogger();
     let calls = 0;

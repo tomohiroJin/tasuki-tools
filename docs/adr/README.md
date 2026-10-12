@@ -52,3 +52,4 @@ Michael Nygard 形式（背景 / 決定 / 影響 / ステータス）に従い�
 | [0023](./0023-timer-without-tailwind.md) | timer は Tailwind を使わず、素の CSS とトークン層・部品層で組む | Accepted |
 | [0024](./0024-vulnerability-detection-outside-ci.md) | 依存の脆弱性の検知を CI から GitHub と Renovate へ移す | Accepted |
 | [0025](./0025-responsive-layout.md) | 幅の段・器・段組み・ボタンを部品層で揃える | Accepted |
+| [0026](./0026-facilitator-roulette.md) | ルーレットを 5 つ目の文脈にし、乱数と一周の規則をサーバーが持つ | Accepted |
