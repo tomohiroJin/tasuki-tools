@@ -1,0 +1,37 @@
+import { useRef } from 'react';
+import { CARD_LABEL, CARD_SUFFIX } from '../copy';
+
+/**
+ * 結果の札（spec §6.4）。指し針が差し出す 1 枚。伏せて置き、止まったらめくる。
+ * 読み上げは結果の一言（`role="status"`）が持つので、札は `aria-hidden`（二重に読まない）。
+ *
+ * 表は「次の進行役」と名前だけ（隅のピップは置かない）。回し直すと伏せ直る間に表が空に
+ * 見えないよう、最後に出した名前を保つ。
+ */
+export function ResultCard({
+  name,
+  revealed,
+  ref,
+}: {
+  /** 止まった当たりの名前（回っている間は null） */
+  name: string | null;
+  revealed: boolean;
+  ref?: React.Ref<HTMLDivElement>;
+}) {
+  const last = useRef('');
+  if (name !== null) last.current = name;
+  return (
+    <div ref={ref} className={`roulette-card${revealed ? ' is-revealed' : ''}`} aria-hidden="true">
+      <div className="roulette-card-inner">
+        <div className="roulette-card-back" />
+        <div className="roulette-card-face">
+          <p className="roulette-card-label">{CARD_LABEL}</p>
+          <p className="roulette-card-name">
+            {last.current}
+            <small>{CARD_SUFFIX}</small>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}

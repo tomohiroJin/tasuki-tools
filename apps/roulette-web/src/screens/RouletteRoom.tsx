@@ -1,17 +1,16 @@
 /**
- * ルーレットのルームの画面（#94 PR 2・spec §5.6）。1 画面で完結させる。
+ * ルーレットのルームの画面（#94・spec §5.6）。1 画面で完結させる。
  *
  * **ここで名前は聞かない**（名乗りは玄関に 1 つだけ・`docs/adr/0018`）。端末に同一性が無い・
  * 合言葉を求められたら、玄関のそのルームへ送り返す（コードは落とさない）。
  *
- * 円盤と札は PR 3 で舞台（`.roulette-stage`）の中に足す。いまの舞台は
- * お題の添え書き・結果の一言・回すだけで、「回して決まる」を通す。
+ * 舞台（円盤・札・一言・回す）は `Stage` が持つ（PR 3）。
  */
 import { useEffect, useState } from 'react';
 import { InviteLink } from '../components/InviteLink';
 import { LoadingView } from '../components/LoadingView';
 import { PeoplePanel } from '../components/PeoplePanel';
-import { SpinControls } from '../components/SpinControls';
+import { Stage } from '../components/Stage';
 import {
   BACK_LINK,
   GONE_HEADING,
@@ -20,8 +19,6 @@ import {
   INVITE_HEADING,
   JOINING_HEADING,
   PAGE_HEADING,
-  STAGE_HEADING,
-  topicNoteText,
 } from '../copy';
 import { useRouletteSync } from '../hooks/use-roulette-sync';
 import { usePrefersReducedMotion } from '../hooks/use-reduced-motion';
@@ -153,17 +150,17 @@ export function RouletteRoom({ roomCode }: { roomCode: string }) {
         {/* 段組み（ADR 0025）。操作の面が主役、脇は右。DOM は狭い幅で見せたい順:
             お題 → 結果の一言 → 回す → 入る人 → 名前を追加 → 一周 → 仲間を招く */}
         <div className="ui-workspace ui-workspace--side-end">
-          <section className="ui-workspace-main roulette-stage" aria-labelledby="roulette-stage-heading">
-            <h2 id="roulette-stage-heading" className="roulette-visually-hidden">
-              {STAGE_HEADING}
-            </h2>
-            {topicTitle !== null && <p className="roulette-topic">{topicNoteText(topicTitle)}</p>}
-            {/* 読み上げは role="status"。回している間は当たりの名前を入れない（止まってから入れる） */}
-            <p className="roulette-caption" role="status">
-              {captionOf({ view: current, phase, poolCount: people.poolCount })}
-            </p>
-            <SpinControls label={button.label} disabled={button.disabled} onSpin={sync.spin} />
-          </section>
+          <Stage
+            members={membersOf(sync.roster)}
+            view={current}
+            receivedAt={sync.receivedAt}
+            reducedMotion={reducedMotion}
+            people={people}
+            topicTitle={topicTitle}
+            caption={captionOf({ view: current, phase, poolCount: people.poolCount })}
+            button={button}
+            onSpin={sync.spin}
+          />
           <div className="ui-workspace-side roulette-side">
             <PeoplePanel
               people={people}
