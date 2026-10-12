@@ -59,24 +59,27 @@ test.describe('poker の文字が背景に対して読める（WCAG AA）', () =
     await chooseCard(poker.page, '5');
     await expect(resultsSection(poker.page)).toBeVisible();
     const revealed = await scanContrast(poker.page, 10);
-    expectReadable(revealed, 8, []);
+    //   席の札の表の字（`--coal` on 札の地のグラデーション・#348）も固定する。公開後は手札が無いので、
+    //   この組を描くのは席の札の表だけ（めくりで表が裏返ったまま・背面が隠れたままだと測られない）
+    const faceGround = `rgba(0, 0, 0, 0) + linear-gradient(165deg, ${sheen} 0%, ${ivory} 60%, ${shade} 100%)`;
+    expectReadable(revealed, 8, [pairKey(coal!, faceGround)]);
     //   公開後にだけ出る「結果」の見出しも羅紗の上で測られていること
     expect([...revealed.pairs].some((p) => p.startsWith(ivoryOnFelt)), `公開後の見出し（${ivoryOnFelt}）を測っていない`).toBe(true);
 
-    // When / Then その3（#348）: 動きを抑える設定では、お題を隠すと 2 フレーム後には読む面が幅 0 で `visibility: hidden`。
-    //   遅延（0.32 秒）が残ると、その間 `visible` のまま幅だけ縮む。64rem 未満は `display: none` で遅延が効かず
-    //   何も測れないので、広い幅にしてから押す
+    // When / Then その3（#348）: 動きを抑える設定では、お題を隠したときの読む面の移り変わりに遅延が残らない。
+    //   遅延（`visibility` の 0.32 秒）が残ると、その間 `visible` のまま幅だけ縮む。64rem 未満は `display: none` で
+    //   遅延が効かず何も測れないので、広い幅にしてから押す。
+    //   **フレームを数えて幅と `visibility` を読む形はやめた。** 移り変わりは書き換えの次のフレームで作られ、
+    //   その次で始まる（start time が決まる）ので、並列で流すと 2 フレームでは終わっていない回があった
+    //   （実測: 幅 493.7px のまま）。閉じた区画の計算値の遅延を直に読み、終わった姿は待って確かめる
     await poker.page.setViewportSize({ width: 1280, height: 900 });
-    const closed = await poker.page.evaluate(async () => {
-      const side = document.querySelector('.room-topic-side');
-      const button = [...document.querySelectorAll('button')].find((b) => b.textContent?.trim() === 'お題を隠す');
-      if (side === null || button === undefined) throw new Error('お題の区画か切り替えのボタンが無い');
-      button.click();
-      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-      return { width: side.getBoundingClientRect().width, visibility: getComputedStyle(side).visibility };
-    });
-    expect(closed.width, '動きを抑える設定でお題の区画が幅 0 になっていない').toBeLessThanOrEqual(1);
-    expect(closed.visibility, '動きを抑える設定で閉じた区画の visibility の遅延が残っている').toBe('hidden');
+    await poker.page.getByRole('button', { name: 'お題を隠す' }).click();
+    const side = poker.page.locator('.room-topic-side');
+    await expect(side).toHaveAttribute('data-state', 'closed');
+    const delays = await side.evaluate((el) => getComputedStyle(el).transitionDelay.split(',').map((d) => d.trim()));
+    expect(delays.every((d) => d === '0s'), `動きを抑える設定で閉じた区画の移り変わりの遅延が残っている（${delays.join(', ')}）`).toBe(true);
+    await expect.poll(() => side.evaluate((el) => el.getBoundingClientRect().width), '閉じた区画が幅 0 にならない').toBeLessThanOrEqual(1);
+    await expect.poll(() => side.evaluate((el) => getComputedStyle(el).visibility), '閉じた区画が隠れない').toBe('hidden');
   });
 
   test('Given 2 人のルームで 1 人だけが投票 / When 票を公開する / Then 未投票の印も AA を満たし、動きを抑える設定ではめくりの遅延も止まる', async ({ page, openPeer }) => {

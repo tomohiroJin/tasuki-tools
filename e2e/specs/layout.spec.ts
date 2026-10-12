@@ -105,6 +105,19 @@ const LINKED_LONG_BODY = LONG_BODY.replace('4 行目の説明です。', `4 行�
 
 type OpenPeer = (label: string) => Promise<{ page: Page }>;
 
+/**
+ * お題が届いたときの段組みの移り変わり（列が 0 から広がる 0.32 秒・#348 D7）が終わるのを待つ。
+ * 待たずに区画の幅や位置を測ると、広がる途中の値を読む（実測: 札の比が 0.43 でなく 0.40、
+ * 滑りの物差しの「開いた位置」が閉じた位置とほぼ同じ）。
+ */
+async function settleWorkspace(page: Page): Promise<void> {
+  await page.evaluate(async () => {
+    const workspace = document.querySelector('.room .ui-workspace--reader');
+    if (workspace === null) throw new Error('段組みが無い');
+    await Promise.all(workspace.getAnimations({ subtree: true }).map((a) => a.finished.catch(() => undefined)));
+  });
+}
+
 /** poker のルームにお題を掲げ、脇（読む面）まで描かれた状態にする。返すのは参加用 URL。 */
 async function openPokerWithTopic(page: Page, openPeer: OpenPeer, body = '3 のときは Fizz を出す'): Promise<string> {
   const url = await createPokerRoom(page, 'layout-a');
@@ -112,6 +125,7 @@ async function openPokerWithTopic(page: Page, openPeer: OpenPeer, body = '3 の�
   await joinTopicTool(topic.page, url, 'layout-t');
   await setTopic(topic.page, 'FizzBuzz', body);
   await expect(page.getByRole('region', { name: 'お題', exact: true })).toBeVisible();
+  await settleWorkspace(page);
   return url;
 }
 
@@ -129,6 +143,7 @@ async function openPokerWithTopicTool(
   await joinTopicTool(topic.page, url, 'layout-t');
   await setTopic(topic.page, 'FizzBuzz', body);
   await expect(page.getByRole('region', { name: 'お題', exact: true })).toBeVisible();
+  await settleWorkspace(page);
   return { url, topicPage: topic.page };
 }
 
@@ -148,6 +163,10 @@ async function slideMidway(
     const button = [...document.querySelectorAll('button')].find((b) => b.textContent?.trim() === name);
     if (workspace === null || main === null || button === undefined) throw new Error('段組みか切り替えのボタンが無い');
     const left = () => main.getBoundingClientRect().left;
+    // 前の移り変わり（お題が届いたときの列の広がり 0.32 秒など）が終わってから測り始める。
+    //   終わる前に測ると、開いた位置ではなく広がり始めの位置（≒ 閉じた位置）を `from` にしてしまう
+    //   （実測: |to - from| が 0。`settleWorkspace` を経ない呼び出し方でも成り立つよう、ここでも待つ）
+    await Promise.all(workspace.getAnimations({ subtree: true }).map((a) => a.finished.catch(() => undefined)));
     const from = left();
     // 実際の操作と同じく、押したボタンにフォーカスがある状態にする（`click()` はフォーカスを動かさない）
     button.focus();
@@ -200,11 +219,13 @@ async function takeGridTransitions(page: Page): Promise<number> {
   });
 }
 
-/** 手札の札の上端の集合の大きさ（1 なら 1 行、2 なら 2 段）。 */
-async function cardHandRows(page: Page): Promise<number> {
+/** 手札の行ごとの札の枚数（上から）。5 × 2 は [5, 5]、割れた並びは [9, 1]。段の数だけでは両者を区別できない。 */
+async function cardHandRowSizes(page: Page): Promise<number[]> {
   const tops = await page.locator('.card-hand .card').evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().top)));
   expect(tops.length).toBe(10);
-  return new Set(tops).size;
+  const counts = new Map<number, number>();
+  for (const top of tops) counts.set(top, (counts.get(top) ?? 0) + 1);
+  return [...counts.entries()].sort(([a], [b]) => a - b).map(([, n]) => n);
 }
 
 /** 区切りの無い ASCII の長い名前（表示名の上限 40 字の内）。折り返す場所が無く、flex の子が縮まないと行からはみ出す。 */
@@ -337,7 +358,7 @@ test.describe('poker のルームは広い画面で読む面と操作の面を�
     await expectPageFitsScreen(page);
     await expectBodyScrolls(page);
     // 手札は操作の面の幅で決まる（#348 D9）。1920 では約 53rem あるので、お題を開いていても 1 行に並ぶ
-    expect(await cardHandRows(page), '1920 の開いた状態の手札は 1 行').toBe(1);
+    expect(await cardHandRowSizes(page), '1920 の開いた状態の手札は 1 行').toEqual([10]);
   });
 
   test('Given 幅 1280・長い説明・長い名前の参加者 / When ルームを開く / Then 器の内側は 1152px 以上で、読む面が左・操作の面が右に揃い、席は場の右端を越えない', async ({ page, openPeer }) => {
@@ -392,8 +413,18 @@ test.describe('poker のルームは広い画面で読む面と操作の面を�
     const ratio = reader.width / (reader.width + main.width);
     expect(ratio).toBeGreaterThan(0.41);
     expect(ratio).toBeLessThan(0.45);
-    // 操作の面が 10 枚を 1 行に並べられない幅（約 39rem）なので、手札は 5 × 2 段（#348 D9）
-    expect(await cardHandRows(page), '1280 の開いた状態の手札は 2 段').toBe(2);
+    // 手札の並びは操作の面の幅で決まる（#348 D9）。1280 の開いた状態の操作の面は約 41.1rem
+    //   （(1280 - 器の余白 96 - 間隔 32) / 1.75）で、10 枚が 1 行に収まる幅（38.95rem）を超えるので 1 行。
+    //   脇の有無で決める誤り（#348 より前の規則）だと、ここが 5 × 2 になる
+    expect(await cardHandRowSizes(page), '1280 の開いた状態の手札は 1 行').toEqual([10]);
+    //   閉じても（操作の面 46rem）同じ 1 行で、出し入れで手札が組み替わらない
+    await page.getByRole('button', { name: 'お題を隠す' }).click();
+    await expect.poll(() => page.locator('.ui-workspace-side').evaluate((el) => el.getBoundingClientRect().width)).toBeLessThanOrEqual(1);
+    expect(await cardHandRowSizes(page), '1280 の閉じた状態の手札は 1 行').toEqual([10]);
+    // 1100 の開いた状態は操作の面が約 35rem で 10 枚が収まらない。9 + 1 に割れず 5 × 2 に揃う（コンテナクエリが効いている）
+    await page.setViewportSize({ width: 1100, height: 900 });
+    await page.getByRole('button', { name: 'お題を見る' }).click();
+    await expect.poll(() => cardHandRowSizes(page), '1100 の開いた状態の手札は 5 × 2').toEqual([5, 5]);
   });
 
   test('Given 幅 1280・お題を開いている / When 「お題を隠す」「お題を見る」を押す / Then 操作の面は途中の位置を通って滑り、閉じた読む面は幅 0・Tab の行き先にならない', async ({ page, openPeer }) => {
