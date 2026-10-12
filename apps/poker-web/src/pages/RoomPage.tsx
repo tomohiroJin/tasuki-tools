@@ -197,6 +197,11 @@ export function RoomPage({ roomId, sync }: Props) {
   }
 
   const isVoting = snapshot.round.status === 'voting';
+  // 公開後の票を席の札へ渡す（席の数は小さいので useMemo は要らない）
+  const revealedVotes =
+    snapshot.round.status === 'revealed'
+      ? new Map(snapshot.round.votes.map((v) => [v.participantId, v.card]))
+      : null;
   const inviteUrl = sync.inviteUrl(roomId);
 
   return (
@@ -250,7 +255,7 @@ export function RoomPage({ roomId, sync }: Props) {
         <div className="ui-workspace-main room-main">
           <section>
             <h2>参加者（{snapshot.participants.length}人）</h2>
-            <ParticipantList participants={snapshot.participants} you={snapshot.you} />
+            <ParticipantList participants={snapshot.participants} you={snapshot.you} votes={revealedVotes} />
           </section>
           {isVoting ? (
             <VotingSection snapshot={snapshot} sync={sync} />

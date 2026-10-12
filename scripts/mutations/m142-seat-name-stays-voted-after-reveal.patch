@@ -1,0 +1,21 @@
+# 変異 142: seat-name-stays-voted-after-reveal
+#
+# 検出を期待するテスト:
+#   - apps/poker-web/tests/participant-list.test.tsx
+#     U1「Given 公開後 / Then 票のある席の札の名前は表の値」。公開後も読み上げが「投票済み」のまま。
+#
+# #348・設計正本 D1 / D2 / D6。
+#
+diff --git a/apps/poker-web/src/components/ParticipantList.tsx b/apps/poker-web/src/components/ParticipantList.tsx
+index 8965cad3..ea44499f 100644
+--- a/apps/poker-web/src/components/ParticipantList.tsx
++++ b/apps/poker-web/src/components/ParticipantList.tsx
+@@ -20,7 +20,7 @@ function SeatCard({ hasVoted, vote, order }: { hasVoted: boolean; vote: Card | u
+     <span
+       className={`seat-card${hasVoted ? ' facedown' : ''}${vote ? ' revealed' : ''}`}
+       role="img"
+-      aria-label={vote ? cardLabel(vote) : hasVoted ? '投票済み' : '未投票'}
++      aria-label={hasVoted ? '投票済み' : '未投票'}
+       style={{ '--seat-order': order } as CSSProperties}
+     >
+       <span className="seat-card-rotor">

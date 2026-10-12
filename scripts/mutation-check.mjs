@@ -1342,6 +1342,30 @@ export const MUTATIONS = [
     tests: ["test/ui/App.page-tier.test.tsx"],
     note: "#352・設計 D1。「全部 wide にすれば跳ねない」という直し方を止める。読み込み中と行き先の無い URL の画面は読む画面の段のまま。",
   },
+  {
+    id: 140,
+    label: "公開で席の札を作り直す",
+    patch: "m140-seat-card-remounts-on-reveal.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/participant-list.test.tsx"],
+    note: "#348・設計正本 D1。key に状態を混ぜると transition の起点が無く、めくれずに表が出る。U2 が同じ要素かを見る。",
+  },
+  {
+    id: 141,
+    label: "席の札のめくり順を定数にする",
+    patch: "m141-seat-flip-order-constant.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/participant-list.test.tsx"],
+    note: "#348・設計正本 D2。--seat-order が全員 0 だと一斉にめくれる。U3 が席順を見る。",
+  },
+  {
+    id: 142,
+    label: "公開後も席の札の名前が投票済みのまま",
+    patch: "m142-seat-name-stays-voted-after-reveal.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/participant-list.test.tsx"],
+    note: "#348・設計正本 D6。表の値が読み上げに出ない。U1 が公開後の名前を見る。",
+  },
 ];
 
 /**
