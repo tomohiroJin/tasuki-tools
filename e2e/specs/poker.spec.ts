@@ -20,8 +20,8 @@ import {
   joinRoom,
   participantRow,
   sendJoinToMissingRoom,
-  resultRow,
   resultsSection,
+  seatCard,
   roomStateFrames,
   showsVoted,
 } from '../support/poker';
@@ -107,8 +107,10 @@ test.describe('@core poker は公開まで他人の票を配らない', () => {
       ['作成者', page],
       ['参加者', guest.page],
     ] as const) {
-      await expect(resultRow(target, HOST), `${label}の画面`).toContainText('5');
-      await expect(resultRow(target, GUEST), `${label}の画面`).toContainText('☕');
+      await expect(seatCard(target, HOST), `${label}の画面`).toHaveAccessibleName('5');
+      await expect(seatCard(target, GUEST), `${label}の画面`).toHaveAccessibleName('☕');
+      // 各自の票は席の札だけが見せる。結果の節は集計だけで、票の行を持たない（#348）
+      await expect(resultsSection(target).getByRole('listitem'), `${label}の画面`).toHaveCount(0);
     }
   });
 });
@@ -154,8 +156,8 @@ test.describe('poker は 2 人目の参加者が公開でき、次のラウン�
 
     // Then その2: **中身も伴っている。** 2 人目の票が公開され、作成者は未投票のまま出る。
     // バナーが無いだけでは「押しても何も起きていない」との区別がつかない
-    await expect(resultRow(page, GUEST), '公開後の2人目の行').toContainText('5');
-    await expect(resultRow(page, HOST), '公開後の作成者の行').toContainText('未投票');
+    await expect(seatCard(page, GUEST), '公開後の2人目の札').toHaveAccessibleName('5');
+    await expect(participantRow(page, HOST).getByText('未投票', { exact: true }), '公開後の作成者の席').toBeVisible();
 
     // When その2: **同じ、ルームを作った本人ではない**2人目が「次のラウンドへ」を押す
     await guest.page.getByRole('button', { name: '次のラウンドへ' }).click();
@@ -172,6 +174,9 @@ test.describe('poker は 2 人目の参加者が公開でき、次のラウン�
         participantRow(target, GUEST).getByRole('img', { name: '未投票' }),
         `${label}の画面：前ラウンドで投票済みだった2人目が未投票に戻っている`,
       ).toBeVisible();
+      // 前のラウンドの値が席に残らない。名前の定数（e2e-a / e2e-b）は 5 を含まない。
+      // 5 を含む名前に変えると、この否定は名前に当たって恒真になる
+      await expect(participantRow(target, GUEST), `${label}の画面：前ラウンドの値が残っている`).not.toContainText('5');
     }
   });
 });
@@ -489,7 +494,7 @@ test.describe('poker の room-state に契約が知らないキーが乗って�
 
     // Then その2: 公開後の表示も届く（votes / stats に余剰キーが乗った状態で通っている）
     await expect(resultsSection(page)).toBeVisible();
-    await expect(resultRow(page, HOST), '公開後の結果の行').toHaveCount(1);
+    await expect(seatCard(page, HOST), '公開後の席の札').toHaveAccessibleName('5');
 
     // Then その3: **書き換え屋が実際に働いた**
     expect(augmented, '余剰キーを足した room-state の数').toBeGreaterThan(0);

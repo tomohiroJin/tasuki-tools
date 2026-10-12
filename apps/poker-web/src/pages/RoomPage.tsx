@@ -302,12 +302,12 @@ function RevealedSection({
   sync: PokerSync;
 }) {
   if (snapshot.round.status !== 'revealed') return null;
-  const { votes, stats } = snapshot.round;
+  const { stats } = snapshot.round;
   const offline = sync.status !== 'open';
 
   return (
     <>
-      <Results participants={snapshot.participants} votes={votes} stats={stats} />
+      <Results stats={stats} seatCount={snapshot.participants.length} />
       {/* かつてはホストだけに出ていたが、#95 S3 でホストを廃止し全参加者へ開放した */}
       <div className="ui-actions ui-actions--dock">
         {/* 再投票と次ラウンドはドメイン上同一操作（next-round）。ラベルのみ区別（FR-011）。主は最後 */}
