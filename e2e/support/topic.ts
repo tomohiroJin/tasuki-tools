@@ -51,15 +51,15 @@ export async function setTopic(page: Page, title: string, body: string): Promise
 
 /** 64rem 未満で切られる本文の先（4 段落目）に置くリンク。Tab が止まるかどうかを見る（#316 PR 4）。 */
 export const AFTER_LINK_HREF = 'https://example.com/after';
-export const AFTER_LINK_NAME = '先のリンク';
+export const AFTER_LINK_NAME = 'after';
 /** 段落を 6 つ置き、4 段落目にリンクを入れる本文（3 行で切れば、リンクは切った先に来る）。 */
 export const LINKED_BODY = [
-  '1 段落目です。',
-  '2 段落目です。',
-  '3 段落目です。',
-  `4 段落目です。[${AFTER_LINK_NAME}](${AFTER_LINK_HREF})`,
-  '5 段落目です。',
-  '6 段落目です。',
+  'Para 1.',
+  'Para 2.',
+  'Para 3.',
+  `Para 4. [${AFTER_LINK_NAME}](${AFTER_LINK_HREF})`,
+  'Para 5.',
+  'Para 6.',
 ].join('\n\n');
 
 /**

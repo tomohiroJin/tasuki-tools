@@ -140,8 +140,10 @@ export function CurrentTopic({ state, enabled, draft, onCopyToDraft, onClear }: 
           aria-labelledby={tabId(t.id)}
           className="topic-reader-panel"
           hidden={t.id !== active}
-          // フォーカスの止まり先（本文の領域）が無いパネルには、パネル自身を止まり先にする（WAI-ARIA Tabs の作法）
-          tabIndex={t.id === 'current' ? (hasBody ? undefined : 0) : draftBlank ? 0 : undefined}
+          // フォーカスの止まり先（本文の領域）が無いパネルには、パネル自身を止まり先にする（WAI-ARIA Tabs の作法）。
+          // 下書きのパネルは常に止まり先にする: 64rem 未満の本文は inert の写しで、本文の領域は描かれず止まり先が無い
+          // （64rem 以上では本文の領域とパネルの 2 つに止まる。許容する）
+          tabIndex={t.id === 'current' ? (hasBody ? undefined : 0) : 0}
         >
           {t.id === 'current' && active === 'current' && (
             <>

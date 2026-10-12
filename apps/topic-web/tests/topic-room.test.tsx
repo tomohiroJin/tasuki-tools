@@ -883,7 +883,7 @@ describe('読む面のタブ', () => {
     expect(document.getElementById(tab(copy.TAB_CURRENT).getAttribute('aria-controls') ?? '')).not.toHaveAttribute('hidden');
   });
 
-  it('Given 止まり先の無いパネル / When 見る / Then パネル自身が tabindex 0。本文があるときは付けない', () => {
+  it('Given 止まり先の無いパネル / When 見る / Then パネル自身が tabindex 0。下書きは本文があっても付ける', () => {
     // Given: お題なし（現在のパネルに本文の領域が無い）
     enterWith();
     // Then
@@ -891,9 +891,13 @@ describe('読む面のタブ', () => {
     // When: 下書きのタブ（空）→ 同じく止まり先が無い
     fireEvent.click(tab(copy.TAB_DRAFT));
     expect(panel()).toHaveAttribute('tabindex', '0');
-    // When: 書くと本文の領域ができ、パネルには付けない
+    // When: 書くと本文の領域ができるが、下書きのパネルは常に止まり先のまま
+    // （64rem 未満の本文は inert の写しで、本文の領域は描かれず止まり先が無いため）
     fireEvent.change(bodyField(), { target: { value: '説明' } });
-    expect(panel()).not.toHaveAttribute('tabindex');
+    expect(panel()).toHaveAttribute('tabindex', '0');
+    // When: 場のお題のタブへ戻ると、本文が無ければ付く（お題なし）
+    fireEvent.click(tab(copy.TAB_CURRENT));
+    expect(panel()).toHaveAttribute('tabindex', '0');
   });
 
   it('Given 下書きにタイトルがある / When 下書きのタブを見る / Then 本文の領域はタイトルで名付けられる', () => {

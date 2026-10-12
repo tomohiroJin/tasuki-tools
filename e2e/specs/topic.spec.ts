@@ -523,10 +523,15 @@ test.describe('お題ツールを書く主役にする（#316 PR 1 の手直し�
     const draft = currentTopic(page).locator('.ui-reader-preview');
     await expect(draft.locator(`a[href="${AFTER_LINK_HREF}"]`), '下書きの写しにリンクが無い（判定が空振りする）').toHaveCount(1);
     await currentTopic(page).getByRole('tab', { name: '下書き' }).focus();
+    // 本文の領域は描かれないので、下書きのパネル自身が Tab の止まり先になる（WAI-ARIA Tabs）
+    const draftPanel = currentTopic(page).locator('[role="tabpanel"]:not([hidden])');
+    let panelStop = false;
     for (let i = 0; i < 12; i += 1) {
       await page.keyboard.press('Tab');
       expect(await page.evaluate(() => document.activeElement?.getAttribute('href')), `下書きの写しのリンクに Tab が止まった（${i + 1} 回目）`).not.toBe(AFTER_LINK_HREF);
+      panelStop ||= await draftPanel.evaluate((el) => el === document.activeElement);
     }
+    expect(panelStop, '下書きのパネルに Tab が止まらない（止まり先が無い）').toBe(true);
   });
 
   test('Given 幅 1280 でお題がある / When 札の下端を見る / Then 下書きにコピーは左・場から下げるは右、書く側の操作は場に出すが右端', async ({ page, consoleWatcher }) => {
