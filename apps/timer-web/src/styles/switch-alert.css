@@ -2,8 +2,7 @@
  * 値は基準（`ba9249d`）の計算済みスタイルと比較で確かめる（設計正本 D2）。
  * 登場の `animate-pop-in` と `animate-fade-up` は `base.css` のクラスのまま使う。
  * 写さなかった宣言（除去検査で dead）: ラベルの `text-[var(--signal)]`（`.instrument-label` の色が勝つ）、ドライバー名の `text-[var(--bone)]`（body の色を継ぐので不要）。
- * 王冠の幅と高さは `md:` で 4rem に切り替わる。
- * 行の高さ（`var(--timer-never-defined, calc(…))`）は status-strip.css 冒頭の注釈。 */
+ * 王冠の幅と高さは `md:` で 4rem に切り替わる。 */
 
 .switch-alert {
   position: fixed;
@@ -54,7 +53,7 @@
 
 .switch-alert-hint {
   margin-top: 2rem;
-  font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 PR 4 で段へ寄せる） */
-  line-height: var(--timer-never-defined, calc(1.25 / 0.875)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  font-size: var(--font-size-sm);
+  line-height: 1.45;
   color: var(--bone-subtle);
 }

@@ -27,7 +27,7 @@
 }
 
 .wordmark {
-  font-size: clamp(3rem, 11vw, 5rem);
+  font-size: clamp(3rem, 11vw, 5rem); /* scale-exempt: 題字（ブランドのロゴの代わり）。5 段の外 */
   font-style: italic;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -267,7 +267,7 @@
 }
 
 .landing-choice .wordmark {
-  font-size: 2.5rem;
+  font-size: 2.5rem; /* scale-exempt: 題字（ブランドのロゴの代わり）。5 段の外 */
   margin: 0;
 }
 .hub-room-summary {

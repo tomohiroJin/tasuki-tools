@@ -6,8 +6,7 @@
  * 同じ `Card` の子の見出しの `text-[var(--bone)]` が除去検査で dead。輪郭は基準（`ba9249d`）ではレイヤー外のグローバルな `:focus-visible { outline: … }` が
  * utilities の `outline-none` に常に勝っていた・設計正本 §2 の 5）、
  * 切替ボタンの `segClass(true)` の枝（呼び出しが無く描かれない）。
- * 編集中のテキストエリアは比較に描かれない（#321 PR 3 の Q5）。除去検査に行が無いので写す側へ倒した。
- * 行の高さ（`var(--timer-never-defined, calc(…))`）は status-strip.css 冒頭の注釈。 */
+ * 編集中のテキストエリアは比較に描かれない（#321 PR 3 の Q5）。除去検査に行が無いので写す側へ倒した。 */
 
 .shared-memo-header {
   margin-bottom: 0.5rem;
@@ -69,7 +68,7 @@
 }
 
 .shared-memo-empty {
-  font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 PR 4 で段へ寄せる） */
-  line-height: var(--timer-never-defined, calc(1.25 / 0.875)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  font-size: var(--font-size-sm);
+  line-height: 1.45;
   color: var(--bone-subtle);
 }

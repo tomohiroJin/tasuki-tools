@@ -7,27 +7,37 @@
  * `apps/landing` に起きており、実寸 8 種類のリズムの無い自前スケールになっていた。
  *
  * ## 許可リストを持たない
- * 段の名前は `typography.css` の定義から導出し、対象は `src/` 配下の CSS 全件である。
+ * 段の名前は `typography.css` の定義から導出し、対象は `packages/ui/src` と各アプリの `src` 配下の CSS 全件である。
  * 要素が増えても射程が自動で広がるので、**列挙に化けない**（設計正本 §5）。
  * #270 はこれを E2E の許可リストでやろうとして 9 件ぶん膨らみ、入れられなかった。
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readdirSync, readFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = resolve(ROOT, 'src');
+const REPO = resolve(ROOT, '../..');
 
 /** 書体スケール段の名前パターン（数字と `-` を含む。e.g. `--font-size-2xl`）。 */
 const FONT_SIZE_NAME = '--font-size-[a-z0-9-]+';
 
-/** `src/` 配下の CSS を再帰で拾う（`src` からの相対パスで返す）。 */
+/** 検査する CSS の根。部品層と、各アプリの src（apps の直下を読んで見つける。アプリを足しても射程が自動で広がる）。 */
+function cssRoots() {
+  const apps = readdirSync(resolve(REPO, 'apps'), { withFileTypes: true })
+    .filter((d) => d.isDirectory())
+    .map((d) => resolve(REPO, 'apps', d.name, 'src'))
+    .filter((p) => existsSync(p));
+  return [SRC, ...apps];
+}
+
+/** 根の下の CSS を再帰で拾う（リポジトリの根からの相対パスで返す）。 */
 function cssFiles() {
-  return readdirSync(SRC, { recursive: true })
-    .map(String)
-    .filter((p) => p.endsWith('.css'))
+  return cssRoots()
+    .flatMap((root) => readdirSync(root, { recursive: true }).map(String).filter((p) => p.endsWith('.css')).map((p) => join(root, p)))
+    .map((abs) => relative(REPO, abs))
     .sort();
 }
 
@@ -73,7 +83,7 @@ function definedSteps() {
 function declarations() {
   const found = [];
   for (const rel of cssFiles()) {
-    const lines = readFileSync(join(SRC, rel), 'utf8').split('\n');
+    const lines = readFileSync(join(REPO, rel), 'utf8').split('\n');
     lines.forEach((line, i) => {
       const matches = [...line.matchAll(/(?<![\w-])font-size\s*:\s*([^;]*)(;?)/gi)];
       matches.forEach((m, idx) => {
@@ -102,6 +112,14 @@ test('走査が空振りしていない（ファイルも宣言も実際に拾�
   // Then（0 件で緑になると、以降のすべての検査が無言で死ぬ）
   assert.ok(files.length > 0, 'src 配下に CSS が 1 つも無い');
   assert.ok(decls.length > 0, 'font-size の宣言を 1 つも拾えていない');
+});
+
+test('射程が部品層とアプリの両方に及んでいる', () => {
+  // Given / When
+  const files = cssFiles();
+  // Then（部品層だけを見て緑になる退化を捕まえる。#316 PR 4）
+  assert.ok(files.includes('apps/timer-web/src/styles/base.css'), 'アプリの CSS が射程に入っていない');
+  assert.ok(files.includes('packages/ui/src/tokens/typography.css'), '部品層の CSS が射程に入っていない');
 });
 
 test('流動スケールの段は 5 つである', () => {
@@ -150,7 +168,7 @@ test('font-size の宣言は同じ行で `;` まで終端している', () => {
 function fontShorthandOffenders() {
   const offenders = [];
   for (const rel of cssFiles()) {
-    const lines = readFileSync(join(SRC, rel), 'utf8').split('\n');
+    const lines = readFileSync(join(REPO, rel), 'utf8').split('\n');
     lines.forEach((line, i) => {
       if (/(?<![\w-])font\s*:/i.test(line)) {
         offenders.push(`${rel}:${i + 1}  ${line.trim()}`);

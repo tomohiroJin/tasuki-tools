@@ -142,34 +142,6 @@ describe("checkTimerClasses: 定義・衝突（設計正本 D10）", () => {
     const timerCss = [{ rel: "apps/timer-web/src/styles/x.css", text: ".card{}" }];
     assert.equal(checkTimerClasses({ ...base, timerCss }).length, 1);
   });
-  test("対照: `--timer-never-defined` を参照するだけの CSS（var の代替値）は 0 件", () => {
-    const timerCss = [{ rel: "apps/timer-web/src/styles/x.css", text: ".tabular{} .x{line-height:var(--timer-never-defined, calc(1 / 0.75))}" }];
-    assert.deepEqual(checkTimerClasses({ ...base, timerCss }), []);
-  });
-  test("`--timer-never-defined` を宣言したら落とす（timer の CSS・部品層・要素層のどこでも）", () => {
-    const decl = ":root{--timer-never-defined:1.5}";
-    for (const key of ["timerCss", "componentCss", "elementCss"]) {
-      const files = [...base[key], { rel: "x/y.css", text: decl }];
-      const problems = checkTimerClasses({ ...base, [key]: files });
-      assert.equal(problems.length, 1, key);
-      assert.match(problems[0], /timer-never-defined/);
-    }
-  });
-  test("`--timer-never-defined` を @property で登録したら落とす（initial-value が代替値より勝つ）", () => {
-    const reg = "@property --timer-never-defined { syntax: '<number>'; inherits: false; initial-value: 1.5; }";
-    for (const key of ["timerCss", "componentCss", "elementCss"]) {
-      const files = [...base[key], { rel: "x/y.css", text: reg }];
-      const problems = checkTimerClasses({ ...base, [key]: files });
-      assert.equal(problems.length, 1, key);
-      assert.match(problems[0], /timer-never-defined/);
-    }
-  });
-  test("`@PROPERTY`（大文字）で登録しても落とす（at-rule の名前は大文字小文字を区別しない）", () => {
-    const reg = "@PROPERTY --timer-never-defined { syntax: '<number>'; inherits: false; initial-value: 1.5; }";
-    const problems = checkTimerClasses({ ...base, timerCss: [...base.timerCss, { rel: "x/y.css", text: reg }] });
-    assert.equal(problems.length, 1);
-    assert.match(problems[0], /timer-never-defined/);
-  });
   test("対照: timer の CSS が @keyframes を持つなら 0 件（animation-name・短縮形とも）", () => {
     const timerCss = [...base.timerCss, { rel: "apps/timer-web/src/styles/l.css", text: "@keyframes spin{to{opacity:1}} .a{animation-name: spin, none} .b{animation: 1s ease-in spin both; animation: inherit}" }];
     assert.deepEqual(checkTimerClasses({ ...base, timerCss }), []);

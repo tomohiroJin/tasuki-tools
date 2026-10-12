@@ -1,7 +1,6 @@
 /* 読み込み画面（`Loading.tsx`・#321）。Tailwind のユーティリティの写し。
  * 値は基準（`ba9249d`）の計算済みスタイルと比較で確かめる（設計正本 D2）。
  * 見出し・ラベルの文字色は書かない（`.brand-title` / `.instrument-label` の色が勝っていて、Tailwind の色は効いていなかった）。
- * 行の高さ（`var(--timer-never-defined, calc(…))`）は status-strip.css 冒頭の注釈。
  * 点滅は Tailwind の `animate-pulse` の写し。`@keyframes pulse` は `session.css` が定義する（ここに書くと同名が 2 つ連なり比較が差を出す）。
  * `animation` の一括指定で書かない理由は `session.css` の冒頭。出どころは検査（`scripts/audit-timer-classes.mjs`）が強制する。 */
 
@@ -34,8 +33,8 @@
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  font-size: 0.75rem; /* scale-exempt: Tailwind の text-xs の写し（#316 PR 4 で段へ寄せる） */
-  line-height: var(--timer-never-defined, calc(1 / 0.75)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  font-size: var(--font-size-xs);
+  line-height: 1.35;
 }
 
 .loading-connection-ok {
@@ -74,8 +73,8 @@
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
-  font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 PR 4 で段へ寄せる） */
-  line-height: var(--timer-never-defined, calc(1.25 / 0.875)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  font-size: var(--font-size-sm);
+  line-height: 1.45;
   color: var(--bone-muted);
 }
 
@@ -94,8 +93,8 @@
 
 .loading-next-hint {
   margin-top: 1.25rem;
-  font-size: 0.75rem; /* scale-exempt: Tailwind の text-xs の写し（#316 PR 4 で段へ寄せる） */
-  line-height: var(--timer-never-defined, calc(1 / 0.75)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  font-size: var(--font-size-xs);
+  line-height: 1.35;
   color: var(--bone-subtle);
 }
 
