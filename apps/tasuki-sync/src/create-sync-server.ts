@@ -44,6 +44,7 @@ import { makeTopicBroadcaster } from "./application/topic-broadcast.js";
 import { makeTopicHandlers } from "./application/topic-handlers.js";
 import { TopicGenerator } from "./application/topic-generation.js";
 import { InMemoryTopicStore } from "./adapters/in-memory-topic-store.js";
+import { InMemoryRouletteStore } from "./adapters/in-memory-roulette-store.js";
 import { ClaudeCliTopicProvider } from "./adapters/claude-cli-topic-provider.js";
 import type { HubBroadcaster } from "./ports/hub-broadcaster.js";
 import { makeHandlers } from "./application/handlers.js";
@@ -108,6 +109,11 @@ export function createSyncServer(config: SyncConfig): SyncServer {
    * 別に 1 つ持ち、名簿とはルームコードで対になる（破棄は `destroy-room.ts` が揃えて行う）。
    */
   const topics = new InMemoryTopicStore();
+  /**
+   * ルーレットの状態の保管（#94）。お題と同じく**ルームに属する**ので 1 つ持ち、名簿とは
+   * ルームコードで対になる（破棄は `destroy-room.ts` が揃えて行う）。
+   */
+  const roulettes = new InMemoryRouletteStore();
   const clock = new SystemClock();
   /**
    * 復帰トークンとパスフレーズの保管。**timer と poker で 1 個を共有する**（#95 S4a）。
@@ -303,6 +309,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     rounds,
     // **#91 でお題の状態と生成もここが解放・中断する**（寿命はルームごとに 1 つ）。
     topics,
+    roulettes,
     scheduler,
     topicGenerator,
     presence: presenceManager,

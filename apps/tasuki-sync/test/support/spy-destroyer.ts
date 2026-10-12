@@ -18,6 +18,8 @@ import { createRoomDestroyer } from "../../src/application/destroy-room.js";
 import { InMemoryRoundStore } from "../../src/adapters/poker-in-memory-round-store.js";
 import { InMemoryTopicStore } from "../../src/adapters/in-memory-topic-store.js";
 import type { TopicStore } from "../../src/ports/topic-store.js";
+import { InMemoryRouletteStore } from "../../src/adapters/in-memory-roulette-store.js";
+import type { RouletteStore } from "../../src/ports/roulette-store.js";
 import type { InMemoryRoomStore } from "../../src/adapters/in-memory-room-store.js";
 import type { InMemoryTimerStore } from "../../src/adapters/in-memory-timer-store.js";
 
@@ -36,12 +38,14 @@ export interface SpyDestroyer {
  * @param topics お題の状態の保管（#91）。`rounds` と同じく省略してよい。お題の状態が
  *   消えたことまで見たいテストは、自分が `put` した同じインスタンスを渡すこと ——
  *   渡さなければ最初から空なので、「消えた」の判定は常に緑になる。
+ * @param roulettes ルーレットの状態の保管（#94）。`topics` と同じく省略してよい。
  */
 export function spyDestroyer(
   store: InMemoryRoomStore,
   timers: InMemoryTimerStore,
   rounds: InMemoryRoundStore = new InMemoryRoundStore(),
   topics: TopicStore = new InMemoryTopicStore(),
+  roulettes: RouletteStore = new InMemoryRouletteStore(),
 ): SpyDestroyer {
   const calls: string[] = [];
   const destroy = createRoomDestroyer({
@@ -49,6 +53,7 @@ export function spyDestroyer(
     timers,
     rounds,
     topics,
+    roulettes,
     scheduler: { clear: (c) => calls.push(`scheduler.clear:${c}`) },
     topicGenerator: { cancel: (c) => calls.push(`topicGenerator.cancel:${c}`) },
     presence: { clearRoomTimers: (c) => calls.push(`presence.clearRoomTimers:${c}`) },

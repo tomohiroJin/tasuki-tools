@@ -1446,6 +1446,14 @@ export const MUTATIONS = [
     tests: ["tests/schemas.test.ts"],
     note: "#94 E15・docs/adr/0011 決定 2 S3。余剰フィールドが黙って通る。",
   },
+  {
+    id: 160,
+    label: "ルーム破棄でルーレットの状態を消さない",
+    patch: "m160-destroy-keeps-roulette.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/destroy-room.test.ts"],
+    note: "#94 E10・spec §5.4。破棄したルームのコードを引き継いだ別のルームに、古い一周の記録が残る。",
+  },
 ];
 
 /**
