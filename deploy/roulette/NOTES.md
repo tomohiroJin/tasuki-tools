@@ -53,7 +53,7 @@ curl -s "$HOST/roulette/" | grep -o '/roulette/assets/' | head -1   # 1 行出�
 ```
 
 ⚠ **`pnpm e2e:prod` は 3 本を配り終えてから流す。** 配る前の本番へ当てると、`/roulette/` がまだ無いので
-**`/roulette/` を見る `@smoke`・`@core` のテストが落ちる**（`e2e/specs/routing.spec.ts` と `e2e/specs/roulette.spec.ts`）。
+**`/roulette/` を見る `@core` のテストが落ちる**（`e2e/specs/roulette.spec.ts`。配信と転送の確認もこの 1 本の頭に入れてある）。
 
 ## 静的サイト
 
