@@ -15,6 +15,7 @@ import {
   type RouletteState,
   type SpinInput,
 } from "../src/index.js";
+import { foldCase, neverConflicts } from "./support/name-conflict.js";
 
 const A: Member = { id: "p-a", name: "あおい", present: true };
 const B: Member = { id: "p-b", name: "健太", present: true };
@@ -24,7 +25,7 @@ function stateWith(patch: Partial<RouletteState>): RouletteState {
 }
 
 function spinInput(patch: Partial<SpinInput> = {}): SpinInput {
-  return { members: [A, B], spunBy: "あおい", now: 1000, randomInt: () => 0, randomSettle: () => 0.5, ...patch };
+  return { members: [A, B], spunBy: "あおい", now: 1000, randomInt: () => 0, randomSettle: () => 0.5, conflicts: foldCase, ...patch };
 }
 
 function many(n: number): Member[] {
@@ -126,6 +127,16 @@ describe("startSpin（回す）", () => {
     expect(startSpin(INITIAL_ROULETTE_STATE, spinInput({ randomSettle: () => 0.19 })).isErr()).toBe(true);
     expect(startSpin(INITIAL_ROULETTE_STATE, spinInput({ randomSettle: () => 0.81 })).isErr()).toBe(true);
   });
+
+  it("在室者と同じ名前のゲストは円盤に載らない（同じ人が 2 席にならない）", () => {
+    // Given: ゲスト「あおい」を足した後で、在室の「あおい」と同じ名前になった
+    const s = stateWith({ guests: [{ id: "g-1", name: "あおい" }], nextGuestSeq: 2 });
+    // When
+    const spun = startSpin(s, spinInput())._unsafeUnwrap();
+    // Then: 状態にはゲストが残る（在室者が抜ければまた入る）
+    expect(spun.lastSpin?.wheel.map((e) => e.id)).toEqual(["p-a", "p-b"]);
+    expect(spun.guests).toEqual([{ id: "g-1", name: "あおい" }]);
+  });
 });
 
 /**
@@ -175,8 +186,8 @@ describe("外す・足す・消す", () => {
 
   it("addGuest は g-1, g-2 と採番する", () => {
     // Given
-    const one = addGuest(INITIAL_ROULETTE_STATE, "ゲスト一", [])._unsafeUnwrap();
-    const two = addGuest(one, "ゲスト二", [])._unsafeUnwrap();
+    const one = addGuest(INITIAL_ROULETTE_STATE, "ゲスト一", [], foldCase)._unsafeUnwrap();
+    const two = addGuest(one, "ゲスト二", [], foldCase)._unsafeUnwrap();
     // When
     expect(two.guests).toEqual([
       { id: "g-1", name: "ゲスト一" },
@@ -186,32 +197,50 @@ describe("外す・足す・消す", () => {
 
   it("名前を消して足し直しても ID は再利用されない", () => {
     // Given
-    const one = addGuest(INITIAL_ROULETTE_STATE, "ゲスト一", [])._unsafeUnwrap();
+    const one = addGuest(INITIAL_ROULETTE_STATE, "ゲスト一", [], foldCase)._unsafeUnwrap();
     const gone = removeGuest(one, "g-1");
     // When
-    expect(addGuest(gone, "ゲスト一", [])._unsafeUnwrap().guests[0]?.id).toBe("g-2");
+    expect(addGuest(gone, "ゲスト一", [], foldCase)._unsafeUnwrap().guests[0]?.id).toBe("g-2");
   });
 
   it("MAX_GUESTS 件目までは足せ、13 件目は TOO_MANY_GUESTS", () => {
     // Given
     let s = INITIAL_ROULETTE_STATE;
-    for (let i = 0; i < MAX_GUESTS; i++) s = addGuest(s, `名前${i}`, [])._unsafeUnwrap();
+    for (let i = 0; i < MAX_GUESTS; i++) s = addGuest(s, `名前${i}`, [], foldCase)._unsafeUnwrap();
     // When
     expect(s.guests).toHaveLength(MAX_GUESTS);
-    expect(addGuest(s, "あふれ", [])._unsafeUnwrapErr()).toEqual({ code: "TOO_MANY_GUESTS" });
+    expect(addGuest(s, "あふれ", [], foldCase)._unsafeUnwrapErr()).toEqual({ code: "TOO_MANY_GUESTS" });
   });
 
-  it("takenNames に有る名前は GUEST_NAME_TAKEN", () => {
-    // Given
-    // When
-    expect(addGuest(INITIAL_ROULETTE_STATE, "あおい", ["あおい"])._unsafeUnwrapErr()).toEqual({
+  it("名簿の参加者（在室を問わない）と同じ名前は GUEST_NAME_TAKEN。大文字小文字だけの違いも同じ名前", () => {
+    // Given: Alice は在室、Bob は離席中
+    const members: Member[] = [
+      { id: "p-alice", name: "Alice", present: true },
+      { id: "p-bob", name: "Bob", present: false },
+    ];
+    // When / Then: 大文字小文字を区別する完全一致だと「alice」「BOB」が通ってしまう
+    expect(addGuest(INITIAL_ROULETTE_STATE, "alice", members, foldCase)._unsafeUnwrapErr()).toEqual({
       code: "GUEST_NAME_TAKEN",
     });
+    expect(addGuest(INITIAL_ROULETTE_STATE, "BOB", members, foldCase)._unsafeUnwrapErr().code).toBe("GUEST_NAME_TAKEN");
+    expect(addGuest(INITIAL_ROULETTE_STATE, "Carol", members, foldCase).isOk()).toBe(true);
   });
 
-  it("すでに足した同じ名前も GUEST_NAME_TAKEN", () => {
-    const one = addGuest(INITIAL_ROULETTE_STATE, "ゲスト", [])._unsafeUnwrap();
-    expect(addGuest(one, "ゲスト", [])._unsafeUnwrapErr().code).toBe("GUEST_NAME_TAKEN");
+  it("すでに足したゲストと同じ名前も GUEST_NAME_TAKEN（大文字小文字だけの違いも）", () => {
+    // Given
+    const one = addGuest(INITIAL_ROULETTE_STATE, "Guest", [], foldCase)._unsafeUnwrap();
+    // When / Then
+    expect(addGuest(one, "Guest", [], foldCase)._unsafeUnwrapErr().code).toBe("GUEST_NAME_TAKEN");
+    expect(addGuest(one, "GUEST", [], foldCase)._unsafeUnwrapErr().code).toBe("GUEST_NAME_TAKEN");
+  });
+
+  it("同じ名前かどうかは渡された判定だけで決める（ドメインは文字列を自分で比べない）", () => {
+    // Given: 同じ文字列でも衝突としない判定
+    const one = addGuest(INITIAL_ROULETTE_STATE, "Guest", [], neverConflicts)._unsafeUnwrap();
+    const members: Member[] = [{ id: "p-alice", name: "Alice", present: true }];
+    // When / Then: 自前の完全一致が残っていると拒んでしまう
+    expect(addGuest(one, "Guest", members, neverConflicts).isOk()).toBe(true);
+    expect(addGuest(one, "Alice", members, neverConflicts).isOk()).toBe(true);
   });
 
   it("removeGuest はゲストと、excluded・drawn の記録を落とす。知らない ID は何も変えない", () => {
@@ -232,12 +261,36 @@ describe("外す・足す・消す", () => {
       excluded: ["p-a"],
       drawn: ["g-2"],
     });
-    expect(removeGuest(s, "g-99")).toEqual(s);
+    expect(removeGuest(s, "g-99")).toBe(s);
   });
 
   it("resetCycle は drawn だけを空にする", () => {
     const s = stateWith({ drawn: ["p-a"], excluded: ["p-b"] });
     expect(resetCycle(s)).toEqual({ ...s, drawn: [] });
+  });
+
+  it("変わらない操作は同じ参照を返す（同期サーバーが「変わっていないので配らない」を判定できる）", () => {
+    // Given
+    const s = stateWith({ excluded: ["p-a"], drawn: ["p-b"], guests: [{ id: "g-1", name: "一" }] });
+    // When / Then: 中身が同じでも新しいオブジェクトを返すと、配らなくてよい配信が全員へ飛ぶ
+    expect(setIncluded(s, "p-a", false)).toBe(s);
+    expect(setIncluded(s, "p-b", true)).toBe(s);
+    expect(removeGuest(s, "g-9")).toBe(s);
+    expect(prune(s, ["p-a", "p-b", "g-1"])).toBe(s);
+    const empty = stateWith({ excluded: ["p-a"] });
+    expect(resetCycle(empty)).toBe(empty);
+    // 変わるときは新しい参照
+    expect(prune(s, ["p-b", "g-1"])).not.toBe(s);
+    expect(resetCycle(s)).not.toBe(s);
+  });
+
+  it("INITIAL_ROULETTE_STATE は凍結されている（配列も）。共有の既定値を誰かが書き換えると全ルームへ漏れる", () => {
+    // Given: 全ルームが共有する既定値
+    // When / Then
+    expect(Object.isFrozen(INITIAL_ROULETTE_STATE)).toBe(true);
+    expect(Object.isFrozen(INITIAL_ROULETTE_STATE.excluded)).toBe(true);
+    expect(Object.isFrozen(INITIAL_ROULETTE_STATE.guests)).toBe(true);
+    expect(Object.isFrozen(INITIAL_ROULETTE_STATE.drawn)).toBe(true);
   });
 
   it("prune は known に無い ID を excluded・drawn から落とす（ゲストの ID も known に含める前提）", () => {

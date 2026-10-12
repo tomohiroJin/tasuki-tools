@@ -18,6 +18,7 @@
  */
 import * as v from "valibot";
 import {
+  conflictsWithExisting,
   findParticipantByConnId,
   HubCommandSchema,
   presenceOf,
@@ -145,9 +146,18 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
     return new Set([...room.participants.map((p) => p.id), ...state.guests.map((g) => g.id)]);
   }
 
-  /** 保管してから配る（宛先は呼び出し時点の名簿から決まる）。 */
-  function commit(roomCode: string, state: RouletteState): void {
-    roulettes.put(roomCode, state);
+  /**
+   * 保管してから配る（宛先は呼び出し時点の名簿から決まる）。**保管と配信は必ず対にする。**
+   *
+   * - 変わらなければ（保管している状態と同じ参照なら）保管も配信もしない。遷移関数は変わらないとき
+   *   同じ参照を返す（`setIncluded`・`removeGuest`・`resetCycle`・`prune`）。知らない ID の押下や連打の
+   *   たびに全接続へ同じフレームを配らない
+   * - 失敗したコマンドはここを通らない（保管も配信もしない）。`prune` で落とした記録は、次に成功した
+   *   コマンドが一緒に保管して配る —— 保管だけして配らないと、画面が見ている状態と保管が食い違う
+   */
+  function commit(roomCode: string, stored: RouletteState | undefined, next: RouletteState): void {
+    if (next === (stored ?? INITIAL_ROULETTE_STATE)) return;
+    roulettes.put(roomCode, next);
     broadcaster.publish(roomCode);
   }
 
@@ -158,8 +168,9 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
       return;
     }
     // コマンドを受けるたびに、名簿から消えた参加者の記録を落としてから遷移する（配列を膨らませない）。
-    const stored = roulettes.get(room.code) ?? INITIAL_ROULETTE_STATE;
-    const state = prune(stored, knownIdsOf(room, stored));
+    const stored = roulettes.get(room.code);
+    const base = stored ?? INITIAL_ROULETTE_STATE;
+    const state = prune(base, knownIdsOf(room, base));
 
     switch (cmd.command) {
       case "roulette.spin": {
@@ -170,51 +181,46 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
           now: monotonicClock.now(),
           randomInt: random.randomInt,
           randomSettle: random.randomSettle,
+          conflicts: conflictsWithExisting,
         });
         if (next.isErr()) {
-          // pruneだけは保管する（失敗でも名簿から消えた記録は落としてよい）。
-          roulettes.put(room.code, state);
           const code = next.error.code;
           // INVALID_SETTLE は乱数源の誤りで、利用者の操作では起きない。内部の誤りとして返す。
           fail(connId, code === "INVALID_SETTLE" ? "INTERNAL_ERROR" : code);
           return;
         }
-        commit(room.code, next.value);
+        commit(room.code, stored, next.value);
         return;
       }
       case "roulette.include":
         // 知らない ID は黙って無視する（退出と同時に押されることがある）。
         commit(
           room.code,
+          stored,
           knownIdsOf(room, state).has(cmd.id) ? setIncluded(state, cmd.id, cmd.included) : state,
         );
         return;
       case "roulette.guest.add": {
         const applied = applyDisplayNameRule(cmd.name);
         if (applied.isErr()) {
-          roulettes.put(room.code, state);
           fail(connId, "INVALID_GUEST_NAME");
           return;
         }
-        // 同名の判定には、名簿の全参加者（在室を問わない）の表示名を渡す。ゲスト同士は addGuest が見る。
-        const added = addGuest(
-          state,
-          applied.value,
-          room.participants.map((p) => p.displayName),
-        );
+        // 同名の判定は参加の重複拒否と同じ関数・同じキー（`conflictsWithExisting`・spec R13）。
+        // 比べる相手は名簿の全参加者（在室を問わない）とゲスト（ゲスト同士は addGuest が見る）。
+        const added = addGuest(state, applied.value, membersOf(room), conflictsWithExisting);
         if (added.isErr()) {
-          roulettes.put(room.code, state);
-          fail(connId, added.error.code === "INVALID_SETTLE" ? "INTERNAL_ERROR" : added.error.code);
+          fail(connId, added.error.code);
           return;
         }
-        commit(room.code, added.value);
+        commit(room.code, stored, added.value);
         return;
       }
       case "roulette.guest.remove":
-        commit(room.code, removeGuest(state, cmd.id));
+        commit(room.code, stored, removeGuest(state, cmd.id));
         return;
       case "roulette.cycle.reset":
-        commit(room.code, resetCycle(state));
+        commit(room.code, stored, resetCycle(state));
         return;
     }
   }

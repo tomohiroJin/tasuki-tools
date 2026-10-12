@@ -34,7 +34,7 @@ describe("ルーレットのコマンド（境界）", () => {
     expect(ok({ command: "roulette.guest.remove", id: "g-1", x: 1 })).toBe(false);
   });
 
-  it("id の空文字と 65 字、name の 65 字が落ちる。64 字ちょうどは通る", () => {
+  it("id の空文字と 65 字が落ちる。64 字ちょうどは通る", () => {
     // Given
     // When
     expect(ok({ command: "roulette.include", id: "", included: true })).toBe(false);
@@ -42,8 +42,15 @@ describe("ルーレットのコマンド（境界）", () => {
     expect(ok({ command: "roulette.include", id: "x".repeat(64), included: true })).toBe(true);
     expect(ok({ command: "roulette.guest.remove", id: "" })).toBe(false);
     expect(ok({ command: "roulette.guest.remove", id: "x".repeat(65) })).toBe(false);
-    expect(ok({ command: "roulette.guest.add", name: LONG_65 })).toBe(false);
-    expect(ok({ command: "roulette.guest.add", name: "あ".repeat(64) })).toBe(true);
+  });
+
+  it("guest.add の name は room.join の表示名と同じく境界で長さを縛らない（上限は表示名の規約が正規化の前後で課す）", () => {
+    // Given: 前後に空白を足した名前。正規化すれば 3 字になる（room.join なら通る）
+    const padded = `${" ".repeat(40)}Bob${" ".repeat(40)}`;
+    // When / Then: 境界に別の狭い上限があると、room.join では通る名前がここだけで INVALID_COMMAND になる
+    expect(ok({ command: "roulette.guest.add", name: padded })).toBe(true);
+    expect(ok({ command: "roulette.guest.add", name: LONG_65 })).toBe(true);
+    expect(ok({ command: "roulette.guest.add", name: 1 })).toBe(false);
   });
 
   it("型の違う値・知らないコマンドは落ちる", () => {
@@ -94,6 +101,25 @@ describe("ルーレットのフレーム", () => {
     // When
     expect(v.safeParse(RouletteErrorFrameSchema, { type: "error", code: "ROULETTE_TOO_FEW", message: "x" }).success).toBe(true);
     expect(v.safeParse(RouletteErrorFrameSchema, { type: "error", code: "NOPE", message: "x" }).success).toBe(false);
-    expect(ROULETTE_ERROR_CODES).toContain("TOO_MANY_GUESTS");
+  });
+
+  it("エラーコードの契約は、ルーレットの接続でこの層と接続層が返すものだけ（参加の失敗はハブの形・ハブのコードで届く）", () => {
+    // Given: 契約に無いコードを足す・使わないコードを残すと、web の文言表と食い違う
+    // When / Then
+    expect([...ROULETTE_ERROR_CODES].sort()).toEqual(
+      [
+        "GUEST_NAME_TAKEN",
+        "INTERNAL_ERROR",
+        "INVALID_COMMAND",
+        "INVALID_GUEST_NAME",
+        "INVALID_JSON",
+        "MESSAGE_TOO_LARGE",
+        "NOT_IN_ROOM",
+        "ROULETTE_SPINNING",
+        "ROULETTE_TOO_FEW",
+        "ROULETTE_TOO_MANY",
+        "TOO_MANY_GUESTS",
+      ].sort(),
+    );
   });
 });

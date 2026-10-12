@@ -19,8 +19,11 @@ const entrySchema = v.object({ id: v.string(), name: v.string() });
 export const RouletteCommandSchema = v.variant("command", [
   v.strictObject({ command: v.literal("roulette.spin") }),
   v.strictObject({ command: v.literal("roulette.include"), id: idStr, included: v.boolean() }),
-  // 正規化と 24 字の上限は表示名の規約（同期サーバー）が持つ。ここは巨大入力を落とすだけ。
-  v.strictObject({ command: v.literal("roulette.guest.add"), name: v.pipe(v.string(), v.maxLength(64)) }),
+  // 名前の長さは**ここで縛らない**（`room.join` の `displayName` と同じ扱い・`room-core/src/wire.ts`）。
+  // 上限は表示名の規約（`apps/tasuki-sync/src/application/display-name-rule.ts`）が正規化の前後で課す。
+  // 境界に別の狭い上限を置くと、`room.join` では通る名前（前後の空白を含むなど）がここだけで落ちる。
+  // 巨大入力は接続層のメッセージの大きさの上限が先に落とす。
+  v.strictObject({ command: v.literal("roulette.guest.add"), name: v.string() }),
   v.strictObject({ command: v.literal("roulette.guest.remove"), id: idStr }),
   v.strictObject({ command: v.literal("roulette.cycle.reset") }),
 ]);

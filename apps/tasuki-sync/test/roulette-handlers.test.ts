@@ -7,6 +7,7 @@
  */
 import { afterEach, describe, expect, it, spyOn } from "bun:test";
 import { createTokenBucketLimiter, DEFAULT_CAPACITY, DEFAULT_REFILL_PER_SEC } from "@tasuki/rate-limit";
+import { MAX_DISPLAY_NAME } from "@tasuki/room-core";
 import { SPIN_DURATION_MS, type RouletteView } from "@tasuki/roulette-core";
 import { makeRouletteHandlers } from "../src/application/roulette-handlers.js";
 import { makeRouletteBroadcaster } from "../src/application/roulette-broadcast.js";
@@ -413,6 +414,115 @@ describe("外す・名前を足す", () => {
 
     // Then
     expect(h.roulettes.get(ROOM)!.excluded).toEqual([]);
+  });
+});
+
+/**
+ * 同じ名前の判定は参加の重複拒否と同じ関数・同じキー（`room-core` の `conflictsWithExisting`・spec R13）。
+ * PR #355 のレビュー指摘 1・2・6。
+ *
+ * @requirements #94 E13
+ */
+describe("足す名前と同じ名前の判定", () => {
+  it("大文字小文字だけ違う名前・全角で書いた名前（正規化すると同じ）は、参加者とも足したゲストとも GUEST_NAME_TAKEN", async () => {
+    // Given
+    const h = setup();
+    await joined(h, "r-1", "Alice");
+    await h.handle("r-1", { command: "roulette.guest.add", name: "Guest" });
+    h.sent.length = 0;
+
+    // When: 大文字小文字を区別する完全一致だと、どれも通ってしまう
+    await h.handle("r-1", { command: "roulette.guest.add", name: "alice" });
+    await h.handle("r-1", { command: "roulette.guest.add", name: "ＡＬＩＣＥ" });
+    await h.handle("r-1", { command: "roulette.guest.add", name: "GUEST" });
+
+    // Then
+    expect(errorsTo(h, "r-1")).toEqual(["GUEST_NAME_TAKEN", "GUEST_NAME_TAKEN", "GUEST_NAME_TAKEN"]);
+    expect(h.roulettes.get(ROOM)!.guests.map((g) => g.name)).toEqual(["Guest"]);
+  });
+
+  it("ゲストを足した後で同じ名前の人が参加すると、円盤には在室者だけが載り、ゲストは状態に残る", async () => {
+    // Given: ゲスト「carol」を足してから、「Carol」がルーレットの接続で参加する
+    const h = setup();
+    await joined(h, "r-1", "Alice");
+    await h.handle("r-1", { command: "roulette.guest.add", name: "carol" });
+    await joined(h, "r-2", "Carol");
+
+    // When
+    await h.handle("r-1", { command: "roulette.spin" });
+
+    // Then: Carol は 1 席だけ（ゲストの席が外れる）。ゲストは消えない
+    const view = viewsTo(h, "r-1").at(-1)!;
+    expect(view.spin!.wheel.map((e) => e.name)).toEqual(["Alice", "Carol"]);
+    expect(view.guests.map((g) => g.name)).toEqual(["carol"]);
+  });
+
+  it("名前は room.join の表示名と同じ境界で受ける（前後の空白で 64 字を超えても、正規化して上限に収まれば足せる）", async () => {
+    // Given
+    const h = setup();
+    await joined(h, "r-1", "Alice");
+
+    // When: 境界に別の上限があると INVALID_COMMAND になる。正規化後に上限を超える名前は INVALID_GUEST_NAME
+    await h.handle("r-1", { command: "roulette.guest.add", name: `${" ".repeat(40)}Bob${" ".repeat(40)}` });
+    await h.handle("r-1", { command: "roulette.guest.add", name: "x".repeat(MAX_DISPLAY_NAME + 1) });
+
+    // Then
+    expect(errorsTo(h, "r-1")).toEqual(["INVALID_GUEST_NAME"]);
+    expect(h.roulettes.get(ROOM)!.guests.map((g) => g.name)).toEqual(["Bob"]);
+  });
+});
+
+/**
+ * 保管と配信は一致させる（PR #355 のレビュー指摘 4・7）。
+ *
+ * @requirements #94 §5.2
+ */
+describe("保管と配信", () => {
+  it("失敗したコマンドは状態を保管せず、配りもしない（名簿から消えた記録の掃除も成功の経路でだけ行う）", async () => {
+    // Given: Bob を外した後で Bob が名簿から消える（次のコマンドで prune される記録がある）
+    const h = setup();
+    await joined(h, "r-1", "Alice");
+    await joined(h, "r-2", "Bob");
+    const bobId = h.store.get(ROOM)!.participants[1]!.id;
+    await h.handle("r-1", { command: "roulette.include", id: bobId, included: false });
+    const room = h.store.get(ROOM)!;
+    h.store.put({ ...room, participants: room.participants.filter((p) => p.id !== bobId) });
+    const before = h.roulettes.get(ROOM);
+    h.sent.length = 0;
+
+    // When: 1 人なので回せない・13 件目ではないが同じ名前で足せない
+    await h.handle("r-1", { command: "roulette.spin" });
+    await h.handle("r-1", { command: "roulette.guest.add", name: "alice" });
+    await h.handle("r-1", { command: "roulette.guest.add", name: "   " });
+
+    // Then: 保管した状態は前と同じ参照で、ルーレットのフレームは誰にも届いていない
+    expect(errorsTo(h, "r-1")).toEqual(["ROULETTE_TOO_FEW", "GUEST_NAME_TAKEN", "INVALID_GUEST_NAME"]);
+    expect(h.roulettes.get(ROOM)).toBe(before);
+    expect(h.sent.filter((s) => s.msg.type === "roulette")).toEqual([]);
+  });
+
+  it("状態が変わらないコマンドは配らない（知らない ID・すでに同じ値・空の一周のやり直し・知らないゲストの削除）", async () => {
+    // Given
+    const h = setup();
+    await joined(h, "r-1", "Alice");
+    await joined(h, "r-2", "Bob");
+    const bobId = h.store.get(ROOM)!.participants[1]!.id;
+    await h.handle("r-1", { command: "roulette.include", id: bobId, included: false });
+    h.sent.length = 0;
+
+    // When
+    await h.handle("r-1", { command: "roulette.include", id: "p-unknown", included: false });
+    await h.handle("r-1", { command: "roulette.include", id: bobId, included: false });
+    await h.handle("r-1", { command: "roulette.cycle.reset" });
+    await h.handle("r-1", { command: "roulette.guest.remove", id: "g-9" });
+
+    // Then: 変わらないのに全員へ配ると、退出と同時の押下や連打のたびに全接続へ飛ぶ
+    expect(h.sent).toEqual([]);
+
+    // 変わるコマンドは配る（対照）
+    await h.handle("r-1", { command: "roulette.include", id: bobId, included: true });
+    expect(viewsTo(h, "r-1").at(-1)?.excluded).toEqual([]);
+    expect(viewsTo(h, "r-2").at(-1)?.excluded).toEqual([]);
   });
 });
 

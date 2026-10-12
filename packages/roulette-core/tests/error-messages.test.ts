@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ROULETTE_ERROR_CODES, rouletteErrorMessageFor } from "../src/index.js";
 import { baseFaces, outsideBase } from "./support/font-base.js";
 
@@ -43,5 +43,31 @@ describe("ルーレットのエラーの文言", () => {
     ]);
     // When / Then
     expect(outsideBase(ROULETTE_ERROR_CODES.map(rouletteErrorMessageFor))).toEqual([]);
+  });
+});
+
+/**
+ * 上限の数は定数から組む（PR #355 のレビュー指摘 9）。文言に数を直書きすると、上限を変えたときに
+ * 画面だけが古い数を言い続ける。定数を差し替えて文言が追いかけることで見分ける。
+ */
+describe("ルーレットのエラーの文言（上限の数）", () => {
+  afterEach(() => {
+    vi.doUnmock("../src/limits.js");
+    vi.resetModules();
+  });
+
+  it("MAX_WHEEL・MAX_GUESTS を変えると、文言の数も変わる", async () => {
+    // Given: 上限を設計と違う値へ差し替える
+    vi.resetModules();
+    vi.doMock("../src/limits.js", async (importOriginal) => ({
+      ...(await importOriginal<typeof import("../src/limits.js")>()),
+      MAX_WHEEL: 30,
+      MAX_GUESTS: 7,
+    }));
+    // When
+    const { rouletteErrorMessageFor: messageFor } = await import("../src/error-messages.js");
+    // Then
+    expect(messageFor("ROULETTE_TOO_MANY")).toBe("30 人までで回せます");
+    expect(messageFor("TOO_MANY_GUESTS")).toBe("名前は 7 人まで追加できます");
   });
 });

@@ -9,7 +9,7 @@ import { drawWinner } from "./draw.js";
 import type { RouletteError } from "./errors.js";
 import { MAX_GUESTS, MAX_WHEEL, SETTLE_MAX, SETTLE_MIN, SPIN_DURATION_MS } from "./limits.js";
 import { poolOf } from "./pool.js";
-import type { Entry, EntryId, Member, RouletteState } from "./types.js";
+import type { Entry, EntryId, Member, NameConflict, RouletteState } from "./types.js";
 
 export interface SpinInput {
   /** 名簿の断片（アプリ層が作る） */
@@ -22,6 +22,8 @@ export interface SpinInput {
   randomInt: (n: number) => number;
   /** `SETTLE_MIN`〜`SETTLE_MAX` の実数 */
   randomSettle: () => number;
+  /** 名前の衝突判定（`room-core` の `conflictsWithExisting`）。在室者と同じ名前のゲストを外す（{@link poolOf}） */
+  conflicts: NameConflict;
 }
 
 /** 回転中か（`now - startedAt < SPIN_DURATION_MS`）。 */
@@ -33,9 +35,12 @@ function isSpinning(state: RouletteState, now: number): boolean {
  * 回す。回転中・入る人が 2 人未満・`MAX_WHEEL` 超えは拒む。
  * 通れば `lastSpin` と `drawn` を更新した状態を返す（`wheel` は pool の凍結した写し）。
  */
-export function startSpin(state: RouletteState, input: SpinInput): Result<RouletteState, RouletteError> {
+export function startSpin(
+  state: RouletteState,
+  input: SpinInput,
+): Result<RouletteState, RouletteError<"ROULETTE_SPINNING" | "ROULETTE_TOO_FEW" | "ROULETTE_TOO_MANY" | "INVALID_SETTLE">> {
   if (isSpinning(state, input.now)) return err({ code: "ROULETTE_SPINNING" });
-  const pool = poolOf(input.members, state);
+  const pool = poolOf(input.members, state, input.conflicts);
   if (pool.length < 2) return err({ code: "ROULETTE_TOO_FEW" });
   if (pool.length > MAX_WHEEL) return err({ code: "ROULETTE_TOO_MANY" });
   const settle = input.randomSettle();
@@ -64,17 +69,20 @@ export function setIncluded(state: RouletteState, id: EntryId, included: boolean
 
 /**
  * 名前を足す。**名前は正規化済みで受ける**（正規化は同期サーバーが表示名の規約で行う・spec R13）。
- * `takenNames` は名簿の全参加者（在室を問わない）の表示名。すでに足したゲストの名前もここで見る。
+ *
+ * 同じ名前は拒む。比べる相手は `members`（名簿の全参加者。**在室を問わない**）と、すでに足したゲスト。
+ * 同じ名前かは渡された `conflicts`（`room-core` の `conflictsWithExisting`。参加の重複拒否と同じ関数・同じキー）
+ * だけで決め、**ここで文字列を比べない**（写しを持つと、大文字小文字の扱いが参加と食い違う）。
  */
 export function addGuest(
   state: RouletteState,
   name: string,
-  takenNames: readonly string[],
-): Result<RouletteState, RouletteError> {
+  members: readonly Member[],
+  conflicts: NameConflict,
+): Result<RouletteState, RouletteError<"TOO_MANY_GUESTS" | "GUEST_NAME_TAKEN">> {
   if (state.guests.length >= MAX_GUESTS) return err({ code: "TOO_MANY_GUESTS" });
-  if (takenNames.includes(name) || state.guests.some((g) => g.name === name)) {
-    return err({ code: "GUEST_NAME_TAKEN" });
-  }
+  const existing = [...members, ...state.guests].map((e) => ({ participantId: e.id, displayName: e.name }));
+  if (conflicts(existing, name)) return err({ code: "GUEST_NAME_TAKEN" });
   const guest: Entry = { id: `g-${state.nextGuestSeq}`, name };
   return ok({ ...state, guests: [...state.guests, guest], nextGuestSeq: state.nextGuestSeq + 1 });
 }
@@ -90,9 +98,9 @@ export function removeGuest(state: RouletteState, id: EntryId): RouletteState {
   };
 }
 
-/** 一周をやり直す（`drawn` を空にする）。 */
+/** 一周をやり直す（`drawn` を空にする）。すでに空なら同じ参照を返す（変わらない操作は配らない）。 */
 export function resetCycle(state: RouletteState): RouletteState {
-  return { ...state, drawn: [] };
+  return state.drawn.length === 0 ? state : { ...state, drawn: [] };
 }
 
 /**
@@ -101,11 +109,11 @@ export function resetCycle(state: RouletteState): RouletteState {
  */
 export function prune(state: RouletteState, knownIds: Iterable<EntryId>): RouletteState {
   const known = new Set(knownIds);
-  return {
-    ...state,
-    excluded: state.excluded.filter((id) => known.has(id)),
-    drawn: state.drawn.filter((id) => known.has(id)),
-  };
+  const excluded = state.excluded.filter((id) => known.has(id));
+  const drawn = state.drawn.filter((id) => known.has(id));
+  // 何も落ちなければ同じ参照を返す（同期サーバーが「変わっていない」を参照で判定する）
+  if (excluded.length === state.excluded.length && drawn.length === state.drawn.length) return state;
+  return { ...state, excluded, drawn };
 }
 
 /** wire へ載せる形（spec §5.3）。 */

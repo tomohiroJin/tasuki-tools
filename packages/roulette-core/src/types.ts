@@ -35,21 +35,37 @@ export interface Spin {
 }
 
 export interface RouletteState {
-  /** 外した人（参加者もゲストも） */
-  excluded: EntryId[];
+  /** 外した人（参加者もゲストも）。配列は書き換えない（遷移関数が新しい配列を作る） */
+  excluded: readonly EntryId[];
   /** 足した名前。最大 MAX_GUESTS */
-  guests: Entry[];
+  guests: readonly Entry[];
   /** この一周で選ばれた人（選ばれた順） */
-  drawn: EntryId[];
+  drawn: readonly EntryId[];
   lastSpin: Spin | null;
   /** ゲスト ID の採番（`g-1`, `g-2`, …）の次の番号 */
   nextGuestSeq: number;
 }
 
-export const INITIAL_ROULETTE_STATE: RouletteState = {
-  excluded: [],
-  guests: [],
-  drawn: [],
+/**
+ * 名前の衝突判定（ポート）。**同期サーバーと web は `@tasuki/room-core` の `conflictsWithExisting` を渡す**
+ * （参加の重複拒否と同じ関数・同じキー。spec R13）。この文脈は `room-core` に依存できないので
+ * （`docs/adr/0017` 決定 1・2）、判定を写さずに受け取る。**ドメインは名前の文字列を自分で比べない。**
+ *
+ * `existing` の `participantId` は参加者 ID かゲストの ID（判定は `displayName` だけを見る）。
+ */
+export type NameConflict = (
+  existing: readonly { participantId: string; displayName: string }[],
+  name: string,
+) => boolean;
+
+/**
+ * 既定の状態。**凍結する**（配列も）。全ルームで同じ参照を共有するので、誰かが書き換えると
+ * 状態の無いすべてのルームへ漏れる。遷移関数は新しい配列を作るので、凍結しても困らない。
+ */
+export const INITIAL_ROULETTE_STATE: RouletteState = Object.freeze({
+  excluded: Object.freeze([]),
+  guests: Object.freeze([]),
+  drawn: Object.freeze([]),
   lastSpin: null,
   nextGuestSeq: 1,
-};
+});

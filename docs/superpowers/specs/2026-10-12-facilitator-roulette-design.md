@@ -98,7 +98,7 @@ Issue 本文は 2026-08-09（main `ecd1652`、#95 の着手前）に書かれた
 | R10 | 入る人が **2 人未満なら回せない**（`ROULETTE_TOO_FEW`） | 1 人のルーレットは決める意味が無い |
 | R11 | ルーレットを操作できるのは**ルーレットの接続だけ**（お題の T4 と同じ）。ルーレットのコマンドはハブ・timer・poker・お題のスキーマに含めない。**ルームの在室者なら誰でも回せる**（役割は #95 で廃止済み） | お題と同じ線引き。共通の処理（`handlers.ts`）にツール別の可否判定を戻さない |
 | R12 | **timer の rotation とは持ち上げ（共通化）をしない** | rotation は「席の並びを順に回す」もので、代理の席・見送り・交代回数と結びつく timer の帳簿である。ルーレットは「並びの無い集まりから 1 人を無作為に選ぶ」もので、一周の記録の意味（選ばれた順）以外に重なりが無い。共通化すると timer のドメインが新しい文脈に依存するか、`room-core` にツールの語彙が入る（`docs/adr/0017` 決定 1・2 に反する）。**同じ型の重複は「一周で外す」の数行だけ**で、原則 X（抽象は実需で）の閾値に届かない |
-| R13 | **足した名前（ゲスト）は表示名の規約（`display-name-rule.ts`）を通す**。上限は 1 ルーム 12 件。在室者・ほかのゲストと同じ名前（正規化後）は拒む。**ゲストの名前はログへ出さない** | 足した名前は利用者の入力で、全接続へ配られる。表示名と同じ扱い（`docs/adr/0011` 決定 3・#284 のなりすまし対策）を写しではなく同じ関数で受ける。同名を許すと円盤の上で区別できない |
+| R13 | **足した名前（ゲスト）は表示名の規約（`display-name-rule.ts`）を通す**。上限は 1 ルーム 12 件。名簿の参加者（在室を問わない）・ほかのゲストと同じ名前（正規化後）は拒む。**同じ名前かどうかは参加の重複拒否と同じ関数・同じキー（`room-core` の `conflictsWithExisting`。大文字小文字を畳む）で決め、`roulette-core` へは関数として渡す**（`NameConflict`）。**足した後で同じ名前の人が参加・改名したら、入る人の段（`poolOf`）でゲストを外す（在室者が勝つ）。状態にはゲストを残す**。**ゲストの名前はログへ出さない** | 足した名前は利用者の入力で、全接続へ配られる。表示名と同じ扱い（`docs/adr/0011` 決定 3・#284 のなりすまし対策）を写しではなく同じ関数で受ける。同名を許すと円盤の上で区別できない。判定の詳細と退けた案は下の「R13 の判定（PR #355 のレビューで決めたこと）」 |
 | R14 | **名簿（`roster`）をルーレットの接続にも配る**（今はハブだけ）。ルーレットの状態に名簿を埋め込まない | 入る人の計算（R7）に在室が要る。名簿の配信は `saveRoster` に 1 本化されており（`test/save-roster.wiring.test.ts`）、宛先を足すだけで接続の着脱・退出のすべてが届く。ルーレットのフレームに名簿を写すと、名簿が変わるたびにルーレットの配信も要り、経路が 2 本になる |
 | R15 | **お題の `topic` フレームもルーレットの接続に配る**（`TOPIC_RECIPIENT_TOOLS` に足す） | 「お題に対するファシリを決める」（§1）。お題はタイトルだけを 1 行で添える。web は `topic` フレームを先に見分ける（#91 と同じ規律。知らないフレームを捨てて通知すると利用者に誤報が出る） |
 | R16 | `roulette-core` の表現は **直接遷移関数＋`Result`**（`docs/adr/0016` 決定 1） | 状態は小さく、イベントの履歴・再生・段階適用が要らない。`room-core`・`topic-core` と同じ |
@@ -153,12 +153,12 @@ interface RouletteState {    // ルームごとに 1 つ
 
 | 関数 | 役目 |
 |---|---|
-| `poolOf(members, state)` | 入る人の並び（R7）。**並びは決定的**: 在室の参加者（名簿の順）→ ゲスト（足した順）。外した人を除く |
+| `poolOf(members, state, conflicts)` | 入る人の並び（R7）。**並びは決定的**: 在室の参加者（名簿の順）→ ゲスト（足した順）。外した人を除く。**在室者（外したかを問わない）と同じ名前のゲストを除く**（R13。`conflicts` は `room-core` の `conflictsWithExisting`） |
 | `drawWinner(pool, state, randomInt)` | 一周の規則（R6）で当たりを引く。`randomInt(n)` は `[0, n)` の整数を返す注入された関数。戻り値は `{ winnerIndex, drawn }`（周を閉じたら `drawn` は新しい周の 1 件目だけになる） |
 | `startSpin(state, input)` | 回転中なら `ROULETTE_SPINNING`、入る人が 2 人未満なら `ROULETTE_TOO_FEW`、`MAX_WHEEL` を超えるなら `ROULETTE_TOO_MANY`。通れば `lastSpin` と `drawn` を更新した状態を返す。`now`・`randomInt`・`randomSettle` は引数で受ける |
 | `isSpinning(state, now)` | `lastSpin !== null && now - startedAt < SPIN_DURATION_MS` |
 | `setIncluded(state, id, included)` | 外す・戻す（冪等。トグルにしない —— 2 人がほぼ同時に押すと打ち消し合う） |
-| `addGuest(state, name, takenNames)` | 名前は**正規化済みで受ける**（正規化は同期サーバーが表示名の規約で行う・R13）。上限・同名を見る |
+| `addGuest(state, name, members, conflicts)` | 名前は**正規化済みで受ける**（正規化は同期サーバーが表示名の規約で行う・R13）。上限・同名を見る。同名の相手は `members`（在室を問わない）とゲストで、判定は `conflicts` だけで決める（ここで文字列を比べない） |
 | `removeGuest(state, id)` | ゲストを消し、`excluded`・`drawn` からも落とす |
 | `resetCycle(state)` | `drawn` を空にする（「一周をやり直す」） |
 | `prune(state, knownIds)` | 名簿から消えた参加者の ID を `excluded` / `drawn` から落とす（退出を繰り返しても配列が膨らまない） |
@@ -168,8 +168,23 @@ interface RouletteState {    // ルームごとに 1 つ
 
 - **公開契約（`src/index.ts`）に `drawWinner` と `isSpinning` を載せない。** どちらも `startSpin` の内側でだけ使い、製品コードの使い手が居ない（公開契約の指標 SC-039 を後退させない）。テストはモジュールから直接読む。web が「回っているか」を知るのは wire の `elapsedMs < durationMs` から（§5.3）
 - **`startSpin` は `settle` が `SETTLE_MIN`〜`SETTLE_MAX` の外なら `INVALID_SETTLE` を返す**（ドメインのエラーコード `RouletteDomainErrorCode`）。乱数源（`adapters/crypto-random-source.ts`）が契約を破ったときだけ起きる内部の誤りで、利用者の操作では起きない。**wire の `ROULETTE_ERROR_CODES` には載せず、同期サーバーが `INTERNAL_ERROR` に畳んで返す**（`application/roulette-handlers.ts`）
+- **遷移関数のエラーの型は、その関数が返しうるコードへ絞る**（`RouletteError<C>`）。`addGuest` は `TOO_MANY_GUESTS` / `GUEST_NAME_TAKEN` だけを返す型にし、呼び出し側に到達しない `INVALID_SETTLE` の分岐を書かせない（PR #355 のレビュー）
+- **変わらない操作は同じ参照を返す**（`setIncluded`・`removeGuest`・`resetCycle`・`prune`）。同期サーバーが参照で「変わっていないので保管も配信もしない」を判定する（§5.2）
+- **`INITIAL_ROULETTE_STATE` は凍結する（配列も）。** 全ルームで同じ参照を共有するので、書き換えると状態の無いすべてのルームへ漏れる。状態の配列は `readonly` にした（遷移関数は新しい配列を作る）
 
 定数: `SPIN_DURATION_MS = 4000`（§6.4）・`MAX_GUESTS = 12`・`MAX_WHEEL = 24`（§5.6）・`SETTLE_MIN = 0.2`・`SETTLE_MAX = 0.8`。
+
+**R13 の判定（PR #355 のレビューで決めたこと・2026-10-12）**
+
+- **同じ名前の判定は `room-core` の `conflictsWithExisting`（`trim().toLowerCase()` の比較）をそのまま使う。** 参加・改名・代理追加の重複拒否と同じ関数・同じキーで、`"Alice"` と `"alice"` は同じ名前として拒む。全角（`ＡＬＩＣＥ`）・ゼロ幅文字・合成の違いなど #284 で潰した紛らわしい書き方は、先に表示名の規約（`normalizeDisplayName`）が正規形に寄せるので、同じ判定で拒まれる。PR 1 の最初の実装は大文字小文字を区別する完全一致を写しており、参加の拒否と食い違っていた
+- **見え方の骨格（`nameSkeleton`・キリル文字の `В` と Latin の `B` など）では拒まない。** `room-core` の線引き（「検出は寛容に、拒否は厳格に」・`display-name.ts` の冒頭）に従う。骨格で拒むと `Вова` のような正当な名前が弾かれる。円盤の上で見分けが付かない組は、web が骨格で見分けて識別子を添える（timer・玄関の `participant-label` と同じ）余地を残す
+- **関数の渡し方は「ポート（関数の引数）」を採る。** `roulette-core` は `room-core` に依存できない（`docs/adr/0017` 決定 1・2・`docs/adr/0026` 決定 1）。型 `NameConflict` を `roulette-core` に置き、同期サーバーと web が `conflictsWithExisting` を渡す。乱数（`randomInt`）を引数で受けるのと同じ形
+  - 退けた案: **共有パッケージへ移す** —— 表示名の規約は `room-core` の持ち物で、`roulette-core` のためだけに切り出すと文脈の境界（ADR 0017）を動かすことになる。**`roulette-core` で写す** —— 写しは片方だけ直る（この指摘そのもの）。**名前の比較をアプリ層だけで行い、`addGuest` に「衝突しているか」の真偽を渡す** —— `poolOf` は web も使うので、web 側にも同じ組み立てが要り、写しが 2 つになる
+- **足した後で同じ名前の人が参加・改名したら、入る人の段（`poolOf`）でゲストを外す（在室者が勝つ）。** ゲストの追加だけで拒むと、後から同じ名前で参加・改名した人とゲストが円盤に 2 席並ぶ
+  - 比べる相手は**在室者（外したかを問わない）**。外した在室者と同じ名前のゲストも外す（外した人がゲストの席で戻ってこない）。離席中の参加者とは比べない（離席中の参加者は円盤に居ないので 2 席にならない）
+  - **状態からゲストを消さない。** 在室者が抜ければまた入る。足した人の操作を、別の人の参加が黙って取り消さない
+  - 退けた案: **参加・改名を拒む** —— 参加と改名は全ツールの共通の入口で、ルーレットのゲストのためにハブ・timer・poker の参加を拒むと他のツールへ波及する。**参加・改名のときにゲストを消す** —— 名簿の変化がルーレットの状態を書き換える経路が増え、保管と配信の対（§5.2）が名簿の配信の側にも要る
+- **外れているゲストの印は、ルーレットのフレームに載せない。** web は名簿（`roster`）とルーレットの状態から同じ `poolOf` を呼び、「ゲストのうち外しておらず、入る人に居ない人」を「同じ名前の人がいるため外れています」として出す（PR 2）。フレームに載せると名簿が変わるたびにルーレットの配信も要り、経路が 2 本になる（R14 と同じ理由）。印の判定のための関数を公開契約に足すと、製品コードの使い手が居ないまま SC-039 が後退する
 
 **一周の規則の細部（R6）**
 
@@ -188,9 +203,9 @@ interface RouletteState {    // ルームごとに 1 つ
 - `application/roulette-handlers.ts`:
   - 受けるのは `v.union([HubCommandSchema, RouletteCommandSchema])`。`room.join` は**`join-room.ts` と `display-name-rule.ts` を通す**（`topic-handlers.ts` の `handleJoin` と同じ組み立て。2 度目の参加は拒む）。`room.create` / `room.check` は拒む
   - 接続がルーレットとして在席しているルームを**名簿から引く**（`topic-handlers.ts` の `roomCodeOf` と同じく、ツールまで見る）
-  - コマンドを受けるたびに `prune` してから遷移し、保管してから配る
+  - コマンドを受けるたびに `prune` してから遷移し、保管してから配る。**保管と配信は必ず対にする**: 遷移の結果が保管している状態と同じ参照なら保管も配信もしない（変わらない操作は同じ参照を返す）。**失敗したコマンドは保管も配信もしない**（`prune` で落とした記録は、次に成功したコマンドが一緒に保管して配る）。PR #355 のレビューで直した（失敗の経路で掃除した状態を保管だけして配らず、変わらない操作でも全員へ配っていた）
   - `roulette.spin`: 名簿から `Member[]` を作り（`presenceOf(p) === "online"`）、`startSpin` に `now`（**単調時計**。poker の `createPerformanceClock`（`adapters/poker-performance-clock.ts`）で**別のインスタンス**を 1 つ作る。ルーレット専用の時計の実装は足さない）と `randomInt`・`randomSettle`（`ports/random-source.ts`・`adapters/crypto-random-source.ts`）を渡す。`spunBy` は名簿の表示名
-  - `roulette.guest.add`: `applyDisplayNameRule` で正規化し、失敗は `INVALID_GUEST_NAME`。同名の判定には、名簿の全参加者（在室を問わない）とゲストの正規化済みの名前を渡す
+  - `roulette.guest.add`: `applyDisplayNameRule` で正規化し、失敗は `INVALID_GUEST_NAME`。同名の判定には、名簿の全参加者（在室を問わない）と、判定の関数 `conflictsWithExisting` を渡す（ゲスト同士は `addGuest` が同じ関数で見る）
 - `application/roulette-broadcast.ts`: 宛先は**ルーレットの接続だけ**（`connectionsIn(room, TOOL_ROULETTE)`）。ハブ・timer・poker・お題には配らない（読む画面が無い。後続の「いまの進行役」を他のツールへ出すときに広げる）。`publish(roomCode)` と、参加・復帰した 1 本への `sendCurrent(connId, roomCode)`
 - `ports/roulette-store.ts`・`adapters/in-memory-roulette-store.ts`。**`destroy-room.ts` で一緒に消す**
 - `create-sync-server.ts`:
@@ -207,7 +222,7 @@ interface RouletteState {    // ルームごとに 1 つ
 |---|---|---|
 | `roulette.spin` | `{}` | `ROULETTE_SPINNING` / `ROULETTE_TOO_FEW` / `ROULETTE_TOO_MANY` / `NOT_IN_ROOM` |
 | `roulette.include` | `{ id: string(1〜64), included: boolean }` | `NOT_IN_ROOM`（知らない ID は黙って無視する —— 退出と同時に押されることがある） |
-| `roulette.guest.add` | `{ name: string(〜64) }`（正規化と 24 字の上限は表示名の規約が持つ） | `INVALID_GUEST_NAME` / `GUEST_NAME_TAKEN` / `TOO_MANY_GUESTS` |
+| `roulette.guest.add` | `{ name: string }`（`room.join` の `displayName` と同じく境界で長さを縛らない。正規化と上限 `MAX_DISPLAY_NAME` は表示名の規約が正規化の前後で課す。巨大入力は接続層のメッセージの大きさの上限が落とす） | `INVALID_GUEST_NAME` / `GUEST_NAME_TAKEN` / `TOO_MANY_GUESTS` |
 | `roulette.guest.remove` | `{ id: string(1〜64) }` | （知らない ID は無視） |
 | `roulette.cycle.reset` | `{}` | — |
 
@@ -235,7 +250,8 @@ interface RouletteView {
 ```
 
 - 受けるフレームは非 strict の `v.object`（サーバーが項目を足しても古い web がフレームごと捨てない。`room-core/src/wire.ts` の規律）
-- エラーは `{ type: "error", code, message }`（ハブの形）。コードは `roulette-core` の `ROULETTE_ERROR_CODES`、文言は `roulette-core` の文言表（書体の base 層の検査を当てる）。`ROULETTE_ERROR_CODES` は上の表のコードに加えて、境界と接続層のコード（`INVALID_JSON`・`INVALID_COMMAND`・`MESSAGE_TOO_LARGE`・`RATE_LIMITED`・`INTERNAL_ERROR`）を持つ。ドメインの `INVALID_SETTLE` は載せない（§5.1・`INTERNAL_ERROR` に畳む）
+- エラーは `{ type: "error", code, message }`（ハブの形）。コードは `roulette-core` の `ROULETTE_ERROR_CODES`、文言は `roulette-core` の文言表（書体の base 層の検査を当てる）。`ROULETTE_ERROR_CODES` は上の表のコードに加えて、境界と接続層のコード（`INVALID_JSON`・`INVALID_COMMAND`・`MESSAGE_TOO_LARGE`・`INTERNAL_ERROR`）を持つ。**ルーレットのメッセージ層の `fail` と接続層の `sendRouletteFrame` が返すものだけ**で、どちらも型でこの列挙に縛られている。ドメインの `INVALID_SETTLE` は載せない（§5.1・`INTERNAL_ERROR` に畳む）。使わない `RATE_LIMITED` は PR #355 のレビューで外した
+- **参加の失敗（`ROOM_NOT_FOUND`・`JOIN_RATE_LIMITED`・合言葉の誤りなど）は `ROULETTE_ERROR_CODES` に載せない。** `join-room.ts` が返すハブのコード体系で、ハブと同じ形（`HubServerMsg` の `error`）で届く。お題（#91）の `TOPIC_ERROR_CODES` と同じ線引きで、web は下の順で `roulette` に合わなければハブの形として受け取り、`join-error-plan.ts`（写し）で扱う。web がルーレットのエラーのスキーマ（`RouletteErrorFrameSchema`）で参加の失敗を検めてはならない（落ちる）。`RouletteErrorFrameSchema` はサーバー側の狭い型（`RouletteOwnFrame`）のためにある
 - ルーレットの接続が受け取るのはこれに加えて、ハブと同じ形の `room.joined`・`roster`・参加の失敗と、お題の `topic` フレーム
 
 **web の見分ける順**: `topic` → `roulette` → ハブの形（`HubServerMsgSchema`）。どれにも合わなければ捨てる（`apps/topic-web/src/server-message.ts` と同じ形）。

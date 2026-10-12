@@ -86,6 +86,7 @@
   - 外した参加者・外したゲストが入らない〈m155〉
   - 並びは「名簿の順 → ゲストの足した順」で、同じ入力から常に同じ並び
   - 外した ID が名簿に居なくても落ちない（全域関数）
+  - 在室者（外したかを問わない）と同じ名前のゲストは入らない。離席中の参加者と同じ名前なら入る（PR #355 のレビューで足した・spec R13）
 - **確かめる**: 同上
 
 ### タスク 1.3 一周の規則（`drawWinner`）
@@ -109,7 +110,7 @@
   - `settle` は渡された値をそのまま持つ（範囲への丸めは同期サーバーの乱数源が持つ。範囲外を渡したら `Err`）
   - `toView(state, now)` の `spin.elapsedMs` は `now - startedAt`（途中なら途中の値・終わったら `durationMs` に丸める）。`startedAt` は出力に**無い**〈m161 の下地〉
   - `setIncluded` は冪等（同じ値を 2 回 → 1 回と同じ）
-  - `addGuest`: 13 件目は `TOO_MANY_GUESTS`〈m157〉・`takenNames` に有る名前は `GUEST_NAME_TAKEN`・ID は `g-1`, `g-2` と採番
+  - `addGuest`: 13 件目は `TOO_MANY_GUESTS`〈m157〉・名簿の参加者・ゲストと同じ名前（渡した判定 `conflicts` で決める。大文字小文字だけの違いも同じ）は `GUEST_NAME_TAKEN`・ID は `g-1`, `g-2` と採番
   - `removeGuest` は `excluded`・`drawn` からも落とす
   - `prune(state, known)` は `known` に無い ID を `excluded`・`drawn` から落とす（ゲストは `known` に含めて呼ぶ前提を docstring に）
 - **確かめる**: 同上
@@ -155,7 +156,7 @@
   - コマンドの受け先のルームは `roomCodeOf`（**ルーレットとして在席している**ルームだけ）
   - 各コマンドの前に `prune(state, 名簿の全参加者の ID ∪ ゲストの ID)`
   - `roulette.spin` の `Member[]` は名簿から `{ id, name: displayName, present: presenceOf(p) === "online" }`。`spunBy` は回した本人の表示名
-  - `roulette.guest.add` は `applyDisplayNameRule` を通し（失敗は `INVALID_GUEST_NAME`）、`takenNames` に名簿の全参加者の表示名とゲストの名前を渡す
+  - `roulette.guest.add` は `applyDisplayNameRule` を通し（失敗は `INVALID_GUEST_NAME`）、名簿の全参加者（在室を問わない）と `room-core` の `conflictsWithExisting` を渡す（PR #355 のレビューで `takenNames` の完全一致から改めた・spec R13）
   - 時計は**単調時計**（`createPerformanceClock` の型を受ける）。ハンドラはログを書かない
 - **先に書く赤いテスト**: `test/roulette-handlers.test.ts`（`topic-handlers.test.ts` の作りを写す。偽の時計・偽の乱数・偽の送信）
   - 「2 人で 2 回回すと 2 回目は 1 回目と違う人」（偽の乱数は常に 0）〈m151 の配線側〉
@@ -208,7 +209,7 @@
 
 ### タスク 2.3 見え方の純粋関数と画面（円盤なし）
 
-- **変えるファイル**: `src/roulette-view.ts`（`poolOf` を roulette-core から呼んで一覧の行を作る・`phaseOf(view, nowMs)` で「回す前 / 回っている / 止まった」・**回っている間は今回の当たりを `drawn` から除いた一覧と数**・結果の一言・主ボタンの文言と押せるか）、`src/screens/RouletteRoom.tsx`、`src/components/{PeoplePanel,GuestForm,SpinControls}.tsx`
+- **変えるファイル**: `src/roulette-view.ts`（`poolOf(members, state, conflictsWithExisting)` を roulette-core から呼んで一覧の行を作る（第 3 引数は PR #355 のレビューで足した。web も `room-core` の `conflictsWithExisting` を渡す・spec R13）。**ゲストのうち外しておらず入る人に居ない人は、在室者と同じ名前で外れている**ので、その旨を一覧の行に出す（文言は書体の base 層で実測して決める）・`phaseOf(view, nowMs)` で「回す前 / 回っている / 止まった」・**回っている間は今回の当たりを `drawn` から除いた一覧と数**・結果の一言・主ボタンの文言と押せるか）、`src/screens/RouletteRoom.tsx`、`src/components/{PeoplePanel,GuestForm,SpinControls}.tsx`
 - **段組み**: `<main className="ui-page ui-page--wide">` → 見出し（h1 と戻る）→ `<div className="ui-workspace ui-workspace--side-end">`（main: お題の添え書き・結果の一言・回す / side: `.ui-panel` の入る人と、2 つ目の `.ui-panel`「仲間を招く」（`InviteLink`））。**招待は見出しの下に置かない**（spec §6.7 の 3 版・利用者が承認）。「一周をやり直す」は `.ui-button--secondary --sm`（状態を変える操作。控えの下線の字にしない）。spec §6.7
 - **先に書く赤いテスト**: `tests/roulette-view.test.ts` と `tests/roulette-room.test.tsx`（偽の WebSocket と偽の時計）
   - 回り始めてから止まるまで、`role="status"` の領域に**当たりの名前が無い**。止まった後に「次の進行役は {名前} さんです」〈m165。**回っている間に見る**〉
