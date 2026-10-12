@@ -7,7 +7,8 @@
  * - E6 素のボタンが無い: 全ての `<button>` が部品（`.ui-button`）か、画面固有で許した一覧のどれかを持つ。
  * - E7 主は 1 つだけ: 操作の並び（`.ui-actions`）の中の主（`--secondary` / `--quiet` を持たない `.ui-button`）は 1 つ以下で、あれば最後。
  * - E8 下端の帯: 40rem 未満で `.ui-actions--dock` が画面の下端に接し、最下部では中身の下に出る。40rem 以上は流れの中。
- * - E4・E5 当たりとはみ出し: 全ての操作（`.ui-button` に限らない）の押せる範囲（絶対配置の擬似要素の広がりを含む）が 44×44 以上で、
+ * - E4・E5 当たりとはみ出し: D9 の 4 種の操作（`button`・`a[href]`・`summary`・`[role="tab"]`。`.ui-button` に限らない。ラジオなどの入力は射程の外）の
+ *   押せる範囲（絶対配置の擬似要素の広がりを含む）が 44×44 以上で、突けば操作自身に当たり、画面の横の範囲に収まり、
  *   どの 2 つも重ならず、部品のボタンの字が折れず、ページが横に溢れない。320・768・1280・1920 の 4 つの幅で見る（`expectScreenAcrossWidths`・#316 PR 4）。
  *
  * **測る前に、測る対象が描かれたことを待つ。** 描かれる前に「素のボタンが 0 件」「帯が無い」を測ると、
@@ -16,7 +17,7 @@
  */
 import type { Locator, Page } from '@playwright/test';
 import { expect, test } from '../fixtures/test';
-import { expectFieldsAtLeast16px, expectScreenAcrossWidths } from '../support/a11y';
+import { expectFieldsAtLeast16px, expectScreenAcrossWidths, expectTouchTargets } from '../support/a11y';
 import { chooseCard } from '../support/poker';
 import { openTopicTool, setTopic } from '../support/topic';
 import { createRoom as createTimerRoom } from '../support/timer';
@@ -384,6 +385,13 @@ test.describe('timer の各画面（ロビー・セッション・確認・ま�
     for (const r of wide.rows) expect(r.actionsH, `名簿の行「${r.name}」の操作の行が 1 段に収まらない（${r.actionsH}px）`).toBeLessThanOrEqual(44 + 2);
     // 操作の数の下限は、部品のボタン 8 つと名簿の行の小さな操作 10 個（どちらも 1280 で必ず描かれる）
     await expectScreen(page, 'timer セッション（1280）', 8, { minTargets: 8 + 10 });
+    // 40rem 以上で行の操作が 2 段に折れたとき、段の間（row-gap）で上下の当たりが重ならない。22rem の脇では今の文言が 1 段に収まり
+    // 折れる場面が無いので、操作の行を狭めて折らせて測る（見た目 36px の操作の当たりは上下に 4px ずつ広がり、段の間が 8px 未満だと重なる）
+    const narrow = await page.addStyleTag({ content: '.ui-workspace-side .roster-panel-actions { max-width: 9rem; margin-inline-start: auto; }' });
+    const wrappedRows = await page.locator('.ui-workspace-side .roster-panel-actions').evaluateAll((els) => els.filter((el) => el.getBoundingClientRect().height > 44 + 2).length);
+    expect(wrappedRows, '操作の行を狭めても段が折れない（重なりの判定が空振りする）').toBeGreaterThan(0);
+    await expectTouchTargets(page, 'timer セッション（1280・行の操作を 2 段に折った）', 8 + 10);
+    await narrow.evaluate((el) => (el as Element).remove());
 
     // 入力欄（#316 PR 4）: 代理追加・改名・共有メモの欄は 16px 以上で、脇（22rem）の行から押し出されない。1280 と 320 で見る
     const toggleProxy = page.getByRole('button', { name: '代理参加者を追加' });

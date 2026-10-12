@@ -4,6 +4,8 @@
  * 文字の大きさと行の高さは 5 段のトークンと割り切れる数で書く（#316 PR 4）。
  */
 .status-strip {
+  /* 40rem 未満で、通知設定のポップオーバーの包含ブロックになる（帯の幅に広げる・`notify-settings.css`） */
+  position: relative;
   display: flex;
   flex-wrap: wrap;
   align-items: center;

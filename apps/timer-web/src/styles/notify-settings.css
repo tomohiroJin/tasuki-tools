@@ -60,6 +60,21 @@
   box-shadow: var(--shadow-popover);
 }
 
+/* 40rem 未満: ポップオーバーをステータスの帯の幅に広げる（帯が包含ブロック・`status-strip.css`）。「通知」の右端に揃えた 20rem の箱は、
+ * 320 では「通知」の右端（約 287px）から左へ 320px 伸び、左の 33px が画面の外に切れた（#316 PR 4・実測）。
+ * 縦は静的位置（「通知」の下）のまま。外側のクリックで閉じる判定は DOM の入れ子（`containerRef`）で見るので、包含ブロックを変えても変わらない */
+@media (width < 40rem) {
+  .notify-settings-container {
+    position: static;
+  }
+
+  .notify-settings-popover {
+    left: 0;
+    right: 0;
+    width: auto;
+  }
+}
+
 .notify-settings-warning {
   margin-top: 0.5rem;
   font-size: var(--font-size-xs);
