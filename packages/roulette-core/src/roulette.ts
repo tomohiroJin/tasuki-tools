@@ -25,7 +25,7 @@ export interface SpinInput {
 }
 
 /** 回転中か（`now - startedAt < SPIN_DURATION_MS`）。 */
-export function isSpinning(state: RouletteState, now: number): boolean {
+function isSpinning(state: RouletteState, now: number): boolean {
   return state.lastSpin !== null && now - state.lastSpin.startedAt < SPIN_DURATION_MS;
 }
 

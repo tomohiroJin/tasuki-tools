@@ -423,7 +423,7 @@ describe("ログ", () => {
     spies.length = 0;
   });
 
-  it("ゲストの名前を入れて操作した後も、ログの出口は 1 度も呼ばれない", async () => {
+  it("ゲストの名前を入れて操作した後も、ログは 1 行も出ない", async () => {
     // Given: 出口になりうる console を全部見張る
     for (const m of ["log", "info", "warn", "error", "debug"] as const) spies.push(spyOn(console, m));
     const h = setup();

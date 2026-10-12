@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { INITIAL_ROULETTE_STATE, drawWinner, type Entry, type RouletteState } from "../src/index.js";
+import { drawWinner } from "../src/draw.js";
+import { INITIAL_ROULETTE_STATE, type Entry, type RouletteState } from "../src/index.js";
 
 const A: Entry = { id: "p-a", name: "あおい" };
 const B: Entry = { id: "p-b", name: "健太" };

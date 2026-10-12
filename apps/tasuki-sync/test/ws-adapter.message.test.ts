@@ -499,7 +499,7 @@ describe("お題（topic）のメッセージ層が同期 throw しても隔離�
  * @requirements #94 spec §5.2・E15
  */
 describe("WsAdapter ルーレットのメッセージ経路", () => {
-  it("Given ?tool=roulette の接続 / When 64KB を超える本文を送る / Then onRouletteMessage は呼ばれず MESSAGE_TOO_LARGE を返し接続は保つ", async () => {
+  it("Given ?tool=roulette の接続 / When 64KB を超える本文を送る / Then ルーレットの層へ渡さず MESSAGE_TOO_LARGE を返し接続は保つ", async () => {
     // Given
     let called = false;
     adapter = newTestWsAdapter({

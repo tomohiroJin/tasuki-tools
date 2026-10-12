@@ -28,7 +28,7 @@ export type RouletteCommand = v.InferOutput<typeof RouletteCommandSchema>;
 
 // 受けるフレームは**非 strict**（サーバーが項目を足しても古い web がフレームごと捨てない・
 // `room-core/src/wire.ts` の規律）。
-export const RouletteViewSchema = v.object({
+const RouletteViewSchema = v.object({
   excluded: v.array(v.string()),
   guests: v.array(entrySchema),
   drawn: v.array(v.string()),
@@ -50,7 +50,7 @@ export const RouletteFrameSchema = v.object({
   state: RouletteViewSchema,
 });
 
-export const RouletteErrorCodeSchema = v.picklist(ROULETTE_ERROR_CODES);
+const RouletteErrorCodeSchema = v.picklist(ROULETTE_ERROR_CODES);
 
 export const RouletteErrorFrameSchema = v.object({
   type: v.literal("error"),

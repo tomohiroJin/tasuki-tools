@@ -5,12 +5,8 @@ export type { Entry, EntryId, Member, RouletteState, Spin } from "./types.js";
 
 export { poolOf } from "./pool.js";
 
-export { drawWinner } from "./draw.js";
-export type { DrawResult } from "./draw.js";
-
 export {
   startSpin,
-  isSpinning,
   setIncluded,
   addGuest,
   removeGuest,
@@ -25,9 +21,7 @@ export type { RouletteError, RouletteDomainErrorCode, RouletteErrorCode } from "
 
 export {
   RouletteCommandSchema,
-  RouletteViewSchema,
   RouletteFrameSchema,
-  RouletteErrorCodeSchema,
   RouletteErrorFrameSchema,
 } from "./schemas.js";
 export type { RouletteCommand } from "./schemas.js";

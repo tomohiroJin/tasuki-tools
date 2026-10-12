@@ -5,7 +5,6 @@ import {
   MAX_WHEEL,
   SPIN_DURATION_MS,
   addGuest,
-  isSpinning,
   prune,
   removeGuest,
   resetCycle,
@@ -86,13 +85,11 @@ describe("startSpin（回す）", () => {
     // Given
     const first = startSpin(INITIAL_ROULETTE_STATE, spinInput())._unsafeUnwrap();
     // When
-    expect(isSpinning(first, 1000 + SPIN_DURATION_MS - 1)).toBe(true);
-    expect(isSpinning(first, 1000 + SPIN_DURATION_MS)).toBe(false);
     expect(startSpin(first, spinInput({ now: 1000 + SPIN_DURATION_MS })).isOk()).toBe(true);
   });
 
-  it("まだ一度も回していなければ回転中ではない", () => {
-    expect(isSpinning(INITIAL_ROULETTE_STATE, 0)).toBe(false);
+  it("まだ一度も回していなければ、時計がどこでも回せる", () => {
+    expect(startSpin(INITIAL_ROULETTE_STATE, spinInput({ now: 0 })).isOk()).toBe(true);
   });
 
   it("入る人が 1 人なら ROULETTE_TOO_FEW", () => {
