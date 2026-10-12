@@ -138,8 +138,10 @@ describe('場のお題', () => {
     enterWith({ ...IDLE_STATE, topic: md });
     const current = screen.getByRole('region', { name: copy.READER_HEADING });
     // Then
-    expect(within(current).getByRole('heading', { name: '背景' })).toBeInTheDocument();
-    expect(within(current).getAllByRole('listitem')).toHaveLength(2);
+    // 本文の領域だけを見る（64rem 未満の写しにも同じ本文があり、jsdom は inert を a11y ツリーから外さない）
+    const body = within(current).getByRole('region', { name: 'FizzBuzz' });
+    expect(within(body).getByRole('heading', { name: '背景' })).toBeInTheDocument();
+    expect(within(body).getAllByRole('listitem')).toHaveLength(2);
     expect(current.textContent).not.toContain('##');
   });
 });
@@ -881,7 +883,7 @@ describe('読む面のタブ', () => {
     expect(document.getElementById(tab(copy.TAB_CURRENT).getAttribute('aria-controls') ?? '')).not.toHaveAttribute('hidden');
   });
 
-  it('Given 止まり先の無いパネル / When 見る / Then パネル自身が tabindex 0。本文があるときは付けない', () => {
+  it('Given 止まり先の無いパネル / When 見る / Then パネル自身が tabindex 0。下書きは本文があっても付ける', () => {
     // Given: お題なし（現在のパネルに本文の領域が無い）
     enterWith();
     // Then
@@ -889,9 +891,13 @@ describe('読む面のタブ', () => {
     // When: 下書きのタブ（空）→ 同じく止まり先が無い
     fireEvent.click(tab(copy.TAB_DRAFT));
     expect(panel()).toHaveAttribute('tabindex', '0');
-    // When: 書くと本文の領域ができ、パネルには付けない
+    // When: 書くと本文の領域ができるが、下書きのパネルは常に止まり先のまま
+    // （64rem 未満の本文は inert の写しで、本文の領域は描かれず止まり先が無いため）
     fireEvent.change(bodyField(), { target: { value: '説明' } });
-    expect(panel()).not.toHaveAttribute('tabindex');
+    expect(panel()).toHaveAttribute('tabindex', '0');
+    // When: 場のお題のタブへ戻ると、本文が無ければ付く（お題なし）
+    fireEvent.click(tab(copy.TAB_CURRENT));
+    expect(panel()).toHaveAttribute('tabindex', '0');
   });
 
   it('Given 下書きにタイトルがある / When 下書きのタブを見る / Then 本文の領域はタイトルで名付けられる', () => {
@@ -980,6 +986,19 @@ describe('続きを読む（シート）', () => {
     dialog.dispatchEvent(new Event('close'));
     // Then
     expect(document.activeElement).toBe(more);
+  });
+
+  it('Given 説明のあるお題 / When 場のお題を見る / Then 3 行の写しは inert で、本文の領域の直前にあり、役割も止まり先も持たない', () => {
+    // Given / When
+    enterWith({ ...IDLE_STATE, topic: FIZZ });
+    // Then: 切った中身のリンクを Tab の行き先にしない（jsdom は inert の挙動を持たないので、属性と並びを見る。実際の Tab は E2E）
+    const body = screen.getByRole('region', { name: FIZZ.title });
+    const preview = body.previousElementSibling;
+    expect(preview?.classList.contains('ui-reader-preview')).toBe(true);
+    expect(preview?.hasAttribute('inert')).toBe(true);
+    expect(preview?.hasAttribute('role')).toBe(false);
+    expect(preview?.hasAttribute('tabindex')).toBe(false);
+    expect(preview?.textContent).toContain('3 のときは Fizz を出す');
   });
 
   it('Given 説明が空のお題 / When 画面を見る / Then 続きを読むもシートも出ない', () => {

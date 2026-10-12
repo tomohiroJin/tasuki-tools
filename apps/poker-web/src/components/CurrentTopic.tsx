@@ -10,8 +10,9 @@
  *
  * 札の上の字の色は `.ui-reader` が `--coal` で持つ。Markdown のコード・引用の枠の色（`--coal-soft`）も
  * 象牙地の上で読めるように決めてある（暗い地へ直接乗せると約 2.07:1 まで落ちる。#91 PR 3）。
- * 本文の `tabIndex={0}` は 64rem 以上で本文をキーボードでスクロールするため
- * （64rem 未満は切って見せるだけだが、フォーカスは受けるので害は無い）。
+ * 本文（`.ui-reader-body`）は 64rem 以上だけ描き、`tabIndex={0}` は本文をキーボードでスクロールするため。
+ * 64rem 未満は同じ本文を `inert` の写し（`.ui-reader-preview`）で 3 行に切って見せる。切った中身のリンクが
+ * Tab の行き先に残らず、見えないリンクにフォーカスが入らない（全文とそのリンクはシートが持つ）。
  * **受け入れた限界**: シートを開いたまま 64rem 以上へ広げたとき、またはお題が下ろされて
  * アンマウントされたときは、フォーカスが body に落ちる（直さない）。
  * **受け入れた限界（もう 1 つ）**: お題が掲げられる・下ろされる瞬間に脇の区画ごと現れる・消えるので、
@@ -43,6 +44,10 @@ export function CurrentTopic({ topic }: { topic: Topic }) {
       </div>
       {hasBody && (
         <>
+          {/* 64rem 未満の 3 行の写し。inert で Tab の行き先と読み上げから外す（全文は「続きを読む」のシート） */}
+          <div className="ui-reader-preview" inert>
+            <Markdown source={topic.body} />
+          </div>
           <div className="ui-reader-body" role="region" aria-labelledby="poker-topic-title" tabIndex={0}>
             <Markdown source={topic.body} />
           </div>

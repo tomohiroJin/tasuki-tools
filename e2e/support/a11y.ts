@@ -212,14 +212,17 @@ export async function expectPickerInPage(select: Locator, groundToken: string): 
   await select.page().keyboard.press('Escape');
 }
 
+/** 文字を入れる欄（iOS Safari が 16px 未満でフォーカス時に画面を拡大する対象）。部品のクラスで絞らない —— 当て忘れた欄こそ測る */
+const TEXT_FIELD = 'textarea, select, input:not([type="checkbox"], [type="radio"], [type="range"], [type="hidden"], [type="button"], [type="submit"], [type="color"], [type="file"])';
+
 /**
- * 部品を当てた入力欄の字が 16px を下回らないこと（#320・E6）。
+ * 画面にある文字を入れる欄の字が 16px を下回らないこと（#320・E6・#316 PR 4）。
  *
  * 16px 未満の入力欄は iOS Safari がフォーカス時に画面を拡大する。部品は 1rem で持つが、画面の CSS が
  * 後から字の大きさを当てると同じ詳細度の後勝ちで潰れる。**計算後の値で見る**（CSS の検査より広いオラクル）。
  */
 export async function expectFieldsAtLeast16px(page: Page): Promise<void> {
-  const sizes = await page.locator('.ui-input, .ui-select').evaluateAll((els) =>
+  const sizes = await page.locator(TEXT_FIELD).evaluateAll((els) =>
     els
       .filter((el) => (el as HTMLElement).offsetParent !== null)
       .map((el) => ({
@@ -228,6 +231,222 @@ export async function expectFieldsAtLeast16px(page: Page): Promise<void> {
       })),
   );
   // 当たる欄が無いまま空回りすると、下の判定は 1 度も走らずに緑になる
-  expect(sizes.length, '部品を当てた入力欄が画面に無い（判定が空振りする）').toBeGreaterThan(0);
+  expect(sizes.length, '文字を入れる欄が画面に無い（判定が空振りする）').toBeGreaterThan(0);
   for (const s of sizes) expect(s.px, `${s.name} の字が 16px を下回る`).toBeGreaterThanOrEqual(16);
+}
+
+/*
+ * 押せる大きさとはみ出し（#316 PR 4・設計正本 D7・D9・E4・E5）。
+ *
+ * 測る操作は D9 の 4 種（`button`・`a[href]`・`summary`・`[role="tab"]`）だけ。ラジオ・チェックボックス・スライダーなどの入力は D9 の射程の外で、測らない。
+ *
+ * 当たりは見た目の箱に、絶対配置の擬似要素（`::before` / `::after`）の広がりを足したもの（以下「申告の当たり」）。
+ * 行の中の小さな操作は見た目を保ち、当たりだけを `::before` で 44×44 に広げる（`.lobby-row-icon-button` と同じ形）ので、
+ * 箱だけで測るとそれらを全部「小さい」と誤る。擬似要素は `transform` で寄せない前提（計算値の `left` が変換前を返す）。
+ *
+ * **申告の当たりが本当に押せるかは、`document.elementFromPoint` で突いて確かめる。** 申告の当たりの計算は
+ * 「擬似要素の包含ブロックは操作自身」と仮定していて、それは実装の `position: relative` が与えるものと同じ仮定だった。
+ * 計算だけでは `position: relative` を消しても緑のまま（擬似要素は遠い祖先に付き、当たりは広がらない）。突けば、
+ * 包含ブロックの取り違え・祖先の `overflow` による切り取り・他の要素の覆いかぶさりがどれも外れとして出る。
+ */
+
+/** 押せる操作（D9 の 4 種）。行内のリンク（文の中のリンク・Markdown の本文の中）は除く（設計正本 D9） */
+const TARGET = 'button, a[href], summary, [role="tab"]';
+const WIDTHS = [320, 768, 1280, 1920] as const;
+
+interface Hit { name: string; left: number; top: number; right: number; bottom: number }
+
+interface Scan {
+  hits: Hit[];
+  wrapped: string[];
+  /** 申告の当たりのうち、突いても操作自身（かその子孫）に当たらなかった点 */
+  misses: string[];
+  /** 申告の当たり（と、`scope` を渡したときは測る範囲そのもの）が画面の横の範囲 [0, 幅] から出たもの（左へ押し出された中身も拾う） */
+  outside: string[];
+}
+
+async function scanTargets(page: Page, scope: string): Promise<Scan> {
+  return page.evaluate(([scope, sel]) => {
+    const shown = (el: Element): boolean => {
+      const r = el.getBoundingClientRect();
+      const cs = getComputedStyle(el);
+      // `checkVisibility()` は閉じた `<details>` の中身（`content-visibility: hidden`）を見えないと読む。箱の大きさだけでは
+      // 閉じた中身も幅と高さを持って見え、画面の外の位置で測られていた（#316 PR 4・突きで「画面の外」と出て見つかった）
+      return r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && el.checkVisibility() && el.closest('[inert]') === null;
+    };
+    // 文の中のリンク: Markdown の本文の中、または最も近い段落・項目（`p` / `li`）に自分以外の文字がある。
+    // 親が並べるための入れ物（ステータスの帯など）なだけのリンクは操作として測る。「親の字が自分と違えば行内」とすると、
+    // 帯の「選択画面へ戻る」が隣のフェーズや名前の字で行内と読まれ、測られなかった（#316 PR 4・実測）
+    const inline = (el: Element): boolean => {
+      if (el.tagName !== 'A') return false;
+      if (el.closest('.ui-md') !== null) return true;
+      const block = el.parentElement?.closest('p, li');
+      return block != null && (block.textContent ?? '').trim() !== (el.textContent ?? '').trim();
+    };
+    const name = (el: Element): string => (el.getAttribute('aria-label') ?? el.textContent ?? '').trim().slice(0, 24);
+    // 角の丸みの半径（箱の短い辺の半分で頭打ち。`calc(infinity * 1px)` の札も扱える）
+    const radius = (cs: CSSStyleDeclaration, w: number, h: number): number => Math.min(
+      Math.max(...[cs.borderTopLeftRadius, cs.borderTopRightRadius, cs.borderBottomRightRadius, cs.borderBottomLeftRadius].map((v) => parseFloat(v) || 0)),
+      Math.min(w, h) / 2,
+    );
+    // 申告の当たりを作る箱: 見た目の箱と、絶対配置の擬似要素の箱（包含ブロックを操作自身と仮定する。仮定の正しさは下で突いて確かめる）。
+    // `round` は箱の角の丸みの半径
+    const boxes = (el: Element) => {
+      const r = el.getBoundingClientRect();
+      const cs = getComputedStyle(el);
+      const list = [{ left: r.left, top: r.top, right: r.right, bottom: r.bottom, round: radius(cs, r.width, r.height) }];
+      for (const which of ['::before', '::after'] as const) {
+        const p = getComputedStyle(el, which);
+        if (p.content === 'none' || p.position !== 'absolute') continue;
+        const left = r.left + parseFloat(cs.borderLeftWidth) + parseFloat(p.left);
+        const top = r.top + parseFloat(cs.borderTopWidth) + parseFloat(p.top);
+        const w = parseFloat(p.width), h = parseFloat(p.height);
+        list.push({ left, top, right: left + w, bottom: top + h, round: radius(p, w, h) });
+      }
+      return list;
+    };
+    // 申告の当たり = 箱たちを囲む矩形（大きさと重なりはこれで測る）
+    const claim = (list: ReturnType<typeof boxes>) => ({
+      left: Math.min(...list.map((b) => b.left)), top: Math.min(...list.map((b) => b.top)),
+      right: Math.max(...list.map((b) => b.right)), bottom: Math.max(...list.map((b) => b.bottom)),
+    });
+    const els = Array.from(document.querySelectorAll(`${scope} :is(${sel})`)).filter((el) => shown(el) && !inline(el));
+    const hits = els.map((el) => ({ name: name(el), ...claim(boxes(el)) }));
+
+    // 突く: 操作を画面の中ほどへ寄せ、申告の当たりの中央と、箱ごとの 4 つの角（1px 内側）を elementFromPoint で突く。
+    // 角を囲む矩形でなく箱ごとに取るのは、横に長い箱と 44px 四方の擬似要素の和が十字形で、囲む矩形の角はどちらの箱にも無いため。
+    // 角は丸みの分だけさらに内へ寄せる（半径 r の角で、角から 0.3r より内側の対角線上の点は丸みの内にある。
+    // 寄せないと、丸い箱の角は親に当たって外れと読まれる）。画面の外の点は null を返し、外れに数える
+    // 平行移動だけの変形（`translateY(-12px)` や `translate`）は箱の形を変えず、箱と擬似要素が一緒に動くので角も突ける。
+    // 傾き・拡大・歪み（行列の a / b / c / d が恒等でない・3D の行列）と、個別の `rotate` / `scale` があるときだけ中央に絞る
+    const shapeKept = (cs: CSSStyleDeclaration): boolean => {
+      if (!['none', '0deg'].includes(cs.rotate) || !['none', '1'].includes(cs.scale)) return false;
+      if (cs.transform === 'none') return true;
+      const m = new DOMMatrix(cs.transform);
+      return m.is2D && m.a === 1 && m.b === 0 && m.c === 0 && m.d === 1;
+    };
+    const transformed = (el: Element): boolean => {
+      for (let e: Element | null = el; e !== null; e = e.parentElement) if (!shapeKept(getComputedStyle(e))) return true;
+      return false;
+    };
+    const misses: string[] = [];
+    const outside: string[] = [];
+    const sx = scrollX, sy = scrollY;
+    const width = document.documentElement.clientWidth;
+    for (const el of els) {
+      el.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
+      const list = boxes(el);
+      const c = claim(list);
+      if (c.left < -0.5 || c.right > width + 0.5) outside.push(`${name(el)} ${Math.round(c.left)}〜${Math.round(c.right)}（幅 ${width}）`);
+      const points: [string, number, number][] = [['中央', (c.left + c.right) / 2, (c.top + c.bottom) / 2]];
+      // 傾けた・拡大した操作は中央だけ突く。外接矩形の角は傾いた箱の外にあり、計算値の `left` は変形の前を返す（玄関の傾けて配った札）
+      if (!transformed(el)) list.forEach((b, i) => {
+        const k = 1 + 0.3 * b.round;
+        const box = i === 0 ? '箱' : '擬似要素';
+        points.push(
+          [`${box}の左上`, b.left + k, b.top + k], [`${box}の右上`, b.right - k, b.top + k],
+          [`${box}の左下`, b.left + k, b.bottom - k], [`${box}の右下`, b.right - k, b.bottom - k],
+        );
+      });
+      for (const [where, x, y] of points) {
+        const got = document.elementFromPoint(x, y);
+        if (got === el || (got !== null && el.contains(got))) continue;
+        const by = got === null ? '画面の外' : `${got.tagName.toLowerCase()}${got.classList.length > 0 ? `.${got.classList[0]}` : ''}`;
+        misses.push(`${name(el)} の${where}（${Math.round(x)}, ${Math.round(y)}）→ ${by}`);
+      }
+    }
+    scrollTo(sx, sy);
+    // 測る範囲（ポップオーバー・ダイアログ）そのものも横の範囲に収まる。中の操作が右に寄っていると、範囲の左が切れても操作は画面に残る
+    // （320 の通知設定のポップオーバーは左の 33px が切れ、見出しと項目の名前が欠けたが、中の操作は全部画面の中にあった・#316 PR 4 で実測）
+    if (scope !== 'body') {
+      for (const el of Array.from(document.querySelectorAll(scope)).filter(shown)) {
+        const r = el.getBoundingClientRect();
+        if (r.left < -0.5 || r.right > width + 0.5) outside.push(`測る範囲 ${scope} ${Math.round(r.left)}〜${Math.round(r.right)}（幅 ${width}）`);
+      }
+    }
+
+    // 部品のボタンの字が 1 行に収まっているか。アイコン（svg）を数えないよう、文字のノードの行だけを数える。
+    // 行は上端の近さで束ねる: 上端の差が行の高さの半分未満なら同じ行（和文と欧文の数 px の差を吸い、2 行目は 1 行の高さぶん下にある）。
+    // 上端を一定の幅で丸めて数えると、同じ行の矩形が丸めの境目をまたいで別の行に数えられる（偽の「折れた」）
+    const wrapped = Array.from(document.querySelectorAll(`${scope} .ui-button`)).filter(shown).filter((el) => {
+      const rects: { top: number; half: number }[] = [];
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      for (let n = walker.nextNode(); n !== null; n = walker.nextNode()) {
+        if ((n.textContent ?? '').trim() === '') continue;
+        const lh = parseFloat(getComputedStyle(n.parentElement ?? el).lineHeight);
+        const range = document.createRange();
+        range.selectNodeContents(n);
+        for (const rect of Array.from(range.getClientRects())) {
+          if (rect.width === 0) continue;
+          rects.push({ top: rect.top, half: (Number.isNaN(lh) ? rect.height : lh) / 2 });
+        }
+      }
+      rects.sort((a, b) => a.top - b.top);
+      let lines = 0;
+      let lineTop = -Infinity;
+      for (const r of rects) {
+        if (Math.abs(r.top - lineTop) < r.half) continue;
+        lines += 1;
+        lineTop = r.top;
+      }
+      return lines > 1;
+    }).map(name);
+    return { hits, wrapped, misses, outside };
+  }, [scope, TARGET] as const);
+}
+
+/**
+ * 当たりが 44×44 以上で、どの 2 つも重ならず、突けば操作自身に当たり、画面の横の範囲に収まり、部品のボタンの字が折れない。
+ * `minTargets` は測った操作の数の下限（空振りの防止）。
+ * モーダル（dialog / ドロワー）が開いているときは `scope` を渡す（後ろの操作を重なりとして測らないため）。
+ */
+export async function expectTouchTargets(page: Page, label: string, minTargets: number, scope = 'body'): Promise<void> {
+  const { hits, wrapped, misses, outside } = await scanTargets(page, scope);
+  expect(hits.length, `${label}: 測った操作が少ない（描かれる前に測っていないか）`).toBeGreaterThanOrEqual(minTargets);
+  // 申告の当たりが本物でなければ、下の大きさと重なりは架空の矩形を測ることになる。先に本物かを見る
+  expect(misses, `${label}: 申告の当たりを突いても操作に当たらない（包含ブロックの取り違え・祖先の切り取り・覆いかぶさり）`).toEqual([]);
+  expect(outside, `${label}: 当たりが画面の横の範囲から出る（左右に押し出された中身）`).toEqual([]);
+  // 0.05px の余裕は Chromium のレイアウトの丸め（1/64px 単位。名簿の行の操作で実測 43.984）
+  const small = hits.filter((h) => h.right - h.left < 44 - 0.05 || h.bottom - h.top < 44 - 0.05)
+    .map((h) => `${h.name} ${Math.round(h.right - h.left)}x${Math.round(h.bottom - h.top)}`);
+  expect(small, `${label}: 当たりが 44px 未満`).toEqual([]);
+  const overlaps: string[] = [];
+  for (let i = 0; i < hits.length; i++) for (let j = i + 1; j < hits.length; j++) {
+    const a = hits[i]!, b = hits[j]!;
+    const x = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+    const y = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+    if (x > 0.5 && y > 0.5) overlaps.push(`${a.name} / ${b.name}`);
+  }
+  expect(overlaps, `${label}: 当たりが重なる`).toEqual([]);
+  expect(wrapped, `${label}: 字が 2 行に折れた部品のボタン`).toEqual([]);
+}
+
+/**
+ * 終わりのある演出（ホバーの遷移・行の登場の拡大）が終わるのを待つ。演出の途中の箱は縮んでいたり動いていたりして、
+ * 当たりの大きさと重なりを誤る（タブを切り替えた直後の名簿の行で、実測 32×34 と読んだ）。終わりの無い演出（脈打ちなど）と止まっている演出は待たない
+ */
+async function settleFiniteAnimations(page: Page): Promise<void> {
+  await page.evaluate(() => Promise.all(document.getAnimations()
+    // 止まっている演出の `finished` は解けないので、走っているものだけを待つ
+    .filter((a) => a.playState === 'running' && a.effect?.getComputedTiming().endTime !== Infinity)
+    .map((a) => a.finished.catch(() => undefined))));
+}
+
+/**
+ * 4 つの幅で、横に溢れず、押せる大きさを満たす。測り終えたら元の幅に戻す。
+ * `scrollWidth` が見るのは右への溢れだけ。左（x < 0）へ押し出された中身はスクロールで届かないので
+ * `scrollWidth` に出ない。それは `expectTouchTargets` の「当たりが画面の横の範囲から出る」と突きの外れが拾う
+ */
+export async function expectScreenAcrossWidths(page: Page, label: string, minTargets: number, scope = 'body'): Promise<void> {
+  const original = page.viewportSize();
+  // ホバーの浮き上がりは押せる範囲の重なりではない。ポインタを左上の角へ退けてから測る（玄関の道具選びで、「ルームを作る」を押した
+  // ポインタの下に来た札が `translateY(-8px)` で浮き、上の札と重なって読めた。退けると札の間は 15.6px 空く・実測）
+  await page.mouse.move(0, 0);
+  for (const width of WIDTHS) {
+    await page.setViewportSize({ width, height: 900 });
+    await settleFiniteAnimations(page);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), { message: `${label}（${width}）: 横に溢れる` }).toBe(true);
+    await expectTouchTargets(page, `${label}（${width}）`, minTargets, scope);
+  }
+  if (original !== null) await page.setViewportSize(original);
 }

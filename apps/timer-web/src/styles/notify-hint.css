@@ -1,7 +1,6 @@
 /* 初回の通知案内（`NotifyHint.tsx`・#321）。Tailwind のユーティリティの写し。
  * 値は基準（`ba9249d`）の計算済みスタイルと比較で確かめる（設計正本 D2）。
- * 写さなかった宣言（除去検査で dead）: 根の `text-[var(--bone)]`（親から継ぐので不要）。
- * 行の高さ（`var(--timer-never-defined, calc(…))`）は status-strip.css 冒頭の注釈。 */
+ * 写さなかった宣言（除去検査で dead）: 根の `text-[var(--bone)]`（親から継ぐので不要）。 */
 
 .notify-hint {
   margin-bottom: 0.75rem;
@@ -14,8 +13,8 @@
   background-color: var(--signal-tint);
   padding-inline: 0.75rem;
   padding-block: 0.5rem;
-  font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 PR 4 で段へ寄せる） */
-  line-height: var(--timer-never-defined, calc(1.25 / 0.875)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  font-size: var(--font-size-sm);
+  line-height: 1.45;
 }
 
 .notify-hint-icon {
@@ -31,8 +30,18 @@
 }
 
 .notify-hint-close {
+  position: relative;
   flex-shrink: 0;
   color: var(--bone-muted);
+}
+
+/* 見た目を保ち、押せる範囲だけ 44×44 に広げる（#316 D7・lobby.css の .lobby-row-icon-button と同じ形）。
+   inset の % は左右が幅、上下が高さに対するので、縦長・横長の箱でも当たりは 44×44 の中央寄せになる。
+   隣の当たりと重ならないことは buttons.spec.ts が見る */
+.notify-hint-close::before {
+  content: "";
+  position: absolute;
+  inset: calc((100% - 2.75rem) / 2);
 }
 
 @media (hover: hover) {

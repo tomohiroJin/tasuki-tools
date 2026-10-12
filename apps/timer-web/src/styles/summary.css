@@ -2,8 +2,7 @@
  * 値は基準（`ba9249d`）の計算済みスタイルと比較で確かめる（設計正本 D2）。
  * 写さなかった宣言（除去検査で dead）: 見出し・統計値の `text-[var(--bone)]`（親から継ぐので不要）、
  * `instrument-label` の `text-[var(--signal)]`（基準（`ba9249d`）ではレイヤー外の `.instrument-label`（当時は `index.css`）が勝っていたので写さなかった）、
- * 統計カードの `p-3`、ドライバー別カードの `p-4`、アイコンの `lucide*` と、ボタンの `focus-visible:outline-none`。
- * 行の高さ（`var(--timer-never-defined, calc(…))`）は status-strip.css 冒頭の注釈。 */
+ * 統計カードの `p-3`、ドライバー別カードの `p-4`、アイコンの `lucide*` と、ボタンの `focus-visible:outline-none`。 */
 
 .summary {
   display: flex;
@@ -21,7 +20,7 @@
 
 .summary-title-abort {
   font-size: var(--font-size-xl); /* 画面の主見出し（§11） */
-  line-height: var(--timer-never-defined, calc(2 / 1.5)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  line-height: 1.2;
   font-weight: 700;
   color: var(--bone-muted);
 }
@@ -43,7 +42,7 @@
   justify-content: center;
   gap: 0.5rem;
   font-size: var(--font-size-lg); /* 区画の見出し（§11） */
-  line-height: var(--timer-never-defined, calc(2 / 1.5)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  line-height: 1.3;
   font-weight: 700;
 }
 
@@ -54,8 +53,8 @@
 
 .summary-banner-note {
   margin-top: 0.25rem;
-  font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 PR 4 で段へ寄せる） */
-  line-height: var(--timer-never-defined, calc(1.25 / 0.875)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  font-size: var(--font-size-sm);
+  line-height: 1.45;
   color: var(--bone-muted);
 }
 
@@ -69,16 +68,9 @@
 
 .summary-stat-value {
   white-space: nowrap;
-  font-size: 1.125rem; /* scale-exempt: Tailwind の text-lg の写し（#316 PR 4 で段へ寄せる） */
-  line-height: var(--timer-never-defined, calc(1.75 / 1.125)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  font-size: var(--font-size-lg);
+  line-height: 1.4;
   font-weight: 700;
-}
-
-@media (width >= 40rem) {
-  .summary-stat-value {
-    font-size: 1.25rem; /* scale-exempt: Tailwind の text-xl の写し（#316 PR 4 で段へ寄せる） */
-    line-height: 1.4;
-  }
 }
 
 /* ドライバー別の回数 */
@@ -99,8 +91,8 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 PR 4 で段へ寄せる） */
-  line-height: var(--timer-never-defined, calc(1.25 / 0.875)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  font-size: var(--font-size-sm);
+  line-height: 1.45;
 }
 
 .summary-driver-name {
@@ -166,13 +158,13 @@
 }
 
 .summary-hint {
-  font-size: 0.75rem; /* scale-exempt: Tailwind の text-xs の写し（#316 PR 4 で段へ寄せる） */
-  line-height: var(--timer-never-defined, calc(1 / 0.75)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  font-size: var(--font-size-xs);
+  line-height: 1.35;
   color: var(--bone-subtle);
 }
 
 .summary-abort-note {
-  font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 PR 4 で段へ寄せる） */
-  line-height: var(--timer-never-defined, calc(1.25 / 0.875)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  font-size: var(--font-size-sm);
+  line-height: 1.45;
   color: var(--bone-subtle);
 }

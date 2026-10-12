@@ -13,6 +13,7 @@
  */
 import type { Locator, Page } from '@playwright/test';
 import { expect, test } from '../fixtures/test';
+import { expectScreenAcrossWidths } from '../support/a11y';
 import {
   corruptSnapshotFrame,
   createRoom,
@@ -822,5 +823,10 @@ test.describe('timer のルームが消えたら操作を止めて、やり直�
       'やり直す導線',
     ).toBeEnabled();
     await expect(page.getByRole('button', { name: '記録を見る' }), '記録への導線').toBeEnabled();
+
+    // Then その4: 喪失の画面も、4 つの幅で横に溢れず、操作は押せる大きさで重ならない（#316 PR 4・E4・E5）。
+    // 読み込み中の行き止まり（`Loading`）は作るのに同期サーバーを止める仕掛けが要るので測らない。
+    // あちらのボタンは既定の大きさの `.ui-button`（44px）だけ
+    await expectScreenAcrossWidths(page, 'timer セッション喪失', 2);
   });
 });

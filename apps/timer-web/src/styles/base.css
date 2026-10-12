@@ -159,17 +159,16 @@ body {
 /* 流動的タイポ（ブレイクポイント不要・clamp）。ブランド見出しと現ドライバー名を
  * 画面幅に対して滑らかにスケールさせる（段階クラスの飛びを解消）。 */
 .brand-title {
-  /* ブランドの題字は意図して文字の段（5 段）の外に置く（PR 4 で見直す） */
   /* max を 2.75rem に抑え、max-w-lg のカード内で 1 行に収まるようにする（②）。
    * 計器の刻印として等幅・大文字寄りのトラッキングで「機材名」感を出す。 */
   font-family: var(--font-mono);
-  font-size: clamp(1.75rem, 1.1rem + 2.4vw, 2.75rem);
+  font-size: clamp(1.75rem, 1.1rem + 2.4vw, 2.75rem); /* scale-exempt: 計器の意匠の題字（読み込み中・セッション喪失の h1）。5 段の xl では等幅の題字が詰まって見える（#316 §14） */
   line-height: 1.15;
   letter-spacing: 0.04em;
   text-wrap: balance;
 }
 .driver-name-fluid {
-  font-size: clamp(2.5rem, 1.6rem + 3.5vw, 4.5rem);
+  font-size: clamp(2.5rem, 1.6rem + 3.5vw, 4.5rem); /* scale-exempt: 計器の大きな数字（ドライバー名）。計器の数字は段の外 */
   line-height: 1.1;
 }
 
@@ -224,7 +223,7 @@ body {
   font-family: var(--font-mono);
   text-transform: uppercase;
   letter-spacing: 0.18em;
-  font-size: 0.7rem;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   /* 小さい大文字ラベルでも panel 上で AA(4.5:1) を満たすよう muted まで上げる。 */
   color: var(--bone-muted);

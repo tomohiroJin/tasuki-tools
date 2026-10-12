@@ -22,7 +22,7 @@
 .room header h1 {
   margin: 0;
   font-style: italic;
-  font-size: 1.6rem;
+  font-size: var(--font-size-xl);
 }
 
 /* 見出しと「お題を隠す」を 1 つの塊にして、`.ui-page-header` の子を 2 つ（この塊と戻る導線）に保つ。 */
@@ -131,7 +131,7 @@
 
 .you-mark {
   color: var(--ivory-dim);
-  font-size: 0.8em;
+  font-size: 0.8em; /* scale-exempt: 名前の横の小さな印。名前の字に対する相対値で、名前の段に付いて動く */
 }
 
 /* 席のカード: 伏せたカード = 投票済み、枠だけ = 考え中。
@@ -220,7 +220,7 @@
 /* 未投票の印。字は `--ivory-faint`（12px の本文で AA を満たす最も淡い段）。α 0.4 では最も明るい卓の面で
    2.65:1（計算）・票の行の上で 2.98:1（E2E の実測）と AA を割っていた（#320 PR 5 で発見。それまで E2E は未投票を出していなかった）。 */
 .no-vote {
-  font-size: 0.78rem;
+  font-size: var(--font-size-xs);
   color: var(--ivory-faint);
   border: 1.5px dashed var(--line-strong);
   border-radius: 6px;
@@ -234,7 +234,7 @@
 }
 
 .stats dt {
-  font-size: 0.72rem;
+  font-size: var(--font-size-xs);
   font-weight: 700;
   letter-spacing: 0.2em;
   color: var(--ivory-dim);
@@ -244,7 +244,7 @@
   margin: 0;
   font-family: var(--font-display);
   font-style: italic;
-  font-size: 2.3rem;
+  font-size: 2.3rem; /* scale-exempt: 結果の大きな数字（計器の数字は段の外） */
   font-weight: 600;
   line-height: 1.2;
   color: var(--gold-bright);
@@ -262,7 +262,7 @@
   background: var(--rose-tint);
   border: 1px solid var(--rose-edge);
   border-radius: 8px;
-  font-size: 0.85rem;
+  font-size: var(--font-size-sm);
 }
 
 /* ---------- いまのお題（#91 PR 3・spec §5.5。poker は読むだけ） ---------- */
@@ -298,6 +298,6 @@
   }
 
   .stats dd {
-    font-size: 1.9rem;
+    font-size: 1.9rem; /* scale-exempt: 結果の大きな数字（計器の数字は段の外） */
   }
 }

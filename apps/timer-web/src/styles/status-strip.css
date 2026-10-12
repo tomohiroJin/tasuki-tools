@@ -1,17 +1,7 @@
 /* ステータスの帯（`StatusStrip.tsx`・#321）。Tailwind のユーティリティの写し。
  * 値は基準（`ba9249d`）の計算済みスタイルと比較で確かめる（設計正本 D2）。
  * 文字色（`text-[var(--bone-subtle)]`）は帯の `color` から継承するので、リンクには書かない。
- *
- * ## 行の高さ（`line-height: var(--timer-never-defined, calc(…))`）。timer の CSS の `text-xs` / `text-sm` の写しは全部この形
- * - 直書きの `calc(1 / 0.75)` は、最小化（lightningcss）で 5 桁の `1.33333` へ畳まれる。12px × 1.33333 は 15.99996px で、
- *   レイアウトの 1/64px の刻みで 15.984px へ落ち、基準（Tailwind の出力は calc が畳まれず 16px）と合わない。
- *   `text-sm`（`calc(1.25 / 0.875)`）も同じ（20px が 19.984px）
- * - 代替案は基準と一致しなかった（実測）。5 桁の数値は `1.33334` で 16.0001px と、上へずれる（5 桁では 16px ちょうどが作れない）。
- *   `1rem` は子へ px のまま継承され、select などの行の高さが変わる（基準は数値の継承）。トークン（自前のカスタムプロパティへ
- *   calc を置く形）は、基準に無いプロパティが比較に余分な差として出る
- * - 未定義の変数の代替値に置くと、最小化は畳まず、基準と同じ評価になる。**`--timer-never-defined` は決して宣言しない**
- *   （宣言すると使う全箇所が入れ替わる。`scripts/audit-timer-classes.mjs` が宣言を落とす。参照は許す）
- * - 割り切れる比率（`1.5`・`1.4`）は直書きでよい（畳まれても厳密に同じ値）。
+ * 文字の大きさと行の高さは 5 段のトークンと割り切れる数で書く（#316 PR 4）。
  */
 .status-strip {
   display: flex;
@@ -26,9 +16,17 @@
   border-color: var(--hairline);
   padding-inline: 1rem;
   padding-block: 0.5rem;
-  font-size: 0.75rem; /* scale-exempt: Tailwind の text-xs の写し（#316 PR 4 で段へ寄せる） */
-  line-height: var(--timer-never-defined, calc(1 / 0.75)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  font-size: var(--font-size-xs);
+  line-height: 1.35;
   color: var(--bone-subtle);
+}
+
+/* 40rem 未満で、通知設定のポップオーバーの包含ブロックになる（帯の幅に広げる・`notify-settings.css`）。
+ * 40rem 以上のポップオーバーは「通知」の箱（`.notify-settings-container`）が包含ブロックなので要らない */
+@media (width < 40rem) {
+  .status-strip {
+    position: relative;
+  }
 }
 
 .status-strip-group {
@@ -46,7 +44,18 @@
 }
 
 .status-strip-back-link {
+  position: relative;
   text-decoration-line: underline;
+}
+
+/* 見た目を保ち、押せる範囲だけ 44×44 に広げる（#316 D7・lobby.css の .lobby-row-icon-button と同じ形）。
+   inset の % は左右が幅、上下が高さに対するので、縦長・横長の箱でも当たりは 44×44 の中央寄せになる。
+   幅は 44px を超える（約 84px）ので、inset の左右を 0 にして箱の幅のまま当たりにする（負にならない % で縮まないように）。
+   隣の当たりと重ならないことは buttons.spec.ts が見る */
+.status-strip-back-link::before {
+  content: "";
+  position: absolute;
+  inset: calc((100% - 2.75rem) / 2) 0;
 }
 
 @media (hover: hover) {

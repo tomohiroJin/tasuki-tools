@@ -2,8 +2,7 @@
  * 値は基準（`ba9249d`）の計算済みスタイルと比較で確かめる（設計正本 D2）。
  * 写さなかった宣言: ボタンの `px-3 py-1.5` と `px-4 py-2` は PR 2 で呼び出し側から外した。
  * ボタンは部品層の `.ui-button`（#316 PR 3）で、余白と文字の大きさもそちらが持つ。
- * 輪の外の人に出す加入の盤（`-outside` 系）は、比較の目録に描かれない（#321 PR 3 の Q5）。除去検査に行が無いので写す側へ倒した。
- * 行の高さ（`var(--timer-never-defined, calc(…))`）は status-strip.css 冒頭の注釈。 */
+ * 輪の外の人に出す加入の盤（`-outside` 系）は、比較の目録に描かれない（#321 PR 3 の Q5）。除去検査に行が無いので写す側へ倒した。 */
 
 /* 輪の外の盤（比較に描かれない） */
 .self-driver-toggle-outside {
@@ -17,16 +16,16 @@
 }
 
 .self-driver-toggle-outside-title {
-  font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 PR 4 で段へ寄せる） */
-  line-height: var(--timer-never-defined, calc(1.25 / 0.875)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  font-size: var(--font-size-sm);
+  line-height: 1.45;
   font-weight: 600;
   color: var(--bone);
 }
 
 .self-driver-toggle-outside-note {
   margin-top: 0.125rem;
-  font-size: 0.75rem; /* scale-exempt: Tailwind の text-xs の写し（#316 PR 4 で段へ寄せる） */
-  line-height: var(--timer-never-defined, calc(1 / 0.75)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  font-size: var(--font-size-xs);
+  line-height: 1.35;
   color: var(--bone-muted);
 }
 
@@ -55,8 +54,8 @@
 }
 
 .self-driver-toggle-label {
-  font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 PR 4 で段へ寄せる） */
-  line-height: var(--timer-never-defined, calc(1.25 / 0.875)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  font-size: var(--font-size-sm);
+  line-height: 1.45;
 }
 
 .self-driver-toggle-status-skipping {

@@ -113,7 +113,7 @@
 }
 
 @media (width < 64rem) {
-  .topic-reader-panel > .ui-reader-body {
+  .topic-reader-panel > .ui-reader-preview {
     margin-top: var(--space-2);
   }
 }

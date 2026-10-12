@@ -2,8 +2,7 @@
  * 値は基準（`ba9249d`）の計算済みスタイルと比較で確かめる（設計正本 D2）。
  * 写さなかった宣言（除去検査で dead）: 通知見出しと参加者行の `text-[var(--bone)]`（親から継ぐので不要）、
  * 輪の外の「ドライバーに加わる」の上書き（Task 6 で消し済み）。
- * `focus-visible:outline-none` は写さない（基準（`ba9249d`）ではレイヤー外のグローバルな `:focus-visible` に負けて効いていなかった・設計正本 §2 の 5）。
- * 行の高さ（`var(--timer-never-defined, calc(…))`）は status-strip.css 冒頭の注釈。 */
+ * `focus-visible:outline-none` は写さない（基準（`ba9249d`）ではレイヤー外のグローバルな `:focus-visible` に負けて効いていなかった・設計正本 §2 の 5）。 */
 
 /* 操作の面と脇の縦の間隔（段組みは部品層の `.ui-workspace-*`・`min-width: 0` もそちらが持つ）。
  * 子の margin は持たない（移した部品の根は margin-block-end を書かない）。 */
@@ -56,8 +55,8 @@
   background-color: var(--panel-2);
   padding-inline: 0.75rem;
   padding-block: 0.5rem;
-  font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 PR 4 で段へ寄せる） */
-  line-height: var(--timer-never-defined, calc(1.25 / 0.875)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  font-size: var(--font-size-sm);
+  line-height: 1.45;
 }
 
 .lobby-participant-name {
@@ -78,8 +77,8 @@
   border-width: 1px;
   padding-inline: 0.5rem;
   padding-block: 0.125rem;
-  font-size: 0.75rem; /* scale-exempt: Tailwind の text-xs の写し（#316 PR 4 で段へ寄せる） */
-  line-height: var(--timer-never-defined, calc(1 / 0.75)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  font-size: var(--font-size-xs);
+  line-height: 1.35;
   font-weight: 600;
 }
 
@@ -103,7 +102,9 @@
   min-width: 0; /* 行より広い操作は、次の行へ折り返したうえで行の幅へ縮める（溢れない） */
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.25rem;
+  /* 段の間は、折り返した --sm のボタンの当たり（上下に 4px ずつ広がる）が重ならない 8px（#316 PR 4） */
+  column-gap: 0.25rem;
+  row-gap: 0.5rem;
   margin-inline-start: auto;
 }
 

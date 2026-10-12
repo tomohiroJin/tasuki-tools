@@ -383,7 +383,7 @@ export function RosterPanel({
                 maxLength={MAX_DISPLAY_NAME}
                 aria-invalid={activeRenameRejection !== null ? true : undefined}
                 aria-describedby={activeRenameRejection !== null ? renameErrorId : undefined}
-                className="roster-panel-edit-input"
+                className="ui-input roster-panel-edit-input"
               />
               <MiniButton onClick={() => submitRename(p.participantId)}>保存</MiniButton>
               <MiniButton onClick={cancelRename}>取消</MiniButton>
@@ -594,7 +594,7 @@ export function RosterPanel({
               maxLength={MAX_DISPLAY_NAME}
               aria-invalid={activeProxyRejection !== null ? true : undefined}
               aria-describedby={activeProxyRejection !== null ? proxyErrorId : undefined}
-              className="roster-panel-proxy-input"
+              className="ui-input roster-panel-proxy-input"
             />
             <button type="button" onClick={handleAddProxy} className="ui-button ui-button--secondary ui-button--sm">追加</button>
           </div>

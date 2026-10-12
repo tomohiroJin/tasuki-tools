@@ -19,9 +19,7 @@
  *      どちらにも定義されないクラス（消えた Tailwind のユーティリティの字面など）はここで落ちる
  *   3. **衝突**: timer の CSS が定義したクラス名は、要素層のクラス名と重ならない。
  *      部品層の接頭辞 `ui-` で始まるクラスも定義しない（部品層に在るか無いかを問わない）
- *   4. **宣言禁止の変数**: `--timer-never-defined` は、timer の CSS・部品層・要素層のどこでも宣言しない（参照だけ許す。
- *      宣言すると、行の高さの `var(--timer-never-defined, calc(…))` を使う全箇所が黙って入れ替わる）
- *   5. **借り物のキーフレームの出どころ**: timer の CSS の `animation` / `animation-name` が名指しするキーフレームは、
+ *   4. **借り物のキーフレームの出どころ**: timer の CSS の `animation` / `animation-name` が名指しするキーフレームは、
  *      timer の CSS が `@keyframes` で定義していなければ落とす（名指しだけが残ってアニメーションが黙って止まるのを防ぐ）
  *
  * ## 何を見ていないか —— 「足りる」とは言わない
@@ -339,21 +337,6 @@ export function checkTimerClasses({ sources, timerCss, componentCss, elementCss 
 
   for (const name of defined) {
     if (elementNames.has(name)) problems.push(`[衝突] timer の CSS の .${name} は要素層のクラスと同じ名前です（設計正本 D1）`);
-  }
-  // `--timer-never-defined` は「決して宣言しない」変数（行の高さの calc を最小化で畳ませないための代替値の入れ物・
-  // `styles/status-strip.css` の注釈）。参照は許し、宣言（どこかの祖先や `:root` を含む）は落とす
-  for (const f of [...timerCss, ...componentCss, ...elementCss]) {
-    let declared = false;
-    const root = postcss.parse(f.text);
-    root.walkDecls((d) => {
-      if (d.prop === "--timer-never-defined") declared = true;
-    });
-    // `@property --timer-never-defined { … }` の登録も宣言と同じ（initial-value が var の代替値より勝つ）
-    // at-rule の名前は大文字小文字を区別しない（`@PROPERTY` でもブラウザは登録する）。変数名は区別する
-    root.walkAtRules((r) => {
-      if (r.name.toLowerCase() === "property" && r.params.trim() === "--timer-never-defined") declared = true;
-    });
-    if (declared) problems.push(`[宣言禁止] ${f.rel} が --timer-never-defined を宣言しています。参照（var の代替値）だけ許します`);
   }
   // キーフレームの出どころ。`animation` / `animation-name` が名指しするキーフレームは、timer の CSS が
   // `@keyframes` を持たなければならない。持たないと、名指しだけが残ってアニメーションが黙って止まる

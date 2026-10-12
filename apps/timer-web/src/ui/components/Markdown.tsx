@@ -17,44 +17,26 @@
 import React from "react";
 import { parseMarkdown, type MdBlock, type MdInline } from "@tasuki/markdown";
 
-/** 描く面。`panel` は暗い地の共有メモ（`markdown-*`）、`card` は象牙の札（部品の `.ui-md-*`）。 */
-type Surface = "panel" | "card";
-
 /**
- * 面ごとのクラスの対応表（`audit-timer-classes` が読めるよう名前は `_CLASS` で終わる const の字面）。
- * `card` の強調・斜体はクラスを持たない（空文字。poker の部品の描画と同じく、ブラウザ既定の太字・斜体で足りる）。
- * #316 PR 4 で `markdown-*` を `.ui-md-*` へ寄せたら、`panel` の列と `surface` ごと消える。
+ * クラスの対応表（`audit-timer-classes` が読めるよう名前は `_CLASS` で終わる const の字面）。
+ * 強調・斜体はクラスを持たない（poker の部品の描画と同じく、ブラウザ既定の太字・斜体で足りる）。
+ * 暗い面（共有メモ）の枠とリンクの色は、置く側が部品のつまみ（`--ui-md-edge`・`--ui-md-link`）で宣言する。
  */
 const MARKDOWN_CLASS = {
-  "panel-root": "markdown",
-  "panel-code": "markdown-code",
-  "panel-strong": "markdown-strong",
-  "panel-em": "markdown-em",
-  "panel-link": "markdown-link",
-  "panel-h1": "markdown-heading markdown-heading-1",
-  "panel-h2": "markdown-heading markdown-heading-2",
-  "panel-h3": "markdown-heading markdown-heading-3",
-  "panel-pre": "markdown-pre",
-  "panel-quote": "markdown-quote",
-  "panel-ul": "markdown-ul",
-  "panel-ol": "markdown-ol",
-  "panel-p": "markdown-paragraph",
-  "card-root": "ui-md",
-  "card-code": "ui-md-code",
-  "card-strong": "",
-  "card-em": "",
-  "card-link": "ui-md-link",
-  "card-h1": "ui-md-h",
-  "card-h2": "ui-md-h",
-  "card-h3": "ui-md-h",
-  "card-pre": "ui-md-pre",
-  "card-quote": "ui-md-quote",
-  "card-ul": "ui-md-ul",
-  "card-ol": "ui-md-ol",
-  "card-p": "ui-md-p",
+  root: "ui-md",
+  code: "ui-md-code",
+  link: "ui-md-link",
+  h1: "ui-md-h",
+  h2: "ui-md-h",
+  h3: "ui-md-h",
+  pre: "ui-md-pre",
+  quote: "ui-md-quote",
+  ul: "ui-md-ul",
+  ol: "ui-md-ol",
+  p: "ui-md-p",
 } as const;
 
-function Inline({ nodes, keyBase, surface }: { nodes: readonly MdInline[]; keyBase: string; surface: Surface }) {
+function Inline({ nodes, keyBase }: { nodes: readonly MdInline[]; keyBase: string }) {
   return (
     <>
       {nodes.map((n, i) => {
@@ -66,21 +48,21 @@ function Inline({ nodes, keyBase, surface }: { nodes: readonly MdInline[]; keyBa
             return (
               <code
                 key={key}
-                className={MARKDOWN_CLASS[`${surface}-code`]}
+                className={MARKDOWN_CLASS.code}
               >
                 {n.text}
               </code>
             );
           case "strong":
             return (
-              <strong key={key} className={MARKDOWN_CLASS[`${surface}-strong`]}>
-                <Inline nodes={n.children} keyBase={key} surface={surface} />
+              <strong key={key}>
+                <Inline nodes={n.children} keyBase={key} />
               </strong>
             );
           case "em":
             return (
-              <em key={key} className={MARKDOWN_CLASS[`${surface}-em`]}>
-                <Inline nodes={n.children} keyBase={key} surface={surface} />
+              <em key={key}>
+                <Inline nodes={n.children} keyBase={key} />
               </em>
             );
           case "link":
@@ -92,7 +74,7 @@ function Inline({ nodes, keyBase, surface }: { nodes: readonly MdInline[]; keyBa
                 href={n.href}
                 target="_blank"
                 rel="noopener noreferrer nofollow"
-                className={MARKDOWN_CLASS[`${surface}-link`]}
+                className={MARKDOWN_CLASS.link}
               >
                 {n.text}
               </a>
@@ -103,13 +85,13 @@ function Inline({ nodes, keyBase, surface }: { nodes: readonly MdInline[]; keyBa
   );
 }
 
-function Lines({ lines, keyBase, surface }: { lines: readonly MdInline[][]; keyBase: string; surface: Surface }) {
+function Lines({ lines, keyBase }: { lines: readonly MdInline[][]; keyBase: string }) {
   return (
     <>
       {lines.map((line, i) => (
         <React.Fragment key={`${keyBase}-l${i}`}>
           {i > 0 && <br />}
-          <Inline nodes={line} keyBase={`${keyBase}-l${i}`} surface={surface} />
+          <Inline nodes={line} keyBase={`${keyBase}-l${i}`} />
         </React.Fragment>
       ))}
     </>
@@ -119,49 +101,49 @@ function Lines({ lines, keyBase, surface }: { lines: readonly MdInline[][]; keyB
 // 見出しの段: level 1〜3 に headingBase - 1 を足す（3 なら h3〜h5、4 なら h4〜h6）
 const tagFor = (level: 1 | 2 | 3, base: 3 | 4) => `h${level + base - 1}` as "h3" | "h4" | "h5" | "h6";
 
-function Block({ block, keyBase, headingBase, surface }: { block: MdBlock; keyBase: string; headingBase: 3 | 4; surface: Surface }) {
+function Block({ block, keyBase, headingBase }: { block: MdBlock; keyBase: string; headingBase: 3 | 4 }) {
   switch (block.kind) {
     case "heading": {
       const Tag = tagFor(block.level, headingBase);
       return (
-        <Tag className={MARKDOWN_CLASS[`${surface}-h${block.level}`]}>
-          <Inline nodes={block.inline} keyBase={keyBase} surface={surface} />
+        <Tag className={MARKDOWN_CLASS[`h${block.level}`]}>
+          <Inline nodes={block.inline} keyBase={keyBase} />
         </Tag>
       );
     }
     case "code":
       return (
-        // 札の上のコードは横へスクロールするので、キーボードで届くよう Tab に載せる（poker の部品と同じ）
-        <pre className={MARKDOWN_CLASS[`${surface}-pre`]} tabIndex={surface === "card" ? 0 : undefined}>
+        // コードは横へスクロールするので、キーボードで届くよう Tab に載せる（poker の部品と同じ）
+        <pre className={MARKDOWN_CLASS.pre} tabIndex={0}>
           {block.text}
         </pre>
       );
     case "quote":
       return (
-        <blockquote className={MARKDOWN_CLASS[`${surface}-quote`]}>
-          <Lines lines={block.lines} keyBase={keyBase} surface={surface} />
+        <blockquote className={MARKDOWN_CLASS.quote}>
+          <Lines lines={block.lines} keyBase={keyBase} />
         </blockquote>
       );
     case "ul":
       return (
-        <ul className={MARKDOWN_CLASS[`${surface}-ul`]}>
+        <ul className={MARKDOWN_CLASS.ul}>
           {block.items.map((item, j) => (
-            <li key={`${keyBase}-${j}`}><Inline nodes={item} keyBase={`${keyBase}-${j}`} surface={surface} /></li>
+            <li key={`${keyBase}-${j}`}><Inline nodes={item} keyBase={`${keyBase}-${j}`} /></li>
           ))}
         </ul>
       );
     case "ol":
       return (
-        <ol className={MARKDOWN_CLASS[`${surface}-ol`]}>
+        <ol className={MARKDOWN_CLASS.ol}>
           {block.items.map((item, j) => (
-            <li key={`${keyBase}-${j}`}><Inline nodes={item} keyBase={`${keyBase}-${j}`} surface={surface} /></li>
+            <li key={`${keyBase}-${j}`}><Inline nodes={item} keyBase={`${keyBase}-${j}`} /></li>
           ))}
         </ol>
       );
     case "p":
       return (
-        <p className={MARKDOWN_CLASS[`${surface}-p`]}>
-          <Lines lines={block.lines} keyBase={keyBase} surface={surface} />
+        <p className={MARKDOWN_CLASS.p}>
+          <Lines lines={block.lines} keyBase={keyBase} />
         </p>
       );
   }
@@ -174,19 +156,14 @@ interface MarkdownProps {
    * お題の札（`TopicCard`）は h2「お題」・h3 タイトルの下に置くので 4 を渡す。
    */
   headingBase?: 3 | 4;
-  /**
-   * 描く面（#316 PR 3）。既定 `"panel"` は暗い地の共有メモ。`"card"` は象牙の札（お題）で、部品の `.ui-md-*` で描く。
-   * 札の上では `markdown-*` の明るい字（`--bone`）が読めないため、面ごとに表を分ける。
-   */
-  surface?: Surface;
 }
 
 /** Markdown サブセットを描画する。空文字なら何も描かない。 */
-export function Markdown({ source, headingBase = 3, surface = "panel" }: MarkdownProps) {
+export function Markdown({ source, headingBase = 3 }: MarkdownProps) {
   return (
-    <div className={MARKDOWN_CLASS[`${surface}-root`]}>
+    <div className={MARKDOWN_CLASS.root}>
       {parseMarkdown(source).map((b, i) => (
-        <Block key={`b${i}`} block={b} keyBase={`b${i}`} headingBase={headingBase} surface={surface} />
+        <Block key={`b${i}`} block={b} keyBase={`b${i}`} headingBase={headingBase} />
       ))}
     </div>
   );

@@ -95,21 +95,16 @@ describe("見出しの段を下げる", () => {
     expect(screen.getByRole("heading", { level: 4, name: "見出し" })).toBeInTheDocument();
   });
 
-  it("surface=panel のコードブロックは tabindex を持たない", () => {
-    const { container } = render(<Markdown source={"```\ncode\n```"} />);
-    expect(container.querySelector("pre")?.hasAttribute("tabindex")).toBe(false);
-  });
-
   it("Given 指定なし / When # 見出しを描く / Then 従来どおり h3 になる", () => {
     render(<Markdown source={"# 見出し"} />);
     expect(screen.getByRole("heading", { level: 3, name: "見出し" })).toBeInTheDocument();
   });
 
-  it("surface=card では部品の .ui-md-* で描き、markdown-* を持たない", () => {
+  it("部品の .ui-md-* で描き、markdown-* を持たない", () => {
     // Given
     const source = "段落 `コード`\n\n```\npre\n```\n\n> 引用\n\n- 項目\n\n1. 番号\n\n[Google](https://google.com)";
     // When
-    const { container } = render(<Markdown source={source} surface="card" />);
+    const { container } = render(<Markdown source={source} />);
     // Then
     expect(container.firstElementChild?.className).toBe("ui-md");
     expect(container.querySelector("p")?.className).toBe("ui-md-p");
@@ -123,20 +118,54 @@ describe("見出しの段を下げる", () => {
     expect(container.innerHTML).not.toContain("markdown");
   });
 
-  it("surface=card の見出しは .ui-md-h（headingBase に従う）", () => {
+  it("見出しは .ui-md-h（headingBase に従う）", () => {
     // Given / When
-    const { container } = render(<Markdown source="# 見出し" surface="card" headingBase={4} />);
+    const { container } = render(<Markdown source="# 見出し" headingBase={4} />);
     // Then
     expect(container.querySelector("h4")?.className).toBe("ui-md-h");
   });
 
-  it("既定（panel）は今の markdown-*", () => {
-    // Given / When
-    const { container } = render(<Markdown source={"段落 `コード`"} />);
-    // Then
-    expect(container.firstElementChild?.className).toBe("markdown");
-    expect(container.querySelector("p")?.className).toBe("markdown-paragraph");
-    expect(container.querySelector("code")?.className).toBe("markdown-code");
-    expect(container.innerHTML).not.toContain("ui-md");
+  describe("部品の .ui-md-*（#316 PR 4）", () => {
+    it("根は ui-md・段落は ui-md-p・コードは ui-md-code を持つ", () => {
+      // Given
+      const source = "本文の `code` です";
+      // When
+      const { container } = render(<Markdown source={source} />);
+      // Then
+      expect(container.firstElementChild?.className).toBe("ui-md");
+      expect(container.querySelector("p")?.className).toBe("ui-md-p");
+      expect(container.querySelector("code")?.className).toBe("ui-md-code");
+    });
+
+    it("強調・斜体は class 属性を持たない", () => {
+      // Given
+      const source = "**太字** と *斜体*";
+      // When
+      render(<Markdown source={source} />);
+      // Then
+      expect(screen.getByText("太字").hasAttribute("class")).toBe(false);
+      expect(screen.getByText("斜体").hasAttribute("class")).toBe(false);
+    });
+
+    it("コードブロックは常に Tab に載る", () => {
+      // Given
+      const source = "```\nconst a = 1;\n```";
+      // When
+      const { container } = render(<Markdown source={source} />);
+      // Then
+      const pre = container.querySelector("pre");
+      expect(pre?.className).toBe("ui-md-pre");
+      expect(pre?.getAttribute("tabindex")).toBe("0");
+    });
+
+    it("旧 markdown- のクラスを持つ要素が無い", () => {
+      // Given
+      const source = "# 見出し\n\n> 引用\n\n- 項目\n\n[リンク](https://example.com)\n\n```\nx\n```";
+      // When
+      const { container } = render(<Markdown source={source} />);
+      // Then
+      expect(container.querySelectorAll('[class*="markdown-"]')).toHaveLength(0);
+      expect(container.querySelector(".markdown")).toBeNull();
+    });
   });
 });

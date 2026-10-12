@@ -1,20 +1,28 @@
 /* 共有メモの外枠（`SharedMemo.tsx`・#321）。Tailwind のユーティリティの写し。
  * 値は基準（`ba9249d`）の計算済みスタイルと比較で確かめる（設計正本 D2）。
- * メモの本文は `Markdown`（`markdown.css`）が描く。外枠の `Card` の更新時の強調は `.meter-panel-highlight`（`primitives.css`）。
+ * メモの本文は `Markdown`（部品の `.ui-md-*`）が描く。外枠の `Card` の更新時の強調は `.meter-panel-highlight`（`primitives.css`）。
  * 写さなかった宣言: 見出しの `text-[var(--bone)]`（除去検査で dead・親から継ぐ）、
  * 編集中のテキストエリアの `text-[var(--bone)]` と `outline-none`（文字色は preflight の `textarea { color: inherit }` で親の `Card` から継ぎ、
  * 同じ `Card` の子の見出しの `text-[var(--bone)]` が除去検査で dead。輪郭は基準（`ba9249d`）ではレイヤー外のグローバルな `:focus-visible { outline: … }` が
  * utilities の `outline-none` に常に勝っていた・設計正本 §2 の 5）、
  * 切替ボタンの `segClass(true)` の枝（呼び出しが無く描かれない）。
- * 編集中のテキストエリアは比較に描かれない（#321 PR 3 の Q5）。除去検査に行が無いので写す側へ倒した。
- * 行の高さ（`var(--timer-never-defined, calc(…))`）は status-strip.css 冒頭の注釈。 */
+ * 編集中のテキストエリアは比較に描かれない（#321 PR 3 の Q5）。除去検査に行が無いので写す側へ倒した。 */
 
 .shared-memo-header {
   margin-bottom: 0.5rem;
   display: flex;
+  /* 題と切替ボタンが 1 行に入らない幅（22rem の脇・320）では、ボタンを次の段へ回す。
+     折り返さないと両方が縮み、「プレビューに戻る」が 2 行・「共有メモ」が 1 字ずつ縦に折れた（#316 PR 4・実測） */
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
+  column-gap: 0.5rem;
+  row-gap: 0.5rem;
+}
+
+/* 切替ボタン（部品の副・--sm）の字は折らない。部品層ではなく、この見出し行でだけ止める */
+.shared-memo-toggle {
+  white-space: nowrap;
 }
 
 /* 題と「Markdown」の小さな印を並べる（印は h2 の外に置き、見出しの名前に混ぜない） */
@@ -45,39 +53,21 @@
   color: var(--signal);
 }
 
-/* 編集中のテキストエリア（比較に描かれない） */
+/* 編集中のテキストエリア。見た目（枠・地・padding・字・輪）は部品の `.ui-input`、ここは配置と等幅の書体だけ */
 .shared-memo-editor {
-  width: 100%;
   min-height: 200px;
-  resize: vertical;
-  border-radius: var(--radius-md);
-  background-color: var(--panel-2);
-  border-width: 1px;
-  border-color: var(--hairline-strong);
-  padding-inline: 0.75rem;
-  padding-block: 0.5rem;
-  font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 PR 4 で段へ寄せる） */
-  line-height: var(--timer-never-defined, calc(1.25 / 0.875)); /* 行の高さは status-strip.css 冒頭の注釈 */
   font-family: var(--font-mono);
-  transition-property: color, background-color, border-color, outline-color, text-decoration-color, fill, stroke;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
-}
-
-.shared-memo-editor:focus {
-  border-color: var(--signal);
-}
-
-/* ring-offset → ring の順に合成する（Tailwind の `box-shadow` の並び） */
-.shared-memo-editor:focus-visible {
-  box-shadow:
-    0 0 0 2px var(--ink),
-    0 0 0 4px var(--signal);
 }
 
 /* プレビューの枠 */
 .shared-memo-preview {
   min-height: 200px;
+  /* 部品 `.ui-md` のつまみ。暗い面なので、枠は象牙向けの既定（--coal-soft）でなく読める色にする */
+  --ui-md-edge: var(--hairline-strong);
+  --ui-md-link: var(--signal);
+  color: var(--bone-muted);
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
   border-radius: var(--radius-md);
   background-color: var(--panel-2);
   border-width: 1px;
@@ -86,8 +76,35 @@
   padding-block: 0.5rem;
 }
 
+/* メモの本文の見出しと強調（#316 PR 4）。共有メモは h2 の下に置くので `#` が h3・`##` が h4 になる（`headingBase` 3）。
+ * 部品の段（h4 から始まる札向け）のままだと h3 と h4 が同じ大きさで並び、段が消える。部品へ移す前の段（h3 は本文・h4 以下は sm）に戻す。
+ * 地の字は `--bone-muted` なので、見出しと強調は `--bone` で浮かせる（部品へ移す前の見た目）。h3 から始まる面はここだけなので、h3 の段も部品でなくここに置く。
+ * 部品のクラス（`ui-`）は名指ししない（timer の CSS は部品を定義し直さない・`audit-timer-classes.mjs`・設計正本 D3）。要素で指す。
+ * 段の規則はクラスを重ねて（`.shared-memo-preview.shared-memo-preview h4` = 0,2,1）部品の `h4.ui-md-h`（0,1,1）に**詳細度で**勝たせる。
+ * 同じ詳細度だと読み込みの順（`index.css`）だけで勝ち負けが決まり、順を入れ替えると黙って部品の段に戻る */
+.shared-memo-preview.shared-memo-preview h3 {
+  font-size: var(--font-size-base);
+}
+.shared-memo-preview.shared-memo-preview :is(h4, h5) {
+  font-size: var(--font-size-sm);
+}
+.shared-memo-preview.shared-memo-preview h6 {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+.shared-memo-preview :is(h3, h4, h5, h6, strong) {
+  color: var(--bone);
+}
+
+/* コードブロックは折り返す。22rem の脇の狭いメモで横スクロールさせると、長い行の続きが見えない（部品へ移す前は折り返していた）。
+ * 部品の既定（折り返さず横スクロール）は札の上の面のために残す。`tabIndex={0}` は残す（折り返せない中身でスクロールが出ても届く） */
+.shared-memo-preview pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .shared-memo-empty {
-  font-size: 0.875rem; /* scale-exempt: Tailwind の text-sm の写し（#316 PR 4 で段へ寄せる） */
-  line-height: var(--timer-never-defined, calc(1.25 / 0.875)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  font-size: var(--font-size-sm);
+  line-height: 1.45;
   color: var(--bone-subtle);
 }

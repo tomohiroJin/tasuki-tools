@@ -1,0 +1,13 @@
+diff --git a/packages/ui/tests/typography-scale.test.mjs b/packages/ui/tests/typography-scale.test.mjs
+index c32c1647..ab9c653f 100644
+--- a/packages/ui/tests/typography-scale.test.mjs
++++ b/packages/ui/tests/typography-scale.test.mjs
+@@ -30,7 +30,7 @@ function cssRoots() {
+     .filter((d) => d.isDirectory())
+     .map((d) => resolve(REPO, 'apps', d.name, 'src'))
+     .filter((p) => existsSync(p));
+-  return [SRC, ...apps];
++  return [SRC];
+ }
+ 
+ /** 根の下の CSS を再帰で拾う（リポジトリの根からの相対パスで返す）。 */

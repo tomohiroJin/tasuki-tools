@@ -1318,6 +1318,14 @@ export const MUTATIONS = [
     tests: ["audit-ui-components.test.mjs"],
     note: "#316 PR 1。述語は正しくても、画面の CSS へ配線されていなければ検査は死んでいる。",
   },
+  {
+    id: 125,
+    label: "文字の大きさの検査の射程からアプリの CSS を落とす",
+    patch: "m125-typography-scale-apps-out-of-scope.patch",
+    pkg: "packages/ui",
+    tests: ["tests/typography-scale.test.mjs"],
+    note: "#316 PR 4。射程からアプリが落ちても、部品層だけを見て緑になる。射程の自己テストが捕まえる。",
+  },
 ];
 
 /**

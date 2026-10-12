@@ -95,7 +95,7 @@ h3,
 h4,
 h5,
 h6 {
-  font-size: inherit;
+  font-size: inherit; /* scale-exempt: preflight の逐語（親の大きさに対する相対値で、段を作らない） */
   font-weight: inherit;
 }
 
@@ -132,7 +132,7 @@ pre {
   font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace); /* 1 */
   font-feature-settings: normal; /* 2 */
   font-variation-settings: normal; /* 3 */
-  font-size: 1em; /* 4 */
+  font-size: 1em; /* 4 */ /* scale-exempt: preflight の逐語（親の大きさに対する相対値で、段を作らない） */
 }
 
 /*
@@ -140,7 +140,7 @@ pre {
 */
 
 small {
-  font-size: 80%;
+  font-size: 80%; /* scale-exempt: preflight の逐語（親の大きさに対する相対値で、段を作らない） */
 }
 
 /*
@@ -149,7 +149,7 @@ small {
 
 sub,
 sup {
-  font-size: 75%;
+  font-size: 75%; /* scale-exempt: preflight の逐語（親の大きさに対する相対値で、段を作らない） */
   line-height: 0;
   position: relative;
   vertical-align: baseline;
@@ -251,7 +251,14 @@ select,
 optgroup,
 textarea,
 ::file-selector-button {
-  font: inherit; /* 1 */
+  /* フォントの一括指定は個別の宣言に展開した（5 段の検査が一括指定を拒むため。計算値は同じ） */
+  font-family: inherit; /* 1 */
+  font-style: inherit; /* 1 */
+  font-variant: inherit; /* 1 */
+  font-weight: inherit; /* 1 */
+  font-stretch: inherit; /* 1 */
+  font-size: inherit; /* 1 */ /* scale-exempt: preflight の逐語（親の大きさに対する相対値で、段を作らない） */
+  line-height: inherit; /* 1 */
   font-feature-settings: inherit; /* 1 */
   font-variation-settings: inherit; /* 1 */
   letter-spacing: inherit; /* 1 */

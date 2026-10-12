@@ -189,7 +189,7 @@ E8 は網羅の確認で、効いているかは比較が見る（正本 §5.5�
 
 ### その他の記録
 
-- **行の高さの写し方**: 割り切れない比率（`text-xs`・`text-sm`・`text-lg`・`text-2xl` など）は `var(--timer-never-defined, calc(…))` で書く。直書きの calc は最小化で 5 桁に畳まれ、16px が 15.984px になる。`--timer-never-defined` を宣言すると検査（`audit-timer-classes.mjs`）が落とす。理由の注釈は `apps/timer-web/src/styles/status-strip.css` の冒頭
+- **行の高さの写し方**: 割り切れない比率（`text-xs`・`text-sm`・`text-lg`・`text-2xl` など）は `var(--timer-never-defined, calc(…))` で書く。直書きの calc は最小化で 5 桁に畳まれ、16px が 15.984px になる。`--timer-never-defined` を宣言すると検査（`audit-timer-classes.mjs`）が落とす。理由の注釈は `apps/timer-web/src/styles/status-strip.css` の冒頭（#316 PR 4 で寸法を 5 段へ寄せ、この仕掛けとその注釈と監査の検査は退役した）
 - **借り物のキーフレーム**: `loading.css` の `pulse` は、まだ Tailwind のままの `Session.tsx` の `animate-pulse` が出す `@keyframes pulse` を使う。出どころが消えたら検査が落とす（PR 3 で `Session.tsx` を移すとき、timer の CSS に `@keyframes pulse` を置く）
 - `SessionConfigPanel` の親の余白は、Task の途中で任意値の変種を挟んだが、最終形は `:where(.session-config-panel > :not(:last-child))`
 - `RosterPanel.test.tsx` のクラス名で書いたアサーションの書き直しは PR 3 へ送った（計画 P6）

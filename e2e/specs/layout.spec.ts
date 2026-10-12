@@ -8,13 +8,21 @@
  * 狭い幅の「続きを読む」→ シート → Esc → フォーカスが戻る検査は `invite-sheet-md.spec.ts` にあるので、ここでは重ねない。
  *
  * 区画の位置は**区画どうしの相対位置**で見る（px の直値で見ると器の余白を変えるたびに壊れる）。
- * 押せる大きさ（44px）は PR 1 では合否にせず、件数を注釈に出すだけにする（設計正本 D9）。
+ * 押せる大きさ（44px）とボタンの字の折れは、`buttons.spec.ts` が全画面・4 つの幅で合否にする（#316 PR 4・`expectScreenAcrossWidths`）。
  */
-import type { Page, TestInfo } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import { expect, test } from '../fixtures/test';
 import { chooseCard, createRoom as createPokerRoom, joinRoom as joinPokerRoom, participantRow } from '../support/poker';
 import { createRoom as createTimerRoom, joinAsDriver } from '../support/timer';
-import { joinTopicTool, openTopicTool, setTopic } from '../support/topic';
+import {
+  AFTER_LINK_HREF,
+  AFTER_LINK_NAME,
+  expectNarrowTabSkipsPreviewLink,
+  expectWideTabReachesBodyLink,
+  joinTopicTool,
+  openTopicTool,
+  setTopic,
+} from '../support/topic';
 
 const REM = 16;
 const MAIN_MIN = 32 * REM;
@@ -48,19 +56,10 @@ async function expectNoHorizontalOverflow(page: Page): Promise<void> {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 }
 
-/** 44px 未満の操作を注釈に出す（PR 1 では合否にしない）。 */
-async function noteSmallTargets(page: Page, testInfo: TestInfo, label: string): Promise<void> {
-  const small = await page.evaluate(() =>
-    Array.from(document.querySelectorAll('button, a[href], summary, [role="tab"]'))
-      .map((el) => ({ el, r: el.getBoundingClientRect() }))
-      .filter(({ r }) => r.width > 0 && r.height > 0 && (r.width < 44 || r.height < 44))
-      .map(({ el, r }) => `${(el.getAttribute('aria-label') ?? el.textContent ?? '').trim().slice(0, 30)} ${Math.round(r.width)}x${Math.round(r.height)}`),
-  );
-  testInfo.annotations.push({ type: `44px 未満（${label}）`, description: `${small.length} 件: ${small.join(' / ')}` });
-}
-
 /** 40 行ほどの長い説明（Markdown の段落）。読む面の本文が札の中でスクロールすることを見る。 */
 const LONG_BODY = Array.from({ length: 40 }, (_, i) => `${i + 1} 行目の説明です。`).join('\n\n');
+/** LONG_BODY の 4 段落目にリンクを足したもの（3 行で切った先に来る。Tab が止まるかを見る・#316 PR 4）。 */
+const LINKED_LONG_BODY = LONG_BODY.replace('4 行目の説明です。', `4 行目の説明です。[${AFTER_LINK_NAME}](${AFTER_LINK_HREF})`);
 
 type OpenPeer = (label: string) => Promise<{ page: Page }>;
 
@@ -192,7 +191,7 @@ async function expectMainCentered(page: Page): Promise<void> {
 }
 
 test.describe('poker のルームは広い画面で読む面と操作の面を並べる', () => {
-  test('Given 幅 1920・長い説明 / When ルームを開く / Then 器は 1536px で、読む面が左・操作の面が右に揃い、ページは伸びず本文が札の中でスクロールする', async ({ page, openPeer }, testInfo) => {
+  test('Given 幅 1920・長い説明 / When ルームを開く / Then 器は 1536px で、読む面が左・操作の面が右に揃い、ページは伸びず本文が札の中でスクロールする', async ({ page, openPeer }) => {
     await page.setViewportSize({ width: 1920, height: 900 });
     await openPokerWithTopic(page, openPeer, LONG_BODY);
     expect((await pageBox(page)).outer).toBe(96 * REM);
@@ -203,7 +202,6 @@ test.describe('poker のルームは広い画面で読む面と操作の面を�
     expect(reader.y).toBeCloseTo(main.y, 0);
     await expectPageFitsScreen(page);
     await expectBodyScrolls(page);
-    await noteSmallTargets(page, testInfo, 'poker 1920');
   });
 
   test('Given 幅 1280・長い説明・長い名前の参加者 / When ルームを開く / Then 器の内側は 1152px 以上で、読む面が左・操作の面が右に揃い、席は場の右端を越えない', async ({ page, openPeer }) => {
@@ -270,7 +268,7 @@ test.describe('poker のルームは広い画面で読む面と操作の面を�
     await expect(page.getByRole('region', { name: 'お題', exact: true })).toBeVisible();
   });
 
-  test('Given 幅 320・長い説明・長い名前の参加者 / When ルームを開く / Then 横に溢れず、お題 → 操作の面の順に積み、本文は 3 行で切れる', async ({ page, openPeer }, testInfo) => {
+  test('Given 幅 320・長い説明・長い名前の参加者 / When ルームを開く / Then 横に溢れず、お題 → 操作の面の順に積み、本文は 3 行で切れる', async ({ page, openPeer }) => {
     await page.setViewportSize({ width: 320, height: 900 });
     const url = await openPokerWithTopic(page, openPeer, LONG_BODY);
     await addLongNameVoter(page, url, openPeer);
@@ -281,17 +279,16 @@ test.describe('poker のルームは広い画面で読む面と操作の面を�
     expect(side.y + side.height).toBeLessThanOrEqual(main.y);
     expect(main.x).toBeCloseTo(side.x, 0);
     // 本文は 3 行で切れる（行の高さ × 3.5 まで）。続きは「続きを読む」のシート（invite-sheet-md.spec.ts が見る）
-    const { height, lineHeight } = await page.locator('.ui-reader-body').evaluate((el) => ({
+    const { height, lineHeight } = await page.locator('.ui-reader-preview').evaluate((el) => ({
       height: el.getBoundingClientRect().height,
       lineHeight: parseFloat(getComputedStyle(el).lineHeight),
     }));
     expect(height).toBeLessThanOrEqual(lineHeight * 3.5);
-    await noteSmallTargets(page, testInfo, 'poker 320');
   });
 });
 
 test.describe('お題ツールの部屋は読む面を右に持つ', () => {
-  test('Given 幅 1920 / When 部屋を開く / Then 器は 1536px で、操作の面の右に読む面が並び、読む面の右端は器の内側の右端に揃う', async ({ page }, testInfo) => {
+  test('Given 幅 1920 / When 部屋を開く / Then 器は 1536px で、操作の面の右に読む面が並び、読む面の右端は器の内側の右端に揃う', async ({ page }) => {
     await page.setViewportSize({ width: 1920, height: 900 });
     await openTopicTool(page, 'layout-topic-wide');
     const box = await pageBox(page);
@@ -301,7 +298,6 @@ test.describe('お題ツールの部屋は読む面を右に持つ', () => {
     expect(main.x + main.width).toBeLessThanOrEqual(reader.x);
     expect(reader.x + reader.width).toBeCloseTo(box.innerRight, 0);
     expect(reader.y).toBeCloseTo(main.y, 0);
-    await noteSmallTargets(page, testInfo, 'お題ツール 1920');
   });
 
   test('Given 幅 1280・長い説明 / When お題を掲げる / Then 器の内側は 1152px 以上で、操作の面が左・読む面が右。本文は札の中でスクロールし、下までスクロールしても読む面は画面に留まる', async ({ page }) => {
@@ -335,7 +331,7 @@ test.describe('お題ツールの部屋は読む面を右に持つ', () => {
     await expectSideIsReaderOnly(page);
   });
 
-  test('Given 幅 320 / When 部屋を開く / Then 横に溢れず、場のお題 → 書く → 作るの順に積み、下に空きを残さない', async ({ page }, testInfo) => {
+  test('Given 幅 320 / When 部屋を開く / Then 横に溢れず、場のお題 → 書く → 作るの順に積み、下に空きを残さない', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 900 });
     await openTopicTool(page, 'layout-topic-narrow');
     await expectNoHorizontalOverflow(page);
@@ -345,17 +341,15 @@ test.describe('お題ツールの部屋は読む面を右に持つ', () => {
     expect(side.y + side.height).toBeLessThanOrEqual(main.y);
     expect(main.x).toBeCloseTo(side.x, 0);
     expect(workspace.y + workspace.height).toBeCloseTo(main.y + main.height, 0);
-    await noteSmallTargets(page, testInfo, 'お題ツール 320');
   });
 });
 
 test.describe('玄関の器', () => {
-  test('Given 幅 1280 / When 名乗る画面を開く / Then 器は 640px（読む・入力する）', async ({ page }, testInfo) => {
+  test('Given 幅 1280 / When 名乗る画面を開く / Then 器は 640px（読む・入力する）', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.goto('/');
     await expect(page.getByLabel('あなたの名前')).toBeVisible();
     expect((await pageBox(page)).outer).toBe(40 * REM);
-    await noteSmallTargets(page, testInfo, '玄関 1280');
   });
 
   test('Given 幅 1280 / When ルームを作る / Then 道具選びの器は 1152px', async ({ page }) => {
@@ -383,18 +377,8 @@ test.describe('timer は 1 つのルームでロビー・セッション・お�
     await expect(page.getByRole('listitem').filter({ hasText: guestName })).toBeVisible();
     await expect(page.getByLabel('パスフレーズ', { exact: true })).toBeVisible();
 
-    // Then 320: ロビーは横に溢れない（B1）。パスフレーズの「設定」は縦に積まれ、字が折れない
+    // Then 320: ロビーは横に溢れない（B1）。「設定」の字の折れは buttons.spec.ts が全ての部品のボタンで 4 つの幅で見る
     await expectNoHorizontalOverflow(page);
-    // 「詳細設定」を拾わないよう名前は完全一致。高さは自分の 1 行ぶん（行の高さ + 縦の padding と枠）以下
-    const setBtn = page.getByRole('button', { name: '設定', exact: true });
-    await expect(setBtn).toBeVisible();
-    // 字の行数を数える（`.ui-button` は高さを min-height で持つので、高さでは 2 行に折れても気づけない）
-    const setLines = await setBtn.evaluate((el) => {
-      const range = document.createRange();
-      range.selectNodeContents(el);
-      return new Set(Array.from(range.getClientRects()).map((r) => Math.round(r.top))).size;
-    });
-    expect(setLines).toBe(1); // 「設／定」と 2 行に折れると 2 になる
 
     // When 幅 1280（お題も掲げる）。段の判定は幅 1920 を先に測る（お題の有無で器の段は変わらない）
     await page.setViewportSize({ width: 1920, height: 1080 });
@@ -403,7 +387,7 @@ test.describe('timer は 1 つのルームでロビー・セッション・お�
     expect((await pageBox(page, TIMER_PAGE)).inner).toBeGreaterThanOrEqual(72 * REM);
     const tool = await openPeer('layout-timer-tool');
     await joinTopicTool(tool.page, `/?room=${encodeURIComponent(code)}`, 'layout-timer-t');
-    await setTopic(tool.page, 'FizzBuzz', LONG_BODY);
+    await setTopic(tool.page, 'FizzBuzz', LINKED_LONG_BODY);
     const card = page.getByRole('region', { name: 'お題', exact: true });
     await expect(card).toContainText('40 行目の説明です。');
     await expectNoHorizontalOverflow(page);
@@ -510,10 +494,12 @@ test.describe('timer は 1 つのルームでロビー・セッション・お�
     });
     expect(ringColors.focused).toBe(true);
     expect(ringColors.ring).toBe(ringColors.coal);
+    // 本文の領域から Tab で、本文の中のリンクに着く（64rem 以上）
+    await expectWideTabReachesBodyLink(page.locator('section.timer-topic .ui-reader-body'));
     const longHeight = await page.evaluate(() => document.documentElement.scrollHeight);
 
     // When 80 段落の説明に差し替える
-    await setTopic(tool.page, 'FizzBuzz', `${LONG_BODY}\n\n${LONG_BODY.replaceAll('行目', '行目（続き）')}`);
+    await setTopic(tool.page, 'FizzBuzz', `${LINKED_LONG_BODY}\n\n${LONG_BODY.replaceAll('行目', '行目（続き）')}`);
     await expect(card).toContainText('40 行目（続き）の説明です。');
     // Then ページの高さは説明の長さで伸びない（40 段落と 80 段落で 1px 以内）
     const longerHeight = await page.evaluate(() => document.documentElement.scrollHeight);
@@ -522,7 +508,7 @@ test.describe('timer は 1 つのルームでロビー・セッション・お�
     // When 幅 390
     await page.setViewportSize({ width: 390, height: 844 });
     // Then 札は 3 行で切れ、タイマーは最初の画面に収まる
-    const clamp = await page.locator('.ui-reader-body').first().evaluate((el) => ({
+    const clamp = await page.locator('.ui-reader-preview').first().evaluate((el) => ({
       client: el.clientHeight,
       line: parseFloat(getComputedStyle(el).lineHeight),
       scroll: el.scrollHeight,
@@ -534,6 +520,9 @@ test.describe('timer は 1 つのルームでロビー・セッション・お�
     const dockBox = await boxOf(page, '.ui-actions--dock');
     expect(narrowTimer.y + narrowTimer.height).toBeLessThanOrEqual(dockBox.y);
     await expectNoHorizontalOverflow(page);
+
+    // 切った本文の中のリンクには Tab が止まらず、「続きを読む」とシートの中のリンクには止まる（#316 PR 4）
+    await expectNarrowTabSkipsPreviewLink(page, card);
 
     // 「続きを読む」でシートに全文が出て、Esc で閉じるとフォーカスが戻る
     const more = page.getByRole('button', { name: '続きを読む' });

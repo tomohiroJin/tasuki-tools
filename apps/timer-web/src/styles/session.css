@@ -6,7 +6,6 @@
  *   - 駆動パネルの `relative`（`.meter-panel` の `position: relative` と同じ値）
  * 比較の目録に描かれない要素（#321 PR 3 の Q5・除去検査に行が無いので写す側へ倒した）: 「ナビ:」の表示・「ルーム」タブの中身すべて
  * （縦積み・「ルームから抜ける」とランダムの帯と、その中のボタンの大きさ）。
- * 行の高さ（`var(--timer-never-defined, calc(…))`）は status-strip.css 冒頭の注釈。
  * 点滅は Tailwind の `animate-pulse` の写し。`@keyframes pulse` の定義はここが唯一（`loading.css` の点も同じ名前を使う）。 */
 
 /* 「セッション」タブの根の縦の間隔。`:where()` は詳細度 0 なので、子の根が書く margin が勝つ（基準の `space-y-6` も同じ並び）。
@@ -123,8 +122,8 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
-  font-size: 1.125rem; /* scale-exempt: Tailwind の text-lg の写し（#316 PR 4 で段へ寄せる） */
-  line-height: var(--timer-never-defined, calc(1.75 / 1.125)); /* 行の高さは status-strip.css 冒頭の注釈 */
+  font-size: var(--font-size-lg);
+  line-height: 1.4;
   color: var(--bone-muted);
 }
 
@@ -166,7 +165,7 @@
   display: flex;
   justify-content: center;
   gap: 1.5rem;
-  font-size: 1rem; /* scale-exempt: Tailwind の text-base の写し（#316 PR 4 で段へ寄せる） */
+  font-size: var(--font-size-base);
   line-height: 1.5;
   color: var(--bone-subtle);
 }

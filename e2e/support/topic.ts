@@ -48,3 +48,61 @@ export async function setTopic(page: Page, title: string, body: string): Promise
   await page.getByRole('button', { name: '場に出す' }).click();
   await expect(currentTopic(page).getByRole('heading', { name: title })).toBeVisible();
 }
+
+/** 64rem 未満で切られる本文の先（4 段落目）に置くリンク。Tab が止まるかどうかを見る（#316 PR 4）。 */
+export const AFTER_LINK_HREF = 'https://example.com/after';
+export const AFTER_LINK_NAME = 'after';
+/** 段落を 6 つ置き、4 段落目にリンクを入れる本文（3 行で切れば、リンクは切った先に来る）。 */
+export const LINKED_BODY = [
+  'Para 1.',
+  'Para 2.',
+  'Para 3.',
+  `Para 4. [${AFTER_LINK_NAME}](${AFTER_LINK_HREF})`,
+  'Para 5.',
+  'Para 6.',
+].join('\n\n');
+
+/**
+ * 狭い幅（64rem 未満）の読む面: 切った本文の中のリンクに Tab が止まらず、「続きを読む」には止まり、
+ * シートの中のリンクには止まる。`card` は読む面の領域（名前は「お題」）。見出しをクリックして Tab の起点にする。
+ * 空振りを避けるため、(1) リンクが写しの中に在ること (2) 「続きを読む」に着くこと (3) 着くまでに最大 40 回 を見る。
+ */
+export async function expectNarrowTabSkipsPreviewLink(page: Page, card: Locator): Promise<void> {
+  await expect(card.locator(`.ui-reader-preview a[href="${AFTER_LINK_HREF}"]`), '写しの中にリンクが無い（判定が空振りする）').toHaveCount(1);
+  // 見出しを Tab の起点にする（クリックは別の要素に遮られる画面がある）。見出しの次の要素から Tab を押し始める
+  await card.getByRole('heading', { level: 2 }).evaluate((el) => {
+    el.setAttribute('tabindex', '-1');
+    el.focus();
+  });
+  let reachedMore = false;
+  for (let i = 0; i < 40 && !reachedMore; i += 1) {
+    await page.keyboard.press('Tab');
+    const now = await page.evaluate(() => {
+      const el = document.activeElement;
+      return { href: el?.getAttribute('href') ?? null, text: el?.textContent?.trim() ?? '' };
+    });
+    expect(now.href, `切った本文の中のリンクに Tab が止まった（${i + 1} 回目）`).not.toBe(AFTER_LINK_HREF);
+    reachedMore = now.text === '続きを読む';
+  }
+  expect(reachedMore, '40 回 Tab を押しても「続きを読む」に着かない').toBe(true);
+  // シートを開くと、中のリンクには Tab で着く
+  await page.keyboard.press('Enter');
+  const sheet = page.locator('dialog.ui-drawer[open]');
+  await expect(sheet).toBeVisible();
+  const link = sheet.getByRole('link', { name: AFTER_LINK_NAME });
+  let reachedLink = false;
+  for (let i = 0; i < 10 && !reachedLink; i += 1) {
+    await page.keyboard.press('Tab');
+    reachedLink = await link.evaluate((el) => el === document.activeElement);
+  }
+  expect(reachedLink, 'シートの中のリンクに Tab で着かない').toBe(true);
+  await page.keyboard.press('Escape');
+  await expect(sheet).toBeHidden();
+}
+
+/** 広い幅（64rem 以上）: 本文の領域から Tab で、本文の中のリンクに着く。`body` は本文の領域（`.ui-reader-body`）。 */
+export async function expectWideTabReachesBodyLink(body: Locator): Promise<void> {
+  await body.focus();
+  await body.page().keyboard.press('Tab');
+  await expect(body.locator(`a[href="${AFTER_LINK_HREF}"]`)).toBeFocused();
+}
