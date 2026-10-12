@@ -1,0 +1,27 @@
+# 変異 162: web が状態を受けるたびに回転の時刻の基準を取り直す
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/use-roulette-sync.test.tsx
+#     describe「受け取った状態の保持」の
+#     「Given ある回転を受けた / When 同じ seq の状態をもう一度受ける / Then 受け取った時刻は変わらない」
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m162-*.patch
+# 復元: git apply -R scripts/mutations/m162-*.patch
+#
+# #94 E17・spec §6.4。回転は seq ごとに 1 回で、同じ回転の状態を繰り返し受けても
+# 基準を取り直してはならない（取り直すと、経過が 0 に戻って円盤が回し直しになる）。
+# 変異は seq の比較を外し、毎回 `performance.now()` を取る。
+diff --git a/apps/roulette-web/src/hooks/use-roulette-sync.ts b/apps/roulette-web/src/hooks/use-roulette-sync.ts
+index 3943598b..ac840784 100644
+--- a/apps/roulette-web/src/hooks/use-roulette-sync.ts
++++ b/apps/roulette-web/src/hooks/use-roulette-sync.ts
+@@ -200,7 +200,7 @@ export function useRouletteSync(roomCode: string): RouletteSync {
+           const now = performance.now();
+           setRouletteSlot((prev) =>
+             // **同じ回転（`seq` が同じ）なら基準を取り直さない。** 取り直すと円盤が回し直しになる。
+-            prev !== null && prev.view.spin?.seq === view.spin?.seq ? { view, receivedAt: prev.receivedAt } : { view, receivedAt: now },
++            prev !== null ? { view, receivedAt: now } : { view, receivedAt: now },
+           );
+           setError(null);
+           return;

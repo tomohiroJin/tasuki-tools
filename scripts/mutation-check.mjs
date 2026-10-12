@@ -1526,6 +1526,14 @@ export const MUTATIONS = [
     tests: ["test/roulette-handlers.test.ts"],
     note: "#94 §5.2（PR #355 のレビュー）。名簿から消えた記録を落とした状態を保管だけして配らず、保管と画面が食い違う。",
   },
+  {
+    id: 162,
+    label: "web が状態を受けるたびに回転の時刻の基準を取り直す",
+    patch: "m162-web-receivedat-refreshed-every-frame.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/use-roulette-sync.test.tsx"],
+    note: "#94 E17・spec §6.4。同じ回転（seq が同じ）の状態を繰り返し受けるたびに経過が 0 に戻り、円盤が回し直しになる。",
+  },
 ];
 
 /**
