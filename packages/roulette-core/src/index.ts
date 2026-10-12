@@ -22,3 +22,14 @@ export type { SpinInput, RouletteView } from "./roulette.js";
 
 export { ROULETTE_ERROR_CODES } from "./errors.js";
 export type { RouletteError, RouletteDomainErrorCode, RouletteErrorCode } from "./errors.js";
+
+export {
+  RouletteCommandSchema,
+  RouletteViewSchema,
+  RouletteFrameSchema,
+  RouletteErrorCodeSchema,
+  RouletteErrorFrameSchema,
+} from "./schemas.js";
+export type { RouletteCommand } from "./schemas.js";
+
+export { rouletteErrorMessageFor } from "./error-messages.js";
