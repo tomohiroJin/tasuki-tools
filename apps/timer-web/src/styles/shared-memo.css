@@ -11,9 +11,18 @@
 .shared-memo-header {
   margin-bottom: 0.5rem;
   display: flex;
+  /* 題と切替ボタンが 1 行に入らない幅（22rem の脇・320）では、ボタンを次の段へ回す。
+     折り返さないと両方が縮み、「プレビューに戻る」が 2 行・「共有メモ」が 1 字ずつ縦に折れた（#316 PR 4・実測） */
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
+  column-gap: 0.5rem;
+  row-gap: 0.5rem;
+}
+
+/* 切替ボタン（部品の副・--sm）の字は折らない。部品層ではなく、この見出し行でだけ止める */
+.shared-memo-toggle {
+  white-space: nowrap;
 }
 
 /* 題と「Markdown」の小さな印を並べる（印は h2 の外に置き、見出しの名前に混ぜない） */

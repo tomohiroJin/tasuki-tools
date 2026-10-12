@@ -88,7 +88,7 @@ export function SharedMemo({ note, onCommit }: SharedMemoProps) {
           <button
             type="button"
             onClick={() => setMode("edit")}
-            className="ui-button ui-button--secondary ui-button--sm"
+            className="ui-button ui-button--secondary ui-button--sm shared-memo-toggle"
           >
             編集
           </button>
@@ -96,7 +96,7 @@ export function SharedMemo({ note, onCommit }: SharedMemoProps) {
           <button
             type="button"
             onClick={() => { commit(); setMode("preview"); }}
-            className="ui-button ui-button--secondary ui-button--sm"
+            className="ui-button ui-button--secondary ui-button--sm shared-memo-toggle"
           >
             プレビューに戻る
           </button>

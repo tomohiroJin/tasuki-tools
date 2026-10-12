@@ -7,7 +7,8 @@
  * - E6 素のボタンが無い: 全ての `<button>` が部品（`.ui-button`）か、画面固有で許した一覧のどれかを持つ。
  * - E7 主は 1 つだけ: 操作の並び（`.ui-actions`）の中の主（`--secondary` / `--quiet` を持たない `.ui-button`）は 1 つ以下で、あれば最後。
  * - E8 下端の帯: 40rem 未満で `.ui-actions--dock` が画面の下端に接し、最下部では中身の下に出る。40rem 以上は流れの中。
- * - 当たり: `.ui-button` の押せる範囲（`--sm` は擬似要素の広がりを含む）が 44×44 以上で、隣の当たりと重ならない。
+ * - E4・E5 当たりとはみ出し: 全ての操作（`.ui-button` に限らない）の押せる範囲（絶対配置の擬似要素の広がりを含む）が 44×44 以上で、
+ *   どの 2 つも重ならず、部品のボタンの字が折れず、ページが横に溢れない。320・768・1280・1920 の 4 つの幅で見る（`expectScreenAcrossWidths`・#316 PR 4）。
  *
  * **測る前に、測る対象が描かれたことを待つ。** 描かれる前に「素のボタンが 0 件」「帯が無い」を測ると、
  * 壊れていても緑になる。各画面で「その画面にしか無いボタン」が見えるのを待ってから測り、
@@ -15,7 +16,7 @@
  */
 import type { Locator, Page } from '@playwright/test';
 import { expect, test } from '../fixtures/test';
-import { expectFieldsAtLeast16px } from '../support/a11y';
+import { expectFieldsAtLeast16px, expectScreenAcrossWidths } from '../support/a11y';
 import { chooseCard } from '../support/poker';
 import { openTopicTool, setTopic } from '../support/topic';
 import { createRoom as createTimerRoom } from '../support/timer';
@@ -25,7 +26,7 @@ import { createRoom as createTimerRoom } from '../support/timer';
  * - `.card`: poker の手札（札の形をした投票の選択肢。ボタンの形ではない）
  * - `.topic-tab`: お題ツールの読む面のタブ（`role="tab"`）
  * - `.tab`: timer のセッション／ルームのタブ（`role="tab"`）
- * - `.roster-panel-mini-button`: timer の名簿の行の小さな操作（見た目を保ち、当たりだけ 44px に広げる・Task 4b で別に測る）
+ * - `.roster-panel-mini-button`: timer の名簿の行の小さな操作（見た目を保ち、当たりだけ 44px に広げる）
  * - `.notify-hint-close`・`.notify-settings-trigger`: timer の通知のヒントの閉じる・ステータスの「通知」（ボタンの形をしない操作）
  * - `.session-config-interval`: timer の交代間隔の選択肢（排他の選択肢の札。ボタンの形をした操作ではない）
  * - `.notify-settings-switch-on`・`.notify-settings-switch-off`: timer の通知の ON/OFF（`role="switch"` のスイッチ）
@@ -35,8 +36,6 @@ const BARE_ALLOWED = [
   '.card', '.topic-tab', '.tab', '.roster-panel-mini-button', '.notify-hint-close', '.notify-settings-trigger',
   '.session-config-interval', '.notify-settings-switch-on', '.notify-settings-switch-off', '.notify-settings-preview',
 ];
-
-interface Rect { left: number; top: number; width: number; height: number }
 
 /** 画面に描かれた（箱を持つ）ボタンを集め、素のもの・並びごとの主・当たりを返す。 */
 async function scanButtons(page: Page, hitScope = 'body') {
@@ -93,30 +92,17 @@ async function expectButtonContract(page: Page, label: string, minButtons: numbe
   }
 }
 
-/** 当たりが 44×44 以上で、どの 2 つも重ならない。 */
-async function expectHitTargets(page: Page, label: string, minButtons: number, hitScope = 'body'): Promise<void> {
-  const { hits } = await scanButtons(page, hitScope);
-  expect(hits.length, `${label}: 描かれたボタンが少ない（判定が空振りする）`).toBeGreaterThanOrEqual(minButtons);
-  for (const h of hits) {
-    expect(h.rect.width, `${label}: ${h.name} の当たりの幅`).toBeGreaterThanOrEqual(44 - 0.01);
-    expect(h.rect.height, `${label}: ${h.name} の当たりの高さ`).toBeGreaterThanOrEqual(44 - 0.01);
-  }
-  const overlap = (a: Rect, b: Rect) =>
-    Math.min(a.left + a.width, b.left + b.width) - Math.max(a.left, b.left) > 0.5 &&
-    Math.min(a.top + a.height, b.top + b.height) - Math.max(a.top, b.top) > 0.5;
-  for (let i = 0; i < hits.length; i += 1) {
-    for (let j = i + 1; j < hits.length; j += 1) {
-      const a = hits[i]!;
-      const b = hits[j]!;
-      expect(overlap(a.rect, b.rect), `${label}: ${a.name} と ${b.name} の当たりが重なる`).toBe(false);
-    }
-  }
+interface ScreenOptions {
+  /** 当たりを測る操作の数の下限（既定は `minButtons`）。操作は部品のボタンのほかにタブ・リンク・名簿の小さな操作などを含む */
+  minTargets?: number;
+  /** 当たりを測る範囲。モーダルの確認ダイアログやポップオーバーは背景の画面の上に重なるので、その中だけで測る */
+  scope?: string;
 }
 
-/** `hitScope`: 当たりを測る範囲。モーダルの確認ダイアログは背景の画面の上に重なるので、ダイアログの中だけで測る。 */
-async function expectScreen(page: Page, label: string, minButtons: number, hitScope = 'body'): Promise<void> {
+/** E6・E7 を今の幅で、E4・E5（当たり・字の折れ・横の溢れ）を 4 つの幅で見る。 */
+async function expectScreen(page: Page, label: string, minButtons: number, options: ScreenOptions = {}): Promise<void> {
   await expectButtonContract(page, label, minButtons);
-  await expectHitTargets(page, label, minButtons, hitScope);
+  await expectScreenAcrossWidths(page, label, options.minTargets ?? minButtons, options.scope);
 }
 
 /*
@@ -280,6 +266,9 @@ test.describe('お題ツールのボタンは部品で、押せる大きさが�
  * 「完成!」は次のカードにあるので `expectFocusNotHiddenByDock`（辿った先の下端 ≤ 帯の上端）は当てはまらない。
  * そこで、Tab の一歩ごとに「辿った先の箱が帯の箱と重ならない（帯の中の操作を除く）」を見る。
  */
+/** ロビーで測る操作の数の下限（交代間隔のチップ・開始・通知のカードの操作・ステータスの戻るリンクと「通知」など） */
+const LOBBY_TARGETS = 8;
+
 // 幅の広い字を 30 字、切れ目なしで並べる（名簿の名前が `overflow-wrap` で折れないと 22rem の脇から溢れる）
 const LONG_NAME = 'W'.repeat(30);
 
@@ -306,34 +295,6 @@ async function addProxies(page: Page, names: string[]): Promise<void> {
     await input.press('Enter');
     await expect(page.locator('.roster-panel-name', { hasText: name }).first(), `代理 ${name} が名簿に載らない`).toBeVisible();
     await expect(input, `代理 ${name} を載せたあとフォームが閉じない`).toBeHidden();
-  }
-}
-
-/** 名簿の行の小さな操作（`.roster-panel-mini-button`）の当たり（擬似要素の広がりを含む）が 44×44 以上で、重ならない。 */
-async function expectMiniHitTargets(page: Page, label: string): Promise<void> {
-  const hits = await page.evaluate(() => Array.from(document.querySelectorAll('.roster-panel-mini-button'))
-    .filter((el) => el.getBoundingClientRect().width > 0)
-    .map((el) => {
-      const r = el.getBoundingClientRect();
-      const cs = getComputedStyle(el);
-      const p = getComputedStyle(el, '::before');
-      const hit = p.content !== 'none' && p.position === 'absolute'
-        ? { left: r.left + parseFloat(cs.borderLeftWidth) + parseFloat(p.left), top: r.top + parseFloat(cs.borderTopWidth) + parseFloat(p.top), width: parseFloat(p.width), height: parseFloat(p.height) }
-        : { left: r.left, top: r.top, width: r.width, height: r.height };
-      return { name: (el.getAttribute('aria-label') ?? el.textContent ?? '').slice(0, 20), hit };
-    }));
-  expect(hits.length, `${label}: 名簿の小さな操作が描かれていない`).toBeGreaterThanOrEqual(10);
-  for (const h of hits) {
-    // 0.05px の余裕は Chromium のレイアウトの丸め（1/64px 単位。実測 43.984）
-    expect(Math.min(h.hit.width, h.hit.height) >= 44 - 0.05, `${label}: ${h.name} の当たり ${h.hit.width}x${h.hit.height}`).toBe(true);
-  }
-  const overlap = (a: Rect, b: Rect) =>
-    Math.min(a.left + a.width, b.left + b.width) - Math.max(a.left, b.left) > 0.5 &&
-    Math.min(a.top + a.height, b.top + b.height) - Math.max(a.top, b.top) > 0.5;
-  for (let i = 0; i < hits.length; i += 1) {
-    for (let j = i + 1; j < hits.length; j += 1) {
-      expect(overlap(hits[i]!.hit, hits[j]!.hit), `${label}: ${hits[i]!.name} と ${hits[j]!.name} の当たりが重なる`).toBe(false);
-    }
   }
 }
 
@@ -395,7 +356,11 @@ test.describe('timer の各画面（ロビー・セッション・確認・ま�
     await page.setViewportSize({ width: 390, height: 800 });
     await createTimerRoom(page, 'buttons-timer');
     await expect(page.getByRole('button', { name: 'セッションを開始' })).toBeVisible();
-    await expectScreen(page, 'timer ロビー（390）', 2);
+    await expectScreen(page, 'timer ロビー（390）', 2, { minTargets: LOBBY_TARGETS });
+    // 「詳細設定」（たたまれた <details>）を開いた状態。交代間隔のチップ・通知のカードのスイッチと試聴も同じ画面にある
+    await page.locator('summary', { hasText: '詳細設定' }).click();
+    await expect(page.locator('.session-config-toggles')).toBeVisible();
+    await expectScreen(page, 'timer ロビー（詳細設定を開いた）', 2, { minTargets: LOBBY_TARGETS });
     // パスフレーズの欄（文字を入れる欄全体を測る。部品の当て忘れも拾う）
     await expect(page.getByLabel('パスフレーズ', { exact: true })).toBeVisible();
     await expectFieldsAtLeast16px(page);
@@ -417,8 +382,8 @@ test.describe('timer の各画面（ロビー・セッション・確認・ま�
     expect(wide.pageScrollW, '1280: ページが横に溢れる').toBeLessThanOrEqual(wide.pageClientW);
     // 行の操作の行は 1 段（アイコンの操作は名前の行の右端にある）。22rem の脇で 3 段に折れると 1 行が約 180px になる
     for (const r of wide.rows) expect(r.actionsH, `名簿の行「${r.name}」の操作の行が 1 段に収まらない（${r.actionsH}px）`).toBeLessThanOrEqual(44 + 2);
-    await expectScreen(page, 'timer セッション（1280）', 8);
-    await expectMiniHitTargets(page, 'timer セッション（1280）');
+    // 操作の数の下限は、部品のボタン 8 つと名簿の行の小さな操作 10 個（どちらも 1280 で必ず描かれる）
+    await expectScreen(page, 'timer セッション（1280）', 8, { minTargets: 8 + 10 });
 
     // 入力欄（#316 PR 4）: 代理追加・改名・共有メモの欄は 16px 以上で、脇（22rem）の行から押し出されない。1280 と 320 で見る
     const toggleProxy = page.getByRole('button', { name: '代理参加者を追加' });
@@ -433,6 +398,8 @@ test.describe('timer の各画面（ロビー・セッション・確認・ま�
     await expect(renameInput).toBeVisible();
     await expectFieldsAtLeast16px(page);
     await expectRowFits(renameInput, '改名の行');
+    // 代理追加と改名の欄を開いた状態（欄の脇のボタンの字の折れも、4 つの幅で見る）
+    await expectScreen(page, 'timer セッション（代理追加と改名の欄を開いた）', 8, { minTargets: 8 + 10 });
     await page.setViewportSize({ width: 320, height: 900 });
     await expectRowFits(proxyInput, '代理追加の行（320）');
     await expectRowFits(renameInput, '改名の行（320）');
@@ -443,7 +410,16 @@ test.describe('timer の各画面（ロビー・セッション・確認・ま�
     await page.getByRole('button', { name: '編集', exact: true }).click();
     await expect(page.getByLabel('共有メモ', { exact: true })).toBeVisible();
     await expectFieldsAtLeast16px(page);
+    await expectScreen(page, 'timer セッション（共有メモの編集）', 8, { minTargets: 8 + 10 });
     await page.getByRole('button', { name: 'プレビューに戻る' }).click();
+
+    // ステータスの「通知設定」を開いた状態。ポップオーバーは画面の上に重なるので、ポップオーバーの中で測る
+    await page.getByRole('button', { name: '通知設定' }).click();
+    const popover = page.getByRole('dialog', { name: '交代通知の設定' });
+    await expect(popover).toBeVisible();
+    await expectScreen(page, 'timer 通知設定（ポップオーバー）', 8, { minTargets: 2, scope: '[role="dialog"][aria-label="交代通知の設定"]' });
+    await page.getByRole('button', { name: '通知設定' }).click();
+    await expect(popover).toBeHidden();
 
     // 終える区画: 主は最後（完成!）、危険の 2 つは .ui-actions-start に入って左に離れる
     const end = (await scanButtons(page)).groups.find((g) => g.names.includes('完成!'));
@@ -474,7 +450,6 @@ test.describe('timer の各画面（ロビー・セッション・確認・ま�
     await expect(page.locator('.session-driver-card')).toBeVisible();
     await expectTimerDockPinned(page, dock);
     expect((await measureRoster(page)).pageScrollW, '390: ページが横に溢れる').toBeLessThanOrEqual(390);
-    await expectMiniHitTargets(page, 'timer セッション（390）');
 
     // 区切りのない 30 字の名前（次のドライバー）が「次:」の行と交代順の札で、カードの縁に切られない
     const clip = await page.locator('.session-driver-card').evaluate((card, long) => {
@@ -506,14 +481,22 @@ test.describe('timer の各画面（ロビー・セッション・確認・ま�
     await page.setViewportSize({ width: 390, height: 800 });
     await expect(page.getByRole('button', { name: '一時停止', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: '完成!', exact: true })).toBeVisible();
-    await expectScreen(page, 'timer セッション（390）', 6);
+    await expectScreen(page, 'timer セッション（390）', 6, { minTargets: 6 + 10 });
+
+    // 「ルーム」のタブ（招待・パスフレーズ）
+    await page.getByRole('tab', { name: 'ルーム' }).click();
+    await expect(page.getByRole('tab', { name: 'ルーム' })).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('.session-room')).toBeVisible();
+    await expectScreen(page, 'timer ルームのタブ（390）', 2);
+    await page.getByRole('tab', { name: 'セッション' }).click();
+    await expect(page.getByRole('button', { name: '完成!', exact: true })).toBeVisible();
 
     // 確認ダイアログ（「途中で終える」）: 取消と確定が見えてから測る。測ったら取り消す
     await page.getByRole('button', { name: '途中で終える' }).click();
     const dialog = page.getByRole('dialog');
     await expect(dialog.getByRole('button', { name: '終える（記録なし）' })).toBeVisible();
     // 最小数は当たりを測るダイアログの中のボタン数（取消と確定の 2 つ）。背景の画面のボタンは別に数える
-    await expectScreen(page, 'timer 確認ダイアログ（390）', 2, '[role="dialog"]');
+    await expectScreen(page, 'timer 確認ダイアログ（390）', 2, { scope: '[role="dialog"]' });
     expect((await scanButtons(page)).uiButtons, '確認ダイアログ: 背景の画面のボタンが描かれていない').toBeGreaterThanOrEqual(8);
     expect((await scanButtons(page, '[role="dialog"]')).hits, '確認ダイアログの当たりは取消と確定の 2 つ').toHaveLength(2);
     await dialog.getByRole('button', { name: 'キャンセル' }).click();

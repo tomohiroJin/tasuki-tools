@@ -65,6 +65,7 @@
 }
 
 .session-config-summary {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -75,6 +76,16 @@
   font-size: var(--font-size-sm);
   line-height: 1.45;
   font-weight: 500;
+}
+
+/* 見た目を保ち、押せる範囲だけ 44×44 に広げる（#316 D7・lobby.css の .lobby-row-icon-button と同じ形）。
+   inset の % は左右が幅、上下が高さに対するので、縦長・横長の箱でも当たりは 44×44 の中央寄せになる。
+   見た目の高さは行の高さと padding で約 43.6px（`--font-size-sm` は幅で変わる）。幅は行いっぱいなので左右は 0。
+   隣の当たりと重ならないことは buttons.spec.ts が見る */
+.session-config-summary::before {
+  content: "";
+  position: absolute;
+  inset: calc((100% - 2.75rem) / 2) 0;
 }
 
 .session-config-summary-icon {

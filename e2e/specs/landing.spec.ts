@@ -12,6 +12,7 @@
  *   （`local` 専用。実ルームの枠を使い、WS を成立させない細工も要る）。
  */
 import { expect, test } from '../fixtures/test';
+import { expectScreenAcrossWidths } from '../support/a11y';
 import type { Page } from '@playwright/test';
 
 test.describe('@core 玄関 LP が実ブラウザで描画される', () => {
@@ -264,6 +265,8 @@ test.describe('玄関と選択画面から端末の記録を見て、開いた�
       .poll(() => new URL(page.url()).pathname, { message: '記録の行き先' })
       .toBe('/timer/');
     await expect(historyHeading(page), '履歴の見出し').toBeVisible();
+    // 履歴の画面も、4 つの幅で横に溢れず、操作は押せる大きさで重ならない（#316 PR 4・E4・E5）
+    await expectScreenAcrossWidths(page, 'timer 履歴', 1);
 
     // When: 戻る
     await page.getByRole('button', { name: '戻る' }).click();

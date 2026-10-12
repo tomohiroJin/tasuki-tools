@@ -102,7 +102,9 @@
   min-width: 0; /* 行より広い操作は、次の行へ折り返したうえで行の幅へ縮める（溢れない） */
   flex-wrap: wrap;
   align-items: center;
-  gap: 0.25rem;
+  /* 段の間は、折り返した --sm のボタンの当たり（上下に 4px ずつ広がる）が重ならない 8px（#316 PR 4） */
+  column-gap: 0.25rem;
+  row-gap: 0.5rem;
   margin-inline-start: auto;
 }
 

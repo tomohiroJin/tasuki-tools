@@ -234,3 +234,112 @@ export async function expectFieldsAtLeast16px(page: Page): Promise<void> {
   expect(sizes.length, '文字を入れる欄が画面に無い（判定が空振りする）').toBeGreaterThan(0);
   for (const s of sizes) expect(s.px, `${s.name} の字が 16px を下回る`).toBeGreaterThanOrEqual(16);
 }
+
+/*
+ * 押せる大きさとはみ出し（#316 PR 4・設計正本 D7・D9・E4・E5）。
+ *
+ * 当たりは見た目の箱に、絶対配置の擬似要素（`::before` / `::after`）の広がりを足したもの。
+ * 行の中の小さな操作は見た目を保ち、当たりだけを `::before` で 44×44 に広げる（`.lobby-row-icon-button` と同じ形）ので、
+ * 箱だけで測るとそれらを全部「小さい」と誤る。擬似要素は `transform` で寄せない前提（計算値の `left` が変換前を返す）。
+ */
+
+/** 押せる操作。行内のリンク（文の中のリンク・Markdown の本文の中）は除く（設計正本 D9） */
+const TARGET = 'button, a[href], summary, [role="tab"]';
+const WIDTHS = [320, 768, 1280, 1920] as const;
+
+interface Hit { name: string; left: number; top: number; right: number; bottom: number }
+
+async function scanTargets(page: Page, scope: string): Promise<{ hits: Hit[]; wrapped: string[] }> {
+  return page.evaluate(([scope, sel]) => {
+    const shown = (el: Element): boolean => {
+      const r = el.getBoundingClientRect();
+      const cs = getComputedStyle(el);
+      return r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && el.closest('[inert]') === null;
+    };
+    // 文の中のリンク: Markdown の本文の中、または最も近い段落・項目（`p` / `li`）に自分以外の文字がある。
+    // 親が並べるための入れ物（ステータスの帯など）なだけのリンクは操作として測る。「親の字が自分と違えば行内」とすると、
+    // 帯の「選択画面へ戻る」が隣のフェーズや名前の字で行内と読まれ、測られなかった（#316 PR 4・実測）
+    const inline = (el: Element): boolean => {
+      if (el.tagName !== 'A') return false;
+      if (el.closest('.ui-md') !== null) return true;
+      const block = el.parentElement?.closest('p, li');
+      return block != null && (block.textContent ?? '').trim() !== (el.textContent ?? '').trim();
+    };
+    const name = (el: Element): string => (el.getAttribute('aria-label') ?? el.textContent ?? '').trim().slice(0, 24);
+    const els = Array.from(document.querySelectorAll(`${scope} :is(${sel})`)).filter((el) => shown(el) && !inline(el));
+    const hits = els.map((el) => {
+      const r = el.getBoundingClientRect();
+      const cs = getComputedStyle(el);
+      let left = r.left, top = r.top, right = r.right, bottom = r.bottom;
+      // 絶対配置の擬似要素（見た目を保って当たりだけ広げる形）は、その広がりを当たりに含める
+      for (const which of ['::before', '::after'] as const) {
+        const p = getComputedStyle(el, which);
+        if (p.content === 'none' || p.position !== 'absolute') continue;
+        const pl = r.left + parseFloat(cs.borderLeftWidth) + parseFloat(p.left);
+        const pt = r.top + parseFloat(cs.borderTopWidth) + parseFloat(p.top);
+        left = Math.min(left, pl); top = Math.min(top, pt);
+        right = Math.max(right, pl + parseFloat(p.width)); bottom = Math.max(bottom, pt + parseFloat(p.height));
+      }
+      return { name: name(el), left, top, right, bottom };
+    });
+    // 部品のボタンの字が 1 行に収まっているか。アイコン（svg）を数えないよう、文字のノードの行だけを数える
+    const wrapped = Array.from(document.querySelectorAll(`${scope} .ui-button`)).filter(shown).filter((el) => {
+      const tops = new Set<number>();
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      for (let n = walker.nextNode(); n !== null; n = walker.nextNode()) {
+        if ((n.textContent ?? '').trim() === '') continue;
+        const range = document.createRange();
+        range.selectNodeContents(n);
+        // 和文と欧文の行の上端の数 px の差を同じ行に数える（2 行目は少なくとも 1 行の高さ・約 18px 下にある）
+        for (const rect of Array.from(range.getClientRects())) tops.add(Math.round(rect.top / 4));
+      }
+      return tops.size > 1;
+    }).map(name);
+    return { hits, wrapped };
+  }, [scope, TARGET] as const);
+}
+
+/** 当たりが 44×44 以上で、どの 2 つも重ならず、部品のボタンの字が折れない。`minTargets` は測った操作の数の下限（空振りの防止） */
+export async function expectTouchTargets(page: Page, label: string, minTargets: number, scope = 'body'): Promise<void> {
+  const { hits, wrapped } = await scanTargets(page, scope);
+  expect(hits.length, `${label}: 測った操作が少ない（描かれる前に測っていないか）`).toBeGreaterThanOrEqual(minTargets);
+  // 0.05px の余裕は Chromium のレイアウトの丸め（1/64px 単位。名簿の行の操作で実測 43.984）
+  const small = hits.filter((h) => h.right - h.left < 44 - 0.05 || h.bottom - h.top < 44 - 0.05)
+    .map((h) => `${h.name} ${Math.round(h.right - h.left)}x${Math.round(h.bottom - h.top)}`);
+  expect(small, `${label}: 当たりが 44px 未満`).toEqual([]);
+  const overlaps: string[] = [];
+  for (let i = 0; i < hits.length; i++) for (let j = i + 1; j < hits.length; j++) {
+    const a = hits[i]!, b = hits[j]!;
+    const x = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+    const y = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+    if (x > 0.5 && y > 0.5) overlaps.push(`${a.name} / ${b.name}`);
+  }
+  expect(overlaps, `${label}: 当たりが重なる`).toEqual([]);
+  expect(wrapped, `${label}: 字が 2 行に折れた部品のボタン`).toEqual([]);
+}
+
+/**
+ * 終わりのある演出（ホバーの遷移・行の登場の拡大）が終わるのを待つ。演出の途中の箱は縮んでいたり動いていたりして、
+ * 当たりの大きさと重なりを誤る（タブを切り替えた直後の名簿の行で、実測 32×34 と読んだ）。終わりの無い演出（脈打ちなど）と止まっている演出は待たない
+ */
+async function settleFiniteAnimations(page: Page): Promise<void> {
+  await page.evaluate(() => Promise.all(document.getAnimations()
+    // 止まっている演出の `finished` は解けないので、走っているものだけを待つ
+    .filter((a) => a.playState === 'running' && a.effect?.getComputedTiming().endTime !== Infinity)
+    .map((a) => a.finished.catch(() => undefined))));
+}
+
+/** 4 つの幅で、横に溢れず、押せる大きさを満たす。測り終えたら元の幅に戻す */
+export async function expectScreenAcrossWidths(page: Page, label: string, minTargets: number, scope = 'body'): Promise<void> {
+  const original = page.viewportSize();
+  // ホバーの浮き上がりは押せる範囲の重なりではない。ポインタを左上の角へ退けてから測る（玄関の道具選びで、「ルームを作る」を押した
+  // ポインタの下に来た札が `translateY(-8px)` で浮き、上の札と重なって読めた。退けると札の間は 15.6px 空く・実測）
+  await page.mouse.move(0, 0);
+  for (const width of WIDTHS) {
+    await page.setViewportSize({ width, height: 900 });
+    await settleFiniteAnimations(page);
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), { message: `${label}（${width}）: 横に溢れる` }).toBe(true);
+    await expectTouchTargets(page, `${label}（${width}）`, minTargets, scope);
+  }
+  if (original !== null) await page.setViewportSize(original);
+}
