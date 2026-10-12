@@ -493,6 +493,84 @@ describe("お題（topic）のメッセージ層が同期 throw しても隔離�
 });
 
 /**
+ * ルーレットのメッセージ経路（#94）。お題（topic）と同じ形で、サイズ超過は
+ * `MESSAGE_TOO_LARGE`、メッセージ層の同期 throw は `INTERNAL_ERROR` を返して接続を保つ。
+ *
+ * @requirements #94 spec §5.2・E15
+ */
+describe("WsAdapter ルーレットのメッセージ経路", () => {
+  it("Given ?tool=roulette の接続 / When 64KB を超える本文を送る / Then onRouletteMessage は呼ばれず MESSAGE_TOO_LARGE を返し接続は保つ", async () => {
+    // Given
+    let called = false;
+    adapter = newTestWsAdapter({
+      port: 0,
+      host: "127.0.0.1",
+      allowedOrigins: [],
+      onMessage: async () => {},
+      onRouletteMessage: async () => {
+        called = true;
+      },
+      onDisconnect: () => {},
+      logger: testLogger,
+    });
+    const ws = new WebSocket(`ws://127.0.0.1:${adapter.port}/ws?tool=roulette`);
+    await waitOpen(ws);
+
+    // When: 64KB 超（境界の外側）
+    ws.send("x".repeat(64 * 1024 + 1));
+    const msg = await waitMessage(ws);
+
+    // Then
+    expect(msg).toMatchObject({ type: "error", code: "MESSAGE_TOO_LARGE" });
+    expect(ws.readyState).toBe(WebSocket.OPEN);
+    expect(called).toBe(false);
+    ws.close();
+  });
+
+  it("Given 最初の呼び出しだけ同期 throw するルーレットの層 / When 2 通送る / Then INTERNAL_ERROR を返し、接続もプロセスも落ちず 2 通目が届く", async () => {
+    // Given
+    const { logger, lines } = collectingLogger();
+    let calls = 0;
+    adapter = newTestWsAdapter({
+      port: 0,
+      host: "127.0.0.1",
+      allowedOrigins: [],
+      onMessage: async () => {},
+      onRouletteMessage: (_connId: string, _raw: string): Promise<void> => {
+        calls++;
+        if (calls === 1) throw new Error("boom in onRouletteMessage");
+        return Promise.resolve();
+      },
+      onDisconnect: () => {},
+      logger,
+    });
+    const ws = new WebSocket(`ws://127.0.0.1:${adapter.port}/ws?tool=roulette`);
+    await waitOpen(ws);
+    try {
+      // When
+      ws.send("1通目");
+      const msg = await waitMessage(ws);
+
+      // Then: エラーフレームが返り、例外の分類だけが記録される（例外メッセージは載せない）
+      expect(msg).toMatchObject({ type: "error", code: "INTERNAL_ERROR" });
+      await waitFor(() => lines.some((l) => l.startsWith("on-message-error ")));
+      expect(lines.find((l) => l.startsWith("on-message-error "))!).not.toContain("boom in onRouletteMessage");
+      expect(ws.readyState).toBe(WebSocket.OPEN);
+
+      // Then: 2 通目がハンドラへ届き、新しい接続も張れる
+      ws.send("2通目");
+      await waitFor(() => calls === 2);
+      const second = new WebSocket(`ws://127.0.0.1:${adapter.port}/ws?tool=roulette`);
+      await waitOpen(second);
+      expect(second.readyState).toBe(WebSocket.OPEN);
+      second.close();
+    } finally {
+      ws.close();
+    }
+  });
+});
+
+/**
  * poker のメッセージ層が throw してもプロセスを落とさない（#95 S2）。
  *
  * **統合でこの隔離の重みが変わった。** 統合前は poker のハンドラの同期 throw で

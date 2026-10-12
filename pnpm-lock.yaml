@@ -175,6 +175,9 @@ importers:
       '@tasuki/room-core':
         specifier: workspace:*
         version: link:../../packages/room-core
+      '@tasuki/roulette-core':
+        specifier: workspace:*
+        version: link:../../packages/roulette-core
       '@tasuki/timer-core':
         specifier: workspace:*
         version: link:../../packages/timer-core

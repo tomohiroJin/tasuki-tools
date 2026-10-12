@@ -34,7 +34,8 @@ import { publicText, type LogSafe } from "../application/log/log-safe.js";
 import { CONN_REJECT_REASONS } from "../application/log/vocabulary.js";
 import { deriveClientKeySafely } from "./client-key-safety.js";
 import type { Handlers as PokerHandlers } from "../application/poker-handlers.js";
-import { TOOL_POKER, TOOL_TIMER, TOOL_TOPIC } from "../application/tool-id.js";
+import { TOOL_POKER, TOOL_ROULETTE, TOOL_TIMER, TOOL_TOPIC } from "../application/tool-id.js";
+import type { RouletteOwnFrame, RouletteServerMsg } from "../ports/roulette-server-msg.js";
 import type { TopicOwnFrame, TopicServerMsg } from "../ports/topic-server-msg.js";
 
 /**
@@ -65,12 +66,13 @@ import type { TopicOwnFrame, TopicServerMsg } from "../ports/topic-server-msg.js
  */
 const TOOL_QUERY_KEY = "tool";
 
-function protocolFromRequestUrl(url: URL): "timer" | "poker" | "topic" | "hub" | "unknown" {
+function protocolFromRequestUrl(url: URL): "timer" | "poker" | "topic" | "roulette" | "hub" | "unknown" {
   const declared = url.searchParams.get(TOOL_QUERY_KEY);
   if (declared === null) return "hub";
   if (declared === TOOL_TIMER) return TOOL_TIMER;
   if (declared === TOOL_POKER) return TOOL_POKER;
   if (declared === TOOL_TOPIC) return TOOL_TOPIC;
+  if (declared === TOOL_ROULETTE) return TOOL_ROULETTE;
   return "unknown";
 }
 
@@ -169,6 +171,13 @@ export interface WsAdapterOptions {
    */
   onTopicMessage: (connId: string, raw: string) => Promise<void>;
   /**
+   * ルーレット（roulette）へ届いた生テキスト（#94）。
+   *
+   * **`onTopicMessage` と同じく、パース前の文字列を渡す。** 境界の検証はメッセージ層
+   * （`application/roulette-handlers.ts`）に置き、この層は経路とサイズだけを見る。
+   */
+  onRouletteMessage: (connId: string, raw: string) => Promise<void>;
+  /**
    * 接続が閉じたときに呼ばれる（Origin / 接続数上限で弾いた接続は除く。
    * その場合はアプリ層へ「受け入れていない接続」を通知しない）。
    *
@@ -251,6 +260,7 @@ interface ConnectionBase {
 type ToolContext =
   | { readonly protocol: "timer" }
   | { readonly protocol: "topic" }
+  | { readonly protocol: "roulette" }
   | { readonly protocol: "hub" }
   | { readonly protocol: "unknown" }
   | { readonly protocol: "poker"; participantId: string | null; roomId: string | null };
@@ -542,6 +552,28 @@ export class WsAdapter {
     }
   }
 
+  /**
+   * ルーレット（roulette）の接続へ送る（#94）。{@link sendTopic} と同じく、`sendHub` の型
+   * （`HubServerMsg`）ではルーレットのフレームを型検査が拒むため分けてある。
+   */
+  sendRoulette(connId: string, data: RouletteServerMsg): void {
+    const ws = this.connections.get(connId);
+    if (ws?.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(data));
+    }
+  }
+
+  /** ルーレット（roulette）の接続へ一斉に送る。 */
+  broadcastRoulette(connIds: string[], data: RouletteServerMsg): void {
+    const json = JSON.stringify(data);
+    for (const connId of connIds) {
+      const ws = this.connections.get(connId);
+      if (ws?.readyState === WebSocket.OPEN) {
+        ws.send(json);
+      }
+    }
+  }
+
   broadcast(connIds: string[], data: ServerMsg): void {
     const json = JSON.stringify(data);
     for (const connId of connIds) {
@@ -613,6 +645,7 @@ export class WsAdapter {
     this.missedPongs.set(connId, 0);
     // poker のメッセージ層に接続受理のフックは無い（統合前の
     // `apps/poker-sync/src/adapters/ws-adapter.ts` も rateKey を入れて終わりだった）。
+    // ⚠ **ルーレット（roulette）もこの分岐に足してはならない**（#94・spec §5.2。お題と同じ理由）。
     // ⚠ **お題（topic）をこの分岐に足してはならない**（#91・spec §5.3 の MUST）。
     // ここで return すると onConnect が呼ばれず、`rateLimitGate.open` が接続とクライアント鍵を
     // 結ばない。すると鍵は connId へ落ち、`ai.unlock` の総当たりが**張り直すだけで**
@@ -665,6 +698,11 @@ export class WsAdapter {
 
     if (ws.data.protocol === "topic") {
       this.handleTopicMessage(ws, raw, bytes);
+      return;
+    }
+
+    if (ws.data.protocol === "roulette") {
+      this.handleRouletteMessage(ws, raw, bytes);
       return;
     }
 
@@ -899,6 +937,49 @@ export class WsAdapter {
    * 契約に無いコードを型検査で弾く。
    */
   private sendTopicFrame(ws: Socket, msg: TopicOwnFrame): void {
+    if (ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify(msg));
+  }
+
+  /**
+   * ルーレット（roulette）のメッセージ層へ渡す（#94）。
+   *
+   * 境界のパースはメッセージ層（`application/roulette-handlers.ts`）が持つ。ここはサイズ制限
+   * だけを掛ける。**本体を `try/catch` で隔離する**（`handleTopicMessage` と同じ形・理由）:
+   * 同期 throw が Bun の websocket ハンドラを抜けて `uncaughtException` に達すると、
+   * `server.ts` が `process.exit(1)` して同じプロセスに載る他のツールのルームも道連れで消える
+   * （揮発インメモリ）。
+   */
+  private handleRouletteMessage(ws: Socket, raw: string | Buffer, bytes: number): void {
+    if (bytes > this.options.maxMessageBytes) {
+      this.sendRouletteFrame(ws, {
+        type: "error",
+        code: "MESSAGE_TOO_LARGE",
+        message: MESSAGE_TOO_LARGE_TEXT,
+      });
+      return;
+    }
+    try {
+      void this.options.onRouletteMessage(ws.data.connId, raw.toString()).catch((err: unknown) => {
+        this.options.logger.error("on-message-error", { name: classifyError(err) });
+        this.sendRouletteFrame(ws, {
+          type: "error",
+          code: "INTERNAL_ERROR",
+          message: INTERNAL_ERROR_TEXT,
+        });
+      });
+    } catch (err) {
+      this.options.logger.error("on-message-error", { name: classifyError(err) });
+      this.sendRouletteFrame(ws, {
+        type: "error",
+        code: "INTERNAL_ERROR",
+        message: INTERNAL_ERROR_TEXT,
+      });
+    }
+  }
+
+  /** ルーレットの接続へ 1 通送る（OPEN のときだけ）。型は狭い {@link RouletteOwnFrame}（`sendTopicFrame` と同じ理由）。 */
+  private sendRouletteFrame(ws: Socket, msg: RouletteOwnFrame): void {
     if (ws.readyState !== WebSocket.OPEN) return;
     ws.send(JSON.stringify(msg));
   }

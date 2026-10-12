@@ -77,15 +77,30 @@ export function unwiredTopicHandler(): WsAdapterOptions["onTopicMessage"] {
   };
 }
 
-/** 必須オプションのうち、接続層のテストが関心を持たない 5 つだけを任意にしたもの。 */
+/**
+ * 呼ばれたら失敗するルーレットのメッセージ層（#94）。「ここへ来るはずがない」を赤で示す。
+ *
+ * ハブ・poker・お題と同じ規律にしてある —— 既定を「何もしない」にすると、`?tool=roulette` で
+ * 繋いだ接続が黙って無視され、経路の取り違えがテストから見えなくなる。
+ */
+export function unwiredRouletteHandler(): WsAdapterOptions["onRouletteMessage"] {
+  return () => {
+    throw new Error(
+      "ルーレットのメッセージ層が呼ばれました。" +
+        "接続層のテストは ?tool=roulette で繋がない想定です（test/support/test-ws-adapter.ts）。",
+    );
+  };
+}
+
+/** 必須オプションのうち、接続層のテストが関心を持たない 6 つだけを任意にしたもの。 */
 export type TestWsAdapterOptions = Omit<
   WsAdapterOptions,
-  "maxMessageBytes" | "maxFrameBytes" | "poker" | "onHubMessage" | "onTopicMessage"
+  "maxMessageBytes" | "maxFrameBytes" | "poker" | "onHubMessage" | "onTopicMessage" | "onRouletteMessage"
 > &
   Partial<
     Pick<
       WsAdapterOptions,
-      "maxMessageBytes" | "maxFrameBytes" | "poker" | "onHubMessage" | "onTopicMessage"
+      "maxMessageBytes" | "maxFrameBytes" | "poker" | "onHubMessage" | "onTopicMessage" | "onRouletteMessage"
     >
   >;
 
@@ -97,5 +112,6 @@ export function newTestWsAdapter(options: TestWsAdapterOptions): WsAdapter {
     poker: options.poker ?? unwiredPokerHandlers(),
     onHubMessage: options.onHubMessage ?? unwiredHubHandler(),
     onTopicMessage: options.onTopicMessage ?? unwiredTopicHandler(),
+    onRouletteMessage: options.onRouletteMessage ?? unwiredRouletteHandler(),
   });
 }
