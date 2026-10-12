@@ -600,27 +600,22 @@ test.describe('お題ツールを書く主役にする（#316 PR 1 の手直し�
     expect(consoleWatcher.errors).toEqual([]);
   });
 
-  test('Given 幅 1920・高さ 1080（操作の面が札より短い） / When 短い本文のお題を出す / Then ページは画面 1 枚に収まり、スクロールバーが出ない', async ({ page, consoleWatcher }) => {
+  // 1 ルームで 2 つの高さを測る（E2E 全件は同期サーバーのルーム枠 100 ぎりぎり。#94 PR 2 で 1 本増えたので、ここでまとめた）
+  test('Given 幅 1920・高さ 1080 と 幅 1280・高さ 800 / When 短い本文のお題を出す / Then 1920 ではページが画面 1 枚に収まり、1280 ではスクロール前に札の下端（ボタン）が画面に収まる', async ({ page, consoleWatcher }) => {
     // Given: 書く欄と作る欄を合わせても札より短い高さ
     await page.setViewportSize({ width: 1920, height: 1080 });
-    await openTopicTool(page, 'no-scroll-topic');
-    // When
-    await setTopic(page, TITLE, SHORT_BODY);
-    await expect(currentTopic(page).getByRole('region', { name: TITLE, exact: true }).getByText(SHORT_BODY, { exact: true })).toBeVisible();
-    // Then: 札の高さの式が器の下の余白を引いていないと、どの高さでもページが約 3.5rem はみ出す（2026-10-11 に利用者が指摘）
-    const { pageHeight, viewport } = await page.evaluate(() => ({ pageHeight: document.documentElement.scrollHeight, viewport: innerHeight }));
-    expect(pageHeight, 'ページが画面より高く、スクロールバーが出る').toBeLessThanOrEqual(viewport);
-    expect(consoleWatcher.errors).toEqual([]);
-  });
-
-  test('Given 幅 1280・高さ 800 / When お題ツールを開いた直後 / Then スクロール前に札の下端（ボタン）が画面に収まる', async ({ page, consoleWatcher }) => {
-    // Given
-    await page.setViewportSize({ width: 1280, height: 800 });
     await openTopicTool(page, 'fits-topic');
     // When
     await setTopic(page, TITLE, SHORT_BODY);
+    await expect(currentTopic(page).getByRole('region', { name: TITLE, exact: true }).getByText(SHORT_BODY, { exact: true })).toBeVisible();
+    // Then その1: 札の高さの式が器の下の余白を引いていないと、どの高さでもページが約 3.5rem はみ出す（2026-10-11 に利用者が指摘）
+    const { pageHeight, viewport } = await page.evaluate(() => ({ pageHeight: document.documentElement.scrollHeight, viewport: innerHeight }));
+    expect(pageHeight, 'ページが画面より高く、スクロールバーが出る').toBeLessThanOrEqual(viewport);
+
+    // When: 同じお題のまま 1280×800 へ
+    await page.setViewportSize({ width: 1280, height: 800 });
     await page.evaluate(() => window.scrollTo(0, 0));
-    // Then
+    // Then その2
     const clear = await currentTopic(page).getByRole('button', { name: '場から下げる' }).boundingBox();
     const card = await currentTopic(page).boundingBox();
     expect(clear!.y + clear!.height, '下端のボタンが画面の外').toBeLessThanOrEqual(800);
