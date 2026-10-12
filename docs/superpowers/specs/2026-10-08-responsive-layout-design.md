@@ -102,6 +102,8 @@
 | `.ui-page` | `72rem` | 選ぶ・一覧する: 玄関の道具選び・timer の履歴 |
 | `.ui-page--wide` | `96rem` | 道具の部屋: poker のルーム・timer のロビーとセッション・お題ツールの部屋 |
 
+> timer のまとめは #352 で `--wide` へ改めた（[#352 の設計](2026-10-12-summary-layout-design.md) D1）。U3 の 640px は、まとめの中身の幅として 64rem 未満に残る。
+
 - 外の余白は `clamp(1rem, 4vw, 3rem)`。最大幅を超える画面では中央に寄せ、両脇は卓の地を見せる
 - **要素層の `.page`（680px）は消す。** 同じ知識（器の幅）を 2 か所に置かない。`.page` を使う画面はすべて `.ui-page*` へ置き換える
 - timer の `Stage` の `.stage-inner`（72rem）も `.ui-page*` へ置き換える
