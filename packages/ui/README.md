@@ -220,6 +220,24 @@ src/
 - 象牙の札の上の見出しは札の字の色（`--coal-soft`）を画面の CSS で持つ
 - 要素層を読まない画面（timer）は、この表を画面のクラスで当てる。ボタンの字は `.ui-button` が持つので、見出しと添え書きだけを寄せればよい
 
+### 新しい画面や機能を足すときの手順
+
+画面を足すときは、上から順に決める。どの画面がどの部品を使っているかは `git grep -n "ui-page\|ui-workspace\|ui-input" apps` で引ける。
+
+1. **器を選ぶ。** 読む・入力するなら `--prose`、選ぶ・一覧するなら既定、区画を横に並べる道具の部屋なら `--wide`（「器の選び方」）
+2. **区画に置く。** 操作の面を `.ui-workspace-main`、参照するものを `.ui-workspace-side` に置く。読む物（お題の説明など）があるなら `--reader` で脇を読む面にする。DOM は狭い幅で見せたい順に書く
+3. **ボタンの役割を決める。** 主・副・控え・危険のどれか（「ボタンの選び方」）。**主は並びに 1 つで、並びの最後に置く**
+4. **部品を当てる。** 写しを書かずに、先に部品を探す
+   - 入力欄は `.ui-input` / `.ui-select`（字は 16px の下限を部品が持つ）
+   - 参加用の URL は `.ui-invite` / `.ui-invite-url`
+   - 長い文章は `.ui-reader`（3 行の写しと本文は別の要素。写しは `inert`）
+   - Markdown は `.ui-md-*`。暗い面に置くときは面がつまみ `--ui-md-edge`・`--ui-md-link` を宣言する
+5. **文字は役割の段で書く。** 見出しは h1〜h3、添え書きは xs（「文字の段」）。直値は検査が落とす
+6. **320px と 1280px で確かめる。** 横に溢れない・押せる操作が 44px 以上で重ならない・主の操作が見える
+7. **検査を流す。** `node scripts/audit-ui-components.mjs`・`pnpm --filter @tasuki/ui test`・E2E の `buttons.spec.ts`（`expectScreenAcrossWidths` が 320・768・1280・1920 で全ての操作の大きさと重なりを測る。新しい場面は呼び出しを足す）
+
+**要素層を読まない画面（timer）** は、要素層が持つ手当てを自分で持つ。フォーカスの輪（`:focus-visible`）・`scroll-padding`（貼りつく帯が Tab の行き先を隠さないため）・見出し（h1〜h3）の段を、画面の CSS に書く。部品層（`.ui-` のクラス）は読むので、1〜5 はどの画面でも同じに使える。
+
 ## 使い方
 
 利用側の CSS の**先頭**で読み込む。固有のスタイルは後に書く（同じ詳細度なら後勝ち）。
@@ -329,7 +347,7 @@ node scripts/audit-ui-components.mjs  # 部品層の写しと規則・画面の 
 ## 書体の大きさ
 
 **`font-size` は 5 段のトークン（`--font-size-xs` 〜 `-xl`）を使う。**
-直値を書くと `tests/typography-scale.test.mjs` が落ちる。
+直値を書くと `tests/typography-scale.test.mjs` が落ちる。**検査は部品層（`packages/ui/src`）だけでなく、アプリの CSS（`apps/*/src`）も読む。**
 
 5 段のどれにも当てはまらない大きさが要るときは、**同じ行に理由を書いて例外にする**。
 
@@ -343,7 +361,7 @@ node scripts/audit-ui-components.mjs  # 部品層の写しと規則・画面の 
   手前に置く。** 判定は宣言ごとに行うため、置き場所を誤ると別の宣言への免除と
   誤認される
 - 「直すのが面倒」を例外の理由にしない
-- 現在の例外は `grep -rn 'scale-exempt' packages/ui/src` で数える（件数をここに書かない。
+- 現在の例外は `grep -rn 'scale-exempt' packages/ui/src apps/*/src` で数える（件数をここに書かない。
   例外が増減してもこの文書が黙って古くなる）
 
 判断の経緯は
