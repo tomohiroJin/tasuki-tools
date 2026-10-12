@@ -39,6 +39,8 @@ export const PEOPLE_HEADING = 'ルーレットに入る人';
 export const SELF_SUFFIX = '（あなた）';
 export const AWAY_MARK = '離席中';
 export const DRAWN_MARK = '選ばれた';
+/** 在室者と同じ名前のゲスト（入る人から外れている）の印 */
+export const TWIN_MARK = '同じ名前の人がいます';
 export const GUEST_HINT = 'ルームにいない人も、名前を追加すれば入れられます';
 export const GUEST_ADD_BUTTON = '名前を追加';
 export const GUEST_REMOVE_BUTTON = '名前を消す';

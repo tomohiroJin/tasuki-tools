@@ -149,6 +149,41 @@ describe('入る人の一覧', () => {
   });
 });
 
+describe('在室者と同じ名前のゲスト', () => {
+  const members = membersOf(ROSTER);
+
+  it('Given 在室者と大文字小文字だけ違うゲストと外したゲスト / When 一覧を作る / Then 前者だけ印が付き入る人に数えない', () => {
+    // Given: Aya（在室）と同名の Aya をゲストに足し、別のゲスト Hana は外している
+    const view: RouletteView = {
+      ...IDLE,
+      excluded: ['g-2'],
+      guests: [
+        { id: 'g-1', name: 'aya' },
+        { id: 'g-2', name: 'Hana' },
+        { id: 'g-3', name: 'Sou' },
+      ],
+    };
+    // When
+    const list = peopleOf({ members, view, selfId: null, phase: 'idle' });
+    // Then: 入る人は Aya・Yu・Sou の 3 人。印は g-1 だけ（外した人は印なし）
+    expect(list.poolCount).toBe(3);
+    expect(list.rows.filter((r) => r.id.startsWith('g-')).map((r) => [r.id, r.checked, r.mark])).toEqual([
+      ['g-1', false, 'twin'],
+      ['g-2', false, null],
+      ['g-3', true, null],
+    ]);
+  });
+
+  it('Given 同名の相手が離席中 / When 一覧を作る / Then ゲストは入る人に戻り印は消える', () => {
+    // Given: Ren は離席中で、ゲストにも Ren
+    const view: RouletteView = { ...IDLE, guests: [{ id: 'g-1', name: 'Ren' }] };
+    // When
+    const list = peopleOf({ members, view, selfId: null, phase: 'idle' });
+    // Then
+    expect(list.rows.find((r) => r.id === 'g-1')).toMatchObject({ checked: true, mark: null });
+  });
+});
+
 describe('結果の一言と主ボタン', () => {
   it('Given 回す前 / When 一言を決める / Then 回すとの案内', () => {
     expect(captionOf({ view: IDLE, phase: 'idle', poolCount: 3 })).toBe(CAPTION_IDLE);

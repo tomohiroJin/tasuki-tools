@@ -4,7 +4,7 @@
  * 時計は引数で受ける（`nowMs` は `performance.now()`、`receivedAt` は同期フックが回転ごとに
  * 1 度だけ取る基準）。**回転の経過 = サーバーが送った `elapsedMs` + 受け取ってからの時間。**
  */
-import type { RosterRoom } from '@tasuki/room-core';
+import { conflictsWithExisting, type RosterRoom } from '@tasuki/room-core';
 import { poolOf, type Entry, type Member, type RouletteState, type RouletteView } from '@tasuki/roulette-core';
 import {
   CAPTION_IDLE,
@@ -86,7 +86,7 @@ export function winnerOf(view: RouletteView): Entry | null {
  * 行の印。1 行に出す印はこの 1 つ（離席中が選ばれたより先）。
  * 同名のゲストが入る人から外れる印など、印が増えるときはここに足す。
  */
-export type RowMark = 'away' | 'drawn' | null;
+export type RowMark = 'away' | 'twin' | 'drawn' | null;
 
 export interface PersonRow {
   id: string;
@@ -123,9 +123,10 @@ export function peopleOf(input: {
   const winnerId = phase === 'spinning' ? (winnerOf(view)?.id ?? null) : null;
   const drawn = new Set(view.drawn.filter((id) => id !== winnerId));
   const excluded = new Set(view.excluded);
-  const poolIds = new Set(poolOf(members, stateOf(view)).map((e) => e.id));
+  const poolIds = new Set(poolOf(members, stateOf(view), conflictsWithExisting).map((e) => e.id));
 
-  const markOf = (id: string, away: boolean): RowMark => (away ? 'away' : poolIds.has(id) && drawn.has(id) ? 'drawn' : null);
+  const markOf = (id: string, away: boolean, twin = false): RowMark =>
+    away ? 'away' : twin ? 'twin' : poolIds.has(id) && drawn.has(id) ? 'drawn' : null;
   const memberRows = members.map(
     (m): PersonRow => ({
       id: m.id,
@@ -141,11 +142,13 @@ export function peopleOf(input: {
     (g): PersonRow => ({
       id: g.id,
       name: g.name,
-      checked: !excluded.has(g.id),
+      // 在室者と同じ名前のゲストは入る人から外れる（サーバーの `poolOf` が決める。写しを作らず同じ関数に聞く）。
+      // 外していないのに入る人に居ない = 同じ名前の人がいるため
+      checked: poolIds.has(g.id),
       disabled: false,
       isSelf: false,
       removable: true,
-      mark: markOf(g.id, false),
+      mark: markOf(g.id, false, !excluded.has(g.id) && !poolIds.has(g.id)),
     }),
   );
   const rows = [...memberRows, ...guestRows];

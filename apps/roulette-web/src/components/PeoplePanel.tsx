@@ -2,6 +2,7 @@ import {
   AWAY_MARK,
   CYCLE_RESET_BUTTON,
   DRAWN_MARK,
+  TWIN_MARK,
   PEOPLE_HEADING,
   SELF_SUFFIX,
   GUEST_REMOVE_BUTTON,
@@ -10,7 +11,7 @@ import {
 import { cycleLineOf, type People, type PersonRow, type RowMark } from '../roulette-view';
 import { GuestForm } from './GuestForm';
 
-const MARK_TEXT: Record<Exclude<RowMark, null>, string> = { away: AWAY_MARK, drawn: DRAWN_MARK };
+const MARK_TEXT: Record<Exclude<RowMark, null>, string> = { away: AWAY_MARK, twin: TWIN_MARK, drawn: DRAWN_MARK };
 
 interface Props {
   people: People;
