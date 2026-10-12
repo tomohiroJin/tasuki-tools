@@ -16,6 +16,7 @@ import {
   SPIN_AGAIN_BUTTON,
   SPIN_BUTTON,
   TOO_FEW_TEXT,
+  TWIN_MARK,
   CYCLE_RESET_BUTTON,
   cycleProgressText,
   guestRemoveLabel,
@@ -246,6 +247,16 @@ describe('回す・入る人・一周の操作', () => {
     expect(screen.getByRole('button', { name: guestRemoveLabel('はな') })).toBeInTheDocument();
     fireEvent.click(second);
     expect(latestSocket().sentJson().at(-1)).toEqual({ command: 'roulette.guest.remove', id: 'g-2' });
+  });
+
+  it('Given 在室者と同じ名前のゲスト / When 一覧を見る / Then そのチェックは押せず、読み上げが印の文言で理由を言う', () => {
+    // Given: 在室のゆうと同じ名前のゲスト
+    enterRoom({ ...IDLE_ROULETTE, guests: [{ id: 'g-1', name: 'ゆう' }] });
+    // When
+    const boxes = screen.getAllByRole('checkbox', { name: /^ゆう/ });
+    // Then: 2 つ目（ゲスト）だけ押せず、説明が印の文言になる
+    expect(boxes.map((b) => (b as HTMLInputElement).disabled)).toEqual([false, true]);
+    expect(boxes[1]).toHaveAccessibleDescription(TWIN_MARK);
   });
 
   it('Given 一周をやり直す / When 押す / Then やり直すコマンドを送る', () => {

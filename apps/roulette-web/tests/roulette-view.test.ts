@@ -174,6 +174,19 @@ describe('在室者と同じ名前のゲスト', () => {
     ]);
   });
 
+  /** m181 の対象: 同名で外れたゲストのチェックは押しても何も起きないので、押せなくする */
+  it('Given 在室者と同名のゲストと別名のゲスト / When 一覧を作る / Then 同名の方だけチェックを押せない', () => {
+    // Given
+    const view: RouletteView = { ...IDLE, guests: [{ id: 'g-1', name: 'Aya' }, { id: 'g-2', name: 'Hana' }] };
+    // When
+    const rows = peopleOf({ members, view, selfId: null, phase: 'idle' }).rows;
+    // Then
+    expect(rows.filter((r) => r.id.startsWith('g-')).map((r) => [r.id, r.mark, r.disabled])).toEqual([
+      ['g-1', 'twin', true],
+      ['g-2', null, false],
+    ]);
+  });
+
   it('Given 同名の相手が離席中 / When 一覧を作る / Then ゲストは入る人に戻り印は消える', () => {
     // Given: Ren は離席中で、ゲストにも Ren
     const view: RouletteView = { ...IDLE, guests: [{ id: 'g-1', name: 'Ren' }] };
@@ -206,6 +219,11 @@ describe('結果の一言と主ボタン', () => {
 
   it('Given 入る人が 1 人 / When 一言を決める / Then 2 人から回せますと言う', () => {
     expect(captionOf({ view: IDLE, phase: 'idle', poolCount: 1 })).toBe(TOO_FEW_TEXT);
+  });
+
+  /** m182 の対象: 発表した結果は、後から入る人が減っても消さない */
+  it('Given 止まって当たりを発表した / When その後で入る人が 1 人に減る / Then 発表した結果を言い続ける', () => {
+    expect(captionOf({ view: viewSpinning({ excluded: ['p1'] }), phase: 'settled', poolCount: 1 })).toBe(resultText('Yu'));
   });
 
   it('Given 入る人が 1 人でも回っている途中 / When 一言を決める / Then 回した人を言う（回転を邪魔しない）', () => {

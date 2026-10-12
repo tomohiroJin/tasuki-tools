@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import {
   AWAY_MARK,
   CYCLE_RESET_BUTTON,
@@ -58,6 +59,9 @@ function Row({
   onInclude: Props['onInclude'];
   onRemoveGuest: Props['onRemoveGuest'];
 }) {
+  // 印はチェックの説明に結び付ける（押せない行で、読み上げが押せない理由を印の文言で言う）。
+  const markId = useId();
+  const hasMark = row.mark !== null;
   return (
     <li className={`roulette-row${row.checked ? '' : ' roulette-row--out'}`}>
       {/* 行全体がラベル。チェックボックスは「ルーレットに入れる」の意味（aria-pressed のボタンにしない） */}
@@ -67,6 +71,7 @@ function Row({
           className="roulette-check"
           checked={row.checked}
           disabled={locked || row.disabled}
+          aria-describedby={hasMark ? markId : undefined}
           onChange={(event) => onInclude(row.id, event.target.checked)}
         />
         <span className="roulette-name">
@@ -74,7 +79,11 @@ function Row({
           {row.isSelf ? SELF_SUFFIX : ''}
         </span>
       </label>
-      {row.mark !== null && <span className={`roulette-chip${row.mark === 'away' ? ' roulette-chip--away' : ''}`}>{MARK_TEXT[row.mark]}</span>}
+      {row.mark !== null && (
+        <span id={markId} className={`roulette-chip${row.mark === 'away' ? ' roulette-chip--away' : ''}`}>
+          {MARK_TEXT[row.mark]}
+        </span>
+      )}
       {row.removable && (
         <button
           type="button"

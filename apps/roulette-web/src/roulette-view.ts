@@ -93,7 +93,7 @@ export interface PersonRow {
   name: string;
   /** チェックの有無 = 入る人か */
   checked: boolean;
-  /** 離席中の人は外す・戻すができない（サーバーが在室で自動に外している） */
+  /** 外す・戻すができない（離席中はサーバーが在室で自動に外している・同名のゲストは戻しても入らない） */
   disabled: boolean;
   isSelf: boolean;
   /** 名前を消せるのは足したゲストだけ */
@@ -138,19 +138,22 @@ export function peopleOf(input: {
       mark: markOf(m.id, !m.present),
     }),
   );
-  const guestRows = view.guests.map(
-    (g): PersonRow => ({
+  const guestRows = view.guests.map((g): PersonRow => {
+    // 在室者と同じ名前のゲストは入る人から外れる（サーバーの `poolOf` が決める。写しを作らず同じ関数に聞く）。
+    // 外していないのに入る人に居ない = 同じ名前の人がいるため
+    const twin = !excluded.has(g.id) && !poolIds.has(g.id);
+    return {
       id: g.id,
       name: g.name,
-      // 在室者と同じ名前のゲストは入る人から外れる（サーバーの `poolOf` が決める。写しを作らず同じ関数に聞く）。
-      // 外していないのに入る人に居ない = 同じ名前の人がいるため
       checked: poolIds.has(g.id),
-      disabled: false,
+      // 同名で外れている間は、チェックを入れても入る人に戻らない（押しても何も起きない）ので押させない。
+      // 理由は印の文言が言う（画面は印をチェックの説明に結び付ける）。
+      disabled: twin,
       isSelf: false,
       removable: true,
-      mark: markOf(g.id, false, !excluded.has(g.id) && !poolIds.has(g.id)),
-    }),
-  );
+      mark: markOf(g.id, false, twin),
+    };
+  });
   const rows = [...memberRows, ...guestRows];
   const drawnCount = rows.filter((r) => r.mark === 'drawn').length;
   return { rows, poolCount: poolIds.size, drawnCount };
@@ -168,9 +171,10 @@ export function cycleLineOf(drawnCount: number, poolCount: number): string {
 export function captionOf(input: { view: RouletteView; phase: Phase; poolCount: number }): string {
   const { view, phase, poolCount } = input;
   if (phase === 'spinning' && view.spin !== null) return spunByText(view.spin.spunBy);
-  if (poolCount < 2) return TOO_FEW_TEXT;
+  // 止まった結果を先に言う。**発表した結果は、後から入る人が減っても消さない**（次の回転までは結果が主役）。
   const winner = phase === 'settled' ? winnerOf(view) : null;
-  return winner === null ? CAPTION_IDLE : resultText(winner.name);
+  if (winner !== null) return resultText(winner.name);
+  return poolCount < 2 ? TOO_FEW_TEXT : CAPTION_IDLE;
 }
 
 /** 主ボタンの文言と押せるか。回転の間は（動きを減らしても）押せない。 */
