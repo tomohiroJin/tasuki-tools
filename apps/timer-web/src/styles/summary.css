@@ -2,13 +2,22 @@
  * 値は基準（`ba9249d`）の計算済みスタイルと比較で確かめる（設計正本 D2）。
  * 写さなかった宣言（除去検査で dead）: 見出し・統計値の `text-[var(--bone)]`（親から継ぐので不要）、
  * `instrument-label` の `text-[var(--signal)]`（基準（`ba9249d`）ではレイヤー外の `.instrument-label`（当時は `index.css`）が勝っていたので写さなかった）、
- * 統計カードの `p-3`、ドライバー別カードの `p-4`、アイコンの `lucide*` と、ボタンの `focus-visible:outline-none`。 */
+ * 統計カードの `p-3`、ドライバー別カードの `p-4`、アイコンの `lucide*` と、ボタンの `focus-visible:outline-none`。
+ *
+ * 並び（#352・設計 D2）: 器は部屋の器（`--wide`）のままで、中身（`.summary`）を段ごとに読みやすい幅で中央に置く。
+ *   compact（40rem 未満）: 1 列。統計の札は縦に積み、札の中はラベルを左・値を右（計器の読み）
+ *   medium（40rem 以上）: 1 列・最大 40rem。統計の札は横に 3 枚
+ *   wide（64rem 以上）: 最大 64rem・2 列。題と達成の帯は上で、次の行動は下で 2 列にまたがる。ドライバー別があれば
+ *     左に統計（縦に積む）・右にドライバー別。無ければ統計も 2 列にまたがって横に 3 枚 */
 
 .summary {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 1.5rem;
+  width: 100%;
+  max-width: 40rem;
+  margin-inline: auto;
   text-align: center;
 }
 
@@ -58,12 +67,20 @@
   color: var(--bone-muted);
 }
 
-/* 3 列の統計カード */
+/* 統計の札。既定（40rem 未満）は縦に積む */
 .summary-stats {
   display: grid;
   width: 100%;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.75rem;
+}
+
+/* 統計の札 1 枚（`Card` に当てる）。縦に積むときはラベルを左・値を右の 1 行にする（計器の読み） */
+.summary-stat {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
 }
 
 .summary-stat-value {
@@ -71,6 +88,50 @@
   font-size: var(--font-size-lg);
   line-height: 1.4;
   font-weight: 700;
+}
+
+@media (width >= 40rem) {
+  /* 1 列のまま、統計の札を横に 3 枚（札の中はラベルの下に値） */
+  .summary-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .summary-stat {
+    display: block;
+  }
+}
+
+@media (width >= 64rem) {
+  /* 2 列。行の高さは揃える（ドライバー別の札が統計の高さまで伸びる） */
+  .summary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+    max-width: 64rem;
+  }
+
+  /* 既定はどの子も 2 列にまたがる（題・達成の帯・中断の一言・次の行動・ドライバー別が無いときの統計） */
+  .summary > * {
+    grid-column: 1 / -1;
+  }
+
+  /* ドライバー別があるときだけ、統計を左の列に縦に積み、ドライバー別を右の列に置く */
+  .summary:has(> .summary-drivers) > .summary-stats {
+    grid-column: 1;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .summary:has(> .summary-drivers) .summary-stat {
+    display: flex;
+  }
+
+  .summary > .summary-drivers {
+    grid-column: 2;
+  }
+
+  .summary-stat-value {
+    font-size: var(--font-size-xl); /* 広い画面ではまとめの主役は数字（#352 設計 D3） */
+  }
 }
 
 /* ドライバー別の回数 */
