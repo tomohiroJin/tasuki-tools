@@ -32,7 +32,7 @@ S2〜S4a では poker 側の入れ子（src/poker 配下。**S4b で畳みまし
 | 層 | 置き場 | 依存してよいもの |
 |---|---|---|
 | ドメイン（メンバーシップ文脈） | `packages/room-core` | なし（純粋関数と型のみ） |
-| ドメイン（ツール） | `packages/timer-core` `packages/poker-core` `packages/topic-core` | なし（純粋関数と型のみ）。**#95 S1 で生じた `packages/timer-core` → `packages/room-core` の期限つき一時依存は S4b（#246）で解消した** —— 表示名の規約は `room-core` に残し、境界で適用する場所を `apps/tasuki-sync/src/application/normalize-command-names.ts` へ移した（`docs/adr/0017` の追記 2026-09-11）。`scripts/audit-dependency-direction.mjs` の許可表からも行が消えている |
+| ドメイン（ツール） | `packages/timer-core` `packages/poker-core` `packages/topic-core` `packages/roulette-core` | なし（純粋関数と型のみ）。**#95 S1 で生じた `packages/timer-core` → `packages/room-core` の期限つき一時依存は S4b（#246）で解消した** —— 表示名の規約は `room-core` に残し、境界で適用する場所を `apps/tasuki-sync/src/application/normalize-command-names.ts` へ移した（`docs/adr/0017` の追記 2026-09-11）。`scripts/audit-dependency-direction.mjs` の許可表からも行が消えている |
 | プロトコル契約 | `packages/protocol`・各 core の `protocol.ts`（例: `packages/poker-core/src/protocol.ts`） | ドメインの型 |
 | 共有ユーティリティ（sync 専用） | `packages/rate-limit` | なし（node 標準ライブラリのみ。ドメインの型にも依存しない） |
 | アプリケーション | `apps/*-sync/src/application` | ドメイン・ポート・`packages/rate-limit` |
@@ -80,7 +80,7 @@ WebSocket の配線はこの共有先へ移さない。
    乱数生成などの副作用はすべてアダプタ（`apps/*-sync/src/adapters`）に置き、
    ポートの型で上位層へ注入します。
 2. **複数アプリで使う純粋ロジックか？ → core。ただし ADR 0007 の抽出基準を
-   先に確認。** `packages/timer-core` / `packages/poker-core` / `packages/topic-core` に
+   先に確認。** `packages/timer-core` / `packages/poker-core` / `packages/topic-core` / `packages/roulette-core` に
    置けるのは純粋関数・型のみです。抽出してよいかどうかは
    [`docs/adr/0007`](../adr/0007-abstraction-criteria.md)（抽象化の基準。
    憲法 原則 X「抽象は実需で」）を先に確認します。呼び出し箇所が 1 つしか
@@ -119,6 +119,7 @@ WebSocket の配線はこの共有先へ移さない。
 | ラウンド（poker） | poker において、1 テーマに対する 1 回の投票 |
 | 公開（reveal） | poker において、伏せていた各参加者の見積り値を開示すること |
 | お題 | **ルームの持ち物としてのお題**（`packages/topic-core` の `Topic` 型。タイトル＋本文）。[#91](https://github.com/tomohiroJin/tasuki-tools/issues/91) で 4 つ目の文脈になった（[`docs/adr/0021`](../adr/0021-topic-as-shared-context.md)）。玄関の 3 枚目の札（お題ツール・`apps/topic-web`、公開パス `/topic/`）で作り（手入力・定型バンク・AI 生成）、`topic` フレームでルームの全接続へ配る。玄関はタイトルを 1 行、timer・poker はタイトルと本文を**読んで表示するだけ**で、お題を変えられるのはお題ツールの接続だけである。本文は Markdown として描き、解析は `packages/markdown`、描画は各アプリが持つ。timer の完成記録には、完了した時点のお題のタイトルだけを写す（`topicTitle`・お題なしなら `null`）。**かつての timer 独自の概念**（`packages/timer-core` の `Problem` 型。TDD の練習課題）は #91 PR 3 で撤去し、このお題へ統合した。旧い文書・コミットに出てくる `problem` はこちらを指す。**poker の提案**: 見積もり結果をお題へ反映する案は [#93](https://github.com/tomohiroJin/tasuki-tools/issues/93) で扱う（未実装） |
+| 進行役ルーレット | **ルームの入る人から次の進行役を 1 人引くツール**（`packages/roulette-core`）。入る人（`poolOf`・在室者＋足したゲスト）・一周の規則（`drawWinner`）・回転（`startSpin`）は純粋関数で、当たりと止まる位置はサーバーが引き、全画面に同じ値を配る。円盤の角度・指し針・札のめくりは `apps/roulette-web` が持つ（[ADR-0026](../adr/0026-facilitator-roulette.md)） |
 
 ## 一般的な方法論との対応
 

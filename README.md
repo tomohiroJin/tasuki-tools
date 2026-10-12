@@ -60,6 +60,20 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
   - お題はルームの持ち物で、timer のセッションをまたいで残る
 - 設計判断: [`docs/adr/0021`](docs/adr/0021-topic-as-shared-context.md)
 
+### 5. 進行役ルーレット（Facilitator Roulette）
+
+その場の入る人から次の進行役をルーレットで決めるツール。玄関の 4 枚目の札から開く。**実装済み・本番へは未配布**（配布は利用者の指示を待つ。手順は [`deploy/roulette/NOTES.md`](deploy/roulette/NOTES.md)）。
+
+- **構成**
+  - [`packages/roulette-core`](packages/roulette-core/) — ドメインロジック（入る人・一周の規則・当たりの引き方）
+  - [`apps/roulette-web`](apps/roulette-web/) — フロントエンド（React + Vite・`base=/roulette/`）
+  - [`apps/tasuki-sync`](apps/tasuki-sync/) — リアルタイム同期サーバー（共用。当たりはサーバーが引く）
+- **特徴**
+  - 円盤（SVG）が回って止まり、指し針の先に伏せた象牙の札がめくれる。どの画面も同じ席に止まる
+  - 全員が一周するまで同じ人は選ばれない。ルームにいない人も名前を追加して入れられる
+  - 動きを減らす設定では回さずに結果を出す
+- 設計判断: [`docs/adr/0026`](docs/adr/0026-facilitator-roulette.md)・設計正本 [`docs/superpowers/specs/2026-10-12-facilitator-roulette-design.md`](docs/superpowers/specs/2026-10-12-facilitator-roulette-design.md)
+
 ## 🔗 ライブデモ
 
 **<https://tasuki.niku9.click/>** — 玄関（ツール選択 LP）が開きます。玄関でルームを作り、札からツールを選んでください
@@ -121,6 +135,7 @@ TypeScript / React 19 + Vite / Bun / WebSocket / Valibot / neverthrow / Vitest /
 | Planning Poker | `/poker/` | 本番公開中 |
 | 玄関 LP | `/` | 本番公開中 |
 | Topic Board | `/topic/` | 本番公開中 |
+| Facilitator Roulette | `/roulette/` | 未配布（実装済み） |
 
 公開の履歴は次のとおりです（GitHub Releases は使っておらず、配布の記録は各 Issue にあります）。
 

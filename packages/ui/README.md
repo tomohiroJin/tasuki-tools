@@ -2,7 +2,7 @@
 
 Tasuki の共通ビジュアル「**夜のカードテーブル**」。深緑のフェルト、象牙のカード、真鍮のアクセント。
 
-**4 アプリすべて（`apps/timer-web` / `apps/poker-web` / `apps/landing` / `apps/topic-web`）が使う。**
+**すべての web アプリ（`apps/timer-web` / `apps/poker-web` / `apps/landing` / `apps/topic-web` / `apps/roulette-web`）が使う。**
 ただし読む層が違う（下記）。判断の経緯は [ADR-0001](../../docs/adr/0001-design-system-scope.md)。
 
 > かつては「`apps/timer-web` は使わない（Tailwind ベースの別系統のため）」としていた。
@@ -21,7 +21,7 @@ src/
 
 | 利用側 | 読むもの | 理由 |
 |---|---|---|
-| `apps/poker-web` / `apps/landing` / `apps/topic-web` | `@import '@tasuki/ui';`（3 層とも） | 素の CSS で組んでいるので要素層がそのまま効く |
+| `apps/poker-web` / `apps/landing` / `apps/topic-web` / `apps/roulette-web` | `@import '@tasuki/ui';`（3 層とも） | 素の CSS で組んでいるので要素層がそのまま効く |
 | `apps/timer-web` | `src/index.css` から `@import '@tasuki/ui/tokens.css';` の次に `@import '@tasuki/ui/components.css';`（トークン層と部品層。要素層は読まない） | 要素層の見出し（h1〜h3）・リンク・ラベル・フォーカスの輪は timer の計器の意匠と別物で、読ませると一つひとつに打ち消す規則が要る（ADR 0023 決定 4）。#316 でも読ませないと決めた（ADR 0025 決定 6）。ボタンの見た目は部品層から来る。部品層はクラスを当てたときだけ効くので衝突しない |
 
 **この境界は stylelint が機械的に守る。** `src/tokens/` では `selector-max-type` /
@@ -50,7 +50,7 @@ src/
 
 **使い方**
 
-- 読み込み: poker-web / landing / topic-web は `@import '@tasuki/ui';` に含まれます。timer-web は `src/index.css` で
+- 読み込み: poker-web / landing / topic-web / roulette-web は `@import '@tasuki/ui';` に含まれます。timer-web は `src/index.css` で
   `@tasuki/ui/tokens.css` の次・画面の CSS の前に `@import '@tasuki/ui/components.css';` を置きます
 - 画面が持つのは配置（幅の割り付け・並び・外側の余白）と画面固有の上書きです。**配置もクラスで書きます**
   （画面の CSS で `select` / `input` / `textarea` / `option` の型を含むセレクタを書くと、検査が落とします）
@@ -266,7 +266,7 @@ src/
 | ファイル | いつ落ちるか |
 |---|---|
 | `fraunces-latin-{normal,italic}.woff2` | 常時（数字と見出し） |
-| `zkgn-{400,500,700}-base.woff2` | 常時（ASCII・かな・記号・4 アプリが画面に出す漢字） |
+| `zkgn-{400,500,700}-base.woff2` | 常時（ASCII・かな・記号・各アプリが画面に出す漢字） |
 | `zkgn-{400,500}-ext.woff2` | 利用者名に base 層外の漢字が出たときだけ |
 
 - Fraunces / Zen Kaku Gothic New はいずれも **SIL Open Font License 1.1**。

@@ -608,3 +608,15 @@ main へは順に入れ、本番への配布は最後に 1 回行う。
 - 新しいパッケージ・アプリで赤になる検査の実際の一覧（列挙ではなく実行で確かめる。#91 PR 1・2 の差分が出発点: `audit-dependency-direction` の `ALLOWED`・`audit-structure`・`audit-domain-side-effects`・`audit-log-hygiene`・`audit-web-sync-boundary`・`check-links`・`list-scan-targets`・`turbo.json`・`e2e/harness/paths.ts`・`e2e/tests/workspace.test.ts`・`e2e/tests/fragment-sources.test.ts`）
 - 単調時計の注入点 —— **PR 1 で決めた**: poker の `createPerformanceClock` で別のインスタンスを作る（§5.2）
 - 名前の向きの横書き・縦書きの切り替え（45° の境目）が回転中にちらついて見えないか。気になるなら切り替えに余裕（ヒステリシス）を持たせる（§6.3）
+
+## 12. 実装で実測して外したこと（2026-10-13・#94 PR 3）
+
+§11.2 の「実装時に確かめること」のうち、円盤と見た目に関わるものの答え。
+
+- **円盤の SVG の `<text>` はコントラストの走査に入らない。** `scanContrast` の対象は `button` / `a` / `h1`〜`h3` / `label` / `p` / `span` だけで、2026-10-13 の探索（止まった後の 1280px の画面）で円盤の席の名前は 0 件だった（測った 20 件は札・見出し・ボタン・脇の字）。そこで `e2e/support/roulette.ts` の `expectWheelLabelsReadable` が、席の名前の塗りと同じ席の地の塗りの比（AA 4.5:1）を測る。地の上の光沢（`--ivory-inset` → `--felt-grain`）は測っていない（席の明度を数 % 動かすだけ）。**止まった席（真鍮の地 + `--on-gold`）も同じ測り方に入る**
+- **`scripts/audit-ui-components.mjs` は TSX の `style` の中の生の色を拾わない。** `style={{ stopColor: '#ff0000' }}` も `rgb(255 0 0)` も「違反 0 件」だった（実測）。CSS の `stop-color: #ff0000` は拾う。そこで `<stop>` の色は CSS のクラス（`.wheel-stop--brass-lift` など）で当てた。**同じ穴は `style` 属性を使う他の画面にもある**（この PR では塞いでいない）
+- **縦書きの席（`writing-mode: vertical-rl`）の字の中央合わせ。** 単体では傾き・向きを全組で測った（`labelPlacement`）が、描いたときの縁の点との位置は 2 席と 6 席の撮影で見ていない。実画面検証（統括）の観点に残す
+- **名前の向きの切り替え（45° の境目）のちらつき。** ヒステリシスは入れていない。回転は 4 秒で減速するため境目を通る回数は少ない見込み。実画面で気になれば足す
+- **モックから外したもの**: モックの `.roulette-stage` は `grid-template-columns: var(--wheel-size) …` と書いていたが、`--wheel-size` は `cqi`（舞台の幅）で書いてあり、舞台**自身**のこのプロパティでは `cqi` が舞台の外の容器を指して画面の幅で解かれる。1280px で列が舞台より 40px 広がり、円盤と札が左右へはみ出した（モックの 1440px では舞台が広く出なかった）。列は `auto`（円盤の幅に任せる）にした。脇のパネルの列も `minmax(0, 1fr)` にした（名前が 1 行で切れない幅だと、既定の `auto` が名前の長さで列を広げ、320px で右へはみ出した）
+- **止まったら札を寄せる処理の検査は、先頭にいると空振りする。** 320×640 で先頭から回すと札が最初から見え、寄せる処理を外しても E2E が緑のままだった（対照実験で確認）。下までスクロールしてから DOM の `click()` で回す形にして、寄せる処理を外すと赤になることを確かめた（`click()` は押す前にボタンを自分で見える位置へ寄せ、札も一緒に見えてしまう）
+- **同期フックの基準の組**: 円盤の回転フックは `receivedAt` と `spin.elapsedMs` の組から経過を出す。同じ `seq` の再配布で `receivedAt` が前のままで `elapsedMs` だけ新しくなる形（PR 2 のレビュー前）では、経過が二重に足されて円盤が先へ進む。レビュー後の「同じ `seq` では組ごと前のまま」で正しく動く
