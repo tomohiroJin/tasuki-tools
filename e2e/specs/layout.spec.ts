@@ -56,6 +56,48 @@ async function expectNoHorizontalOverflow(page: Page): Promise<void> {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 }
 
+/**
+ * まとめの統計の札 3 枚の位置と、値の字が札の内側に収まっているか（#352・設計 L4・L5）。
+ * 収まりは値の文字の Range の矩形と、札の矩形から枠と余白を引いた内側で比べる（`scrollWidth` やクラスの値を読まない）。
+ */
+async function summaryStatCards(page: Page): Promise<Array<{ top: number; left: number; fits: boolean; text: string }>> {
+  return page.locator('.summary-stats > .summary-stat').evaluateAll((cards) =>
+    cards.map((card) => {
+      const r = card.getBoundingClientRect();
+      const s = getComputedStyle(card);
+      const px = (v: string): number => parseFloat(v);
+      const innerLeft = r.left + px(s.borderLeftWidth) + px(s.paddingLeft);
+      const innerRight = r.right - px(s.borderRightWidth) - px(s.paddingRight);
+      const value = card.querySelector('.summary-stat-value');
+      if (value === null) return { top: r.top, left: r.left, fits: false, text: '値が描かれていない' };
+      const range = document.createRange();
+      range.selectNodeContents(value);
+      const t = range.getBoundingClientRect();
+      return {
+        top: r.top,
+        left: r.left,
+        fits: t.width > 0 && t.left >= innerLeft - 0.5 && t.right <= innerRight + 0.5,
+        text: value.textContent ?? '',
+      };
+    }),
+  );
+}
+
+/** 札 3 枚が縦に積まれている（上端が狭義に増え、左端が揃う）か、横に並んでいる（上端が揃う）かを見る。 */
+async function expectStatCards(page: Page, arrangement: 'stacked' | 'row', label: string): Promise<void> {
+  const cards = await summaryStatCards(page);
+  expect(cards, `${label}: 統計の札は 3 枚`).toHaveLength(3);
+  // 収まりを先に見る（並びを壊した破壊検証で、はみ出しが実在するかを並びの赤と分けて読むため）
+  for (const c of cards) expect(c.fits, `${label}: 「${c.text}」が札の内側からはみ出す`).toBe(true);
+  const [a, b, c] = cards as [(typeof cards)[0], (typeof cards)[0], (typeof cards)[0]];
+  if (arrangement === 'stacked') {
+    expect(a.top < b.top && b.top < c.top, `${label}: 札が縦に積まれていない`).toBe(true);
+    expect(Math.abs(a.left - b.left) <= 1 && Math.abs(b.left - c.left) <= 1, `${label}: 積んだ札の左端が揃わない`).toBe(true);
+  } else {
+    expect(Math.abs(a.top - b.top) <= 1 && Math.abs(b.top - c.top) <= 1, `${label}: 札が横に並んでいない`).toBe(true);
+  }
+}
+
 /** 40 行ほどの長い説明（Markdown の段落）。読む面の本文が札の中でスクロールすることを見る。 */
 const LONG_BODY = Array.from({ length: 40 }, (_, i) => `${i + 1} 行目の説明です。`).join('\n\n');
 /** LONG_BODY の 4 段落目にリンクを足したもの（3 行で切った先に来る。Tab が止まるかを見る・#316 PR 4）。 */
@@ -363,7 +405,7 @@ test.describe('玄関の器', () => {
 });
 
 test.describe('timer は 1 つのルームでロビー・セッション・お題・まとめの順に画面を見る', () => {
-  test('Given 幅 320 のロビー（参加者 2 人） / When 幅 1920・1280 のロビー・セッション・長いお題・幅 390・まとめと開く / Then ロビーは脇が右・22rem で先頭がお題、セッションの脇は上端が揃い、お題は脇の先頭でタイマーは最初の画面に収まり、器は画面の用途の段（ロビー・セッションは wide・まとめは prose）', async ({ page, openPeer }) => {
+  test('Given 幅 320 のロビー（参加者 2 人） / When 幅 1920・1280 のロビー・セッション・長いお題・幅 390・まとめ（1920・1280・768・320）と開く / Then ロビーは脇が右・22rem で先頭がお題、セッションの脇は上端が揃い、お題は脇の先頭でタイマーは最初の画面に収まり、器はロビー・セッション・まとめで変わらず、まとめは 64rem 以上で 2 列・未満で 1 列', async ({ page, openPeer }) => {
     // 同期サーバーのルーム枠が逼迫しているので、timer は 1 室で画面の流れの順に全てを見る
     // （ロビー → セッション → お題の読む面 → まとめ。前の段階を戻す必要がある検査は置かない）。
     const TIMER_PAGE = 'div.ui-page.stage-inner';
@@ -538,11 +580,57 @@ test.describe('timer は 1 つのルームでロビー・セッション・お�
     await page.setViewportSize({ width: 320, height: 640 });
     await expectNoHorizontalOverflow(page);
 
-    // 最後にまとめ（prose の段）。完成にすると戻れないので末尾に置く
-    await page.setViewportSize({ width: 1280, height: 900 });
+    // 最後にまとめ。完成にすると戻れないので末尾に置く。まとめは完了のあと幅を変えても出続けるので、同じルームで 4 つの幅を測る（#352）
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    // L1 の基準: セッションの器の外寸と、上の帯の位置と幅（段の名前や 96rem の直値とは比べない。跳ねないことだけを見る）
+    const frameBefore = { page: (await pageBox(page, TIMER_PAGE)).outer, strip: await boxOf(page, '.app-status-strip') };
     await page.getByRole('button', { name: /完成!/ }).click();
     await page.getByRole('dialog').getByRole('button', { name: '完成として記録する' }).click();
     await expect(page.locator('.summary')).toBeVisible();
-    expect((await pageBox(page, TIMER_PAGE)).outer).toBe(40 * REM);
+    // ドライバー別の札が無いと 2 列の検査が空振りする（ゲストはドライバーで加わっている）
+    await expect(page.locator('.summary-drivers')).toBeVisible();
+
+    // Then L1（1920）: 完了の前後で器と帯が動かない
+    const frameAfter = { page: (await pageBox(page, TIMER_PAGE)).outer, strip: await boxOf(page, '.app-status-strip') };
+    expect(frameAfter.page, '完了で器の幅が変わった').toBeCloseTo(frameBefore.page, 0);
+    expect(frameAfter.strip.x, '完了で帯の左端が動いた').toBeCloseTo(frameBefore.strip.x, 0);
+    expect(frameAfter.strip.width, '完了で帯の幅が変わった').toBeCloseTo(frameBefore.strip.width, 0);
+
+    // Then L2・L3・L4・L5（1920・1280）: 64rem 以上は 2 列。題と帯は上でまたがり、左に統計（縦に積む）・右にドライバー別。中身は器の内側の中央に 64rem 以下
+    for (const width of [1920, 1280]) {
+      await page.setViewportSize({ width, height: 900 });
+      const summary = await boxOf(page, '.summary');
+      const stats = await boxOf(page, '.summary-stats');
+      const drivers = await boxOf(page, '.summary-drivers');
+      const banner = await boxOf(page, '.summary-banner');
+      expect(stats.x + stats.width, `${String(width)}: 統計がドライバー別の左に無い`).toBeLessThanOrEqual(drivers.x + 0.5);
+      expect(Math.abs(stats.y - drivers.y), `${String(width)}: 統計とドライバー別の上端が揃わない`).toBeLessThanOrEqual(1);
+      expect(banner.x, `${String(width)}: 達成の帯が 2 列にまたがらない（左）`).toBeLessThanOrEqual(stats.x + 0.5);
+      expect(banner.x + banner.width, `${String(width)}: 達成の帯が 2 列にまたがらない（右）`).toBeGreaterThanOrEqual(drivers.x + drivers.width - 0.5);
+      expect(summary.width, `${String(width)}: 中身が 64rem を超える`).toBeLessThanOrEqual(64 * REM + 0.5);
+      const frame = await pageBox(page, TIMER_PAGE);
+      const innerLeft = frame.innerRight - frame.inner;
+      const leftGap = summary.x - innerLeft;
+      const rightGap = frame.innerRight - (summary.x + summary.width);
+      expect(Math.abs(leftGap - rightGap), `${String(width)}: 中身が器の内側の中央に無い`).toBeLessThanOrEqual(1);
+      await expectStatCards(page, 'stacked', `まとめ（${String(width)}）`);
+    }
+
+    // Then（768）: 1 列（ドライバー別は統計の下）・中身は 40rem 以下・統計の札は横に 3 枚
+    await page.setViewportSize({ width: 768, height: 1024 });
+    const mStats = await boxOf(page, '.summary-stats');
+    const mDrivers = await boxOf(page, '.summary-drivers');
+    expect(mDrivers.y, '768: ドライバー別が統計の下に無い').toBeGreaterThanOrEqual(mStats.y + mStats.height - 0.5);
+    expect((await boxOf(page, '.summary')).width, '768: 中身が 40rem を超える').toBeLessThanOrEqual(40 * REM + 0.5);
+    await expectStatCards(page, 'row', 'まとめ（768）');
+
+    // Then（640・中の段の下端）: 札は横に 3 枚のまま、値は札の内側に収まる
+    await page.setViewportSize({ width: 640, height: 1024 });
+    await expectStatCards(page, 'row', 'まとめ（640）');
+
+    // Then L5・L4・L6（320）: 統計の札は縦に積み、数字は札に収まり、横に溢れない
+    await page.setViewportSize({ width: 320, height: 640 });
+    await expectStatCards(page, 'stacked', 'まとめ（320）');
+    await expectNoHorizontalOverflow(page);
   });
 });

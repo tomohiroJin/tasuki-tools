@@ -64,19 +64,19 @@ export function Summary({ endType, record, onNewSession, onSaveRecord }: Summary
       {/* 完成時のみ記録詳細を表示 */}
       {isComplete && record && (
         <>
-          {/* 3 列の統計カード。360px 幅では 1 列あたり実質 ~70px しかないため、
-              所要時間（「120分00秒」等）が whitespace-nowrap ではみ出さないよう、
-              モバイルは text-lg、sm 以上で text-xl に上げる（R5-3）。 */}
+          {/* 統計の札 3 枚（#352・設計 D2）。40rem 未満と 64rem 以上（ドライバー別があるとき）は縦に積み、札の中はラベルを左・値を右の 1 行にする。
+              40rem 以上 64rem 未満は横に 3 枚。並びは `summary.css` が持つ。2 列の配置は `.summary` の直下の子に掛けるので、
+              統計とドライバー別の札を別の要素で包まない。 */}
           <div className="summary-stats">
-            <Card>
+            <Card className="summary-stat">
               <p className="instrument-label">所要時間</p>
               <p className="summary-stat-value tabular">{formatTime(record.elapsedSeconds)}</p>
             </Card>
-            <Card>
+            <Card className="summary-stat">
               <p className="instrument-label">交代回数</p>
               <p className="summary-stat-value tabular">{record.totalSwitches}回</p>
             </Card>
-            <Card>
+            <Card className="summary-stat">
               <p className="instrument-label">周回数</p>
               <p className="summary-stat-value tabular">{record.rounds ?? 0}周</p>
             </Card>

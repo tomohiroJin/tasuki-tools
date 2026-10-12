@@ -25,14 +25,17 @@ import { useTimerSync } from "./sync/use-timer-sync.js";
 // `saveRecordManually` を通す（画面は表示に徹する・ADR-0015 MUST 3）。
 
 /**
- * 画面ごとの器の段（`Stage` の `page`・#316 D2）。分岐の優先順は `renderBody` と同じ。
- * 履歴は記録の一覧なので 72rem、ロビー・セッションは脇を持つ段組みなので 96rem、
- * まとめ・喪失・読み込み中は短い読み物なので 40rem。
+ * 画面ごとの器の段（`Stage` の `page`・#316 D2・#352 D1）。分岐の優先順は `renderBody` と同じ。
+ * 履歴は記録の一覧なので 72rem。ロビー・セッション・まとめは同じ部屋の段階なので、どれも部屋の器（96rem）にする
+ * （段階で器を変えると、上の帯ごと画面の幅が跳ねる。まとめの中身の幅は `summary.css` が持つ）。
+ * 喪失・読み込み中は短い読み物なので 40rem。
  */
 function pageOf(historyOpen: boolean, sessionLost: boolean, mode: string | null | undefined, hasRoom: boolean): "prose" | "default" | "wide" {
   if (historyOpen) return "default";
   if (sessionLost) return "prose";
-  if ((mode === "lobby" || mode === "session") && hasRoom) return "wide";
+  // ルームの画面が決まっていて（`mode` が非 null）、ルームがある間は、段階（ロビー・セッション・まとめ）を問わず部屋の器。
+  // ここに画面名を列挙しない。段階を足しても器は変わらない（#352）
+  if (mode != null && hasRoom) return "wide";
   return "prose";
 }
 

@@ -74,6 +74,33 @@ test.describe('動きを抑える設定に追従する', () => {
     for (const d of durations) {
       expect(Number.parseFloat(d), `animation-duration=${d}`).toBeLessThan(0.05);
     }
+
+    // Then その3: 段階的に立ち上がる要素（`.boot-reveal`）は遅延も 0。長さだけ縮めても、
+    //   `fill-mode: both` の遅延の間は 0% の姿（不可視）のまま残る（#348 で poker 側に見つかった穴）。
+    //   遅延はインラインの `style` で付くので、件数を先に固定してから値を見る
+    const delays = await page.evaluate(() =>
+      Array.from(document.querySelectorAll('.boot-reveal')).map((el) => getComputedStyle(el).animationDelay),
+    );
+    expect(delays.length, '段階的に立ち上がる要素が見当たらない（判定が空振りする）').toBeGreaterThanOrEqual(3);
+    for (const d of delays) {
+      expect(Number.parseFloat(d), `animation-delay=${d}`).toBeLessThan(0.05);
+    }
+
+    // Then その4: 一括の手当て（`*` に `!important`）が **遅延付きの transition と animation にも効く**。
+    //   timer に遅延付きの transition は実在しないので、全要素を数えると恒真になる。
+    //   検査用の要素を差し込み、遅延 1s を与えて、実際に 0 へ潰れるかを見る
+    //   （手当てが `transition-delay` を落とすと、ここだけが 1s のまま残って赤になる）
+    const probe = await page.evaluate(() => {
+      const el = document.createElement('div');
+      el.setAttribute('style', 'transition: opacity 1s 1s; animation-delay: 1s;');
+      document.body.appendChild(el);
+      const cs = getComputedStyle(el);
+      const result = { transitionDelay: cs.transitionDelay, animationDelay: cs.animationDelay };
+      el.remove();
+      return result;
+    });
+    expect(Number.parseFloat(probe.transitionDelay), `transition-delay=${probe.transitionDelay}`).toBe(0);
+    expect(Number.parseFloat(probe.animationDelay), `animation-delay=${probe.animationDelay}`).toBe(0);
   });
 });
 

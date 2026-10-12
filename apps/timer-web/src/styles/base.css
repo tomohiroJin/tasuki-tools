@@ -285,8 +285,11 @@ body {
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    /* 遅延も止める。長さだけ縮めると、fill-mode both の遅延の間は 0% の姿（不可視）が残る */
+    animation-delay: 0s !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    transition-delay: 0s !important;
     scroll-behavior: auto !important;
   }
 }
