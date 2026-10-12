@@ -259,17 +259,11 @@ describe('接続の告知', () => {
     expect(disconnected).toBe(false);
   });
 
-  it('Given 接続の状態 / When 告知を決める / Then 一度も繋がらないなら繋がらない、使えていたなら再接続中、捨てたなら同期できていない', () => {
-    // Given: 4 つの状態
-    // When
-    const neverConnected = connectionNotice({ status: 'closed', everConnected: false, failedAttempts: 1, syncStale: false });
-    const dropped = connectionNotice({ status: 'closed', everConnected: true, failedAttempts: 1, syncStale: false });
-    const stale = connectionNotice({ status: 'open', everConnected: true, failedAttempts: 0, syncStale: true });
-    const starting = connectionNotice({ status: 'connecting', everConnected: false, failedAttempts: 0, syncStale: false });
-    // Then
-    expect(neverConnected).toEqual({ kind: 'unreachable', text: UNREACHABLE_TEXT });
-    expect(dropped).toEqual({ kind: 'reconnecting', text: RECONNECTING_TEXT });
-    expect(stale).toEqual({ kind: 'stale', text: STALE_TEXT });
-    expect(starting).toEqual({ kind: 'none' });
+  it('Given 告知の種類 / When 文にする / Then 種類ごとの文言になり、何も無いときは文を持たない', () => {
+    // 種類を決める規則は `@tasuki/sync-client` のテストが見る（ここは文言の当て方だけ）
+    expect(connectionNotice('unreachable')).toEqual({ kind: 'unreachable', text: UNREACHABLE_TEXT });
+    expect(connectionNotice('reconnecting')).toEqual({ kind: 'reconnecting', text: RECONNECTING_TEXT });
+    expect(connectionNotice('stale')).toEqual({ kind: 'stale', text: STALE_TEXT });
+    expect(connectionNotice('none')).toEqual({ kind: 'none' });
   });
 });

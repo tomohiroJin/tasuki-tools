@@ -54,43 +54,13 @@ describe('お題ツールの操作可否と知らせ', () => {
     expect(generationNotice(null)).toBeNull();
   });
 
-  it('Given 一度も繋がらないまま失敗した / When 告知を決める / Then 繋がらないと伝える', () => {
-    // Given: 一度も繋がらないまま失敗した（everConnected: false）
-    // When: 告知を決める
-    // Then: 繋がらないと伝える
-    expect(connectionNotice({ status: 'closed', everConnected: false, failedAttempts: 1, syncStale: false })).toEqual({
-      kind: 'unreachable',
-      text: UNREACHABLE_TEXT,
-    });
-  });
-
-  it('Given 使えていた接続が切れた / When 告知を決める / Then 再接続中と伝える', () => {
-    // Given: 使えていた接続が切れた（everConnected: true）
-    // When: 告知を決める
-    // Then: 再接続中と伝える
-    expect(connectionNotice({ status: 'closed', everConnected: true, failedAttempts: 1, syncStale: false })).toEqual({
-      kind: 'reconnecting',
-      text: RECONNECTING_TEXT,
-    });
-  });
-
-  it('Given 繋がっているが合わないフレームを捨てた / When 告知を決める / Then 同期できていないと伝える', () => {
-    // Given: 繋がっているが合わないフレームを捨てた（status: open・syncStale: true）
-    // When: 告知を決める
-    // Then: 同期できていないと伝える
-    expect(connectionNotice({ status: 'open', everConnected: true, failedAttempts: 0, syncStale: true })).toEqual({
-      kind: 'stale',
-      text: STALE_TEXT,
-    });
-  });
-
-  it('Given 繋がり始めたばかり / When 告知を決める / Then 何も出さない（正常時にちらつかせない）', () => {
-    // Given: 繋がり始めたばかり（status: connecting・失敗 0 回）
-    // When: 告知を決める
-    // Then: 何も出さない（正常時にちらつかせない）
-    expect(connectionNotice({ status: 'connecting', everConnected: false, failedAttempts: 0, syncStale: false })).toEqual({
-      kind: 'none',
-    });
+  it('Given 告知の種類 / When 文にする / Then 種類ごとの文言になり、何も無いときは文を持たない', () => {
+    // 種類を決める規則は `@tasuki/sync-client` のテストが見る（ここは文言の当て方だけ）。
+    // 配線（切れたら再接続中・一度も繋がらないなら繋がらない）は topic-room.test.tsx が画面で見る
+    expect(connectionNotice('unreachable')).toEqual({ kind: 'unreachable', text: UNREACHABLE_TEXT });
+    expect(connectionNotice('reconnecting')).toEqual({ kind: 'reconnecting', text: RECONNECTING_TEXT });
+    expect(connectionNotice('stale')).toEqual({ kind: 'stale', text: STALE_TEXT });
+    expect(connectionNotice('none')).toEqual({ kind: 'none' });
   });
 });
 

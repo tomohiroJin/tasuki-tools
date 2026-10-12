@@ -193,22 +193,20 @@ export type ConnectionNotice =
   | { kind: 'none' }
   | { kind: 'reconnecting' | 'unreachable' | 'stale'; text: string };
 
-/** 一度繋がった後、ここまで連続で失敗したら「戻る見込み」を諦めて伝え方を変える（poker-web と同じ値）。 */
-const GIVE_UP_AFTER_ATTEMPTS = 3;
-
-/** 接続状態を利用者向けの告知に翻訳する（poker-web の `connection-notice.ts` と同じ規則）。 */
-export function connectionNotice(input: {
-  readonly status: ConnectionStatus;
-  readonly everConnected: boolean;
-  readonly failedAttempts: number;
-  readonly syncStale: boolean;
-}): ConnectionNotice {
-  if (input.status === 'open') {
-    return input.syncStale ? { kind: 'stale', text: STALE_TEXT } : { kind: 'none' };
+/**
+ * 告知の種類を利用者向けの文にする。**種類を決める規則（諦めるまでの回数を含む）は
+ * `@tasuki/sync-client` の `connectionNoticeKind` にあり、同期フックが引く**（poker・お題と同じ規則。
+ * 写しを持たない）。ここは文言を当てるだけである。
+ */
+export function connectionNotice(kind: ConnectionNotice['kind']): ConnectionNotice {
+  switch (kind) {
+    case 'none':
+      return { kind };
+    case 'stale':
+      return { kind, text: STALE_TEXT };
+    case 'unreachable':
+      return { kind, text: UNREACHABLE_TEXT };
+    case 'reconnecting':
+      return { kind, text: RECONNECTING_TEXT };
   }
-  if (input.failedAttempts === 0) return { kind: 'none' };
-  if (!input.everConnected || input.failedAttempts >= GIVE_UP_AFTER_ATTEMPTS) {
-    return { kind: 'unreachable', text: UNREACHABLE_TEXT };
-  }
-  return { kind: 'reconnecting', text: RECONNECTING_TEXT };
 }

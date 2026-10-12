@@ -34,7 +34,7 @@ export function TopicRoom({ roomCode }: { roomCode: string }) {
     else if (sync.needsHub) redirectTo(hubPathFor(roomCode));
   }, [sync.departed, sync.needsHub, roomCode]);
 
-  const notice = connectionNotice(sync);
+  const notice = connectionNotice(sync.notice);
   const banner = notice.kind !== 'none' && (
     <p className={`ui-banner${notice.kind === 'unreachable' ? ' ui-banner--unreachable' : ''}`} role={notice.kind === 'unreachable' ? 'alert' : 'status'}>
       {notice.text}

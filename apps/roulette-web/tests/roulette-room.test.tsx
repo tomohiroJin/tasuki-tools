@@ -15,7 +15,9 @@ import {
   SPINNING_BUTTON,
   SPIN_AGAIN_BUTTON,
   SPIN_BUTTON,
+  RECONNECTING_TEXT,
   TOO_FEW_TEXT,
+  UNREACHABLE_TEXT,
   TWIN_MARK,
   CYCLE_RESET_BUTTON,
   cycleProgressText,
@@ -343,6 +345,24 @@ describe('入り方と戻り方', () => {
     act(() => latestSocket().deliver({ type: 'error', code: 'ROOM_NOT_FOUND', message: 'x' }));
     // Then
     expect(screen.getByRole('heading', { name: 'ルームが見つかりません' })).toBeInTheDocument();
+  });
+
+  it('Given 入れていた / When 切れる / Then 再接続中と伝える', () => {
+    // Given / When: 入れていた画面が切れる
+    enterRoom();
+    act(() => latestSocket().drop());
+    // Then: 告知の種類は共有の規則（`@tasuki/sync-client`）が決め、文はこの画面の文言になる
+    expect(screen.getByText(RECONNECTING_TEXT)).toBeInTheDocument();
+  });
+
+  it('Given 一度も繋がらない / When 失敗する / Then 繋がらないと警告する', () => {
+    // Given
+    saveResumeIdentity(RESUME);
+    render(<App />);
+    // When
+    act(() => latestSocket().drop());
+    // Then
+    expect(screen.getByRole('alert')).toHaveTextContent(UNREACHABLE_TEXT);
   });
 
   it('Given 操作の失敗が届く / When 画面を見る / Then サーバーの文を見せる', () => {

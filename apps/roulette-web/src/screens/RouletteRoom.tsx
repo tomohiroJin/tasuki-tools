@@ -71,7 +71,7 @@ export function RouletteRoom({ roomCode }: { roomCode: string }) {
   const endAt = spin === null ? null : sync.receivedAt + spin.durationMs - spin.elapsedMs;
   const nowMs = useNowMs(sync.receivedAt, endAt);
 
-  const notice = connectionNotice(sync);
+  const notice = connectionNotice(sync.notice);
   const banner = notice.kind !== 'none' && (
     <p className={`ui-banner${notice.kind === 'unreachable' ? ' ui-banner--unreachable' : ''}`} role={notice.kind === 'unreachable' ? 'alert' : 'status'}>
       {notice.text}
