@@ -26,6 +26,10 @@
       "dependsOn": ["^build"],
       "outputs": ["coverage/**"]
     },
+    "@tasuki/roulette-core#test": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"]
+    },
     "lint": {
       "outputs": []
     },

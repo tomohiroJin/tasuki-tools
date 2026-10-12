@@ -2,13 +2,14 @@ diff --git a/apps/tasuki-sync/src/adapters/ws-adapter.ts b/apps/tasuki-sync/src/
 index c41d653..232ad6e 100644
 --- a/apps/tasuki-sync/src/adapters/ws-adapter.ts
 +++ b/apps/tasuki-sync/src/adapters/ws-adapter.ts
-@@ -68,10 +68,7 @@ const TOOL_QUERY_KEY = "tool";
- function protocolFromRequestUrl(url: URL): "timer" | "poker" | "topic" | "hub" | "unknown" {
+@@ -68,11 +68,7 @@ const TOOL_QUERY_KEY = "tool";
+ function protocolFromRequestUrl(url: URL): "timer" | "poker" | "topic" | "roulette" | "hub" | "unknown" {
    const declared = url.searchParams.get(TOOL_QUERY_KEY);
    if (declared === null) return "hub";
 -  if (declared === TOOL_TIMER) return TOOL_TIMER;
 -  if (declared === TOOL_POKER) return TOOL_POKER;
 -  if (declared === TOOL_TOPIC) return TOOL_TOPIC;
+-  if (declared === TOOL_ROULETTE) return TOOL_ROULETTE;
 -  return "unknown";
 +  return TOOL_TIMER;
  }

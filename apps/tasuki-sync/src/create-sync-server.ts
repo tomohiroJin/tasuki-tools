@@ -44,6 +44,11 @@ import { makeTopicBroadcaster } from "./application/topic-broadcast.js";
 import { makeTopicHandlers } from "./application/topic-handlers.js";
 import { TopicGenerator } from "./application/topic-generation.js";
 import { InMemoryTopicStore } from "./adapters/in-memory-topic-store.js";
+import { InMemoryRouletteStore } from "./adapters/in-memory-roulette-store.js";
+import { createCryptoRandomSource } from "./adapters/crypto-random-source.js";
+import { makeRouletteBroadcaster } from "./application/roulette-broadcast.js";
+import { makeRouletteHandlers } from "./application/roulette-handlers.js";
+import { TOOL_ROULETTE } from "./application/tool-id.js";
 import { ClaudeCliTopicProvider } from "./adapters/claude-cli-topic-provider.js";
 import type { HubBroadcaster } from "./ports/hub-broadcaster.js";
 import { makeHandlers } from "./application/handlers.js";
@@ -108,6 +113,11 @@ export function createSyncServer(config: SyncConfig): SyncServer {
    * 別に 1 つ持ち、名簿とはルームコードで対になる（破棄は `destroy-room.ts` が揃えて行う）。
    */
   const topics = new InMemoryTopicStore();
+  /**
+   * ルーレットの状態の保管（#94）。お題と同じく**ルームに属する**ので 1 つ持ち、名簿とは
+   * ルームコードで対になる（破棄は `destroy-room.ts` が揃えて行う）。
+   */
+  const roulettes = new InMemoryRouletteStore();
   const clock = new SystemClock();
   /**
    * 復帰トークンとパスフレーズの保管。**timer と poker で 1 個を共有する**（#95 S4a）。
@@ -160,6 +170,19 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     return room ? connectionsIn(room, null) : [];
   };
 
+  /**
+   * 名簿（`roster`）の配信先（#94・spec R14）。**ハブ ＋ ルーレット**である。
+   *
+   * ルーレットは「いまルームに居る人」を描くので名簿を受け取る。`hubRecipientsOf` を直接広げず
+   * 名前で分けてある（`hubRecipientsOf` の意味は「ハブ」のまま残す）。名簿の配信は `saveRoster`
+   * に 1 本化されている（`test/save-roster.wiring.test.ts`）ので、宛先を足すだけで接続の着脱・退出の
+   * すべてが届く。
+   */
+  const rosterRecipientsOf = (roomCode: string): string[] => {
+    const room = store.get(roomCode);
+    return room ? [...hubRecipientsOf(roomCode), ...connectionsIn(room, TOOL_ROULETTE)] : [];
+  };
+
   const hubBroadcaster: HubBroadcaster = {
     sendTo(connId: string, msg: HubServerMsg): void {
       wsAdapter.sendHub(connId, msg);
@@ -167,7 +190,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     broadcastRoster(roomCode: string): void {
       const room = store.get(roomCode);
       if (!room) return;
-      wsAdapter.broadcastHub(hubRecipientsOf(roomCode), {
+      wsAdapter.broadcastHub(rosterRecipientsOf(roomCode), {
         type: "roster",
         room: buildRoster(room),
       });
@@ -223,6 +246,19 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     aiTimeoutMs: config.aiGenerationTimeoutMs,
     logger,
     refEncoder,
+  });
+
+  /**
+   * ルーレットの状態の配信（#94）。宛先はルーレットの接続だけ（`roulette-broadcast.ts`）。
+   * **時計は単調時計**（poker の `createPerformanceClock` と同じもの。`elapsedMs` を計る）。
+   * `wsAdapter` は下で代入する（上の broadcaster と同じ前方参照）。
+   */
+  const rouletteClock = createPerformanceClock();
+  const rouletteBroadcaster = makeRouletteBroadcaster({
+    store,
+    roulettes,
+    clock: rouletteClock,
+    send: (connIds, msg) => wsAdapter.broadcastRoulette(connIds, msg),
   });
 
   /**
@@ -303,6 +339,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     rounds,
     // **#91 でお題の状態と生成もここが解放・中断する**（寿命はルームごとに 1 つ）。
     topics,
+    roulettes,
     scheduler,
     topicGenerator,
     presence: presenceManager,
@@ -395,6 +432,29 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     aiUnlockKey: aiReady ? config.aiUnlockKey : undefined,
   });
 
+  /**
+   * ルーレット（`?tool=roulette`）のメッセージ層（#94）。
+   *
+   * **参加の守りはお題と同じく `join-room.ts` を通し、レート制限のゲートも `handlers.rateLimitGate`
+   * を渡す。新しく作らない**（別に作ると `connId → クライアント鍵` の対応が空になり、
+   * 参加の総当たりが張り直すだけで枠を回避できる）。ルーレットの接続も `onConnect` を通る
+   * （`ws-adapter.ts`）ので、同じゲートなら鍵が登録済みである。
+   */
+  const rouletteHandlers = makeRouletteHandlers({
+    store,
+    timers,
+    clock,
+    codeGen,
+    tokenStore: tokens,
+    rateLimitGate: handlers.rateLimitGate,
+    hub: hubBroadcaster,
+    roulettes,
+    broadcaster: rouletteBroadcaster,
+    send: (connId, msg) => wsAdapter.sendRoulette(connId, msg),
+    monotonicClock: rouletteClock,
+    random: createCryptoRandomSource(),
+  });
+
   wsAdapter = new WsAdapter({
     port: config.port,
     host: config.host,
@@ -413,6 +473,9 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     },
     onTopicMessage: async (connId, raw) => {
       await topicHandlers.handleMessage(connId, raw);
+    },
+    onRouletteMessage: async (connId, raw) => {
+      await rouletteHandlers.handleMessage(connId, raw);
     },
     onMessage: async (connId, msg) => {
       // msg は ws-adapter 側で CommandSchema（valibot）に通した検証済みの値であり、

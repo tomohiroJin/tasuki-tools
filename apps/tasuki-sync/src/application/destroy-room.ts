@@ -30,6 +30,7 @@ import type { RoomStore } from "../ports/room-store.js";
 import type { TimerStore } from "../ports/timer-store.js";
 import type { RoundStore } from "../ports/poker-round-store.js";
 import type { TopicStore } from "../ports/topic-store.js";
+import type { RouletteStore } from "../ports/roulette-store.js";
 
 export interface RoomDestroyerDeps {
   /** 名簿の実体。破棄では `remove` しか使わないため必要な分だけを要求する。 */
@@ -53,6 +54,12 @@ export interface RoomDestroyerDeps {
    */
   topics: Pick<TopicStore, "remove">;
   /**
+   * ルーレットの状態の実体（#94）。**名簿と対で消す**（`topics` と同じ規律）。
+   *
+   * ⚠ **optional にしてはならない**（理由は {@link RoomDestroyerDeps.rounds} と同じ）。
+   */
+  roulettes: Pick<RouletteStore, "remove">;
+  /**
    * お題の生成（#91・`TopicGenerator`）。破棄で進行中の生成を中断する（子プロセスを止める）。
    *
    * ⚠ **optional にしてはならない。** 省略時の構成を持たない ——
@@ -70,7 +77,7 @@ export interface RoomDestroyerDeps {
 
 /** ルームを破棄する関数を組み立てる。返す関数は何度呼んでも安全（各解放は不在なら no-op）。 */
 export function createRoomDestroyer(deps: RoomDestroyerDeps): (roomCode: string) => void {
-  const { store, timers, rounds, topics, scheduler, topicGenerator, presence, releaseRoom } =
+  const { store, timers, rounds, topics, roulettes, scheduler, topicGenerator, presence, releaseRoom } =
     deps;
 
   return (roomCode: string): void => {
@@ -84,5 +91,6 @@ export function createRoomDestroyer(deps: RoomDestroyerDeps): (roomCode: string)
     timers.remove(roomCode);
     rounds.remove(roomCode);
     topics.remove(roomCode);
+    roulettes.remove(roomCode);
   };
 }

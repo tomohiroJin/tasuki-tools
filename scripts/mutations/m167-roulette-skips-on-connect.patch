@@ -1,0 +1,23 @@
+# 変異 167: roulette-skips-on-connect
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/live-ws.roulette.test.ts
+#
+# #94 §5.2・m167。ルーレットの接続の受理で onConnect を通さない（poker の早期 return に足す）。レート制限の鍵が接続 ID に落ち、room.join の総当たりが接続を張り直すだけで枠を回避できる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m167-*.patch
+# 復元: git apply -R scripts/mutations/m167-*.patch
+diff --git a/apps/tasuki-sync/src/adapters/ws-adapter.ts b/apps/tasuki-sync/src/adapters/ws-adapter.ts
+index a51dd9eb..59e6fbcc 100644
+--- a/apps/tasuki-sync/src/adapters/ws-adapter.ts
++++ b/apps/tasuki-sync/src/adapters/ws-adapter.ts
+@@ -650,7 +650,7 @@ export class WsAdapter {
+     // ここで return すると onConnect が呼ばれず、`rateLimitGate.open` が接続とクライアント鍵を
+     // 結ばない。すると鍵は connId へ落ち、`ai.unlock` の総当たりが**張り直すだけで**
+     // 枠を回避できる（2026-09-23 のレビューで見つかった）。
+-    if (ws.data.protocol === "poker") return;
++    if (ws.data.protocol === "poker" || ws.data.protocol === "roulette") return;
+     // onConnect は呼び出し元（アプリ層）のコールバック。throw すると Bun の
+     // websocket ハンドラ内なので uncaughtException になり、本番の server.ts が
+     // process.exit(1) で受ける（実測）。コールバックの失敗でプロセス全体を

@@ -211,3 +211,79 @@ describe("お題（topic）の接続は poker の早期 return を通らない",
     }
   });
 });
+
+/**
+ * ルーレットの接続は専用のメッセージ層だけへ届き、timer・ハブ・お題の層へは届かない（#94・spec §5.2）。
+ * さらに **poker の早期 return を通らない**（お題と同じ。`onConnect` の鍵が接続 ID に落ちて
+ * 参加の総当たりが張り直しで枠を回避できるのを防ぐ）。
+ *
+ * @requirements #94 E9
+ */
+describe("ルーレット（?tool=roulette）の接続の振り分け", () => {
+  it("Given ?tool=roulette の接続 / When 生テキストを送る / Then ルーレットの層にだけ届き、timer・ハブ・お題の層へは届かない", async () => {
+    // Given: 4 つの層をそれぞれ記録する低レベルの WsAdapter
+    const calls = { roulette: [] as string[], timer: 0, hub: 0, topic: 0 };
+    const adapter: WsAdapter = newTestWsAdapter({
+      port: 0,
+      host: "127.0.0.1",
+      allowedOrigins: [],
+      onMessage: async () => {
+        calls.timer++;
+      },
+      onHubMessage: async () => {
+        calls.hub++;
+      },
+      onTopicMessage: async () => {
+        calls.topic++;
+      },
+      onRouletteMessage: async (_connId, raw) => {
+        calls.roulette.push(raw);
+      },
+      onDisconnect: () => {},
+      logger: testLogger,
+    });
+    try {
+      const ws = new WebSocket(`ws://127.0.0.1:${adapter.port}/ws?tool=roulette`);
+      await waitOpen(ws);
+
+      // When
+      ws.send("ルーレットのテキスト");
+      await waitForCondition(() => calls.roulette.length > 0);
+
+      // Then
+      expect(calls.roulette).toEqual(["ルーレットのテキスト"]);
+      expect([calls.timer, calls.hub, calls.topic]).toEqual([0, 0, 0]);
+      ws.close();
+    } finally {
+      await adapter.close();
+    }
+  });
+
+  it("Given ?tool=roulette で繋ぐ / When 受理されてから閉じる / Then 受理と切断が 1 回ずつ通知される（接続 ID と鍵つき）", async () => {
+    // Given
+    const connectCalls: Array<[string, string]> = [];
+    const disconnectCalls: string[] = [];
+    const adapter: WsAdapter = newTestWsAdapter({
+      port: 0,
+      host: "127.0.0.1",
+      allowedOrigins: [],
+      onMessage: async () => {},
+      onConnect: (connId, rateKey) => connectCalls.push([connId, rateKey]),
+      onDisconnect: (connId) => disconnectCalls.push(connId),
+      logger: testLogger,
+    });
+    try {
+      // When
+      const ws = new WebSocket(`ws://127.0.0.1:${adapter.port}/ws?tool=roulette`);
+      await waitOpen(ws);
+      ws.close();
+      await waitForCondition(() => disconnectCalls.length > 0);
+
+      // Then: poker のように手前で return していれば、この 2 つはどちらも呼ばれない
+      expect(connectCalls.length).toBe(1);
+      expect(disconnectCalls).toEqual([connectCalls[0]![0]]);
+    } finally {
+      await adapter.close();
+    }
+  });
+});

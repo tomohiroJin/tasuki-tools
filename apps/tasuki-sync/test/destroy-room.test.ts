@@ -18,6 +18,8 @@ import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { InMemoryRoundStore } from "../src/adapters/poker-in-memory-round-store.js";
 import { InMemoryTopicStore } from "../src/adapters/in-memory-topic-store.js";
+import { InMemoryRouletteStore } from "../src/adapters/in-memory-roulette-store.js";
+import { INITIAL_ROULETTE_STATE } from "@tasuki/roulette-core";
 import { INITIAL_TOPIC_STATE } from "@tasuki/topic-core";
 import { spyDestroyer } from "./support/spy-destroyer.js";
 
@@ -63,6 +65,24 @@ describe("createRoomDestroyer", () => {
     expect(topics.get("BBB")).toBeUndefined();
   });
 
+  it("破棄の後にルーレットの状態が無い", () => {
+    // Given: 名簿とルーレットの状態が同じルームコードにぶら下がっている
+    const store = new InMemoryRoomStore();
+    const timers = new InMemoryTimerStore();
+    const roulettes = new InMemoryRouletteStore();
+    store.put({ code: "DDD", createdAt: 0, participants: [] });
+    roulettes.put("DDD", INITIAL_ROULETTE_STATE);
+    roulettes.put("EEE", INITIAL_ROULETTE_STATE);
+    const { destroy } = spyDestroyer(store, timers, undefined, undefined, roulettes);
+
+    // When
+    destroy("DDD");
+
+    // Then: 破棄したルームの状態だけが消え、ほかのルームは残る
+    expect(roulettes.get("DDD")).toBeUndefined();
+    expect(roulettes.get("EEE")).toEqual(INITIAL_ROULETTE_STATE);
+  });
+
   it("スケジューラ・presence を持たない構成でも解放とストア削除は行う", () => {
     // Given: makeHandlers 単体（scheduler を省略できる）で組んだ場合
     const store = new InMemoryRoomStore();
@@ -81,6 +101,7 @@ describe("createRoomDestroyer", () => {
       timers,
       rounds,
       topics,
+      roulettes: new InMemoryRouletteStore(),
       topicGenerator: { cancel: () => {} },
       releaseRoom: (c) => released.push(c),
     });

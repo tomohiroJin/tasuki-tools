@@ -1,0 +1,23 @@
+# 変異 153: spin-allows-while-spinning
+#
+# 検出を期待するテスト:
+#   - packages/roulette-core/tests/roulette.test.ts
+#
+# #94 E5・spec R9。回転中の拒否を外す。2 回目の回転が 1 回目を上書きし、画面ごとにどちらを見ているかがずれる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m153-*.patch
+# 復元: git apply -R scripts/mutations/m153-*.patch
+diff --git a/packages/roulette-core/src/roulette.ts b/packages/roulette-core/src/roulette.ts
+index 90f32874..d46caa57 100644
+--- a/packages/roulette-core/src/roulette.ts
++++ b/packages/roulette-core/src/roulette.ts
+@@ -39,7 +39,7 @@ export function startSpin(
+   state: RouletteState,
+   input: SpinInput,
+ ): Result<RouletteState, RouletteError<"ROULETTE_SPINNING" | "ROULETTE_TOO_FEW" | "ROULETTE_TOO_MANY" | "INVALID_SETTLE">> {
+-  if (isSpinning(state, input.now)) return err({ code: "ROULETTE_SPINNING" });
++
+   const pool = poolOf(input.members, state, input.conflicts);
+   if (pool.length < 2) return err({ code: "ROULETTE_TOO_FEW" });
+   if (pool.length > MAX_WHEEL) return err({ code: "ROULETTE_TOO_MANY" });

@@ -1,0 +1,25 @@
+# 変異 168: command-schema-loosened
+#
+# 検出を期待するテスト:
+#   - packages/roulette-core/tests/schemas.test.ts
+#
+# #94 E15・docs/adr/0011 決定 2 S3。ルーレットのコマンドの strictObject を object に戻す。余剰フィールドが黙って通る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m168-*.patch
+# 復元: git apply -R scripts/mutations/m168-*.patch
+diff --git a/packages/roulette-core/src/schemas.ts b/packages/roulette-core/src/schemas.ts
+index 775a4dd9..4aa28722 100644
+--- a/packages/roulette-core/src/schemas.ts
++++ b/packages/roulette-core/src/schemas.ts
+@@ -17,8 +17,8 @@ const entrySchema = v.object({ id: v.string(), name: v.string() });
+ // 「未知 type・余剰フィールド・サイズ超過は即拒否」。新しいコマンドには古いクライアントが
+ // 居ないので、厳しい側から始める（`room.check` と同じ理由）。
+ export const RouletteCommandSchema = v.variant("command", [
+-  v.strictObject({ command: v.literal("roulette.spin") }),
+-  v.strictObject({ command: v.literal("roulette.include"), id: idStr, included: v.boolean() }),
++  v.object({ command: v.literal("roulette.spin") }),
++  v.object({ command: v.literal("roulette.include"), id: idStr, included: v.boolean() }),
+   // 名前の長さは**ここで縛らない**（`room.join` の `displayName` と同じ扱い・`room-core/src/wire.ts`）。
+   // 上限は表示名の規約（`apps/tasuki-sync/src/application/display-name-rule.ts`）が正規化の前後で課す。
+   // 境界に別の狭い上限を置くと、`room.join` では通る名前（前後の空白を含むなど）がここだけで落ちる。

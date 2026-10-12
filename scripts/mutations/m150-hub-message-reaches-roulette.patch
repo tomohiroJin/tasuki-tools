@@ -1,0 +1,22 @@
+# 変異 150: hub-message-reaches-roulette
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/live-ws.roulette.test.ts
+#
+# #94 E9・spec R11。ハブの層の onHubMessage からルーレットのハンドラも呼ぶ。ルーレットの層は『ルーレットとして在席しているか』で 2 段目を守るので状態は変わらないが、ハブの接続が 2 通目の拒否を受け取る。timer・poker・お題・ハブの 4 種で拒否が 1 通ずつであることを見る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m150-*.patch
+# 復元: git apply -R scripts/mutations/m150-*.patch
+diff --git a/apps/tasuki-sync/src/create-sync-server.ts b/apps/tasuki-sync/src/create-sync-server.ts
+index 2c61c6e7..251dcc8c 100644
+--- a/apps/tasuki-sync/src/create-sync-server.ts
++++ b/apps/tasuki-sync/src/create-sync-server.ts
+@@ -470,6 +470,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
+     requireClientAddress: config.requireClientAddress,
+     onHubMessage: async (connId, raw) => {
+       await hubHandlers.handleMessage(connId, raw);
++      await rouletteHandlers.handleMessage(connId, raw);
+     },
+     onTopicMessage: async (connId, raw) => {
+       await topicHandlers.handleMessage(connId, raw);

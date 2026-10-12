@@ -22,6 +22,7 @@ import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { InMemoryRoundStore } from "../src/adapters/poker-in-memory-round-store.js";
 import { InMemoryTopicStore } from "../src/adapters/in-memory-topic-store.js";
+import { InMemoryRouletteStore } from "../src/adapters/in-memory-roulette-store.js";
 import { createTokenStore } from "../src/application/token-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
@@ -86,6 +87,7 @@ describe("ソロの部屋からの退出（Issue #79）", () => {
       timers,
       rounds,
       topics: new InMemoryTopicStore(),
+      roulettes: new InMemoryRouletteStore(),
       // お題の生成はこのテストに居ない（timer の退出だけを見る）。
       topicGenerator: { cancel: () => {} },
       releaseRoom: handlers.releaseRoom,
@@ -276,6 +278,7 @@ describe("ソロ以外は挙動が変わらない（Issue #79）", () => {
       timers,
       rounds,
       topics: new InMemoryTopicStore(),
+      roulettes: new InMemoryRouletteStore(),
       // お題の生成はこのテストに居ない（timer の退出だけを見る）。
       topicGenerator: { cancel: () => {} },
       releaseRoom: handlers.releaseRoom,

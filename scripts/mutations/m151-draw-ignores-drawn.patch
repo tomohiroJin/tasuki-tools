@@ -1,0 +1,23 @@
+# 変異 151: draw-ignores-drawn
+#
+# 検出を期待するテスト:
+#   - packages/roulette-core/tests/draw.test.ts
+#
+# #94 E2・spec R6。`drawWinner` が drawn を見ずに pool 全体から引く。1 回目では見分けが付かないので 2 回目で見る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m151-*.patch
+# 復元: git apply -R scripts/mutations/m151-*.patch
+diff --git a/packages/roulette-core/src/draw.ts b/packages/roulette-core/src/draw.ts
+index fb091aa1..5a8874b1 100644
+--- a/packages/roulette-core/src/draw.ts
++++ b/packages/roulette-core/src/draw.ts
+@@ -23,7 +23,7 @@ export interface DrawResult {
+  */
+ export function drawWinner(pool: readonly Entry[], state: RouletteState, randomInt: (n: number) => number): DrawResult {
+   let drawn = new Set(state.drawn);
+-  let eligible = pool.filter((e) => !drawn.has(e.id));
++  let eligible = [...pool];
+   if (eligible.length === 0) {
+     drawn = new Set();
+     const last = state.lastSpin?.wheel[state.lastSpin.winnerIndex]?.id;

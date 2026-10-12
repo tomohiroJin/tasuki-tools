@@ -1,0 +1,23 @@
+# 変異 170: pool-keeps-same-name-guest
+#
+# 検出を期待するテスト:
+#   - packages/roulette-core/tests/pool.test.ts
+#
+# #94 E4・E13・spec R13。在室者と同じ名前のゲストを外さず、同じ人が円盤に 2 席になる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m170-*.patch
+# 復元: git apply -R scripts/mutations/m170-*.patch
+diff --git a/packages/roulette-core/src/pool.ts b/packages/roulette-core/src/pool.ts
+index a0fd231e..9a05ceb0 100644
+--- a/packages/roulette-core/src/pool.ts
++++ b/packages/roulette-core/src/pool.ts
+@@ -24,7 +24,7 @@ export function poolOf(members: readonly Member[], state: RouletteState, conflic
+   const presentNames = present.map((m) => ({ participantId: m.id, displayName: m.name }));
+   const fromMembers = present.filter((m) => !excluded.has(m.id)).map((m): Entry => ({ id: m.id, name: m.name }));
+   const fromGuests = state.guests
+-    .filter((g) => !excluded.has(g.id) && !conflicts(presentNames, g.name))
++    .filter((g) => !excluded.has(g.id))
+     .map((g): Entry => ({ id: g.id, name: g.name }));
+   return [...fromMembers, ...fromGuests];
+ }

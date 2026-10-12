@@ -1,0 +1,24 @@
+# 変異 161: elapsed-sent-as-started
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/roulette-handlers.test.ts
+#
+# #94 E7・E8・spec R5。elapsedMs を回した時点の値（0）のまま送る。回した直後の 1 通は正しくても誤りでも 0 に近いので、回転の途中で参加した接続で見る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m161-*.patch
+# 復元: git apply -R scripts/mutations/m161-*.patch
+diff --git a/apps/tasuki-sync/src/application/roulette-broadcast.ts b/apps/tasuki-sync/src/application/roulette-broadcast.ts
+index 7ae3560b..bacce869 100644
+--- a/apps/tasuki-sync/src/application/roulette-broadcast.ts
++++ b/apps/tasuki-sync/src/application/roulette-broadcast.ts
+@@ -46,7 +46,8 @@ export function makeRouletteBroadcaster(deps: RouletteBroadcasterDeps): Roulette
+     sendCurrent(connId, roomCode) {
+       // ルームが消えていたら状態を置かない（置くと、破棄の後始末が済んだルームに状態だけが残る）。
+       if (deps.store.get(roomCode) === undefined) return;
+-      deps.send([connId], { type: "roulette", state: toView(stateOf(roomCode), deps.clock.now()) });
++      const state = stateOf(roomCode);
++      deps.send([connId], { type: "roulette", state: toView(state, state.lastSpin?.startedAt ?? 0) });
+     },
+   };
+ }

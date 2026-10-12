@@ -1,0 +1,22 @@
+# 変異 171: commit-publishes-unchanged
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/roulette-handlers.test.ts
+#
+# #94 §5.2。状態が変わらない（同じ参照の）ときも保管して全接続へ配る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m171-*.patch
+# 復元: git apply -R scripts/mutations/m171-*.patch
+diff --git a/apps/tasuki-sync/src/application/roulette-handlers.ts b/apps/tasuki-sync/src/application/roulette-handlers.ts
+index 8ed0a8a9..22f8009d 100644
+--- a/apps/tasuki-sync/src/application/roulette-handlers.ts
++++ b/apps/tasuki-sync/src/application/roulette-handlers.ts
+@@ -156,7 +156,6 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
+    *   コマンドが一緒に保管して配る —— 保管だけして配らないと、画面が見ている状態と保管が食い違う
+    */
+   function commit(roomCode: string, stored: RouletteState | undefined, next: RouletteState): void {
+-    if (next === (stored ?? INITIAL_ROULETTE_STATE)) return;
+     roulettes.put(roomCode, next);
+     broadcaster.publish(roomCode);
+   }

@@ -161,3 +161,18 @@ S4a（#245）が外したのは**名簿そのもの**（`Participant` の保管�
 決定 1 の見出しは「3 つに割る」のまま残す（決定当時の記録である）。**依存の向きの現況は、
 決定 4 と 2026-09-07 の追記のとおり `scripts/audit-dependency-direction.mjs` の `ALLOWED` を見ること。**
 ここへ表を写さない。
+
+## 追記（2026-10-12・#94 PR 1） — 文脈を 5 つにする
+
+[#94](https://github.com/tomohiroJin/tasuki-tools/issues/94) で**ルーレットの文脈** = `packages/roulette-core`
+（入る人・一周の規則・回転の帳簿）が加わった。決定と理由は
+[`docs/adr/0026`](./0026-facilitator-roulette.md) にある。
+
+**決定 1〜5 はそのまま当てはまる。** ルーレットの文脈はツールのドメインと同格で、**`room-core` を含むどの `@tasuki/*` にも
+依存しない**（参加者 ID は不透明な文字列で、名簿の断片はアプリ層が引数で渡す・決定 2）。`timer-core`・`poker-core`・
+`topic-core` は `roulette-core` に依存しない。名簿・お題・ルーレットの状態をつなぐ合成はアプリ層
+（`apps/tasuki-sync`）が行う（決定 3 の形）。`roulette-core` の表現の記録（`docs/adr/0016` 決定 1）は
+`docs/adr/0026` 決定 6 である。
+
+決定 1 の見出しは「3 つに割る」のまま残す（決定当時の記録である）。**依存の向きの現況は
+`scripts/audit-dependency-direction.mjs` の `ALLOWED` を見ること。** ここへ表を写さない。

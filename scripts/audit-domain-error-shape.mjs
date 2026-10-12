@@ -126,6 +126,8 @@ export const DOMAIN_ERROR_TARGETS = [
   // ⚠ `RoomError`（表示名の規約が返していた型）は **#95 S5b で消えた** —— 規約ごと
   // `@tasuki/room-core` へ寄せたためである（上限 24 と timer の 40 の統合）。
   // **宣言から落とすのが正しい対応**で、実在しないファイルを残すと検査自体が赤くなる。
+  // roulette-core（#94）。判別子 `code` だけを持つ
+  { file: "packages/roulette-core/src/errors.ts", type: "RouletteError" },
   // timer-core（`DomainError` の合併メンバー。フィールドを持つのはこちら）
   { file: "packages/timer-core/src/errors.ts", type: "EmptyName" },
   { file: "packages/timer-core/src/errors.ts", type: "DuplicateName" },
