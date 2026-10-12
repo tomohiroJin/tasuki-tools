@@ -43,10 +43,15 @@ export function ParticipantList({ participants, you, votes }: Props) {
               {p.name}
               {p.id === you && <span className="you-mark">（あなた）</span>}
             </span>
-            {/* 公開後は札が値を見せるので「投票済み」は出さない。票が無い席だけ印を出す */}
+            {/* 公開後は札が値を見せるので「投票済み」は出さない。票が無い席だけ印を出す。
+                印は見える字だけにする（札の `aria-label` が既に「未投票」を読み上げるので、2 回読ませない・#348 のレビュー） */}
             {votes === null
               ? p.hasVoted && <span className="badge voted">投票済み</span>
-              : !vote && <span className="no-vote">未投票</span>}
+              : !vote && (
+                  <span className="no-vote" aria-hidden="true">
+                    未投票
+                  </span>
+                )}
             {!p.connected && <span className="badge">切断中</span>}
           </li>
         );

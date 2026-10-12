@@ -175,6 +175,14 @@ test.describe('poker は 2 人目の参加者が公開でき、次のラウン�
     await expect(seatCard(page, GUEST), '公開後の2人目の札').toHaveAccessibleName('5');
     await expect(participantRow(page, HOST).getByText('未投票', { exact: true }), '公開後の作成者の席').toBeVisible();
 
+    // Then その2b（#348 のレビュー）: 集計は札がめくれる公開のときだけ最後の札の後まで待つ。目の前で公開された
+    //   作成者の画面では待ち（2 席: 90ms + 0.45s）があり、再読み込みで最初から公開済みで描くと札はめくれないので待たない
+    const statsDelay = () => page.locator('.results .stats').evaluate((el) => parseFloat(getComputedStyle(el).animationDelay));
+    expect(await statsDelay(), '目の前の公開で集計が最後の札を待っていない').toBeGreaterThan(0.4);
+    await page.reload();
+    await expect(resultsSection(page), '再読み込み後の作成者の画面').toBeVisible();
+    expect(await statsDelay(), '最初から公開済みで描いたのに集計が待っている').toBe(0);
+
     // When その2: **同じ、ルームを作った本人ではない**2人目が「次のラウンドへ」を押す
     await guest.page.getByRole('button', { name: '次のラウンドへ' }).click();
 

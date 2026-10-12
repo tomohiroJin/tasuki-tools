@@ -74,6 +74,17 @@ export function RoomPage({ roomId, sync }: Props) {
   // お題の札を見せるか。**手元だけの状態**で、他の人の画面には影響しない。お題が差し替わっても保つ
   // （お題は無いことが多く、あれば見られる程度でよい・#316 PR 1 の利用者の指摘）。
   const [topicOpen, setTopicOpen] = useState(true);
+  // 公開を投票中から見届けたか（#348 のレビュー）。席の札が CSS の transition でめくれるのは、投票中の札が
+  // 描かれていて、それが公開に変わったときだけ。再読み込み・途中入室・再接続で最初から公開済みで描くと、札は
+  // めくれずに表で出る。集計を最後の札のめくりの後まで待たせるのも、この同じ条件のときだけにする。
+  // 前の描画の状態と比べて決める（描画中に状態を調整する React の型。状態が変わったときだけ書き換える）。
+  const roundStatus = sync.snapshot?.round.status;
+  const [seenStatus, setSeenStatus] = useState(roundStatus);
+  const [revealedLive, setRevealedLive] = useState(false);
+  if (roundStatus !== seenStatus) {
+    setSeenStatus(roundStatus);
+    setRevealedLive(seenStatus === 'voting' && roundStatus === 'revealed');
+  }
   // 端末に同一性が無ければ、**玄関の参加画面へ送り返す**（#95 S5c・R9）。
   //
   // **接続を待たない。** timer は同じ決定を mount 時の効果で、接続状態を見ずに適用する
@@ -244,9 +255,9 @@ export function RoomPage({ roomId, sync }: Props) {
       </header>
       <ErrorNote error={sync.error} onClose={sync.clearError} />
       {/* 段組み（#316・ADR 0025）。64rem 以上は左に読む面（お題）・右に操作の面（場 → 手札 → 結果）。
-          DOM は狭い幅で見せたい順（お題 → 場 → 手札）。お題が無い・隠したときは脇が無く、部品が主を 1 列にし、
-          幅と中央寄せは index.css の `.room-main` が持つ。
-          閉じた脇は幅 0・`inert` で DOM に残し、段組みの列を移り変わらせる（#348）。 */}
+          DOM は狭い幅で見せたい順（お題 → 場 → 手札）。隠した脇は DOM に残し（`data-state="closed"`・`inert`）、
+          64rem 以上では段組みが列を 2 本のまま持って脇の列を幅 0 へ移り変わらせる。お題が無いときは脇が無い。
+          どちらも操作の面は約 46rem で中央に寄る（幅・中央寄せ・移り変わりは index.css の `.room-main` が持つ・#348）。 */}
       <div className="ui-workspace ui-workspace--reader">
         {sync.topic && (
           <div
@@ -265,7 +276,7 @@ export function RoomPage({ roomId, sync }: Props) {
           {isVoting ? (
             <VotingSection snapshot={snapshot} sync={sync} />
           ) : (
-            <RevealedSection snapshot={snapshot} sync={sync} />
+            <RevealedSection snapshot={snapshot} sync={sync} revealedLive={revealedLive} />
           )}
         </div>
       </div>
@@ -302,9 +313,12 @@ function VotingSection({
 function RevealedSection({
   snapshot,
   sync,
+  revealedLive,
 }: {
   snapshot: RoomStateMessage;
   sync: PokerSync;
+  /** 公開を投票中から見届けた（席の札がめくれる）。集計の待ちはこのときだけ */
+  revealedLive: boolean;
 }) {
   if (snapshot.round.status !== 'revealed') return null;
   const { stats } = snapshot.round;
@@ -312,7 +326,7 @@ function RevealedSection({
 
   return (
     <>
-      <Results stats={stats} seatCount={snapshot.participants.length} />
+      <Results stats={stats} seatCount={snapshot.participants.length} afterFlip={revealedLive} />
       {/* かつてはホストだけに出ていたが、#95 S3 でホストを廃止し全参加者へ開放した */}
       <div className="ui-actions ui-actions--dock">
         {/* 再投票と次ラウンドはドメイン上同一操作（next-round）。ラベルのみ区別（FR-011）。主は最後 */}

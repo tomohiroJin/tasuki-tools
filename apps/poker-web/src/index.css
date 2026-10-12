@@ -63,12 +63,12 @@
   max-width: 100%;
   margin-inline: auto;
   container: room-main / inline-size;
-  transition: max-width 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 /* 脇（お題の札）を閉じたとき・お題が無いときは、操作の面を約 46rem の幅で中央に寄せる。広い画面で場と手札が
-   左へ寄って見えるため（#316 PR 1・利用者の指摘）。`max-width` の移り変わりで、`margin-inline: auto` が毎フレーム
-   中央に寄せ直すので、お題の出し入れで操作の面が跳ばず滑る（#348 D7）。
+   左へ寄って見えるため（#316 PR 1・利用者の指摘）。幅を問わず当てる（#348 より前の規則と同じ）。
+   64rem 以上では `max-width` を移り変わらせ、`margin-inline: auto` が毎フレーム中央に寄せ直すので、お題の出し入れで
+   操作の面が跳ばず滑る（#348 D7。移り変わりは下の 64rem 以上の media の中）。
    詳細度: 部品の `.ui-workspace:not(:has(> .ui-workspace-side)) > …` ではなく、閉じた状態そのものを見る。 */
 .room .ui-workspace--reader:not(:has(> .room-topic-side[data-state='open'])) > .room-main {
   max-width: 46rem;
@@ -77,22 +77,26 @@
 /* ---------- お題の脇の出し入れ（#348 D7・D8） ---------- */
 
 /* 閉じた読む面は DOM に残し、幅 0 で持つ。閉じるときは不透明度を先に落とし、列が縮み切ってから
-   `visibility` を外す（縮む間は見えない・触れない）。`inert` と合わせて Tab の行き先にも読み上げにもならない。 */
+   `visibility` を外す（縮む間は見えない・触れない）。`inert` と合わせて Tab の行き先にも読み上げにもならない。
+   `max-height` も縮み切ってから 0 にする（64rem 以上の media の中）。幅 0 の読む面は本文が 1 字ずつ折り返して
+   札の最大の高さまで伸びるので、高さを残すと行の背丈が伸び、操作の面の下に空白が残る（#348 のレビュー）。 */
 .room-topic-side[data-state='closed'] {
   opacity: 0;
   visibility: hidden;
   overflow: clip;
   transition:
     opacity 0.15s ease,
-    visibility 0s linear 0.32s;
+    visibility 0s linear 0.32s,
+    max-height 0s linear 0.32s;
 }
 
-/* 開くときは列が広がり始めてから不透明度を上げる。 */
+/* 開くときは列が広がり始めてから不透明度を上げる。高さはすぐ戻す。 */
 .room-topic-side[data-state='open'] {
   opacity: 1;
   transition:
     opacity 0.2s ease 0.12s,
-    visibility 0s;
+    visibility 0s,
+    max-height 0s;
 }
 
 /* お題が届いて区画が足された瞬間は、不透明度 0 から立ち上げる。 */
@@ -131,6 +135,22 @@
   /* 操作の面はいつも 2 列目（部品は脇が無いと 1 列目へ寄せる。(0,3,0) でそれに勝つ）。 */
   .room .ui-workspace--reader > .ui-workspace-main {
     grid-column: 2;
+  }
+
+  /* 中央寄せの幅の移り変わり。64rem 未満では脇が縦に積まれ、閉じると即座に消える（`display: none`）ので、
+     ここで移り変わらせると「脇が消える → 操作の面が遅れて狭まる」の 2 段の動きになる。だから 64rem 以上だけ */
+  .room-main {
+    transition: max-width 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  /* 開いた読む面の高さの上限。`max-height` は長さどうしでないと遅延つきで切り替えられない（`none` は補間できず、
+     遅延を待たずに即座に変わる）。札の高さは `100dvh - 14rem` 以下なので、画面の高さは届かない上限になる。 */
+  .room-topic-side[data-state='open'] {
+    max-height: 100dvh;
+  }
+
+  .room-topic-side[data-state='closed'] {
+    max-height: 0;
   }
 }
 
@@ -309,9 +329,14 @@
 }
 
 /* 集計は最後の札のめくりが終わるころに現れる（#348 D5）。待ちは席の数で決まる。
+   待つのは札がめくれる公開（投票中から見届けた・`.results--after-flip`）だけ。再読み込み・途中入室で最初から
+   公開済みで描くと札はめくれないので、待たずに立ち上げる（#348 のレビュー）。
    遅延は要素層の reduced-motion の一括の手当てが 0 にする（timer は要素層を読まないが、poker は読む）。 */
 .results .stats {
   animation: stats-rise 0.3s ease both;
+}
+
+.results--after-flip .stats {
   animation-delay: calc(min(var(--seat-count, 1) - 1, 8) * 90ms + 0.45s);
 }
 

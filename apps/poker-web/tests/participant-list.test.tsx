@@ -29,6 +29,18 @@ function rowOf(name: string): HTMLElement {
   return li;
 }
 
+/**
+ * 支援技術が読み上げる中身（近似）。`aria-hidden` の部分木は飛ばし、`role="img"` は `aria-label` だけを読む
+ * （img の子は表示用で読まれない）。それ以外は文字をそのまま連ねる。
+ */
+function spokenText(node: Node): string {
+  if (node.nodeType === Node.TEXT_NODE) return node.textContent ?? '';
+  if (!(node instanceof HTMLElement)) return '';
+  if (node.getAttribute('aria-hidden') === 'true') return '';
+  if (node.getAttribute('role') === 'img') return ` ${node.getAttribute('aria-label') ?? ''} `;
+  return [...node.childNodes].map(spokenText).join('');
+}
+
 describe('ParticipantList の席の札（#348）', () => {
   it('U1: Given 公開後 / When 描く / Then 票のある席の札の名前は表の値、無い席は「未投票」', () => {
     render(<ParticipantList participants={people(true)} you="p1" votes={new Map([['p1', five]])} />);
@@ -36,6 +48,12 @@ describe('ParticipantList の席の札（#348）', () => {
     expect(within(rowOf('あかり')).queryByText('投票済み')).toBeNull();
     expect(within(rowOf('いずみ')).getByRole('img').getAttribute('aria-label')).toBe('未投票');
     expect(within(rowOf('いずみ')).getByText('未投票')).toBeTruthy();
+  });
+
+  it('U7: Given 公開後の未投票の席 / When 読み上げる中身を取る / Then 「未投票」は 1 回だけ（札の名前と見える印で 2 回読ませない）', () => {
+    render(<ParticipantList participants={people(true)} you="p1" votes={new Map([['p1', five]])} />);
+    const spoken = spokenText(rowOf('いずみ'));
+    expect(spoken.split('未投票').length - 1, spoken).toBe(1);
   });
 
   it('U1 対照: Given 投票中 / When 描く / Then 票の値は出ず、名前は「投票済み」', () => {

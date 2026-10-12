@@ -1367,14 +1367,6 @@ export const MUTATIONS = [
     note: "#348・設計正本 D6。表の値が読み上げに出ない。U1 が公開後の名前を見る。",
   },
   {
-    id: 145,
-    label: "動きを抑える設定でも演出の遅延が残る",
-    patch: "m145-reduced-motion-keeps-delays.patch",
-    pkg: "packages/ui",
-    tests: ["tests/reduced-motion.test.mjs"],
-    note: "#348・設計正本 D5。遅延が残ると fill-mode: both の演出が 0% の姿で消えたまま待つ。実際の効きは poker-a11y の E2E も見る。",
-  },
-  {
     id: 143,
     label: "閉じたお題の脇を DOM から外す",
     patch: "m143-topic-side-unmounts-when-closed.patch",
@@ -1389,6 +1381,14 @@ export const MUTATIONS = [
     pkg: "apps/poker-web",
     tests: ["tests/current-topic.test.tsx"],
     note: "#348・設計正本 D7。閉じた札が Tab の行き先と読み上げに残る。U5・U6 が inert を見る。",
+  },
+  {
+    id: 145,
+    label: "動きを抑える設定でも演出の遅延が残る",
+    patch: "m145-reduced-motion-keeps-delays.patch",
+    pkg: "packages/ui",
+    tests: ["tests/reduced-motion.test.mjs"],
+    note: "#348・設計正本 D5。遅延が残ると fill-mode: both の演出が 0% の姿で消えたまま待つ。実際の効きは poker-a11y の E2E も見る。",
   },
 ];
 
