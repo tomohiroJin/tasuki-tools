@@ -1,0 +1,26 @@
+# 変異 164: 動きを減らす設定でも回す（最終の角度へ置かず、rAF で回してしまう）
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/wheel.test.tsx
+#     describe「動きを減らす設定」の「最初の描画で最終の角度・当たりの席・札の表。rAF は 1 度も呼ばない」
+#     describe「止まったら札を見える位置へ寄せる」の「動きを減らす設定で札が見えていない / 滑らかにせず寄せる」
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m164-*.patch
+# 復元: git apply -R scripts/mutations/m164-*.patch
+#
+# #94 spec §6.5。rAF の回転は CSS の一括の手当て（transition-duration: 0.01ms）の外にあるので、
+# 動きを減らす設定は JS が自分で止める。ここを忘れると設定を無視して 4 秒回る。
+diff --git a/apps/roulette-web/src/hooks/use-wheel-rotation.ts b/apps/roulette-web/src/hooks/use-wheel-rotation.ts
+index 09cc6638..e32fe594 100644
+--- a/apps/roulette-web/src/hooks/use-wheel-rotation.ts
++++ b/apps/roulette-web/src/hooks/use-wheel-rotation.ts
+@@ -70,7 +70,7 @@ export function useWheelRotation(input: {
+     const n = spin.wheel.length;
+     // 受け取った直後に古い「いま」を使うと経過が負になる。基準の組より前には戻さない
+     const elapsed = Math.min(spin.durationMs, Math.max(0, spin.elapsedMs + (Math.max(now, receivedAt) - receivedAt)));
+-    settled = reducedMotion || elapsed >= spin.durationMs || endedSeq === spin.seq;
++    settled = elapsed >= spin.durationMs || endedSeq === spin.seq;
+     angle = settled
+       ? finalAngle(n, spin.winnerIndex, spin.settle, pointerDeg, a.startDeg)
+       : angleAt(elapsed, spin.durationMs, n, spin.winnerIndex, spin.settle, a.pointerDeg, a.startDeg);

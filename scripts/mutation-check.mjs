@@ -1600,6 +1600,38 @@ export const MUTATIONS = [
     tests: ["tests/wheel-motion.test.ts"],
     note: "#94 spec §6.4。回し始めの角度が 0° 以外の画面（前の回転の止まった位置から回す画面）だけ別の席で止まる。開始角 0° だけのテストでは殺せない。",
   },
+  {
+    id: 164,
+    label: "動きを減らす設定でも回す",
+    patch: "m164-reduced-motion-still-spins.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/wheel.test.tsx"],
+    note: "#94 spec §6.5。rAF の回転は CSS の一括の手当ての外なので JS が止める。忘れると設定を無視して 4 秒回り、当たりの席と札が回転の後まで出ない。",
+  },
+  {
+    id: 174,
+    label: "回転の終わりを timer で保証しない",
+    patch: "m174-spin-end-relies-on-raf.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/wheel.test.tsx"],
+    note: "#94 spec §6.4。裏のタブ・ヘッドレスでは rAF が止まる。終わりを rAF に頼ると、当たりの席と札の表が出ないまま止まって見える。",
+  },
+  {
+    id: 175,
+    label: "止まったとき札が見えていても必ず寄せる",
+    patch: "m175-scroll-card-always.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/wheel.test.tsx"],
+    note: "#94 spec §6.4・E22。見えているのに画面を動かす。隠れているときに呼ぶことだけを見るテストでは殺せない。",
+  },
+  {
+    id: 176,
+    label: "札が見えるかの判定が下端の帯を数えない",
+    patch: "m176-scroll-ignores-dock.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/wheel.test.tsx"],
+    note: "#94 spec E22・§6.7。320×640 で下端に留まる帯が札を覆っても、窓に収まっていれば寄せない（名前が帯に隠れたまま）。",
+  },
 ];
 
 /**

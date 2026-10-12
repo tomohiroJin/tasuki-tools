@@ -260,9 +260,9 @@ describe('止まったら札を見える位置へ寄せる', () => {
     expect(scroll).not.toHaveBeenCalled();
   });
 
-  it('Given 札が下端の帯に隠れている / When 止まる / Then block: nearest で寄せる', () => {
-    // Given
-    stubRects({ top: 640, bottom: 800 });
+  it('Given 札が下端の帯に隠れている（窓の中だが帯の下） / When 止まる / Then block: nearest で寄せる', () => {
+    // Given: 窓の高さは 768・帯の上端は 700。札は窓に収まるが、帯に掛かる
+    stubRects({ top: 600, bottom: 740 });
     enterRoom();
     deliver(spinState(1, 0));
     expect(scroll).not.toHaveBeenCalled();

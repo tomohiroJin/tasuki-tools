@@ -1,0 +1,25 @@
+# 変異 174: 回転の終わりを timer で保証しない（rAF が止まると止まらない）
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/wheel.test.tsx
+#     describe「回転」の「Given rAF を 1 度も呼ばない環境 / When durationMs が過ぎる / Then timer で止まり、当たりの席と札の表が出る」
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m174-*.patch
+# 復元: git apply -R scripts/mutations/m174-*.patch
+#
+# #94 spec §6.4。裏のタブやヘッドレスのブラウザでは rAF が止まる・間引かれる（2026-10-12 のヘッドレスの
+# 撮影で、4 秒の回転が 14 秒後まで止まって見えなかった）。終わりは rAF に頼らず、残り時間の timer が保証する。
+diff --git a/apps/roulette-web/src/hooks/use-wheel-rotation.ts b/apps/roulette-web/src/hooks/use-wheel-rotation.ts
+index 09cc6638..65c0d378 100644
+--- a/apps/roulette-web/src/hooks/use-wheel-rotation.ts
++++ b/apps/roulette-web/src/hooks/use-wheel-rotation.ts
+@@ -86,7 +86,7 @@ export function useWheelRotation(input: {
+   useEffect(() => {
+     if (seq === null || reducedMotion) return;
+     const remaining = durationMs - elapsedMs - (performance.now() - receivedAt);
+-    const timer = setTimeout(() => setEndedSeq(seq), Math.max(0, remaining) + 30);
++    const timer = setTimeout(() => undefined, Math.max(0, remaining) + 30);
+     return () => clearTimeout(timer);
+   }, [seq, durationMs, elapsedMs, receivedAt, reducedMotion]);
+ 
