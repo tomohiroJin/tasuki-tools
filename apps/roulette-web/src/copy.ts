@@ -2,7 +2,11 @@
  * ルーレットの UI 文言のすべて（#94 spec §6.6）。
  *
  * **画面（`.tsx`）に日本語を直書きしない。** `tests/copy-fits-font-base.test.ts` が、ここにある
- * 文言だけを書体の常用の層（base）に当てて守っている。直書きした文言はその検査を素通りする。
+ * 文言（関数は仮の名前で呼んだ結果）だけを書体の常用の層（base）に当てて守っている。
+ * 直書きした文言はその検査を素通りする。
+ *
+ * 使えない字がある（spec §2）: 「当たる」→「選ばれる」・「一巡」→「一周」・「名前を足す」→「名前を追加」・
+ * 「候補」→「入る人」。「誰」は使わない。「以上」の「以」も外れる（「24 人まで」と書く）。
  */
 
 export const LOADING_TEXT = '読み込んでいます…';
@@ -10,6 +14,47 @@ export const JOINING_HEADING = 'ルームに参加しています';
 export const GONE_HEADING = 'ルームが見つかりません';
 export const GONE_TEXT = 'ルームは終了したか、リンクが正しくない可能性があります。';
 export const GONE_LINK = 'トップへ戻る';
+
+export const PAGE_HEADING = '進行役ルーレット';
+export const BACK_LINK = '選択画面へ戻る';
+/** 舞台（操作の面）の見出し。目には出さず、領域の名前にする */
+export const STAGE_HEADING = 'ルーレット';
+
+// お題の添え書き（お題が無ければ出さない）
+export const topicNoteText = (title: string): string => `お題「${title}」の進行役を決めます`;
+
+// 主ボタン
+export const SPIN_BUTTON = 'ルーレットを回す';
+export const SPINNING_BUTTON = '回しています…';
+export const SPIN_AGAIN_BUTTON = 'もう一度回す';
+
+// 結果の一言（role="status"）
+export const CAPTION_IDLE = '回すと、次の進行役が決まります';
+export const spunByText = (name: string): string => `${name} さんが回しました`;
+export const resultText = (name: string): string => `次の進行役は ${name} さんです`;
+export const TOO_FEW_TEXT = '2 人から回せます';
+
+// 脇: ルーレットに入る人
+export const PEOPLE_HEADING = 'ルーレットに入る人';
+export const SELF_SUFFIX = '（あなた）';
+export const AWAY_MARK = '離席中';
+export const DRAWN_MARK = '選ばれた';
+export const GUEST_HINT = 'ルームにいない人も、名前を追加すれば入れられます';
+export const GUEST_ADD_BUTTON = '名前を追加';
+export const GUEST_REMOVE_BUTTON = '名前を消す';
+export const guestRemoveLabel = (name: string): string => `${name} の名前を消す`;
+
+// 一周
+export const CYCLE_NOTE = '全員が一周するまで、同じ人は選ばれません';
+export const cycleProgressText = (drawn: number, pool: number): string => `この一周で選ばれた人 ${drawn} / ${pool}`;
+export const CYCLE_RESET_BUTTON = '一周をやり直す';
+
+// 脇: 招待（玄関と同じ見出し）
+export const INVITE_HEADING = '仲間を招く';
+export const INVITE_COPY_BUTTON = '招待リンクをコピー';
+export const INVITE_COPIED = 'コピーしました';
+export const INVITE_COPY_FAILED = 'コピーできません（URL を選択してください）';
+export const INVITE_URL_LABEL = '参加用 URL';
 
 /** 参加の失敗のうち、サーバーの文言を持たない（または空の）ときの既定。 */
 export const DEFAULT_ERROR_TEXT = '操作を完了できませんでした';

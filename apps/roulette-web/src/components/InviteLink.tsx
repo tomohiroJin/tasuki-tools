@@ -1,0 +1,18 @@
+import { useCopyText } from '@tasuki/invite-ui';
+import { INVITE_COPIED, INVITE_COPY_BUTTON, INVITE_COPY_FAILED, INVITE_URL_LABEL } from '../copy';
+
+export function InviteLink({ url }: { url: string }) {
+  const { state, copy } = useCopyText(url);
+  return (
+    <div className="ui-invite">
+      <span className="ui-invite-url" aria-label={INVITE_URL_LABEL}>
+        {url}
+      </span>
+      <button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={copy}>
+        {state === 'done' && INVITE_COPIED}
+        {state === 'failed' && INVITE_COPY_FAILED}
+        {state === 'idle' && INVITE_COPY_BUTTON}
+      </button>
+    </div>
+  );
+}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { LoadingView } from './components/LoadingView';
+import { RouletteRoom } from './screens/RouletteRoom';
 import { parseRoute, redirectTo } from './router';
 
 export function App() {
@@ -11,6 +12,6 @@ export function App() {
     if (route.name === 'redirect') redirectTo(route.to);
   }, [route]);
 
-  // ルームの画面は 2.3 で足す。それまでは読み込み中の画面を出す。
+  if (route.name === 'room') return <RouletteRoom roomCode={route.roomCode} />;
   return <LoadingView />;
 }
