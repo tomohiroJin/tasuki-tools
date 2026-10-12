@@ -469,6 +469,22 @@ importers:
         specifier: ^4.1.11
         version: 4.1.11(@types/node@26.6.4)(@vitest/coverage-v8@4.1.11)(jsdom@30.1.2)(vite@8.3.2(@types/node@26.6.4)(jiti@2.7.0))
 
+  packages/roulette-core:
+    dependencies:
+      neverthrow:
+        specifier: ^8.1.1
+        version: 8.2.0
+      valibot:
+        specifier: ^1.0.0
+        version: 1.5.0(typescript@6.0.3)
+    devDependencies:
+      '@vitest/coverage-v8':
+        specifier: ^4.1.11
+        version: 4.1.11(vitest@4.1.11)
+      vitest:
+        specifier: ^4.1.11
+        version: 4.1.11(@types/node@26.6.4)(@vitest/coverage-v8@4.1.11)(jsdom@30.1.2)(vite@8.3.2(@types/node@26.6.4)(jiti@2.7.0))
+
   packages/sync-client:
     devDependencies:
       jsdom:

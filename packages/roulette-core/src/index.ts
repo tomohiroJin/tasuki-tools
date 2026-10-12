@@ -1,0 +1,1 @@
+export { SPIN_DURATION_MS, MAX_GUESTS, MAX_WHEEL, SETTLE_MIN, SETTLE_MAX } from "./limits.js";
