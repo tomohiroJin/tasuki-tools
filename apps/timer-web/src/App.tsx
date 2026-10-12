@@ -33,7 +33,9 @@ import { useTimerSync } from "./sync/use-timer-sync.js";
 function pageOf(historyOpen: boolean, sessionLost: boolean, mode: string | null | undefined, hasRoom: boolean): "prose" | "default" | "wide" {
   if (historyOpen) return "default";
   if (sessionLost) return "prose";
-  if ((mode === "lobby" || mode === "session" || mode === "celebration") && hasRoom) return "wide";
+  // ルームの画面が決まっていて（`mode` が非 null）、ルームがある間は、段階（ロビー・セッション・まとめ）を問わず部屋の器。
+  // ここに画面名を列挙しない。段階を足しても器は変わらない（#352）
+  if (mode != null && hasRoom) return "wide";
   return "prose";
 }
 

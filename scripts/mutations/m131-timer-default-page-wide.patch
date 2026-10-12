@@ -11,13 +11,12 @@
 #       git apply scripts/mutations/m131-*.patch
 # 復元: git apply -R scripts/mutations/m131-*.patch
 diff --git a/apps/timer-web/src/App.tsx b/apps/timer-web/src/App.tsx
-index 09e7fe74..75fa7805 100644
 --- a/apps/timer-web/src/App.tsx
 +++ b/apps/timer-web/src/App.tsx
-@@ -34,7 +34,7 @@ function pageOf(historyOpen: boolean, sessionLost: boolean, mode: string | null
-   if (historyOpen) return "default";
-   if (sessionLost) return "prose";
-   if ((mode === "lobby" || mode === "session" || mode === "celebration") && hasRoom) return "wide";
+@@ -35,7 +35,7 @@ function pageOf(historyOpen: boolean, sessionLost: boolean, mode: string | null
+   // ルームの画面が決まっていて（`mode` が非 null）、ルームがある間は、段階（ロビー・セッション・まとめ）を問わず部屋の器。
+   // ここに画面名を列挙しない。段階を足しても器は変わらない（#352）
+   if (mode != null && hasRoom) return "wide";
 -  return "prose";
 +  return "wide";
  }
