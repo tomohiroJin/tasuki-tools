@@ -1033,7 +1033,9 @@ export const MUTATIONS = [
     label: "planForError が抜けた知らせを left ではなく show へ落とす",
     patch: "m93-join-error-plan-left-falls-to-show.patch",
     pkg: "apps/topic-web",
-    tests: ["tests/use-topic-sync.test.tsx", "tests/join-error-plan.test.ts"],
+    // #94 PR 2 で規則を `@tasuki/sync-client` の `planForJoinError` へ寄せた（パッチの対象もそちら）。
+    // 単体は sync-client のテストが持ち、ここでは利用側の同期フックの配線で見る。
+    tests: ["tests/use-topic-sync.test.tsx"],
     note:
       "#91 PR 2。`LEFT_ROOM` / `REMOVED_FROM_ROOM` / `REMOVED_BY_HOST` の 2 行を消す。" +
       "抜けた・外された知らせが、玄関へ理由つきで戻す `left` ではなく「その場でサーバーの" +
