@@ -1574,6 +1574,22 @@ export const MUTATIONS = [
     tests: ["tests/use-roulette-sync.test.tsx"],
     note: "#94 E17・spec §6.4（PR #357 のレビュー）。回転中の外す・戻すや再接続で同じ seq が届くたびに経過を二重に数え、止まる時刻が前へずれる。",
   },
+  {
+    id: 181,
+    label: "同名で外れたゲストのチェックを押せるままにする",
+    patch: "m181-twin-guest-check-enabled.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/roulette-view.test.ts", "tests/roulette-room.test.tsx"],
+    note: "#94 spec R13（PR #357 のレビュー）。押しても入る人に戻らない（何も起きない）チェックが残る。",
+  },
+  {
+    id: 182,
+    label: "結果の一言で入る人の数を止まった結果より先に見る",
+    patch: "m182-caption-too-few-hides-result.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/roulette-view.test.ts"],
+    note: "#94 spec §6.8（PR #357 のレビュー）。発表の後で入る人が 1 人に減ると、発表した結果が「2 人から回せます」に消える。",
+  },
 ];
 
 /**

@@ -1,0 +1,27 @@
+# 変異 181: 同名で外れたゲストのチェックを押せるままにする
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/roulette-view.test.ts
+#   - apps/roulette-web/tests/roulette-room.test.tsx
+#
+# roulette-view: describe「在室者と同じ名前のゲスト」の「…Then 同名の方だけチェックを押せない」
+# roulette-room: describe「回す・入る人・一周の操作」の「Given 在室者と同じ名前のゲスト / …Then そのチェックは押せず…」
+# (PR #357 の /code-review)
+# #94 spec R13。同名で外れたゲストのチェックが押せるのに、押しても入る人に戻らない（何も起きない）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m181-*.patch
+# 復元: git apply -R scripts/mutations/m181-*.patch
+diff --git a/apps/roulette-web/src/roulette-view.ts b/apps/roulette-web/src/roulette-view.ts
+index 3f5808ea..1e480964 100644
+--- a/apps/roulette-web/src/roulette-view.ts
++++ b/apps/roulette-web/src/roulette-view.ts
+@@ -148,7 +148,7 @@ export function peopleOf(input: {
+       checked: poolIds.has(g.id),
+       // 同名で外れている間は、チェックを入れても入る人に戻らない（押しても何も起きない）ので押させない。
+       // 理由は印の文言が言う（画面は印をチェックの説明に結び付ける）。
+-      disabled: twin,
++      disabled: false,
+       isSelf: false,
+       removable: true,
+       mark: markOf(g.id, false, twin),

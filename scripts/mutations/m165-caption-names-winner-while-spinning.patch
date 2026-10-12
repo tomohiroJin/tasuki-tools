@@ -15,17 +15,17 @@
 # 言ってしまう。変異は「回している間」の分岐を外し、局面に関わらず当たりを言う。
 # **止まった後に見るだけのテストでは殺せない**（最後は同じ文になる）。回っている最中に見る。
 diff --git a/apps/roulette-web/src/roulette-view.ts b/apps/roulette-web/src/roulette-view.ts
-index b4034686..38af74ab 100644
+index 3f5808ea..1c68bd7a 100644
 --- a/apps/roulette-web/src/roulette-view.ts
 +++ b/apps/roulette-web/src/roulette-view.ts
-@@ -164,9 +164,8 @@ export function cycleLineOf(drawnCount: number, poolCount: number): string {
+@@ -170,9 +170,8 @@ export function cycleLineOf(drawnCount: number, poolCount: number): string {
   */
  export function captionOf(input: { view: RouletteView; phase: Phase; poolCount: number }): string {
    const { view, phase, poolCount } = input;
 -  if (phase === 'spinning' && view.spin !== null) return spunByText(view.spin.spunBy);
-   if (poolCount < 2) return TOO_FEW_TEXT;
+   // 止まった結果を先に言う。**発表した結果は、後から入る人が減っても消さない**（次の回転までは結果が主役）。
 -  const winner = phase === 'settled' ? winnerOf(view) : null;
 +  const winner = winnerOf(view);
-   return winner === null ? CAPTION_IDLE : resultText(winner.name);
+   if (winner !== null) return resultText(winner.name);
+   return poolCount < 2 ? TOO_FEW_TEXT : CAPTION_IDLE;
  }
- 
