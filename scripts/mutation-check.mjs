@@ -1543,6 +1543,14 @@ export const MUTATIONS = [
     note: "#94 E19・spec §6.8。円盤が止まる前に脇の一覧と一周の数で結果が分かってしまう。",
   },
   {
+    id: 169,
+    label: "玄関の札の ID が同期サーバーの綴りとずれる",
+    patch: "m169-hub-tool-id-mismatch.patch",
+    pkg: "apps/landing",
+    tests: ["tests/room-choice-layout.test.tsx"],
+    note: "#94 spec §7.3。在席の表示がルーレットに居る人を札の名前で出せず、「roulette にいます」と生の綴りが出る。型は綴りのずれを拾わない。",
+  },
+  {
     id: 162,
     label: "web が状態を受けるたびに回転の時刻の基準を取り直す",
     patch: "m162-web-receivedat-refreshed-every-frame.patch",
