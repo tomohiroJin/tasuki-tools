@@ -168,7 +168,7 @@ test.describe('文字が背景に対して読める（WCAG AA）', () => {
     //   （ルームを足さない）。リンク・インラインコード・引用・コードブロックを含む本文を書いて、プレビューに戻す
     await page.getByRole('button', { name: '編集', exact: true }).click();
     await page.getByLabel('共有メモ', { exact: true }).fill(
-      '# 見出し\n\n本文に[リンク](https://example.com)と`code`を含む。\n\n> 引用の行\n\n```\nconst a = 1;\n```',
+      '# 見出し\n\n本文に[リンク](https://example.com)と`code`と**強調**を含む。\n\n## 小見出し\n\n> 引用の行\n\n```\nconst veryLongIdentifierName = someFunction(argumentNumberOne, argumentNumberTwo, argumentNumberThree);\n```',
     );
     await page.getByRole('button', { name: 'プレビューに戻る' }).click();
     const preview = page.locator('.shared-memo-preview');
@@ -200,6 +200,23 @@ test.describe('文字が背景に対して読める（WCAG AA）', () => {
     for (const part of ['code', 'pre', 'quote'] as const) {
       expect(edges[part], `共有メモの ${part} の枠が部品の既定（--coal-soft）のままで、暗い地で読めない`).not.toBe(edges.coal);
     }
+    // 見出しの段と強調の色・コードの折り返し（#316 PR 4・`/code-review 351`）。共有メモは `#` が h3・`##` が h4。
+    // 部品の段のままだと h3 と h4 が同じ大きさになり、見出しと強調が地の字（--bone-muted）に沈む。コードブロックは 22rem の脇で横スクロールさせず折り返す
+    const [bone] = await resolveColors(page, ['--bone']);
+    const memo = await preview.evaluate((el) => {
+      const cs = (sel: string) => getComputedStyle(el.querySelector(sel)!);
+      const pre = el.querySelector('pre')!;
+      return {
+        h3: Number.parseFloat(cs('h3').fontSize), h4: Number.parseFloat(cs('h4').fontSize), p: Number.parseFloat(cs('p').fontSize),
+        colors: { h3: cs('h3').color, h4: cs('h4').color, strong: cs('strong').color },
+        preWhiteSpace: getComputedStyle(pre).whiteSpace, preOverflow: pre.scrollWidth - pre.clientWidth,
+      };
+    });
+    expect(memo.h3, '共有メモの h3（#）が h4（##）より大きくない（見出しの段が消えた）').toBeGreaterThan(memo.h4);
+    expect(memo.h4, '共有メモの h4（##）が本文と同じ大きさでない').toBe(memo.p);
+    for (const [part, color] of Object.entries(memo.colors)) expect(color, `共有メモの ${part} が --bone で浮いていない`).toBe(bone);
+    expect(memo.preWhiteSpace, '共有メモのコードブロックが折り返さない').toBe('pre-wrap');
+    expect(memo.preOverflow, '共有メモのコードブロックが横に溢れる').toBeLessThanOrEqual(0);
 
     // 危険の確認ダイアログ（#316 PR 3）。同じセッションで続けて測る（E2E 全件が同期サーバーのルーム枠 100 に近く、
     // ルームを足すと末尾のテストが「操作を完了できませんでした」で落ちる。`buttons.spec.ts` 冒頭の注釈）。

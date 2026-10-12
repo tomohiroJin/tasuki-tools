@@ -19,11 +19,8 @@
   margin: 0;
   font-weight: 700;
 }
-/* 要素は h4〜h6（札のタイトルの h3 の下へ段を下げる）だが、大きさの見た目は本文に近く保つ。 */
-/* 共有メモは h2 の下に置くので `#` が h3 になる（`headingBase` 3）。 */
-h3.ui-md-h {
-  font-size: var(--font-size-base);
-}
+/* 要素は h4〜h6（札のタイトルの h3 の下へ段を下げる）だが、大きさの見た目は本文に近く保つ。
+   h3 から始まる面（timer の共有メモ・`headingBase` 3）は、段をその面の CSS が持つ（`shared-memo.css`）。 */
 h4.ui-md-h {
   font-size: var(--font-size-base);
 }

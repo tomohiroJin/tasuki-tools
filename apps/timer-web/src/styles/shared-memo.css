@@ -76,6 +76,32 @@
   padding-block: 0.5rem;
 }
 
+/* メモの本文の見出しと強調（#316 PR 4）。共有メモは h2 の下に置くので `#` が h3・`##` が h4 になる（`headingBase` 3）。
+ * 部品の段（h4 から始まる札向け）のままだと h3 と h4 が同じ大きさで並び、段が消える。部品へ移す前の段（h3 は本文・h4 以下は sm）に戻す。
+ * 地の字は `--bone-muted` なので、見出しと強調は `--bone` で浮かせる（部品へ移す前の見た目）。h3 から始まる面はここだけなので、h3 の段も部品でなくここに置く。
+ * 部品のクラス（`ui-`）は名指ししない（timer の CSS は部品を定義し直さない・`audit-timer-classes.mjs`・設計正本 D3）。要素で指す。
+ * `.shared-memo-preview h4`（0,1,1）は部品の `h4.ui-md-h`（0,1,1）と同じ詳細度で、部品より後に読み込む（`index.css`）ので勝つ */
+.shared-memo-preview h3 {
+  font-size: var(--font-size-base);
+}
+.shared-memo-preview :is(h4, h5) {
+  font-size: var(--font-size-sm);
+}
+.shared-memo-preview h6 {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+.shared-memo-preview :is(h3, h4, h5, h6, strong) {
+  color: var(--bone);
+}
+
+/* コードブロックは折り返す。22rem の脇の狭いメモで横スクロールさせると、長い行の続きが見えない（部品へ移す前は折り返していた）。
+ * 部品の既定（折り返さず横スクロール）は札の上の面のために残す。`tabIndex={0}` は残す（折り返せない中身でスクロールが出ても届く） */
+.shared-memo-preview pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .shared-memo-empty {
   font-size: var(--font-size-sm);
   line-height: 1.45;
