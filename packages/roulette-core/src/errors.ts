@@ -13,7 +13,9 @@ export type RouletteDomainErrorCode =
   | "TOO_MANY_GUESTS"
   | "GUEST_NAME_TAKEN"
   /** 乱数源が契約（SETTLE_MIN〜SETTLE_MAX）を破った。サーバーの内部の誤りで、利用者の操作では起きない */
-  | "INVALID_SETTLE";
+  | "INVALID_SETTLE"
+  /** 乱数源が契約（`randomInt(n)` は `[0, n)`）を破った。`INVALID_SETTLE` と同じく内部の誤り（#364） */
+  | "INVALID_RANDOM";
 
 /**
  * ドメインの遷移関数が返すエラー。型引数でその関数が返しうるコードへ絞る
@@ -24,7 +26,7 @@ export type RouletteError<C extends RouletteDomainErrorCode = RouletteDomainErro
 /**
  * ルーレットの接続へ、**ルーレットのメッセージ層（`roulette-handlers.ts` の `fail`）と接続層
  * （`ws-adapter.ts` の `sendRouletteFrame`）が返すコード**（wire）。どちらも型でこの列挙に縛られている。
- * ドメインのコードのうち `INVALID_SETTLE` は内部の誤りなので載せず、`INTERNAL_ERROR` で返す。
+ * ドメインのコードのうち `INVALID_SETTLE`・`INVALID_RANDOM` は内部の誤りなので載せず、`INTERNAL_ERROR` で返す。
  *
  * **参加の失敗（`ROOM_NOT_FOUND`・`JOIN_RATE_LIMITED`・合言葉の誤りなど）は載せない。** それらは
  * `join-room.ts` が返すハブのコード体系で、ハブと同じ形（`HubServerMsg` の `error`）で届く。お題（#91）の

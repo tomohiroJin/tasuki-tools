@@ -128,6 +128,15 @@ describe("startSpin（回す）", () => {
     expect(startSpin(INITIAL_ROULETTE_STATE, spinInput({ randomSettle: () => 0.81 })).isErr()).toBe(true);
   });
 
+  it("Given randomInt が範囲外を返す / When 回す / Then INVALID_RANDOM の Err（#364）", () => {
+    // Given
+    const input = spinInput({ randomInt: () => 5 });
+    // When
+    const spun = startSpin(INITIAL_ROULETTE_STATE, input);
+    // Then
+    expect(spun._unsafeUnwrapErr()).toEqual({ code: "INVALID_RANDOM" });
+  });
+
   it("在室者と同じ名前のゲストは円盤に載らない（同じ人が 2 席にならない）", () => {
     // Given: ゲスト「あおい」を足した後で、在室の「あおい」と同じ名前になった
     const s = stateWith({ guests: [{ id: "g-1", name: "あおい" }], nextGuestSeq: 2 });

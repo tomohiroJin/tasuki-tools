@@ -1,6 +1,8 @@
 /**
  * 一周の規則で当たりを引く（#94 spec R6）。
  */
+import { err, ok, type Result } from "neverthrow";
+import type { RouletteError } from "./errors.js";
 import type { Entry, RouletteState } from "./types.js";
 
 export interface DrawResult {
@@ -20,8 +22,15 @@ export interface DrawResult {
  *
  * `randomInt(n)` は `[0, n)` の整数を返す注入された関数（ドメインは環境から値を読まない）。
  * **pool が 1 人のときは呼ばない前提**: `startSpin` が `ROULETTE_TOO_FEW` で先に拒む。
+ *
+ * `randomInt` が契約を破ったら `INVALID_RANDOM` を返す（#364 までは `RangeError` を投げていた。
+ * ドメインは投げない —— `scripts/audit-domain-side-effects.mjs`）。
  */
-export function drawWinner(pool: readonly Entry[], state: RouletteState, randomInt: (n: number) => number): DrawResult {
+export function drawWinner(
+  pool: readonly Entry[],
+  state: RouletteState,
+  randomInt: (n: number) => number,
+): Result<DrawResult, RouletteError<"INVALID_RANDOM">> {
   let drawn = new Set(state.drawn);
   let eligible = pool.filter((e) => !drawn.has(e.id));
   if (eligible.length === 0) {
@@ -30,10 +39,8 @@ export function drawWinner(pool: readonly Entry[], state: RouletteState, randomI
     eligible = pool.length >= 2 ? pool.filter((e) => e.id !== last) : [...pool];
   }
   const picked = eligible[randomInt(eligible.length)];
-  if (picked === undefined) {
-    // randomInt が契約（[0, n)）を破った。サーバーの乱数源は契約を守るので、ここへは来ない
-    throw new RangeError("randomInt returned an out-of-range index");
-  }
+  // randomInt が契約（[0, n)）を破った。サーバーの乱数源は契約を守るので、ここへは来ない
+  if (picked === undefined) return err({ code: "INVALID_RANDOM" });
   const winnerIndex = pool.findIndex((e) => e.id === picked.id);
-  return { winnerIndex, drawn: [...drawn, picked.id] };
+  return ok({ winnerIndex, drawn: [...drawn, picked.id] });
 }

@@ -49,3 +49,14 @@ export const CONN_REJECT_REASONS = {
   origin: publicText("origin"), // log-hygiene:allow 語彙定義
   tool: publicText("tool"), // log-hygiene:allow 語彙定義
 } as const satisfies Record<string, LogSafe>;
+
+/**
+ * 例外の名前のうち、例外を介さずに出す必要があるもの（#364）。
+ *
+ * roulette の乱数源の契約違反は、かつてドメインが `RangeError` を投げ、接続層が
+ * `on-message-error name=RangeError` を残していた。ドメインが `Result` を返すようになった後も
+ * **同じ行を残す**ため、ハンドラがこの語彙で同じ名前を出す（`roulette-handlers.ts`）。
+ */
+export const ERROR_NAMES = {
+  rangeError: publicText("RangeError"), // log-hygiene:allow 語彙定義
+} as const satisfies Record<string, LogSafe>;

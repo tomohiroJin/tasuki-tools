@@ -1,11 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { drawWinner } from "../src/draw.js";
+import { drawWinner as drawWinnerResult } from "../src/draw.js";
 import { INITIAL_ROULETTE_STATE, type Entry, type RouletteState } from "../src/index.js";
 
 const A: Entry = { id: "p-a", name: "あおい" };
 const B: Entry = { id: "p-b", name: "健太" };
 const C: Entry = { id: "p-c", name: "Ren" };
 const D: Entry = { id: "p-d", name: "遅れて来た人" };
+
+/**
+ * 契約を守る乱数での引き。**#364 で `drawWinner` は `Result` を返すようになった**ので、
+ * 乱数が契約を守る組はここで中身を取り出す（取り出せなければ前提の誤りとして落ちる）。
+ */
+const drawWinner = (...args: Parameters<typeof drawWinnerResult>) => drawWinnerResult(...args)._unsafeUnwrap();
 
 /** 常に 0 を返す偽の乱数。「選べる先頭」を引き続ける最悪の偏りを作る */
 const alwaysZero = (): number => 0;
@@ -112,7 +118,12 @@ describe("drawWinner（一周の規則）", () => {
     expect(winnerIndex).toBe(2);
   });
 
-  it("randomInt が範囲外を返したら RangeError（契約違反を黙って通さない）", () => {
-    expect(() => drawWinner([A, B], INITIAL_ROULETTE_STATE, () => 5)).toThrow(RangeError);
+  it("Given randomInt が範囲外を返す / When 引く / Then INVALID_RANDOM の Err（契約違反を黙って通さない・#364 で投げるのをやめた）", () => {
+    // Given
+    const outOfRange = (): number => 5;
+    // When
+    const drawn = drawWinnerResult([A, B], INITIAL_ROULETTE_STATE, outOfRange);
+    // Then
+    expect(drawn._unsafeUnwrapErr()).toEqual({ code: "INVALID_RANDOM" });
   });
 });

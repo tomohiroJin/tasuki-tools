@@ -453,6 +453,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     send: (connId, msg) => wsAdapter.sendRoulette(connId, msg),
     monotonicClock: rouletteClock,
     random: createCryptoRandomSource(),
+    logger,
   });
 
   wsAdapter = new WsAdapter({

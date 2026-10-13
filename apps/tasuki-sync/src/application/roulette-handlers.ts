@@ -11,9 +11,10 @@
  * `display-name-rule.ts` を通す。**ここに写しを書かない**（`topic-handlers.ts` の冒頭と同じ理由）。
  * ルームは作らない（`room.create` は拒む）。
  *
- * ## ログを書かない
+ * ## 利用者の入力をログに書かない
  *
- * ゲストの名前・表示名は利用者の入力である（`docs/adr/0012`・spec R13）。このファイルはログを書かない。
+ * ゲストの名前・表示名は利用者の入力である（`docs/adr/0012`・spec R13）。このファイルはそれらをログに書かない。
+ * 書くのは、乱数源の契約違反（`INVALID_RANDOM`）を知らせる固定の語彙の 1 行だけである（#364。下の `roulette.spin`）。
  * 時計は**単調時計**（`performance.now()` 系）。壁時計は NTP の調整で戻りうる。
  */
 import * as v from "valibot";
@@ -51,6 +52,8 @@ import { joinRoom, ROOM_NOT_FOUND_MESSAGE, type JoinRoomDeps } from "./join-room
 import type { RouletteBroadcaster } from "./roulette-broadcast.js";
 import { saveRoster, type SaveRosterDeps } from "./save-roster.js";
 import { TOOL_ROULETTE } from "./tool-id.js";
+import type { Logger } from "./log/logger.js";
+import { ERROR_NAMES } from "./log/vocabulary.js";
 import { boundaryErrorCode } from "./connection-errors.js";
 
 /**
@@ -66,6 +69,7 @@ export interface RouletteHandlerDeps extends JoinRoomDeps, SaveRosterDeps {
   /** 単調時計。**`JoinRoomDeps.clock`（壁時計）とは別物** */
   monotonicClock: MonotonicClock;
   random: RandomSource;
+  logger: Logger;
 }
 
 export interface RouletteHandlers {
@@ -74,7 +78,7 @@ export interface RouletteHandlers {
 }
 
 export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandlers {
-  const { roulettes, broadcaster, send, monotonicClock, random } = deps;
+  const { roulettes, broadcaster, send, monotonicClock, random, logger } = deps;
 
   /** コマンドの失敗。**文言は roulette-core の文言表から引く**（ここに書かない）。 */
   function fail(connId: string, code: RouletteErrorCode): void {
@@ -186,8 +190,13 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
         });
         if (next.isErr()) {
           const code = next.error.code;
-          // INVALID_SETTLE は乱数源の誤りで、利用者の操作では起きない。内部の誤りとして返す。
-          fail(connId, code === "INVALID_SETTLE" ? "INTERNAL_ERROR" : code);
+          // INVALID_SETTLE・INVALID_RANDOM は乱数源の誤りで、利用者の操作では起きない。内部の誤りとして返す。
+          if (code === "INVALID_RANDOM") {
+            // #364 より前は、ドメインが RangeError を投げ、接続層（ws-adapter.ts）が「ログ → エラーフレーム」を
+            // 返していた。その行を変えないため、ここで同じ行を残す（INVALID_SETTLE は元からログが無い。#382）。
+            logger.error("on-message-error", { name: ERROR_NAMES.rangeError });
+          }
+          fail(connId, code === "INVALID_SETTLE" || code === "INVALID_RANDOM" ? "INTERNAL_ERROR" : code);
           return;
         }
         commit(room.code, stored, next.value);
