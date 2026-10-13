@@ -1,0 +1,27 @@
+# 変異 179: 縦の半径の席の欧文を縦に積む（半径を横切る横書きにしない）
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/wheel-glyphs.test.tsx
+#     describe「席の名前の字は倒れない（描かれた transform と CSS から組み立てる）」の各席数（縦に積んだ欧文）
+#   - apps/roulette-web/tests/wheel-motion.test.ts の labelPlacement（4 版）
+#   - （mutation-check の外）e2e/specs/roulette.spec.ts の expectWheelGlyphsUpright
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m179-*.patch
+# 復元: git apply -R scripts/mutations/m179-*.patch
+#
+# #94 spec §6.3 の 4 版（利用者の決定 案 2）。立てて積んだ「M／i／k／a」は読めない。字の傾きは 30° 以内に
+# 収まるので、字の傾きだけを見る物差しでは殺せない。
+diff --git a/apps/roulette-web/src/wheel-geometry.ts b/apps/roulette-web/src/wheel-geometry.ts
+index a131f2f7..35a2502d 100644
+--- a/apps/roulette-web/src/wheel-geometry.ts
++++ b/apps/roulette-web/src/wheel-geometry.ts
+@@ -77,7 +77,7 @@ export function labelPlacement(mid: number, rotorDeg: number, kind: LabelKind =
+   const psi = mod(out, 180); // 行の向き（180° の剰余）
+   const tiltH = psi <= 90 ? psi : psi - 180; // 半径に沿う横書きの字の傾き
+   const tiltV = psi - 90; // 縦書き（と半径を横切る横書き）の字の傾き
+-  const mode: LabelMode = Math.abs(tiltH) <= radialTiltLimit(kind) ? 'radial' : kind === 'latin' ? 'across' : 'vertical';
++  const mode: LabelMode = Math.abs(tiltH) <= radialTiltLimit(kind) ? 'radial' : 'vertical';
+   const tilt = mode === 'radial' ? tiltH : tiltV;
+   if (mode === 'across') return { rotate: tilt - rotorDeg, anchor: 'middle', mode, tilt };
+   const lineDir = mode === 'vertical' ? 90 + tilt : tilt;

@@ -1,4 +1,4 @@
-# 変異 177: 縦書きの席の欧文を立てない（text-orientation を既定の mixed に戻す）
+# 変異 177: 縦書きの席の欧文の字を立てない（text-orientation を既定の mixed に戻す）
 #
 # 検出を期待するテスト:
 #   - apps/roulette-web/tests/wheel-glyphs.test.tsx
@@ -9,16 +9,17 @@
 #       git apply scripts/mutations/m177-*.patch
 # 復元: git apply -R scripts/mutations/m177-*.patch
 #
-# #94 spec §6.3。縦書きの欧文はブラウザが 90° 回して横倒しに組む。2026-10-13 の実画面の「Mika」で、
-# 関数の戻り値だけを測る単体（全組で ±45°）は緑のままだった。
+# #94 spec §6.3。縦書きの欧文の字はブラウザが 90° 回して横倒しに組む（2026-10-13 の実画面の「Mika」）。
+# 4 版では全角主体の名前に混じった欧文の字（「山田B」の B）だけがここに来る。関数の戻り値だけを測る
+# 単体（全組で上限以内）では殺せない。
 diff --git a/apps/roulette-web/src/index.css b/apps/roulette-web/src/index.css
-index e0f55f95..84816ff1 100644
+index 7a1d6a3b..3645a461 100644
 --- a/apps/roulette-web/src/index.css
 +++ b/apps/roulette-web/src/index.css
-@@ -172,7 +172,6 @@
-   writing-mode: vertical-rl;
-   /* 欧文も立てて積む。既定（mixed）では欧文を 90° 回して横倒しに組み、字が ±45° を超えて倒れる
-      （2026-10-13 の実画面の「Mika」。spec §6.3）。立てた欧文は 1 字 1em を取るので fitLabel も全角で数える */
+@@ -173,7 +173,6 @@
+   /* 欧文の字も立てて積む。既定（mixed）では欧文を 90° 回して横倒しに組む（2026-10-13 の実画面の「Mika」）。
+      欧文が主の名前は縦書きにしない（labelPlacement が半径を横切る横書きを選ぶ）ので、ここに来るのは
+      全角が主の名前に混じった欧文だけ。立てた字は 1 字 1em を取るので fitLabel も全角で数える。spec §6.3 */
 -  text-orientation: upright;
  }
  .wheel-label--winner {

@@ -1634,14 +1634,34 @@ export const MUTATIONS = [
   },
   {
     id: 177,
-    label: "縦書きの席の欧文を立てない（text-orientation を既定の mixed に戻す）",
+    label: "縦書きの席の欧文の字を立てない（text-orientation を既定の mixed に戻す）",
     patch: "m177-vertical-latin-sideways.patch",
     pkg: "apps/roulette-web",
     tests: ["tests/wheel-glyphs.test.tsx"],
     note:
-      "#94 spec §6.3。縦書きの欧文が 90° 回って横倒しに描かれる（2026-10-13 の実画面の「Mika」）。" +
-      "関数の戻り値だけを測る単体（`wheel-motion.test.ts` の全組で ±45°）では殺せない。" +
+      "#94 spec §6.3。縦書きの欧文の字が 90° 回って横倒しに描かれる（2026-10-13 の実画面の「Mika」）。" +
+      "4 版では全角主体の名前に混じった欧文の字だけがここに来る。関数の戻り値だけを測る単体では殺せない。" +
       "ブラウザの実際の姿は E2E（`roulette.spec.ts` の `expectWheelGlyphsUpright`）が `getRotationOfChar` で測る。",
+  },
+  {
+    id: 178,
+    label: "当たりの席の名前を 700 の太さで描く（名前の漢字がシステムの書体に落ちる）",
+    patch: "m178-winner-label-bold.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/wheel-glyphs.test.tsx"],
+    note:
+      "#94 spec §6.3。書体の 700 には base 層しか無い。落ちた先は縦書きの送りが 0 で、当たりの席の「健太」が" +
+      "1 字に重なり縁の外へはみ出した（2026-10-13 の 320）。E2E は CDP で使われた書体を読む（`expectWheelLabelsUseWebFonts`）。",
+  },
+  {
+    id: 179,
+    label: "縦の半径の席の欧文を縦に積む（半径を横切る横書きにしない）",
+    patch: "m179-latin-stacked-vertical.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/wheel-glyphs.test.tsx", "tests/wheel-motion.test.ts"],
+    note:
+      "#94 spec §6.3 の 4 版（利用者の決定 案 2）。立てて積んだ「M／i／k／a」は読めない。" +
+      "字の傾きは 30° 以内に収まるので、字の傾きだけを見る物差しでは殺せない。",
   },
 ];
 
