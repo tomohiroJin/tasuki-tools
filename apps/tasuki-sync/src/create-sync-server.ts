@@ -36,9 +36,6 @@ import {
   DEFAULT_CAPACITY,
   DEFAULT_REFILL_PER_SEC,
 } from "@tasuki/rate-limit";
-import { connectionsIn } from "@tasuki/room-core";
-import type { HubServerMsg } from "@tasuki/room-core";
-import { buildRoster } from "./application/roster-dto.js";
 import { makeHubHandlers } from "./application/hub-handlers.js";
 import { makeTopicBroadcaster } from "./application/topic-broadcast.js";
 import { makeTopicHandlers } from "./application/topic-handlers.js";
@@ -48,11 +45,8 @@ import { InMemoryRouletteStore } from "./adapters/in-memory-roulette-store.js";
 import { createCryptoRandomSource } from "./adapters/crypto-random-source.js";
 import { makeRouletteBroadcaster } from "./application/roulette-broadcast.js";
 import { makeRouletteHandlers } from "./application/roulette-handlers.js";
-import { TOOL_ROULETTE } from "./application/tool-id.js";
 import { ClaudeCliTopicProvider } from "./adapters/claude-cli-topic-provider.js";
-import type { HubBroadcaster } from "./ports/hub-broadcaster.js";
 import { makeHandlers } from "./application/handlers.js";
-import { TOOL_TIMER } from "./application/tool-id.js";
 import { PresenceManager } from "./application/presence.js";
 import { Scheduler } from "./application/schedule.js";
 import { WsAdapter } from "./adapters/ws-adapter.js";
@@ -72,9 +66,9 @@ import { InMemoryRoundStore } from "./adapters/poker-in-memory-round-store.js";
 import { createPerformanceClock } from "./adapters/performance-clock.js";
 import { createCryptoIdGen } from "./adapters/poker-crypto-id-gen.js";
 import { createWsBroadcaster } from "./adapters/poker-ws-broadcaster.js";
+import { createTimerWsBroadcaster } from "./adapters/timer-ws-broadcaster.js";
 import { makeHandlers as makePokerHandlers } from "./application/poker-handlers.js";
 import type { SyncConfig } from "./config.js";
-import type { Room, ServerMsg } from "@tasuki/timer-core";
 
 /** アイドルルーム回収の sweep 間隔（ms）。 */
 const RECLAIM_SWEEP_MS = 60_000;
@@ -143,75 +137,9 @@ export function createSyncServer(config: SyncConfig): SyncServer {
   /** Broadcaster 実装（WS アダプタへの橋渡し） */
   let wsAdapter: WsAdapter;
 
-  /**
-   * 配信先は**名簿（`store`）を引いて、timer に在席している接続だけ**へ絞る
-   * （#95 S4b・D4・`connectionsIn`）。
-   *
-   * ⚠ **宛先は「呼び出し時点のストア」から決まる。** 2 つの帰結がある ——
-   *
-   * 1. **保管より先に配信すると、宛先が 1 つ前の名簿になる。** `commit`（`handlers.ts`）と
-   *    `presence.ts` はどちらも put のあとに配信する。この順序に依存している例が
-   *    `participant-remove.ts` にあり、退出させた本人へ全体配信が届かないことを
-   *    この順序で担保している（本人向けは専用の `sendTo`）
-   * 2. **S4a まで `broadcastSnapshot` は引数の wire から `connId` を拾っていた。**
-   *    多接続では wire に接続 1 本を載せられないので、名簿を引く `broadcastSignal` と
-   *    同じ形へ揃えた（wire から `connId` が消えるのはこの帰結である）
-   */
-  const recipientsOf = (roomCode: string): string[] => {
-    const room = store.get(roomCode);
-    return room ? connectionsIn(room, TOOL_TIMER) : [];
-  };
-
-  /**
-   * ハブ（選択画面）の配信先（#95 S5a）。**ツールを宣言していない接続**である。
-   *
-   * timer 側（{@link recipientsOf}）と同じく、宛先は**呼び出し時点のストア**から決まる。
-   * 中身（名簿）も同じ時点から引くので、保管より先に配信して 1 つ前の名簿を配る事故は
-   * `saveRoster`（保管と配信を対にする）と合わせて塞いである。
-   */
-  const hubRecipientsOf = (roomCode: string): string[] => {
-    const room = store.get(roomCode);
-    return room ? connectionsIn(room, null) : [];
-  };
-
-  /**
-   * 名簿（`roster`）の配信先（#94・spec R14）。**ハブ ＋ ルーレット**である。
-   *
-   * ルーレットは「いまルームに居る人」を描くので名簿を受け取る。`hubRecipientsOf` を直接広げず
-   * 名前で分けてある（`hubRecipientsOf` の意味は「ハブ」のまま残す）。名簿の配信は `saveRoster`
-   * に 1 本化されている（`test/save-roster.wiring.test.ts`）ので、宛先を足すだけで接続の着脱・退出の
-   * すべてが届く。
-   */
-  const rosterRecipientsOf = (roomCode: string): string[] => {
-    const room = store.get(roomCode);
-    return room ? [...hubRecipientsOf(roomCode), ...connectionsIn(room, TOOL_ROULETTE)] : [];
-  };
-
-  const hubBroadcaster: HubBroadcaster = {
-    sendTo(connId: string, msg: HubServerMsg): void {
-      wsAdapter.sendHub(connId, msg);
-    },
-    broadcastRoster(roomCode: string): void {
-      const room = store.get(roomCode);
-      if (!room) return;
-      wsAdapter.broadcastHub(rosterRecipientsOf(roomCode), {
-        type: "roster",
-        room: buildRoster(room),
-      });
-    },
-  };
-
-  const broadcaster = {
-    broadcastSnapshot(roomCode: string, room: Room): void {
-      wsAdapter.broadcast(recipientsOf(roomCode), { type: "snapshot", room });
-    },
-    sendTo(connId: string, msg: ServerMsg): void {
-      wsAdapter.send(connId, msg);
-    },
-    broadcastSignal(roomCode: string, msg: ServerMsg): void {
-      wsAdapter.broadcast(recipientsOf(roomCode), msg);
-    },
-  };
+  // timer とハブの配信（宛先の選び方を含む）は `adapters/timer-ws-broadcaster.ts`（#367 で組み立てから出した）。
+  // `wsAdapter` は下で代入する（前方参照。WS アダプタはハンドラを受け、ハンドラは配信を受けるので循環する）。
+  const { broadcaster, hubBroadcaster } = createTimerWsBroadcaster({ store, ws: () => wsAdapter });
 
   // AI お題生成（トークンと合言葉が両方あるときだけ有効。spec 2026-06-12 参照）
   const aiReady = Boolean(config.claudeOauthToken && config.aiUnlockKey);
