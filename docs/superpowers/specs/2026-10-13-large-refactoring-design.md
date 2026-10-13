@@ -115,6 +115,14 @@ web に触れる子 Issue（#369〜#372）は、#321 の比べ方を使う: 基�
 | スクリプトは互いを import しない（共有は `scripts/lib/` だけ） | `scripts/*.mjs` から `./audit-*` への import を拒むテストを足す（置き場は計画で決める） |
 | import の解析は 1 つ | 上の項で、`scripts/lib/import-specifiers.mjs` 以外に import の正規表現を置くと落ちる形にできるかを計画で確かめる |
 
+> **追記（2026-10-13・R1 の計画 [`2026-10-13-refactor-r1-scripts.md`](../plans/2026-10-13-refactor-r1-scripts.md)）**: 上の 3 点は、測ると成り立たなかった。
+>
+> - **import の抽出は 1 つにしない。** 3 つの抽出は意味がわざと違う（越境を広く拾う・行単位でコメントも読む・到達性のために拾う）。1 つにすると検査が弱まる。解決（`.js` → `.ts`）の重なりは 6 行で、`docs/adr/0007` 基準 2 に満たない
+> - **`SCANNED_PACKAGES`・`listWebAppDirs` は `lib/` へ移さない。** 宣言を移すと、`scan-target-wiring.test.mjs` が複製を書き換えて壊す対象を失う。スクリプト同士の取り込みは、許可表を持つテスト（`scripts/script-imports.test.mjs`）で明示して残す
+> - 代わりに、`audit-structure.mjs` の指標の判定を `scripts/lib/structure/` へ移す。`mutation-check.mjs` の分割は #94 PR 3 とぶつかるので、別の子 Issue（#380）に出す
+>
+> 決まりを守らせるコードは「スクリプト同士の取り込みは許可表にあるものだけ」の 1 つになった。
+
 ### 5.2 接続層の契約（#362）
 
 `packages/protocol` に、どのツールでも同じ意味を持つ接続層の契約を集める。
