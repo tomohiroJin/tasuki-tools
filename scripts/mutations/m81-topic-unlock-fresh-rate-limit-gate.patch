@@ -16,17 +16,18 @@
 # ai.unlock は素通りし（逆も同様）、同じ IP からの総当たりが片方のツールを
 # 迂回すれば通ってしまう。
 diff --git a/apps/tasuki-sync/src/create-sync-server.ts b/apps/tasuki-sync/src/create-sync-server.ts
+index 5c45629..5999f31 100644
 --- a/apps/tasuki-sync/src/create-sync-server.ts
 +++ b/apps/tasuki-sync/src/create-sync-server.ts
-@@ -46,6 +46,7 @@ import { InMemoryTopicStore } from "./adapters/in-memory-topic-store.js";
+@@ -47,6 +47,7 @@ import { makeRouletteBroadcaster } from "./application/roulette-broadcast.js";
+ import { makeRouletteHandlers } from "./application/roulette-handlers.js";
  import { ClaudeCliTopicProvider } from "./adapters/claude-cli-topic-provider.js";
- import type { HubBroadcaster } from "./ports/hub-broadcaster.js";
  import { makeHandlers } from "./application/handlers.js";
 +import { createRateLimitGate } from "./application/rate-limit-gate.js";
- import { TOOL_TIMER } from "./application/tool-id.js";
  import { PresenceManager } from "./application/presence.js";
  import { Scheduler } from "./application/schedule.js";
-@@ -401,7 +402,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
+ import { WsAdapter } from "./adapters/ws-adapter.js";
+@@ -359,7 +360,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
      clock,
      codeGen,
      tokenStore: tokens,

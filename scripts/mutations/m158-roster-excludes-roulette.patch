@@ -8,14 +8,14 @@
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m158-*.patch
 # 復元: git apply -R scripts/mutations/m158-*.patch
-diff --git a/apps/tasuki-sync/src/create-sync-server.ts b/apps/tasuki-sync/src/create-sync-server.ts
-index 2c61c6e7..5ff49827 100644
---- a/apps/tasuki-sync/src/create-sync-server.ts
-+++ b/apps/tasuki-sync/src/create-sync-server.ts
-@@ -180,7 +180,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
+diff --git a/apps/tasuki-sync/src/adapters/timer-ws-broadcaster.ts b/apps/tasuki-sync/src/adapters/timer-ws-broadcaster.ts
+index d32ee54..1205250 100644
+--- a/apps/tasuki-sync/src/adapters/timer-ws-broadcaster.ts
++++ b/apps/tasuki-sync/src/adapters/timer-ws-broadcaster.ts
+@@ -75,7 +75,7 @@ export function createTimerWsBroadcaster(deps: TimerWsBroadcasterDeps): {
     */
    const rosterRecipientsOf = (roomCode: string): string[] => {
-     const room = store.get(roomCode);
+     const room = deps.store.get(roomCode);
 -    return room ? [...hubRecipientsOf(roomCode), ...connectionsIn(room, TOOL_ROULETTE)] : [];
 +    return room ? [...hubRecipientsOf(roomCode)] : [];
    };
