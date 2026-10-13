@@ -161,6 +161,24 @@ export const FORBIDDEN = [
 ];
 
 /**
+ * 行ごとの正規表現で見る禁止（#364）。字面の語（{@link FORBIDDEN}）では書けないものを置く。
+ *
+ * - `throw`: **ドメインは投げない。** 失敗は `Result` で返す（憲法 IV・`docs/adr/0005`）。
+ *   単語の境界で見るので `neverthrow` は拾わない
+ * - トップレベルの `let`: **ドメインはモジュールの状態を持たない。** 状態は呼び出し側が持つ
+ *   （例: `packages/timer-core/src/records.ts` の `createRecordIdGenerator`）。行頭（字下げ無し）だけを見るので、
+ *   関数の内側の `let` は拾わない
+ *
+ * {@link FORBIDDEN} と同じく、コメント行も読む（このファイル冒頭の「コメント行の扱い」）。
+ *
+ * @type {ReadonlyArray<{ token: string, pattern: RegExp }>}
+ */
+export const FORBIDDEN_PATTERNS = [
+  { token: "throw", pattern: /\bthrow\b/ },
+  { token: "トップレベルの let", pattern: /^(export\s+)?let\s/ },
+];
+
+/**
  * 本文から禁止語彙の出現を拾う。**状態を持たない純粋関数。**
  *
  * 各行は他の行と無関係に、独立に判定する。コメント行も読む
@@ -176,6 +194,11 @@ export function findForbiddenCalls(text, filePath) {
   for (let i = 0; i < lines.length; i++) {
     for (const token of FORBIDDEN) {
       if (lines[i].includes(token)) {
+        found.push({ path: filePath, line: i + 1, token });
+      }
+    }
+    for (const { token, pattern } of FORBIDDEN_PATTERNS) {
+      if (pattern.test(lines[i])) {
         found.push({ path: filePath, line: i + 1, token });
       }
     }
@@ -290,7 +313,8 @@ function main() {
     console.error(
       "  時刻・乱数・環境変数は引数で注入し、読み取りはアダプタ（境界）に置いてください",
     );
-    console.error("  根拠: 憲法 原則 VI / docs/adr/0016 決定 2 項目 4 / docs/timer/adr/0002");
+    console.error("  throw は Result で返し、トップレベルの let（モジュールの状態）は呼び出し側に持たせてください（#364）");
+    console.error("  根拠: 憲法 原則 IV・VI / docs/adr/0005 / docs/adr/0016 決定 2 項目 4 / docs/timer/adr/0002");
     process.exit(1);
   }
 

@@ -4,6 +4,7 @@ import {
   DOMAIN_PACKAGES,
   EXCLUDED_PACKAGES,
   FORBIDDEN,
+  FORBIDDEN_PATTERNS,
   findForbiddenCalls,
 } from "./audit-domain-side-effects.mjs";
 
@@ -129,5 +130,71 @@ describe("宣言: 走査対象と除外", () => {
     for (const pkg of DOMAIN_PACKAGES) {
       assert.ok(!excluded.has(pkg), `${pkg} が走査対象と除外の両方にある`);
     }
+  });
+});
+
+/**
+ * ドメインは投げない・モジュールの状態を持たない（#364）。
+ *
+ * 字面の語（`FORBIDDEN`）では書けない 2 つを、行ごとの正規表現で見る。
+ * - `throw`: 単語として現れたら拾う。`neverthrow` は拾わない（単語の境界が無い）
+ * - トップレベルの `let`: 行頭（字下げ無し）の `let` / `export let` を拾う。関数の内側（字下げあり）の
+ *   `let` は拾わない —— クロージャに状態を持たせる形（`createRecordIdGenerator`）は呼び出し側が持つ状態である
+ */
+describe("FORBIDDEN_PATTERNS: 投げない・モジュールの状態を持たない（#364）", () => {
+  /** 射程の写し。上の REQUIRED_FORBIDDEN と同じく、語を落とす変更を赤にする */
+  const REQUIRED_PATTERN_TOKENS = ["throw", "トップレベルの let"];
+
+  test("規範の射程がすべて FORBIDDEN_PATTERNS に入っている", () => {
+    // Given / When
+    const tokens = FORBIDDEN_PATTERNS.map((p) => p.token);
+    // Then
+    for (const token of REQUIRED_PATTERN_TOKENS) {
+      assert.ok(tokens.includes(token), `${token} が FORBIDDEN_PATTERNS から落ちている`);
+    }
+  });
+
+  test("throw を拾う（字下げの有無を問わない）", () => {
+    // Given
+    const src = ['throw new Error("x");', '    throw new RangeError("y");'].join("\n");
+    // When
+    const found = findForbiddenCalls(src, "a.ts");
+    // Then
+    assert.deepEqual(
+      found.map((f) => [f.line, f.token]),
+      [
+        [1, "throw"],
+        [2, "throw"],
+      ],
+    );
+  });
+
+  test("neverthrow は throw として拾わない", () => {
+    // Given
+    const src = ['import { ok } from "neverthrow";', "// 結果は neverthrow の Result"].join("\n");
+    // When / Then
+    assert.deepEqual(findForbiddenCalls(src, "a.ts"), []);
+  });
+
+  test("トップレベルの let を拾う（export let も）", () => {
+    // Given
+    const src = ["let counter = 0;", "export let current = 1;"].join("\n");
+    // When
+    const found = findForbiddenCalls(src, "a.ts");
+    // Then
+    assert.deepEqual(
+      found.map((f) => [f.line, f.token]),
+      [
+        [1, "トップレベルの let"],
+        [2, "トップレベルの let"],
+      ],
+    );
+  });
+
+  test("関数の内側（字下げあり）の let は拾わない", () => {
+    // Given
+    const src = ["export function make() {", "  let counter = 0;", "  return () => ++counter;", "}"].join("\n");
+    // When / Then
+    assert.deepEqual(findForbiddenCalls(src, "a.ts"), []);
   });
 });
