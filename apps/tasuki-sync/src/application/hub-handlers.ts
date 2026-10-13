@@ -34,9 +34,10 @@ import { checkRoom } from "./check-room.js";
 import { CONNECTION_ERROR_TEXT, boundaryErrorCode } from "./connection-errors.js";
 import { createRoom, type CreateRoomDeps } from "./create-room.js";
 import { applyDisplayNameRule, INVALID_DISPLAY_NAME_MESSAGE } from "./display-name-rule.js";
-import { joinRoom, ROOM_NOT_FOUND_MESSAGE, type JoinRoomDeps } from "./join-room.js";
+import { joinFailureMessage, type JoinRoomDeps } from "./join-room.js";
 import { saveRoster, type SaveRosterDeps } from "./save-roster.js";
 import { findRoomByConnId } from "./room-lookup.js";
+import { joinToolRoom } from "./join-tool-room.js";
 import { TOOL_HUB } from "./tool-id.js";
 import type { TopicBroadcaster } from "./topic-broadcast.js";
 
@@ -154,72 +155,28 @@ export function makeHubHandlers(deps: HubHandlerDeps): HubHandlers {
   function handleCheck(connId: string, cmd: Extract<HubCommand, { command: "room.check" }>): void {
     const checked = checkRoom(deps, { connId, code: cmd.code });
     if (checked.isErr()) {
-      // 文言の引き方は `handleJoin` と同じにする（言い回しの正本を 2 つ作らない）。
-      const code = checked.error;
-      fail(connId, code, code === "ROOM_NOT_FOUND" ? ROOM_NOT_FOUND_MESSAGE : errorMessageFor(code));
+      // 文言の引き方は参加と同じにする（言い回しの正本を 2 つ作らない。`joinFailureMessage`）。
+      fail(connId, checked.error, joinFailureMessage(checked.error));
     }
   }
 
   function handleJoin(connId: string, cmd: Extract<HubCommand, { command: "room.join" }>): void {
-    // 既にどこかのルームに居る接続からの 2 度目の参加は拒み、何も変えない
-    // （同じルームへの 2 度目でも、別のルームへの参加でも）。
-    //
-    // 通すと 1 本のソケットが 2 つのルームの名簿に載り、切断の片付けが片方しか
-    // 外さず、幽霊の参加者が残ってルームが回収されなくなる（#91 PR 3 Task 5 の
-    // 特徴づけで実測）。玄関は 1 本の接続で URL の `?room=` のルームにしか
-    // 参加しないので、正規の画面からは 2 度目の参加は届かない —— 届くのは
-    // 改造したクライアントだけであり、`topic-handlers.ts` の `isInAnyRoom` と
-    // 同じ判断・同じ失敗の形で返す。
-    if (isInAnyRoom(connId)) {
-      fail(connId, "INVALID_COMMAND", INVALID_COMMAND_MESSAGE);
-      return;
-    }
-
-    const displayName = normalized(connId, cmd.displayName);
-    if (displayName === null) return;
-
-    const joined = joinRoom(deps, {
+    // 参加の流れは topic・roulette と共有する（`join-tool-room.ts`）。2 度目の参加の拒否・表示名の規約・
+    // 失敗の文言（ハブは「存在しないルーム」と「合言葉が要るルーム」を区別して返す）もそちらが持つ。
+    joinToolRoom(deps, {
       connId,
-      code: cmd.code,
-      displayName,
+      cmd,
       tool: TOOL_HUB,
-      ...(cmd.resumeToken !== undefined ? { resumeToken: cmd.resumeToken } : {}),
-      ...(cmd.passphrase !== undefined ? { passphrase: cmd.passphrase } : {}),
+      reply: (msg) => hub.sendTo(connId, msg),
+      afterJoin: ({ timer }) => {
+        // ハブからの参加（ツールを宣言しない）では、`joinRoom` は保管にある timer の状態をそのまま返すので、
+        // この保管は何も変えない。#91 PR 3 までは AI 鍵の欄がここで変わりえたので保管していた。
+        // #366 より前は名簿の保管の前に置いていたが、同じ値を置き直すだけなので順は結果を変えない。
+        if (timer !== undefined) timers.put(timer);
+        // いまのお題を本人へ 1 通（E4）。**名簿の保管のあとに呼ぶ**（ルームの在否を名簿で見るため）。
+        topicBroadcaster.sendCurrent(connId, cmd.code);
+      },
     });
-
-    if (joined.isErr()) {
-      // **文言の正本は 1 つにする**（`@tasuki/timer-core` の文言表と `ROOM_NOT_FOUND_MESSAGE`）。
-      // ここで書き下ろすと、同じコードに 2 つの言い回しが生まれ、片方だけが直る。
-      //
-      // ⚠ **ハブは「存在しないルーム」と「合言葉が要るルーム」を区別して返す。**
-      // 前者は `ROOM_NOT_FOUND`、後者は `PASSPHRASE_REQUIRED` で、文言も違う。
-      // ハブは合言葉を送れるので、これは意図された開示である（選択画面で合言葉を
-      // 通ってからツールを選ぶのが正規の経路）。区別させないのは**合言葉を送れない
-      // 入口**（poker）の側の規律であり、そちらは `room-entry.ts` が受け持つ。
-      // S4a の入口ごとの門があった頃は、ここにも「区別させない」と書いてあったが、
-      // 門の廃止（#95 S5b）で対象を失っていた（#274 で訂正）。
-      const code = joined.error;
-      fail(
-        connId,
-        code,
-        code === "ROOM_NOT_FOUND" ? ROOM_NOT_FOUND_MESSAGE : errorMessageFor(code),
-      );
-      return;
-    }
-
-    const { participantId, resumeToken, membership, timer } = joined.value;
-
-    // 復帰でも新規でも、本人には復帰の組を返す。**ハブは `localStorage` にこれを持つ**
-    // ので、復帰のときに返さないと次の読み込みで組が空になる（D12）。
-    hub.sendTo(connId, { type: "room.joined", code: cmd.code, participantId, resumeToken });
-
-    // ハブからの参加（ツールを宣言しない）では、`joinRoom` は既存の timer の状態を
-    // そのまま返すので、この保管は何も変えない。#91 PR 3 までは AI 鍵の欄（`aiKeyHolders`）が
-    // ここで変わりえたので保管していた。`joinRoom` の返り値の扱いを入口の間で揃えるために残す。
-    if (timer !== undefined) timers.put(timer);
-    saveRoster(deps, membership);
-    // いまのお題を本人へ 1 通（E4）。**名簿の保管のあとに呼ぶ**（ルームの在否を名簿で見るため）。
-    topicBroadcaster.sendCurrent(connId, cmd.code);
   }
 
   return {

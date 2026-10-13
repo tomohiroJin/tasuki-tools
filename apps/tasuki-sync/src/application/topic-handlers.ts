@@ -29,7 +29,6 @@ import {
   type HubCommand,
 } from "@tasuki/room-core";
 import { parseBoundaryMessage } from "@tasuki/protocol";
-import { errorMessageFor } from "@tasuki/timer-core";
 import {
   clearTopic,
   INITIAL_TOPIC_STATE,
@@ -43,13 +42,13 @@ import {
 } from "@tasuki/topic-core";
 import type { TopicStore } from "../ports/topic-store.js";
 import type { TopicServerMsg } from "../ports/topic-server-msg.js";
-import { applyDisplayNameRule, INVALID_DISPLAY_NAME_MESSAGE } from "./display-name-rule.js";
-import { joinRoom, ROOM_NOT_FOUND_MESSAGE, type JoinRoomDeps } from "./join-room.js";
-import { saveRoster, type SaveRosterDeps } from "./save-roster.js";
+import type { JoinRoomDeps } from "./join-room.js";
+import type { SaveRosterDeps } from "./save-roster.js";
 import { constantTimeEqual } from "./secure-compare.js";
 import type { TopicBroadcaster } from "./topic-broadcast.js";
 import type { TopicGenerator } from "./topic-generation.js";
-import { findRoomByConnId, findRoomByToolConnection } from "./room-lookup.js";
+import { findRoomByToolConnection } from "./room-lookup.js";
+import { joinToolRoom } from "./join-tool-room.js";
 import { TOOL_TOPIC } from "./tool-id.js";
 import { boundaryErrorCode } from "./connection-errors.js";
 
@@ -83,56 +82,18 @@ export function makeTopicHandlers(deps: TopicHandlerDeps): TopicHandlers {
     send(connId, { type: "error", code, message: topicErrorMessageFor(code) });
   }
 
-  /**
-   * 参加の失敗。**コードも文言もハブと同じ形で返す**（`hub-handlers.ts` の `handleJoin`）。
-   * 参加は共有の入口を通るので、失敗の言葉もハブと 1 つにする（片方だけ言い回しが変わると、
-   * `ROOM_NOT_FOUND` と合言葉の拒否の区別の仕方が入口ごとにずれる）。
-   */
-  function failJoin(connId: string, code: string, message: string): void {
-    send(connId, { type: "error", code, message });
-  }
-
   function handleJoin(connId: string, cmd: Extract<HubCommand, { command: "room.join" }>): void {
-    // 既にどこかのルームに居る接続からの 2 度目の参加は拒み、何も変えない（同じルームでも別のルームでも）。
-    // 通すと 1 本のソケットが 2 つのルームに載り（または 2 人の参加者が同じ接続を持ち）、切断の
-    // 片付けが片方しか外さず、幽霊の参加者が残ってルームが回収されなくなる。
-    // 失敗はほかの参加の失敗と同じハブの形で返す（`failJoin`）。文言は、この接続が形の不正な
-    // コマンドへ返すものと同じにする（timer-core の表に `INVALID_COMMAND` は無く、引くと既定文に落ちて
-    // 同じコードが経路ごとに別の文になる）。
-    if (isInAnyRoom(connId)) {
-      failJoin(connId, "INVALID_COMMAND", topicErrorMessageFor("INVALID_COMMAND"));
-      return;
-    }
-
-    const applied = applyDisplayNameRule(cmd.displayName);
-    if (applied.isErr()) {
-      failJoin(connId, "INVALID_COMMAND", INVALID_DISPLAY_NAME_MESSAGE);
-      return;
-    }
-
-    const joined = joinRoom(deps, {
-      connId,
-      code: cmd.code,
-      displayName: applied.value,
-      tool: TOOL_TOPIC,
-      ...(cmd.resumeToken !== undefined ? { resumeToken: cmd.resumeToken } : {}),
-      ...(cmd.passphrase !== undefined ? { passphrase: cmd.passphrase } : {}),
-    });
-    if (joined.isErr()) {
-      const code = joined.error;
-      failJoin(connId, code, code === "ROOM_NOT_FOUND" ? ROOM_NOT_FOUND_MESSAGE : errorMessageFor(code));
-      return;
-    }
-
-    // timer の状態は保管しない —— お題の接続は `TOOL_TIMER` でも AI 鍵の申告でもないので、
-    // `joinRoom` は timer の状態を作りも変えもしない（`join-room.ts` の `timerFor`）。
-    const { participantId, resumeToken, membership } = joined.value;
-    send(connId, { type: "room.joined", code: cmd.code, participantId, resumeToken });
-    // 保管と配信は対にする（`save-roster.ts`）。お題の接続が在席に載ったことは玄関にも届く。
-    saveRoster(deps, membership);
-    // いまのお題を本人へ 1 通（E4）。**お題の状態が無ければここで既定の状態を置く** ——
+    // 参加の流れは hub・roulette と共有する（`join-tool-room.ts`）。timer の状態は保管しない ——
+    // お題の接続は `TOOL_TIMER` ではないので、`joinRoom` は timer の状態を作りも変えもしない。
+    // 参加の後に、いまのお題を本人へ 1 通（E4）。**お題の状態が無ければここで既定の状態を置く** ——
     // `TopicGenerator#request` は状態の無いルームでは何もしないので、置かないと作れない。
-    broadcaster.sendCurrent(connId, cmd.code);
+    joinToolRoom(deps, {
+      connId,
+      cmd,
+      tool: TOOL_TOPIC,
+      reply: (msg) => send(connId, msg),
+      afterJoin: () => broadcaster.sendCurrent(connId, cmd.code),
+    });
   }
 
   /**
@@ -146,11 +107,6 @@ export function makeTopicHandlers(deps: TopicHandlerDeps): TopicHandlers {
     // `?tool=topic` の接続だけをこのハンドラへ振り分けることで、ここはその振り分けが壊れたときの備え ——
     // 接続 ID だけで引くと、timer やハブの接続として在席している接続がお題を変えられてしまう。
     return findRoomByToolConnection(deps.store, connId, TOOL_TOPIC)?.code;
-  }
-
-  /** この接続がどれかのルームに（ツールを問わず）在席しているか。2 度目の参加を拒むために引く。 */
-  function isInAnyRoom(connId: string): boolean {
-    return findRoomByConnId(deps.store, connId) !== undefined;
   }
 
   /** いまの状態を読む。参加時に置かれているはずだが、無ければ既定の状態を置いてから返す。 */

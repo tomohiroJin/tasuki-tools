@@ -24,7 +24,7 @@
  * 取り違えると NTP のステップ調整でレート制限が飛ぶ。
  */
 import { ok, err, type Result } from "neverthrow";
-import type { ErrorCode, TimerState } from "@tasuki/timer-core";
+import { errorMessageFor, type ErrorCode, type TimerState } from "@tasuki/timer-core";
 import {
   addParticipant,
   attachConnection,
@@ -50,6 +50,16 @@ import { TOOL_TIMER } from "./tool-id.js";
  * 文言を入口ごとに書くと、片方だけ言い回しが変わった瞬間にその区別が生まれる。
  */
 export const ROOM_NOT_FOUND_MESSAGE = "指定されたルームコードが見つかりません";
+
+/**
+ * 参加・在否の確かめの失敗を返すときの文言（#366）。`ROOM_NOT_FOUND` だけは上の文言、ほかは timer-core の文言表。
+ *
+ * 以前は同じ書き分け（`code === "ROOM_NOT_FOUND" ? … : errorMessageFor(code)`）が 5 か所に写されていた
+ * （hub の参加と在否の確かめ・topic・roulette・timer の参加）。
+ */
+export function joinFailureMessage(code: ErrorCode): string {
+  return code === "ROOM_NOT_FOUND" ? ROOM_NOT_FOUND_MESSAGE : errorMessageFor(code);
+}
 
 export interface JoinRoomDeps {
   store: RoomStore;

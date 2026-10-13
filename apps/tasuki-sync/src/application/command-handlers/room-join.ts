@@ -9,7 +9,7 @@
  */
 
 import { ok, err, type Result } from "neverthrow";
-import { errorMessageFor, type Command, type ErrorCode } from "@tasuki/timer-core";
+import type { Command, ErrorCode } from "@tasuki/timer-core";
 import type { Clock } from "../../ports/clock.js";
 import type { Broadcaster } from "../../ports/broadcaster.js";
 import type { RoomStore } from "../../ports/room-store.js";
@@ -20,7 +20,7 @@ import type { RateLimitGate } from "../rate-limit-gate.js";
 import { buildTimerSnapshotRoom } from "../timer-snapshot-dto.js";
 import type { RoomState } from "../apply-room-level-event.js";
 import { TOOL_TIMER } from "../tool-id.js";
-import { joinRoom, ROOM_NOT_FOUND_MESSAGE } from "../join-room.js";
+import { joinFailureMessage, joinRoom, ROOM_NOT_FOUND_MESSAGE } from "../join-room.js";
 import type { TopicBroadcaster } from "../topic-broadcast.js";
 
 /** `room.join` が呼び出し元へ返す値。 */
@@ -74,8 +74,7 @@ export function createRoomJoinHandler(deps: RoomJoinDeps) {
       const code = joined.error;
       // **ROOM_NOT_FOUND の文言は「存在しないルーム」と完全に同一にする**（ADR 0011）。
       // 合言葉の関門で拒んだことを区別できると、ルームコード列挙の手がかりになる。
-      const message = code === "ROOM_NOT_FOUND" ? ROOM_NOT_FOUND_MESSAGE : errorMessageFor(code);
-      sendError(connId, code, message);
+      sendError(connId, code, joinFailureMessage(code));
       return err(code);
     }
 

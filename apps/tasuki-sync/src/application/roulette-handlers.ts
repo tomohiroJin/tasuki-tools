@@ -27,7 +27,6 @@ import {
   type Room,
 } from "@tasuki/room-core";
 import { parseBoundaryMessage } from "@tasuki/protocol";
-import { errorMessageFor } from "@tasuki/timer-core";
 import {
   addGuest,
   INITIAL_ROULETTE_STATE,
@@ -47,11 +46,12 @@ import type { MonotonicClock } from "../ports/poker-monotonic-clock.js";
 import type { RandomSource } from "../ports/random-source.js";
 import type { RouletteServerMsg } from "../ports/roulette-server-msg.js";
 import type { RouletteStore } from "../ports/roulette-store.js";
-import { applyDisplayNameRule, INVALID_DISPLAY_NAME_MESSAGE } from "./display-name-rule.js";
-import { joinRoom, ROOM_NOT_FOUND_MESSAGE, type JoinRoomDeps } from "./join-room.js";
+import { applyDisplayNameRule } from "./display-name-rule.js";
+import type { JoinRoomDeps } from "./join-room.js";
 import type { RouletteBroadcaster } from "./roulette-broadcast.js";
-import { saveRoster, type SaveRosterDeps } from "./save-roster.js";
-import { findRoomByConnId, findRoomByToolConnection } from "./room-lookup.js";
+import type { SaveRosterDeps } from "./save-roster.js";
+import { findRoomByToolConnection } from "./room-lookup.js";
+import { joinToolRoom } from "./join-tool-room.js";
 import { TOOL_ROULETTE } from "./tool-id.js";
 import type { Logger } from "./log/logger.js";
 import { ERROR_NAMES } from "./log/vocabulary.js";
@@ -86,44 +86,16 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
     send(connId, { type: "error", code, message: rouletteErrorMessageFor(code) });
   }
 
-  /** 参加の失敗。**コードも文言もハブと同じ形で返す**（`topic-handlers.ts` の `failJoin`）。 */
-  function failJoin(connId: string, code: string, message: string): void {
-    send(connId, { type: "error", code, message });
-  }
-
   function handleJoin(connId: string, cmd: Extract<HubCommand, { command: "room.join" }>): void {
-    // 既にどこかのルームに居る接続からの 2 度目の参加は拒み、何も変えない（理由は topic-handlers.ts）。
-    if (isInAnyRoom(connId)) {
-      failJoin(connId, "INVALID_COMMAND", rouletteErrorMessageFor("INVALID_COMMAND"));
-      return;
-    }
-
-    const applied = applyDisplayNameRule(cmd.displayName);
-    if (applied.isErr()) {
-      failJoin(connId, "INVALID_COMMAND", INVALID_DISPLAY_NAME_MESSAGE);
-      return;
-    }
-
-    const joined = joinRoom(deps, {
+    // 参加の流れは hub・topic と共有する（`join-tool-room.ts`）。参加の後に、いまの状態を本人へ 1 通。
+    // **状態が無ければここで既定の状態を置く**（spec §5.4）。
+    joinToolRoom(deps, {
       connId,
-      code: cmd.code,
-      displayName: applied.value,
+      cmd,
       tool: TOOL_ROULETTE,
-      ...(cmd.resumeToken !== undefined ? { resumeToken: cmd.resumeToken } : {}),
-      ...(cmd.passphrase !== undefined ? { passphrase: cmd.passphrase } : {}),
+      reply: (msg) => send(connId, msg),
+      afterJoin: () => broadcaster.sendCurrent(connId, cmd.code),
     });
-    if (joined.isErr()) {
-      const code = joined.error;
-      failJoin(connId, code, code === "ROOM_NOT_FOUND" ? ROOM_NOT_FOUND_MESSAGE : errorMessageFor(code));
-      return;
-    }
-
-    const { participantId, resumeToken, membership } = joined.value;
-    send(connId, { type: "room.joined", code: cmd.code, participantId, resumeToken });
-    // 保管と配信は対にする（`save-roster.ts`）。ルーレットの接続が在席に載ったことは玄関にも届く。
-    saveRoster(deps, membership);
-    // いまの状態を本人へ 1 通。**状態が無ければここで既定の状態を置く**（spec §5.4）。
-    broadcaster.sendCurrent(connId, cmd.code);
   }
 
   /**
@@ -133,11 +105,6 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
    */
   function roomOf(connId: string): Room | undefined {
     return findRoomByToolConnection(deps.store, connId, TOOL_ROULETTE);
-  }
-
-  /** この接続がどれかのルームに（ツールを問わず）在席しているか。2 度目の参加を拒むために引く。 */
-  function isInAnyRoom(connId: string): boolean {
-    return findRoomByConnId(deps.store, connId) !== undefined;
   }
 
   /** 名簿の断片（在室は接続の有無から導く）。 */
