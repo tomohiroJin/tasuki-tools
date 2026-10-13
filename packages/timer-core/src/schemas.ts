@@ -9,6 +9,8 @@ import {
   MAX_ROOM_NAME,
   MAX_HANDOFF_NOTE,
   MAX_PASSPHRASE,
+  ROOM_PHASES,
+  SESSION_ACTIONS,
 } from "./aggregate.js";
 // ─── 共通 ───────────────────────────────────────────────────────────────────
 
@@ -91,21 +93,18 @@ const ConfigSetCommand = v.object({
 
 const PhaseSetCommand = v.object({
   command: v.literal("phase.set"),
-  phase: v.picklist(["setup", "ready", "session", "celebration"]),
+  phase: v.picklist(ROOM_PHASES),
 });
 
 // T057: 自ファイル内でのみ使われるため export を外した（FR-119③・SC-039）。
-/** セッション操作アクション */
-const SessionActionValues = [
-  "START",
-  "SWITCH",
-  "PAUSE",
-  "RESUME",
-  // 現ドライバーのまま持ち時間だけを満タンからやり直す（Issue #14）。
-  "RESTART",
-  "COMPLETE",
-  "RESET",
-] as const;
+/**
+ * セッション操作アクション（wire が受け付けるもの）。
+ *
+ * ドメインが扱う 5 つ（`SESSION_ACTIONS`）に、**受けるが扱わない** `COMPLETE`・`RESET` を足したもの。
+ * 後ろの 2 つは同期サーバーの翻訳で落ち、UNKNOWN_COMMAND になる（#363。
+ * `apps/tasuki-sync/test/build-domain-command.test.ts` が固定）。
+ */
+const SessionActionValues = [...SESSION_ACTIONS, "COMPLETE", "RESET"] as const;
 
 const SessionActCommand = v.object({
   command: v.literal("session.act"),
@@ -320,7 +319,7 @@ export const RoomSchema = v.object({
   config: SessionConfigSchema,
   session: SessionStateSchema,
   clock: ServerClockSchema,
-  phase: v.picklist(["setup", "ready", "session", "celebration"]),
+  phase: v.picklist(ROOM_PHASES),
   participants: v.array(ParticipantSchema),
   sessionRecords: v.array(CompletionRecordSchema),
   handoffNote: v.string(),

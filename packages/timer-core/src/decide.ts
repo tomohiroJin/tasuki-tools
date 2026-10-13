@@ -4,7 +4,7 @@
  */
 
 import { ok, err, type Result } from "neverthrow";
-import type { Aggregate, TimerConfig } from "./aggregate.js";
+import type { Aggregate, RoomPhase, SessionAction, TimerConfig } from "./aggregate.js";
 import {
   VALID_INTERVAL_MINUTES,
   MAX_MEMBERS,
@@ -21,7 +21,7 @@ import type { DomainError } from "./errors.js";
 type DecideCommand =
   | {
       command: "session.act";
-      action: "START" | "SWITCH" | "PAUSE" | "RESUME" | "RESTART";
+      action: SessionAction;
       // SWITCH 専用（他アクションでは無視される）。B-2統合: handleRoomCommand が
       // advanceDriver の代わりに使っていた「対象外を飛ばす」判定を decide 自身に委譲する
       // ための任意フィールド。省略時（既存呼び出し）は空集合扱いで従来通り隣を返す（後方互換）。
@@ -36,7 +36,7 @@ type DecideCommand =
   // order はサーバー（handler）が生成して渡す（wire コマンドは order を持たない）。
   | { command: "member.shuffle"; order: number[] }
   | { command: "config.set"; config: Partial<TimerConfig> }
-  | { command: "phase.set"; phase: "setup" | "ready" | "session" | "celebration" }
+  | { command: "phase.set"; phase: RoomPhase }
   | { command: "handoff.note.set"; text: string }
   | { command: "break.start" }
   | { command: "break.end" }
@@ -151,7 +151,7 @@ function decideRename(
 // ─── セッション操作 ──────────────────────────────────────────────────────────
 
 function decideSessionAct(
-  action: "START" | "SWITCH" | "PAUSE" | "RESUME" | "RESTART",
+  action: SessionAction,
   agg: Aggregate,
   now: number,
   ineligible?: ReadonlySet<number>,
