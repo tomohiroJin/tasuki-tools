@@ -50,6 +50,7 @@ import { makeHandlers } from "./application/handlers.js";
 import { PresenceManager } from "./application/presence.js";
 import { Scheduler } from "./application/schedule.js";
 import { WsAdapter } from "./adapters/ws-adapter.js";
+import { createTimerCommandReceiver } from "./application/timer-command-receiver.js";
 import { InMemoryRoomStore } from "./adapters/in-memory-room-store.js";
 import { InMemoryTimerStore } from "./adapters/in-memory-timer-store.js";
 import { SystemWallClock } from "./adapters/system-clock.js";
@@ -415,16 +416,19 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     onRouletteMessage: async (connId, raw) => {
       await rouletteHandlers.handleMessage(connId, raw);
     },
-    onMessage: async (connId, cmd) => {
-      // cmd は ws-adapter 側で CommandSchema（valibot）に通した検証済みの値で、型も Command のまま届く（#363）。
+    // cmd は ws-adapter 側で CommandSchema（valibot）に通した検証済みの値で、型も Command のまま届く（#363）。
+    // 表示名の正規化は受け口のアプリケーション側が掛ける（#368）。
+    onMessage: createTimerCommandReceiver({
+      reply: (connId, msg) => wsAdapter.send(connId, msg),
+      route: async (connId, cmd) => {
+        if (cmd.command === "presence.ping") {
+          presenceManager.handlePing(connId);
+          return;
+        }
 
-      if (cmd.command === "presence.ping") {
-        presenceManager.handlePing(connId);
-        return;
-      }
-
-      await handlers.handleCommand(connId, cmd);
-    },
+        await handlers.handleCommand(connId, cmd);
+      },
+    }),
     // 接続の受理時に、この接続が属するクライアント鍵（IP の HMAC）を登録する。
     // これが無いと鍵は connId へ落ち、接続単位の（＝再接続で回避できる）挙動に戻る。
     onConnect: (connId, rateKey) => {

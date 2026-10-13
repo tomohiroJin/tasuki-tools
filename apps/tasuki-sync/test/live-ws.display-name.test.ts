@@ -1,7 +1,7 @@
 /**
  * 表示名の正規化が**実経路で**掛かっていること（#95 S4b）。
  *
- * 規約は `@tasuki/room-core`、適用は境界（`adapters/ws-adapter.ts` → `normalizeCommandNames`）
+ * 規約は `@tasuki/room-core`、適用は timer の受け口（`application/timer-command-receiver.ts` → `normalizeCommandNames`）
  * にある。**この 2 つが繋がっていることは関数の単体テストでは分からない**
  * （`test/normalize-command-names.test.ts` は関数だけを見る）。S4a 以前は同じ仕事を
  * wire スキーマの `transform` が担っていたので、移設で配線が死んでいないかを実ソケットで見る。
