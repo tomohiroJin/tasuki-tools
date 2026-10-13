@@ -1632,6 +1632,17 @@ export const MUTATIONS = [
     tests: ["tests/wheel.test.tsx"],
     note: "#94 spec E22・§6.7。320×640 で下端に留まる帯が札を覆っても、窓に収まっていれば寄せない（名前が帯に隠れたまま）。",
   },
+  {
+    id: 177,
+    label: "縦書きの席の欧文を立てない（text-orientation を既定の mixed に戻す）",
+    patch: "m177-vertical-latin-sideways.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/wheel-glyphs.test.tsx"],
+    note:
+      "#94 spec §6.3。縦書きの欧文が 90° 回って横倒しに描かれる（2026-10-13 の実画面の「Mika」）。" +
+      "関数の戻り値だけを測る単体（`wheel-motion.test.ts` の全組で ±45°）では殺せない。" +
+      "ブラウザの実際の姿は E2E（`roulette.spec.ts` の `expectWheelGlyphsUpright`）が `getRotationOfChar` で測る。",
+  },
 ];
 
 /**
