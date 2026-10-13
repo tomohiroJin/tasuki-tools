@@ -16,15 +16,15 @@
 #       git apply scripts/mutations/m109-*.patch
 # 復元: git apply -R scripts/mutations/m109-*.patch
 diff --git a/apps/tasuki-sync/src/application/apply-room-level-event.ts b/apps/tasuki-sync/src/application/apply-room-level-event.ts
-index c9fdefc..ac39ff9 100644
+index 93ef958..f35995a 100644
 --- a/apps/tasuki-sync/src/application/apply-room-level-event.ts
 +++ b/apps/tasuki-sync/src/application/apply-room-level-event.ts
-@@ -143,7 +143,7 @@ function applyRoomLevelEvent(
+@@ -151,7 +151,7 @@ function applyRoomLevelEvent(
        const record = buildCompletionRecord(
          { session: room.session, clock: room.clock },
          event.topicTitle,
 -        rotationDisplayNames(state.membership, room),
 +        state.membership.participants.map((p) => p.displayName),
          event.now,
+         nextRecordId,
          room.code,
-       );
