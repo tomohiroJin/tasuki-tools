@@ -33,6 +33,7 @@ import { errorMessageFor } from "@tasuki/timer-core";
 import type { TimerStore } from "../ports/timer-store.js";
 import type { HubBroadcaster } from "../ports/hub-broadcaster.js";
 import { checkRoom } from "./check-room.js";
+import { CONNECTION_ERROR_TEXT, boundaryErrorCode } from "./connection-errors.js";
 import { createRoom, type CreateRoomDeps } from "./create-room.js";
 import { applyDisplayNameRule, INVALID_DISPLAY_NAME_MESSAGE } from "./display-name-rule.js";
 import { joinRoom, ROOM_NOT_FOUND_MESSAGE, type JoinRoomDeps } from "./join-room.js";
@@ -48,15 +49,14 @@ import type { TopicBroadcaster } from "./topic-broadcast.js";
 export const TOOL_HUB: ToolId | null = null;
 
 /**
- * コマンドの形が不正なときの文言（#91 PR 3 Task 5）。
+ * コマンドの形が不正なときの文言（#91 PR 3 Task 5）。正本は `connection-errors.ts`（#362）。
  *
  * `handleMessage` の JSON パース失敗時と、**既にどこかのルームに居る接続からの
  * 2 度目の `room.join` / `room.create`**（`isInAnyRoom` 参照）の、両方で使う。
  * 後者は形は正しいコマンドだが、正規の画面（玄関）からは絶対に届かない組み合わせ
  * なので、届いたら「壊れたクライアント」として同じ失敗の形で突き返す。
- * 文言を 2 か所に書くと片方だけが直る（過去に何度も踏んだ型）ので定数にする。
  */
-const INVALID_COMMAND_MESSAGE = "コマンドの形式が不正です";
+const INVALID_COMMAND_MESSAGE = CONNECTION_ERROR_TEXT.INVALID_COMMAND;
 
 export interface HubHandlerDeps extends CreateRoomDeps, JoinRoomDeps, SaveRosterDeps {
   timers: TimerStore;
@@ -235,10 +235,8 @@ export function makeHubHandlers(deps: HubHandlerDeps): HubHandlers {
       // 境界のパースは `@tasuki/protocol` に一本化してある（timer / poker と同じ入口）。
       const parsed = parseBoundaryMessage(HubCommandSchema, raw);
       if (parsed.isErr()) {
-        const code = parsed.error.stage === "json" ? "INVALID_JSON" : "INVALID_COMMAND";
-        const message =
-          parsed.error.stage === "json" ? "JSON の形式が不正です" : INVALID_COMMAND_MESSAGE;
-        fail(connId, code, message);
+        const code = boundaryErrorCode(parsed.error.stage);
+        fail(connId, code, CONNECTION_ERROR_TEXT[code]);
         return;
       }
 
