@@ -41,7 +41,7 @@ import {
   boundaryErrorCode,
 } from "../application/connection-errors.js";
 import { deriveClientKeySafely } from "./client-key-safety.js";
-import type { Handlers as PokerHandlers } from "../application/poker-handlers.js";
+import type { PokerHandlers } from "../application/poker-handlers.js";
 import { TOOL_POKER, TOOL_ROULETTE, TOOL_TIMER, TOOL_TOPIC } from "../application/tool-id.js";
 import type { RouletteOwnFrame, RouletteServerMsg } from "../ports/roulette-server-msg.js";
 import type { TopicOwnFrame, TopicServerMsg } from "../ports/topic-server-msg.js";

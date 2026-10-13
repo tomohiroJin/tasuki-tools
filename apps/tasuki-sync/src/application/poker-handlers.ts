@@ -24,7 +24,7 @@
  *   - **復帰トークン** — `TokenStore`（`../../application/token-store.ts`。これも timer と共有）
  *
  * 3 つはルームコードで突き合わせる。**片方だけ書いて配信する形を作らない** ——
- * 保管と配信は {@link makeHandlers} 内の `commit` 1 本に閉じてある（timer 側の
+ * 保管と配信は {@link makePokerHandlers} 内の `commit` 1 本に閉じてある（timer 側の
  * `application/handlers.ts` と同じ規律）。
  *
  * ## 表示名の規約は timer / ハブと共有する（#95 S5b）
@@ -71,7 +71,7 @@ import type { TopicBroadcaster } from './topic-broadcast.js';
 import { saveRoster } from './save-roster.js';
 import { applyDisplayNameRule, INVALID_DISPLAY_NAME_MESSAGE } from './display-name-rule.js';
 import type { TokenStore } from './token-store.js';
-import type { Broadcaster, RoomSocket } from '../ports/poker-broadcaster.js';
+import type { PokerBroadcaster, RoomSocket } from '../ports/poker-broadcaster.js';
 import type { IdGen } from '../ports/poker-id-gen.js';
 import type { MonotonicClock } from '../ports/monotonic-clock.js';
 import type { RoundStore } from '../ports/poker-round-store.js';
@@ -103,7 +103,7 @@ export interface HandlerConnection extends RoomSocket {
   };
 }
 
-export interface HandlerDeps {
+export interface PokerHandlerDeps {
   /**
    * 名簿の保管。**timer と同じインスタンスである**（#95 S4a）。
    * 保管するのは `@tasuki/room-core` の `Room` で、poker 固有の情報は入っていない。
@@ -116,7 +116,7 @@ export interface HandlerDeps {
    * 旧 `Participant.token` と `findParticipantByToken` の引っ越し先。
    */
   tokens: TokenStore;
-  broadcaster: Broadcaster;
+  broadcaster: PokerBroadcaster;
   /**
    * 選択画面（ハブ）への配信（#95 S5a）。**poker 用の `broadcaster` とは別物**である ——
    * あちらはラウンドを配り、こちらは名簿を配る。poker の入口で名簿が変わったことも
@@ -138,7 +138,7 @@ export interface HandlerDeps {
   /**
    * いまのお題を参加・復帰した本人へ 1 通送る（#91・E4）。
    *
-   * **必須にしてある**（理由は {@link HandlerDeps.hub} と同じ）。既定を持たせると、
+   * **必須にしてある**（理由は {@link PokerHandlerDeps.hub} と同じ）。既定を持たせると、
    * 注入を忘れた瞬間に poker で入った人にだけお題が出なくなり、しかもハブと
    * お題ツールでは正しく出るので誰も気づかない。
    */
@@ -146,7 +146,7 @@ export interface HandlerDeps {
 }
 
 /** 組み立て済みのユースケース群。WS アダプタと死活監視以外の入口はここに集まる。 */
-export interface Handlers {
+export interface PokerHandlers {
   handleCreateRoom(
     ws: HandlerConnection,
     msg: Extract<ClientMessage, { type: 'create-room' }>,
@@ -170,12 +170,12 @@ export interface Handlers {
 }
 
 /** 1 ルームぶんの poker の状態一式（名簿とラウンド）。 */
-export interface RoomState {
+export interface PokerRoomState {
   room: MembershipRoom;
   round: Round;
 }
 
-export function makeHandlers(deps: HandlerDeps): Handlers {
+export function makePokerHandlers(deps: PokerHandlerDeps): PokerHandlers {
   const {
     store,
     rounds,
@@ -251,7 +251,7 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
    * （`room-entry.ts`）を通す `handleJoinRoom` / `handleCheckRoom` の側で、
    * ここへ判定を書き足すと 2 箇所へ散る。
    */
-  function loadState(roomId: string): RoomState | undefined {
+  function loadState(roomId: string): PokerRoomState | undefined {
     const room = store.get(roomId);
     if (!room) return undefined;
     return { room, round: rounds.get(roomId) ?? createRound() };
@@ -280,7 +280,7 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
    * もう片方を配信する取り違えが起こりうる。両方の put と配信をここへ束ねてある
    * （timer 側の `application/handlers.ts` の `commit` と同じ規律）。
    */
-  function commit(state: RoomState): void {
+  function commit(state: PokerRoomState): void {
     // 名簿の保管とハブへの配信は対にする（`save-roster.ts`・#95 S5a）。
     saveRoster({ store, hub: deps.hub }, state.room);
     rounds.put(state.room.code, state.round);
@@ -368,7 +368,7 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
    * 順序に不変条件がある: socket 登録 → 接続状態の更新 → joined 送信 → 保管と配信
    *
    * `persist` が false のときは配信だけ行い、保管しない。**書き戻すと保管にだけ
-   * ルームが復活し、Broadcaster 側に接続が無い「到達不能なルーム」が `maxRooms` の枠を
+   * ルームが復活し、PokerBroadcaster 側に接続が無い「到達不能なルーム」が `maxRooms` の枠を
    * 永久に食い潰す**（#165 レビューで発見）。判断は {@link handleJoinRoom} が持つ。
    *
    * ⚠ **S4a 以降、`persist` に false が渡る経路は無い**（理由は {@link handleJoinRoom} の
@@ -376,7 +376,7 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
    */
   function completeJoin(
     ws: HandlerConnection,
-    state: RoomState,
+    state: PokerRoomState,
     participantId: string,
     token: string,
     persist = true,
@@ -544,7 +544,7 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
     // 戻ってくる）。当時の理由は次のとおり ——
     //
     // - stillRegistered: detach でレジストリから消えていたら **書き戻さない**。
-    //   書き戻すと保管にだけルームが復活し、Broadcaster 側に接続が無い
+    //   書き戻すと保管にだけルームが復活し、PokerBroadcaster 側に接続が無い
     //   「到達不能なルーム」が maxRooms の枠を永久に食い潰す（#165 レビューで発見）。
     // - `?? state` の読み直し: detach は切断者の presence 更新と、それによる自動公開で
     //   このルームを更新していることがある。読み直さずに detach 前のスナップショットを

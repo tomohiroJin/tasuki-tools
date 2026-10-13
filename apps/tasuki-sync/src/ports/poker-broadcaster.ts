@@ -1,5 +1,5 @@
 /**
- * Broadcaster ポート — 誰が接続中かと、どう届けるか。
+ * PokerBroadcaster ポート — 誰が接続中かと、どう届けるか。
  *
  * **ルーム保管とは分ける**（docs/adr/0004 の背景が挙げた非対称の解消）。
  * ただし timer 側の形はそのまま写せない。timer は名簿の `Participant.connId` から
@@ -13,7 +13,7 @@ export interface RoomSocket {
   send(data: string): void;
 }
 
-export interface Broadcaster {
+export interface PokerBroadcaster {
   /**
    * そのソケットを配信先に加える。**1 人が複数のソケットを持てる**（#95 S4b・D14）。
    * S4a までは同じ参加者の 2 本目が 1 本目を置き換えていた。

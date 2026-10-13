@@ -67,7 +67,7 @@ import { createPerformanceClock } from "./adapters/performance-clock.js";
 import { createCryptoIdGen } from "./adapters/poker-crypto-id-gen.js";
 import { createWsBroadcaster } from "./adapters/poker-ws-broadcaster.js";
 import { createTimerWsBroadcaster } from "./adapters/timer-ws-broadcaster.js";
-import { makeHandlers as makePokerHandlers } from "./application/poker-handlers.js";
+import { makePokerHandlers } from "./application/poker-handlers.js";
 import type { SyncConfig } from "./config.js";
 
 /** アイドルルーム回収の sweep 間隔（ms）。 */
