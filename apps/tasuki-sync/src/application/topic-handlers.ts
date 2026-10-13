@@ -51,6 +51,7 @@ import { constantTimeEqual } from "./secure-compare.js";
 import type { TopicBroadcaster } from "./topic-broadcast.js";
 import type { TopicGenerator } from "./topic-generation.js";
 import { TOOL_TOPIC } from "./tool-id.js";
+import { boundaryErrorCode } from "./connection-errors.js";
 
 /**
  * お題の接続が受け取る言葉。**ハブの言葉（`room.join` のため）とお題のコマンドの和**である。
@@ -243,7 +244,7 @@ export function makeTopicHandlers(deps: TopicHandlerDeps): TopicHandlers {
       // 境界のパースは `@tasuki/protocol` に一本化してある（timer / poker / ハブと同じ入口）。
       const parsed = parseBoundaryMessage(TopicConnectionMessageSchema, raw);
       if (parsed.isErr()) {
-        fail(connId, parsed.error.stage === "json" ? "INVALID_JSON" : "INVALID_COMMAND");
+        fail(connId, boundaryErrorCode(parsed.error.stage));
         return;
       }
 

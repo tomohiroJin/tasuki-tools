@@ -51,6 +51,7 @@ import { joinRoom, ROOM_NOT_FOUND_MESSAGE, type JoinRoomDeps } from "./join-room
 import type { RouletteBroadcaster } from "./roulette-broadcast.js";
 import { saveRoster, type SaveRosterDeps } from "./save-roster.js";
 import { TOOL_ROULETTE } from "./tool-id.js";
+import { boundaryErrorCode } from "./connection-errors.js";
 
 /**
  * ルーレットの接続が受け取る言葉。**ハブの言葉（`room.join` のため）とルーレットのコマンドの和**。
@@ -230,7 +231,7 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
       // 境界のパースは `@tasuki/protocol` に一本化してある（timer / poker / ハブ / お題と同じ入口）。
       const parsed = parseBoundaryMessage(RouletteConnectionMessageSchema, raw);
       if (parsed.isErr()) {
-        fail(connId, parsed.error.stage === "json" ? "INVALID_JSON" : "INVALID_COMMAND");
+        fail(connId, boundaryErrorCode(parsed.error.stage));
         return;
       }
 
