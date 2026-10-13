@@ -198,6 +198,15 @@ packages/protocol/src/
 | ドメインはモジュールの状態を持たない | `audit-domain-side-effects.mjs` にトップレベルの `let` の検出を足すかを計画で決める |
 | room-core の失敗は型に出る | 戻り値の型 |
 
+> **追記（2026-10-13・R4 の計画 [`2026-10-13-refactor-r4-invariants.md`](../plans/2026-10-13-refactor-r4-invariants.md)）**: 計画で、次のように決めた。
+>
+> - **`throw` とトップレベルの `let` は、`audit-domain-side-effects.mjs` で拒む。** 上の表は `audit-domain-error-shape.mjs` を候補に挙げていたが、字面でドメインの `src` を見る既存の検査に足す方が素直である（ドメインの宣言の一覧も同じものを使える）
+> - **roulette の `throw` は、前例（`INVALID_SETTLE`）と同じ形で `INVALID_RANDOM` の `Result` にする。** 同期サーバーが `INTERNAL_ERROR` に読み替えるので、wire の応答は変わらない
+> - **記録の ID は、生成器（`createRecordIdGenerator`）を注入する。** 状態は同期サーバーの組み立てが持ち、ID の形は変えない
+> - **`as IntervalMinutes` は、リセットを秒のまま組むことで要らなくする**
+> - **`rotation` と `driverCounts` は畳まない**（wire・端末の保存形式・画面まで動く）。長さがそろうことを性質のテストで守る
+> - **room-core の ID のブランド型は見送る**（同期サーバーの全体に広がる。取り違えは関数名で既に防いでいる）
+
 ### 5.5 同期サーバーのアプリケーション層（#366）
 
 新しく置くもの（名前は仮。計画で決める）:
