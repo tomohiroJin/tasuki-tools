@@ -187,3 +187,22 @@
 - [ ] 同期サーバーの中で、検証済みのコマンドの型が失われていない（`handleRoomCommand`・`buildDomainCommand`・`onMessage`）。`as` の前後の数を PR に書いた
 - [ ] 変異検査が緑（パッチの ID は変えない）
 - [ ] 見直したことを設計正本 §5.3 と #363 に残した
+
+## 7. 実施の記録（2026-10-13）
+
+計画から外れたこと・計画の時点で分かっていなかったことだけを書く。
+
+- **`as` を外すと、隠れていた型の差が 2 つ見えた。**
+  - **wire の設定（`config`）とドメインの `TimerConfig`**: §1 の timer の `Room` と同じく、任意項目の `| undefined` の 1 点だけが違う。以前は `handlers.ts` の `as` と `build-domain-command.ts` の `as Partial<SessionConfig>` が、各所で黙って埋めていた。
+    - `application/wire-config.ts` の `toTimerConfig` / `toPartialTimerConfig` の 1 か所に集めた。中身は実行時に何もしない `as` で、理由をファイルに書いた
+    - 残る `as` は、この理由のある 2 つになった
+  - **`presence.ping`**: `handleCommand` の引数の型（`PreRoomCommand`）に入っていて、`default` の枝へ流れる型になっていた。実際には配線（`create-sync-server.ts`）が手前で横取りする。
+    - `handleCommand` の引数の型から外した（実行時のコードは変えていない。直接 `presence.ping` を渡すテストは 0 件）
+- **専用ハンドラ 4 つの引数も、手書きの形から `Extract<Command, …>` にした**（`room.create`・`room.join`・`participant.remove`・`room.passphrase.set`）。計画は `handleRoomCommand` と `buildDomainCommand` だけを挙げていたが、`as` を外すと引数の型が合わなくなるため、同じ理由で揃えた
+- **`participant-remove.ts` の `typeof targetId !== "string"`（`INVALID` を返す枝）は残した。** 型の上ではもう届かない。ただ、`error-code-coverage.test.ts` がこの経路を「送りうるコード」として数えているので、外すのはこの Issue の範囲を越える
+- **語彙の定数（`ROOM_PHASES`・`SESSION_ACTIONS`）は `aggregate.ts` に置いた。** 計画は `SESSION_ACTIONS` を `decide.ts` に置くとしていたが、`schemas.ts` から `decide.ts` へ依存させないため、ドメインの語彙が並ぶ `aggregate.ts` にした。同期サーバーは結局これを取り込まずに済んだ（`COMPLETE`・`RESET` を名前で書き分けたため）ので、`index.ts` の公開は変えていない
+- **変えた範囲の `as`（`as const` と `import` の別名を除く）は 10 → 4**
+  - `handlers.ts` 5 → 0、`ws-adapter.ts` 1 → 0、`create-sync-server.ts` 1 → 0
+  - `build-domain-command.ts` 3 → 2。残るのは、後で代入する項目の型を広げる注釈で、以前からある
+  - `wire-config.ts` 0 → 2。上の理由のある 2 つ
+- **変異のパッチは 15 本すべて、そのまま当たった**
