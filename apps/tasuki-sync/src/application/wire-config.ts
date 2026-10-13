@@ -14,8 +14,15 @@ import type { Command, TimerConfig } from "@tasuki/timer-core";
 
 /** `room.create` の wire の設定。 */
 type WireSessionConfig = NonNullable<Extract<Command, { command: "room.create" }>["config"]>;
+/** `config.set` の wire の設定（部分）。 */
+type WirePartialConfig = Extract<Command, { command: "config.set" }>["config"];
 
 /** wire の設定をドメインの設定の型にする（実行時には何もしない）。 */
 export function toTimerConfig(config: WireSessionConfig): TimerConfig {
   return config as TimerConfig;
+}
+
+/** wire の部分の設定をドメインの部分の設定の型にする（実行時には何もしない）。 */
+export function toPartialTimerConfig(config: WirePartialConfig): Partial<TimerConfig> {
+  return config as Partial<TimerConfig>;
 }

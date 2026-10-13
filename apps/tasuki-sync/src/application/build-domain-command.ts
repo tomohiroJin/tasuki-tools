@@ -1,30 +1,33 @@
 /**
- * ワイヤ形式のコマンド（`{ command: string; [key: string]: unknown }`）を
- * core の `DecideCommand` へ変換する（FR-161）。
+ * wire のコマンド（`RoomScopedCommand`。境界で検証済み）を、core の `DecideCommand` へ翻訳する（FR-161）。
  *
- * `handlers.ts` が抱えていた `buildDomainCommand`（付随定数 `VALID_ACTIONS`/
- * `VALID_PHASES` を含む）を、ロジックを変えずに1モジュールへ切り出したもの
- * （フェーズ4・純粋な移動）。
+ * DDD の腐敗防止層にあたる。ドメインのコマンドは wire に無い値を持つので、ここでは仮の値を置き、
+ * 呼び出し側（`handleRoomCommand`）が後で埋める:
+ * - `session.act` の `ineligible`（SWITCH のときだけ）
+ * - `session.complete` の `topicTitle`（保管から）
+ * - `driver.assign` の `index`（参加者 ID から解決する。-1 は仮の値）
+ *
+ * `handlers.ts` が抱えていた `buildDomainCommand` を 1 モジュールへ切り出したもの（フェーズ4・純粋な移動）。
+ * **#363 で引数を検証済みの型にした。** それまでは `{ command: string; [key: string]: unknown }` を受け、
+ * 検証済みの値を `typeof` と `as` で確かめ直していた。翻訳の表は `test/build-domain-command.test.ts` が固定する。
  */
 
-import type { SessionConfig } from "@tasuki/timer-core";
+import type { RoomScopedCommand } from "./handlers.js";
+import { toPartialTimerConfig } from "./wire-config.js";
 
-// RESTART は「現ドライバーのまま持ち時間をやり直す」（Issue #14）。session.act として
-// 受理するため、wire スキーマも扱いも既存の session.act と同一になる。
-const VALID_ACTIONS = new Set(["START", "SWITCH", "PAUSE", "RESUME", "RESTART"]);
-const VALID_PHASES = new Set(["setup", "ready", "session", "celebration"]);
-
-export function buildDomainCommand(cmd: { command: string; [key: string]: unknown }) {
+export function buildDomainCommand(cmd: RoomScopedCommand) {
   switch (cmd.command) {
     case "session.act": {
-      const action = cmd.action;
-      if (typeof action !== "string" || !VALID_ACTIONS.has(action)) return null;
+      // wire は 7 つの操作を受けるが、ドメインが扱うのは 5 つ（`SESSION_ACTIONS`）。
+      // 残る 2 つはここで落とす（UNKNOWN_COMMAND になる）。**名前で書き分けるのは、wire に操作が
+      // 増えたときに、下の `action` の型（ドメインの 5 つ）が合わなくなって型検査が落ちるようにするため**。
+      if (cmd.action === "COMPLETE" || cmd.action === "RESET") return null;
       // ineligible は SWITCH のときだけ handlers.ts 側で後から埋める（B-2統合）。
       // ここでは常に未設定の型付きプロパティとして持たせ、他コマンドと同様に
       // 呼び出し側での型安全な代入を可能にする。
       return {
         command: "session.act" as const,
-        action: action as "START" | "SWITCH" | "PAUSE" | "RESUME" | "RESTART",
+        action: cmd.action,
         ineligible: undefined as ReadonlySet<number> | undefined,
       };
     }
@@ -33,54 +36,42 @@ export function buildDomainCommand(cmd: { command: string; [key: string]: unknow
       return { command: "session.complete" as const, topicTitle: null as string | null };
     case "session.reset":
       return { command: "session.reset" as const };
-    case "config.set": {
-      if (typeof cmd.config !== "object" || cmd.config === null) return null;
+    case "config.set":
       // ⚠ ここにはかつて `members` を取り除く分解代入があった。**#294 で不要になった** ——
       // `members` は wire の設定から消え、`SessionConfigSchema` を通った時点で落ちる
       // （v.object の出力に未知のキーは残らない。`packages/timer-core/test/schemas.test.ts`）。
       // 輪の出入りを担うのは member.add/remove/move・addProxy・participant.remove だけ
       // という決まり（D6b）は変わらない。
-      return { command: "config.set" as const, config: cmd.config as Partial<SessionConfig> };
-    }
+      return { command: "config.set" as const, config: toPartialTimerConfig(cmd.config) };
     case "member.add":
       // 誰を輪に並べるかは参加者IDで指す（D6b）。名前→IDの解決という曖昧さを発生源で消す。
-      if (typeof cmd.participantId !== "string") return null;
       return { command: "member.add" as const, participantId: cmd.participantId };
     case "member.remove":
-      if (typeof cmd.index !== "number") return null;
       return { command: "member.remove" as const, index: cmd.index };
     case "member.move":
-      if (typeof cmd.fromIndex !== "number" || typeof cmd.toIndex !== "number") return null;
       return { command: "member.move" as const, fromIndex: cmd.fromIndex, toIndex: cmd.toIndex };
-    case "phase.set": {
-      const phase = cmd.phase;
-      if (typeof phase !== "string" || !VALID_PHASES.has(phase)) return null;
-      return { command: "phase.set" as const, phase: phase as "setup" | "ready" | "session" | "celebration" };
-    }
+    case "phase.set":
+      return { command: "phase.set" as const, phase: cmd.phase };
     case "handoff.note.set":
-      if (typeof cmd.text !== "string") return null;
       return { command: "handoff.note.set" as const, text: cmd.text };
     // ─── v2 新コマンド ─────────────────────────────────────────────────────
     case "session.abort":
       return { command: "session.abort" as const };
     case "participant.addProxy":
-      if (typeof cmd.displayName !== "string" || typeof cmd.participantId !== "string") return null;
       return { command: "participant.addProxy" as const, displayName: cmd.displayName, participantId: cmd.participantId };
     case "participant.rename":
-      if (typeof cmd.participantId !== "string" || typeof cmd.displayName !== "string") return null;
       // 表示名の一意性は呼び出し側（handleRoomCommand）が participants に対して検査する（T052）
       return { command: "participant.rename" as const, participantId: cmd.participantId, displayName: cmd.displayName };
     case "driver.skip":
-      if (typeof cmd.participantId !== "string") return null;
       return { command: "driver.skip" as const, participantId: cmd.participantId };
     case "driver.resume":
-      if (typeof cmd.participantId !== "string") return null;
       return { command: "driver.resume" as const, participantId: cmd.participantId };
     case "driver.assign":
-      if (typeof cmd.participantId !== "string") return null;
       // index は handleRoomCommand が participantId から解決して埋める（-1 はプレースホルダ）。
       return { command: "driver.assign" as const, index: -1 };
     default:
+      // 翻訳の対象外（member.shuffle・participant.remove・room.passphrase.set は前段の専用処理、
+      // break.start・break.end は wire に残るが処理しない）。UNKNOWN_COMMAND になる。
       return null;
   }
 }
