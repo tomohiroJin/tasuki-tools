@@ -442,6 +442,20 @@ describe("participant.rename の対象解決", () => {
     expect(target?.displayName).toBe("RenamedByCreator");
   });
 
+  it("在室していない participantId を輪へ足すと PARTICIPANT_NOT_FOUND で拒否され、輪は変わらない（#366 で固定）", async () => {
+    // Given: 輪の事前条件（在室者だけを並べる・D6b）を表へ移す前に、送るものと変えないものを固定する
+    const before = broadcaster.sent.length;
+    // When
+    await handlers.handleCommand(creatorConn, { command: "member.add", participantId: "no-such-participant" });
+    // Then
+    expect(broadcaster.errorsTo(creatorConn).at(-1)).toMatchObject({
+      code: "PARTICIPANT_NOT_FOUND",
+      message: "対象の参加者が見つかりません。",
+    });
+    expect(broadcaster.sent.length).toBe(before + 1);
+    expect(broadcaster.latestSnapshot()).toBeUndefined();
+  });
+
   it("存在しない participantId への rename は PARTICIPANT_NOT_FOUND で拒否される", async () => {
     // Given
     const command = {
