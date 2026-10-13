@@ -155,9 +155,9 @@ export async function handleParticipantRemove(
   // **名簿の表現が変わったときに片側だけが取り残される**（#245 のレビューで、
   // 書き写しが SC-039③④ の指標としても現れた）。
   //
-  // 対象が代理なら `removeParticipant` は何もしない（代理は名簿に居ない・D6）ので、
-  // ここで先に外しても輪の席の処理は下でそのまま行える。
-  const membershipAfterRemoval = removeParticipant(membership, targetId);
+  // 対象が代理なら `removeParticipant` は `PARTICIPANT_NOT_FOUND` を返す（代理は名簿に居ない・D6）。
+  // そのときは名簿を変えずに進むので、ここで先に外しても輪の席の処理は下でそのまま行える。
+  const membershipAfterRemoval = removeParticipant(membership, targetId).unwrapOr(membership);
   if (hasNoParticipants(membershipAfterRemoval)) {
     // 後始末はアイドル回収と同じ共通経路へ委ねる（スケジューラ・お題の生成・presence タイマー・
     // トークン・名簿・timer の状態・お題・ラウンド。1 つでも取りこぼすと消えた部屋のタイマーが

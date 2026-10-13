@@ -21,7 +21,13 @@
  * **presence の値域に `"idle"` は無い。** wire の契約（`RoomSchema`）には残っているが、
  * 代入する経路は S4a 時点で実測 0 件であり、導出にした S4b では表現できない。
  * wire の側は非 strict の `v.object` なので、値域が狭くなっても契約は満たす。
+ *
+ * ## 名簿を変える関数は失敗を `Result` で返す（#364・`docs/adr/0017` 決定 5）
+ *
+ * 足す・外す・結ぶ・閉じるの 4 つは、相手が居ない（足すなら既に居る）とき `Err` を返す。
+ * それまでは黙って同じ名簿を返していた（足すは同じ ID を 2 人目として足していた）。
  */
+import { err, ok, type Result } from "neverthrow";
 
 export type ParticipantId = string;
 export type ConnId = string;
@@ -49,6 +55,21 @@ export interface Room {
   participants: Participant[];
 }
 
+/**
+ * 名簿を変える関数が返すコード。
+ *
+ * - `DUPLICATE_PARTICIPANT`: 足そうとした ID が既に居る
+ * - `PARTICIPANT_NOT_FOUND`: 指した参加者が居ない
+ * - `CONNECTION_NOT_FOUND`: 閉じようとした接続を誰も持っていない
+ */
+export type RoomErrorCode = "DUPLICATE_PARTICIPANT" | "PARTICIPANT_NOT_FOUND" | "CONNECTION_NOT_FOUND";
+
+/**
+ * 名簿を変える関数が返すエラー。**判別子だけを持ち、文言を持たない**（`scripts/audit-domain-error-shape.mjs`）。
+ * 型引数でその関数が返しうるコードへ絞る（`roulette-core` の `RouletteError` と同じ形）。
+ */
+export type RoomError<C extends RoomErrorCode = RoomErrorCode> = { code: C };
+
 export function findParticipant(room: Room, id: ParticipantId): Participant | undefined {
   return room.participants.find((p) => p.id === id);
 }
@@ -58,12 +79,19 @@ export function findParticipantByConnId(room: Room, connId: ConnId): Participant
   return room.participants.find((p) => p.connections.has(connId));
 }
 
-export function addParticipant(room: Room, participant: Participant): Room {
-  return { ...room, participants: [...room.participants, participant] };
+/** 参加者を足す。**同じ ID が既に居れば `DUPLICATE_PARTICIPANT`**（2 人目として足さない）。 */
+export function addParticipant(
+  room: Room,
+  participant: Participant,
+): Result<Room, RoomError<"DUPLICATE_PARTICIPANT">> {
+  if (findParticipant(room, participant.id) !== undefined) return err({ code: "DUPLICATE_PARTICIPANT" });
+  return ok({ ...room, participants: [...room.participants, participant] });
 }
 
-export function removeParticipant(room: Room, id: ParticipantId): Room {
-  return { ...room, participants: room.participants.filter((p) => p.id !== id) };
+/** 参加者を外す。居なければ `PARTICIPANT_NOT_FOUND`。 */
+export function removeParticipant(room: Room, id: ParticipantId): Result<Room, RoomError<"PARTICIPANT_NOT_FOUND">> {
+  if (findParticipant(room, id) === undefined) return err({ code: "PARTICIPANT_NOT_FOUND" });
+  return ok({ ...room, participants: room.participants.filter((p) => p.id !== id) });
 }
 
 function updateParticipant(
@@ -78,18 +106,21 @@ function updateParticipant(
  * 接続を結ぶ（その接続が居るツールの宣言を伴う）。
  *
  * **既にある接続を奪わない。** 同じ接続 ID を結び直したときだけ宣言を上書きする
- * （本数は増えない）。居ない参加者を指したときは名簿を変えない。
+ * （本数は増えない）。居ない参加者を指したときは `PARTICIPANT_NOT_FOUND`。
  */
 export function attachConnection(
   room: Room,
   id: ParticipantId,
   connId: ConnId,
   tool: ToolId | null,
-): Room {
-  return updateParticipant(room, id, (p) => ({
-    ...p,
-    connections: new Map(p.connections).set(connId, tool),
-  }));
+): Result<Room, RoomError<"PARTICIPANT_NOT_FOUND">> {
+  if (findParticipant(room, id) === undefined) return err({ code: "PARTICIPANT_NOT_FOUND" });
+  return ok(
+    updateParticipant(room, id, (p) => ({
+      ...p,
+      connections: new Map(p.connections).set(connId, tool),
+    })),
+  );
 }
 
 /**
@@ -98,15 +129,19 @@ export function attachConnection(
  * S4a までは `detachConnection(room, participantId)` という別物があった。
  * 引数がどちらも `string` なので**取り違えても型検査を通ってしまう**ため、
  * 名前を変えて旧来の呼び出し側が必ずコンパイルエラーになるようにしてある。
+ *
+ * 誰もその接続を持っていなければ `CONNECTION_NOT_FOUND`。
  */
-export function removeConnection(room: Room, connId: ConnId): Room {
+export function removeConnection(room: Room, connId: ConnId): Result<Room, RoomError<"CONNECTION_NOT_FOUND">> {
   const owner = findParticipantByConnId(room, connId);
-  if (!owner) return room;
-  return updateParticipant(room, owner.id, (p) => {
-    const next = new Map(p.connections);
-    next.delete(connId);
-    return { ...p, connections: next };
-  });
+  if (!owner) return err({ code: "CONNECTION_NOT_FOUND" });
+  return ok(
+    updateParticipant(room, owner.id, (p) => {
+      const next = new Map(p.connections);
+      next.delete(connId);
+      return { ...p, connections: next };
+    }),
+  );
 }
 
 /** そのツールに在席しているか（そのツールを宣言した接続を 1 本以上持つか）。 */

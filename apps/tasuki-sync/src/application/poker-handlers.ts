@@ -358,7 +358,8 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
     // **名簿からこの接続だけを外す**（#95 S4b）。同じ人の別タブが残っていれば
     // `connected` は真のままである。票はラウンド側に残る —— 保管が別なので、
     // 名簿を触っても票には触れないことが構造で保証される。
-    const room = removeConnection(state.room, ws.data.connId);
+    // 名簿にこの接続が無ければ Err。そのときは #364 より前と同じく名簿を変えない。
+    const room = removeConnection(state.room, ws.data.connId).unwrapOr(state.room);
     commit({ room, round: applyAutoReveal(state.round, fragmentsOf(room)) });
   }
 
@@ -403,12 +404,13 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
   ): { room: MembershipRoom; participantId: string; token: string } {
     const participantId = idGen.participantId();
     const token = idGen.token();
+    // ID はここで生成したばかり（`idGen`）なので重複の Err にはならない（なっても名簿は変えない）。
     const updated = addParticipant(room, {
       id: participantId,
       displayName,
       connections: new Map([[connId, TOOL_POKER]]),
       joinedAt: wallClock.now(),
-    });
+    }).unwrapOr(room);
     tokens.issueResume(token, { participantId, roomCode: room.code });
     return { room: updated, participantId, token };
   }
@@ -559,7 +561,8 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
     const existing = findResumableParticipant(tokens, live.room, msg.roomId, presented);
     if (existing !== undefined && presented !== undefined) {
       // **接続を足す。前の接続を奪わない**（#95 S4b・D14）。
-      const room = attachConnection(live.room, existing.id, ws.data.connId, TOOL_POKER);
+      // existing は `live.room` から引いた参加者なので Err にはならない（なっても名簿は変えない）。
+      const room = attachConnection(live.room, existing.id, ws.data.connId, TOOL_POKER).unwrapOr(live.room);
       completeJoin(ws, { ...live, room }, existing.id, presented, stillRegistered);
       return;
     }

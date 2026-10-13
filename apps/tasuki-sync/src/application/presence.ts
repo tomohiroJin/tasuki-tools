@@ -117,7 +117,8 @@ export class PresenceManager {
     const participant = findParticipantByConnId(room, connId);
     if (!participant) return;
 
-    const updated = removeConnection(room, connId);
+    // 持ち主は上で確かめたので Err にはならない（なっても名簿は変えない）。
+    const updated = removeConnection(room, connId).unwrapOr(room);
     // 名簿の保管とハブへの配信は対にする（`save-roster.ts`・#95 S5a）。
     // 切断で presence が変わったことは、選択画面にも届く必要がある。
     saveRoster({ store: this.store, hub: this.hub }, updated);

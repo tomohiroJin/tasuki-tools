@@ -135,7 +135,8 @@ export function joinRoom(
       kind: "resumed",
       participantId: resumed.id,
       resumeToken: input.resumeToken,
-      membership: attachConnection(room, resumed.id, input.connId, input.tool),
+      // resumed は `room` から引いた参加者なので Err にはならない（なっても名簿は変えない）。
+      membership: attachConnection(room, resumed.id, input.connId, input.tool).unwrapOr(room),
       timer: timerFor(resumed.id),
     });
   }
@@ -174,7 +175,8 @@ export function joinRoom(
     kind: "joined",
     participantId,
     resumeToken,
-    membership: addParticipant(room, newParticipant),
+    // ID はここで生成したばかり（`codeGen`）なので重複の Err にはならない（なっても名簿は変えない）。
+    membership: addParticipant(room, newParticipant).unwrapOr(room),
     timer,
   });
 }

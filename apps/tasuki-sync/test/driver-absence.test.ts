@@ -110,7 +110,7 @@ describe("PresenceManager: ドライバー不在の自動繰上", () => {
    */
   function reviveDriver(connId: string, tool: string | null = TOOL_TIMER): void {
     const membership = store.get(store.list()[0]!.code)!;
-    store.put(attachConnection(membership, "driver-p01", connId, tool));
+    store.put(attachConnection(membership, "driver-p01", connId, tool)._unsafeUnwrap());
   }
 
   it("現ドライバー切断後、猶予時間経過で当該ルームコードの不在通知が発火する", () => {

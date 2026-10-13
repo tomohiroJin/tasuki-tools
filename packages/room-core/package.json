@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "neverthrow": "^8.2.0",
     "valibot": "^1.4.1"
   },
   "devDependencies": {
