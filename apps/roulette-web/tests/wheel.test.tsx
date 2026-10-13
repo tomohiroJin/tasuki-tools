@@ -5,10 +5,11 @@
  * 角度の期待値は `wheel-motion`（純粋関数）から取る。その純粋関数が正しい席に止まることは
  * `wheel-motion.test.ts` が別の計算（指し針の先を戻して atan2）で固定している。
  */
-import { act, render } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { saveResumeIdentity } from '@tasuki/sync-client';
 import { App } from '../src/App';
+import { DRAWN_MARK, resultText } from '../src/copy';
 import { labelPlacement } from '../src/wheel-geometry';
 import { angleAt, finalAngle } from '../src/wheel-motion';
 import { redirectTo } from '../src/router';
@@ -292,5 +293,140 @@ describe('止まったら札を見える位置へ寄せる', () => {
     advance(100);
     // Then
     expect(scroll).not.toHaveBeenCalled();
+  });
+});
+
+/** 指し針の位置（`<g transform="rotate(p − 180)">` から戻す） */
+function pointerAngle(): number {
+  const raw = document.querySelector('.wheel-pointer')?.parentElement?.getAttribute('transform') ?? '';
+  const m = /rotate\((-?[\d.e+-]+)\)/.exec(raw);
+  if (m === null) throw new Error(`指し針の transform が読めない: ${raw}`);
+  return Number(m[1]) + 180;
+}
+
+/**
+ * 指し針の下にある席の名前。**実装の関数を使わずに**、描かれた DOM（回転子の角度・指し針の角度・席の数・
+ * 席の順の名前）から引く。席 i は回転子の座標で `[i·s, (i+1)·s)`（spec §6.3）。
+ */
+function nameUnderPointer(): string {
+  const labels = [...document.querySelectorAll('.wheel-label')].map((el) => el.textContent ?? '');
+  const n = document.querySelectorAll('.wheel-segment').length;
+  const rel = mod360(pointerAngle() - rotorAngle());
+  return labels[Math.floor(rel / (360 / n))] ?? '';
+}
+
+/**
+ * 回転中にマウントした画面（再読み込み・途中入室）でも、舞台の並びは**最初に測った幅**で決まる。
+ * 回っている間に縦積みのまま凍り、止まった瞬間に横並びへ跳ぶと、止まる角度が 90° 変わって円盤が一瞬で回る。
+ */
+describe('回転中にマウントした広い舞台', () => {
+  it('Given 舞台の幅が 1000px / When 回転の途中（経過 1 秒）で入り、止まるまで待つ / Then 回っている間も止まった後も横並び・指し針は右で、止まった瞬間に角度が跳ばない', () => {
+    // Given: jsdom の幅は 0。舞台（.roulette-stage）だけ 1000px にする
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.classList.contains('roulette-stage') ? 1000 : 0;
+    });
+    // When
+    enterRoom(spinState(1, 1000));
+    const stage = document.querySelector('.roulette-stage');
+    // Then: 最初の描画から横並び
+    expect(stage?.getAttribute('data-layout')).toBe('row');
+    expect(pointerAngle()).toBe(90);
+    advance(2990);
+    expect(stage?.getAttribute('data-layout')).toBe('row');
+    expect(pointerAngle()).toBe(90);
+    const nearEnd = rotorAngle();
+    advance(100);
+    // 止まった: 角度は横並びの指し針（右 90°）で計算した値で、終わり際から跳んでいない
+    expect(stage?.getAttribute('data-layout')).toBe('row');
+    expect(pointerAngle()).toBe(90);
+    expect(rotorAngle()).toBeCloseTo(finalAngle(2, 1, 0.5, 90, 0), 6);
+    expect(rotorAngle() - nearEnd).toBeLessThan(1);
+    expect(nameUnderPointer()).toBe('ゆう');
+  });
+});
+
+/**
+ * 止まったかの判定は 1 か所（spec §6.4）。終わりの時刻の前後で、札・当たりの席・結果の一言・一覧の
+ * 「選ばれた」が**同じ瞬間に**切り替わる。円盤が自前の時計で先に止まると、札は当たりを見せているのに
+ * 一言と一覧はまだ回している、という食い違いが出る。
+ */
+describe('止まった瞬間は円盤と一言と一覧で揃う', () => {
+  const rowOf = (name: string) => within(screen.getByRole('list')).getByText(new RegExp(`^${name}`)).closest('li') as HTMLElement;
+  const snapshot = () => ({
+    card: card().classList.contains('is-revealed'),
+    seat: winnerSeat() !== null,
+    caption: screen.getByRole('status').textContent === resultText('ゆう'),
+    drawn: within(rowOf('ゆう')).queryByText(DRAWN_MARK) !== null,
+  });
+
+  it('Given 回し始めた / When 終わりの時刻の前後を 5ms ずつ進める / Then どの瞬間も 4 つが同じ局面', () => {
+    // Given
+    enterRoom();
+    deliver(spinState(1, 0));
+    advance(3900);
+    // When / Then
+    const seen: string[] = [];
+    for (let t = 3900; t <= 4100; t += 5) {
+      const s = snapshot();
+      const all = [s.card, s.seat, s.caption, s.drawn];
+      expect(new Set(all).size, `${t}ms: ${JSON.stringify(s)}`).toBe(1);
+      seen.push(String(s.card));
+      advance(5);
+    }
+    // 終わり際に回っている瞬間と、止まった瞬間の両方を見ている
+    expect(seen).toContain('false');
+    expect(seen).toContain('true');
+  });
+});
+
+/**
+ * 止まった後の円盤（spec §6.3）。**次に回すまで、回したときの並び（`spin.wheel`）を描き続ける**。
+ * 止まった後に入る人が変わっても、針と札は同じ人を指す。
+ */
+describe('止まった後に入る人が変わる', () => {
+  it('Given 止まった（当たりはゆう） / When ゲストが 1 人増える / Then 針の下の席はゆうのまま、当たりの席もゆう', () => {
+    // Given
+    enterRoom();
+    deliver(spinState(1, 0));
+    advance(4100);
+    expect(nameUnderPointer()).toBe('ゆう');
+    // When: 同じ seq に、ゲストのケンを足した状態
+    deliver({ ...spinState(1, 4000), guests: [{ id: 'g1', name: 'ケン' }] });
+    // Then
+    expect(nameUnderPointer()).toBe('ゆう');
+    expect(winnerSeat()?.parentElement?.querySelector('.wheel-label')?.textContent).toBe('ゆう');
+    expect(card()).toHaveTextContent('ゆう');
+  });
+
+  it('Given 止まった（当たりはゆう） / When 再接続で名簿の順だけが変わる / Then 当たりの席の強調は消えない', () => {
+    // Given
+    enterRoom();
+    deliver(spinState(1, 0));
+    advance(4100);
+    expect(winnerSeat()).not.toBeNull();
+    // When
+    act(() =>
+      latestSocket().deliver({
+        ...ROSTER_FRAME,
+        room: { ...ROSTER_FRAME.room, participants: [...ROSTER_FRAME.room.participants].reverse() },
+      }),
+    );
+    // Then
+    expect(winnerSeat()?.parentElement?.querySelector('.wheel-label')?.textContent).toBe('ゆう');
+    expect(nameUnderPointer()).toBe('ゆう');
+  });
+});
+
+describe('結果の札', () => {
+  it('Given 1 回目が止まった（ゆう） / When 2 回目を受けて伏せ直る / Then 表の名前は前の名前のまま（空にならない）', () => {
+    // Given
+    enterRoom();
+    deliver(spinState(1, 0));
+    advance(4100);
+    // When
+    deliver(spinState(2, 0));
+    // Then
+    expect(card()).not.toHaveClass('is-revealed');
+    expect(card().querySelector('.roulette-card-name')?.firstChild?.textContent).toBe('ゆう');
   });
 });

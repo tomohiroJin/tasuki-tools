@@ -13,15 +13,14 @@
 # #94 E19・spec §6.8。回っている間に当たりの行が「選ばれた」になり、一周の数が進むと、
 # 円盤が止まる前に結果が分かってしまう。変異は「今回の当たりを除く」判定を回っている間も効かせない。
 diff --git a/apps/roulette-web/src/roulette-view.ts b/apps/roulette-web/src/roulette-view.ts
-index 63ebe69a..37ea97f7 100644
 --- a/apps/roulette-web/src/roulette-view.ts
 +++ b/apps/roulette-web/src/roulette-view.ts
-@@ -120,7 +120,7 @@ export function peopleOf(input: {
-   phase: Phase;
+@@ -133,7 +133,7 @@
+   pool: readonly Entry[];
  }): People {
-   const { members, view, selfId, phase } = input;
+   const { members, view, selfId, phase, pool } = input;
 -  const winnerId = phase === 'spinning' ? (winnerOf(view)?.id ?? null) : null;
 +  const winnerId = phase === 'idle' ? (winnerOf(view)?.id ?? null) : null;
    const drawn = new Set(view.drawn.filter((id) => id !== winnerId));
    const excluded = new Set(view.excluded);
-   const poolIds = new Set(poolOf(members, stateOf(view), conflictsWithExisting).map((e) => e.id));
+   const poolIds = new Set(pool.map((e) => e.id));

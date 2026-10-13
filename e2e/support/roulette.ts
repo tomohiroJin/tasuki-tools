@@ -142,10 +142,14 @@ interface DrawnGlyph {
   tilt: number;
 }
 
-/** 欧文が主の名前（半角の字が空白と `…` を除いて半分以上）。 */
+/** 欧文が主の名前（半角の字 —— ラテン 1 と半角カナ U+FF61〜FF9F —— が空白と `…` を除いて半分以上）。 */
 const latinMostly = (text: string): boolean => {
   const chars = Array.from(text).filter((ch) => ch.trim() !== '' && ch !== '…');
-  return chars.length > 0 && chars.filter((ch) => (ch.codePointAt(0) ?? 0) <= 0xff).length * 2 >= chars.length;
+  const half = (ch: string): boolean => {
+    const cp = ch.codePointAt(0) ?? 0;
+    return cp <= 0xff || (cp >= 0xff61 && cp <= 0xff9f);
+  };
+  return chars.length > 0 && chars.filter(half).length * 2 >= chars.length;
 };
 
 /**

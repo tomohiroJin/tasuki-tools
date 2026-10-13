@@ -1605,8 +1605,10 @@ export const MUTATIONS = [
     label: "動きを減らす設定でも回す",
     patch: "m164-reduced-motion-still-spins.patch",
     pkg: "apps/roulette-web",
-    tests: ["tests/wheel.test.tsx"],
-    note: "#94 spec §6.5。rAF の回転は CSS の一括の手当ての外なので JS が止める。忘れると設定を無視して 4 秒回り、当たりの席と札が回転の後まで出ない。",
+    tests: ["tests/wheel.test.tsx", "tests/roulette-room.test.tsx"],
+    note:
+      "#94 spec §6.5。rAF の回転は CSS の一括の手当ての外なので JS が止める。忘れると設定を無視して 4 秒回り、当たりの席と札が回転の後まで出ない。" +
+      "止まったかの判定は局面（`phaseOf`）の 1 か所なので、壊す場所もそこ（PR #383 のレビュー）。",
   },
   {
     id: 174,
@@ -1614,7 +1616,9 @@ export const MUTATIONS = [
     patch: "m174-spin-end-relies-on-raf.patch",
     pkg: "apps/roulette-web",
     tests: ["tests/wheel.test.tsx"],
-    note: "#94 spec §6.4。裏のタブ・ヘッドレスでは rAF が止まる。終わりを rAF に頼ると、当たりの席と札の表が出ないまま止まって見える。",
+    note:
+      "#94 spec §6.4。裏のタブ・ヘッドレスでは rAF が止まる。終わりを rAF に頼ると、当たりの席と札の表が出ないまま止まって見える。" +
+      "終わりの timer は画面の `useNowMs` の 1 つ（PR #383 のレビューで円盤の自前の timer を外した）。",
   },
   {
     id: 175,
@@ -1662,6 +1666,36 @@ export const MUTATIONS = [
     note:
       "#94 spec §6.3 の 4 版（利用者の決定 案 2）。立てて積んだ「M／i／k／a」は読めない。" +
       "字の傾きは 30° 以内に収まるので、字の傾きだけを見る物差しでは殺せない。",
+  },
+  {
+    id: 183,
+    label: "回転中にマウントした舞台を、測る前の既定値（縦積み）のまま凍らせる",
+    patch: "m183-stage-layout-frozen-before-measure.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/wheel.test.tsx"],
+    note:
+      "#94 spec §6.7（PR #383 のレビュー）。再読み込み・途中入室の画面が広い舞台でも回っている間ずっと縦積み（指し針が下）で、" +
+      "止まった瞬間に横並びへ跳び、止まる角度が 90° 変わって円盤が一瞬で回る。",
+  },
+  {
+    id: 184,
+    label: "円盤が自前の時計で「止まった」を決める",
+    patch: "m184-wheel-settles-on-own-clock.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/wheel.test.tsx"],
+    note:
+      "#94 spec §6.4（PR #383 のレビュー）。終わり際に札と当たりの席は止まった姿、結果の一言と脇の一覧はまだ回転中、と食い違う。" +
+      "止まった後だけを見るテストでは殺せない（終わりの時刻の前後を細かく刻んで見る）。",
+  },
+  {
+    id: 185,
+    label: "止まった後の円盤を、いまの入る人の並びで描く",
+    patch: "m185-settled-wheel-draws-current-pool.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/wheel.test.tsx"],
+    note:
+      "#94 spec §6.3（PR #383 のレビュー）。止まった角度は回したときの席数で計算するので、止まった後にゲストを足す・" +
+      "名簿の順が変わると、針が別の人を指し、札は本当の当たりを見せる。",
   },
 ];
 

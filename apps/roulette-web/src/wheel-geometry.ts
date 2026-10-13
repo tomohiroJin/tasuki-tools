@@ -44,7 +44,14 @@ export interface LabelPlacement {
 /** 名前の性質（書き方の選び分けに使う）。 */
 export type LabelKind = 'latin' | 'short' | 'long';
 
-const isHalfWidth = (ch: string): boolean => (ch.codePointAt(0) ?? 0) <= 0xff;
+/**
+ * 半角の字（幅が全角の約半分）。ASCII とラテン 1 に、半角カナ・半角の句読点（U+FF61〜FF9F）を含める。
+ * 半角カナを全角と数えると「ﾔﾏﾀﾞ」が長い名前になり、縦の席で縦に積まれる・5 字で切られる。
+ */
+export function isHalfWidth(ch: string): boolean {
+  const cp = ch.codePointAt(0) ?? 0;
+  return cp <= 0xff || (cp >= 0xff61 && cp <= 0xff9f);
+}
 
 /**
  * 欧文（半角の字が空白を除いて半分以上）・短い名前（全角主体で 3 字まで）・長い名前（全角主体で 4 字以上）。
@@ -96,14 +103,14 @@ export function acrossMaxEm(seatDeg: number): number {
 }
 
 /**
- * 名前を席に収める（全角 1・半角 0.6 で数え、溢れたら `…`）。縦書き（`upright`）では欧文も立てて積み、
+ * 名前を席に収める（全角 1・半角（`isHalfWidth`）0.6 で数え、溢れたら `…`）。縦書き（`upright`）では欧文も立てて積み、
  * 1 字が 1em を取るので全部 1 で数える。
  */
 export function fitLabel(name: string, maxEm: number, upright = false): string {
   let w = 0;
   let out = '';
   for (const ch of name) {
-    const cw = !upright && (ch.codePointAt(0) ?? 0) <= 0xff ? 0.6 : 1;
+    const cw = !upright && isHalfWidth(ch) ? 0.6 : 1;
     if (w + cw > maxEm) return `${out}…`;
     w += cw;
     out += ch;

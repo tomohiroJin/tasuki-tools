@@ -31,11 +31,13 @@ import {
   membersOf,
   peopleOf,
   phaseOf,
+  poolOfView,
   spinButtonOf,
 } from '../roulette-view';
 
 /**
  * 画面が使う「いま」。回転の終わり（`endAt`・`performance.now()` の時刻）に描き直す。
+ * **止まったかの判定（`phaseOf`）の時計はこれ 1 つ**。円盤（`Stage`）も局面を受けて止まる。
  *
  * **`receivedAt` を下限にする**: 状態を受け取った直後の描画で、古い「いま」を使うと経過が
  * 受け取った値より小さく見え、終わっている回転が一瞬「回っている」になる。
@@ -121,7 +123,10 @@ export function RouletteRoom({ roomCode }: { roomCode: string }) {
   const operable = canOperate(sync.status, sync.joined);
   const serverSpinning = isServerSpinning(current, sync.receivedAt, nowMs);
   const phase = phaseOf({ view: current, receivedAt: sync.receivedAt, nowMs, reducedMotion });
-  const people = peopleOf({ members: membersOf(sync.roster), view: current, selfId: sync.selfId, phase });
+  // 入る人は 1 回だけ組み、一覧と円盤へ渡す
+  const members = membersOf(sync.roster);
+  const pool = poolOfView(members, current);
+  const people = peopleOf({ members, view: current, selfId: sync.selfId, phase, pool });
   const button = spinButtonOf({ view: current, poolCount: people.poolCount, operable, serverSpinning });
   const topicTitle = sync.topic?.topic?.title ?? null;
 
@@ -151,8 +156,9 @@ export function RouletteRoom({ roomCode }: { roomCode: string }) {
             お題 → 結果の一言 → 回す → 入る人 → 名前を追加 → 一周 → 仲間を招く */}
         <div className="ui-workspace ui-workspace--side-end">
           <Stage
-            members={membersOf(sync.roster)}
+            pool={pool}
             view={current}
+            phase={phase}
             receivedAt={sync.receivedAt}
             reducedMotion={reducedMotion}
             people={people}

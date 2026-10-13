@@ -22,6 +22,7 @@ import {
   cycleLineOf,
   membersOf,
   peopleOf,
+  poolOfView,
   phaseOf,
   spinButtonOf,
 } from '../src/roulette-view';
@@ -104,7 +105,7 @@ describe('入る人の一覧', () => {
     // Given
     const view: RouletteView = { ...IDLE, excluded: ['p2'], guests: [{ id: 'g-1', name: 'Hana' }] };
     // When
-    const list = peopleOf({ members, view, selfId: 'p1', phase: 'idle' });
+    const list = peopleOf({ members, view, selfId: 'p1', phase: 'idle', pool: poolOfView(members, view) });
     // Then: Aya と Hana の 2 人
     expect(list.poolCount).toBe(2);
     expect(list.rows.map((r) => [r.id, r.checked, r.mark, r.disabled])).toEqual([
@@ -119,7 +120,7 @@ describe('入る人の一覧', () => {
     // Given
     const view: RouletteView = { ...IDLE, guests: [{ id: 'g-1', name: 'Hana' }] };
     // When
-    const rows = peopleOf({ members, view, selfId: 'p1', phase: 'idle' }).rows;
+    const rows = peopleOf({ members, view, selfId: 'p1', phase: 'idle', pool: poolOfView(members, view) }).rows;
     // Then
     expect(rows.map((r) => [r.id, r.isSelf, r.removable])).toEqual([
       ['p1', true, false],
@@ -134,8 +135,8 @@ describe('入る人の一覧', () => {
     // Given: 前に p1 が選ばれ、今回 p2 が当たりの回転
     const view = viewSpinning({ drawn: ['p1', 'p2'] });
     // When
-    const spinning = peopleOf({ members, view, selfId: null, phase: 'spinning' });
-    const settled = peopleOf({ members, view, selfId: null, phase: 'settled' });
+    const spinning = peopleOf({ members, view, selfId: null, phase: 'spinning', pool: poolOfView(members, view) });
+    const settled = peopleOf({ members, view, selfId: null, phase: 'settled', pool: poolOfView(members, view) });
     // Then: 回っている間は p1 だけ。止まったら p2 も出る
     expect(spinning.rows.filter((r) => r.mark === 'drawn').map((r) => r.id)).toEqual(['p1']);
     expect(spinning.drawnCount).toBe(1);
@@ -164,7 +165,7 @@ describe('在室者と同じ名前のゲスト', () => {
       ],
     };
     // When
-    const list = peopleOf({ members, view, selfId: null, phase: 'idle' });
+    const list = peopleOf({ members, view, selfId: null, phase: 'idle', pool: poolOfView(members, view) });
     // Then: 入る人は Aya・Yu・Sou の 3 人。印は g-1 だけ（外した人は印なし）
     expect(list.poolCount).toBe(3);
     expect(list.rows.filter((r) => r.id.startsWith('g-')).map((r) => [r.id, r.checked, r.mark])).toEqual([
@@ -179,7 +180,7 @@ describe('在室者と同じ名前のゲスト', () => {
     // Given
     const view: RouletteView = { ...IDLE, guests: [{ id: 'g-1', name: 'Aya' }, { id: 'g-2', name: 'Hana' }] };
     // When
-    const rows = peopleOf({ members, view, selfId: null, phase: 'idle' }).rows;
+    const rows = peopleOf({ members, view, selfId: null, phase: 'idle', pool: poolOfView(members, view) }).rows;
     // Then
     expect(rows.filter((r) => r.id.startsWith('g-')).map((r) => [r.id, r.mark, r.disabled])).toEqual([
       ['g-1', 'twin', true],
@@ -191,7 +192,7 @@ describe('在室者と同じ名前のゲスト', () => {
     // Given: Ren は離席中で、ゲストにも Ren
     const view: RouletteView = { ...IDLE, guests: [{ id: 'g-1', name: 'Ren' }] };
     // When
-    const list = peopleOf({ members, view, selfId: null, phase: 'idle' });
+    const list = peopleOf({ members, view, selfId: null, phase: 'idle', pool: poolOfView(members, view) });
     // Then
     expect(list.rows.find((r) => r.id === 'g-1')).toMatchObject({ checked: true, mark: null });
   });

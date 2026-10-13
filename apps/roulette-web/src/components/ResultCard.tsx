@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useState } from 'react';
 import { CARD_LABEL, CARD_SUFFIX } from '../copy';
 
 /**
@@ -6,7 +6,8 @@ import { CARD_LABEL, CARD_SUFFIX } from '../copy';
  * 読み上げは結果の一言（`role="status"`）が持つので、札は `aria-hidden`（二重に読まない）。
  *
  * 表は「次の進行役」と名前だけ（隅のピップは置かない）。回し直すと伏せ直る間に表が空に
- * 見えないよう、最後に出した名前を保つ。
+ * 見えないよう、最後に出した名前を保つ。保つのは state で、描画の中で ref を書かない（描画は純粋に保つ）。
+ * 前の描画からの値の引き継ぎは React の「描画中に state を合わせる」形（同じ描画のうちに描き直される）。
  */
 export function ResultCard({
   name,
@@ -18,8 +19,9 @@ export function ResultCard({
   revealed: boolean;
   ref?: React.Ref<HTMLDivElement>;
 }) {
-  const last = useRef('');
-  if (name !== null) last.current = name;
+  const [last, setLast] = useState(name ?? '');
+  if (name !== null && name !== last) setLast(name);
+  const shown = name ?? last;
   return (
     <div ref={ref} className={`roulette-card${revealed ? ' is-revealed' : ''}`} aria-hidden="true">
       <div className="roulette-card-inner">
@@ -27,7 +29,7 @@ export function ResultCard({
         <div className="roulette-card-face">
           <p className="roulette-card-label">{CARD_LABEL}</p>
           <p className="roulette-card-name">
-            {last.current}
+            {shown}
             <small>{CARD_SUFFIX}</small>
           </p>
         </div>

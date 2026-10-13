@@ -1,0 +1,35 @@
+# 変異 184: 円盤が自前の時計で「止まった」を決める（画面の局面より先に止まる）
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/wheel.test.tsx
+#     describe「止まった瞬間は円盤と一言と一覧で揃う」の
+#     「Given 回し始めた / When 終わりの時刻の前後を 5ms ずつ進める / Then どの瞬間も 4 つが同じ局面」
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m184-*.patch
+# 復元: git apply -R scripts/mutations/m184-*.patch
+#
+# #94 spec §6.4（PR #383 のレビュー）。止まったかの判定は画面の局面（`phaseOf`）の 1 か所。舞台が rAF の
+# 描き直しのたびに自分の「いま」で経過を見て止まると、終わり際に札と当たりの席は止まった姿、結果の一言と
+# 脇の一覧はまだ回転中、と食い違う（画面の timer は終わりの 30ms 後に描き直す）。止まった後だけを見るテストでは殺せない。
+diff --git a/apps/roulette-web/src/components/Stage.tsx b/apps/roulette-web/src/components/Stage.tsx
+--- a/apps/roulette-web/src/components/Stage.tsx
++++ b/apps/roulette-web/src/components/Stage.tsx
+@@ -9,7 +9,7 @@
+ import { useStageLayout } from '../hooks/use-stage-layout';
+ import { useWheelRotation } from '../hooks/use-wheel-rotation';
+ import type { People, Phase } from '../roulette-view';
+-import { winnerOf } from '../roulette-view';
++import { elapsedOf, winnerOf } from '../roulette-view';
+ import { wheelSeatsOf } from '../wheel-view';
+ import { pointerDegFor } from '../wheel-motion';
+ import { ResultCard } from './ResultCard';
+@@ -37,7 +37,7 @@
+   const dock = useRef<HTMLDivElement>(null);
+ 
+   // 回っている間は並びを変えない（指し針の位置が変わると当たりの席がずれる）
+-  const settled = phase === 'settled';
++  const settled = phase === 'settled' || (view.spin !== null && elapsedOf(view.spin, receivedAt, performance.now()) >= view.spin.durationMs);
+   const layout = useStageLayout(stage, phase === 'spinning');
+   const pointerDeg = pointerDegFor(layout);
+   const rotation = useWheelRotation({ spin: view.spin, receivedAt, settled, reducedMotion, pointerDeg, card, dock });

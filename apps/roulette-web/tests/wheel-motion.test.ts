@@ -167,6 +167,18 @@ describe('labelPlacement（4 版）', () => {
     expect(labelKindOf('佐藤 花子')).toBe('long');
     expect(labelKindOf('山田B')).toBe('short');
   });
+
+  it('半角カナ（U+FF61〜FF9F）は欧文と同じに数え、同じ書き方・同じ切り方になる', () => {
+    // 「ﾔﾏﾀﾞ」は 5 字（ﾀ と濁点の ﾞ は別の字）。全角と数えると「長い名前」になり、真下の席で縦に積まれる
+    expect(labelKindOf('ﾔﾏﾀﾞ')).toBe(labelKindOf('Mika'));
+    expect(labelPlacement(180, 0, labelKindOf('ﾔﾏﾀﾞ'))).toEqual(labelPlacement(180, 0, labelKindOf('Mika')));
+    // 境目の字（U+FF61「｡」・U+FF9F「ﾟ」）も半角。その外（U+FF60「｠」・U+FFA0）は全角
+    expect(labelKindOf('\uFF61\uFF9F')).toBe('latin');
+    expect(labelKindOf('\uFF60\uFFA0')).not.toBe('latin');
+    // 切り方も 0.6 で数える（10 字は欧文と同じく 9 字で切れる。全角と数えると 5 字で切れる）
+    expect(fitLabel('ﾔﾏﾀﾞｶｽﾞｵﾐｷ', 5.5)).toBe('ﾔﾏﾀﾞｶｽﾞｵﾐ…');
+    expect(fitLabel('abcdefghij', 5.5)).toBe('abcdefghi…');
+  });
 });
 
 describe('stageLayoutFor / pointerDegFor', () => {
