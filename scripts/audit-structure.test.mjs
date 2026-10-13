@@ -9,14 +9,6 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import {
-  sc039aUnreachableBranchInApps,
-  stripStringsAndComments,
-  extractPublicDeclarations,
-  sc039bUnusedPublicData,
-  sc039cSelfOnlyPublicSymbols,
-  extractContractNames,
-  extractNamedImportsFromPackage,
-  sc039dContractOnlyValues,
   sc039DeclaredContractFiles,
   findStaleSc029Exceptions,
   findStaleSymbolExceptions,
@@ -29,6 +21,16 @@ import {
   formatScanVolume,
   scanVolumeDimensions,
 } from "./audit-structure.mjs";
+import {
+  sc039aUnreachableBranchInApps,
+  stripStringsAndComments,
+  extractPublicDeclarations,
+  sc039bUnusedPublicData,
+  sc039cSelfOnlyPublicSymbols,
+  extractContractNames,
+  extractNamedImportsFromPackage,
+  sc039dContractOnlyValues,
+} from "./lib/structure/unreachable-elements.mjs";
 import {
   extractCodeMessagePairs,
   extractClientErrorTable,
