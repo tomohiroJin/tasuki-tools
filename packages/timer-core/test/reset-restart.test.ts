@@ -60,4 +60,33 @@ describe("F3: リセットを最初から再スタートにする", () => {
     const left = secondsLeft(reset.clock, resetTime + 60_000);
     expect(left).toBeCloseTo(360, 0);
   });
+
+  it("Given 7 分で 2 回交代した集約 / When SessionReset / Then 集約の全体が満タン・走行・並び順そのままの初期値になる（#364 の特性テスト）", () => {
+    // #364 で、リセットが分を経由せずに秒のまま初期の集約を組むようになった。値が 1 つも変わらないことを固定する。
+    // Given
+    const started = startedAgg();
+    const sw1 = evolve(started, { type: "DriverSwitched", nextIndex: 1, now: NOW + 10_000 }, NOW + 10_000);
+    const sw2 = evolve(sw1, { type: "DriverSwitched", nextIndex: 2, now: NOW + 20_000 }, NOW + 20_000);
+    const resetTime = NOW + 30_000;
+    // When
+    const reset = evolve(sw2, { type: "SessionReset", now: resetTime }, resetTime);
+    // Then
+    expect(reset).toEqual({
+      session: {
+        rotation: sw2.session.rotation,
+        currentIndex: 0,
+        isPaused: false,
+        driverCounts: [0, 0, 0],
+        totalSwitches: 0,
+      },
+      clock: {
+        running: true,
+        intervalSeconds: 420,
+        anchorServerTime: resetTime,
+        secondsLeftAtAnchor: 420,
+        accumulatedElapsedMs: 0,
+        runningSince: resetTime,
+      },
+    });
+  });
 });

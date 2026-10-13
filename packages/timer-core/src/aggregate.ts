@@ -215,6 +215,16 @@ export function elapsedMs(
  * 呼び出し側が「誰が輪に並ぶか」を席として渡す（D6b・#95 S4a）。
  */
 export function initialAggregate(config: TimerConfig, rotation: readonly RotationEntry[]): Aggregate {
+  return initialAggregateInSeconds(config.intervalMinutes * 60, rotation);
+}
+
+/**
+ * 秒で受ける {@link initialAggregate}（#364）。リセット（`evolve.ts` の `SessionReset`）は
+ * 集約の秒をそのまま使う。かつては分へ戻して（`as IntervalMinutes`）から渡し、ここでまた秒に直していた。
+ *
+ * **パッケージの内側だけで使う**（`index.ts` に出さない）。
+ */
+export function initialAggregateInSeconds(intervalSeconds: number, rotation: readonly RotationEntry[]): Aggregate {
   return {
     session: {
       rotation: [...rotation],
@@ -225,9 +235,9 @@ export function initialAggregate(config: TimerConfig, rotation: readonly Rotatio
     },
     clock: {
       running: false,
-      intervalSeconds: config.intervalMinutes * 60,
+      intervalSeconds,
       anchorServerTime: 0,
-      secondsLeftAtAnchor: config.intervalMinutes * 60,
+      secondsLeftAtAnchor: intervalSeconds,
       accumulatedElapsedMs: 0,
       runningSince: null,
     },
