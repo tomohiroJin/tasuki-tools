@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { buildCompletionRecord } from "../src/records.js";
+import { buildCompletionRecord, createRecordIdGenerator } from "../src/records.js";
 import { elapsedMs } from "../src/aggregate.js";
 import { evolve } from "../src/evolve.js";
 import type { Aggregate } from "../src/aggregate.js";
@@ -17,6 +17,9 @@ import { anAggregate } from "./support/aggregate-builder.js";
  */
 const memberNames = ["Alice", "Bob", "Charlie"];
 
+/** 記録の ID の生成器（#364 で注入になった。状態は呼び出し側が持つ） */
+const nextId = createRecordIdGenerator();
+
 /** 完了した時点で掲げていたお題のタイトル（#91・同期サーバーのアプリ層が値として渡す）。 */
 const topicTitle = "FizzBuzz";
 
@@ -26,7 +29,7 @@ describe("buildCompletionRecord", () => {
     const agg = anAggregate().build();
     const completedAt = 1000000 + 300000;
     // When
-    const record = buildCompletionRecord(agg, topicTitle, memberNames, completedAt);
+    const record = buildCompletionRecord(agg, topicTitle, memberNames, completedAt, nextId);
     // Then
     expect(record.topicTitle).toBe(topicTitle);
     expect(record.members).toEqual(memberNames);
@@ -49,7 +52,7 @@ describe("buildCompletionRecord", () => {
     const completeTime = resumeTime + 40000;
     // When
     const totalElapsed = elapsedMs(agg.clock, completeTime);
-    const record = buildCompletionRecord(agg, topicTitle, memberNames, completeTime);
+    const record = buildCompletionRecord(agg, topicTitle, memberNames, completeTime, nextId);
     // Then（60秒 + 40秒 = 100秒。停止30秒は含まない）
     expect(totalElapsed).toBe(100000);
     expect(record.elapsedSeconds).toBe(100); // ms → seconds
@@ -71,7 +74,7 @@ describe("buildCompletionRecord", () => {
       startTime + 20000,
     );
     // When
-    const record = buildCompletionRecord(agg, topicTitle, memberNames, startTime + 20000);
+    const record = buildCompletionRecord(agg, topicTitle, memberNames, startTime + 20000, nextId);
     // Then
     expect(record.totalSwitches).toBe(2);
   });
@@ -80,10 +83,71 @@ describe("buildCompletionRecord", () => {
     // Given
     const agg = anAggregate().build();
     // When
-    const r1 = buildCompletionRecord(agg, topicTitle, memberNames, 1000000);
-    const r2 = buildCompletionRecord(agg, topicTitle, memberNames, 1000001);
+    const r1 = buildCompletionRecord(agg, topicTitle, memberNames, 1000000, nextId);
+    const r2 = buildCompletionRecord(agg, topicTitle, memberNames, 1000001, nextId);
     // Then
     expect(r1.id).not.toBe(r2.id);
+  });
+});
+
+/**
+ * 記録の ID の生成器（#364 Task 3）。
+ *
+ * かつてはモジュールの状態（`let counter`）だった。生成器ごとに連番をクロージャへ持たせ、
+ * 状態は呼び出し側（同期サーバー。プロセスに 1 つ）が持つ。**ID の形は変えない** ——
+ * 利用者の端末が記録を保存するときの ID になる。
+ */
+describe("createRecordIdGenerator", () => {
+  it("Given 新しい生成器 / When ID を作る / Then `時刻36進-連番36進5桁` の形で、連番は 1 から始まる", () => {
+    // Given
+    const next = createRecordIdGenerator();
+    const now = 1_700_000_000_000;
+    // When
+    const ids = [next(now), next(now), next(now)];
+    // Then
+    const head = now.toString(36);
+    expect(ids).toEqual([`${head}-00001`, `${head}-00002`, `${head}-00003`]);
+  });
+
+  it("Given 同じ時刻 / When 2 回作る / Then 違う ID になる", () => {
+    // Given
+    const next = createRecordIdGenerator();
+    // When
+    const a = next(1_000);
+    const b = next(1_000);
+    // Then
+    expect(a).not.toBe(b);
+  });
+
+  it("Given 2 つの生成器 / When それぞれで作る / Then 連番は互いに独立している", () => {
+    // Given
+    const first = createRecordIdGenerator();
+    const second = createRecordIdGenerator();
+    first(1_000);
+    first(1_000);
+    // When
+    const id = second(1_000);
+    // Then
+    expect(id).toBe(`${(1_000).toString(36)}-00001`);
+  });
+
+  it("Given 連番が 99999 まで進んだ / When 次を作る / Then 0 に戻る（100000 で割った余り）", () => {
+    // Given
+    const next = createRecordIdGenerator();
+    for (let i = 0; i < 99_999; i++) next(1_000);
+    // When
+    const wrapped = next(1_000);
+    // Then
+    expect(wrapped).toBe(`${(1_000).toString(36)}-00000`);
+  });
+
+  it("Given 生成器 / When 完成記録を組む / Then 記録の id はその生成器が作ったもの", () => {
+    // Given
+    const next = createRecordIdGenerator();
+    // When
+    const record = buildCompletionRecord(anAggregate().build(), null, ["あや"], 1_000, next);
+    // Then
+    expect(record.id).toBe(`${(1_000).toString(36)}-00001`);
   });
 });
 
@@ -108,7 +172,7 @@ describe("中断（SessionAborted）の記録扱い", () => {
     // Given（完成時のみ記録を生成することを確認する。abort とは対照的）
     const agg = anAggregate().build();
     // When
-    const record = buildCompletionRecord(agg, topicTitle, memberNames, 1000000);
+    const record = buildCompletionRecord(agg, topicTitle, memberNames, 1000000, nextId);
     // Then
     expect(record.topicTitle).toBe(topicTitle);
     expect(record.completedAt).toBe(1000000);
@@ -123,7 +187,7 @@ describe("完成記録にお題のタイトルを写す", () => {
     // Given
     const agg = anAggregate().build();
     // When
-    const record = buildCompletionRecord(agg, "FizzBuzz", ["あや"], 1_000);
+    const record = buildCompletionRecord(agg, "FizzBuzz", ["あや"], 1_000, nextId);
     // Then
     expect(record.topicTitle).toBe("FizzBuzz");
     expect(record).not.toHaveProperty("language");
@@ -132,7 +196,7 @@ describe("完成記録にお題のタイトルを写す", () => {
   });
 
   it("Given お題なし / When 記録を作る / Then topicTitle は null で記録はできる", () => {
-    expect(buildCompletionRecord(anAggregate().build(), null, ["あや"], 1_000).topicTitle).toBeNull();
+    expect(buildCompletionRecord(anAggregate().build(), null, ["あや"], 1_000, nextId).topicTitle).toBeNull();
   });
 });
 
@@ -144,7 +208,7 @@ describe("buildCompletionRecord: 周回数とドライバー回数", () => {
     let agg = anAggregate().build();
     agg = { ...agg, session: { ...agg.session, totalSwitches: 6, driverCounts: [2, 2, 2] } };
     // When
-    const rec = buildCompletionRecord(agg, "T", memberNames, 1000000);
+    const rec = buildCompletionRecord(agg, "T", memberNames, 1000000, nextId);
     // Then（6 / 3 = 2）
     expect(rec.rounds).toBe(2);
     expect(rec.driverCounts).toEqual([2, 2, 2]);
@@ -155,7 +219,7 @@ describe("buildCompletionRecord: 周回数とドライバー回数", () => {
     const agg = anAggregate().build();
     const roomId = "ROOM-1";
     // When
-    const rec = buildCompletionRecord(agg, "T", memberNames, 1000000, roomId);
+    const rec = buildCompletionRecord(agg, "T", memberNames, 1000000, nextId, roomId);
     // Then
     expect(rec.roomId).toBe("ROOM-1");
   });
@@ -167,7 +231,7 @@ describe("buildCompletionRecord: 周回数とドライバー回数", () => {
       clock: { running: false, intervalSeconds: 300, anchorServerTime: 0, secondsLeftAtAnchor: 300, accumulatedElapsedMs: 0, runningSince: null },
     };
     // When
-    const rec = buildCompletionRecord(agg, "T", memberNames, 1000000);
+    const rec = buildCompletionRecord(agg, "T", memberNames, 1000000, nextId);
     // Then
     expect(rec.rounds).toBe(0);
   });

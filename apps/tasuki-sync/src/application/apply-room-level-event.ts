@@ -18,7 +18,14 @@
  * 集約の反映で丸ごと上書きされ捨てられる。詳細は各関数の docstring を参照。
  */
 
-import { buildCompletionRecord, type Aggregate, type DomainEvent, type RotationEntry, type TimerState } from "@tasuki/timer-core";
+import {
+  buildCompletionRecord,
+  type Aggregate,
+  type DomainEvent,
+  type RecordIdGenerator,
+  type RotationEntry,
+  type TimerState,
+} from "@tasuki/timer-core";
 import type { Room as MembershipRoom } from "@tasuki/room-core";
 import { rotationDisplayNames } from "./timer-snapshot-dto.js";
 
@@ -59,14 +66,15 @@ export function applyEvents(
   state: RoomState,
   agg: Aggregate,
   events: readonly DomainEvent[],
-  now: number,
+  /** 完成記録の ID の生成器。状態（連番）は呼び出し側が持つ（#364。`handlers.ts` がプロセスに 1 つ作る） */
+  nextRecordId: RecordIdGenerator,
 ): RoomState {
   const base = {
     membership: state.membership,
     timer: { ...state.timer, session: agg.session, clock: agg.clock },
   } as StateWithAggregate;
   return events.reduce<StateWithAggregate>(
-    (acc, event) => applyRoomLevelEvent(acc, event, now),
+    (acc, event) => applyRoomLevelEvent(acc, event, nextRecordId),
     base,
   );
 }
@@ -103,7 +111,7 @@ function setEligible(
 function applyRoomLevelEvent(
   state: StateWithAggregate,
   event: DomainEvent,
-  _now: number,
+  nextRecordId: RecordIdGenerator,
 ): StateWithAggregate {
   const room = state.timer;
   switch (event.type) {
@@ -145,6 +153,7 @@ function applyRoomLevelEvent(
         event.topicTitle,
         rotationDisplayNames(state.membership, room),
         event.now,
+        nextRecordId,
         room.code,
       );
       return withTimer(state, { ...room, phase: "celebration", sessionRecords: [...room.sessionRecords, record] });

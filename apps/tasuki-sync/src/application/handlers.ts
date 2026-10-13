@@ -14,6 +14,7 @@ import {
   advanceDriver,
   rotationEntryId,
   secondsLeft,
+  createRecordIdGenerator,
   ERROR_MESSAGES,
   errorMessageFor,
   type TimerState,
@@ -227,6 +228,11 @@ export function makeHandlers(deps: HandlerDeps) {
   // 同じインスタンスを見ている必要がある**（`create-sync-server.ts` が 1 個作って両方へ渡す）。
   // テスト間の汚染は、テストごとに新しい保管を渡すことで従来どおり避けられる。
   const tokenStore = deps.tokens;
+
+  // 完成記録の ID の生成器（#364）。連番の状態はここが持つ。**本番では makeHandlers は 1 度しか
+  // 呼ばれない**（`create-sync-server.ts`）ので、かつての timer-core のモジュールの状態と同じく
+  // プロセスに 1 つになる。テストは makeHandlers ごとに独立した連番になる。
+  const nextRecordId = createRecordIdGenerator();
 
   // 入室失敗のレート制限（コード・合言葉の総当たりの緩和）。
   // **数える単位は接続ではなくクライアント（IP の HMAC）である**（#103・ADR 0011 S1）。
@@ -610,7 +616,7 @@ export function makeHandlers(deps: HandlerDeps) {
 
     // 集約の反映 → Room レベルイベントの適用（順序は applyEvents が保証する・FR-103）。
     // PhaseSet/ConfigSet/SessionCompleted 等はルームレベルで処理される。
-    state = applyEvents(state, newAgg, result.value, now);
+    state = applyEvents(state, newAgg, result.value, nextRecordId);
 
     // 現ドライバーが driver.skip で ineligible になり、かつ稼働中なら即座に次の eligible へ
     // 繰り上げる（plan.md L209）。交代先が無ければ advanceDriver が現状維持する。
@@ -622,7 +628,7 @@ export function makeHandlers(deps: HandlerDeps) {
           ineligible,
           now,
         );
-        state = applyEvents(state, advanced, [], now);
+        state = applyEvents(state, advanced, [], nextRecordId);
       }
     }
 
@@ -641,7 +647,7 @@ export function makeHandlers(deps: HandlerDeps) {
           state,
           { session: state.timer.session, clock: state.timer.clock },
           [{ type: "DriverResumed", participantId: targetPid, now }],
-          now,
+          nextRecordId,
         );
       }
     }
