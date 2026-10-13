@@ -27,6 +27,7 @@ function seatAngleUnderPointer(theta: number, pointerDeg: number): number {
 
 describe('finalAngle: どの画面も同じ席で止まる', () => {
   it('指し針の下にあるのは当たりの席の中で、境目から 0.2 席ぶん以上離れている（n=2〜24・全席・settle・指し針・開始角）', () => {
+    const bad: string[] = [];
     for (let n = 2; n <= 24; n++) {
       const s = 360 / n;
       for (let w = 0; w < n; w++) {
@@ -36,14 +37,16 @@ describe('finalAngle: どの画面も同じ席で止まる', () => {
               const theta = finalAngle(n, w, settle, pointerDeg, startDeg);
               const a = seatAngleUnderPointer(theta, pointerDeg);
               const inSeat = a - w * s;
-              const msg = `n=${n} w=${w} settle=${settle} p=${pointerDeg} start=${startDeg}`;
-              expect(inSeat, msg).toBeGreaterThanOrEqual(0.2 * s - 1e-6);
-              expect(inSeat, msg).toBeLessThanOrEqual(0.8 * s + 1e-6);
+              // 1 組ごとに expect を呼ばない（CI で遅い）。外れた組だけ集める
+              if (inSeat < 0.2 * s - 1e-6 || inSeat > 0.8 * s + 1e-6) {
+                bad.push(`n=${n} w=${w} settle=${settle} p=${pointerDeg} start=${startDeg}: 席の中の位置 ${inSeat.toFixed(2)}`);
+              }
             }
           }
         }
       }
     }
+    expect(bad.slice(0, 5), `外れた組 ${bad.length} 件`).toEqual([]);
   });
 
   it('余分に TURNS 周以上は回る', () => {
@@ -117,30 +120,37 @@ describe('labelPlacement（4 版）', () => {
   it.each(['latin', 'short', 'long'] as const)(
     '%s: 回転子の角度 0〜359 と席の位置の全組で、字の傾きが上限以内・行（または行に直交する向き）が半径に沿う',
     (kind) => {
+      // 全組（48 × 360）の 1 組ごとに expect を呼ぶと CI で時間切れになった（手元 0.5 秒・CI 8 秒超）。
+      // 判定は素の比較で数え、最後に 1 度だけ比べる（網羅の組は減らさない）
+      const bad: string[] = [];
+      const fail = (msg: string, what: string): void => {
+        if (bad.length < 5) bad.push(`${msg}: ${what}`);
+      };
+      let count = 0;
       for (let mid = 0; mid < 360; mid += 7.5) {
         for (let rotor = 0; rotor < 360; rotor += 1) {
+          count += 1;
           const p = labelPlacement(mid, rotor, kind);
           const tilt = fold(p.rotate + rotor);
           const msg = `mid=${mid} rotor=${rotor}`;
           // 半径に沿う横書きは上限（長い名前 45°・ほか 60°）、縦書きと半径を横切る横書きは 30° まで
           const limit = p.mode === 'radial' ? radialTiltLimit(kind) : 90 - radialTiltLimit(kind);
-          expect(Math.abs(tilt), msg).toBeLessThanOrEqual(limit + 1e-6);
+          if (Math.abs(tilt) > limit + 1e-6) fail(msg, `字の傾き ${tilt} > ${limit}`);
           // 欧文は縦書きにしない・全角主体は半径を横切らない
-          expect(p.mode, msg).not.toBe(kind === 'latin' ? 'vertical' : 'across');
+          if (p.mode === (kind === 'latin' ? 'vertical' : 'across')) fail(msg, `書き方 ${p.mode}`);
           // 行の向き（SVG の角度: 右 0・下 90）。横書きは傾きそのもの・縦書きは 90° + 傾き
           const lineDir = p.mode === 'vertical' ? 90 + tilt : tilt;
           const out = mid + rotor - 90;
           const diff = ((fold(out - lineDir) % 180) + 180) % 180;
-          expect(Math.min(diff, 180 - diff), msg).toBeCloseTo(p.mode === 'across' ? 90 : 0, 6);
-          if (p.mode === 'across') {
-            expect(p.anchor, msg).toBe('middle');
-          } else {
-            // 行が外へ進むなら終わりを縁に（end）・内へ進むなら始まりを縁に（start）
-            const outward = Math.abs(fold(out - lineDir)) < 1;
-            expect(p.anchor, msg).toBe(outward ? 'end' : 'start');
-          }
+          const off = Math.min(diff, 180 - diff);
+          if (Math.abs(off - (p.mode === 'across' ? 90 : 0)) > 1e-6) fail(msg, `行と半径の角 ${off}`);
+          // 横切るなら中央揃え。ほかは、行が外へ進むなら終わりを縁に（end）・内へ進むなら始まりを縁に（start）
+          const anchor = p.mode === 'across' ? 'middle' : Math.abs(fold(out - lineDir)) < 1 ? 'end' : 'start';
+          if (p.anchor !== anchor) fail(msg, `揃え ${p.anchor}（期待 ${anchor}）`);
         }
       }
+      expect(count).toBe(48 * 360);
+      expect(bad).toEqual([]);
     },
   );
 

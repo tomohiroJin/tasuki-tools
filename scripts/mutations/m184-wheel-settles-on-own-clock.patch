@@ -3,7 +3,7 @@
 # 検出を期待するテスト:
 #   - apps/roulette-web/tests/wheel.test.tsx
 #     describe「止まった瞬間は円盤と一言と一覧で揃う」の
-#     「Given 回し始めた / When 終わりの時刻の前後を 5ms ずつ進める / Then どの瞬間も 4 つが同じ局面」
+#     「Given 回し始めた / When 終わりの時刻の前後を 10ms ずつ進める / Then どの瞬間も 4 つが同じ局面」
 #
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m184-*.patch

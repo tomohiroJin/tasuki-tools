@@ -7,54 +7,9 @@
  */
 import { useEffect, useMemo, useRef } from 'react';
 import type { Entry } from '@tasuki/roulette-core';
-import { ACROSS_R, acrossMaxEm, arcPath, fitLabel, labelKindOf, labelPlacement, polar, toneOf, type LabelKind, type LabelMode } from '../wheel-geometry';
+import { toneOf } from '../wheel-geometry';
+import { INNER_R, OUTER_R, labelViewOf, seatsOf } from '../wheel-labels';
 import { segmentBoundaryIndex } from '../wheel-motion';
-
-const INNER_R = 21;
-const OUTER_R = 93;
-const STUD_R = 101.5;
-const LABEL_R = 84;
-
-/**
- * 席に描く名前の字（spec §6.3）。縦書きは空白を詰める（縦では 1 字ぶん空いて間延びする）・欧文も立てて
- * 1 字 1em で数える。半径を横切る横書きは席の幅で切る（`…` のぶんも空ける）。
- */
-function labelText(name: string, mode: LabelMode, maxEm: number, seatDeg: number): string {
-  if (mode === 'vertical') return fitLabel(name.replace(/\s+/gu, ''), maxEm, true);
-  if (mode === 'radial') return fitLabel(name, maxEm);
-  const em = Math.min(maxEm, acrossMaxEm(seatDeg));
-  const text = fitLabel(name, em);
-  return text.endsWith('…') ? fitLabel(name, em - 1) : text;
-}
-
-/** 席ごとに、名前と席の数だけで決まるもの（回転の角度に依らない）。 */
-interface Seat {
-  entry: Entry;
-  mid: number;
-  kind: LabelKind;
-  /** 3 つの書き方それぞれで切った名前（どれを使うかは回転の角度で毎フレーム決める） */
-  labels: Record<LabelMode, string>;
-  path: string;
-  stud: [number, number];
-}
-
-function seatsOf(entries: readonly Entry[]): Seat[] {
-  const n = entries.length;
-  const s = n > 0 ? 360 / n : 360;
-  const maxEm = n > 12 ? 4 : 5.5;
-  return entries.map((entry, i) => ({
-    entry,
-    mid: i * s + s / 2,
-    kind: labelKindOf(entry.name),
-    labels: {
-      radial: labelText(entry.name, 'radial', maxEm, s),
-      vertical: labelText(entry.name, 'vertical', maxEm, s),
-      across: labelText(entry.name, 'across', maxEm, s),
-    },
-    path: arcPath(INNER_R, OUTER_R, i * s, n === 1 ? 359.99 : (i + 1) * s),
-    stud: polar(STUD_R, i * s),
-  }));
-}
 
 interface Props {
   entries: readonly Entry[];
@@ -106,27 +61,23 @@ export function Wheel({ entries, winnerIndex, drawnIds, angle, pointerDeg, spinn
       <circle className="wheel-well" r="97" />
       <g className="wheel-rotor" transform={`rotate(${angle})`}>
         <g>
-          {seats.map(({ entry, mid, kind, labels, path }, i) => {
+          {seats.map((seat, i) => {
+            const { entry, path } = seat;
             const isWinner = i === winnerIndex;
             const isDrawn = !isWinner && drawnIds.has(entry.id);
-            const place = labelPlacement(mid, angle, kind);
-            const label = labels[place.mode];
-            const [tx, ty] = polar(place.mode === 'across' ? ACROSS_R : LABEL_R, mid);
+            const view = labelViewOf(seat, angle);
             const modifier = `${isDrawn ? ' wheel-segment--drawn' : ''}${isWinner ? ' wheel-segment--winner' : ''}`;
             return (
               <g key={entry.id}>
-                <path
-                  className={`wheel-segment wheel-segment--${toneOf(i, n)}${modifier}`}
-                  d={path}
-                />
+                <path className={`wheel-segment wheel-segment--${toneOf(i, n)}${modifier}`} d={path} />
                 <text
-                  className={`wheel-label${isDrawn ? ' wheel-label--drawn' : ''}${isWinner ? ' wheel-label--winner' : ''}${place.mode === 'vertical' ? ' wheel-label--vertical' : ''}`}
-                  x={tx}
-                  y={ty}
-                  textAnchor={place.anchor}
-                  transform={`rotate(${place.rotate} ${tx} ${ty})`}
+                  className={`wheel-label${isDrawn ? ' wheel-label--drawn' : ''}${isWinner ? ' wheel-label--winner' : ''}${view.vertical ? ' wheel-label--vertical' : ''}`}
+                  x={view.x}
+                  y={view.y}
+                  textAnchor={view.anchor}
+                  transform={view.transform}
                 >
-                  {label}
+                  {view.text}
                 </text>
               </g>
             );

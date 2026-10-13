@@ -359,19 +359,19 @@ describe('止まった瞬間は円盤と一言と一覧で揃う', () => {
     drawn: within(rowOf('ゆう')).queryByText(DRAWN_MARK) !== null,
   });
 
-  it('Given 回し始めた / When 終わりの時刻の前後を 5ms ずつ進める / Then どの瞬間も 4 つが同じ局面', () => {
+  it('Given 回し始めた / When 終わりの時刻の前後を 10ms ずつ進める / Then どの瞬間も 4 つが同じ局面', () => {
     // Given
     enterRoom();
     deliver(spinState(1, 0));
-    advance(3900);
-    // When / Then
+    advance(3970);
+    // When / Then: 円盤の rAF は 16ms おき（4000ms にも来る）・画面の timer は終わりの 30ms 後。その間を刻む
     const seen: string[] = [];
-    for (let t = 3900; t <= 4100; t += 5) {
+    for (let t = 3970; t <= 4060; t += 10) {
       const s = snapshot();
       const all = [s.card, s.seat, s.caption, s.drawn];
       expect(new Set(all).size, `${t}ms: ${JSON.stringify(s)}`).toBe(1);
       seen.push(String(s.card));
-      advance(5);
+      advance(10);
     }
     // 終わり際に回っている瞬間と、止まった瞬間の両方を見ている
     expect(seen).toContain('false');
