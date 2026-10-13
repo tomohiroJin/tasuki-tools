@@ -11,21 +11,18 @@ import { ok, err, type Result } from "neverthrow";
 import {
   decide,
   evolve,
-  advanceDriver,
-  rotationEntryId,
-  secondsLeft,
   createRecordIdGenerator,
   ERROR_MESSAGES,
   errorMessageFor,
-  type TimerState,
   type ErrorCode,
   type RemovalNotification,
+  type TimerState,
   type Command,
 } from "@tasuki/timer-core";
 // 表示名の規約はメンバーシップ文脈（room-core）が持つ（#95 S1・docs/adr/0017 決定 2）。
 // アプリ層が上流の文脈へ依存するのは決定 2 の対象外で、許されている。
 // S4a で名簿そのものもこの文脈が持つようになった。
-import { conflictsWithExisting, findParticipantByConnId } from "@tasuki/room-core";
+import { findParticipantByConnId } from "@tasuki/room-core";
 import type { RateLimiter } from "@tasuki/rate-limit";
 import type { Clock } from "../ports/clock.js";
 import type { Broadcaster } from "../ports/broadcaster.js";
@@ -44,7 +41,6 @@ import {
   buildTimerSnapshotRoom,
   computeIneligibleIndices,
   occupants,
-  rotationDisplayNames,
 } from "./timer-snapshot-dto.js";
 import { buildDomainCommand } from "./build-domain-command.js";
 import { createRoomCreateHandler, type CreateResult } from "./command-handlers/room-create.js";
@@ -55,6 +51,12 @@ import { createTimePingHandler } from "./command-handlers/time-ping.js";
 import { createRoomPassphraseSetHandler } from "./command-handlers/room-passphrase-set.js";
 import { handleParticipantRemove } from "./command-handlers/participant-remove.js";
 import { findRoomByConnId } from "./room-lookup.js";
+import { createScheduleSync } from "./scheduler-sync.js";
+import { applyAfterEffects } from "./room-commands/after-effects.js";
+import { checkPreconditions, type PreconditionFailure } from "./room-commands/preconditions.js";
+import { fillServerValues } from "./room-commands/server-values.js";
+import { buildShuffleOrder } from "./room-commands/shuffle-order.js";
+import type { DomainCommandDraft } from "./room-commands/domain-command.js";
 
 /**
  * 在室を前提としないコマンド（FR-151）。
@@ -332,46 +334,8 @@ export function makeHandlers(deps: HandlerDeps) {
     );
   }
 
-  /** ルームの clock 状態に応じて次回自動交代をスケジュール/解除する（FR-003） */
-  function reconcileSchedule(room: TimerState): void {
-    if (!scheduler) return;
-    // 稼働中かつ完成フェーズに入っていない場合のみ次回交代を予約する。
-    //
-    // かつてここには `!room.onBreak` という到達不能なガードがあった（Issue #28・T080・FR-119）。
-    // v2.10 で休憩機能の UI とコマンドを撤去した際、`buildDomainCommand` の switch から
-    // `break.start` / `break.end` の case が消え、以後この 2 コマンドは `default:` に落ちて
-    // `UNKNOWN_COMMAND` になる。つまり `BreakStarted` イベントは生成されず、
-    // **`room.onBreak` が true になる経路が存在しない**ため `!room.onBreak` は常に真だった。
-    //
-    // wire スキーマ（`schemas.ts` の `break.start` / `break.end`）と `Room.onBreak`
-    // フィールドは**残す**（FR-089: 受理側の後方互換 / snapshot の形を変えない）。
-    // 撤去したのは、この到達しない条件だけである。
-    if (room.clock.running && room.phase !== "celebration") {
-      const left = secondsLeft(room.clock, clock.now());
-      scheduler.schedule(room.code, left, autoSwitch);
-    } else {
-      scheduler.clear(room.code);
-    }
-  }
-
-  /** タイマー発火時にサーバー側で交代を実行し再スケジュールする。
-   *  driverEligible=false の参加者を飛ばし、全員 ineligible なら現状維持する（plan.md L194）。 */
-  function autoSwitch(roomCode: string): void {
-    const state = loadState(roomCode);
-    if (!state || !state.timer.clock.running) return;
-    const { membership, timer } = state;
-    const now = clock.now();
-    const agg = { session: timer.session, clock: timer.clock };
-    const newAgg = advanceDriver(agg, computeIneligibleIndices(membership, timer), now);
-    const updated: TimerState = { ...timer, session: newAgg.session, clock: newAgg.clock };
-    commit({ membership, timer: updated });
-    broadcaster.broadcastSignal(updated.code, {
-      type: "signal",
-      signal: "switch",
-      nextDriverName: rotationDisplayNames(membership, updated)[updated.session.currentIndex] ?? "",
-    });
-    reconcileSchedule(updated);
-  }
+  // 自動交代のスケジュールの突き合わせ（#366 で `scheduler-sync.ts` へ出した）。
+  const { reconcileSchedule, autoSwitch } = createScheduleSync({ scheduler, clock, broadcaster, loadState, commit });
 
   /**
    * コマンドを処理するメインエントリポイント
@@ -431,249 +395,119 @@ export function makeHandlers(deps: HandlerDeps) {
 
   const handleTimePing = createTimePingHandler({ clock, broadcaster });
 
-  /** ルームコマンド（session.act, config.set 等） */
+  /**
+   * ルームコマンド（session.act, config.set 等）。
+   *
+   * 並びは「ルームと参加者を引く → 専用の処理（退出・合言葉）→ ドメインのコマンドへ翻訳 → 事前条件
+   * （`room-commands/preconditions.ts`）→ サーバーが埋める値（`room-commands/server-values.ts`）→
+   * `decide` → `evolve` → Room レベルのイベントの適用 → 事後処理（`room-commands/after-effects.ts`）→
+   * 保管と配信」。#366 で事前条件・埋める値・事後処理をそれぞれのモジュールへ出した。
+   *
+   * ⚠ ここに可否判定は無い。#95 S3 でルームに居る全員が同格になったため、在室確認（NOT_IN_ROOM）と
+   * アクター解決だけがこの段の責務である。wire スキーマに無いコマンドは、ここへ届く手前の valibot が落とす
+   * （`test/unknown-command-boundary.test.ts`）。スキーマにあってドメイン処理を持たないものは UNKNOWN_COMMAND。
+   */
   async function handleRoomCommand(
     connId: string,
     cmd: RoomScopedCommand,
   ): Promise<Result<undefined, ErrorCode>> {
-    // connId からルームを特定する
-    let state = findStateByConnId(connId);
-
+    const state = findStateByConnId(connId);
     if (!state) {
       sendError(connId, "NOT_IN_ROOM", errorMessageFor("NOT_IN_ROOM"));
       return err("NOT_IN_ROOM");
     }
-
     const participant = findParticipantByConnId(state.membership, connId);
-    if (!participant) {
-      return err("PARTICIPANT_NOT_FOUND");
-    }
+    if (!participant) return err("PARTICIPANT_NOT_FOUND");
 
-    // ⚠ ここに可否判定は無い。#95 S3 でルームに居る全員が同格になったため、
-    // 在室確認（上の NOT_IN_ROOM）とアクター解決だけがこの段の責務である。
-    // wire スキーマ（`CommandSchema`）に無いコマンドは、ここへ届く手前の valibot が
-    // 落とす（`test/unknown-command-boundary.test.ts` が default-deny を固定している）。
-    // スキーマにあってドメイン処理を持たないものは、下の `UNKNOWN_COMMAND` で落ちる。
-
-    // 参加者の退出（⑪）。参加者は Room レベルのため decide ではなくここで扱う。
-    // 実装本体は command-handlers/participant-remove.ts へ移動した（フェーズ5・
-    // 純粋な移動。ロジック変更なし）。ここでは在室確認・アクター解決の結果を
-    // ctx として渡すだけ。
+    // 退出と合言葉は decide/evolve を通らない Room レベルの専用処理（`command-handlers/*.ts`）。
     if (cmd.command === "participant.remove") {
-      return handleParticipantRemove(
-        connId,
-        { state, actor: participant },
-        cmd,
-        {
-          clock,
-          broadcaster,
-          commit,
-          reconcileSchedule,
-          messageForRemoval,
-          sendError,
-          destroyRoom,
-          discardPokerVote: deps.discardPokerVote,
-        },
-      );
+      return handleParticipantRemove(connId, { state, actor: participant }, cmd, participantRemoveDeps);
     }
-
-    // room.passphrase.set は decide/evolve を通らない Room レベルの専用処理（フェーズ7合流）。
     if (cmd.command === "room.passphrase.set") {
-      return handleRoomPassphraseSet(
-        connId,
-        { state, actor: participant },
-        cmd,
-      );
+      return handleRoomPassphraseSet(connId, { state, actor: participant }, cmd);
     }
 
-    // 「名乗っている人」は名簿の参加者＋輪の上の代理である（#95 S4a）。
-    // S4a 以前は `Room.participants` が両方を含んでいたので、下の 3 つの検査は
-    // そこを見ていた。**名簿だけを見ると代理が消えて挙動が変わる**ため、合成した
-    // 一覧（`occupants`）で突き合わせる。
-    const residents = occupants(state.membership, state.timer);
-
-    // ドメインコマンドを構築して decide/evolve を実行。
-    // member.shuffle は順列をサーバーが生成する（wire は order を持たない）。
-    // 稼働中は現ドライバー位置を固定し、それ以外をシャッフルする（現ドライバー現役維持）。
-    const domainCmd =
-      cmd.command === "member.shuffle"
-        ? {
-            command: "member.shuffle" as const,
-            order: buildShuffleOrder(
-              state.timer.session.rotation.length,
-              state.timer.clock.running,
-              state.timer.session.currentIndex,
-            ),
-          }
-        : buildDomainCommand(cmd);
-    // 輪に並べられるのは在室者だけ（D6b）。実在しない ID を rotation に入れると
-    // 表示名を引けない枠が残り、順番表示も指名も破綻する。
-    if (domainCmd && domainCmd.command === "member.add") {
-      const exists = residents.some((p) => p.participantId === domainCmd.participantId);
-      if (!exists) {
-        sendError(connId, "PARTICIPANT_NOT_FOUND", errorMessageFor("PARTICIPANT_NOT_FOUND"));
-        return err("PARTICIPANT_NOT_FOUND");
-      }
-    }
-    // 代理追加の表示名一意性もここで検査する（D6b）。改名と同じ理由で、rotation が
-    // 席の配列になったため集約からは名前の重複を判定できない。
-    // 「既存の表示名と重複する代理は追加できない」という従来の挙動を維持する。
-    if (domainCmd && domainCmd.command === "participant.addProxy") {
-      const conflicts = conflictsWithExisting(residents, domainCmd.displayName);
-      if (conflicts) {
-        sendError(connId, "DuplicateName", errorMessageFor("DuplicateName"));
-        return err("DuplicateName");
-      }
-    }
-    // 改名の表示名一意性はここで検査する（T052・D6b）。rotation が席の配列になり
-    // 名前の重複を集約から判定できなくなったため、名簿を持つこの層が受け持つ。
-    // 「既存の表示名へは改名できない」という従来の挙動はそのまま維持する（後方互換）。
-    if (domainCmd && domainCmd.command === "participant.rename") {
-      const target = residents.find((p) => p.participantId === domainCmd.participantId);
-      // 対象が存在しなければ早期に拒否する（実体は対象不在なのに DuplicateName 等の
-      // 誤った理由で失敗させないため）。
-      if (!target) {
-        sendError(connId, "PARTICIPANT_NOT_FOUND", errorMessageFor("PARTICIPANT_NOT_FOUND"));
-        return err("PARTICIPANT_NOT_FOUND");
-      }
-      // 自分自身は比較対象から外す（現在名と同じ名前への改名は no-op 相当で許可する）。
-      // 大文字小文字は無視する（表示上の識別が付かないため衝突とみなす・FR-046/048）。
-      const conflicts = conflictsWithExisting(
-        residents,
-        domainCmd.displayName,
-        target.participantId,
-      );
-      if (conflicts) {
-        sendError(connId, "DuplicateName", errorMessageFor("DuplicateName"));
-        return err("DuplicateName");
-      }
-    }
-    // 指名は participantId → rotation index を解決して decide へ渡す（Issue #13）。
-    // 集約は名簿を持たないため、rotation 内の位置をここで確定する。
-    if (domainCmd && domainCmd.command === "driver.assign") {
-      const targetPid = cmd.command === "driver.assign" ? cmd.participantId : "";
-      const target = residents.find((p) => p.participantId === targetPid);
-      // 対象解決を2段に分ける（Issue #29・T112）。「対象が存在しない」と
-      // 「対象は居るが rotation に居ない」は解消手段が異なるため、
-      // 同じ index<0 の1条件で吸収せず、コードも分ける。
-      if (!target) {
-        sendError(connId, "PARTICIPANT_NOT_FOUND", errorMessageFor("PARTICIPANT_NOT_FOUND"));
-        return err("PARTICIPANT_NOT_FOUND");
-      }
-      const index = state.timer.session.rotation.findIndex(
-        (e) => rotationEntryId(e) === target.participantId,
-      );
-      if (index < 0) {
-        sendError(connId, "NOT_IN_ROTATION", errorMessageFor("NOT_IN_ROTATION"));
-        return err("NOT_IN_ROTATION");
-      }
-      // 実在（非代理）オフラインのメンバーは指名できない（R2-1: 無人ドライバーを防ぐ。
-      // 自動交代・手動 SWITCH の computeIneligibleIndices と同じ判定に揃える）。
-      // 代理(placeholder)は Web 非接続が常態で対面在席する実在の人を表すため offline でも許可する。
-      if (target.presence === "offline" && !target.isPlaceholder) {
-        sendError(connId, "DRIVER_ASSIGN_OFFLINE", errorMessageFor("DRIVER_ASSIGN_OFFLINE"));
-        return err("DRIVER_ASSIGN_OFFLINE");
-      }
-      domainCmd.index = index;
-    }
-    // 完成記録に写すお題のタイトル（#91・spec T9）。**完了した時点**の保管から引く。
-    // wire では受け取らない —— 利用者が好きなタイトルを記録へ差し込めてしまう。
-    if (domainCmd && domainCmd.command === "session.complete") {
-      domainCmd.topicTitle = deps.topics.get(state.timer.code)?.topic?.title ?? null;
-    }
-    // 代理参加者の participantId は client 供給（信頼境界外）。既存参加者との衝突で
-    // participantId 突合（skip/rename 等）が誤動作するのを防ぐため、サーバーで一意に再生成する。
-    if (domainCmd && domainCmd.command === "participant.addProxy") {
-      domainCmd.participantId = codeGen.generateParticipantId();
-    }
-    if (!domainCmd) {
+    const draft = toDomainCommand(cmd, state.timer);
+    if (!draft) {
       sendError(connId, "UNKNOWN_COMMAND", `不明なコマンド: ${cmd.command}`);
       return err("UNKNOWN_COMMAND");
     }
 
-    // 手動 SWITCH は自動交代と同じく一時離脱/オフライン(非placeholder)を飛ばす（B-2統合）。
-    // 交代先の決定は decide 自身（nextEligibleIndex 経由）に一本化されたため、ここでは
-    // ineligible を decide への入力として注入するだけで、決定結果を後から差し替えない。
-    if (domainCmd.command === "session.act" && domainCmd.action === "SWITCH") {
-      domainCmd.ineligible = computeIneligibleIndices(state.membership, state.timer);
+    const assignTarget = cmd.command === "driver.assign" ? cmd.participantId : undefined;
+    const prepared = prepareDomainCommand(draft, state, assignTarget);
+    if (prepared.isErr()) {
+      sendError(connId, prepared.error, errorMessageFor(prepared.error));
+      return err(prepared.error);
     }
+    const domainCmd = prepared.value;
 
     const now = clock.now();
     const agg = { session: state.timer.session, clock: state.timer.clock };
     const result = decide(domainCmd, agg, now);
-
     if (result.isErr()) {
-      // 表（ERROR_MESSAGES）に該当コードがあればそれを使う。無ければ元のままの
-      // 汎用文言にフォールバックする（表に無いコードの文言・挙動は変えない）。
+      // 表（ERROR_MESSAGES）に該当コードがあればそれを使う。無ければ元のままの汎用文言にフォールバックする。
       sendError(connId, result.error.type, ERROR_MESSAGES[result.error.type] ?? `操作エラー: ${result.error.type}`);
       return err(result.error.type);
     }
+    // decide が返したイベント列を evolve へ通し、集約の反映 → Room レベルイベントの適用（順序は applyEvents）。
+    const evolved = result.value.reduce((acc, event) => evolve(acc, event, now), agg);
+    const next = applyAfterEffects(applyEvents(state, evolved, result.value, nextRecordId), {
+      command: domainCmd,
+      events: result.value,
+      assignTarget,
+      now,
+      nextRecordId,
+    });
 
-    // decide が返したイベント列を他コマンドと同じ evolve ループへ通す（isManualSwitch分岐は撤去済み）。
-    let newAgg = agg;
-    for (const event of result.value) {
-      newAgg = evolve(newAgg, event, now);
-    }
-
-    // 集約の反映 → Room レベルイベントの適用（順序は applyEvents が保証する・FR-103）。
-    // PhaseSet/ConfigSet/SessionCompleted 等はルームレベルで処理される。
-    state = applyEvents(state, newAgg, result.value, nextRecordId);
-
-    // 現ドライバーが driver.skip で ineligible になり、かつ稼働中なら即座に次の eligible へ
-    // 繰り上げる（plan.md L209）。交代先が無ければ advanceDriver が現状維持する。
-    if (domainCmd.command === "driver.skip" && state.timer.clock.running) {
-      const ineligible = computeIneligibleIndices(state.membership, state.timer);
-      if (ineligible.has(state.timer.session.currentIndex)) {
-        const advanced = advanceDriver(
-          { session: state.timer.session, clock: state.timer.clock },
-          ineligible,
-          now,
-        );
-        state = applyEvents(state, advanced, [], nextRecordId);
-      }
-    }
-
-    // 指名先が一時離脱中なら離脱フラグを解除して自動復帰させる（Issue #13）。
-    // DriverSwitched は正確な index で評価済みのため advanceDriver 差し替えはしない。
-    // 現ドライバー自身の指名は decide が no-op（空イベント）を返すため、ここは実際に交代が
-    // 起きたとき（result.value 非空）だけ走らせる。no-op で eligible を書き換えない。
-    if (domainCmd.command === "driver.assign" && result.value.length > 0) {
-      const targetPid = cmd.command === "driver.assign" ? cmd.participantId : "";
-      const targetEntry = state.timer.session.rotation.find(
-        (e) => rotationEntryId(e) === targetPid,
-      );
-      if (targetEntry?.eligible === false) {
-        // 集約はこの時点で反映済みなので、そのまま基底として渡す（applyEvents の契約）。
-        state = applyEvents(
-          state,
-          { session: state.timer.session, clock: state.timer.clock },
-          [{ type: "DriverResumed", participantId: targetPid, now }],
-          nextRecordId,
-        );
-      }
-    }
-
-    // config.members はもう保持しない（#95 S4a・D15）。かつてここには rotation を
-    // 表示名へ写して `config.members` へミラーする代入があったが、snapshot を組む
-    // たびに DTO が解決するようになったので不要になった（二重帳簿の解消）。
-    commit(state);
+    commit(next);
     // clock 状態が変わった可能性があるので自動交代を調停する（FR-003）
-    reconcileSchedule(state.timer);
-
-    // セッションを畳む操作は在室者なら誰でも実行できる（#95 S3）。
-    // 誰が実行したか分からないと画面が突然変わった理由を追えないため全員へ伝える（FR-077）。
-    const noticeAction = SESSION_NOTICE_ACTIONS[domainCmd.command];
-    if (noticeAction) {
-      broadcaster.broadcastSignal(state.timer.code, {
-        type: "signal",
-        signal: "notice",
-        action: noticeAction,
-        actorName: participant.displayName,
-        actorParticipantId: participant.id,
-      });
-    }
-
+    reconcileSchedule(next.timer);
+    announceSessionNotice(next.timer.code, domainCmd.command, participant);
     return ok(undefined);
+  }
+
+  /** 事前条件を確かめ、通ればサーバーが埋める値を埋める（`room-commands/`）。 */
+  function prepareDomainCommand(
+    draft: DomainCommandDraft,
+    state: RoomState,
+    assignTarget: string | undefined,
+  ): Result<DomainCommandDraft, PreconditionFailure> {
+    const ctx = { residents: occupants(state.membership, state.timer), rotation: state.timer.session.rotation, assignTarget };
+    return checkPreconditions(draft, ctx).map((checked) =>
+      fillServerValues(checked, {
+        topicTitle: () => deps.topics.get(state.timer.code)?.topic?.title ?? null,
+        newParticipantId: () => codeGen.generateParticipantId(),
+        ineligible: () => computeIneligibleIndices(state.membership, state.timer),
+      }),
+    );
+  }
+
+  /** 退出（`command-handlers/participant-remove.ts`）へ渡す依存。 */
+  const participantRemoveDeps = {
+    clock,
+    broadcaster,
+    commit,
+    reconcileSchedule,
+    messageForRemoval,
+    sendError,
+    destroyRoom,
+    discardPokerVote: deps.discardPokerVote,
+  };
+
+  /**
+   * セッションを畳む操作（中断・リセット・完成）を、誰が実行したかと一緒に全員へ伝える（#95 S3・FR-077）。
+   * 在室者なら誰でも実行できるので、誰が実行したか分からないと画面が突然変わった理由を追えない。
+   */
+  function announceSessionNotice(roomCode: string, command: string, actor: { displayName: string; id: string }): void {
+    const action = SESSION_NOTICE_ACTIONS[command];
+    if (!action) return;
+    broadcaster.broadcastSignal(roomCode, {
+      type: "signal",
+      signal: "notice",
+      action,
+      actorName: actor.displayName,
+      actorParticipantId: actor.id,
+    });
   }
 
   // ─── 専用ハンドラの合成（フェーズ7・パイプライン統合済み）───────────────────
@@ -739,6 +573,20 @@ export function makeHandlers(deps: HandlerDeps) {
 // ─── 実行者の通知（FR-077） ──────────────────────────────────────────────────
 
 /**
+ * wire のコマンドを、`decide` へ渡す前のドメインのコマンドにする。翻訳できなければ null（UNKNOWN_COMMAND）。
+ *
+ * member.shuffle は順列をサーバーが生成する（wire は order を持たない）。
+ * 稼働中は現ドライバー位置を固定し、それ以外をシャッフルする（現ドライバー現役維持）。
+ */
+function toDomainCommand(cmd: RoomScopedCommand, timer: TimerState): DomainCommandDraft | null {
+  if (cmd.command !== "member.shuffle") return buildDomainCommand(cmd);
+  return {
+    command: "member.shuffle",
+    order: buildShuffleOrder(timer.session.rotation.length, timer.clock.running, timer.session.currentIndex),
+  };
+}
+
+/**
  * セッションを畳むコマンドと、それを表す notice の action の対応。
  *
  * participant.remove は decide/evolve を通らず専用の分岐で処理するため、ここには含めない
@@ -764,48 +612,6 @@ function messageForRemoval(code: RemovalNotification, actorDisplayName: string):
   return code === "REMOVED_FROM_ROOM"
     ? `${actorDisplayName} さんにより退出させられました。招待から再参加できます。`
     : errorMessageFor("LEFT_ROOM");
-}
-
-// ─── モブ順のランダム化（サーバー権威）──────────────────────────────────────
-
-/**
- * Fisher–Yates で配列をその場シャッフルする（サーバープロセス内なので Math.random で十分）。
- * 返り値は引数と同じ配列（破壊的）。
- */
-function fisherYatesShuffle<T>(arr: T[]): T[] {
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j]!, arr[i]!];
-  }
-  return arr;
-}
-
-/**
- * member.shuffle の順列 order を生成する（サーバー権威）。
- * - 非稼働中: [0..len-1] を完全シャッフルする。
- * - 稼働中: currentIndex の位置を固定し、それ以外のインデックスのみをシャッフルして
- *   現ドライバーが「その位置で」現役のままになるようにする。
- *
- * @param len rotation の長さ
- * @param running clock が稼働中か
- * @param currentIndex 現ドライバーの位置（稼働中のみ固定対象）
- */
-function buildShuffleOrder(len: number, running: boolean, currentIndex: number): number[] {
-  if (len <= 1) return Array.from({ length: len }, (_, i) => i);
-
-  if (!running) {
-    return fisherYatesShuffle(Array.from({ length: len }, (_, i) => i));
-  }
-
-  // 稼働中: currentIndex 以外のインデックスだけシャッフルし、currentIndex はその位置に固定する。
-  const others = Array.from({ length: len }, (_, i) => i).filter((i) => i !== currentIndex);
-  fisherYatesShuffle(others);
-  const order: number[] = [];
-  let cursor = 0;
-  for (let pos = 0; pos < len; pos++) {
-    order.push(pos === currentIndex ? currentIndex : others[cursor++]!);
-  }
-  return order;
 }
 
 // ─── ルームレベルのイベント適用 ──────────────────────────────────────────────
