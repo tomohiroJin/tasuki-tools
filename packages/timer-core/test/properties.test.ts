@@ -12,24 +12,35 @@ import { MAX_MEMBERS } from "../src/aggregate.js";
 import type { Aggregate } from "../src/aggregate.js";
 import { anAggregate } from "./support/aggregate-builder.js";
 
-/** 不変条件を検証する */
-function assertInvariants(agg: Aggregate) {
+/**
+ * 破れている不変条件を名前で返す（空なら全て成り立つ）。
+ *
+ * 比較は `!(x >= 0)` の形で書き、`NaN` も破れとして拾う。操作列の各段で呼ぶので、
+ * 判定と表明を分けて `expect` を 1 段 1 回にまとめる
+ * （段ごとに `expect` を 8 回呼ぶと、CI の並列実行で既定の 5 秒を超えた）。
+ */
+function invariantViolations(agg: Aggregate): string[] {
+  const { rotation, driverCounts, currentIndex, totalSwitches } = agg.session;
+  const violations: string[] = [];
   // I1: rotation.length === driverCounts.length
-  expect(agg.session.rotation.length).toBe(agg.session.driverCounts.length);
+  if (rotation.length !== driverCounts.length) violations.push("I1: rotation.length !== driverCounts.length");
   // I2: currentIndex が有効範囲内
-  if (agg.session.rotation.length > 0) {
-    expect(agg.session.currentIndex).toBeGreaterThanOrEqual(0);
-    expect(agg.session.currentIndex).toBeLessThan(agg.session.rotation.length);
+  if (rotation.length > 0 && !(currentIndex >= 0 && currentIndex < rotation.length)) {
+    violations.push("I2: currentIndex が範囲外");
   }
   // I3: 各担当回数が非負
-  for (const count of agg.session.driverCounts) {
-    expect(count).toBeGreaterThanOrEqual(0);
-  }
+  if (!driverCounts.every((count) => count >= 0)) violations.push("I3: 担当回数が負");
   // I4: totalSwitches が非負
-  expect(agg.session.totalSwitches).toBeGreaterThanOrEqual(0);
+  if (!(totalSwitches >= 0)) violations.push("I4: totalSwitches が負");
   // I5: clock の秒数が非負
-  expect(agg.clock.secondsLeftAtAnchor).toBeGreaterThanOrEqual(0);
-  expect(agg.clock.accumulatedElapsedMs).toBeGreaterThanOrEqual(0);
+  if (!(agg.clock.secondsLeftAtAnchor >= 0)) violations.push("I5: secondsLeftAtAnchor が負");
+  if (!(agg.clock.accumulatedElapsedMs >= 0)) violations.push("I5: accumulatedElapsedMs が負");
+  return violations;
+}
+
+/** 不変条件を検証する */
+function assertInvariants(agg: Aggregate) {
+  expect(invariantViolations(agg)).toEqual([]);
 }
 
 const actionArb = fc.constantFrom(
@@ -254,8 +265,9 @@ describe("全てのコマンドを混ぜた列での不変条件（#364）", () 
             }
             now += 1000;
             // Then
-            assertInvariants(agg);
-            expect(agg.session.rotation.length).toBeGreaterThanOrEqual(1);
+            const violations = invariantViolations(agg);
+            if (agg.session.rotation.length < 1) violations.push("輪が空");
+            expect(violations).toEqual([]);
           }
         },
       ),
