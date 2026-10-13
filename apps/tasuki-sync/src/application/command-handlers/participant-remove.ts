@@ -21,6 +21,7 @@ import {
   rotationEntryId,
   type TimerState,
   type ErrorCode,
+  type Command,
 } from "@tasuki/timer-core";
 import {
   hasNoParticipants,
@@ -74,7 +75,7 @@ export interface ParticipantRemoveDeps {
 export async function handleParticipantRemove(
   connId: string,
   ctx: ParticipantRemoveContext,
-  cmd: { command: "participant.remove"; [key: string]: unknown },
+  cmd: Extract<Command, { command: "participant.remove" }>,
   deps: ParticipantRemoveDeps,
 ): Promise<Result<undefined, ErrorCode>> {
   const {

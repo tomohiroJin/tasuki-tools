@@ -456,7 +456,7 @@ export function makeHandlers(deps: HandlerDeps) {
       return handleParticipantRemove(
         connId,
         { state, actor: participant },
-        cmd as { command: "participant.remove"; [key: string]: unknown },
+        cmd,
         {
           clock,
           broadcaster,
@@ -475,7 +475,7 @@ export function makeHandlers(deps: HandlerDeps) {
       return handleRoomPassphraseSet(
         connId,
         { state, actor: participant },
-        cmd as { command: "room.passphrase.set"; passphrase: string },
+        cmd,
       );
     }
 
