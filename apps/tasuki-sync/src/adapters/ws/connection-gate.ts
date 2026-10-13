@@ -15,6 +15,9 @@ import { TOOL_POKER, TOOL_ROULETTE, TOOL_TIMER, TOOL_TOPIC } from "../../applica
  */
 export type Protocol = "timer" | "poker" | "topic" | "roulette" | "hub" | "unknown";
 
+/** 接続 URL のクエリでツールを宣言するキー（`/ws?tool=poker`）。 */
+const TOOL_QUERY_KEY = "tool";
+
 /**
  * 接続 URL が宣言するツール。**許可リストで判定する**（#95 S5c）。
  *
@@ -35,14 +38,12 @@ export type Protocol = "timer" | "poker" | "topic" | "roulette" | "hub" | "unkno
  * リテラルを自前で持つと、次に綴りを変える人がここを取り残し、
  * **wire 互換を壊したことに気づけない**。
  *
- * **戻り値の型はリテラルのまま据え置く。** これは接続層の 5 値の選択子で、
- * ツール識別子はそのうち 3 つと一致しているだけである（`"hub"` / `"unknown"` に
+ * **戻り値の型はリテラルのまま据え置く。** これは接続層の 6 値の選択子（{@link Protocol}）で、
+ * ツール識別子はそのうち 4 つと一致しているだけである（`"hub"` / `"unknown"` に
  * 対応するツールは無い）。`typeof TOOL_TIMER` にして追従させると、綴りを変えたときに
  * 黙って通る —— リテラルで受けておくと**この関数で型検査が落ちる**ので、
  * `ConnectionData.protocol` と wire の両方を見直す機会になる。
  */
-const TOOL_QUERY_KEY = "tool";
-
 export function protocolFromRequestUrl(url: URL): Protocol {
   const declared = url.searchParams.get(TOOL_QUERY_KEY);
   if (declared === null) return "hub";

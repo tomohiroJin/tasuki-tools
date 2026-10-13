@@ -43,11 +43,12 @@ import type { Command, ServerMsg } from "@tasuki/timer-core";
 import { parseBoundaryMessage } from "@tasuki/protocol";
 import type { HubServerMsg } from "@tasuki/room-core";
 import type { Logger } from "../application/log/logger.js";
+import type { TimerCommandReceiver } from "../application/timer-command-receiver.js";
 // 接続層が自分で返す文言の正本（#362）。**コードごとに 1 つだけ**にする（SC-035）。
 import {
-  CONNECTION_ERROR_TEXT,
   TIMER_INTERNAL_ERROR_TEXT,
   boundaryErrorCode,
+  connectionErrorFrame,
 } from "../application/connection-errors.js";
 import { deriveClientKeySafely } from "./client-key-safety.js";
 import { initialConnectionData, type ConnectionData, type Socket } from "./ws/connection-data.js";
@@ -77,23 +78,19 @@ export interface RawMessageHandler {
   handleMessage(connId: string, raw: string): Promise<void>;
 }
 
-/**
- * timer のメッセージ層。**接続層で境界の検証（`CommandSchema`）を済ませた値**を、
- * 型（`Command`）のまま渡す（#363）。表示名の正規化は受け手
- * （`application/timer-command-receiver.ts`）が掛ける（#368）。
- */
-export interface TimerMessageHandler {
-  handleMessage(connId: string, cmd: Command): Promise<void>;
-}
-
 export interface WsAdapterOptions {
   port: number;
   host?: string;
   /** 同時接続数の上限。超過分は 1013 で拒否する。 */
   maxConnections?: number;
   allowedOrigins: string[];
-  /** timer（`?tool=timer`）のメッセージ層。 */
-  timer: TimerMessageHandler;
+  /**
+   * timer（`?tool=timer`）のメッセージ層。**接続層で境界の検証（`CommandSchema`）を済ませた値**を、
+   * 型（`Command`）のまま渡す（#363）。表示名の正規化は受け口（`application/timer-command-receiver.ts`）が
+   * 掛ける（#368）。**型を {@link TimerCommandReceiver} にしてあるのは、正規化を通さない配線を型検査で
+   * 落とすため**（正規化を接続層から移しても、どの入口も正規化を飛ばせないことを保つ）。
+   */
+  timer: TimerCommandReceiver;
   /** ハブ（選択画面。`?tool=` 無し）のメッセージ層（#95 S5a）。 */
   hub: RawMessageHandler;
   /** お題（`?tool=topic`）のメッセージ層（#91）。 */
@@ -166,22 +163,12 @@ export class ServerStartError extends Error {
 /** 入場の判定を通りうるプロトコル（`"unknown"` は受理されないので受け口を持たない）。 */
 type AcceptedProtocol = Exclude<Protocol, "unknown">;
 
-/** 接続層が自分で組み立てて返すエラーフレーム（大きすぎる・内部エラー）。文は正本から取る（#362）。 */
-function connectionError<C extends "MESSAGE_TOO_LARGE" | "INTERNAL_ERROR">(
-  code: C,
-): { type: "error"; code: C; message: string } {
-  return { type: "error", code, message: CONNECTION_ERROR_TEXT[code] };
-}
-
 /**
  * timer の境界のパース。@tasuki/protocol に一本化してある（poker の sync / web も同じものを使う）。
  * 落ちた段（json / schema）で返すエラーコードを分けるのは timer 側の決めごと。
  */
 function parseTimerCommand(text: string): Result<Command, ServerMsg> {
-  return parseBoundaryMessage(CommandSchema, text).mapErr((error): ServerMsg => {
-    const code = boundaryErrorCode(error.stage);
-    return { type: "error", code, message: CONNECTION_ERROR_TEXT[code] };
-  });
+  return parseBoundaryMessage(CommandSchema, text).mapErr((error): ServerMsg => connectionErrorFrame(boundaryErrorCode(error.stage)));
 }
 
 /**
@@ -193,47 +180,40 @@ function parseTimerCommand(text: string): Result<Command, ServerMsg> {
  */
 function buildChannels(options: WsAdapterOptions): Readonly<Record<AcceptedProtocol, ToolChannel>> {
   const { maxMessageBytes, logger } = options;
-  const rawText = (text: string): Result<string, never> => ok(text);
+  /**
+   * 生テキストを渡すツール（ハブ・お題・ルーレット）の受け口。違いはエラーフレームの型だけで、
+   * フレームは行ごとに渡す（キャストせず、その行の型で検査させる）。
+   */
+  const rawTextChannel = <Frame>(handler: RawMessageHandler, frames: { tooLarge: Frame; internalError: Frame }): ToolChannel =>
+    createTextChannel<string, Frame>({
+      maxMessageBytes,
+      logger,
+      parse: (text) => ok(text),
+      deliver: (connId, raw) => handler.handleMessage(connId, raw),
+      tooLargeFrame: frames.tooLarge,
+      internalErrorFrame: frames.internalError,
+      logsRejection: true,
+    });
+  const connectionFrames = () => ({
+    tooLarge: connectionErrorFrame("MESSAGE_TOO_LARGE"),
+    internalError: connectionErrorFrame("INTERNAL_ERROR"),
+  });
   return {
     timer: createTextChannel<Command, ServerMsg>({
       maxMessageBytes,
       logger,
       parse: parseTimerCommand,
       deliver: (connId, cmd) => options.timer.handleMessage(connId, cmd),
-      tooLargeFrame: connectionError("MESSAGE_TOO_LARGE"),
+      tooLargeFrame: connectionErrorFrame("MESSAGE_TOO_LARGE"),
       internalErrorFrame: { type: "error", code: "INTERNAL_ERROR", message: TIMER_INTERNAL_ERROR_TEXT },
       logsRejection: false,
     }),
-    hub: createTextChannel<string, HubServerMsg>({
-      maxMessageBytes,
-      logger,
-      parse: rawText,
-      deliver: (connId, raw) => options.hub.handleMessage(connId, raw),
-      tooLargeFrame: connectionError("MESSAGE_TOO_LARGE"),
-      internalErrorFrame: connectionError("INTERNAL_ERROR"),
-      logsRejection: true,
-    }),
+    hub: rawTextChannel<HubServerMsg>(options.hub, connectionFrames()),
     // エラーフレームの型は広い `TopicServerMsg` ではなく狭い `TopicOwnFrame`（#91 R18）。
     // `TopicServerMsg` は `HubServerMsg` を合併しており、その `error` は `code: string`（無制約）なので、
     // 契約に無いコードでも通ってしまう。ルーレットも同じ理由で `RouletteOwnFrame`。
-    topic: createTextChannel<string, TopicOwnFrame>({
-      maxMessageBytes,
-      logger,
-      parse: rawText,
-      deliver: (connId, raw) => options.topic.handleMessage(connId, raw),
-      tooLargeFrame: connectionError("MESSAGE_TOO_LARGE"),
-      internalErrorFrame: connectionError("INTERNAL_ERROR"),
-      logsRejection: true,
-    }),
-    roulette: createTextChannel<string, RouletteOwnFrame>({
-      maxMessageBytes,
-      logger,
-      parse: rawText,
-      deliver: (connId, raw) => options.roulette.handleMessage(connId, raw),
-      tooLargeFrame: connectionError("MESSAGE_TOO_LARGE"),
-      internalErrorFrame: connectionError("INTERNAL_ERROR"),
-      logsRejection: true,
-    }),
+    topic: rawTextChannel<TopicOwnFrame>(options.topic, connectionFrames()),
+    roulette: rawTextChannel<RouletteOwnFrame>(options.roulette, connectionFrames()),
     poker: createPokerChannel(options.poker, maxMessageBytes, logger),
   };
 }
@@ -519,10 +499,10 @@ export class WsAdapter {
     this.heartbeat.forget(connId);
     // 後始末を受け口が自分で持つ（poker）なら、そちらだけを呼ぶ。
     // 隔離の理由は onDisconnect と同じ（コールバックの失敗でプロセス全体を落とさない）。
-    const closed = this.channelOf(ws)?.closed;
-    if (closed !== undefined) {
+    const channel = this.channelOf(ws);
+    if (channel?.closed !== undefined) {
       try {
-        closed(ws);
+        channel.closed(ws);
       } catch (err) {
         this.options.logger.error("on-disconnect-error", { name: classifyError(err) });
       }

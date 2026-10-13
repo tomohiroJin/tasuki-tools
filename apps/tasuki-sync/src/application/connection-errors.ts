@@ -39,6 +39,14 @@ export const CONNECTION_ERROR_TEXT = {
 export type ConnectionErrorCode = keyof typeof CONNECTION_ERROR_TEXT;
 
 /**
+ * 接続層のエラーのフレーム。文は {@link CONNECTION_ERROR_TEXT} から引く（コードごとに 1 つ。#362）。
+ * timer・ハブ・お題・ルーレットのエラーフレームは、どれもこの形に収まる。
+ */
+export function connectionErrorFrame<C extends ConnectionErrorCode>(code: C): { type: "error"; code: C; message: string } {
+  return { type: "error", code, message: CONNECTION_ERROR_TEXT[code] };
+}
+
+/**
  * timer の接続でメッセージ層が失敗したときの文言。
  *
  * **ほかの接続（{@link CONNECTION_ERROR_TEXT} の `INTERNAL_ERROR`）と文が違う。** 2026-10-13 に

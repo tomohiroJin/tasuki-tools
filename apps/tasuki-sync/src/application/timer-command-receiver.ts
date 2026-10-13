@@ -10,7 +10,7 @@
  * 返事は `await` より前に同期に送る（接続層に正規化があった頃と同じ順番）。
  */
 import type { Command, ServerMsg } from "@tasuki/timer-core";
-import { CONNECTION_ERROR_TEXT } from "./connection-errors.js";
+import { connectionErrorFrame } from "./connection-errors.js";
 import { normalizeCommandNames } from "./normalize-command-names.js";
 
 export interface TimerCommandReceiverDeps {
@@ -20,20 +20,30 @@ export interface TimerCommandReceiverDeps {
   route(connId: string, cmd: Command): Promise<void>;
 }
 
-/** timer のコマンドを受け、表示名を正規化してから振り分けへ渡す関数を作る。 */
-export function createTimerCommandReceiver(
-  deps: TimerCommandReceiverDeps,
-): (connId: string, cmd: Command) => Promise<void> {
-  return async (connId, cmd) => {
+declare const receiverBrand: unique symbol;
+
+/**
+ * 表示名を正規化してから振り分ける、timer の受け口。**{@link createTimerCommandReceiver} だけが作る。**
+ *
+ * WS アダプタは timer の受け口をこの型でしか受けない（`WsAdapterOptions.timer`）。正規化を通さずに
+ * ハンドラを直接つなぐ配線は型検査で落ちる —— 接続層に正規化があった頃と同じく、
+ * **どの入口も正規化を飛ばせない**ことを、置き場を移した後も型で守る（S4a 以前の事故の再発を防ぐ）。
+ */
+export interface TimerCommandReceiver {
+  readonly [receiverBrand]: true;
+  handleMessage(connId: string, cmd: Command): Promise<void>;
+}
+
+/** timer のコマンドを受け、表示名を正規化してから振り分けへ渡す受け口を作る。 */
+export function createTimerCommandReceiver(deps: TimerCommandReceiverDeps): TimerCommandReceiver {
+  const handleMessage = async (connId: string, cmd: Command): Promise<void> => {
     const normalized = normalizeCommandNames(cmd);
     if (normalized.isErr()) {
-      deps.reply(connId, {
-        type: "error",
-        code: "INVALID_COMMAND",
-        message: CONNECTION_ERROR_TEXT.INVALID_COMMAND,
-      });
+      deps.reply(connId, connectionErrorFrame("INVALID_COMMAND"));
       return;
     }
     await deps.route(connId, normalized.value);
   };
+  // ブランドを付けるのはここだけ（この関数の外で TimerCommandReceiver を作らせない）。
+  return { handleMessage } as TimerCommandReceiver;
 }

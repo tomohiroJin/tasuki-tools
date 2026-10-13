@@ -31,6 +31,8 @@ import {
   type RawMessageHandler,
   type WsAdapterOptions,
 } from "../../src/adapters/ws-adapter.js";
+import type { TimerCommandReceiver } from "../../src/application/timer-command-receiver.js";
+import type { Command } from "@tasuki/timer-core";
 
 /** `config.ts` の既定と同じ値。ここを動かすと接続層のテストが本番とずれる。 */
 const DEFAULT_MAX_MESSAGE_BYTES = 64 * 1024;
@@ -103,11 +105,20 @@ export function unwiredRouletteHandler(): RawMessageHandler {
   };
 }
 
-/** 必須オプションのうち、接続層のテストが関心を持たない 6 つだけを任意にしたもの。 */
+/**
+ * 接続層のテストが渡す timer のメッセージ層（正規化の受け口のブランドを持たない、ただの関数）。
+ *
+ * 本番は `createTimerCommandReceiver` が作った受け口しか渡せない（`WsAdapterOptions.timer` の型）。
+ * 接続層のテストが見たいのは**接続層が渡した値と、メッセージ層の失敗（同期の throw・reject）の扱い**なので、
+ * 本物の受け口（async で包むので同期の throw が reject に変わる）を挟まず、ここでブランドだけを付ける。
+ */
+export type TestTimerHandler = { handleMessage(connId: string, cmd: Command): Promise<void> };
+
+/** 必須オプションのうち、接続層のテストが関心を持たない 6 つだけを任意にし、timer を素の関数で受けるもの。 */
 export type TestWsAdapterOptions = Omit<
   WsAdapterOptions,
-  "maxMessageBytes" | "maxFrameBytes" | "poker" | "hub" | "topic" | "roulette"
-> &
+  "maxMessageBytes" | "maxFrameBytes" | "poker" | "hub" | "topic" | "roulette" | "timer"
+> & { timer: TestTimerHandler } &
   Partial<
     Pick<
       WsAdapterOptions,
@@ -118,6 +129,7 @@ export type TestWsAdapterOptions = Omit<
 export function newTestWsAdapter(options: TestWsAdapterOptions): WsAdapter {
   return new WsAdapter({
     ...options,
+    timer: options.timer as TimerCommandReceiver,
     maxMessageBytes: options.maxMessageBytes ?? DEFAULT_MAX_MESSAGE_BYTES,
     maxFrameBytes: options.maxFrameBytes ?? DEFAULT_MAX_FRAME_BYTES,
     poker: options.poker ?? unwiredPokerHandlers(),

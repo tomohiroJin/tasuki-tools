@@ -26,16 +26,19 @@ const ALLOWED_FROM_ADAPTERS = [
   "log/vocabulary",
   "poker-handlers",
   "roster-dto",
+  // timer の受け口の型（ブランド）だけ。正規化そのものは取り込まない（型で「正規化を通した受け口しか渡せない」を守るため）
+  "timer-command-receiver",
   "tool-id",
 ] as const;
 
 /**
  * `file`（`src/` からの相対）の本文から、アプリケーション層の取り込み先を拾う
- * （`src/application/` からの相対・拡張子なし）。
+ * （`src/application/` からの相対・拡張子なし）。`from "…"`・副作用だけの `import "…"`・
+ * 動的な `import("…")` を、二重引用符でも一重引用符でも拾う。
  */
 export function applicationImportsOf(text: string, file: string): string[] {
   const fromDir = posix.dirname(file);
-  return [...text.matchAll(/from\s+"(\.{1,2}\/[^"]+)"/g)]
+  return [...text.matchAll(/(?:\bfrom|\bimport)\s*\(?\s*["'](\.{1,2}\/[^"']+)["']/g)]
     .map((m) => posix.normalize(posix.join(fromDir, m[1]!)))
     .filter((target) => target.startsWith("application/"))
     .map((target) => target.slice("application/".length).replace(/\.js$/, ""));
@@ -51,6 +54,18 @@ describe("アダプタがアプリケーション層から取り込むもの", (
     // When / Then
     expect(applicationImportsOf(top, "adapters/x.ts")).toEqual(["log/logger"]);
     expect(applicationImportsOf(nested, "adapters/ws/y.ts")).toEqual(["tool-id"]);
+  });
+
+  it("Given 一重引用符・副作用だけの取り込み・動的な取り込み / When 拾う / Then どれも拾う（抜け道を作らない）", () => {
+    // Given（字面を分けて書く理由は上と同じ）
+    const q = (path: string, quote: string) => `${quote}${path}${quote}`;
+    const text = [
+      `import { a } from ${q("../application/a.js", "'")};`,
+      `import ${q("../application/b.js", '"')};`,
+      `const c = await import(${q("../application/c.js", '"')});`,
+    ].join("\n");
+    // When / Then
+    expect(applicationImportsOf(text, "adapters/x.ts")).toEqual(["a", "b", "c"]);
   });
 
   it("Given src/adapters の全ファイル / When アプリケーション層の取り込みを拾う / Then 全て許可表に載っている", () => {

@@ -8,16 +8,18 @@
 import { describe, expect, it } from "bun:test";
 import type { Command, ServerMsg } from "@tasuki/timer-core";
 import { createTimerCommandReceiver } from "../src/application/timer-command-receiver.js";
+import type { WsAdapterOptions } from "../src/adapters/ws-adapter.js";
 
 function setup() {
   const replies: Array<[string, ServerMsg]> = [];
   const routed: Array<[string, Command]> = [];
-  const receive = createTimerCommandReceiver({
+  const receiver = createTimerCommandReceiver({
     reply: (connId, msg) => replies.push([connId, msg]),
     route: async (connId, cmd) => {
       routed.push([connId, cmd]);
     },
   });
+  const receive = (connId: string, cmd: Command) => receiver.handleMessage(connId, cmd);
   return { replies, routed, receive };
 }
 
@@ -61,5 +63,14 @@ describe("timer の受け口（表示名の正規化）", () => {
     void h.receive("c-1", { command: "room.create", displayName: "   " });
     // Then
     expect(h.replies).toHaveLength(1);
+  });
+});
+
+describe("timer の受け口の型（正規化を飛ばす配線を型で落とす）", () => {
+  it("Given 正規化を通さない素の関数 / When WS アダプタの timer に渡す / Then 型検査で落ちる（受け口は createTimerCommandReceiver だけが作る）", () => {
+    // @ts-expect-error 正規化の受け口のブランドが無い（`pnpm typecheck` が、この行が通ってしまったら赤にする）
+    const plain: WsAdapterOptions["timer"] = { handleMessage: async () => {} };
+    const receiver: WsAdapterOptions["timer"] = createTimerCommandReceiver({ reply: () => {}, route: async () => {} });
+    expect([typeof plain.handleMessage, typeof receiver.handleMessage]).toEqual(["function", "function"]);
   });
 });

@@ -356,7 +356,8 @@ describe("WsAdapter お題（topic）のメッセージ経路", () => {
  * **以前は `handleHubMessage` がこの呼び出しを `.catch()` でしか包んでおらず、同期 throw を
  * 隔離する try/catch を持たなかった**（`handleTopicMessage` の docstring に既知の差分として
  * 記されていた）。#91 PR 3 でここに `handleTopicMessage` と同じ形の try/catch を足して
- * 隔離した —— 隔離が無いと、ここでの同期 throw が Bun の websocket ハンドラを抜けて
+ * 隔離した（#368 からは、4 つの受け口が `ws/tool-channel.ts` の `createTextChannel` 1 つを通る）
+ * —— 隔離が無いと、ここでの同期 throw が Bun の websocket ハンドラを抜けて
  * `uncaughtException` に達し、`server.ts` の `process.exit(1)` で**同じプロセスに載る
  * timer / poker / お題のルームも道連れで消える**（揮発インメモリ）。
  *
@@ -426,8 +427,8 @@ describe("ハブ（選択画面）のメッセージ層が同期 throw しても
  * お題（topic）のメッセージ層が同期 throw しても隔離される（#91 fix round 1）。
  *
  * `topic.handleMessage` は型上 `Promise<void>` を返す契約だが、実装が async でなければ
- * 同期的に throw しうる（型は実行時の保証にはならない）。`handleTopicMessage` が
- * この呼び出しを try/catch で囲んでいなければ、ここでの throw は Bun の websocket
+ * 同期的に throw しうる（型は実行時の保証にはならない）。受け口（`ws/tool-channel.ts` の
+ * `createTextChannel`。#368 までは `handleTopicMessage`）がこの呼び出しを try/catch で囲んでいなければ、ここでの throw は Bun の websocket
  * ハンドラを抜けて `uncaughtException` に達し、`server.ts` の `process.exit(1)` で
  * **同じプロセスに載る timer / poker / ハブのルームも道連れで消える**（揮発インメモリ）。
  *
