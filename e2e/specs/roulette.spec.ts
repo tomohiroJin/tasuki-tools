@@ -11,11 +11,20 @@
  * 札の隠れは `buttons.spec.ts` のお題ツールの本（同じルーム）に足した。
  *
  * 入る人は 2 人だけにする。**2 人のときは当たりが必ず交互になる**（spec §5.1）ので、
- * サーバーが一周の規則で引いていることを、乱数に頼らず決定的に確かめられる。
+ * サーバーが一周の規則で引いていることを、乱数に頼らず決定的に確かめられる。交互を確かめた後で
+ * 欧文の名前を 2 つ足し（4 席）、席の名前の字が倒れていないことを幅と席数を変えて見る（spec §6.3）。
  */
 import { expect, test } from '../fixtures/test';
 import { expectFieldsAtLeast16px, expectFocusVisibleOnTab, expectReadable, pairKey, resolveColors, scanContrast } from '../support/a11y';
-import { expectWheelLabelsReadable, joinRouletteTool, openRouletteTool, roulettePhrase, spinButton } from '../support/roulette';
+import {
+  addRouletteGuest,
+  expectWheelGlyphsUpright,
+  expectWheelLabelsReadable,
+  joinRouletteTool,
+  openRouletteTool,
+  roulettePhrase,
+  spinButton,
+} from '../support/roulette';
 
 const NAME_A = 'e2e-roulette-a';
 const NAME_B = 'e2e-roulette-b';
@@ -112,6 +121,36 @@ test.describe('@core ルーレットは全員の画面で同じ人に止まる',
     //   名前の欄が 16px 以上（iOS の拡大を起こさない）・Tab でフォーカスが見える
     await expectFieldsAtLeast16px(page);
     await expectFocusVisibleOnTab(page);
+
+    // Then 席の名前の字が倒れていない（spec §6.3。2026-10-13 の実画面で、縦書きの席の欧文が横倒しだった）。
+    //   **欧文の名前だけで 4 席にすると、どの角度で止まっても縦書きの席が必ず 1 つ以上できる**（半径の向きは
+    //   180° の剰余で 90° おきに並び、どちらかが縦から 45° 以内に入る）。3 席でも 60° おきなので必ずできる。
+    //   止まり方は乱数なので、回し直して局面を変える（同じルームのまま。席を足す・外す・幅を変える）
+    await addRouletteGuest(page, 'Mika');
+    await addRouletteGuest(page, 'Ken');
+    const spinAndSettle = async (label: string): Promise<void> => {
+      await expect(spinButton(page)).toBeEnabled();
+      await spinButton(page).click();
+      await expect(roulettePhrase(page), `${label}: 止まる`).toHaveText(RESULT, { timeout: SPIN_MS + 2000 });
+    };
+    await spinAndSettle('4 席・1280');
+    await expectWheelGlyphsUpright(page, 1);
+    await spinAndSettle('4 席・1280 の 2 回目');
+    await expectWheelGlyphsUpright(page, 1);
+    //   幅 320（縦積み・指し針は下）。並びが変わると止まった角度を置き直すので、回さずにも見る
+    await page.setViewportSize({ width: 320, height: 640 });
+    await expect(page.locator('.roulette-stage')).toHaveAttribute('data-layout', 'stack');
+    await expectWheelGlyphsUpright(page, 1);
+    await spinAndSettle('4 席・320');
+    await expectWheelGlyphsUpright(page, 1);
+    //   名前を外して 3 席
+    await page.getByRole('button', { name: 'Ken の名前を消す' }).click();
+    await expect(page.locator('.wheel-label')).toHaveCount(3);
+    await spinAndSettle('3 席・320');
+    await expectWheelGlyphsUpright(page, 1);
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await expect(page.locator('.roulette-stage')).toHaveAttribute('data-layout', 'row');
+    await expectWheelGlyphsUpright(page, 1);
 
     // どの画面も例外を出していない
     expect(consoleWatcher.errors).toEqual([]);

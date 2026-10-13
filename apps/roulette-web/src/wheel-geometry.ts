@@ -54,12 +54,15 @@ export function labelPlacement(mid: number, rotorDeg: number): LabelPlacement {
   return { rotate: tilt - rotorDeg, anchor: outward ? 'end' : 'start', vertical, tilt };
 }
 
-/** 名前を席に収める（全角 1・半角 0.6 で数え、溢れたら `…`）。 */
-export function fitLabel(name: string, maxEm: number): string {
+/**
+ * 名前を席に収める（全角 1・半角 0.6 で数え、溢れたら `…`）。縦書き（`upright`）では欧文も立てて積み、
+ * 1 字が 1em を取るので全部 1 で数える。
+ */
+export function fitLabel(name: string, maxEm: number, upright = false): string {
   let w = 0;
   let out = '';
   for (const ch of name) {
-    const cw = (ch.codePointAt(0) ?? 0) <= 0xff ? 0.6 : 1;
+    const cw = !upright && (ch.codePointAt(0) ?? 0) <= 0xff ? 0.6 : 1;
     if (w + cw > maxEm) return `${out}…`;
     w += cw;
     out += ch;

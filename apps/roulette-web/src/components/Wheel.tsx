@@ -83,7 +83,7 @@ export function Wheel({ entries, winnerIndex, drawnIds, angle, pointerDeg, spinn
                   textAnchor={place.anchor}
                   transform={`rotate(${place.rotate} ${tx} ${ty})`}
                 >
-                  {fitLabel(entry.name, n > 12 ? 4 : 5.5)}
+                  {fitLabel(entry.name, n > 12 ? 4 : 5.5, place.vertical)}
                 </text>
               </g>
             );

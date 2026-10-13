@@ -132,3 +132,55 @@ export async function expectCardNameNotCovered(page: Page): Promise<void> {
     )
     .toBe('card');
 }
+
+/** 画面に描かれた 1 字の向き（`expectWheelGlyphsUpright` の材料）。 */
+interface DrawnGlyph {
+  label: string;
+  ch: string;
+  vertical: boolean;
+  /** 画面上の字の傾き（度・−180〜180。0 が正立・時計回りが正） */
+  tilt: number;
+}
+
+/**
+ * 円盤の席の名前の**字が倒れていない**（画面上の傾きが ±45° 以内）。止まった後に呼ぶ。
+ *
+ * 物差しは `labelPlacement` の戻り値を使わない（2026-10-13 の撮影で、関数の戻り値だけを見る単体テストは
+ * 縦書きの欧文が横倒しで描かれるのを見逃した）。1 字ずつ、ブラウザが実際に組んだ姿から傾きを出す:
+ *
+ * - `getScreenCTM()` の回転成分 `atan2(b, a)` —— 回転子の `rotate` と名前の `rotate` をブラウザが合成した、
+ *   その `<text>` の座標系の画面上の傾き
+ * - `getRotationOfChar(i)` —— その座標系の中で、ブラウザがその字を回して組んだ角度。縦書き
+ *   （`writing-mode: vertical-rl`）で `text-orientation: mixed` のとき、欧文は 90° 回して横倒しに組まれる
+ *   （Chromium の実測）。座標系の傾きだけを見るとここが見えない
+ *
+ * 字の傾き = 座標系の傾き + 字の回転。空白は向きが無いので数えない。
+ * `minVerticalLatin` は「縦書きの席に欧文の名前が 1 つ以上ある」ことの下限（物差しが空振りしていないことを先に見る）。
+ */
+export async function expectWheelGlyphsUpright(page: Page, minVerticalLatin = 0): Promise<void> {
+  const glyphs: DrawnGlyph[] = await page.evaluate(() => {
+    const out: { label: string; ch: string; vertical: boolean; tilt: number }[] = [];
+    for (const text of Array.from(document.querySelectorAll<SVGTextElement>('.wheel-label'))) {
+      const m = text.getScreenCTM();
+      if (m === null) continue;
+      const frame = (Math.atan2(m.b, m.a) * 180) / Math.PI;
+      const label = text.textContent ?? '';
+      const vertical = getComputedStyle(text).writingMode.startsWith('vertical');
+      const chars = Array.from(label);
+      for (let i = 0; i < text.getNumberOfChars() && i < chars.length; i += 1) {
+        const ch = chars[i] ?? '';
+        if (ch.trim() === '') continue;
+        const raw = frame + text.getRotationOfChar(i);
+        out.push({ label, ch, vertical, tilt: ((((raw + 180) % 360) + 360) % 360) - 180 });
+      }
+    }
+    return out;
+  });
+  expect(glyphs.length, '円盤の席の名前の字が 1 つも読めない').toBeGreaterThan(0);
+  const verticalLatin = new Set(glyphs.filter((g) => g.vertical && /[A-Za-z]/.test(g.ch)).map((g) => g.label));
+  expect(verticalLatin.size, `縦書きの席の欧文の名前（${[...verticalLatin].join(', ')}）`).toBeGreaterThanOrEqual(minVerticalLatin);
+  const fallen = glyphs
+    .filter((g) => Math.abs(g.tilt) > 45 + 0.5)
+    .map((g) => `「${g.label}」の「${g.ch}」 ${g.tilt.toFixed(1)}°（${g.vertical ? '縦書き' : '横書き'}）`);
+  expect(fallen, '円盤の席の名前の字が ±45° を超えて倒れている').toEqual([]);
+}

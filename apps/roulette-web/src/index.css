@@ -170,6 +170,9 @@
 .wheel-label--vertical {
   /* 縦書き（字は立てる）。半径が画面の縦に近い席で使う（labelPlacement） */
   writing-mode: vertical-rl;
+  /* 欧文も立てて積む。既定（mixed）では欧文を 90° 回して横倒しに組み、字が ±45° を超えて倒れる
+     （2026-10-13 の実画面の「Mika」。spec §6.3）。立てた欧文は 1 字 1em を取るので fitLabel も全角で数える */
+  text-orientation: upright;
 }
 .wheel-label--winner {
   fill: var(--on-gold);

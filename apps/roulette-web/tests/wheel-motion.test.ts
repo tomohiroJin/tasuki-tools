@@ -168,4 +168,9 @@ describe('fitLabel', () => {
   it('1 字ぶん溢れると切る', () => {
     expect(fitLabel('あいうえおか', 5)).toBe('あいうえお…');
   });
+  it('縦書き（欧文も立てて積む）では半角も 1 で数える', () => {
+    expect(fitLabel('abcdefghijk', 5.5, true)).toBe('abcde…');
+    expect(fitLabel('Mika', 5.5, true)).toBe('Mika');
+    expect(fitLabel('あいうえおかき', 5.5, true)).toBe('あいうえお…');
+  });
 });
