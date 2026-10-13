@@ -44,8 +44,10 @@ export function applicationImportsOf(text: string, file: string): string[] {
 describe("アダプタがアプリケーション層から取り込むもの", () => {
   it("Given adapters/ と adapters/ws/ の取り込み / When 拾う / Then src/application/ からの相対で拾う（検出が空振りしないことの確かめ）", () => {
     // Given
-    const top = 'import { a } from "../application/log/logger.js";\nimport type { B } from "../ports/b.js";';
-    const nested = 'import { c } from "../../application/tool-id.js";';
+    // 字面を分けて書く（`audit-dependency-direction.mjs` がテストの本文の取り込みの形も走査するため）。
+    const fromClause = (path: string) => `from ${JSON.stringify(path)}`;
+    const top = `import { a } ${fromClause("../application/log/logger.js")};\nimport type { B } ${fromClause("../ports/b.js")};`;
+    const nested = `import { c } ${fromClause("../../application/tool-id.js")};`;
     // When / Then
     expect(applicationImportsOf(top, "adapters/x.ts")).toEqual(["log/logger"]);
     expect(applicationImportsOf(nested, "adapters/ws/y.ts")).toEqual(["tool-id"]);
