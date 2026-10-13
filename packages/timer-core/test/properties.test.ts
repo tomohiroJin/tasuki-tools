@@ -200,3 +200,66 @@ describe("v2 不変条件プロパティテスト", () => {
     );
   });
 });
+
+/**
+ * 全てのコマンドを混ぜた列での不変条件（#364 Task 1）。
+ *
+ * 上の性質はコマンドの種類ごとに列を作る。ここでは輪の出入り・並べ替え・担当の指名・
+ * セッションの操作を 1 つの列に混ぜ、**組み合わせで初めて崩れる**ものを拾う
+ * （例: 担当を指名した後に、その手前の席を外す）。各段で見るのは次の 3 つ。
+ *
+ * - I1: `rotation.length === driverCounts.length`
+ * - I2: `0 ≤ currentIndex < rotation.length`
+ * - 輪が空にならない（`decide` が最後の 1 人の `member.remove` を拒む。#376 の `NaN` に届かないことの固定）
+ */
+describe("全てのコマンドを混ぜた列での不変条件（#364）", () => {
+  type Command = Parameters<typeof decide>[0];
+  const indexArb = fc.integer({ min: -1, max: 6 });
+  const commandArb: fc.Arbitrary<Command> = fc.oneof(
+    fc.constantFrom("START", "SWITCH", "PAUSE", "RESUME", "RESTART").map(
+      (action): Command => ({ command: "session.act", action }),
+    ),
+    fc.constantFrom("A", "B", "C", "D", "E", "F", "G").map(
+      (participantId): Command => ({ command: "member.add", participantId }),
+    ),
+    // 削除は重みを上げる。輪が空になる手前（残り 1 人）まで届く列を十分に作るため
+    { arbitrary: indexArb.map((index): Command => ({ command: "member.remove", index })), weight: 4 },
+    fc.tuple(indexArb, indexArb).map(
+      ([fromIndex, toIndex]): Command => ({ command: "member.move", fromIndex, toIndex }),
+    ),
+    fc.shuffledSubarray([0, 1, 2, 3, 4, 5]).map((order): Command => ({ command: "member.shuffle", order })),
+    indexArb.map((index): Command => ({ command: "driver.assign", index })),
+    fc.constant<Command>({ command: "session.complete", topicTitle: null }),
+    fc.constant<Command>({ command: "session.reset" }),
+    fc.constant<Command>({ command: "session.abort" }),
+  );
+
+  it("Given 3 人の輪 / When 任意のコマンドの列を decide → evolve で流す / Then 各段で I1・I2 が成り立ち、輪は空にならない", () => {
+    fc.assert(
+      fc.property(
+        // `size: "max"`: fast-check は既定で配列を短く作る。短い列では輪が 1 人まで減らない
+        fc.array(commandArb, { minLength: 0, maxLength: 30, size: "max" }),
+        fc.integer({ min: 1000000, max: 2000000 }),
+        (commands, startTime) => {
+          // Given
+          let agg = anAggregate().withRotation("A", "B", "C").build();
+          let now = startTime;
+          for (const cmd of commands) {
+            // When
+            const result = decide(cmd, agg, now);
+            if (result.isOk()) {
+              for (const event of result.value) {
+                agg = evolve(agg, event, now);
+              }
+            }
+            now += 1000;
+            // Then
+            assertInvariants(agg);
+            expect(agg.session.rotation.length).toBeGreaterThanOrEqual(1);
+          }
+        },
+      ),
+      { numRuns: 300 },
+    );
+  });
+});
