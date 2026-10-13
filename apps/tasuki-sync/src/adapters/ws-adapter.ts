@@ -32,6 +32,14 @@ import { classifyErrorKind } from "@tasuki/rate-limit";
 import type { Logger } from "../application/log/logger.js";
 import { publicText, type LogSafe } from "../application/log/log-safe.js";
 import { CONN_REJECT_REASONS } from "../application/log/vocabulary.js";
+// 接続層が自分で返す文言の正本（#362）。**コードごとに 1 つだけ**にする（SC-035）。
+// poker はコード体系が違う（`message-too-large`）が、上限超えはこの接続層が同じ判定で返すので、
+// 文は同じ正本から取る。
+import {
+  CONNECTION_ERROR_TEXT,
+  TIMER_INTERNAL_ERROR_TEXT,
+  boundaryErrorCode,
+} from "../application/connection-errors.js";
 import { deriveClientKeySafely } from "./client-key-safety.js";
 import type { Handlers as PokerHandlers } from "../application/poker-handlers.js";
 import { TOOL_POKER, TOOL_ROULETTE, TOOL_TIMER, TOOL_TOPIC } from "../application/tool-id.js";
@@ -106,16 +114,6 @@ const DEFAULT_HEARTBEAT_MAX_MISSES = 2;
  */
 const ADMIN_HTTP_ALLOWED_HEADERS = ["x-admin-token"] as const;
 
-/**
- * 接続層が自分で返す文言。**コードごとに 1 つだけ**にする（SC-035）。
- *
- * timer とハブで同じ事象（フレームが大きすぎる・内部エラー）に同じ言葉を返すので、
- * それぞれの分岐に書き下ろすと、同じコードに 2 つの言い回しが生まれて片方だけが直る。
- * **poker の文言はここに無い** —— あちらはコード体系そのものが違う
- * （`message-too-large` / `@tasuki/poker-core` の ErrorCode）。
- */
-const MESSAGE_TOO_LARGE_TEXT = "メッセージが大きすぎます";
-const INTERNAL_ERROR_TEXT = "サーバー内部でエラーが発生しました";
 
 /** `headers` のうち `allowed` に含まれるキーだけを取り出す（キーは小文字で比較）。 */
 function pickHeaders(headers: Headers, allowed: readonly string[]): Record<string, string> {
@@ -710,7 +708,7 @@ export class WsAdapter {
       this.sendFrame(ws, {
         type: "error",
         code: "MESSAGE_TOO_LARGE",
-        message: MESSAGE_TOO_LARGE_TEXT,
+        message: CONNECTION_ERROR_TEXT.MESSAGE_TOO_LARGE,
       });
       return;
     }
@@ -719,10 +717,8 @@ export class WsAdapter {
     // 落ちた段（json / schema）で返すエラーコードを分けるのは timer 側の決めごと。
     const parsed = parseBoundaryMessage(CommandSchema, raw.toString());
     if (parsed.isErr()) {
-      const code = parsed.error.stage === "json" ? "INVALID_JSON" : "INVALID_COMMAND";
-      const message =
-        parsed.error.stage === "json" ? "JSON の形式が不正です" : "コマンドの形式が不正です";
-      this.sendFrame(ws, { type: "error", code, message });
+      const code = boundaryErrorCode(parsed.error.stage);
+      this.sendFrame(ws, { type: "error", code, message: CONNECTION_ERROR_TEXT[code] });
       return;
     }
 
@@ -739,7 +735,7 @@ export class WsAdapter {
       this.sendFrame(ws, {
         type: "error",
         code: "INVALID_COMMAND",
-        message: "コマンドの形式が不正です",
+        message: CONNECTION_ERROR_TEXT.INVALID_COMMAND,
       });
       return;
     }
@@ -781,7 +777,7 @@ export class WsAdapter {
     try {
       if (bytes > this.options.maxMessageBytes) {
         // 接続は保つ（切断ではなくエラー応答）。再送で回復できる種類の失敗のため。
-        this.options.poker.sendError(ws, "message-too-large", "メッセージが大きすぎます");
+        this.options.poker.sendError(ws, "message-too-large", CONNECTION_ERROR_TEXT.MESSAGE_TOO_LARGE);
         return;
       }
       const result = parseClientMessage(String(raw));
@@ -806,7 +802,7 @@ export class WsAdapter {
     this.sendFrame(ws, {
       type: "error",
       code: "INTERNAL_ERROR",
-      message: "内部エラーが発生しました",
+      message: TIMER_INTERNAL_ERROR_TEXT,
     });
   }
 
@@ -853,7 +849,7 @@ export class WsAdapter {
       this.sendHubFrame(ws, {
         type: "error",
         code: "MESSAGE_TOO_LARGE",
-        message: MESSAGE_TOO_LARGE_TEXT,
+        message: CONNECTION_ERROR_TEXT.MESSAGE_TOO_LARGE,
       });
       return;
     }
@@ -863,7 +859,7 @@ export class WsAdapter {
         this.sendHubFrame(ws, {
           type: "error",
           code: "INTERNAL_ERROR",
-          message: INTERNAL_ERROR_TEXT,
+          message: CONNECTION_ERROR_TEXT.INTERNAL_ERROR,
         });
       });
     } catch (err) {
@@ -871,7 +867,7 @@ export class WsAdapter {
       this.sendHubFrame(ws, {
         type: "error",
         code: "INTERNAL_ERROR",
-        message: INTERNAL_ERROR_TEXT,
+        message: CONNECTION_ERROR_TEXT.INTERNAL_ERROR,
       });
     }
   }
@@ -904,7 +900,7 @@ export class WsAdapter {
       this.sendTopicFrame(ws, {
         type: "error",
         code: "MESSAGE_TOO_LARGE",
-        message: MESSAGE_TOO_LARGE_TEXT,
+        message: CONNECTION_ERROR_TEXT.MESSAGE_TOO_LARGE,
       });
       return;
     }
@@ -914,7 +910,7 @@ export class WsAdapter {
         this.sendTopicFrame(ws, {
           type: "error",
           code: "INTERNAL_ERROR",
-          message: INTERNAL_ERROR_TEXT,
+          message: CONNECTION_ERROR_TEXT.INTERNAL_ERROR,
         });
       });
     } catch (err) {
@@ -922,7 +918,7 @@ export class WsAdapter {
       this.sendTopicFrame(ws, {
         type: "error",
         code: "INTERNAL_ERROR",
-        message: INTERNAL_ERROR_TEXT,
+        message: CONNECTION_ERROR_TEXT.INTERNAL_ERROR,
       });
     }
   }
@@ -955,7 +951,7 @@ export class WsAdapter {
       this.sendRouletteFrame(ws, {
         type: "error",
         code: "MESSAGE_TOO_LARGE",
-        message: MESSAGE_TOO_LARGE_TEXT,
+        message: CONNECTION_ERROR_TEXT.MESSAGE_TOO_LARGE,
       });
       return;
     }
@@ -965,7 +961,7 @@ export class WsAdapter {
         this.sendRouletteFrame(ws, {
           type: "error",
           code: "INTERNAL_ERROR",
-          message: INTERNAL_ERROR_TEXT,
+          message: CONNECTION_ERROR_TEXT.INTERNAL_ERROR,
         });
       });
     } catch (err) {
@@ -973,7 +969,7 @@ export class WsAdapter {
       this.sendRouletteFrame(ws, {
         type: "error",
         code: "INTERNAL_ERROR",
-        message: INTERNAL_ERROR_TEXT,
+        message: CONNECTION_ERROR_TEXT.INTERNAL_ERROR,
       });
     }
   }
