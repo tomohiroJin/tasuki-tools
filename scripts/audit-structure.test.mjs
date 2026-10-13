@@ -9,9 +9,6 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import {
-  extractCodeMessagePairs,
-  extractClientErrorTable,
-  sc035MessageDefinitions,
   sc039aUnreachableBranchInApps,
   stripStringsAndComments,
   extractPublicDeclarations,
@@ -32,6 +29,11 @@ import {
   formatScanVolume,
   scanVolumeDimensions,
 } from "./audit-structure.mjs";
+import {
+  extractCodeMessagePairs,
+  extractClientErrorTable,
+  sc035MessageDefinitions,
+} from "./lib/structure/message-definitions.mjs";
 import {
   sc028DuplicateTestDoubles,
   extractTestNames,
