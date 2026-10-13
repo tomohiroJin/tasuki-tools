@@ -15,7 +15,7 @@ const base = {
   port: 0,
   host: "127.0.0.1",
   allowedOrigins: [] as string[],
-  onMessage: async () => {},
+  timer: { handleMessage: async () => {} },
   onDisconnect: () => {},
   logger: testLogger,
 };

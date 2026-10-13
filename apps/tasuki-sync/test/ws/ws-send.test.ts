@@ -3,7 +3,7 @@
  *
  * 以前は `send` / `broadcast` の 4 組と `sendXFrame` の 4 つが、それぞれ `readyState === WebSocket.OPEN` を
  * 確かめていた（12 か所）。**閉じかけの接続へ送らない**のは、内部エラーの返事が利用者の切断の後に
- * 走りうるため（`onMessage(...).catch(...)`）。実 WS 越しの固定は `ws-adapter.message.test.ts` にある。
+ * 走りうるため（メッセージ層の reject の `.catch`）。実 WS 越しの固定は `ws-adapter.message.test.ts` にある。
  */
 import { describe, expect, it } from "bun:test";
 import { sendIfOpen, sendToEach, type SendableSocket } from "../../src/adapters/ws/ws-send.js";

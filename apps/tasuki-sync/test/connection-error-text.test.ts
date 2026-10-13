@@ -122,7 +122,7 @@ describe("接続層のエラーの文言（接続層・メッセージ層が失�
     throw new Error("メッセージ層の失敗（テスト用）");
   };
 
-  // **timer だけ文言が違う**（「内部エラーが発生しました」。ws-adapter の `sendInternalError`）。
+  // **timer だけ文言が違う**（「内部エラーが発生しました」。timer の受け口の内部エラーのフレーム。`ws-adapter.ts` の `buildChannels`）。
   // 2026-10-13 に、この特性テストを書いて初めて分かった。リファクタリングでは変えずに固定し、
   // そろえるかどうかは別の Issue で決める（#360「見つかった振る舞いの疑い」）。
   //
@@ -142,10 +142,10 @@ describe("接続層のエラーの文言（接続層・メッセージ層が失�
         port: 0,
         host: "127.0.0.1",
         allowedOrigins: [],
-        onMessage: rejects,
-        onHubMessage: rejects,
-        onTopicMessage: rejects,
-        onRouletteMessage: rejects,
+        timer: { handleMessage: rejects },
+        hub: { handleMessage: rejects },
+        topic: { handleMessage: rejects },
+        roulette: { handleMessage: rejects },
         onDisconnect: () => {},
         logger,
       });

@@ -120,7 +120,7 @@ const SCAN_DIRS = SCANNED_PACKAGES.map((pkg) => `${pkg}/src`);
 export const ALLOWED_FILES = [
   "apps/tasuki-sync/src/adapters/console-log-sink.ts",
   "apps/tasuki-sync/src/server.ts",
-  "apps/tasuki-sync/src/adapters/ws-adapter.ts",
+  "apps/tasuki-sync/src/adapters/ws/error-log.ts",
   "apps/tasuki-sync/src/application/log/vocabulary.ts",
   "apps/tasuki-sync/src/application/log/ref-encoder.ts",
   "apps/tasuki-sync/src/application/log/log-safe.ts",

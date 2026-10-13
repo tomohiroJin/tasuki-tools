@@ -186,7 +186,7 @@ describe("お題（topic）の接続は poker の早期 return を通らない",
       port: 0,
       host: "127.0.0.1",
       allowedOrigins: [],
-      onMessage: async () => {},
+      timer: { handleMessage: async () => {} },
       onConnect: (connId, rateKey) => connectCalls.push([connId, rateKey]),
       onDisconnect: (connId) => disconnectCalls.push(connId),
       logger: testLogger,
@@ -227,18 +227,18 @@ describe("ルーレット（?tool=roulette）の接続の振り分け", () => {
       port: 0,
       host: "127.0.0.1",
       allowedOrigins: [],
-      onMessage: async () => {
+      timer: { handleMessage: async () => {
         calls.timer++;
-      },
-      onHubMessage: async () => {
+      } },
+      hub: { handleMessage: async () => {
         calls.hub++;
-      },
-      onTopicMessage: async () => {
+      } },
+      topic: { handleMessage: async () => {
         calls.topic++;
-      },
-      onRouletteMessage: async (_connId, raw) => {
+      } },
+      roulette: { handleMessage: async (_connId, raw) => {
         calls.roulette.push(raw);
-      },
+      } },
       onDisconnect: () => {},
       logger: testLogger,
     });
@@ -267,7 +267,7 @@ describe("ルーレット（?tool=roulette）の接続の振り分け", () => {
       port: 0,
       host: "127.0.0.1",
       allowedOrigins: [],
-      onMessage: async () => {},
+      timer: { handleMessage: async () => {} },
       onConnect: (connId, rateKey) => connectCalls.push([connId, rateKey]),
       onDisconnect: (connId) => disconnectCalls.push(connId),
       logger: testLogger,
@@ -305,7 +305,7 @@ describe("poker の接続の受理と切断", () => {
       port: 0,
       host: "127.0.0.1",
       allowedOrigins: [],
-      onMessage: async () => {},
+      timer: { handleMessage: async () => {} },
       onConnect: (connId) => connectCalls.push(connId),
       onDisconnect: (connId) => disconnectCalls.push(connId),
       poker: {
@@ -341,7 +341,7 @@ describe("poker の接続の受理と切断", () => {
       port: 0,
       host: "127.0.0.1",
       allowedOrigins: [],
-      onMessage: async () => {},
+      timer: { handleMessage: async () => {} },
       onDisconnect: () => {},
       poker: {
         dispatch: () => {},

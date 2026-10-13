@@ -30,7 +30,7 @@ function startAdapter(options: Partial<ConstructorParameters<typeof WsAdapter>[0
     port: 0,
     host: "127.0.0.1",
     allowedOrigins: [],
-    onMessage: async () => {},
+    timer: { handleMessage: async () => {} },
     onDisconnect: () => {},
     logger: testLogger,
     ...options,

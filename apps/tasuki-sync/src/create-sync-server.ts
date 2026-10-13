@@ -407,28 +407,24 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     logger,
     deriveClientKey,
     requireClientAddress: config.requireClientAddress,
-    onHubMessage: async (connId, raw) => {
-      await hubHandlers.handleMessage(connId, raw);
-    },
-    onTopicMessage: async (connId, raw) => {
-      await topicHandlers.handleMessage(connId, raw);
-    },
-    onRouletteMessage: async (connId, raw) => {
-      await rouletteHandlers.handleMessage(connId, raw);
-    },
+    hub: hubHandlers,
+    topic: topicHandlers,
+    roulette: rouletteHandlers,
     // cmd は ws-adapter 側で CommandSchema（valibot）に通した検証済みの値で、型も Command のまま届く（#363）。
     // 表示名の正規化は受け口のアプリケーション側が掛ける（#368）。
-    onMessage: createTimerCommandReceiver({
-      reply: (connId, msg) => wsAdapter.send(connId, msg),
-      route: async (connId, cmd) => {
-        if (cmd.command === "presence.ping") {
-          presenceManager.handlePing(connId);
-          return;
-        }
+    timer: {
+      handleMessage: createTimerCommandReceiver({
+        reply: (connId, msg) => wsAdapter.send(connId, msg),
+        route: async (connId, cmd) => {
+          if (cmd.command === "presence.ping") {
+            presenceManager.handlePing(connId);
+            return;
+          }
 
-        await handlers.handleCommand(connId, cmd);
-      },
-    }),
+          await handlers.handleCommand(connId, cmd);
+        },
+      }),
+    },
     // 接続の受理時に、この接続が属するクライアント鍵（IP の HMAC）を登録する。
     // これが無いと鍵は connId へ落ち、接続単位の（＝再接続で回避できる）挙動に戻る。
     onConnect: (connId, rateKey) => {
