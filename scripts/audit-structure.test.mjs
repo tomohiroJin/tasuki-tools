@@ -9,14 +9,6 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import {
-  sc028DuplicateTestDoubles,
-  extractTestNames,
-  sc029SpecIdsInNames,
-  sc030CallNamesInNames,
-  splitIntoTestBodies,
-  sc031GuardExpects,
-  sc032GwtMarkers,
-  sc036TestCount,
   extractCodeMessagePairs,
   extractClientErrorTable,
   sc035MessageDefinitions,
@@ -40,6 +32,16 @@ import {
   formatScanVolume,
   scanVolumeDimensions,
 } from "./audit-structure.mjs";
+import {
+  sc028DuplicateTestDoubles,
+  extractTestNames,
+  sc029SpecIdsInNames,
+  sc030CallNamesInNames,
+  splitIntoTestBodies,
+  sc031GuardExpects,
+  sc032GwtMarkers,
+  sc036TestCount,
+} from "./lib/structure/test-conventions.mjs";
 import {
   extractImportSpecifiers,
   resolveRelativeImport,
