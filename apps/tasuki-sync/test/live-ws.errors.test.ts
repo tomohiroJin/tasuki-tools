@@ -149,6 +149,25 @@ describe("実 WS 越しのエラー応答", () => {
     const error = await host.take("error");
     expect(error.code).toBe("UNKNOWN_COMMAND");
   });
+
+  for (const action of ["COMPLETE", "RESET"] as const) {
+    it(`wire は受けるがドメインが扱わない session.act（${action}）は UNKNOWN_COMMAND になる`, async () => {
+      // Given: wire の session.act は 7 つの操作を受けるが、ドメインが扱うのは 5 つ（#363）。
+      // 残る 2 つは翻訳（`buildDomainCommand`）で落ちる。2026-10-13 まで、この振る舞いを
+      // 見ているテストは無かった
+      server = startLiveSyncServer();
+      const host = await server.connect("host");
+      await createRoom(host, "ホスト");
+      await host.take("snapshot");
+
+      // When
+      host.send({ command: "session.act", action });
+
+      // Then
+      const error = await host.take("error");
+      expect(error.code).toBe("UNKNOWN_COMMAND");
+    });
+  }
 });
 
 /**
