@@ -24,7 +24,6 @@
  */
 import {
   HubCommandSchema,
-  findParticipantByConnId,
   type HubCommand,
 } from "@tasuki/room-core";
 import { parseBoundaryMessage } from "@tasuki/protocol";
@@ -37,6 +36,7 @@ import { createRoom, type CreateRoomDeps } from "./create-room.js";
 import { applyDisplayNameRule, INVALID_DISPLAY_NAME_MESSAGE } from "./display-name-rule.js";
 import { joinRoom, ROOM_NOT_FOUND_MESSAGE, type JoinRoomDeps } from "./join-room.js";
 import { saveRoster, type SaveRosterDeps } from "./save-roster.js";
+import { findRoomByConnId } from "./room-lookup.js";
 import { TOOL_HUB } from "./tool-id.js";
 import type { TopicBroadcaster } from "./topic-broadcast.js";
 
@@ -99,7 +99,7 @@ export function makeHubHandlers(deps: HubHandlerDeps): HubHandlers {
    * 復帰やタブの多重化で簡単にずれる。
    */
   function isInAnyRoom(connId: string): boolean {
-    return deps.store.list().some((r) => findParticipantByConnId(r, connId) !== undefined);
+    return findRoomByConnId(deps.store, connId) !== undefined;
   }
 
   function handleCreate(connId: string, cmd: Extract<HubCommand, { command: "room.create" }>): void {

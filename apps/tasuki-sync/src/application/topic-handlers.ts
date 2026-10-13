@@ -25,7 +25,6 @@
  */
 import * as v from "valibot";
 import {
-  findParticipantByConnId,
   HubCommandSchema,
   type HubCommand,
 } from "@tasuki/room-core";
@@ -50,6 +49,7 @@ import { saveRoster, type SaveRosterDeps } from "./save-roster.js";
 import { constantTimeEqual } from "./secure-compare.js";
 import type { TopicBroadcaster } from "./topic-broadcast.js";
 import type { TopicGenerator } from "./topic-generation.js";
+import { findRoomByConnId, findRoomByToolConnection } from "./room-lookup.js";
 import { TOOL_TOPIC } from "./tool-id.js";
 import { boundaryErrorCode } from "./connection-errors.js";
 
@@ -145,14 +145,12 @@ export function makeTopicHandlers(deps: TopicHandlerDeps): TopicHandlers {
     // **お題の接続として在席しているルームだけを数える**（spec T4 の 2 段目）。1 段目は ws-adapter が
     // `?tool=topic` の接続だけをこのハンドラへ振り分けることで、ここはその振り分けが壊れたときの備え ——
     // 接続 ID だけで引くと、timer やハブの接続として在席している接続がお題を変えられてしまう。
-    return deps.store
-      .list()
-      .find((r) => findParticipantByConnId(r, connId)?.connections.get(connId) === TOOL_TOPIC)?.code;
+    return findRoomByToolConnection(deps.store, connId, TOOL_TOPIC)?.code;
   }
 
   /** この接続がどれかのルームに（ツールを問わず）在席しているか。2 度目の参加を拒むために引く。 */
   function isInAnyRoom(connId: string): boolean {
-    return deps.store.list().some((r) => findParticipantByConnId(r, connId) !== undefined);
+    return findRoomByConnId(deps.store, connId) !== undefined;
   }
 
   /** いまの状態を読む。参加時に置かれているはずだが、無ければ既定の状態を置いてから返す。 */

@@ -51,6 +51,7 @@ import { applyDisplayNameRule, INVALID_DISPLAY_NAME_MESSAGE } from "./display-na
 import { joinRoom, ROOM_NOT_FOUND_MESSAGE, type JoinRoomDeps } from "./join-room.js";
 import type { RouletteBroadcaster } from "./roulette-broadcast.js";
 import { saveRoster, type SaveRosterDeps } from "./save-roster.js";
+import { findRoomByConnId, findRoomByToolConnection } from "./room-lookup.js";
 import { TOOL_ROULETTE } from "./tool-id.js";
 import type { Logger } from "./log/logger.js";
 import { ERROR_NAMES } from "./log/vocabulary.js";
@@ -131,14 +132,12 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
    * （spec R11 の 2 段目。1 段目は ws-adapter の振り分け）。
    */
   function roomOf(connId: string): Room | undefined {
-    return deps.store
-      .list()
-      .find((r) => findParticipantByConnId(r, connId)?.connections.get(connId) === TOOL_ROULETTE);
+    return findRoomByToolConnection(deps.store, connId, TOOL_ROULETTE);
   }
 
   /** この接続がどれかのルームに（ツールを問わず）在席しているか。2 度目の参加を拒むために引く。 */
   function isInAnyRoom(connId: string): boolean {
-    return deps.store.list().some((r) => findParticipantByConnId(r, connId) !== undefined);
+    return findRoomByConnId(deps.store, connId) !== undefined;
   }
 
   /** 名簿の断片（在室は接続の有無から導く）。 */

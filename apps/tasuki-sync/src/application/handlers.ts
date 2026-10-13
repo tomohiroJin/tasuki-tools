@@ -54,6 +54,7 @@ export type { JoinResult } from "./command-handlers/room-join.js";
 import { createTimePingHandler } from "./command-handlers/time-ping.js";
 import { createRoomPassphraseSetHandler } from "./command-handlers/room-passphrase-set.js";
 import { handleParticipantRemove } from "./command-handlers/participant-remove.js";
+import { findRoomByConnId } from "./room-lookup.js";
 
 /**
  * 在室を前提としないコマンド（FR-151）。
@@ -689,9 +690,7 @@ export function makeHandlers(deps: HandlerDeps) {
 
   /** connId からルームの状態一式を特定する（参加者として在室しているルーム） */
   function findStateByConnId(connId: string): RoomState | undefined {
-    const membership = store
-      .list()
-      .find((r) => findParticipantByConnId(r, connId) !== undefined);
+    const membership = findRoomByConnId(store, connId);
     if (!membership) return undefined;
     return loadState(membership.code);
   }

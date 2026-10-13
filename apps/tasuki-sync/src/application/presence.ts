@@ -44,6 +44,7 @@ import type { HubBroadcaster } from "../ports/hub-broadcaster.js";
 import { saveRoster } from "./save-roster.js";
 import type { Clock } from "../ports/clock.js";
 import { buildTimerSnapshotRoom } from "./timer-snapshot-dto.js";
+import { findRoomByConnId } from "./room-lookup.js";
 import { TOOL_TIMER } from "./tool-id.js";
 
 /** ドライバー不在の猶予時間（デフォルト30秒）。猶予後に次の eligible へ繰り上げる（R2-1）。*/
@@ -190,6 +191,6 @@ export class PresenceManager {
   }
 
   private findRoomByConnId(connId: string): Room | undefined {
-    return this.store.list().find((r) => findParticipantByConnId(r, connId) !== undefined);
+    return findRoomByConnId(this.store, connId);
   }
 }
