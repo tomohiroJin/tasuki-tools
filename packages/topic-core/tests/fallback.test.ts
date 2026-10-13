@@ -43,12 +43,11 @@ describe("定型バンク", () => {
     }
   });
 
-  it("どの言語×難易度でも候補が 2 件以上ある（直前を外しても空にならない）", () => {
-    for (const language of LANGUAGES) {
-      for (const difficulty of DIFFICULTIES) {
-        const n = TOPIC_BANK.filter((e) => e.languages.includes(language) && e.difficulty === difficulty).length;
-        expect(n).toBeGreaterThanOrEqual(2);
-      }
+  // #365 で言語の欄を外したので、言語の次元は無い（どのお題も全ての言語に当てはまる）。見ている性質は同じ。
+  it("どの難易度でも候補が 2 件以上ある（直前を外しても空にならない）", () => {
+    for (const difficulty of DIFFICULTIES) {
+      const n = TOPIC_BANK.filter((e) => e.difficulty === difficulty).length;
+      expect(n).toBeGreaterThanOrEqual(2);
     }
   });
 });
