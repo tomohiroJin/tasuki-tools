@@ -20,6 +20,7 @@ import { WebSocket } from "ws";
 import { WsAdapter } from "../src/adapters/ws-adapter.js";
 import { newTestWsAdapter, unwiredPokerHandlers } from "./support/test-ws-adapter.js";
 import { testLogger, collectingLogger } from "./support/test-logger.js";
+import { parseClientMessage } from "@tasuki/poker-core";
 
 // ポートは OS に選ばせる（`port: 0`）。実ポートは `adapter.port` から取る。
 let adapter: WsAdapter | undefined;
@@ -627,4 +628,114 @@ describe("poker のメッセージ層が throw しても隔離される", () => 
       ws.close();
     }
   });
+});
+
+/**
+ * ハブ・お題・ルーレットへの送り出し（#368 Task 1）。
+ *
+ * timer の `send` / `broadcast` は上で固定してある。残りの 3 組は実 WS 越しのテストが間接に
+ * 使っているだけだったので、同じ形で直接固定する。**宛先にだけ届き、知らない接続 ID は黙って飛ばす。**
+ */
+describe("ハブ・お題・ルーレットへの送り出し", () => {
+  /** 3 つのどの型にも収まるフレーム（`HubServerMsg` の error は 3 つの合併に含まれる）。 */
+  const frame = { type: "error", code: "TEST_ONLY", message: "テスト用" } as const;
+
+  for (const [label, send, broadcast] of [
+    ["ハブ", (a: WsAdapter, id: string) => a.sendHub(id, frame), (a: WsAdapter, ids: string[]) => a.broadcastHub(ids, frame)],
+    ["お題", (a: WsAdapter, id: string) => a.sendTopic(id, frame), (a: WsAdapter, ids: string[]) => a.broadcastTopic(ids, frame)],
+    [
+      "ルーレット",
+      (a: WsAdapter, id: string) => a.sendRoulette(id, frame),
+      (a: WsAdapter, ids: string[]) => a.broadcastRoulette(ids, frame),
+    ],
+  ] as const) {
+    it(`Given 3 つの接続 / When ${label}へ 1 本に送り、2 本と知らない ID へ一斉に送る / Then 宛先にだけ 1 通ずつ届く`, async () => {
+      // Given: conn-1・conn-2・conn-3（接続の順に振られる）
+      startAdapter();
+      const sockets = [new WebSocket(adapterUrl()), new WebSocket(adapterUrl()), new WebSocket(adapterUrl())];
+      for (const ws of sockets) await waitOpen(ws);
+      const received: number[] = [0, 0, 0];
+      sockets.forEach((ws, i) => ws.on("message", () => received[i]!++));
+
+      // When
+      send(adapter!, "conn-2");
+      broadcast(adapter!, ["conn-1", "conn-99", "conn-3"]);
+
+      // Then
+      await waitFor(() => received.reduce((a, b) => a + b, 0) >= 3);
+      await new Promise((r) => setTimeout(r, 80));
+      expect(received).toEqual([1, 1, 1]);
+      for (const ws of sockets) ws.close();
+    });
+  }
+});
+
+/**
+ * フレームの上限（`maxFrameBytes` = `Bun.serve` の `maxPayloadLength`）を超えたとき（#368 Task 1）。
+ *
+ * アプリの上限（`maxMessageBytes`）を超えても上限内なら、エラーフレームを返して接続を保つ（上のテスト）。
+ * フレームの上限を超えると、**メッセージ層へ届く前に Bun が接続を切る**。閉じ方をここで固定する
+ * （2026-10-13 に Bun 1.4 で実測: クライアントには 1006（close フレームの無い切断）として見える。
+ * `ws-adapter.ts` の `maxPayloadLength` のコメントにある「1006 切断」と同じ）。
+ */
+describe("フレームの上限を超えたとき", () => {
+  it("Given 既定の上限（128KB） / When それを超えるフレームを送る / Then 1006 で切れ、メッセージ層は呼ばれない", async () => {
+    // Given
+    let called = false;
+    const ws = await connect({
+      onMessage: async () => {
+        called = true;
+      },
+    });
+    const closed = new Promise<number>((resolve) => ws.once("close", (code: number) => resolve(code)));
+    // When
+    ws.send("x".repeat(128 * 1024 + 1));
+    // Then
+    expect(await closed).toBe(1006);
+    expect(called).toBe(false);
+  });
+});
+
+/**
+ * poker の解析の失敗（#368 Task 1）。接続層は `parseClientMessage` の失敗を、
+ * そのコードと文言のまま `sendError` へ渡す（エラーフレームの形は poker のメッセージ層が持つ）。
+ */
+describe("poker の解析の失敗", () => {
+  for (const [label, raw] of [
+    ["壊れた JSON", "{ 壊れている"],
+    ["知らない種類", JSON.stringify({ type: "no-such-type" })],
+  ] as const) {
+    it(`Given poker の接続 / When ${label}を送る / Then 解析の失敗のコードと文言で sendError を 1 回呼び、dispatch は呼ばない`, async () => {
+      // Given
+      const errors: Array<[string, string]> = [];
+      let dispatched = false;
+      adapter = newTestWsAdapter({
+        port: 0,
+        host: "127.0.0.1",
+        allowedOrigins: [],
+        onMessage: async () => {},
+        onDisconnect: () => {},
+        logger: testLogger,
+        poker: {
+          dispatch: () => {
+            dispatched = true;
+          },
+          sendError: (_conn, code, message) => {
+            errors.push([code, message]);
+          },
+          detachFromCurrentRoom: () => {},
+        },
+      });
+      const ws = new WebSocket(`ws://127.0.0.1:${adapter.port}/ws?tool=poker`);
+      await waitOpen(ws);
+      // When
+      ws.send(raw);
+      await waitFor(() => errors.length > 0);
+      // Then
+      const expected = parseClientMessage(raw)._unsafeUnwrapErr();
+      expect(errors).toEqual([[expected.code, expected.message]]);
+      expect(dispatched).toBe(false);
+      ws.close();
+    });
+  }
 });

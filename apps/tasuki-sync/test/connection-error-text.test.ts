@@ -20,7 +20,7 @@ import { WebSocket } from "ws";
 import { DEFAULT_CAPACITY } from "@tasuki/rate-limit";
 import type { WsAdapter } from "../src/adapters/ws-adapter.js";
 import { newTestWsAdapter } from "./support/test-ws-adapter.js";
-import { testLogger } from "./support/test-logger.js";
+import { collectingLogger } from "./support/test-logger.js";
 import { startLiveSyncServer, type LiveSyncServer } from "./support/live-sync-server.js";
 import { startServer, type TestServer } from "./poker/helpers.js";
 import { connectRaw } from "./poker/raw-ws-client.js";
@@ -125,14 +125,19 @@ describe("接続層のエラーの文言（接続層・メッセージ層が失�
   // **timer だけ文言が違う**（「内部エラーが発生しました」。ws-adapter の `sendInternalError`）。
   // 2026-10-13 に、この特性テストを書いて初めて分かった。リファクタリングでは変えずに固定し、
   // そろえるかどうかは別の Issue で決める（#360「見つかった振る舞いの疑い」）。
-  for (const [label, tool, message] of [
-    ["timer", "timer", "内部エラーが発生しました"],
-    ["ハブ", null, "サーバー内部でエラーが発生しました"],
-    ["お題", "topic", "サーバー内部でエラーが発生しました"],
-    ["ルーレット", "roulette", "サーバー内部でエラーが発生しました"],
+  //
+  // **ログも timer だけ違う**（#368 Task 1）。ハブ・お題・ルーレットは reject でも
+  // `on-message-error` を 1 行残すが、timer は reject ではログを残さない（同期の throw では残す）。
+  // これもリファクタリングでは変えずに固定する。
+  for (const [label, tool, message, logLines] of [
+    ["timer", "timer", "内部エラーが発生しました", []],
+    ["ハブ", null, "サーバー内部でエラーが発生しました", ["on-message-error name=Error"]],
+    ["お題", "topic", "サーバー内部でエラーが発生しました", ["on-message-error name=Error"]],
+    ["ルーレット", "roulette", "サーバー内部でエラーが発生しました", ["on-message-error name=Error"]],
   ] as const) {
-    it(`Given ${label}のメッセージ層が reject する / When 妥当な本文を送る / Then INTERNAL_ERROR と「${message}」を返す`, async () => {
+    it(`Given ${label}のメッセージ層が reject する / When 妥当な本文を送る / Then INTERNAL_ERROR と「${message}」を返し、ログは ${logLines.length} 行`, async () => {
       // Given: どのメッセージ層も reject する接続層
+      const { logger, lines } = collectingLogger();
       adapter = newTestWsAdapter({
         port: 0,
         host: "127.0.0.1",
@@ -142,15 +147,16 @@ describe("接続層のエラーの文言（接続層・メッセージ層が失�
         onTopicMessage: rejects,
         onRouletteMessage: rejects,
         onDisconnect: () => {},
-        logger: testLogger,
+        logger,
       });
       const query = tool === null ? "" : `?tool=${tool}`;
       // timer は接続層でスキーマを検めるので、妥当なコマンドを送る（それ以外は生テキストのまま渡る）
       const body = JSON.stringify({ command: "time.ping", clientTime: 1 });
       // When
       const frame = await sendAndTakeFirst(`ws://127.0.0.1:${adapter.port}/ws${query}`, body);
-      // Then
+      // Then: ログはエラーフレームを送る前に書かれるので、フレームが届いた時点で揃っている
       expect(frame).toEqual({ type: "error", code: "INTERNAL_ERROR", message });
+      expect(lines).toEqual([...logLines]);
     });
   }
 });

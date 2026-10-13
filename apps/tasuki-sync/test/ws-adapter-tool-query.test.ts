@@ -22,7 +22,7 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { loadSyncConfig } from "../src/config.js";
 import { createSyncServer, type SyncServer } from "../src/create-sync-server.js";
 import { newTestWsAdapter } from "./support/test-ws-adapter.js";
-import { testLogger } from "./support/test-logger.js";
+import { collectingLogger, testLogger } from "./support/test-logger.js";
 import type { WsAdapter } from "../src/adapters/ws-adapter.js";
 
 let server: SyncServer;
@@ -282,6 +282,89 @@ describe("ルーレット（?tool=roulette）の接続の振り分け", () => {
       // Then: poker のように手前で return していれば、この 2 つはどちらも呼ばれない
       expect(connectCalls.length).toBe(1);
       expect(disconnectCalls).toEqual([connectCalls[0]![0]]);
+    } finally {
+      await adapter.close();
+    }
+  });
+});
+
+/**
+ * poker の接続の受理と切断（#368 Task 1）。
+ *
+ * poker は受理のフックを持たず（レート制限の鍵は `ws.data.rateKey` から直接読む）、切断の後始末は
+ * メッセージ層の `detachFromCurrentRoom` が持つ。**`onConnect` / `onDisconnect` はどちらも呼ばない**。
+ * 後始末が throw しても、ログを残してプロセスは落ちない（他のツールの切断と同じ隔離）。
+ */
+describe("poker の接続の受理と切断", () => {
+  it("Given ?tool=poker で繋ぐ / When 受理されてから閉じる / Then onConnect・onDisconnect は呼ばれず、detachFromCurrentRoom が 1 回呼ばれる", async () => {
+    // Given
+    const connectCalls: string[] = [];
+    const disconnectCalls: string[] = [];
+    const detached: string[] = [];
+    const adapter: WsAdapter = newTestWsAdapter({
+      port: 0,
+      host: "127.0.0.1",
+      allowedOrigins: [],
+      onMessage: async () => {},
+      onConnect: (connId) => connectCalls.push(connId),
+      onDisconnect: (connId) => disconnectCalls.push(connId),
+      poker: {
+        dispatch: () => {},
+        sendError: () => {},
+        detachFromCurrentRoom: (conn) => {
+          detached.push(conn.data.rateKey);
+        },
+      },
+      logger: testLogger,
+    });
+
+    try {
+      // When
+      const ws = new WebSocket(`ws://127.0.0.1:${adapter.port}/ws?tool=poker`);
+      await waitOpen(ws);
+      ws.close();
+      await waitForCondition(() => detached.length > 0);
+
+      // Then: 鍵は配線していないので接続 ID に落ちる
+      expect(detached).toEqual(["conn-1"]);
+      expect(connectCalls).toEqual([]);
+      expect(disconnectCalls).toEqual([]);
+    } finally {
+      await adapter.close();
+    }
+  });
+
+  it("Given 切断の後始末が throw する poker の層 / When 閉じる / Then on-disconnect-error を 1 行残し、次の接続を受け付けられる", async () => {
+    // Given
+    const { logger, lines } = collectingLogger();
+    const adapter: WsAdapter = newTestWsAdapter({
+      port: 0,
+      host: "127.0.0.1",
+      allowedOrigins: [],
+      onMessage: async () => {},
+      onDisconnect: () => {},
+      poker: {
+        dispatch: () => {},
+        sendError: () => {},
+        detachFromCurrentRoom: () => {
+          throw new TypeError("後始末の失敗（テスト用）");
+        },
+      },
+      logger,
+    });
+
+    try {
+      // When
+      const ws = new WebSocket(`ws://127.0.0.1:${adapter.port}/ws?tool=poker`);
+      await waitOpen(ws);
+      ws.close();
+      await waitForCondition(() => lines.length > 0);
+
+      // Then
+      expect(lines).toEqual(["on-disconnect-error name=TypeError"]);
+      const next = new WebSocket(`ws://127.0.0.1:${adapter.port}`);
+      await waitOpen(next);
+      next.close();
     } finally {
       await adapter.close();
     }
