@@ -205,10 +205,38 @@
 
 ## 6. 完了条件（#366 の完了条件をこの計画に合わせて読み替えたもの）
 
-- [ ] 実 WS 越しのテスト（Task 1 の特性テストを含む）・変異検査が緑。送るフレームが変更前と同じ。e2e は CI で緑
-- [ ] `audit-assembly-wiring.mjs`・`audit-dependency-direction.mjs`・`audit-log-hygiene.mjs` が緑
-- [ ] 接続からルームを引く走査が `room-lookup.ts` の 1 か所にあり、写しをテストが拒む（壊して確かめた）
-- [ ] hub・topic・roulette の参加が 1 つのユースケースを通る
-- [ ] 60 行を超える関数の数が減っている。前後の件数を PR に書く
-- [ ] 寄せなかったものの理由が、計画と各ファイルの冒頭にある
-- [ ] #360 の共通の守りを満たす
+- [x] 実 WS 越しのテスト（Task 1 の特性テストを含む）・変異検査が緑。送るフレームが変更前と同じ。e2e は CI で緑
+- [x] `audit-assembly-wiring.mjs`・`audit-dependency-direction.mjs`・`audit-log-hygiene.mjs` が緑
+- [x] 接続からルームを引く走査が `room-lookup.ts` の 1 か所にあり、写しをテストが拒む（壊して確かめた）
+- [x] hub・topic・roulette の参加が 1 つのユースケースを通る
+- [x] 60 行を超える関数の数が減っている。前後の件数を PR に書く
+- [x] 寄せなかったものの理由が、計画と各ファイルの冒頭にある
+- [x] #360 の共通の守りを満たす
+
+## 7. 実施の記録（2026-10-13）
+
+計画から外れたこと・計画の時点で分かっていなかったことだけを書く。
+
+- **計画の §2 の判断（失敗の補助と保存して配る補助はまとめない）は、着手前に利用者が了承した**
+- **特性テストで、入口の違いが 3 つ見えた**（32 件。どれも変えずに固定した）
+  - topic の参加には名簿のフレームが届かない（hub と roulette には届く）
+  - timer は 2 度目の参加を拒まない（hub・topic・roulette は拒む）
+  - timer は表示名の規約の失敗を「コマンドの形式が不正です」で返す（ほかは「表示名の形式が正しくありません」）
+- **参加の試しすぎは、1 回ずつ待つとバケツが補充されて拒まれなかった。** 容量を超える数を一度に送り、拒んだフレームの形だけを固定した（何回目で拒まれるかは補充の時刻で揺れる）
+- **`joinFailureMessage` は計画の `join-tool-room.ts` ではなく `join-room.ts` に置いた。** `ROOM_NOT_FOUND_MESSAGE` の隣で、timer の参加（`join-tool-room.ts` を通らない）も使うため
+- **hub の `timers.put` は、名簿の保管の後（参加の後の処理）へ移った。** ツールを宣言しない参加では保管にある同じ値を置き直すだけなので、結果は変わらない
+- **topic の「無ければ初期値」は、broadcaster のメソッドではなく関数（`topicStateOrInitial`）にした。** `TopicBroadcaster` の形を変えると、テストのフェイクがすべて響くため
+- **事前条件のうち `member.add`（在室者だけを並べる）だけが、どのテストにも固定されていなかった。** 表へ移す前にテストを足した
+- **`handleRoomCommand` は事前条件・サーバーが埋める値・事後処理の 3 つへ分けた**（計画は 2 つ）。`session.complete` のタイトル・代理の ID・SWITCH の対象外は、事前条件ではなく「サーバーが埋める値」なので、別のモジュール（`server-values.ts`）にした
+- **`UNKNOWN_COMMAND` の確かめを事前条件の前へ移した。** 以前も事前条件は翻訳できたコマンドにしか掛からなかったので、結果は同じ
+- **変異のパッチを 3 本当て直した**（m86・m105・m108。ID と意味は変えない）
+  - m86 は、topic の在席ルームの引き方がツールを見ない形のまま、取り込みも含めた
+  - m108 は、2 度目の参加の拒否が共有のユースケースへ移ったので、3 つの入口をまとめて壊す変異になった
+  - m105 は、埋める処理の移動先（`server-values.ts`）を変異させる
+- **60 行を超える関数: 18 → 16**
+  - `handleRoomCommand` 243 → 58 行
+  - timer の `makeHandlers` 519 → 349 行
+  - `makeTopicHandlers` 187 → 139・`makeRouletteHandlers` 181 → 146・`makeHubHandlers` 178 → 134 行
+  - hub の `handleJoin` 61 → 18 行
+  - 残る 16 個のうち、この Issue の対象は工場関数（中の関数を含めて数えるので 60 行を超える）。`handleParticipantRemove`（155）と poker の `handleJoinRoom`（115）は次に触る Issue へ回す
+- 変異検査は全件検出。`pnpm test`・`pnpm typecheck`・`pnpm lint`・構造監査・スクリプトの自己テストが緑

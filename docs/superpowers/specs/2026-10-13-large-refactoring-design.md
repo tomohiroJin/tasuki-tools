@@ -233,6 +233,13 @@ apps/tasuki-sync/src/application/
 | 接続からルームを引く走査は 1 か所 | `room-lookup.ts` の単体テスト。`store.list()` を呼ぶ場所を `audit-assembly-wiring.mjs` の流儀で数える検査を足すかを計画で決める |
 | ハンドラは使う依存だけを受け取る | 依存の型（`Pick` か小さなインタフェース）。#367 と合わせて行う |
 
+> **追記（2026-10-13・R6 の実施 [`2026-10-13-refactor-r6-sync-application.md`](../plans/2026-10-13-refactor-r6-sync-application.md)）**:
+>
+> - **走査の写しは、同期サーバーのテスト（`test/room-lookup-sources.test.ts`）が拒む。** 構造監査ではなく、#362 の文言の写しの検査と同じ形にした
+> - **参加のユースケースは hub・topic・roulette の 3 つが使う**（hub も同じ流れだった）。timer の参加は流れが違うので使わない
+> - **`reply-failure.ts`・`tool-state.ts` は作らなかった**（2026-10-13 の利用者の了承）。失敗の補助は送る口と型がそれぞれ違い、保存して配る補助は中身が違う。重なっていた知識（参加の失敗の文言・topic の初期値）だけを 1 つにした
+> - **`room-commands/` は 4 つのモジュールになった**（事前条件・サーバーが埋める値・事後処理・並び替え）。スケジューラの突き合わせは `scheduler-sync.ts`
+
 ### 5.6 ポート（#367）
 
 - 時計: 壁時計と単調時計を名前で分ける（`WallClock` / `MonotonicClock`。`poker-` の接頭辞を外す）
