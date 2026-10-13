@@ -9,7 +9,7 @@
  */
 
 import { ok, err, type Result } from "neverthrow";
-import { errorMessageFor, type ErrorCode } from "@tasuki/timer-core";
+import { errorMessageFor, type Command, type ErrorCode } from "@tasuki/timer-core";
 import type { Clock } from "../../ports/clock.js";
 import type { Broadcaster } from "../../ports/broadcaster.js";
 import type { RoomStore } from "../../ports/room-store.js";
@@ -58,13 +58,7 @@ export function createRoomJoinHandler(deps: RoomJoinDeps) {
   /** ルーム参加 */
   return async function handleRoomJoin(
     connId: string,
-    cmd: {
-      command: "room.join";
-      code: string;
-      displayName: string;
-      resumeToken?: string;
-      passphrase?: string;
-    },
+    cmd: Extract<Command, { command: "room.join" }>,
   ): Promise<Result<JoinResult, ErrorCode>> {
     const joined = joinRoom(deps, {
       connId,

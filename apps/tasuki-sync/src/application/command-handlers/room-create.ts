@@ -8,7 +8,7 @@
  */
 
 import { ok, err, type Result } from "neverthrow";
-import type { SessionConfig, ErrorCode } from "@tasuki/timer-core";
+import type { Command, ErrorCode } from "@tasuki/timer-core";
 import type { Clock } from "../../ports/clock.js";
 import type { Broadcaster } from "../../ports/broadcaster.js";
 import type { RoomStore } from "../../ports/room-store.js";
@@ -19,6 +19,7 @@ import type { RoomState } from "../apply-room-level-event.js";
 import { TOOL_TIMER } from "../tool-id.js";
 import { createRoom } from "../create-room.js";
 import { createInitialTimerState } from "../initial-timer-state.js";
+import { toTimerConfig } from "../wire-config.js";
 import type { TopicBroadcaster } from "../topic-broadcast.js";
 
 /** `room.create` が呼び出し元へ返す値。 */
@@ -56,7 +57,7 @@ export function createRoomCreateHandler(deps: RoomCreateDeps) {
   /** ルーム作成 */
   return async function handleRoomCreate(
     connId: string,
-    cmd: { command: "room.create"; displayName: string; config?: SessionConfig; roomName?: string },
+    cmd: Extract<Command, { command: "room.create" }>,
   ): Promise<Result<CreateResult, ErrorCode>> {
     const created = createRoom(deps, {
       connId,
@@ -84,7 +85,7 @@ export function createRoomCreateHandler(deps: RoomCreateDeps) {
       code,
       createdAt,
       participantId,
-      ...(cmd.config !== undefined ? { config: cmd.config } : {}),
+      ...(cmd.config !== undefined ? { config: toTimerConfig(cmd.config) } : {}),
     });
 
     broadcaster.sendTo(connId, { type: "room.created", code, resumeToken, participantId });

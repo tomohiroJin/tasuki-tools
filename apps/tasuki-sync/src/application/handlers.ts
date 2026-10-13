@@ -16,7 +16,6 @@ import {
   secondsLeft,
   ERROR_MESSAGES,
   errorMessageFor,
-  type SessionConfig,
   type TimerState,
   type ErrorCode,
   type RemovalNotification,
@@ -372,32 +371,19 @@ export function makeHandlers(deps: HandlerDeps) {
    */
   async function handleCommand(
     connId: string,
-    cmd: RoomScopedCommand | PreRoomCommand,
+    // `presence.ping` は配線が手前で横取りする（create-sync-server.ts）ので、型の上でもここへ渡さない（#363）
+    cmd: RoomScopedCommand | Exclude<PreRoomCommand, { command: "presence.ping" }>,
   ): Promise<CommandResult> {
     switch (cmd.command) {
+      // 判別共用体の絞り込みで、各 case の cmd は対応するコマンドの型になる（#363 で as を外した）
       case "room.create":
-        return handleRoomCreate(
-          connId,
-          cmd as { command: "room.create"; displayName: string; config?: SessionConfig; roomName?: string },
-        );
+        return handleRoomCreate(connId, cmd);
 
       case "room.join":
-        return handleRoomJoin(
-          connId,
-          cmd as {
-            command: "room.join";
-            code: string;
-            displayName: string;
-            resumeToken?: string;
-            passphrase?: string;
-          },
-        );
+        return handleRoomJoin(connId, cmd);
 
       case "time.ping":
-        return handleTimePing(
-          connId,
-          cmd as { command: "time.ping"; clientTime: number },
-        );
+        return handleTimePing(connId, cmd);
 
       default:
         return handleRoomCommand(connId, cmd);
@@ -441,7 +427,7 @@ export function makeHandlers(deps: HandlerDeps) {
   /** ルームコマンド（session.act, config.set 等） */
   async function handleRoomCommand(
     connId: string,
-    cmd: { command: string; [key: string]: unknown },
+    cmd: RoomScopedCommand,
   ): Promise<Result<undefined, ErrorCode>> {
     // connId からルームを特定する
     let state = findStateByConnId(connId);
@@ -558,7 +544,7 @@ export function makeHandlers(deps: HandlerDeps) {
     // 指名は participantId → rotation index を解決して decide へ渡す（Issue #13）。
     // 集約は名簿を持たないため、rotation 内の位置をここで確定する。
     if (domainCmd && domainCmd.command === "driver.assign") {
-      const targetPid = typeof cmd.participantId === "string" ? cmd.participantId : "";
+      const targetPid = cmd.command === "driver.assign" ? cmd.participantId : "";
       const target = residents.find((p) => p.participantId === targetPid);
       // 対象解決を2段に分ける（Issue #29・T112）。「対象が存在しない」と
       // 「対象は居るが rotation に居ない」は解消手段が異なるため、
@@ -645,7 +631,7 @@ export function makeHandlers(deps: HandlerDeps) {
     // 現ドライバー自身の指名は decide が no-op（空イベント）を返すため、ここは実際に交代が
     // 起きたとき（result.value 非空）だけ走らせる。no-op で eligible を書き換えない。
     if (domainCmd.command === "driver.assign" && result.value.length > 0) {
-      const targetPid = typeof cmd.participantId === "string" ? cmd.participantId : "";
+      const targetPid = cmd.command === "driver.assign" ? cmd.participantId : "";
       const targetEntry = state.timer.session.rotation.find(
         (e) => rotationEntryId(e) === targetPid,
       );
