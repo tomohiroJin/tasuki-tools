@@ -153,7 +153,11 @@ export interface WsAdapterOptions {
   /** 同時接続数の上限。超過分は 1013 で拒否する。 */
   maxConnections?: number;
   allowedOrigins: string[];
-  onMessage: (connId: string, msg: unknown) => Promise<void>;
+  /**
+   * timer へ届いたコマンド。**接続層で境界の検証（`CommandSchema`）と表示名の正規化を済ませた値**を、
+   * 型（`Command`）のまま渡す（#363。以前は `unknown` で渡し、受け手が `as Command` で戻していた）。
+   */
+  onMessage: (connId: string, msg: Command) => Promise<void>;
   /**
    * ハブ（選択画面）へ届いた生テキスト（#95 S5a）。
    *
@@ -730,7 +734,7 @@ export class WsAdapter {
     // **応答は上の `INVALID_COMMAND` と同一である。** 同じ「コマンドの形が不正」という
     // 答えなので、利用者が受け取るフレーム（コード・文言）を変えない ——
     // ここを別のコードにすると、正規化の移設が wire の変更になってしまう。
-    const normalized = normalizeCommandNames(parsed.value as Command);
+    const normalized = normalizeCommandNames(parsed.value);
     if (normalized.isErr()) {
       this.sendFrame(ws, {
         type: "error",

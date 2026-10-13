@@ -74,7 +74,7 @@ import { createCryptoIdGen } from "./adapters/poker-crypto-id-gen.js";
 import { createWsBroadcaster } from "./adapters/poker-ws-broadcaster.js";
 import { makeHandlers as makePokerHandlers } from "./application/poker-handlers.js";
 import type { SyncConfig } from "./config.js";
-import type { Room, ServerMsg, Command } from "@tasuki/timer-core";
+import type { Room, ServerMsg } from "@tasuki/timer-core";
 
 /** アイドルルーム回収の sweep 間隔（ms）。 */
 const RECLAIM_SWEEP_MS = 60_000;
@@ -477,10 +477,8 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     onRouletteMessage: async (connId, raw) => {
       await rouletteHandlers.handleMessage(connId, raw);
     },
-    onMessage: async (connId, msg) => {
-      // msg は ws-adapter 側で CommandSchema（valibot）に通した検証済みの値であり、
-      // 実体は Command 型と一致する（onMessage の型は unknown のままなのでここでキャストする）。
-      const cmd = msg as Command;
+    onMessage: async (connId, cmd) => {
+      // cmd は ws-adapter 側で CommandSchema（valibot）に通した検証済みの値で、型も Command のまま届く（#363）。
 
       if (cmd.command === "presence.ping") {
         presenceManager.handlePing(connId);
