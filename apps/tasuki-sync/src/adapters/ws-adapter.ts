@@ -40,6 +40,7 @@ import {
 } from "../application/connection-errors.js";
 import { deriveClientKeySafely } from "./client-key-safety.js";
 import { admit, protocolFromRequestUrl } from "./ws/connection-gate.js";
+import { Heartbeat } from "./ws/heartbeat.js";
 import { respondToPlainHttp, type HttpHandler } from "./ws/http-fallback.js";
 import type { PokerHandlers } from "../application/poker-handlers.js";
 import type { RouletteOwnFrame, RouletteServerMsg } from "../ports/roulette-server-msg.js";
@@ -59,11 +60,6 @@ import type { TopicOwnFrame, TopicServerMsg } from "../ports/topic-server-msg.js
 function classifyError(err: unknown): LogSafe {
   return publicText(classifyErrorKind(err)); // log-hygiene:allow 例外の分類のみ
 }
-
-/** ハートビート間隔の既定値（ms）。Issue #25: サーバー主導の死活監視。 */
-const DEFAULT_HEARTBEAT_INTERVAL_MS = 15_000;
-/** 許容する連続 pong 欠落回数の既定値。一時的な通信の揺れを吸収する猶予（US2）。 */
-const DEFAULT_HEARTBEAT_MAX_MISSES = 2;
 
 /**
  * WS アダプタが poker のメッセージ層に求めるものだけ
@@ -220,23 +216,14 @@ export class WsAdapter {
   private readonly server: Bun.Server<ConnectionData>;
   private readonly connections = new Map<string, Socket>();
   private connCounter = 0;
-  /** 接続ごとの「直近 ping 送信からの pong 未受信回数」（Issue #25: 死活監視）。 */
-  private readonly missedPongs = new Map<string, number>();
-  private readonly heartbeatIntervalMs: number;
-  private readonly heartbeatMaxMisses: number;
-  private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  /** 死活監視（Issue #25）。受理済みの接続の表を読む。 */
+  private readonly heartbeat: Heartbeat;
 
   constructor(private readonly options: WsAdapterOptions) {
-    // 呼び出し元（テスト等）が誤って 0 以下を明示指定しても busy-loop 化しないよう、
-    // config.ts の intEnv と同じ契約（正の整数）をコンストラクタ自身でも守る（DbC）。
-    this.heartbeatIntervalMs = Math.max(
-      1,
-      options.heartbeatIntervalMs ?? DEFAULT_HEARTBEAT_INTERVAL_MS,
-    );
-    this.heartbeatMaxMisses = Math.max(
-      0,
-      options.heartbeatMaxMisses ?? DEFAULT_HEARTBEAT_MAX_MISSES,
-    );
+    this.heartbeat = new Heartbeat(this.connections, {
+      intervalMs: options.heartbeatIntervalMs,
+      maxMisses: options.heartbeatMaxMisses,
+    });
 
     try {
       this.server = Bun.serve<ConnectionData, never>({
@@ -273,7 +260,7 @@ export class WsAdapter {
       process.exit(1);
     }
 
-    this.startHeartbeat();
+    this.heartbeat.start();
   }
 
   /**
@@ -368,36 +355,6 @@ export class WsAdapter {
         this.options.logger.error("derive-client-key-error", { name: publicText(name) }); // log-hygiene:allow 例外の分類のみ
       }) ?? null
     );
-  }
-
-  /**
-   * サーバー主導の死活監視（Issue #25）。
-   * 一定間隔で各接続に ping を送り、直前の送信から pong が来ていなければ
-   * 欠落回数を加算する。欠落回数が閾値に達した接続は terminate し、
-   * 既存の close 経路（presence の offline 化等）に処理を委ねる（DRY）。
-   * 1 接続 1 interval あたり ping 送信は高々 1 回のため、通信量は接続数に対して線形。
-   */
-  private startHeartbeat(): void {
-    this.heartbeatTimer = setInterval(() => {
-      for (const [connId, ws] of this.connections) {
-        const missed = this.missedPongs.get(connId) ?? 0;
-        if (missed >= this.heartbeatMaxMisses) {
-          ws.terminate();
-          continue;
-        }
-        this.missedPongs.set(connId, missed + 1);
-        ws.ping();
-      }
-    }, this.heartbeatIntervalMs);
-    // 定期タイマーだけでプロセスの終了を妨げないようにする（テスト・グレースフルシャットダウン考慮）。
-    this.heartbeatTimer.unref?.();
-  }
-
-  private stopHeartbeat(): void {
-    if (this.heartbeatTimer !== null) {
-      clearInterval(this.heartbeatTimer);
-      this.heartbeatTimer = null;
-    }
   }
 
   /**
@@ -496,7 +453,7 @@ export class WsAdapter {
   }
 
   close(): Promise<void> {
-    this.stopHeartbeat();
+    this.heartbeat.stop();
     // `server.stop()` が返す Promise は、**サーバー側から閉じた接続が 1 つでもあると
     // 解決しない**（2026-08-05 に Bun 1.3.14 で実測）。Origin 拒否・接続数超過・
     // ハートビートの terminate はいずれもサーバー側からの close なので、待つと詰まる。
@@ -524,7 +481,7 @@ export class WsAdapter {
     // 値そのものは両プロトコルで同じ（クライアント鍵、特定できなければ connId）。
     ws.data.rateKey = ws.data.clientKey ?? connId;
     this.connections.set(connId, ws);
-    this.missedPongs.set(connId, 0);
+    this.heartbeat.track(connId);
     // poker のメッセージ層に接続受理のフックは無い（統合前の
     // `apps/poker-sync/src/adapters/ws-adapter.ts` も rateKey を入れて終わりだった）。
     // ⚠ **ルーレット（roulette）もこの分岐に足してはならない**（#94・spec §5.2。お題と同じ理由）。
@@ -546,11 +503,11 @@ export class WsAdapter {
     }
   }
 
-  /** pong 受信 = 生存確認。欠落カウントをリセットする（一時的な揺れからの復帰・US2）。 */
+  /** pong 受信 = 生存確認（受理していない接続の pong は数えない）。 */
   private handlePong(ws: Socket): void {
     const { connId } = ws.data;
     if (connId === "") return;
-    this.missedPongs.set(connId, 0);
+    this.heartbeat.pong(connId);
   }
 
   private handleMessage(ws: Socket, raw: string | Buffer): void {
@@ -854,7 +811,7 @@ export class WsAdapter {
     // Origin / 接続数で弾いた接続は受け入れていないので、切断も通知しない（ws 実装と同じ）。
     if (connId === "") return;
     this.connections.delete(connId);
-    this.missedPongs.delete(connId);
+    this.heartbeat.forget(connId);
     // `isPokerSocket` で絞り込む（`handlePokerMessage` と同じ理由。docstring 参照）。
     if (isPokerSocket(ws)) {
       // poker はルーム離脱の後始末をメッセージ層が持つ（timer は presence 管理が持つ）。
