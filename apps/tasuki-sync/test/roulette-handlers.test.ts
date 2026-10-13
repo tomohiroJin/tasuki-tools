@@ -17,7 +17,7 @@ import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { InMemoryRouletteStore } from "../src/adapters/in-memory-roulette-store.js";
 import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
-import type { MonotonicClock } from "../src/ports/poker-monotonic-clock.js";
+import type { MonotonicClock } from "../src/ports/monotonic-clock.js";
 import type { RandomSource } from "../src/ports/random-source.js";
 import type { RouletteServerMsg } from "../src/ports/roulette-server-msg.js";
 import { createLogger } from "../src/application/log/logger.js";

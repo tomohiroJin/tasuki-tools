@@ -32,7 +32,7 @@ import {
   type Room as MembershipRoom,
   type ToolId,
 } from "@tasuki/room-core";
-import type { Clock } from "../ports/clock.js";
+import type { WallClock } from "../ports/wall-clock.js";
 import type { RoomStore } from "../ports/room-store.js";
 import type { TimerStore } from "../ports/timer-store.js";
 import type { RoomCodeGen } from "../ports/code-gen.js";
@@ -64,7 +64,7 @@ export function joinFailureMessage(code: ErrorCode): string {
 export interface JoinRoomDeps {
   store: RoomStore;
   timers: TimerStore;
-  clock: Clock;
+  clock: WallClock;
   codeGen: RoomCodeGen;
   tokenStore: TokenStore;
   rateLimitGate: RateLimitGate;

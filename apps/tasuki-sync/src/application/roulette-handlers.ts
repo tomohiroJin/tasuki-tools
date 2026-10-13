@@ -42,7 +42,7 @@ import {
   type RouletteErrorCode,
   type RouletteState,
 } from "@tasuki/roulette-core";
-import type { MonotonicClock } from "../ports/poker-monotonic-clock.js";
+import type { MonotonicClock } from "../ports/monotonic-clock.js";
 import type { RandomSource } from "../ports/random-source.js";
 import type { RouletteServerMsg } from "../ports/roulette-server-msg.js";
 import type { RouletteStore } from "../ports/roulette-store.js";

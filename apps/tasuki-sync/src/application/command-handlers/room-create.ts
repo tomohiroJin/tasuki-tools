@@ -9,7 +9,7 @@
 
 import { ok, err, type Result } from "neverthrow";
 import type { Command, ErrorCode } from "@tasuki/timer-core";
-import type { Clock } from "../../ports/clock.js";
+import type { WallClock } from "../../ports/wall-clock.js";
 import type { Broadcaster } from "../../ports/broadcaster.js";
 import type { RoomStore } from "../../ports/room-store.js";
 import type { TimerStore } from "../../ports/timer-store.js";
@@ -32,7 +32,7 @@ export interface CreateResult {
 export interface RoomCreateDeps {
   store: RoomStore;
   timers: TimerStore;
-  clock: Clock;
+  clock: WallClock;
   broadcaster: Broadcaster;
   /** 名簿と timer の状態を保管し、合成した snapshot を配信する（`handlers.ts`）。 */
   commit: (state: RoomState) => void;

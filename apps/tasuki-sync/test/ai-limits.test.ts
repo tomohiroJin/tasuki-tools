@@ -1,9 +1,9 @@
 import { describe, it, expect } from "bun:test";
 import { AiLimiter } from "../src/application/ai-limits.js";
-import type { Clock } from "../src/ports/clock.js";
+import type { WallClock } from "../src/ports/wall-clock.js";
 
 /** テスト用の可変クロック */
-function makeClock(start: number): Clock & { advance: (ms: number) => void } {
+function makeClock(start: number): WallClock & { advance: (ms: number) => void } {
   let t = start;
   return {
     now: () => t,

@@ -40,7 +40,7 @@ import { createWsBroadcaster } from '../../src/adapters/poker-ws-broadcaster';
 import { makeHandlers, type HandlerConnection } from '../../src/application/poker-handlers';
 import type { Broadcaster, RoomSocket } from '../../src/ports/poker-broadcaster';
 import type { IdGen } from '../../src/ports/poker-id-gen';
-import type { MonotonicClock } from '../../src/ports/poker-monotonic-clock';
+import type { MonotonicClock } from '../../src/ports/monotonic-clock';
 import type { RoomStore } from '../../src/ports/room-store';
 import { TOOL_POKER } from '../../src/application/tool-id.js';
 import { spyHub } from '../support/hub.js';

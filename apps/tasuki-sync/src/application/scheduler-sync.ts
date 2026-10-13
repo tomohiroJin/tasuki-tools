@@ -8,7 +8,7 @@
  */
 import { advanceDriver, secondsLeft, type TimerState } from "@tasuki/timer-core";
 import type { Broadcaster } from "../ports/broadcaster.js";
-import type { Clock } from "../ports/clock.js";
+import type { WallClock } from "../ports/wall-clock.js";
 import type { RoomState } from "./apply-room-level-event.js";
 import type { Scheduler } from "./schedule.js";
 import { computeIneligibleIndices, rotationDisplayNames } from "./timer-snapshot-dto.js";
@@ -16,7 +16,7 @@ import { computeIneligibleIndices, rotationDisplayNames } from "./timer-snapshot
 export interface ScheduleSyncDeps {
   /** 無ければ予約しない（テストの組み立て） */
   scheduler: Scheduler | undefined;
-  clock: Clock;
+  clock: WallClock;
   broadcaster: Pick<Broadcaster, "broadcastSignal">;
   loadState: (roomCode: string) => RoomState | undefined;
   commit: (state: RoomState) => void;

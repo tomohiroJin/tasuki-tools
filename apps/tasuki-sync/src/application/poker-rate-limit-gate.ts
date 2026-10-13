@@ -42,7 +42,7 @@
  * バケツ（`RateLimiter`）は同じ 1 本を共有する。API をそろえると poker が対応表を持つことになり、
  * 設計の判断が変わるので、そろえない。以前は両方が `RateLimitGate` という同じ名前だった。
  */
-import type { MonotonicClock } from '../ports/poker-monotonic-clock.js';
+import type { MonotonicClock } from '../ports/monotonic-clock.js';
 import type { RateLimiter } from '@tasuki/rate-limit';
 
 /** 1 回ぶんの判定。`begin()` が返す「切符」。 */

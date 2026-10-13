@@ -64,7 +64,7 @@ import {
 } from '@tasuki/room-core';
 import { checkPassphrase, findResumableParticipant } from './room-entry.js';
 import type { RateLimiter } from '@tasuki/rate-limit';
-import type { Clock } from '../ports/clock.js';
+import type { WallClock } from '../ports/wall-clock.js';
 import type { RoomStore } from '../ports/room-store.js';
 import type { HubBroadcaster } from '../ports/hub-broadcaster.js';
 import type { TopicBroadcaster } from './topic-broadcast.js';
@@ -73,7 +73,7 @@ import { applyDisplayNameRule, INVALID_DISPLAY_NAME_MESSAGE } from './display-na
 import type { TokenStore } from './token-store.js';
 import type { Broadcaster, RoomSocket } from '../ports/poker-broadcaster.js';
 import type { IdGen } from '../ports/poker-id-gen.js';
-import type { MonotonicClock } from '../ports/poker-monotonic-clock.js';
+import type { MonotonicClock } from '../ports/monotonic-clock.js';
 import type { RoundStore } from '../ports/poker-round-store.js';
 import { TOOL_POKER } from './tool-id.js';
 import { createCommitRoomAction, createDispatch } from './poker-commit-room-action.js';
@@ -132,7 +132,7 @@ export interface HandlerDeps {
    * **単調時計を流用してはならない。** 名簿は timer と共有する 1 つの保管であり、
    * 別系統の値が混ざると 2 つのルームの時刻が比較できなくなる。
    */
-  wallClock: Clock;
+  wallClock: WallClock;
   rateLimiter: RateLimiter;
   maxRooms: number;
   /**

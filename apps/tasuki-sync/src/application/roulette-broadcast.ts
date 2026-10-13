@@ -8,7 +8,7 @@
  */
 import { connectionsIn } from "@tasuki/room-core";
 import { INITIAL_ROULETTE_STATE, toView, type RouletteState } from "@tasuki/roulette-core";
-import type { MonotonicClock } from "../ports/poker-monotonic-clock.js";
+import type { MonotonicClock } from "../ports/monotonic-clock.js";
 import type { RoomStore } from "../ports/room-store.js";
 import type { RouletteServerMsg } from "../ports/roulette-server-msg.js";
 import type { RouletteStore } from "../ports/roulette-store.js";

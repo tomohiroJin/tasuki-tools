@@ -58,7 +58,7 @@ import { Scheduler } from "./application/schedule.js";
 import { WsAdapter } from "./adapters/ws-adapter.js";
 import { InMemoryRoomStore } from "./adapters/in-memory-room-store.js";
 import { InMemoryTimerStore } from "./adapters/in-memory-timer-store.js";
-import { SystemClock } from "./adapters/system-clock.js";
+import { SystemWallClock } from "./adapters/system-clock.js";
 import { NanoidCodeGen } from "./adapters/nanoid-code-gen.js";
 import { RoomReclaimer } from "./application/room-reclaimer.js";
 import { createRoomDestroyer } from "./application/destroy-room.js";
@@ -69,7 +69,7 @@ import { createTokenStore } from "./application/token-store.js";
 import { createRefEncoder } from "./application/log/ref-encoder.js";
 import { consoleLogSink } from "./adapters/console-log-sink.js";
 import { InMemoryRoundStore } from "./adapters/poker-in-memory-round-store.js";
-import { createPerformanceClock } from "./adapters/poker-performance-clock.js";
+import { createPerformanceClock } from "./adapters/performance-clock.js";
 import { createCryptoIdGen } from "./adapters/poker-crypto-id-gen.js";
 import { createWsBroadcaster } from "./adapters/poker-ws-broadcaster.js";
 import { makeHandlers as makePokerHandlers } from "./application/poker-handlers.js";
@@ -118,7 +118,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
    * ルームコードで対になる（破棄は `destroy-room.ts` が揃えて行う）。
    */
   const roulettes = new InMemoryRouletteStore();
-  const clock = new SystemClock();
+  const clock = new SystemWallClock();
   /**
    * 復帰トークンとパスフレーズの保管。**timer と poker で 1 個を共有する**（#95 S4a）。
    *

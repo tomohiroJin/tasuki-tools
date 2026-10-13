@@ -24,7 +24,7 @@ import {
 // S4a で名簿そのものもこの文脈が持つようになった。
 import { findParticipantByConnId } from "@tasuki/room-core";
 import type { RateLimiter } from "@tasuki/rate-limit";
-import type { Clock } from "../ports/clock.js";
+import type { WallClock } from "../ports/wall-clock.js";
 import type { Broadcaster } from "../ports/broadcaster.js";
 import type { RoomStore } from "../ports/room-store.js";
 import type { TimerStore } from "../ports/timer-store.js";
@@ -91,7 +91,7 @@ export interface HandlerDeps {
   store: RoomStore;
   /** timer の状態（`TimerState`）の保管。名簿とは `code` で対になる（#95 S4a）。 */
   timers: TimerStore;
-  clock: Clock;
+  clock: WallClock;
   broadcaster: Broadcaster;
   codeGen: RoomCodeGen;
   /** サーバー権威タイマー（省略時は自動交代をスケジュールしない＝テスト用） */

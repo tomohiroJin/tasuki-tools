@@ -42,7 +42,7 @@ import type { TimerStore } from "../ports/timer-store.js";
 import type { Broadcaster } from "../ports/broadcaster.js";
 import type { HubBroadcaster } from "../ports/hub-broadcaster.js";
 import { saveRoster } from "./save-roster.js";
-import type { Clock } from "../ports/clock.js";
+import type { WallClock } from "../ports/wall-clock.js";
 import { buildTimerSnapshotRoom } from "./timer-snapshot-dto.js";
 import { findRoomByConnId } from "./room-lookup.js";
 import { TOOL_TIMER } from "./tool-id.js";
@@ -56,7 +56,7 @@ export class PresenceManager {
   private readonly broadcaster: Broadcaster;
   /** 選択画面（ハブ）への配信（#95 S5a）。切断は名簿の変化なので、ここにも届ける。 */
   private readonly hub: HubBroadcaster;
-  private readonly clock: Clock;
+  private readonly clock: WallClock;
   /** ドライバー不在発火時に呼ぶコールバック（任意。create-sync-server.ts で handlers.advanceForAbsence に配線）。 */
   private readonly onDriverAbsence?: ((roomCode: string) => void) | undefined;
   /** ドライバー不在タイマー: roomCode → timerHandle */
@@ -70,7 +70,7 @@ export class PresenceManager {
     timers: TimerStore;
     broadcaster: Broadcaster;
     hub: HubBroadcaster;
-    clock: Clock;
+    clock: WallClock;
     onDriverAbsence?: ((roomCode: string) => void) | undefined;
   }) {
     this.store = deps.store;

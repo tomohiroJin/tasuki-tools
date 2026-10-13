@@ -29,7 +29,7 @@ import {
   type Participant as MembershipParticipant,
 } from "@tasuki/room-core";
 import { pickPromotionTarget } from "../pick-promotion-target.js";
-import type { Clock } from "../../ports/clock.js";
+import type { WallClock } from "../../ports/wall-clock.js";
 import type { Broadcaster } from "../../ports/broadcaster.js";
 import type { RoomState } from "../apply-room-level-event.js";
 import { occupants } from "../timer-snapshot-dto.js";
@@ -41,7 +41,7 @@ export interface ParticipantRemoveContext {
 }
 
 export interface ParticipantRemoveDeps {
-  clock: Clock;
+  clock: WallClock;
   broadcaster: Broadcaster;
   /** 名簿と timer の状態を保管し、合成した snapshot を配信する（`handlers.ts`）。 */
   commit: (state: RoomState) => void;

@@ -45,7 +45,7 @@ export interface CheckRoomInput {
 export function checkRoom(deps: CheckRoomDeps, input: CheckRoomInput): Result<undefined, ErrorCode> {
   const { store, rateLimitGate } = deps;
 
-  // レート制限に渡すのは単調時計（`Clock.now()` の壁時計ではない・#103 設計正本 D8）。
+  // レート制限に渡すのは単調時計（`WallClock.now()` の壁時計ではない・#103 設計正本 D8）。
   const rateNow = performance.now();
 
   // **ルームを照会する前に判定する**（#103 設計正本 D3）。照会してから判定すると、

@@ -5,10 +5,10 @@
  * - 日次回数上限（UTC 日付・揮発カウントで可＝再起動でリセットは許容）
  * 超過は呼び出し側で「エラーにせず定型へ縮退」する。
  */
-import type { Clock } from "../ports/clock.js";
+import type { WallClock } from "../ports/wall-clock.js";
 
 export interface AiLimiterOptions {
-  clock: Clock;
+  clock: WallClock;
   /** 日次生成回数上限（グローバル）。0 ならその日の生成を全面停止する。
    * env `AI_DAILY_LIMIT` は 0 を許容する（負数・非数値のみ既定 100 にフォールバック）。 */
   dailyLimit: number;
@@ -25,7 +25,7 @@ export type AcquireResult =
 const DEFAULT_COOLDOWN_MS = 10_000;
 
 export class AiLimiter {
-  private readonly clock: Clock;
+  private readonly clock: WallClock;
   private readonly dailyLimit: number;
   private readonly cooldownMs: number;
   private readonly maxConcurrent: number;
