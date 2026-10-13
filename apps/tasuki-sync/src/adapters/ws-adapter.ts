@@ -41,6 +41,7 @@ import {
 import { deriveClientKeySafely } from "./client-key-safety.js";
 import { admit, protocolFromRequestUrl } from "./ws/connection-gate.js";
 import { Heartbeat } from "./ws/heartbeat.js";
+import { sendIfOpen, sendToEach } from "./ws/ws-send.js";
 import { respondToPlainHttp, type HttpHandler } from "./ws/http-fallback.js";
 import type { PokerHandlers } from "../application/poker-handlers.js";
 import type { RouletteOwnFrame, RouletteServerMsg } from "../ports/roulette-server-msg.js";
@@ -364,10 +365,7 @@ export class WsAdapter {
    * ここは**新しい送信箇所が黙って契約から外れること**を型で止める。
    */
   send(connId: string, data: ServerMsg): void {
-    const ws = this.connections.get(connId);
-    if (ws?.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify(data));
-    }
+    sendIfOpen(this.connections.get(connId), JSON.stringify(data));
   }
 
   /**
@@ -377,21 +375,12 @@ export class WsAdapter {
    * 混ぜると「timer の snapshot をハブへ送る」経路が型検査を通ってしまう。
    */
   sendHub(connId: string, data: HubServerMsg): void {
-    const ws = this.connections.get(connId);
-    if (ws?.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify(data));
-    }
+    sendIfOpen(this.connections.get(connId), JSON.stringify(data));
   }
 
   /** ハブの接続へ一斉に送る。 */
   broadcastHub(connIds: string[], data: HubServerMsg): void {
-    const json = JSON.stringify(data);
-    for (const connId of connIds) {
-      const ws = this.connections.get(connId);
-      if (ws?.readyState === WebSocket.OPEN) {
-        ws.send(json);
-      }
-    }
+    sendToEach(this.connections, connIds, JSON.stringify(data));
   }
 
   /**
@@ -403,21 +392,12 @@ export class WsAdapter {
    * 型検査が拒むためである。
    */
   sendTopic(connId: string, data: TopicServerMsg): void {
-    const ws = this.connections.get(connId);
-    if (ws?.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify(data));
-    }
+    sendIfOpen(this.connections.get(connId), JSON.stringify(data));
   }
 
   /** お題（topic）の接続へ一斉に送る。 */
   broadcastTopic(connIds: string[], data: TopicServerMsg): void {
-    const json = JSON.stringify(data);
-    for (const connId of connIds) {
-      const ws = this.connections.get(connId);
-      if (ws?.readyState === WebSocket.OPEN) {
-        ws.send(json);
-      }
-    }
+    sendToEach(this.connections, connIds, JSON.stringify(data));
   }
 
   /**
@@ -425,31 +405,16 @@ export class WsAdapter {
    * （`HubServerMsg`）ではルーレットのフレームを型検査が拒むため分けてある。
    */
   sendRoulette(connId: string, data: RouletteServerMsg): void {
-    const ws = this.connections.get(connId);
-    if (ws?.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify(data));
-    }
+    sendIfOpen(this.connections.get(connId), JSON.stringify(data));
   }
 
   /** ルーレット（roulette）の接続へ一斉に送る。 */
   broadcastRoulette(connIds: string[], data: RouletteServerMsg): void {
-    const json = JSON.stringify(data);
-    for (const connId of connIds) {
-      const ws = this.connections.get(connId);
-      if (ws?.readyState === WebSocket.OPEN) {
-        ws.send(json);
-      }
-    }
+    sendToEach(this.connections, connIds, JSON.stringify(data));
   }
 
   broadcast(connIds: string[], data: ServerMsg): void {
-    const json = JSON.stringify(data);
-    for (const connId of connIds) {
-      const ws = this.connections.get(connId);
-      if (ws?.readyState === WebSocket.OPEN) {
-        ws.send(json);
-      }
-    }
+    sendToEach(this.connections, connIds, JSON.stringify(data));
   }
 
   close(): Promise<void> {
@@ -648,8 +613,7 @@ export class WsAdapter {
    * `onMessage(...).catch(...)` から呼ばれるので、**利用者が切ったあとに走りうる**。
    */
   private sendFrame(ws: Socket, msg: ServerMsg): void {
-    if (ws.readyState !== WebSocket.OPEN) return;
-    ws.send(JSON.stringify(msg));
+    sendIfOpen(ws, JSON.stringify(msg));
   }
 
   /**
@@ -700,8 +664,7 @@ export class WsAdapter {
 
   /** ハブの接続へ 1 通送る（OPEN のときだけ）。 */
   private sendHubFrame(ws: Socket, msg: HubServerMsg): void {
-    if (ws.readyState !== WebSocket.OPEN) return;
-    ws.send(JSON.stringify(msg));
+    sendIfOpen(ws, JSON.stringify(msg));
   }
 
   /**
@@ -759,8 +722,7 @@ export class WsAdapter {
    * 契約に無いコードを型検査で弾く。
    */
   private sendTopicFrame(ws: Socket, msg: TopicOwnFrame): void {
-    if (ws.readyState !== WebSocket.OPEN) return;
-    ws.send(JSON.stringify(msg));
+    sendIfOpen(ws, JSON.stringify(msg));
   }
 
   /**
@@ -802,8 +764,7 @@ export class WsAdapter {
 
   /** ルーレットの接続へ 1 通送る（OPEN のときだけ）。型は狭い {@link RouletteOwnFrame}（`sendTopicFrame` と同じ理由）。 */
   private sendRouletteFrame(ws: Socket, msg: RouletteOwnFrame): void {
-    if (ws.readyState !== WebSocket.OPEN) return;
-    ws.send(JSON.stringify(msg));
+    sendIfOpen(ws, JSON.stringify(msg));
   }
 
   private handleClose(ws: Socket): void {
