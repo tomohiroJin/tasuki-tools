@@ -187,10 +187,23 @@
 
 ## 7. 完了条件（#367 の完了条件をこの計画に合わせて読み替えたもの）
 
-- [ ] `audit-assembly-wiring.mjs`・`audit-domain-side-effects.mjs`・`audit-dependency-direction.mjs` が、許可表を広げずに緑
-- [ ] アプリケーション層に大域の時計・乱数の呼び出しが無く、テストが拒む（壊して確かめた）
-- [ ] 実 WS 越しのテスト・変異検査が緑。e2e は CI で緑
-- [ ] 時計・配信・ハンドラの型の名前で、壁時計と単調時計、timer と poker が区別できる
-- [ ] `create-sync-server.ts` にアダプタの実装が無い（組み立てだけ）
-- [ ] `docs/adr/0004` と食い違いが無い。`docs/guides/architecture.md` への追記事項を記録に残した（#94 PR 3 の後に反映）
-- [ ] #360 の共通の守りを満たす
+- [x] `audit-assembly-wiring.mjs`・`audit-domain-side-effects.mjs`・`audit-dependency-direction.mjs` が、許可表を広げずに緑
+- [x] アプリケーション層に大域の時計・乱数の呼び出しが無く、テストが拒む（壊して確かめた）
+- [x] 実 WS 越しのテスト・変異検査が緑。e2e は CI で緑
+- [x] 時計・配信・ハンドラの型の名前で、壁時計と単調時計、timer と poker が区別できる
+- [x] `create-sync-server.ts` にアダプタの実装が無い（組み立てだけ）
+- [x] `docs/adr/0004` と食い違いが無い。`docs/guides/architecture.md` への追記事項を記録に残した（#94 PR 3 の後に反映）
+- [x] #360 の共通の守りを満たす
+
+## 8. 実施の記録（2026-10-13）
+
+計画から外れたこと・計画の時点で分かっていなかったことだけを書く。
+
+- **§5 の「並び替えの乱数の出どころ」は、利用者が推奨（`RandomSource` にそろえる）を了承した。** 本番の `member.shuffle` は `node:crypto` の一様な整数になった
+- **大域の呼び出しの検査は、コメントの中の語も拾うので、5 か所のコメントを言い換えた**（`performance.now()` → 「単調時計（`MonotonicClock`）」など）。検査の作法（`audit-domain-side-effects` と同じ）どおり
+- **Task 1 と Task 3 は 1 つのコミットにした。** 回収のテストは時計の注入の型が無いと型検査を通らないため。赤（回収されない）は注入の前に確かめた
+- **テストの組み立ては `test/support/test-clocks.ts` の既定（本物の単調時計と一様な乱数）を渡す。** 依存を組む 8 ファイルに足した
+- **poker 側の名前を変えると、`Handlers`（poker のハンドラの型）もぶつかっていた。** 計画の 4 つに足して `PokerHandlers` に改め、組み立てと ws-adapter の取り込みの別名（`as makePokerHandlers`・`as PokerHandlers`）を外した
+- **`docs/guides/architecture.md` は、改めた名前（`ports/clock.ts`・`poker-monotonic-clock`・`LogSink` の置き場）をどれも書いていなかった。** #94 PR 3 の後に追記することは無い。`docs/adr/0004` の「背景」にある `clock.ts` は、決定の時点の構成の記録なので変えない
+- **変異のパッチを 6 本当て直した**（m12・m28・m30・m81・m83・m158。ID と変異の中身は変えない）。m28・m158 は、配信のアダプタ（`adapters/timer-ws-broadcaster.ts`）を変異させる形になった
+- 変異検査は全件検出。`pnpm test`・`pnpm typecheck`・`pnpm lint`・構造監査（許可表は広げていない）・スクリプトの自己テストが緑

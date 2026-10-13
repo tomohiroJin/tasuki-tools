@@ -253,6 +253,14 @@ apps/tasuki-sync/src/application/
 | アプリケーション層は大域の時計・乱数を呼ばない | `audit-domain-side-effects.mjs` の対象に `apps/tasuki-sync/src/application` を足すかを計画で決める（足すなら壊して赤を確かめる） |
 | 組み立ては 1 か所 | `audit-assembly-wiring.mjs`（既存） |
 
+> **追記（2026-10-13・R7 の実施 [`2026-10-13-refactor-r7-ports.md`](../plans/2026-10-13-refactor-r7-ports.md)）**:
+>
+> - **アプリケーション層の大域の時計・乱数は、同期サーバーのテスト（`test/application-globals.test.ts`）が拒む。** `audit-domain-side-effects.mjs` の対象にはしなかった（あちらは `new Date(` や `throw` も拒み、アプリケーション層には当てはまらない）
+> - **タイマーのポートは足さなかった。** 差し替えるテストは bun の偽のタイマーで書けている（`docs/adr/0007` 追記 2026-08-17 の条件を満たさない）
+> - **`ServerTopicProvider` は `Result` にしなかった。** 想定外の例外を隔離する経路が残るので、契約が 2 通りになる
+> - **依存の袋は細くしなかった。** 実測で全ての項目を使っていた
+> - **同じ名前の別物は poker 側を改めた**（`PokerBroadcaster`・`PokerHandlerDeps`・`makePokerHandlers`・`PokerHandlers`・`PokerRoomState`。`RateLimitGate` は #366 で `PokerRateLimitGate`）
+
 ### 5.7 `ws-adapter.ts`（#368）
 
 ```text
