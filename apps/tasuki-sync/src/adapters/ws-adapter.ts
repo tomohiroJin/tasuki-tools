@@ -40,6 +40,7 @@ import {
   boundaryErrorCode,
 } from "../application/connection-errors.js";
 import { deriveClientKeySafely } from "./client-key-safety.js";
+import { respondToPlainHttp, type HttpHandler } from "./ws/http-fallback.js";
 import type { PokerHandlers } from "../application/poker-handlers.js";
 import { TOOL_POKER, TOOL_ROULETTE, TOOL_TIMER, TOOL_TOPIC } from "../application/tool-id.js";
 import type { RouletteOwnFrame, RouletteServerMsg } from "../ports/roulette-server-msg.js";
@@ -104,39 +105,6 @@ const DEFAULT_HEARTBEAT_INTERVAL_MS = 15_000;
 const DEFAULT_HEARTBEAT_MAX_MISSES = 2;
 
 /**
- * httpHandler（`handleAdminHttp`）へ渡すヘッダの許可リスト（N-4）。
- * 実際に読まれているのは `x-admin-token` だけ
- * （`apps/tasuki-sync/src/application/admin.ts` で確認済み）。
- * 増やすときは、そのヘッダが本当に読まれる先を確認してから足すこと。
- * `as const` にしてあるのは、受け取り側 `pickHeaders` の `readonly string[]`
- * に噛み合わせるため（Minor 4）。
- */
-const ADMIN_HTTP_ALLOWED_HEADERS = ["x-admin-token"] as const;
-
-
-/** `headers` のうち `allowed` に含まれるキーだけを取り出す（キーは小文字で比較）。 */
-function pickHeaders(headers: Headers, allowed: readonly string[]): Record<string, string> {
-  const picked: Record<string, string> = {};
-  for (const key of allowed) {
-    const value = headers.get(key);
-    if (value !== null) picked[key] = value;
-  }
-  return picked;
-}
-
-/**
- * httpHandler に渡すリクエスト表現。
- * Node の IncomingMessage にも Bun の Request にも依存しない形にしてある。
- */
-export interface HttpRequestInfo {
-  method: string;
-  /** クエリを含むパス（`/status?x=1`）。handleAdminHttp が `?` で切る。 */
-  path: string;
-  /** キーは小文字。**許可リスト（{@link ADMIN_HTTP_ALLOWED_HEADERS}）に絞ってある。** */
-  headers: Record<string, string>;
-}
-
-/**
  * WS アダプタが poker のメッセージ層に求めるものだけ
  * （残りのハンドラはここを通らない）。統合前の
  * `apps/poker-sync/src/adapters/ws-adapter.ts` の `WsAdapterHandlers` と同じ絞り込み。
@@ -192,9 +160,7 @@ export interface WsAdapterOptions {
    */
   onDisconnect: (connId: string) => void;
   /** 非 Upgrade の HTTP リクエストのフック。結果を返せばそれを応答、null なら 426。 */
-  httpHandler?: (
-    req: HttpRequestInfo,
-  ) => { status: number; contentType: string; body: string } | null;
+  httpHandler?: HttpHandler;
   /** ハートビート（ping）の送信間隔（ms）。既定 15000。 */
   heartbeatIntervalMs?: number;
   /** 連続でこの回数分 pong が確認できない接続を terminate する。既定 2。 */
@@ -412,25 +378,7 @@ export class WsAdapter {
       return undefined;
     }
 
-    const handled = this.options.httpHandler?.({
-      method: req.method,
-      path: url.pathname + url.search,
-      // 非 Upgrade の HTTP リクエストに限っても、生のヘッダを丸ごとは渡さない。
-      // httpHandler（handleAdminHttp）が実際に読むのは `x-admin-token` だけ
-      // （apps/tasuki-sync/src/application/admin.ts で確認済み）なので許可リストに絞る。
-      // 「賢い検査より単純な検査・無状態＋許可リストへ倒す」の教訓に合わせる。
-      headers: pickHeaders(req.headers, ADMIN_HTTP_ALLOWED_HEADERS),
-    });
-    if (handled) {
-      return new Response(handled.body, {
-        status: handled.status,
-        headers: { "content-type": handled.contentType },
-      });
-    }
-    return new Response("Upgrade Required", {
-      status: 426,
-      headers: { "content-type": "text/plain" },
-    });
+    return respondToPlainHttp(req, url, this.options.httpHandler);
   }
 
   /**
