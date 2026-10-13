@@ -9,10 +9,6 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import {
-  extractImportSpecifiers,
-  resolveRelativeImport,
-  computeReachableFiles,
-  sc027UnreachableModules,
   sc028DuplicateTestDoubles,
   extractTestNames,
   sc029SpecIdsInNames,
@@ -44,6 +40,12 @@ import {
   formatScanVolume,
   scanVolumeDimensions,
 } from "./audit-structure.mjs";
+import {
+  extractImportSpecifiers,
+  resolveRelativeImport,
+  computeReachableFiles,
+  sc027UnreachableModules,
+} from "./lib/structure/reachability.mjs";
 
 describe("SC-027: 到達しないモジュール（グラフ探索）", () => {
   test("相対 import の .js 指定子は .ts ファイルへ解決される", () => {
