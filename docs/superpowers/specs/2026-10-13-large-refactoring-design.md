@@ -142,6 +142,17 @@ packages/protocol/src/
 | 接続層のエラーの文言は 1 か所 | 各 core・sync が `@tasuki/protocol` から取る。写しが残っていないことを、文言の文字列で引く単体テストで確かめる（同じ文字列が protocol 以外の `src` に無い） |
 | フレームの形は変わらない | 実 WS 越しのテストで、エラーフレームを文字列のまま比べる |
 
+> **追記（2026-10-13・R2 の計画 [`2026-10-13-refactor-r2-connection-errors.md`](../plans/2026-10-13-refactor-r2-connection-errors.md)）**: 上の構造は、測ると成り立たなかった。
+>
+> - **core は `@tasuki/protocol` に依存できない。** 依存の許可表は topic-core・roulette-core・timer-core を `[]` にしている（`docs/adr/0017` 決定 1・2）。広げると構造監査を緩めることになる
+> - **`packages/protocol` は、コードも文言も決め打ちしない設計である**（`boundary.ts` の注記。poker は json と schema を 1 つのコードに畳む）。段からコードへの対応は、timer の系統の決めごととして同期サーバーに置く
+> - **エラーフレームのスキーマ 5 つは、わざと形が違う**（前方互換で任意のコードを通す timer・ハブ・poker と、既知のコードだけを通すお題・ルーレット）。1 つにしない
+>
+> そこで正本は `apps/tasuki-sync/src/application/connection-errors.ts` に置く。正本を取り込めない core の写しは、同期サーバーのテストで一致を固定する。守らせるコードは次の 2 つになった。
+>
+> - 「core の写しが正本と一致する」
+> - 「同期サーバーの中に写しが残っていない」
+
 ### 5.3 スキーマと型（#363）
 
 **型はスキーマから導く。** 既にある 2 つの手本のどちらかに寄せる。
