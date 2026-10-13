@@ -3,7 +3,7 @@
 // 名簿（誰が居るか・接続中か）は `@tasuki/room-core` が持ち、ここには持ち込まない。
 // voting → revealed の遷移と投票操作。すべて純関数 + Result 型（憲法原則 IV）
 import { err, ok, type Result } from 'neverthrow';
-import type { Card } from './deck';
+import type { Card } from './deck.js';
 
 export interface Round {
   status: 'voting' | 'revealed';

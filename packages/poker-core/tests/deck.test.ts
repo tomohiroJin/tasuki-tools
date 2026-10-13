@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FIBONACCI_DECK, cardEquals, cardKey, type Card } from '../src/deck';
+import { FIBONACCI_DECK, cardEquals, cardKey, type Card } from '../src/deck.js';
 
 describe('FIBONACCI_DECK', () => {
   it('フィボナッチ10種を順序どおりに含む（0,1,2,3,5,8,13,21,?,☕）', () => {

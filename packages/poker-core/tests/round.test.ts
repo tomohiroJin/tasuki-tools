@@ -9,7 +9,7 @@ import {
   shouldAutoReveal,
   type Round,
   type VoterView,
-} from '../src/round';
+} from '../src/round.js';
 
 const five = { kind: 'number', value: 5 } as const;
 const eight = { kind: 'number', value: 8 } as const;

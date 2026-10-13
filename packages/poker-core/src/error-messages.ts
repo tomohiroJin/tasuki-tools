@@ -6,7 +6,7 @@
 //
 // timer-core の displayMessageFor() と同じ役割で、同じく core の中に置く
 // （「core の外に出す」という意味ではない。docs/adr/0016 決定 2 の注記）。
-import type { RoundError } from './round';
+import type { RoundError } from './round.js';
 
 /**
  * `error` フレームの文言が空だったときの既定（#214・docs/poker/adr/0003 決定 3）。

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseMarkdown } from '../src/index';
+import { parseMarkdown } from '../src/index.js';
 
 /**
  * 病的な入力でも解析が入力の長さにほぼ比例する時間で終わる。

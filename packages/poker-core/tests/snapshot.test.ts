@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { castVote, createRound, revealBy, type Round } from '../src/round';
-import { createSnapshotBuilder, type ParticipantFragment } from '../src/snapshot';
+import { castVote, createRound, revealBy, type Round } from '../src/round.js';
+import { createSnapshotBuilder, type ParticipantFragment } from '../src/snapshot.js';
 
 /**
  * 受信者 1 人ぶんの投影を取る。

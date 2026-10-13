@@ -4,7 +4,7 @@
  * 対応: 見出し（# / ## / ###）、箇条書き（- / *）、番号付き（1.）、引用（>）、
  * コードの囲み（```）、段落（空行区切り。行内の改行は行として残す）。
  */
-import { parseInline, type MdInline } from './inline';
+import { parseInline, type MdInline } from './inline.js';
 
 export type MdBlock =
   | { kind: 'heading'; level: 1 | 2 | 3; inline: MdInline[] }

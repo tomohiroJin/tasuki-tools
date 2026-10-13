@@ -19,7 +19,7 @@ import {
   removeParticipant,
   type Participant,
   type Room,
-} from "../src/room";
+} from "../src/room.js";
 
 /** timer に 1 本繋いでいるアリス。 */
 const alice: Participant = {

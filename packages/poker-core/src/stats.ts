@@ -1,8 +1,8 @@
 // 集計（data-model「集計ルール」/ FR-010）
 // average は数値票のみの算術平均（生値。丸めは web の責務）、
 // modes は ?/☕ を含む全票の最頻カード（同数はすべて返す）
-import { cardKey, type Card } from './deck';
-import type { RoundStats } from './protocol';
+import { cardKey, type Card } from './deck.js';
+import type { RoundStats } from './protocol.js';
 
 export function computeStats(cards: readonly Card[]): RoundStats {
   const numbers: number[] = cards.flatMap((card) => (card.kind === 'number' ? [card.value] : []));
