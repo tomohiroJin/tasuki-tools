@@ -170,13 +170,17 @@
 .wheel-label--vertical {
   /* 縦書き（字は立てる）。半径が画面の縦に近い席で使う（labelPlacement） */
   writing-mode: vertical-rl;
-  /* 欧文も立てて積む。既定（mixed）では欧文を 90° 回して横倒しに組み、字が ±45° を超えて倒れる
-     （2026-10-13 の実画面の「Mika」。spec §6.3）。立てた欧文は 1 字 1em を取るので fitLabel も全角で数える */
+  /* 欧文の字も立てて積む。既定（mixed）では欧文を 90° 回して横倒しに組む（2026-10-13 の実画面の「Mika」）。
+     欧文が主の名前は縦書きにしない（labelPlacement が半径を横切る横書きを選ぶ）ので、ここに来るのは
+     全角が主の名前に混じった欧文だけ。立てた字は 1 字 1em を取るので fitLabel も全角で数える。spec §6.3 */
   text-orientation: upright;
 }
 .wheel-label--winner {
   fill: var(--on-gold);
-  font-weight: 700;
+  /* 太さは変えない（色だけで示す）。書体の 700 には base 層しか無く、名前の漢字は 700 で引くと
+     システムの書体に落ちる。落ちた先は縦書きの送りが 0 で、縦書きの「健太」が 1 字に重なった
+     （2026-10-13 の 320 の撮影。CDP の getPlatformFontsForNode で WenQuanYi Zen Hei・字の高さ 0 を実測）。
+     ext 層の 700 を足すと 1 太さで約 210KB 増える。spec §6.3 */
 }
 .wheel-stop--brass-lift {
   stop-color: var(--gold-lift);
@@ -386,11 +390,15 @@
   grid-template-columns: minmax(0, 1fr);
   gap: var(--space-1);
 }
-/* 1 行 = [チェック][名前][印][名前を消す]。行の地は沈んだ敷き */
+/* 1 行 = [チェック][名前][印][名前を消す]。行の地は沈んだ敷き。
+   **名前を先に読ませる**: 名前（ラベル）は中身の幅より縮まず、印と「名前を消す」の塊が入らない幅では塊ごと
+   次の行の右へ回る（2026-10-13 の 320 の撮影で、2 つの印に幅を取られ「山田」が「山…」に切れた）。
+   名前は行の幅を超えるときだけ … で切る */
 .roulette-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2);
+  column-gap: var(--space-2);
   min-height: 44px;
   padding: 0 var(--space-2) 0 var(--space-3);
   border-radius: var(--radius-md);
@@ -401,8 +409,9 @@
   flex-direction: row;
   align-items: center;
   gap: var(--space-3);
-  flex: 1;
+  flex: 1 0 auto;
   min-width: 0;
+  max-width: 100%;
   min-height: 44px;
   color: var(--ivory);
   font-size: var(--font-size-sm);
@@ -438,6 +447,13 @@
   background: transparent;
   color: var(--ivory-dim);
   border-color: var(--line-strong);
+}
+.roulette-row-tail {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-inline-start: auto;
+  min-height: 44px;
 }
 .roulette-row .ui-button {
   flex: none;

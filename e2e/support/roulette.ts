@@ -142,8 +142,14 @@ interface DrawnGlyph {
   tilt: number;
 }
 
+/** 欧文が主の名前（半角の字が空白と `…` を除いて半分以上）。 */
+const latinMostly = (text: string): boolean => {
+  const chars = Array.from(text).filter((ch) => ch.trim() !== '' && ch !== '…');
+  return chars.length > 0 && chars.filter((ch) => (ch.codePointAt(0) ?? 0) <= 0xff).length * 2 >= chars.length;
+};
+
 /**
- * 円盤の席の名前の**字が倒れていない**（画面上の傾きが ±45° 以内）。止まった後に呼ぶ。
+ * 円盤の席の名前の**字が倒れていない**（画面上の傾きが ±60° 以内）・**欧文が主の名前を縦に積まない**。止まった後に呼ぶ。
  *
  * 物差しは `labelPlacement` の戻り値を使わない（2026-10-13 の撮影で、関数の戻り値だけを見る単体テストは
  * 縦書きの欧文が横倒しで描かれるのを見逃した）。1 字ずつ、ブラウザが実際に組んだ姿から傾きを出す:
@@ -154,49 +160,61 @@ interface DrawnGlyph {
  *   （`writing-mode: vertical-rl`）で `text-orientation: mixed` のとき、欧文は 90° 回して横倒しに組まれる
  *   （Chromium の実測）。座標系の傾きだけを見るとここが見えない
  *
- * 字の傾き = 座標系の傾き + 字の回転。空白は向きが無いので数えない。
- * `minVerticalLatin` は「縦書きの席に欧文の名前が 1 つ以上ある」ことの下限（物差しが空振りしていないことを先に見る）。
+ * 字の傾き = 座標系の傾き + 字の回転。空白は向きが無いので数えない。上限 60° は利用者の決定（案 2）で、
+ * 半径に沿う横書きに許す傾き（spec §6.3）。縦書きかどうかは計算値の `writing-mode` で見る。
+ * `minUprightAcross` は「半径を横切る横書きの欧文の名前」の下限（物差しが空振りしていないことを先に見る）。
+ * 縦の半径の席（縦から 30° 以内）の欧文の名前は、縦に積まずに半径を横切る横書きで描く（spec §6.3）。
+ * 横切るかは、行の向きと「円盤の中心 → 名前の箱の中心」の成す角（60° 以上）で描かれた姿から測る。
  */
-export async function expectWheelGlyphsUpright(page: Page, minVerticalLatin = 0): Promise<void> {
-  const glyphs: DrawnGlyph[] = await page.evaluate(() => {
-    const out: { label: string; ch: string; vertical: boolean; tilt: number }[] = [];
+export async function expectWheelGlyphsUpright(page: Page, minUprightAcross = 0): Promise<void> {
+  const drawn = await page.evaluate(() => {
+    const glyphs: { label: string; ch: string; vertical: boolean; tilt: number }[] = [];
+    const labels: { label: string; vertical: boolean; across: boolean }[] = [];
+    const wheel = document.querySelector<SVGSVGElement>('svg.wheel')?.getScreenCTM();
     for (const text of Array.from(document.querySelectorAll<SVGTextElement>('.wheel-label'))) {
       const m = text.getScreenCTM();
-      if (m === null) continue;
+      if (m === null || wheel === null || wheel === undefined) continue;
       const frame = (Math.atan2(m.b, m.a) * 180) / Math.PI;
       const label = text.textContent ?? '';
       const vertical = getComputedStyle(text).writingMode.startsWith('vertical');
+      // 横書きの行が半径を横切るか: 行の向き（座標系の x 軸）と、円盤の中心から名前の箱の中心への向きの成す角が 60° 以上
+      const box = text.getBoundingClientRect();
+      const rx = box.left + box.width / 2 - wheel.e;
+      const ry = box.top + box.height / 2 - wheel.f;
+      const cos = Math.abs((m.a * rx + m.b * ry) / (Math.hypot(m.a, m.b) * Math.hypot(rx, ry)));
+      labels.push({ label, vertical, across: !vertical && cos < 0.5 });
       const chars = Array.from(label);
       for (let i = 0; i < text.getNumberOfChars() && i < chars.length; i += 1) {
         const ch = chars[i] ?? '';
         if (ch.trim() === '') continue;
         const raw = frame + text.getRotationOfChar(i);
-        out.push({ label, ch, vertical, tilt: ((((raw + 180) % 360) + 360) % 360) - 180 });
+        glyphs.push({ label, ch, vertical, tilt: ((((raw + 180) % 360) + 360) % 360) - 180 });
       }
     }
-    return out;
+    return { glyphs, labels };
   });
+  const glyphs: DrawnGlyph[] = drawn.glyphs;
   expect(glyphs.length, '円盤の席の名前の字が 1 つも読めない').toBeGreaterThan(0);
-  const verticalLatin = new Set(glyphs.filter((g) => g.vertical && /[A-Za-z]/.test(g.ch)).map((g) => g.label));
-  expect(verticalLatin.size, `縦書きの席の欧文の名前（${[...verticalLatin].join(', ')}）`).toBeGreaterThanOrEqual(minVerticalLatin);
+  const across = drawn.labels.filter((l) => l.across && latinMostly(l.label));
+  expect(across.length, `半径を横切る欧文の名前（${across.map((l) => l.label).join(', ')}）`).toBeGreaterThanOrEqual(minUprightAcross);
+  const stacked = drawn.labels.filter((l) => l.vertical && latinMostly(l.label)).map((l) => `「${l.label}」`);
+  expect(stacked, '欧文が主の名前を縦に積んでいる（「M／i／k／a」は読めない）').toEqual([]);
   const fallen = glyphs
-    .filter((g) => Math.abs(g.tilt) > 45 + 0.5)
+    .filter((g) => Math.abs(g.tilt) > 60 + 0.5)
     .map((g) => `「${g.label}」の「${g.ch}」 ${g.tilt.toFixed(1)}°（${g.vertical ? '縦書き' : '横書き'}）`);
-  expect(fallen, '円盤の席の名前の字が ±45° を超えて倒れている').toEqual([]);
+  expect(fallen, '円盤の席の名前の字が ±60° を超えて倒れている').toEqual([]);
 }
 
 /**
- * 円盤の席の名前が**席の環（中心 r=21〜縁 r=93）の内に描かれている**。止まった後に呼ぶ。
+ * 円盤の席の名前が**席の環（縁 r=93）の内に描かれている**。止まった後に呼ぶ。
  *
- * 字の位置は `getStartPositionOfChar` / `getEndPositionOfChar` では測らない —— Chromium は縦書きで
- * `text-anchor: end` の漢字の名前について、始まりも終わりも基準点（r=84）と答えたが、描かれた字は縁の外へ
- * はみ出していた（2026-10-13 の 320 の撮影の「山田」）。**描かれた箱**（`getBoundingClientRect`）の四隅の、
- * 円盤の中心からの距離を円盤の座標（viewBox）の単位で測る。箱は画面の軸に沿うので、斜めの名前では実際の字より
- * 外へ膨らむ（45° の名前でも縁から約 5 以内）。上限は窪み（r=97）の手前の 95 に置く。
+ * 字の位置は `getStartPositionOfChar` / `getEndPositionOfChar` では測らない。**描かれた箱**
+ * （`getBoundingClientRect`）の四隅の、円盤の中心からの距離を円盤の座標（viewBox）の単位で測る。箱は画面の
+ * 軸に沿うので、斜めの名前では実際の字より外へ膨らむ（45° の名前でも縁から約 5 以内）。上限は窪み（r=97）の
+ * 手前の 95 に置く。2026-10-13 の 320 の撮影では、当たりの席の縦書きの「山田」が r=106.5 まで伸びた
+ * （書体がシステムのものに落ち、縦書きの送りが 0 と数えられた。`expectWheelLabelsUseWebFonts`）。
  *
- * `minVerticalOutward` は「縦書きで行が外へ進む席（円盤の下半分の縦書きの席）」の下限。4 席なら縦書きの席が
- * 上下の対で必ずでき、下の席は行が外へ進む。**はみ出しは幅 320 の漢字 2 字の名前で起きた**（1280 や
- * かな 3 字では `end` が効いた）ので、呼ぶ側は漢字 2 字の名前で席を埋め、320 で見る。
+ * `minVerticalOutward` は「縦書きで行が外へ進む席（円盤の下半分の縦書きの席）」の下限。
  */
 export async function expectWheelLabelsInsideSeats(page: Page, minVerticalOutward = 0): Promise<void> {
   const labels = await page.evaluate(() => {
@@ -218,7 +236,7 @@ export async function expectWheelLabelsInsideSeats(page: Page, minVerticalOutwar
       const seat = (text.previousElementSibling as Element).getBoundingClientRect();
       return {
         text: text.textContent ?? '',
-        vertical: text.classList.contains('wheel-label--vertical'),
+        vertical: getComputedStyle(text).writingMode.startsWith('vertical'),
         lower: seat.top + seat.height / 2 > m.f,
         far,
       };
@@ -229,4 +247,50 @@ export async function expectWheelLabelsInsideSeats(page: Page, minVerticalOutwar
   expect(labels!.filter((l) => l.vertical && l.lower).length, '縦書きで行が外へ進む席').toBeGreaterThanOrEqual(minVerticalOutward);
   const outside = labels!.filter((l) => l.far > 95).map((l) => `「${l.text}」 r=${l.far.toFixed(1)}（${l.vertical ? '縦書き' : '横書き'}）`);
   expect(outside, '席の名前が縁の外へはみ出している').toEqual([]);
+}
+
+/**
+ * 円盤の席の名前が**この画面の書体（web フォント）だけで描かれている**。システムの書体に落ちると、縦書きの字の
+ * 送りが 0 になり字が重なった（2026-10-13 の 320 の撮影の当たりの席の「健太」。700 の太さに漢字の書体が無い）。
+ * 描くのに使われた書体を Chromium の DevTools Protocol（`CSS.getPlatformFontsForNode`）で名前ごとに読む。
+ */
+export async function expectWheelLabelsUseWebFonts(page: Page): Promise<void> {
+  const cdp = await page.context().newCDPSession(page);
+  try {
+    await cdp.send('DOM.enable');
+    await cdp.send('CSS.enable');
+    const { root } = await cdp.send('DOM.getDocument', { depth: -1 });
+    const { nodeIds } = await cdp.send('DOM.querySelectorAll', { nodeId: root.nodeId, selector: '.wheel-label' });
+    expect(nodeIds.length, '円盤の席の名前が描かれていない').toBeGreaterThan(0);
+    const fallen: string[] = [];
+    for (const nodeId of nodeIds) {
+      const { fonts } = await cdp.send('CSS.getPlatformFontsForNode', { nodeId });
+      const system = fonts.filter((f) => !f.isCustomFont).map((f) => `${f.familyName}（${f.glyphCount} 字）`);
+      if (system.length > 0) {
+        const { outerHTML } = await cdp.send('DOM.getOuterHTML', { nodeId });
+        fallen.push(`${/>([^<]*)</.exec(outerHTML)?.[1] ?? outerHTML}: ${system.join(', ')}`);
+      }
+    }
+    expect(fallen, '席の名前がシステムの書体に落ちている').toEqual([]);
+  } finally {
+    await cdp.detach();
+  }
+}
+
+/**
+ * 脇の一覧（ルーレットに入る人）の名前が**切れていない**（`…` で省かれていない）。描かれた名前の箱の
+ * `scrollWidth` と `clientWidth` を比べる（2026-10-13 の 320 の撮影で、「選ばれた」と「名前を消す」に幅を
+ * 取られ「山田」が「山…」に切れた）。`minWithTail` は「印か名前を消すを持つ行」の下限（空振りを防ぐ）。
+ */
+export async function expectRouletteNamesNotCut(page: Page, minWithTail = 0): Promise<void> {
+  const rows = await page.evaluate(() =>
+    Array.from(document.querySelectorAll<HTMLElement>('.roulette-name')).map((name) => ({
+      text: name.textContent ?? '',
+      cut: name.scrollWidth > name.clientWidth + 0.5,
+      tail: (name.closest('li')?.querySelectorAll('.roulette-chip, button').length ?? 0) > 0,
+    })),
+  );
+  expect(rows.length, '一覧の名前が描かれていない').toBeGreaterThan(0);
+  expect(rows.filter((r) => r.tail).length, '印か名前を消すを持つ行').toBeGreaterThanOrEqual(minWithTail);
+  expect(rows.filter((r) => r.cut).map((r) => r.text), '一覧の名前が切れている').toEqual([]);
 }

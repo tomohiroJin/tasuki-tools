@@ -114,10 +114,9 @@ describe('回転', () => {
     // Then: 席 i の中心は i·180 + 90
     const final = FINAL(0);
     texts.forEach((el, i) => {
-      const expected = labelPlacement(i * 180 + 90, final);
-      // 縦書きで行が外へ進む席は `end` に頼らず `start` で置き直す（はみ出しは wheel-glyphs.test.tsx と E2E が測る）
-      expect(el.getAttribute('text-anchor'), `席 ${i}`).toBe(expected.vertical ? 'start' : expected.anchor);
-      expect(el.classList.contains('wheel-label--vertical'), `席 ${i}`).toBe(expected.vertical);
+      const expected = labelPlacement(i * 180 + 90, final, 'short');
+      expect(el.getAttribute('text-anchor'), `席 ${i}`).toBe(expected.anchor);
+      expect(el.classList.contains('wheel-label--vertical'), `席 ${i}`).toBe(expected.mode === 'vertical');
     });
   });
 

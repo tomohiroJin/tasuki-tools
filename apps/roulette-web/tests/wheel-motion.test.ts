@@ -7,7 +7,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { TURNS, angleAt, easeOutCubic, finalAngle, pointerDegFor, segmentBoundaryIndex, stageLayoutFor } from '../src/wheel-motion';
-import { fitLabel, labelPlacement, toneOf } from '../src/wheel-geometry';
+import { fitLabel, labelKindOf, labelPlacement, radialTiltLimit, toneOf } from '../src/wheel-geometry';
 
 const DURATION = 4000;
 const SETTLES = [0.2, 0.5, 0.8];
@@ -113,35 +113,59 @@ describe('toneOf', () => {
 /** 角度を −180〜180 に畳む */
 const fold = (x: number): number => ((((x + 180) % 360) + 360) % 360) - 180;
 
-describe('labelPlacement（3 版）', () => {
-  it('回転子の角度 0〜359 と席の位置の全組で、画面上の字の傾きが ±45° 以内・行が半径に沿う', () => {
-    for (let mid = 0; mid < 360; mid += 7.5) {
-      for (let rotor = 0; rotor < 360; rotor += 1) {
-        const p = labelPlacement(mid, rotor);
-        const tilt = fold(p.rotate + rotor);
-        const msg = `mid=${mid} rotor=${rotor}`;
-        expect(Math.abs(tilt), msg).toBeLessThanOrEqual(45 + 1e-6);
-        // 行の向き（SVG の角度: 右 0・下 90）。横書きは傾きそのもの・縦書きは 90° + 傾き
-        const lineDir = p.vertical ? 90 + tilt : tilt;
-        // 外向きの半径の向き（画面上）
-        const out = mid + rotor - 90;
-        const diff = ((fold(out - lineDir) % 180) + 180) % 180;
-        expect(Math.min(diff, 180 - diff), msg).toBeLessThan(1e-6);
-        // 行が外へ進むなら終わりを縁に（end）・内へ進むなら始まりを縁に（start）
-        const outward = Math.abs(fold(out - lineDir)) < 1;
-        expect(p.anchor, msg).toBe(outward ? 'end' : 'start');
+describe('labelPlacement（4 版）', () => {
+  it.each(['latin', 'short', 'long'] as const)(
+    '%s: 回転子の角度 0〜359 と席の位置の全組で、字の傾きが上限以内・行（または行に直交する向き）が半径に沿う',
+    (kind) => {
+      for (let mid = 0; mid < 360; mid += 7.5) {
+        for (let rotor = 0; rotor < 360; rotor += 1) {
+          const p = labelPlacement(mid, rotor, kind);
+          const tilt = fold(p.rotate + rotor);
+          const msg = `mid=${mid} rotor=${rotor}`;
+          // 半径に沿う横書きは上限（長い名前 45°・ほか 60°）、縦書きと半径を横切る横書きは 30° まで
+          const limit = p.mode === 'radial' ? radialTiltLimit(kind) : 90 - radialTiltLimit(kind);
+          expect(Math.abs(tilt), msg).toBeLessThanOrEqual(limit + 1e-6);
+          // 欧文は縦書きにしない・全角主体は半径を横切らない
+          expect(p.mode, msg).not.toBe(kind === 'latin' ? 'vertical' : 'across');
+          // 行の向き（SVG の角度: 右 0・下 90）。横書きは傾きそのもの・縦書きは 90° + 傾き
+          const lineDir = p.mode === 'vertical' ? 90 + tilt : tilt;
+          const out = mid + rotor - 90;
+          const diff = ((fold(out - lineDir) % 180) + 180) % 180;
+          expect(Math.min(diff, 180 - diff), msg).toBeCloseTo(p.mode === 'across' ? 90 : 0, 6);
+          if (p.mode === 'across') {
+            expect(p.anchor, msg).toBe('middle');
+          } else {
+            // 行が外へ進むなら終わりを縁に（end）・内へ進むなら始まりを縁に（start）
+            const outward = Math.abs(fold(out - lineDir)) < 1;
+            expect(p.anchor, msg).toBe(outward ? 'end' : 'start');
+          }
+        }
       }
-    }
+    },
+  );
+
+  it('書き方の切り替えの具体値（画面上の角度 = mid + rotor）', () => {
+    // 真下の席: 長い名前は縦書き・欧文は半径を横切る横書き
+    expect(labelPlacement(180, 0, 'long')).toMatchObject({ mode: 'vertical', rotate: 0 });
+    expect(labelPlacement(180, 0, 'latin')).toMatchObject({ mode: 'across', rotate: 0, anchor: 'middle' });
+    // 半径が縦から 40° の席（画面 140°）: 長い名前は縦書き（字 −40°）・短い名前は横書き（字 −50°・左から右へ読む）
+    expect(labelPlacement(140, 0, 'long')).toMatchObject({ mode: 'vertical', tilt: -40 });
+    expect(labelPlacement(140, 0, 'short')).toMatchObject({ mode: 'radial', tilt: 50 });
+    // 縦から 25° の席: 短い名前も縦書き
+    expect(labelPlacement(155, 0, 'short')).toMatchObject({ mode: 'vertical', tilt: -25 });
+    // 右の席はどれも横書き。回転子だけ違っても同じ向き（rotate は回転子の回転ぶんを打ち消す）
+    expect(labelPlacement(90, 0, 'latin')).toMatchObject({ mode: 'radial', rotate: 0 });
+    expect(labelPlacement(30, 120, 'long')).toMatchObject({ mode: 'vertical', rotate: -30 - 120 });
   });
 
-  it('横書きと縦書きの切り替えの具体値', () => {
-    // 画面上の角度 = mid + rotor（rotor 0 で mid をそのまま画面の角度にする）
-    expect(labelPlacement(150, 0)).toMatchObject({ vertical: true, rotate: -30 });
-    expect(labelPlacement(90, 0)).toMatchObject({ vertical: false, rotate: 0 });
-    expect(labelPlacement(270, 0)).toMatchObject({ vertical: false, rotate: 0 });
-    expect(labelPlacement(180, 0)).toMatchObject({ vertical: true, rotate: 0 });
-    // 画面の位置は同じで回転子だけ違っても、同じ向きになる（rotate は回転子の回転ぶんを打ち消す）
-    expect(labelPlacement(30, 120)).toMatchObject({ vertical: true, rotate: -30 - 120 });
+  it('labelKindOf: 欧文（半角が半分以上）・短い（全角 3 字まで）・長い', () => {
+    expect(labelKindOf('Mika')).toBe('latin');
+    expect(labelKindOf('e2e-roulette-a')).toBe('latin');
+    expect(labelKindOf('Ken Lee')).toBe('latin');
+    expect(labelKindOf('山田')).toBe('short');
+    expect(labelKindOf('あおい')).toBe('short');
+    expect(labelKindOf('佐藤 花子')).toBe('long');
+    expect(labelKindOf('山田B')).toBe('short');
   });
 });
 

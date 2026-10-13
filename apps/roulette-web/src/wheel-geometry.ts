@@ -28,30 +28,71 @@ export function toneOf(i: number, n: number): Tone {
 
 const mod = (x: number, m: number): number => ((x % m) + m) % m;
 
+/** 名前の書き方。`radial` = 半径に沿う横書き・`vertical` = 半径に沿う縦書き・`across` = 半径を横切る横書き */
+export type LabelMode = 'radial' | 'vertical' | 'across';
+
 export interface LabelPlacement {
   /** 名前の `rotate(...)`（回転子の座標の回転。画面上の傾きから回転子の角度を引いたもの） */
   rotate: number;
-  anchor: 'start' | 'end';
-  vertical: boolean;
-  /** 画面上の字の傾き（±45° 以内） */
+  /** `across` は席の中心線に中央を合わせる */
+  anchor: 'start' | 'end' | 'middle';
+  mode: LabelMode;
+  /** 画面上の字の傾き（±60° 以内。縦書きと `across` は ±30° 以内） */
   tilt: number;
 }
 
+/** 名前の性質（書き方の選び分けに使う）。 */
+export type LabelKind = 'latin' | 'short' | 'long';
+
+const isHalfWidth = (ch: string): boolean => (ch.codePointAt(0) ?? 0) <= 0xff;
+
 /**
- * 名前の向き（3 版）。名前の行は半径に沿わせ、字の傾きが ±45° を超えない書き方（横書き / 縦書き）を選ぶ。
- * `mid` は席の中心の角度（回転子の座標）・`rotorDeg` は回転子の角度。回っている間も毎フレーム決め直す。
+ * 欧文（半角の字が空白を除いて半分以上）・短い名前（全角主体で 3 字まで）・長い名前（全角主体で 4 字以上）。
+ * 欧文は縦に積むと読めない（「M／i／k／a」）ので縦書きにしない。短い名前は縦書きの列が斜めに傾くと
+ * 2 字が画面の左右に並び逆順に読める（「山田」が「田山」）ので、斜めの席では横書きを優先する。
  */
-export function labelPlacement(mid: number, rotorDeg: number): LabelPlacement {
+export function labelKindOf(name: string): LabelKind {
+  const chars = Array.from(name).filter((ch) => ch.trim() !== '');
+  const half = chars.filter(isHalfWidth).length;
+  if (chars.length > 0 && half * 2 >= chars.length) return 'latin';
+  return chars.length <= 3 ? 'short' : 'long';
+}
+
+/**
+ * 半径に沿う横書きで許す字の傾きの上限。長い名前は 45°（縦書きの列が長ければ斜めでも列として読める）、
+ * 欧文と短い名前は 60°（縦書きの列が 30° 以内に立つ席でだけ縦にする）。利用者の決定（案 2・2026-10-13）。
+ */
+export function radialTiltLimit(kind: LabelKind): number {
+  return kind === 'long' ? 45 : 60;
+}
+
+/**
+ * 名前の向き（4 版・spec §6.3）。半径に沿う横書きの字の傾きが上限（`radialTiltLimit`）に収まればそれを、
+ * 収まらない席（半径が画面の縦に近い席）では、全角主体の名前は半径に沿う縦書き、欧文は半径を横切る横書き
+ * （字の傾きは縦書きと同じ）を選ぶ。`mid` は席の中心の角度（回転子の座標）・`rotorDeg` は回転子の角度。
+ * 回っている間も毎フレーム決め直す。
+ */
+export function labelPlacement(mid: number, rotorDeg: number, kind: LabelKind = 'long'): LabelPlacement {
   const out = mod(mid + rotorDeg, 360) - 90; // 画面上の外向きの半径の向き（SVG の角度）
   const psi = mod(out, 180); // 行の向き（180° の剰余）
-  const tiltH = psi <= 90 ? psi : psi - 180; // 横書きの字の傾き
-  const tiltV = psi - 90; // 縦書きの字の傾き（行は 90° + tiltV へ進む）
-  const vertical = Math.abs(tiltV) < Math.abs(tiltH);
-  const tilt = vertical ? tiltV : tiltH;
-  const lineDir = vertical ? 90 + tilt : tilt;
+  const tiltH = psi <= 90 ? psi : psi - 180; // 半径に沿う横書きの字の傾き
+  const tiltV = psi - 90; // 縦書き（と半径を横切る横書き）の字の傾き
+  const mode: LabelMode = Math.abs(tiltH) <= radialTiltLimit(kind) ? 'radial' : kind === 'latin' ? 'across' : 'vertical';
+  const tilt = mode === 'radial' ? tiltH : tiltV;
+  if (mode === 'across') return { rotate: tilt - rotorDeg, anchor: 'middle', mode, tilt };
+  const lineDir = mode === 'vertical' ? 90 + tilt : tilt;
   // 行が外へ進むなら行の終わりを縁に、内へ進むなら行の始まりを縁に置く
   const outward = Math.abs(mod(out - lineDir + 180, 360) - 180) < 1;
-  return { rotate: tilt - rotorDeg, anchor: outward ? 'end' : 'start', vertical, tilt };
+  return { rotate: tilt - rotorDeg, anchor: outward ? 'end' : 'start', mode, tilt };
+}
+
+/** 半径を横切る横書きの名前の中心の半径と、席の幅から入る字数（em）。字の高さは 1em = 10。 */
+export const ACROSS_R = 78;
+export function acrossMaxEm(seatDeg: number): number {
+  if (seatDeg >= 180) return Infinity;
+  const inner = ACROSS_R - 5; // 字の内側の端
+  const chord = 2 * inner * Math.sin(((seatDeg / 2) * Math.PI) / 180);
+  return Math.max(1, (chord - 4) / 10); // 席の仕切りから 2 ずつ空ける
 }
 
 /**

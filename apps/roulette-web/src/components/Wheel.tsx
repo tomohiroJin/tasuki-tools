@@ -7,15 +7,25 @@
  */
 import { useEffect, useRef } from 'react';
 import type { Entry } from '@tasuki/roulette-core';
-import { arcPath, fitLabel, labelPlacement, polar, toneOf } from '../wheel-geometry';
+import { ACROSS_R, acrossMaxEm, arcPath, fitLabel, labelKindOf, labelPlacement, polar, toneOf, type LabelPlacement } from '../wheel-geometry';
 import { segmentBoundaryIndex } from '../wheel-motion';
 
 const INNER_R = 21;
 const OUTER_R = 93;
 const STUD_R = 101.5;
 const LABEL_R = 84;
-/** 席の名前の 1 字の送り（`.wheel-label` の `font-size: 10px`。縦書きは欧文も立てるので全部の字が 1em） */
-const LABEL_EM = 10;
+
+/**
+ * 席に描く名前の字（spec §6.3）。縦書きは空白を詰める（縦では 1 字ぶん空いて間延びする）・欧文も立てて
+ * 1 字 1em で数える。半径を横切る横書きは席の幅で切る（`…` のぶんも空ける）。
+ */
+function labelText(name: string, place: LabelPlacement, maxEm: number, seatDeg: number): string {
+  if (place.mode === 'vertical') return fitLabel(name.replace(/\s+/gu, ''), maxEm, true);
+  if (place.mode === 'radial') return fitLabel(name, maxEm);
+  const em = Math.min(maxEm, acrossMaxEm(seatDeg));
+  const text = fitLabel(name, em);
+  return text.endsWith('…') ? fitLabel(name, em - 1) : text;
+}
 
 interface Props {
   entries: readonly Entry[];
@@ -69,13 +79,9 @@ export function Wheel({ entries, winnerIndex, drawnIds, angle, pointerDeg, spinn
             const isWinner = i === winnerIndex;
             const isDrawn = !isWinner && drawnIds.has(entry.id);
             const mid = i * s + s / 2;
-            const place = labelPlacement(mid, angle);
-            const label = fitLabel(entry.name, n > 12 ? 4 : 5.5, place.vertical);
-            // 縦書きで行が外へ進む席は、`text-anchor: end` に頼らず行の始まりを縁から字数ぶん内に置く。
-            // Chromium は縦書きの漢字・かなの `end` を効かせず、行が縁（r=84）から外へはみ出して指し針に
-            // 掛かった（2026-10-13 の 320 の撮影の「山田」。spec §6.3）
-            const flipStart = place.vertical && place.anchor === 'end';
-            const [tx, ty] = polar(flipStart ? LABEL_R - Array.from(label).length * LABEL_EM : LABEL_R, mid);
+            const place = labelPlacement(mid, angle, labelKindOf(entry.name));
+            const label = labelText(entry.name, place, n > 12 ? 4 : 5.5, s);
+            const [tx, ty] = polar(place.mode === 'across' ? ACROSS_R : LABEL_R, mid);
             const modifier = `${isDrawn ? ' wheel-segment--drawn' : ''}${isWinner ? ' wheel-segment--winner' : ''}`;
             return (
               <g key={entry.id}>
@@ -84,10 +90,10 @@ export function Wheel({ entries, winnerIndex, drawnIds, angle, pointerDeg, spinn
                   d={arcPath(INNER_R, OUTER_R, i * s, n === 1 ? 359.99 : (i + 1) * s)}
                 />
                 <text
-                  className={`wheel-label${isDrawn ? ' wheel-label--drawn' : ''}${isWinner ? ' wheel-label--winner' : ''}${place.vertical ? ' wheel-label--vertical' : ''}`}
+                  className={`wheel-label${isDrawn ? ' wheel-label--drawn' : ''}${isWinner ? ' wheel-label--winner' : ''}${place.mode === 'vertical' ? ' wheel-label--vertical' : ''}`}
                   x={tx}
                   y={ty}
-                  textAnchor={flipStart ? 'start' : place.anchor}
+                  textAnchor={place.anchor}
                   transform={`rotate(${place.rotate} ${tx} ${ty})`}
                 >
                   {label}
