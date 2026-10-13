@@ -11,8 +11,7 @@ import { INITIAL_TOPIC_STATE, type TopicState } from "@tasuki/topic-core";
 import type { RoomStore } from "../ports/room-store.js";
 import type { TopicStore } from "../ports/topic-store.js";
 import type { TopicServerMsg } from "../ports/topic-server-msg.js";
-import { TOOL_HUB } from "./hub-handlers.js";
-import { TOOL_TOPIC, TOOL_TIMER, TOOL_POKER, TOOL_ROULETTE } from "./tool-id.js";
+import { TOOL_HUB, TOOL_TOPIC, TOOL_TIMER, TOOL_POKER, TOOL_ROULETTE } from "./tool-id.js";
 
 /**
  * お題の状態を受け取る接続のツール。**ルームの全接続である**（spec T3・E2）。

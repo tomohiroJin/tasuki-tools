@@ -16,7 +16,7 @@ import type { Room as MembershipRoom } from "@tasuki/room-core";
 import { buildTimerSnapshotRoom } from "../src/application/timer-snapshot-dto";
 import type { TimerState } from "@tasuki/timer-core";
 import { TOOL_TIMER } from "../src/application/tool-id.js";
-import { TOOL_HUB } from "../src/application/hub-handlers.js";
+import { TOOL_HUB } from "../src/application/tool-id.js";
 
 const membership: MembershipRoom = {
   code: "mob-a1b2c3d4",

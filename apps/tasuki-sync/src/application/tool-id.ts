@@ -29,6 +29,8 @@
  * 誰も timer を開いていないルームにタイマーが生まれる。
  */
 
+import type { ToolId } from "@tasuki/room-core";
+
 /** timer（モブタイマー）の入口から来た接続。 */
 export const TOOL_TIMER = "timer";
 
@@ -40,3 +42,12 @@ export const TOOL_TOPIC = "topic";
 
 /** ルーレットの入口から来た接続（#94）。 */
 export const TOOL_ROULETTE = "roulette";
+
+/**
+ * ハブの接続が宣言するツール。**どれでもない**（設計正本 D14・S5a の裁定）。
+ *
+ * 綴りの正本をここに置いているのと同じ理由で名前を与える —— 生の `null` が配線のあちこちに
+ * 散ると、「宣言し忘れ」と「ハブである」の区別がつかない。#366 で `hub-handlers.ts` から移した
+ * （`topic-broadcast.ts` がハンドラから取っていて、アプリケーション層の中で向きが逆だった）。
+ */
+export const TOOL_HUB: ToolId | null = null;

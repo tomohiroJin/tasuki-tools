@@ -26,7 +26,6 @@ import {
   HubCommandSchema,
   findParticipantByConnId,
   type HubCommand,
-  type ToolId,
 } from "@tasuki/room-core";
 import { parseBoundaryMessage } from "@tasuki/protocol";
 import { errorMessageFor } from "@tasuki/timer-core";
@@ -38,15 +37,8 @@ import { createRoom, type CreateRoomDeps } from "./create-room.js";
 import { applyDisplayNameRule, INVALID_DISPLAY_NAME_MESSAGE } from "./display-name-rule.js";
 import { joinRoom, ROOM_NOT_FOUND_MESSAGE, type JoinRoomDeps } from "./join-room.js";
 import { saveRoster, type SaveRosterDeps } from "./save-roster.js";
+import { TOOL_HUB } from "./tool-id.js";
 import type { TopicBroadcaster } from "./topic-broadcast.js";
-
-/**
- * ハブの接続が宣言するツール。**どれでもない**（設計正本 D14・S5a の裁定）。
- *
- * 綴りの正本を `tool-id.ts` に置いているのと同じ理由でここに名前を与える ——
- * 生の `null` が配線のあちこちに散ると、「宣言し忘れ」と「ハブである」の区別がつかない。
- */
-export const TOOL_HUB: ToolId | null = null;
 
 /**
  * コマンドの形が不正なときの文言（#91 PR 3 Task 5）。正本は `connection-errors.ts`（#362）。
