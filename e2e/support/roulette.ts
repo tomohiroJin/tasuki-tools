@@ -184,3 +184,49 @@ export async function expectWheelGlyphsUpright(page: Page, minVerticalLatin = 0)
     .map((g) => `「${g.label}」の「${g.ch}」 ${g.tilt.toFixed(1)}°（${g.vertical ? '縦書き' : '横書き'}）`);
   expect(fallen, '円盤の席の名前の字が ±45° を超えて倒れている').toEqual([]);
 }
+
+/**
+ * 円盤の席の名前が**席の環（中心 r=21〜縁 r=93）の内に描かれている**。止まった後に呼ぶ。
+ *
+ * 字の位置は `getStartPositionOfChar` / `getEndPositionOfChar` では測らない —— Chromium は縦書きで
+ * `text-anchor: end` の漢字の名前について、始まりも終わりも基準点（r=84）と答えたが、描かれた字は縁の外へ
+ * はみ出していた（2026-10-13 の 320 の撮影の「山田」）。**描かれた箱**（`getBoundingClientRect`）の四隅の、
+ * 円盤の中心からの距離を円盤の座標（viewBox）の単位で測る。箱は画面の軸に沿うので、斜めの名前では実際の字より
+ * 外へ膨らむ（45° の名前でも縁から約 5 以内）。上限は窪み（r=97）の手前の 95 に置く。
+ *
+ * `minVerticalOutward` は「縦書きで行が外へ進む席（円盤の下半分の縦書きの席）」の下限。4 席なら縦書きの席が
+ * 上下の対で必ずでき、下の席は行が外へ進む。**はみ出しは幅 320 の漢字 2 字の名前で起きた**（1280 や
+ * かな 3 字では `end` が効いた）ので、呼ぶ側は漢字 2 字の名前で席を埋め、320 で見る。
+ */
+export async function expectWheelLabelsInsideSeats(page: Page, minVerticalOutward = 0): Promise<void> {
+  const labels = await page.evaluate(() => {
+    const svg = document.querySelector<SVGSVGElement>('svg.wheel');
+    const m = svg?.getScreenCTM();
+    if (svg === null || svg === undefined || m === null || m === undefined) return null;
+    const scale = Math.hypot(m.a, m.b);
+    return Array.from(document.querySelectorAll<SVGTextElement>('.wheel-label')).map((text) => {
+      const r = text.getBoundingClientRect();
+      const corners = [
+        [r.left, r.top],
+        [r.right, r.top],
+        [r.left, r.bottom],
+        [r.right, r.bottom],
+      ] as const;
+      const far = Math.max(...corners.map(([x, y]) => Math.hypot(x - m.e, y - m.f) / scale));
+      // 縦書きの行は下へ進むので、席（直前の <path>）が円盤の下半分にあれば行は外へ進む。名前の描かれ方
+      // （直したいもの）ではなく席の位置で決める
+      const seat = (text.previousElementSibling as Element).getBoundingClientRect();
+      return {
+        text: text.textContent ?? '',
+        vertical: text.classList.contains('wheel-label--vertical'),
+        lower: seat.top + seat.height / 2 > m.f,
+        far,
+      };
+    });
+  });
+  expect(labels, '円盤が描かれていない').not.toBeNull();
+  expect(labels!.length, '円盤の席の名前が描かれていない').toBeGreaterThan(0);
+  expect(labels!.filter((l) => l.vertical && l.lower).length, '縦書きで行が外へ進む席').toBeGreaterThanOrEqual(minVerticalOutward);
+  const outside = labels!.filter((l) => l.far > 95).map((l) => `「${l.text}」 r=${l.far.toFixed(1)}（${l.vertical ? '縦書き' : '横書き'}）`);
+  expect(outside, '席の名前が縁の外へはみ出している').toEqual([]);
+}

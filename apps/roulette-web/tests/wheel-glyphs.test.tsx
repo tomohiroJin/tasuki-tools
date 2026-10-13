@@ -92,3 +92,48 @@ describe('席の名前の字は倒れない（描かれた transform と CSS か
     },
   );
 });
+
+/**
+ * 縦書きの名前の行の外の端（中心からの距離）。描かれた `<text>` の x・y・`text-anchor` と字数から組み立てる。
+ *
+ * 縦書きは字が全部 1em（`font-size: 10px`。欧文も立てる）。**`text-anchor: end` は使ってはいけない** ——
+ * Chromium は縦書きの漢字・かなの `end` を効かせず、行が基準点から外へ伸びた（2026-10-13 の実測）。そこで
+ * `end` の縦書きは「基準点から行の向きへ伸びる」（ブラウザの実際の振る舞い）として数える。
+ */
+function verticalFarEnd(text: Element): number {
+  const x = Number(text.getAttribute('x'));
+  const y = Number(text.getAttribute('y'));
+  const len = Array.from(text.textContent ?? '').length * 10;
+  const r0 = Math.hypot(x, y);
+  // 行は半径に沿う。基準点から外へ伸びるか内へ伸びるかは、名前の rotate 後の行の向き（下）と半径の外向きの内積で決まる
+  const rotor = rotateOf(document.querySelector('.wheel-rotor'));
+  const frame = ((rotor + rotateOf(text)) * Math.PI) / 180;
+  const down = [-Math.sin(frame), Math.cos(frame)]; // 縦書きの行の向き（画面）
+  const outAngle = ((rotor * Math.PI) / 180) + Math.atan2(y, x);
+  const out = [Math.cos(outAngle), Math.sin(outAngle)];
+  const outward = down[0]! * out[0]! + down[1]! * out[1]! > 0;
+  return outward ? r0 + len : r0;
+}
+
+describe('縦書きの席の名前は縁（r=84）の外へ伸びない', () => {
+  it.each([4, 5, 8, 13, 24])('Given %i 席 / When 回転子の角度を 0〜359° で描く / Then 縦書きの行の外の端が r=84 以内', (n) => {
+    // Given
+    const props = { entries: entriesOf(n), winnerIndex: -1, drawnIds: new Set<string>(), pointerDeg: 90, spinning: false, reducedMotion: true };
+    const { rerender } = render(<Wheel {...props} angle={0} />);
+    const over: string[] = [];
+    let outwardSeen = 0;
+    for (let angle = 0; angle < 360; angle += 1) {
+      // When
+      rerender(<Wheel {...props} angle={angle + 0.5} />);
+      // Then
+      for (const text of document.querySelectorAll('.wheel-label--vertical')) {
+        const far = verticalFarEnd(text);
+        if (far > Math.hypot(Number(text.getAttribute('x')), Number(text.getAttribute('y'))) + 1e-6) outwardSeen += 1;
+        if (far > 84 + 1e-6) over.push(`angle=${angle + 0.5} 「${text.textContent}」 ${far.toFixed(1)}（anchor=${text.getAttribute('text-anchor')}）`);
+      }
+    }
+    // 物差しが空振りしていない（行が外へ進む縦書きの席が描かれる角度がある）
+    expect(outwardSeen).toBeGreaterThan(0);
+    expect(over.slice(0, 5), `はみ出し ${over.length} 件`).toEqual([]);
+  });
+});

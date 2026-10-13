@@ -14,6 +14,8 @@ const INNER_R = 21;
 const OUTER_R = 93;
 const STUD_R = 101.5;
 const LABEL_R = 84;
+/** 席の名前の 1 字の送り（`.wheel-label` の `font-size: 10px`。縦書きは欧文も立てるので全部の字が 1em） */
+const LABEL_EM = 10;
 
 interface Props {
   entries: readonly Entry[];
@@ -67,8 +69,13 @@ export function Wheel({ entries, winnerIndex, drawnIds, angle, pointerDeg, spinn
             const isWinner = i === winnerIndex;
             const isDrawn = !isWinner && drawnIds.has(entry.id);
             const mid = i * s + s / 2;
-            const [tx, ty] = polar(LABEL_R, mid);
             const place = labelPlacement(mid, angle);
+            const label = fitLabel(entry.name, n > 12 ? 4 : 5.5, place.vertical);
+            // 縦書きで行が外へ進む席は、`text-anchor: end` に頼らず行の始まりを縁から字数ぶん内に置く。
+            // Chromium は縦書きの漢字・かなの `end` を効かせず、行が縁（r=84）から外へはみ出して指し針に
+            // 掛かった（2026-10-13 の 320 の撮影の「山田」。spec §6.3）
+            const flipStart = place.vertical && place.anchor === 'end';
+            const [tx, ty] = polar(flipStart ? LABEL_R - Array.from(label).length * LABEL_EM : LABEL_R, mid);
             const modifier = `${isDrawn ? ' wheel-segment--drawn' : ''}${isWinner ? ' wheel-segment--winner' : ''}`;
             return (
               <g key={entry.id}>
@@ -80,10 +87,10 @@ export function Wheel({ entries, winnerIndex, drawnIds, angle, pointerDeg, spinn
                   className={`wheel-label${isDrawn ? ' wheel-label--drawn' : ''}${isWinner ? ' wheel-label--winner' : ''}${place.vertical ? ' wheel-label--vertical' : ''}`}
                   x={tx}
                   y={ty}
-                  textAnchor={place.anchor}
+                  textAnchor={flipStart ? 'start' : place.anchor}
                   transform={`rotate(${place.rotate} ${tx} ${ty})`}
                 >
-                  {fitLabel(entry.name, n > 12 ? 4 : 5.5, place.vertical)}
+                  {label}
                 </text>
               </g>
             );

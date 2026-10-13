@@ -19,6 +19,7 @@ import { expectFieldsAtLeast16px, expectFocusVisibleOnTab, expectReadable, pairK
 import {
   addRouletteGuest,
   expectWheelGlyphsUpright,
+  expectWheelLabelsInsideSeats,
   expectWheelLabelsReadable,
   joinRouletteTool,
   openRouletteTool,
@@ -131,26 +132,50 @@ test.describe('@core ルーレットは全員の画面で同じ人に止まる',
     const spinAndSettle = async (label: string): Promise<void> => {
       await expect(spinButton(page)).toBeEnabled();
       await spinButton(page).click();
+      //   前の回の結果の一言が残っているので、先に回し始めたことを見る（見ないと回っている最中を測る）
+      await expect(roulettePhrase(page), `${label}: 回し始める`).toHaveText(`${NAME_A} さんが回しました`);
       await expect(roulettePhrase(page), `${label}: 止まる`).toHaveText(RESULT, { timeout: SPIN_MS + 2000 });
     };
-    await spinAndSettle('4 席・1280');
+    await spinAndSettle('欧文 4 席・1280');
     await expectWheelGlyphsUpright(page, 1);
-    await spinAndSettle('4 席・1280 の 2 回目');
+    await spinAndSettle('欧文 4 席・1280 の 2 回目');
     await expectWheelGlyphsUpright(page, 1);
     //   幅 320（縦積み・指し針は下）。並びが変わると止まった角度を置き直すので、回さずにも見る
     await page.setViewportSize({ width: 320, height: 640 });
     await expect(page.locator('.roulette-stage')).toHaveAttribute('data-layout', 'stack');
     await expectWheelGlyphsUpright(page, 1);
-    await spinAndSettle('4 席・320');
+    await spinAndSettle('欧文 4 席・320');
     await expectWheelGlyphsUpright(page, 1);
     //   名前を外して 3 席
     await page.getByRole('button', { name: 'Ken の名前を消す' }).click();
     await expect(page.locator('.wheel-label')).toHaveCount(3);
-    await spinAndSettle('3 席・320');
+    await spinAndSettle('欧文 3 席・320');
     await expectWheelGlyphsUpright(page, 1);
+
+    //   漢字 2 字の名前だけで 4 席（ルームの 2 人を外し、足した名前を入れ替える）。縦書きで行が外へ進む下の席の
+    //   名前が縁の外へはみ出さない。**はみ出しは幅 320 の漢字 2 字の名前で起きた**（Chromium の `text-anchor: end`。
+    //   同じ局面でも 1280 やかな 3 字では起きなかった。2026-10-13 の実測）ので、320 から見る
+    await page.getByRole('button', { name: 'Mika の名前を消す' }).click();
+    for (const name of ['山田', '健太', '花子', '太郎']) await addRouletteGuest(page, name);
+    //   チェックはサーバーの往復で変わるので、`uncheck()`（その場で変わることを求める）ではなく押して待つ
+    for (const name of [NAME_A, NAME_B]) {
+      const box = page.getByRole('checkbox', { name: new RegExp(name) });
+      await box.click();
+      await expect(box).not.toBeChecked();
+    }
+    await expect(page.locator('.wheel-label')).toHaveCount(4);
+    await spinAndSettle('漢字 4 席・320');
+    await expectWheelGlyphsUpright(page);
+    await expectWheelLabelsInsideSeats(page, 1);
+    await spinAndSettle('漢字 4 席・320 の 2 回目');
+    await expectWheelGlyphsUpright(page);
+    await expectWheelLabelsInsideSeats(page, 1);
     await page.setViewportSize({ width: 1280, height: 720 });
     await expect(page.locator('.roulette-stage')).toHaveAttribute('data-layout', 'row');
-    await expectWheelGlyphsUpright(page, 1);
+    await expectWheelLabelsInsideSeats(page, 1);
+    await spinAndSettle('漢字 4 席・1280');
+    await expectWheelGlyphsUpright(page);
+    await expectWheelLabelsInsideSeats(page, 1);
 
     // どの画面も例外を出していない
     expect(consoleWatcher.errors).toEqual([]);
