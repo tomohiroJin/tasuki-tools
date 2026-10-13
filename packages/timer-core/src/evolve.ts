@@ -394,6 +394,7 @@ function evolveMembersShuffled(agg: Aggregate, order: number[]): Aggregate {
   const oldRotation = agg.session.rotation;
   const oldCounts = agg.session.driverCounts;
   const currentEntry = oldRotation[agg.session.currentIndex];
+  // `!`: order は decideMembersShuffle が [0..len-1] の順列だと確かめてある（添字は必ず範囲内・#364）
   const newRotation = order.map((i) => oldRotation[i]!);
   const newDriverCounts = order.map((i) => oldCounts[i] ?? 0);
   const currentId = currentEntry !== undefined ? rotationEntryId(currentEntry) : undefined;

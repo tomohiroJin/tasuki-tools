@@ -86,6 +86,7 @@ function parseRawBlocks(src: string): RawBlock[] {
     }
     const h = HEADING_RE.exec(line);
     if (h) {
+      // `!`: HEADING_RE の 2 つの組はどちらも省略できないので、一致したなら必ず値がある（#364）
       blocks.push({ kind: 'heading', level: h[1]!.length as 1 | 2 | 3, text: h[2]! });
       i++;
       continue;

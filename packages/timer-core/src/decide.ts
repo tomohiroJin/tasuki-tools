@@ -80,7 +80,7 @@ export function decide(
       return decideMembersShuffle(cmd.order, agg, now);
 
     case "config.set":
-      return decideConfigSet(cmd.config, agg, now);
+      return decideConfigSet(cmd.config, now);
 
     case "phase.set":
       return ok([{ type: "PhaseSet", phase: cmd.phase, now }]);
@@ -357,7 +357,6 @@ function decideMembersShuffle(
  */
 function decideConfigSet(
   partial: Partial<TimerConfig>,
-  _agg: Aggregate,
   now: number,
 ): Result<DomainEvent[], DomainError> {
   // 交代間隔の検証
