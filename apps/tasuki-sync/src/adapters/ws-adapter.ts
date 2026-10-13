@@ -154,6 +154,15 @@ export interface WsAdapterOptions {
   maxFrameBytes: number;
 }
 
+/**
+ * 待ち受けを起こせなかった（bind の失敗。EADDRINUSE 等）。回復できないので、受けた組み立て
+ * （`server.ts`）がプロセスを終える（#368 Task 8。以前はアダプタが自分で `process.exit(1)` していた）。
+ * 原因の例外は `cause` に持つ。ログ（`http-server-error`）はアダプタが投げる前に 1 行残す。
+ */
+export class ServerStartError extends Error {
+  override readonly name = "ServerStartError";
+}
+
 /** 入場の判定を通りうるプロトコル（`"unknown"` は受理されないので受け口を持たない）。 */
 type AcceptedProtocol = Exclude<Protocol, "unknown">;
 
@@ -275,9 +284,10 @@ export class WsAdapter {
         },
       });
     } catch (err) {
-      // 起動時の bind 失敗（EADDRINUSE 等）は回復不能。未処理例外でクラッシュさせず明示終了する。
+      // 起動時の bind 失敗（EADDRINUSE 等）は回復不能。ログを 1 行残して投げ、終えるのは組み立て
+      // （`server.ts`）に任せる（#368 Task 8）。未処理例外の経路（`uncaught`）には乗せない。
       this.options.logger.error("http-server-error", { name: classifyError(err) });
-      process.exit(1);
+      throw new ServerStartError("待ち受けを起こせませんでした", { cause: err });
     }
 
     this.heartbeat.start();

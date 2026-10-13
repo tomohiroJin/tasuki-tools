@@ -15,6 +15,7 @@ import { loadSyncConfig, DEFAULT_AI_PROBLEM_MODEL } from "./config.js";
 import { createSyncServer } from "./create-sync-server.js";
 import { createLogger } from "./application/log/logger.js";
 import { consoleLogSink } from "./adapters/console-log-sink.js";
+import { ServerStartError } from "./adapters/ws-adapter.js";
 import { publicText } from "./application/log/log-safe.js";
 import { buildListeningLogFields } from "./listening-log.js";
 
@@ -49,7 +50,16 @@ const config = (() => {
   }
 })();
 
-const server = createSyncServer(config);
+// 待ち受けを起こせなければ（bind の失敗）終える。ログはアダプタが投げる前に 1 行残している
+// （`http-server-error`）。それ以外の例外は今までどおり未処理例外の経路（`uncaught`）へ流す（#368 Task 8）。
+const server = (() => {
+  try {
+    return createSyncServer(config);
+  } catch (e) {
+    if (e instanceof ServerStartError) process.exit(1);
+    throw e;
+  }
+})();
 
 // フィールドの組み立ては listening-log.ts（副作用なしにテストするための切り出し）。
 // **渡すのは実際に bind したポート**（`config.port` は PORT=0 のとき 0 のまま）。
