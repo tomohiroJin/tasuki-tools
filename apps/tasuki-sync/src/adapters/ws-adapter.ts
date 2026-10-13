@@ -30,7 +30,6 @@ import type { HubServerMsg } from "@tasuki/room-core";
 import { classifyErrorKind } from "@tasuki/rate-limit";
 import type { Logger } from "../application/log/logger.js";
 import { publicText, type LogSafe } from "../application/log/log-safe.js";
-import { CONN_REJECT_REASONS } from "../application/log/vocabulary.js";
 // 接続層が自分で返す文言の正本（#362）。**コードごとに 1 つだけ**にする（SC-035）。
 // poker はコード体系が違う（`message-too-large`）が、上限超えはこの接続層が同じ判定で返すので、
 // 文は同じ正本から取る。
@@ -40,49 +39,11 @@ import {
   boundaryErrorCode,
 } from "../application/connection-errors.js";
 import { deriveClientKeySafely } from "./client-key-safety.js";
+import { admit, protocolFromRequestUrl } from "./ws/connection-gate.js";
 import { respondToPlainHttp, type HttpHandler } from "./ws/http-fallback.js";
 import type { PokerHandlers } from "../application/poker-handlers.js";
-import { TOOL_POKER, TOOL_ROULETTE, TOOL_TIMER, TOOL_TOPIC } from "../application/tool-id.js";
 import type { RouletteOwnFrame, RouletteServerMsg } from "../ports/roulette-server-msg.js";
 import type { TopicOwnFrame, TopicServerMsg } from "../ports/topic-server-msg.js";
-
-/**
- * 接続 URL が宣言するツール。**許可リストで判定する**（#95 S5c）。
- *
- * **入口は `/ws` の 1 本だけなので、経路ではツールを決められない**（S5b までは
- * パス自体が宣言だった。`/poker/ws` は poker、`/ws` はハブ、それ以外は timer）。
- * **wire には載せられない** —— メッセージ層はパーサ自体が別（`CommandSchema` /
- * `parseClientMessage` / `parseBoundaryMessage`）で、最初のフレームを読む前に
- * 層を決める必要があるためである。
- *
- * **許可リストに無い値は `"unknown"` にして接続を拒否する。** timer へもハブへも落とさない ——
- * 落とすと、綴りを間違えたクライアントが「繋がるのにコマンドが通らない」という
- * 静かな壊れ方をする（S5a の rewrite で実際に起きた型）。
- *
- * **綴りは `application/tool-id.ts` から取る**（#95 S5c・A-I1）。S5b までここが照合して
- * いたのは `/poker/ws` という**別の語彙**（経路）だったが、S5c でクエリへ移り、
- * `TOOL_TIMER` / `TOOL_POKER` と**同じ語彙**になった。しかも `TOOL_TIMER` は
- * `roster.tools`（`packages/room-core/src/wire.ts`）として wire にも載る。
- * リテラルを自前で持つと、次に綴りを変える人がここを取り残し、
- * **wire 互換を壊したことに気づけない**。
- *
- * **戻り値の型はリテラルのまま据え置く。** これは接続層の 5 値の選択子で、
- * ツール識別子はそのうち 3 つと一致しているだけである（`"hub"` / `"unknown"` に
- * 対応するツールは無い）。`typeof TOOL_TIMER` にして追従させると、綴りを変えたときに
- * 黙って通る —— リテラルで受けておくと**この関数で型検査が落ちる**ので、
- * `ConnectionData.protocol` と wire の両方を見直す機会になる。
- */
-const TOOL_QUERY_KEY = "tool";
-
-function protocolFromRequestUrl(url: URL): "timer" | "poker" | "topic" | "roulette" | "hub" | "unknown" {
-  const declared = url.searchParams.get(TOOL_QUERY_KEY);
-  if (declared === null) return "hub";
-  if (declared === TOOL_TIMER) return TOOL_TIMER;
-  if (declared === TOOL_POKER) return TOOL_POKER;
-  if (declared === TOOL_TOPIC) return TOOL_TOPIC;
-  if (declared === TOOL_ROULETTE) return TOOL_ROULETTE;
-  return "unknown";
-}
 
 /**
  * `catch (err)` で受けた `err` から、ログへ出してよい「例外の分類」を取り出す（I-1）。
@@ -546,42 +507,13 @@ export class WsAdapter {
   }
 
   private handleOpen(ws: Socket): void {
-    // 宣言されたツールが許可リストに無い。受け入れると「繋がるのにコマンドが通らない」
-    // 静かな壊れ方になるので、理由つきで閉じる。
-    if (ws.data.protocol === "unknown") {
-      // 列挙値だけを出す（P-2）。`?tool=` の値そのものは利用者由来なので載せない（ADR 0012 D3）。
-      this.options.logger.warn("conn-rejected", { reason: CONN_REJECT_REASONS.tool });
-      ws.close(1008, "Unknown tool");
-      return;
-    }
-
-    // クライアント鍵の検査は Origin より前に置く。**どちらも 1008 なので、
-    // 後ろに置くと「直結が拒否される」ことを確かめるテストが Origin 拒否を
-    // 見ているだけ、という空振りになる。**
-    if (this.options.requireClientAddress === true && ws.data.clientKey === null) {
-      // 列挙値だけを出す（P-2）。生の IP・相関キーは載せない（ADR 0012 D3）。
-      this.options.logger.warn("conn-rejected", { reason: CONN_REJECT_REASONS.clientAddress });
-      ws.close(1008, "Client address required");
-      return;
-    }
-
-    // Origin 検証（S2）
-    if (
-      this.options.allowedOrigins.length > 0 &&
-      !this.options.allowedOrigins.includes(ws.data.origin)
-    ) {
-      // 列挙値だけを出す（P-2）。Origin の値そのものは載せない（ADR 0012 D3）。
-      this.options.logger.warn("conn-rejected", { reason: CONN_REJECT_REASONS.origin });
-      ws.close(1008, "Origin not allowed");
-      return;
-    }
-
-    // 同時接続数の上限（DoS 緩和）。超過は 1013（Try Again Later）で閉じる。
-    if (
-      this.options.maxConnections !== undefined &&
-      this.connections.size >= this.options.maxConnections
-    ) {
-      ws.close(1013, "Server connection limit reached");
+    // 判定は入場の門（`ws/connection-gate.ts`）が持つ。ここは実行するだけ（#368 Task 4）。
+    const admission = admit(ws.data, this.options, this.connections.size);
+    if (admission.kind === "reject") {
+      if (admission.logReason !== null) {
+        this.options.logger.warn("conn-rejected", { reason: admission.logReason });
+      }
+      ws.close(admission.code, admission.reason);
       return;
     }
 
