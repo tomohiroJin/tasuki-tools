@@ -78,6 +78,7 @@ import type { RoundStore } from '../ports/poker-round-store.js';
 import { TOOL_POKER } from './tool-id.js';
 import { createCommitRoomAction, createDispatch } from './poker-commit-room-action.js';
 import { createRateLimitGate } from './poker-rate-limit-gate.js';
+import { POKER_ERROR_TEXT } from './poker-error-text.js';
 
 /**
  * ハンドラが接続に求めるものすべて。
@@ -473,7 +474,7 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
     // ならない理由もそこにある）。
     const rateLimit = rateLimitGate.begin(ws.data.rateKey);
     if (rateLimit.rejected) {
-      sendError(ws, 'rate-limited', '試行が多すぎます。しばらくしてからお試しください');
+      sendError(ws, 'rate-limited', POKER_ERROR_TEXT.RATE_LIMITED);
       return;
     }
 
@@ -488,7 +489,7 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
     // 通す。分けて書くと、いつか片方だけが変わって列挙の手がかりになる（ADR 0011）。
     if (!state || !mayEnter(state.room, msg.roomId, msg.token)) {
       rateLimit.consumeOnMiss();
-      sendError(ws, 'room-not-found', 'ルームが見つかりません');
+      sendError(ws, 'room-not-found', POKER_ERROR_TEXT.ROOM_NOT_FOUND);
       return;
     }
 
@@ -599,7 +600,7 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
     // join と同じ順序（照会より前に判定）。ゲートが順序を持つ。
     const rateLimit = rateLimitGate.begin(ws.data.rateKey);
     if (rateLimit.rejected) {
-      sendError(ws, 'rate-limited', '試行が多すぎます。しばらくしてからお試しください');
+      sendError(ws, 'rate-limited', POKER_ERROR_TEXT.RATE_LIMITED);
       return;
     }
 
@@ -615,7 +616,7 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
     const room = store.get(msg.roomId);
     if (!room || !mayEnter(room, msg.roomId, undefined)) {
       rateLimit.consumeOnMiss();
-      sendError(ws, 'room-not-found', 'ルームが見つかりません');
+      sendError(ws, 'room-not-found', POKER_ERROR_TEXT.ROOM_NOT_FOUND);
     }
   }
 

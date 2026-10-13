@@ -9,7 +9,7 @@
  *    決まりをコメントでなくテストで守る（#360 設計正本 §2）
  * 2. **NOT_IN_ROOM の文が 3 つの core でそろう。** 同期サーバーは各 core の表から引いて送る
  * 3. **同期サーバーの中に写しが残っていない。** 正本の文の文字列リテラルが、正本の外の
- *    `src/**\/*.ts` に 0 件である
+ *    `src/**\/*.ts` に 0 件である。poker の正本（`poker-error-text.ts`・別の契約）も同じ形で見る
  *
  * 置き場を同期サーバーにするのは、ここが全部の core に依存してよい唯一の場所だから。
  */
@@ -25,10 +25,18 @@ import {
   TIMER_INTERNAL_ERROR_TEXT,
   type ConnectionErrorCode,
 } from "../src/application/connection-errors.js";
+import { POKER_ERROR_TEXT } from "../src/application/poker-error-text.js";
 
 const CODES = Object.keys(CONNECTION_ERROR_TEXT) as ConnectionErrorCode[];
 const SRC_DIR = join(import.meta.dir, "..", "src");
-const CANONICAL = "application/connection-errors.ts";
+/** 正本のファイルと、そこにだけ文字列リテラルとして置いてよい文。 */
+const CANONICALS = [
+  {
+    file: "application/connection-errors.ts",
+    texts: [...Object.values(CONNECTION_ERROR_TEXT), TIMER_INTERNAL_ERROR_TEXT],
+  },
+  { file: "application/poker-error-text.ts", texts: Object.values(POKER_ERROR_TEXT) },
+];
 
 describe("core の写しが正本と一致する", () => {
   for (const code of CODES) {
@@ -61,18 +69,19 @@ describe("同期サーバーの中に写しが残っていない", () => {
     // 走査量は成否によらず出す。0 件なら検査が空振りしている（ADR-0014 決定 6・8）
     console.log(`[connection-error-text-sources] 走査対象: ${files.length} ファイル`);
     expect(files.length).toBeGreaterThan(0);
-    expect(files).toContain(CANONICAL);
-    const texts = [...Object.values(CONNECTION_ERROR_TEXT), TIMER_INTERNAL_ERROR_TEXT];
+    for (const { file } of CANONICALS) expect(files).toContain(file);
 
     // When
     const copies: string[] = [];
-    for (const rel of files) {
-      if (rel === CANONICAL) continue;
-      const source = readFileSync(join(SRC_DIR, rel), "utf8");
-      for (const text of texts) {
-        for (const quote of [`"`, `'`, "`"]) {
-          if (source.includes(`${quote}${text}${quote}`)) {
-            copies.push(`${relative(join(SRC_DIR, ".."), join(SRC_DIR, rel))}: ${quote}${text}${quote}`);
+    for (const { file, texts } of CANONICALS) {
+      for (const rel of files) {
+        if (rel === file) continue;
+        const source = readFileSync(join(SRC_DIR, rel), "utf8");
+        for (const text of texts) {
+          for (const quote of [`"`, `'`, "`"]) {
+            if (source.includes(`${quote}${text}${quote}`)) {
+              copies.push(`${relative(join(SRC_DIR, ".."), join(SRC_DIR, rel))}: ${quote}${text}${quote}`);
+            }
           }
         }
       }

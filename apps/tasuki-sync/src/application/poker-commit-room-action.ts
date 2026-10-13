@@ -19,6 +19,7 @@ import type {
 } from '@tasuki/poker-core';
 import type { Result } from 'neverthrow';
 import type { HandlerConnection, RoomState } from './poker-handlers.js';
+import { POKER_ERROR_TEXT } from './poker-error-text.js';
 
 /** ドメイン操作 1 つ。ラウンドと実行者から次のラウンドを返す（失敗は `RoundError`）。 */
 export type RoomAction = (round: Round, participantId: string) => Result<Round, RoundError>;
@@ -77,7 +78,7 @@ export function createCommitRoomAction({
       //
       // #171 の根治側（`handleJoinRoom` の冪等化）を入れたあと、この分岐へ至る
       // 経路は分かっている限り無い。無応答という最悪の症状を残さないための備えである。
-      sendError(ws, 'room-not-found', 'ルームが見つかりません');
+      sendError(ws, 'room-not-found', POKER_ERROR_TEXT.ROOM_NOT_FOUND);
       return;
     }
     const result = action(state.round, participantId);
