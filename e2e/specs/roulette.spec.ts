@@ -81,6 +81,21 @@ test.describe('@core ルーレットは全員の画面で同じ人に止まる',
       await expect(spinButton(page)).toBeEnabled();
       await spinButton(page).click();
 
+      // その0: 2 回目は A が回っている最中に再読み込みする（回転中にマウントした画面・PR #383 のレビュー）。
+      //   舞台の並びは凍っていても最初に測った幅で決まる。幅 1280 なら回っている間も横並びで指し針は右（90°）。
+      //   測る前の既定値（縦積み）のまま凍ると、止まった瞬間に横並びへ跳んで円盤が 90° 回った
+      if (round === 2) {
+        await page.reload();
+        const mounted = await page.locator('.roulette-stage').evaluate((stage) => ({
+          layout: stage.getAttribute('data-layout'),
+          pointer: stage.querySelector('.wheel-pointer')?.parentElement?.getAttribute('transform') ?? '',
+          phrase: stage.querySelector('[role="status"]')?.textContent ?? '',
+        }));
+        expect(mounted.phrase, '再読み込みの後もまだ回っている（回転中にマウントした局面を測る）').toBe(`${NAME_A} さんが回しました`);
+        expect(mounted.layout, '回転中にマウントした舞台の並び').toBe('row');
+        expect(mounted.pointer, '回転中にマウントした舞台の指し針').toBe('rotate(-90)');
+      }
+
       // その1: B は動きを減らす設定なので、回転を待たず 1 秒以内に結果が出る
       await expect(roulettePhrase(peer.page), `${round} 回目: B の一言`).toHaveText(RESULT, { timeout: 1000 });
       const winnerOnB = RESULT.exec((await roulettePhrase(peer.page).textContent()) ?? '')?.[1];
@@ -95,6 +110,10 @@ test.describe('@core ルーレットは全員の画面で同じ人に止まる',
       const winnerOnA = RESULT.exec((await roulettePhrase(page).textContent()) ?? '')?.[1];
       expect(winnerOnA, `${round} 回目: A と B で同じ人`).toBe(winnerOnB);
       winners.push(winnerOnA ?? '');
+      if (round === 2) {
+        //   止まった後も横並びのまま（止まった瞬間に並びが跳ばない）
+        await expect(page.locator('.roulette-stage')).toHaveAttribute('data-layout', 'row');
+      }
     }
 
     // Then: 入る人は A と B の 2 人。一周の規則で、当たりは交互（X → Y → X）
@@ -150,8 +169,11 @@ test.describe('@core ルーレットは全員の画面で同じ人に止まる',
     await expectWheelGlyphsUpright(page, 1);
     //   名前を外して 3 席
     for (const name of ['Ken', 'Lee', 'Ann']) await page.getByRole('button', { name: `${name} の名前を消す` }).click();
-    await expect(page.locator('.wheel-label')).toHaveCount(3);
+    await expect(page.getByRole('checkbox')).toHaveCount(3);
+    //   止まった後の円盤は、次に回すまで回したときの並びを描く（針と札が同じ人を指す・spec §6.3）。3 席になるのは回してから
+    await expect(page.locator('.wheel-label')).toHaveCount(6);
     await spinAndSettle('欧文 3 席・320');
+    await expect(page.locator('.wheel-label')).toHaveCount(3);
     await expectWheelGlyphsUpright(page, 1);
 
     //   漢字 2 字の名前だけで 6 席（ルームの 2 人を外し、足した名前を入れ替える）。幅 320 では当たりの席が真下に
@@ -165,9 +187,9 @@ test.describe('@core ルーレットは全員の画面で同じ人に止まる',
       await box.click();
       await expect(box).not.toBeChecked();
     }
-    await expect(page.locator('.wheel-label')).toHaveCount(6);
     for (const round of ['', ' の 2 回目']) {
       await spinAndSettle(`漢字 6 席・320${round}`);
+      await expect(page.locator('.wheel-label')).toHaveCount(6);
       await expectWheelGlyphsUpright(page);
       await expectWheelLabelsInsideSeats(page, 1);
       await expectWheelLabelsUseWebFonts(page);
