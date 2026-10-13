@@ -5,11 +5,10 @@
  * 差し込むだけでよく、標準出力を横取りする必要がない。
  */
 import type { LogField } from "./log-safe.js";
+import type { LogSink } from "../../ports/log-sink.js";
 
-export type LogLevel = "info" | "warn" | "error";
-
-/** 実際の書き出し先。本番は `consoleLogSink`、テストは配列へ貯める関数。 */
-export type LogSink = (level: LogLevel, line: string) => void;
+// 書き出し先の型はポート（`ports/log-sink.ts`）に置く（#367）。整形を受ける側の型として、ここからも出す。
+export type { LogLevel, LogSink } from "../../ports/log-sink.js";
 
 export interface Logger {
   info(event: string, fields?: Record<string, LogField>): void;
