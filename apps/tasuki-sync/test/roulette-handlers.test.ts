@@ -8,7 +8,7 @@
 import { afterEach, describe, expect, it, spyOn } from "bun:test";
 import { createTokenBucketLimiter, DEFAULT_CAPACITY, DEFAULT_REFILL_PER_SEC } from "@tasuki/rate-limit";
 import { MAX_DISPLAY_NAME } from "@tasuki/room-core";
-import { SPIN_DURATION_MS, type RouletteView } from "@tasuki/roulette-core";
+import type { RouletteView } from "@tasuki/roulette-core";
 import { makeRouletteHandlers } from "../src/application/roulette-handlers.js";
 import { makeRouletteBroadcaster } from "../src/application/roulette-broadcast.js";
 import { createRateLimitGate } from "../src/application/rate-limit-gate.js";
@@ -203,9 +203,9 @@ describe("回す", () => {
     await joined(h, "r-1", "Alice");
     await joined(h, "r-2", "Bob");
 
-    // When
+    // When: 1 回目の回転の長さ（wire で届いた durationMs）だけ待ってから回す
     await h.handle("r-1", { command: "roulette.spin" });
-    h.advance(SPIN_DURATION_MS);
+    h.advance(viewsTo(h, "r-1")[0]!.spin!.durationMs);
     await h.handle("r-1", { command: "roulette.spin" });
 
     // Then
@@ -262,8 +262,9 @@ describe("回す", () => {
     await joined(h, "r-1", "Alice");
     await joined(h, "r-2", "Bob");
     await h.handle("r-1", { command: "roulette.spin" });
+    const durationMs = viewsTo(h, "r-1")[0]!.spin!.durationMs;
     h.sent.length = 0;
-    h.advance(SPIN_DURATION_MS - 1);
+    h.advance(durationMs - 1);
 
     // When
     await h.handle("r-2", { command: "roulette.spin" });
@@ -322,7 +323,8 @@ describe("回す", () => {
 
     // Then: 回した直後の 0 ではなく、送る時点の経過
     expect(viewsTo(h, "r-3")[0]!.spin!.elapsedMs).toBe(2000);
-    expect(viewsTo(h, "r-3")[0]!.spin!.durationMs).toBe(SPIN_DURATION_MS);
+    // 回転の長さは、回した画面へ届いたものと同じ（定数との一致は roulette-core の roulette.test.ts が固定する）
+    expect(viewsTo(h, "r-3")[0]!.spin!.durationMs).toBe(viewsTo(h, "r-1")[0]!.spin!.durationMs);
   });
 
   it("ルーレットとして在席していない接続（ハブとして在席）の roulette.spin は NOT_IN_ROOM", async () => {

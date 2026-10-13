@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { MAX_GUESTS, MAX_WHEEL, SPIN_DURATION_MS } from "../src/limits.js";
 import {
   INITIAL_ROULETTE_STATE,
-  MAX_GUESTS,
-  MAX_WHEEL,
-  SPIN_DURATION_MS,
   addGuest,
   prune,
   removeGuest,

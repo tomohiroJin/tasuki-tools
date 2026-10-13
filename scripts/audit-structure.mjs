@@ -221,6 +221,24 @@ export const SC039C_EXCEPTIONS = [
     reason:
       "掃除しきい値の上限の正本（#103 設計正本 D4）。createTokenBucketLimiter の入力検証と例外文言が参照しており、テストは境界値（上限ちょうど・上限＋1）をこの記号から作る。落とすと 1_000_000 が検査側へ複製される",
   },
+  {
+    file: "packages/topic-core/src/schemas.ts",
+    name: "TopicSchema",
+    reason:
+      "型のテスト（packages/topic-core/tests/wire-types.test.ts・#363）の土台。手書きの型 Topic とスキーマの出力が双方向に等しいことを型検査で見ている。落とすとスキーマ側の型を取れず、片側だけを変えたときに型検査が落ちなくなる。公開面（index.ts）からは #365 で外した",
+  },
+  {
+    file: "packages/topic-core/src/schemas.ts",
+    name: "TopicStateSchema",
+    reason:
+      "TopicSchema と同じ（手書きの型 TopicState とスキーマの出力の一致を見る型のテストの土台）。公開面（index.ts）からは #365 で外した",
+  },
+  {
+    file: "packages/topic-core/src/schemas.ts",
+    name: "TOPIC_ERROR_CODES",
+    reason:
+      "エラーコードの権威列挙。apps/topic-web/tests/copy-fits-font-base.test.ts（文言が書体に収まるか）と packages/topic-core/tests/error-messages.test.ts（文言表の網羅）が全コードを回す起点にしている。落とすとコード表がテストへ複製され、列挙の追加を検知できなくなる（ERROR_CODES・SYNC_ERROR_CODES と同型）",
+  },
 ];
 
 /**

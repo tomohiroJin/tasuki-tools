@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
-  DIFFICULTIES, LANGUAGES, MAX_TOPIC_BODY, MAX_TOPIC_TITLE, TOPIC_BANK, pickTopicFallback,
+  DIFFICULTIES, LANGUAGES, MAX_TOPIC_BODY, MAX_TOPIC_TITLE, pickTopicFallback,
   type Difficulty, type Language,
 } from "../src/index.js";
+import { TOPIC_BANK } from "../src/topic-bank.js";
 
 /**
  * @requirements #91(定型バンクの健全性。spec §10)

@@ -77,7 +77,7 @@ export const TOPIC_ERROR_CODES = [
   // 文言は同期サーバーの正本(connection-errors.ts)と同じにする(error-messages.ts・#362)。
   "INTERNAL_ERROR",
 ] as const;
-export const TopicErrorCodeSchema = v.picklist(TOPIC_ERROR_CODES);
+const TopicErrorCodeSchema = v.picklist(TOPIC_ERROR_CODES);
 export type TopicErrorCode = (typeof TOPIC_ERROR_CODES)[number];
 
 export const TopicErrorFrameSchema = v.object({

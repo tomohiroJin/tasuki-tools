@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MAX_GUESTS, MAX_WHEEL, SETTLE_MAX, SETTLE_MIN, SPIN_DURATION_MS } from "../src/index.js";
+import { MAX_GUESTS, MAX_WHEEL, SETTLE_MAX, SETTLE_MIN, SPIN_DURATION_MS } from "../src/limits.js";
 
 /**
  * @requirements #94 spec §5.1（定数）
