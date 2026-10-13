@@ -27,6 +27,8 @@ import type { RateLimiter } from "@tasuki/rate-limit";
 import type { WallClock } from "../ports/wall-clock.js";
 import type { Broadcaster } from "../ports/broadcaster.js";
 import type { RoomStore } from "../ports/room-store.js";
+import type { MonotonicClock } from "../ports/monotonic-clock.js";
+import type { RandomSource } from "../ports/random-source.js";
 import type { TimerStore } from "../ports/timer-store.js";
 import type { RoomCodeGen } from "../ports/code-gen.js";
 import type { Scheduler } from "./schedule.js";
@@ -89,6 +91,10 @@ export type RoomScopedCommand = Exclude<Command, PreRoomCommand>;
 export interface HandlerDeps {
   /** 名簿（`@tasuki/room-core` の `Room`）の保管。 */
   store: RoomStore;
+  /** レート制限の時刻を読む単調時計（#367。参加の判定へ渡す） */
+  monotonicClock: MonotonicClock;
+  /** `member.shuffle` の順列を作る乱数（#367） */
+  random: Pick<RandomSource, "randomInt">;
   /** timer の状態（`TimerState`）の保管。名簿とは `code` で対になる（#95 S4a）。 */
   timers: TimerStore;
   clock: WallClock;
@@ -389,6 +395,7 @@ export function makeHandlers(deps: HandlerDeps) {
     codeGen,
     tokenStore,
     rateLimitGate,
+    monotonicClock: deps.monotonicClock,
     sendError,
     topicBroadcaster,
   });
@@ -427,7 +434,7 @@ export function makeHandlers(deps: HandlerDeps) {
       return handleRoomPassphraseSet(connId, { state, actor: participant }, cmd);
     }
 
-    const draft = toDomainCommand(cmd, state.timer);
+    const draft = toDomainCommand(cmd, state.timer, deps.random.randomInt);
     if (!draft) {
       sendError(connId, "UNKNOWN_COMMAND", `不明なコマンド: ${cmd.command}`);
       return err("UNKNOWN_COMMAND");
@@ -578,11 +585,15 @@ export function makeHandlers(deps: HandlerDeps) {
  * member.shuffle は順列をサーバーが生成する（wire は order を持たない）。
  * 稼働中は現ドライバー位置を固定し、それ以外をシャッフルする（現ドライバー現役維持）。
  */
-function toDomainCommand(cmd: RoomScopedCommand, timer: TimerState): DomainCommandDraft | null {
+function toDomainCommand(
+  cmd: RoomScopedCommand,
+  timer: TimerState,
+  randomInt: (n: number) => number,
+): DomainCommandDraft | null {
   if (cmd.command !== "member.shuffle") return buildDomainCommand(cmd);
   return {
     command: "member.shuffle",
-    order: buildShuffleOrder(timer.session.rotation.length, timer.clock.running, timer.session.currentIndex),
+    order: buildShuffleOrder(timer.session.rotation.length, timer.clock.running, timer.session.currentIndex, randomInt),
   };
 }
 

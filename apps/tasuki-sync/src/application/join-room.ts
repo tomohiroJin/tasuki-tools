@@ -38,6 +38,7 @@ import type { TimerStore } from "../ports/timer-store.js";
 import type { RoomCodeGen } from "../ports/code-gen.js";
 import type { TokenStore } from "./token-store.js";
 import type { RateLimitGate } from "./rate-limit-gate.js";
+import type { MonotonicClock } from "../ports/monotonic-clock.js";
 import { createInitialTimerState } from "./initial-timer-state.js";
 import { checkPassphrase, findResumableParticipant } from "./room-entry.js";
 import { TOOL_TIMER } from "./tool-id.js";
@@ -68,6 +69,8 @@ export interface JoinRoomDeps {
   codeGen: RoomCodeGen;
   tokenStore: TokenStore;
   rateLimitGate: RateLimitGate;
+  /** レート制限の時刻を読む単調時計（#367。以前は大域の単調時計を直接読んでいた） */
+  monotonicClock: MonotonicClock;
 }
 
 export interface JoinRoomInput {
@@ -104,13 +107,13 @@ export function joinRoom(
   deps: JoinRoomDeps,
   input: JoinRoomInput,
 ): Result<JoinRoomOutcome, ErrorCode> {
-  const { store, timers, clock, codeGen, tokenStore, rateLimitGate } = deps;
+  const { store, timers, clock, codeGen, tokenStore, rateLimitGate, monotonicClock } = deps;
 
   // ルームの会計（joinedAt）に使う壁時計。**レート制限には渡さない**（設計正本 D8）。
   const now = clock.now();
   // レート制限に渡す単調時計。壁時計とは別系統で、NTP のステップ調整・起動時の
   // 時計補正の影響を受けない。`now` と取り違えないこと。
-  const rateNow = performance.now();
+  const rateNow = monotonicClock.now();
 
   // **ルームを照会する前に判定する。** 照会してから判定すると、残量が無いときに
   // ROOM_NOT_FOUND が返り、攻撃者はトークンを消費せずに存在確認を続けられる（設計正本 D3）。

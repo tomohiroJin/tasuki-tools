@@ -119,6 +119,10 @@ export function createSyncServer(config: SyncConfig): SyncServer {
    */
   const roulettes = new InMemoryRouletteStore();
   const clock = new SystemWallClock();
+  // レート制限の時刻（timer・ハブ・お題の入口）を読む単調時計と、member.shuffle の乱数（#367。以前は
+  // アプリケーション層が大域の時計・乱数を直接読んでいた）。
+  const monotonicClock = createPerformanceClock();
+  const random = createCryptoRandomSource();
   /**
    * 復帰トークンとパスフレーズの保管。**timer と poker で 1 個を共有する**（#95 S4a）。
    *
@@ -297,6 +301,8 @@ export function createSyncServer(config: SyncConfig): SyncServer {
 
   const handlers = makeHandlers({
     store,
+    monotonicClock,
+    random,
     timers,
     tokens,
     hub: hubBroadcaster,
@@ -350,6 +356,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
   // wsAdapter 生成（クロージャ定義）より前に reclaimer を宣言する（TDZ 回避）。
   const reclaimer = new RoomReclaimer({
     store,
+    clock,
     idleTtlMs: config.roomIdleTtlMs,
     onReclaim: (code, idleMs) => {
       // 後始末は共通の破棄経路へ委ねる（二重に並べるとずれる）。
@@ -395,6 +402,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
    */
   const hubHandlers = makeHubHandlers({
     store,
+    monotonicClock,
     timers,
     clock,
     codeGen,
@@ -418,6 +426,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
    */
   const topicHandlers = makeTopicHandlers({
     store,
+    monotonicClock,
     timers,
     clock,
     codeGen,

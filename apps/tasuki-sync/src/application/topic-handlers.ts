@@ -130,12 +130,12 @@ export function makeTopicHandlers(deps: TopicHandlerDeps): TopicHandlers {
    * - 前後の空白は落としてから比べ、空の入力は照合せず不一致とする
    * - **失敗だけを積算する**（成功を積算すると、正しい合言葉を知る人の操作で枠が減る）。
    *   判定と積算を 1 つの分岐にまとめておくのは、この「失敗のときだけ」を崩さないため
-   * - 時刻は単調時計（`performance.now()`・設計正本 D8）。ルームの会計の壁時計を渡してはいけない
+   * - 時刻は単調時計（`MonotonicClock`・設計正本 D8）。ルームの会計の壁時計を渡してはいけない
    * - **存在を秘匿する**: 合言葉が未設定（AI 無効）でも、不一致と同じ `AI_UNLOCK_FAILED` を返す。
    *   区別できると、サーバーが AI を持っているかどうかを外から探れる
    */
   function handleAiUnlock(connId: string, roomCode: string, key: string): void {
-    const rateNow = performance.now();
+    const rateNow = deps.monotonicClock.now();
     if (rateLimitGate.shouldReject(connId, rateNow)) {
       fail(connId, "RATE_LIMITED");
       return;

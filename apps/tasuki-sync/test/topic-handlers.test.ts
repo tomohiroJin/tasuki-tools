@@ -31,6 +31,7 @@ import type { TopicServerMsg } from "../src/ports/topic-server-msg.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
 import { spyHub } from "./support/hub.js";
 import { TEST_MAX_ROOMS } from "./support/room-builder.js";
+import { testMonotonicClock } from "./support/test-clocks.js";
 
 const ROOM = "ROOM-A";
 const OTHER_ROOM = "ROOM-B";
@@ -98,6 +99,7 @@ function setup(opts: { aiUnlockKey?: string; rateLimiter?: RateLimiter } = {}): 
   };
   const real = makeTopicBroadcaster({ store, topics, send: record });
   const handlers = makeTopicHandlers({
+    monotonicClock: testMonotonicClock,
     store,
     timers,
     clock: new FakeClock(1_000_000),
@@ -669,6 +671,7 @@ describe("玄関（ハブ）で入ったときのお題", () => {
     const sent: Sent[] = [];
     const hub = spyHub();
     const handlers = makeHubHandlers({
+      monotonicClock: testMonotonicClock,
       store,
       timers: new InMemoryTimerStore(),
       clock: new FakeClock(1_000_000),

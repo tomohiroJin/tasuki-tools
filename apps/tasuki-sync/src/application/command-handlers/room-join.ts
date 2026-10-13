@@ -12,6 +12,7 @@ import { ok, err, type Result } from "neverthrow";
 import type { Command, ErrorCode } from "@tasuki/timer-core";
 import type { WallClock } from "../../ports/wall-clock.js";
 import type { Broadcaster } from "../../ports/broadcaster.js";
+import type { MonotonicClock } from "../../ports/monotonic-clock.js";
 import type { RoomStore } from "../../ports/room-store.js";
 import type { TimerStore } from "../../ports/timer-store.js";
 import type { RoomCodeGen } from "../../ports/code-gen.js";
@@ -41,6 +42,8 @@ export interface RoomJoinDeps {
   tokenStore: TokenStore;
   /** 入室と合言葉の照合を行う入口が共有するゲート（`handlers.ts` が組む）。 */
   rateLimitGate: RateLimitGate;
+  /** レート制限の時刻を読む単調時計（#367） */
+  monotonicClock: MonotonicClock;
   sendError: (connId: string, code: ErrorCode, message: string) => void;
   /**
    * いまのお題を参加・復帰した本人へ 1 通送る（#91・E4）。

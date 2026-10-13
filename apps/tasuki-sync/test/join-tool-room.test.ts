@@ -21,6 +21,7 @@ import { createTokenStore } from "../src/application/token-store.js";
 import { TOOL_TOPIC } from "../src/application/tool-id.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
 import { spyHub } from "./support/hub.js";
+import { testMonotonicClock } from "./support/test-clocks.js";
 
 const ROOM = "ROOM-A";
 
@@ -30,6 +31,7 @@ function setup() {
   const hub = spyHub();
   const deps = {
     store,
+    monotonicClock: testMonotonicClock,
     timers: new InMemoryTimerStore(),
     clock: new FakeClock(1_000_000),
     codeGen: new FakeCodeGen(),

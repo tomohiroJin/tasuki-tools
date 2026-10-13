@@ -15,7 +15,7 @@
  *
  * ゲストの名前・表示名は利用者の入力である（`docs/adr/0012`・spec R13）。このファイルはそれらをログに書かない。
  * 書くのは、乱数源の契約違反（`INVALID_RANDOM`）を知らせる固定の語彙の 1 行だけである（#364。下の `roulette.spin`）。
- * 時計は**単調時計**（`performance.now()` 系）。壁時計は NTP の調整で戻りうる。
+ * 時計は**単調時計**（`MonotonicClock`）。壁時計は NTP の調整で戻りうる。
  */
 import * as v from "valibot";
 import {
