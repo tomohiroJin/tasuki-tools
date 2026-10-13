@@ -19,32 +19,34 @@
 # （timer 自身の ai.unlock コマンドの形が TopicCommandSchema の ai.unlock 分岐と
 # 一致するため、そちらへ奪われる）。ここでは #91 の契約に沿う最小のテストのみを登録する。
 diff --git a/apps/tasuki-sync/src/adapters/ws-adapter.ts b/apps/tasuki-sync/src/adapters/ws-adapter.ts
-index 899df6a..1244f0f 100644
+index 174bd61..1029e75 100644
 --- a/apps/tasuki-sync/src/adapters/ws-adapter.ts
 +++ b/apps/tasuki-sync/src/adapters/ws-adapter.ts
-@@ -45,6 +45,8 @@ import type { PokerHandlers } from "../application/poker-handlers.js";
- import { TOOL_POKER, TOOL_ROULETTE, TOOL_TIMER, TOOL_TOPIC } from "../application/tool-id.js";
+@@ -64,6 +64,8 @@ import {
+ import { sendIfOpen, sendToEach } from "./ws/ws-send.js";
  import type { RouletteOwnFrame, RouletteServerMsg } from "../ports/roulette-server-msg.js";
  import type { TopicOwnFrame, TopicServerMsg } from "../ports/topic-server-msg.js";
 +import * as v from "valibot";
 +import { TopicCommandSchema } from "@tasuki/topic-core";
  
- /**
-  * 接続 URL が宣言するツール。**許可リストで判定する**（#95 S5c）。
-@@ -708,6 +710,16 @@ export class WsAdapter {
-       return;
-     }
+ export type { PokerMessageHandlers } from "./ws/tool-channel.js";
  
-+    try {
-+      const maybeJson: unknown = JSON.parse(raw.toString());
-+      if (v.is(TopicCommandSchema, maybeJson)) {
-+        void this.options.onTopicMessage(connId, raw.toString());
-+        return;
+@@ -498,6 +500,18 @@ export class WsAdapter {
+     // ws 実装（Buffer.length）より制限が緩くなってしまう。
+     const bytes = typeof raw === "string" ? Buffer.byteLength(raw) : raw.length;
+ 
++    if (ws.data.protocol === "timer") {
++      try {
++        const maybeJson: unknown = JSON.parse(raw.toString());
++        if (v.is(TopicCommandSchema, maybeJson)) {
++          void this.options.topic.handleMessage(ws.data.connId, raw.toString());
++          return;
++        }
++      } catch {
++        // JSON でなければ何もしない（下の通常経路が拾う）
 +      }
-+    } catch {
-+      // JSON でなければ何もしない（下の通常経路が拾う）
 +    }
 +
-     if (bytes > this.options.maxMessageBytes) {
-       this.sendFrame(ws, {
-         type: "error",
+     this.channelOf(ws)?.receive(ws, raw, bytes);
+   }
+ 
