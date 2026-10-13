@@ -281,6 +281,14 @@ apps/tasuki-sync/src/adapters/ws/
 | 入場の可否が弱まらない | `test/ws-adapter.*.test.ts` の既存のテスト（Origin・接続数・大きさ・知らないツール）。分ける前に表にして欠けを足す |
 | アダプタは業務の検証をしない | `normalizeCommandNames` の import 元。`audit-dependency-direction.mjs` の層の規則で拒めるかを計画で確かめる |
 
+> **追記（2026-10-13・R8 の実施 [`2026-10-13-refactor-r8-ws-adapter.md`](../plans/2026-10-13-refactor-r8-ws-adapter.md)）**:
+>
+> - **`ws-adapter.ts` は今の場所に残し、部品だけを `adapters/ws/` に置いた**（上の絵と違う。テスト・変異のパッチ・検査の許可表・コメントがこのパスを指すため）。部品は上の 5 つに、`connection-data.ts`（接続ごとの値）と `error-log.ts`（ログへ出す例外の分類）を足した 7 つ。`ws-sender.ts` は `ws-send.ts`
+> - **新しいツールを足すときに触るのは、受け口の表（`buildChannels`）の 1 行と `?tool=` の許可リスト**
+> - **アダプタが業務の検証をしないことは、層の検査では拒めなかった**（`audit-dependency-direction.mjs` はパッケージの単位）。アダプタがアプリケーション層から取り込んでよいものを、テスト（`test/adapter-imports.test.ts`）の許可表で固定した。正規化を飛ばす配線は、timer の受け口のブランド型で型検査が落とす
+> - **`process.exit(1)` は組み立て（`server.ts`）へ移した。** アダプタは `ServerStartError` を投げる
+> - timer だけが reject でログを残さないこと・内部エラーの文言が違うこと（#381）は、変えずに固定した
+
 ### 5.8 web の共有の層（#369・#370・#371）
 
 **React の共有パッケージを 1 つ新設する**（2026-10-13 の判断。名前は計画で決める。例: `packages/web-kit`）。

@@ -8,7 +8,7 @@
  * ## 誰がこの値を決めるのか
  *
  * **接続 URL のクエリ（`?tool=`）が宣言そのものである**（設計正本 D14 の S4b 追記・
- * #95 S5c で経路からクエリへ移った）。`adapters/ws-adapter.ts` の
+ * #95 S5c で経路からクエリへ移った）。`adapters/ws/connection-gate.ts` の
  * `protocolFromRequestUrl` が読み、poker と timer を振り分ける（`ws.data.protocol`）。
  * したがって timer のハンドラへ届いた接続は定義上 timer の接続であり、各入口は
  * 定数を渡すだけでよい。**wire には `tool` を載せない** ——
