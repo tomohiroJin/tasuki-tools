@@ -76,7 +76,7 @@
 
 - プロトコル: wire の応答が変わらない
 - ドメイン: 同じ入力に同じ結果
-- ログ: 下の 1 点を除いて変わらない
+- ログ: 変わらない（下の「ログを保つ」）
 
 **ドメインの関数の契約は、2 つの所で意図して変える**（どちらも利用者からは見えない）。
 
@@ -85,12 +85,13 @@
 
 既存のテストのうち、この 2 つの契約を固定しているもの（`draw.test.ts:115-116`・`room.test.ts:65,213,241`）は、新しい契約に書き換える。**書き換えるのはこの 4 件だけで、PR に列挙する。**
 
-**ログについて決めること**: roulette の乱数源が契約を破ったとき、いまは接続層が `on-message-error` を 1 行残す。`Result` にすると、前例の `INVALID_SETTLE` と同じくログを残さなくなる。**本番の乱数源（`node:crypto` の `randomInt`）は契約を守るので届かない経路**だが、ログの形が変わる。
+**ログを保つ**（2026-10-13 の利用者の判断）: roulette の乱数源が契約を破ったとき、いまは接続層が `on-message-error name=RangeError` を error で 1 行残す。`Result` にすると例外が接続層へ届かなくなり、このままではログが消える。**ログが消えるのは振る舞いの変更**なので、ハンドラが同じ行を自分で残す。
 
-- 推奨: 前例にそろえる（ログを残さない）
-- そろえない場合: ハンドラから `logger.error` を呼ぶ形にする
-
-着手の前に、この 2 つのどちらにするかを利用者に確かめる。
+- ログが消えると困ること: 起きないはずの乱数源の不具合（アダプタの誤り・将来の退行）を本番で知る手がかりは、この 1 行だけである。利用者には「サーバー内部でエラーが発生しました」しか見えないので、問い合わせを受けても原因も回数も追えなくなる
+- 形: roulette のハンドラにロガーを渡し（`RouletteHandlerDeps.logger`）、`INVALID_RANDOM` を受けたら `logger.error("on-message-error", { name: ERROR_NAMES.rangeError })` を出してから `INTERNAL_ERROR` を返す。行の中身・水準・順（ログ → エラーフレーム）は接続層と同じ
+- 例外の名前はログの語彙（`application/log/vocabulary.ts`）に置く。ハンドラの中で `publicText` を呼ばない（`audit-log-hygiene` の許可ファイルを増やさない）
+- 「このファイルはログを書かない」（冒頭の注記）は、利用者の入力（ゲストの名前・表示名）を書かないという意味に改める。出すのは固定の語彙だけ
+- 前例の `INVALID_SETTLE` はもともとログを残していない。足すと振る舞いが変わるので、この PR では触らず [#382](https://github.com/tomohiroJin/tasuki-tools/issues/382) で扱う
 
 ## 4. タスク
 
@@ -113,16 +114,20 @@
 
 - `packages/roulette-core/tests/draw.test.ts:115-116` を、「`randomInt` が範囲外を返したら `INVALID_RANDOM` の `Result` を返す」に書き換える（書き換える 4 件の 1 つ）
 - `startSpin` が `INVALID_RANDOM` を返す組を `roulette.test.ts` に足す
-- `apps/tasuki-sync/test/roulette-handlers.test.ts` に、範囲外を返す乱数源を差し込むと `INTERNAL_ERROR`（「サーバー内部でエラーが発生しました」）のエラーフレームを返す組を足す
+- `apps/tasuki-sync/test/roulette-handlers.test.ts` に、範囲外を返す乱数源を差し込む組を足す
+  - `INTERNAL_ERROR`（「サーバー内部でエラーが発生しました」）のエラーフレームを返す
+  - ロガーに `on-message-error name=RangeError` が error で 1 行だけ残る
   - いまは `throw` がハンドラを突き抜けるので、この組は赤になる
-  - wire の上の応答（接続層が隔離した結果）と同じフレームになることを、期待値に直書きして示す
+  - 接続層が隔離したときと同じフレーム・同じ行になることを、期待値に直書きして示す
 
 **変えるファイル**
 
 - `roulette-core/src/draw.ts`: `drawWinner` が `Result<DrawResult, RouletteError<"INVALID_RANDOM">>` を返す
 - `roulette-core/src/errors.ts`: ドメインのコードに `INVALID_RANDOM` を足す。wire に載せないコードの注記（`:27`）に並べる
 - `roulette-core/src/roulette.ts`: `startSpin` が `INVALID_RANDOM` を伝える
-- `apps/tasuki-sync/src/application/roulette-handlers.ts:189-190`: `INVALID_SETTLE` と同じく `INTERNAL_ERROR` に読み替える
+- `apps/tasuki-sync/src/application/roulette-handlers.ts:189-190`: `INTERNAL_ERROR` に読み替える。`INVALID_RANDOM` のときだけ、先にログを 1 行残す（§3「ログを保つ」）
+- `apps/tasuki-sync/src/application/log/vocabulary.ts`: `ERROR_NAMES.rangeError` を足す
+- `apps/tasuki-sync/src/create-sync-server.ts`: ハンドラにロガーを渡す
 
 **確かめる**: 実 WS 越しのルーレットのテスト（`live-ws.roulette.test.ts`）が緑。変異 m151・m152・m153・m157・m156・m171・m172 を当て直す（ID は変えない）
 
@@ -238,6 +243,6 @@
 - [ ] packages のドメイン（`audit-domain-side-effects` の宣言）に `throw` とトップレベルの `let` が無く、検査がそれを拒む（壊して確かめた）
 - [ ] 並んだ配列の長さと `currentIndex` の範囲が、性質のテストで固定されている
 - [ ] room-core の 4 つの関数の失敗が型に出ていて、呼び出し側がそれを扱っている
-- [ ] wire の応答・ドメインの結果が変わっていない。書き換えた既存のテストは 4 件で、PR に列挙した
+- [ ] wire の応答・ドメインの結果・ログが変わっていない。書き換えた既存のテストは 4 件で、PR に列挙した
 - [ ] 変異検査が緑（パッチの ID は変えない）
 - [ ] 見直したことを設計正本 §5.4 と #364 に残した
