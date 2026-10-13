@@ -31,7 +31,6 @@ import {
 import { parseBoundaryMessage } from "@tasuki/protocol";
 import {
   clearTopic,
-  INITIAL_TOPIC_STATE,
   setManualTopic,
   topicErrorMessageFor,
   TopicCommandSchema,
@@ -45,7 +44,7 @@ import type { TopicServerMsg } from "../ports/topic-server-msg.js";
 import type { JoinRoomDeps } from "./join-room.js";
 import type { SaveRosterDeps } from "./save-roster.js";
 import { constantTimeEqual } from "./secure-compare.js";
-import type { TopicBroadcaster } from "./topic-broadcast.js";
+import { topicStateOrInitial, type TopicBroadcaster } from "./topic-broadcast.js";
 import type { TopicGenerator } from "./topic-generation.js";
 import { findRoomByToolConnection } from "./room-lookup.js";
 import { joinToolRoom } from "./join-tool-room.js";
@@ -109,12 +108,9 @@ export function makeTopicHandlers(deps: TopicHandlerDeps): TopicHandlers {
     return findRoomByToolConnection(deps.store, connId, TOOL_TOPIC)?.code;
   }
 
-  /** いまの状態を読む。参加時に置かれているはずだが、無ければ既定の状態を置いてから返す。 */
+  /** いまの状態を読む。無ければ既定の状態を置いてから返す（`topic-broadcast.ts` と同じ 1 つの関数）。 */
   function currentState(roomCode: string): TopicState {
-    const current = topics.get(roomCode);
-    if (current !== undefined) return current;
-    topics.put(roomCode, INITIAL_TOPIC_STATE);
-    return INITIAL_TOPIC_STATE;
+    return topicStateOrInitial(topics, roomCode);
   }
 
   /** 保管してから配る（宛先は呼び出し時点の名簿から決まる。`topic-broadcast.ts`）。 */
