@@ -1,0 +1,26 @@
+# 変異 177: 縦書きの席の欧文の字を立てない（text-orientation を既定の mixed に戻す）
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/wheel-glyphs.test.tsx
+#     describe「席の名前の字は倒れない（描かれた transform と CSS から組み立てる）」の各席数
+#   - （mutation-check の外）e2e/specs/roulette.spec.ts の expectWheelGlyphsUpright
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m177-*.patch
+# 復元: git apply -R scripts/mutations/m177-*.patch
+#
+# #94 spec §6.3。縦書きの欧文の字はブラウザが 90° 回して横倒しに組む（2026-10-13 の実画面の「Mika」）。
+# 4 版では全角主体の名前に混じった欧文の字（「山田B」の B）だけがここに来る。関数の戻り値だけを測る
+# 単体（全組で上限以内）では殺せない。
+diff --git a/apps/roulette-web/src/index.css b/apps/roulette-web/src/index.css
+index 7a1d6a3b..3645a461 100644
+--- a/apps/roulette-web/src/index.css
++++ b/apps/roulette-web/src/index.css
+@@ -173,7 +173,6 @@
+   /* 欧文の字も立てて積む。既定（mixed）では欧文を 90° 回して横倒しに組む（2026-10-13 の実画面の「Mika」）。
+      欧文が主の名前は縦書きにしない（labelPlacement が半径を横切る横書きを選ぶ）ので、ここに来るのは
+      全角が主の名前に混じった欧文だけ。立てた字は 1 字 1em を取るので fitLabel も全角で数える。spec §6.3 */
+-  text-orientation: upright;
+ }
+ .wheel-label--winner {
+   fill: var(--on-gold);

@@ -1,0 +1,26 @@
+# 変異 176: 札が見えるかの判定が下端の帯を数えない
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/wheel.test.tsx
+#     describe「止まったら札を見える位置へ寄せる」の
+#     「Given 札が下端の帯に隠れている（窓の中だが帯の下） / When 止まる / Then block: nearest で寄せる」
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m176-*.patch
+# 復元: git apply -R scripts/mutations/m176-*.patch
+#
+# #94 spec E22・§6.7。320×640 では下端に留まる「回す」の帯が札を覆う。窓の高さだけで見える判定を
+# すると、札が窓に収まっていても帯の下で、名前が隠れたまま寄せない。
+diff --git a/apps/roulette-web/src/hooks/use-wheel-rotation.ts b/apps/roulette-web/src/hooks/use-wheel-rotation.ts
+index 09cc6638..be5558fe 100644
+--- a/apps/roulette-web/src/hooks/use-wheel-rotation.ts
++++ b/apps/roulette-web/src/hooks/use-wheel-rotation.ts
+@@ -112,7 +112,7 @@ export function useWheelRotation(input: {
+     const rect = el.getBoundingClientRect();
+     const dockTop = dock.current?.getBoundingClientRect().top ?? window.innerHeight;
+     const bottomLimit = Math.min(window.innerHeight, dockTop);
+-    if (rect.top >= 0 && rect.bottom <= bottomLimit) return;
++    if (rect.top >= 0 && rect.bottom <= window.innerHeight) return;
+     el.scrollIntoView({ block: 'nearest', behavior: reducedMotion ? 'auto' : 'smooth' });
+   }, [settled, seq, reducedMotion, card, dock]);
+ 

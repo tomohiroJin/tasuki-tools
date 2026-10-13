@@ -1,0 +1,28 @@
+# 変異 164: 動きを減らす設定でも回す（最終の角度へ置かず、rAF で回してしまう）
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/wheel.test.tsx
+#     describe「動きを減らす設定」の「最初の描画で最終の角度・当たりの席・札の表。rAF は 1 度も呼ばない」
+#     describe「止まったら札を見える位置へ寄せる」の「動きを減らす設定で札が見えていない / 滑らかにせず寄せる」
+#   - apps/roulette-web/tests/roulette-room.test.tsx
+#     describe「結果の一言は止まってから当たりを言う」の「Given 動きを減らす設定 / When 回転を受け取る / …」
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m164-*.patch
+# 復元: git apply -R scripts/mutations/m164-*.patch
+#
+# #94 spec §6.5。rAF の回転は CSS の一括の手当て（transition-duration: 0.01ms）の外にあるので、
+# 動きを減らす設定は JS が自分で止める。ここを忘れると設定を無視して 4 秒回る。
+# PR #383 のレビューで「止まったか」の判定を局面（`phaseOf`）の 1 か所に寄せたので、壊す場所もそこへ移した
+# （円盤は局面を受けて止まる。局面が動きを減らす設定を見ないと、円盤も一言も 4 秒回る）。
+diff --git a/apps/roulette-web/src/roulette-view.ts b/apps/roulette-web/src/roulette-view.ts
+--- a/apps/roulette-web/src/roulette-view.ts
++++ b/apps/roulette-web/src/roulette-view.ts
+@@ -61,7 +61,6 @@
+   reducedMotion: boolean;
+ }): Phase {
+   if (input.view.spin === null) return 'idle';
+-  if (input.reducedMotion) return 'settled';
+   return isServerSpinning(input.view, input.receivedAt, input.nowMs) ? 'spinning' : 'settled';
+ }
+ 

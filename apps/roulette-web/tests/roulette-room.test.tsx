@@ -156,7 +156,7 @@ describe('結果の一言は止まってから当たりを言う', () => {
  * @requirements #94 E19
  */
 describe('一覧と一周の数は止まってから今回の当たりを数える', () => {
-  const rowOf = (name: string) => screen.getByText(new RegExp(`^${name}`)).closest('li') as HTMLElement;
+  const rowOf = (name: string) => within(screen.getByRole('list')).getByText(new RegExp(`^${name}`)).closest('li') as HTMLElement;
 
   it('Given 回している / When 回っている間と止まった後 / Then 当たりの行に選ばれたが出るのは止まった後', () => {
     // Given: 当たりはゆう。ゆうの行を見る

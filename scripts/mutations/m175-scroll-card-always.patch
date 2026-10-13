@@ -1,0 +1,24 @@
+# 変異 175: 止まったとき札が見えていても必ず寄せる
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/wheel.test.tsx
+#     describe「止まったら札を見える位置へ寄せる」の「Given 札が見えている / When 止まる / Then 動かさない」
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m175-*.patch
+# 復元: git apply -R scripts/mutations/m175-*.patch
+#
+# #94 spec §6.4 の 4・E22。見えていれば動かさない（block: 'nearest' でも、見えている札のために
+# 画面を揺らさない）。必ず呼ぶ誤実装は、隠れているときに呼ぶテストだけでは殺せない。
+diff --git a/apps/roulette-web/src/hooks/use-wheel-rotation.ts b/apps/roulette-web/src/hooks/use-wheel-rotation.ts
+index 09cc6638..022ef796 100644
+--- a/apps/roulette-web/src/hooks/use-wheel-rotation.ts
++++ b/apps/roulette-web/src/hooks/use-wheel-rotation.ts
+@@ -112,7 +112,6 @@ export function useWheelRotation(input: {
+     const rect = el.getBoundingClientRect();
+     const dockTop = dock.current?.getBoundingClientRect().top ?? window.innerHeight;
+     const bottomLimit = Math.min(window.innerHeight, dockTop);
+-    if (rect.top >= 0 && rect.bottom <= bottomLimit) return;
+     el.scrollIntoView({ block: 'nearest', behavior: reducedMotion ? 'auto' : 'smooth' });
+   }, [settled, seq, reducedMotion, card, dock]);
+ 

@@ -1,0 +1,25 @@
+# 変異 178: 当たりの席の名前を 700 の太さで描く（名前の漢字がシステムの書体に落ちる）
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/wheel-glyphs.test.tsx
+#     describe「席の名前の太さは漢字の書体がある太さだけ」
+#   - （mutation-check の外）e2e/specs/roulette.spec.ts の expectWheelLabelsUseWebFonts / expectWheelLabelsInsideSeats
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m178-*.patch
+# 復元: git apply -R scripts/mutations/m178-*.patch
+#
+# #94 spec §6.3。書体の 700 には base 層しか無い。2026-10-13 の 320 の撮影で、当たりの席の縦書きの「健太」が
+# システムの書体（縦書きの送り 0）で 1 字に重なり、縁の外へはみ出した。
+diff --git a/apps/roulette-web/src/index.css b/apps/roulette-web/src/index.css
+index 7a1d6a3b..b98a8256 100644
+--- a/apps/roulette-web/src/index.css
++++ b/apps/roulette-web/src/index.css
+@@ -177,6 +177,7 @@
+ }
+ .wheel-label--winner {
+   fill: var(--on-gold);
++  font-weight: 700;
+   /* 太さは変えない（色だけで示す）。書体の 700 には base 層しか無く、名前の漢字は 700 で引くと
+      システムの書体に落ちる。落ちた先は縦書きの送りが 0 で、縦書きの「健太」が 1 字に重なった
+      （2026-10-13 の 320 の撮影。CDP の getPlatformFontsForNode で WenQuanYi Zen Hei・字の高さ 0 を実測）。

@@ -24,7 +24,7 @@ interface Props {
   onResetCycle: () => void;
 }
 
-/** 脇の「ルーレットに入る人」。チェック = 入れる。行は [チェック][名前][印][名前を消す]。 */
+/** 脇の「ルーレットに入る人」。チェック = 入れる。行は [チェック][名前][印][名前を消す]（狭いと印と消すが次の行へ）。 */
 export function PeoplePanel({ people, locked, onInclude, onRemoveGuest, onAddGuest, onResetCycle }: Props) {
   return (
     <section className="ui-panel roulette-people" aria-labelledby="roulette-people-heading">
@@ -79,21 +79,26 @@ function Row({
           {row.isSelf ? SELF_SUFFIX : ''}
         </span>
       </label>
-      {row.mark !== null && (
-        <span id={markId} className={`roulette-chip${row.mark === 'away' ? ' roulette-chip--away' : ''}`}>
-          {MARK_TEXT[row.mark]}
+      {(row.mark !== null || row.removable) && (
+        // 印と「名前を消す」は名前の後ろの一塊。名前が収まらない幅では塊ごと次の行へ回る（名前を先に読ませる）
+        <span className="roulette-row-tail">
+          {row.mark !== null && (
+            <span id={markId} className={`roulette-chip${row.mark === 'away' ? ' roulette-chip--away' : ''}`}>
+              {MARK_TEXT[row.mark]}
+            </span>
+          )}
+          {row.removable && (
+            <button
+              type="button"
+              className="ui-button ui-button--danger ui-button--sm"
+              aria-label={guestRemoveLabel(row.name)}
+              disabled={locked}
+              onClick={() => onRemoveGuest(row.id)}
+            >
+              {GUEST_REMOVE_BUTTON}
+            </button>
+          )}
         </span>
-      )}
-      {row.removable && (
-        <button
-          type="button"
-          className="ui-button ui-button--danger ui-button--sm"
-          aria-label={guestRemoveLabel(row.name)}
-          disabled={locked}
-          onClick={() => onRemoveGuest(row.id)}
-        >
-          {GUEST_REMOVE_BUTTON}
-        </button>
       )}
     </li>
   );

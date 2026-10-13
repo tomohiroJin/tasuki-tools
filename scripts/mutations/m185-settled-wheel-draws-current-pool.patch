@@ -1,0 +1,24 @@
+# 変異 185: 止まった後の円盤を、いまの入る人の並びで描く（角度は回したときの席数のまま）
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/wheel.test.tsx
+#     describe「止まった後に入る人が変わる」の 2 件（ゲストが増える・名簿の順だけが変わる）
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m185-*.patch
+# 復元: git apply -R scripts/mutations/m185-*.patch
+#
+# #94 spec §6.3（PR #383 のレビュー）。止まった角度は `spin.wheel` の席数と当たりの添字で計算する。
+# 止まった後に描く席をいまの入る人へ替えると、席数や順が変わったとき針が別の人を指し、札は本当の当たりを
+# 見せる（針と札が食い違う）。次に回すまで、回したときの並びを描き続ける。
+diff --git a/apps/roulette-web/src/wheel-view.ts b/apps/roulette-web/src/wheel-view.ts
+--- a/apps/roulette-web/src/wheel-view.ts
++++ b/apps/roulette-web/src/wheel-view.ts
+@@ -19,5 +19,6 @@
+ export function wheelSeatsOf(input: { pool: readonly Entry[]; spin: RouletteView['spin']; settled: boolean }): WheelSeats {
+   const { pool, spin, settled } = input;
+   if (spin === null) return { entries: pool, winnerIndex: -1 };
+-  return { entries: spin.wheel, winnerIndex: settled ? spin.winnerIndex : -1 };
++  if (!settled) return { entries: spin.wheel, winnerIndex: -1 };
++  return { entries: pool, winnerIndex: pool.findIndex((e) => e.id === spin.wheel[spin.winnerIndex]?.id) };
+ }
