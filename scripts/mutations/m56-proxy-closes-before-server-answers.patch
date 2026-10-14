@@ -17,18 +17,21 @@
 #       git apply scripts/mutations/m56-*.patch
 # 復元: git checkout -- <対象ファイル>
 #
+#
+# #370 で送った名前と理由は reducer（`ui/name-request.ts`）が持つ。理由は下ろしたまま待ちだけを落とす
+# （正規形を空で送ると reducer は待たない）ことで、#370 より前の壊し方（`setPendingProxy` だけを外して畳む）と揃えた。
 diff --git a/apps/timer-web/src/ui/components/RosterPanel.tsx b/apps/timer-web/src/ui/components/RosterPanel.tsx
-index 066418a..9c327d2 100644
+index dc76ed0..cc99882 100644
 --- a/apps/timer-web/src/ui/components/RosterPanel.tsx
 +++ b/apps/timer-web/src/ui/components/RosterPanel.tsx
-@@ -266,8 +266,9 @@ export function RosterPanel({
-     setProxyRejection(null);
-     // 正規形が空の名前は突き合わせられないので待たない（サーバーが規約で弾く）。
-     // 待たない＝閉じる条件が来ないだけで、フォームと入力はそのまま残る。
--    setPendingProxy(normalized !== "" ? normalized : null);
-     onAddProxy(name);
+@@ -192,7 +192,9 @@ export function RosterPanel({
+       return;
+     }
+     // 正規形が空の名前は待たない（reducer が決める。サーバーが規約で弾く）。
+-    dispatchProxy({ type: "sent", pending: { normalized: plan.normalized } });
++    dispatchProxy({ type: "sent", pending: { normalized: "" } });
 +    setProxyName("");
 +    setShowProxyInput(false);
+     onAddProxy(plan.typed);
    };
  
-   const startRename = (participantId: string, current: string) => {

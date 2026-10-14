@@ -11,7 +11,7 @@ import {
   WRITE_HEADING,
   WRITE_MODE_BUTTON,
 } from '../copy';
-import { canSubmitTopic, toSingleLine } from '../topic-view';
+import { canSubmitTopic, isDraftBlank, toSingleLine } from '../topic-view';
 import { TopicSheet } from './TopicSheet';
 
 /**
@@ -66,7 +66,7 @@ export function TopicEditor({ fillRequest = null, enabled, onDraftChange, onSubm
   const canSubmit = canSubmitTopic(title, enabled);
   const previewTitle = useDeferredValue(title);
   const previewBody = useDeferredValue(body);
-  const previewBlank = previewTitle.trim() === '' && previewBody.trim() === '';
+  const previewBlank = isDraftBlank(previewTitle, previewBody);
 
   useEffect(() => {
     onDraftChange?.({ title, body });

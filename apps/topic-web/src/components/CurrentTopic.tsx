@@ -15,6 +15,7 @@ import {
   TAB_DRAFT,
 } from '../copy';
 import { Markdown } from './Markdown';
+import { isDraftBlank, readerTabForDraft, type ReaderTab } from '../topic-view';
 
 export interface Draft {
   readonly title: string;
@@ -30,8 +31,7 @@ interface Props {
   onClear(): void;
 }
 
-type TabId = 'current' | 'draft';
-const TABS: readonly { readonly id: TabId; readonly label: string }[] = [
+const TABS: readonly { readonly id: ReaderTab; readonly label: string }[] = [
   { id: 'current', label: TAB_CURRENT },
   { id: 'draft', label: TAB_DRAFT },
 ];
@@ -70,20 +70,20 @@ export function CurrentTopic({ state, enabled, draft, onCopyToDraft, onClear }: 
   const baseId = useId();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const moreRef = useRef<HTMLButtonElement>(null);
-  const [active, setActive] = useState<TabId>('current');
+  const [active, setActive] = useState<ReaderTab>('current');
 
-  const filled = draft.title.trim() !== '' || draft.body.trim() !== '';
+  const filled = !isDraftBlank(draft.title, draft.body);
   const [wasFilled, setWasFilled] = useState(filled);
   if (wasFilled !== filled) {
     setWasFilled(filled);
-    setActive(filled ? 'draft' : 'current');
+    setActive(readerTabForDraft(filled));
   }
   // 打つたびの Markdown の解析で入力が止まらないよう、描く値は遅らせる（プレビューと同じ）
   const draftTitle = useDeferredValue(draft.title);
   const draftBody = useDeferredValue(draft.body);
 
-  const tabId = (id: TabId) => `${baseId}-tab-${id}`;
-  const panelId = (id: TabId) => `${baseId}-panel-${id}`;
+  const tabId = (id: ReaderTab) => `${baseId}-tab-${id}`;
+  const panelId = (id: ReaderTab) => `${baseId}-panel-${id}`;
   const onTabKeyDown = (event: KeyboardEvent, index: number) => {
     if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
     event.preventDefault();
@@ -99,7 +99,7 @@ export function CurrentTopic({ state, enabled, draft, onCopyToDraft, onClear }: 
   const closeDrawer = () => dialogRef.current?.close();
   const titleId = `${baseId}-title`;
   const draftTitleId = `${baseId}-draft-title`;
-  const draftBlank = draftTitle.trim() === '' && draftBody.trim() === '';
+  const draftBlank = isDraftBlank(draftTitle, draftBody);
 
   return (
     <section

@@ -14,14 +14,14 @@
 # 復元: git checkout -- <対象ファイル>
 #
 diff --git a/apps/timer-web/src/ui/components/RosterPanel.tsx b/apps/timer-web/src/ui/components/RosterPanel.tsx
-index 066418a..0497f7e 100644
+index dc76ed0..c116307 100644
 --- a/apps/timer-web/src/ui/components/RosterPanel.tsx
 +++ b/apps/timer-web/src/ui/components/RosterPanel.tsx
-@@ -205,7 +205,6 @@ export function RosterPanel({
+@@ -132,7 +132,6 @@ export function RosterPanel({
      // 打ち始めていると、あとから届いた名簿で閉じた拍子にその入力が消える ——
      // #291 が直そうとしているもの（打った文字が黙って消える）と同じ形である。
-     // **いま入力欄に載っているのが送った名前のときだけ**畳む。
--    if (normalizeDisplayName(proxyName.trim()) !== pendingProxy) return;
+     // **いま入力欄に載っているのが送った名前のときだけ**畳む（`inputStillMatches`）。
+-    if (!inputStillMatches(proxyName, arrivedProxy)) return;
      setProxyName("");
      setShowProxyInput(false);
-   }, [proxyArrived, proxyName, pendingProxy]);
+   }, [arrivedProxy, proxyName]);

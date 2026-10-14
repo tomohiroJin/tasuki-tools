@@ -17,16 +17,15 @@
 # 復元: git checkout -- <対象ファイル>
 #
 diff --git a/apps/timer-web/src/ui/components/RosterPanel.tsx b/apps/timer-web/src/ui/components/RosterPanel.tsx
-index 066418a..ed60873 100644
+index e78ce3a..fa51397 100644
 --- a/apps/timer-web/src/ui/components/RosterPanel.tsx
 +++ b/apps/timer-web/src/ui/components/RosterPanel.tsx
-@@ -181,8 +181,7 @@ export function RosterPanel({
+@@ -110,7 +110,7 @@ export function RosterPanel({
  
    // **理由は名簿の変化に追随させる**（#291 レビュー指摘3）。持っているのは正規形で、
    // 出すかどうかは毎回いまの `pool` に尋ねる。相手が退出したら「まだ駄目」と言わない。
--  const activeProxyRejection =
--    proxyRejection !== null && someoneHolds(proxyRejection.normalized) ? proxyRejection : null;
-+  const activeProxyRejection = proxyRejection;
-   const activeRenameRejection =
-     renameRejection !== null &&
-     editingId !== null &&
+-  const activeProxyRejection = activeRejection(proxy.rejection, pool);
++  const activeProxyRejection = proxy.rejection;
+   const activeRenameRejection = editingId !== null ? activeRejection(rename.rejection, pool, editingId) : null;
+ 
+   // 送った代理が名簿に現れたか。

@@ -16,6 +16,13 @@ import { CircularProgress } from "./components/CircularProgress.js";
 import { TeamOrbit } from "./components/TeamOrbit.js";
 import { RotationLineup } from "./components/RotationLineup.js";
 import { rotationMembers } from "./rotation-names.js";
+import {
+  displayRemainingSeconds,
+  driverNames,
+  isUrgent as isUrgentRemaining,
+  orbitSizes,
+  progressPercent,
+} from "./session-view.js";
 import { RosterPanel } from "./components/RosterPanel.js";
 import { EndSessionZone } from "./components/EndSessionZone.js";
 import { SelfDriverToggle } from "./components/SelfDriverToggle.js";
@@ -79,9 +86,6 @@ interface SessionProps {
   topic?: Topic | null;
 }
 
-/** 残り時間がこの秒数以下で緊急表示にする */
-const URGENT_THRESHOLD_SECONDS = 10;
-
 export function Session({
   room,
   inviteUrl,
@@ -123,10 +127,9 @@ export function Session({
   // 表示用の残り時間。サーバー権威の secondsLeft をそのまま使う（0 でクランプ）。
   // 交代＝サーバーの新アンカー snapshot で「ドライバー変更」と「時間リセット」が同時に
   // 反映されるため、二重リセットや先走りロールオーバーは行わない（⑥ 致命傷の修正）。
-  // 上限を間隔でクランプする。交代直後に clockOffset 等で残りが一瞬 interval を僅かに超え、
-  // ceil 表示で「05:01」のような interval+1 秒が1フレーム出るのを防ぐ（0 下限は secondsLeft 側）。
+  // 上限は間隔で抑える（`session-view.ts` の `displayRemainingSeconds`）。
   const displayRemaining = useMemo(
-    () => Math.min(room.clock.intervalSeconds, secondsLeft(room.clock, now, clockOffset)),
+    () => displayRemainingSeconds(room.clock.intervalSeconds, secondsLeft(room.clock, now, clockOffset)),
     [room.clock, now, clockOffset],
   );
 
@@ -138,30 +141,28 @@ export function Session({
   // **#95 S3 で役割が消え、これらはどれも常に真になった。** 恒真な述語は
   // 「検査しているように見えて何も守っていない」ため、判定ごと畳んで導線を全員へ出す。
 
-  const rotationLen = room.session.rotation.length;
-  // 「次は誰か」はサーバーが決める（#276 D1 / D6）。かつてここには
-  // `(currentIndex + 1) % rotationLen` があったが、サーバーは不適格な席を飛ばして
-  // 繰り上げるので食い違った（画面は「次: いずみ」、実際の交代は別の人）。
+  // 「次は誰か」はサーバーが決める（#276 D1 / D6。`session-view.ts` の `driverNames`）。
   const nextIndex = room.session.nextIndex;
   // 席はサーバーが組む（識別子・表示名・番が回らない理由）。`participants` も渡すのは
   // 呼び名の判定のためで、輪の外の見学者との同名を取りこぼさないようにする（D9）。
   const rotation = rotationMembers(room.session.seats, room.participants);
   // 現ドライバー・次・ナビは呼び名（同名が並ぶときは識別子つき）で出す。
   // 素の表示名だと同名2名がどちらも「Bob」になり「次は誰か」が判別できない。
-  const rotationNames = rotation.map((m) => m.label);
+  const rotationLen = room.session.rotation.length;
   const currentDriverId = room.session.rotation[room.session.currentIndex] ?? "";
-  const currentDriverName = rotationNames[room.session.currentIndex] ?? "—";
-  const nextDriverName = nextIndex !== null ? (rotationNames[nextIndex] ?? "—") : "—";
-  // ナビゲーター（⑦）。次ドライバーと別概念にし、既定では「現ドライバーの前の人
-  //（直前に運転していた退役ドライバー）」をメインナビとする。文脈を最も持つ人。
-  // rotation が1人のときは現ドライバーと一致するため表示しない。
-  const prevIndex = rotationLen > 0 ? (room.session.currentIndex - 1 + rotationLen) % rotationLen : 0;
-  const navigatorName =
-    room.config.navigatorEnabled && rotationLen > 1
-      ? rotationNames[prevIndex]
-      : null;
+  const {
+    current: currentDriverName,
+    next: nextDriverName,
+    navigator: navigatorName,
+  } = driverNames({
+    names: rotation.map((m) => m.label),
+    rotationLength: rotationLen,
+    currentIndex: room.session.currentIndex,
+    nextIndex,
+    navigatorEnabled: room.config.navigatorEnabled === true,
+  });
 
-  const isUrgent = room.clock.running && displayRemaining <= URGENT_THRESHOLD_SECONDS;
+  const isUrgent = isUrgentRemaining(room.clock.running, displayRemaining);
 
   // 支援技術向けの離散アナウンス（FR-035・フックに分離）。
   const announcement = useDiscreteAnnouncement({
@@ -185,8 +186,7 @@ export function Session({
     { assertiveSwitch: room.config.assertiveSwitch === true, notify: notifyPrefs },
   );
 
-  const intervalSeconds = room.clock.intervalSeconds || 1;
-  const progress = ((intervalSeconds - displayRemaining) / intervalSeconds) * 100;
+  const progress = progressPercent(room.clock.intervalSeconds, displayRemaining);
   const isPaused = room.session.isPaused;
   const running = room.clock.running;
 
@@ -201,14 +201,9 @@ export function Session({
 
   // PC ではタイマーを主役として大きく見せる（ステージ感・モバイルは収まるサイズに）。
   const isWide = useIsWide();
-  // モバイルでは円形計器（固定 px）が Card 内に収まるよう、ビューポート幅から
-  // 利用可能幅（Stage px-4=32 + Card p-6=48 + 枠 2 を差し引く）でクランプする。
-  // これで 360px 幅でも TeamOrbit/CircularProgress が横にはみ出さない（R5-3）。
+  // モバイルでは円形計器（固定 px）を幅から縮める（`session-view.ts` の `orbitSizes`・R5-3）。
   const vw = useViewportWidth();
-  const mobileMaxOrbit = Math.min(340, Math.max(248, vw - 82));
-  const orbitSize = isWide ? 460 : mobileMaxOrbit;
-  // リング（タイマー）は orbit に対して概ね 224/340 の比率を保ち、アバターと重ならない大きさに。
-  const ringSize = isWide ? 300 : Math.round(mobileMaxOrbit * (224 / 340));
+  const { orbit: orbitSize, ring: ringSize } = orbitSizes(isWide, vw);
 
   // 「セッション」タブのコンテンツ（既存 UI をそのまま移動）。
   const sessionPanel = (
@@ -268,7 +263,8 @@ export function Session({
             {nextIndex === null && (
               <span className="session-next-note">（交代できる人がいません）</span>
             )}
-            {room.config.navigatorEnabled && navigatorName && (
+            {/* 出すかどうか（有効か・輪が 2 人以上か）は `session-view.ts` の `driverNames` が決める */}
+            {navigatorName && (
               <span className="session-navigator">ナビ: <span className="session-navigator-name">{navigatorName}</span></span>
             )}
           </div>

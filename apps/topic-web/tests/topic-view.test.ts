@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { DEGRADED_TEXT, GENERATING_TEXT, RECONNECTING_TEXT, STALE_TEXT, UNREACHABLE_TEXT } from '../src/copy';
-import { canOperate, canSubmitTopic, canUnlock, connectionNotice, generationNotice, toSingleLine } from '../src/topic-view';
+import {
+  canOperate,
+  canSubmitTopic,
+  canUnlock,
+  connectionNotice,
+  generationNotice,
+  isDraftBlank,
+  readerTabForDraft,
+  toSingleLine,
+} from '../src/topic-view';
 
 const IDLE = { topic: null, generating: false, degraded: false, aiUnlocked: false };
 
@@ -80,5 +89,26 @@ describe('タイトルを 1 行にする', () => {
   ])('Given %s / When 1 行にする / Then 改行だけが空白になる', (_label, input, expected) => {
     // Given / When / Then
     expect(toSingleLine(input)).toBe(expected);
+  });
+});
+
+/**
+ * 下書き（またはプレビュー）が空か・読む面のどのタブを選ぶか（#370。`CurrentTopic.tsx`・`TopicEditor.tsx` から出した）。
+ */
+describe('下書きの空と読む面のタブ', () => {
+  it.each([
+    ['', '', true],
+    ['  ', '\n', true],
+    ['題', '', false],
+    ['', '本文', false],
+  ])('タイトル「%s」・本文「%s」→ 空 = %s（空白だけは空）', (title, body, expected) => {
+    expect(isDraftBlank(title, body)).toBe(expected);
+  });
+
+  it.each([
+    [true, 'draft'],
+    [false, 'current'],
+  ] as const)('書きかけが %s に変わったら %s のタブへ', (filled, tab) => {
+    expect(readerTabForDraft(filled)).toBe(tab);
   });
 });

@@ -64,3 +64,21 @@ export function connectionNotice(kind: ConnectionNotice['kind']): ConnectionNoti
       return { kind, text: RECONNECTING_TEXT };
   }
 }
+
+/** 下書き（またはプレビュー）が空か。空白だけは空とみなす（#370 で画面から出した）。 */
+export function isDraftBlank(title: string, body: string): boolean {
+  return title.trim() === '' && body.trim() === '';
+}
+
+/** 読む面のタブ（場のお題・下書き）。 */
+export type ReaderTab = 'current' | 'draft';
+
+/**
+ * 書きかけの有無が変わったときに選ぶタブ（#370 で `CurrentTopic.tsx` から出した）。
+ *
+ * 書き始めたら下書きを、空にしたら場のお題を見せる。**変わったときだけ**切り替えるので、
+ * 下書きの途中で手で場のお題を選んだら、そのまま打ち続けても場のお題のまま（画面が前の値と比べる）。
+ */
+export function readerTabForDraft(filled: boolean): ReaderTab {
+  return filled ? 'draft' : 'current';
+}
