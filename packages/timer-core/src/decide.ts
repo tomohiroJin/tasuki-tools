@@ -283,7 +283,8 @@ function decideMemberRemove(
   }
 
   // 2層モデル: ドライバーは各自が出入りする。最後の1人だけは外れられない
-  // （rotation が 0 になると交代先が無く evolve が破綻するため）。
+  // （rotation が 0 になると担当も交代先も居ないままタイマーが回るため）。
+  // evolve は空の輪を渡されても壊れない（currentIndex は 0。#376）が、空の輪は製品として認めない。
   if (agg.session.rotation.length <= 1) {
     return err({ type: "BelowMinMembers", min: 1 });
   }

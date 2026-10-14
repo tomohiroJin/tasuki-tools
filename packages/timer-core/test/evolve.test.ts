@@ -368,6 +368,31 @@ describe("evolve: SessionReset", () => {
   });
 });
 
+describe("evolve: MemberRemoved で輪が空になる（#376）", () => {
+  // `decide` は最後の 1 人の `member.remove` を拒むので、通常の経路からは届かない。
+  // evolve は全域関数なので、イベントを直接渡されても `NaN` を含まない集約を返す。
+  it("Given 1 人の輪 / When その 1 人の MemberRemoved / Then 輪と担当回数が空になり currentIndex は 0", () => {
+    // Given
+    const agg = anAggregate().withRotation("Alice").build();
+    // When
+    const next = evolve(agg, { type: "MemberRemoved", index: 0, now: NOW }, NOW);
+    // Then
+    expect(next.session.rotation).toEqual([]);
+    expect(next.session.driverCounts).toEqual([]);
+    expect(next.session.currentIndex).toBe(0);
+  });
+
+  it("Given 空になった輪 / When MemberAdded / Then 足した人が currentIndex 0 の担当になる", () => {
+    // Given
+    const emptied = evolve(anAggregate().withRotation("Alice").build(), { type: "MemberRemoved", index: 0, now: NOW }, NOW);
+    // When
+    const next = evolve(emptied, { type: "MemberAdded", participantId: "Bob", now: NOW }, NOW);
+    // Then
+    expect(seatIds(next.session.rotation)).toEqual(["Bob"]);
+    expect(next.session.currentIndex).toBe(0);
+  });
+});
+
 describe("evolve: MemberRemoved / MemberMoved の index 調整分岐", () => {
   it("現ドライバーより前を削除すると currentIndex が 1 減る", () => {
     // Given（[Alice,Bob,Charlie]）

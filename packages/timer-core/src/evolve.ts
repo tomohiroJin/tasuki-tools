@@ -327,6 +327,17 @@ function evolveMemberRemoved(agg: Aggregate, index: number): Aggregate {
   const newRotation = agg.session.rotation.filter((_, i) => i !== index);
   const newDriverCounts = agg.session.driverCounts.filter((_, i) => i !== index);
 
+  // 輪が空になるなら currentIndex は 0（#376。`nextEligibleIndex` の長さ 0 と同じ扱い）。
+  // 下の `% newRotation.length` は `% 0` で NaN になり、clamp の Math.min/max も NaN を素通しする。
+  // `decide` は最後の 1 人の member.remove を拒むので通常の経路からは届かないが、
+  // evolve は全域関数なので、イベントを直接渡されても壊れた集約を返さない。
+  if (newRotation.length === 0) {
+    return {
+      ...agg,
+      session: { ...agg.session, rotation: newRotation, currentIndex: 0, driverCounts: newDriverCounts },
+    };
+  }
+
   // currentIndex の調整
   let newIndex = agg.session.currentIndex;
   if (index < newIndex) {

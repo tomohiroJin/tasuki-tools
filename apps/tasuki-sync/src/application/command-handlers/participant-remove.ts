@@ -134,8 +134,8 @@ export async function handleParticipantRemove(
   // ソロの部屋からの退出（Issue #79）。退出後に在室者が 0 人になるなら、参加者を
   // 1 人減らした状態は作らず、ルームごと破棄する。
   //
-  // 下の rotation 長ガード（BelowMinMembers）は「rotation を空にすると evolve が
-  // currentIndex を決められず破綻する」ことを避けるための保護であり、**部屋に人が
+  // 下の rotation 長ガード（BelowMinMembers）は「rotation を空にして担当の居ない輪を
+  // 作る」ことを避けるための保護であり（#376 より前は evolve の currentIndex が NaN になった）、**部屋に人が
   // 残る前提**の不変条件である。ところがこの保護は、作った直後のソロの部屋にも
   // そのまま効いていた。結果としてルームを作った本人が気が変わっても抜けられず、
   // タブを閉じるしかない（しかも部屋はアイドル回収まで最大 ROOM_IDLE_TTL_MS 残る）。
@@ -186,7 +186,8 @@ export async function handleParticipantRemove(
     // 「evolve が currentIndex を決められる輪が残ること」なので、代理の席も 1 席と数える。
     //
     // **最後の 1 席でも拒まない**（#290・D1）。見学者を先に繰り上げてから外すので、
-    // 輪は一瞬も空にならず、`evolveMemberRemoved` の `% 0`（NaN）に触れない。
+    // 輪は一瞬も空にならない（担当の居ない輪を作らない。#376 より前は空の輪で
+    // `evolveMemberRemoved` が currentIndex を NaN にした。いまは 0 にするが、空の輪は認めない）。
     // 拒否を残すのは候補が居ないときの防御で、**名簿が空でない限りここへは来ない** ——
     // 退出者が唯一の席を持つなら、残る名簿の全員が見学だからである。
     let working = { session: timer.session, clock: timer.clock };

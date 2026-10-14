@@ -33,7 +33,10 @@ export function rotationEntryId(entry: RotationEntry): string {
 interface SessionState {
   /** ローテーション順の席（#95 S4a・D6） */
   rotation: RotationEntry[];
-  /** 現ドライバーのインデックス */
+  /**
+   * 現ドライバーのインデックス。
+   * 不変条件: 輪が空なら 0、それ以外は `0 ≤ currentIndex < rotation.length` の整数（#376）。
+   */
   currentIndex: number;
   /** 一時停止フラグ */
   isPaused: boolean;
