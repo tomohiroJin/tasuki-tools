@@ -1,3 +1,5 @@
+import path from "node:path";
+
 /**
  * 変異検査の「選んで流す」指定（#387・設計正本 `docs/superpowers/specs/2026-10-14-test-weight-design.md` §4）。
  *
@@ -55,4 +57,95 @@ export function parseSelector(args) {
   if (selector.kind === "changed") return { kind: "changed", base: base ?? "origin/main" };
   if (base !== null) throw new Error("--base は --changed と一緒にだけ使えます");
   return selector;
+}
+
+/**
+ * 変異を選ぶ。`resolved` は {@link parseSelector} の結果に、`--changed` のときだけ材料を足したもの。
+ * 返す順は宣言（`mutations`）の順。
+ */
+export function selectMutations(mutations, resolved) {
+  const pick = (list, reasons) => list.map((mutation) => ({ mutation, reasons }));
+  switch (resolved.kind) {
+    case "all":
+      return { selected: pick(mutations, []), fallbackToAll: null };
+    case "id": {
+      const known = new Set(mutations.map((m) => m.id));
+      const unknown = resolved.ids.filter((id) => !known.has(id));
+      if (unknown.length > 0) throw new Error(`宣言に無い変異の番号です: ${unknown.join(", ")}`);
+      const wanted = new Set(resolved.ids);
+      return { selected: pick(mutations.filter((m) => wanted.has(m.id)), ["--id"]), fallbackToAll: null };
+    }
+    case "pkg": {
+      const hits = mutations.filter((m) => m.pkg === resolved.pkg);
+      if (hits.length === 0) {
+        throw new Error(`--pkg ${resolved.pkg} に属する変異はありません（宣言の pkg と完全一致で比べます）`);
+      }
+      return { selected: pick(hits, ["--pkg"]), fallbackToAll: null };
+    }
+    case "changed":
+      return selectByChange(mutations, resolved);
+    default:
+      throw new Error(`未対応の選び方です: ${resolved.kind}`);
+  }
+}
+
+/**
+ * `--changed` の選び方（設計正本 §4.2）。次のどれかに当たる変異を選ぶ。
+ *
+ * 1. 差分に、その変異の `pkg` 配下のファイルがある（パッケージ単位で多めに選ぶ）
+ * 2. 差分に、そのパッチが触るファイルがある（`pkg` の外を変異させる場合）
+ * 3. 差分に、そのパッチのファイル自体がある
+ *
+ * **全件に倒す**: 差分が取れない（`changedFiles === null`）か、変異検査の機構が差分にあるとき。
+ * 迷ったら多く流す（`scripts/ci-scope.mjs` と同じ fail-open の向き）。
+ */
+function selectByChange(mutations, { changedFiles, mechanismFiles, patchDir, affectedFilesOf }) {
+  const all = (reason) => ({
+    selected: mutations.map((mutation) => ({ mutation, reasons: [reason] })),
+    fallbackToAll: reason,
+  });
+  if (changedFiles === null) return all("差分が取れない");
+  const changed = new Set(changedFiles);
+  const touchedMechanism = mechanismFiles.filter((f) => changed.has(f));
+  if (touchedMechanism.length > 0) return all(`変異検査の機構が変わった（${touchedMechanism.join(", ")}）`);
+
+  const selected = [];
+  for (const mutation of mutations) {
+    const reasons = [];
+    // `${pkg}/` で比べる。`apps/a` が `apps/a-x` に前方一致で当たらないように
+    if (changedFiles.some((f) => f.startsWith(`${mutation.pkg}/`))) reasons.push(`pkg 配下の変更（${mutation.pkg}）`);
+    if (affectedFilesOf(mutation).some((f) => changed.has(f))) reasons.push("パッチが触るファイルの変更");
+    if (changed.has(`${patchDir}/${mutation.patch}`)) reasons.push("パッチ自体の変更");
+    if (reasons.length > 0) selected.push({ mutation, reasons });
+  }
+  return { selected, fallbackToAll: null };
+}
+
+/**
+ * 変異検査の機構のファイル（自分自身と、その相対 import）を、ソースから導く。
+ * 一覧をコードに列挙しない —— 列挙は import を足したときに腐る。
+ *
+ * **たどるのは 1 段だけ。** いま `scripts/lib/*.mjs` は Node 標準以外を import していない。
+ * lib が別の lib を import するようになったら、ここを再帰にする。
+ */
+export function mechanismFilesFrom(source, selfRelPath) {
+  const dir = path.posix.dirname(selfRelPath);
+  const files = [selfRelPath];
+  for (const m of source.matchAll(/from\s+["'](\.{1,2}\/[^"']+)["']/g)) {
+    files.push(path.posix.join(dir, m[1]));
+  }
+  return files;
+}
+
+/** 結果の表題。**全件の緑と絞り込みの緑を取り違えない**ために、絞り込みは必ずそう書く。 */
+export function formatSelectionHeader(selector, { selected, fallbackToAll }, total) {
+  if (selector.kind === "all") return `全件実行: ${total} 件`;
+  const label =
+    selector.kind === "changed"
+      ? `--changed・基準 ${selector.base}`
+      : selector.kind === "pkg"
+        ? `--pkg ${selector.pkg}`
+        : `--id ${selector.ids.join(",")}`;
+  if (fallbackToAll !== null) return `絞り込み実行（${label}）: 全件に倒しました —— ${fallbackToAll}（${total} 件）`;
+  return `絞り込み実行（${label}）: ${total} 件中 ${selected.length} 件`;
 }
