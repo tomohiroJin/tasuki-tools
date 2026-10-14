@@ -17,8 +17,8 @@ Tasuki の各アプリは「自分の systemd ユニット + 固有ポート + C
 | `topic` | （無し・静的） | — | `/var/www/tasuki-topic` | `/topic/` | 公開中 |
 | `roulette` | （無し・静的） | — | `/var/www/tasuki-roulette` | `/roulette/` | 公開中 |
 
-> **#94（ルーレット）は #318 以降の未配布分とまとめて 5 本を 1 回で配った**（2026-10-14・`v4.1.0`）。順序は
-> roulette → poker → topic → landing → timer で、`/roulette/` の断片を先に置いた。手順は [`roulette/NOTES.md`](roulette/NOTES.md)。
+> **#94（ルーレット）は、#91 の配布（2026-09-27）より後にマージした未配布分（PR #318〜#383）とまとめて、
+> 5 アプリを 1 回で配った**（2026-10-14・`v4.1.0`）。順序は roulette → poker → topic → landing → timer で、`/roulette/` の断片を先に置いた。手順は [`roulette/NOTES.md`](roulette/NOTES.md)。
 
 > **#91（お題）は 4 本をまとめて 1 回で配った**（2026-09-27）。順序は topic → poker → landing → timer で、
 > `/topic/` の断片を先に置き、間を空けずに続けて流す。配布中の窓と手順は

@@ -48,7 +48,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 
 ### 4. お題（Topic Board）
 
-お題を用意して、ルームの全員（玄関・timer・poker）に見せるツール。玄関の 3 枚目の札から開く。**本番公開中**（初回公開は 2026-09-27・[#91](https://github.com/tomohiroJin/tasuki-tools/issues/91)。配布の手順は [`deploy/topic/NOTES.md`](deploy/topic/NOTES.md)）。
+お題を用意して、ルームの全員（玄関・timer・poker・ルーレット）に見せるツール。玄関の 3 枚目の札から開く。**本番公開中**（初回公開は 2026-09-27・[#91](https://github.com/tomohiroJin/tasuki-tools/issues/91)。配布の手順は [`deploy/topic/NOTES.md`](deploy/topic/NOTES.md)）。
 
 - **構成**
   - [`packages/topic-core`](packages/topic-core/) — ドメインロジック（お題・定型バンク・検証・AI 生成のプロンプト）
@@ -142,10 +142,11 @@ TypeScript / React 19 + Vite / Bun / WebSocket / Valibot / neverthrow / Vitest /
 
 | 日付 | 内容 | Issue |
 |---|---|---|
-| 2026-08-28 | 単一 monorepo への統合を本番へ反映。玄関 LP と Planning Poker を初回公開し、timer を `/timer/` へ移設 | [#66](https://github.com/tomohiroJin/tasuki-tools/issues/66) |
+| 2026-08-28 | `v3.0.0`。単一 monorepo への統合を本番へ反映。玄関 LP と Planning Poker を初回公開し、timer を `/timer/` へ移設 | [#66](https://github.com/tomohiroJin/tasuki-tools/issues/66) |
+| 2026-09-06 | `v3.1.0`。同期と入室まわりを整え（同期できていないことの表示・混雑時の入り直し）、ルームコードの接尾辞を 8 文字にした | [#144](https://github.com/tomohiroJin/tasuki-tools/issues/144) ほか |
 | 2026-09-23 | `v4.0.0`。入口を玄関 1 つにし、全員を同格にして、同期サーバーを 1 本に統合 | [epic #95](https://github.com/tomohiroJin/tasuki-tools/issues/95) |
-| 2026-09-27 | お題（Topic Board）を初回公開し、timer・poker・玄関にお題を表示（タグは打っていない） | [#91](https://github.com/tomohiroJin/tasuki-tools/issues/91) |
-| 2026-10-14 | `v4.1.0`。進行役ルーレットを初回公開。デザインシステムの部品層（#320）・timer から Tailwind を外す（#321）・PC の幅の収まり（#316）などをまとめて反映 | [#94](https://github.com/tomohiroJin/tasuki-tools/issues/94) |
+| 2026-09-27 | お題（Topic Board）を初回公開し、timer・poker・玄関にお題を表示（配布時にはタグを打たず、`v4.1.0` に含めた） | [#91](https://github.com/tomohiroJin/tasuki-tools/issues/91) |
+| 2026-10-14 | `v4.1.0`（v4.0.0 以降の 36 PR）。進行役ルーレットを初回公開。デザインシステムの部品層（#320）・timer から Tailwind を外す（#321）・PC の幅の収まり（#316）などをまとめて反映。09-27 に配ったお題（#91）もこのタグに含む | [#94](https://github.com/tomohiroJin/tasuki-tools/issues/94)・[#91](https://github.com/tomohiroJin/tasuki-tools/issues/91) |
 
 単一 monorepo への統合（[epic #15](https://github.com/tomohiroJin/tasuki-tools/issues/15)・
 設計: [`docs/superpowers/specs/2026-08-04-monorepo-unification-design.md`](docs/superpowers/specs/2026-08-04-monorepo-unification-design.md)）、
