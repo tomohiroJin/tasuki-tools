@@ -141,7 +141,7 @@
   - 実装は「共有の入口から部品そのもの（`Markdown`）を値として取り込むアプリ」で数える（`SHARED_UI_ENTRIES`）。引き出しのフックだけ・型だけを取り込むアプリには数えない（`/code-review` の指摘）
 - **隠し文字（`.ui-visually-hidden`）は、宣言の和から 2 つを外した**
   - timer の `clip` は、部品層の lint（`property-no-deprecated`）が禁じる。同じ役目は `clip-path: inset(50%)` が持つ
-  - topic の字の色（`--coal-soft`）は、隠れている間は見えず、部品は地の色を知らないので持たない
+  - topic の字の色（`--coal-soft`）は部品に入れない（部品は地の色を知らない）。**最初は「隠れている間は見えない」として色ごと外し、CI の e2e が 5 件落ちた。** e2e の文字の読みやすさの測定は隠した文字も測るので、象牙の札の上の象牙色の字（1.13:1）と判定された（`/code-review` でも指摘されていたのに外した、こちらの判断の誤り）。字の色はお題ツールの側（`.topic-reader-heading`）で持つ形に直した
 - **使わなくなった `@tasuki/markdown` の依存と許可を、poker・topic・timer から外した**（`/code-review` の指摘）。アプリが解析を直接読んで描画の写しを作ることを、依存の向きの検査が止める
 - **札の行数（前 → 後）**
   - poker `CurrentTopic.tsx` 83 → 80
