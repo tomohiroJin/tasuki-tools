@@ -625,6 +625,9 @@ importers:
 
   packages/web-kit:
     dependencies:
+      '@tasuki/markdown':
+        specifier: workspace:*
+        version: link:../markdown
       '@tasuki/sync-client':
         specifier: workspace:*
         version: link:../sync-client

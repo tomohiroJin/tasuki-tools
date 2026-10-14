@@ -16,6 +16,7 @@ import {
   formatTable,
   hasScanTarget,
   findInvalidDeclarations,
+  entriesOf,
   loadScanTargets,
   measureScanVolume,
   formatScanVolume,
@@ -595,9 +596,11 @@ describe("走査対象の宣言", () => {
   test("宣言したエントリポイントはすべて実在する", () => {
     // Given / When / Then
     for (const d of SCANNED_PACKAGES) {
-      if (!hasScanTargetForFixture(d.entry) || !hasScanTargetForFixture(d.src)) continue;
-      const abs = pathForFixture.join(REPO_ROOT, d.pkg, d.src, d.entry);
-      assert.ok(fsForFixture.existsSync(abs), `実在しません: ${d.pkg}/${d.src}/${d.entry}`);
+      if (!hasScanTargetForFixture(d.src)) continue;
+      for (const e of entriesOf(d)) {
+        const abs = pathForFixture.join(REPO_ROOT, d.pkg, d.src, e);
+        assert.ok(fsForFixture.existsSync(abs), `実在しません: ${d.pkg}/${d.src}/${e}`);
+      }
     }
   });
 
@@ -668,6 +671,33 @@ describe("走査対象の宣言の妥当性（ADR-0014 決定 1・決定 9）", 
   test("実リポジトリの宣言に不正なものは無い", () => {
     // Given / When / Then
     assert.deepEqual(findInvalidDeclarations(SCANNED_PACKAGES), []);
+  });
+
+  test("入口を複数持つパッケージ（サブパスの入口）は、非空の文字列の配列で宣言できる（#371）", () => {
+    // Given
+    const declarations = [{ pkg: "packages/a", src: "src", test: "tests", entry: ["sync/index.ts", "reader/index.ts"] }];
+    // When / Then
+    assert.deepEqual(findInvalidDeclarations(declarations), []);
+  });
+
+  test("入口の配列が空、または空文字を含むなら不正（走査対象を静かに失う経路）", () => {
+    // Given
+    const declarations = [
+      { pkg: "packages/a", src: "src", test: "tests", entry: [] },
+      { pkg: "packages/b", src: "src", test: "tests", entry: ["index.ts", ""] },
+    ];
+    // When
+    const invalid = findInvalidDeclarations(declarations);
+    // Then
+    assert.deepEqual(invalid, ["packages/a.entry = []", 'packages/b.entry = ["index.ts",""]']);
+  });
+});
+
+describe("entriesOf（#371）", () => {
+  test("文字列なら 1 つ、配列ならそのまま、null なら空", () => {
+    assert.deepEqual(entriesOf({ entry: "index.ts" }), ["index.ts"]);
+    assert.deepEqual(entriesOf({ entry: ["a.ts", "b.ts"] }), ["a.ts", "b.ts"]);
+    assert.deepEqual(entriesOf({ entry: null }), []);
   });
 });
 
