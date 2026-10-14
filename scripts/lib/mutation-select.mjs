@@ -96,7 +96,12 @@ export function selectMutations(mutations, resolved) {
  * 2. 差分に、そのパッチが触るファイルがある（`pkg` の外を変異させる場合）
  * 3. 差分に、そのパッチのファイル自体がある
  *
- * **全件に倒す**: 差分が取れない（`changedFiles === null`）か、変異検査の機構が差分にあるとき。
+ * 条件 1 から `${patchDir}/` 配下は外す。`pkg` が `scripts` の変異は、無関係なパッチの変更でも
+ * `scripts/` 配下に当たって全部選ばれてしまうため（パッチの変更は条件 3 が扱う）。
+ *
+ * **全件に倒す**: 差分が取れない（`changedFiles === null`）か、変異検査の機構が差分にあるか、
+ * リポジトリのルート直下の `.md` 以外のファイル（lockfile・`package.json`・`tsconfig.base.json` など、
+ * 全パッケージのテストに効く共通設定）が差分にあるとき。
  * 迷ったら多く流す（`scripts/ci-scope.mjs` と同じ fail-open の向き）。
  */
 function selectByChange(mutations, { changedFiles, mechanismFiles, patchDir, affectedFilesOf }) {
@@ -108,12 +113,14 @@ function selectByChange(mutations, { changedFiles, mechanismFiles, patchDir, aff
   const changed = new Set(changedFiles);
   const touchedMechanism = mechanismFiles.filter((f) => changed.has(f));
   if (touchedMechanism.length > 0) return all(`変異検査の機構が変わった（${touchedMechanism.join(", ")}）`);
+  const rootConfigs = changedFiles.filter((f) => !f.includes("/") && !f.endsWith(".md"));
+  if (rootConfigs.length > 0) return all(`ルートの共通設定が変わった（${rootConfigs.join(", ")}）`);
 
   const selected = [];
   for (const mutation of mutations) {
     const reasons = [];
-    // `${pkg}/` で比べる。`apps/a` が `apps/a-x` に前方一致で当たらないように
-    if (changedFiles.some((f) => f.startsWith(`${mutation.pkg}/`))) reasons.push(`pkg 配下の変更（${mutation.pkg}）`);
+    // `${pkg}/` で比べる。`apps/a` が `apps/a-x` に前方一致で当たらないように。パッチの置き場は除く
+    if (changedFiles.some((f) => f.startsWith(`${mutation.pkg}/`) && !f.startsWith(`${patchDir}/`))) reasons.push(`pkg 配下の変更（${mutation.pkg}）`);
     if (affectedFilesOf(mutation).some((f) => changed.has(f))) reasons.push("パッチが触るファイルの変更");
     if (changed.has(`${patchDir}/${mutation.patch}`)) reasons.push("パッチ自体の変更");
     if (reasons.length > 0) selected.push({ mutation, reasons });

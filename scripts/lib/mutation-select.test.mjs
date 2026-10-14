@@ -140,6 +140,29 @@ describe("selectMutations: --changed の選び方", () => {
     assert.match(s.fallbackToAll, /差分が取れない/);
   });
 
+  test("ルート直下の共通設定（.md 以外）が変われば全件に倒し、理由にファイル名を出す", () => {
+    const s = selectMutations(MUTS, changed(["pnpm-lock.yaml"]));
+    assert.deepEqual(ids(s), [1, 2, 3, 4]);
+    assert.match(s.fallbackToAll, /ルートの共通設定が変わった/);
+    assert.match(s.fallbackToAll, /pnpm-lock\.yaml/);
+  });
+
+  test("ルート直下でも .md だけなら全件に倒さない（0 件）", () => {
+    const s = selectMutations(MUTS, changed(["README.md"]));
+    assert.deepEqual(ids(s), []);
+    assert.equal(s.fallbackToAll, null);
+  });
+
+  test("pkg が scripts の変異は、無関係なパッチの変更で選ばれない（自分のパッチだけ）", () => {
+    const m5 = { id: 5, pkg: "scripts", patch: "m05-s.patch" };
+    const muts = [...MUTS, m5];
+    const touches = { ...TOUCHES, 5: ["scripts/x.mjs"] };
+    const sel = (files) => selectMutations(muts, { ...changed(files), affectedFilesOf: (m) => touches[m.id] });
+    assert.deepEqual(ids(sel(["scripts/mutations/m03-d.patch"])), [3]);
+    assert.deepEqual(ids(sel(["scripts/mutations/m05-s.patch"])), [5]);
+    assert.deepEqual(ids(sel(["scripts/other.mjs"])), [5]);
+  });
+
   test("改名で旧パスが差分に並べば、旧パス側で選ぶ（--no-renames は呼び出し側の責務）", () => {
     // apps/a から packages/moved へ移したとき、差分には旧パスも新パスも並ぶ
     assert.deepEqual(ids(selectMutations(MUTS, changed(["apps/a/src/x.ts", "packages/moved/x.ts"]))), [1]);
