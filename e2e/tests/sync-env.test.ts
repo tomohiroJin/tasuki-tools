@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { E2E_MAX_ROOMS, syncEnv } from '../harness/sync';
+import { LOCAL_BASE_URL } from '../harness/target';
 
 /**
  * E2E のハーネスが同期サーバーへ渡す env（#387）。
@@ -17,6 +18,7 @@ describe('syncEnv', () => {
     const env = syncEnv({ PATH: '/bin' }, 1234);
     expect(env['PORT']).toBe('1234');
     expect(env['HOST']).toBe('127.0.0.1');
+    expect(env['ALLOWED_ORIGINS']).toBe(LOCAL_BASE_URL);
     expect(env['NODE_ENV']).toBe('production');
     expect(env['PATH']).toBe('/bin');
   });

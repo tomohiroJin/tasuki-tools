@@ -191,8 +191,8 @@ test.describe('文字が背景に対して読める（WCAG AA）', () => {
     expectReadable(scan, 15, [pairKey(subtle!, panel2!)]);
 
     // 共有メモ（暗い面）の Markdown（#316 PR 4）。部品の `.ui-md-*` は象牙の札向けの既定を持つので、
-    // 暗い面では置く側（`.shared-memo-preview`）がつまみで枠とリンクの色を宣言する。同じセッションで続けて測る
-    //   （ルームを足さない）。リンク・インラインコード・引用・コードブロックを含む本文を書いて、プレビューに戻す
+    // 暗い面では置く側（`.shared-memo-preview`）がつまみで枠とリンクの色を宣言する。以前は枠が逼迫していたので同じセッションで続けて測った
+    //   （#387 で E2E の枠は広げたが、動いている検査なのでほどかない）。リンク・インラインコード・引用・コードブロックを含む本文を書いて、プレビューに戻す
     await page.getByRole('button', { name: '編集', exact: true }).click();
     await page.getByLabel('共有メモ', { exact: true }).fill(
       '# 見出し\n\n本文に[リンク](https://example.com)と`code`と**強調**を含む。\n\n## 小見出し\n\n> 引用の行\n\n```\nconst veryLongIdentifierName = someFunction(argumentNumberOne, argumentNumberTwo, argumentNumberThree);\n```',
