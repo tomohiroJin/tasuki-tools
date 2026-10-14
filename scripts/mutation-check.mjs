@@ -2360,8 +2360,10 @@ function runTests(mutation, full) {
 }
 
 /**
- * `--changed` の差分: 基準と HEAD の merge-base から HEAD までのコミット済みの変更（#387）。
- * 未コミットの変更は main() が実行を拒むので数えなくてよい。
+ * `--changed` の差分: 基準と HEAD の merge-base から HEAD までのコミット済みの変更に、
+ * 未コミットの変更と未追跡のファイルを足したもの（#387）。
+ * `gitStatusPorcelain` が機構とパッチの置き場を除外するので、そこの未コミットの変更は
+ * 実行が止まらない。数えないと変異を書き足した直後の `--changed` が新しい変異を選ばない。
  * **`--no-renames`**: 既定の改名検出は旧パスを出さず、パッケージの外へ移したファイルの元の側を落とす。
  * 取れなければ null を返し、選び方の側が全件に倒す。
  */
@@ -2369,10 +2371,18 @@ function changedFilesSince(base) {
   try {
     const opts = { cwd: REPO_ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] };
     const mergeBase = execFileSync("git", ["merge-base", base, "HEAD"], opts).trim();
-    return execFileSync("git", ["-c", "core.quotePath=false", "diff", "--name-only", "--no-renames", mergeBase, "HEAD"], opts)
-      .split("\n")
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
+    const lines = (args) =>
+      execFileSync("git", ["-c", "core.quotePath=false", ...args], opts)
+        .split("\n")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0);
+    return [
+      ...new Set([
+        ...lines(["diff", "--name-only", "--no-renames", mergeBase, "HEAD"]),
+        ...lines(["diff", "--name-only", "--no-renames", "HEAD"]),
+        ...lines(["ls-files", "--others", "--exclude-standard"]),
+      ]),
+    ];
   } catch {
     return null;
   }
@@ -2391,13 +2401,17 @@ function refExists(ref) {
   }
 }
 
-/** parseSelector の結果に、`--changed` のときだけ選び方の材料を足す。 */
+/**
+ * parseSelector の結果に、`--changed` のときだけ選び方の材料を足す。
+ * リポジトリのルートとワークスペースのルートが違うときは、`pkg`（ワークスペース基準）と
+ * 差分（リポジトリ基準）を比べられないので、差分を null にして全件に倒す。
+ */
 function resolveSelector(selector) {
   if (selector.kind !== "changed") return selector;
   const self = fileURLToPath(import.meta.url);
   return {
     ...selector,
-    changedFiles: changedFilesSince(selector.base),
+    changedFiles: REPO_ROOT === WORKSPACE_ROOT ? changedFilesSince(selector.base) : null,
     mechanismFiles: mechanismFilesFrom(fs.readFileSync(self, "utf8"), path.relative(REPO_ROOT, self)),
     patchDir: path.relative(REPO_ROOT, MUTATIONS_DIR),
     affectedFilesOf: (m) => affectedFilesOf(path.join(MUTATIONS_DIR, m.patch)),
@@ -2471,6 +2485,8 @@ function main() {
       controlMs += Date.now() - t;
       return r;
     },
+    // 使い回す直前に、作業ツリーが汚れていないことを main の冒頭と同じ検査で確かめる
+    () => gitStatusPorcelain().trim() === "",
   );
 
   const results = [];
