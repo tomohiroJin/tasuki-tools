@@ -85,11 +85,10 @@ describe("Session の名前の組", () => {
 });
 
 describe("Session の急ぎの印と進み具合", () => {
-  function running(secondsLeftAtAnchor: number, intervalMinutes = 1) {
+  function running(secondsLeftAtAnchor: number, intervalSeconds = 60) {
     vi.useFakeTimers({ now: NOW });
     return threeSeats({
-      config: { intervalMinutes },
-      clock: { running: true, anchorServerTime: NOW, secondsLeftAtAnchor, intervalSeconds: intervalMinutes * 60, runningSince: 0 },
+      clock: { running: true, anchorServerTime: NOW, secondsLeftAtAnchor, intervalSeconds, runningSince: 0 },
     });
   }
 
@@ -109,7 +108,7 @@ describe("Session の急ぎの印と進み具合", () => {
   });
 
   it("進み具合は、間隔のうち過ぎた割合で弧を描く（60 秒のうち 45 秒過ぎたら弧の 4 分の 3）", () => {
-    renderSession(running(15, 1));
+    renderSession(running(15, 60));
     const arc = document.querySelectorAll(".circular-progress-arc-layer circle")[1]!;
     const r = Number(arc.getAttribute("r"));
     const circumference = 2 * Math.PI * r;
