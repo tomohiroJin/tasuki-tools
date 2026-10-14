@@ -5,6 +5,9 @@
  * テストも見落とす（オラクルは実装より広く書く）。大文字・エスケープ・擬似クラスの引数・入れ子・
  * 一覧の後ろ側・`@media` の中を、それぞれ 1 件ずつ固定する。
  */
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -20,8 +23,11 @@ import {
   uiTokensIn,
   unescapeIdent,
   importedNames,
+  tokenScalesFrom,
   withSharedEntryUsage,
 } from "./audit-ui-components.mjs";
+
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 const messagesOf = (css) => checkScreenCss("apps/x/src/index.css", css).map((p) => p.message);
 
@@ -617,7 +623,7 @@ describe("checkScreenCss: トークンと同じ値の直書き（#372）", () =>
     assert.equal(tokenMessages(".a { margin-block-end: 2rem; }").length, 1);
     assert.equal(tokenMessages(".a { gap: 0.25rem; }").length, 1);
     assert.equal(tokenMessages(".a { border-radius: 0.75rem; }").length, 1);
-    assert.equal(tokenMessages(".a { border-top-left-radius: 10px; }").length, 1);
+    assert.equal(tokenMessages(".a { border-top-left-radius: 9999px; }").length, 1);
     assert.equal(tokenMessages(".a { min-height: 2.75rem; }").length, 1);
     assert.equal(tokenMessages(".a::before { inset: calc((100% - 2.75rem) / 2); }").length, 1);
   });
@@ -640,5 +646,66 @@ describe("checkScreenCss: トークンと同じ値の直書き（#372）", () =>
 
   test("直前の ui-exempt: で外せる", () => {
     assert.deepEqual(tokenMessages("/* ui-exempt: 計器の意匠 */\n.a { padding: 0.5rem; }"), []);
+  });
+  test("同じ値の別の書き方（先頭の 0 を省く・末尾の 0・大文字の単位）も落とす", () => {
+    assert.equal(tokenMessages(".a { padding: .5rem; }").length, 1);
+    assert.equal(tokenMessages(".a { gap: 0.50rem; }").length, 1);
+    assert.equal(tokenMessages(".a { margin: 1.0rem; }").length, 1);
+    assert.equal(tokenMessages(".a { min-height: 2.75REM; }").length, 1);
+  });
+
+  test("スクロールの余白（scroll-padding / scroll-margin）も余白として見る", () => {
+    assert.equal(tokenMessages(".a { scroll-padding-block-end: 1rem; }").length, 1);
+    assert.equal(tokenMessages(".a { scroll-margin-top: 0.5rem; }").length, 1);
+  });
+
+  test("@keyframes の段の中も見る", () => {
+    assert.equal(tokenMessages("@keyframes x { to { padding: 0.5rem; } }").length, 1);
+  });
+
+  test("札の形のトークン（--card-radius）は役割の名前なので、10px の角丸を寄せさせない", () => {
+    assert.deepEqual(tokenMessages(".a { border-radius: 10px; }"), []);
+  });
+});
+
+describe("tokenScalesFrom: 尺度はトークン層（shape.css）から読む（#372）", () => {
+  const css = `:root {
+    --space-1: 0.25rem;
+    --space-2: .5rem;
+    --radius-sm: 0.375rem;
+    --radius-full: 9999px;
+    --card-radius: 10px;
+    --tap-target: 2.75rem;
+    --space-x: calc(1rem + 1px);
+  }`;
+
+  test("余白は --space-N・角丸は --radius-*・押せる大きさは --tap-target を、書き方を揃えた値で引く", () => {
+    const [space, radius, size] = tokenScalesFrom(css).map((s) => s.values);
+    assert.deepEqual(space, { "0.25rem": "--space-1", "0.5rem": "--space-2" });
+    assert.deepEqual(radius, { "0.375rem": "--radius-sm", "9999px": "--radius-full" });
+    assert.deepEqual(size, { "2.75rem": "--tap-target" });
+  });
+
+  test("トークンの値を変えれば、落とす直書きも変わる（写しを持たない）", () => {
+    const [space] = tokenScalesFrom(css.replace("--space-1: 0.25rem", "--space-1: 0.3rem")).map((s) => s.values);
+    assert.equal(space["0.3rem"], "--space-1");
+    assert.equal(space["0.25rem"], undefined);
+  });
+
+  test("いまのトークン層から、余白 6 段・角丸 4 段・押せる大きさ 1 つを読める", () => {
+    const real = fs.readFileSync(path.join(REPO_ROOT, "packages/ui/src/tokens/shape.css"), "utf8");
+    assert.deepEqual(tokenScalesFrom(real).map((s) => Object.keys(s.values).length), [6, 4, 1]);
+  });
+});
+
+describe("checkComponentCss: トークンと同じ値の直書き（#372）", () => {
+  test("部品の CSS でも落とす（部品は申告で外せない）", () => {
+    const msgs = checkComponentCss("packages/ui/src/components/x.css", ".ui-a { padding-inline: 1rem; }").map((p) => p.message);
+    assert.equal(msgs.filter((m) => /トークンと同じ値/.test(m)).length, 1);
+  });
+
+  test("部品の @keyframes の段の中も見る", () => {
+    const msgs = checkComponentCss("packages/ui/src/components/x.css", "@keyframes ui-x { to { margin: 0.5rem; } }").map((p) => p.message);
+    assert.equal(msgs.filter((m) => /トークンと同じ値/.test(m)).length, 1);
   });
 });

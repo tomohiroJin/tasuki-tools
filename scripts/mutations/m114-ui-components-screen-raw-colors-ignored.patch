@@ -12,13 +12,13 @@
 # 見る形に戻す）。@keyframes の段の判定は別の分岐なので残り、その 2 件のテストは緑のまま。
 # 部品の CSS の側も生の色を落とし続ける。画面の通常の規則の族だけが赤になるべき。
 diff --git a/scripts/audit-ui-components.mjs b/scripts/audit-ui-components.mjs
-index 1456355..33d0484 100644
+index 81763ca..a607528 100644
 --- a/scripts/audit-ui-components.mjs
 +++ b/scripts/audit-ui-components.mjs
-@@ -317,7 +317,7 @@ export function checkScreenCss(file, css) {
+@@ -325,7 +325,7 @@ export function checkScreenCss(file, css) {
    root.walkRules((rule) => {
      reportWithExempt(rule, inKeyframes(rule)
-       ? rawColorViolations(rule)
+       ? [...rawColorViolations(rule), ...tokenLiteralViolations(rule)]
 -      : [...screenRuleViolations(rule), ...rawColorViolations(rule), ...tokenLiteralViolations(rule)]);
 +      : [...screenRuleViolations(rule), ...tokenLiteralViolations(rule)]);
    });

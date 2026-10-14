@@ -182,7 +182,7 @@
   padding: 0.55rem 0.4rem;
   background: var(--felt-sink);
   border: 1px solid var(--line);
-  border-radius: var(--card-radius);
+  border-radius: 10px;
   transition: opacity 0.3s;
 }
 
