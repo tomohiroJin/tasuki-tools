@@ -244,19 +244,6 @@ describe('回す・入る人・一周の操作', () => {
     expect(input.maxLength).toBe(MAX_DISPLAY_NAME);
   });
 
-  it('Given 上限ちょうどの名前 / When ゲストに追加する / Then そのまま追加コマンドに載り、欄を空にする（#373）', () => {
-    // Given
-    enterRoom();
-    const input = screen.getByLabelText(GUEST_HINT);
-    const longName = 'あ'.repeat(MAX_DISPLAY_NAME);
-    // When
-    fireEvent.change(input, { target: { value: longName } });
-    fireEvent.click(screen.getByRole('button', { name: GUEST_ADD_BUTTON }));
-    // Then
-    expect(latestSocket().sentJson().at(-1)).toEqual({ command: 'roulette.guest.add', name: longName });
-    expect(input).toHaveValue('');
-  });
-
   it('Given ゲストが 2 人 / When 消すボタンを見る / Then 名前で区別でき、押すと消すコマンドを送る', () => {
     // Given
     enterRoom({

@@ -1721,7 +1721,8 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["lib/mutation-select.test.mjs"],
     note: "#387。**対応表より後に足した変異。** 機構を変えた枝で、変えた機構の影響を手元で見ない。",
-  },  {
+  },
+  {
     id: 200,
     label: "ルーレットのゲストの名前欄の上限を、表示名の規約でなく 24 に戻す",
     patch: "m200-roulette-guest-name-cap-24.patch",
