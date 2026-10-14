@@ -19,9 +19,8 @@
  * 札は即座に消えるが、64rem 以上の操作の面は中央（約 46rem）へ滑る。お題が掲げられるときも操作の面は右へ滑る
  * （#348・poker の設計正本 D7・D8。#316 の設計正本 §10.1 は跳んでいた）。
  */
-import { useRef } from 'react';
 import type { Topic } from '@tasuki/topic-core';
-import { Markdown } from './Markdown';
+import { Markdown, useReaderDrawer } from '@tasuki/web-kit/reader';
 
 export const TOPIC_HEADING = 'お題';
 export const READ_MORE = '続きを読む';
@@ -32,11 +31,9 @@ export const TOPIC_SHOW = 'お題を見る';
 export const TOPIC_CARD_ID = 'poker-topic-card';
 
 export function CurrentTopic({ topic }: { topic: Topic }) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  const moreRef = useRef<HTMLButtonElement>(null);
+  // 開閉と、閉じたときに「続きを読む」へフォーカスを戻す処理は共有のフック（`@tasuki/web-kit/reader`）
+  const drawer = useReaderDrawer();
   const hasBody = topic.body !== '';
-  // フォーカスを「続きを読む」へ戻す経路は `onClose` の 1 本（閉じるボタンも Esc も `close` イベントを通る）
-  const close = () => dialogRef.current?.close();
   return (
     <section id={TOPIC_CARD_ID} className="topic ui-reader" aria-labelledby="poker-topic-heading">
       <div className="topic-head">
@@ -47,33 +44,33 @@ export function CurrentTopic({ topic }: { topic: Topic }) {
         <>
           {/* 64rem 未満の 3 行の写し。inert で Tab の行き先と読み上げから外す（全文は「続きを読む」のシート） */}
           <div className="ui-reader-preview" inert>
-            <Markdown source={topic.body} />
+            <Markdown source={topic.body} headingBase={4} />
           </div>
           <div className="ui-reader-body" role="region" aria-labelledby="poker-topic-title" tabIndex={0}>
-            <Markdown source={topic.body} />
+            <Markdown source={topic.body} headingBase={4} />
           </div>
           <button
-            ref={moreRef}
+            ref={drawer.triggerRef}
             type="button"
             className="ui-button ui-button--secondary ui-button--sm ui-reader-more"
-            onClick={() => dialogRef.current?.showModal()}
+            onClick={drawer.open}
           >
             {READ_MORE}
           </button>
           <dialog
-            ref={dialogRef}
+            ref={drawer.dialogRef}
             className="ui-drawer"
             aria-labelledby="poker-topic-drawer-title"
-            onClose={() => moreRef.current?.focus()}
+            onClose={drawer.onClose}
           >
             <div className="ui-drawer-head">
               <h3 id="poker-topic-drawer-title">{topic.title}</h3>
-              <button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={close}>
+              <button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={drawer.close}>
                 {CLOSE}
               </button>
             </div>
             <div className="ui-drawer-body">
-              <Markdown source={topic.body} />
+              <Markdown source={topic.body} headingBase={4} />
             </div>
           </dialog>
         </>

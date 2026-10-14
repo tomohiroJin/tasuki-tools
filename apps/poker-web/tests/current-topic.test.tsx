@@ -9,7 +9,7 @@
  * @requirements #91
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { clearResumeIdentity, loadResumeIdentity, saveResumeIdentity } from '@tasuki/sync-client';
 import type { RoomStateMessage } from '@tasuki/poker-core';
 import type { Topic } from '@tasuki/topic-core';
@@ -148,6 +148,14 @@ describe('poker のルーム画面がいまのお題を出す(#91・#316)', () =
     dialog.dispatchEvent(new Event('close'));
     // Then
     expect(document.activeElement).toBe(more);
+  });
+
+  it('Given 見出しのある本文 / When ルーム画面を開く / Then 本文の見出しは札のタイトル（h3）の下の h4 から（#371）', () => {
+    // Given / When
+    render(<RoomPage roomId={ROOM_ID} sync={makeSync(topic)} />);
+    // Then: 描画は共有の Markdown で、段は札が渡す
+    const region = screen.getByRole('region', { name: 'FizzBuzz' });
+    expect(within(region).getByRole('heading', { level: 4, name: '振る舞い' })).not.toBeNull();
   });
 
   it('Given 本文が空のお題 / When ルーム画面を開く / Then 本文の領域も「続きを読む」も出ない', () => {

@@ -3,14 +3,22 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
-  "exports": { "./sync": "./src/sync/index.ts" },
+  "exports": {
+    "./sync": "./src/sync/index.ts",
+    "./reader": "./src/reader/index.ts"
+  },
   "scripts": {
     "test": "vitest run",
     "lint": "eslint src tests",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": { "@tasuki/sync-client": "workspace:*" },
-  "peerDependencies": { "react": "^19.1.0" },
+  "dependencies": {
+    "@tasuki/markdown": "workspace:*",
+    "@tasuki/sync-client": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "^19.1.0"
+  },
   "devDependencies": {
     "@testing-library/react": "^16.1.0",
     "@types/react": "^19.1.0",
