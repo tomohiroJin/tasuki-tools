@@ -145,8 +145,8 @@
 - **使わなくなった `@tasuki/markdown` の依存と許可を、poker・topic・timer から外した**（`/code-review` の指摘）。アプリが解析を直接読んで描画の写しを作ることを、依存の向きの検査が止める
 - **札の行数（前 → 後）**
   - poker `CurrentTopic.tsx` 83 → 80
-  - timer `TopicCard.tsx` 78 → 75
-  - topic `CurrentTopic.tsx` 250 → 247
+  - timer `TopicCard.tsx` 78 → 76
+  - topic `CurrentTopic.tsx` 250 → 248
   - 消した `Markdown.tsx`: 93・93・170 行。足したもの: `web-kit/src/reader/` の 3 ファイル
 - **`/security-review`**: 下の通しの確認で行う
 - **`/code-review` の指摘のうち、直さなかったもの**
