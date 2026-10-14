@@ -1722,6 +1722,16 @@ export const MUTATIONS = [
     tests: ["lib/mutation-select.test.mjs"],
     note: "#387。**対応表より後に足した変異。** 機構を変えた枝で、変えた機構の影響を手元で見ない。",
   },
+  {
+    id: 220,
+    label: "輪が空になる MemberRemoved で currentIndex を 0 にしない",
+    patch: "m220-evolve-empty-rotation-nan.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/evolve.test.ts", "test/properties.test.ts"],
+    note:
+      "#376。`% 0` が NaN を作り clamp も素通しして currentIndex が NaN になる。" +
+      "decide は最後の 1 人の member.remove を拒むので、decide を通すテストでは殺せない（evolve へ直接渡すテストで殺す）。",
+  },
 ];
 
 /**

@@ -45,7 +45,7 @@
    `evolve` へ**前提を満たしたイベントの任意の列**を直接流す性質を足す（輪が空になる `MemberRemoved` を含める）
 3. 緑: `evolveMemberRemoved` で輪が空になるなら `currentIndex` を 0 にする
 4. 散文を直す: `SessionState.currentIndex` の docstring に不変条件、`decide.ts`・`participant-remove.ts`（2 か所）・`apps/tasuki-sync/test/solo-leave.test.ts`・`docs/timer/ARCHITECTURE.md` の「evolve が破綻する／NaN に落ちる」。日付つきの設計正本・過去の計画は当時の記録なので直さない
-5. 変異 m220（直した分岐を外す）を足し、`--id 220` で殺されることを見る
+5. 変異 m220（直した分岐を外す）を足し、`--id 220` で殺されることを見る（性質のテスト単独でも殺すことを手で確かめる）
 
 ## 検証の実行時間の見積もり
 
