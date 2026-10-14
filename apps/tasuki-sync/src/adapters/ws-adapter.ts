@@ -46,7 +46,6 @@ import type { Logger } from "../application/log/logger.js";
 import type { TimerCommandReceiver } from "../application/timer-command-receiver.js";
 // 接続層が自分で返す文言の正本（#362）。**コードごとに 1 つだけ**にする（SC-035）。
 import {
-  TIMER_INTERNAL_ERROR_TEXT,
   boundaryErrorCode,
   connectionErrorFrame,
 } from "../application/connection-errors.js";
@@ -175,7 +174,7 @@ function parseTimerCommand(text: string): Result<Command, ServerMsg> {
  * 「プロトコル → 受け口」の表（#368 Task 7）。**新しいツールはここに 1 行足す。**
  *
  * ⚠ **超過・内部エラーの返し方はプロトコルごとに違う**（どれも wire に載る値で、片方へ寄せると相手の
- * web が知らないコードを受け取る）。timer の内部エラーの文だけが違うこと（#381）と、timer だけが
+ * web が知らないコードを受け取る）。内部エラーの文は 4 つの接続でそろっている（#381）。timer だけが
  * reject でログを残さないこと（#368 Task 1 で固定）は、今の振る舞いのまま持つ。
  */
 function buildChannels(options: WsAdapterOptions): Readonly<Record<AcceptedProtocol, ToolChannel>> {
@@ -205,7 +204,7 @@ function buildChannels(options: WsAdapterOptions): Readonly<Record<AcceptedProto
       parse: parseTimerCommand,
       deliver: (connId, cmd) => options.timer.handleMessage(connId, cmd),
       tooLargeFrame: connectionErrorFrame("MESSAGE_TOO_LARGE"),
-      internalErrorFrame: { type: "error", code: "INTERNAL_ERROR", message: TIMER_INTERNAL_ERROR_TEXT },
+      internalErrorFrame: connectionErrorFrame("INTERNAL_ERROR"),
       logsRejection: false,
     }),
     hub: rawTextChannel<HubServerMsg>(options.hub, connectionFrames()),

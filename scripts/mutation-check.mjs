@@ -1722,6 +1722,16 @@ export const MUTATIONS = [
     tests: ["lib/mutation-select.test.mjs"],
     note: "#387。**対応表より後に足した変異。** 機構を変えた枝で、変えた機構の影響を手元で見ない。",
   },
+  {
+    id: 230,
+    label: "timer の内部エラーが、また timer だけの別の文を返す",
+    patch: "m230-timer-internal-error-own-text.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/connection-error-text.test.ts"],
+    note:
+      "#381。**対応表より後に足した変異。** timer の内部エラーのフレームを正本（`connectionErrorFrame`）から" +
+      "取らず「内部エラーが発生しました」を直書きすると、timer だけ文が違う状態（#381 以前）に戻る。",
+  },
 ];
 
 /**

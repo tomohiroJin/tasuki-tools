@@ -22,7 +22,6 @@ import { rouletteErrorMessageFor } from "@tasuki/roulette-core";
 import { errorMessageFor } from "@tasuki/timer-core";
 import {
   CONNECTION_ERROR_TEXT,
-  TIMER_INTERNAL_ERROR_TEXT,
   type ConnectionErrorCode,
 } from "../src/application/connection-errors.js";
 import { POKER_ERROR_TEXT } from "../src/application/poker-error-text.js";
@@ -33,7 +32,7 @@ const SRC_DIR = join(import.meta.dir, "..", "src");
 const CANONICALS = [
   {
     file: "application/connection-errors.ts",
-    texts: [...Object.values(CONNECTION_ERROR_TEXT), TIMER_INTERNAL_ERROR_TEXT],
+    texts: Object.values(CONNECTION_ERROR_TEXT),
   },
   { file: "application/poker-error-text.ts", texts: Object.values(POKER_ERROR_TEXT) },
 ];

@@ -122,15 +122,14 @@ describe("接続層のエラーの文言（接続層・メッセージ層が失�
     throw new Error("メッセージ層の失敗（テスト用）");
   };
 
-  // **timer だけ文言が違う**（「内部エラーが発生しました」。timer の受け口の内部エラーのフレーム。`ws-adapter.ts` の `buildChannels`）。
-  // 2026-10-13 に、この特性テストを書いて初めて分かった。リファクタリングでは変えずに固定し、
-  // そろえるかどうかは別の Issue で決める（#360「見つかった振る舞いの疑い」）。
+  // 文言は 4 つの接続で同じ（#381）。かつて timer だけ「内部エラーが発生しました」だった
+  // （#362 の特性テストで見つかり、#381 でそろえた）。
   //
   // **ログも timer だけ違う**（#368 Task 1）。ハブ・お題・ルーレットは reject でも
   // `on-message-error` を 1 行残すが、timer は reject ではログを残さない（同期の throw では残す）。
   // これもリファクタリングでは変えずに固定する。
   for (const [label, tool, message, logLines] of [
-    ["timer", "timer", "内部エラーが発生しました", []],
+    ["timer", "timer", "サーバー内部でエラーが発生しました", []],
     ["ハブ", null, "サーバー内部でエラーが発生しました", ["on-message-error name=Error"]],
     ["お題", "topic", "サーバー内部でエラーが発生しました", ["on-message-error name=Error"]],
     ["ルーレット", "roulette", "サーバー内部でエラーが発生しました", ["on-message-error name=Error"]],
