@@ -26,8 +26,11 @@ export interface JoinRetryTexts {
 export interface JoinRetry {
   /** 待っている・諦めた、の知らせ（無ければ null）。 */
   readonly notice: string | null;
-  /** 混雑で拒まれた。待ってから `resend` を呼ぶか、使い切っていれば諦める。 */
-  readonly rateLimited: (resend: () => void) => void;
+  /**
+   * 混雑で拒まれた。待ってから `resend` を呼ぶか、使い切っていれば諦める。
+   * 送り直しを予約したら true、使い切って諦めたら false（知らせを持たない呼び出し側が出し分けに使う）。
+   */
+  readonly rateLimited: (resend: () => void) => boolean;
   /** 予約した送り直しを捨てる（知らせと回数はそのまま）。 */
   readonly cancel: () => void;
   /** 回数を戻し、知らせを下ろす（予約は捨てない）。 */
@@ -57,11 +60,11 @@ export function useJoinRetry(texts: JoinRetryTexts | null): JoinRetry {
   }, []);
 
   const rateLimited = useCallback(
-    (resend: () => void) => {
+    (resend: () => void): boolean => {
       const delay = joinRetryDelayMs((attemptsRef.current += 1));
       if (delay === null) {
         if (textsRef.current !== null) setNotice(textsRef.current.exhausted);
-        return;
+        return false;
       }
       if (textsRef.current !== null) setNotice(textsRef.current.waiting);
       cancel();
@@ -69,6 +72,7 @@ export function useJoinRetry(texts: JoinRetryTexts | null): JoinRetry {
         timerRef.current = null;
         resend();
       }, delay);
+      return true;
     },
     [cancel],
   );

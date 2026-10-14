@@ -130,4 +130,23 @@ describe('useJoinRetry', () => {
     act(() => hook.result.current.rateLimited(resend));
     expect(hook.result.current.notice).toBeNull();
   });
+
+  it('Given 拒まれた / When 待ちを予約する・使い切る / Then 予約したかを返す（知らせを持たない呼び出し側が出し分ける）', () => {
+    // Given
+    const resend = vi.fn();
+    const hook = renderHook(() => useJoinRetry(null));
+    const results: boolean[] = [];
+    // When
+    for (let attempt = 1; joinRetryDelayMs(attempt) !== null; attempt += 1) {
+      act(() => {
+        results.push(hook.result.current.rateLimited(resend));
+      });
+    }
+    act(() => {
+      results.push(hook.result.current.rateLimited(resend));
+    });
+    // Then
+    expect(results.slice(0, -1).every((r) => r)).toBe(true);
+    expect(results.at(-1)).toBe(false);
+  });
 });
