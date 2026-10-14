@@ -7,7 +7,7 @@
 /* 操作の面と脇の縦の間隔（段組みは部品層の `.ui-workspace-*`・`min-width: 0` もそちらが持つ）。
  * 子の margin は持たない（移した部品の根は margin-block-end を書かない）。 */
 :where(.lobby-column > :not(:last-child)) {
-  margin-block-end: 1.5rem;
+  margin-block-end: var(--space-5);
 }
 
 /* 開始は操作の面いっぱいに（大きさ・役割は部品の `.ui-button--lg`） */
@@ -19,7 +19,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .lobby-start-icon {
@@ -47,14 +47,14 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  column-gap: 0.5rem;
+  column-gap: var(--space-2);
   row-gap: 0.375rem;
   border-radius: var(--radius-md);
   border-width: 1px;
   border-color: var(--hairline);
   background-color: var(--panel-2);
-  padding-inline: 0.75rem;
-  padding-block: 0.5rem;
+  padding-inline: var(--space-3);
+  padding-block: var(--space-2);
   font-size: var(--font-size-sm);
   line-height: 1.45;
 }
@@ -75,7 +75,7 @@
   flex-shrink: 0;
   border-radius: var(--radius-sm);
   border-width: 1px;
-  padding-inline: 0.5rem;
+  padding-inline: var(--space-2);
   padding-block: 0.125rem;
   font-size: var(--font-size-xs);
   line-height: 1.35;
@@ -103,14 +103,14 @@
   flex-wrap: wrap;
   align-items: center;
   /* 段の間は、折り返した --sm のボタンの当たり（上下に 4px ずつ広がる）が重ならない 8px（#316 PR 4） */
-  column-gap: 0.25rem;
-  row-gap: 0.5rem;
+  column-gap: var(--space-1);
+  row-gap: var(--space-2);
   margin-inline-start: auto;
 }
 
 @media (width >= 40rem) {
   .lobby-participant-actions {
-    gap: 0.75rem;
+    gap: var(--space-3);
   }
 }
 
@@ -168,5 +168,5 @@
 }
 
 .lobby-empty-hint {
-  margin-top: 0.75rem;
+  margin-top: var(--space-3);
 }

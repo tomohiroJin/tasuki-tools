@@ -8,7 +8,7 @@
 .end-session-zone-label {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 /* アイコン（除去検査で alive・lucide のクラスつきの行） */

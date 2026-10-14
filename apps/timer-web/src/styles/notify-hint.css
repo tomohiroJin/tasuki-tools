@@ -3,16 +3,16 @@
  * 写さなかった宣言（除去検査で dead）: 根の `text-[var(--bone)]`（親から継ぐので不要）。 */
 
 .notify-hint {
-  margin-bottom: 0.75rem;
+  margin-bottom: var(--space-3);
   display: flex;
   align-items: flex-start;
-  gap: 0.5rem;
+  gap: var(--space-2);
   border-radius: var(--radius-md);
   border-width: 1px;
   border-color: var(--signal);
   background-color: var(--signal-tint);
-  padding-inline: 0.75rem;
-  padding-block: 0.5rem;
+  padding-inline: var(--space-3);
+  padding-block: var(--space-2);
   font-size: var(--font-size-sm);
   line-height: 1.45;
 }

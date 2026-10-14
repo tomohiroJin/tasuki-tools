@@ -3,11 +3,11 @@
  * 写さなかった宣言（除去検査で dead）: サマリの `text-center`、現ドライバーの行と自分の行の `text-[var(--bone)]`（親から継ぐので不要）。 */
 
 .rotation-lineup {
-  margin-top: 0.75rem;
+  margin-top: var(--space-3);
 }
 
 .rotation-lineup-summary {
-  margin-bottom: 0.5rem;
+  margin-bottom: var(--space-2);
   font-size: var(--font-size-lg);
   line-height: 1.4;
   font-weight: 700;

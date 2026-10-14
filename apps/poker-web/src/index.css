@@ -182,7 +182,7 @@
   padding: 0.55rem 0.4rem;
   background: var(--felt-sink);
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: var(--card-radius);
   transition: opacity 0.3s;
 }
 
@@ -382,7 +382,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.6rem;
-  padding: 0.5rem 0.8rem;
+  padding: var(--space-2) 0.8rem;
   background: var(--rose-tint);
   border: 1px solid var(--rose-edge);
   border-radius: 8px;
