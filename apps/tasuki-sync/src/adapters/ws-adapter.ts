@@ -173,9 +173,10 @@ function parseTimerCommand(text: string): Result<Command, ServerMsg> {
 /**
  * 「プロトコル → 受け口」の表（#368 Task 7）。**新しいツールはここに 1 行足す。**
  *
- * ⚠ **超過・内部エラーの返し方はプロトコルごとに違う**（どれも wire に載る値で、片方へ寄せると相手の
- * web が知らないコードを受け取る）。内部エラーの文は 4 つの接続でそろっている（#381）。timer だけが
- * reject でログを残さないこと（#368 Task 1 で固定）は、今の振る舞いのまま持つ。
+ * timer・ハブ・お題・ルーレットは、超過・内部エラーのフレーム（文言も）もログも同じ（#381 でそろえた。
+ * 文は `connectionErrorFrame`、ログは `createTextChannel` が 1 か所で決める）。**返し方が違うのは poker だけ**
+ * （エラーコードがケバブ記法で、内部エラーは 1011 で閉じる。wire に載る値なので、片方へ寄せると相手の web が
+ * 知らないコードを受け取る）。
  */
 function buildChannels(options: WsAdapterOptions): Readonly<Record<AcceptedProtocol, ToolChannel>> {
   const { maxMessageBytes, logger } = options;
@@ -191,28 +192,26 @@ function buildChannels(options: WsAdapterOptions): Readonly<Record<AcceptedProto
       deliver: (connId, raw) => handler.handleMessage(connId, raw),
       tooLargeFrame: frames.tooLarge,
       internalErrorFrame: frames.internalError,
-      logsRejection: true,
     });
-  const connectionFrames = () => ({
+  const frames = {
     tooLarge: connectionErrorFrame("MESSAGE_TOO_LARGE"),
     internalError: connectionErrorFrame("INTERNAL_ERROR"),
-  });
+  };
   return {
     timer: createTextChannel<Command, ServerMsg>({
       maxMessageBytes,
       logger,
       parse: parseTimerCommand,
       deliver: (connId, cmd) => options.timer.handleMessage(connId, cmd),
-      tooLargeFrame: connectionErrorFrame("MESSAGE_TOO_LARGE"),
-      internalErrorFrame: connectionErrorFrame("INTERNAL_ERROR"),
-      logsRejection: false,
+      tooLargeFrame: frames.tooLarge,
+      internalErrorFrame: frames.internalError,
     }),
-    hub: rawTextChannel<HubServerMsg>(options.hub, connectionFrames()),
+    hub: rawTextChannel<HubServerMsg>(options.hub, frames),
     // エラーフレームの型は広い `TopicServerMsg` ではなく狭い `TopicOwnFrame`（#91 R18）。
     // `TopicServerMsg` は `HubServerMsg` を合併しており、その `error` は `code: string`（無制約）なので、
     // 契約に無いコードでも通ってしまう。ルーレットも同じ理由で `RouletteOwnFrame`。
-    topic: rawTextChannel<TopicOwnFrame>(options.topic, connectionFrames()),
-    roulette: rawTextChannel<RouletteOwnFrame>(options.roulette, connectionFrames()),
+    topic: rawTextChannel<TopicOwnFrame>(options.topic, frames),
+    roulette: rawTextChannel<RouletteOwnFrame>(options.roulette, frames),
     poker: createPokerChannel(options.poker, maxMessageBytes, logger),
   };
 }

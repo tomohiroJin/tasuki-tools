@@ -64,11 +64,6 @@ export interface TextChannelSpec<Payload, Frame> {
   readonly tooLargeFrame: Frame;
   /** 渡す先が失敗したときに返すフレーム。 */
   readonly internalErrorFrame: Frame;
-  /**
-   * 渡す先の reject（非同期の失敗）で `on-message-error` を残すか。同期の throw では常に残す。
-   * **timer だけ false**（#368 Task 1 で固定した今の振る舞い。そろえるかは振る舞いの変更として別に決める）。
-   */
-  readonly logsRejection: boolean;
 }
 
 /**
@@ -93,7 +88,7 @@ export function createTextChannel<Payload, Frame>(spec: TextChannelSpec<Payload,
       }
       try {
         spec.deliver(ws.data.connId, parsed.value).catch((err: unknown) => {
-          if (spec.logsRejection) spec.logger.error("on-message-error", { name: classifyError(err) });
+          spec.logger.error("on-message-error", { name: classifyError(err) });
           reply(ws, spec.internalErrorFrame);
         });
       } catch (err) {

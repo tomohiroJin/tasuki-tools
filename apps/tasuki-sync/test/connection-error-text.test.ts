@@ -122,19 +122,17 @@ describe("接続層のエラーの文言（接続層・メッセージ層が失�
     throw new Error("メッセージ層の失敗（テスト用）");
   };
 
-  // 文言は 4 つの接続で同じ（#381）。かつて timer だけ「内部エラーが発生しました」だった
-  // （#362 の特性テストで見つかり、#381 でそろえた）。
-  //
-  // **ログも timer だけ違う**（#368 Task 1）。ハブ・お題・ルーレットは reject でも
-  // `on-message-error` を 1 行残すが、timer は reject ではログを残さない（同期の throw では残す）。
-  // これもリファクタリングでは変えずに固定する。
-  for (const [label, tool, message, logLines] of [
-    ["timer", "timer", "サーバー内部でエラーが発生しました", []],
-    ["ハブ", null, "サーバー内部でエラーが発生しました", ["on-message-error name=Error"]],
-    ["お題", "topic", "サーバー内部でエラーが発生しました", ["on-message-error name=Error"]],
-    ["ルーレット", "roulette", "サーバー内部でエラーが発生しました", ["on-message-error name=Error"]],
+  // 文言もログも 4 つの接続で同じ（#381）。かつて timer だけ文言が「内部エラーが発生しました」で、
+  // reject でログも残さなかった（#362・#368 の特性テストで見つかり、#381 でそろえた）。
+  const INTERNAL_ERROR_MESSAGE = "サーバー内部でエラーが発生しました";
+  const LOG_LINES = ["on-message-error name=Error"];
+  for (const [label, tool] of [
+    ["timer", "timer"],
+    ["ハブ", null],
+    ["お題", "topic"],
+    ["ルーレット", "roulette"],
   ] as const) {
-    it(`Given ${label}のメッセージ層が reject する / When 妥当な本文を送る / Then INTERNAL_ERROR と「${message}」を返し、ログは ${logLines.length} 行`, async () => {
+    it(`Given ${label}のメッセージ層が reject する / When 妥当な本文を送る / Then INTERNAL_ERROR と「${INTERNAL_ERROR_MESSAGE}」を返し、ログは ${LOG_LINES.length} 行`, async () => {
       // Given: どのメッセージ層も reject する接続層
       const { logger, lines } = collectingLogger();
       adapter = newTestWsAdapter({
@@ -154,8 +152,8 @@ describe("接続層のエラーの文言（接続層・メッセージ層が失�
       // When
       const frame = await sendAndTakeFirst(`ws://127.0.0.1:${adapter.port}/ws${query}`, body);
       // Then: ログはエラーフレームを送る前に書かれるので、フレームが届いた時点で揃っている
-      expect(frame).toEqual({ type: "error", code: "INTERNAL_ERROR", message });
-      expect(lines).toEqual([...logLines]);
+      expect(frame).toEqual({ type: "error", code: "INTERNAL_ERROR", message: INTERNAL_ERROR_MESSAGE });
+      expect(lines).toEqual(LOG_LINES);
     });
   }
 });

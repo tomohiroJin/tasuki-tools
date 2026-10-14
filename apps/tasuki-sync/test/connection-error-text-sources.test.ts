@@ -61,6 +61,33 @@ describe("core の写しが正本と一致する", () => {
   });
 });
 
+/**
+ * 廃した旧い文。**src のどこにも直書きしてはならない**（正本の中にも置かない）。
+ * 正本の文の写しを探す検査（下）は、正本から消えた文を知らないので、廃した文はここに残す。
+ * - 「内部エラーが発生しました」: かつて timer だけが返していた内部エラーの文（#381 でそろえた）
+ */
+const RETIRED_TEXTS = ["内部エラーが発生しました"];
+
+describe("廃した文が src に残っていない", () => {
+  it("Given src の全ソース / When 廃した文の文字列リテラルを探す / Then 0 件", () => {
+    // Given
+    const files = [...new Glob("**/*.ts").scanSync(SRC_DIR)].map((rel) => rel.split("\\").join("/"));
+    expect(files.length).toBeGreaterThan(0);
+    // When
+    const found: string[] = [];
+    for (const rel of files) {
+      const source = readFileSync(join(SRC_DIR, rel), "utf8");
+      for (const text of RETIRED_TEXTS) {
+        for (const quote of [`"`, `'`, "`"]) {
+          if (source.includes(`${quote}${text}${quote}`)) found.push(`${rel}: ${quote}${text}${quote}`);
+        }
+      }
+    }
+    // Then
+    expect(found).toEqual([]);
+  });
+});
+
 describe("同期サーバーの中に写しが残っていない", () => {
   it("Given src の全ソース / When 正本の文の文字列リテラルを探す / Then 正本の外に 0 件", () => {
     // Given
