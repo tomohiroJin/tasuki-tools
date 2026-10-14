@@ -48,7 +48,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 
 ### 4. お題（Topic Board）
 
-お題を用意して、ルームの全員（玄関・timer・poker）に見せるツール。玄関の 3 枚目の札から開く。**本番公開中**（初回公開は 2026-09-27・[#91](https://github.com/tomohiroJin/tasuki-tools/issues/91)。配布の手順は [`deploy/topic/NOTES.md`](deploy/topic/NOTES.md)）。
+お題を用意して、ルームの全員（玄関・timer・poker・ルーレット）に見せるツール。玄関の 3 枚目の札から開く。**本番公開中**（初回公開は 2026-09-27・[#91](https://github.com/tomohiroJin/tasuki-tools/issues/91)。配布の手順は [`deploy/topic/NOTES.md`](deploy/topic/NOTES.md)）。
 
 - **構成**
   - [`packages/topic-core`](packages/topic-core/) — ドメインロジック（お題・定型バンク・検証・AI 生成のプロンプト）
@@ -62,7 +62,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 
 ### 5. 進行役ルーレット（Facilitator Roulette）
 
-その場の入る人から次の進行役をルーレットで決めるツール。玄関の 4 枚目の札から開く。**実装済み・本番へは未配布**（配布は利用者の指示を待つ。手順は [`deploy/roulette/NOTES.md`](deploy/roulette/NOTES.md)）。
+その場の入る人から次の進行役をルーレットで決めるツール。玄関の 4 枚目の札から開く。**本番公開中**（初回公開は 2026-10-14・[#94](https://github.com/tomohiroJin/tasuki-tools/issues/94)。配布の手順は [`deploy/roulette/NOTES.md`](deploy/roulette/NOTES.md)）。
 
 - **構成**
   - [`packages/roulette-core`](packages/roulette-core/) — ドメインロジック（入る人・一周の規則・当たりの引き方）
@@ -85,6 +85,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 | TDD Mob Pro Timer | <https://tasuki.niku9.click/timer/> |
 | Planning Poker | <https://tasuki.niku9.click/poker/> |
 | お題（Topic Board） | <https://tasuki.niku9.click/topic/> |
+| 進行役ルーレット | <https://tasuki.niku9.click/roulette/> |
 
 > ルームを作るのも名乗るのも**玄関 1 つだけ**です（#95 S5c）。ルームコードを伴わずに各ツールの URL を開くと、
 > 玄関へ送られます。
@@ -104,12 +105,12 @@ pnpm dev     # 全アプリの dev サーバーを並列起動する
 pnpm test    # 全パッケージのテストを実行する
 ```
 
-**起動したら <http://localhost:5175/> を開いてください。** `pnpm dev` は 5 つのプロセスを
+**起動したら <http://localhost:5175/> を開いてください。** `pnpm dev` は 6 つのプロセスを
 立ち上げ、ログには複数のポートが並びますが、**入口はこの 1 つだけ**です（本番と同じ形）。
 
-> ⚠ **ツールの dev サーバー（:5173 / :5174 / :5176）を直接開かないでください。**
+> ⚠ **ツールの dev サーバー（:5173 / :5174 / :5176 / :5177）を直接開かないでください。**
 > #95 S5c で入口を玄関 1 つに畳んだため、ルームコードを伴わずに開くと玄関（`/`）へ
-> 送り返されます。:5173 / :5174 / :5176 では `/` がそのツール自身なので、Vite の base
+> 送り返されます。:5173 / :5174 / :5176 / :5177 では `/` がそのツール自身なので、Vite の base
 > リダイレクトと噛み合って**ページの再読み込みが止まらなくなります**。
 
 起動・個別プロセスの内訳・検査コマンドの詳しい手順は
@@ -135,14 +136,17 @@ TypeScript / React 19 + Vite / Bun / WebSocket / Valibot / neverthrow / Vitest /
 | Planning Poker | `/poker/` | 本番公開中 |
 | 玄関 LP | `/` | 本番公開中 |
 | Topic Board | `/topic/` | 本番公開中 |
-| Facilitator Roulette | `/roulette/` | 未配布（実装済み） |
+| Facilitator Roulette | `/roulette/` | 本番公開中 |
 
-公開の履歴は次のとおりです（GitHub Releases は使っておらず、配布の記録は各 Issue にあります）。
+公開の履歴は次のとおりです（GitHub Releases は使っていません。大きめの配布には注釈付きタグを打ち、変更点の要約をタグの本文に書いています。配布の詳しい記録は各 Issue にあります）。
 
 | 日付 | 内容 | Issue |
 |---|---|---|
-| 2026-08-28 | 単一 monorepo への統合を本番へ反映。玄関 LP と Planning Poker を初回公開し、timer を `/timer/` へ移設 | [#66](https://github.com/tomohiroJin/tasuki-tools/issues/66) |
-| 2026-09-27 | お題（Topic Board）を初回公開し、timer・poker・玄関にお題を表示 | [#91](https://github.com/tomohiroJin/tasuki-tools/issues/91) |
+| 2026-08-28 | `v3.0.0`。単一 monorepo への統合を本番へ反映。玄関 LP と Planning Poker を初回公開し、timer を `/timer/` へ移設 | [#66](https://github.com/tomohiroJin/tasuki-tools/issues/66) |
+| 2026-09-06 | `v3.1.0`。同期と入室まわりを整え（同期できていないことの表示・混雑時の入り直し）、ルームコードの接尾辞を 8 文字にした | [#144](https://github.com/tomohiroJin/tasuki-tools/issues/144) ほか |
+| 2026-09-23 | `v4.0.0`。入口を玄関 1 つにし、全員を同格にして、同期サーバーを 1 本に統合 | [epic #95](https://github.com/tomohiroJin/tasuki-tools/issues/95) |
+| 2026-09-27 | お題（Topic Board）を初回公開し、timer・poker・玄関にお題を表示（配布時にはタグを打たず、`v4.1.0` に含めた） | [#91](https://github.com/tomohiroJin/tasuki-tools/issues/91) |
+| 2026-10-14 | `v4.1.0`（v4.0.0 以降の 36 PR）。進行役ルーレットを初回公開。デザインシステムの部品層（#320）・timer から Tailwind を外す（#321）・PC の幅の収まり（#316）などをまとめて反映。09-27 に配ったお題（#91）もこのタグに含む | [#94](https://github.com/tomohiroJin/tasuki-tools/issues/94)・[#91](https://github.com/tomohiroJin/tasuki-tools/issues/91) |
 
 単一 monorepo への統合（[epic #15](https://github.com/tomohiroJin/tasuki-tools/issues/15)・
 設計: [`docs/superpowers/specs/2026-08-04-monorepo-unification-design.md`](docs/superpowers/specs/2026-08-04-monorepo-unification-design.md)）、
