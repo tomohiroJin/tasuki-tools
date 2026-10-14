@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { joinRetryDelayMs, loadResumeIdentity, saveResumeIdentity } from '@tasuki/sync-client';
 import { App } from '../src/App';
 import { redirectTo } from '../src/router';
+import { topicSyncUrl } from '../src/hooks/use-topic-sync';
 import { GONE_HEADING, RETRY_EXHAUSTED_TEXT, RETRY_WAITING_TEXT, STALE_TEXT } from '../src/copy';
 import { IDLE_STATE, RESUME, ScriptedWebSocket, latestSocket } from './support/scripted-web-socket';
 
@@ -276,5 +277,37 @@ describe('お題ツールのルームへの入り方', () => {
     act(() => latestSocket().drop());
     act(() => vi.advanceTimersByTime(30_000));
     expect(ScriptedWebSocket.instances).toHaveLength(1);
+  });
+});
+
+/**
+ * 共通の部品へ移す前に、ルーレットと同じ形で固定しておく振る舞い（#369 Task 1）。
+ */
+describe('お題ツールの入り直し（#369 で共通の部品へ移す前の固定）', () => {
+  it('Given http と https / When URL を作る / Then ws と wss でお題の入口を指す', () => {
+    expect(topicSyncUrl({ protocol: 'http:', host: 'h:1' })).toBe('ws://h:1/ws?tool=topic');
+    expect(topicSyncUrl({ protocol: 'https:', host: 'h' })).toBe('wss://h/ws?tool=topic');
+  });
+
+  it('Given 混雑で試行を使い切った / When 切れて繋ぎ直し、また拒まれる / Then 試行の数は戻っていて、待っていると伝える', () => {
+    // Given
+    vi.useFakeTimers();
+    saveResumeIdentity(RESUME);
+    render(<App />);
+    act(() => latestSocket().open());
+    for (let attempt = 1; joinRetryDelayMs(attempt) !== null; attempt += 1) {
+      act(() => latestSocket().deliver({ type: 'error', code: 'JOIN_RATE_LIMITED', message: 'x' }));
+      act(() => vi.advanceTimersByTime(60_000));
+    }
+    act(() => latestSocket().deliver({ type: 'error', code: 'JOIN_RATE_LIMITED', message: 'x' }));
+    expect(screen.getByText(RETRY_EXHAUSTED_TEXT)).toBeInTheDocument();
+    // When
+    act(() => latestSocket().drop());
+    act(() => vi.advanceTimersByTime(30_000));
+    act(() => latestSocket().open());
+    act(() => latestSocket().deliver({ type: 'error', code: 'JOIN_RATE_LIMITED', message: 'x' }));
+    // Then
+    expect(screen.getByText(RETRY_WAITING_TEXT)).toBeInTheDocument();
+    expect(screen.queryByText(RETRY_EXHAUSTED_TEXT)).toBeNull();
   });
 });
