@@ -107,7 +107,7 @@ export function CurrentTopic({ state, enabled, draft, onCopyToDraft, onClear }: 
     >
       {/* 見出しは region の名前と読み上げのために残し、目には出さない（すぐ下のタブが何を見ているかを示すので）。
           名前は「お題」で、どちらのタブを見ていても当たる（「いまのお題」だと下書きの間に食い違う） */}
-      <h2 id={`${baseId}-heading`} className="ui-visually-hidden">{READER_HEADING}</h2>
+      <h2 id={`${baseId}-heading`} className="ui-visually-hidden topic-reader-heading">{READER_HEADING}</h2>
       <div className="topic-reader-tabs" role="tablist" aria-label={READER_TABS_LABEL}>
         {TABS.map((t, i) => {
           const selected = t.id === active;
