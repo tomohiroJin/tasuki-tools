@@ -15,6 +15,7 @@ import {
   TAB_DRAFT,
 } from '../copy';
 import { Markdown } from './Markdown';
+import { isDraftBlank, readerTabForDraft, type ReaderTab } from '../topic-view';
 
 export interface Draft {
   readonly title: string;
@@ -30,7 +31,7 @@ interface Props {
   onClear(): void;
 }
 
-type TabId = 'current' | 'draft';
+type TabId = ReaderTab;
 const TABS: readonly { readonly id: TabId; readonly label: string }[] = [
   { id: 'current', label: TAB_CURRENT },
   { id: 'draft', label: TAB_DRAFT },
@@ -72,11 +73,11 @@ export function CurrentTopic({ state, enabled, draft, onCopyToDraft, onClear }: 
   const moreRef = useRef<HTMLButtonElement>(null);
   const [active, setActive] = useState<TabId>('current');
 
-  const filled = draft.title.trim() !== '' || draft.body.trim() !== '';
+  const filled = !isDraftBlank(draft.title, draft.body);
   const [wasFilled, setWasFilled] = useState(filled);
   if (wasFilled !== filled) {
     setWasFilled(filled);
-    setActive(filled ? 'draft' : 'current');
+    setActive(readerTabForDraft(filled));
   }
   // 打つたびの Markdown の解析で入力が止まらないよう、描く値は遅らせる（プレビューと同じ）
   const draftTitle = useDeferredValue(draft.title);
@@ -99,7 +100,7 @@ export function CurrentTopic({ state, enabled, draft, onCopyToDraft, onClear }: 
   const closeDrawer = () => dialogRef.current?.close();
   const titleId = `${baseId}-title`;
   const draftTitleId = `${baseId}-draft-title`;
-  const draftBlank = draftTitle.trim() === '' && draftBody.trim() === '';
+  const draftBlank = isDraftBlank(draftTitle, draftBody);
 
   return (
     <section
