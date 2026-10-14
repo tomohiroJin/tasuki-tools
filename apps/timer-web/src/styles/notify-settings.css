@@ -35,7 +35,7 @@
 .notify-settings-trigger::before {
   content: "";
   position: absolute;
-  inset: calc((100% - 2.75rem) / 2) 0;
+  inset: calc((100% - var(--tap-target)) / 2) 0;
 }
 
 .notify-settings-icon {
@@ -153,7 +153,7 @@
 .notify-settings-switch-off::before {
   content: "";
   position: absolute;
-  inset: calc((100% - 2.75rem) / 2);
+  inset: calc((100% - var(--tap-target)) / 2);
 }
 
 .notify-settings-range {

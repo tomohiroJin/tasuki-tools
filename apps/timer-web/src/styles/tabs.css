@@ -14,7 +14,7 @@
 .tab {
   padding-inline: 1rem;
   padding-block: 0.5rem;
-  min-height: 2.75rem; /* 全ての幅で 44px（帯の中の大きな的で、見た目を保つ理由が無い・#316 PR 4） */
+  min-height: var(--tap-target); /* 全ての幅で 44px（帯の中の大きな的で、見た目を保つ理由が無い・#316 PR 4） */
   font-size: var(--font-size-sm);
   line-height: 1.45;
   font-weight: 600;
