@@ -10,6 +10,11 @@
 （`deploy.sh timer` の再起動で timer・poker・お題・ルーレットのルームがすべて消える）。
 #318 以降の未配布分とまとめて 1 回にする。
 
+> **2026-10-14 にこの手順で配った**（`v4.1.0`）。初回の用意（web root と断片）を済ませてから、
+> roulette・poker・topic・landing・timer の順に続けて流した（poker と topic にも未配布の変更があったため、
+> 静的の 2 本を足している。どちらも `STATIC_ONLY=1`）。配った後の `pnpm e2e:prod` は、`roulette.spec.ts` の
+> 読み方の競合（テスト側・#384 で修正）の 1 本を除いて通った。以下の手順は記録として残す。
+
 ### 順序
 
 **roulette → landing → timer。** 静的な 2 本と timer は**間を空けずに続けて流す**。
