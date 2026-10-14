@@ -2,7 +2,8 @@
    Tasuki UI — 隠し文字（#371・ADR 0022）
    **目に出さず、支援技術には残す**文字（読み上げだけに渡す見出し・状態の言葉・ライブリージョン）。
    timer の `.sr-only`・topic の `.topic-visually-hidden`・roulette の `.roulette-visually-hidden` を 1 つにした。
-   宣言は 3 つの和（設計正本 D2「両版で勝っている宣言の和を残す」）。
+   宣言は 3 つの和（設計正本 D2「両版で勝っている宣言の和を残す」）。ただし timer の `clip` は
+   部品層の lint が廃止予定として禁じるので外した（同じ役目は `clip-path: inset(50%)` が持つ）。
    ============================================================ */
 
 .ui-visually-hidden {
@@ -12,7 +13,6 @@
   padding: 0;
   margin: -1px;
   overflow: hidden;
-  clip: rect(0, 0, 0, 0);
   clip-path: inset(50%);
   white-space: nowrap;
   border-width: 0;
