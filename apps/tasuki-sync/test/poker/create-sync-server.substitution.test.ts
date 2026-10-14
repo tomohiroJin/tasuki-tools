@@ -10,23 +10,23 @@
 // `detachFromCurrentRoom` の早期 return にある `broadcaster.detach` 呼び出し）も守る。
 // どちらも呼び出しを削っても既存の全テストは緑のままだった経路である（変異検査で確認済み）。
 //
-// **`Broadcaster` ポートの振る舞い（接続レジストリの attach/detach）を観測する目的で
+// **`PokerBroadcaster` ポートの振る舞い（接続レジストリの attach/detach）を観測する目的で
 // 独自実装を注入しているのは、「配線の穴 2」（`detachFromCurrentRoom` の detach
 // 呼び出しを守るテスト）の 1 本だけである。**（`MonotonicClock`/`RoomStore` の各テストにも
-// `Broadcaster` の偽物は登場するが、それらは「登録系メソッドは呼ばれないはず」という
+// `PokerBroadcaster` の偽物は登場するが、それらは「登録系メソッドは呼ばれないはず」という
 // 非呼び出しの証明のためで、`sendTo` 以外は素通りしない。接続レジストリの振る舞いそのもの
 // を差し替えて観測してはいないので、ここには数えない。）
 // 「配線の穴 1」（`resetRoom` 呼び出しを守るテスト）と
 // `RoomSocket の差し替え（配信の宛先と回数）` は、どちらも `createWsBroadcaster()`
 // （本番アダプタ）をそのまま使っており、差し替えているのは `RoomSocket`
-// （`oldSocket`/`newSocket`/`hostSocket` 等）であって `Broadcaster` ポートではない。
+// （`oldSocket`/`newSocket`/`hostSocket` 等）であって `PokerBroadcaster` ポートではない。
 // それでも「配線の穴 1」のテストに価値があるのは、`resetRoom` の呼び出し（配線）を
-// 守る唯一のテストだからである（`Broadcaster` を差し替えているかどうかとは別の理由）。
-// 「Broadcaster」や「配線の穴」を名乗る describe だからといって、自動的に Broadcaster
+// 守る唯一のテストだからである（`PokerBroadcaster` を差し替えているかどうかとは別の理由）。
+// 「PokerBroadcaster」や「配線の穴」を名乗る describe だからといって、自動的に PokerBroadcaster
 // ポートの差し替えだと早合点しないこと（#165 PR-2 の再レビューでの指摘そのもの）。
 //
 // ファイル名は `create-sync-server.substitution.test.ts` だが、実体は
-// `createSyncServer` ではなく `makeHandlers`（アプリケーション層）の差し替えテストである
+// `createSyncServer` ではなく `makePokerHandlers`（アプリケーション層）の差し替えテストである
 // （`createSyncServer` は 1 度も import していない）。`src/application/handlers.ts` の
 // コメントがこのファイル名で参照しているため、ファイル名自体は変えていない。
 import { describe, expect, it } from 'bun:test';
@@ -37,10 +37,10 @@ import { InMemoryRoomStore } from '../../src/adapters/in-memory-room-store';
 import { InMemoryRoundStore } from '../../src/adapters/poker-in-memory-round-store';
 import { createTokenStore } from '../../src/application/token-store';
 import { createWsBroadcaster } from '../../src/adapters/poker-ws-broadcaster';
-import { makeHandlers, type HandlerConnection } from '../../src/application/poker-handlers';
-import type { Broadcaster, RoomSocket } from '../../src/ports/poker-broadcaster';
+import { makePokerHandlers, type HandlerConnection } from '../../src/application/poker-handlers';
+import type { PokerBroadcaster, RoomSocket } from '../../src/ports/poker-broadcaster';
 import type { IdGen } from '../../src/ports/poker-id-gen';
-import type { MonotonicClock } from '../../src/ports/poker-monotonic-clock';
+import type { MonotonicClock } from '../../src/ports/monotonic-clock';
 import type { RoomStore } from '../../src/ports/room-store';
 import { TOOL_POKER } from '../../src/application/tool-id.js';
 import { spyHub } from '../support/hub.js';
@@ -83,8 +83,8 @@ function connectionOf(
   };
 }
 
-/** 何もしない Broadcaster。attach/broadcastSnapshot 等を経由しないテストで使う */
-function nullBroadcaster(): Broadcaster {
+/** 何もしない PokerBroadcaster。attach/broadcastSnapshot 等を経由しないテストで使う */
+function nullBroadcaster(): PokerBroadcaster {
   return {
     attach: () => undefined,
     detach: () => false,
@@ -128,7 +128,7 @@ describe('IdGen の差し替え（衝突再試行）', () => {
     // （衝突再試行は 2026-08-17 時点でテストが 0 件だった。差し替えなしでは
     //  crypto.randomUUID() の衝突を起こせず、この経路を通せない）
     const rounds = new InMemoryRoundStore();
-    const roomId = makeHandlers({
+    const roomId = makePokerHandlers({
       store,
       rounds,
       tokens: createTokenStore(),
@@ -158,7 +158,7 @@ describe('MonotonicClock の差し替え（レート制限の窓の境界）', (
     const rateLimiter = createTokenBucketLimiter({ capacity: 1, refillPerSec: 10 });
     const store = new InMemoryRoomStore(); // 'nope' はどの時点でも存在しない
     const messages: ServerMessage[] = [];
-    const broadcaster: Broadcaster = {
+    const broadcaster: PokerBroadcaster = {
       ...nullBroadcaster(),
       sendTo: (_socket, msg) => void messages.push(msg),
     };
@@ -176,7 +176,7 @@ describe('MonotonicClock の差し替え（レート制限の窓の境界）', (
       },
     };
     const rounds = new InMemoryRoundStore();
-    const handlers = makeHandlers({
+    const handlers = makePokerHandlers({
       store,
       rounds,
       tokens: createTokenStore(),
@@ -215,7 +215,7 @@ describe('MonotonicClock の差し替え（レート制限の窓の境界）', (
 });
 
 describe('RoomStore の差し替え（上限判定を実ルームなしで再現）', () => {
-  it('store.list() が上限以上を返すだけで server-busy になり、IdGen/Broadcaster の生成系は一切呼ばれない', () => {
+  it('store.list() が上限以上を返すだけで server-busy になり、IdGen/PokerBroadcaster の生成系は一切呼ばれない', () => {
     // Given: 実際のルームを 1 つも持たないのに list() が上限ぶんを返す store。
     // 実ルーム作成（RoomStore 越しに maxRooms 個の Room を積む、または WS で
     // maxRooms 回 create-room する）を一切経由せずに上限判定だけを再現できるのが
@@ -258,7 +258,7 @@ describe('RoomStore の差し替え（上限判定を実ルームなしで再現
       },
     };
     const sent: ServerMessage[] = [];
-    const broadcaster: Broadcaster = {
+    const broadcaster: PokerBroadcaster = {
       attach: () => {
         throw new Error('attach は呼ばれないはず');
       },
@@ -274,7 +274,7 @@ describe('RoomStore の差し替え（上限判定を実ルームなしで再現
       sendTo: (_socket, msg) => void sent.push(msg),
     };
     const rounds = new InMemoryRoundStore();
-    const handlers = makeHandlers({
+    const handlers = makePokerHandlers({
       store,
       rounds,
       tokens: createTokenStore(),
@@ -308,7 +308,7 @@ describe('RoomStore の差し替え（判定順序: 上限判定は切り離し�
     // 判定が detachFromCurrentRoom の後ろへ動くと、そちらの store.get が呼ばれる。
     // それを検出するため、store.get は「上限判定より先には呼ばれないはず」の例外を投げる。
     // これは RoomStore の不変条件そのもの（get が呼ばれる/呼ばれない）を守るテストであり、
-    // 1 本目の RoomStore テストが守っていた IdGen/Broadcaster 側の非依存とは別の性質
+    // 1 本目の RoomStore テストが守っていた IdGen/PokerBroadcaster 側の非依存とは別の性質
     const store: RoomStore = {
       get: () => {
         throw new Error('get は呼ばれないはず（上限判定は detachFromCurrentRoom より先のはず）');
@@ -333,7 +333,7 @@ describe('RoomStore の差し替え（判定順序: 上限判定は切り離し�
       },
     };
     const sent: ServerMessage[] = [];
-    const broadcaster: Broadcaster = {
+    const broadcaster: PokerBroadcaster = {
       attach: () => {
         throw new Error('attach は呼ばれないはず');
       },
@@ -349,7 +349,7 @@ describe('RoomStore の差し替え（判定順序: 上限判定は切り離し�
       sendTo: (_socket, msg) => void sent.push(msg),
     };
     const rounds = new InMemoryRoundStore();
-    const handlers = makeHandlers({
+    const handlers = makePokerHandlers({
       store,
       rounds,
       tokens: createTokenStore(),
@@ -413,7 +413,7 @@ describe('RoomSocket の差し替え（配信の宛先と回数）', () => {
     const rounds = new InMemoryRoundStore();
     rounds.put('room01', createRound());
     rounds.put('room02', createRound());
-    const handlers = makeHandlers({
+    const handlers = makePokerHandlers({
       store,
       rounds,
       tokens: createTokenStore(),
@@ -470,7 +470,7 @@ describe('配線の穴 1: handleCreateRoom の resetRoom 呼び出し', () => {
       token: () => 'tok',
     };
     const rounds = new InMemoryRoundStore();
-    const handlers = makeHandlers({
+    const handlers = makePokerHandlers({
       store,
       rounds,
       tokens: createTokenStore(),
@@ -498,12 +498,12 @@ describe('配線の穴 1: handleCreateRoom の resetRoom 呼び出し', () => {
 });
 
 describe('配線の穴 2: detachFromCurrentRoom の早期 return での detach 呼び出し', () => {
-  it('store に対応するルームが無い接続でも、Broadcaster の接続レジストリからは外す', () => {
+  it('store に対応するルームが無い接続でも、PokerBroadcaster の接続レジストリからは外す', () => {
     // Given: 接続は roomId を持っているが、store にはそのルームが無い
     // （#165 handlers.ts のコメントが説明する「到達不能ルームに attach されたまま」の状態）
     const store = new InMemoryRoomStore(); // 何も put しない → get は常に undefined
     const detachCalls: Array<[roomId: string, participantId: string, socket: RoomSocket]> = [];
-    const broadcaster: Broadcaster = {
+    const broadcaster: PokerBroadcaster = {
       attach: () => {
         throw new Error('attach は呼ばれないはず');
       },
@@ -533,7 +533,7 @@ describe('配線の穴 2: detachFromCurrentRoom の早期 return での detach �
       },
     };
     const rounds = new InMemoryRoundStore();
-    const handlers = makeHandlers({
+    const handlers = makePokerHandlers({
       store,
       rounds,
       tokens: createTokenStore(),
@@ -555,7 +555,7 @@ describe('配線の穴 2: detachFromCurrentRoom の早期 return での detach �
     // Then: 接続レジストリからの detach は 1 回だけ、正しい引数で呼ばれる。
     // `broadcaster.detach(roomId, participantId, ws)` の呼び出しを削ると、この配列は
     // 空のままになる（変異検査で確認済み）。落とすと、到達不能ルームへの接続が
-    // Broadcaster の接続レジストリに恒久的に蓄積する
+    // PokerBroadcaster の接続レジストリに恒久的に蓄積する
     expect(detachCalls).toHaveLength(1);
     expect(detachCalls[0]?.[0]).toBe('gone-room');
     expect(detachCalls[0]?.[1]).toBe('p1');

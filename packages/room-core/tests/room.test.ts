@@ -19,7 +19,7 @@ import {
   removeParticipant,
   type Participant,
   type Room,
-} from "../src/room";
+} from "../src/room.js";
 
 /** timer に 1 本繋いでいるアリス。 */
 const alice: Participant = {
@@ -51,19 +51,30 @@ describe("名簿の操作", () => {
   it("参加者を足しても元の Room を書き換えない", () => {
     // Given: アリス 1 人の名簿
     // When: ボブを足す
-    const next = addParticipant(room, bob);
+    const next = addParticipant(room, bob)._unsafeUnwrap();
     // Then: 返り値には 2 人居るが、元の Room は 1 人のままである
     expect(next.participants.map((p) => p.id)).toEqual(["p_alice", "p_bob"]);
     expect(room.participants).toHaveLength(1);
   });
 
   it("参加者を外すと名簿から消える", () => {
-    const next = removeParticipant(room, "p_alice");
+    const next = removeParticipant(room, "p_alice")._unsafeUnwrap();
     expect(next.participants).toEqual([]);
   });
 
-  it("居ない ID を外しても何も起きない", () => {
-    expect(removeParticipant(room, "p_bob").participants).toEqual([alice]);
+  it("Given 同じ ID の参加者が居る / When 足す / Then DUPLICATE_PARTICIPANT の Err（#364）", () => {
+    // Given: アリス 1 人の名簿
+    // When: 同じ ID のアリスをもう一度足す
+    const added = addParticipant(room, alice);
+    // Then
+    expect(added._unsafeUnwrapErr()).toEqual({ code: "DUPLICATE_PARTICIPANT" });
+  });
+
+  it("Given 居ない ID / When 外す / Then PARTICIPANT_NOT_FOUND の Err（#364 までは黙って同じ名簿を返していた）", () => {
+    // When
+    const removed = removeParticipant(room, "p_bob");
+    // Then
+    expect(removed._unsafeUnwrapErr()).toEqual({ code: "PARTICIPANT_NOT_FOUND" });
   });
 
   it("名簿が空かどうかを判定できる", () => {
@@ -147,7 +158,7 @@ describe("presence（presenceOf）", () => {
     };
 
     // When: ハブの接続だけを閉じる
-    const next = removeConnection(two, "c2");
+    const next = removeConnection(two, "c2")._unsafeUnwrap();
 
     // Then: online のままで、timer の在席も保たれる
     const after = findParticipant(next, "p_alice")!;
@@ -158,7 +169,7 @@ describe("presence（presenceOf）", () => {
   it("最後の接続を閉じると offline になるが、名簿からは消えない（§3.13）", () => {
     // Given: 接続 1 本のアリスだけが居る名簿（このファイルの `room`）
     // When: 唯一の接続を閉じる
-    const next = removeConnection(room, "c1");
+    const next = removeConnection(room, "c1")._unsafeUnwrap();
 
     // Then: offline だが在室者としては残る（消える経路は明示的な退出だけ）
     expect(presenceOf(findParticipant(next, "p_alice")!)).toBe("offline");
@@ -172,7 +183,7 @@ describe("接続を結ぶ（attachConnection）", () => {
     const offline: Room = { ...room, participants: [{ ...alice, connections: new Map() }] };
 
     // When: timer を宣言する接続を結ぶ
-    const next = attachConnection(offline, "p_alice", "c9", "timer");
+    const next = attachConnection(offline, "p_alice", "c9", "timer")._unsafeUnwrap();
 
     // Then: online で timer に在席する
     const after = findParticipant(next, "p_alice")!;
@@ -184,7 +195,7 @@ describe("接続を結ぶ（attachConnection）", () => {
   it("接続を足しても前の接続を奪わない（2 タブが 1 人になる）", () => {
     // Given: timer に 1 本繋いでいるアリス
     // When: 2 本目（ハブ）を結ぶ
-    const next = attachConnection(room, "p_alice", "c2", null);
+    const next = attachConnection(room, "p_alice", "c2", null)._unsafeUnwrap();
 
     // Then: 2 本とも生きている
     const after = findParticipant(next, "p_alice")!;
@@ -195,7 +206,7 @@ describe("接続を結ぶ（attachConnection）", () => {
   it("同じ接続 ID を結び直すと宣言が上書きされ、本数は増えない（冪等）", () => {
     // Given: timer を宣言した接続 c1 を持つアリス
     // When: 同じ c1 で poker を宣言し直す
-    const next = attachConnection(room, "p_alice", "c1", "poker");
+    const next = attachConnection(room, "p_alice", "c1", "poker")._unsafeUnwrap();
     const after = findParticipant(next, "p_alice")!;
     expect(after.connections.size).toBe(1);
     expect(isPresentIn(after, "poker")).toBe(true);
@@ -210,8 +221,11 @@ describe("接続を結ぶ（attachConnection）", () => {
     expect([...alice.connections.keys()]).toEqual(["c1"]);
   });
 
-  it("居ない参加者へ結んでも何も起きない", () => {
-    expect(attachConnection(room, "p_ghost", "c9", "timer")).toEqual(room);
+  it("Given 居ない参加者 / When 接続を結ぶ / Then PARTICIPANT_NOT_FOUND の Err（#364 までは黙って同じ名簿を返していた）", () => {
+    // When
+    const attached = attachConnection(room, "p_ghost", "c9", "timer");
+    // Then
+    expect(attached._unsafeUnwrapErr()).toEqual({ code: "PARTICIPANT_NOT_FOUND" });
   });
 
   // 以下 2 本は「対象外の参加者はそのまま返す」側を守る。ここが潰れる
@@ -221,7 +235,7 @@ describe("接続を結ぶ（attachConnection）", () => {
     const pair: Room = { ...room, participants: [alice, bob] };
 
     // When: アリスにだけ接続を足す
-    const next = attachConnection(pair, "p_alice", "c9", "timer");
+    const next = attachConnection(pair, "p_alice", "c9", "timer")._unsafeUnwrap();
     expect([...findParticipant(next, "p_alice")!.connections.keys()]).toEqual(["c1", "c9"]);
     expect([...findParticipant(next, "p_bob")!.connections.keys()]).toEqual(["c2"]);
   });
@@ -231,15 +245,18 @@ describe("接続を結ぶ（attachConnection）", () => {
     const pair: Room = { ...room, participants: [alice, bob] };
 
     // When: アリスの接続だけを閉じる
-    const next = removeConnection(pair, "c1");
+    const next = removeConnection(pair, "c1")._unsafeUnwrap();
     expect(presenceOf(findParticipant(next, "p_alice")!)).toBe("offline");
     expect(presenceOf(findParticipant(next, "p_bob")!)).toBe("online");
   });
 });
 
 describe("接続を閉じる（removeConnection）", () => {
-  it("知らない接続 ID を閉じても何も起きない", () => {
-    expect(removeConnection(room, "c9")).toEqual(room);
+  it("Given 知らない接続 ID / When 閉じる / Then CONNECTION_NOT_FOUND の Err（#364 までは黙って同じ名簿を返していた）", () => {
+    // When
+    const removed = removeConnection(room, "c9");
+    // Then
+    expect(removed._unsafeUnwrapErr()).toEqual({ code: "CONNECTION_NOT_FOUND" });
   });
 
   it("元の Map を書き換えない", () => {

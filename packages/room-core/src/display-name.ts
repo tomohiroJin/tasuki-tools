@@ -214,6 +214,7 @@ function stripLabelMarkersOnce(input: string): string {
   let copied = 0;
   let match: RegExpExecArray | null;
   while ((match = LABEL_MARKER.exec(view)) !== null) {
+    // `!`: from・to は view の UTF-16 単位ごとに 1 つずつ積んだので、view の中の一致の位置は必ず引ける（#364）
     const start = from[match.index]!;
     const end = to[match.index + match[0].length - 1]!;
     out += input.slice(copied, start);

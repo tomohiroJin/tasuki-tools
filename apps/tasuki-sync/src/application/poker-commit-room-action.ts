@@ -18,7 +18,8 @@ import type {
   RoundError,
 } from '@tasuki/poker-core';
 import type { Result } from 'neverthrow';
-import type { HandlerConnection, RoomState } from './poker-handlers.js';
+import type { HandlerConnection, PokerRoomState } from './poker-handlers.js';
+import { POKER_ERROR_TEXT } from './poker-error-text.js';
 
 /** ドメイン操作 1 つ。ラウンドと実行者から次のラウンドを返す（失敗は `RoundError`）。 */
 export type RoomAction = (round: Round, participantId: string) => Result<Round, RoundError>;
@@ -28,22 +29,22 @@ export type CommitRoomAction = (ws: HandlerConnection, action: RoomAction) => vo
 
 export interface CommitRoomActionDeps {
   /** 名簿とラウンドを 1 組で読む（`handlers.ts` の `loadState`）。 */
-  loadState: (roomId: string) => RoomState | undefined;
+  loadState: (roomId: string) => PokerRoomState | undefined;
   /**
    * 両方の保管へ put してから配信する唯一の経路（`handlers.ts` の `commit`）。
    * **ここで直接 store を触らない** —— 片方だけ put して配信する形を作らないため。
    */
-  commit: (state: RoomState) => void;
+  commit: (state: PokerRoomState) => void;
   /**
    * 名簿を poker-core が読める断片へ写す（`handlers.ts` の `fragmentsOf`）。
    *
-   * 引数の型は `RoomState['room']` から引く。**`@tasuki/room-core` を直接 import しない** ——
+   * 引数の型は `PokerRoomState['room']` から引く。**`@tasuki/room-core` を直接 import しない** ——
    * このファイルが名簿の語彙を知る必要は無く、知ると `handlers.ts` と 2 箇所で
    * 名簿の形に依存することになる。
    */
-  fragmentsOf: (room: RoomState['room']) => ParticipantFragment[];
+  fragmentsOf: (room: PokerRoomState['room']) => ParticipantFragment[];
   /**
-   * エラー応答。実体は `handlers.ts` が `Broadcaster` から作る 1 つだけである
+   * エラー応答。実体は `handlers.ts` が `PokerBroadcaster` から作る 1 つだけである
    * （ここで作り直すと同じ関数が 2 つになり、片方だけが直る形になる）。
    */
   sendError: (ws: HandlerConnection, code: ErrorCode, message: string) => void;
@@ -77,7 +78,7 @@ export function createCommitRoomAction({
       //
       // #171 の根治側（`handleJoinRoom` の冪等化）を入れたあと、この分岐へ至る
       // 経路は分かっている限り無い。無応答という最悪の症状を残さないための備えである。
-      sendError(ws, 'room-not-found', 'ルームが見つかりません');
+      sendError(ws, 'room-not-found', POKER_ERROR_TEXT.ROOM_NOT_FOUND);
       return;
     }
     const result = action(state.round, participantId);

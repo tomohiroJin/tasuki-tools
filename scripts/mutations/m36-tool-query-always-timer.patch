@@ -1,9 +1,9 @@
-diff --git a/apps/tasuki-sync/src/adapters/ws-adapter.ts b/apps/tasuki-sync/src/adapters/ws-adapter.ts
-index c41d653..232ad6e 100644
---- a/apps/tasuki-sync/src/adapters/ws-adapter.ts
-+++ b/apps/tasuki-sync/src/adapters/ws-adapter.ts
-@@ -68,11 +68,7 @@ const TOOL_QUERY_KEY = "tool";
- function protocolFromRequestUrl(url: URL): "timer" | "poker" | "topic" | "roulette" | "hub" | "unknown" {
+diff --git a/apps/tasuki-sync/src/adapters/ws/connection-gate.ts b/apps/tasuki-sync/src/adapters/ws/connection-gate.ts
+index a5c4984..4f7a03f 100644
+--- a/apps/tasuki-sync/src/adapters/ws/connection-gate.ts
++++ b/apps/tasuki-sync/src/adapters/ws/connection-gate.ts
+@@ -46,11 +46,7 @@ const TOOL_QUERY_KEY = "tool";
+ export function protocolFromRequestUrl(url: URL): Protocol {
    const declared = url.searchParams.get(TOOL_QUERY_KEY);
    if (declared === null) return "hub";
 -  if (declared === TOOL_TIMER) return TOOL_TIMER;
@@ -14,4 +14,4 @@ index c41d653..232ad6e 100644
 +  return TOOL_TIMER;
  }
  
- /**
+ /** 入場を判定するのに要る、接続ごとの値。 */

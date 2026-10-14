@@ -7,7 +7,7 @@ import {
   type ClientMessage,
   type ErrorCode,
   type ServerMessage,
-} from '../src/protocol';
+} from '../src/protocol.js';
 
 describe('parseClientMessage', () => {
   it.each<[string, ClientMessage]>([

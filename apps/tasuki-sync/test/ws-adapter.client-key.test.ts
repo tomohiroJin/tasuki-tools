@@ -59,7 +59,7 @@ function startAdapter(
     port: 0,
     host: "127.0.0.1",
     allowedOrigins: [],
-    onMessage: async () => {},
+    timer: { handleMessage: async () => {} },
     onDisconnect: () => {},
     onConnect: (connId, rateKey) => seen.push([connId, rateKey]),
     deriveClientKey: createClientKeyDeriver(new Uint8Array(32).fill(9)),
@@ -218,7 +218,7 @@ describe("WsAdapter のクライアント鍵導出が失敗したとき", () => 
       port: 0,
       host: "127.0.0.1",
       allowedOrigins: [],
-      onMessage: async () => {},
+      timer: { handleMessage: async () => {} },
       onDisconnect: () => {},
       onConnect: (connId, rateKey) => seen.push([connId, rateKey]),
       deriveClientKey: () => {
@@ -248,7 +248,7 @@ describe("WsAdapter のクライアント鍵導出が失敗したとき", () => 
       port: 0,
       host: "127.0.0.1",
       allowedOrigins: [],
-      onMessage: async () => {},
+      timer: { handleMessage: async () => {} },
       onDisconnect: () => {},
       deriveClientKey: () => {
         throw new Error("derive failed for 203.0.113.88");
@@ -305,7 +305,7 @@ describe.each(CATCH_THROWS_CASES)(
         port: 0,
         host: "127.0.0.1",
         allowedOrigins: [],
-        onMessage: async () => {},
+        timer: { handleMessage: async () => {} },
         onDisconnect: () => {},
         onConnect: (connId, rateKey) => seen.push([connId, rateKey]),
         deriveClientKey: () => {
@@ -333,7 +333,7 @@ describe.each(CATCH_THROWS_CASES)(
         port: 0,
         host: "127.0.0.1",
         allowedOrigins: [],
-        onMessage: async () => {},
+        timer: { handleMessage: async () => {} },
         onDisconnect: () => {},
         deriveClientKey: () => {
           throw makeErr();
@@ -360,7 +360,7 @@ describe("WsAdapter の onConnect が例外を投げたとき", () => {
       port: 0,
       host: "127.0.0.1",
       allowedOrigins: [],
-      onMessage: async () => {},
+      timer: { handleMessage: async () => {} },
       onDisconnect: () => {
         closeSeen = true;
       },
@@ -394,7 +394,7 @@ describe.each(CATCH_THROWS_CASES)("onConnect が %s を throw したとき（I-1
       port: 0,
       host: "127.0.0.1",
       allowedOrigins: [],
-      onMessage: async () => {},
+      timer: { handleMessage: async () => {} },
       onDisconnect: () => {},
       onConnect: () => {
         throw makeErr();
@@ -424,7 +424,7 @@ describe("例外の name によるログ注入（Minor 1）", () => {
       port: 0,
       host: "127.0.0.1",
       allowedOrigins: [],
-      onMessage: async () => {},
+      timer: { handleMessage: async () => {} },
       onDisconnect: () => {},
       deriveClientKey: () => {
         const err = new Error("boom");
@@ -458,7 +458,7 @@ describe("WsAdapter の onDisconnect が例外を投げたとき（I-5）", () =
       port: 0,
       host: "127.0.0.1",
       allowedOrigins: [],
-      onMessage: async () => {},
+      timer: { handleMessage: async () => {} },
       onDisconnect: () => {
         throw new Error("boom on close");
       },
@@ -480,7 +480,7 @@ describe("WsAdapter の onDisconnect が例外を投げたとき（I-5）", () =
       port: 0,
       host: "127.0.0.1",
       allowedOrigins: [],
-      onMessage: async () => {},
+      timer: { handleMessage: async () => {} },
       onDisconnect: () => {
         throw new Error("boom on close");
       },

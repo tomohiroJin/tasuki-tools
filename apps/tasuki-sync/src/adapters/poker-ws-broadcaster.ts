@@ -1,5 +1,5 @@
 /**
- * Broadcaster の実装。接続レジストリ（roomId → participantId → **ソケットの集合**）を
+ * PokerBroadcaster の実装。接続レジストリ（roomId → participantId → **ソケットの集合**）を
  * 内側に持つ。
  *
  * 受信者別スナップショットの共有部分は 1 回だけ構築する（research R1）。
@@ -16,12 +16,12 @@
  * **そのソケットだけ**を外す形になったので要らなくなった（古いソケットの close が
  * 新しい接続を蹴り出すことは構造的に起こらない）。
  */
-// Round / ParticipantFragment / ServerMessage の型は Broadcaster の戻り値型から文脈的に付くため、
+// Round / ParticipantFragment / ServerMessage の型は PokerBroadcaster の戻り値型から文脈的に付くため、
 // ここでは import しない（import すると @typescript-eslint/no-unused-vars に掛かる）。
 import { createSnapshotBuilder } from '@tasuki/poker-core';
-import type { Broadcaster, RoomSocket } from '../ports/poker-broadcaster.js';
+import type { PokerBroadcaster, RoomSocket } from '../ports/poker-broadcaster.js';
 
-export function createWsBroadcaster(): Broadcaster {
+export function createWsBroadcaster(): PokerBroadcaster {
   const byRoom = new Map<string, Map<string, Set<RoomSocket>>>();
 
   return {

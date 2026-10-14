@@ -11,8 +11,7 @@ import { INITIAL_TOPIC_STATE, type TopicState } from "@tasuki/topic-core";
 import type { RoomStore } from "../ports/room-store.js";
 import type { TopicStore } from "../ports/topic-store.js";
 import type { TopicServerMsg } from "../ports/topic-server-msg.js";
-import { TOOL_HUB } from "./hub-handlers.js";
-import { TOOL_TOPIC, TOOL_TIMER, TOOL_POKER, TOOL_ROULETTE } from "./tool-id.js";
+import { TOOL_HUB, TOOL_TOPIC, TOOL_TIMER, TOOL_POKER, TOOL_ROULETTE } from "./tool-id.js";
 
 /**
  * お題の状態を受け取る接続のツール。**ルームの全接続である**（spec T3・E2）。
@@ -43,6 +42,19 @@ export interface TopicBroadcaster {
   sendCurrent(connId: string, roomCode: string): void;
 }
 
+/**
+ * いまのお題の状態を読む。**無ければ既定の状態を置いてから返す**（#366。以前は `topic-handlers.ts` に写しがあった）。
+ *
+ * 参加時に置かれているはずだが、置かれる前にコマンドが届いても動くようにする。`TopicGenerator#request` は
+ * 状態の無いルームでは何もしないので、生成の前にもここを通す。
+ */
+export function topicStateOrInitial(topics: TopicStore, roomCode: string): TopicState {
+  const current = topics.get(roomCode);
+  if (current !== undefined) return current;
+  topics.put(roomCode, INITIAL_TOPIC_STATE);
+  return INITIAL_TOPIC_STATE;
+}
+
 export function makeTopicBroadcaster(deps: TopicBroadcasterDeps): TopicBroadcaster {
   /**
    * 配信先。`connectionsIn` は 1 つのツールしか受けないので、ツールごとに引いて並べる。
@@ -55,12 +67,7 @@ export function makeTopicBroadcaster(deps: TopicBroadcasterDeps): TopicBroadcast
     return TOPIC_RECIPIENT_TOOLS.flatMap((tool) => connectionsIn(room, tool));
   };
 
-  const stateOf = (roomCode: string): TopicState => {
-    const current = deps.topics.get(roomCode);
-    if (current !== undefined) return current;
-    deps.topics.put(roomCode, INITIAL_TOPIC_STATE);
-    return INITIAL_TOPIC_STATE;
-  };
+  const stateOf = (roomCode: string): TopicState => topicStateOrInitial(deps.topics, roomCode);
 
   return {
     publish(roomCode) {

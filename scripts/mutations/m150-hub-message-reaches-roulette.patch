@@ -9,14 +9,20 @@
 #       git apply scripts/mutations/m150-*.patch
 # 復元: git apply -R scripts/mutations/m150-*.patch
 diff --git a/apps/tasuki-sync/src/create-sync-server.ts b/apps/tasuki-sync/src/create-sync-server.ts
-index 2c61c6e7..251dcc8c 100644
+index bb9d2d3..3fd0ab1 100644
 --- a/apps/tasuki-sync/src/create-sync-server.ts
 +++ b/apps/tasuki-sync/src/create-sync-server.ts
-@@ -470,6 +470,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
+@@ -407,7 +407,12 @@ export function createSyncServer(config: SyncConfig): SyncServer {
+     logger,
+     deriveClientKey,
      requireClientAddress: config.requireClientAddress,
-     onHubMessage: async (connId, raw) => {
-       await hubHandlers.handleMessage(connId, raw);
-+      await rouletteHandlers.handleMessage(connId, raw);
-     },
-     onTopicMessage: async (connId, raw) => {
-       await topicHandlers.handleMessage(connId, raw);
+-    hub: hubHandlers,
++    hub: {
++      handleMessage: async (connId, raw) => {
++        await hubHandlers.handleMessage(connId, raw);
++        await rouletteHandlers.handleMessage(connId, raw);
++      },
++    },
+     topic: topicHandlers,
+     roulette: rouletteHandlers,
+     // cmd は ws-adapter 側で CommandSchema（valibot）に通した検証済みの値で、型も Command のまま届く（#363）。

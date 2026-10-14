@@ -208,7 +208,7 @@ describe("WsAdapter ハートビート（死活監視・Issue #25）", () => {
         logger: testLogger,
         heartbeatIntervalMs: 50,
         heartbeatMaxMisses: maxMisses,
-        onMessage: async () => {},
+        timer: { handleMessage: async () => {} },
         onDisconnect,
       });
 
@@ -236,7 +236,7 @@ describe("WsAdapter ハートビート（死活監視・Issue #25）", () => {
       logger: testLogger,
       heartbeatIntervalMs: 50,
       heartbeatMaxMisses: 2,
-      onMessage: async () => {},
+      timer: { handleMessage: async () => {} },
       onDisconnect,
     });
 
@@ -260,7 +260,7 @@ describe("WsAdapter ハートビート（死活監視・Issue #25）", () => {
       // 1 間隔ぶん遅れたときに「連続の欠落」と誤判定され、terminate されて落ちる。
       heartbeatIntervalMs: 100,
       heartbeatMaxMisses: 2,
-      onMessage: async () => {},
+      timer: { handleMessage: async () => {} },
       onDisconnect: () => {
         disconnected = true;
       },
@@ -290,7 +290,7 @@ describe("WsAdapter ハートビート（死活監視・Issue #25）", () => {
       // 意図しない 2 回目の欠落が混ざり、検証したい条件そのものが崩れる。
       heartbeatIntervalMs: 100,
       heartbeatMaxMisses: 2,
-      onMessage: async () => {},
+      timer: { handleMessage: async () => {} },
       onDisconnect: () => {
         disconnected = true;
       },
@@ -319,7 +319,7 @@ describe("WsAdapter ハートビート（死活監視・Issue #25）", () => {
       allowedOrigins: [],
       logger: testLogger,
       heartbeatIntervalMs: 10_000,
-      onMessage: async () => {},
+      timer: { handleMessage: async () => {} },
       onDisconnect: () => {},
     });
 

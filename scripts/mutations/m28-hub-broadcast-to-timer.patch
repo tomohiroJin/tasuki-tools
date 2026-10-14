@@ -1,11 +1,11 @@
-diff --git a/apps/tasuki-sync/src/create-sync-server.ts b/apps/tasuki-sync/src/create-sync-server.ts
-index 2c61c6e7..3e025b69 100644
---- a/apps/tasuki-sync/src/create-sync-server.ts
-+++ b/apps/tasuki-sync/src/create-sync-server.ts
-@@ -167,7 +167,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
+diff --git a/apps/tasuki-sync/src/adapters/timer-ws-broadcaster.ts b/apps/tasuki-sync/src/adapters/timer-ws-broadcaster.ts
+index d32ee54..39a0635 100644
+--- a/apps/tasuki-sync/src/adapters/timer-ws-broadcaster.ts
++++ b/apps/tasuki-sync/src/adapters/timer-ws-broadcaster.ts
+@@ -62,7 +62,7 @@ export function createTimerWsBroadcaster(deps: TimerWsBroadcasterDeps): {
     */
    const hubRecipientsOf = (roomCode: string): string[] => {
-     const room = store.get(roomCode);
+     const room = deps.store.get(roomCode);
 -    return room ? connectionsIn(room, null) : [];
 +    return room ? connectionsIn(room, "timer") : [];
    };

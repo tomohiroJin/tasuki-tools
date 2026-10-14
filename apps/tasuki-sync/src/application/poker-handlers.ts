@@ -24,7 +24,7 @@
  *   - **復帰トークン** — `TokenStore`（`../../application/token-store.ts`。これも timer と共有）
  *
  * 3 つはルームコードで突き合わせる。**片方だけ書いて配信する形を作らない** ——
- * 保管と配信は {@link makeHandlers} 内の `commit` 1 本に閉じてある（timer 側の
+ * 保管と配信は {@link makePokerHandlers} 内の `commit` 1 本に閉じてある（timer 側の
  * `application/handlers.ts` と同じ規律）。
  *
  * ## 表示名の規約は timer / ハブと共有する（#95 S5b）
@@ -64,20 +64,21 @@ import {
 } from '@tasuki/room-core';
 import { checkPassphrase, findResumableParticipant } from './room-entry.js';
 import type { RateLimiter } from '@tasuki/rate-limit';
-import type { Clock } from '../ports/clock.js';
+import type { WallClock } from '../ports/wall-clock.js';
 import type { RoomStore } from '../ports/room-store.js';
 import type { HubBroadcaster } from '../ports/hub-broadcaster.js';
 import type { TopicBroadcaster } from './topic-broadcast.js';
 import { saveRoster } from './save-roster.js';
 import { applyDisplayNameRule, INVALID_DISPLAY_NAME_MESSAGE } from './display-name-rule.js';
 import type { TokenStore } from './token-store.js';
-import type { Broadcaster, RoomSocket } from '../ports/poker-broadcaster.js';
+import type { PokerBroadcaster, RoomSocket } from '../ports/poker-broadcaster.js';
 import type { IdGen } from '../ports/poker-id-gen.js';
-import type { MonotonicClock } from '../ports/poker-monotonic-clock.js';
+import type { MonotonicClock } from '../ports/monotonic-clock.js';
 import type { RoundStore } from '../ports/poker-round-store.js';
 import { TOOL_POKER } from './tool-id.js';
 import { createCommitRoomAction, createDispatch } from './poker-commit-room-action.js';
-import { createRateLimitGate } from './poker-rate-limit-gate.js';
+import { createPokerRateLimitGate } from './poker-rate-limit-gate.js';
+import { POKER_ERROR_TEXT } from './poker-error-text.js';
 
 /**
  * ハンドラが接続に求めるものすべて。
@@ -102,7 +103,7 @@ export interface HandlerConnection extends RoomSocket {
   };
 }
 
-export interface HandlerDeps {
+export interface PokerHandlerDeps {
   /**
    * 名簿の保管。**timer と同じインスタンスである**（#95 S4a）。
    * 保管するのは `@tasuki/room-core` の `Room` で、poker 固有の情報は入っていない。
@@ -115,7 +116,7 @@ export interface HandlerDeps {
    * 旧 `Participant.token` と `findParticipantByToken` の引っ越し先。
    */
   tokens: TokenStore;
-  broadcaster: Broadcaster;
+  broadcaster: PokerBroadcaster;
   /**
    * 選択画面（ハブ）への配信（#95 S5a）。**poker 用の `broadcaster` とは別物**である ——
    * あちらはラウンドを配り、こちらは名簿を配る。poker の入口で名簿が変わったことも
@@ -131,13 +132,13 @@ export interface HandlerDeps {
    * **単調時計を流用してはならない。** 名簿は timer と共有する 1 つの保管であり、
    * 別系統の値が混ざると 2 つのルームの時刻が比較できなくなる。
    */
-  wallClock: Clock;
+  wallClock: WallClock;
   rateLimiter: RateLimiter;
   maxRooms: number;
   /**
    * いまのお題を参加・復帰した本人へ 1 通送る（#91・E4）。
    *
-   * **必須にしてある**（理由は {@link HandlerDeps.hub} と同じ）。既定を持たせると、
+   * **必須にしてある**（理由は {@link PokerHandlerDeps.hub} と同じ）。既定を持たせると、
    * 注入を忘れた瞬間に poker で入った人にだけお題が出なくなり、しかもハブと
    * お題ツールでは正しく出るので誰も気づかない。
    */
@@ -145,7 +146,7 @@ export interface HandlerDeps {
 }
 
 /** 組み立て済みのユースケース群。WS アダプタと死活監視以外の入口はここに集まる。 */
-export interface Handlers {
+export interface PokerHandlers {
   handleCreateRoom(
     ws: HandlerConnection,
     msg: Extract<ClientMessage, { type: 'create-room' }>,
@@ -169,12 +170,12 @@ export interface Handlers {
 }
 
 /** 1 ルームぶんの poker の状態一式（名簿とラウンド）。 */
-export interface RoomState {
+export interface PokerRoomState {
   room: MembershipRoom;
   round: Round;
 }
 
-export function makeHandlers(deps: HandlerDeps): Handlers {
+export function makePokerHandlers(deps: PokerHandlerDeps): PokerHandlers {
   const {
     store,
     rounds,
@@ -192,7 +193,7 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
    * レート制限の判定順序はゲートが持つ（`application/rate-limit-gate.ts`）。
    * 渡す時計が単調でなければならない理由もそこに書いてある。
    */
-  const rateLimitGate = createRateLimitGate({ clock, rateLimiter });
+  const rateLimitGate = createPokerRateLimitGate({ clock, rateLimiter });
 
   /**
    * poker の一覧に出す人か（R5・#95 S5b）。
@@ -250,7 +251,7 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
    * （`room-entry.ts`）を通す `handleJoinRoom` / `handleCheckRoom` の側で、
    * ここへ判定を書き足すと 2 箇所へ散る。
    */
-  function loadState(roomId: string): RoomState | undefined {
+  function loadState(roomId: string): PokerRoomState | undefined {
     const room = store.get(roomId);
     if (!room) return undefined;
     return { room, round: rounds.get(roomId) ?? createRound() };
@@ -279,7 +280,7 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
    * もう片方を配信する取り違えが起こりうる。両方の put と配信をここへ束ねてある
    * （timer 側の `application/handlers.ts` の `commit` と同じ規律）。
    */
-  function commit(state: RoomState): void {
+  function commit(state: PokerRoomState): void {
     // 名簿の保管とハブへの配信は対にする（`save-roster.ts`・#95 S5a）。
     saveRoster({ store, hub: deps.hub }, state.room);
     rounds.put(state.room.code, state.round);
@@ -357,7 +358,8 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
     // **名簿からこの接続だけを外す**（#95 S4b）。同じ人の別タブが残っていれば
     // `connected` は真のままである。票はラウンド側に残る —— 保管が別なので、
     // 名簿を触っても票には触れないことが構造で保証される。
-    const room = removeConnection(state.room, ws.data.connId);
+    // 名簿にこの接続が無ければ Err。そのときは #364 より前と同じく名簿を変えない。
+    const room = removeConnection(state.room, ws.data.connId).unwrapOr(state.room);
     commit({ room, round: applyAutoReveal(state.round, fragmentsOf(room)) });
   }
 
@@ -366,7 +368,7 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
    * 順序に不変条件がある: socket 登録 → 接続状態の更新 → joined 送信 → 保管と配信
    *
    * `persist` が false のときは配信だけ行い、保管しない。**書き戻すと保管にだけ
-   * ルームが復活し、Broadcaster 側に接続が無い「到達不能なルーム」が `maxRooms` の枠を
+   * ルームが復活し、PokerBroadcaster 側に接続が無い「到達不能なルーム」が `maxRooms` の枠を
    * 永久に食い潰す**（#165 レビューで発見）。判断は {@link handleJoinRoom} が持つ。
    *
    * ⚠ **S4a 以降、`persist` に false が渡る経路は無い**（理由は {@link handleJoinRoom} の
@@ -374,7 +376,7 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
    */
   function completeJoin(
     ws: HandlerConnection,
-    state: RoomState,
+    state: PokerRoomState,
     participantId: string,
     token: string,
     persist = true,
@@ -402,12 +404,13 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
   ): { room: MembershipRoom; participantId: string; token: string } {
     const participantId = idGen.participantId();
     const token = idGen.token();
+    // ID はここで生成したばかり（`idGen`）なので重複の Err にはならない（なっても名簿は変えない）。
     const updated = addParticipant(room, {
       id: participantId,
       displayName,
       connections: new Map([[connId, TOOL_POKER]]),
       joinedAt: wallClock.now(),
-    });
+    }).unwrapOr(room);
     tokens.issueResume(token, { participantId, roomCode: room.code });
     return { room: updated, participantId, token };
   }
@@ -473,7 +476,7 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
     // ならない理由もそこにある）。
     const rateLimit = rateLimitGate.begin(ws.data.rateKey);
     if (rateLimit.rejected) {
-      sendError(ws, 'rate-limited', '試行が多すぎます。しばらくしてからお試しください');
+      sendError(ws, 'rate-limited', POKER_ERROR_TEXT.RATE_LIMITED);
       return;
     }
 
@@ -488,7 +491,7 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
     // 通す。分けて書くと、いつか片方だけが変わって列挙の手がかりになる（ADR 0011）。
     if (!state || !mayEnter(state.room, msg.roomId, msg.token)) {
       rateLimit.consumeOnMiss();
-      sendError(ws, 'room-not-found', 'ルームが見つかりません');
+      sendError(ws, 'room-not-found', POKER_ERROR_TEXT.ROOM_NOT_FOUND);
       return;
     }
 
@@ -541,7 +544,7 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
     // 戻ってくる）。当時の理由は次のとおり ——
     //
     // - stillRegistered: detach でレジストリから消えていたら **書き戻さない**。
-    //   書き戻すと保管にだけルームが復活し、Broadcaster 側に接続が無い
+    //   書き戻すと保管にだけルームが復活し、PokerBroadcaster 側に接続が無い
     //   「到達不能なルーム」が maxRooms の枠を永久に食い潰す（#165 レビューで発見）。
     // - `?? state` の読み直し: detach は切断者の presence 更新と、それによる自動公開で
     //   このルームを更新していることがある。読み直さずに detach 前のスナップショットを
@@ -558,7 +561,8 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
     const existing = findResumableParticipant(tokens, live.room, msg.roomId, presented);
     if (existing !== undefined && presented !== undefined) {
       // **接続を足す。前の接続を奪わない**（#95 S4b・D14）。
-      const room = attachConnection(live.room, existing.id, ws.data.connId, TOOL_POKER);
+      // existing は `live.room` から引いた参加者なので Err にはならない（なっても名簿は変えない）。
+      const room = attachConnection(live.room, existing.id, ws.data.connId, TOOL_POKER).unwrapOr(live.room);
       completeJoin(ws, { ...live, room }, existing.id, presented, stillRegistered);
       return;
     }
@@ -599,7 +603,7 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
     // join と同じ順序（照会より前に判定）。ゲートが順序を持つ。
     const rateLimit = rateLimitGate.begin(ws.data.rateKey);
     if (rateLimit.rejected) {
-      sendError(ws, 'rate-limited', '試行が多すぎます。しばらくしてからお試しください');
+      sendError(ws, 'rate-limited', POKER_ERROR_TEXT.RATE_LIMITED);
       return;
     }
 
@@ -615,7 +619,7 @@ export function makeHandlers(deps: HandlerDeps): Handlers {
     const room = store.get(msg.roomId);
     if (!room || !mayEnter(room, msg.roomId, undefined)) {
       rateLimit.consumeOnMiss();
-      sendError(ws, 'room-not-found', 'ルームが見つかりません');
+      sendError(ws, 'room-not-found', POKER_ERROR_TEXT.ROOM_NOT_FOUND);
     }
   }
 

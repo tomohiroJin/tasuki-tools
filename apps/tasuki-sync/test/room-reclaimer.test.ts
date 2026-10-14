@@ -3,6 +3,7 @@ import { RoomReclaimer } from "../src/application/room-reclaimer.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import type { Room } from "@tasuki/room-core";
 import { TOOL_TIMER } from "../src/application/tool-id.js";
+import { FakeClock } from "../src/adapters/system-clock.js";
 
 /**
  * 回収は**名簿の在席だけ**を見る（#95 S4a）。timer の状態は判定に関わらない。
@@ -27,7 +28,7 @@ describe("RoomReclaimer", () => {
     const store = new InMemoryRoomStore();
     store.put(room("AAA", ["offline", "offline"]));
     const onReclaim = jest.fn();
-    const r = new RoomReclaimer({ store, idleTtlMs: 1000, onReclaim });
+    const r = new RoomReclaimer({ store, idleTtlMs: 1000, onReclaim, clock: new FakeClock(0) });
 
     // When
     r.sweep(0);
@@ -45,7 +46,7 @@ describe("RoomReclaimer", () => {
     const store = new InMemoryRoomStore();
     store.put(room("BBB", ["online", "offline"]));
     const onReclaim = jest.fn();
-    const r = new RoomReclaimer({ store, idleTtlMs: 1000, onReclaim });
+    const r = new RoomReclaimer({ store, idleTtlMs: 1000, onReclaim, clock: new FakeClock(0) });
 
     // When
     r.sweep(0);
@@ -60,7 +61,7 @@ describe("RoomReclaimer", () => {
     const store = new InMemoryRoomStore();
     store.put(room("CCC", ["offline"]));
     const onReclaim = jest.fn();
-    const r = new RoomReclaimer({ store, idleTtlMs: 1000, onReclaim });
+    const r = new RoomReclaimer({ store, idleTtlMs: 1000, onReclaim, clock: new FakeClock(0) });
 
     // When
     r.sweep(0);
@@ -85,6 +86,7 @@ describe("RoomReclaimer", () => {
       store,
       idleTtlMs: 1000,
       onReclaim: (code, idleMs) => calls.push({ code, idleMs }),
+      clock: new FakeClock(0),
     });
 
     // When
@@ -103,7 +105,7 @@ describe("RoomReclaimer", () => {
     const store = new InMemoryRoomStore();
     store.put(room("DDD", ["offline"]));
     const onReclaim = jest.fn((code: string) => store.remove(code));
-    const r = new RoomReclaimer({ store, idleTtlMs: 1000, onReclaim });
+    const r = new RoomReclaimer({ store, idleTtlMs: 1000, onReclaim, clock: new FakeClock(0) });
 
     // When
     r.sweep(0);      // empty 初検知
@@ -113,5 +115,29 @@ describe("RoomReclaimer", () => {
     // Then
     expect(onReclaim).toHaveBeenCalledTimes(1);
     expect(onReclaim).toHaveBeenCalledWith("DDD", expect.any(Number));
+  });
+
+  it("Given 定期実行を始めた / When 注入した時計が猶予を越えて進む / Then 空のルームを回収する（定期実行は注入した時計を読む・#367）", () => {
+    // Given: システムの時刻と大きくずれた時刻を返す時計（偽のタイマーが Date.now まで偽にしても結果が分かれるように）
+    jest.useFakeTimers();
+    try {
+      const store = new InMemoryRoomStore();
+      store.put(room("DDD", ["offline"]));
+      const onReclaim = jest.fn();
+      let now = 5_000_000;
+      const r = new RoomReclaimer({ store, idleTtlMs: 1000, onReclaim, clock: { now: () => now } });
+      r.start(10);
+
+      // When: 1 回目の観測で空を記録し、時計を猶予ぶん進めてから 2 回目の観測
+      jest.advanceTimersByTime(10);
+      now += 1000;
+      jest.advanceTimersByTime(10);
+
+      // Then
+      expect(onReclaim).toHaveBeenCalledWith("DDD", 1000);
+      r.stop();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 });

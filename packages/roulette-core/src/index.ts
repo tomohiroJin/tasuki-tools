@@ -1,4 +1,6 @@
-export { SPIN_DURATION_MS, MAX_GUESTS, MAX_WHEEL, SETTLE_MIN, SETTLE_MAX } from "./limits.js";
+// 回転の長さ・人数の上限（`SPIN_DURATION_MS`・`MAX_GUESTS`・`MAX_WHEEL`）は載せない（#365）。外の製品コードは
+// 使わず、回転の長さは wire の `durationMs` で届く。要るようになったら、そのとき載せる。
+export { SETTLE_MIN, SETTLE_MAX } from "./limits.js";
 
 export { INITIAL_ROULETTE_STATE } from "./types.js";
 export type { Entry, EntryId, Member, NameConflict, RouletteState, Spin } from "./types.js";

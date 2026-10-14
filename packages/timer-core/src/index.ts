@@ -84,6 +84,6 @@ export { CommandSchema, ServerMsgSchema } from "./schemas.js";
 // ⚠ お題（型・検証・定型の選択・プロンプトの組み立て）は #91 PR 3 で timer-core から
 // 撤去した。お題はルームの共有資産になり、`@tasuki/topic-core` が持つ。
 // 記録
-export { buildCompletionRecord } from "./records.js";
+export { buildCompletionRecord, createRecordIdGenerator, type RecordIdGenerator } from "./records.js";
 export type { RemovalNotification } from "./removal-notification.js";
 export { removalNotificationFor } from "./removal-notification.js";

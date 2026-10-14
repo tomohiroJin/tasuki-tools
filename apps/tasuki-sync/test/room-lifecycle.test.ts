@@ -45,6 +45,7 @@ const reclaimerFor = (): RoomReclaimer =>
     store,
     idleTtlMs: TTL,
     onReclaim: (c) => handlers.destroyRoom(c),
+    clock: new FakeClock(0),
   });
 
 beforeEach(async () => {

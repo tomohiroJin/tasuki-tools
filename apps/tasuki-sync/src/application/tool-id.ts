@@ -8,7 +8,7 @@
  * ## 誰がこの値を決めるのか
  *
  * **接続 URL のクエリ（`?tool=`）が宣言そのものである**（設計正本 D14 の S4b 追記・
- * #95 S5c で経路からクエリへ移った）。`adapters/ws-adapter.ts` の
+ * #95 S5c で経路からクエリへ移った）。`adapters/ws/connection-gate.ts` の
  * `protocolFromRequestUrl` が読み、poker と timer を振り分ける（`ws.data.protocol`）。
  * したがって timer のハンドラへ届いた接続は定義上 timer の接続であり、各入口は
  * 定数を渡すだけでよい。**wire には `tool` を載せない** ——
@@ -29,6 +29,8 @@
  * 誰も timer を開いていないルームにタイマーが生まれる。
  */
 
+import type { ToolId } from "@tasuki/room-core";
+
 /** timer（モブタイマー）の入口から来た接続。 */
 export const TOOL_TIMER = "timer";
 
@@ -40,3 +42,12 @@ export const TOOL_TOPIC = "topic";
 
 /** ルーレットの入口から来た接続（#94）。 */
 export const TOOL_ROULETTE = "roulette";
+
+/**
+ * ハブの接続が宣言するツール。**どれでもない**（設計正本 D14・S5a の裁定）。
+ *
+ * 綴りの正本をここに置いているのと同じ理由で名前を与える —— 生の `null` が配線のあちこちに
+ * 散ると、「宣言し忘れ」と「ハブである」の区別がつかない。#366 で `hub-handlers.ts` から移した
+ * （`topic-broadcast.ts` がハンドラから取っていて、アプリケーション層の中で向きが逆だった）。
+ */
+export const TOOL_HUB: ToolId | null = null;

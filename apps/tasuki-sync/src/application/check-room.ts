@@ -30,11 +30,14 @@ import { err, ok, type Result } from "neverthrow";
 import type { ErrorCode } from "@tasuki/timer-core";
 import type { RoomStore } from "../ports/room-store.js";
 import type { RateLimitGate } from "./rate-limit-gate.js";
+import type { MonotonicClock } from "../ports/monotonic-clock.js";
 
 export interface CheckRoomDeps {
   /** **読むだけ。** 書ける口を渡さないことで、この関数が状態を作らないことを型で示す。 */
   store: Pick<RoomStore, "get">;
   rateLimitGate: Pick<RateLimitGate, "shouldReject" | "consume">;
+  /** レート制限の時刻を読む単調時計（#367） */
+  monotonicClock: MonotonicClock;
 }
 
 export interface CheckRoomInput {
@@ -43,10 +46,10 @@ export interface CheckRoomInput {
 }
 
 export function checkRoom(deps: CheckRoomDeps, input: CheckRoomInput): Result<undefined, ErrorCode> {
-  const { store, rateLimitGate } = deps;
+  const { store, rateLimitGate, monotonicClock } = deps;
 
-  // レート制限に渡すのは単調時計（`Clock.now()` の壁時計ではない・#103 設計正本 D8）。
-  const rateNow = performance.now();
+  // レート制限に渡すのは単調時計（`WallClock.now()` の壁時計ではない・#103 設計正本 D8）。
+  const rateNow = monotonicClock.now();
 
   // **ルームを照会する前に判定する**（#103 設計正本 D3）。照会してから判定すると、
   // 残量が無いときに ROOM_NOT_FOUND が返り、攻撃者はトークンを消費せずに

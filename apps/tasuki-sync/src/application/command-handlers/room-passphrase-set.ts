@@ -8,7 +8,7 @@
  */
 
 import { ok, type Result } from "neverthrow";
-import { type ErrorCode } from "@tasuki/timer-core";
+import { type Command, type ErrorCode } from "@tasuki/timer-core";
 import type { Participant as MembershipParticipant } from "@tasuki/room-core";
 import type { TokenStore } from "../token-store.js";
 import type { RoomState } from "../apply-room-level-event.js";
@@ -34,7 +34,7 @@ export function createRoomPassphraseSetHandler(deps: RoomPassphraseSetDeps) {
   return async function handleRoomPassphraseSet(
     _connId: string,
     ctx: RoomPassphraseSetContext,
-    cmd: { command: "room.passphrase.set"; passphrase: string },
+    cmd: Extract<Command, { command: "room.passphrase.set" }>,
   ): Promise<Result<undefined, ErrorCode>> {
     const { membership, timer } = ctx.state;
 

@@ -5,10 +5,10 @@
  * 実装は `Bun.serve`（S5・#20）。
  * 外から見える振る舞い（close コード・エラーコード・426）は ws 実装のときと同じ。
  *
- * ## 4 つのメッセージ層を 1 本の待ち受けで捌く（#95 S2・S5a・S5c・D9 / D10・#91 でお題を追加）
+ * ## 5 つのメッセージ層を 1 本の待ち受けで捌く（#95 S2・S5a・S5c・D9 / D10・#91・#94）
  *
- * timer と poker の同期サーバーを 1 プロセスへ統合した（のちに #91 でお題も同じ
- * プロセスへ加わった）。`Bun.serve` は 1 プロセスに 1 つの `websocket` ハンドラしか
+ * timer と poker の同期サーバーを 1 プロセスへ統合した（のちに #91 でお題、#94 でルーレットも
+ * 同じプロセスへ加わった）。`Bun.serve` は 1 プロセスに 1 つの `websocket` ハンドラしか
  * 持てないため、**接続層はここに 1 つだけ**置き、**メッセージ層だけをプロトコルごとに分ける**。
  *
  * | 層 | 何を持つか | 統合の影響 |
@@ -16,138 +16,67 @@
  * | 接続層（このクラス） | Origin 検査・クライアント鍵・接続数上限・connId 採番・死活監視・フレーム上限 | **1 つになる**（接続数上限は D22 で値を決め直した） |
  * | メッセージ層 | パース・ディスパッチ・接続ごとのアプリ状態 | **プロトコルごとに分かれたまま** |
  *
- * **振り分けは接続 URL のクエリ（`?tool=`）だけで決める**（{@link protocolFromRequestUrl}）。
- * 入口は `/ws` の 1 本だけである（#95 S5c・#249 Task 5）。`/timer/ws`・`/poker/ws` という
- * パスによる振り分けは撤去した —— 旧パスは Caddy 断片ごと落としたので、本番でこの層へ
- * 届くことはもう無い。
+ * **振り分けは接続 URL のクエリ（`?tool=`）だけで決める**（`ws/connection-gate.ts` の
+ * `protocolFromRequestUrl`）。入口は `/ws` の 1 本だけである（#95 S5c・#249 Task 5）。
+ *
+ * ## 部品（#368 で責務ごとに分けた）
+ *
+ * このクラスは `Bun.serve` と受理済みの接続の表を持ち、次の部品を束ねる。
+ *
+ * | 部品 | 持つもの |
+ * |---|---|
+ * | `ws/http-fallback.ts` | 管理用の経路・ヘッダの許可表・426 |
+ * | `ws/connection-gate.ts` | `?tool=` の判定・入場の判定（順番も） |
+ * | `ws/heartbeat.ts` | ping/pong と欠落の数え上げ |
+ * | `ws/tool-channel.ts` | ツールごとの受け口（大きさの上限・解析・渡す先・失敗の隔離とエラーフレーム） |
+ * | `ws/ws-send.ts` | OPEN のときだけ送る |
+ * | `ws/error-log.ts` | ログへ出す例外の分類 |
+ * | `ws/connection-data.ts` | 接続ごとに持ち回る値 |
+ *
+ * **新しいツールを足すときは、受け口の定義（{@link buildChannels} の表の 1 行）と
+ * `?tool=` の許可リストを足す。**
  */
 
+import { ok, type Result } from "neverthrow";
 import { CommandSchema } from "@tasuki/timer-core";
-import { normalizeCommandNames } from "../application/normalize-command-names.js";
 import type { Command, ServerMsg } from "@tasuki/timer-core";
-import { parseClientMessage } from "@tasuki/poker-core";
 import { parseBoundaryMessage } from "@tasuki/protocol";
 import type { HubServerMsg } from "@tasuki/room-core";
-import { classifyErrorKind } from "@tasuki/rate-limit";
 import type { Logger } from "../application/log/logger.js";
-import { publicText, type LogSafe } from "../application/log/log-safe.js";
-import { CONN_REJECT_REASONS } from "../application/log/vocabulary.js";
+import type { TimerCommandReceiver } from "../application/timer-command-receiver.js";
+// 接続層が自分で返す文言の正本（#362）。**コードごとに 1 つだけ**にする（SC-035）。
+import {
+  TIMER_INTERNAL_ERROR_TEXT,
+  boundaryErrorCode,
+  connectionErrorFrame,
+} from "../application/connection-errors.js";
 import { deriveClientKeySafely } from "./client-key-safety.js";
-import type { Handlers as PokerHandlers } from "../application/poker-handlers.js";
-import { TOOL_POKER, TOOL_ROULETTE, TOOL_TIMER, TOOL_TOPIC } from "../application/tool-id.js";
+import { initialConnectionData, type ConnectionData, type Socket } from "./ws/connection-data.js";
+import { admit, protocolFromRequestUrl, type Protocol } from "./ws/connection-gate.js";
+import { classifyError, errorName } from "./ws/error-log.js";
+import { Heartbeat } from "./ws/heartbeat.js";
+import { respondToPlainHttp, type HttpHandler } from "./ws/http-fallback.js";
+import {
+  createPokerChannel,
+  createTextChannel,
+  type PokerMessageHandlers,
+  type ToolChannel,
+} from "./ws/tool-channel.js";
+import { sendIfOpen, sendToEach } from "./ws/ws-send.js";
 import type { RouletteOwnFrame, RouletteServerMsg } from "../ports/roulette-server-msg.js";
 import type { TopicOwnFrame, TopicServerMsg } from "../ports/topic-server-msg.js";
 
-/**
- * 接続 URL が宣言するツール。**許可リストで判定する**（#95 S5c）。
- *
- * **入口は `/ws` の 1 本だけなので、経路ではツールを決められない**（S5b までは
- * パス自体が宣言だった。`/poker/ws` は poker、`/ws` はハブ、それ以外は timer）。
- * **wire には載せられない** —— メッセージ層はパーサ自体が別（`CommandSchema` /
- * `parseClientMessage` / `parseBoundaryMessage`）で、最初のフレームを読む前に
- * 層を決める必要があるためである。
- *
- * **許可リストに無い値は `"unknown"` にして接続を拒否する。** timer へもハブへも落とさない ——
- * 落とすと、綴りを間違えたクライアントが「繋がるのにコマンドが通らない」という
- * 静かな壊れ方をする（S5a の rewrite で実際に起きた型）。
- *
- * **綴りは `application/tool-id.ts` から取る**（#95 S5c・A-I1）。S5b までここが照合して
- * いたのは `/poker/ws` という**別の語彙**（経路）だったが、S5c でクエリへ移り、
- * `TOOL_TIMER` / `TOOL_POKER` と**同じ語彙**になった。しかも `TOOL_TIMER` は
- * `roster.tools`（`packages/room-core/src/wire.ts`）として wire にも載る。
- * リテラルを自前で持つと、次に綴りを変える人がここを取り残し、
- * **wire 互換を壊したことに気づけない**。
- *
- * **戻り値の型はリテラルのまま据え置く。** これは接続層の 5 値の選択子で、
- * ツール識別子はそのうち 3 つと一致しているだけである（`"hub"` / `"unknown"` に
- * 対応するツールは無い）。`typeof TOOL_TIMER` にして追従させると、綴りを変えたときに
- * 黙って通る —— リテラルで受けておくと**この関数で型検査が落ちる**ので、
- * `ConnectionData.protocol` と wire の両方を見直す機会になる。
- */
-const TOOL_QUERY_KEY = "tool";
+export type { PokerMessageHandlers } from "./ws/tool-channel.js";
 
-function protocolFromRequestUrl(url: URL): "timer" | "poker" | "topic" | "roulette" | "hub" | "unknown" {
-  const declared = url.searchParams.get(TOOL_QUERY_KEY);
-  if (declared === null) return "hub";
-  if (declared === TOOL_TIMER) return TOOL_TIMER;
-  if (declared === TOOL_POKER) return TOOL_POKER;
-  if (declared === TOOL_TOPIC) return TOOL_TOPIC;
-  if (declared === TOOL_ROULETTE) return TOOL_ROULETTE;
-  return "unknown";
+/**
+ * 生テキストを受けるメッセージ層（ハブ・お題・ルーレット）。
+ *
+ * **パース前の文字列を渡す。** 境界の検証はメッセージ層（`application/{hub,topic,roulette}-handlers.ts`）に
+ * 置き、接続層は経路とサイズだけを見る。
+ */
+export interface RawMessageHandler {
+  handleMessage(connId: string, raw: string): Promise<void>;
 }
-
-/**
- * `catch (err)` で受けた `err` から、ログへ出してよい「例外の分類」を取り出す（I-1）。
- *
- * 分類そのものの実装（`instanceof Error` の実行時判定・`name` ゲッタが throw する
- * 場合の入れ子 catch・長さと文字種の丸め）は `@tasuki/rate-limit` の
- * `classifyErrorKind` へ切り出した（poker-sync にも同じガードが要るため。
- * #103 Task 7 レビュー S-2。複製すると S-1 と同じ二重正本の問題が再発する）。
- * ここでは `LogSafe`（ADR 0012 D1 のブランド型。timer-sync のログ基盤に閉じた
- * 型で `scripts/audit-log-hygiene.mjs` の ALLOWED_FILES もアプリ側に限定）で
- * 包むだけの薄い層にする。
- */
-function classifyError(err: unknown): LogSafe {
-  return publicText(classifyErrorKind(err)); // log-hygiene:allow 例外の分類のみ
-}
-
-/** ハートビート間隔の既定値（ms）。Issue #25: サーバー主導の死活監視。 */
-const DEFAULT_HEARTBEAT_INTERVAL_MS = 15_000;
-/** 許容する連続 pong 欠落回数の既定値。一時的な通信の揺れを吸収する猶予（US2）。 */
-const DEFAULT_HEARTBEAT_MAX_MISSES = 2;
-
-/**
- * httpHandler（`handleAdminHttp`）へ渡すヘッダの許可リスト（N-4）。
- * 実際に読まれているのは `x-admin-token` だけ
- * （`apps/tasuki-sync/src/application/admin.ts` で確認済み）。
- * 増やすときは、そのヘッダが本当に読まれる先を確認してから足すこと。
- * `as const` にしてあるのは、受け取り側 `pickHeaders` の `readonly string[]`
- * に噛み合わせるため（Minor 4）。
- */
-const ADMIN_HTTP_ALLOWED_HEADERS = ["x-admin-token"] as const;
-
-/**
- * 接続層が自分で返す文言。**コードごとに 1 つだけ**にする（SC-035）。
- *
- * timer とハブで同じ事象（フレームが大きすぎる・内部エラー）に同じ言葉を返すので、
- * それぞれの分岐に書き下ろすと、同じコードに 2 つの言い回しが生まれて片方だけが直る。
- * **poker の文言はここに無い** —— あちらはコード体系そのものが違う
- * （`message-too-large` / `@tasuki/poker-core` の ErrorCode）。
- */
-const MESSAGE_TOO_LARGE_TEXT = "メッセージが大きすぎます";
-const INTERNAL_ERROR_TEXT = "サーバー内部でエラーが発生しました";
-
-/** `headers` のうち `allowed` に含まれるキーだけを取り出す（キーは小文字で比較）。 */
-function pickHeaders(headers: Headers, allowed: readonly string[]): Record<string, string> {
-  const picked: Record<string, string> = {};
-  for (const key of allowed) {
-    const value = headers.get(key);
-    if (value !== null) picked[key] = value;
-  }
-  return picked;
-}
-
-/**
- * httpHandler に渡すリクエスト表現。
- * Node の IncomingMessage にも Bun の Request にも依存しない形にしてある。
- */
-export interface HttpRequestInfo {
-  method: string;
-  /** クエリを含むパス（`/status?x=1`）。handleAdminHttp が `?` で切る。 */
-  path: string;
-  /** キーは小文字。**許可リスト（{@link ADMIN_HTTP_ALLOWED_HEADERS}）に絞ってある。** */
-  headers: Record<string, string>;
-}
-
-/**
- * WS アダプタが poker のメッセージ層に求めるものだけ
- * （残りのハンドラはここを通らない）。統合前の
- * `apps/poker-sync/src/adapters/ws-adapter.ts` の `WsAdapterHandlers` と同じ絞り込み。
- */
-export type PokerMessageHandlers = Pick<
-  PokerHandlers,
-  "dispatch" | "detachFromCurrentRoom" | "sendError"
->;
 
 export interface WsAdapterOptions {
   port: number;
@@ -155,31 +84,27 @@ export interface WsAdapterOptions {
   /** 同時接続数の上限。超過分は 1013 で拒否する。 */
   maxConnections?: number;
   allowedOrigins: string[];
-  onMessage: (connId: string, msg: unknown) => Promise<void>;
   /**
-   * ハブ（選択画面）へ届いた生テキスト（#95 S5a）。
-   *
-   * **timer の `onMessage` と違い、パース前の文字列を渡す。** 境界の検証を
-   * メッセージ層（`application/hub-handlers.ts`）に置き、この層は経路とサイズだけを見る。
+   * timer（`?tool=timer`）のメッセージ層。**接続層で境界の検証（`CommandSchema`）を済ませた値**を、
+   * 型（`Command`）のまま渡す（#363）。表示名の正規化は受け口（`application/timer-command-receiver.ts`）が
+   * 掛ける（#368）。**型を {@link TimerCommandReceiver} にしてあるのは、正規化を通さない配線を型検査で
+   * 落とすため**（正規化を接続層から移しても、どの入口も正規化を飛ばせないことを保つ）。
    */
-  onHubMessage: (connId: string, raw: string) => Promise<void>;
+  timer: TimerCommandReceiver;
+  /** ハブ（選択画面。`?tool=` 無し）のメッセージ層（#95 S5a）。 */
+  hub: RawMessageHandler;
+  /** お題（`?tool=topic`）のメッセージ層（#91）。 */
+  topic: RawMessageHandler;
+  /** ルーレット（`?tool=roulette`）のメッセージ層（#94）。 */
+  roulette: RawMessageHandler;
   /**
-   * お題（topic）へ届いた生テキスト（#91）。
-   *
-   * **`onHubMessage` と同じく、パース前の文字列を渡す。** 境界の検証はメッセージ層
-   * （Task 9 で配線するアプリ層）に置き、この層は経路とサイズだけを見る。
+   * poker（`?tool=poker`）のメッセージ層。**ほかのツールと形が違う**: 接続そのもの（接続ごとの
+   * 参加者・ルーム）を渡し、受理を `onConnect` へ知らせず、切断の後始末を自分で持つ。
    */
-  onTopicMessage: (connId: string, raw: string) => Promise<void>;
+  poker: PokerMessageHandlers;
   /**
-   * ルーレット（roulette）へ届いた生テキスト（#94）。
-   *
-   * **`onTopicMessage` と同じく、パース前の文字列を渡す。** 境界の検証はメッセージ層
-   * （`application/roulette-handlers.ts`）に置き、この層は経路とサイズだけを見る。
-   */
-  onRouletteMessage: (connId: string, raw: string) => Promise<void>;
-  /**
-   * 接続が閉じたときに呼ばれる（Origin / 接続数上限で弾いた接続は除く。
-   * その場合はアプリ層へ「受け入れていない接続」を通知しない）。
+   * 接続が閉じたときに呼ばれる（入場の判定で弾いた接続と、poker の接続は除く。
+   * 弾いた接続は「受け入れていない接続」なのでアプリ層へ通知しない）。
    *
    * **契約（Minor 2）: `onConnect` が呼ばれた・成功したことの保証ではない。**
    * `connId` の登録（`connections.set`）は `onConnect` の呼び出しより前に
@@ -190,9 +115,7 @@ export interface WsAdapterOptions {
    */
   onDisconnect: (connId: string) => void;
   /** 非 Upgrade の HTTP リクエストのフック。結果を返せばそれを応答、null なら 426。 */
-  httpHandler?: (
-    req: HttpRequestInfo,
-  ) => { status: number; contentType: string; body: string } | null;
+  httpHandler?: HttpHandler;
   /** ハートビート（ping）の送信間隔（ms）。既定 15000。 */
   heartbeatIntervalMs?: number;
   /** 連続でこの回数分 pong が確認できない接続を terminate する。既定 2。 */
@@ -209,7 +132,7 @@ export interface WsAdapterOptions {
    */
   requireClientAddress?: boolean;
   /**
-   * 接続が受理された（Origin・接続数の検査を通った）ときに 1 度だけ呼ばれる。
+   * 接続が受理された（入場の判定を通った）ときに 1 度だけ呼ばれる（poker の接続は除く）。
    * `rateKey` はクライアント鍵。特定できなければ `connId` が入る。
    */
   onConnect?: (connId: string, rateKey: string) => void;
@@ -226,88 +149,90 @@ export interface WsAdapterOptions {
    * 根拠と統合による変化は `config.ts` の同名フィールドの docstring にある。
    */
   maxFrameBytes: number;
-  /** poker のメッセージ層。`?tool=poker` を宣言した接続だけがここへ流れる。 */
-  poker: PokerMessageHandlers;
 }
 
 /**
- * すべての接続が持つ値。
- * `connId` は Origin / 接続数の検査を通ってから採番するため、それまでは空文字。
- * 空のまま閉じた接続は「受け入れていない接続」なので onDisconnect を呼ばない。
+ * 待ち受けを起こせなかった（bind の失敗。EADDRINUSE 等）。回復できないので、受けた組み立て
+ * （`server.ts`）がプロセスを終える（#368 Task 8。以前はアダプタが自分で `process.exit(1)` していた）。
+ * 原因の例外は `cause` に持つ。ログ（`http-server-error`）はアダプタが投げる前に 1 行残す。
  */
-interface ConnectionBase {
-  connId: string;
-  origin: string;
-  /** `X-Forwarded-For` から導いた鍵。特定できなければ null。 */
-  clientKey: string | null;
-  /** レート制限の鍵（クライアント鍵。特定できなければ接続 ID）。受理まで空文字。 */
-  rateKey: string;
+export class ServerStartError extends Error {
+  override readonly name = "ServerStartError";
+}
+
+/** 入場の判定を通りうるプロトコル（`"unknown"` は受理されないので受け口を持たない）。 */
+type AcceptedProtocol = Exclude<Protocol, "unknown">;
+
+/**
+ * timer の境界のパース。@tasuki/protocol に一本化してある（poker の sync / web も同じものを使う）。
+ * 落ちた段（json / schema）で返すエラーコードを分けるのは timer 側の決めごと。
+ */
+function parseTimerCommand(text: string): Result<Command, ServerMsg> {
+  return parseBoundaryMessage(CommandSchema, text).mapErr((error): ServerMsg => connectionErrorFrame(boundaryErrorCode(error.stage)));
 }
 
 /**
- * どのメッセージ層へ渡すかと、その層だけが持つ値（#95 S5c）。
+ * 「プロトコル → 受け口」の表（#368 Task 7）。**新しいツールはここに 1 行足す。**
  *
- * **S4b までは 3 つの項目（`rateKey` / `participantId` / `roomId`）を全接続が持ち回っていた。**
- * 統合前の poker が同じ 3 つを持っており、`HandlerConnection`
- * （`application/poker-handlers.ts`）が構造的にこれを要求するためである。timer 側は
- * `participantId` / `roomId` を読み書きしない。**この段で入口が `/ws` 1 本になり、
- * `protocol` の決まり方そのものが変わったので、割り方もここで決めた。**
- *
- * `"hub"` は選択画面（#95 S5a）。**在席の宣言もここで決まる** —— ハブの接続はどのツールも
- * 宣言しない（`tool: null`）ので、ツールの参加者一覧には出ない。
- * `"unknown"` は許可リストに無い `?tool=` の値。`handleOpen` が 1008 で閉じる。
+ * ⚠ **超過・内部エラーの返し方はプロトコルごとに違う**（どれも wire に載る値で、片方へ寄せると相手の
+ * web が知らないコードを受け取る）。timer の内部エラーの文だけが違うこと（#381）と、timer だけが
+ * reject でログを残さないこと（#368 Task 1 で固定）は、今の振る舞いのまま持つ。
  */
-type ToolContext =
-  | { readonly protocol: "timer" }
-  | { readonly protocol: "topic" }
-  | { readonly protocol: "roulette" }
-  | { readonly protocol: "hub" }
-  | { readonly protocol: "unknown" }
-  | { readonly protocol: "poker"; participantId: string | null; roomId: string | null };
-
-type ConnectionData = ConnectionBase & ToolContext;
-
-type Socket = Bun.ServerWebSocket<ConnectionData>;
-
-/** poker の枝だけに絞った {@link Socket}。{@link isPokerSocket} が絞り込みに使う。 */
-type PokerSocket = Bun.ServerWebSocket<Extract<ConnectionData, { protocol: "poker" }>>;
-
-/**
- * `ws.data.protocol === "poker"` を型ガードとして使うための関数（#95 S5c）。
- *
- * **`ws.data.protocol === "poker"` という条件式そのものは `ws`（`Socket` =
- * `Bun.ServerWebSocket<ConnectionData>`）を絞り込まない。** TypeScript はプロパティ
- * アクセス式 `ws.data` の型は絞り込むが、ジェネリックで実体化した `ws` 自体の型までは
- * 絞り込まないため、`poker.dispatch` 等が要求する `HandlerConnection`
- * （`data.participantId` / `data.roomId` を無条件に持つ）へそのまま渡せない
- * （実測: `tsc` はここで `Socket` を `PokerSocket` に代入できないと報告する）。
- * 型ガード関数として明示すれば、`ws` そのものを `PokerSocket` へ絞り込める。
- */
-function isPokerSocket(ws: Socket): ws is PokerSocket {
-  return ws.data.protocol === "poker";
+function buildChannels(options: WsAdapterOptions): Readonly<Record<AcceptedProtocol, ToolChannel>> {
+  const { maxMessageBytes, logger } = options;
+  /**
+   * 生テキストを渡すツール（ハブ・お題・ルーレット）の受け口。違いはエラーフレームの型だけで、
+   * フレームは行ごとに渡す（キャストせず、その行の型で検査させる）。
+   */
+  const rawTextChannel = <Frame>(handler: RawMessageHandler, frames: { tooLarge: Frame; internalError: Frame }): ToolChannel =>
+    createTextChannel<string, Frame>({
+      maxMessageBytes,
+      logger,
+      parse: (text) => ok(text),
+      deliver: (connId, raw) => handler.handleMessage(connId, raw),
+      tooLargeFrame: frames.tooLarge,
+      internalErrorFrame: frames.internalError,
+      logsRejection: true,
+    });
+  const connectionFrames = () => ({
+    tooLarge: connectionErrorFrame("MESSAGE_TOO_LARGE"),
+    internalError: connectionErrorFrame("INTERNAL_ERROR"),
+  });
+  return {
+    timer: createTextChannel<Command, ServerMsg>({
+      maxMessageBytes,
+      logger,
+      parse: parseTimerCommand,
+      deliver: (connId, cmd) => options.timer.handleMessage(connId, cmd),
+      tooLargeFrame: connectionErrorFrame("MESSAGE_TOO_LARGE"),
+      internalErrorFrame: { type: "error", code: "INTERNAL_ERROR", message: TIMER_INTERNAL_ERROR_TEXT },
+      logsRejection: false,
+    }),
+    hub: rawTextChannel<HubServerMsg>(options.hub, connectionFrames()),
+    // エラーフレームの型は広い `TopicServerMsg` ではなく狭い `TopicOwnFrame`（#91 R18）。
+    // `TopicServerMsg` は `HubServerMsg` を合併しており、その `error` は `code: string`（無制約）なので、
+    // 契約に無いコードでも通ってしまう。ルーレットも同じ理由で `RouletteOwnFrame`。
+    topic: rawTextChannel<TopicOwnFrame>(options.topic, connectionFrames()),
+    roulette: rawTextChannel<RouletteOwnFrame>(options.roulette, connectionFrames()),
+    poker: createPokerChannel(options.poker, maxMessageBytes, logger),
+  };
 }
 
 export class WsAdapter {
   private readonly server: Bun.Server<ConnectionData>;
   private readonly connections = new Map<string, Socket>();
   private connCounter = 0;
-  /** 接続ごとの「直近 ping 送信からの pong 未受信回数」（Issue #25: 死活監視）。 */
-  private readonly missedPongs = new Map<string, number>();
-  private readonly heartbeatIntervalMs: number;
-  private readonly heartbeatMaxMisses: number;
-  private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  /** 「プロトコル → 受け口」の表。 */
+  private readonly channels: Readonly<Record<AcceptedProtocol, ToolChannel>>;
+  /** 死活監視（Issue #25）。受理済みの接続の表を読む。 */
+  private readonly heartbeat: Heartbeat;
 
   constructor(private readonly options: WsAdapterOptions) {
-    // 呼び出し元（テスト等）が誤って 0 以下を明示指定しても busy-loop 化しないよう、
-    // config.ts の intEnv と同じ契約（正の整数）をコンストラクタ自身でも守る（DbC）。
-    this.heartbeatIntervalMs = Math.max(
-      1,
-      options.heartbeatIntervalMs ?? DEFAULT_HEARTBEAT_INTERVAL_MS,
-    );
-    this.heartbeatMaxMisses = Math.max(
-      0,
-      options.heartbeatMaxMisses ?? DEFAULT_HEARTBEAT_MAX_MISSES,
-    );
+    this.channels = buildChannels(options);
+    this.heartbeat = new Heartbeat(this.connections, {
+      intervalMs: options.heartbeatIntervalMs,
+      maxMisses: options.heartbeatMaxMisses,
+    });
 
     try {
       this.server = Bun.serve<ConnectionData, never>({
@@ -339,12 +264,13 @@ export class WsAdapter {
         },
       });
     } catch (err) {
-      // 起動時の bind 失敗（EADDRINUSE 等）は回復不能。未処理例外でクラッシュさせず明示終了する。
+      // 起動時の bind 失敗（EADDRINUSE 等）は回復不能。ログを 1 行残して投げ、終えるのは組み立て
+      // （`server.ts`）に任せる（#368 Task 8）。未処理例外の経路（`uncaught`）には乗せない。
       this.options.logger.error("http-server-error", { name: classifyError(err) });
-      process.exit(1);
+      throw new ServerStartError("待ち受けを起こせませんでした", { cause: err });
     }
 
-    this.startHeartbeat();
+    this.heartbeat.start();
   }
 
   /**
@@ -401,34 +327,12 @@ export class WsAdapter {
     // 入口は /ws の 1 本だけなので、振り分けはクエリ（?tool=）だけで決まる（#95 S5c）。
     const protocol = protocolFromRequestUrl(url);
     // poker の枝だけが participantId / roomId を持つ（判別可能ユニオン。#95 S5c）。
-    const base = { connId: "", origin, clientKey, rateKey: "" };
-    const data: ConnectionData =
-      protocol === "poker"
-        ? { ...base, protocol, participantId: null, roomId: null }
-        : { ...base, protocol };
+    const data = initialConnectionData(protocol, origin, clientKey);
     if (server.upgrade(req, { data })) {
       return undefined;
     }
 
-    const handled = this.options.httpHandler?.({
-      method: req.method,
-      path: url.pathname + url.search,
-      // 非 Upgrade の HTTP リクエストに限っても、生のヘッダを丸ごとは渡さない。
-      // httpHandler（handleAdminHttp）が実際に読むのは `x-admin-token` だけ
-      // （apps/tasuki-sync/src/application/admin.ts で確認済み）なので許可リストに絞る。
-      // 「賢い検査より単純な検査・無状態＋許可リストへ倒す」の教訓に合わせる。
-      headers: pickHeaders(req.headers, ADMIN_HTTP_ALLOWED_HEADERS),
-    });
-    if (handled) {
-      return new Response(handled.body, {
-        status: handled.status,
-        headers: { "content-type": handled.contentType },
-      });
-    }
-    return new Response("Upgrade Required", {
-      status: 426,
-      headers: { "content-type": "text/plain" },
-    });
+    return respondToPlainHttp(req, url, this.options.httpHandler);
   }
 
   /**
@@ -454,39 +358,9 @@ export class WsAdapter {
     // `string | null` しか返さないが、ここは差し替えを前提にした注入点である。
     return (
       deriveClientKeySafely(derive, forwardedFor, (name) => {
-        this.options.logger.error("derive-client-key-error", { name: publicText(name) }); // log-hygiene:allow 例外の分類のみ
+        this.options.logger.error("derive-client-key-error", { name: errorName(name) });
       }) ?? null
     );
-  }
-
-  /**
-   * サーバー主導の死活監視（Issue #25）。
-   * 一定間隔で各接続に ping を送り、直前の送信から pong が来ていなければ
-   * 欠落回数を加算する。欠落回数が閾値に達した接続は terminate し、
-   * 既存の close 経路（presence の offline 化等）に処理を委ねる（DRY）。
-   * 1 接続 1 interval あたり ping 送信は高々 1 回のため、通信量は接続数に対して線形。
-   */
-  private startHeartbeat(): void {
-    this.heartbeatTimer = setInterval(() => {
-      for (const [connId, ws] of this.connections) {
-        const missed = this.missedPongs.get(connId) ?? 0;
-        if (missed >= this.heartbeatMaxMisses) {
-          ws.terminate();
-          continue;
-        }
-        this.missedPongs.set(connId, missed + 1);
-        ws.ping();
-      }
-    }, this.heartbeatIntervalMs);
-    // 定期タイマーだけでプロセスの終了を妨げないようにする（テスト・グレースフルシャットダウン考慮）。
-    this.heartbeatTimer.unref?.();
-  }
-
-  private stopHeartbeat(): void {
-    if (this.heartbeatTimer !== null) {
-      clearInterval(this.heartbeatTimer);
-      this.heartbeatTimer = null;
-    }
   }
 
   /**
@@ -496,10 +370,7 @@ export class WsAdapter {
    * ここは**新しい送信箇所が黙って契約から外れること**を型で止める。
    */
   send(connId: string, data: ServerMsg): void {
-    const ws = this.connections.get(connId);
-    if (ws?.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify(data));
-    }
+    sendIfOpen(this.connections.get(connId), JSON.stringify(data));
   }
 
   /**
@@ -509,21 +380,12 @@ export class WsAdapter {
    * 混ぜると「timer の snapshot をハブへ送る」経路が型検査を通ってしまう。
    */
   sendHub(connId: string, data: HubServerMsg): void {
-    const ws = this.connections.get(connId);
-    if (ws?.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify(data));
-    }
+    sendIfOpen(this.connections.get(connId), JSON.stringify(data));
   }
 
   /** ハブの接続へ一斉に送る。 */
   broadcastHub(connIds: string[], data: HubServerMsg): void {
-    const json = JSON.stringify(data);
-    for (const connId of connIds) {
-      const ws = this.connections.get(connId);
-      if (ws?.readyState === WebSocket.OPEN) {
-        ws.send(json);
-      }
-    }
+    sendToEach(this.connections, connIds, JSON.stringify(data));
   }
 
   /**
@@ -535,21 +397,12 @@ export class WsAdapter {
    * 型検査が拒むためである。
    */
   sendTopic(connId: string, data: TopicServerMsg): void {
-    const ws = this.connections.get(connId);
-    if (ws?.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify(data));
-    }
+    sendIfOpen(this.connections.get(connId), JSON.stringify(data));
   }
 
   /** お題（topic）の接続へ一斉に送る。 */
   broadcastTopic(connIds: string[], data: TopicServerMsg): void {
-    const json = JSON.stringify(data);
-    for (const connId of connIds) {
-      const ws = this.connections.get(connId);
-      if (ws?.readyState === WebSocket.OPEN) {
-        ws.send(json);
-      }
-    }
+    sendToEach(this.connections, connIds, JSON.stringify(data));
   }
 
   /**
@@ -557,35 +410,20 @@ export class WsAdapter {
    * （`HubServerMsg`）ではルーレットのフレームを型検査が拒むため分けてある。
    */
   sendRoulette(connId: string, data: RouletteServerMsg): void {
-    const ws = this.connections.get(connId);
-    if (ws?.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify(data));
-    }
+    sendIfOpen(this.connections.get(connId), JSON.stringify(data));
   }
 
   /** ルーレット（roulette）の接続へ一斉に送る。 */
   broadcastRoulette(connIds: string[], data: RouletteServerMsg): void {
-    const json = JSON.stringify(data);
-    for (const connId of connIds) {
-      const ws = this.connections.get(connId);
-      if (ws?.readyState === WebSocket.OPEN) {
-        ws.send(json);
-      }
-    }
+    sendToEach(this.connections, connIds, JSON.stringify(data));
   }
 
   broadcast(connIds: string[], data: ServerMsg): void {
-    const json = JSON.stringify(data);
-    for (const connId of connIds) {
-      const ws = this.connections.get(connId);
-      if (ws?.readyState === WebSocket.OPEN) {
-        ws.send(json);
-      }
-    }
+    sendToEach(this.connections, connIds, JSON.stringify(data));
   }
 
   close(): Promise<void> {
-    this.stopHeartbeat();
+    this.heartbeat.stop();
     // `server.stop()` が返す Promise は、**サーバー側から閉じた接続が 1 つでもあると
     // 解決しない**（2026-08-05 に Bun 1.3.14 で実測）。Origin 拒否・接続数超過・
     // ハートビートの terminate はいずれもサーバー側からの close なので、待つと詰まる。
@@ -596,61 +434,26 @@ export class WsAdapter {
   }
 
   private handleOpen(ws: Socket): void {
-    // 宣言されたツールが許可リストに無い。受け入れると「繋がるのにコマンドが通らない」
-    // 静かな壊れ方になるので、理由つきで閉じる。
-    if (ws.data.protocol === "unknown") {
-      // 列挙値だけを出す（P-2）。`?tool=` の値そのものは利用者由来なので載せない（ADR 0012 D3）。
-      this.options.logger.warn("conn-rejected", { reason: CONN_REJECT_REASONS.tool });
-      ws.close(1008, "Unknown tool");
-      return;
-    }
-
-    // クライアント鍵の検査は Origin より前に置く。**どちらも 1008 なので、
-    // 後ろに置くと「直結が拒否される」ことを確かめるテストが Origin 拒否を
-    // 見ているだけ、という空振りになる。**
-    if (this.options.requireClientAddress === true && ws.data.clientKey === null) {
-      // 列挙値だけを出す（P-2）。生の IP・相関キーは載せない（ADR 0012 D3）。
-      this.options.logger.warn("conn-rejected", { reason: CONN_REJECT_REASONS.clientAddress });
-      ws.close(1008, "Client address required");
-      return;
-    }
-
-    // Origin 検証（S2）
-    if (
-      this.options.allowedOrigins.length > 0 &&
-      !this.options.allowedOrigins.includes(ws.data.origin)
-    ) {
-      // 列挙値だけを出す（P-2）。Origin の値そのものは載せない（ADR 0012 D3）。
-      this.options.logger.warn("conn-rejected", { reason: CONN_REJECT_REASONS.origin });
-      ws.close(1008, "Origin not allowed");
-      return;
-    }
-
-    // 同時接続数の上限（DoS 緩和）。超過は 1013（Try Again Later）で閉じる。
-    if (
-      this.options.maxConnections !== undefined &&
-      this.connections.size >= this.options.maxConnections
-    ) {
-      ws.close(1013, "Server connection limit reached");
+    // 判定は入場の門（`ws/connection-gate.ts`）が持つ。ここは実行するだけ（#368 Task 4）。
+    const admission = admit(ws.data, this.options, this.connections.size);
+    if (admission.kind === "reject") {
+      if (admission.logReason !== null) {
+        this.options.logger.warn("conn-rejected", { reason: admission.logReason });
+      }
+      ws.close(admission.code, admission.reason);
       return;
     }
 
     const connId = `conn-${++this.connCounter}`;
     ws.data.connId = connId;
     // レート制限の鍵は受理の時点で決まる。**poker のメッセージ層はこれを
-    // `ws.data.rateKey` から直接読む**（timer 側は下の onConnect で受け取る）。
-    // 値そのものは両プロトコルで同じ（クライアント鍵、特定できなければ connId）。
+    // `ws.data.rateKey` から直接読む**（ほかのツールは下の onConnect で受け取る）。
+    // 値そのものはどのプロトコルでも同じ（クライアント鍵、特定できなければ connId）。
     ws.data.rateKey = ws.data.clientKey ?? connId;
     this.connections.set(connId, ws);
-    this.missedPongs.set(connId, 0);
-    // poker のメッセージ層に接続受理のフックは無い（統合前の
-    // `apps/poker-sync/src/adapters/ws-adapter.ts` も rateKey を入れて終わりだった）。
-    // ⚠ **ルーレット（roulette）もこの分岐に足してはならない**（#94・spec §5.2。お題と同じ理由）。
-    // ⚠ **お題（topic）をこの分岐に足してはならない**（#91・spec §5.3 の MUST）。
-    // ここで return すると onConnect が呼ばれず、`rateLimitGate.open` が接続とクライアント鍵を
-    // 結ばない。すると鍵は connId へ落ち、`ai.unlock` の総当たりが**張り直すだけで**
-    // 枠を回避できる（2026-09-23 のレビューで見つかった）。
-    if (ws.data.protocol === "poker") return;
+    this.heartbeat.track(connId);
+    // 受理を知らせない受け口は poker だけ（`ToolChannel.notifiesConnect` の docstring）。
+    if (!this.channelOf(ws)?.notifiesConnect) return;
     // onConnect は呼び出し元（アプリ層）のコールバック。throw すると Bun の
     // websocket ハンドラ内なので uncaughtException になり、本番の server.ts が
     // process.exit(1) で受ける（実測）。コールバックの失敗でプロセス全体を
@@ -664,339 +467,42 @@ export class WsAdapter {
     }
   }
 
-  /** pong 受信 = 生存確認。欠落カウントをリセットする（一時的な揺れからの復帰・US2）。 */
+  /** pong 受信 = 生存確認（受理していない接続の pong は数えない）。 */
   private handlePong(ws: Socket): void {
     const { connId } = ws.data;
     if (connId === "") return;
-    this.missedPongs.set(connId, 0);
+    this.heartbeat.pong(connId);
+  }
+
+  /** 接続のプロトコルの受け口。`"unknown"` は受理されないので受け口を持たない。 */
+  private channelOf(ws: Socket): ToolChannel | undefined {
+    const { protocol } = ws.data;
+    return protocol === "unknown" ? undefined : this.channels[protocol];
   }
 
   private handleMessage(ws: Socket, raw: string | Buffer): void {
-    const { connId } = ws.data;
-    if (connId === "") return; // 検査で弾いた接続からは受け取らない
+    if (ws.data.connId === "") return; // 検査で弾いた接続からは受け取らない
 
     // サイズ制限（S3）。**バイト数で測る**。Bun はテキストフレームを string で
     // 渡してくるため、`raw.length` だと日本語 1 文字が 1 と数えられ、
     // ws 実装（Buffer.length）より制限が緩くなってしまう。
     const bytes = typeof raw === "string" ? Buffer.byteLength(raw) : raw.length;
 
-    // ⚠ **超過の返し方はプロトコルごとに違う。** timer は `MESSAGE_TOO_LARGE`
-    // （`ServerMsg` の ErrorCode）、poker は `message-too-large`
-    // （`@tasuki/poker-core` の ErrorCode）で、どちらも wire に載る値である。
-    // 片方へ寄せると相手の web が知らないコードを受け取る（振る舞いが変わる）。
-    // `isPokerSocket` で絞り込む（`ws.data.protocol === "poker"` だけでは
-    // `ws` 自体の型が絞り込めず、`handlePokerMessage` へ渡せない。docstring 参照）。
-    if (isPokerSocket(ws)) {
-      this.handlePokerMessage(ws, raw, bytes);
-      return;
-    }
-
-    if (ws.data.protocol === "hub") {
-      this.handleHubMessage(ws, raw, bytes);
-      return;
-    }
-
-    if (ws.data.protocol === "topic") {
-      this.handleTopicMessage(ws, raw, bytes);
-      return;
-    }
-
-    if (ws.data.protocol === "roulette") {
-      this.handleRouletteMessage(ws, raw, bytes);
-      return;
-    }
-
-    if (bytes > this.options.maxMessageBytes) {
-      this.sendFrame(ws, {
-        type: "error",
-        code: "MESSAGE_TOO_LARGE",
-        message: MESSAGE_TOO_LARGE_TEXT,
-      });
-      return;
-    }
-
-    // 境界のパースは @tasuki/protocol に一本化してある（poker の sync / web も同じものを使う）。
-    // 落ちた段（json / schema）で返すエラーコードを分けるのは timer 側の決めごと。
-    const parsed = parseBoundaryMessage(CommandSchema, raw.toString());
-    if (parsed.isErr()) {
-      const code = parsed.error.stage === "json" ? "INVALID_JSON" : "INVALID_COMMAND";
-      const message =
-        parsed.error.stage === "json" ? "JSON の形式が不正です" : "コマンドの形式が不正です";
-      this.sendFrame(ws, { type: "error", code, message });
-      return;
-    }
-
-    // **表示名の正規化と上限は境界のここで掛ける**（#95 S4b。
-    // `application/normalize-command-names.ts` の docstring に理由がある）。
-    // S4a までは wire スキーマ（`CommandSchema`）の `transform` が担っており、
-    // そのために `timer-core` が `@tasuki/room-core` を取り込んでいた。
-    //
-    // **応答は上の `INVALID_COMMAND` と同一である。** 同じ「コマンドの形が不正」という
-    // 答えなので、利用者が受け取るフレーム（コード・文言）を変えない ——
-    // ここを別のコードにすると、正規化の移設が wire の変更になってしまう。
-    const normalized = normalizeCommandNames(parsed.value as Command);
-    if (normalized.isErr()) {
-      this.sendFrame(ws, {
-        type: "error",
-        code: "INVALID_COMMAND",
-        message: "コマンドの形式が不正です",
-      });
-      return;
-    }
-
-    // onMessage は型上 `Promise<void>` を返す契約だが、実装が async でなければ
-    // 同期的に throw しうる（型は実行時の保証にはならない。`.catch` は reject
-    // しか拾わない）。呼び出し自体を try/catch で囲んで別途隔離する（I-5）。
-    try {
-      this.options.onMessage(connId, normalized.value).catch(() => {
-        this.sendInternalError(ws);
-      });
-    } catch (err) {
-      this.options.logger.error("on-message-error", { name: classifyError(err) });
-      this.sendInternalError(ws);
-    }
-  }
-
-  /**
-   * poker のメッセージ層へ渡す（サイズ判定・パース・ディスパッチ）。
-   *
-   * **本体を `try/catch` で隔離する。** poker のハンドラは同期に throw しうる。
-   * 統合前はそれで死ぬのは poker のプロセスだけだったが、**統合後は同じ 1 プロセスに
-   * 載っている timer のルームも道連れになる**（`server.ts` の `uncaughtException` が
-   * `process.exit(1)` する・揮発インメモリ）。このアダプタが `onConnect` /
-   * `onDisconnect` / timer の `onMessage` / poker の `detachFromCurrentRoom` を
-   * 隔離しているのと同じ理由が、ここにも等しく当てはまる。
-   *
-   * **エラーフレームは返さず、接続を 1011 で閉じる。** poker の `ERROR_CODES`
-   * （`packages/poker-core/src/protocol.ts`）に「内部エラー」に当たるコードが無く、
-   * 足すのは wire の契約の変更になる（`docs/poker/adr/0003` 決定 4「送信側は縛ったまま」）。
-   * 一方、**黙って開いたままにするのは統合前より悪い**。統合前はプロセスが落ちて
-   * クライアントが切断を観測し再接続していたが、`apps/poker-web/src/hooks/useSync.ts`
-   * にコマンド単位のタイムアウトは無いため（再接続のバックオフだけ）、応答も切断も
-   * 無ければ画面は永久に待つ。1011（Internal Error）は WebSocket の標準の close コードで、
-   * **新しい wire のコードを足さずに「何かが起きた」ことだけを伝えられる**。
-   * この接続だけが閉じ、同じプロセスに載る timer のルームには波及しない。
-   */
-  private handlePokerMessage(ws: PokerSocket, raw: string | Buffer, bytes: number): void {
-    try {
-      if (bytes > this.options.maxMessageBytes) {
-        // 接続は保つ（切断ではなくエラー応答）。再送で回復できる種類の失敗のため。
-        this.options.poker.sendError(ws, "message-too-large", "メッセージが大きすぎます");
-        return;
-      }
-      const result = parseClientMessage(String(raw));
-      if (result.isErr()) {
-        this.options.poker.sendError(ws, result.error.code, result.error.message);
-        return;
-      }
-      this.options.poker.dispatch(ws, result.value);
-    } catch (err) {
-      this.options.logger.error("on-message-error", { name: classifyError(err) });
-      // 閉じるのは**この接続だけ**。close 自体が throw しても巻き込まない。
-      try {
-        ws.close(1011, "Internal error");
-      } catch (closeErr) {
-        this.options.logger.error("on-message-error", { name: classifyError(closeErr) });
-      }
-    }
-  }
-
-  /** onMessage 側の失敗を利用者へ返す共通の応答（同期 throw / 非同期 reject の両方から使う）。 */
-  private sendInternalError(ws: Socket): void {
-    this.sendFrame(ws, {
-      type: "error",
-      code: "INTERNAL_ERROR",
-      message: "内部エラーが発生しました",
-    });
-  }
-
-  /**
-   * 手元の socket へ直接フレームを送る（#181）。
-   *
-   * **`broadcaster` を経由できない経路のための口である。** サイズ超過・不正 JSON・
-   * 内部エラーの 3 つは、アダプタが `broadcaster` を持たないためここから返す。
-   * ここを `ServerMsg` で受けることで、**その 3 経路も契約の型検査を通る**
-   * （以前はオブジェクトリテラルを直接 `JSON.stringify` していた）。
-   *
-   * **`connId` が確定していないから、ではない。** 3 つの呼び出し元はいずれも
-   * `handleMessage` の配下で、そこは冒頭の `connId === ""` の門を通過済みである
-   * （初出の説明はそう書いていたが誤りだった。#181 の敵対的検証で判明）。
-   *
-   * **`send()` と同じく OPEN のときだけ送る。** `sendInternalError` は
-   * `onMessage(...).catch(...)` から呼ばれるので、**利用者が切ったあとに走りうる**。
-   */
-  private sendFrame(ws: Socket, msg: ServerMsg): void {
-    if (ws.readyState !== WebSocket.OPEN) return;
-    ws.send(JSON.stringify(msg));
-  }
-
-  /**
-   * ハブ（選択画面）のメッセージ層へ渡す（#95 S5a）。
-   *
-   * **境界のパースはメッセージ層が持つ**（`application/hub-handlers.ts` が
-   * `HubCommandSchema` で検める）。ここはサイズ制限だけを掛ける —— 大きすぎるフレームを
-   * パーサへ渡さないのは timer / poker と同じ規律である。
-   *
-   * **本体を `try/catch` で隔離する**（#91 PR 3 Task 5・`handleTopicMessage` と同じ形）。
-   * `onHubMessage` は型上 `Promise<void>` を返す契約だが、実装が async でなければ
-   * 同期的に throw しうる（型は実行時の保証にはならない。`.catch` は reject しか拾わない）。
-   * 呼び出し自体を try/catch で囲んで別途隔離しないと、ここでの同期 throw が Bun の
-   * websocket ハンドラを抜けて `uncaughtException` に達し、`server.ts` が
-   * `process.exit(1)` して**同じプロセスに載る timer / poker / お題のルームも
-   * 道連れで消える**（揮発インメモリ）。
-   *
-   * ⚠ 以前はここが `.catch()` だけで、同期 throw を隔離していなかった
-   * （既知の差分として `handleTopicMessage` の docstring に記されていた）。
-   */
-  private handleHubMessage(ws: Socket, raw: string | Buffer, bytes: number): void {
-    if (bytes > this.options.maxMessageBytes) {
-      this.sendHubFrame(ws, {
-        type: "error",
-        code: "MESSAGE_TOO_LARGE",
-        message: MESSAGE_TOO_LARGE_TEXT,
-      });
-      return;
-    }
-    try {
-      void this.options.onHubMessage(ws.data.connId, raw.toString()).catch((err: unknown) => {
-        this.options.logger.error("on-message-error", { name: classifyError(err) });
-        this.sendHubFrame(ws, {
-          type: "error",
-          code: "INTERNAL_ERROR",
-          message: INTERNAL_ERROR_TEXT,
-        });
-      });
-    } catch (err) {
-      this.options.logger.error("on-message-error", { name: classifyError(err) });
-      this.sendHubFrame(ws, {
-        type: "error",
-        code: "INTERNAL_ERROR",
-        message: INTERNAL_ERROR_TEXT,
-      });
-    }
-  }
-
-  /** ハブの接続へ 1 通送る（OPEN のときだけ）。 */
-  private sendHubFrame(ws: Socket, msg: HubServerMsg): void {
-    if (ws.readyState !== WebSocket.OPEN) return;
-    ws.send(JSON.stringify(msg));
-  }
-
-  /**
-   * お題（topic）のメッセージ層へ渡す（#91）。
-   *
-   * 境界のパースはメッセージ層（Task 9 で配線するアプリ層）が持つ。ここはサイズ制限
-   * だけを掛ける —— 大きすぎるフレームをパーサへ渡さないのは timer / poker / ハブと
-   * 同じ規律である。
-   *
-   * **本体を `try/catch` で隔離する。** `onTopicMessage` は型上 `Promise<void>` を
-   * 返す契約だが、実装が async でなければ同期的に throw しうる（型は実行時の保証には
-   * ならない。`.catch` は reject しか拾わない）。呼び出し自体を try/catch で囲んで
-   * 別途隔離する（timer の `handleMessage` / I-5 と同じ形）。隔離しないと、
-   * ここでの同期 throw が Bun の websocket ハンドラを抜けて `uncaughtException` に
-   * 達し、`server.ts` が `process.exit(1)` して**同じプロセスに載る timer / poker /
-   * ハブのルームも道連れで消える**（揮発インメモリ）。
-   *
-   * `handleHubMessage` も同じ理由で同じ形の隔離を持つ（#91 PR 3 Task 5）。
-   */
-  private handleTopicMessage(ws: Socket, raw: string | Buffer, bytes: number): void {
-    if (bytes > this.options.maxMessageBytes) {
-      this.sendTopicFrame(ws, {
-        type: "error",
-        code: "MESSAGE_TOO_LARGE",
-        message: MESSAGE_TOO_LARGE_TEXT,
-      });
-      return;
-    }
-    try {
-      void this.options.onTopicMessage(ws.data.connId, raw.toString()).catch((err: unknown) => {
-        this.options.logger.error("on-message-error", { name: classifyError(err) });
-        this.sendTopicFrame(ws, {
-          type: "error",
-          code: "INTERNAL_ERROR",
-          message: INTERNAL_ERROR_TEXT,
-        });
-      });
-    } catch (err) {
-      this.options.logger.error("on-message-error", { name: classifyError(err) });
-      this.sendTopicFrame(ws, {
-        type: "error",
-        code: "INTERNAL_ERROR",
-        message: INTERNAL_ERROR_TEXT,
-      });
-    }
-  }
-
-  /**
-   * お題（topic）の接続へ 1 通送る（OPEN のときだけ）。
-   *
-   * **型は広い `TopicServerMsg` ではなく狭い `TopicOwnFrame` にする**（#91 R18）。
-   * `TopicServerMsg` は `HubServerMsg` を合併しており、その `error` は `code: string`
-   * （無制約）なので、`TOPIC_ERROR_CODES` に無いコードでも通ってしまう。この口は
-   * アダプタが自分でエラーを組み立てて送る経路（サイズ超過・内部エラー）専用であり、
-   * 契約に無いコードを型検査で弾く。
-   */
-  private sendTopicFrame(ws: Socket, msg: TopicOwnFrame): void {
-    if (ws.readyState !== WebSocket.OPEN) return;
-    ws.send(JSON.stringify(msg));
-  }
-
-  /**
-   * ルーレット（roulette）のメッセージ層へ渡す（#94）。
-   *
-   * 境界のパースはメッセージ層（`application/roulette-handlers.ts`）が持つ。ここはサイズ制限
-   * だけを掛ける。**本体を `try/catch` で隔離する**（`handleTopicMessage` と同じ形・理由）:
-   * 同期 throw が Bun の websocket ハンドラを抜けて `uncaughtException` に達すると、
-   * `server.ts` が `process.exit(1)` して同じプロセスに載る他のツールのルームも道連れで消える
-   * （揮発インメモリ）。
-   */
-  private handleRouletteMessage(ws: Socket, raw: string | Buffer, bytes: number): void {
-    if (bytes > this.options.maxMessageBytes) {
-      this.sendRouletteFrame(ws, {
-        type: "error",
-        code: "MESSAGE_TOO_LARGE",
-        message: MESSAGE_TOO_LARGE_TEXT,
-      });
-      return;
-    }
-    try {
-      void this.options.onRouletteMessage(ws.data.connId, raw.toString()).catch((err: unknown) => {
-        this.options.logger.error("on-message-error", { name: classifyError(err) });
-        this.sendRouletteFrame(ws, {
-          type: "error",
-          code: "INTERNAL_ERROR",
-          message: INTERNAL_ERROR_TEXT,
-        });
-      });
-    } catch (err) {
-      this.options.logger.error("on-message-error", { name: classifyError(err) });
-      this.sendRouletteFrame(ws, {
-        type: "error",
-        code: "INTERNAL_ERROR",
-        message: INTERNAL_ERROR_TEXT,
-      });
-    }
-  }
-
-  /** ルーレットの接続へ 1 通送る（OPEN のときだけ）。型は狭い {@link RouletteOwnFrame}（`sendTopicFrame` と同じ理由）。 */
-  private sendRouletteFrame(ws: Socket, msg: RouletteOwnFrame): void {
-    if (ws.readyState !== WebSocket.OPEN) return;
-    ws.send(JSON.stringify(msg));
+    this.channelOf(ws)?.receive(ws, raw, bytes);
   }
 
   private handleClose(ws: Socket): void {
     const { connId } = ws.data;
-    // Origin / 接続数で弾いた接続は受け入れていないので、切断も通知しない（ws 実装と同じ）。
+    // 入場の判定で弾いた接続は受け入れていないので、切断も通知しない（ws 実装と同じ）。
     if (connId === "") return;
     this.connections.delete(connId);
-    this.missedPongs.delete(connId);
-    // `isPokerSocket` で絞り込む（`handlePokerMessage` と同じ理由。docstring 参照）。
-    if (isPokerSocket(ws)) {
-      // poker はルーム離脱の後始末をメッセージ層が持つ（timer は presence 管理が持つ）。
-      // 隔離の理由は timer 側の onDisconnect と同じ（コールバックの失敗で
-      // プロセス全体を落とさない）。
+    this.heartbeat.forget(connId);
+    // 後始末を受け口が自分で持つ（poker）なら、そちらだけを呼ぶ。
+    // 隔離の理由は onDisconnect と同じ（コールバックの失敗でプロセス全体を落とさない）。
+    const channel = this.channelOf(ws);
+    if (channel?.closed !== undefined) {
       try {
-        this.options.poker.detachFromCurrentRoom(ws);
+        channel.closed(ws);
       } catch (err) {
         this.options.logger.error("on-disconnect-error", { name: classifyError(err) });
       }

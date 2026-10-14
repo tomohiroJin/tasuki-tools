@@ -32,6 +32,7 @@ import { testVoteDiscarder, testRateLimiter, TEST_MAX_ROOMS } from "./support/ro
 import { roomViewOf, putRoomView } from "./support/room-view.js";
 import type { SessionConfig } from "@tasuki/timer-core";
 import { spyHub } from "./support/hub.js";
+import { testMonotonicClock, testRandom } from "./support/test-clocks.js";
 
 const soloConfig: SessionConfig = {
   intervalMinutes: 5,
@@ -71,6 +72,8 @@ describe("ソロの部屋からの退出（Issue #79）", () => {
     const rounds = new InMemoryRoundStore();
     let destroyRoom: (roomCode: string) => void;
     handlers = makeHandlers({
+      monotonicClock: testMonotonicClock,
+      random: testRandom,
       store, timers, clock: new FakeClock(1_000_000), broadcaster, hub: spyHub(), codeGen: new FakeCodeGen(),
       tokens: createTokenStore(),
       rateLimiter: testRateLimiter(),
@@ -178,6 +181,8 @@ describe("ソロの部屋からの退出（Issue #79）", () => {
     const spyBroadcaster = new SpyBroadcaster();
     const { destroy, calls } = spyDestroyer(spyStore, spyTimers);
     const spyHandlers = makeHandlers({
+      monotonicClock: testMonotonicClock,
+      random: testRandom,
       store: spyStore,
       timers: spyTimers,
       clock: new FakeClock(1_000_000),
@@ -262,6 +267,8 @@ describe("ソロ以外は挙動が変わらない（Issue #79）", () => {
     const rounds = new InMemoryRoundStore();
     let destroyRoom: (roomCode: string) => void;
     handlers = makeHandlers({
+      monotonicClock: testMonotonicClock,
+      random: testRandom,
       store, timers, clock: new FakeClock(1_000_000), broadcaster, hub: spyHub(), codeGen: new FakeCodeGen(),
       tokens: createTokenStore(),
       rateLimiter: testRateLimiter(),
@@ -398,6 +405,8 @@ describe("アイドル回収と在室者0人の退出は同じ後始末を通る
     const broadcaster = new SpyBroadcaster();
     const { destroy, calls } = spyDestroyer(store, timers);
     const handlers = makeHandlers({
+      monotonicClock: testMonotonicClock,
+      random: testRandom,
       store,
       timers,
       clock: new FakeClock(1_000_000),
@@ -418,6 +427,7 @@ describe("アイドル回収と在室者0人の退出は同じ後始末を通る
       store,
       idleTtlMs: 1_000,
       onReclaim: (roomCode) => destroy(roomCode),
+      clock: new FakeClock(0),
     });
 
     // Given: 退出で消える部屋（ソロ）と、TTL で消える部屋（全員 offline）を 1 つずつ

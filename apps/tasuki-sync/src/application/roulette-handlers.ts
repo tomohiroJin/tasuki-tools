@@ -11,10 +11,11 @@
  * `display-name-rule.ts` を通す。**ここに写しを書かない**（`topic-handlers.ts` の冒頭と同じ理由）。
  * ルームは作らない（`room.create` は拒む）。
  *
- * ## ログを書かない
+ * ## 利用者の入力をログに書かない
  *
- * ゲストの名前・表示名は利用者の入力である（`docs/adr/0012`・spec R13）。このファイルはログを書かない。
- * 時計は**単調時計**（`performance.now()` 系）。壁時計は NTP の調整で戻りうる。
+ * ゲストの名前・表示名は利用者の入力である（`docs/adr/0012`・spec R13）。このファイルはそれらをログに書かない。
+ * 書くのは、乱数源の契約違反（`INVALID_RANDOM`）を知らせる固定の語彙の 1 行だけである（#364。下の `roulette.spin`）。
+ * 時計は**単調時計**（`MonotonicClock`）。壁時計は NTP の調整で戻りうる。
  */
 import * as v from "valibot";
 import {
@@ -26,7 +27,6 @@ import {
   type Room,
 } from "@tasuki/room-core";
 import { parseBoundaryMessage } from "@tasuki/protocol";
-import { errorMessageFor } from "@tasuki/timer-core";
 import {
   addGuest,
   INITIAL_ROULETTE_STATE,
@@ -42,15 +42,20 @@ import {
   type RouletteErrorCode,
   type RouletteState,
 } from "@tasuki/roulette-core";
-import type { MonotonicClock } from "../ports/poker-monotonic-clock.js";
+import type { MonotonicClock } from "../ports/monotonic-clock.js";
 import type { RandomSource } from "../ports/random-source.js";
 import type { RouletteServerMsg } from "../ports/roulette-server-msg.js";
 import type { RouletteStore } from "../ports/roulette-store.js";
-import { applyDisplayNameRule, INVALID_DISPLAY_NAME_MESSAGE } from "./display-name-rule.js";
-import { joinRoom, ROOM_NOT_FOUND_MESSAGE, type JoinRoomDeps } from "./join-room.js";
+import { applyDisplayNameRule } from "./display-name-rule.js";
+import type { JoinRoomDeps } from "./join-room.js";
 import type { RouletteBroadcaster } from "./roulette-broadcast.js";
-import { saveRoster, type SaveRosterDeps } from "./save-roster.js";
+import type { SaveRosterDeps } from "./save-roster.js";
+import { findRoomByToolConnection } from "./room-lookup.js";
+import { joinToolRoom } from "./join-tool-room.js";
 import { TOOL_ROULETTE } from "./tool-id.js";
+import type { Logger } from "./log/logger.js";
+import { ERROR_NAMES } from "./log/vocabulary.js";
+import { boundaryErrorCode } from "./connection-errors.js";
 
 /**
  * ルーレットの接続が受け取る言葉。**ハブの言葉（`room.join` のため）とルーレットのコマンドの和**。
@@ -65,6 +70,7 @@ export interface RouletteHandlerDeps extends JoinRoomDeps, SaveRosterDeps {
   /** 単調時計。**`JoinRoomDeps.clock`（壁時計）とは別物** */
   monotonicClock: MonotonicClock;
   random: RandomSource;
+  logger: Logger;
 }
 
 export interface RouletteHandlers {
@@ -73,51 +79,23 @@ export interface RouletteHandlers {
 }
 
 export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandlers {
-  const { roulettes, broadcaster, send, monotonicClock, random } = deps;
+  const { roulettes, broadcaster, send, monotonicClock, random, logger } = deps;
 
   /** コマンドの失敗。**文言は roulette-core の文言表から引く**（ここに書かない）。 */
   function fail(connId: string, code: RouletteErrorCode): void {
     send(connId, { type: "error", code, message: rouletteErrorMessageFor(code) });
   }
 
-  /** 参加の失敗。**コードも文言もハブと同じ形で返す**（`topic-handlers.ts` の `failJoin`）。 */
-  function failJoin(connId: string, code: string, message: string): void {
-    send(connId, { type: "error", code, message });
-  }
-
   function handleJoin(connId: string, cmd: Extract<HubCommand, { command: "room.join" }>): void {
-    // 既にどこかのルームに居る接続からの 2 度目の参加は拒み、何も変えない（理由は topic-handlers.ts）。
-    if (isInAnyRoom(connId)) {
-      failJoin(connId, "INVALID_COMMAND", rouletteErrorMessageFor("INVALID_COMMAND"));
-      return;
-    }
-
-    const applied = applyDisplayNameRule(cmd.displayName);
-    if (applied.isErr()) {
-      failJoin(connId, "INVALID_COMMAND", INVALID_DISPLAY_NAME_MESSAGE);
-      return;
-    }
-
-    const joined = joinRoom(deps, {
+    // 参加の流れは hub・topic と共有する（`join-tool-room.ts`）。参加の後に、いまの状態を本人へ 1 通。
+    // **状態が無ければここで既定の状態を置く**（spec §5.4）。
+    joinToolRoom(deps, {
       connId,
-      code: cmd.code,
-      displayName: applied.value,
+      cmd,
       tool: TOOL_ROULETTE,
-      ...(cmd.resumeToken !== undefined ? { resumeToken: cmd.resumeToken } : {}),
-      ...(cmd.passphrase !== undefined ? { passphrase: cmd.passphrase } : {}),
+      reply: (msg) => send(connId, msg),
+      afterJoin: () => broadcaster.sendCurrent(connId, cmd.code),
     });
-    if (joined.isErr()) {
-      const code = joined.error;
-      failJoin(connId, code, code === "ROOM_NOT_FOUND" ? ROOM_NOT_FOUND_MESSAGE : errorMessageFor(code));
-      return;
-    }
-
-    const { participantId, resumeToken, membership } = joined.value;
-    send(connId, { type: "room.joined", code: cmd.code, participantId, resumeToken });
-    // 保管と配信は対にする（`save-roster.ts`）。ルーレットの接続が在席に載ったことは玄関にも届く。
-    saveRoster(deps, membership);
-    // いまの状態を本人へ 1 通。**状態が無ければここで既定の状態を置く**（spec §5.4）。
-    broadcaster.sendCurrent(connId, cmd.code);
   }
 
   /**
@@ -126,14 +104,7 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
    * （spec R11 の 2 段目。1 段目は ws-adapter の振り分け）。
    */
   function roomOf(connId: string): Room | undefined {
-    return deps.store
-      .list()
-      .find((r) => findParticipantByConnId(r, connId)?.connections.get(connId) === TOOL_ROULETTE);
-  }
-
-  /** この接続がどれかのルームに（ツールを問わず）在席しているか。2 度目の参加を拒むために引く。 */
-  function isInAnyRoom(connId: string): boolean {
-    return deps.store.list().some((r) => findParticipantByConnId(r, connId) !== undefined);
+    return findRoomByToolConnection(deps.store, connId, TOOL_ROULETTE);
   }
 
   /** 名簿の断片（在室は接続の有無から導く）。 */
@@ -185,8 +156,13 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
         });
         if (next.isErr()) {
           const code = next.error.code;
-          // INVALID_SETTLE は乱数源の誤りで、利用者の操作では起きない。内部の誤りとして返す。
-          fail(connId, code === "INVALID_SETTLE" ? "INTERNAL_ERROR" : code);
+          // INVALID_SETTLE・INVALID_RANDOM は乱数源の誤りで、利用者の操作では起きない。内部の誤りとして返す。
+          if (code === "INVALID_RANDOM") {
+            // #364 より前は、ドメインが RangeError を投げ、接続層（ws-adapter.ts）が「ログ → エラーフレーム」を
+            // 返していた。その行を変えないため、ここで同じ行を残す（INVALID_SETTLE は元からログが無い。#382）。
+            logger.error("on-message-error", { name: ERROR_NAMES.rangeError });
+          }
+          fail(connId, code === "INVALID_SETTLE" || code === "INVALID_RANDOM" ? "INTERNAL_ERROR" : code);
           return;
         }
         commit(room.code, stored, next.value);
@@ -230,7 +206,7 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
       // 境界のパースは `@tasuki/protocol` に一本化してある（timer / poker / ハブ / お題と同じ入口）。
       const parsed = parseBoundaryMessage(RouletteConnectionMessageSchema, raw);
       if (parsed.isErr()) {
-        fail(connId, parsed.error.stage === "json" ? "INVALID_JSON" : "INVALID_COMMAND");
+        fail(connId, boundaryErrorCode(parsed.error.stage));
         return;
       }
 

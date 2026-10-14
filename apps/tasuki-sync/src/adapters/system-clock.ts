@@ -1,17 +1,17 @@
 /**
- * SystemClock — 実際のシステム時刻を返す Clock 実装
+ * SystemWallClock — 実際のシステム時刻を返す WallClock 実装
  */
 
-import type { Clock } from "../ports/clock.js";
+import type { WallClock } from "../ports/wall-clock.js";
 
-export class SystemClock implements Clock {
+export class SystemWallClock implements WallClock {
   now(): number {
     return Date.now();
   }
 }
 
-/** テスト用フェイクClock */
-export class FakeClock implements Clock {
+/** テスト用フェイクWallClock */
+export class FakeClock implements WallClock {
   private _now: number;
 
   constructor(initial = 1000000) {

@@ -8,8 +8,10 @@ import type { TopicErrorCode } from "./schemas.js";
  * あるものは timer と同じ文にする」としていたが、timer の `RATE_LIMITED` / `AI_UNLOCK_FAILED` は
  * base 層に無い字を含むので、#91 PR 2 で揃えるのをやめた。timer の `AI_UNLOCK_FAILED` は #91 PR 3 で
  * 解錠の経路ごと消えた。`RATE_LIMITED` は timer に残る（`room.join` の枠など）が、文は揃えない。
- * `MESSAGE_TOO_LARGE` / `INTERNAL_ERROR` は接続層（`ws-adapter.ts` の `MESSAGE_TOO_LARGE_TEXT` /
- * `INTERNAL_ERROR_TEXT`）と同じ文にする。
+ * 接続層のコード（`INVALID_JSON` / `INVALID_COMMAND` / `MESSAGE_TOO_LARGE` / `INTERNAL_ERROR`）は、
+ * 同期サーバーの正本（`apps/tasuki-sync/src/application/connection-errors.ts`）と同じ文にする。
+ * topic-core は `@tasuki/*` に依存しないので正本を取り込めない。**一致は
+ * `apps/tasuki-sync/test/connection-error-text-sources.test.ts` が守る**（#362）。
  */
 const TOPIC_ERROR_MESSAGES: Record<TopicErrorCode, string> = {
   INVALID_JSON: "JSON の形式が不正です",

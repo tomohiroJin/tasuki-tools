@@ -1,8 +1,8 @@
 import { describe, it, expect, afterEach } from "bun:test";
 import { WebSocket } from "ws";
-import { WsAdapter } from "../src/adapters/ws-adapter.js";
+import { ServerStartError, WsAdapter } from "../src/adapters/ws-adapter.js";
 import { newTestWsAdapter } from "./support/test-ws-adapter.js";
-import { testLogger } from "./support/test-logger.js";
+import { collectingLogger, testLogger } from "./support/test-logger.js";
 
 // ポートは OS に選ばせる（`port: 0`）。実ポートは `adapter.port` から取る。
 // かつては固定値を手で割り当て、ファイル間で重複しないようコメントで帳簿を
@@ -30,7 +30,7 @@ function startAdapter(options: Partial<ConstructorParameters<typeof WsAdapter>[0
     port: 0,
     host: "127.0.0.1",
     allowedOrigins: [],
-    onMessage: async () => {},
+    timer: { handleMessage: async () => {} },
     onDisconnect: () => {},
     logger: testLogger,
     ...options,
@@ -93,5 +93,46 @@ describe("WsAdapter.port", () => {
     const ws = new WebSocket(url);
     await expect(waitOpen(ws)).resolves.toBeUndefined();
     ws.close();
+  });
+});
+
+/**
+ * 起動の失敗（#368 Task 8）。
+ *
+ * bind に失敗したら（この機械が持たないアドレスで待ち受ける。EADDRNOTAVAIL）、アダプタは `http-server-error` を 1 行残して
+ * {@link ServerStartError} を投げる。**プロセスを終わらせるのは組み立て（`server.ts`）の仕事**で、
+ * アダプタは `process.exit` を呼ばない（呼ぶとテストのプロセスごと終わり、この失敗をテストできなかった）。
+ *
+ * 同じポートで 2 つ目を起こす形は使わない。テストの中では Bun が 2 つ目の bind を通すことがあった（2026-10-13 に実測）。
+ * 文書用のアドレス（RFC 5737 の TEST-NET-3）は、どの機械も持たないので必ず失敗する。
+ */
+describe("WsAdapter の起動の失敗", () => {
+  it("Given この機械が持たないアドレス / When 起こす / Then http-server-error を 1 行残して ServerStartError を投げ、process.exit は呼ばない", () => {
+    // Given
+    const { logger, lines } = collectingLogger();
+    const exitCalls: unknown[] = [];
+    const realExit = process.exit;
+    process.exit = ((code?: number) => {
+      exitCalls.push(code);
+    }) as typeof process.exit;
+    try {
+      // When
+      const start = () =>
+        newTestWsAdapter({
+          port: 0,
+          host: "203.0.113.1",
+          allowedOrigins: [],
+          timer: { handleMessage: async () => {} },
+          onDisconnect: () => {},
+          logger,
+        });
+      // Then
+      expect(start).toThrow(ServerStartError);
+      expect(exitCalls).toEqual([]);
+      expect(lines).toHaveLength(1);
+      expect(lines[0]).toStartWith("http-server-error name=");
+    } finally {
+      process.exit = realExit;
+    }
   });
 });

@@ -528,6 +528,9 @@ importers:
 
   packages/room-core:
     dependencies:
+      neverthrow:
+        specifier: ^8.2.0
+        version: 8.2.0
       valibot:
         specifier: ^1.4.1
         version: 1.5.0(typescript@6.0.3)

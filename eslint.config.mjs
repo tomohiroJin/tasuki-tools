@@ -93,4 +93,27 @@ export default tseslint.config(
       "@typescript-eslint/no-non-null-assertion": "off",
     },
   },
+
+  {
+    // **packages の相対 import は `.js` を付ける**（#365）。packages は同じ指定子を
+    // TypeScript（`moduleResolution: "Bundler"`）・vitest・bun のどれでも解決させるため、
+    // 出力のファイル名（`.js`）で書くのが既定である。かつては poker-core・markdown・room-core の
+    // 33 か所だけが拡張子を省いていて、書き方が 2 通りあった。apps は対象にしない
+    // （Vite の web と同期サーバーで決まりが別。#365 の範囲の外）。
+    files: ["packages/*/src/**/*.{ts,tsx}", "packages/*/test/**/*.{ts,tsx}", "packages/*/tests/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        ...[
+          "ImportDeclaration",
+          "ExportNamedDeclaration",
+          "ExportAllDeclaration",
+          "ImportExpression",
+        ].map((node) => ({
+          selector: `${node}[source.value=/^\\.\\.?\\//]:not([source.value=/\\.(js|json|css)$/])`,
+          message: "packages の相対 import には `.js` を付けてください（例: './deck.js'）。#365",
+        })),
+      ],
+    },
+  },
 );

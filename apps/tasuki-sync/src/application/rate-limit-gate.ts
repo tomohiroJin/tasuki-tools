@@ -15,9 +15,9 @@
  *
  * ## 渡す `now` は単調時計であること
  *
- * `shouldReject` / `consume` の `now` は `performance.now()`（単調時計）でなければ
+ * `shouldReject` / `consume` の `now` は単調時計（`MonotonicClock`）の時刻でなければ
  * ならない（設計正本 `2026-08-14-ip-rate-limit-design.md` D8）。ルームの会計に使う
- * `Clock.now()`（epoch ms の壁時計）とは**別系統**であり、混同してはいけない。
+ * `WallClock.now()`（epoch ms の壁時計）とは**別系統**であり、混同してはいけない。
  * ゲート自身は `now` を解釈せずそのまま限定器へ渡すだけなので、この契約を守る責務は
  * 呼び出し元（`shouldReject` / `consume` を呼ぶ入口）にある。
  *

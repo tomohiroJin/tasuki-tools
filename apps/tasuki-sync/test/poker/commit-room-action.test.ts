@@ -14,8 +14,8 @@ import type { RateLimiter } from '@tasuki/rate-limit';
 import { InMemoryRoomStore } from '../../src/adapters/in-memory-room-store';
 import { InMemoryRoundStore } from '../../src/adapters/poker-in-memory-round-store';
 import { createTokenStore } from '../../src/application/token-store';
-import { makeHandlers, type HandlerConnection } from '../../src/application/poker-handlers';
-import type { Broadcaster, RoomSocket } from '../../src/ports/poker-broadcaster';
+import { makePokerHandlers, type HandlerConnection } from '../../src/application/poker-handlers';
+import type { PokerBroadcaster, RoomSocket } from '../../src/ports/poker-broadcaster';
 import type { IdGen } from '../../src/ports/poker-id-gen';
 import { spyHub } from '../support/hub.js';
 
@@ -25,8 +25,8 @@ function spySocket(): RoomSocket & { received: ServerMessage[] } {
   return { received, send: (data) => void received.push(JSON.parse(data) as ServerMessage) };
 }
 
-/** 何もしない Broadcaster（sendTo だけはソケットへ素通しする） */
-function passthroughBroadcaster(): Broadcaster {
+/** 何もしない PokerBroadcaster（sendTo だけはソケットへ素通しする） */
+function passthroughBroadcaster(): PokerBroadcaster {
   return {
     attach: () => undefined,
     detach: () => false,
@@ -60,7 +60,7 @@ const alwaysAllowLimiter: RateLimiter = {
 function setup(data: Partial<HandlerConnection['data']> = {}) {
   const socket = spySocket();
   const rounds = new InMemoryRoundStore();
-  const handlers = makeHandlers({
+  const handlers = makePokerHandlers({
     store: new InMemoryRoomStore(), // 何も put しない → get は常に undefined
     rounds,
     tokens: createTokenStore(),

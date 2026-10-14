@@ -4,7 +4,7 @@
  * 対応: 見出し（# / ## / ###）、箇条書き（- / *）、番号付き（1.）、引用（>）、
  * コードの囲み（```）、段落（空行区切り。行内の改行は行として残す）。
  */
-import { parseInline, type MdInline } from './inline';
+import { parseInline, type MdInline } from './inline.js';
 
 export type MdBlock =
   | { kind: 'heading'; level: 1 | 2 | 3; inline: MdInline[] }
@@ -86,6 +86,7 @@ function parseRawBlocks(src: string): RawBlock[] {
     }
     const h = HEADING_RE.exec(line);
     if (h) {
+      // `!`: HEADING_RE の 2 つの組はどちらも省略できないので、一致したなら必ず値がある（#364）
       blocks.push({ kind: 'heading', level: h[1]!.length as 1 | 2 | 3, text: h[2]! });
       i++;
       continue;

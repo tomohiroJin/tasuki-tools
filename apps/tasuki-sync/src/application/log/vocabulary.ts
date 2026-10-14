@@ -5,7 +5,7 @@
  * 事前に列挙できる語彙へ収まる。新しい語彙を足すときはここへ足す。
  *
  * **唯一の場所ではない。** 例外の `name`（`Error` / `TypeError` 等）は事前に
- * 列挙できないため、`server.ts` と `ws-adapter.ts` でも許可マーカー付きで
+ * 列挙できないため、`server.ts` と `adapters/ws/error-log.ts` でも許可マーカー付きで
  * `publicText` を呼ぶ（`log-safe.ts` の docstring と
  * `scripts/audit-log-hygiene.mjs` の ALLOWED_FILES を参照）。
  */
@@ -38,7 +38,7 @@ export const AI_FAILURE_REASONS = {
 
 /**
  * WebSocket 接続を拒否した理由（#103 敵対的レビュー P-2）。
- * `ws-adapter.ts` の `handleOpen` が拒否する経路（クライアント鍵なし・
+ * 入場の門（`adapters/ws/connection-gate.ts` の `admit`）が拒否する経路（クライアント鍵なし・
  * Origin 不許可・許可リストに無いツール宣言（`tool`。#95 S5c・#249））と
  * 1 対 1。本番構成でこれらが無言のままだと、Caddy 側の X-Forwarded-For 転送が
  * 壊れて利用者全員が入れなくなっても journal からは気づけない
@@ -48,4 +48,15 @@ export const CONN_REJECT_REASONS = {
   clientAddress: publicText("client-address"), // log-hygiene:allow 語彙定義
   origin: publicText("origin"), // log-hygiene:allow 語彙定義
   tool: publicText("tool"), // log-hygiene:allow 語彙定義
+} as const satisfies Record<string, LogSafe>;
+
+/**
+ * 例外の名前のうち、例外を介さずに出す必要があるもの（#364）。
+ *
+ * roulette の乱数源の契約違反は、かつてドメインが `RangeError` を投げ、接続層が
+ * `on-message-error name=RangeError` を残していた。ドメインが `Result` を返すようになった後も
+ * **同じ行を残す**ため、ハンドラがこの語彙で同じ名前を出す（`roulette-handlers.ts`）。
+ */
+export const ERROR_NAMES = {
+  rangeError: publicText("RangeError"), // log-hygiene:allow 語彙定義
 } as const satisfies Record<string, LogSafe>;

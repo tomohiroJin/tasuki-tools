@@ -3,9 +3,9 @@
 //
 // **#95 S4a で入力が「ルーム」から「ラウンド＋名簿の断片」の 2 つになった。**
 // wire（`room-state` の形）は変えていない —— 組み立てる材料の出所が変わっただけである。
-import type { RoomStateMessage, VoteView } from './protocol';
-import type { Round, VoterView } from './round';
-import { computeStats } from './stats';
+import type { RoomStateMessage, VoteView } from './protocol.js';
+import type { Round, VoterView } from './round.js';
+import { computeStats } from './stats.js';
 
 /**
  * 名簿の断片（`room-state` の participants に要るぶんだけ）。

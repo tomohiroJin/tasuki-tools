@@ -9,29 +9,6 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import {
-  extractImportSpecifiers,
-  resolveRelativeImport,
-  computeReachableFiles,
-  sc027UnreachableModules,
-  sc028DuplicateTestDoubles,
-  extractTestNames,
-  sc029SpecIdsInNames,
-  sc030CallNamesInNames,
-  splitIntoTestBodies,
-  sc031GuardExpects,
-  sc032GwtMarkers,
-  sc036TestCount,
-  extractCodeMessagePairs,
-  extractClientErrorTable,
-  sc035MessageDefinitions,
-  sc039aUnreachableBranchInApps,
-  stripStringsAndComments,
-  extractPublicDeclarations,
-  sc039bUnusedPublicData,
-  sc039cSelfOnlyPublicSymbols,
-  extractContractNames,
-  extractNamedImportsFromPackage,
-  sc039dContractOnlyValues,
   sc039DeclaredContractFiles,
   findStaleSc029Exceptions,
   findStaleSymbolExceptions,
@@ -44,6 +21,37 @@ import {
   formatScanVolume,
   scanVolumeDimensions,
 } from "./audit-structure.mjs";
+import {
+  sc039aUnreachableBranchInApps,
+  stripStringsAndComments,
+  extractPublicDeclarations,
+  sc039bUnusedPublicData,
+  sc039cSelfOnlyPublicSymbols,
+  extractContractNames,
+  extractNamedImportsFromPackage,
+  sc039dContractOnlyValues,
+} from "./lib/structure/unreachable-elements.mjs";
+import {
+  extractCodeMessagePairs,
+  extractClientErrorTable,
+  sc035MessageDefinitions,
+} from "./lib/structure/message-definitions.mjs";
+import {
+  sc028DuplicateTestDoubles,
+  extractTestNames,
+  sc029SpecIdsInNames,
+  sc030CallNamesInNames,
+  splitIntoTestBodies,
+  sc031GuardExpects,
+  sc032GwtMarkers,
+  sc036TestCount,
+} from "./lib/structure/test-conventions.mjs";
+import {
+  extractImportSpecifiers,
+  resolveRelativeImport,
+  computeReachableFiles,
+  sc027UnreachableModules,
+} from "./lib/structure/reachability.mjs";
 
 describe("SC-027: 到達しないモジュール（グラフ探索）", () => {
   test("相対 import の .js 指定子は .ts ファイルへ解決される", () => {

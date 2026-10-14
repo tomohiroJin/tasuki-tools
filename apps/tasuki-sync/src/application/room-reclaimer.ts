@@ -7,6 +7,7 @@
  */
 
 import type { RoomStore } from "../ports/room-store.js";
+import type { WallClock } from "../ports/wall-clock.js";
 import { presenceOf } from "@tasuki/room-core";
 
 export interface RoomReclaimerDeps {
@@ -15,12 +16,15 @@ export interface RoomReclaimerDeps {
   idleTtlMs: number;
   /** 回収時の後始末（store.remove・timer 解放・token 解放など）。idleMs は全員 offline になってからの経過時間。 */
   onReclaim: (roomCode: string, idleMs: number) => void;
+  /** 定期実行（`start`）が観測の時刻を読む壁時計（#367。以前は大域の時計を直接読んでいた） */
+  clock: WallClock;
 }
 
 export class RoomReclaimer {
   private readonly store: RoomStore;
   private readonly idleTtlMs: number;
   private readonly onReclaim: (roomCode: string, idleMs: number) => void;
+  private readonly clock: WallClock;
   /** roomCode → 全員 offline になったと初検知した時刻（epoch ms）。 */
   private readonly emptySince = new Map<string, number>();
   private interval: ReturnType<typeof setInterval> | null = null;
@@ -35,6 +39,7 @@ export class RoomReclaimer {
     this.store = deps.store;
     this.idleTtlMs = deps.idleTtlMs;
     this.onReclaim = deps.onReclaim;
+    this.clock = deps.clock;
   }
 
   /** 1 周の観測。now はテスト容易性のため引数。 */
@@ -62,10 +67,10 @@ export class RoomReclaimer {
     }
   }
 
-  /** 定期 sweep を開始する。now 取得は Date.now（テストでは sweep を直接呼ぶ）。 */
+  /** 定期 sweep を開始する。時刻は注入した壁時計から読む（`sweep` はテストから直接も呼べる）。 */
   start(sweepIntervalMs: number): void {
     if (this.interval !== null) return;
-    this.interval = setInterval(() => this.sweep(Date.now()), sweepIntervalMs);
+    this.interval = setInterval(() => this.sweep(this.clock.now()), sweepIntervalMs);
   }
 
   stop(): void {

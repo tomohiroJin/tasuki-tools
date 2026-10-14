@@ -3,8 +3,8 @@
  * T013: FR-003, FR-007, FR-008
  */
 
-import type { Aggregate, TimerConfig, IntervalMinutes, RotationEntry, ServerClock } from "./aggregate.js";
-import { initialAggregate, nextEligibleIndex, rotationEntryId } from "./aggregate.js";
+import type { Aggregate, TimerConfig, RotationEntry, ServerClock } from "./aggregate.js";
+import { initialAggregateInSeconds, nextEligibleIndex, rotationEntryId } from "./aggregate.js";
 import type { DomainEvent } from "./events.js";
 
 /**
@@ -57,7 +57,8 @@ export function evolve(agg: Aggregate, event: DomainEvent, _now: number): Aggreg
       // リセット後に開始できず詰む不具合があった。走行状態でアンカーし直す。
       // リセットは並び順を保ったまま最初から走り直す。rotation は参加者IDの配列なので
       // config（表示名の一覧）からは復元できず、現在の並びをそのまま引き継ぐ（D6b）。
-      const fresh = initialAggregate(buildConfigFromReset(agg), agg.session.rotation);
+      // 間隔は集約の秒をそのまま使う（設定の真実源は `TimerState.config` であって集約ではない）。
+      const fresh = initialAggregateInSeconds(agg.clock.intervalSeconds, agg.session.rotation);
       return {
         session: fresh.session,
         clock: {
@@ -393,6 +394,7 @@ function evolveMembersShuffled(agg: Aggregate, order: number[]): Aggregate {
   const oldRotation = agg.session.rotation;
   const oldCounts = agg.session.driverCounts;
   const currentEntry = oldRotation[agg.session.currentIndex];
+  // `!`: order は decideMembersShuffle が [0..len-1] の順列だと確かめてある（添字は必ず範囲内・#364）
   const newRotation = order.map((i) => oldRotation[i]!);
   const newDriverCounts = order.map((i) => oldCounts[i] ?? 0);
   const currentId = currentEntry !== undefined ? rotationEntryId(currentEntry) : undefined;
@@ -411,18 +413,3 @@ function evolveMembersShuffled(agg: Aggregate, order: number[]): Aggregate {
   };
 }
 
-/**
- * リセット時に `initialAggregate` へ渡す一時的な設定を組む。
- *
- * `initialAggregate` が見るのは `intervalMinutes` だけである（設定の真実源は
- * `TimerState.config` であって集約ではない）。
- * かつてここにあった `members: []` は、`TimerConfig` から `members` が消えた
- * #95 S4a で不要になった。同じく `language` / `difficulty`（使われない仮の値）は、
- * `TimerConfig` からお題の設定が消えた #91 PR 3 で落とした。
- */
-function buildConfigFromReset(agg: Aggregate): TimerConfig {
-  return {
-    intervalMinutes:
-      (agg.clock.intervalSeconds / 60) as IntervalMinutes,
-  };
-}

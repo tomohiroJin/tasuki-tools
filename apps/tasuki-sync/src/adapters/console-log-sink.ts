@@ -5,7 +5,7 @@
  * 各行に許可マーカーを要求する。マーカーが消えても、ファイルが許可一覧から
  * 消えても検査は赤になる（どちらの向きにも穴を作らない）。
  */
-import type { LogSink } from "../application/log/logger.js";
+import type { LogSink } from "../ports/log-sink.js";
 
 export const consoleLogSink: LogSink = (level, line) => {
   if (level === "error") {

@@ -42,8 +42,9 @@ import type { TimerStore } from "../ports/timer-store.js";
 import type { Broadcaster } from "../ports/broadcaster.js";
 import type { HubBroadcaster } from "../ports/hub-broadcaster.js";
 import { saveRoster } from "./save-roster.js";
-import type { Clock } from "../ports/clock.js";
+import type { WallClock } from "../ports/wall-clock.js";
 import { buildTimerSnapshotRoom } from "./timer-snapshot-dto.js";
+import { findRoomByConnId } from "./room-lookup.js";
 import { TOOL_TIMER } from "./tool-id.js";
 
 /** ドライバー不在の猶予時間（デフォルト30秒）。猶予後に次の eligible へ繰り上げる（R2-1）。*/
@@ -55,7 +56,7 @@ export class PresenceManager {
   private readonly broadcaster: Broadcaster;
   /** 選択画面（ハブ）への配信（#95 S5a）。切断は名簿の変化なので、ここにも届ける。 */
   private readonly hub: HubBroadcaster;
-  private readonly clock: Clock;
+  private readonly clock: WallClock;
   /** ドライバー不在発火時に呼ぶコールバック（任意。create-sync-server.ts で handlers.advanceForAbsence に配線）。 */
   private readonly onDriverAbsence?: ((roomCode: string) => void) | undefined;
   /** ドライバー不在タイマー: roomCode → timerHandle */
@@ -69,7 +70,7 @@ export class PresenceManager {
     timers: TimerStore;
     broadcaster: Broadcaster;
     hub: HubBroadcaster;
-    clock: Clock;
+    clock: WallClock;
     onDriverAbsence?: ((roomCode: string) => void) | undefined;
   }) {
     this.store = deps.store;
@@ -117,7 +118,8 @@ export class PresenceManager {
     const participant = findParticipantByConnId(room, connId);
     if (!participant) return;
 
-    const updated = removeConnection(room, connId);
+    // 持ち主は上で確かめたので Err にはならない（なっても名簿は変えない）。
+    const updated = removeConnection(room, connId).unwrapOr(room);
     // 名簿の保管とハブへの配信は対にする（`save-roster.ts`・#95 S5a）。
     // 切断で presence が変わったことは、選択画面にも届く必要がある。
     saveRoster({ store: this.store, hub: this.hub }, updated);
@@ -189,6 +191,6 @@ export class PresenceManager {
   }
 
   private findRoomByConnId(connId: string): Room | undefined {
-    return this.store.list().find((r) => findParticipantByConnId(r, connId) !== undefined);
+    return findRoomByConnId(this.store, connId);
   }
 }

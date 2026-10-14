@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { MAX_GUESTS, MAX_WHEEL, SPIN_DURATION_MS } from "../src/limits.js";
 import {
   INITIAL_ROULETTE_STATE,
-  MAX_GUESTS,
-  MAX_WHEEL,
-  SPIN_DURATION_MS,
   addGuest,
   prune,
   removeGuest,
@@ -126,6 +124,15 @@ describe("startSpin（回す）", () => {
     expect(ok.lastSpin?.settle).toBe(0.2);
     expect(startSpin(INITIAL_ROULETTE_STATE, spinInput({ randomSettle: () => 0.19 })).isErr()).toBe(true);
     expect(startSpin(INITIAL_ROULETTE_STATE, spinInput({ randomSettle: () => 0.81 })).isErr()).toBe(true);
+  });
+
+  it("Given randomInt が範囲外を返す / When 回す / Then INVALID_RANDOM の Err（#364）", () => {
+    // Given
+    const input = spinInput({ randomInt: () => 5 });
+    // When
+    const spun = startSpin(INITIAL_ROULETTE_STATE, input);
+    // Then
+    expect(spun._unsafeUnwrapErr()).toEqual({ code: "INVALID_RANDOM" });
   });
 
   it("在室者と同じ名前のゲストは円盤に載らない（同じ人が 2 席にならない）", () => {

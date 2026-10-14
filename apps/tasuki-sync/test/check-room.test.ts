@@ -8,6 +8,7 @@
  */
 import { describe, expect, it } from "bun:test";
 import { checkRoom, type CheckRoomDeps } from "../src/application/check-room.js";
+import { testMonotonicClock } from "./support/test-clocks.js";
 
 /** 指定したコードだけが在るストア。`checkRoom` は値の中身を見ないので空でよい。 */
 function storeWith(codes: readonly string[]): CheckRoomDeps["store"] {
@@ -32,7 +33,7 @@ describe("ルームの生死の照会", () => {
   it("Given 在るルーム / When 照会する / Then 何も返さない", () => {
     const g = gate(false);
 
-    const result = checkRoom({ store: storeWith(["朝会モブ-a1b2"]), rateLimitGate: g }, {
+    const result = checkRoom({ store: storeWith(["朝会モブ-a1b2"]), rateLimitGate: g, monotonicClock: testMonotonicClock }, {
       connId: "conn-1",
       code: "朝会モブ-a1b2",
     });
@@ -46,7 +47,7 @@ describe("ルームの生死の照会", () => {
   it("Given 無いルーム / When 照会する / Then ROOM_NOT_FOUND を返し、バケツを消費する", () => {
     const g = gate(false);
 
-    const result = checkRoom({ store: storeWith([]), rateLimitGate: g }, {
+    const result = checkRoom({ store: storeWith([]), rateLimitGate: g, monotonicClock: testMonotonicClock }, {
       connId: "conn-1",
       code: "zzzzzzzz",
     });
@@ -68,7 +69,7 @@ describe("ルームの生死の照会", () => {
       },
     };
 
-    const result = checkRoom({ store, rateLimitGate: gate(true) }, {
+    const result = checkRoom({ store, rateLimitGate: gate(true), monotonicClock: testMonotonicClock }, {
       connId: "conn-1",
       code: "zzzzzzzz",
     });

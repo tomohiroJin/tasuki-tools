@@ -8,11 +8,11 @@
 
 import { ok, type Result } from "neverthrow";
 import type { ErrorCode } from "@tasuki/timer-core";
-import type { Clock } from "../../ports/clock.js";
+import type { WallClock } from "../../ports/wall-clock.js";
 import type { Broadcaster } from "../../ports/broadcaster.js";
 
 export interface TimePingDeps {
-  clock: Clock;
+  clock: WallClock;
   broadcaster: Broadcaster;
 }
 

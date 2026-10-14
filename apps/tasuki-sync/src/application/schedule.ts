@@ -4,7 +4,7 @@
  * 1本の setTimeout で次交代のみ待つ（1Hz TICK 廃止）
  */
 
-import type { Clock } from "../ports/clock.js";
+import type { WallClock } from "../ports/wall-clock.js";
 
 export type SwitchCallback = (roomCode: string) => void;
 
@@ -14,9 +14,9 @@ const MAX_TICK_MS = 1000;
 
 export class Scheduler {
   private readonly timers = new Map<string, ReturnType<typeof setTimeout>>();
-  private readonly clock: Clock;
+  private readonly clock: WallClock;
 
-  constructor(clock: Clock) {
+  constructor(clock: WallClock) {
     this.clock = clock;
   }
 

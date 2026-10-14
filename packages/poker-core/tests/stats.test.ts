@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { computeStats } from '../src/stats';
-import type { Card } from '../src/deck';
+import { computeStats } from '../src/stats.js';
+import type { Card } from '../src/deck.js';
 
 const n = (value: 0 | 1 | 2 | 3 | 5 | 8 | 13 | 21): Card => ({ kind: 'number', value });
 const q: Card = { kind: 'question' };

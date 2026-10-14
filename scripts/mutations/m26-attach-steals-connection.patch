@@ -15,15 +15,15 @@
 # 復元: git checkout -- <対象ファイル>
 #
 diff --git a/packages/room-core/src/room.ts b/packages/room-core/src/room.ts
-index a278685..f2869e9 100644
+index 84bf1bc..839557e 100644
 --- a/packages/room-core/src/room.ts
 +++ b/packages/room-core/src/room.ts
-@@ -88,7 +88,7 @@ export function attachConnection(
- ): Room {
-   return updateParticipant(room, id, (p) => ({
-     ...p,
--    connections: new Map(p.connections).set(connId, tool),
-+    connections: new Map([[connId, tool]]),
-   }));
+@@ -118,7 +118,7 @@ export function attachConnection(
+   return ok(
+     updateParticipant(room, id, (p) => ({
+       ...p,
+-      connections: new Map(p.connections).set(connId, tool),
++      connections: new Map([[connId, tool]]),
+     })),
+   );
  }
- 

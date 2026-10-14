@@ -34,6 +34,7 @@ import {
 import { FakeClock } from "../../src/adapters/system-clock.js";
 import { SpyBroadcaster } from "./spy-broadcaster.js";
 import { FakeCodeGen } from "./fake-code-gen.js";
+import { testMonotonicClock, testRandom } from "./test-clocks.js";
 
 /**
  * ルームを作る接続と表示名（作成者に特別な権限は無い。#95 S3 で全員同格）。
@@ -353,6 +354,8 @@ export function makeTestHandlers(overrides?: TestHandlerOverrides): TestHandlers
       send: (connIds, msg) => topicFrames.push({ connIds, msg }),
     });
   const handlers = makeHandlers({
+    monotonicClock: testMonotonicClock,
+    random: testRandom,
     ...overrides,
     store,
     timers,

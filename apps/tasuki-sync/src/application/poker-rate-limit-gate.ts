@@ -25,16 +25,24 @@
  *
  * ## 渡す `now` は単調時計であること
  *
- * `MonotonicClock`（`performance.now()` 相当）でなければならない（設計正本 D8・MUST）。
- * `Date.now()` は NTP のステップ調整で非単調になりうる。ルームの会計に使う壁時計とは
+ * `MonotonicClock`（単調時計）でなければならない（設計正本 D8・MUST）。
+ * 壁時計（`WallClock`）は NTP のステップ調整で非単調になりうる。ルームの会計に使う壁時計とは
  * **別系統**であり、混同しないこと。poker のドメインには時刻フィールドが 1 つも無いため、
  * このゲートが単調時計の唯一の利用者である。
  *
  * **時計は 1 判定につき 1 度だけ読む。** `shouldReject` と `consume` に別の時刻を
  * 渡すと、その差のぶんだけトークンが補充されて判定と消費が食い違う。切符
  * （{@link RateLimitDecision}）が読んだ時刻を保持することでこれを構造的に防ぐ。
+ *
+ * ## timer 側のゲートとの違い（#366 で名前を分けた）
+ *
+ * timer・ハブ・お題・ルーレットの入口は `rate-limit-gate.ts` の `RateLimitGate` を通す。あちらは**接続 ID
+ * から鍵を引く**（接続の受理時に `connId → 鍵` の対応を登録する）。こちらは**鍵を直接受ける** ——
+ * poker の接続は `ws.data.rateKey` に鍵を持つので、対応表が要らない（`handlers.ts` の注記）。
+ * バケツ（`RateLimiter`）は同じ 1 本を共有する。API をそろえると poker が対応表を持つことになり、
+ * 設計の判断が変わるので、そろえない。以前は両方が `RateLimitGate` という同じ名前だった。
  */
-import type { MonotonicClock } from '../ports/poker-monotonic-clock.js';
+import type { MonotonicClock } from '../ports/monotonic-clock.js';
 import type { RateLimiter } from '@tasuki/rate-limit';
 
 /** 1 回ぶんの判定。`begin()` が返す「切符」。 */
@@ -48,7 +56,7 @@ export interface RateLimitDecision {
   consumeOnMiss(): void;
 }
 
-export interface RateLimitGate {
+export interface PokerRateLimitGate {
   /**
    * 1 回ぶんの判定を始める。**資源を照会する前に呼ぶ。**
    * 単調時計はこの時点で 1 度だけ読み、同じ値を `consumeOnMiss()` にも使う。
@@ -56,12 +64,12 @@ export interface RateLimitGate {
   begin(rateKey: string): RateLimitDecision;
 }
 
-export interface RateLimitGateDeps {
+export interface PokerRateLimitGateDeps {
   clock: MonotonicClock;
   rateLimiter: RateLimiter;
 }
 
-export function createRateLimitGate({ clock, rateLimiter }: RateLimitGateDeps): RateLimitGate {
+export function createPokerRateLimitGate({ clock, rateLimiter }: PokerRateLimitGateDeps): PokerRateLimitGate {
   return {
     begin(rateKey) {
       const now = clock.now();

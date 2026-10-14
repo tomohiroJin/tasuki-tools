@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseInline } from '../src/inline';
+import { parseInline } from '../src/inline.js';
 
 /**
  * @requirements #91 spec §5.4（お題の本文を Markdown として描く・PR 2 §10.1）

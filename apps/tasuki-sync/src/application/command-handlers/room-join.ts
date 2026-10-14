@@ -9,9 +9,10 @@
  */
 
 import { ok, err, type Result } from "neverthrow";
-import { errorMessageFor, type ErrorCode } from "@tasuki/timer-core";
-import type { Clock } from "../../ports/clock.js";
+import type { Command, ErrorCode } from "@tasuki/timer-core";
+import type { WallClock } from "../../ports/wall-clock.js";
 import type { Broadcaster } from "../../ports/broadcaster.js";
+import type { MonotonicClock } from "../../ports/monotonic-clock.js";
 import type { RoomStore } from "../../ports/room-store.js";
 import type { TimerStore } from "../../ports/timer-store.js";
 import type { RoomCodeGen } from "../../ports/code-gen.js";
@@ -20,7 +21,7 @@ import type { RateLimitGate } from "../rate-limit-gate.js";
 import { buildTimerSnapshotRoom } from "../timer-snapshot-dto.js";
 import type { RoomState } from "../apply-room-level-event.js";
 import { TOOL_TIMER } from "../tool-id.js";
-import { joinRoom, ROOM_NOT_FOUND_MESSAGE } from "../join-room.js";
+import { joinFailureMessage, joinRoom, ROOM_NOT_FOUND_MESSAGE } from "../join-room.js";
 import type { TopicBroadcaster } from "../topic-broadcast.js";
 
 /** `room.join` が呼び出し元へ返す値。 */
@@ -33,7 +34,7 @@ export interface JoinResult {
 export interface RoomJoinDeps {
   store: RoomStore;
   timers: TimerStore;
-  clock: Clock;
+  clock: WallClock;
   broadcaster: Broadcaster;
   /** 名簿と timer の状態を保管し、合成した snapshot を配信する（`handlers.ts`）。 */
   commit: (state: RoomState) => void;
@@ -41,6 +42,8 @@ export interface RoomJoinDeps {
   tokenStore: TokenStore;
   /** 入室と合言葉の照合を行う入口が共有するゲート（`handlers.ts` が組む）。 */
   rateLimitGate: RateLimitGate;
+  /** レート制限の時刻を読む単調時計（#367） */
+  monotonicClock: MonotonicClock;
   sendError: (connId: string, code: ErrorCode, message: string) => void;
   /**
    * いまのお題を参加・復帰した本人へ 1 通送る（#91・E4）。
@@ -58,13 +61,7 @@ export function createRoomJoinHandler(deps: RoomJoinDeps) {
   /** ルーム参加 */
   return async function handleRoomJoin(
     connId: string,
-    cmd: {
-      command: "room.join";
-      code: string;
-      displayName: string;
-      resumeToken?: string;
-      passphrase?: string;
-    },
+    cmd: Extract<Command, { command: "room.join" }>,
   ): Promise<Result<JoinResult, ErrorCode>> {
     const joined = joinRoom(deps, {
       connId,
@@ -80,8 +77,7 @@ export function createRoomJoinHandler(deps: RoomJoinDeps) {
       const code = joined.error;
       // **ROOM_NOT_FOUND の文言は「存在しないルーム」と完全に同一にする**（ADR 0011）。
       // 合言葉の関門で拒んだことを区別できると、ルームコード列挙の手がかりになる。
-      const message = code === "ROOM_NOT_FOUND" ? ROOM_NOT_FOUND_MESSAGE : errorMessageFor(code);
-      sendError(connId, code, message);
+      sendError(connId, code, joinFailureMessage(code));
       return err(code);
     }
 

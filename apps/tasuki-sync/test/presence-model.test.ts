@@ -178,8 +178,8 @@ describe("ドライバーの適格は在席で決まる（D21）", () => {
     const membership = store.get(code)!;
     const target = membership.participants.find((p) => p.id === participantId)!;
     let next = membership;
-    for (const existing of target.connections.keys()) next = removeConnection(next, existing);
-    store.put(attachConnection(next, participantId, connId, null));
+    for (const existing of target.connections.keys()) next = removeConnection(next, existing)._unsafeUnwrap();
+    store.put(attachConnection(next, participantId, connId, null)._unsafeUnwrap());
   }
 
   it("online だが timer に在席していない人は SWITCH で飛ばされる（R14）", async () => {

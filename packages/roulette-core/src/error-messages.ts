@@ -6,7 +6,8 @@ import { MAX_GUESTS, MAX_WHEEL } from "./limits.js";
  *
  * **ルーレットが画面に出す文なので、書体の常用の層（base）に収める**
  * （`tests/error-messages.test.ts` が守る）。`MESSAGE_TOO_LARGE` / `INTERNAL_ERROR` は
- * 接続層（`ws-adapter.ts` の `MESSAGE_TOO_LARGE_TEXT` / `INTERNAL_ERROR_TEXT`）と同じ文にする。
+ * 同期サーバーの正本（`apps/tasuki-sync/src/application/connection-errors.ts`）と同じ文にする。
+ * 一致は `apps/tasuki-sync/test/connection-error-text-sources.test.ts` が守る（#362）。
  * **上限の数は定数から組む**（直書きすると、上限を変えたときに画面だけが古い数を言い続ける）。
  */
 const ROULETTE_ERROR_MESSAGES: Record<RouletteErrorCode, string> = {

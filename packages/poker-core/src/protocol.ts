@@ -3,7 +3,7 @@
 import * as v from 'valibot';
 import { type Result } from 'neverthrow';
 import { parseBoundaryMessage } from '@tasuki/protocol';
-import { NUMBER_CARD_VALUES, type Card } from './deck';
+import { NUMBER_CARD_VALUES, type Card } from './deck.js';
 
 // --- スキーマ ---
 

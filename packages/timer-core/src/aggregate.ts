@@ -95,8 +95,32 @@ export interface TimerConfig {
   // `config.set` に載せて送ってきてもパーサの出力に残らない。
 }
 
+/**
+ * ルームフェーズの一覧。**型とスキーマの両方がここから導く**（#363。以前は 6 か所に書いていた）。
+ */
+export const ROOM_PHASES = ["setup", "ready", "session", "celebration"] as const;
+
 /** ルームフェーズ */
-export type RoomPhase = "setup" | "ready" | "session" | "celebration";
+export type RoomPhase = (typeof ROOM_PHASES)[number];
+
+/**
+ * **ドメインが扱う**セッション操作の一覧（`decide` の `session.act`）。
+ *
+ * wire（`schemas.ts` の `session.act`）はこれに `COMPLETE`・`RESET` を足した 7 つを受けるが、
+ * その 2 つはドメインが扱わない（同期サーバーの翻訳で落ち、UNKNOWN_COMMAND になる。#363）。
+ * 「ドメインの集合 ⊂ wire の集合」という関係を、wire 側がここを広げて組むことで表す。
+ */
+export const SESSION_ACTIONS = [
+  "START",
+  "SWITCH",
+  "PAUSE",
+  "RESUME",
+  // 現ドライバーのまま持ち時間だけを満タンからやり直す（Issue #14）。
+  "RESTART",
+] as const;
+
+/** ドメインが扱うセッション操作 */
+export type SessionAction = (typeof SESSION_ACTIONS)[number];
 
 /**
  * サーバー側の timer の状態（#95 S4a・D2）。
@@ -191,6 +215,16 @@ export function elapsedMs(
  * 呼び出し側が「誰が輪に並ぶか」を席として渡す（D6b・#95 S4a）。
  */
 export function initialAggregate(config: TimerConfig, rotation: readonly RotationEntry[]): Aggregate {
+  return initialAggregateInSeconds(config.intervalMinutes * 60, rotation);
+}
+
+/**
+ * 秒で受ける {@link initialAggregate}（#364）。リセット（`evolve.ts` の `SessionReset`）は
+ * 集約の秒をそのまま使う。かつては分へ戻して（`as IntervalMinutes`）から渡し、ここでまた秒に直していた。
+ *
+ * **パッケージの内側だけで使う**（`index.ts` に出さない）。
+ */
+export function initialAggregateInSeconds(intervalSeconds: number, rotation: readonly RotationEntry[]): Aggregate {
   return {
     session: {
       rotation: [...rotation],
@@ -201,9 +235,9 @@ export function initialAggregate(config: TimerConfig, rotation: readonly Rotatio
     },
     clock: {
       running: false,
-      intervalSeconds: config.intervalMinutes * 60,
+      intervalSeconds,
       anchorServerTime: 0,
-      secondsLeftAtAnchor: config.intervalMinutes * 60,
+      secondsLeftAtAnchor: intervalSeconds,
       accumulatedElapsedMs: 0,
       runningSince: null,
     },

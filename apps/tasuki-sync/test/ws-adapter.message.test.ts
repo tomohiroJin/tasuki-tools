@@ -20,6 +20,7 @@ import { WebSocket } from "ws";
 import { WsAdapter } from "../src/adapters/ws-adapter.js";
 import { newTestWsAdapter, unwiredPokerHandlers } from "./support/test-ws-adapter.js";
 import { testLogger, collectingLogger } from "./support/test-logger.js";
+import { parseClientMessage } from "@tasuki/poker-core";
 
 // ポートは OS に選ばせる（`port: 0`）。実ポートは `adapter.port` から取る。
 let adapter: WsAdapter | undefined;
@@ -63,7 +64,7 @@ function startAdapter(options: Options = {}): void {
     port: 0,
     host: "127.0.0.1",
     allowedOrigins: [],
-    onMessage: options.onMessage ?? (async () => {}),
+    timer: { handleMessage: options.onMessage ?? (async () => {}) },
     onDisconnect: () => {},
     logger: testLogger,
   });
@@ -182,9 +183,9 @@ describe("WsAdapter メッセージ経路", () => {
       port: 0,
       host: "127.0.0.1",
       allowedOrigins: [],
-      onMessage: () => {
+      timer: { handleMessage: () => {
         throw new Error("sync boom");
-      },
+      } },
       onDisconnect: () => {},
       logger,
     });
@@ -269,11 +270,11 @@ describe("WsAdapter メッセージ経路", () => {
 /**
  * お題（topic）のメッセージ経路（#91）。
  *
- * ハブ・timer と同じ接続層を通るが、メッセージ層は分かれている（`onTopicMessage`）。
- * ここでは「お題の接続へ送った生テキストは `onTopicMessage` にだけ届く（`onMessage` /
- * `onHubMessage` には届かない）」ことと、「64KB を超えるとサイズ超過のエラーを返し、
+ * ハブ・timer と同じ接続層を通るが、メッセージ層は分かれている（`topic.handleMessage`）。
+ * ここでは「お題の接続へ送った生テキストは `topic.handleMessage` にだけ届く（`timer.handleMessage` /
+ * `hub.handleMessage` には届かない）」ことと、「64KB を超えるとサイズ超過のエラーを返し、
  * 接続は保つ」ことを確かめる。サイズ判定・エラーコード（`MESSAGE_TOO_LARGE`）は
- * `handleHubMessage` と同じ形である。
+ * ハブと同じ受け口の定義（`ws/tool-channel.ts` の `createTextChannel`）から作る。
  *
  * @requirements #91 spec §5.3
  */
@@ -283,7 +284,7 @@ describe("WsAdapter お題（topic）のメッセージ経路", () => {
     return `ws://127.0.0.1:${adapterInstance.port}/ws?tool=topic`;
   }
 
-  it("Given ?tool=topic の接続 / When 生テキストを送る / Then onTopicMessage に届き、onMessage と onHubMessage には届かない", async () => {
+  it("Given ?tool=topic の接続 / When 生テキストを送る / Then お題の層に届き、timer とハブの層には届かない", async () => {
     // Given
     const topicCalls: Array<[string, string]> = [];
     let messageCalled = false;
@@ -292,15 +293,15 @@ describe("WsAdapter お題（topic）のメッセージ経路", () => {
       port: 0,
       host: "127.0.0.1",
       allowedOrigins: [],
-      onMessage: async () => {
+      timer: { handleMessage: async () => {
         messageCalled = true;
-      },
-      onHubMessage: async () => {
+      } },
+      hub: { handleMessage: async () => {
         hubCalled = true;
-      },
-      onTopicMessage: async (connId, raw) => {
+      } },
+      topic: { handleMessage: async (connId, raw) => {
         topicCalls.push([connId, raw]);
-      },
+      } },
       onDisconnect: () => {},
       logger: testLogger,
     });
@@ -318,17 +319,17 @@ describe("WsAdapter お題（topic）のメッセージ経路", () => {
     ws.close();
   });
 
-  it("Given ?tool=topic の接続 / When 64KB を超える本文を送る / Then onTopicMessage は呼ばれず MESSAGE_TOO_LARGE を返し接続は保つ", async () => {
+  it("Given ?tool=topic の接続 / When 64KB を超える本文を送る / Then お題の層は呼ばれず MESSAGE_TOO_LARGE を返し接続は保つ", async () => {
     // Given
     let topicCalled = false;
     adapter = newTestWsAdapter({
       port: 0,
       host: "127.0.0.1",
       allowedOrigins: [],
-      onMessage: async () => {},
-      onTopicMessage: async () => {
+      timer: { handleMessage: async () => {} },
+      topic: { handleMessage: async () => {
         topicCalled = true;
-      },
+      } },
       onDisconnect: () => {},
       logger: testLogger,
     });
@@ -350,12 +351,13 @@ describe("WsAdapter お題（topic）のメッセージ経路", () => {
 /**
  * ハブ（選択画面）のメッセージ層が同期 throw しても隔離される（#91 PR 3 Task 5）。
  *
- * `onHubMessage` は型上 `Promise<void>` を返す契約だが、実装が async でなければ
+ * `hub.handleMessage` は型上 `Promise<void>` を返す契約だが、実装が async でなければ
  * 同期的に throw しうる（型は実行時の保証にはならない。`.catch` は reject しか拾わない）。
  * **以前は `handleHubMessage` がこの呼び出しを `.catch()` でしか包んでおらず、同期 throw を
  * 隔離する try/catch を持たなかった**（`handleTopicMessage` の docstring に既知の差分として
  * 記されていた）。#91 PR 3 でここに `handleTopicMessage` と同じ形の try/catch を足して
- * 隔離した —— 隔離が無いと、ここでの同期 throw が Bun の websocket ハンドラを抜けて
+ * 隔離した（#368 からは、4 つの受け口が `ws/tool-channel.ts` の `createTextChannel` 1 つを通る）
+ * —— 隔離が無いと、ここでの同期 throw が Bun の websocket ハンドラを抜けて
  * `uncaughtException` に達し、`server.ts` の `process.exit(1)` で**同じプロセスに載る
  * timer / poker / お題のルームも道連れで消える**（揮発インメモリ）。
  *
@@ -375,14 +377,14 @@ describe("ハブ（選択画面）のメッセージ層が同期 throw しても
       port: 0,
       host: "127.0.0.1",
       allowedOrigins: [],
-      onMessage: async () => {},
-      onHubMessage: (_connId: string, _raw: string): Promise<void> => {
+      timer: { handleMessage: async () => {} },
+      hub: { handleMessage: (_connId: string, _raw: string): Promise<void> => {
         calls++;
         if (calls === 1) {
           throw new Error("boom in onHubMessage");
         }
         return Promise.resolve();
-      },
+      } },
       onDisconnect: () => {},
       logger,
     });
@@ -424,9 +426,9 @@ describe("ハブ（選択画面）のメッセージ層が同期 throw しても
 /**
  * お題（topic）のメッセージ層が同期 throw しても隔離される（#91 fix round 1）。
  *
- * `onTopicMessage` は型上 `Promise<void>` を返す契約だが、実装が async でなければ
- * 同期的に throw しうる（型は実行時の保証にはならない）。`handleTopicMessage` が
- * この呼び出しを try/catch で囲んでいなければ、ここでの throw は Bun の websocket
+ * `topic.handleMessage` は型上 `Promise<void>` を返す契約だが、実装が async でなければ
+ * 同期的に throw しうる（型は実行時の保証にはならない）。受け口（`ws/tool-channel.ts` の
+ * `createTextChannel`。#368 までは `handleTopicMessage`）がこの呼び出しを try/catch で囲んでいなければ、ここでの throw は Bun の websocket
  * ハンドラを抜けて `uncaughtException` に達し、`server.ts` の `process.exit(1)` で
  * **同じプロセスに載る timer / poker / ハブのルームも道連れで消える**（揮発インメモリ）。
  *
@@ -446,14 +448,14 @@ describe("お題（topic）のメッセージ層が同期 throw しても隔離�
       port: 0,
       host: "127.0.0.1",
       allowedOrigins: [],
-      onMessage: async () => {},
-      onTopicMessage: (_connId: string, _raw: string): Promise<void> => {
+      timer: { handleMessage: async () => {} },
+      topic: { handleMessage: (_connId: string, _raw: string): Promise<void> => {
         calls++;
         if (calls === 1) {
           throw new Error("boom in onTopicMessage");
         }
         return Promise.resolve();
-      },
+      } },
       onDisconnect: () => {},
       logger,
     });
@@ -506,10 +508,10 @@ describe("WsAdapter ルーレットのメッセージ経路", () => {
       port: 0,
       host: "127.0.0.1",
       allowedOrigins: [],
-      onMessage: async () => {},
-      onRouletteMessage: async () => {
+      timer: { handleMessage: async () => {} },
+      roulette: { handleMessage: async () => {
         called = true;
-      },
+      } },
       onDisconnect: () => {},
       logger: testLogger,
     });
@@ -535,12 +537,12 @@ describe("WsAdapter ルーレットのメッセージ経路", () => {
       port: 0,
       host: "127.0.0.1",
       allowedOrigins: [],
-      onMessage: async () => {},
-      onRouletteMessage: (_connId: string, _raw: string): Promise<void> => {
+      timer: { handleMessage: async () => {} },
+      roulette: { handleMessage: (_connId: string, _raw: string): Promise<void> => {
         calls++;
         if (calls === 1) throw new Error("boom in onRouletteMessage");
         return Promise.resolve();
-      },
+      } },
       onDisconnect: () => {},
       logger,
     });
@@ -590,7 +592,7 @@ describe("poker のメッセージ層が throw しても隔離される", () => 
       port: 0,
       host: "127.0.0.1",
       allowedOrigins: [],
-      onMessage: async () => {},
+      timer: { handleMessage: async () => {} },
       onDisconnect: () => {},
       logger,
       poker: unwiredPokerHandlers(),
@@ -627,4 +629,114 @@ describe("poker のメッセージ層が throw しても隔離される", () => 
       ws.close();
     }
   });
+});
+
+/**
+ * ハブ・お題・ルーレットへの送り出し（#368 Task 1）。
+ *
+ * timer の `send` / `broadcast` は上で固定してある。残りの 3 組は実 WS 越しのテストが間接に
+ * 使っているだけだったので、同じ形で直接固定する。**宛先にだけ届き、知らない接続 ID は黙って飛ばす。**
+ */
+describe("ハブ・お題・ルーレットへの送り出し", () => {
+  /** 3 つのどの型にも収まるフレーム（`HubServerMsg` の error は 3 つの合併に含まれる）。 */
+  const frame = { type: "error", code: "TEST_ONLY", message: "テスト用" } as const;
+
+  for (const [label, send, broadcast] of [
+    ["ハブ", (a: WsAdapter, id: string) => a.sendHub(id, frame), (a: WsAdapter, ids: string[]) => a.broadcastHub(ids, frame)],
+    ["お題", (a: WsAdapter, id: string) => a.sendTopic(id, frame), (a: WsAdapter, ids: string[]) => a.broadcastTopic(ids, frame)],
+    [
+      "ルーレット",
+      (a: WsAdapter, id: string) => a.sendRoulette(id, frame),
+      (a: WsAdapter, ids: string[]) => a.broadcastRoulette(ids, frame),
+    ],
+  ] as const) {
+    it(`Given 3 つの接続 / When ${label}へ 1 本に送り、2 本と知らない ID へ一斉に送る / Then 宛先にだけ 1 通ずつ届く`, async () => {
+      // Given: conn-1・conn-2・conn-3（接続の順に振られる）
+      startAdapter();
+      const sockets = [new WebSocket(adapterUrl()), new WebSocket(adapterUrl()), new WebSocket(adapterUrl())];
+      for (const ws of sockets) await waitOpen(ws);
+      const received: number[] = [0, 0, 0];
+      sockets.forEach((ws, i) => ws.on("message", () => received[i]!++));
+
+      // When
+      send(adapter!, "conn-2");
+      broadcast(adapter!, ["conn-1", "conn-99", "conn-3"]);
+
+      // Then
+      await waitFor(() => received.reduce((a, b) => a + b, 0) >= 3);
+      await new Promise((r) => setTimeout(r, 80));
+      expect(received).toEqual([1, 1, 1]);
+      for (const ws of sockets) ws.close();
+    });
+  }
+});
+
+/**
+ * フレームの上限（`maxFrameBytes` = `Bun.serve` の `maxPayloadLength`）を超えたとき（#368 Task 1）。
+ *
+ * アプリの上限（`maxMessageBytes`）を超えても上限内なら、エラーフレームを返して接続を保つ（上のテスト）。
+ * フレームの上限を超えると、**メッセージ層へ届く前に Bun が接続を切る**。閉じ方をここで固定する
+ * （2026-10-13 に Bun 1.4 で実測: クライアントには 1006（close フレームの無い切断）として見える。
+ * `ws-adapter.ts` の `maxPayloadLength` のコメントにある「1006 切断」と同じ）。
+ */
+describe("フレームの上限を超えたとき", () => {
+  it("Given 既定の上限（128KB） / When それを超えるフレームを送る / Then 1006 で切れ、メッセージ層は呼ばれない", async () => {
+    // Given
+    let called = false;
+    const ws = await connect({
+      onMessage: async () => {
+        called = true;
+      },
+    });
+    const closed = new Promise<number>((resolve) => ws.once("close", (code: number) => resolve(code)));
+    // When
+    ws.send("x".repeat(128 * 1024 + 1));
+    // Then
+    expect(await closed).toBe(1006);
+    expect(called).toBe(false);
+  });
+});
+
+/**
+ * poker の解析の失敗（#368 Task 1）。接続層は `parseClientMessage` の失敗を、
+ * そのコードと文言のまま `sendError` へ渡す（エラーフレームの形は poker のメッセージ層が持つ）。
+ */
+describe("poker の解析の失敗", () => {
+  for (const [label, raw] of [
+    ["壊れた JSON", "{ 壊れている"],
+    ["知らない種類", JSON.stringify({ type: "no-such-type" })],
+  ] as const) {
+    it(`Given poker の接続 / When ${label}を送る / Then 解析の失敗のコードと文言で sendError を 1 回呼び、dispatch は呼ばない`, async () => {
+      // Given
+      const errors: Array<[string, string]> = [];
+      let dispatched = false;
+      adapter = newTestWsAdapter({
+        port: 0,
+        host: "127.0.0.1",
+        allowedOrigins: [],
+        timer: { handleMessage: async () => {} },
+        onDisconnect: () => {},
+        logger: testLogger,
+        poker: {
+          dispatch: () => {
+            dispatched = true;
+          },
+          sendError: (_conn, code, message) => {
+            errors.push([code, message]);
+          },
+          detachFromCurrentRoom: () => {},
+        },
+      });
+      const ws = new WebSocket(`ws://127.0.0.1:${adapter.port}/ws?tool=poker`);
+      await waitOpen(ws);
+      // When
+      ws.send(raw);
+      await waitFor(() => errors.length > 0);
+      // Then
+      const expected = parseClientMessage(raw)._unsafeUnwrapErr();
+      expect(errors).toEqual([[expected.code, expected.message]]);
+      expect(dispatched).toBe(false);
+      ws.close();
+    });
+  }
 });

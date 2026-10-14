@@ -17,15 +17,15 @@
 // 値の側は `scripts/audit-structure.mjs` の SC-039④ が見張る（型は数えない）。
 
 // ./deck
-export { FIBONACCI_DECK, cardKey, cardEquals } from './deck';
+export { FIBONACCI_DECK, cardKey, cardEquals } from './deck.js';
 // NumberCardValue: Card の number 枝の値型
-export type { NumberCardValue, Card } from './deck';
+export type { NumberCardValue, Card } from './deck.js';
 
 // ./error-messages
-export { DEFAULT_ERROR_MESSAGE, messageForRoundError } from './error-messages';
+export { DEFAULT_ERROR_MESSAGE, messageForRoundError } from './error-messages.js';
 
 // ./protocol
-export { isKnownErrorCode, parseClientMessage, parseServerMessage } from './protocol';
+export { isKnownErrorCode, parseClientMessage, parseServerMessage } from './protocol.js';
 // ProtocolError: parse* が返す Result のエラー型
 // ServerMessage: parseServerMessage の戻り値型
 export type {
@@ -38,7 +38,7 @@ export type {
   RoundStats,
   VoteView,
   ProtocolError,
-} from './protocol';
+} from './protocol.js';
 
 // ⚠ かつてここに `./name`（`NAME_MAX_LENGTH` / `isValidName` / `validateName` / `RoomError`）が
 // あった。**#95 S5b で表示名の規約ごと `@tasuki/room-core` へ寄せた**（上限 24 と timer の 40 の
@@ -56,14 +56,14 @@ export {
   discardVote,
   revealBy,
   nextRound,
-} from './round';
+} from './round.js';
 // Round: 上の関数の引数・戻り値型（`RoundStore` が保管する型でもある）
 // VoterView: applyAutoReveal の引数型。名簿の断片を構造的部分型で受ける
 //   （`ParticipantFragment` はこれを継承した上位集合。定義は `round.ts` 側 1 つ）
 // RoundError: castVote / revealBy / nextRound が返す Result のエラー型
-export type { Round, VoterView, RoundError } from './round';
+export type { Round, VoterView, RoundError } from './round.js';
 
 // ./snapshot
-export { createSnapshotBuilder } from './snapshot';
+export { createSnapshotBuilder } from './snapshot.js';
 // ParticipantFragment: createSnapshotBuilder の引数型。`VoterView` + `name`
-export type { ParticipantFragment } from './snapshot';
+export type { ParticipantFragment } from './snapshot.js';

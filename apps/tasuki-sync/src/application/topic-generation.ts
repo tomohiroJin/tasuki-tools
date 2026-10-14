@@ -20,7 +20,7 @@ import {
   type Topic,
   type TopicState,
 } from "@tasuki/topic-core";
-import type { Clock } from "../ports/clock.js";
+import type { WallClock } from "../ports/wall-clock.js";
 import type { TopicStore } from "../ports/topic-store.js";
 import { ProviderFailure, type ServerTopicProvider } from "../ports/server-topic-provider.js";
 import type { AiLimiter } from "./ai-limits.js";
@@ -38,7 +38,7 @@ export interface GenerateRequest {
 export interface TopicGeneratorDeps {
   topics: TopicStore;
   /** 定型の選択の種（`pickTopicFallback` の `now`） */
-  clock: Clock;
+  clock: WallClock;
   /** 保管のあとに呼ぶ（宛先は呼び出し時点の名簿から決まる） */
   publish: (roomCode: string) => void;
   /** 省略時は AI 無効（トークンか合言葉が無い） */

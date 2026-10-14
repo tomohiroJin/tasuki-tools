@@ -102,7 +102,8 @@ logger.warn("ai.skip", {
 いけないこと」）。唯一の例外が、捕捉した例外オブジェクトの**分類名**
 （`err.name`。`TypeError` のような固定のクラス名で、内容は含まない）を出す
 箇所です。`apps/tasuki-sync/src/server.ts` と
-`apps/tasuki-sync/src/adapters/ws-adapter.ts` がこの形を採っています。
+`apps/tasuki-sync/src/adapters/ws/error-log.ts`（WS アダプタの例外の分類。#368 で
+`ws-adapter.ts` から移した）がこの形を採っています。
 
 ```typescript
 logger.error("uncaught", { name: publicText(err.name) }); // log-hygiene:allow 例外の分類のみ

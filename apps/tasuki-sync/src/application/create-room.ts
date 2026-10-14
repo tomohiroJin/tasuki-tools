@@ -24,14 +24,14 @@ import type {
   Room as MembershipRoom,
   ToolId,
 } from "@tasuki/room-core";
-import type { Clock } from "../ports/clock.js";
+import type { WallClock } from "../ports/wall-clock.js";
 import type { RoomStore } from "../ports/room-store.js";
 import type { RoomCodeGen } from "../ports/code-gen.js";
 import type { TokenStore } from "./token-store.js";
 
 export interface CreateRoomDeps {
   store: RoomStore;
-  clock: Clock;
+  clock: WallClock;
   codeGen: RoomCodeGen;
   tokenStore: TokenStore;
   /** サーバー全体のルーム数上限（DoS 緩和）。 */

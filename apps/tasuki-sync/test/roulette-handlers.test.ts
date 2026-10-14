@@ -8,7 +8,7 @@
 import { afterEach, describe, expect, it, spyOn } from "bun:test";
 import { createTokenBucketLimiter, DEFAULT_CAPACITY, DEFAULT_REFILL_PER_SEC } from "@tasuki/rate-limit";
 import { MAX_DISPLAY_NAME } from "@tasuki/room-core";
-import { SPIN_DURATION_MS, type RouletteView } from "@tasuki/roulette-core";
+import type { RouletteView } from "@tasuki/roulette-core";
 import { makeRouletteHandlers } from "../src/application/roulette-handlers.js";
 import { makeRouletteBroadcaster } from "../src/application/roulette-broadcast.js";
 import { createRateLimitGate } from "../src/application/rate-limit-gate.js";
@@ -17,9 +17,10 @@ import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { InMemoryRouletteStore } from "../src/adapters/in-memory-roulette-store.js";
 import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
-import type { MonotonicClock } from "../src/ports/poker-monotonic-clock.js";
+import type { MonotonicClock } from "../src/ports/monotonic-clock.js";
 import type { RandomSource } from "../src/ports/random-source.js";
 import type { RouletteServerMsg } from "../src/ports/roulette-server-msg.js";
+import { createLogger } from "../src/application/log/logger.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
 import { spyHub } from "./support/hub.js";
 
@@ -39,9 +40,16 @@ interface Harness {
   advance: (ms: number) => void;
   /** `randomInt` に渡された n の記録 */
   randomCalls: number[];
+  /** ロガーへ書かれた行（`水準 行` の形） */
+  logLines: string[];
 }
 
-function setup(): Harness {
+interface SetupOptions {
+  /** 乱数源の `randomInt` が返す値。既定は 0（最悪の偏り） */
+  randomIntReturns?: number;
+}
+
+function setup(options: SetupOptions = {}): Harness {
   const store = new InMemoryRoomStore();
   const roulettes = new InMemoryRouletteStore();
   const sent: Sent[] = [];
@@ -51,13 +59,15 @@ function setup(): Harness {
   const random: RandomSource = {
     randomInt: (n) => {
       randomCalls.push(n);
-      return 0;
+      return options.randomIntReturns ?? 0;
     },
     randomSettle: () => 0.5,
   };
   const record = (ids: string[], msg: RouletteServerMsg): void => {
     for (const connId of ids) sent.push({ connId, msg });
   };
+  const logLines: string[] = [];
+  const logger = createLogger((level, line) => logLines.push(`${level} ${line}`));
   const broadcaster = makeRouletteBroadcaster({ store, roulettes, clock: monotonicClock, send: record });
   const handlers = makeRouletteHandlers({
     store,
@@ -74,6 +84,7 @@ function setup(): Harness {
     send: (connId, msg) => record([connId], msg),
     monotonicClock,
     random,
+    logger,
   });
   store.put({ code: ROOM, createdAt: 0, participants: [] });
   return {
@@ -85,6 +96,7 @@ function setup(): Harness {
       now += ms;
     },
     randomCalls,
+    logLines,
   };
 }
 
@@ -191,9 +203,9 @@ describe("回す", () => {
     await joined(h, "r-1", "Alice");
     await joined(h, "r-2", "Bob");
 
-    // When
+    // When: 1 回目の回転の長さ（wire で届いた durationMs）だけ待ってから回す
     await h.handle("r-1", { command: "roulette.spin" });
-    h.advance(SPIN_DURATION_MS);
+    h.advance(viewsTo(h, "r-1")[0]!.spin!.durationMs);
     await h.handle("r-1", { command: "roulette.spin" });
 
     // Then
@@ -201,6 +213,30 @@ describe("回す", () => {
     expect(spins.map((s) => s.seq)).toEqual([1, 2]);
     const winners = spins.map((s) => s.wheel[s.winnerIndex]!.name);
     expect(winners[0]).not.toBe(winners[1]);
+  });
+
+  it("Given 乱数源が範囲外を返す / When 回す / Then INTERNAL_ERROR を返し、ログに on-message-error name=RangeError を 1 行残す（#364）", async () => {
+    // #364 より前は、ドメインが RangeError を投げ、接続層（ws-adapter.ts の handleRouletteMessage）が
+    // 隔離して「ログ → エラーフレーム」を返していた。ドメインが Result を返すようになっても、
+    // フレームとログの行（中身・水準・順）は変えない（計画 §3「ログを保つ」）。
+    // Given
+    const h = setup({ randomIntReturns: 5 });
+    await joined(h, "r-1", "Alice");
+    await joined(h, "r-2", "Bob");
+    const before = h.roulettes.get(ROOM);
+
+    // When
+    await h.handle("r-1", { command: "roulette.spin" });
+
+    // Then
+    expect(h.sent).toEqual([
+      {
+        connId: "r-1",
+        msg: { type: "error", code: "INTERNAL_ERROR", message: "サーバー内部でエラーが発生しました" },
+      },
+    ]);
+    expect(h.logLines).toEqual(["error on-message-error name=RangeError"]);
+    expect(h.roulettes.get(ROOM)).toBe(before);
   });
 
   it("回すと、同じルームの全ルーレット接続へ同じ seq・winnerIndex・settle・回した人が届く", async () => {
@@ -226,8 +262,9 @@ describe("回す", () => {
     await joined(h, "r-1", "Alice");
     await joined(h, "r-2", "Bob");
     await h.handle("r-1", { command: "roulette.spin" });
+    const durationMs = viewsTo(h, "r-1")[0]!.spin!.durationMs;
     h.sent.length = 0;
-    h.advance(SPIN_DURATION_MS - 1);
+    h.advance(durationMs - 1);
 
     // When
     await h.handle("r-2", { command: "roulette.spin" });
@@ -286,7 +323,8 @@ describe("回す", () => {
 
     // Then: 回した直後の 0 ではなく、送る時点の経過
     expect(viewsTo(h, "r-3")[0]!.spin!.elapsedMs).toBe(2000);
-    expect(viewsTo(h, "r-3")[0]!.spin!.durationMs).toBe(SPIN_DURATION_MS);
+    // 回転の長さは、回した画面へ届いたものと同じ（定数との一致は roulette-core の roulette.test.ts が固定する）
+    expect(viewsTo(h, "r-3")[0]!.spin!.durationMs).toBe(viewsTo(h, "r-1")[0]!.spin!.durationMs);
   });
 
   it("ルーレットとして在席していない接続（ハブとして在席）の roulette.spin は NOT_IN_ROOM", async () => {

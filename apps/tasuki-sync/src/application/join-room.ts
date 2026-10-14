@@ -24,7 +24,7 @@
  * 取り違えると NTP のステップ調整でレート制限が飛ぶ。
  */
 import { ok, err, type Result } from "neverthrow";
-import type { ErrorCode, TimerState } from "@tasuki/timer-core";
+import { errorMessageFor, type ErrorCode, type TimerState } from "@tasuki/timer-core";
 import {
   addParticipant,
   attachConnection,
@@ -32,12 +32,13 @@ import {
   type Room as MembershipRoom,
   type ToolId,
 } from "@tasuki/room-core";
-import type { Clock } from "../ports/clock.js";
+import type { WallClock } from "../ports/wall-clock.js";
 import type { RoomStore } from "../ports/room-store.js";
 import type { TimerStore } from "../ports/timer-store.js";
 import type { RoomCodeGen } from "../ports/code-gen.js";
 import type { TokenStore } from "./token-store.js";
 import type { RateLimitGate } from "./rate-limit-gate.js";
+import type { MonotonicClock } from "../ports/monotonic-clock.js";
 import { createInitialTimerState } from "./initial-timer-state.js";
 import { checkPassphrase, findResumableParticipant } from "./room-entry.js";
 import { TOOL_TIMER } from "./tool-id.js";
@@ -51,13 +52,25 @@ import { TOOL_TIMER } from "./tool-id.js";
  */
 export const ROOM_NOT_FOUND_MESSAGE = "指定されたルームコードが見つかりません";
 
+/**
+ * 参加・在否の確かめの失敗を返すときの文言（#366）。`ROOM_NOT_FOUND` だけは上の文言、ほかは timer-core の文言表。
+ *
+ * 以前は同じ書き分け（`code === "ROOM_NOT_FOUND" ? … : errorMessageFor(code)`）が 5 か所に写されていた
+ * （hub の参加と在否の確かめ・topic・roulette・timer の参加）。
+ */
+export function joinFailureMessage(code: ErrorCode): string {
+  return code === "ROOM_NOT_FOUND" ? ROOM_NOT_FOUND_MESSAGE : errorMessageFor(code);
+}
+
 export interface JoinRoomDeps {
   store: RoomStore;
   timers: TimerStore;
-  clock: Clock;
+  clock: WallClock;
   codeGen: RoomCodeGen;
   tokenStore: TokenStore;
   rateLimitGate: RateLimitGate;
+  /** レート制限の時刻を読む単調時計（#367。以前は大域の単調時計を直接読んでいた） */
+  monotonicClock: MonotonicClock;
 }
 
 export interface JoinRoomInput {
@@ -94,13 +107,13 @@ export function joinRoom(
   deps: JoinRoomDeps,
   input: JoinRoomInput,
 ): Result<JoinRoomOutcome, ErrorCode> {
-  const { store, timers, clock, codeGen, tokenStore, rateLimitGate } = deps;
+  const { store, timers, clock, codeGen, tokenStore, rateLimitGate, monotonicClock } = deps;
 
   // ルームの会計（joinedAt）に使う壁時計。**レート制限には渡さない**（設計正本 D8）。
   const now = clock.now();
   // レート制限に渡す単調時計。壁時計とは別系統で、NTP のステップ調整・起動時の
   // 時計補正の影響を受けない。`now` と取り違えないこと。
-  const rateNow = performance.now();
+  const rateNow = monotonicClock.now();
 
   // **ルームを照会する前に判定する。** 照会してから判定すると、残量が無いときに
   // ROOM_NOT_FOUND が返り、攻撃者はトークンを消費せずに存在確認を続けられる（設計正本 D3）。
@@ -135,7 +148,8 @@ export function joinRoom(
       kind: "resumed",
       participantId: resumed.id,
       resumeToken: input.resumeToken,
-      membership: attachConnection(room, resumed.id, input.connId, input.tool),
+      // resumed は `room` から引いた参加者なので Err にはならない（なっても名簿は変えない）。
+      membership: attachConnection(room, resumed.id, input.connId, input.tool).unwrapOr(room),
       timer: timerFor(resumed.id),
     });
   }
@@ -174,7 +188,8 @@ export function joinRoom(
     kind: "joined",
     participantId,
     resumeToken,
-    membership: addParticipant(room, newParticipant),
+    // ID はここで生成したばかり（`codeGen`）なので重複の Err にはならない（なっても名簿は変えない）。
+    membership: addParticipant(room, newParticipant).unwrapOr(room),
     timer,
   });
 }

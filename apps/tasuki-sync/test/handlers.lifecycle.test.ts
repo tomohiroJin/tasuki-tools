@@ -89,6 +89,29 @@ describe("session.complete: 記録と phase 遷移", () => {
     expect(after.sessionRecords[0]?.elapsedSeconds).toBe(120);
   });
 
+  it("Given 2 つのルーム / When 順に完成させる / Then 記録の ID は 1 つの連番で `時刻36進-連番36進5桁` になる（#364）", async () => {
+    // 記録の ID の連番は、かつて timer-core のモジュールの状態（プロセスに 1 つ）だった。
+    // #364 で生成器を注入にした後も、ルームごとではなくハンドラ（本番ではプロセス）に 1 つである。
+    // Given
+    const first = await setupRoom(handlers, store, timers);
+    const second = await handlers.handleCommand("other-host-conn", {
+      command: "room.create",
+      displayName: "Dana",
+      config,
+    });
+    if (!second.isOk()) throw new Error("create failed");
+    const secondCode = store.list().at(-1)!.code;
+
+    // When
+    await handlers.handleCommand("host-conn", { command: "session.complete" });
+    await handlers.handleCommand("other-host-conn", { command: "session.complete" });
+
+    // Then
+    const head = (1000000).toString(36);
+    expect(roomViewOf(store, timers, first).sessionRecords.map((r) => r.id)).toEqual([`${head}-00001`]);
+    expect(roomViewOf(store, timers, secondCode).sessionRecords.map((r) => r.id)).toEqual([`${head}-00002`]);
+  });
+
   it("session.complete を二度呼んでも記録は重複しない（冪等）", async () => {
     // Given
     const code = await setupRoom(handlers, store, timers);

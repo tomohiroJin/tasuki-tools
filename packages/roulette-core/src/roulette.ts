@@ -26,6 +26,14 @@ export interface SpinInput {
   conflicts: NameConflict;
 }
 
+/** `startSpin` が返しうるコード。`INVALID_SETTLE`・`INVALID_RANDOM` は乱数源の契約違反（内部の誤り） */
+type SpinErrorCode =
+  | "ROULETTE_SPINNING"
+  | "ROULETTE_TOO_FEW"
+  | "ROULETTE_TOO_MANY"
+  | "INVALID_SETTLE"
+  | "INVALID_RANDOM";
+
 /** 回転中か（`now - startedAt < SPIN_DURATION_MS`）。 */
 function isSpinning(state: RouletteState, now: number): boolean {
   return state.lastSpin !== null && now - state.lastSpin.startedAt < SPIN_DURATION_MS;
@@ -35,18 +43,14 @@ function isSpinning(state: RouletteState, now: number): boolean {
  * 回す。回転中・入る人が 2 人未満・`MAX_WHEEL` 超えは拒む。
  * 通れば `lastSpin` と `drawn` を更新した状態を返す（`wheel` は pool の凍結した写し）。
  */
-export function startSpin(
-  state: RouletteState,
-  input: SpinInput,
-): Result<RouletteState, RouletteError<"ROULETTE_SPINNING" | "ROULETTE_TOO_FEW" | "ROULETTE_TOO_MANY" | "INVALID_SETTLE">> {
+export function startSpin(state: RouletteState, input: SpinInput): Result<RouletteState, RouletteError<SpinErrorCode>> {
   if (isSpinning(state, input.now)) return err({ code: "ROULETTE_SPINNING" });
   const pool = poolOf(input.members, state, input.conflicts);
   if (pool.length < 2) return err({ code: "ROULETTE_TOO_FEW" });
   if (pool.length > MAX_WHEEL) return err({ code: "ROULETTE_TOO_MANY" });
   const settle = input.randomSettle();
   if (!(settle >= SETTLE_MIN && settle <= SETTLE_MAX)) return err({ code: "INVALID_SETTLE" });
-  const { winnerIndex, drawn } = drawWinner(pool, state, input.randomInt);
-  return ok({
+  return drawWinner(pool, state, input.randomInt).map(({ winnerIndex, drawn }) => ({
     ...state,
     drawn,
     lastSpin: {
@@ -57,7 +61,7 @@ export function startSpin(
       spunBy: input.spunBy,
       startedAt: input.now,
     },
-  });
+  }));
 }
 
 /** 外す・戻す。冪等（トグルにしない —— 2 人がほぼ同時に押すと打ち消し合う）。 */

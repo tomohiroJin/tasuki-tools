@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { revealBy, nextRound, type Round } from '../src/round';
+import { revealBy, nextRound, type Round } from '../src/round.js';
 
 /**
  * @requirements FR-009 FR-011
