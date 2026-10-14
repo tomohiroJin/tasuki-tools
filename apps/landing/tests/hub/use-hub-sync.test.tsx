@@ -371,7 +371,7 @@ describe('ルームの生死の照会', () => {
   it('Given 照会が混雑で弾かれた / When 待ち時間が過ぎる / Then 照会を送り直す', () => {
     // **送り直さないと性質が効かない。** バケツが枯れている間、
     // 消えたルームのリンクを踏んだ人は名乗りフォームを見続ける。
-    // poker は同じことを既にしている（`RoomPage.tsx` の再試行）
+    // poker は同じことを既にしている（`hooks/useRoomEntry.ts` の再試行）
     vi.useFakeTimers();
     try {
       openWithRoom('朝会モブ-a1b2');

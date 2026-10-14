@@ -142,7 +142,7 @@ export function usePokerSync(): PokerSync {
       onClose: () => {
         setStatus('closed');
         setFailedAttempts((n) => n + 1);
-        // 新しい接続はサーバー側で未 join 状態から始まる（再入室は RoomPage が行う）
+        // 新しい接続はサーバー側で未 join 状態から始まる（再入室は `useRoomEntry` が行う）
         setJoinedThisConnection(false);
         // 捨てたフレームの告知も前の接続のものなので畳む（#212）。
         // 残すと、**1 通も受け取っていない新しい接続に対して**警告が出続ける。
