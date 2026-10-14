@@ -8,16 +8,16 @@
 #       git apply scripts/mutations/m212-*.patch
 # 復元: git apply -R scripts/mutations/m212-*.patch
 #
-# #374。運転した後に見送り・切断した人（その場に居ない人）をナビに出す。
+# #374。運転した後に見送り・切断した人（ナビを務められない人）をナビに出す。
 diff --git a/apps/timer-web/src/ui/session-view.ts b/apps/timer-web/src/ui/session-view.ts
 --- a/apps/timer-web/src/ui/session-view.ts
 +++ b/apps/timer-web/src/ui/session-view.ts
-@@ -69,8 +69,7 @@
+@@ -77,8 +77,7 @@
    const navigatorSeat =
      navigatorEnabled &&
      previousDriverIndex !== null &&
 -    previousDriverIndex !== currentIndex &&
--    skipReasons[previousDriverIndex] === null
+-    !hidesNavigator(skipReasons[previousDriverIndex])
 +    previousDriverIndex !== currentIndex
        ? previousDriverIndex
        : null;

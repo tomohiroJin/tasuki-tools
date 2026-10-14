@@ -13,10 +13,10 @@
 diff --git a/apps/timer-web/src/ui/session-view.ts b/apps/timer-web/src/ui/session-view.ts
 --- a/apps/timer-web/src/ui/session-view.ts
 +++ b/apps/timer-web/src/ui/session-view.ts
-@@ -71,7 +71,7 @@
+@@ -79,7 +79,7 @@
      previousDriverIndex !== null &&
      previousDriverIndex !== currentIndex &&
-     skipReasons[previousDriverIndex] === null
+     !hidesNavigator(skipReasons[previousDriverIndex])
 -      ? previousDriverIndex
 +      ? (currentIndex - 1 + names.length) % names.length
        : null;

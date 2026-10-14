@@ -1744,7 +1744,7 @@ export const MUTATIONS = [
     patch: "m212-navigator-ignores-skip-state.patch",
     pkg: "apps/timer-web",
     tests: ["test/ui/session-view.test.ts"],
-    note: "#374。**対応表より後に足した変異。** 運転した後に見送り・切断した人（その場に居ない人）をナビに出す。",
+    note: "#374。**対応表より後に足した変異。** 運転した後に見送り・切断した人（ナビを務められない人）をナビに出す。",
   },
   {
     id: 213,
@@ -1753,6 +1753,30 @@ export const MUTATIONS = [
     pkg: "apps/timer-web",
     tests: ["test/ui/session-view.test.ts", "test/ui/Session.derived.test.tsx"],
     note: "#374。**対応表より後に足した変異。** 欠陥そのもの —— 飛ばされた席の人（運転していない人）をナビに出す。",
+  },
+  {
+    id: 214,
+    label: "運転中の人が輪から外れても、直前のドライバーを書き換えない",
+    patch: "m214-removal-keeps-stale-previous-driver.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/evolve.test.ts"],
+    note: "#374（PR #396 のレビュー）。**対応表より後に足した変異。** 新しい運転者のナビに 2 つ前の人が出る。",
+  },
+  {
+    id: 215,
+    label: "snapshot が、いまの運転者と同じ席を直前のドライバーとして送る",
+    patch: "m215-dto-sends-current-as-previous.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/timer-snapshot-dto.test.ts"],
+    note: "#374（PR #396 のレビュー）。**対応表より後に足した変異。** wire の注記（同じ席なら null）と食い違う。",
+  },
+  {
+    id: 216,
+    label: "不在（away）でもナビを隠す",
+    patch: "m216-navigator-hides-on-away.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/session-view.test.ts"],
+    note: "#374（PR #396 のレビュー）。**対応表より後に足した変異。** timer のタブを切り替えるたびに全員の画面でナビが点滅する。",
   },
 ];
 

@@ -13,12 +13,12 @@
 diff --git a/apps/tasuki-sync/src/application/timer-snapshot-dto.ts b/apps/tasuki-sync/src/application/timer-snapshot-dto.ts
 --- a/apps/tasuki-sync/src/application/timer-snapshot-dto.ts
 +++ b/apps/tasuki-sync/src/application/timer-snapshot-dto.ts
-@@ -320,7 +320,7 @@
-     timer.session.previousDriverId === null
+@@ -322,7 +322,7 @@
        ? -1
        : seats.findIndex((s) => s.id === timer.session.previousDriverId);
--  const previousDriverIndex = previousSeat >= 0 ? previousSeat : null;
-+  const previousDriverIndex: number | null = null;
+   const previousDriverIndex =
+-    previousSeat >= 0 && previousSeat !== timer.session.currentIndex ? previousSeat : null;
++    previousSeat >= 0 && previousSeat !== timer.session.currentIndex ? null : null;
    // 代理の `joinedAt` は名簿の作成時刻で埋める。席は追加時刻を持たないが、
    // この値を読む処理は無い（読み手だったお題の委譲の候補列は #91 PR 3 で消えた）。
    const proxies: Participant[] = proxyEntries(timer).map((e) => ({

@@ -1,0 +1,23 @@
+# 変異 215: snapshot が、いまの運転者と同じ席を直前のドライバーとして送る
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/timer-snapshot-dto.test.ts
+#     「直前のドライバーがいまの運転者と同じ席なら null」
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m215-*.patch
+# 復元: git apply -R scripts/mutations/m215-*.patch
+#
+# #374（PR #396 のレビュー）。wire の注記（同じ席なら null）と食い違う。
+diff --git a/apps/tasuki-sync/src/application/timer-snapshot-dto.ts b/apps/tasuki-sync/src/application/timer-snapshot-dto.ts
+--- a/apps/tasuki-sync/src/application/timer-snapshot-dto.ts
++++ b/apps/tasuki-sync/src/application/timer-snapshot-dto.ts
+@@ -322,7 +322,7 @@
+       ? -1
+       : seats.findIndex((s) => s.id === timer.session.previousDriverId);
+   const previousDriverIndex =
+-    previousSeat >= 0 && previousSeat !== timer.session.currentIndex ? previousSeat : null;
++    previousSeat >= 0 ? previousSeat : null;
+   // 代理の `joinedAt` は名簿の作成時刻で埋める。席は追加時刻を持たないが、
+   // この値を読む処理は無い（読み手だったお題の委譲の候補列は #91 PR 3 で消えた）。
+   const proxies: Participant[] = proxyEntries(timer).map((e) => ({
