@@ -9,14 +9,13 @@
 #       git apply scripts/mutations/m172-*.patch
 # 復元: git apply -R scripts/mutations/m172-*.patch
 diff --git a/apps/tasuki-sync/src/application/roulette-handlers.ts b/apps/tasuki-sync/src/application/roulette-handlers.ts
-index 5306d1f..98c707e 100644
 --- a/apps/tasuki-sync/src/application/roulette-handlers.ts
 +++ b/apps/tasuki-sync/src/application/roulette-handlers.ts
-@@ -189,6 +189,7 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
+@@ -156,6 +156,7 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
            conflicts: conflictsWithExisting,
          });
          if (next.isErr()) {
 +          roulettes.put(room.code, state);
            const code = next.error.code;
            // INVALID_SETTLE・INVALID_RANDOM は乱数源の誤りで、利用者の操作では起きない。内部の誤りとして返す。
-           if (code === "INVALID_RANDOM") {
+           // 監視は `roulette-random-violation` の 1 本で両方を拾え、`reason` で区別できる（#382）。
