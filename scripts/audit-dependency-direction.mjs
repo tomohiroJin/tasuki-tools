@@ -108,6 +108,8 @@ export const ALLOWED = {
   "packages/rate-limit": [],
   "packages/ui": [],
   "packages/invite-ui": [], // ADR-0020: ブラウザ操作のみ。ドメイン・同期への依存なし。
+  // #369: web の同期フックが共有する React の部品（`./sync`）。同期クライアントの上に載り、ドメインには依存しない。
+  "packages/web-kit": ["@tasuki/sync-client"],
   // #91 PR 3: Markdown サブセットの解析（純粋な関数・描画は各アプリ）。依存 0。
   "packages/markdown": [],
   // dev サーバー専用の Vite プラグインと玄関のポートの正本（#95 S5c 追補・#249）。
