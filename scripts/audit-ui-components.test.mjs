@@ -604,3 +604,41 @@ describe("checkComponentCss: @media の幅の段（#316 D1）", () => {
     assert.deepEqual(compMessages("@media (width >= 90rem) { .ui-x { color: inherit; } }"), []);
   });
 });
+
+/**
+ * #372: トークンと同じ単位・同じ値の余白・角丸・押せる大きさの直書きを拒む。
+ * 刻みに無い値・単位の違う値（px ↔ rem）・負の値は対象外（置き換えると見た目が変わる、または書き方が変わる）。
+ */
+describe("checkScreenCss: トークンと同じ値の直書き（#372）", () => {
+  const tokenMessages = (css) => messagesOf(css).filter((m) => /トークンと同じ値/.test(m));
+
+  test("余白・角丸・押せる大きさで、トークンと同じ値の直書きを落とす", () => {
+    assert.equal(tokenMessages(".a { padding: 0.5rem 1rem; }").length, 1);
+    assert.equal(tokenMessages(".a { margin-block-end: 2rem; }").length, 1);
+    assert.equal(tokenMessages(".a { gap: 0.25rem; }").length, 1);
+    assert.equal(tokenMessages(".a { border-radius: 0.75rem; }").length, 1);
+    assert.equal(tokenMessages(".a { border-top-left-radius: 10px; }").length, 1);
+    assert.equal(tokenMessages(".a { min-height: 2.75rem; }").length, 1);
+    assert.equal(tokenMessages(".a::before { inset: calc((100% - 2.75rem) / 2); }").length, 1);
+  });
+
+  test("文言に、置き換え先のトークンを名指しする", () => {
+    const [m] = tokenMessages(".a { padding: 0.75rem; }");
+    assert.match(m, /0\.75rem → var\(--space-3\)/);
+  });
+
+  test("トークン・刻みに無い値・単位の違う値・負の値・別の性質は落とさない", () => {
+    assert.deepEqual(tokenMessages(".a { padding: var(--space-2) var(--space-4); }"), []);
+    assert.deepEqual(tokenMessages(".a { padding: 0.375rem 1.25rem; }"), [], "刻みに無い値");
+    assert.deepEqual(tokenMessages(".a { border-radius: 8px; }"), [], "単位の違う値（--radius-md は 0.5rem）");
+    assert.deepEqual(tokenMessages(".a { min-height: 44px; }"), [], "単位の違う値（--tap-target は 2.75rem）");
+    assert.deepEqual(tokenMessages(".a { margin-inline: -1.5rem; }"), [], "負の値");
+    assert.deepEqual(tokenMessages(".a { font-size: 1rem; line-height: 1.5rem; }"), [], "余白・角丸・大きさの性質ではない");
+    assert.deepEqual(tokenMessages(".a { border-radius: 1rem; }"), [], "角丸の刻みに無い（余白の --space-4 とは別の尺度）");
+    assert.deepEqual(tokenMessages(".a { padding: 10.5rem; }"), [], "数の途中に一致しない");
+  });
+
+  test("直前の ui-exempt: で外せる", () => {
+    assert.deepEqual(tokenMessages("/* ui-exempt: 計器の意匠 */\n.a { padding: 0.5rem; }"), []);
+  });
+});

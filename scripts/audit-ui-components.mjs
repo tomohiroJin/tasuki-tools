@@ -260,6 +260,45 @@ function rawColorViolations(rule) {
     .map((d) => `生の色を書いています: ${d.prop}: ${d.value.replace(/\s+/g, " ")}    ← packages/ui/src/tokens/ のトークンにするか、直前に /* ui-exempt: 理由 */ を書く`);
 }
 
+/**
+ * トークンと同じ単位・同じ値の直書き（#372・`packages/ui/src/tokens/shape.css`）。性質ごとに尺度が違う
+ * （余白の `1rem` は `--space-4` だが、角丸に `1rem` のトークンは無い）。**刻みに無い値・単位の違う値（px ↔ rem）・
+ * 負の値は対象外** —— 置き換えると見た目が変わるか（文字の大きさの設定で rem と px は離れる）、書き方が変わる。
+ */
+const TOKEN_SCALES = [
+  {
+    props: /^(?:padding|margin|gap|row-gap|column-gap)(?:-[a-z]+)*$/i,
+    values: { "0.25rem": "--space-1", "0.5rem": "--space-2", "0.75rem": "--space-3", "1rem": "--space-4", "1.5rem": "--space-5", "2rem": "--space-6" },
+  },
+  {
+    props: /^border(?:-[a-z]+)*-radius$/i,
+    values: { "0.375rem": "--radius-sm", "0.5rem": "--radius-md", "0.75rem": "--radius-lg", "9999px": "--radius-full", "10px": "--card-radius" },
+  },
+  {
+    props: /^(?:(?:min-|max-)?(?:width|height|inline-size|block-size)|inset(?:-[a-z]+)*)$/i,
+    values: { "2.75rem": "--tap-target" },
+  },
+];
+
+/** 宣言の値に現れる、トークンと同じ値の直書き（負の値・数の途中は拾わない）。 */
+function tokenLiteralsIn(prop, value) {
+  const scale = TOKEN_SCALES.find((s) => s.props.test(prop));
+  if (scale === undefined) return [];
+  return [...value.matchAll(/(?<![\w.-])(\d*\.?\d+(?:rem|px))(?![\w.])/g)]
+    .map((m) => m[1])
+    .filter((v) => Object.hasOwn(scale.values, v))
+    .map((v) => `${v} → var(${scale.values[v]})`);
+}
+
+function tokenLiteralViolations(rule) {
+  return ownDeclarationsOf(rule).flatMap((d) => {
+    const found = tokenLiteralsIn(d.prop, d.value);
+    return found.length === 0
+      ? []
+      : [`トークンと同じ値を直書きしています: ${d.prop}: ${d.value.replace(/\s+/g, " ")}（${found.join("・")}）    ← トークンにするか、直前に /* ui-exempt: 理由 */ を書く（#372）`];
+  });
+}
+
 /** 画面の CSS を見る。返り値が空なら違反なし。 */
 export function checkScreenCss(file, css) {
   const root = postcss.parse(css, { from: file });
@@ -278,7 +317,7 @@ export function checkScreenCss(file, css) {
   root.walkRules((rule) => {
     reportWithExempt(rule, inKeyframes(rule)
       ? rawColorViolations(rule)
-      : [...screenRuleViolations(rule), ...rawColorViolations(rule)]);
+      : [...screenRuleViolations(rule), ...rawColorViolations(rule), ...tokenLiteralViolations(rule)]);
   });
   root.walkAtRules(/^media$/i, (at) => reportWithExempt(at, mediaWidthViolations(at.params)));
   root.walkComments((comment) => {
