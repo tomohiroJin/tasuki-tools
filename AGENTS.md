@@ -50,7 +50,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 - `node scripts/audit-domain-error-shape.mjs` — ドメインエラー型の形（core のエラー型が文言を持たない）
 - `node scripts/audit-domain-side-effects.mjs` — ドメインの副作用（core が環境から直接値を読まない）
 - `node scripts/check-links.mjs` — リンク検査
-- `node scripts/mutation-check.mjs` — 変異検査
+- `node scripts/mutation-check.mjs` — 変異検査（全件。手元の実装中は `--changed` / `--pkg <dir>` / `--id <番号,…>` で絞る。段ごとの使い分けは `docs/guides/development.md`）
 - `bash -c 'set -euo pipefail; targets="$(node scripts/list-scan-targets.mjs script-tests)"; node --test $targets'` — scripts の自己テスト
 
 検査系の詳細（対象の決まり方・新しいパッケージを足したときの直し方）は

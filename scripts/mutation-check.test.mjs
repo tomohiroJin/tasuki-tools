@@ -16,6 +16,7 @@ import {
   verifyRestoreAndClearMarker,
   decideMutationRestore,
   MUTATIONS,
+  controlKeyOf,
 } from "./mutation-check.mjs";
 
 /**
@@ -131,7 +132,7 @@ describe("宣言から実行コマンドまでの配線", () => {
     }
   });
 
-  test("宣言したすべての変異で絞り込み実行のコマンドが組め、対応表のテストを引数に持つ", () => {
+  test("宣言したすべての変異で対応表のテストのみのコマンドが組め、対応表のテストを引数に持つ", () => {
     // Given / When / Then
     for (const m of MUTATIONS) {
       const runner = detectRunner(path.join(WORKSPACE_ROOT, m.pkg));
@@ -268,6 +269,76 @@ describe("エントリポイントの判定", () => {
       fs.rmSync(root, { recursive: true, force: true });
       fs.rmSync(linkDir, { recursive: true, force: true });
     }
+  });
+});
+
+describe("選び方の指定の配線（#387）", () => {
+  // **何も実行せずに止まること**を見る。指定の誤りで止まる経路は、ロック・作業ツリーの検査・変異の適用より前にある。
+  // ここが配線されていないと、打ち間違いが黙って全件実行（CI で約 9 分）に化ける。
+  //
+  // **生きたロックを先に置く。** 配線が壊れていても本体はロックで止まり、変異を当てない
+  // （このテストが全件実行や変異の適用を引き起こさない）。正しい配線ならロックより前に指定の誤りで止まるので、
+  // 期待の文言はロックの文言と区別できる。形は「同時実行のロック」の配線のテストと同じ。
+  const run = (...args) => {
+    const lockPath = path.join(WORKSPACE_ROOT, "scripts/mutations/.lock");
+    assert.equal(fs.existsSync(lockPath), false, "先行するロックが残っている");
+    fs.writeFileSync(lockPath, String(process.pid), "utf8");
+    try {
+      return spawnSync("node", ["scripts/mutation-check.mjs", ...args], {
+        cwd: WORKSPACE_ROOT,
+        encoding: "utf8",
+        timeout: 60_000,
+      });
+    } finally {
+      if (fs.existsSync(lockPath)) fs.rmSync(lockPath);
+    }
+  };
+
+  test("未知の指定はエラーで止まり、変異を 1 件も流さない", () => {
+    const r = run("--help");
+    assert.notEqual(r.status, 0);
+    assert.match(r.stderr, /未知の指定です: --help/);
+    assert.doesNotMatch(r.stdout, /--- 変異 #/);
+  });
+
+  test("選び方を混ぜるとエラーで止まる", () => {
+    const r = run("--changed", "--id", "1");
+    assert.notEqual(r.status, 0);
+    assert.match(r.stderr, /1 回に 1 つ/);
+  });
+
+  test("宣言に無い番号はエラーで止まる", () => {
+    const r = run("--id", "99999");
+    assert.notEqual(r.status, 0);
+    assert.match(r.stderr, /宣言に無い変異の番号です: 99999/);
+  });
+
+  test("--changed の 0 件の終了は、ロックより後にある", () => {
+    // 差分 0 件（HEAD 対 HEAD）。0 件の終了がロック・復元・健全性の検査より前にあると、ここは exit 0 になる
+    const r = run("--changed", "--base", "HEAD");
+    assert.notEqual(r.status, 0);
+    assert.match(r.stderr, /別の実行（PID \d+）が走っています/);
+    assert.doesNotMatch(r.stdout, /該当する変異はありません/);
+  });
+
+  test("--base の打ち間違いはエラーで止まり、ref の名前を伝える", () => {
+    const r = run("--changed", "--base", "no-such-ref-387");
+    assert.notEqual(r.status, 0);
+    assert.match(r.stderr, /no-such-ref-387/);
+    assert.doesNotMatch(r.stderr, /別の実行（PID/);
+  });
+});
+
+describe("対照実行の使い回しの鍵（controlKeyOf）", () => {
+  const a = { id: 1, pkg: "scripts", tests: ["lib/a.test.mjs"] };
+  test("同じ pkg でも tests が違えば鍵が違う", () => {
+    assert.notEqual(controlKeyOf(a, false), controlKeyOf({ ...a, tests: ["lib/b.test.mjs"] }, false));
+  });
+  test("full の有無で鍵が違う", () => {
+    assert.notEqual(controlKeyOf(a, false), controlKeyOf(a, true));
+  });
+  test("pkg・tests・full が同じなら鍵が同じ（id や label は無関係）", () => {
+    assert.equal(controlKeyOf(a, false), controlKeyOf({ ...a, id: 2, label: "別" }, false));
   });
 });
 
