@@ -1,0 +1,23 @@
+# 変異 223: 末尾の現ドライバーを外したとき先頭へ回さない
+#
+# 検出を期待するテスト:
+#   - packages/timer-core/test/properties.test.ts
+#     「evolve に直接流すイベントの列での不変条件（#376）」ほか currentIndex の I2 を見る性質
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m223-*.patch
+# 復元: git apply -R scripts/mutations/m223-*.patch
+#
+# #376（PR #392 のレビュー）。wrapIndex の `% len` を外す。末尾の現ドライバーを外すと currentIndex が輪の長さちょうどになり、範囲外を指す。
+diff --git a/packages/timer-core/src/evolve.ts b/packages/timer-core/src/evolve.ts
+index 6d19dc3..c2aa460 100644
+--- a/packages/timer-core/src/evolve.ts
++++ b/packages/timer-core/src/evolve.ts
+@@ -360,7 +360,7 @@ function isSeatIndex(i: number, len: number): boolean {
+  * `% 0` は NaN になるので、空の輪を先に分ける。
+  */
+ function wrapIndex(i: number, len: number): number {
+-  return len === 0 ? 0 : i % len;
++  return len === 0 ? 0 : i;
+ }
+ 
+ function evolveMemberRemoved(agg: Aggregate, index: number): Aggregate {

@@ -1729,8 +1729,58 @@ export const MUTATIONS = [
     pkg: "packages/timer-core",
     tests: ["test/evolve.test.ts", "test/properties.test.ts"],
     note:
-      "#376。`% 0` が NaN を作り clamp も素通しして currentIndex が NaN になる。" +
-      "decide は最後の 1 人の member.remove を拒むので、decide を通すテストでは殺せない（evolve へ直接渡すテストで殺す）。",
+      "**対応表より後に足した変異。** 200〜249 は 2026-10-15 の並列修正（#373・#374・#376・#381・#382）に 10 ずつ割り当てた予約の範囲（#376 は 220〜229）。" +
+      "#376。`% 0` が NaN を作り currentIndex が NaN になる。decide は最後の 1 人の member.remove を拒むので、decide を通すテストでは殺せない（evolve へ直接渡すテストで殺す）。",
+  },
+  {
+    id: 221,
+    label: "範囲外の添字の MemberRemoved を無視しない",
+    patch: "m221-evolve-remove-out-of-range-index.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/evolve.test.ts", "test/properties.test.ts"],
+    note:
+      "**対応表より後に足した変異。** 200〜249 は 2026-10-15 の並列修正（#373・#374・#376・#381・#382）に 10 ずつ割り当てた予約の範囲（#376 は 220〜229）。" +
+      "#376（PR #392 のレビュー）。誰も外さずに現ドライバーの番号だけを詰める。decide の InvalidIndex が止めるので、evolve へ直接渡すテストで殺す。",
+  },
+  {
+    id: 222,
+    label: "範囲外の添字の MemberMoved を無視しない",
+    patch: "m222-evolve-move-out-of-range-index.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/evolve.test.ts", "test/properties.test.ts"],
+    note:
+      "**対応表より後に足した変異。** 200〜249 は 2026-10-15 の並列修正（#373・#374・#376・#381・#382）に 10 ずつ割り当てた予約の範囲（#376 は 220〜229）。" +
+      "#376（PR #392 のレビュー）。負の添字は splice が末尾から数え、別の席を動かす。",
+  },
+  {
+    id: 223,
+    label: "末尾の現ドライバーを外したとき先頭へ回さない",
+    patch: "m223-evolve-remove-without-wrap.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/evolve.test.ts", "test/properties.test.ts"],
+    note:
+      "**対応表より後に足した変異。** 200〜249 は 2026-10-15 の並列修正（#373・#374・#376・#381・#382）に 10 ずつ割り当てた予約の範囲（#376 は 220〜229）。" +
+      "#376（PR #392 のレビュー）。evolveMemberRemoved を書き換えたので足す。currentIndex が輪の長さちょうどになり範囲外を指す。",
+  },
+  {
+    id: 224,
+    label: "輪が空でも時計を止めない",
+    patch: "m224-evolve-empty-rotation-keeps-running.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/evolve.test.ts", "test/properties.test.ts"],
+    note:
+      "**対応表より後に足した変異。** 200〜249 は 2026-10-15 の並列修正（#373・#374・#376・#381・#382）に 10 ずつ割り当てた予約の範囲（#376 は 220〜229）。" +
+      "#376（PR #392 のレビュー）。担当の居ない輪でタイマーが回る。",
+  },
+  {
+    id: 225,
+    label: "整数でない添字を席の添字として受け入れる",
+    patch: "m225-evolve-fractional-seat-index.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/evolve.test.ts", "test/properties.test.ts"],
+    note:
+      "**対応表より後に足した変異。** 200〜249 は 2026-10-15 の並列修正（#373・#374・#376・#381・#382）に 10 ずつ割り当てた予約の範囲（#376 は 220〜229）。" +
+      "#376（PR #392 のレビュー）。MemberMoved の 0.5 は splice が 0 に切り捨て、先頭の席を動かす。",
   },
 ];
 

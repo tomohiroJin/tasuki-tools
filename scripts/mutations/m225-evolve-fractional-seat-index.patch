@@ -1,0 +1,25 @@
+# 変異 225: 整数でない添字を席の添字として受け入れる
+#
+# 検出を期待するテスト:
+#   - packages/timer-core/test/evolve.test.ts
+#     「evolve: 範囲外の添字の MemberRemoved / MemberMoved は集約を変えない（#376）」の 0.5・1.5
+#   - packages/timer-core/test/properties.test.ts
+#     「evolve に直接流すイベントの列での不変条件（#376）」
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m225-*.patch
+# 復元: git apply -R scripts/mutations/m225-*.patch
+#
+# #376（PR #392 のレビュー）。MemberMoved の 0.5 は splice が 0 に切り捨て、先頭の席を動かす。
+diff --git a/packages/timer-core/src/evolve.ts b/packages/timer-core/src/evolve.ts
+index 6d19dc3..76eb9c1 100644
+--- a/packages/timer-core/src/evolve.ts
++++ b/packages/timer-core/src/evolve.ts
+@@ -351,7 +351,7 @@ function evolveMemberAdded(agg: Aggregate, participantId: string): Aggregate {
+  * 整数でない添字は切り捨てられて、別の席を動かしてしまう）。
+  */
+ function isSeatIndex(i: number, len: number): boolean {
+-  return Number.isInteger(i) && i >= 0 && i < len;
++  return i >= 0 && i < len;
+ }
+ 
+ /**
