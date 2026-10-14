@@ -271,6 +271,48 @@ describe("エントリポイントの判定", () => {
   });
 });
 
+describe("選び方の指定の配線（#387）", () => {
+  // **何も実行せずに止まること**を見る。指定の誤りで止まる経路は、ロック・作業ツリーの検査・変異の適用より前にある。
+  // ここが配線されていないと、打ち間違いが黙って全件実行（CI で約 9 分）に化ける。
+  //
+  // **生きたロックを先に置く。** 配線が壊れていても本体はロックで止まり、変異を当てない
+  // （このテストが全件実行や変異の適用を引き起こさない）。正しい配線ならロックより前に指定の誤りで止まるので、
+  // 期待の文言はロックの文言と区別できる。形は「同時実行のロック」の配線のテストと同じ。
+  const run = (...args) => {
+    const lockPath = path.join(WORKSPACE_ROOT, "scripts/mutations/.lock");
+    assert.equal(fs.existsSync(lockPath), false, "先行するロックが残っている");
+    fs.writeFileSync(lockPath, String(process.pid), "utf8");
+    try {
+      return spawnSync("node", ["scripts/mutation-check.mjs", ...args], {
+        cwd: WORKSPACE_ROOT,
+        encoding: "utf8",
+        timeout: 60_000,
+      });
+    } finally {
+      if (fs.existsSync(lockPath)) fs.rmSync(lockPath);
+    }
+  };
+
+  test("未知の指定はエラーで止まり、変異を 1 件も流さない", () => {
+    const r = run("--help");
+    assert.notEqual(r.status, 0);
+    assert.match(r.stderr, /未知の指定です: --help/);
+    assert.doesNotMatch(r.stdout, /--- 変異 #/);
+  });
+
+  test("選び方を混ぜるとエラーで止まる", () => {
+    const r = run("--changed", "--id", "1");
+    assert.notEqual(r.status, 0);
+    assert.match(r.stderr, /1 回に 1 つ/);
+  });
+
+  test("宣言に無い番号はエラーで止まる", () => {
+    const r = run("--id", "99999");
+    assert.notEqual(r.status, 0);
+    assert.match(r.stderr, /宣言に無い変異の番号です: 99999/);
+  });
+});
+
 /**
  * 同時実行のロック（#95 S2 のレビューで踏んだ事故への対処）。
  *
