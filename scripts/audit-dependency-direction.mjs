@@ -161,6 +161,7 @@ export const ALLOWED = {
     "@tasuki/sync-client",
     "@tasuki/topic-core",
     "@tasuki/ui",
+    "@tasuki/web-kit",
   ],
   // #91 PR 2: お題ツール。お題を変えられる唯一の画面（spec T4）。
   // **timer-core・poker-core を知らない**（ツール同士は直接の関係を持たない・spec T1）。

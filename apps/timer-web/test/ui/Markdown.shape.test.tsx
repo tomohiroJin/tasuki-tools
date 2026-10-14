@@ -5,7 +5,12 @@
 import { describe, expect, it } from "vitest";
 import { render } from "@testing-library/react";
 import React from "react";
-import { Markdown } from "../../src/ui/components/Markdown.js";
+import { Markdown as SharedMarkdown, type MarkdownHeadingBase } from "@tasuki/web-kit/reader";
+
+/** timer での使い方（見出しの段の既定は共有メモの 3）。 */
+const Markdown = ({ headingBase = 3, ...rest }: { source: string; headingBase?: MarkdownHeadingBase }) => (
+  <SharedMarkdown headingBase={headingBase} {...rest} />
+);
 import { domShape, SHAPE_SOURCE } from "../support/dom-shape.js";
 
 describe("Markdown の描画の形", () => {

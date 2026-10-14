@@ -17,7 +17,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { ArrowRight } from "lucide-react";
 import { MAX_HANDOFF_NOTE } from "@tasuki/timer-core/aggregate";
 import { Card } from "../primitives.js";
-import { Markdown } from "./Markdown.js";
+import { Markdown } from "@tasuki/web-kit/reader";
 
 interface SharedMemoProps {
   /** サーバー権威のメモ本文（snapshot 由来）。 */
@@ -117,7 +117,7 @@ export function SharedMemo({ note, onCommit }: SharedMemoProps) {
       ) : (
         <div className="shared-memo-preview" aria-live="polite">
           {note.trim() ? (
-            <Markdown source={note} />
+            <Markdown source={note} headingBase={3} />
           ) : (
             <p className="shared-memo-empty">
               メモはまだありません。「編集」ボタンから Markdown で記入できます（リンク・箇条書き・見出しなど）。

@@ -1,4 +1,4 @@
-import { useDeferredValue, useId, useRef, useState, type KeyboardEvent } from 'react';
+import { useDeferredValue, useId, useState, type KeyboardEvent } from 'react';
 import type { TopicState } from '@tasuki/topic-core';
 import {
   CLEAR_BUTTON,
@@ -14,7 +14,7 @@ import {
   TAB_CURRENT,
   TAB_DRAFT,
 } from '../copy';
-import { Markdown } from './Markdown';
+import { Markdown, useReaderDrawer } from '@tasuki/web-kit/reader';
 import { isDraftBlank, readerTabForDraft, type ReaderTab } from '../topic-view';
 
 export interface Draft {
@@ -68,8 +68,8 @@ const TABS: readonly { readonly id: ReaderTab; readonly label: string }[] = [
 export function CurrentTopic({ state, enabled, draft, onCopyToDraft, onClear }: Props) {
   const topic = state?.topic ?? null;
   const baseId = useId();
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  const moreRef = useRef<HTMLButtonElement>(null);
+  // 開閉と、閉じたときに「続きを読む」へフォーカスを戻す処理は共有のフック（`@tasuki/web-kit/reader`）
+  const drawer = useReaderDrawer();
   const [active, setActive] = useState<ReaderTab>('current');
 
   const filled = !isDraftBlank(draft.title, draft.body);
@@ -95,8 +95,6 @@ export function CurrentTopic({ state, enabled, draft, onCopyToDraft, onClear }: 
   };
 
   const hasBody = topic !== null && topic.body !== '';
-  // フォーカスを「続きを読む」へ戻す経路は `onClose` の 1 本（閉じるボタンも Esc も `close` イベントを通る）
-  const closeDrawer = () => dialogRef.current?.close();
   const titleId = `${baseId}-title`;
   const draftTitleId = `${baseId}-draft-title`;
   const draftBlank = isDraftBlank(draftTitle, draftBody);
@@ -156,16 +154,16 @@ export function CurrentTopic({ state, enabled, draft, onCopyToDraft, onClear }: 
                     <>
                       {/* 64rem 未満の 3 行の写し。inert で Tab の行き先と読み上げから外す（全文は「続きを読む」のシート） */}
                       <div className="ui-reader-preview" inert>
-                        <Markdown source={topic.body} className="topic-body" />
+                        <Markdown source={topic.body} headingBase={4} className="topic-body" />
                       </div>
                       <div className="ui-reader-body" role="region" aria-labelledby={titleId} tabIndex={0}>
-                        <Markdown source={topic.body} className="topic-body" />
+                        <Markdown source={topic.body} headingBase={4} className="topic-body" />
                       </div>
                       <button
-                        ref={moreRef}
+                        ref={drawer.triggerRef}
                         type="button"
                         className="ui-button ui-button--secondary ui-button--sm ui-reader-more"
-                        onClick={() => dialogRef.current?.showModal()}
+                        onClick={drawer.open}
                       >
                         {READ_MORE}
                       </button>
@@ -187,7 +185,7 @@ export function CurrentTopic({ state, enabled, draft, onCopyToDraft, onClear }: 
                   )}
                   {/* 64rem 未満の 3 行の写し（シートは無い。全文は書く欄にある） */}
                   <div className="ui-reader-preview" inert>
-                    <Markdown source={draftBody} className="topic-body" />
+                    <Markdown source={draftBody} headingBase={4} className="topic-body" />
                   </div>
                   <div
                     className="ui-reader-body"
@@ -195,7 +193,7 @@ export function CurrentTopic({ state, enabled, draft, onCopyToDraft, onClear }: 
                     {...(draftTitle.trim() !== '' ? { 'aria-labelledby': draftTitleId } : { 'aria-label': TAB_DRAFT })}
                     tabIndex={0}
                   >
-                    <Markdown source={draftBody} className="topic-body" />
+                    <Markdown source={draftBody} headingBase={4} className="topic-body" />
                   </div>
                 </>
               )}
@@ -229,19 +227,19 @@ export function CurrentTopic({ state, enabled, draft, onCopyToDraft, onClear }: 
       )}
       {topic !== null && hasBody && (
         <dialog
-          ref={dialogRef}
+          ref={drawer.dialogRef}
           className="ui-drawer"
           aria-labelledby={`${baseId}-drawer-title`}
-          onClose={() => moreRef.current?.focus()}
+          onClose={drawer.onClose}
         >
           <div className="ui-drawer-head">
             <h3 id={`${baseId}-drawer-title`}>{topic.title}</h3>
-            <button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={closeDrawer}>
+            <button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={drawer.close}>
               {CLOSE}
             </button>
           </div>
           <div className="ui-drawer-body">
-            <Markdown source={topic.body} className="topic-body" />
+            <Markdown source={topic.body} headingBase={4} className="topic-body" />
           </div>
         </dialog>
       )}

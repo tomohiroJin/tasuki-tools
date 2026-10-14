@@ -129,6 +129,9 @@ importers:
       '@tasuki/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@tasuki/web-kit':
+        specifier: workspace:*
+        version: link:../../packages/web-kit
       react:
         specifier: ^19.1.0
         version: 19.3.0

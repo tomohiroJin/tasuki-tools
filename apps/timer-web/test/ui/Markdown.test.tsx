@@ -7,7 +7,12 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import React from "react";
-import { Markdown } from "../../src/ui/components/Markdown.js";
+import { Markdown as SharedMarkdown, type MarkdownHeadingBase } from "@tasuki/web-kit/reader";
+
+/** timer での使い方（見出しの段の既定は共有メモの 3）。 */
+const Markdown = ({ headingBase = 3, ...rest }: { source: string; headingBase?: MarkdownHeadingBase }) => (
+  <SharedMarkdown headingBase={headingBase} {...rest} />
+);
 
 describe("Markdown（安全な MD サブセット）", () => {
   it("[表示](https://…) を安全なリンクとして描画する", () => {

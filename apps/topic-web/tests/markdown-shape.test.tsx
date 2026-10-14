@@ -3,7 +3,8 @@
  */
 import { describe, expect, it } from 'vitest';
 import { render } from '@testing-library/react';
-import { Markdown } from '../src/components/Markdown';
+import { Markdown as SharedMarkdown } from '@tasuki/web-kit/reader';
+const Markdown = (props: { source: string; className?: string }) => <SharedMarkdown headingBase={4} {...props} />;
 import { domShape, SHAPE_SOURCE } from './support/dom-shape';
 
 describe('Markdown の描画の形', () => {
