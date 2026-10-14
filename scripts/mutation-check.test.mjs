@@ -16,6 +16,7 @@ import {
   verifyRestoreAndClearMarker,
   decideMutationRestore,
   MUTATIONS,
+  controlKeyOf,
 } from "./mutation-check.mjs";
 
 /**
@@ -131,7 +132,7 @@ describe("宣言から実行コマンドまでの配線", () => {
     }
   });
 
-  test("宣言したすべての変異で絞り込み実行のコマンドが組め、対応表のテストを引数に持つ", () => {
+  test("宣言したすべての変異で対応表のテストのみのコマンドが組め、対応表のテストを引数に持つ", () => {
     // Given / When / Then
     for (const m of MUTATIONS) {
       const runner = detectRunner(path.join(WORKSPACE_ROOT, m.pkg));
@@ -310,6 +311,34 @@ describe("選び方の指定の配線（#387）", () => {
     const r = run("--id", "99999");
     assert.notEqual(r.status, 0);
     assert.match(r.stderr, /宣言に無い変異の番号です: 99999/);
+  });
+
+  test("--changed の 0 件の終了は、ロックより後にある", () => {
+    // 差分 0 件（HEAD 対 HEAD）。0 件の終了がロック・復元・健全性の検査より前にあると、ここは exit 0 になる
+    const r = run("--changed", "--base", "HEAD");
+    assert.notEqual(r.status, 0);
+    assert.match(r.stderr, /別の実行（PID \d+）が走っています/);
+    assert.doesNotMatch(r.stdout, /該当する変異はありません/);
+  });
+
+  test("--base の打ち間違いはエラーで止まり、ref の名前を伝える", () => {
+    const r = run("--changed", "--base", "no-such-ref-387");
+    assert.notEqual(r.status, 0);
+    assert.match(r.stderr, /no-such-ref-387/);
+    assert.doesNotMatch(r.stderr, /別の実行（PID/);
+  });
+});
+
+describe("対照実行の使い回しの鍵（controlKeyOf）", () => {
+  const a = { id: 1, pkg: "scripts", tests: ["lib/a.test.mjs"] };
+  test("同じ pkg でも tests が違えば鍵が違う", () => {
+    assert.notEqual(controlKeyOf(a, false), controlKeyOf({ ...a, tests: ["lib/b.test.mjs"] }, false));
+  });
+  test("full の有無で鍵が違う", () => {
+    assert.notEqual(controlKeyOf(a, false), controlKeyOf(a, true));
+  });
+  test("pkg・tests・full が同じなら鍵が同じ（id や label は無関係）", () => {
+    assert.equal(controlKeyOf(a, false), controlKeyOf({ ...a, id: 2, label: "別" }, false));
   });
 });
 

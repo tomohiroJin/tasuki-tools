@@ -21,9 +21,9 @@ describe("parseSelector: 指定の解釈", () => {
   });
 
   test("--changed の基準は既定で origin/main、--base で変えられる", () => {
-    assert.deepEqual(parseSelector(["--changed"]), { kind: "changed", base: "origin/main" });
-    assert.deepEqual(parseSelector(["--changed", "--base", "HEAD~1"]), { kind: "changed", base: "HEAD~1" });
-    assert.deepEqual(parseSelector(["--base", "HEAD~1", "--changed"]), { kind: "changed", base: "HEAD~1" });
+    assert.deepEqual(parseSelector(["--changed"]), { kind: "changed", base: "origin/main", baseExplicit: false });
+    assert.deepEqual(parseSelector(["--changed", "--base", "HEAD~1"]), { kind: "changed", base: "HEAD~1", baseExplicit: true });
+    assert.deepEqual(parseSelector(["--base", "HEAD~1", "--changed"]), { kind: "changed", base: "HEAD~1", baseExplicit: true });
   });
 
   test("--id はカンマ区切りの正の整数", () => {
@@ -140,7 +140,7 @@ describe("selectMutations: --changed の選び方", () => {
     assert.match(s.fallbackToAll, /差分が取れない/);
   });
 
-  test("改名の両側（--no-renames で旧パスも来る）のどちらでも選ぶ", () => {
+  test("改名で旧パスが差分に並べば、旧パス側で選ぶ（--no-renames は呼び出し側の責務）", () => {
     // apps/a から packages/moved へ移したとき、差分には旧パスも新パスも並ぶ
     assert.deepEqual(ids(selectMutations(MUTS, changed(["apps/a/src/x.ts", "packages/moved/x.ts"]))), [1]);
   });

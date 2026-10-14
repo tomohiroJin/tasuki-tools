@@ -54,7 +54,7 @@ export function parseSelector(args) {
     throw new Error(`選び方の指定（${SELECTOR_FLAGS.join(" / ")}）は 1 回に 1 つだけです`);
   }
   const selector = found[0] ?? { kind: "all" };
-  if (selector.kind === "changed") return { kind: "changed", base: base ?? "origin/main" };
+  if (selector.kind === "changed") return { kind: "changed", base: base ?? "origin/main", baseExplicit: base !== null };
   if (base !== null) throw new Error("--base は --changed と一緒にだけ使えます");
   return selector;
 }
@@ -124,6 +124,8 @@ function selectByChange(mutations, { changedFiles, mechanismFiles, patchDir, aff
 /**
  * 変異検査の機構のファイル（自分自身と、その相対 import）を、ソースから導く。
  * 一覧をコードに列挙しない —— 列挙は import を足したときに腐る。
+ *
+ * 副作用 import（`import "./x.mjs"`）と動的 import は拾わない。機構に足すときは from 形で書く。
  *
  * **たどるのは 1 段だけ。** いま `scripts/lib/*.mjs` は Node 標準以外を import していない。
  * lib が別の lib を import するようになったら、ここを再帰にする。

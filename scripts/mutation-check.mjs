@@ -10,7 +10,7 @@
  * このスクリプトの MUTATIONS 定義はその実装にすぎない。
  *
  * 使い方:
- *   node scripts/mutation-check.mjs         絞り込み実行（対応表のテストファイルのみ）
+ *   node scripts/mutation-check.mjs         対応表のテストのみ実行
  *   node scripts/mutation-check.mjs --full   変異の属するパッケージ全体を実行
  *   node scripts/mutation-check.mjs --changed           origin/main との差分に関係する変異だけ（#387）
  *   node scripts/mutation-check.mjs --changed --base <ref>  基準を変える（積み上げた枝・機構を変えた枝）
@@ -92,7 +92,7 @@ const REPO_ROOT = execFileSync("git", ["rev-parse", "--show-toplevel"], {
  * 変異定義。
  *
  * pkg: 対象ディレクトリ（WORKSPACE_ROOT からの相対パス）。--full 実行時と、
- *      絞り込み実行時にランナーを呼ぶ cwd の両方に使う。パッケージとは限らない
+ *      対応表のテストのみの実行時にランナーを呼ぶ cwd の両方に使う。パッケージとは限らない
  *      （`scripts/` のように package.json を持たないディレクトリも取れる。#174）。
  * tests: 検出を期待するテストファイル（pkg からの相対パス）。
  * note: plan.md の対応表からの読み替えがあれば、その内容と理由をここに記録する。
@@ -2335,7 +2335,7 @@ export function buildCommand(runner, mutation, full) {
 /**
  * 対象パッケージのテストを、パッケージの実際のランナー（bun test / node --test / vitest）で
  * 実行する。
- * full=false: 対応表のテストファイルのみ（絞り込み実行・既定）。
+ * full=false: 対応表のテストファイルのみ（既定）。
  * full=true : パッケージ全体（--full）。
  * @returns {{passed: boolean, exitCode: number|null, output: string, command: string}}
  *          passed は「テストが 1 件も落ちずに完走した」= exit code 0。
@@ -2369,12 +2369,25 @@ function changedFilesSince(base) {
   try {
     const opts = { cwd: REPO_ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] };
     const mergeBase = execFileSync("git", ["merge-base", base, "HEAD"], opts).trim();
-    return execFileSync("git", ["diff", "--name-only", "--no-renames", mergeBase, "HEAD"], opts)
+    return execFileSync("git", ["-c", "core.quotePath=false", "diff", "--name-only", "--no-renames", mergeBase, "HEAD"], opts)
       .split("\n")
       .map((s) => s.trim())
       .filter((s) => s.length > 0);
   } catch {
     return null;
+  }
+}
+
+/** git の ref（コミットを指すもの）が存在するか。--base の打ち間違いを検出する。 */
+function refExists(ref) {
+  try {
+    execFileSync("git", ["rev-parse", "--verify", "--quiet", `${ref}^{commit}`], {
+      cwd: REPO_ROOT,
+      stdio: "ignore",
+    });
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -2392,7 +2405,7 @@ function resolveSelector(selector) {
 }
 
 /** 対照実行の使い回しの鍵。cwd（pkg）と、実際に流すコマンドと引数。 */
-function controlKeyOf(mutation, full) {
+export function controlKeyOf(mutation, full) {
   const runner = detectRunner(path.join(WORKSPACE_ROOT, mutation.pkg));
   return JSON.stringify([mutation.pkg, buildCommand(runner, mutation, full)]);
 }
@@ -2405,18 +2418,15 @@ function main() {
   let selection;
   try {
     selector = parseSelector(process.argv.slice(2));
+    if (selector.kind === "changed" && selector.baseExplicit && !refExists(selector.base)) {
+      throw new Error(`--base の ref が見つかりません: ${selector.base}`);
+    }
     selection = selectMutations(MUTATIONS, resolveSelector(selector));
   } catch (e) {
     console.error(`[mutation-check] ${e.message}`);
     process.exit(1);
   }
   const header = formatSelectionHeader(selector, selection, MUTATIONS.length);
-  if (selection.selected.length === 0) {
-    // `--changed` の 0 件は正常な結果（docs だけの枝など）。--id / --pkg の 0 件は selectMutations がエラーにする
-    console.log(`[mutation-check] ${header}。この差分に該当する変異はありません。`);
-    process.exit(0);
-  }
-
   // **復元より前にロックを取る。** 復元自体が `git checkout --` を撃つので、
   // 並走している実行の変異をここで消してしまう経路がある。
   acquireLock();
@@ -2440,7 +2450,15 @@ function main() {
     process.exit(1);
   }
 
-  console.log(`[mutation-check] モード: ${full ? "--full（パッケージ全体）" : "絞り込み実行（対応表のテストのみ）"}`);
+  if (selection.selected.length === 0) {
+    // `--changed` の 0 件は正常な結果（docs だけの枝など）。--id / --pkg の 0 件は selectMutations がエラーにする。
+    // **ロック・復元・健全性の検査・未コミット変更の検査を通ったあとで終える**（緑が「検査した」を意味するため）。
+    // ロックの解放は process.on("exit") が行う
+    console.log(`[mutation-check] ${header}。この差分に該当する変異はありません。`);
+    process.exit(0);
+  }
+
+  console.log(`[mutation-check] モード: ${full ? "--full（パッケージ全体）" : "対応表のテストのみ"}`);
   console.log(`[mutation-check] リポジトリルート: ${REPO_ROOT}`);
   console.log(`[mutation-check] ${header}\n`);
   const startedAt = Date.now();
