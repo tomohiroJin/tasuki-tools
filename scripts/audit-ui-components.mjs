@@ -582,6 +582,39 @@ export function uiTokensIn(text) {
   );
 }
 
+/**
+ * 部品を描く React の共有の入口（#371）。描画をここへ寄せると、部品のクラスの字面はアプリから消えて
+ * パッケージにしか無くなる。**その入口を取り込むアプリ**の使用として数える（{@link withSharedEntryUsage}）。
+ * 依存しているだけのアプリ（同期の入口 `./sync` だけを使うアプリ）には数えない —— 数えると、
+ * 1 つのアプリしか描いていない部品を「2 つ以上が使う」と取り違える。
+ */
+export const SHARED_UI_ENTRIES = [{ specifier: "@tasuki/web-kit/reader", dir: "packages/web-kit/src/reader" }];
+
+/** 本文がその入口を取り込んでいるか（`import … from '<specifier>'`・`import '<specifier>'`）。行の頭の import だけを見る。 */
+export function importsSpecifier(text, specifier) {
+  const escaped = specifier.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
+  return new RegExp(`^\\s*import\\b[^;]*?['"]${escaped}['"]`, "m").test(text);
+}
+
+/**
+ * アプリごとの部品の使用に、取り込んでいる共有の入口の使用を足した表を返す（元の表は書き換えない）。
+ *
+ * @param usageByApp アプリ → そのアプリの `.tsx` に現れる部品のクラス
+ * @param importedByApp アプリ → そのアプリが取り込んでいる共有の入口
+ * @param usageByEntry 共有の入口 → その入口の `.tsx` に現れる部品のクラス
+ */
+export function withSharedEntryUsage(usageByApp, importedByApp, usageByEntry) {
+  const merged = new Map();
+  for (const [app, used] of usageByApp) {
+    const all = new Set(used);
+    for (const specifier of importedByApp.get(app) ?? []) {
+      for (const c of usageByEntry.get(specifier) ?? []) all.add(c);
+    }
+    merged.set(app, all);
+  }
+  return merged;
+}
+
 /** 2 つ以上のアプリが使っていない部品のクラス（ADR 0022 決定 2・#280 の死んだ CSS の経緯）。 */
 export function findDeadParts(defined, usageByApp) {
   const users = (c) => [...usageByApp.values()].filter((s) => s.has(c)).length;
@@ -660,6 +693,14 @@ function main() {
   }
 
   // 死んだ部品。各アプリの src 配下の .tsx に現れる ui- の語を数える。
+  // 部品を描く共有の入口（#371）は、その入口の .tsx に現れる語を、取り込むアプリの使用として足す。
+  const usageByEntry = new Map();
+  for (const { specifier, dir } of SHARED_UI_ENTRIES) {
+    const tsx = readExisting(listRepoFiles(REPO_ROOT, [`${dir}/*.tsx`]), problems);
+    volume.push({ label: `${specifier} の TSX`, count: tsx.length });
+    usageByEntry.set(specifier, new Set(tsx.flatMap((f) => [...uiTokensIn(f.text)])));
+  }
+  const importedByApp = new Map();
   const usageByApp = new Map();
   for (const app of WEB_APPS) {
     const tsx = readExisting(listRepoFiles(REPO_ROOT, [`${app}/src/*.tsx`]), problems);
@@ -670,8 +711,12 @@ function main() {
       }
     }
     usageByApp.set(app, new Set(tsx.flatMap((f) => [...uiTokensIn(f.text)])));
+    importedByApp.set(
+      app,
+      new Set(SHARED_UI_ENTRIES.map((e) => e.specifier).filter((spec) => tsx.some((f) => importsSpecifier(f.text, spec)))),
+    );
   }
-  for (const c of findDeadParts(defined, usageByApp)) {
+  for (const c of findDeadParts(defined, withSharedEntryUsage(usageByApp, importedByApp, usageByEntry))) {
     problems.push(`[死んだ部品] .${c} を使うアプリが 2 つ未満です    ← 2 画面以上に当てるか、部品層から消す（ADR 0022 決定 2）`);
   }
 

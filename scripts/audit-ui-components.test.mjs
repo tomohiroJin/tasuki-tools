@@ -19,6 +19,8 @@ import {
   touchesFieldElement,
   uiTokensIn,
   unescapeIdent,
+  importsSpecifier,
+  withSharedEntryUsage,
 } from "./audit-ui-components.mjs";
 
 const messagesOf = (css) => checkScreenCss("apps/x/src/index.css", css).map((p) => p.message);
@@ -325,6 +327,37 @@ describe("死んだ部品", () => {
       ["apps/b", new Set(["ui-input"])],
     ]);
     assert.deepEqual(findDeadParts(new Set(["ui-input", "ui-select"]), usage), ["ui-select"]);
+  });
+
+  // #371: 部品の描画を共有パッケージ（`@tasuki/web-kit/reader`）へ寄せると、使う字面はパッケージにしか無くなる。
+  // その入口を**取り込んでいるアプリ**の使用として数える（依存しているだけのアプリには数えない）。
+  test("importsSpecifier は、その入口をちょうど取り込む import だけを拾う", () => {
+    assert.equal(importsSpecifier("import { Markdown } from '@tasuki/web-kit/reader';", "@tasuki/web-kit/reader"), true);
+    assert.equal(importsSpecifier('import { Markdown } from "@tasuki/web-kit/reader";', "@tasuki/web-kit/reader"), true);
+    assert.equal(importsSpecifier("import { useJoinRetry } from '@tasuki/web-kit/sync';", "@tasuki/web-kit/reader"), false);
+    assert.equal(importsSpecifier("import x from '@tasuki/web-kit/readerX';", "@tasuki/web-kit/reader"), false);
+    assert.equal(importsSpecifier("// '@tasuki/web-kit/reader' を読む", "@tasuki/web-kit/reader"), false);
+  });
+
+  test("共有の入口の使用は、その入口を取り込むアプリにだけ足す", () => {
+    const usage = new Map([
+      ["apps/a", new Set(["ui-input"])],
+      ["apps/b", new Set()],
+      ["apps/c", new Set()],
+    ]);
+    const imported = new Map([
+      ["apps/a", new Set(["@tasuki/web-kit/reader"])],
+      ["apps/b", new Set(["@tasuki/web-kit/reader"])],
+      ["apps/c", new Set(["@tasuki/web-kit/sync"])],
+    ]);
+    const entryUsage = new Map([["@tasuki/web-kit/reader", new Set(["ui-md"])]]);
+    const merged = withSharedEntryUsage(usage, imported, entryUsage);
+    assert.deepEqual([...merged.get("apps/a")].sort(), ["ui-input", "ui-md"]);
+    assert.deepEqual([...merged.get("apps/b")], ["ui-md"]);
+    assert.deepEqual([...merged.get("apps/c")], []);
+    assert.deepEqual(findDeadParts(new Set(["ui-md"]), merged), [], "2 つのアプリが取り込んでいるので死んでいない");
+    // 元の表は書き換えない
+    assert.deepEqual([...usage.get("apps/b")], []);
   });
 });
 
