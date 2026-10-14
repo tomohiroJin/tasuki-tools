@@ -5,3 +5,11 @@
  * **`export *` を書かない**（`scripts/audit-public-surface.mjs`）。公開する記号はここに列挙する。
  */
 export { useJoinRetry, type JoinRetry, type JoinRetryTexts } from './use-join-retry.js';
+export {
+  useToolRoomSync,
+  type ToolRoomDeparture,
+  type ToolRoomFrameHandlers,
+  type ToolRoomJoined,
+  type ToolRoomSync,
+  type ToolRoomSyncOptions,
+} from './use-tool-room-sync.js';

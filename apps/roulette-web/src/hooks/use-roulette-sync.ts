@@ -9,6 +9,11 @@
  * 名乗りは玄関に 1 つだけある（`docs/adr/0018`）。ここは**端末の復帰の組（玄関・timer・poker・お題と
  * 同じ鍵）で `room.join` を送るだけ**で、組が無い・合言葉を求められたら玄関へ戻す（`needsHub`）。
  *
+ * ## 接続・参加・やり直しは共通の部品が持つ（#369）
+ *
+ * 接続・参加・失敗の扱い・混雑のやり直しはお題ツールと同じなので、`@tasuki/web-kit/sync` の
+ * `useToolRoomSync` が持つ。ここが持つのはルーレットのフレーム（状態・名簿・お題）とコマンドだけである。
+ *
  * ## 回転の時刻の基準（`receivedAt`）
  *
  * 回転は `seq` ごとに 1 回である。**状態を受けるたびに基準を取り直すと、同じ回転が回し直しになる**
@@ -21,21 +26,10 @@
  * 切断中に押された操作は入り直しより先に届いて `NOT_IN_ROOM` になるので、画面は
  * `canOperate`（`roulette-view.ts`）で押させない。
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { DepartureReason, RosterRoom } from '@tasuki/room-core';
-import {
-  SyncConnection,
-  buildInviteUrl,
-  buildSyncUrl,
-  clearResumeIdentity,
-  connectionNoticeKind,
-  joinRetryDelayMs,
-  loadResumeIdentity,
-  planForJoinError,
-  saveResumeIdentity,
-  type ConnectionNoticeKind,
-  type ConnectionStatus,
-} from '@tasuki/sync-client';
+import { buildSyncUrl, type ConnectionNoticeKind, type ConnectionStatus } from '@tasuki/sync-client';
+import { useToolRoomSync } from '@tasuki/web-kit/sync';
 import type { RouletteCommand, RouletteView } from '@tasuki/roulette-core';
 import type { TopicState } from '@tasuki/topic-core';
 import { DEFAULT_ERROR_TEXT, RETRY_EXHAUSTED_TEXT, RETRY_WAITING_TEXT } from '../copy';
@@ -48,6 +42,12 @@ export type { ConnectionStatus };
 export function rouletteSyncUrl(location: { protocol: string; host: string }): string {
   return buildSyncUrl(location, 'roulette');
 }
+
+const TEXTS = {
+  defaultError: DEFAULT_ERROR_TEXT,
+  retryWaiting: RETRY_WAITING_TEXT,
+  retryExhausted: RETRY_EXHAUSTED_TEXT,
+} as const;
 
 export interface RouletteSync {
   readonly status: ConnectionStatus;
@@ -87,119 +87,17 @@ export interface RouletteSync {
 }
 
 export function useRouletteSync(roomCode: string): RouletteSync {
-  const [status, setStatus] = useState<ConnectionStatus>('connecting');
-  const [everConnected, setEverConnected] = useState(false);
-  const [failedAttempts, setFailedAttempts] = useState(0);
-  const [syncStale, setSyncStale] = useState(false);
-  const [joined, setJoined] = useState(false);
-  const [gone, setGone] = useState(false);
-  // **初期値を端末の組で決める。** 組の無い人は繋がずに玄関へ戻す（下の効果も同じ判定で抜ける）。
-  const [needsHub, setNeedsHub] = useState(() => loadResumeIdentity(roomCode) === null);
-  const [departed, setDeparted] = useState<DepartureReason | null>(null);
-  const [selfId, setSelfId] = useState<string | null>(null);
   // ビューと受け取った時刻は**組で持つ**（別々に更新すると、新しい回転なのに古い時刻を読む窓ができる）。
   const [rouletteSlot, setRouletteSlot] = useState<{ view: RouletteView; receivedAt: number } | null>(null);
   const [roster, setRoster] = useState<RosterRoom | null>(null);
   const [topic, setTopic] = useState<TopicState | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [retryNotice, setRetryNotice] = useState<string | null>(null);
-  const connRef = useRef<SyncConnection | null>(null);
-  /** 混雑で拒まれた回数（入れたら・繋ぎ直したら数え直す）。 */
-  const retryRef = useRef(0);
-  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  /**
-   * `sendJoin` で送った直近の名前（玄関の `use-hub-sync.ts` の `lastJoinRef` と同じ考え方）。
-   *
-   * `room.joined` の到着時に `localStorage` を読み直すと、応答を待つ間に別のタブが組を
-   * 捨てていた場合に空の名前を拾ってしまう。**送った時点の名前をここに残し、それで保存する。**
-   */
-  const lastJoinRef = useRef<string | null>(null);
 
-  const cancelRetry = useCallback(() => {
-    if (retryTimerRef.current === null) return;
-    clearTimeout(retryTimerRef.current);
-    retryTimerRef.current = null;
-  }, []);
-
-  useEffect(() => {
-    // 初期化子と効果の間に、別のタブが組を捨てていることがある。**ここでも玄関へ戻す印を立てる**
-    // （立てずに return すると、接続も送り返しもしないまま「参加しています」で止まる）。
-    // ⚠ この窓はテストで作れない（初期化子と効果の間に `localStorage` を変える手立てが無い）。
-    // テストの無い防御なので、消すときはこの注釈ごと判断すること。
-    if (loadResumeIdentity(roomCode) === null) {
-      setNeedsHub(true);
-      return;
-    }
-
-    /**
-     * 保存済みの組で入る。**毎回読み直す** —— 同じ端末の別のタブが、消えたルームの組を
-     * 捨てていることがある（`localStorage` は同じオリジンで共有される）。
-     */
-    const sendJoin = (): void => {
-      const saved = loadResumeIdentity(roomCode);
-      if (saved === null) {
-        setNeedsHub(true);
-        return;
-      }
-      lastJoinRef.current = saved.displayName;
-      conn.send({ command: 'room.join', code: roomCode, displayName: saved.displayName, resumeToken: saved.resumeToken });
-    };
-
-    const applyError = (code: string, message: string): void => {
-      // 規則は玄関以外のツールの画面で共通（`@tasuki/sync-client`。写しを持たない）。
-      const plan = planForJoinError(code, message, DEFAULT_ERROR_TEXT);
-      switch (plan.kind) {
-        case 'gone':
-          // 残すと、消えたルームへ毎回入り直そうとする（poker・玄関と同じ扱い）。
-          // `left` と同じく接続を畳む —— 畳まないと、後の切断で再接続してしまい、
-          // 「見つからない」画面が玄関への送り返しに置き換わる。
-          cancelRetry();
-          clearResumeIdentity(roomCode);
-          conn.dispose();
-          setGone(true);
-          return;
-        case 'left':
-          // 抜けた・外された（別のタブの操作でも届く）。timer と同じく、組を捨てて接続を畳み、
-          // 理由を持って玄関へ戻る（#290）。**畳まないと「押せるのに効かない」画面が残る。**
-          cancelRetry();
-          clearResumeIdentity(roomCode);
-          conn.dispose();
-          setJoined(false);
-          setDeparted(plan.reason);
-          return;
-        case 'to-hub':
-          setNeedsHub(true);
-          return;
-        case 'retry': {
-          // **即時に送り直さない。** 待ち時間とばらつきは `joinRetryDelayMs` が決める（#147）。
-          const delay = joinRetryDelayMs((retryRef.current += 1));
-          if (delay === null) {
-            setRetryNotice(RETRY_EXHAUSTED_TEXT);
-            return;
-          }
-          setRetryNotice(RETRY_WAITING_TEXT);
-          cancelRetry();
-          retryTimerRef.current = setTimeout(() => {
-            retryTimerRef.current = null;
-            sendJoin();
-          }, delay);
-          return;
-        }
-        case 'show':
-          setError(plan.message);
-          return;
-      }
-    };
-
-    const handleMessage = (raw: string): void => {
-      const msg = parseRouletteWebMessage(raw);
-      if (msg === null) {
-        // 境界検証に落ちたフレームは画面へ渡さない（原則 IV）。**捨てたことは必ず伝える**（#212）。
-        console.warn('契約に合わないサーバーメッセージを捨てました'); // log-hygiene:allow 固定の文言のみ（経路も値も出さない）
-        setSyncStale(true);
-        return;
-      }
-      setSyncStale(false);
+  const room = useToolRoomSync({
+    roomCode,
+    syncUrl: rouletteSyncUrl,
+    parse: parseRouletteWebMessage,
+    texts: TEXTS,
+    onFrame: (msg, handlers) => {
       switch (msg.type) {
         case 'roulette': {
           // 状態が変わったら、前の操作の失敗の表示は下ろす（残すと、別の人が直した後にも
@@ -215,7 +113,7 @@ export function useRouletteSync(roomCode: string): RouletteSync {
               ? { view: { ...view, spin: prev.view.spin }, receivedAt: prev.receivedAt }
               : { view, receivedAt: now },
           );
-          setError(null);
+          handlers.clearError();
           return;
         }
         case 'topic':
@@ -224,109 +122,52 @@ export function useRouletteSync(roomCode: string): RouletteSync {
         case 'roster':
           setRoster(msg.room);
           return;
-        case 'room.joined': {
-          // 端末の同一性は 4 つの画面で 1 つ（#95 S5b・D12）。名前は**送ったときのもの**を残す
-          // （ここで `localStorage` を読み直すと、応答を待つ間に別のタブが組を捨てていた場合に
-          // 空の名前を拾い、次の再接続で空の `displayName` を送ってサーバーに拒まれる）。
-          saveResumeIdentity({
-            code: msg.code,
-            participantId: msg.participantId,
-            resumeToken: msg.resumeToken,
-            displayName: lastJoinRef.current ?? '',
-          });
-          retryRef.current = 0;
-          setRetryNotice(null);
-          // 入れたら、入る前の失敗の表示は下ろす。
-          setError(null);
-          setSelfId(msg.participantId);
-          setJoined(true);
+        case 'room.joined':
+          handlers.joined(msg);
           return;
-        }
         case 'error':
-          applyError(msg.code, msg.message);
+          handlers.failed(msg.code, msg.message);
           return;
         default:
-          // `room.created` はこの接続へは届かない（届いても読まない）。
           return;
       }
-    };
+    },
+  });
 
-    const conn = new SyncConnection({
-      url: rouletteSyncUrl(window.location),
-      onMessage: handleMessage,
-      onOpen: () => {
-        setStatus('open');
-        setEverConnected(true);
-        setFailedAttempts(0);
-      },
-      onClose: () => {
-        // **待っている入り直しを畳む。** 切断中に発火すると `room.join` が送信キューに溜まり、
-        // 再接続で `onReconnected` の分と合わせて 2 通流れる（2 通目はサーバーが拒み、
-        // 「コマンドの形式が不正です」が出る）。入り直しは `onReconnected` が 1 回だけ行う。
-        cancelRetry();
-        setStatus('closed');
-        setFailedAttempts((n) => n + 1);
-        // 新しい接続はサーバー側で未参加から始まる。捨てたフレームの告知も前の接続のもの。
-        setJoined(false);
-        setSyncStale(false);
-      },
-      onReconnected: () => {
-        // 繋ぎ直したら数え直して入り直す（前の接続で諦めていても、新しい接続では試してよい）。
-        cancelRetry();
-        retryRef.current = 0;
-        setRetryNotice(null);
-        sendJoin();
-      },
-    });
-    connRef.current = conn;
-    conn.connect();
-    // 確立前の送信はキューに溜まり、開いたときに流れる。
-    sendJoin();
-
-    return () => {
-      cancelRetry();
-      conn.dispose();
-      connRef.current = null;
-    };
-    // 接続はこの画面の生存期間で 1 本（ルームコードはページ読み込みで決まる）。
-  }, [roomCode, cancelRetry]);
-
+  const { send } = room;
   const actions = useMemo(() => {
-    const send = (cmd: RouletteCommand): void => {
-      setError(null);
-      connRef.current?.send(cmd as unknown as Record<string, unknown>);
-    };
+    const sendCommand = (cmd: RouletteCommand): void => send(cmd as unknown as Record<string, unknown>);
     return {
-      clearError: () => setError(null),
-      spin: () => send({ command: 'roulette.spin' }),
-      setIncluded: (id: string, included: boolean) => send({ command: 'roulette.include', id, included }),
-      addGuest: (name: string) => send({ command: 'roulette.guest.add', name }),
-      removeGuest: (id: string) => send({ command: 'roulette.guest.remove', id }),
-      resetCycle: () => send({ command: 'roulette.cycle.reset' }),
+      spin: () => sendCommand({ command: 'roulette.spin' }),
+      setIncluded: (id: string, included: boolean) => sendCommand({ command: 'roulette.include', id, included }),
+      addGuest: (name: string) => sendCommand({ command: 'roulette.guest.add', name }),
+      removeGuest: (id: string) => sendCommand({ command: 'roulette.guest.remove', id }),
+      resetCycle: () => sendCommand({ command: 'roulette.cycle.reset' }),
     };
-  }, []);
+  }, [send]);
 
   return useMemo(
     () => ({
-      status,
-      everConnected,
-      failedAttempts,
-      syncStale,
-      notice: connectionNoticeKind({ status, everConnected, failedAttempts, syncStale }),
-      joined,
-      gone,
-      needsHub,
-      departed,
-      inviteUrl: buildInviteUrl(window.location.origin, roomCode),
-      selfId,
+      status: room.status,
+      everConnected: room.everConnected,
+      failedAttempts: room.failedAttempts,
+      syncStale: room.syncStale,
+      notice: room.notice,
+      joined: room.joined,
+      gone: room.gone,
+      needsHub: room.needsHub,
+      departed: room.departed,
+      inviteUrl: room.inviteUrl,
+      selfId: room.selfId,
       roulette: rouletteSlot?.view ?? null,
       receivedAt: rouletteSlot?.receivedAt ?? 0,
       roster,
       topic,
-      error,
-      retryNotice,
+      error: room.error,
+      retryNotice: room.retryNotice,
+      clearError: room.clearError,
       ...actions,
     }),
-    [status, everConnected, failedAttempts, syncStale, joined, gone, needsHub, departed, roomCode, selfId, rouletteSlot, roster, topic, error, retryNotice, actions],
+    [room, rouletteSlot, roster, topic, actions],
   );
 }

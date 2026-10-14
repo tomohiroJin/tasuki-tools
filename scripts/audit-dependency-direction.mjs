@@ -170,6 +170,7 @@ export const ALLOWED = {
     "@tasuki/sync-client",
     "@tasuki/topic-core",
     "@tasuki/ui",
+    "@tasuki/web-kit",
   ],
   // #94 PR 2: ルーレット。名簿の断片（在室の人）を作るために room-core の名簿の型と
   // 参加の応答の検めを使い、入る人の計算は roulette-core の `poolOf` を呼ぶ（サーバーと同じ関数・spec R7）。
@@ -184,6 +185,7 @@ export const ALLOWED = {
     "@tasuki/sync-client",
     "@tasuki/topic-core",
     "@tasuki/ui",
+    "@tasuki/web-kit",
   ],
   // #95 S2 で apps/timer-sync と apps/poker-sync がここへ統合された。
   // poker-core が加わったのはそのため（統合前は poker-sync 側の依存）。
