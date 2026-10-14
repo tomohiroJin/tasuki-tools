@@ -80,16 +80,19 @@ node scripts/mutation-check.mjs                     # 全件（今と同じ。CI
 node scripts/mutation-check.mjs --changed           # origin/main との差分から選ぶ
 node scripts/mutation-check.mjs --id 150,151        # 番号で選ぶ
 node scripts/mutation-check.mjs --pkg apps/roulette-web
+node scripts/mutation-check.mjs --changed --base HEAD~1   # 基準を変える（--changed と一緒にだけ）
 ```
 
 - 選び方の指定（`--changed` / `--id` / `--pkg`）は **1 回に 1 つ**。2 つ以上を混ぜたらエラーで止める（組み合わせの意味を決めない）
 - 既存の `--full` とは組み合わせられる（選んだ変異を、パッケージ全体のテストで流す）
 - `--id` に存在しない番号が入っていたらエラーで止める（打ち間違いで 0 件の緑にしない）
 - `--pkg` に該当する変異が 0 件なら、エラーで止める（同じ理由。`--pkg` は「このパッケージの変異を流したい」という意図なので、0 件は打ち間違いである）
+- `--base <ref>` で `--changed` の基準を変えられる（既定は `origin/main`）。変異検査の機構そのものを変える枝は、`origin/main` を基準にすると常に全件へ倒れるため（2026-10-14 の計画で追補）
+- **知らない指定はエラーで止める**（`--help` を含む）。以前は `--full` 以外を黙って無視し、打ち間違いで全件が走った（2026-10-14 の計画で追補）
 
 ### 4.2 `--changed` の選び方
 
-**差分**: `git merge-base origin/main HEAD` から `HEAD` までのコミット済みの変更ファイル。
+**差分**: `git merge-base <基準> HEAD`（基準の既定は `origin/main`）から `HEAD` までのコミット済みの変更ファイル。`--no-renames` で改名の両側を拾う。
 作業ツリーが汚れていれば今でも実行を拒むので、未コミット分を考える必要はない。
 
 **変異を選ぶ条件**（いずれか 1 つに当たれば選ぶ）:
