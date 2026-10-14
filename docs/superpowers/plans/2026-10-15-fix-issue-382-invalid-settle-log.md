@@ -21,6 +21,14 @@
 3. テスト: `test/roulette-handlers.test.ts` に settle が範囲外（0.1・0.9・NaN）の再現テスト。INTERNAL_ERROR のフレームと保管が変わらないことも固定する。
 4. 変異 m240〜m242（行を残さない／水準を warn にする／INVALID_RANDOM と同じ行にする）。
 
+## /code-review 後の追補
+
+- `INVALID_RANDOM` にも `roulette-random-violation reason=invalid-random` を足す（監視が 1 本で拾えるように。既存の `on-message-error name=RangeError` は先頭に残す）。
+- 2 つの分岐をそれぞれ `fail(connId, "INTERNAL_ERROR"); return;` で閉じ、三項演算子をやめる。
+- 契約の境界（0.2・0.8 は成功でログ空、すぐ外・±Infinity・NaN はログあり）と、利用者の操作による失敗（人数不足）でログが空であることを固定する。
+- 変異 m243（INVALID_SETTLE の分岐を他の失敗まで広げる）・m244（INVALID_RANDOM の reason 行を残さない）。
+- 設計正本（ルーレット）に手段としてログの行を書き、大規模リファクタリングの記録には日付つきの追記を 1 行足す。
+
 ## 実プロトコルでの確認
 
 `live-ws.roulette.test.ts` は本物の WebSocket だが乱数源を差し替えられない。本番の乱数源（`node:crypto`）は契約を守るため、実プロトコルでは再現できない経路である。ハンドラ層に乱数源を注入して `handleMessage` から入るテスト（`roulette-handlers.test.ts`）が、ワイヤ上の `INTERNAL_ERROR` フレームと同じ値を `send` で受けて固定するので、これで代替する。

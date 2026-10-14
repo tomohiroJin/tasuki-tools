@@ -237,15 +237,28 @@ describe("回す", () => {
         msg: { type: "error", code: "INTERNAL_ERROR", message: "サーバー内部でエラーが発生しました" },
       },
     ]);
-    expect(h.logLines).toEqual(["error on-message-error name=RangeError"]);
+    // 既存の行（先頭）は変えず、監視が 1 本で拾える reason 付きの行をその次に足す（#382）
+    expect(h.logLines).toEqual([
+      "error on-message-error name=RangeError",
+      "error roulette-random-violation reason=invalid-random",
+    ]);
     expect(h.roulettes.get(ROOM)).toBe(before);
   });
 
-  it("Given 乱数源の settle が契約の範囲外 / When 回す / Then INTERNAL_ERROR を返し、reason 付きの固定の 1 行を error で残す（#382）", async () => {
-    // INVALID_RANDOM（上のテスト）と並べて、乱数源の 2 つの契約違反がどちらも痕跡を残す。
-    // 2 つはログの行で区別できる（INVALID_RANDOM は RangeError の行を保つ）。
-    // 範囲の両外（下限未満・上限超過）と、NaN（範囲判定をすり抜けやすい値）を突く。
-    for (const settle of [0.1, 0.9, Number.NaN]) {
+  // 契約は SETTLE_MIN〜SETTLE_MAX（0.2〜0.8）。境界の値は含み、すぐ外・非有限は外れる（ハンドラ層で突く）。
+  const SETTLE_CASES: { settle: number; violates: boolean }[] = [
+    { settle: 0.2, violates: false },
+    { settle: 0.8, violates: false },
+    { settle: 0.1999999, violates: true },
+    { settle: 0.8000001, violates: true },
+    { settle: 0.1, violates: true },
+    { settle: 0.9, violates: true },
+    { settle: Number.NaN, violates: true },
+    { settle: Number.POSITIVE_INFINITY, violates: true },
+    { settle: Number.NEGATIVE_INFINITY, violates: true },
+  ];
+  for (const { settle, violates } of SETTLE_CASES) {
+    it(`Given 乱数源の settle が ${String(settle)} / When 回す / Then ${violates ? "INTERNAL_ERROR と reason 付きの error 1 行（#382）" : "成功しログは空"}`, async () => {
       // Given
       const h = setup({ randomSettleReturns: settle });
       await joined(h, "r-1", "Alice");
@@ -255,16 +268,35 @@ describe("回す", () => {
       // When
       await h.handle("r-1", { command: "roulette.spin" });
 
-      // Then: 利用者へ返るフレームは変わらない
-      expect(h.sent).toEqual([
-        {
-          connId: "r-1",
-          msg: { type: "error", code: "INTERNAL_ERROR", message: "サーバー内部でエラーが発生しました" },
-        },
-      ]);
-      expect(h.logLines).toEqual(["error roulette-random-violation reason=invalid-settle"]);
-      expect(h.roulettes.get(ROOM)).toBe(before);
-    }
+      // Then
+      if (violates) {
+        expect(h.sent).toEqual([
+          {
+            connId: "r-1",
+            msg: { type: "error", code: "INTERNAL_ERROR", message: "サーバー内部でエラーが発生しました" },
+          },
+        ]);
+        expect(h.logLines).toEqual(["error roulette-random-violation reason=invalid-settle"]);
+        expect(h.roulettes.get(ROOM)).toBe(before);
+      } else {
+        expect(h.logLines).toEqual([]);
+        expect(h.roulettes.get(ROOM)!.lastSpin!.seq).toBe(1);
+      }
+    });
+  }
+
+  it("Given 利用者の操作で回せない（人数不足）/ When 回す / Then ROULETTE_TOO_FEW を返し、ログは空（#382）", async () => {
+    // INVALID_SETTLE の分岐が他の失敗まで巻き込んでログを書かないことを固定する。
+    // Given: 1 人だけ
+    const h = setup();
+    await joined(h, "r-1", "Alice");
+
+    // When
+    await h.handle("r-1", { command: "roulette.spin" });
+
+    // Then
+    expect(h.sent.map((s) => (s.msg.type === "error" ? s.msg.code : s.msg.type))).toEqual(["ROULETTE_TOO_FEW"]);
+    expect(h.logLines).toEqual([]);
   });
 
   it("回すと、同じルームの全ルーレット接続へ同じ seq・winnerIndex・settle・回した人が届く", async () => {

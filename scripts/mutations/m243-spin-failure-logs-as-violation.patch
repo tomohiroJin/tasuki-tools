@@ -1,0 +1,22 @@
+# 変異 243: spin-failure-logs-as-violation
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/roulette-handlers.test.ts
+#
+# #382。INVALID_SETTLE の分岐を「INVALID_RANDOM 以外の失敗すべて」に広げる。利用者の操作で起きる失敗（人数不足）が内部の誤りとして error ログと INTERNAL_ERROR になる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m243-*.patch
+# 復元: git apply -R scripts/mutations/m243-*.patch
+diff --git a/apps/tasuki-sync/src/application/roulette-handlers.ts b/apps/tasuki-sync/src/application/roulette-handlers.ts
+--- a/apps/tasuki-sync/src/application/roulette-handlers.ts
++++ b/apps/tasuki-sync/src/application/roulette-handlers.ts
+@@ -167,7 +167,7 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
+             fail(connId, "INTERNAL_ERROR");
+             return;
+           }
+-          if (code === "INVALID_SETTLE") {
++          if (code !== "INVALID_RANDOM") {
+             // 例外ではないので `name` は無い。元は行が無かった（#382）。同じ水準（error）で残す。
+             logger.error("roulette-random-violation", { reason: RANDOM_VIOLATION_REASONS.invalidSettle });
+             fail(connId, "INTERNAL_ERROR");

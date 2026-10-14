@@ -65,9 +65,10 @@ export const ERROR_NAMES = {
  * ルーレットの乱数源が契約を破った理由（#382）。`roulette-random-violation` の `reason` に載せる。
  *
  * `INVALID_RANDOM`（`randomInt` の範囲外）は例外だった頃の行（`on-message-error name=RangeError`）を
- * 保つ（`ERROR_NAMES`）。`INVALID_SETTLE`（`randomSettle` の範囲外）は元から行が無かったため、
- * 理由を語彙に置いた新しい行で残す。自由文・例外メッセージ・乱数源の返した値は載せない。
+ * 保ち（`ERROR_NAMES`）、監視が 1 本で拾えるようこの行も足す。`INVALID_SETTLE`（`randomSettle` の範囲外）は
+ * 元から行が無かったため、この行だけで残す。自由文・例外メッセージ・乱数源の返した値は載せない。
  */
 export const RANDOM_VIOLATION_REASONS = {
+  invalidRandom: publicText("invalid-random"), // log-hygiene:allow 語彙定義
   invalidSettle: publicText("invalid-settle"), // log-hygiene:allow 語彙定義
 } as const satisfies Record<string, LogSafe>;

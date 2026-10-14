@@ -1746,6 +1746,22 @@ export const MUTATIONS = [
     tests: ["test/roulette-handlers.test.ts"],
     note: "#382。2 つの契約違反がログで区別できなくなる（理由を語彙に置いた意味が消える）。",
   },
+  {
+    id: 243,
+    label: "INVALID_SETTLE の分岐を他の失敗まで広げる",
+    patch: "m243-spin-failure-logs-as-violation.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/roulette-handlers.test.ts"],
+    note: "#382（/code-review）。人数不足など利用者の操作で起きる失敗が、内部の誤りとして error ログと INTERNAL_ERROR になる。",
+  },
+  {
+    id: 244,
+    label: "INVALID_RANDOM の reason 付きの行を残さない",
+    patch: "m244-invalid-random-without-reason-line.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/roulette-handlers.test.ts"],
+    note: "#382（/code-review）。監視が roulette-random-violation の 1 本で両方の契約違反を拾えなくなる。",
+  },
 ];
 
 /**

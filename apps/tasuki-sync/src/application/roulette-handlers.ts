@@ -14,8 +14,8 @@
  * ## 利用者の入力をログに書かない
  *
  * ゲストの名前・表示名は利用者の入力である（`docs/adr/0012`・spec R13）。このファイルはそれらをログに書かない。
- * 書くのは、乱数源の契約違反を知らせる固定の語彙の 1 行だけである（`INVALID_RANDOM` は #364、`INVALID_SETTLE` は #382。
- * 下の `roulette.spin`。2 つは行で区別できる）。
+ * 書くのは、乱数源の契約違反を知らせる固定の語彙の行だけである（`INVALID_RANDOM` は #364・#382、`INVALID_SETTLE` は #382。
+ * 下の `roulette.spin`。どちらも `roulette-random-violation reason=…` で拾え、`reason` で区別できる）。
  * 時計は**単調時計**（`MonotonicClock`）。壁時計は NTP の調整で戻りうる。
  */
 import * as v from "valibot";
@@ -158,16 +158,22 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
         if (next.isErr()) {
           const code = next.error.code;
           // INVALID_SETTLE・INVALID_RANDOM は乱数源の誤りで、利用者の操作では起きない。内部の誤りとして返す。
+          // 監視は `roulette-random-violation` の 1 本で両方を拾え、`reason` で区別できる（#382）。
           if (code === "INVALID_RANDOM") {
             // #364 より前は、ドメインが RangeError を投げ、接続層（ws-adapter.ts）が「ログ → エラーフレーム」を
-            // 返していた。その行を変えないため、ここで同じ行を残す。
+            // 返していた。その行は変えず（先頭に残す）、reason 付きの行をその次に足す。
             logger.error("on-message-error", { name: ERROR_NAMES.rangeError });
-          } else if (code === "INVALID_SETTLE") {
-            // 例外ではないので `name` は無い。元は行が無かった（#382）。INVALID_RANDOM と区別できるよう、
-            // 理由を語彙に置いた別の行を同じ水準（error）で残す。
-            logger.error("roulette-random-violation", { reason: RANDOM_VIOLATION_REASONS.invalidSettle });
+            logger.error("roulette-random-violation", { reason: RANDOM_VIOLATION_REASONS.invalidRandom });
+            fail(connId, "INTERNAL_ERROR");
+            return;
           }
-          fail(connId, code === "INVALID_SETTLE" || code === "INVALID_RANDOM" ? "INTERNAL_ERROR" : code);
+          if (code === "INVALID_SETTLE") {
+            // 例外ではないので `name` は無い。元は行が無かった（#382）。同じ水準（error）で残す。
+            logger.error("roulette-random-violation", { reason: RANDOM_VIOLATION_REASONS.invalidSettle });
+            fail(connId, "INTERNAL_ERROR");
+            return;
+          }
+          fail(connId, code);
           return;
         }
         commit(room.code, stored, next.value);
