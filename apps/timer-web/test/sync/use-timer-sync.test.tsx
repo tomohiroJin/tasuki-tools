@@ -598,6 +598,70 @@ describe("混雑で入室を拒まれたとき", () => {
       vi.useRealTimers();
     }
   });
+
+  // ─── #369 の特性テスト（混雑のやり直しを共通の部品へ移す前に固定する） ───
+
+  /** 試行を使い切るまで、拒まれては待つ。 */
+  function exhaust(deliver: (msg: Record<string, unknown>) => void) {
+    for (let i = 0; i <= JOIN_RETRY_MAX_ATTEMPTS; i++) {
+      deliver({ type: "error", code: "JOIN_RATE_LIMITED", message: "混み合っています" });
+      act(() => void vi.advanceTimersByTime(maxDelayOf(JOIN_RETRY_MAX_ATTEMPTS) + 100));
+    }
+  }
+
+  it("待っている間に続けて拒まれても、待ちは 1 つだけで room.join の再送は 1 通", () => {
+    vi.useFakeTimers();
+    try {
+      const { ws, deliver } = connectedWith(fakeBanner());
+      const send = vi.spyOn(ws, "send");
+      deliver({ type: "error", code: "JOIN_RATE_LIMITED", message: "混み合っています" });
+      deliver({ type: "error", code: "JOIN_RATE_LIMITED", message: "混み合っています" });
+      act(() => void vi.advanceTimersByTime(maxDelayOf(JOIN_RETRY_MAX_ATTEMPTS) + 100));
+      expect(sentCommands(send).filter((c) => c === "room.join")).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("試行を使い切った後でも、ルームの状態が届けば数え直す", () => {
+    vi.useFakeTimers();
+    try {
+      const { ws, deliver } = connectedWith(fakeBanner());
+      exhaust(deliver);
+      const send = vi.spyOn(ws, "send");
+      deliver({ type: "snapshot", room: aRoomView({ code: SEEDED_ROOM_CODE, phase: "setup" }) });
+      deliver({ type: "error", code: "JOIN_RATE_LIMITED", message: "混み合っています" });
+      act(() => void vi.advanceTimersByTime(maxDelayOf(1) + 100));
+      expect(sentCommands(send)).toContain("room.join");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("試行を使い切った後でも、接続し直したら数え直す", () => {
+    vi.useFakeTimers();
+    try {
+      const { ws, deliver } = connectedWith(fakeBanner());
+      exhaust(deliver);
+      act(() => void ws.onclose?.());
+      act(() => void vi.advanceTimersByTime(30_000));
+      const next = FakeWS.instances[FakeWS.instances.length - 1]!;
+      act(() => {
+        next.readyState = FakeWS.OPEN;
+        next.onopen?.();
+      });
+      const send = vi.spyOn(next, "send");
+      act(() =>
+        void next.onmessage?.({
+          data: JSON.stringify({ type: "error", code: "JOIN_RATE_LIMITED", message: "混み合っています" }),
+        } as MessageEvent),
+      );
+      act(() => void vi.advanceTimersByTime(maxDelayOf(1) + 100));
+      expect(sentCommands(send)).toContain("room.join");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 /**
