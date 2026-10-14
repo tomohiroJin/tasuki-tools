@@ -21,6 +21,7 @@
     "@tasuki/timer-core": "workspace:*",
     "@tasuki/topic-core": "workspace:*",
     "@tasuki/ui": "workspace:*",
+    "@tasuki/web-kit": "workspace:*",
     "lucide-react": "^1.28.0",
     "neverthrow": "^8.2.0",
     "partysocket": "^1.0.2",

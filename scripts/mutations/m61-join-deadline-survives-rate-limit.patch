@@ -8,14 +8,14 @@
 # 復元: git checkout -- <対象ファイル>
 #
 diff --git a/apps/timer-web/src/sync/use-timer-sync.ts b/apps/timer-web/src/sync/use-timer-sync.ts
-index fe0a18b..9c9b5af 100644
+index 677c492..0525745 100644
 --- a/apps/timer-web/src/sync/use-timer-sync.ts
 +++ b/apps/timer-web/src/sync/use-timer-sync.ts
-@@ -512,7 +512,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
+@@ -414,7 +414,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
          // **待ち時間はこの期限より長くなりうる**（`joinRetryDelayMs` は最大 30 秒＋
          // ばらつき）。畳まないと、待てば入れる人を「読み込めていません」と断じる（#292）。
          // 次の期限は入り直しを送った時点（`sendResumeJoin`）で張り直す。
 -        cancelJoinDeadline();
-         const attempt = joinRetryAttemptRef.current + 1;
-         const delay = joinRetryDelayMs(attempt);
-         if (delay === null) {
+         const scheduled = rateLimited(() => {
+           // 保存が無いと自動では入り直せないので、手立てを示して終わる。
+           //

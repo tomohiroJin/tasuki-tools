@@ -107,6 +107,12 @@ export const EXCLUDED_PACKAGES = [
       "ドメインの判断を持たない",
   },
   {
+    pkg: "packages/web-kit",
+    reason:
+      "web の同期フックが共有する React の部品（#369）。タイマー・接続の副作用を持つ境界であり、" +
+      "ドメインの判断を持たない",
+  },
+  {
     pkg: "packages/dev-hub-redirect",
     reason:
       "dev サーバー専用の Vite プラグインと玄関のポート（#95 S5c 追補）。ドメインの判断を持たず、" +

@@ -22,14 +22,17 @@ export { SyncConnection, type SyncConnectionOptions } from "./connection.js";
 // ./join-retry
 export { joinRetryDelayMs } from "./join-retry.js";
 
+// ./sync-url（同期サーバーへ繋ぐ URL。5 つの web アプリの写しを寄せた・#369）
+export { SYNC_PATH, buildSyncUrl, type SyncUrlLocation } from "./sync-url.js";
+
 // ./invite-url
 export { buildInviteUrl } from "./invite-url.js";
 
 // ./join-error-plan（参加の失敗から次の一手を決める。お題・ルーレットの写しを寄せた・#94 PR 2）
-export { planForJoinError } from "./join-error-plan.js";
+export { planForJoinError, type JoinErrorPlan } from "./join-error-plan.js";
 
 // ./connection-notice（接続状態を告知の種類に翻訳する。poker・お題・ルーレットの写しを寄せた・#94 PR 2）
-export { connectionNoticeKind, type ConnectionNoticeKind } from "./connection-notice.js";
+export { connectionNoticeKind, type ConnectionNoticeKind, type ConnectionStatus } from "./connection-notice.js";
 
 // ./resume-identity
 export {

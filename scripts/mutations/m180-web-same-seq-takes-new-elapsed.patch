@@ -12,10 +12,10 @@
 #       git apply scripts/mutations/m180-*.patch
 # 復元: git apply -R scripts/mutations/m180-*.patch
 diff --git a/apps/roulette-web/src/hooks/use-roulette-sync.ts b/apps/roulette-web/src/hooks/use-roulette-sync.ts
-index ebbc63f9..365ac509 100644
+index c2db580..a56ae8b 100644
 --- a/apps/roulette-web/src/hooks/use-roulette-sync.ts
 +++ b/apps/roulette-web/src/hooks/use-roulette-sync.ts
-@@ -204,7 +204,7 @@ export function useRouletteSync(roomCode: string): RouletteSync {
+@@ -110,7 +110,7 @@ export function useRouletteSync(roomCode: string): RouletteSync {
              // （回転中の外す・戻すや再接続で同じ seq が届くたびに、止まる時刻が前へずれる）。
              // 回転以外（外した人・ゲスト・一周の記録）は新しいフレームのものを採る。
              prev !== null && prev.view.spin !== null && prev.view.spin.seq === view.spin?.seq
@@ -23,4 +23,4 @@ index ebbc63f9..365ac509 100644
 +              ? { view, receivedAt: prev.receivedAt }
                : { view, receivedAt: now },
            );
-           setError(null);
+           handlers.clearError();

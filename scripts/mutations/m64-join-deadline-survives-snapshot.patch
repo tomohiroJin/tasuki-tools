@@ -8,12 +8,12 @@
 # 復元: git checkout -- <対象ファイル>
 #
 diff --git a/apps/timer-web/src/sync/use-timer-sync.ts b/apps/timer-web/src/sync/use-timer-sync.ts
-index fe0a18b..72778a3 100644
+index 677c492..9995a0d 100644
 --- a/apps/timer-web/src/sync/use-timer-sync.ts
 +++ b/apps/timer-web/src/sync/use-timer-sync.ts
-@@ -340,7 +340,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
+@@ -267,7 +267,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
      cancelJoinRetry();
-     joinRetryAttemptRef.current = 0;
+     resetJoinRetry();
      // 画面が決まった以上、答えを待つ期限はもう測らない（#292）。
 -    cancelJoinDeadline();
      // `room` はこのハンドラを作ったレンダーの const なので、下で `setRoom(r)` しても

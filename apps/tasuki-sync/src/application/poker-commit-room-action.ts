@@ -74,7 +74,7 @@ export function createCommitRoomAction({
       // 「押しても反応しない」としか見えず、原因に辿り着けない。
       // 破棄済みのルームを指しているという意味では join-room の空振りと同じなので、
       // 同じ `room-not-found` を返す（画面はこのコードでページ全体をエラー表示に
-      // 切り替え、保存した identity を捨てる。apps/poker-web の RoomPage）。
+      // 切り替え、保存した identity を捨てる。apps/poker-web の `useRoomEntry`）。
       //
       // #171 の根治側（`handleJoinRoom` の冪等化）を入れたあと、この分岐へ至る
       // 経路は分かっている限り無い。無応答という最悪の症状を残さないための備えである。

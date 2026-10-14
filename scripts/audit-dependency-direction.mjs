@@ -108,6 +108,8 @@ export const ALLOWED = {
   "packages/rate-limit": [],
   "packages/ui": [],
   "packages/invite-ui": [], // ADR-0020: ブラウザ操作のみ。ドメイン・同期への依存なし。
+  // #369: web の同期フックが共有する React の部品（`./sync`）。同期クライアントの上に載り、ドメインには依存しない。
+  "packages/web-kit": ["@tasuki/sync-client"],
   // #91 PR 3: Markdown サブセットの解析（純粋な関数・描画は各アプリ）。依存 0。
   "packages/markdown": [],
   // dev サーバー専用の Vite プラグインと玄関のポートの正本（#95 S5c 追補・#249）。
@@ -119,6 +121,7 @@ export const ALLOWED = {
   // #95 S5a で LP は同期クライアントになった（ADR-0019）。**@tasuki/timer-core を知らない** ——
   // ハブが扱うのは名簿だけで、タイマーの状態も票も通らない（ADR-0017 の文脈分割）。
   // #91 PR 2: 玄関は `topic` フレームを topic-core のスキーマで検め、タイトルだけを出す（spec §5.5）。
+  // #369: 混雑のやり直しは `@tasuki/web-kit/sync` の `useJoinRetry`。
   "apps/landing": [
     "@tasuki/invite-ui",
     "@tasuki/dev-hub-redirect",
@@ -127,6 +130,7 @@ export const ALLOWED = {
     "@tasuki/sync-client",
     "@tasuki/topic-core",
     "@tasuki/ui",
+    "@tasuki/web-kit",
   ],
   // #91 PR 3: `topic` フレームを topic-core のスキーマで検め、お題を読むだけで出す（spec §5.5）。
   // timer-core は topic-core を知らない（T1）。
@@ -139,6 +143,7 @@ export const ALLOWED = {
     "@tasuki/timer-core",
     "@tasuki/topic-core",
     "@tasuki/ui",
+    "@tasuki/web-kit",
   ],
   // #95 S5b: 表示名の上限（`MAX_DISPLAY_NAME`）を room-core から取る。web アプリが
   // room-core に依存することは `docs/adr/0017` 決定 2 の対象外であり、timer-web も同じ
@@ -168,6 +173,7 @@ export const ALLOWED = {
     "@tasuki/sync-client",
     "@tasuki/topic-core",
     "@tasuki/ui",
+    "@tasuki/web-kit",
   ],
   // #94 PR 2: ルーレット。名簿の断片（在室の人）を作るために room-core の名簿の型と
   // 参加の応答の検めを使い、入る人の計算は roulette-core の `poolOf` を呼ぶ（サーバーと同じ関数・spec R7）。
@@ -182,6 +188,7 @@ export const ALLOWED = {
     "@tasuki/sync-client",
     "@tasuki/topic-core",
     "@tasuki/ui",
+    "@tasuki/web-kit",
   ],
   // #95 S2 で apps/timer-sync と apps/poker-sync がここへ統合された。
   // poker-core が加わったのはそのため（統合前は poker-sync 側の依存）。

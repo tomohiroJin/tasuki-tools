@@ -20,13 +20,13 @@ import { render, screen, within, cleanup } from "@testing-library/react";
 import React from "react";
 import { Loading } from "../../src/ui/Loading.js";
 import { StatusStrip } from "../../src/ui/components/StatusStrip.js";
-import type { ConnectionStatus } from "../../src/ui/components/StatusStrip.js";
+import type { StatusStripState } from "../../src/ui/components/StatusStrip.js";
 
 /**
- * 接続状態の全件。**`Record<ConnectionStatus, null>` で受けているのが肝** ——
+ * 接続状態の全件。**`Record<StatusStripState, null>` で受けているのが肝** ——
  * 状態を足してここへ書き忘れると型検査が落ちる（件数は書かない・腐るため）。
  */
-const ALL_STATUSES: Record<ConnectionStatus, null> = {
+const ALL_STATUSES: Record<StatusStripState, null> = {
   connecting: null,
   online: null,
   reconnecting: null,
@@ -34,7 +34,7 @@ const ALL_STATUSES: Record<ConnectionStatus, null> = {
   stale: null,
 };
 
-const STATUSES = Object.keys(ALL_STATUSES) as ConnectionStatus[];
+const STATUSES = Object.keys(ALL_STATUSES) as StatusStripState[];
 
 /** `aria-label="接続状態"` の領域に実際に描かれた文字（装飾の丸は除く）。 */
 function renderedConnectionText(node: React.ReactElement): string {
@@ -44,7 +44,7 @@ function renderedConnectionText(node: React.ReactElement): string {
   return text;
 }
 
-function loadingWith(status: ConnectionStatus, timedOut = false) {
+function loadingWith(status: StatusStripState, timedOut = false) {
   return (
     <Loading
       connectionStatus={status}

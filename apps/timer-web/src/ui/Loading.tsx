@@ -31,7 +31,7 @@
 import React from "react";
 import { CloudOff, RotateCcw, ArrowLeft } from "lucide-react";
 import { Card } from "./primitives.js";
-import type { ConnectionStatus } from "./components/StatusStrip.js";
+import type { StatusStripState } from "./components/StatusStrip.js";
 
 /**
  * 接続状態の日本語。**`StatusStrip` の `CONNECTION_CONFIG` と同じ言葉を使う。**
@@ -43,10 +43,10 @@ import type { ConnectionStatus } from "./components/StatusStrip.js";
  * 待ち表示の添え書きだからである。
  *
  * `lost` はこの部品からは出ない（`App.tsx` が先に `SessionLost` へ分岐する）。
- * それでも表に載せるのは、`Record<ConnectionStatus, string>` が**状態の増減を
+ * それでも表に載せるのは、`Record<StatusStripState, string>` が**状態の増減を
  * 型検査に拾わせる**からで、抜けを作ると「新しい状態だけ名前が無い」が素通りする。
  */
-const CONNECTION_TEXT: Record<ConnectionStatus, string> = {
+const CONNECTION_TEXT: Record<StatusStripState, string> = {
   // **ここが `connecting` を実際に出す唯一の場所である**（#292 のレビュー）。
   // 確立前は `StatusStrip` がまだ描かれていないので、ソケットが `CONNECTING` の
   // まま滞留していることを読めるのはこの受け皿だけになる。
@@ -64,11 +64,11 @@ const CONNECTION_TONE_CLASS = {
   reconnecting: "loading-connection loading-connection-caution",
   lost: "loading-connection loading-connection-urgent",
   stale: "loading-connection loading-connection-caution",
-} as const satisfies Record<ConnectionStatus, string>;
+} as const satisfies Record<StatusStripState, string>;
 
 interface LoadingProps {
   /** いまの接続状態（#292 EARS 2）。ルームの画面が決まる前はここだけが出す。 */
-  connectionStatus: ConnectionStatus;
+  connectionStatus: StatusStripState;
   /**
    * `room.join` の答えを待つ期限が切れたか（#292 EARS 1）。
    *
@@ -84,7 +84,7 @@ interface LoadingProps {
 }
 
 /** 接続状態の一行。色だけに頼らずテキストを併記する（FR-032）。 */
-function ConnectionLine({ status }: { status: ConnectionStatus }) {
+function ConnectionLine({ status }: { status: StatusStripState }) {
   return (
     <span
       className={CONNECTION_TONE_CLASS[status]}

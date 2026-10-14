@@ -18,16 +18,16 @@ import { describe, it, expect } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import React from "react";
 import { StatusStrip } from "../../src/ui/components/StatusStrip.js";
-import type { ConnectionStatus } from "../../src/ui/components/StatusStrip.js";
+import type { StatusStripState } from "../../src/ui/components/StatusStrip.js";
 
 /**
  * 接続状態。色だけでなく、この文言が必ず並ぶこと。
  *
- * **`Record<ConnectionStatus, string>` で受けているのが肝。** 状態を足してここへ
+ * **`Record<StatusStripState, string>` で受けているのが肝。** 状態を足してここへ
  * 書き忘れると**型検査が落ちる**ので、新しい状態だけ「色のみ」で伝えていても
  * 素通りしない。件数は書かない（足すたびに腐るため）。
  */
-const CONNECTION_LABELS: Record<ConnectionStatus, string> = {
+const CONNECTION_LABELS: Record<StatusStripState, string> = {
   connecting: "つないでいます",
   online: "接続中",
   reconnecting: "再接続中",
@@ -36,7 +36,7 @@ const CONNECTION_LABELS: Record<ConnectionStatus, string> = {
 };
 
 const CONNECTION_CASES = Object.entries(CONNECTION_LABELS).map(([status, label]) => ({
-  status: status as ConnectionStatus,
+  status: status as StatusStripState,
   label,
 }));
 

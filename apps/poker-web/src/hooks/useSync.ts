@@ -11,9 +11,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   SyncConnection,
   buildInviteUrl,
+  buildSyncUrl,
   clearResumeIdentity,
   loadResumeIdentity,
   saveResumeIdentity,
+  type ConnectionStatus,
   type ResumeIdentity,
 } from '@tasuki/sync-client';
 import {
@@ -28,12 +30,12 @@ import {
 import { parseBoundaryMessage } from '@tasuki/protocol';
 import { TopicFrameSchema, type Topic } from '@tasuki/topic-core';
 
-export type ConnectionStatus = 'connecting' | 'open' | 'closed';
+/** 接続状態（正本は `@tasuki/sync-client`。#369）。 */
+export type { ConnectionStatus };
 
 export function wsUrl(): string {
-  const scheme = location.protocol === 'https:' ? 'wss' : 'ws';
   // **入口は玄関と同じ `/ws` で、ツールはクエリが宣言する**（#95 S5c）。
-  return `${scheme}://${location.host}/ws?tool=poker`;
+  return buildSyncUrl(location, 'poker');
 }
 
 export interface SyncError {
@@ -140,7 +142,7 @@ export function usePokerSync(): PokerSync {
       onClose: () => {
         setStatus('closed');
         setFailedAttempts((n) => n + 1);
-        // 新しい接続はサーバー側で未 join 状態から始まる（再入室は RoomPage が行う）
+        // 新しい接続はサーバー側で未 join 状態から始まる（再入室は `useRoomEntry` が行う）
         setJoinedThisConnection(false);
         // 捨てたフレームの告知も前の接続のものなので畳む（#212）。
         // 残すと、**1 通も受け取っていない新しい接続に対して**警告が出続ける。

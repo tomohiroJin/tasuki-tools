@@ -11,7 +11,7 @@ import React from "react";
 import { NotifySettings } from "./NotifySettings.js";
 import type { AppMode } from "../../sync/use-timer-sync.js";
 
-export type ConnectionStatus = "connecting" | "online" | "reconnecting" | "lost" | "stale";
+export type StatusStripState = "connecting" | "online" | "reconnecting" | "lost" | "stale";
 
 interface StatusStripProps {
   /**
@@ -24,7 +24,7 @@ interface StatusStripProps {
    */
   phase: AppMode;
   displayName: string;
-  connectionStatus: ConnectionStatus;
+  connectionStatus: StatusStripState;
   roomCode?: string | undefined;
 }
 
@@ -46,10 +46,10 @@ const PHASE_LABEL: Record<AppMode, string> = {
 // 抽出したもので、外れる字を 1 つ足すと ext 層（約 210 KB）を追加取得する
 // （`packages/ui/README.md`）。「同期不整合」の「整」がまさに base 層外だったため
 // 「同期できていません」にした（2026-08-31・`fonts.css` の unicode-range を実測）。
-const CONNECTION_LABEL: Record<ConnectionStatus, string> = {
+const CONNECTION_LABEL: Record<StatusStripState, string> = {
   // `connecting` は「まだ一度も確立していない」（#292）。**この帯には実際には出ない** ——
   // 帯が描かれるのは `mode !== null`、つまり snapshot を受け取った後だからである。
-  // それでも行を持つのは `Record<ConnectionStatus, …>` が**状態の増減を型検査に
+  // それでも行を持つのは `Record<StatusStripState, …>` が**状態の増減を型検査に
   // 拾わせる**ためで、抜けを作ると「名前の無い状態」が黙って通る。
   // 文言は `ui/Loading.tsx` と揃える（`test/ui/Loading.test.tsx` が突き合わせる）。
   connecting: "つないでいます… (Connecting)",
@@ -61,7 +61,7 @@ const CONNECTION_LABEL: Record<ConnectionStatus, string> = {
 
 /**
  * 接続状態の表示のクラス（`styles/status-strip.css`。並びと色）。ラベルの表とは分ける。
- * キーは `ConnectionStatus` と 1 対 1（漏れは型検査が拾う）。
+ * キーは `StatusStripState` と 1 対 1（漏れは型検査が拾う）。
  */
 const CONNECTION_CLASS = {
   connecting: "status-strip-connection status-strip-connection-caution",
@@ -69,7 +69,7 @@ const CONNECTION_CLASS = {
   reconnecting: "status-strip-connection status-strip-connection-caution",
   lost: "status-strip-connection status-strip-connection-urgent",
   stale: "status-strip-connection status-strip-connection-caution",
-} as const satisfies Record<ConnectionStatus, string>;
+} as const satisfies Record<StatusStripState, string>;
 
 export function StatusStrip({
   phase,

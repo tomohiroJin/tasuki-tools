@@ -20,8 +20,9 @@ import {
   resultText,
   spunByText,
 } from './copy';
+// 接続状態の型の正本は `@tasuki/sync-client`（#369）。型だけを取る（実行時には同期クライアントを読まない）。
+import type { ConnectionStatus } from '@tasuki/sync-client';
 
-export type ConnectionStatus = 'connecting' | 'open' | 'closed';
 
 /**
  * 操作できるか。**切断中と参加前は押させない。**

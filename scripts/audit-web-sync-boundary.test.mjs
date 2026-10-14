@@ -7,6 +7,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  findSyncCopies,
   WEB_APPS,
   findDisallowedImporters,
   findDisallowedWsHolders,
@@ -140,4 +141,41 @@ test("実体の導出は同期サーバーを web アプリとして返さない
 
   // Then: apps 配下でもブラウザで開く入口を持たないものは web 層の射程外である
   assert.ok(!dirs.includes("apps/tasuki-sync"), `実体: ${dirs.join(" / ")}`);
+});
+
+test("同期の接続の写し（接続状態の型・URL の組み立て）を拾い、型の再公開は拾わない（#369）", () => {
+  const files = [
+    {
+      path: "src/hooks/use-x-sync.ts",
+      lines: [
+        "export type ConnectionStatus = 'connecting' | 'open' | 'closed';",
+        "const scheme = location.protocol === 'https:' ? 'wss' : 'ws';",
+        "export type { ConnectionStatus };",
+        "return buildSyncUrl(location, 'x');",
+      ],
+    },
+  ];
+  assert.deepEqual(
+    findSyncCopies(files).map((h) => `${h.path}:${h.line}`),
+    ["src/hooks/use-x-sync.ts:1", "src/hooks/use-x-sync.ts:2"],
+  );
+});
+
+test("URL の組み立ての書き方の違い（逆向きの比べ方・startsWith・wss の文字列）も拾い、コメントの行は拾わない（#369）", () => {
+  const files = [
+    {
+      path: "src/x.ts",
+      lines: [
+        "const a = 'https:' === location.protocol ? 'w' : 'x';",
+        "const b = location.protocol.startsWith('https') ? 1 : 2;",
+        "const c = `wss://${host}/ws`;",
+        "// 以前は location.protocol === 'https:' ? 'wss' : 'ws' と書いていた",
+        " * type ConnectionStatus = 'open' は sync-client へ移した",
+      ],
+    },
+  ];
+  assert.deepEqual(
+    findSyncCopies(files).map((h) => h.line),
+    [1, 2, 3],
+  );
 });

@@ -39,7 +39,8 @@ S2〜S4a では poker 側の入れ子（src/poker 配下。**S4b で畳みまし
 | ポート | `apps/*-sync/src/ports` | ドメインの型 |
 | アダプタ | `apps/*-sync/src/adapters`・web アプリ | 上のすべて |
 | web の純粋判断 | web アプリ配下で React・I/O に依存しない `.ts`（例: `apps/timer-web/src/ui/screen.ts`・`apps/poker-web/src/router.ts` の `parseRoute` / `hubPathFor`・`apps/landing/src/hub/hub-state.ts`） | ドメインの型のみ（React・I/O に依存しない） |
-| web の同期フック | web アプリの同期フック 1 本（例: `apps/poker-web/src/hooks/useSync.ts`・`apps/landing/src/hub/use-hub-sync.ts`） | 上のすべて ＋ WebSocket |
+| web の同期フック | web アプリの同期フック（例: `apps/poker-web/src/hooks/useSync.ts`・`apps/landing/src/hub/use-hub-sync.ts`）。大きくなったら同じ層のサブフックに分けてよい（例: `apps/timer-web/src/sync/use-timer-entry.ts`・`apps/poker-web/src/hooks/useRoomEntry.ts`。#369） | 上のすべて ＋ WebSocket |
+| web の同期の共有部品 | `packages/web-kit` の入口 `@tasuki/web-kit/sync`（`useJoinRetry`・`useToolRoomSync`。#369） | `react`（peer）・`@tasuki/sync-client` のみ。ドメインの core には依存しない。**同期フックの側として扱い、画面は直接読まない**（お題・ルーレットの `screens-do-not-import-sync-client` のテスト） |
 | web の画面 | web アプリの `.tsx` | 同期フックと純粋判断のみ（同期クライアントを直接 import しない） |
 | UI 資産 | `packages/ui` | なし（CSS のトークン・要素・部品と静的資産。ADR 0022） |
 | 招待のブラウザ操作 | `packages/invite-ui` | React・ブラウザ API・既存の qrcode。ドメイン・同期クライアントには依存しない（[ADR-0020](../adr/0020-invite-browser-operations.md)） |
@@ -60,6 +61,8 @@ WebSocket の配線はこの共有先へ移さない。
 示します。`apps/poker-web` は `hooks/useSync.ts` へ、`apps/timer-web` は `sync/use-timer-sync.ts` へ、
 それぞれ WS の配線を集約しています（timer-web の再編は
 [#167](https://github.com/tomohiroJin/tasuki-tools/issues/167) で完了）。
+各アプリが写しで持っていた接続・参加・混雑のやり直しは、#369 で `@tasuki/web-kit/sync` に寄せました
+（WS の URL と接続状態の型は `@tasuki/sync-client` の `buildSyncUrl`・`ConnectionStatus` 1 つ）。
 この境界は `scripts/audit-web-sync-boundary.mjs` が機械で見ています。
 
 **`packages/rate-limit` について**: HMAC によるクライアント鍵導出とトークンバケツによる

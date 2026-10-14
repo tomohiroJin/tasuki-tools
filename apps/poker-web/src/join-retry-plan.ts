@@ -24,7 +24,7 @@ export const RETRY_WAITING_TEXT = '混み合っています。自動で入り直
  * まだ名前を入れていない人」だった。旧入口を撤去したいま、名乗っていない人はそもそも
  * ルーム画面へ来ない（玄関の参加画面へ送り返される）。残るのは**持っていた名乗りを
  * 失う経路**で、同じ端末の別のタブが消滅したルームのトークンを捨てると起きる
- * （`localStorage` は同じオリジンで共有される・`RoomPage.tsx` の `forgetIdentity`）。
+ * （`localStorage` は同じオリジンで共有される・`hooks/useRoomEntry.ts` の `forgetIdentity`）。
  */
 export const RETRY_WAITING_WITHOUT_NAME_TEXT = '混み合っています。少し待ってからお試しください';
 /** 試行を使い切ったときの案内。 */

@@ -15,6 +15,8 @@
  *   2. **WS の保持先**: `new WebSocket(` を書いてよいのは `wsHolders` に挙げた
  *      ファイルだけである
  *   3. **宣言の実在**: `WEB_APPS` に書いたすべてのパスが実在する（`docs/adr/0014` 決定 7）
+ *   4. **同期の接続の写し**: WS の URL の組み立てと接続状態の型を `src` に書き直さない
+ *      （`@tasuki/sync-client` から取る。#369）
  *
  * 宣言した web アプリ（{@link WEB_APPS}）ごとに、`src` 配下の `.ts` / `.tsx` / `.js` / `.jsx`
  * について検査 1・2 を見る。
@@ -252,6 +254,39 @@ export function findDisallowedWsHolders(files, app) {
   return found;
 }
 
+/**
+ * 検査 4: 同期の接続の写し（#369）。WS の URL の組み立てと接続状態の型（`ConnectionStatus`）は
+ * `@tasuki/sync-client` が持つ（`buildSyncUrl`・`ConnectionStatus`）。web アプリの `src` に
+ * 同じものを書き直すと、片方だけが直る（5 つの写しを 1 つにしたときの守り）。
+ *
+ * 見るのは字面である。**コメントの行は見ない**（写しを外した経緯を説明する文が赤にならないように）。
+ * URL の組み立ては書き方が何通りもあるので、`https:` との比べ方の主な形と、`wss` の文字列そのものを拾う。
+ * 型の再公開（`export type { ConnectionStatus }`）は写しではないので拾わない。
+ */
+const SYNC_COPY_PATTERNS = [
+  { label: "接続状態の型の写し（sync-client の ConnectionStatus を使う）", re: /type\s+ConnectionStatus\s*=/ },
+  {
+    label: "WS の URL の組み立ての写し（sync-client の buildSyncUrl を使う）",
+    re: /protocol\s*===\s*["'`]https:?["'`]|["'`]https:?["'`]\s*===\s*[\w.]*protocol|protocol\.startsWith\(\s*["'`]https|["'`]wss(?::|["'`])/,
+  },
+];
+
+/** コメントの行（`//`・`/*`・`*` で始まる行）。 */
+const COMMENT_LINE = /^\s*(?:\/\/|\/\*|\*)/;
+
+export function findSyncCopies(files) {
+  return files.flatMap((file) =>
+    file.lines.flatMap((text, i) =>
+      (COMMENT_LINE.test(text) ? [] : SYNC_COPY_PATTERNS.filter((p) => p.re.test(text))).map((p) => ({
+        path: file.path,
+        line: i + 1,
+        label: p.label,
+        text: text.trim(),
+      })),
+    ),
+  );
+}
+
 /** 宣言から導出したリポジトリ相対パスの一覧（実在確認の入力）。 */
 export function declaredPathsOf(app) {
   return [
@@ -384,6 +419,14 @@ function main() {
     ),
   );
   problems.push(...wsHolderProblems);
+
+  // 検査 4: 同期の接続の写し（#369）。
+  const copyProblems = WEB_APPS.flatMap((app) =>
+    findSyncCopies(filesByApp.get(app.app)).map(
+      (hit) => `[写し] ${app.app}/${hit.path}:${hit.line} — ${hit.label} → ${hit.text}`,
+    ),
+  );
+  problems.push(...copyProblems);
 
   // 走査量は成否によらず必ず名乗る（`docs/adr/0014` 決定 6）。
   // `scan-target-wiring.test.mjs` が `git ls-files 'scripts/audit-*.mjs'` から導出して

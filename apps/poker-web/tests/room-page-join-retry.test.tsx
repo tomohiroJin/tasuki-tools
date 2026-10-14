@@ -170,6 +170,19 @@ describe('混雑で入室を拒まれたときの自動再試行', () => {
     expect(screen.queryByText(RETRY_EXHAUSTED_TEXT)).toBeNull();
     expect(joinRoom).toHaveBeenCalledWith(ROOM_ID, PARTICIPANT_NAME, STORED_TOKEN);
   });
+
+  it('待っている間にエラーが下りたら（状態が届いた・利用者が閉じた）、入り直しを取り消す', async () => {
+    // #369 の特性テスト（効果を同期フックへ移す前に固定する）。待ちは拒否 1 回に結び付いており、
+    // エラーが変わると畳まれる
+    saveResumeIdentity({ code: ROOM_ID, participantId: 'p-stored', resumeToken: STORED_TOKEN, displayName: PARTICIPANT_NAME });
+    const { rerender } = render(<RoomPage roomId={ROOM_ID} sync={makeSync({ error: rateLimited() })} />);
+    joinRoom.mockClear(); // 画面を開いた時点の自動復帰は数えない
+    // When
+    rerender(<RoomPage roomId={ROOM_ID} sync={makeSync({ error: null })} />);
+    await advanceTimers(LONGER_THAN_ANY_DELAY_MS);
+    // Then
+    expect(joinRoom).not.toHaveBeenCalled();
+  });
 });
 
 describe('入り直せるかどうかで案内を変える', () => {

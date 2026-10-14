@@ -307,6 +307,14 @@ apps/tasuki-sync/src/adapters/ws/
 | 画面は同期クライアントを直接読まない | `audit-web-sync-boundary.mjs`（既存）。新しいパッケージを同期フックの側として扱うかを計画で決める |
 | WS の URL・接続状態の型は 1 か所 | `sync-client` から取る。写しが無いことを、`location.protocol === 'https:'` で引く検査かテストで確かめるかを計画で決める |
 
+> **追記（2026-10-14・R9 の実施 [`2026-10-14-refactor-r9-sync-hooks.md`](../plans/2026-10-14-refactor-r9-sync-hooks.md)）**:
+>
+> - **パッケージは `@tasuki/web-kit`。同期の部品は入口 `@tasuki/web-kit/sync` に分けた**（`useJoinRetry`・`useToolRoomSync`）。Markdown の描画（#371）は別の入口に置く。同期の入口は同期フックの側として扱い、お題・ルーレットの画面が直接読まないことをテストで固定した
+> - **WS の URL と接続状態の型は `sync-client` の 1 つ**（`buildSyncUrl`・`ConnectionStatus`）。写しは `audit-web-sync-boundary.mjs` の検査 4 が拒む。timer の画面の帯の状態の型は `StatusStripState` に改名した（別の意味の型）
+> - **お題・ルーレットは `useToolRoomSync` の上に作り直した。** 玄関・timer は混雑のやり直しの回数とタイマーだけを `useJoinRetry` に寄せ、失敗の仕分けはアプリに残した（玄関はまだ部屋に居ない・timer は `ui/error-action.ts`）
+> - **poker の入り直しは `useJoinRetry` に寄せていない。** 待ちが拒否 1 回に結び付いてエラーの変化で畳まれ、案内も名前の有無で変わるため（寄せると振る舞いが変わる）。画面（`RoomPage.tsx`）の効果は同期フックの側の `useRoomEntry` へ移した
+> - timer の同期フック（835 行）は、入口・答えの期限・画面の操作をサブフックとモジュールに分けた（611 行）
+
 ### 5.9 デザインシステム（#371・#372）
 
 - 押せる大きさのトークン（例: `--tap-target: 2.75rem`）を `packages/ui` のトークン層に足す（2026-10-13 の判断）

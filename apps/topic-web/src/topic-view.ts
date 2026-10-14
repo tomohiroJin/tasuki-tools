@@ -3,8 +3,9 @@
  */
 import type { TopicState } from '@tasuki/topic-core';
 import { DEGRADED_TEXT, GENERATING_TEXT, RECONNECTING_TEXT, STALE_TEXT, UNREACHABLE_TEXT } from './copy';
+// 接続状態の型の正本は `@tasuki/sync-client`（#369）。型だけを取る（実行時には同期クライアントを読まない）。
+import type { ConnectionStatus } from '@tasuki/sync-client';
 
-export type ConnectionStatus = 'connecting' | 'open' | 'closed';
 
 /**
  * 操作できるか。**切断中と参加前は押させない。**

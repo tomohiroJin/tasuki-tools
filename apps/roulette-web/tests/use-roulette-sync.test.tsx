@@ -6,7 +6,7 @@ import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { joinRetryDelayMs, loadResumeIdentity, saveResumeIdentity } from '@tasuki/sync-client';
 import { RETRY_EXHAUSTED_TEXT, RETRY_WAITING_TEXT } from '../src/copy';
-import { useRouletteSync } from '../src/hooks/use-roulette-sync';
+import { rouletteSyncUrl, useRouletteSync } from '../src/hooks/use-roulette-sync';
 import { phaseOf } from '../src/roulette-view';
 import {
   IDLE_ROULETTE,
@@ -306,5 +306,77 @@ describe('ルーレットの操作', () => {
     expect(result.current.error).toBe('2 人から回せます');
     act(() => latestSocket().deliver({ type: 'roulette', state: IDLE_ROULETTE }));
     expect(result.current.error).toBeNull();
+  });
+});
+
+/**
+ * お題のフックが固定していて、ルーレットに無かった振る舞い（#369 Task 1）。
+ * 2 つのフックは接続・参加・やり直しを共通の部品に載せ替えるので、同じ振る舞いを両方で固定する。
+ */
+describe('ルーレットのルームへの入り直し（#369 で共通の部品へ移す前の固定）', () => {
+  it('Given http と https / When URL を作る / Then ws と wss でルーレットの入口を指す', () => {
+    expect(rouletteSyncUrl({ protocol: 'http:', host: 'h:1' })).toBe('ws://h:1/ws?tool=roulette');
+    expect(rouletteSyncUrl({ protocol: 'https:', host: 'h' })).toBe('wss://h/ws?tool=roulette');
+  });
+
+  it('Given 入れていた接続が切れた / When 繋ぎ直す / Then もう一度入る', () => {
+    // Given
+    vi.useFakeTimers();
+    joinedHook();
+    // When: 切れて、再接続の待ち（既定の上限 30 秒）が過ぎて、新しい接続が開く
+    act(() => latestSocket().drop());
+    act(() => vi.advanceTimersByTime(30_000));
+    act(() => latestSocket().open());
+    // Then
+    expect(ScriptedWebSocket.instances).toHaveLength(2);
+    expect(latestSocket().sentJson().some((m) => m['command'] === 'room.join')).toBe(true);
+  });
+
+  it('Given 切れている間に別のタブが組を捨てた / When 繋ぎ直す / Then 入ろうとせずに玄関へ戻す印を立てる', () => {
+    // Given
+    vi.useFakeTimers();
+    const { result } = joinedHook();
+    act(() => latestSocket().drop());
+    localStorage.clear();
+    // When
+    act(() => vi.advanceTimersByTime(30_000));
+    act(() => latestSocket().open());
+    // Then
+    expect(latestSocket().sentJson().filter((m) => m['command'] === 'room.join')).toHaveLength(0);
+    expect(result.current.needsHub).toBe(true);
+  });
+
+  it('Given 入れた組の応答を待つ間に別のタブが組を捨てた / When 参加の応答が届く / Then 送った名前のまま保存する', () => {
+    // Given
+    saveResumeIdentity(RESUME);
+    renderHook(() => useRouletteSync('R1'));
+    act(() => latestSocket().open());
+    localStorage.clear();
+    // When
+    act(() => latestSocket().deliver({ ...JOINED, resumeToken: 't2' }));
+    // Then
+    expect(loadResumeIdentity('R1')).toEqual({ ...RESUME, resumeToken: 't2' });
+  });
+
+  it('Given 混雑で試行を使い切った / When 切れて繋ぎ直し、また拒まれる / Then 試行の数は戻っていて、待っていると伝える', () => {
+    // Given
+    vi.useFakeTimers();
+    saveResumeIdentity(RESUME);
+    const { result } = renderHook(() => useRouletteSync('R1'));
+    act(() => latestSocket().open());
+    for (let attempt = 1; joinRetryDelayMs(attempt) !== null; attempt += 1) {
+      act(() => latestSocket().deliver({ type: 'error', code: 'JOIN_RATE_LIMITED', message: 'x' }));
+      act(() => vi.advanceTimersByTime(60_000));
+    }
+    act(() => latestSocket().deliver({ type: 'error', code: 'JOIN_RATE_LIMITED', message: 'x' }));
+    expect(result.current.retryNotice).toBe(RETRY_EXHAUSTED_TEXT);
+    // When
+    act(() => latestSocket().drop());
+    act(() => vi.advanceTimersByTime(30_000));
+    act(() => latestSocket().open());
+    expect(result.current.retryNotice).toBeNull();
+    act(() => latestSocket().deliver({ type: 'error', code: 'JOIN_RATE_LIMITED', message: 'x' }));
+    // Then
+    expect(result.current.retryNotice).toBe(RETRY_WAITING_TEXT);
   });
 });
