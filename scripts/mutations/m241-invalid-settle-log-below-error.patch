@@ -11,12 +11,12 @@
 diff --git a/apps/tasuki-sync/src/application/roulette-handlers.ts b/apps/tasuki-sync/src/application/roulette-handlers.ts
 --- a/apps/tasuki-sync/src/application/roulette-handlers.ts
 +++ b/apps/tasuki-sync/src/application/roulette-handlers.ts
-@@ -165,7 +165,7 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
-           } else if (code === "INVALID_SETTLE") {
-             // 例外ではないので `name` は無い。元は行が無かった（#382）。INVALID_RANDOM と区別できるよう、
-             // 理由を語彙に置いた別の行を同じ水準（error）で残す。
+@@ -169,7 +169,7 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
+           }
+           if (code === "INVALID_SETTLE") {
+             // 例外ではないので `name` は無い。元は行が無かった（#382）。同じ水準（error）で残す。
 -            logger.error("roulette-random-violation", { reason: RANDOM_VIOLATION_REASONS.invalidSettle });
 +            logger.warn("roulette-random-violation", { reason: RANDOM_VIOLATION_REASONS.invalidSettle });
+             fail(connId, "INTERNAL_ERROR");
+             return;
            }
-           fail(connId, code === "INVALID_SETTLE" || code === "INVALID_RANDOM" ? "INTERNAL_ERROR" : code);
-           return;
