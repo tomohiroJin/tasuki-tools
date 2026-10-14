@@ -12,11 +12,13 @@
 # if 文が単文から早期 return を持つブロックへ変わった（パッチの文脈行がずれて
 # 当たらなくなっていたため、#290 で作り直した。変異そのもの ——
 # 「ルームが生きているときの setPhase("setup") を送らない」——は変えていない）。
-diff --git a/apps/timer-web/src/sync/use-timer-sync.ts b/apps/timer-web/src/sync/use-timer-sync.ts
-index cc3192d..00a862b 100644
---- a/apps/timer-web/src/sync/use-timer-sync.ts
-+++ b/apps/timer-web/src/sync/use-timer-sync.ts
-@@ -760,10 +760,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
+#
+# #369 で use-timer-sync.ts から画面の操作（`apps/timer-web/src/sync/timer-actions.ts`）へ移った先を壊す（ID と意味は変えていない）。
+diff --git a/apps/timer-web/src/sync/timer-actions.ts b/apps/timer-web/src/sync/timer-actions.ts
+index a4e844d..64c8e6e 100644
+--- a/apps/timer-web/src/sync/timer-actions.ts
++++ b/apps/timer-web/src/sync/timer-actions.ts
+@@ -110,10 +110,6 @@ export function createTimerActions({
      // かつてここに `redirectTo("/")` があったのは、#249 以前の `newSession` が
      // 「まっさらな新しいルームを作る」操作で、旧 `Setup`（＝作成画面）へ戻していた
      // 名残である。押した本人だけがルームから出されていた。

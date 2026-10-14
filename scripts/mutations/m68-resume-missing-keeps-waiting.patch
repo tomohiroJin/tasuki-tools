@@ -8,14 +8,14 @@
 # 復元: git checkout -- <対象ファイル>
 #
 diff --git a/apps/timer-web/src/sync/use-timer-sync.ts b/apps/timer-web/src/sync/use-timer-sync.ts
-index 2f6ba06..dfdc64c 100644
+index 677c492..081492a 100644
 --- a/apps/timer-web/src/sync/use-timer-sync.ts
 +++ b/apps/timer-web/src/sync/use-timer-sync.ts
-@@ -574,7 +574,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
+@@ -427,7 +427,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
              showBanner(JOIN_RETRY_EXHAUSTED_TEXT, "warn", { autoDismiss: false });
              // 送れなかったので期限も張られていない（`sendResumeJoin` は送れたときだけ
-             // 張る）。上の使い切りと同じく、ここで待つのをやめる（#292 のレビュー）。
+             // 張る）。下の使い切りと同じく、ここで待つのをやめる（#292 のレビュー）。
 -            giveUpJoinWait();
            }
-         }, delay);
-         return;
+         });
+         if (!scheduled) {
