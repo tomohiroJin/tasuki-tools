@@ -79,9 +79,14 @@ test.describe('@core ルーレットは全員の画面で同じ人に止まる',
     for (let round = 1; round <= 3; round += 1) {
       // A は前の回転が終わっていれば押せる（最初の回は回す前）
       await expect(spinButton(page)).toBeEnabled();
+      //   2 回目からは B に前の回の結果の一言が残っていて、それも RESULT に合う。本番の往復の遅れの間に
+      //   それを読むと、A と B が別の人を指したように見える（2026-10-14 の e2e:prod）。回す前の一言から
+      //   変わるのを待つ。2 人なので当たりは交互になり、新しい結果は前の回と必ず違う文になる
+      const beforeOnB = (await roulettePhrase(peer.page).textContent()) ?? '';
       await spinButton(page).click();
 
       // その1: B は動きを減らす設定なので、回転を待たず 1 秒以内に結果が出る
+      await expect(roulettePhrase(peer.page), `${round} 回目: B の一言が回す前から変わる`).not.toHaveText(beforeOnB, { timeout: 1000 });
       await expect(roulettePhrase(peer.page), `${round} 回目: B の一言`).toHaveText(RESULT, { timeout: 1000 });
       const winnerOnB = RESULT.exec((await roulettePhrase(peer.page).textContent()) ?? '')?.[1];
       expect(winnerOnB, `${round} 回目: B に出た名前`).toBeTruthy();
