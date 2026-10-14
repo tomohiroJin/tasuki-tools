@@ -7,7 +7,7 @@
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import { saveDefaultDisplayName, saveResumeIdentity } from '@tasuki/sync-client';
+import { joinRetryDelayMs, saveDefaultDisplayName, saveResumeIdentity } from '@tasuki/sync-client';
 import { App } from '../../src/App.js';
 
 /** 送った中身を覚え、サーバーからの応答を差し込める WebSocket。 */
@@ -486,6 +486,111 @@ describe('ルームの生死の照会', () => {
 
       // Then: 再送は 1 通だけ（直す前は A・B 両方が発火して 2 通になる）
       expect(joinsSent() - joinsBeforeRetries, '待った後に増えた room.join（再送分）').toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  /** 混雑で弾かれた知らせを 1 通届ける。 */
+  const rateLimited = (): void =>
+    act(() =>
+      socket().deliver({
+        type: 'error',
+        code: 'JOIN_RATE_LIMITED',
+        message: '試行が多すぎます。しばらくしてからお試しください',
+      }),
+    );
+
+  /** 試行を使い切るまで、弾かれては待つ。使い切った後の 1 通も届ける。 */
+  const exhaustRetries = (): void => {
+    for (let attempt = 1; joinRetryDelayMs(attempt) !== null; attempt += 1) {
+      rateLimited();
+      act(() => {
+        vi.advanceTimersByTime(60_000);
+      });
+    }
+    rateLimited();
+    act(() => {
+      vi.advanceTimersByTime(60_000);
+    });
+  };
+
+  it('Given 照会が混雑で弾かれ続ける / When 試行を使い切る / Then それ以上は送り直さず、サーバーの文を見せる', () => {
+    // #369 の特性テスト（玄関のやり直しを共通の部品へ移す前に固定する）
+    vi.useFakeTimers();
+    try {
+      openWithRoom('朝会モブ-a1b2');
+      render(<App />);
+      act(() => socket().open());
+
+      exhaustRetries();
+      const afterExhausted = checksSent();
+      act(() => {
+        vi.advanceTimersByTime(600_000);
+      });
+
+      expect(checksSent(), '使い切った後').toBe(afterExhausted);
+      let retries = 0;
+      while (joinRetryDelayMs(retries + 1) !== null) retries += 1;
+      expect(afterExhausted, '最初の照会と、使い切るまでの送り直し').toBe(1 + retries);
+      expect(screen.getByText('試行が多すぎます。しばらくしてからお試しください')).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('Given 照会の試行を使い切った / When 利用者が名乗って弾かれる / Then 数え直して送り直す', () => {
+    // #369 の特性テスト。利用者の操作（joinRoom）は試行の数を戻す
+    const joinsSent = (): number =>
+      socket().sent.filter((raw) => JSON.parse(raw).command === 'room.join').length;
+    vi.useFakeTimers();
+    try {
+      openWithRoom('朝会モブ-a1b2');
+      render(<App />);
+      act(() => socket().open());
+      exhaustRetries();
+
+      act(() => {
+        fireEvent.change(screen.getByLabelText('あなたの名前'), { target: { value: 'あや' } });
+        fireEvent.submit(screen.getByRole('button', { name: '参加する' }).closest('form')!);
+      });
+      expect(joinsSent(), '名乗った').toBe(1);
+      rateLimited();
+      act(() => {
+        vi.advanceTimersByTime(60_000);
+      });
+
+      expect(joinsSent(), '送り直した').toBe(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('Given 試行を使い切った後に入れた / When 再接続で入り直して弾かれる / Then 数え直して送り直す', () => {
+    // #369 の特性テスト。入れた（room.joined）ら試行の数を戻す
+    const joinsSent = (): number =>
+      socket().sent.filter((raw) => JSON.parse(raw).command === 'room.join').length;
+    vi.useFakeTimers();
+    try {
+      openWithRoom('朝会モブ-a1b2');
+      render(<App />);
+      act(() => socket().open());
+      act(() => {
+        fireEvent.change(screen.getByLabelText('あなたの名前'), { target: { value: 'あや' } });
+        fireEvent.submit(screen.getByRole('button', { name: '参加する' }).closest('form')!);
+      });
+      exhaustRetries();
+      const joinsBefore = joinsSent();
+
+      act(() =>
+        socket().deliver({ type: 'room.joined', code: '朝会モブ-a1b2', participantId: 'p1', resumeToken: 't1' }),
+      );
+      rateLimited();
+      act(() => {
+        vi.advanceTimersByTime(60_000);
+      });
+
+      expect(joinsSent() - joinsBefore, '入れた後に弾かれて送り直した').toBe(1);
     } finally {
       vi.useRealTimers();
     }
