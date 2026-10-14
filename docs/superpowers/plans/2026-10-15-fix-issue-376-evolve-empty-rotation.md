@@ -60,3 +60,16 @@
 
 変異を足すと `mutation-check.mjs` が差分に入り `--changed` が全件に倒れる（`docs/guides/development.md`）。
 そのため `--changed` は変異を足す前のコミットで流し、足した変異は `--id 220` で単独に流す。
+
+## レビュー（PR #392 の /code-review）を受けた追補
+
+1. **輪が空になったら時計も止める。** 表現は `SessionPaused` と同じ（残量を凍結し `isPaused: true`）。
+   画面の再開ボタンは `isPaused` のときだけ押せる（`apps/timer-web/src/ui/Session.tsx` の再開ボタン）ので、`isPaused: false` で止めると席を足し直しても再開できない。
+   止める処理は `evolve` の出口の 1 か所（`stopWithoutDriver`）に置く。空の輪に後から届く `SessionStarted`・`SessionResumed`・`BreakEnded`・`DriverTimerReset`・`SessionReset` もそれぞれ時計を走らせるため
+2. **範囲外の添字（負・長さ以上・整数でない）の `MemberRemoved` / `MemberMoved` は集約をそのまま返す。** 負の添字は `splice` が末尾から数え、整数でない添字は切り捨てられて別の席を動かしていた
+3. **添字の補助は 2 本にする（指示の `clampIndex` 1 本からの変更）。** `isSeatIndex`（範囲の判定）を `MemberRemoved` と `MemberMoved` の両方で使い、
+   `wrapIndex`（空なら 0、末尾を越えたら先頭へ回す）を `MemberRemoved` で使う。理由:
+   - 外した後の番号は「挟む（clamp）」ではなく「回す（wrap）」が既存の振る舞い（末尾の現ドライバーを外すと先頭の人が担当になる）。`clampIndex` の名前では誤読する
+   - `MemberMoved` の現ドライバーの追跡は、添字が範囲内なら必ず範囲内に収まる（`from === cur` なら `to`、それ以外は ±1 で `from` の手前で止まる）。そこへ挟む処理を置くと殺せない変異（等価変異）になる
+4. 性質のテストの生成器に範囲外の添字を混ぜ、空の輪の時計と範囲外の添字の不変性も各段で見る
+5. 変異は m220 を `wrapIndex` の空の輪の分岐に作り直し、m221〜m224 を足す（パッチは実装のコミットの後に作る）

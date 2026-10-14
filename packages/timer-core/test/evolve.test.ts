@@ -391,6 +391,60 @@ describe("evolve: MemberRemoved で輪が空になる（#376）", () => {
     expect(seatIds(next.session.rotation)).toEqual(["Bob"]);
     expect(next.session.currentIndex).toBe(0);
   });
+
+  it("Given 走っている 1 人の輪 / When その 1 人の MemberRemoved / Then 時計は残量を凍結して止まり、一時停止になる", () => {
+    // Given（NOW に走り出した輪。30 秒後に外す）
+    const agg = anAggregate().withRotation("Alice").running().build();
+    // When
+    const next = evolve(agg, { type: "MemberRemoved", index: 0, now: NOW + 30_000 }, NOW + 30_000);
+    // Then（SessionPaused と同じ表現。再開ボタンは isPaused のときだけ押せる）
+    expect(next.clock.running).toBe(false);
+    expect(next.clock.runningSince).toBeNull();
+    expect(next.clock.secondsLeftAtAnchor).toBe(agg.clock.secondsLeftAtAnchor - 30);
+    expect(next.session.isPaused).toBe(true);
+  });
+
+  it.each(["SessionStarted", "SessionResumed", "BreakEnded", "DriverTimerReset", "SessionReset"] as const)(
+    "Given 空になった輪 / When %s / Then 時計は回らない",
+    (type) => {
+      // Given
+      const emptied = evolve(anAggregate().withRotation("Alice").running().build(), { type: "MemberRemoved", index: 0, now: NOW }, NOW);
+      // When
+      const next = evolve(emptied, { type, now: NOW + 1000 }, NOW + 1000);
+      // Then
+      expect(next.clock.running).toBe(false);
+      expect(next.session.isPaused).toBe(true);
+    },
+  );
+});
+
+describe("evolve: 範囲外の添字の MemberRemoved / MemberMoved は集約を変えない（#376）", () => {
+  // `decide` は範囲外の添字を InvalidIndex で拒むので、通常の経路からは届かない。
+  const agg = (() => {
+    const a = anAggregate().withRotation("Alice", "Bob", "Charlie").build();
+    return { ...a, session: { ...a.session, currentIndex: 2 } };
+  })();
+
+  it.each([-1, 3, 4, 0.5])("MemberRemoved の index が %s", (index) => {
+    // When
+    const next = evolve(agg, { type: "MemberRemoved", index, now: NOW }, NOW);
+    // Then
+    expect(next).toEqual(agg);
+  });
+
+  it.each([
+    [-1, 0],
+    [0, -1],
+    [3, 0],
+    [0, 3],
+    [0.5, 2],
+    [0, 1.5],
+  ])("MemberMoved の fromIndex=%s・toIndex=%s", (fromIndex, toIndex) => {
+    // When
+    const next = evolve(agg, { type: "MemberMoved", fromIndex, toIndex, now: NOW }, NOW);
+    // Then
+    expect(next).toEqual(agg);
+  });
 });
 
 describe("evolve: MemberRemoved / MemberMoved の index 調整分岐", () => {

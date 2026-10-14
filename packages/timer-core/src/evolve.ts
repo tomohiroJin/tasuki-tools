@@ -38,6 +38,27 @@ function freezeRunningClock(clock: ServerClock, now: number): ServerClock {
 // 分岐側では event.now を使う。引数はイベントを持たない将来の適用や呼び出し規約の
 // 一貫性のために残す（全呼び出し箇所が渡している）。
 export function evolve(agg: Aggregate, event: DomainEvent, _now: number): Aggregate {
+  return stopWithoutDriver(evolveByType(agg, event), event.now);
+}
+
+/**
+ * 輪が空なら時計を止め、一時停止として表す（#376）。担当の居ない輪でタイマーを回さない。
+ *
+ * 表現は `SessionPaused` と同じ（残量を凍結し `isPaused: true`）。画面の再開ボタンは
+ * `isPaused` のときだけ押せるので、席を足し直した後に「再開」で走り出せる。
+ * 出口の 1 か所に置くのは、空の輪に後から届く `SessionStarted`・`SessionResumed`・`BreakEnded`・
+ * `DriverTimerReset`・`SessionReset` もそれぞれ時計を走らせるからである。
+ * `decide` は最後の 1 人の member.remove を拒むので、通常の経路からは届かない。
+ */
+function stopWithoutDriver(agg: Aggregate, now: number): Aggregate {
+  if (agg.session.rotation.length > 0) return agg;
+  return {
+    session: { ...agg.session, isPaused: true },
+    clock: freezeRunningClock(agg.clock, now),
+  };
+}
+
+function evolveByType(agg: Aggregate, event: DomainEvent): Aggregate {
   switch (event.type) {
     case "SessionStarted":
       return evolveSessionStarted(agg, event.now);
@@ -323,36 +344,38 @@ function evolveMemberAdded(agg: Aggregate, participantId: string): Aggregate {
   };
 }
 
+/**
+ * 輪の席を指す添字か（整数で `0 ≤ i < len`）。範囲外の添字の出し入れは集約を変えない（#376）。
+ * `decide` は範囲外を InvalidIndex で拒むので通常の経路からは届かないが、evolve は全域関数なので
+ * イベントを直接渡されても壊れた集約を返さない（負の添字は `splice` が末尾から数え、
+ * 整数でない添字は切り捨てられて、別の席を動かしてしまう）。
+ */
+function isSeatIndex(i: number, len: number): boolean {
+  return Number.isInteger(i) && i >= 0 && i < len;
+}
+
+/**
+ * 席を外した後の番号を輪に収める。空の輪なら 0（`nextEligibleIndex` の長さ 0 と同じ扱い。#376）、
+ * 末尾を越えた番号は先頭へ回す（末尾の現ドライバーを外すと、輪の次＝先頭の人が担当になる）。
+ * `% 0` は NaN になるので、空の輪を先に分ける。
+ */
+function wrapIndex(i: number, len: number): number {
+  return len === 0 ? 0 : i % len;
+}
+
 function evolveMemberRemoved(agg: Aggregate, index: number): Aggregate {
-  const newRotation = agg.session.rotation.filter((_, i) => i !== index);
-  const newDriverCounts = agg.session.driverCounts.filter((_, i) => i !== index);
-
-  // 輪が空になるなら currentIndex は 0（#376。`nextEligibleIndex` の長さ 0 と同じ扱い）。
-  // 下の `% newRotation.length` は `% 0` で NaN になり、clamp の Math.min/max も NaN を素通しする。
-  // `decide` は最後の 1 人の member.remove を拒むので通常の経路からは届かないが、
-  // evolve は全域関数なので、イベントを直接渡されても壊れた集約を返さない。
-  if (newRotation.length === 0) {
-    return {
-      ...agg,
-      session: { ...agg.session, rotation: newRotation, currentIndex: 0, driverCounts: newDriverCounts },
-    };
-  }
-
-  // currentIndex の調整
-  let newIndex = agg.session.currentIndex;
-  if (index < newIndex) {
-    newIndex = newIndex - 1;
-  } else if (index === newIndex) {
-    newIndex = newIndex % newRotation.length;
-  }
-
+  const { rotation, driverCounts, currentIndex } = agg.session;
+  if (!isSeatIndex(index, rotation.length)) return agg;
+  const newRotation = rotation.filter((_, i) => i !== index);
+  // 手前の席が抜けたら 1 つ詰める。現ドライバー自身が抜けたら同じ番号（＝次の人）のまま
+  const shifted = index < currentIndex ? currentIndex - 1 : currentIndex;
   return {
     ...agg,
     session: {
       ...agg.session,
       rotation: newRotation,
-      currentIndex: Math.max(0, Math.min(newIndex, newRotation.length - 1)),
-      driverCounts: newDriverCounts,
+      currentIndex: wrapIndex(shifted, newRotation.length),
+      driverCounts: driverCounts.filter((_, i) => i !== index),
     },
   };
 }
@@ -362,6 +385,8 @@ function evolveMemberMoved(
   fromIndex: number,
   toIndex: number,
 ): Aggregate {
+  const len = agg.session.rotation.length;
+  if (!isSeatIndex(fromIndex, len) || !isSeatIndex(toIndex, len)) return agg;
   const newRotation = [...agg.session.rotation];
   const newDriverCounts = [...agg.session.driverCounts];
 

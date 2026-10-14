@@ -187,7 +187,7 @@ export async function handleParticipantRemove(
     //
     // **最後の 1 席でも拒まない**（#290・D1）。見学者を先に繰り上げてから外すので、
     // 輪は一瞬も空にならない（担当の居ない輪を作らない。#376 より前は空の輪で
-    // `evolveMemberRemoved` が currentIndex を NaN にした。いまは 0 にするが、空の輪は認めない）。
+    // `evolveMemberRemoved` が currentIndex を NaN にした。いまは 0 にして時計も止めるが、空の輪は認めない）。
     // 拒否を残すのは候補が居ないときの防御で、**名簿が空でない限りここへは来ない** ——
     // 退出者が唯一の席を持つなら、残る名簿の全員が見学だからである。
     let working = { session: timer.session, clock: timer.clock };

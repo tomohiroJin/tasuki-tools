@@ -24,7 +24,7 @@ function invariantViolations(agg: Aggregate): string[] {
   const violations: string[] = [];
   // I1: rotation.length === driverCounts.length
   if (rotation.length !== driverCounts.length) violations.push("I1: rotation.length !== driverCounts.length");
-  // I2: currentIndex は、輪が空なら 0、それ以外は 0 ≤ i < rotation.length の整数（#376）
+  // I2: currentIndex の不変条件（正本は aggregate.ts の SessionState.currentIndex の注釈。#376）
   if (rotation.length === 0) {
     if (currentIndex !== 0) violations.push("I2: 輪が空なのに currentIndex が 0 でない");
   } else if (!(Number.isInteger(currentIndex) && currentIndex >= 0 && currentIndex < rotation.length)) {
@@ -222,7 +222,7 @@ describe("v2 不変条件プロパティテスト", () => {
  * （例: 担当を指名した後に、その手前の席を外す）。各段で見るのは次の 3 つ。
  *
  * - I1: `rotation.length === driverCounts.length`
- * - I2: `0 ≤ currentIndex < rotation.length`
+ * - I2: `currentIndex` の不変条件（正本は `aggregate.ts` の `SessionState.currentIndex` の注釈。この列では輪が空にならないので `0 ≤ currentIndex < rotation.length`）
  * - 輪が空にならない（`decide` が最後の 1 人の `member.remove` を拒む。製品の決まり「最後の 1 人は外れられない」の固定。
  *   空の輪を渡された evolve が壊れないことは、下の「evolve に直接流すイベントの列」が #376 で固定する）
  */
@@ -280,17 +280,19 @@ describe("全てのコマンドを混ぜた列での不変条件（#364）", () 
 });
 
 /**
- * evolve に直接流すイベントの列での `currentIndex` の不変条件（#376）。
+ * evolve に直接流すイベントの列での不変条件（#376）。
  *
- * 上の性質はどれも `decide` を通すので、`decide` が拒む「輪を空にする `MemberRemoved`」には届かない。
+ * 上の性質はどれも `decide` を通すので、`decide` が拒む入力（輪を空にする `MemberRemoved`・範囲外の添字）には届かない。
  * ここでは `decide` を通さずにイベントを組み、イベントの再生や将来の経路から届く入力を模す。
+ * evolve は全域関数（`evolve.ts` の冒頭）なので、どの入力でも次を保つ。
  *
- * 組むイベントは、`decide` が別に確かめている**添字の前提**（範囲内の添字・順列）だけは満たす。
- * 範囲外の添字は `decide` の `InvalidIndex` が止める別の前提で、この Issue の射程の外である。
- * 一方、**輪が空になる `MemberRemoved` は含める**（それが #376 の入力）。空の輪へ届いたあとの
- * イベント（交代・並べ替え・リセット・追加）も、そのまま流す。
+ * - I1・I2（`currentIndex` の不変条件。正本は `aggregate.ts` の `SessionState.currentIndex` の注釈）
+ * - 輪が空なら時計は止まり、一時停止として表す（担当の居ない輪でタイマーが回らない）
+ * - 範囲外の添字（負・輪の長さ以上・整数でない）の `MemberRemoved` / `MemberMoved` は集約を変えない
+ *
+ * 並べ替えの順列と交代先だけは前提を満たすものを組む（それぞれ `decide` が別に確かめる前提で、#376 の射程の外）。
  */
-describe("evolve に直接流すイベントの列での currentIndex の不変条件（#376）", () => {
+describe("evolve に直接流すイベントの列での不変条件（#376）", () => {
   type Event = Parameters<typeof evolve>[1];
   type Kind = "remove" | "add" | "move" | "shuffle" | "switch" | "session" | "reset";
   // 削除の重みを上げる。輪を空にしてから先の列を十分に作るため
@@ -302,19 +304,35 @@ describe("evolve に直接流すイベントの列での currentIndex の不変�
   const stepArb = fc.tuple(kindArb, fc.nat(), fc.nat());
   const SESSION_EVENTS = ["SessionStarted", "SessionPaused", "SessionResumed", "DriverTimerReset", "BreakStarted", "BreakEnded"] as const;
 
-  /** いまの集約に対して、添字の前提を満たすイベントを 1 つ組む（輪が空なら添字を要るものは別のイベントへ倒す） */
+  /**
+   * 席の添字を組む。範囲内を半分、範囲外（負・長さちょうど・長さより先・整数でない）を半分にする。
+   * 空の輪ではどれも範囲外になる。
+   */
+  function seatIndex(n: number, len: number): number {
+    const inRange = len === 0 ? 0 : n % len;
+    switch (n % 8) {
+      case 0: return -1 - (n % 3);
+      case 1: return len;
+      case 2: return len + 1 + (n % 3);
+      case 3: return inRange + 0.5;
+      default: return inRange;
+    }
+  }
+
+  function isSeatIndex(i: number, len: number): boolean {
+    return Number.isInteger(i) && i >= 0 && i < len;
+  }
+
+  /** いまの集約に対して、イベントを 1 つ組む */
   function eventFor(agg: Aggregate, [kind, a, b]: [Kind, number, number], now: number, serial: number): Event {
     const len = agg.session.rotation.length;
-    if (len === 0 && (kind === "remove" || kind === "move")) {
-      return { type: "MemberAdded", participantId: `P${serial}`, now };
-    }
     switch (kind) {
       case "remove":
-        return { type: "MemberRemoved", index: a % len, now };
+        return { type: "MemberRemoved", index: seatIndex(a, len), now };
       case "add":
         return { type: "MemberAdded", participantId: `P${serial}`, now };
       case "move":
-        return { type: "MemberMoved", fromIndex: a % len, toIndex: b % len, now };
+        return { type: "MemberMoved", fromIndex: seatIndex(a, len), toIndex: seatIndex(b, len), now };
       case "shuffle":
         // 回転は [0..len-1] の順列（空の輪では空の順列）
         return { type: "MembersShuffled", order: Array.from({ length: len }, (_, i) => (i + a) % len), now };
@@ -327,34 +345,52 @@ describe("evolve に直接流すイベントの列での currentIndex の不変�
     }
   }
 
-  it("Given 1〜3 人の輪 / When 輪を空にする MemberRemoved を含む任意のイベントの列を evolve へ直接流す / Then 各段で currentIndex は空なら 0、それ以外は 0 ≤ i < 輪の長さの整数", () => {
+  /** 範囲外の添字を持つ席の出し入れか */
+  function hasOutOfRangeIndex(event: Event, len: number): boolean {
+    if (event.type === "MemberRemoved") return !isSeatIndex(event.index, len);
+    if (event.type === "MemberMoved") return !isSeatIndex(event.fromIndex, len) || !isSeatIndex(event.toIndex, len);
+    return false;
+  }
+
+  it("Given 1〜3 人の走っている輪 / When 輪を空にする MemberRemoved と範囲外の添字を含む任意のイベントの列を evolve へ直接流す / Then 各段で I1・I2 が成り立ち、空の輪の時計は一時停止で止まり、範囲外の添字は集約を変えない", () => {
     let reachedEmpty = 0;
+    let sawOutOfRange = 0;
     fc.assert(
       fc.property(
         fc.integer({ min: 1, max: 3 }),
         fc.array(stepArb, { minLength: 0, maxLength: 30, size: "max" }),
         fc.integer({ min: 1000000, max: 2000000 }),
         (initialSize, steps, startTime) => {
-          // Given
+          // Given（走っている輪から始める。止まった輪から始めると「空の輪で時計が回る」に届かない）
           const ids = ["A", "B", "C"].slice(0, initialSize);
-          let agg = anAggregate().withRotation(...ids).build();
+          let agg = anAggregate().withRotation(...ids).running().build();
           let now = startTime;
           let serial = 0;
-          let sawEmpty = false;
           for (const step of steps) {
             // When
-            agg = evolve(agg, eventFor(agg, step, now, serial++), now);
+            const event = eventFor(agg, step, now, serial++);
+            const before = agg;
+            agg = evolve(agg, event, now);
             now += 1000;
-            if (agg.session.rotation.length === 0) sawEmpty = true;
             // Then
-            expect(invariantViolations(agg)).toEqual([]);
+            const violations = invariantViolations(agg);
+            if (agg.session.rotation.length === 0) {
+              reachedEmpty++;
+              if (agg.clock.running) violations.push("空の輪で時計が回っている");
+              if (!agg.session.isPaused) violations.push("空の輪が一時停止になっていない");
+            }
+            if (hasOutOfRangeIndex(event, before.session.rotation.length)) {
+              sawOutOfRange++;
+              expect(agg).toEqual(before);
+            }
+            expect(violations).toEqual([]);
           }
-          if (sawEmpty) reachedEmpty++;
         },
       ),
       { numRuns: 300 },
     );
-    // 生成が輪を空にする列を作れていること（作れていなければこの性質は #376 の入力を突いていない）
+    // 生成が #376 の入力を作れていること（作れていなければこの性質は何も突いていない）
     expect(reachedEmpty).toBeGreaterThan(0);
+    expect(sawOutOfRange).toBeGreaterThan(0);
   });
 });
