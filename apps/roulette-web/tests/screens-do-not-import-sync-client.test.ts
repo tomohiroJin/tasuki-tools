@@ -31,7 +31,12 @@ describe('同期クライアントを読むのは同期フックだけ', () => {
     const files = sourceFiles();
     // When
     const offenders = files.filter(
-      (file) => !ALLOWED.has(file) && /from\s+['"]@tasuki\/(?:sync-client|web-kit\/sync)['"]/.test(readFileSync(path.join(SRC, file), 'utf8')),
+      (file) =>
+        !ALLOWED.has(file) &&
+        readFileSync(path.join(SRC, file), 'utf8')
+          .split('\n')
+          // 型だけの取り込み（`import type`）は実行時に同期クライアントを読まないので数えない（#369。接続状態の型の正本）。
+          .some((line) => !/^\s*import\s+type\b/.test(line) && /from\s+['"]@tasuki\/(?:sync-client|web-kit\/sync)['"]/.test(line)),
     );
     // Then（走査が空振りしていないことも固定する）
     expect(offenders).toEqual([]);

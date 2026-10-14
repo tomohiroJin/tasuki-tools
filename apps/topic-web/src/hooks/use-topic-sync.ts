@@ -29,9 +29,6 @@ import type { Difficulty, Language, TopicCommand, TopicState } from '@tasuki/top
 import { DEFAULT_ERROR_TEXT, RETRY_EXHAUSTED_TEXT, RETRY_WAITING_TEXT } from '../copy';
 import { parseTopicWebMessage } from '../server-message';
 
-/** 接続状態（正本は `@tasuki/sync-client`）。画面の判断（`topic-view.ts`）はここから型だけを取る。 */
-export type { ConnectionStatus };
-
 /** 同期サーバーへの URL。**入口は玄関と同じ `/ws` で、ツールはクエリが宣言する**。 */
 export function topicSyncUrl(location: { protocol: string; host: string }): string {
   return buildSyncUrl(location, 'topic');

@@ -254,24 +254,30 @@ export function findDisallowedWsHolders(files, app) {
   return found;
 }
 
-/** 宣言から導出したリポジトリ相対パスの一覧（実在確認の入力）。 */
 /**
  * 検査 4: 同期の接続の写し（#369）。WS の URL の組み立てと接続状態の型（`ConnectionStatus`）は
  * `@tasuki/sync-client` が持つ（`buildSyncUrl`・`ConnectionStatus`）。web アプリの `src` に
  * 同じものを書き直すと、片方だけが直る（5 つの写しを 1 つにしたときの守り）。
  *
- * 見るのは字面である（コメントの中の語も拾う。`audit-domain-side-effects` と同じ作法）。
+ * 見るのは字面である。**コメントの行は見ない**（写しを外した経緯を説明する文が赤にならないように）。
+ * URL の組み立ては書き方が何通りもあるので、`https:` との比べ方の主な形と、`wss` の文字列そのものを拾う。
  * 型の再公開（`export type { ConnectionStatus }`）は写しではないので拾わない。
  */
 const SYNC_COPY_PATTERNS = [
   { label: "接続状態の型の写し（sync-client の ConnectionStatus を使う）", re: /type\s+ConnectionStatus\s*=/ },
-  { label: "WS の URL の組み立ての写し（sync-client の buildSyncUrl を使う）", re: /protocol\s*===\s*["']https:["']/ },
+  {
+    label: "WS の URL の組み立ての写し（sync-client の buildSyncUrl を使う）",
+    re: /protocol\s*===\s*["'`]https:?["'`]|["'`]https:?["'`]\s*===\s*[\w.]*protocol|protocol\.startsWith\(\s*["'`]https|["'`]wss(?::|["'`])/,
+  },
 ];
+
+/** コメントの行（`//`・`/*`・`*` で始まる行）。 */
+const COMMENT_LINE = /^\s*(?:\/\/|\/\*|\*)/;
 
 export function findSyncCopies(files) {
   return files.flatMap((file) =>
     file.lines.flatMap((text, i) =>
-      SYNC_COPY_PATTERNS.filter((p) => p.re.test(text)).map((p) => ({
+      (COMMENT_LINE.test(text) ? [] : SYNC_COPY_PATTERNS.filter((p) => p.re.test(text))).map((p) => ({
         path: file.path,
         line: i + 1,
         label: p.label,
@@ -281,6 +287,7 @@ export function findSyncCopies(files) {
   );
 }
 
+/** 宣言から導出したリポジトリ相対パスの一覧（実在確認の入力）。 */
 export function declaredPathsOf(app) {
   return [
     app.app,

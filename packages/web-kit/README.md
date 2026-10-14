@@ -9,6 +9,13 @@ web アプリが共有する React の部品（#360 の波 2・設計正本 §5.
 
 - `useJoinRetry(texts)` — 混雑で参加を拒まれたときの、待ってからの送り直し。待つ時間と回数の上限は
   `@tasuki/sync-client` の `joinRetryDelayMs` が決め、このフックは回数・タイマー・知らせの文言を持つ
+- `useToolRoomSync(options)` — 1 つのルームへ入るツールの画面（お題・ルーレット）の同期の共通部分。
+  接続と接続の状態・保存した組での参加と入り直し・参加の失敗の扱い（`planForJoinError`）・混雑のやり直しを持つ。
+  ツール固有のフレームとコマンドは持たず、受けたフレームは `onFrame` でツールのフックへ渡す
+
+今のところ使っているのはお題（`apps/topic-web`）とルーレット（`apps/roulette-web`）の同期フック。
+玄関・ポーカー・タイマーの同期フックの寄せは、#369 の後半の PR で行う
+（`docs/superpowers/plans/2026-10-14-refactor-r9-sync-hooks.md` の Task 8〜11）。
 
 依存してよいのは `react`（peer）と `@tasuki/sync-client` だけ（`scripts/audit-dependency-direction.mjs`）。
 ドメインの core には依存しない。`@tasuki/invite-ui` は同期に依存しないと決めてある（`docs/adr/0020`）ので、

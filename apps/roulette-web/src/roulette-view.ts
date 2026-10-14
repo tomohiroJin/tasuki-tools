@@ -20,9 +20,9 @@ import {
   resultText,
   spunByText,
 } from './copy';
+// 接続状態の型の正本は `@tasuki/sync-client`（#369）。型だけを取る（実行時には同期クライアントを読まない）。
+import type { ConnectionStatus } from '@tasuki/sync-client';
 
-// 接続状態の型の正本は `@tasuki/sync-client`（#369）。画面の判断は同期クライアントを読まないので、同期フックが渡す型を使う（型だけの取り込み）。
-import type { ConnectionStatus } from './hooks/use-roulette-sync';
 
 /**
  * 操作できるか。**切断中と参加前は押させない。**
