@@ -19,6 +19,7 @@ import type { Locator, Page } from '@playwright/test';
 import { expect, test } from '../fixtures/test';
 import { expectFieldsAtLeast16px, expectScreenAcrossWidths, expectTouchTargets } from '../support/a11y';
 import { chooseCard } from '../support/poker';
+import { addRouletteGuest, expectCardNameNotCovered, openRouletteFromHub, spinButton } from '../support/roulette';
 import { openTopicTool, setTopic } from '../support/topic';
 import { createRoom as createTimerRoom } from '../support/timer';
 
@@ -256,8 +257,36 @@ test.describe('お題ツールのボタンは部品で、押せる大きさが�
     await expect(page.getByRole('tab', { name: '下書き' })).toHaveAttribute('aria-selected', 'true');
     await expect(page.locator('.topic-foot-note')).toBeVisible();
     await expectScreen(page, 'お題ツール（下書き）', 3);
+
+    // 同じルームでルーレット（#94 PR 3・ルームは足さない）。入る人を 2 人にするため、名前を 1 つ追加する
+    await page.setViewportSize({ width: 390, height: 800 });
+    await page.getByRole('link', { name: '選択画面へ戻る' }).click();
+    await openRouletteFromHub(page);
+    await addRouletteGuest(page, 'buttons-guest');
+    await expect(spinButton(page)).toBeEnabled();
+    await expectScreen(page, 'ルーレット（回す前）', ROULETTE_BUTTONS);
+
+    // 回して止まった後（札の表・当たりの席が描かれてから測る）
+    await spinButton(page).click();
+    await expect(page.locator('.roulette-card.is-revealed')).toBeVisible({ timeout: 8000 });
+    await expect(spinButton(page)).toBeEnabled();
+    await expectScreen(page, 'ルーレット（止まった後）', ROULETTE_BUTTONS);
+
+    // 320×640: 円盤・札・下端の帯が 1 画面に入るかが怪しい最小の画面。回して止まったあと、札の名前を突くと札に当たる
+    await page.setViewportSize({ width: 320, height: 640 });
+    //   利用者が下（入る人の一覧）まで読み進めたところで回す。札は画面の上へ外れているので、止まったら寄せる必要がある
+    //   （先頭にいると札が最初から見え、寄せる処理を外しても緑のままになる・実測）
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    //   `click()` は押す前に自分でボタンを見える位置へ寄せてしまい、札も一緒に見えて検査が空振りする。DOM の click で押す
+    await spinButton(page).evaluate((el) => (el as HTMLElement).click());
+    await expect(spinButton(page)).toBeDisabled();
+    await expect(spinButton(page)).toBeEnabled({ timeout: 8000 });
+    await expectCardNameNotCovered(page);
   });
 });
+
+/** ルーレットの画面にある部品のボタン（戻る・回す・名前を追加・一周をやり直す・招待リンクをコピー・名前を消す） */
+const ROULETTE_BUTTONS = 6;
 
 /**
  * timer の各画面（#316 PR 3・Task 4b）。ルームは 1 つ。参加者 6 人（うち 1 人は 30 字の名前）は代理追加で作る

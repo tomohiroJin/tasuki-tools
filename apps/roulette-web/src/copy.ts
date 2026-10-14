@@ -28,6 +28,10 @@ export const SPIN_BUTTON = 'ルーレットを回す';
 export const SPINNING_BUTTON = '回しています…';
 export const SPIN_AGAIN_BUTTON = 'もう一度回す';
 
+// 結果の札（表。円盤の指し針が差し出す 1 枚）。読み上げは一言が持つので札は aria-hidden
+export const CARD_LABEL = '次の進行役';
+export const CARD_SUFFIX = 'さん';
+
 // 結果の一言（role="status"）
 export const CAPTION_IDLE = '回すと、次の進行役が決まります';
 export const spunByText = (name: string): string => `${name} さんが回しました`;

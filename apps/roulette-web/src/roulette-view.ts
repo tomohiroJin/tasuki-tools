@@ -35,8 +35,11 @@ export function canOperate(status: ConnectionStatus, joined: boolean): boolean {
 
 type Spin = NonNullable<RouletteView['spin']>;
 
-/** 回転の経過（ms）。サーバーが送った経過に、受け取ってからの時間を足す（0〜`durationMs`）。 */
-function elapsedOf(spin: Spin, receivedAt: number, nowMs: number): number {
+/**
+ * 回転の経過（ms）。サーバーが送った経過に、受け取ってからの時間を足す（0〜`durationMs`）。
+ * 局面（`phaseOf`）と円盤の角度（`useWheelRotation`）が同じこの関数で経過を出す。
+ */
+export function elapsedOf(spin: Spin, receivedAt: number, nowMs: number): number {
   return Math.min(spin.durationMs, Math.max(0, spin.elapsedMs + (nowMs - receivedAt)));
 }
 
@@ -74,6 +77,14 @@ export function membersOf(roster: RosterRoom | null): Member[] {
 /** `poolOf` が読む形（`excluded` と `guests` だけが効く）。 */
 function stateOf(view: RouletteView): RouletteState {
   return { excluded: view.excluded, guests: view.guests, drawn: view.drawn, lastSpin: null, nextGuestSeq: 1 };
+}
+
+/**
+ * いまの入る人（円盤の席の並び）。サーバーの `poolOf` と同じ関数に聞く。画面はこれを 1 回だけ組み、
+ * 一覧（`peopleOf`）と円盤（`wheelSeatsOf`）へ渡す。
+ */
+export function poolOfView(members: readonly Member[], view: RouletteView): Entry[] {
+  return poolOf(members, stateOf(view), conflictsWithExisting);
 }
 
 /** 回転の当たり（無ければ null）。 */
@@ -118,12 +129,14 @@ export function peopleOf(input: {
   view: RouletteView;
   selfId: string | null;
   phase: Phase;
+  /** いまの入る人（`poolOfView`） */
+  pool: readonly Entry[];
 }): People {
-  const { members, view, selfId, phase } = input;
+  const { members, view, selfId, phase, pool } = input;
   const winnerId = phase === 'spinning' ? (winnerOf(view)?.id ?? null) : null;
   const drawn = new Set(view.drawn.filter((id) => id !== winnerId));
   const excluded = new Set(view.excluded);
-  const poolIds = new Set(poolOf(members, stateOf(view), conflictsWithExisting).map((e) => e.id));
+  const poolIds = new Set(pool.map((e) => e.id));
 
   const markOf = (id: string, away: boolean, twin = false): RowMark =>
     away ? 'away' : twin ? 'twin' : poolIds.has(id) && drawn.has(id) ? 'drawn' : null;

@@ -1,0 +1,25 @@
+# 変異 174: 回転の終わりを timer で保証しない（rAF が止まると止まらない）
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/wheel.test.tsx
+#     describe「回転」の「Given rAF を 1 度も呼ばない環境 / When durationMs が過ぎる / Then timer で止まり、当たりの席と札の表が出る」
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m174-*.patch
+# 復元: git apply -R scripts/mutations/m174-*.patch
+#
+# #94 spec §6.4。裏のタブやヘッドレスのブラウザでは rAF が止まる・間引かれる（2026-10-12 のヘッドレスの
+# 撮影で、4 秒の回転が 14 秒後まで止まって見えなかった）。終わりは rAF に頼らず、残り時間の timer が保証する。
+# PR #383 のレビューで「止まったか」の時計を画面の `useNowMs` の 1 つに寄せたので、壊す timer もそこへ移した。
+diff --git a/apps/roulette-web/src/screens/RouletteRoom.tsx b/apps/roulette-web/src/screens/RouletteRoom.tsx
+--- a/apps/roulette-web/src/screens/RouletteRoom.tsx
++++ b/apps/roulette-web/src/screens/RouletteRoom.tsx
+@@ -49,7 +49,7 @@
+     if (endAt === null) return;
+     const delay = endAt - performance.now();
+     if (delay <= 0) return;
+-    const timer = setTimeout(() => setTick(performance.now()), delay + 30);
++    const timer = setTimeout(() => undefined, delay + 30);
+     return () => clearTimeout(timer);
+   }, [endAt]);
+   return Math.max(tick, receivedAt);

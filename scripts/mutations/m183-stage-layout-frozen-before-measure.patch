@@ -1,0 +1,26 @@
+# 変異 183: 回転中にマウントした舞台を、測る前の既定値（縦積み）のまま凍らせる
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/wheel.test.tsx
+#     describe「回転中にマウントした広い舞台」の
+#     「Given 舞台の幅が 1000px / When 回転の途中（経過 1 秒）で入り、止まるまで待つ / Then …横並び・指し針は右で…」
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m183-*.patch
+# 復元: git apply -R scripts/mutations/m183-*.patch
+#
+# #94 spec §6.7（PR #383 のレビュー）。凍結は「測った値」を保つもので、測る前の既定値を保つものではない。
+# 最初の測りまで凍結に従わせると、再読み込み・途中入室の画面は広い舞台でも回っている間ずっと縦積み（指し針が下）
+# のまま凍り、止まった瞬間に横並びへ跳んで止まる角度が 90° 変わり、円盤が一瞬で回る。
+diff --git a/apps/roulette-web/src/hooks/use-stage-layout.ts b/apps/roulette-web/src/hooks/use-stage-layout.ts
+--- a/apps/roulette-web/src/hooks/use-stage-layout.ts
++++ b/apps/roulette-web/src/hooks/use-stage-layout.ts
+@@ -23,7 +23,7 @@
+ 
+   useLayoutEffect(() => {
+     if (stage === null) return;
+-    setLayout(stageLayoutFor(stage.clientWidth));
++    if (!frozenRef.current) setLayout(stageLayoutFor(stage.clientWidth));
+     if (typeof ResizeObserver === 'undefined') return;
+     const observer = new ResizeObserver(() => {
+       if (!frozenRef.current) setLayout(stageLayoutFor(stage.clientWidth));
