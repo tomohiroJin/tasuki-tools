@@ -10,14 +10,14 @@
 # #387。機構を変えた枝で --changed が機構の変異だけ（あるいは 0 件）を流し、
 # 変えた機構が他の変異の検出を壊していても手元で気づけなくなる。
 diff --git a/scripts/lib/mutation-select.mjs b/scripts/lib/mutation-select.mjs
-index 5d37d247..9ff366eb 100644
+index 08f58551..12469222 100644
 --- a/scripts/lib/mutation-select.mjs
 +++ b/scripts/lib/mutation-select.mjs
-@@ -107,7 +107,6 @@ function selectByChange(mutations, { changedFiles, mechanismFiles, patchDir, aff
+@@ -112,7 +112,6 @@ function selectByChange(mutations, { changedFiles, mechanismFiles, patchDir, aff
    if (changedFiles === null) return all("差分が取れない");
    const changed = new Set(changedFiles);
    const touchedMechanism = mechanismFiles.filter((f) => changed.has(f));
 -  if (touchedMechanism.length > 0) return all(`変異検査の機構が変わった（${touchedMechanism.join(", ")}）`);
+   const rootConfigs = changedFiles.filter((f) => !f.includes("/") && !f.endsWith(".md"));
+   if (rootConfigs.length > 0) return all(`ルートの共通設定が変わった（${rootConfigs.join(", ")}）`);
  
-   const selected = [];
-   for (const mutation of mutations) {
