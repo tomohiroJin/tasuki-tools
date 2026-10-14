@@ -546,10 +546,14 @@ export function sc039dContractOnlyValues(contractFiles, productSources) {
       throw new Error(`SC-039④ の走査対象が packages/ 層のパスではありません: ${file}`);
     }
     const ownPrefix = `packages/${packageName}/`;
+    // サブパスの入口（`src/<sub>/index.ts`。`package.json` の `exports` の `./<sub>`）は、そのサブパスからの
+    // 取り込みだけを根拠にする（#371。`@tasuki/web-kit/reader`）。本体の入口は従来どおり本体からの取り込みだけ。
+    const subpath = /^packages\/[^/]+\/src\/(.+)\/index\.tsx?$/.exec(file)?.[1];
+    const specifierTail = subpath === undefined ? packageName : `${packageName}/${subpath}`;
     const importedFromOutside = new Set();
     for (const [f, src] of productSources) {
       if (f.startsWith(ownPrefix)) continue;
-      for (const name of extractNamedImportsFromPackage(src, packageName)) {
+      for (const name of extractNamedImportsFromPackage(src, specifierTail)) {
         importedFromOutside.add(name);
       }
     }

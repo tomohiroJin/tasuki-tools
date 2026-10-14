@@ -1706,6 +1706,18 @@ describe("SC-039④: 公開契約に載っているだけの値（#182）", () =
       assert.equal(sc039dContractOnlyValues(indexOf("export { a } from './a';"), productSources), 0);
     });
 
+    test("サブパスの入口（src/<sub>/index.ts）は、そのサブパスからの取り込みで生きている（#371）", () => {
+      // Given: `./reader` の入口が a を列挙し、アプリが `@tasuki/x/reader` から取り込む
+      const contract = new Map([["packages/x/src/reader/index.ts", "export { a } from './a';"]]);
+      const fromReader = new Map([["apps/app/src/main.ts", "import { a } from '@tasuki/x/reader';"]]);
+      const fromRoot = new Map([["apps/app/src/main.ts", "import { a } from '@tasuki/x';"]]);
+      const fromOther = new Map([["apps/app/src/main.ts", "import { a } from '@tasuki/x/sync';"]]);
+      // When / Then
+      assert.equal(sc039dContractOnlyValues(contract, fromReader), 0);
+      assert.equal(sc039dContractOnlyValues(contract, fromRoot), 1, "本体からの取り込みはサブパスの入口の根拠にしない");
+      assert.equal(sc039dContractOnlyValues(contract, fromOther), 1, "別のサブパスからの取り込みも根拠にしない");
+    });
+
     test("型は数えない（公開している値の署名から到達できるため）", () => {
       // Given: 誰も取り込まない型だけを列挙する
       const productSources = new Map([["apps/app/src/main.ts", "何も取り込まない"]]);
