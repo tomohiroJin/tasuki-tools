@@ -31,8 +31,7 @@ interface Props {
   onClear(): void;
 }
 
-type TabId = ReaderTab;
-const TABS: readonly { readonly id: TabId; readonly label: string }[] = [
+const TABS: readonly { readonly id: ReaderTab; readonly label: string }[] = [
   { id: 'current', label: TAB_CURRENT },
   { id: 'draft', label: TAB_DRAFT },
 ];
@@ -71,7 +70,7 @@ export function CurrentTopic({ state, enabled, draft, onCopyToDraft, onClear }: 
   const baseId = useId();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const moreRef = useRef<HTMLButtonElement>(null);
-  const [active, setActive] = useState<TabId>('current');
+  const [active, setActive] = useState<ReaderTab>('current');
 
   const filled = !isDraftBlank(draft.title, draft.body);
   const [wasFilled, setWasFilled] = useState(filled);
@@ -83,8 +82,8 @@ export function CurrentTopic({ state, enabled, draft, onCopyToDraft, onClear }: 
   const draftTitle = useDeferredValue(draft.title);
   const draftBody = useDeferredValue(draft.body);
 
-  const tabId = (id: TabId) => `${baseId}-tab-${id}`;
-  const panelId = (id: TabId) => `${baseId}-panel-${id}`;
+  const tabId = (id: ReaderTab) => `${baseId}-tab-${id}`;
+  const panelId = (id: ReaderTab) => `${baseId}-panel-${id}`;
   const onTabKeyDown = (event: KeyboardEvent, index: number) => {
     if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
     event.preventDefault();

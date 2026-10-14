@@ -263,7 +263,8 @@ export function Session({
             {nextIndex === null && (
               <span className="session-next-note">（交代できる人がいません）</span>
             )}
-            {room.config.navigatorEnabled && navigatorName && (
+            {/* 出すかどうか（有効か・輪が 2 人以上か）は `session-view.ts` の `driverNames` が決める */}
+            {navigatorName && (
               <span className="session-navigator">ナビ: <span className="session-navigator-name">{navigatorName}</span></span>
             )}
           </div>

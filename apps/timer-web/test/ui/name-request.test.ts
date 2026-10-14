@@ -14,6 +14,8 @@ import {
   planNameSubmit,
   someoneHolds,
   type NameRequestState,
+  type ProxyPending,
+  type RenamePending,
 } from "../../src/ui/name-request.js";
 
 const pool = [
@@ -61,36 +63,45 @@ describe("planNameSubmit", () => {
 
 describe("nameRequestReducer", () => {
   it("拒むたびに通し番号が進み、待ちはそのまま", () => {
-    const waiting: NameRequestState = { pending: { normalized: "うた" }, rejection: null };
+    const waiting: NameRequestState<ProxyPending> = { pending: { normalized: "うた" }, rejection: null };
     const once = nameRequestReducer(waiting, { type: "rejected", typed: "あや", normalized: "あや" });
     const twice = nameRequestReducer(once, { type: "rejected", typed: "あや", normalized: "あや" });
     expect(twice).toEqual({ pending: { normalized: "うた" }, rejection: { typed: "あや", normalized: "あや", attempt: 2 } });
   });
 
   it("送ったら理由を下ろし、名簿に現れるのを待つ", () => {
-    const rejected: NameRequestState = { pending: null, rejection: { typed: "あや", normalized: "あや", attempt: 1 } };
-    expect(nameRequestReducer(rejected, { type: "sent", normalized: "うた", participantId: "i" })).toEqual({
+    const rejected: NameRequestState<RenamePending> = { pending: null, rejection: { typed: "あや", normalized: "あや", attempt: 1 } };
+    expect(nameRequestReducer(rejected, { type: "sent", pending: { normalized: "うた", participantId: "i" } })).toEqual({
       pending: { normalized: "うた", participantId: "i" },
       rejection: null,
     });
   });
 
   it("正規形が空の名前は待たない（サーバーが規約で弾く）", () => {
-    expect(nameRequestReducer(INITIAL_NAME_REQUEST, { type: "sent", normalized: "" })).toEqual(INITIAL_NAME_REQUEST);
+    expect(nameRequestReducer<ProxyPending>(INITIAL_NAME_REQUEST, { type: "sent", pending: { normalized: "" } })).toEqual(
+      INITIAL_NAME_REQUEST,
+    );
+  });
+
+  it("改名の送りは、相手の識別子を持たないと型が通さない（着いたかを識別子で確かめるため）", () => {
+    const rename = (action: Parameters<typeof nameRequestReducer<RenamePending>>[1]) =>
+      nameRequestReducer<RenamePending>(INITIAL_NAME_REQUEST, action);
+    // @ts-expect-error 改名の待ちには participantId が要る
+    expect(rename({ type: "sent", pending: { normalized: "うた" } }).pending).toEqual({ normalized: "うた" });
   });
 
   it("名簿に現れたら待ちを下ろす（理由はそのまま）", () => {
-    const state: NameRequestState = { pending: { normalized: "うた" }, rejection: { typed: "x", normalized: "x", attempt: 1 } };
+    const state: NameRequestState<ProxyPending> = { pending: { normalized: "うた" }, rejection: { typed: "x", normalized: "x", attempt: 1 } };
     expect(nameRequestReducer(state, { type: "arrived" })).toEqual({ pending: null, rejection: state.rejection });
   });
 
   it("打ち直したら理由だけを下ろす（待ちはそのまま）", () => {
-    const state: NameRequestState = { pending: { normalized: "うた" }, rejection: { typed: "x", normalized: "x", attempt: 1 } };
+    const state: NameRequestState<ProxyPending> = { pending: { normalized: "うた" }, rejection: { typed: "x", normalized: "x", attempt: 1 } };
     expect(nameRequestReducer(state, { type: "retyped" })).toEqual({ pending: state.pending, rejection: null });
   });
 
   it("やめたら待ちも理由も下ろす", () => {
-    const state: NameRequestState = { pending: { normalized: "うた" }, rejection: { typed: "x", normalized: "x", attempt: 1 } };
+    const state: NameRequestState<ProxyPending> = { pending: { normalized: "うた" }, rejection: { typed: "x", normalized: "x", attempt: 1 } };
     expect(nameRequestReducer(state, { type: "reset" })).toEqual(INITIAL_NAME_REQUEST);
   });
 });

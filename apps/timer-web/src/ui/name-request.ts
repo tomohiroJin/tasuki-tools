@@ -37,29 +37,38 @@ export interface Rejection {
   readonly attempt: number;
 }
 
-/** 送った名前。改名は着いたかどうかを**識別子で**確かめる（代理の追加は識別子を持たない）。 */
-export interface PendingName {
+/** 送った代理の名前（代理は識別子を持たない）。 */
+export interface ProxyPending {
   readonly normalized: string;
-  readonly participantId?: string;
 }
 
-export interface NameRequestState {
+/** 送った改名。着いたかどうかは**識別子で**確かめる。 */
+export interface RenamePending {
+  readonly participantId: string;
+  readonly normalized: string;
+}
+
+export interface NameRequestState<P> {
   /** 送って、名簿に現れるのを待っている名前。 */
-  readonly pending: PendingName | null;
+  readonly pending: P | null;
   readonly rejection: Rejection | null;
 }
 
-export const INITIAL_NAME_REQUEST: NameRequestState = { pending: null, rejection: null };
+export const INITIAL_NAME_REQUEST: NameRequestState<never> = { pending: null, rejection: null };
 
-export type NameRequestAction =
+export type NameRequestAction<P> =
   | { readonly type: "rejected"; readonly typed: string; readonly normalized: string }
-  | { readonly type: "sent"; readonly normalized: string; readonly participantId?: string }
+  | { readonly type: "sent"; readonly pending: P }
   | { readonly type: "arrived" }
   /** 打ち直した。理由だけを下ろす（直した名前の横に古い理由が残ると「まだ駄目なのか」と読む）。 */
   | { readonly type: "retyped" }
   | { readonly type: "reset" };
 
-export function nameRequestReducer(state: NameRequestState, action: NameRequestAction): NameRequestState {
+/** 代理の追加（`P` = {@link ProxyPending}）と改名（`P` = {@link RenamePending}）で同じ遷移を使う。 */
+export function nameRequestReducer<P extends { readonly normalized: string }>(
+  state: NameRequestState<P>,
+  action: NameRequestAction<P>,
+): NameRequestState<P> {
   switch (action.type) {
     case "rejected":
       return {
@@ -71,12 +80,7 @@ export function nameRequestReducer(state: NameRequestState, action: NameRequestA
         rejection: null,
         // 正規形が空の名前は突き合わせられないので待たない（サーバーが規約で弾く）。
         // 待たない＝閉じる条件が来ないだけで、フォームと入力はそのまま残る。
-        pending:
-          action.normalized === ""
-            ? null
-            : action.participantId === undefined
-              ? { normalized: action.normalized }
-              : { normalized: action.normalized, participantId: action.participantId },
+        pending: action.pending.normalized === "" ? null : action.pending,
       };
     case "arrived":
       return { ...state, pending: null };

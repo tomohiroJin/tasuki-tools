@@ -28,6 +28,8 @@ import {
   nameRequestReducer,
   planNameSubmit,
   someoneHolds,
+  type ProxyPending,
+  type RenamePending,
 } from "../name-request.js";
 import { splitRoster } from "../roster-order.js";
 import { MiniButton } from "./MiniButton.js";
@@ -96,7 +98,7 @@ export function RosterPanel({
   // そのときだけ #291 と同じ「押しても何も起きない」が戻る。
   //
   // 送った名前と拒んだ理由は `name-request.ts` の reducer が持つ（代理の追加と改名で同じ形・#370）。
-  const [proxy, dispatchProxy] = useReducer(nameRequestReducer, INITIAL_NAME_REQUEST);
+  const [proxy, dispatchProxy] = useReducer(nameRequestReducer<ProxyPending>, INITIAL_NAME_REQUEST);
   // 代理追加を受け付けられなかったことはフォームの中に出すので（#291）、
   // 1 画面に RosterPanel が 2 つ描かれても（Session のセッションタブ／ルームタブ）
   // 結び付け（aria-describedby）が混線しないよう識別子は useId で作る。
@@ -105,7 +107,7 @@ export function RosterPanel({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   // 改名も代理追加と同じ形にする（#291 レビュー指摘2）。同じファイル・同じ述語・同じ症状。
-  const [rename, dispatchRename] = useReducer(nameRequestReducer, INITIAL_NAME_REQUEST);
+  const [rename, dispatchRename] = useReducer(nameRequestReducer<RenamePending>, INITIAL_NAME_REQUEST);
   const renameErrorId = useId();
 
   // **理由は名簿の変化に追随させる**（#291 レビュー指摘3）。持っているのは正規形で、
@@ -120,34 +122,34 @@ export function RosterPanel({
   // `DuplicateName` で拒まれていてもここは「現れた」と読む。サーバーは同名を
   // 1 人しか通さないので、**画面には利用者が足したかった名前の人がちょうど 1 人居る**
   // 状態になる。取り違えても利用者の目的は達している側へ倒れるので受容する。
-  const pendingProxy = proxy.pending?.normalized ?? null;
-  const proxyArrived = pendingProxy !== null && someoneHolds(pool, pendingProxy);
+  // 着いた送り（着いていなければ null）。
+  const arrivedProxy =
+    proxy.pending !== null && someoneHolds(pool, proxy.pending.normalized) ? proxy.pending.normalized : null;
   useEffect(() => {
-    if (!proxyArrived || pendingProxy === null) return;
+    if (arrivedProxy === null) return;
     dispatchProxy({ type: "arrived" });
     // ⚠ **この対策自身が入力を捨てうる。** 送ったあと返事を待つ間に利用者が別の名前を
     // 打ち始めていると、あとから届いた名簿で閉じた拍子にその入力が消える ——
     // #291 が直そうとしているもの（打った文字が黙って消える）と同じ形である。
     // **いま入力欄に載っているのが送った名前のときだけ**畳む（`inputStillMatches`）。
-    if (!inputStillMatches(proxyName, pendingProxy)) return;
+    if (!inputStillMatches(proxyName, arrivedProxy)) return;
     setProxyName("");
     setShowProxyInput(false);
-  }, [proxyArrived, proxyName, pendingProxy]);
+  }, [arrivedProxy, proxyName]);
 
   // 送った改名が着いたか。こちらは**相手を識別子で絞れる**ので取り違えようがない。
-  const pendingRename = rename.pending;
-  const renameArrived =
-    pendingRename !== null &&
-    pendingRename.participantId !== undefined &&
-    holdsName(pool, pendingRename.participantId, pendingRename.normalized);
+  const arrivedRename =
+    rename.pending !== null && holdsName(pool, rename.pending.participantId, rename.pending.normalized)
+      ? rename.pending.normalized
+      : null;
   useEffect(() => {
-    if (!renameArrived || pendingRename === null) return;
+    if (arrivedRename === null) return;
     dispatchRename({ type: "arrived" });
     // 代理追加と同じ理由で、打ち直していたらその入力は捨てない。
-    if (!inputStillMatches(editName, pendingRename.normalized)) return;
+    if (!inputStillMatches(editName, arrivedRename)) return;
     setEditingId(null);
     setEditName("");
-  }, [renameArrived, editName, pendingRename]);
+  }, [arrivedRename, editName]);
   // 退出の確認対象。取り返しがつかない操作なので直接は実行しない（FR-075）。
   //
   // 参加者オブジェクトではなく**識別子だけ**を持ち、表示は毎回最新の participants から引く。
@@ -180,7 +182,7 @@ export function RosterPanel({
    * **送ったあともフォームは閉じない**（レビュー指摘1）。画面が予測できない拒否
    * （輪が満席・選択画面に居るだけの人との同名・表示名の規約違反）が残っており、
    * そこで閉じると入力ごと消えて #291 の症状がそのまま戻る。閉じるのは
-   * **名簿にその代理が現れたとき**（{@link proxyArrived}）だけにする。
+   * **名簿にその代理が現れたとき**（上の `arrivedProxy`）だけにする。
    */
   const handleAddProxy = () => {
     const plan = planNameSubmit(proxyName, pool);
@@ -190,7 +192,7 @@ export function RosterPanel({
       return;
     }
     // 正規形が空の名前は待たない（reducer が決める。サーバーが規約で弾く）。
-    dispatchProxy({ type: "sent", normalized: plan.normalized });
+    dispatchProxy({ type: "sent", pending: { normalized: plan.normalized } });
     onAddProxy(plan.typed);
   };
 
@@ -225,7 +227,7 @@ export function RosterPanel({
       dispatchRename({ type: "rejected", typed: plan.typed, normalized: plan.normalized });
       return;
     }
-    dispatchRename({ type: "sent", normalized: plan.normalized, participantId });
+    dispatchRename({ type: "sent", pending: { participantId, normalized: plan.normalized } });
     onRename(participantId, plan.typed);
   };
 
