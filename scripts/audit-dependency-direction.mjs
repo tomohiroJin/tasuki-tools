@@ -138,7 +138,6 @@ export const ALLOWED = {
   "apps/timer-web": [
     "@tasuki/invite-ui",
     "@tasuki/dev-hub-redirect",
-    "@tasuki/markdown",
     "@tasuki/room-core",
     "@tasuki/sync-client",
     "@tasuki/timer-core",
@@ -154,7 +153,6 @@ export const ALLOWED = {
   "apps/poker-web": [
     "@tasuki/invite-ui",
     "@tasuki/dev-hub-redirect",
-    "@tasuki/markdown",
     "@tasuki/poker-core",
     "@tasuki/protocol",
     "@tasuki/room-core",
@@ -169,7 +167,6 @@ export const ALLOWED = {
   "apps/topic-web": [
     "@tasuki/dev-hub-redirect",
     "@tasuki/invite-ui",
-    "@tasuki/markdown",
     "@tasuki/protocol",
     "@tasuki/room-core",
     "@tasuki/sync-client",

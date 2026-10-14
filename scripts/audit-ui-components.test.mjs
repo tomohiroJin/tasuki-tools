@@ -19,7 +19,7 @@ import {
   touchesFieldElement,
   uiTokensIn,
   unescapeIdent,
-  importsSpecifier,
+  importedNames,
   withSharedEntryUsage,
 } from "./audit-ui-components.mjs";
 
@@ -331,31 +331,34 @@ describe("死んだ部品", () => {
 
   // #371: 部品の描画を共有パッケージ（`@tasuki/web-kit/reader`）へ寄せると、使う字面はパッケージにしか無くなる。
   // その入口を**取り込んでいるアプリ**の使用として数える（依存しているだけのアプリには数えない）。
-  test("importsSpecifier は、その入口をちょうど取り込む import だけを拾う", () => {
-    assert.equal(importsSpecifier("import { Markdown } from '@tasuki/web-kit/reader';", "@tasuki/web-kit/reader"), true);
-    assert.equal(importsSpecifier('import { Markdown } from "@tasuki/web-kit/reader";', "@tasuki/web-kit/reader"), true);
-    assert.equal(importsSpecifier("import { useJoinRetry } from '@tasuki/web-kit/sync';", "@tasuki/web-kit/reader"), false);
-    assert.equal(importsSpecifier("import x from '@tasuki/web-kit/readerX';", "@tasuki/web-kit/reader"), false);
-    assert.equal(importsSpecifier("// '@tasuki/web-kit/reader' を読む", "@tasuki/web-kit/reader"), false);
+  test("importedNames は、その入口から値として取り込んだ名前だけを拾う（型だけの取り込みは数えない）", () => {
+    const names = (text) => [...importedNames(text, "@tasuki/web-kit/reader")].sort();
+    assert.deepEqual(names("import { Markdown, useReaderDrawer } from '@tasuki/web-kit/reader';"), ["Markdown", "useReaderDrawer"]);
+    assert.deepEqual(names('import { Markdown as Md } from "@tasuki/web-kit/reader";'), ["Markdown"]);
+    assert.deepEqual(names("import { type MarkdownProps, useReaderDrawer } from '@tasuki/web-kit/reader';"), ["useReaderDrawer"]);
+    assert.deepEqual(names("import type { MarkdownProps } from '@tasuki/web-kit/reader';"), []);
+    assert.deepEqual(names("import { useJoinRetry } from '@tasuki/web-kit/sync';"), []);
+    assert.deepEqual(names("import { x } from '@tasuki/web-kit/readerX';"), []);
+    assert.deepEqual(names("// import { Markdown } from '@tasuki/web-kit/reader';"), []);
   });
 
-  test("共有の入口の使用は、その入口を取り込むアプリにだけ足す", () => {
+  test("共有の部品の使用は、その部品を取り込むアプリにだけ足す（同じ入口の別の部品だけでは足さない）", () => {
     const usage = new Map([
       ["apps/a", new Set(["ui-input"])],
       ["apps/b", new Set()],
       ["apps/c", new Set()],
     ]);
     const imported = new Map([
-      ["apps/a", new Set(["@tasuki/web-kit/reader"])],
-      ["apps/b", new Set(["@tasuki/web-kit/reader"])],
-      ["apps/c", new Set(["@tasuki/web-kit/sync"])],
+      ["apps/a", new Set(["Markdown"])],
+      ["apps/b", new Set(["Markdown", "useReaderDrawer"])],
+      ["apps/c", new Set(["useReaderDrawer"])],
     ]);
-    const entryUsage = new Map([["@tasuki/web-kit/reader", new Set(["ui-md"])]]);
-    const merged = withSharedEntryUsage(usage, imported, entryUsage);
+    const partUsage = new Map([["Markdown", new Set(["ui-md"])]]);
+    const merged = withSharedEntryUsage(usage, imported, partUsage);
     assert.deepEqual([...merged.get("apps/a")].sort(), ["ui-input", "ui-md"]);
     assert.deepEqual([...merged.get("apps/b")], ["ui-md"]);
-    assert.deepEqual([...merged.get("apps/c")], []);
-    assert.deepEqual(findDeadParts(new Set(["ui-md"]), merged), [], "2 つのアプリが取り込んでいるので死んでいない");
+    assert.deepEqual([...merged.get("apps/c")], [], "引き出しのフックだけを取り込むアプリは Markdown の部品を使っていない");
+    assert.deepEqual(findDeadParts(new Set(["ui-md"]), merged), []);
     // 元の表は書き換えない
     assert.deepEqual([...usage.get("apps/b")], []);
   });

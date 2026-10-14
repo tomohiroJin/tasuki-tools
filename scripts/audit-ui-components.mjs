@@ -583,32 +583,53 @@ export function uiTokensIn(text) {
 }
 
 /**
- * 部品を描く React の共有の入口（#371）。描画をここへ寄せると、部品のクラスの字面はアプリから消えて
- * パッケージにしか無くなる。**その入口を取り込むアプリ**の使用として数える（{@link withSharedEntryUsage}）。
- * 依存しているだけのアプリ（同期の入口 `./sync` だけを使うアプリ）には数えない —— 数えると、
- * 1 つのアプリしか描いていない部品を「2 つ以上が使う」と取り違える。
+ * 部品を描く React の共有の入口と、そこから出す部品（#371）。描画をここへ寄せると、部品のクラスの字面は
+ * アプリから消えてパッケージにしか無くなる。**その部品を値として取り込むアプリ**の使用として数える
+ * （{@link withSharedEntryUsage}）。入口に依存しているだけのアプリ・同じ入口の別のもの（引き出しのフック）だけを
+ * 取り込むアプリ・型だけを取り込むアプリには数えない —— 数えると、1 つのアプリしか描いていない部品を
+ * 「2 つ以上が使う」と取り違える。部品の名前は入口をまたいで一意にする。
+ *
+ * 見るのはアプリの `.tsx` の取り込みだけ（アプリの部品の使用を `.tsx` の字面で数えるのと同じ範囲）。
  */
-export const SHARED_UI_ENTRIES = [{ specifier: "@tasuki/web-kit/reader", dir: "packages/web-kit/src/reader" }];
+export const SHARED_UI_ENTRIES = [
+  {
+    specifier: "@tasuki/web-kit/reader",
+    parts: [{ name: "Markdown", file: "packages/web-kit/src/reader/markdown.tsx" }],
+  },
+];
 
-/** 本文がその入口を取り込んでいるか（`import … from '<specifier>'`・`import '<specifier>'`）。行の頭の import だけを見る。 */
-export function importsSpecifier(text, specifier) {
+/**
+ * 本文がその入口から**値として**取り込んでいる名前（`import { A, B as C, type T } from '<specifier>'` なら A・B）。
+ * 行の頭の import だけを見る。`import type { … }` と `type` を付けた名前は数えない。
+ */
+export function importedNames(text, specifier) {
   const escaped = specifier.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
-  return new RegExp(`^\\s*import\\b[^;]*?['"]${escaped}['"]`, "m").test(text);
+  const names = new Set();
+  const re = new RegExp(`^[ \\t]*import\\s+(type\\s+)?\\{([^}]*)\\}\\s*from\\s*['"]${escaped}['"]`, "gm");
+  for (const m of text.matchAll(re)) {
+    if (m[1] !== undefined) continue;
+    for (const raw of m[2].split(",")) {
+      const item = raw.trim();
+      if (item === "" || /^type\s/.test(item)) continue;
+      names.add(item.split(/\s+as\s+/)[0].trim());
+    }
+  }
+  return names;
 }
 
 /**
- * アプリごとの部品の使用に、取り込んでいる共有の入口の使用を足した表を返す（元の表は書き換えない）。
+ * アプリごとの部品の使用に、取り込んでいる共有の部品の使用を足した表を返す（元の表は書き換えない）。
  *
  * @param usageByApp アプリ → そのアプリの `.tsx` に現れる部品のクラス
- * @param importedByApp アプリ → そのアプリが取り込んでいる共有の入口
- * @param usageByEntry 共有の入口 → その入口の `.tsx` に現れる部品のクラス
+ * @param importedByApp アプリ → そのアプリが共有の入口から値として取り込んでいる部品の名前
+ * @param usageByPart 共有の部品の名前 → その部品のファイルに現れる部品のクラス
  */
-export function withSharedEntryUsage(usageByApp, importedByApp, usageByEntry) {
+export function withSharedEntryUsage(usageByApp, importedByApp, usageByPart) {
   const merged = new Map();
   for (const [app, used] of usageByApp) {
     const all = new Set(used);
-    for (const specifier of importedByApp.get(app) ?? []) {
-      for (const c of usageByEntry.get(specifier) ?? []) all.add(c);
+    for (const name of importedByApp.get(app) ?? []) {
+      for (const c of usageByPart.get(name) ?? []) all.add(c);
     }
     merged.set(app, all);
   }
@@ -693,12 +714,16 @@ function main() {
   }
 
   // 死んだ部品。各アプリの src 配下の .tsx に現れる ui- の語を数える。
-  // 部品を描く共有の入口（#371）は、その入口の .tsx に現れる語を、取り込むアプリの使用として足す。
-  const usageByEntry = new Map();
-  for (const { specifier, dir } of SHARED_UI_ENTRIES) {
-    const tsx = readExisting(listRepoFiles(REPO_ROOT, [`${dir}/*.tsx`]), problems);
-    volume.push({ label: `${specifier} の TSX`, count: tsx.length });
-    usageByEntry.set(specifier, new Set(tsx.flatMap((f) => [...uiTokensIn(f.text)])));
+  // 部品を描く共有の部品（#371）は、そのファイルに現れる語を、その部品を取り込むアプリの使用として足す。
+  const usageByPart = new Map();
+  for (const { specifier, parts } of SHARED_UI_ENTRIES) {
+    const files = readExisting(listRepoFiles(REPO_ROOT, parts.map((p) => p.file)), problems);
+    volume.push({ label: `${specifier} の部品`, count: files.length });
+    for (const { name, file } of parts) {
+      const f = files.find((x) => x.rel === file);
+      if (f === undefined) problems.push(`[共有の部品] ${file} が見つかりません    ← SHARED_UI_ENTRIES を直す`);
+      usageByPart.set(name, new Set(f === undefined ? [] : uiTokensIn(f.text)));
+    }
   }
   const importedByApp = new Map();
   const usageByApp = new Map();
@@ -713,10 +738,10 @@ function main() {
     usageByApp.set(app, new Set(tsx.flatMap((f) => [...uiTokensIn(f.text)])));
     importedByApp.set(
       app,
-      new Set(SHARED_UI_ENTRIES.map((e) => e.specifier).filter((spec) => tsx.some((f) => importsSpecifier(f.text, spec)))),
+      new Set(SHARED_UI_ENTRIES.flatMap((e) => tsx.flatMap((f) => [...importedNames(f.text, e.specifier)]))),
     );
   }
-  for (const c of findDeadParts(defined, withSharedEntryUsage(usageByApp, importedByApp, usageByEntry))) {
+  for (const c of findDeadParts(defined, withSharedEntryUsage(usageByApp, importedByApp, usageByPart))) {
     problems.push(`[死んだ部品] .${c} を使うアプリが 2 つ未満です    ← 2 画面以上に当てるか、部品層から消す（ADR 0022 決定 2）`);
   }
 

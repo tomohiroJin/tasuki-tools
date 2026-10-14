@@ -9,7 +9,10 @@ import { render, screen } from "@testing-library/react";
 import React from "react";
 import { Markdown as SharedMarkdown, type MarkdownHeadingBase } from "@tasuki/web-kit/reader";
 
-/** timer での使い方（見出しの段の既定は共有メモの 3）。 */
+/**
+ * 共有メモの段（3）で描く（#371 で描画は共有の部品になった。画面が実際に渡す段は
+ * `SharedMemo.test.tsx`・`TopicCard.test.tsx` が見る）。段 4 を見るテストだけが段を渡す。
+ */
 const Markdown = ({ headingBase = 3, ...rest }: { source: string; headingBase?: MarkdownHeadingBase }) => (
   <SharedMarkdown headingBase={headingBase} {...rest} />
 );
