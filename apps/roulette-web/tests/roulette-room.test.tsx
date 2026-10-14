@@ -4,6 +4,7 @@
  */
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { MAX_DISPLAY_NAME } from '@tasuki/room-core';
 import { saveResumeIdentity } from '@tasuki/sync-client';
 import { App } from '../src/App';
 import {
@@ -231,6 +232,28 @@ describe('回す・入る人・一周の操作', () => {
     fireEvent.click(screen.getByRole('button', { name: GUEST_ADD_BUTTON }));
     // Then
     expect(latestSocket().sentJson().at(-1)).toEqual({ command: 'roulette.guest.add', name: 'はな' });
+    expect(input).toHaveValue('');
+  });
+
+  it('Given ゲストの名前欄 / When 上限を見る / Then 表示名の規約の上限と同じ字数まで打てる（#373）', () => {
+    // Given / When
+    enterRoom();
+    const input = screen.getByLabelText<HTMLInputElement>(GUEST_HINT);
+    // Then: 自前の数字ではなく正本（`MAX_DISPLAY_NAME`）と突き合わせる。jsdom の fireEvent は
+    // maxLength を無視して値を入れてしまうので、打てる字数は属性で見る（24 字で切れていた欠陥の赤）
+    expect(input.maxLength).toBe(MAX_DISPLAY_NAME);
+  });
+
+  it('Given 上限ちょうどの名前 / When ゲストに追加する / Then そのまま追加コマンドに載り、欄を空にする（#373）', () => {
+    // Given
+    enterRoom();
+    const input = screen.getByLabelText(GUEST_HINT);
+    const longName = 'あ'.repeat(MAX_DISPLAY_NAME);
+    // When
+    fireEvent.change(input, { target: { value: longName } });
+    fireEvent.click(screen.getByRole('button', { name: GUEST_ADD_BUTTON }));
+    // Then
+    expect(latestSocket().sentJson().at(-1)).toEqual({ command: 'roulette.guest.add', name: longName });
     expect(input).toHaveValue('');
   });
 

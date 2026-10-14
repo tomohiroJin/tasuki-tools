@@ -1721,6 +1721,13 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["lib/mutation-select.test.mjs"],
     note: "#387。**対応表より後に足した変異。** 機構を変えた枝で、変えた機構の影響を手元で見ない。",
+  },  {
+    id: 200,
+    label: "ルーレットのゲストの名前欄の上限を、表示名の規約でなく 24 に戻す",
+    patch: "m200-roulette-guest-name-cap-24.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/roulette-room.test.tsx"],
+    note: "#373。輪に載せられる数の上限（24）と取り違え、25〜40 字の名前を入れられなかった。",
   },
 ];
 
