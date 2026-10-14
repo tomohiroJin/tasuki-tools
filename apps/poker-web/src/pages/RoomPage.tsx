@@ -12,6 +12,7 @@ import { ParticipantList } from '../components/ParticipantList';
 import { Results } from '../components/Results';
 import type { PokerSync } from '../hooks/useSync';
 import { useRoomEntry } from '../hooks/useRoomEntry';
+import { isOffline, revealedLiveAfter, revealedVoteMap } from '../room-view';
 
 interface Props {
   roomId: string;
@@ -73,16 +74,14 @@ export function RoomPage({ roomId, sync }: Props) {
   // お題の札を見せるか。**手元だけの状態**で、他の人の画面には影響しない。お題が差し替わっても保つ
   // （お題は無いことが多く、あれば見られる程度でよい・#316 PR 1 の利用者の指摘）。
   const [topicOpen, setTopicOpen] = useState(true);
-  // 公開を投票中から見届けたか（#348 のレビュー）。席の札が CSS の transition でめくれるのは、投票中の札が
-  // 描かれていて、それが公開に変わったときだけ。再読み込み・途中入室・再接続で最初から公開済みで描くと、札は
-  // めくれずに表で出る。集計を最後の札のめくりの後まで待たせるのも、この同じ条件のときだけにする。
+  // 公開を投票中から見届けたか（#348 のレビュー。判断と理由は `room-view.ts` の `revealedLiveAfter`）。
   // 前の描画の状態と比べて決める（描画中に状態を調整する React の型。状態が変わったときだけ書き換える）。
   const roundStatus = sync.snapshot?.round.status;
   const [seenStatus, setSeenStatus] = useState(roundStatus);
   const [revealedLive, setRevealedLive] = useState(false);
   if (roundStatus !== seenStatus) {
     setSeenStatus(roundStatus);
-    setRevealedLive(seenStatus === 'voting' && roundStatus === 'revealed');
+    setRevealedLive(revealedLiveAfter(seenStatus, roundStatus));
   }
   // 入口の振り分け・自動の復帰・混雑の入り直し・消えたルームの組の破棄は同期フックの仕事（#369）。
   const { retryNotice } = useRoomEntry(sync, roomId);
@@ -106,11 +105,8 @@ export function RoomPage({ roomId, sync }: Props) {
   }
 
   const isVoting = snapshot.round.status === 'voting';
-  // 公開後の票を席の札へ渡す（席の数は小さいので useMemo は要らない）
-  const revealedVotes =
-    snapshot.round.status === 'revealed'
-      ? new Map(snapshot.round.votes.map((v) => [v.participantId, v.card]))
-      : null;
+  // 公開後の票を席の札へ渡す（`room-view.ts` の `revealedVoteMap`）
+  const revealedVotes = revealedVoteMap(snapshot.round);
   const inviteUrl = sync.inviteUrl(roomId);
 
   return (
@@ -190,7 +186,7 @@ function VotingSection({
   sync: PokerSync;
 }) {
   // 切断・再接続中は操作を受け付けない（送信しても届かないため）
-  const offline = sync.status !== 'open';
+  const offline = isOffline(sync.status);
   return (
     <>
       <section>
@@ -220,7 +216,7 @@ function RevealedSection({
 }) {
   if (snapshot.round.status !== 'revealed') return null;
   const { stats } = snapshot.round;
-  const offline = sync.status !== 'open';
+  const offline = isOffline(sync.status);
 
   return (
     <>
