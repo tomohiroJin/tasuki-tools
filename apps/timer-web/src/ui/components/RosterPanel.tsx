@@ -11,73 +11,26 @@
  * 現ドライバーをドライバーセクション先頭に固定する。
  */
 
-import React, { useState, useEffect, useId, useRef } from "react";
+import React, { useState, useEffect, useId, useReducer } from "react";
 import { Users, ChevronUp, ChevronDown, X } from "lucide-react";
 import type { Participant, Seat } from "@tasuki/timer-core";
-import { conflictsWithExisting, MAX_DISPLAY_NAME, normalizeDisplayName } from "@tasuki/room-core";
+import { MAX_DISPLAY_NAME } from "@tasuki/room-core";
 import { SectionHeader } from "../primitives.js";
 import { presenceLabel } from "../presence.js";
 import { PresenceDot } from "./PresenceDot.js";
 import { RemovalConfirmDialog } from "./RemovalConfirmDialog.js";
 import { labelPool, participantLabel } from "../participant-label.js";
-
-/** 小さなダーク用ボタン。RosterPanel 内の改名/離脱/外す等のコンパクト操作用。
- * 行操作はサーバー往復で反映されるため、押下フィードバックが無いと「効いていない」ように見える。
- * クリック直後の短時間だけ「送信中」（disabled＋半透明）にし、効いた感の付与と二重送信防止を兼ねる。 */
-function MiniButton({
-  children,
-  onClick,
-  disabled,
-  ...rest
-}: React.ButtonHTMLAttributes<HTMLButtonElement> & { children: React.ReactNode }) {
-  const [pending, setPending] = useState(false);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
-  const handleClick: React.MouseEventHandler<HTMLButtonElement> = (e) => {
-    onClick?.(e);
-    setPending(true);
-    timer.current = setTimeout(() => setPending(false), 450);
-  };
-  return (
-    <button
-      type="button"
-      onClick={handleClick}
-      disabled={disabled || pending}
-      aria-busy={pending || undefined}
-      className="roster-panel-mini-button"
-      {...rest}
-    >
-      {children}
-    </button>
-  );
-}
-
-/**
- * 名前を受け付けられなかったこと（#291）。
- *
- * **正規形を持つのが肝である。** 打った文字列は文言に出すために、正規形は
- * 「その理由がまだ生きているか」を毎回いまの名簿へ尋ねるために持つ。
- * 理由の文言そのものを state に置くと、相手が退出しても「まだ駄目」と言い続ける。
- */
-interface Rejection {
-  /** 利用者が打った文字列（前後の空白だけ落としたもの）。文言に出す。 */
-  typed: string;
-  /** サーバーと同じ正規化を掛けた値。名簿との突き合わせに使う。 */
-  normalized: string;
-  /**
-   * 失敗の通し番号。`role="alert"` の `key` に使う。
-   *
-   * 同じ名前で 2 度押したとき、文言もノードも変わらないと支援技術は**再告知しない**
-   * （2 度目以降が無反応に見える＝#291 と同じ症状）。番号を進めて張り替える。
-   */
-  attempt: number;
-}
-
-/** 送った改名。着いたかどうかは**識別子で**確かめる。 */
-interface PendingRename {
-  participantId: string;
-  normalized: string;
-}
+import {
+  INITIAL_NAME_REQUEST,
+  activeRejection,
+  holdsName,
+  inputStillMatches,
+  nameRequestReducer,
+  planNameSubmit,
+  someoneHolds,
+} from "../name-request.js";
+import { splitRoster } from "../roster-order.js";
+import { MiniButton } from "./MiniButton.js";
 
 interface RosterPanelProps {
   participants: Participant[];
@@ -135,57 +88,30 @@ export function RosterPanel({
   // 交代順ストリップ（`rotation-names.ts`）とここで判定結果がずれる（敵対的レビュー #276 指摘1）。
   const pool = labelPool(seats ?? [], participants);
 
-  /**
-   * その名前（正規形）の持ち主が名簿に居るか。**述語はサーバーと同じものに任せる。**
-   *
-   * この 1 つが 3 役を担う ——「送る前に拒む」「拒んだ理由がまだ生きているか」
-   * 「送った名前が名簿に現れたか」。3 箇所に別々の比べ方を置くと、片方だけ直る。
-   *
-   * 正規形が空の名前は**突き合わせない**。`Seat.displayName` は名簿から引けないと
-   * `""` へ落ちるので（`timer-snapshot-dto.ts` の `names.get(…) ?? ""`）、
-   * 素通りさせると「同じ名前の人がすでに居ます」という嘘の理由を出しうる。
-   */
-  const someoneHolds = (normalized: string, excludeId?: string) =>
-    normalized !== "" && conflictsWithExisting(pool, normalized, excludeId);
-
-  /** その人**だけ**を見て、いまその名前を持っているか（改名が着いたかの判定）。 */
-  const holdsName = (participantId: string, normalized: string) =>
-    normalized !== "" &&
-    conflictsWithExisting(
-      pool.filter((p) => p.participantId === participantId),
-      normalized,
-    );
-
   const [proxyName, setProxyName] = useState("");
   const [showProxyInput, setShowProxyInput] = useState(false);
   // 送った代理の正規形。**名簿に現れるまで持つ**（#291 レビュー指摘1）。
   // サーバーの拒否理由には画面が予測できないものがある（輪が満席・選択画面に
   // 居るだけの人との同名・表示名の規約違反）。送った瞬間に閉じて入力を捨てると、
   // そのときだけ #291 と同じ「押しても何も起きない」が戻る。
-  const [pendingProxy, setPendingProxy] = useState<string | null>(null);
-  // 代理追加を受け付けられなかったこと（#291）。フォームの中に出すので、
+  //
+  // 送った名前と拒んだ理由は `name-request.ts` の reducer が持つ（代理の追加と改名で同じ形・#370）。
+  const [proxy, dispatchProxy] = useReducer(nameRequestReducer, INITIAL_NAME_REQUEST);
+  // 代理追加を受け付けられなかったことはフォームの中に出すので（#291）、
   // 1 画面に RosterPanel が 2 つ描かれても（Session のセッションタブ／ルームタブ）
   // 結び付け（aria-describedby）が混線しないよう識別子は useId で作る。
-  const [proxyRejection, setProxyRejection] = useState<Rejection | null>(null);
   const proxyErrorId = useId();
   // 改名中の参加者 ID と編集中の名前（同時に1人だけ編集できる）
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   // 改名も代理追加と同じ形にする（#291 レビュー指摘2）。同じファイル・同じ述語・同じ症状。
-  const [pendingRename, setPendingRename] = useState<PendingRename | null>(null);
-  const [renameRejection, setRenameRejection] = useState<Rejection | null>(null);
+  const [rename, dispatchRename] = useReducer(nameRequestReducer, INITIAL_NAME_REQUEST);
   const renameErrorId = useId();
 
   // **理由は名簿の変化に追随させる**（#291 レビュー指摘3）。持っているのは正規形で、
   // 出すかどうかは毎回いまの `pool` に尋ねる。相手が退出したら「まだ駄目」と言わない。
-  const activeProxyRejection =
-    proxyRejection !== null && someoneHolds(proxyRejection.normalized) ? proxyRejection : null;
-  const activeRenameRejection =
-    renameRejection !== null &&
-    editingId !== null &&
-    someoneHolds(renameRejection.normalized, editingId)
-      ? renameRejection
-      : null;
+  const activeProxyRejection = activeRejection(proxy.rejection, pool);
+  const activeRenameRejection = editingId !== null ? activeRejection(rename.rejection, pool, editingId) : null;
 
   // 送った代理が名簿に現れたか。
   //
@@ -194,27 +120,31 @@ export function RosterPanel({
   // `DuplicateName` で拒まれていてもここは「現れた」と読む。サーバーは同名を
   // 1 人しか通さないので、**画面には利用者が足したかった名前の人がちょうど 1 人居る**
   // 状態になる。取り違えても利用者の目的は達している側へ倒れるので受容する。
-  const proxyArrived = pendingProxy !== null && someoneHolds(pendingProxy);
+  const pendingProxy = proxy.pending?.normalized ?? null;
+  const proxyArrived = pendingProxy !== null && someoneHolds(pool, pendingProxy);
   useEffect(() => {
-    if (!proxyArrived) return;
-    setPendingProxy(null);
+    if (!proxyArrived || pendingProxy === null) return;
+    dispatchProxy({ type: "arrived" });
     // ⚠ **この対策自身が入力を捨てうる。** 送ったあと返事を待つ間に利用者が別の名前を
     // 打ち始めていると、あとから届いた名簿で閉じた拍子にその入力が消える ——
     // #291 が直そうとしているもの（打った文字が黙って消える）と同じ形である。
-    // **いま入力欄に載っているのが送った名前のときだけ**畳む。
-    if (normalizeDisplayName(proxyName.trim()) !== pendingProxy) return;
+    // **いま入力欄に載っているのが送った名前のときだけ**畳む（`inputStillMatches`）。
+    if (!inputStillMatches(proxyName, pendingProxy)) return;
     setProxyName("");
     setShowProxyInput(false);
   }, [proxyArrived, proxyName, pendingProxy]);
 
   // 送った改名が着いたか。こちらは**相手を識別子で絞れる**ので取り違えようがない。
+  const pendingRename = rename.pending;
   const renameArrived =
-    pendingRename !== null && holdsName(pendingRename.participantId, pendingRename.normalized);
+    pendingRename !== null &&
+    pendingRename.participantId !== undefined &&
+    holdsName(pool, pendingRename.participantId, pendingRename.normalized);
   useEffect(() => {
-    if (!renameArrived) return;
-    setPendingRename(null);
+    if (!renameArrived || pendingRename === null) return;
+    dispatchRename({ type: "arrived" });
     // 代理追加と同じ理由で、打ち直していたらその入力は捨てない。
-    if (normalizeDisplayName(editName.trim()) !== pendingRename?.normalized) return;
+    if (!inputStillMatches(editName, pendingRename.normalized)) return;
     setEditingId(null);
     setEditName("");
   }, [renameArrived, editName, pendingRename]);
@@ -244,7 +174,7 @@ export function RosterPanel({
    * `DuplicateName` のバナーが拾えるが、**サーバーが通す名前をここで拒むと
    * 利用者は正当な操作をできなくなる**（そちらには保険が無い）。
    *
-   * 述語は写さずサーバーと同じ `conflictsWithExisting` を呼ぶ（{@link someoneHolds}）。
+   * 述語は写さずサーバーと同じ `conflictsWithExisting` を呼ぶ（`name-request.ts` の `someoneHolds`）。
    * 比べる値も揃えて、サーバーが境界で掛ける `normalizeDisplayName` を通してから渡す。
    *
    * **送ったあともフォームは閉じない**（レビュー指摘1）。画面が予測できない拒否
@@ -253,32 +183,27 @@ export function RosterPanel({
    * **名簿にその代理が現れたとき**（{@link proxyArrived}）だけにする。
    */
   const handleAddProxy = () => {
-    const name = proxyName.trim();
-    if (!name) return;
-    const normalized = normalizeDisplayName(name);
-    if (someoneHolds(normalized)) {
-      setProxyRejection((prev) => ({ typed: name, normalized, attempt: (prev?.attempt ?? 0) + 1 }));
+    const plan = planNameSubmit(proxyName, pool);
+    if (plan.kind === "empty") return;
+    if (plan.kind === "reject") {
+      dispatchProxy({ type: "rejected", typed: plan.typed, normalized: plan.normalized });
       return;
     }
-    setProxyRejection(null);
-    // 正規形が空の名前は突き合わせられないので待たない（サーバーが規約で弾く）。
-    // 待たない＝閉じる条件が来ないだけで、フォームと入力はそのまま残る。
-    setPendingProxy(normalized !== "" ? normalized : null);
-    onAddProxy(name);
+    // 正規形が空の名前は待たない（reducer が決める。サーバーが規約で弾く）。
+    dispatchProxy({ type: "sent", normalized: plan.normalized });
+    onAddProxy(plan.typed);
   };
 
   const startRename = (participantId: string, current: string) => {
     setEditingId(participantId);
     setEditName(current);
-    setPendingRename(null);
-    setRenameRejection(null);
+    dispatchRename({ type: "reset" });
   };
 
   const cancelRename = () => {
     setEditingId(null);
     setEditName("");
-    setPendingRename(null);
-    setRenameRejection(null);
+    dispatchRename({ type: "reset" });
   };
 
   /**
@@ -289,22 +214,19 @@ export function RosterPanel({
    * **#291 とまったく同じ無言の失敗**だった —— 名前は変わらず、理由も出ない。
    */
   const submitRename = (participantId: string) => {
-    const typed = editName.trim();
+    // 自分自身は比べない（現在名と同じ名前への改名は許す。`planNameSubmit` の `excludeId`）。
+    const plan = planNameSubmit(editName, pool, participantId);
     // 空は「やめた」と同じ扱い（#291 より前からの振る舞いを変えない）。
-    if (!typed) {
+    if (plan.kind === "empty") {
       cancelRename();
       return;
     }
-    const normalized = normalizeDisplayName(typed);
-    // 自分自身は比べない（現在名と同じ名前への改名は許す）。サーバーの
-    // `conflictsWithExisting(residents, displayName, target.participantId)` と同じ。
-    if (someoneHolds(normalized, participantId)) {
-      setRenameRejection((prev) => ({ typed, normalized, attempt: (prev?.attempt ?? 0) + 1 }));
+    if (plan.kind === "reject") {
+      dispatchRename({ type: "rejected", typed: plan.typed, normalized: plan.normalized });
       return;
     }
-    setRenameRejection(null);
-    setPendingRename(normalized !== "" ? { participantId, normalized } : null);
-    onRename(participantId, typed);
+    dispatchRename({ type: "sent", normalized: plan.normalized, participantId });
+    onRename(participantId, plan.typed);
   };
 
   /** Enter で送る（レビュー指摘4）。閉じずにその場で直させる形にした以上、直後の自然な操作はこれ。 */
@@ -314,26 +236,8 @@ export function RosterPanel({
     submit();
   };
 
-  // rotation 内かどうかを判定するヘルパ（rotation は参加者IDの配列・D6b）
-  const inRot = (p: Participant) => rotation ? rotation.includes(p.participantId) : false;
-
-  // ドライバーグループ: 現ドライバー起点の巡回順（現=0, 次=1, …）で並べる。
-  // 交代のたびにリストが1つずつ繰り上がる自然な並びにする（v2.10 #4）。
-  const drivers = (() => {
-    const rotParts = participants.filter(inRot);
-    if (!rotation || rotation.length === 0) return rotParts;
-    const len = rotation.length;
-    const curIdx = rotation.indexOf(currentDriverId);
-    const turnOrder = (p: Participant): number => {
-      const i = rotation.indexOf(p.participantId);
-      if (i < 0 || curIdx < 0) return Number.MAX_SAFE_INTEGER;
-      return (i - curIdx + len) % len;
-    };
-    return [...rotParts].sort((a, b) => turnOrder(a) - turnOrder(b));
-  })();
-
-  // 見学グループ: rotation 外（元の相対順を保持）
-  const watchers = participants.filter((p) => !inRot(p));
+  // ドライバー（輪の中・現ドライバー起点の巡回順）と見学（輪の外・元の順）に分ける（`roster-order.ts`）。
+  const { drivers, watchers } = splitRoster(participants, rotation, currentDriverId);
 
   /** 参加者行の共通レンダリング関数。全アクション（改名/離脱/復帰/譲る/外す/並べ替え）を維持する。 */
   const renderRow = (p: Participant) => {
@@ -376,7 +280,7 @@ export function RosterPanel({
                 onChange={(e) => {
                   setEditName(e.target.value);
                   // 打ち直した瞬間に理由を降ろす（直したのに赤いままにしない）。
-                  setRenameRejection(null);
+                  dispatchRename({ type: "retyped" });
                 }}
                 onKeyDown={submitOnEnter(() => submitRename(p.participantId))}
                 aria-label={`${label} の新しい名前`}
@@ -561,10 +465,9 @@ export function RosterPanel({
             onClick={() => {
               // 開閉で理由は持ち越さない。閉じて開き直した先に前回の赤が残っていると、
               // いま打っている名前について言っているように読める（#291）。
-              setProxyRejection(null);
               // 自分で閉じたなら、届くのを待っていた代理も待たない
               // （待ったままだと、あとで同名が現れた拍子に勝手に開閉する）。
-              setPendingProxy(null);
+              dispatchProxy({ type: "reset" });
               setShowProxyInput((v) => !v);
             }}
             aria-label="代理参加者を追加"
@@ -586,7 +489,7 @@ export function RosterPanel({
                 setProxyName(e.target.value);
                 // 打ち直した瞬間に理由を降ろす。直した名前の横に古い理由が残ると、
                 // 利用者は「まだ駄目なのか」と読む。
-                setProxyRejection(null);
+                dispatchProxy({ type: "retyped" });
               }}
               onKeyDown={submitOnEnter(handleAddProxy)}
               placeholder="Web 非接続のメンバー名"
