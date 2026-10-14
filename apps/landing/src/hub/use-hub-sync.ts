@@ -22,7 +22,6 @@ import {
   buildSyncUrl,
   clearLegacyPreferences,
   clearResumeIdentity,
-  joinRetryDelayMs,
   loadDefaultDisplayName,
   loadResumeIdentity,
   saveDefaultDisplayName,
@@ -33,6 +32,7 @@ import { HubServerMsgSchema, type HubCommand, type RosterRoom } from '@tasuki/ro
 import { TopicFrameSchema } from '@tasuki/topic-core';
 import { readRoomParam } from './room-param.js';
 import { usableDefaultDisplayName } from './default-display-name.js';
+import { useJoinRetry } from '@tasuki/web-kit/sync';
 
 
 /** 同期サーバーへの URL。**ハブの入口は `/ws`** で、LP の base（`/`）直下にある。 */
@@ -183,37 +183,26 @@ export function useHubSync(): HubSync {
 
   const connRef = useRef<SyncConnection | null>(null);
   /**
-   * 混雑で弾かれたときの再試行回数。**入室と照会で共有する。**
+   * 混雑で弾かれたときの再試行（回数とタイマーは `@tasuki/web-kit/sync` の `useJoinRetry`。#369）。
+   * **入室と照会で共有する。** 知らせは持たない（玄関はサーバーの文を `error` で見せる）。
    *
    * **照会と入室は同時に飛びうる** —— 照会の返事を待つ間も名乗りフォームは操作でき、
    * 利用者が名乗ると両方の応答が別々に届く。その取り違えを防ぐのが `if (last === null)`
    * の判定である。
    *
    * それでも数え手が 1 本で足りるのは、**仕掛かる再試行が常に 1 本だけ**だから ——
-   * `retryTimerRef` は単一で、積む前に必ず `cancelRetry()` を通す。`joinRoom` /
-   * `createRoom` は利用者の操作として、仕掛かっていた再試行を先に取り消す。
+   * 予約は単一で、積む前に必ず前の予約を捨てる。`joinRoom` / `createRoom` は利用者の操作として、
+   * 仕掛かっていた再試行を先に取り消す。
+   *
+   * **利用者が自分で動いたら取り消す。** 待ち時間の間、名乗りフォームは操作できる
+   * （`screenFor` は `join` を返し続ける）。取り消さないと、**利用者が名乗った後に、名乗る前の
+   * 状態を捕まえたタイマーが発火する** —— 照会の再試行が幽霊のように飛び、回数の予算を入室と食い合う。
    */
-  const retryRef = useRef(0);
+  const { rateLimited, cancel: cancelRetry, reset: resetRetry } = useJoinRetry(null);
   /** 自動で入り直すときに使う、直近の名乗り。 */
   const lastJoinRef = useRef<{ displayName: string; passphrase?: string } | null>(null);
-  /**
-   * 再試行のタイマー。**利用者が自分で動いたら取り消す。**
-   *
-   * 待ち時間の間、名乗りフォームは操作できる（`screenFor` は `join` を返し続ける）。
-   * 取り消さないと、**利用者が名乗った後に、名乗る前の状態を捕まえたタイマーが発火する**
-   * —— 照会の再試行が幽霊のように飛び、`retryRef` の予算を入室と食い合う。
-   */
-  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
   const send = useCallback((cmd: HubCommand) => {
     connRef.current?.send(cmd as unknown as Record<string, unknown>);
-  }, []);
-
-  /** 仕掛かっている再試行を取り消す。**利用者の操作が優先する。** */
-  const cancelRetry = useCallback(() => {
-    if (retryTimerRef.current === null) return;
-    clearTimeout(retryTimerRef.current);
-    retryTimerRef.current = null;
   }, []);
 
   /**
@@ -282,7 +271,7 @@ export function useHubSync(): HubSync {
           setGone(false);
           setError(null);
           setNeedsPassphrase(false);
-          retryRef.current = 0;
+          resetRetry();
           // 作成したときは URL に `?room=` が無いので、履歴を汚さず差し替える。
           // **画面の側も同時に進める**（URL を書き換えても状態は追随しない）。
           if (msg.type === 'room.created') {
@@ -307,21 +296,16 @@ export function useHubSync(): HubSync {
         }
         if (msg.code === 'JOIN_RATE_LIMITED') {
           // 混雑で弾かれた人を、操作なしで先へ運ぶ（#147 と同じ方針）。
-          const attempt = (retryRef.current += 1);
-          const delay = joinRetryDelayMs(attempt);
+          setError(msg.message);
           const last = lastJoinRef.current;
           const target = codeRef.current;
-          if (delay === null || target === null) {
-            setError(msg.message);
-            return;
-          }
-          setError(msg.message);
-          // **仕掛かっているタイマーを消してから積む。** 消さずに上書きすると、
-          // 消えた側は `retryTimerRef` から外れたまま生き残り、`cancelRetry()` でも
-          // 接続の後始末でも取り消せなくなる（最終レビュー I1）。
-          cancelRetry();
-          retryTimerRef.current = setTimeout(() => {
-            retryTimerRef.current = null;
+          // 前の予約は `rateLimited` が捨ててから積む（消さずに上書きすると、消えた側は取り消せない
+          // まま生き残る。最終レビュー I1）。使い切ったら送らない。
+          rateLimited(() => {
+            // **コードが無い（作成が弾かれた）ときは送り直す先が無い。** 回数だけは数える
+            // （載せ替えの前と同じ）。コードは null から決まるだけで戻らないので、このとき
+            // 取り消される予約は無い。
+            if (target === null) return;
             // **`last === null` は「まだ名乗っていない」** ＝ 送ったのは照会だけである
             // （#274）。エラーのフレームに相関の手がかりが無いので、送った側の状態で
             // 見分ける。経路2 の人は復帰を送る前に `lastJoinRef` が埋まっている。
@@ -335,7 +319,7 @@ export function useHubSync(): HubSync {
               displayName: last.displayName,
               ...(last.passphrase !== undefined ? { passphrase: last.passphrase } : {}),
             });
-          }, delay);
+          });
           return;
         }
         if (msg.code === 'ROOM_NOT_FOUND' && codeRef.current !== null) {
@@ -391,7 +375,7 @@ export function useHubSync(): HubSync {
     // **依存は URL 由来の値だけにする。** 入口の URL はページ読み込みで決まり
     // （全ページ読み込みで WS が張り直しになる・D14）、作成で得たコードをここへ混ぜると
     // 作成のたびに接続が張り直る（`tests/hub/use-hub-sync.test.tsx` が固定している）。
-  }, [initialCode, resumeIfPossible, checkIfNeeded, send, cancelRetry]);
+  }, [initialCode, resumeIfPossible, checkIfNeeded, send, cancelRetry, rateLimited, resetRetry]);
 
   const createRoom = useCallback(
     (roomName: string, displayName: string) => {
@@ -413,7 +397,7 @@ export function useHubSync(): HubSync {
       cancelRetry();
       lastJoinRef.current = { displayName, ...(passphrase !== undefined ? { passphrase } : {}) };
       setError(null);
-      retryRef.current = 0;
+      resetRetry();
       send({
         command: 'room.join',
         code,
@@ -421,7 +405,7 @@ export function useHubSync(): HubSync {
         ...(passphrase !== undefined ? { passphrase } : {}),
       });
     },
-    [code, send, cancelRetry],
+    [code, send, cancelRetry, resetRetry],
   );
 
   return {

@@ -121,6 +121,7 @@ export const ALLOWED = {
   // #95 S5a で LP は同期クライアントになった（ADR-0019）。**@tasuki/timer-core を知らない** ——
   // ハブが扱うのは名簿だけで、タイマーの状態も票も通らない（ADR-0017 の文脈分割）。
   // #91 PR 2: 玄関は `topic` フレームを topic-core のスキーマで検め、タイトルだけを出す（spec §5.5）。
+// #369: 混雑のやり直しは `@tasuki/web-kit/sync` の `useJoinRetry`。
   "apps/landing": [
     "@tasuki/invite-ui",
     "@tasuki/dev-hub-redirect",
@@ -129,6 +130,7 @@ export const ALLOWED = {
     "@tasuki/sync-client",
     "@tasuki/topic-core",
     "@tasuki/ui",
+    "@tasuki/web-kit",
   ],
   // #91 PR 3: `topic` フレームを topic-core のスキーマで検め、お題を読むだけで出す（spec §5.5）。
   // timer-core は topic-core を知らない（T1）。

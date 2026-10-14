@@ -112,4 +112,22 @@ describe('useJoinRetry', () => {
     expect(hook.result.current.cancel).toBe(first.cancel);
     expect(hook.result.current.reset).toBe(first.reset);
   });
+
+  it('Given 文言を渡さない（玄関はサーバーの文を見せる） / When 拒まれる・使い切る / Then 知らせは無いまま、送り直しは同じ', () => {
+    // Given
+    const resend = vi.fn();
+    const hook = renderHook(() => useJoinRetry(null));
+    // When
+    act(() => hook.result.current.rateLimited(resend));
+    act(() => vi.advanceTimersByTime(60_000));
+    // Then
+    expect(hook.result.current.notice).toBeNull();
+    expect(resend).toHaveBeenCalledTimes(1);
+    for (let attempt = 2; joinRetryDelayMs(attempt) !== null; attempt += 1) {
+      act(() => hook.result.current.rateLimited(resend));
+      act(() => vi.advanceTimersByTime(60_000));
+    }
+    act(() => hook.result.current.rateLimited(resend));
+    expect(hook.result.current.notice).toBeNull();
+  });
 });

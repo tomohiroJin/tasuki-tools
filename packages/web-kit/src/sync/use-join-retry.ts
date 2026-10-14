@@ -34,7 +34,11 @@ export interface JoinRetry {
   readonly reset: () => void;
 }
 
-export function useJoinRetry(texts: JoinRetryTexts): JoinRetry {
+/**
+ * @param texts 知らせの文言。**null なら知らせを持たない**（`notice` は null のまま。
+ *   玄関は知らせの代わりにサーバーの文を見せるので、こちらを使う）。
+ */
+export function useJoinRetry(texts: JoinRetryTexts | null): JoinRetry {
   const [notice, setNotice] = useState<string | null>(null);
   const attemptsRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -56,10 +60,10 @@ export function useJoinRetry(texts: JoinRetryTexts): JoinRetry {
     (resend: () => void) => {
       const delay = joinRetryDelayMs((attemptsRef.current += 1));
       if (delay === null) {
-        setNotice(textsRef.current.exhausted);
+        if (textsRef.current !== null) setNotice(textsRef.current.exhausted);
         return;
       }
-      setNotice(textsRef.current.waiting);
+      if (textsRef.current !== null) setNotice(textsRef.current.waiting);
       cancel();
       timerRef.current = setTimeout(() => {
         timerRef.current = null;
