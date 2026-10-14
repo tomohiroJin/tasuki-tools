@@ -381,7 +381,7 @@ async function expectTabNeverUnderDock(page: Page, target: string, label: string
 
 test.describe('timer の各画面（ロビー・セッション・確認・まとめ）のボタンは部品で、押せる大きさがあり、帯は留まり、名簿は内側でスクロールしない', () => {
   test('Given 幅 390 の timer のロビー / When セッション（参加者 6 人・30 字の名前を含む。1280 と 390）・「途中で終える」の確認・まとめの順に開く / Then 素のボタンは許可したものだけで、主は 1 つ以下で最後にあり、当たりが 44px 以上で重ならず、名簿に内側のスクロールが無く行は横に溢れず、帯は計器のカードの中で留まり、終える区画の主は最後で危険は左に離れ、Tab は帯に隠れない', async ({ page }) => {
-    // ルームの枠が逼迫しているので、timer は 1 室で画面の流れの順に全てを見る（まとめは戻れないので最後）。
+    // 以前はルームの枠が逼迫していたので、timer は 1 室で画面の流れの順に全てを見る（まとめは戻れないので最後）。#387 で枠は広げたが、動いている検査なのでほどかない。
     // ロビー: 開始ボタンが見えてから測る
     await page.setViewportSize({ width: 390, height: 800 });
     await createTimerRoom(page, 'buttons-timer');

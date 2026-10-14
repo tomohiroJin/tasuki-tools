@@ -7,6 +7,8 @@
  * 起動・停止の戻り値がプロセスの配列で、呼び出し側（globalSetup）が
  * その形に依存しているためである。
  *
+ * MAX_ROOMS は、ハーネスが渡す env では `E2E_MAX_ROOMS` で上書きする（本番の既定 100 とは異なる。#387）。
+ *
  * ポートは本番と同じ 8787。断片が絶対値で宣言しているため変えられない。
  *
  * ALLOWED_ORIGINS にはローカルの入口 URL を渡す。空で起動を
@@ -38,6 +40,34 @@ const SYNC_SERVERS: readonly SyncSpec[] = [
   { name: 'tasuki-sync', entry: 'apps/tasuki-sync/src/server.ts', port: PORTS.sync },
 ];
 
+/**
+ * E2E の同期サーバーのルーム枠（#387）。
+ *
+ * **本番の既定（`apps/tasuki-sync/src/config.ts` の 100）は変えない。** E2E 全件が 100 をちょうど使い切り、
+ * 検査を足すたびに既存の検査を 1 ルームへ畳む作業が要っていた（#316・#348・#94）。
+ * 枠いっぱいの挙動を E2E で確かめている spec は無い（枠の拒否は `apps/tasuki-sync` の単体テストが見る）。
+ * 接続数（`MAX_CONNECTIONS`）など他の枠は変えていない。
+ */
+export const E2E_MAX_ROOMS = 1000;
+
+/** 同期サーバーへ渡す env。手元の env を引き継ぎ、E2E が決める値で上書きする。 */
+export function syncEnv(base: NodeJS.ProcessEnv, port: number): NodeJS.ProcessEnv {
+  return {
+    ...base,
+    PORT: String(port),
+    HOST: '127.0.0.1',
+    ALLOWED_ORIGINS: LOCAL_BASE_URL,
+    // 本番と同じ経路を通す（#103）。NODE_ENV が効くのは
+    // ALLOWED_ORIGINS の fail-closed・HOST のループバック限定・クライアント IP の
+    // 必須化の 3 箇所（加えて未知の値なら起動時に throw）。ALLOWED_ORIGINS と
+    // HOST はすぐ上で渡しているので、ここで効くのはクライアント IP の必須化。
+    // **これを入れると、実 Caddy 断片で X-Forwarded-For が届かない場合に
+    // 全シナリオが落ちる。** それが狙いで、静かに防御が消えるより先に気づける。
+    NODE_ENV: 'production',
+    MAX_ROOMS: String(E2E_MAX_ROOMS),
+  };
+}
+
 export async function startSyncServers(): Promise<ChildProcess[]> {
   mkdirSync(LOG_DIR, { recursive: true });
   const procs: ChildProcess[] = [];
@@ -49,19 +79,7 @@ export async function startSyncServers(): Promise<ChildProcess[]> {
     const log = createWriteStream(path.join(LOG_DIR, `${server.name}.log`), { flags: 'w' });
     const proc = spawn('bun', ['run', server.entry], {
       cwd: REPO_ROOT,
-      env: {
-        ...process.env,
-        PORT: String(server.port),
-        HOST: '127.0.0.1',
-        ALLOWED_ORIGINS: LOCAL_BASE_URL,
-        // 本番と同じ経路を通す（#103）。NODE_ENV が効くのは
-        // ALLOWED_ORIGINS の fail-closed・HOST のループバック限定・クライアント IP の
-        // 必須化の 3 箇所（加えて未知の値なら起動時に throw）。ALLOWED_ORIGINS と
-        // HOST はすぐ上で渡しているので、ここで効くのはクライアント IP の必須化。
-        // **これを入れると、実 Caddy 断片で X-Forwarded-For が届かない場合に
-        // 全シナリオが落ちる。** それが狙いで、静かに防御が消えるより先に気づける。
-        NODE_ENV: 'production',
-      },
+      env: syncEnv(process.env, server.port),
       stdio: ['ignore', 'pipe', 'pipe'],
     });
     // **'error' リスナが無いと、bun が PATH に無いだけで未捕捉例外になり
