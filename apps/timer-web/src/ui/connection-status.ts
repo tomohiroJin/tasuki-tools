@@ -3,7 +3,7 @@
  * 同期の古さから導出する（R5-1 / #209）。
  * banner（接続無関係の通知でも立つ）に結合しない。
  */
-import type { ConnectionStatus } from "./components/StatusStrip.js";
+import type { StatusStripState } from "./components/StatusStrip.js";
 
 /**
  * WS クライアントが知っている接続の状態。
@@ -33,7 +33,7 @@ export type ClientConnState = "connecting" | "online" | "reconnecting";
  * 再接続が成功すれば新しい `snapshot` が届くので、そこで `syncStale` は解消しうる。
  *
  * **最後は `connState` をそのまま返す。** こうしておくと
- * `ClientConnState ⊆ ConnectionStatus` を型検査が守る。リテラルへ展開して
+ * `ClientConnState ⊆ StatusStripState` を型検査が守る。リテラルへ展開して
  * `return "online"` と書くと、接続状態が増えたときに**どの分岐にも当たらず黙って
  * 「接続中」へ落ちる**（実測: そのまま返す形なら、増やした値が代入できず TS2322）。
  */
@@ -41,7 +41,7 @@ export function deriveConnectionStatus(
   sessionLost: boolean,
   connState: ClientConnState,
   syncStale: boolean,
-): ConnectionStatus {
+): StatusStripState {
   if (sessionLost) return "lost";
   // 「古い」を出すのは接続が生きているときだけ。切れているならそちらが先。
   if (syncStale && connState === "online") return "stale";

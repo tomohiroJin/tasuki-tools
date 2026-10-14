@@ -26,6 +26,7 @@ import type { DepartureReason, RosterRoom } from '@tasuki/room-core';
 import {
   SyncConnection,
   buildInviteUrl,
+  buildSyncUrl,
   clearResumeIdentity,
   connectionNoticeKind,
   joinRetryDelayMs,
@@ -33,17 +34,19 @@ import {
   planForJoinError,
   saveResumeIdentity,
   type ConnectionNoticeKind,
+  type ConnectionStatus,
 } from '@tasuki/sync-client';
 import type { RouletteCommand, RouletteView } from '@tasuki/roulette-core';
 import type { TopicState } from '@tasuki/topic-core';
 import { DEFAULT_ERROR_TEXT, RETRY_EXHAUSTED_TEXT, RETRY_WAITING_TEXT } from '../copy';
 import { parseRouletteWebMessage } from '../server-message';
-import type { ConnectionStatus } from '../roulette-view';
+
+/** 接続状態（正本は `@tasuki/sync-client`）。画面の判断（`roulette-view.ts`）はここから型だけを取る。 */
+export type { ConnectionStatus };
 
 /** 同期サーバーへの URL。**入口は玄関と同じ `/ws` で、ツールはクエリが宣言する**。 */
 export function rouletteSyncUrl(location: { protocol: string; host: string }): string {
-  const scheme = location.protocol === 'https:' ? 'wss' : 'ws';
-  return `${scheme}://${location.host}/ws?tool=roulette`;
+  return buildSyncUrl(location, 'roulette');
 }
 
 export interface RouletteSync {

@@ -16,20 +16,19 @@
  * - `SYNC_TOOL_QUERY`（`tool=timer`）: 統合サーバーがメッセージ層を振り分けるための
  *   ツール宣言（`apps/tasuki-sync/src/adapters/ws-adapter.ts`）。Caddy 断片は関与しない。
  */
-export const SYNC_PATH = "/ws";
+// 入口のパスと URL の組み立ての正本は `@tasuki/sync-client`（#369。5 つの web アプリの写しを寄せた）。
+import { SYNC_PATH, buildSyncUrl as buildToolSyncUrl, type SyncUrlLocation } from "@tasuki/sync-client";
 
-/** 統合サーバーへ渡すツールの宣言（クエリ文字列。timer 固定）。 */
-export const SYNC_TOOL_QUERY = "tool=timer";
+export { SYNC_PATH };
+export type { SyncUrlLocation };
 
-/** URL の組み立てに必要な location の一部。テストから差し替えられるようにする。 */
-export interface SyncUrlLocation {
-  /** `https:` / `http:` */
-  readonly protocol: string;
-  /** ホスト（ポートを含む） */
-  readonly host: string;
-}
+/** timer が宣言するツール。 */
+const TIMER_TOOL = "timer";
 
+/** ツールの宣言（クエリ）。統合サーバーがメッセージ層を振り分けるのに使う。 */
+export const SYNC_TOOL_QUERY = `tool=${TIMER_TOOL}`;
+
+/** timer の同期サーバーへの URL。 */
 export function buildSyncUrl(location: SyncUrlLocation): string {
-  const scheme = location.protocol === "https:" ? "wss:" : "ws:";
-  return `${scheme}//${location.host}${SYNC_PATH}?${SYNC_TOOL_QUERY}`;
+  return buildToolSyncUrl(location, TIMER_TOOL);
 }

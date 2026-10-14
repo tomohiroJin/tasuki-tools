@@ -19,6 +19,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   SyncConnection,
   buildInviteUrl,
+  buildSyncUrl,
   clearLegacyPreferences,
   clearResumeIdentity,
   joinRetryDelayMs,
@@ -36,8 +37,7 @@ import { usableDefaultDisplayName } from './default-display-name.js';
 
 /** 同期サーバーへの URL。**ハブの入口は `/ws`** で、LP の base（`/`）直下にある。 */
 export function buildHubSyncUrl(location: { protocol: string; host: string }): string {
-  const scheme = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  return `${scheme}//${location.host}/ws`;
+  return buildSyncUrl(location, null);
 }
 
 export interface HubSync {
