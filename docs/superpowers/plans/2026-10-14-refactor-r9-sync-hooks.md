@@ -154,3 +154,23 @@ PR A のマージの後に、この節を実測で書き足す（玄関・poker�
 - [ ] WS の URL の組み立てと `ConnectionStatus` の宣言が `sync-client` の 1 つ（写しの宣言はテストが拒む）
 - [ ] 変異検査が全件検出。`pnpm test`・`typecheck`・`lint`・構造監査が緑
 - [ ] #360 の共通の守りを満たす
+
+## 8. 実施の記録（2026-10-14・PR A）
+
+計画から外れたこと・計画の時点で分かっていなかったことだけを書く。
+
+- **§2 の判断は、利用者が推奨を了承した**（パッケージは `@tasuki/web-kit` の `./sync`・PR を 2 つに分ける・timer の `ConnectionStatus` は `StatusStripState` へ改名・見た目は画面のテストと e2e で代える）
+- **特性テストの欠けは、お題・ルーレットのフックのテストに足した**（https/http の URL・再接続での入り直し・切断中に組が捨てられたら玄関へ・送った名前での保存・再接続で混雑の試行の数が戻る）
+- **写しの宣言を拒む検査は、`sync-client` のテストではなく `audit-web-sync-boundary.mjs` の検査 4 に置いた。** `sync-client` は Node の型を持たず、リポジトリを走査するテストを書くには `@types/node` を足すことになるため。`type ConnectionStatus =` と URL の組み立て（`https:` の比較・`wss` の字面）を web アプリの `src` で拒む。注釈の行は見ない
+- **view（`roulette-view.ts`・`topic-view.ts`）は `ConnectionStatus` を `@tasuki/sync-client` から型だけ読む。** 画面の境界テストは `import type` の行を許すようにした（型だけなら同期の実体を読まない）。フックからの型の再公開は外した
+- **`useJoinRetry` のテストは `Math.random` を固定する**（`joinRetryDelayMs` のばらつきのため）
+- **パッケージを足すと、監査の表の更新が要った。** `audit-dependency-direction`（許可表）・`audit-structure`（走査するパッケージ・入口）・`audit-log-hygiene`（パッケージの一覧。`ALLOWED_FILES` は 2 つの同期フックを共通の部品 1 つに置き換えたので、項目は 1 つ減った）・`audit-domain-side-effects`（対象外と理由）・`check-links`（生きた文書）
+- **変異のパッチ m08・m92・m162・m180 を、ID・名前・検出を期待するテストを変えずに当て直した。** m92（`onClose` で予約を取り消さない）は共通の部品（`packages/web-kit/src/sync/use-tool-room-sync.ts`）を壊す形になった。お題のフックのテストに加え、web-kit のテスト（混雑の待ちの途中で切れて繋ぎ直す）でも検出することを確かめた
+- **`/security-review` の指摘は無し**（URL の組み立て・復帰の組の読み書きと破棄・ログの文言・境界の解析・送るコマンドの形を、載せ替えの前と並べて確かめた）
+- **`/code-review` の指摘のうち、次を直した**（1 つのコミット）
+  - web-kit に `useToolRoomSync` のテストを足した（それまではアプリのフックのテストだけが守っていた）
+  - 検査 4 の型を広げた（比較の左右の入れ替え・`startsWith('https')`・テンプレートリテラルの `wss`）。注釈の行の誤検出を外した。JSDoc を元の関数へ戻した
+  - view の型の読み先（上に書いた `import type`）。web-kit の README に `useToolRoomSync` と、玄関・ポーカー・タイマーは PR B で寄せることを書いた
+- **`/code-review` の指摘のうち、直さなかったもの**
+  - 玄関のやり直しの写し → PR B の Task 8 で寄せる（計画どおり）
+  - `useMemo` の依存がルームの状態のオブジェクト全体 → 返す値を作り直す頻度は載せ替えの前と同じ（返す項目も同じ）なので変えない
