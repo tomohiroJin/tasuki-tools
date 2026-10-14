@@ -1,0 +1,24 @@
+# 変異 186: --changed の条件 1（pkg 配下の変更で選ぶ）を外す
+#
+# 検出を期待するテスト:
+#   - scripts/lib/mutation-select.test.mjs
+#     「条件 1: pkg 配下の変更なら、パッチが触らないファイルでも選ぶ」
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m186-*.patch
+# 復元: git apply -R scripts/mutations/m186-*.patch
+#
+# #387。条件 1 が無いと、パッチが触るファイル以外の変更（同じパッケージのテストや隣のモジュール）で
+# 変異が選ばれず、検出力が落ちた変異を手元で見逃す。
+diff --git a/scripts/lib/mutation-select.mjs b/scripts/lib/mutation-select.mjs
+index 5d37d247..b4e8f37a 100644
+--- a/scripts/lib/mutation-select.mjs
++++ b/scripts/lib/mutation-select.mjs
+@@ -112,8 +112,6 @@ function selectByChange(mutations, { changedFiles, mechanismFiles, patchDir, aff
+   const selected = [];
+   for (const mutation of mutations) {
+     const reasons = [];
+-    // `${pkg}/` で比べる。`apps/a` が `apps/a-x` に前方一致で当たらないように
+-    if (changedFiles.some((f) => f.startsWith(`${mutation.pkg}/`))) reasons.push(`pkg 配下の変更（${mutation.pkg}）`);
+     if (affectedFilesOf(mutation).some((f) => changed.has(f))) reasons.push("パッチが触るファイルの変更");
+     if (changed.has(`${patchDir}/${mutation.patch}`)) reasons.push("パッチ自体の変更");
+     if (reasons.length > 0) selected.push({ mutation, reasons });

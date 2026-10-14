@@ -1706,6 +1706,22 @@ export const MUTATIONS = [
       "#94 spec §6.3（PR #383 のレビュー）。止まった角度は回したときの席数で計算するので、止まった後にゲストを足す・" +
       "名簿の順が変わると、針が別の人を指し、札は本当の当たりを見せる。",
   },
+  {
+    id: 186,
+    label: "--changed の条件 1（pkg 配下の変更で選ぶ）を外す",
+    patch: "m186-select-without-pkg-rule.patch",
+    pkg: "scripts",
+    tests: ["lib/mutation-select.test.mjs"],
+    note: "#387。**対応表より後に足した変異。** 選び方そのものが静かに狭まると、手元で流すべき変異を流さなくなる。",
+  },
+  {
+    id: 187,
+    label: "変異検査の機構が変わっても --changed を全件に倒さない",
+    patch: "m187-select-without-mechanism-fallback.patch",
+    pkg: "scripts",
+    tests: ["lib/mutation-select.test.mjs"],
+    note: "#387。**対応表より後に足した変異。** 機構を変えた枝で、変えた機構の影響を手元で見ない。",
+  },
 ];
 
 /**
