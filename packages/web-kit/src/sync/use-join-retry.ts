@@ -56,7 +56,8 @@ export function useJoinRetry(texts: JoinRetryTexts | null): JoinRetry {
 
   const reset = useCallback(() => {
     attemptsRef.current = 0;
-    setNotice(null);
+    // 文言が無ければ知らせは null のまま。毎回の状態の届き（timer は snapshot ごと）で空の更新を積まない。
+    if (textsRef.current !== null) setNotice(null);
   }, []);
 
   const rateLimited = useCallback(

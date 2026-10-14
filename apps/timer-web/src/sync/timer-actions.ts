@@ -10,7 +10,7 @@ import { saveRecord } from "../records/indexeddb.js";
 import { startActionFor } from "../ui/session-start.js";
 import { redirectTo } from "../platform/location.js";
 import type { BannerController } from "../ui/use-banner.js";
-import type { AppMode } from "./use-timer-sync.js";
+import type { AppMode } from "./app-mode.js";
 
 export interface TimerActions {
   /** ロビーの「開始」。お題が無ければ依頼してから phase.set と START を送る。 */
