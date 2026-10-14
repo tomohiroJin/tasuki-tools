@@ -339,6 +339,15 @@ function evolveMemberRemoved(agg: Aggregate, index: number): Aggregate {
     newIndex = newIndex % newRotation.length;
   }
 
+  // 運転中の人が外れたら、運転は次の人へ移る。直前に運転していたのは外れた人である（#374）。
+  // 残しておくと新しい運転者のナビに 2 つ前の人が出る。外れた人は輪に居ないので、
+  // snapshot の添字では null になる（ナビは出ない）。
+  const removedEntry = agg.session.rotation[index];
+  const previousDriverId =
+    index === agg.session.currentIndex && removedEntry !== undefined
+      ? rotationEntryId(removedEntry)
+      : agg.session.previousDriverId;
+
   return {
     ...agg,
     session: {
@@ -346,6 +355,7 @@ function evolveMemberRemoved(agg: Aggregate, index: number): Aggregate {
       rotation: newRotation,
       currentIndex: Math.max(0, Math.min(newIndex, newRotation.length - 1)),
       driverCounts: newDriverCounts,
+      previousDriverId,
     },
   };
 }

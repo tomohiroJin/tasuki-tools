@@ -63,7 +63,7 @@ describe("手動スキップの eligibility（v2.10 #3）", () => {
   });
 
   it("一時離脱の席を飛ばした交代の後、snapshot の直前のドライバーは交代前の運転者（飛ばされた B ではない・#374）", async () => {
-    // Given（3 人の輪で A が運転中、1 つ前…ではなく次の席の B は一時離脱）
+    // Given（3 人の輪 [A, B, C] で A が運転中。次の席の B は一時離脱）
     const code = await setup(handlers, store, timers, { driverEligible: false });
     // When（A → C）
     await handlers.handleCommand("conn-a", { command: "session.act", action: "SWITCH" });

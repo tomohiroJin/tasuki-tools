@@ -41,6 +41,11 @@ export interface DriverNames {
   readonly navigator: string | null;
 }
 
+/** ナビを隠す飛ばされる理由（#374）。不在（away）は含めない（`driverNames` の注記）。 */
+function hidesNavigator(reason: SeatSkipReason | null | undefined): boolean {
+  return reason === "stood-down" || reason === "disconnected";
+}
+
 /**
  * いまのドライバー・次・ナビの呼び名。
  *
@@ -56,7 +61,10 @@ export interface DriverNames {
  * 次のときはナビを出さない（分からない・務められない。輪が 1 人のときと同じ作法）:
  * - 直前の人が分からない（交代前・輪から外れた・旧サーバー）
  * - 直前の人の席がいまの運転者と同じ（削除で添字が詰まったとき）
- * - 直前の人の席がいま飛ばされる状態（見送り・不在・切断）—— その場に居ない人はナビを務められない
+ * - 直前の人が本人の選んだ見送り（stood-down）中か、切断している —— ナビを務められない
+ *
+ * **不在（away）では隠さない。** timer のタブに居ないだけ（ハブや poker のタブへ移った）で、
+ * 隠すとタブを切り替えるたびに全員の画面でナビが点滅する。
  */
 export function driverNames({
   names,
@@ -70,7 +78,7 @@ export function driverNames({
     navigatorEnabled &&
     previousDriverIndex !== null &&
     previousDriverIndex !== currentIndex &&
-    skipReasons[previousDriverIndex] === null
+    !hidesNavigator(skipReasons[previousDriverIndex])
       ? previousDriverIndex
       : null;
   return {

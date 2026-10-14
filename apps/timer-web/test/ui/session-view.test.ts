@@ -51,6 +51,8 @@ describe("driverNames", () => {
     ["直前のドライバーが分からない（交代前・項目が無い）", null, [null, null, null], null],
     ["直前のドライバーが運転の後に見送りへ切り替えた → 務められないので出さない", 1, [null, "stood-down", null], null],
     ["直前のドライバーが切断した → 出さない", 1, [null, "disconnected", null], null],
+    // 不在（away）は timer のタブに居ないだけ。タブを切り替えるたびに全員の画面でナビが点滅しないよう隠さない
+    ["直前のドライバーが不在（timer のタブに居ないだけ）→ 出す", 1, [null, "away", null], "いずみ"],
     ["直前のドライバーがいまの運転者と同じ席（削除で添字が詰まった）→ 出さない", 2, [null, null, null], null],
     ["直前のドライバーの添字が輪の外（造作）→ 出さない", 7, [null, null, null], null],
   ] as const)("%s", (_label, previousDriverIndex, skipReasons, expected) => {

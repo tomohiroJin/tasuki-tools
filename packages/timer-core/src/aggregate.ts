@@ -51,7 +51,8 @@ interface SessionState {
    *
    * **添字ではなく識別子で持つ。** 並べ替え・削除で添字は動くが、識別子は人に付く。
    * 添字への投影は同期サーバーの snapshot DTO が毎回行う（`session.previousDriverIndex`）。
-   * 書き手は `evolve` の `DriverSwitched` だけである（イベントの形は変えていない）。
+   * 書き手は `evolve` の `DriverSwitched` と、運転中の人が外れたときの `MemberRemoved` である
+   * （イベントの形は変えていない）。
    */
   previousDriverId: string | null;
 }

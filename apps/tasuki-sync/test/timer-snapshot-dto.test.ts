@@ -356,6 +356,11 @@ describe("previousDriverIndex（直前に実際に運転した人の席・#374�
     expect(previousOf(null)).toBeNull();
   });
 
+  it("直前のドライバーがいまの運転者と同じ席なら null（wire の注記どおり正規化する）", () => {
+    // 運転中の人が外れて添字が詰まる等で起きうる。いまの運転者をナビとして送らない
+    expect(previousOf("p_carol", 2)).toBeNull();
+  });
+
   it("直前のドライバーが輪から外れていれば null", () => {
     expect(previousOf("p_gone")).toBeNull();
   });

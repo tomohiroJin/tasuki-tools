@@ -150,9 +150,29 @@ describe("evolve: 直前のドライバー（#374）", () => {
   });
 
   it("飛ばされた席を挟んで交代しても、直前のドライバーは交代前の運転者（飛ばされた席の人ではない）", () => {
-    // Given（Alice が運転中。Bob の席は飛ばされて Charlie へ）
-    // When
-    const agg = switchTo(running(), 2);
+    // Given（Alice が運転中。Bob の席（添字 1）は不適格）
+    // When（サーバーと同じ経路で、不適格な席を飛ばして交代する）
+    const agg = advanceDriver(running(), new Set([1]), NOW + 10000);
+    // Then（Bob を飛ばして Charlie へ。直前に運転したのは Alice）
+    expect(agg.session.currentIndex).toBe(2);
+    expect(agg.session.previousDriverId).toBe("Alice");
+  });
+
+  it("運転中の人が輪から外れたら、直前のドライバーはその人になる（2 つ前の人を残さない）", () => {
+    // Given（Alice → Bob と交代済み。いまは Bob が運転中で、直前は Alice）
+    const afterOne = switchTo(running(), 1);
+    // When（運転中の Bob が輪から外れ、Charlie が運転者になる）
+    const agg = evolve(afterOne, { type: "MemberRemoved", index: 1, now: NOW + 20000 }, NOW + 20000);
+    // Then（直前に運転していたのは Bob。Alice は 2 つ前）
+    expect(agg.session.rotation[agg.session.currentIndex]).toMatchObject({ participantId: "Charlie" });
+    expect(agg.session.previousDriverId).toBe("Bob");
+  });
+
+  it("運転中でない人が輪から外れても、直前のドライバーは変わらない", () => {
+    // Given（Alice → Bob。直前は Alice）
+    const afterOne = switchTo(running(), 1);
+    // When（運転していない Charlie が外れる）
+    const agg = evolve(afterOne, { type: "MemberRemoved", index: 2, now: NOW + 20000 }, NOW + 20000);
     // Then
     expect(agg.session.previousDriverId).toBe("Alice");
   });

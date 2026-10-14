@@ -314,13 +314,15 @@ export function buildTimerSnapshotRoom(membership: MembershipRoom, timer: TimerS
       ? null
       : candidate;
   // 直前に実際に運転した人（#374）。集約は識別子で持つので、いまの輪の添字へ写す。
-  // 輪から外れていれば null（`findIndex` の -1）。表示するかどうか（いまの運転者と同じ席・
-  // 飛ばされる状態）は画面の `driverNames` が決める —— ここは写すだけにする。
+  // 輪から外れていれば null（`findIndex` の -1）。いまの運転者と同じ席も null へ正規化する
+  // （`wire.ts` の注記どおり。いまの運転者をナビとして送らない）。
+  // 飛ばされる状態で出すかどうかは画面の `driverNames` が決める。
   const previousSeat =
     timer.session.previousDriverId === null
       ? -1
       : seats.findIndex((s) => s.id === timer.session.previousDriverId);
-  const previousDriverIndex = previousSeat >= 0 ? previousSeat : null;
+  const previousDriverIndex =
+    previousSeat >= 0 && previousSeat !== timer.session.currentIndex ? previousSeat : null;
   // 代理の `joinedAt` は名簿の作成時刻で埋める。席は追加時刻を持たないが、
   // この値を読む処理は無い（読み手だったお題の委譲の候補列は #91 PR 3 で消えた）。
   const proxies: Participant[] = proxyEntries(timer).map((e) => ({
