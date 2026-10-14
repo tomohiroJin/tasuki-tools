@@ -41,6 +41,19 @@ interface SessionState {
   driverCounts: number[];
   /** 総交代回数 */
   totalSwitches: number;
+  /**
+   * 直前に実際に運転した人の席の識別子（{@link rotationEntryId}・#374）。交代がまだ無ければ null。
+   *
+   * ナビ（⑦）はこの人を指す。輪の上の 1 つ前の席ではない —— 交代は飛ばされる席を飛ばし
+   * （`nextEligibleIndex`）、強制指名（`driver.assign`）は輪のどこへでも飛ぶので、
+   * 1 つ前の席の人は運転していないことがある。席の状態は「いま」しか持たないので、
+   * 画面が席から逆向きにたどっても復元できない。
+   *
+   * **添字ではなく識別子で持つ。** 並べ替え・削除で添字は動くが、識別子は人に付く。
+   * 添字への投影は同期サーバーの snapshot DTO が毎回行う（`session.previousDriverIndex`）。
+   * 書き手は `evolve` の `DriverSwitched` だけである（イベントの形は変えていない）。
+   */
+  previousDriverId: string | null;
 }
 
 /**
@@ -232,6 +245,7 @@ export function initialAggregateInSeconds(intervalSeconds: number, rotation: rea
       isPaused: false,
       driverCounts: rotation.map(() => 0),
       totalSwitches: 0,
+      previousDriverId: null,
     },
     clock: {
       running: false,

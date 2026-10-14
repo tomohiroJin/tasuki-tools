@@ -136,6 +136,52 @@ describe("evolve: DriverSwitched（nextIndex === prevIndex）", () => {
   });
 });
 
+/**
+ * 直前に実際に運転した人（#374）。ナビ（⑦）は輪の上の 1 つ前の席ではなく、この人を指す。
+ * 席は飛ばされる・強制指名で飛ぶ・並べ替えで動くので、識別子で持つ。
+ */
+describe("evolve: 直前のドライバー（#374）", () => {
+  const running = () => anAggregate().withRotation("Alice", "Bob", "Charlie").running().build();
+  const switchTo = (agg: ReturnType<typeof running>, nextIndex: number) =>
+    evolve(agg, { type: "DriverSwitched", nextIndex, now: NOW + 10000 }, NOW + 10000);
+
+  it("交代が起きる前は、直前のドライバーは居ない", () => {
+    expect(running().session.previousDriverId).toBeNull();
+  });
+
+  it("飛ばされた席を挟んで交代しても、直前のドライバーは交代前の運転者（飛ばされた席の人ではない）", () => {
+    // Given（Alice が運転中。Bob の席は飛ばされて Charlie へ）
+    // When
+    const agg = switchTo(running(), 2);
+    // Then
+    expect(agg.session.previousDriverId).toBe("Alice");
+  });
+
+  it("交代先が現ドライバーと同じなら、直前のドライバーは変わらない", () => {
+    // Given（Alice → Bob と交代済み）
+    const afterOne = switchTo(running(), 1);
+    // When（Bob のまま現状維持）
+    const agg = switchTo(afterOne, 1);
+    // Then
+    expect(agg.session.previousDriverId).toBe("Alice");
+  });
+
+  it("並べ替えても、直前のドライバーは人に付いたまま", () => {
+    // Given（Alice → Bob）
+    const afterOne = switchTo(running(), 1);
+    // When（並びを逆にする）
+    const agg = evolve(afterOne, { type: "MembersShuffled", order: [2, 1, 0], now: NOW }, NOW);
+    // Then
+    expect(agg.session.previousDriverId).toBe("Alice");
+  });
+
+  it("リセットすると、直前のドライバーは居なくなる", () => {
+    const afterOne = switchTo(running(), 1);
+    const agg = evolve(afterOne, { type: "SessionReset", now: NOW + 20000 }, NOW + 20000);
+    expect(agg.session.previousDriverId).toBeNull();
+  });
+});
+
 describe("evolve: SessionPaused / SessionResumed", () => {
   const runningAgg = {
     ...baseAgg,

@@ -146,6 +146,11 @@ export function putRoomView(
           ? { kind: "proxy" as const, id, label: p.displayName, eligible }
           : { kind: "member" as const, participantId: id, eligible };
       }),
+      // wire の添字を集約の識別子へ戻す（#374。`buildTimerSnapshotRoom` の逆）。
+      previousDriverId:
+        room.session.previousDriverIndex != null
+          ? (room.session.rotation[room.session.previousDriverIndex] ?? null)
+          : null,
     },
     clock: room.clock,
     phase: room.phase,

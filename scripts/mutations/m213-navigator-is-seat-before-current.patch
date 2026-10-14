@@ -1,0 +1,24 @@
+# 変異 213: ナビを輪の上の 1 つ前の席へ戻す（#374 の欠陥そのもの）
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/ui/session-view.test.ts
+#     describe「driverNames」の「1 つ前の席（いずみ）が見送り中で飛ばされた」ほか
+#   - apps/timer-web/test/ui/Session.derived.test.tsx（見送り中で飛ばされた交代の後の 1 件）
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m213-*.patch
+# 復元: git apply -R scripts/mutations/m213-*.patch
+#
+# #374。サーバーが送る直前のドライバーを無視して、飛ばされた席の人（運転していない人）をナビに出す。
+diff --git a/apps/timer-web/src/ui/session-view.ts b/apps/timer-web/src/ui/session-view.ts
+--- a/apps/timer-web/src/ui/session-view.ts
++++ b/apps/timer-web/src/ui/session-view.ts
+@@ -71,7 +71,7 @@
+     previousDriverIndex !== null &&
+     previousDriverIndex !== currentIndex &&
+     skipReasons[previousDriverIndex] === null
+-      ? previousDriverIndex
++      ? (currentIndex - 1 + names.length) % names.length
+       : null;
+   return {
+     current: names[currentIndex] ?? "—",

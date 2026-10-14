@@ -40,6 +40,7 @@ function timerState(code: string, hasDriver: boolean): TimerState {
       isPaused: false,
       driverCounts: hasDriver ? [0] : [],
       totalSwitches: 0,
+      previousDriverId: null,
     },
     clock: {
       running: false,

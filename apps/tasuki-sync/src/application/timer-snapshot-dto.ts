@@ -72,6 +72,15 @@
  *    `rotationDisplayNames` は**残る** —— 交代の通知（`handlers.ts` の `nextDriverName`）と
  *    サーバー側の完成記録（`apply-room-level-event.ts`）が引き続き使う。
  *
+ * ★ **#374 で wire が変わった点も、この台帳に続けて書く。**
+ *
+ * 10. **`session.previousDriverIndex?: number | null`（直前に実際に運転した人の席）を任意項目として足した**
+ *    （`wire.ts` の `Room.session.previousDriverIndex` の注記）。集約の `previousDriverId`（識別子）を
+ *    いまの輪の添字へ写したもので、画面のナビ（⑦）が読む。**7 と違って任意にしてある** ——
+ *    `deploy.sh timer` は画面を先に配るので、「新しい画面 × 旧サーバー」の窓で snapshot を
+ *    捨てないためである（項目が無ければ画面はナビを出さない）。「旧画面 × 新サーバー」は
+ *    非 strict の `v.object` が余分な項目を通すので、旧画面は従来の「1 つ前の席」を出し続ける。
+ *
  * 代理（`isPlaceholder`）はここで**合成される**。名簿には居らず、輪の上の席
  * （`RotationEntry` の `kind: "proxy"`）としてだけ存在するためである。
  */
@@ -304,6 +313,14 @@ export function buildTimerSnapshotRoom(membership: MembershipRoom, timer: TimerS
     candidate !== null && seats.length >= 2 && candidate === timer.session.currentIndex
       ? null
       : candidate;
+  // 直前に実際に運転した人（#374）。集約は識別子で持つので、いまの輪の添字へ写す。
+  // 輪から外れていれば null（`findIndex` の -1）。表示するかどうか（いまの運転者と同じ席・
+  // 飛ばされる状態）は画面の `driverNames` が決める —— ここは写すだけにする。
+  const previousSeat =
+    timer.session.previousDriverId === null
+      ? -1
+      : seats.findIndex((s) => s.id === timer.session.previousDriverId);
+  const previousDriverIndex = previousSeat >= 0 ? previousSeat : null;
   // 代理の `joinedAt` は名簿の作成時刻で埋める。席は追加時刻を持たないが、
   // この値を読む処理は無い（読み手だったお題の委譲の候補列は #91 PR 3 で消えた）。
   const proxies: Participant[] = proxyEntries(timer).map((e) => ({
@@ -334,6 +351,7 @@ export function buildTimerSnapshotRoom(membership: MembershipRoom, timer: TimerS
       totalSwitches: timer.session.totalSwitches,
       seats,
       nextIndex,
+      previousDriverIndex,
     },
     clock: timer.clock,
     phase: timer.phase,

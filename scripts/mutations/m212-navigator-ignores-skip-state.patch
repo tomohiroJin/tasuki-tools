@@ -1,0 +1,24 @@
+# 変異 212: ナビが直前のドライバーの席の飛ばされる状態を見ない
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/ui/session-view.test.ts
+#     describe「driverNames」の「運転の後に見送りへ切り替えた」「切断した」の 2 件
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m212-*.patch
+# 復元: git apply -R scripts/mutations/m212-*.patch
+#
+# #374。運転した後に見送り・切断した人（その場に居ない人）をナビに出す。
+diff --git a/apps/timer-web/src/ui/session-view.ts b/apps/timer-web/src/ui/session-view.ts
+--- a/apps/timer-web/src/ui/session-view.ts
++++ b/apps/timer-web/src/ui/session-view.ts
+@@ -69,8 +69,7 @@
+   const navigatorSeat =
+     navigatorEnabled &&
+     previousDriverIndex !== null &&
+-    previousDriverIndex !== currentIndex &&
+-    skipReasons[previousDriverIndex] === null
++    previousDriverIndex !== currentIndex
+       ? previousDriverIndex
+       : null;
+   return {

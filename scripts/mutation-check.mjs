@@ -1722,6 +1722,38 @@ export const MUTATIONS = [
     tests: ["lib/mutation-select.test.mjs"],
     note: "#387。**対応表より後に足した変異。** 機構を変えた枝で、変えた機構の影響を手元で見ない。",
   },
+  {
+    id: 210,
+    label: "evolve が交代のときに直前のドライバーを書かない",
+    patch: "m210-evolve-forgets-previous-driver.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/evolve.test.ts"],
+    note: "#374。**対応表より後に足した変異。** 集約が直前のドライバーを持たなければ、ナビは常に出ない。",
+  },
+  {
+    id: 211,
+    label: "snapshot が直前のドライバーの席を送らない（常に null）",
+    patch: "m211-dto-drops-previous-driver-index.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/timer-snapshot-dto.test.ts", "test/manual-skip-eligible.test.ts"],
+    note: "#374。**対応表より後に足した変異。** 集約が正しくても wire に載らなければ画面はナビを出さない。",
+  },
+  {
+    id: 212,
+    label: "ナビが直前のドライバーの席の飛ばされる状態を見ない",
+    patch: "m212-navigator-ignores-skip-state.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/session-view.test.ts"],
+    note: "#374。**対応表より後に足した変異。** 運転した後に見送り・切断した人（その場に居ない人）をナビに出す。",
+  },
+  {
+    id: 213,
+    label: "ナビを輪の上の 1 つ前の席へ戻す",
+    patch: "m213-navigator-is-seat-before-current.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/session-view.test.ts", "test/ui/Session.derived.test.tsx"],
+    note: "#374。**対応表より後に足した変異。** 欠陥そのもの —— 飛ばされた席の人（運転していない人）をナビに出す。",
+  },
 ];
 
 /**

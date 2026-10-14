@@ -156,9 +156,10 @@ export function Session({
     navigator: navigatorName,
   } = driverNames({
     names: rotation.map((m) => m.label),
-    rotationLength: rotationLen,
+    skipReasons: rotation.map((m) => m.skipReason),
     currentIndex: room.session.currentIndex,
     nextIndex,
+    previousDriverIndex: room.session.previousDriverIndex ?? null,
     navigatorEnabled: room.config.navigatorEnabled === true,
   });
 
@@ -263,7 +264,7 @@ export function Session({
             {nextIndex === null && (
               <span className="session-next-note">（交代できる人がいません）</span>
             )}
-            {/* 出すかどうか（有効か・輪が 2 人以上か）は `session-view.ts` の `driverNames` が決める */}
+            {/* 出すかどうか（有効か・直前に運転した人が分かってその場に居るか）は `session-view.ts` の `driverNames` が決める */}
             {navigatorName && (
               <span className="session-navigator">ナビ: <span className="session-navigator-name">{navigatorName}</span></span>
             )}

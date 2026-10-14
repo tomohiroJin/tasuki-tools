@@ -78,6 +78,8 @@ describe("F3: リセットを最初から再スタートにする", () => {
         isPaused: false,
         driverCounts: [0, 0, 0],
         totalSwitches: 0,
+        // 2 回交代していても、リセットで直前のドライバーは居なくなる（#374）
+        previousDriverId: null,
       },
       clock: {
         running: true,

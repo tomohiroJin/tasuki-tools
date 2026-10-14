@@ -2,8 +2,8 @@
  * Session の画面が導く値（#370 の特性テスト）。
  *
  * 純粋関数（`ui/session-view.ts`）へ出す前に、**いまの表示を画面の単位で固定する**。
- * 名前の組（次・ナビ）・急ぎの印・進み具合・輪の大きさを見る。ナビの計算は今の式のまま
- * （1 つ前の席が飛ばされた席のときの扱いは #374 で直す）。
+ * 名前の組（次・ナビ）・急ぎの印・進み具合・輪の大きさを見る。ナビは直前に実際に運転した人
+ * （#374。輪の上の 1 つ前の席ではない）。
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
@@ -61,14 +61,34 @@ describe("Session の名前の組", () => {
     expect(document.querySelector(".session-next-name")?.textContent).toBe("—");
   });
 
-  it("ナビが有効なら、いまの人の 1 つ前の席の人をナビに出す", () => {
-    renderSession(threeSeats({ config: { navigatorEnabled: true } }));
+  it("ナビが有効なら、直前に運転した人（サーバーが送る previousDriverIndex）をナビに出す", () => {
+    renderSession(threeSeats({ config: { navigatorEnabled: true }, session: { previousDriverIndex: 0 } }));
     expect(document.querySelector(".session-navigator-name")?.textContent).toBe("あや");
   });
 
-  it("先頭の人が運転しているときのナビは、輪の最後の人", () => {
-    renderSession(threeSeats({ config: { navigatorEnabled: true }, session: { currentIndex: 0 } }));
-    expect(document.querySelector(".session-navigator-name")?.textContent).toBe("うた");
+  it("1 つ前の席が見送り中で飛ばされた交代の後は、飛ばされた人ではなく実際に運転した人をナビに出す（#374）", () => {
+    // Given: 3 人の輪。あや → うた と交代し、1 つ前の席の いずみ は見送り中で飛ばされた
+    renderSession(
+      threeSeats({
+        config: { navigatorEnabled: true },
+        session: {
+          currentIndex: 2,
+          previousDriverIndex: 0,
+          seats: [
+            { id: "a", displayName: "あや", isProxy: false, skipReason: null },
+            { id: "i", displayName: "いずみ", isProxy: false, skipReason: "stood-down" },
+            { id: "u", displayName: "うた", isProxy: false, skipReason: null },
+          ],
+        },
+      }),
+    );
+    // Then
+    expect(document.querySelector(".session-navigator-name")?.textContent).toBe("あや");
+  });
+
+  it("直前に運転した人が分からない（交代前・古いサーバー）ならナビを出さない", () => {
+    renderSession(threeSeats({ config: { navigatorEnabled: true } }));
+    expect(document.querySelector(".session-navigator")).toBeNull();
   });
 
   it("ナビが無効ならナビを出さない", () => {

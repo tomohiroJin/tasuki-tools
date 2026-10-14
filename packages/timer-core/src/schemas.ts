@@ -296,6 +296,10 @@ const SessionStateSchema = v.object({
   // （`apps/tasuki-sync/src/application/timer-snapshot-dto.ts` の項目 7）。
   seats: v.array(SeatSchema),
   nextIndex: v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0))),
+  // #374: 直前に実際に運転した人の席。**わざと任意にしている**（上の `seats` と逆の判断）。
+  // 画面が先に配られる窓で旧サーバーの snapshot を捨てないため。無ければ画面はナビを出さない
+  // （席から推測する経路は作らない）。理由は `wire.ts` の `Room.session.previousDriverIndex`。
+  previousDriverIndex: v.optional(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0)))),
 });
 
 // T057: 自ファイル内でのみ使われるため export を外した（FR-119③・SC-039）。

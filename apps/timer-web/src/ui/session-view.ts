@@ -3,6 +3,8 @@
  * React にも I/O にも依存しない。
  */
 
+import type { SeatSkipReason } from "@tasuki/timer-core";
+
 /** 残り時間がこの秒数以下で緊急表示にする */
 export const URGENT_THRESHOLD_SECONDS = 10;
 
@@ -19,11 +21,16 @@ export function displayRemainingSeconds(intervalSeconds: number, secondsLeft: nu
 export interface DriverNamesInput {
   /** 輪の席の呼び名（輪と同じ順）。 */
   readonly names: readonly string[];
-  /** 輪の長さ（`session.rotation.length`）。ナビの添字はこれで回す。 */
-  readonly rotationLength: number;
+  /** 輪の席が飛ばされる理由（輪と同じ順・`Seat.skipReason`）。null は「番が回る」。 */
+  readonly skipReasons: readonly (SeatSkipReason | null)[];
   readonly currentIndex: number;
   /** 次の番（サーバーが決める・#276 D1 / D6）。決まっていなければ null。 */
   readonly nextIndex: number | null;
+  /**
+   * 直前に実際に運転した人の席（サーバーが持つ・#374）。分からなければ null。
+   * 旧サーバーは項目を送らないので、呼び出し側は `?? null` で渡す。
+   */
+  readonly previousDriverIndex: number | null;
   readonly navigatorEnabled: boolean;
 }
 
@@ -40,16 +47,36 @@ export interface DriverNames {
  * 「次は誰か」はサーバーが決める（#276 D1 / D6）。かつて画面に `(currentIndex + 1) % rotationLen` が
  * あったが、サーバーは不適格な席を飛ばして繰り上げるので食い違った。
  *
- * ナビゲーター（⑦）は次ドライバーと別概念で、「現ドライバーの前の人（直前に運転していた退役ドライバー）」を
- * メインナビとする。文脈を最も持つ人。輪が 1 人のときは現ドライバーと一致するため出さない。
- * ⚠ 1 つ前の席が飛ばされた席のときは、直前に運転していない人を指しうる（#374 で直す。ここは移す前の式のまま）。
+ * ナビゲーター（⑦）は次ドライバーと別概念で、「直前に運転していた退役ドライバー」をメインナビとする。
+ * 文脈を最も持つ人。**「直前に運転した人」もサーバーが決める**（#374）。かつてここは輪の上の
+ * 1 つ前の席（`(currentIndex - 1 + len) % len`）を引いていたが、交代は飛ばされる席を飛ばし、
+ * 強制指名は輪のどこへでも飛ぶので、運転していない人をナビに出していた。席の状態は「いま」しか
+ * 持たないので、画面が逆向きにたどっても復元できない（運転の後に戻った人・強制指名・並べ替え）。
+ *
+ * 次のときはナビを出さない（分からない・務められない。輪が 1 人のときと同じ作法）:
+ * - 直前の人が分からない（交代前・輪から外れた・旧サーバー）
+ * - 直前の人の席がいまの運転者と同じ（削除で添字が詰まったとき）
+ * - 直前の人の席がいま飛ばされる状態（見送り・不在・切断）—— その場に居ない人はナビを務められない
  */
-export function driverNames({ names, rotationLength, currentIndex, nextIndex, navigatorEnabled }: DriverNamesInput): DriverNames {
-  const prevIndex = rotationLength > 0 ? (currentIndex - 1 + rotationLength) % rotationLength : 0;
+export function driverNames({
+  names,
+  skipReasons,
+  currentIndex,
+  nextIndex,
+  previousDriverIndex,
+  navigatorEnabled,
+}: DriverNamesInput): DriverNames {
+  const navigatorSeat =
+    navigatorEnabled &&
+    previousDriverIndex !== null &&
+    previousDriverIndex !== currentIndex &&
+    skipReasons[previousDriverIndex] === null
+      ? previousDriverIndex
+      : null;
   return {
     current: names[currentIndex] ?? "—",
     next: nextIndex !== null ? (names[nextIndex] ?? "—") : "—",
-    navigator: navigatorEnabled && rotationLength > 1 ? (names[prevIndex] ?? null) : null,
+    navigator: navigatorSeat !== null ? (names[navigatorSeat] ?? null) : null,
   };
 }
 

@@ -188,6 +188,9 @@ function evolveDriverSwitched(
   if (prevIndex >= 0 && prevIndex < newDriverCounts.length) {
     newDriverCounts[prevIndex] = (newDriverCounts[prevIndex] ?? 0) + 1;
   }
+  // 交代前の運転者を「直前のドライバー」として残す（#374。ナビが指す人）。
+  // 飛ばされた席・強制指名で飛び越えた席の人は運転していないので、ここに入らない。
+  const prevEntry = agg.session.rotation[prevIndex];
 
   return {
     session: {
@@ -195,6 +198,7 @@ function evolveDriverSwitched(
       currentIndex: nextIndex,
       driverCounts: newDriverCounts,
       totalSwitches: agg.session.totalSwitches + 1,
+      previousDriverId: prevEntry !== undefined ? rotationEntryId(prevEntry) : agg.session.previousDriverId,
     },
     clock: reanchoredClock,
   };
