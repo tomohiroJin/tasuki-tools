@@ -79,12 +79,29 @@ test.describe('@core ルーレットは全員の画面で同じ人に止まる',
     for (let round = 1; round <= 3; round += 1) {
       // A は前の回転が終わっていれば押せる（最初の回は回す前）
       await expect(spinButton(page)).toBeEnabled();
+      //   2 回目からは B に前の回の結果の一言が残っていて、それも RESULT に合う。本番の往復の遅れの間に
+      //   それを読むと、A と B が別の人を指したように見える（2026-10-14 の e2e:prod）。回す前の一言から
+      //   変わるのを待つ。2 人なので当たりは交互になり、新しい結果は前の回と必ず違う文になる
+      const beforeOnB = await roulettePhrase(peer.page).textContent();
+      //   空のままだと「変わった」が何にでも当たり、前の回の結果も素通りする
+      expect(beforeOnB, `${round} 回目: 回す前の B の一言`).toBeTruthy();
       await spinButton(page).click();
 
-      // その1: B は動きを減らす設定なので、回転を待たず 1 秒以内に結果が出る
-      await expect(roulettePhrase(peer.page), `${round} 回目: B の一言`).toHaveText(RESULT, { timeout: 1000 });
-      const winnerOnB = RESULT.exec((await roulettePhrase(peer.page).textContent()) ?? '')?.[1];
-      expect(winnerOnB, `${round} 回目: B に出た名前`).toBeTruthy();
+      // その1: B は動きを減らす設定なので、回転を待たず 1 秒以内に結果が出る。
+      //   変化と結果の形を 1 つの待ちで見る（2 段に分けると待ちの上限が足し算で 2 秒に緩む）。
+      //   判定した値をそのまま当たりとして使う（読み直すと、その間に変わった文を拾いうる）
+      let winnerOnB: string | undefined;
+      await expect
+        .poll(
+          async () => {
+            const text = (await roulettePhrase(peer.page).textContent()) ?? '';
+            winnerOnB = text === beforeOnB ? undefined : RESULT.exec(text)?.[1];
+            return winnerOnB;
+          },
+          // 変わらないまま時間切れなら、同期の遅れか、同じ人が続いた（交互の規則が崩れた）かのどちらか
+          { message: `${round} 回目: B に 1 秒以内に新しい結果が出ない（同期の遅れか、前の回と同じ人に止まった）`, timeout: 1000 },
+        )
+        .toBeTruthy();
 
       // その2: そのとき A は回している最中で、**当たりの名前をまだ言わない**
       await expect(roulettePhrase(page), `${round} 回目: A は回している最中`).toHaveText(`${NAME_A} さんが回しました`);
