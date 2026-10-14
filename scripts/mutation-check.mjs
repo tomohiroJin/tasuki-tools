@@ -1722,6 +1722,30 @@ export const MUTATIONS = [
     tests: ["lib/mutation-select.test.mjs"],
     note: "#387。**対応表より後に足した変異。** 機構を変えた枝で、変えた機構の影響を手元で見ない。",
   },
+  {
+    id: 240,
+    label: "INVALID_SETTLE を受けてもログを残さない",
+    patch: "m240-invalid-settle-without-log.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/roulette-handlers.test.ts"],
+    note: "#382。乱数源の契約違反の片方だけが痕跡を残さない元の欠陥。内部の誤りを本番で知る手がかりが消える。",
+  },
+  {
+    id: 241,
+    label: "INVALID_SETTLE のログを error より軽い水準にする",
+    patch: "m241-invalid-settle-log-below-error.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/roulette-handlers.test.ts"],
+    note: "#382。INVALID_RANDOM の行（error）と水準を揃える。warn では error を拾う監視から外れる。",
+  },
+  {
+    id: 242,
+    label: "INVALID_SETTLE を INVALID_RANDOM と同じ行で残す",
+    patch: "m242-invalid-settle-logs-as-range-error.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/roulette-handlers.test.ts"],
+    note: "#382。2 つの契約違反がログで区別できなくなる（理由を語彙に置いた意味が消える）。",
+  },
 ];
 
 /**

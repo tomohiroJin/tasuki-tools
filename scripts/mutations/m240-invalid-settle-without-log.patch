@@ -1,0 +1,22 @@
+# 変異 240: invalid-settle-without-log
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/roulette-handlers.test.ts
+#
+# #382。INVALID_SETTLE を受けても行を残さない（元の欠陥）。内部の誤りを本番で知る手がかりが無くなる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m240-*.patch
+# 復元: git apply -R scripts/mutations/m240-*.patch
+diff --git a/apps/tasuki-sync/src/application/roulette-handlers.ts b/apps/tasuki-sync/src/application/roulette-handlers.ts
+--- a/apps/tasuki-sync/src/application/roulette-handlers.ts
++++ b/apps/tasuki-sync/src/application/roulette-handlers.ts
+@@ -165,7 +165,7 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
+           } else if (code === "INVALID_SETTLE") {
+             // 例外ではないので `name` は無い。元は行が無かった（#382）。INVALID_RANDOM と区別できるよう、
+             // 理由を語彙に置いた別の行を同じ水準（error）で残す。
+-            logger.error("roulette-random-violation", { reason: RANDOM_VIOLATION_REASONS.invalidSettle });
++            void RANDOM_VIOLATION_REASONS;
+           }
+           fail(connId, code === "INVALID_SETTLE" || code === "INVALID_RANDOM" ? "INTERNAL_ERROR" : code);
+           return;

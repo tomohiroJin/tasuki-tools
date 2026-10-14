@@ -47,6 +47,8 @@ interface Harness {
 interface SetupOptions {
   /** 乱数源の `randomInt` が返す値。既定は 0（最悪の偏り） */
   randomIntReturns?: number;
+  /** 乱数源の `randomSettle` が返す値。既定は 0.5（契約の範囲内） */
+  randomSettleReturns?: number;
 }
 
 function setup(options: SetupOptions = {}): Harness {
@@ -61,7 +63,7 @@ function setup(options: SetupOptions = {}): Harness {
       randomCalls.push(n);
       return options.randomIntReturns ?? 0;
     },
-    randomSettle: () => 0.5,
+    randomSettle: () => options.randomSettleReturns ?? 0.5,
   };
   const record = (ids: string[], msg: RouletteServerMsg): void => {
     for (const connId of ids) sent.push({ connId, msg });
@@ -237,6 +239,32 @@ describe("回す", () => {
     ]);
     expect(h.logLines).toEqual(["error on-message-error name=RangeError"]);
     expect(h.roulettes.get(ROOM)).toBe(before);
+  });
+
+  it("Given 乱数源の settle が契約の範囲外 / When 回す / Then INTERNAL_ERROR を返し、reason 付きの固定の 1 行を error で残す（#382）", async () => {
+    // INVALID_RANDOM（上のテスト）と並べて、乱数源の 2 つの契約違反がどちらも痕跡を残す。
+    // 2 つはログの行で区別できる（INVALID_RANDOM は RangeError の行を保つ）。
+    // 範囲の両外（下限未満・上限超過）と、NaN（範囲判定をすり抜けやすい値）を突く。
+    for (const settle of [0.1, 0.9, Number.NaN]) {
+      // Given
+      const h = setup({ randomSettleReturns: settle });
+      await joined(h, "r-1", "Alice");
+      await joined(h, "r-2", "Bob");
+      const before = h.roulettes.get(ROOM);
+
+      // When
+      await h.handle("r-1", { command: "roulette.spin" });
+
+      // Then: 利用者へ返るフレームは変わらない
+      expect(h.sent).toEqual([
+        {
+          connId: "r-1",
+          msg: { type: "error", code: "INTERNAL_ERROR", message: "サーバー内部でエラーが発生しました" },
+        },
+      ]);
+      expect(h.logLines).toEqual(["error roulette-random-violation reason=invalid-settle"]);
+      expect(h.roulettes.get(ROOM)).toBe(before);
+    }
   });
 
   it("回すと、同じルームの全ルーレット接続へ同じ seq・winnerIndex・settle・回した人が届く", async () => {

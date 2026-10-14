@@ -14,7 +14,8 @@
  * ## 利用者の入力をログに書かない
  *
  * ゲストの名前・表示名は利用者の入力である（`docs/adr/0012`・spec R13）。このファイルはそれらをログに書かない。
- * 書くのは、乱数源の契約違反（`INVALID_RANDOM`）を知らせる固定の語彙の 1 行だけである（#364。下の `roulette.spin`）。
+ * 書くのは、乱数源の契約違反を知らせる固定の語彙の 1 行だけである（`INVALID_RANDOM` は #364、`INVALID_SETTLE` は #382。
+ * 下の `roulette.spin`。2 つは行で区別できる）。
  * 時計は**単調時計**（`MonotonicClock`）。壁時計は NTP の調整で戻りうる。
  */
 import * as v from "valibot";
@@ -54,7 +55,7 @@ import { findRoomByToolConnection } from "./room-lookup.js";
 import { joinToolRoom } from "./join-tool-room.js";
 import { TOOL_ROULETTE } from "./tool-id.js";
 import type { Logger } from "./log/logger.js";
-import { ERROR_NAMES } from "./log/vocabulary.js";
+import { ERROR_NAMES, RANDOM_VIOLATION_REASONS } from "./log/vocabulary.js";
 import { boundaryErrorCode } from "./connection-errors.js";
 
 /**
@@ -159,8 +160,12 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
           // INVALID_SETTLE・INVALID_RANDOM は乱数源の誤りで、利用者の操作では起きない。内部の誤りとして返す。
           if (code === "INVALID_RANDOM") {
             // #364 より前は、ドメインが RangeError を投げ、接続層（ws-adapter.ts）が「ログ → エラーフレーム」を
-            // 返していた。その行を変えないため、ここで同じ行を残す（INVALID_SETTLE は元からログが無い。#382）。
+            // 返していた。その行を変えないため、ここで同じ行を残す。
             logger.error("on-message-error", { name: ERROR_NAMES.rangeError });
+          } else if (code === "INVALID_SETTLE") {
+            // 例外ではないので `name` は無い。元は行が無かった（#382）。INVALID_RANDOM と区別できるよう、
+            // 理由を語彙に置いた別の行を同じ水準（error）で残す。
+            logger.error("roulette-random-violation", { reason: RANDOM_VIOLATION_REASONS.invalidSettle });
           }
           fail(connId, code === "INVALID_SETTLE" || code === "INVALID_RANDOM" ? "INTERNAL_ERROR" : code);
           return;
