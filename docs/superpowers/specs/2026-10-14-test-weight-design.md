@@ -180,7 +180,8 @@ node scripts/mutation-check.mjs --changed --base HEAD~1   # 基準を変える�
  */
 export function selectMutations(mutations, selector) { … }
 
-/** argv から selector を組む。指定が 2 つ以上・不正な値ならエラー。 */
+/** argv から selector を組む。指定が 2 つ以上・不正な値ならエラー。
+ *  `--changed` の戻り値は { kind, base, baseExplicit }（--base を明示したときだけ true。打ち間違いの検出に使う）。 */
 export function parseSelector(argv) { … }
 ```
 
@@ -202,7 +203,7 @@ export function parseSelector(argv) { … }
 
 ### 5.3 自己テスト
 
-- `scripts/mutation-select.test.mjs`（新設）: 条件 1〜3 のそれぞれで選ばれること、どれにも当たらなければ選ばれないこと、
+- `scripts/lib/mutation-select.test.mjs`（新設）: 条件 1〜3 のそれぞれで選ばれること、どれにも当たらなければ選ばれないこと、
   機構の変更で全件に倒れること、`pkg` の前方一致の誤判定（`apps/timer-web-x`）、`parseSelector` のエラー
 - **アサーションは値が分岐する所に置く**: 条件 1 だけに当たる変異・条件 2 だけに当たる変異・条件 3 だけに当たる変異を
   別々に用意する（1 つの変異が 3 条件すべてに当たる造作では、どの条件を外しても緑のまま）
@@ -215,7 +216,7 @@ export function parseSelector(argv) { … }
 - 条件 1（`pkg` 配下）を外す
 - 機構の変更で全件に倒す処理を外す
 
-検出するテストは `scripts/mutation-select.test.mjs`。
+検出するテストは `scripts/lib/mutation-select.test.mjs`。
 
 ### 5.5 E2E
 
