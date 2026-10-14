@@ -131,6 +131,8 @@ export const ALLOWED_FILES = [
   // #167 E4 で App.tsx（本検査の走査対象外）から移った、ブラウザ側の開発者コンソール出力。
   // 出力先は利用者の devtools であってサーバーのログ経路ではない。文言・引数は移設前のまま。
   "apps/timer-web/src/sync/use-timer-sync.ts",
+  // #369 で use-timer-sync.ts から分けた操作（明示保存の失敗の記録）。中身は上と同じ類型。
+  "apps/timer-web/src/sync/timer-actions.ts",
   // #212 で足した、契約に合わないサーバーメッセージを捨てたことの記録。timer 側と同じ
   // 「ブラウザの devtools 向け」の出力である。**落ちた項目の経路は出さない** —— poker の
   // スキーマは v.strictObject で、送り手が付けた未知のキー名がそのまま経路に載るため

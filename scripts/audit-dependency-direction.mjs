@@ -143,6 +143,7 @@ export const ALLOWED = {
     "@tasuki/timer-core",
     "@tasuki/topic-core",
     "@tasuki/ui",
+    "@tasuki/web-kit",
   ],
   // #95 S5b: 表示名の上限（`MAX_DISPLAY_NAME`）を room-core から取る。web アプリが
   // room-core に依存することは `docs/adr/0017` 決定 2 の対象外であり、timer-web も同じ

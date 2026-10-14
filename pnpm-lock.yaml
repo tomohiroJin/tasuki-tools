@@ -300,6 +300,9 @@ importers:
       '@tasuki/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@tasuki/web-kit':
+        specifier: workspace:*
+        version: link:../../packages/web-kit
       lucide-react:
         specifier: ^1.28.0
         version: 1.52.0(@types/react@19.3.0)(react@19.3.0)
