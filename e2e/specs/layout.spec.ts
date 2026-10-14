@@ -609,7 +609,7 @@ test.describe('timer は 1 つのルームでロビー・セッション・お�
     // 以前は同期サーバーのルーム枠が逼迫していたので、timer は 1 室で画面の流れの順に全てを見る（#387 で枠は広げたが、動いている検査なのでほどかない）
     // （ロビー → セッション → お題の読む面 → まとめ。前の段階を戻す必要がある検査は置かない）。
     const TIMER_PAGE = 'div.ui-page.stage-inner';
-    // Given 幅 320 のロビー。ホスト + ドライバーで加わる 1 人（ルームの枠が逼迫しているので、timer は 1 室で全ての画面を順に見る）
+    // Given 幅 320 のロビー。ホスト + ドライバーで加わる 1 人（以前はルームの枠が逼迫していたので、timer は 1 室で全ての画面を順に見る）
     await page.setViewportSize({ width: 320, height: 640 });
     const code = await createTimerRoom(page, 'layout-timer');
     const guest = await openPeer('layout-timer-guest');
