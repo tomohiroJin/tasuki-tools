@@ -16,15 +16,15 @@
 # 復元: git checkout -- <対象ファイル>
 #
 diff --git a/apps/timer-web/src/ui/components/RosterPanel.tsx b/apps/timer-web/src/ui/components/RosterPanel.tsx
-index 066418a..c79463b 100644
+index e78ce3a..3e14e27 100644
 --- a/apps/timer-web/src/ui/components/RosterPanel.tsx
 +++ b/apps/timer-web/src/ui/components/RosterPanel.tsx
-@@ -301,7 +301,7 @@ export function RosterPanel({
-     const normalized = normalizeDisplayName(typed);
-     // 自分自身は比べない（現在名と同じ名前への改名は許す）。サーバーの
-     // `conflictsWithExisting(residents, displayName, target.participantId)` と同じ。
--    if (someoneHolds(normalized, participantId)) {
-+    if (someoneHolds(normalized)) {
-       setRenameRejection((prev) => ({ typed, normalized, attempt: (prev?.attempt ?? 0) + 1 }));
-       return;
-     }
+@@ -215,7 +215,7 @@ export function RosterPanel({
+    */
+   const submitRename = (participantId: string) => {
+     // 自分自身は比べない（現在名と同じ名前への改名は許す。`planNameSubmit` の `excludeId`）。
+-    const plan = planNameSubmit(editName, pool, participantId);
++    const plan = planNameSubmit(editName, pool);
+     // 空は「やめた」と同じ扱い（#291 より前からの振る舞いを変えない）。
+     if (plan.kind === "empty") {
+       cancelRename();

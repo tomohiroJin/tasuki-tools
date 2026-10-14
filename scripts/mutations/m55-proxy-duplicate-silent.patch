@@ -18,16 +18,16 @@
 # 復元: git checkout -- <対象ファイル>（同じくリポジトリルートから）
 #
 diff --git a/apps/timer-web/src/ui/components/RosterPanel.tsx b/apps/timer-web/src/ui/components/RosterPanel.tsx
-index 066418a..e155794 100644
+index e78ce3a..33e818f 100644
 --- a/apps/timer-web/src/ui/components/RosterPanel.tsx
 +++ b/apps/timer-web/src/ui/components/RosterPanel.tsx
-@@ -260,7 +260,8 @@ export function RosterPanel({
-     if (!name) return;
-     const normalized = normalizeDisplayName(name);
-     if (someoneHolds(normalized)) {
--      setProxyRejection((prev) => ({ typed: name, normalized, attempt: (prev?.attempt ?? 0) + 1 }));
+@@ -186,7 +186,8 @@ export function RosterPanel({
+     const plan = planNameSubmit(proxyName, pool);
+     if (plan.kind === "empty") return;
+     if (plan.kind === "reject") {
+-      dispatchProxy({ type: "rejected", typed: plan.typed, normalized: plan.normalized });
 +      setProxyName("");
 +      setShowProxyInput(false);
        return;
      }
-     setProxyRejection(null);
+     // 正規形が空の名前は待たない（reducer が決める。サーバーが規約で弾く）。

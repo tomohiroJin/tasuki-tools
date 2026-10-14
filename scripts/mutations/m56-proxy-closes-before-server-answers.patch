@@ -18,17 +18,16 @@
 # 復元: git checkout -- <対象ファイル>
 #
 diff --git a/apps/timer-web/src/ui/components/RosterPanel.tsx b/apps/timer-web/src/ui/components/RosterPanel.tsx
-index 066418a..9c327d2 100644
+index e78ce3a..dc3b372 100644
 --- a/apps/timer-web/src/ui/components/RosterPanel.tsx
 +++ b/apps/timer-web/src/ui/components/RosterPanel.tsx
-@@ -266,8 +266,9 @@ export function RosterPanel({
-     setProxyRejection(null);
-     // 正規形が空の名前は突き合わせられないので待たない（サーバーが規約で弾く）。
-     // 待たない＝閉じる条件が来ないだけで、フォームと入力はそのまま残る。
--    setPendingProxy(normalized !== "" ? normalized : null);
-     onAddProxy(name);
+@@ -190,7 +190,8 @@ export function RosterPanel({
+       return;
+     }
+     // 正規形が空の名前は待たない（reducer が決める。サーバーが規約で弾く）。
+-    dispatchProxy({ type: "sent", normalized: plan.normalized });
 +    setProxyName("");
 +    setShowProxyInput(false);
+     onAddProxy(plan.typed);
    };
  
-   const startRename = (participantId: string, current: string) => {
