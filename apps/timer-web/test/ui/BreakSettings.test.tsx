@@ -77,6 +77,17 @@ describe("BreakSettings", () => {
     );
     expect(screen.getByText(/約 6 分ごと/)).toBeInTheDocument();
   });
+  it("Given 周回 2 周・5 分交代・3 人 / When 描く / Then 約 30 分ごと（積。和なら 10 になる）", () => {
+    render(
+      <BreakSettings
+        policy={{ trigger: "rounds", every: 2, mode: "auto" }}
+        intervalMinutes={5}
+        eligibleSeats={3}
+        onChange={() => {}}
+      />,
+    );
+    expect(screen.getByText(/約 30 分ごと/)).toBeInTheDocument();
+  });
   it("Given 経過時間 / When 描く / Then 周回の目安は出ない", () => {
     render(
       <BreakSettings

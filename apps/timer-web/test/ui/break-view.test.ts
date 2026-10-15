@@ -47,4 +47,7 @@ describe("break-view", () => {
   it("Given 3 分交代・2 人・1 周 / When 目安を出す / Then 約 6 分", () => {
     expect(roundsEstimateMinutes(3, 2, 1)).toBe(6);
   });
+  it("Given 5 分交代・3 人・2 周 / When 目安を出す / Then 30 分（積。和なら 10 になる）", () => {
+    expect(roundsEstimateMinutes(5, 3, 2)).toBe(30);
+  });
 });
