@@ -17,6 +17,9 @@ export {
   conflictsWithExisting,
 } from "./display-name.js";
 
+// ./passphrase —— 合言葉の長さの上限（#377）
+export { MAX_PASSPHRASE, isPassphraseWithinLimit } from "./passphrase.js";
+
 // ./room
 export {
   findParticipant,

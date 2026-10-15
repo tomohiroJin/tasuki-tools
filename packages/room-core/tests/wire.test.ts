@@ -7,6 +7,7 @@
 import { describe, it, expect } from "vitest";
 import * as v from "valibot";
 import { HubCommandSchema, HubServerMsgSchema, type RosterRoom } from "../src/wire.js";
+import { MAX_PASSPHRASE } from "../src/passphrase.js";
 
 /**
  * 名簿は `roster` メッセージとしてだけ運ばれる（スキーマ単体は公開していない）。
@@ -79,6 +80,15 @@ describe("ハブのコマンド", () => {
 
     // When / Then（操作）
     expect(v.safeParse(HubCommandSchema, join).success).toBe(false);
+  });
+
+  it("Given 上限ちょうどと 1 字超えの合言葉の参加 / When 検証する / Then 上限ちょうどは通り、超えると落ちる（#377）", () => {
+    // Given（準備）: timer の入口と同じ上限（room-core の 1 つの値）
+    const joinWith = (passphrase: string) => ({ command: "room.join", code: "R", displayName: "あ", passphrase });
+
+    // When / Then（操作）
+    expect(v.safeParse(HubCommandSchema, joinWith("a".repeat(MAX_PASSPHRASE))).success).toBe(true);
+    expect(v.safeParse(HubCommandSchema, joinWith("a".repeat(MAX_PASSPHRASE + 1))).success).toBe(false);
   });
 });
 
