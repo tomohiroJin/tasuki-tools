@@ -3,7 +3,7 @@
  *
  * 設定はルームの設定（`TimerConfig.break`）にある。無ければ「なし」と同じ。
  */
-import type { TimerConfig } from "./aggregate.js";
+import type { Aggregate, TimerConfig } from "./aggregate.js";
 
 export const BREAK_TRIGGERS = ["none", "elapsed", "rounds"] as const;
 export type BreakTrigger = (typeof BREAK_TRIGGERS)[number];
@@ -39,4 +39,32 @@ export function isValidBreakPolicy(p: BreakPolicy): boolean {
 
 export function breakPolicyOf(config: TimerConfig): BreakPolicy {
   return config.break ?? NO_BREAK;
+}
+
+const MS_PER_MINUTE = 60_000;
+
+/**
+ * 休憩に入る（自動）／知らせる（知らせるだけ）条件に達したか（#402 設計 §3.2）。
+ *
+ * - 経過時間: 前の基準からの稼働時間（一時停止中は数えない）が `every` 分に達したら
+ * - 周回: 前の基準からの交代回数が「適格な席の数 × every」に達したら。適格な席が 1 つ以下なら偽
+ *   （輪が 1 人だと交代回数が増えない。`evolveDriverSwitched` の現状維持）
+ * - 知らせるだけのときの基準は、最後に知らせた時点（無ければ前の休憩）。知らせても休まなければ
+ *   次の間隔ぶん経ってからもう一度知らせる（交代のたびには知らせない）
+ *
+ * `eligibleSeats` は呼ぶ側が名簿の在席から数えて渡す（集約は在席を知らない）。
+ */
+export function isBreakDue(agg: Aggregate, policy: BreakPolicy, eligibleSeats: number): boolean {
+  const brk = agg.session.break;
+  if (brk.since !== null) return false;
+  const base = policy.mode === "suggest" ? (brk.suggestedAt ?? brk.baseline) : brk.baseline;
+  switch (policy.trigger) {
+    case "none":
+      return false;
+    case "elapsed":
+      return agg.clock.accumulatedElapsedMs - base.elapsedMs >= policy.every * MS_PER_MINUTE;
+    case "rounds":
+      if (eligibleSeats <= 1) return false;
+      return agg.session.totalSwitches - base.switches >= eligibleSeats * policy.every;
+  }
 }

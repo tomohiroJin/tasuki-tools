@@ -98,6 +98,7 @@ export {
   BREAK_ROUNDS,
   DEFAULT_BREAK_EVERY,
   breakPolicyOf,
+  isBreakDue,
   type BreakPolicy,
   type BreakTrigger,
   type BreakMode,
