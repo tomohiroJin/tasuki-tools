@@ -13,12 +13,12 @@ diff --git a/apps/timer-web/src/ui/session-view.ts b/apps/timer-web/src/ui/sessi
 --- a/apps/timer-web/src/ui/session-view.ts
 +++ b/apps/timer-web/src/ui/session-view.ts
 @@ -77,8 +77,7 @@
+ }: DriverNamesInput): DriverNames {
    const navigatorSeat =
      navigatorEnabled &&
-     previousDriverIndex !== null &&
--    previousDriverIndex !== currentIndex &&
+-    previousDriverIndex !== null &&
 -    !hidesNavigator(skipReasons[previousDriverIndex])
-+    previousDriverIndex !== currentIndex
++    previousDriverIndex !== null
        ? previousDriverIndex
        : null;
    return {

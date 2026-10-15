@@ -1780,11 +1780,27 @@ export const MUTATIONS = [
   },
   {
     id: 217,
-    label: "ほかのツールで入った・入り直したことを timer の画面へ配らない",
+    label: "名簿の変化で席の情報が変わっても timer の画面へ配らない",
     patch: "m217-tool-join-skips-timer-broadcast.patch",
     pkg: "apps/tasuki-sync",
-    tests: ["test/live-ws.timer-seat-presence.test.ts"],
+    tests: ["test/live-ws.timer-seat-presence.test.ts", "test/save-roster.timer-seat.test.ts"],
     note: "#374。**対応表より後に足した変異。** timer から選択画面へ移った人が、ほかの人の timer で「未接続」のまま残り、ナビが隠れる。",
+  },
+  {
+    id: 218,
+    label: "開始が直前のドライバーを null に戻さない",
+    patch: "m218-start-keeps-previous-driver.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/evolve.test.ts"],
+    note: "#374（PR #396 のレビュー）。**対応表より後に足した変異。** ロビーの名残の人が、開始直後からナビに出る。",
+  },
+  {
+    id: 219,
+    label: "呼び出し側が自分で配るときも timer へ配る（二重に配る）",
+    patch: "m219-save-roster-double-broadcast.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/save-roster.timer-seat.test.ts"],
+    note: "#374（PR #396 のレビュー）。**対応表より後に足した変異。** timer のコマンドで名簿が変わるたびに snapshot が 2 通届く。",
   },
 ];
 

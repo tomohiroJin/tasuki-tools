@@ -1,0 +1,22 @@
+# 変異 219: 呼び出し側が自分で配るときも timer へ配る（二重に配る）
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/save-roster.timer-seat.test.ts
+#     「呼び出し側が timer の snapshot を自分で配る」
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m219-*.patch
+# 復元: git apply -R scripts/mutations/m219-*.patch
+#
+# #374（PR #396 のレビュー）。timer のコマンドで名簿が変わるたびに snapshot が 2 通届く。
+diff --git a/apps/tasuki-sync/src/application/save-roster.ts b/apps/tasuki-sync/src/application/save-roster.ts
+--- a/apps/tasuki-sync/src/application/save-roster.ts
++++ b/apps/tasuki-sync/src/application/save-roster.ts
+@@ -32,5 +32,6 @@
+   const before = deps.store.get(room.code);
+   deps.store.put(room);
+   deps.hub.broadcastRoster(room.code);
+-  if (options.timerSnapshotSentByCaller !== true) broadcastTimerIfSeatViewChanged(deps, before, room);
++  void options;
++  broadcastTimerIfSeatViewChanged(deps, before, room);
+ }

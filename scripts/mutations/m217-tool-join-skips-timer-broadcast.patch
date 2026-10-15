@@ -1,22 +1,23 @@
-# 変異 217: ほかのツールで入った・入り直したことを timer の画面へ配らない
+# 変異 217: 名簿の変化で席の情報が変わっても timer の画面へ配らない
 #
 # 検出を期待するテスト:
 #   - apps/tasuki-sync/test/live-ws.timer-seat-presence.test.ts
-#     「ハブで入り直す / Then ほかの人の timer で「未接続」が「別の画面」に変わる」
+#     「ハブで入り直す / Then ほかの人の timer で「未接続」が「別の画面」に変わる」ほか
+#   - apps/tasuki-sync/test/save-roster.timer-seat.test.ts
 #
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m217-*.patch
 # 復元: git apply -R scripts/mutations/m217-*.patch
 #
-# #374。timer から選択画面へ移った人が、ほかの人の timer で「未接続」のまま残る。
-# 直前のドライバーが不在ならナビは隠さない規則が、実画面では「未接続」として隠れる。
-diff --git a/apps/tasuki-sync/src/application/join-tool-room.ts b/apps/tasuki-sync/src/application/join-tool-room.ts
---- a/apps/tasuki-sync/src/application/join-tool-room.ts
-+++ b/apps/tasuki-sync/src/application/join-tool-room.ts
-@@ -79,6 +79,5 @@
-   // 保管と配信は対にする（`save-roster.ts`）。この接続が在席に載ったことは玄関にも届く。
-   saveRoster(deps, membership);
-   // ほかのツールで入り直した人の席は、timer の画面で「未接続」から「別の画面」へ変わる（#374）。
--  broadcastTimerIfRosterViewChanged(deps, before, membership);
-   input.afterJoin(joined.value);
+# #374。timer から選択画面へ移った人が、ほかの人の timer で「未接続」のまま残り、ナビが隠れる。
+diff --git a/apps/tasuki-sync/src/application/save-roster.ts b/apps/tasuki-sync/src/application/save-roster.ts
+--- a/apps/tasuki-sync/src/application/save-roster.ts
++++ b/apps/tasuki-sync/src/application/save-roster.ts
+@@ -32,5 +32,6 @@
+   const before = deps.store.get(room.code);
+   deps.store.put(room);
+   deps.hub.broadcastRoster(room.code);
+-  if (options.timerSnapshotSentByCaller !== true) broadcastTimerIfSeatViewChanged(deps, before, room);
++  void before;
++  void options;
  }
