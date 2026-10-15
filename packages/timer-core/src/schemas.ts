@@ -12,6 +12,7 @@ import {
   ROOM_PHASES,
   SESSION_ACTIONS,
 } from "./aggregate.js";
+import { BREAK_TRIGGERS, BREAK_MODES, isValidBreakPolicy } from "./break-policy.js";
 // ─── 共通 ───────────────────────────────────────────────────────────────────
 
 const nonEmptyString = v.pipe(v.string(), v.minLength(1));
@@ -57,11 +58,21 @@ const passphraseStr = v.pipe(v.string(), v.maxLength(MAX_PASSPHRASE));
 // 古い画面が `config.set` / `room.create` に載せて送ってきても出力に残らない。
 // 必須だった 2 つを落としたので、**古い画面の `config.set` はそのまま受理される**
 // （必須を足す向きではないので、窓 3 = 古い画面 × 新しいサーバーでも落ちない）。
+// 休憩の条件（#402）。`every` の許される値は条件ごとに違うので、組み合わせで検証する。
+// room.create は decide を通らない（`initial-timer-state.ts` が設定をそのまま持つ）ので、検証はここに置く。
+const BreakPolicySchema = v.pipe(
+  v.object({
+    trigger: v.picklist(BREAK_TRIGGERS),
+    every: v.pipe(v.number(), v.integer()),
+    mode: v.picklist(BREAK_MODES),
+  }),
+  v.check(isValidBreakPolicy),
+);
+
 const SessionConfigSchema = v.object({
   intervalMinutes: v.picklist(VALID_INTERVAL_MINUTES),
   navigatorEnabled: v.optional(v.boolean()),
-  // 0 は「休憩提案オフ」を表す（ロビーでトグルを外したときに送る）。1 以上で N 巡ごと。
-  breakEveryRotations: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
+  break: v.optional(BreakPolicySchema),
   assertiveSwitch: v.optional(v.boolean()),
 });
 

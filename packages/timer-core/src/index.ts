@@ -88,3 +88,15 @@ export { CommandSchema, ServerMsgSchema } from "./schemas.js";
 export { buildCompletionRecord, createRecordIdGenerator, type RecordIdGenerator } from "./records.js";
 export type { RemovalNotification } from "./removal-notification.js";
 export { removalNotificationFor } from "./removal-notification.js";
+// 休憩の設定（#402）。`isValidBreakPolicy` はパッケージの外で使わないので出さない（SC-039③）
+export {
+  BREAK_TRIGGERS,
+  BREAK_MODES,
+  BREAK_ELAPSED_MINUTES,
+  BREAK_ROUNDS,
+  DEFAULT_BREAK_EVERY,
+  breakPolicyOf,
+  type BreakPolicy,
+  type BreakTrigger,
+  type BreakMode,
+} from "./break-policy.js";

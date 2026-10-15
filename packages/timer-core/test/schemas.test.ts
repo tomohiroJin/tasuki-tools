@@ -174,6 +174,23 @@ describe("timer のお題を撤去した", () => {
     }
   });
 
+  it("Given 経過時間に周回の値 / When config.set を検証する / Then 落ちる", () => {
+    const r = v.safeParse(CommandSchema, {
+      command: "config.set",
+      config: { intervalMinutes: 5, break: { trigger: "elapsed", every: 2, mode: "auto" } },
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it("Given 正しい休憩の設定 / When room.create を検証する / Then 通る", () => {
+    const r = v.safeParse(CommandSchema, {
+      command: "room.create",
+      displayName: "a",
+      config: { intervalMinutes: 5, break: { trigger: "rounds", every: 2, mode: "auto" } },
+    });
+    expect(r.success).toBe(true);
+  });
+
   it("お題のコマンドは境界で拒む", () => {
     // Given: 古い timer が送っていたお題のコマンド
     const legacyCommands = [

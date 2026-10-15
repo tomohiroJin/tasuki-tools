@@ -3,6 +3,8 @@
  * FR-006, FR-007, FR-008
  */
 
+import type { BreakPolicy } from "./break-policy.js";
+
 /**
  * ローテーションの 1 席（#95 S4a・D6）。
  *
@@ -101,8 +103,8 @@ export interface TimerConfig {
   intervalMinutes: IntervalMinutes;
   /** ナビゲーター役を明示するか */
   navigatorEnabled?: boolean;
-  /** 何ローテーションごとに休憩を提案するか */
-  breakEveryRotations?: number;
+  /** 休憩の条件（#402）。無ければ「なし」 */
+  break?: BreakPolicy;
   /** 強い全画面交代通知を使うか */
   assertiveSwitch?: boolean;
   // ⚠ かつてここには `language` / `difficulty`（お題を作るときの言語と難易度）と

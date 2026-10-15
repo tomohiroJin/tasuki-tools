@@ -69,18 +69,18 @@ describe("decide: break.start / break.end（§9.1）", () => {
 });
 
 describe("decide: config.set の v3.0 トグル（§16）", () => {
-  it("navigatorEnabled / assertiveSwitch / breakEveryRotations を検証済み config に載せる", () => {
+  it("navigatorEnabled / assertiveSwitch / break を検証済み config に載せる", () => {
     // Given
     const command = {
       command: "config.set",
-      config: { navigatorEnabled: true, assertiveSwitch: true, breakEveryRotations: 4 },
+      config: { navigatorEnabled: true, assertiveSwitch: true, break: { trigger: "elapsed", every: 60, mode: "auto" } },
     } as const;
     // When
     const result = decide(command, baseAgg, NOW);
     // Then
     expect(result._unsafeUnwrap()[0]).toMatchObject({
       type: "ConfigSet",
-      config: { navigatorEnabled: true, assertiveSwitch: true, breakEveryRotations: 4 },
+      config: { navigatorEnabled: true, assertiveSwitch: true, break: { trigger: "elapsed", every: 60, mode: "auto" } },
     });
   });
 

@@ -402,7 +402,7 @@ function decideConfigSet(
   const validatedPartial: Partial<TimerConfig> = {
     ...(partial.intervalMinutes !== undefined && { intervalMinutes: partial.intervalMinutes }),
     ...(partial.navigatorEnabled !== undefined && { navigatorEnabled: partial.navigatorEnabled }),
-    ...(partial.breakEveryRotations !== undefined && { breakEveryRotations: partial.breakEveryRotations }),
+    ...(partial.break !== undefined && { break: partial.break }),
     ...(partial.assertiveSwitch !== undefined && { assertiveSwitch: partial.assertiveSwitch }),
   };
 
