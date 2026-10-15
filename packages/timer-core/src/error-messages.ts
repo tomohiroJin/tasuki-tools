@@ -56,6 +56,9 @@ export const ERROR_MESSAGES: Record<string, string> = {
   // 空の輪で時計を走らせる操作の拒否（#376）。通常の経路からは届かないので短く。
   // 字は書体の base 層に収める（`apps/timer-web/test/ui/topic-copy-fits-font-base.test.ts`。「誰」「居」は外れる）
   EmptyRotation: "ドライバーがいません。",
+  // 休憩（#402）。「休」「憩」は書体の base 層に無いが、休憩を使うルームでしか届かない（設計 D9）。
+  OnBreak: "休憩中はこの操作はできません。",
+  NotOnBreak: "いまは休憩中ではありません。",
   DuplicateName: "その名前はすでに使われています。",
   EmptyName: "名前を入力してください。",
   MemberLimitExceeded: "メンバーが上限に達しています。",

@@ -30,6 +30,9 @@ const CODES_SHOWN_TO_USER = [
   "BelowMinMembers",
   // 空の輪で時計を走らせる操作の拒否（#376）。通常の経路からは届かない
   "EmptyRotation",
+  // 休憩（#402）
+  "OnBreak",
+  "NotOnBreak",
   "DuplicateName",
   "EmptyName",
   "MemberLimitExceeded",

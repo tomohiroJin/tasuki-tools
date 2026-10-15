@@ -59,6 +59,16 @@ interface InvalidIndex {
 // 使っていたのは `problem.edit`（お題の要件の件数）だけで、#91 PR 3 でお題が
 // timer-core から消えたときに発行元ごと落とした。
 
+/** 休憩中（#402）。休憩中は時計を動かす操作（session.act の全種・driver.assign）と break.start を拒む */
+export interface OnBreak {
+  type: "OnBreak";
+}
+
+/** 休憩中ではない（#402）。break.end を拒む */
+export interface NotOnBreak {
+  type: "NotOnBreak";
+}
+
 /** ドメインエラーの合併型 */
 export type DomainError =
   | EmptyName
@@ -68,7 +78,9 @@ export type DomainError =
   | EmptyRotation
   | PhaseConflict
   | InvalidInterval
-  | InvalidIndex;
+  | InvalidIndex
+  | OnBreak
+  | NotOnBreak;
 
 /**
  * **同期サーバー層（`apps/sync`）が固有に発行する失敗の種類**（FR-101）。
