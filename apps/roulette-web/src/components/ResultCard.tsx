@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { cardNameSize } from '../card-name-size';
 import { CARD_LABEL, CARD_SUFFIX } from '../copy';
 
 /**
@@ -28,7 +29,7 @@ export function ResultCard({
         <div className="roulette-card-back" />
         <div className="roulette-card-face">
           <p className="roulette-card-label">{CARD_LABEL}</p>
-          <p className="roulette-card-name">
+          <p className="roulette-card-name" data-size={cardNameSize(shown)}>
             {shown}
             <small>{CARD_SUFFIX}</small>
           </p>

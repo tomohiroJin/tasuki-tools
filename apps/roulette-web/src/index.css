@@ -321,6 +321,28 @@
   line-height: var(--line-tight);
   overflow-wrap: anywhere;
 }
+/* 長い名前は段を下げ、段ごとの最大行数で … に切る（札は縦横比が固定でのびない。全文は直下の一言と読み上げが持つ）。
+   段の境目は src/card-name-size.ts と対。lg（短い名前）は上の指定のまま変えない */
+.roulette-card-name[data-size] {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.roulette-card-name[data-size='lg'] {
+  -webkit-line-clamp: 2;
+}
+.roulette-card-name[data-size='md'] {
+  font-size: var(--font-size-lg);
+  -webkit-line-clamp: 2;
+}
+.roulette-card-name[data-size='sm'] {
+  font-size: var(--font-size-base);
+  -webkit-line-clamp: 3;
+}
+.roulette-card-name[data-size='xs'] {
+  font-size: var(--font-size-xs);
+  -webkit-line-clamp: 3;
+}
 .roulette-card-name small {
   font-family: var(--font-body);
   font-size: var(--font-size-sm);
