@@ -24,31 +24,46 @@ describe('ResultCard の名前の段', () => {
     expect(el?.querySelector('small')).toHaveTextContent(CARD_SUFFIX);
   });
 
-  /** CSS から、段ごとの宣言を読む（セレクタ並びの中に段の指定と、任意の子孫を含む規則）。 */
-  function declared(tier: string, descendant: string, prop: string): string | undefined {
-    const attr = `.roulette-card-name[data-size='${tier}']${descendant}`;
+  /** コメントを除いた CSS の規則（セレクタの並びと本体）。 */
+  const RULES = [...CSS.replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/([^{}]+)\{([^}]*)\}/g)].map((m) => ({
+    selectors: (m[1] ?? '').split(',').map((x) => x.trim()),
+    body: m[2] ?? '',
+  }));
+
+  /** セレクタを持つ規則の宣言の値。**規則が無ければ失敗する**（素通りで undefined を返さない）。 */
+  function declared(selector: string, prop: string): string | undefined {
+    const rules = RULES.filter((r) => r.selectors.includes(selector));
+    expect(rules.length, `CSS に ${selector} の規則が無い`).toBeGreaterThan(0);
     let value: string | undefined;
-    for (const m of CSS.matchAll(/([^{}]+)\{([^}]*)\}/g)) {
-      const selectors = (m[1] ?? '').split(',').map((x) => x.trim());
-      if (!selectors.includes(attr)) continue;
-      const decl = (m[2] ?? '').match(new RegExp(`${prop}:\\s*([^;]+);`));
+    for (const r of rules) {
+      const decl = r.body.match(new RegExp(`(?:^|[\\s;])${prop}:\\s*([^;]+);`));
       if (decl) value = decl[1]?.trim();
     }
     return value;
   }
 
+  const tierSelector = (tier: string, descendant = ''): string => `.roulette-card-name[data-size='${tier}']${descendant}`;
+
   it.each([
     ['lg', undefined, '2'],
     ['md', 'var(--font-size-lg)', '3'],
     ['sm', 'var(--font-size-base)', '3'],
-  ])('Given 段 %s / Then CSS の字の大きさは %s・名前の要素の最大行数は %s（「さん」は clamp しない）', (tier, font, clamp) => {
-    expect(declared(tier, '', 'font-size')).toBe(font);
-    expect(declared(tier, ' .roulette-card-name-text', '-webkit-line-clamp')).toBe(clamp);
-    expect(declared(tier, ' small', '-webkit-line-clamp')).toBeUndefined();
+  ])('Given 段 %s / Then CSS の字の大きさは %s・名前の要素の最大行数は %s', (tier, font, clamp) => {
+    expect(declared(tierSelector(tier), 'font-size')).toBe(font);
+    expect(declared(tierSelector(tier, ' .roulette-card-name-text'), '-webkit-line-clamp')).toBe(clamp);
+  });
+
+  it('Given 「さん」 / Then どの規則も「さん」に line-clamp を掛けない', () => {
+    const onSmall = RULES.filter((r) => r.selectors.some((x) => x.endsWith(' small')));
+    expect(onSmall.length).toBeGreaterThan(0);
+    for (const r of onSmall) expect(r.body).not.toContain('line-clamp');
   });
 
   it('Given どの段でも / Then 「さん」は nowrap で、段の規則の外にある（#373）', () => {
-    const rule = CSS.match(/\.roulette-card-name small \{[^}]*\}/)?.[0] ?? '';
-    expect(rule).toContain('white-space: nowrap');
+    expect(declared('.roulette-card-name small', 'white-space')).toBe('nowrap');
+  });
+
+  it('Given 存在しないセレクタ / Then 検査自身が失敗する（素通りしない）', () => {
+    expect(() => declared(tierSelector('xs'), 'font-size')).toThrow();
   });
 });
