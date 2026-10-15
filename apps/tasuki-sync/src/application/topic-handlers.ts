@@ -43,7 +43,6 @@ import type { TopicStore } from "../ports/topic-store.js";
 import type { TopicServerMsg } from "../ports/topic-server-msg.js";
 import type { JoinRoomDeps } from "./join-room.js";
 import type { SaveRosterDeps } from "./save-roster.js";
-import type { TimerSeatBroadcastDeps } from "./timer-seat-broadcast.js";
 import { constantTimeEqual } from "./secure-compare.js";
 import { topicStateOrInitial, type TopicBroadcaster } from "./topic-broadcast.js";
 import type { TopicGenerator } from "./topic-generation.js";
@@ -60,7 +59,7 @@ import { boundaryErrorCode } from "./connection-errors.js";
  */
 const TopicConnectionMessageSchema = v.union([HubCommandSchema, TopicCommandSchema]);
 
-export interface TopicHandlerDeps extends JoinRoomDeps, SaveRosterDeps, TimerSeatBroadcastDeps {
+export interface TopicHandlerDeps extends JoinRoomDeps, SaveRosterDeps {
   topics: TopicStore;
   generator: Pick<TopicGenerator, "request" | "cancel">;
   broadcaster: TopicBroadcaster;

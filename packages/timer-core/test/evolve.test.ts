@@ -168,6 +168,36 @@ describe("evolve: 直前のドライバー（#374）", () => {
     expect(agg.session.previousDriverId).toBe("Bob");
   });
 
+  it("ロビーで先頭の席を外して入れ直し、開始しても、直前のドライバーは居ない（運転した人は居ない）", () => {
+    // Given（まだ開始していない輪。先頭の Alice は「運転中の席」だが運転していない）
+    const lobby = anAggregate().withRotation("Alice", "Bob", "Charlie").build();
+    // When（Alice を外して入れ直し、開始する）
+    const removed = evolve(lobby, { type: "MemberRemoved", index: 0, now: NOW }, NOW);
+    const readded = evolve(removed, { type: "MemberAdded", participantId: "Alice", now: NOW }, NOW);
+    const started = evolve(readded, { type: "SessionStarted", now: NOW }, NOW);
+    // Then
+    expect(removed.session.previousDriverId).toBeNull();
+    expect(started.session.previousDriverId).toBeNull();
+  });
+
+  it("開始すると、前の名残の直前のドライバーは消える", () => {
+    // Given（直前のドライバーが残った集約。止まっている）
+    const stale = { ...baseAgg, session: { ...baseAgg.session, previousDriverId: "Alice" } };
+    // When
+    const started = evolve(stale, { type: "SessionStarted", now: NOW }, NOW);
+    // Then
+    expect(started.session.previousDriverId).toBeNull();
+  });
+
+  it("一時停止中に運転中の人が外れても、直前のドライバーはその人になる（セッションは続いている）", () => {
+    // Given（Alice → Bob と交代して一時停止）
+    const paused = evolve(switchTo(running(), 1), { type: "SessionPaused", now: NOW + 15000 }, NOW + 15000);
+    // When
+    const agg = evolve(paused, { type: "MemberRemoved", index: 1, now: NOW + 20000 }, NOW + 20000);
+    // Then
+    expect(agg.session.previousDriverId).toBe("Bob");
+  });
+
   it("運転中でない人が輪から外れても、直前のドライバーは変わらない", () => {
     // Given（Alice → Bob。直前は Alice）
     const afterOne = switchTo(running(), 1);

@@ -36,7 +36,6 @@ import { createRoom, type CreateRoomDeps } from "./create-room.js";
 import { applyDisplayNameRule, INVALID_DISPLAY_NAME_MESSAGE } from "./display-name-rule.js";
 import { joinFailureMessage, type JoinRoomDeps } from "./join-room.js";
 import { saveRoster, type SaveRosterDeps } from "./save-roster.js";
-import type { TimerSeatBroadcastDeps } from "./timer-seat-broadcast.js";
 import { findRoomByConnId } from "./room-lookup.js";
 import { joinToolRoom } from "./join-tool-room.js";
 import { TOOL_HUB } from "./tool-id.js";
@@ -52,7 +51,7 @@ import type { TopicBroadcaster } from "./topic-broadcast.js";
  */
 const INVALID_COMMAND_MESSAGE = CONNECTION_ERROR_TEXT.INVALID_COMMAND;
 
-export interface HubHandlerDeps extends CreateRoomDeps, JoinRoomDeps, SaveRosterDeps, TimerSeatBroadcastDeps {
+export interface HubHandlerDeps extends CreateRoomDeps, JoinRoomDeps, SaveRosterDeps {
   timers: TimerStore;
   hub: HubBroadcaster;
   /**

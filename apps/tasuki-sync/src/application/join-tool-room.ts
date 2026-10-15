@@ -17,7 +17,6 @@ import { CONNECTION_ERROR_TEXT } from "./connection-errors.js";
 import { applyDisplayNameRule, INVALID_DISPLAY_NAME_MESSAGE } from "./display-name-rule.js";
 import { joinFailureMessage, joinRoom, type JoinRoomDeps, type JoinRoomOutcome } from "./join-room.js";
 import { findRoomByConnId } from "./room-lookup.js";
-import { broadcastTimerIfRosterViewChanged, type TimerSeatBroadcastDeps } from "./timer-seat-broadcast.js";
 import { saveRoster, type SaveRosterDeps } from "./save-roster.js";
 
 /** 参加の返事。成功（`room.joined`）か失敗（`error`）。**どちらもハブと同じ形**で返す。 */
@@ -34,10 +33,7 @@ export interface JoinToolRoomInput {
   afterJoin: (outcome: JoinRoomOutcome) => void;
 }
 
-export function joinToolRoom(
-  deps: JoinRoomDeps & SaveRosterDeps & TimerSeatBroadcastDeps,
-  input: JoinToolRoomInput,
-): void {
+export function joinToolRoom(deps: JoinRoomDeps & SaveRosterDeps, input: JoinToolRoomInput): void {
   const { connId, cmd, reply } = input;
 
   // 既にどこかのルームに居る接続からの 2 度目の参加は拒み、何も変えない（同じルームでも別のルームでも）。
@@ -56,8 +52,6 @@ export function joinToolRoom(
     return;
   }
 
-  // 参加の前の名簿。timer の画面に映るものが変わったかを比べるのに使う（#374）。
-  const before = deps.store.get(cmd.code);
   const joined = joinRoom(deps, {
     connId,
     code: cmd.code,
@@ -77,8 +71,7 @@ export function joinToolRoom(
   const { participantId, resumeToken, membership } = joined.value;
   reply({ type: "room.joined", code: cmd.code, participantId, resumeToken });
   // 保管と配信は対にする（`save-roster.ts`）。この接続が在席に載ったことは玄関にも届く。
+  // ほかのツールで入り直した人の席は、timer の画面で「未接続」から「別の画面」へ変わる（`save-roster.ts` が配る・#374）。
   saveRoster(deps, membership);
-  // ほかのツールで入り直した人の席は、timer の画面で「未接続」から「別の画面」へ変わる（#374）。
-  broadcastTimerIfRosterViewChanged(deps, before, membership);
   input.afterJoin(joined.value);
 }

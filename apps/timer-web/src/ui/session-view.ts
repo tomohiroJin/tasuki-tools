@@ -28,6 +28,7 @@ export interface DriverNamesInput {
   readonly nextIndex: number | null;
   /**
    * 直前に実際に運転した人の席（サーバーが持つ・#374）。分からなければ null。
+   * いまの運転者と同じ席にはならない（同期サーバーが null に正規化する）。
    * 旧サーバーは項目を送らないので、呼び出し側は `?? null` で渡す。
    */
   readonly previousDriverIndex: number | null;
@@ -59,8 +60,8 @@ function hidesNavigator(reason: SeatSkipReason | null | undefined): boolean {
  * 持たないので、画面が逆向きにたどっても復元できない（運転の後に戻った人・強制指名・並べ替え）。
  *
  * 次のときはナビを出さない（分からない・務められない。輪が 1 人のときと同じ作法）:
- * - 直前の人が分からない（交代前・輪から外れた・旧サーバー）
- * - 直前の人の席がいまの運転者と同じ（削除で添字が詰まったとき）
+ * - 直前の人が分からない（交代前・輪から外れた・いまの運転者と同じ席・旧サーバー）。
+ *   いまの運転者と同じ席は同期サーバーが null に正規化して送る（`timer-snapshot-dto.ts`）
  * - 直前の人が本人の選んだ見送り（stood-down）中か、切断している —— ナビを務められない
  *
  * **不在（away）では隠さない。** timer のタブに居ないだけ（ハブや poker のタブへ移った）で、
@@ -77,7 +78,6 @@ export function driverNames({
   const navigatorSeat =
     navigatorEnabled &&
     previousDriverIndex !== null &&
-    previousDriverIndex !== currentIndex &&
     !hidesNavigator(skipReasons[previousDriverIndex])
       ? previousDriverIndex
       : null;

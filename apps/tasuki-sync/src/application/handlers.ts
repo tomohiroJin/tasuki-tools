@@ -332,7 +332,10 @@ export function makeHandlers(deps: HandlerDeps) {
   function commit(state: RoomState): void {
     // 名簿の保管とハブへの配信は対にする（`save-roster.ts`・#95 S5a）。
     // **`store.put` をここへ書き戻さないこと** —— 選択画面が更新されなくなる。
-    saveRoster({ store, hub: deps.hub }, state.membership);
+    // timer の snapshot はこの直後に自分で配る（二重に配らない。`save-roster.ts`）。
+    saveRoster({ store, hub: deps.hub, timers, timerBroadcaster: broadcaster }, state.membership, {
+      timerSnapshotSentByCaller: true,
+    });
     timers.put(state.timer);
     broadcaster.broadcastSnapshot(
       state.timer.code,

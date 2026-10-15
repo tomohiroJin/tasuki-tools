@@ -77,9 +77,17 @@ timer の画面へ snapshot を配るのは、timer のコマンドと「presenc
 （ハブ・お題・ルーレット・poker への参加・入り直し、timer とハブを開いた人が timer だけ閉じる）で席の理由が変わっても
 timer の画面に届かず、timer から選択画面へ移った人は「未接続」のまま残った。そのためナビの「不在では隠さない」が実画面で効かなかった。
 
-名簿を書く経路（`presence.ts` の切断・`join-tool-room.ts`・`poker-handlers.ts` の `commit`）で、timer の画面に映るもの
-（在席・席の理由・次の番）が前後で変わったときだけ timer へ配る（`timer-seat-broadcast.ts`）。timer の状態も書く
-`handlers.ts` の `commit` は自分で配るので通さない。
+名簿を保管する唯一の場所（`save-roster.ts`）で、timer の画面に映る席の情報（参加者の在席・席の理由・次の番）が
+前後で変わったときだけ timer へ配る（`timer-seat-broadcast.ts`）。名簿の参照が前後で同じなら snapshot を組まずに返す
+（poker の投票のように名簿を触らない保管）。timer の状態も書いて自分で配る `handlers.ts` の `commit` は
+`timerSnapshotSentByCaller` で二重に配らない（PR #396 のレビュー）。
+
+### 6. 開始とロビーでの外し（PR #396 のレビュー）
+
+ロビーの「運転中の席」は運転していないので、そこを外しても直前のドライバーにしない（`MemberRemoved` が書くのは
+セッションが始まっている間だけ）。`SessionStarted` は直前のドライバーを null に戻す（`SessionReset` は元から初期値に戻す）。
+`apps/timer-web/src/ui/session-start.ts` の `carriesPreviousSession` は触らない —— 開始で null に戻すので、
+直前のドライバーが残っていても「前のセッションを引きずる」根にならない。
 
 ### 5. プロトコル互換と配布順序
 
@@ -96,10 +104,12 @@ timer の画面に届かず、timer から選択画面へ移った人は「未�
 | 211 | DTO が `previousDriverIndex` を null 固定にする | `apps/tasuki-sync/test/timer-snapshot-dto.test.ts` |
 | 212 | `driverNames` が直前のドライバーの席の飛ばされる状態を見ない | `apps/timer-web/test/ui/session-view.test.ts` |
 | 213 | `driverNames` を輪の上の 1 つ前の席へ戻す（欠陥そのもの） | `apps/timer-web/test/ui/session-view.test.ts`・`Session.derived.test.tsx` |
-| 214 | `MemberRemoved` が運転中の人の退出で直前のドライバーを書き換えない | `packages/timer-core/test/evolve.test.ts` |
+| 214 | `MemberRemoved` が運転中の人の退出で直前のドライバーを書き換えない（m214 は作り直し） | `packages/timer-core/test/evolve.test.ts` |
 | 215 | DTO がいまの運転者と同じ席を null へ正規化しない | `apps/tasuki-sync/test/timer-snapshot-dto.test.ts` |
 | 216 | `driverNames` が不在（away）でもナビを隠す | `apps/timer-web/test/ui/session-view.test.ts` |
 | 217 | ほかのツールで入った・入り直したことを timer の画面へ配らない | `apps/tasuki-sync/test/live-ws.timer-seat-presence.test.ts` |
+| 218 | `SessionStarted` が直前のドライバーを null に戻さない | `packages/timer-core/test/evolve.test.ts` |
+| 219 | `saveRoster` が呼び出し側の「自分で配る」を無視して二重に配る | `apps/tasuki-sync/test/save-roster.timer-seat.test.ts` |
 
 ## 検証の実行時間の見積もり
 
