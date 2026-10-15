@@ -10,6 +10,7 @@
  *   実サーバーの枠を使ううえ、壊れたフレームは本番では作れない）。
  * - タグ無し #142 — 同期サーバーの再起動でルームが消えたときの見え方（#76 F-4 の回帰。
  *   `local` 専用。本番のルームを消すことになるので本番では走らせない）。
+ * - タグ無し #374 — ナビは直前に実際に運転した人（`local` 専用。3 人の輪と一時離脱を組む）。
  */
 import type { Locator, Page } from '@playwright/test';
 import { expect, test } from '../fixtures/test';
@@ -828,5 +829,106 @@ test.describe('timer のルームが消えたら操作を止めて、やり直�
     // 読み込み中の行き止まり（`Loading`）は作るのに同期サーバーを止める仕掛けが要るので測らない。
     // あちらのボタンは既定の大きさの `.ui-button`（44px）だけ
     await expectScreenAcrossWidths(page, 'timer セッション喪失', 2);
+  });
+});
+
+/**
+ * ナビ（⑦）は直前に**実際に**運転した人を指す（#374）。
+ *
+ * 直す前は、輪の上で 1 つ前の席の人を出していた。交代は一時離脱の席を飛ばすので、
+ * A → C と交代すると、C の 1 つ前の席の B（運転していない）がナビに出ていた。
+ *
+ * **判定は描かれたナビの名前の完全一致で行う**（`toHaveText` に文字列を渡すと全体一致。
+ * `toContainText` は `e2e-a` が `e2e-ab` にも当たる）。否定は `toHaveCount(0)` で見る ——
+ * ただし画面がまだ描かれていなくても 0 件で通るので、**先に現ドライバーの印で
+ * セッション画面に居ることを固定してから**見る。
+ *
+ * 最後の段は、ナビである A 自身が timer を離れて選択画面へ行く（不在 = away）。
+ * 不在は timer のタブに居ないだけなので、ナビを隠さない（タブを切り替えるたびに
+ * 全員の画面でナビが点滅しないため）。**C を離れさせても何も確かめられない** ——
+ * C はナビではないので、隠す実装でもナビは変わらない。
+ */
+test.describe('timer のナビは、飛ばされた席の人ではなく直前に運転した人を指す', () => {
+  const THIRD = 'e2e-c';
+
+  /** セッション画面に描かれたナビの名前。 */
+  function navigatorName(target: Page): Locator {
+    return target.locator('.session-navigator-name');
+  }
+
+  /** セッション画面の交代の帯で、その人の行に付いた「番が回らない理由」の印。 */
+  function skipReasonOf(target: Page, name: string): Locator {
+    return target
+      .locator('.rotation-lineup-row')
+      .filter({ has: target.locator('.rotation-lineup-name', { hasText: name }) })
+      .locator('.rotation-lineup-skip-reason');
+  }
+
+  test('Given 3 人の輪でナビを有効にした / When 次の席の人が一時離脱した状態で交代する / Then ナビは飛ばされた人ではなく、交代前に運転していた人になる', async ({
+    page,
+    openPeer,
+  }) => {
+    // Given: A が作り、B・C が輪に加わる。順番まで待つ（名前だけだと輪に入る前に開始してしまう）
+    const code = await createRoom(page, HOST);
+    const second = await openPeer('timer-navigator-b');
+    await joinAsDriver(second.page, code, GUEST);
+    const third = await openPeer('timer-navigator-c');
+    await joinAsDriver(third.page, code, THIRD);
+    await expect(lobbyRotationRow(page, HOST, 1)).toHaveCount(1);
+    await expect(lobbyRotationRow(page, GUEST, 2)).toHaveCount(1);
+    await expect(lobbyRotationRow(page, THIRD, 3)).toHaveCount(1);
+
+    // Given: 詳細設定でナビゲーター役を有効にする。**他の人の画面に届いたことまで待つ**
+    // （届く前に開始すると、ナビが無効のまま始まりうる）
+    await page.locator('summary', { hasText: '詳細設定' }).click();
+    await page.getByRole('checkbox', { name: /ナビゲーター役を明示する/ }).check();
+    await third.page.locator('summary', { hasText: '詳細設定' }).click();
+    await expect(third.page.getByRole('checkbox', { name: /ナビゲーター役を明示する/ })).toBeChecked();
+
+    await page.getByRole('button', { name: 'セッションを開始' }).click();
+
+    const all = [
+      ['A', page],
+      ['B', second.page],
+      ['C', third.page],
+    ] as const;
+
+    // Then その1: 開始直後はまだ誰も交代していないので、ナビは出ない
+    for (const [label, target] of all) {
+      await expect(currentDriverRow(target), `${label}の画面`).toContainText(HOST);
+      await expect(target.locator('.session-navigator'), `${label}の画面にナビが出ている`).toHaveCount(0);
+    }
+
+    // When: B が自分で一時離脱し、それが A の画面に届いてから交代する
+    await second.page.getByRole('button', { name: '一時離脱', exact: true }).click();
+    await expect(skipReasonOf(page, GUEST)).toHaveText('離脱中');
+    await page.getByRole('button', { name: 'スキップ', exact: true }).click();
+
+    // Then その2: B を飛ばして C が運転者になり、ナビは A（直す前は輪の 1 つ前の B だった）
+    for (const [label, target] of all) {
+      await expect(currentDriverRow(target), `${label}の画面`).toContainText(THIRD);
+      await expect(navigatorName(target), `${label}の画面のナビ`).toHaveText(HOST);
+    }
+
+    // When: B が復帰する（B は輪の上で C の 1 つ前の席に戻る）
+    await second.page.getByRole('button', { name: '復帰', exact: true }).click();
+    await expect(skipReasonOf(page, GUEST)).toHaveCount(0);
+
+    // Then その3: 戻ってきても B は運転していないので、ナビは A のまま
+    for (const [label, target] of all) {
+      await expect(navigatorName(target), `${label}の画面のナビ`).toHaveText(HOST);
+    }
+
+    // When: ナビである A が timer を離れて選択画面へ行く（不在）。B の画面で不在の印が出るまで待つ
+    await page.getByRole('link', { name: '選択画面へ戻る' }).click();
+    await expect(skipReasonOf(second.page, HOST)).toHaveText('別の画面');
+
+    // Then その4: 不在ではナビを隠さない。残った B・C の画面でナビは A のまま
+    for (const [label, target] of [
+      ['B', second.page],
+      ['C', third.page],
+    ] as const) {
+      await expect(navigatorName(target), `${label}の画面のナビ`).toHaveText(HOST);
+    }
   });
 });
