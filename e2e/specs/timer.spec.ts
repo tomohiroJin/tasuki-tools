@@ -881,7 +881,10 @@ test.describe('timer のナビは、飛ばされた席の人ではなく直前�
     // Given: 詳細設定でナビゲーター役を有効にする。**他の人の画面に届いたことまで待つ**
     // （届く前に開始すると、ナビが無効のまま始まりうる）
     await page.locator('summary', { hasText: '詳細設定' }).click();
-    await page.getByRole('checkbox', { name: /ナビゲーター役を明示する/ }).check();
+    //   チェックはサーバーの往復で変わるので、`check()`（その場で変わることを求める）ではなく押して待つ
+    const navigatorToggle = page.getByRole('checkbox', { name: /ナビゲーター役を明示する/ });
+    await navigatorToggle.click();
+    await expect(navigatorToggle).toBeChecked();
     await third.page.locator('summary', { hasText: '詳細設定' }).click();
     await expect(third.page.getByRole('checkbox', { name: /ナビゲーター役を明示する/ })).toBeChecked();
 
@@ -919,8 +922,14 @@ test.describe('timer のナビは、飛ばされた席の人ではなく直前�
       await expect(navigatorName(target), `${label}の画面のナビ`).toHaveText(HOST);
     }
 
-    // When: ナビである A が timer を離れて選択画面へ行く（不在）。B の画面で不在の印が出るまで待つ
+    // When: ナビである A が timer を離れて選択画面へ行く（不在）。
     await page.getByRole('link', { name: '選択画面へ戻る' }).click();
+    await expect(page.getByRole('link', { name: /TDD Mob Pro Timer/ })).toBeVisible();
+    //   ⚠ **選択画面へ着いただけでは、timer の画面に「別の画面」は届かない**（実測）。timer の画面へ
+    //   snapshot が配られるのは timer の接続が切れたとき（`presence.ts` の `handleDisconnect`）までで、
+    //   ハブの接続が入り直しても timer へは配らない。そのため timer の画面は「未接続」のまま止まる。
+    //   次に timer の状態が変わったときの snapshot で「別の画面」になるので、B が一時停止して配らせる
+    await second.page.getByRole('button', { name: '一時停止', exact: true }).click();
     await expect(skipReasonOf(second.page, HOST)).toHaveText('別の画面');
 
     // Then その4: 不在ではナビを隠さない。残った B・C の画面でナビは A のまま
