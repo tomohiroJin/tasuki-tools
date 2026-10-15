@@ -5,6 +5,7 @@
 
 import { describe, it, expect } from "vitest";
 import { evolve, advanceDriver } from "../src/evolve.js";
+import { INITIAL_BREAK_STATE } from "../src/aggregate.js";
 import { anAggregate, memberSeats, proxySeat, seatIds } from "./support/aggregate-builder.js";
 
 const baseAgg = anAggregate().build();
@@ -527,6 +528,7 @@ describe("evolve: 休憩中に輪が空になる（#376）", () => {
     agg = evolve(agg, { type: "MemberAdded", participantId: "Bob", now: NOW + 3000 }, NOW + 3000);
     agg = evolve(agg, { type: "BreakEnded", now: NOW + 4000 }, NOW + 4000);
     // Then
+    expect(agg.session.break.since).toBeNull();
     expect(emptied.session.isPaused).toBe(false);
     expect(emptied.clock.running).toBe(false);
     expect(agg.clock.running).toBe(true);
@@ -540,6 +542,7 @@ describe("evolve: 休憩中に輪が空になる（#376）", () => {
     // Then
     expect(next.session.isPaused).toBe(false);
     expect(next.clock.running).toBe(false);
+    expect(next.session.break.since).toBe(NOW + 1000);
   });
 });
 
@@ -651,5 +654,36 @@ describe("evolve: MemberRemoved / MemberMoved の index 調整分岐", () => {
     // Then
     expect(seatIds(next.session.rotation)).toEqual(["Bob", "Charlie", "Alice"]);
     expect(next.session.currentIndex).toBe(0);
+  });
+});
+
+describe("完成・中断は時計を止め、休憩を畳む（#402 設計 §3.5）", () => {
+  it.each(["SessionCompleted", "SessionAborted"] as const)(
+    "Given 休憩を経た走っている集約 / When %s / Then 時計は止まり、休憩の状態は初期値に戻る",
+    (type) => {
+      let agg = evolve(anAggregate().withRotation("a", "b").build(), { type: "SessionStarted", now: NOW }, NOW);
+      agg = evolve(agg, { type: "BreakStarted", now: NOW + 1000 }, NOW + 1000);
+      agg = evolve(agg, { type: "BreakEnded", now: NOW + 2000 }, NOW + 2000);
+      const event =
+        type === "SessionCompleted"
+          ? ({ type, now: NOW + 3000, topicTitle: null } as const)
+          : ({ type, now: NOW + 3000 } as const);
+      const next = evolve(agg, event, NOW + 3000);
+      expect(next.clock.running).toBe(false);
+      expect(next.clock.accumulatedElapsedMs).toBe(2000);
+      expect(next.session.break).toEqual(INITIAL_BREAK_STATE);
+    },
+  );
+
+  it("Given 休憩の印が残る集約 / When SessionStarted / Then 休憩の状態は初期値", () => {
+    const base = anAggregate().withRotation("a", "b").build();
+    const dirty = {
+      ...base,
+      session: {
+        ...base.session,
+        break: { since: null, baseline: { elapsedMs: 5, switches: 5 }, suggestedAt: { elapsedMs: 5, switches: 5 } },
+      },
+    };
+    expect(evolve(dirty, { type: "SessionStarted", now: NOW }, NOW).session.break).toEqual(INITIAL_BREAK_STATE);
   });
 });

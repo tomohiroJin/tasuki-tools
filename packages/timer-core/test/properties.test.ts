@@ -281,6 +281,9 @@ describe("全てのコマンドを混ぜた列での不変条件（#364）", () 
             // Then
             const violations = invariantViolations(agg);
             if (agg.session.rotation.length < 1) violations.push("輪が空");
+            // #402: 走っている時計は休憩中ではない／休憩中は一時停止ではない
+            expect(agg.clock.running && agg.session.break.since !== null).toBe(false);
+            expect(agg.session.break.since !== null && agg.session.isPaused).toBe(false);
             expect(violations).toEqual([]);
           }
         },
@@ -313,7 +316,7 @@ describe("evolve に直接流すイベントの列での不変条件（#376）",
     { arbitrary: fc.constantFrom<Kind>("move", "shuffle", "switch", "session", "reset"), weight: 3 },
   );
   const stepArb = fc.tuple(kindArb, fc.nat(), fc.nat());
-  const SESSION_EVENTS = ["SessionStarted", "SessionPaused", "SessionResumed", "DriverTimerReset", "BreakStarted", "BreakEnded"] as const;
+  const SESSION_EVENTS = ["SessionStarted", "SessionPaused", "SessionResumed", "DriverTimerReset", "BreakStarted", "BreakEnded", "BreakSuggested"] as const;
 
   /**
    * 席の添字を組む。範囲内を半分、範囲外（負・長さちょうど・長さより先・整数でない）を半分にする。

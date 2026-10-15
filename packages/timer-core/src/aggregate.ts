@@ -31,6 +31,36 @@ export function rotationEntryId(entry: RotationEntry): string {
   return entry.kind === "member" ? entry.participantId : entry.id;
 }
 
+/** 休憩の基準・知らせの印に使う「稼働時間と交代回数」の組（#402）。 */
+export interface BreakMark {
+  /** 稼働区間の合計（ms） */
+  elapsedMs: number;
+  /** 総交代回数 */
+  switches: number;
+}
+
+/** 休憩の状態（#402）。 */
+export interface BreakState {
+  /** 休憩に入った時刻（epoch ms）。休憩中でなければ null */
+  since: number | null;
+  /** 次の休憩の条件を測る起点。休憩に入るたびに書き直す */
+  baseline: BreakMark;
+  /** 休憩を知らせた時点の値。知らせていなければ null */
+  suggestedAt: BreakMark | null;
+}
+
+/** 休憩の状態の初期値（休憩中でなく、基準は 0、知らせていない）。 */
+export const INITIAL_BREAK_STATE: BreakState = {
+  since: null,
+  baseline: { elapsedMs: 0, switches: 0 },
+  suggestedAt: null,
+};
+
+/** 休憩中か。 */
+export function isOnBreak(session: Pick<SessionState, "break">): boolean {
+  return session.break.since !== null;
+}
+
 /** セッション状態（時間系を含まない） */
 interface SessionState {
   /** ローテーション順の席（#95 S4a・D6） */
@@ -60,6 +90,11 @@ interface SessionState {
    * （イベントの形は変えていない）。
    */
   previousDriverId: string | null;
+  /**
+   * 休憩の状態（#402）。時計と同じ evolve で変わるので、表示と時計が食い違わない。
+   * v2.10 は休憩をルームの `onBreak` に持ち、時計を止めずに食い違った。
+   */
+  break: BreakState;
 }
 
 /**
@@ -159,7 +194,6 @@ export interface TimerState {
   phase: RoomPhase;
   sessionRecords: CompletionRecord[];
   handoffNote: string;
-  onBreak: boolean;
   /** パスフレーズ保護中か（平文は載せない・サーバ側 Map で保持・R4-2）。 */
   passphraseProtected?: boolean;
   // ⚠ かつてここには timer のお題（`problem`・`problemMode`・`aiUnlocked`・
@@ -252,6 +286,7 @@ export function initialAggregateInSeconds(intervalSeconds: number, rotation: rea
       driverCounts: rotation.map(() => 0),
       totalSwitches: 0,
       previousDriverId: null,
+      break: INITIAL_BREAK_STATE,
     },
     clock: {
       running: false,

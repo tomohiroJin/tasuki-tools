@@ -115,6 +115,12 @@ interface BreakEnded {
   now: number;
 }
 
+/** 休憩の知らせ（#402。「知らせるだけ」の入り方で、条件に達した交代のあとに当てる） */
+interface BreakSuggested {
+  type: "BreakSuggested";
+  now: number;
+}
+
 /** 完成 */
 interface SessionCompleted {
   type: "SessionCompleted";
@@ -182,6 +188,7 @@ export type DomainEvent =
   | HandoffNoteSet
   | BreakStarted
   | BreakEnded
+  | BreakSuggested
   | SessionCompleted
   | SessionAborted
   | ProxyMemberAdded

@@ -7,7 +7,7 @@
 
 import { describe, it, expect } from "vitest";
 import { evolve } from "../src/evolve.js";
-import { secondsLeft } from "../src/aggregate.js";
+import { INITIAL_BREAK_STATE, secondsLeft } from "../src/aggregate.js";
 import type { Aggregate } from "../src/aggregate.js";
 import { anAggregate } from "./support/aggregate-builder.js";
 
@@ -80,6 +80,7 @@ describe("F3: リセットを最初から再スタートにする", () => {
         totalSwitches: 0,
         // 2 回交代していても、リセットで直前のドライバーは居なくなる（#374）
         previousDriverId: null,
+        break: INITIAL_BREAK_STATE,
       },
       clock: {
         running: true,

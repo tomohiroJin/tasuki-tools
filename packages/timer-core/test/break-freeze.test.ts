@@ -95,21 +95,67 @@ describe("F2: 休憩でタイマーを停止/再開する", () => {
     expect(out).toEqual(started);
   });
 
-  it("一時停止中に休憩→休憩終了しても走行再開せず一時停止を維持する（running×isPaused 矛盾を防ぐ）", () => {
-    // Given（一時停止で残240に凍結後、一時停止中に休憩を挟む）
+  it("Given 一時停止中 / When 休憩に入り、休憩を終える / Then 一時停止は解け、凍結した残りから走り出す（設計 §3.3）", () => {
+    // Given（一時停止で残 240 に凍結）
     const started = startedAgg();
     const pauseTime = NOW + 180_000;
     const paused = evolve(started, { type: "SessionPaused", now: pauseTime }, pauseTime);
+    // When
     const onBreak = evolve(paused, { type: "BreakStarted", now: pauseTime + 10_000 }, pauseTime + 10_000);
-    // When（休憩終了）
     const ended = evolve(onBreak, { type: "BreakEnded", now: pauseTime + 60_000 }, pauseTime + 60_000);
-    // Then（走行再開せず一時停止を維持し、残量も凍結のまま。その後 RESUME で正しく再開する）
-    expect(ended.clock.running).toBe(false);
-    expect(ended.session.isPaused).toBe(true);
-    expect(secondsLeft(ended.clock, pauseTime + 99_999)).toBeCloseTo(240, 0);
-    const resumed = evolve(ended, { type: "SessionResumed", now: pauseTime + 120_000 }, pauseTime + 120_000);
-    expect(resumed.clock.running).toBe(true);
-    expect(resumed.session.isPaused).toBe(false);
-    expect(secondsLeft(resumed.clock, pauseTime + 120_000)).toBeCloseTo(240, 0);
+    // Then
+    expect(onBreak.session.isPaused).toBe(false);
+    expect(onBreak.session.break.since).toBe(pauseTime + 10_000);
+    expect(ended.clock.running).toBe(true);
+    expect(ended.session.break.since).toBeNull();
+    expect(secondsLeft(ended.clock, pauseTime + 60_000)).toBeCloseTo(240, 0);
+  });
+
+  it("Given 走行中 / When 休憩に入る / Then 基準を今の稼働時間と交代回数で書き直し、知らせの印を消す", () => {
+    const started = startedAgg();
+    const withSuggestion = evolve(started, { type: "BreakSuggested", now: NOW + 60_000 }, NOW + 60_000);
+    const onBreak = evolve(withSuggestion, { type: "BreakStarted", now: NOW + 120_000 }, NOW + 120_000);
+    expect(onBreak.session.break.baseline).toEqual({
+      elapsedMs: started.clock.accumulatedElapsedMs + 120_000,
+      switches: started.session.totalSwitches,
+    });
+    expect(onBreak.session.break.suggestedAt).toBeNull();
+  });
+
+  it("Given 走行中 / When 知らせる / Then 知らせた時点の値を残し、時計は止めない", () => {
+    const started = startedAgg();
+    const next = evolve(started, { type: "BreakSuggested", now: NOW + 60_000 }, NOW + 60_000);
+    expect(next.session.break.suggestedAt).toEqual({
+      elapsedMs: started.clock.accumulatedElapsedMs,
+      switches: started.session.totalSwitches,
+    });
+    expect(next.clock.running).toBe(true);
+  });
+
+  it("Given 走行中（休憩していない） / When BreakEnded / Then 何も変えない", () => {
+    const started = startedAgg();
+    expect(evolve(started, { type: "BreakEnded", now: NOW + 1000 }, NOW + 1000)).toEqual(started);
+  });
+
+  it.each([
+    ["SessionPaused"],
+    ["SessionResumed"],
+    ["DriverTimerReset"],
+  ] as const)(
+    "Given 休憩中 / When %s（decide は出さない） / Then 集約を変えない（running を立てない・isPaused を立てない）",
+    (type) => {
+      const onBreak = evolve(startedAgg(), { type: "BreakStarted", now: NOW + 1000 }, NOW + 1000);
+      const next = evolve(onBreak, { type, now: NOW + 2000 }, NOW + 2000);
+      expect(next).toEqual(onBreak);
+      expect(next.clock.running).toBe(false);
+      expect(next.session.isPaused).toBe(false);
+    },
+  );
+
+  it("Given 休憩中 / When DriverSwitched / Then 集約を変えない（時計を再アンカーして走らせない）", () => {
+    const onBreak = evolve(startedAgg(), { type: "BreakStarted", now: NOW + 1000 }, NOW + 1000);
+    const next = evolve(onBreak, { type: "DriverSwitched", nextIndex: 1, now: NOW + 2000 }, NOW + 2000);
+    expect(next).toEqual(onBreak);
+    expect(next.clock.running).toBe(false);
   });
 });
