@@ -60,7 +60,7 @@ interface BreakState {
 }
 ```
 
-wire（`schemas.ts` の snapshot）にも載せる。**新しい項目はすべて任意にする**。理由は、`deploy.sh timer` が web を先に配るので、新しい画面と古いサーバーが並ぶ窓ができるため。`previousDriverIndex` と同じ判断である。
+wire（`schemas.ts` の snapshot）には、画面が要る分だけを `session.break?: { since: number | null; suggestedAtSwitches: number | null }` として載せる（計画の段で確定）。`baseline` は画面が使わないので載せない。**この項目は任意にする**。理由は、`deploy.sh timer` が web を先に配るので、新しい画面と古いサーバーが並ぶ窓ができるため。`previousDriverIndex` と同じ判断である。
 
 ### 3.2 判定
 
@@ -143,11 +143,13 @@ break?: BreakPolicy;      // 無ければ trigger: "none" と同じ
 
 休憩中は時計が止まっているので、不在の繰り上げ（`presence.ts` の不在タイマー）と `driver.skip` の繰り上げは何もしない。休憩明けにこの再評価を 1 回通すので、取りこぼさない。
 
-### 4.3 シグナル
+### 4.3 シグナル（計画の段で改訂・2026-10-16）
 
-- 休憩に入る交代では、**`switch` シグナルを配らない**。代わりに `break` シグナルを 1 本だけ配る（`{ kind: "started" | "ended" | "suggested", nextDriverName }`）
-- 既存の `suggest-break` シグナル（`rounds` が必須の形）は、この `break` シグナルに置き換える。古い画面が未知のシグナルを捨てるか、それとも「同期できていません」に落ちるか（`dispatch.ts`）は、計画の段で実測する。落ちる場合は、配布の順序で吸収する
-- 誰が休憩を始めた・終えたかは、既存の `notice`（FR-077）の形で出す
+**新しいシグナルは足さない。** 計画の段で現物を読むと、画面は `switch` シグナルを使っていなかった（`dispatch.ts` の `onSwitchSignal` に配線が無い）。交代の知らせ（`use-switch-alert.ts`）は、snapshot の `currentIndex` と名前の変化から検知している。休憩の知らせも同じく、snapshot の `session.break` の変化から検知する（§5.6）。
+
+- `switch` シグナルの配信は今のままにする（読み手が居ないので、休憩に入る交代で止めても何も変わらない）
+- 既存の `suggest-break` シグナル（読み手も書き手も居ない）は wire から消す
+- 誰が休憩を始めた・終えたかは、既存の `notice`（FR-077）に `break-started` / `break-ended` を足して出す。古い画面がこの `notice` を受けると契約に合わず捨てるが、捨てたのが `signal` なので画面は古くならない（`stale-frame.ts` の表。`console.warn` が 1 行出るだけ）
 
 ### 4.4 事前条件
 
@@ -202,13 +204,13 @@ break?: BreakPolicy;      // 無ければ trigger: "none" と同じ
 
 ### 5.5 知らせるだけの帯
 
-- `suggestedAt` が今の基準より新しく、かつ休憩中でないときに、画面の上部に帯を出す。文言は「休憩の時間です」と「休憩する」
+- 休憩中でなく、かつ `suggestedAtSwitches === totalSwitches`（いまの交代で知らせた）のときに、画面の上部に帯を出す。文言は「休憩の時間です」と「休憩する」
 - シグナルからではなく snapshot から導く。こうすると、再接続した人や途中で入った人にも帯が出る
-- 次の交代で消える
+- 次の交代で `totalSwitches` が進むので、帯は消える
 
 ### 5.6 知らせ方
 
-- `break` シグナルを受けたら、`notify.enabled` に従ってチャイムを鳴らす。`osNotify` なら OS 通知も出す
+- snapshot の `session.break.since` が null から値へ変わったとき（入った）と、値から null へ変わったとき（終わった）、`suggestedAtSwitches` が新しく `totalSwitches` と一致したとき（知らせた）に、`notify.enabled` に従ってチャイムを鳴らす。`osNotify` なら OS 通知も出す
 - 休憩に入る交代では、`use-switch-alert` を発火させない。チャイムが 2 回鳴る・全画面の知らせが 2 枚重なる、を防ぐ
 - 読み上げ（`use-discrete-announcement`）は「休憩に入りました。休憩明けは X さん」「休憩が終わりました」の 2 つで、交代の文より優先する
 
@@ -249,7 +251,7 @@ break?: BreakPolicy;      // 無ければ trigger: "none" と同じ
   - `properties.test.ts` に不変条件を 2 つ
 - **同期サーバー**（注入できる `WallClock` で時刻を進める）
   - 自動交代・手での交代・強制指名・スキップの繰り上げの 4 経路とも休憩に入る（`it.each`）
-  - 休憩に入る交代で `switch` を配らない
+  - 休憩に入る交代のあとの snapshot で、休憩中になっている（画面の交代の知らせは §5.6 で止める）
   - 休憩明けに不適格な運転者を繰り上げる
   - 完成のあとに予約が残らない
   - セッション中の `config.set` を拒む
@@ -288,11 +290,12 @@ break?: BreakPolicy;      // 無ければ trigger: "none" と同じ
 - **ADR**: `docs/timer/adr/0011`「休憩を復活させ、状態を集約に置く」。v2.10 の撤去への答え（§2）と、集約に置く理由（休憩の状態と時計が同じ `evolve` で変わるので、食い違いが構造上起きない）を書く
 - **既存の記述の更新**: `docs/timer/ARCHITECTURE.md` の dormant の記述、`docs/timer/adr/0009` の該当箇所、`evolve.ts` の注記
 - **Issue #402**: EARS と完了条件を §6 に合わせて書き直す（既定は自動、設定はロビーだけ、回収の制約）。書き直す前に文案を利用者に見せる
-- **構造監査 SC-039①**（`scripts/lib/structure/unreachable-elements.mjs` の `!room.onBreak` を数える指標）: 検出する対象が消えるので退役させる
+- **構造監査 SC-039①**（`scripts/lib/structure/unreachable-elements.mjs` の `!room.onBreak` を数える指標）: **退役させない**（計画の段で改訂）。`TimerState.onBreak` が消えるので、このパターンは書けなくなる。正当なガードを誤って検出する心配も無い。指標は値に「既知パターンのみ」の名札（`SC039A_SCOPE`）を添えて出しているので、0 のままでも誤読されない。退役させると、報告の書式・ADR 0014・3 本の検査の自己テストに波及し、Issue の射程（製品の使われない定義を残さない）から外れる
 - **変異検査の宣言**: break-freeze を守る ID などのパッチが当たるかを確かめ、当たらなければ書き直す
 - **使われない定義を残さない**:
   - 使うもの: `BreakStarted` / `BreakEnded`・`break.start` / `break.end`
-  - 置き換えるもの: `breakEveryRotations` → `break`、`suggest-break` → `break` シグナル
+  - 置き換えるもの: `breakEveryRotations` → `break`
+  - 消すもの: `suggest-break` シグナル（読み手も書き手も居ない）
   - 移すもの: ルームの `onBreak` → 集約の `session.break`
 
 ## 9. 敵対的な検証で見つかった穴と、その扱い
