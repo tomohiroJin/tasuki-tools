@@ -81,6 +81,14 @@
  *    捨てないためである（項目が無ければ画面はナビを出さない）。「旧画面 × 新サーバー」は
  *    非 strict の `v.object` が余分な項目を通すので、旧画面は従来の「1 つ前の席」を出し続ける。
  *
+ * ★ **#402 で wire が変わった点も、この台帳に続けて書く。**
+ *
+ * 11. **`session.break?: { since, suggestedAtSwitches }`（休憩の状態）を任意項目として足した**
+ *    （`wire.ts` の `Room.session.break` の注記）。集約の基準（`baseline`・`suggestedAt` の
+ *    経過）は載せず、画面が要る分だけを載せる。任意項目なので配布の窓で旧画面のパースは落ちない。
+ *    `onBreak` は古い画面の `RoomSchema` が必須で読むので残し、`session.break.since` から導く
+ *    （休憩中に限り true）。`suggest-break` シグナルは wire から消えた。
+ *
  * 代理（`isPlaceholder`）はここで**合成される**。名簿には居らず、輪の上の席
  * （`RotationEntry` の `kind: "proxy"`）としてだけ存在するためである。
  */
@@ -354,6 +362,11 @@ export function buildTimerSnapshotRoom(membership: MembershipRoom, timer: TimerS
       seats,
       nextIndex,
       previousDriverIndex,
+      // #402: 休憩の状態。画面が要る分だけを載せる（基準は載せない）。
+      break: {
+        since: timer.session.break.since,
+        suggestedAtSwitches: timer.session.break.suggestedAt?.switches ?? null,
+      },
     },
     clock: timer.clock,
     phase: timer.phase,
@@ -367,7 +380,8 @@ export function buildTimerSnapshotRoom(membership: MembershipRoom, timer: TimerS
     participants: [...members, ...proxies],
     sessionRecords: timer.sessionRecords,
     handoffNote: timer.handoffNote,
-    onBreak: timer.onBreak,
+    // 古い画面の `RoomSchema` が必須で読むので残す（#402）。休憩中かは集約から導く。
+    onBreak: timer.session.break.since !== null,
     ...(timer.passphraseProtected !== undefined
       ? { passphraseProtected: timer.passphraseProtected }
       : {}),

@@ -69,6 +69,5 @@ export function createInitialTimerState(input: InitialTimerStateInput): TimerSta
     phase: "setup",
     sessionRecords: [],
     handoffNote: "",
-    onBreak: false,
   };
 }

@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from "bun:test";
 import type { Room as MembershipRoom } from "@tasuki/room-core";
-import type { TimerState } from "@tasuki/timer-core";
+import { INITIAL_BREAK_STATE, type TimerState } from "@tasuki/timer-core";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { saveRoster } from "../src/application/save-roster.js";
@@ -48,6 +48,7 @@ const timer: TimerState = {
     driverCounts: [0, 0],
     totalSwitches: 0,
     previousDriverId: null,
+    break: INITIAL_BREAK_STATE,
   },
   clock: {
     running: true,
@@ -60,7 +61,6 @@ const timer: TimerState = {
   phase: "session",
   sessionRecords: [],
   handoffNote: "",
-  onBreak: false,
 };
 
 function setup(before: MembershipRoom) {

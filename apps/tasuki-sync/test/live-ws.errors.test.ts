@@ -127,16 +127,8 @@ describe("実 WS 越しのエラー応答", () => {
     expect(host.all("error")).toEqual([]);
   });
 
-  it("wire スキーマに残るが処理されないコマンド（break.start）は UNKNOWN_COMMAND になる", async () => {
-    // Given: 撤去済みの休憩機能。CommandSchema には後方互換で残っているが（FR-089）、
-    // `buildDomainCommand` の switch には無い。UI からは到達できず、実ソケットからしか
-    // 叩けない経路である。
-    //
-    // ⚠ #95 S3 でコードが変わった。以前は `permissions.ts` の `REGISTERED_COMMANDS` に
-    // 無いコマンドを `checkPermission` のステップ 0 が UNAUTHORIZED で弾いていたが、
-    // 可否判定ごと撤去したため、いまはパイプラインの `default` まで進んで
-    // UNKNOWN_COMMAND になる。**弾かれること自体は変わらない**（wire に無いコマンドは
-    // その手前の valibot が落とす。`test/unknown-command-boundary.test.ts` を参照）。
+  it("Given ロビー（phase が setup） / When break.start / Then NOT_IN_SESSION になる", async () => {
+    // Given: セッション前のロビー。休憩は進行中のセッションにだけ意味がある（#402）。
     server = startLiveSyncServer();
     const host = await server.connect("host");
     await createRoom(host, "ホスト");
@@ -145,9 +137,9 @@ describe("実 WS 越しのエラー応答", () => {
     // When
     host.send({ command: "break.start" });
 
-    // Then: スキーマは通るがドメインコマンドへ写せず落ちる
+    // Then: 期待コードは Task 7 で足す
     const error = await host.take("error");
-    expect(error.code).toBe("UNKNOWN_COMMAND");
+    expect(error.code).toBe("NOT_IN_SESSION");
   });
 
   for (const action of ["COMPLETE", "RESET"] as const) {

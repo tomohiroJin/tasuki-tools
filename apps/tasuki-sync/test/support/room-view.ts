@@ -15,7 +15,7 @@ import {
   type Participant as MembershipParticipant,
   type ToolId,
 } from "@tasuki/room-core";
-import type { Participant, Room } from "@tasuki/timer-core";
+import { INITIAL_BREAK_STATE, type Participant, type Room } from "@tasuki/timer-core";
 import { TOOL_TIMER } from "../../src/application/tool-id.js";
 import type { RoomStore } from "../../src/ports/room-store.js";
 import type { TimerStore } from "../../src/ports/timer-store.js";
@@ -139,6 +139,15 @@ export function putRoomView(
     config: room.config,
     session: {
       ...room.session,
+      // wire の休憩の要約を集約の形へ戻す（#402）。基準は wire に載らないので初期値で埋める。
+      break: {
+        ...INITIAL_BREAK_STATE,
+        since: room.session.break?.since ?? null,
+        suggestedAt:
+          room.session.break?.suggestedAtSwitches != null
+            ? { elapsedMs: 0, switches: room.session.break.suggestedAtSwitches }
+            : null,
+      },
       rotation: room.session.rotation.map((id) => {
         const p = byId.get(id);
         const eligible = p?.driverEligible !== false;
@@ -156,7 +165,6 @@ export function putRoomView(
     phase: room.phase,
     sessionRecords: room.sessionRecords,
     handoffNote: room.handoffNote,
-    onBreak: room.onBreak,
     ...(room.passphraseProtected !== undefined
       ? { passphraseProtected: room.passphraseProtected }
       : {}),

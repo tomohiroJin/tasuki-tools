@@ -14,7 +14,7 @@ import * as v from "valibot";
 import { RoomSchema } from "@tasuki/timer-core/schemas";
 import type { Room as MembershipRoom } from "@tasuki/room-core";
 import { buildTimerSnapshotRoom } from "../src/application/timer-snapshot-dto";
-import type { TimerState } from "@tasuki/timer-core";
+import { INITIAL_BREAK_STATE, type TimerState } from "@tasuki/timer-core";
 import { TOOL_TIMER } from "../src/application/tool-id.js";
 import { TOOL_HUB } from "../src/application/tool-id.js";
 
@@ -46,6 +46,7 @@ const timer: TimerState = {
     driverCounts: [0, 0],
     totalSwitches: 0,
     previousDriverId: null,
+    break: INITIAL_BREAK_STATE,
   },
   clock: {
     running: false,
@@ -58,7 +59,6 @@ const timer: TimerState = {
   phase: "setup",
   sessionRecords: [],
   handoffNote: "",
-  onBreak: false,
 };
 
 describe("timer の参加者一覧は在席で絞る（#95 S5a）", () => {
@@ -116,6 +116,29 @@ describe("timer のスナップショット DTO（wire の同形性）", () => {
   it("組み立てた room が RoomSchema を通る", () => {
     const room = buildTimerSnapshotRoom(membership, timer);
     expect(v.safeParse(RoomSchema, room).success).toBe(true);
+  });
+
+  it("Given 休憩中の集約 / When snapshot を組む / Then session.break と onBreak が集約から導かれる", () => {
+    // Given: 休憩中で、提案は 3 回目の交代で出ている
+    const onBreak: TimerState = {
+      ...timer,
+      session: {
+        ...timer.session,
+        break: { since: 5000, baseline: { elapsedMs: 0, switches: 0 }, suggestedAt: { elapsedMs: 0, switches: 3 } },
+      },
+    };
+    // When
+    const room = buildTimerSnapshotRoom(membership, onBreak);
+    // Then: 基準は載らず、画面が要る分だけが載る
+    expect(room.session.break).toEqual({ since: 5000, suggestedAtSwitches: 3 });
+    expect(room.onBreak).toBe(true);
+    expect(v.safeParse(RoomSchema, room).success).toBe(true);
+  });
+
+  it("Given 休憩していない集約 / When snapshot を組む / Then break は空で onBreak は false", () => {
+    const room = buildTimerSnapshotRoom(membership, timer);
+    expect(room.session.break).toEqual({ since: null, suggestedAtSwitches: null });
+    expect(room.onBreak).toBe(false);
   });
 
   it("名簿の参加者が wire の participants に写る", () => {

@@ -66,9 +66,8 @@ const TRANSLATIONS: Record<RoomScopedCommand["command"], readonly Case[]> = {
       expected: { command: "handoff.note.set", text: "次はテストから" },
     },
   ],
-  // wire スキーマには残るが処理しない（UNKNOWN_COMMAND。live-ws.errors.test.ts）
-  "break.start": [{ input: { command: "break.start" }, expected: null }],
-  "break.end": [{ input: { command: "break.end" }, expected: null }],
+  "break.start": [{ input: { command: "break.start" }, expected: { command: "break.start" } }],
+  "break.end": [{ input: { command: "break.end" }, expected: { command: "break.end" } }],
   "participant.addProxy": [
     {
       input: { command: "participant.addProxy", participantId: "x1", displayName: "代理" },

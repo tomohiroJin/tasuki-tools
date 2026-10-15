@@ -149,7 +149,7 @@ describe("SpyBroadcaster", () => {
       // Given
       const spy = new SpyBroadcaster();
       const celebration: ServerMsg = { type: "signal", signal: "celebration" };
-      const suggestBreak: ServerMsg = { type: "signal", signal: "suggest-break", rounds: 3 };
+      const suggestBreak: ServerMsg = { type: "signal", signal: "switch", nextDriverName: "次の人" };
 
       // When
       spy.broadcastSignal("ROOM01", celebration);

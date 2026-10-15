@@ -77,11 +77,8 @@ export type PreRoomCommand = Extract<
  * 在室を前提とするルームスコープコマンド（FR-151/152）。
  *
  * `PreRoomCommand`（4個）を除いた `Command` の残り全variantを指す判別可能 union。
- * このうち `break.start`/`break.end` の2個は wire スキーマ上は残っているが
- * `buildDomainCommand` の switch には無い（`default` → `UNKNOWN_COMMAND` になる
- * 到達しない枝。`reconcileSchedule` のコメント参照）。この2個も `handleCommand` の
- * default 分岐（`handleRoomCommand`）へは届く必要があるため（現状の挙動を変えない）、
- * 型としては `RoomScopedCommand` に含めておく。
+ * `break.start`/`break.end` も
+ * `buildDomainCommand` が翻訳して受理する（#402）。
  *
  * かつてここには「25個が `permissions.ts` の `REGISTERED_COMMANDS` に登録されている」
  * という但し書きがあったが、#95 S3 でその登録表ごと権限判定が消えたため落とした。
