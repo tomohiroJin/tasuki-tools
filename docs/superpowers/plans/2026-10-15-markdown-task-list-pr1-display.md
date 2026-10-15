@@ -160,3 +160,14 @@
 - [ ] `node scripts/audit-structure.mjs`・`node scripts/audit-ui-components.mjs`・`node scripts/audit-public-surface.mjs`・`node scripts/check-links.mjs`・`node scripts/audit-plan-gate.mjs`
 - [ ] PR を作る。本文に: 表示だけで押せないこと・PR 2 は使ってみてから着手を決めること（正本 §7）・撮った画面・ADR の追記が要らない理由
 - [ ] 振り返りは PR 2 の着手を決めたとき（または見送ったとき）に #315 として書く（`docs/guides/retrospective.md`）
+
+## 実装で計画から外したこと（2026-10-15）
+
+| # | 計画 | 実装 | 理由 |
+|---|---|---|---|
+| X1 | P6: `.ui-md-check` は `accent-color` で色を付ける | `appearance: none` で部品が枠と印（`::before`）を描く。色は同じつまみ `--ui-md-check`、角は `0.2em` | Task 6 の実画面で、ブラウザは押せない（`disabled`）チェックボックスを灰色で描き、`accent-color` も効かず、象牙の札の上で済んだかどうかがほとんど読めなかった（正本 §8 の懸念が当たった）。押せるかどうかで見た目を変えないので、PR 2 で受け口を渡しても見た目はそのまま |
+| X2 | P6: `.ui-md-task-label` は `inline-flex`・`gap`・`align-items` だけ | `flex-direction: row`・`font-size: inherit`・`color: inherit` も書く | 要素層の `label`（`packages/ui/src/elements/controls.css`）が欄の名札として縦に並べ・小さく・`--ivory-dim` で書くので、お題ツールと poker の札で文がチェックボックスの下へ回り、象牙の上で読めなかった。jsdom のテストでは見えず、実画面で見つけた |
+| X3 | Task 3: 画面の側の FR-006 のテストを `apps/topic-web/tests/markdown.test.tsx`（または `CurrentTopic` のテスト）に足す | `apps/topic-web/tests/topic-room.test.tsx` の「場のお題」に足した | いまのお題の札を実際に描くテストがそこにある。描画の変更を戻すと赤・`disabled` を外すと赤になることを確かめた |
+| X4 | Task 6: 実画面は E2E の基盤で撮る | 開発サーバー（玄関・timer・poker・お題ツール・同期サーバー）を立て、導入済みの Chromium で撮った | 作業環境に Caddy と E2E が要求する版の Chromium が無く、E2E の基盤が立たなかった。CI の E2E は従来どおり流れる |
+| X5 | Task 5: `--changed` で既存の変異が当たることを見る | `--pkg packages/markdown`・`--pkg packages/web-kit` で流した（m106・m107・m267〜m269 がすべて検出） | 宣言の表を書き足した枝の `--changed` は全件（214 件）に倒れる。全件は CI が流す |
+
