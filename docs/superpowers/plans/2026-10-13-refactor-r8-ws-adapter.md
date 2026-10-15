@@ -45,6 +45,8 @@
 | このファイルに掛かる変異 | m13（鍵を `x-real-ip` から読む）・m36（`?tool=` を常に timer にする）・m82 / m167（topic / roulette で `onConnect` を飛ばす）・m83（timer の本文をお題のスキーマで横取りする） | `scripts/mutations/*.patch` |
 | 外から使う所 | 組み立て（`create-sync-server.ts`）・timer の配信のアダプタ・テスト 11 ファイル（構築は `test/support/test-ws-adapter.ts` に集まっている。`onHub/Topic/RouletteMessage` の参照は 38） | `grep` |
 
+> **解消（#381）**: 上の表の「timer の受け口」の違いのうち、内部エラーの文言と reject のログは #381 でそろえた（境界の検証と表示名の正規化だけが timer 固有）。
+
 ### 1.2 13 の責務の固定（テストの有無）
 
 | # | 責務 | 固定しているテスト | 欠け |
@@ -85,6 +87,7 @@
 
 4. **ツールの受け口を 1 つの定義にする。** hub・topic・roulette・timer の 4 つは `createTextChannel(spec)` 1 つで作る（違いは、解析・エラーフレーム・reject でログを出すかを spec で渡す）。
    poker は形が違う（接続そのものを渡す・1011 で閉じる）ので `createPokerChannel` に分ける。振り分けは「プロトコル → 受け口」の表 1 つから引く
+   - **解消（#381）**: 「reject でログを出すか」は #381 で廃した（4 つとも出す。違いは解析とエラーフレームの型だけ）。
 5. 送り出し: 公開のメソッド 8 つ（`send`・`broadcast`・`sendHub`…）の名前と型は残し、中身を `ws-send.ts` の 1 つに寄せる。呼び出し元は変えない
 6. `process.exit(1)` を組み立て（`server.ts`）へ移す（下の判断 2）
 7. `WsAdapterOptions` の形をそろえる（下の判断 1）
@@ -93,6 +96,7 @@
 
 - 守りの強化・設定値の変更（Issue のスコープ外）
 - 振る舞いの違いをそろえること。timer だけが reject でログを出さない・timer だけ内部エラーの文言が違う（#381）は、**変えずに固定する**
+  - **解消（#381）**: 内部エラーの文言・reject のログとも 4 つの接続でそろえた。
 - `docs/guides/architecture.md` の更新（#94 PR 3 が触る。置き場の変更は PR 3 の後に追記する）
 - タイマーのポート（`setInterval` の差し替え）。ハートビートのテストは短い間隔の実時間で書けている
 
@@ -127,7 +131,7 @@
 | d. poker の受理で `onConnect`、切断で `onDisconnect` を呼ばない（代わりに `detachFromCurrentRoom` を 1 回） | `ws-adapter-tool-query` | poker の早期 return を外す |
 | e. フレームの上限（`maxFrameBytes`）を超えたときの閉じ方（close コードを実測して固定） | `ws-adapter.message` | `maxPayloadLength` を外す |
 | f. poker の解析の失敗が `sendError(code, message)` で返る（poker のテストに無ければ） | `ws-adapter.message` | `sendError` に渡すコードを変える |
-| g. reject のときのログ: hub・topic・roulette は `on-message-error name=Error`、timer は出さない | `connection-error-text` の reject の表に足す | hub の `.catch` からログを外す／timer の `.catch` にログを足す |
+| g. reject のときのログ: hub・topic・roulette は `on-message-error name=Error`、timer は出さない **（解消（#381）: timer も出すようにそろえた。以後は 4 つとも `on-message-error`）** | `connection-error-text` の reject の表に足す | hub の `.catch` からログを外す／timer の `.catch` にログを足す |
 | h. poker の `detachFromCurrentRoom` の throw は `on-disconnect-error` を出し、プロセスは落ちない | `ws-adapter.client-key`（`onDisconnect` の throw と並べる） | `try/catch` を外す |
 | i. hub・topic・roulette の `send` / `broadcast` が宛先にだけ届き、知らない接続 ID は黙って飛ばす | `ws-adapter.message`（timer の 2 本と同じ形で表にする） | `broadcastTopic` の宛先の絞り込みを外す |
 
@@ -164,6 +168,7 @@
 ### Task 7: ツールの受け口を 1 つの定義にし、`WsAdapterOptions` をそろえる
 
 1. `ws/tool-channel.ts` に `createTextChannel<Payload, Frame>(spec)` を置く。spec は「解析（無ければ生テキスト）・大きすぎるときのフレーム・内部エラーのフレーム・reject でログを出すか・渡す先」。hub・topic・roulette・timer の 4 つをこれで作る
+   - **解消（#381）**: 「reject でログを出すか」の spec は #381 で廃した（4 つとも出す）。代わりに spec は、ログに出す接続の名前（`protocol`）を持つ。
 2. poker は `createPokerChannel(handlers)`。受理で `onConnect` を呼ばない・切断で `detachFromCurrentRoom` を呼ぶ、も受け口の定義に持たせる（今の `if (protocol === "poker") return` の分岐が表の値になる）
 3. 振り分けは「プロトコル → 受け口」の表 1 つ。`handleMessage`（83 行）は表を引くだけになる
 4. `WsAdapterOptions` を判断 1 の形にする。組み立てと `test/support/test-ws-adapter.ts` を合わせる（テストの期待値は変えない）
@@ -222,5 +227,6 @@
 - **`/code-review` の指摘のうち、直さなかったもの**
   - 生存確認の ping / terminate を接続ごとに隔離すること: 分割の前から同じ形で、隔離を足すと振る舞いが変わる（リファクタリングの範囲外）
   - timer だけが reject でログを残さないこと（`logsRejection`）: 今の振る舞いを固定した（Task 1）。そろえるのは振る舞いの変更なので、#381（timer の内部エラーの文言）と合わせて決める
+  - **解消（#381）**: timer も reject で `on-message-error` を残すようにそろえた（`logsRejection` を廃した）。
 - **`pnpm e2e` はこの環境で走らない**（Playwright が求める Chromium の版がコンテナに無い）。CI の e2e で確かめる
 - 結果: `ws-adapter.ts` は 1,016 行 → 522 行（半分以上が docstring）で、60 行を超える関数は無い。`readyState` の確認は `ws/ws-send.ts` の 1 か所。変異のパッチは m36・m82・m83・m150・m167 の 5 本を当て直した（m150 は組み立てのハブの配線の形が変わったため。計画の見込みの m13 はそのまま当たった）。変異検査は全件検出。`pnpm test`・`pnpm typecheck`・`pnpm lint`・構造監査・スクリプトの自己テスト（948 件）・同期サーバーのテスト（975 件）が緑

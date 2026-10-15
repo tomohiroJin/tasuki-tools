@@ -1644,4 +1644,54 @@ export const MUTATIONS = [
     tests: ["lib/mutation-select.test.mjs"],
     note: "#387。**対応表より後に足した変異。** 機構を変えた枝で、変えた機構の影響を手元で見ない。",
   },
+  {
+    id: 230,
+    label: "timer の内部エラーが、また timer だけの別の文を返す",
+    patch: "m230-timer-internal-error-own-text.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/connection-error-text.test.ts", "test/connection-error-text-sources.test.ts"],
+    note:
+      "#381。**対応表より後に足した変異。** timer の内部エラーのフレームを正本（`connectionErrorFrame`）から" +
+      "取らず「内部エラーが発生しました」を直書きすると、timer だけ文が違う状態（#381 以前）に戻る。",
+  },
+  {
+    id: 231,
+    label: "メッセージ層の reject で on-message-error を残さない",
+    patch: "m231-reject-without-log.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/connection-error-text.test.ts"],
+    note:
+      "#381。**対応表より後に足した変異。** 非同期の失敗（reject）のログを落とすと、かつての timer のように" +
+      "失敗が無言になる。4 つの接続で同じログが出ることを固定したテストが検出する。",
+  },
+  {
+    id: 232,
+    label: "on-message-error に、どの接続の失敗かを示す protocol を出さない",
+    patch: "m232-log-without-protocol.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/connection-error-text.test.ts", "test/ws-adapter.message.test.ts"],
+    note:
+      "#381。**対応表より後に足した変異。** 4 つの接続が同じログ行を出すので、`protocol` が無いと" +
+      "ログからどの接続の失敗か分からない。接続ごとの `protocol` の値を固定したテストが検出する。",
+  },
+  {
+    id: 233,
+    label: "poker の失敗のログに protocol を出さない",
+    patch: "m233-poker-log-without-protocol.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/ws-adapter.message.test.ts", "test/connection-error-text.test.ts"],
+    note:
+      "#381。**対応表より後に足した変異。** poker の受け口は `createTextChannel` ではなく自前の `try/catch` でログを" +
+      "出すので、m232 では検出されない。poker の隔離のテストが `protocol=poker` を固定している。",
+  },
+  {
+    id: 234,
+    label: "poker の close 失敗のログに protocol を出さない",
+    patch: "m234-poker-close-failure-log-without-protocol.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/connection-error-text.test.ts"],
+    note:
+      "#381。**対応表より後に足した変異。** m233 は poker の失敗の 1 行目だけで、close 自体の失敗の 2 行目は" +
+      "実 WS では起こしにくい。受け口を直接呼び、close も throw させるテストが検出する。",
+  },
 ];

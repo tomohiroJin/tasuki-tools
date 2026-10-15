@@ -1,0 +1,22 @@
+# 変異 233: poker の失敗のログに protocol を出さない
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/ws-adapter.message.test.ts
+#     「poker のメッセージ層が throw しても隔離される」
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m233-*.patch
+# 復元: git apply -R scripts/mutations/m233-*.patch
+#
+# #381。poker の失敗だけ、どの接続の失敗かがログから分からなくなる（ほかの 4 つは出る）。
+diff --git a/apps/tasuki-sync/src/adapters/ws/tool-channel.ts b/apps/tasuki-sync/src/adapters/ws/tool-channel.ts
+--- a/apps/tasuki-sync/src/adapters/ws/tool-channel.ts
++++ b/apps/tasuki-sync/src/adapters/ws/tool-channel.ts
+@@ -146,7 +146,7 @@
+         }
+         handlers.dispatch(ws, result.value);
+       } catch (err) {
+-        logger.error("on-message-error", { name: classifyError(err), protocol: PROTOCOL_LOG_NAMES.poker });
++        logger.error("on-message-error", { name: classifyError(err) });
+         // 閉じるのは**この接続だけ**。close 自体が throw しても巻き込まない。
+         try {
+           ws.close(1011, "Internal error");
