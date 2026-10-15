@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { parseMarkdown } from '../src/index.js';
 
 const text = (t: string) => [{ kind: 'text', text: t }];
+const item = (t: string) => ({ inline: text(t), task: null });
 
 /**
  * @requirements #91 spec §5.4（お題の本文を Markdown として描く・PR 2 §10.1）
@@ -27,8 +28,8 @@ describe('ブロックを解析する', () => {
     const blocks = parseMarkdown(src);
     // Then
     expect(blocks).toEqual([
-      { kind: 'ul', items: [text('a'), text('b')] },
-      { kind: 'ol', items: [text('c'), text('d')] },
+      { kind: 'ul', items: [item('a'), item('b')] },
+      { kind: 'ol', items: [item('c'), item('d')] },
       { kind: 'quote', lines: [text('e'), text('f')] },
     ]);
   });

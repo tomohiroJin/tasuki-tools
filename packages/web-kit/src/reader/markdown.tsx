@@ -76,7 +76,7 @@ function Block({ block, keyBase, headingBase }: { block: MdBlock; keyBase: strin
       return (
         <List className={block.kind === 'ul' ? 'ui-md-ul' : 'ui-md-ol'}>
           {block.items.map((item, j) => (
-            <li key={`${keyBase}-${j}`}><Inline nodes={item} keyBase={`${keyBase}-${j}`} /></li>
+            <li key={`${keyBase}-${j}`}><Inline nodes={item.inline} keyBase={`${keyBase}-${j}`} /></li>
           ))}
         </List>
       );
