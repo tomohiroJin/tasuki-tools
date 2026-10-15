@@ -922,14 +922,10 @@ test.describe('timer のナビは、飛ばされた席の人ではなく直前�
       await expect(navigatorName(target), `${label}の画面のナビ`).toHaveText(HOST);
     }
 
-    // When: ナビである A が timer を離れて選択画面へ行く（不在）。
+    // When: ナビである A が timer を離れて選択画面へ行く（不在）。B の画面で「別の画面」の印が出るまで待つ
+    //   （timer の接続が切れた直後は一度「未接続」になり、ハブで入り直すと「別の画面」へ変わる。
+    //   入り直しを timer の画面へ配る経路は #374 で足した。`timer-seat-broadcast.ts`）
     await page.getByRole('link', { name: '選択画面へ戻る' }).click();
-    await expect(page.getByRole('link', { name: /TDD Mob Pro Timer/ })).toBeVisible();
-    //   ⚠ **選択画面へ着いただけでは、timer の画面に「別の画面」は届かない**（実測）。timer の画面へ
-    //   snapshot が配られるのは timer の接続が切れたとき（`presence.ts` の `handleDisconnect`）までで、
-    //   ハブの接続が入り直しても timer へは配らない。そのため timer の画面は「未接続」のまま止まる。
-    //   次に timer の状態が変わったときの snapshot で「別の画面」になるので、B が一時停止して配らせる
-    await second.page.getByRole('button', { name: '一時停止', exact: true }).click();
     await expect(skipReasonOf(second.page, HOST)).toHaveText('別の画面');
 
     // Then その4: 不在ではナビを隠さない。残った B・C の画面でナビは A のまま

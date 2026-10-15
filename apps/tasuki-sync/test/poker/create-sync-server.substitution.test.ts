@@ -30,6 +30,8 @@
 // （`createSyncServer` は 1 度も import していない）。`src/application/handlers.ts` の
 // コメントがこのファイル名で参照しているため、ファイル名自体は変えていない。
 import { describe, expect, it } from 'bun:test';
+import { SpyBroadcaster } from '../support/spy-broadcaster.js';
+import { InMemoryTimerStore } from '../../src/adapters/in-memory-timer-store.js';
 import { createRound, type ServerMessage } from '@tasuki/poker-core';
 import type { Room as MembershipRoom } from '@tasuki/room-core';
 import { createTokenBucketLimiter, type RateLimiter } from '@tasuki/rate-limit';
@@ -134,6 +136,8 @@ describe('IdGen の差し替え（衝突再試行）', () => {
       tokens: createTokenStore(),
       broadcaster: nullBroadcaster(),
       hub: spyHub(),
+      timers: new InMemoryTimerStore(),
+      timerBroadcaster: new SpyBroadcaster(),
       idGen,
       clock: fixedClock(0),
       wallClock: fixedClock(0),
@@ -182,6 +186,8 @@ describe('MonotonicClock の差し替え（レート制限の窓の境界）', (
       tokens: createTokenStore(),
       broadcaster,
       hub: spyHub(),
+      timers: new InMemoryTimerStore(),
+      timerBroadcaster: new SpyBroadcaster(),
       idGen,
       clock,
       wallClock: fixedClock(0),
@@ -280,6 +286,8 @@ describe('RoomStore の差し替え（上限判定を実ルームなしで再現
       tokens: createTokenStore(),
       broadcaster,
       hub: spyHub(),
+      timers: new InMemoryTimerStore(),
+      timerBroadcaster: new SpyBroadcaster(),
       idGen,
       clock: fixedClock(0),
       wallClock: fixedClock(0),
@@ -355,6 +363,8 @@ describe('RoomStore の差し替え（判定順序: 上限判定は切り離し�
       tokens: createTokenStore(),
       broadcaster,
       hub: spyHub(),
+      timers: new InMemoryTimerStore(),
+      timerBroadcaster: new SpyBroadcaster(),
       idGen,
       clock: fixedClock(0),
       wallClock: fixedClock(0),
@@ -419,6 +429,8 @@ describe('RoomSocket の差し替え（配信の宛先と回数）', () => {
       tokens: createTokenStore(),
       broadcaster,
       hub: spyHub(),
+      timers: new InMemoryTimerStore(),
+      timerBroadcaster: new SpyBroadcaster(),
       idGen,
       clock: fixedClock(0),
       wallClock: fixedClock(0),
@@ -476,6 +488,8 @@ describe('配線の穴 1: handleCreateRoom の resetRoom 呼び出し', () => {
       tokens: createTokenStore(),
       broadcaster,
       hub: spyHub(),
+      timers: new InMemoryTimerStore(),
+      timerBroadcaster: new SpyBroadcaster(),
       idGen,
       clock: fixedClock(0),
       wallClock: fixedClock(0),
@@ -539,6 +553,8 @@ describe('配線の穴 2: detachFromCurrentRoom の早期 return での detach �
       tokens: createTokenStore(),
       broadcaster,
       hub: spyHub(),
+      timers: new InMemoryTimerStore(),
+      timerBroadcaster: new SpyBroadcaster(),
       idGen,
       clock: fixedClock(0),
       wallClock: fixedClock(0),

@@ -67,6 +67,9 @@ import type { RateLimiter } from '@tasuki/rate-limit';
 import type { WallClock } from '../ports/wall-clock.js';
 import type { RoomStore } from '../ports/room-store.js';
 import type { HubBroadcaster } from '../ports/hub-broadcaster.js';
+import type { Broadcaster } from '../ports/broadcaster.js';
+import type { TimerStore } from '../ports/timer-store.js';
+import { broadcastTimerIfRosterViewChanged } from './timer-seat-broadcast.js';
 import type { TopicBroadcaster } from './topic-broadcast.js';
 import { saveRoster } from './save-roster.js';
 import { applyDisplayNameRule, INVALID_DISPLAY_NAME_MESSAGE } from './display-name-rule.js';
@@ -123,6 +126,13 @@ export interface PokerHandlerDeps {
    * 選択画面へ届ける必要があるので、ここでも受け取る。
    */
   hub: HubBroadcaster;
+  /**
+   * timer の状態と、timer の購読者への配信（#374）。poker で入った・抜けた人の席は、
+   * timer の画面で「別の画面」「未接続」と変わるので、映るものが変われば timer へも配る
+   * （`timer-seat-broadcast.ts`）。**poker 用の `broadcaster` とは別物**である。
+   */
+  timers: TimerStore;
+  timerBroadcaster: Broadcaster;
   idGen: IdGen;
   /** レート制限の窓の計測に使う単調時計。**壁時計ではない**（`ports/monotonic-clock.ts`）。 */
   clock: MonotonicClock;
@@ -281,8 +291,11 @@ export function makePokerHandlers(deps: PokerHandlerDeps): PokerHandlers {
    * （timer 側の `application/handlers.ts` の `commit` と同じ規律）。
    */
   function commit(state: PokerRoomState): void {
+    const before = store.get(state.room.code);
     // 名簿の保管とハブへの配信は対にする（`save-roster.ts`・#95 S5a）。
     saveRoster({ store, hub: deps.hub }, state.room);
+    // poker の接続の出入りで timer の席の理由が変わったら、timer の画面へも届ける（#374）。
+    broadcastTimerIfRosterViewChanged(deps, before, state.room);
     rounds.put(state.room.code, state.round);
     broadcaster.broadcastSnapshot(state.room.code, state.round, fragmentsOf(state.room));
   }

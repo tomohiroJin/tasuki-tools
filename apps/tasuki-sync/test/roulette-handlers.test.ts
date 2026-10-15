@@ -6,6 +6,7 @@
  * 時計は単調時計の偽物（手で進める）、乱数は常に 0 を返す偽物（最悪の偏り）。
  */
 import { afterEach, describe, expect, it, spyOn } from "bun:test";
+import { SpyBroadcaster } from "./support/spy-broadcaster.js";
 import { createTokenBucketLimiter, DEFAULT_CAPACITY, DEFAULT_REFILL_PER_SEC } from "@tasuki/rate-limit";
 import { MAX_DISPLAY_NAME } from "@tasuki/room-core";
 import type { RouletteView } from "@tasuki/roulette-core";
@@ -79,6 +80,7 @@ function setup(options: SetupOptions = {}): Harness {
       createTokenBucketLimiter({ capacity: DEFAULT_CAPACITY, refillPerSec: DEFAULT_REFILL_PER_SEC }),
     ),
     hub: spyHub(),
+    timerBroadcaster: new SpyBroadcaster(),
     roulettes,
     broadcaster,
     send: (connId, msg) => record([connId], msg),

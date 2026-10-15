@@ -50,6 +50,7 @@ import { applyDisplayNameRule } from "./display-name-rule.js";
 import type { JoinRoomDeps } from "./join-room.js";
 import type { RouletteBroadcaster } from "./roulette-broadcast.js";
 import type { SaveRosterDeps } from "./save-roster.js";
+import type { TimerSeatBroadcastDeps } from "./timer-seat-broadcast.js";
 import { findRoomByToolConnection } from "./room-lookup.js";
 import { joinToolRoom } from "./join-tool-room.js";
 import { TOOL_ROULETTE } from "./tool-id.js";
@@ -63,7 +64,7 @@ import { boundaryErrorCode } from "./connection-errors.js";
  */
 const RouletteConnectionMessageSchema = v.union([HubCommandSchema, RouletteCommandSchema]);
 
-export interface RouletteHandlerDeps extends JoinRoomDeps, SaveRosterDeps {
+export interface RouletteHandlerDeps extends JoinRoomDeps, SaveRosterDeps, TimerSeatBroadcastDeps {
   roulettes: RouletteStore;
   broadcaster: RouletteBroadcaster;
   send: (connId: string, msg: RouletteServerMsg) => void;

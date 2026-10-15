@@ -9,6 +9,8 @@
 // 「roomId は持っているが保管にルームが無い接続」を直接組み立てて確かめるしかない
 // （`test/poker/create-sync-server.substitution.test.ts` の「配線の穴 2」と同じ作り方）。
 import { describe, expect, it } from 'bun:test';
+import { SpyBroadcaster } from '../support/spy-broadcaster.js';
+import { InMemoryTimerStore } from '../../src/adapters/in-memory-timer-store.js';
 import type { ServerMessage } from '@tasuki/poker-core';
 import type { RateLimiter } from '@tasuki/rate-limit';
 import { InMemoryRoomStore } from '../../src/adapters/in-memory-room-store';
@@ -66,6 +68,8 @@ function setup(data: Partial<HandlerConnection['data']> = {}) {
     tokens: createTokenStore(),
     broadcaster: passthroughBroadcaster(),
     hub: spyHub(),
+    timers: new InMemoryTimerStore(),
+    timerBroadcaster: new SpyBroadcaster(),
     idGen: unusedIdGen,
     clock: { now: () => 0 },
     wallClock: { now: () => 0 },
