@@ -1730,6 +1730,14 @@ export const MUTATIONS = [
     tests: ["tests/roulette-room.test.tsx"],
     note: "#373。輪に載せられる数の上限（24）と取り違え、25〜40 字の名前を入れられなかった。",
   },
+  {
+    id: 201,
+    label: "結果の札の名前を、長さによらず最大の段（lg）で描く",
+    patch: "m201-card-name-always-large.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/card-name-size.test.ts"],
+    note: "#373。40 字の名前が札の上下にはみ出し、一言と回すボタンに重なる。",
+  },
 ];
 
 /**
