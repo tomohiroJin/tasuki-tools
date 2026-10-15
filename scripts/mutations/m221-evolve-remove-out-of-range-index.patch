@@ -2,23 +2,21 @@
 #
 # 検出を期待するテスト:
 #   - packages/timer-core/test/evolve.test.ts
-#     「evolve: 範囲外の添字の MemberRemoved / MemberMoved は集約を変えない（#376）」の MemberRemoved
 #   - packages/timer-core/test/properties.test.ts
-#     「evolve に直接流すイベントの列での不変条件（#376）」
 #
 # 適用: リポジトリルートから git apply scripts/mutations/m221-*.patch
 # 復元: git apply -R scripts/mutations/m221-*.patch
 #
-# #376（PR #392 のレビュー）。誰も外さずに現ドライバーの番号だけを 1 つ詰める（index: -1 が現ドライバーより手前に見える）。
+# #376（PR #392 のレビュー）。誰も外さずに現ドライバーの番号だけを詰める。decide の InvalidIndex が止めるので、evolve へ直接渡すテストで殺す。
 diff --git a/packages/timer-core/src/evolve.ts b/packages/timer-core/src/evolve.ts
-index 6d19dc3..f593c14 100644
+index aa54001..a071565 100644
 --- a/packages/timer-core/src/evolve.ts
 +++ b/packages/timer-core/src/evolve.ts
-@@ -365,7 +365,6 @@ function wrapIndex(i: number, len: number): number {
- 
- function evolveMemberRemoved(agg: Aggregate, index: number): Aggregate {
+@@ -372,7 +372,6 @@ function evolveMemberAdded(agg: Aggregate, participantId: string): Aggregate {
+  */
+ function evolveMemberRemoved(agg: Aggregate, index: number, nextDriverIndex: number): Aggregate {
    const { rotation, driverCounts, currentIndex } = agg.session;
 -  if (!isSeatIndex(index, rotation.length)) return agg;
    const newRotation = rotation.filter((_, i) => i !== index);
-   // 手前の席が抜けたら 1 つ詰める。現ドライバー自身が抜けたら同じ番号（＝次の人）のまま
-   const shifted = index < currentIndex ? currentIndex - 1 : currentIndex;
+   let newIndex: number;
+   if (index !== currentIndex) {

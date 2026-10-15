@@ -1,0 +1,23 @@
+# 変異 251: 運ばれた次の担当を範囲を確かめずに使う
+#
+# 検出を期待するテスト:
+#   - packages/timer-core/test/evolve.test.ts
+#   - packages/timer-core/test/properties.test.ts
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m251-*.patch
+# 復元: git apply -R scripts/mutations/m251-*.patch
+#
+# #376（PR #392 の 2 巡目）。範囲外の nextDriverIndex で currentIndex が範囲外を指す。
+diff --git a/packages/timer-core/src/evolve.ts b/packages/timer-core/src/evolve.ts
+index aa54001..1c66a6c 100644
+--- a/packages/timer-core/src/evolve.ts
++++ b/packages/timer-core/src/evolve.ts
+@@ -377,7 +377,7 @@ function evolveMemberRemoved(agg: Aggregate, index: number, nextDriverIndex: num
+   let newIndex: number;
+   if (index !== currentIndex) {
+     newIndex = index < currentIndex ? currentIndex - 1 : currentIndex;
+-  } else if (isSeatIndex(nextDriverIndex, newRotation.length)) {
++  } else if (nextDriverIndex !== undefined) {
+     newIndex = nextDriverIndex;
+   } else {
+     newIndex = nextDriverAfterRemoval(agg.session, index, undefined);

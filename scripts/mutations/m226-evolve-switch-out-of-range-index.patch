@@ -2,22 +2,20 @@
 #
 # 検出を期待するテスト:
 #   - packages/timer-core/test/evolve.test.ts
-#     「evolve: 範囲外の添字の MemberRemoved / MemberMoved は集約を変えない（#376）」の DriverSwitched
 #   - packages/timer-core/test/properties.test.ts
-#     「evolve に直接流すイベントの列での不変条件（#376）」
 #
 # 適用: リポジトリルートから git apply scripts/mutations/m226-*.patch
 # 復元: git apply -R scripts/mutations/m226-*.patch
 #
 # #376（PR #392）。currentIndex が範囲外を指し、担当回数・交代回数も進む。
 diff --git a/packages/timer-core/src/evolve.ts b/packages/timer-core/src/evolve.ts
-index 6ae04a2..179a1fa 100644
+index aa54001..9044a39 100644
 --- a/packages/timer-core/src/evolve.ts
 +++ b/packages/timer-core/src/evolve.ts
-@@ -189,7 +189,6 @@ function evolveDriverSwitched(
+@@ -206,7 +206,6 @@ function evolveDriverSwitched(
+   nextIndex: number,
    now: number,
  ): Aggregate {
-   // 範囲外の交代先は集約を変えない（#376。decide は nextEligibleIndex で範囲内しか作らない）
 -  if (!isSeatIndex(nextIndex, agg.session.rotation.length)) return agg;
    const prevIndex = agg.session.currentIndex;
  

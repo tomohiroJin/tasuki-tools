@@ -1,0 +1,23 @@
+# 変異 257: 次の担当を外した後の添字へ詰めない
+#
+# 検出を期待するテスト:
+#   - packages/timer-core/test/decide.test.ts
+#   - packages/timer-core/test/aggregate.test.ts
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m257-*.patch
+# 復元: git apply -R scripts/mutations/m257-*.patch
+#
+# #376（PR #392 の 2 巡目）。外した席より後ろの人を選ぶと、1 つ後ろの人に運転が回る（外した後の輪で数え直していない）。
+diff --git a/packages/timer-core/src/aggregate.ts b/packages/timer-core/src/aggregate.ts
+index 470e326..cf4e75e 100644
+--- a/packages/timer-core/src/aggregate.ts
++++ b/packages/timer-core/src/aggregate.ts
+@@ -311,7 +311,7 @@ export function nextDriverAfterRemoval(
+   // 長さ 1 なら外した席しか無いので、位置で次の席 (0 + 1) % 1 = 0 になる。
+   const found = nextEligibleIndex(session, removedIndex, ineligible);
+   const chosen = found === removedIndex ? (removedIndex + 1) % len : found;
+-  return chosen > removedIndex ? chosen - 1 : chosen;
++  return chosen;
+ }
+ 
+ /** 交代間隔として許容される分の一覧 */

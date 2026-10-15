@@ -1,0 +1,22 @@
+# 変異 256: 空の輪の SWITCH を拒まない
+#
+# 検出を期待するテスト:
+#   - packages/timer-core/test/decide.test.ts
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m256-*.patch
+# 復元: git apply -R scripts/mutations/m256-*.patch
+#
+# #376（PR #392 の 2 巡目）。空の輪へ DriverSwitched{nextIndex:0} を出す（evolve は無視するが、拒否は decide の仕事）。
+diff --git a/packages/timer-core/src/decide.ts b/packages/timer-core/src/decide.ts
+index e01a7d3..5fc4857 100644
+--- a/packages/timer-core/src/decide.ts
++++ b/packages/timer-core/src/decide.ts
+@@ -188,7 +188,7 @@ function decideSessionAct(
+       }
+       // 空の輪には交代先が無い（#376）。DriverSwitched{nextIndex:0} を出しても evolve は無視するが、
+       // 拒否は decide の仕事なので、席が足りないことを BelowMinMembers で返す。
+-      if (session.rotation.length === 0) {
++      if (false) {
+         return err({ type: "BelowMinMembers", min: 1 });
+       }
+       {

@@ -1,25 +1,23 @@
-# 変異 220: 輪が空になる MemberRemoved で currentIndex を 0 にしない（#376 より前に戻す）
+# 変異 220: 輪が空になる MemberRemoved で currentIndex を 0 にしない
 #
 # 検出を期待するテスト:
 #   - packages/timer-core/test/evolve.test.ts
-#     「Given 1 人の輪 / When その 1 人の MemberRemoved / Then 輪と担当回数が空になり currentIndex は 0」
 #   - packages/timer-core/test/properties.test.ts
-#     「evolve に直接流すイベントの列での不変条件（#376）」
 #
 # 適用: リポジトリルートから git apply scripts/mutations/m220-*.patch
 # 復元: git apply -R scripts/mutations/m220-*.patch
 #
-# #376（PR #392 のレビュー）。`% 0` が NaN を作り、currentIndex が NaN になる。decide は最後の 1 人の member.remove を拒むので、decide を通すテストでは殺せない。
+# #376。`% 0` が NaN を作り currentIndex が NaN になる。decide は最後の 1 人の member.remove を拒むので、decide を通すテストでは殺せない（evolve へ直接渡すテストで殺す）。
 diff --git a/packages/timer-core/src/evolve.ts b/packages/timer-core/src/evolve.ts
-index 6d19dc3..a8c68d6 100644
+index aa54001..8ec1e65 100644
 --- a/packages/timer-core/src/evolve.ts
 +++ b/packages/timer-core/src/evolve.ts
-@@ -360,7 +360,7 @@ function isSeatIndex(i: number, len: number): boolean {
-  * `% 0` は NaN になるので、空の輪を先に分ける。
-  */
- function wrapIndex(i: number, len: number): number {
--  return len === 0 ? 0 : i % len;
-+  return i % len;
- }
- 
- function evolveMemberRemoved(agg: Aggregate, index: number): Aggregate {
+@@ -380,7 +380,7 @@ function evolveMemberRemoved(agg: Aggregate, index: number, nextDriverIndex: num
+   } else if (isSeatIndex(nextDriverIndex, newRotation.length)) {
+     newIndex = nextDriverIndex;
+   } else {
+-    newIndex = nextDriverAfterRemoval(agg.session, index, undefined);
++    newIndex = index % newRotation.length;
+   }
+   return {
+     ...agg,

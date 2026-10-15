@@ -1,0 +1,22 @@
+# 変異 254: member.remove に資格の集合を埋めない
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/manual-skip-eligible.test.ts
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m254-*.patch
+# 復元: git apply -R scripts/mutations/m254-*.patch
+#
+# #376（PR #392 の 2 巡目）。decide は全員適格として次の担当を選び、一時離脱の人に運転が回る。
+diff --git a/apps/tasuki-sync/src/application/room-commands/server-values.ts b/apps/tasuki-sync/src/application/room-commands/server-values.ts
+index 8a81492..d741053 100644
+--- a/apps/tasuki-sync/src/application/room-commands/server-values.ts
++++ b/apps/tasuki-sync/src/application/room-commands/server-values.ts
+@@ -33,7 +33,7 @@ export function fillServerValues(draft: DomainCommandDraft, sources: ServerValue
+     case "member.remove":
+       // 運転中の人が外れたときの次の担当も、交代と同じ資格の規則で選ぶ（#376）。
+       // 以前は位置で次の席になり、一時離脱・不在の人に運転が回った。
+-      return { ...draft, ineligible: sources.ineligible() };
++      return draft;
+     default:
+       return draft;
+   }

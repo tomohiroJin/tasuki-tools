@@ -1,23 +1,24 @@
-# 変異 223: 末尾の現ドライバーを外したとき先頭へ回さない
+# 変異 223: 運転中の末尾の人を外したとき先頭へ回さない
 #
 # 検出を期待するテスト:
+#   - packages/timer-core/test/decide.test.ts
+#   - packages/timer-core/test/evolve.test.ts
 #   - packages/timer-core/test/properties.test.ts
-#     「evolve に直接流すイベントの列での不変条件（#376）」ほか currentIndex の I2 を見る性質
 #
 # 適用: リポジトリルートから git apply scripts/mutations/m223-*.patch
 # 復元: git apply -R scripts/mutations/m223-*.patch
 #
-# #376（PR #392 のレビュー）。wrapIndex の `% len` を外す。末尾の現ドライバーを外すと currentIndex が輪の長さちょうどになり、範囲外を指す。
-diff --git a/packages/timer-core/src/evolve.ts b/packages/timer-core/src/evolve.ts
-index 6d19dc3..c2aa460 100644
---- a/packages/timer-core/src/evolve.ts
-+++ b/packages/timer-core/src/evolve.ts
-@@ -360,7 +360,7 @@ function isSeatIndex(i: number, len: number): boolean {
-  * `% 0` は NaN になるので、空の輪を先に分ける。
-  */
- function wrapIndex(i: number, len: number): number {
--  return len === 0 ? 0 : i % len;
-+  return len === 0 ? 0 : i;
+# #376（PR #392 のレビュー）。末尾の運転者を外すと次の担当が輪の長さちょうどになり、範囲外を指す。
+diff --git a/packages/timer-core/src/aggregate.ts b/packages/timer-core/src/aggregate.ts
+index 470e326..9f28341 100644
+--- a/packages/timer-core/src/aggregate.ts
++++ b/packages/timer-core/src/aggregate.ts
+@@ -310,7 +310,7 @@ export function nextDriverAfterRemoval(
+   // 適格な人が居なければ nextEligibleIndex は外した席そのものを返す（外した席を飛ばすかどうかに関わらない）。
+   // 長さ 1 なら外した席しか無いので、位置で次の席 (0 + 1) % 1 = 0 になる。
+   const found = nextEligibleIndex(session, removedIndex, ineligible);
+-  const chosen = found === removedIndex ? (removedIndex + 1) % len : found;
++  const chosen = found === removedIndex ? removedIndex + 1 : found;
+   return chosen > removedIndex ? chosen - 1 : chosen;
  }
  
- function evolveMemberRemoved(agg: Aggregate, index: number): Aggregate {
