@@ -57,9 +57,23 @@ export const CONN_REJECT_REASONS = {
  * roulette の乱数源の契約違反は、かつてドメインが `RangeError` を投げ、接続層が
  * `on-message-error name=RangeError` を残していた。ドメインが `Result` を返すようになった後も
  * **同じ行を残す**ため、ハンドラがこの語彙で同じ名前を出す（`roulette-handlers.ts`）。
+ * #382 以降、`INVALID_RANDOM` は監視を 1 本で拾うための `roulette-random-violation reason=invalid-random` と
+ * 合わせて **error が 2 行**になる（`RANDOM_VIOLATION_REASONS`）。
  */
 export const ERROR_NAMES = {
   rangeError: publicText("RangeError"), // log-hygiene:allow 語彙定義
+} as const satisfies Record<string, LogSafe>;
+
+/**
+ * ルーレットの乱数源が契約を破った理由（#382）。`roulette-random-violation` の `reason` に載せる。
+ *
+ * `INVALID_RANDOM`（`randomInt` の範囲外）は例外だった頃の行（`on-message-error name=RangeError`）を
+ * 保ち（`ERROR_NAMES`）、監視が 1 本で拾えるようこの行も足す。`INVALID_SETTLE`（`randomSettle` の範囲外）は
+ * 元から行が無かったため、この行だけで残す。自由文・例外メッセージ・乱数源の返した値は載せない。
+ */
+export const RANDOM_VIOLATION_REASONS = {
+  invalidRandom: publicText("invalid-random"), // log-hygiene:allow 語彙定義
+  invalidSettle: publicText("invalid-settle"), // log-hygiene:allow 語彙定義
 } as const satisfies Record<string, LogSafe>;
 
 /**

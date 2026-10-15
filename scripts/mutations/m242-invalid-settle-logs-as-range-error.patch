@@ -1,0 +1,23 @@
+# 変異 242: invalid-settle-logs-as-range-error
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/roulette-handlers.test.ts
+#
+# #382。INVALID_SETTLE の行を INVALID_RANDOM と同じ RangeError の行にする（2 つの契約違反が区別できなくなる）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m242-*.patch
+# 復元: git apply -R scripts/mutations/m242-*.patch
+diff --git a/apps/tasuki-sync/src/application/roulette-handlers.ts b/apps/tasuki-sync/src/application/roulette-handlers.ts
+index 90ce5b2b..858af9a2 100644
+--- a/apps/tasuki-sync/src/application/roulette-handlers.ts
++++ b/apps/tasuki-sync/src/application/roulette-handlers.ts
+@@ -188,7 +188,7 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
+               // 接続層の行は #381 で `protocol` を持ったので、この写しもそろえる。
+               logger.error("on-message-error", { name: ERROR_NAMES.rangeError, protocol: PROTOCOL_LOG_NAMES.roulette });
+             }
+-            logger.error("roulette-random-violation", { reason: violation.reason });
++            logger.error("roulette-random-violation", { reason: RANDOM_VIOLATION_REASONS.invalidRandom });
+             fail(connId, "INTERNAL_ERROR");
+             return;
+           }

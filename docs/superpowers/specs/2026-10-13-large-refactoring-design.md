@@ -210,6 +210,7 @@ packages/protocol/src/
 > **追記（2026-10-13・R4 の実施）**: 上の 2 点を改めた。
 >
 > - **roulette の乱数源の契約違反でも、ログは今と同じに保つ。** `Result` にすると、接続層が残していた `on-message-error name=RangeError` が消える。ログが消えるのは振る舞いの変更なので（§4.1）、ハンドラが同じ行を残す。前例の `INVALID_SETTLE` には記録の抜けがあり、#382 に分けた
+>   - **追記（2026-10-15・#382）**: この記録の抜けは #382 で塞いだ。`INVALID_SETTLE` も `roulette-random-violation reason=invalid-settle` を error で残し、`INVALID_RANDOM` にも同じイベントを足した
 > - **room-core の失敗の枝は、代理を外すとき（`participant-remove.ts`）に届く。** 名簿の中身は前と同じで、ほかの呼び出しは届かない
 
 ### 5.5 同期サーバーのアプリケーション層（#366）
