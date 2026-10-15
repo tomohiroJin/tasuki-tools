@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { MAX_DISPLAY_NAME } from '@tasuki/room-core';
-import { CARD_NAME_TIER_LIMITS, cardNameSize } from '../src/card-name-size';
+import { CARD_NAME_TIER_LIMITS, cardNameSize, displayWidthOf } from '../src/card-name-size';
 
-/** 結果の札の名前の段（#373）。境目の両側を表で固定する。 */
+/** 結果の札の名前の段（#373）。境目の両側を表で固定する。長さは表示幅（全角 1・半角 0.6）。 */
 describe('cardNameSize', () => {
   it.each([
     ['あや', 'lg'],
@@ -10,20 +10,28 @@ describe('cardNameSize', () => {
     ['あ'.repeat(CARD_NAME_TIER_LIMITS.lg + 1), 'md'],
     ['あ'.repeat(CARD_NAME_TIER_LIMITS.md), 'md'],
     ['あ'.repeat(CARD_NAME_TIER_LIMITS.md + 1), 'sm'],
-    ['あ'.repeat(CARD_NAME_TIER_LIMITS.sm), 'sm'],
-    ['あ'.repeat(CARD_NAME_TIER_LIMITS.sm + 1), 'xs'],
-    ['あ'.repeat(MAX_DISPLAY_NAME), 'xs'],
-  ] as const)('Given %#: %s / Then 段は %s', (name, size) => {
+    ['あ'.repeat(MAX_DISPLAY_NAME), 'sm'],
+  ] as const)('Given 全角 %#: %s / Then 段は %s', (name, size) => {
     expect(cardNameSize(name)).toBe(size);
   });
 
-  it('Given サロゲートペアの名前 / Then UTF-16 の長さでなく字数で数える', () => {
-    // 8 字（UTF-16 では 16）なので最大の段に残る
+  it('Given 9〜16 字の英字名 / Then 全角の同じ字数と違い、最大の段のまま', () => {
+    expect(cardNameSize('Alexander')).toBe('lg');
+    expect(cardNameSize('a'.repeat(16))).toBe('lg');
+    expect(cardNameSize('あ'.repeat(16))).toBe('md');
+  });
+
+  it('Given 英字 33 字（表示幅 19.8） / Then 全角の同じ字数（sm）より大きい段に収まる', () => {
+    expect(cardNameSize('a'.repeat(33))).toBe('md');
+    expect(cardNameSize('あ'.repeat(33))).toBe('sm');
+  });
+
+  it('Given サロゲートペアの名前 / Then UTF-16 の長さでなくコードポイントで数える', () => {
+    expect(displayWidthOf('😀😀')).toBe(2);
     expect(cardNameSize('😀'.repeat(CARD_NAME_TIER_LIMITS.lg))).toBe('lg');
   });
 
-  it('Given 短い名前 / Then 7 字前後は今までの見た目（lg）のまま', () => {
-    expect(cardNameSize('ゆうたろう')).toBe('lg');
-    expect(cardNameSize('Alexander')).toBe('md');
+  it('Given 半角カナ / Then 円盤の席と同じく半角として数える', () => {
+    expect(displayWidthOf('ﾔﾏﾀﾞ')).toBeCloseTo(2.4);
   });
 });

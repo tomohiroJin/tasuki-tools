@@ -30,7 +30,7 @@ export function ResultCard({
         <div className="roulette-card-face">
           <p className="roulette-card-label">{CARD_LABEL}</p>
           <p className="roulette-card-name" data-size={cardNameSize(shown)}>
-            {shown}
+            <span className="roulette-card-name-text">{shown}</span>
             <small>{CARD_SUFFIX}</small>
           </p>
         </div>

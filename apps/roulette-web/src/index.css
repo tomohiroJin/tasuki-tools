@@ -322,25 +322,37 @@
   overflow-wrap: anywhere;
 }
 /* 長い名前は段を下げ、段ごとの最大行数で … に切る（札は縦横比が固定でのびない。全文は直下の一言と読み上げが持つ）。
-   段の境目は src/card-name-size.ts と対。lg（短い名前）は上の指定のまま変えない */
-.roulette-card-name[data-size] {
+   段の境目は src/card-name-size.ts と対。**lg（短い名前）は clamp を当てず従来の描き方のまま**。
+   切るのは名前の要素（.roulette-card-name-text）だけで、「さん」はその外に置いて省略で切らない。
+   最小の段（sm）でも字は見出し・「さん」（--font-size-sm）より小さくしない */
+.roulette-card-name[data-size='md'],
+.roulette-card-name[data-size='sm'] {
+  display: flex;
+  justify-content: center;
+  align-items: last baseline;
+}
+.roulette-card-name[data-size='md'] .roulette-card-name-text,
+.roulette-card-name[data-size='sm'] .roulette-card-name-text {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  min-width: 0;
 }
-.roulette-card-name[data-size='lg'] {
-  -webkit-line-clamp: 2;
+.roulette-card-name[data-size='md'] small,
+.roulette-card-name[data-size='sm'] small {
+  flex: none;
+  white-space: nowrap;
 }
 .roulette-card-name[data-size='md'] {
   font-size: var(--font-size-lg);
-  -webkit-line-clamp: 2;
+}
+.roulette-card-name[data-size='md'] .roulette-card-name-text {
+  -webkit-line-clamp: 3;
 }
 .roulette-card-name[data-size='sm'] {
   font-size: var(--font-size-base);
-  -webkit-line-clamp: 3;
 }
-.roulette-card-name[data-size='xs'] {
-  font-size: var(--font-size-xs);
+.roulette-card-name[data-size='sm'] .roulette-card-name-text {
   -webkit-line-clamp: 3;
 }
 .roulette-card-name small {
