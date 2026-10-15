@@ -10,6 +10,7 @@
  *   実サーバーの枠を使ううえ、壊れたフレームは本番では作れない）。
  * - タグ無し #142 — 同期サーバーの再起動でルームが消えたときの見え方（#76 F-4 の回帰。
  *   `local` 専用。本番のルームを消すことになるので本番では走らせない）。
+ * - タグ無し #376 — 運転中の人が抜けたら一時離脱中の人を飛ばす（`local` 専用。3 人の輪を組む）。
  */
 import type { Locator, Page } from '@playwright/test';
 import { expect, test } from '../fixtures/test';
@@ -828,5 +829,49 @@ test.describe('timer のルームが消えたら操作を止めて、やり直�
     // 読み込み中の行き止まり（`Loading`）は作るのに同期サーバーを止める仕掛けが要るので測らない。
     // あちらのボタンは既定の大きさの `.ui-button`（44px）だけ
     await expectScreenAcrossWidths(page, 'timer セッション喪失', 2);
+  });
+});
+
+/**
+ * 運転中の人が抜けたとき、次の席の人が一時離脱中なら、その人を飛ばして次の運転者を選ぶ（#376）。
+ *
+ * 修正前は、外した後の添字をそのまま次の担当にしていたので、一時離脱中の人が運転者になった。
+ * 退出は誰でも実行できる（名簿の「〜 を退出させる」）。ここでは C が A を退出させる。
+ */
+test.describe('timer は運転中の人が抜けたとき、一時離脱中の人を飛ばして次の運転者を選ぶ', () => {
+  const THIRD = 'e2e-c';
+
+  test('Given 3 人の輪で A が運転中・B が一時離脱 / When A を退出させる / Then 運転者は B を飛ばして C になる', async ({
+    page,
+    openPeer,
+  }) => {
+    // Given: A が作り、B・C が輪に加わる。順番まで待ってから開始する
+    const code = await createRoom(page, HOST);
+    const second = await openPeer('timer-removal-b');
+    await joinAsDriver(second.page, code, GUEST);
+    const third = await openPeer('timer-removal-c');
+    await joinAsDriver(third.page, code, THIRD);
+    await expect(lobbyRotationRow(page, HOST, 1)).toHaveCount(1);
+    await expect(lobbyRotationRow(page, GUEST, 2)).toHaveCount(1);
+    await expect(lobbyRotationRow(page, THIRD, 3)).toHaveCount(1);
+    await page.getByRole('button', { name: 'セッションを開始' }).click();
+    await expect(currentDriverRow(third.page)).toContainText(HOST);
+
+    // B が自分で一時離脱する。C の画面に届いたことを待つ（届く前に退出させると B を飛ばさない）
+    await second.page.getByRole('button', { name: '一時離脱', exact: true }).click();
+    await expect(third.page.getByRole('button', { name: `${GUEST} を復帰させる` })).toHaveCount(1);
+
+    // When: C が運転中の A を退出させる
+    await third.page.getByRole('button', { name: `${HOST} を退出させる` }).click();
+    await third.page.getByRole('button', { name: '退出させる', exact: true }).click();
+
+    // Then: 残った B・C の画面で、運転者の印は C に付く（一時離脱中の B ではない）
+    for (const [label, target] of [
+      ['B', second.page],
+      ['C', third.page],
+    ] as const) {
+      await expect(currentDriverRow(target), `${label}の画面`).toHaveCount(1);
+      await expect(currentDriverRow(target), `${label}の画面`).toContainText(THIRD);
+    }
   });
 });
