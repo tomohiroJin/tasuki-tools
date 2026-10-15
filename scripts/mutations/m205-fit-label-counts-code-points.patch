@@ -1,0 +1,22 @@
+# 変異 205: 円盤の席の名前（fitLabel）を、書記素でなくコードポイントで回す
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/card-name-size.test.ts
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m205-*.patch
+# 復元: git apply -R scripts/mutations/m205-*.patch
+#
+# #373。ZWJ の絵文字・国旗・結合文字が途中で切られる。
+diff --git a/apps/roulette-web/src/wheel-geometry.ts b/apps/roulette-web/src/wheel-geometry.ts
+index 82cb414e..cae9e8f6 100644
+--- a/apps/roulette-web/src/wheel-geometry.ts
++++ b/apps/roulette-web/src/wheel-geometry.ts
+@@ -139,7 +139,7 @@ export function acrossMaxEm(seatDeg: number): number {
+ export function fitLabel(name: string, maxEm: number, upright = false): string {
+   let w = 0;
+   let out = '';
+-  for (const ch of splitGraphemes(name)) {
++  for (const ch of name) {
+     const cw = upright ? 1 : emWidthOf(ch);
+     if (w + cw > maxEm) return `${out}…`;
+     w += cw;
