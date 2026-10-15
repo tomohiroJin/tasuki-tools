@@ -139,6 +139,7 @@ describe("宣言の表の置き場（#380）", () => {
   const DECLARATIONS = "scripts/lib/mutation-declarations.mjs";
 
   test("ID は正の整数で、表全体で重複しない", () => {
+    // Given / When / Then: 表を全件回す
     const seen = new Set();
     for (const m of MUTATIONS) {
       assert.ok(Number.isInteger(m.id) && m.id > 0, `ID が正の整数でない: ${m.id}`);
@@ -148,16 +149,34 @@ describe("宣言の表の置き場（#380）", () => {
   });
 
   test("宣言の表は --changed の機構に数える（入口の import から導く）", () => {
+    // Given: 入口のソース（resolveSelector と同じく、入口の import から機構を導く）
     const source = fs.readFileSync(path.join(SCRIPTS_DIR, "mutation-check.mjs"), "utf8");
-    assert.ok(mechanismFilesFrom(source, "scripts/mutation-check.mjs").includes(DECLARATIONS));
+    // When
+    const mechanism = mechanismFilesFrom(source, "scripts/mutation-check.mjs");
+    // Then
+    assert.ok(mechanism.includes(DECLARATIONS), `機構の一覧: ${mechanism.join(", ")}`);
   });
 
   test("作業ツリーの汚れの検査は、入口・宣言の表・パッチの置き場を除外する", () => {
+    // Given / When / Then: 宛先を失った除外を残さない
     for (const p of ["scripts/mutation-check.mjs", DECLARATIONS, "scripts/mutations"]) {
       assert.ok(DIRTY_CHECK_EXCLUDES.includes(p), `除外に無い: ${p}`);
     }
     for (const p of DIRTY_CHECK_EXCLUDES) {
       assert.ok(fs.existsSync(path.join(WORKSPACE_ROOT, p)), `除外の宛先が無い: ${p}`);
+    }
+  });
+
+  test("どの変異のパッチも、汚れの検査が除外する場所を書き換えない", () => {
+    // Given: 除外した場所は、復元の後の「戻ったか」の確かめからも外れる。そこを変異が書き換えると、
+    // 戻し損ねても気づけない
+    const excluded = (f) => DIRTY_CHECK_EXCLUDES.some((p) => f === p || f.startsWith(`${p}/`));
+    for (const m of MUTATIONS) {
+      // When: パッチが書き換えるファイル（`+++ b/` の行）
+      const text = fs.readFileSync(path.join(SCRIPTS_DIR, "mutations", m.patch), "utf8");
+      const targets = [...text.matchAll(/^\+\+\+ b\/(.+)$/gm)].map((x) => x[1]);
+      // Then
+      assert.deepEqual(targets.filter(excluded), [], `変異 #${m.id}（${m.patch}）`);
     }
   });
 });

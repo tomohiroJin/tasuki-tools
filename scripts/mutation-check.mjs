@@ -99,7 +99,11 @@ const REPO_ROOT = execFileSync("git", ["rev-parse", "--show-toplevel"], {
  * 安全性には影響しない。真に守るべきは、パッチが触る製品/テストコードに既存の
  * 未コミット変更が残っていないことである。
  */
-export const DIRTY_CHECK_EXCLUDES = ["scripts/mutation-check.mjs", "scripts/lib/mutation-declarations.mjs", "scripts/mutations"];
+export const DIRTY_CHECK_EXCLUDES = Object.freeze([
+  "scripts/mutation-check.mjs",
+  "scripts/lib/mutation-declarations.mjs",
+  "scripts/mutations",
+]);
 
 function gitStatusPorcelain() {
   return execFileSync(
@@ -722,7 +726,7 @@ function runTests(mutation, full) {
 /**
  * `--changed` の差分: 基準と HEAD の merge-base から HEAD までのコミット済みの変更に、
  * 未コミットの変更と未追跡のファイルを足したもの（#387）。
- * `gitStatusPorcelain` が機構とパッチの置き場を除外するので、そこの未コミットの変更は
+ * `gitStatusPorcelain` が入口・宣言の表・パッチの置き場（`DIRTY_CHECK_EXCLUDES`）を除外するので、そこの未コミットの変更は
  * 実行が止まらない。数えないと変異を書き足した直後の `--changed` が新しい変異を選ばない。
  * **`--no-renames`**: 既定の改名検出は旧パスを出さず、パッケージの外へ移したファイルの元の側を落とす。
  * 取れなければ null を返し、選び方の側が全件に倒す。
