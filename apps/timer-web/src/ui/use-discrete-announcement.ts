@@ -33,6 +33,7 @@ export function useDiscreteAnnouncement(state: AnnounceState): string {
     state.currentIndex,
     state.isUrgent,
     state.driverName,
+    state.onBreak,
   ]);
   return announcement;
 }

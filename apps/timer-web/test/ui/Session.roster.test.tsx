@@ -64,7 +64,7 @@ function baseHandlers() {
     onPause: noop,
     onResume: noop,
     onRestartTimer: noop,
-    onComplete: noop,
+    onComplete: noop, onStartBreak: noop, onEndBreak: noop,
     onAbort: noop,
     onReset: noop,
     onRenameParticipant: vi.fn(),

@@ -71,7 +71,7 @@ export function buildNoticeMessage(notice: NoticeSignal, ctx: NoticeContext): st
       return `${actor}がセッションを最初から始め直しました。`;
     case "session-completed":
       return `${actor}がセッションを完成として記録しました。`;
-    // 休憩の開始・終了（#402）。画面の作り込みは Task 10。
+    // 休憩の開始・終了（#402）。
     case "break-started":
       return `${actor}が休憩を始めました。`;
     case "break-ended":

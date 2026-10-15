@@ -151,6 +151,8 @@ export default function App() {
           // 現ドライバーのまま持ち時間だけを満タンからやり直す（Issue #14）。
           onRestartTimer={() => act("RESTART")}
           onComplete={sync.complete}
+          onStartBreak={commands.startBreak}
+          onEndBreak={commands.endBreak}
           onAbort={sync.abort}
           onReset={commands.resetSession}
           onHandoffNoteSet={commands.setHandoffNote}

@@ -44,7 +44,7 @@ function makeRoom(running: boolean, isPaused: boolean): Room {
 const noop = () => {};
 function handlers() {
   return {
-    onSkip: noop, onPause: noop, onResume: noop, onRestartTimer: noop, onComplete: noop, onAbort: noop,
+    onSkip: noop, onPause: noop, onResume: noop, onRestartTimer: noop, onComplete: noop, onStartBreak: noop, onEndBreak: noop, onAbort: noop,
     onReset: noop, onRenameParticipant: noop,
     onDriverSkip: noop, onDriverResume: noop, onDriverAssign: noop, onAddProxy: noop, onHandoffNoteSet: noop,
   };

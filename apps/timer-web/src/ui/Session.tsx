@@ -27,6 +27,10 @@ import { RosterPanel } from "./components/RosterPanel.js";
 import { EndSessionZone } from "./components/EndSessionZone.js";
 import { SelfDriverToggle } from "./components/SelfDriverToggle.js";
 import { SwitchAlert } from "./components/SwitchAlert.js";
+import { BreakOverlay } from "./components/BreakOverlay.js";
+import { BREAK_TEXT, breakElapsedMs, isBreakEnabled, isOnBreakRoom, isSuggestBandVisible } from "./break-view.js";
+import { useBreakAlert } from "./use-break-alert.js";
+import { useLastOneGuard } from "./use-last-one-guard.js";
 import { SharedMemo } from "./components/SharedMemo.js";
 import { useNowTick } from "./use-now-tick.js";
 import { useDiscreteAnnouncement } from "./use-discrete-announcement.js";
@@ -55,6 +59,9 @@ interface SessionProps {
    *  全体リセット（onReset・先頭ドライバーへ戻る）とは別操作。 */
   onRestartTimer: () => void;
   onComplete: () => void;
+  /** 手で休憩に入る／休憩を終える（#402）。休憩の条件があるルームだけが押せる */
+  onStartBreak: () => void;
+  onEndBreak: () => void;
   onAbort: () => void;
   onReset: () => void;
   /** 在席一覧（RosterPanel）の操作ハンドラ（FR-046/047/048/051）。
@@ -96,6 +103,8 @@ export function Session({
   onResume,
   onRestartTimer,
   onComplete,
+  onStartBreak,
+  onEndBreak,
   onAbort,
   onReset,
   onRenameParticipant,
@@ -118,7 +127,10 @@ export function Session({
   const dismissHint = () => { saveNotifyHintSeen(); setHintDismissed(true); };
 
   // 稼働中は定期的に再レンダリングしてカウントダウンを進める（FR-007・フックに分離）。
-  const now = useNowTick(room.clock.running, room.clock.anchorServerTime);
+  // 休憩中は時計が止まるが、休憩の経過を数えるので時刻を進める（#402）。
+  const onBreak = isOnBreakRoom(room);
+  const breakSince = room.session.break?.since ?? null;
+  const now = useNowTick(room.clock.running || onBreak, breakSince ?? room.clock.anchorServerTime);
   const elapsed = useMemo(
     () => elapsedMs(room.clock, now, clockOffset),
     [room.clock, now, clockOffset],
@@ -172,6 +184,7 @@ export function Session({
     currentIndex: room.session.currentIndex,
     isUrgent,
     driverName: currentDriverName,
+    onBreak,
   });
 
 
@@ -184,8 +197,14 @@ export function Session({
   const { switchAlertName, dismissSwitchAlert } = useSwitchAlert(
     room.session.currentIndex,
     currentDriverName,
-    { assertiveSwitch: room.config.assertiveSwitch === true, notify: notifyPrefs },
+    { assertiveSwitch: room.config.assertiveSwitch === true, notify: notifyPrefs, suppressed: onBreak },
   );
+  // 休憩の知らせ（入った・終わった・知らせた）と、最後の一人が閉じるときの確認（#402）。
+  useBreakAlert(breakSince, isSuggestBandVisible(room), notifyPrefs);
+  const othersOffline = room.participants
+    .filter((p) => p.participantId !== participantId && !p.isPlaceholder)
+    .every((p) => p.presence === "offline");
+  useLastOneGuard(onBreak && othersOffline);
 
   const progress = progressPercent(room.clock.intervalSeconds, displayRemaining);
   const isPaused = room.session.isPaused;
@@ -212,6 +231,14 @@ export function Session({
       {/* 初回ヒント（未読かつ通知 OFF のときのみ）。閉じる or 通知 ON で消える。 */}
       {!hintDismissed && !notifyPrefs.enabled && <NotifyHint onDismiss={dismissHint} />}
 
+      {/* 知らせるだけの帯（#402 §5.5）。snapshot から導くので、再接続した人にも出る。 */}
+      {isSuggestBandVisible(room) && (
+        <div className="break-suggest-band" role="status">
+          <span>{BREAK_TEXT.suggestBand}</span>
+          <button type="button" className="ui-button ui-button--sm" onClick={onStartBreak}>{BREAK_TEXT.startButton}</button>
+        </div>
+      )}
+
       {/* PC（lg+）は「左＝タイマー主役＋進行の操作（操作の面） / 右＝参加者・引き継ぎ（脇・22rem）」の2カラム。
           モバイルは素直に縦積みになる。段組みは部品層の `.ui-workspace`（#316）。脇は右（--side-end）。 */}
       <div className="ui-workspace ui-workspace--side-end">
@@ -231,6 +258,8 @@ export function Session({
             {currentDriverName}
           </div>
 
+          {/* 休憩中は残り時間の円を隠す（覆いが出ている・#402） */}
+          {!onBreak && (
           <div className="session-orbit boot-reveal" style={{ animationDelay: "60ms" }}>
             <TeamOrbit members={rotation} currentIndex={room.session.currentIndex} nextIndex={nextIndex} size={orbitSize}>
               <CircularProgress
@@ -257,6 +286,7 @@ export function Session({
               </CircularProgress>
             </TeamOrbit>
           </div>
+          )}
 
           <div className="session-next boot-reveal" style={{ animationDelay: "150ms" }}>
             <ArrowRight className="session-next-arrow" aria-hidden="true" />
@@ -309,6 +339,17 @@ export function Session({
           <button type="button" className="ui-button ui-button--secondary" onClick={onSkip} disabled={!running}>
             <span className="session-action-label"><SkipForward className="session-action-icon" aria-hidden="true" /> スキップ</span>
           </button>
+          {/* 休憩する（条件を設定したルームだけ・#402 D5）。休憩のあいだは覆いが出るので、ここには出ない */}
+          {isBreakEnabled(room.config) && (
+            <button
+              type="button"
+              className="ui-button ui-button--secondary"
+              onClick={onStartBreak}
+              title={BREAK_TEXT.startHint}
+            >
+              <span className="session-action-label">{BREAK_TEXT.startButton}</span>
+            </button>
+          )}
           {isPaused || !running ? (
             <button type="button" className="ui-button" onClick={onResume} disabled={!isPaused}>
               <span className="session-action-label"><Play className="session-action-icon-lg" aria-hidden="true" /> 再開</span>
@@ -319,6 +360,7 @@ export function Session({
             </button>
           )}
         </div>
+        {isBreakEnabled(room.config) && <p className="session-config-hint">{BREAK_TEXT.startHint}</p>}
       </Card>
 
       {/* 終了系3操作の隔離ゾーン（完成/中断/リセット・確認つき・FR-018/019/044）。
@@ -467,6 +509,23 @@ export function Session({
       <div aria-live="assertive" role="status" className="ui-visually-hidden">
         {announcement}
       </div>
+      {onBreak && breakSince !== null && (
+        <BreakOverlay
+          elapsedMs={breakElapsedMs(breakSince, now, clockOffset)}
+          nextDriverName={currentDriverName}
+          isLastOne={othersOffline}
+          isShared={room.code !== "SOLO"}
+          onEnd={onEndBreak}
+          onComplete={onComplete}
+          onStandDown={
+            currentParticipant &&
+            room.session.rotation.includes(currentParticipant.participantId) &&
+            currentParticipant.driverEligible !== false
+              ? () => onDriverSkip(currentParticipant.participantId)
+              : undefined
+          }
+        />
+      )}
       {switchAlertName && (
         <SwitchAlert
           driverName={switchAlertName}

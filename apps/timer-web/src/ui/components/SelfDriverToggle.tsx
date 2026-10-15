@@ -14,6 +14,9 @@
 
 import React from "react";
 
+/** 一時離脱ボタンの文言。休憩の覆い（BreakOverlay）も同じ文言を使う（#402） */
+export const SELF_SKIP_LABEL = "一時離脱";
+
 interface SelfDriverToggleProps {
   inRotation: boolean;
   /** 一時離脱中（driverEligible=false）。順番は保持され、復帰で戻れる。 */
@@ -95,7 +98,7 @@ export function SelfDriverToggle({
         )}
         {!isSkipping && (
           <button type="button" onClick={() => onSkip?.(participantId)} className="ui-button ui-button--secondary ui-button--sm">
-            一時離脱
+            {SELF_SKIP_LABEL}
           </button>
         )}
         <button

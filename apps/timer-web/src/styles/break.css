@@ -8,3 +8,74 @@
 .break-settings-sublabel {
   margin-top: var(--space-3);
 }
+
+/* 休憩の覆い（`BreakOverlay.tsx`・#402）。全画面。z-index は交代の知らせ・確認ダイアログと同じ 50 で、
+ * 確認ダイアログは覆いの子として描くので DOM 順で覆いの上に出る。色はトークンだけ。 */
+
+.break-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  padding: var(--space-6) var(--space-4);
+  overflow-y: auto;
+  text-align: center;
+  background-color: var(--scrim);
+  color: var(--bone);
+}
+
+.break-overlay-heading {
+  font-size: var(--font-size-xl);
+  line-height: 1.2;
+  font-weight: 700;
+}
+
+.break-overlay-heading:focus {
+  outline: none;
+}
+
+.break-overlay-elapsed {
+  font-size: 3rem; /* scale-exempt: 計器の数字は段の外（交代の知らせと同じ） */
+  line-height: 1;
+  font-weight: 900;
+}
+
+.break-overlay-next {
+  font-size: var(--font-size-lg);
+  line-height: 1.4;
+}
+
+.break-overlay-warning {
+  max-width: 28rem;
+  font-size: var(--font-size-sm);
+  line-height: 1.45;
+  color: var(--bone-subtle);
+}
+
+.break-overlay-secondary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+/* 知らせるだけの帯（#402 §5.5）。画面の上部 */
+
+.break-suggest-band {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  border-width: 1px;
+  border-color: var(--hairline);
+  background-color: var(--panel-2);
+  color: var(--bone);
+}

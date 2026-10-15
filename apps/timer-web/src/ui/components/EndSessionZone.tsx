@@ -22,12 +22,29 @@ interface EndSessionZoneProps {
 // 中断・リセットとは違い記録は残るので問いを分ける。
 type PendingAction = "complete" | "abort" | "reset" | null;
 
+const SHARED_NOTE = "（他の参加者全員の画面にも反映されます）";
+
 /** 確認ボタンの文言。何が起きるかを動詞で示し、「OK」のような曖昧な語を使わない。 */
 const CONFIRM_LABELS: Record<"complete" | "abort" | "reset", string> = {
   complete: "完成として記録する",
   abort: "終える（記録なし）",
   reset: "最初から再スタート",
 };
+
+/** 完成ボタンの文言。休憩の覆い（BreakOverlay）も同じ文言を使う（#402） */
+export const COMPLETE_BUTTON_LABEL = "完成!";
+
+/**
+ * 完成の確認ダイアログの文言。EndSessionZone と休憩の覆いが同じ確認を経るよう、ここに 1 本で置く（#402）。
+ * 何が起きるかを「記録として締めてよいか」で問う。完成は破壊ではない。
+ */
+export function completeConfirmText(isShared: boolean): { title: string; description: string; confirmLabel: string } {
+  return {
+    title: "このセッションを完成として記録しますか？",
+    description: `タイマーを止めて記録に残し、まとめ画面へ移ります。${isShared ? SHARED_NOTE : ""}`,
+    confirmLabel: CONFIRM_LABELS.complete,
+  };
+}
 
 export function EndSessionZone({
   onComplete,
@@ -44,17 +61,14 @@ export function EndSessionZone({
     setPending(null);
   };
 
-  const sharedNote = isShared ? "（他の参加者全員の画面にも反映されます）" : "";
+  const sharedNote = isShared ? SHARED_NOTE : "";
 
   const dialogConfig: Record<
     NonNullable<PendingAction>,
     { title: string; description: string }
   > = {
     // 「何が失われるか」ではなく「記録として締めてよいか」を問う。完成は破壊ではない。
-    complete: {
-      title: "このセッションを完成として記録しますか？",
-      description: `タイマーを止めて記録に残し、まとめ画面へ移ります。${sharedNote}`,
-    },
+    complete: completeConfirmText(isShared),
     abort: {
       title: "途中で終えますか？",
       description: `記録は残りません。${sharedNote}`,
@@ -95,7 +109,7 @@ export function EndSessionZone({
         onClick={() => setPending("complete")}
         className="ui-button"
       >
-        <span className="end-session-zone-label"><Flag className="end-session-zone-icon" aria-hidden="true" /> 完成!</span>
+        <span className="end-session-zone-label"><Flag className="end-session-zone-icon" aria-hidden="true" /> {COMPLETE_BUTTON_LABEL}</span>
       </button>
 
       {/* 確認ダイアログ */}

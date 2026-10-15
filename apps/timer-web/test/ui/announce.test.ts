@@ -14,6 +14,7 @@ describe("deriveAnnouncement", () => {
     currentIndex: 0,
     isUrgent: false,
     driverName: "Alice",
+    onBreak: false,
   };
 
   it("交代でドライバー名を読み上げる", () => {
@@ -50,5 +51,16 @@ describe("deriveAnnouncement", () => {
 
   it("変化が無ければ通知しない（連続カウントは読み上げない）", () => {
     expect(deriveAnnouncement(base, { ...base })).toBeNull();
+  });
+
+  it("Given 走行中 / When 交代と同時に休憩に入る / Then 休憩の文が交代の文より優先する（#402）", () => {
+    const prev = { running: true, isPaused: false, currentIndex: 0, isUrgent: false, driverName: "A", onBreak: false };
+    const next = { running: false, isPaused: false, currentIndex: 1, isUrgent: false, driverName: "B", onBreak: true };
+    expect(deriveAnnouncement(prev, next)).toBe("休憩に入りました。休憩明けはBさんです");
+  });
+
+  it("Given 休憩中 / When 休憩が終わる / Then 休憩が終わりました（#402）", () => {
+    const prev = { running: false, isPaused: false, currentIndex: 1, isUrgent: false, driverName: "B", onBreak: true };
+    expect(deriveAnnouncement(prev, { ...prev, running: true, onBreak: false })).toBe("休憩が終わりました");
   });
 });

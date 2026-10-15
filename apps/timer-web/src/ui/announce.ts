@@ -3,12 +3,16 @@
  * 連続カウントダウンは読み上げず、状態の「変化」だけを通知する。
  */
 
+import { BREAK_TEXT } from "./break-view.js";
+
 export interface AnnounceState {
   running: boolean;
   isPaused: boolean;
   currentIndex: number;
   isUrgent: boolean;
   driverName: string;
+  /** 休憩中か（#402） */
+  onBreak: boolean;
 }
 
 /**
@@ -20,6 +24,10 @@ export function deriveAnnouncement(
   prev: AnnounceState,
   next: AnnounceState,
 ): string | null {
+  // 休憩（#402）。交代と同じ snapshot で入るので、交代の文より先に見る。
+  if (!prev.onBreak && next.onBreak) return BREAK_TEXT.announceStarted(next.driverName);
+  if (prev.onBreak && !next.onBreak) return BREAK_TEXT.announceEnded;
+
   // 一時停止/再開
   if (!prev.isPaused && next.isPaused) return "一時停止しました";
   if (prev.isPaused && next.isPaused === false && !prev.running && next.running)
