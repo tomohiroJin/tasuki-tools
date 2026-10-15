@@ -1,0 +1,13 @@
+diff --git a/apps/poker-web/src/components/Results.tsx b/apps/poker-web/src/components/Results.tsx
+index 454ce0b..ae36674 100644
+--- a/apps/poker-web/src/components/Results.tsx
++++ b/apps/poker-web/src/components/Results.tsx
+@@ -79,7 +79,7 @@ export function Results({ stats, seatCount, afterFlip, spread }: Props) {
+           <dd>{stats.modes.length === 0 ? '—' : stats.modes.map(cardLabel).join(' / ')}</dd>
+         </div>
+       </dl>
+-      {spread && <SpreadNote spread={spread} />}
++      {false && spread && <SpreadNote spread={spread} />}
+     </section>
+   );
+ }

@@ -8,6 +8,7 @@
  * - タグ無し #212 — 契約に合わない `room-state` を捨てたことの表出（`local` 専用。
  *   実ルームの枠を使ううえ、壊れたフレームは本番では作れない）。
  * - タグ無し #142 — 同期サーバーへ繋がらないときの見え方（#76 F-2 の回帰。`local` 専用）。
+ * - タグ無し #405 — 見積もりが割れたときの促し（`local` 専用。判定は画面の側で、wire は変わらない）。
  */
 import { expect, test } from '../fixtures/test';
 import type { Locator, Page } from '@playwright/test';
@@ -601,5 +602,28 @@ test.describe('poker の同期サーバーへ繋がらないことが画面か�
       page.getByRole('heading', { name: 'プランニングポーカー' }),
       '繋がっていないのに入室後の画面が出ている',
     ).toHaveCount(0);
+  });
+});
+
+test.describe('見積もりが割れたら、最大と最小を出した人に話してもらうよう促す（#405）', () => {
+  test('Given 2 人が 8 と 2 を出す / When 全員の投票で公開される / Then 両方の画面の結果に、2 人の名前と札つきの促しが出る', async ({
+    page,
+    openPeer,
+  }) => {
+    // Given
+    const inviteUrl = await createRoom(page, HOST);
+    const guest = await openPeer(GUEST);
+    await joinRoom(guest.page, inviteUrl, GUEST);
+
+    // When: 2 人とも投票すると自動で公開される
+    await chooseCard(page, '8');
+    await chooseCard(guest.page, '2');
+
+    // Then
+    for (const p of [page, guest.page]) {
+      const note = resultsSection(p).locator('.results-spread');
+      await expect(note).toContainText(`いちばん上の 8 を出した ${HOST}`);
+      await expect(note).toContainText(`いちばん下の 2 を出した ${GUEST}`);
+    }
   });
 });

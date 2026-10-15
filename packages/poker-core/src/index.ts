@@ -67,3 +67,9 @@ export type { Round, VoterView, RoundError } from './round.js';
 export { createSnapshotBuilder } from './snapshot.js';
 // ParticipantFragment: createSnapshotBuilder の引数型。`VoterView` + `name`
 export type { ParticipantFragment } from './snapshot.js';
+
+// ./spread（#405。開票後の票から画面が呼ぶ）
+// SPREAD_MIN_STEPS は載せない（閾値はこのパッケージの中で閉じる。画面は findSpread の結果だけを見る）
+export { findSpread } from './spread.js';
+// Spread / SpreadEnd: findSpread の戻り値型
+export type { Spread, SpreadEnd } from './spread.js';

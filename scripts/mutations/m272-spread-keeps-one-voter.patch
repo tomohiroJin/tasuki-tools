@@ -1,0 +1,13 @@
+diff --git a/packages/poker-core/src/spread.ts b/packages/poker-core/src/spread.ts
+index 5fa1f80..f715550 100644
+--- a/packages/poker-core/src/spread.ts
++++ b/packages/poker-core/src/spread.ts
+@@ -19,7 +19,7 @@ function stepOf(value: NumberCardValue): number {
+ function endOf(votes: readonly { participantId: string; card: NumberCard }[], value: NumberCardValue): SpreadEnd {
+   return {
+     card: { kind: 'number', value },
+-    participantIds: votes.filter((v) => v.card.value === value).map((v) => v.participantId),
++    participantIds: votes.filter((v) => v.card.value === value).map((v) => v.participantId).slice(0, 1),
+   };
+ }
+ 
