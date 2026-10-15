@@ -1,0 +1,21 @@
+# 変異 208: 札の「さん」から white-space: nowrap を外す
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/result-card.test.tsx
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m208-*.patch
+# 復元: git apply -R scripts/mutations/m208-*.patch
+#
+# #373。「さん」が 1 字ずつ縦に折れる。
+diff --git a/apps/roulette-web/src/index.css b/apps/roulette-web/src/index.css
+index dfcadfe0..af101c1d 100644
+--- a/apps/roulette-web/src/index.css
++++ b/apps/roulette-web/src/index.css
+@@ -362,7 +362,6 @@
+ .roulette-card-name small {
+   /* どの段でも「さん」は 1 字ずつ折れない（名前の要素が札の幅を使い切っても、まとまって次の行へ送られる）。
+      p の overflow-wrap: anywhere は nowrap の中では効かない */
+-  white-space: nowrap;
+   font-family: var(--font-body);
+   font-size: var(--font-size-sm);
+   color: var(--coal-soft);

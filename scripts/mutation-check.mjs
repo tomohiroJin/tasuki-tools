@@ -1762,6 +1762,38 @@ export const MUTATIONS = [
     tests: ["tests/result-card.test.tsx"],
     note: "#373。幅の広い欧文が札の上下にはみ出す安全網が無くなる。",
   },
+  {
+    id: 205,
+    label: "円盤の席の名前（fitLabel）を、書記素でなくコードポイントで回す",
+    patch: "m205-fit-label-counts-code-points.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/card-name-size.test.ts"],
+    note: "#373。ZWJ の絵文字・国旗・結合文字が途中で切られる。",
+  },
+  {
+    id: 206,
+    label: "Intl.Segmenter が無いときの代替が、コードポイントでなく全体を 1 つとして返す",
+    patch: "m206-grapheme-fallback-returns-whole.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/card-name-size.test.ts"],
+    note: "#373。無い環境で幅が全く数えられず、段が常に最大になる。",
+  },
+  {
+    id: 207,
+    label: "札の最大の段の上限を、1 行に収まる 5.5 でなく 6 に戻す",
+    patch: "m207-card-name-lg-limit-6.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/card-name-size.test.ts"],
+    note: "#373。全角 6 字が 2 行になり、札の高さを超える。",
+  },
+  {
+    id: 208,
+    label: "札の「さん」から white-space: nowrap を外す",
+    patch: "m208-card-san-without-nowrap.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/result-card.test.tsx"],
+    note: "#373。「さん」が 1 字ずつ縦に折れる。",
+  },
 ];
 
 /**
