@@ -10,6 +10,7 @@ import { advanceDriver, secondsLeft, type TimerState } from "@tasuki/timer-core"
 import type { Broadcaster } from "../ports/broadcaster.js";
 import type { WallClock } from "../ports/wall-clock.js";
 import type { RoomState } from "./apply-room-level-event.js";
+import { maybeBreakAfterSwitch } from "./break-after-switch.js";
 import type { Scheduler } from "./schedule.js";
 import { computeIneligibleIndices, rotationDisplayNames } from "./timer-snapshot-dto.js";
 
@@ -54,7 +55,9 @@ export function createScheduleSync(deps: ScheduleSyncDeps): ScheduleSync {
     const now = clock.now();
     const agg = { session: timer.session, clock: timer.clock };
     const newAgg = advanceDriver(agg, computeIneligibleIndices(membership, timer), now);
-    const updated: TimerState = { ...timer, session: newAgg.session, clock: newAgg.clock };
+    const switched: TimerState = { ...timer, session: newAgg.session, clock: newAgg.clock };
+    // 交代のあとに休憩の条件を見る。入れば running が偽になり、reconcileSchedule が予約を解除する（#402）
+    const updated = maybeBreakAfterSwitch(timer, { membership, timer: switched }, now).timer;
     commit({ membership, timer: updated });
     broadcaster.broadcastSignal(updated.code, {
       type: "signal",
