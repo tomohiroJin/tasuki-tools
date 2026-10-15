@@ -11,7 +11,7 @@
 diff --git a/apps/tasuki-sync/src/application/roulette-handlers.ts b/apps/tasuki-sync/src/application/roulette-handlers.ts
 --- a/apps/tasuki-sync/src/application/roulette-handlers.ts
 +++ b/apps/tasuki-sync/src/application/roulette-handlers.ts
-@@ -156,6 +156,7 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
+@@ -176,6 +176,7 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
            conflicts: conflictsWithExisting,
          });
          if (next.isErr()) {

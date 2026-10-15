@@ -66,11 +66,18 @@ import { boundaryErrorCode } from "./connection-errors.js";
  */
 const RouletteConnectionMessageSchema = v.union([HubCommandSchema, RouletteCommandSchema]);
 
-/** 乱数源の契約違反のコード → ログの reason（語彙）。ここに無いコードは利用者の操作による失敗で、ログを残さない。 */
+interface ViolationLog {
+  /** `roulette-random-violation` の `reason`（語彙） */
+  reason: LogSafe;
+  /** 例外だった頃の接続層の行（`on-message-error name=RangeError`）も残すか（#364。変えない） */
+  keepsRangeErrorLine: boolean;
+}
+
+/** 乱数源の契約違反のコード → ログの形。ここに無いコードは利用者の操作による失敗で、ログを残さない。 */
 const VIOLATION_REASON_OF = {
-  INVALID_RANDOM: RANDOM_VIOLATION_REASONS.invalidRandom,
-  INVALID_SETTLE: RANDOM_VIOLATION_REASONS.invalidSettle,
-} as const satisfies Partial<Record<RouletteDomainErrorCode, LogSafe>>;
+  INVALID_RANDOM: { reason: RANDOM_VIOLATION_REASONS.invalidRandom, keepsRangeErrorLine: true },
+  INVALID_SETTLE: { reason: RANDOM_VIOLATION_REASONS.invalidSettle, keepsRangeErrorLine: false },
+} as const satisfies Partial<Record<RouletteDomainErrorCode, ViolationLog>>;
 
 /** 乱数源の契約違反のコードか。**判定はこの表の鍵だけ**（コードの一覧を 1 本にする）。 */
 function isRandomViolation(code: RouletteDomainErrorCode): code is keyof typeof VIOLATION_REASON_OF {
@@ -173,13 +180,14 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
           // INVALID_SETTLE・INVALID_RANDOM は乱数源の誤りで、利用者の操作では起きない。内部の誤りとして返す。
           // 監視は `roulette-random-violation` の 1 本で両方を拾え、`reason` で区別できる（#382）。
           if (isRandomViolation(code)) {
-            if (code === "INVALID_RANDOM") {
+            const violation: ViolationLog = VIOLATION_REASON_OF[code];
+            if (violation.keepsRangeErrorLine) {
               // #364 より前は、ドメインが RangeError を投げ、接続層（`adapters/ws/tool-channel.ts`）が
               // 「ログ → エラーフレーム」を返していた。その行は変えない。**INVALID_RANDOM は error が 2 行になる**
               // （この行と、下の reason 付きの行。reason の行は監視を 1 本で拾うために足した）。
               logger.error("on-message-error", { name: ERROR_NAMES.rangeError });
             }
-            logger.error("roulette-random-violation", { reason: VIOLATION_REASON_OF[code] });
+            logger.error("roulette-random-violation", { reason: violation.reason });
             fail(connId, "INTERNAL_ERROR");
             return;
           }

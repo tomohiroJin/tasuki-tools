@@ -232,6 +232,7 @@ describe("回す", () => {
     await joined(h, "r-1", "Alice");
     await joined(h, "r-2", "Bob");
     const before = h.roulettes.get(ROOM);
+    const put = spyOn(h.roulettes, "put");
 
     // When
     await h.handle("r-1", { command: "roulette.spin" });
@@ -249,6 +250,7 @@ describe("回す", () => {
       "error roulette-random-violation reason=invalid-random",
     ]);
     expect(h.roulettes.get(ROOM)).toBe(before);
+    expect(put).not.toHaveBeenCalled();
   });
 
   // 契約は SETTLE_MIN〜SETTLE_MAX。境界の値は含み、すぐ外（境界から計算した隣の浮動小数）・非有限は外れる。

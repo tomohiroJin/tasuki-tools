@@ -26,11 +26,11 @@
 - `INVALID_RANDOM` にも `roulette-random-violation reason=invalid-random` を足す（監視が 1 本で拾えるように。既存の `on-message-error name=RangeError` は先頭に残す）。
 - 2 つの分岐をそれぞれ `fail(connId, "INTERNAL_ERROR"); return;` で閉じ、三項演算子をやめる。
 - 契約の境界（0.2・0.8 は成功でログ空、すぐ外・±Infinity・NaN はログあり）と、利用者の操作による失敗（人数不足）でログが空であることを固定する。
-- 変異 m243（INVALID_SETTLE の分岐を他の失敗まで広げる）・m244（INVALID_RANDOM の reason を invalid-settle に取り違える）。
+- 変異 m243（契約違反の判定を全失敗に広げる）・m244（INVALID_RANDOM の reason を invalid-settle に取り違える）。
 - 設計正本（ルーレット）に手段としてログの行を書き、大規模リファクタリングの記録には日付つきの追記を 1 行足す。
 
 - INVALID_RANDOM は error が 2 行になる（既存の接続層の行＋reason の行）。意図どおり。
-- 2 つの分岐は code → reason の表（`VIOLATION_REASON_OF`）で 1 つにまとめた。
+- 2 つの分岐は code → { reason, keepsRangeErrorLine } の表（`VIOLATION_REASON_OF`）で 1 つにまとめた。
 
 ## 実プロトコルでの確認
 
@@ -62,5 +62,5 @@
 |---|---|
 | `pnpm --filter @tasuki/tasuki-sync test`（bun test） | 1 分以内 |
 | `node scripts/audit-log-hygiene.mjs` | 数秒 |
-| `node scripts/mutation-check.mjs --changed` | 3 件＋対照で 1 分前後（見積もり）。**実測は 1091 秒**（`scripts/mutation-check.mjs` が差分に入り機構が変わったため全件 158 件に倒れた。見積もりの約 18 倍。新しい変異だけの確認は `--id` で 12 秒） |
+| `node scripts/mutation-check.mjs --changed` | 新しい変異 5 件（m240〜m244）と作り直した m172 を足して、対照を含め 1 分前後（見積もり）。**実測は 1091 秒**（`scripts/mutation-check.mjs` が差分に入り機構が変わったため全件 158 件に倒れた。見積もりの約 18 倍。新しい変異だけの確認は `--id` で 12 秒） |
 | `pnpm test`（全体・キャッシュ可） | 数分 |

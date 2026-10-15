@@ -1748,11 +1748,11 @@ export const MUTATIONS = [
   },
   {
     id: 243,
-    label: "INVALID_SETTLE の分岐を他の失敗まで広げる",
-    patch: "m243-spin-failure-logs-as-violation.patch",
+    label: "乱数源の契約違反の判定を全失敗に広げる",
+    patch: "m243-violation-check-always-true.patch",
     pkg: "apps/tasuki-sync",
     tests: ["test/roulette-handlers.test.ts"],
-    note: "#382（/code-review）。**対応表より後に足した変異。** 人数不足など利用者の操作で起きる失敗が、内部の誤りとして error ログと INTERNAL_ERROR になる。",
+    note: "#382（/code-review）。**対応表より後に足した変異。** `isRandomViolation` を常に真にする。人数不足など利用者の操作で起きる失敗が、契約違反として扱われる（本物の違反でない失敗にログと INTERNAL_ERROR を返す）。",
   },
   {
     id: 244,
