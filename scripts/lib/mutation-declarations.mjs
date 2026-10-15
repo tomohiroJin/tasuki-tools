@@ -2108,4 +2108,28 @@ export const MUTATIONS = [
     tests: ["test/poker/create-sync-server.substitution.test.ts"],
     note: "#375。**対応表より後に足した変異。** 既にあるルーム（名簿・ラウンド）を上書きする。",
   },
+  {
+    id: 262,
+    label: "玄関の room.join の合言葉に、timer と違う上限を掛ける",
+    patch: "m262-hub-join-passphrase-without-limit.patch",
+    pkg: "packages/room-core",
+    tests: ["tests/wire.test.ts"],
+    note: "#377。**対応表より後に足した変異。** 入口ごとに合言葉の長さの契約が違う（玄関・topic・roulette だけが超過を通す）。",
+  },
+  {
+    id: 263,
+    label: "timer の受け口が合言葉の長さの規約を当てない",
+    patch: "m263-timer-receiver-skips-passphrase-rule.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/live-ws.passphrase-limit.test.ts"],
+    note: "#377。**対応表より後に足した変異。** timer の wire スキーマは形だけを見るので、timer の入口だけが上限なしになる。",
+  },
+  {
+    id: 264,
+    label: "合言葉を掛けるときに長さの上限を見ない",
+    patch: "m264-passphrase-rule-skips-set.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/passphrase-rule.test.ts", "test/live-ws.passphrase-limit.test.ts"],
+    note: "#377。**対応表より後に足した変異。** 上限を超える合言葉を掛けられ、どの入口からもその合言葉では入れないルームができる。",
+  },
 ];
