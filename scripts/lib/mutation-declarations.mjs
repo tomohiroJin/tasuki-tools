@@ -2132,4 +2132,12 @@ export const MUTATIONS = [
     tests: ["test/passphrase-rule.test.ts", "test/live-ws.passphrase-limit.test.ts"],
     note: "#377。**対応表より後に足した変異。** 上限を超える合言葉を掛けられ、どの入口からもその合言葉では入れないルームができる。",
   },
+  {
+    id: 265,
+    label: "timer の既定のエラーの文言だけを句点付きに戻す",
+    patch: "m265-timer-default-error-with-period.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/default-error-text.test.ts"],
+    note: "#378。**対応表より後に足した変異。** コードの分からないエラーの文言が、timer だけほかのツールと違う。",
+  },
 ];
