@@ -91,7 +91,7 @@ wire（`schemas.ts` の snapshot）には、画面が要る分だけを `session
 - `break.start`: 休憩中でなければ `BreakStarted`。休憩中なら `OnBreak` で拒む
 - `break.end`: 休憩中なら `BreakEnded`。休憩中でなければ拒む
 - **休憩中は、時計を動かす操作をすべて拒む**。規則は「`break.since !== null` なら `session.act` の全種と `driver.assign` を `OnBreak` で拒む」で、一覧では書かない（START・RESTART も含む）
-- 休憩中も通すもの: `break.end`、名簿の操作（出入り・並べ替え・代理・一時離脱）、メモ、`session.complete` / `session.abort`
+- 休憩中も通すもの: `break.end`、名簿の操作（出入り・並べ替え・代理・一時離脱）、メモ、`session.complete` / `session.abort`、`session.reset`（「最初から」。集約を作り直すので休憩の状態も初期値に戻り、休憩を終えて先頭から走り出す。実装の段で裁定・2026-10-16）
 
 「セッション中か」は集約が phase を持たないので `decide` では判定できない。`break.start` の phase の事前条件と `config.set` の拒否は、アプリ層の事前条件（`apps/tasuki-sync/src/application/room-commands/preconditions.ts`）に置く（§4.4）。
 
