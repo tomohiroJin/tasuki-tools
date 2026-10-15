@@ -12,8 +12,6 @@
  */
 import { classifyErrorKind } from "@tasuki/rate-limit";
 import { publicText, type LogSafe } from "../../application/log/log-safe.js";
-import { PROTOCOL_LOG_NAMES } from "../../application/log/vocabulary.js";
-import type { AcceptedProtocol } from "./connection-gate.js";
 
 /** `classifyErrorKind` が丸めた例外の名前を、ログへ出せる値にする。 */
 export function errorName(name: string): LogSafe {
@@ -23,15 +21,4 @@ export function errorName(name: string): LogSafe {
 /** `catch (err)` で受けた `err` から、ログへ出してよい「例外の分類」を取り出す（I-1）。 */
 export function classifyError(err: unknown): LogSafe {
   return errorName(classifyErrorKind(err));
-}
-
-/**
- * `on-message-error` に添える、どの接続の失敗かを示す名前（`protocol` 項目。#381）。
- * 語彙は `PROTOCOL_LOG_NAMES`（`application/log/vocabulary.ts`）。受け口の表の鍵（{@link AcceptedProtocol}）が
- * 語彙に欠けると、型検査が落ちる。
- */
-const LOG_NAME_OF = PROTOCOL_LOG_NAMES satisfies Record<AcceptedProtocol, LogSafe>;
-
-export function protocolLogName(protocol: AcceptedProtocol): LogSafe {
-  return LOG_NAME_OF[protocol];
 }

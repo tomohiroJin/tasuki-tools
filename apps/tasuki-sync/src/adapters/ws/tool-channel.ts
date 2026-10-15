@@ -23,7 +23,8 @@ import type { PokerHandlers } from "../../application/poker-handlers.js";
 import { CONNECTION_ERROR_TEXT } from "../../application/connection-errors.js";
 import { isPokerSocket, type Socket } from "./connection-data.js";
 import type { AcceptedProtocol } from "./connection-gate.js";
-import { classifyError, protocolLogName } from "./error-log.js";
+import { PROTOCOL_LOG_NAMES } from "../../application/log/vocabulary.js";
+import { classifyError } from "./error-log.js";
 import { sendIfOpen } from "./ws-send.js";
 
 /**
@@ -80,7 +81,7 @@ export function createTextChannel<Payload, Frame>(spec: TextChannelSpec<Payload,
   const tooLargeText = JSON.stringify(spec.tooLargeFrame);
   const internalErrorText = JSON.stringify(spec.internalErrorFrame);
   const logFailure = (err: unknown): void =>
-    spec.logger.error("on-message-error", { name: classifyError(err), protocol: protocolLogName(spec.protocol) });
+    spec.logger.error("on-message-error", { name: classifyError(err), protocol: PROTOCOL_LOG_NAMES[spec.protocol] });
   return {
     notifiesConnect: true,
     receive(ws, raw, bytes) {
@@ -126,12 +127,7 @@ export function createTextChannel<Payload, Frame>(spec: TextChannelSpec<Payload,
  * ⚠ **超過の返し方は timer たちと違う**（`message-too-large`。`@tasuki/poker-core` の ErrorCode で、
  * wire に載る値）。片方へ寄せると相手の web が知らないコードを受け取る。文は同じ正本から取る。
  */
-export function createPokerChannel(
-  protocol: "poker",
-  handlers: PokerMessageHandlers,
-  maxMessageBytes: number,
-  logger: Logger,
-): ToolChannel {
+export function createPokerChannel(handlers: PokerMessageHandlers, maxMessageBytes: number, logger: Logger): ToolChannel {
   return {
     notifiesConnect: false,
     receive(ws, raw, bytes) {
@@ -150,12 +146,12 @@ export function createPokerChannel(
         }
         handlers.dispatch(ws, result.value);
       } catch (err) {
-        logger.error("on-message-error", { name: classifyError(err), protocol: protocolLogName(protocol) });
+        logger.error("on-message-error", { name: classifyError(err), protocol: PROTOCOL_LOG_NAMES.poker });
         // 閉じるのは**この接続だけ**。close 自体が throw しても巻き込まない。
         try {
           ws.close(1011, "Internal error");
         } catch (closeErr) {
-          logger.error("on-message-error", { name: classifyError(closeErr), protocol: protocolLogName(protocol) });
+          logger.error("on-message-error", { name: classifyError(closeErr), protocol: PROTOCOL_LOG_NAMES.poker });
         }
       }
     },

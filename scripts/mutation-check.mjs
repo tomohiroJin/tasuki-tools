@@ -1757,10 +1757,20 @@ export const MUTATIONS = [
     label: "poker の失敗のログに protocol を出さない",
     patch: "m233-poker-log-without-protocol.patch",
     pkg: "apps/tasuki-sync",
-    tests: ["test/ws-adapter.message.test.ts"],
+    tests: ["test/ws-adapter.message.test.ts", "test/connection-error-text.test.ts"],
     note:
       "#381。**対応表より後に足した変異。** poker の受け口は `createTextChannel` ではなく自前の `try/catch` でログを" +
       "出すので、m232 では検出されない。poker の隔離のテストが `protocol=poker` を固定している。",
+  },
+  {
+    id: 234,
+    label: "poker の close 失敗のログに protocol を出さない",
+    patch: "m234-poker-close-failure-log-without-protocol.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/connection-error-text.test.ts"],
+    note:
+      "#381。**対応表より後に足した変異。** m233 は poker の失敗の 1 行目だけで、close 自体の失敗の 2 行目は" +
+      "実 WS では起こしにくい。受け口を直接呼び、close も throw させるテストが検出する。",
   },
 ];
 

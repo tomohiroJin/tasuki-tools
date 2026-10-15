@@ -78,9 +78,9 @@ function scanFiles(label: string, dir: string, pattern: string): ScannedFile[] {
   return files.map((rel) => ({ rel, source: readFileSync(join(dir, rel), "utf8") }));
 }
 
-/** `source` に、`text` が引用符で囲まれた文字列リテラルとして書かれていれば、その引用符を返す。 */
-function findQuotedLiteral(source: string, text: string): string | undefined {
-  return [`"`, `'`, "`"].find((quote) => source.includes(`${quote}${text}${quote}`));
+/** `source` に、`text` が引用符で囲まれた文字列リテラルとして書かれている形を、全部返す（無ければ空）。 */
+function findQuotedLiteral(source: string, text: string): string[] {
+  return [`"`, `'`, "`"].filter((quote) => source.includes(`${quote}${text}${quote}`)).map((quote) => `${quote}${text}${quote}`);
 }
 
 /**
@@ -134,8 +134,7 @@ describe("同期サーバーの中に写しが残っていない", () => {
       for (const { rel, source } of files) {
         if (rel === file) continue;
         for (const text of texts) {
-          const quote = findQuotedLiteral(source, text);
-          if (quote) copies.push(`src/${rel}: ${quote}${text}${quote}`);
+          for (const literal of findQuotedLiteral(source, text)) copies.push(`src/${rel}: ${literal}`);
         }
       }
     }

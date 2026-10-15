@@ -11,11 +11,11 @@
 diff --git a/apps/tasuki-sync/src/adapters/ws/tool-channel.ts b/apps/tasuki-sync/src/adapters/ws/tool-channel.ts
 --- a/apps/tasuki-sync/src/adapters/ws/tool-channel.ts
 +++ b/apps/tasuki-sync/src/adapters/ws/tool-channel.ts
-@@ -150,7 +150,7 @@
+@@ -146,7 +146,7 @@
          }
          handlers.dispatch(ws, result.value);
        } catch (err) {
--        logger.error("on-message-error", { name: classifyError(err), protocol: protocolLogName(protocol) });
+-        logger.error("on-message-error", { name: classifyError(err), protocol: PROTOCOL_LOG_NAMES.poker });
 +        logger.error("on-message-error", { name: classifyError(err) });
          // 閉じるのは**この接続だけ**。close 自体が throw しても巻き込まない。
          try {

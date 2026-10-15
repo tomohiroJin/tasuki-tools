@@ -165,7 +165,6 @@ describe("poker の失敗のログ（#381）", () => {
     // Given
     const { logger, lines } = collectingLogger();
     const channel = createPokerChannel(
-      "poker",
       {
         dispatch: () => {},
         detachFromCurrentRoom: () => {},

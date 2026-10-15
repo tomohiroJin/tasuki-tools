@@ -195,33 +195,27 @@ function buildChannels(options: WsAdapterOptions): Readonly<Record<AcceptedProto
     tooLarge: connectionErrorFrame("MESSAGE_TOO_LARGE"),
     internalError: connectionErrorFrame("INTERNAL_ERROR"),
   };
-  // 各行は鍵から `protocol` を受け取る（鍵と `protocol` の文字列を二重に持たない）
-  return channelsByKey({
-    timer: (protocol) =>
-      createTextChannel<Command, ServerMsg>({
-        maxMessageBytes,
-        logger,
-        protocol,
-        parse: parseTimerCommand,
-        deliver: (connId, cmd) => options.timer.handleMessage(connId, cmd),
-        tooLargeFrame: frames.tooLarge,
-        internalErrorFrame: frames.internalError,
-      }),
-    hub: (protocol) => rawTextChannel<HubServerMsg>(protocol, options.hub, frames),
+  // 各行は自分の鍵の名前を `protocol` に渡す。戻り値の型が鍵の過不足を守るが、**行の鍵と渡す名前の取り違えは
+  // 型では止まらない**（どれも `AcceptedProtocol`）。取り違えは `test/ws-adapter.message.test.ts` と
+  // `test/connection-error-text.test.ts` が、接続ごとの `protocol=` の値で止める。
+  return {
+    timer: createTextChannel<Command, ServerMsg>({
+      maxMessageBytes,
+      logger,
+      protocol: "timer",
+      parse: parseTimerCommand,
+      deliver: (connId, cmd) => options.timer.handleMessage(connId, cmd),
+      tooLargeFrame: frames.tooLarge,
+      internalErrorFrame: frames.internalError,
+    }),
+    hub: rawTextChannel<HubServerMsg>("hub", options.hub, frames),
     // エラーフレームの型は広い `TopicServerMsg` ではなく狭い `TopicOwnFrame`（#91 R18）。
     // `TopicServerMsg` は `HubServerMsg` を合併しており、その `error` は `code: string`（無制約）なので、
     // 契約に無いコードでも通ってしまう。ルーレットも同じ理由で `RouletteOwnFrame`。
-    topic: (protocol) => rawTextChannel<TopicOwnFrame>(protocol, options.topic, frames),
-    roulette: (protocol) => rawTextChannel<RouletteOwnFrame>(protocol, options.roulette, frames),
-    poker: (protocol) => createPokerChannel(protocol, options.poker, maxMessageBytes, logger),
-  });
-}
-
-/** 行（鍵 → 受け口の作り方）から表を作る。各行へ自分の鍵を渡す。 */
-function channelsByKey(rows: { [K in AcceptedProtocol]: (protocol: K) => ToolChannel }): Readonly<Record<AcceptedProtocol, ToolChannel>> {
-  const channels: Partial<Record<AcceptedProtocol, ToolChannel>> = {};
-  for (const key of Object.keys(rows) as AcceptedProtocol[]) channels[key] = (rows[key] as (protocol: AcceptedProtocol) => ToolChannel)(key);
-  return channels as Record<AcceptedProtocol, ToolChannel>;
+    topic: rawTextChannel<TopicOwnFrame>("topic", options.topic, frames),
+    roulette: rawTextChannel<RouletteOwnFrame>("roulette", options.roulette, frames),
+    poker: createPokerChannel(options.poker, maxMessageBytes, logger),
+  };
 }
 
 export class WsAdapter {
