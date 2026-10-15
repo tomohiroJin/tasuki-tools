@@ -85,6 +85,7 @@ h6.ui-md-h {
   box-sizing: border-box;
   width: 1.05em;
   height: 1.05em;
+  margin: 0; /* `lh` を読めないブラウザ（Safari 16.4 未満・Firefox 120 未満）は次の行を捨てる。入力欄の既定の余白へ戻さない */
   margin: calc((1lh - 1.05em) / 2) 0 0;
   border: 2px solid var(--ui-md-check, var(--coal));
   /* 角は字の大きさに比例させる（`--radius-sm` は 1em の箱では丸に近くなり、文字の O に見えた） */

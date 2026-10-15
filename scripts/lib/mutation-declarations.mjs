@@ -2202,7 +2202,7 @@ export const MUTATIONS = [
     patch: "m280-markdown-task-empty-text.patch",
     pkg: "packages/markdown",
     tests: ["tests/blocks.test.ts"],
-    note: "#315 PR 1・spec D2・NFR-002。**対応表より後に足した変異。** 280〜289 は #315 に割り当てた（267〜269 は #402 のために、270〜279 は #405 のために空けてある）。 印の後が空白だけの項目が名前の無いチェックボックスになる。",
+    note: "#315 PR 1・spec D2・NFR-002。**対応表より後に足した変異。** 280〜289 は #315 に割り当てた（267〜269 は #402 のために、270〜279 は #405 のために空けてある）。印の後が空白だけの項目が名前の無いチェックボックスになる。",
   },
   {
     id: 281,
@@ -2210,7 +2210,7 @@ export const MUTATIONS = [
     patch: "m281-markdown-task-upper-x.patch",
     pkg: "packages/markdown",
     tests: ["tests/blocks.test.ts"],
-    note: "#315 PR 1・spec D2・FR-002。**対応表より後に足した変異。** 280〜289 は #315 に割り当てた。 GitHub と同じ `- [X]` が「[X] 文」という文のまま出る。",
+    note: "#315 PR 1・spec D2・FR-002。**対応表より後に足した変異。** 280〜289 は #315 に割り当てた。GitHub と同じ `- [X]` が「[X] 文」という文のまま出る。",
   },
   {
     id: 282,
@@ -2218,6 +2218,6 @@ export const MUTATIONS = [
     patch: "m282-web-kit-task-no-label.patch",
     pkg: "packages/web-kit",
     tests: ["tests/markdown.test.tsx"],
-    note: "#315 PR 1・spec D4・FR-003。**対応表より後に足した変異。** 280〜289 は #315 に割り当てた。 見た目は同じまま、支援技術からどの項目のチェックか区別できない。",
+    note: "#315 PR 1・spec D4・FR-003。**対応表より後に足した変異。** 280〜289 は #315 に割り当てた。見た目は同じまま、支援技術からどの項目のチェックか区別できない。",
   },
 ];
