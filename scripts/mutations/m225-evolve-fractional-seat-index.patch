@@ -10,7 +10,7 @@
 #
 # #376（PR #392）。decide と evolve が共有する述語。0.5 は splice が 0 に切り捨て、先頭の席を動かす。
 diff --git a/packages/timer-core/src/aggregate.ts b/packages/timer-core/src/aggregate.ts
-index 470e326..5f21149 100644
+index eebcf37..4a25372 100644
 --- a/packages/timer-core/src/aggregate.ts
 +++ b/packages/timer-core/src/aggregate.ts
 @@ -283,7 +283,7 @@ export function nextEligibleIndex(
@@ -21,4 +21,4 @@ index 470e326..5f21149 100644
 +  return i >= 0 && i < len;
  }
  
- /** `order` が `[0..len-1]` の順列か（長さが同じ・全部が席の添字・重複が無い）。decide と evolve が共有する（#376）。 */
+ /**

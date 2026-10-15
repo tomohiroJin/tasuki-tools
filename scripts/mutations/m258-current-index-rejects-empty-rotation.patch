@@ -1,0 +1,23 @@
+# 変異 258: 外した後の輪が空のとき、次の担当 0 を正しい値とみなさない
+#
+# 検出を期待するテスト:
+#   - packages/timer-core/test/evolve.test.ts
+#   - packages/timer-core/test/properties.test.ts
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m258-*.patch
+# 復元: git apply -R scripts/mutations/m258-*.patch
+#
+# #376（PR #392 の 3 巡目）。最後の 1 席を外す MemberRemoved が常に無視され、空の輪へ届かない（evolve の全域の主張が、空の輪を作らないことで成り立ってしまう）。
+diff --git a/packages/timer-core/src/aggregate.ts b/packages/timer-core/src/aggregate.ts
+index eebcf37..7938345 100644
+--- a/packages/timer-core/src/aggregate.ts
++++ b/packages/timer-core/src/aggregate.ts
+@@ -291,7 +291,7 @@ export function isSeatIndex(i: number, len: number): boolean {
+  * 空の輪なら 0 だけ、それ以外は席の添字。
+  */
+ export function isCurrentIndexFor(i: number, len: number): boolean {
+-  return len === 0 ? i === 0 : isSeatIndex(i, len);
++  return isSeatIndex(i, len);
+ }
+ 
+ /** `order` が `[0..len-1]` の順列か（長さが同じ・全部が席の添字・重複が無い）。decide と evolve が共有する（#376）。 */

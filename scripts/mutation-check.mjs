@@ -1735,13 +1735,13 @@ export const MUTATIONS = [
   },
   {
     id: 220,
-    label: "輪が空になる MemberRemoved で currentIndex を 0 にしない",
+    label: "空の輪・範囲外の添字で次の担当に NaN を返す",
     patch: "m220-evolve-empty-rotation-nan.patch",
     pkg: "packages/timer-core",
-    tests: ["test/evolve.test.ts", "test/properties.test.ts"],
+    tests: ["test/aggregate.test.ts"],
     note:
       RESERVED_220_229 +
-      "#376。`% 0` が NaN を作り currentIndex が NaN になる。decide は最後の 1 人の member.remove を拒むので、decide を通すテストでは殺せない（evolve へ直接渡すテストで殺す）。",
+      "#376。空の輪で `(removedIndex + 1) % 0` が NaN を作る（修正前の evolve の `% 0` と同じ欠陥の型）。",
   },
   {
     id: 221,
@@ -1851,7 +1851,7 @@ export const MUTATIONS = [
     tests: ["test/evolve.test.ts", "test/properties.test.ts"],
     note:
       RESERVED_250_259 +
-      "#376（PR #392 の 2 巡目）。範囲外の nextDriverIndex で currentIndex が範囲外を指す。",
+      "#376（PR #392 の 3 巡目）。範囲外の nextDriverIndex で currentIndex が範囲外を指す（ほかの不正な入力と違い、集約が変わる）。",
   },
   {
     id: 252,
@@ -1895,13 +1895,13 @@ export const MUTATIONS = [
   },
   {
     id: 256,
-    label: "空の輪の SWITCH を拒まない",
+    label: "空の輪の時計を走らせる操作を拒まない",
     patch: "m256-decide-switch-on-empty-rotation.patch",
     pkg: "packages/timer-core",
     tests: ["test/decide.test.ts"],
     note:
       RESERVED_250_259 +
-      "#376（PR #392 の 2 巡目）。空の輪へ DriverSwitched{nextIndex:0} を出す（evolve は無視するが、拒否は decide の仕事）。",
+      "#376（PR #392 の 3 巡目）。空の輪へ開始・再開・交代・やり直しを出す（evolve は時計を止め直すが、拒否は decide の仕事）。",
   },
   {
     id: 257,
@@ -1912,6 +1912,26 @@ export const MUTATIONS = [
     note:
       RESERVED_250_259 +
       "#376（PR #392 の 2 巡目）。外した席より後ろの人を選ぶと、1 つ後ろの人に運転が回る（外した後の輪で数え直していない）。",
+  },
+  {
+    id: 258,
+    label: "外した後の輪が空のとき、次の担当 0 を正しい値とみなさない",
+    patch: "m258-current-index-rejects-empty-rotation.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/evolve.test.ts", "test/properties.test.ts"],
+    note:
+      RESERVED_250_259 +
+      "#376（PR #392 の 3 巡目）。最後の 1 席を外す MemberRemoved が常に無視され、空の輪へ届かない（evolve の全域の主張が、空の輪を作らないことで成り立ってしまう）。",
+  },
+  {
+    id: 259,
+    label: "空の輪の拒否を BelowMinMembers で返す",
+    patch: "m259-decide-empty-rotation-as-below-min.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/decide.test.ts"],
+    note:
+      RESERVED_250_259 +
+      "#376（PR #392 の 3 巡目）。「最後のドライバーは外れられません。」が出て、状況と食い違う。",
   },
 ];
 

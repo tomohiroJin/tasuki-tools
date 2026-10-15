@@ -1,23 +1,21 @@
-# 変異 220: 輪が空になる MemberRemoved で currentIndex を 0 にしない
+# 変異 220: 空の輪・範囲外の添字で次の担当に NaN を返す
 #
 # 検出を期待するテスト:
-#   - packages/timer-core/test/evolve.test.ts
-#   - packages/timer-core/test/properties.test.ts
+#   - packages/timer-core/test/aggregate.test.ts
 #
 # 適用: リポジトリルートから git apply scripts/mutations/m220-*.patch
 # 復元: git apply -R scripts/mutations/m220-*.patch
 #
-# #376。`% 0` が NaN を作り currentIndex が NaN になる。decide は最後の 1 人の member.remove を拒むので、decide を通すテストでは殺せない（evolve へ直接渡すテストで殺す）。
-diff --git a/packages/timer-core/src/evolve.ts b/packages/timer-core/src/evolve.ts
-index aa54001..8ec1e65 100644
---- a/packages/timer-core/src/evolve.ts
-+++ b/packages/timer-core/src/evolve.ts
-@@ -380,7 +380,7 @@ function evolveMemberRemoved(agg: Aggregate, index: number, nextDriverIndex: num
-   } else if (isSeatIndex(nextDriverIndex, newRotation.length)) {
-     newIndex = nextDriverIndex;
-   } else {
--    newIndex = nextDriverAfterRemoval(agg.session, index, undefined);
-+    newIndex = index % newRotation.length;
-   }
-   return {
-     ...agg,
+# #376。空の輪で `(removedIndex + 1) % 0` が NaN を作る（修正前の evolve の `% 0` と同じ欠陥の型）。
+diff --git a/packages/timer-core/src/aggregate.ts b/packages/timer-core/src/aggregate.ts
+index eebcf37..133b34a 100644
+--- a/packages/timer-core/src/aggregate.ts
++++ b/packages/timer-core/src/aggregate.ts
+@@ -318,7 +318,6 @@ export function nextDriverAfterRemoval(
+   ineligible: ReadonlySet<number> | undefined,
+ ): number {
+   const len = session.rotation.length;
+-  if (!isSeatIndex(removedIndex, len)) return session.currentIndex;
+   // 適格な人が居なければ nextEligibleIndex は外した席そのものを返す（外した席を飛ばすかどうかに関わらない）。
+   // 長さ 1 なら外した席しか無いので、位置で次の席 (0 + 1) % 1 = 0 になる。
+   const found = nextEligibleIndex(session, removedIndex, ineligible);

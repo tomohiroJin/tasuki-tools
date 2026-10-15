@@ -7,17 +7,16 @@
 # 適用: リポジトリルートから git apply scripts/mutations/m251-*.patch
 # 復元: git apply -R scripts/mutations/m251-*.patch
 #
-# #376（PR #392 の 2 巡目）。範囲外の nextDriverIndex で currentIndex が範囲外を指す。
+# #376（PR #392 の 3 巡目）。範囲外の nextDriverIndex で currentIndex が範囲外を指す（ほかの不正な入力と違い、集約が変わる）。
 diff --git a/packages/timer-core/src/evolve.ts b/packages/timer-core/src/evolve.ts
-index aa54001..1c66a6c 100644
+index 86a4459..3fa6bf6 100644
 --- a/packages/timer-core/src/evolve.ts
 +++ b/packages/timer-core/src/evolve.ts
-@@ -377,7 +377,7 @@ function evolveMemberRemoved(agg: Aggregate, index: number, nextDriverIndex: num
+@@ -373,7 +373,6 @@ function evolveMemberAdded(agg: Aggregate, participantId: string): Aggregate {
+ function evolveMemberRemoved(agg: Aggregate, index: number, nextDriverIndex: number): Aggregate {
+   const { rotation, driverCounts, currentIndex } = agg.session;
+   if (!isSeatIndex(index, rotation.length)) return agg;
+-  if (!isCurrentIndexFor(nextDriverIndex, rotation.length - 1)) return agg;
+   const newRotation = rotation.filter((_, i) => i !== index);
    let newIndex: number;
    if (index !== currentIndex) {
-     newIndex = index < currentIndex ? currentIndex - 1 : currentIndex;
--  } else if (isSeatIndex(nextDriverIndex, newRotation.length)) {
-+  } else if (nextDriverIndex !== undefined) {
-     newIndex = nextDriverIndex;
-   } else {
-     newIndex = nextDriverAfterRemoval(agg.session, index, undefined);
