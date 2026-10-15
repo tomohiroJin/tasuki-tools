@@ -12,7 +12,7 @@ import { ParticipantList } from '../components/ParticipantList';
 import { Results } from '../components/Results';
 import type { PokerSync } from '../hooks/useSync';
 import { useRoomEntry } from '../hooks/useRoomEntry';
-import { isOffline, revealedLiveAfter, revealedVoteMap } from '../room-view';
+import { isOffline, revealedLiveAfter, revealedVoteMap, spreadPromptOf } from '../room-view';
 
 interface Props {
   roomId: string;
@@ -220,7 +220,12 @@ function RevealedSection({
 
   return (
     <>
-      <Results stats={stats} seatCount={snapshot.participants.length} afterFlip={revealedLive} />
+      <Results
+        stats={stats}
+        seatCount={snapshot.participants.length}
+        afterFlip={revealedLive}
+        spread={spreadPromptOf(snapshot.round, snapshot.participants)}
+      />
       {/* かつてはホストだけに出ていたが、#95 S3 でホストを廃止し全参加者へ開放した */}
       <div className="ui-actions ui-actions--dock">
         {/* 再投票と次ラウンドはドメイン上同一操作（next-round）。ラベルのみ区別（FR-011）。主は最後 */}
