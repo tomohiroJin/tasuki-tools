@@ -18,9 +18,9 @@
     "@tasuki/topic-web": "workspace:*"
   },
   "devDependencies": {
-    "@playwright/test": "1.63.0",
+    "@playwright/test": "1.64.0",
     "@types/node": "^26.1.2",
-    "playwright-core": "1.63.0",
+    "playwright-core": "1.64.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.11"
   }
