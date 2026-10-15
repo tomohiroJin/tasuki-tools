@@ -60,3 +60,16 @@ export const CONN_REJECT_REASONS = {
 export const ERROR_NAMES = {
   rangeError: publicText("RangeError"), // log-hygiene:allow 語彙定義
 } as const satisfies Record<string, LogSafe>;
+
+/**
+ * `on-message-error` に添える、どの接続の失敗かを示す名前（`protocol` 項目。#381）。
+ * 受け口の表（`ws-adapter.ts` の `buildChannels`）の鍵と 1 対 1 の固定の語彙で、自由文は載せない。
+ * 鍵との過不足は `adapters/ws/error-log.ts` が型で縛る。
+ */
+export const PROTOCOL_LOG_NAMES = {
+  timer: publicText("timer"), // log-hygiene:allow 語彙定義
+  hub: publicText("hub"), // log-hygiene:allow 語彙定義
+  topic: publicText("topic"), // log-hygiene:allow 語彙定義
+  roulette: publicText("roulette"), // log-hygiene:allow 語彙定義
+  poker: publicText("poker"), // log-hygiene:allow 語彙定義
+} as const satisfies Record<string, LogSafe>;

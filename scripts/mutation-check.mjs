@@ -1747,10 +1747,20 @@ export const MUTATIONS = [
     label: "on-message-error に、どの接続の失敗かを示す protocol を出さない",
     patch: "m232-log-without-protocol.patch",
     pkg: "apps/tasuki-sync",
-    tests: ["test/connection-error-text.test.ts"],
+    tests: ["test/connection-error-text.test.ts", "test/ws-adapter.message.test.ts"],
     note:
       "#381。**対応表より後に足した変異。** 4 つの接続が同じログ行を出すので、`protocol` が無いと" +
       "ログからどの接続の失敗か分からない。接続ごとの `protocol` の値を固定したテストが検出する。",
+  },
+  {
+    id: 233,
+    label: "poker の失敗のログに protocol を出さない",
+    patch: "m233-poker-log-without-protocol.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/ws-adapter.message.test.ts"],
+    note:
+      "#381。**対応表より後に足した変異。** poker の受け口は `createTextChannel` ではなく自前の `try/catch` でログを" +
+      "出すので、m232 では検出されない。poker の隔離のテストが `protocol=poker` を固定している。",
   },
 ];
 

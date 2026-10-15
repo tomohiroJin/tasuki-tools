@@ -26,7 +26,7 @@ import type { BoundaryStage } from "@tasuki/protocol";
  * 接続層のエラーの文言（timer の系統で共通のもの）。
  *
  * `INTERNAL_ERROR` を含め、timer・ハブ・お題・ルーレットの 4 つの接続で同じ文を返す（#381）。
- * かつて timer だけ「内部エラーが発生しました」だったが、この文にそろえた。
+ * かつて timer だけ別の文（旧い文は `connection-error-text-sources.test.ts` の `RETIRED_TEXTS`）だったが、この文にそろえた。
  */
 export const CONNECTION_ERROR_TEXT = {
   INVALID_JSON: "JSON の形式が不正です",

@@ -78,8 +78,8 @@ function scanFiles(label: string, dir: string, pattern: string): ScannedFile[] {
   return files.map((rel) => ({ rel, source: readFileSync(join(dir, rel), "utf8") }));
 }
 
-/** `source` に、`text` が引用符で囲まれた文字列リテラルとして書かれているか。 */
-function hasLiteral(source: string, text: string): string | undefined {
+/** `source` に、`text` が引用符で囲まれた文字列リテラルとして書かれていれば、その引用符を返す。 */
+function findQuotedLiteral(source: string, text: string): string | undefined {
   return [`"`, `'`, "`"].find((quote) => source.includes(`${quote}${text}${quote}`));
 }
 
@@ -87,6 +87,10 @@ function hasLiteral(source: string, text: string): string | undefined {
  * 廃した旧い文。**走査する場所のどこにも直書きしてはならない**（正本の中にも置かない）。
  * 正本の文の写しを探す検査（下）は、正本から消えた文を知らないので、廃した文はここに残す。
  * - 「内部エラーが発生しました」: かつて timer だけが返していた内部エラーの文（#381 でそろえた）
+ *
+ * **引用符で囲まれた完全一致ではなく、部分文字列として現れたら落とす**（コメントや説明文に旧い文が出ても落ちる。
+ * 旧い文はコメントでも書かないこと）。**文字列の連結（`"内部" + "エラーが…"`）で組み立てる道は受け入れる**
+ * —— 検出するには実行時の値を見るしかなく、この走査の射程の外である。
  *
  * 走査するのは、wire の文を作る同期サーバーに加え、timer の系統の受け側（timer-core・timer-web）の src。
  * 画面側へ旧い文を書き戻されても気づけるようにする。
@@ -108,8 +112,7 @@ describe("廃した文が src に残っていない", () => {
     for (const { scope, files } of scanned) {
       for (const { rel, source } of files) {
         for (const text of RETIRED_TEXTS) {
-          const quote = hasLiteral(source, text);
-          if (quote) found.push(`${scope.label}/${rel}: ${quote}${text}${quote}`);
+          if (source.includes(text)) found.push(`${scope.label}/${rel}: ${text}`);
         }
       }
     }
@@ -131,7 +134,7 @@ describe("同期サーバーの中に写しが残っていない", () => {
       for (const { rel, source } of files) {
         if (rel === file) continue;
         for (const text of texts) {
-          const quote = hasLiteral(source, text);
+          const quote = findQuotedLiteral(source, text);
           if (quote) copies.push(`src/${rel}: ${quote}${text}${quote}`);
         }
       }

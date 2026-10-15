@@ -51,7 +51,7 @@ import {
 } from "../application/connection-errors.js";
 import { deriveClientKeySafely } from "./client-key-safety.js";
 import { initialConnectionData, type ConnectionData, type Socket } from "./ws/connection-data.js";
-import { admit, protocolFromRequestUrl, type Protocol } from "./ws/connection-gate.js";
+import { admit, protocolFromRequestUrl, type AcceptedProtocol } from "./ws/connection-gate.js";
 import { classifyError, errorName } from "./ws/error-log.js";
 import { Heartbeat } from "./ws/heartbeat.js";
 import { respondToPlainHttp, type HttpHandler } from "./ws/http-fallback.js";
@@ -159,9 +159,6 @@ export class ServerStartError extends Error {
   override readonly name = "ServerStartError";
 }
 
-/** 入場の判定を通りうるプロトコル（`"unknown"` は受理されないので受け口を持たない）。 */
-type AcceptedProtocol = Exclude<Protocol, "unknown">;
-
 /**
  * timer の境界のパース。@tasuki/protocol に一本化してある（poker の sync / web も同じものを使う）。
  * 落ちた段（json / schema）で返すエラーコードを分けるのは timer 側の決めごと。
@@ -184,7 +181,7 @@ function buildChannels(options: WsAdapterOptions): Readonly<Record<AcceptedProto
    * 生テキストを渡すツール（ハブ・お題・ルーレット）の受け口。違いはエラーフレームの型だけで、
    * フレームは行ごとに渡す（キャストせず、その行の型で検査させる）。
    */
-  const rawTextChannel = <Frame>(protocol: "hub" | "topic" | "roulette", handler: RawMessageHandler, frames: { tooLarge: Frame; internalError: Frame }): ToolChannel =>
+  const rawTextChannel = <Frame>(protocol: AcceptedProtocol, handler: RawMessageHandler, frames: { tooLarge: Frame; internalError: Frame }): ToolChannel =>
     createTextChannel<string, Frame>({
       maxMessageBytes,
       logger,
@@ -198,24 +195,33 @@ function buildChannels(options: WsAdapterOptions): Readonly<Record<AcceptedProto
     tooLarge: connectionErrorFrame("MESSAGE_TOO_LARGE"),
     internalError: connectionErrorFrame("INTERNAL_ERROR"),
   };
-  return {
-    timer: createTextChannel<Command, ServerMsg>({
-      maxMessageBytes,
-      logger,
-      protocol: "timer",
-      parse: parseTimerCommand,
-      deliver: (connId, cmd) => options.timer.handleMessage(connId, cmd),
-      tooLargeFrame: frames.tooLarge,
-      internalErrorFrame: frames.internalError,
-    }),
-    hub: rawTextChannel<HubServerMsg>("hub", options.hub, frames),
+  // 各行は鍵から `protocol` を受け取る（鍵と `protocol` の文字列を二重に持たない）
+  return channelsByKey({
+    timer: (protocol) =>
+      createTextChannel<Command, ServerMsg>({
+        maxMessageBytes,
+        logger,
+        protocol,
+        parse: parseTimerCommand,
+        deliver: (connId, cmd) => options.timer.handleMessage(connId, cmd),
+        tooLargeFrame: frames.tooLarge,
+        internalErrorFrame: frames.internalError,
+      }),
+    hub: (protocol) => rawTextChannel<HubServerMsg>(protocol, options.hub, frames),
     // エラーフレームの型は広い `TopicServerMsg` ではなく狭い `TopicOwnFrame`（#91 R18）。
     // `TopicServerMsg` は `HubServerMsg` を合併しており、その `error` は `code: string`（無制約）なので、
     // 契約に無いコードでも通ってしまう。ルーレットも同じ理由で `RouletteOwnFrame`。
-    topic: rawTextChannel<TopicOwnFrame>("topic", options.topic, frames),
-    roulette: rawTextChannel<RouletteOwnFrame>("roulette", options.roulette, frames),
-    poker: createPokerChannel(options.poker, maxMessageBytes, logger),
-  };
+    topic: (protocol) => rawTextChannel<TopicOwnFrame>(protocol, options.topic, frames),
+    roulette: (protocol) => rawTextChannel<RouletteOwnFrame>(protocol, options.roulette, frames),
+    poker: (protocol) => createPokerChannel(protocol, options.poker, maxMessageBytes, logger),
+  });
+}
+
+/** 行（鍵 → 受け口の作り方）から表を作る。各行へ自分の鍵を渡す。 */
+function channelsByKey(rows: { [K in AcceptedProtocol]: (protocol: K) => ToolChannel }): Readonly<Record<AcceptedProtocol, ToolChannel>> {
+  const channels: Partial<Record<AcceptedProtocol, ToolChannel>> = {};
+  for (const key of Object.keys(rows) as AcceptedProtocol[]) channels[key] = (rows[key] as (protocol: AcceptedProtocol) => ToolChannel)(key);
+  return channels as Record<AcceptedProtocol, ToolChannel>;
 }
 
 export class WsAdapter {

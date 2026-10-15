@@ -20,6 +20,8 @@
 - 旧い文「内部エラーが発生しました」は `connection-error-text-sources.test.ts` の `RETIRED_TEXTS` に残し、src への直書きを禁じる。
 - `on-message-error` に、どの接続の失敗かを示す `protocol` 項目を足す（値は `error-log.ts` の `PROTOCOL_LOG_NAMES` の固定の語彙。ログ衛生に従う）。変異 m232。
 - 旧い文の禁止の走査は、`timer-core`・`timer-web` の src にも広げる。固定のエラーフレームは受け口を作るときに 1 回だけ文字列にする。
+- `protocol` の語彙 `PROTOCOL_LOG_NAMES` は `vocabulary.ts` に置き、受け口の表は鍵から `protocol` を受け取る（`channelsByKey`）。同期の throw の経路・poker にも `protocol` の検査を足し、poker 用に変異 m233 を足す。
+- 旧い文の走査は、引用符つきの完全一致ではなく部分文字列で落とす（連結で組み立てる道は受け入れる）。
 - 変異 m231（reject のログを落とす）を足す。m230 は新しい配線に合わせて作り直した。
 
 ## Constitution Check

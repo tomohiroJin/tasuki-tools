@@ -131,7 +131,7 @@
 | d. poker の受理で `onConnect`、切断で `onDisconnect` を呼ばない（代わりに `detachFromCurrentRoom` を 1 回） | `ws-adapter-tool-query` | poker の早期 return を外す |
 | e. フレームの上限（`maxFrameBytes`）を超えたときの閉じ方（close コードを実測して固定） | `ws-adapter.message` | `maxPayloadLength` を外す |
 | f. poker の解析の失敗が `sendError(code, message)` で返る（poker のテストに無ければ） | `ws-adapter.message` | `sendError` に渡すコードを変える |
-| g. reject のときのログ: hub・topic・roulette は `on-message-error name=Error`、timer は出さない | `connection-error-text` の reject の表に足す | hub の `.catch` からログを外す／timer の `.catch` にログを足す |
+| g. reject のときのログ: hub・topic・roulette は `on-message-error name=Error`、timer は出さない **（解消（#381）: timer も出すようにそろえた。以後は 4 つとも `on-message-error`）** | `connection-error-text` の reject の表に足す | hub の `.catch` からログを外す／timer の `.catch` にログを足す |
 | h. poker の `detachFromCurrentRoom` の throw は `on-disconnect-error` を出し、プロセスは落ちない | `ws-adapter.client-key`（`onDisconnect` の throw と並べる） | `try/catch` を外す |
 | i. hub・topic・roulette の `send` / `broadcast` が宛先にだけ届き、知らない接続 ID は黙って飛ばす | `ws-adapter.message`（timer の 2 本と同じ形で表にする） | `broadcastTopic` の宛先の絞り込みを外す |
 

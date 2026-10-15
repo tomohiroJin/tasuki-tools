@@ -12,6 +12,8 @@
  */
 import { classifyErrorKind } from "@tasuki/rate-limit";
 import { publicText, type LogSafe } from "../../application/log/log-safe.js";
+import { PROTOCOL_LOG_NAMES } from "../../application/log/vocabulary.js";
+import type { AcceptedProtocol } from "./connection-gate.js";
 
 /** `classifyErrorKind` が丸めた例外の名前を、ログへ出せる値にする。 */
 export function errorName(name: string): LogSafe {
@@ -25,15 +27,11 @@ export function classifyError(err: unknown): LogSafe {
 
 /**
  * `on-message-error` に添える、どの接続の失敗かを示す名前（`protocol` 項目。#381）。
- * 受け口の表（`ws-adapter.ts` の `buildChannels`）の鍵と 1 対 1 の固定の語彙で、自由文は載せない。
+ * 語彙は `PROTOCOL_LOG_NAMES`（`application/log/vocabulary.ts`）。受け口の表の鍵（{@link AcceptedProtocol}）が
+ * 語彙に欠けると、型検査が落ちる。
  */
-export const PROTOCOL_LOG_NAMES = {
-  timer: publicText("timer"), // log-hygiene:allow 語彙定義
-  hub: publicText("hub"), // log-hygiene:allow 語彙定義
-  topic: publicText("topic"), // log-hygiene:allow 語彙定義
-  roulette: publicText("roulette"), // log-hygiene:allow 語彙定義
-  poker: publicText("poker"), // log-hygiene:allow 語彙定義
-} as const satisfies Record<string, LogSafe>;
+const LOG_NAME_OF = PROTOCOL_LOG_NAMES satisfies Record<AcceptedProtocol, LogSafe>;
 
-/** 受け口の識別（{@link PROTOCOL_LOG_NAMES} の鍵）。 */
-export type ChannelProtocol = keyof typeof PROTOCOL_LOG_NAMES;
+export function protocolLogName(protocol: AcceptedProtocol): LogSafe {
+  return LOG_NAME_OF[protocol];
+}

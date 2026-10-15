@@ -24,6 +24,7 @@ import { collectingLogger } from "./support/test-logger.js";
 import { startLiveSyncServer, type LiveSyncServer } from "./support/live-sync-server.js";
 import { startServer, type TestServer } from "./poker/helpers.js";
 import { connectRaw } from "./poker/raw-ws-client.js";
+import { createPokerChannel } from "../src/adapters/ws/tool-channel.js";
 
 /** `config.ts` の既定の上限（64KB）を 1 バイト超える本文。 */
 const TOO_LARGE = "x".repeat(64 * 1024 + 1);
@@ -157,6 +158,35 @@ describe("接続層のエラーの文言（接続層・メッセージ層が失�
       expect(lines).toEqual(LOG_LINES);
     });
   }
+});
+
+describe("poker の失敗のログ（#381）", () => {
+  it("Given poker のメッセージ層が throw し、close も throw する / When 受け取る / Then どちらのログ行にも protocol=poker が付く", () => {
+    // Given
+    const { logger, lines } = collectingLogger();
+    const channel = createPokerChannel(
+      "poker",
+      {
+        dispatch: () => {},
+        detachFromCurrentRoom: () => {},
+        sendError: () => {
+          throw new Error("sendError の失敗（テスト用）");
+        },
+      },
+      1,
+      logger,
+    );
+    const ws = {
+      data: { protocol: "poker", connId: "c1" },
+      close: () => {
+        throw new Error("close の失敗（テスト用）");
+      },
+    };
+    // When: 上限（1 バイト）を超える本文で sendError を呼ばせる
+    channel.receive(ws as never, Buffer.from("xx"), 2);
+    // Then
+    expect(lines).toEqual(["on-message-error name=Error protocol=poker", "on-message-error name=Error protocol=poker"]);
+  });
 });
 
 describe("poker の参加の試行の上限の文言", () => {
