@@ -71,6 +71,16 @@ snapshot の添字では null になる。DTO は、直前のドライバーの�
 - **配布の間**（新しい画面 × 旧いサーバー）は、ナビが消える。同期サーバーが新しくなれば戻る
 - 運転中の人が輪から外れた直後は、ナビが出ない（外れた人は輪に居ない）
 
+### 5. 席の理由の配信漏れ（E2E で見つけた・この PR で直す）
+
+timer の画面へ snapshot を配るのは、timer のコマンドと「presence が変わった切断」だけだった。ほかのツールの接続の出入り
+（ハブ・お題・ルーレット・poker への参加・入り直し、timer とハブを開いた人が timer だけ閉じる）で席の理由が変わっても
+timer の画面に届かず、timer から選択画面へ移った人は「未接続」のまま残った。そのためナビの「不在では隠さない」が実画面で効かなかった。
+
+名簿を書く経路（`presence.ts` の切断・`join-tool-room.ts`・`poker-handlers.ts` の `commit`）で、timer の画面に映るもの
+（在席・席の理由・次の番）が前後で変わったときだけ timer へ配る（`timer-seat-broadcast.ts`）。timer の状態も書く
+`handlers.ts` の `commit` は自分で配るので通さない。
+
 ### 5. プロトコル互換と配布順序
 
 - wire: `Room.session.previousDriverIndex?: number | null` を**任意項目**で足す。`deploy.sh timer` は画面を先に配るので、
@@ -89,6 +99,7 @@ snapshot の添字では null になる。DTO は、直前のドライバーの�
 | 214 | `MemberRemoved` が運転中の人の退出で直前のドライバーを書き換えない | `packages/timer-core/test/evolve.test.ts` |
 | 215 | DTO がいまの運転者と同じ席を null へ正規化しない | `apps/tasuki-sync/test/timer-snapshot-dto.test.ts` |
 | 216 | `driverNames` が不在（away）でもナビを隠す | `apps/timer-web/test/ui/session-view.test.ts` |
+| 217 | ほかのツールで入った・入り直したことを timer の画面へ配らない | `apps/tasuki-sync/test/live-ws.timer-seat-presence.test.ts` |
 
 ## 検証の実行時間の見積もり
 

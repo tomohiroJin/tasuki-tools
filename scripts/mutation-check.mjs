@@ -1778,6 +1778,14 @@ export const MUTATIONS = [
     tests: ["test/ui/session-view.test.ts"],
     note: "#374（PR #396 のレビュー）。**対応表より後に足した変異。** timer のタブを切り替えるたびに全員の画面でナビが点滅する。",
   },
+  {
+    id: 217,
+    label: "ほかのツールで入った・入り直したことを timer の画面へ配らない",
+    patch: "m217-tool-join-skips-timer-broadcast.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/live-ws.timer-seat-presence.test.ts"],
+    note: "#374。**対応表より後に足した変異。** timer から選択画面へ移った人が、ほかの人の timer で「未接続」のまま残り、ナビが隠れる。",
+  },
 ];
 
 /**
