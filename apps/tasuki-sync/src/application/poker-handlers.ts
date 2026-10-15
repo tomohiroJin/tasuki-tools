@@ -70,6 +70,7 @@ import type { HubBroadcaster } from '../ports/hub-broadcaster.js';
 import type { TimerSeatBroadcastDeps } from './timer-seat-broadcast.js';
 import type { TopicBroadcaster } from './topic-broadcast.js';
 import { saveRoster } from './save-roster.js';
+import { MAX_CODE_ATTEMPTS } from './create-room.js';
 import { applyDisplayNameRule, INVALID_DISPLAY_NAME_MESSAGE } from './display-name-rule.js';
 import type { TokenStore } from './token-store.js';
 import type { PokerBroadcaster, RoomSocket } from '../ports/poker-broadcaster.js';
@@ -164,8 +165,11 @@ export interface PokerHandlers {
    */
   handleParticipantRemoved(roomCode: string, participantId: string): void;
   dispatch(ws: HandlerConnection, msg: ClientMessage): void;
-  /** 衝突しないルーム ID を採る。**衝突再試行を差し替えテストで検証するため公開する。** */
-  generateRoomId(): string;
+  /**
+   * 衝突しないルーム ID を採る。上限まで引いても空かなければ `undefined`（#375）。
+   * **衝突再試行を差し替えテストで検証するため公開する。**
+   */
+  generateRoomId(): string | undefined;
   /** エラー応答。WS アダプタもサイズ超過・パース失敗の応答に使う。 */
   sendError(ws: HandlerConnection, code: ErrorCode, message: string): void;
 }
@@ -295,12 +299,17 @@ export function makePokerHandlers(deps: PokerHandlerDeps): PokerHandlers {
    * **再試行は方針であって I/O ではない**ので、ポートではなくここが持つ
    * （IdGen は候補を 1 つ返すだけ）。**名簿は timer と共有なので、timer の
    * ルームコードとも衝突しない**（#95 S4a で自動的にそうなった）。
+   *
+   * **引き直しには上限を置く**（#375）。かつては空くまで引き続けたため、候補が尽きる
+   * （IdGen の故障など）と止まらなかった。timer・ハブの `createRoom` と同じ回数
+   * （`MAX_CODE_ATTEMPTS`）で打ち切り、`undefined` を返す。
    */
-  function generateRoomId(): string {
-    for (;;) {
+  function generateRoomId(): string | undefined {
+    for (let i = 0; i < MAX_CODE_ATTEMPTS; i++) {
       const id = idGen.roomIdCandidate();
       if (store.get(id) === undefined) return id;
     }
+    return undefined;
   }
 
   function sendError(ws: HandlerConnection, code: ErrorCode, message: string): void {
@@ -427,7 +436,10 @@ export function makePokerHandlers(deps: PokerHandlerDeps): PokerHandlers {
     //
     // **#95 S4a で数える対象が「poker のルーム」から「名簿にあるルーム全部」に変わった**
     // （timer と同じ保管を見るため）。枠を決め直すのは越境の遮断と同じ段の仕事である。
-    if (store.list().length >= maxRooms) {
+    // 空いている ID が取れないときも同じく断る（#375）。**これも切り離しより先に引く**
+    // （拒否で元のルームから追い出さないため）。
+    const roomId = store.list().length >= maxRooms ? undefined : generateRoomId();
+    if (roomId === undefined) {
       sendError(ws, 'server-busy', 'ルームの上限に達しています。しばらくしてからお試しください');
       return;
     }
@@ -439,7 +451,6 @@ export function makePokerHandlers(deps: PokerHandlerDeps): PokerHandlers {
       sendError(ws, 'invalid-message', INVALID_DISPLAY_NAME_MESSAGE);
       return;
     }
-    const roomId = generateRoomId();
     const empty: MembershipRoom = {
       code: roomId,
       createdAt: wallClock.now(),

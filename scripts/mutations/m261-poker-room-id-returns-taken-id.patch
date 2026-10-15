@@ -1,0 +1,22 @@
+# 変異 261: poker のルーム ID が上限まで空かなくても、最後に引いた ID で作る
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/poker/create-sync-server.substitution.test.ts
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m261-*.patch
+# 復元: git apply -R scripts/mutations/m261-*.patch
+#
+# #375。既にあるルーム（名簿・ラウンド）を上書きする。
+diff --git a/apps/tasuki-sync/src/application/poker-handlers.ts b/apps/tasuki-sync/src/application/poker-handlers.ts
+index 18e328d..bf90e44 100644
+--- a/apps/tasuki-sync/src/application/poker-handlers.ts
++++ b/apps/tasuki-sync/src/application/poker-handlers.ts
+@@ -309,7 +309,7 @@ export function makePokerHandlers(deps: PokerHandlerDeps): PokerHandlers {
+       const id = idGen.roomIdCandidate();
+       if (store.get(id) === undefined) return id;
+     }
+-    return undefined;
++    return idGen.roomIdCandidate();
+   }
+ 
+   function sendError(ws: HandlerConnection, code: ErrorCode, message: string): void {

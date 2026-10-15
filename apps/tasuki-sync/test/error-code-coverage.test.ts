@@ -47,7 +47,7 @@ const SRC_DIR = join(import.meta.dirname, "../src");
 
 /**
  * サーバー専用として**意図的に**画面へ出さないコード。
- * 画面には既定文言（「操作を完了できませんでした。」）が出る。
+ * 画面には既定文言（「操作を完了できませんでした」）が出る。
  *
  * **ここに足すのは「利用者に詳細を見せない」という判断である。**
  * 迷ったら `packages/timer-core/src/error-messages.ts` の `ERROR_MESSAGES` 側に足して

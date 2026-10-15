@@ -1,0 +1,23 @@
+# 変異 264: 合言葉を掛けるときに長さの上限を見ない
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/passphrase-rule.test.ts
+#   - apps/tasuki-sync/test/live-ws.passphrase-limit.test.ts
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m264-*.patch
+# 復元: git apply -R scripts/mutations/m264-*.patch
+#
+# #377。上限を超える合言葉を掛けられ、どの入口からもその合言葉では入れないルームができる。
+diff --git a/apps/tasuki-sync/src/application/passphrase-rule.ts b/apps/tasuki-sync/src/application/passphrase-rule.ts
+index e70ade7..f3cb4ac 100644
+--- a/apps/tasuki-sync/src/application/passphrase-rule.ts
++++ b/apps/tasuki-sync/src/application/passphrase-rule.ts
+@@ -26,7 +26,7 @@ export function passphraseWithinLimit(cmd: Command): boolean {
+     case "room.join":
+       return cmd.passphrase === undefined || isPassphraseWithinLimit(cmd.passphrase);
+     case "room.passphrase.set":
+-      return isPassphraseWithinLimit(cmd.passphrase);
++      return true;
+     default:
+       return true;
+   }

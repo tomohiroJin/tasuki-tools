@@ -2,7 +2,7 @@
  * timer の受け口のアプリケーション側（#368 Task 2）。
  *
  * 接続層（`adapters/ws/tool-channel.ts` の timer の受け口）は、境界の検証（`CommandSchema`）を済ませた
- * コマンドを型のまま渡す。**表示名の正規化（業務の検証）はここで掛ける**。以前は接続層が掛けていたが、
+ * コマンドを型のまま渡す。**表示名の正規化と合言葉の長さの上限（業務の検証。後者は #377）はここで掛ける**。以前は接続層が掛けていたが、
  * アダプタは業務の判断を持たない（`docs/adr/0004`。アダプタの取り込み先は `test/adapter-imports.test.ts` が固定する）。
  *
  * **拒んだときのフレームは、スキーマ違反と同じ `INVALID_COMMAND`（同じ文言）である。** 正規化の置き場を
@@ -12,6 +12,7 @@
 import type { Command, ServerMsg } from "@tasuki/timer-core";
 import { connectionErrorFrame } from "./connection-errors.js";
 import { normalizeCommandNames } from "./normalize-command-names.js";
+import { passphraseWithinLimit } from "./passphrase-rule.js";
 
 export interface TimerCommandReceiverDeps {
   /** 送ってきた接続だけへ 1 通返す。 */
@@ -38,7 +39,8 @@ export interface TimerCommandReceiver {
 export function createTimerCommandReceiver(deps: TimerCommandReceiverDeps): TimerCommandReceiver {
   const handleMessage = async (connId: string, cmd: Command): Promise<void> => {
     const normalized = normalizeCommandNames(cmd);
-    if (normalized.isErr()) {
+    // 合言葉の上限（#377）も同じ `INVALID_COMMAND` へ合流させる。
+    if (normalized.isErr() || !passphraseWithinLimit(normalized.value)) {
       deps.reply(connId, connectionErrorFrame("INVALID_COMMAND"));
       return;
     }

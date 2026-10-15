@@ -1,0 +1,21 @@
+# 変異 266: 玄関の合言葉の欄に上限を掛けない
+#
+# 検出を期待するテスト:
+#   - apps/landing/tests/join-room-passphrase.test.tsx
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m266-*.patch
+# 復元: git apply -R scripts/mutations/m266-*.patch
+#
+# #377。長い合言葉を貼った人が「コマンドの形式が不正です」で断られ、理由を知る手段が無い。
+diff --git a/apps/landing/src/screens/JoinRoom.tsx b/apps/landing/src/screens/JoinRoom.tsx
+index b7e8c9b..627cd49 100644
+--- a/apps/landing/src/screens/JoinRoom.tsx
++++ b/apps/landing/src/screens/JoinRoom.tsx
+@@ -97,7 +97,6 @@ export function JoinRoom({
+               value={passphrase}
+               onChange={(e) => setPassphrase(e.target.value)}
+               autoComplete="off"
+-              maxLength={MAX_PASSPHRASE}
+             />
+           </label>
+         )}

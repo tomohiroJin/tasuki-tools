@@ -74,11 +74,12 @@ export function createRoom(
   // ルーム数上限（DoS 緩和）。上限到達時は作成を拒否する。
   if (store.list().length >= maxRooms) return err("ROOM_LIMIT_EXCEEDED");
 
-  // ルーム名があれば「slug-接尾辞」、無ければランダム。衝突時は接尾辞を引き直す。
-  let code = codeGen.generate(input.roomName);
-  for (let i = 0; i < 5 && store.get(code) !== undefined; i++) {
-    code = codeGen.generate(input.roomName);
-  }
+  const code = pickFreeCode(store, codeGen, input.roomName);
+  // **事後条件: 返すコードは空いている**（#375）。引き直しの上限まで使用中のコードしか
+  // 出なければ作らない。最後のコードで先へ進むと、呼び出し側の保管が既にあるルーム
+  // （参加者・トークン・状態）を上書きする。新しいコードを足さず「いまは作れない」の
+  // ROOM_LIMIT_EXCEEDED で断る（画面は既定の文言を出す）。
+  if (code === undefined) return err("ROOM_LIMIT_EXCEEDED");
 
   const participantId = codeGen.generateParticipantId();
   const resumeToken = codeGen.generateResumeToken();
@@ -97,4 +98,31 @@ export function createRoom(
   tokenStore.issueResume(resumeToken, { participantId, roomCode: code });
 
   return ok({ code, participantId, resumeToken, membership, createdAt: now });
+}
+
+/**
+ * コードを引く回数の上限（最初の 1 回を含む）。
+ *
+ * 接尾辞は 8 桁（32 種）・ランダムのコードは 6 桁（31 種）で、ルーム数の上限
+ * （`maxRooms`）の下では 1 回ぶつかることさえまず起きない。上限は「起きないはずの
+ * ことが起きたとき（codeGen の故障など）に止まる」ためのもので、poker の
+ * `generateRoomId` も同じ回数で打ち切る。
+ */
+export const MAX_CODE_ATTEMPTS = 6;
+
+/**
+ * 空いているコードを引く。上限まで引いても空かなければ `undefined`。
+ *
+ * ルーム名があれば「slug-接尾辞」、無ければランダム。衝突時は接尾辞を引き直す。
+ */
+function pickFreeCode(
+  store: RoomStore,
+  codeGen: RoomCodeGen,
+  roomName: string | undefined,
+): string | undefined {
+  for (let i = 0; i < MAX_CODE_ATTEMPTS; i++) {
+    const code = codeGen.generate(roomName);
+    if (store.get(code) === undefined) return code;
+  }
+  return undefined;
 }

@@ -150,6 +150,47 @@ describe('IdGen の差し替え（衝突再試行）', () => {
     expect(roomId).toBe('fresh999');
     expect(i).toBe(3);
   });
+
+  // #375: かつては `for (;;)` で空くまで引き続け、候補が尽きると止まらなかった。
+  it('Given いつも既存 ID と衝突する IdGen / When 作る / Then 上限で引き直しをやめ、server-busy で断り、既存のルームを上書きしない', () => {
+    // Given
+    const store = new InMemoryRoomStore();
+    store.put(membershipRoom('taken001', 'p'));
+    let calls = 0;
+    const idGen: IdGen = {
+      roomIdCandidate: () => {
+        calls++;
+        return 'taken001';
+      },
+      participantId: () => 'p-new',
+      token: () => 't-new',
+    };
+    const messages: ServerMessage[] = [];
+    const handlers = makePokerHandlers({
+      store,
+      rounds: new InMemoryRoundStore(),
+      tokens: createTokenStore(),
+      broadcaster: { ...nullBroadcaster(), sendTo: (_socket, msg) => void messages.push(msg) },
+      hub: spyHub(),
+      timers: new InMemoryTimerStore(),
+      timerBroadcaster: new SpyBroadcaster(),
+      idGen,
+      clock: fixedClock(0),
+      wallClock: fixedClock(0),
+      rateLimiter: alwaysAllowLimiter(),
+      maxRooms: 50,
+      topicBroadcaster: { sendCurrent: () => {} },
+    });
+
+    // When
+    handlers.handleCreateRoom(connectionOf(spySocket()), { type: 'create-room', name: 'はなこ' });
+
+    // Then
+    expect(calls).toBe(6);
+    expect(messages).toEqual([{ type: 'error', code: 'server-busy', message: expect.any(String) }]);
+    expect(store.get('taken001')?.participants.map((p) => p.displayName)).toEqual(['たろう']);
+    expect(handlers.generateRoomId()).toBeUndefined();
+  });
 });
 
 describe('MonotonicClock の差し替え（レート制限の窓の境界）', () => {

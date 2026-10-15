@@ -1,0 +1,22 @@
+# 変異 262: 玄関の room.join の合言葉に、timer と違う上限を掛ける
+#
+# 検出を期待するテスト:
+#   - packages/room-core/tests/wire.test.ts
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m262-*.patch
+# 復元: git apply -R scripts/mutations/m262-*.patch
+#
+# #377。入口ごとに合言葉の長さの契約が違う（玄関・topic・roulette だけが超過を通す）。
+diff --git a/packages/room-core/src/wire.ts b/packages/room-core/src/wire.ts
+index e731680..649946a 100644
+--- a/packages/room-core/src/wire.ts
++++ b/packages/room-core/src/wire.ts
+@@ -104,7 +104,7 @@ export const HubCommandSchema: v.GenericSchema<HubCommand> = v.variant("command"
+     displayName: v.string(),
+     resumeToken: v.optional(v.string()),
+     // 上限は timer の入口と同じ 1 つの値（`./passphrase.ts`・#377）。超えたら境界で INVALID_COMMAND。
+-    passphrase: v.optional(v.pipe(v.string(), v.maxLength(MAX_PASSPHRASE))),
++    passphrase: v.optional(v.pipe(v.string(), v.maxLength(MAX_PASSPHRASE * 2))),
+   }),
+   // **ここだけ strict にする。** 余剰フィールドを拒むのは `docs/adr/0011` 決定2 の
+   // 脅威 S3 が MUST とする規律で、poker の `ClientMessage`（`poker-core/src/protocol.ts`）は

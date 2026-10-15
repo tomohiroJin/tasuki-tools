@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { MAX_DISPLAY_NAME } from '@tasuki/room-core';
+import { MAX_DISPLAY_NAME, MAX_PASSPHRASE } from '@tasuki/room-core';
 import { HistoryLink } from './HistoryLink.js';
 
 /**
@@ -89,12 +89,15 @@ export function JoinRoom({
         {needsPassphrase && (
           <label className="hub-field">
             <span className="hub-label">合言葉</span>
+            {/* 上限の正本は `@tasuki/room-core` の `MAX_PASSPHRASE`（timer の合言葉の欄と同じ・#377）。
+                超えた合言葉はサーバーが「コマンドの形式が不正です」で断る。 */}
             <input
               className="ui-input"
               type="password"
               value={passphrase}
               onChange={(e) => setPassphrase(e.target.value)}
               autoComplete="off"
+              maxLength={MAX_PASSPHRASE}
             />
           </label>
         )}

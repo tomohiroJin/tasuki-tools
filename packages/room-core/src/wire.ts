@@ -19,6 +19,7 @@
  */
 
 import * as v from "valibot";
+import { MAX_PASSPHRASE } from "./passphrase.js";
 
 const nonEmptyString = v.pipe(v.string(), v.minLength(1));
 
@@ -102,7 +103,8 @@ export const HubCommandSchema: v.GenericSchema<HubCommand> = v.variant("command"
     code: nonEmptyString,
     displayName: v.string(),
     resumeToken: v.optional(v.string()),
-    passphrase: v.optional(v.string()),
+    // 上限は timer の入口と同じ 1 つの値（`./passphrase.ts`・#377）。超えたら境界で INVALID_COMMAND。
+    passphrase: v.optional(v.pipe(v.string(), v.maxLength(MAX_PASSPHRASE))),
   }),
   // **ここだけ strict にする。** 余剰フィールドを拒むのは `docs/adr/0011` 決定2 の
   // 脅威 S3 が MUST とする規律で、poker の `ClientMessage`（`poker-core/src/protocol.ts`）は
