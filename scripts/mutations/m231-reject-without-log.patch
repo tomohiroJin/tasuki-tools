@@ -9,8 +9,8 @@
 #
 # #381。かつて timer だけが reject でログを残さなかった。非同期の失敗が無言になる状態（#381 以前の timer）に戻る。
 diff --git a/apps/tasuki-sync/src/adapters/ws/tool-channel.ts b/apps/tasuki-sync/src/adapters/ws/tool-channel.ts
---- a/apps/tasuki-sync/src/adapters/ws/tool-channel.ts	2026-10-15 09:08:51.971901132 +0900
-+++ b/apps/tasuki-sync/src/adapters/ws/tool-channel.ts	2026-10-15 09:08:51.973914981 +0900
+--- a/apps/tasuki-sync/src/adapters/ws/tool-channel.ts
++++ b/apps/tasuki-sync/src/adapters/ws/tool-channel.ts
 @@ -87,8 +87,7 @@
          return;
        }
