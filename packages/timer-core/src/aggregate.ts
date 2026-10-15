@@ -33,7 +33,10 @@ export function rotationEntryId(entry: RotationEntry): string {
 interface SessionState {
   /** ローテーション順の席（#95 S4a・D6） */
   rotation: RotationEntry[];
-  /** 現ドライバーのインデックス */
+  /**
+   * 現ドライバーのインデックス。
+   * 不変条件: 輪が空なら 0、それ以外は `0 ≤ currentIndex < rotation.length` の整数（#376）。
+   */
   currentIndex: number;
   /** 一時停止フラグ */
   isPaused: boolean;
@@ -284,6 +287,58 @@ export function nextEligibleIndex(
   }
   // 全員 ineligible → 現状維持
   return currentIndex;
+}
+
+/**
+ * 輪の席を指す添字か（整数で `0 ≤ i < len`）。#376。
+ *
+ * **decide と evolve が同じこの述語を使う。** decide は範囲外を `InvalidIndex` で拒み、
+ * evolve は範囲外を持つイベントを黙って無視する（集約をそのまま返す）。述語を 1 本にしておくと、
+ * 「decide は通したのに evolve が無視する」「decide は拒むのに evolve は適用する」の食い違いが起きない。
+ * 整数でない添字も拒む —— 配列の添字としては切り捨てられ、別の席を指してしまう。
+ */
+export function isSeatIndex(i: number, len: number): boolean {
+  return Number.isInteger(i) && i >= 0 && i < len;
+}
+
+/**
+ * 輪の長さが `len` のときに `currentIndex` として正しい値か（`SessionState.currentIndex` の不変条件。#376）。
+ * 空の輪なら 0 だけ、それ以外は席の添字。
+ */
+export function isCurrentIndexFor(i: number, len: number): boolean {
+  return len === 0 ? i === 0 : isSeatIndex(i, len);
+}
+
+/** `order` が `[0..len-1]` の順列か（長さが同じ・全部が席の添字・重複が無い）。decide と evolve が共有する（#376）。 */
+export function isPermutation(order: readonly number[], len: number): boolean {
+  return order.length === len && order.every((i) => isSeatIndex(i, len)) && new Set(order).size === len;
+}
+
+/**
+ * 運転中の人の席（`removedIndex`）を外したとき、次に担当になる席を**外した後の添字**で返す（#376）。
+ *
+ * 交代と同じ資格の規則（{@link nextEligibleIndex}）で、外れた席の次から適格な人を探す。
+ * 適格な人が居なければ、位置で次の席（末尾なら先頭）にする —— 交代なら「現状維持」になる場面だが、
+ * 外れた人の席には留まれないので、`ineligible` を省いたとき（=全員が適格）と同じ席へ倒す。
+ * 外した後の輪が空なら 0。
+ *
+ * どの入力でも NaN を返さない。外す席の添字が範囲外（空の輪を含む）なら、何も外れないので
+ * いまの担当（`currentIndex`）を返す。
+ *
+ * @param ineligible 交代先にしない席（外す前の添字。undefined = 全員適格）
+ */
+export function nextDriverAfterRemoval(
+  session: Pick<SessionState, "rotation" | "currentIndex">,
+  removedIndex: number,
+  ineligible: ReadonlySet<number> | undefined,
+): number {
+  const len = session.rotation.length;
+  if (!isSeatIndex(removedIndex, len)) return session.currentIndex;
+  // 適格な人が居なければ nextEligibleIndex は外した席そのものを返す（外した席を飛ばすかどうかに関わらない）。
+  // 長さ 1 なら外した席しか無いので、位置で次の席 (0 + 1) % 1 = 0 になる。
+  const found = nextEligibleIndex(session, removedIndex, ineligible);
+  const chosen = found === removedIndex ? (removedIndex + 1) % len : found;
+  return chosen > removedIndex ? chosen - 1 : chosen;
 }
 
 /** 交代間隔として許容される分の一覧 */

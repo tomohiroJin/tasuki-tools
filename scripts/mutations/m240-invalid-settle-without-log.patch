@@ -1,0 +1,23 @@
+# 変異 240: invalid-settle-without-log
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/roulette-handlers.test.ts
+#
+# #382。INVALID_SETTLE を受けても行を残さない（元の欠陥）。内部の誤りを本番で知る手がかりが無くなる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m240-*.patch
+# 復元: git apply -R scripts/mutations/m240-*.patch
+diff --git a/apps/tasuki-sync/src/application/roulette-handlers.ts b/apps/tasuki-sync/src/application/roulette-handlers.ts
+index 90ce5b2b..42663379 100644
+--- a/apps/tasuki-sync/src/application/roulette-handlers.ts
++++ b/apps/tasuki-sync/src/application/roulette-handlers.ts
+@@ -188,7 +188,7 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
+               // 接続層の行は #381 で `protocol` を持ったので、この写しもそろえる。
+               logger.error("on-message-error", { name: ERROR_NAMES.rangeError, protocol: PROTOCOL_LOG_NAMES.roulette });
+             }
+-            logger.error("roulette-random-violation", { reason: violation.reason });
++            void violation;
+             fail(connId, "INTERNAL_ERROR");
+             return;
+           }

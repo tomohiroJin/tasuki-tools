@@ -15,6 +15,9 @@ import { TOOL_POKER, TOOL_ROULETTE, TOOL_TIMER, TOOL_TOPIC } from "../../applica
  */
 export type Protocol = "timer" | "poker" | "topic" | "roulette" | "hub" | "unknown";
 
+/** 受け口の表の鍵になる、受理するプロトコル（`unknown` を除く）。 */
+export type AcceptedProtocol = Exclude<Protocol, "unknown">;
+
 /** 接続 URL のクエリでツールを宣言するキー（`/ws?tool=poker`）。 */
 const TOOL_QUERY_KEY = "tool";
 

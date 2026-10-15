@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it, spyOn } from "bun:test";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
 import { createTokenBucketLimiter, DEFAULT_CAPACITY, DEFAULT_REFILL_PER_SEC } from "@tasuki/rate-limit";
 import { MAX_DISPLAY_NAME } from "@tasuki/room-core";
-import type { RouletteView } from "@tasuki/roulette-core";
+import { SETTLE_MAX, SETTLE_MIN, type RouletteView } from "@tasuki/roulette-core";
 import { makeRouletteHandlers } from "../src/application/roulette-handlers.js";
 import { makeRouletteBroadcaster } from "../src/application/roulette-broadcast.js";
 import { createRateLimitGate } from "../src/application/rate-limit-gate.js";
@@ -43,11 +43,15 @@ interface Harness {
   randomCalls: number[];
   /** ロガーへ書かれた行（`水準 行` の形） */
   logLines: string[];
+  /** 以降の `randomSettle` の返り値を変える */
+  setSettle: (value: number) => void;
 }
 
 interface SetupOptions {
   /** 乱数源の `randomInt` が返す値。既定は 0（最悪の偏り） */
   randomIntReturns?: number;
+  /** 乱数源の `randomSettle` が返す値。既定は 0.5（契約の範囲内） */
+  randomSettleReturns?: number;
 }
 
 function setup(options: SetupOptions = {}): Harness {
@@ -55,6 +59,7 @@ function setup(options: SetupOptions = {}): Harness {
   const roulettes = new InMemoryRouletteStore();
   const sent: Sent[] = [];
   const randomCalls: number[] = [];
+  let settle = options.randomSettleReturns ?? 0.5;
   let now = 5_000;
   const monotonicClock: MonotonicClock = { now: () => now };
   const random: RandomSource = {
@@ -62,7 +67,7 @@ function setup(options: SetupOptions = {}): Harness {
       randomCalls.push(n);
       return options.randomIntReturns ?? 0;
     },
-    randomSettle: () => 0.5,
+    randomSettle: () => settle,
   };
   const record = (ids: string[], msg: RouletteServerMsg): void => {
     for (const connId of ids) sent.push({ connId, msg });
@@ -99,6 +104,9 @@ function setup(options: SetupOptions = {}): Harness {
     },
     randomCalls,
     logLines,
+    setSettle: (value) => {
+      settle = value;
+    },
   };
 }
 
@@ -217,8 +225,8 @@ describe("回す", () => {
     expect(winners[0]).not.toBe(winners[1]);
   });
 
-  it("Given 乱数源が範囲外を返す / When 回す / Then INTERNAL_ERROR を返し、ログに on-message-error name=RangeError を 1 行残す（#364）", async () => {
-    // #364 より前は、ドメインが RangeError を投げ、接続層（ws-adapter.ts の handleRouletteMessage）が
+  it("Given 乱数源が範囲外を返す / When 回す / Then INTERNAL_ERROR を返し、ログに on-message-error name=RangeError protocol=roulette と reason=invalid-random の 2 行を残す（#364・#382）", async () => {
+    // #364 より前は、ドメインが RangeError を投げ、接続層（adapters/ws/tool-channel.ts）が
     // 隔離して「ログ → エラーフレーム」を返していた。ドメインが Result を返すようになっても、
     // フレームとログの行（中身・水準・順）は変えない（計画 §3「ログを保つ」）。
     // Given
@@ -226,6 +234,7 @@ describe("回す", () => {
     await joined(h, "r-1", "Alice");
     await joined(h, "r-2", "Bob");
     const before = h.roulettes.get(ROOM);
+    const put = spyOn(h.roulettes, "put");
 
     // When
     await h.handle("r-1", { command: "roulette.spin" });
@@ -237,8 +246,104 @@ describe("回す", () => {
         msg: { type: "error", code: "INTERNAL_ERROR", message: "サーバー内部でエラーが発生しました" },
       },
     ]);
-    expect(h.logLines).toEqual(["error on-message-error name=RangeError"]);
+    // 既存の行（先頭）は変えず、監視が 1 本で拾える reason 付きの行をその次に足す（#382）
+    expect(h.logLines).toEqual([
+      "error on-message-error name=RangeError protocol=roulette",
+      "error roulette-random-violation reason=invalid-random",
+    ]);
     expect(h.roulettes.get(ROOM)).toBe(before);
+    expect(put).not.toHaveBeenCalled();
+  });
+
+  // 契約は SETTLE_MIN〜SETTLE_MAX。境界の値は含み、すぐ外（境界から計算した隣の浮動小数）・非有限は外れる。
+  const nextUp = (x: number): number => {
+    const f = new Float64Array([x]);
+    new BigInt64Array(f.buffer)[0]! += 1n;
+    return f[0]!;
+  };
+  const nextDown = (x: number): number => {
+    const f = new Float64Array([x]);
+    new BigInt64Array(f.buffer)[0]! -= 1n;
+    return f[0]!;
+  };
+  const SETTLE_CASES: { settle: number; violates: boolean }[] = [
+    { settle: SETTLE_MIN, violates: false },
+    { settle: SETTLE_MAX, violates: false },
+    { settle: nextDown(SETTLE_MIN), violates: true },
+    { settle: nextUp(SETTLE_MAX), violates: true },
+    { settle: 0.1, violates: true },
+    { settle: 0.9, violates: true },
+    { settle: Number.NaN, violates: true },
+    { settle: Number.POSITIVE_INFINITY, violates: true },
+    { settle: Number.NEGATIVE_INFINITY, violates: true },
+  ];
+  for (const { settle, violates } of SETTLE_CASES) {
+    it(`Given 乱数源の settle が ${String(settle)} / When 回す / Then ${violates ? "INTERNAL_ERROR と reason 付きの error 1 行（#382）" : "成功しログは空"}`, async () => {
+      // Given
+      const h = setup({ randomSettleReturns: settle });
+      await joined(h, "r-1", "Alice");
+      await joined(h, "r-2", "Bob");
+      const before = h.roulettes.get(ROOM);
+      const put = spyOn(h.roulettes, "put");
+
+      // When
+      await h.handle("r-1", { command: "roulette.spin" });
+
+      // Then
+      if (violates) {
+        expect(h.sent).toEqual([
+          {
+            connId: "r-1",
+            msg: { type: "error", code: "INTERNAL_ERROR", message: "サーバー内部でエラーが発生しました" },
+          },
+        ]);
+        expect(h.logLines).toEqual(["error roulette-random-violation reason=invalid-settle"]);
+        expect(h.roulettes.get(ROOM)).toBe(before);
+        // 保管の書き込みそのものが起きない（同じ参照に書き戻すだけの実装も弾く）
+        expect(put).not.toHaveBeenCalled();
+      } else {
+        expect(h.logLines).toEqual([]);
+        expect(put).toHaveBeenCalledTimes(1);
+        expect(h.roulettes.get(ROOM)!.lastSpin!.seq).toBe(1);
+      }
+    });
+  }
+
+  it("Given 既存の状態があるルーム / When 契約違反の乱数で回す / Then 保管の書き込みも状態の変化も起きない（#382）", async () => {
+    // Given: 1 回成功した後、回転が終わるまで待つ。その後で乱数源が契約を破る
+    const h = setup();
+    await joined(h, "r-1", "Alice");
+    await joined(h, "r-2", "Bob");
+    await h.handle("r-1", { command: "roulette.spin" });
+    h.advance(viewsTo(h, "r-1")[0]!.spin!.durationMs);
+    h.sent.length = 0;
+    const before = h.roulettes.get(ROOM);
+    expect(before).toBeDefined();
+    const put = spyOn(h.roulettes, "put");
+    h.setSettle(SETTLE_MAX + 0.1);
+
+    // When
+    await h.handle("r-1", { command: "roulette.spin" });
+
+    // Then
+    expect(errorsTo(h, "r-1")).toEqual(["INTERNAL_ERROR"]);
+    expect(h.logLines).toEqual(["error roulette-random-violation reason=invalid-settle"]);
+    expect(put).not.toHaveBeenCalled();
+    expect(h.roulettes.get(ROOM)).toBe(before);
+  });
+
+  it("Given 利用者の操作で回せない（人数不足）/ When 回す / Then ROULETTE_TOO_FEW を返し、ログは空（#382）", async () => {
+    // INVALID_SETTLE の分岐が他の失敗まで巻き込んでログを書かないことを固定する。
+    // Given: 1 人だけ
+    const h = setup();
+    await joined(h, "r-1", "Alice");
+
+    // When
+    await h.handle("r-1", { command: "roulette.spin" });
+
+    // Then
+    expect(h.sent.map((s) => (s.msg.type === "error" ? s.msg.code : s.msg.type))).toEqual(["ROULETTE_TOO_FEW"]);
+    expect(h.logLines).toEqual([]);
   });
 
   it("回すと、同じルームの全ルーレット接続へ同じ seq・winnerIndex・settle・回した人が届く", async () => {

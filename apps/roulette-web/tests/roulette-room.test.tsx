@@ -4,6 +4,7 @@
  */
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { MAX_DISPLAY_NAME } from '@tasuki/room-core';
 import { saveResumeIdentity } from '@tasuki/sync-client';
 import { App } from '../src/App';
 import {
@@ -232,6 +233,15 @@ describe('回す・入る人・一周の操作', () => {
     // Then
     expect(latestSocket().sentJson().at(-1)).toEqual({ command: 'roulette.guest.add', name: 'はな' });
     expect(input).toHaveValue('');
+  });
+
+  it('Given ゲストの名前欄 / When 上限を見る / Then 表示名の規約の上限と同じ字数まで打てる（#373）', () => {
+    // Given / When
+    enterRoom();
+    const input = screen.getByLabelText<HTMLInputElement>(GUEST_HINT);
+    // Then: 自前の数字ではなく正本（`MAX_DISPLAY_NAME`）と突き合わせる。jsdom の fireEvent は
+    // maxLength を無視して値を入れてしまうので、打てる字数は属性で見る（24 字で切れていた欠陥の赤）
+    expect(input.maxLength).toBe(MAX_DISPLAY_NAME);
   });
 
   it('Given ゲストが 2 人 / When 消すボタンを見る / Then 名前で区別でき、押すと消すコマンドを送る', () => {

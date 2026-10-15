@@ -167,7 +167,7 @@ interface RouletteState {    // ルームごとに 1 つ
 **PR 1 の実装で決めたこと**（2026-10-12）:
 
 - **公開契約（`src/index.ts`）に `drawWinner` と `isSpinning` を載せない。** どちらも `startSpin` の内側でだけ使い、製品コードの使い手が居ない（公開契約の指標 SC-039 を後退させない）。テストはモジュールから直接読む。web が「回っているか」を知るのは wire の `elapsedMs < durationMs` から（§5.3）
-- **`startSpin` は `settle` が `SETTLE_MIN`〜`SETTLE_MAX` の外なら `INVALID_SETTLE` を返す**（ドメインのエラーコード `RouletteDomainErrorCode`）。乱数源（`adapters/crypto-random-source.ts`）が契約を破ったときだけ起きる内部の誤りで、利用者の操作では起きない。**wire の `ROULETTE_ERROR_CODES` には載せず、同期サーバーが `INTERNAL_ERROR` に畳んで返す**（`application/roulette-handlers.ts`）
+- **`startSpin` は `settle` が `SETTLE_MIN`〜`SETTLE_MAX` の外なら `INVALID_SETTLE` を返す**（ドメインのエラーコード `RouletteDomainErrorCode`）。乱数源（`adapters/crypto-random-source.ts`）が契約を破ったときだけ起きる内部の誤りで、利用者の操作では起きない。**wire の `ROULETTE_ERROR_CODES` には載せず、同期サーバーが `INTERNAL_ERROR` に畳んで返す**（`application/roulette-handlers.ts`）。**畳むときはログを 1 行残す**（#382）: イベント名 `roulette-random-violation`・`reason=invalid-settle`（`randomInt` の契約違反は `reason=invalid-random`。こちらは例外だった頃の `on-message-error name=RangeError` の行も保つ）・水準 error。`reason` は語彙（`application/log/vocabulary.ts` の `RANDOM_VIOLATION_REASONS`）から引き、自由文・値は載せない
 - **遷移関数のエラーの型は、その関数が返しうるコードへ絞る**（`RouletteError<C>`）。`addGuest` は `TOO_MANY_GUESTS` / `GUEST_NAME_TAKEN` だけを返す型にし、呼び出し側に到達しない `INVALID_SETTLE` の分岐を書かせない（PR #355 のレビュー）
 - **変わらない操作は同じ参照を返す**（`setIncluded`・`removeGuest`・`resetCycle`・`prune`）。同期サーバーが参照で「変わっていないので保管も配信もしない」を判定する（§5.2）
 - **`INITIAL_ROULETTE_STATE` は凍結する（配列も）。** 全ルームで同じ参照を共有するので、書き換えると状態の無いすべてのルームへ漏れる。状態の配列は `readonly` にした（遷移関数は新しい配列を作る）

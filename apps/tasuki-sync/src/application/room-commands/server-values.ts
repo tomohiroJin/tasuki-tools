@@ -30,6 +30,10 @@ export function fillServerValues(draft: DomainCommandDraft, sources: ServerValue
       // 交代先の決定は decide 自身（nextEligibleIndex 経由）に一本化されたため、ここでは
       // ineligible を decide への入力として注入するだけで、決定結果を後から差し替えない。
       return draft.action === "SWITCH" ? { ...draft, ineligible: sources.ineligible() } : draft;
+    case "member.remove":
+      // 運転中の人が外れたときの次の担当も、交代と同じ資格の規則で選ぶ（#376）。
+      // 以前は位置で次の席になり、一時離脱・不在の人に運転が回った。
+      return { ...draft, ineligible: sources.ineligible() };
     default:
       return draft;
   }

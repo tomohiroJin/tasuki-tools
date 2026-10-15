@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { errorMessageFor } from "@tasuki/timer-core";
 import { baseFaces, outsideBase } from "../support/font-base.js";
 import { TOPIC_CARD_HEADING, TOPIC_CLOSE, TOPIC_READ_MORE } from "../../src/ui/components/TopicCard.js";
 
@@ -20,5 +21,20 @@ describe("お題の札の文言は書体の常用の層に収まる", () => {
     const outside = outsideBase([TOPIC_CARD_HEADING, TOPIC_READ_MORE, TOPIC_CLOSE]);
     // Then
     expect(outside).toEqual([]);
+  });
+});
+
+/**
+ * 空の輪の拒否の文言（#376）。通常の経路からは届かないが、届いたときに書体の拡張の層を引かない。
+ * 表（`ERROR_MESSAGES`）の既存の文言には base 層から外れる字を持つものがあるので、表ごとではなく
+ * このコードの文言だけを見る。
+ */
+describe("空の輪の拒否の文言は書体の常用の層に収まる（#376）", () => {
+  it("Given EmptyRotation の文言 / When 常用の層の範囲に当てる / Then 外れる字は無い", () => {
+    // Given
+    const text = errorMessageFor("EmptyRotation");
+    // When / Then（既定の文言へ落ちていないことも見る。落ちていると、このコードの文言を測っていない）
+    expect(text).not.toBe(errorMessageFor("__unknown__"));
+    expect(outsideBase([text])).toEqual([]);
   });
 });

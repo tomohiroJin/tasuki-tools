@@ -25,8 +25,8 @@ import type { BoundaryStage } from "@tasuki/protocol";
 /**
  * 接続層のエラーの文言（timer の系統で共通のもの）。
  *
- * `INTERNAL_ERROR` はハブ・お題・ルーレットの文である。timer だけは {@link TIMER_INTERNAL_ERROR_TEXT}
- * を返す（違いの扱いは #381）。
+ * `INTERNAL_ERROR` を含め、timer・ハブ・お題・ルーレットの 4 つの接続で同じ文を返す（#381）。
+ * かつて timer だけ別の文（旧い文は `connection-error-text-sources.test.ts` の `RETIRED_TEXTS`）だったが、この文にそろえた。
  */
 export const CONNECTION_ERROR_TEXT = {
   INVALID_JSON: "JSON の形式が不正です",
@@ -45,15 +45,6 @@ export type ConnectionErrorCode = keyof typeof CONNECTION_ERROR_TEXT;
 export function connectionErrorFrame<C extends ConnectionErrorCode>(code: C): { type: "error"; code: C; message: string } {
   return { type: "error", code, message: CONNECTION_ERROR_TEXT[code] };
 }
-
-/**
- * timer の接続でメッセージ層が失敗したときの文言。
- *
- * **ほかの接続（{@link CONNECTION_ERROR_TEXT} の `INTERNAL_ERROR`）と文が違う。** 2026-10-13 に
- * wire の文言を固定する特性テストを書いて見つけた。リファクタリング（#362）では変えずに残し、
- * そろえるかどうかは #381 で決める。
- */
-export const TIMER_INTERNAL_ERROR_TEXT = "内部エラーが発生しました";
 
 /**
  * 境界の解析で落ちた段から、返すエラーコードを決める（timer の系統の決めごと）。

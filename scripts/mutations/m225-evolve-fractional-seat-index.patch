@@ -1,0 +1,24 @@
+# 変異 225: 整数でない添字を席の添字として受け入れる
+#
+# 検出を期待するテスト:
+#   - packages/timer-core/test/decide.test.ts
+#   - packages/timer-core/test/evolve.test.ts
+#   - packages/timer-core/test/properties.test.ts
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m225-*.patch
+# 復元: git apply -R scripts/mutations/m225-*.patch
+#
+# #376（PR #392）。decide と evolve が共有する述語。0.5 は splice が 0 に切り捨て、先頭の席を動かす。
+diff --git a/packages/timer-core/src/aggregate.ts b/packages/timer-core/src/aggregate.ts
+index eebcf37..4a25372 100644
+--- a/packages/timer-core/src/aggregate.ts
++++ b/packages/timer-core/src/aggregate.ts
+@@ -283,7 +283,7 @@ export function nextEligibleIndex(
+  * 整数でない添字も拒む —— 配列の添字としては切り捨てられ、別の席を指してしまう。
+  */
+ export function isSeatIndex(i: number, len: number): boolean {
+-  return Number.isInteger(i) && i >= 0 && i < len;
++  return i >= 0 && i < len;
+ }
+ 
+ /**

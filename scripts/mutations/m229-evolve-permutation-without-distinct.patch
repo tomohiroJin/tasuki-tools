@@ -1,0 +1,24 @@
+# 変異 229: 順列の判定から重複の無さを外す
+#
+# 検出を期待するテスト:
+#   - packages/timer-core/test/decide.test.ts
+#   - packages/timer-core/test/evolve.test.ts
+#   - packages/timer-core/test/properties.test.ts
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m229-*.patch
+# 復元: git apply -R scripts/mutations/m229-*.patch
+#
+# #376（PR #392）。重複する order を順列とみなし、同じ席が 2 つ並び別の席が消える。
+diff --git a/packages/timer-core/src/aggregate.ts b/packages/timer-core/src/aggregate.ts
+index 470e326..433e1b0 100644
+--- a/packages/timer-core/src/aggregate.ts
++++ b/packages/timer-core/src/aggregate.ts
+@@ -288,7 +288,7 @@ export function isSeatIndex(i: number, len: number): boolean {
+ 
+ /** `order` が `[0..len-1]` の順列か（長さが同じ・全部が席の添字・重複が無い）。decide と evolve が共有する（#376）。 */
+ export function isPermutation(order: readonly number[], len: number): boolean {
+-  return order.length === len && order.every((i) => isSeatIndex(i, len)) && new Set(order).size === len;
++  return order.length === len && order.every((i) => isSeatIndex(i, len));
+ }
+ 
+ /**

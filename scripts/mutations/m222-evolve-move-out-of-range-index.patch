@@ -1,0 +1,24 @@
+# 変異 222: 範囲外の添字の MemberMoved を無視しない
+#
+# 検出を期待するテスト:
+#   - packages/timer-core/test/evolve.test.ts
+#     「evolve: 範囲外の添字の MemberRemoved / MemberMoved は集約を変えない（#376）」の MemberMoved
+#   - packages/timer-core/test/properties.test.ts
+#     「evolve に直接流すイベントの列での不変条件（#376）」
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m222-*.patch
+# 復元: git apply -R scripts/mutations/m222-*.patch
+#
+# #376（PR #392 のレビュー）。負の添字は splice が末尾から数え、整数でない添字は切り捨てられて、別の席を動かす。
+diff --git a/packages/timer-core/src/evolve.ts b/packages/timer-core/src/evolve.ts
+index 6d19dc3..0c824dd 100644
+--- a/packages/timer-core/src/evolve.ts
++++ b/packages/timer-core/src/evolve.ts
+@@ -386,7 +386,6 @@ function evolveMemberMoved(
+   toIndex: number,
+ ): Aggregate {
+   const len = agg.session.rotation.length;
+-  if (!isSeatIndex(fromIndex, len) || !isSeatIndex(toIndex, len)) return agg;
+   const newRotation = [...agg.session.rotation];
+   const newDriverCounts = [...agg.session.driverCounts];
+ 

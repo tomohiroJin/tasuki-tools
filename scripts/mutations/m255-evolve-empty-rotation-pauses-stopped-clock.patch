@@ -1,0 +1,22 @@
+# 変異 255: 止まっている時計にも空の輪で一時停止を立てる
+#
+# 検出を期待するテスト:
+#   - packages/timer-core/test/evolve.test.ts
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m255-*.patch
+# 復元: git apply -R scripts/mutations/m255-*.patch
+#
+# #376（PR #392 の 2 巡目）。休憩中に輪が空になると一時停止が立ち、席を足し直しても BreakEnded で走り出せない。
+diff --git a/packages/timer-core/src/evolve.ts b/packages/timer-core/src/evolve.ts
+index aa54001..b517ae5 100644
+--- a/packages/timer-core/src/evolve.ts
++++ b/packages/timer-core/src/evolve.ts
+@@ -66,7 +66,7 @@ export function evolve(agg: Aggregate, event: DomainEvent, _now: number): Aggreg
+  * `decide` は最後の 1 人の member.remove を拒むので、通常の経路からは届かない。
+  */
+ function stopWithoutDriver(agg: Aggregate, now: number): Aggregate {
+-  if (agg.session.rotation.length > 0 || !agg.clock.running) return agg;
++  if (agg.session.rotation.length > 0) return agg;
+   return {
+     session: { ...agg.session, isPaused: true },
+     clock: freezeRunningClock(agg.clock, now),

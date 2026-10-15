@@ -10,13 +10,14 @@
 #
 # #374（PR #396 のレビュー）。新しい運転者のナビに 2 つ前の人が出る。
 diff --git a/packages/timer-core/src/evolve.ts b/packages/timer-core/src/evolve.ts
+index 22410b30..c9e5a949 100644
 --- a/packages/timer-core/src/evolve.ts
 +++ b/packages/timer-core/src/evolve.ts
-@@ -356,7 +356,7 @@
+@@ -403,7 +403,7 @@ function evolveMemberRemoved(agg: Aggregate, index: number, nextDriverIndex: num
    // 外したその人を直前のドライバーにすると、入れ直したとき開始直後からナビに出る（PR #396 のレビュー）。
-   const removedEntry = agg.session.rotation[index];
+   const removedEntry = rotation[index];
    const previousDriverId =
--    index === agg.session.currentIndex && removedEntry !== undefined && sessionHasStarted(agg)
+-    index === currentIndex && removedEntry !== undefined && sessionHasStarted(agg)
 +    false && removedEntry !== undefined && sessionHasStarted(agg)
        ? rotationEntryId(removedEntry)
        : agg.session.previousDriverId;

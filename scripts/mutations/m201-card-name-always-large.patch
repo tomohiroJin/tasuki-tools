@@ -1,0 +1,22 @@
+# 変異 201: 結果の札の名前を、長さによらず最大の段（lg）で描く
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/card-name-size.test.ts
+#     「cardNameSize」の境目の表
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m201-*.patch
+# 復元: git apply -R scripts/mutations/m201-*.patch
+#
+# #373。長い名前が札の上下にはみ出し、直下の一言と「もう一度回す」に重なる。
+diff --git a/apps/roulette-web/src/card-name-size.ts b/apps/roulette-web/src/card-name-size.ts
+index 20436cf0..2075214a 100644
+--- a/apps/roulette-web/src/card-name-size.ts
++++ b/apps/roulette-web/src/card-name-size.ts
+@@ -30,6 +30,7 @@ export function displayWidthOf(name: string): number {
+ 
+ export function cardNameSize(name: string): CardNameSize {
+   const width = displayWidthOf(name);
++  return 'lg';
+   if (width <= CARD_NAME_TIER_LIMITS.lg) return 'lg';
+   if (width <= CARD_NAME_TIER_LIMITS.md) return 'md';
+   return 'sm';

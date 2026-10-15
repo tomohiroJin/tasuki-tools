@@ -22,6 +22,12 @@
  *       `docs/plans/codebase-refactoring/plan.md` の作業記録であり、以後に
  *       書き換えた実装（ADR-0006 決定 4 が変異を要求する）はそこに追記されない。
  */
+const RESERVED_220_229 =
+  "**対応表より後に足した変異。** 200〜249 は 2026-10-15 の並列修正（#373・#374・#376・#381・#382）に 10 ずつ割り当てた予約の範囲（#376 は 220〜229）。";
+
+const RESERVED_250_259 =
+  "**対応表より後に足した変異。** 250〜259 は 2026-10-15 の並列修正で #376 に追加で割り当てた予約の範囲（220〜229 が埋まったため）。";
+
 export const MUTATIONS = [
   {
     id: 1,
@@ -1643,6 +1649,368 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["lib/mutation-select.test.mjs"],
     note: "#387。**対応表より後に足した変異。** 機構を変えた枝で、変えた機構の影響を手元で見ない。",
+  },
+  {
+    id: 240,
+    label: "INVALID_SETTLE を受けてもログを残さない",
+    patch: "m240-invalid-settle-without-log.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/roulette-handlers.test.ts"],
+    note: "#382。**対応表より後に足した変異。** 乱数源の契約違反の片方だけが痕跡を残さない元の欠陥。内部の誤りを本番で知る手がかりが消える。",
+  },
+  {
+    id: 241,
+    label: "INVALID_SETTLE のログを error より軽い水準にする",
+    patch: "m241-invalid-settle-log-below-error.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/roulette-handlers.test.ts"],
+    note: "#382。**対応表より後に足した変異。** INVALID_RANDOM の行（error）と水準を揃える。warn では error を拾う監視から外れる。",
+  },
+  {
+    id: 242,
+    label: "INVALID_SETTLE を INVALID_RANDOM と同じ行で残す",
+    patch: "m242-invalid-settle-logs-as-range-error.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/roulette-handlers.test.ts"],
+    note: "#382。**対応表より後に足した変異。** 2 つの契約違反がログで区別できなくなる（理由を語彙に置いた意味が消える）。",
+  },
+  {
+    id: 243,
+    label: "乱数源の契約違反の判定を全失敗に広げる",
+    patch: "m243-violation-check-always-true.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/roulette-handlers.test.ts"],
+    note: "#382（/code-review）。**対応表より後に足した変異。** `isRandomViolation` を常に真にする。人数不足など利用者の操作で起きる失敗が、契約違反として扱われる（本物の違反でない失敗にログと INTERNAL_ERROR を返す）。",
+  },
+  {
+    id: 244,
+    label: "INVALID_RANDOM の reason を invalid-settle にする",
+    patch: "m244-invalid-random-reason-is-invalid-settle.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/roulette-handlers.test.ts"],
+    note: "#382（/code-review）。**対応表より後に足した変異。** 監視が reason で 2 つの契約違反を区別できなくなる。",
+  },
+  {
+    id: 230,
+    label: "timer の内部エラーが、また timer だけの別の文を返す",
+    patch: "m230-timer-internal-error-own-text.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/connection-error-text.test.ts", "test/connection-error-text-sources.test.ts"],
+    note:
+      "#381。**対応表より後に足した変異。** timer の内部エラーのフレームを正本（`connectionErrorFrame`）から" +
+      "取らず「内部エラーが発生しました」を直書きすると、timer だけ文が違う状態（#381 以前）に戻る。",
+  },
+  {
+    id: 231,
+    label: "メッセージ層の reject で on-message-error を残さない",
+    patch: "m231-reject-without-log.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/connection-error-text.test.ts"],
+    note:
+      "#381。**対応表より後に足した変異。** 非同期の失敗（reject）のログを落とすと、かつての timer のように" +
+      "失敗が無言になる。4 つの接続で同じログが出ることを固定したテストが検出する。",
+  },
+  {
+    id: 232,
+    label: "on-message-error に、どの接続の失敗かを示す protocol を出さない",
+    patch: "m232-log-without-protocol.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/connection-error-text.test.ts", "test/ws-adapter.message.test.ts"],
+    note:
+      "#381。**対応表より後に足した変異。** 4 つの接続が同じログ行を出すので、`protocol` が無いと" +
+      "ログからどの接続の失敗か分からない。接続ごとの `protocol` の値を固定したテストが検出する。",
+  },
+  {
+    id: 233,
+    label: "poker の失敗のログに protocol を出さない",
+    patch: "m233-poker-log-without-protocol.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/ws-adapter.message.test.ts", "test/connection-error-text.test.ts"],
+    note:
+      "#381。**対応表より後に足した変異。** poker の受け口は `createTextChannel` ではなく自前の `try/catch` でログを" +
+      "出すので、m232 では検出されない。poker の隔離のテストが `protocol=poker` を固定している。",
+  },
+  {
+    id: 234,
+    label: "poker の close 失敗のログに protocol を出さない",
+    patch: "m234-poker-close-failure-log-without-protocol.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/connection-error-text.test.ts"],
+    note:
+      "#381。**対応表より後に足した変異。** m233 は poker の失敗の 1 行目だけで、close 自体の失敗の 2 行目は" +
+      "実 WS では起こしにくい。受け口を直接呼び、close も throw させるテストが検出する。",
+  },
+  {
+    id: 200,
+    label: "ルーレットのゲストの名前欄の上限を、表示名の規約でなく 24 に戻す",
+    patch: "m200-roulette-guest-name-cap-24.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/roulette-room.test.tsx"],
+    note: "#373。輪に載せられる数の上限（24）と取り違え、25〜40 字の名前を入れられなかった。",
+  },
+  {
+    id: 201,
+    label: "結果の札の名前を、長さによらず最大の段（lg）で描く",
+    patch: "m201-card-name-always-large.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/card-name-size.test.ts"],
+    note: "#373。40 字の名前が札の上下にはみ出し、一言と回すボタンに重なる。",
+  },
+  {
+    id: 202,
+    label: "結果の札が名前の段（data-size）を付けない",
+    patch: "m202-result-card-without-data-size.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/result-card.test.tsx"],
+    note: "#373。段の選び方が正しくても描画に届かず、長い名前が札からはみ出す。",
+  },
+  {
+    id: 203,
+    label: "札の名前の表示幅を、書記素でなくコードポイントで数える",
+    patch: "m203-card-name-counts-code-points.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/card-name-size.test.ts"],
+    note: "#373。ZWJ の絵文字・国旗が複数字と数えられ、段が不必要に下がる。",
+  },
+  {
+    id: 204,
+    label: "最大の段（lg）の名前の要素から 2 行の line-clamp を外す",
+    patch: "m204-card-name-lg-without-clamp.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/result-card.test.tsx"],
+    note: "#373。幅の広い欧文が札の上下にはみ出す安全網が無くなる。",
+  },
+  {
+    id: 205,
+    label: "円盤の席の名前（fitLabel）を、書記素でなくコードポイントで回す",
+    patch: "m205-fit-label-counts-code-points.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/card-name-size.test.ts"],
+    note: "#373。ZWJ の絵文字・国旗・結合文字が途中で切られる。",
+  },
+  {
+    id: 206,
+    label: "Intl.Segmenter が無いときの代替が、コードポイントでなく全体を 1 つとして返す",
+    patch: "m206-grapheme-fallback-returns-whole.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/card-name-size.test.ts"],
+    note: "#373。無い環境で幅が全く数えられず、段が常に最大になる。",
+  },
+  {
+    id: 207,
+    label: "札の最大の段の上限を、1 行に収まる 5.5 でなく 6 に戻す",
+    patch: "m207-card-name-lg-limit-6.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/card-name-size.test.ts"],
+    note: "#373。全角 6 字が 2 行になり、札の高さを超える。",
+  },
+  {
+    id: 208,
+    label: "札の「さん」から white-space: nowrap を外す",
+    patch: "m208-card-san-without-nowrap.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/result-card.test.tsx"],
+    note: "#373。「さん」が 1 字ずつ縦に折れる。",
+  },
+  {
+    id: 220,
+    label: "空の輪・範囲外の添字で次の担当に NaN を返す",
+    patch: "m220-evolve-empty-rotation-nan.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/aggregate.test.ts"],
+    note:
+      RESERVED_220_229 +
+      "#376。空の輪で `(removedIndex + 1) % 0` が NaN を作る（修正前の evolve の `% 0` と同じ欠陥の型）。",
+  },
+  {
+    id: 221,
+    label: "範囲外の添字の MemberRemoved を無視しない",
+    patch: "m221-evolve-remove-out-of-range-index.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/evolve.test.ts", "test/properties.test.ts"],
+    note:
+      RESERVED_220_229 +
+      "#376（PR #392 のレビュー）。誰も外さずに現ドライバーの番号だけを詰める。decide の InvalidIndex が止めるので、evolve へ直接渡すテストで殺す。",
+  },
+  {
+    id: 222,
+    label: "範囲外の添字の MemberMoved を無視しない",
+    patch: "m222-evolve-move-out-of-range-index.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/evolve.test.ts", "test/properties.test.ts"],
+    note:
+      RESERVED_220_229 +
+      "#376（PR #392 のレビュー）。負の添字は splice が末尾から数え、別の席を動かす。",
+  },
+  {
+    id: 223,
+    label: "運転中の末尾の人を外したとき先頭へ回さない",
+    patch: "m223-evolve-remove-without-wrap.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/decide.test.ts", "test/evolve.test.ts", "test/properties.test.ts"],
+    note:
+      RESERVED_220_229 +
+      "#376（PR #392 のレビュー）。末尾の運転者を外すと次の担当が輪の長さちょうどになり、範囲外を指す。",
+  },
+  {
+    id: 224,
+    label: "輪が空でも時計を止めない",
+    patch: "m224-evolve-empty-rotation-keeps-running.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/evolve.test.ts", "test/properties.test.ts"],
+    note:
+      RESERVED_220_229 +
+      "#376（PR #392 のレビュー）。担当の居ない輪でタイマーが回る。",
+  },
+  {
+    id: 225,
+    label: "整数でない添字を席の添字として受け入れる",
+    patch: "m225-evolve-fractional-seat-index.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/decide.test.ts", "test/evolve.test.ts", "test/properties.test.ts"],
+    note:
+      RESERVED_220_229 +
+      "#376（PR #392）。decide と evolve が共有する述語。0.5 は splice が 0 に切り捨て、先頭の席を動かす。",
+  },
+  {
+    id: 226,
+    label: "範囲外の交代先の DriverSwitched を無視しない",
+    patch: "m226-evolve-switch-out-of-range-index.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/evolve.test.ts", "test/properties.test.ts"],
+    note:
+      RESERVED_220_229 +
+      "#376（PR #392）。currentIndex が範囲外を指し、担当回数・交代回数も進む。",
+  },
+  {
+    id: 227,
+    label: "順列でない order の MembersShuffled を無視しない",
+    patch: "m227-evolve-shuffle-non-permutation.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/evolve.test.ts", "test/properties.test.ts"],
+    note:
+      RESERVED_220_229 +
+      "#376（PR #392）。席が欠ける・増える・undefined が入る。",
+  },
+  {
+    id: 228,
+    label: "順列の判定から長さの一致を外す",
+    patch: "m228-evolve-permutation-without-length.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/evolve.test.ts", "test/properties.test.ts"],
+    note:
+      RESERVED_220_229 +
+      "#376（PR #392）。重複で集合の大きさだけが輪の長さに一致する長い order を順列とみなし、席が 1 つ増える。",
+  },
+  {
+    id: 229,
+    label: "順列の判定から重複の無さを外す",
+    patch: "m229-evolve-permutation-without-distinct.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/decide.test.ts", "test/evolve.test.ts", "test/properties.test.ts"],
+    note:
+      RESERVED_220_229 +
+      "#376（PR #392）。重複する order を順列とみなし、同じ席が 2 つ並び別の席が消える。",
+  },
+  {
+    id: 250,
+    label: "運転中の人を外したとき、運ばれた次の担当を使わない",
+    patch: "m250-evolve-remove-ignores-next-driver.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/evolve.test.ts"],
+    note:
+      RESERVED_250_259 +
+      "#376（PR #392 の 2 巡目）。decide が資格で選んだ次の担当が捨てられ、位置で次の席（一時離脱の人でも）に運転が回る。",
+  },
+  {
+    id: 251,
+    label: "運ばれた次の担当を範囲を確かめずに使う",
+    patch: "m251-evolve-remove-trusts-next-driver.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/evolve.test.ts", "test/properties.test.ts"],
+    note:
+      RESERVED_250_259 +
+      "#376（PR #392 の 3 巡目）。範囲外の nextDriverIndex で currentIndex が範囲外を指す（ほかの不正な入力と違い、集約が変わる）。",
+  },
+  {
+    id: 252,
+    label: "decide の member.remove が資格を見ずに次の担当を選ぶ",
+    patch: "m252-decide-remove-without-ineligible.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/decide.test.ts"],
+    note:
+      RESERVED_250_259 +
+      "#376（PR #392 の 2 巡目）。運転中の人が外れると、一時離脱・不在の人に運転が回る（本番の経路）。",
+  },
+  {
+    id: 253,
+    label: "participant.remove が資格を見ずに次の担当を選ぶ",
+    patch: "m253-participant-remove-without-ineligible.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/manual-skip-eligible.test.ts"],
+    note:
+      RESERVED_250_259 +
+      "#376（PR #392 の 2 巡目）。運転中の人がルームを抜けると、一時離脱・不在の人に運転が回る（本番の経路）。",
+  },
+  {
+    id: 254,
+    label: "member.remove に資格の集合を埋めない",
+    patch: "m254-member-remove-without-ineligible-filled.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/manual-skip-eligible.test.ts"],
+    note:
+      RESERVED_250_259 +
+      "#376（PR #392 の 2 巡目）。decide は全員適格として次の担当を選び、一時離脱の人に運転が回る。",
+  },
+  {
+    id: 255,
+    label: "止まっている時計にも空の輪で一時停止を立てる",
+    patch: "m255-evolve-empty-rotation-pauses-stopped-clock.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/evolve.test.ts"],
+    note:
+      RESERVED_250_259 +
+      "#376（PR #392 の 2 巡目）。休憩中に輪が空になると一時停止が立ち、席を足し直しても BreakEnded で走り出せない。",
+  },
+  {
+    id: 256,
+    label: "空の輪の時計を走らせる操作を拒まない",
+    patch: "m256-decide-switch-on-empty-rotation.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/decide.test.ts"],
+    note:
+      RESERVED_250_259 +
+      "#376（PR #392 の 3 巡目）。空の輪へ開始・再開・交代・やり直しを出す（evolve は時計を止め直すが、拒否は decide の仕事）。",
+  },
+  {
+    id: 257,
+    label: "次の担当を外した後の添字へ詰めない",
+    patch: "m257-next-driver-without-shift.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/decide.test.ts", "test/aggregate.test.ts"],
+    note:
+      RESERVED_250_259 +
+      "#376（PR #392 の 2 巡目）。外した席より後ろの人を選ぶと、1 つ後ろの人に運転が回る（外した後の輪で数え直していない）。",
+  },
+  {
+    id: 258,
+    label: "外した後の輪が空のとき、次の担当 0 を正しい値とみなさない",
+    patch: "m258-current-index-rejects-empty-rotation.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/evolve.test.ts", "test/properties.test.ts"],
+    note:
+      RESERVED_250_259 +
+      "#376（PR #392 の 3 巡目）。最後の 1 席を外す MemberRemoved が常に無視され、空の輪へ届かない（evolve の全域の主張が、空の輪を作らないことで成り立ってしまう）。",
+  },
+  {
+    id: 259,
+    label: "空の輪の拒否を BelowMinMembers で返す",
+    patch: "m259-decide-empty-rotation-as-below-min.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/decide.test.ts"],
+    note:
+      RESERVED_250_259 +
+      "#376（PR #392 の 3 巡目）。「最後のドライバーは外れられません。」が出て、状況と食い違う。",
   },
   {
     id: 210,

@@ -1,0 +1,23 @@
+# 変異 200: ルーレットのゲストの名前欄の上限を、表示名の規約（40）でなく 24 に戻す
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/roulette-room.test.tsx
+#     「Given ゲストの名前欄 / When 上限を見る / Then 表示名の規約の上限と同じ字数まで打てる（#373）」
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m200-*.patch
+# 復元: git apply -R scripts/mutations/m200-*.patch
+#
+# #373。輪に載せられる数の上限（MAX_WHEEL = 24）と取り違え、25〜40 字の名前を入れられなくなっていた。
+diff --git a/apps/roulette-web/src/components/GuestForm.tsx b/apps/roulette-web/src/components/GuestForm.tsx
+index 61d69352..7ad959c5 100644
+--- a/apps/roulette-web/src/components/GuestForm.tsx
++++ b/apps/roulette-web/src/components/GuestForm.tsx
+@@ -21,7 +21,7 @@ export function GuestForm({ disabled, onAdd }: { disabled: boolean; onAdd: (name
+           id="roulette-guest-name"
+           className="ui-input"
+           autoComplete="off"
+-          maxLength={MAX_DISPLAY_NAME}
++          maxLength={24}
+           value={name}
+           disabled={disabled}
+           onChange={(event) => setName(event.target.value)}

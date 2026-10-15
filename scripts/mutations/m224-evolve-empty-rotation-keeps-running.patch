@@ -1,0 +1,23 @@
+# 変異 224: 輪が空でも時計を止めない
+#
+# 検出を期待するテスト:
+#   - packages/timer-core/test/evolve.test.ts
+#   - packages/timer-core/test/properties.test.ts
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m224-*.patch
+# 復元: git apply -R scripts/mutations/m224-*.patch
+#
+# #376（PR #392 のレビュー）。担当の居ない輪でタイマーが回る。
+diff --git a/packages/timer-core/src/evolve.ts b/packages/timer-core/src/evolve.ts
+index aa54001..b980114 100644
+--- a/packages/timer-core/src/evolve.ts
++++ b/packages/timer-core/src/evolve.ts
+@@ -66,7 +66,7 @@ export function evolve(agg: Aggregate, event: DomainEvent, _now: number): Aggreg
+  * `decide` は最後の 1 人の member.remove を拒むので、通常の経路からは届かない。
+  */
+ function stopWithoutDriver(agg: Aggregate, now: number): Aggregate {
+-  if (agg.session.rotation.length > 0 || !agg.clock.running) return agg;
++  return agg;
+   return {
+     session: { ...agg.session, isPaused: true },
+     clock: freezeRunningClock(agg.clock, now),

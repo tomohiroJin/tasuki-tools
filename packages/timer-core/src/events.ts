@@ -71,6 +71,12 @@ interface MemberAdded {
 interface MemberRemoved {
   type: "MemberRemoved";
   index: number;
+  /**
+   * 外したのが運転中の人のとき、次に担当になる席（**外した後の添字**。#376）。
+   * 出す側（decide・participant.remove）が交代と同じ資格の規則で選ぶ（`nextDriverAfterRemoval`）。
+   * 運転中でない人を外すときは使わない。範囲外なら evolve は位置で次の席にする。
+   */
+  nextDriverIndex: number;
   now: number;
 }
 

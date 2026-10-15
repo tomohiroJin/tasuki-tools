@@ -1,0 +1,22 @@
+# 変異 206: Intl.Segmenter が無いときの代替が、コードポイントでなく全体を 1 つとして返す
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/card-name-size.test.ts
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m206-*.patch
+# 復元: git apply -R scripts/mutations/m206-*.patch
+#
+# #373。無い環境で幅が全く数えられず、段が常に最大になる。
+diff --git a/apps/roulette-web/src/wheel-geometry.ts b/apps/roulette-web/src/wheel-geometry.ts
+index 82cb414e..c01bd43c 100644
+--- a/apps/roulette-web/src/wheel-geometry.ts
++++ b/apps/roulette-web/src/wheel-geometry.ts
+@@ -67,7 +67,7 @@ export function splitGraphemes(text: string, segmenter?: Intl.Segmenter | null):
+     }
+     seg = sharedSegmenter;
+   }
+-  if (seg === null) return Array.from(text);
++  if (seg === null) return [text];
+   return Array.from(seg.segment(text), (part) => part.segment);
+ }
+ 
