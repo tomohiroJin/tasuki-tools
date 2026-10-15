@@ -16,6 +16,7 @@
 import { ok, err, type Result } from "neverthrow";
 import {
   evolve,
+  nextDriverAfterRemoval,
   removalNotificationFor,
   errorMessageFor,
   rotationEntryId,
@@ -32,7 +33,7 @@ import { pickPromotionTarget } from "../pick-promotion-target.js";
 import type { WallClock } from "../../ports/wall-clock.js";
 import type { Broadcaster } from "../../ports/broadcaster.js";
 import type { RoomState } from "../apply-room-level-event.js";
-import { occupants } from "../timer-snapshot-dto.js";
+import { computeIneligibleIndices, occupants } from "../timer-snapshot-dto.js";
 
 /** `handleRoomCommand` が事前に解決済みの在室ルームと実行者。 */
 export interface ParticipantRemoveContext {
@@ -203,7 +204,11 @@ export async function handleParticipantRemove(
     }
     // **`idx` は繰り上げの後も有効である。** `MemberAdded` は席を末尾へ足すので、
     // 先にある退出者の位置は動かない（ここへ来る時点で `idx` は 0 である）。
-    const agg = evolve(working, { type: "MemberRemoved", index: idx, now }, now);
+    // 運転中の人が抜けるなら、次の担当は交代と同じ資格の規則で選ぶ（#376）。
+    // 資格は抜けた後の名簿と、繰り上げを済ませた輪で測る（添字は `working` の輪のもの）。
+    const ineligible = computeIneligibleIndices(membershipAfterRemoval, { ...timer, session: working.session, clock: working.clock });
+    const nextDriverIndex = nextDriverAfterRemoval(working.session, idx, ineligible);
+    const agg = evolve(working, { type: "MemberRemoved", index: idx, nextDriverIndex, now }, now);
     next = { ...next, timer: { ...next.timer, session: agg.session, clock: agg.clock } };
   }
   commit(next);

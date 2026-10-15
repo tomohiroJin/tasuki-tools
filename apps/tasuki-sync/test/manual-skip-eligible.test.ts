@@ -71,3 +71,41 @@ describe("手動スキップの eligibility（v2.10 #3）", () => {
     expect(roomViewOf(store, timers, code).session.currentIndex).toBe(1); // B へ
   });
 });
+
+/**
+ * 運転中の人が外れたとき、次の担当は交代と同じ資格の規則で選ぶ（#376）。
+ * 以前は外れた席の位置で次の人（ここでは一時離脱中の B）が運転者になった。
+ */
+describe("運転中の人が外れたときの次の担当（#376）", () => {
+  let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
+  let handlers: ReturnType<typeof makeHandlers>;
+  beforeEach(() => {
+    store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
+    handlers = makeTestHandlers({ store, timers, clock: new FakeClock(1_000_000), broadcaster: new SpyBroadcaster(), codeGen: new FakeCodeGen() });
+  });
+
+  it("Given A（運転中）・B（一時離脱）・C / When A が participant.remove で抜ける / Then 運転者は B を飛ばして C", async () => {
+    // Given
+    const code = await setup(handlers, store, timers, { driverEligible: false });
+    const hostId = roomViewOf(store, timers, code).participants[0]!.participantId;
+    // When
+    await handlers.handleCommand("conn-a", { command: "participant.remove", participantId: hostId });
+    // Then
+    const session = roomViewOf(store, timers, code).session;
+    expect(session.rotation).toEqual(["pid-b", "pid-c"]);
+    expect(session.rotation[session.currentIndex]).toBe("pid-c");
+  });
+
+  it("Given A（運転中）・B（一時離脱）・C / When A が member.remove で自分の席を外す / Then 運転者は B を飛ばして C", async () => {
+    // Given
+    const code = await setup(handlers, store, timers, { driverEligible: false });
+    // When
+    await handlers.handleCommand("conn-a", { command: "member.remove", index: 0 });
+    // Then
+    const session = roomViewOf(store, timers, code).session;
+    expect(session.rotation).toEqual(["pid-b", "pid-c"]);
+    expect(session.rotation[session.currentIndex]).toBe("pid-c");
+  });
+});

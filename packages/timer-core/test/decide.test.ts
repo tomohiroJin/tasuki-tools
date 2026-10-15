@@ -490,3 +490,67 @@ describe("decide: driver.assign（任意メンバー強制指名）", () => {
     expect(result._unsafeUnwrapErr().type).toBe("PhaseConflict");
   });
 });
+
+// ─── #376: 整数でない添字・空の輪の交代・外れた運転者の次 ─────────────────────
+
+/**
+ * 添字の範囲は evolve と同じ述語（`isSeatIndex` / `isPermutation`）で決める（#376）。
+ * 整数でない添字は、配列の添字としては切り捨てられて別の席を指すので、decide でも拒む。
+ */
+describe("decide: 整数でない添字は InvalidIndex（#376）", () => {
+  const running = anAggregate().running().build();
+
+  const cases: [string, Parameters<typeof decide>[0]][] = [
+    ["member.remove", { command: "member.remove", index: 0.5 }],
+    ["member.move の移動元", { command: "member.move", fromIndex: 0.5, toIndex: 1 }],
+    ["member.move の移動先", { command: "member.move", fromIndex: 0, toIndex: 1.5 }],
+    ["member.shuffle", { command: "member.shuffle", order: [0, 1, 1.5] }],
+    ["driver.assign", { command: "driver.assign", index: 1.5 }],
+  ];
+  it.each(cases)("%s", (_, command) => {
+    // When
+    const result = decide(command, running, NOW);
+    // Then
+    expect(result._unsafeUnwrapErr().type).toBe("InvalidIndex");
+  });
+});
+
+describe("decide: 空の輪の SWITCH は交代を出さない（#376）", () => {
+  it("Given 走っている空の輪 / When SWITCH / Then BelowMinMembers", () => {
+    // Given（evolve へ直接流すと作れる。decide の経路からは作れない）
+    const one = anAggregate().withRotation("Alice").running().build();
+    const empty = { ...one, session: { ...one.session, rotation: [], driverCounts: [] } };
+    // When
+    const result = decide({ command: "session.act", action: "SWITCH" }, empty, NOW);
+    // Then
+    expect(result._unsafeUnwrapErr().type).toBe("BelowMinMembers");
+  });
+});
+
+/**
+ * 運転中の人が外れたとき、次の担当は交代と同じ資格の規則（`nextEligibleIndex`）で選ぶ（#376）。
+ * 位置で次の席にすると、一時離脱・不在の人に運転が回る。
+ */
+describe("decide: 運転中の人を外すと、次の担当は交代と同じ資格で選ぶ（#376）", () => {
+  const removedDriverEvent = (ineligible: ReadonlySet<number> | undefined, currentIndex = 0) => {
+    const agg = anAggregate().withRotation("A", "B", "C", "D").withCurrentDriver(currentIndex).running().build();
+    const result = decide({ command: "member.remove", index: currentIndex, ineligible }, agg, NOW);
+    return result._unsafeUnwrap()[0];
+  };
+
+  it("Given A（運転中）・B（不適格）・C・D / When A を外す / Then 次の担当は C（外した後の添字 1）", () => {
+    expect(removedDriverEvent(new Set([1]))).toEqual({ type: "MemberRemoved", index: 0, nextDriverIndex: 1, now: NOW });
+  });
+
+  it("Given 末尾の D が運転中・A（不適格） / When D を外す / Then 先頭へ回り A を飛ばして B（外した後の添字 1）", () => {
+    expect(removedDriverEvent(new Set([0]), 3)).toEqual({ type: "MemberRemoved", index: 3, nextDriverIndex: 1, now: NOW });
+  });
+
+  it("Given 残る全員が不適格 / When A を外す / Then 位置で次の B（外した後の添字 0。外れた人の席には留まれない）", () => {
+    expect(removedDriverEvent(new Set([1, 2, 3]))).toEqual({ type: "MemberRemoved", index: 0, nextDriverIndex: 0, now: NOW });
+  });
+
+  it("Given ineligible の指定なし / When A を外す / Then 位置で次の B", () => {
+    expect(removedDriverEvent(undefined)).toEqual({ type: "MemberRemoved", index: 0, nextDriverIndex: 0, now: NOW });
+  });
+});

@@ -274,6 +274,47 @@ export function nextEligibleIndex(
   return currentIndex;
 }
 
+/**
+ * 輪の席を指す添字か（整数で `0 ≤ i < len`）。#376。
+ *
+ * **decide と evolve が同じこの述語を使う。** decide は範囲外を `InvalidIndex` で拒み、
+ * evolve は範囲外を持つイベントを黙って無視する（集約をそのまま返す）。述語を 1 本にしておくと、
+ * 「decide は通したのに evolve が無視する」「decide は拒むのに evolve は適用する」の食い違いが起きない。
+ * 整数でない添字も拒む —— 配列の添字としては切り捨てられ、別の席を指してしまう。
+ */
+export function isSeatIndex(i: number, len: number): boolean {
+  return Number.isInteger(i) && i >= 0 && i < len;
+}
+
+/** `order` が `[0..len-1]` の順列か（長さが同じ・全部が席の添字・重複が無い）。decide と evolve が共有する（#376）。 */
+export function isPermutation(order: readonly number[], len: number): boolean {
+  return order.length === len && order.every((i) => isSeatIndex(i, len)) && new Set(order).size === len;
+}
+
+/**
+ * 運転中の人の席（`removedIndex`）を外したとき、次に担当になる席を**外した後の添字**で返す（#376）。
+ *
+ * 交代と同じ資格の規則（{@link nextEligibleIndex}）で、外れた席の次から適格な人を探す。
+ * 適格な人が居なければ、位置で次の席（末尾なら先頭）にする —— 交代なら「現状維持」になる場面だが、
+ * 外れた人の席には留まれないので、`ineligible` を省いたとき（=全員が適格）と同じ席へ倒す。
+ * 外した後の輪が空なら 0。
+ *
+ * @param ineligible 交代先にしない席（外す前の添字。undefined = 全員適格）
+ */
+export function nextDriverAfterRemoval(
+  session: Pick<SessionState, "rotation">,
+  removedIndex: number,
+  ineligible: ReadonlySet<number> | undefined,
+): number {
+  const len = session.rotation.length;
+  if (len <= 1) return 0;
+  const skip = new Set(ineligible ?? []);
+  skip.add(removedIndex);
+  const found = nextEligibleIndex(session, removedIndex, skip);
+  const chosen = found === removedIndex ? (removedIndex + 1) % len : found;
+  return chosen > removedIndex ? chosen - 1 : chosen;
+}
+
 /** 交代間隔として許容される分の一覧 */
 export const VALID_INTERVAL_MINUTES = [3, 5, 7, 10, 15] as const;
 

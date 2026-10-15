@@ -4,7 +4,14 @@
  */
 
 import type { Aggregate, TimerConfig, RotationEntry, ServerClock } from "./aggregate.js";
-import { initialAggregateInSeconds, nextEligibleIndex, rotationEntryId } from "./aggregate.js";
+import {
+  initialAggregateInSeconds,
+  isPermutation,
+  isSeatIndex,
+  nextDriverAfterRemoval,
+  nextEligibleIndex,
+  rotationEntryId,
+} from "./aggregate.js";
 import type { DomainEvent } from "./events.js";
 
 /**
@@ -33,6 +40,11 @@ function freezeRunningClock(clock: ServerClock, now: number): ServerClock {
 /**
  * イベントを集約に適用し、新しい集約を返す純粋関数
  * 全域関数（全イベント型を処理）
+ *
+ * **前提を満たさないイベントは黙って無視する（集約をそのまま返す。#376）。** 範囲外の添字・順列でない
+ * 並べ替え・空の輪への交代がそれに当たる。evolve は純粋でログを持たないので知らせる手段が無く、
+ * 拒否は decide の仕事である。decide と evolve は同じ述語（`aggregate.ts` の `isSeatIndex` /
+ * `isPermutation`）で判定するので、decide が通したイベントを evolve が無視することはない。
  */
 // 第3引数は呼び出し側の「この適用の時刻」を表すが、各イベントは自身に now を持つため
 // 分岐側では event.now を使う。引数はイベントを持たない将来の適用や呼び出し規約の
@@ -42,16 +54,19 @@ export function evolve(agg: Aggregate, event: DomainEvent, _now: number): Aggreg
 }
 
 /**
- * 輪が空なら時計を止め、一時停止として表す（#376）。担当の居ない輪でタイマーを回さない。
+ * 輪が空なのに時計が走っていたら止め、一時停止として表す（#376）。担当の居ない輪でタイマーを回さない。
  *
  * 表現は `SessionPaused` と同じ（残量を凍結し `isPaused: true`）。画面の再開ボタンは
  * `isPaused` のときだけ押せるので、席を足し直した後に「再開」で走り出せる。
+ * **止まっている時計には触らない。** 休憩は isPaused を使わずに時計を止める（`evolveBreakStarted`）。
+ * 休憩中や開始前に輪が空になっても一時停止を立てないので、席を足し直せば `BreakEnded`・`START` で走り出せる
+ * （休憩中かどうかは集約に無く、ルームの `onBreak` が持つ。走っているかどうかで分けるのはそのため）。
  * 出口の 1 か所に置くのは、空の輪に後から届く `SessionStarted`・`SessionResumed`・`BreakEnded`・
  * `DriverTimerReset`・`SessionReset` もそれぞれ時計を走らせるからである。
  * `decide` は最後の 1 人の member.remove を拒むので、通常の経路からは届かない。
  */
 function stopWithoutDriver(agg: Aggregate, now: number): Aggregate {
-  if (agg.session.rotation.length > 0) return agg;
+  if (agg.session.rotation.length > 0 || !agg.clock.running) return agg;
   return {
     session: { ...agg.session, isPaused: true },
     clock: freezeRunningClock(agg.clock, now),
@@ -105,7 +120,7 @@ function evolveByType(agg: Aggregate, event: DomainEvent): Aggregate {
       return evolveMemberAdded(agg, event.participantId);
 
     case "MemberRemoved":
-      return evolveMemberRemoved(agg, event.index);
+      return evolveMemberRemoved(agg, event.index, event.nextDriverIndex);
 
     case "MemberMoved":
       return evolveMemberMoved(agg, event.fromIndex, event.toIndex);
@@ -177,6 +192,9 @@ function evolveSessionStarted(agg: Aggregate, now: number): Aggregate {
 }
 
 /**
+ * 交代先（nextIndex）が席の添字でなければ集約を変えない（#376。判定は decide と共有の `isSeatIndex`）。
+ * 空の輪には席が無いので、交代は常に無視される（decide も空の輪の SWITCH を BelowMinMembers で拒む）。
+ *
  * B-2統合: 交代先（nextIndex）が適用前の currentIndex と等しい場合は「交代していない」
  * とみなし、driverCounts/totalSwitches を加算しない（advanceDriver 準拠。ユーザー確定の
  * 設計判断）。全員 ineligible で decide が現状維持の nextIndex を返した場合や、輪1人で
@@ -188,7 +206,6 @@ function evolveDriverSwitched(
   nextIndex: number,
   now: number,
 ): Aggregate {
-  // 範囲外の交代先は集約を変えない（#376。decide は nextEligibleIndex で範囲内しか作らない）
   if (!isSeatIndex(nextIndex, agg.session.rotation.length)) return agg;
   const prevIndex = agg.session.currentIndex;
 
@@ -347,41 +364,30 @@ function evolveMemberAdded(agg: Aggregate, participantId: string): Aggregate {
 }
 
 /**
- * 輪の席を指す添字か（整数で `0 ≤ i < len`）。範囲外の添字を持つ席の出し入れ・並べ替え・交代は
- * 集約を変えない（#376）。`decide` は範囲外を拒むので通常の経路からは届かないが、evolve は全域関数なので
- * イベントを直接渡されても壊れた集約を返さない（負の添字は `splice` が末尾から数え、
- * 整数でない添字は切り捨てられて、別の席を動かしてしまう）。
+ * 席を外す。範囲外の添字は集約を変えない（#376。判定は decide と共有の `isSeatIndex`）。
+ *
+ * 運転中の人を外したら、次の担当は出す側が資格の規則で選んだ `nextDriverIndex`（外した後の添字）にする。
+ * それが範囲外なら、位置で次の席（`nextDriverAfterRemoval` を全員適格として引いた値。末尾なら先頭、
+ * 空の輪なら 0）へ倒す。運転中でない人を外したら、手前の席が抜けたときだけ 1 つ詰める。
  */
-function isSeatIndex(i: number, len: number): boolean {
-  return Number.isInteger(i) && i >= 0 && i < len;
-}
-
-/** `order` が `[0..len-1]` の順列か（長さが同じ・全部が席の添字・重複が無い）。 */
-function isPermutation(order: readonly number[], len: number): boolean {
-  return order.length === len && order.every((i) => isSeatIndex(i, len)) && new Set(order).size === len;
-}
-
-/**
- * 席を外した後の番号を輪に収める。空の輪なら 0（`nextEligibleIndex` の長さ 0 と同じ扱い。#376）、
- * 末尾を越えた番号は先頭へ回す（末尾の現ドライバーを外すと、輪の次＝先頭の人が担当になる）。
- * `% 0` は NaN になるので、空の輪を先に分ける。
- */
-function wrapIndex(i: number, len: number): number {
-  return len === 0 ? 0 : i % len;
-}
-
-function evolveMemberRemoved(agg: Aggregate, index: number): Aggregate {
+function evolveMemberRemoved(agg: Aggregate, index: number, nextDriverIndex: number): Aggregate {
   const { rotation, driverCounts, currentIndex } = agg.session;
   if (!isSeatIndex(index, rotation.length)) return agg;
   const newRotation = rotation.filter((_, i) => i !== index);
-  // 手前の席が抜けたら 1 つ詰める。現ドライバー自身が抜けたら同じ番号（＝次の人）のまま
-  const shifted = index < currentIndex ? currentIndex - 1 : currentIndex;
+  let newIndex: number;
+  if (index !== currentIndex) {
+    newIndex = index < currentIndex ? currentIndex - 1 : currentIndex;
+  } else if (isSeatIndex(nextDriverIndex, newRotation.length)) {
+    newIndex = nextDriverIndex;
+  } else {
+    newIndex = nextDriverAfterRemoval(agg.session, index, undefined);
+  }
   return {
     ...agg,
     session: {
       ...agg.session,
       rotation: newRotation,
-      currentIndex: wrapIndex(shifted, newRotation.length),
+      currentIndex: newIndex,
       driverCounts: driverCounts.filter((_, i) => i !== index),
     },
   };

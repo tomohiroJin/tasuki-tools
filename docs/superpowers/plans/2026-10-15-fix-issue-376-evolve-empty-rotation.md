@@ -75,3 +75,17 @@
 5. 変異は m220 を `wrapIndex` の空の輪の分岐に作り直し、m221〜m224 を足す（パッチは実装のコミットの後に作る）
 6. **範囲外の `DriverSwitched` の `nextIndex` と、順列でない `MembersShuffled` の `order` も集約を変えない**（統括の追加指示。利用者の方針「ここでの問題はここで直せ」）。
    順列の判定は `isPermutation`（長さが同じ・全部が席の添字・重複が無い）。性質のテストの生成器にも範囲外の交代先と非順列（短い・長い・重複・負の添字）を混ぜる。変異は m226〜m229
+
+## 2 巡目のレビュー（PR #392）を受けた追補
+
+1. **`isSeatIndex` / `isPermutation` を `aggregate.ts` へ移し、decide と evolve で共有する。** decide の `member.remove` / `member.move` / `member.shuffle` / `driver.assign` の範囲の検査もこれを使う。整数でない添字は decide でも `InvalidIndex`（decide の振る舞いの変更）
+2. **evolve の黙った無視は受け入れる。** evolve は純粋でログを持たない。decide と同じ述語で判定するので、decide が通したイベントを evolve が無視することはない（`evolve` の注釈に書く）
+3. **性質のテストのオラクルは実装を写さない。** 席の添字は `[0..len-1]` の列挙に含まれるか、順列は並べ替えて列挙と一致するか、で書く
+4. **運転中の人が外れたら、次の担当は交代と同じ資格の規則で選ぶ（既存の欠陥）。** 資格（一時離脱・在席）はアプリ層の `computeIneligibleIndices` が正本で、集約には無い。
+   そこで、交代（SWITCH）と同じ形で、出す側（`decide` の `member.remove` と `participant.remove`）が `ineligible` を受けて `nextDriverAfterRemoval` で選び、
+   `MemberRemoved` に `nextDriverIndex`（外した後の添字）として載せる。項目は必須にする（出す側が選び忘れると欠陥が戻るので、型で止める）。
+   適格な人が居なければ、位置で次の席（交代なら現状維持の場面だが、外れた人の席には留まれない）。evolve は範囲外の `nextDriverIndex` を位置で次の席へ倒す
+5. **空の輪で止めるのは走っている時計だけにする。** 休憩中かどうかは集約に無い（ルームの `onBreak`）。休憩中の時計は止まっているので、走っているかどうかで分ければ、
+   休憩中に輪が空になっても `isPaused` を立てず、席を足し直して `BreakEnded` で走り出せる
+6. **空の輪の SWITCH は decide が `BelowMinMembers` で拒む。** 新しいエラー型は足さない（通常の経路から届かないので、文言の食い違いは利用者に見えない）
+7. 変異の note の前置きを定数にまとめる。変異は 220〜229 の中で作り直し、範囲が足りなければ統括に申告する

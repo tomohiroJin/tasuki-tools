@@ -27,7 +27,7 @@ function invariantViolations(agg: Aggregate): string[] {
   // I2: currentIndex の不変条件（正本は aggregate.ts の SessionState.currentIndex の注釈。#376）
   if (rotation.length === 0) {
     if (currentIndex !== 0) violations.push("I2: 輪が空なのに currentIndex が 0 でない");
-  } else if (!(Number.isInteger(currentIndex) && currentIndex >= 0 && currentIndex < rotation.length)) {
+  } else if (!seatIndices(rotation.length).includes(currentIndex)) {
     violations.push("I2: currentIndex が範囲外");
   }
   // I3: 各担当回数が非負
@@ -38,6 +38,17 @@ function invariantViolations(agg: Aggregate): string[] {
   if (!(agg.clock.secondsLeftAtAnchor >= 0)) violations.push("I5: secondsLeftAtAnchor が負");
   if (!(agg.clock.accumulatedElapsedMs >= 0)) violations.push("I5: accumulatedElapsedMs が負");
   return violations;
+}
+
+/**
+ * 輪の席の添字を列挙する（`[0, 1, …, len-1]`）。
+ *
+ * 性質のテストのオラクルは、実装（`aggregate.ts` の `isSeatIndex` / `isPermutation`）の比較式を
+ * 写さず、この列挙との突き合わせで書く（#376 のレビュー）。同じ述語で書くと、実装の誤りを
+ * オラクルも同じ形で持ち、検出力が無くなる。
+ */
+function seatIndices(len: number): number[] {
+  return Array.from({ length: len }, (_, k) => k);
 }
 
 /** 不変条件を検証する */
@@ -287,7 +298,8 @@ describe("全てのコマンドを混ぜた列での不変条件（#364）", () 
  * evolve は全域関数（`evolve.ts` の冒頭）なので、どの入力でも次を保つ。
  *
  * - I1・I2（`currentIndex` の不変条件。正本は `aggregate.ts` の `SessionState.currentIndex` の注釈）
- * - 輪が空なら時計は止まり、一時停止として表す（担当の居ない輪でタイマーが回らない）
+ * - 輪が空なら時計は止まっている（担当の居ない輪でタイマーが回らない。走っていた時計を止めたときは一時停止で表す ——
+ *   そちらは `evolve.test.ts` が固定する。休憩で止まっている時計には一時停止を立てない）
  * - 範囲外の添字（負・輪の長さ以上・整数でない）の `MemberRemoved` / `MemberMoved` / `DriverSwitched` と、
  *   順列でない `order` の `MembersShuffled` は集約を変えない
  */
@@ -333,12 +345,14 @@ describe("evolve に直接流すイベントの列での不変条件（#376）",
     }
   }
 
+  /** 並べ替えると [0..len-1] に一致するか（オラクル。実装の判定を写さない） */
   function isPermutation(order: readonly number[], len: number): boolean {
-    return order.length === len && new Set(order).size === len && order.every((i) => isSeatIndex(i, len));
+    return JSON.stringify([...order].sort((x, y) => x - y)) === JSON.stringify(seatIndices(len));
   }
 
+  /** 列挙した席の添字に含まれるか（オラクル。実装の判定を写さない） */
   function isSeatIndex(i: number, len: number): boolean {
-    return Number.isInteger(i) && i >= 0 && i < len;
+    return seatIndices(len).includes(i);
   }
 
   /** いまの集約に対して、イベントを 1 つ組む */
@@ -346,7 +360,8 @@ describe("evolve に直接流すイベントの列での不変条件（#376）",
     const len = agg.session.rotation.length;
     switch (kind) {
       case "remove":
-        return { type: "MemberRemoved", index: seatIndex(a, len), now };
+        // 次の担当は、外した後の輪の添字（範囲外も混ぜる。範囲外なら evolve は位置で次の席にする）
+        return { type: "MemberRemoved", index: seatIndex(a, len), nextDriverIndex: seatIndex(b, Math.max(len - 1, 0)), now };
       case "add":
         return { type: "MemberAdded", participantId: `P${serial}`, now };
       case "move":
@@ -371,7 +386,7 @@ describe("evolve に直接流すイベントの列での不変条件（#376）",
     return false;
   }
 
-  it("Given 1〜3 人の走っている輪 / When 輪を空にする MemberRemoved・範囲外の添字・順列でない order を含む任意のイベントの列を evolve へ直接流す / Then 各段で I1・I2 が成り立ち、空の輪の時計は一時停止で止まり、範囲外の添字と順列でない order は集約を変えない", () => {
+  it("Given 1〜3 人の走っている輪 / When 輪を空にする MemberRemoved・範囲外の添字・順列でない order を含む任意のイベントの列を evolve へ直接流す / Then 各段で I1・I2 が成り立ち、空の輪の時計は止まり、範囲外の添字と順列でない order は集約を変えない", () => {
     let reachedEmpty = 0;
     let sawOutOfRange = 0;
     fc.assert(
@@ -396,7 +411,6 @@ describe("evolve に直接流すイベントの列での不変条件（#376）",
             if (agg.session.rotation.length === 0) {
               reachedEmpty++;
               if (agg.clock.running) violations.push("空の輪で時計が回っている");
-              if (!agg.session.isPaused) violations.push("空の輪が一時停止になっていない");
             }
             if (hasOutOfRangeIndex(event, before.session.rotation.length)) {
               sawOutOfRange++;
