@@ -260,7 +260,54 @@ function rawColorViolations(rule) {
     .map((d) => `生の色を書いています: ${d.prop}: ${d.value.replace(/\s+/g, " ")}    ← packages/ui/src/tokens/ のトークンにするか、直前に /* ui-exempt: 理由 */ を書く`);
 }
 
-/** 画面の CSS を見る。返り値が空なら違反なし。 */
+/**
+ * トークンと同じ単位・同じ値の直書き（#372）。性質ごとに尺度が違う（余白の `1rem` は `--space-4` だが、角丸に `1rem` の
+ * トークンは無い）。**尺度の値はトークン層（`packages/ui/src/tokens/shape.css`）から読む**（写しを持つと、トークンを
+ * 変えたときに検査だけが古い値を勧める）。**刻みに無い値・単位の違う値（px ↔ rem）・負の値は対象外** —— 置き換えると
+ * 見た目が変わるか（文字の大きさの設定で rem と px は離れる）、書き方が変わる。札の形の `--card-radius` は役割の名前
+ * なので尺度に入れない（札でない `10px` の角丸を札の形に縛らない）。
+ */
+const SHAPE_TOKENS_FILE = "packages/ui/src/tokens/shape.css";
+
+/** `0.5rem`・`.5rem`・`0.50rem`・`0.5REM` を同じ書き方（`0.5rem`）に揃える。長さの単体でなければ null。 */
+function canonicalLength(text) {
+  const m = /^(\d*\.?\d+)(rem|px)$/i.exec(text.trim());
+  return m === null ? null : `${Number(m[1])}${m[2].toLowerCase()}`;
+}
+
+/** トークン層の CSS から、性質ごとの尺度（揃えた値 → トークンの名前）を作る。 */
+export function tokenScalesFrom(css) {
+  const tokens = [];
+  postcss.parse(css).walkDecls(/^--/, (d) => tokens.push([d.prop, canonicalLength(d.value)]));
+  const pick = (name) => Object.fromEntries(tokens.filter(([n, v]) => name.test(n) && v !== null).map(([n, v]) => [v, n]));
+  return [
+    { props: /^(?:scroll-)?(?:padding|margin)(?:-[a-z]+)*$|^(?:row-|column-)?gap$/i, values: pick(/^--space-\d+$/) },
+    { props: /^border(?:-[a-z]+)*-radius$/i, values: pick(/^--radius-[a-z]+$/) },
+    { props: /^(?:(?:min-|max-)?(?:width|height|inline-size|block-size)|inset(?:-[a-z]+)*)$/i, values: pick(/^--tap-target$/) },
+  ];
+}
+
+const TOKEN_SCALES = tokenScalesFrom(fs.readFileSync(path.join(REPO_ROOT, SHAPE_TOKENS_FILE), "utf8"));
+
+/** 宣言の値に現れる、トークンと同じ値の直書き（負の値・数の途中は拾わない）。 */
+function tokenLiteralsIn(prop, value) {
+  const scale = TOKEN_SCALES.find((s) => s.props.test(prop));
+  if (scale === undefined) return [];
+  return [...value.matchAll(/(?<![\w.-])(\d*\.?\d+(?:rem|px))(?![\w.])/gi)]
+    .map((m) => [m[1], canonicalLength(m[1])])
+    .filter(([, v]) => Object.hasOwn(scale.values, v))
+    .map(([raw, v]) => `${raw} → var(${scale.values[v]})`);
+}
+
+function tokenLiteralViolations(rule, hint = "トークンにするか、直前に /* ui-exempt: 理由 */ を書く") {
+  return ownDeclarationsOf(rule).flatMap((d) => {
+    const found = tokenLiteralsIn(d.prop, d.value);
+    return found.length === 0
+      ? []
+      : [`トークンと同じ値を直書きしています: ${d.prop}: ${d.value.replace(/\s+/g, " ")}（${found.join("・")}）    ← ${hint}（#372）`];
+  });
+}
+
 export function checkScreenCss(file, css) {
   const root = postcss.parse(css, { from: file });
   const problems = [];
@@ -277,8 +324,8 @@ export function checkScreenCss(file, css) {
   };
   root.walkRules((rule) => {
     reportWithExempt(rule, inKeyframes(rule)
-      ? rawColorViolations(rule)
-      : [...screenRuleViolations(rule), ...rawColorViolations(rule)]);
+      ? [...rawColorViolations(rule), ...tokenLiteralViolations(rule)]
+      : [...screenRuleViolations(rule), ...rawColorViolations(rule), ...tokenLiteralViolations(rule)]);
   });
   root.walkAtRules(/^media$/i, (at) => reportWithExempt(at, mediaWidthViolations(at.params)));
   root.walkComments((comment) => {
@@ -539,9 +586,13 @@ export function checkComponentCss(file, css) {
       }
     }
   });
+  const reportTokenLiterals = (rule) => {
+    for (const message of tokenLiteralViolations(rule, "トークンにする（部品の CSS は申告で外せない）")) report(rule, message);
+  };
   root.walkRules((rule) => {
     if (inKeyframes(rule)) {
       checkDeclarations(rule, report);
+      reportTokenLiterals(rule);
       return;
     }
     if (rule.parent?.type === "rule") {
@@ -556,6 +607,7 @@ export function checkComponentCss(file, css) {
       report(rule, `::picker( を含むセレクタを一覧に同居させない（知らないブラウザが規則ごと捨てる）: ${rule.selector}`);
     }
     checkDeclarations(rule, report);
+    reportTokenLiterals(rule);
   });
   return problems;
 }

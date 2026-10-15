@@ -89,6 +89,13 @@ src/
 **画面の CSS の約束**（同じ検査が見る）: アプリの CSS と要素層（`elements/`）にも生の色を書きません。色は
 `tokens/` のトークンで書き、語彙（tint / veil / edge など）に近い値は語彙を使います。語彙に相当が無い色は、
 役割の名前でトークン層に足します。外すときは規則の直前に `/* ui-exempt: 理由 */` を書きます。
+余白（`padding` / `margin` / `gap` / `scroll-padding` / `scroll-margin` とその個別指定）・角丸（`border-*-radius`）・
+押せる大きさ（幅・高さ・`inset`）も、**トークンと同じ単位・同じ値の直書き**（例: `0.5rem` の余白・`0.75rem` の角丸・
+`2.75rem` の幅。`.5rem` のような書き方の違いも同じ値とみなす）を検査が落とします（#372）。部品の CSS も同じです
+（部品は申告で外せない）。`var(--space-2)` のようにトークンで書きます。比べる値は `tokens/shape.css` から読みます。
+刻みに無い値（`0.375rem` の余白など）・単位の違う値（`8px` の角丸・`44px` の幅など。`rem` のトークンにすると
+利用者の文字の大きさの設定で見た目が変わる）・負の値は対象外です。`--card-radius` は札の形の役割の名前なので、
+`10px` の角丸を寄せさせません。
 
 **機械で止めていないもの**: クラス名で書いた写し（例: 入力欄に独自のクラスを当てて同じ見た目を書く）。
 新しい画面を作るときは、まずこの表を見てください。
@@ -296,6 +303,7 @@ src/
 | `--font-size-xs` 〜 `--font-size-xl` | 流動的タイポスケール（`clamp`） |
 | `--space-1` 〜 `--space-6` | 8px ベースのスペーシング |
 | `--radius-sm/md/lg/full` / `--card-radius` | 角丸 |
+| `--tap-target` | 押せる大きさ（`2.75rem`・44px 相当・WCAG 2.5.5 の目安）。ボタンの幅・高さと、押せる範囲を広げる `inset: calc((100% - var(--tap-target)) / 2)` |
 | `--shadow-card` / `--shadow-popover` / `--shadow-panel` / `--shadow-dialog` / `--shadow-crown` | 影（`--shadow-crown` は `filter` の値） |
 
 ### アクセントの派生
@@ -337,7 +345,7 @@ src/
 ```bash
 pnpm --filter @tasuki/ui lint       # stylelint（層の境界と本物の誤り）
 pnpm --filter @tasuki/ui test       # node:test（トークンの契約・書体の実在・層の純度）
-node scripts/audit-ui-components.mjs  # 部品層の写しと規則・画面の CSS の生の色（リポジトリのルートから実行）
+node scripts/audit-ui-components.mjs  # 部品層の写しと規則・画面の CSS の生の色とトークンと同じ値の直書き（リポジトリのルートから実行）
 ```
 
 `build` と `typecheck` は持たない（TS を足すまで不要）。

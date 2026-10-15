@@ -198,7 +198,7 @@
 .topic-make-fold > summary {
   cursor: pointer;
   /* 開閉の三角（既定の list-item の印）を残す。`display: flex` にすると三角が消える */
-  min-height: 2.75rem;
+  min-height: var(--tap-target);
 }
 
 /* 見出しは三角と同じ行に置く（block のままだと次の行へ落ちる） */
