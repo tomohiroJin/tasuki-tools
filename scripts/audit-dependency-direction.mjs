@@ -109,7 +109,8 @@ export const ALLOWED = {
   "packages/ui": [],
   "packages/invite-ui": [], // ADR-0020: ブラウザ操作のみ。ドメイン・同期への依存なし。
   // #369: web の同期フックが共有する React の部品（`./sync`）。同期クライアントの上に載り、ドメインには依存しない。
-  "packages/web-kit": ["@tasuki/sync-client"],
+  // #371: 読む面の部品（`./reader`）。Markdown の描画は `@tasuki/markdown` の解析の上に載る（docs/adr/0021 の追記）。
+  "packages/web-kit": ["@tasuki/markdown", "@tasuki/sync-client"],
   // #91 PR 3: Markdown サブセットの解析（純粋な関数・描画は各アプリ）。依存 0。
   "packages/markdown": [],
   // dev サーバー専用の Vite プラグインと玄関のポートの正本（#95 S5c 追補・#249）。
@@ -137,7 +138,6 @@ export const ALLOWED = {
   "apps/timer-web": [
     "@tasuki/invite-ui",
     "@tasuki/dev-hub-redirect",
-    "@tasuki/markdown",
     "@tasuki/room-core",
     "@tasuki/sync-client",
     "@tasuki/timer-core",
@@ -153,13 +153,13 @@ export const ALLOWED = {
   "apps/poker-web": [
     "@tasuki/invite-ui",
     "@tasuki/dev-hub-redirect",
-    "@tasuki/markdown",
     "@tasuki/poker-core",
     "@tasuki/protocol",
     "@tasuki/room-core",
     "@tasuki/sync-client",
     "@tasuki/topic-core",
     "@tasuki/ui",
+    "@tasuki/web-kit",
   ],
   // #91 PR 2: お題ツール。お題を変えられる唯一の画面（spec T4）。
   // **timer-core・poker-core を知らない**（ツール同士は直接の関係を持たない・spec T1）。
@@ -167,7 +167,6 @@ export const ALLOWED = {
   "apps/topic-web": [
     "@tasuki/dev-hub-redirect",
     "@tasuki/invite-ui",
-    "@tasuki/markdown",
     "@tasuki/protocol",
     "@tasuki/room-core",
     "@tasuki/sync-client",

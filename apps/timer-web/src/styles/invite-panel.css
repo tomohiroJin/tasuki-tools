@@ -8,7 +8,7 @@
 }
 
 .invite-panel-label {
-  margin-bottom: 0.5rem;
+  margin-bottom: var(--space-2);
 }
 
 .invite-panel-code-row {
@@ -16,7 +16,7 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 0.75rem;
+  gap: var(--space-3);
 }
 
 .invite-panel-code {
@@ -37,7 +37,7 @@
 .invite-panel-button-label {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: var(--space-1);
   font-size: var(--font-size-sm);
   line-height: 1.45;
 }
@@ -54,17 +54,17 @@
 /* ui-exempt: QR は明暗で読むので地は白でなければならない */
 .invite-panel-qr {
   margin-inline: auto;
-  margin-top: 1rem;
+  margin-top: var(--space-4);
   height: 13rem;
   width: 13rem;
-  border-radius: 0.75rem;
+  border-radius: var(--radius-lg);
   background-color: #fff;
   padding: 0.625rem;
 }
 
 /* 参加 URL の行は部品の `.ui-invite` が組む。ここは余白と、手で選んでコピーする経路（#76 F-1）だけ。 */
 .invite-panel-invite {
-  margin-top: 1rem;
+  margin-top: var(--space-4);
   justify-content: center;
 }
 
@@ -73,7 +73,7 @@
 }
 
 .invite-panel-status {
-  margin-top: 0.5rem;
+  margin-top: var(--space-2);
   font-size: var(--font-size-xs);
   line-height: 1.35;
   color: var(--bone-muted);

@@ -260,7 +260,54 @@ function rawColorViolations(rule) {
     .map((d) => `生の色を書いています: ${d.prop}: ${d.value.replace(/\s+/g, " ")}    ← packages/ui/src/tokens/ のトークンにするか、直前に /* ui-exempt: 理由 */ を書く`);
 }
 
-/** 画面の CSS を見る。返り値が空なら違反なし。 */
+/**
+ * トークンと同じ単位・同じ値の直書き（#372）。性質ごとに尺度が違う（余白の `1rem` は `--space-4` だが、角丸に `1rem` の
+ * トークンは無い）。**尺度の値はトークン層（`packages/ui/src/tokens/shape.css`）から読む**（写しを持つと、トークンを
+ * 変えたときに検査だけが古い値を勧める）。**刻みに無い値・単位の違う値（px ↔ rem）・負の値は対象外** —— 置き換えると
+ * 見た目が変わるか（文字の大きさの設定で rem と px は離れる）、書き方が変わる。札の形の `--card-radius` は役割の名前
+ * なので尺度に入れない（札でない `10px` の角丸を札の形に縛らない）。
+ */
+const SHAPE_TOKENS_FILE = "packages/ui/src/tokens/shape.css";
+
+/** `0.5rem`・`.5rem`・`0.50rem`・`0.5REM` を同じ書き方（`0.5rem`）に揃える。長さの単体でなければ null。 */
+function canonicalLength(text) {
+  const m = /^(\d*\.?\d+)(rem|px)$/i.exec(text.trim());
+  return m === null ? null : `${Number(m[1])}${m[2].toLowerCase()}`;
+}
+
+/** トークン層の CSS から、性質ごとの尺度（揃えた値 → トークンの名前）を作る。 */
+export function tokenScalesFrom(css) {
+  const tokens = [];
+  postcss.parse(css).walkDecls(/^--/, (d) => tokens.push([d.prop, canonicalLength(d.value)]));
+  const pick = (name) => Object.fromEntries(tokens.filter(([n, v]) => name.test(n) && v !== null).map(([n, v]) => [v, n]));
+  return [
+    { props: /^(?:scroll-)?(?:padding|margin)(?:-[a-z]+)*$|^(?:row-|column-)?gap$/i, values: pick(/^--space-\d+$/) },
+    { props: /^border(?:-[a-z]+)*-radius$/i, values: pick(/^--radius-[a-z]+$/) },
+    { props: /^(?:(?:min-|max-)?(?:width|height|inline-size|block-size)|inset(?:-[a-z]+)*)$/i, values: pick(/^--tap-target$/) },
+  ];
+}
+
+const TOKEN_SCALES = tokenScalesFrom(fs.readFileSync(path.join(REPO_ROOT, SHAPE_TOKENS_FILE), "utf8"));
+
+/** 宣言の値に現れる、トークンと同じ値の直書き（負の値・数の途中は拾わない）。 */
+function tokenLiteralsIn(prop, value) {
+  const scale = TOKEN_SCALES.find((s) => s.props.test(prop));
+  if (scale === undefined) return [];
+  return [...value.matchAll(/(?<![\w.-])(\d*\.?\d+(?:rem|px))(?![\w.])/gi)]
+    .map((m) => [m[1], canonicalLength(m[1])])
+    .filter(([, v]) => Object.hasOwn(scale.values, v))
+    .map(([raw, v]) => `${raw} → var(${scale.values[v]})`);
+}
+
+function tokenLiteralViolations(rule, hint = "トークンにするか、直前に /* ui-exempt: 理由 */ を書く") {
+  return ownDeclarationsOf(rule).flatMap((d) => {
+    const found = tokenLiteralsIn(d.prop, d.value);
+    return found.length === 0
+      ? []
+      : [`トークンと同じ値を直書きしています: ${d.prop}: ${d.value.replace(/\s+/g, " ")}（${found.join("・")}）    ← ${hint}（#372）`];
+  });
+}
+
 export function checkScreenCss(file, css) {
   const root = postcss.parse(css, { from: file });
   const problems = [];
@@ -277,8 +324,8 @@ export function checkScreenCss(file, css) {
   };
   root.walkRules((rule) => {
     reportWithExempt(rule, inKeyframes(rule)
-      ? rawColorViolations(rule)
-      : [...screenRuleViolations(rule), ...rawColorViolations(rule)]);
+      ? [...rawColorViolations(rule), ...tokenLiteralViolations(rule)]
+      : [...screenRuleViolations(rule), ...rawColorViolations(rule), ...tokenLiteralViolations(rule)]);
   });
   root.walkAtRules(/^media$/i, (at) => reportWithExempt(at, mediaWidthViolations(at.params)));
   root.walkComments((comment) => {
@@ -539,9 +586,13 @@ export function checkComponentCss(file, css) {
       }
     }
   });
+  const reportTokenLiterals = (rule) => {
+    for (const message of tokenLiteralViolations(rule, "トークンにする（部品の CSS は申告で外せない）")) report(rule, message);
+  };
   root.walkRules((rule) => {
     if (inKeyframes(rule)) {
       checkDeclarations(rule, report);
+      reportTokenLiterals(rule);
       return;
     }
     if (rule.parent?.type === "rule") {
@@ -556,6 +607,7 @@ export function checkComponentCss(file, css) {
       report(rule, `::picker( を含むセレクタを一覧に同居させない（知らないブラウザが規則ごと捨てる）: ${rule.selector}`);
     }
     checkDeclarations(rule, report);
+    reportTokenLiterals(rule);
   });
   return problems;
 }
@@ -580,6 +632,60 @@ export function uiTokensIn(text) {
   return new Set(
     [...text.matchAll(/(?<![\w-])ui-[a-z0-9]+(?:-{1,2}[a-z0-9]+)*(?![A-Za-z0-9_-])/g)].map((m) => m[0]),
   );
+}
+
+/**
+ * 部品を描く React の共有の入口と、そこから出す部品（#371）。描画をここへ寄せると、部品のクラスの字面は
+ * アプリから消えてパッケージにしか無くなる。**その部品を値として取り込むアプリ**の使用として数える
+ * （{@link withSharedEntryUsage}）。入口に依存しているだけのアプリ・同じ入口の別のもの（引き出しのフック）だけを
+ * 取り込むアプリ・型だけを取り込むアプリには数えない —— 数えると、1 つのアプリしか描いていない部品を
+ * 「2 つ以上が使う」と取り違える。部品の名前は入口をまたいで一意にする。
+ *
+ * 見るのはアプリの `.tsx` の取り込みだけ（アプリの部品の使用を `.tsx` の字面で数えるのと同じ範囲）。
+ */
+export const SHARED_UI_ENTRIES = [
+  {
+    specifier: "@tasuki/web-kit/reader",
+    parts: [{ name: "Markdown", file: "packages/web-kit/src/reader/markdown.tsx" }],
+  },
+];
+
+/**
+ * 本文がその入口から**値として**取り込んでいる名前（`import { A, B as C, type T } from '<specifier>'` なら A・B）。
+ * 行の頭の import だけを見る。`import type { … }` と `type` を付けた名前は数えない。
+ */
+export function importedNames(text, specifier) {
+  const escaped = specifier.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
+  const names = new Set();
+  const re = new RegExp(`^[ \\t]*import\\s+(type\\s+)?\\{([^}]*)\\}\\s*from\\s*['"]${escaped}['"]`, "gm");
+  for (const m of text.matchAll(re)) {
+    if (m[1] !== undefined) continue;
+    for (const raw of m[2].split(",")) {
+      const item = raw.trim();
+      if (item === "" || /^type\s/.test(item)) continue;
+      names.add(item.split(/\s+as\s+/)[0].trim());
+    }
+  }
+  return names;
+}
+
+/**
+ * アプリごとの部品の使用に、取り込んでいる共有の部品の使用を足した表を返す（元の表は書き換えない）。
+ *
+ * @param usageByApp アプリ → そのアプリの `.tsx` に現れる部品のクラス
+ * @param importedByApp アプリ → そのアプリが共有の入口から値として取り込んでいる部品の名前
+ * @param usageByPart 共有の部品の名前 → その部品のファイルに現れる部品のクラス
+ */
+export function withSharedEntryUsage(usageByApp, importedByApp, usageByPart) {
+  const merged = new Map();
+  for (const [app, used] of usageByApp) {
+    const all = new Set(used);
+    for (const name of importedByApp.get(app) ?? []) {
+      for (const c of usageByPart.get(name) ?? []) all.add(c);
+    }
+    merged.set(app, all);
+  }
+  return merged;
 }
 
 /** 2 つ以上のアプリが使っていない部品のクラス（ADR 0022 決定 2・#280 の死んだ CSS の経緯）。 */
@@ -660,6 +766,18 @@ function main() {
   }
 
   // 死んだ部品。各アプリの src 配下の .tsx に現れる ui- の語を数える。
+  // 部品を描く共有の部品（#371）は、そのファイルに現れる語を、その部品を取り込むアプリの使用として足す。
+  const usageByPart = new Map();
+  for (const { specifier, parts } of SHARED_UI_ENTRIES) {
+    const files = readExisting(listRepoFiles(REPO_ROOT, parts.map((p) => p.file)), problems);
+    volume.push({ label: `${specifier} の部品`, count: files.length });
+    for (const { name, file } of parts) {
+      const f = files.find((x) => x.rel === file);
+      if (f === undefined) problems.push(`[共有の部品] ${file} が見つかりません    ← SHARED_UI_ENTRIES を直す`);
+      usageByPart.set(name, new Set(f === undefined ? [] : uiTokensIn(f.text)));
+    }
+  }
+  const importedByApp = new Map();
   const usageByApp = new Map();
   for (const app of WEB_APPS) {
     const tsx = readExisting(listRepoFiles(REPO_ROOT, [`${app}/src/*.tsx`]), problems);
@@ -670,8 +788,12 @@ function main() {
       }
     }
     usageByApp.set(app, new Set(tsx.flatMap((f) => [...uiTokensIn(f.text)])));
+    importedByApp.set(
+      app,
+      new Set(SHARED_UI_ENTRIES.flatMap((e) => tsx.flatMap((f) => [...importedNames(f.text, e.specifier)]))),
+    );
   }
-  for (const c of findDeadParts(defined, usageByApp)) {
+  for (const c of findDeadParts(defined, withSharedEntryUsage(usageByApp, importedByApp, usageByPart))) {
     problems.push(`[死んだ部品] .${c} を使うアプリが 2 つ未満です    ← 2 画面以上に当てるか、部品層から消す（ADR 0022 決定 2）`);
   }
 

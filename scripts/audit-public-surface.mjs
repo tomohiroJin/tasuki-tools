@@ -96,7 +96,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { hasZeroScanTargets } from "./lib/scan-targets.mjs";
-import { SCANNED_PACKAGES, hasScanTarget } from "./audit-structure.mjs";
+import { SCANNED_PACKAGES, entriesOf, hasScanTarget } from "./audit-structure.mjs";
 import { isDirectRun } from "./lib/direct-run.mjs";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -210,10 +210,12 @@ export function findWildcardReexports(entrySources) {
 function readEntrySources() {
   const sources = new Map();
   for (const d of SCANNED_PACKAGES) {
-    if (!hasScanTarget(d.src) || !hasScanTarget(d.entry)) continue;
-    const rel = `${d.pkg}/${d.src}/${d.entry}`;
-    const abs = path.join(REPO_ROOT, rel);
-    if (fs.existsSync(abs)) sources.set(rel, fs.readFileSync(abs, "utf8"));
+    if (!hasScanTarget(d.src)) continue;
+    for (const e of entriesOf(d)) {
+      const rel = `${d.pkg}/${d.src}/${e}`;
+      const abs = path.join(REPO_ROOT, rel);
+      if (fs.existsSync(abs)) sources.set(rel, fs.readFileSync(abs, "utf8"));
+    }
   }
   return sources;
 }

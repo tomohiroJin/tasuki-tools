@@ -17,7 +17,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { ArrowRight } from "lucide-react";
 import { MAX_HANDOFF_NOTE } from "@tasuki/timer-core/aggregate";
 import { Card } from "../primitives.js";
-import { Markdown } from "./Markdown.js";
+import { Markdown } from "@tasuki/web-kit/reader";
 
 interface SharedMemoProps {
   /** サーバー権威のメモ本文（snapshot 由来）。 */
@@ -64,9 +64,9 @@ export function SharedMemo({ note, onCommit }: SharedMemoProps) {
   // 編集/プレビュー切替。内容の有無に依らず常にプレビュー始まり（読み手優先）。
   const [mode, setMode] = useState<"edit" | "preview">("preview");
 
-  // 外部更新アナウンス（aria-live）。両分岐で共通利用する sr-only スパン。
+  // 外部更新アナウンス（aria-live）。両分岐で共通利用する ui-visually-hidden スパン。
   const updateAnnouncement = (
-    <span className="sr-only" aria-live="polite">
+    <span className="ui-visually-hidden" aria-live="polite">
       {updated ? "共有メモが更新されました" : ""}
     </span>
   );
@@ -117,7 +117,7 @@ export function SharedMemo({ note, onCommit }: SharedMemoProps) {
       ) : (
         <div className="shared-memo-preview" aria-live="polite">
           {note.trim() ? (
-            <Markdown source={note} />
+            <Markdown source={note} headingBase={3} />
           ) : (
             <p className="shared-memo-empty">
               メモはまだありません。「編集」ボタンから Markdown で記入できます（リンク・箇条書き・見出しなど）。
