@@ -1,0 +1,23 @@
+# 変異 218: 開始が直前のドライバーを null に戻さない
+#
+# 検出を期待するテスト:
+#   - packages/timer-core/test/evolve.test.ts
+#     「開始すると、前の名残の直前のドライバーは消える」
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m218-*.patch
+# 復元: git apply -R scripts/mutations/m218-*.patch
+#
+# #374（PR #396 のレビュー）。ロビーの名残の人が、開始直後からナビに出る。
+diff --git a/packages/timer-core/src/evolve.ts b/packages/timer-core/src/evolve.ts
+--- a/packages/timer-core/src/evolve.ts
++++ b/packages/timer-core/src/evolve.ts
+@@ -147,7 +147,7 @@
+   return {
+     // 開始の時点で直前に運転した人は居ない（#374。ロビーの名残を持ち込まない）。
+     // 画面は開始をロビーからだけ送る（一時停止からは RESUME。`timer-actions.ts` の `startSession`）。
+-    session: { ...agg.session, previousDriverId: null },
++    session: agg.session,
+     clock: {
+       ...agg.clock,
+       running: true,

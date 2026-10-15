@@ -7,6 +7,7 @@
  * （生成そのものは `topic-generation.test.ts` が見る）。
  */
 import { describe, it, expect } from "bun:test";
+import { SpyBroadcaster } from "./support/spy-broadcaster.js";
 import {
   createTokenBucketLimiter,
   DEFAULT_CAPACITY,
@@ -107,6 +108,7 @@ function setup(opts: { aiUnlockKey?: string; rateLimiter?: RateLimiter } = {}): 
     tokenStore: createTokenStore(),
     rateLimitGate,
     hub: spyHub(),
+    timerBroadcaster: new SpyBroadcaster(),
     topics,
     generator: {
       request: (code, req) => {
@@ -682,6 +684,7 @@ describe("玄関（ハブ）で入ったときのお題", () => {
       ),
       maxRooms: TEST_MAX_ROOMS,
       hub,
+      timerBroadcaster: new SpyBroadcaster(),
       topicBroadcaster: makeTopicBroadcaster({
         store,
         topics,

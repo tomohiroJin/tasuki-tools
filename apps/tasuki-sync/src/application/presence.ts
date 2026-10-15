@@ -32,7 +32,6 @@ import {
   findParticipant,
   findParticipantByConnId,
   isPresentIn,
-  presenceOf,
   removeConnection,
   type Room,
 } from "@tasuki/room-core";
@@ -43,7 +42,6 @@ import type { Broadcaster } from "../ports/broadcaster.js";
 import type { HubBroadcaster } from "../ports/hub-broadcaster.js";
 import { saveRoster } from "./save-roster.js";
 import type { WallClock } from "../ports/wall-clock.js";
-import { buildTimerSnapshotRoom } from "./timer-snapshot-dto.js";
 import { findRoomByConnId } from "./room-lookup.js";
 import { TOOL_TIMER } from "./tool-id.js";
 
@@ -122,17 +120,14 @@ export class PresenceManager {
     const updated = removeConnection(room, connId).unwrapOr(room);
     // 名簿の保管とハブへの配信は対にする（`save-roster.ts`・#95 S5a）。
     // 切断で presence が変わったことは、選択画面にも届く必要がある。
-    saveRoster({ store: this.store, hub: this.hub }, updated);
+    // timer の画面に映る席の情報（在席・理由）が変わったら、timer へも配る（`save-roster.ts`・#374）。
+    // presence だけでは足りない: timer とハブを開いた人が timer だけ閉じると、presence は `online` の
+    // ままだが席の理由は「別の画面」へ変わる。
+    saveRoster({ store: this.store, hub: this.hub, timers: this.timers, timerBroadcaster: this.broadcaster }, updated);
 
     const after = findParticipant(updated, participant.id);
     const timer = this.timers.get(room.code);
     if (!timer) return;
-
-    // **状態が変わったときだけ配信する**（このファイル冒頭の方針）。他のタブが
-    // 生きていればその人は `online` のままで、wire に載る値は 1 つも変わらない。
-    if (after !== undefined && presenceOf(participant) !== presenceOf(after)) {
-      this.broadcaster.broadcastSnapshot(room.code, buildTimerSnapshotRoom(updated, timer));
-    }
 
     // 現ドライバーが**タイマーの前から居なくなり**、かつセッション稼働中なら猶予後に
     // 次へ繰り上げる（R2-1・D21）。ハブや poker のタブが残っていても、timer に

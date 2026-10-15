@@ -6,6 +6,7 @@
  * `live-ws.join-entries.test.ts`（実 WS 越しの特性テスト）が固定している。
  */
 import { describe, expect, it } from "bun:test";
+import { SpyBroadcaster } from "./support/spy-broadcaster.js";
 import { createTokenBucketLimiter, DEFAULT_CAPACITY, DEFAULT_REFILL_PER_SEC } from "@tasuki/rate-limit";
 import type { HubServerMsg } from "@tasuki/room-core";
 import { errorMessageFor } from "@tasuki/timer-core";
@@ -40,6 +41,7 @@ function setup() {
       createTokenBucketLimiter({ capacity: DEFAULT_CAPACITY, refillPerSec: DEFAULT_REFILL_PER_SEC }),
     ),
     hub,
+    timerBroadcaster: new SpyBroadcaster(),
   };
   /** 起きたことを順に記録する（返事・名簿の配信・参加の後の 1 通）。 */
   const events: string[] = [];

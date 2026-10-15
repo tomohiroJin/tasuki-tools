@@ -45,6 +45,7 @@ const timer: TimerState = {
     isPaused: false,
     driverCounts: [0, 0],
     totalSwitches: 0,
+    previousDriverId: null,
   },
   clock: {
     running: false,
@@ -319,5 +320,53 @@ describe("nextIndex の境界（#276 D6 追補・最終レビュー指摘）", (
 
   it("適格な他の席があれば、その添字を返す（通常系）", () => {
     expect(nextIndexOf({})).toBe(1);
+  });
+});
+
+describe("previousDriverIndex（直前に実際に運転した人の席・#374）", () => {
+  /** 3 席の輪 [p_alice, p_proxy1, p_carol] で、いまは添字 `currentIndex` の人が運転している。 */
+  function previousOf(previousDriverId: string | null, currentIndex = 2) {
+    const t: TimerState = {
+      ...timer,
+      session: {
+        ...timer.session,
+        rotation: [
+          { kind: "member", participantId: "p_alice", eligible: true },
+          { kind: "proxy", id: "p_proxy1", label: "同席のカルロス", eligible: true },
+          { kind: "member", participantId: "p_carol", eligible: true },
+        ],
+        currentIndex,
+        driverCounts: [1, 0, 0],
+        previousDriverId,
+      },
+    };
+    return buildTimerSnapshotRoom(membership, t).session.previousDriverIndex;
+  }
+
+  it("集約が持つ識別子を、いまの輪の添字へ写す（輪の 1 つ前の席ではない）", () => {
+    // いまは添字 2。輪の 1 つ前は 1（代理）だが、直前に運転したのは アリス（添字 0）
+    expect(previousOf("p_alice")).toBe(0);
+  });
+
+  it("代理の席も識別子で引ける", () => {
+    expect(previousOf("p_proxy1", 0)).toBe(1);
+  });
+
+  it("交代がまだ無ければ null", () => {
+    expect(previousOf(null)).toBeNull();
+  });
+
+  it("直前のドライバーがいまの運転者と同じ席なら null（wire の注記どおり正規化する）", () => {
+    // 運転中の人が外れて添字が詰まる等で起きうる。いまの運転者をナビとして送らない
+    expect(previousOf("p_carol", 2)).toBeNull();
+  });
+
+  it("直前のドライバーが輪から外れていれば null", () => {
+    expect(previousOf("p_gone")).toBeNull();
+  });
+
+  it("組み立てた room が RoomSchema を通る（項目を足しても wire の検証を壊さない）", () => {
+    const t: TimerState = { ...timer, session: { ...timer.session, previousDriverId: "p_alice" } };
+    expect(v.safeParse(RoomSchema, buildTimerSnapshotRoom(membership, t)).success).toBe(true);
   });
 });

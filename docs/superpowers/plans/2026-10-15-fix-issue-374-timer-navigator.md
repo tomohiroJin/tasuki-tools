@@ -1,0 +1,126 @@
+# timer のナビを「直前に実際に運転した人」にする（#374）実装計画
+
+**Goal:** timer のセッション画面のナビ（⑦）が、輪の上で 1 つ前の席ではなく、**直前に実際に運転した人**を指すようにする。
+
+**Architecture:** 直前のドライバーは timer-core の集約が持つ（`SessionState.previousDriverId`）。書き手は `evolve` の `DriverSwitched` だけで、
+イベントの形は変えない（交代前の `currentIndex` は evolve が知っている）。同期サーバーの snapshot DTO が席の添字へ投影し
+（`session.previousDriverIndex`）、画面の純粋関数 `driverNames`（`apps/timer-web/src/ui/session-view.ts`）がナビを決める。
+
+## Constitution Check
+
+憲法（[`docs/constitution.md`](../../constitution.md) v2.1.4）のコンプライアンスゲート。
+
+| 原則 | 判定 | 根拠 |
+|---|---|---|
+| I. テスト駆動開発 | 通過 | 画面・ドメイン・同期サーバーの 3 層それぞれで再現テストを先に書き、赤を見てから直す |
+| II. 技術選定は ADR を通す | 該当なし | 新しい技術・依存を足さない |
+| III. 揮発インメモリと単純運用 | 通過 | 集約に 1 項目足すだけ。永続化は無いので移行も無い |
+| IV. 境界の型安全 | 通過 | wire に任意項目を 1 つ足し、`RoomSchema` で整数・0 以上・null を検証する |
+| V. 実画面検証 | 通過 | 見送りを挟んだ交代の後のナビを実画面で確かめる手順を報告に書く（実行は統括） |
+| VI. 依存は内向き | 通過 | ドメインは識別子だけを持ち、添字への投影はアプリ層（DTO）、表示の判断は画面が持つ |
+| VII. 検査は壊して確かめる | 通過 | 書き手（evolve）・投影（DTO）・表示（driverNames）に変異を足す（m210〜） |
+| VIII. 記録が正本 | 通過 | wire の変更は DTO の台帳（項目 10）と `wire.ts` の注記に書く |
+| IX. 小さく回す | 通過 | PR 1 本。配布は統括の指示待ち |
+| X. 抽象は実需で | 通過 | 新しい抽象を作らない（項目 1 つと純粋関数の引数だけ） |
+| XI. 秘密と個人情報を持ち込まない | 該当なし | 識別子と添字だけ。ログに触れない |
+
+**逸脱なし。**
+
+## 決めたこと
+
+### 1. 直前のドライバーは集約が持つ（画面の逆向きの推定は採らない）
+
+統括の目安は「推定で EARS を満たせるなら推定」。実測では、席の状態だけを見る推定は次の 3 つで「直前に実際に運転した人」を外す。
+
+| 場面 | 推定が出す人 | 実際の直前のドライバー | 起きやすさ |
+|---|---|---|---|
+| A→C と交代（B は不在で飛ばされた）後、B が戻る | B（運転していない） | A | 高い。ハブや poker のタブへ移るだけで `away` になる（`seatSkipReason`） |
+| 強制指名（`driver.assign`・#13）で A→C と飛ぶ | B（運転していない） | A | 機能として常にある |
+| 交代の後に並べ替え（shuffle / move） | 新しい並びで 1 つ前の人 | 元の人 | 中 |
+
+いずれも EARS 1（実際に運転した人を出す）を満たさない。席の状態は「いま」しか持たず、交代の時点で誰が飛ばされたかは画面から復元できない。
+`DriverSwitched` を適用する evolve は交代前の席を知っているので、**イベントの形を変えずに**集約へ残せる。
+
+**識別子で持つ**（添字で持たない）。並べ替え・削除で添字は動くが、識別子は人に付く。添字への投影は DTO が毎回行う（`nextIndex` と同じ置き場）。
+
+### 2. 分からないとき・務められないときはナビを出さない（null）
+
+既存の作法（輪が 1 人ならナビを出さない＝null）にそろえる。null になるのは:
+
+- まだ交代が起きていない（開始直後・リセット直後）
+- 直前のドライバーが輪から外れた
+- 直前のドライバーがいまの運転者と同じ席（削除で添字が詰まったとき）
+- **直前のドライバーが本人の選んだ見送り（stood-down）中か、切断している**。EARS 2 の文面（1 つ前の席が見送り中なら出さない）と、
+  運転した後に見送りへ切り替えた人の扱いがここで重なる。ナビを務められないので、出さない側にそろえる
+- **不在（away）では隠さない**（PR #396 のレビュー）。不在は timer のタブに居ないだけ（ハブや poker のタブへ移った）で、
+  隠すとタブを切り替えるたびに全員の画面でナビが点滅する
+- 古い同期サーバーが項目を送ってこない（配布の窓）
+
+### 3. 運転中の人が輪から外れたとき（PR #396 のレビュー）
+
+運転は次の人へ移り、直前に運転していたのは外れた人である。`evolve` の `MemberRemoved` は、外れた席がいまの運転者なら
+`previousDriverId` を外れた人の識別子にする（残すと新しい運転者のナビに 2 つ前の人が出る）。外れた人は輪に居ないので、
+snapshot の添字では null になる。DTO は、直前のドライバーの席がいまの運転者と同じなら null へ正規化する。
+
+### 4. 利用者に見える変化
+
+「直前に実際に運転した人」という EARS どおりの帰結として、次を受け入れる（統括が利用者へ報告する）。
+
+- **最初の交代の前**（開始直後）は、ナビが出ない。これまでは輪の最後の人が出ていた
+- **リセットの後**も、最初の交代までナビが出ない
+- **配布の間**（新しい画面 × 旧いサーバー）は、ナビが消える。同期サーバーが新しくなれば戻る
+- 運転中の人が輪から外れた直後は、ナビが出ない（外れた人は輪に居ない）
+
+### 5. 席の理由の配信漏れ（E2E で見つけた・この PR で直す）
+
+timer の画面へ snapshot を配るのは、timer のコマンドと「presence が変わった切断」だけだった。ほかのツールの接続の出入り
+（ハブ・お題・ルーレット・poker への参加・入り直し、timer とハブを開いた人が timer だけ閉じる）で席の理由が変わっても
+timer の画面に届かず、timer から選択画面へ移った人は「未接続」のまま残った。そのためナビの「不在では隠さない」が実画面で効かなかった。
+
+名簿を保管する唯一の場所（`save-roster.ts`）で、timer の画面に映る席の情報（参加者の在席・席の理由・次の番）が
+前後で変わったときだけ timer へ配る（`timer-seat-broadcast.ts`）。名簿の参照が前後で同じなら snapshot を組まずに返す
+（poker の投票のように名簿を触らない保管）。timer の状態も書いて自分で配る `handlers.ts` の `commit` は
+`timerSnapshotSentByCaller` で二重に配らない（PR #396 のレビュー）。
+
+### 6. 開始とロビーでの外し（PR #396 のレビュー）
+
+ロビーの「運転中の席」は運転していないので、そこを外しても直前のドライバーにしない（`MemberRemoved` が書くのは
+セッションが始まっている間だけ）。`SessionStarted` は直前のドライバーを null に戻す（`SessionReset` は元から初期値に戻す）。
+`apps/timer-web/src/ui/session-start.ts` の `carriesPreviousSession` は触らない —— 開始で null に戻すので、
+直前のドライバーが残っていても「前のセッションを引きずる」根にならない。
+
+### 5. プロトコル互換と配布順序
+
+- wire: `Room.session.previousDriverIndex?: number | null` を**任意項目**で足す。`deploy.sh timer` は画面を先に配るので、
+  「新しい画面 × 旧サーバー」の窓では項目が無い → ナビが出ないだけ（snapshot は捨てない）。必須にすると窓の間 snapshot 全体が落ちる
+- 「旧画面 × 新サーバー」: `RoomSchema` は非 strict の `v.object` なので余分な項目は通る（旧画面は 1 つ前の席を出し続ける）
+- 集約は揮発インメモリなので、配布でルームが消える。集約側の移行は無い
+
+## 変異（ID 210〜）
+
+| ID | 壊し方 | 殺すテスト |
+|---|---|---|
+| 210 | evolve が `previousDriverId` を書かない | `packages/timer-core/test/evolve.test.ts` |
+| 211 | DTO が `previousDriverIndex` を null 固定にする | `apps/tasuki-sync/test/timer-snapshot-dto.test.ts` |
+| 212 | `driverNames` が直前のドライバーの席の飛ばされる状態を見ない | `apps/timer-web/test/ui/session-view.test.ts` |
+| 213 | `driverNames` を輪の上の 1 つ前の席へ戻す（欠陥そのもの） | `apps/timer-web/test/ui/session-view.test.ts`・`Session.derived.test.tsx` |
+| 214 | `MemberRemoved` が運転中の人の退出で直前のドライバーを書き換えない（m214 は作り直し） | `packages/timer-core/test/evolve.test.ts` |
+| 215 | DTO がいまの運転者と同じ席を null へ正規化しない | `apps/tasuki-sync/test/timer-snapshot-dto.test.ts` |
+| 216 | `driverNames` が不在（away）でもナビを隠す | `apps/timer-web/test/ui/session-view.test.ts` |
+| 217 | ほかのツールで入った・入り直したことを timer の画面へ配らない | `apps/tasuki-sync/test/live-ws.timer-seat-presence.test.ts` |
+| 218 | `SessionStarted` が直前のドライバーを null に戻さない | `packages/timer-core/test/evolve.test.ts` |
+| 219 | `saveRoster` が呼び出し側の「自分で配る」を無視して二重に配る | `apps/tasuki-sync/test/save-roster.timer-seat.test.ts` |
+
+## 検証の実行時間の見積もり
+
+| コマンド | 見積もり |
+|---|---|
+| `pnpm --filter @tasuki/timer-core test` | 30 秒 |
+| `pnpm --filter @tasuki/tasuki-sync test` | 1 分 |
+| `pnpm --filter @tasuki/timer-web test` | 1〜2 分 |
+| 各パッケージの型検査・lint | 各 30 秒〜1 分 |
+| `pnpm test`（全体・キャッシュ可） | 3〜5 分 |
+| `node scripts/mutation-check.mjs --changed` | 5〜10 分（背景で流す） |
+| scripts の自己テスト | 1〜2 分 |
+
+見積もりの 2 倍を超えたら報告する。

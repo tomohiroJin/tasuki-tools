@@ -1,0 +1,24 @@
+# 変異 211: snapshot が直前のドライバーの席を送らない（常に null）
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/timer-snapshot-dto.test.ts
+#     describe「previousDriverIndex（直前に実際に運転した人の席・#374）」
+#   - apps/tasuki-sync/test/manual-skip-eligible.test.ts（一時離脱の席を飛ばした交代の後の 1 件）
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m211-*.patch
+# 復元: git apply -R scripts/mutations/m211-*.patch
+#
+# #374。集約が正しくても wire に載らなければ画面はナビを出さない。
+diff --git a/apps/tasuki-sync/src/application/timer-snapshot-dto.ts b/apps/tasuki-sync/src/application/timer-snapshot-dto.ts
+--- a/apps/tasuki-sync/src/application/timer-snapshot-dto.ts
++++ b/apps/tasuki-sync/src/application/timer-snapshot-dto.ts
+@@ -322,7 +322,7 @@
+       ? -1
+       : seats.findIndex((s) => s.id === timer.session.previousDriverId);
+   const previousDriverIndex =
+-    previousSeat >= 0 && previousSeat !== timer.session.currentIndex ? previousSeat : null;
++    previousSeat >= 0 && previousSeat !== timer.session.currentIndex ? null : null;
+   // 代理の `joinedAt` は名簿の作成時刻で埋める。席は追加時刻を持たないが、
+   // この値を読む処理は無い（読み手だったお題の委譲の候補列は #91 PR 3 で消えた）。
+   const proxies: Participant[] = proxyEntries(timer).map((e) => ({

@@ -1,0 +1,23 @@
+# 変異 216: 不在（away）でもナビを隠す
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/ui/session-view.test.ts
+#     「直前のドライバーが不在（timer のタブに居ないだけ）→ 出す」
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m216-*.patch
+# 復元: git apply -R scripts/mutations/m216-*.patch
+#
+# #374（PR #396 のレビュー）。timer のタブを切り替えるたびに全員の画面でナビが点滅する。
+diff --git a/apps/timer-web/src/ui/session-view.ts b/apps/timer-web/src/ui/session-view.ts
+--- a/apps/timer-web/src/ui/session-view.ts
++++ b/apps/timer-web/src/ui/session-view.ts
+@@ -43,7 +43,7 @@
+ 
+ /** ナビを隠す飛ばされる理由（#374）。不在（away）は含めない（`driverNames` の注記）。 */
+ function hidesNavigator(reason: SeatSkipReason | null | undefined): boolean {
+-  return reason === "stood-down" || reason === "disconnected";
++  return reason === "stood-down" || reason === "disconnected" || reason === "away";
+ }
+ 
+ /**

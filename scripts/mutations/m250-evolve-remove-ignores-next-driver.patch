@@ -8,15 +8,15 @@
 #
 # #376（PR #392 の 2 巡目）。decide が資格で選んだ次の担当が捨てられ、位置で次の席（一時離脱の人でも）に運転が回る。
 diff --git a/packages/timer-core/src/evolve.ts b/packages/timer-core/src/evolve.ts
-index 86a4459..d19268e 100644
+index 22410b30..23d1413f 100644
 --- a/packages/timer-core/src/evolve.ts
 +++ b/packages/timer-core/src/evolve.ts
-@@ -379,7 +379,7 @@ function evolveMemberRemoved(agg: Aggregate, index: number, nextDriverIndex: num
+@@ -393,7 +393,7 @@ function evolveMemberRemoved(agg: Aggregate, index: number, nextDriverIndex: num
    if (index !== currentIndex) {
      newIndex = index < currentIndex ? currentIndex - 1 : currentIndex;
    } else {
 -    newIndex = nextDriverIndex;
 +    newIndex = index < newRotation.length ? index : 0;
    }
-   return {
-     ...agg,
+ 
+   // 運転中の人が外れたら、運転は次の人へ移る。直前に運転していたのは外れた人である（#374）。

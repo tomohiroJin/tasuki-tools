@@ -1,6 +1,6 @@
 /**
  * Session の画面の判断（#370。`Session.tsx` から出した純粋関数）。
- * 式は移す前のまま（ナビの計算は #374 で直す）。
+ * ナビは直前に実際に運転した人（#374）。
  */
 import { describe, expect, it } from "vitest";
 import {
@@ -24,35 +24,50 @@ describe("displayRemainingSeconds", () => {
 
 describe("driverNames", () => {
   const names = ["あや", "いずみ", "うた"];
-  const at = (currentIndex: number, nextIndex: number | null, navigatorEnabled: boolean, rotationLength = 3) =>
-    driverNames({ names, rotationLength, currentIndex, nextIndex, navigatorEnabled });
+  const noSkips = [null, null, null] as const;
+  const at = (currentIndex: number, nextIndex: number | null, navigatorEnabled: boolean, previousDriverIndex: number | null = null) =>
+    driverNames({ names, skipReasons: noSkips, currentIndex, nextIndex, previousDriverIndex, navigatorEnabled });
 
   it.each([
-    // currentIndex, nextIndex, navigatorEnabled → 今・次・ナビ
-    [1, 2, true, { current: "いずみ", next: "うた", navigator: "あや" }],
-    [0, 1, true, { current: "あや", next: "いずみ", navigator: "うた" }],
-    [1, null, true, { current: "いずみ", next: "—", navigator: "あや" }],
-    [1, 2, false, { current: "いずみ", next: "うた", navigator: null }],
-    [5, 9, true, { current: "—", next: "—", navigator: "いずみ" }],
-  ] as const)("今 %i・次 %s・ナビ %s", (currentIndex, nextIndex, navigatorEnabled, expected) => {
-    expect(at(currentIndex, nextIndex, navigatorEnabled)).toEqual(expected);
+    // currentIndex, nextIndex, navigatorEnabled, previousDriverIndex → 今・次・ナビ
+    [1, 2, true, 0, { current: "いずみ", next: "うた", navigator: "あや" }],
+    [0, 1, true, 2, { current: "あや", next: "いずみ", navigator: "うた" }],
+    [1, null, true, 0, { current: "いずみ", next: "—", navigator: "あや" }],
+    [1, 2, false, 0, { current: "いずみ", next: "うた", navigator: null }],
+    [5, 9, true, null, { current: "—", next: "—", navigator: null }],
+  ] as const)("今 %i・次 %s・ナビ有効 %s・直前 %s", (currentIndex, nextIndex, navigatorEnabled, previousDriverIndex, expected) => {
+    expect(at(currentIndex, nextIndex, navigatorEnabled, previousDriverIndex)).toEqual(expected);
   });
 
-  it("輪が 1 人ならナビは無い", () => {
-    expect(driverNames({ names: ["あや"], rotationLength: 1, currentIndex: 0, nextIndex: 0, navigatorEnabled: true }).navigator).toBeNull();
+  // #374: ナビは輪の上の 1 つ前の席ではなく、直前に実際に運転した人（サーバーが持つ）。
+  // 分からない・務められないときは出さない（輪が 1 人のときと同じ作法）。
+  it.each([
+    // 名前の並び: あや(0)・いずみ(1)・うた(2)。いまは うた(2) が運転中。
+    // previousDriverIndex, skipReasons → ナビ
+    ["1 つ前の席（いずみ）が見送り中で飛ばされた → 実際に運転した あや", 0, [null, "stood-down", null], "あや"],
+    ["1 つ前の席（いずみ）が不在で飛ばされた → あや", 0, [null, "away", null], "あや"],
+    ["飛ばされた いずみ が戻っても、運転していないので出さない → あや", 0, [null, null, null], "あや"],
+    ["強制指名で輪の向こうから来た（直前は いずみ）", 1, [null, null, null], "いずみ"],
+    ["直前のドライバーが分からない（交代前・項目が無い）", null, [null, null, null], null],
+    ["直前のドライバーが運転の後に見送りへ切り替えた → 務められないので出さない", 1, [null, "stood-down", null], null],
+    ["直前のドライバーが切断した → 出さない", 1, [null, "disconnected", null], null],
+    // 不在（away）は timer のタブに居ないだけ。タブを切り替えるたびに全員の画面でナビが点滅しないよう隠さない
+    ["直前のドライバーが不在（timer のタブに居ないだけ）→ 出す", 1, [null, "away", null], "いずみ"],
+    ["直前のドライバーの添字が輪の外（造作）→ 出さない", 7, [null, null, null], null],
+  ] as const)("%s", (_label, previousDriverIndex, skipReasons, expected) => {
+    expect(
+      driverNames({ names, skipReasons, currentIndex: 2, nextIndex: 0, previousDriverIndex, navigatorEnabled: true }).navigator,
+    ).toBe(expected);
   });
 
   it("輪が空なら、今も次も — でナビは無い", () => {
-    expect(driverNames({ names: [], rotationLength: 0, currentIndex: 0, nextIndex: null, navigatorEnabled: true })).toEqual({
+    expect(
+      driverNames({ names: [], skipReasons: [], currentIndex: 0, nextIndex: null, previousDriverIndex: null, navigatorEnabled: true }),
+    ).toEqual({
       current: "—",
       next: "—",
       navigator: null,
     });
-  });
-
-  it("ナビの添字は輪の長さで回す（名前の数ではない・移す前の式のまま）", () => {
-    // 輪 4・名前 3（造作）: 先頭が運転中なら 1 つ前は 4 番目で、名前が無い
-    expect(driverNames({ names, rotationLength: 4, currentIndex: 0, nextIndex: 1, navigatorEnabled: true }).navigator).toBeNull();
   });
 });
 

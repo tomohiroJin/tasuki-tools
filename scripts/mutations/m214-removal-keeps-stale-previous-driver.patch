@@ -1,0 +1,24 @@
+# 変異 214: 運転中の人が輪から外れても、直前のドライバーを書き換えない
+#
+# 検出を期待するテスト:
+#   - packages/timer-core/test/evolve.test.ts
+#     「運転中の人が輪から外れたら、直前のドライバーはその人になる」ほか
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m214-*.patch
+# 復元: git apply -R scripts/mutations/m214-*.patch
+#
+# #374（PR #396 のレビュー）。新しい運転者のナビに 2 つ前の人が出る。
+diff --git a/packages/timer-core/src/evolve.ts b/packages/timer-core/src/evolve.ts
+index 22410b30..c9e5a949 100644
+--- a/packages/timer-core/src/evolve.ts
++++ b/packages/timer-core/src/evolve.ts
+@@ -403,7 +403,7 @@ function evolveMemberRemoved(agg: Aggregate, index: number, nextDriverIndex: num
+   // 外したその人を直前のドライバーにすると、入れ直したとき開始直後からナビに出る（PR #396 のレビュー）。
+   const removedEntry = rotation[index];
+   const previousDriverId =
+-    index === currentIndex && removedEntry !== undefined && sessionHasStarted(agg)
++    false && removedEntry !== undefined && sessionHasStarted(agg)
+       ? rotationEntryId(removedEntry)
+       : agg.session.previousDriverId;
+ 

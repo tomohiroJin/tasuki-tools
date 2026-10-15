@@ -71,6 +71,7 @@ export function joinToolRoom(deps: JoinRoomDeps & SaveRosterDeps, input: JoinToo
   const { participantId, resumeToken, membership } = joined.value;
   reply({ type: "room.joined", code: cmd.code, participantId, resumeToken });
   // 保管と配信は対にする（`save-roster.ts`）。この接続が在席に載ったことは玄関にも届く。
+  // ほかのツールで入り直した人の席は、timer の画面で「未接続」から「別の画面」へ変わる（`save-roster.ts` が配る・#374）。
   saveRoster(deps, membership);
   input.afterJoin(joined.value);
 }

@@ -67,6 +67,7 @@ import type { RateLimiter } from '@tasuki/rate-limit';
 import type { WallClock } from '../ports/wall-clock.js';
 import type { RoomStore } from '../ports/room-store.js';
 import type { HubBroadcaster } from '../ports/hub-broadcaster.js';
+import type { TimerSeatBroadcastDeps } from './timer-seat-broadcast.js';
 import type { TopicBroadcaster } from './topic-broadcast.js';
 import { saveRoster } from './save-roster.js';
 import { applyDisplayNameRule, INVALID_DISPLAY_NAME_MESSAGE } from './display-name-rule.js';
@@ -103,7 +104,7 @@ export interface HandlerConnection extends RoomSocket {
   };
 }
 
-export interface PokerHandlerDeps {
+export interface PokerHandlerDeps extends TimerSeatBroadcastDeps {
   /**
    * 名簿の保管。**timer と同じインスタンスである**（#95 S4a）。
    * 保管するのは `@tasuki/room-core` の `Room` で、poker 固有の情報は入っていない。
@@ -281,8 +282,9 @@ export function makePokerHandlers(deps: PokerHandlerDeps): PokerHandlers {
    * （timer 側の `application/handlers.ts` の `commit` と同じ規律）。
    */
   function commit(state: PokerRoomState): void {
-    // 名簿の保管とハブへの配信は対にする（`save-roster.ts`・#95 S5a）。
-    saveRoster({ store, hub: deps.hub }, state.room);
+    // 名簿の保管とハブへの配信は対にする（`save-roster.ts`・#95 S5a）。poker の接続の出入りで
+    // timer の席の理由が変わったら、timer の画面へも届く（同じ場所が配る・#374）。
+    saveRoster(deps, state.room);
     rounds.put(state.room.code, state.round);
     broadcaster.broadcastSnapshot(state.room.code, state.round, fragmentsOf(state.room));
   }

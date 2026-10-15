@@ -98,6 +98,18 @@ export interface Room {
      * サーバーの決定と食い違う。
      */
     nextIndex: number | null;
+    /**
+     * 直前に**実際に**運転した人の席の添字（#374）。ナビ（⑦）はこの人を指す。
+     *
+     * 輪の上の 1 つ前の席ではない —— 交代は飛ばされる席を飛ばし、強制指名は輪のどこへでも飛ぶ。
+     * 集約は識別子で持ち（`SessionState.previousDriverId`）、snapshot を組むときに
+     * いまの輪の添字へ写す。交代がまだ無い・その人が輪から外れた・いまの運転者と同じ席なら `null`。
+     *
+     * **任意項目である**（`seats` / `nextIndex` と違う）。`deploy.sh timer` は画面を先に配るので、
+     * 「新しい画面 × 旧サーバー」の窓では項目が来ない。必須にするとその間 snapshot 全体が
+     * 捨てられる。無いときの画面はナビを出さない（分からない、と同じ扱い）。
+     */
+    previousDriverIndex?: number | null;
   };
   clock: ServerClock;
   phase: RoomPhase;

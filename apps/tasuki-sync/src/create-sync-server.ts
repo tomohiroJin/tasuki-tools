@@ -308,6 +308,8 @@ export function createSyncServer(config: SyncConfig): SyncServer {
   const pokerBroadcaster = createWsBroadcaster();
   const pokerHandlers = makePokerHandlers({
     store,
+    timers,
+    timerBroadcaster: broadcaster,
     rounds,
     tokens,
     hub: hubBroadcaster,
@@ -331,6 +333,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
    */
   const hubHandlers = makeHubHandlers({
     store,
+    timerBroadcaster: broadcaster,
     monotonicClock,
     timers,
     clock,
@@ -355,6 +358,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
    */
   const topicHandlers = makeTopicHandlers({
     store,
+    timerBroadcaster: broadcaster,
     monotonicClock,
     timers,
     clock,
@@ -380,6 +384,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
    */
   const rouletteHandlers = makeRouletteHandlers({
     store,
+    timerBroadcaster: broadcaster,
     timers,
     clock,
     codeGen,

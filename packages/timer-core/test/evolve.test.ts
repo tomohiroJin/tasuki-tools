@@ -136,6 +136,102 @@ describe("evolve: DriverSwitched（nextIndex === prevIndex）", () => {
   });
 });
 
+/**
+ * 直前に実際に運転した人（#374）。ナビ（⑦）は輪の上の 1 つ前の席ではなく、この人を指す。
+ * 席は飛ばされる・強制指名で飛ぶ・並べ替えで動くので、識別子で持つ。
+ */
+describe("evolve: 直前のドライバー（#374）", () => {
+  const running = () => anAggregate().withRotation("Alice", "Bob", "Charlie").running().build();
+  const switchTo = (agg: ReturnType<typeof running>, nextIndex: number) =>
+    evolve(agg, { type: "DriverSwitched", nextIndex, now: NOW + 10000 }, NOW + 10000);
+
+  it("交代が起きる前は、直前のドライバーは居ない", () => {
+    expect(running().session.previousDriverId).toBeNull();
+  });
+
+  it("飛ばされた席を挟んで交代しても、直前のドライバーは交代前の運転者（飛ばされた席の人ではない）", () => {
+    // Given（Alice が運転中。Bob の席（添字 1）は不適格）
+    // When（サーバーと同じ経路で、不適格な席を飛ばして交代する）
+    const agg = advanceDriver(running(), new Set([1]), NOW + 10000);
+    // Then（Bob を飛ばして Charlie へ。直前に運転したのは Alice）
+    expect(agg.session.currentIndex).toBe(2);
+    expect(agg.session.previousDriverId).toBe("Alice");
+  });
+
+  it("運転中の人が輪から外れたら、直前のドライバーはその人になる（2 つ前の人を残さない）", () => {
+    // Given（Alice → Bob と交代済み。いまは Bob が運転中で、直前は Alice）
+    const afterOne = switchTo(running(), 1);
+    // When（運転中の Bob が輪から外れ、Charlie が運転者になる）
+    const agg = evolve(afterOne, { type: "MemberRemoved", index: 1, nextDriverIndex: 1, now: NOW + 20000 }, NOW + 20000);
+    // Then（直前に運転していたのは Bob。Alice は 2 つ前）
+    expect(agg.session.rotation[agg.session.currentIndex]).toMatchObject({ participantId: "Charlie" });
+    expect(agg.session.previousDriverId).toBe("Bob");
+  });
+
+  it("ロビーで先頭の席を外して入れ直し、開始しても、直前のドライバーは居ない（運転した人は居ない）", () => {
+    // Given（まだ開始していない輪。先頭の Alice は「運転中の席」だが運転していない）
+    const lobby = anAggregate().withRotation("Alice", "Bob", "Charlie").build();
+    // When（Alice を外して入れ直し、開始する）
+    const removed = evolve(lobby, { type: "MemberRemoved", index: 0, nextDriverIndex: 0, now: NOW }, NOW);
+    const readded = evolve(removed, { type: "MemberAdded", participantId: "Alice", now: NOW }, NOW);
+    const started = evolve(readded, { type: "SessionStarted", now: NOW }, NOW);
+    // Then
+    expect(removed.session.previousDriverId).toBeNull();
+    expect(started.session.previousDriverId).toBeNull();
+  });
+
+  it("開始すると、前の名残の直前のドライバーは消える", () => {
+    // Given（直前のドライバーが残った集約。止まっている）
+    const stale = { ...baseAgg, session: { ...baseAgg.session, previousDriverId: "Alice" } };
+    // When
+    const started = evolve(stale, { type: "SessionStarted", now: NOW }, NOW);
+    // Then
+    expect(started.session.previousDriverId).toBeNull();
+  });
+
+  it("一時停止中に運転中の人が外れても、直前のドライバーはその人になる（セッションは続いている）", () => {
+    // Given（Alice → Bob と交代して一時停止）
+    const paused = evolve(switchTo(running(), 1), { type: "SessionPaused", now: NOW + 15000 }, NOW + 15000);
+    // When
+    const agg = evolve(paused, { type: "MemberRemoved", index: 1, nextDriverIndex: 1, now: NOW + 20000 }, NOW + 20000);
+    // Then
+    expect(agg.session.previousDriverId).toBe("Bob");
+  });
+
+  it("運転中でない人が輪から外れても、直前のドライバーは変わらない", () => {
+    // Given（Alice → Bob。直前は Alice）
+    const afterOne = switchTo(running(), 1);
+    // When（運転していない Charlie が外れる）
+    const agg = evolve(afterOne, { type: "MemberRemoved", index: 2, nextDriverIndex: 1, now: NOW + 20000 }, NOW + 20000);
+    // Then
+    expect(agg.session.previousDriverId).toBe("Alice");
+  });
+
+  it("交代先が現ドライバーと同じなら、直前のドライバーは変わらない", () => {
+    // Given（Alice → Bob と交代済み）
+    const afterOne = switchTo(running(), 1);
+    // When（Bob のまま現状維持）
+    const agg = switchTo(afterOne, 1);
+    // Then
+    expect(agg.session.previousDriverId).toBe("Alice");
+  });
+
+  it("並べ替えても、直前のドライバーは人に付いたまま", () => {
+    // Given（Alice → Bob）
+    const afterOne = switchTo(running(), 1);
+    // When（並びを逆にする）
+    const agg = evolve(afterOne, { type: "MembersShuffled", order: [2, 1, 0], now: NOW }, NOW);
+    // Then
+    expect(agg.session.previousDriverId).toBe("Alice");
+  });
+
+  it("リセットすると、直前のドライバーは居なくなる", () => {
+    const afterOne = switchTo(running(), 1);
+    const agg = evolve(afterOne, { type: "SessionReset", now: NOW + 20000 }, NOW + 20000);
+    expect(agg.session.previousDriverId).toBeNull();
+  });
+});
+
 describe("evolve: SessionPaused / SessionResumed", () => {
   const runningAgg = {
     ...baseAgg,

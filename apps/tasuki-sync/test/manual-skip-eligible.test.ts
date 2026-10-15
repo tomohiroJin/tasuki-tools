@@ -62,6 +62,17 @@ describe("手動スキップの eligibility（v2.10 #3）", () => {
     expect(roomViewOf(store, timers, code).session.currentIndex).toBe(2); // B を飛ばして C へ
   });
 
+  it("一時離脱の席を飛ばした交代の後、snapshot の直前のドライバーは交代前の運転者（飛ばされた B ではない・#374）", async () => {
+    // Given（3 人の輪 [A, B, C] で A が運転中。次の席の B は一時離脱）
+    const code = await setup(handlers, store, timers, { driverEligible: false });
+    // When（A → C）
+    await handlers.handleCommand("conn-a", { command: "session.act", action: "SWITCH" });
+    // Then（C から見て輪の 1 つ前は B だが、直前に運転したのは A）
+    const room = roomViewOf(store, timers, code);
+    expect(room.session.currentIndex).toBe(2);
+    expect(room.session.previousDriverIndex).toBe(0);
+  });
+
   it("全員 eligible なら従来どおり次へ（+1）", async () => {
     // Given（B も eligible）
     const code = await setup(handlers, store, timers, {});
