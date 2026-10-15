@@ -112,6 +112,21 @@ describe("交代が起きたら休憩の条件を判定する（#402 設計 §4.
     expect(timer.clock.secondsLeftAtAnchor).toBe(timer.clock.intervalSeconds);
   });
 
+  // 判定が applyAfterEffects の「あと」にあることを確かめる唯一の経路（繰り上げの交代は事後処理で起きる）。
+  it("Given 周回 1・自動・2 回交代済み / When 運転者が自分を driver.skip して繰り上げで 3 回目の交代が起きる / Then 休憩に入る", async () => {
+    const h = await setupRunning(ROUNDS_1);
+    advanceOneSwitch(h);
+    advanceOneSwitch(h);
+    expect(timerOf(h).session.break.since).toBeNull();
+    const driver = currentDriverId(h);
+    const r = await h.handlers.handleCommand(connOf(h, driver), { command: "driver.skip", participantId: driver });
+    expect(r.isOk()).toBe(true);
+    const timer = timerOf(h);
+    expect(timer.session.totalSwitches).toBe(3);
+    expect(timer.session.break.since).not.toBeNull();
+    expect(timer.clock.running).toBe(false);
+  });
+
   it("Given 周回 1・自動 / When 2 回交代 / Then まだ休憩に入らない", async () => {
     const h = await setupRunning(ROUNDS_1);
     advanceOneSwitch(h);
