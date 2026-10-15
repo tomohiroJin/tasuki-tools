@@ -19,7 +19,7 @@ import { isHalfWidth } from './wheel-geometry';
 export type CardNameSize = 'lg' | 'md' | 'sm';
 
 /** 段の上限（表示幅 em・その値まで）。これより広ければ次の段。 */
-export const CARD_NAME_TIER_LIMITS = { lg: 10, md: 20 } as const;
+export const CARD_NAME_TIER_LIMITS = { lg: 6, md: 20 } as const;
 
 /** 名前の表示幅（全角 1・半角 0.6）。 */
 export function displayWidthOf(name: string): number {

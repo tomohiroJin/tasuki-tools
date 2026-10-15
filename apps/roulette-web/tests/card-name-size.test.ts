@@ -15,10 +15,12 @@ describe('cardNameSize', () => {
     expect(cardNameSize(name)).toBe(size);
   });
 
-  it('Given 9〜16 字の英字名 / Then 全角の同じ字数と違い、最大の段のまま', () => {
+  it('Given 9 字の英字名 / Then 全角の同じ字数と違い、最大の段のまま', () => {
     expect(cardNameSize('Alexander')).toBe('lg');
-    expect(cardNameSize('a'.repeat(16))).toBe('lg');
-    expect(cardNameSize('あ'.repeat(16))).toBe('md');
+    expect(cardNameSize('あ'.repeat(9))).toBe('md');
+    // 表示幅 6 を超える英字は次の段（10 字 = 6.0 は最大の段、11 字 = 6.6 は md）
+    expect(cardNameSize('a'.repeat(10))).toBe('lg');
+    expect(cardNameSize('a'.repeat(11))).toBe('md');
   });
 
   it('Given 英字 33 字（表示幅 19.8） / Then 全角の同じ字数（sm）より大きい段に収まる', () => {

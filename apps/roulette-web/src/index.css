@@ -341,7 +341,6 @@
 .roulette-card-name[data-size='md'] small,
 .roulette-card-name[data-size='sm'] small {
   flex: none;
-  white-space: nowrap;
 }
 .roulette-card-name[data-size='md'] {
   font-size: var(--font-size-lg);
@@ -356,6 +355,9 @@
   -webkit-line-clamp: 3;
 }
 .roulette-card-name small {
+  /* どの段でも「さん」は 1 字ずつ折れない（名前の要素が札の幅を使い切っても、まとまって次の行へ送られる）。
+     p の overflow-wrap: anywhere は nowrap の中では効かない */
+  white-space: nowrap;
   font-family: var(--font-body);
   font-size: var(--font-size-sm);
   color: var(--coal-soft);

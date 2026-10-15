@@ -30,4 +30,9 @@ describe('ResultCard の名前の段', () => {
     }
     expect(CSS).not.toContain(".roulette-card-name[data-size='lg']");
   });
+
+  it('Given どの段でも / Then 「さん」は nowrap で、1 字ずつ折れない（#373）', () => {
+    const rule = CSS.match(/\.roulette-card-name small \{[^}]*\}/)?.[0] ?? '';
+    expect(rule).toContain('white-space: nowrap');
+  });
 });
