@@ -40,6 +40,7 @@ import {
   startSpin,
   type Member,
   type RouletteCommand,
+  type RouletteDomainErrorCode,
   type RouletteErrorCode,
   type RouletteState,
 } from "@tasuki/roulette-core";
@@ -55,6 +56,7 @@ import { findRoomByToolConnection } from "./room-lookup.js";
 import { joinToolRoom } from "./join-tool-room.js";
 import { TOOL_ROULETTE } from "./tool-id.js";
 import type { Logger } from "./log/logger.js";
+import type { LogSafe } from "./log/log-safe.js";
 import { ERROR_NAMES, RANDOM_VIOLATION_REASONS } from "./log/vocabulary.js";
 import { boundaryErrorCode } from "./connection-errors.js";
 
@@ -68,7 +70,12 @@ const RouletteConnectionMessageSchema = v.union([HubCommandSchema, RouletteComma
 const VIOLATION_REASON_OF = {
   INVALID_RANDOM: RANDOM_VIOLATION_REASONS.invalidRandom,
   INVALID_SETTLE: RANDOM_VIOLATION_REASONS.invalidSettle,
-} as const;
+} as const satisfies Partial<Record<RouletteDomainErrorCode, LogSafe>>;
+
+/** 乱数源の契約違反のコードか。**判定はこの表の鍵だけ**（コードの一覧を 1 本にする）。 */
+function isRandomViolation(code: RouletteDomainErrorCode): code is keyof typeof VIOLATION_REASON_OF {
+  return Object.hasOwn(VIOLATION_REASON_OF, code);
+}
 
 export interface RouletteHandlerDeps extends JoinRoomDeps, SaveRosterDeps {
   roulettes: RouletteStore;
@@ -165,7 +172,7 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
           const code = next.error.code;
           // INVALID_SETTLE・INVALID_RANDOM は乱数源の誤りで、利用者の操作では起きない。内部の誤りとして返す。
           // 監視は `roulette-random-violation` の 1 本で両方を拾え、`reason` で区別できる（#382）。
-          if (code === "INVALID_RANDOM" || code === "INVALID_SETTLE") {
+          if (isRandomViolation(code)) {
             if (code === "INVALID_RANDOM") {
               // #364 より前は、ドメインが RangeError を投げ、接続層（`adapters/ws/tool-channel.ts`）が
               // 「ログ → エラーフレーム」を返していた。その行は変えない。**INVALID_RANDOM は error が 2 行になる**

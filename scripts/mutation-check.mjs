@@ -1728,7 +1728,7 @@ export const MUTATIONS = [
     patch: "m240-invalid-settle-without-log.patch",
     pkg: "apps/tasuki-sync",
     tests: ["test/roulette-handlers.test.ts"],
-    note: "#382。乱数源の契約違反の片方だけが痕跡を残さない元の欠陥。内部の誤りを本番で知る手がかりが消える。",
+    note: "#382。**対応表より後に足した変異。** 乱数源の契約違反の片方だけが痕跡を残さない元の欠陥。内部の誤りを本番で知る手がかりが消える。",
   },
   {
     id: 241,
@@ -1736,7 +1736,7 @@ export const MUTATIONS = [
     patch: "m241-invalid-settle-log-below-error.patch",
     pkg: "apps/tasuki-sync",
     tests: ["test/roulette-handlers.test.ts"],
-    note: "#382。INVALID_RANDOM の行（error）と水準を揃える。warn では error を拾う監視から外れる。",
+    note: "#382。**対応表より後に足した変異。** INVALID_RANDOM の行（error）と水準を揃える。warn では error を拾う監視から外れる。",
   },
   {
     id: 242,
@@ -1744,7 +1744,7 @@ export const MUTATIONS = [
     patch: "m242-invalid-settle-logs-as-range-error.patch",
     pkg: "apps/tasuki-sync",
     tests: ["test/roulette-handlers.test.ts"],
-    note: "#382。2 つの契約違反がログで区別できなくなる（理由を語彙に置いた意味が消える）。",
+    note: "#382。**対応表より後に足した変異。** 2 つの契約違反がログで区別できなくなる（理由を語彙に置いた意味が消える）。",
   },
   {
     id: 243,
@@ -1752,7 +1752,7 @@ export const MUTATIONS = [
     patch: "m243-spin-failure-logs-as-violation.patch",
     pkg: "apps/tasuki-sync",
     tests: ["test/roulette-handlers.test.ts"],
-    note: "#382（/code-review）。人数不足など利用者の操作で起きる失敗が、内部の誤りとして error ログと INTERNAL_ERROR になる。",
+    note: "#382（/code-review）。**対応表より後に足した変異。** 人数不足など利用者の操作で起きる失敗が、内部の誤りとして error ログと INTERNAL_ERROR になる。",
   },
   {
     id: 244,
@@ -1760,7 +1760,7 @@ export const MUTATIONS = [
     patch: "m244-invalid-random-reason-is-invalid-settle.patch",
     pkg: "apps/tasuki-sync",
     tests: ["test/roulette-handlers.test.ts"],
-    note: "#382（/code-review）。監視が reason で 2 つの契約違反を区別できなくなる。",
+    note: "#382（/code-review）。**対応表より後に足した変異。** 監視が reason で 2 つの契約違反を区別できなくなる。",
   },
 ];
 

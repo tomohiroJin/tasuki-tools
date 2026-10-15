@@ -56,6 +56,8 @@ export const CONN_REJECT_REASONS = {
  * roulette の乱数源の契約違反は、かつてドメインが `RangeError` を投げ、接続層が
  * `on-message-error name=RangeError` を残していた。ドメインが `Result` を返すようになった後も
  * **同じ行を残す**ため、ハンドラがこの語彙で同じ名前を出す（`roulette-handlers.ts`）。
+ * #382 以降、`INVALID_RANDOM` は監視を 1 本で拾うための `roulette-random-violation reason=invalid-random` と
+ * 合わせて **error が 2 行**になる（`RANDOM_VIOLATION_REASONS`）。
  */
 export const ERROR_NAMES = {
   rangeError: publicText("RangeError"), // log-hygiene:allow 語彙定義
