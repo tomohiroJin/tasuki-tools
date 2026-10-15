@@ -1746,6 +1746,22 @@ export const MUTATIONS = [
     tests: ["tests/result-card.test.tsx"],
     note: "#373。段の選び方が正しくても描画に届かず、長い名前が札からはみ出す。",
   },
+  {
+    id: 203,
+    label: "札の名前の表示幅を、書記素でなくコードポイントで数える",
+    patch: "m203-card-name-counts-code-points.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/card-name-size.test.ts"],
+    note: "#373。ZWJ の絵文字・国旗が複数字と数えられ、段が不必要に下がる。",
+  },
+  {
+    id: 204,
+    label: "最大の段（lg）の名前の要素から 2 行の line-clamp を外す",
+    patch: "m204-card-name-lg-without-clamp.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/result-card.test.tsx"],
+    note: "#373。幅の広い欧文が札の上下にはみ出す安全網が無くなる。",
+  },
 ];
 
 /**

@@ -1,0 +1,23 @@
+# 変異 204: 最大の段（lg）の名前の要素から 2 行の line-clamp を外す
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/result-card.test.tsx
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m204-*.patch
+# 復元: git apply -R scripts/mutations/m204-*.patch
+#
+# #373。幅の広い欧文（WWWWWWWWWW など）が札の上下にはみ出す安全網が無くなる。
+diff --git a/apps/roulette-web/src/index.css b/apps/roulette-web/src/index.css
+index dfcadfe0..fcef4555 100644
+--- a/apps/roulette-web/src/index.css
++++ b/apps/roulette-web/src/index.css
+@@ -342,9 +342,6 @@
+ .roulette-card-name[data-size='lg'] {
+   flex-wrap: wrap;
+ }
+-.roulette-card-name[data-size='lg'] .roulette-card-name-text {
+-  -webkit-line-clamp: 2;
+-}
+ .roulette-card-name[data-size='md'],
+ .roulette-card-name[data-size='sm'] {
+   flex-wrap: nowrap;

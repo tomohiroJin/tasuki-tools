@@ -1,0 +1,22 @@
+# 変異 203: 札の名前の表示幅を、書記素でなくコードポイントで数える
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/card-name-size.test.ts
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m203-*.patch
+# 復元: git apply -R scripts/mutations/m203-*.patch
+#
+# #373。ZWJ の絵文字・国旗が複数字と数えられ、段が不必要に下がる。
+diff --git a/apps/roulette-web/src/card-name-size.ts b/apps/roulette-web/src/card-name-size.ts
+index 14ba07f1..fbe8eba2 100644
+--- a/apps/roulette-web/src/card-name-size.ts
++++ b/apps/roulette-web/src/card-name-size.ts
+@@ -26,7 +26,7 @@ export const CARD_NAME_TIER_LIMITS = { lg: 6, md: 20 } as const;
+ /** 名前の表示幅（全角 1・半角 0.6）。 */
+ export function displayWidthOf(name: string): number {
+   let w = 0;
+-  for (const { segment } of graphemes.segment(name)) w += emWidthOf(segment);
++  for (const segment of name) w += emWidthOf(segment);
+   return w;
+ }
+ 
