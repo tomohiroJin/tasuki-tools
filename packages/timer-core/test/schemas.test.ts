@@ -247,14 +247,16 @@ describe("ServerMsgSchema signal: notice（実行者の通知）", () => {
     actorParticipantId: "pid-1",
   };
 
-  it("4つの action すべてが受理される", () => {
-    // Given（対象は下記4種の action）
+  it("6つの action すべてが受理される", () => {
+    // Given（対象は下記6種の action。休憩の 2 つは #402）
     // When / Then
     for (const action of [
       "participant-removed",
       "session-aborted",
       "session-reset",
       "session-completed",
+      "break-started",
+      "break-ended",
     ]) {
       const result = v.safeParse(ServerMsgSchema, { ...base, action });
       expect(result.success, `action=${action}`).toBe(true);
@@ -503,5 +505,58 @@ describe("RoomSchema: config.members を落とした（#294）", () => {
     if (parsed.success && parsed.output.command === "config.set") {
       expect("members" in parsed.output.config).toBe(false);
     }
+  });
+});
+
+describe("休憩の wire（#402）", () => {
+  it("Given session.break が無い snapshot（古いサーバー） / When 検証する / Then 通り、break は無いまま", () => {
+    const r = v.safeParse(RoomSchema, validRoom());
+    expect(r.success).toBe(true);
+    expect(r.success && r.output.session.break).toBeUndefined();
+  });
+
+  it("Given 休憩中の snapshot / When 検証する / Then 通り、break が残る", () => {
+    const room = validRoom();
+    const r = v.safeParse(RoomSchema, {
+      ...room,
+      session: { ...room.session, break: { since: 1000, suggestedAtSwitches: null } },
+    });
+    expect(r.success).toBe(true);
+    expect(r.success && r.output.session.break).toEqual({ since: 1000, suggestedAtSwitches: null });
+  });
+
+  it("Given 休憩の提案を知らせた snapshot / When 検証する / Then 通る", () => {
+    const room = validRoom();
+    const r = v.safeParse(RoomSchema, {
+      ...room,
+      session: { ...room.session, break: { since: null, suggestedAtSwitches: 3 } },
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("Given suggestedAtSwitches が負 / When 検証する / Then 落ちる", () => {
+    const room = validRoom();
+    const r = v.safeParse(RoomSchema, {
+      ...room,
+      session: { ...room.session, break: { since: null, suggestedAtSwitches: -1 } },
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it("Given 休憩の開始の notice / When 検証する / Then 通る", () => {
+    const r = v.safeParse(ServerMsgSchema, {
+      type: "signal",
+      signal: "notice",
+      action: "break-started",
+      actorName: "a",
+      actorParticipantId: "p1",
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("Given suggest-break シグナル / When 検証する / Then 落ちる（#402 で wire から消した）", () => {
+    expect(
+      v.safeParse(ServerMsgSchema, { type: "signal", signal: "suggest-break", rounds: 1 }).success,
+    ).toBe(false);
   });
 });

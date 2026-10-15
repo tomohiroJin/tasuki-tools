@@ -311,6 +311,16 @@ const SessionStateSchema = v.object({
   // 画面が先に配られる窓で旧サーバーの snapshot を捨てないため。無ければ画面はナビを出さない
   // （席から推測する経路は作らない）。理由は `wire.ts` の `Room.session.previousDriverIndex`。
   previousDriverIndex: v.optional(v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0)))),
+  // #402: 休憩の状態。**任意にする**（`previousDriverIndex` と同じ判断。画面が先に配られる窓で
+  // 旧サーバーの snapshot を捨てない）。無ければ画面は休憩中でないとみなす。
+  // `suggestedAtSwitches` は「知らせるだけ」で知らせた交代の回数。帯はこれが totalSwitches と
+  // 一致する間だけ出る（設計 §5.5）。基準（baseline）は画面が使わないので載せない。
+  break: v.optional(
+    v.object({
+      since: v.nullable(v.number()),
+      suggestedAtSwitches: v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0))),
+    }),
+  ),
 });
 
 // T057: 自ファイル内でのみ使われるため export を外した（FR-119③・SC-039）。
@@ -338,6 +348,8 @@ export const RoomSchema = v.object({
   participants: v.array(ParticipantSchema),
   sessionRecords: v.array(CompletionRecordSchema),
   handoffNote: v.string(),
+  // #402 で状態は集約の `session.break` へ移った。この項目は `session.break.since !== null`
+  // から導いて載せる。古い画面の `RoomSchema` が必須で読むので、wire からは消さない。
   onBreak: v.boolean(),
   // v2 追加フィールド（任意化で後方互換）
   passphraseProtected: v.optional(v.boolean()),
@@ -370,13 +382,6 @@ const SignalCelebrationMsg = v.object({
   signal: v.literal("celebration"),
 });
 
-const SignalSuggestBreakMsg = v.object({
-  type: v.literal("signal"),
-  signal: v.literal("suggest-break"),
-  // 何巡したかの参考値（演出のみ・状態ではない・§5.2）
-  rounds: v.number(),
-});
-
 /**
  * 破壊的操作の実行者を在室者全員へ伝えるシグナル（Issue #22・FR-077）。
  *
@@ -396,6 +401,11 @@ const SignalNoticeMsg = v.object({
     "session-reset",
     // 完成も確認を課す操作（FR-074b）なので、実行者を全員に伝える対象に含める。
     "session-completed",
+    // 休憩の開始・終了（#402）。誰でも押せて全員の画面が変わるので、誰が押したかを伝える。
+    // 古い画面はこの notice を契約違反として捨てるが、signal なので画面は古くならない
+    // （`stale-frame.ts`）。
+    "break-started",
+    "break-ended",
   ]),
   /** 実行者の表示名 */
   actorName: nonEmptyString,
@@ -435,7 +445,6 @@ export const ServerMsgSchema = v.variant("type", [
   ErrorMsg,
   SignalSwitchMsg,
   SignalCelebrationMsg,
-  SignalSuggestBreakMsg,
   SignalNoticeMsg,
   TimePongMsg,
   RoomCreatedMsg,
