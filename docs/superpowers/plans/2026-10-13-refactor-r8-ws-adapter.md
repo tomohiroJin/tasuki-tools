@@ -87,6 +87,7 @@
 
 4. **ツールの受け口を 1 つの定義にする。** hub・topic・roulette・timer の 4 つは `createTextChannel(spec)` 1 つで作る（違いは、解析・エラーフレーム・reject でログを出すかを spec で渡す）。
    poker は形が違う（接続そのものを渡す・1011 で閉じる）ので `createPokerChannel` に分ける。振り分けは「プロトコル → 受け口」の表 1 つから引く
+   - **解消（#381）**: 「reject でログを出すか」は #381 で廃した（4 つとも出す。違いは解析とエラーフレームの型だけ）。
 5. 送り出し: 公開のメソッド 8 つ（`send`・`broadcast`・`sendHub`…）の名前と型は残し、中身を `ws-send.ts` の 1 つに寄せる。呼び出し元は変えない
 6. `process.exit(1)` を組み立て（`server.ts`）へ移す（下の判断 2）
 7. `WsAdapterOptions` の形をそろえる（下の判断 1）
@@ -167,6 +168,7 @@
 ### Task 7: ツールの受け口を 1 つの定義にし、`WsAdapterOptions` をそろえる
 
 1. `ws/tool-channel.ts` に `createTextChannel<Payload, Frame>(spec)` を置く。spec は「解析（無ければ生テキスト）・大きすぎるときのフレーム・内部エラーのフレーム・reject でログを出すか・渡す先」。hub・topic・roulette・timer の 4 つをこれで作る
+   - **解消（#381）**: 「reject でログを出すか」の spec は #381 で廃した（4 つとも出す）。代わりに spec は、ログに出す接続の名前（`protocol`）を持つ。
 2. poker は `createPokerChannel(handlers)`。受理で `onConnect` を呼ばない・切断で `detachFromCurrentRoom` を呼ぶ、も受け口の定義に持たせる（今の `if (protocol === "poker") return` の分岐が表の値になる）
 3. 振り分けは「プロトコル → 受け口」の表 1 つ。`handleMessage`（83 行）は表を引くだけになる
 4. `WsAdapterOptions` を判断 1 の形にする。組み立てと `test/support/test-ws-adapter.ts` を合わせる（テストの期待値は変えない）

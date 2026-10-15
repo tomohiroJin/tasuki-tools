@@ -184,10 +184,11 @@ function buildChannels(options: WsAdapterOptions): Readonly<Record<AcceptedProto
    * 生テキストを渡すツール（ハブ・お題・ルーレット）の受け口。違いはエラーフレームの型だけで、
    * フレームは行ごとに渡す（キャストせず、その行の型で検査させる）。
    */
-  const rawTextChannel = <Frame>(handler: RawMessageHandler, frames: { tooLarge: Frame; internalError: Frame }): ToolChannel =>
+  const rawTextChannel = <Frame>(protocol: "hub" | "topic" | "roulette", handler: RawMessageHandler, frames: { tooLarge: Frame; internalError: Frame }): ToolChannel =>
     createTextChannel<string, Frame>({
       maxMessageBytes,
       logger,
+      protocol,
       parse: (text) => ok(text),
       deliver: (connId, raw) => handler.handleMessage(connId, raw),
       tooLargeFrame: frames.tooLarge,
@@ -201,17 +202,18 @@ function buildChannels(options: WsAdapterOptions): Readonly<Record<AcceptedProto
     timer: createTextChannel<Command, ServerMsg>({
       maxMessageBytes,
       logger,
+      protocol: "timer",
       parse: parseTimerCommand,
       deliver: (connId, cmd) => options.timer.handleMessage(connId, cmd),
       tooLargeFrame: frames.tooLarge,
       internalErrorFrame: frames.internalError,
     }),
-    hub: rawTextChannel<HubServerMsg>(options.hub, frames),
+    hub: rawTextChannel<HubServerMsg>("hub", options.hub, frames),
     // エラーフレームの型は広い `TopicServerMsg` ではなく狭い `TopicOwnFrame`（#91 R18）。
     // `TopicServerMsg` は `HubServerMsg` を合併しており、その `error` は `code: string`（無制約）なので、
     // 契約に無いコードでも通ってしまう。ルーレットも同じ理由で `RouletteOwnFrame`。
-    topic: rawTextChannel<TopicOwnFrame>(options.topic, frames),
-    roulette: rawTextChannel<RouletteOwnFrame>(options.roulette, frames),
+    topic: rawTextChannel<TopicOwnFrame>("topic", options.topic, frames),
+    roulette: rawTextChannel<RouletteOwnFrame>("roulette", options.roulette, frames),
     poker: createPokerChannel(options.poker, maxMessageBytes, logger),
   };
 }

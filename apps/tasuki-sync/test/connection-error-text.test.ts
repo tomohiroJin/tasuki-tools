@@ -125,13 +125,14 @@ describe("接続層のエラーの文言（接続層・メッセージ層が失�
   // 文言もログも 4 つの接続で同じ（#381）。かつて timer だけ文言が「内部エラーが発生しました」で、
   // reject でログも残さなかった（#362・#368 の特性テストで見つかり、#381 でそろえた）。
   const INTERNAL_ERROR_MESSAGE = "サーバー内部でエラーが発生しました";
-  const LOG_LINES = ["on-message-error name=Error"];
-  for (const [label, tool] of [
-    ["timer", "timer"],
-    ["ハブ", null],
-    ["お題", "topic"],
-    ["ルーレット", "roulette"],
+  for (const [label, tool, protocol] of [
+    ["timer", "timer", "timer"],
+    ["ハブ", null, "hub"],
+    ["お題", "topic", "topic"],
+    ["ルーレット", "roulette", "roulette"],
   ] as const) {
+    // どの接続の失敗かは `protocol` に出る（固定の語彙。#381）
+    const LOG_LINES = [`on-message-error name=Error protocol=${protocol}`];
     it(`Given ${label}のメッセージ層が reject する / When 妥当な本文を送る / Then INTERNAL_ERROR と「${INTERNAL_ERROR_MESSAGE}」を返し、ログは ${LOG_LINES.length} 行`, async () => {
       // Given: どのメッセージ層も reject する接続層
       const { logger, lines } = collectingLogger();

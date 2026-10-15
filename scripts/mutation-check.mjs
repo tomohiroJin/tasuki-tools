@@ -1727,7 +1727,7 @@ export const MUTATIONS = [
     label: "timer の内部エラーが、また timer だけの別の文を返す",
     patch: "m230-timer-internal-error-own-text.patch",
     pkg: "apps/tasuki-sync",
-    tests: ["test/connection-error-text.test.ts"],
+    tests: ["test/connection-error-text.test.ts", "test/connection-error-text-sources.test.ts"],
     note:
       "#381。**対応表より後に足した変異。** timer の内部エラーのフレームを正本（`connectionErrorFrame`）から" +
       "取らず「内部エラーが発生しました」を直書きすると、timer だけ文が違う状態（#381 以前）に戻る。",
@@ -1741,6 +1741,16 @@ export const MUTATIONS = [
     note:
       "#381。**対応表より後に足した変異。** 非同期の失敗（reject）のログを落とすと、かつての timer のように" +
       "失敗が無言になる。4 つの接続で同じログが出ることを固定したテストが検出する。",
+  },
+  {
+    id: 232,
+    label: "on-message-error に、どの接続の失敗かを示す protocol を出さない",
+    patch: "m232-log-without-protocol.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/connection-error-text.test.ts"],
+    note:
+      "#381。**対応表より後に足した変異。** 4 つの接続が同じログ行を出すので、`protocol` が無いと" +
+      "ログからどの接続の失敗か分からない。接続ごとの `protocol` の値を固定したテストが検出する。",
   },
 ];
 

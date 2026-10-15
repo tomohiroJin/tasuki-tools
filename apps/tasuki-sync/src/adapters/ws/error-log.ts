@@ -22,3 +22,18 @@ export function errorName(name: string): LogSafe {
 export function classifyError(err: unknown): LogSafe {
   return errorName(classifyErrorKind(err));
 }
+
+/**
+ * `on-message-error` に添える、どの接続の失敗かを示す名前（`protocol` 項目。#381）。
+ * 受け口の表（`ws-adapter.ts` の `buildChannels`）の鍵と 1 対 1 の固定の語彙で、自由文は載せない。
+ */
+export const PROTOCOL_LOG_NAMES = {
+  timer: publicText("timer"), // log-hygiene:allow 語彙定義
+  hub: publicText("hub"), // log-hygiene:allow 語彙定義
+  topic: publicText("topic"), // log-hygiene:allow 語彙定義
+  roulette: publicText("roulette"), // log-hygiene:allow 語彙定義
+  poker: publicText("poker"), // log-hygiene:allow 語彙定義
+} as const satisfies Record<string, LogSafe>;
+
+/** 受け口の識別（{@link PROTOCOL_LOG_NAMES} の鍵）。 */
+export type ChannelProtocol = keyof typeof PROTOCOL_LOG_NAMES;

@@ -12,12 +12,12 @@
 diff --git a/apps/tasuki-sync/src/adapters/ws-adapter.ts b/apps/tasuki-sync/src/adapters/ws-adapter.ts
 --- a/apps/tasuki-sync/src/adapters/ws-adapter.ts
 +++ b/apps/tasuki-sync/src/adapters/ws-adapter.ts
-@@ -204,7 +204,7 @@
+@@ -206,7 +206,7 @@
        parse: parseTimerCommand,
        deliver: (connId, cmd) => options.timer.handleMessage(connId, cmd),
        tooLargeFrame: frames.tooLarge,
 -      internalErrorFrame: frames.internalError,
 +      internalErrorFrame: { type: "error", code: "INTERNAL_ERROR", message: "内部エラーが発生しました" },
      }),
-     hub: rawTextChannel<HubServerMsg>(options.hub, frames),
+     hub: rawTextChannel<HubServerMsg>("hub", options.hub, frames),
      // エラーフレームの型は広い `TopicServerMsg` ではなく狭い `TopicOwnFrame`（#91 R18）。

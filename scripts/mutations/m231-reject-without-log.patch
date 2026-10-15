@@ -11,13 +11,13 @@
 diff --git a/apps/tasuki-sync/src/adapters/ws/tool-channel.ts b/apps/tasuki-sync/src/adapters/ws/tool-channel.ts
 --- a/apps/tasuki-sync/src/adapters/ws/tool-channel.ts
 +++ b/apps/tasuki-sync/src/adapters/ws/tool-channel.ts
-@@ -87,8 +87,7 @@
+@@ -93,8 +93,7 @@
          return;
        }
        try {
 -        spec.deliver(ws.data.connId, parsed.value).catch((err: unknown) => {
--          spec.logger.error("on-message-error", { name: classifyError(err) });
+-          logFailure(err);
 +        spec.deliver(ws.data.connId, parsed.value).catch(() => {
-           reply(ws, spec.internalErrorFrame);
+           sendIfOpen(ws, internalErrorText);
          });
        } catch (err) {
