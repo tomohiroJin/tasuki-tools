@@ -375,6 +375,31 @@
   text-shadow: 0 0 24px var(--gold-glow);
 }
 
+/* 見積もりが割れたときの促し（#405）。警告の色にせず、集計と同じ調子の 1 行にする（名指しを責めに見せない）。
+   集計と同じ時機に立ち上がる（めくれる公開では最後の札の後。reduced-motion では要素層が遅延を 0 にする）。 */
+.results .results-spread {
+  animation: stats-rise 0.3s ease both;
+}
+
+.results--after-flip .results-spread {
+  animation-delay: calc(min(var(--seat-count, 1) - 1, 8) * 90ms + 0.45s);
+}
+
+.results-spread {
+  margin: 0 0 1.4rem;
+  max-width: 40rem;
+  font-size: var(--font-size-sm);
+  line-height: 1.7;
+  color: var(--ivory-dim);
+}
+
+/* 名前は 1 人ずつ塊にして途中で折り返さない。1 行に収まらない長い名前だけは塊の中で折る */
+.results-spread-name {
+  display: inline-block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
 /* ---------- エラーの一言の枠（色は部品の .ui-note--error が持つ） ---------- */
 
 .error-note {

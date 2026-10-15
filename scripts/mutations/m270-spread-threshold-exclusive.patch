@@ -1,0 +1,13 @@
+diff --git a/packages/poker-core/src/spread.ts b/packages/poker-core/src/spread.ts
+index 5fa1f80..cc94206 100644
+--- a/packages/poker-core/src/spread.ts
++++ b/packages/poker-core/src/spread.ts
+@@ -30,7 +30,7 @@ export function findSpread(votes: readonly VoteView[]): Spread | null {
+   const steps = numbers.map((v) => stepOf(v.card.value));
+   const highStep = Math.max(...steps);
+   const lowStep = Math.min(...steps);
+-  if (highStep - lowStep < SPREAD_MIN_STEPS) return null;
++  if (highStep - lowStep <= SPREAD_MIN_STEPS) return null;
+   return {
+     high: endOf(numbers, NUMBER_CARD_VALUES[highStep]!),
+     low: endOf(numbers, NUMBER_CARD_VALUES[lowStep]!),
