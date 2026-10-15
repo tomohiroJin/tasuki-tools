@@ -1,6 +1,6 @@
-# #405 poker で見積もりが割れたら、最大と最小を出した人に理由を聞くよう促す 実装計画
+# #405 poker で見積もりが割れたら、最大と最小を出した人に話してもらうよう促す 実装計画
 
-**Goal:** 開票後、数値の札の最大と最小がデッキの並びで 2 段以上離れていたら、結果の節に「最大と最小を出した人の考えを聞いてみませんか」という 1 行を出す。
+**Goal:** 開票後、数値の札の最大と最小がデッキの並びで 2 段以上離れていたら、結果の節に最大と最小を出した人の名前と札を示し「どう見たかを話してもらいませんか」と誘う 1 行を出す。
 
 **Tech Stack:** TypeScript（`packages/poker-core`・`apps/poker-web`・vitest）
 
@@ -27,14 +27,14 @@
 2. `apps/poker-web/src/room-view.ts`: `spreadPromptOf(round, participants)` が `findSpread` を呼び、ID を表示名に引き直す。名前が 1 人も引けない側があれば出さない。
 3. `apps/poker-web/src/components/Results.tsx`: `spread` を受けて 1 行を描く。`RoomPage.tsx` から渡す。CSS は集計と同じ立ち上がり。
 4. `docs/poker/specs/001-planning-poker-mvp/spec.md`: FR-010a を EARS で足す。
-5. 変異 m270〜m274 を足す（下の表）。
+5. 変異 m270〜m275 を足す（下の表）。
 6. `e2e/specs/poker.spec.ts`: 割れた票で両方の画面に促しが出るシナリオを 1 つ足す。
 
 ## タスク（テストファースト）
 
 - [x] Task 1: core の `findSpread` を、失敗するテストから書く（隣同士・2 段・`?`/`☕` だけ・数値 1 票・同数の複数人・0 を含む・票 0 件）
 - [x] Task 2: web の `spreadPromptOf` と `Results` の 1 行を、失敗するテストから書く。文言が書体の base 層に収まることも確かめる
-- [x] Task 3: spec に FR-010a を足し、変異を足して `--id` で検出を確かめる（m270〜m274 の 5 件すべて検出・15 秒）
+- [x] Task 3: spec に FR-010a を足し、変異を足して `--id` で検出を確かめる（m270〜m275 の 5 件すべて検出・15 秒）
 - [x] Task 4: 実画面検証（原則 V）。3 人で割れる票・割れない票を出し、表示・時機・狭い幅を目で確かめる
 
 ## 実画面検証で見つけたこと（Task 4）
@@ -54,6 +54,7 @@
 | 272 | 同じ札を出した人を 1 人に絞る | `packages/poker-core/tests/spread.test.ts` |
 | 273 | 結果の節が `spread` を描かない | `apps/poker-web/tests/results.test.tsx`・`room-page-derived.test.tsx` |
 | 274 | ルーム画面が `spread` を渡さない（配線） | `apps/poker-web/tests/room-page-derived.test.tsx` |
+| 275 | 最大の側の名前が引けなくても出す（PR #412 のレビューで、最小の側しか確かめていない穴が見つかった） | `apps/poker-web/tests/room-view.test.ts` |
 
 ID は 270 から取った（200〜259 は並列修正の予約、260〜266 は使用済み。#402 の並行作業とぶつからないよう 267〜269 を空けた）。
 
@@ -69,7 +70,7 @@ ID は 270 から取った（200〜259 は並列修正の予約、260〜266 は�
 | IV. 境界の型安全 | 該当なし | wire・コマンド・フレームに触れない |
 | V. 実画面検証 | 通過 | Task 4 で 3 人の票を出して目で確かめる |
 | VI. 依存は内向き | 通過 | 判定は core の純粋関数。web は呼ぶだけ |
-| VII. 検査は壊して確かめる | 通過 | 変異 m270〜m274 を足し、`--id` で検出を確かめる |
+| VII. 検査は壊して確かめる | 通過 | 変異 m270〜m275 を足し、`--id` で検出を確かめる |
 | VIII. 記録が正本 | 通過 | 要件は spec の FR-010a、決定と理由は本計画 |
 | IX. 小さく回す | 通過 | PR 1 本。配布は指示待ち |
 | X. 抽象は実需で | 通過 | デッキの一般化はしない（#92 が来たときに決める） |
@@ -83,5 +84,5 @@ ID は 270 から取った（200〜259 は並列修正の予約、260〜266 は�
 |---|---|
 | `pnpm --filter @tasuki/poker-core test` | 数秒 |
 | `pnpm --filter @tasuki/poker-web test` | 30 秒以内 |
-| `node scripts/mutation-check.mjs --id 270,271,272,273,274` | 1 分以内 |
+| `node scripts/mutation-check.mjs --id 270,271,272,273,274,275` | 1 分以内 |
 | `pnpm test`（全体） | 数分 |

@@ -75,11 +75,31 @@ describe('spreadPromptOf（#405）', () => {
     });
   });
 
-  it('名簿に居ない人の票は名前を出さず、片側の名前が 1 人も引けなければ null', () => {
+  it('最小の側の名前が 1 人も引けなければ null（名簿に居ない人の名前は出さない）', () => {
     const round = revealed([
       { participantId: 'p1', card: n(8) },
       { participantId: 'gone', card: n(2) },
     ]);
     expect(spreadPromptOf(round, participants)).toBeNull();
+  });
+
+  it('最大の側の名前が 1 人も引けなければ null', () => {
+    const round = revealed([
+      { participantId: 'gone', card: n(8) },
+      { participantId: 'p2', card: n(2) },
+    ]);
+    expect(spreadPromptOf(round, participants)).toBeNull();
+  });
+
+  it('名簿に居ない人だけを除き、残りの名前で示す', () => {
+    const round = revealed([
+      { participantId: 'gone', card: n(8) },
+      { participantId: 'p1', card: n(8) },
+      { participantId: 'p2', card: n(2) },
+    ]);
+    expect(spreadPromptOf(round, participants)).toEqual({
+      high: { card: n(8), names: ['あお'] },
+      low: { card: n(2), names: ['きい'] },
+    });
   });
 });

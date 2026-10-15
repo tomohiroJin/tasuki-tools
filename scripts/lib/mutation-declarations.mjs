@@ -2188,4 +2188,12 @@ export const MUTATIONS = [
     tests: ["tests/room-page-derived.test.tsx"],
     note: "#405。**対応表より後に足した変異。** 270〜279 は #405 に割り当てた（#402 の並行作業とぶつからないよう 267〜269 を空けた）。判定と描画の単体テストは緑のまま、画面に促しが出ない（配線の変異）。",
   },
+  {
+    id: 275,
+    label: "最大の側の名前が 1 人も引けなくても促しを出す",
+    patch: "m275-spread-prompt-ignores-missing-high.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/room-view.test.ts"],
+    note: "#405（PR #412 のレビュー）。**対応表より後に足した変異。** 最大の札を出した人が抜けると、名前の無い「を出した  と、」の促しが出る。",
+  },
 ];
