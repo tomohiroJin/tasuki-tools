@@ -150,6 +150,9 @@ export const ERROR_MESSAGES: Record<string, string> = {
   // （`aggregate.ts` の `nextEligibleIndex` が参照する、輪の所属とは独立したフラグ。
   //   `evolve.ts` はその関数を呼ぶ側である）。
   NOT_IN_ROTATION: "ドライバーの輪に加わっていない相手は指名できません。先にドライバーへ加えてください。",
+  // ─── 休憩と設定（#402） ───
+  NOT_IN_SESSION: "セッション中だけの操作です。",
+  CONFIG_LOCKED_IN_SESSION: "設定はセッションの開始前に変えてください。",
   // ─── ルームへの参加 ───
   // room.join（参加）の試行が閾値を超えたとき。
   JOIN_RATE_LIMITED: "参加の試行が多すぎます。しばらく待ってから再試行してください。",

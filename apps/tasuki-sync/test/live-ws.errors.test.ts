@@ -137,7 +137,7 @@ describe("実 WS 越しのエラー応答", () => {
     // When
     host.send({ command: "break.start" });
 
-    // Then: 期待コードは Task 7 で足す
+    // Then: ロビーでは休憩を始められない
     const error = await host.take("error");
     expect(error.code).toBe("NOT_IN_SESSION");
   });

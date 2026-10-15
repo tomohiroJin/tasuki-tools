@@ -479,7 +479,7 @@ export function makeHandlers(deps: HandlerDeps) {
     state: RoomState,
     assignTarget: string | undefined,
   ): Result<DomainCommandDraft, PreconditionFailure> {
-    const ctx = { residents: occupants(state.membership, state.timer), rotation: state.timer.session.rotation, assignTarget };
+    const ctx = { residents: occupants(state.membership, state.timer), rotation: state.timer.session.rotation, assignTarget, phase: state.timer.phase };
     return checkPreconditions(draft, ctx).map((checked) =>
       fillServerValues(checked, {
         topicTitle: () => deps.topics.get(state.timer.code)?.topic?.title ?? null,

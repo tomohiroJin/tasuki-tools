@@ -53,6 +53,8 @@ const CODES_SHOWN_TO_USER = [
   // 消えたため、残るのはこの 3 件）。
   "DRIVER_ASSIGN_OFFLINE",
   "NOT_IN_ROTATION",
+  "NOT_IN_SESSION",
+  "CONFIG_LOCKED_IN_SESSION",
   "JOIN_RATE_LIMITED",
 ] as const;
 

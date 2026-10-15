@@ -133,6 +133,9 @@ export const SYNC_ERROR_CODES = [
   // ─── 指名（driver.assign） ───
   "DRIVER_ASSIGN_OFFLINE",
   "NOT_IN_ROTATION",
+  // ─── 休憩と設定（#402） ───
+  "NOT_IN_SESSION",
+  "CONFIG_LOCKED_IN_SESSION",
   // ⚠ UNAUTHORIZED / HOST_TRANSFER_OFFLINE / CANNOT_CHANGE_HOST_ROLE / ALREADY_HOST /
   // LAST_MANAGER_LEAVE / LAST_MANAGER_DEMOTE は #95 S3（役割とホストの廃止）で
   // 発行元ごと消えたため、ここから削除した。可否判定・ホスト移譲・役割変更・
