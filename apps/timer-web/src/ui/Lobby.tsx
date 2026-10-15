@@ -143,6 +143,7 @@ export function Lobby({
         <Card>
           <SessionConfigPanel
             config={room.config}
+            eligibleSeats={room.session.seats.filter((s) => s.skipReason === null).length}
             onChange={(patch) => onConfigSet?.(patch)}
           />
         </Card>

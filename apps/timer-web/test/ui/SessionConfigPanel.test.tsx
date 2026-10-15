@@ -11,14 +11,14 @@ const config: SessionConfig = { intervalMinutes: 7 };
 
 describe("SessionConfigPanel", () => {
   it("交代間隔グループが表示される", () => {
-    render(<SessionConfigPanel config={config} onChange={vi.fn()} />);
+    render(<SessionConfigPanel config={config} eligibleSeats={1} onChange={vi.fn()} />);
     expect(screen.getByRole("group", { name: /交代間隔/ })).toBeTruthy();
   });
 
   it("交代間隔ボタンを押すと交代間隔が変更される", () => {
     // Given
     const onChange = vi.fn();
-    render(<SessionConfigPanel config={config} onChange={onChange} />);
+    render(<SessionConfigPanel config={config} eligibleSeats={1} onChange={onChange} />);
     // When
     fireEvent.click(screen.getByRole("button", { name: "10分" }));
     // Then
@@ -28,7 +28,7 @@ describe("SessionConfigPanel", () => {
   it("詳細設定のナビゲータートグルを押すとナビゲーター機能が有効になる", () => {
     // Given
     const onChange = vi.fn();
-    render(<SessionConfigPanel config={config} onChange={onChange} />);
+    render(<SessionConfigPanel config={config} eligibleSeats={1} onChange={onChange} />);
     // When
     fireEvent.click(screen.getByRole("checkbox", { name: /ナビゲーター/ }));
     // Then
@@ -36,7 +36,7 @@ describe("SessionConfigPanel", () => {
   });
 
   it("休憩リマインダが存在しない", () => {
-    render(<SessionConfigPanel config={config} onChange={vi.fn()} />);
+    render(<SessionConfigPanel config={config} eligibleSeats={1} onChange={vi.fn()} />);
     expect(screen.queryByText(/休憩リマインダ/)).toBeNull();
   });
 });

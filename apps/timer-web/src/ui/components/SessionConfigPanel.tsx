@@ -8,13 +8,16 @@ import { Settings2, ChevronDown } from "lucide-react";
 import { VALID_INTERVAL_MINUTES, type IntervalMinutes } from "@tasuki/timer-core/aggregate";
 import type { SessionConfig } from "@tasuki/timer-core";
 import { SectionHeader } from "../primitives.js";
+import { BreakSettings } from "./BreakSettings.js";
 
 interface SessionConfigPanelProps {
   config: SessionConfig;
+  /** 適格な席（番が回る席）の数。休憩の周回の目安に使う */
+  eligibleSeats: number;
   onChange: (patch: Partial<SessionConfig>) => void;
 }
 
-export function SessionConfigPanel({ config, onChange }: SessionConfigPanelProps) {
+export function SessionConfigPanel({ config, eligibleSeats, onChange }: SessionConfigPanelProps) {
   const navigatorEnabled = config.navigatorEnabled === true;
   const assertiveSwitch = config.assertiveSwitch === true;
 
@@ -47,7 +50,7 @@ export function SessionConfigPanel({ config, onChange }: SessionConfigPanelProps
         <p className="session-config-hint">推奨は 5〜10 分。短いほど集中と学習が高まります。</p>
       </div>
 
-      {/* 詳細設定（オプション2点・既定 OFF）。最初は折りたたみ。 */}
+      {/* 詳細設定（オプション 2 点と休憩の条件）。最初は折りたたみ。 */}
       <details className="session-config-details">
         <summary className="session-config-summary">
           <Settings2 className="session-config-summary-icon" aria-hidden="true" />
@@ -68,6 +71,12 @@ export function SessionConfigPanel({ config, onChange }: SessionConfigPanelProps
             hint="交代の瞬間に全画面で割り込み、見落としを防ぎます。"
           />
         </div>
+        <BreakSettings
+          policy={config.break}
+          intervalMinutes={config.intervalMinutes}
+          eligibleSeats={eligibleSeats}
+          onChange={(p) => onChange({ break: p })}
+        />
       </details>
     </div>
   );

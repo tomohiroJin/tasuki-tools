@@ -1,0 +1,10 @@
+/* ロビーの休憩の条件（`BreakSettings.tsx`・#402）。ボタンの見た目は `session-config-*` を使い回す。
+ * 足りないのは段の間の余白だけ。 */
+
+.break-settings {
+  margin-top: var(--space-4);
+}
+
+.break-settings-sublabel {
+  margin-top: var(--space-3);
+}
