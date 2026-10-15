@@ -288,9 +288,8 @@ describe("全てのコマンドを混ぜた列での不変条件（#364）", () 
  *
  * - I1・I2（`currentIndex` の不変条件。正本は `aggregate.ts` の `SessionState.currentIndex` の注釈）
  * - 輪が空なら時計は止まり、一時停止として表す（担当の居ない輪でタイマーが回らない）
- * - 範囲外の添字（負・輪の長さ以上・整数でない）の `MemberRemoved` / `MemberMoved` は集約を変えない
- *
- * 並べ替えの順列と交代先だけは前提を満たすものを組む（それぞれ `decide` が別に確かめる前提で、#376 の射程の外）。
+ * - 範囲外の添字（負・輪の長さ以上・整数でない）の `MemberRemoved` / `MemberMoved` / `DriverSwitched` と、
+ *   順列でない `order` の `MembersShuffled` は集約を変えない
  */
 describe("evolve に直接流すイベントの列での不変条件（#376）", () => {
   type Event = Parameters<typeof evolve>[1];
@@ -319,6 +318,25 @@ describe("evolve に直接流すイベントの列での不変条件（#376）",
     }
   }
 
+  /**
+   * 並べ替えの order を組む。半分は [0..len-1] の順列（回転。空の輪では空の順列）、
+   * 半分は順列でないもの（短い・長い・重複・範囲外の添字）にする。
+   */
+  function shuffleOrder(a: number, b: number, len: number): number[] {
+    const rotated = Array.from({ length: len }, (_, i) => (i + a) % len);
+    switch (b % 8) {
+      case 0: return rotated.slice(1);
+      case 1: return [...rotated, 0];
+      case 2: return len === 0 ? [0] : [rotated[0]!, ...rotated.slice(0, -1)]; // 先頭が重複（1 人の輪では順列のまま）
+      case 3: return [...rotated.slice(1), -1];
+      default: return rotated;
+    }
+  }
+
+  function isPermutation(order: readonly number[], len: number): boolean {
+    return order.length === len && new Set(order).size === len && order.every((i) => isSeatIndex(i, len));
+  }
+
   function isSeatIndex(i: number, len: number): boolean {
     return Number.isInteger(i) && i >= 0 && i < len;
   }
@@ -334,10 +352,9 @@ describe("evolve に直接流すイベントの列での不変条件（#376）",
       case "move":
         return { type: "MemberMoved", fromIndex: seatIndex(a, len), toIndex: seatIndex(b, len), now };
       case "shuffle":
-        // 回転は [0..len-1] の順列（空の輪では空の順列）
-        return { type: "MembersShuffled", order: Array.from({ length: len }, (_, i) => (i + a) % len), now };
+        return { type: "MembersShuffled", order: shuffleOrder(a, b, len), now };
       case "switch":
-        return { type: "DriverSwitched", nextIndex: len === 0 ? 0 : a % len, now };
+        return { type: "DriverSwitched", nextIndex: seatIndex(a, len), now };
       case "session":
         return { type: SESSION_EVENTS[a % SESSION_EVENTS.length]!, now };
       case "reset":
@@ -349,10 +366,12 @@ describe("evolve に直接流すイベントの列での不変条件（#376）",
   function hasOutOfRangeIndex(event: Event, len: number): boolean {
     if (event.type === "MemberRemoved") return !isSeatIndex(event.index, len);
     if (event.type === "MemberMoved") return !isSeatIndex(event.fromIndex, len) || !isSeatIndex(event.toIndex, len);
+    if (event.type === "DriverSwitched") return !isSeatIndex(event.nextIndex, len);
+    if (event.type === "MembersShuffled") return !isPermutation(event.order, len);
     return false;
   }
 
-  it("Given 1〜3 人の走っている輪 / When 輪を空にする MemberRemoved と範囲外の添字を含む任意のイベントの列を evolve へ直接流す / Then 各段で I1・I2 が成り立ち、空の輪の時計は一時停止で止まり、範囲外の添字は集約を変えない", () => {
+  it("Given 1〜3 人の走っている輪 / When 輪を空にする MemberRemoved・範囲外の添字・順列でない order を含む任意のイベントの列を evolve へ直接流す / Then 各段で I1・I2 が成り立ち、空の輪の時計は一時停止で止まり、範囲外の添字と順列でない order は集約を変えない", () => {
     let reachedEmpty = 0;
     let sawOutOfRange = 0;
     fc.assert(

@@ -445,6 +445,28 @@ describe("evolve: 範囲外の添字の MemberRemoved / MemberMoved は集約を
     // Then
     expect(next).toEqual(agg);
   });
+
+  it.each([-1, 3, 4, 0.5])("DriverSwitched の nextIndex が %s", (nextIndex) => {
+    // When（現ドライバーと違う範囲外の番号。範囲内なら交代と再アンカーが起きる）
+    const next = evolve(agg, { type: "DriverSwitched", nextIndex, now: NOW + 1000 }, NOW + 1000);
+    // Then
+    expect(next).toEqual(agg);
+  });
+
+  it.each([
+    [[0, 1]],
+    [[0, 1, 2, 3]],
+    [[0, 1, 2, 0]], // 長く、重複で集合の大きさだけは輪の長さに一致する
+    [[0, 0, 1]],
+    [[0, 1, 3]],
+    [[-1, 0, 1]],
+    [[0, 1, 1.5]],
+  ])("MembersShuffled の order が順列でない（%j）", (order) => {
+    // When
+    const next = evolve(agg, { type: "MembersShuffled", order, now: NOW }, NOW);
+    // Then
+    expect(next).toEqual(agg);
+  });
 });
 
 describe("evolve: MemberRemoved / MemberMoved の index 調整分岐", () => {

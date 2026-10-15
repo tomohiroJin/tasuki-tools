@@ -188,6 +188,8 @@ function evolveDriverSwitched(
   nextIndex: number,
   now: number,
 ): Aggregate {
+  // 範囲外の交代先は集約を変えない（#376。decide は nextEligibleIndex で範囲内しか作らない）
+  if (!isSeatIndex(nextIndex, agg.session.rotation.length)) return agg;
   const prevIndex = agg.session.currentIndex;
 
   // 稼働区間を accumulatedElapsedMs に確定加算して新しいアンカーを設定
@@ -345,13 +347,18 @@ function evolveMemberAdded(agg: Aggregate, participantId: string): Aggregate {
 }
 
 /**
- * 輪の席を指す添字か（整数で `0 ≤ i < len`）。範囲外の添字の出し入れは集約を変えない（#376）。
- * `decide` は範囲外を InvalidIndex で拒むので通常の経路からは届かないが、evolve は全域関数なので
+ * 輪の席を指す添字か（整数で `0 ≤ i < len`）。範囲外の添字を持つ席の出し入れ・並べ替え・交代は
+ * 集約を変えない（#376）。`decide` は範囲外を拒むので通常の経路からは届かないが、evolve は全域関数なので
  * イベントを直接渡されても壊れた集約を返さない（負の添字は `splice` が末尾から数え、
  * 整数でない添字は切り捨てられて、別の席を動かしてしまう）。
  */
 function isSeatIndex(i: number, len: number): boolean {
   return Number.isInteger(i) && i >= 0 && i < len;
+}
+
+/** `order` が `[0..len-1]` の順列か（長さが同じ・全部が席の添字・重複が無い）。 */
+function isPermutation(order: readonly number[], len: number): boolean {
+  return order.length === len && order.every((i) => isSeatIndex(i, len)) && new Set(order).size === len;
 }
 
 /**
@@ -428,9 +435,11 @@ function evolveMemberMoved(
  */
 function evolveMembersShuffled(agg: Aggregate, order: number[]): Aggregate {
   const oldRotation = agg.session.rotation;
+  // 順列でない order は集約を変えない（#376。decideMembersShuffle も同じ前提を確かめて拒む）
+  if (!isPermutation(order, oldRotation.length)) return agg;
   const oldCounts = agg.session.driverCounts;
   const currentEntry = oldRotation[agg.session.currentIndex];
-  // `!`: order は decideMembersShuffle が [0..len-1] の順列だと確かめてある（添字は必ず範囲内・#364）
+  // `!`: order は直前で [0..len-1] の順列だと確かめた（添字は必ず範囲内）
   const newRotation = order.map((i) => oldRotation[i]!);
   const newDriverCounts = order.map((i) => oldCounts[i] ?? 0);
   const currentId = currentEntry !== undefined ? rotationEntryId(currentEntry) : undefined;
