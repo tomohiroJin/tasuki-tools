@@ -14,7 +14,8 @@
  * ## 利用者の入力をログに書かない
  *
  * ゲストの名前・表示名は利用者の入力である（`docs/adr/0012`・spec R13）。このファイルはそれらをログに書かない。
- * 書くのは、乱数源の契約違反（`INVALID_RANDOM`）を知らせる固定の語彙の 1 行だけである（#364。下の `roulette.spin`）。
+ * 書くのは、乱数源の契約違反を知らせる固定の語彙の行だけである（`INVALID_RANDOM` は #364・#382、`INVALID_SETTLE` は #382。
+ * 下の `roulette.spin`。どちらも `roulette-random-violation reason=…` で拾え、`reason` で区別できる）。
  * 時計は**単調時計**（`MonotonicClock`）。壁時計は NTP の調整で戻りうる。
  */
 import * as v from "valibot";
@@ -39,6 +40,7 @@ import {
   startSpin,
   type Member,
   type RouletteCommand,
+  type RouletteDomainErrorCode,
   type RouletteErrorCode,
   type RouletteState,
 } from "@tasuki/roulette-core";
@@ -54,7 +56,8 @@ import { findRoomByToolConnection } from "./room-lookup.js";
 import { joinToolRoom } from "./join-tool-room.js";
 import { TOOL_ROULETTE } from "./tool-id.js";
 import type { Logger } from "./log/logger.js";
-import { ERROR_NAMES } from "./log/vocabulary.js";
+import type { LogSafe } from "./log/log-safe.js";
+import { ERROR_NAMES, PROTOCOL_LOG_NAMES, RANDOM_VIOLATION_REASONS } from "./log/vocabulary.js";
 import { boundaryErrorCode } from "./connection-errors.js";
 
 /**
@@ -62,6 +65,24 @@ import { boundaryErrorCode } from "./connection-errors.js";
  * ハブの言葉のうち `room.create` / `room.check` も境界は通るが、下の振り分けで拒む。
  */
 const RouletteConnectionMessageSchema = v.union([HubCommandSchema, RouletteCommandSchema]);
+
+interface ViolationLog {
+  /** `roulette-random-violation` の `reason`（語彙） */
+  reason: LogSafe;
+  /** 例外だった頃の接続層の行（`on-message-error name=RangeError`）も残すか（#364。変えない） */
+  keepsRangeErrorLine: boolean;
+}
+
+/** 乱数源の契約違反のコード → ログの形。ここに無いコードは利用者の操作による失敗で、ログを残さない。 */
+const VIOLATION_REASON_OF = {
+  INVALID_RANDOM: { reason: RANDOM_VIOLATION_REASONS.invalidRandom, keepsRangeErrorLine: true },
+  INVALID_SETTLE: { reason: RANDOM_VIOLATION_REASONS.invalidSettle, keepsRangeErrorLine: false },
+} as const satisfies Partial<Record<RouletteDomainErrorCode, ViolationLog>>;
+
+/** 乱数源の契約違反のコードか。**判定はこの表の鍵だけ**（コードの一覧を 1 本にする）。 */
+function isRandomViolation(code: RouletteDomainErrorCode): code is keyof typeof VIOLATION_REASON_OF {
+  return Object.hasOwn(VIOLATION_REASON_OF, code);
+}
 
 export interface RouletteHandlerDeps extends JoinRoomDeps, SaveRosterDeps {
   roulettes: RouletteStore;
@@ -157,12 +178,21 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
         if (next.isErr()) {
           const code = next.error.code;
           // INVALID_SETTLE・INVALID_RANDOM は乱数源の誤りで、利用者の操作では起きない。内部の誤りとして返す。
-          if (code === "INVALID_RANDOM") {
-            // #364 より前は、ドメインが RangeError を投げ、接続層（ws-adapter.ts）が「ログ → エラーフレーム」を
-            // 返していた。その行を変えないため、ここで同じ行を残す（INVALID_SETTLE は元からログが無い。#382）。
-            logger.error("on-message-error", { name: ERROR_NAMES.rangeError });
+          // 監視は `roulette-random-violation` の 1 本で両方を拾え、`reason` で区別できる（#382）。
+          if (isRandomViolation(code)) {
+            const violation: ViolationLog = VIOLATION_REASON_OF[code];
+            if (violation.keepsRangeErrorLine) {
+              // #364 より前は、ドメインが RangeError を投げ、接続層（`adapters/ws/tool-channel.ts`）が
+              // 「ログ → エラーフレーム」を返していた。その行は変えない。**INVALID_RANDOM は error が 2 行になる**
+              // （この行と、下の reason 付きの行。reason の行は監視を 1 本で拾うために足した）。
+              // 接続層の行は #381 で `protocol` を持ったので、この写しもそろえる。
+              logger.error("on-message-error", { name: ERROR_NAMES.rangeError, protocol: PROTOCOL_LOG_NAMES.roulette });
+            }
+            logger.error("roulette-random-violation", { reason: violation.reason });
+            fail(connId, "INTERNAL_ERROR");
+            return;
           }
-          fail(connId, code === "INVALID_SETTLE" || code === "INVALID_RANDOM" ? "INTERNAL_ERROR" : code);
+          fail(connId, code);
           return;
         }
         commit(room.code, stored, next.value);

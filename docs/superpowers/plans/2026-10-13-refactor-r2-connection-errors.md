@@ -182,6 +182,7 @@
 - **timer の `INTERNAL_ERROR` の文言だけが違った。** Task 1 の特性テストを書いて初めて分かった。timer は「内部エラーが発生しました」（`ws-adapter.ts` の `sendInternalError`）、ハブ・お題・ルーレットは「サーバー内部でエラーが発生しました」である。
   - リファクタリングでは変えずに固定した。正本には `TIMER_INTERNAL_ERROR_TEXT` として別に置いた
   - そろえるかどうかは #381 で決める
+  - **解消（#381）**: timer の文も `CONNECTION_ERROR_TEXT.INTERNAL_ERROR` にそろえ、`TIMER_INTERNAL_ERROR_TEXT` は廃した。
   - 計画 §1 の「接続層の 4 つの文は timer の系統で共通」は、`INTERNAL_ERROR` について誤りだった
 - **ws-adapter の旧コメントは「poker の文言はここに無い」と書いていたが、実際には同じ文を直書きしていた**（`:784`）。計画どおり正本から取る形にし、コメントを実態に合わせた
 - **「写しが残っていない」の検査を、poker の正本（`poker-error-text.ts`）にも効かせた。** 計画は timer の系統の正本だけを対象にしていた。Task 4 で poker の正本を置いたので、同じ形の検査で守る

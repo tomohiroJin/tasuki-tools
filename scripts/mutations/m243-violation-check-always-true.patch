@@ -1,0 +1,22 @@
+# 変異 243: violation-check-always-true
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/roulette-handlers.test.ts
+#
+# #382。isRandomViolation を常に真にする。人数不足など利用者の操作で起きる失敗が契約違反として扱われる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m243-*.patch
+# 復元: git apply -R scripts/mutations/m243-*.patch
+diff --git a/apps/tasuki-sync/src/application/roulette-handlers.ts b/apps/tasuki-sync/src/application/roulette-handlers.ts
+--- a/apps/tasuki-sync/src/application/roulette-handlers.ts
++++ b/apps/tasuki-sync/src/application/roulette-handlers.ts
+@@ -81,7 +81,7 @@ const VIOLATION_REASON_OF = {
+ 
+ /** 乱数源の契約違反のコードか。**判定はこの表の鍵だけ**（コードの一覧を 1 本にする）。 */
+ function isRandomViolation(code: RouletteDomainErrorCode): code is keyof typeof VIOLATION_REASON_OF {
+-  return Object.hasOwn(VIOLATION_REASON_OF, code);
++  return code !== undefined;
+ }
+ 
+ export interface RouletteHandlerDeps extends JoinRoomDeps, SaveRosterDeps {

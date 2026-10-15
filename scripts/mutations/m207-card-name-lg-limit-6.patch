@@ -1,0 +1,22 @@
+# 変異 207: 札の最大の段の上限を、1 行に収まる 5.5 でなく 6 に戻す
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/card-name-size.test.ts
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m207-*.patch
+# 復元: git apply -R scripts/mutations/m207-*.patch
+#
+# #373。全角 6 字が 2 行になり、札の高さを超える。
+diff --git a/apps/roulette-web/src/card-name-size.ts b/apps/roulette-web/src/card-name-size.ts
+index c28b1858..8a2fc7af 100644
+--- a/apps/roulette-web/src/card-name-size.ts
++++ b/apps/roulette-web/src/card-name-size.ts
+@@ -22,7 +22,7 @@ export type CardNameSize = 'lg' | 'md' | 'sm';
+  * 段の上限（表示幅 em・その値まで）。これより広ければ次の段。`lg` は広い札（16rem・字 2.4rem）の 1 行に
+  * 収まる幅（全角 5 字・英字 9 字）。6 字以上は 2 行になり、「さん」が次の行へ回ると札の枠に張り付く。
+  */
+-export const CARD_NAME_TIER_LIMITS = { lg: 5.5, md: 20 } as const;
++export const CARD_NAME_TIER_LIMITS = { lg: 6, md: 20 } as const;
+ 
+ /** 名前の表示幅（全角 1・半角 0.6）。 */
+ export function displayWidthOf(name: string, segmenter?: Intl.Segmenter | null): number {

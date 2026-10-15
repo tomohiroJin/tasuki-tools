@@ -54,6 +54,36 @@ export function isHalfWidth(ch: string): boolean {
 }
 
 /**
+ * 名前を書記素（見た目 1 字）に分ける。ZWJ の絵文字・国旗・結合文字を途中で割らない。
+ * `Intl.Segmenter` は**使う時に作る**（読み込み時に作ると、無い環境で画面ごと落ちる）。
+ * 無ければコードポイントで分ける。`segmenter` は試験で差し替えるための引数（`null` で代替の側へ倒す）。
+ */
+let sharedSegmenter: Intl.Segmenter | null | undefined;
+export function splitGraphemes(text: string, segmenter?: Intl.Segmenter | null): string[] {
+  let seg = segmenter;
+  if (seg === undefined) {
+    if (sharedSegmenter === undefined) {
+      sharedSegmenter = typeof Intl !== 'undefined' && typeof Intl.Segmenter === 'function' ? new Intl.Segmenter(undefined, { granularity: 'grapheme' }) : null;
+    }
+    seg = sharedSegmenter;
+  }
+  if (seg === null) return Array.from(text);
+  return Array.from(seg.segment(text), (part) => part.segment);
+}
+
+/**
+ * 名前の 1 書記素の表示幅（em）。全角 1・半角（{@link isHalfWidth}）0.6。
+ * 先頭が半角なら、半角の符号位置 1 つにつき 0.6（半角カナの濁点 `ﾞ` は 1 つ分の幅を取る）。
+ * 結合文字（`e` + U+0301）や ZWJ の連なり（家族の絵文字）は幅を足さない。
+ * 円盤の席（`fitLabel`）と結果の札（`card-name-size.ts`）が同じ物差しを使う唯一の場所。
+ */
+export function emWidthOf(grapheme: string): number {
+  const first = Array.from(grapheme)[0] ?? '';
+  if (!isHalfWidth(first)) return 1;
+  return 0.6 * Array.from(grapheme).filter(isHalfWidth).length;
+}
+
+/**
  * 欧文（半角の字が空白を除いて半分以上）・短い名前（全角主体で 3 字まで）・長い名前（全角主体で 4 字以上）。
  * 欧文は縦に積むと読めない（「M／i／k／a」）ので縦書きにしない。短い名前は縦書きの列が斜めに傾くと
  * 2 字が画面の左右に並び逆順に読める（「山田」が「田山」）ので、斜めの席では横書きを優先する。
@@ -103,14 +133,14 @@ export function acrossMaxEm(seatDeg: number): number {
 }
 
 /**
- * 名前を席に収める（全角 1・半角（`isHalfWidth`）0.6 で数え、溢れたら `…`）。縦書き（`upright`）では欧文も立てて積み、
+ * 名前を席に収める（書記素ごとに全角 1・半角（`isHalfWidth`）0.6 で数え、溢れたら `…`）。縦書き（`upright`）では欧文も立てて積み、
  * 1 字が 1em を取るので全部 1 で数える。
  */
 export function fitLabel(name: string, maxEm: number, upright = false): string {
   let w = 0;
   let out = '';
-  for (const ch of name) {
-    const cw = !upright && isHalfWidth(ch) ? 0.6 : 1;
+  for (const ch of splitGraphemes(name)) {
+    const cw = upright ? 1 : emWidthOf(ch);
     if (w + cw > maxEm) return `${out}…`;
     w += cw;
     out += ch;

@@ -1,0 +1,22 @@
+# 変異 244: invalid-random-reason-is-invalid-settle
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/roulette-handlers.test.ts
+#
+# #382。INVALID_RANDOM の reason を invalid-settle にする。監視が reason で 2 つの契約違反を区別できなくなる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m244-*.patch
+# 復元: git apply -R scripts/mutations/m244-*.patch
+diff --git a/apps/tasuki-sync/src/application/roulette-handlers.ts b/apps/tasuki-sync/src/application/roulette-handlers.ts
+--- a/apps/tasuki-sync/src/application/roulette-handlers.ts
++++ b/apps/tasuki-sync/src/application/roulette-handlers.ts
+@@ -75,7 +75,7 @@ interface ViolationLog {
+ 
+ /** 乱数源の契約違反のコード → ログの形。ここに無いコードは利用者の操作による失敗で、ログを残さない。 */
+ const VIOLATION_REASON_OF = {
+-  INVALID_RANDOM: { reason: RANDOM_VIOLATION_REASONS.invalidRandom, keepsRangeErrorLine: true },
++  INVALID_RANDOM: { reason: RANDOM_VIOLATION_REASONS.invalidSettle, keepsRangeErrorLine: true },
+   INVALID_SETTLE: { reason: RANDOM_VIOLATION_REASONS.invalidSettle, keepsRangeErrorLine: false },
+ } as const satisfies Partial<Record<RouletteDomainErrorCode, ViolationLog>>;
+ 
