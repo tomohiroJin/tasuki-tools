@@ -223,7 +223,7 @@ describe("回す", () => {
     expect(winners[0]).not.toBe(winners[1]);
   });
 
-  it("Given 乱数源が範囲外を返す / When 回す / Then INTERNAL_ERROR を返し、ログに on-message-error name=RangeError と reason=invalid-random の 2 行を残す（#364・#382）", async () => {
+  it("Given 乱数源が範囲外を返す / When 回す / Then INTERNAL_ERROR を返し、ログに on-message-error name=RangeError protocol=roulette と reason=invalid-random の 2 行を残す（#364・#382）", async () => {
     // #364 より前は、ドメインが RangeError を投げ、接続層（adapters/ws/tool-channel.ts）が
     // 隔離して「ログ → エラーフレーム」を返していた。ドメインが Result を返すようになっても、
     // フレームとログの行（中身・水準・順）は変えない（計画 §3「ログを保つ」）。
@@ -246,7 +246,7 @@ describe("回す", () => {
     ]);
     // 既存の行（先頭）は変えず、監視が 1 本で拾える reason 付きの行をその次に足す（#382）
     expect(h.logLines).toEqual([
-      "error on-message-error name=RangeError",
+      "error on-message-error name=RangeError protocol=roulette",
       "error roulette-random-violation reason=invalid-random",
     ]);
     expect(h.roulettes.get(ROOM)).toBe(before);

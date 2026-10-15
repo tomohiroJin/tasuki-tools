@@ -57,7 +57,7 @@ import { joinToolRoom } from "./join-tool-room.js";
 import { TOOL_ROULETTE } from "./tool-id.js";
 import type { Logger } from "./log/logger.js";
 import type { LogSafe } from "./log/log-safe.js";
-import { ERROR_NAMES, RANDOM_VIOLATION_REASONS } from "./log/vocabulary.js";
+import { ERROR_NAMES, PROTOCOL_LOG_NAMES, RANDOM_VIOLATION_REASONS } from "./log/vocabulary.js";
 import { boundaryErrorCode } from "./connection-errors.js";
 
 /**
@@ -185,7 +185,8 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
               // #364 より前は、ドメインが RangeError を投げ、接続層（`adapters/ws/tool-channel.ts`）が
               // 「ログ → エラーフレーム」を返していた。その行は変えない。**INVALID_RANDOM は error が 2 行になる**
               // （この行と、下の reason 付きの行。reason の行は監視を 1 本で拾うために足した）。
-              logger.error("on-message-error", { name: ERROR_NAMES.rangeError });
+              // 接続層の行は #381 で `protocol` を持ったので、この写しもそろえる。
+              logger.error("on-message-error", { name: ERROR_NAMES.rangeError, protocol: PROTOCOL_LOG_NAMES.roulette });
             }
             logger.error("roulette-random-violation", { reason: violation.reason });
             fail(connId, "INTERNAL_ERROR");
