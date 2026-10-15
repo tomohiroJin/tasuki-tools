@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { nextEligibleIndex } from "../src/aggregate.js";
+import { nextDriverAfterRemoval, nextEligibleIndex } from "../src/aggregate.js";
 import { anAggregate } from "./support/aggregate-builder.js";
 
 // ─── nextEligibleIndex ────────────────────────────────────────────────────────
@@ -97,5 +97,27 @@ describe("Participant 型の v2 フィールド", () => {
     const participant: import("../src/wire.js").Participant = requiredFields;
     // Then
     expect(participant.driverEligible).toBeUndefined();
+  });
+});
+
+describe("nextDriverAfterRemoval（#376）", () => {
+  const session = anAggregate().withRotation("A", "B", "C").build().session;
+
+  it("1 人の輪から外すと 0（外した後の輪は空）", () => {
+    expect(nextDriverAfterRemoval(anAggregate().withRotation("A").build().session, 0, new Set([0]))).toBe(0);
+  });
+
+  it("空の輪なら 0（NaN を返さない）", () => {
+    const one = anAggregate().withRotation("A").build().session;
+    expect(nextDriverAfterRemoval({ ...one, rotation: [] }, 0, undefined)).toBe(0);
+  });
+
+  it.each([-1, 3, 0.5])("外す席の添字が範囲外（%s）なら、いまの担当のまま", (removedIndex) => {
+    const at2 = { ...session, currentIndex: 2 };
+    expect(nextDriverAfterRemoval(at2, removedIndex, new Set([0]))).toBe(2);
+  });
+
+  it("外した席自身が不適格の集合に入っていても、次の適格な人を選ぶ", () => {
+    expect(nextDriverAfterRemoval(session, 0, new Set([0, 1]))).toBe(1);
   });
 });

@@ -8,6 +8,9 @@ import type { Aggregate, RoomPhase, SessionAction, TimerConfig } from "./aggrega
 import {
   VALID_INTERVAL_MINUTES,
   MAX_MEMBERS,
+  isPermutation,
+  isSeatIndex,
+  nextDriverAfterRemoval,
   nextEligibleIndex,
   rotationEntryId,
 } from "./aggregate.js";
@@ -31,7 +34,13 @@ type DecideCommand =
   | { command: "session.abort" }
   | { command: "session.reset"; config?: TimerConfig }
   | { command: "member.add"; participantId: string }
-  | { command: "member.remove"; index: number }
+  | {
+      command: "member.remove";
+      index: number;
+      // 運転中の人を外すときの次の担当を、交代と同じ資格の規則で選ぶための入力（#376）。
+      // session.act の ineligible と同じく、サーバーが埋める。省略時は全員適格として扱う。
+      ineligible?: ReadonlySet<number> | undefined;
+    }
   | { command: "member.move"; fromIndex: number; toIndex: number }
   // order はサーバー（handler）が生成して渡す（wire コマンドは order を持たない）。
   | { command: "member.shuffle"; order: number[] }
@@ -71,7 +80,7 @@ export function decide(
       return decideMemberAdd(cmd.participantId, agg, now);
 
     case "member.remove":
-      return decideMemberRemove(cmd.index, agg, now);
+      return decideMemberRemove(cmd.index, agg, now, cmd.ineligible);
 
     case "member.move":
       return decideMemberMove(cmd.fromIndex, cmd.toIndex, agg, now);
@@ -158,6 +167,12 @@ function decideSessionAct(
 ): Result<DomainEvent[], DomainError> {
   const { clock, session } = agg;
 
+  // 空の輪では時計を走らせない（#376）。どの操作も時計を走らせる（PAUSE だけは止めるが、空の輪の時計は
+  // evolve が既に止めている）。evolve に黙って直させず、decide が断る。
+  if (session.rotation.length === 0) {
+    return err({ type: "EmptyRotation" });
+  }
+
   switch (action) {
     case "START":
       if (clock.running) {
@@ -231,8 +246,8 @@ function decideDriverAssign(
       requiredPhase: "session",
     });
   }
-  // rotation 範囲外は不正。
-  if (index < 0 || index >= session.rotation.length) {
+  // rotation 範囲外は不正（整数でない添字も。判定は evolve と共有の isSeatIndex・#376）。
+  if (!isSeatIndex(index, session.rotation.length)) {
     return err({ type: "InvalidIndex", index, max: session.rotation.length - 1 });
   }
   // 現ドライバー自身の指名は no-op（イベント無し）。
@@ -273,8 +288,9 @@ function decideMemberRemove(
   index: number,
   agg: Aggregate,
   now: number,
+  ineligible?: ReadonlySet<number>,
 ): Result<DomainEvent[], DomainError> {
-  if (index < 0 || index >= agg.session.rotation.length) {
+  if (!isSeatIndex(index, agg.session.rotation.length)) {
     return err({
       type: "InvalidIndex",
       index,
@@ -283,12 +299,17 @@ function decideMemberRemove(
   }
 
   // 2層モデル: ドライバーは各自が出入りする。最後の1人だけは外れられない
-  // （rotation が 0 になると交代先が無く evolve が破綻するため）。
+  // （rotation が 0 になると担当も交代先も居ないままタイマーが回るため）。
+  // evolve は空の輪を渡されても壊れない（currentIndex は 0、時計は一時停止で止まる。#376）が、
+  // 空の輪は製品として認めない。
   if (agg.session.rotation.length <= 1) {
     return err({ type: "BelowMinMembers", min: 1 });
   }
 
-  return ok([{ type: "MemberRemoved", index, now }]);
+  // 運転中の人を外すなら、次の担当を交代と同じ資格の規則で選ぶ（#376）。
+  // 位置で次の席にすると、一時離脱・不在の人に運転が回る。
+  const nextDriverIndex = nextDriverAfterRemoval(agg.session, index, ineligible);
+  return ok([{ type: "MemberRemoved", index, nextDriverIndex, now }]);
 }
 
 function decideMemberMove(
@@ -297,17 +318,33 @@ function decideMemberMove(
   agg: Aggregate,
   now: number,
 ): Result<DomainEvent[], DomainError> {
-  const maxIndex = agg.session.rotation.length - 1;
+  const len = agg.session.rotation.length;
+  const maxIndex = len - 1;
 
-  if (fromIndex < 0 || fromIndex > maxIndex) {
+  // 判定は evolve と共有の isSeatIndex（整数でない添字も拒む・#376）。
+  if (!isSeatIndex(fromIndex, len)) {
     return err({ type: "InvalidIndex", index: fromIndex, max: maxIndex });
   }
 
-  if (toIndex < 0 || toIndex > maxIndex) {
+  if (!isSeatIndex(toIndex, len)) {
     return err({ type: "InvalidIndex", index: toIndex, max: maxIndex });
   }
 
   return ok([{ type: "MemberMoved", fromIndex, toIndex, now }]);
+}
+
+/**
+ * 順列でない `order` のうち、最初に順列を崩した値（長さが違えば長さ）。InvalidIndex の `index` に載せる。
+ * 判定そのものは `isPermutation` が持つ。ここは「何が悪かったか」を言うだけ。
+ */
+function firstNonPermutationValue(order: readonly number[], len: number): number {
+  if (order.length !== len) return order.length;
+  const seen = new Set<number>();
+  for (const i of order) {
+    if (!isSeatIndex(i, len) || seen.has(i)) return i;
+    seen.add(i);
+  }
+  return order.length;
 }
 
 function decideMembersShuffle(
@@ -316,23 +353,10 @@ function decideMembersShuffle(
   now: number,
 ): Result<DomainEvent[], DomainError> {
   const len = agg.session.rotation.length;
-  const maxIndex = len - 1;
 
-  // 長さが rotation と一致しなければ不正（順列ではない）。
-  if (order.length !== len) {
-    return err({ type: "InvalidIndex", index: order.length, max: maxIndex });
-  }
-
-  // 各要素が 0..len-1 の範囲内かつ重複なし＝[0..len-1] の順列であることを検証する。
-  const seen = new Set<number>();
-  for (const i of order) {
-    if (i < 0 || i > maxIndex) {
-      return err({ type: "InvalidIndex", index: i, max: maxIndex });
-    }
-    if (seen.has(i)) {
-      return err({ type: "InvalidIndex", index: i, max: maxIndex });
-    }
-    seen.add(i);
+  // 判定は evolve と共有の isPermutation（#376）。エラーには、どの値が順列を崩したかを載せる。
+  if (!isPermutation(order, len)) {
+    return err({ type: "InvalidIndex", index: firstNonPermutationValue(order, len), max: len - 1 });
   }
 
   return ok([{ type: "MembersShuffled", order, now }]);

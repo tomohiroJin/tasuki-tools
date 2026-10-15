@@ -1,0 +1,22 @@
+# 変異 226: 範囲外の交代先の DriverSwitched を無視しない
+#
+# 検出を期待するテスト:
+#   - packages/timer-core/test/evolve.test.ts
+#   - packages/timer-core/test/properties.test.ts
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m226-*.patch
+# 復元: git apply -R scripts/mutations/m226-*.patch
+#
+# #376（PR #392）。currentIndex が範囲外を指し、担当回数・交代回数も進む。
+diff --git a/packages/timer-core/src/evolve.ts b/packages/timer-core/src/evolve.ts
+index aa54001..9044a39 100644
+--- a/packages/timer-core/src/evolve.ts
++++ b/packages/timer-core/src/evolve.ts
+@@ -206,7 +206,6 @@ function evolveDriverSwitched(
+   nextIndex: number,
+   now: number,
+ ): Aggregate {
+-  if (!isSeatIndex(nextIndex, agg.session.rotation.length)) return agg;
+   const prevIndex = agg.session.currentIndex;
+ 
+   // 稼働区間を accumulatedElapsedMs に確定加算して新しいアンカーを設定

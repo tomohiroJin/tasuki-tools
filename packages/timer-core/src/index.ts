@@ -71,6 +71,7 @@ export type {
   DuplicateName,
   MemberLimitExceeded,
   BelowMinMembers,
+  EmptyRotation,
   InvalidInterval,
   DomainError,
   ErrorCode,

@@ -26,6 +26,14 @@ export interface BelowMinMembers {
   min: number;
 }
 
+/**
+ * 輪が空（#376）。空の輪では時計を走らせる操作（開始・再開・交代・やり直し）を拒む。
+ * 通常の経路からは届かない（decide は最後の 1 人の member.remove を拒む）。
+ */
+export interface EmptyRotation {
+  type: "EmptyRotation";
+}
+
 /** フェーズ競合 */
 interface PhaseConflict {
   type: "PhaseConflict";
@@ -57,6 +65,7 @@ export type DomainError =
   | DuplicateName
   | MemberLimitExceeded
   | BelowMinMembers
+  | EmptyRotation
   | PhaseConflict
   | InvalidInterval
   | InvalidIndex;

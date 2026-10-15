@@ -1,0 +1,22 @@
+# 変異 259: 空の輪の拒否を BelowMinMembers で返す
+#
+# 検出を期待するテスト:
+#   - packages/timer-core/test/decide.test.ts
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m259-*.patch
+# 復元: git apply -R scripts/mutations/m259-*.patch
+#
+# #376（PR #392 の 3 巡目）。「最後のドライバーは外れられません。」が出て、状況と食い違う。
+diff --git a/packages/timer-core/src/decide.ts b/packages/timer-core/src/decide.ts
+index 22e749c..09a66f6 100644
+--- a/packages/timer-core/src/decide.ts
++++ b/packages/timer-core/src/decide.ts
+@@ -170,7 +170,7 @@ function decideSessionAct(
+   // 空の輪では時計を走らせない（#376）。どの操作も時計を走らせる（PAUSE だけは止めるが、空の輪の時計は
+   // evolve が既に止めている）。evolve に黙って直させず、decide が断る。
+   if (session.rotation.length === 0) {
+-    return err({ type: "EmptyRotation" });
++    return err({ type: "BelowMinMembers", min: 1 });
+   }
+ 
+   switch (action) {

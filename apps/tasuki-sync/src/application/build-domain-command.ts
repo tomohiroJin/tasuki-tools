@@ -4,6 +4,7 @@
  * DDD の腐敗防止層にあたる。ドメインのコマンドは wire に無い値を持つので、ここでは仮の値を置き、
  * 呼び出し側（`handleRoomCommand`）が後で埋める:
  * - `session.act` の `ineligible`（SWITCH のときだけ）
+ * - `member.remove` の `ineligible`（運転中の人を外すときの次の担当を選ぶ・#376）
  * - `session.complete` の `topicTitle`（保管から）
  * - `driver.assign` の `index`（参加者 ID から解決する。-1 は仮の値）
  *
@@ -47,7 +48,12 @@ export function buildDomainCommand(cmd: RoomScopedCommand) {
       // 誰を輪に並べるかは参加者IDで指す（D6b）。名前→IDの解決という曖昧さを発生源で消す。
       return { command: "member.add" as const, participantId: cmd.participantId };
     case "member.remove":
-      return { command: "member.remove" as const, index: cmd.index };
+      // ineligible は handlers.ts 側で後から埋める（運転中の人を外すときの次の担当を選ぶ入力・#376）。
+      return {
+        command: "member.remove" as const,
+        index: cmd.index,
+        ineligible: undefined as ReadonlySet<number> | undefined,
+      };
     case "member.move":
       return { command: "member.move" as const, fromIndex: cmd.fromIndex, toIndex: cmd.toIndex };
     case "phase.set":

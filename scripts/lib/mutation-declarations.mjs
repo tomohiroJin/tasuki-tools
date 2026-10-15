@@ -22,6 +22,12 @@
  *       `docs/plans/codebase-refactoring/plan.md` の作業記録であり、以後に
  *       書き換えた実装（ADR-0006 決定 4 が変異を要求する）はそこに追記されない。
  */
+const RESERVED_220_229 =
+  "**対応表より後に足した変異。** 200〜249 は 2026-10-15 の並列修正（#373・#374・#376・#381・#382）に 10 ずつ割り当てた予約の範囲（#376 は 220〜229）。";
+
+const RESERVED_250_259 =
+  "**対応表より後に足した変異。** 250〜259 は 2026-10-15 の並列修正で #376 に追加で割り当てた予約の範囲（220〜229 が埋まったため）。";
+
 export const MUTATIONS = [
   {
     id: 1,
@@ -1643,6 +1649,206 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["lib/mutation-select.test.mjs"],
     note: "#387。**対応表より後に足した変異。** 機構を変えた枝で、変えた機構の影響を手元で見ない。",
+  },
+  {
+    id: 220,
+    label: "空の輪・範囲外の添字で次の担当に NaN を返す",
+    patch: "m220-evolve-empty-rotation-nan.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/aggregate.test.ts"],
+    note:
+      RESERVED_220_229 +
+      "#376。空の輪で `(removedIndex + 1) % 0` が NaN を作る（修正前の evolve の `% 0` と同じ欠陥の型）。",
+  },
+  {
+    id: 221,
+    label: "範囲外の添字の MemberRemoved を無視しない",
+    patch: "m221-evolve-remove-out-of-range-index.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/evolve.test.ts", "test/properties.test.ts"],
+    note:
+      RESERVED_220_229 +
+      "#376（PR #392 のレビュー）。誰も外さずに現ドライバーの番号だけを詰める。decide の InvalidIndex が止めるので、evolve へ直接渡すテストで殺す。",
+  },
+  {
+    id: 222,
+    label: "範囲外の添字の MemberMoved を無視しない",
+    patch: "m222-evolve-move-out-of-range-index.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/evolve.test.ts", "test/properties.test.ts"],
+    note:
+      RESERVED_220_229 +
+      "#376（PR #392 のレビュー）。負の添字は splice が末尾から数え、別の席を動かす。",
+  },
+  {
+    id: 223,
+    label: "運転中の末尾の人を外したとき先頭へ回さない",
+    patch: "m223-evolve-remove-without-wrap.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/decide.test.ts", "test/evolve.test.ts", "test/properties.test.ts"],
+    note:
+      RESERVED_220_229 +
+      "#376（PR #392 のレビュー）。末尾の運転者を外すと次の担当が輪の長さちょうどになり、範囲外を指す。",
+  },
+  {
+    id: 224,
+    label: "輪が空でも時計を止めない",
+    patch: "m224-evolve-empty-rotation-keeps-running.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/evolve.test.ts", "test/properties.test.ts"],
+    note:
+      RESERVED_220_229 +
+      "#376（PR #392 のレビュー）。担当の居ない輪でタイマーが回る。",
+  },
+  {
+    id: 225,
+    label: "整数でない添字を席の添字として受け入れる",
+    patch: "m225-evolve-fractional-seat-index.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/decide.test.ts", "test/evolve.test.ts", "test/properties.test.ts"],
+    note:
+      RESERVED_220_229 +
+      "#376（PR #392）。decide と evolve が共有する述語。0.5 は splice が 0 に切り捨て、先頭の席を動かす。",
+  },
+  {
+    id: 226,
+    label: "範囲外の交代先の DriverSwitched を無視しない",
+    patch: "m226-evolve-switch-out-of-range-index.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/evolve.test.ts", "test/properties.test.ts"],
+    note:
+      RESERVED_220_229 +
+      "#376（PR #392）。currentIndex が範囲外を指し、担当回数・交代回数も進む。",
+  },
+  {
+    id: 227,
+    label: "順列でない order の MembersShuffled を無視しない",
+    patch: "m227-evolve-shuffle-non-permutation.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/evolve.test.ts", "test/properties.test.ts"],
+    note:
+      RESERVED_220_229 +
+      "#376（PR #392）。席が欠ける・増える・undefined が入る。",
+  },
+  {
+    id: 228,
+    label: "順列の判定から長さの一致を外す",
+    patch: "m228-evolve-permutation-without-length.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/evolve.test.ts", "test/properties.test.ts"],
+    note:
+      RESERVED_220_229 +
+      "#376（PR #392）。重複で集合の大きさだけが輪の長さに一致する長い order を順列とみなし、席が 1 つ増える。",
+  },
+  {
+    id: 229,
+    label: "順列の判定から重複の無さを外す",
+    patch: "m229-evolve-permutation-without-distinct.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/decide.test.ts", "test/evolve.test.ts", "test/properties.test.ts"],
+    note:
+      RESERVED_220_229 +
+      "#376（PR #392）。重複する order を順列とみなし、同じ席が 2 つ並び別の席が消える。",
+  },
+  {
+    id: 250,
+    label: "運転中の人を外したとき、運ばれた次の担当を使わない",
+    patch: "m250-evolve-remove-ignores-next-driver.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/evolve.test.ts"],
+    note:
+      RESERVED_250_259 +
+      "#376（PR #392 の 2 巡目）。decide が資格で選んだ次の担当が捨てられ、位置で次の席（一時離脱の人でも）に運転が回る。",
+  },
+  {
+    id: 251,
+    label: "運ばれた次の担当を範囲を確かめずに使う",
+    patch: "m251-evolve-remove-trusts-next-driver.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/evolve.test.ts", "test/properties.test.ts"],
+    note:
+      RESERVED_250_259 +
+      "#376（PR #392 の 3 巡目）。範囲外の nextDriverIndex で currentIndex が範囲外を指す（ほかの不正な入力と違い、集約が変わる）。",
+  },
+  {
+    id: 252,
+    label: "decide の member.remove が資格を見ずに次の担当を選ぶ",
+    patch: "m252-decide-remove-without-ineligible.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/decide.test.ts"],
+    note:
+      RESERVED_250_259 +
+      "#376（PR #392 の 2 巡目）。運転中の人が外れると、一時離脱・不在の人に運転が回る（本番の経路）。",
+  },
+  {
+    id: 253,
+    label: "participant.remove が資格を見ずに次の担当を選ぶ",
+    patch: "m253-participant-remove-without-ineligible.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/manual-skip-eligible.test.ts"],
+    note:
+      RESERVED_250_259 +
+      "#376（PR #392 の 2 巡目）。運転中の人がルームを抜けると、一時離脱・不在の人に運転が回る（本番の経路）。",
+  },
+  {
+    id: 254,
+    label: "member.remove に資格の集合を埋めない",
+    patch: "m254-member-remove-without-ineligible-filled.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/manual-skip-eligible.test.ts"],
+    note:
+      RESERVED_250_259 +
+      "#376（PR #392 の 2 巡目）。decide は全員適格として次の担当を選び、一時離脱の人に運転が回る。",
+  },
+  {
+    id: 255,
+    label: "止まっている時計にも空の輪で一時停止を立てる",
+    patch: "m255-evolve-empty-rotation-pauses-stopped-clock.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/evolve.test.ts"],
+    note:
+      RESERVED_250_259 +
+      "#376（PR #392 の 2 巡目）。休憩中に輪が空になると一時停止が立ち、席を足し直しても BreakEnded で走り出せない。",
+  },
+  {
+    id: 256,
+    label: "空の輪の時計を走らせる操作を拒まない",
+    patch: "m256-decide-switch-on-empty-rotation.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/decide.test.ts"],
+    note:
+      RESERVED_250_259 +
+      "#376（PR #392 の 3 巡目）。空の輪へ開始・再開・交代・やり直しを出す（evolve は時計を止め直すが、拒否は decide の仕事）。",
+  },
+  {
+    id: 257,
+    label: "次の担当を外した後の添字へ詰めない",
+    patch: "m257-next-driver-without-shift.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/decide.test.ts", "test/aggregate.test.ts"],
+    note:
+      RESERVED_250_259 +
+      "#376（PR #392 の 2 巡目）。外した席より後ろの人を選ぶと、1 つ後ろの人に運転が回る（外した後の輪で数え直していない）。",
+  },
+  {
+    id: 258,
+    label: "外した後の輪が空のとき、次の担当 0 を正しい値とみなさない",
+    patch: "m258-current-index-rejects-empty-rotation.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/evolve.test.ts", "test/properties.test.ts"],
+    note:
+      RESERVED_250_259 +
+      "#376（PR #392 の 3 巡目）。最後の 1 席を外す MemberRemoved が常に無視され、空の輪へ届かない（evolve の全域の主張が、空の輪を作らないことで成り立ってしまう）。",
+  },
+  {
+    id: 259,
+    label: "空の輪の拒否を BelowMinMembers で返す",
+    patch: "m259-decide-empty-rotation-as-below-min.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/decide.test.ts"],
+    note:
+      RESERVED_250_259 +
+      "#376（PR #392 の 3 巡目）。「最後のドライバーは外れられません。」が出て、状況と食い違う。",
   },
   {
     id: 200,

@@ -46,7 +46,11 @@ const TRANSLATIONS: Record<RoomScopedCommand["command"], readonly Case[]> = {
     { input: { command: "member.add", participantId: "p1" }, expected: { command: "member.add", participantId: "p1" } },
   ],
   "member.remove": [
-    { input: { command: "member.remove", index: 2 }, expected: { command: "member.remove", index: 2 } },
+    // ineligible は handlers.ts 側で後から埋める（運転中の人を外すときの次の担当・#376）
+    {
+      input: { command: "member.remove", index: 2 },
+      expected: { command: "member.remove", index: 2, ineligible: undefined },
+    },
   ],
   "member.move": [
     {

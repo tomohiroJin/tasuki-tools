@@ -1,0 +1,22 @@
+# 変異 252: decide の member.remove が資格を見ずに次の担当を選ぶ
+#
+# 検出を期待するテスト:
+#   - packages/timer-core/test/decide.test.ts
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m252-*.patch
+# 復元: git apply -R scripts/mutations/m252-*.patch
+#
+# #376（PR #392 の 2 巡目）。運転中の人が外れると、一時離脱・不在の人に運転が回る（本番の経路）。
+diff --git a/packages/timer-core/src/decide.ts b/packages/timer-core/src/decide.ts
+index e01a7d3..5b576d3 100644
+--- a/packages/timer-core/src/decide.ts
++++ b/packages/timer-core/src/decide.ts
+@@ -307,7 +307,7 @@ function decideMemberRemove(
+ 
+   // 運転中の人を外すなら、次の担当を交代と同じ資格の規則で選ぶ（#376）。
+   // 位置で次の席にすると、一時離脱・不在の人に運転が回る。
+-  const nextDriverIndex = nextDriverAfterRemoval(agg.session, index, ineligible);
++  const nextDriverIndex = nextDriverAfterRemoval(agg.session, index, undefined);
+   return ok([{ type: "MemberRemoved", index, nextDriverIndex, now }]);
+ }
+ 

@@ -135,6 +135,7 @@ export const DOMAIN_ERROR_TARGETS = [
   { file: "packages/timer-core/src/errors.ts", type: "DuplicateName" },
   { file: "packages/timer-core/src/errors.ts", type: "MemberLimitExceeded" },
   { file: "packages/timer-core/src/errors.ts", type: "BelowMinMembers" },
+  { file: "packages/timer-core/src/errors.ts", type: "EmptyRotation" },
   { file: "packages/timer-core/src/errors.ts", type: "PhaseConflict" },
   { file: "packages/timer-core/src/errors.ts", type: "InvalidInterval" },
   { file: "packages/timer-core/src/errors.ts", type: "InvalidIndex" },

@@ -211,7 +211,7 @@ describe("evolve: 不変条件", () => {
   it("rotation.length === driverCounts.length が常に成立する", () => {
     // Given（メンバー追加 → 削除の順で操作する）
     const addEvent = { type: "MemberAdded", participantId: "Dave", now: NOW } as const;
-    const removeEvent = { type: "MemberRemoved", index: 0, now: NOW } as const;
+    const removeEvent = { type: "MemberRemoved", index: 0, nextDriverIndex: 0, now: NOW } as const;
     // When
     const agg1 = evolve(baseAgg, addEvent, NOW);
     const agg2 = evolve(agg1, removeEvent, NOW);
@@ -368,13 +368,168 @@ describe("evolve: SessionReset", () => {
   });
 });
 
+describe("evolve: MemberRemoved で輪が空になる（#376）", () => {
+  // `decide` は最後の 1 人の `member.remove` を拒むので、通常の経路からは届かない。
+  // evolve は全域関数なので、イベントを直接渡されても `NaN` を含まない集約を返す。
+  it("Given 1 人の輪 / When その 1 人の MemberRemoved / Then 輪と担当回数が空になり currentIndex は 0", () => {
+    // Given
+    const agg = anAggregate().withRotation("Alice").build();
+    // When
+    const next = evolve(agg, { type: "MemberRemoved", index: 0, nextDriverIndex: 0, now: NOW }, NOW);
+    // Then
+    expect(next.session.rotation).toEqual([]);
+    expect(next.session.driverCounts).toEqual([]);
+    expect(next.session.currentIndex).toBe(0);
+  });
+
+  it("Given 空になった輪 / When MemberAdded / Then 足した人が currentIndex 0 の担当になる", () => {
+    // Given
+    const emptied = evolve(anAggregate().withRotation("Alice").build(), { type: "MemberRemoved", index: 0, nextDriverIndex: 0, now: NOW }, NOW);
+    // When
+    const next = evolve(emptied, { type: "MemberAdded", participantId: "Bob", now: NOW }, NOW);
+    // Then
+    expect(seatIds(next.session.rotation)).toEqual(["Bob"]);
+    expect(next.session.currentIndex).toBe(0);
+  });
+
+  it("Given 走っている 1 人の輪 / When その 1 人の MemberRemoved / Then 時計は残量を凍結して止まり、一時停止になる", () => {
+    // Given（NOW に走り出した輪。30 秒後に外す）
+    const agg = anAggregate().withRotation("Alice").running().build();
+    // When
+    const next = evolve(agg, { type: "MemberRemoved", index: 0, nextDriverIndex: 0, now: NOW + 30_000 }, NOW + 30_000);
+    // Then（SessionPaused と同じ表現。再開ボタンは isPaused のときだけ押せる）
+    expect(next.clock.running).toBe(false);
+    expect(next.clock.runningSince).toBeNull();
+    expect(next.clock.secondsLeftAtAnchor).toBe(agg.clock.secondsLeftAtAnchor - 30);
+    expect(next.session.isPaused).toBe(true);
+  });
+
+  it.each(["SessionStarted", "SessionResumed", "BreakEnded", "DriverTimerReset", "SessionReset"] as const)(
+    "Given 空になった輪 / When %s / Then 時計は回らない",
+    (type) => {
+      // Given
+      const emptied = evolve(anAggregate().withRotation("Alice").running().build(), { type: "MemberRemoved", index: 0, nextDriverIndex: 0, now: NOW }, NOW);
+      // When
+      const next = evolve(emptied, { type, now: NOW + 1000 }, NOW + 1000);
+      // Then
+      expect(next.clock.running).toBe(false);
+      expect(next.session.isPaused).toBe(true);
+    },
+  );
+});
+
+describe("evolve: 休憩中に輪が空になる（#376）", () => {
+  // 休憩は isPaused を使わない（evolveBreakStarted）。空の輪で止めるのは「走っている時計」だけで、
+  // 休憩で止まっている時計には isPaused を立てない。
+  it("Given 休憩中の 1 人の輪 / When 外して席を足し直し BreakEnded / Then 一時停止にならず走り出す", () => {
+    // Given
+    let agg = anAggregate().withRotation("Alice").running().build();
+    agg = evolve(agg, { type: "BreakStarted", now: NOW + 1000 }, NOW + 1000);
+    // When
+    agg = evolve(agg, { type: "MemberRemoved", index: 0, nextDriverIndex: 0, now: NOW + 2000 }, NOW + 2000);
+    const emptied = agg;
+    agg = evolve(agg, { type: "MemberAdded", participantId: "Bob", now: NOW + 3000 }, NOW + 3000);
+    agg = evolve(agg, { type: "BreakEnded", now: NOW + 4000 }, NOW + 4000);
+    // Then
+    expect(emptied.session.isPaused).toBe(false);
+    expect(emptied.clock.running).toBe(false);
+    expect(agg.clock.running).toBe(true);
+  });
+
+  it("Given 走っていない空の輪 / When BreakStarted / Then isPaused を立てない", () => {
+    // Given（開始前の 1 人の輪を空にする）
+    const emptied = evolve(anAggregate().withRotation("Alice").build(), { type: "MemberRemoved", index: 0, nextDriverIndex: 0, now: NOW }, NOW);
+    // When
+    const next = evolve(emptied, { type: "BreakStarted", now: NOW + 1000 }, NOW + 1000);
+    // Then
+    expect(next.session.isPaused).toBe(false);
+    expect(next.clock.running).toBe(false);
+  });
+});
+
+describe("evolve: 運転中の人を外したときの次の担当（#376）", () => {
+  const agg = anAggregate().withRotation("A", "B", "C", "D").withCurrentDriver(1).build();
+
+  it("Given B が運転中 / When B を外し nextDriverIndex=2 / Then 担当は D（decide が資格で選んだ席）", () => {
+    const next = evolve(agg, { type: "MemberRemoved", index: 1, nextDriverIndex: 2, now: NOW }, NOW);
+    expect(seatIds(next.session.rotation)[next.session.currentIndex]).toBe("D");
+  });
+
+  // 範囲外の nextDriverIndex は、ほかの不正な入力と同じく集約を変えない（位置で次の席へ倒さない）
+  it.each([-1, 3, 0.5])("Given B が運転中 / When nextDriverIndex=%s（範囲外） / Then 集約を変えない", (nextDriverIndex) => {
+    const next = evolve(agg, { type: "MemberRemoved", index: 1, nextDriverIndex, now: NOW }, NOW);
+    expect(next).toEqual(agg);
+  });
+
+  it("Given B が運転中 / When 運転者でない A を外すが nextDriverIndex が範囲外 / Then 集約を変えない（イベントごと不正）", () => {
+    const next = evolve(agg, { type: "MemberRemoved", index: 0, nextDriverIndex: 3, now: NOW }, NOW);
+    expect(next).toEqual(agg);
+  });
+
+  it("Given B が運転中 / When A を外す（運転者ではない） / Then nextDriverIndex は見ず、担当は B のまま", () => {
+    const next = evolve(agg, { type: "MemberRemoved", index: 0, nextDriverIndex: 2, now: NOW }, NOW);
+    expect(seatIds(next.session.rotation)[next.session.currentIndex]).toBe("B");
+  });
+});
+
+describe("evolve: 範囲外の添字の MemberRemoved / MemberMoved は集約を変えない（#376）", () => {
+  // `decide` は範囲外の添字を InvalidIndex で拒むので、通常の経路からは届かない。
+  const agg = (() => {
+    const a = anAggregate().withRotation("Alice", "Bob", "Charlie").build();
+    return { ...a, session: { ...a.session, currentIndex: 2 } };
+  })();
+
+  it.each([-1, 3, 4, 0.5])("MemberRemoved の index が %s", (index) => {
+    // When
+    const next = evolve(agg, { type: "MemberRemoved", index, nextDriverIndex: 0, now: NOW }, NOW);
+    // Then
+    expect(next).toEqual(agg);
+  });
+
+  it.each([
+    [-1, 0],
+    [0, -1],
+    [3, 0],
+    [0, 3],
+    [0.5, 2],
+    [0, 1.5],
+  ])("MemberMoved の fromIndex=%s・toIndex=%s", (fromIndex, toIndex) => {
+    // When
+    const next = evolve(agg, { type: "MemberMoved", fromIndex, toIndex, now: NOW }, NOW);
+    // Then
+    expect(next).toEqual(agg);
+  });
+
+  it.each([-1, 3, 4, 0.5])("DriverSwitched の nextIndex が %s", (nextIndex) => {
+    // When（現ドライバーと違う範囲外の番号。範囲内なら交代と再アンカーが起きる）
+    const next = evolve(agg, { type: "DriverSwitched", nextIndex, now: NOW + 1000 }, NOW + 1000);
+    // Then
+    expect(next).toEqual(agg);
+  });
+
+  it.each([
+    [[0, 1]],
+    [[0, 1, 2, 3]],
+    [[0, 1, 2, 0]], // 長く、重複で集合の大きさだけは輪の長さに一致する
+    [[0, 0, 1]],
+    [[0, 1, 3]],
+    [[-1, 0, 1]],
+    [[0, 1, 1.5]],
+  ])("MembersShuffled の order が順列でない（%j）", (order) => {
+    // When
+    const next = evolve(agg, { type: "MembersShuffled", order, now: NOW }, NOW);
+    // Then
+    expect(next).toEqual(agg);
+  });
+});
+
 describe("evolve: MemberRemoved / MemberMoved の index 調整分岐", () => {
   it("現ドライバーより前を削除すると currentIndex が 1 減る", () => {
     // Given（[Alice,Bob,Charlie]）
     let agg = anAggregate().build();
     agg = { ...agg, session: { ...agg.session, currentIndex: 2 } };
     // When
-    const next = evolve(agg, { type: "MemberRemoved", index: 0, now: NOW }, NOW);
+    const next = evolve(agg, { type: "MemberRemoved", index: 0, nextDriverIndex: 0, now: NOW }, NOW);
     // Then
     expect(seatIds(next.session.rotation)).toEqual(["Bob", "Charlie"]);
     expect(next.session.currentIndex).toBe(1);

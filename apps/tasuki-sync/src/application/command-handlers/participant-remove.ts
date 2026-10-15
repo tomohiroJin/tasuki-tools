@@ -15,6 +15,7 @@
 
 import { ok, err, type Result } from "neverthrow";
 import {
+  decide,
   evolve,
   removalNotificationFor,
   errorMessageFor,
@@ -32,7 +33,7 @@ import { pickPromotionTarget } from "../pick-promotion-target.js";
 import type { WallClock } from "../../ports/wall-clock.js";
 import type { Broadcaster } from "../../ports/broadcaster.js";
 import type { RoomState } from "../apply-room-level-event.js";
-import { occupants } from "../timer-snapshot-dto.js";
+import { computeIneligibleIndices, occupants } from "../timer-snapshot-dto.js";
 
 /** `handleRoomCommand` が事前に解決済みの在室ルームと実行者。 */
 export interface ParticipantRemoveContext {
@@ -134,8 +135,8 @@ export async function handleParticipantRemove(
   // ソロの部屋からの退出（Issue #79）。退出後に在室者が 0 人になるなら、参加者を
   // 1 人減らした状態は作らず、ルームごと破棄する。
   //
-  // 下の rotation 長ガード（BelowMinMembers）は「rotation を空にすると evolve が
-  // currentIndex を決められず破綻する」ことを避けるための保護であり、**部屋に人が
+  // 下の rotation 長ガード（BelowMinMembers）は「rotation を空にして担当の居ない輪を
+  // 作る」ことを避けるための保護であり（#376 より前は evolve の currentIndex が NaN になった）、**部屋に人が
   // 残る前提**の不変条件である。ところがこの保護は、作った直後のソロの部屋にも
   // そのまま効いていた。結果としてルームを作った本人が気が変わっても抜けられず、
   // タブを閉じるしかない（しかも部屋はアイドル回収まで最大 ROOM_IDLE_TTL_MS 残る）。
@@ -186,7 +187,8 @@ export async function handleParticipantRemove(
     // 「evolve が currentIndex を決められる輪が残ること」なので、代理の席も 1 席と数える。
     //
     // **最後の 1 席でも拒まない**（#290・D1）。見学者を先に繰り上げてから外すので、
-    // 輪は一瞬も空にならず、`evolveMemberRemoved` の `% 0`（NaN）に触れない。
+    // 輪は一瞬も空にならない（担当の居ない輪を作らない。#376 より前は空の輪で
+    // `evolveMemberRemoved` が currentIndex を NaN にした。いまは 0 にして時計も止めるが、空の輪は認めない）。
     // 拒否を残すのは候補が居ないときの防御で、**名簿が空でない限りここへは来ない** ——
     // 退出者が唯一の席を持つなら、残る名簿の全員が見学だからである。
     let working = { session: timer.session, clock: timer.clock };
@@ -202,7 +204,17 @@ export async function handleParticipantRemove(
     }
     // **`idx` は繰り上げの後も有効である。** `MemberAdded` は席を末尾へ足すので、
     // 先にある退出者の位置は動かない（ここへ来る時点で `idx` は 0 である）。
-    const agg = evolve(working, { type: "MemberRemoved", index: idx, now }, now);
+    // 席を外すのは decide の member.remove と同じ 1 つの経路にする（#376）。運転中の人が抜けるなら、
+    // 次の担当は交代と同じ資格の規則で decide が選ぶ。資格は member.remove と同じく**操作の前の名簿**で測る
+    // （`handlers.ts` の `ineligible` と同じ。抜ける人の席は選ばれないので、前後どちらでも結果は変わらない）。
+    // 添字は繰り上げを済ませた `working` の輪のもの。繰り上げで輪は 2 席以上あるので、BelowMinMembers は返らない。
+    const ineligible = computeIneligibleIndices(membership, { ...timer, session: working.session, clock: working.clock });
+    const removed = decide({ command: "member.remove", index: idx, ineligible }, working, now);
+    if (removed.isErr()) {
+      sendError(connId, removed.error.type, errorMessageFor(removed.error.type));
+      return err(removed.error.type);
+    }
+    const agg = removed.value.reduce((acc, event) => evolve(acc, event, now), working);
     next = { ...next, timer: { ...next.timer, session: agg.session, clock: agg.clock } };
   }
   commit(next);
