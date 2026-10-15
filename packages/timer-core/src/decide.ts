@@ -167,6 +167,12 @@ function decideSessionAct(
 ): Result<DomainEvent[], DomainError> {
   const { clock, session } = agg;
 
+  // 空の輪では時計を走らせない（#376）。どの操作も時計を走らせる（PAUSE だけは止めるが、空の輪の時計は
+  // evolve が既に止めている）。evolve に黙って直させず、decide が断る。
+  if (session.rotation.length === 0) {
+    return err({ type: "EmptyRotation" });
+  }
+
   switch (action) {
     case "START":
       if (clock.running) {
@@ -185,11 +191,6 @@ function decideSessionAct(
           currentPhase: "stopped",
           requiredPhase: "session",
         });
-      }
-      // 空の輪には交代先が無い（#376）。DriverSwitched{nextIndex:0} を出しても evolve は無視するが、
-      // 拒否は decide の仕事なので、席が足りないことを BelowMinMembers で返す。
-      if (session.rotation.length === 0) {
-        return err({ type: "BelowMinMembers", min: 1 });
       }
       {
         // ineligible 省略時（undefined）は nextEligibleIndex が従来通り「隣」を返す。

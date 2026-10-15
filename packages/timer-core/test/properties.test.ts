@@ -360,7 +360,7 @@ describe("evolve に直接流すイベントの列での不変条件（#376）",
     const len = agg.session.rotation.length;
     switch (kind) {
       case "remove":
-        // 次の担当は、外した後の輪の添字（範囲外も混ぜる。範囲外なら evolve は位置で次の席にする）
+        // 次の担当は、外した後の輪の添字（範囲外も混ぜる。範囲外なら evolve は集約を変えない）
         return { type: "MemberRemoved", index: seatIndex(a, len), nextDriverIndex: seatIndex(b, Math.max(len - 1, 0)), now };
       case "add":
         return { type: "MemberAdded", participantId: `P${serial}`, now };
@@ -379,7 +379,12 @@ describe("evolve に直接流すイベントの列での不変条件（#376）",
 
   /** 範囲外の添字を持つ席の出し入れか */
   function hasOutOfRangeIndex(event: Event, len: number): boolean {
-    if (event.type === "MemberRemoved") return !isSeatIndex(event.index, len);
+    if (event.type === "MemberRemoved") {
+      // 外した後の輪の currentIndex として正しい値か（空なら 0 だけ）
+      const after = len - 1;
+      const validNext = after <= 0 ? event.nextDriverIndex === 0 : isSeatIndex(event.nextDriverIndex, after);
+      return !isSeatIndex(event.index, len) || !validNext;
+    }
     if (event.type === "MemberMoved") return !isSeatIndex(event.fromIndex, len) || !isSeatIndex(event.toIndex, len);
     if (event.type === "DriverSwitched") return !isSeatIndex(event.nextIndex, len);
     if (event.type === "MembersShuffled") return !isPermutation(event.order, len);

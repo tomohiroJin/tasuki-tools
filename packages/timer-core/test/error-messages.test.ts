@@ -28,6 +28,8 @@ import { DEFAULT_ERROR_MESSAGE } from "../src/error-messages.js";
  */
 const CODES_SHOWN_TO_USER = [
   "BelowMinMembers",
+  // 空の輪で時計を走らせる操作の拒否（#376）。通常の経路からは届かない
+  "EmptyRotation",
   "DuplicateName",
   "EmptyName",
   "MemberLimitExceeded",

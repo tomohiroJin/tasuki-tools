@@ -6,9 +6,9 @@
 import type { Aggregate, TimerConfig, RotationEntry, ServerClock } from "./aggregate.js";
 import {
   initialAggregateInSeconds,
+  isCurrentIndexFor,
   isPermutation,
   isSeatIndex,
-  nextDriverAfterRemoval,
   nextEligibleIndex,
   rotationEntryId,
 } from "./aggregate.js";
@@ -193,7 +193,7 @@ function evolveSessionStarted(agg: Aggregate, now: number): Aggregate {
 
 /**
  * 交代先（nextIndex）が席の添字でなければ集約を変えない（#376。判定は decide と共有の `isSeatIndex`）。
- * 空の輪には席が無いので、交代は常に無視される（decide も空の輪の SWITCH を BelowMinMembers で拒む）。
+ * 空の輪には席が無いので、交代は常に無視される（decide も空の輪の SWITCH を EmptyRotation で拒む）。
  *
  * B-2統合: 交代先（nextIndex）が適用前の currentIndex と等しい場合は「交代していない」
  * とみなし、driverCounts/totalSwitches を加算しない（advanceDriver 準拠。ユーザー確定の
@@ -364,23 +364,22 @@ function evolveMemberAdded(agg: Aggregate, participantId: string): Aggregate {
 }
 
 /**
- * 席を外す。範囲外の添字は集約を変えない（#376。判定は decide と共有の `isSeatIndex`）。
+ * 席を外す。添字が範囲外（`index` が席でない、または `nextDriverIndex` が外した後の輪の
+ * `currentIndex` として正しくない）なら集約を変えない（#376。ほかの不正な入力と同じ扱い）。
  *
  * 運転中の人を外したら、次の担当は出す側が資格の規則で選んだ `nextDriverIndex`（外した後の添字）にする。
- * それが範囲外なら、位置で次の席（`nextDriverAfterRemoval` を全員適格として引いた値。末尾なら先頭、
- * 空の輪なら 0）へ倒す。運転中でない人を外したら、手前の席が抜けたときだけ 1 つ詰める。
+ * 運転中でない人を外したら、手前の席が抜けたときだけ 1 つ詰める。
  */
 function evolveMemberRemoved(agg: Aggregate, index: number, nextDriverIndex: number): Aggregate {
   const { rotation, driverCounts, currentIndex } = agg.session;
   if (!isSeatIndex(index, rotation.length)) return agg;
+  if (!isCurrentIndexFor(nextDriverIndex, rotation.length - 1)) return agg;
   const newRotation = rotation.filter((_, i) => i !== index);
   let newIndex: number;
   if (index !== currentIndex) {
     newIndex = index < currentIndex ? currentIndex - 1 : currentIndex;
-  } else if (isSeatIndex(nextDriverIndex, newRotation.length)) {
-    newIndex = nextDriverIndex;
   } else {
-    newIndex = nextDriverAfterRemoval(agg.session, index, undefined);
+    newIndex = nextDriverIndex;
   }
   return {
     ...agg,

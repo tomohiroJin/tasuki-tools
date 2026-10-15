@@ -515,15 +515,31 @@ describe("decide: 整数でない添字は InvalidIndex（#376）", () => {
   });
 });
 
-describe("decide: 空の輪の SWITCH は交代を出さない（#376）", () => {
-  it("Given 走っている空の輪 / When SWITCH / Then BelowMinMembers", () => {
-    // Given（evolve へ直接流すと作れる。decide の経路からは作れない）
-    const one = anAggregate().withRotation("Alice").running().build();
-    const empty = { ...one, session: { ...one.session, rotation: [], driverCounts: [] } };
+/**
+ * 空の輪では時計を走らせる操作を拒む（#376）。evolve は空の輪の時計を止めるが、黙って直させずに decide が断る。
+ * 文言は「最後のドライバーは外れられません。」（BelowMinMembers）と取り違えないよう、専用の EmptyRotation にする。
+ */
+describe("decide: 空の輪では時計を走らせる操作を拒む（#376）", () => {
+  // evolve へ直接流すと作れる。decide の経路からは作れない
+  const emptyOf = (agg: ReturnType<typeof anAggregate>) => {
+    const one = agg.withRotation("Alice").build();
+    return { ...one, session: { ...one.session, rotation: [], driverCounts: [] } };
+  };
+
+  it.each([
+    ["SWITCH", emptyOf(anAggregate().running())],
+    ["START", emptyOf(anAggregate())],
+    ["RESUME", emptyOf(anAggregate().paused())],
+    ["RESTART", emptyOf(anAggregate().paused())],
+  ] as const)("Given 空の輪 / When %s / Then EmptyRotation", (action, empty) => {
     // When
-    const result = decide({ command: "session.act", action: "SWITCH" }, empty, NOW);
+    const result = decide({ command: "session.act", action }, empty, NOW);
     // Then
-    expect(result._unsafeUnwrapErr().type).toBe("BelowMinMembers");
+    expect(result._unsafeUnwrapErr()).toEqual({ type: "EmptyRotation" });
+  });
+
+  it("Given 走っていない 1 人の輪 / When START / Then 拒まない（空でなければ従来どおり）", () => {
+    expect(decide({ command: "session.act", action: "START" }, anAggregate().withRotation("Alice").build(), NOW).isOk()).toBe(true);
   });
 });
 

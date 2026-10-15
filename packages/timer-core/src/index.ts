@@ -56,8 +56,6 @@ export type {
   IntervalMinutes,
 } from "./aggregate.js";
 export { secondsLeft, initialAggregate, rotationEntryId } from "./aggregate.js";
-// participant.remove（apps/tasuki-sync）が、運転中の人が抜けたときの次の担当を選ぶ（#376）
-export { nextDriverAfterRemoval } from "./aggregate.js";
 // wire の投影（クライアントへ送る形。ドメインの集約ではない・#95 S4a）
 // Seat / SeatSkipReason は #276 D2 で追加。apps/timer-web と apps/tasuki-sync の両方が
 // 取り込むため、サブパスではなく index に載せる（他の wire 型と同じ扱い）。
@@ -73,6 +71,7 @@ export type {
   DuplicateName,
   MemberLimitExceeded,
   BelowMinMembers,
+  EmptyRotation,
   InvalidInterval,
   DomainError,
   ErrorCode,

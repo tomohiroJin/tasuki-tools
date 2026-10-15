@@ -286,6 +286,14 @@ export function isSeatIndex(i: number, len: number): boolean {
   return Number.isInteger(i) && i >= 0 && i < len;
 }
 
+/**
+ * 輪の長さが `len` のときに `currentIndex` として正しい値か（`SessionState.currentIndex` の不変条件。#376）。
+ * 空の輪なら 0 だけ、それ以外は席の添字。
+ */
+export function isCurrentIndexFor(i: number, len: number): boolean {
+  return len === 0 ? i === 0 : isSeatIndex(i, len);
+}
+
 /** `order` が `[0..len-1]` の順列か（長さが同じ・全部が席の添字・重複が無い）。decide と evolve が共有する（#376）。 */
 export function isPermutation(order: readonly number[], len: number): boolean {
   return order.length === len && order.every((i) => isSeatIndex(i, len)) && new Set(order).size === len;
@@ -299,14 +307,18 @@ export function isPermutation(order: readonly number[], len: number): boolean {
  * 外れた人の席には留まれないので、`ineligible` を省いたとき（=全員が適格）と同じ席へ倒す。
  * 外した後の輪が空なら 0。
  *
+ * どの入力でも NaN を返さない。外す席の添字が範囲外（空の輪を含む）なら、何も外れないので
+ * いまの担当（`currentIndex`）を返す。
+ *
  * @param ineligible 交代先にしない席（外す前の添字。undefined = 全員適格）
  */
 export function nextDriverAfterRemoval(
-  session: Pick<SessionState, "rotation">,
+  session: Pick<SessionState, "rotation" | "currentIndex">,
   removedIndex: number,
   ineligible: ReadonlySet<number> | undefined,
 ): number {
   const len = session.rotation.length;
+  if (!isSeatIndex(removedIndex, len)) return session.currentIndex;
   // 適格な人が居なければ nextEligibleIndex は外した席そのものを返す（外した席を飛ばすかどうかに関わらない）。
   // 長さ 1 なら外した席しか無いので、位置で次の席 (0 + 1) % 1 = 0 になる。
   const found = nextEligibleIndex(session, removedIndex, ineligible);

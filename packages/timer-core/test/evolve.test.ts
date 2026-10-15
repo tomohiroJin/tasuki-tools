@@ -455,9 +455,15 @@ describe("evolve: 運転中の人を外したときの次の担当（#376）", (
     expect(seatIds(next.session.rotation)[next.session.currentIndex]).toBe("D");
   });
 
-  it.each([-1, 3, 0.5])("Given B が運転中 / When nextDriverIndex=%s（範囲外） / Then 位置で次の C", (nextDriverIndex) => {
+  // 範囲外の nextDriverIndex は、ほかの不正な入力と同じく集約を変えない（位置で次の席へ倒さない）
+  it.each([-1, 3, 0.5])("Given B が運転中 / When nextDriverIndex=%s（範囲外） / Then 集約を変えない", (nextDriverIndex) => {
     const next = evolve(agg, { type: "MemberRemoved", index: 1, nextDriverIndex, now: NOW }, NOW);
-    expect(seatIds(next.session.rotation)[next.session.currentIndex]).toBe("C");
+    expect(next).toEqual(agg);
+  });
+
+  it("Given B が運転中 / When 運転者でない A を外すが nextDriverIndex が範囲外 / Then 集約を変えない（イベントごと不正）", () => {
+    const next = evolve(agg, { type: "MemberRemoved", index: 0, nextDriverIndex: 3, now: NOW }, NOW);
+    expect(next).toEqual(agg);
   });
 
   it("Given B が運転中 / When A を外す（運転者ではない） / Then nextDriverIndex は見ず、担当は B のまま", () => {

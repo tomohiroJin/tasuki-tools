@@ -15,8 +15,8 @@
 
 import { ok, err, type Result } from "neverthrow";
 import {
+  decide,
   evolve,
-  nextDriverAfterRemoval,
   removalNotificationFor,
   errorMessageFor,
   rotationEntryId,
@@ -204,11 +204,17 @@ export async function handleParticipantRemove(
     }
     // **`idx` は繰り上げの後も有効である。** `MemberAdded` は席を末尾へ足すので、
     // 先にある退出者の位置は動かない（ここへ来る時点で `idx` は 0 である）。
-    // 運転中の人が抜けるなら、次の担当は交代と同じ資格の規則で選ぶ（#376）。
-    // 資格は抜けた後の名簿と、繰り上げを済ませた輪で測る（添字は `working` の輪のもの）。
-    const ineligible = computeIneligibleIndices(membershipAfterRemoval, { ...timer, session: working.session, clock: working.clock });
-    const nextDriverIndex = nextDriverAfterRemoval(working.session, idx, ineligible);
-    const agg = evolve(working, { type: "MemberRemoved", index: idx, nextDriverIndex, now }, now);
+    // 席を外すのは decide の member.remove と同じ 1 つの経路にする（#376）。運転中の人が抜けるなら、
+    // 次の担当は交代と同じ資格の規則で decide が選ぶ。資格は member.remove と同じく**操作の前の名簿**で測る
+    // （`handlers.ts` の `ineligible` と同じ。抜ける人の席は選ばれないので、前後どちらでも結果は変わらない）。
+    // 添字は繰り上げを済ませた `working` の輪のもの。繰り上げで輪は 2 席以上あるので、BelowMinMembers は返らない。
+    const ineligible = computeIneligibleIndices(membership, { ...timer, session: working.session, clock: working.clock });
+    const removed = decide({ command: "member.remove", index: idx, ineligible }, working, now);
+    if (removed.isErr()) {
+      sendError(connId, removed.error.type, errorMessageFor(removed.error.type));
+      return err(removed.error.type);
+    }
+    const agg = removed.value.reduce((acc, event) => evolve(acc, event, now), working);
     next = { ...next, timer: { ...next.timer, session: agg.session, clock: agg.clock } };
   }
   commit(next);
