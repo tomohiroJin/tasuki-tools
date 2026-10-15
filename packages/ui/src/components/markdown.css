@@ -65,7 +65,7 @@ h6.ui-md-h {
   flex-direction: row;
   align-items: baseline;
   gap: var(--space-2);
-  font-size: inherit;
+  font-size: inherit; /* scale-exempt: 要素層の label の小さい字を打ち消し、項目の字を継ぐ */
   color: inherit;
 }
 
