@@ -2148,4 +2148,28 @@ export const MUTATIONS = [
     tests: ["tests/join-room-passphrase.test.tsx"],
     note: "#377。**対応表より後に足した変異。** 長い合言葉を貼った人が「コマンドの形式が不正です」で断られ、理由を知る手段が無い。",
   },
+  {
+    id: 267,
+    label: "@tasuki/markdown が文の無いタスクの項目もタスクにする",
+    patch: "m267-markdown-task-empty-text.patch",
+    pkg: "packages/markdown",
+    tests: ["tests/blocks.test.ts"],
+    note: "#315 PR 1・spec D2・NFR-002。**対応表より後に足した変異。** 印の後が空白だけの項目が名前の無いチェックボックスになる。",
+  },
+  {
+    id: 268,
+    label: "@tasuki/markdown が [X] をチェック済みにしない",
+    patch: "m268-markdown-task-upper-x.patch",
+    pkg: "packages/markdown",
+    tests: ["tests/blocks.test.ts"],
+    note: "#315 PR 1・spec D2・FR-002。**対応表より後に足した変異。** GitHub と同じ `- [X]` が「[X] 文」という文のまま出る。",
+  },
+  {
+    id: 269,
+    label: "Markdown のタスクの項目が label で包まれず、チェックボックスが名前を失う",
+    patch: "m269-web-kit-task-no-label.patch",
+    pkg: "packages/web-kit",
+    tests: ["tests/markdown.test.tsx"],
+    note: "#315 PR 1・spec D4・FR-003。**対応表より後に足した変異。** 見た目は同じまま、支援技術からどの項目のチェックか区別できない。",
+  },
 ];
