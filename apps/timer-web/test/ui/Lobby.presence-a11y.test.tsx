@@ -3,11 +3,11 @@
  *
  * 在席状態（オンライン/離席/オフライン）は色つきドット（PresenceDot・aria-hidden）のみで
  * 表現されており、スクリーンリーダー利用者には伝わらなかった。セッション画面
- * （RosterPanel.tsx）には presenceLabel() の sr-only テキストが既にあるが、
+ * （RosterPanel.tsx）には presenceLabel() の ui-visually-hidden テキストが既にあるが、
  * ロビーには無かった（docs/plans/roster-row-unification/spec.md で意図的にスコープ外と
  * された a11y の穴・同 spec.md 218行目）。
  *
- * sr-only は PresenceDot 自体には含めず、RosterPanel と同じく呼び出し元（Lobby.tsx）に
+ * ui-visually-hidden は PresenceDot 自体には含めず、RosterPanel と同じく呼び出し元（Lobby.tsx）に
  * 置く。PresenceDot の描画（ドットの色・aria-hidden）は変更しない。
  *
  * @requirements FR-006, FR-007, FR-008
@@ -43,15 +43,15 @@ function makeRoomWithPresences(): Room {
 
 const noop = vi.fn();
 
-describe("ロビー: 在席状態の sr-only テキスト", () => {
-  it("オンライン/離席/オフラインそれぞれの在席テキストが sr-only として存在する", () => {
+describe("ロビー: 在席状態の ui-visually-hidden テキスト", () => {
+  it("オンライン/離席/オフラインそれぞれの在席テキストが ui-visually-hidden として存在する", () => {
     // Given
     render(<Lobby inviteUrl={INVITE_URL_FOR_TEST} room={makeRoomWithPresences()} participantId="creator-p" onStartSession={noop} />);
     // When / Then（presenceLabel() のテキストは3状態それぞれ1件ずつ、参加者行内に存在する。
     //   screen.getByText への問い合わせが検証と同じ式になる）
-    expect(screen.getByText("オンライン", { selector: ".sr-only" })).toBeTruthy();
-    expect(screen.getByText("離席", { selector: ".sr-only" })).toBeTruthy();
-    expect(screen.getByText("オフライン", { selector: ".sr-only" })).toBeTruthy();
+    expect(screen.getByText("オンライン", { selector: ".ui-visually-hidden" })).toBeTruthy();
+    expect(screen.getByText("離席", { selector: ".ui-visually-hidden" })).toBeTruthy();
+    expect(screen.getByText("オフライン", { selector: ".ui-visually-hidden" })).toBeTruthy();
   });
 
   it("参加者一覧の <ul> に新規の aria-live は付与されない（読み上げの割り込みを避ける）", () => {

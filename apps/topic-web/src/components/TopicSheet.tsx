@@ -1,4 +1,4 @@
-import { Markdown } from './Markdown';
+import { Markdown } from '@tasuki/web-kit/reader';
 
 interface Props {
   readonly title: string;
@@ -14,7 +14,7 @@ export function TopicSheet({ title, body }: Props) {
   return (
     <article className="topic-sheet">
       {title.trim() !== '' && <h3 className="topic-title">{title}</h3>}
-      {body !== '' && <Markdown source={body} className="topic-body" />}
+      {body !== '' && <Markdown source={body} headingBase={4} className="topic-body" />}
     </article>
   );
 }

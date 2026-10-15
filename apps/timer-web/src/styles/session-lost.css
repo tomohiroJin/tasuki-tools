@@ -5,7 +5,7 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 2rem;
+  gap: var(--space-6);
   min-height: 60vh;
 }
 
@@ -14,7 +14,7 @@
 }
 
 .session-lost-label {
-  margin-bottom: 0.5rem;
+  margin-bottom: var(--space-2);
 }
 
 .session-lost-title {
@@ -22,7 +22,7 @@
 }
 
 .session-lost-code {
-  margin-top: 0.5rem;
+  margin-top: var(--space-2);
   font-size: var(--font-size-sm);
   line-height: 1.45;
   color: var(--bone-muted);
@@ -35,7 +35,7 @@
 .session-lost-notice {
   display: flex;
   align-items: flex-start;
-  gap: 0.75rem;
+  gap: var(--space-3);
   font-size: var(--font-size-sm);
   line-height: 1.45;
   color: var(--bone-muted);
@@ -62,7 +62,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .session-lost-button-icon {

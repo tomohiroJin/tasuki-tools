@@ -1,14 +1,14 @@
 /* アプリの枠（`App.tsx`・#321）。Tailwind のユーティリティの写し。
  * 値は基準（`ba9249d`）の計算済みスタイルと比較で確かめる（設計正本 D2）。 */
 .app-status-strip {
-  margin-bottom: 1rem;
+  margin-bottom: var(--space-4);
 }
 
 .app-banner {
-  margin-bottom: 1rem;
+  margin-bottom: var(--space-4);
   border-radius: var(--radius-md);
-  padding-inline: 1rem;
-  padding-block: 0.5rem;
+  padding-inline: var(--space-4);
+  padding-block: var(--space-2);
   text-align: center;
   font-size: var(--font-size-sm);
   line-height: 1.45;

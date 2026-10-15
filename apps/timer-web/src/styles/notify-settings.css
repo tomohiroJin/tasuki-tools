@@ -11,10 +11,10 @@
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: var(--space-1);
   border-radius: var(--radius-md);
-  padding-inline: 0.5rem;
-  padding-block: 0.25rem;
+  padding-inline: var(--space-2);
+  padding-block: var(--space-1);
   color: var(--bone-muted);
 }
 
@@ -35,7 +35,7 @@
 .notify-settings-trigger::before {
   content: "";
   position: absolute;
-  inset: calc((100% - 2.75rem) / 2) 0;
+  inset: calc((100% - var(--tap-target)) / 2) 0;
 }
 
 .notify-settings-icon {
@@ -47,13 +47,13 @@
   position: absolute;
   right: 0;
   z-index: 20;
-  margin-top: 0.5rem;
+  margin-top: var(--space-2);
   width: 20rem;
   border-radius: var(--radius-md);
   border-width: 1px;
   border-color: var(--hairline-strong);
   background-color: var(--panel);
-  padding: 0.75rem;
+  padding: var(--space-3);
   font-size: var(--font-size-sm);
   line-height: 1.45;
   color: var(--bone);
@@ -76,7 +76,7 @@
 }
 
 .notify-settings-warning {
-  margin-top: 0.5rem;
+  margin-top: var(--space-2);
   font-size: var(--font-size-xs);
   line-height: 1.35;
   color: var(--caution);
@@ -89,7 +89,7 @@
 }
 
 .notify-settings-heading {
-  margin-bottom: 0.75rem;
+  margin-bottom: var(--space-3);
   font-size: var(--font-size-base);
   line-height: 1.5;
   font-weight: 600;
@@ -105,21 +105,21 @@
 }
 
 .notify-settings-block {
-  margin-top: 0.75rem;
+  margin-top: var(--space-3);
 }
 
 .notify-settings-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .notify-settings-field-row {
-  margin-top: 0.25rem;
+  margin-top: var(--space-1);
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .notify-settings-select-grow {
@@ -153,18 +153,18 @@
 .notify-settings-switch-off::before {
   content: "";
   position: absolute;
-  inset: calc((100% - 2.75rem) / 2);
+  inset: calc((100% - var(--tap-target)) / 2);
 }
 
 .notify-settings-range {
-  margin-top: 0.25rem;
+  margin-top: var(--space-1);
   width: 100%;
 }
 
 .notify-settings-radio-group {
-  margin-top: 0.25rem;
+  margin-top: var(--space-1);
   display: flex;
-  gap: 1rem;
+  gap: var(--space-4);
 }
 
 .notify-settings-radio {
@@ -174,11 +174,11 @@
 }
 
 .notify-settings-voice {
-  margin-top: 0.5rem;
+  margin-top: var(--space-2);
 }
 
 .notify-settings-voice-select {
-  margin-top: 0.25rem;
+  margin-top: var(--space-1);
 }
 
 /* スイッチ（`role="switch"`）。つまみは個別の `translate` で動かす。 */

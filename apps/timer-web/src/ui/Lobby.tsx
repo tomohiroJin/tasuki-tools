@@ -199,8 +199,8 @@ export function Lobby({
                 >
                   <PresenceDot presence={p.presence} />
                   {/* 在席状態はドットの色だけで伝えていた（WCAG 1.4.1違反・Issue #42）。
-                      RosterPanel と同じく sr-only テキストを呼び出し元に置く（PresenceDot 自体は変更しない）。 */}
-                  <span className="sr-only">{presenceLabel(p.presence)}</span>
+                      RosterPanel と同じく ui-visually-hidden テキストを呼び出し元に置く（PresenceDot 自体は変更しない）。 */}
+                  <span className="ui-visually-hidden">{presenceLabel(p.presence)}</span>
                   <span className="lobby-participant-name">{label}</span>
                   {/* ドライバー（順番つき）/ 見学 の区別（§9.2・④ 順番可視化） */}
                   <span

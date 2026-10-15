@@ -18,13 +18,13 @@
 }
 
 .switch-alert-label {
-  margin-bottom: 0.75rem;
+  margin-bottom: var(--space-3);
 }
 
 .switch-alert-driver {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: var(--space-4);
   font-size: 3rem; /* scale-exempt: Tailwind の text-5xl の写し（計器の数字は段の外） */
   line-height: 1;
   font-weight: 900;
@@ -52,7 +52,7 @@
 }
 
 .switch-alert-hint {
-  margin-top: 2rem;
+  margin-top: var(--space-6);
   font-size: var(--font-size-sm);
   line-height: 1.45;
   color: var(--bone-subtle);
