@@ -16,6 +16,7 @@ import {
   formatTable,
   hasScanTarget,
   findInvalidDeclarations,
+  entriesOf,
   loadScanTargets,
   measureScanVolume,
   formatScanVolume,
@@ -595,9 +596,11 @@ describe("走査対象の宣言", () => {
   test("宣言したエントリポイントはすべて実在する", () => {
     // Given / When / Then
     for (const d of SCANNED_PACKAGES) {
-      if (!hasScanTargetForFixture(d.entry) || !hasScanTargetForFixture(d.src)) continue;
-      const abs = pathForFixture.join(REPO_ROOT, d.pkg, d.src, d.entry);
-      assert.ok(fsForFixture.existsSync(abs), `実在しません: ${d.pkg}/${d.src}/${d.entry}`);
+      if (!hasScanTargetForFixture(d.src)) continue;
+      for (const e of entriesOf(d)) {
+        const abs = pathForFixture.join(REPO_ROOT, d.pkg, d.src, e);
+        assert.ok(fsForFixture.existsSync(abs), `実在しません: ${d.pkg}/${d.src}/${e}`);
+      }
     }
   });
 
@@ -668,6 +671,33 @@ describe("走査対象の宣言の妥当性（ADR-0014 決定 1・決定 9）", 
   test("実リポジトリの宣言に不正なものは無い", () => {
     // Given / When / Then
     assert.deepEqual(findInvalidDeclarations(SCANNED_PACKAGES), []);
+  });
+
+  test("入口を複数持つパッケージ（サブパスの入口）は、非空の文字列の配列で宣言できる（#371）", () => {
+    // Given
+    const declarations = [{ pkg: "packages/a", src: "src", test: "tests", entry: ["sync/index.ts", "reader/index.ts"] }];
+    // When / Then
+    assert.deepEqual(findInvalidDeclarations(declarations), []);
+  });
+
+  test("入口の配列が空、または空文字を含むなら不正（走査対象を静かに失う経路）", () => {
+    // Given
+    const declarations = [
+      { pkg: "packages/a", src: "src", test: "tests", entry: [] },
+      { pkg: "packages/b", src: "src", test: "tests", entry: ["index.ts", ""] },
+    ];
+    // When
+    const invalid = findInvalidDeclarations(declarations);
+    // Then
+    assert.deepEqual(invalid, ["packages/a.entry = []", 'packages/b.entry = ["index.ts",""]']);
+  });
+});
+
+describe("entriesOf（#371）", () => {
+  test("文字列なら 1 つ、配列ならそのまま、null なら空", () => {
+    assert.deepEqual(entriesOf({ entry: "index.ts" }), ["index.ts"]);
+    assert.deepEqual(entriesOf({ entry: ["a.ts", "b.ts"] }), ["a.ts", "b.ts"]);
+    assert.deepEqual(entriesOf({ entry: null }), []);
   });
 });
 
@@ -1674,6 +1704,18 @@ describe("SC-039④: 公開契約に載っているだけの値（#182）", () =
       // Given / When / Then
       const productSources = new Map([["apps/app/src/main.ts", "import { a } from '@tasuki/x';"]]);
       assert.equal(sc039dContractOnlyValues(indexOf("export { a } from './a';"), productSources), 0);
+    });
+
+    test("サブパスの入口（src/<sub>/index.ts）は、そのサブパスからの取り込みで生きている（#371）", () => {
+      // Given: `./reader` の入口が a を列挙し、アプリが `@tasuki/x/reader` から取り込む
+      const contract = new Map([["packages/x/src/reader/index.ts", "export { a } from './a';"]]);
+      const fromReader = new Map([["apps/app/src/main.ts", "import { a } from '@tasuki/x/reader';"]]);
+      const fromRoot = new Map([["apps/app/src/main.ts", "import { a } from '@tasuki/x';"]]);
+      const fromOther = new Map([["apps/app/src/main.ts", "import { a } from '@tasuki/x/sync';"]]);
+      // When / Then
+      assert.equal(sc039dContractOnlyValues(contract, fromReader), 0);
+      assert.equal(sc039dContractOnlyValues(contract, fromRoot), 1, "本体からの取り込みはサブパスの入口の根拠にしない");
+      assert.equal(sc039dContractOnlyValues(contract, fromOther), 1, "別のサブパスからの取り込みも根拠にしない");
     });
 
     test("型は数えない（公開している値の署名から到達できるため）", () => {

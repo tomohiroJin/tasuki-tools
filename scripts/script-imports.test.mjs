@@ -42,7 +42,7 @@ export const ALLOWED_SCRIPT_IMPORTS = [
   {
     from: "scripts/audit-public-surface.mjs",
     to: "scripts/audit-structure.mjs",
-    names: ["SCANNED_PACKAGES", "hasScanTarget"],
+    names: ["SCANNED_PACKAGES", "entriesOf", "hasScanTarget"],
     reason:
       "走査の宣言とその述語の正本は audit-structure.mjs に置く。宣言をここに残すのは、" +
       "scan-target-wiring.test.mjs が複製を書き換えて宣言を壊す検証を届かせるため（#361 計画 §1）",

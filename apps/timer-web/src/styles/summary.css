@@ -14,7 +14,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1.5rem;
+  gap: var(--space-5);
   width: 100%;
   max-width: 40rem;
   margin-inline: auto;
@@ -49,7 +49,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   font-size: var(--font-size-lg); /* 区画の見出し（§11） */
   line-height: 1.3;
   font-weight: 700;
@@ -61,7 +61,7 @@
 }
 
 .summary-banner-note {
-  margin-top: 0.25rem;
+  margin-top: var(--space-1);
   font-size: var(--font-size-sm);
   line-height: 1.45;
   color: var(--bone-muted);
@@ -72,7 +72,7 @@
   display: grid;
   width: 100%;
   grid-template-columns: minmax(0, 1fr);
-  gap: 0.75rem;
+  gap: var(--space-3);
 }
 
 /* 統計の札 1 枚（`Card` に当てる）。縦に積むときはラベルを左・値を右の 1 行にする（計器の読み） */
@@ -80,7 +80,7 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 1rem;
+  gap: var(--space-4);
 }
 
 .summary-stat-value {
@@ -142,17 +142,17 @@
 }
 
 .summary-drivers-label {
-  margin-bottom: 0.75rem;
+  margin-bottom: var(--space-3);
 }
 
 :where(.summary-drivers-list > :not(:last-child)) {
-  margin-block-end: 0.5rem;
+  margin-block-end: var(--space-2);
 }
 
 .summary-driver {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: var(--space-3);
   font-size: var(--font-size-sm);
   line-height: 1.45;
 }
@@ -205,7 +205,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .summary-saved-icon {

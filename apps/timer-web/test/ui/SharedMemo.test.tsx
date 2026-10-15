@@ -65,3 +65,15 @@ describe("SharedMemo プレビュー優先", () => {
     expect(screen.getByRole("textbox", { name: "共有メモ" })).toBeTruthy();
   });
 });
+
+/**
+ * 共有メモのプレビューの見出しは h3 から始まる（#371。お題の札は h4 から。描画は共有の `Markdown` で、
+ * 段は画面が渡す。テストの包みではなく画面そのものが渡す段を見る）。
+ */
+describe("SharedMemo プレビューの見出しの段", () => {
+  it("Given # 見出しのメモ / When プレビューを見る / Then h3 で出る", () => {
+    render(<SharedMemo note={"# 参加方法\n## ルール"} onCommit={vi.fn()} />);
+    expect(screen.getByRole("heading", { level: 3, name: "参加方法" })).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 4, name: "ルール" })).toBeTruthy();
+  });
+});

@@ -99,3 +99,10 @@ test('要素層は tokens 層を経由せず読み込める（利用側の impor
   assert.match(barrel, /@import '\.\/tokens\/index\.css';/);
   assert.match(barrel, /@import '\.\/elements\/index\.css';/);
 });
+
+test('押せる大きさのトークンは 2.75rem（44px 相当・WCAG 2.5.5 の目安。#372）', () => {
+  // Given / When
+  const css = tokensLayer();
+  // Then: 値を変えると、押せる範囲を広げる `calc((100% - var(--tap-target)) / 2)` ごと見た目が変わる
+  assert.match(css, /^\s*--tap-target:\s*2\.75rem;/m);
+});

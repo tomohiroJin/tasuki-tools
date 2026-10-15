@@ -96,3 +96,16 @@ React を知らない。描画は各アプリ（timer-web・poker-web・topic-we
 - 旧 wire との互換は切った。配布中に新旧が混ざる窓が 3 つあり、再読込で閉じる
   （設計正本 §6。手順は `deploy/topic/NOTES.md` と `deploy/timer/NOTES.md`）
 - 実装時に設計正本から外したことは設計正本 §10.1（PR 2）・§10.2（PR 3）に記録した。**本 ADR に転記しない**
+
+## 追記（2026-10-14・#371）
+
+**決定 7 の「描画は各アプリが持つ」を改め、描画を `@tasuki/web-kit/reader` の `Markdown` 1 つにした。** 解析は引き続き
+`@tasuki/markdown` が持ち、React を知らない（決定 7 の前半は変わらない）。
+
+- 却下した案「Markdown の描画まで共有する」の理由のうち、「`packages/ui` は CSS だけで React の基盤を持たない」は、
+  #369 で React の共有パッケージ（`@tasuki/web-kit`）ができて当たらなくなった
+- 理由 3「描画の規約が各アプリで違う」は実測で当たらなかった。クラス名は 3 つとも同じで、違いは見出しの段だけだった
+  （引数 `headingBase` で渡す）。3 つのアプリで同じ原稿を描いて DOM の形が同じことを確かめてから寄せた
+- 部品のクラスの字面はパッケージにしか無くなるので、部品の使用の検査（`scripts/audit-ui-components.mjs`）は、
+  共有の入口を取り込むアプリの使用として数える
+- 計画: `docs/superpowers/plans/2026-10-14-refactor-r11-shared-display-parts.md`

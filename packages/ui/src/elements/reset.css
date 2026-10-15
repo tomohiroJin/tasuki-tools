@@ -81,7 +81,7 @@ h1 {
   color: var(--ivory);
   font-size: var(--font-size-xl);
   line-height: 1.25;
-  margin: 0 0 0.75rem;
+  margin: 0 0 var(--space-3);
 }
 
 /* 区画の見出し（設計正本 §11）: lg・象牙・700。字間を詰めず、大文字にせず、罫を引かない。

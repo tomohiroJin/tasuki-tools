@@ -44,7 +44,8 @@ S2〜S4a では poker 側の入れ子（src/poker 配下。**S4b で畳みまし
 | web の画面 | web アプリの `.tsx` | 同期フックと純粋判断のみ（同期クライアントを直接 import しない） |
 | UI 資産 | `packages/ui` | なし（CSS のトークン・要素・部品と静的資産。ADR 0022） |
 | 招待のブラウザ操作 | `packages/invite-ui` | React・ブラウザ API・既存の qrcode。ドメイン・同期クライアントには依存しない（[ADR-0020](../adr/0020-invite-browser-operations.md)） |
-| Markdown の解析 | `packages/markdown` | なし（純粋関数のみ。React を知らない）。描画は各 web アプリの `Markdown.tsx` が持つ（[ADR-0021](../adr/0021-topic-as-shared-context.md) 決定 7） |
+| Markdown の解析 | `packages/markdown` | なし（純粋関数のみ。React を知らない）。描画は `@tasuki/web-kit/reader` の `Markdown` が持つ（[ADR-0021](../adr/0021-topic-as-shared-context.md) 決定 7 と 2026-10-14 の追記・#371） |
+| web の読む面の共有部品 | `packages/web-kit` の入口 `@tasuki/web-kit/reader`（`Markdown`・`useReaderDrawer`。#371） | `react`（peer）・`@tasuki/markdown`。**画面から読んでよい**（同期の入口 `./sync` とは別） |
 
 web の画面は、招待のコピー・QR 生成については `packages/invite-ui` のフックを使う。
 同期フックから受け取った URL を渡し、操作結果を描画する。URL の組み立てや

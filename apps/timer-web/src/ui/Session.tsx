@@ -464,7 +464,7 @@ export function Session({
         ]}
       />
       {/* 交代通知・支援技術アナウンスはどのタブでも有効にする（タブに依存しない重要イベント） */}
-      <div aria-live="assertive" role="status" className="sr-only">
+      <div aria-live="assertive" role="status" className="ui-visually-hidden">
         {announcement}
       </div>
       {switchAlertName && (

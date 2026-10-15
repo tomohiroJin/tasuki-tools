@@ -21,6 +21,15 @@ web アプリが共有する React の部品（#360 の波 2・設計正本 §5.
 - ポーカー（`apps/poker-web`）は使っていない。入り直しの待ちがエラーの変化で畳まれる形で、寄せると振る舞いが変わるため
   （`apps/poker-web/src/hooks/useRoomEntry.ts` の注記）
 
-依存してよいのは `react`（peer）と `@tasuki/sync-client` だけ（`scripts/audit-dependency-direction.mjs`）。
+## `@tasuki/web-kit/reader`（読む面の部品・#371）
+
+画面から読んでよい（同期の入口 `./sync` とは別）。
+
+- `Markdown` — お題の説明・共有メモの描画。解析は `@tasuki/markdown`。見出しの段（`headingBase`）は置く場所に合わせて渡す
+  （お題の札はタイトルが h3 なので 4、timer の共有メモは 3）。見た目は部品層の `.ui-md-*`
+- `useReaderDrawer` — 「続きを読む」の引き出し（`<dialog class="ui-drawer">`）の開閉と、閉じたときに開いたボタンへ
+  フォーカスを戻す処理。マークアップは各画面が持つ
+
+依存してよいのは `react`（peer）・`@tasuki/sync-client`・`@tasuki/markdown` だけ（`scripts/audit-dependency-direction.mjs`）。
 ドメインの core には依存しない。`@tasuki/invite-ui` は同期に依存しないと決めてある（`docs/adr/0020`）ので、
 同期の部品はこちらに置く。

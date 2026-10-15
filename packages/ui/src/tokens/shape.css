@@ -18,6 +18,9 @@
   --radius-full: 9999px;
   --card-radius: 10px;
 
+  /* 押せる大きさ（#372）。44px 相当の当たりの最小。見た目を小さくするときは当たりを ::before で広げる */
+  --tap-target: 2.75rem;
+
   /* 影。夜の卓に載るため黒基調で固定する（配色の切替は行わない） */
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35), 0 6px 16px rgba(0, 0, 0, 0.35);
   --shadow-popover: 0 10px 15px rgba(0, 0, 0, 0.45);
