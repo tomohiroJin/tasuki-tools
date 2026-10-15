@@ -217,8 +217,8 @@ describe("回す", () => {
     expect(winners[0]).not.toBe(winners[1]);
   });
 
-  it("Given 乱数源が範囲外を返す / When 回す / Then INTERNAL_ERROR を返し、ログに on-message-error name=RangeError を 1 行残す（#364）", async () => {
-    // #364 より前は、ドメインが RangeError を投げ、接続層（ws-adapter.ts の handleRouletteMessage）が
+  it("Given 乱数源が範囲外を返す / When 回す / Then INTERNAL_ERROR を返し、ログに on-message-error name=RangeError と reason=invalid-random の 2 行を残す（#364・#382）", async () => {
+    // #364 より前は、ドメインが RangeError を投げ、接続層（adapters/ws/tool-channel.ts）が
     // 隔離して「ログ → エラーフレーム」を返していた。ドメインが Result を返すようになっても、
     // フレームとログの行（中身・水準・順）は変えない（計画 §3「ログを保つ」）。
     // Given

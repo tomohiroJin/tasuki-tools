@@ -64,6 +64,12 @@ import { boundaryErrorCode } from "./connection-errors.js";
  */
 const RouletteConnectionMessageSchema = v.union([HubCommandSchema, RouletteCommandSchema]);
 
+/** 乱数源の契約違反のコード → ログの reason（語彙）。ここに無いコードは利用者の操作による失敗で、ログを残さない。 */
+const VIOLATION_REASON_OF = {
+  INVALID_RANDOM: RANDOM_VIOLATION_REASONS.invalidRandom,
+  INVALID_SETTLE: RANDOM_VIOLATION_REASONS.invalidSettle,
+} as const;
+
 export interface RouletteHandlerDeps extends JoinRoomDeps, SaveRosterDeps {
   roulettes: RouletteStore;
   broadcaster: RouletteBroadcaster;
@@ -159,17 +165,14 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
           const code = next.error.code;
           // INVALID_SETTLE・INVALID_RANDOM は乱数源の誤りで、利用者の操作では起きない。内部の誤りとして返す。
           // 監視は `roulette-random-violation` の 1 本で両方を拾え、`reason` で区別できる（#382）。
-          if (code === "INVALID_RANDOM") {
-            // #364 より前は、ドメインが RangeError を投げ、接続層（ws-adapter.ts）が「ログ → エラーフレーム」を
-            // 返していた。その行は変えず（先頭に残す）、reason 付きの行をその次に足す。
-            logger.error("on-message-error", { name: ERROR_NAMES.rangeError });
-            logger.error("roulette-random-violation", { reason: RANDOM_VIOLATION_REASONS.invalidRandom });
-            fail(connId, "INTERNAL_ERROR");
-            return;
-          }
-          if (code === "INVALID_SETTLE") {
-            // 例外ではないので `name` は無い。元は行が無かった（#382）。同じ水準（error）で残す。
-            logger.error("roulette-random-violation", { reason: RANDOM_VIOLATION_REASONS.invalidSettle });
+          if (code === "INVALID_RANDOM" || code === "INVALID_SETTLE") {
+            if (code === "INVALID_RANDOM") {
+              // #364 より前は、ドメインが RangeError を投げ、接続層（`adapters/ws/tool-channel.ts`）が
+              // 「ログ → エラーフレーム」を返していた。その行は変えない。**INVALID_RANDOM は error が 2 行になる**
+              // （この行と、下の reason 付きの行。reason の行は監視を 1 本で拾うために足した）。
+              logger.error("on-message-error", { name: ERROR_NAMES.rangeError });
+            }
+            logger.error("roulette-random-violation", { reason: VIOLATION_REASON_OF[code] });
             fail(connId, "INTERNAL_ERROR");
             return;
           }
