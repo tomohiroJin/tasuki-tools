@@ -17,7 +17,7 @@
   align-items: center;
   justify-content: center;
   min-width: 6rem;
-  min-height: 2.75rem;
+  min-height: var(--tap-target);
   padding: 0 1.4rem;
   border: 1px solid var(--gold-deep);
   border-radius: 999px;
@@ -56,7 +56,7 @@
 .ui-button--sm {
   position: relative;
   min-height: 2.25rem;
-  padding-inline: 1rem;
+  padding-inline: var(--space-4);
   font-size: var(--font-size-xs);
 }
 

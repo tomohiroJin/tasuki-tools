@@ -870,15 +870,20 @@ CI は変異も E2E も全件を流し続けます。手元で絞った分の漏
 
 - `--changed` は `origin/main` との差分から、**同じパッケージの中で**関係する変異を選びます（パッケージ間の依存はたどりません）。
   変異検査の機構（`scripts/mutation-check.mjs` とその import）か、リポジトリのルート直下の `.md` 以外のファイル（lockfile・`package.json` など）が差分にあると全件に倒れます。差分には未コミットの変更と未追跡のファイルも含みます。その枝で絞りたいときは `--base <ref>` で基準を変えます
-  変異を書き足した枝も機構の変更に当たり全件に倒れます（宣言の表 `MUTATIONS` が `mutation-check.mjs` の中にあるため。#380 で表が分かれるまで）
+  変異を書き足した枝も機構の変更に当たり全件に倒れます（宣言の表 `scripts/lib/mutation-declarations.mjs` は `mutation-check.mjs` が import するので機構に数えます。#380。既存の宣言の `tests` や `pkg` を書き換えた枝で、その変異を取りこぼさないため）
 - 実行の最後に**所要時間**が出ます。計画の検証の見積もりは、直前の実行のこの行を根拠にします（手引きには秒数を書きません）
 - 知らない指定（`--help` を含む）はエラーで止まります
+
+**変異を足すときは、宣言を `scripts/lib/mutation-declarations.mjs` の表 `MUTATIONS` に足し、パッチを `scripts/mutations/` に置きます**
+（宣言とパッチは 1 対 1。ID は詰めない・使い回さない）。表は #380 で機構（`scripts/mutation-check.mjs`）から分けました。
 
 **変異検査は作業ツリーが汚れていると実行できません。** `mutation-check.mjs` は
 対象箇所を意図的に壊して既存テストが赤くなるかを確認する仕組みのため、
 コミットされていない変更が残っていると自分の変更なのか検出漏れなのか
 区別できず、実行前に working tree のクリーンさを要求します。先にコミットしてから
 走らせてください。
+入口・宣言の表・パッチの置き場（`scripts/mutation-check.mjs`・`scripts/lib/mutation-declarations.mjs`・`scripts/mutations/`）の
+未コミットの変更は除外して見るので、宣言とパッチを書き足した直後でも流せます（除外の一覧は `DIRTY_CHECK_EXCLUDES`）。
 
 **変異検査の対象はパッケージに限りません。`scripts/` 配下の検査本体も対象です**
 （#174）。変異ごとのランナーは対象ディレクトリの `package.json` の `scripts.test` から

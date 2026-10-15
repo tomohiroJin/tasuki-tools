@@ -1239,14 +1239,14 @@ describe("SC-039 の走査範囲の配線: scripts/audit-structure.mjs（#180）
     // Given: 参照元の組み立てを `packages/` 層だけに狭める
     const mutate = (s) =>
       s.replace(
-        "    if (!hasScanTarget(p.entry)) continue;\n    const reachable = computeReachableFiles(p.srcFiles, [p.entry]);",
-        "    if (!hasScanTarget(p.entry) || !isPackageLayer(p.pkg)) continue;\n    const reachable = computeReachableFiles(p.srcFiles, [p.entry]);",
+        "    if (entriesOf(p).length === 0) continue;\n    const reachable = computeReachableFiles(p.srcFiles, entriesOf(p));",
+        "    if (entriesOf(p).length === 0 || !isPackageLayer(p.pkg)) continue;\n    const reachable = computeReachableFiles(p.srcFiles, entriesOf(p));",
       );
     // When
     const r = runScriptCopy("audit-structure.mjs", mutate);
     // Then: まず「壊れたこと自体」を確かめる
     assert.equal(
-      countOf(r.source, "if (!hasScanTarget(p.entry) || !isPackageLayer(p.pkg)) continue;"),
+      countOf(r.source, "if (entriesOf(p).length === 0 || !isPackageLayer(p.pkg)) continue;"),
       1,
       "参照元の絞り込みを差し込めていません",
     );
@@ -1354,15 +1354,15 @@ describe("SC-039 の走査範囲の配線: scripts/audit-structure.mjs（#180）
     //        値が下がっただけでは誰も気づけない（#182）。走査対象の照合で落とす
     const mutate = (s) =>
       s.replace(
-        "      if (entrySource !== undefined) contractFiles.set(prefix + p.entry, entrySource);",
-        '      if (entrySource !== undefined && p.pkg !== "packages/poker-core") contractFiles.set(prefix + p.entry, entrySource);',
+        "        if (entrySource !== undefined) contractFiles.set(prefix + e, entrySource);",
+        '        if (entrySource !== undefined && p.pkg !== "packages/poker-core") contractFiles.set(prefix + e, entrySource);',
       );
     // When
     const r = runScriptCopy("audit-structure.mjs", mutate);
     // Then: まず「壊れたこと自体」を確かめる（壊す前と後の両方を数える）
     const original = fs.readFileSync(path.join(SCRIPTS_DIR, "audit-structure.mjs"), "utf8");
     assert.equal(
-      countOf(original, "      if (entrySource !== undefined) contractFiles.set(prefix + p.entry, entrySource);"),
+      countOf(original, "        if (entrySource !== undefined) contractFiles.set(prefix + e, entrySource);"),
       1,
       "壊す前の組み立て行が 1 件見つかりません",
     );

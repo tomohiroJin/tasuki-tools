@@ -12,9 +12,9 @@
  * 本文（`.ui-reader-body`）は 64rem 以上だけ描き、`tabIndex={0}` は本文をキーボードでスクロールするため。
  * 64rem 未満は同じ本文を `inert` の写し（`.ui-reader-preview`）で 3 行に切って見せ、切った中身のリンクを Tab の行き先から外す。
  */
-import React, { useId, useRef } from "react";
+import React, { useId } from "react";
 import type { Topic } from "@tasuki/topic-core";
-import { Markdown } from "./Markdown.js";
+import { Markdown, useReaderDrawer } from "@tasuki/web-kit/reader";
 
 /** 札の見出し。書体の常用の層に収まることを `topic-copy-fits-font-base.test.ts` が見る。 */
 export const TOPIC_CARD_HEADING = "お題";
@@ -26,11 +26,9 @@ export function TopicCard({ topic }: { topic: Topic }) {
   const headingId = `${uid}-heading`;
   const titleId = `${uid}-title`;
   const drawerTitleId = `${uid}-drawer-title`;
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  const moreRef = useRef<HTMLButtonElement>(null);
+  // 開閉と、閉じたときに「続きを読む」へフォーカスを戻す処理は共有のフック（`@tasuki/web-kit/reader`）
+  const drawer = useReaderDrawer();
   const hasBody = topic.body !== "";
-  // フォーカスを「続きを読む」へ戻す経路は `onClose` の 1 本（閉じるボタンも Esc も `close` イベントを通る）
-  const close = () => dialogRef.current?.close();
   return (
     <section className="ui-reader timer-topic" aria-labelledby={headingId}>
       <div className="timer-topic-head">
@@ -48,22 +46,22 @@ export function TopicCard({ topic }: { topic: Topic }) {
             <Markdown source={topic.body} headingBase={4} />
           </div>
           <button
-            ref={moreRef}
+            ref={drawer.triggerRef}
             type="button"
             className="ui-button ui-button--secondary ui-button--sm ui-reader-more"
-            onClick={() => dialogRef.current?.showModal()}
+            onClick={drawer.open}
           >
             {TOPIC_READ_MORE}
           </button>
           <dialog
-            ref={dialogRef}
+            ref={drawer.dialogRef}
             className="ui-drawer"
             aria-labelledby={drawerTitleId}
-            onClose={() => moreRef.current?.focus()}
+            onClose={drawer.onClose}
           >
             <div className="ui-drawer-head">
               <h3 id={drawerTitleId} className="timer-topic-title">{topic.title}</h3>
-              <button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={close}>
+              <button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={drawer.close}>
                 {TOPIC_CLOSE}
               </button>
             </div>

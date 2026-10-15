@@ -9,7 +9,8 @@
 
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { Markdown } from '../src/components/Markdown';
+import { Markdown as SharedMarkdown } from '@tasuki/web-kit/reader';
+const Markdown = (props: { source: string; className?: string }) => <SharedMarkdown headingBase={4} {...props} />;
 
 describe('Markdown（安全な MD サブセット）', () => {
   it('Given [表示](URL) 記法 / When 描画する / Then 安全なリンクとして出す', () => {

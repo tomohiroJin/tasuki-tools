@@ -313,8 +313,8 @@ export function RosterPanel({
             {/* 1段目: 順番＋在席ドット＋名前＋「▶ 今」。
                 名前は text-base font-medium で目立たせる。
                 メタ情報（順番番号）は控えめな色で表示。
-                在席「オンライン」テキストチップは廃止しドット＋sr-only のみに（FR-032 色併記は
-                ドットで維持し、スクリーンリーダーには sr-only テキストで伝える）。
+                在席「オンライン」テキストチップは廃止しドット＋ui-visually-hidden のみに（FR-032 色併記は
+                ドットで維持し、スクリーンリーダーには ui-visually-hidden テキストで伝える）。
                 かつてはここに「主催者」「観覧」の役割バッジも並べていた（#95 S3 で廃止）。 */}
             <div className="roster-panel-meta">
               {inRotation && (
@@ -327,7 +327,7 @@ export function RosterPanel({
               )}
               <PresenceDot presence={p.presence} />
               {/* 在席状態をスクリーンリーダーへ（可視チップは廃止） */}
-              <span className="sr-only">{presenceLabel(p.presence)}</span>
+              <span className="ui-visually-hidden">{presenceLabel(p.presence)}</span>
               {/* 名前: text-base font-medium で情報階層の最上位に。
                   同名が並ぶときは識別子を添える（目で見ても行を区別できるように）。 */}
               <span className="roster-panel-name">

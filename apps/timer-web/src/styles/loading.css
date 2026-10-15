@@ -17,7 +17,7 @@
   height: 1rem;
   border-radius: calc(infinity * 1px);
   background-color: var(--signal);
-  margin-bottom: 0.5rem;
+  margin-bottom: var(--space-2);
   animation-name: pulse;
   animation-duration: 2s;
   animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1);
@@ -25,14 +25,14 @@
 }
 
 .loading-waiting-connection {
-  margin-top: 0.5rem;
+  margin-top: var(--space-2);
 }
 
 /* 接続状態の一行。色は `Loading.tsx` の `CONNECTION_TONE_CLASS` が選ぶ（文字を併記する）。 */
 .loading-connection {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: var(--space-1);
   font-size: var(--font-size-xs);
   line-height: 1.35;
 }
@@ -53,7 +53,7 @@
 .loading-timed-out {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: var(--space-5);
   padding-block: 2.5rem;
 }
 
@@ -62,7 +62,7 @@
 }
 
 .loading-label {
-  margin-bottom: 0.5rem;
+  margin-bottom: var(--space-2);
 }
 
 .loading-title {
@@ -72,7 +72,7 @@
 .loading-notice {
   display: flex;
   align-items: flex-start;
-  gap: 0.75rem;
+  gap: var(--space-3);
   font-size: var(--font-size-sm);
   line-height: 1.45;
   color: var(--bone-muted);
@@ -87,7 +87,7 @@
 }
 
 .loading-connection-row {
-  margin-top: 0.75rem;
+  margin-top: var(--space-3);
   text-align: center;
 }
 
@@ -100,14 +100,14 @@
 
 /* 戻る・再読み込みの並び（部品の `.ui-actions`） */
 .loading-actions {
-  margin-top: 0.5rem;
+  margin-top: var(--space-2);
 }
 
 .loading-button-label {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .loading-button-icon {

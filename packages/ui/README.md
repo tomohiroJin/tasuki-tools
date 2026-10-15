@@ -47,6 +47,7 @@ src/
 | `.ui-workspace` | 操作の面と脇を並べる段組みの根。`.ui-workspace-main`（操作の面）・`.ui-workspace-side`（脇）を子に置く。`--side-end`・`--reader` で脇の側と幅を変える。使い方は下の「画面を組む」 | なし |
 | `.ui-reader` | 読む面。象牙の札に見出し（固定）と本文 `.ui-reader-body`（64rem 以上だけ・札の中でスクロール）を載せる。64rem 未満は本文の代わりに 3 行の写し `.ui-reader-preview`（`inert`）を見せ、`.ui-reader-more`（続きを読む）で `.ui-drawer` を開く | なし |
 | `.ui-drawer` | 下からせり上がるシート（`<dialog>`）。`.ui-drawer-head`（見出しと閉じる）・`.ui-drawer-body`（スクロールする本文）を持つ。地と字は `.ui-reader` と同じ | なし |
+| `.ui-visually-hidden` | 目に出さず、支援技術には残す文字（読み上げだけに渡す見出し・状態の言葉・ライブリージョン）。#371 で 3 つのアプリの写しを 1 つにした | なし |
 
 **使い方**
 
@@ -69,8 +70,9 @@ src/
 - **見出しの行は、行の中の並びまで部品が持ちます**（配置は画面が持つ、の例外）。見出し自身の大きさ・余白は画面が持ちます
 - **招待リンクは、行の並びと字の大きさまで部品が持ちます。** コピーのボタンには `.ui-button` の役割を当てます
 - **Markdown の既定の色は象牙の札（読む面・シート・お題ツールの `.topic-sheet`）の上で読める値です。** 暗い面（timer の共有メモ）に置くときは、
-  面がつまみ `--ui-md-edge`・`--ui-md-link` を宣言します（部品は宣言しません）。リンクは既定で字の色を継ぐので、画面のクラスで色を書きません。描画（React）は各アプリの `Markdown.tsx` が持ち、
-  クラス名は字面で書きます（組み立てた名前は検査が数えられず、死んだ部品として落ちます）
+  面がつまみ `--ui-md-edge`・`--ui-md-link` を宣言します（部品は宣言しません）。リンクは既定で字の色を継ぐので、画面のクラスで色を書きません。描画（React）は `@tasuki/web-kit/reader` の `Markdown` が持ちます（#371。見出しの段は置く場所に合わせて渡す）。
+  クラス名は字面で書きます（組み立てた名前は検査が数えられず、死んだ部品として落ちます）。共有の入口に書いた字面は、
+  その入口を取り込むアプリの使用として数えます（`scripts/audit-ui-components.mjs` の `SHARED_UI_ENTRIES`）
 
 **部品を足す条件**（ADR 0022 決定 2）: 同じ見た目の知識を持つこと・2 画面以上が使うこと。
 20 行に満たない重複でも足します。どのアプリも使わない部品は検査が落とします。
@@ -87,6 +89,13 @@ src/
 **画面の CSS の約束**（同じ検査が見る）: アプリの CSS と要素層（`elements/`）にも生の色を書きません。色は
 `tokens/` のトークンで書き、語彙（tint / veil / edge など）に近い値は語彙を使います。語彙に相当が無い色は、
 役割の名前でトークン層に足します。外すときは規則の直前に `/* ui-exempt: 理由 */` を書きます。
+余白（`padding` / `margin` / `gap` / `scroll-padding` / `scroll-margin` とその個別指定）・角丸（`border-*-radius`）・
+押せる大きさ（幅・高さ・`inset`）も、**トークンと同じ単位・同じ値の直書き**（例: `0.5rem` の余白・`0.75rem` の角丸・
+`2.75rem` の幅。`.5rem` のような書き方の違いも同じ値とみなす）を検査が落とします（#372）。部品の CSS も同じです
+（部品は申告で外せない）。`var(--space-2)` のようにトークンで書きます。比べる値は `tokens/shape.css` から読みます。
+刻みに無い値（`0.375rem` の余白など）・単位の違う値（`8px` の角丸・`44px` の幅など。`rem` のトークンにすると
+利用者の文字の大きさの設定で見た目が変わる）・負の値は対象外です。`--card-radius` は札の形の役割の名前なので、
+`10px` の角丸を寄せさせません。
 
 **機械で止めていないもの**: クラス名で書いた写し（例: 入力欄に独自のクラスを当てて同じ見た目を書く）。
 新しい画面を作るときは、まずこの表を見てください。
@@ -176,7 +185,7 @@ src/
 （実際の作りは `apps/poker-web/src/components/CurrentTopic.tsx` が正。区画は `<aside>` ではなく `<div>` にする。読む面の `<section>` が名前つきの region になるので、区画で目印を重ねない）
 
 - **64rem 以上**: 読む面は画面の高さに収まり、本文だけが札の中でスクロールする。**ページを伸ばさない**のは、説明が長いと操作が下へ押し出されるため。続きがあることはスクロールバーが知らせる。`.ui-reader-more` は出ない。上に見出しと招待の行（約 9.5rem）があり、下に器の余白（4rem）がある画面を前提にした高さ（`100dvh - 14rem`）。操作の面が札より短ければページは画面 1 枚に収まる。見出しの低い画面で使うと札が短くなる。
-- **64rem 未満**: 本文は描かず、同じ内容の写し（`.ui-reader-preview`）を 3 行で切って見せる。写しは `inert`（Tab の行き先にも読み上げにもならない）。全文とその中のリンクは `<dialog class="ui-drawer">` が持ち、`.ui-reader-more` から `showModal()` で開く。閉じるボタンと Esc で閉じ、開いたボタンへフォーカスを戻すのは画面の側の仕事
+- **64rem 未満**: 本文は描かず、同じ内容の写し（`.ui-reader-preview`）を 3 行で切って見せる。写しは `inert`（Tab の行き先にも読み上げにもならない）。全文とその中のリンクは `<dialog class="ui-drawer">` が持ち、`.ui-reader-more` から `showModal()` で開く。閉じるボタンと Esc で閉じ、開いたボタンへフォーカスを戻す（React の画面は `@tasuki/web-kit/reader` の `useReaderDrawer` を使う。#371）
 - 読む面の見出し行やタブは画面が `.ui-reader` の中に置く（部品は札・本文・続きを読むだけを持つ）
 - 札の上の字とボタンは象牙の地で AA を満たす色にする（金は札の上で AA を割る）。フォーカスの輪の色は要素層が持つので、画面で `outline` を書かない
 - 画面の文言は書体の base 層に収める（`apps/*/tests/*fits-font-base*` が測る）
@@ -294,6 +303,7 @@ src/
 | `--font-size-xs` 〜 `--font-size-xl` | 流動的タイポスケール（`clamp`） |
 | `--space-1` 〜 `--space-6` | 8px ベースのスペーシング |
 | `--radius-sm/md/lg/full` / `--card-radius` | 角丸 |
+| `--tap-target` | 押せる大きさ（`2.75rem`・44px 相当・WCAG 2.5.5 の目安）。ボタンの幅・高さと、押せる範囲を広げる `inset: calc((100% - var(--tap-target)) / 2)` |
 | `--shadow-card` / `--shadow-popover` / `--shadow-panel` / `--shadow-dialog` / `--shadow-crown` | 影（`--shadow-crown` は `filter` の値） |
 
 ### アクセントの派生
@@ -335,7 +345,7 @@ src/
 ```bash
 pnpm --filter @tasuki/ui lint       # stylelint（層の境界と本物の誤り）
 pnpm --filter @tasuki/ui test       # node:test（トークンの契約・書体の実在・層の純度）
-node scripts/audit-ui-components.mjs  # 部品層の写しと規則・画面の CSS の生の色（リポジトリのルートから実行）
+node scripts/audit-ui-components.mjs  # 部品層の写しと規則・画面の CSS の生の色とトークンと同じ値の直書き（リポジトリのルートから実行）
 ```
 
 `build` と `typecheck` は持たない（TS を足すまで不要）。

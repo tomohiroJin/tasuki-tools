@@ -26,17 +26,6 @@
   margin: 0 0 var(--space-4);
 }
 
-/* 目に出さず、支援技術には残す（舞台の見出し h2） */
-.roulette-visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
 
 /* ── 舞台（操作の面）──────────────────────────────────────
    並びは 2 つ。JS が舞台の幅から決めて data-layout に書く（指し針の位置も同じ値から決まる・wheel-motion）。
