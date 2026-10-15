@@ -9,11 +9,12 @@
 #       git apply scripts/mutations/m241-*.patch
 # 復元: git apply -R scripts/mutations/m241-*.patch
 diff --git a/apps/tasuki-sync/src/application/roulette-handlers.ts b/apps/tasuki-sync/src/application/roulette-handlers.ts
+index 90ce5b2b..75d27ba7 100644
 --- a/apps/tasuki-sync/src/application/roulette-handlers.ts
 +++ b/apps/tasuki-sync/src/application/roulette-handlers.ts
-@@ -187,7 +187,7 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
-               // （この行と、下の reason 付きの行。reason の行は監視を 1 本で拾うために足した）。
-               logger.error("on-message-error", { name: ERROR_NAMES.rangeError });
+@@ -188,7 +188,7 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
+               // 接続層の行は #381 で `protocol` を持ったので、この写しもそろえる。
+               logger.error("on-message-error", { name: ERROR_NAMES.rangeError, protocol: PROTOCOL_LOG_NAMES.roulette });
              }
 -            logger.error("roulette-random-violation", { reason: violation.reason });
 +            logger.warn("roulette-random-violation", { reason: violation.reason });
