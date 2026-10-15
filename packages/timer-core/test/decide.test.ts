@@ -550,6 +550,10 @@ describe("decide: 運転中の人を外すと、次の担当は交代と同じ�
     expect(removedDriverEvent(new Set([1, 2, 3]))).toEqual({ type: "MemberRemoved", index: 0, nextDriverIndex: 0, now: NOW });
   });
 
+  it("Given 末尾の D が運転中・残る全員が不適格 / When D を外す / Then 位置で次の先頭 A（外した後の添字 0）", () => {
+    expect(removedDriverEvent(new Set([0, 1, 2]), 3)).toEqual({ type: "MemberRemoved", index: 3, nextDriverIndex: 0, now: NOW });
+  });
+
   it("Given ineligible の指定なし / When A を外す / Then 位置で次の B", () => {
     expect(removedDriverEvent(undefined)).toEqual({ type: "MemberRemoved", index: 0, nextDriverIndex: 0, now: NOW });
   });

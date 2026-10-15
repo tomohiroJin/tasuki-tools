@@ -307,10 +307,9 @@ export function nextDriverAfterRemoval(
   ineligible: ReadonlySet<number> | undefined,
 ): number {
   const len = session.rotation.length;
-  if (len <= 1) return 0;
-  const skip = new Set(ineligible ?? []);
-  skip.add(removedIndex);
-  const found = nextEligibleIndex(session, removedIndex, skip);
+  // 適格な人が居なければ nextEligibleIndex は外した席そのものを返す（外した席を飛ばすかどうかに関わらない）。
+  // 長さ 1 なら外した席しか無いので、位置で次の席 (0 + 1) % 1 = 0 になる。
+  const found = nextEligibleIndex(session, removedIndex, ineligible);
   const chosen = found === removedIndex ? (removedIndex + 1) % len : found;
   return chosen > removedIndex ? chosen - 1 : chosen;
 }
