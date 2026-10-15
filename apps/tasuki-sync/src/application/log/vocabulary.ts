@@ -9,6 +9,7 @@
  * `publicText` を呼ぶ（`log-safe.ts` の docstring と
  * `scripts/audit-log-hygiene.mjs` の ALLOWED_FILES を参照）。
  */
+import type { AcceptedProtocol } from "../../adapters/ws/connection-gate.js";
 import { publicText, type LogSafe } from "./log-safe.js";
 
 /** AI 生成をスキップした理由（`AiLimiter.tryAcquire` の `reason` と 1 対 1）。 */
@@ -74,3 +75,16 @@ export const RANDOM_VIOLATION_REASONS = {
   invalidRandom: publicText("invalid-random"), // log-hygiene:allow 語彙定義
   invalidSettle: publicText("invalid-settle"), // log-hygiene:allow 語彙定義
 } as const satisfies Record<string, LogSafe>;
+
+/**
+ * `on-message-error` に添える、どの接続の失敗かを示す名前（`protocol` 項目。#381）。
+ * 受け口の表（`ws-adapter.ts` の `buildChannels`）の鍵と 1 対 1 の固定の語彙で、自由文は載せない。
+ * 受け口の表の鍵（`AcceptedProtocol`。型だけを取り込む）が語彙に欠けると、型検査が落ちる。
+ */
+export const PROTOCOL_LOG_NAMES = {
+  timer: publicText("timer"), // log-hygiene:allow 語彙定義
+  hub: publicText("hub"), // log-hygiene:allow 語彙定義
+  topic: publicText("topic"), // log-hygiene:allow 語彙定義
+  roulette: publicText("roulette"), // log-hygiene:allow 語彙定義
+  poker: publicText("poker"), // log-hygiene:allow 語彙定義
+} as const satisfies Record<AcceptedProtocol, LogSafe>;
