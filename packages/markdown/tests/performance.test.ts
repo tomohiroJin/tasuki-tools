@@ -12,7 +12,7 @@ import { parseMarkdown } from '../src/index.js';
  *
  * ほかの 2 つは線形なら手元で数 ms で、長さを変えていない。
  *
- * @requirements #91 spec §5.4（PR #311 の申し送り: `INLINE_RE` の O(N²)）
+ * @requirements #91 spec §5.4（PR #311 の申し送り: `INLINE_RE` の O(N²)）・#315 spec NFR-003
  */
 const LIMIT_MS = 7_000;
 
@@ -21,6 +21,8 @@ describe('病的な入力でも解析が詰まらない', () => {
     ['[ の羅列', '['.repeat(200_000)],
     ['閉じない URL の羅列', 'http://'.repeat(15_000)],
     ['閉じない太字の羅列', '**a'.repeat(30_000)],
+    // #315 NFR-003: タスクの項目の印と、閉じないリンクの `[` を交互に並べる（20 万字）
+    ['タスクの項目と [ の羅列', '- [ ] [\n'.repeat(25_000)],
   ])(
     'Given %s / When 解析する / Then 上限の時間内に終わる',
     (_label, src) => {

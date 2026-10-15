@@ -76,3 +76,64 @@ describe('行区切りの文字を含む本文', () => {
     },
   );
 });
+
+const task = (t: string, checked: boolean) => ({ inline: text(t), task: { checked } });
+
+/**
+ * @requirements #315 spec FR-001・FR-002・FR-004・FR-005（D2・D3）
+ */
+describe('タスクリストを解析する', () => {
+  it('Given - [ ] の項目 / When 解析する / Then チェックの外れたタスクで、文から [ ] が外れる', () => {
+    expect(parseMarkdown('- [ ] a')).toEqual([{ kind: 'ul', items: [task('a', false)] }]);
+  });
+
+  it.each(['- [x] a', '- [X] a'])('Given %j / When 解析する / Then チェック済みのタスクになる', (src) => {
+    expect(parseMarkdown(src)).toEqual([{ kind: 'ul', items: [task('a', true)] }]);
+  });
+
+  it('Given * の箇条書きと番号付き / When 解析する / Then どちらもタスクになる', () => {
+    expect(parseMarkdown('* [ ] a\n\n1. [x] b')).toEqual([
+      { kind: 'ul', items: [task('a', false)] },
+      { kind: 'ol', items: [task('b', true)] },
+    ]);
+  });
+
+  it('Given タスクとそうでない項目が混ざった列 / When 解析する / Then 項目ごとに task が付く・付かない', () => {
+    expect(parseMarkdown('- [ ] a\n- b\n- [x] c')).toEqual([
+      { kind: 'ul', items: [task('a', false), item('b'), task('c', true)] },
+    ]);
+  });
+
+  it.each(['- [ ]', '- [ ]  ', '- [y] a', '- [] a', '- [ ]a'])(
+    'Given %j / When 解析する / Then タスクにせず、文のまま残す',
+    (src) => {
+      // Given: 文が無い・印が違う・印の後に空白が無い（src）
+      // When
+      const blocks = parseMarkdown(src);
+      // Then
+      expect(blocks).toEqual([{ kind: 'ul', items: [item(src.replace(/^- /, ''))] }]);
+    },
+  );
+
+  it('Given コードの囲みの中の - [ ] / When 解析する / Then コードのまま', () => {
+    expect(parseMarkdown('```\n- [ ] a\n```')).toEqual([{ kind: 'code', text: '- [ ] a' }]);
+  });
+
+  it('Given 文に行内要素を含むタスク / When 解析する / Then 文は行内解析される', () => {
+    expect(parseMarkdown('- [ ] **a** [b](https://example.com)')).toEqual([
+      {
+        kind: 'ul',
+        items: [
+          {
+            inline: [
+              { kind: 'strong', children: text('a') },
+              { kind: 'text', text: ' ' },
+              { kind: 'link', href: 'https://example.com', text: 'b' },
+            ],
+            task: { checked: false },
+          },
+        ],
+      },
+    ]);
+  });
+});

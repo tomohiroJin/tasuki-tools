@@ -3,6 +3,7 @@
  *
  * 対応: 見出し（# / ## / ###）、箇条書き（- / *）、番号付き（1.）、引用（>）、
  * コードの囲み（```）、段落（空行区切り。行内の改行は行として残す）。
+ * 箇条書きと番号付きの項目は、タスクリスト（`- [ ] 文`・`- [x] 文`）も見分ける（#315）。
  */
 import { parseInline, type MdInline } from './inline.js';
 
@@ -37,11 +38,25 @@ function toBlock(b: RawBlock): MdBlock {
       return b;
     case 'ul':
     case 'ol':
-      return { kind: b.kind, items: b.lines.map((line) => ({ inline: parseInline(line), task: null })) };
+      return { kind: b.kind, items: b.lines.map(toListItem) };
     case 'quote':
     case 'p':
       return { kind: b.kind, lines: b.lines.map(parseInline) };
   }
+}
+
+/**
+ * タスクの項目の印（#315 正本 D2）。印を外した項目の文の先頭に当てる。
+ * `(?=\S)` で文の無い項目（`- [ ]` だけ）を外す —— 名前の無いチェックボックスを描かないため（NFR-002）。
+ * 先頭に固定した 1 回の照合なので、解析の時間は線形のまま（NFR-003）。
+ */
+const TASK_RE = /^\[([ xX])\]\s+(?=\S)/;
+
+function toListItem(line: string): MdListItem {
+  const m = TASK_RE.exec(line);
+  if (m === null) return { inline: parseInline(line), task: null };
+  // `!`: TASK_RE の組は省略できないので、一致したなら必ず値がある
+  return { inline: parseInline(line.slice(m[0].length)), task: { checked: m[1]! !== ' ' } };
 }
 
 const HEADING_RE = /^(#{1,3})\s+(.*)$/;
