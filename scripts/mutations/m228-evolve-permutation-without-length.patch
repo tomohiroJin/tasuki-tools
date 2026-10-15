@@ -1,0 +1,25 @@
+# 変異 228: 順列の判定から長さの一致を外す
+#
+# 検出を期待するテスト:
+#   - packages/timer-core/test/evolve.test.ts
+#     「evolve: 範囲外の添字の MemberRemoved / MemberMoved は集約を変えない（#376）」の MembersShuffled [0,1,2,0]
+#   - packages/timer-core/test/properties.test.ts
+#     「evolve に直接流すイベントの列での不変条件（#376）」
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m228-*.patch
+# 復元: git apply -R scripts/mutations/m228-*.patch
+#
+# #376（PR #392）。重複で集合の大きさだけが輪の長さに一致する長い order を順列とみなし、席が 1 つ増える。
+diff --git a/packages/timer-core/src/evolve.ts b/packages/timer-core/src/evolve.ts
+index 6ae04a2..b9d792b 100644
+--- a/packages/timer-core/src/evolve.ts
++++ b/packages/timer-core/src/evolve.ts
+@@ -358,7 +358,7 @@ function isSeatIndex(i: number, len: number): boolean {
+ 
+ /** `order` が `[0..len-1]` の順列か（長さが同じ・全部が席の添字・重複が無い）。 */
+ function isPermutation(order: readonly number[], len: number): boolean {
+-  return order.length === len && order.every((i) => isSeatIndex(i, len)) && new Set(order).size === len;
++  return order.every((i) => isSeatIndex(i, len)) && new Set(order).size === len;
+ }
+ 
+ /**

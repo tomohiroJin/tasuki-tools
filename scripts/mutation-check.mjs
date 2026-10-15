@@ -1782,6 +1782,46 @@ export const MUTATIONS = [
       "**対応表より後に足した変異。** 200〜249 は 2026-10-15 の並列修正（#373・#374・#376・#381・#382）に 10 ずつ割り当てた予約の範囲（#376 は 220〜229）。" +
       "#376（PR #392 のレビュー）。MemberMoved の 0.5 は splice が 0 に切り捨て、先頭の席を動かす。",
   },
+  {
+    id: 226,
+    label: "範囲外の交代先の DriverSwitched を無視しない",
+    patch: "m226-evolve-switch-out-of-range-index.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/evolve.test.ts", "test/properties.test.ts"],
+    note:
+      "**対応表より後に足した変異。** 200〜249 は 2026-10-15 の並列修正（#373・#374・#376・#381・#382）に 10 ずつ割り当てた予約の範囲（#376 は 220〜229）。" +
+      "#376（PR #392）。currentIndex が範囲外を指し、担当回数・交代回数も進む。",
+  },
+  {
+    id: 227,
+    label: "順列でない order の MembersShuffled を無視しない",
+    patch: "m227-evolve-shuffle-non-permutation.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/evolve.test.ts", "test/properties.test.ts"],
+    note:
+      "**対応表より後に足した変異。** 200〜249 は 2026-10-15 の並列修正（#373・#374・#376・#381・#382）に 10 ずつ割り当てた予約の範囲（#376 は 220〜229）。" +
+      "#376（PR #392）。席が欠ける・増える・undefined が入る。",
+  },
+  {
+    id: 228,
+    label: "順列の判定から長さの一致を外す",
+    patch: "m228-evolve-permutation-without-length.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/evolve.test.ts", "test/properties.test.ts"],
+    note:
+      "**対応表より後に足した変異。** 200〜249 は 2026-10-15 の並列修正（#373・#374・#376・#381・#382）に 10 ずつ割り当てた予約の範囲（#376 は 220〜229）。" +
+      "#376（PR #392）。重複で集合の大きさだけが輪の長さに一致する長い order を順列とみなし、席が 1 つ増える。",
+  },
+  {
+    id: 229,
+    label: "順列の判定から重複の無さを外す",
+    patch: "m229-evolve-permutation-without-distinct.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/evolve.test.ts", "test/properties.test.ts"],
+    note:
+      "**対応表より後に足した変異。** 200〜249 は 2026-10-15 の並列修正（#373・#374・#376・#381・#382）に 10 ずつ割り当てた予約の範囲（#376 は 220〜229）。" +
+      "#376（PR #392）。重複する order を順列とみなし、同じ席が 2 つ並び別の席が消える。",
+  },
 ];
 
 /**
