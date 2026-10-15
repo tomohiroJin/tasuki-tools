@@ -1,13 +1,14 @@
 /* ============================================================
    Tasuki UI — Markdown の見た目（#320・ADR 0022）
    お題の説明の Markdown サブセット（`@tasuki/markdown` が解析し、各アプリの `Markdown.tsx` が描く）の見た目。
-   根に `.ui-md`、各ブロックと行内の要素に `.ui-md-*` を当てる。**描画（React）は各アプリが持つ**（#315 が判断する）。
+   根に `.ui-md`、各ブロックと行内の要素に `.ui-md-*` を当てる。描画（React）は `@tasuki/web-kit/reader` の `Markdown` 1 つ（#371）。
    既定の色は象牙の札（お題ツールの `.topic-sheet`・各画面の読む面）の上で読める値。暗い面に置くときは面がつまみを宣言する。
    ============================================================ */
 
 /* つまみ（置く面が宣言する。ここでは宣言しない —— 宣言すると面の指定が継承に負けて黙って効かない）:
      --ui-md-edge  コード・引用の枠の色。既定 --coal-soft は象牙の上でしか読めない
-     --ui-md-link  リンクの字の色。既定は字の色を継ぐ（下線で区別する） */
+     --ui-md-link  リンクの字の色。既定は字の色を継ぐ（下線で区別する）
+     --ui-md-check タスクリストのチェックボックスの色（#315）。既定 --coal は象牙の上でしか読めない */
 
 /* ブロックの間隔は margin で作る。`white-space: pre-wrap` は Markdown 自身の段落・改行の扱い
    （空行区切り・行内の改行）と二重になり、連続する空行が段落の間隔と別に隙間を作る。 */
@@ -48,6 +49,25 @@ h6.ui-md-h {
 }
 .ui-md-ol {
   list-style: decimal;
+}
+
+/* タスクリストの項目（#315 正本 D4・D5）。印を出さず、列の字下げを打ち消してチェックボックスを印の位置に置く。
+   label で包むので、行の文を押してもチェックボックスに当たる（押せるのは #315 PR 2 で受け口を渡した面だけ）。 */
+.ui-md-task {
+  list-style: none;
+  margin-left: calc(-1 * var(--space-5));
+}
+
+.ui-md-task-label {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.ui-md-check {
+  flex: none;
+  margin: 0;
+  accent-color: var(--ui-md-check, var(--coal));
 }
 
 .ui-md-quote {

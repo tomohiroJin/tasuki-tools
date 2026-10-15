@@ -65,6 +65,7 @@
   /* 部品 `.ui-md` のつまみ。暗い面なので、枠は象牙向けの既定（--coal-soft）でなく読める色にする */
   --ui-md-edge: var(--hairline-strong);
   --ui-md-link: var(--signal);
+  --ui-md-check: var(--signal);
   color: var(--bone-muted);
   font-size: var(--font-size-sm);
   line-height: 1.6;
