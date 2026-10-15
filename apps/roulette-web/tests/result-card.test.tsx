@@ -24,14 +24,30 @@ describe('ResultCard の名前の段', () => {
     expect(el?.querySelector('small')).toHaveTextContent(CARD_SUFFIX);
   });
 
-  it('Given 段のどれが付いても / Then CSS に data-size の規則がある（lg は clamp を持たない）', () => {
-    for (const size of ['md', 'sm']) {
-      expect(CSS).toContain(`.roulette-card-name[data-size='${size}']`);
+  /** CSS から、段ごとの宣言を読む（セレクタ並びの中に段の指定と、任意の子孫を含む規則）。 */
+  function declared(tier: string, descendant: string, prop: string): string | undefined {
+    const attr = `.roulette-card-name[data-size='${tier}']${descendant}`;
+    let value: string | undefined;
+    for (const m of CSS.matchAll(/([^{}]+)\{([^}]*)\}/g)) {
+      const selectors = (m[1] ?? '').split(',').map((x) => x.trim());
+      if (!selectors.includes(attr)) continue;
+      const decl = (m[2] ?? '').match(new RegExp(`${prop}:\\s*([^;]+);`));
+      if (decl) value = decl[1]?.trim();
     }
-    expect(CSS).not.toContain(".roulette-card-name[data-size='lg']");
+    return value;
+  }
+
+  it.each([
+    ['lg', undefined, '2'],
+    ['md', 'var(--font-size-lg)', '3'],
+    ['sm', 'var(--font-size-base)', '3'],
+  ])('Given 段 %s / Then CSS の字の大きさは %s・名前の要素の最大行数は %s（「さん」は clamp しない）', (tier, font, clamp) => {
+    expect(declared(tier, '', 'font-size')).toBe(font);
+    expect(declared(tier, ' .roulette-card-name-text', '-webkit-line-clamp')).toBe(clamp);
+    expect(declared(tier, ' small', '-webkit-line-clamp')).toBeUndefined();
   });
 
-  it('Given どの段でも / Then 「さん」は nowrap で、1 字ずつ折れない（#373）', () => {
+  it('Given どの段でも / Then 「さん」は nowrap で、段の規則の外にある（#373）', () => {
     const rule = CSS.match(/\.roulette-card-name small \{[^}]*\}/)?.[0] ?? '';
     expect(rule).toContain('white-space: nowrap');
   });

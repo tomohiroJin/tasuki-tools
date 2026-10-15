@@ -321,38 +321,43 @@
   line-height: var(--line-tight);
   overflow-wrap: anywhere;
 }
-/* 長い名前は段を下げ、段ごとの最大行数で … に切る（札は縦横比が固定でのびない。全文は直下の一言と読み上げが持つ）。
-   段の境目は src/card-name-size.ts と対。**lg（短い名前）は clamp を当てず従来の描き方のまま**。
-   切るのは名前の要素（.roulette-card-name-text）だけで、「さん」はその外に置いて省略で切らない。
-   最小の段（sm）でも字は見出し・「さん」（--font-size-sm）より小さくしない */
-.roulette-card-name[data-size='md'],
-.roulette-card-name[data-size='sm'] {
+/* 名前の段（src/card-name-size.ts と対）。札は縦横比が固定でのびないので、**全段で名前の要素だけを最大行数で … に切る**
+   （lg も 2 行の安全網。全文は直下の一言と読み上げが持つ）。「さん」は名前の要素の外に置き、省略で切らない。
+   字の大きさは lg が従来のまま（上の規則）、md・sm は下げる。最小の段（sm）でも見出し・「さん」（--font-size-sm）より小さくしない */
+.roulette-card-name[data-size] {
   display: flex;
   justify-content: center;
   align-items: last baseline;
 }
-.roulette-card-name[data-size='md'] .roulette-card-name-text,
-.roulette-card-name[data-size='sm'] .roulette-card-name-text {
+.roulette-card-name[data-size] .roulette-card-name-text {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   overflow: hidden;
   min-width: 0;
 }
-.roulette-card-name[data-size='md'] small,
-.roulette-card-name[data-size='sm'] small {
+.roulette-card-name[data-size] small {
   flex: none;
+}
+/* lg は名前と「さん」が入らなければ「さん」を次の行へ送る（従来の描き方）。md・sm は「さん」を名前の脇に置く */
+.roulette-card-name[data-size='lg'] {
+  flex-wrap: wrap;
+}
+.roulette-card-name[data-size='lg'] .roulette-card-name-text {
+  -webkit-line-clamp: 2;
+}
+.roulette-card-name[data-size='md'],
+.roulette-card-name[data-size='sm'] {
+  flex-wrap: nowrap;
+}
+.roulette-card-name[data-size='md'] .roulette-card-name-text,
+.roulette-card-name[data-size='sm'] .roulette-card-name-text {
+  -webkit-line-clamp: 3;
 }
 .roulette-card-name[data-size='md'] {
   font-size: var(--font-size-lg);
 }
-.roulette-card-name[data-size='md'] .roulette-card-name-text {
-  -webkit-line-clamp: 3;
-}
 .roulette-card-name[data-size='sm'] {
   font-size: var(--font-size-base);
-}
-.roulette-card-name[data-size='sm'] .roulette-card-name-text {
-  -webkit-line-clamp: 3;
 }
 .roulette-card-name small {
   /* どの段でも「さん」は 1 字ずつ折れない（名前の要素が札の幅を使い切っても、まとまって次の行へ送られる）。

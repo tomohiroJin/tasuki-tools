@@ -54,6 +54,15 @@ export function isHalfWidth(ch: string): boolean {
 }
 
 /**
+ * 名前の 1 単位（字・書記素）の表示幅（em）。全角 1・半角（{@link isHalfWidth}）0.6。
+ * 書記素（ZWJ の絵文字・結合文字）は先頭の符号位置で決める（結合文字は幅を足さない）。
+ * 円盤の席（`fitLabel`）と結果の札（`card-name-size.ts`）が同じ物差しを使う唯一の場所。
+ */
+export function emWidthOf(unit: string): number {
+  return isHalfWidth(unit) ? 0.6 : 1;
+}
+
+/**
  * 欧文（半角の字が空白を除いて半分以上）・短い名前（全角主体で 3 字まで）・長い名前（全角主体で 4 字以上）。
  * 欧文は縦に積むと読めない（「M／i／k／a」）ので縦書きにしない。短い名前は縦書きの列が斜めに傾くと
  * 2 字が画面の左右に並び逆順に読める（「山田」が「田山」）ので、斜めの席では横書きを優先する。
@@ -110,7 +119,7 @@ export function fitLabel(name: string, maxEm: number, upright = false): string {
   let w = 0;
   let out = '';
   for (const ch of name) {
-    const cw = !upright && isHalfWidth(ch) ? 0.6 : 1;
+    const cw = upright ? 1 : emWidthOf(ch);
     if (w + cw > maxEm) return `${out}…`;
     w += cw;
     out += ch;
