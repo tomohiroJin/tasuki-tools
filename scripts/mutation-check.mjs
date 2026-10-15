@@ -1738,6 +1738,14 @@ export const MUTATIONS = [
     tests: ["tests/card-name-size.test.ts"],
     note: "#373。40 字の名前が札の上下にはみ出し、一言と回すボタンに重なる。",
   },
+  {
+    id: 202,
+    label: "結果の札が名前の段（data-size）を付けない",
+    patch: "m202-result-card-without-data-size.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/result-card.test.tsx"],
+    note: "#373。段の選び方が正しくても描画に届かず、長い名前が札からはみ出す。",
+  },
 ];
 
 /**

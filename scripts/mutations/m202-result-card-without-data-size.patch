@@ -1,0 +1,23 @@
+# 変異 202: 結果の札が名前の段（data-size）を付けない
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/result-card.test.tsx
+#     「Given %s / Then data-size が %s で、名前と「さん」が別の要素にある」
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m202-*.patch
+# 復元: git apply -R scripts/mutations/m202-*.patch
+#
+# #373。段の選び方が正しくても描画に届かず、長い名前が札からはみ出す。
+diff --git a/apps/roulette-web/src/components/ResultCard.tsx b/apps/roulette-web/src/components/ResultCard.tsx
+index ea20ed36..31afda97 100644
+--- a/apps/roulette-web/src/components/ResultCard.tsx
++++ b/apps/roulette-web/src/components/ResultCard.tsx
+@@ -29,7 +29,7 @@ export function ResultCard({
+         <div className="roulette-card-back" />
+         <div className="roulette-card-face">
+           <p className="roulette-card-label">{CARD_LABEL}</p>
+-          <p className="roulette-card-name" data-size={cardNameSize(shown)}>
++          <p className="roulette-card-name">
+             <span className="roulette-card-name-text">{shown}</span>
+             <small>{CARD_SUFFIX}</small>
+           </p>

@@ -9,14 +9,14 @@
 #
 # #373。長い名前が札の上下にはみ出し、直下の一言と「もう一度回す」に重なる。
 diff --git a/apps/roulette-web/src/card-name-size.ts b/apps/roulette-web/src/card-name-size.ts
-index 4ae0891b..fea9770f 100644
+index 20436cf0..2075214a 100644
 --- a/apps/roulette-web/src/card-name-size.ts
 +++ b/apps/roulette-web/src/card-name-size.ts
-@@ -17,6 +17,7 @@ export const CARD_NAME_TIER_LIMITS = { lg: 8, md: 16, sm: 28 } as const;
+@@ -30,6 +30,7 @@ export function displayWidthOf(name: string): number {
  
  export function cardNameSize(name: string): CardNameSize {
-   const length = [...name].length;
+   const width = displayWidthOf(name);
 +  return 'lg';
-   if (length <= CARD_NAME_TIER_LIMITS.lg) return 'lg';
-   if (length <= CARD_NAME_TIER_LIMITS.md) return 'md';
-   if (length <= CARD_NAME_TIER_LIMITS.sm) return 'sm';
+   if (width <= CARD_NAME_TIER_LIMITS.lg) return 'lg';
+   if (width <= CARD_NAME_TIER_LIMITS.md) return 'md';
+   return 'sm';
