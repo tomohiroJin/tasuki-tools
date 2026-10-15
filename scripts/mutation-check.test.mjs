@@ -15,9 +15,11 @@ import {
   decideCrashRecovery,
   verifyRestoreAndClearMarker,
   decideMutationRestore,
-  MUTATIONS,
   controlKeyOf,
+  DIRTY_CHECK_EXCLUDES,
 } from "./mutation-check.mjs";
+import { MUTATIONS } from "./lib/mutation-declarations.mjs";
+import { mechanismFilesFrom } from "./lib/mutation-select.mjs";
 
 /**
  * `scripts/mutation-check.mjs` の自己テスト（#174）。
@@ -118,6 +120,44 @@ describe("detectRunner: ランナーの決め方", () => {
       assert.throws(() => detectRunner(dir), /package.json の読み込みに失敗しました/);
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+/**
+ * 宣言の表の置き場（#380）。表は機構（`mutation-check.mjs`）から `scripts/lib/mutation-declarations.mjs` へ
+ * 分けた。**置き場に結びついた振る舞いを変えない**ことをここで見る。
+ *
+ * - ID は表全体で一意。表を移す・書き足すときに行を落とす・二重に貼る事故を拾う
+ *   （`--id` は「宣言に無い番号」しか止めない）
+ * - 表は `--changed` の機構に数える（入口の import から導く。設計正本 §4・#380 の計画の判断 2）。
+ *   宣言を書き足した枝は、表が入口の中にあった頃と同じく全件に倒れる
+ * - 作業ツリーの汚れの検査は、表とパッチの置き場を除外する。宣言とパッチを書き足した直後
+ *   （未コミット）でも流せるように
+ */
+describe("宣言の表の置き場（#380）", () => {
+  const DECLARATIONS = "scripts/lib/mutation-declarations.mjs";
+
+  test("ID は正の整数で、表全体で重複しない", () => {
+    const seen = new Set();
+    for (const m of MUTATIONS) {
+      assert.ok(Number.isInteger(m.id) && m.id > 0, `ID が正の整数でない: ${m.id}`);
+      assert.ok(!seen.has(m.id), `ID が重複している: ${m.id}`);
+      seen.add(m.id);
+    }
+  });
+
+  test("宣言の表は --changed の機構に数える（入口の import から導く）", () => {
+    const source = fs.readFileSync(path.join(SCRIPTS_DIR, "mutation-check.mjs"), "utf8");
+    assert.ok(mechanismFilesFrom(source, "scripts/mutation-check.mjs").includes(DECLARATIONS));
+  });
+
+  test("作業ツリーの汚れの検査は、入口・宣言の表・パッチの置き場を除外する", () => {
+    for (const p of ["scripts/mutation-check.mjs", DECLARATIONS, "scripts/mutations"]) {
+      assert.ok(DIRTY_CHECK_EXCLUDES.includes(p), `除外に無い: ${p}`);
+    }
+    for (const p of DIRTY_CHECK_EXCLUDES) {
+      assert.ok(fs.existsSync(path.join(WORKSPACE_ROOT, p)), `除外の宛先が無い: ${p}`);
     }
   });
 });
