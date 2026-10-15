@@ -145,6 +145,43 @@ describe("handlers: room.create — maxRooms 上限", () => {
   });
 });
 
+describe("handlers: room.create — 使用中のコードでは作らない（#375）", () => {
+  it("Given いつも同じコードを返す codeGen で 1 つ目を作った / When 2 つ目を作る / Then 2 つ目は ROOM_LIMIT_EXCEEDED で断られ、1 つ目は上書きされない", async () => {
+    // Given
+    const store = new InMemoryRoomStore();
+    const timers = new InMemoryTimerStore();
+    const broadcaster = new SpyBroadcaster();
+    let id = 0;
+    const codeGen = {
+      generate: () => "SAME01",
+      generateParticipantId: () => `pid-${++id}`,
+      generateResumeToken: () => `rt-${++id}`,
+    };
+    const handlers = makeTestHandlers({
+      store,
+      timers,
+      clock: new FakeClock(1000000),
+      broadcaster,
+      codeGen,
+    });
+    await handlers.handleCommand("conn-001", { command: "room.create", displayName: "Alice" });
+    const first = broadcaster.createdFor("conn-001");
+
+    // When
+    const second = await handlers.handleCommand("conn-002", {
+      command: "room.create",
+      displayName: "Bob",
+    });
+
+    // Then
+    expect(second.isErr()).toBe(true);
+    expect(broadcaster.errorsTo("conn-002").at(-1)?.code).toBe("ROOM_LIMIT_EXCEEDED");
+    const room = maybeRoomViewOf(store, timers, first.code);
+    expect(room?.participants.map((p) => p.displayName)).toEqual(["Alice"]);
+    expect(participantIdOfConn(store, "conn-001")).toBe(first.participantId);
+  });
+});
+
 describe("handlers: releaseRoom", () => {
   it("releaseRoom は同じコードで2回呼んでもエラーにならない（冪等）", async () => {
     // Given
