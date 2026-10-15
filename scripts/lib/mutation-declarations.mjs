@@ -2092,4 +2092,20 @@ export const MUTATIONS = [
     tests: ["test/save-roster.timer-seat.test.ts"],
     note: "#374（PR #396 のレビュー）。**対応表より後に足した変異。** timer のコマンドで名簿が変わるたびに snapshot が 2 通届く。",
   },
+  {
+    id: 260,
+    label: "上限まで空いたコードが出なくても、最後に引いたコードでルームを作る",
+    patch: "m260-create-room-proceeds-with-taken-code.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/create-room.test.ts", "test/handlers.room.test.ts"],
+    note: "#375。**対応表より後に足した変異。** 事後条件（返すコードは空いている）が外れ、既にあるルームを上書きする。",
+  },
+  {
+    id: 261,
+    label: "poker のルーム ID が上限まで空かなくても、最後に引いた ID で作る",
+    patch: "m261-poker-room-id-returns-taken-id.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/poker/create-sync-server.substitution.test.ts"],
+    note: "#375。**対応表より後に足した変異。** 既にあるルーム（名簿・ラウンド）を上書きする。",
+  },
 ];
