@@ -141,20 +141,6 @@ body {
 
 /* プルダウン（`<select>`）の見た目は部品層の `.ui-select` が持つ（#317 の白い一瞬の回避を含む・ADR 0022）。 */
 
-/* スクリーンリーダー専用 */
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  /* Tailwind 版の `.sr-only` が足していた宣言（設計正本 D2「両版で勝っている宣言の和を残す」） */
-  clip-path: inset(50%);
-  white-space: nowrap;
-  border-width: 0;
-}
 
 /* 流動的タイポ（ブレイクポイント不要・clamp）。ブランド見出しと現ドライバー名を
  * 画面幅に対して滑らかにスケールさせる（段階クラスの飛びを解消）。 */

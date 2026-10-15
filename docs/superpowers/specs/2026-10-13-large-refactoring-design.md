@@ -316,6 +316,13 @@ apps/tasuki-sync/src/adapters/ws/
 > - **poker の入り直しは `useJoinRetry` に寄せていない。** 待ちが拒否 1 回に結び付いてエラーの変化で畳まれ、案内も名前の有無で変わるため（寄せると振る舞いが変わる）。画面（`RoomPage.tsx`）の効果は同期フックの側の `useRoomEntry` へ移した
 > - timer の同期フック（835 行）は、入口・答えの期限・画面の操作をサブフックとモジュールに分けた（611 行）
 
+> **追記（2026-10-14・R11 の実施 [`2026-10-14-refactor-r11-shared-display-parts.md`](../plans/2026-10-14-refactor-r11-shared-display-parts.md)）**:
+>
+> - **Markdown の描画と「続きを読む」の引き出しは `@tasuki/web-kit/reader` に寄せた**（`Markdown`・`useReaderDrawer`）。`docs/adr/0021` 決定 7 に追記した。3 つのアプリの描画は実測で同じ DOM を出していた
+> - 部品の使用の検査は、共有の入口から部品を値として取り込むアプリの使用として数える（`SHARED_UI_ENTRIES`）
+> - 隠し文字は部品層の `.ui-visually-hidden` 1 つにした
+> - **寄せなかったもの**: 玄関への道・ルーターの振り分け・招待の表示・タブ・timer の確認のダイアログ（理由は計画の §9）
+
 ### 5.9 デザインシステム（#371・#372）
 
 - 押せる大きさのトークン（例: `--tap-target: 2.75rem`）を `packages/ui` のトークン層に足す（2026-10-13 の判断）

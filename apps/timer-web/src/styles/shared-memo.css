@@ -9,15 +9,15 @@
  * 編集中のテキストエリアは比較に描かれない（#321 PR 3 の Q5）。除去検査に行が無いので写す側へ倒した。 */
 
 .shared-memo-header {
-  margin-bottom: 0.5rem;
+  margin-bottom: var(--space-2);
   display: flex;
   /* 題と切替ボタンが 1 行に入らない幅（22rem の脇・320）では、ボタンを次の段へ回す。
      折り返さないと両方が縮み、「プレビューに戻る」が 2 行・「共有メモ」が 1 字ずつ縦に折れた（#316 PR 4・実測） */
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  column-gap: 0.5rem;
-  row-gap: 0.5rem;
+  column-gap: var(--space-2);
+  row-gap: var(--space-2);
 }
 
 /* 切替ボタン（部品の副・--sm）の字は折らない。部品層ではなく、この見出し行でだけ止める */
@@ -29,13 +29,13 @@
 .shared-memo-lead {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .shared-memo-title {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   margin: 0;
   /* 区画の見出し（§11）。timer は要素層を読まないので段をここで当てる */
   font-size: var(--font-size-lg);
@@ -72,8 +72,8 @@
   background-color: var(--panel-2);
   border-width: 1px;
   border-color: var(--hairline);
-  padding-inline: 0.75rem;
-  padding-block: 0.5rem;
+  padding-inline: var(--space-3);
+  padding-block: var(--space-2);
 }
 
 /* メモの本文の見出しと強調（#316 PR 4）。共有メモは h2 の下に置くので `#` が h3・`##` が h4 になる（`headingBase` 3）。

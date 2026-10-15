@@ -1,0 +1,21 @@
+/* ============================================================
+   Tasuki UI — 隠し文字（#371・ADR 0022）
+   **目に出さず、支援技術には残す**文字（読み上げだけに渡す見出し・状態の言葉・ライブリージョン）。
+   timer の `.sr-only`・topic の `.topic-visually-hidden`・roulette の `.roulette-visually-hidden` を 1 つにした。
+   宣言は 3 つの和（設計正本 D2「両版で勝っている宣言の和を残す」）。**和から外したものが 2 つある。**
+   timer の `clip` は部品層の lint が廃止予定として禁じる（同じ役目は `clip-path: inset(50%)` が持つ）。
+   topic の字の色（`--coal-soft`）は、部品が地の色を知らないので持たない。**字の色は置く場所が持つ**
+   （隠していても e2e の AA の測定は字を測るので、地の上で読める色にする。topic は `.topic-reader-heading`）。
+   ============================================================ */
+
+.ui-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border-width: 0;
+}

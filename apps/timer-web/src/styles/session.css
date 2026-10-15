@@ -11,17 +11,17 @@
 /* 「セッション」タブの根の縦の間隔。`:where()` は詳細度 0 なので、子の根が書く margin が勝つ（基準の `space-y-6` も同じ並び）。
  * 例: `NotifyHint` の根は `margin-bottom` を持ち、この規則に勝つ。 */
 :where(.session-panel > :not(:last-child)) {
-  margin-block-end: 1.5rem;
+  margin-block-end: var(--space-5);
 }
 
 /* 左右のカラム。中は縦積み。`min-width: 0` は部品層の区画（`.ui-workspace-*`）が持つ。 */
 :where(.session-column > :not(:last-child)) {
-  margin-block-end: 1.5rem;
+  margin-block-end: var(--space-5);
 }
 
 /* 「ルーム」タブの根の縦の間隔 */
 :where(.session-room > :not(:last-child)) {
-  margin-block-end: 1.5rem;
+  margin-block-end: var(--space-5);
 }
 
 /* ドライバーのパネル（`Card` に渡す）。登場の演出を切らないよう はみ出しを切る。
@@ -45,11 +45,11 @@
 .session-driver-body {
   position: relative;
   text-align: center;
-  padding-block: 1rem;
+  padding-block: var(--space-4);
 }
 
 .session-driver-label {
-  margin-bottom: 0.75rem;
+  margin-bottom: var(--space-3);
 }
 
 .session-driver-name {
@@ -62,7 +62,7 @@
   display: inline;
   width: 2.5rem;
   height: 2.5rem;
-  margin-right: 0.75rem;
+  margin-right: var(--space-3);
   color: var(--signal);
 }
 
@@ -76,7 +76,7 @@
 .session-orbit {
   display: flex;
   justify-content: center;
-  margin-bottom: 1rem;
+  margin-bottom: var(--space-4);
 }
 
 /* タイマーの数字。緊急（残り 10 秒以下）は朱の点滅、一時停止は半透明（`data-urgent` / `data-paused`） */
@@ -112,7 +112,7 @@
 }
 
 .session-paused-label {
-  margin-top: 0.25rem;
+  margin-top: var(--space-1);
 }
 
 /* 「次: …」の行 */
@@ -121,7 +121,7 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
   font-size: var(--font-size-lg);
   line-height: 1.4;
   color: var(--bone-muted);
@@ -147,7 +147,7 @@
 
 /* ナビゲーター（比較に描かれない・Q5） */
 .session-navigator {
-  margin-left: 0.75rem;
+  margin-left: var(--space-3);
   color: var(--bone-subtle);
 }
 
@@ -156,15 +156,15 @@
 }
 
 .session-lineup {
-  margin-top: 0.75rem;
+  margin-top: var(--space-3);
 }
 
 /* 経過・交代の回数 */
 .session-stats {
-  margin-top: 1rem;
+  margin-top: var(--space-4);
   display: flex;
   justify-content: center;
-  gap: 1.5rem;
+  gap: var(--space-5);
   font-size: var(--font-size-base);
   line-height: 1.5;
   color: var(--bone-subtle);
@@ -181,14 +181,14 @@
 @media (width < 40rem) {
   .session-driver-card > .session-actions {
     margin-inline: -1.5rem;
-    padding-inline: 1.5rem;
+    padding-inline: var(--space-5);
   }
 }
 
 .session-action-label {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 
 .session-action-icon {
@@ -203,7 +203,7 @@
 
 /* ランダム（ドライバー順の並べ替え）の帯とボタン。「ルーム」タブの同じ帯・ボタンは比較に描かれない（Q5） */
 .session-toolbar {
-  margin-bottom: 0.75rem;
+  margin-bottom: var(--space-3);
   display: flex;
   justify-content: flex-end;
 }

@@ -103,7 +103,9 @@ const EXT_TS = [".ts", ".tsx"];
  *
  * テストディレクトリ名は `test` と `tests` で割れている（実測）。規則で導出すると
  * 必ずどちらかを取りこぼすため、宣言して実体と照合する（#135 経路②⑪・ADR-0014）。
- * `entry` は SC-027 の到達性測定の起点。持たないパッケージは null。
+ * `entry` は SC-027 の到達性測定の起点。持たないパッケージは null。サブパスの入口を
+ * 複数持つパッケージ（`package.json` の `exports`）は、非空の文字列の配列で宣言する（#371）。
+ * 読む側は {@link entriesOf} で一覧を引く。
  */
 export const SCANNED_PACKAGES = [
   { pkg: "packages/timer-core", src: "src", test: "test", entry: "index.ts" },
@@ -118,8 +120,8 @@ export const SCANNED_PACKAGES = [
   // #95 S5a で新設（同期クライアントの接続部分・D18）。
   { pkg: "packages/sync-client", src: "src", test: "tests", entry: "index.ts" },
   { pkg: "packages/invite-ui", src: "src", test: "tests", entry: "index.ts" },
-  // #369 で新設（web の同期フックが共有する React の部品。入口は `./sync`）。
-  { pkg: "packages/web-kit", src: "src", test: "tests", entry: "sync/index.ts" },
+  // #369 で新設（web の同期フックが共有する React の部品）。入口は `./sync` と、#371 の `./reader`（読む面の部品）。
+  { pkg: "packages/web-kit", src: "src", test: "tests", entry: ["sync/index.ts", "reader/index.ts"] },
   // #91 PR 3: Markdown サブセットの解析(純粋な関数)を timer-web/topic-web から出す。
   { pkg: "packages/markdown", src: "src", test: "tests", entry: "index.ts" },
   // #95 S5c 追補で新設（dev サーバー専用の Vite プラグインと玄関のポートの正本）。
@@ -525,6 +527,17 @@ export function hasScanTarget(sub) {
 }
 
 /**
+ * 宣言の入口の一覧（#371）。`entry` は null・非空の文字列・非空の文字列の配列のどれか。
+ * 不正な値（空文字・空の配列・空文字を含む配列）は {@link findInvalidDeclarations} が落とすので、
+ * ここでは走査対象として数えられるものだけを返す。
+ */
+export function entriesOf(declaration) {
+  const { entry } = declaration;
+  if (Array.isArray(entry)) return entry.filter(hasScanTarget);
+  return hasScanTarget(entry) ? [entry] : [];
+}
+
+/**
  * 宣言の値として不正なものを列挙する（ADR-0014 決定 1・決定 9）。
  *
  * 正当なのは null か非空の文字列だけ。`""` は「パッケージ直下」を指す形になり、
@@ -537,6 +550,8 @@ export function findInvalidDeclarations(declarations) {
     for (const key of ["src", "test", "entry"]) {
       const value = d[key];
       if (value === null || hasScanTarget(value)) continue;
+      // 入口だけは複数を配列で持てる（#371）。空の配列・空文字を含む配列は不正。
+      if (key === "entry" && Array.isArray(value) && value.length > 0 && value.every(hasScanTarget)) continue;
       invalid.push(`${d.pkg}.${key} = ${JSON.stringify(value)}`);
     }
   }
@@ -654,7 +669,7 @@ export function sc039DeclaredComparedPackages(declarations) {
  */
 export function sc039DeclaredReferencePackages(declarations) {
   return declarations
-    .filter((d) => hasScanTarget(d.src) && hasScanTarget(d.entry))
+    .filter((d) => hasScanTarget(d.src) && entriesOf(d).length > 0)
     .map((d) => d.pkg)
     .sort();
 }
@@ -698,8 +713,8 @@ export function sc039DeclaredComparedFiles(loaded) {
 export function sc039DeclaredReferenceFiles(loaded) {
   const files = [];
   for (const p of loaded) {
-    if (!hasScanTarget(p.src) || !hasScanTarget(p.entry)) continue;
-    const reachable = computeReachableFiles(p.srcFiles, [p.entry]);
+    if (!hasScanTarget(p.src) || entriesOf(p).length === 0) continue;
+    const reachable = computeReachableFiles(p.srcFiles, entriesOf(p));
     for (const k of p.srcFiles.keys()) {
       if (!reachable.has(k)) continue;
       files.push(`${p.pkg}/${p.src}/${k}`);
@@ -724,8 +739,8 @@ export function sc039DeclaredReferenceFiles(loaded) {
  */
 export function sc039DeclaredContractFiles(loaded) {
   return loaded
-    .filter((p) => isPackageLayer(p.pkg) && hasScanTarget(p.src) && hasScanTarget(p.entry))
-    .map((p) => `${p.pkg}/${p.src}/${p.entry}`)
+    .filter((p) => isPackageLayer(p.pkg) && hasScanTarget(p.src))
+    .flatMap((p) => entriesOf(p).map((e) => `${p.pkg}/${p.src}/${e}`))
     .sort();
 }
 
@@ -763,7 +778,7 @@ export function formatSc039FileDrift(diff, scanSummary) {
  */
 export function findSrcWithoutEntry(declarations) {
   return declarations
-    .filter((d) => hasScanTarget(d.src) && !hasScanTarget(d.entry))
+    .filter((d) => hasScanTarget(d.src) && entriesOf(d).length === 0)
     .map((d) => d.pkg)
     .sort();
 }
@@ -867,12 +882,14 @@ export function buildSc039Sources(loaded) {
       // **エントリが読めなかったときは入れない。** 宣言側
       // （{@link sc039DeclaredContractFiles}）は無条件に挙げるので、
       // 入れ損ねはファイル単位の照合で赤になる（空文字列で埋めると黙って 0 件になる）。
-      const entrySource = hasScanTarget(p.entry) ? p.srcFiles.get(p.entry) : undefined;
-      if (entrySource !== undefined) contractFiles.set(prefix + p.entry, entrySource);
+      for (const e of entriesOf(p)) {
+        const entrySource = p.srcFiles.get(e);
+        if (entrySource !== undefined) contractFiles.set(prefix + e, entrySource);
+      }
     }
 
-    if (!hasScanTarget(p.entry)) continue;
-    const reachable = computeReachableFiles(p.srcFiles, [p.entry]);
+    if (entriesOf(p).length === 0) continue;
+    const reachable = computeReachableFiles(p.srcFiles, entriesOf(p));
     const before = productSources.size;
     for (const [k, v] of p.srcFiles) {
       if (!reachable.has(k)) continue;
@@ -1006,8 +1023,8 @@ function runAudit(loaded, sc039Sources, allTestFiles) {
 
   // SC-027: エントリを持つパッケージごとに到達性を測り、合算する
   const sc027 = loaded
-    .filter((p) => hasScanTarget(p.entry))
-    .reduce((n, p) => n + sc027UnreachableModules(p.srcFiles, [p.entry]), 0);
+    .filter((p) => entriesOf(p).length > 0)
+    .reduce((n, p) => n + sc027UnreachableModules(p.srcFiles, entriesOf(p)), 0);
 
   const sc028 = sc028DuplicateTestDoubles(allTestFiles);
 
@@ -1165,8 +1182,8 @@ function main() {
     for (const sub of [d.src, d.test]) {
       if (hasScanTarget(sub)) existenceTargets.push(`${d.pkg}/${sub}`);
     }
-    if (hasScanTarget(d.entry) && hasScanTarget(d.src)) {
-      existenceTargets.push(`${d.pkg}/${d.src}/${d.entry}`);
+    if (hasScanTarget(d.src)) {
+      for (const e of entriesOf(d)) existenceTargets.push(`${d.pkg}/${d.src}/${e}`);
     }
   }
   for (const pin of METRIC_FILE_PINS) existenceTargets.push(pin.path);

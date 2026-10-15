@@ -48,7 +48,7 @@ export function Stage({ pool, view, phase, receivedAt, reducedMotion, people, to
 
   return (
     <section ref={setStage} className="ui-workspace-main roulette-stage" data-layout={layout} aria-labelledby="roulette-stage-heading">
-      <h2 id="roulette-stage-heading" className="roulette-visually-hidden">
+      <h2 id="roulette-stage-heading" className="ui-visually-hidden">
         {STAGE_HEADING}
       </h2>
       {topicTitle !== null && <p className="roulette-topic">{topicNoteText(topicTitle)}</p>}

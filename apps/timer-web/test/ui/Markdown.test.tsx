@@ -7,7 +7,15 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import React from "react";
-import { Markdown } from "../../src/ui/components/Markdown.js";
+import { Markdown as SharedMarkdown, type MarkdownHeadingBase } from "@tasuki/web-kit/reader";
+
+/**
+ * 共有メモの段（3）で描く（#371 で描画は共有の部品になった。画面が実際に渡す段は
+ * `SharedMemo.test.tsx`・`TopicCard.test.tsx` が見る）。段 4 を見るテストだけが段を渡す。
+ */
+const Markdown = ({ headingBase = 3, ...rest }: { source: string; headingBase?: MarkdownHeadingBase }) => (
+  <SharedMarkdown headingBase={headingBase} {...rest} />
+);
 
 describe("Markdown（安全な MD サブセット）", () => {
   it("[表示](https://…) を安全なリンクとして描画する", () => {
