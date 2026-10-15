@@ -1,4 +1,4 @@
-# 変異 269: web-kit-task-no-label
+# 変異 282: web-kit-task-no-label
 #
 # 検出を期待するテスト:
 #   - packages/web-kit/tests/markdown.test.tsx
@@ -9,8 +9,8 @@
 # 名前を失い、支援技術からどの項目のチェックか区別できなくなる（Issue の「名前で区別できること」）。
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m269-*.patch
-# 復元: git apply -R scripts/mutations/m269-*.patch
+#       git apply scripts/mutations/m282-*.patch
+# 復元: git apply -R scripts/mutations/m282-*.patch
 diff --git a/packages/web-kit/src/reader/markdown.tsx b/packages/web-kit/src/reader/markdown.tsx
 index 6f0ab3a..9a2cd36 100644
 --- a/packages/web-kit/src/reader/markdown.tsx

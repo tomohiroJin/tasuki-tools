@@ -30,7 +30,7 @@
 | P5 | `Markdown` の受け口は `onSourceChange?: (next: string) => void`。渡したときだけ `disabled` を外し、`onChange` で `setTaskChecked(source, task.index, e.currentTarget.checked)` を渡す | 正本 D6。アプリが `@tasuki/markdown` に直接依存せずに済む |
 | P6 | 共有メモのプレビューは `note` ではなく `draft` を描く。押したら `setDraft(next)`・`lastCommittedRef.current = next`・`onCommit(next)` の順に行う | 正本 D7・FR-008。プレビューの間は `draft` と `note` は同じ値（切り替えで確定する）なので、押す前の見え方は変わらない |
 | P7 | `TopicSheet` に任意の `onBodyChange?: (next: string) => void` を足し、`Markdown` の `onSourceChange` へそのまま渡す。`TopicEditor` は**プレビューの値が追いついているとき（`previewBody === body`）だけ** `setBody` を渡す | 正本 D8。プレビューは `useDeferredValue` の値を描く。追いつく前に押すと、古い本文から作った値で最新の打鍵を消してしまう。追いつく間は押せない（一瞬） |
-| P8 | 変異を 3 つ登録する（番号は着手時の次の空き）: ①`setTaskChecked` が `\n` で行をつなぎ直す（CRLF を失う）②`Markdown` が受け口が無くてもチェックボックスを押せる（`disabled` を外す）③`SharedMemo` が押したときに `lastCommittedRef` を更新しない（自分の付け外しで「更新されました」が出る） | 正本 SC-005。①は `packages/markdown`、②は `packages/web-kit`、③は `apps/timer-web` |
+| P8 | 変異を 3 つ登録する（番号は #315 の枠 280〜289 のうち 283 から）: ①`setTaskChecked` が `\n` で行をつなぎ直す（CRLF を失う）②`Markdown` が受け口が無くてもチェックボックスを押せる（`disabled` を外す）③`SharedMemo` が押したときに `lastCommittedRef` を更新しない（自分の付け外しで「更新されました」が出る） | 正本 SC-005。①は `packages/markdown`、②は `packages/web-kit`、③は `apps/timer-web` |
 
 ## Constitution Check
 
@@ -110,6 +110,7 @@
   - 渡す → `toBeEnabled()`。`userEvent.click(checkbox)` で `onSourceChange` が `setTaskChecked(source, i, true)` と同じ値で 1 回呼ばれる
   - 文（`label` の中の文）を押しても同じく呼ばれる。項目の中のリンクを押しても呼ばれない
   - 受け口を渡しても、`source` が変わるまで見え方は変わらない（制御された値。呼び手が本文を変えて初めてチェックが付く）
+  - 押した後に `source` を書き換えて描き直すと、チェックが新しい本文に従う（`checked` を `defaultChecked` に変える変異が、PR 1 では押せないため生き残る。PR 1 のレビューの指摘。ここで塞ぐ）
 - [ ] 赤を見る
 - [ ] **Green**: P5 のとおり `Markdown` → `Block` へ受け口を通す
 - [ ] `packages/web-kit/README.md` の `Markdown` の説明に受け口を足す
@@ -153,7 +154,7 @@
 
 - [ ] `git status --porcelain` が空であることを見る
 - [ ] P8 の 3 つのパッチを作って登録し、`node scripts/mutation-check.mjs --id <番号>` で 3 つとも殺されることを見る
-- [ ] PR 1 で足した変異（267〜269）が当たり続け、殺され続けることを `--changed` で見る
+- [ ] PR 1 で足した変異（280〜282）が当たり続け、殺され続けることを `--changed` で見る
 - [ ] scripts の自己テストが緑
 - [ ] コミット: `test(mutation): 付け外しの書き換えと受け口を壊す変異を足す（#315）`
 

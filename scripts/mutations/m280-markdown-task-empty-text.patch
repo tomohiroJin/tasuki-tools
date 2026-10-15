@@ -1,18 +1,18 @@
-# 変異 268: markdown-task-upper-x
+# 変異 280: markdown-task-empty-text
 #
 # 検出を期待するテスト:
 #   - packages/markdown/tests/blocks.test.ts
 #     describe「タスクリストを解析する」の
-#     「Given "- [X] a" / When 解析する / Then チェック済みのタスクになる」（#315 spec FR-002）
+#     「Given "- [ ]  " / When 解析する / Then タスクにせず、文のまま残す」（#315 spec FR-004）
 #
-# #315 PR 1・spec D2。`TASK_RE` の印から大文字の `X` を外す。GitHub と同じ `- [X]` で書いた
-# 済みの項目が、チェックボックスにならず「[X] 文」という文のまま出る。
+# #315 PR 1・spec D2・NFR-002。`TASK_RE` から先読み `(?=\S)` を外す。印の後が空白だけの
+# 項目（`- [ ]  `）もタスクになり、名前の無いチェックボックスが描かれる（支援技術から区別できない）。
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m268-*.patch
-# 復元: git apply -R scripts/mutations/m268-*.patch
+#       git apply scripts/mutations/m280-*.patch
+# 復元: git apply -R scripts/mutations/m280-*.patch
 diff --git a/packages/markdown/src/blocks.ts b/packages/markdown/src/blocks.ts
-index f696535..d2143bc 100644
+index f696535..b921fa9 100644
 --- a/packages/markdown/src/blocks.ts
 +++ b/packages/markdown/src/blocks.ts
 @@ -50,7 +50,7 @@ function toBlock(b: RawBlock): MdBlock {
@@ -20,7 +20,7 @@ index f696535..d2143bc 100644
   * 先頭に固定した 1 回の照合なので、解析の時間は線形のまま（NFR-003）。
   */
 -const TASK_RE = /^\[([ xX])\]\s+(?=\S)/;
-+const TASK_RE = /^\[([ x])\]\s+(?=\S)/;
++const TASK_RE = /^\[([ xX])\]\s+/;
  
  function toListItem(line: string): MdListItem {
    const m = TASK_RE.exec(line);

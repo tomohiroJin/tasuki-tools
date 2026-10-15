@@ -27,7 +27,7 @@
 | P4 | 描画の形: タスクの項目は `<li className="ui-md-task"><label className="ui-md-task-label"><input type="checkbox" className="ui-md-check" checked={…} disabled /><span className="ui-md-task-text">…</span></label></li>`。タスクでない項目はいまの `<li>` のまま | 正本 D4。文を `span` で包むのはチェックボックスとの間隔を CSS で取るため（文の中の太字・リンクの並びを崩さない） |
 | P5 | `checked` は React の制御された値で、`disabled` を付けるので `onChange` は渡さない（React の警告が出ない） | PR 2 で受け口を渡したときだけ `disabled` を外す |
 | P6 | CSS: `.ui-md-task { list-style: none; margin-left: calc(-1 * var(--space-5)); }`（列の字下げを打ち消し、チェックボックスを印の位置に置く）・`.ui-md-task-label { display: inline-flex; gap: var(--space-2); align-items: baseline; }`・`.ui-md-check { accent-color: var(--ui-md-check, …); margin: 0; }`。既定の色は象牙の札の上の字の色に近いトークンを選び、Task 6 の実画面で決める | 正本 D5。部品の CSS はつまみを宣言しない（`audit-ui-components.mjs`）。値は `var(--ui-md-check, 既定)` で受ける |
-| P7 | 変異を 3 つ登録する（番号は着手時の次の空き。いまは 267〜269）: ①文の無い項目もタスクにする（`(?=\S)` を外す）②`[X]` をチェック済みにしない（`[ xX]` を `[ x]` に）③描画で `label` を外す（名前が消える） | 正本 SC-005。①②は `packages/markdown`、③は `packages/web-kit` |
+| P7 | 変異を 3 つ登録する（番号は 280〜282。#315 に 280〜289 を割り当てた。267〜269 は #402、270〜279 は #405 のために空いている —— 当初は 267〜269 と書いていた。レビューで指摘を受けて移した）: ①文の無い項目もタスクにする（`(?=\S)` を外す）②`[X]` をチェック済みにしない（`[ xX]` を `[ x]` に）③描画で `label` を外す（名前が消える） | 正本 SC-005。①②は `packages/markdown`、③は `packages/web-kit` |
 | P8 | `SHAPE_SOURCE`（`packages/web-kit/tests/support/dom-shape.ts`）は**変えない**。タスクリストの形は別のテストで固定する | いまの形のテストは「寄せる前の 3 アプリと同じ」ことの記録。混ぜると何の記録か分からなくなる |
 
 ## Constitution Check
@@ -75,7 +75,7 @@
 | `packages/ui/README.md` | `.ui-md` の行にクラスとつまみ `--ui-md-check` を足す |
 | `apps/timer-web/src/styles/shared-memo.css` | 暗い面でつまみ `--ui-md-check` を宣言（Task 4） |
 | `apps/topic-web/tests/markdown.test.tsx` | いまのお題の札でチェックボックスが押せないこと（FR-006。Task 3） |
-| `scripts/mutations/m267〜m269-*.patch`・`scripts/lib/mutation-declarations.mjs` | 変異の登録（Task 5） |
+| `scripts/mutations/m280〜m282-*.patch`・`scripts/lib/mutation-declarations.mjs` | 変異の登録（Task 5） |
 
 ## Task 1: 項目の型を `MdListItem` に組み替える（振る舞いは変えない）
 
@@ -130,7 +130,7 @@
   - ① `markdown-task-empty-text`: `(?=\S)` を外す → Task 2 の「文が無い」のテストが赤
   - ② `markdown-task-upper-x`: `[ xX]` を `[ x]` に → `[X]` のテストが赤
   - ③ `web-kit-task-no-label`: `label` を外し `input` と文を並べる → 名前のテストが赤
-- [ ] `node scripts/mutation-check.mjs --id 267,268,269` で 3 つとも殺されることを見る
+- [ ] `node scripts/mutation-check.mjs --id 280,281,282` で 3 つとも殺されることを見る
 - [ ] **Task 1〜3 で `blocks.ts`・`markdown.tsx` を変えたので、既存の変異（m106・m107 と、`markdown.tsx` を当てる変異があればそれも）のパッチが当たることを** `node scripts/mutation-check.mjs --changed` で見る。当たらなければ作り直す
 - [ ] scripts の自己テスト（`AGENTS.md` の基本コマンド）が緑
 - [ ] コミット: `test(mutation): タスクリストの解析と名前を壊す変異を足す（#315）`
@@ -169,5 +169,8 @@
 | X2 | P6: `.ui-md-task-label` は `inline-flex`・`gap`・`align-items` だけ | `flex-direction: row`・`font-size: inherit`・`color: inherit` も書く | 要素層の `label`（`packages/ui/src/elements/controls.css`）が欄の名札として縦に並べ・小さく・`--ivory-dim` で書くので、お題ツールと poker の札で文がチェックボックスの下へ回り、象牙の上で読めなかった。jsdom のテストでは見えず、実画面で見つけた |
 | X3 | Task 3: 画面の側の FR-006 のテストを `apps/topic-web/tests/markdown.test.tsx`（または `CurrentTopic` のテスト）に足す | `apps/topic-web/tests/topic-room.test.tsx` の「場のお題」に足した | いまのお題の札を実際に描くテストがそこにある。描画の変更を戻すと赤・`disabled` を外すと赤になることを確かめた |
 | X4 | Task 6: 実画面は E2E の基盤で撮る | 開発サーバー（玄関・timer・poker・お題ツール・同期サーバー）を立て、導入済みの Chromium で撮った | 作業環境に Caddy と E2E が要求する版の Chromium が無く、E2E の基盤が立たなかった。CI の E2E は従来どおり流れる |
-| X5 | Task 5: `--changed` で既存の変異が当たることを見る | `--pkg packages/markdown`・`--pkg packages/web-kit` で流した（m106・m107・m267〜m269 がすべて検出） | 宣言の表を書き足した枝の `--changed` は全件（214 件）に倒れる。全件は CI が流す |
+| X5 | Task 5: `--changed` で既存の変異が当たることを見る | `--pkg packages/markdown`・`--pkg packages/web-kit` で流した（m106・m107・m280〜m282 がすべて検出） | 宣言の表を書き足した枝の `--changed` は全件（214 件）に倒れる。全件は CI が流す |
+| X6 | P6: チェックボックスの縦の位置は決めていなかった（X1 で `align-self: center`） | `align-self: flex-start` と `margin-top: calc((1lh - 1.05em) / 2)` で文の 1 行目の真ん中に置く。字の大きさと `line-height` を継ぐ | PR #413 のレビュー。折り返した項目で、チェックボックスが文全体の真ん中まで下がっていた（実画面の撮影が短い項目だけだった）。継がないと入力欄の既定の字（13.33px）で `em` と `1lh` が測られ、象牙の札で 2.3px 上にずれた。幅 360・1280 で、折り返した項目の箱の中心と 1 行目の中心が一致することを測った |
+| X7 | P7: 変異の番号は 267〜269 | 280〜282 | PR #413 のレビュー。267〜269 は #402 のために、270〜279 は #405 のために空けてあった（main の m270〜m275 の note） |
+| X8 | Task 2: 「タスクにしない」例は 5 つ | 項目の途中に印がある `- a [ ] b` を足した | PR #413 のレビュー。`TASK_RE` の先頭の `^` を消してもテストが緑のままだった。足した例で赤になることを確かめた |
 

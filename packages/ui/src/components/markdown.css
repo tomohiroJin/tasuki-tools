@@ -77,11 +77,15 @@ h6.ui-md-h {
   flex: none;
   display: inline-grid;
   place-content: center;
-  align-self: center;
+  /* 文の 1 行目の縦の真ん中に置く。`center` だと、折り返した項目で文全体の真ん中まで下がる（#413 のレビュー）。
+     字の大きさと `line-height` を継ぐのは、`em` と `1lh` を文の字と行の高さにするため（入力欄の既定は別の値）。 */
+  align-self: flex-start;
+  font-size: inherit; /* scale-exempt: 入力欄の既定の字（13.33px）を打ち消し、箱の `em` と `1lh` を項目の字に合わせる */
+  line-height: inherit;
   box-sizing: border-box;
   width: 1.05em;
   height: 1.05em;
-  margin: 0;
+  margin: calc((1lh - 1.05em) / 2) 0 0;
   border: 2px solid var(--ui-md-check, var(--coal));
   /* 角は字の大きさに比例させる（`--radius-sm` は 1em の箱では丸に近くなり、文字の O に見えた） */
   border-radius: 0.2em;

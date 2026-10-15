@@ -104,10 +104,10 @@ describe('タスクリストを解析する', () => {
     ]);
   });
 
-  it.each(['- [ ]', '- [ ]  ', '- [y] a', '- [] a', '- [ ]a'])(
+  it.each(['- [ ]', '- [ ]  ', '- [y] a', '- [] a', '- [ ]a', '- a [ ] b'])(
     'Given %j / When 解析する / Then タスクにせず、文のまま残す',
     (src) => {
-      // Given: 文が無い・印が違う・印の後に空白が無い（src）
+      // Given: 文が無い・印が違う・印の後に空白が無い・印が項目の途中にある（src）
       // When
       const blocks = parseMarkdown(src);
       // Then
