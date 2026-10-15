@@ -1,0 +1,23 @@
+# 変異 241: invalid-settle-log-below-error
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/roulette-handlers.test.ts
+#
+# #382。INVALID_SETTLE の行を warn にする（INVALID_RANDOM の error より軽く、水準が食い違う）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m241-*.patch
+# 復元: git apply -R scripts/mutations/m241-*.patch
+diff --git a/apps/tasuki-sync/src/application/roulette-handlers.ts b/apps/tasuki-sync/src/application/roulette-handlers.ts
+index 90ce5b2b..75d27ba7 100644
+--- a/apps/tasuki-sync/src/application/roulette-handlers.ts
++++ b/apps/tasuki-sync/src/application/roulette-handlers.ts
+@@ -188,7 +188,7 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
+               // 接続層の行は #381 で `protocol` を持ったので、この写しもそろえる。
+               logger.error("on-message-error", { name: ERROR_NAMES.rangeError, protocol: PROTOCOL_LOG_NAMES.roulette });
+             }
+-            logger.error("roulette-random-violation", { reason: violation.reason });
++            logger.warn("roulette-random-violation", { reason: violation.reason });
+             fail(connId, "INTERNAL_ERROR");
+             return;
+           }

@@ -1,0 +1,22 @@
+# 変異 232: on-message-error に protocol（どの接続の失敗か）を出さない
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/connection-error-text.test.ts
+#     「Given {timer・ハブ・お題・ルーレット}のメッセージ層が reject する / … ログは 1 行」
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m232-*.patch
+# 復元: git apply -R scripts/mutations/m232-*.patch
+#
+# #381。失敗のログから、どの接続（timer・ハブ・お題・ルーレット）の失敗かが分からなくなる。
+diff --git a/apps/tasuki-sync/src/adapters/ws/tool-channel.ts b/apps/tasuki-sync/src/adapters/ws/tool-channel.ts
+--- a/apps/tasuki-sync/src/adapters/ws/tool-channel.ts
++++ b/apps/tasuki-sync/src/adapters/ws/tool-channel.ts
+@@ -81,7 +81,7 @@
+   const tooLargeText = JSON.stringify(spec.tooLargeFrame);
+   const internalErrorText = JSON.stringify(spec.internalErrorFrame);
+   const logFailure = (err: unknown): void =>
+-    spec.logger.error("on-message-error", { name: classifyError(err), protocol: PROTOCOL_LOG_NAMES[spec.protocol] });
++    spec.logger.error("on-message-error", { name: classifyError(err) });
+   return {
+     notifiesConnect: true,
+     receive(ws, raw, bytes) {

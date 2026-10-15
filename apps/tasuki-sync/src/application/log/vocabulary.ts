@@ -9,6 +9,7 @@
  * `publicText` を呼ぶ（`log-safe.ts` の docstring と
  * `scripts/audit-log-hygiene.mjs` の ALLOWED_FILES を参照）。
  */
+import type { AcceptedProtocol } from "../../adapters/ws/connection-gate.js";
 import { publicText, type LogSafe } from "./log-safe.js";
 
 /** AI 生成をスキップした理由（`AiLimiter.tryAcquire` の `reason` と 1 対 1）。 */
@@ -56,7 +57,34 @@ export const CONN_REJECT_REASONS = {
  * roulette の乱数源の契約違反は、かつてドメインが `RangeError` を投げ、接続層が
  * `on-message-error name=RangeError` を残していた。ドメインが `Result` を返すようになった後も
  * **同じ行を残す**ため、ハンドラがこの語彙で同じ名前を出す（`roulette-handlers.ts`）。
+ * #382 以降、`INVALID_RANDOM` は監視を 1 本で拾うための `roulette-random-violation reason=invalid-random` と
+ * 合わせて **error が 2 行**になる（`RANDOM_VIOLATION_REASONS`）。
  */
 export const ERROR_NAMES = {
   rangeError: publicText("RangeError"), // log-hygiene:allow 語彙定義
 } as const satisfies Record<string, LogSafe>;
+
+/**
+ * ルーレットの乱数源が契約を破った理由（#382）。`roulette-random-violation` の `reason` に載せる。
+ *
+ * `INVALID_RANDOM`（`randomInt` の範囲外）は例外だった頃の行（`on-message-error name=RangeError`）を
+ * 保ち（`ERROR_NAMES`）、監視が 1 本で拾えるようこの行も足す。`INVALID_SETTLE`（`randomSettle` の範囲外）は
+ * 元から行が無かったため、この行だけで残す。自由文・例外メッセージ・乱数源の返した値は載せない。
+ */
+export const RANDOM_VIOLATION_REASONS = {
+  invalidRandom: publicText("invalid-random"), // log-hygiene:allow 語彙定義
+  invalidSettle: publicText("invalid-settle"), // log-hygiene:allow 語彙定義
+} as const satisfies Record<string, LogSafe>;
+
+/**
+ * `on-message-error` に添える、どの接続の失敗かを示す名前（`protocol` 項目。#381）。
+ * 受け口の表（`ws-adapter.ts` の `buildChannels`）の鍵と 1 対 1 の固定の語彙で、自由文は載せない。
+ * 受け口の表の鍵（`AcceptedProtocol`。型だけを取り込む）が語彙に欠けると、型検査が落ちる。
+ */
+export const PROTOCOL_LOG_NAMES = {
+  timer: publicText("timer"), // log-hygiene:allow 語彙定義
+  hub: publicText("hub"), // log-hygiene:allow 語彙定義
+  topic: publicText("topic"), // log-hygiene:allow 語彙定義
+  roulette: publicText("roulette"), // log-hygiene:allow 語彙定義
+  poker: publicText("poker"), // log-hygiene:allow 語彙定義
+} as const satisfies Record<AcceptedProtocol, LogSafe>;

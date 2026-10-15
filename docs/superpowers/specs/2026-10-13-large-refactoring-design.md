@@ -210,6 +210,7 @@ packages/protocol/src/
 > **追記（2026-10-13・R4 の実施）**: 上の 2 点を改めた。
 >
 > - **roulette の乱数源の契約違反でも、ログは今と同じに保つ。** `Result` にすると、接続層が残していた `on-message-error name=RangeError` が消える。ログが消えるのは振る舞いの変更なので（§4.1）、ハンドラが同じ行を残す。前例の `INVALID_SETTLE` には記録の抜けがあり、#382 に分けた
+>   - **追記（2026-10-15・#382）**: この記録の抜けは #382 で塞いだ。`INVALID_SETTLE` も `roulette-random-violation reason=invalid-settle` を error で残し、`INVALID_RANDOM` にも同じイベントを足した
 > - **room-core の失敗の枝は、代理を外すとき（`participant-remove.ts`）に届く。** 名簿の中身は前と同じで、ほかの呼び出しは届かない
 
 ### 5.5 同期サーバーのアプリケーション層（#366）
@@ -288,6 +289,7 @@ apps/tasuki-sync/src/adapters/ws/
 > - **アダプタが業務の検証をしないことは、層の検査では拒めなかった**（`audit-dependency-direction.mjs` はパッケージの単位）。アダプタがアプリケーション層から取り込んでよいものを、テスト（`test/adapter-imports.test.ts`）の許可表で固定した。正規化を飛ばす配線は、timer の受け口のブランド型で型検査が落とす
 > - **`process.exit(1)` は組み立て（`server.ts`）へ移した。** アダプタは `ServerStartError` を投げる
 > - timer だけが reject でログを残さないこと・内部エラーの文言が違うこと（#381）は、変えずに固定した
+> - **解消（#381）**: 上の 2 点（reject のログと内部エラーの文言）は #381 でそろえた。
 
 ### 5.8 web の共有の層（#369・#370・#371）
 

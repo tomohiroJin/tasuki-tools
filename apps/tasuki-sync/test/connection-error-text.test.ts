@@ -24,6 +24,7 @@ import { collectingLogger } from "./support/test-logger.js";
 import { startLiveSyncServer, type LiveSyncServer } from "./support/live-sync-server.js";
 import { startServer, type TestServer } from "./poker/helpers.js";
 import { connectRaw } from "./poker/raw-ws-client.js";
+import { createPokerChannel } from "../src/adapters/ws/tool-channel.js";
 
 /** `config.ts` の既定の上限（64KB）を 1 バイト超える本文。 */
 const TOO_LARGE = "x".repeat(64 * 1024 + 1);
@@ -122,20 +123,18 @@ describe("接続層のエラーの文言（接続層・メッセージ層が失�
     throw new Error("メッセージ層の失敗（テスト用）");
   };
 
-  // **timer だけ文言が違う**（「内部エラーが発生しました」。timer の受け口の内部エラーのフレーム。`ws-adapter.ts` の `buildChannels`）。
-  // 2026-10-13 に、この特性テストを書いて初めて分かった。リファクタリングでは変えずに固定し、
-  // そろえるかどうかは別の Issue で決める（#360「見つかった振る舞いの疑い」）。
-  //
-  // **ログも timer だけ違う**（#368 Task 1）。ハブ・お題・ルーレットは reject でも
-  // `on-message-error` を 1 行残すが、timer は reject ではログを残さない（同期の throw では残す）。
-  // これもリファクタリングでは変えずに固定する。
-  for (const [label, tool, message, logLines] of [
-    ["timer", "timer", "内部エラーが発生しました", []],
-    ["ハブ", null, "サーバー内部でエラーが発生しました", ["on-message-error name=Error"]],
-    ["お題", "topic", "サーバー内部でエラーが発生しました", ["on-message-error name=Error"]],
-    ["ルーレット", "roulette", "サーバー内部でエラーが発生しました", ["on-message-error name=Error"]],
+  // 文言もログも 4 つの接続で同じ（#381）。かつて timer だけ文言が「内部エラーが発生しました」で、
+  // reject でログも残さなかった（#362・#368 の特性テストで見つかり、#381 でそろえた）。
+  const INTERNAL_ERROR_MESSAGE = "サーバー内部でエラーが発生しました";
+  for (const [label, tool, protocol] of [
+    ["timer", "timer", "timer"],
+    ["ハブ", null, "hub"],
+    ["お題", "topic", "topic"],
+    ["ルーレット", "roulette", "roulette"],
   ] as const) {
-    it(`Given ${label}のメッセージ層が reject する / When 妥当な本文を送る / Then INTERNAL_ERROR と「${message}」を返し、ログは ${logLines.length} 行`, async () => {
+    // どの接続の失敗かは `protocol` に出る（固定の語彙。#381）
+    const LOG_LINES = [`on-message-error name=Error protocol=${protocol}`];
+    it(`Given ${label}のメッセージ層が reject する / When 妥当な本文を送る / Then INTERNAL_ERROR と「${INTERNAL_ERROR_MESSAGE}」を返し、ログは ${LOG_LINES.length} 行`, async () => {
       // Given: どのメッセージ層も reject する接続層
       const { logger, lines } = collectingLogger();
       adapter = newTestWsAdapter({
@@ -155,10 +154,38 @@ describe("接続層のエラーの文言（接続層・メッセージ層が失�
       // When
       const frame = await sendAndTakeFirst(`ws://127.0.0.1:${adapter.port}/ws${query}`, body);
       // Then: ログはエラーフレームを送る前に書かれるので、フレームが届いた時点で揃っている
-      expect(frame).toEqual({ type: "error", code: "INTERNAL_ERROR", message });
-      expect(lines).toEqual([...logLines]);
+      expect(frame).toEqual({ type: "error", code: "INTERNAL_ERROR", message: INTERNAL_ERROR_MESSAGE });
+      expect(lines).toEqual(LOG_LINES);
     });
   }
+});
+
+describe("poker の失敗のログ（#381）", () => {
+  it("Given poker のメッセージ層が throw し、close も throw する / When 受け取る / Then どちらのログ行にも protocol=poker が付く", () => {
+    // Given
+    const { logger, lines } = collectingLogger();
+    const channel = createPokerChannel(
+      {
+        dispatch: () => {},
+        detachFromCurrentRoom: () => {},
+        sendError: () => {
+          throw new Error("sendError の失敗（テスト用）");
+        },
+      },
+      1,
+      logger,
+    );
+    const ws = {
+      data: { protocol: "poker", connId: "c1" },
+      close: () => {
+        throw new Error("close の失敗（テスト用）");
+      },
+    };
+    // When: 上限（1 バイト）を超える本文で sendError を呼ばせる
+    channel.receive(ws as never, Buffer.from("xx"), 2);
+    // Then
+    expect(lines).toEqual(["on-message-error name=Error protocol=poker", "on-message-error name=Error protocol=poker"]);
+  });
 });
 
 describe("poker の参加の試行の上限の文言", () => {

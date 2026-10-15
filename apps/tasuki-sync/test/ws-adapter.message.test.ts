@@ -198,6 +198,7 @@ describe("WsAdapter メッセージ経路", () => {
 
     // Then
     expect(lines.some((line) => line.startsWith("on-message-error"))).toBe(true);
+    expect(lines.find((line) => line.startsWith("on-message-error"))!).toContain("protocol=timer");
     ws.close();
   });
 
@@ -402,6 +403,7 @@ describe("ハブ（選択画面）のメッセージ層が同期 throw しても
       await waitFor(() => lines.some((l) => l.startsWith("on-message-error ")));
       const line = lines.find((l) => l.startsWith("on-message-error "))!;
       expect(line).toContain("name=");
+      expect(line).toContain("protocol=hub");
       expect(line).not.toContain("boom in onHubMessage");
 
       // Then: 接続は保たれる
@@ -473,6 +475,7 @@ describe("お題（topic）のメッセージ層が同期 throw しても隔離�
       await waitFor(() => lines.some((l) => l.startsWith("on-message-error ")));
       const line = lines.find((l) => l.startsWith("on-message-error "))!;
       expect(line).toContain("name=");
+      expect(line).toContain("protocol=topic");
       expect(line).not.toContain("boom in onTopicMessage");
 
       // Then: 接続は保たれる
@@ -557,6 +560,7 @@ describe("WsAdapter ルーレットのメッセージ経路", () => {
       expect(msg).toMatchObject({ type: "error", code: "INTERNAL_ERROR" });
       await waitFor(() => lines.some((l) => l.startsWith("on-message-error ")));
       expect(lines.find((l) => l.startsWith("on-message-error "))!).not.toContain("boom in onRouletteMessage");
+      expect(lines.find((l) => l.startsWith("on-message-error "))!).toContain("protocol=roulette");
       expect(ws.readyState).toBe(WebSocket.OPEN);
 
       // Then: 2 通目がハンドラへ届き、新しい接続も張れる
@@ -612,6 +616,7 @@ describe("poker のメッセージ層が throw しても隔離される", () => 
       await waitFor(() => lines.some((l) => l.startsWith("on-message-error ")));
       const line = lines.find((l) => l.startsWith("on-message-error "))!;
       expect(line).toContain("name=");
+      expect(line).toContain("protocol=poker");
       expect(line).not.toContain("poker のメッセージ層");
 
       // Then: **この接続だけ**が 1011 で閉じる（黙って開いたままにはしない。

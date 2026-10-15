@@ -22,6 +22,8 @@ import type { Logger } from "../../application/log/logger.js";
 import type { PokerHandlers } from "../../application/poker-handlers.js";
 import { CONNECTION_ERROR_TEXT } from "../../application/connection-errors.js";
 import { isPokerSocket, type Socket } from "./connection-data.js";
+import type { AcceptedProtocol } from "./connection-gate.js";
+import { PROTOCOL_LOG_NAMES } from "../../application/log/vocabulary.js";
 import { classifyError } from "./error-log.js";
 import { sendIfOpen } from "./ws-send.js";
 
@@ -56,6 +58,8 @@ export interface ToolChannel {
 export interface TextChannelSpec<Payload, Frame> {
   readonly maxMessageBytes: number;
   readonly logger: Logger;
+  /** どの接続の失敗かを `on-message-error` の `protocol` に出す（#381）。 */
+  readonly protocol: AcceptedProtocol;
   /** 本文の解析。失敗なら、その場で返すエラーフレーム。 */
   readonly parse: (text: string) => Result<Payload, Frame>;
   /** 渡す先（メッセージ層）。 */
@@ -64,11 +68,6 @@ export interface TextChannelSpec<Payload, Frame> {
   readonly tooLargeFrame: Frame;
   /** 渡す先が失敗したときに返すフレーム。 */
   readonly internalErrorFrame: Frame;
-  /**
-   * 渡す先の reject（非同期の失敗）で `on-message-error` を残すか。同期の throw では常に残す。
-   * **timer だけ false**（#368 Task 1 で固定した今の振る舞い。そろえるかは振る舞いの変更として別に決める）。
-   */
-  readonly logsRejection: boolean;
 }
 
 /**
@@ -78,27 +77,31 @@ export interface TextChannelSpec<Payload, Frame> {
  * （再送で回復できる種類の失敗のため）。
  */
 export function createTextChannel<Payload, Frame>(spec: TextChannelSpec<Payload, Frame>): ToolChannel {
-  const reply = (ws: Socket, frame: Frame): void => sendIfOpen(ws, JSON.stringify(frame));
+  // 固定のエラーフレームは 1 回だけ文字列にする（毎回の失敗で作り直さない）
+  const tooLargeText = JSON.stringify(spec.tooLargeFrame);
+  const internalErrorText = JSON.stringify(spec.internalErrorFrame);
+  const logFailure = (err: unknown): void =>
+    spec.logger.error("on-message-error", { name: classifyError(err), protocol: PROTOCOL_LOG_NAMES[spec.protocol] });
   return {
     notifiesConnect: true,
     receive(ws, raw, bytes) {
       if (bytes > spec.maxMessageBytes) {
-        reply(ws, spec.tooLargeFrame);
+        sendIfOpen(ws, tooLargeText);
         return;
       }
       const parsed = spec.parse(raw.toString());
       if (parsed.isErr()) {
-        reply(ws, parsed.error);
+        sendIfOpen(ws, JSON.stringify(parsed.error));
         return;
       }
       try {
         spec.deliver(ws.data.connId, parsed.value).catch((err: unknown) => {
-          if (spec.logsRejection) spec.logger.error("on-message-error", { name: classifyError(err) });
-          reply(ws, spec.internalErrorFrame);
+          logFailure(err);
+          sendIfOpen(ws, internalErrorText);
         });
       } catch (err) {
-        spec.logger.error("on-message-error", { name: classifyError(err) });
-        reply(ws, spec.internalErrorFrame);
+        logFailure(err);
+        sendIfOpen(ws, internalErrorText);
       }
     },
   };
@@ -143,12 +146,12 @@ export function createPokerChannel(handlers: PokerMessageHandlers, maxMessageByt
         }
         handlers.dispatch(ws, result.value);
       } catch (err) {
-        logger.error("on-message-error", { name: classifyError(err) });
+        logger.error("on-message-error", { name: classifyError(err), protocol: PROTOCOL_LOG_NAMES.poker });
         // 閉じるのは**この接続だけ**。close 自体が throw しても巻き込まない。
         try {
           ws.close(1011, "Internal error");
         } catch (closeErr) {
-          logger.error("on-message-error", { name: classifyError(closeErr) });
+          logger.error("on-message-error", { name: classifyError(closeErr), protocol: PROTOCOL_LOG_NAMES.poker });
         }
       }
     },

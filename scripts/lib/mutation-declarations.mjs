@@ -1716,4 +1716,94 @@ export const MUTATIONS = [
     tests: ["tests/result-card.test.tsx"],
     note: "#373。「さん」が 1 字ずつ縦に折れる。",
   },
+  {
+    id: 240,
+    label: "INVALID_SETTLE を受けてもログを残さない",
+    patch: "m240-invalid-settle-without-log.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/roulette-handlers.test.ts"],
+    note: "#382。**対応表より後に足した変異。** 乱数源の契約違反の片方だけが痕跡を残さない元の欠陥。内部の誤りを本番で知る手がかりが消える。",
+  },
+  {
+    id: 241,
+    label: "INVALID_SETTLE のログを error より軽い水準にする",
+    patch: "m241-invalid-settle-log-below-error.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/roulette-handlers.test.ts"],
+    note: "#382。**対応表より後に足した変異。** INVALID_RANDOM の行（error）と水準を揃える。warn では error を拾う監視から外れる。",
+  },
+  {
+    id: 242,
+    label: "INVALID_SETTLE を INVALID_RANDOM と同じ行で残す",
+    patch: "m242-invalid-settle-logs-as-range-error.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/roulette-handlers.test.ts"],
+    note: "#382。**対応表より後に足した変異。** 2 つの契約違反がログで区別できなくなる（理由を語彙に置いた意味が消える）。",
+  },
+  {
+    id: 243,
+    label: "乱数源の契約違反の判定を全失敗に広げる",
+    patch: "m243-violation-check-always-true.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/roulette-handlers.test.ts"],
+    note: "#382（/code-review）。**対応表より後に足した変異。** `isRandomViolation` を常に真にする。人数不足など利用者の操作で起きる失敗が、契約違反として扱われる（本物の違反でない失敗にログと INTERNAL_ERROR を返す）。",
+  },
+  {
+    id: 244,
+    label: "INVALID_RANDOM の reason を invalid-settle にする",
+    patch: "m244-invalid-random-reason-is-invalid-settle.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/roulette-handlers.test.ts"],
+    note: "#382（/code-review）。**対応表より後に足した変異。** 監視が reason で 2 つの契約違反を区別できなくなる。",
+  },
+  {
+    id: 230,
+    label: "timer の内部エラーが、また timer だけの別の文を返す",
+    patch: "m230-timer-internal-error-own-text.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/connection-error-text.test.ts", "test/connection-error-text-sources.test.ts"],
+    note:
+      "#381。**対応表より後に足した変異。** timer の内部エラーのフレームを正本（`connectionErrorFrame`）から" +
+      "取らず「内部エラーが発生しました」を直書きすると、timer だけ文が違う状態（#381 以前）に戻る。",
+  },
+  {
+    id: 231,
+    label: "メッセージ層の reject で on-message-error を残さない",
+    patch: "m231-reject-without-log.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/connection-error-text.test.ts"],
+    note:
+      "#381。**対応表より後に足した変異。** 非同期の失敗（reject）のログを落とすと、かつての timer のように" +
+      "失敗が無言になる。4 つの接続で同じログが出ることを固定したテストが検出する。",
+  },
+  {
+    id: 232,
+    label: "on-message-error に、どの接続の失敗かを示す protocol を出さない",
+    patch: "m232-log-without-protocol.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/connection-error-text.test.ts", "test/ws-adapter.message.test.ts"],
+    note:
+      "#381。**対応表より後に足した変異。** 4 つの接続が同じログ行を出すので、`protocol` が無いと" +
+      "ログからどの接続の失敗か分からない。接続ごとの `protocol` の値を固定したテストが検出する。",
+  },
+  {
+    id: 233,
+    label: "poker の失敗のログに protocol を出さない",
+    patch: "m233-poker-log-without-protocol.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/ws-adapter.message.test.ts", "test/connection-error-text.test.ts"],
+    note:
+      "#381。**対応表より後に足した変異。** poker の受け口は `createTextChannel` ではなく自前の `try/catch` でログを" +
+      "出すので、m232 では検出されない。poker の隔離のテストが `protocol=poker` を固定している。",
+  },
+  {
+    id: 234,
+    label: "poker の close 失敗のログに protocol を出さない",
+    patch: "m234-poker-close-failure-log-without-protocol.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/connection-error-text.test.ts"],
+    note:
+      "#381。**対応表より後に足した変異。** m233 は poker の失敗の 1 行目だけで、close 自体の失敗の 2 行目は" +
+      "実 WS では起こしにくい。受け口を直接呼び、close も throw させるテストが検出する。",
+  },
 ];

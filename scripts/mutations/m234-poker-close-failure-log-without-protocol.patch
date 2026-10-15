@@ -1,0 +1,22 @@
+# 変異 234: poker の close 失敗のログに protocol を出さない
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/connection-error-text.test.ts
+#     「Given poker のメッセージ層が throw し、close も throw する / … どちらのログ行にも protocol=poker が付く」
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m234-*.patch
+# 復元: git apply -R scripts/mutations/m234-*.patch
+#
+# #381。poker が失敗して接続を閉じようとしたときの 2 行目（close 自体の失敗）だけ、protocol が落ちる。
+diff --git a/apps/tasuki-sync/src/adapters/ws/tool-channel.ts b/apps/tasuki-sync/src/adapters/ws/tool-channel.ts
+--- a/apps/tasuki-sync/src/adapters/ws/tool-channel.ts
++++ b/apps/tasuki-sync/src/adapters/ws/tool-channel.ts
+@@ -151,7 +151,7 @@
+         try {
+           ws.close(1011, "Internal error");
+         } catch (closeErr) {
+-          logger.error("on-message-error", { name: classifyError(closeErr), protocol: PROTOCOL_LOG_NAMES.poker });
++          logger.error("on-message-error", { name: classifyError(closeErr) });
+         }
+       }
+     },
