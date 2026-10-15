@@ -2140,4 +2140,12 @@ export const MUTATIONS = [
     tests: ["test/default-error-text.test.ts"],
     note: "#378。**対応表より後に足した変異。** コードの分からないエラーの文言が、timer だけほかのツールと違う。",
   },
+  {
+    id: 266,
+    label: "玄関の合言葉の欄に上限を掛けない",
+    patch: "m266-landing-passphrase-field-without-limit.patch",
+    pkg: "apps/landing",
+    tests: ["tests/join-room-passphrase.test.tsx"],
+    note: "#377。**対応表より後に足した変異。** 長い合言葉を貼った人が「コマンドの形式が不正です」で断られ、理由を知る手段が無い。",
+  },
 ];
