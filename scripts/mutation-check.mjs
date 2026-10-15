@@ -1732,6 +1732,16 @@ export const MUTATIONS = [
       "#381。**対応表より後に足した変異。** timer の内部エラーのフレームを正本（`connectionErrorFrame`）から" +
       "取らず「内部エラーが発生しました」を直書きすると、timer だけ文が違う状態（#381 以前）に戻る。",
   },
+  {
+    id: 231,
+    label: "メッセージ層の reject で on-message-error を残さない",
+    patch: "m231-reject-without-log.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/connection-error-text.test.ts"],
+    note:
+      "#381。**対応表より後に足した変異。** 非同期の失敗（reject）のログを落とすと、かつての timer のように" +
+      "失敗が無言になる。4 つの接続で同じログが出ることを固定したテストが検出する。",
+  },
 ];
 
 /**

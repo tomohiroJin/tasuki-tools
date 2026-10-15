@@ -14,6 +14,12 @@
 
 どちらの文にそろえるか → **「サーバー内部でエラーが発生しました」**。理由: 3 経路と core の表が前提にしており、動かす箇所が最小（timer の 1 箇所と定数 1 つの削除）。timer の画面表示には影響しない。
 
+## 追加の決定（/code-review の指摘を受けて）
+
+- **timer も reject で `on-message-error` を残す**（r8 計画が #381 に預けた `logsRejection`）。EARS「どの接続の種類でも同じ」に合い、ログの語彙は既存の行のまま使える。`logsRejection` を廃し、`createTextChannel` が常に残す。timer の行の tooLarge / internalError も他の 3 行と同じ `frames` から取る。
+- 旧い文「内部エラーが発生しました」は `connection-error-text-sources.test.ts` の `RETIRED_TEXTS` に残し、src への直書きを禁じる。
+- 変異 m231（reject のログを落とす）を足す。m230 は新しい配線に合わせて作り直した。
+
 ## Constitution Check
 
 憲法（[`docs/constitution.md`](../../constitution.md) v2.1.4）のコンプライアンスゲート。
@@ -49,4 +55,4 @@
 1. `connection-error-text.test.ts` の timer の組を新しい文へ書き換え、赤を見る。
 2. `TIMER_INTERNAL_ERROR_TEXT` を廃し、`ws-adapter.ts` の timer の受け口も正本から取る。緑。
 3. 消した記号と旧文を grep し、散文・コメント・テストを直す。
-4. 変異 m230 を足し、適用して赤を確かめる。
+4. 追加の決定（上）を実装し、変異 m230・m231 を足し、適用して赤を確かめる。

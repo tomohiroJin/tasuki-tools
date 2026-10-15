@@ -2,7 +2,7 @@
 #
 # 検出を期待するテスト:
 #   - apps/tasuki-sync/test/connection-error-text.test.ts
-#     「Given timerのメッセージ層が reject する / When 妥当な本文を送る / Then INTERNAL_ERROR と「サーバー内部でエラーが発生しました」を返し、ログは 0 行」
+#     「Given timerのメッセージ層が reject する / When 妥当な本文を送る / Then INTERNAL_ERROR と「サーバー内部でエラーが発生しました」を返し、ログは 1 行」
 #
 # 適用: リポジトリルートから git apply scripts/mutations/m230-*.patch
 # 復元: git apply -R scripts/mutations/m230-*.patch
@@ -10,14 +10,14 @@
 # #381。timer の内部エラーのフレームを正本（connectionErrorFrame）から取らず、
 # 旧い timer だけの文を直書きする。4 つの接続で文が違う状態に戻る。
 diff --git a/apps/tasuki-sync/src/adapters/ws-adapter.ts b/apps/tasuki-sync/src/adapters/ws-adapter.ts
---- a/apps/tasuki-sync/src/adapters/ws-adapter.ts
-+++ b/apps/tasuki-sync/src/adapters/ws-adapter.ts
+--- a/apps/tasuki-sync/src/adapters/ws-adapter.ts	2026-10-15 09:08:51.925878703 +0900
++++ b/apps/tasuki-sync/src/adapters/ws-adapter.ts	2026-10-15 09:08:51.927533864 +0900
 @@ -204,7 +204,7 @@
        parse: parseTimerCommand,
        deliver: (connId, cmd) => options.timer.handleMessage(connId, cmd),
-       tooLargeFrame: connectionErrorFrame("MESSAGE_TOO_LARGE"),
--      internalErrorFrame: connectionErrorFrame("INTERNAL_ERROR"),
+       tooLargeFrame: frames.tooLarge,
+-      internalErrorFrame: frames.internalError,
 +      internalErrorFrame: { type: "error", code: "INTERNAL_ERROR", message: "内部エラーが発生しました" },
-       logsRejection: false,
      }),
-     hub: rawTextChannel<HubServerMsg>(options.hub, connectionFrames()),
+     hub: rawTextChannel<HubServerMsg>(options.hub, frames),
+     // エラーフレームの型は広い `TopicServerMsg` ではなく狭い `TopicOwnFrame`（#91 R18）。
