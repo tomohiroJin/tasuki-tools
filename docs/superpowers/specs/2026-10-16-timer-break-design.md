@@ -81,14 +81,16 @@ wire（`schemas.ts` の snapshot）には、画面が要る分だけを `session
 | `BreakEnded`（既存） | `since = null`（**早期 return の経路でも必ず**）。凍結した残り時間から再開（既存） |
 | `BreakSuggested`（新規） | `suggestedAt` を今の値で書く |
 | `SessionCompleted` / `SessionAborted` | **時計を止め、休憩の状態を畳む**（§3.5） |
-| `SessionStarted` / `SessionReset` | 休憩の状態を初期化する（`since = null`・`baseline = 0/0`・`suggestedAt = null`） |
+| `SessionStarted` | 休憩の状態を初期化する（`since = null`・`baseline = いまの稼働時間と交代回数`・`suggestedAt = null`）。開始は回数と稼働の累計を畳まないので、基準を 0 にすると、引きずった集約に START が届いたとき開始直後に条件を満たす（PR #416 のレビュー・2026-10-16） |
+| `SessionReset` | 集約を作り直すので、休憩の状態も初期値（`baseline = 0/0`）に戻る |
+| `PhaseSet` | `phase === "session"` なら集約を変えない。**それ以外（ロビーへ戻るなど）では、完成・中断と同じく時計を止めて休憩を畳む**。休憩中にロビーへ戻ると休憩の状態が残っていた（PR #416 のレビュー・2026-10-16） |
 
 `stopWithoutDriver` の注記（`evolve.ts` の「休憩中かどうかは集約に無く、ルームの `onBreak` が持つ」）は書き換える。
-`sessionHasStarted` は、START と同じミリ秒で休憩に入った場合に備えて、`break.since !== null` も見る。
+`sessionHasStarted` は、START と同じミリ秒で休憩に入った場合に備えて、`break.since !== null` も見る。`aggregate.ts` に置き、`evolve`（運転中の席を外したときの直前のドライバー）と `decide`（開始前の `break.start` の拒否・§3.4）が共有する。
 
 ### 3.4 コマンド（`decide`）
 
-- `break.start`: 休憩中でなければ `BreakStarted`。休憩中なら `OnBreak` で拒む
+- `break.start`: 休憩中でなければ `BreakStarted`。休憩中なら `OnBreak` で拒む。**セッションが始まっていない（`sessionHasStarted` が偽。時計が一度も走っていない）なら `PhaseConflict` で拒む**。通すと `break.end` が `SessionStarted` を経ずに時計を走らせる（PR #416 のレビュー・2026-10-16）
 - `break.end`: 休憩中なら `BreakEnded`。休憩中でなければ拒む
 - **休憩中は、時計を動かす操作をすべて拒む**。規則は「`break.since !== null` なら `session.act` の全種と `driver.assign` を `OnBreak` で拒む」で、一覧では書かない（START・RESTART も含む）
 - 休憩中も通すもの: `break.end`、名簿の操作（出入り・並べ替え・代理・一時離脱）、メモ、`session.complete` / `session.abort`、`session.reset`（「最初から」。集約を作り直すので休憩の状態も初期値に戻り、休憩を終えて先頭から走り出す。実装の段で裁定・2026-10-16）
@@ -124,12 +126,14 @@ break?: BreakPolicy;      // 無ければ trigger: "none" と同じ
 
 ### 4.1 判定をかける場所
 
-交代の経路を数え上げるのではなく、**交代が実際に起きたか**という仕組みで判定をかける。
+交代の経路を数え上げるのではなく、**交代の切れ目が来たか**という仕組みで判定をかける。
 
 - 共通の関数 `maybeBreakAfterSwitch(before, after, now)` を置く。呼ぶのは、`handleRoomCommand` の事後処理（`applyAfterEffects`）のあと、コミットの直前と、`autoSwitch` のコミットの直前である
-- この関数は、**`totalSwitches` が増えたときだけ** `isBreakDue` を見る
+- この関数は、**交代の切れ目が来たときだけ** `isBreakDue` を見る。切れ目は「`totalSwitches` が増えた」または「時計が走っていて `accumulatedElapsedMs` が増えた（交代の再アンカー・やり直しで稼働時間を確定した）」
   - 手での交代・強制指名・スキップの繰り上げ・自動交代・不在の繰り上げを、経路を名指しせずに覆う
-  - 並べ替え・名簿の出入り・現状維持の交代では、判定は走らない
+  - **経過時間の判定は、現状維持の交代でも走る**（1 人の輪や他が全員不適格の輪で、経過時間の休憩が来るように。現状維持の交代は回数を増やさないが、時計を再アンカーして稼働時間を確定する。PR #416 のレビュー・2026-10-16）
+  - 並べ替え・名簿の出入り・メモの更新では、判定は走らない（どちらの値も動かさない）。一時停止・休憩・ロビーへの戻りは時計を止めるので、切れ目に当たらない
+- 条件が「なし」なら、適格な席を数えずに返す。適格な席の数は周回の条件のときだけ数える
 - `phase !== "session"` なら判定しない
 - 適格な席の数は `computeIneligibleIndices` から出す
 
@@ -212,7 +216,8 @@ break?: BreakPolicy;      // 無ければ trigger: "none" と同じ
 
 - snapshot の `session.break.since` が null から値へ変わったとき（入った）と、値から null へ変わったとき（終わった）、`suggestedAtSwitches` が新しく `totalSwitches` と一致したとき（知らせた）に、`notify.enabled` に従ってチャイムを鳴らす。`osNotify` なら OS 通知も出す
 - 休憩に入る交代では、`use-switch-alert` を発火させない。チャイムが 2 回鳴る・全画面の知らせが 2 枚重なる、を防ぐ
-- 読み上げ（`use-discrete-announcement`）は「休憩に入りました。休憩明けは X さん」「休憩が終わりました」の 2 つで、交代の文より優先する
+- 読み上げ（`use-discrete-announcement`）は「休憩に入りました。休憩明けは X さん」「休憩が終わりました。ドライバーは X さんです」の 2 つで、交代の文より優先する。終わりの文に運転者を含めるのは、休憩明けの繰り上げ（§4.2）が同じ snapshot で運転者を替え、交代の文が出ないため（PR #416 のレビュー・2026-10-16）
+- 休憩中の時刻の更新は 1 秒ごと（覆いの経過は秒単位）。走行中は 200ms
 
 ### 5.7 書体
 
