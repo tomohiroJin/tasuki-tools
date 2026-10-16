@@ -1,0 +1,23 @@
+# 変異 296: sync-pick-set-ignores-count
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/roulette-handlers.test.ts
+#
+# #401 E1・spec M2。同期サーバーが送られた人数を使わない。人数を変えても全員の画面が 1 人のまま。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m296-*.patch
+# 復元: git apply -R scripts/mutations/m296-*.patch
+diff --git a/apps/tasuki-sync/src/application/roulette-handlers.ts b/apps/tasuki-sync/src/application/roulette-handlers.ts
+index a479b13..03a09ae 100644
+--- a/apps/tasuki-sync/src/application/roulette-handlers.ts
++++ b/apps/tasuki-sync/src/application/roulette-handlers.ts
+@@ -232,7 +232,7 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
+       case "roulette.pick.set": {
+         // 範囲は境界のスキーマが先に絞る。ドメインも同じ範囲を見る（#401 spec M2）。
+         // 回っている間も受ける: 回転は回した時点の人数を picks に凍結して持つ（spec M3）
+-        const next = setPickCount(state, cmd.count);
++        const next = setPickCount(state, 1);
+         if (next.isErr()) {
+           fail(connId, next.error.code);
+           return;

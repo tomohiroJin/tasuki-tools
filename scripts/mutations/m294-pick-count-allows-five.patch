@@ -1,0 +1,23 @@
+# 変異 294: pick-count-allows-five
+#
+# 検出を期待するテスト:
+#   - packages/roulette-core/tests/roulette-multi-pick.test.ts
+#
+# #401 E2・spec M5。選ぶ人数の上限を 1 つ緩める。札の 4 行に収まらない人数が通る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m294-*.patch
+# 復元: git apply -R scripts/mutations/m294-*.patch
+diff --git a/packages/roulette-core/src/roulette.ts b/packages/roulette-core/src/roulette.ts
+index 52a94d6..6b7b11b 100644
+--- a/packages/roulette-core/src/roulette.ts
++++ b/packages/roulette-core/src/roulette.ts
+@@ -83,7 +83,7 @@ export function startSpin(state: RouletteState, input: SpinInput): Result<Roulet
+  * 変えてもその回転は変わらない（spec M3。外す・戻すと同じ扱い）。
+  */
+ export function setPickCount(state: RouletteState, count: number): Result<RouletteState, RouletteError<"INVALID_PICK_COUNT">> {
+-  if (!Number.isInteger(count) || count < 1 || count > MAX_PICK) return err({ code: "INVALID_PICK_COUNT" });
++  if (!Number.isInteger(count) || count < 1 || count > MAX_PICK + 1) return err({ code: "INVALID_PICK_COUNT" });
+   return ok(state.pickCount === count ? state : { ...state, pickCount: count });
+ }
+ 

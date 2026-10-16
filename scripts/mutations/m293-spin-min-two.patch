@@ -1,0 +1,23 @@
+# 変異 293: spin-min-two
+#
+# 検出を期待するテスト:
+#   - packages/roulette-core/tests/roulette-multi-pick.test.ts
+#
+# #401 E5・spec M5。回すの下限が人数を見ず 2 人のまま。入る人がちょうど k 人で全員が選ばれる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m293-*.patch
+# 復元: git apply -R scripts/mutations/m293-*.patch
+diff --git a/packages/roulette-core/src/roulette.ts b/packages/roulette-core/src/roulette.ts
+index 52a94d6..1af73ee 100644
+--- a/packages/roulette-core/src/roulette.ts
++++ b/packages/roulette-core/src/roulette.ts
+@@ -50,7 +50,7 @@ export function startSpin(state: RouletteState, input: SpinInput): Result<Roulet
+   const pool = poolOf(input.members, state, input.conflicts);
+   const k = state.pickCount;
+   // 入る人がちょうど k 人なら全員が選ばれ、回す意味が無い（#401 spec M5）。k = 1 では #94 の「2 人から」と同じ
+-  if (pool.length < k + 1) return err({ code: k === 1 ? "ROULETTE_TOO_FEW" : "ROULETTE_TOO_FEW_FOR_PICK" });
++  if (pool.length < 2) return err({ code: k === 1 ? "ROULETTE_TOO_FEW" : "ROULETTE_TOO_FEW_FOR_PICK" });
+   if (pool.length > MAX_WHEEL) return err({ code: "ROULETTE_TOO_MANY" });
+   const settles: number[] = [];
+   for (let i = 0; i < k; i++) {

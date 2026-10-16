@@ -3,21 +3,21 @@
 # 検出を期待するテスト:
 #   - packages/roulette-core/tests/draw.test.ts
 #
-# #94 E2・spec R6。`drawWinner` が drawn を見ずに pool 全体から引く。1 回目では見分けが付かないので 2 回目で見る。
+# #94 E2・spec R6。抽選が drawn を見ずに pool 全体から引く。1 回目では見分けが付かないので 2 回目で見る。#401 で抽選が `drawPicks` 1 本になったので当て先を移した。
 #
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m151-*.patch
 # 復元: git apply -R scripts/mutations/m151-*.patch
 diff --git a/packages/roulette-core/src/draw.ts b/packages/roulette-core/src/draw.ts
-index 0889942..2bfc965 100644
+index d4d0533..578f979 100644
 --- a/packages/roulette-core/src/draw.ts
 +++ b/packages/roulette-core/src/draw.ts
-@@ -32,7 +32,7 @@ export function drawWinner(
-   randomInt: (n: number) => number,
- ): Result<DrawResult, RouletteError<"INVALID_RANDOM">> {
-   let drawn = new Set(state.drawn);
--  let eligible = pool.filter((e) => !drawn.has(e.id));
-+  let eligible = [...pool];
-   if (eligible.length === 0) {
-     drawn = new Set();
-     const last = state.lastSpin?.wheel[state.lastSpin.winnerIndex]?.id;
+@@ -42,7 +42,7 @@ export function drawPicks(
+   const picked = new Set<string>();
+   const picks: number[] = [];
+   for (let i = 0; i < pickCount; i++) {
+-    let open = pool.filter((e) => !drawn.includes(e.id) && !picked.has(e.id));
++    let open = pool.filter((e) => !picked.has(e.id));
+     if (open.length === 0) {
+       drawn = [];
+       closed = true;
