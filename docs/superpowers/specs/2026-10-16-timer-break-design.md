@@ -60,7 +60,7 @@ interface BreakState {
 }
 ```
 
-wire（`schemas.ts` の snapshot）には、画面が要る分だけを `session.break?: { since: number | null; suggestedAtSwitches: number | null }` として載せる（計画の段で確定）。`baseline` は画面が使わないので載せない。**この項目は任意にする**。理由は、`deploy.sh timer` が web を先に配るので、新しい画面と古いサーバーが並ぶ窓ができるため。`previousDriverIndex` と同じ判断である。
+wire（`schemas.ts` の snapshot）には、画面が要る分だけを `session.break?: { since: number | null; suggestedAtSwitches: number | null; suggestedAtElapsedMs?: number | null }` として載せる（計画の段で確定。`suggestedAtElapsedMs`〔知らせた時点の稼働の累計〕は PR #416 の再レビューで足した。現状維持の交代は回数を進めないので、回数だけでは帯の出し入れと 2 回目以降の知らせを判定できない。後から足したのでそれ自体も任意で、無ければ画面は帯を出さない）。`baseline` は画面が使わないので載せない。**この項目は任意にする**。理由は、`deploy.sh timer` が web を先に配るので、新しい画面と古いサーバーが並ぶ窓ができるため。`previousDriverIndex` と同じ判断である。
 
 ### 3.2 判定
 
@@ -208,13 +208,15 @@ break?: BreakPolicy;      // 無ければ trigger: "none" と同じ
 
 ### 5.5 知らせるだけの帯
 
-- 休憩中でなく、かつ `suggestedAtSwitches === totalSwitches`（いまの交代で知らせた）のときに、画面の上部に帯を出す。文言は「休憩の時間です」と「休憩する」
+- 休憩中でなく、かつ `suggestedAtSwitches === totalSwitches` と `suggestedAtElapsedMs === clock.accumulatedElapsedMs`（いまの切れ目で知らせた）のときに、画面の上部に帯を出す。`suggestedAtElapsedMs` が無い snapshot（古いサーバー）では出さない文言は「休憩の時間です」と「休憩する」
 - シグナルからではなく snapshot から導く。こうすると、再接続した人や途中で入った人にも帯が出る
-- 次の交代で `totalSwitches` が進むので、帯は消える
+- 次の切れ目で帯は消える。交代は `totalSwitches` を進め、現状維持の交代（1 人の輪・他が全員不適格）は回数を進めないが稼働の累計を確定するので、どちらでも一致が崩れる（PR #416 の再レビュー・2026-10-16）
+- 一時停止でも累計が確定するので帯は消え、再開後は次の切れ目まで出ない。受け入れた（知らせはもう出ている。「休憩する」は操作帯に残る）
 
 ### 5.6 知らせ方
 
-- snapshot の `session.break.since` が null から値へ変わったとき（入った）と、値から null へ変わったとき（終わった）、`suggestedAtSwitches` が新しく `totalSwitches` と一致したとき（知らせた）に、`notify.enabled` に従ってチャイムを鳴らす。`osNotify` なら OS 通知も出す
+- snapshot の `session.break.since` が null から値へ変わったとき（入った）と、値から null へ変わったとき（終わった）、`suggestedAtElapsedMs` が新しい null でない値に変わったとき（知らせた。1 回目も 2 回目以降も）に、`notify.enabled` に従ってチャイムを鳴らす。`osNotify` なら OS 通知も出す。初回の描画（休憩中・知らせた後の再接続）では鳴らさない
+- 知らせが交代と同じ snapshot に重なったとき（運転者が替わった）は交代のチャイムが鳴るので、休憩の知らせはチャイムと振動を出さず OS 通知だけにする。現状維持の交代で知らせたとき（運転者が替わらない）は交代のチャイムが鳴らないので、休憩の知らせがチャイムと振動も出す
 - 休憩に入る交代では、`use-switch-alert` を発火させない。チャイムが 2 回鳴る・全画面の知らせが 2 枚重なる、を防ぐ
 - 読み上げ（`use-discrete-announcement`）は「休憩に入りました。休憩明けは X さん」「休憩が終わりました。ドライバーは X さんです」の 2 つで、交代の文より優先する。終わりの文に運転者を含めるのは、休憩明けの繰り上げ（§4.2）が同じ snapshot で運転者を替え、交代の文が出ないため（PR #416 のレビュー・2026-10-16）
 - 休憩中の時刻の更新は 1 秒ごと（覆いの経過は秒単位）。走行中は 200ms
