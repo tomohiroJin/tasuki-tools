@@ -73,14 +73,26 @@ describe("休憩の操作は条件なしのルームに出ない", () => {
     expect(screen.queryByRole("button", { name: /休憩/ })).toBeNull();
   });
 
-  it("Given 条件なしのルームで onBreak=true / When 描く / Then 『休憩中』が表示されない", () => {
-    render(<Session {...props({ ...roomWith(), onBreak: true })} />);
-    expect(screen.queryByText(/休憩中/)).toBeNull();
+  // 画面は休憩中かを `session.break.since` だけで決め、条件を見ない（`isOnBreakRoom`）。条件「なし」では
+  // サーバーが break.start を拒み（BREAK_DISABLED）、セッション中は設定も変えられないので、この snapshot は
+  // 普通は届かない。届いたとき（古いサーバーの状態など）に覆いを隠すと、時計が止まったまま終える手段が
+  // 消える。だから覆いは出して「休憩を終える」を残す、を固定する（総合レビュー・2026-10-16）
+  it("Given 条件なしのルームに休憩中の snapshot が届く / When 描く / Then 覆いは出て、終える手段が残る", () => {
+    render(<Session {...props(roomWith({ brk: { since: 1000, suggestedAtSwitches: null } }))} />);
+    expect(screen.getByRole("dialog", { name: "休憩中" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "休憩を終える" })).toBeInTheDocument();
   });
 
-  it("Given 条件なしのルーム / When 描く / Then 画面に「休」「憩」が無い（書体の拡張の層を取らない）", () => {
+  it("Given 条件なしのルーム / When 描く / Then 画面の文字にも属性にも「休」「憩」が無い（書体の拡張の層を取らない）", () => {
     render(<Session {...props(roomWith({ config: { intervalMinutes: 5 } }))} />);
     expect(document.body.textContent).not.toMatch(/[休憩]/);
+    // 書体は title（ツールチップ）・aria-label（読み上げだけでなく一部は描かれる）・placeholder の字も描く
+    const attrs = [...document.body.querySelectorAll("*")].flatMap((el) =>
+      ["title", "aria-label", "placeholder"].map((name) => el.getAttribute(name) ?? ""),
+    );
+    // 属性を 1 つも拾えていなければ、下の判定は空振りで緑になる
+    expect(attrs.filter((v) => v !== "").length).toBeGreaterThan(0);
+    expect(attrs.filter((v) => /[休憩]/.test(v))).toEqual([]);
   });
 });
 

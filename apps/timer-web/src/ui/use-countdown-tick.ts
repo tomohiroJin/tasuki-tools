@@ -4,10 +4,9 @@
  * 残り秒数(secondsLeft)が個人設定の予告秒数(thresholdSeconds)以下になったら、
  * 整数秒が変わるたびに 1 回だけ、方式(mode)に応じてトーン音または音声読み上げを鳴らす（Issue #5）。
  *
- * running=false（room.clock.running）のときは何もしない。一時停止（evolveSessionPaused）は
- * 必ず freezeRunningClock で running を false にし、休憩(onBreak)は v2.10 で UI/コマンドが
- * 撤去済みの dormant フィールドで実質常に false のため、running 単独で
- * 「一時停止中でも休憩中でもなく走行中」を過不足なく判定できる。
+ * running=false（room.clock.running）のときは何もしない。一時停止（evolveSessionPaused）も
+ * 休憩（evolveBreakStarted・#402）も必ず freezeRunningClock で running を false にするため、
+ * running 単独で「一時停止中でも休憩中でもなく走行中」を過不足なく判定できる。
  */
 
 import { useEffect, useRef } from "react";

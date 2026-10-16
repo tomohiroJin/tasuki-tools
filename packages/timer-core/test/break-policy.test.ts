@@ -71,6 +71,11 @@ describe("isBreakDue", () => {
     const agg = aggWith(120 * MIN, 0, { suggestedAt: { elapsedMs: 60 * MIN, switches: 0 } });
     expect(isBreakDue(agg, { trigger: "elapsed", every: 60, mode: "suggest" }, 4)).toBe(true);
   });
+  it("Given 知らせるだけ・まだ知らせていない・前の休憩が稼働 60 分の時点 / When 稼働 100 分 / Then 偽（印が無ければ前の休憩から数える）", () => {
+    // 印（suggestedAt）が null のときの基準は baseline。0 から数えると 100 ≥ 60 で真に倒れる
+    const agg = aggWith(100 * MIN, 0, { suggestedAt: null, baseline: { elapsedMs: 60 * MIN, switches: 0 } });
+    expect(isBreakDue(agg, { trigger: "elapsed", every: 60, mode: "suggest" }, 4)).toBe(false);
+  });
   it("Given 自動・知らせの印が残る / When 判定する / Then 印は見ない（基準は baseline）", () => {
     const agg = aggWith(60 * MIN, 0, { suggestedAt: { elapsedMs: 60 * MIN, switches: 0 } });
     expect(isBreakDue(agg, { trigger: "elapsed", every: 60, mode: "auto" }, 4)).toBe(true);

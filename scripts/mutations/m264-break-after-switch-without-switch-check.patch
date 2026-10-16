@@ -16,7 +16,7 @@ index aa071b88..a1e6670f 100644
  export function maybeBreakAfterSwitch(before: TimerState, after: RoomState, now: number): RoomState {
    const { timer, membership } = after;
 -  if (timer.session.totalSwitches <= before.session.totalSwitches) return after;
-+  
++
    if (timer.phase !== "session" || !timer.clock.running) return after;
    const policy = breakPolicyOf(timer.config);
    const eligibleSeats = timer.session.rotation.length - computeIneligibleIndices(membership, timer).size;
