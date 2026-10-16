@@ -32,7 +32,7 @@ import { BREAK_TEXT, breakElapsedMs, isBreakEnabled, isOnBreakRoom, isSuggestBan
 import { useBreakAlert } from "./use-break-alert.js";
 import { useLastOneGuard } from "./use-last-one-guard.js";
 import { SharedMemo } from "./components/SharedMemo.js";
-import { useNowTick } from "./use-now-tick.js";
+import { BREAK_TICK_MS, RUNNING_TICK_MS, useNowTick } from "./use-now-tick.js";
 import { useDiscreteAnnouncement } from "./use-discrete-announcement.js";
 import { usePrefersReducedMotion } from "./use-reduced-motion.js";
 import { useSwitchAlert } from "./use-switch-alert.js";
@@ -130,7 +130,11 @@ export function Session({
   // 休憩中は時計が止まるが、休憩の経過を数えるので時刻を進める（#402）。
   const onBreak = isOnBreakRoom(room);
   const breakSince = room.session.break?.since ?? null;
-  const now = useNowTick(room.clock.running || onBreak, breakSince ?? room.clock.anchorServerTime);
+  const now = useNowTick(
+    room.clock.running || onBreak,
+    breakSince ?? room.clock.anchorServerTime,
+    onBreak ? BREAK_TICK_MS : RUNNING_TICK_MS,
+  );
   const elapsed = useMemo(
     () => elapsedMs(room.clock, now, clockOffset),
     [room.clock, now, clockOffset],

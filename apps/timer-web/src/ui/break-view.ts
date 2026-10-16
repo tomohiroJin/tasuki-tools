@@ -24,7 +24,7 @@ export const BREAK_TEXT = {
   reclaimWarningLast: "あなたが最後の一人です。この画面を閉じると、しばらくしてルームは消えます。",
   suggestBand: "休憩の時間です",
   announceStarted: (name: string) => `休憩に入りました。休憩明けは${name}さんです`,
-  announceEnded: "休憩が終わりました",
+  announceEnded: (name: string) => `休憩が終わりました。ドライバーは${name}さんです`,
   osNotifyTitle: "休憩の時間です",
   roundsEstimate: (minutes: number) => `約 ${minutes} 分ごと`,
   roundsUnavailableAlone: "1 人では周回の条件は使えません",

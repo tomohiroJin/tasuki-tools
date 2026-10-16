@@ -124,6 +124,22 @@ describe("休憩（#402）", () => {
     expect(screen.getByText("01:00")).toBeInTheDocument();
   });
 
+  // 覆いの経過は秒単位なので、休憩中は 1 秒ごとに描けば足りる。走行中の 200ms のまま Session 全体を
+  // 描き直すと、止まった画面を 1 秒に 5 回作り直す（PR #416 のレビュー）。間隔は再描画の唯一の源（useNowTick の setInterval）で測る。
+  it.each([
+    ["休憩中", 1000, false],
+    ["走行中（対照）", 200, true],
+  ] as const)("Given %s / When 描く / Then 時刻を進める間隔は %i ms", (label, expected, running) => {
+    const base = label === "休憩中" ? onBreakRoom(Date.now() - 60_000) : roomWith({ config: ELAPSED });
+    const spy = vi.spyOn(globalThis, "setInterval");
+    try {
+      render(<Session {...props({ ...base, clock: { ...base.clock, running } })} />);
+      expect(spy.mock.calls.map((c) => c[1])).toEqual([expected]);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it("Given 休憩中 / When 覆いが開く / Then フォーカスは見出しにあり、Enter でも Esc でも休憩は終わらない", async () => {
     const onEndBreak = vi.fn();
     render(<Session {...props(onBreakRoom(1000))} onEndBreak={onEndBreak} />);

@@ -26,7 +26,8 @@ export function deriveAnnouncement(
 ): string | null {
   // 休憩（#402）。交代と同じ snapshot で入るので、交代の文より先に見る。
   if (!prev.onBreak && next.onBreak) return BREAK_TEXT.announceStarted(next.driverName);
-  if (prev.onBreak && !next.onBreak) return BREAK_TEXT.announceEnded;
+  // 休憩明けの繰り上げは同じ snapshot で運転者を替えるので、終わりの文にいまの運転者を含める（交代の文は出ない）
+  if (prev.onBreak && !next.onBreak) return BREAK_TEXT.announceEnded(next.driverName);
 
   // 一時停止/再開
   if (!prev.isPaused && next.isPaused) return "一時停止しました";
