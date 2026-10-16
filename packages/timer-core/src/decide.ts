@@ -65,8 +65,10 @@ export function decide(
   agg: Aggregate,
   now: number,
 ): Result<DomainEvent[], DomainError> {
-  // 休憩中は時計を動かす操作をすべて拒む（#402 設計 §3.4）。一覧ではなく規則で書く ——
-  // 時計を動かすのは session.act と driver.assign で、休憩を終えるのは break.end だけである。
+  // 休憩中に拒むのは、時計を動かす操作（session.act・driver.assign）と二重の break.start である
+  // （#402 設計 §3.4）。拒む対象はコマンドの種類で決める（session.act の中の操作の種類は列挙しない）。
+  // 休憩を畳むのは break.end のほか、完成・中断・ロビーへの phase.set・session.reset（集約を
+  // 作り直すので休憩も初期に戻る。設計 §3.4 の裁定）で、これらは拒まない。
   // 空の輪の判定（decideSessionAct）より先に来るので、空の輪で休憩中なら OnBreak が先に返る。
   if (
     isOnBreak(agg.session) &&
