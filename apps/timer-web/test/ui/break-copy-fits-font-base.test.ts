@@ -13,7 +13,7 @@ import { buildNoticeMessage } from "../../src/sync/notice-message.js";
  */
 const ALLOWED_OUTSIDE = new Set(["休", "憩"]);
 
-const ERROR_CODES = ["OnBreak", "NotOnBreak", "NOT_IN_SESSION", "CONFIG_LOCKED_IN_SESSION"];
+const ERROR_CODES = ["OnBreak", "NotOnBreak", "NOT_IN_SESSION", "CONFIG_LOCKED_IN_SESSION", "BREAK_DISABLED"];
 
 /** 項目が増えても自動で測られるよう、`BREAK_TEXT` は全項目を走査する（関数の文言は名前・数の両方で呼ぶ） */
 function allBreakTexts(): string[] {

@@ -153,6 +153,8 @@ export const ERROR_MESSAGES: Record<string, string> = {
   // ─── 休憩と設定（#402） ───
   NOT_IN_SESSION: "セッション中だけの操作です。",
   CONFIG_LOCKED_IN_SESSION: "設定はセッションの開始前に変えてください。",
+  // 条件「なし」のルームの break.start。「休」「憩」は書体の base 層に無いので使わない（#402 設計 D9）。
+  BREAK_DISABLED: "このルームの設定では使えない操作です。",
   // ─── ルームへの参加 ───
   // room.join（参加）の試行が閾値を超えたとき。
   JOIN_RATE_LIMITED: "参加の試行が多すぎます。しばらく待ってから再試行してください。",

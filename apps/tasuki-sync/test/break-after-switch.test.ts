@@ -19,6 +19,8 @@ import { participantIdOfConn } from "./support/room-view.js";
 const INTERVAL_MS = 5 * 60 * 1000;
 const ROUNDS_1: BreakPolicy = { trigger: "rounds", every: 1, mode: "auto" };
 const NO_BREAK: BreakPolicy = { trigger: "none", every: 0, mode: "auto" };
+/** 手で休憩するテスト用。条件「なし」では break.start が拒まれる（BREAK_DISABLED）ので、自動では入らない長い間隔にする */
+const MANUAL_ONLY: BreakPolicy = { trigger: "elapsed", every: 120, mode: "auto" };
 
 interface Ctx {
   handlers: ReturnType<typeof makeTestHandlers>;
@@ -200,7 +202,7 @@ describe("交代が起きたら休憩の条件を判定する（#402 設計 §4.
 
 describe("休憩明けの繰り上げ（#402 設計 §4.2）", () => {
   it("Given 休憩中に運転者が一時離脱した / When 休憩を終える / Then 次の適格な人が運転者になり、時計が走る", async () => {
-    const h = await setupRunning(NO_BREAK);
+    const h = await setupRunning(MANUAL_ONLY);
     await h.handlers.handleCommand("host-conn", { command: "break.start" });
     const driver = currentDriverId(h);
     await h.handlers.handleCommand(connOf(h, driver), { command: "driver.skip", participantId: driver });
@@ -213,7 +215,7 @@ describe("休憩明けの繰り上げ（#402 設計 §4.2）", () => {
 
 describe("休憩の開始・終了を全員に伝える（#402 設計 §4.3）", () => {
   it("Given セッション中 / When Bob が休憩を始めて終える / Then notice が 2 本配られる", async () => {
-    const h = await setupRunning(NO_BREAK);
+    const h = await setupRunning(MANUAL_ONLY);
     await h.handlers.handleCommand("bob-conn", { command: "break.start" });
     await h.handlers.handleCommand("bob-conn", { command: "break.end" });
     const actions = h.broadcaster.signals.map((s) => (s.msg as { action?: string }).action).filter(Boolean);
