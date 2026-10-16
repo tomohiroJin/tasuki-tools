@@ -657,6 +657,34 @@ describe("evolve: MemberRemoved / MemberMoved の index 調整分岐", () => {
   });
 });
 
+describe("ロビーへ戻すと時計を止め、休憩を畳む（PR #416 のレビュー）", () => {
+  it.each(["setup", "ready", "celebration"] as const)(
+    "Given 休憩中 / When PhaseSet %s / Then 休憩は畳まれ、時計は止まったまま",
+    (phase) => {
+      let agg = evolve(anAggregate().withRotation("a", "b").build(), { type: "SessionStarted", now: NOW }, NOW);
+      agg = evolve(agg, { type: "BreakStarted", now: NOW + 1000 }, NOW + 1000);
+      const next = evolve(agg, { type: "PhaseSet", phase, now: NOW + 2000 }, NOW + 2000);
+      expect(next.session.break.since).toBeNull();
+      expect(next.clock.running).toBe(false);
+      // 休憩を畳んでも、そのあとの BreakEnded で走り出さない
+      expect(evolve(next, { type: "BreakEnded", now: NOW + 3000 }, NOW + 3000).clock.running).toBe(false);
+    },
+  );
+
+  it("Given 走っている集約 / When PhaseSet setup / Then 時計は止まり、稼働の累計を確定する", () => {
+    const agg = evolve(anAggregate().withRotation("a", "b").build(), { type: "SessionStarted", now: NOW }, NOW);
+    const next = evolve(agg, { type: "PhaseSet", phase: "setup", now: NOW + 5000 }, NOW + 5000);
+    expect(next.clock.running).toBe(false);
+    expect(next.clock.accumulatedElapsedMs).toBe(5000);
+  });
+
+  it("Given 休憩中 / When PhaseSet session / Then 集約を変えない", () => {
+    let agg = evolve(anAggregate().withRotation("a", "b").build(), { type: "SessionStarted", now: NOW }, NOW);
+    agg = evolve(agg, { type: "BreakStarted", now: NOW + 1000 }, NOW + 1000);
+    expect(evolve(agg, { type: "PhaseSet", phase: "session", now: NOW + 2000 }, NOW + 2000)).toEqual(agg);
+  });
+});
+
 describe("完成・中断は時計を止め、休憩を畳む（#402 設計 §3.5）", () => {
   it.each(["SessionCompleted", "SessionAborted"] as const)(
     "Given 休憩を経た走っている集約 / When %s / Then 時計は止まり、休憩の状態は初期値に戻る",
@@ -674,6 +702,18 @@ describe("完成・中断は時計を止め、休憩を畳む（#402 設計 §3.
       expect(next.session.break).toEqual(INITIAL_BREAK_STATE);
     },
   );
+
+  // 完成・中断で止まった集約に、ロビーを経ずに START が届くと（一時停止 → 完成 → 開始の取り違えなど）、
+  // 回数と稼働時間は残る。基準を 0 に戻すと、残った値の分だけ開始直後に休憩の条件を満たす（PR #416 のレビュー）。
+  it("Given 交代 6 回・稼働 40 分の止まった集約 / When SessionStarted / Then 休憩の基準はいまの値になる", () => {
+    const base = anAggregate().withRotation("a", "b").build();
+    const stopped = {
+      session: { ...base.session, totalSwitches: 6 },
+      clock: { ...base.clock, accumulatedElapsedMs: 40 * 60_000 },
+    };
+    const next = evolve(stopped, { type: "SessionStarted", now: NOW }, NOW);
+    expect(next.session.break).toEqual({ since: null, baseline: { elapsedMs: 40 * 60_000, switches: 6 }, suggestedAt: null });
+  });
 
   it("Given 休憩の印が残る集約 / When SessionStarted / Then 休憩の状態は初期値", () => {
     const base = anAggregate().withRotation("a", "b").build();

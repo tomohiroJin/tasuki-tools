@@ -13,6 +13,7 @@ import {
   isSeatIndex,
   nextEligibleIndex,
   rotationEntryId,
+  sessionHasStarted,
 } from "./aggregate.js";
 import type { DomainEvent } from "./events.js";
 
@@ -121,8 +122,12 @@ function evolveByType(agg: Aggregate, event: DomainEvent): Aggregate {
       return evolveDriverTimerReset(agg, event.now);
 
     case "PhaseSet":
-      // PhaseSet はルーム全体に適用。集約（session+clock）には影響しない
-      return agg;
+      // phase はルーム全体の状態（反映はアプリ層）。セッションへ入るときは集約を変えない。
+      // **セッションの外へ出るときは、完成・中断と同じく時計を止めて休憩を畳む**（PR #416 のレビュー）。
+      // 休憩中にロビーへ戻ると `break.since` が残り、ロビーの画面にも覆いが出たまま次の開始を迎えていた。
+      // 完成・中断を経た集約は既に止まって畳まれているので、そこからのロビーへの戻りでは何も変わらない。
+      if (event.phase === "session") return agg;
+      return evolveSessionEnded(agg, event.now);
 
     case "ConfigSet":
       return evolveConfigSet(agg, event.config, event.now);
@@ -199,7 +204,10 @@ function evolveSessionStarted(agg: Aggregate, now: number): Aggregate {
   return {
     // 開始の時点で直前に運転した人は居ない（#374。ロビーの名残を持ち込まない）。
     // 画面は開始をロビーからだけ送る（一時停止からは RESUME。`timer-actions.ts` の `startSession`）。
-    session: { ...agg.session, previousDriverId: null, break: INITIAL_BREAK_STATE },
+    // 休憩の基準は 0 ではなく、いまの稼働時間と交代回数にする（PR #416 のレビュー）。開始は残り時間・回数・
+    // 稼働の累計を畳まない（`session-start.ts`）ので、引きずった集約に START が届くと、基準 0 では
+    // 残った値の分だけ開始直後に休憩の条件を満たす。
+    session: { ...agg.session, previousDriverId: null, break: { since: null, baseline: markOf(agg), suggestedAt: null } },
     clock: {
       ...agg.clock,
       running: true,
@@ -395,14 +403,6 @@ function evolveMemberAdded(agg: Aggregate, participantId: string): Aggregate {
       driverCounts: [...agg.session.driverCounts, 0],
     },
   };
-}
-
-/**
- * セッションが始まっているか（走行中・一時停止中・休憩中〔`break.since`〕のいずれか）。
- * 開始前（ロビー）の集約は時計が一度も走っていない（`accumulatedElapsedMs` が 0 で止まっている）。
- */
-function sessionHasStarted(agg: Aggregate): boolean {
-  return agg.clock.running || agg.session.isPaused || agg.session.break.since !== null || agg.clock.accumulatedElapsedMs > 0;
 }
 
 /**

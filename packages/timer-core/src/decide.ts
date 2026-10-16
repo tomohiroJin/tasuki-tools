@@ -14,6 +14,7 @@ import {
   nextDriverAfterRemoval,
   nextEligibleIndex,
   rotationEntryId,
+  sessionHasStarted,
 } from "./aggregate.js";
 import type { DomainEvent } from "./events.js";
 import type { DomainError } from "./errors.js";
@@ -112,6 +113,11 @@ export function decide(
       return ok([{ type: "HandoffNoteSet", text: cmd.text, now }]);
 
     case "break.start":
+      // 開始前（時計が一度も走っていない）には休憩を作らせない（PR #416 のレビュー）。通すと break.end が
+      // SessionStarted を経ずに時計を走らせ、休憩の基準も開始の送り分け（timer-web の session-start.ts）も素通りする。
+      if (!sessionHasStarted(agg)) {
+        return err({ type: "PhaseConflict", currentPhase: "stopped", requiredPhase: "session" });
+      }
       return ok([{ type: "BreakStarted", now }]);
 
     case "break.end":

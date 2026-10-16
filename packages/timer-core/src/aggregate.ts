@@ -61,6 +61,15 @@ export function isOnBreak(session: Pick<SessionState, "break">): boolean {
   return session.break.since !== null;
 }
 
+/**
+ * セッションが始まっているか（走行中・一時停止中・休憩中〔`break.since`〕のいずれか）。
+ * 開始前（ロビー）の集約は時計が一度も走っていない（`accumulatedElapsedMs` が 0 で止まっている）。
+ * evolve（運転中の席を外したときの直前のドライバー）と decide（開始前の break.start の拒否）が共有する。
+ */
+export function sessionHasStarted(agg: Aggregate): boolean {
+  return agg.clock.running || agg.session.isPaused || agg.session.break.since !== null || agg.clock.accumulatedElapsedMs > 0;
+}
+
 /** セッション状態（時間系を含まない） */
 interface SessionState {
   /** ローテーション順の席（#95 S4a・D6） */

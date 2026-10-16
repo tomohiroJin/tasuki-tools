@@ -44,6 +44,16 @@ describe("decide: 休憩（#402 設計 §3.4）", () => {
   it("Given 休憩中 / When break.end / Then BreakEnded", () => {
     expect(decide({ command: "break.end" }, onBreakAgg(), NOW)._unsafeUnwrap()[0]?.type).toBe("BreakEnded");
   });
+  // 開始前（ロビー・phase.set session の直後で START の前）に休憩を作らせない（PR #416 のレビュー）。
+  // 通すと break.end が SessionStarted を経ずに時計を走らせ、開始の送り分け（session-start.ts）を素通りする。
+  it("Given 時計が一度も走っていない開始前の集約 / When break.start / Then PhaseConflict で拒む", () => {
+    const result = decide({ command: "break.start" }, anAggregate().withRotation("Alice", "Bob").build(), NOW);
+    expect(result._unsafeUnwrapErr().type).toBe("PhaseConflict");
+  });
+  it("Given 一時停止中（開始済み） / When break.start / Then BreakStarted", () => {
+    const paused = anAggregate().withRotation("Alice", "Bob").at(NOW).paused().build();
+    expect(decide({ command: "break.start" }, paused, NOW)._unsafeUnwrap()[0]?.type).toBe("BreakStarted");
+  });
   it("Given 休憩中でない / When break.end / Then NotOnBreak で拒む", () => {
     expect(decide({ command: "break.end" }, startedAgg(), NOW)._unsafeUnwrapErr().type).toBe("NotOnBreak");
   });
