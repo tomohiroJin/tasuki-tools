@@ -224,4 +224,52 @@ describe("休憩（#402）", () => {
     rerender(<Session {...props(running({ currentIndex: 1, totalSwitches: 1 }))} />);
     expect(screen.getByRole("alertdialog", { name: "ドライバー交代通知" })).toBeInTheDocument();
   });
+
+  it("Given 確認ダイアログ（最初から）が開いている / When 休憩中の snapshot が届く / Then フォーカスの奪い合いで落ちず、背後は inert", async () => {
+    const { rerender } = render(<Session {...props(roomWith({ config: ELAPSED }))} />);
+    await userEvent.click(screen.getByRole("button", { name: /最初から/ }));
+    expect(screen.getByRole("dialog", { name: "最初から再スタートしますか？" })).toBeInTheDocument();
+    const errors: unknown[] = [];
+    const onErr = (e: ErrorEvent) => { errors.push(e.error); e.preventDefault(); };
+    window.addEventListener("error", onErr);
+    expect(() => rerender(<Session {...props(onBreakRoom(1000))} />)).not.toThrow();
+    // 背後の確認ダイアログの取消ボタンへフォーカスを移そうとしても、奪い合いにならない
+    screen.getByRole("heading", { name: "休憩中" }).focus();
+    screen.getByRole("button", { name: "キャンセル" }).focus();
+    window.removeEventListener("error", onErr);
+    expect(errors).toEqual([]);
+    // 覆いの外（セッション画面の本体）は操作できない
+    expect(document.querySelector("[inert]")).not.toBeNull();
+    expect(screen.getByRole("dialog", { name: "休憩中" }).closest("[inert]")).toBeNull();
+  });
+
+  it("Given 休憩中 / When 描く / Then 覆いの外のセッション画面は inert、休憩でなければ inert でない", () => {
+    const { container, rerender } = render(<Session {...props(roomWith({ config: ELAPSED }))} />);
+    expect(container.querySelector("[inert]")).toBeNull();
+    rerender(<Session {...props(onBreakRoom(1000))} />);
+    expect(container.querySelector("[inert]")).not.toBeNull();
+  });
+});
+
+describe("最後の一人の beforeunload（設計 §7.1）", () => {
+  function unloadPrevented(): boolean {
+    const e = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(e);
+    return e.defaultPrevented;
+  }
+
+  it("Given 休憩中で自分以外が全員 offline / When beforeunload / Then 確認が出る（preventDefault）", () => {
+    render(<Session {...props(onBreakRoom(1000, { othersOffline: true }))} />);
+    expect(unloadPrevented()).toBe(true);
+  });
+
+  it("Given 休憩中で他に online が居る / When beforeunload / Then 確認は出ない", () => {
+    render(<Session {...props(onBreakRoom(1000))} />);
+    expect(unloadPrevented()).toBe(false);
+  });
+
+  it("Given 休憩中でない（全員 offline でも） / When beforeunload / Then 確認は出ない", () => {
+    render(<Session {...props(roomWith({ config: ELAPSED, othersOffline: true }))} />);
+    expect(unloadPrevented()).toBe(false);
+  });
 });

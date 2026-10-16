@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import { errorMessageFor } from "@tasuki/timer-core";
 import { baseFaces } from "../support/font-base.js";
 import { BREAK_TEXT } from "../../src/ui/break-view.js";
+import { COMPLETE_BUTTON_LABEL, completeConfirmText } from "../../src/ui/components/EndSessionZone.js";
+import { SELF_SKIP_LABEL } from "../../src/ui/components/SelfDriverToggle.js";
 import { buildNoticeMessage } from "../../src/sync/notice-message.js";
 
 /**
@@ -30,7 +32,9 @@ function allBreakTexts(): string[] {
       { selfParticipantId: "p-self", participants: [] },
     ),
   );
-  return [...fromTable, ...notices, ...selfNotices, ...ERROR_CODES.map(errorMessageFor)];
+  // 覆いで再利用して描く文言（完成の確認・一時離脱）。覆いに載せるので、ここでも測る。
+  const reused = [COMPLETE_BUTTON_LABEL, SELF_SKIP_LABEL, ...[true, false].flatMap((shared) => Object.values(completeConfirmText(shared)))];
+  return [...fromTable, ...notices, ...selfNotices, ...reused, ...ERROR_CODES.map(errorMessageFor)];
 }
 
 describe("休憩の文言は書体の常用の層に収まる（#402）", () => {

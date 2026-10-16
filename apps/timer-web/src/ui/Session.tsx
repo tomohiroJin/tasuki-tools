@@ -439,6 +439,9 @@ export function Session({
 
   return (
     <div role="main" aria-label="セッション">
+      {/* 休憩中は覆いの外を inert にする（#402）。覆いと、背後で開いていた確認ダイアログ
+          （どちらも modal のフォーカストラップ）が focusin を奪い合わないように、背後へフォーカスを入れさせない。 */}
+      <div inert={onBreak}>
       <Tabs
         ariaLabel="セッション"
         items={[
@@ -505,6 +508,7 @@ export function Session({
           },
         ]}
       />
+      </div>
       {/* 交代通知・支援技術アナウンスはどのタブでも有効にする（タブに依存しない重要イベント） */}
       <div aria-live="assertive" role="status" className="ui-visually-hidden">
         {announcement}

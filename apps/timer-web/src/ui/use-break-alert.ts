@@ -20,8 +20,12 @@ export function useBreakAlert(since: number | null, suggestedNow: boolean, notif
     prevSinceRef.current = since;
     prevSuggestedRef.current = suggestedNow;
     if (!(started || ended || suggested) || !notify.enabled) return;
-    playChime(notify.soundId, notify.volume);
-    vibrateSwitch();
+    // 「知らせた」は必ず交代と同じ snapshot に重なる。交代のチャイム（use-switch-alert）が鳴るので、
+    // ここでは鳴らさず・振動もしない。帯と OS 通知だけを出す。
+    if (!suggested || started || ended) {
+      playChime(notify.soundId, notify.volume);
+      vibrateSwitch();
+    }
     if (notify.osNotify && (started || suggested)) notifyBreak(BREAK_TEXT.osNotifyTitle);
   }, [since, suggestedNow, notify.enabled, notify.soundId, notify.osNotify, notify.volume]);
 }

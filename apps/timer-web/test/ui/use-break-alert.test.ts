@@ -4,7 +4,7 @@ import { renderHook } from "@testing-library/react";
 vi.mock("../../src/platform/sound.js", () => ({ playChime: vi.fn(), vibrateSwitch: vi.fn() }));
 vi.mock("../../src/platform/notify.js", () => ({ notifyDriverChange: vi.fn(), notifyBreak: vi.fn() }));
 
-import { playChime } from "../../src/platform/sound.js";
+import { playChime, vibrateSwitch } from "../../src/platform/sound.js";
 import { notifyBreak } from "../../src/platform/notify.js";
 import { useBreakAlert } from "../../src/ui/use-break-alert.js";
 
@@ -39,18 +39,11 @@ describe("useBreakAlert（#402 §5.6）", () => {
     expect(notifyBreak).not.toHaveBeenCalled();
   });
 
-  it("Given 帯が出ていない / When 知らせるだけの帯が出る / Then チャイムと OS 通知", () => {
+  it("Given 帯が出ている / When 同じ状態で再描画 / Then OS 通知を重ねて出さない", () => {
     const { rerender } = setup();
     rerender({ since: null, sug: true });
-    expect(playChime).toHaveBeenCalledTimes(1);
+    rerender({ since: null, sug: true });
     expect(notifyBreak).toHaveBeenCalledTimes(1);
-  });
-
-  it("Given 帯が出ている / When 同じ状態で再描画 / Then 重ねて鳴らさない", () => {
-    const { rerender } = setup();
-    rerender({ since: null, sug: true });
-    rerender({ since: null, sug: true });
-    expect(playChime).toHaveBeenCalledTimes(1);
   });
 
   it("Given 個人設定で通知が OFF / When 休憩に入る / Then 鳴らさない", () => {
@@ -58,5 +51,19 @@ describe("useBreakAlert（#402 §5.6）", () => {
     rerender({ since: 100, sug: false });
     expect(playChime).not.toHaveBeenCalled();
     expect(notifyBreak).not.toHaveBeenCalled();
+  });
+
+  it("Given 休憩中から描き始める（再接続直後） / When 初回に描く / Then 鳴らさない", () => {
+    renderHook(() => useBreakAlert(100, false, on));
+    expect(playChime).not.toHaveBeenCalled();
+    expect(notifyBreak).not.toHaveBeenCalled();
+  });
+
+  it("Given 帯が出ていない / When 知らせるだけの帯が出る / Then チャイムと振動は鳴らさず（交代のチャイムと二重になる）、OS 通知だけ出す", () => {
+    const { rerender } = setup();
+    rerender({ since: null, sug: true });
+    expect(playChime).not.toHaveBeenCalled();
+    expect(vibrateSwitch).not.toHaveBeenCalled();
+    expect(notifyBreak).toHaveBeenCalledTimes(1);
   });
 });
