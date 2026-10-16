@@ -3,7 +3,7 @@
 export { SETTLE_MIN, SETTLE_MAX } from "./limits.js";
 
 export { INITIAL_ROULETTE_STATE } from "./types.js";
-export type { Entry, EntryId, Member, NameConflict, RouletteState, Spin } from "./types.js";
+export type { Entry, EntryId, Member, NameConflict, Pick, RouletteState, Spin } from "./types.js";
 
 export { poolOf } from "./pool.js";
 
@@ -14,6 +14,7 @@ export {
   removeGuest,
   resetCycle,
   prune,
+  setPickCount,
   toView,
 } from "./roulette.js";
 export type { SpinInput, RouletteView } from "./roulette.js";

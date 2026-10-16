@@ -147,7 +147,7 @@ describe("ルーレットの接続でルームへ入る", () => {
 
     // Then: 復帰の組 → いまの状態の順で届く
     expect(h.sent.filter((s) => s.connId === "r-1").map((s) => s.msg.type)).toEqual(["room.joined", "roulette"]);
-    expect(viewsTo(h, "r-1")).toEqual([{ excluded: [], guests: [], drawn: [], spin: null }]);
+    expect(viewsTo(h, "r-1")).toEqual([{ pickCount: 1, excluded: [], guests: [], drawn: [], spin: null }]);
     expect([...h.store.get(ROOM)!.participants[0]!.connections]).toEqual([["r-1", "roulette"]]);
   });
 
@@ -622,6 +622,121 @@ describe("足す名前と同じ名前の判定", () => {
  *
  * @requirements #94 §5.2
  */
+/**
+ * @requirements #401 E1・E2・E5・E6（選ぶ人数）
+ */
+describe("選ぶ人数", () => {
+  it("roulette.pick.set はルームの全接続へ配られ、後から入った接続にも届く", async () => {
+    // Given
+    const h = setup();
+    await joined(h, "r-1", "Alice");
+    await joined(h, "r-2", "Bob");
+
+    // When
+    await h.handle("r-1", { command: "roulette.pick.set", count: 2 });
+    await h.handle("r-3", { command: "room.join", code: ROOM, displayName: "Carol" });
+
+    // Then
+    expect(viewsTo(h, "r-1").at(-1)?.pickCount).toBe(2);
+    expect(viewsTo(h, "r-2").at(-1)?.pickCount).toBe(2);
+    expect(viewsTo(h, "r-3")[0]?.pickCount).toBe(2);
+  });
+
+  it("範囲の外は INVALID_PICK_COUNT になり、状態は変わらず配られない。数でなければ境界で INVALID_COMMAND", async () => {
+    // Given
+    const h = setup();
+    await joined(h, "r-1", "Alice");
+    const before = h.roulettes.get(ROOM);
+
+    // When
+    await h.handle("r-1", { command: "roulette.pick.set", count: 5 });
+    await h.handle("r-1", { command: "roulette.pick.set", count: 1.5 });
+    await h.handle("r-1", { command: "roulette.pick.set", count: "2" });
+
+    // Then
+    expect(errorsTo(h, "r-1")).toEqual(["INVALID_PICK_COUNT", "INVALID_PICK_COUNT", "INVALID_COMMAND"]);
+    expect(h.roulettes.get(ROOM)).toBe(before);
+    expect(h.sent.filter((s) => s.msg.type === "roulette")).toEqual([]);
+  });
+
+  it("同じ値への変更は配らない", async () => {
+    // Given
+    const h = setup();
+    await joined(h, "r-1", "Alice");
+    await h.handle("r-1", { command: "roulette.pick.set", count: 3 });
+    h.sent.length = 0;
+
+    // When
+    await h.handle("r-1", { command: "roulette.pick.set", count: 3 });
+
+    // Then
+    expect(h.sent).toEqual([]);
+  });
+
+  it("k = 3 で回すと 3 人が選ばれ、durationMs は 3 人ぶん。1 人ぶんの 4000ms を過ぎても次は回せない", async () => {
+    // Given: 4 人・k = 3
+    const h = setup();
+    for (const [connId, name] of [["r-1", "Alice"], ["r-2", "Bob"], ["r-3", "Carol"], ["r-4", "Dave"]] as const) {
+      await joined(h, connId, name);
+    }
+    await h.handle("r-1", { command: "roulette.pick.set", count: 3 });
+
+    // When
+    await h.handle("r-1", { command: "roulette.spin" });
+    const spin = viewsTo(h, "r-2").at(-1)!.spin!;
+    h.advance(5_000);
+    await h.handle("r-1", { command: "roulette.spin" });
+
+    // Then
+    expect(spin.picks?.map((p) => spin.wheel[p.index]!.name)).toEqual(["Alice", "Bob", "Carol"]);
+    expect(spin.picks?.[0]?.index).toBe(spin.winnerIndex);
+    expect(spin.durationMs).toBeGreaterThan(5_000);
+    expect(errorsTo(h, "r-1")).toEqual(["ROULETTE_SPINNING"]);
+
+    // 全体の長さを過ぎたら回せる（対照）
+    h.advance(spin.durationMs - 5_000);
+    await h.handle("r-1", { command: "roulette.spin" });
+    expect(viewsTo(h, "r-1").at(-1)?.spin?.seq).toBe(2);
+  });
+
+  it("入る人が選ぶ人数 + 1 に満たなければ ROULETTE_TOO_FEW_FOR_PICK", async () => {
+    // Given: 2 人・k = 2
+    const h = setup();
+    await joined(h, "r-1", "Alice");
+    await joined(h, "r-2", "Bob");
+    await h.handle("r-1", { command: "roulette.pick.set", count: 2 });
+
+    // When
+    await h.handle("r-1", { command: "roulette.spin" });
+
+    // Then
+    expect(errorsTo(h, "r-1")).toEqual(["ROULETTE_TOO_FEW_FOR_PICK"]);
+  });
+
+  it("回っている間に選ぶ人数を変えても、回っている回転の picks と durationMs は変わらない", async () => {
+    // Given: 3 人・k = 2 で回した
+    const h = setup();
+    for (const [connId, name] of [["r-1", "Alice"], ["r-2", "Bob"], ["r-3", "Carol"]] as const) {
+      await joined(h, connId, name);
+    }
+    await h.handle("r-1", { command: "roulette.pick.set", count: 2 });
+    await h.handle("r-1", { command: "roulette.spin" });
+    const spun = viewsTo(h, "r-1").at(-1)!.spin!;
+    expect(spun.picks).toHaveLength(2);
+
+    // When
+    h.advance(1_000);
+    await h.handle("r-2", { command: "roulette.pick.set", count: 1 });
+
+    // Then: 人数は配られるが、回転はそのまま
+    const after = viewsTo(h, "r-1").at(-1)!;
+    expect(after.pickCount).toBe(1);
+    expect(after.spin?.seq).toBe(spun.seq);
+    expect(after.spin?.picks).toEqual(spun.picks);
+    expect(after.spin?.durationMs).toBe(spun.durationMs);
+  });
+});
+
 describe("保管と配信", () => {
   it("失敗したコマンドは状態を保管せず、配りもしない（名簿から消えた記録の掃除も成功の経路でだけ行う）", async () => {
     // Given: Bob を外した後で Bob が名簿から消える（次のコマンドで prune される記録がある）

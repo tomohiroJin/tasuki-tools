@@ -221,6 +221,46 @@ describe("回した結果の配信", () => {
 });
 
 /**
+ * @requirements #401 E1・E2（選ぶ人数はルーレットの接続だけが変えられる）
+ */
+describe("選ぶ人数（実接続）", () => {
+  it("ルーレットの接続から変えた人数が全ルーレットの接続へ届き、timer・ハブの接続からの roulette.pick.set は拒否される", async () => {
+    // Given
+    const hub = await server.connectHub("hub");
+    const code = await hubCreate(hub, "モブ", "あや");
+    const r1 = await server.connectRoulette("r1");
+    await rouletteJoin(r1, code, "いずみ");
+    const r2 = await server.connectRoulette("r2");
+    await rouletteJoin(r2, code, "けい");
+    const timer = await server.connect("timer");
+    timer.send({ command: "room.join", code, displayName: "ひかり" });
+    await timer.take("room.joined");
+
+    // When: ほかのツールから送る（型では送れないので境界を迂回する）
+    timer.sendRaw(JSON.stringify({ command: "roulette.pick.set", count: 3 }));
+    hub.send({ command: "roulette.pick.set", count: 3 } as unknown as HubCommand);
+
+    // Then
+    expect((await timer.take("error")).code).toBe("INVALID_COMMAND");
+    const hubErr = await hub.take((m) => m.type === "error", "ハブの拒否");
+    if (hubErr.type !== "error") throw new Error("error ではない");
+    expect(hubErr.code).toBe("INVALID_COMMAND");
+
+    // When: ルーレットの接続から送る
+    r1.send({ command: "roulette.pick.set", count: 2 });
+
+    // Then: 2 本のルーレットの接続に 2 が届く（ほかのツールの 3 は効いていない）
+    const pickCountOf = (m: unknown): number | undefined =>
+      (m as { type: string; state?: { pickCount?: number } }).type === "roulette"
+        ? (m as { state: { pickCount?: number } }).state.pickCount
+        : undefined;
+    expect(pickCountOf(await r1.take((m) => pickCountOf(m) === 2, "r1 の人数"))).toBe(2);
+    expect(pickCountOf(await r2.take((m) => pickCountOf(m) === 2, "r2 の人数"))).toBe(2);
+    expect([...r1.received, ...r2.received].some((m) => pickCountOf(m) === 3)).toBe(false);
+  });
+});
+
+/**
  * ルーレットの接続は poker の早期 return を通らない（`onConnect` を通る）。
  */
 describe("ルーレットの接続の参加の総当たり", () => {

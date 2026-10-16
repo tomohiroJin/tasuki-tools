@@ -77,7 +77,7 @@ export function membersOf(roster: RosterRoom | null): Member[] {
 
 /** `poolOf` が読む形（`excluded` と `guests` だけが効く）。 */
 function stateOf(view: RouletteView): RouletteState {
-  return { excluded: view.excluded, guests: view.guests, drawn: view.drawn, lastSpin: null, nextGuestSeq: 1 };
+  return { excluded: view.excluded, guests: view.guests, drawn: view.drawn, lastSpin: null, nextGuestSeq: 1, pickCount: view.pickCount ?? 1 };
 }
 
 /**
