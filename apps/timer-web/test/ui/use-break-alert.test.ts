@@ -73,9 +73,10 @@ describe("useBreakAlert", () => {
   });
 
   it("Given 休憩中から描き始める（再接続直後） / When 初回に描く / Then 鳴らさない", () => {
-    // Given（前提は下の呼び出しの引数に込めている）
+    // Given
+    const since = 100;
     // When
-    renderHook(() => useBreakAlert(100, null, ALICE, on));
+    renderHook(() => useBreakAlert(since, null, ALICE, on));
     // Then
     expect(playChime).not.toHaveBeenCalled();
     expect(notifyBreak).not.toHaveBeenCalled();
@@ -111,9 +112,10 @@ describe("useBreakAlert", () => {
   });
 
   it("Given 知らせた状態で描き始める（再接続直後） / When 初回に描く / Then 鳴らさない", () => {
-    // Given（前提は下の呼び出しの引数に込めている）
+    // Given
+    const suggestedAtElapsedMs = 1_800_000;
     // When
-    renderHook(() => useBreakAlert(null, 1_800_000, ALICE, on));
+    renderHook(() => useBreakAlert(null, suggestedAtElapsedMs, ALICE, on));
     // Then
     expect(playChime).not.toHaveBeenCalled();
     expect(notifyBreak).not.toHaveBeenCalled();

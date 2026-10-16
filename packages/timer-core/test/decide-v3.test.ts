@@ -71,10 +71,12 @@ describe("decide: 休憩", () => {
     { command: "handoff.note.set", text: "x" },
     { command: "member.move", fromIndex: 0, toIndex: 1 },
   ] as const)("Given 休憩中 / When %j / Then 通す", (cmd) => {
-    // Given（前提は表の行・引数に込めている）
+    // Given
+    const agg = onBreakAgg();
     // When
+    const result = decide(cmd, agg, NOW);
     // Then
-    expect(decide(cmd, onBreakAgg(), NOW).isOk()).toBe(true);
+    expect(result.isOk()).toBe(true);
   });
 
   // v2.3 #2b: 休憩は集約のタイマーを停止/再開するようになった（旧仕様では集約不変だった）。

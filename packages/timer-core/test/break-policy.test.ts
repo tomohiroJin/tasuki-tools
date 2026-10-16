@@ -45,10 +45,12 @@ describe("isBreakDue", () => {
     [59 * MIN, false],
     [60 * MIN, true],
   ])("Given 経過 60 分・基準 0 / When 稼働 %i ms / Then %s", (elapsed, expected) => {
-    // Given（前提は表の行・引数に込めている）
+    // Given
+    const agg = aggWith(elapsed, 0);
     // When
+    const due = isBreakDue(agg, { trigger: "elapsed", every: 60, mode: "auto" }, 4);
     // Then
-    expect(isBreakDue(aggWith(elapsed, 0), { trigger: "elapsed", every: 60, mode: "auto" }, 4)).toBe(expected);
+    expect(due).toBe(expected);
   });
   it("Given 経過 60 分・前の休憩が稼働 30 分の時点 / When 稼働 89 分 / Then 偽（休憩のたびに数え直す）", () => {
     const agg = aggWith(89 * MIN, 0, { baseline: { elapsedMs: 30 * MIN, switches: 0 } });
@@ -58,10 +60,12 @@ describe("isBreakDue", () => {
     [7, false],
     [8, true],
   ])("Given 周回 2・適格 4 席 / When 交代 %i 回 / Then %s", (switches, expected) => {
-    // Given（前提は表の行・引数に込めている）
+    // Given
+    const agg = aggWith(0, switches);
     // When
+    const due = isBreakDue(agg, { trigger: "rounds", every: 2, mode: "auto" }, 4);
     // Then
-    expect(isBreakDue(aggWith(0, switches), { trigger: "rounds", every: 2, mode: "auto" }, 4)).toBe(expected);
+    expect(due).toBe(expected);
   });
   it("Given 周回 1・適格 2 席（4 席中 2 人が一時離脱） / When 交代 2 回 / Then 真（分母は適格な席の数）", () => {
     expect(isBreakDue(aggWith(0, 2), { trigger: "rounds", every: 1, mode: "auto" }, 2)).toBe(true);

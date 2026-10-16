@@ -82,66 +82,71 @@ describe("BreakSettings", () => {
     expect(onChange).toHaveBeenCalledWith({ trigger: "elapsed", every: 60, mode: "suggest" });
   });
   it("Given 周回 1 周・3 分交代・2 人 / When 描く / Then 約 6 分ごとの目安が出る", () => {
-    // Given（前提は下の呼び出しの引数に込めている）
-    // When
-    render(
+    // Given
+    const ui = (
       <BreakSettings
         policy={{ trigger: "rounds", every: 1, mode: "auto" }}
         intervalMinutes={3}
         eligibleSeats={2}
         onChange={() => {}}
-      />,
+      />
     );
+    // When
+    render(ui);
     // Then
     expect(screen.getByText(/約 6 分ごと/)).toBeInTheDocument();
   });
   it("Given 周回 2 周・5 分交代・3 人 / When 描く / Then 約 30 分ごと（積。和なら 10 になる）", () => {
-    // Given（前提は下の呼び出しの引数に込めている）
-    // When
-    render(
+    // Given
+    const ui = (
       <BreakSettings
         policy={{ trigger: "rounds", every: 2, mode: "auto" }}
         intervalMinutes={5}
         eligibleSeats={3}
         onChange={() => {}}
-      />,
+      />
     );
+    // When
+    render(ui);
     // Then
     expect(screen.getByText(/約 30 分ごと/)).toBeInTheDocument();
   });
   it("Given 経過時間 / When 描く / Then 周回の目安は出ない", () => {
-    // Given（前提は下の呼び出しの引数に込めている）
-    // When
-    render(
+    // Given
+    const ui = (
       <BreakSettings
         policy={{ trigger: "elapsed", every: 60, mode: "auto" }}
         intervalMinutes={3}
         eligibleSeats={2}
         onChange={() => {}}
-      />,
+      />
     );
+    // When
+    render(ui);
     // Then
     expect(screen.queryByText(/ごと/)).toBeNull();
   });
   it("Given 条件なし / When 描く / Then 間隔と入り方は出ない", () => {
-    // Given（前提は下の呼び出しの引数に込めている）
+    // Given
+    const ui = <BreakSettings policy={undefined} intervalMinutes={5} eligibleSeats={3} onChange={() => {}} />;
     // When
-    render(<BreakSettings policy={undefined} intervalMinutes={5} eligibleSeats={3} onChange={() => {}} />);
+    render(ui);
     // Then
     expect(screen.queryByRole("group", { name: "休憩の間隔" })).toBeNull();
     expect(screen.queryByRole("group", { name: "入り方" })).toBeNull();
   });
   it("Given 経過時間 / When 描く / Then 選択中の条件が aria-pressed になる", () => {
-    // Given（前提は下の呼び出しの引数に込めている）
-    // When
-    render(
+    // Given
+    const ui = (
       <BreakSettings
         policy={{ trigger: "elapsed", every: 60, mode: "auto" }}
         intervalMinutes={5}
         eligibleSeats={3}
         onChange={() => {}}
-      />,
+      />
     );
+    // When
+    render(ui);
     // Then
     expect(screen.getByRole("button", { name: "経過時間" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "60分" })).toHaveAttribute("aria-pressed", "true");
@@ -150,16 +155,17 @@ describe("BreakSettings", () => {
   it.each([0, 1])(
     "Given 周回 1 周・適格な席 %i / When 描く / Then 分の目安は出ず、1 人では使えないと出る",
     (seats) => {
-      // Given（前提は下の呼び出しの引数に込めている）
-      // When
-      render(
+      // Given
+      const ui = (
         <BreakSettings
           policy={{ trigger: "rounds", every: 1, mode: "auto" }}
           intervalMinutes={3}
           eligibleSeats={seats}
           onChange={() => {}}
-        />,
+        />
       );
+      // When
+      render(ui);
       // Then
       expect(screen.queryByText(/分ごと/)).toBeNull();
       expect(screen.getByText("1 人では周回の条件は使えません")).toBeInTheDocument();

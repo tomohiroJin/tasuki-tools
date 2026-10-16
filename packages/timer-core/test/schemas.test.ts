@@ -175,24 +175,26 @@ describe("timer のお題を撤去した", () => {
   });
 
   it("Given 経過時間に周回の値 / When config.set を検証する / Then 落ちる", () => {
-    // Given（前提は下の呼び出しの引数に込めている）
-    // When
-    const r = v.safeParse(CommandSchema, {
+    // Given
+    const cmd = {
       command: "config.set",
       config: { intervalMinutes: 5, break: { trigger: "elapsed", every: 2, mode: "auto" } },
-    });
+    };
+    // When
+    const r = v.safeParse(CommandSchema, cmd);
     // Then
     expect(r.success).toBe(false);
   });
 
   it("Given 正しい休憩の設定 / When room.create を検証する / Then 通る", () => {
-    // Given（前提は下の呼び出しの引数に込めている）
-    // When
-    const r = v.safeParse(CommandSchema, {
+    // Given
+    const cmd = {
       command: "room.create",
       displayName: "a",
       config: { intervalMinutes: 5, break: { trigger: "rounds", every: 2, mode: "auto" } },
-    });
+    };
+    // When
+    const r = v.safeParse(CommandSchema, cmd);
     // Then
     expect(r.success).toBe(true);
   });
@@ -517,9 +519,10 @@ describe("RoomSchema: config.members を落とした（#294）", () => {
 /** @requirements #402 */
 describe("休憩の wire", () => {
   it("Given session.break が無い snapshot（古いサーバー） / When 検証する / Then 通り、break は無いまま", () => {
-    // Given（前提は下の呼び出しの引数に込めている）
+    // Given
+    const room = validRoom();
     // When
-    const r = v.safeParse(RoomSchema, validRoom());
+    const r = v.safeParse(RoomSchema, room);
     // Then
     expect(r.success).toBe(true);
     expect(r.success && r.output.session.break).toBeUndefined();
@@ -588,26 +591,26 @@ describe("休憩の wire", () => {
   });
 
   it("Given 休憩の開始の notice / When 検証する / Then 通る", () => {
-    // Given（前提は下の呼び出しの引数に込めている）
-    // When
-    const r = v.safeParse(ServerMsgSchema, {
+    // Given
+    const msg = {
       type: "signal",
       signal: "notice",
       action: "break-started",
       actorName: "a",
       actorParticipantId: "p1",
-    });
+    };
+    // When
+    const r = v.safeParse(ServerMsgSchema, msg);
     // Then
     expect(r.success).toBe(true);
   });
 
-  /** @requirements #402 */
   it("Given suggest-break シグナル / When 検証する / Then 落ちる", () => {
-    // Given（前提は表の行・引数に込めている）
+    // Given
+    const msg = { type: "signal", signal: "suggest-break", rounds: 1 };
     // When
+    const r = v.safeParse(ServerMsgSchema, msg);
     // Then
-    expect(
-      v.safeParse(ServerMsgSchema, { type: "signal", signal: "suggest-break", rounds: 1 }).success,
-    ).toBe(false);
+    expect(r.success).toBe(false);
   });
 });

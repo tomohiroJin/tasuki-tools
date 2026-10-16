@@ -234,9 +234,10 @@ describe("現状維持の交代でも経過時間の判定は走る", () => {
   // 1 人の輪（他が全員不適格も同じ）では交代が現状維持になり、回数は増えないが、時計は再アンカーして
   // 稼働時間を確定する。回数だけを入口にすると、経過時間の条件でも休憩が来なかった。
   it("Given 1 人の輪・経過 30 分・自動 / When 自動交代で 30 分走る / Then 休憩に入る", async () => {
-    // Given（前提は下の呼び出しの引数に込めている）
+    // Given
+    const policy = { trigger: "elapsed", every: 30, mode: "auto" } as const;
     // When
-    const h = await setupRunning({ trigger: "elapsed", every: 30, mode: "auto" }, []);
+    const h = await setupRunning(policy, []);
     // Then
     expect(timerOf(h).session.rotation).toHaveLength(1);
     for (let i = 0; i < 5; i++) advanceOneSwitch(h);

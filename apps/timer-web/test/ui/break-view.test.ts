@@ -46,11 +46,13 @@ describe("break-view", () => {
     ["知らせていない", false, { since: null, suggestedAtSwitches: null, suggestedAtElapsedMs: null }, 3, 900],
     ["旧サーバー（累計が無い）", false, { since: null, suggestedAtSwitches: 3 }, 3, 900],
   ] as const)("Given %s / When 帯を出すか / Then %s", (_label, expected, brk, switches, elapsedMs) => {
-    // Given（前提は下の呼び出しの引数に込めている）
-    // When
+    // Given
     const room = aRoomView({ session: { break: brk, totalSwitches: switches } });
+    const view = { ...room, clock: { ...room.clock, accumulatedElapsedMs: elapsedMs } };
+    // When
+    const visible = isSuggestBandVisible(view);
     // Then
-    expect(isSuggestBandVisible({ ...room, clock: { ...room.clock, accumulatedElapsedMs: elapsedMs } })).toBe(expected);
+    expect(visible).toBe(expected);
   });
   it("Given session.break が無い / When 帯を出すか / Then 偽", () => {
     expect(isSuggestBandVisible(aRoomView({}))).toBe(false);
@@ -65,10 +67,12 @@ describe("break-view", () => {
     "Given 適格な席が %i / When 周回の目安の文を出す / Then 分の目安でなく「1 人では周回の条件は使えません」",
     (seats) => {
       // 1 人では輪が回らないので、周回の目安（席 × 間隔）は「約 0 分」や「約 3 分」の嘘になる（総合レビュー I2）
-      // Given（前提は表の行・引数に込めている）
+      // Given
+      const intervalMinutes = 3;
       // When
+      const text = roundsEstimateText(intervalMinutes, seats, 1);
       // Then
-      expect(roundsEstimateText(3, seats, 1)).toBe("1 人では周回の条件は使えません");
+      expect(text).toBe("1 人では周回の条件は使えません");
     },
   );
   it("Given 適格な席が 2 / When 周回の目安の文を出す / Then 約 6 分ごと", () => {

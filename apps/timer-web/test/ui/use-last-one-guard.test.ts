@@ -21,12 +21,12 @@ describe("useLastOneGuard", () => {
   });
 
   it("Given active=true から false に変わる / When beforeunload / Then 解除されて確認は出ない", () => {
-    // Given（前提は下の呼び出しの引数に込めている）
-    // When
+    // Given
     const { rerender } = renderHook(({ a }) => useLastOneGuard(a), { initialProps: { a: true } });
-    // Then
     expect(unloadPrevented()).toBe(true);
+    // When
     rerender({ a: false });
+    // Then
     expect(unloadPrevented()).toBe(false);
   });
 

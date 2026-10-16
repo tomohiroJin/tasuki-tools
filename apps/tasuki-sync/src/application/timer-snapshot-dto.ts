@@ -92,10 +92,10 @@
  *    再レビュー）。「新しい画面 × 旧サーバー」では項目が来ないので、画面は帯を出さない側へ倒す。
  *
  * 12. **`config.breakEveryRotations` を落とし、`config.break`（休憩の設定）を足した**
- *    （`wire.ts` 末尾の注記）。「旧画面 × 新サーバー」では、旧画面の `RoomSchema` が
- *    `breakEveryRotations` を読まない（非 strict の `v.object` が捨てる）ので、旧画面は休憩の設定を
- *    出さない。「新画面 × 旧サーバー」では `config.break` が来ず（旧サーバーが載せない）、
- *    画面は休憩の設定を「なし」と見る。どちらもパースは落ちない。
+ *    （`wire.ts` 末尾の注記）。「旧画面 × 新サーバー」では、旧画面の `RoomSchema` が未知の
+ *    `config.break` を捨て（非 strict の `v.object`）、`breakEveryRotations` は来ないので省略扱いに
+ *    なる。「新画面 × 旧サーバー」では、新画面の `RoomSchema` が `breakEveryRotations` を捨て、
+ *    `config.break` も無いので、画面は休憩の設定を「なし」と見る。どちらもパースは落ちない。
  * 13. **notice の action に `break-started`・`break-ended` を足した**（`schemas.ts` の notice）。
  *    旧画面は未知の action を契約違反として捨てるが、notice は signal（画面の状態を変えない通知）
  *    なので、旧画面が古くなる（snapshot を取りこぼす）ことはない。休憩の表示は snapshot から出る。
