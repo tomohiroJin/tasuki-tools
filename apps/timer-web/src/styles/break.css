@@ -10,7 +10,13 @@
 }
 
 /* 休憩の覆い（`BreakOverlay.tsx`・#402）。全画面。z-index は交代の知らせ・確認ダイアログと同じ 50 で、
- * 確認ダイアログは覆いの子として描くので DOM 順で覆いの上に出る。色はトークンだけ。 */
+ * 確認ダイアログは覆いの子として描くので DOM 順で覆いの上に出る。色はトークンだけ。
+ *
+ * **地は不透明（画面の地と同じ `--ink`）。** 暗幕（`--scrim`・α 0.92）だと背後の残り時間・ボタン・
+ * 参加者一覧が透けて、覆いの文言と重なって読みにくかった（実画面の報告・総合レビュー I4）。
+ * 上端の帯（ステータスとバナー・`app.css` の `.app-top-over-break`・z-index 60）は覆いの前に出るので、
+ * 中身は上端から帯の高さぶん空けて置く（600px 幅でステータス 2 段とバナー 1 本が収まる高さ。
+ * 帯が無い・低いときは余白が増えるだけで、中身は空いた所の中央に来る）。 */
 
 .break-overlay {
   position: fixed;
@@ -22,9 +28,10 @@
   justify-content: center;
   gap: var(--space-4);
   padding: var(--space-6) var(--space-4);
+  padding-block-start: calc(var(--space-6) * 5);
   overflow-y: auto;
   text-align: center;
-  background-color: var(--scrim);
+  background-color: var(--ink);
   color: var(--bone);
 }
 
@@ -64,9 +71,14 @@
   margin-top: var(--space-4);
 }
 
-/* 知らせるだけの帯（#402 §5.5）。画面の上部 */
+/* 知らせるだけの帯（#402 §5.5）。画面の上端に留める（スクロールしても見える・実画面の報告）。
+ * z-index は画面の中身（交代の輪の顔 20）より上、上端の帯（`.app-top`・40）より下。
+ * 留まる先の先祖に `overflow` を持つ箱は無い（`.session-driver-card` の `clip` は先祖ではない）。 */
 
 .break-suggest-band {
+  position: sticky;
+  top: 0;
+  z-index: 30;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -79,3 +91,11 @@
   background-color: var(--panel-2);
   color: var(--bone);
 }
+
+/* 帯が出ている間だけ、Tab で辿った先が帯の下に隠れないよう、フォーカスで送るときの上の余白を帯の高さぶん取る
+ * （WCAG 2.4.11。下端の操作帯の `scroll-padding-block-end`（`base.css`）と同じ考え方）。
+ * 帯の高さは 1 段で約 4.3rem、狭い画面で 2 段に折り返して約 7rem なので、折り返した高さに合わせる。 */
+html:has(.break-suggest-band) {
+  scroll-padding-block-start: 7rem;
+}
+

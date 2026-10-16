@@ -16,6 +16,14 @@ async function chooseElapsedBreak(page: Page): Promise<void> {
   await page.getByRole('group', { name: '休憩の条件' }).getByRole('button', { name: '経過時間' }).click();
 }
 
+/** ロビーの詳細設定を開き、休憩の条件を「周回」「1周」「知らせるだけ」にする。 */
+async function chooseSuggestEveryRound(page: Page): Promise<void> {
+  await page.getByText('詳細設定').click();
+  await page.getByRole('group', { name: '休憩の条件' }).getByRole('button', { name: '周回' }).click();
+  await page.getByRole('group', { name: '休憩の間隔' }).getByRole('button', { name: '1周', exact: true }).click();
+  await page.getByRole('group', { name: '入り方' }).getByRole('button', { name: '知らせるだけ' }).click();
+}
+
 /** 「残り時間 m:ss」を秒にする。 */
 function secondsOf(label: string | null): number {
   const match = /(\d+):(\d{2})/.exec(label ?? '');
@@ -86,24 +94,107 @@ test.describe('timer の休憩は全員の画面で時計を止め、元の残�
     await expect(page.getByRole('button', { name: /休憩する/ })).toHaveCount(0);
   });
 
-  test('Given 600px 幅の休憩ありのセッション / When 「休憩する」を見る / Then 他の要素に隠れず押せる', async ({ page }) => {
-    // Given: 操作帯が折り返す幅（40rem 未満）
+  test('Given 600px 幅で「知らせるだけ」の帯が出ている / When 下へスクロールして操作帯の「休憩する」を上端へ寄せて見せる / Then 帯は上端に留まり、「休憩する」は帯にも他の要素にも隠れない', async ({
+    page,
+    openPeer,
+  }) => {
+    // Given: 操作帯が折り返す幅（40rem 未満）。周回 1 周・知らせるだけ・2 人なので、スキップ 2 回で帯が出る
     await page.setViewportSize({ width: 600, height: 900 });
-    await createRoom(page, HOST);
-    await chooseElapsedBreak(page);
+    const code = await createRoom(page, HOST);
+    const guest = await openPeer('timer-guest');
+    await joinAsDriver(guest.page, code, GUEST);
+    await expect(lobbyRotationRow(page, GUEST, 2)).toHaveCount(1);
+    await chooseSuggestEveryRound(page);
     await page.getByRole('button', { name: 'セッションを開始' }).click();
-    const button = page.getByRole('button', { name: /休憩する/ });
-    await expect(button).toBeVisible();
+    for (let i = 0; i < 2; i++) {
+      await page.getByRole('button', { name: 'スキップ', exact: true }).click();
+    }
+    const band = page.getByRole('status').filter({ hasText: '休憩の時間です' });
+    await expect(band).toBeVisible();
 
-    // When / Then: ボタンの中心を突いて、当たるのがボタン自身（またはその中身）であること
-    await button.scrollIntoViewIfNeeded();
+    // When: ページの下端までスクロールしてから、操作帯の「休憩する」へフォーカスを送る（Tab で辿るのと同じ送り方）
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    const scrolled = await page.evaluate(() => window.scrollY);
+    expect(scrolled, 'ページがスクロールしない（帯が留まるかを測れない）').toBeGreaterThan(0);
+    const bandTop = await band.evaluate((el) => el.getBoundingClientRect().top);
+    // 帯が上端に留まる（流れの中の要素ならスクロールで画面外＝負の位置へ出る）
+    expect(bandTop, '帯がスクロールで画面の外へ出た').toBeGreaterThanOrEqual(0);
+    expect(bandTop).toBeLessThan(1);
+    const button = page.locator('.session-actions').getByRole('button', { name: /休憩する/ });
+    // ボタンが画面の上へ外れる所までスクロールし直し、上端へ寄せて見せる（`block: 'nearest'`）。
+    // Chromium はフォーカスで送ると中央へ寄せるので帯に当たらないが、Firefox・Safari は最寄りの端へ寄せる。
+    // その送り方を `scrollIntoView` で再現する。帯の高さぶんの上の余白（scroll-padding）が無いと、
+    // ボタンは留まった帯の下に入る
+    await button.evaluate((el) => {
+      const rect = el.getBoundingClientRect();
+      window.scrollTo(0, window.scrollY + rect.bottom + 200);
+    });
+    expect(await button.evaluate((el) => el.getBoundingClientRect().bottom), 'ボタンが画面の上へ外れていない').toBeLessThan(0);
+    await button.evaluate((el) => el.scrollIntoView({ block: 'nearest' }));
+    await button.focus();
+
+    // Then: ボタンの中心を突いて、当たるのがボタン自身（またはその中身）であること
     const hit = await button.evaluate((el) => {
       const rect = el.getBoundingClientRect();
       const top = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
-      return top !== null && el.contains(top);
+      return { inside: top !== null && el.contains(top), what: top?.className ?? null };
     });
-    expect(hit, '「休憩する」が他の要素に隠れている').toBe(true);
+    expect(hit.inside, `「休憩する」が他の要素（${hit.what}）に隠れている`).toBe(true);
     await button.click();
     await expect(page.getByRole('dialog', { name: '休憩中' })).toBeVisible();
+  });
+
+  test('Given 600px 幅の 2 人のセッション / When 一人が下へスクロールした画面で休憩に入る / Then もう一人の画面で接続状態と知らせが覆いより前に読め、覆いの見出しと重ならない', async ({
+    page,
+    openPeer,
+  }) => {
+    // Given
+    await page.setViewportSize({ width: 600, height: 900 });
+    const code = await createRoom(page, HOST);
+    const guest = await openPeer('timer-guest');
+    await guest.page.setViewportSize({ width: 600, height: 900 });
+    await joinAsDriver(guest.page, code, GUEST);
+    await expect(lobbyRotationRow(page, GUEST, 2)).toHaveCount(1);
+    await chooseElapsedBreak(page);
+    await page.getByRole('button', { name: 'セッションを開始' }).click();
+    await expect(guest.page.getByRole('timer')).toBeVisible();
+    // 下へスクロールしていても、上端の接続状態は覆いの上に出ていること
+    await guest.page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+
+    // When
+    await page.getByRole('button', { name: /休憩する/ }).first().click();
+
+    // Then: 覆いが出て、接続状態の帯と知らせ（バナー）がその上に描かれている
+    await expect(guest.page.getByRole('dialog', { name: '休憩中' })).toBeVisible();
+    const notice = guest.page.locator('.app-banner').filter({ hasText: '休憩を始めました' });
+    await expect(notice).toBeVisible();
+    const report = await guest.page.evaluate(() => {
+      const hitsSelf = (el: Element | null): boolean => {
+        if (el === null) return false;
+        const r = el.getBoundingClientRect();
+        const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+        return top !== null && el.contains(top);
+      };
+      const connection = document.querySelector('[aria-label="接続状態"]');
+      const banner = document.querySelector('.app-banner');
+      const heading = document.querySelector('#break-overlay-heading');
+      const covered = [connection, banner].map((el) => el?.getBoundingClientRect().bottom ?? Infinity);
+      return {
+        connection: hitsSelf(connection),
+        connectionInView: (connection?.getBoundingClientRect().top ?? -1) >= 0,
+        banner: hitsSelf(banner),
+        heading: hitsSelf(heading),
+        topsBottom: Math.max(...covered),
+        headingTop: heading?.getBoundingClientRect().top ?? -1,
+        overlayBackground: getComputedStyle(document.querySelector('.break-overlay')!).backgroundColor,
+      };
+    });
+    expect(report.connectionInView, '接続状態が画面の外にある').toBe(true);
+    expect(report.connection, '接続状態が覆いに隠れている').toBe(true);
+    expect(report.banner, '知らせが覆いに隠れている').toBe(true);
+    expect(report.heading, '覆いの見出しが上の帯に隠れている').toBe(true);
+    expect(report.headingTop, '覆いの見出しが上の帯と重なる').toBeGreaterThanOrEqual(report.topsBottom);
+    // 覆いの地は不透明（背後の盤面が透けない）。α を持つ色は `rgba(…, α)` / `color(… / α)` の形で返る
+    expect(report.overlayBackground, '覆いの地が半透明').not.toMatch(/rgba\(|\/\s*0?\.\d/);
   });
 });

@@ -19,6 +19,7 @@ import { Loading } from "./ui/Loading.js";
 import { StatusStrip } from "./ui/components/StatusStrip.js";
 import { deriveConnectionStatus } from "./ui/connection-status.js";
 import { Stage } from "./ui/primitives.js";
+import { isOnBreakRoom } from "./ui/break-view.js";
 import { useBanner } from "./ui/use-banner.js";
 import { useTimerSync } from "./sync/use-timer-sync.js";
 // 注: `records/indexeddb.js` は import しない。永続化は同期フックの
@@ -216,6 +217,10 @@ export default function App() {
           null の間）は出さない —— 履歴だけを開いたときと、復帰の snapshot を待つ間がここに当たる。
           セッション喪失時も出さない。ルームはもう無いのに「セッション中」と言い続けることになり、
           本文の「セッションが見つかりません」と矛盾する（#76 F-4）。 */}
+      {/* 上端の帯（ステータスとバナー）。休憩中は覆い（`.break-overlay`・z-index 50）より前に出し、上端に留める
+          （#402）。覆いの外の Session 本体は inert だが、ここは Session の外なので inert の対象外で、
+          接続状態と「X さんが休憩を始めました。」が休憩中も読める。`className` は枝ごとの文字列リテラルで書く。 */}
+      <div className={mode === "session" && room != null && isOnBreakRoom(room) ? "app-top app-top-over-break" : "app-top"}>
       {mode !== null && !sessionLost && (
         <div className="app-status-strip">
           <StatusStrip
@@ -236,6 +241,7 @@ export default function App() {
           {banner.text}
         </div>
       )}
+      </div>
 
       {renderBody()}
     </Stage>
