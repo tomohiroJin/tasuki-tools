@@ -208,7 +208,7 @@ break?: BreakPolicy;      // 無ければ trigger: "none" と同じ
 
 ### 5.5 知らせるだけの帯
 
-- 休憩中でなく、かつ `suggestedAtSwitches === totalSwitches` と `suggestedAtElapsedMs === clock.accumulatedElapsedMs`（いまの切れ目で知らせた）のときに、画面の上部に帯を出す。`suggestedAtElapsedMs` が無い snapshot（古いサーバー）では出さない文言は「休憩の時間です」と「休憩する」
+- 休憩中でなく、かつ `suggestedAtSwitches === totalSwitches` と `suggestedAtElapsedMs === clock.accumulatedElapsedMs`（いまの切れ目で知らせた）のときに、画面の上部に帯を出す。`suggestedAtElapsedMs` が無い snapshot（古いサーバー）では出さない。文言は「休憩の時間です」と「休憩する」
 - シグナルからではなく snapshot から導く。こうすると、再接続した人や途中で入った人にも帯が出る
 - 次の切れ目で帯は消える。交代は `totalSwitches` を進め、現状維持の交代（1 人の輪・他が全員不適格）は回数を進めないが稼働の累計を確定するので、どちらでも一致が崩れる（PR #416 の再レビュー・2026-10-16）
 - 一時停止でも累計が確定するので帯は消え、再開後は次の切れ目まで出ない。受け入れた（知らせはもう出ている。「休憩する」は操作帯に残る）
