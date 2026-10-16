@@ -8,12 +8,12 @@
 #
 # #402。休憩に入る交代で全画面の知らせが二重に出る。
 diff --git a/apps/timer-web/src/ui/use-switch-alert.ts b/apps/timer-web/src/ui/use-switch-alert.ts
-index 9149454b..5f2f46ad 100644
+index 911faa61..1a6c3bca 100644
 --- a/apps/timer-web/src/ui/use-switch-alert.ts
 +++ b/apps/timer-web/src/ui/use-switch-alert.ts
-@@ -52,7 +52,7 @@ export function useSwitchAlert(
+@@ -53,7 +53,7 @@ export function useSwitchAlert(
      prevNameRef.current = currentDriverName;
-     if (prevIndex === currentIndex || prevName === currentDriverName) return;
+     if (!isDriverSwitch({ index: prevIndex, name: prevName }, { index: currentIndex, name: currentDriverName })) return;
      // 休憩に入る交代は、休憩の知らせ（use-break-alert）が代わりに出す。二重に鳴らさない。
 -    if (suppressed) return;
 +

@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from "react";
 import { playChime, vibrateSwitch } from "../platform/sound.js";
 import { notifyDriverChange } from "../platform/notify.js";
 import type { NotifyPreferences } from "../prefs/local-prefs.js";
+import { isDriverSwitch } from "./session-view.js";
 
 /** オーバーレイの自動消滅までの時間(ms)。 */
 const SWITCH_ALERT_MS = 2500;
@@ -50,7 +51,7 @@ export function useSwitchAlert(
     const prevName = prevNameRef.current;
     prevIndexRef.current = currentIndex;
     prevNameRef.current = currentDriverName;
-    if (prevIndex === currentIndex || prevName === currentDriverName) return;
+    if (!isDriverSwitch({ index: prevIndex, name: prevName }, { index: currentIndex, name: currentDriverName })) return;
     // 休憩に入る交代は、休憩の知らせ（use-break-alert）が代わりに出す。二重に鳴らさない。
     if (suppressed) return;
     // 個人設定: 音/振動/OS通知（ルーム設定に依存しない背面通知）。

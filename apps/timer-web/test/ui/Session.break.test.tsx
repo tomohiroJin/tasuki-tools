@@ -253,7 +253,9 @@ describe("休憩（#402）", () => {
     const room = roomWith({
       config: { intervalMinutes: 5, break: { trigger: "elapsed", every: 60, mode: "suggest" } },
       totalSwitches: 4,
-      brk: { since: null, suggestedAtSwitches: 3 },
+      // 累計は一致させたまま回数だけを進める（累計が無いと「古いサーバー」として偽になり、題名を守らない）
+      elapsedMs: 900_000,
+      brk: { since: null, suggestedAtSwitches: 3, suggestedAtElapsedMs: 900_000 },
     });
     render(<Session {...props(room)} />);
     expect(screen.queryByText("休憩の時間です")).toBeNull();

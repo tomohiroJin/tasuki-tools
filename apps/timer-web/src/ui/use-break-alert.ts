@@ -14,17 +14,13 @@ import { playChime, vibrateSwitch } from "../platform/sound.js";
 import { notifyBreak } from "../platform/notify.js";
 import type { NotifyPreferences } from "../prefs/local-prefs.js";
 import { BREAK_TEXT } from "./break-view.js";
-
-/** いまの運転者。知らせが交代と重なったか（交代のチャイムが鳴るか）を判定する */
-export interface BreakAlertDriver {
-  index: number;
-  name: string;
-}
+import { isDriverSwitch, type DriverMark } from "./session-view.js";
 
 export function useBreakAlert(
   since: number | null,
   suggestedAtElapsedMs: number | null,
-  driver: BreakAlertDriver,
+  /** いまの運転者。知らせが交代と重なったか（交代のチャイムが鳴るか）を判定する */
+  driver: DriverMark,
   notify: NotifyPreferences,
 ): void {
   const prevSinceRef = useRef(since);
@@ -35,9 +31,8 @@ export function useBreakAlert(
     const started = prevSinceRef.current === null && since !== null;
     const ended = prevSinceRef.current !== null && since === null;
     const suggested = suggestedAtElapsedMs !== null && suggestedAtElapsedMs !== prevSuggestedRef.current;
-    // 交代の知らせ（use-switch-alert）と同じ判定。添字も名前も変わったときだけ交代のチャイムが鳴る
-    const prevDriver = prevDriverRef.current;
-    const driverSwitched = prevDriver.index !== index && prevDriver.name !== name;
+    // 交代の知らせ（use-switch-alert）と同じ判定。真のときだけ交代のチャイムが鳴る
+    const driverSwitched = isDriverSwitch(prevDriverRef.current, { index, name });
     prevSinceRef.current = since;
     prevSuggestedRef.current = suggestedAtElapsedMs;
     prevDriverRef.current = { index, name };

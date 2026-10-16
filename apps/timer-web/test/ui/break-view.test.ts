@@ -38,6 +38,9 @@ describe("break-view", () => {
   it.each([
     ["いまの切れ目で知らせた", true, { since: null, suggestedAtSwitches: 3, suggestedAtElapsedMs: 900 }, 3, 900],
     ["次の交代で回数が進んだ", false, { since: null, suggestedAtSwitches: 3, suggestedAtElapsedMs: 900 }, 4, 1200],
+    // 片方の条件だけが崩れた行。回数・累計のどちらの比較を消しても、どちらかの行が赤になる
+    ["累計は一致・回数だけが違う", false, { since: null, suggestedAtSwitches: 3, suggestedAtElapsedMs: 900 }, 4, 900],
+    ["回数は一致・累計だけが違う", false, { since: null, suggestedAtSwitches: 3, suggestedAtElapsedMs: 900 }, 3, 1200],
     ["現状維持の交代で累計だけが進んだ", false, { since: null, suggestedAtSwitches: 3, suggestedAtElapsedMs: 900 }, 3, 1200],
     ["休憩中", false, { since: 1, suggestedAtSwitches: 3, suggestedAtElapsedMs: 900 }, 3, 900],
     ["知らせていない", false, { since: null, suggestedAtSwitches: null, suggestedAtElapsedMs: null }, 3, 900],

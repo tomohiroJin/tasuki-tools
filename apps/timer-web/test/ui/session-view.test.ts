@@ -7,6 +7,7 @@ import {
   URGENT_THRESHOLD_SECONDS,
   displayRemainingSeconds,
   driverNames,
+  isDriverSwitch,
   isUrgent,
   orbitSizes,
   progressPercent,
@@ -102,5 +103,16 @@ describe("orbitSizes", () => {
     [false, 600, { orbit: 340, ring: 224 }],
   ] as const)("広い %s・幅 %i → %o", (wide, width, expected) => {
     expect(orbitSizes(wide, width)).toEqual(expected);
+  });
+});
+
+describe("isDriverSwitch（交代の知らせと休憩の知らせが共有する交代の判定）", () => {
+  it.each([
+    ["添字も名前も変わった", true, { index: 0, name: "A" }, { index: 1, name: "B" }],
+    ["並べ替え（添字だけ変わった）", false, { index: 0, name: "A" }, { index: 1, name: "A" }],
+    ["改名（名前だけ変わった）", false, { index: 0, name: "A" }, { index: 0, name: "A2" }],
+    ["現状維持", false, { index: 0, name: "A" }, { index: 0, name: "A" }],
+  ] as const)("Given %s / When 判定する / Then %s", (_label, expected, prev, next) => {
+    expect(isDriverSwitch(prev, next)).toBe(expected);
   });
 });
