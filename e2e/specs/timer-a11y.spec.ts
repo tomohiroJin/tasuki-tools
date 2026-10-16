@@ -308,9 +308,23 @@ test.describe('休憩中の画面の文字が背景に対して読める（WCAG 
     // When
     const scan = await scanContrast(page, 3);
 
-    // Then: 覆いの中の文字を測ったうえで、すべて AA
+    // Then: すべて AA
     expectReadable(scan, 3, []);
-    await expect(overlay.getByRole('button', { name: '休憩を終える' })).toBeVisible();
+    // Then: **覆いの中の文字を実際に測った。** 件数の下限は覆いの外の要素だけでも満たせるので、
+    //   覆いの見出し・「休憩を終える」の字の色（ページから読む。トークンの値を直書きしない）を
+    //   インクとする組が走査に含まれることを名指しで固定する。
+    //   覆いが走査から外れる（`visibility` など）と、この 2 つが赤になる
+    const inks = await overlay.evaluate((el) => {
+      const colorOf = (node: Element | null) => (node === null ? null : getComputedStyle(node).color);
+      const heading = document.getElementById(el.getAttribute('aria-labelledby') ?? '');
+      const button = Array.from(el.querySelectorAll('button')).find((b) => b.textContent?.includes('休憩を終える')) ?? null;
+      return { heading: colorOf(heading), button: colorOf(button) };
+    });
+    expect(inks.heading, '覆いの見出しの色を読めない').not.toBeNull();
+    expect(inks.button, '「休憩を終える」の色を読めない').not.toBeNull();
+    for (const [part, ink] of Object.entries(inks)) {
+      expect([...scan.pairs].some((k) => k.startsWith(`${ink!} on`)), `覆いの${part}の字（${ink}）を測っていない`).toBe(true);
+    }
   });
 });
 
