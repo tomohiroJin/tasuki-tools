@@ -137,8 +137,8 @@ export interface RouletteState {
 2. 候補が空なら周を閉じる: `drawn = []`、候補 = `pool − 今回すでに選んだ人 − 直前の回転の picks`。これが空なら `pool − 今回すでに選んだ人`（M8）
 3. 返すのは `{ picks: number[]（pool の添字）, drawn }`
 
-**`drawWinner` は残し、`drawPicks(…, 1, …)` と同じ結果になることを表で確かめる**（k = 1 の回帰を守る）。
-実装は `drawWinner` を `drawPicks` の k = 1 として書き直してよいが、#94 の単体（`draw.test.ts`）は**1 行も変えずに緑**であること。
+**`drawPicks(…, 1, …)` が #94 の 1 人の抽選と同じ結果になることを表で確かめる**（k = 1 の回帰を守る）。
+実装は §11 のとおり `drawWinner` を外して `drawPicks` 1 本にした。#94 の単体（`draw.test.ts`）は期待値を変えずに k = 1 の `drawPicks` で緑。
 
 **遷移**（`roulette.ts`）
 
@@ -161,7 +161,7 @@ export interface RouletteState {
 
 ```ts
 // コマンド（strict）
-v.strictObject({ command: v.literal("roulette.pick.set"), count: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(MAX_PICK)) })
+v.strictObject({ command: v.literal("roulette.pick.set"), count: v.number() })   // 範囲はドメインが見る（§11）
 
 // フレーム（非 strict）
 state: { …今の項目, pickCount: v.optional(v.number(), 1) }
@@ -313,7 +313,7 @@ k = 1（今のまま）           k = 2〜4（組の札・背は 1 つに固定�
 |---|---|
 | E1・E2・E6 | roulette-core の単体（`setPickCount` の境界 0・1・4・5・小数）・同期サーバーの単体（`pick.set` が全接続へ配られる・回転中に変えても `durationMs` と `picks` が変わらない） |
 | E3・E4・E5 | `drawPicks` の表。**`randomInt` を固定して決定的に見る**。値が分かれる局面: 入る人 3・k = 2・`drawn` 1 人（残り 2 で足りる）／ 入る人 3・k = 2・`drawn` 2 人（周の途中で閉じる）／ 入る人 3・k = 2・直前の picks 2 人で周を閉じる（M8 の落とし先） |
-| E7 | **#94 の単体・E2E を 1 行も変えずに緑**。`drawPicks(…, 1, …)` と `drawWinner` の結果が全組で一致する表。k = 1 の撮影の比較（§8.4） |
+| E7 | **#94 の単体・E2E の期待値の値を変えずに緑**（足した項目の書き足しだけ・§11）。`drawPicks(…, 1, …)` と #94 の抽選（`tests/support/draw-winner-oracle.ts`）の結果が全組で一致する表。k = 1 の撮影の比較（§8.4） |
 | E8 | web の純粋関数の単体（`stopsOf`・区間ごとの `angleAt`）。オラクルは「指し針の点を回転子の座標へ戻して `atan2` で席を引く」別の計算（#94 spec §6.9 と同じ）。E2E は 2 つのブラウザで 2 人目まで同じ名前が出ること |
 | E9 | `revealedCountOf` の境目の前後を 10ms ずつ刻み、一言・札・一覧・一周の数が毎回同じ局面であること（#94 spec §6.4 の検査の型） |
 | E10 | 単体（動きを減らすと `revealedCount = k`） |
@@ -322,7 +322,7 @@ k = 1（今のまま）           k = 2〜4（組の札・背は 1 つに固定�
 
 ### 8.3 破壊検証（原則 VII）
 
-変異の ID は**統括が割り当てる**（現在の最大は 282）。最低限、次を 1 本ずつ当てて赤を見る。
+変異の ID は **290〜299 を #401 に割り当てた**（280〜289 は #315）。最低限、次を 1 本ずつ当てて赤を見る。PR 1 の分は m290〜m296（§11）。
 
 | 壊し方 | 赤になるべき検査 |
 |---|---|
@@ -364,3 +364,24 @@ k = 1（今のまま）           k = 2〜4（組の札・背は 1 つに固定�
 | Q6 | 見出し「進行役ルーレット」 | 変えない（§6.5） | k ≥ 2 のときだけ「ルーレット」にする |
 
 **実装の前にモックを作り、利用者が見て承認してから PR 2 に入る**（#94 spec §6.9 と同じ手順）。
+
+## 11. 実装で外したこと（2026-10-16・#401 PR 1）
+
+PR 1（core ＋ 同期サーバー ＋ wire）を実装して、§5 から変えたこと。
+
+- **選ぶ人数の範囲は境界で縛らず、ドメインが拒む。** §5.3 の初版はスキーマでも 1〜4 の整数に絞っていたが、そうすると
+  `INVALID_PICK_COUNT` を返す経路が無くなり、使わないコードが wire に残る（`errors.ts` の「使わないコードは載せない」）。
+  `guest.add` の名前と同じ線引きにし、境界は `count: v.number()`（型だけ）・範囲はドメインの `setPickCount` が見る。
+  数でない値（`"2"` など）は今までどおり境界で `INVALID_COMMAND`
+- **抽選は `drawPicks` 1 本にし、`drawWinner` を外した。** 製品のコードに k = 1 専用の抽選を残すと、使われないまま
+  2 本の規則が並ぶ。#94 の単体（`draw.test.ts`）は期待値を変えず、k = 1 の `drawPicks` に当てる形にした。
+  k = 1 の一致は、#94 の抽選を写した**オラクル**（`tests/support/draw-winner-oracle.ts`。直前の当たりを `winnerIndex` から取る別の計算）と全組で比べる
+- **周を閉じた後の「直前の回転の人を除く」は、その回転の残りの回すべてに掛かる**（§5.1 の手順 2 を明確にした）。
+  k = 1 では閉じた直後の 1 回だけなので #94 と同じ
+- **wire の `pickCount`・`picks` は型でも省略可**（`RouletteView` の `pickCount?`・`picks?`）。同期サーバーはいつも載せるが、
+  web は古いサーバーのフレームも読むので、型で省略を表す。web の変更は `poolOf` に渡す状態へ `pickCount` を足した 1 行だけ
+- **#94 のテストの期待値は値を変えず、足した項目だけを書き足した**: `startSpin` の結果の `picks`・`toView` の `pickCount`・
+  エラーコードの一覧・入口ごとの参加の特性テスト（`live-ws.join-entries.test.ts`）のフレームの `pickCount`。どれも
+  k = 1 の振る舞いは変わっていない（計画 §0 の規則を「値を変えない」に読み替えた）
+- **変異**: m290〜m296 を足し、抽選と `startSpin` の前後が変わった m151〜m153 のパッチを今のコードで作り直した
+  （壊し方と期待するテストは同じ）。`--changed` で 227 件すべて検出（2026-10-16）
