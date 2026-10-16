@@ -8,7 +8,6 @@ import {
   VALID_INTERVAL_MINUTES,
   MAX_ROOM_NAME,
   MAX_HANDOFF_NOTE,
-  MAX_PASSPHRASE,
   ROOM_PHASES,
   SESSION_ACTIONS,
 } from "./aggregate.js";
@@ -35,8 +34,17 @@ const participantId = nonEmptyString;
 // `MAX_DISPLAY_NAME` を動かす段（S5b・#248 で poker の 24 と統合する）で片方が取り残される。
 // 巨大入力そのものは接続層のフレーム上限（`maxMessageBytes`）が先に弾く。
 const displayNameStr = v.string();
-// パスフレーズ（空文字=解除を許すため minLength なし。最大長のみ課す）。
-const passphraseStr = v.pipe(v.string(), v.maxLength(MAX_PASSPHRASE));
+// パスフレーズも**この層では形だけを見る**（#377。上の表示名と同じ理由）。
+//
+// 上限（`MAX_PASSPHRASE`）は `@tasuki/room-core` に 1 つだけ置き、timer の入口では
+// アプリケーション層（`apps/tasuki-sync/src/application/passphrase-rule.ts`）が当てる。
+// かつてはここで 128 を掛けていたが、玄関の `room.join` は上限なしで、入口ごとに契約が
+// 違っていた。`timer-core` は `@tasuki/*` に依存しない（`docs/adr/0017` 決定 4）ので、
+// 正本を room-core に置くとここからは参照できない。超過は同じ `INVALID_COMMAND` で返る。
+//
+// ⚠ **ここに上限を書き戻さないこと。** 書き戻すと上限の正本が 2 つになる。
+// 空文字（解除）を許すため下限も置かない。
+const passphraseStr = v.string();
 
 // ─── SessionConfig スキーマ ─────────────────────────────────────────────────
 

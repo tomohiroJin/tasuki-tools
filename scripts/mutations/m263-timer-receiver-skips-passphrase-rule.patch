@@ -1,0 +1,22 @@
+# 変異 263: timer の受け口が合言葉の長さの規約を当てない
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/live-ws.passphrase-limit.test.ts
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m263-*.patch
+# 復元: git apply -R scripts/mutations/m263-*.patch
+#
+# #377。timer の wire スキーマは形だけを見るので、timer の入口だけが上限なしになる。
+diff --git a/apps/tasuki-sync/src/application/timer-command-receiver.ts b/apps/tasuki-sync/src/application/timer-command-receiver.ts
+index 35d17e3..2cd5cc3 100644
+--- a/apps/tasuki-sync/src/application/timer-command-receiver.ts
++++ b/apps/tasuki-sync/src/application/timer-command-receiver.ts
+@@ -40,7 +40,7 @@ export function createTimerCommandReceiver(deps: TimerCommandReceiverDeps): Time
+   const handleMessage = async (connId: string, cmd: Command): Promise<void> => {
+     const normalized = normalizeCommandNames(cmd);
+     // 合言葉の上限（#377）も同じ `INVALID_COMMAND` へ合流させる。
+-    if (normalized.isErr() || !passphraseWithinLimit(normalized.value)) {
++    if (normalized.isErr() || (!passphraseWithinLimit(normalized.value) && false)) {
+       deps.reply(connId, connectionErrorFrame("INVALID_COMMAND"));
+       return;
+     }

@@ -5,7 +5,7 @@
  */
 import React, { useState } from "react";
 import { Lock } from "lucide-react";
-import { MAX_PASSPHRASE } from "@tasuki/timer-core/aggregate";
+import { MAX_PASSPHRASE } from "@tasuki/room-core";
 import { SectionHeader } from "../primitives.js";
 
 interface PassphrasePanelProps {

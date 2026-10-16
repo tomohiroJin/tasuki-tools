@@ -1,0 +1,12 @@
+diff --git a/apps/poker-web/src/room-view.ts b/apps/poker-web/src/room-view.ts
+index 3c33f11..6cfdd6d 100644
+--- a/apps/poker-web/src/room-view.ts
++++ b/apps/poker-web/src/room-view.ts
+@@ -54,6 +54,6 @@ export function spreadPromptOf(
+   });
+   const high = toPrompt(spread.high);
+   const low = toPrompt(spread.low);
+-  if (high.names.length === 0 || low.names.length === 0) return null;
++  if (low.names.length === 0) return null;
+   return { high, low };
+ }

@@ -1,0 +1,22 @@
+# 変異 265: timer の既定のエラーの文言だけを句点付きに戻す
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/default-error-text.test.ts
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m265-*.patch
+# 復元: git apply -R scripts/mutations/m265-*.patch
+#
+# #378。コードの分からないエラーの文言が、timer だけほかのツールと違う。
+diff --git a/packages/timer-core/src/error-messages.ts b/packages/timer-core/src/error-messages.ts
+index 24f3de5..d44632b 100644
+--- a/packages/timer-core/src/error-messages.ts
++++ b/packages/timer-core/src/error-messages.ts
+@@ -159,7 +159,7 @@ export const ERROR_MESSAGES: Record<string, string> = {
+  * （かつて timer だけが「。」付きだった）。そろっていることは
+  * `apps/tasuki-sync/test/default-error-text.test.ts` が見る。
+  */
+-export const DEFAULT_ERROR_MESSAGE = "操作を完了できませんでした";
++export const DEFAULT_ERROR_MESSAGE = "操作を完了できませんでした。";
+ 
+ /**
+  * **サーバー（`apps/sync`）が wire の `message` に載せるだけで、画面には表示されないコードの文言。**

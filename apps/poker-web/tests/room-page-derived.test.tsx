@@ -128,3 +128,43 @@ describe('切断中の操作', () => {
     expect((screen.getByRole('button', { name: '次のラウンドへ' }) as HTMLButtonElement).disabled).toBe(true);
   });
 });
+
+describe('見積もりの割れ（#405・FR-010a）', () => {
+  function revealedWith(votes: { participantId: string; card: { kind: 'number'; value: 2 | 5 | 8 } }[]): RoomStateMessage {
+    const base = revealed();
+    return { ...base, round: { status: 'revealed', votes, stats: { average: 5, modes: [] } } } as RoomStateMessage;
+  }
+
+  it('Given 2 段以上離れた票 / When 公開後を描く / Then 結果に最大と最小を出した人の名前つきの促しが出る', () => {
+    render(
+      <RoomPage
+        roomId={ROOM_ID}
+        sync={makeSync(
+          revealedWith([
+            { participantId: 'p1', card: { kind: 'number', value: 8 } },
+            { participantId: 'p2', card: { kind: 'number', value: 2 } },
+          ]),
+        )}
+      />,
+    );
+    const note = document.querySelector('.results .results-spread');
+    expect(note?.textContent).toContain('8 を出した あかり');
+    expect(note?.textContent).toContain('2 を出した みなと');
+  });
+
+  it('Given 隣同士の票 / When 公開後を描く / Then 促しは出ない', () => {
+    render(
+      <RoomPage
+        roomId={ROOM_ID}
+        sync={makeSync(
+          revealedWith([
+            { participantId: 'p1', card: { kind: 'number', value: 5 } },
+            { participantId: 'p2', card: { kind: 'number', value: 8 } },
+          ]),
+        )}
+      />,
+    );
+    expect(document.querySelector('.results')).not.toBeNull();
+    expect(document.querySelector('.results-spread')).toBeNull();
+  });
+});

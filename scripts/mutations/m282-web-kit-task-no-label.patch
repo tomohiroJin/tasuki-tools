@@ -1,0 +1,30 @@
+# 変異 282: web-kit-task-no-label
+#
+# 検出を期待するテスト:
+#   - packages/web-kit/tests/markdown.test.tsx
+#     describe「Markdown のタスクリスト」の
+#     「Given [ ] と [x] / When 描く / Then 項目の文を名前にし、状態が合う」（#315 spec FR-003）
+#
+# #315 PR 1・spec D4。タスクの項目の `label` を `span` にする。見た目は同じまま、チェックボックスが
+# 名前を失い、支援技術からどの項目のチェックか区別できなくなる（Issue の「名前で区別できること」）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m282-*.patch
+# 復元: git apply -R scripts/mutations/m282-*.patch
+diff --git a/packages/web-kit/src/reader/markdown.tsx b/packages/web-kit/src/reader/markdown.tsx
+index 6f0ab3a..9a2cd36 100644
+--- a/packages/web-kit/src/reader/markdown.tsx
++++ b/packages/web-kit/src/reader/markdown.tsx
+@@ -64,10 +64,10 @@ function ListItem({ item, keyBase }: { item: MdListItem; keyBase: string }) {
+   if (item.task === null) return <li><Inline nodes={item.inline} keyBase={keyBase} /></li>;
+   return (
+     <li className="ui-md-task">
+-      <label className="ui-md-task-label">
++      <span className="ui-md-task-label">
+         <input type="checkbox" className="ui-md-check" checked={item.task.checked} disabled />
+         <span className="ui-md-task-text"><Inline nodes={item.inline} keyBase={keyBase} /></span>
+-      </label>
++      </span>
+     </li>
+   );
+ }

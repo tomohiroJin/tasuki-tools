@@ -1,0 +1,21 @@
+# 変異 260: 上限まで空いたコードが出なくても、最後に引いたコードで作る
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/create-room.test.ts
+#   - apps/tasuki-sync/test/handlers.room.test.ts
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m260-*.patch
+# 復元: git apply -R scripts/mutations/m260-*.patch
+#
+# #375。事後条件（返すコードは空いている）が外れ、既にあるルームを上書きする。
+diff --git a/apps/tasuki-sync/src/application/create-room.ts b/apps/tasuki-sync/src/application/create-room.ts
+index 8e90046..d872fda 100644
+--- a/apps/tasuki-sync/src/application/create-room.ts
++++ b/apps/tasuki-sync/src/application/create-room.ts
+@@ -124,5 +124,5 @@ function pickFreeCode(
+     const code = codeGen.generate(roomName);
+     if (store.get(code) === undefined) return code;
+   }
+-  return undefined;
++  return codeGen.generate(roomName);
+ }

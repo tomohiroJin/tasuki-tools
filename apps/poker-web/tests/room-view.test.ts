@@ -3,7 +3,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { RoomStateMessage } from '@tasuki/poker-core';
-import { isOffline, revealedLiveAfter, revealedVoteMap } from '../src/room-view';
+import { isOffline, revealedLiveAfter, revealedVoteMap, spreadPromptOf } from '../src/room-view';
 
 type Round = RoomStateMessage['round'];
 
@@ -38,5 +38,68 @@ describe('isOffline', () => {
     ['closed', true],
   ] as const)('%s → %s', (status, expected) => {
     expect(isOffline(status)).toBe(expected);
+  });
+});
+
+describe('spreadPromptOf（#405）', () => {
+  const n = (value: 2 | 3 | 5 | 8) => ({ kind: 'number', value }) as const;
+  const participants = [
+    { id: 'p1', name: 'あお', connected: true, hasVoted: true },
+    { id: 'p2', name: 'きい', connected: true, hasVoted: true },
+    { id: 'p3', name: 'しろ', connected: true, hasVoted: true },
+  ];
+  const revealed = (votes: { participantId: string; card: ReturnType<typeof n> }[]) =>
+    ({ status: 'revealed', votes, stats: { average: 0, modes: [] } }) as Round;
+
+  it('投票中は null', () => {
+    expect(spreadPromptOf({ status: 'voting' } as Round, participants)).toBeNull();
+  });
+
+  it('割れていなければ null', () => {
+    const round = revealed([
+      { participantId: 'p1', card: n(5) },
+      { participantId: 'p2', card: n(8) },
+    ]);
+    expect(spreadPromptOf(round, participants)).toBeNull();
+  });
+
+  it('割れていれば、最大と最小の札と出した人の表示名を返す', () => {
+    const round = revealed([
+      { participantId: 'p1', card: n(8) },
+      { participantId: 'p2', card: n(2) },
+      { participantId: 'p3', card: n(8) },
+    ]);
+    expect(spreadPromptOf(round, participants)).toEqual({
+      high: { card: n(8), names: ['あお', 'しろ'] },
+      low: { card: n(2), names: ['きい'] },
+    });
+  });
+
+  it('最小の側の名前が 1 人も引けなければ null（名簿に居ない人の名前は出さない）', () => {
+    const round = revealed([
+      { participantId: 'p1', card: n(8) },
+      { participantId: 'gone', card: n(2) },
+    ]);
+    expect(spreadPromptOf(round, participants)).toBeNull();
+  });
+
+  it('最大の側の名前が 1 人も引けなければ null', () => {
+    const round = revealed([
+      { participantId: 'gone', card: n(8) },
+      { participantId: 'p2', card: n(2) },
+    ]);
+    expect(spreadPromptOf(round, participants)).toBeNull();
+  });
+
+  it('名簿に居ない人だけを除き、残りの名前で示す', () => {
+    const round = revealed([
+      { participantId: 'gone', card: n(8) },
+      { participantId: 'p1', card: n(8) },
+      { participantId: 'p2', card: n(2) },
+    ]);
+    expect(spreadPromptOf(round, participants)).toEqual({
+      high: { card: n(8), names: ['あお'] },
+      low: { card: n(2), names: ['きい'] },
+    });
   });
 });

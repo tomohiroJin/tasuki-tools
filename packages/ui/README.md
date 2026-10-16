@@ -42,7 +42,7 @@ src/
 | `.ui-invite` | 参加用 URL とコピーのボタンを 1 行に組む容器。URL の `<span>` に `.ui-invite-url` を当てる | なし |
 | `.ui-button` | ボタンの形をする `<button>`・`<a>`。既定が主（金の地）。`--secondary`（金の枠）・`--quiet`（下線の字）で役割を、`--sm`・`--lg` で大きさを変える。選び方は下の「画面を組む」 | なし |
 | `.ui-actions` | 操作の並び。40rem 以上は右寄せの横並び、未満は縦に積む。左へ離すものは `.ui-actions-start` に入れる。`--dock` は 40rem 未満で下端に留まる帯 | なし |
-| `.ui-md` | Markdown の根。各要素に `.ui-md-h`・`.ui-md-p`・`.ui-md-ul`・`.ui-md-ol`・`.ui-md-quote`・`.ui-md-code`・`.ui-md-pre`・`.ui-md-link` を当てる。暗い面ではつまみ `--ui-md-edge`（コード・引用の枠）・`--ui-md-link`（リンクの字）を面が宣言する | `--ui-md-edge`・`--ui-md-link` |
+| `.ui-md` | Markdown の根。各要素に `.ui-md-h`・`.ui-md-p`・`.ui-md-ul`・`.ui-md-ol`・`.ui-md-quote`・`.ui-md-code`・`.ui-md-pre`・`.ui-md-link` を当てる。タスクリストの項目は `.ui-md-task`・`.ui-md-task-label`・`.ui-md-check`・`.ui-md-task-text`（#315）。暗い面ではつまみ `--ui-md-edge`（コード・引用の枠）・`--ui-md-link`（リンクの字）・`--ui-md-check`（チェックボックスの色）を面が宣言する | `--ui-md-edge`・`--ui-md-link`・`--ui-md-check` |
 | `.ui-page` | 画面の器（`<main>`）。最大幅・中央寄せ・外の余白を持つ。`--prose`（`40rem`）・既定（`72rem`）・`--wide`（`96rem`）の 3 段 | なし |
 | `.ui-workspace` | 操作の面と脇を並べる段組みの根。`.ui-workspace-main`（操作の面）・`.ui-workspace-side`（脇）を子に置く。`--side-end`・`--reader` で脇の側と幅を変える。使い方は下の「画面を組む」 | なし |
 | `.ui-reader` | 読む面。象牙の札に見出し（固定）と本文 `.ui-reader-body`（64rem 以上だけ・札の中でスクロール）を載せる。64rem 未満は本文の代わりに 3 行の写し `.ui-reader-preview`（`inert`）を見せ、`.ui-reader-more`（続きを読む）で `.ui-drawer` を開く | なし |
@@ -70,7 +70,7 @@ src/
 - **見出しの行は、行の中の並びまで部品が持ちます**（配置は画面が持つ、の例外）。見出し自身の大きさ・余白は画面が持ちます
 - **招待リンクは、行の並びと字の大きさまで部品が持ちます。** コピーのボタンには `.ui-button` の役割を当てます
 - **Markdown の既定の色は象牙の札（読む面・シート・お題ツールの `.topic-sheet`）の上で読める値です。** 暗い面（timer の共有メモ）に置くときは、
-  面がつまみ `--ui-md-edge`・`--ui-md-link` を宣言します（部品は宣言しません）。リンクは既定で字の色を継ぐので、画面のクラスで色を書きません。描画（React）は `@tasuki/web-kit/reader` の `Markdown` が持ちます（#371。見出しの段は置く場所に合わせて渡す）。
+  面がつまみ `--ui-md-edge`・`--ui-md-link`・`--ui-md-check` を宣言します（部品は宣言しません）。リンクは既定で字の色を継ぐので、画面のクラスで色を書きません。描画（React）は `@tasuki/web-kit/reader` の `Markdown` が持ちます（#371。見出しの段は置く場所に合わせて渡す）。
   クラス名は字面で書きます（組み立てた名前は検査が数えられず、死んだ部品として落ちます）。共有の入口に書いた字面は、
   その入口を取り込むアプリの使用として数えます（`scripts/audit-ui-components.mjs` の `SHARED_UI_ENTRIES`）
 
@@ -242,7 +242,7 @@ src/
    - 入力欄は `.ui-input` / `.ui-select`（字は 16px の下限を部品が持つ）
    - 参加用の URL は `.ui-invite` / `.ui-invite-url`
    - 長い文章は `.ui-reader`（3 行の写しと本文は別の要素。写しは `inert`）
-   - Markdown は `.ui-md-*`。暗い面に置くときは面がつまみ `--ui-md-edge`・`--ui-md-link` を宣言する
+   - Markdown は `.ui-md-*`。暗い面に置くときは面がつまみ `--ui-md-edge`・`--ui-md-link`・`--ui-md-check` を宣言する
 5. **文字は役割の段で書く。** 見出しは h1〜h3、添え書きは xs（「文字の段」）。直値は検査が落とす
 6. **320px と 1280px で確かめる。** 横に溢れない・押せる操作が 44px 以上で重ならない・主の操作が見える
 7. **検査を流す。** `node scripts/audit-ui-components.mjs`・`pnpm --filter @tasuki/ui test`・E2E の `buttons.spec.ts`（`expectScreenAcrossWidths` が 320・768・1280・1920 で全ての操作の大きさと重なりを測る。新しい場面は呼び出しを足す）

@@ -15,7 +15,8 @@
 `application/` `ports/` の実在を確認済みです（確認は 2026-09-11・#95 S4b の平坦化後。
 初出は 2026-08-17 で、当時は timer-sync と poker-sync の `src/` を、
 S2〜S4a では poker 側の入れ子（src/poker 配下。**S4b で畳みました**）も併せて
-見ていました）。
+見ていました）。2026-10-15（#360 の終わり）にも実在を確かめた。接続層は `adapters/ws-adapter.ts` と
+`adapters/ws/` の部品に分けてある（#368）。
 
 > **#95 S2 で同期サーバーは 1 パッケージになりました**（`apps/tasuki-sync`。ADR 0004 の追記）。
 > `apps/*-sync/...` という書き方はそのままで、いま一致するのはこの 1 つだけです。
@@ -32,20 +33,25 @@ S2〜S4a では poker 側の入れ子（src/poker 配下。**S4b で畳みまし
 | 層 | 置き場 | 依存してよいもの |
 |---|---|---|
 | ドメイン（メンバーシップ文脈） | `packages/room-core` | なし（純粋関数と型のみ） |
-| ドメイン（ツール） | `packages/timer-core` `packages/poker-core` `packages/topic-core` `packages/roulette-core` | なし（純粋関数と型のみ）。**#95 S1 で生じた `packages/timer-core` → `packages/room-core` の期限つき一時依存は S4b（#246）で解消した** —— 表示名の規約は `room-core` に残し、境界で適用する場所を `apps/tasuki-sync/src/application/normalize-command-names.ts` へ移した（`docs/adr/0017` の追記 2026-09-11）。`scripts/audit-dependency-direction.mjs` の許可表からも行が消えている |
-| プロトコル契約 | `packages/protocol`・各 core の `protocol.ts`（例: `packages/poker-core/src/protocol.ts`） | ドメインの型 |
+| ドメイン（ツール） | `packages/timer-core` `packages/poker-core` `packages/topic-core` `packages/roulette-core` | なし（純粋関数と型のみ。例外として `packages/poker-core` だけが境界のパースのため `packages/protocol` に依存する）。**#95 S1 で生じた `packages/timer-core` → `packages/room-core` の期限つき一時依存は S4b（#246）で解消した** —— 表示名の規約は `room-core` に残し、境界で適用する場所を `apps/tasuki-sync/src/application/normalize-command-names.ts` へ移した（`docs/adr/0017` の追記 2026-09-11）。`scripts/audit-dependency-direction.mjs` の許可表からも行が消えている |
+| プロトコル契約 | `packages/protocol`・各 core の `protocol.ts`（例: `packages/poker-core/src/protocol.ts`） | `packages/protocol` はなし（`@tasuki/*` に依存しない。境界のパースはコードも文言も決め打ちしない）。各 core の `protocol.ts` はその core の型 |
 | 共有ユーティリティ（sync 専用） | `packages/rate-limit` | なし（node 標準ライブラリのみ。ドメインの型にも依存しない） |
-| アプリケーション | `apps/*-sync/src/application` | ドメイン・ポート・`packages/rate-limit` |
+| アプリケーション | `apps/*-sync/src/application` | ドメイン・プロトコル契約・ポート・`packages/rate-limit` |
 | ポート | `apps/*-sync/src/ports` | ドメインの型 |
 | アダプタ | `apps/*-sync/src/adapters`・web アプリ | 上のすべて |
 | web の純粋判断 | web アプリ配下で React・I/O に依存しない `.ts`（例: `apps/timer-web/src/ui/screen.ts`・`apps/poker-web/src/router.ts` の `parseRoute` / `hubPathFor`・`apps/landing/src/hub/hub-state.ts`） | ドメインの型のみ（React・I/O に依存しない） |
 | web の同期フック | web アプリの同期フック（例: `apps/poker-web/src/hooks/useSync.ts`・`apps/landing/src/hub/use-hub-sync.ts`）。大きくなったら同じ層のサブフックに分けてよい（例: `apps/timer-web/src/sync/use-timer-entry.ts`・`apps/poker-web/src/hooks/useRoomEntry.ts`。#369） | 上のすべて ＋ WebSocket |
+| web の同期クライアント | `packages/sync-client` | なし（ツールの語彙を持たない。WS の保持と再接続・参加の失敗の判断・端末の同一性。同期フックだけが読む） |
 | web の同期の共有部品 | `packages/web-kit` の入口 `@tasuki/web-kit/sync`（`useJoinRetry`・`useToolRoomSync`。#369） | `react`（peer）・`@tasuki/sync-client` のみ。ドメインの core には依存しない。**同期フックの側として扱い、画面は直接読まない**（お題・ルーレットの `screens-do-not-import-sync-client` のテスト） |
-| web の画面 | web アプリの `.tsx` | 同期フックと純粋判断のみ（同期クライアントを直接 import しない） |
+| web の画面 | web アプリの `.tsx` | 同期フック・純粋判断・`@tasuki/web-kit/reader`・`packages/invite-ui`・`packages/ui` のみ（同期クライアントと `@tasuki/web-kit/sync` を直接 import しない） |
 | UI 資産 | `packages/ui` | なし（CSS のトークン・要素・部品と静的資産。ADR 0022） |
 | 招待のブラウザ操作 | `packages/invite-ui` | React・ブラウザ API・既存の qrcode。ドメイン・同期クライアントには依存しない（[ADR-0020](../adr/0020-invite-browser-operations.md)） |
 | Markdown の解析 | `packages/markdown` | なし（純粋関数のみ。React を知らない）。描画は `@tasuki/web-kit/reader` の `Markdown` が持つ（[ADR-0021](../adr/0021-topic-as-shared-context.md) 決定 7 と 2026-10-14 の追記・#371） |
 | web の読む面の共有部品 | `packages/web-kit` の入口 `@tasuki/web-kit/reader`（`Markdown`・`useReaderDrawer`。#371） | `react`（peer）・`@tasuki/markdown`。**画面から読んでよい**（同期の入口 `./sync` とは別） |
+| 開発用の設定 | `packages/dev-hub-redirect` | なし（dev サーバー専用の Vite プラグインと玄関のポートの正本。各アプリの `vite.config.ts` だけが読む。層の外） |
+
+**#371 で寄せなかったもの**: 玄関への道（`hubPathFor` など）・`parseRoute`・招待の表示・タブ・timer の確認のダイアログは、
+各アプリに写しのまま置く（理由は [`2026-10-14-refactor-r11-shared-display-parts.md`](../superpowers/plans/2026-10-14-refactor-r11-shared-display-parts.md) §9）。
 
 web の画面は、招待のコピー・QR 生成については `packages/invite-ui` のフックを使う。
 同期フックから受け取った URL を渡し、操作結果を描画する。URL の組み立てや
@@ -61,15 +67,18 @@ WebSocket の配線はこの共有先へ移さない。
 [`docs/adr/0015`](../adr/0015-web-layer-structure.md) です。本ガイドはその置き場を
 示します。`apps/poker-web` は `hooks/useSync.ts` へ、`apps/timer-web` は `sync/use-timer-sync.ts` へ、
 それぞれ WS の配線を集約しています（timer-web の再編は
-[#167](https://github.com/tomohiroJin/tasuki-tools/issues/167) で完了）。
+[#167](https://github.com/tomohiroJin/tasuki-tools/issues/167) で完了）。お題・ルーレットは `hooks/use-*-sync.ts`（`useToolRoomSync` の上）、
+玄関は `hub/use-hub-sync.ts` です。参加とやり直しはサブフック（`useRoomEntry.ts`・`use-timer-entry.ts`・`use-join-deadline.ts`）に分けました（#369）。
 各アプリが写しで持っていた接続・参加・混雑のやり直しは、#369 で `@tasuki/web-kit/sync` に寄せました
 （WS の URL と接続状態の型は `@tasuki/sync-client` の `buildSyncUrl`・`ConnectionStatus` 1 つ）。
-この境界は `scripts/audit-web-sync-boundary.mjs` が機械で見ています。
+WS の置き場と、URL・接続状態の写しは `scripts/audit-web-sync-boundary.mjs` が機械で見ています。画面が `@tasuki/sync-client`・
+`@tasuki/web-kit/sync` を読まないことを見ているのは、お題・ルーレットの `screens-do-not-import-sync-client` のテストだけです
+（timer・poker・玄関には機械の守りがありません）。
 
 **`packages/rate-limit` について**: HMAC によるクライアント鍵導出とトークンバケツによる
 レート制限（#103）を提供する node 専用パッケージ。`node:crypto` / `node:net` に依存するため
 ブラウザバンドルへは載せられず、`packages/protocol` とは同居できない。ドメインの型も知らない
-（IP 文字列とキー文字列のみを扱う）ため「ドメイン」でもなく、両 sync アプリが使い、
+（IP 文字列とキー文字列のみを扱う）ため「ドメイン」でもなく、同期サーバー（`apps/tasuki-sync`）が使い、
 置き場も `src/` 直下（設定・組み立て）・`application/`・`adapters/` にまたがる
 横断的な共有ユーティリティとして独立の行に置く。**どの層から import するかは
 アプリごとに一様ではありません**（例: poker のアダプタ
@@ -122,7 +131,8 @@ WebSocket の配線はこの共有先へ移さない。
 | ~~見学者~~ | **[#95](https://github.com/tomohiroJin/tasuki-tools/issues/95) S3（[#244](https://github.com/tomohiroJin/tasuki-tools/issues/244)・2026-09-08）で廃止した用語。** かつては役割 `viewer` を指し、閲覧はできるが操作を制限された参加者を意味した。役割ごと撤去したので、**制限という区別は存在しない**。生きている「見学」とは 1 文字違いだが、あちらは**ローテーションの層**、こちらは**廃止した役割の層**であり、まったくの別物である。実際に S3 の作業中、実画面の検証が両者を混同して偽の失敗を出した。旧い文書・コミット・Issue でどちらの意味かを取り違えないために、行を消さずに残す |
 | ラウンド（poker） | poker において、1 テーマに対する 1 回の投票 |
 | 公開（reveal） | poker において、伏せていた各参加者の見積り値を開示すること |
-| お題 | **ルームの持ち物としてのお題**（`packages/topic-core` の `Topic` 型。タイトル＋本文）。[#91](https://github.com/tomohiroJin/tasuki-tools/issues/91) で 4 つ目の文脈になった（[`docs/adr/0021`](../adr/0021-topic-as-shared-context.md)）。玄関の 3 枚目の札（お題ツール・`apps/topic-web`、公開パス `/topic/`）で作り（手入力・定型バンク・AI 生成）、`topic` フレームでルームの全接続へ配る。玄関はタイトルを 1 行、timer・poker はタイトルと本文を**読んで表示するだけ**で、お題を変えられるのはお題ツールの接続だけである。本文は Markdown として描き、解析は `packages/markdown`、描画は各アプリが持つ。timer の完成記録には、完了した時点のお題のタイトルだけを写す（`topicTitle`・お題なしなら `null`）。**かつての timer 独自の概念**（`packages/timer-core` の `Problem` 型。TDD の練習課題）は #91 PR 3 で撤去し、このお題へ統合した。旧い文書・コミットに出てくる `problem` はこちらを指す。**poker の提案**: 見積もり結果をお題へ反映する案は [#93](https://github.com/tomohiroJin/tasuki-tools/issues/93) で扱う（未実装） |
+| 接続層のエラー | timer の系統（timer・玄関・お題・ルーレット）が、ツールのコマンドに入る前の接続の段で返すエラー（`INVALID_JSON`・`INVALID_COMMAND`・`MESSAGE_TOO_LARGE`・`INTERNAL_ERROR`）。文言の正本は `apps/tasuki-sync/src/application/connection-errors.ts` で、各 core の写しはテストで一致を固定する（#362）。poker のエラーコード（ケバブ記法）は別の契約である |
+| お題 | **ルームの持ち物としてのお題**（`packages/topic-core` の `Topic` 型。タイトル＋本文）。[#91](https://github.com/tomohiroJin/tasuki-tools/issues/91) で 4 つ目の文脈になった（[`docs/adr/0021`](../adr/0021-topic-as-shared-context.md)）。玄関の 3 枚目の札（お題ツール・`apps/topic-web`、公開パス `/topic/`）で作り（手入力・定型バンク・AI 生成）、`topic` フレームでルームの全接続へ配る。玄関はタイトルを 1 行、timer・poker はタイトルと本文を**読んで表示するだけ**で、お題を変えられるのはお題ツールの接続だけである。本文は Markdown として描き、解析は `packages/markdown`、描画は `@tasuki/web-kit/reader` の `Markdown` が持つ（#371）。timer の完成記録には、完了した時点のお題のタイトルだけを写す（`topicTitle`・お題なしなら `null`）。**かつての timer 独自の概念**（`packages/timer-core` の `Problem` 型。TDD の練習課題）は #91 PR 3 で撤去し、このお題へ統合した。旧い文書・コミットに出てくる `problem` はこちらを指す。**poker の提案**: 見積もり結果をお題へ反映する案は [#93](https://github.com/tomohiroJin/tasuki-tools/issues/93) で扱う（未実装） |
 | 進行役ルーレット | **ルームの入る人から次の進行役を 1 人引くツール**（`packages/roulette-core`）。入る人（`poolOf`・在室者＋足したゲスト）・一周の規則（`drawWinner`）・回転（`startSpin`）は純粋関数で、当たりと止まる位置はサーバーが引き、全画面に同じ値を配る。円盤の角度・指し針・札のめくりは `apps/roulette-web` が持つ（[ADR-0026](../adr/0026-facilitator-roulette.md)） |
 
 ## 一般的な方法論との対応

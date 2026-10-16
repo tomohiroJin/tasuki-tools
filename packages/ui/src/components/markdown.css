@@ -1,13 +1,14 @@
 /* ============================================================
    Tasuki UI — Markdown の見た目（#320・ADR 0022）
    お題の説明の Markdown サブセット（`@tasuki/markdown` が解析し、各アプリの `Markdown.tsx` が描く）の見た目。
-   根に `.ui-md`、各ブロックと行内の要素に `.ui-md-*` を当てる。**描画（React）は各アプリが持つ**（#315 が判断する）。
+   根に `.ui-md`、各ブロックと行内の要素に `.ui-md-*` を当てる。描画（React）は `@tasuki/web-kit/reader` の `Markdown` 1 つ（#371）。
    既定の色は象牙の札（お題ツールの `.topic-sheet`・各画面の読む面）の上で読める値。暗い面に置くときは面がつまみを宣言する。
    ============================================================ */
 
 /* つまみ（置く面が宣言する。ここでは宣言しない —— 宣言すると面の指定が継承に負けて黙って効かない）:
      --ui-md-edge  コード・引用の枠の色。既定 --coal-soft は象牙の上でしか読めない
-     --ui-md-link  リンクの字の色。既定は字の色を継ぐ（下線で区別する） */
+     --ui-md-link  リンクの字の色。既定は字の色を継ぐ（下線で区別する）
+     --ui-md-check タスクリストのチェックボックスの色（#315）。既定 --coal は象牙の上でしか読めない */
 
 /* ブロックの間隔は margin で作る。`white-space: pre-wrap` は Markdown 自身の段落・改行の扱い
    （空行区切り・行内の改行）と二重になり、連続する空行が段落の間隔と別に隙間を作る。 */
@@ -48,6 +49,62 @@ h6.ui-md-h {
 }
 .ui-md-ol {
   list-style: decimal;
+}
+
+/* タスクリストの項目（#315 正本 D4・D5）。印を出さず、列の字下げを打ち消してチェックボックスを印の位置に置く。
+   label で包むので、行の文を押してもチェックボックスに当たる（押せるのは #315 PR 2 で受け口を渡した面だけ）。 */
+.ui-md-task {
+  list-style: none;
+  margin-left: calc(-1 * var(--space-5));
+}
+
+/* 要素層の `label`（`controls.css`。欄の名札として縦に並べ、小さく `--ivory-dim` で書く）を打ち消す。
+   残すと文がチェックボックスの下へ回り、象牙の札の上で読めない色になる（#315 の実画面検証で見つけた）。 */
+.ui-md-task-label {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: inherit; /* scale-exempt: 要素層の label の小さい字を打ち消し、項目の字を継ぐ */
+  color: inherit;
+}
+
+/* チェックボックスは部品が描く（`appearance: none`）。ブラウザの既定は、押せない（`disabled`）ものを
+   灰色で描き、色の指定（`accent-color`）も効かない。象牙の札の上では済んだかどうかが読めなかった
+   （#315 の実画面検証）。枠と印を同じつまみの色で描き、押せるかどうかで見た目を変えない。 */
+.ui-md-check {
+  appearance: none;
+  flex: none;
+  display: inline-grid;
+  place-content: center;
+  /* 文の 1 行目の縦の真ん中に置く。`center` だと、折り返した項目で文全体の真ん中まで下がる（#413 のレビュー）。
+     字の大きさと `line-height` を継ぐのは、`em` と `1lh` を文の字と行の高さにするため（入力欄の既定は別の値）。 */
+  align-self: flex-start;
+  font-size: inherit; /* scale-exempt: 入力欄の既定の字（13.33px）を打ち消し、箱の `em` と `1lh` を項目の字に合わせる */
+  line-height: inherit;
+  box-sizing: border-box;
+  width: 1.05em;
+  height: 1.05em;
+  margin: 0; /* `lh` を読めないブラウザ（Safari 16.4 未満・Firefox 120 未満）は次の行を捨てる。入力欄の既定の余白へ戻さない */
+  margin: calc((1lh - 1.05em) / 2) 0 0;
+  border: 2px solid var(--ui-md-check, var(--coal));
+  /* 角は字の大きさに比例させる（`--radius-sm` は 1em の箱では丸に近くなり、文字の O に見えた） */
+  border-radius: 0.2em;
+}
+
+/* 印（右下の 2 辺を 45° 回したかぎ）。チェックの外れたときは場所だけ取って見せない。 */
+.ui-md-check::before {
+  content: "";
+  width: 0.3em;
+  height: 0.55em;
+  border: solid var(--ui-md-check, var(--coal));
+  border-width: 0 2px 2px 0;
+  transform: translateY(-0.08em) rotate(45deg);
+  visibility: hidden;
+}
+
+.ui-md-check:checked::before {
+  visibility: visible;
 }
 
 .ui-md-quote {

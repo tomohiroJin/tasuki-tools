@@ -410,5 +410,5 @@ export const MAX_HANDOFF_NOTE = 2000;
 // 上限・AI 解錠の合言葉の上限があった。**#91 PR 3 でお題ごと timer-core から落とした。**
 // お題の上限はいま `@tasuki/topic-core` の `limits.ts` が持つ。
 
-/** ルームパスフレーズの最大長（巨大入力 DoS 対策・R4-2）。 */
-export const MAX_PASSPHRASE = 128;
+// ⚠ かつてここに合言葉の最大長（`MAX_PASSPHRASE`）があった。**#377 で `@tasuki/room-core` へ移した。**
+// 合言葉はルームの入室を守るもので、玄関の `room.join` も同じ上限で確かめる必要があるため。

@@ -10,7 +10,7 @@
  * **クラス名は字面で書く**（部品の使用を検査が `.tsx` の字面で数えるため）。
  */
 import React from 'react';
-import { parseMarkdown, type MdBlock, type MdInline } from '@tasuki/markdown';
+import { parseMarkdown, type MdBlock, type MdInline, type MdListItem } from '@tasuki/markdown';
 
 /** 見出しの段の起点。`#` を何段目の見出しにするか（3 なら h3〜h5、4 なら h4〜h6）。 */
 export type MarkdownHeadingBase = 3 | 4;
@@ -56,6 +56,22 @@ function Lines({ lines, keyBase }: { lines: readonly MdInline[][]; keyBase: stri
   );
 }
 
+/**
+ * 箇条書き・番号付きの項目。タスクの項目（#315）は `label` で包んだチェックボックスにし、
+ * 項目の文をそのまま名前にする（正本 D4。文を押しても当たる）。**押せない**（`disabled`）—— 付け外しは #315 PR 2。
+ */
+function ListItem({ item, keyBase }: { item: MdListItem; keyBase: string }) {
+  if (item.task === null) return <li><Inline nodes={item.inline} keyBase={keyBase} /></li>;
+  return (
+    <li className="ui-md-task">
+      <label className="ui-md-task-label">
+        <input type="checkbox" className="ui-md-check" checked={item.task.checked} disabled />
+        <span className="ui-md-task-text"><Inline nodes={item.inline} keyBase={keyBase} /></span>
+      </label>
+    </li>
+  );
+}
+
 // 見出しの段: level 1〜3 に headingBase - 1 を足す（3 なら h3〜h5、4 なら h4〜h6）
 const tagFor = (level: 1 | 2 | 3, base: MarkdownHeadingBase) => `h${level + base - 1}` as 'h3' | 'h4' | 'h5' | 'h6';
 
@@ -76,7 +92,7 @@ function Block({ block, keyBase, headingBase }: { block: MdBlock; keyBase: strin
       return (
         <List className={block.kind === 'ul' ? 'ui-md-ul' : 'ui-md-ol'}>
           {block.items.map((item, j) => (
-            <li key={`${keyBase}-${j}`}><Inline nodes={item} keyBase={`${keyBase}-${j}`} /></li>
+            <ListItem key={`${keyBase}-${j}`} item={item} keyBase={`${keyBase}-${j}`} />
           ))}
         </List>
       );
