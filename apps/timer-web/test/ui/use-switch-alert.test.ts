@@ -48,7 +48,8 @@ describe("useSwitchAlert 交代検知", () => {
   });
 });
 
-describe("useSwitchAlert 休憩に入る交代（#402）", () => {
+/** @requirements #402 */
+describe("useSwitchAlert 休憩に入る交代", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("Given suppressed / When 本当の交代 / Then 鳴らさず、全画面の知らせも出さない", () => {

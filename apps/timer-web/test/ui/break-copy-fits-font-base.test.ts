@@ -37,7 +37,8 @@ function allBreakTexts(): string[] {
   return [...fromTable, ...notices, ...selfNotices, ...reused, ...ERROR_CODES.map(errorMessageFor)];
 }
 
-describe("休憩の文言は書体の常用の層に収まる（#402）", () => {
+/** @requirements #402 */
+describe("休憩の文言は書体の常用の層に収まる", () => {
   it("Given 常用の層の面 / When 読む / Then 3 つの太さが見つかる（0 面だと下が緑に倒れる）", () => {
     expect([...baseFaces().keys()].sort()).toEqual(["zkgn-400-base.woff2", "zkgn-500-base.woff2", "zkgn-700-base.woff2"]);
   });

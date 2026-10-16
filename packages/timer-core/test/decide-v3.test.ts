@@ -30,7 +30,8 @@ describe("decide: handoff.note.set（§9.1）", () => {
   });
 });
 
-describe("decide: 休憩（#402 設計 §3.4）", () => {
+/** @requirements #402 */
+describe("decide: 休憩", () => {
   // 2 席以上（driver.assign index 1・member.move 0→1 が通る形）
   const startedAgg = () => anAggregate().withRotation("Alice", "Bob").at(NOW).running().build();
   const onBreakAgg = () => evolve(startedAgg(), { type: "BreakStarted", now: NOW + 1000 }, NOW + 1000);

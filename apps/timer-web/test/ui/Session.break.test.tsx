@@ -99,7 +99,8 @@ describe("休憩の操作は条件なしのルームに出ない", () => {
   });
 });
 
-describe("休憩（#402）", () => {
+/** @requirements #402 */
+describe("休憩", () => {
   it("Given 条件ありのルーム / When 描く / Then 「休憩する」と添え書きがある", () => {
     render(<Session {...props(roomWith({ config: ELAPSED }))} />);
     expect(screen.getByRole("button", { name: /休憩する/ })).toBeInTheDocument();

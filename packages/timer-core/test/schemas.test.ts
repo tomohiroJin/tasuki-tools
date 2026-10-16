@@ -508,7 +508,8 @@ describe("RoomSchema: config.members を落とした（#294）", () => {
   });
 });
 
-describe("休憩の wire（#402）", () => {
+/** @requirements #402 */
+describe("休憩の wire", () => {
   it("Given session.break が無い snapshot（古いサーバー） / When 検証する / Then 通り、break は無いまま", () => {
     const r = v.safeParse(RoomSchema, validRoom());
     expect(r.success).toBe(true);
@@ -573,7 +574,8 @@ describe("休憩の wire（#402）", () => {
     expect(r.success).toBe(true);
   });
 
-  it("Given suggest-break シグナル / When 検証する / Then 落ちる（#402 で wire から消した）", () => {
+  /** @requirements #402 */
+  it("Given suggest-break シグナル / When 検証する / Then 落ちる", () => {
     expect(
       v.safeParse(ServerMsgSchema, { type: "signal", signal: "suggest-break", rounds: 1 }).success,
     ).toBe(false);

@@ -657,7 +657,8 @@ describe("evolve: MemberRemoved / MemberMoved の index 調整分岐", () => {
   });
 });
 
-describe("ロビーへ戻すと時計を止め、休憩を畳む（PR #416 のレビュー）", () => {
+/** @requirements #402 */
+describe("ロビーへ戻すと時計を止め、休憩を畳む", () => {
   it.each(["setup", "ready", "celebration"] as const)(
     "Given 休憩中 / When PhaseSet %s / Then 休憩は畳まれ、時計は止まったまま",
     (phase) => {
@@ -685,7 +686,8 @@ describe("ロビーへ戻すと時計を止め、休憩を畳む（PR #416 の�
   });
 });
 
-describe("完成・中断は時計を止め、休憩を畳む（#402 設計 §3.5）", () => {
+/** @requirements #402 */
+describe("完成・中断は時計を止め、休憩を畳む", () => {
   it.each(["SessionCompleted", "SessionAborted"] as const)(
     "Given 休憩を経た走っている集約 / When %s / Then 時計は止まり、休憩の状態は初期値に戻る",
     (type) => {

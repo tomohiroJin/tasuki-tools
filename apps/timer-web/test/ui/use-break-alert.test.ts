@@ -22,7 +22,8 @@ function setup(notify = on) {
   });
 }
 
-describe("useBreakAlert（#402 §5.6）", () => {
+/** @requirements #402 */
+describe("useBreakAlert", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("Given 休憩でない / When 初回に描く / Then 鳴らさない", () => {

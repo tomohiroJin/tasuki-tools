@@ -97,7 +97,8 @@ afterEach(() => {
   jest.useRealTimers();
 });
 
-describe("交代が起きたら休憩の条件を判定する（#402 設計 §4.1）", () => {
+/** @requirements #402 */
+describe("交代が起きたら休憩の条件を判定する", () => {
   // 交代の経路を名指しせずに覆うことを、経路ごとに確かめる。
   it.each([
     ["自動交代", async (h: Ctx) => { for (let i = 0; i < 3; i++) advanceOneSwitch(h); }],
@@ -204,7 +205,8 @@ describe("交代が起きたら休憩の条件を判定する（#402 設計 §4.
   });
 });
 
-describe("現状維持の交代でも経過時間の判定は走る（PR #416 のレビュー）", () => {
+/** @requirements #402 */
+describe("現状維持の交代でも経過時間の判定は走る", () => {
   // 1 人の輪（他が全員不適格も同じ）では交代が現状維持になり、回数は増えないが、時計は再アンカーして
   // 稼働時間を確定する。回数だけを入口にすると、経過時間の条件でも休憩が来なかった。
   it("Given 1 人の輪・経過 30 分・自動 / When 自動交代で 30 分走る / Then 休憩に入る", async () => {
@@ -234,7 +236,8 @@ describe("現状維持の交代でも経過時間の判定は走る（PR #416 �
   });
 });
 
-describe("現状維持の交代で知らせ直す（PR #416 の再レビュー）", () => {
+/** @requirements #402 */
+describe("現状維持の交代で知らせ直す", () => {
   it("Given 1 人の輪・経過 30 分・知らせるだけ / When 30 分ごとに 2 回知らせる / Then snapshot の知らせた時点の累計が 30 分→60 分と進む", async () => {
     const h = await setupRunning({ trigger: "elapsed", every: 30, mode: "suggest" }, []);
     const lastBreak = () => h.broadcaster.latestSnapshot()?.session.break;
@@ -246,7 +249,8 @@ describe("現状維持の交代で知らせ直す（PR #416 の再レビュー�
   });
 });
 
-describe("休憩明けの繰り上げ（#402 設計 §4.2）", () => {
+/** @requirements #402 */
+describe("休憩明けの繰り上げ", () => {
   it("Given 休憩中に運転者が一時離脱した / When 休憩を終える / Then 次の適格な人が運転者になり、時計が走る", async () => {
     const h = await setupRunning(MANUAL_ONLY);
     await h.handlers.handleCommand("host-conn", { command: "break.start" });
@@ -259,7 +263,8 @@ describe("休憩明けの繰り上げ（#402 設計 §4.2）", () => {
   });
 });
 
-describe("休憩の開始・終了を全員に伝える（#402 設計 §4.3）", () => {
+/** @requirements #402 */
+describe("休憩の開始・終了を全員に伝える", () => {
   it("Given セッション中 / When Bob が休憩を始めて終える / Then notice が 2 本配られる", async () => {
     const h = await setupRunning(MANUAL_ONLY);
     await h.handlers.handleCommand("bob-conn", { command: "break.start" });

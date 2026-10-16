@@ -53,7 +53,8 @@ async function setupRunning(policy?: BreakPolicy) {
   return ctx;
 }
 
-describe("休憩と設定の phase の事前条件（#402 設計 §4.4）", () => {
+/** @requirements #402 */
+describe("休憩と設定の phase の事前条件", () => {
   it("Given ロビー / When break.start / Then NOT_IN_SESSION で拒む", async () => {
     const { handlers } = await setupLobby();
     const r = await handlers.handleCommand("host-conn", { command: "break.start" });

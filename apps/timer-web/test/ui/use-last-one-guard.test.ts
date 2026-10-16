@@ -8,7 +8,8 @@ function unloadPrevented(): boolean {
   return e.defaultPrevented;
 }
 
-describe("useLastOneGuard（#402 設計 §5.4）", () => {
+/** @requirements #402 */
+describe("useLastOneGuard", () => {
   it("Given active=false / When beforeunload / Then 確認を出さない", () => {
     renderHook(() => useLastOneGuard(false));
     expect(unloadPrevented()).toBe(false);
