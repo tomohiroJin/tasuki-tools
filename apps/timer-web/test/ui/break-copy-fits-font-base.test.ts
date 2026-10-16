@@ -44,7 +44,9 @@ describe("休憩の文言は書体の常用の層に収まる", () => {
   });
 
   it("Given 休憩の文言のすべて / When 常用の層の範囲に当てる / Then 外れる字は休・憩だけ", () => {
+    // Given
     const outside = new Set<string>();
+    // When
     for (const [, ranges] of baseFaces()) {
       for (const text of allBreakTexts()) {
         for (const ch of text) {
@@ -53,12 +55,18 @@ describe("休憩の文言は書体の常用の層に収まる", () => {
         }
       }
     }
+    // Then
     expect([...outside].filter((ch) => !ALLOWED_OUTSIDE.has(ch))).toEqual([]);
   });
 
   it("Given エラーの文言 / When 引く / Then 既定の文言に落ちていない（落ちると測っていない）", () => {
-    for (const code of ERROR_CODES) {
-      expect(errorMessageFor(code)).not.toBe(errorMessageFor("__unknown__"));
+    // Given
+    const fallback = errorMessageFor("__unknown__");
+    // When
+    const messages = ERROR_CODES.map((code) => errorMessageFor(code));
+    // Then
+    for (const message of messages) {
+      expect(message).not.toBe(fallback);
     }
   });
 

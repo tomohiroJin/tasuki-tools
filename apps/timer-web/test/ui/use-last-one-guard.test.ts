@@ -21,15 +21,21 @@ describe("useLastOneGuard", () => {
   });
 
   it("Given active=true から false に変わる / When beforeunload / Then 解除されて確認は出ない", () => {
+    // Given（前提は下の呼び出しの引数に込めている）
+    // When
     const { rerender } = renderHook(({ a }) => useLastOneGuard(a), { initialProps: { a: true } });
+    // Then
     expect(unloadPrevented()).toBe(true);
     rerender({ a: false });
     expect(unloadPrevented()).toBe(false);
   });
 
   it("Given active=true / When アンマウント / Then 解除される", () => {
+    // Given
     const { unmount } = renderHook(() => useLastOneGuard(true));
+    // When
     unmount();
+    // Then
     expect(unloadPrevented()).toBe(false);
   });
 });

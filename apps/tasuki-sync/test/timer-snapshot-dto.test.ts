@@ -137,7 +137,10 @@ describe("timer のスナップショット DTO（wire の同形性）", () => {
   });
 
   it("Given 休憩していない集約 / When snapshot を組む / Then break は空で onBreak は false", () => {
+    // Given（前提は下の呼び出しの引数に込めている）
+    // When
     const room = buildTimerSnapshotRoom(membership, timer);
+    // Then
     expect(room.session.break).toEqual({ since: null, suggestedAtSwitches: null, suggestedAtElapsedMs: null });
     expect(room.onBreak).toBe(false);
   });

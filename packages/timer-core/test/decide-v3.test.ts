@@ -71,6 +71,9 @@ describe("decide: 休憩", () => {
     { command: "handoff.note.set", text: "x" },
     { command: "member.move", fromIndex: 0, toIndex: 1 },
   ] as const)("Given 休憩中 / When %j / Then 通す", (cmd) => {
+    // Given（前提は表の行・引数に込めている）
+    // When
+    // Then
     expect(decide(cmd, onBreakAgg(), NOW).isOk()).toBe(true);
   });
 

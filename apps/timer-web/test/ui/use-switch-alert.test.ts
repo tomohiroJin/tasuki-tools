@@ -53,11 +53,14 @@ describe("useSwitchAlert 休憩に入る交代", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("Given suppressed / When 本当の交代 / Then 鳴らさず、全画面の知らせも出さない", () => {
+    // Given
     const o = { assertiveSwitch: true, notify, suppressed: true };
     const { result, rerender } = renderHook(({ i, n }) => useSwitchAlert(i, n, o), {
       initialProps: { i: 0, n: "Alice" },
     });
+    // When
     rerender({ i: 1, n: "Bob" });
+    // Then
     expect(playChime).not.toHaveBeenCalled();
     expect(result.current.switchAlertName).toBeNull();
   });

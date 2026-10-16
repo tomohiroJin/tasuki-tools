@@ -103,6 +103,7 @@ describe("交代が起きたら休憩の条件を判定する", () => {
   it.each([
     ["自動交代", async (h: Ctx) => { for (let i = 0; i < 3; i++) advanceOneSwitch(h); }],
     ["手での交代", async (h: Ctx) => {
+      // Given
       for (let i = 0; i < 3; i++) await h.handlers.handleCommand("host-conn", { command: "session.act", action: "SWITCH" });
     }],
     ["強制指名", async (h: Ctx) => {
@@ -113,7 +114,9 @@ describe("交代が起きたら休憩の条件を判定する", () => {
   ] as const)("Given 周回 1・自動・3 人 / When %s で 3 回交代 / Then 休憩に入り、時計は満タンで止まる", async (_label, act) => {
     const h = await setupRunning(ROUNDS_1);
     await act(h);
+      // When
     const timer = timerOf(h);
+      // Then
     expect(timer.session.break.since).not.toBeNull();
     expect(timer.clock.running).toBe(false);
     expect(timer.clock.secondsLeftAtAnchor).toBe(timer.clock.intervalSeconds);
@@ -121,9 +124,12 @@ describe("交代が起きたら休憩の条件を判定する", () => {
 
   // 判定が applyAfterEffects の「あと」にあることを確かめる唯一の経路（繰り上げの交代は事後処理で起きる）。
   it("Given 周回 1・自動・2 回交代済み / When 運転者が自分を driver.skip して繰り上げで 3 回目の交代が起きる / Then 休憩に入る", async () => {
+    // Given
     const h = await setupRunning(ROUNDS_1);
     advanceOneSwitch(h);
+    // When
     advanceOneSwitch(h);
+    // Then
     expect(timerOf(h).session.break.since).toBeNull();
     const driver = currentDriverId(h);
     const r = await h.handlers.handleCommand(connOf(h, driver), { command: "driver.skip", participantId: driver });
@@ -135,41 +141,56 @@ describe("交代が起きたら休憩の条件を判定する", () => {
   });
 
   it("Given 周回 1・自動 / When 2 回交代 / Then まだ休憩に入らない", async () => {
+    // Given
     const h = await setupRunning(ROUNDS_1);
     advanceOneSwitch(h);
+    // When
     advanceOneSwitch(h);
+    // Then
     expect(timerOf(h).session.break.since).toBeNull();
   });
 
   it("Given 周回 1・知らせるだけ / When 3 回交代 / Then 時計は走ったまま、知らせの印が付く", async () => {
+    // Given
     const h = await setupRunning({ ...ROUNDS_1, mode: "suggest" });
     for (let i = 0; i < 3; i++) advanceOneSwitch(h);
+    // When
     const timer = timerOf(h);
+    // Then
     expect(timer.clock.running).toBe(true);
     expect(timer.session.break.suggestedAt?.switches).toBe(3);
   });
 
   it("Given 条件なし / When 何回交代しても / Then 休憩にも知らせにもならない", async () => {
+    // Given
     const h = await setupRunning(NO_BREAK);
+    // When
     for (let i = 0; i < 9; i++) advanceOneSwitch(h);
+    // Then
     expect(timerOf(h).session.break).toEqual(INITIAL_BREAK_STATE);
   });
 
   it("Given 休憩中 / When 時間が経つ / Then 自動交代は予約されていない", async () => {
+    // Given
     const h = await setupRunning(ROUNDS_1);
     for (let i = 0; i < 3; i++) advanceOneSwitch(h);
     const before = timerOf(h).session.totalSwitches;
+    // When
     advanceOneSwitch(h);
+    // Then
     expect(timerOf(h).session.totalSwitches).toBe(before);
   });
 
   it("Given 完成したルーム / When ロビーへ戻って時間が経つ / Then 自動交代も休憩も起きない（設計 §3.5）", async () => {
+    // Given
     const h = await setupRunning(ROUNDS_1);
     await h.handlers.handleCommand("host-conn", { command: "session.complete" });
     await h.handlers.handleCommand("host-conn", { command: "phase.set", phase: "setup" });
     const before = timerOf(h);
     for (let i = 0; i < 3; i++) advanceOneSwitch(h);
+    // When
     const after = timerOf(h);
+    // Then
     expect(after.clock.running).toBe(false);
     expect(after.session.totalSwitches).toBe(before.session.totalSwitches);
     expect(after.session.break.since).toBeNull();
@@ -184,10 +205,13 @@ describe("交代が起きたら休憩の条件を判定する", () => {
     ["handoff.note.set", { command: "handoff.note.set", text: "メモ" } as const],
     ["member.move", { command: "member.move", fromIndex: 0, toIndex: 1 } as const],
   ])("Given 周回 1・2 回交代して適格な席が 2 に減り条件を満たす / When 交代を伴わない %s / Then 休憩に入らない（交代の無いコミットでは判定しない）", async (_label, cmd) => {
+    // Given
     const h = await setupRunning(ROUNDS_1);
     advanceOneSwitch(h);
     advanceOneSwitch(h);
+    // When
     const bob = idOf(h, "bob-conn");
+    // Then
     expect(currentDriverId(h)).not.toBe(bob);
 
     if (cmd === null) {
@@ -210,7 +234,10 @@ describe("現状維持の交代でも経過時間の判定は走る", () => {
   // 1 人の輪（他が全員不適格も同じ）では交代が現状維持になり、回数は増えないが、時計は再アンカーして
   // 稼働時間を確定する。回数だけを入口にすると、経過時間の条件でも休憩が来なかった。
   it("Given 1 人の輪・経過 30 分・自動 / When 自動交代で 30 分走る / Then 休憩に入る", async () => {
+    // Given（前提は下の呼び出しの引数に込めている）
+    // When
     const h = await setupRunning({ trigger: "elapsed", every: 30, mode: "auto" }, []);
+    // Then
     expect(timerOf(h).session.rotation).toHaveLength(1);
     for (let i = 0; i < 5; i++) advanceOneSwitch(h);
     expect(timerOf(h).session.break.since).toBeNull();
@@ -222,6 +249,7 @@ describe("現状維持の交代でも経過時間の判定は走る", () => {
   });
 
   it("Given 他の 2 人が一時離脱した 3 人の輪・経過 30 分・知らせるだけ / When 自動交代で 30 分走る / Then 知らせの印が付く", async () => {
+    // Given
     const h = await setupRunning({ trigger: "elapsed", every: 30, mode: "suggest" });
     const driver = currentDriverId(h);
     for (const conn of ["host-conn", "bob-conn", "charlie-conn"]) {
@@ -229,7 +257,9 @@ describe("現状維持の交代でも経過時間の判定は走る", () => {
       if (pid !== driver) await h.handlers.handleCommand(conn, { command: "driver.skip", participantId: pid });
     }
     for (let i = 0; i < 6; i++) advanceOneSwitch(h);
+    // When
     const timer = timerOf(h);
+    // Then
     expect(timer.session.totalSwitches).toBe(0);
     expect(timer.session.break.suggestedAt?.elapsedMs).toBe(30 * 60_000);
     expect(timer.clock.running).toBe(true);
@@ -239,9 +269,12 @@ describe("現状維持の交代でも経過時間の判定は走る", () => {
 /** @requirements #402 */
 describe("現状維持の交代で知らせ直す", () => {
   it("Given 1 人の輪・経過 30 分・知らせるだけ / When 30 分ごとに 2 回知らせる / Then snapshot の知らせた時点の累計が 30 分→60 分と進む", async () => {
+    // Given
     const h = await setupRunning({ trigger: "elapsed", every: 30, mode: "suggest" }, []);
     const lastBreak = () => h.broadcaster.latestSnapshot()?.session.break;
+    // When
     for (let i = 0; i < 6; i++) advanceOneSwitch(h);
+    // Then
     expect(lastBreak()).toEqual({ since: null, suggestedAtSwitches: 0, suggestedAtElapsedMs: 30 * 60_000 });
     for (let i = 0; i < 6; i++) advanceOneSwitch(h);
     expect(lastBreak()).toEqual({ since: null, suggestedAtSwitches: 0, suggestedAtElapsedMs: 60 * 60_000 });
@@ -252,12 +285,15 @@ describe("現状維持の交代で知らせ直す", () => {
 /** @requirements #402 */
 describe("休憩明けの繰り上げ", () => {
   it("Given 休憩中に運転者が一時離脱した / When 休憩を終える / Then 次の適格な人が運転者になり、時計が走る", async () => {
+    // Given
     const h = await setupRunning(MANUAL_ONLY);
     await h.handlers.handleCommand("host-conn", { command: "break.start" });
     const driver = currentDriverId(h);
     await h.handlers.handleCommand(connOf(h, driver), { command: "driver.skip", participantId: driver });
     await h.handlers.handleCommand("bob-conn", { command: "break.end" });
+    // When
     const timer = timerOf(h);
+    // Then
     expect(currentDriverId(h)).not.toBe(driver);
     expect(timer.clock.running).toBe(true);
   });
@@ -266,10 +302,13 @@ describe("休憩明けの繰り上げ", () => {
 /** @requirements #402 */
 describe("休憩の開始・終了を全員に伝える", () => {
   it("Given セッション中 / When Bob が休憩を始めて終える / Then notice が 2 本配られる", async () => {
+    // Given
     const h = await setupRunning(MANUAL_ONLY);
     await h.handlers.handleCommand("bob-conn", { command: "break.start" });
     await h.handlers.handleCommand("bob-conn", { command: "break.end" });
+    // When
     const actions = h.broadcaster.signals.map((s) => (s.msg as { action?: string }).action).filter(Boolean);
+    // Then
     expect(actions).toEqual(["break-started", "break-ended"]);
   });
 });

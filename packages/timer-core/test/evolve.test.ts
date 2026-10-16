@@ -662,9 +662,12 @@ describe("ロビーへ戻すと時計を止め、休憩を畳む", () => {
   it.each(["setup", "ready", "celebration"] as const)(
     "Given 休憩中 / When PhaseSet %s / Then 休憩は畳まれ、時計は止まったまま",
     (phase) => {
+      // Given
       let agg = evolve(anAggregate().withRotation("a", "b").build(), { type: "SessionStarted", now: NOW }, NOW);
       agg = evolve(agg, { type: "BreakStarted", now: NOW + 1000 }, NOW + 1000);
+      // When
       const next = evolve(agg, { type: "PhaseSet", phase, now: NOW + 2000 }, NOW + 2000);
+      // Then
       expect(next.session.break.since).toBeNull();
       expect(next.clock.running).toBe(false);
       // 休憩を畳んでも、そのあとの BreakEnded で走り出さない
@@ -673,15 +676,21 @@ describe("ロビーへ戻すと時計を止め、休憩を畳む", () => {
   );
 
   it("Given 走っている集約 / When PhaseSet setup / Then 時計は止まり、稼働の累計を確定する", () => {
+    // Given
     const agg = evolve(anAggregate().withRotation("a", "b").build(), { type: "SessionStarted", now: NOW }, NOW);
+    // When
     const next = evolve(agg, { type: "PhaseSet", phase: "setup", now: NOW + 5000 }, NOW + 5000);
+    // Then
     expect(next.clock.running).toBe(false);
     expect(next.clock.accumulatedElapsedMs).toBe(5000);
   });
 
   it("Given 休憩中 / When PhaseSet session / Then 集約を変えない", () => {
+    // Given
     let agg = evolve(anAggregate().withRotation("a", "b").build(), { type: "SessionStarted", now: NOW }, NOW);
+    // When
     agg = evolve(agg, { type: "BreakStarted", now: NOW + 1000 }, NOW + 1000);
+    // Then
     expect(evolve(agg, { type: "PhaseSet", phase: "session", now: NOW + 2000 }, NOW + 2000)).toEqual(agg);
   });
 });
@@ -691,6 +700,7 @@ describe("完成・中断は時計を止め、休憩を畳む", () => {
   it.each(["SessionCompleted", "SessionAborted"] as const)(
     "Given 休憩を経た走っている集約 / When %s / Then 時計は止まり、休憩の状態は初期値に戻る",
     (type) => {
+      // Given
       let agg = evolve(anAggregate().withRotation("a", "b").build(), { type: "SessionStarted", now: NOW }, NOW);
       agg = evolve(agg, { type: "BreakStarted", now: NOW + 1000 }, NOW + 1000);
       agg = evolve(agg, { type: "BreakEnded", now: NOW + 2000 }, NOW + 2000);
@@ -698,7 +708,9 @@ describe("完成・中断は時計を止め、休憩を畳む", () => {
         type === "SessionCompleted"
           ? ({ type, now: NOW + 3000, topicTitle: null } as const)
           : ({ type, now: NOW + 3000 } as const);
+      // When
       const next = evolve(agg, event, NOW + 3000);
+      // Then
       expect(next.clock.running).toBe(false);
       expect(next.clock.accumulatedElapsedMs).toBe(2000);
       expect(next.session.break).toEqual(INITIAL_BREAK_STATE);
@@ -708,17 +720,22 @@ describe("完成・中断は時計を止め、休憩を畳む", () => {
   // 完成・中断で止まった集約に、ロビーを経ずに START が届くと（一時停止 → 完成 → 開始の取り違えなど）、
   // 回数と稼働時間は残る。基準を 0 に戻すと、残った値の分だけ開始直後に休憩の条件を満たす（PR #416 のレビュー）。
   it("Given 交代 6 回・稼働 40 分の止まった集約 / When SessionStarted / Then 休憩の基準はいまの値になる", () => {
+    // Given
     const base = anAggregate().withRotation("a", "b").build();
     const stopped = {
       session: { ...base.session, totalSwitches: 6 },
       clock: { ...base.clock, accumulatedElapsedMs: 40 * 60_000 },
     };
+    // When
     const next = evolve(stopped, { type: "SessionStarted", now: NOW }, NOW);
+    // Then
     expect(next.session.break).toEqual({ since: null, baseline: { elapsedMs: 40 * 60_000, switches: 6 }, suggestedAt: null });
   });
 
   it("Given 休憩の印が残る集約 / When SessionStarted / Then 休憩の状態は初期値", () => {
+    // Given
     const base = anAggregate().withRotation("a", "b").build();
+    // When
     const dirty = {
       ...base,
       session: {
@@ -726,6 +743,7 @@ describe("完成・中断は時計を止め、休憩を畳む", () => {
         break: { since: null, baseline: { elapsedMs: 5, switches: 5 }, suggestedAt: { elapsedMs: 5, switches: 5 } },
       },
     };
+    // Then
     expect(evolve(dirty, { type: "SessionStarted", now: NOW }, NOW).session.break).toEqual(INITIAL_BREAK_STATE);
   });
 });

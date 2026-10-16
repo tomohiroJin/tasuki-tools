@@ -56,34 +56,49 @@ async function setupRunning(policy?: BreakPolicy) {
 /** @requirements #402 */
 describe("休憩と設定の phase の事前条件", () => {
   it("Given ロビー / When break.start / Then NOT_IN_SESSION で拒む", async () => {
+    // Given
     const { handlers } = await setupLobby();
+    // When
     const r = await handlers.handleCommand("host-conn", { command: "break.start" });
+    // Then
     expect(r._unsafeUnwrapErr()).toBe("NOT_IN_SESSION");
   });
 
   it("Given ロビー / When break.end / Then NOT_IN_SESSION で拒む", async () => {
+    // Given
     const { handlers } = await setupLobby();
+    // When
     const r = await handlers.handleCommand("host-conn", { command: "break.end" });
+    // Then
     expect(r._unsafeUnwrapErr()).toBe("NOT_IN_SESSION");
   });
 
   it("Given セッション中 / When config.set / Then CONFIG_LOCKED_IN_SESSION で拒み、設定は変わらない", async () => {
+    // Given
     const { handlers, store, timers, code } = await setupRunning();
+    // When
     const r = await handlers.handleCommand("host-conn", { command: "config.set", config: { intervalMinutes: 10 } });
+    // Then
     expect(r._unsafeUnwrapErr()).toBe("CONFIG_LOCKED_IN_SESSION");
     expect(roomViewOf(store, timers, code).config.intervalMinutes).toBe(5);
   });
 
   it("Given ロビー / When config.set / Then 通る", async () => {
+    // Given
     const { handlers, store, timers, code } = await setupLobby();
+    // When
     const r = await handlers.handleCommand("host-conn", { command: "config.set", config: { intervalMinutes: 10 } });
+    // Then
     expect(r.isOk()).toBe(true);
     expect(roomViewOf(store, timers, code).config.intervalMinutes).toBe(10);
   });
 
   it("Given 休憩ありのセッション中 / When break.start / Then 全員の snapshot が休憩中になる", async () => {
+    // Given
     const { handlers, store, timers, code } = await setupRunning(ELAPSED_60);
+    // When
     const r = await handlers.handleCommand("host-conn", { command: "break.start" });
+    // Then
     expect(r.isOk()).toBe(true);
     expect(roomViewOf(store, timers, code).onBreak).toBe(true);
   });
@@ -94,15 +109,21 @@ describe("休憩と設定の phase の事前条件", () => {
     ["休憩の設定が無い", undefined],
     ["条件が none", { trigger: "none", every: 0, mode: "auto" } as BreakPolicy],
   ])("Given %s ルームのセッション中 / When break.start / Then BREAK_DISABLED で拒み、休憩中にならない", async (_label, policy) => {
+    // Given
     const { handlers, store, timers, code } = await setupRunning(policy);
+    // When
     const r = await handlers.handleCommand("host-conn", { command: "break.start" });
+    // Then
     expect(r._unsafeUnwrapErr()).toBe("BREAK_DISABLED");
     expect(roomViewOf(store, timers, code).onBreak).toBe(false);
   });
 
   it("Given 条件なしのルームのセッション中 / When break.end / Then BREAK_DISABLED では拒まない（明ける経路は塞がない）", async () => {
+    // Given
     const { handlers } = await setupRunning();
+    // When
     const r = await handlers.handleCommand("host-conn", { command: "break.end" });
+    // Then
     // 休憩中でないので decide が NotOnBreak で拒む。事前条件の BREAK_DISABLED ではないことを見る
     expect(r.isErr() ? r.error : "ok").not.toBe("BREAK_DISABLED");
   });

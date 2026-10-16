@@ -113,6 +113,9 @@ describe("isDriverSwitch（交代の知らせと休憩の知らせが共有す�
     ["改名（名前だけ変わった）", false, { index: 0, name: "A" }, { index: 0, name: "A2" }],
     ["現状維持", false, { index: 0, name: "A" }, { index: 0, name: "A" }],
   ] as const)("Given %s / When 判定する / Then %s", (_label, expected, prev, next) => {
+    // Given（前提は表の行・引数に込めている）
+    // When
+    // Then
     expect(isDriverSwitch(prev, next)).toBe(expected);
   });
 });

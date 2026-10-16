@@ -55,8 +55,11 @@ describe("deriveAnnouncement", () => {
 
   /** @requirements #402 */
   it("Given 走行中 / When 交代と同時に休憩に入る / Then 休憩の文が交代の文より優先する", () => {
+    // Given
     const prev = { running: true, isPaused: false, currentIndex: 0, isUrgent: false, driverName: "A", onBreak: false };
+    // When
     const next = { running: false, isPaused: false, currentIndex: 1, isUrgent: false, driverName: "B", onBreak: true };
+    // Then
     expect(deriveAnnouncement(prev, next)).toBe("休憩に入りました。休憩明けはBさんです");
   });
 
@@ -69,8 +72,11 @@ describe("deriveAnnouncement", () => {
   // 休憩明けの繰り上げは同じ snapshot で運転者を替える。休憩の終わりの文が交代の文より優先するので、
   // 終わりの文が運転者を言わないと、新しい運転者が読み上げから落ちる（PR #416 のレビュー）。
   it("Given 休憩中に運転者が席を外した / When 休憩明けに繰り上げで運転者が替わる / Then 新しい運転者を読む", () => {
+    // Given
     const prev = { running: false, isPaused: false, currentIndex: 1, isUrgent: false, driverName: "B", onBreak: true };
+    // When
     const next = { ...prev, running: true, onBreak: false, currentIndex: 2, driverName: "C" };
+    // Then
     expect(deriveAnnouncement(prev, next)).toBe("休憩が終わりました。ドライバーはCさんです");
   });
 });

@@ -112,9 +112,12 @@ describe("F2: 休憩でタイマーを停止/再開する", () => {
   });
 
   it("Given 走行中 / When 休憩に入る / Then 基準を今の稼働時間と交代回数で書き直し、知らせの印を消す", () => {
+    // Given
     const started = startedAgg();
     const withSuggestion = evolve(started, { type: "BreakSuggested", now: NOW + 60_000 }, NOW + 60_000);
+    // When
     const onBreak = evolve(withSuggestion, { type: "BreakStarted", now: NOW + 120_000 }, NOW + 120_000);
+    // Then
     expect(onBreak.session.break.baseline).toEqual({
       elapsedMs: started.clock.accumulatedElapsedMs + 120_000,
       switches: started.session.totalSwitches,
@@ -123,8 +126,11 @@ describe("F2: 休憩でタイマーを停止/再開する", () => {
   });
 
   it("Given 走行中 / When 知らせる / Then 知らせた時点の値を残し、時計は止めない", () => {
+    // Given
     const started = startedAgg();
+    // When
     const next = evolve(started, { type: "BreakSuggested", now: NOW + 60_000 }, NOW + 60_000);
+    // Then
     expect(next.session.break.suggestedAt).toEqual({
       elapsedMs: started.clock.accumulatedElapsedMs,
       switches: started.session.totalSwitches,
@@ -144,8 +150,11 @@ describe("F2: 休憩でタイマーを停止/再開する", () => {
   ] as const)(
     "Given 休憩中 / When %s（decide は出さない） / Then 集約を変えない（running を立てない・isPaused を立てない）",
     (type) => {
+      // Given
       const onBreak = evolve(startedAgg(), { type: "BreakStarted", now: NOW + 1000 }, NOW + 1000);
+      // When
       const next = evolve(onBreak, { type, now: NOW + 2000 }, NOW + 2000);
+      // Then
       expect(next).toEqual(onBreak);
       expect(next.clock.running).toBe(false);
       expect(next.session.isPaused).toBe(false);
@@ -153,8 +162,11 @@ describe("F2: 休憩でタイマーを停止/再開する", () => {
   );
 
   it("Given 休憩中 / When DriverSwitched / Then 集約を変えない（時計を再アンカーして走らせない）", () => {
+    // Given
     const onBreak = evolve(startedAgg(), { type: "BreakStarted", now: NOW + 1000 }, NOW + 1000);
+    // When
     const next = evolve(onBreak, { type: "DriverSwitched", nextIndex: 1, now: NOW + 2000 }, NOW + 2000);
+    // Then
     expect(next).toEqual(onBreak);
     expect(next.clock.running).toBe(false);
   });

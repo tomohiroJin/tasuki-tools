@@ -175,19 +175,25 @@ describe("timer のお題を撤去した", () => {
   });
 
   it("Given 経過時間に周回の値 / When config.set を検証する / Then 落ちる", () => {
+    // Given（前提は下の呼び出しの引数に込めている）
+    // When
     const r = v.safeParse(CommandSchema, {
       command: "config.set",
       config: { intervalMinutes: 5, break: { trigger: "elapsed", every: 2, mode: "auto" } },
     });
+    // Then
     expect(r.success).toBe(false);
   });
 
   it("Given 正しい休憩の設定 / When room.create を検証する / Then 通る", () => {
+    // Given（前提は下の呼び出しの引数に込めている）
+    // When
     const r = v.safeParse(CommandSchema, {
       command: "room.create",
       displayName: "a",
       config: { intervalMinutes: 5, break: { trigger: "rounds", every: 2, mode: "auto" } },
     });
+    // Then
     expect(r.success).toBe(true);
   });
 
@@ -511,59 +517,79 @@ describe("RoomSchema: config.members を落とした（#294）", () => {
 /** @requirements #402 */
 describe("休憩の wire", () => {
   it("Given session.break が無い snapshot（古いサーバー） / When 検証する / Then 通り、break は無いまま", () => {
+    // Given（前提は下の呼び出しの引数に込めている）
+    // When
     const r = v.safeParse(RoomSchema, validRoom());
+    // Then
     expect(r.success).toBe(true);
     expect(r.success && r.output.session.break).toBeUndefined();
   });
 
   it("Given 休憩中の snapshot / When 検証する / Then 通り、break が残る", () => {
+    // Given
     const room = validRoom();
+    // When
     const r = v.safeParse(RoomSchema, {
       ...room,
       session: { ...room.session, break: { since: 1000, suggestedAtSwitches: null } },
     });
+    // Then
     expect(r.success).toBe(true);
     expect(r.success && r.output.session.break).toEqual({ since: 1000, suggestedAtSwitches: null });
   });
 
   it("Given 休憩の提案を知らせた snapshot / When 検証する / Then 通る", () => {
+    // Given
     const room = validRoom();
+    // When
     const r = v.safeParse(RoomSchema, {
       ...room,
       session: { ...room.session, break: { since: null, suggestedAtSwitches: 3 } },
     });
+    // Then
     expect(r.success).toBe(true);
   });
 
   // 知らせた時点の稼働の累計（PR #416 の再レビュー）。帯の出し入れと知らせの契機に使う。旧サーバーは載せないので任意
   it("Given 知らせた時点の稼働の累計を載せた snapshot / When 検証する / Then 通り、値が残る", () => {
+    // Given
     const room = validRoom();
+    // When
     const r = v.safeParse(RoomSchema, {
       ...room,
       session: { ...room.session, break: { since: null, suggestedAtSwitches: 0, suggestedAtElapsedMs: 1_800_000 } },
     });
+    // Then
     expect(r.success && r.output.session.break).toEqual({ since: null, suggestedAtSwitches: 0, suggestedAtElapsedMs: 1_800_000 });
   });
 
   it("Given suggestedAtElapsedMs が負 / When 検証する / Then 落ちる", () => {
+    // Given
     const room = validRoom();
+    // When
     const r = v.safeParse(RoomSchema, {
       ...room,
       session: { ...room.session, break: { since: null, suggestedAtSwitches: 0, suggestedAtElapsedMs: -1 } },
     });
+    // Then
     expect(r.success).toBe(false);
   });
 
   it("Given suggestedAtSwitches が負 / When 検証する / Then 落ちる", () => {
+    // Given
     const room = validRoom();
+    // When
     const r = v.safeParse(RoomSchema, {
       ...room,
       session: { ...room.session, break: { since: null, suggestedAtSwitches: -1 } },
     });
+    // Then
     expect(r.success).toBe(false);
   });
 
   it("Given 休憩の開始の notice / When 検証する / Then 通る", () => {
+    // Given（前提は下の呼び出しの引数に込めている）
+    // When
     const r = v.safeParse(ServerMsgSchema, {
       type: "signal",
       signal: "notice",
@@ -571,11 +597,15 @@ describe("休憩の wire", () => {
       actorName: "a",
       actorParticipantId: "p1",
     });
+    // Then
     expect(r.success).toBe(true);
   });
 
   /** @requirements #402 */
   it("Given suggest-break シグナル / When 検証する / Then 落ちる", () => {
+    // Given（前提は表の行・引数に込めている）
+    // When
+    // Then
     expect(
       v.safeParse(ServerMsgSchema, { type: "signal", signal: "suggest-break", rounds: 1 }).success,
     ).toBe(false);
