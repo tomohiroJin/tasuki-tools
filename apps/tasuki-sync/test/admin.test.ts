@@ -6,7 +6,8 @@
 import { describe, it, expect } from "bun:test";
 import { buildAdminReport, handleAdminHttp } from "../src/application/admin.js";
 import type { Room as MembershipRoom, Participant as MembershipParticipant } from "@tasuki/room-core";
-import { INITIAL_BREAK_STATE, type TimerState } from "@tasuki/timer-core";
+import type { TimerState } from "@tasuki/timer-core";
+import { INITIAL_BREAK_STATE } from "@tasuki/timer-core/aggregate";
 import { TOOL_TIMER } from "../src/application/tool-id.js";
 
 /**

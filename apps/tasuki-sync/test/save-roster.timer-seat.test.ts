@@ -6,7 +6,8 @@
  */
 import { describe, expect, it } from "bun:test";
 import type { Room as MembershipRoom } from "@tasuki/room-core";
-import { INITIAL_BREAK_STATE, type TimerState } from "@tasuki/timer-core";
+import type { TimerState } from "@tasuki/timer-core";
+import { INITIAL_BREAK_STATE } from "@tasuki/timer-core/aggregate";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { saveRoster } from "../src/application/save-roster.js";

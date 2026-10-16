@@ -14,7 +14,8 @@ import * as v from "valibot";
 import { RoomSchema } from "@tasuki/timer-core/schemas";
 import type { Room as MembershipRoom } from "@tasuki/room-core";
 import { buildTimerSnapshotRoom } from "../src/application/timer-snapshot-dto";
-import { INITIAL_BREAK_STATE, type TimerState } from "@tasuki/timer-core";
+import type { TimerState } from "@tasuki/timer-core";
+import { INITIAL_BREAK_STATE } from "@tasuki/timer-core/aggregate";
 import { TOOL_TIMER } from "../src/application/tool-id.js";
 import { TOOL_HUB } from "../src/application/tool-id.js";
 

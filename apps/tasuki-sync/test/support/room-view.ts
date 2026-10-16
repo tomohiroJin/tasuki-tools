@@ -15,7 +15,8 @@ import {
   type Participant as MembershipParticipant,
   type ToolId,
 } from "@tasuki/room-core";
-import { INITIAL_BREAK_STATE, type Participant, type Room } from "@tasuki/timer-core";
+import type { Participant, Room } from "@tasuki/timer-core";
+import { INITIAL_BREAK_STATE } from "@tasuki/timer-core/aggregate";
 import { TOOL_TIMER } from "../../src/application/tool-id.js";
 import type { RoomStore } from "../../src/ports/room-store.js";
 import type { TimerStore } from "../../src/ports/timer-store.js";

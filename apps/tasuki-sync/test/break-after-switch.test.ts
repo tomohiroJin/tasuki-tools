@@ -6,7 +6,8 @@
  * 経過時間は FakeClock とハンドラ経由で実際に進める（`putRoomView` は baseline を初期値で埋めるので使わない）。
  */
 import { describe, it, expect, beforeEach, afterEach, jest } from "bun:test";
-import { INITIAL_BREAK_STATE, rotationEntryId, type BreakPolicy } from "@tasuki/timer-core";
+import { rotationEntryId, type BreakPolicy } from "@tasuki/timer-core";
+import { INITIAL_BREAK_STATE } from "@tasuki/timer-core/aggregate";
 import { makeTestHandlers } from "./support/room-builder.js";
 import { Scheduler } from "../src/application/schedule.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
