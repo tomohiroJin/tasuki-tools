@@ -1,10 +1,10 @@
-# 変異 260: isBreakDue が適格 0/1 席の周回でも休憩を入れる
+# 変異 290: isBreakDue が適格 0/1 席の周回でも休憩を入れる
 #
 # 検出を期待するテスト:
 #   - packages/timer-core/test/break-policy.test.ts
 #
-# 適用: リポジトリルートから git apply scripts/mutations/m260-*.patch
-# 復元: git apply -R scripts/mutations/m260-*.patch
+# 適用: リポジトリルートから git apply scripts/mutations/m290-*.patch
+# 復元: git apply -R scripts/mutations/m290-*.patch
 #
 # #402。席が 1 つ以下だと閾値が 0 席ぶんになり、交代のたびに休憩に入る。
 diff --git a/packages/timer-core/src/break-policy.ts b/packages/timer-core/src/break-policy.ts

@@ -1,10 +1,10 @@
-# 変異 261: 知らせるだけの基準を常に baseline にする
+# 変異 291: 知らせるだけの基準を常に baseline にする
 #
 # 検出を期待するテスト:
 #   - packages/timer-core/test/break-policy.test.ts
 #
-# 適用: リポジトリルートから git apply scripts/mutations/m261-*.patch
-# 復元: git apply -R scripts/mutations/m261-*.patch
+# 適用: リポジトリルートから git apply scripts/mutations/m291-*.patch
+# 復元: git apply -R scripts/mutations/m291-*.patch
 #
 # #402。知らせたあとも毎回の交代で知らせ直す（次の間隔まで待たない）。
 diff --git a/packages/timer-core/src/break-policy.ts b/packages/timer-core/src/break-policy.ts

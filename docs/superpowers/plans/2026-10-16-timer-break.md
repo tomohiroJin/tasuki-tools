@@ -22,7 +22,7 @@
 | IV. 境界の型安全 | 通過 | 休憩の設定は `SessionConfigSchema` で組み合わせごとに検証する（room.create も通る）。wire の `session.break` は任意項目で検証する |
 | V. 実画面検証 | 通過 | Task 11 で dev の 2 タブを並べて確かめる |
 | VI. 依存は内向き | 通過 | 判定は timer-core の純粋関数。適格な席の数（名簿の在席）はアプリ層が数えて渡す |
-| VII. 検査は壊して確かめる | 通過 | 変異 m260〜m266 を足す（Task 12）。既存の変異（m06 ほか evolve の休憩まわり）のパッチが当たるかを確かめる |
+| VII. 検査は壊して確かめる | 通過 | 変異 m290〜m296 を足す（Task 12）。既存の変異（m06 ほか evolve の休憩まわり）のパッチが当たるかを確かめる |
 | VIII. 記録が正本 | 通過 | 設計正本・ADR 0011・ARCHITECTURE・DTO の台帳・Issue #402 の EARS を更新する |
 | IX. 小さく回す | 通過 | PR 1 本・タスクごとにコミット。配布は利用者の指示待ち |
 | X. 抽象は実需で | 通過 | 新しい抽象は `isBreakDue` と `maybeBreakAfterSwitch` の 2 つ。どちらも呼び手が 2 か所以上ある |
@@ -94,7 +94,7 @@
 **E2E・文書・検査**
 - Create `e2e/specs/timer-break.spec.ts`
 - Create `docs/timer/adr/0011-timer-break-in-aggregate.md`
-- Modify `docs/timer/ARCHITECTURE.md`・`docs/timer/adr/0009-test-conventions.md`・`scripts/lib/mutation-declarations.mjs`、Create `scripts/mutations/m260〜m266-*.patch`
+- Modify `docs/timer/ARCHITECTURE.md`・`docs/timer/adr/0009-test-conventions.md`・`scripts/lib/mutation-declarations.mjs`、Create `scripts/mutations/m290〜m296-*.patch`
 
 ---
 
@@ -1656,7 +1656,7 @@ git commit -m "test(e2e): 休憩が両方の画面で時計を止め、元の残
 ### Task 12: 変異検査・文書・検査系
 
 **Files:**
-- Modify: `scripts/lib/mutation-declarations.mjs`、Create: `scripts/mutations/m260-*.patch`〜`m266-*.patch`
+- Modify: `scripts/lib/mutation-declarations.mjs`、Create: `scripts/mutations/m290-*.patch`〜`m296-*.patch`
 - Create: `docs/timer/adr/0011-timer-break-in-aggregate.md`（`docs/timer/adr/README.md` の索引にも足す）
 - Modify: `docs/timer/ARCHITECTURE.md:258`、`docs/timer/adr/0009-test-conventions.md`（休憩の dormant を書いた箇所。grep `break` で探す）
 
@@ -1665,17 +1665,17 @@ git commit -m "test(e2e): 休憩が両方の画面で時計を止め、元の残
 Run: `node scripts/mutation-check.mjs --changed`
 Expected: 宣言済みの変異がすべて「殺された」。パッチが当たらない（evolve.ts・decide.ts の行が動いた）ものがあれば、パッチを今のコードに合わせて書き直す（変異の意図は変えない。m06 の `tests` から `break-freeze.test.ts` が外れていないことも確かめる）
 
-- [ ] **Step 2: 新しい変異を足す**（宣言は既存の書き方に合わせる。ID は m260 から）
+- [ ] **Step 2: 新しい変異を足す**（宣言は既存の書き方に合わせる。ID は m290 から）
 
 | ID | 壊し方 | 殺すテスト |
 |---|---|---|
-| m260 | `isBreakDue` の周回で `eligibleSeats <= 1` の判定を外す | `break-policy.test.ts` の「適格 0/1 席」 |
-| m261 | `isBreakDue` の知らせるだけの基準を常に `baseline` にする | `break-policy.test.ts` の「次の間隔まで知らせ直さない」 |
-| m262 | `decide` の休憩中の拒否から `driver.assign` を外す | `decide-v3.test.ts` の driver.assign |
-| m263 | `evolveSessionEnded` の `freezeRunningClock` を外す（時計を走らせたまま） | `evolve.test.ts` の完成・中断 |
-| m264 | `maybeBreakAfterSwitch` の `totalSwitches` の比較を外す（交代が無くても判定する） | `break-after-switch.test.ts`（「条件なし」以外で、交代の無いコミットのあとに休憩に入らないことを見るテストが要る。無ければ Task 8 のテストに 1 本足す: 周回 1・3 人で 3 回交代して休憩→終える→`handoff.note.set` を送っても休憩に入らない） |
-| m265 | `applyAfterEffects` の `break.end` の繰り上げを外す | `break-after-switch.test.ts` の休憩明けの繰り上げ |
-| m266 | `useSwitchAlert` の `suppressed` の早期 return を外す | `Session.break.test.tsx` の「交代の全画面の知らせは出ない」 |
+| m290 | `isBreakDue` の周回で `eligibleSeats <= 1` の判定を外す | `break-policy.test.ts` の「適格 0/1 席」 |
+| m291 | `isBreakDue` の知らせるだけの基準を常に `baseline` にする | `break-policy.test.ts` の「次の間隔まで知らせ直さない」 |
+| m292 | `decide` の休憩中の拒否から `driver.assign` を外す | `decide-v3.test.ts` の driver.assign |
+| m293 | `evolveSessionEnded` の `freezeRunningClock` を外す（時計を走らせたまま） | `evolve.test.ts` の完成・中断 |
+| m294 | `maybeBreakAfterSwitch` の `totalSwitches` の比較を外す（交代が無くても判定する） | `break-after-switch.test.ts`（「条件なし」以外で、交代の無いコミットのあとに休憩に入らないことを見るテストが要る。無ければ Task 8 のテストに 1 本足す: 周回 1・3 人で 3 回交代して休憩→終える→`handoff.note.set` を送っても休憩に入らない） |
+| m295 | `applyAfterEffects` の `break.end` の繰り上げを外す | `break-after-switch.test.ts` の休憩明けの繰り上げ |
+| m296 | `useSwitchAlert` の `suppressed` の早期 return を外す | `Session.break.test.tsx` の「交代の全画面の知らせは出ない」 |
 
 各変異について、パッチを当てると対象のテストが赤になり、戻すと緑になることを `node scripts/mutation-check.mjs --id 260,261,262,263,264,265,266` で確かめる。
 
@@ -1703,7 +1703,7 @@ Expected: すべて緑。SC-039③（自分しか使わない公開記号）で 
 
 ```bash
 git add scripts docs
-git commit -m "docs: 休憩の ADR を足し、変異 m260〜m266 で休憩の判定を守る（#402）"
+git commit -m "docs: 休憩の ADR を足し、変異 m290〜m296 で休憩の判定を守る（#402）"
 ```
 
 ---

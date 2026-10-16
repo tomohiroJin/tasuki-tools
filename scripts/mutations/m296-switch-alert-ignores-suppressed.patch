@@ -1,10 +1,10 @@
-# 変異 266: suppressed の早期 return を外す
+# 変異 296: suppressed の早期 return を外す
 #
 # 検出を期待するテスト:
 #   - apps/timer-web/test/ui/Session.break.test.tsx
 #
-# 適用: リポジトリルートから git apply scripts/mutations/m266-*.patch
-# 復元: git apply -R scripts/mutations/m266-*.patch
+# 適用: リポジトリルートから git apply scripts/mutations/m296-*.patch
+# 復元: git apply -R scripts/mutations/m296-*.patch
 #
 # #402。休憩に入る交代で全画面の知らせが二重に出る。
 diff --git a/apps/timer-web/src/ui/use-switch-alert.ts b/apps/timer-web/src/ui/use-switch-alert.ts

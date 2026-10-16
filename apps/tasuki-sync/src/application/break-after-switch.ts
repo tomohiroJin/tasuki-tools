@@ -10,7 +10,7 @@
  *   ここを入口から外すと、1 人の輪では経過時間の条件でも休憩が来なかった（PR #416 のレビュー）
  *
  * 一時停止・休憩・ロビーへの戻りは時計を止めるので、後者に入らない。並べ替え・名簿の出入り・メモの更新は
- * どちらも動かさないので、判定は走らない（交代の無いコミットで休憩に入らない。変異 m264）。
+ * どちらも動かさないので、判定は走らない（交代の無いコミットで休憩に入らない。変異 m294）。
  */
 import { breakPolicyOf, evolve, isBreakDue, type TimerState } from "@tasuki/timer-core";
 import type { RoomState } from "./apply-room-level-event.js";

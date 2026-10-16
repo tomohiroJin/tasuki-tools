@@ -1,10 +1,10 @@
-# 変異 265: 休憩明けの運転者の繰り上げを外す
+# 変異 295: 休憩明けの運転者の繰り上げを外す
 #
 # 検出を期待するテスト:
 #   - apps/tasuki-sync/test/break-after-switch.test.ts
 #
-# 適用: リポジトリルートから git apply scripts/mutations/m265-*.patch
-# 復元: git apply -R scripts/mutations/m265-*.patch
+# 適用: リポジトリルートから git apply scripts/mutations/m295-*.patch
+# 復元: git apply -R scripts/mutations/m295-*.patch
 #
 # #402。席を外した運転者のまま休憩が明ける（driver.skip と共有の条件から break.end を外す）。
 diff --git a/apps/tasuki-sync/src/application/room-commands/after-effects.ts b/apps/tasuki-sync/src/application/room-commands/after-effects.ts

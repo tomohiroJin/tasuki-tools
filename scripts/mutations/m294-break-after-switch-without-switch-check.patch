@@ -1,10 +1,10 @@
-# 変異 264: 交代が無くても休憩を判定する
+# 変異 294: 交代が無くても休憩を判定する
 #
 # 検出を期待するテスト:
 #   - apps/tasuki-sync/test/break-after-switch.test.ts
 #
-# 適用: リポジトリルートから git apply scripts/mutations/m264-*.patch
-# 復元: git apply -R scripts/mutations/m264-*.patch
+# 適用: リポジトリルートから git apply scripts/mutations/m294-*.patch
+# 復元: git apply -R scripts/mutations/m294-*.patch
 #
 # #402。交代の切れ目が無いコミット（メモ更新など）のあとに休憩に入る。
 diff --git a/apps/tasuki-sync/src/application/break-after-switch.ts b/apps/tasuki-sync/src/application/break-after-switch.ts

@@ -1,10 +1,10 @@
-# 変異 262: 休憩中の拒否から driver.assign を外す
+# 変異 292: 休憩中の拒否から driver.assign を外す
 #
 # 検出を期待するテスト:
 #   - packages/timer-core/test/decide-v3.test.ts
 #
-# 適用: リポジトリルートから git apply scripts/mutations/m262-*.patch
-# 復元: git apply -R scripts/mutations/m262-*.patch
+# 適用: リポジトリルートから git apply scripts/mutations/m292-*.patch
+# 復元: git apply -R scripts/mutations/m292-*.patch
 #
 # #402。休憩中に担当の指定で時計が走り出す。
 diff --git a/packages/timer-core/src/decide.ts b/packages/timer-core/src/decide.ts
