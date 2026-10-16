@@ -112,12 +112,15 @@ export interface Room {
     previousDriverIndex?: number | null;
     /**
      * 休憩の状態（#402）。`since` は休憩中なら始めた時刻、そうでなければ `null`。
-     * `suggestedAtSwitches` は休憩を勧めた交代の回数（帯は totalSwitches と一致する間だけ出る）。
+     * `suggestedAtSwitches` は休憩を勧めた交代の回数、`suggestedAtElapsedMs` は勧めた時点の稼働の累計。
+     * 帯は両方が今の値（`totalSwitches`・`clock.accumulatedElapsedMs`）と一致する間だけ出る。現状維持の交代は
+     * 回数を増やさないが累計は確定するので、累計も見ないと帯が消えない（PR #416 の再レビュー）。
+     * `suggestedAtElapsedMs` は後から足したので**それ自体も任意**。無ければ画面は帯を出さない。
      *
      * **任意項目である**（`previousDriverIndex` と同じ判断）。画面が先に配られる窓で旧サーバーの
      * snapshot を捨てないため。無いときの画面は休憩中でないとみなす。
      */
-    break?: { since: number | null; suggestedAtSwitches: number | null };
+    break?: { since: number | null; suggestedAtSwitches: number | null; suggestedAtElapsedMs?: number | null };
   };
   clock: ServerClock;
   phase: RoomPhase;

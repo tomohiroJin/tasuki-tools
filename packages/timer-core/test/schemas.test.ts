@@ -534,6 +534,25 @@ describe("休憩の wire（#402）", () => {
     expect(r.success).toBe(true);
   });
 
+  // 知らせた時点の稼働の累計（PR #416 の再レビュー）。帯の出し入れと知らせの契機に使う。旧サーバーは載せないので任意
+  it("Given 知らせた時点の稼働の累計を載せた snapshot / When 検証する / Then 通り、値が残る", () => {
+    const room = validRoom();
+    const r = v.safeParse(RoomSchema, {
+      ...room,
+      session: { ...room.session, break: { since: null, suggestedAtSwitches: 0, suggestedAtElapsedMs: 1_800_000 } },
+    });
+    expect(r.success && r.output.session.break).toEqual({ since: null, suggestedAtSwitches: 0, suggestedAtElapsedMs: 1_800_000 });
+  });
+
+  it("Given suggestedAtElapsedMs が負 / When 検証する / Then 落ちる", () => {
+    const room = validRoom();
+    const r = v.safeParse(RoomSchema, {
+      ...room,
+      session: { ...room.session, break: { since: null, suggestedAtSwitches: 0, suggestedAtElapsedMs: -1 } },
+    });
+    expect(r.success).toBe(false);
+  });
+
   it("Given suggestedAtSwitches が負 / When 検証する / Then 落ちる", () => {
     const room = validRoom();
     const r = v.safeParse(RoomSchema, {

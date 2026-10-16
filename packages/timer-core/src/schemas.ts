@@ -315,10 +315,14 @@ const SessionStateSchema = v.object({
   // 旧サーバーの snapshot を捨てない）。無ければ画面は休憩中でないとみなす。
   // `suggestedAtSwitches` は「知らせるだけ」で知らせた交代の回数。帯はこれが totalSwitches と
   // 一致する間だけ出る（設計 §5.5）。基準（baseline）は画面が使わないので載せない。
+  // `suggestedAtElapsedMs` は知らせた時点の稼働の累計（PR #416 の再レビュー）。1 人の輪などの現状維持の交代は
+  // 回数を増やさないので、回数だけでは帯が消えず、2 回目の知らせも検知できない。**この項目も任意**（後から
+  // 足したので、旧サーバーは載せない）。無ければ画面は帯を出さない。
   break: v.optional(
     v.object({
       since: v.nullable(v.number()),
       suggestedAtSwitches: v.nullable(v.pipe(v.number(), v.integer(), v.minValue(0))),
+      suggestedAtElapsedMs: v.optional(v.nullable(v.pipe(v.number(), v.minValue(0)))),
     }),
   ),
 });
