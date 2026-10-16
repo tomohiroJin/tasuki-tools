@@ -8,6 +8,7 @@ import {
   isOnBreakRoom,
   isSuggestBandVisible,
   roundsEstimateMinutes,
+  roundsEstimateText,
 } from "../../src/ui/break-view.js";
 import { aRoomView } from "../support/room-view.js";
 
@@ -49,5 +50,15 @@ describe("break-view", () => {
   });
   it("Given 5 分交代・3 人・2 周 / When 目安を出す / Then 30 分（積。和なら 10 になる）", () => {
     expect(roundsEstimateMinutes(5, 3, 2)).toBe(30);
+  });
+  it.each([0, 1])(
+    "Given 適格な席が %i / When 周回の目安の文を出す / Then 分の目安でなく「1 人では周回の条件は使えません」",
+    (seats) => {
+      // 1 人では輪が回らないので、周回の目安（席 × 間隔）は「約 0 分」や「約 3 分」の嘘になる（総合レビュー I2）
+      expect(roundsEstimateText(3, seats, 1)).toBe("1 人では周回の条件は使えません");
+    },
+  );
+  it("Given 適格な席が 2 / When 周回の目安の文を出す / Then 約 6 分ごと", () => {
+    expect(roundsEstimateText(3, 2, 1)).toBe("約 6 分ごと");
   });
 });

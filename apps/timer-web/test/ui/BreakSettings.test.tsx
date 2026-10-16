@@ -117,4 +117,20 @@ describe("BreakSettings", () => {
     expect(screen.getByRole("button", { name: "60分" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByRole("button", { name: "なし" })).toHaveAttribute("aria-pressed", "false");
   });
+  it.each([0, 1])(
+    "Given 周回 1 周・適格な席 %i / When 描く / Then 分の目安は出ず、1 人では使えないと出る",
+    (seats) => {
+      render(
+        <BreakSettings
+          policy={{ trigger: "rounds", every: 1, mode: "auto" }}
+          intervalMinutes={3}
+          eligibleSeats={seats}
+          onChange={() => {}}
+        />,
+      );
+      expect(screen.queryByText(/分ごと/)).toBeNull();
+      expect(screen.getByText("1 人では周回の条件は使えません")).toBeInTheDocument();
+    },
+  );
 });
+

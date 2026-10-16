@@ -14,7 +14,7 @@ import {
   type BreakPolicy,
   type BreakTrigger,
 } from "@tasuki/timer-core";
-import { BREAK_TEXT, roundsEstimateMinutes } from "../break-view.js";
+import { BREAK_TEXT, roundsEstimateText } from "../break-view.js";
 
 interface BreakSettingsProps {
   policy: BreakPolicy | undefined;
@@ -89,7 +89,7 @@ export function BreakSettings({ policy, intervalMinutes, eligibleSeats, onChange
           </div>
           {current.trigger === "rounds" && (
             <p className="session-config-hint">
-              {BREAK_TEXT.roundsEstimate(roundsEstimateMinutes(intervalMinutes, eligibleSeats, current.every))}
+              {roundsEstimateText(intervalMinutes, eligibleSeats, current.every)}
             </p>
           )}
 

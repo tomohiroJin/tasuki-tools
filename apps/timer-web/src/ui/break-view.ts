@@ -27,6 +27,7 @@ export const BREAK_TEXT = {
   announceEnded: "休憩が終わりました",
   osNotifyTitle: "休憩の時間です",
   roundsEstimate: (minutes: number) => `約 ${minutes} 分ごと`,
+  roundsUnavailableAlone: "1 人では周回の条件は使えません",
   minutes: (n: number) => `${n}分`,
   rounds: (n: number) => `${n}周`,
 } as const;
@@ -55,4 +56,13 @@ export function isSuggestBandVisible(room: Room): boolean {
 /** 周回の条件が、何分ごとにあたるかの目安（交代間隔 × 適格な席 × 周） */
 export function roundsEstimateMinutes(intervalMinutes: number, eligibleSeats: number, rounds: number): number {
   return intervalMinutes * eligibleSeats * rounds;
+}
+
+/**
+ * 周回の目安の文。適格な席が 1 つ以下では輪が回らず周回の条件が満ちないので、分の目安を出さずにそう言う
+ * （席 × 間隔の積は「約 0 分」「約 3 分」の嘘になる・総合レビュー I2）。
+ */
+export function roundsEstimateText(intervalMinutes: number, eligibleSeats: number, rounds: number): string {
+  if (eligibleSeats <= 1) return BREAK_TEXT.roundsUnavailableAlone;
+  return BREAK_TEXT.roundsEstimate(roundsEstimateMinutes(intervalMinutes, eligibleSeats, rounds));
 }
