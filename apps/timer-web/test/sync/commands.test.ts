@@ -26,6 +26,8 @@ function firstFrame(send: ReturnType<typeof vi.fn>): Record<string, unknown> {
 describe("createCommands: 引数をそのまま載せる操作", () => {
   const cases: Array<[string, (c: ReturnType<typeof setup>["commands"]) => void, Record<string, unknown>]> = [
     ["addMember", (c) => c.addMember("p-2"), { command: "member.add", participantId: "p-2" }],
+    ["startBreak", (c) => c.startBreak(), { command: "break.start" }],
+    ["endBreak", (c) => c.endBreak(), { command: "break.end" }],
     ["removeParticipant", (c) => c.removeParticipant("p-2"), { command: "participant.remove", participantId: "p-2" }],
     ["setPassphrase", (c) => c.setPassphrase("ひみつ"), { command: "room.passphrase.set", passphrase: "ひみつ" }],
     ["moveMember", (c) => c.moveMember(0, 2), { command: "member.move", fromIndex: 0, toIndex: 2 }],

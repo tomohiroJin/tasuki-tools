@@ -291,8 +291,9 @@ describe("<対象の名詞>", () => {
 
 ### `apps/web/test/ui`（T046: バッチ「Session」6ファイル・残り分）
 
-- `Session.break.test.tsx`（既に規約を満たしており無変更・FR-123。休憩UI撤去確認テストで
-  本体2行以下のみのため GWT 対象外）
+- `Session.break.test.tsx`（既に規約を満たしており無変更・FR-123。当時は休憩UI撤去確認テストで
+  本体2行以下のみのため GWT 対象外。その後 #402 で休憩を復活させ、休憩の画面のテストに書き換えた。
+  [ADR 0011](./0011-timer-break-in-aggregate.md)）
 - `Session.permissions.test.tsx`
 - `Session.problem.test.tsx`
 - `Session.restart.test.tsx`

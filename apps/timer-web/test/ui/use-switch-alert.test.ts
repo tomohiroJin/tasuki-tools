@@ -8,7 +8,7 @@ import { playChime } from "../../src/platform/sound.js";
 import { useSwitchAlert } from "../../src/ui/use-switch-alert.js";
 
 const notify = { enabled: true, soundId: "department", osNotify: false, volume: 0.6, countdownEnabled: false, countdownSeconds: 15, countdownMode: "tone" as const, countdownVoiceId: "voice-male" as const };
-const opts = { assertiveSwitch: false, notify };
+const opts = { assertiveSwitch: false, notify, suppressed: false };
 
 describe("useSwitchAlert 交代検知", () => {
   beforeEach(() => vi.clearAllMocks());
@@ -45,5 +45,23 @@ describe("useSwitchAlert 交代検知", () => {
     rerender({ i: 1, n: "Alice2" });
     // Then
     expect(playChime).not.toHaveBeenCalled();
+  });
+});
+
+/** @requirements #402 */
+describe("useSwitchAlert 休憩に入る交代", () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it("Given suppressed / When 本当の交代 / Then 鳴らさず、全画面の知らせも出さない", () => {
+    // Given
+    const o = { assertiveSwitch: true, notify, suppressed: true };
+    const { result, rerender } = renderHook(({ i, n }) => useSwitchAlert(i, n, o), {
+      initialProps: { i: 0, n: "Alice" },
+    });
+    // When
+    rerender({ i: 1, n: "Bob" });
+    // Then
+    expect(playChime).not.toHaveBeenCalled();
+    expect(result.current.switchAlertName).toBeNull();
   });
 });

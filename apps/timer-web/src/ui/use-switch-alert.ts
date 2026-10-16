@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from "react";
 import { playChime, vibrateSwitch } from "../platform/sound.js";
 import { notifyDriverChange } from "../platform/notify.js";
 import type { NotifyPreferences } from "../prefs/local-prefs.js";
+import { isDriverSwitch } from "./session-view.js";
 
 /** オーバーレイの自動消滅までの時間(ms)。 */
 const SWITCH_ALERT_MS = 2500;
@@ -29,6 +30,8 @@ export interface SwitchAlertOptions {
   assertiveSwitch: boolean;
   /** 個人設定: 音/振動/OS通知を出すか。 */
   notify: NotifyPreferences;
+  /** 休憩に入る交代では知らせない（#402。休憩の知らせが代わりに出る） */
+  suppressed: boolean;
 }
 
 export function useSwitchAlert(
@@ -39,7 +42,7 @@ export function useSwitchAlert(
   const [name, setName] = useState<string | null>(null);
   const prevIndexRef = useRef(currentIndex);
   const prevNameRef = useRef(currentDriverName);
-  const { assertiveSwitch, notify } = opts;
+  const { assertiveSwitch, notify, suppressed } = opts;
 
   // 交代検知: 番号(currentIndex)と名前(currentDriverName)の両方が変わった「本当の交代」のときだけ各軸を処理する。
   // 並べ替え=番号のみ変化（同じ人が位置移動）／改名=名前のみ変化 は交代ではないので鳴らさない。
@@ -48,7 +51,9 @@ export function useSwitchAlert(
     const prevName = prevNameRef.current;
     prevIndexRef.current = currentIndex;
     prevNameRef.current = currentDriverName;
-    if (prevIndex === currentIndex || prevName === currentDriverName) return;
+    if (!isDriverSwitch({ index: prevIndex, name: prevName }, { index: currentIndex, name: currentDriverName })) return;
+    // 休憩に入る交代は、休憩の知らせ（use-break-alert）が代わりに出す。二重に鳴らさない。
+    if (suppressed) return;
     // 個人設定: 音/振動/OS通知（ルーム設定に依存しない背面通知）。
     if (notify.enabled) {
       playChime(notify.soundId, notify.volume);
@@ -57,7 +62,7 @@ export function useSwitchAlert(
     }
     // ルーム設定: 全画面オーバーレイ（音とは独立）。
     if (assertiveSwitch) setName(currentDriverName);
-  }, [currentIndex, currentDriverName, assertiveSwitch, notify.enabled, notify.soundId, notify.osNotify, notify.volume]);
+  }, [currentIndex, currentDriverName, assertiveSwitch, suppressed, notify.enabled, notify.soundId, notify.osNotify, notify.volume]);
 
   // 自動消滅は表示状態だけに依存させる（検知 effect と分離）。
   useEffect(() => {

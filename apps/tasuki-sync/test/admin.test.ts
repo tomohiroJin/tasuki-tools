@@ -7,6 +7,7 @@ import { describe, it, expect } from "bun:test";
 import { buildAdminReport, handleAdminHttp } from "../src/application/admin.js";
 import type { Room as MembershipRoom, Participant as MembershipParticipant } from "@tasuki/room-core";
 import type { TimerState } from "@tasuki/timer-core";
+import { INITIAL_BREAK_STATE } from "@tasuki/timer-core/aggregate";
 import { TOOL_TIMER } from "../src/application/tool-id.js";
 
 /**
@@ -41,6 +42,7 @@ function timerState(code: string, hasDriver: boolean): TimerState {
       driverCounts: hasDriver ? [0] : [],
       totalSwitches: 0,
       previousDriverId: null,
+      break: INITIAL_BREAK_STATE,
     },
     clock: {
       running: false,
@@ -53,7 +55,6 @@ function timerState(code: string, hasDriver: boolean): TimerState {
     phase: "setup",
     sessionRecords: [],
     handoffNote: "",
-    onBreak: false,
   };
 }
 

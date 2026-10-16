@@ -6,6 +6,7 @@
 import { describe, it, expect } from "vitest";
 import { decide } from "../src/decide.js";
 import { evolve } from "../src/evolve.js";
+import { SESSION_ACTIONS } from "../src/aggregate.js";
 import { anAggregate } from "./support/aggregate-builder.js";
 
 const baseAgg = anAggregate().build();
@@ -29,15 +30,53 @@ describe("decide: handoff.note.set（§9.1）", () => {
   });
 });
 
-describe("decide: break.start / break.end（§9.1）", () => {
-  it("break.start は BreakStarted を発行する", () => {
-    const result = decide({ command: "break.start" }, baseAgg, NOW);
-    expect(result._unsafeUnwrap()[0]?.type).toBe("BreakStarted");
-  });
+/** @requirements #402 */
+describe("decide: 休憩", () => {
+  // 2 席以上（driver.assign index 1・member.move 0→1 が通る形）
+  const startedAgg = () => anAggregate().withRotation("Alice", "Bob").at(NOW).running().build();
+  const onBreakAgg = () => evolve(startedAgg(), { type: "BreakStarted", now: NOW + 1000 }, NOW + 1000);
 
-  it("break.end は BreakEnded を発行する", () => {
-    const result = decide({ command: "break.end" }, baseAgg, NOW);
-    expect(result._unsafeUnwrap()[0]?.type).toBe("BreakEnded");
+  it("Given 休憩中でない / When break.start / Then BreakStarted", () => {
+    expect(decide({ command: "break.start" }, startedAgg(), NOW)._unsafeUnwrap()[0]?.type).toBe("BreakStarted");
+  });
+  it("Given 休憩中 / When break.start / Then OnBreak で拒む", () => {
+    expect(decide({ command: "break.start" }, onBreakAgg(), NOW)._unsafeUnwrapErr().type).toBe("OnBreak");
+  });
+  it("Given 休憩中 / When break.end / Then BreakEnded", () => {
+    expect(decide({ command: "break.end" }, onBreakAgg(), NOW)._unsafeUnwrap()[0]?.type).toBe("BreakEnded");
+  });
+  // 開始前（ロビー・phase.set session の直後で START の前）に休憩を作らせない（PR #416 のレビュー）。
+  // 通すと break.end が SessionStarted を経ずに時計を走らせ、開始の送り分け（session-start.ts）を素通りする。
+  it("Given 時計が一度も走っていない開始前の集約 / When break.start / Then PhaseConflict で拒む", () => {
+    const result = decide({ command: "break.start" }, anAggregate().withRotation("Alice", "Bob").build(), NOW);
+    expect(result._unsafeUnwrapErr().type).toBe("PhaseConflict");
+  });
+  it("Given 一時停止中（開始済み） / When break.start / Then BreakStarted", () => {
+    const paused = anAggregate().withRotation("Alice", "Bob").at(NOW).paused().build();
+    expect(decide({ command: "break.start" }, paused, NOW)._unsafeUnwrap()[0]?.type).toBe("BreakStarted");
+  });
+  it("Given 休憩中でない / When break.end / Then NotOnBreak で拒む", () => {
+    expect(decide({ command: "break.end" }, startedAgg(), NOW)._unsafeUnwrapErr().type).toBe("NotOnBreak");
+  });
+  // 一覧ではなく規則で拒む。SESSION_ACTIONS が増えても、このテストが新しい操作を拾う。
+  it.each(SESSION_ACTIONS)("Given 休憩中 / When session.act %s / Then OnBreak で拒む", (action) => {
+    expect(decide({ command: "session.act", action }, onBreakAgg(), NOW)._unsafeUnwrapErr().type).toBe("OnBreak");
+  });
+  it("Given 休憩中 / When driver.assign / Then OnBreak で拒む", () => {
+    expect(decide({ command: "driver.assign", index: 1 }, onBreakAgg(), NOW)._unsafeUnwrapErr().type).toBe("OnBreak");
+  });
+  it.each([
+    { command: "session.complete", topicTitle: null },
+    { command: "session.abort" },
+    { command: "handoff.note.set", text: "x" },
+    { command: "member.move", fromIndex: 0, toIndex: 1 },
+  ] as const)("Given 休憩中 / When %j / Then 通す", (cmd) => {
+    // Given
+    const agg = onBreakAgg();
+    // When
+    const result = decide(cmd, agg, NOW);
+    // Then
+    expect(result.isOk()).toBe(true);
   });
 
   // v2.3 #2b: 休憩は集約のタイマーを停止/再開するようになった（旧仕様では集約不変だった）。
@@ -69,18 +108,18 @@ describe("decide: break.start / break.end（§9.1）", () => {
 });
 
 describe("decide: config.set の v3.0 トグル（§16）", () => {
-  it("navigatorEnabled / assertiveSwitch / breakEveryRotations を検証済み config に載せる", () => {
+  it("navigatorEnabled / assertiveSwitch / break を検証済み config に載せる", () => {
     // Given
     const command = {
       command: "config.set",
-      config: { navigatorEnabled: true, assertiveSwitch: true, breakEveryRotations: 4 },
+      config: { navigatorEnabled: true, assertiveSwitch: true, break: { trigger: "elapsed", every: 60, mode: "auto" } },
     } as const;
     // When
     const result = decide(command, baseAgg, NOW);
     // Then
     expect(result._unsafeUnwrap()[0]).toMatchObject({
       type: "ConfigSet",
-      config: { navigatorEnabled: true, assertiveSwitch: true, breakEveryRotations: 4 },
+      config: { navigatorEnabled: true, assertiveSwitch: true, break: { trigger: "elapsed", every: 60, mode: "auto" } },
     });
   });
 

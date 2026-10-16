@@ -39,6 +39,7 @@ import type { TopicBroadcaster } from "./topic-broadcast.js";
 import type { TopicStore } from "../ports/topic-store.js";
 import type { TokenStore } from "./token-store.js";
 import { applyEvents, type RoomState } from "./apply-room-level-event.js";
+import { maybeBreakAfterSwitch } from "./break-after-switch.js";
 import {
   buildTimerSnapshotRoom,
   computeIneligibleIndices,
@@ -77,11 +78,8 @@ export type PreRoomCommand = Extract<
  * 在室を前提とするルームスコープコマンド（FR-151/152）。
  *
  * `PreRoomCommand`（4個）を除いた `Command` の残り全variantを指す判別可能 union。
- * このうち `break.start`/`break.end` の2個は wire スキーマ上は残っているが
- * `buildDomainCommand` の switch には無い（`default` → `UNKNOWN_COMMAND` になる
- * 到達しない枝。`reconcileSchedule` のコメント参照）。この2個も `handleCommand` の
- * default 分岐（`handleRoomCommand`）へは届く必要があるため（現状の挙動を変えない）、
- * 型としては `RoomScopedCommand` に含めておく。
+ * `break.start`/`break.end` も
+ * `buildDomainCommand` が翻訳して受理する（#402）。
  *
  * かつてここには「25個が `permissions.ts` の `REGISTERED_COMMANDS` に登録されている」
  * という但し書きがあったが、#95 S3 でその登録表ごと権限判定が消えたため落とした。
@@ -461,13 +459,18 @@ export function makeHandlers(deps: HandlerDeps) {
     }
     // decide が返したイベント列を evolve へ通し、集約の反映 → Room レベルイベントの適用（順序は applyEvents）。
     const evolved = result.value.reduce((acc, event) => evolve(acc, event, now), agg);
-    const next = applyAfterEffects(applyEvents(state, evolved, result.value, nextRecordId), {
-      command: domainCmd,
-      events: result.value,
-      assignTarget,
+    // 交代が起きていれば、休憩の条件に達したかを見る（#402 設計 §4.1）。
+    const next = maybeBreakAfterSwitch(
+      state.timer,
+      applyAfterEffects(applyEvents(state, evolved, result.value, nextRecordId), {
+        command: domainCmd,
+        events: result.value,
+        assignTarget,
+        now,
+        nextRecordId,
+      }),
       now,
-      nextRecordId,
-    });
+    );
 
     commit(next);
     // clock 状態が変わった可能性があるので自動交代を調停する（FR-003）
@@ -482,7 +485,7 @@ export function makeHandlers(deps: HandlerDeps) {
     state: RoomState,
     assignTarget: string | undefined,
   ): Result<DomainCommandDraft, PreconditionFailure> {
-    const ctx = { residents: occupants(state.membership, state.timer), rotation: state.timer.session.rotation, assignTarget };
+    const ctx = { residents: occupants(state.membership, state.timer), rotation: state.timer.session.rotation, assignTarget, phase: state.timer.phase, config: state.timer.config };
     return checkPreconditions(draft, ctx).map((checked) =>
       fillServerValues(checked, {
         topicTitle: () => deps.topics.get(state.timer.code)?.topic?.title ?? null,
@@ -605,11 +608,18 @@ function toDomainCommand(
  *
  * participant.remove は decide/evolve を通らず専用の分岐で処理するため、ここには含めない
  * （その場で対象の情報も併せて配信する）。
+ *
+ * 休憩の開始・終了も、誰でも押せて全員の画面が変わるので伝える（#402）。
+ * 自動で入った休憩には実行者が居ないので notice は出ない（`announceSessionNotice` はコマンドからしか呼ばれない）。
  */
-const SESSION_NOTICE_ACTIONS: Readonly<Record<string, "session-aborted" | "session-reset" | "session-completed" | undefined>> = {
+const SESSION_NOTICE_ACTIONS: Readonly<
+  Record<string, "session-aborted" | "session-reset" | "session-completed" | "break-started" | "break-ended" | undefined>
+> = {
   "session.abort": "session-aborted",
   "session.reset": "session-reset",
   "session.complete": "session-completed",
+  "break.start": "break-started",
+  "break.end": "break-ended",
 };
 
 /**

@@ -40,6 +40,10 @@ export interface TimerCommands {
   setConfig(config: Partial<SessionConfig>): void;
   resetSession(): void;
   setHandoffNote(text: string): void;
+  /** 休憩に入る（#402）。サーバーは phase が session のときだけ受け付ける。 */
+  startBreak(): void;
+  /** 休憩を終える（#402）。 */
+  endBreak(): void;
 }
 
 export function createCommands(send: SendFn, getRoom: () => Room | null): TimerCommands {
@@ -69,5 +73,7 @@ export function createCommands(send: SendFn, getRoom: () => Room | null): TimerC
     setConfig: (config) => send({ command: "config.set", config }),
     resetSession: () => send({ command: "session.reset" }),
     setHandoffNote: (text) => send({ command: "handoff.note.set", text }),
+    startBreak: () => send({ command: "break.start" }),
+    endBreak: () => send({ command: "break.end" }),
   };
 }

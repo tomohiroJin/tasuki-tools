@@ -115,3 +115,18 @@ export function orbitSizes(isWide: boolean, viewportWidth: number): { orbit: num
     ring: isWide ? 300 : Math.round(mobileMaxOrbit * (224 / 340)),
   };
 }
+
+/** 運転者（添字と表示名）。交代の判定に使う */
+export interface DriverMark {
+  index: number;
+  name: string;
+}
+
+/**
+ * 本当の交代か。添字と名前の**両方**が変わったときだけ真（並べ替え＝添字だけ、改名＝名前だけは交代ではない）。
+ * 交代の知らせ（use-switch-alert）と休憩の知らせ（use-break-alert）が同じ判定を使う。片方だけ変えると、
+ * 知らせと交代が重なったときにチャイムが二重に鳴るか、どちらも鳴らなくなる（PR #416 の再レビュー）。
+ */
+export function isDriverSwitch(prev: DriverMark, next: DriverMark): boolean {
+  return prev.index !== next.index && prev.name !== next.name;
+}

@@ -9,12 +9,19 @@
  * 事前条件の無いコマンドは、そのまま通す。
  */
 import { ok, err, type Result } from "neverthrow";
-import { rotationEntryId, type RotationEntry } from "@tasuki/timer-core";
+import { breakPolicyOf, rotationEntryId, type RoomPhase, type RotationEntry, type TimerConfig } from "@tasuki/timer-core";
 import { conflictsWithExisting } from "@tasuki/room-core";
 import type { Occupant } from "../timer-snapshot-dto.js";
 import type { DomainCommandDraft } from "./domain-command.js";
 
-export type PreconditionFailure = "PARTICIPANT_NOT_FOUND" | "DuplicateName" | "NOT_IN_ROTATION" | "DRIVER_ASSIGN_OFFLINE";
+export type PreconditionFailure =
+  | "PARTICIPANT_NOT_FOUND"
+  | "DuplicateName"
+  | "NOT_IN_ROTATION"
+  | "DRIVER_ASSIGN_OFFLINE"
+  | "NOT_IN_SESSION"
+  | "CONFIG_LOCKED_IN_SESSION"
+  | "BREAK_DISABLED";
 
 export interface PreconditionContext {
   /** 「名乗っている人」＝名簿の参加者＋輪の上の代理（`occupants`）。名簿だけを見ると代理が消える */
@@ -22,6 +29,10 @@ export interface PreconditionContext {
   rotation: readonly RotationEntry[];
   /** `driver.assign` の相手（wire のコマンドの `participantId`。ドメインのコマンドは index しか持たない） */
   assignTarget: string | undefined;
+  /** ルームの段階。休憩と設定の変更の可否に使う（集約は phase を持たない・#402） */
+  phase: RoomPhase;
+  /** ルームの設定。休憩の条件が「なし」なら休憩を始めさせない（#402） */
+  config: TimerConfig;
 }
 
 /**
@@ -46,6 +57,20 @@ export function checkPreconditions(
       return checkRename(draft, ctx);
     case "driver.assign":
       return resolveAssign(draft, ctx);
+    case "break.start":
+      // 休憩はセッション中だけ（#402）。集約は phase を持たないので decide では判定できない。
+      if (ctx.phase !== "session") return err("NOT_IN_SESSION");
+      // 条件「なし」のルームの画面は「休憩する」を出さない。古い画面や手で組んだフレームが送っても
+      // 同じ線をサーバーが引く（#402 総合レビュー）。
+      return breakPolicyOf(ctx.config).trigger === "none" ? err("BREAK_DISABLED") : ok(draft);
+    case "break.end":
+      // 明ける経路は条件で塞がない。休憩中に設定は変わらない（config.set はセッション中に拒む）が、
+      // 万一条件「なし」の休憩中が生まれても、終えられないルームを残さないため。
+      return ctx.phase === "session" ? ok(draft) : err("NOT_IN_SESSION");
+    case "config.set":
+      // 設定はロビーで変える（#402 設計 D7）。セッション中に間隔を変えると、凍結した残り時間が満タンで
+      // 上書きされる（`evolveConfigSet`）。画面はセッション中に config.set を送らない。
+      return ctx.phase === "session" ? err("CONFIG_LOCKED_IN_SESSION") : ok(draft);
     default:
       return ok(draft);
   }

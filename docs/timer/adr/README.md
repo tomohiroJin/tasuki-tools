@@ -19,3 +19,4 @@ Michael Nygard 形式（背景 / 決定 / 影響 / ステータス）に従い�
 | [0008](./0008-server-resident-ai-generation.md) | AI お題生成はサーバー常駐 `claude -p` + 合言葉解錠 | Accepted（0005 を置換） |
 | [0009](./0009-test-conventions.md) | テストの書き方の規約（G3: 名前・構造・関心の一括是正） | Accepted（docs/adr/0006 へ昇格） |
 | [0010](./0010-design-doc-source.md) | 設計文書の正本は `docs/plans/`（`docs/superpowers/` は履歴アーカイブ） | Superseded by docs/adr/0002 |
+| [0011](./0011-timer-break-in-aggregate.md) | 休憩を復活させ、状態を集約に置く（v2.10 の撤去への答え） | Accepted |

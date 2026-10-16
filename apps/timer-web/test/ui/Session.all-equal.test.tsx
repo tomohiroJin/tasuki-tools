@@ -71,7 +71,7 @@ function baseHandlers() {
     onPause: vi.fn(),
     onResume: vi.fn(),
     onRestartTimer: vi.fn(),
-    onComplete: vi.fn(),
+    onComplete: vi.fn(), onStartBreak: vi.fn(), onEndBreak: vi.fn(),
     onAbort: vi.fn(),
     onReset: vi.fn(),
     onRenameParticipant: vi.fn(),

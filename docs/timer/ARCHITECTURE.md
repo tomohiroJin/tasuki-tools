@@ -255,11 +255,11 @@ WS message
 `config.set` / `phase.set` / `session.act`（START/SWITCH/PAUSE/RESUME/RESTART）/
 `session.complete` / `session.abort` / `session.reset` / `driver.skip|resume|assign` /
 `member.add|remove|move|shuffle` / `participant.addProxy|rename|remove` / `handoff.note.set` /
-`break.start|end`（**dormant**: v2.10 で休憩機能を撤去。スキーマは後方互換のため残置、受理されない）/
+`break.start|end`（セッション中だけ受理。休憩の状態は集約の `session.break` が持つ。[ADR 0011](./adr/0011-timer-break-in-aggregate.md)）/
 `presence.ping` / `time.ping`。正本は `packages/timer-core/src/schemas.ts` の Command union。
 
 **Server→Client**: `snapshot`（唯一の状態同期）/ `signal`（演出専用: switch / celebration /
-suggest-break / notice）/ `error` / `time.pong` / `room.created` / `room.joined`。これとは別に、お題の文脈の
+notice）/ `error` / `time.pong` / `room.created` / `room.joined`。これとは別に、お題の文脈の
 `topic` フレーム（契約は `packages/topic-core` の `TopicFrameSchema`）も届きます。
 
 お題のコマンド（旧 `problem.*` / `ai.unlock`）は #91 PR 3 で timer の契約から消えました。古い画面が送っても、

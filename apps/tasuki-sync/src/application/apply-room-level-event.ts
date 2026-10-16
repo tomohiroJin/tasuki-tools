@@ -130,18 +130,14 @@ function applyRoomLevelEvent(
     case "SessionReset":
       // リセット＝最初から再スタート（v2.3 #3）。集約(session/clock)は evolve が
       // 先頭・満タン・走行に初期化済み。お題・メンバー・設定・引き継ぎは維持し、
-      // phase は session のまま（その場で走り直す）。休憩フラグのみ解除する。
-      return withTimer(state, { ...room, onBreak: false });
+      // phase は session のまま（その場で走り直す）。休憩の状態も evolve が初期化する（#402）。
+      return withTimer(state, room);
     case "ConfigSet":
       // 検証済み部分設定を config にマージ（間隔と進め方のトグルを反映）。
       // 名簿はここを通らない（#95 S4a・D15。`members` は wire の境界で落ちる）。
       return withTimer(state, { ...room, config: { ...room.config, ...event.config } });
     case "HandoffNoteSet":
       return withTimer(state, { ...room, handoffNote: event.text });
-    case "BreakStarted":
-      return withTimer(state, { ...room, onBreak: true });
-    case "BreakEnded":
-      return withTimer(state, { ...room, onBreak: false });
     case "SessionCompleted": {
       // 既に完成済みなら二重計上しない（complete の冪等性）
       if (room.phase === "celebration") return state;

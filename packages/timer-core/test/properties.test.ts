@@ -313,7 +313,7 @@ describe("evolve に直接流すイベントの列での不変条件（#376）",
     { arbitrary: fc.constantFrom<Kind>("move", "shuffle", "switch", "session", "reset"), weight: 3 },
   );
   const stepArb = fc.tuple(kindArb, fc.nat(), fc.nat());
-  const SESSION_EVENTS = ["SessionStarted", "SessionPaused", "SessionResumed", "DriverTimerReset", "BreakStarted", "BreakEnded"] as const;
+  const SESSION_EVENTS = ["SessionStarted", "SessionPaused", "SessionResumed", "DriverTimerReset", "BreakStarted", "BreakEnded", "BreakSuggested"] as const;
 
   /**
    * 席の添字を組む。範囲内を半分、範囲外（負・長さちょうど・長さより先・整数でない）を半分にする。
@@ -394,6 +394,7 @@ describe("evolve に直接流すイベントの列での不変条件（#376）",
   it("Given 1〜3 人の走っている輪 / When 輪を空にする MemberRemoved・範囲外の添字・順列でない order を含む任意のイベントの列を evolve へ直接流す / Then 各段で I1・I2 が成り立ち、空の輪の時計は止まり、範囲外の添字と順列でない order は集約を変えない", () => {
     let reachedEmpty = 0;
     let sawOutOfRange = 0;
+    let sawOnBreak = 0;
     fc.assert(
       fc.property(
         fc.integer({ min: 1, max: 3 }),
@@ -421,6 +422,11 @@ describe("evolve に直接流すイベントの列での不変条件（#376）",
               sawOutOfRange++;
               expect(agg).toEqual(before);
             }
+            // #402: 走っている時計は休憩中ではない／休憩中は一時停止ではない
+            // （evolve を直に当てるここでだけ、休憩中の状態に届く。decide 経由の性質は break.start を生成しない）
+            if (agg.session.break.since !== null) sawOnBreak++;
+            expect(agg.clock.running && agg.session.break.since !== null).toBe(false);
+            expect(agg.session.break.since !== null && agg.session.isPaused).toBe(false);
             expect(violations).toEqual([]);
           }
         },
@@ -430,5 +436,7 @@ describe("evolve に直接流すイベントの列での不変条件（#376）",
     // 生成が #376 の入力を作れていること（作れていなければこの性質は何も突いていない）
     expect(reachedEmpty).toBeGreaterThan(0);
     expect(sawOutOfRange).toBeGreaterThan(0);
+    // 休憩中の状態に届いていること（届かなければ #402 の 2 本は恒真になる）
+    expect(sawOnBreak).toBeGreaterThan(0);
   });
 });

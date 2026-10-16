@@ -1,62 +1,402 @@
 /**
- * Session × 休憩 UI 撤去確認テスト（§9.1 削除後）
+ * Session × 休憩（#402）
  *
- * 休憩ボタン・休憩中バナーは v2.10 で撤去済み。
- * このテストはそれらが画面に存在しないことを検証する。
+ * v2.10 で休憩は一度撤去され、#402 で作り直した。条件「なし」のルームは撤去後と同じく、
+ * 休憩の操作も表示も無い（書体の拡張の層を取らないため・設計 D9）。
  */
 
-import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import React from "react";
 import { Session } from "../../src/ui/Session.js";
 import type { Room, Participant, SessionConfig } from "@tasuki/timer-core";
 import { aRoomView } from "../support/room-view.js";
 
-/** 参加用 URL は同期フックが組み立てる（#95 S5b）。画面へは値として渡す。 */
-const INVITE_URL_FOR_TEST = 'https://tasuki.example/?room=TEST';
+const INVITE_URL_FOR_TEST = "https://tasuki.example/?room=TEST";
 
-function makeParticipant(overrides: Partial<Participant>): Participant {
-  return {
-    participantId: "p1", displayName: "Alice", presence: "online", joinedAt: 1000, ...overrides,
-  };
-}
-
-const config: SessionConfig = {
+const ELAPSED: Partial<SessionConfig> = {
   intervalMinutes: 5,
+  break: { trigger: "elapsed", every: 60, mode: "auto" },
 };
 
-/** 席に付ける表示名（輪と同じ順）。wire の項目ではない（#294・造作だけの入口）。 */
-const memberNames = ["Alice", "Bob"];
-
-function makeRoom(onBreak: boolean): Room {
-  return aRoomView({
-    code: "AA0001",
-    config,
-    memberNames,
-    session: { rotation: ["Alice", "Bob"], driverCounts: [0, 0] },
-    phase: "session",
-    participants: [makeParticipant({ participantId: "p-alice", displayName: "Alice" })],
-    onBreak,
-  });
+function participant(id: string, name: string, presence: Participant["presence"] = "online"): Participant {
+  return { participantId: id, displayName: name, presence, joinedAt: 1000 };
 }
 
+interface RoomOpts {
+  config?: Partial<SessionConfig>;
+  brk?: { since: number | null; suggestedAtSwitches: number | null; suggestedAtElapsedMs?: number | null };
+  /** 稼働の累計（知らせるだけの帯は、知らせた時点の累計と一致する間だけ出る） */
+  elapsedMs?: number;
+  othersOffline?: boolean;
+  currentIndex?: number;
+  totalSwitches?: number;
+}
+
+/** 自分（p-alice）と Bob の 2 人の輪。break と config と在席だけを上書きする */
+function roomWith(o: RoomOpts = {}): Room {
+  const room = aRoomView({
+    code: "AA0001",
+    config: { intervalMinutes: 5, ...(o.config ?? {}) },
+    memberNames: ["Alice", "Bob"],
+    session: {
+      rotation: ["p-alice", "p-bob"],
+      driverCounts: [0, 0],
+      currentIndex: o.currentIndex ?? 0,
+      totalSwitches: o.totalSwitches ?? 0,
+      ...(o.brk ? { break: o.brk } : {}),
+    },
+    phase: "session",
+    participants: [participant("p-alice", "Alice"), participant("p-bob", "Bob", o.othersOffline ? "offline" : "online")],
+  });
+  return o.elapsedMs === undefined ? room : { ...room, clock: { ...room.clock, accumulatedElapsedMs: o.elapsedMs } };
+}
+
+const onBreakRoom = (since: number, o: RoomOpts = {}) =>
+  roomWith({ config: ELAPSED, ...o, brk: { since, suggestedAtSwitches: null } });
+
 const noop = () => {};
-function handlers() {
+function props(room: Room) {
   return {
+    inviteUrl: INVITE_URL_FOR_TEST,
+    room,
+    participantId: "p-alice",
     onSkip: noop, onPause: noop, onResume: noop, onRestartTimer: noop, onComplete: noop, onAbort: noop,
-    onReset: noop, onRenameParticipant: noop,
+    onReset: noop, onRenameParticipant: noop, onStartBreak: noop, onEndBreak: noop,
     onDriverSkip: noop, onDriverResume: noop, onDriverAssign: noop, onAddProxy: noop, onHandoffNoteSet: noop,
   };
 }
 
-describe("Session 休憩UI撤去確認（§9.1 削除後）", () => {
-  it("休憩ボタンが存在しない", () => {
-    render(<Session inviteUrl={INVITE_URL_FOR_TEST} room={makeRoom(false)} participantId="p-alice" {...handlers()} />);
+afterEach(() => vi.useRealTimers());
+
+describe("休憩の操作は条件なしのルームに出ない", () => {
+  it("Given 条件なしのルーム / When 描く / Then 休憩のボタンが存在しない", () => {
+    render(<Session {...props(roomWith())} />);
     expect(screen.queryByRole("button", { name: /休憩/ })).toBeNull();
   });
 
-  it("onBreak=true でも『休憩中』バナーが表示されない", () => {
-    render(<Session inviteUrl={INVITE_URL_FOR_TEST} room={makeRoom(true)} participantId="p-alice" {...handlers()} />);
-    expect(screen.queryByText(/休憩中/)).toBeNull();
+  // 画面は休憩中かを `session.break.since` だけで決め、条件を見ない（`isOnBreakRoom`）。条件「なし」では
+  // サーバーが break.start を拒み（BREAK_DISABLED）、セッション中は設定も変えられないので、この snapshot は
+  // 普通は届かない。届いたとき（古いサーバーの状態など）に覆いを隠すと、時計が止まったまま終える手段が
+  // 消える。だから覆いは出して「休憩を終える」を残す、を固定する（総合レビュー・2026-10-16）
+  it("Given 条件なしのルームに休憩中の snapshot が届く / When 描く / Then 覆いは出て、終える手段が残る", () => {
+    // Given
+    const ui = <Session {...props(roomWith({ brk: { since: 1000, suggestedAtSwitches: null } }))} />;
+    // When
+    render(ui);
+    // Then
+    expect(screen.getByRole("dialog", { name: "休憩中" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "休憩を終える" })).toBeInTheDocument();
+  });
+
+  it("Given 条件なしのルーム / When 描く / Then 画面の文字にも属性にも「休」「憩」が無い（書体の拡張の層を取らない）", () => {
+    // Given
+    const ui = <Session {...props(roomWith({ config: { intervalMinutes: 5 } }))} />;
+    // When
+    render(ui);
+    // Then
+    expect(document.body.textContent).not.toMatch(/[休憩]/);
+    // 書体は title（ツールチップ）・aria-label（読み上げだけでなく一部は描かれる）・placeholder の字も描く
+    const attrs = [...document.body.querySelectorAll("*")].flatMap((el) =>
+      ["title", "aria-label", "placeholder"].map((name) => el.getAttribute(name) ?? ""),
+    );
+    // 属性を 1 つも拾えていなければ、下の判定は空振りで緑になる
+    expect(attrs.filter((v) => v !== "").length).toBeGreaterThan(0);
+    expect(attrs.filter((v) => /[休憩]/.test(v))).toEqual([]);
+  });
+});
+
+/** @requirements #402 */
+describe("休憩", () => {
+  it("Given 条件ありのルーム / When 描く / Then 「休憩する」と添え書きがある", () => {
+    // Given
+    const ui = <Session {...props(roomWith({ config: ELAPSED }))} />;
+    // When
+    render(ui);
+    // Then
+    expect(screen.getByRole("button", { name: /休憩する/ })).toBeInTheDocument();
+    expect(screen.getByText("次の休憩までを数え直します")).toBeInTheDocument();
+  });
+
+  it("Given 条件ありのルーム / When 「休憩する」を押す / Then onStartBreak", async () => {
+    // Given
+    const onStartBreak = vi.fn();
+    render(<Session {...props(roomWith({ config: ELAPSED }))} onStartBreak={onStartBreak} />);
+    // When
+    await userEvent.click(screen.getByRole("button", { name: /休憩する/ }));
+    // Then
+    expect(onStartBreak).toHaveBeenCalledTimes(1);
+  });
+
+  it("Given 休憩中のルーム / When 描く / Then 覆いが出て、残り時間の円は無い", () => {
+    // Given
+    const ui = <Session {...props(onBreakRoom(1000))} />;
+    // When
+    render(ui);
+    // Then
+    expect(screen.getByRole("dialog", { name: "休憩中" })).toBeInTheDocument();
+    expect(screen.queryByRole("timer")).toBeNull();
+    expect(screen.getByText("休憩明けはAliceさん")).toBeInTheDocument();
+  });
+
+  it("Given 休憩中（再接続直後に初めて描く） / When 描く / Then 経過は休憩の開始から数える", () => {
+    // Given
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(61_000);
+    // When
+    render(<Session {...props(onBreakRoom(1000))} clockOffset={0} />);
+    // Then
+    expect(screen.getByText("01:00")).toBeInTheDocument();
+  });
+
+  // 覆いの経過は秒単位なので、休憩中は 1 秒ごとに描けば足りる。走行中の 200ms のまま Session 全体を
+  // 描き直すと、止まった画面を 1 秒に 5 回作り直す（PR #416 のレビュー）。間隔は再描画の唯一の源（useNowTick の setInterval）で測る。
+  it.each([
+    ["休憩中", 1000, false],
+    ["走行中（対照）", 200, true],
+  ] as const)("Given %s / When 描く / Then 時刻を進める間隔は %i ms", (label, expected, running) => {
+    // Given
+    const base = label === "休憩中" ? onBreakRoom(Date.now() - 60_000) : roomWith({ config: ELAPSED });
+    const spy = vi.spyOn(globalThis, "setInterval");
+    try {
+      // When
+      render(<Session {...props({ ...base, clock: { ...base.clock, running } })} />);
+      // Then
+      expect(spy.mock.calls.map((c) => c[1])).toEqual([expected]);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("Given 休憩中 / When 覆いが開く / Then フォーカスは見出しにあり、Enter でも Esc でも休憩は終わらない", async () => {
+    // Given
+    const onEndBreak = vi.fn();
+    // When
+    render(<Session {...props(onBreakRoom(1000))} onEndBreak={onEndBreak} />);
+    // Then
+    expect(document.activeElement).toBe(screen.getByRole("heading", { name: "休憩中" }));
+    await userEvent.keyboard("{Enter}{Escape}");
+    expect(onEndBreak).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog", { name: "休憩中" })).toBeInTheDocument();
+  });
+
+  it("Given 休憩中 / When 「休憩を終える」を押す / Then onEndBreak", async () => {
+    // Given
+    const onEndBreak = vi.fn();
+    render(<Session {...props(onBreakRoom(1000))} onEndBreak={onEndBreak} />);
+    // When
+    await userEvent.click(screen.getByRole("button", { name: "休憩を終える" }));
+    // Then
+    expect(onEndBreak).toHaveBeenCalledTimes(1);
+  });
+
+  it("Given 休憩中 / When 覆いの「完成」を押す / Then 確認が覆いの上に出て、確定して初めて onComplete", async () => {
+    // Given
+    const onComplete = vi.fn();
+    render(<Session {...props(onBreakRoom(1000))} onComplete={onComplete} />);
+    const overlay = screen.getByRole("dialog", { name: "休憩中" });
+    // When
+    await userEvent.click(within(overlay).getByRole("button", { name: /完成/ }));
+    // Then
+    expect(onComplete).not.toHaveBeenCalled();
+    const confirm = screen.getByRole("dialog", { name: "このセッションを完成として記録しますか？" });
+    // 確認ダイアログが操作できる（覆いのフォーカストラップに引き戻されない）
+    expect(confirm).toContainElement(document.activeElement as HTMLElement);
+    await userEvent.click(within(confirm).getByRole("button", { name: "完成として記録する" }));
+    expect(onComplete).toHaveBeenCalledTimes(1);
+  });
+
+  it("Given 覆いの完成の確認 / When キャンセルする / Then onComplete は呼ばれず、覆いに戻る", async () => {
+    // Given
+    const onComplete = vi.fn();
+    render(<Session {...props(onBreakRoom(1000))} onComplete={onComplete} />);
+    await userEvent.click(within(screen.getByRole("dialog", { name: "休憩中" })).getByRole("button", { name: /完成/ }));
+    // When
+    await userEvent.click(screen.getByRole("button", { name: "キャンセル" }));
+    // Then
+    expect(onComplete).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog", { name: "このセッションを完成として記録しますか？" })).toBeNull();
+    expect(screen.getByRole("dialog", { name: "休憩中" })).toBeInTheDocument();
+  });
+
+  it("Given 輪に居て離脱していない / When 覆いの「一時離脱」を押す / Then onDriverSkip に自分の識別子", async () => {
+    // Given
+    const onDriverSkip = vi.fn();
+    render(<Session {...props(onBreakRoom(1000))} onDriverSkip={onDriverSkip} />);
+    // When
+    await userEvent.click(within(screen.getByRole("dialog", { name: "休憩中" })).getByRole("button", { name: "一時離脱" }));
+    // Then
+    expect(onDriverSkip).toHaveBeenCalledWith("p-alice");
+  });
+
+  it("Given 自分が既に一時離脱中 / When 描く / Then 覆いに「一時離脱」は出ない", () => {
+    // Given
+    const room = onBreakRoom(1000);
+    room.participants = room.participants.map((p) => (p.participantId === "p-alice" ? { ...p, driverEligible: false } : p));
+    // When
+    render(<Session {...props(room)} />);
+    // Then
+    expect(within(screen.getByRole("dialog", { name: "休憩中" })).queryByRole("button", { name: "一時離脱" })).toBeNull();
+  });
+
+  it("Given 休憩中で自分以外が全員 offline / When 描く / Then 最後の一人の警告", () => {
+    render(<Session {...props(onBreakRoom(1000, { othersOffline: true }))} />);
+    expect(screen.getByText(/あなたが最後の一人です/)).toBeInTheDocument();
+  });
+
+  it("Given 休憩中で他に online が居る / When 描く / Then 通常の回収の警告", () => {
+    render(<Session {...props(onBreakRoom(1000))} />);
+    expect(screen.getByText("全員がこの画面を閉じると、しばらくしてルームは消えます。")).toBeInTheDocument();
+  });
+
+  it("Given 知らせるだけで、いまの交代で知らせた / When 描く / Then 帯が出て押すと onStartBreak", async () => {
+    // Given
+    const onStartBreak = vi.fn();
+    const room = roomWith({
+      config: { intervalMinutes: 5, break: { trigger: "elapsed", every: 60, mode: "suggest" } },
+      totalSwitches: 3,
+      elapsedMs: 900_000,
+      brk: { since: null, suggestedAtSwitches: 3, suggestedAtElapsedMs: 900_000 },
+    });
+    // When
+    render(<Session {...props(room)} onStartBreak={onStartBreak} />);
+    // Then
+    expect(screen.getByText("休憩の時間です")).toBeInTheDocument();
+    const band = screen.getByText("休憩の時間です").closest<HTMLElement>(".break-suggest-band");
+    expect(band).not.toBeNull();
+    await userEvent.click(within(band!).getByRole("button", { name: "休憩する" }));
+    expect(onStartBreak).toHaveBeenCalledTimes(1);
+  });
+
+  // 1 人の輪（他が全員不適格も同じ）では現状維持の交代で回数が進まない。帯は知らせた時点の累計でも見るので、
+  // 次の切れ目（累計の確定）で消え、次の知らせで再び出る（PR #416 の再レビュー）。
+  it("Given 1 人の輪・知らせるだけで 30 分の時点で知らせた / When 現状維持の交代が続き、60 分の時点でまた知らせる / Then 帯は次の切れ目で消え、2 回目で再び出る", () => {
+    // Given
+    const solo = (elapsedMs: number, suggestedAtElapsedMs: number) =>
+      aRoomView({
+        code: "AA0001",
+        config: { intervalMinutes: 5, break: { trigger: "elapsed", every: 30, mode: "suggest" } },
+        memberNames: ["Alice"],
+        session: {
+          rotation: ["p-alice"],
+          driverCounts: [0],
+          currentIndex: 0,
+          totalSwitches: 0,
+          break: { since: null, suggestedAtSwitches: 0, suggestedAtElapsedMs },
+        },
+        clock: { accumulatedElapsedMs: elapsedMs },
+        phase: "session",
+        participants: [participant("p-alice", "Alice")],
+      });
+    // When
+    const { rerender } = render(<Session {...props(solo(1_800_000, 1_800_000))} />);
+    // Then
+    expect(screen.getByText("休憩の時間です")).toBeInTheDocument();
+    rerender(<Session {...props(solo(2_100_000, 1_800_000))} />);
+    expect(screen.queryByText("休憩の時間です")).toBeNull();
+    rerender(<Session {...props(solo(3_600_000, 3_600_000))} />);
+    expect(screen.getByText("休憩の時間です")).toBeInTheDocument();
+  });
+
+  it("Given 知らせてから交代が進んだ / When 描く / Then 帯は出ない", () => {
+    // Given
+    const room = roomWith({
+      config: { intervalMinutes: 5, break: { trigger: "elapsed", every: 60, mode: "suggest" } },
+      totalSwitches: 4,
+      // 累計は一致させたまま回数だけを進める（累計が無いと「古いサーバー」として偽になり、題名を守らない）
+      elapsedMs: 900_000,
+      brk: { since: null, suggestedAtSwitches: 3, suggestedAtElapsedMs: 900_000 },
+    });
+    // When
+    render(<Session {...props(room)} />);
+    // Then
+    expect(screen.queryByText("休憩の時間です")).toBeNull();
+  });
+
+  it("Given 走行中 / When 交代と同時に休憩に入った snapshot が届く / Then 交代の全画面の知らせは出ない", () => {
+    // Given
+    const running = (o: RoomOpts) => {
+      const r = roomWith({ config: { ...ELAPSED, assertiveSwitch: true }, ...o });
+      r.clock = { ...r.clock, running: true };
+      return r;
+    };
+    const { rerender } = render(<Session {...props(running({}))} />);
+    // When
+    rerender(
+      <Session {...props(running({ currentIndex: 1, totalSwitches: 1, brk: { since: 5000, suggestedAtSwitches: null } }))} />,
+    );
+    // Then
+    expect(screen.queryByRole("alertdialog", { name: "ドライバー交代通知" })).toBeNull();
+    expect(screen.getByRole("dialog", { name: "休憩中" })).toBeInTheDocument();
+  });
+
+  it("Given 走行中 / When 休憩なしの交代の snapshot が届く / Then 交代の全画面の知らせは出る（対照）", () => {
+    // Given
+    const running = (o: RoomOpts) => {
+      const r = roomWith({ config: { ...ELAPSED, assertiveSwitch: true }, ...o });
+      r.clock = { ...r.clock, running: true };
+      return r;
+    };
+    const { rerender } = render(<Session {...props(running({}))} />);
+    // When
+    rerender(<Session {...props(running({ currentIndex: 1, totalSwitches: 1 }))} />);
+    // Then
+    expect(screen.getByRole("alertdialog", { name: "ドライバー交代通知" })).toBeInTheDocument();
+  });
+
+  it("Given 確認ダイアログ（最初から）が開いている / When 休憩中の snapshot が届く / Then フォーカスの奪い合いで落ちず、背後は inert", async () => {
+    // Given
+    const { rerender } = render(<Session {...props(roomWith({ config: ELAPSED }))} />);
+    // When
+    await userEvent.click(screen.getByRole("button", { name: /最初から/ }));
+    // Then
+    expect(screen.getByRole("dialog", { name: "最初から再スタートしますか？" })).toBeInTheDocument();
+    const errors: unknown[] = [];
+    const onErr = (e: ErrorEvent) => { errors.push(e.error); e.preventDefault(); };
+    window.addEventListener("error", onErr);
+    expect(() => rerender(<Session {...props(onBreakRoom(1000))} />)).not.toThrow();
+    // 背後の確認ダイアログの取消ボタンへフォーカスを移そうとしても、奪い合いにならない
+    screen.getByRole("heading", { name: "休憩中" }).focus();
+    screen.getByRole("button", { name: "キャンセル" }).focus();
+    window.removeEventListener("error", onErr);
+    expect(errors).toEqual([]);
+    // 覆いの外（セッション画面の本体）は操作できない
+    expect(document.querySelector("[inert]")).not.toBeNull();
+    expect(screen.getByRole("dialog", { name: "休憩中" }).closest("[inert]")).toBeNull();
+  });
+
+  it("Given 休憩中 / When 描く / Then 覆いの外のセッション画面は inert、休憩でなければ inert でない", () => {
+    // Given
+    const ui = <Session {...props(roomWith({ config: ELAPSED }))} />;
+    // When
+    const { container, rerender } = render(ui);
+    // Then
+    expect(container.querySelector("[inert]")).toBeNull();
+    rerender(<Session {...props(onBreakRoom(1000))} />);
+    expect(container.querySelector("[inert]")).not.toBeNull();
+  });
+});
+
+describe("最後の一人の beforeunload（設計 §7.1）", () => {
+  function unloadPrevented(): boolean {
+    const e = new Event("beforeunload", { cancelable: true });
+    window.dispatchEvent(e);
+    return e.defaultPrevented;
+  }
+
+  it("Given 休憩中で自分以外が全員 offline / When beforeunload / Then 確認が出る（preventDefault）", () => {
+    render(<Session {...props(onBreakRoom(1000, { othersOffline: true }))} />);
+    expect(unloadPrevented()).toBe(true);
+  });
+
+  it("Given 休憩中で他に online が居る / When beforeunload / Then 確認は出ない", () => {
+    render(<Session {...props(onBreakRoom(1000))} />);
+    expect(unloadPrevented()).toBe(false);
+  });
+
+  it("Given 休憩中でない（全員 offline でも） / When beforeunload / Then 確認は出ない", () => {
+    render(<Session {...props(roomWith({ config: ELAPSED, othersOffline: true }))} />);
+    expect(unloadPrevented()).toBe(false);
   });
 });

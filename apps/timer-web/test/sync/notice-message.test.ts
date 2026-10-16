@@ -33,6 +33,9 @@ describe("buildNoticeMessage", () => {
       // セッション中の「最初から」と、完了後のロビーからの「開始」の両方から送られる
       ["session-reset", "最初から始め直しました"],
       ["session-completed", "完成"],
+      // 休憩（#402）
+      ["break-started", "休憩を始めました"],
+      ["break-ended", "休憩を終えました"],
     ];
 
     for (const [action, keyword] of cases) {

@@ -20,9 +20,11 @@ export interface AfterEffectInput {
 export function applyAfterEffects(state: RoomState, input: AfterEffectInput): RoomState {
   const { command, events, now, nextRecordId } = input;
 
-  // 現ドライバーが driver.skip で ineligible になり、かつ稼働中なら即座に次の eligible へ
-  // 繰り上げる（plan.md L209）。交代先が無ければ advanceDriver が現状維持する。
-  if (command.command === "driver.skip" && state.timer.clock.running) {
+  // 運転者が席を外していて、時計が走っているなら次の適格な人へ繰り上げる。交代先が無ければ advanceDriver が現状維持する。
+  // - driver.skip: 現ドライバーが自分を ineligible にしたら即座に繰り上げる（plan.md L209）
+  // - break.end: 休憩明けに、休憩中に席を外した運転者を繰り上げる（#402 設計 §4.2）。休憩中は時計が止まって
+  //   いるので、driver.skip の繰り上げも不在の繰り上げ（presence）も動かない。明けた時点で 1 回だけ見直す
+  if ((command.command === "driver.skip" || command.command === "break.end") && state.timer.clock.running) {
     const ineligible = computeIneligibleIndices(state.membership, state.timer);
     if (ineligible.has(state.timer.session.currentIndex)) {
       const advanced = advanceDriver({ session: state.timer.session, clock: state.timer.clock }, ineligible, now);

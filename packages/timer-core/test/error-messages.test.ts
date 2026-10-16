@@ -30,6 +30,9 @@ const CODES_SHOWN_TO_USER = [
   "BelowMinMembers",
   // 空の輪で時計を走らせる操作の拒否（#376）。通常の経路からは届かない
   "EmptyRotation",
+  // 休憩（#402）
+  "OnBreak",
+  "NotOnBreak",
   "DuplicateName",
   "EmptyName",
   "MemberLimitExceeded",
@@ -50,6 +53,9 @@ const CODES_SHOWN_TO_USER = [
   // 消えたため、残るのはこの 3 件）。
   "DRIVER_ASSIGN_OFFLINE",
   "NOT_IN_ROTATION",
+  "NOT_IN_SESSION",
+  "CONFIG_LOCKED_IN_SESSION",
+  "BREAK_DISABLED",
   "JOIN_RATE_LIMITED",
 ] as const;
 

@@ -13,7 +13,13 @@ import { labelPool, participantLabel } from "../ui/participant-label.js";
 
 /** サーバーから受け取る notice の内容（`SignalNoticeMsg` と対応）。 */
 export interface NoticeSignal {
-  action: "participant-removed" | "session-aborted" | "session-reset" | "session-completed";
+  action:
+    | "participant-removed"
+    | "session-aborted"
+    | "session-reset"
+    | "session-completed"
+    | "break-started"
+    | "break-ended";
   actorName: string;
   actorParticipantId: string;
   targetName?: string | undefined;
@@ -65,6 +71,11 @@ export function buildNoticeMessage(notice: NoticeSignal, ctx: NoticeContext): st
       return `${actor}がセッションを最初から始め直しました。`;
     case "session-completed":
       return `${actor}がセッションを完成として記録しました。`;
+    // 休憩の開始・終了（#402）。
+    case "break-started":
+      return `${actor}が休憩を始めました。`;
+    case "break-ended":
+      return `${actor}が休憩を終えました。`;
     case "participant-removed": {
       const targetName = notice.targetName ?? "";
       const targetId = notice.targetParticipantId ?? "";

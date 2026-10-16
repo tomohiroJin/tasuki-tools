@@ -3,14 +3,17 @@
  * T013: FR-003, FR-007, FR-008
  */
 
-import type { Aggregate, TimerConfig, RotationEntry, ServerClock } from "./aggregate.js";
+import type { Aggregate, BreakMark, TimerConfig, RotationEntry, ServerClock } from "./aggregate.js";
 import {
+  INITIAL_BREAK_STATE,
   initialAggregateInSeconds,
   isCurrentIndexFor,
   isPermutation,
+  isOnBreak,
   isSeatIndex,
   nextEligibleIndex,
   rotationEntryId,
+  sessionHasStarted,
 } from "./aggregate.js";
 import type { DomainEvent } from "./events.js";
 
@@ -45,6 +48,11 @@ function freezeRunningClock(clock: ServerClock, now: number): ServerClock {
  * 並べ替え・空の輪への交代がそれに当たる。evolve は純粋でログを持たないので知らせる手段が無く、
  * 拒否は decide の仕事である。decide と evolve は同じ述語（`aggregate.ts` の `isSeatIndex` /
  * `isPermutation`）で判定するので、decide が通したイベントを evolve が無視することはない。
+ *
+ * **休憩中（`session.break.since !== null`）の `SessionPaused`・`SessionResumed`・`DriverTimerReset`・
+ * `DriverSwitched` も同じく無視する（#402）。** どれも時計を走らせる／一時停止を立てるので、通すと
+ * 「走っている時計は休憩中でない」「休憩中は一時停止でない」が崩れる。decide は休憩中にこれらを出さない
+ * ので製品の経路は変わらない。evolve を直に当てる性質テストで、この 2 つの不変条件を evolve 単体で成り立たせる。
  */
 // 第3引数は呼び出し側の「この適用の時刻」を表すが、各イベントは自身に now を持つため
 // 分岐側では event.now を使う。引数はイベントを持たない将来の適用や呼び出し規約の
@@ -59,8 +67,8 @@ export function evolve(agg: Aggregate, event: DomainEvent, _now: number): Aggreg
  * 表現は `SessionPaused` と同じ（残量を凍結し `isPaused: true`）。画面の再開ボタンは
  * `isPaused` のときだけ押せるので、席を足し直した後に「再開」で走り出せる。
  * **止まっている時計には触らない。** 休憩は isPaused を使わずに時計を止める（`evolveBreakStarted`）。
- * 休憩中や開始前に輪が空になっても一時停止を立てないので、席を足し直せば `BreakEnded`・`START` で走り出せる
- * （休憩中かどうかは集約に無く、ルームの `onBreak` が持つ。走っているかどうかで分けるのはそのため）。
+ * 休憩中かどうかは集約の `session.break.since` が持つ。止まっている時計に触らないので、休憩中や開始前に
+ * 輪が空になっても一時停止は立たず、席を足し直せば `BreakEnded`・`START` で走り出せる。
  * 出口の 1 か所に置くのは、空の輪に後から届く `SessionStarted`・`SessionResumed`・`BreakEnded`・
  * `DriverTimerReset`・`SessionReset` もそれぞれ時計を走らせるからである。
  * `decide` は最後の 1 人の member.remove を拒むので、通常の経路からは届かない。
@@ -79,12 +87,15 @@ function evolveByType(agg: Aggregate, event: DomainEvent): Aggregate {
       return evolveSessionStarted(agg, event.now);
 
     case "DriverSwitched":
+      if (isOnBreak(agg.session)) return agg;
       return evolveDriverSwitched(agg, event.nextIndex, event.now);
 
     case "SessionPaused":
+      if (isOnBreak(agg.session)) return agg;
       return evolveSessionPaused(agg, event.now);
 
     case "SessionResumed":
+      if (isOnBreak(agg.session)) return agg;
       return evolveSessionResumed(agg, event.now);
 
     case "SessionReset": {
@@ -107,11 +118,16 @@ function evolveByType(agg: Aggregate, event: DomainEvent): Aggregate {
     }
 
     case "DriverTimerReset":
+      if (isOnBreak(agg.session)) return agg;
       return evolveDriverTimerReset(agg, event.now);
 
     case "PhaseSet":
-      // PhaseSet はルーム全体に適用。集約（session+clock）には影響しない
-      return agg;
+      // phase はルーム全体の状態（反映はアプリ層）。セッションへ入るときは集約を変えない。
+      // **セッションの外へ出るときは、完成・中断と同じく時計を止めて休憩を畳む**（PR #416 のレビュー）。
+      // 休憩中にロビーへ戻ると `break.since` が残り、ロビーの画面にも覆いが出たまま次の開始を迎えていた。
+      // 完成・中断を経た集約は既に止まって畳まれているので、そこからのロビーへの戻りでは何も変わらない。
+      if (event.phase === "session") return agg;
+      return evolveSessionEnded(agg, event.now);
 
     case "ConfigSet":
       return evolveConfigSet(agg, event.config, event.now);
@@ -134,9 +150,14 @@ function evolveByType(agg: Aggregate, event: DomainEvent): Aggregate {
     case "BreakEnded":
       return evolveBreakEnded(agg, event.now);
 
-    case "HandoffNoteSet":
+    case "BreakSuggested":
+      return evolveBreakSuggested(agg);
+
     case "SessionCompleted":
     case "SessionAborted":
+      return evolveSessionEnded(agg, event.now);
+
+    case "HandoffNoteSet":
     case "ProxyMemberAdded":
     case "ParticipantRenamed":
     case "DriverSkipped":
@@ -183,7 +204,10 @@ function evolveSessionStarted(agg: Aggregate, now: number): Aggregate {
   return {
     // 開始の時点で直前に運転した人は居ない（#374。ロビーの名残を持ち込まない）。
     // 画面は開始をロビーからだけ送る（一時停止からは RESUME。`timer-actions.ts` の `startSession`）。
-    session: { ...agg.session, previousDriverId: null },
+    // 休憩の基準は 0 ではなく、いまの稼働時間と交代回数にする（PR #416 のレビュー）。開始は残り時間・回数・
+    // 稼働の累計を畳まない（`session-start.ts`）ので、引きずった集約に START が届くと、基準 0 では
+    // 残った値の分だけ開始直後に休憩の条件を満たす。
+    session: { ...agg.session, previousDriverId: null, break: { since: null, baseline: markOf(agg), suggestedAt: null } },
     clock: {
       ...agg.clock,
       running: true,
@@ -293,35 +317,47 @@ function evolveDriverTimerReset(agg: Aggregate, now: number): Aggregate {
 }
 
 /**
- * F2(v2.3 #2b): 休憩開始でタイマーを停止し残量を凍結する。
- * F1 の一時停止と同じく押下時点の残量を secondsLeftAtAnchor に焼き付ける。
- * 休憩は一時停止とは別概念なので isPaused は立てない（session は ...agg で維持）。
+ * いまの稼働時間と交代回数（休憩の基準・知らせの印に使う）。
+ * 走行中の稼働区間は含めない（`accumulatedElapsedMs` は停止・交代で確定する値）。`BreakSuggested` は
+ * 交代の直後（`DriverSwitched` が確定した直後）に当てるので、確定した値で足りる。
  */
-function evolveBreakStarted(agg: Aggregate, now: number): Aggregate {
-  // F2(v2.3 #2b): 休憩開始＝タイマーを残量凍結で停止（一時停止と同型・onBreak はルームレベル）。
-  return { ...agg, clock: freezeRunningClock(agg.clock, now) };
+function markOf(agg: Aggregate): BreakMark {
+  return { elapsedMs: agg.clock.accumulatedElapsedMs, switches: agg.session.totalSwitches };
 }
 
 /**
- * F2(v2.3 #2b): 休憩終了で凍結残量から走行を再開する。
- * secondsLeftAtAnchor は休憩開始時の凍結値のままなので、anchorServerTime=now で
- * その値から再カウントが始まる（休憩中の経過時間は消費しない）。
+ * 休憩開始（#402）。時計を凍結してから基準を取る（凍結で稼働区間が accumulatedElapsedMs に確定する）。
+ * 一時停止は解く。止まっている状態を 2 つ重ねると、休憩明けに走り出さない（設計 §3.3）。
+ */
+function evolveBreakStarted(agg: Aggregate, now: number): Aggregate {
+  const clock = freezeRunningClock(agg.clock, now);
+  const frozen = { ...agg, clock };
+  return {
+    session: { ...agg.session, isPaused: false, break: { since: now, baseline: markOf(frozen), suggestedAt: null } },
+    clock,
+  };
+}
+
+/**
+ * 休憩終了。凍結した残量から走行を再開する（休憩中の経過は消費しない）。
+ * 休憩中でなければ何もしない。
  */
 function evolveBreakEnded(agg: Aggregate, now: number): Aggregate {
-  // F2(v2.3 #2b): 休憩終了＝凍結残量から再開。既に走行中なら冪等に何もしない。
-  if (agg.clock.running) return agg;
-  // 一時停止中に休憩していた場合、休憩終了でも一時停止は維持し走行再開しない
-  // （running=true かつ isPaused=true の矛盾＝表示は停止中なのに裏で進む、を防ぐ）。
-  if (agg.session.isPaused) return agg;
-  return {
-    ...agg,
-    clock: {
-      ...agg.clock,
-      running: true,
-      anchorServerTime: now,
-      runningSince: now,
-    },
-  };
+  if (agg.session.break.since === null) return agg;
+  // 休憩の印は、どの経路でも必ず消す
+  const cleared: Aggregate = { ...agg, session: { ...agg.session, break: { ...agg.session.break, since: null } } };
+  if (cleared.clock.running) return cleared;
+  if (cleared.session.isPaused) return cleared;
+  return { ...cleared, clock: { ...cleared.clock, running: true, anchorServerTime: now, runningSince: now } };
+}
+
+function evolveBreakSuggested(agg: Aggregate): Aggregate {
+  return { ...agg, session: { ...agg.session, break: { ...agg.session.break, suggestedAt: markOf(agg) } } };
+}
+
+/** 完成・中断（#402 設計 §3.5）。時計を止め、休憩を畳む。それまでは完成後のロビーでも時計が走り、自動交代が予約されていた */
+function evolveSessionEnded(agg: Aggregate, now: number): Aggregate {
+  return { session: { ...agg.session, break: INITIAL_BREAK_STATE }, clock: freezeRunningClock(agg.clock, now) };
 }
 
 /**
@@ -367,14 +403,6 @@ function evolveMemberAdded(agg: Aggregate, participantId: string): Aggregate {
       driverCounts: [...agg.session.driverCounts, 0],
     },
   };
-}
-
-/**
- * セッションが始まっているか（走行中・一時停止中・休憩中のいずれか）。
- * 開始前（ロビー）の集約は時計が一度も走っていない（`accumulatedElapsedMs` が 0 で止まっている）。
- */
-function sessionHasStarted(agg: Aggregate): boolean {
-  return agg.clock.running || agg.session.isPaused || agg.clock.accumulatedElapsedMs > 0;
 }
 
 /**

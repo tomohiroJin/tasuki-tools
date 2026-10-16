@@ -75,9 +75,12 @@ export function buildDomainCommand(cmd: RoomScopedCommand) {
     case "driver.assign":
       // index は handleRoomCommand が participantId から解決して埋める（-1 はプレースホルダ）。
       return { command: "driver.assign" as const, index: -1 };
+    case "break.start":
+      return { command: "break.start" as const };
+    case "break.end":
+      return { command: "break.end" as const };
     default:
-      // 翻訳の対象外（member.shuffle・participant.remove・room.passphrase.set は前段の専用処理、
-      // break.start・break.end は wire に残るが処理しない）。UNKNOWN_COMMAND になる。
+      // 翻訳の対象外（member.shuffle・participant.remove・room.passphrase.set は前段の専用処理）。UNKNOWN_COMMAND になる。
       return null;
   }
 }

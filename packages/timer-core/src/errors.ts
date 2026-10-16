@@ -59,6 +59,16 @@ interface InvalidIndex {
 // 使っていたのは `problem.edit`（お題の要件の件数）だけで、#91 PR 3 でお題が
 // timer-core から消えたときに発行元ごと落とした。
 
+/** 休憩中（#402）。休憩中は時計を動かす操作（session.act の全種・driver.assign）と break.start を拒む */
+export interface OnBreak {
+  type: "OnBreak";
+}
+
+/** 休憩中ではない（#402）。break.end を拒む */
+export interface NotOnBreak {
+  type: "NotOnBreak";
+}
+
 /** ドメインエラーの合併型 */
 export type DomainError =
   | EmptyName
@@ -68,7 +78,9 @@ export type DomainError =
   | EmptyRotation
   | PhaseConflict
   | InvalidInterval
-  | InvalidIndex;
+  | InvalidIndex
+  | OnBreak
+  | NotOnBreak;
 
 /**
  * **同期サーバー層（`apps/sync`）が固有に発行する失敗の種類**（FR-101）。
@@ -121,6 +133,10 @@ export const SYNC_ERROR_CODES = [
   // ─── 指名（driver.assign） ───
   "DRIVER_ASSIGN_OFFLINE",
   "NOT_IN_ROTATION",
+  // ─── 休憩と設定（#402） ───
+  "NOT_IN_SESSION",
+  "CONFIG_LOCKED_IN_SESSION",
+  "BREAK_DISABLED",
   // ⚠ UNAUTHORIZED / HOST_TRANSFER_OFFLINE / CANNOT_CHANGE_HOST_ROLE / ALREADY_HOST /
   // LAST_MANAGER_LEAVE / LAST_MANAGER_DEMOTE は #95 S3（役割とホストの廃止）で
   // 発行元ごと消えたため、ここから削除した。可否判定・ホスト移譲・役割変更・
