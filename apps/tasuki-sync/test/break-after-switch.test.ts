@@ -233,6 +233,18 @@ describe("現状維持の交代でも経過時間の判定は走る（PR #416 �
   });
 });
 
+describe("現状維持の交代で知らせ直す（PR #416 の再レビュー）", () => {
+  it("Given 1 人の輪・経過 30 分・知らせるだけ / When 30 分ごとに 2 回知らせる / Then snapshot の知らせた時点の累計が 30 分→60 分と進む", async () => {
+    const h = await setupRunning({ trigger: "elapsed", every: 30, mode: "suggest" }, []);
+    const lastBreak = () => h.broadcaster.latestSnapshot()?.session.break;
+    for (let i = 0; i < 6; i++) advanceOneSwitch(h);
+    expect(lastBreak()).toEqual({ since: null, suggestedAtSwitches: 0, suggestedAtElapsedMs: 30 * 60_000 });
+    for (let i = 0; i < 6; i++) advanceOneSwitch(h);
+    expect(lastBreak()).toEqual({ since: null, suggestedAtSwitches: 0, suggestedAtElapsedMs: 60 * 60_000 });
+    expect(timerOf(h).clock.accumulatedElapsedMs).toBe(60 * 60_000);
+  });
+});
+
 describe("休憩明けの繰り上げ（#402 設計 §4.2）", () => {
   it("Given 休憩中に運転者が一時離脱した / When 休憩を終える / Then 次の適格な人が運転者になり、時計が走る", async () => {
     const h = await setupRunning(MANUAL_ONLY);

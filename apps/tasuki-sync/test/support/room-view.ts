@@ -145,7 +145,7 @@ export function putRoomView(
         since: room.session.break?.since ?? null,
         suggestedAt:
           room.session.break?.suggestedAtSwitches != null
-            ? { elapsedMs: 0, switches: room.session.break.suggestedAtSwitches }
+            ? { elapsedMs: room.session.break.suggestedAtElapsedMs ?? 0, switches: room.session.break.suggestedAtSwitches }
             : null,
       },
       rotation: room.session.rotation.map((id) => {

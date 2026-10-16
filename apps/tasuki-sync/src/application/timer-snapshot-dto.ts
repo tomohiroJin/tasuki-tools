@@ -88,6 +88,8 @@
  *    経過）は載せず、画面が要る分だけを載せる。任意項目なので配布の窓で旧画面のパースは落ちない。
  *    `onBreak` は古い画面の `RoomSchema` が必須で読むので残し、`session.break.since` から導く
  *    （休憩中に限り true）。`suggest-break` シグナルは wire から消えた。
+ *    のちに `suggestedAtElapsedMs`（知らせた時点の稼働の累計）を同じ要約へ任意項目で足した（PR #416 の
+ *    再レビュー）。「新しい画面 × 旧サーバー」では項目が来ないので、画面は帯を出さない側へ倒す。
  *
  * 代理（`isPlaceholder`）はここで**合成される**。名簿には居らず、輪の上の席
  * （`RotationEntry` の `kind: "proxy"`）としてだけ存在するためである。
@@ -366,6 +368,9 @@ export function buildTimerSnapshotRoom(membership: MembershipRoom, timer: TimerS
       break: {
         since: timer.session.break.since,
         suggestedAtSwitches: timer.session.break.suggestedAt?.switches ?? null,
+        // 知らせた時点の稼働の累計。現状維持の交代では回数が進まないので、帯の出し入れと 2 回目以降の
+        // 知らせの検知に要る（PR #416 の再レビュー）
+        suggestedAtElapsedMs: timer.session.break.suggestedAt?.elapsedMs ?? null,
       },
     },
     clock: timer.clock,

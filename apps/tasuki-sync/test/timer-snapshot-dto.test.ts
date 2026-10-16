@@ -124,20 +124,20 @@ describe("timer のスナップショット DTO（wire の同形性）", () => {
       ...timer,
       session: {
         ...timer.session,
-        break: { since: 5000, baseline: { elapsedMs: 0, switches: 0 }, suggestedAt: { elapsedMs: 0, switches: 3 } },
+        break: { since: 5000, baseline: { elapsedMs: 0, switches: 0 }, suggestedAt: { elapsedMs: 900_000, switches: 3 } },
       },
     };
     // When
     const room = buildTimerSnapshotRoom(membership, onBreak);
     // Then: 基準は載らず、画面が要る分だけが載る
-    expect(room.session.break).toEqual({ since: 5000, suggestedAtSwitches: 3 });
+    expect(room.session.break).toEqual({ since: 5000, suggestedAtSwitches: 3, suggestedAtElapsedMs: 900_000 });
     expect(room.onBreak).toBe(true);
     expect(v.safeParse(RoomSchema, room).success).toBe(true);
   });
 
   it("Given 休憩していない集約 / When snapshot を組む / Then break は空で onBreak は false", () => {
     const room = buildTimerSnapshotRoom(membership, timer);
-    expect(room.session.break).toEqual({ since: null, suggestedAtSwitches: null });
+    expect(room.session.break).toEqual({ since: null, suggestedAtSwitches: null, suggestedAtElapsedMs: null });
     expect(room.onBreak).toBe(false);
   });
 
