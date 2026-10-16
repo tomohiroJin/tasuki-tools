@@ -1,0 +1,26 @@
+# 変異 281: markdown-task-upper-x
+#
+# 検出を期待するテスト:
+#   - packages/markdown/tests/blocks.test.ts
+#     describe「タスクリストを解析する」の
+#     「Given "- [X] a" / When 解析する / Then チェック済みのタスクになる」（#315 spec FR-002）
+#
+# #315 PR 1・spec D2。`TASK_RE` の印から大文字の `X` を外す。GitHub と同じ `- [X]` で書いた
+# 済みの項目が、チェックボックスにならず「[X] 文」という文のまま出る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m281-*.patch
+# 復元: git apply -R scripts/mutations/m281-*.patch
+diff --git a/packages/markdown/src/blocks.ts b/packages/markdown/src/blocks.ts
+index f696535..d2143bc 100644
+--- a/packages/markdown/src/blocks.ts
++++ b/packages/markdown/src/blocks.ts
+@@ -50,7 +50,7 @@ function toBlock(b: RawBlock): MdBlock {
+  * `(?=\S)` で文の無い項目（`- [ ]` だけ）を外す —— 名前の無いチェックボックスを描かないため（NFR-002）。
+  * 先頭に固定した 1 回の照合なので、解析の時間は線形のまま（NFR-003）。
+  */
+-const TASK_RE = /^\[([ xX])\]\s+(?=\S)/;
++const TASK_RE = /^\[([ x])\]\s+(?=\S)/;
+ 
+ function toListItem(line: string): MdListItem {
+   const m = TASK_RE.exec(line);

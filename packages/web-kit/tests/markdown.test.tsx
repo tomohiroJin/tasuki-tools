@@ -58,3 +58,47 @@ describe('Markdown', () => {
     expect(screen.getByText('クリック')).toBeTruthy();
   });
 });
+
+/**
+ * @requirements #315 spec FR-001〜003・FR-006（D4）
+ */
+describe('Markdown のタスクリスト', () => {
+  const checkbox = (name: string) => screen.getByRole('checkbox', { name }) as HTMLInputElement;
+
+  it('Given タスクとそうでない項目 / When 描く / Then タスクだけ label で包んだチェックボックスになる', () => {
+    const { container } = render(<Markdown source={'- [ ] a\n- b\n1. [x] c'} headingBase={4} />);
+    expect(shape(container.firstElementChild)).toEqual([
+      'div.ui-md',
+      '  ul.ui-md-ul',
+      '    li.ui-md-task',
+      '      label.ui-md-task-label',
+      '        input.ui-md-check',
+      '        span.ui-md-task-text "a"',
+      '    li "b"',
+      '  ol.ui-md-ol',
+      '    li.ui-md-task',
+      '      label.ui-md-task-label',
+      '        input.ui-md-check',
+      '        span.ui-md-task-text "c"',
+    ]);
+  });
+
+  it('Given [ ] と [x] / When 描く / Then 項目の文を名前にし、状態が合う', () => {
+    render(<Markdown source={'- [ ] first\n- [x] second'} headingBase={4} />);
+    expect(checkbox('first').type).toBe('checkbox');
+    expect(checkbox('first').checked).toBe(false);
+    expect(checkbox('second').checked).toBe(true);
+  });
+
+  it('Given タスクの項目 / When 描く / Then 押せない（FR-006）', () => {
+    render(<Markdown source="- [x] a" headingBase={4} />);
+    expect(checkbox('a').disabled).toBe(true);
+  });
+
+  it('Given 文にリンクを含むタスク / When 描く / Then リンクは safeHref を通ったものだけ', () => {
+    render(<Markdown source={'- [ ] see [doc](https://example.com) and [x](javascript:x)'} headingBase={4} />);
+    expect(checkbox('see doc and x').checked).toBe(false);
+    expect(screen.getByRole('link', { name: 'doc' }).getAttribute('href')).toBe('https://example.com');
+    expect(screen.queryByRole('link', { name: 'x' })).toBeNull();
+  });
+});

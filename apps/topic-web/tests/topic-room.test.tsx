@@ -144,6 +144,20 @@ describe('場のお題', () => {
     expect(within(body).getAllByRole('listitem')).toHaveLength(2);
     expect(current.textContent).not.toContain('##');
   });
+
+  it('Given 説明がタスクリストを含む / When 画面を見る / Then 項目の文を名前にしたチェックボックスが出て、押せない（#315 FR-006）', () => {
+    // Given
+    const md = { title: 'FizzBuzz', body: '- [ ] first\n- [x] second', source: 'manual' as const };
+    // When
+    enterWith({ ...IDLE_STATE, topic: md });
+    const current = screen.getByRole('region', { name: copy.READER_HEADING });
+    // Then: いまのお題の札は全員が読む面。付け外しは場に出ない（正本 D1）
+    const body = within(current).getByRole('region', { name: 'FizzBuzz' });
+    expect(within(body).getByRole('checkbox', { name: 'first' })).not.toBeChecked();
+    expect(within(body).getByRole('checkbox', { name: 'second' })).toBeChecked();
+    expect(within(body).getByRole('checkbox', { name: 'first' })).toBeDisabled();
+    expect(current.textContent).not.toContain('[ ]');
+  });
 });
 
 /**
