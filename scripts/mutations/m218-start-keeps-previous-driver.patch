@@ -10,15 +10,15 @@
 #
 # #374（PR #396 のレビュー）。ロビーの名残の人が、開始直後からナビに出る。
 diff --git a/packages/timer-core/src/evolve.ts b/packages/timer-core/src/evolve.ts
-index 836daf1b..fb32fa87 100644
+index 3cdb1947..c26f25de 100644
 --- a/packages/timer-core/src/evolve.ts
 +++ b/packages/timer-core/src/evolve.ts
-@@ -199,7 +199,7 @@ function evolveSessionStarted(agg: Aggregate, now: number): Aggregate {
-   return {
-     // 開始の時点で直前に運転した人は居ない（#374。ロビーの名残を持ち込まない）。
-     // 画面は開始をロビーからだけ送る（一時停止からは RESUME。`timer-actions.ts` の `startSession`）。
--    session: { ...agg.session, previousDriverId: null, break: INITIAL_BREAK_STATE },
-+    session: { ...agg.session, break: INITIAL_BREAK_STATE },
+@@ -207,7 +207,7 @@ function evolveSessionStarted(agg: Aggregate, now: number): Aggregate {
+     // 休憩の基準は 0 ではなく、いまの稼働時間と交代回数にする（PR #416 のレビュー）。開始は残り時間・回数・
+     // 稼働の累計を畳まない（`session-start.ts`）ので、引きずった集約に START が届くと、基準 0 では
+     // 残った値の分だけ開始直後に休憩の条件を満たす。
+-    session: { ...agg.session, previousDriverId: null, break: { since: null, baseline: markOf(agg), suggestedAt: null } },
++    session: { ...agg.session, break: { since: null, baseline: markOf(agg), suggestedAt: null } },
      clock: {
        ...agg.clock,
        running: true,
