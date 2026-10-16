@@ -7,6 +7,7 @@ vi.mock("../../src/platform/notify.js", () => ({ notifyDriverChange: vi.fn(), no
 import { playChime, vibrateSwitch } from "../../src/platform/sound.js";
 import { notifyBreak } from "../../src/platform/notify.js";
 import { useBreakAlert } from "../../src/ui/use-break-alert.js";
+import { useSwitchAlert } from "../../src/ui/use-switch-alert.js";
 
 const on = { enabled: true, soundId: "bell", osNotify: true, volume: 0.4, countdownEnabled: false, countdownSeconds: 15, countdownMode: "tone" as const, countdownVoiceId: "voice-male" as const };
 const off = { ...on, enabled: false };
@@ -128,5 +129,46 @@ describe("useBreakAlert", () => {
     // Then
     expect(playChime).toHaveBeenCalledTimes(1);
     expect(notifyBreak).toHaveBeenCalledTimes(1);
+  });
+
+  // 休憩明けの繰り上げ（休憩中に運転者が席を外し、明けると次の人へ替わる）では、終わりと交代が
+  // 同じ snapshot に載る。交代のチャイムが鳴るので、休憩の側は鳴らさず 1 回にする（#402）。
+  it("Given 休憩中 / When 休憩明けの繰り上げで運転者が替わる / Then 休憩の側はチャイムも振動も鳴らさない", () => {
+    // Given
+    const { rerender } = renderHook(({ since, driver }) => useBreakAlert(since, null, driver, on), {
+      initialProps: { since: 100 as number | null, driver: ALICE },
+    });
+    // When
+    rerender({ since: null, driver: BOB });
+    // Then
+    expect(playChime).not.toHaveBeenCalled();
+    expect(vibrateSwitch).not.toHaveBeenCalled();
+  });
+
+  it("Given 休憩中 / When 休憩明けの繰り上げで運転者が替わる / Then 交代の知らせと合わせてチャイムは 1 回だけ", () => {
+    // Given
+    const { rerender } = renderHook(
+      ({ since, driver }) => {
+        useBreakAlert(since, null, driver, on);
+        useSwitchAlert(driver.index, driver.name, { assertiveSwitch: false, notify: on, suppressed: false });
+      },
+      { initialProps: { since: 100 as number | null, driver: ALICE } },
+    );
+    // When
+    rerender({ since: null, driver: BOB });
+    // Then
+    expect(playChime).toHaveBeenCalledTimes(1);
+  });
+
+  it("Given 休憩中 / When 運転者が同じまま休憩が終わる / Then 休憩の側がチャイムと振動を鳴らす", () => {
+    // Given
+    const { rerender } = renderHook(({ since, driver }) => useBreakAlert(since, null, driver, on), {
+      initialProps: { since: 100 as number | null, driver: ALICE },
+    });
+    // When
+    rerender({ since: null, driver: ALICE });
+    // Then
+    expect(playChime).toHaveBeenCalledTimes(1);
+    expect(vibrateSwitch).toHaveBeenCalledTimes(1);
   });
 });

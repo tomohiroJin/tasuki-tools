@@ -37,9 +37,11 @@ export function useBreakAlert(
     prevSuggestedRef.current = suggestedAtElapsedMs;
     prevDriverRef.current = { index, name };
     if (!(started || ended || suggested) || !notify.enabled) return;
-    // 交代と同じ snapshot の「知らせた」は、交代のチャイムが鳴るのでここでは鳴らさず・振動もしない。
-    // 現状維持の交代（運転者が替わらない）で知らせたときは交代のチャイムが無いので、ここで鳴らす。
-    if (started || ended || !driverSwitched) {
+    // 交代と同じ snapshot の「終わった」「知らせた」は、交代のチャイムが鳴るのでここでは鳴らさず・振動もしない
+    // （休憩明けの繰り上げで終わりと交代が重なっても 1 回にする。#402）。休憩に入った知らせは交代と重なっても
+    // 交代の知らせが止まる（suppressed）のでここで鳴らす。現状維持の交代（運転者が替わらない）で
+    // 知らせたとき・運転者が同じまま休憩が終わったときは、交代のチャイムが無いのでここで鳴らす。
+    if (started || !driverSwitched) {
       playChime(notify.soundId, notify.volume);
       vibrateSwitch();
     }
