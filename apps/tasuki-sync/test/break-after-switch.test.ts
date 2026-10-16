@@ -33,8 +33,11 @@ interface Ctx {
 
 let scheduler: Scheduler | undefined;
 
-/** 3 人（Alice・Bob・Charlie）が輪に居て、セッション中で走っているルーム */
-async function setupRunning(policy: BreakPolicy): Promise<Ctx> {
+/** 3 人（Alice・Bob・Charlie）が輪に居て、セッション中で走っているルーム。`joiners` を空にすると Alice 1 人の輪 */
+async function setupRunning(
+  policy: BreakPolicy,
+  joiners: readonly (readonly [string, string])[] = [["bob-conn", "Bob"], ["charlie-conn", "Charlie"]],
+): Promise<Ctx> {
   const store = new InMemoryRoomStore();
   const timers = new InMemoryTimerStore();
   const broadcaster = new SpyBroadcaster();
@@ -48,7 +51,7 @@ async function setupRunning(policy: BreakPolicy): Promise<Ctx> {
   });
   if (!create.isOk()) throw new Error("create failed");
   const code = store.list().at(-1)!.code;
-  for (const [connId, displayName] of [["bob-conn", "Bob"], ["charlie-conn", "Charlie"]] as const) {
+  for (const [connId, displayName] of joiners) {
     const join = await handlers.handleCommand(connId, { command: "room.join", code, displayName });
     if (!join.isOk()) throw new Error(`join failed: ${displayName}`);
     const add = await handlers.handleCommand(connId, { command: "member.add", participantId: participantIdOfConn(store, connId) });
@@ -197,6 +200,36 @@ describe("交代が起きたら休憩の条件を判定する（#402 設計 §4.
     expect(timerOf(h).session.totalSwitches).toBe(2);
     expect(timerOf(h).session.break.since).toBeNull();
     expect(timerOf(h).clock.running).toBe(true);
+  });
+});
+
+describe("現状維持の交代でも経過時間の判定は走る（PR #416 のレビュー）", () => {
+  // 1 人の輪（他が全員不適格も同じ）では交代が現状維持になり、回数は増えないが、時計は再アンカーして
+  // 稼働時間を確定する。回数だけを入口にすると、経過時間の条件でも休憩が来なかった。
+  it("Given 1 人の輪・経過 30 分・自動 / When 自動交代で 30 分走る / Then 休憩に入る", async () => {
+    const h = await setupRunning({ trigger: "elapsed", every: 30, mode: "auto" }, []);
+    expect(timerOf(h).session.rotation).toHaveLength(1);
+    for (let i = 0; i < 5; i++) advanceOneSwitch(h);
+    expect(timerOf(h).session.break.since).toBeNull();
+    advanceOneSwitch(h);
+    const timer = timerOf(h);
+    expect(timer.session.totalSwitches).toBe(0);
+    expect(timer.session.break.since).not.toBeNull();
+    expect(timer.clock.running).toBe(false);
+  });
+
+  it("Given 他の 2 人が一時離脱した 3 人の輪・経過 30 分・知らせるだけ / When 自動交代で 30 分走る / Then 知らせの印が付く", async () => {
+    const h = await setupRunning({ trigger: "elapsed", every: 30, mode: "suggest" });
+    const driver = currentDriverId(h);
+    for (const conn of ["host-conn", "bob-conn", "charlie-conn"]) {
+      const pid = idOf(h, conn);
+      if (pid !== driver) await h.handlers.handleCommand(conn, { command: "driver.skip", participantId: pid });
+    }
+    for (let i = 0; i < 6; i++) advanceOneSwitch(h);
+    const timer = timerOf(h);
+    expect(timer.session.totalSwitches).toBe(0);
+    expect(timer.session.break.suggestedAt?.elapsedMs).toBe(30 * 60_000);
+    expect(timer.clock.running).toBe(true);
   });
 });
 
