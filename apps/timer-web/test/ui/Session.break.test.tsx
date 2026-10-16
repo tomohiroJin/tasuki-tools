@@ -26,7 +26,9 @@ function participant(id: string, name: string, presence: Participant["presence"]
 
 interface RoomOpts {
   config?: Partial<SessionConfig>;
-  brk?: { since: number | null; suggestedAtSwitches: number | null };
+  brk?: { since: number | null; suggestedAtSwitches: number | null; suggestedAtElapsedMs?: number | null };
+  /** 稼働の累計（知らせるだけの帯は、知らせた時点の累計と一致する間だけ出る） */
+  elapsedMs?: number;
   othersOffline?: boolean;
   currentIndex?: number;
   totalSwitches?: number;
@@ -34,7 +36,7 @@ interface RoomOpts {
 
 /** 自分（p-alice）と Bob の 2 人の輪。break と config と在席だけを上書きする */
 function roomWith(o: RoomOpts = {}): Room {
-  return aRoomView({
+  const room = aRoomView({
     code: "AA0001",
     config: { intervalMinutes: 5, ...(o.config ?? {}) },
     memberNames: ["Alice", "Bob"],
@@ -48,6 +50,7 @@ function roomWith(o: RoomOpts = {}): Room {
     phase: "session",
     participants: [participant("p-alice", "Alice"), participant("p-bob", "Bob", o.othersOffline ? "offline" : "online")],
   });
+  return o.elapsedMs === undefined ? room : { ...room, clock: { ...room.clock, accumulatedElapsedMs: o.elapsedMs } };
 }
 
 const onBreakRoom = (since: number, o: RoomOpts = {}) =>
@@ -208,7 +211,8 @@ describe("休憩（#402）", () => {
     const room = roomWith({
       config: { intervalMinutes: 5, break: { trigger: "elapsed", every: 60, mode: "suggest" } },
       totalSwitches: 3,
-      brk: { since: null, suggestedAtSwitches: 3 },
+      elapsedMs: 900_000,
+      brk: { since: null, suggestedAtSwitches: 3, suggestedAtElapsedMs: 900_000 },
     });
     render(<Session {...props(room)} onStartBreak={onStartBreak} />);
     expect(screen.getByText("休憩の時間です")).toBeInTheDocument();
@@ -216,6 +220,33 @@ describe("休憩（#402）", () => {
     expect(band).not.toBeNull();
     await userEvent.click(within(band!).getByRole("button", { name: "休憩する" }));
     expect(onStartBreak).toHaveBeenCalledTimes(1);
+  });
+
+  // 1 人の輪（他が全員不適格も同じ）では現状維持の交代で回数が進まない。帯は知らせた時点の累計でも見るので、
+  // 次の切れ目（累計の確定）で消え、次の知らせで再び出る（PR #416 の再レビュー）。
+  it("Given 1 人の輪・知らせるだけで 30 分の時点で知らせた / When 現状維持の交代が続き、60 分の時点でまた知らせる / Then 帯は次の切れ目で消え、2 回目で再び出る", () => {
+    const solo = (elapsedMs: number, suggestedAtElapsedMs: number) =>
+      aRoomView({
+        code: "AA0001",
+        config: { intervalMinutes: 5, break: { trigger: "elapsed", every: 30, mode: "suggest" } },
+        memberNames: ["Alice"],
+        session: {
+          rotation: ["p-alice"],
+          driverCounts: [0],
+          currentIndex: 0,
+          totalSwitches: 0,
+          break: { since: null, suggestedAtSwitches: 0, suggestedAtElapsedMs },
+        },
+        clock: { accumulatedElapsedMs: elapsedMs },
+        phase: "session",
+        participants: [participant("p-alice", "Alice")],
+      });
+    const { rerender } = render(<Session {...props(solo(1_800_000, 1_800_000))} />);
+    expect(screen.getByText("休憩の時間です")).toBeInTheDocument();
+    rerender(<Session {...props(solo(2_100_000, 1_800_000))} />);
+    expect(screen.queryByText("休憩の時間です")).toBeNull();
+    rerender(<Session {...props(solo(3_600_000, 3_600_000))} />);
+    expect(screen.getByText("休憩の時間です")).toBeInTheDocument();
   });
 
   it("Given 知らせてから交代が進んだ / When 描く / Then 帯は出ない", () => {

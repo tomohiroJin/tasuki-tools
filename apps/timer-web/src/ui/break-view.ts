@@ -46,11 +46,17 @@ export function breakElapsedMs(since: number, now: number, clockOffset: number):
   return Math.max(0, now + clockOffset - since);
 }
 
-/** 「知らせるだけ」の帯。いまの交代で知らせたときだけ出し、次の交代で消える（設計 §5.5） */
+/**
+ * 「知らせるだけ」の帯。いまの切れ目で知らせたときだけ出し、次の切れ目で消える（設計 §5.5）。
+ * 知らせた時点の回数と稼働の累計が、どちらも今と同じ間だけ出す。1 人の輪などの現状維持の交代は回数を
+ * 進めないが累計は確定するので、累計も見ないと帯が消えない（PR #416 の再レビュー）。一時停止でも累計が
+ * 確定して帯は消える（受け入れた）。累計が無い snapshot（古いサーバー）では出さない（安全側）。
+ */
 export function isSuggestBandVisible(room: Room): boolean {
   const brk = room.session.break;
   if (brk === undefined || brk.since !== null || brk.suggestedAtSwitches === null) return false;
-  return brk.suggestedAtSwitches === room.session.totalSwitches;
+  if (brk.suggestedAtElapsedMs === undefined || brk.suggestedAtElapsedMs === null) return false;
+  return brk.suggestedAtSwitches === room.session.totalSwitches && brk.suggestedAtElapsedMs === room.clock.accumulatedElapsedMs;
 }
 
 /** 周回の条件が、何分ごとにあたるかの目安（交代間隔 × 適格な席 × 周） */

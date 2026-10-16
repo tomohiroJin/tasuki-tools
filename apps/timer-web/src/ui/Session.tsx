@@ -204,7 +204,12 @@ export function Session({
     { assertiveSwitch: room.config.assertiveSwitch === true, notify: notifyPrefs, suppressed: onBreak },
   );
   // 休憩の知らせ（入った・終わった・知らせた）と、最後の一人が閉じるときの確認（#402）。
-  useBreakAlert(breakSince, isSuggestBandVisible(room), notifyPrefs);
+  useBreakAlert(
+    breakSince,
+    room.session.break?.suggestedAtElapsedMs ?? null,
+    { index: room.session.currentIndex, name: currentDriverName },
+    notifyPrefs,
+  );
   const othersOffline = room.participants
     .filter((p) => p.participantId !== participantId && !p.isPlaceholder)
     .every((p) => p.presence === "offline");

@@ -34,13 +34,17 @@ describe("break-view", () => {
   it("Given 開始より前を指す時計 / When 経過を見る / Then 負にならず 0", () => {
     expect(breakElapsedMs(5000, 1000, 0)).toBe(0);
   });
+  // 帯は「休憩中でない」かつ「知らせた時点の回数と累計が、どちらも今と同じ」間だけ出る（PR #416 の再レビュー）
   it.each([
-    [{ since: null, suggestedAtSwitches: 3 }, 3, true],
-    [{ since: null, suggestedAtSwitches: 3 }, 4, false], // 次の交代で消える
-    [{ since: 1, suggestedAtSwitches: 3 }, 3, false], // 休憩中は出さない
-    [{ since: null, suggestedAtSwitches: null }, 3, false],
-  ])("Given break=%j・交代 %i 回 / When 帯を出すか / Then %s", (brk, switches, expected) => {
-    expect(isSuggestBandVisible(aRoomView({ session: { break: brk, totalSwitches: switches } }))).toBe(expected);
+    ["いまの切れ目で知らせた", true, { since: null, suggestedAtSwitches: 3, suggestedAtElapsedMs: 900 }, 3, 900],
+    ["次の交代で回数が進んだ", false, { since: null, suggestedAtSwitches: 3, suggestedAtElapsedMs: 900 }, 4, 1200],
+    ["現状維持の交代で累計だけが進んだ", false, { since: null, suggestedAtSwitches: 3, suggestedAtElapsedMs: 900 }, 3, 1200],
+    ["休憩中", false, { since: 1, suggestedAtSwitches: 3, suggestedAtElapsedMs: 900 }, 3, 900],
+    ["知らせていない", false, { since: null, suggestedAtSwitches: null, suggestedAtElapsedMs: null }, 3, 900],
+    ["旧サーバー（累計が無い）", false, { since: null, suggestedAtSwitches: 3 }, 3, 900],
+  ] as const)("Given %s / When 帯を出すか / Then %s", (_label, expected, brk, switches, elapsedMs) => {
+    const room = aRoomView({ session: { break: brk, totalSwitches: switches } });
+    expect(isSuggestBandVisible({ ...room, clock: { ...room.clock, accumulatedElapsedMs: elapsedMs } })).toBe(expected);
   });
   it("Given session.break が無い / When 帯を出すか / Then 偽", () => {
     expect(isSuggestBandVisible(aRoomView({}))).toBe(false);
