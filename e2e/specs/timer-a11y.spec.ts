@@ -18,6 +18,7 @@ import type { Page } from '@playwright/test';
 import { expect, test, type Peer } from '../fixtures/test';
 import { createRoom, joinAsDriver, lobbyRotationRow } from '../support/timer';
 import { expectFieldsAtLeast16px, expectFocusVisibleOnTab, expectPickerInPage, expectReadable, pairKey, resolveColors, scanContrast } from '../support/a11y';
+import { describePaint, groundLayers, sampleInPage } from '../support/contrast';
 import { joinTopicTool, setTopic } from '../support/topic';
 
 const HOST = 'a11y-a';
@@ -305,25 +306,27 @@ test.describe('休憩中の画面の文字が背景に対して読める（WCAG 
     const overlay = page.getByRole('dialog', { name: '休憩中' });
     await expect(overlay).toBeVisible();
 
-    // When
+    // When: 覆いの見出しと「休憩を終える」の字と地を、走査と同じ計算で先に読んでから走査する
+    const targets = {
+      見出し: overlay.locator('h1:visible, h2:visible, h3:visible, p:visible, span:visible').filter({ hasText: '休憩中' }).first(),
+      '「休憩を終える」': overlay.getByRole('button', { name: '休憩を終える' }),
+    };
+    const expectedKeys: [string, string][] = [];
+    for (const [part, locator] of Object.entries(targets)) {
+      const sample = await locator.evaluate(sampleInPage);
+      expectedKeys.push([part, pairKey(sample.ink.color, groundLayers(sample.backgrounds).map(describePaint).join(' ← '))]);
+    }
     const scan = await scanContrast(page, 3);
 
     // Then: すべて AA
     expectReadable(scan, 3, []);
-    // Then: **覆いの中の文字を実際に測った。** 件数の下限は覆いの外の要素だけでも満たせるので、
-    //   覆いの見出し・「休憩を終える」の字の色（ページから読む。トークンの値を直書きしない）を
-    //   インクとする組が走査に含まれることを名指しで固定する。
-    //   覆いが走査から外れる（`visibility` など）と、この 2 つが赤になる
-    const inks = await overlay.evaluate((el) => {
-      const colorOf = (node: Element | null) => (node === null ? null : getComputedStyle(node).color);
-      const heading = document.getElementById(el.getAttribute('aria-labelledby') ?? '');
-      const button = Array.from(el.querySelectorAll('button')).find((b) => b.textContent?.includes('休憩を終える')) ?? null;
-      return { heading: colorOf(heading), button: colorOf(button) };
-    });
-    expect(inks.heading, '覆いの見出しの色を読めない').not.toBeNull();
-    expect(inks.button, '「休憩を終える」の色を読めない').not.toBeNull();
-    for (const [part, ink] of Object.entries(inks)) {
-      expect([...scan.pairs].some((k) => k.startsWith(`${ink!} on`)), `覆いの${part}の字（${ink}）を測っていない`).toBe(true);
+    // Then: **覆いの中の文字を実際に測った。** 件数の下限は覆いの外の要素だけでも満たせるし、
+    //   字の色だけの照合は覆いの外に同じ色があれば通る。そこで覆いの見出し・「休憩を終える」について、
+    //   走査と同じ計算（`sampleInPage` → `groundLayers`）で**字と地の両方**を読み、
+    //   `pairKey` と完全に一致する組が走査にあることを名指しで固定する。
+    //   覆いの文字が走査から外れると、この 2 つの照合が赤になる
+    for (const [part, key] of expectedKeys) {
+      expect(scan.pairs.has(key), `覆いの${part}の組を測っていない（${key}）`).toBe(true);
     }
   });
 });
