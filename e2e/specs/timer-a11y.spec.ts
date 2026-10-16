@@ -288,6 +288,32 @@ test.describe('文字が背景に対して読める（WCAG AA）', () => {
   });
 });
 
+test.describe('休憩中の画面の文字が背景に対して読める（WCAG AA）', () => {
+  test('Given 休憩の覆いが出ている 2 人のセッション / When 測る / Then すべて AA を満たす', async ({
+    page,
+    openPeer,
+  }) => {
+    // Given: 経過時間の休憩を設定して始め、休憩に入る（覆いは文字・ボタンを持つ別の面）
+    const code = await createRoom(page, HOST);
+    const guest = await openPeer('a11y-break');
+    await joinAsDriver(guest.page, code, GUESTS[0]);
+    await expect(lobbyRotationRow(page, GUESTS[0], 2)).toBeVisible();
+    await page.getByText('詳細設定').click();
+    await page.getByRole('group', { name: '休憩の条件' }).getByRole('button', { name: '経過時間' }).click();
+    await page.getByRole('button', { name: 'セッションを開始' }).click();
+    await page.getByRole('button', { name: /休憩する/ }).click();
+    const overlay = page.getByRole('dialog', { name: '休憩中' });
+    await expect(overlay).toBeVisible();
+
+    // When
+    const scan = await scanContrast(page, 3);
+
+    // Then: 覆いの中の文字を測ったうえで、すべて AA
+    expectReadable(scan, 3, []);
+    await expect(overlay.getByRole('button', { name: '休憩を終える' })).toBeVisible();
+  });
+});
+
 test.describe('書体は常用の層だけを取る', () => {
   test('Given 初回訪問 / When 玄関からセッションまで進む / Then 拡張の字形を取りにいかない', async ({
     page,
