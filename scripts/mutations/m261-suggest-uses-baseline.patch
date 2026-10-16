@@ -1,0 +1,22 @@
+# 変異 261: 知らせるだけの基準を常に baseline にする
+#
+# 検出を期待するテスト:
+#   - packages/timer-core/test/break-policy.test.ts
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m261-*.patch
+# 復元: git apply -R scripts/mutations/m261-*.patch
+#
+# #402。知らせたあとも毎回の交代で知らせ直す（次の間隔まで待たない）。
+diff --git a/packages/timer-core/src/break-policy.ts b/packages/timer-core/src/break-policy.ts
+index d0799721..2e8888c1 100644
+--- a/packages/timer-core/src/break-policy.ts
++++ b/packages/timer-core/src/break-policy.ts
+@@ -57,7 +57,7 @@ const MS_PER_MINUTE = 60_000;
+ export function isBreakDue(agg: Aggregate, policy: BreakPolicy, eligibleSeats: number): boolean {
+   const brk = agg.session.break;
+   if (brk.since !== null) return false;
+-  const base = policy.mode === "suggest" ? (brk.suggestedAt ?? brk.baseline) : brk.baseline;
++  const base = brk.baseline;
+   switch (policy.trigger) {
+     case "none":
+       return false;

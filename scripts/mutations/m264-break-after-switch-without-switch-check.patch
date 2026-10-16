@@ -1,0 +1,22 @@
+# 変異 264: 交代が無くても休憩を判定する
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/break-after-switch.test.ts
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m264-*.patch
+# 復元: git apply -R scripts/mutations/m264-*.patch
+#
+# #402。交代の無いコミット（メモ更新など）のあとに休憩に入る。
+diff --git a/apps/tasuki-sync/src/application/break-after-switch.ts b/apps/tasuki-sync/src/application/break-after-switch.ts
+index aa071b88..a1e6670f 100644
+--- a/apps/tasuki-sync/src/application/break-after-switch.ts
++++ b/apps/tasuki-sync/src/application/break-after-switch.ts
+@@ -11,7 +11,7 @@ import { computeIneligibleIndices } from "./timer-snapshot-dto.js";
+ 
+ export function maybeBreakAfterSwitch(before: TimerState, after: RoomState, now: number): RoomState {
+   const { timer, membership } = after;
+-  if (timer.session.totalSwitches <= before.session.totalSwitches) return after;
++  
+   if (timer.phase !== "session" || !timer.clock.running) return after;
+   const policy = breakPolicyOf(timer.config);
+   const eligibleSeats = timer.session.rotation.length - computeIneligibleIndices(membership, timer).size;

@@ -10,14 +10,15 @@
 #
 # #374（PR #396 のレビュー）。ロビーの名残の人が、開始直後からナビに出る。
 diff --git a/packages/timer-core/src/evolve.ts b/packages/timer-core/src/evolve.ts
+index 836daf1b..fb32fa87 100644
 --- a/packages/timer-core/src/evolve.ts
 +++ b/packages/timer-core/src/evolve.ts
-@@ -147,7 +147,7 @@
+@@ -199,7 +199,7 @@ function evolveSessionStarted(agg: Aggregate, now: number): Aggregate {
    return {
      // 開始の時点で直前に運転した人は居ない（#374。ロビーの名残を持ち込まない）。
      // 画面は開始をロビーからだけ送る（一時停止からは RESUME。`timer-actions.ts` の `startSession`）。
--    session: { ...agg.session, previousDriverId: null },
-+    session: agg.session,
+-    session: { ...agg.session, previousDriverId: null, break: INITIAL_BREAK_STATE },
++    session: { ...agg.session, break: INITIAL_BREAK_STATE },
      clock: {
        ...agg.clock,
        running: true,

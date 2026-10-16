@@ -1,0 +1,22 @@
+# 変異 266: suppressed の早期 return を外す
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/ui/Session.break.test.tsx
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m266-*.patch
+# 復元: git apply -R scripts/mutations/m266-*.patch
+#
+# #402。休憩に入る交代で全画面の知らせが二重に出る。
+diff --git a/apps/timer-web/src/ui/use-switch-alert.ts b/apps/timer-web/src/ui/use-switch-alert.ts
+index 9149454b..5f2f46ad 100644
+--- a/apps/timer-web/src/ui/use-switch-alert.ts
++++ b/apps/timer-web/src/ui/use-switch-alert.ts
+@@ -52,7 +52,7 @@ export function useSwitchAlert(
+     prevNameRef.current = currentDriverName;
+     if (prevIndex === currentIndex || prevName === currentDriverName) return;
+     // 休憩に入る交代は、休憩の知らせ（use-break-alert）が代わりに出す。二重に鳴らさない。
+-    if (suppressed) return;
++
+     // 個人設定: 音/振動/OS通知（ルーム設定に依存しない背面通知）。
+     if (notify.enabled) {
+       playChime(notify.soundId, notify.volume);

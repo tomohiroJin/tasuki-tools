@@ -1,0 +1,22 @@
+# 変異 262: 休憩中の拒否から driver.assign を外す
+#
+# 検出を期待するテスト:
+#   - packages/timer-core/test/decide-v3.test.ts
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m262-*.patch
+# 復元: git apply -R scripts/mutations/m262-*.patch
+#
+# #402。休憩中に担当の指定で時計が走り出す。
+diff --git a/packages/timer-core/src/decide.ts b/packages/timer-core/src/decide.ts
+index b26bba22..a324deae 100644
+--- a/packages/timer-core/src/decide.ts
++++ b/packages/timer-core/src/decide.ts
+@@ -69,7 +69,7 @@ export function decide(
+   // 空の輪の判定（decideSessionAct）より先に来るので、空の輪で休憩中なら OnBreak が先に返る。
+   if (
+     isOnBreak(agg.session) &&
+-    (cmd.command === "session.act" || cmd.command === "driver.assign" || cmd.command === "break.start")
++    (cmd.command === "session.act" || cmd.command === "break.start")
+   ) {
+     return err({ type: "OnBreak" });
+   }
