@@ -18,6 +18,9 @@ import {
 
 afterEach(cleanup);
 
+// 選択の名前は「アイテム名 + ポイントを変える」（束ごとに違う）。ここでは文言の側だけで引く
+const CHANGE_POINTS_NAME = new RegExp(`${ESTIMATE_CHANGE_POINTS}$`);
+
 const AT = Date.UTC(2026, 9, 17, 5, 20);
 const hhmm = (at: number) =>
   new Intl.DateTimeFormat('ja-JP', { hour: '2-digit', minute: '2-digit' }).format(new Date(at));
@@ -72,34 +75,46 @@ describe('EstimateLog', () => {
 
   it('Given 閉じた束 points 5 / null / When 描く / Then 値は選択が見出しの強い値として 1 回だけ出す', () => {
     const { container } = render(<EstimateLog groups={[group(1, { points: 5 })]} onSetPoints={vi.fn()} disabled={false} />);
-    const select = screen.getByRole('combobox', { name: ESTIMATE_CHANGE_POINTS }) as HTMLSelectElement;
+    const select = screen.getByRole('combobox', { name: CHANGE_POINTS_NAME }) as HTMLSelectElement;
     expect(select.value).toBe('5');
     // 見出しに同じ値の別の表示を重ねない
     expect(container.querySelector('strong, [data-testid="estimate-points"]')).toBeNull();
     cleanup();
     render(<EstimateLog groups={[group(1)]} onSetPoints={vi.fn()} disabled={false} />);
-    const none = screen.getByRole('combobox', { name: ESTIMATE_CHANGE_POINTS }) as HTMLSelectElement;
+    const none = screen.getByRole('combobox', { name: CHANGE_POINTS_NAME }) as HTMLSelectElement;
     expect(none.value).toBe('');
     expect(screen.queryByTestId('estimate-nopoints')).toBeNull();
   });
 
+  it('Given 閉じた束 points null / 5 / When 描く / Then 部品の .ui-select で、空のときだけ data-empty（弱く見せる印）', () => {
+    // 「ポイントなし」が束で一番強く見えていた（#93 最終レビュー・spec §4.4: 強いのは添えたポイント）
+    render(<EstimateLog groups={[group(1), group(2, { points: 5 })]} onSetPoints={vi.fn()} disabled={false} />);
+    const [withPoints, empty] = screen.getAllByRole('combobox') as HTMLSelectElement[];
+    expect(empty!.value).toBe('');
+    expect(empty!.classList.contains('ui-select')).toBe(true);
+    expect(empty!.classList.contains('ui-input')).toBe(false);
+    expect(empty!.hasAttribute('data-empty')).toBe(true);
+    expect(withPoints!.value).toBe('5');
+    expect(withPoints!.hasAttribute('data-empty')).toBe(false);
+  });
+
   it('Given 閉じた束 / When 選択肢を見る / Then 空と 0 1 2 3 5 8 13 21', () => {
     render(<EstimateLog groups={[group(1)]} onSetPoints={vi.fn()} disabled={false} />);
-    const select = screen.getByRole('combobox', { name: ESTIMATE_CHANGE_POINTS });
+    const select = screen.getByRole('combobox', { name: CHANGE_POINTS_NAME });
     const values = within(select).getAllByRole('option').map((o) => (o as HTMLOptionElement).value);
     expect(values).toEqual(['', '0', '1', '2', '3', '5', '8', '13', '21']);
   });
 
   it('Given 閉じた束 / When 空の選択肢を見る / Then 見える文言は ポイントなし', () => {
     render(<EstimateLog groups={[group(1)]} onSetPoints={vi.fn()} disabled={false} />);
-    const select = screen.getByRole('combobox', { name: ESTIMATE_CHANGE_POINTS });
+    const select = screen.getByRole('combobox', { name: CHANGE_POINTS_NAME });
     expect((within(select).getAllByRole('option')[0] as HTMLOptionElement).textContent).toBe(ESTIMATE_NO_POINTS);
   });
 
   it('Given 閉じた束 / When 8 を選ぶ → 空を選ぶ / Then onSetPoints(id, 8) と (id, null)', () => {
     const onSetPoints = vi.fn();
     render(<EstimateLog groups={[group(7, { points: 5 })]} onSetPoints={onSetPoints} disabled={false} />);
-    const select = screen.getByRole('combobox', { name: ESTIMATE_CHANGE_POINTS });
+    const select = screen.getByRole('combobox', { name: CHANGE_POINTS_NAME });
     fireEvent.change(select, { target: { value: '8' } });
     expect(onSetPoints).toHaveBeenLastCalledWith(7, 8);
     fireEvent.change(select, { target: { value: '' } });
@@ -109,6 +124,19 @@ describe('EstimateLog', () => {
   it('Given disabled / When 描く / Then 選択は押せない', () => {
     render(<EstimateLog groups={[group(1)]} onSetPoints={vi.fn()} disabled />);
     expect((screen.getByRole('combobox') as HTMLSelectElement).disabled).toBe(true);
+  });
+
+  it('Given 閉じた束 2 つ（名前あり・名前なし） / When 選択の名前を読む / Then 束ごとに違い、アイテム名を含む', () => {
+    // どの選択も「ポイントを変える」だけだと、読み上げではどの束の選択か区別できない（#93 最終レビュー）
+    render(<EstimateLog groups={[group(1), group(2, { item: '' })]} onSetPoints={vi.fn()} disabled={false} />);
+    const names: string[] = [];
+    screen.getAllByRole('combobox', { name: (name) => (names.push(name), true) });
+    expect(names).toHaveLength(2);
+    expect(new Set(names).size).toBe(2);
+    // 新しい束が上（名前なしの束 2 が先）
+    expect(names[0]).toContain(ESTIMATE_UNNAMED);
+    expect(names[1]).toContain('ITEM-1');
+    for (const name of names) expect(name).toContain(ESTIMATE_CHANGE_POINTS);
   });
 
   it('Given item が空 / When 描く / Then （名前なし）', () => {

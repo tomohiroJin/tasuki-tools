@@ -533,6 +533,19 @@
   font-weight: 700;
 }
 
+/* 「ポイントなし」は弱く（spec §4.4）。かつては沈んだ地に太字の斜体で、束の中で一番強く見えていた（#93 最終レビュー）。
+   札の地に溶かし、字は普通の太さ・控えめの色にする。地は不透明に保つ（AA の測定は字と地の計算値を読む）。
+   coal-soft on card-sheen は 7.22:1。字は 16px を下回らない（iOS の拡大） */
+.estimate-log .estimate-group-points[data-empty] {
+  border-color: var(--card-inline);
+  background: var(--card-sheen);
+  color: var(--coal-soft);
+  font-family: inherit;
+  font-size: 1rem; /* scale-exempt: 入力欄の 16px の下限。段（--font-size-base）は狭い幅で 16px を割る */
+  font-style: normal;
+  font-weight: 400;
+}
+
 .estimate-entries {
   display: grid;
   gap: var(--space-1);

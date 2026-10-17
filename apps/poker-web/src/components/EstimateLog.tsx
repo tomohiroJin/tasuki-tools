@@ -37,6 +37,9 @@ const TIME_FORMAT = new Intl.DateTimeFormat('ja-JP', { hour: '2-digit', minute: 
 
 export function EstimateLog({ groups, onSetPoints, disabled, limit, className, labelledBy, scrollable = false }: EstimateLogProps) {
   const headingId = useId();
+  // 束ごとの選択の名前は「アイテム名 + ポイントを変える」。文言の側は記録に 1 つだけ置き、隠して名前にだけ使う
+  const changeId = `${headingId}-change`;
+  const itemIdOf = (groupId: number) => `${headingId}-item-${groupId}`;
   const newestFirst = [...groups].reverse();
   const shown = limit === undefined ? newestFirst : newestFirst.slice(0, limit);
 
@@ -56,39 +59,47 @@ export function EstimateLog({ groups, onSetPoints, disabled, limit, className, l
         {groups.length === 0 ? (
           <p className="estimate-log-empty">{ESTIMATE_LOG_EMPTY}</p>
         ) : (
-          <ol className="estimate-groups">
-            {shown.map((group) => (
-              <li key={group.id} className="estimate-group" data-group={group.id}>
-                <div className="estimate-group-head">
-                  <span className="estimate-group-item">{group.item === '' ? ESTIMATE_UNNAMED : group.item}</span>
-                  {group.open ? (
-                    <span className="estimate-group-open">{ESTIMATE_OPEN}</span>
-                  ) : (
-                    // ポイントは選択そのものを見出しの強い値として出す（値を別に重ねない）
-                    <PointsSelect
-                      className="estimate-group-points"
-                      value={group.points as NumberCardValue | null}
-                      onChange={(p) => onSetPoints(group.id, p)}
-                      emptyLabel={ESTIMATE_NO_POINTS}
-                      label={ESTIMATE_CHANGE_POINTS}
-                      disabled={disabled}
-                    />
-                  )}
-                </div>
-                <ul className="estimate-entries">
-                  {[...group.entries].reverse().map((entry) => (
-                    <li key={entry.attempt} className="estimate-entry" data-testid="estimate-entry">
-                      <span className="estimate-entry-attempt">{attemptLabel(entry.attempt)}</span>{' '}
-                      <span className="estimate-entry-time">{TIME_FORMAT.format(new Date(entry.at))}</span>{' '}
-                      <span className="estimate-entry-counts">
-                        {entry.counts.map((c) => `${cardLabel(c.card)}×${c.count}`).join(' ')}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </li>
-            ))}
-          </ol>
+          <>
+            {/* どの選択も同じ名前だと、読み上げではどの束の選択か分からない（#93 最終レビュー）。
+                `hidden` でも aria-labelledby からは読める */}
+            <span id={changeId} hidden>
+              {ESTIMATE_CHANGE_POINTS}
+            </span>
+            <ol className="estimate-groups">
+              {shown.map((group) => (
+                <li key={group.id} className="estimate-group" data-group={group.id}>
+                  <div className="estimate-group-head">
+                    <span id={itemIdOf(group.id)} className="estimate-group-item">{group.item === '' ? ESTIMATE_UNNAMED : group.item}</span>
+                    {group.open ? (
+                      <span className="estimate-group-open">{ESTIMATE_OPEN}</span>
+                    ) : (
+                      // ポイントは選択そのものを見出しの強い値として出す（値を別に重ねない）
+                      <PointsSelect
+                        className="estimate-group-points"
+                        value={group.points as NumberCardValue | null}
+                        onChange={(p) => onSetPoints(group.id, p)}
+                        emptyLabel={ESTIMATE_NO_POINTS}
+                        label={ESTIMATE_CHANGE_POINTS}
+                        labelledBy={`${itemIdOf(group.id)} ${changeId}`}
+                        disabled={disabled}
+                      />
+                    )}
+                  </div>
+                  <ul className="estimate-entries">
+                    {[...group.entries].reverse().map((entry) => (
+                      <li key={entry.attempt} className="estimate-entry" data-testid="estimate-entry">
+                        <span className="estimate-entry-attempt">{attemptLabel(entry.attempt)}</span>{' '}
+                        <span className="estimate-entry-time">{TIME_FORMAT.format(new Date(entry.at))}</span>{' '}
+                        <span className="estimate-entry-counts">
+                          {entry.counts.map((c) => `${cardLabel(c.card)}×${c.count}`).join(' ')}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              ))}
+            </ol>
+          </>
         )}
       </div>
     </section>
