@@ -25,6 +25,7 @@ const ROULETTE_ERROR_MESSAGES: Record<RouletteErrorCode, string> = {
   INVALID_PICK_COUNT: "この人数は選べません",
   ROULETTE_TOO_FEW_FOR_PICK: "選ぶ人数の人より、入る人が要ります",
   ROULETTE_ROUND_IN_PROGRESS: "この回の途中は決め方を変えられません",
+  ROULETTE_STOP_INVALID: "ここでは止められません",
 };
 
 export function rouletteErrorMessageFor(code: RouletteErrorCode): string {

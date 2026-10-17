@@ -7,9 +7,10 @@
 import { err, ok, type Result } from "neverthrow";
 import { drawPicks } from "./draw.js";
 import type { RouletteError } from "./errors.js";
-import { MAX_GUESTS, MAX_PICK, MAX_WHEEL, SETTLE_MAX, SETTLE_MIN, spinDurationMs } from "./limits.js";
+import { MAX_GUESTS, MAX_PICK, MAX_WHEEL, PRESS_AUTO_STOP_MS, PRESS_SEATS_PER_SEC, SETTLE_MAX, SETTLE_MIN, spinDurationMs } from "./limits.js";
+import { pressStopOf } from "./press.js";
 import { poolOf } from "./pool.js";
-import type { Entry, EntryId, Member, NameConflict, OrderRound, Pick, RouletteMode, RouletteState } from "./types.js";
+import type { Entry, EntryId, Member, NameConflict, OrderRound, Pick, PressSpin, PressStop, RouletteMode, RouletteState, Spin } from "./types.js";
 
 export interface SpinInput {
   /** 名簿の断片（アプリ層が作る） */
@@ -35,10 +36,15 @@ type SpinErrorCode =
   | "INVALID_SETTLE"
   | "INVALID_RANDOM";
 
-/** 回転中か（`now - startedAt < spinDurationMs(k)`）。k は回した時点の人数（`picks` の件数・#401 spec M3）。 */
+/**
+ * 回転中か（`now - startedAt < spinDurationMs(k)`）。k は回した時点の人数（`picks` の件数・#401 spec M3）。
+ * 押して止める回転は、止まるまで（押されるか 30 秒たつまで）回転中（#401 押して止める）。
+ */
 function isSpinning(state: RouletteState, now: number): boolean {
   const spin = state.lastSpin;
-  return spin !== null && now - spin.startedAt < spinDurationMs(spin.picks.length);
+  if (spin === null) return false;
+  if (spin.press !== undefined) return pressStopOf(spin, now - spin.startedAt) === null;
+  return now - spin.startedAt < spinDurationMs(spin.picks.length);
 }
 
 /**
@@ -46,6 +52,7 @@ function isSpinning(state: RouletteState, now: number): boolean {
  */
 export function startSpin(state: RouletteState, input: SpinInput): Result<RouletteState, RouletteError<SpinErrorCode>> {
   if (isSpinning(state, input.now)) return err({ code: "ROULETTE_SPINNING" });
+  if (state.mode === "press") return startPressSpin(state, input);
   return state.mode === "order" ? startOrderSpin(state, input) : startOnceSpin(state, input);
 }
 
@@ -122,6 +129,66 @@ function startOrderSpin(state: RouletteState, input: SpinInput): Result<Roulette
       startedAt: input.now,
     },
   });
+}
+
+/**
+ * 押して止める（#401 押して止める P2）。止まる席を決めずに回し始める。起点の位置（`p0`）は乱数で決める
+ * （30 秒で自動に止まったときに一様になるように）。選ぶ人数と一周の記録は使わず、変えない（P6）。
+ */
+function startPressSpin(state: RouletteState, input: SpinInput): Result<RouletteState, RouletteError<SpinErrorCode>> {
+  const pool = poolOf(input.members, state, input.conflicts);
+  if (pool.length < 2) return err({ code: "ROULETTE_TOO_FEW" });
+  if (pool.length > MAX_WHEEL) return err({ code: "ROULETTE_TOO_MANY" });
+  const seat = input.randomInt(pool.length);
+  if (!Number.isInteger(seat) || seat < 0 || seat >= pool.length) return err({ code: "INVALID_RANDOM" });
+  const settle = input.randomSettle();
+  if (!(settle >= SETTLE_MIN && settle <= SETTLE_MAX)) return err({ code: "INVALID_SETTLE" });
+  return ok({
+    ...state,
+    lastSpin: {
+      seq: (state.lastSpin?.seq ?? 0) + 1,
+      wheel: pool,
+      winnerIndex: 0,
+      settle: SETTLE_MIN,
+      picks: [],
+      press: { p0: seat + settle, rate: PRESS_SEATS_PER_SEC, stop: null },
+      spunBy: input.spunBy,
+      startedAt: input.now,
+    },
+  });
+}
+
+export interface StopInput {
+  /** 押した画面が見ていた回転 */
+  seq: number;
+  /** 押した瞬間に、その画面の指し針が指していた席と、席の中の位置（0 以上 1 未満） */
+  index: number;
+  settle: number;
+  /** 押した人の表示名 */
+  by: string;
+  /** サーバーの単調時計（ms） */
+  now: number;
+}
+
+/** 止まった回転（当たりの席・`picks` を止まった位置にそろえる。古い画面と、1 人の結果を読む画面の部品のため） */
+function withStop(spin: Spin & { press: PressSpin }, stop: PressStop): Spin {
+  return { ...spin, winnerIndex: stop.index, settle: stop.settle, picks: [{ index: stop.index, settle: stop.settle }], press: { ...spin.press, stop } };
+}
+
+/**
+ * 押して止める（#401 押して止める P3・P4）。**押した画面が送った位置で止める**（押した人の画面が正）。
+ * 最初の押下だけを採る。止まった後・30 秒を過ぎた後・違う回転への押下は何も変えない（同じ参照。ほぼ同時に押すのは普通のこと）。
+ * 位置の形（席の番号は 0〜席数未満の整数・席の中の位置は 0 以上 1 未満）が外れたら拒む。
+ * **押した時刻と位置が合っているかは見ない**: 1 秒 20 席では 1 周が 1.2 秒以下で、時間の窓ではどの席も通る（spec P4）。
+ */
+export function stopPress(state: RouletteState, input: StopInput): Result<RouletteState, RouletteError<"ROULETTE_STOP_INVALID">> {
+  const spin = state.lastSpin;
+  if (spin === null || spin.press === undefined || spin.seq !== input.seq) return ok(state);
+  if (pressStopOf(spin, input.now - spin.startedAt) !== null) return ok(state);
+  const { index, settle } = input;
+  if (!Number.isInteger(index) || index < 0 || index >= spin.wheel.length) return err({ code: "ROULETTE_STOP_INVALID" });
+  if (!(settle >= 0 && settle < 1)) return err({ code: "ROULETTE_STOP_INVALID" });
+  return ok({ ...state, lastSpin: withStop({ ...spin, press: spin.press }, { index, settle, by: input.by, atMs: input.now - spin.startedAt }) });
 }
 
 /**
@@ -242,6 +309,8 @@ export interface RouletteView {
     picks?: Pick[] | undefined;
     /** 順番に回すときの番（#401 順番に回す）。1 回で決めるときは載せない */
     turn?: number | undefined;
+    /** 押して止めるとき（#401 押して止める）。古いサーバーは載せない */
+    press?: { p0: number; rate: number; stop: PressStop | null } | undefined;
     spunBy: string;
     /** 回転の全体の長さ（k 人ぶん・`spinDurationMs`） */
     durationMs: number;
@@ -254,8 +323,12 @@ export interface RouletteView {
  * `startedAt` は出力に載せない（プロセスの外では意味を持たない・spec R5）。
  */
 export function toView(state: RouletteState, now: number): RouletteView {
-  const spin = state.lastSpin;
-  const durationMs = spin === null ? 0 : spinDurationMs(spin.picks.length);
+  const stored = state.lastSpin;
+  // 押して止める回転は 30 秒で自動に止まる。止まった位置は式から出し、当たりの席もそろえて載せる（状態には書かない）
+  const press = stored?.press;
+  const auto = stored !== null && press !== undefined && press.stop === null ? pressStopOf(stored, now - stored.startedAt) : null;
+  const spin = stored !== null && press !== undefined && auto !== null ? withStop({ ...stored, press }, auto) : stored;
+  const durationMs = spin === null ? 0 : spin.press !== undefined ? PRESS_AUTO_STOP_MS : spinDurationMs(spin.picks.length);
   return {
     pickCount: state.pickCount,
     mode: state.mode,
@@ -273,6 +346,9 @@ export function toView(state: RouletteState, now: number): RouletteView {
             settle: spin.settle,
             picks: spin.picks.map((p) => ({ ...p })),
             ...(spin.turn === undefined ? {} : { turn: spin.turn }),
+            ...(spin.press === undefined
+              ? {}
+              : { press: { p0: spin.press.p0, rate: spin.press.rate, stop: spin.press.stop === null ? null : { ...spin.press.stop } } }),
             spunBy: spin.spunBy,
             durationMs,
             elapsedMs: Math.min(durationMs, Math.max(0, now - spin.startedAt)),

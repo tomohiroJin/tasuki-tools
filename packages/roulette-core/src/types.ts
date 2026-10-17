@@ -28,6 +28,26 @@ export interface Pick {
   settle: number;
 }
 
+/** 押して止めたところ（#401 押して止める）。`index`・`settle` は指し針が指していた席と、席の中の位置（0 以上 1 未満） */
+export interface PressStop {
+  index: number;
+  settle: number;
+  /** 押した人の表示名。誰も押さず 30 秒で止まったら null */
+  by: string | null;
+  /** 回し始めから止まるまでの ms（サーバーが押下を受けた時点・自動なら 30 秒） */
+  atMs: number;
+}
+
+/** 押して止める回転（#401 押して止める P2）。位置 p(t) = p0 − rate·t（席の単位・席の数で巡る）を全画面とサーバーが同じ式で出す */
+export interface PressSpin {
+  /** 回し始めに指し針が指している位置（0 以上 席の数 未満） */
+  p0: number;
+  /** 1 秒に通る席の数 */
+  rate: number;
+  /** 押して止めたところ。止まるまで null（30 秒の自動停止は `pressStopOf` が出し、状態には書かない） */
+  stop: PressStop | null;
+}
+
 export interface Spin {
   /** 回した通し番号（ルームごと・1 から）。web はこれで「新しい回転か」を見分ける */
   seq: number;
@@ -41,14 +61,19 @@ export interface Spin {
   picks: Pick[];
   /** 順番に回すときの、この回転で決まる番（1 から・#401 順番に回す T2）。1 回で決めるときは持たない */
   turn?: number;
+  /** 押して止める回転のとき（#401 押して止める）。止まるまで `picks` は空で、`winnerIndex`・`settle` は意味を持たない */
+  press?: PressSpin;
   /** 回した人の表示名 */
   spunBy: string;
   /** サーバーの単調時計（ms）。**wire には載せない**（spec R5） */
   startedAt: number;
 }
 
-/** 決め方（#401 順番に回す T1）。`once` は 1 回で選ぶ人数ぶんを決める・`order` は回すたびに 1 人ずつ順番を決める */
-export type RouletteMode = "once" | "order";
+/**
+ * 決め方（#401 順番に回す T1）。`once` は 1 回で選ぶ人数ぶんを決める・`order` は回すたびに 1 人ずつ順番を決める・
+ * `press` は回っている円盤を押した瞬間に止めて 1 人を決める（#401 押して止める）
+ */
+export type RouletteMode = "once" | "order" | "press";
 
 /** 順番に回す回（#401 順番に回す T5）。複数の回転にまたがる */
 export interface OrderRound {
