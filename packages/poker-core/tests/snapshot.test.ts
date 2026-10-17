@@ -122,3 +122,32 @@ describe('snapshotFor: 公開後（FR-006 / 契約 #5）', () => {
     expect(snapshot.round.stats).toBeDefined();
   });
 });
+
+describe('createSnapshotBuilder の estimate（#93）', () => {
+  it('item は round.item、束の item は最後の行の item、行に item も参加者 ID も無い', () => {
+    const base = castVote(castVote(createRound(), 'p-creator', { kind: 'number', value: 5 })._unsafeUnwrap(), 'p-guest', { kind: 'number', value: 8 })._unsafeUnwrap();
+    const withItem = { ...base, item: 'A' };
+    const revealed = revealBy(withItem, 'p-creator', 1000)._unsafeUnwrap();
+    const snap = snapshotFor({ ...revealed, item: 'B' }, 'p-creator');
+    expect(snap.estimate?.item).toBe('B');
+    const group = snap.estimate!.log[0]!;
+    expect(group.item).toBe('A');
+    expect(group.open).toBe(true);
+    expect(group.entries[0]).toEqual({
+      attempt: 1,
+      at: 1000,
+      counts: [
+        { card: { kind: 'number', value: 5 }, count: 1 },
+        { card: { kind: 'number', value: 8 }, count: 1 },
+      ],
+    });
+    expect(JSON.stringify(snap.estimate)).not.toContain('p-creator');
+    expect(JSON.stringify(snap.estimate)).not.toContain('p-guest');
+  });
+
+  it('投票中でも記録は全員に同じ内容で出る', () => {
+    const round = castVote(createRound(), 'p-creator', { kind: 'number', value: 5 })._unsafeUnwrap();
+    expect(snapshotFor(round, 'p-creator').estimate).toEqual(snapshotFor(round, 'p-guest').estimate);
+    expect(snapshotFor(round, 'p-guest').estimate).toEqual({ item: '', log: [] });
+  });
+});
