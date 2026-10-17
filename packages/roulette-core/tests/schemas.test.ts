@@ -254,3 +254,25 @@ describe("押して止める（wire）", () => {
     expect(parse({ p0: "0.5", rate: 20, stop: null }).success).toBe(false);
   });
 });
+
+/**
+ * @requirements #420 spec S7（配る窓・wire）
+ */
+describe("変わった止まり方（wire）", () => {
+  const spin = { seq: 1, wheel: [{ id: "a", name: "A" }], winnerIndex: 0, settle: 0.5, spunBy: "A", durationMs: 6500, elapsedMs: 0 };
+  const parse = (extra: object) => v.safeParse(RouletteFrameSchema, { type: "roulette", state: { excluded: [], guests: [], drawn: [], spin: { ...spin, ...extra } } });
+
+  it("止まり方の名前を読む。知らない名前でもフレームを捨てない（画面が普通に止まる）", () => {
+    // Given / When
+    const known = parse({ stopStyle: "double" });
+    const unknown = parse({ stopStyle: "spiral" });
+    // Then
+    expect(known.success && known.output.state.spin?.stopStyle).toBe("double");
+    expect(unknown.success).toBe(true);
+  });
+
+  it("名前が文字列でなければ落ちる", () => {
+    // Given / When / Then
+    expect(parse({ stopStyle: 3 }).success).toBe(false);
+  });
+});
