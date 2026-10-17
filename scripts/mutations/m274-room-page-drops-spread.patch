@@ -1,18 +1,4 @@
 diff --git a/apps/poker-web/src/pages/RoomPage.tsx b/apps/poker-web/src/pages/RoomPage.tsx
-index fbb0555..1f6ce71 100644
---- a/apps/poker-web/src/pages/RoomPage.tsx
-+++ b/apps/poker-web/src/pages/RoomPage.tsx
-@@ -224,7 +224,7 @@ function RevealedSection({
-         stats={stats}
-         seatCount={snapshot.participants.length}
-         afterFlip={revealedLive}
--        spread={spreadPromptOf(snapshot.round, snapshot.participants)}
-+        spread={null}
-       />
-       {/* かつてはホストだけに出ていたが、#95 S3 でホストを廃止し全参加者へ開放した */}
-       <div className="ui-actions ui-actions--dock">
-
-diff --git a/apps/poker-web/src/pages/RoomPage.tsx b/apps/poker-web/src/pages/RoomPage.tsx
 index 18ee61f6..8c659f66 100644
 --- a/apps/poker-web/src/pages/RoomPage.tsx
 +++ b/apps/poker-web/src/pages/RoomPage.tsx
