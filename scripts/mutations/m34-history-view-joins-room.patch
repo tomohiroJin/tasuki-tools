@@ -1,0 +1,18 @@
+
+#
+# #369 で use-timer-sync.ts から入口の判定（`apps/timer-web/src/sync/use-timer-entry.ts`）へ移った先を壊す（ID と意味は変えていない）。
+diff --git a/apps/timer-web/src/sync/use-timer-entry.ts b/apps/timer-web/src/sync/use-timer-entry.ts
+index 6ac6ee6..eb92cea 100644
+--- a/apps/timer-web/src/sync/use-timer-entry.ts
++++ b/apps/timer-web/src/sync/use-timer-entry.ts
+@@ -41,8 +41,8 @@ export function useTimerEntry(resume: (code: string, saved: ResumeIdentity) => v
+       redirectTo(entry.to);
+       return;
+     }
+-    if (entry.kind === "history") return;
+-    const code = entry.code;
++    const code = new URLSearchParams(currentSearch()).get("room");
++    if (code === null || code === "") return;
+ 
+     const saved = loadResumeIdentity(code);
+     if (!shouldResumeOnLoad(saved, code)) {
