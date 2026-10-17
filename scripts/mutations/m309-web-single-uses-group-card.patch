@@ -1,0 +1,23 @@
+# 変異 309: web-single-uses-group-card
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/multi-pick.test.tsx
+#
+# #401 PR 2・spec M11・E7。1 人の画面が #94 の札から変わる（崩さない約束を破る）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m309-*.patch
+# 復元: git apply -R scripts/mutations/m309-*.patch
+diff --git a/apps/roulette-web/src/components/Stage.tsx b/apps/roulette-web/src/components/Stage.tsx
+index 8b45795..f67bb38 100644
+--- a/apps/roulette-web/src/components/Stage.tsx
++++ b/apps/roulette-web/src/components/Stage.tsx
+@@ -51,7 +51,7 @@ export function Stage({ pool, view, phase, revealed, receivedAt, reducedMotion,
+   const drawnIds = new Set(people.rows.filter((r) => r.mark === 'drawn').map((r) => r.id));
+   const picked = revealedPicksOf(view, revealed);
+   const cardK = cardPickCountOf(view);
+-  const group = cardK >= 2;
++  const group = cardK >= 1;
+ 
+   return (
+     <section
