@@ -12,14 +12,14 @@
 #       git apply scripts/mutations/m182-*.patch
 # 復元: git apply -R scripts/mutations/m182-*.patch
 diff --git a/apps/roulette-web/src/roulette-view.ts b/apps/roulette-web/src/roulette-view.ts
-index 3f5808ea..6afcce74 100644
+index 727b219..89bd242 100644
 --- a/apps/roulette-web/src/roulette-view.ts
 +++ b/apps/roulette-web/src/roulette-view.ts
-@@ -172,6 +172,7 @@ export function captionOf(input: { view: RouletteView; phase: Phase; poolCount:
+@@ -248,6 +248,7 @@ export function captionOf(input: { view: RouletteView; phase: Phase; poolCount:
    const { view, phase, poolCount } = input;
    if (phase === 'spinning' && view.spin !== null) return spunByText(view.spin.spunBy);
    // 止まった結果を先に言う。**発表した結果は、後から入る人が減っても消さない**（次の回転までは結果が主役）。
 +  if (poolCount < 2) return TOO_FEW_TEXT;
-   const winner = phase === 'settled' ? winnerOf(view) : null;
-   if (winner !== null) return resultText(winner.name);
-   return poolCount < 2 ? TOO_FEW_TEXT : CAPTION_IDLE;
+   // 2 人以上は最後の人が止まってから、止まった順に全員を言う（途中で言うと読み上げが 1 人ずつ割り込む）
+   if (phase === 'settled' && view.spin !== null) {
+     const picked = revealedPicksOf(view, picksOf(view.spin).length);

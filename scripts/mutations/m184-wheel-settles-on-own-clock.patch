@@ -5,6 +5,9 @@
 #     describe「止まった瞬間は円盤と一言と一覧で揃う」の
 #     「Given 回し始めた / When 終わりの時刻の前後を 10ms ずつ進める / Then どの瞬間も 4 つが同じ局面」
 #
+# #401 PR 2 で、真鍮の席・札・一言・一覧は「何人目まで決まったか」1 つで切り替わるようになったので、
+# 円盤（真鍮の席）だけが自前の時計でそれを数える形に当て先を移した（壊し方の意図は同じ）。
+#
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m184-*.patch
 # 復元: git apply -R scripts/mutations/m184-*.patch
@@ -13,23 +16,24 @@
 # 描き直しのたびに自分の「いま」で経過を見て止まると、終わり際に札と当たりの席は止まった姿、結果の一言と
 # 脇の一覧はまだ回転中、と食い違う（画面の timer は終わりの 30ms 後に描き直す）。止まった後だけを見るテストでは殺せない。
 diff --git a/apps/roulette-web/src/components/Stage.tsx b/apps/roulette-web/src/components/Stage.tsx
+index 8b45795..68d4efb 100644
 --- a/apps/roulette-web/src/components/Stage.tsx
 +++ b/apps/roulette-web/src/components/Stage.tsx
-@@ -9,7 +9,7 @@
+@@ -11,7 +11,7 @@ import { STAGE_HEADING } from '../copy';
  import { useStageLayout } from '../hooks/use-stage-layout';
  import { useWheelRotation } from '../hooks/use-wheel-rotation';
  import type { People, Phase } from '../roulette-view';
--import { winnerOf } from '../roulette-view';
-+import { elapsedOf, winnerOf } from '../roulette-view';
+-import { cardPickCountOf, revealedPicksOf, topicNoteOf } from '../roulette-view';
++import { cardPickCountOf, revealedCountOf, revealedPicksOf, topicNoteOf } from '../roulette-view';
  import { wheelSeatsOf } from '../wheel-view';
  import { pointerDegFor } from '../wheel-motion';
- import { ResultCard } from './ResultCard';
-@@ -37,7 +37,7 @@
-   const dock = useRef<HTMLDivElement>(null);
- 
-   // 回っている間は並びを変えない（指し針の位置が変わると当たりの席がずれる）
--  const settled = phase === 'settled';
-+  const settled = phase === 'settled' || (view.spin !== null && elapsedOf(view.spin, receivedAt, performance.now()) >= view.spin.durationMs);
-   const layout = useStageLayout(stage, phase === 'spinning');
+ import { GroupCard } from './GroupCard';
+@@ -47,7 +47,7 @@ export function Stage({ pool, view, phase, revealed, receivedAt, reducedMotion,
    const pointerDeg = pointerDegFor(layout);
    const rotation = useWheelRotation({ spin: view.spin, receivedAt, settled, reducedMotion, pointerDeg, card, dock });
+ 
+-  const seats = wheelSeatsOf({ pool, spin: view.spin, revealed });
++  const seats = wheelSeatsOf({ pool, spin: view.spin, revealed: revealedCountOf({ view, receivedAt, nowMs: performance.now(), reducedMotion }) });
+   const drawnIds = new Set(people.rows.filter((r) => r.mark === 'drawn').map((r) => r.id));
+   const picked = revealedPicksOf(view, revealed);
+   const cardK = cardPickCountOf(view);
