@@ -9,13 +9,13 @@
 #
 # #373。段の選び方が正しくても描画に届かず、長い名前が札からはみ出す。
 diff --git a/apps/roulette-web/src/components/ResultCard.tsx b/apps/roulette-web/src/components/ResultCard.tsx
-index ea20ed36..31afda97 100644
+index db7690b..da29a4e 100644
 --- a/apps/roulette-web/src/components/ResultCard.tsx
 +++ b/apps/roulette-web/src/components/ResultCard.tsx
-@@ -29,7 +29,7 @@ export function ResultCard({
+@@ -32,7 +32,7 @@ export function ResultCard({
          <div className="roulette-card-back" />
          <div className="roulette-card-face">
-           <p className="roulette-card-label">{CARD_LABEL}</p>
+           <p className="roulette-card-label">{label}</p>
 -          <p className="roulette-card-name" data-size={cardNameSize(shown)}>
 +          <p className="roulette-card-name">
              <span className="roulette-card-name-text">{shown}</span>
