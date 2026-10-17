@@ -2,7 +2,7 @@
 //
 // **ここで名前は聞かない**（#95 S5c・R9）。名乗る場所は玄関に 1 つだけあり、
 // 端末に同一性が無いままここへ来た人は玄関の参加画面へ送り返す。
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useCopyText } from '@tasuki/invite-ui';
 import type { RoomStateMessage } from '@tasuki/poker-core';
 import { CardHand } from '../components/CardHand';
@@ -116,6 +116,7 @@ export function RoomPage({ roomId, sync }: Props) {
   const inviteUrl = sync.inviteUrl(roomId);
   const estimateLog = snapshot.estimate?.log ?? [];
   const offline = isOffline(sync.status);
+  const foot = <EstimateLogFoot groups={estimateLog} onSetPoints={sync.setPoints} disabled={offline} />;
 
   return (
     <main className="ui-page ui-page--wide room">
@@ -181,11 +182,10 @@ export function RoomPage({ roomId, sync }: Props) {
             <ParticipantList participants={snapshot.participants} you={snapshot.you} votes={revealedVotes} />
           </section>
           {isVoting ? (
-            <VotingSection snapshot={snapshot} sync={sync} />
+            <VotingSection snapshot={snapshot} sync={sync} foot={foot} />
           ) : (
-            <RevealedSection snapshot={snapshot} sync={sync} revealedLive={revealedLive} />
+            <RevealedSection snapshot={snapshot} sync={sync} revealedLive={revealedLive} foot={foot} />
           )}
-          <EstimateLogFoot groups={estimateLog} onSetPoints={sync.setPoints} disabled={offline} />
         </div>
       </div>
     </main>
@@ -195,9 +195,12 @@ export function RoomPage({ roomId, sync }: Props) {
 function VotingSection({
   snapshot,
   sync,
+  foot,
 }: {
   snapshot: RoomStateMessage;
   sync: PokerSync;
+  /** 足の記録。下端の帯（sticky）の手前に置く（帯が記録の末尾を覆わないように） */
+  foot: ReactNode;
 }) {
   // 切断・再接続中は操作を受け付けない（送信しても届かないため）
   const offline = isOffline(sync.status);
@@ -210,6 +213,7 @@ function VotingSection({
       </section>
       {/* かつてはホストだけに出ていたが、#95 S3 でホストを廃止し全参加者へ開放した。
           下端の帯（sticky）は親の範囲の中でしか留まらないので、節の中ではなく操作の面（`.room-main`）の最後の子に置く。 */}
+      {foot}
       <div className="ui-actions ui-actions--dock">
         <button type="button" className="ui-button ui-button--lg" onClick={sync.reveal} disabled={offline}>
           票を公開する
@@ -223,9 +227,12 @@ function RevealedSection({
   snapshot,
   sync,
   revealedLive,
+  foot,
 }: {
   snapshot: RoomStateMessage;
   sync: PokerSync;
+  /** 足の記録。帯の手前に置く */
+  foot: ReactNode;
   /** 公開を投票中から見届けた（席の札がめくれる）。集計の待ちはこのときだけ */
   revealedLive: boolean;
 }) {
@@ -245,6 +252,7 @@ function RevealedSection({
         spread={spreadPromptOf(snapshot.round, snapshot.participants)}
       />
       {/* かつてはホストだけに出ていたが、#95 S3 でホストを廃止し全参加者へ開放した */}
+      {foot}
       <div className="ui-actions ui-actions--dock">
         {/* 再投票（主・最後）と次のアイテムへ（副）は意味の違う 2 操作（#93・spec §4.3）。 */}
         <PointsSelect
