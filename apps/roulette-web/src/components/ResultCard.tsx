@@ -13,11 +13,14 @@ import { CARD_LABEL, CARD_SUFFIX } from '../copy';
 export function ResultCard({
   name,
   revealed,
+  label = CARD_LABEL,
   ref,
 }: {
   /** 止まった当たりの名前（回っている間は null） */
   name: string | null;
   revealed: boolean;
+  /** 札の見出し（順番に回すときは「{n} 番」・#401 順番に回す）。既定は「次の進行役」 */
+  label?: string;
   ref?: React.Ref<HTMLDivElement>;
 }) {
   const [last, setLast] = useState(name ?? '');
@@ -28,7 +31,7 @@ export function ResultCard({
       <div className="roulette-card-inner">
         <div className="roulette-card-back" />
         <div className="roulette-card-face">
-          <p className="roulette-card-label">{CARD_LABEL}</p>
+          <p className="roulette-card-label">{label}</p>
           <p className="roulette-card-name" data-size={cardNameSize(shown)}>
             <span className="roulette-card-name-text">{shown}</span>
             <small>{CARD_SUFFIX}</small>

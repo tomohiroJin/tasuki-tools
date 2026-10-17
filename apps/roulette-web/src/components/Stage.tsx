@@ -10,7 +10,7 @@ import type { Entry, RouletteView } from '@tasuki/roulette-core';
 import { STAGE_HEADING } from '../copy';
 import { useStageLayout } from '../hooks/use-stage-layout';
 import { useWheelRotation } from '../hooks/use-wheel-rotation';
-import type { People, Phase } from '../roulette-view';
+import type { OrderStage, People, Phase } from '../roulette-view';
 import { cardPickCountOf, revealedPicksOf, topicNoteOf } from '../roulette-view';
 import { wheelSeatsOf } from '../wheel-view';
 import { pointerDegFor } from '../wheel-motion';
@@ -34,9 +34,11 @@ interface Props {
   caption: string;
   button: { label: string; disabled: boolean };
   onSpin: () => void;
+  /** 順番に回すときの舞台（`orderStageOf`・#401 順番に回す）。1 回で決めるときは null */
+  order: OrderStage | null;
 }
 
-export function Stage({ pool, view, phase, revealed, receivedAt, reducedMotion, people, topicTitle, caption, button, onSpin }: Props) {
+export function Stage({ pool, view, phase, revealed, receivedAt, reducedMotion, people, topicTitle, caption, button, onSpin, order }: Props) {
   const [stage, setStage] = useState<HTMLElement | null>(null);
   const card = useRef<HTMLDivElement>(null);
   const dock = useRef<HTMLDivElement>(null);
@@ -47,10 +49,11 @@ export function Stage({ pool, view, phase, revealed, receivedAt, reducedMotion, 
   const pointerDeg = pointerDegFor(layout);
   const rotation = useWheelRotation({ spin: view.spin, receivedAt, settled, reducedMotion, pointerDeg, card, dock });
 
-  const seats = wheelSeatsOf({ pool, spin: view.spin, revealed });
+  const seats = order?.seats ?? wheelSeatsOf({ pool, spin: view.spin, revealed });
   const drawnIds = new Set(people.rows.filter((r) => r.mark === 'drawn').map((r) => r.id));
   const picked = revealedPicksOf(view, revealed);
-  const cardK = cardPickCountOf(view);
+  // 順番に回すときは 1 回に 1 人（選ぶ人数を使わない・T7）
+  const cardK = order === null ? cardPickCountOf(view) : 1;
   const group = cardK >= 2;
 
   return (
@@ -73,15 +76,19 @@ export function Stage({ pool, view, phase, revealed, receivedAt, reducedMotion, 
         pointerDeg={pointerDeg}
         spinning={rotation.spinning}
         reducedMotion={reducedMotion}
+        hubCount={order?.hubCount}
       />
-      {group ? (
+      {order !== null ? (
+        <ResultCard ref={card} label={order.card.label} name={order.card.name} revealed={order.card.revealed} />
+      ) : group ? (
         <GroupCard ref={card} k={cardK} names={picked.map((e) => e.name)} revealed={picked.length > 0} />
       ) : (
         <ResultCard ref={card} name={settled ? (picked[0]?.name ?? null) : null} revealed={settled && picked.length > 0} />
       )}
       <div className="roulette-after">
         {/* 読み上げは role="status"。回している間は当たりの名前を入れない（止まってから入れる） */}
-        <p className="roulette-caption" role="status">
+        {/* 順番に回すときは 1 行で … に切る（押すたびに文が変わり、折り返すと円盤が上下に動く。全文は読み上げが持つ） */}
+        <p className={`roulette-caption${order === null ? '' : ' roulette-caption--order'}`} role="status">
           {caption}
         </p>
         <SpinControls ref={dock} label={button.label} disabled={button.disabled} onSpin={onSpin} />

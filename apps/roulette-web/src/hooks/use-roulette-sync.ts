@@ -30,7 +30,7 @@ import { useMemo, useState } from 'react';
 import type { DepartureReason, RosterRoom } from '@tasuki/room-core';
 import { buildSyncUrl, type ConnectionNoticeKind, type ConnectionStatus } from '@tasuki/sync-client';
 import { useToolRoomSync } from '@tasuki/web-kit/sync';
-import type { RouletteCommand, RouletteView } from '@tasuki/roulette-core';
+import type { RouletteCommand, RouletteMode, RouletteView } from '@tasuki/roulette-core';
 import type { TopicState } from '@tasuki/topic-core';
 import { DEFAULT_ERROR_TEXT, RETRY_EXHAUSTED_TEXT, RETRY_WAITING_TEXT } from '../copy';
 import { parseRouletteWebMessage } from '../server-message';
@@ -83,6 +83,10 @@ export interface RouletteSync {
   resetCycle(): void;
   /** 選ぶ人数を変える（#401。1〜4。ルームの全員で共有する） */
   setPickCount(count: number): void;
+  /** 決め方を変える（#401 順番に回す。回の途中はサーバーが拒む） */
+  setMode(mode: RouletteMode): void;
+  /** 順番に回す回を最初からやり直す */
+  resetOrder(): void;
 }
 
 export function useRouletteSync(roomCode: string): RouletteSync {
@@ -143,6 +147,8 @@ export function useRouletteSync(roomCode: string): RouletteSync {
       removeGuest: (id: string) => sendCommand({ command: 'roulette.guest.remove', id }),
       resetCycle: () => sendCommand({ command: 'roulette.cycle.reset' }),
       setPickCount: (count: number) => sendCommand({ command: 'roulette.pick.set', count }),
+      setMode: (mode: RouletteMode) => sendCommand({ command: 'roulette.mode.set', mode }),
+      resetOrder: () => sendCommand({ command: 'roulette.order.reset' }),
     };
   }, [send]);
 
