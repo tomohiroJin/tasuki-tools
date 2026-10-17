@@ -81,6 +81,8 @@ export interface RouletteSync {
   addGuest(name: string): void;
   removeGuest(id: string): void;
   resetCycle(): void;
+  /** 選ぶ人数を変える（#401。1〜4。ルームの全員で共有する） */
+  setPickCount(count: number): void;
 }
 
 export function useRouletteSync(roomCode: string): RouletteSync {
@@ -140,6 +142,7 @@ export function useRouletteSync(roomCode: string): RouletteSync {
       addGuest: (name: string) => sendCommand({ command: 'roulette.guest.add', name }),
       removeGuest: (id: string) => sendCommand({ command: 'roulette.guest.remove', id }),
       resetCycle: () => sendCommand({ command: 'roulette.cycle.reset' }),
+      setPickCount: (count: number) => sendCommand({ command: 'roulette.pick.set', count }),
     };
   }, [send]);
 

@@ -11,6 +11,7 @@ import {
 } from '../copy';
 import { cycleLineOf, type People, type PersonRow, type RowMark } from '../roulette-view';
 import { GuestForm } from './GuestForm';
+import { PickCountPicker } from './PickCountPicker';
 
 const MARK_TEXT: Record<Exclude<RowMark, null>, string> = { away: AWAY_MARK, twin: TWIN_MARK, drawn: DRAWN_MARK };
 
@@ -22,15 +23,20 @@ interface Props {
   onRemoveGuest: (id: string) => void;
   onAddGuest: (name: string) => void;
   onResetCycle: () => void;
+  /** 選ぶ人数（#401） */
+  pickCount: number;
+  onPickCount: (count: number) => void;
 }
 
 /** 脇の「ルーレットに入る人」。チェック = 入れる。行は [チェック][名前][印][名前を消す]（狭いと印と消すが次の行へ）。 */
-export function PeoplePanel({ people, locked, onInclude, onRemoveGuest, onAddGuest, onResetCycle }: Props) {
+export function PeoplePanel({ people, locked, onInclude, onRemoveGuest, onAddGuest, onResetCycle, pickCount, onPickCount }: Props) {
   return (
     <section className="ui-panel roulette-people" aria-labelledby="roulette-people-heading">
       <h2 id="roulette-people-heading">
         {PEOPLE_HEADING} <span className="roulette-count">{people.poolCount}</span>
       </h2>
+      {/* 選ぶ人数は入る人と一緒に整える準備なので、見出しの直下に置く（舞台の縦の予算に触れない・#401 spec M10） */}
+      <PickCountPicker value={pickCount} disabled={locked} onPick={onPickCount} />
       <ul className="roulette-list">
         {people.rows.map((row) => (
           <Row key={row.id} row={row} locked={locked} onInclude={onInclude} onRemoveGuest={onRemoveGuest} />

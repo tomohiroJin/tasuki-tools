@@ -133,6 +133,33 @@ export async function expectCardNameNotCovered(page: Page): Promise<void> {
     .toBe('card');
 }
 
+/**
+ * 組の札（#401）の最後の行の中心を**突く**と札の要素が返る（下端に留まる「回す」の帯に隠れていない）。
+ * 1 人の札の {@link expectCardNameNotCovered} と同じ測り方。組の札は 1 人の札より背が高いので、
+ * 320×640 では縦積みの円盤の式から差を引いている（`--card-extra`）。それを外すと最後の行が帯に隠れる。
+ * あわせて、札の中身が札からはみ出さない（行が 4 つでも背に収まる）ことを見る。
+ */
+export async function expectGroupCardNotCovered(page: Page): Promise<void> {
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const rows = document.querySelectorAll('.roulette-group-row');
+          const last = rows[rows.length - 1];
+          if (last === undefined) return 'no-group-card';
+          const face = document.querySelector('.roulette-card--group .roulette-card-face');
+          if (face !== null && face.scrollHeight > face.clientHeight + 1) return 'overflows-card';
+          const r = last.getBoundingClientRect();
+          const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+          if (hit === null) return 'outside-viewport';
+          if (hit.closest('.roulette-controls') !== null) return 'covered-by-dock';
+          return hit.closest('.roulette-card') !== null ? 'card' : `other:${hit.className}`;
+        }),
+      { message: '組の札の最後の行の中心を突いても札に当たらない', timeout: 4000 },
+    )
+    .toBe('card');
+}
+
 /** 画面に描かれた 1 字の向き（`expectWheelGlyphsUpright` の材料）。 */
 interface DrawnGlyph {
   label: string;

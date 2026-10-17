@@ -18,6 +18,7 @@ import { expect, test } from '../fixtures/test';
 import { expectFieldsAtLeast16px, expectFocusVisibleOnTab, expectReadable, pairKey, resolveColors, scanContrast } from '../support/a11y';
 import {
   addRouletteGuest,
+  expectGroupCardNotCovered,
   expectWheelGlyphsUpright,
   expectWheelLabelsInsideSeats,
   expectWheelLabelsUseWebFonts,
@@ -34,6 +35,10 @@ const NAME_B = 'e2e-roulette-b';
 /** 回転の長さ（`SPIN_DURATION_MS`）。これを過ぎるまで、回している側の画面は結果を言わない。 */
 const SPIN_MS = 4000;
 const RESULT = /^次の進行役は (.+) さんです$/;
+/** 2 人以上の結果（#401）。止まった順に「{名前} さん」を「、」でつなぐ */
+const GROUP_RESULT = /^選ばれたのは (.+) さんです$/;
+/** 2 人目からの「置く」＋「送る」（`STOP_HOLD_MS` + `NEXT_MOVE_MS`）。k 人の回転は SPIN_MS + (k − 1) × これ */
+const NEXT_STOP_MS = 1600;
 
 /**
  * @requirements #94 E7 E17 E19
@@ -200,6 +205,46 @@ test.describe('@core ルーレットは全員の画面で同じ人に止まる',
     await expectWheelLabelsInsideSeats(page, 1);
     await expectWheelLabelsUseWebFonts(page);
     await expectRouletteNamesNotCut(page, 1);
+
+    // Then 2 人以上を選ぶ（#401 spec §6）。同じルームのまま、A が人数を変えると B の画面にも届き、
+    //   全員の画面で同じ人たちが同じ順に止まる。B は動きを減らす設定なので、回さずに全員をすぐに出す
+    const pickButton = (p: typeof page, k: number) =>
+      p.getByRole('group', { name: '選ぶ人数' }).getByRole('button', { name: `${k} 人` });
+    await pickButton(page, 2).click();
+    await expect(pickButton(page, 2)).toHaveAttribute('aria-pressed', 'true');
+    await expect(pickButton(peer.page, 2), 'B にも人数が届く').toHaveAttribute('aria-pressed', 'true');
+    await expect(roulettePhrase(page)).toHaveText(RESULT);
+    const beforeGroupOnB = await roulettePhrase(peer.page).textContent();
+    await spinButton(page).click();
+    await expect(roulettePhrase(page), '2 人: A は回している最中').toHaveText(`${NAME_A} さんが回しました`);
+    let groupOnB = '';
+    await expect
+      .poll(
+        async () => {
+          const text = (await roulettePhrase(peer.page).textContent()) ?? '';
+          groupOnB = text !== beforeGroupOnB && GROUP_RESULT.test(text) ? text : '';
+          return groupOnB;
+        },
+        { message: '2 人: B に 1 秒以内に 2 人の結果が出ない', timeout: 1000 },
+      )
+      .toBeTruthy();
+    await expect(roulettePhrase(page), '2 人: A の結果').toHaveText(GROUP_RESULT, { timeout: SPIN_MS + NEXT_STOP_MS + 2000 });
+    expect(await roulettePhrase(page).textContent(), '2 人: A と B で同じ人たちが同じ順').toBe(groupOnB);
+    const pair = (GROUP_RESULT.exec(groupOnB)?.[1] ?? '').split(' さん、');
+    expect(pair, '2 人: 選ばれたのは 2 人').toHaveLength(2);
+    expect(pair[0], '2 人: 同じ人を 2 度選ばない').not.toBe(pair[1]);
+    await expect(page.locator('.wheel-segment--winner'), '2 人: 真鍮の席が 2 つ').toHaveCount(2);
+    //   4 人・幅 320×640（縦積み）。組の札は 1 人の札より背が高いが、下端の帯に隠れない・札からはみ出さない
+    await page.setViewportSize({ width: 320, height: 640 });
+    await pickButton(page, 4).click();
+    await expect(pickButton(page, 4)).toHaveAttribute('aria-pressed', 'true');
+    await spinButton(page).click();
+    await expect(roulettePhrase(page), '4 人: 回し始める').toHaveText(`${NAME_A} さんが回しました`);
+    await expect(roulettePhrase(page), '4 人: 止まる').toHaveText(GROUP_RESULT, { timeout: SPIN_MS + 3 * NEXT_STOP_MS + 2000 });
+    await expect(page.locator('.roulette-group-row.is-filled')).toHaveCount(4);
+    await expectGroupCardNotCovered(page);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), '4 人・320: 横に溢れない').toBe(true);
+    await page.setViewportSize({ width: 1280, height: 720 });
 
     // どの画面も例外を出していない
     expect(consoleWatcher.errors).toEqual([]);
