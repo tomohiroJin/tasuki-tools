@@ -50,6 +50,9 @@ test.describe('@core ルーレットは全員の画面で同じ人に止まる',
     openPeer,
     consoleWatcher,
   }) => {
+    // ルームはこの 1 本だけで作るので、回す場面がすべてここに積まれる（#94 の 9 回・#401 の 2 人と 4 人の回転）。
+    // #401 の 2 回（約 5.6 秒と 8.8 秒）を足して既定の上限（60 秒）を超えたので、この本だけ 30 秒延ばす
+    test.setTimeout(test.info().timeout + 30_000);
     // 取りにいった書体を記録する（常用の層の外を引いていないことを、止まった後に見る）
     const fonts: string[] = [];
     page.on('request', (request) => {
