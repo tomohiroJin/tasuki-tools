@@ -9,10 +9,11 @@
 #       git apply scripts/mutations/m172-*.patch
 # 復元: git apply -R scripts/mutations/m172-*.patch
 diff --git a/apps/tasuki-sync/src/application/roulette-handlers.ts b/apps/tasuki-sync/src/application/roulette-handlers.ts
+index fcf9518..3b5d10a 100644
 --- a/apps/tasuki-sync/src/application/roulette-handlers.ts
 +++ b/apps/tasuki-sync/src/application/roulette-handlers.ts
-@@ -176,6 +176,7 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
-           conflicts: conflictsWithExisting,
+@@ -182,6 +182,7 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
+           randomStyle: random.randomInt,
          });
          if (next.isErr()) {
 +          roulettes.put(room.code, state);

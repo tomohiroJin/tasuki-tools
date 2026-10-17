@@ -1,0 +1,22 @@
+# 変異 363: press-gets-style
+#
+# 検出を期待するテスト:
+#   - packages/roulette-core/tests/roulette-stop-style.test.ts
+#
+# #420 spec S4。押して止めるにも止まり方を載せる（押した位置と違う動きで嘘に見える）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m363-*.patch
+# 復元: git apply -R scripts/mutations/m363-*.patch
+diff --git a/packages/roulette-core/src/roulette.ts b/packages/roulette-core/src/roulette.ts
+index 214a37d..d868408 100644
+--- a/packages/roulette-core/src/roulette.ts
++++ b/packages/roulette-core/src/roulette.ts
+@@ -165,6 +165,7 @@ function startPressSpin(state: RouletteState, input: SpinInput): Result<Roulette
+       settle: SETTLE_MIN,
+       picks: [],
+       press: { p0: seat + settle, rate: PRESS_SEATS_PER_SEC, stop: null },
++      ...(input.randomStyle !== undefined && input.randomStyle(20) === 19 ? { stopStyle: "nudge" as const } : {}),
+       spunBy: input.spunBy,
+       startedAt: input.now,
+     },

@@ -9,15 +9,15 @@
 #       git apply scripts/mutations/m302-*.patch
 # 復元: git apply -R scripts/mutations/m302-*.patch
 diff --git a/packages/roulette-core/src/roulette.ts b/packages/roulette-core/src/roulette.ts
-index 7ad8745..77c301e 100644
+index 214a37d..6126c68 100644
 --- a/packages/roulette-core/src/roulette.ts
 +++ b/packages/roulette-core/src/roulette.ts
-@@ -44,7 +44,7 @@ function isSpinning(state: RouletteState, now: number): boolean {
+@@ -50,7 +50,7 @@ function isSpinning(state: RouletteState, now: number): boolean {
    const spin = state.lastSpin;
    if (spin === null) return false;
    if (spin.press !== undefined) return pressStopOf(spin, now - spin.startedAt) === null;
--  return now - spin.startedAt < spinDurationMs(spin.picks.length);
-+  return now - spin.startedAt < spinDurationMs(1);
+-  return now - spin.startedAt < spinDurationMs(spin.picks.length, spin.stopStyle);
++  return now - spin.startedAt < spinDurationMs(1, spin.stopStyle);
  }
  
  /**
