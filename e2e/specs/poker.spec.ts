@@ -137,8 +137,9 @@ test.describe('@core poker は公開まで他人の票を配らない', () => {
  *
  * かつては「票を公開する」「次のアイテムへ」がどちらもホストにだけ出ており、
  * `not-host` を返して他の参加者を弾いていた。#95 S3 でホストが廃止され、
- * `revealBy` と `nextRound` はどの参加者が呼んでも通る（`packages/poker-core/src/round.ts`
- * の `revealBy` は `_participantId` を無視し、`nextRound` も同様に実行者を見ない）。
+ * `revealBy` と `nextItem` はどの参加者が呼んでも通る（`packages/poker-core/src/round.ts`
+ * の `revealBy` は `_participantId` を無視し、`revote` / `nextItem` も同様に実行者を見ない。#93 で `nextRound` は
+ * この 2 つに分かれた）。
  * 2 つは同じ削除された `requireHost` に守られていた対で、片方だけ確かめても
  * もう片方の権限チェックが復活する壊れ方は捕まえられない——ここは両方を、
  * どちらも**ルームを作った本人ではない**側の操作として続けて確かめる。

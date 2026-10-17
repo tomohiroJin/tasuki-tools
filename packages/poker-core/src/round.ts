@@ -127,6 +127,7 @@ export function nextItem(
     return err({ code: 'not-revealed', op: 'next-item' });
   }
   return ok({
+    ...round,
     status: 'voting' as const,
     votes: new Map(),
     item: '',

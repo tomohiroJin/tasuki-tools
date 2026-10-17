@@ -192,7 +192,7 @@ revealed 後の例:
 | code | 意味 | 対応する要求 |
 |------|------|-------------|
 | `invalid-message` | スキーマ検証失敗 | 全 C→S（FR-015） |
-| `room-not-found` | ルーム不存在・破棄済み | join-room（FR-015, US1-AS3）、vote / reveal / next-round（破棄済みルームを指したままの接続。[#171](https://github.com/tomohiroJin/tasuki-tools/issues/171)） |
+| `room-not-found` | ルーム不存在・破棄済み | join-room（FR-015, US1-AS3）、vote / reveal / next-round / set-item / revote / next-item / set-points（破棄済みルームを指したままの接続。どれも `commitRoomAction` を通る。[#171](https://github.com/tomohiroJin/tasuki-tools/issues/171)・#93） |
 | `not-voting` | voting 中でない | vote, reveal |
 | `not-revealed` | revealed 中でない | next-round, revote, next-item |
 | `not-joined` | join 前の操作 | vote, reveal, next-round, set-item, revote, next-item, set-points |

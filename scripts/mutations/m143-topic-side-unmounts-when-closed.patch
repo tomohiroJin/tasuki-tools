@@ -2,7 +2,7 @@
 #
 # 検出を期待するテスト:
 #   - apps/poker-web/tests/current-topic.test.tsx
-#     U5「Given お題が開いている / When 「お題を隠す」を押す / Then 札は DOM に残り inert で閉じる」。閉じると区画ごと消え、滑って閉じられない。
+#     U5「Given お題が開いている / When 「お題を隠す」を押す / Then 札は DOM に残り inert で閉じる」。閉じると札（`.room-topic-side`）が DOM から消え（脇の記録は残る）、滑って閉じられない。
 #
 # #348・設計正本 D7。
 #
