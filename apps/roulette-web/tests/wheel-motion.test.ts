@@ -6,7 +6,8 @@
  * （実装と同じ前提を共有して、同じ誤りを正解と見なすため）。
  */
 import { describe, expect, it } from 'vitest';
-import { TURNS, angleAt, easeOutCubic, finalAngle, pointerDegFor, segmentBoundaryIndex, stageLayoutFor } from '../src/wheel-motion';
+import { pickStopsMs, STOP_HOLD_MS } from '@tasuki/roulette-core';
+import { TURNS, angleAt, angleAtPicks, easeOutCubic, finalAngle, pointerDegFor, segmentBoundaryIndex, stageLayoutFor } from '../src/wheel-motion';
 import { fitLabel, labelKindOf, labelPlacement, radialTiltLimit, toneOf } from '../src/wheel-geometry';
 
 const DURATION = 4000;
@@ -218,5 +219,69 @@ describe('fitLabel', () => {
     expect(fitLabel('abcdefghijk', 5.5, true)).toBe('abcde…');
     expect(fitLabel('Mika', 5.5, true)).toBe('Mika');
     expect(fitLabel('あいうえおかき', 5.5, true)).toBe('あいうえお…');
+  });
+});
+
+/**
+ * k 人を続けて止める角度（#401 spec §6.2）。オラクルは上と同じ「指し針の先を回転子の座標へ戻して atan2 で席を引く」。
+ *
+ * @requirements #401 E7 E8
+ */
+describe('angleAtPicks: 1 人ずつ続けて止まる', () => {
+  const pick = (index: number, settle: number) => ({ index, settle });
+
+  it('1 人のときは #94 の angleAt と全経過で同じ値で、終わった後は finalAngle', () => {
+    for (const startDeg of STARTS) {
+      for (const pointerDeg of POINTERS) {
+        for (let t = 0; t <= DURATION; t += 50) {
+          expect(angleAtPicks(t, [pick(3, 0.4)], 7, pointerDeg, startDeg)).toBe(angleAt(t, DURATION, 7, 3, 0.4, pointerDeg, startDeg));
+        }
+        expect(angleAtPicks(DURATION + 999, [pick(3, 0.4)], 7, pointerDeg, startDeg)).toBe(finalAngle(7, 3, 0.4, pointerDeg, startDeg));
+      }
+    }
+  });
+
+  it('i 人目が止まる時刻に、指し針の下はその人の席の settle の位置（n・人数・指し針・開始角を変えて）', () => {
+    const bad: string[] = [];
+    for (const n of [3, 5, 8, 24]) {
+      for (const k of [2, 3, 4]) {
+        const picks = Array.from({ length: k }, (_, i) => pick((i * 5 + 1) % n, SETTLES[i % 3]!));
+        const stops = pickStopsMs(k);
+        for (const pointerDeg of POINTERS) {
+          for (const startDeg of STARTS) {
+            picks.forEach((p, i) => {
+              const theta = angleAtPicks(stops[i]!, picks, n, pointerDeg, startDeg);
+              const a = seatAngleUnderPointer(theta, pointerDeg);
+              const at = a / (360 / n);
+              if (Math.abs(at - (p.index + p.settle)) > 1e-6) bad.push(`n=${n} k=${k} i=${i} p=${pointerDeg} start=${startDeg}: ${at.toFixed(3)}`);
+            });
+          }
+        }
+      }
+    }
+    expect(bad.slice(0, 5), `外れた組 ${bad.length} 件`).toEqual([]);
+  });
+
+  it('止まっている間（置く時間）は動かず、送るときは 1 周以上回る', () => {
+    const picks = [pick(0, 0.5), pick(3, 0.5), pick(1, 0.5)];
+    const stops = pickStopsMs(3);
+    const atStop = angleAtPicks(stops[0]!, picks, 6, 180, 0);
+    expect(angleAtPicks(stops[0]! + STOP_HOLD_MS, picks, 6, 180, 0)).toBe(atStop);
+    expect(angleAtPicks(stops[1]!, picks, 6, 180, 0) - atStop).toBeGreaterThanOrEqual(360);
+  });
+
+  it('どの経過でも 1ms で跳ばない（区間の境目を含む）', () => {
+    const picks = [pick(2, 0.3), pick(5, 0.7), pick(0, 0.5), pick(4, 0.2)];
+    const end = pickStopsMs(4).at(-1)!;
+    let prev = angleAtPicks(0, picks, 6, 90, 123);
+    let worst = 0;
+    for (let t = 1; t <= end + 10; t++) {
+      const a = angleAtPicks(t, picks, 6, 90, 123);
+      worst = Math.max(worst, Math.abs(a - prev));
+      expect(a).toBeGreaterThanOrEqual(prev);
+      prev = a;
+    }
+    // 1 人目の回し始めが最も速い（約 1.2°/ms）。区間の境目で跳ぶとこれを大きく超える
+    expect(worst).toBeLessThan(2);
   });
 });

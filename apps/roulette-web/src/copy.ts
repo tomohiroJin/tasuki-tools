@@ -55,6 +55,20 @@ export const CYCLE_NOTE = '全員が一周するまで、同じ人は選ばれ�
 export const cycleProgressText = (drawn: number, pool: number): string => `この一周で選ばれた人 ${drawn} / ${pool}`;
 export const CYCLE_RESET_BUTTON = '一周をやり直す';
 
+// 2 人以上を選ぶ（#401 spec §6.5。1 人のときは上の文言のまま）
+/** 脇の「選ぶ人数」の切り替え */
+export const PICK_COUNT_LABEL = '選ぶ人数';
+export const pickCountOption = (k: number): string => `${k} 人`;
+/** 組の札の見出し */
+export const groupCardLabel = (k: number): string => `選ばれた ${k} 人`;
+export const groupIdleText = (k: number): string => `回すと、${k} 人が決まります`;
+/** 結果の一言（止まった順に並べる） */
+export const groupResultText = (...names: string[]): string =>
+  `選ばれたのは ${names.map((n) => `${n} さん`).join('、')}です`;
+/** 入る人が選ぶ人数 + 1 に満たない */
+export const tooFewForPickText = (k: number): string => `${k + 1} 人から回せます`;
+export const groupTopicNoteText = (title: string, k: number): string => `お題「${title}」の ${k} 人を決めます`;
+
 // 脇: 招待（玄関と同じ見出し）
 export const INVITE_HEADING = '仲間を招く';
 export const INVITE_COPY_BUTTON = '招待リンクをコピー';

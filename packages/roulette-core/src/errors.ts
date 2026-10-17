@@ -12,6 +12,10 @@ export type RouletteDomainErrorCode =
   | "ROULETTE_TOO_MANY"
   | "TOO_MANY_GUESTS"
   | "GUEST_NAME_TAKEN"
+  /** 選ぶ人数が 1〜MAX_PICK の外（#401） */
+  | "INVALID_PICK_COUNT"
+  /** 選ぶ人数が 2 以上で、入る人が選ぶ人数 + 1 に満たない（#401。1 のときは ROULETTE_TOO_FEW） */
+  | "ROULETTE_TOO_FEW_FOR_PICK"
   /** 乱数源が契約（SETTLE_MIN〜SETTLE_MAX）を破った。サーバーの内部の誤りで、利用者の操作では起きない */
   | "INVALID_SETTLE"
   /** 乱数源が契約（`randomInt(n)` は `[0, n)`）を破った。`INVALID_SETTLE` と同じく内部の誤り（#364） */
@@ -47,5 +51,7 @@ export const ROULETTE_ERROR_CODES = [
   "INVALID_GUEST_NAME",
   "GUEST_NAME_TAKEN",
   "TOO_MANY_GUESTS",
+  "INVALID_PICK_COUNT",
+  "ROULETTE_TOO_FEW_FOR_PICK",
 ] as const;
 export type RouletteErrorCode = (typeof ROULETTE_ERROR_CODES)[number];

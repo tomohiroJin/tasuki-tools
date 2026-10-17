@@ -26,12 +26,19 @@ export const RouletteCommandSchema = v.variant("command", [
   v.strictObject({ command: v.literal("roulette.guest.add"), name: v.string() }),
   v.strictObject({ command: v.literal("roulette.guest.remove"), id: idStr }),
   v.strictObject({ command: v.literal("roulette.cycle.reset") }),
+  // 選ぶ人数（#401 spec M2）。**範囲（1〜MAX_PICK の整数）はここで縛らない**: ドメインの `setPickCount` が
+  // `INVALID_PICK_COUNT` で拒む（`guest.add` の名前と同じ線引き。境界でも縛ると、そのコードを返す経路が無くなる）。
+  v.strictObject({ command: v.literal("roulette.pick.set"), count: v.number() }),
 ]);
 export type RouletteCommand = v.InferOutput<typeof RouletteCommandSchema>;
 
 // 受けるフレームは**非 strict**（サーバーが項目を足しても古い web がフレームごと捨てない・
 // `room-core/src/wire.ts` の規律）。
+// `pickCount`・`picks` は #401 で足した。**古いサーバーは載せない**ので省略可にする（web が 1 人ぶんとして読む）。
+const pickSchema = v.object({ index: v.number(), settle: v.number() });
+
 const RouletteViewSchema = v.object({
+  pickCount: v.optional(v.number()),
   excluded: v.array(v.string()),
   guests: v.array(entrySchema),
   drawn: v.array(v.string()),
@@ -41,6 +48,7 @@ const RouletteViewSchema = v.object({
       wheel: v.array(entrySchema),
       winnerIndex: v.number(),
       settle: v.number(),
+      picks: v.optional(v.array(pickSchema)),
       spunBy: v.string(),
       durationMs: v.number(),
       elapsedMs: v.number(),

@@ -171,7 +171,7 @@ const SCENES: readonly Scene[] = [
   "参加の試しすぎ",
 ];
 
-/** 期待値（まとめる前の実装で得たもの）。キーは `入口 / 場面`。 */
+/** 期待値（まとめる前の実装で得たもの。ルーレットのフレームの `pickCount` は #401 で足した）。キーは `入口 / 場面`。 */
 const EXPECTED: Record<string, unknown> = {
   "hub / 新しく参加する": [
     {
@@ -403,6 +403,7 @@ const EXPECTED: Record<string, unknown> = {
     {
       "type": "roulette",
       "state": {
+        "pickCount": 1,
         "excluded": [],
         "guests": [],
         "drawn": [],
@@ -444,6 +445,7 @@ const EXPECTED: Record<string, unknown> = {
     {
       "type": "roulette",
       "state": {
+        "pickCount": 1,
         "excluded": [],
         "guests": [],
         "drawn": [],

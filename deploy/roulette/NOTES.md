@@ -50,6 +50,15 @@ TASUKI_SSH_HOST=<ホスト別名> ./deploy/deploy.sh timer    # 同期サーバ�
    「roulette にいます」と出る。再読込で「Facilitator Roulette にいます」に直る。
    timer・poker・お題にはルーレットのフレームも名簿も送らない（宛先がルーレットの接続だけのため）
 
+### #401（選ぶ人数）を配るときの窓
+
+#401 は同期サーバー（PR 1）と roulette-web（PR 2）にまたがる。**PR 2 まで入れてから、上と同じ順（roulette → … → timer）で 1 回で配る。**
+窓はどちらも再読込と同期サーバーの再起動で閉じるので受容する（[設計正本](../../docs/superpowers/specs/2026-10-16-roulette-multi-pick-design.md) §5.3）。
+
+1. **新しい roulette-web × 旧い同期サーバー**: 人数の切り替え（`roulette.pick.set`）は `INVALID_COMMAND` で拒まれ、1 人のまま回る
+2. **古い roulette-web × 新しい同期サーバー**（再起動の後、開いたままの画面）: 古い画面は `picks` を知らず、1 人目だけを当たりとして描く。
+   `durationMs` は k 人ぶんなので、1 人目へ向かってゆっくり回る。古い画面には人数の切り替えが無いので、古い画面だけのルームでは 1 人のまま
+
 ### 配った後の確認
 
 ```bash

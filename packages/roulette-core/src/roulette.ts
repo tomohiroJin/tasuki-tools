@@ -5,11 +5,11 @@
  * イベントの履歴・再生・段階適用が要らない。時計と乱数は引数で受ける（ドメインは環境を読まない）。
  */
 import { err, ok, type Result } from "neverthrow";
-import { drawWinner } from "./draw.js";
+import { drawPicks } from "./draw.js";
 import type { RouletteError } from "./errors.js";
-import { MAX_GUESTS, MAX_WHEEL, SETTLE_MAX, SETTLE_MIN, SPIN_DURATION_MS } from "./limits.js";
+import { MAX_GUESTS, MAX_PICK, MAX_WHEEL, SETTLE_MAX, SETTLE_MIN, spinDurationMs } from "./limits.js";
 import { poolOf } from "./pool.js";
-import type { Entry, EntryId, Member, NameConflict, RouletteState } from "./types.js";
+import type { Entry, EntryId, Member, NameConflict, Pick, RouletteState } from "./types.js";
 
 export interface SpinInput {
   /** 名簿の断片（アプリ層が作る） */
@@ -20,7 +20,7 @@ export interface SpinInput {
   now: number;
   /** `[0, n)` の整数 */
   randomInt: (n: number) => number;
-  /** `SETTLE_MIN`〜`SETTLE_MAX` の実数 */
+  /** `SETTLE_MIN`〜`SETTLE_MAX` の実数。選ぶ人数の回だけ呼ぶ */
   randomSettle: () => number;
   /** 名前の衝突判定（`room-core` の `conflictsWithExisting`）。在室者と同じ名前のゲストを外す（{@link poolOf}） */
   conflicts: NameConflict;
@@ -30,38 +30,61 @@ export interface SpinInput {
 type SpinErrorCode =
   | "ROULETTE_SPINNING"
   | "ROULETTE_TOO_FEW"
+  | "ROULETTE_TOO_FEW_FOR_PICK"
   | "ROULETTE_TOO_MANY"
   | "INVALID_SETTLE"
   | "INVALID_RANDOM";
 
-/** 回転中か（`now - startedAt < SPIN_DURATION_MS`）。 */
+/** 回転中か（`now - startedAt < spinDurationMs(k)`）。k は回した時点の人数（`picks` の件数・#401 spec M3）。 */
 function isSpinning(state: RouletteState, now: number): boolean {
-  return state.lastSpin !== null && now - state.lastSpin.startedAt < SPIN_DURATION_MS;
+  const spin = state.lastSpin;
+  return spin !== null && now - spin.startedAt < spinDurationMs(spin.picks.length);
 }
 
 /**
- * 回す。回転中・入る人が 2 人未満・`MAX_WHEEL` 超えは拒む。
- * 通れば `lastSpin` と `drawn` を更新した状態を返す（`wheel` は pool の凍結した写し）。
+ * 回す。回転中・入る人が選ぶ人数 + 1 人未満（選ぶ人数 1 なら 2 人未満）・`MAX_WHEEL` 超えは拒む。
+ * 通れば `lastSpin` と `drawn` を更新した状態を返す（`wheel` は pool の凍結した写し・`picks` は選ぶ人数の件数）。
  */
 export function startSpin(state: RouletteState, input: SpinInput): Result<RouletteState, RouletteError<SpinErrorCode>> {
   if (isSpinning(state, input.now)) return err({ code: "ROULETTE_SPINNING" });
   const pool = poolOf(input.members, state, input.conflicts);
-  if (pool.length < 2) return err({ code: "ROULETTE_TOO_FEW" });
+  const k = state.pickCount;
+  // 入る人がちょうど k 人なら全員が選ばれ、回す意味が無い（#401 spec M5）。k = 1 では #94 の「2 人から」と同じ
+  if (pool.length < k + 1) return err({ code: k === 1 ? "ROULETTE_TOO_FEW" : "ROULETTE_TOO_FEW_FOR_PICK" });
   if (pool.length > MAX_WHEEL) return err({ code: "ROULETTE_TOO_MANY" });
-  const settle = input.randomSettle();
-  if (!(settle >= SETTLE_MIN && settle <= SETTLE_MAX)) return err({ code: "INVALID_SETTLE" });
-  return drawWinner(pool, state, input.randomInt).map(({ winnerIndex, drawn }) => ({
-    ...state,
-    drawn,
-    lastSpin: {
-      seq: (state.lastSpin?.seq ?? 0) + 1,
-      wheel: pool,
-      winnerIndex,
-      settle,
-      spunBy: input.spunBy,
-      startedAt: input.now,
-    },
-  }));
+  const settles: number[] = [];
+  for (let i = 0; i < k; i++) {
+    const settle = input.randomSettle();
+    if (!(settle >= SETTLE_MIN && settle <= SETTLE_MAX)) return err({ code: "INVALID_SETTLE" });
+    settles.push(settle);
+  }
+  return drawPicks(pool, state, k, input.randomInt).map(({ picks: indices, drawn }) => {
+    const picks = indices.map((index, i): Pick => ({ index, settle: settles[i] ?? SETTLE_MIN }));
+    const first = picks[0] ?? { index: 0, settle: SETTLE_MIN };
+    return {
+      ...state,
+      drawn,
+      lastSpin: {
+        seq: (state.lastSpin?.seq ?? 0) + 1,
+        wheel: pool,
+        winnerIndex: first.index,
+        settle: first.settle,
+        picks,
+        spunBy: input.spunBy,
+        startedAt: input.now,
+      },
+    };
+  });
+}
+
+/**
+ * 選ぶ人数を変える（#401 spec M2）。1〜`MAX_PICK` の整数の外は拒む。同じ値なら同じ参照を返す
+ * （変わらない操作は配らない）。**回っている間も受ける** —— 回転は回した時点の人数を `picks` に凍結して持つので、
+ * 変えてもその回転は変わらない（spec M3。外す・戻すと同じ扱い）。
+ */
+export function setPickCount(state: RouletteState, count: number): Result<RouletteState, RouletteError<"INVALID_PICK_COUNT">> {
+  if (!Number.isInteger(count) || count < 1 || count > MAX_PICK) return err({ code: "INVALID_PICK_COUNT" });
+  return ok(state.pickCount === count ? state : { ...state, pickCount: count });
 }
 
 /** 外す・戻す。冪等（トグルにしない —— 2 人がほぼ同時に押すと打ち消し合う）。 */
@@ -122,6 +145,8 @@ export function prune(state: RouletteState, knownIds: Iterable<EntryId>): Roulet
 
 /** wire へ載せる形（spec §5.3）。 */
 export interface RouletteView {
+  /** 選ぶ人数（#401）。**古いサーバーは載せない**ので省略しうる（web は 1 として読む） */
+  pickCount?: number | undefined;
   excluded: string[];
   guests: Entry[];
   drawn: string[];
@@ -130,7 +155,10 @@ export interface RouletteView {
     wheel: Entry[];
     winnerIndex: number;
     settle: number;
+    /** 止まる順の当たり（#401）。古いサーバーは載せない（web は `[{ index: winnerIndex, settle }]` として読む） */
+    picks?: Pick[] | undefined;
     spunBy: string;
+    /** 回転の全体の長さ（k 人ぶん・`spinDurationMs`） */
     durationMs: number;
     elapsedMs: number;
   };
@@ -142,7 +170,9 @@ export interface RouletteView {
  */
 export function toView(state: RouletteState, now: number): RouletteView {
   const spin = state.lastSpin;
+  const durationMs = spin === null ? 0 : spinDurationMs(spin.picks.length);
   return {
+    pickCount: state.pickCount,
     excluded: [...state.excluded],
     guests: state.guests.map((g) => ({ ...g })),
     drawn: [...state.drawn],
@@ -154,9 +184,10 @@ export function toView(state: RouletteState, now: number): RouletteView {
             wheel: spin.wheel.map((e) => ({ ...e })),
             winnerIndex: spin.winnerIndex,
             settle: spin.settle,
+            picks: spin.picks.map((p) => ({ ...p })),
             spunBy: spin.spunBy,
-            durationMs: SPIN_DURATION_MS,
-            elapsedMs: Math.min(SPIN_DURATION_MS, Math.max(0, now - spin.startedAt)),
+            durationMs,
+            elapsedMs: Math.min(durationMs, Math.max(0, now - spin.startedAt)),
           },
   };
 }

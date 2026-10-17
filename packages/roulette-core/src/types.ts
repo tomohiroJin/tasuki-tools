@@ -20,14 +20,25 @@ export interface Member {
   present: boolean;
 }
 
+/** 止まる順の当たりの 1 人（#401 spec §5.1） */
+export interface Pick {
+  /** `wheel` の中の添字 */
+  index: number;
+  /** その席の中のどこで止まるか（SETTLE_MIN〜SETTLE_MAX） */
+  settle: number;
+}
+
 export interface Spin {
   /** 回した通し番号（ルームごと・1 から）。web はこれで「新しい回転か」を見分ける */
   seq: number;
   /** 回す時点の並び（凍結）。2〜MAX_WHEEL 件 */
   wheel: Entry[];
+  /** 1 人目（`picks[0]`）の席。古い web のために残す（#401 spec M9。意味は変えない） */
   winnerIndex: number;
-  /** 当たりの席の中のどこで止まるか（SETTLE_MIN〜SETTLE_MAX）。全画面で同じ */
+  /** 1 人目の席の中のどこで止まるか（SETTLE_MIN〜SETTLE_MAX）。全画面で同じ */
   settle: number;
+  /** 止まる順の当たり（1〜MAX_PICK 件・席は重ならない）。件数が回した時点の選ぶ人数（#401 spec M3） */
+  picks: Pick[];
   /** 回した人の表示名 */
   spunBy: string;
   /** サーバーの単調時計（ms）。**wire には載せない**（spec R5） */
@@ -44,6 +55,8 @@ export interface RouletteState {
   lastSpin: Spin | null;
   /** ゲスト ID の採番（`g-1`, `g-2`, …）の次の番号 */
   nextGuestSeq: number;
+  /** 1 回の回転で選ぶ人数（1〜MAX_PICK・#401）。ルームで共有する */
+  pickCount: number;
 }
 
 /**
@@ -68,4 +81,5 @@ export const INITIAL_ROULETTE_STATE: RouletteState = Object.freeze({
   drawn: Object.freeze([]),
   lastSpin: null,
   nextGuestSeq: 1,
+  pickCount: 1,
 });

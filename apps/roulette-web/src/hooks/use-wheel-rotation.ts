@@ -19,8 +19,8 @@
  */
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import type { RouletteView } from '@tasuki/roulette-core';
-import { elapsedOf } from '../roulette-view';
-import { angleAt, finalAngle } from '../wheel-motion';
+import { elapsedOf, picksOf } from '../roulette-view';
+import { angleAtPicks, finalAngleOfPicks } from '../wheel-motion';
 
 type Spin = NonNullable<RouletteView['spin']>;
 
@@ -70,10 +70,12 @@ export function useWheelRotation(input: {
   if (spin !== null && anim.current !== null) {
     const a = anim.current;
     const n = spin.wheel.length;
+    // 2 人以上は 1 人ずつ続けて止まる（#401）。1 人なら #94 の angleAt / finalAngle と同じ値
+    const picks = picksOf(spin);
     // 受け取った直後に古い「いま」を使うと経過が負になる。基準の組より前には戻さない
     angle = settled
-      ? finalAngle(n, spin.winnerIndex, spin.settle, pointerDeg, a.startDeg)
-      : angleAt(elapsedOf(spin, receivedAt, Math.max(now, receivedAt)), spin.durationMs, n, spin.winnerIndex, spin.settle, pointerDeg, a.startDeg);
+      ? finalAngleOfPicks(picks, n, pointerDeg, a.startDeg)
+      : angleAtPicks(elapsedOf(spin, receivedAt, Math.max(now, receivedAt)), picks, n, pointerDeg, a.startDeg);
   }
   shown.current = angle;
   const spinning = spin !== null && !settled;

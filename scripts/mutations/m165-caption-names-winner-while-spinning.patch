@@ -15,17 +15,18 @@
 # 言ってしまう。変異は「回している間」の分岐を外し、局面に関わらず当たりを言う。
 # **止まった後に見るだけのテストでは殺せない**（最後は同じ文になる）。回っている最中に見る。
 diff --git a/apps/roulette-web/src/roulette-view.ts b/apps/roulette-web/src/roulette-view.ts
-index 3f5808ea..1c68bd7a 100644
+index 727b219..118cab6 100644
 --- a/apps/roulette-web/src/roulette-view.ts
 +++ b/apps/roulette-web/src/roulette-view.ts
-@@ -170,9 +170,8 @@ export function cycleLineOf(drawnCount: number, poolCount: number): string {
+@@ -246,10 +246,9 @@ export function cycleLineOf(drawnCount: number, poolCount: number): string {
   */
  export function captionOf(input: { view: RouletteView; phase: Phase; poolCount: number }): string {
    const { view, phase, poolCount } = input;
 -  if (phase === 'spinning' && view.spin !== null) return spunByText(view.spin.spunBy);
    // 止まった結果を先に言う。**発表した結果は、後から入る人が減っても消さない**（次の回転までは結果が主役）。
--  const winner = phase === 'settled' ? winnerOf(view) : null;
-+  const winner = winnerOf(view);
-   if (winner !== null) return resultText(winner.name);
-   return poolCount < 2 ? TOO_FEW_TEXT : CAPTION_IDLE;
- }
+   // 2 人以上は最後の人が止まってから、止まった順に全員を言う（途中で言うと読み上げが 1 人ずつ割り込む）
+-  if (phase === 'settled' && view.spin !== null) {
++  if (view.spin !== null) {
+     const picked = revealedPicksOf(view, picksOf(view.spin).length);
+     if (picked.length === 1) return resultText(picked[0]!.name);
+     if (picked.length > 1) return groupResultText(...picked.map((e) => e.name));
