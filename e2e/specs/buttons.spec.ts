@@ -223,6 +223,11 @@ test.describe('玄関と poker のボタンは部品で、押せる大きさが�
     const revealed = (await scanButtons(page)).groups.find((g) => g.names.includes('再投票'));
     expect(revealed?.names, '公開後の帯は「次のアイテムへ」「再投票」の順').toEqual(['次のアイテムへ', '再投票']);
     expect(revealed?.primaries).toEqual(['再投票']);
+    //   帯の子の並びは「ポイント（任意）の選択 → 次のアイテムへ → 再投票」ちょうどこの順（選択は scanButtons の外なので別に測る）
+    const dockChildren = await page.locator('.room-main > .ui-actions--dock > *').evaluateAll((els) =>
+      els.map((el) => (el.tagName === 'SELECT' ? 'select' : (el.textContent ?? '').trim())),
+    );
+    expect(dockChildren, '公開後の帯の子の並び').toEqual(['select', '次のアイテムへ', '再投票']);
 
     // 40rem 以上では帯は流れの中にあり、画面に貼りつかない
     await page.setViewportSize({ width: 1280, height: 800 });

@@ -63,7 +63,14 @@ test.describe('poker は見積もりを記録に残す', () => {
     // When: アイテム名（片方が入れると両方に出る）→ 割れる → 再投票 → そろう → 次のアイテムへ（点数 5）
     await setItem(page, ITEM);
     await expect(guest.locator('.estimate-item-title')).toHaveText(ITEM);
+    // 開票の瞬間に操作の面が跳ばない（spec §2）: 最初の開票の前後で `.room-main` の x・y・幅が同じ
+    const mainBefore = await page.locator('.room-main').boundingBox();
+    expect(mainBefore, '操作の面が描かれていない').not.toBeNull();
     await bothVote(page, guest, '5', '8');
+    const mainAfter = await page.locator('.room-main').boundingBox();
+    expect(mainAfter!.x, '開票で操作の面の x が動いた').toBeCloseTo(mainBefore!.x, 0);
+    expect(mainAfter!.y, '開票で操作の面の y が動いた').toBeCloseTo(mainBefore!.y, 0);
+    expect(mainAfter!.width, '開票で操作の面の幅が変わった').toBeCloseTo(mainBefore!.width, 0);
     await guest.getByRole('button', { name: '再投票' }).click();
     await expect(resultsSection(page)).toHaveCount(0);
     await bothVote(page, guest, '5', '5');
@@ -83,19 +90,18 @@ test.describe('poker は見積もりを記録に残す', () => {
       await expect(newest.locator('.estimate-group-item'), `${label}: 上は名前なし`).toHaveText('（名前なし）');
       await expect(newest.getByText('見積もり中', { exact: true }), `${label}: 上は見積もり中`).toBeVisible();
       await expect(newest.locator('.estimate-entry'), `${label}: 名前なしの束は 1 回`).toHaveCount(1);
-      await expect(newest.locator('.estimate-entry').first()).toContainText('1 回め');
-      await expect(newest.locator('.estimate-entry').first()).toContainText('3×2');
+      await expect(newest.locator('.estimate-entry-attempt').first()).toHaveText('1 回め');
+      await expect(newest.locator('.estimate-entry-counts').first()).toHaveText('3×2');
 
       const older = gs.nth(1);
       await expect(older.locator('.estimate-group-item'), `${label}: 下は ${ITEM}`).toHaveText(ITEM);
       await expect(older.getByRole('combobox', { name: 'ポイントを変える' }), `${label}: 点数は 5`).toHaveValue('5');
       const entries = older.locator('.estimate-entry');
       await expect(entries, `${label}: ${ITEM} は 2 回`).toHaveCount(2);
-      await expect(entries.nth(0), `${label}: 新しい回が上`).toContainText('2 回め');
-      await expect(entries.nth(0)).toContainText('5×2');
-      await expect(entries.nth(1)).toContainText('1 回め');
-      await expect(entries.nth(1)).toContainText('5×1');
-      await expect(entries.nth(1)).toContainText('8×1');
+      await expect(entries.nth(0).locator('.estimate-entry-attempt'), `${label}: 新しい回が上`).toHaveText('2 回め');
+      await expect(entries.nth(0).locator('.estimate-entry-counts')).toHaveText('5×2');
+      await expect(entries.nth(1).locator('.estimate-entry-attempt')).toHaveText('1 回め');
+      await expect(entries.nth(1).locator('.estimate-entry-counts')).toHaveText('5×1 8×1');
     }
   });
 
@@ -132,9 +138,8 @@ test.describe('poker は見積もりを記録に残す', () => {
     await expect(group, '後から入っても束が見える').toHaveCount(1);
     await expect(group.first().locator('.estimate-group-item')).toHaveText(ITEM);
     await expect(group.first().getByText('見積もり中', { exact: true })).toBeVisible();
-    await expect(group.first().locator('.estimate-entry').first()).toContainText('1 回め');
-    await expect(group.first().locator('.estimate-entry').first()).toContainText('5×1');
-    await expect(group.first().locator('.estimate-entry').first()).toContainText('8×1');
+    await expect(group.first().locator('.estimate-entry-attempt').first()).toHaveText('1 回め');
+    await expect(group.first().locator('.estimate-entry-counts').first()).toHaveText('5×1 8×1');
   });
 
   test('Given 幅 390 / When 1 件開票する / Then 記録は手札・結果より下の足に出る', async ({ page, openPeer }) => {
@@ -150,5 +155,25 @@ test.describe('poker は見積もりを記録に残す', () => {
     expect(results).not.toBeNull();
     expect(box).not.toBeNull();
     expect(box!.y, '足の記録が結果より下にある').toBeGreaterThanOrEqual(results!.y + results!.height - 1);
+  });
+
+  test('Given 幅 1280・高さ 700 / When 開票と次のアイテムへを 10 回くり返す / Then 手札も脇も画面に収まり、記録は脇の中でスクロールする', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 700 });
+    await createRoom(page, HOST);
+    // 1 人なので投票すると自動で公開される
+    for (let i = 0; i < 10; i += 1) {
+      await chooseCard(page, '5');
+      await expect(resultsSection(page)).toBeVisible();
+      await page.getByRole('button', { name: '次のアイテムへ' }).click();
+      await expect(resultsSection(page)).toHaveCount(0);
+    }
+    await expect(groups(page)).toHaveCount(10);
+    const hand = await page.locator('.card-hand').boundingBox();
+    expect(hand, '手札が描かれていない').not.toBeNull();
+    expect(hand!.y + hand!.height, '束が積まれて手札が画面の下へ押し出された').toBeLessThanOrEqual(700);
+    const side = await page.locator('.room-side').boundingBox();
+    expect(side!.y + side!.height, '脇が画面の下へはみ出した').toBeLessThanOrEqual(700);
+    const body = await page.locator('.room-log--side .estimate-log-body').evaluate((el) => ({ scroll: el.scrollHeight, client: el.clientHeight }));
+    expect(body.scroll, '記録が脇の中で溢れていない（10 束で前提が崩れている）').toBeGreaterThan(body.client);
   });
 });

@@ -78,6 +78,21 @@ test.describe('poker の文字が背景に対して読める（WCAG AA）', () =
     await expect(log.locator('.estimate-group'), '束は 2 つ').toHaveCount(2);
     const withLog = await scanContrast(poker.page, 10);
     expectReadable(withLog, 8, []);
+    //   走査は `<select>` を測らないので、記録のポイントの選択（字 vs 地）を計算値から直に測る（AA は 4.5:1）
+    const selectRatio = await log.getByRole('combobox', { name: 'ポイントを変える' }).evaluate((el) => {
+      const parse = (css: string) => (css.match(/[\d.]+/g) ?? []).map(Number);
+      const lum = ([r, g, b]: number[]) => {
+        const f = (v: number) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+        return 0.2126 * f(r!) + 0.7152 * f(g!) + 0.0722 * f(b!);
+      };
+      const style = getComputedStyle(el);
+      const ink = parse(style.color);
+      const ground = parse(style.backgroundColor);
+      if (ground.length >= 4 && ground[3]! < 1) return { ratio: 0, note: `地が半透明（${style.backgroundColor}）` };
+      const [a, b] = [lum(ink), lum(ground)];
+      return { ratio: (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05), note: `${style.color} on ${style.backgroundColor}` };
+    });
+    expect(selectRatio.ratio, `記録のポイントの選択が AA を満たさない（${selectRatio.note}）`).toBeGreaterThanOrEqual(4.5);
 
     // When / Then その3（#348・#93）: 動きを抑える設定では、お題を隠したときの札の畳みに遅延が残らない。
     //   遅延（`visibility` の 0.32 秒）が残ると、その間 `visible` のまま高さだけ縮む。64rem 未満は `display: none` で

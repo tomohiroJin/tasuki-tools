@@ -413,6 +413,7 @@ test.describe('poker のルームは広い画面で読む面と操作の面を�
     // 下ろす: 札の包みは DOM から外れる（お題の中身が無いので残せない）が、脇と記録は残り、操作の面は動かない
     await topicPage.getByRole('button', { name: '場から下げる' }).click();
     await expect(topic).toHaveCount(0);
+    await settleWorkspace(page);
     await expect(page.locator('.room-side')).toHaveCount(1);
     await expect(logHeading).toBeVisible();
     const mainNoTopic = await boxOf(page, '.ui-workspace-main');
