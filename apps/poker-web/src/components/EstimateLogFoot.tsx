@@ -42,7 +42,7 @@ export function EstimateLogFoot({ groups, onSetPoints, disabled }: Pick<Estimate
               </button>
             </div>
             <div className="ui-drawer-body">
-              <EstimateLog groups={groups} onSetPoints={onSetPoints} disabled={disabled} showHeading={false} />
+              <EstimateLog groups={groups} onSetPoints={onSetPoints} disabled={disabled} labelledBy={DRAWER_TITLE_ID} />
             </div>
           </dialog>
         </>

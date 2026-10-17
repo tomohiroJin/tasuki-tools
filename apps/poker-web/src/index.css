@@ -77,6 +77,8 @@
    `visibility` を外す（縮む間は見えない・触れない）。`inert` と合わせて Tab の行き先にも読み上げにもならない。
    札が閉じたぶんの記録の伸びは、脇の高さの上限の中で起きる（下の 64rem 以上の media）。 */
 .room-topic-side {
+  display: flex;
+  flex-direction: column;
   min-height: 0;
 }
 
@@ -131,7 +133,7 @@
 @media (width >= 64rem) {
   /* 列は常に 2 本・常に同じ比。脇（札約 43%）は常に出るので、列は動かない。
      手札の側を広げる（poker は手札が横に並ぶので、お題は「あれば見られる程度」に留める）。
-     部品の `.ui-workspace--reader`（0.85fr）と `.ui-workspace:not(:has(> .ui-workspace-side))`（(0,2,0)）に勝つ (0,2,0)。 */
+     部品の `.ui-workspace--reader`（0.85fr）に勝つ (0,2,0)。 */
   .room .ui-workspace--reader {
     grid-template-columns: minmax(0, 0.75fr) minmax(0, 1fr);
     column-gap: var(--space-6);
@@ -459,13 +461,8 @@
 /* ---------- 見積もりの記録（#93・spec §4.4。お題と同じ読む面の札の上） ---------- */
 
 .estimate-log {
-  box-sizing: border-box;
+  /* 札の地・枠・影・字・フォーカスの輪の色は部品（`.ui-reader`）が持つ（札は `ui-reader` を併せ持つ） */
   padding: var(--space-4) var(--space-5);
-  border: 1px solid var(--card-edge);
-  border-radius: var(--radius-lg);
-  background: linear-gradient(160deg, var(--card-sheen), var(--card-shade));
-  box-shadow: var(--shadow-card);
-  color: var(--coal);
 }
 
 /* 札の上なので、要素層の h2 の象牙は読めない。お題の見出しと同じ `--coal-soft` */
@@ -560,6 +557,7 @@
 /* シートの中の記録は、シート自身が札の地なので二重の枠・影を持たない */
 .ui-drawer .estimate-log {
   padding: 0;
+  max-height: none;
   border: 0;
   background: none;
   box-shadow: none;

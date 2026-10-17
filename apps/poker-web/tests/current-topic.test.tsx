@@ -197,7 +197,7 @@ describe('poker のお題は手元で隠せる（#316 PR 1）', () => {
     expect(side?.getAttribute('data-state')).toBe('open');
     expect(side?.hasAttribute('inert')).toBe(false);
     fireEvent.click(screen.getByRole('button', { name: TOPIC_HIDE }));
-    // 閉じても札は DOM に残る（幅 0・inert）。滑って閉じるために作り直さない（#348 D7）
+    // 閉じても札は DOM に残る（高さ 0・inert）。滑って閉じるために作り直さない（#348 D7）
     expect(document.getElementById(TOPIC_CARD_ID)).not.toBeNull();
     expect(document.querySelector('.room-topic-side')).toBe(side);
     expect(side?.getAttribute('data-state')).toBe('closed');

@@ -169,6 +169,7 @@ export function RoomPage({ roomId, sync }: Props) {
           )}
           <EstimateLog
             className="room-log--side"
+            scrollable
             groups={estimateLog}
             onSetPoints={sync.setPoints}
             disabled={offline}

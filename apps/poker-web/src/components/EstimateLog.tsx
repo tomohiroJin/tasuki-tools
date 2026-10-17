@@ -27,20 +27,26 @@ export interface EstimateLogProps {
   limit?: number;
   /** 置き場所ごとの修飾（`room-log--side` など） */
   className?: string;
-  /** 見出しを見せるか。false でも支援技術には残す（シートが自前の見出しを持つとき） */
-  showHeading?: boolean;
+  /** 領域の名前を付ける要素の id。指定すると自前の見出しを描かない（シートが見出しを持つとき） */
+  labelledBy?: string;
+  /** 束が溢れてスクロールする置き場所（脇）で、キーボードでもスクロールできるようにする */
+  scrollable?: boolean;
 }
 
 const TIME_FORMAT = new Intl.DateTimeFormat('ja-JP', { hour: '2-digit', minute: '2-digit' });
 
-export function EstimateLog({ groups, onSetPoints, disabled, limit, className, showHeading = true }: EstimateLogProps) {
+export function EstimateLog({ groups, onSetPoints, disabled, limit, className, labelledBy, scrollable = false }: EstimateLogProps) {
   const headingId = useId();
   const newestFirst = [...groups].reverse();
   const shown = limit === undefined ? newestFirst : newestFirst.slice(0, limit);
 
   return (
-    <section className={className ? `estimate-log ${className}` : 'estimate-log'} aria-labelledby={headingId}>
-      <h2 id={headingId} className={showHeading ? undefined : 'ui-visually-hidden'}>{ESTIMATE_LOG_HEADING}</h2>
+    <section
+      className={className ? `estimate-log ui-reader ${className}` : 'estimate-log ui-reader'}
+      aria-labelledby={labelledBy ?? headingId}
+      {...(scrollable ? { role: 'region', tabIndex: 0 } : {})}
+    >
+      {labelledBy === undefined && <h2 id={headingId}>{ESTIMATE_LOG_HEADING}</h2>}
       {groups.length === 0 ? (
         <p className="estimate-log-empty">{ESTIMATE_LOG_EMPTY}</p>
       ) : (
