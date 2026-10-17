@@ -6,7 +6,7 @@ export { SETTLE_MIN, SETTLE_MAX } from "./limits.js";
 export { MAX_PICK, STOP_HOLD_MS, NEXT_MOVE_MS, pickStopsMs } from "./limits.js";
 
 export { INITIAL_ROULETTE_STATE } from "./types.js";
-export type { Entry, EntryId, Member, NameConflict, Pick, RouletteState, Spin } from "./types.js";
+export type { Entry, EntryId, Member, NameConflict, OrderRound, Pick, RouletteMode, RouletteState, Spin } from "./types.js";
 
 export { poolOf } from "./pool.js";
 
@@ -18,6 +18,8 @@ export {
   resetCycle,
   prune,
   setPickCount,
+  setMode,
+  resetOrder,
   toView,
 } from "./roulette.js";
 export type { SpinInput, RouletteView } from "./roulette.js";

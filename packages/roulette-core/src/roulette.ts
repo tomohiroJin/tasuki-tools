@@ -9,7 +9,7 @@ import { drawPicks } from "./draw.js";
 import type { RouletteError } from "./errors.js";
 import { MAX_GUESTS, MAX_PICK, MAX_WHEEL, SETTLE_MAX, SETTLE_MIN, spinDurationMs } from "./limits.js";
 import { poolOf } from "./pool.js";
-import type { Entry, EntryId, Member, NameConflict, Pick, RouletteState } from "./types.js";
+import type { Entry, EntryId, Member, NameConflict, OrderRound, Pick, RouletteMode, RouletteState } from "./types.js";
 
 export interface SpinInput {
   /** 名簿の断片（アプリ層が作る） */
@@ -42,11 +42,18 @@ function isSpinning(state: RouletteState, now: number): boolean {
 }
 
 /**
- * 回す。回転中・入る人が選ぶ人数 + 1 人未満（選ぶ人数 1 なら 2 人未満）・`MAX_WHEEL` 超えは拒む。
- * 通れば `lastSpin` と `drawn` を更新した状態を返す（`wheel` は pool の凍結した写し・`picks` は選ぶ人数の件数）。
+ * 回す。回転中は拒む。決め方で分ける（#401 順番に回す T1）。
  */
 export function startSpin(state: RouletteState, input: SpinInput): Result<RouletteState, RouletteError<SpinErrorCode>> {
   if (isSpinning(state, input.now)) return err({ code: "ROULETTE_SPINNING" });
+  return state.mode === "order" ? startOrderSpin(state, input) : startOnceSpin(state, input);
+}
+
+/**
+ * 1 回で決める（#94・#401 複数人決定）。入る人が選ぶ人数 + 1 人未満（選ぶ人数 1 なら 2 人未満）・`MAX_WHEEL` 超えは拒む。
+ * 通れば `lastSpin` と `drawn` を更新した状態を返す（`wheel` は pool の凍結した写し・`picks` は選ぶ人数の件数）。
+ */
+function startOnceSpin(state: RouletteState, input: SpinInput): Result<RouletteState, RouletteError<SpinErrorCode>> {
   const pool = poolOf(input.members, state, input.conflicts);
   const k = state.pickCount;
   // 入る人がちょうど k 人なら全員が選ばれ、回す意味が無い（#401 spec M5）。k = 1 では #94 の「2 人から」と同じ
@@ -75,6 +82,78 @@ export function startSpin(state: RouletteState, input: SpinInput): Result<Roulet
       },
     };
   });
+}
+
+/**
+ * 順番に回す（#401 順番に回す T2・T3・T4・T6・T7）。押すたびに「まだの人」（入る人 − 番が決まった人）から 1 人を一様に引く。
+ *
+ * - 回が無い・終わっていれば新しい回を始める。新しい回は 2 人から（`ROULETTE_TOO_FEW`）
+ * - まだの人が 1 人なら**回さずに**その人の番にして回を終える（`lastSpin` は変えない・T3）。0 人（途中で全員が抜けた）なら回を終える
+ * - 選ぶ人数（`pickCount`）と一周の記録（`drawn`）は使わず、変えない（T7）
+ */
+function startOrderSpin(state: RouletteState, input: SpinInput): Result<RouletteState, RouletteError<SpinErrorCode>> {
+  const round: OrderRound = state.order === null || state.order.finished ? { done: [], finished: false } : state.order;
+  const doneIds = new Set(round.done.map((e) => e.id));
+  const pool = poolOf(input.members, state, input.conflicts);
+  const open = pool.filter((e) => !doneIds.has(e.id));
+  if (round.done.length === 0 && open.length < 2) return err({ code: "ROULETTE_TOO_FEW" });
+  const last = open.length === 1 ? open[0] : undefined;
+  if (open.length <= 1) {
+    return ok({ ...state, order: { done: last === undefined ? round.done : [...round.done, last], finished: true } });
+  }
+  if (open.length > MAX_WHEEL) return err({ code: "ROULETTE_TOO_MANY" });
+  const settle = input.randomSettle();
+  if (!(settle >= SETTLE_MIN && settle <= SETTLE_MAX)) return err({ code: "INVALID_SETTLE" });
+  const index = input.randomInt(open.length);
+  const chosen = open[index];
+  // randomInt が契約（[0, n)）を破った。サーバーの乱数源は契約を守るので、ここへは来ない
+  if (chosen === undefined) return err({ code: "INVALID_RANDOM" });
+  return ok({
+    ...state,
+    order: { done: [...round.done, chosen], finished: false },
+    lastSpin: {
+      seq: (state.lastSpin?.seq ?? 0) + 1,
+      wheel: open,
+      winnerIndex: index,
+      settle,
+      picks: [{ index, settle }],
+      turn: round.done.length + 1,
+      spunBy: input.spunBy,
+      startedAt: input.now,
+    },
+  });
+}
+
+/**
+ * 決め方を変える（#401 順番に回す T1・T8）。回っている間（`ROULETTE_SPINNING`）と、順番に回す回の途中
+ * （`ROULETTE_ROUND_IN_PROGRESS`）は拒む。変えたら回を捨てる。同じ値なら同じ参照を返す。
+ */
+export function setMode(
+  state: RouletteState,
+  mode: RouletteMode,
+  now: number,
+): Result<RouletteState, RouletteError<"ROULETTE_SPINNING" | "ROULETTE_ROUND_IN_PROGRESS">> {
+  if (state.mode === mode) return ok(state);
+  if (isSpinning(state, now)) return err({ code: "ROULETTE_SPINNING" });
+  if (state.order !== null && !state.order.finished) return err({ code: "ROULETTE_ROUND_IN_PROGRESS" });
+  return ok({ ...state, mode, order: null });
+}
+
+/**
+ * 順番に回す回を最初からやり直す（#401 順番に回す T8）。一周の記録（`drawn`）は変えない。回が無ければ同じ参照を返す。
+ * 回っている間は拒む（回っている円盤が、回す前の円盤へ跳ぶ）。
+ */
+export function resetOrder(state: RouletteState, now: number): Result<RouletteState, RouletteError<"ROULETTE_SPINNING">> {
+  if (state.order === null) return ok(state);
+  if (isSpinning(state, now)) return err({ code: "ROULETTE_SPINNING" });
+  return ok({ ...state, order: null });
+}
+
+/** 番が決まった人から、`keep` が偽の人を落とす。何も落ちなければ同じ参照を返す */
+function filterOrder(order: OrderRound | null, keep: (id: EntryId) => boolean): OrderRound | null {
+  if (order === null) return null;
+  const done = order.done.filter((e) => keep(e.id));
+  return done.length === order.done.length ? order : { ...order, done };
 }
 
 /**
@@ -122,6 +201,7 @@ export function removeGuest(state: RouletteState, id: EntryId): RouletteState {
     guests: state.guests.filter((g) => g.id !== id),
     excluded: state.excluded.filter((x) => x !== id),
     drawn: state.drawn.filter((x) => x !== id),
+    order: filterOrder(state.order, (x) => x !== id),
   };
 }
 
@@ -138,13 +218,18 @@ export function prune(state: RouletteState, knownIds: Iterable<EntryId>): Roulet
   const known = new Set(knownIds);
   const excluded = state.excluded.filter((id) => known.has(id));
   const drawn = state.drawn.filter((id) => known.has(id));
+  const order = filterOrder(state.order, (id) => known.has(id));
   // 何も落ちなければ同じ参照を返す（同期サーバーが「変わっていない」を参照で判定する）
-  if (excluded.length === state.excluded.length && drawn.length === state.drawn.length) return state;
-  return { ...state, excluded, drawn };
+  if (excluded.length === state.excluded.length && drawn.length === state.drawn.length && order === state.order) return state;
+  return { ...state, excluded, drawn, order };
 }
 
 /** wire へ載せる形（spec §5.3）。 */
 export interface RouletteView {
+  /** 決め方（#401 順番に回す）。**古いサーバーは載せない**（web は `once` として読む） */
+  mode?: RouletteMode | undefined;
+  /** 順番に回す回。古いサーバーは載せない */
+  order?: { done: Entry[]; finished: boolean } | null | undefined;
   /** 選ぶ人数（#401）。**古いサーバーは載せない**ので省略しうる（web は 1 として読む） */
   pickCount?: number | undefined;
   excluded: string[];
@@ -157,6 +242,8 @@ export interface RouletteView {
     settle: number;
     /** 止まる順の当たり（#401）。古いサーバーは載せない（web は `[{ index: winnerIndex, settle }]` として読む） */
     picks?: Pick[] | undefined;
+    /** 順番に回すときの番（#401 順番に回す）。1 回で決めるときは載せない */
+    turn?: number | undefined;
     spunBy: string;
     /** 回転の全体の長さ（k 人ぶん・`spinDurationMs`） */
     durationMs: number;
@@ -173,6 +260,8 @@ export function toView(state: RouletteState, now: number): RouletteView {
   const durationMs = spin === null ? 0 : spinDurationMs(spin.picks.length);
   return {
     pickCount: state.pickCount,
+    mode: state.mode,
+    order: state.order === null ? null : { done: state.order.done.map((e) => ({ ...e })), finished: state.order.finished },
     excluded: [...state.excluded],
     guests: state.guests.map((g) => ({ ...g })),
     drawn: [...state.drawn],
@@ -185,6 +274,7 @@ export function toView(state: RouletteState, now: number): RouletteView {
             winnerIndex: spin.winnerIndex,
             settle: spin.settle,
             picks: spin.picks.map((p) => ({ ...p })),
+            ...(spin.turn === undefined ? {} : { turn: spin.turn }),
             spunBy: spin.spunBy,
             durationMs,
             elapsedMs: Math.min(durationMs, Math.max(0, now - spin.startedAt)),

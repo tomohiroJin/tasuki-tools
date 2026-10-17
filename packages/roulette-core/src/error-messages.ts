@@ -24,6 +24,7 @@ const ROULETTE_ERROR_MESSAGES: Record<RouletteErrorCode, string> = {
   TOO_MANY_GUESTS: `名前は ${MAX_GUESTS} 人まで追加できます`,
   INVALID_PICK_COUNT: "この人数は選べません",
   ROULETTE_TOO_FEW_FOR_PICK: "選ぶ人数の人より、入る人が要ります",
+  ROULETTE_ROUND_IN_PROGRESS: "この回の途中は決め方を変えられません",
 };
 
 export function rouletteErrorMessageFor(code: RouletteErrorCode): string {
