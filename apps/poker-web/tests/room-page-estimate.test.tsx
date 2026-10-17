@@ -158,3 +158,29 @@ describe('アイテム名の欄と記録', () => {
     expect(side.getByText(ESTIMATE_LOG_EMPTY)).toBeTruthy();
   });
 });
+
+describe('開票と再投票をまたいでも欄と足の記録は保たれる（#93 最終レビュー）', () => {
+  // 投票中と開票後で別の部品を描き分けていたため、状態が替わるたびに欄と足の記録が作り直され、
+  // 打ちかけの名前が消え、フォーカスが body へ落ち、開いていたシートも閉じていた
+  it.each([
+    ['voting', 'revealed'],
+    ['revealed', 'voting'],
+  ] as const)('Given %s で名前を打ちかけ / When %s へ替わる / Then 入力と値が残り、フォーカスも入力のまま', (from, to) => {
+    const { rerender } = render(<RoomPage roomId={ROOM_ID} sync={makeSync(snapshot(from))} />);
+    const footBefore = document.querySelector('.room-log--foot');
+    fireEvent.click(screen.getByRole('button', { name: /PROJ-1/ }));
+    const input = screen.getByRole<HTMLInputElement>('textbox');
+    fireEvent.change(input, { target: { value: 'PROJ-2 打ちかけ' } });
+    input.focus();
+    expect(document.activeElement).toBe(input);
+
+    rerender(<RoomPage roomId={ROOM_ID} sync={makeSync(snapshot(to))} />);
+
+    const after = screen.getByRole<HTMLInputElement>('textbox');
+    expect(after).toBe(input);
+    expect(after.value).toBe('PROJ-2 打ちかけ');
+    expect(document.activeElement).toBe(input);
+    // 足の記録も作り直さない（開いたシートが閉じない）
+    expect(document.querySelector('.room-log--foot')).toBe(footBefore);
+  });
+});
