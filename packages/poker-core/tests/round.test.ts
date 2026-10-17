@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest';
+import { EMPTY_ESTIMATE_LOG } from '../src/estimate-log.js';
 import {
   applyAutoReveal,
   castVote,
   createRound,
   discardVote,
-  nextRound,
+  nextItem,
   revealBy,
+  revote,
+  setItem,
+  setPoints,
   shouldAutoReveal,
   type Round,
   type VoterView,
@@ -44,7 +48,7 @@ describe('castVote', () => {
   it('revealed 中の投票は not-voting エラー', () => {
     // Given
     let round = castVote(createRound(), 'p1', five)._unsafeUnwrap();
-    round = revealBy(round, 'p1')._unsafeUnwrap();
+    round = revealBy(round, 'p1', 1000)._unsafeUnwrap();
     // When
     const result = castVote(round, 'p2', eight);
     // Then
@@ -65,7 +69,7 @@ describe('shouldAutoReveal / applyAutoReveal（FR-008）', () => {
     round = castVote(round, 'p2', eight)._unsafeUnwrap();
     // Then
     expect(shouldAutoReveal(round, votersOf(2))).toBe(true);
-    expect(applyAutoReveal(round, votersOf(2)).status).toBe('revealed');
+    expect(applyAutoReveal(round, votersOf(2), 1000).status).toBe('revealed');
   });
 
   it('参加者1人でも投票すれば即成立する（Edge Case）', () => {
@@ -83,14 +87,14 @@ describe('shouldAutoReveal / applyAutoReveal（FR-008）', () => {
     // When: 3 人目が投票中に参加する（名簿だけが増え、ラウンドは変わらない）
     // Then
     expect(shouldAutoReveal(round, votersOf(3))).toBe(false);
-    expect(applyAutoReveal(round, votersOf(3)).status).toBe('voting');
+    expect(applyAutoReveal(round, votersOf(3), 1000).status).toBe('voting');
   });
 
   it('revealed のラウンドでは成立しない（再公開しない）', () => {
     // Given
     let round = castVote(createRound(), 'p1', five)._unsafeUnwrap();
     // When
-    round = applyAutoReveal(round, votersOf(1));
+    round = applyAutoReveal(round, votersOf(1), 1000);
     // Then
     expect(shouldAutoReveal(round, votersOf(1))).toBe(false);
   });
@@ -125,7 +129,7 @@ describe('revealBy（FR-009）', () => {
     // Given
     const round = castVote(createRound(), 'p1', five)._unsafeUnwrap();
     // When
-    const revealed = revealBy(round, 'p1')._unsafeUnwrap();
+    const revealed = revealBy(round, 'p1', 1000)._unsafeUnwrap();
     // Then
     expect(revealed.status).toBe('revealed');
     expect(revealed.votes.size).toBe(1);
@@ -136,7 +140,7 @@ describe('revealBy（FR-009）', () => {
     const round = castVote(createRound(), 'p1', five)._unsafeUnwrap();
     // When
     // 前提のガードは置かない。落ちていれば _unsafeUnwrap が throw する（ADR-0006 決定 6 と同じ扱い）
-    const revealed = revealBy(round, 'p2')._unsafeUnwrap();
+    const revealed = revealBy(round, 'p2', 1000)._unsafeUnwrap();
     // Then
     expect(revealed.status).toBe('revealed');
     expect(revealed.votes.get('p1')).toEqual(five);
@@ -144,50 +148,137 @@ describe('revealBy（FR-009）', () => {
 
   it('revealed 中の再公開は not-voting エラー', () => {
     // Given
-    const round = revealBy(createRound(), 'p1')._unsafeUnwrap();
+    const round = revealBy(createRound(), 'p1', 1000)._unsafeUnwrap();
     // When
-    const result = revealBy(round, 'p1');
+    const result = revealBy(round, 'p1', 1000);
     // Then
     expect(result.isErr()).toBe(true);
     expect(result._unsafeUnwrapErr().code).toBe('not-voting');
   });
 });
 
-describe('nextRound（FR-011）', () => {
+describe('revote（FR-011）', () => {
   function revealedRound(): Round {
     let round = createRound();
     round = castVote(round, 'p1', five)._unsafeUnwrap();
     round = castVote(round, 'p2', eight)._unsafeUnwrap();
-    return applyAutoReveal(round, votersOf(2));
+    return applyAutoReveal(round, votersOf(2), 1000);
   }
 
-  it('revealed → voting に戻り、全票がリセットされる', () => {
+  it('revealed → voting に戻り、全票がリセットされる。item と open の束は残る', () => {
     // Given: revealedRound() の呼び出し自体が前提のラウンドを用意する
+    const revealed = setItem(revealedRound(), 'PROJ-1');
     // When
-    const round = nextRound(revealedRound(), 'p1')._unsafeUnwrap();
+    const round = revote(revealed, 'p1')._unsafeUnwrap();
     // Then
     expect(round.status).toBe('voting');
     expect(round.votes.size).toBe(0);
+    expect(round.item).toBe('PROJ-1');
+    expect(round.log).toBe(revealed.log);
+    expect(round.log.groups[0]!.open).toBe(true);
   });
 
-  it('voting 中の next-round は not-revealed エラー', () => {
-    // Given: createRound() の呼び出し自体が前提のラウンドを用意する
+  it('voting 中の revote は not-revealed エラー（op は revote）', () => {
     // When
-    const result = nextRound(createRound(), 'p1');
+    const result = revote(createRound(), 'p1');
     // Then
-    expect(result.isErr()).toBe(true);
-    expect(result._unsafeUnwrapErr().code).toBe('not-revealed');
+    expect(result._unsafeUnwrapErr()).toEqual({ code: 'not-revealed', op: 'revote' });
   });
 
-  it('作成者でない参加者も次のラウンドを開始できる（役割は無い）', () => {
-    // Given
-    const round = revealedRound();
+  it('作成者でない参加者も再投票を開始できる（役割は無い）', () => {
     // When
-    // 前提のガードは置かない。落ちていれば _unsafeUnwrap が throw する（ADR-0006 決定 6 と同じ扱い）
-    const next = nextRound(round, 'p2')._unsafeUnwrap();
+    const next = revote(revealedRound(), 'p2')._unsafeUnwrap();
     // Then
     expect(next.status).toBe('voting');
     expect(next.votes.size).toBe(0);
+  });
+});
+
+describe('nextItem（#93）', () => {
+  function revealedRound(): Round {
+    let round = setItem(createRound(), 'PROJ-1');
+    round = castVote(round, 'p1', five)._unsafeUnwrap();
+    return revealBy(round, 'p1', 1000)._unsafeUnwrap();
+  }
+
+  it('Given 公開済み / When nextItem 8 / Then voting・票は空・item は空・open の束が閉じて points 8', () => {
+    // When
+    const round = nextItem(revealedRound(), 'p1', 8)._unsafeUnwrap();
+    // Then
+    expect(round.status).toBe('voting');
+    expect(round.votes.size).toBe(0);
+    expect(round.item).toBe('');
+    expect(round.log.groups[0]!.open).toBe(false);
+    expect(round.log.groups[0]!.points).toBe(8);
+  });
+
+  it('Given 公開済み / When nextItem null / Then 束は閉じて points null', () => {
+    // When
+    const round = nextItem(revealedRound(), 'p1', null)._unsafeUnwrap();
+    // Then
+    expect(round.log.groups[0]!.open).toBe(false);
+    expect(round.log.groups[0]!.points).toBeNull();
+  });
+
+  it('Given voting 中 / When nextItem / Then not-revealed（op は next-item）', () => {
+    expect(nextItem(createRound(), 'p1', 5)._unsafeUnwrapErr()).toEqual({
+      code: 'not-revealed',
+      op: 'next-item',
+    });
+  });
+});
+
+describe('開票の記録（#93）', () => {
+  it('Given 票と item / When revealBy / Then log に at・item・票の枚数の行が足される', () => {
+    // Given
+    let round = setItem(createRound(), 'PROJ-1');
+    round = castVote(round, 'p1', five)._unsafeUnwrap();
+    round = castVote(round, 'p2', five)._unsafeUnwrap();
+    // When
+    const revealed = revealBy(round, 'p1', 1000)._unsafeUnwrap();
+    // Then
+    expect(revealed.log.groups[0]!.entries).toEqual([
+      { attempt: 1, at: 1000, item: 'PROJ-1', counts: [{ card: five, count: 2 }] },
+    ]);
+  });
+
+  it('Given 全員投票 / When applyAutoReveal / Then 1 行足される。立たなければ log は同じ参照', () => {
+    // Given
+    const voted = castVote(createRound(), 'p1', five)._unsafeUnwrap();
+    // When
+    const revealed = applyAutoReveal(voted, votersOf(1), 2000);
+    const held = applyAutoReveal(voted, votersOf(2), 2000);
+    // Then
+    expect(revealed.log.groups[0]!.entries).toHaveLength(1);
+    expect(revealed.log.groups[0]!.entries[0]!.at).toBe(2000);
+    expect(held.log).toBe(voted.log);
+  });
+});
+
+describe('setItem / setPoints（#93）', () => {
+  it('setItem は前後の空白を削る。status・votes・log は変わらない', () => {
+    // Given
+    const round = castVote(createRound(), 'p1', five)._unsafeUnwrap();
+    // When
+    const after = setItem(round, '  PROJ-1  ');
+    // Then
+    expect(after.item).toBe('PROJ-1');
+    expect(after.status).toBe(round.status);
+    expect(after.votes).toBe(round.votes);
+    expect(after.log).toBe(round.log);
+  });
+
+  it('setPoints は閉じた束のポイントを直し、setGroupPoints のエラーを RoundError として返す', () => {
+    // Given
+    let round = castVote(createRound(), 'p1', five)._unsafeUnwrap();
+    round = revealBy(round, 'p1', 1000)._unsafeUnwrap();
+    // Then: open の束
+    expect(setPoints(round, 1, 5)._unsafeUnwrapErr()).toEqual({ code: 'estimate-open' });
+    // When: 閉じる
+    const closed = nextItem(round, 'p1', 5)._unsafeUnwrap();
+    // Then
+    expect(setPoints(closed, 1, 8)._unsafeUnwrap().log.groups[0]!.points).toBe(8);
+    expect(setPoints(closed, 99, 8)._unsafeUnwrapErr()).toEqual({ code: 'estimate-not-found' });
   });
 });
 
@@ -199,7 +290,7 @@ describe('nextRound（FR-011）', () => {
  * 許可表が `["@tasuki/protocol"]` しか許していない・設計正本 D2）。
  */
 describe('Round が集約ルート（#95 S4a）', () => {
-  const votingRound = (): Round => ({ status: 'voting', votes: new Map() });
+  const votingRound = (): Round => ({ status: 'voting', votes: new Map(), item: '', log: EMPTY_ESTIMATE_LOG });
 
   it('投票は Round だけで完結する', () => {
     // Given: votingRound() の呼び出し自体が前提のラウンドを用意する
@@ -234,7 +325,7 @@ describe('Round が集約ルート（#95 S4a）', () => {
     ];
     // When / Then
     expect(shouldAutoReveal(round, voters)).toBe(false);
-    expect(applyAutoReveal(round, voters).status).toBe('voting');
+    expect(applyAutoReveal(round, voters, 1000).status).toBe('voting');
   });
 
   /**
@@ -253,7 +344,7 @@ describe('Round が集約ルート（#95 S4a）', () => {
 });
 
 describe('discardVote（退出した人の票を捨てる・R8）', () => {
-  const votingRound = (): Round => ({ status: 'voting', votes: new Map() });
+  const votingRound = (): Round => ({ status: 'voting', votes: new Map(), item: '', log: EMPTY_ESTIMATE_LOG });
 
   it('Given 票のある人 / When 退出する / Then その票だけが消える', () => {
     // Given: 2 人が投票している
@@ -283,7 +374,7 @@ describe('discardVote（退出した人の票を捨てる・R8）', () => {
   it('Given 公開済みのラウンド / When 票を捨てる / Then status は変わらない', () => {
     // Given: 公開済みのラウンド（集計の正しさは捨てた後の votes で決まる）
     const voted = castVote(votingRound(), 'p1', { kind: 'number', value: 3 })._unsafeUnwrap();
-    const revealed = revealBy(voted, 'p1')._unsafeUnwrap();
+    const revealed = revealBy(voted, 'p1', 1000)._unsafeUnwrap();
 
     // When
     const after = discardVote(revealed, 'p1');

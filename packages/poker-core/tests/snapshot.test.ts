@@ -112,7 +112,7 @@ describe('snapshotFor: 公開後（FR-006 / 契約 #5）', () => {
   it('revealed 後は全票が votes に載り、未投票者は含まれない', () => {
     // Given
     let round = castVote(createRound(), 'p-guest', five)._unsafeUnwrap();
-    round = revealBy(round, 'p-creator')._unsafeUnwrap();
+    round = revealBy(round, 'p-creator', 1000)._unsafeUnwrap();
     // When
     const snapshot = snapshotFor(round, 'p-creator');
     // Then

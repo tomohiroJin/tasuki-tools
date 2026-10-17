@@ -3,17 +3,30 @@
 // 名簿（誰が居るか・接続中か）は `@tasuki/room-core` が持ち、ここには持ち込まない。
 // voting → revealed の遷移と投票操作。すべて純関数 + Result 型（憲法原則 IV）
 import { err, ok, type Result } from 'neverthrow';
-import type { Card } from './deck.js';
+import type { Card, NumberCardValue } from './deck.js';
+import {
+  EMPTY_ESTIMATE_LOG,
+  closeOpenGroup,
+  recordReveal,
+  setGroupPoints,
+  type EstimateLog,
+} from './estimate-log.js';
 
 export interface Round {
   status: 'voting' | 'revealed';
   /** participantId → 選択カード */
   votes: Map<string, Card>;
+  /** いま見積もっているアイテム名（空なら未設定）。長さの上限は境界が見る */
+  item: string;
+  /** 開票ごとの記録（#93） */
+  log: EstimateLog;
 }
 
 export type RoundError =
   | { code: 'not-voting'; op: 'vote' | 'reveal' }
-  | { code: 'not-revealed'; op: 'next-round' };
+  | { code: 'not-revealed'; op: 'revote' | 'next-item' }
+  | { code: 'estimate-not-found' }
+  | { code: 'estimate-open' };
 
 /**
  * 名簿の断片（自動公開の判定に要るぶんだけ）。
@@ -36,7 +49,7 @@ export interface VoterView {
 
 /** 新しいラウンド（voting・票なし）。ルーム作成時にアプリ層が呼ぶ（FR-001）。 */
 export function createRound(): Round {
-  return { status: 'voting', votes: new Map() };
+  return { status: 'voting', votes: new Map(), item: '', log: EMPTY_ESTIMATE_LOG };
 }
 
 /** 投票（公開前は上書き可。FR-005〜007） */
@@ -62,9 +75,15 @@ export function shouldAutoReveal(round: Round, voters: readonly VoterView[]): bo
 }
 
 /** 条件成立時のみ revealed へ遷移させる（不成立ならそのまま返す） */
-export function applyAutoReveal(round: Round, voters: readonly VoterView[]): Round {
+export function applyAutoReveal(round: Round, voters: readonly VoterView[], now: number): Round {
   if (!shouldAutoReveal(round, voters)) return round;
-  return { ...round, status: 'revealed' };
+  return revealed(round, now);
+}
+
+/** revealed へ移し、その時点の item と票の枚数を記録へ 1 行足す（記録は公開の瞬間にだけ増える） */
+function revealed(round: Round, now: number): Round {
+  const log = recordReveal(round.log, round.item, [...round.votes.values()], now);
+  return { ...round, status: 'revealed', log };
 }
 
 /**
@@ -77,22 +96,56 @@ export function applyAutoReveal(round: Round, voters: readonly VoterView[]): Rou
  * 実体は `apps/tasuki-sync/src/application/poker-commit-room-action.ts`）として渡す都合上、
  * 引数の形を保つためだけに残る。
  */
-export function revealBy(round: Round, _actorId: string): Result<Round, RoundError> {
+export function revealBy(round: Round, _actorId: string, now: number): Result<Round, RoundError> {
   if (round.status !== 'voting') {
     return err({ code: 'not-voting', op: 'reveal' });
   }
-  return ok({ ...round, status: 'revealed' as const });
+  return ok(revealed(round, now));
 }
 
 /**
- * 再投票・次ラウンドの開始（FR-011）。ドメイン上は同一操作で、ラベルは UI の責務。
- * 全票をリセットして voting に戻す。在室確認をしない理由は {@link revealBy} と同じ。
+ * 再投票（FR-011）。全票をリセットして voting に戻す。item と記録（open の束）は残す
+ * —— 同じアイテムの 2 回目の開票が同じ束に足される。在室確認をしない理由は {@link revealBy} と同じ。
  */
-export function nextRound(round: Round, _actorId: string): Result<Round, RoundError> {
+export function revote(round: Round, _actorId: string): Result<Round, RoundError> {
   if (round.status !== 'revealed') {
-    return err({ code: 'not-revealed', op: 'next-round' });
+    return err({ code: 'not-revealed', op: 'revote' });
   }
-  return ok({ status: 'voting' as const, votes: new Map() });
+  return ok({ ...round, status: 'voting' as const, votes: new Map() });
+}
+
+/**
+ * 次のアイテムへ（#93）。open の束を閉じて points を付け、item を空にして voting に戻す。
+ * points が null なら「ポイントを付けずに次へ」。
+ */
+export function nextItem(
+  round: Round,
+  _actorId: string,
+  points: NumberCardValue | null,
+): Result<Round, RoundError> {
+  if (round.status !== 'revealed') {
+    return err({ code: 'not-revealed', op: 'next-item' });
+  }
+  return ok({
+    status: 'voting' as const,
+    votes: new Map(),
+    item: '',
+    log: closeOpenGroup(round.log, points),
+  });
+}
+
+/** アイテム名を設定する。前後の空白を削る。長さの上限は境界（ワイヤの検証）が見る */
+export function setItem(round: Round, item: string): Round {
+  return { ...round, item: item.trim() };
+}
+
+/** 閉じた束のポイントを直す（null で消す）。失敗は {@link setGroupPoints} のエラーをそのまま返す */
+export function setPoints(
+  round: Round,
+  groupId: number,
+  points: NumberCardValue | null,
+): Result<Round, RoundError> {
+  return setGroupPoints(round.log, groupId, points).map((log) => ({ ...round, log }));
 }
 
 /**
