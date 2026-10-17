@@ -1,4 +1,4 @@
-# 変異 295: view-duration-ignores-picks
+# 変異 305: view-duration-ignores-picks
 #
 # 検出を期待するテスト:
 #   - packages/roulette-core/tests/roulette-multi-pick.test.ts
@@ -6,8 +6,8 @@
 # #401 E3・spec §5.1。wire の durationMs が 1 人ぶんのまま。画面が 2 人目以降を待たずに止まる。
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m295-*.patch
-# 復元: git apply -R scripts/mutations/m295-*.patch
+#       git apply scripts/mutations/m305-*.patch
+# 復元: git apply -R scripts/mutations/m305-*.patch
 diff --git a/packages/roulette-core/src/roulette.ts b/packages/roulette-core/src/roulette.ts
 index 52a94d6..5e5841f 100644
 --- a/packages/roulette-core/src/roulette.ts

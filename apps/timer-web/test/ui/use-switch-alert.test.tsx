@@ -14,7 +14,7 @@ describe("useSwitchAlert（個人設定ゲート）", () => {
     // Given
     const play = vi.spyOn(sound, "playChime").mockImplementation(() => {});
     const { rerender } = renderHook(
-      ({ idx, name }) => useSwitchAlert(idx, name, { assertiveSwitch: false, notify: OFF }),
+      ({ idx, name }) => useSwitchAlert(idx, name, { assertiveSwitch: false, notify: OFF, suppressed: false }),
       { initialProps: { idx: 0, name: "Alice" } },
     );
     // When
@@ -27,7 +27,7 @@ describe("useSwitchAlert（個人設定ゲート）", () => {
     // Given
     const play = vi.spyOn(sound, "playChime").mockImplementation(() => {});
     const { rerender } = renderHook(
-      ({ idx, name }) => useSwitchAlert(idx, name, { assertiveSwitch: false, notify: ON }),
+      ({ idx, name }) => useSwitchAlert(idx, name, { assertiveSwitch: false, notify: ON, suppressed: false }),
       { initialProps: { idx: 0, name: "Alice" } },
     );
     // When
@@ -41,7 +41,7 @@ describe("useSwitchAlert（個人設定ゲート）", () => {
     vi.spyOn(sound, "playChime").mockImplementation(() => {});
     vi.spyOn(notify, "notifyDriverChange").mockImplementation(() => {});
     const { result, rerender } = renderHook(
-      ({ idx, name }) => useSwitchAlert(idx, name, { assertiveSwitch: true, notify: OFF }),
+      ({ idx, name }) => useSwitchAlert(idx, name, { assertiveSwitch: true, notify: OFF, suppressed: false }),
       { initialProps: { idx: 0, name: "Alice" } },
     );
     // When

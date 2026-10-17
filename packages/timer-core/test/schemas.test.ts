@@ -174,6 +174,31 @@ describe("timer のお題を撤去した", () => {
     }
   });
 
+  it("Given 経過時間に周回の値 / When config.set を検証する / Then 落ちる", () => {
+    // Given
+    const cmd = {
+      command: "config.set",
+      config: { intervalMinutes: 5, break: { trigger: "elapsed", every: 2, mode: "auto" } },
+    };
+    // When
+    const r = v.safeParse(CommandSchema, cmd);
+    // Then
+    expect(r.success).toBe(false);
+  });
+
+  it("Given 正しい休憩の設定 / When room.create を検証する / Then 通る", () => {
+    // Given
+    const cmd = {
+      command: "room.create",
+      displayName: "a",
+      config: { intervalMinutes: 5, break: { trigger: "rounds", every: 2, mode: "auto" } },
+    };
+    // When
+    const r = v.safeParse(CommandSchema, cmd);
+    // Then
+    expect(r.success).toBe(true);
+  });
+
   it("お題のコマンドは境界で拒む", () => {
     // Given: 古い timer が送っていたお題のコマンド
     const legacyCommands = [
@@ -230,14 +255,16 @@ describe("ServerMsgSchema signal: notice（実行者の通知）", () => {
     actorParticipantId: "pid-1",
   };
 
-  it("4つの action すべてが受理される", () => {
-    // Given（対象は下記4種の action）
+  it("6つの action すべてが受理される", () => {
+    // Given（対象は下記6種の action。休憩の 2 つは #402）
     // When / Then
     for (const action of [
       "participant-removed",
       "session-aborted",
       "session-reset",
       "session-completed",
+      "break-started",
+      "break-ended",
     ]) {
       const result = v.safeParse(ServerMsgSchema, { ...base, action });
       expect(result.success, `action=${action}`).toBe(true);
@@ -486,5 +513,104 @@ describe("RoomSchema: config.members を落とした（#294）", () => {
     if (parsed.success && parsed.output.command === "config.set") {
       expect("members" in parsed.output.config).toBe(false);
     }
+  });
+});
+
+/** @requirements #402 */
+describe("休憩の wire", () => {
+  it("Given session.break が無い snapshot（古いサーバー） / When 検証する / Then 通り、break は無いまま", () => {
+    // Given
+    const room = validRoom();
+    // When
+    const r = v.safeParse(RoomSchema, room);
+    // Then
+    expect(r.success).toBe(true);
+    expect(r.success && r.output.session.break).toBeUndefined();
+  });
+
+  it("Given 休憩中の snapshot / When 検証する / Then 通り、break が残る", () => {
+    // Given
+    const room = validRoom();
+    // When
+    const r = v.safeParse(RoomSchema, {
+      ...room,
+      session: { ...room.session, break: { since: 1000, suggestedAtSwitches: null } },
+    });
+    // Then
+    expect(r.success).toBe(true);
+    expect(r.success && r.output.session.break).toEqual({ since: 1000, suggestedAtSwitches: null });
+  });
+
+  it("Given 休憩の提案を知らせた snapshot / When 検証する / Then 通る", () => {
+    // Given
+    const room = validRoom();
+    // When
+    const r = v.safeParse(RoomSchema, {
+      ...room,
+      session: { ...room.session, break: { since: null, suggestedAtSwitches: 3 } },
+    });
+    // Then
+    expect(r.success).toBe(true);
+  });
+
+  // 知らせた時点の稼働の累計（PR #416 の再レビュー）。帯の出し入れと知らせの契機に使う。旧サーバーは載せないので任意
+  it("Given 知らせた時点の稼働の累計を載せた snapshot / When 検証する / Then 通り、値が残る", () => {
+    // Given
+    const room = validRoom();
+    // When
+    const r = v.safeParse(RoomSchema, {
+      ...room,
+      session: { ...room.session, break: { since: null, suggestedAtSwitches: 0, suggestedAtElapsedMs: 1_800_000 } },
+    });
+    // Then
+    expect(r.success && r.output.session.break).toEqual({ since: null, suggestedAtSwitches: 0, suggestedAtElapsedMs: 1_800_000 });
+  });
+
+  it("Given suggestedAtElapsedMs が負 / When 検証する / Then 落ちる", () => {
+    // Given
+    const room = validRoom();
+    // When
+    const r = v.safeParse(RoomSchema, {
+      ...room,
+      session: { ...room.session, break: { since: null, suggestedAtSwitches: 0, suggestedAtElapsedMs: -1 } },
+    });
+    // Then
+    expect(r.success).toBe(false);
+  });
+
+  it("Given suggestedAtSwitches が負 / When 検証する / Then 落ちる", () => {
+    // Given
+    const room = validRoom();
+    // When
+    const r = v.safeParse(RoomSchema, {
+      ...room,
+      session: { ...room.session, break: { since: null, suggestedAtSwitches: -1 } },
+    });
+    // Then
+    expect(r.success).toBe(false);
+  });
+
+  it("Given 休憩の開始の notice / When 検証する / Then 通る", () => {
+    // Given
+    const msg = {
+      type: "signal",
+      signal: "notice",
+      action: "break-started",
+      actorName: "a",
+      actorParticipantId: "p1",
+    };
+    // When
+    const r = v.safeParse(ServerMsgSchema, msg);
+    // Then
+    expect(r.success).toBe(true);
+  });
+
+  it("Given suggest-break シグナル / When 検証する / Then 落ちる", () => {
+    // Given
+    const msg = { type: "signal", signal: "suggest-break", rounds: 1 };
+    // When
+    const r = v.safeParse(ServerMsgSchema, msg);
+    // Then
+    expect(r.success).toBe(false);
   });
 });

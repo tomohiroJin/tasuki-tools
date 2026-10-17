@@ -12,6 +12,13 @@ import { useEffect, useRef, type RefObject } from "react";
 const FOCUSABLE_SELECTOR =
   'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
+/**
+ * 開いているモーダルのトラップを開いた順に積む。focusin で中へ戻すのは**一番上（最後に開いた）だけ**。
+ * 2 つのモーダルが同時に開いているとき（確認ダイアログが開いたまま休憩の覆いが出る・#402）、
+ * 両方が「外へ移ったフォーカスを自分の中へ戻す」と、互いに奪い合って無限再帰になる。
+ */
+const modalStack: object[] = [];
+
 interface UseFocusTrapParams {
   /** モーダルが開いているか */
   open: boolean;
@@ -85,17 +92,26 @@ export function useFocusTrap({
 
     // モーダルのとき、フォーカスがコンテナの外へ移ったら中へ戻す。Tab の折り返しだけでは、背景をクリックしてから
     // Tab を押すと外の要素へ進めてしまう（onClose の再生成でフォーカスが引き戻されていた間は隠れていた）。
+    const token = {};
     const onFocusIn = (e: FocusEvent) => {
+      if (modalStack[modalStack.length - 1] !== token) return;
       const container = containerRef.current;
       if (!container || !(e.target instanceof Node) || container.contains(e.target)) return;
       focusInitial();
     };
 
     document.addEventListener("keydown", onKey);
-    if (modal) document.addEventListener("focusin", onFocusIn);
+    if (modal) {
+      modalStack.push(token);
+      document.addEventListener("focusin", onFocusIn);
+    }
     return () => {
       document.removeEventListener("keydown", onKey);
-      if (modal) document.removeEventListener("focusin", onFocusIn);
+      if (modal) {
+        document.removeEventListener("focusin", onFocusIn);
+        const i = modalStack.indexOf(token);
+        if (i >= 0) modalStack.splice(i, 1);
+      }
       previouslyFocused?.focus?.();
     };
   }, [open, containerRef, initialFocusRef, modal]);

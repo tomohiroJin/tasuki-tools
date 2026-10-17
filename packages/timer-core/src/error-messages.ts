@@ -56,6 +56,9 @@ export const ERROR_MESSAGES: Record<string, string> = {
   // 空の輪で時計を走らせる操作の拒否（#376）。通常の経路からは届かないので短く。
   // 字は書体の base 層に収める（`apps/timer-web/test/ui/topic-copy-fits-font-base.test.ts`。「誰」「居」は外れる）
   EmptyRotation: "ドライバーがいません。",
+  // 休憩（#402）。「休」「憩」は書体の base 層に無いが、休憩を使うルームでしか届かない（設計 D9）。
+  OnBreak: "休憩中はこの操作はできません。",
+  NotOnBreak: "いまは休憩中ではありません。",
   DuplicateName: "その名前はすでに使われています。",
   EmptyName: "名前を入力してください。",
   MemberLimitExceeded: "メンバーが上限に達しています。",
@@ -147,6 +150,11 @@ export const ERROR_MESSAGES: Record<string, string> = {
   // （`aggregate.ts` の `nextEligibleIndex` が参照する、輪の所属とは独立したフラグ。
   //   `evolve.ts` はその関数を呼ぶ側である）。
   NOT_IN_ROTATION: "ドライバーの輪に加わっていない相手は指名できません。先にドライバーへ加えてください。",
+  // ─── 休憩と設定（#402） ───
+  NOT_IN_SESSION: "セッション中だけの操作です。",
+  CONFIG_LOCKED_IN_SESSION: "設定はセッションの開始前に変えてください。",
+  // 条件「なし」のルームの break.start。「休」「憩」は書体の base 層に無いので使わない（#402 設計 D9）。
+  BREAK_DISABLED: "このルームの設定では使えない操作です。",
   // ─── ルームへの参加 ───
   // room.join（参加）の試行が閾値を超えたとき。
   JOIN_RATE_LIMITED: "参加の試行が多すぎます。しばらく待ってから再試行してください。",

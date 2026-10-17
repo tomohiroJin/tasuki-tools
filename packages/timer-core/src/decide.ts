@@ -9,10 +9,12 @@ import {
   VALID_INTERVAL_MINUTES,
   MAX_MEMBERS,
   isPermutation,
+  isOnBreak,
   isSeatIndex,
   nextDriverAfterRemoval,
   nextEligibleIndex,
   rotationEntryId,
+  sessionHasStarted,
 } from "./aggregate.js";
 import type { DomainEvent } from "./events.js";
 import type { DomainError } from "./errors.js";
@@ -63,6 +65,21 @@ export function decide(
   agg: Aggregate,
   now: number,
 ): Result<DomainEvent[], DomainError> {
+  // 休憩中に拒むのは、時計を動かす操作（session.act・driver.assign）と二重の break.start である
+  // （#402 設計 §3.4）。拒む対象はコマンドの種類で決める（session.act の中の操作の種類は列挙しない）。
+  // 休憩を畳むのは break.end のほか、完成・中断・ロビーへの phase.set・session.reset（集約を
+  // 作り直すので休憩も初期に戻る。設計 §3.4 の裁定）で、これらは拒まない。
+  // 空の輪の判定（decideSessionAct）より先に来るので、空の輪で休憩中なら OnBreak が先に返る。
+  if (
+    isOnBreak(agg.session) &&
+    (cmd.command === "session.act" || cmd.command === "driver.assign" || cmd.command === "break.start")
+  ) {
+    return err({ type: "OnBreak" });
+  }
+  if (!isOnBreak(agg.session) && cmd.command === "break.end") {
+    return err({ type: "NotOnBreak" });
+  }
+
   switch (cmd.command) {
     case "session.act":
       return decideSessionAct(cmd.action, agg, now, cmd.ineligible);
@@ -98,6 +115,11 @@ export function decide(
       return ok([{ type: "HandoffNoteSet", text: cmd.text, now }]);
 
     case "break.start":
+      // 開始前（時計が一度も走っていない）には休憩を作らせない（PR #416 のレビュー）。通すと break.end が
+      // SessionStarted を経ずに時計を走らせ、休憩の基準も開始の送り分け（timer-web の session-start.ts）も素通りする。
+      if (!sessionHasStarted(agg)) {
+        return err({ type: "PhaseConflict", currentPhase: "stopped", requiredPhase: "session" });
+      }
       return ok([{ type: "BreakStarted", now }]);
 
     case "break.end":
@@ -402,7 +424,7 @@ function decideConfigSet(
   const validatedPartial: Partial<TimerConfig> = {
     ...(partial.intervalMinutes !== undefined && { intervalMinutes: partial.intervalMinutes }),
     ...(partial.navigatorEnabled !== undefined && { navigatorEnabled: partial.navigatorEnabled }),
-    ...(partial.breakEveryRotations !== undefined && { breakEveryRotations: partial.breakEveryRotations }),
+    ...(partial.break !== undefined && { break: partial.break }),
     ...(partial.assertiveSwitch !== undefined && { assertiveSwitch: partial.assertiveSwitch }),
   };
 

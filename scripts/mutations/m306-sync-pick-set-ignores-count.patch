@@ -1,4 +1,4 @@
-# 変異 296: sync-pick-set-ignores-count
+# 変異 306: sync-pick-set-ignores-count
 #
 # 検出を期待するテスト:
 #   - apps/tasuki-sync/test/roulette-handlers.test.ts
@@ -6,8 +6,8 @@
 # #401 E1・spec M2。同期サーバーが送られた人数を使わない。人数を変えても全員の画面が 1 人のまま。
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m296-*.patch
-# 復元: git apply -R scripts/mutations/m296-*.patch
+#       git apply scripts/mutations/m306-*.patch
+# 復元: git apply -R scripts/mutations/m306-*.patch
 diff --git a/apps/tasuki-sync/src/application/roulette-handlers.ts b/apps/tasuki-sync/src/application/roulette-handlers.ts
 index a479b13..03a09ae 100644
 --- a/apps/tasuki-sync/src/application/roulette-handlers.ts

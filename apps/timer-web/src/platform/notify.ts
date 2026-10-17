@@ -44,3 +44,15 @@ export function notifyDriverChange(driverName: string): void {
     /* 無視 */
   }
 }
+
+/** 休憩の知らせ（#402）。背面タブ時のみ出す。 */
+export function notifyBreak(title: string): void {
+  if (typeof Notification === "undefined") return;
+  if (Notification.permission !== "granted") return;
+  if (typeof document === "undefined" || document.hidden !== true) return;
+  try {
+    new Notification(title, { icon: "/icon.png" });
+  } catch {
+    /* 無視 */
+  }
+}

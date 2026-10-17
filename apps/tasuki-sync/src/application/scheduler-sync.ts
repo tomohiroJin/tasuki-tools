@@ -10,6 +10,7 @@ import { advanceDriver, secondsLeft, type TimerState } from "@tasuki/timer-core"
 import type { Broadcaster } from "../ports/broadcaster.js";
 import type { WallClock } from "../ports/wall-clock.js";
 import type { RoomState } from "./apply-room-level-event.js";
+import { maybeBreakAfterSwitch } from "./break-after-switch.js";
 import type { Scheduler } from "./schedule.js";
 import { computeIneligibleIndices, rotationDisplayNames } from "./timer-snapshot-dto.js";
 
@@ -35,15 +36,8 @@ export function createScheduleSync(deps: ScheduleSyncDeps): ScheduleSync {
     if (!scheduler) return;
     // 稼働中かつ完成フェーズに入っていない場合のみ次回交代を予約する。
     //
-    // かつてここには `!room.onBreak` という到達不能なガードがあった（Issue #28・T080・FR-119）。
-    // v2.10 で休憩機能の UI とコマンドを撤去した際、`buildDomainCommand` の switch から
-    // `break.start` / `break.end` の case が消え、以後この 2 コマンドは `default:` に落ちて
-    // `UNKNOWN_COMMAND` になる。つまり `BreakStarted` イベントは生成されず、
-    // **`room.onBreak` が true になる経路が存在しない**ため `!room.onBreak` は常に真だった。
-    //
-    // wire スキーマ（`schemas.ts` の `break.start` / `break.end`）と `Room.onBreak`
-    // フィールドは**残す**（FR-089: 受理側の後方互換 / snapshot の形を変えない）。
-    // 撤去したのは、この到達しない条件だけである。
+    // 休憩中は時計が止まる（`evolveBreakStarted`）ので、`running` を見るだけで
+    // 休憩中の予約は外れる（#402）。
     if (room.clock.running && room.phase !== "celebration") {
       const left = secondsLeft(room.clock, clock.now());
       scheduler.schedule(room.code, left, autoSwitch);
@@ -61,7 +55,9 @@ export function createScheduleSync(deps: ScheduleSyncDeps): ScheduleSync {
     const now = clock.now();
     const agg = { session: timer.session, clock: timer.clock };
     const newAgg = advanceDriver(agg, computeIneligibleIndices(membership, timer), now);
-    const updated: TimerState = { ...timer, session: newAgg.session, clock: newAgg.clock };
+    const switched: TimerState = { ...timer, session: newAgg.session, clock: newAgg.clock };
+    // 交代のあとに休憩の条件を見る。入れば running が偽になり、reconcileSchedule が予約を解除する（#402）
+    const updated = maybeBreakAfterSwitch(timer, { membership, timer: switched }, now).timer;
     commit({ membership, timer: updated });
     broadcaster.broadcastSignal(updated.code, {
       type: "signal",

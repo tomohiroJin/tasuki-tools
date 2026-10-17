@@ -1,4 +1,4 @@
-# 変異 291: draw-no-fallback
+# 変異 301: draw-no-fallback
 #
 # 検出を期待するテスト:
 #   - packages/roulette-core/tests/draw-picks.test.ts
@@ -6,8 +6,8 @@
 # #401 E4・spec M8。直前の回転の人を除くと候補が空になる回の落とし先を外す。入る人が少ないと回せなくなる（INVALID_RANDOM）。
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m291-*.patch
-# 復元: git apply -R scripts/mutations/m291-*.patch
+#       git apply scripts/mutations/m301-*.patch
+# 復元: git apply -R scripts/mutations/m301-*.patch
 diff --git a/packages/roulette-core/src/draw.ts b/packages/roulette-core/src/draw.ts
 index d4d0533..7617520 100644
 --- a/packages/roulette-core/src/draw.ts

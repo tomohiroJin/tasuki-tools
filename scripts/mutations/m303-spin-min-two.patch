@@ -1,4 +1,4 @@
-# 変異 293: spin-min-two
+# 変異 303: spin-min-two
 #
 # 検出を期待するテスト:
 #   - packages/roulette-core/tests/roulette-multi-pick.test.ts
@@ -6,8 +6,8 @@
 # #401 E5・spec M5。回すの下限が人数を見ず 2 人のまま。入る人がちょうど k 人で全員が選ばれる。
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m293-*.patch
-# 復元: git apply -R scripts/mutations/m293-*.patch
+#       git apply scripts/mutations/m303-*.patch
+# 復元: git apply -R scripts/mutations/m303-*.patch
 diff --git a/packages/roulette-core/src/roulette.ts b/packages/roulette-core/src/roulette.ts
 index 52a94d6..1af73ee 100644
 --- a/packages/roulette-core/src/roulette.ts

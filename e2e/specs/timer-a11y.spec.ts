@@ -18,6 +18,7 @@ import type { Page } from '@playwright/test';
 import { expect, test, type Peer } from '../fixtures/test';
 import { createRoom, joinAsDriver, lobbyRotationRow } from '../support/timer';
 import { expectFieldsAtLeast16px, expectFocusVisibleOnTab, expectPickerInPage, expectReadable, pairKey, resolveColors, scanContrast } from '../support/a11y';
+import { describePaint, groundLayers, sampleInPage } from '../support/contrast';
 import { joinTopicTool, setTopic } from '../support/topic';
 
 const HOST = 'a11y-a';
@@ -285,6 +286,48 @@ test.describe('文字が背景に対して読める（WCAG AA）', () => {
     await expect(confirm).toBeFocused();
     const ringed = await confirm.evaluate((el) => getComputedStyle(el).outlineStyle !== 'none');
     expect(ringed, '朱の枠の確定にフォーカスの輪郭が出ていない').toBe(true);
+  });
+});
+
+test.describe('休憩中の画面の文字が背景に対して読める（WCAG AA）', () => {
+  test('Given 休憩の覆いが出ている 2 人のセッション / When 測る / Then すべて AA を満たす', async ({
+    page,
+    openPeer,
+  }) => {
+    // Given: 経過時間の休憩を設定して始め、休憩に入る（覆いは文字・ボタンを持つ別の面）
+    const code = await createRoom(page, HOST);
+    const guest = await openPeer('a11y-break');
+    await joinAsDriver(guest.page, code, GUESTS[0]);
+    await expect(lobbyRotationRow(page, GUESTS[0], 2)).toBeVisible();
+    await page.getByText('詳細設定').click();
+    await page.getByRole('group', { name: '休憩の条件' }).getByRole('button', { name: '経過時間' }).click();
+    await page.getByRole('button', { name: 'セッションを開始' }).click();
+    await page.getByRole('button', { name: /休憩する/ }).click();
+    const overlay = page.getByRole('dialog', { name: '休憩中' });
+    await expect(overlay).toBeVisible();
+
+    // When: 覆いの見出しと「休憩を終える」の字と地を、走査と同じ計算で先に読んでから走査する
+    const targets = {
+      見出し: overlay.locator('h1:visible, h2:visible, h3:visible, p:visible, span:visible').filter({ hasText: '休憩中' }).first(),
+      '「休憩を終える」': overlay.getByRole('button', { name: '休憩を終える' }),
+    };
+    const expectedKeys: [string, string][] = [];
+    for (const [part, locator] of Object.entries(targets)) {
+      const sample = await locator.evaluate(sampleInPage);
+      expectedKeys.push([part, pairKey(sample.ink.color, groundLayers(sample.backgrounds).map(describePaint).join(' ← '))]);
+    }
+    const scan = await scanContrast(page, 3);
+
+    // Then: すべて AA
+    expectReadable(scan, 3, []);
+    // Then: **覆いの中の文字を実際に測った。** 件数の下限は覆いの外の要素だけでも満たせるし、
+    //   字の色だけの照合は覆いの外に同じ色があれば通る。そこで覆いの見出し・「休憩を終える」について、
+    //   走査と同じ計算（`sampleInPage` → `groundLayers`）で**字と地の両方**を読み、
+    //   `pairKey` と完全に一致する組が走査にあることを名指しで固定する。
+    //   覆いの文字が走査から外れると、この 2 つの照合が赤になる
+    for (const [part, key] of expectedKeys) {
+      expect(scan.pairs.has(key), `覆いの${part}の組を測っていない（${key}）`).toBe(true);
+    }
   });
 });
 

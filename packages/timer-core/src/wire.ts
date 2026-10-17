@@ -110,12 +110,27 @@ export interface Room {
      * 捨てられる。無いときの画面はナビを出さない（分からない、と同じ扱い）。
      */
     previousDriverIndex?: number | null;
+    /**
+     * 休憩の状態（#402）。`since` は休憩中なら始めた時刻、そうでなければ `null`。
+     * `suggestedAtSwitches` は休憩を勧めた交代の回数、`suggestedAtElapsedMs` は勧めた時点の稼働の累計。
+     * 帯は両方が今の値（`totalSwitches`・`clock.accumulatedElapsedMs`）と一致する間だけ出る。現状維持の交代は
+     * 回数を増やさないが累計は確定するので、累計も見ないと帯が消えない（PR #416 の再レビュー）。
+     * `suggestedAtElapsedMs` は後から足したので**それ自体も任意**。無ければ画面は帯を出さない。
+     *
+     * **任意項目である**（`previousDriverIndex` と同じ判断）。画面が先に配られる窓で旧サーバーの
+     * snapshot を捨てないため。無いときの画面は休憩中でないとみなす。
+     */
+    break?: { since: number | null; suggestedAtSwitches: number | null; suggestedAtElapsedMs?: number | null };
   };
   clock: ServerClock;
   phase: RoomPhase;
   participants: Participant[];
   sessionRecords: CompletionRecord[];
   handoffNote: string;
+  /**
+   * #402 で状態は集約の `session.break` へ移った。この項目は `session.break.since !== null`
+   * から導いて載せる。古い画面の `RoomSchema` が必須で読むので、wire からは消さない。
+   */
   onBreak: boolean;
   /** パスフレーズ保護中か（平文は載せない・サーバ側 Map で保持・R4-2）。 */
   passphraseProtected?: boolean;
@@ -153,3 +168,9 @@ export interface Room {
 // パースは今までどおり通る**（窓 2 = 新しい画面 × 旧いサーバー。`deploy.sh timer` は
 // 画面を先に配るため、この窓は順序では避けられない）。載っていた値は出力に残らず、
 // 新しい画面はそれを読まない。
+//
+// ⚠ かつて `SessionConfig` には `breakEveryRotations`（何周ごとに休憩を知らせるか）があった。
+// **#402 で落とした。** 休憩の設定は `break`（方針の種類と値）へ置き換わり、同じ数値の意味を
+// 変えるのではなく名前ごと改めた。ルームの設定はサーバーのメモリにしか無く、配布でルームが
+// 消えるので旧値の引き継ぎは要らない。`RoomSchema` は非 strict の `v.object` なので、
+// この項目を載せた古い snapshot のパースは今までどおり通る（載っていた値は出力に残らない）。

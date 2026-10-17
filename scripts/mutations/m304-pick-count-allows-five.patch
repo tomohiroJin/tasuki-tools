@@ -1,4 +1,4 @@
-# 変異 294: pick-count-allows-five
+# 変異 304: pick-count-allows-five
 #
 # 検出を期待するテスト:
 #   - packages/roulette-core/tests/roulette-multi-pick.test.ts
@@ -6,8 +6,8 @@
 # #401 E2・spec M5。選ぶ人数の上限を 1 つ緩める。札の 4 行に収まらない人数が通る。
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m294-*.patch
-# 復元: git apply -R scripts/mutations/m294-*.patch
+#       git apply scripts/mutations/m304-*.patch
+# 復元: git apply -R scripts/mutations/m304-*.patch
 diff --git a/packages/roulette-core/src/roulette.ts b/packages/roulette-core/src/roulette.ts
 index 52a94d6..6b7b11b 100644
 --- a/packages/roulette-core/src/roulette.ts

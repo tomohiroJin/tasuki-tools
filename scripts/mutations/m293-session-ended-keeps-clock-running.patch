@@ -1,0 +1,22 @@
+# 変異 293: evolveSessionEnded が時計を止めない
+#
+# 検出を期待するテスト:
+#   - packages/timer-core/test/evolve.test.ts
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m293-*.patch
+# 復元: git apply -R scripts/mutations/m293-*.patch
+#
+# #402。完成・中断のあとも時計が走り、自動交代が予約される。
+diff --git a/packages/timer-core/src/evolve.ts b/packages/timer-core/src/evolve.ts
+index 836daf1b..e6f55210 100644
+--- a/packages/timer-core/src/evolve.ts
++++ b/packages/timer-core/src/evolve.ts
+@@ -349,7 +349,7 @@ function evolveBreakSuggested(agg: Aggregate): Aggregate {
+ 
+ /** 完成・中断（#402 設計 §3.5）。時計を止め、休憩を畳む。それまでは完成後のロビーでも時計が走り、自動交代が予約されていた */
+ function evolveSessionEnded(agg: Aggregate, now: number): Aggregate {
+-  return { session: { ...agg.session, break: INITIAL_BREAK_STATE }, clock: freezeRunningClock(agg.clock, now) };
++  return { session: { ...agg.session, break: INITIAL_BREAK_STATE }, clock: agg.clock };
+ }
+ 
+ /**
