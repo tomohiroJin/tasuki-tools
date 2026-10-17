@@ -1,0 +1,23 @@
+# 変異 313: core-auto-reveal-skips-log
+#
+# 検出を期待するテスト:
+#   - packages/poker-core/tests/round.test.ts
+#
+# #93。applyAutoReveal が記録を足さない（手動公開だけ記録される）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m313-*.patch
+# 復元: git apply -R scripts/mutations/m313-*.patch
+diff --git a/packages/poker-core/src/round.ts b/packages/poker-core/src/round.ts
+index 4255982d..27a6e471 100644
+--- a/packages/poker-core/src/round.ts
++++ b/packages/poker-core/src/round.ts
+@@ -77,7 +77,7 @@ export function shouldAutoReveal(round: Round, voters: readonly VoterView[]): bo
+ /** 条件成立時のみ revealed へ遷移させる（不成立ならそのまま返す） */
+ export function applyAutoReveal(round: Round, voters: readonly VoterView[], now: number): Round {
+   if (!shouldAutoReveal(round, voters)) return round;
+-  return revealed(round, now);
++  return { ...round, status: 'revealed' };
+ }
+ 
+ /** revealed へ移し、その時点の item と票の枚数を記録へ 1 行足す（記録は公開の瞬間にだけ増える） */

@@ -1,0 +1,23 @@
+# 変異 311: core-record-appends-to-closed-group
+#
+# 検出を期待するテスト:
+#   - packages/poker-core/tests/estimate-log.test.ts
+#
+# #93。recordReveal が閉じた束のあとでも末尾の束に行を足す。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m311-*.patch
+# 復元: git apply -R scripts/mutations/m311-*.patch
+diff --git a/packages/poker-core/src/estimate-log.ts b/packages/poker-core/src/estimate-log.ts
+index a6ea6993..9375603d 100644
+--- a/packages/poker-core/src/estimate-log.ts
++++ b/packages/poker-core/src/estimate-log.ts
+@@ -83,7 +83,7 @@ export function recordReveal(
+   const counts = countCards(cards);
+   let nextId = log.nextId;
+   let groups: EstimateGroup[];
+-  if (last?.open) {
++  if (last) {
+     const entry: EstimateEntry = {
+       attempt: (last.entries[last.entries.length - 1]?.attempt ?? 0) + 1,
+       at,

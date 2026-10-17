@@ -85,8 +85,12 @@ Room から受信者別に生成する読み取り専用ビュー（research R1�
                       └────────── 再投票 / 次ラウンド（FR-011, ホストのみ）
 ```
 
+- **見積もりの記録（#93）**: `Round` は `item`（いま見積もっているアイテム名）と `log`（束の配列。`packages/poker-core/src/estimate-log.ts`）を持つ。開票（手動・自動）の瞬間にだけ `log` へ 1 行（時刻・N 回め・アイテム名・カードの枚数。参加者は持たない）が足される
+  - **revote**（revealed → voting）: 票を消す。`item` と開いた束は残る（次の開票は同じ束の N 回め）
+  - **next-item**（revealed → voting）: 開いた束を閉じてポイントを付け（任意）、`item` を空にする
+  - 閉じた束のポイントは `set-points` で状態遷移と無関係にいつでも直せる（開いた束は不可）
 - **voting 中に許可される操作**: vote（上書き可）, join, leave, host-reveal
-- **revealed 中に許可される操作**: join（閲覧）, leave, next-round / revote（ホストのみ）
+- **revealed 中に許可される操作**: join（閲覧）, leave, revote / next-item（在室者なら誰でも。古い `next-round` は revote として受ける）
 - **revealed 中の vote は拒否**（エラー応答）
 - 自動公開判定は「接続中の全参加者が投票済み」（途中参加者を含む。Clarification Q3）。
   voting 中の join / leave / 切断のたびに再評価する（切断で全員投票が成立するケースを含む、US4-AS1）

@@ -1,0 +1,23 @@
+# 変異 312: core-trim-renumbers-groups
+#
+# 検出を期待するテスト:
+#   - packages/poker-core/tests/estimate-log.test.ts
+#
+# #93。上限で落とすときに束の ID を振り直す（画面の束の同一性が揺れる）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m312-*.patch
+# 復元: git apply -R scripts/mutations/m312-*.patch
+diff --git a/packages/poker-core/src/estimate-log.ts b/packages/poker-core/src/estimate-log.ts
+index a6ea6993..f1af6902 100644
+--- a/packages/poker-core/src/estimate-log.ts
++++ b/packages/poker-core/src/estimate-log.ts
+@@ -69,7 +69,7 @@ function trimToLimit(groups: EstimateGroup[]): EstimateGroup[] {
+     rest = entries.length === 0 ? tail : [{ ...head!, entries }, ...tail];
+     total -= 1;
+   }
+-  return rest;
++  return rest.map((g, i) => ({ ...g, id: i + 1 }));
+ }
+ 
+ /** 開票を 1 行足す。末尾の束が open ならそこへ、無ければ新しい束を作る */

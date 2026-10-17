@@ -65,16 +65,51 @@
 - 前提: join 済み・round.status = `voting`。**在室者なら誰でも実行できる**（#95 S3。
   以前はホストのみで、非ホストへ `not-host` を返していた）。revealed 中は `error`（`not-voting`）
 
-### next-round — 再投票／次ラウンド開始（FR-011）
+### set-item — アイテム名の設定（#93）
+
+```json
+{ "type": "set-item", "item": "PROJ-1" }
+```
+
+- 前提: join 済み。**voting 中でも revealed 中でも受ける**。`item` は 120 文字まで（`MAX_ESTIMATE_ITEM`）。前後の空白は削られ、空文字は「名前なし」
+- 全員の `room-state.estimate.item` が変わる
+
+### revote — 再投票（FR-011・#93）
+
+```json
+{ "type": "revote" }
+```
+
+- 前提: join 済み・round.status = `revealed`。全票をリセットして voting へ戻す。**アイテム名と開いた束は残る**（次の開票は同じ束の N 回め）
+- 在室者なら誰でも実行できる（#95 S3）。違反: `error`（`not-revealed`）
+
+### next-item — 次のアイテムへ（#93）
+
+```json
+{ "type": "next-item", "points": 5 }
+```
+
+- 前提: join 済み・round.status = `revealed`。開いた束を閉じて `points` を付け、アイテム名を空にして voting へ戻す
+- `points` はデッキの数字のカードの値、または `null`（ポイントを付けずに次へ）
+- 違反: `error`（`not-revealed`）
+
+### set-points — 閉じた束のポイントの入れ直し（#93）
+
+```json
+{ "type": "set-points", "groupId": 3, "points": 8 }
+```
+
+- 前提: join 済み。在室者なら誰でも設定・変更・消去（`null`）できる。同時なら後に届いた方が勝つ
+- 違反: `error`（`estimate-not-found`＝束が記録に無い、`estimate-open`＝まだ閉じていない束）。状態は変わらない
+
+### next-round — 古いクライアント向けの互換（FR-011・#93 で意味を整理）
 
 ```json
 { "type": "next-round" }
 ```
 
-- 前提: join 済み・round.status = `revealed`。全票をリセットし voting へ
-  （再投票と次ラウンドはドメイン上同一操作。ラベルは UI の責務）。
-  **在室者なら誰でも実行できる**（#95 S3）
-- 違反: `error`（`not-revealed`）
+- **再投票（`revote`）として受ける**。全票をリセットして voting へ戻し、アイテム名と開いた束は残す。新しい画面は送らない（配布の途中で古い画面が残っても壊れないために残す）
+- 前提と違反は `revote` と同じ（`not-revealed`）。**在室者なら誰でも実行できる**（#95 S3）
 
 ## S→C メッセージ
 
@@ -129,6 +164,25 @@ revealed 後の例:
 - `stats.average`: 数値票の算術平均（生値）。数値票 0 件なら `null`
 - `stats.modes`: 最頻カードの配列（同数複数可、?・☕ 含む）
 
+#### `estimate` — 見積もりの記録（#93）
+
+`room-state` に `estimate` が付く（受信者に依らず全員同じ内容。受信側では省略可＝古いサーバーとの互換）。
+
+```json
+"estimate": {
+  "item": "PROJ-1",
+  "log": [
+    { "id": 1, "item": "PROJ-0", "points": 5, "open": false,
+      "entries": [ { "attempt": 1, "at": 1760000000000,
+                     "counts": [ { "card": { "kind": "number", "value": 5 }, "count": 2 } ] } ] }
+  ]
+}
+```
+
+- `item`: いま見積もっているアイテム名（空可）。`log`: 束の配列（古い順）。束の `id` はルームの中で安定（上限で古い束が落ちても変わらない）
+- 束の `item` は最後の行の開票時のアイテム名。行は `attempt`（束の中の N 回め）・`at`（サーバーの壁時計）・`counts`（カードごとの枚数）だけを持つ
+- **記録は匿名**: 参加者 ID・表示名・誰が何を出したかは載せない。行の総数は 100 まで（超えたら古い行から落ちる）
+
 ### error — エラー応答
 
 ```json
@@ -140,8 +194,10 @@ revealed 後の例:
 | `invalid-message` | スキーマ検証失敗 | 全 C→S（FR-015） |
 | `room-not-found` | ルーム不存在・破棄済み | join-room（FR-015, US1-AS3）、vote / reveal / next-round（破棄済みルームを指したままの接続。[#171](https://github.com/tomohiroJin/tasuki-tools/issues/171)） |
 | `not-voting` | voting 中でない | vote, reveal |
-| `not-revealed` | revealed 中でない | next-round |
-| `not-joined` | join 前の操作 | vote, reveal, next-round |
+| `not-revealed` | revealed 中でない | next-round, revote, next-item |
+| `not-joined` | join 前の操作 | vote, reveal, next-round, set-item, revote, next-item, set-points |
+| `estimate-not-found` | 指した束が記録に無い（上限で落ちた） | set-points（#93） |
+| `estimate-open` | まだ閉じていない束にポイントは付けられない | set-points（#93） |
 | `message-too-large` | メッセージのバイト数が上限超過 | 全 C→S（[#63](https://github.com/tomohiroJin/tasuki-tools/issues/63)） |
 | `server-busy` | ルーム数が上限に達している | create-room（#63） |
 | `rate-limited` | 入室失敗が続き、レート制限に掛かった | join-room（[#103](https://github.com/tomohiroJin/tasuki-tools/issues/103)・[#147](https://github.com/tomohiroJin/tasuki-tools/issues/147)） |
