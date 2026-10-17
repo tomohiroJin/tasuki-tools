@@ -14,6 +14,7 @@ import type { OrderStage, People, Phase } from '../roulette-view';
 import { cardPickCountOf, revealedPicksOf, topicNoteOf } from '../roulette-view';
 import { wheelSeatsOf } from '../wheel-view';
 import { pointerDegFor } from '../wheel-motion';
+import { pressAngleOf } from '../press-view';
 import { GroupCard } from './GroupCard';
 import { ResultCard } from './ResultCard';
 import { SpinControls } from './SpinControls';
@@ -36,9 +37,13 @@ interface Props {
   onSpin: () => void;
   /** 順番に回すときの舞台（`orderStageOf`・#401 順番に回す）。1 回で決めるときは null */
   order: OrderStage | null;
+  /** 押して止めるときの位置（席の単位・`usePressMotion`）。押して止めるとき以外は null */
+  pressPosition?: number | null;
+  /** 一言の読み上げにだけ足す文（押して止めるときの決まった人） */
+  captionHidden?: string;
 }
 
-export function Stage({ pool, view, phase, revealed, receivedAt, reducedMotion, people, topicTitle, caption, button, onSpin, order }: Props) {
+export function Stage({ pool, view, phase, revealed, receivedAt, reducedMotion, people, topicTitle, caption, button, onSpin, order, pressPosition = null, captionHidden = '' }: Props) {
   const [stage, setStage] = useState<HTMLElement | null>(null);
   const card = useRef<HTMLDivElement>(null);
   const dock = useRef<HTMLDivElement>(null);
@@ -47,13 +52,16 @@ export function Stage({ pool, view, phase, revealed, receivedAt, reducedMotion, 
   const settled = phase === 'settled';
   const layout = useStageLayout(stage, phase === 'spinning');
   const pointerDeg = pointerDegFor(layout);
-  const rotation = useWheelRotation({ spin: view.spin, receivedAt, settled, reducedMotion, pointerDeg, card, dock });
+  // 押して止めるときは、位置（全画面で同じ）をこの画面の指し針から見た角度にする。いつもの回転は使わない
+  const pressing = pressPosition !== null;
+  const rotation = useWheelRotation({ spin: pressing ? null : view.spin, receivedAt, settled, reducedMotion, pointerDeg, card, dock });
+  const angle = pressing ? pressAngleOf(pressPosition, view.spin?.wheel.length ?? 0, pointerDeg) : rotation.angle;
 
   const seats = order?.seats ?? wheelSeatsOf({ pool, spin: view.spin, revealed });
   const drawnIds = new Set(people.rows.filter((r) => r.mark === 'drawn').map((r) => r.id));
   const picked = revealedPicksOf(view, revealed);
-  // 順番に回すときは 1 回に 1 人（選ぶ人数を使わない・T7）
-  const cardK = order === null ? cardPickCountOf(view) : 1;
+  // 順番に回す・押して止めるときは 1 回に 1 人（選ぶ人数を使わない。押して止める回転は止まるまで picks が空）
+  const cardK = order === null && !pressing ? cardPickCountOf(view) : 1;
   const group = cardK >= 2;
 
   return (
@@ -72,9 +80,9 @@ export function Stage({ pool, view, phase, revealed, receivedAt, reducedMotion, 
         entries={seats.entries}
         winners={seats.winners}
         drawnIds={drawnIds}
-        angle={rotation.angle}
+        angle={angle}
         pointerDeg={pointerDeg}
-        spinning={rotation.spinning}
+        spinning={pressing ? phase === 'spinning' : rotation.spinning}
         reducedMotion={reducedMotion}
         hubCount={order?.hubCount}
       />
@@ -88,8 +96,9 @@ export function Stage({ pool, view, phase, revealed, receivedAt, reducedMotion, 
       <div className="roulette-after">
         {/* 読み上げは role="status"。回している間は当たりの名前を入れない（止まってから入れる） */}
         {/* 順番に回すときは 1 行で … に切る（押すたびに文が変わり、折り返すと円盤が上下に動く。全文は読み上げが持つ） */}
-        <p className={`roulette-caption${order === null ? '' : ' roulette-caption--order'}`} role="status">
+        <p className={`roulette-caption${order === null && !pressing ? '' : ' roulette-caption--order'}`} role="status">
           {caption}
+          {captionHidden !== '' && <span className="ui-visually-hidden">{captionHidden}</span>}
         </p>
         <SpinControls ref={dock} label={button.label} disabled={button.disabled} onSpin={onSpin} />
       </div>

@@ -87,6 +87,8 @@ export interface RouletteSync {
   setMode(mode: RouletteMode): void;
   /** 順番に回す回を最初からやり直す */
   resetOrder(): void;
+  /** 押して止める（#401）。押した瞬間に指し針が指していた席と、席の中の位置を送る */
+  stopPress(seq: number, index: number, settle: number): void;
 }
 
 export function useRouletteSync(roomCode: string): RouletteSync {
@@ -112,8 +114,9 @@ export function useRouletteSync(roomCode: string): RouletteSync {
             // 基準は `receivedAt` と `elapsedMs` の**組**で、片方だけ新しくすると経過を二重に数える
             // （回転中の外す・戻すや再接続で同じ seq が届くたびに、止まる時刻が前へずれる）。
             // 回転以外（外した人・ゲスト・一周の記録）は新しいフレームのものを採る。
-            prev !== null && prev.view.spin !== null && prev.view.spin.seq === view.spin?.seq
-              ? { view: { ...view, spin: prev.view.spin }, receivedAt: prev.receivedAt }
+            // 押して止める（#401）は同じ回転のうちに止まった位置が届くので、回転の中身は新しいものを採り、経過だけ古い基準のものを保つ
+            prev !== null && prev.view.spin !== null && view.spin !== null && prev.view.spin.seq === view.spin.seq
+              ? { view: { ...view, spin: { ...view.spin, elapsedMs: prev.view.spin.elapsedMs } }, receivedAt: prev.receivedAt }
               : { view, receivedAt: now },
           );
           handlers.clearError();
@@ -149,6 +152,7 @@ export function useRouletteSync(roomCode: string): RouletteSync {
       setPickCount: (count: number) => sendCommand({ command: 'roulette.pick.set', count }),
       setMode: (mode: RouletteMode) => sendCommand({ command: 'roulette.mode.set', mode }),
       resetOrder: () => sendCommand({ command: 'roulette.order.reset' }),
+      stopPress: (seq: number, index: number, settle: number) => sendCommand({ command: 'roulette.stop', seq, index, settle }),
     };
   }, [send]);
 

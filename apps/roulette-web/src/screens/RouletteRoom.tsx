@@ -6,7 +6,7 @@
  *
  * 舞台（円盤・札・一言・回す）は `Stage` が持つ（PR 3）。
  */
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { InviteLink } from '../components/InviteLink';
 import { LoadingView } from '../components/LoadingView';
 import { ModePanel } from '../components/ModePanel';
@@ -46,6 +46,8 @@ import {
   stageViewOf,
 } from '../roulette-view';
 import { pickStopsMs } from '@tasuki/roulette-core';
+import { usePressMotion } from '../hooks/use-press-motion';
+import { pressButtonOf, pressCaptionOf, pressStopOfView, withPressStop } from '../press-view';
 
 /**
  * 画面が使う「いま」。回転の終わりと、2 人以上なら**各人が止まる時刻**（`wakeAts`・`performance.now()` の時刻）に描き直す。
@@ -86,6 +88,31 @@ export function RouletteRoom({ roomCode }: { roomCode: string }) {
       ? []
       : [...pickStopsMs(picksOf(spin).length), spin.durationMs].map((at) => sync.receivedAt + at - spin.elapsedMs);
   const nowMs = useNowMs(sync.receivedAt, wakeAts);
+
+  // 押して止める（#401）。位置と「止まって寄せ終わったか」は画面の時計で動くので、早い return より前で持つ
+  const pressSpin = view !== null && modeOf(view) === 'press' ? stageViewOf(view).spin : null;
+  const motion = usePressMotion({ spin: pressSpin, receivedAt: sync.receivedAt, nowMs });
+  const { press: pressMotion } = motion;
+  const { stopPress } = sync;
+  const doStop = useCallback(() => {
+    const sent = pressMotion();
+    if (sent !== null) stopPress(sent.seq, sent.index, sent.settle);
+  }, [pressMotion, stopPress]);
+  // 回っている間は、文字の欄に居なければ Space でも止められる（spec P9。フォーカスを勝手に動かさない）
+  const canStopByKey = pressSpin !== null && motion.stop === null && !motion.pressedHere && canOperate(sync.status, sync.joined);
+  useEffect(() => {
+    if (!canStopByKey) return;
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key !== ' ' || event.repeat) return;
+      const target = event.target as HTMLElement | null;
+      // 文字の欄では空白を打つ。ボタンの上の Space はそのボタンが押す
+      if (target?.closest('input, textarea, select, button, [contenteditable="true"]')) return;
+      event.preventDefault();
+      doStop();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [canStopByKey, doStop]);
 
   const notice = connectionNotice(sync.notice);
   const banner = notice.kind !== 'none' && (
@@ -139,25 +166,60 @@ export function RouletteRoom({ roomCode }: { roomCode: string }) {
   const received = view ?? { excluded: [], guests: [], drawn: [], spin: null };
   // 回せるかはサーバーの回転で決める（決め方に合わない回転でも、回っている間はサーバーが拒む）
   const operable = canOperate(sync.status, sync.joined);
-  const serverSpinning = isServerSpinning(received, sync.receivedAt, nowMs);
+  // 押して止める回転は、止まるまで（押されるか 30 秒たつまで）サーバーが回っているとみなす
+  const serverSpinning =
+    received.spin?.press !== undefined
+      ? pressStopOfView(received.spin, sync.receivedAt, nowMs) === null
+      : isServerSpinning(received, sync.receivedAt, nowMs);
   // 舞台と一覧は、決め方に合う回転だけを読む（#401 順番に回す）
   const mode = modeOf(received);
-  const current = stageViewOf(received);
-  const phase = phaseOf({ view: current, receivedAt: sync.receivedAt, nowMs, reducedMotion });
-  const revealed = revealedCountOf({ view: current, receivedAt: sync.receivedAt, nowMs, reducedMotion });
+  const pressing = mode === 'press';
+  // 押して止めるときは、30 秒の自動の停止も止まった位置として書き込む（サーバーは配り直さない）
+  const current = pressing ? withPressStop(stageViewOf(received), motion.stop) : stageViewOf(received);
+  // 押して止めるときの局面は、止まって寄せ終わったか（動きを減らす設定でも回す・spec P8）
+  const phase = pressing
+    ? current.spin === null
+      ? 'idle'
+      : motion.landed
+        ? 'settled'
+        : 'spinning'
+    : phaseOf({ view: current, receivedAt: sync.receivedAt, nowMs, reducedMotion });
+  const revealed = pressing
+    ? phase === 'settled'
+      ? 1
+      : 0
+    : revealedCountOf({ view: current, receivedAt: sync.receivedAt, nowMs, reducedMotion });
   // 入る人は 1 回だけ組み、一覧と円盤へ渡す
   const members = membersOf(sync.roster);
   const pool = poolOfView(members, current);
   const order = mode === 'order' ? orderStageOf({ view: current, pool, phase, revealed }) : null;
-  const people = peopleOf({ members, view: current, selfId: sync.selfId, phase, pool, revealed, turns: order?.turns });
+  // 押して止めるときは一周の印を出さない（一周を使わない・spec P6）
+  const turns = order?.turns ?? (pressing ? new Map<string, number>() : undefined);
+  const people = peopleOf({ members, view: current, selfId: sync.selfId, phase, pool, revealed, turns });
+  const pressButton = pressing
+    ? pressButtonOf({
+        hasSpin: current.spin !== null,
+        stopped: motion.stop !== null,
+        landed: motion.landed,
+        pressedHere: motion.pressedHere,
+        poolCount: people.poolCount,
+        operable,
+      })
+    : null;
   const button =
-    order === null
-      ? spinButtonOf({ view: current, poolCount: people.poolCount, operable, serverSpinning })
-      : orderButtonOf({ order, poolCount: people.poolCount, operable, serverSpinning });
+    pressButton !== null
+      ? pressButton
+      : order === null
+        ? spinButtonOf({ view: current, poolCount: people.poolCount, operable, serverSpinning })
+        : orderButtonOf({ order, poolCount: people.poolCount, operable, serverSpinning });
+  const winnerName = motion.stop === null ? null : (current.spin?.wheel[motion.stop.index]?.name ?? null);
+  const pressCaption = pressing ? pressCaptionOf({ phase, stop: motion.stop, winnerName, poolCount: people.poolCount }) : null;
   const caption =
-    order === null
-      ? captionOf({ view: current, phase, poolCount: people.poolCount })
-      : orderCaptionOf({ view: current, phase, poolCount: people.poolCount, order });
+    pressCaption !== null
+      ? pressCaption.text
+      : order === null
+        ? captionOf({ view: current, phase, poolCount: people.poolCount })
+        : orderCaptionOf({ view: current, phase, poolCount: people.poolCount, order });
   const topicTitle = sync.topic?.topic?.title ?? null;
   const locked = !operable || serverSpinning;
 
@@ -197,8 +259,10 @@ export function RouletteRoom({ roomCode }: { roomCode: string }) {
             topicTitle={topicTitle}
             caption={caption}
             button={button}
-            onSpin={sync.spin}
+            onSpin={pressButton?.stop === true ? doStop : sync.spin}
             order={order}
+            pressPosition={pressing ? motion.position : null}
+            captionHidden={pressCaption?.hidden ?? ''}
           />
           <div className="ui-workspace-side roulette-side">
             {/* 脇は 決め方 → 入る人 → 仲間を招く（#401 順番に回す T9）。決め方ごとの設定と進み具合は決め方の面だけが持つ */}

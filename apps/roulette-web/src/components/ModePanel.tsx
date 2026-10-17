@@ -1,11 +1,14 @@
 import type { RouletteMode } from '@tasuki/roulette-core';
-import { CYCLE_RESET_BUTTON, MODE_HEADING, MODE_ONCE, MODE_ORDER, ONCE_NOTE, ORDER_NOTE, ORDER_RESET_BUTTON } from '../copy';
+import { CYCLE_RESET_BUTTON, MODE_HEADING, MODE_ONCE, MODE_ORDER, MODE_PRESS, ONCE_NOTE, ORDER_NOTE, ORDER_RESET_BUTTON, PRESS_NOTE } from '../copy';
 import { PickCountPicker } from './PickCountPicker';
 
 const MODES: readonly { mode: RouletteMode; label: string }[] = [
   { mode: 'once', label: MODE_ONCE },
   { mode: 'order', label: MODE_ORDER },
+  { mode: 'press', label: MODE_PRESS },
 ];
+
+const NOTE: Record<RouletteMode, string> = { once: ONCE_NOTE, order: ORDER_NOTE, press: PRESS_NOTE };
 
 interface Props {
   mode: RouletteMode;
@@ -28,7 +31,8 @@ interface Props {
 /**
  * 脇の「決め方」（#401 順番に回す T9・spec §5.4）。見出し → 決め方の 2 つのボタン → 選んだ決め方の説明・設定・進み具合。
  * **選んだ決め方のものだけを出す**（設定と進み具合が入る人の一覧の上下に散らばっていた）。
- * ボタンは選ぶ人数と同じ副のボタン（`--sm`）に `aria-pressed`。
+ * ボタンは選ぶ人数と同じ副のボタン（`--sm`）に `aria-pressed`。決め方が 3 つ（#401 押して止める）なので、どの幅でも縦 1 列に並べる。
+ * 押して止めるときは 1 人だけを決めるので、選ぶ人数も一周の行も出さない。
  */
 export function ModePanel({
   mode,
@@ -62,8 +66,8 @@ export function ModePanel({
         ))}
       </div>
       <div className="roulette-mode-body">
-        <p className="roulette-mode-note">{mode === 'order' ? ORDER_NOTE : ONCE_NOTE}</p>
-        {mode === 'order' ? (
+        <p className="roulette-mode-note">{NOTE[mode]}</p>
+        {mode === 'press' ? null : mode === 'order' ? (
           <div className="roulette-foot">
             <p>{orderProgress}</p>
             <button type="button" className="ui-button ui-button--secondary ui-button--sm" disabled={locked || !canResetOrder} onClick={onResetOrder}>

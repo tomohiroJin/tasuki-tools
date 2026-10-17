@@ -322,13 +322,17 @@ export function modeOf(view: RouletteView): RouletteMode {
 /**
  * 舞台が読む形。**決め方に合わない回転を伏せる**（回っていない形にする）: 1 回で決めるときの順番の回転（`turn` がある）・
  * 順番に回すときの、回の無い回転と 1 回の回転。決め方を変えた直後や、やり直した後に前の回転の結果を出さない。
- * 合っていれば同じ参照を返す（1 回で決めるときの舞台は #415 のまま）。
+ * 押して止める回転は、押して止めるときだけ読む。合っていれば同じ参照を返す（1 回で決めるときの舞台は #415 のまま）。
  */
 export function stageViewOf(view: RouletteView): RouletteView {
   const spin = view.spin;
   if (spin === null) return view;
   const orderSpin = spin.turn !== undefined;
-  const keep = modeOf(view) === 'order' ? orderSpin && (view.order ?? null) !== null : !orderSpin;
+  // 押して止める回転（#401 押して止める）は、押して止めるときだけ読む。ほかの決め方では回していない形にする
+  const pressSpin = spin.press !== undefined;
+  const mode = modeOf(view);
+  const keep =
+    mode === 'press' ? pressSpin : mode === 'order' ? orderSpin && (view.order ?? null) !== null : !orderSpin && !pressSpin;
   return keep ? view : { ...view, spin: null };
 }
 
