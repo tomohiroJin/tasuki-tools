@@ -145,7 +145,8 @@ export function revealedCountOf(input: { view: RouletteView; receivedAt: number;
   const elapsed = elapsedOf(spin, input.receivedAt, input.nowMs);
   // 古いサーバー（1 人・picks 無し）は wire の長さで止まる。表と食い違っても終わったら全員にする
   if (elapsed >= spin.durationMs) return k;
-  return pickStopsMs(k).filter((stop) => elapsed >= stop).length;
+  // 変わった止まり方（#420）は 1 人目が止まる時刻が延びる（2 人目からはその分だけ後ろへずれる）
+  return pickStopsMs(k, spin.stopStyle).filter((stop) => elapsed >= stop).length;
 }
 
 /** 決まった人（止まった順・`revealed` 人まで）。 */
