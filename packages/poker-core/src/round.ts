@@ -80,7 +80,7 @@ export function applyAutoReveal(round: Round, voters: readonly VoterView[], now:
   return revealed(round, now);
 }
 
-/** revealed へ移し、その時点の item と票の枚数を記録へ 1 行足す（記録は公開の瞬間にだけ増える） */
+/** revealed へ移し、票が 1 枚以上あればその時点の item と票の枚数を記録へ 1 行足す（記録は公開の瞬間にだけ増える） */
 function revealed(round: Round, now: number): Round {
   // 票が 0 枚の開票は行にしない（空の行と、あとで「ポイントなし」で閉じる空の束が残るだけ）。開票自体は行う
   const log =
