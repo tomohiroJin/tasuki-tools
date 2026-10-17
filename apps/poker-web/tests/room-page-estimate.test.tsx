@@ -212,6 +212,18 @@ describe('アイテムの境目をまたぐと打ちかけの名前は捨てる�
     expect(setItem).not.toHaveBeenCalled();
   });
 
+  it('Given 閉じた束が 1 つ / When 上限で古い束が落ちると同時に新しい束が閉じる（閉じた数は同じ）/ Then 入力は閉じる', () => {
+    const setItem = vi.fn();
+    const { rerender } = render(<RoomPage roomId={ROOM_ID} sync={makeSync(withLog('PROJ-2', [closedGroup]), { setItem })} />);
+    fireEvent.click(screen.getByRole('button', { name: /PROJ-2/ }));
+    const input = screen.getByRole<HTMLInputElement>('textbox');
+    fireEvent.change(input, { target: { value: '古いアイテムの打ちかけ' } });
+    rerender(<RoomPage roomId={ROOM_ID} sync={makeSync(withLog('', [{ ...closedGroup, id: 2 }]), { setItem })} />);
+    fireEvent.blur(input);
+    expect(screen.queryByRole('textbox')).toBeNull();
+    expect(setItem).not.toHaveBeenCalled();
+  });
+
   it('Given 名前を打ちかけ / When 他の人が名前だけ変える（境目は同じ）/ Then 打ちかけは残る', () => {
     const { rerender } = render(<RoomPage roomId={ROOM_ID} sync={makeSync(withLog('PROJ-1', []))} />);
     fireEvent.click(screen.getByRole('button', { name: /PROJ-1/ }));
