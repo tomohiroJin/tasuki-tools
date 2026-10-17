@@ -221,7 +221,7 @@ test.describe('玄関と poker のボタンは部品で、押せる大きさが�
     await page.setViewportSize({ width: 390, height: 800 });
     await expectScreen(page, 'poker（公開後）', 3);
     const revealed = (await scanButtons(page)).groups.find((g) => g.names.includes('再投票'));
-    expect(revealed?.names, '公開後の帯は「次のラウンドへ」「再投票」の順').toEqual(['次のラウンドへ', '再投票']);
+    expect(revealed?.names, '公開後の帯は「次のアイテムへ」「再投票」の順').toEqual(['次のアイテムへ', '再投票']);
     expect(revealed?.primaries).toEqual(['再投票']);
 
     // 40rem 以上では帯は流れの中にあり、画面に貼りつかない
