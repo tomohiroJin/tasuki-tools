@@ -184,3 +184,39 @@ describe('開票と再投票をまたいでも欄と足の記録は保たれる�
     expect(document.querySelector('.room-log--foot')).toBe(footBefore);
   });
 });
+
+describe('アイテムの境目をまたぐと打ちかけの名前は捨てる（#93 PR レビュー）', () => {
+  const closedGroup = {
+    id: 1,
+    item: 'PROJ-1',
+    points: 5,
+    open: false,
+    entries: [{ attempt: 1, at: 1000, counts: [{ card: { kind: 'number', value: 5 }, count: 1 }] }],
+  };
+  function withLog(item: string, groups: unknown[]): RoomStateMessage {
+    return { ...snapshot('revealed'), estimate: { item, log: groups } } as unknown as RoomStateMessage;
+  }
+
+  it('Given 名前を打ちかけ / When 他の人が次のアイテムへ進める / Then 入力は閉じ、ぼかしても setItem は呼ばれない', () => {
+    // Given
+    const setItem = vi.fn();
+    const { rerender } = render(<RoomPage roomId={ROOM_ID} sync={makeSync(withLog('PROJ-1', []), { setItem })} />);
+    fireEvent.click(screen.getByRole('button', { name: /PROJ-1/ }));
+    const input = screen.getByRole<HTMLInputElement>('textbox');
+    fireEvent.change(input, { target: { value: '古いアイテムの打ちかけ' } });
+    // When
+    rerender(<RoomPage roomId={ROOM_ID} sync={makeSync(withLog('', [closedGroup]), { setItem })} />);
+    fireEvent.blur(input);
+    // Then
+    expect(screen.queryByRole('textbox')).toBeNull();
+    expect(setItem).not.toHaveBeenCalled();
+  });
+
+  it('Given 名前を打ちかけ / When 他の人が名前だけ変える（境目は同じ）/ Then 打ちかけは残る', () => {
+    const { rerender } = render(<RoomPage roomId={ROOM_ID} sync={makeSync(withLog('PROJ-1', []))} />);
+    fireEvent.click(screen.getByRole('button', { name: /PROJ-1/ }));
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: '打ちかけ' } });
+    rerender(<RoomPage roomId={ROOM_ID} sync={makeSync(withLog('PROJ-7', []))} />);
+    expect(screen.getByRole<HTMLInputElement>('textbox').value).toBe('打ちかけ');
+  });
+});

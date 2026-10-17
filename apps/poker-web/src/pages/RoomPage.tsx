@@ -182,7 +182,14 @@ export function RoomPage({ roomId, sync }: Props) {
           {/* 欄と足の記録は投票中と開票後で同じ位置に置き、描き分けるのは本体（手札か結果）と帯だけにする。
               状態ごとに別の部品で包むと、替わるたびに欄と足が作り直され、打ちかけの名前・フォーカス・
               開いていたシートが消える（#93 最終レビュー）。 */}
-          <EstimateItemField item={snapshot.estimate?.item ?? ''} onCommit={sync.setItem} disabled={offline} />
+          {/* key は束が閉じるたびに変わる（アイテムの境目）。編集中に境目を越えたら欄を作り直し、
+              前のアイテムの打ちかけを新しいアイテムへ送らない。名前だけの変更では変わらない */}
+          <EstimateItemField
+            key={(snapshot.estimate?.log ?? []).filter((g) => !g.open).length}
+            item={snapshot.estimate?.item ?? ''}
+            onCommit={sync.setItem}
+            disabled={offline}
+          />
           {snapshot.round.status === 'voting' ? (
             <section>
               <h2>あなたのカード</h2>
