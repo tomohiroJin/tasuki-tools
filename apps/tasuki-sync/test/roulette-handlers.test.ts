@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it, spyOn } from "bun:test";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
 import { createTokenBucketLimiter, DEFAULT_CAPACITY, DEFAULT_REFILL_PER_SEC } from "@tasuki/rate-limit";
 import { MAX_DISPLAY_NAME } from "@tasuki/room-core";
-import { SETTLE_MAX, SETTLE_MIN, type RouletteView } from "@tasuki/roulette-core";
+import { SETTLE_MAX, SETTLE_MIN, STOP_STYLES, pickStopsMs, type RouletteView } from "@tasuki/roulette-core";
 import { makeRouletteHandlers } from "../src/application/roulette-handlers.js";
 import { makeRouletteBroadcaster } from "../src/application/roulette-broadcast.js";
 import { createRateLimitGate } from "../src/application/rate-limit-gate.js";
@@ -52,6 +52,8 @@ interface SetupOptions {
   randomIntReturns?: number;
   /** 乱数源の `randomSettle` が返す値。既定は 0.5（契約の範囲内） */
   randomSettleReturns?: number;
+  /** 乱数源の `randomInt` を n ごとに決める（`randomIntReturns` より優先） */
+  randomIntOf?: (n: number) => number;
 }
 
 function setup(options: SetupOptions = {}): Harness {
@@ -65,7 +67,7 @@ function setup(options: SetupOptions = {}): Harness {
   const random: RandomSource = {
     randomInt: (n) => {
       randomCalls.push(n);
-      return options.randomIntReturns ?? 0;
+      return options.randomIntOf?.(n) ?? options.randomIntReturns ?? 0;
     },
     randomSettle: () => settle,
   };
@@ -253,6 +255,47 @@ describe("回す", () => {
     ]);
     expect(h.roulettes.get(ROOM)).toBe(before);
     expect(put).not.toHaveBeenCalled();
+  });
+
+  it("変わった止まり方（#420）: 乱数源で 1/20 の目が出たら、止まり方を載せて延びた長さで配り、その間は次の回転を拒む", async () => {
+    // Given: どの n にも最後の値を返す乱数（当たりは最後の席・止まり方は表の最後）
+    const h = setup({ randomIntOf: (n) => n - 1 });
+    await joined(h, "r-1", "Alice");
+    await joined(h, "r-2", "Bob");
+
+    // When
+    await h.handle("r-1", { command: "roulette.spin" });
+
+    // Then: 当たりは乱数のまま（最後の席）で、止まり方だけが載る
+    const spin = viewsTo(h, "r-2").at(-1)?.spin;
+    expect(spin?.stopStyle).toBe(STOP_STYLES.at(-1));
+    expect(spin?.winnerIndex).toBe(1);
+    expect(spin?.durationMs).toBe(pickStopsMs(1, "swing")[0]);
+    expect(spin?.durationMs).toBeGreaterThan(pickStopsMs(1)[0]!);
+    // 当たり（2 人から 1 人）→ 止まり方が出るか（1/20）→ どの止まり方か
+    expect(h.randomCalls).toEqual([2, 20, STOP_STYLES.length]);
+
+    // When: 普通の長さが過ぎた時点で回す
+    h.sent.length = 0;
+    h.advance(pickStopsMs(1)[0]!);
+    await h.handle("r-2", { command: "roulette.spin" });
+    // Then: まだ回っている
+    expect(errorsTo(h, "r-2")).toEqual(["ROULETTE_SPINNING"]);
+  });
+
+  it("変わった止まり方（#420）: 1/20 の目が出なければ止まり方を載せない", async () => {
+    // Given: 乱数は既定の 0（当たりは最初の席・止まり方は出ない）
+    const h = setup();
+    await joined(h, "r-1", "Alice");
+    await joined(h, "r-2", "Bob");
+
+    // When
+    await h.handle("r-1", { command: "roulette.spin" });
+
+    // Then
+    const spin = viewsTo(h, "r-1").at(-1)?.spin;
+    expect(spin).not.toHaveProperty("stopStyle");
+    expect(spin?.durationMs).toBe(pickStopsMs(1)[0]);
   });
 
   // 契約は SETTLE_MIN〜SETTLE_MAX。境界の値は含み、すぐ外（境界から計算した隣の浮動小数）・非有限は外れる。

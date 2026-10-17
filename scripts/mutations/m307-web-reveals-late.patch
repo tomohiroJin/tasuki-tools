@@ -9,15 +9,15 @@
 #       git apply scripts/mutations/m307-*.patch
 # 復元: git apply -R scripts/mutations/m307-*.patch
 diff --git a/apps/roulette-web/src/roulette-view.ts b/apps/roulette-web/src/roulette-view.ts
-index 727b219..2e3380e 100644
+index 00ac558..d8dbd29 100644
 --- a/apps/roulette-web/src/roulette-view.ts
 +++ b/apps/roulette-web/src/roulette-view.ts
-@@ -125,7 +125,7 @@ export function revealedCountOf(input: { view: RouletteView; receivedAt: number;
-   const elapsed = elapsedOf(spin, input.receivedAt, input.nowMs);
+@@ -146,7 +146,7 @@ export function revealedCountOf(input: { view: RouletteView; receivedAt: number;
    // 古いサーバー（1 人・picks 無し）は wire の長さで止まる。表と食い違っても終わったら全員にする
    if (elapsed >= spin.durationMs) return k;
--  return pickStopsMs(k).filter((stop) => elapsed >= stop).length;
-+  return pickStopsMs(k).filter((stop) => elapsed >= stop + 200).length;
+   // 変わった止まり方（#420）は 1 人目が止まる時刻が延びる（2 人目からはその分だけ後ろへずれる）
+-  return pickStopsMs(k, spin.stopStyle).filter((stop) => elapsed >= stop).length;
++  return pickStopsMs(k, spin.stopStyle).filter((stop) => elapsed >= stop + 200).length;
  }
  
  /** 決まった人（止まった順・`revealed` 人まで）。 */
