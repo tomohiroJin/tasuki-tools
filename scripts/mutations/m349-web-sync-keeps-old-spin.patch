@@ -1,0 +1,24 @@
+# 変異 349: web-sync-keeps-old-spin
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/use-roulette-sync.test.tsx
+#   - apps/roulette-web/tests/press.test.tsx
+#
+# #401 押して止める。同じ回転のうちに届いた止まった位置を捨てる。ほかの人が止めても回り続ける。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m349-*.patch
+# 復元: git apply -R scripts/mutations/m349-*.patch
+diff --git a/apps/roulette-web/src/hooks/use-roulette-sync.ts b/apps/roulette-web/src/hooks/use-roulette-sync.ts
+index 9cbafdf..e33987c 100644
+--- a/apps/roulette-web/src/hooks/use-roulette-sync.ts
++++ b/apps/roulette-web/src/hooks/use-roulette-sync.ts
+@@ -116,7 +116,7 @@ export function useRouletteSync(roomCode: string): RouletteSync {
+             // 回転以外（外した人・ゲスト・一周の記録）は新しいフレームのものを採る。
+             // 押して止める（#401）は同じ回転のうちに止まった位置が届くので、回転の中身は新しいものを採り、経過だけ古い基準のものを保つ
+             prev !== null && prev.view.spin !== null && view.spin !== null && prev.view.spin.seq === view.spin.seq
+-              ? { view: { ...view, spin: { ...view.spin, elapsedMs: prev.view.spin.elapsedMs } }, receivedAt: prev.receivedAt }
++              ? { view: { ...view, spin: prev.view.spin }, receivedAt: prev.receivedAt }
+               : { view, receivedAt: now },
+           );
+           handlers.clearError();

@@ -1,0 +1,24 @@
+# 変異 350: web-auto-stop-not-written
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/press-view.test.ts
+#   - apps/roulette-web/tests/press.test.tsx
+#
+# #401 押して止める P5。30 秒の自動の停止を回転に書き込まない。一言は出るが、札と真鍮の席が空のまま。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m350-*.patch
+# 復元: git apply -R scripts/mutations/m350-*.patch
+diff --git a/apps/roulette-web/src/press-view.ts b/apps/roulette-web/src/press-view.ts
+index f103992..91ac007 100644
+--- a/apps/roulette-web/src/press-view.ts
++++ b/apps/roulette-web/src/press-view.ts
+@@ -34,7 +34,7 @@ export function pressStopOfView(spin: Spin | null, receivedAt: number, nowMs: nu
+  */
+ export function withPressStop(view: RouletteView, stop: PressStop | null): RouletteView {
+   const spin = view.spin;
+-  if (spin === null || spin.press === undefined || stop === null) return view;
++  if (spin === null || spin.press === undefined || stop !== undefined) return view;
+   if (spin.press.stop !== null) return view;
+   return {
+     ...view,

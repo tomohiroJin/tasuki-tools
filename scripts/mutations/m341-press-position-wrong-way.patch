@@ -1,0 +1,23 @@
+# 変異 341: press-position-wrong-way
+#
+# 検出を期待するテスト:
+#   - packages/roulette-core/tests/roulette-press.test.ts
+#
+# #401 押して止める P2。位置が逆向きに進む。円盤の回る向きと指し針が指す席が食い違う。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m341-*.patch
+# 復元: git apply -R scripts/mutations/m341-*.patch
+diff --git a/packages/roulette-core/src/press.ts b/packages/roulette-core/src/press.ts
+index 11d9935..0e5cd57 100644
+--- a/packages/roulette-core/src/press.ts
++++ b/packages/roulette-core/src/press.ts
+@@ -17,7 +17,7 @@ export function pressPositionAt(spin: PressSource, elapsedMs: number): number {
+   const press = spin.press;
+   const n = spin.wheel.length;
+   if (press === undefined || n === 0) return 0;
+-  return mod(press.p0 - (press.rate * elapsedMs) / 1000, n);
++  return mod(press.p0 + (press.rate * elapsedMs) / 1000, n);
+ }
+ 
+ /**
