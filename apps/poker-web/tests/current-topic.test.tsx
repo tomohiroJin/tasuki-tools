@@ -48,7 +48,10 @@ function makeSync(topic: Topic | null): PokerSync {
     checkRoom: vi.fn(),
     vote: vi.fn(),
     reveal: vi.fn(),
-    nextRound: vi.fn(),
+    setItem: vi.fn(),
+    revote: vi.fn(),
+    nextItem: vi.fn(),
+    setPoints: vi.fn(),
   };
 }
 

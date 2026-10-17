@@ -3,7 +3,7 @@
  *
  * かつては `snapshot.participants[].isHost` の真偽で公開・次ラウンドの導線を
  * 出し分けていたが、`packages/poker-core` からホストが撤去され（#95 S3）、
- * `reveal` / `nextRound` は在室者なら誰でも呼べるようになった。ここでは
+ * `reveal` / `revote` / `nextItem` は在室者なら誰でも呼べるようになった。ここでは
  * **作成者ではない参加者**の視点で、公開のボタンが実際に出ることを固定する。
  *
  * 対照としてホストバッジ（`<span className="badge host">ホスト</span>`）が
@@ -55,7 +55,10 @@ function makeSync(snapshot: RoomStateMessage | null): PokerSync {
     checkRoom: () => {},
     vote: () => {},
     reveal: () => {},
-    nextRound: () => {},
+    setItem: () => {},
+    revote: () => {},
+    nextItem: () => {},
+    setPoints: () => {},
   };
 }
 

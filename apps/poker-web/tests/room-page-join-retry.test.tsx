@@ -86,7 +86,10 @@ function makeSync(over: Partial<PokerSync> = {}): PokerSync {
     checkRoom,
     vote: vi.fn(),
     reveal: vi.fn(),
-    nextRound: vi.fn(),
+    setItem: vi.fn(),
+    revote: vi.fn(),
+    nextItem: vi.fn(),
+    setPoints: vi.fn(),
     ...over,
   };
 }

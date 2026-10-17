@@ -8,10 +8,14 @@ import type { RoomStateMessage } from '@tasuki/poker-core';
 import { CardHand } from '../components/CardHand';
 import { CurrentTopic, TOPIC_CARD_ID, TOPIC_HIDE, TOPIC_SHOW } from '../components/CurrentTopic';
 import { ErrorNote } from '../components/ErrorNote';
+import { EstimateItemField } from '../components/EstimateItemField';
+import { EstimateLog } from '../components/EstimateLog';
 import { ParticipantList } from '../components/ParticipantList';
 import { Results } from '../components/Results';
 import type { PokerSync } from '../hooks/useSync';
 import { useRoomEntry } from '../hooks/useRoomEntry';
+import { ESTIMATE_POINTS_LABEL, NEXT_ITEM, REVOTE } from '../estimate-copy';
+import { NUMBER_CARD_VALUES, type NumberCardValue } from '@tasuki/poker-core';
 import { isOffline, revealedLiveAfter, revealedVoteMap, spreadPromptOf } from '../room-view';
 
 interface Props {
@@ -172,6 +176,12 @@ export function RoomPage({ roomId, sync }: Props) {
           ) : (
             <RevealedSection snapshot={snapshot} sync={sync} revealedLive={revealedLive} />
           )}
+          {/* 置き場所は #93 Task 6 で脇の列へ移す */}
+          <EstimateLog
+            groups={snapshot.estimate?.log ?? []}
+            onSetPoints={sync.setPoints}
+            disabled={isOffline(sync.status)}
+          />
         </div>
       </div>
     </main>
@@ -189,6 +199,7 @@ function VotingSection({
   const offline = isOffline(sync.status);
   return (
     <>
+      <EstimateItemField item={snapshot.estimate?.item ?? ''} onCommit={sync.setItem} disabled={offline} />
       <section>
         <h2>あなたのカード</h2>
         <CardHand selected={snapshot.yourVote} onSelect={sync.vote} disabled={offline} />
@@ -214,12 +225,15 @@ function RevealedSection({
   /** 公開を投票中から見届けた（席の札がめくれる）。集計の待ちはこのときだけ */
   revealedLive: boolean;
 }) {
+  // 「次のアイテムへ」に添える点数。押したら空へ戻す
+  const [points, setPoints] = useState<NumberCardValue | null>(null);
   if (snapshot.round.status !== 'revealed') return null;
   const { stats } = snapshot.round;
   const offline = isOffline(sync.status);
 
   return (
     <>
+      <EstimateItemField item={snapshot.estimate?.item ?? ''} onCommit={sync.setItem} disabled={offline} />
       <Results
         stats={stats}
         seatCount={snapshot.participants.length}
@@ -228,12 +242,34 @@ function RevealedSection({
       />
       {/* かつてはホストだけに出ていたが、#95 S3 でホストを廃止し全参加者へ開放した */}
       <div className="ui-actions ui-actions--dock">
-        {/* 再投票と次ラウンドはドメイン上同一操作（next-round）。ラベルのみ区別（FR-011）。主は最後 */}
-        <button type="button" className="ui-button ui-button--secondary ui-button--lg" onClick={sync.nextRound} disabled={offline}>
-          次のラウンドへ
+        {/* 再投票（主・最後）と次のアイテムへ（副）は意味の違う 2 操作（#93・spec §4.3）。 */}
+        <select
+          className="ui-input estimate-points-select"
+          aria-label={ESTIMATE_POINTS_LABEL}
+          value={points === null ? '' : String(points)}
+          disabled={offline}
+          onChange={(e) => setPoints(e.target.value === '' ? null : (Number(e.target.value) as NumberCardValue))}
+        >
+          <option value=""></option>
+          {NUMBER_CARD_VALUES.map((v) => (
+            <option key={v} value={String(v)}>
+              {v}
+            </option>
+          ))}
+        </select>
+        <button
+          type="button"
+          className="ui-button ui-button--secondary ui-button--lg"
+          onClick={() => {
+            sync.nextItem(points);
+            setPoints(null);
+          }}
+          disabled={offline}
+        >
+          {NEXT_ITEM}
         </button>
-        <button type="button" className="ui-button ui-button--lg" onClick={sync.nextRound} disabled={offline}>
-          再投票
+        <button type="button" className="ui-button ui-button--lg" onClick={sync.revote} disabled={offline}>
+          {REVOTE}
         </button>
       </div>
     </>
