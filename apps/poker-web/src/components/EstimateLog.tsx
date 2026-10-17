@@ -5,7 +5,7 @@
  * 閉じた束の見出しからは、在室者なら誰でもポイントを入れ直せる（spec §4.3）。
  */
 import { useId } from 'react';
-import { NUMBER_CARD_VALUES, type EstimateGroupView, type NumberCardValue } from '@tasuki/poker-core';
+import type { EstimateGroupView, NumberCardValue } from '@tasuki/poker-core';
 import {
   ESTIMATE_CHANGE_POINTS,
   ESTIMATE_LOG_EMPTY,
@@ -16,6 +16,7 @@ import {
   attemptLabel,
 } from '../estimate-copy';
 import { cardLabel } from './CardHand';
+import { PointsSelect } from './PointsSelect';
 
 export interface EstimateLogProps {
   /** wire の順（古い束が先） */
@@ -27,36 +28,6 @@ export interface EstimateLogProps {
 }
 
 const TIME_FORMAT = new Intl.DateTimeFormat('ja-JP', { hour: '2-digit', minute: '2-digit' });
-
-function PointsSelect({
-  group,
-  onSetPoints,
-  disabled,
-}: {
-  group: EstimateGroupView;
-  onSetPoints: EstimateLogProps['onSetPoints'];
-  disabled: boolean;
-}) {
-  return (
-    <select
-      className="ui-input estimate-points-select"
-      aria-label={ESTIMATE_CHANGE_POINTS}
-      value={group.points === null ? '' : String(group.points)}
-      disabled={disabled}
-      onChange={(e) => {
-        const raw = e.target.value;
-        onSetPoints(group.id, raw === '' ? null : (Number(raw) as NumberCardValue));
-      }}
-    >
-      <option value=""></option>
-      {NUMBER_CARD_VALUES.map((v) => (
-        <option key={v} value={String(v)}>
-          {v}
-        </option>
-      ))}
-    </select>
-  );
-}
 
 export function EstimateLog({ groups, onSetPoints, disabled, limit }: EstimateLogProps) {
   const headingId = useId();
@@ -79,13 +50,19 @@ export function EstimateLog({ groups, onSetPoints, disabled, limit }: EstimateLo
                 ) : (
                   <span className="estimate-group-result">
                     {group.points === null ? (
-                      <span className="estimate-group-nopoints">{ESTIMATE_NO_POINTS}</span>
+                      <span className="estimate-group-nopoints" data-testid="estimate-nopoints">{ESTIMATE_NO_POINTS}</span>
                     ) : (
                       <strong className="estimate-group-points" data-testid="estimate-points">
                         {group.points}
                       </strong>
                     )}
-                    <PointsSelect group={group} onSetPoints={onSetPoints} disabled={disabled} />
+                    <PointsSelect
+                      value={group.points as NumberCardValue | null}
+                      onChange={(p) => onSetPoints(group.id, p)}
+                      emptyLabel={ESTIMATE_NO_POINTS}
+                      label={ESTIMATE_CHANGE_POINTS}
+                      disabled={disabled}
+                    />
                   </span>
                 )}
               </div>

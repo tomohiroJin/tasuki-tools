@@ -10,12 +10,13 @@ import { CurrentTopic, TOPIC_CARD_ID, TOPIC_HIDE, TOPIC_SHOW } from '../componen
 import { ErrorNote } from '../components/ErrorNote';
 import { EstimateItemField } from '../components/EstimateItemField';
 import { EstimateLog } from '../components/EstimateLog';
+import { PointsSelect } from '../components/PointsSelect';
 import { ParticipantList } from '../components/ParticipantList';
 import { Results } from '../components/Results';
 import type { PokerSync } from '../hooks/useSync';
 import { useRoomEntry } from '../hooks/useRoomEntry';
 import { ESTIMATE_POINTS_LABEL, NEXT_ITEM, REVOTE } from '../estimate-copy';
-import { NUMBER_CARD_VALUES, type NumberCardValue } from '@tasuki/poker-core';
+import type { NumberCardValue } from '@tasuki/poker-core';
 import { isOffline, revealedLiveAfter, revealedVoteMap, spreadPromptOf } from '../room-view';
 
 interface Props {
@@ -243,20 +244,13 @@ function RevealedSection({
       {/* かつてはホストだけに出ていたが、#95 S3 でホストを廃止し全参加者へ開放した */}
       <div className="ui-actions ui-actions--dock">
         {/* 再投票（主・最後）と次のアイテムへ（副）は意味の違う 2 操作（#93・spec §4.3）。 */}
-        <select
-          className="ui-input estimate-points-select"
-          aria-label={ESTIMATE_POINTS_LABEL}
-          value={points === null ? '' : String(points)}
+        <PointsSelect
+          value={points}
+          onChange={setPoints}
+          emptyLabel={ESTIMATE_POINTS_LABEL}
+          label={ESTIMATE_POINTS_LABEL}
           disabled={offline}
-          onChange={(e) => setPoints(e.target.value === '' ? null : (Number(e.target.value) as NumberCardValue))}
-        >
-          <option value=""></option>
-          {NUMBER_CARD_VALUES.map((v) => (
-            <option key={v} value={String(v)}>
-              {v}
-            </option>
-          ))}
-        </select>
+        />
         <button
           type="button"
           className="ui-button ui-button--secondary ui-button--lg"

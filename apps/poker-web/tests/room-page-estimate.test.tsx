@@ -138,6 +138,18 @@ describe('アイテム名の欄と記録', () => {
     expect(sync.setItem).toHaveBeenCalledWith('PROJ-2');
   });
 
+  it('ドックの空の選択肢は見える文言（ポイント（任意））を持つ', () => {
+    render(<RoomPage roomId={ROOM_ID} sync={makeSync(snapshot('revealed'))} />);
+    const select = screen.getByRole('combobox', { name: ESTIMATE_POINTS_LABEL });
+    expect((select.querySelector('option[value=""]') as HTMLOptionElement).textContent).toBe(ESTIMATE_POINTS_LABEL);
+  });
+
+  it('estimate の無い snapshot（古いサーバー）の開票後も描け、記録は空の表示', () => {
+    render(<RoomPage roomId={ROOM_ID} sync={makeSync(snapshot('revealed', false))} />);
+    expect(screen.getByRole('button', { name: REVOTE })).toBeTruthy();
+    expect(screen.getByText(ESTIMATE_LOG_EMPTY)).toBeTruthy();
+  });
+
   it('estimate の無い snapshot（古いサーバー）でも描け、記録は空の表示', () => {
     render(<RoomPage roomId={ROOM_ID} sync={makeSync(snapshot('voting', false))} />);
     expect(screen.getByRole('heading', { name: ESTIMATE_LOG_HEADING })).toBeTruthy();
