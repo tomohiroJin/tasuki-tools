@@ -2,9 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Card } from '../src/deck.js';
 import {
   closeOpenGroup,
-  countCards,
   EMPTY_ESTIMATE_LOG,
-  MAX_ESTIMATE_ENTRIES,
   recordReveal,
   setGroupPoints,
   type EstimateLog,
@@ -133,6 +131,9 @@ describe('setGroupPoints', () => {
   });
 });
 
+// 上限は公開していないので、テスト側で同じ値を持つ（変わったらここが赤くなる）
+const MAX_ESTIMATE_ENTRIES = 100;
+
 describe('上限', () => {
   it('Given 束を分けて 101 回開票 / When 数える / Then 行は 100 で、最初の束は消え、先頭の束の id は 2', () => {
     // Given
@@ -161,9 +162,11 @@ describe('上限', () => {
   });
 });
 
-describe('countCards', () => {
-  it('Given 順不同のカード / When 数える / Then 匿名の枚数がデッキの順に並ぶ', () => {
-    expect(countCards([num(8), num(5), question, num(5), coffee])).toEqual([
+describe('開票の枚数の畳み方', () => {
+  const countsOf = (cards: Card[]) => recordReveal(EMPTY_ESTIMATE_LOG, 'A', cards, 0).groups[0]!.entries[0]!.counts;
+
+  it('Given 順不同のカード / When 開票を記録する / Then 匿名の枚数がデッキの順に並ぶ', () => {
+    expect(countsOf([num(8), num(5), question, num(5), coffee])).toEqual([
       { card: num(5), count: 2 },
       { card: num(8), count: 1 },
       { card: question, count: 1 },
@@ -171,13 +174,12 @@ describe('countCards', () => {
     ]);
   });
 
-  it('Given デッキに無いカード / When 数える / Then 末尾に置かれる', () => {
+  it('Given デッキに無いカード / When 開票を記録する / Then 末尾に置かれる', () => {
     const odd = { kind: 'number', value: 4 } as unknown as Card;
-    const counts = countCards([odd, num(5)]);
-    expect(counts.map((c) => c.card)).toEqual([num(5), odd]);
+    expect(countsOf([odd, num(5)]).map((c) => c.card)).toEqual([num(5), odd]);
   });
 
-  it('Given 票が無い / When 数える / Then 空', () => {
-    expect(countCards([])).toEqual([]);
+  it('Given 票が無い / When 開票を記録する / Then 空', () => {
+    expect(countsOf([])).toEqual([]);
   });
 });

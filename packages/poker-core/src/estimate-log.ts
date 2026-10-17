@@ -8,7 +8,7 @@ import { FIBONACCI_DECK, cardKey, type Card, type NumberCardValue } from './deck
 /** アイテム名の長さの上限（境界が見る。ここでは切らない） */
 export const MAX_ESTIMATE_ITEM = 120;
 /** 記録の行の総数の上限。超えたら古い行から落とす */
-export const MAX_ESTIMATE_ENTRIES = 100;
+const MAX_ESTIMATE_ENTRIES = 100;
 
 export interface CardCount {
   card: Card;
@@ -47,7 +47,7 @@ const DECK_ORDER: ReadonlyMap<string, number> = new Map(
 );
 
 /** 票を枚数に畳む。誰が出したかは残さない。並びはデッキの順 */
-export function countCards(cards: readonly Card[]): CardCount[] {
+function countCards(cards: readonly Card[]): CardCount[] {
   const byKey = new Map<string, CardCount>();
   for (const card of cards) {
     const key = cardKey(card);
