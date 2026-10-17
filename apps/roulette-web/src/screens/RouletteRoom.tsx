@@ -9,6 +9,7 @@
 import { useEffect, useState } from 'react';
 import { InviteLink } from '../components/InviteLink';
 import { LoadingView } from '../components/LoadingView';
+import { ModePanel } from '../components/ModePanel';
 import { PeoplePanel } from '../components/PeoplePanel';
 import { Stage } from '../components/Stage';
 import {
@@ -27,8 +28,14 @@ import {
   canOperate,
   captionOf,
   connectionNotice,
+  cycleLineOf,
   isServerSpinning,
   membersOf,
+  modeOf,
+  orderButtonOf,
+  orderCaptionOf,
+  orderProgressOf,
+  orderStageOf,
   peopleOf,
   phaseOf,
   pickCountOf,
@@ -36,6 +43,7 @@ import {
   poolOfView,
   revealedCountOf,
   spinButtonOf,
+  stageViewOf,
 } from '../roulette-view';
 import { pickStopsMs } from '@tasuki/roulette-core';
 
@@ -128,17 +136,30 @@ export function RouletteRoom({ roomCode }: { roomCode: string }) {
   }
 
   // 参加はしたが、最初のルーレットの状態がまだ（返事の順で入れ替わりうる）。空の状態で描く。
-  const current = view ?? { excluded: [], guests: [], drawn: [], spin: null };
+  const received = view ?? { excluded: [], guests: [], drawn: [], spin: null };
+  // 回せるかはサーバーの回転で決める（決め方に合わない回転でも、回っている間はサーバーが拒む）
   const operable = canOperate(sync.status, sync.joined);
-  const serverSpinning = isServerSpinning(current, sync.receivedAt, nowMs);
+  const serverSpinning = isServerSpinning(received, sync.receivedAt, nowMs);
+  // 舞台と一覧は、決め方に合う回転だけを読む（#401 順番に回す）
+  const mode = modeOf(received);
+  const current = stageViewOf(received);
   const phase = phaseOf({ view: current, receivedAt: sync.receivedAt, nowMs, reducedMotion });
   const revealed = revealedCountOf({ view: current, receivedAt: sync.receivedAt, nowMs, reducedMotion });
   // 入る人は 1 回だけ組み、一覧と円盤へ渡す
   const members = membersOf(sync.roster);
   const pool = poolOfView(members, current);
-  const people = peopleOf({ members, view: current, selfId: sync.selfId, phase, pool, revealed });
-  const button = spinButtonOf({ view: current, poolCount: people.poolCount, operable, serverSpinning });
+  const order = mode === 'order' ? orderStageOf({ view: current, pool, phase, revealed }) : null;
+  const people = peopleOf({ members, view: current, selfId: sync.selfId, phase, pool, revealed, turns: order?.turns });
+  const button =
+    order === null
+      ? spinButtonOf({ view: current, poolCount: people.poolCount, operable, serverSpinning })
+      : orderButtonOf({ order, poolCount: people.poolCount, operable, serverSpinning });
+  const caption =
+    order === null
+      ? captionOf({ view: current, phase, poolCount: people.poolCount })
+      : orderCaptionOf({ view: current, phase, poolCount: people.poolCount, order });
   const topicTitle = sync.topic?.topic?.title ?? null;
+  const locked = !operable || serverSpinning;
 
   return (
     <>
@@ -163,7 +184,7 @@ export function RouletteRoom({ roomCode }: { roomCode: string }) {
           </p>
         )}
         {/* 段組み（ADR 0025）。操作の面が主役、脇は右。DOM は狭い幅で見せたい順:
-            お題 → 結果の一言 → 回す → 入る人 → 名前を追加 → 一周 → 仲間を招く */}
+            お題 → 結果の一言 → 回す → 決め方 → 入る人 → 名前を追加 → 仲間を招く */}
         <div className="ui-workspace ui-workspace--side-end">
           <Stage
             pool={pool}
@@ -174,20 +195,32 @@ export function RouletteRoom({ roomCode }: { roomCode: string }) {
             reducedMotion={reducedMotion}
             people={people}
             topicTitle={topicTitle}
-            caption={captionOf({ view: current, phase, poolCount: people.poolCount })}
+            caption={caption}
             button={button}
             onSpin={sync.spin}
+            order={order}
           />
           <div className="ui-workspace-side roulette-side">
+            {/* 脇は 決め方 → 入る人 → 仲間を招く（#401 順番に回す T9）。決め方ごとの設定と進み具合は決め方の面だけが持つ */}
+            <ModePanel
+              mode={mode}
+              locked={locked}
+              inRound={order?.inRound === true}
+              onMode={sync.setMode}
+              pickCount={pickCountOf(current)}
+              onPickCount={sync.setPickCount}
+              cycleLine={cycleLineOf(people.drawnCount, people.poolCount)}
+              onResetCycle={sync.resetCycle}
+              orderProgress={order === null ? '' : orderProgressOf(order)}
+              canResetOrder={(current.order ?? null) !== null}
+              onResetOrder={sync.resetOrder}
+            />
             <PeoplePanel
               people={people}
-              locked={!operable || serverSpinning}
+              locked={locked}
               onInclude={sync.setIncluded}
               onRemoveGuest={sync.removeGuest}
               onAddGuest={sync.addGuest}
-              onResetCycle={sync.resetCycle}
-              pickCount={pickCountOf(current)}
-              onPickCount={sync.setPickCount}
             />
             {/* 招待は脇の最後（spec §6.7 の 3 版）。見出しの下に置くと 320px で 2 段を取り、円盤を押し下げる */}
             <section className="ui-panel roulette-invite" aria-labelledby="roulette-invite-heading">

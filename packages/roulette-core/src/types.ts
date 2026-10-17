@@ -39,10 +39,23 @@ export interface Spin {
   settle: number;
   /** 止まる順の当たり（1〜MAX_PICK 件・席は重ならない）。件数が回した時点の選ぶ人数（#401 spec M3） */
   picks: Pick[];
+  /** 順番に回すときの、この回転で決まる番（1 から・#401 順番に回す T2）。1 回で決めるときは持たない */
+  turn?: number;
   /** 回した人の表示名 */
   spunBy: string;
   /** サーバーの単調時計（ms）。**wire には載せない**（spec R5） */
   startedAt: number;
+}
+
+/** 決め方（#401 順番に回す T1）。`once` は 1 回で選ぶ人数ぶんを決める・`order` は回すたびに 1 人ずつ順番を決める */
+export type RouletteMode = "once" | "order";
+
+/** 順番に回す回（#401 順番に回す T5）。複数の回転にまたがる */
+export interface OrderRound {
+  /** 番が決まった人（決まった順）。名前も持つ（回の途中で名前が変わっても、決まったときの名前で出す） */
+  done: readonly Entry[];
+  /** 全員の番が決まった */
+  finished: boolean;
 }
 
 export interface RouletteState {
@@ -57,6 +70,10 @@ export interface RouletteState {
   nextGuestSeq: number;
   /** 1 回の回転で選ぶ人数（1〜MAX_PICK・#401）。ルームで共有する */
   pickCount: number;
+  /** 決め方（#401 順番に回す T1）。ルームで共有する */
+  mode: RouletteMode;
+  /** 順番に回す回。回していない・やり直した・決め方を変えたら null */
+  order: OrderRound | null;
 }
 
 /**
@@ -82,4 +99,6 @@ export const INITIAL_ROULETTE_STATE: RouletteState = Object.freeze({
   lastSpin: null,
   nextGuestSeq: 1,
   pickCount: 1,
+  mode: "once",
+  order: null,
 });

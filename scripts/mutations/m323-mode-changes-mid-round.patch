@@ -1,0 +1,23 @@
+# 変異 323: mode-changes-mid-round
+#
+# 検出を期待するテスト:
+#   - packages/roulette-core/tests/roulette-turn-order.test.ts
+#
+# #401 順番に回す T8。回の途中でも決め方を変えられる。済んだ人の記録の意味が変わる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m323-*.patch
+# 復元: git apply -R scripts/mutations/m323-*.patch
+diff --git a/packages/roulette-core/src/roulette.ts b/packages/roulette-core/src/roulette.ts
+index 040e099..86ad1be 100644
+--- a/packages/roulette-core/src/roulette.ts
++++ b/packages/roulette-core/src/roulette.ts
+@@ -135,7 +135,7 @@ export function setMode(
+ ): Result<RouletteState, RouletteError<"ROULETTE_SPINNING" | "ROULETTE_ROUND_IN_PROGRESS">> {
+   if (state.mode === mode) return ok(state);
+   if (isSpinning(state, now)) return err({ code: "ROULETTE_SPINNING" });
+-  if (state.order !== null && !state.order.finished) return err({ code: "ROULETTE_ROUND_IN_PROGRESS" });
++
+   return ok({ ...state, mode, order: null });
+ }
+ 

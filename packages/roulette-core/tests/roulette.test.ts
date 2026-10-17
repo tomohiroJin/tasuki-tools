@@ -154,7 +154,7 @@ describe("toView（wire へ載せる形）", () => {
   const spun = startSpin(INITIAL_ROULETTE_STATE, spinInput())._unsafeUnwrap();
 
   it("回していなければ spin は null", () => {
-    expect(toView(INITIAL_ROULETTE_STATE, 0)).toEqual({ pickCount: 1, excluded: [], guests: [], drawn: [], spin: null });
+    expect(toView(INITIAL_ROULETTE_STATE, 0)).toEqual({ pickCount: 1, mode: "once", order: null, excluded: [], guests: [], drawn: [], spin: null });
   });
 
   it("elapsedMs は送る時点の経過で、startedAt は出力に無い", () => {

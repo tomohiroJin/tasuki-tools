@@ -29,6 +29,7 @@ describe("ルーレットのエラーの文言", () => {
     expect(rouletteErrorMessageFor("ROULETTE_TOO_MANY")).toBe("24 人までで回せます");
     expect(rouletteErrorMessageFor("INVALID_PICK_COUNT")).toBe("この人数は選べません");
     expect(rouletteErrorMessageFor("ROULETTE_TOO_FEW_FOR_PICK")).toBe("選ぶ人数の人より、入る人が要ります");
+    expect(rouletteErrorMessageFor("ROULETTE_ROUND_IN_PROGRESS")).toBe("この回の途中は決め方を変えられません");
   });
 
   it("MESSAGE_TOO_LARGE / INTERNAL_ERROR は接続層（ws-adapter）と同じ文を返す", () => {

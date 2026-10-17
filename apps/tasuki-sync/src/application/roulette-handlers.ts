@@ -34,9 +34,11 @@ import {
   prune,
   removeGuest,
   resetCycle,
+  resetOrder,
   RouletteCommandSchema,
   rouletteErrorMessageFor,
   setIncluded,
+  setMode,
   setPickCount,
   startSpin,
   type Member,
@@ -233,6 +235,25 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
         // 範囲は境界のスキーマが先に絞る。ドメインも同じ範囲を見る（#401 spec M2）。
         // 回っている間も受ける: 回転は回した時点の人数を picks に凍結して持つ（spec M3）
         const next = setPickCount(state, cmd.count);
+        if (next.isErr()) {
+          fail(connId, next.error.code);
+          return;
+        }
+        commit(room.code, stored, next.value);
+        return;
+      }
+      case "roulette.mode.set": {
+        // 回っている間と、順番に回す回の途中は拒む（#401 順番に回す T8）
+        const next = setMode(state, cmd.mode, monotonicClock.now());
+        if (next.isErr()) {
+          fail(connId, next.error.code);
+          return;
+        }
+        commit(room.code, stored, next.value);
+        return;
+      }
+      case "roulette.order.reset": {
+        const next = resetOrder(state, monotonicClock.now());
         if (next.isErr()) {
           fail(connId, next.error.code);
           return;

@@ -9,15 +9,15 @@
 #       git apply scripts/mutations/m153-*.patch
 # 復元: git apply -R scripts/mutations/m153-*.patch
 diff --git a/packages/roulette-core/src/roulette.ts b/packages/roulette-core/src/roulette.ts
-index 52a94d6..9429cab 100644
+index 040e099..072ba4e 100644
 --- a/packages/roulette-core/src/roulette.ts
 +++ b/packages/roulette-core/src/roulette.ts
-@@ -46,7 +46,7 @@ function isSpinning(state: RouletteState, now: number): boolean {
-  * 通れば `lastSpin` と `drawn` を更新した状態を返す（`wheel` は pool の凍結した写し・`picks` は選ぶ人数の件数）。
+@@ -45,7 +45,7 @@ function isSpinning(state: RouletteState, now: number): boolean {
+  * 回す。回転中は拒む。決め方で分ける（#401 順番に回す T1）。
   */
  export function startSpin(state: RouletteState, input: SpinInput): Result<RouletteState, RouletteError<SpinErrorCode>> {
 -  if (isSpinning(state, input.now)) return err({ code: "ROULETTE_SPINNING" });
 +
-   const pool = poolOf(input.members, state, input.conflicts);
-   const k = state.pickCount;
-   // 入る人がちょうど k 人なら全員が選ばれ、回す意味が無い（#401 spec M5）。k = 1 では #94 の「2 人から」と同じ
+   return state.mode === "order" ? startOrderSpin(state, input) : startOnceSpin(state, input);
+ }
+ 

@@ -12,14 +12,15 @@
 # #94 spec R13・§5.1。在室者と同じ名前のゲストは入る人から外れる。その行に印が無いと、
 # 足したはずの人が理由の分からないまま円盤に居なくなる。変異は印の導出を常に偽にする。
 diff --git a/apps/roulette-web/src/roulette-view.ts b/apps/roulette-web/src/roulette-view.ts
+index 36d9251..1a5bb7f 100644
 --- a/apps/roulette-web/src/roulette-view.ts
 +++ b/apps/roulette-web/src/roulette-view.ts
-@@ -139,7 +139,7 @@
-   const poolIds = new Set(pool.map((e) => e.id));
- 
+@@ -229,7 +229,7 @@ export function peopleOf(input: {
    const markOf = (id: string, away: boolean, twin = false): RowMark =>
--    away ? 'away' : twin ? 'twin' : poolIds.has(id) && drawn.has(id) ? 'drawn' : null;
-+    away ? 'away' : false && twin ? 'twin' : poolIds.has(id) && drawn.has(id) ? 'drawn' : null;
-   const memberRows = members.map(
-     (m): PersonRow => ({
-       id: m.id,
+     away
+       ? 'away'
+-      : twin
++      : false && twin
+         ? 'twin'
+         : turns !== undefined
+           ? turns.has(id)
