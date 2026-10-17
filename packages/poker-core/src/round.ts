@@ -82,7 +82,11 @@ export function applyAutoReveal(round: Round, voters: readonly VoterView[], now:
 
 /** revealed へ移し、その時点の item と票の枚数を記録へ 1 行足す（記録は公開の瞬間にだけ増える） */
 function revealed(round: Round, now: number): Round {
-  const log = recordReveal(round.log, round.item, [...round.votes.values()], now);
+  // 票が 0 枚の開票は行にしない（空の行と、あとで「ポイントなし」で閉じる空の束が残るだけ）。開票自体は行う
+  const log =
+    round.votes.size === 0
+      ? round.log
+      : recordReveal(round.log, round.item, [...round.votes.values()], now);
   return { ...round, status: 'revealed', log };
 }
 
@@ -135,9 +139,26 @@ export function nextItem(
   });
 }
 
-/** アイテム名を設定する。前後の空白を削る。長さの上限は境界（ワイヤの検証）が見る */
+// 制御文字・書式文字（双方向制御を含む）・Default_Ignorable。room-core の display-name.ts はこれに
+// NFKC とラベル記号の除去を足した、より厳しい兄弟（アイテム名にはそこまで要らない）
+const INVISIBLE_CHARS = /[\p{Cc}\p{Cf}\p{Default_Ignorable_Code_Point}]/gu;
+
+/**
+ * アイテム名を設定する。不可視文字を除いて前後の空白を削る。長さの上限は境界（ワイヤの検証）が見る。
+ * 開票後（revealed）は、いま見ている開票の行（束の最後の行）の名前にも写す —— 束の見出しが追う。
+ * 投票中は log に触れない。閉じた束は変えない。
+ */
 export function setItem(round: Round, item: string): Round {
-  return { ...round, item: item.trim() };
+  const next = item.replace(INVISIBLE_CHARS, '').trim();
+  if (round.status !== 'revealed') return { ...round, item: next };
+  const last = round.log.groups[round.log.groups.length - 1];
+  const entry = last?.entries[last.entries.length - 1];
+  if (!last?.open || !entry) return { ...round, item: next };
+  const groups = [
+    ...round.log.groups.slice(0, -1),
+    { ...last, entries: [...last.entries.slice(0, -1), { ...entry, item: next }] },
+  ];
+  return { ...round, item: next, log: { ...round.log, groups } };
 }
 
 /** 閉じた束のポイントを直す（null で消す）。失敗は {@link setGroupPoints} のエラーをそのまま返す */

@@ -255,6 +255,50 @@ describe('開票の記録（#93）', () => {
   });
 });
 
+describe('開票後の名前・票なしの開票（#93 PR レビュー）', () => {
+  it('Given 名前なしで開票 / When 開票後に setItem / Then 最後の行の item が追う。前の行は変わらない', () => {
+    // Given
+    let round = castVote(createRound(), 'p1', five)._unsafeUnwrap();
+    round = revealBy(round, 'p1', 1000)._unsafeUnwrap();
+    round = revote(round, 'p1')._unsafeUnwrap();
+    round = castVote(round, 'p1', five)._unsafeUnwrap();
+    round = revealBy(round, 'p1', 2000)._unsafeUnwrap();
+    // When
+    const after = setItem(round, 'PROJ-9');
+    // Then
+    const entries = after.log.groups[0]!.entries;
+    expect(entries.map((e) => e.item)).toEqual(['', 'PROJ-9']);
+    expect(after.item).toBe('PROJ-9');
+  });
+
+  it('Given 開票後 / When setItem して nextItem / Then 閉じた束は後から変わらない', () => {
+    // Given
+    let round = castVote(createRound(), 'p1', five)._unsafeUnwrap();
+    round = revealBy(round, 'p1', 1000)._unsafeUnwrap();
+    const closed = nextItem(setItem(round, 'A'), 'p1', 5)._unsafeUnwrap();
+    // When
+    const after = setItem(closed, 'B');
+    // Then
+    expect(after.log).toBe(closed.log);
+  });
+
+  it('Given 投票中 / When setItem / Then log は同じ参照', () => {
+    const round = createRound();
+    expect(setItem(round, 'X').log).toBe(round.log);
+  });
+
+  it('Given 票が 0 / When revealBy / Then 開票はするが log は変わらない', () => {
+    const round = createRound();
+    const revealed = revealBy(round, 'p1', 1000)._unsafeUnwrap();
+    expect(revealed.status).toBe('revealed');
+    expect(revealed.log).toBe(round.log);
+  });
+
+  it('setItem は不可視・双方向制御文字を取り除く', () => {
+    expect(setItem(createRound(), 'A\u202EB\u200B\u0007').item).toBe('AB');
+  });
+});
+
 describe('setItem / setPoints（#93）', () => {
   it('setItem は前後の空白を削る。status・votes・log は変わらない', () => {
     // Given

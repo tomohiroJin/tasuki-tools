@@ -71,7 +71,8 @@
 { "type": "set-item", "item": "PROJ-1" }
 ```
 
-- 前提: join 済み。**voting 中でも revealed 中でも受ける**。`item` は 120 文字まで（`MAX_ESTIMATE_ITEM`）。前後の空白は削られ、空文字は「名前なし」
+- 前提: join 済み。**voting 中でも revealed 中でも受ける**。`item` は 120 文字まで（`MAX_ESTIMATE_ITEM`）。前後の空白は削られ（長さは削ったあとで数える）、不可視文字・双方向制御文字は取り除かれ、空文字は「名前なし」
+- revealed 中は、いま見ている開票の行（open の束の最後の行）の名前にも写る。閉じた束は変わらない
 - 全員の `room-state.estimate.item` が変わる
 
 ### revote — 再投票（FR-011・#93）
