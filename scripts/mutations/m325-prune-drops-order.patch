@@ -1,0 +1,26 @@
+# 変異 325: prune-drops-order
+#
+# 検出を期待するテスト:
+#   - packages/roulette-core/tests/roulette-turn-order.test.ts
+#
+# #401 順番に回す T6・PR #418 のレビュー。名簿から消えた人を番の記録から落とす。後ろの人の番が繰り上がり、次の番が既出の番と重なる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m325-*.patch
+# 復元: git apply -R scripts/mutations/m325-*.patch
+diff --git a/packages/roulette-core/src/roulette.ts b/packages/roulette-core/src/roulette.ts
+index 2b75c0d..b4f1c74 100644
+--- a/packages/roulette-core/src/roulette.ts
++++ b/packages/roulette-core/src/roulette.ts
+@@ -218,8 +218,9 @@ export function prune(state: RouletteState, knownIds: Iterable<EntryId>): Roulet
+   const excluded = state.excluded.filter((id) => known.has(id));
+   const drawn = state.drawn.filter((id) => known.has(id));
+   // 何も落ちなければ同じ参照を返す（同期サーバーが「変わっていない」を参照で判定する）
+-  if (excluded.length === state.excluded.length && drawn.length === state.drawn.length) return state;
+-  return { ...state, excluded, drawn };
++  const order = state.order === null ? null : { ...state.order, done: state.order.done.filter((e) => known.has(e.id)) };
++  if (excluded.length === state.excluded.length && drawn.length === state.drawn.length && order?.done.length === state.order?.done.length) return state;
++  return { ...state, excluded, drawn, order };
+ }
+ 
+ /** wire へ載せる形（spec §5.3）。 */

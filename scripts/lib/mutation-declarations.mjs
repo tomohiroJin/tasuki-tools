@@ -2406,11 +2406,11 @@ export const MUTATIONS = [
   },
   {
     id: 325,
-    label: "名簿から消えた人の番の記録が残る",
-    patch: "m325-prune-keeps-order.patch",
+    label: "名簿から消えた人を番の記録から落とす",
+    patch: "m325-prune-drops-order.patch",
     pkg: "packages/roulette-core",
     tests: ["tests/roulette-turn-order.test.ts"],
-    note: "#401 順番に回す T5・T6。名簿から消えた人を番の記録から落とさない。抜けた人の記録が残り続ける。",
+    note: "#401 順番に回す T6・PR #418 のレビュー。名簿から消えた人を番の記録から落とす。後ろの人の番が繰り上がり、次の番が既出の番と重なる。",
   },
   {
     id: 326,
