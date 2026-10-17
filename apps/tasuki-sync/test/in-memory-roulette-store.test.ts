@@ -25,6 +25,8 @@ const SETTLED: RouletteState = {
   },
   nextGuestSeq: 2,
   pickCount: 1,
+  mode: "once",
+  order: null,
 };
 
 /**

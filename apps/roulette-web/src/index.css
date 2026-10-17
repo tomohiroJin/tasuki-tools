@@ -453,8 +453,39 @@
   width: 100%;
 }
 
-/* ---------- 脇（ルーレットに入る人・仲間を招く） ---------- */
-/* 選ぶ人数（#401 spec §6.4）。1 行目にラベル、2 行目にボタン 4 つを等分で 1 行に。色と枠は部品（副のボタン ＋ aria-pressed）が持つ */
+/* 順番に回すときの一言は 1 行で … に切る（押すたびに文が変わり、折り返すと円盤が上下に動く。全文は読み上げが持つ・
+   #401 順番に回す §5.1） */
+.roulette-caption--order {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- 脇（決め方・ルーレットに入る人・仲間を招く） ---------- */
+/* 決め方の面（#401 順番に回す T9）: 見出し → 2 つのボタン（等分で 1 行）→ 選んだ決め方の説明・設定・進み具合 */
+.roulette-mode {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+}
+.roulette-mode h2 {
+  margin: 0;
+}
+/* 選ぶ人数の並び（4 等分）を 2 等分にする。後に書かれる `.roulette-pick-options` に負けないよう 2 つのクラスで当てる */
+.roulette-pick-options.roulette-mode-options {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.roulette-mode-body {
+  display: grid;
+  gap: var(--space-3);
+}
+.roulette-mode-note {
+  margin: 0;
+  color: var(--ivory-dim);
+  font-size: var(--font-size-sm);
+}
+/* 選ぶ人数（#401 spec §6.4）。1 行目にラベル、2 行目にボタン 4 つを等分で 1 行に */
 .roulette-pick {
   display: grid;
   gap: var(--space-2);
@@ -472,6 +503,12 @@
 .roulette-pick-options .ui-button {
   min-width: 0;
   padding-inline: var(--space-2);
+}
+/* 選んだボタン（決め方・選ぶ人数・#401 順番に回す T10）。topic-web の「書く / プレビュー」と同じ: 金の薄い敷きと内側の線。
+   部品（副のボタン）は aria-pressed を飾らないので、画面が当てる */
+.roulette-pick-options .ui-button[aria-pressed='true'] {
+  background: var(--gold-tint);
+  box-shadow: inset 0 0 0 1px var(--gold-deep);
 }
 .roulette-side {
   display: grid;

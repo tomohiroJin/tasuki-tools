@@ -116,6 +116,7 @@ describe("ルーレットのフレーム", () => {
         "INVALID_PICK_COUNT",
         "MESSAGE_TOO_LARGE",
         "NOT_IN_ROOM",
+        "ROULETTE_ROUND_IN_PROGRESS",
         "ROULETTE_SPINNING",
         "ROULETTE_TOO_FEW",
         "ROULETTE_TOO_FEW_FOR_PICK",
@@ -184,5 +185,47 @@ describe("選ぶ人数（wire）", () => {
     // Given / When / Then
     expect(parse({ excluded: [], guests: [], drawn: [], spin: { ...spin, picks: [{ index: "0", settle: 0.5 }] } }).success).toBe(false);
     expect(parse({ pickCount: "2", excluded: [], guests: [], drawn: [], spin: null }).success).toBe(false);
+  });
+});
+
+/**
+ * @requirements #401 順番に回す T1・T8・T5（wire）
+ */
+describe("順番に回す（wire）", () => {
+  it("roulette.mode.set は once と order だけを受け、余剰の項目は落ちる", () => {
+    // Given / When / Then
+    expect(ok({ command: "roulette.mode.set", mode: "once" })).toBe(true);
+    expect(ok({ command: "roulette.mode.set", mode: "order" })).toBe(true);
+    expect(ok({ command: "roulette.mode.set", mode: "knockout" })).toBe(false);
+    expect(ok({ command: "roulette.mode.set" })).toBe(false);
+    expect(ok({ command: "roulette.mode.set", mode: "order", x: 1 })).toBe(false);
+  });
+
+  it("roulette.order.reset は項目を持たない", () => {
+    // Given / When / Then
+    expect(ok({ command: "roulette.order.reset" })).toBe(true);
+    expect(ok({ command: "roulette.order.reset", x: 1 })).toBe(false);
+  });
+
+  const parse = (state: object) => v.safeParse(RouletteFrameSchema, { type: "roulette", state });
+  const base = { excluded: [], guests: [], drawn: [], spin: null };
+
+  it("mode・order・turn のあるフレームが通り、値をそのまま読む", () => {
+    // Given
+    const order = { done: [{ id: "a", name: "A" }], finished: false };
+    const spin = { seq: 1, wheel: [{ id: "a", name: "A" }, { id: "b", name: "B" }], winnerIndex: 0, settle: 0.5, turn: 1, spunBy: "A", durationMs: 4000, elapsedMs: 0 };
+    // When
+    const r = parse({ ...base, mode: "order", order, spin });
+    // Then
+    expect(r.success && r.output.state.mode).toBe("order");
+    expect(r.success && r.output.state.order).toEqual(order);
+    expect(r.success && r.output.state.spin?.turn).toBe(1);
+  });
+
+  it("order は null も通り、形が違えば落ちる", () => {
+    // Given / When / Then
+    expect(parse({ ...base, mode: "once", order: null }).success).toBe(true);
+    expect(parse({ ...base, order: { done: ["a"], finished: false } }).success).toBe(false);
+    expect(parse({ ...base, mode: "x" }).success).toBe(false);
   });
 });

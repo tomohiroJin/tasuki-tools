@@ -22,9 +22,11 @@ interface Props {
   /** 回っている間だけ、席の境目で指し針を弾ませる */
   spinning: boolean;
   reducedMotion: boolean;
+  /** 中心の数。既定は席の数（順番に回すときは、あと何人・#401 順番に回す） */
+  hubCount?: number | undefined;
 }
 
-export function Wheel({ entries, winners, drawnIds, angle, pointerDeg, spinning, reducedMotion }: Props) {
+export function Wheel({ entries, winners, drawnIds, angle, pointerDeg, spinning, reducedMotion, hubCount }: Props) {
   const n = entries.length;
   // 名前の性質・各書き方の切り方・扇形は席の並びだけで決まるので、回転の毎フレームでは計算し直さない。
   // 向き（`labelPlacement`）だけが回転の角度に依るので毎フレーム決める
@@ -92,7 +94,7 @@ export function Wheel({ entries, winners, drawnIds, angle, pointerDeg, spinning,
       </g>
       <circle className="wheel-hub" r={INNER_R} />
       <text className="wheel-hub-count" y="1">
-        {n}
+        {hubCount ?? n}
       </text>
       {/* 指し針: 真鍮の小旗。円盤の外（下 or 右）から席を指す */}
       <g transform={`rotate(${pointerDeg - 180})`}>

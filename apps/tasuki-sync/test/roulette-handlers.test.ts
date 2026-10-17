@@ -147,7 +147,7 @@ describe("ルーレットの接続でルームへ入る", () => {
 
     // Then: 復帰の組 → いまの状態の順で届く
     expect(h.sent.filter((s) => s.connId === "r-1").map((s) => s.msg.type)).toEqual(["room.joined", "roulette"]);
-    expect(viewsTo(h, "r-1")).toEqual([{ pickCount: 1, excluded: [], guests: [], drawn: [], spin: null }]);
+    expect(viewsTo(h, "r-1")).toEqual([{ pickCount: 1, mode: "once", order: null, excluded: [], guests: [], drawn: [], spin: null }]);
     expect([...h.store.get(ROOM)!.participants[0]!.connections]).toEqual([["r-1", "roulette"]]);
   });
 
@@ -734,6 +734,76 @@ describe("選ぶ人数", () => {
     expect(after.spin?.seq).toBe(spun.seq);
     expect(after.spin?.picks).toEqual(spun.picks);
     expect(after.spin?.durationMs).toBe(spun.durationMs);
+  });
+});
+
+/**
+ * @requirements #401 順番に回す T1・T2・T3・T8
+ */
+describe("順番に回す", () => {
+  async function threeInOrder(): Promise<Harness> {
+    const h = setup();
+    for (const [connId, name] of [["r-1", "Alice"], ["r-2", "Bob"], ["r-3", "Carol"]] as const) {
+      await joined(h, connId, name);
+    }
+    await h.handle("r-1", { command: "roulette.mode.set", mode: "order" });
+    return h;
+  }
+
+  it("決め方を全員へ配り、回すたびに 1 人の番が決まって、最後の 1 人は回さずに出る", async () => {
+    // Given
+    const h = await threeInOrder();
+    expect(viewsTo(h, "r-2").at(-1)?.mode).toBe("order");
+
+    // When: 3 人 → 2 人 → 最後の 1 人
+    await h.handle("r-1", { command: "roulette.spin" });
+    const first = viewsTo(h, "r-2").at(-1)!;
+    h.advance(4_000);
+    await h.handle("r-2", { command: "roulette.spin" });
+    const second = viewsTo(h, "r-3").at(-1)!;
+    h.advance(4_000);
+    await h.handle("r-3", { command: "roulette.spin" });
+    const last = viewsTo(h, "r-1").at(-1)!;
+
+    // Then: 2 つ目の接続に同じ人が同じ順で届き、円盤から済んだ人が抜ける
+    expect(first.spin?.turn).toBe(1);
+    expect(first.spin?.wheel).toHaveLength(3);
+    expect(second.spin?.turn).toBe(2);
+    expect(second.spin?.wheel).toHaveLength(2);
+    expect(last.spin?.seq).toBe(second.spin?.seq);
+    expect(last.order?.finished).toBe(true);
+    expect(last.order?.done.map((e) => e.name).sort()).toEqual(["Alice", "Bob", "Carol"]);
+    expect(viewsTo(h, "r-2").at(-1)?.order).toEqual(last.order);
+  });
+
+  it("回の途中は決め方を変えられず、最初からやり直すと変えられる", async () => {
+    // Given
+    const h = await threeInOrder();
+    await h.handle("r-1", { command: "roulette.spin" });
+    h.advance(4_000);
+
+    // When
+    await h.handle("r-2", { command: "roulette.mode.set", mode: "once" });
+    await h.handle("r-2", { command: "roulette.order.reset" });
+    await h.handle("r-2", { command: "roulette.mode.set", mode: "once" });
+
+    // Then
+    expect(errorsTo(h, "r-2")).toEqual(["ROULETTE_ROUND_IN_PROGRESS"]);
+    const view = viewsTo(h, "r-3").at(-1)!;
+    expect(view.mode).toBe("once");
+    expect(view.order).toBeNull();
+  });
+
+  it("回っている間はやり直せない", async () => {
+    // Given
+    const h = await threeInOrder();
+    await h.handle("r-1", { command: "roulette.spin" });
+
+    // When
+    await h.handle("r-2", { command: "roulette.order.reset" });
+
+    // Then
+    expect(errorsTo(h, "r-2")).toEqual(["ROULETTE_SPINNING"]);
   });
 });
 

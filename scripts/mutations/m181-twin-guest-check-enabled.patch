@@ -13,10 +13,10 @@
 #       git apply scripts/mutations/m181-*.patch
 # 復元: git apply -R scripts/mutations/m181-*.patch
 diff --git a/apps/roulette-web/src/roulette-view.ts b/apps/roulette-web/src/roulette-view.ts
-index 3f5808ea..1e480964 100644
+index 36d9251..a63e9f7 100644
 --- a/apps/roulette-web/src/roulette-view.ts
 +++ b/apps/roulette-web/src/roulette-view.ts
-@@ -148,7 +148,7 @@ export function peopleOf(input: {
+@@ -263,7 +263,7 @@ export function peopleOf(input: {
        checked: poolIds.has(g.id),
        // 同名で外れている間は、チェックを入れても入る人に戻らない（押しても何も起きない）ので押させない。
        // 理由は印の文言が言う（画面は印をチェックの説明に結び付ける）。
@@ -24,4 +24,4 @@ index 3f5808ea..1e480964 100644
 +      disabled: false,
        isSelf: false,
        removable: true,
-       mark: markOf(g.id, false, twin),
+       mark,

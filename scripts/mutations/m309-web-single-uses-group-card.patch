@@ -9,13 +9,13 @@
 #       git apply scripts/mutations/m309-*.patch
 # 復元: git apply -R scripts/mutations/m309-*.patch
 diff --git a/apps/roulette-web/src/components/Stage.tsx b/apps/roulette-web/src/components/Stage.tsx
-index 8b45795..f67bb38 100644
+index 967ac91..5eb1c98 100644
 --- a/apps/roulette-web/src/components/Stage.tsx
 +++ b/apps/roulette-web/src/components/Stage.tsx
-@@ -51,7 +51,7 @@ export function Stage({ pool, view, phase, revealed, receivedAt, reducedMotion,
-   const drawnIds = new Set(people.rows.filter((r) => r.mark === 'drawn').map((r) => r.id));
+@@ -54,7 +54,7 @@ export function Stage({ pool, view, phase, revealed, receivedAt, reducedMotion,
    const picked = revealedPicksOf(view, revealed);
-   const cardK = cardPickCountOf(view);
+   // 順番に回すときは 1 回に 1 人（選ぶ人数を使わない・T7）
+   const cardK = order === null ? cardPickCountOf(view) : 1;
 -  const group = cardK >= 2;
 +  const group = cardK >= 1;
  

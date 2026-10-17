@@ -88,3 +88,22 @@ export const STALE_TEXT = '同期できていません。表示が最新でな�
 // 混雑で参加を拒まれたとき。**poker の「混み合っています」を写さない**（「混」「雑」が base 層外）
 export const RETRY_WAITING_TEXT = '参加を待っています。自動で入り直しています…';
 export const RETRY_EXHAUSTED_TEXT = '参加できません。時間をおいてから再読込してください';
+
+// 決め方（#401 順番に回す spec §5.2）
+export const MODE_HEADING = '決め方';
+export const MODE_ONCE = '1 回で決める';
+export const MODE_ORDER = '順番に回す';
+export const ONCE_NOTE = '1 回回して、選ぶ人数ぶんを決めます';
+/** 順番に回すときの説明（決め方の面）と、回す前の一言 */
+export const ORDER_NOTE = '選ばれた人から順に抜けていきます';
+export const ORDER_BUTTON = '次の人を決める';
+export const ORDER_LAST_BUTTON = '最後の 1 人';
+export const ORDER_NEW_ROUND_BUTTON = '次の回を始める';
+/** 札の見出し・脇の一覧の印 */
+export const turnLabel = (n: number): string => `${n} 番`;
+export const turnResultText = (n: number, name: string): string => `${n} 番は ${name} さんです`;
+export const orderLastText = (name: string): string => `最後は ${name} さんです`;
+export const ORDER_NOT_STARTED = 'まだ回していません';
+export const orderProgressText = (done: number, left: number): string => `${done} 人済み・あと ${left} 人`;
+export const ORDER_ALL_DONE = '全員の順番が決まりました';
+export const ORDER_RESET_BUTTON = '最初からやり直す';

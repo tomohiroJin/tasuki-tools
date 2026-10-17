@@ -52,7 +52,7 @@ test.describe('@core ルーレットは全員の画面で同じ人に止まる',
   }) => {
     // ルームはこの 1 本だけで作るので、回す場面がすべてここに積まれる（#94 の 9 回・#401 の 2 人と 4 人の回転）。
     // #401 の 2 回（約 5.6 秒と 8.8 秒）を足して既定の上限（60 秒）を超えたので、この本だけ 30 秒延ばす
-    test.setTimeout(test.info().timeout + 30_000);
+    test.setTimeout(test.info().timeout + 45_000);
     // 取りにいった書体を記録する（常用の層の外を引いていないことを、止まった後に見る）
     const fonts: string[] = [];
     page.on('request', (request) => {
@@ -248,6 +248,36 @@ test.describe('@core ルーレットは全員の画面で同じ人に止まる',
     await expectGroupCardNotCovered(page);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), '4 人・320: 横に溢れない').toBe(true);
     await page.setViewportSize({ width: 1280, height: 720 });
+
+    // Then 順番に回す（#401 順番に回す spec §5）。同じルームのまま A が決め方を変えると B にも届く。入る人を 3 人に絞り、
+    //   2 回回して 1 番・2 番を決め、最後の 1 人は回さずに出る。全員の画面で同じ人が同じ順になり、回が終わると円盤は空になる
+    const modeButton = (p: typeof page, name: string) => p.getByRole('group', { name: '決め方' }).getByRole('button', { name });
+    await modeButton(page, '順番に回す').click();
+    await expect(modeButton(peer.page, '順番に回す'), 'B にも決め方が届く').toHaveAttribute('aria-pressed', 'true');
+    const checked = page.locator('.roulette-check:checked:not(:disabled)');
+    for (let left = await checked.count(); left > 3; left--) {
+      await checked.last().click();
+      await expect(checked).toHaveCount(left - 1);
+    }
+    const orderButton = (p: typeof page, name: string) => p.getByRole('button', { name, exact: true });
+    const turns: string[] = [];
+    for (const turn of [1, 2]) {
+      await orderButton(page, '次の人を決める').click();
+      const result = new RegExp(`^${turn} 番は (.+) さんです$`);
+      await expect(roulettePhrase(page), `${turn} 番: A の結果`).toHaveText(result, { timeout: SPIN_MS + 2000 });
+      const text = (await roulettePhrase(page).textContent()) ?? '';
+      await expect(roulettePhrase(peer.page), `${turn} 番: B も同じ人`).toHaveText(text);
+      turns.push(result.exec(text)?.[1] ?? '');
+    }
+    await orderButton(page, '最後の 1 人').click();
+    await expect(roulettePhrase(page), '最後の人').toHaveText(/^最後は (.+) さんです$/);
+    const lastText = (await roulettePhrase(page).textContent()) ?? '';
+    await expect(roulettePhrase(peer.page), '最後: B も同じ人').toHaveText(lastText);
+    turns.push(/^最後は (.+) さんです$/.exec(lastText)?.[1] ?? '');
+    expect(new Set(turns).size, '3 人がそれぞれ 1 度ずつ').toBe(3);
+    await expect(page.locator('.wheel-segment'), '回が終わったら円盤は空').toHaveCount(0);
+    await expect(orderButton(page, '次の回を始める')).toBeEnabled();
+    await expect(peer.page.getByText('全員の順番が決まりました')).toBeVisible();
 
     // どの画面も例外を出していない
     expect(consoleWatcher.errors).toEqual([]);

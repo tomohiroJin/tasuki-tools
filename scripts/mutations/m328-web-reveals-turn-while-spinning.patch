@@ -1,0 +1,24 @@
+# 変異 328: web-reveals-turn-while-spinning
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/turn-order-view.test.ts
+#   - apps/roulette-web/tests/turn-order.test.tsx
+#
+# #401 順番に回す §5.3。回っている間に、いま選ばれる人の番の印を脇に出す（止まる前に結果が分かる）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m328-*.patch
+# 復元: git apply -R scripts/mutations/m328-*.patch
+diff --git a/apps/roulette-web/src/roulette-view.ts b/apps/roulette-web/src/roulette-view.ts
+index 36d9251..946423d 100644
+--- a/apps/roulette-web/src/roulette-view.ts
++++ b/apps/roulette-web/src/roulette-view.ts
+@@ -361,7 +361,7 @@ export function orderStageOf(input: { view: RouletteView; pool: readonly Entry[]
+   const spin = view.spin;
+   const done = order?.done ?? [];
+   const finished = order?.finished === true;
+-  const shown = phase === 'spinning' && spin?.turn !== undefined ? done.slice(0, spin.turn - 1) : done;
++  const shown = done;
+   const shownIds = new Set(shown.map((e) => e.id));
+   const doneIds = new Set(done.map((e) => e.id));
+   const left = finished ? 0 : pool.filter((e) => !shownIds.has(e.id)).length;

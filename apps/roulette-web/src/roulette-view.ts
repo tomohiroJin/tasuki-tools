@@ -5,10 +5,16 @@
  * 1 度だけ取る基準）。**回転の経過 = サーバーが送った `elapsedMs` + 受け取ってからの時間。**
  */
 import { conflictsWithExisting, type RosterRoom } from '@tasuki/room-core';
-import { pickStopsMs, poolOf, type Entry, type Member, type RouletteState, type RouletteView } from '@tasuki/roulette-core';
+import { pickStopsMs, poolOf, type Entry, type Member, type RouletteMode, type RouletteState, type RouletteView } from '@tasuki/roulette-core';
 import {
   CAPTION_IDLE,
   CYCLE_NOTE,
+  ORDER_ALL_DONE,
+  ORDER_BUTTON,
+  ORDER_LAST_BUTTON,
+  ORDER_NEW_ROUND_BUTTON,
+  ORDER_NOTE,
+  ORDER_NOT_STARTED,
   RECONNECTING_TEXT,
   SPIN_AGAIN_BUTTON,
   SPIN_BUTTON,
@@ -20,12 +26,17 @@ import {
   groupIdleText,
   groupResultText,
   groupTopicNoteText,
+  orderLastText,
+  orderProgressText,
   resultText,
   spunByText,
   tooFewForPickText,
   topicNoteText,
+  turnLabel,
+  turnResultText,
 } from './copy';
 import type { PickSpot } from './wheel-motion';
+import type { WheelSeats } from './wheel-view';
 // 接続状態の型の正本は `@tasuki/sync-client`（#369）。型だけを取る（実行時には同期クライアントを読まない）。
 import type { ConnectionStatus } from '@tasuki/sync-client';
 
@@ -83,7 +94,16 @@ export function membersOf(roster: RosterRoom | null): Member[] {
 
 /** `poolOf` が読む形（`excluded` と `guests` だけが効く）。 */
 function stateOf(view: RouletteView): RouletteState {
-  return { excluded: view.excluded, guests: view.guests, drawn: view.drawn, lastSpin: null, nextGuestSeq: 1, pickCount: pickCountOf(view) };
+  return {
+    excluded: view.excluded,
+    guests: view.guests,
+    drawn: view.drawn,
+    lastSpin: null,
+    nextGuestSeq: 1,
+    pickCount: pickCountOf(view),
+    mode: modeOf(view),
+    order: null,
+  };
 }
 
 /**
@@ -155,7 +175,7 @@ export function winnerOf(view: RouletteView): Entry | null {
  * 行の印。1 行に出す印はこの 1 つ（離席中が選ばれたより先）。
  * 同名のゲストが入る人から外れる印など、印が増えるときはここに足す。
  */
-export type RowMark = 'away' | 'twin' | 'drawn' | null;
+export type RowMark = 'away' | 'twin' | 'drawn' | 'turn' | null;
 
 export interface PersonRow {
   id: string;
@@ -168,6 +188,8 @@ export interface PersonRow {
   /** 名前を消せるのは足したゲストだけ */
   removable: boolean;
   mark: RowMark;
+  /** 順番に回すときの番（印が `turn` のときだけ数・#401 順番に回す） */
+  turn: number | null;
 }
 
 export interface People {
@@ -191,6 +213,8 @@ export function peopleOf(input: {
   pool: readonly Entry[];
   /** 何人目まで決まったか（`revealedCountOf`）。省くと、回っている間は 0 人・それ以外は全員（#94 と同じ） */
   revealed?: number;
+  /** 順番に回すときの、見せてよい番（`orderStageOf` の `turns`）。渡すと一周の「選ばれた」の代わりに番の印を付ける */
+  turns?: ReadonlyMap<string, number> | undefined;
 }): People {
   const { members, view, selfId, phase, pool } = input;
   const all = view.spin === null ? 0 : picksOf(view.spin).length;
@@ -201,23 +225,38 @@ export function peopleOf(input: {
   const excluded = new Set(view.excluded);
   const poolIds = new Set(pool.map((e) => e.id));
 
+  const turns = input.turns;
   const markOf = (id: string, away: boolean, twin = false): RowMark =>
-    away ? 'away' : twin ? 'twin' : poolIds.has(id) && drawn.has(id) ? 'drawn' : null;
-  const memberRows = members.map(
-    (m): PersonRow => ({
+    away
+      ? 'away'
+      : twin
+        ? 'twin'
+        : turns !== undefined
+          ? turns.has(id)
+            ? 'turn'
+            : null
+          : poolIds.has(id) && drawn.has(id)
+            ? 'drawn'
+            : null;
+  const turnOf = (mark: RowMark, id: string): number | null => (mark === 'turn' ? (turns?.get(id) ?? null) : null);
+  const memberRows = members.map((m): PersonRow => {
+    const mark = markOf(m.id, !m.present);
+    return {
       id: m.id,
       name: m.name,
       checked: !excluded.has(m.id) && m.present,
       disabled: !m.present,
       isSelf: m.id === selfId,
       removable: false,
-      mark: markOf(m.id, !m.present),
-    }),
-  );
+      mark,
+      turn: turnOf(mark, m.id),
+    };
+  });
   const guestRows = view.guests.map((g): PersonRow => {
     // 在室者と同じ名前のゲストは入る人から外れる（サーバーの `poolOf` が決める。写しを作らず同じ関数に聞く）。
     // 外していないのに入る人に居ない = 同じ名前の人がいるため
     const twin = !excluded.has(g.id) && !poolIds.has(g.id);
+    const mark = markOf(g.id, false, twin);
     return {
       id: g.id,
       name: g.name,
@@ -227,7 +266,8 @@ export function peopleOf(input: {
       disabled: twin,
       isSelf: false,
       removable: true,
-      mark: markOf(g.id, false, twin),
+      mark,
+      turn: turnOf(mark, g.id),
     };
   });
   const rows = [...memberRows, ...guestRows];
@@ -270,6 +310,129 @@ export function spinButtonOf(input: {
   if (serverSpinning) return { label: SPINNING_BUTTON, disabled: true };
   // 入る人がちょうど選ぶ人数なら全員が選ばれ、回す意味が無い（#401 spec M5。1 人なら #94 の「2 人から」と同じ）
   return { label: view.spin === null ? SPIN_BUTTON : SPIN_AGAIN_BUTTON, disabled: !operable || poolCount < pickCountOf(view) + 1 };
+}
+
+// ---------- 順番に回す（#401 順番に回す spec §5） ----------
+
+/** 決め方（#401 順番に回す T1）。古いサーバーは載せないので「1 回で決める」として読む。 */
+export function modeOf(view: RouletteView): RouletteMode {
+  return view.mode ?? 'once';
+}
+
+/**
+ * 舞台が読む形。**決め方に合わない回転を伏せる**（回っていない形にする）: 1 回で決めるときの順番の回転（`turn` がある）・
+ * 順番に回すときの、回の無い回転と 1 回の回転。決め方を変えた直後や、やり直した後に前の回転の結果を出さない。
+ * 合っていれば同じ参照を返す（1 回で決めるときの舞台は #415 のまま）。
+ */
+export function stageViewOf(view: RouletteView): RouletteView {
+  const spin = view.spin;
+  if (spin === null) return view;
+  const orderSpin = spin.turn !== undefined;
+  const keep = modeOf(view) === 'order' ? orderSpin && (view.order ?? null) !== null : !orderSpin;
+  return keep ? view : { ...view, spin: null };
+}
+
+export interface OrderStage {
+  /** 円盤の席。回が終わったら席は無い（案 A・T3） */
+  seats: WheelSeats;
+  /** 円盤の中心の数 = あと何人（回っている間は、いま選ばれる人もまだに数える） */
+  hubCount: number;
+  card: { label: string; name: string | null; revealed: boolean };
+  /** あと何人（`hubCount` と同じ数。回が終わったら 0） */
+  left: number;
+  /** 見せてよい、番が決まった人の数 */
+  doneCount: number;
+  /** 回の途中か */
+  inRound: boolean;
+  finished: boolean;
+  /** 見せてよい番（脇の一覧の印）。回っている間は、いま選ばれる人を入れない */
+  turns: ReadonlyMap<string, number>;
+  /** 回が終わったときの最後の人（終わっていなければ null） */
+  last: Entry | null;
+}
+
+/**
+ * 順番に回すときの舞台（#401 順番に回す T2〜T4・§5.1）。`view` は `stageViewOf` を通したもの。
+ * 番が決まった人は、回っている間はいまの回転の人（`turn` 番）を伏せる（見た目でも先に結果が分からないように）。
+ */
+export function orderStageOf(input: { view: RouletteView; pool: readonly Entry[]; phase: Phase; revealed: number }): OrderStage {
+  const { view, pool, phase, revealed } = input;
+  const order = view.order ?? null;
+  const spin = view.spin;
+  const done = order?.done ?? [];
+  const finished = order?.finished === true;
+  const shown = phase === 'spinning' && spin?.turn !== undefined ? done.slice(0, spin.turn - 1) : done;
+  const shownIds = new Set(shown.map((e) => e.id));
+  const doneIds = new Set(done.map((e) => e.id));
+  const left = finished ? 0 : pool.filter((e) => !shownIds.has(e.id)).length;
+  const turns = new Map(shown.map((e, i) => [e.id, i + 1]));
+  const last = finished ? (done.at(-1) ?? null) : null;
+
+  if (finished) {
+    return {
+      seats: { entries: [], winners: [] },
+      hubCount: 0,
+      card: { label: turnLabel(done.length), name: last?.name ?? null, revealed: last !== null },
+      left,
+      doneCount: shown.length,
+      inRound: false,
+      finished,
+      turns,
+      last,
+    };
+  }
+  const settled = phase === 'settled';
+  const picked = spin === null ? null : (revealedPicksOf(view, revealed)[0] ?? null);
+  return {
+    seats:
+      spin === null
+        ? { entries: pool.filter((e) => !doneIds.has(e.id)), winners: [] }
+        : { entries: spin.wheel, winners: picksOf(spin).slice(0, revealed).map((p) => p.index) },
+    hubCount: left,
+    card: {
+      label: turnLabel(spin?.turn ?? done.length + 1),
+      name: settled ? (picked?.name ?? null) : null,
+      revealed: settled && picked !== null,
+    },
+    left,
+    doneCount: shown.length,
+    inRound: order !== null,
+    finished,
+    turns,
+    last,
+  };
+}
+
+/** 順番に回すときの一言（`role="status"`）。回っている間は選ばれる人の名前を言わない。 */
+export function orderCaptionOf(input: { view: RouletteView; phase: Phase; poolCount: number; order: OrderStage }): string {
+  const { view, phase, poolCount, order } = input;
+  if (phase === 'spinning' && view.spin !== null) return spunByText(view.spin.spunBy);
+  if (order.last !== null) return orderLastText(order.last.name);
+  if (phase === 'settled' && view.spin?.turn !== undefined && order.card.name !== null) return turnResultText(view.spin.turn, order.card.name);
+  return !order.inRound && poolCount < 2 ? TOO_FEW_TEXT : ORDER_NOTE;
+}
+
+/**
+ * 順番に回すときの主ボタン。回が終わったら「次の回を始める」、まだの人が 1 人なら「最後の 1 人」（回さずに出す・T3）。
+ * 新しい回は 2 人から（サーバーと同じ）。回の途中は、まだの人が何人でも押せる（サーバーが回を進めるか終える）。
+ */
+export function orderButtonOf(input: {
+  order: OrderStage;
+  poolCount: number;
+  operable: boolean;
+  serverSpinning: boolean;
+}): { label: string; disabled: boolean } {
+  const { order, poolCount, operable, serverSpinning } = input;
+  if (serverSpinning) return { label: SPINNING_BUTTON, disabled: true };
+  if (order.finished) return { label: ORDER_NEW_ROUND_BUTTON, disabled: !operable || poolCount < 2 };
+  if (order.inRound) return { label: order.left === 1 ? ORDER_LAST_BUTTON : ORDER_BUTTON, disabled: !operable };
+  return { label: ORDER_BUTTON, disabled: !operable || poolCount < 2 };
+}
+
+/** 決め方の面の進み具合（順番に回すとき）。 */
+export function orderProgressOf(order: OrderStage): string {
+  if (order.finished) return ORDER_ALL_DONE;
+  return order.doneCount === 0 ? ORDER_NOT_STARTED : orderProgressText(order.doneCount, order.left);
 }
 
 export type ConnectionNotice =
