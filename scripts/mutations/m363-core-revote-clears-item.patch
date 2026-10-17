@@ -1,4 +1,4 @@
-# 変異 343: core-revote-clears-item
+# 変異 363: core-revote-clears-item
 #
 # 検出を期待するテスト:
 #   - packages/poker-core/tests/round.test.ts
@@ -6,8 +6,8 @@
 # #93。revote が item を空にする（再投票でアイテム名が消える）。
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m343-*.patch
-# 復元: git apply -R scripts/mutations/m343-*.patch
+#       git apply scripts/mutations/m363-*.patch
+# 復元: git apply -R scripts/mutations/m363-*.patch
 diff --git a/packages/poker-core/src/round.ts b/packages/poker-core/src/round.ts
 index 4255982d..c1b9e565 100644
 --- a/packages/poker-core/src/round.ts

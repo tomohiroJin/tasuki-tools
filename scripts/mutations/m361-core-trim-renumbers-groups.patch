@@ -1,4 +1,4 @@
-# 変異 341: core-trim-renumbers-groups
+# 変異 361: core-trim-renumbers-groups
 #
 # 検出を期待するテスト:
 #   - packages/poker-core/tests/estimate-log.test.ts
@@ -6,8 +6,8 @@
 # #93。上限で落とすときに束の ID を振り直す（画面の束の同一性が揺れる）。
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m341-*.patch
-# 復元: git apply -R scripts/mutations/m341-*.patch
+#       git apply scripts/mutations/m361-*.patch
+# 復元: git apply -R scripts/mutations/m361-*.patch
 diff --git a/packages/poker-core/src/estimate-log.ts b/packages/poker-core/src/estimate-log.ts
 index a6ea6993..f1af6902 100644
 --- a/packages/poker-core/src/estimate-log.ts

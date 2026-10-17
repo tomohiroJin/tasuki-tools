@@ -1,4 +1,4 @@
-# 変異 344: sync-next-round-closes-group
+# 変異 364: sync-next-round-closes-group
 #
 # 検出を期待するテスト:
 #   - apps/tasuki-sync/test/poker/estimate-log.test.ts
@@ -7,8 +7,8 @@
 # #93。dispatch の next-round を次のアイテムへ向ける（古いクライアントで束が閉じ item が消える）。
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m344-*.patch
-# 復元: git apply -R scripts/mutations/m344-*.patch
+#       git apply scripts/mutations/m364-*.patch
+# 復元: git apply -R scripts/mutations/m364-*.patch
 diff --git a/apps/tasuki-sync/src/application/poker-commit-room-action.ts b/apps/tasuki-sync/src/application/poker-commit-room-action.ts
 index c4347533..ddd79d39 100644
 --- a/apps/tasuki-sync/src/application/poker-commit-room-action.ts
