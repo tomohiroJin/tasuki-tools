@@ -36,3 +36,8 @@ export function pickStopsMs(pickCount: number): number[] {
 export function spinDurationMs(pickCount: number): number {
   return pickStopsMs(pickCount).at(-1) ?? SPIN_DURATION_MS;
 }
+
+/** 押して止めるときの回る速さ（1 秒に指し針を通る席の数・#401 押して止める P2）。利用者がモック 3 版で決めた */
+export const PRESS_SEATS_PER_SEC = 20;
+/** 押して止めるときに、誰も押さなければ止まる時刻（回し始めからの ms・P5） */
+export const PRESS_AUTO_STOP_MS = 30_000;

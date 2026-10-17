@@ -30,8 +30,10 @@ export const RouletteCommandSchema = v.variant("command", [
   // `INVALID_PICK_COUNT` で拒む（`guest.add` の名前と同じ線引き。境界でも縛ると、そのコードを返す経路が無くなる）。
   v.strictObject({ command: v.literal("roulette.pick.set"), count: v.number() }),
   // 決め方（#401 順番に回す T1）。値は列挙で縛る（ドメインに範囲の外を返すコードが無い）
-  v.strictObject({ command: v.literal("roulette.mode.set"), mode: v.picklist(["once", "order"]) }),
+  v.strictObject({ command: v.literal("roulette.mode.set"), mode: v.picklist(["once", "order", "press"]) }),
   v.strictObject({ command: v.literal("roulette.order.reset") }),
+  // 押して止める（#401 押して止める P3・P4）。位置の範囲はドメインの `stopPress` が `ROULETTE_STOP_INVALID` で見る
+  v.strictObject({ command: v.literal("roulette.stop"), seq: v.number(), index: v.number(), settle: v.number() }),
 ]);
 export type RouletteCommand = v.InferOutput<typeof RouletteCommandSchema>;
 
@@ -43,7 +45,7 @@ const pickSchema = v.object({ index: v.number(), settle: v.number() });
 // `mode`・`order`・`turn` は #401 順番に回すで足した。古いサーバーは載せない
 const RouletteViewSchema = v.object({
   pickCount: v.optional(v.number()),
-  mode: v.optional(v.picklist(["once", "order"])),
+  mode: v.optional(v.picklist(["once", "order", "press"])),
   order: v.optional(v.nullable(v.object({ done: v.array(entrySchema), finished: v.boolean() }))),
   excluded: v.array(v.string()),
   guests: v.array(entrySchema),
@@ -56,6 +58,13 @@ const RouletteViewSchema = v.object({
       settle: v.number(),
       picks: v.optional(v.array(pickSchema)),
       turn: v.optional(v.number()),
+      press: v.optional(
+        v.object({
+          p0: v.number(),
+          rate: v.number(),
+          stop: v.nullable(v.object({ index: v.number(), settle: v.number(), by: v.nullable(v.string()), atMs: v.number() })),
+        }),
+      ),
       spunBy: v.string(),
       durationMs: v.number(),
       elapsedMs: v.number(),

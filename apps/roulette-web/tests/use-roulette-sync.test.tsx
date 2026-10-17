@@ -241,6 +241,30 @@ describe('受け取った状態の保持', () => {
     expect(result.current.roulette?.excluded).toEqual(['p2']);
   });
 
+  it('Given 押して止める回転 / When 同じ seq で止まった位置が届く / Then 経過の基準は保ち、止まった位置は新しくなる（#401 押して止める）', () => {
+    // Given
+    const now = vi.spyOn(performance, 'now');
+    const { result } = joinedHook();
+    const base = spinState(1, 100);
+    const press = { p0: 1.5, rate: 20, stop: null };
+    now.mockReturnValue(1000);
+    act(() => latestSocket().deliver({ type: 'roulette', state: { ...base, mode: 'press', spin: { ...base.spin, press } } }));
+    // When
+    now.mockReturnValue(1700);
+    const stop = { index: 1, settle: 0.25, by: 'ゆう', atMs: 800 };
+    act(() =>
+      latestSocket().deliver({
+        type: 'roulette',
+        state: { ...base, mode: 'press', spin: { ...base.spin, elapsedMs: 800, winnerIndex: 1, press: { ...press, stop } } },
+      }),
+    );
+    // Then
+    expect(result.current.receivedAt).toBe(1000);
+    expect(result.current.roulette?.spin?.elapsedMs).toBe(100);
+    expect(result.current.roulette?.spin?.press?.stop).toEqual(stop);
+    expect(result.current.roulette?.spin?.winnerIndex).toBe(1);
+  });
+
   it('Given ある回転を受けた / When 新しい seq の状態を受ける / Then 受け取った時刻が新しくなる', () => {
     // Given
     const now = vi.spyOn(performance, 'now');
@@ -286,14 +310,16 @@ describe('ルーレットの操作', () => {
       result.current.addGuest('はな');
       result.current.removeGuest('g-1');
       result.current.resetCycle();
+      result.current.stopPress(3, 2, 0.25);
     });
     // Then
-    expect(latestSocket().sentJson().slice(-5)).toEqual([
+    expect(latestSocket().sentJson().slice(-6)).toEqual([
       { command: 'roulette.spin' },
       { command: 'roulette.include', id: 'p2', included: false },
       { command: 'roulette.guest.add', name: 'はな' },
       { command: 'roulette.guest.remove', id: 'g-1' },
       { command: 'roulette.cycle.reset' },
+      { command: 'roulette.stop', seq: 3, index: 2, settle: 0.25 },
     ]);
   });
 

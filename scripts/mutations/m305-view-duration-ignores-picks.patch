@@ -9,15 +9,15 @@
 #       git apply scripts/mutations/m305-*.patch
 # 復元: git apply -R scripts/mutations/m305-*.patch
 diff --git a/packages/roulette-core/src/roulette.ts b/packages/roulette-core/src/roulette.ts
-index 040e099..a500e3b 100644
+index 7ad8745..b3d56ec 100644
 --- a/packages/roulette-core/src/roulette.ts
 +++ b/packages/roulette-core/src/roulette.ts
-@@ -257,7 +257,7 @@ export interface RouletteView {
-  */
- export function toView(state: RouletteState, now: number): RouletteView {
-   const spin = state.lastSpin;
--  const durationMs = spin === null ? 0 : spinDurationMs(spin.picks.length);
-+  const durationMs = spin === null ? 0 : spinDurationMs(1);
+@@ -328,7 +328,7 @@ export function toView(state: RouletteState, now: number): RouletteView {
+   const press = stored?.press;
+   const auto = stored !== null && press !== undefined && press.stop === null ? pressStopOf(stored, now - stored.startedAt) : null;
+   const spin = stored !== null && press !== undefined && auto !== null ? withStop({ ...stored, press }, auto) : stored;
+-  const durationMs = spin === null ? 0 : spin.press !== undefined ? PRESS_AUTO_STOP_MS : spinDurationMs(spin.picks.length);
++  const durationMs = spin === null ? 0 : spin.press !== undefined ? PRESS_AUTO_STOP_MS : spinDurationMs(1);
    return {
      pickCount: state.pickCount,
      mode: state.mode,

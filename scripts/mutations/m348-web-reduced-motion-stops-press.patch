@@ -1,0 +1,23 @@
+# 変異 348: web-reduced-motion-stops-press
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/press.test.tsx
+#
+# #401 押して止める P8。動きを減らす設定で円盤が回らない（このときも回すと決めた）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m348-*.patch
+# 復元: git apply -R scripts/mutations/m348-*.patch
+diff --git a/apps/roulette-web/src/screens/RouletteRoom.tsx b/apps/roulette-web/src/screens/RouletteRoom.tsx
+index 281ac7a..2fb6927 100644
+--- a/apps/roulette-web/src/screens/RouletteRoom.tsx
++++ b/apps/roulette-web/src/screens/RouletteRoom.tsx
+@@ -173,7 +173,7 @@ export function RouletteRoom({ roomCode }: { roomCode: string }) {
+       : isServerSpinning(received, sync.receivedAt, nowMs);
+   // 舞台と一覧は、決め方に合う回転だけを読む（#401 順番に回す）
+   const mode = modeOf(received);
+-  const pressing = mode === 'press';
++  const pressing = mode === 'press' && !reducedMotion;
+   // 押して止めるときは、30 秒の自動の停止も止まった位置として書き込む（サーバーは配り直さない）
+   const current = pressing ? withPressStop(stageViewOf(received), motion.stop) : stageViewOf(received);
+   // 押して止めるときの局面は、止まって寄せ終わったか（動きを減らす設定でも回す・spec P8）

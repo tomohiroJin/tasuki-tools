@@ -18,6 +18,8 @@ export type RouletteDomainErrorCode =
   | "ROULETTE_TOO_FEW_FOR_PICK"
   /** 順番に回す回の途中で、決め方を変えようとした（#401 順番に回す T8） */
   | "ROULETTE_ROUND_IN_PROGRESS"
+  /** 押して止めるとき、送られた位置の形が外れている（#401 押して止める P4） */
+  | "ROULETTE_STOP_INVALID"
   /** 乱数源が契約（SETTLE_MIN〜SETTLE_MAX）を破った。サーバーの内部の誤りで、利用者の操作では起きない */
   | "INVALID_SETTLE"
   /** 乱数源が契約（`randomInt(n)` は `[0, n)`）を破った。`INVALID_SETTLE` と同じく内部の誤り（#364） */
@@ -56,5 +58,6 @@ export const ROULETTE_ERROR_CODES = [
   "INVALID_PICK_COUNT",
   "ROULETTE_TOO_FEW_FOR_PICK",
   "ROULETTE_ROUND_IN_PROGRESS",
+  "ROULETTE_STOP_INVALID",
 ] as const;
 export type RouletteErrorCode = (typeof ROULETTE_ERROR_CODES)[number];

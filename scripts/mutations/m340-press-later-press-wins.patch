@@ -1,0 +1,22 @@
+# 変異 340: press-later-press-wins
+#
+# 検出を期待するテスト:
+#   - packages/roulette-core/tests/roulette-press.test.ts
+#
+# #401 押して止める P3。止まった後の押下も採る。後から押した人の位置で上書きされ、画面ごとに違う人が出る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m340-*.patch
+# 復元: git apply -R scripts/mutations/m340-*.patch
+diff --git a/packages/roulette-core/src/roulette.ts b/packages/roulette-core/src/roulette.ts
+index 7ad8745..9886614 100644
+--- a/packages/roulette-core/src/roulette.ts
++++ b/packages/roulette-core/src/roulette.ts
+@@ -184,7 +184,6 @@ function withStop(spin: Spin & { press: PressSpin }, stop: PressStop): Spin {
+ export function stopPress(state: RouletteState, input: StopInput): Result<RouletteState, RouletteError<"ROULETTE_STOP_INVALID">> {
+   const spin = state.lastSpin;
+   if (spin === null || spin.press === undefined || spin.seq !== input.seq) return ok(state);
+-  if (pressStopOf(spin, input.now - spin.startedAt) !== null) return ok(state);
+   const { index, settle } = input;
+   if (!Number.isInteger(index) || index < 0 || index >= spin.wheel.length) return err({ code: "ROULETTE_STOP_INVALID" });
+   if (!(settle >= 0 && settle < 1)) return err({ code: "ROULETTE_STOP_INVALID" });

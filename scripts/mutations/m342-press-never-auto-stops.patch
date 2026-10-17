@@ -1,0 +1,23 @@
+# 変異 342: press-never-auto-stops
+#
+# 検出を期待するテスト:
+#   - packages/roulette-core/tests/roulette-press.test.ts
+#
+# #401 押して止める P5。誰も押さないと止まらない。部屋が回りっぱなしになる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m342-*.patch
+# 復元: git apply -R scripts/mutations/m342-*.patch
+diff --git a/packages/roulette-core/src/press.ts b/packages/roulette-core/src/press.ts
+index 11d9935..6872ee2 100644
+--- a/packages/roulette-core/src/press.ts
++++ b/packages/roulette-core/src/press.ts
+@@ -28,7 +28,7 @@ export function pressStopOf(spin: PressSource, elapsedMs: number): PressStop | n
+   const press = spin.press;
+   if (press === undefined) return null;
+   if (press.stop !== null) return press.stop;
+-  if (elapsedMs < PRESS_AUTO_STOP_MS) return null;
++  if (elapsedMs < PRESS_AUTO_STOP_MS * 1000) return null;
+   const p = pressPositionAt(spin, PRESS_AUTO_STOP_MS);
+   const index = Math.floor(p);
+   return { index, settle: p - index, by: null, atMs: PRESS_AUTO_STOP_MS };

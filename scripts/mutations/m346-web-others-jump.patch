@@ -1,0 +1,23 @@
+# 変異 346: web-others-jump
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/press.test.tsx
+#
+# #401 押して止める P3。ほかの画面が寄せずに止まった位置へ跳ぶ。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m346-*.patch
+# 復元: git apply -R scripts/mutations/m346-*.patch
+diff --git a/apps/roulette-web/src/hooks/use-press-motion.ts b/apps/roulette-web/src/hooks/use-press-motion.ts
+index 675e99b..dd9c65d 100644
+--- a/apps/roulette-web/src/hooks/use-press-motion.ts
++++ b/apps/roulette-web/src/hooks/use-press-motion.ts
+@@ -75,7 +75,7 @@ export function usePressMotion(input: { spin: Spin | null; receivedAt: number; n
+       landed = false;
+     } else if (mine !== null && mine.index === stop.index && Math.abs(mine.settle - stop.settle) < 1e-6) {
+       position = mine.position;
+-    } else if (sawRunning.current !== spin.seq) {
++    } else if (sawRunning.current !== null) {
+       position = stop.index + stop.settle;
+     } else {
+       if (glide.current?.seq !== spin.seq) {

@@ -1,0 +1,23 @@
+# 変異 344: sync-stop-drops-presser
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/roulette-handlers.test.ts
+#
+# #401 押して止める §4.1。同期サーバーが押した人の名前を載せない。「○○ さんが止めました」が出ない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m344-*.patch
+# 復元: git apply -R scripts/mutations/m344-*.patch
+diff --git a/apps/tasuki-sync/src/application/roulette-handlers.ts b/apps/tasuki-sync/src/application/roulette-handlers.ts
+index 2589723..96e0ab6 100644
+--- a/apps/tasuki-sync/src/application/roulette-handlers.ts
++++ b/apps/tasuki-sync/src/application/roulette-handlers.ts
+@@ -256,7 +256,7 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
+       case "roulette.stop": {
+         // 押した画面が送った位置で止める（#401 押して止める P3）。最初の押下だけを採り、後から届いた押下は何も変えない
+         const stoppedBy = findParticipantByConnId(room, connId)?.displayName ?? "";
+-        const next = stopPress(state, { seq: cmd.seq, index: cmd.index, settle: cmd.settle, by: stoppedBy, now: monotonicClock.now() });
++        const next = stopPress(state, { seq: cmd.seq, index: cmd.index, settle: cmd.settle, by: "", now: monotonicClock.now() });
+         if (next.isErr()) {
+           fail(connId, next.error.code);
+           return;

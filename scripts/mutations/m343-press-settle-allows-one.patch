@@ -1,0 +1,23 @@
+# 変異 343: press-settle-allows-one
+#
+# 検出を期待するテスト:
+#   - packages/roulette-core/tests/roulette-press.test.ts
+#
+# #401 押して止める P4。席の中の位置 1 を受ける。次の席の端と同じ位置になり、札と真鍮の席が隣の人を指しうる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m343-*.patch
+# 復元: git apply -R scripts/mutations/m343-*.patch
+diff --git a/packages/roulette-core/src/roulette.ts b/packages/roulette-core/src/roulette.ts
+index 7ad8745..096700d 100644
+--- a/packages/roulette-core/src/roulette.ts
++++ b/packages/roulette-core/src/roulette.ts
+@@ -187,7 +187,7 @@ export function stopPress(state: RouletteState, input: StopInput): Result<Roulet
+   if (pressStopOf(spin, input.now - spin.startedAt) !== null) return ok(state);
+   const { index, settle } = input;
+   if (!Number.isInteger(index) || index < 0 || index >= spin.wheel.length) return err({ code: "ROULETTE_STOP_INVALID" });
+-  if (!(settle >= 0 && settle < 1)) return err({ code: "ROULETTE_STOP_INVALID" });
++  if (!(settle >= 0 && settle <= 1)) return err({ code: "ROULETTE_STOP_INVALID" });
+   return ok({ ...state, lastSpin: withStop({ ...spin, press: spin.press }, { index, settle, by: input.by, atMs: input.now - spin.startedAt }) });
+ }
+ 

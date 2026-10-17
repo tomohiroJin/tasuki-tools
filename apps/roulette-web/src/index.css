@@ -472,9 +472,10 @@
 .roulette-mode h2 {
   margin: 0;
 }
-/* 選ぶ人数の並び（4 等分）を 2 等分にする。後に書かれる `.roulette-pick-options` に負けないよう 2 つのクラスで当てる */
+/* 決め方は 3 つ（#401 押して止める）。選ぶ人数の並び（4 等分）を、どの幅でも縦 1 列にする（3 等分は 320 で字が詰まり、
+   自動の折り返しは 2 + 1 で据わりが悪い・モック 1 版）。後に書かれる `.roulette-pick-options` に負けないよう 2 つのクラスで当てる */
 .roulette-pick-options.roulette-mode-options {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
 }
 .roulette-mode-body {
   display: grid;

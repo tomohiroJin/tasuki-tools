@@ -118,6 +118,7 @@ describe("ルーレットのフレーム", () => {
         "NOT_IN_ROOM",
         "ROULETTE_ROUND_IN_PROGRESS",
         "ROULETTE_SPINNING",
+        "ROULETTE_STOP_INVALID",
         "ROULETTE_TOO_FEW",
         "ROULETTE_TOO_FEW_FOR_PICK",
         "ROULETTE_TOO_MANY",
@@ -227,5 +228,29 @@ describe("順番に回す（wire）", () => {
     expect(parse({ ...base, mode: "once", order: null }).success).toBe(true);
     expect(parse({ ...base, order: { done: ["a"], finished: false } }).success).toBe(false);
     expect(parse({ ...base, mode: "x" }).success).toBe(false);
+  });
+});
+
+/**
+ * @requirements #401 押して止める §5（wire）
+ */
+describe("押して止める（wire）", () => {
+  it("roulette.stop は seq・index・settle の数を受け、余剰の項目は落ちる。決め方に press が増えた", () => {
+    // Given / When / Then
+    expect(ok({ command: "roulette.stop", seq: 1, index: 2, settle: 0.5 })).toBe(true);
+    expect(ok({ command: "roulette.stop", seq: 1, index: "2", settle: 0.5 })).toBe(false);
+    expect(ok({ command: "roulette.stop", seq: 1, index: 2 })).toBe(false);
+    expect(ok({ command: "roulette.stop", seq: 1, index: 2, settle: 0.5, x: 1 })).toBe(false);
+    expect(ok({ command: "roulette.mode.set", mode: "press" })).toBe(true);
+  });
+
+  it("press のある回転のフレームが通る（止まりは null も、押した人の無い自動の停止も）", () => {
+    // Given
+    const spin = { seq: 1, wheel: [{ id: "a", name: "A" }], winnerIndex: 0, settle: 0.2, picks: [], spunBy: "A", durationMs: 30000, elapsedMs: 0 };
+    const parse = (press: object) => v.safeParse(RouletteFrameSchema, { type: "roulette", state: { mode: "press", excluded: [], guests: [], drawn: [], spin: { ...spin, press } } });
+    // When / Then
+    expect(parse({ p0: 0.5, rate: 20, stop: null }).success).toBe(true);
+    expect(parse({ p0: 0.5, rate: 20, stop: { index: 0, settle: 0.1, by: null, atMs: 30000 } }).success).toBe(true);
+    expect(parse({ p0: "0.5", rate: 20, stop: null }).success).toBe(false);
   });
 });

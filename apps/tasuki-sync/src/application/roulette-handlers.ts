@@ -41,6 +41,7 @@ import {
   setMode,
   setPickCount,
   startSpin,
+  stopPress,
   type Member,
   type RouletteCommand,
   type RouletteDomainErrorCode,
@@ -245,6 +246,17 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
       case "roulette.mode.set": {
         // 回っている間と、順番に回す回の途中は拒む（#401 順番に回す T8）
         const next = setMode(state, cmd.mode, monotonicClock.now());
+        if (next.isErr()) {
+          fail(connId, next.error.code);
+          return;
+        }
+        commit(room.code, stored, next.value);
+        return;
+      }
+      case "roulette.stop": {
+        // 押した画面が送った位置で止める（#401 押して止める P3）。最初の押下だけを採り、後から届いた押下は何も変えない
+        const stoppedBy = findParticipantByConnId(room, connId)?.displayName ?? "";
+        const next = stopPress(state, { seq: cmd.seq, index: cmd.index, settle: cmd.settle, by: stoppedBy, now: monotonicClock.now() });
         if (next.isErr()) {
           fail(connId, next.error.code);
           return;
