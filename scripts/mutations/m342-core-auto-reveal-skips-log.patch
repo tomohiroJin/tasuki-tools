@@ -1,4 +1,4 @@
-# 変異 313: core-auto-reveal-skips-log
+# 変異 342: core-auto-reveal-skips-log
 #
 # 検出を期待するテスト:
 #   - packages/poker-core/tests/round.test.ts
@@ -6,8 +6,8 @@
 # #93。applyAutoReveal が記録を足さない（手動公開だけ記録される）。
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m313-*.patch
-# 復元: git apply -R scripts/mutations/m313-*.patch
+#       git apply scripts/mutations/m342-*.patch
+# 復元: git apply -R scripts/mutations/m342-*.patch
 diff --git a/packages/poker-core/src/round.ts b/packages/poker-core/src/round.ts
 index 4255982d..27a6e471 100644
 --- a/packages/poker-core/src/round.ts

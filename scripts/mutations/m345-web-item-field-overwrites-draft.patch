@@ -1,4 +1,4 @@
-# 変異 316: web-item-field-overwrites-draft
+# 変異 345: web-item-field-overwrites-draft
 #
 # 検出を期待するテスト:
 #   - apps/poker-web/tests/estimate-item-field.test.tsx
@@ -6,8 +6,8 @@
 # #93。EstimateItemField が編集中に props の item で打ちかけを上書きする。
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m316-*.patch
-# 復元: git apply -R scripts/mutations/m316-*.patch
+#       git apply scripts/mutations/m345-*.patch
+# 復元: git apply -R scripts/mutations/m345-*.patch
 diff --git a/apps/poker-web/src/components/EstimateItemField.tsx b/apps/poker-web/src/components/EstimateItemField.tsx
 index e9778b66..b88d3c19 100644
 --- a/apps/poker-web/src/components/EstimateItemField.tsx

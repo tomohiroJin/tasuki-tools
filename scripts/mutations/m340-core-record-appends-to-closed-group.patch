@@ -1,4 +1,4 @@
-# 変異 311: core-record-appends-to-closed-group
+# 変異 340: core-record-appends-to-closed-group
 #
 # 検出を期待するテスト:
 #   - packages/poker-core/tests/estimate-log.test.ts
@@ -6,8 +6,8 @@
 # #93。recordReveal が閉じた束のあとでも末尾の束に行を足す。
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m311-*.patch
-# 復元: git apply -R scripts/mutations/m311-*.patch
+#       git apply scripts/mutations/m340-*.patch
+# 復元: git apply -R scripts/mutations/m340-*.patch
 diff --git a/packages/poker-core/src/estimate-log.ts b/packages/poker-core/src/estimate-log.ts
 index a6ea6993..9375603d 100644
 --- a/packages/poker-core/src/estimate-log.ts
