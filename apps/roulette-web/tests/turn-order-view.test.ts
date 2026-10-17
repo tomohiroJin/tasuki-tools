@@ -170,7 +170,7 @@ describe('順番に回すときの舞台', () => {
   });
 
   it('回の途中で入った人はまだの人として円盤に入る（回す前の円盤）', () => {
-    // Given: 回の途中だが回転が無い（名簿の掃除で残った）
+    // Given: 回の途中だが回転が無い（壊れた状態でも、まだの人を円盤に出す）
     const view: RouletteView = { ...base, order: { done: [E('b')], finished: false } };
     // When
     const o = stage(view, 'idle');

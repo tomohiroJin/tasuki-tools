@@ -245,25 +245,42 @@ describe("resetOrder（最初からやり直す）", () => {
  * @requirements #401 順番に回す T5・T6（名簿から消えた人）
  */
 describe("prune・removeGuest（順番の記録）", () => {
-  it("名簿から消えた人を済んだ人から落とす。落ちなければ同じ参照", () => {
-    // Given
-    const s1 = spinAt(orderState(), 1000, { randomInt: () => 1 });
-    // When / Then
-    expect(prune(s1, ["p-0", "p-1"])).toBe(s1);
-    expect(prune(s1, ["p-0"]).order).toEqual({ done: [], finished: false });
+  it("番が決まった人が名簿から消えても、番の記録から落とさない。次の番は既出の番と重ならない（PR #418 のレビュー）", () => {
+    // Given: 5 人で 1〜3 番が p-0・p-1・p-2
+    const five = { members: many(5), randomInt: () => 0 };
+    let s = orderState();
+    for (let i = 0; i < 3; i++) s = spinAt(s, 1000 + i * SPIN_DURATION_MS, five);
+    expect(s.order?.done.map((e) => e.id)).toEqual(["p-0", "p-1", "p-2"]);
+    // When: 1 番の p-0 が部屋を抜け、名簿から消える
+    const left = many(5).filter((m) => m.id !== "p-0");
+    const pruned = prune(s, left.map((m) => m.id));
+    const next = spinAt(pruned, 1000 + 3 * SPIN_DURATION_MS, { members: left, randomInt: () => 0 });
+    // Then: 記録は変わらず（同じ参照）、次は 4 番
+    expect(pruned).toBe(s);
+    expect(next.lastSpin?.turn).toBe(4);
+    expect(next.order?.done.map((e) => e.id)).toEqual(["p-0", "p-1", "p-2", "p-3"]);
   });
 
-  it("ゲストを消すと、済んだ人からも落ちる", () => {
-    // Given: ゲストが 1 番になった
+  it("抜けた人が戻ってきても、番が済んだ人として円盤に入らない", () => {
+    // Given: 3 人で 1 番が p-0、p-0 が抜けて名簿から消えた
+    const s1 = spinAt(orderState(), 1000, { members: many(3), randomInt: () => 0 });
+    const pruned = prune(s1, ["p-1", "p-2"]);
+    // When: p-0 が戻ってきて、次を回す
+    const s2 = spinAt(pruned, 1000 + SPIN_DURATION_MS, { members: many(3) });
+    // Then
+    expect(s2.lastSpin?.wheel.map((e) => e.id)).toEqual(["p-1", "p-2"]);
+  });
+
+  it("ゲストを消しても、番の記録から落とさない（決まったときの名前で残る）", () => {
+    // Given: ゲストが 2 番になった
     const g = addGuest(orderState(), "ゲスト", [], foldCase)._unsafeUnwrap();
     const s1 = spinAt(g, 1000, { members: many(1) });
-    expect(s1.order?.done.map((e) => e.id)).toEqual(["p-0"]);
     const s2 = spinAt(s1, 1000 + SPIN_DURATION_MS, { members: many(1) });
-    expect(s2.order?.done.map((e) => e.id)).toEqual(["p-0", "g-1"]);
+    expect(s2.order?.done).toEqual([{ id: "p-0", name: "人0" }, { id: "g-1", name: "ゲスト" }]);
     // When
     const s3 = removeGuest(s2, "g-1");
     // Then
-    expect(s3.order?.done.map((e) => e.id)).toEqual(["p-0"]);
+    expect(s3.order).toBe(s2.order);
   });
 });
 

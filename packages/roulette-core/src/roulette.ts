@@ -149,13 +149,6 @@ export function resetOrder(state: RouletteState, now: number): Result<RouletteSt
   return ok({ ...state, order: null });
 }
 
-/** 番が決まった人から、`keep` が偽の人を落とす。何も落ちなければ同じ参照を返す */
-function filterOrder(order: OrderRound | null, keep: (id: EntryId) => boolean): OrderRound | null {
-  if (order === null) return null;
-  const done = order.done.filter((e) => keep(e.id));
-  return done.length === order.done.length ? order : { ...order, done };
-}
-
 /**
  * 選ぶ人数を変える（#401 spec M2）。1〜`MAX_PICK` の整数の外は拒む。同じ値なら同じ参照を返す
  * （変わらない操作は配らない）。**回っている間も受ける** —— 回転は回した時点の人数を `picks` に凍結して持つので、
@@ -193,7 +186,10 @@ export function addGuest(
   return ok({ ...state, guests: [...state.guests, guest], nextGuestSeq: state.nextGuestSeq + 1 });
 }
 
-/** ゲストを消し、`excluded`・`drawn` の記録も落とす。知らない ID は何も変えない（退出と同時に押されうる）。 */
+/**
+ * ゲストを消し、`excluded`・`drawn` の記録も落とす。知らない ID は何も変えない（退出と同時に押されうる）。
+ * 順番に回す回の記録（`order.done`）からは落とさない（`prune` と同じ理由）。
+ */
 export function removeGuest(state: RouletteState, id: EntryId): RouletteState {
   if (!state.guests.some((g) => g.id === id)) return state;
   return {
@@ -201,7 +197,6 @@ export function removeGuest(state: RouletteState, id: EntryId): RouletteState {
     guests: state.guests.filter((g) => g.id !== id),
     excluded: state.excluded.filter((x) => x !== id),
     drawn: state.drawn.filter((x) => x !== id),
-    order: filterOrder(state.order, (x) => x !== id),
   };
 }
 
@@ -213,15 +208,18 @@ export function resetCycle(state: RouletteState): RouletteState {
 /**
  * 名簿から消えた参加者の ID を `excluded` / `drawn` から落とす（退出を繰り返しても配列が膨らまない）。
  * **ゲストの ID も `knownIds` に含めて呼ぶこと**（含めないとゲストの記録が落ちる）。
+ *
+ * **順番に回す回の記録（`order.done`）からは落とさない**（#401 順番に回す T6・PR #418 のレビュー）。番は `done` の並びの位置なので、
+ * 落とすと後ろの人の番が繰り上がり、次の番が既出の番と重なる。発表を終えた人が部屋を閉じるのはこの決め方の普通の使い方である。
+ * `done` は決まったときの名前ごと持つので名簿が要らず、大きさは回の中で番が決まった人数で頭打ちになる（回が終われば捨てる）。
  */
 export function prune(state: RouletteState, knownIds: Iterable<EntryId>): RouletteState {
   const known = new Set(knownIds);
   const excluded = state.excluded.filter((id) => known.has(id));
   const drawn = state.drawn.filter((id) => known.has(id));
-  const order = filterOrder(state.order, (id) => known.has(id));
   // 何も落ちなければ同じ参照を返す（同期サーバーが「変わっていない」を参照で判定する）
-  if (excluded.length === state.excluded.length && drawn.length === state.drawn.length && order === state.order) return state;
-  return { ...state, excluded, drawn, order };
+  if (excluded.length === state.excluded.length && drawn.length === state.drawn.length) return state;
+  return { ...state, excluded, drawn };
 }
 
 /** wire へ載せる形（spec §5.3）。 */
