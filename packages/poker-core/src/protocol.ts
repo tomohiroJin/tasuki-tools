@@ -52,7 +52,7 @@ const ClientMessageSchema = v.variant('type', [
   // 見積もりの記録（#93）
   v.strictObject({
     type: v.literal('set-item'),
-    item: v.pipe(v.string(), v.maxLength(MAX_ESTIMATE_ITEM)),
+    item: v.pipe(v.string(), v.trim(), v.maxLength(MAX_ESTIMATE_ITEM)),
   }),
   v.strictObject({ type: v.literal('revote') }),
   v.strictObject({

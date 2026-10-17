@@ -314,6 +314,13 @@ describe('parseClientMessage（見積もりの記録 #93）', () => {
     expect(over._unsafeUnwrapErr().code).toBe('invalid-message');
   });
 
+  it('set-item は前後の空白を除いた長さで見る（空白つき 120 字は通る）', () => {
+    const padded = `  ${'あ'.repeat(120)}  `;
+    const parsed = parseClientMessage(JSON.stringify({ type: 'set-item', item: padded }));
+    expect(parsed.isOk()).toBe(true);
+    expect(parsed._unsafeUnwrap()).toEqual({ type: 'set-item', item: 'あ'.repeat(120) });
+  });
+
   it('next-item の points は 5 と null を通し、4 と文字列の 5 を落とす', () => {
     expect(parseClientMessage(JSON.stringify({ type: 'next-item', points: 5 })).isOk()).toBe(true);
     expect(parseClientMessage(JSON.stringify({ type: 'next-item', points: null })).isOk()).toBe(true);
