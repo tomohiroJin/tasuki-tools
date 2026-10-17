@@ -807,6 +807,51 @@ describe("順番に回す", () => {
   });
 });
 
+/**
+ * @requirements #401 押して止める P3・P4
+ */
+describe("押して止める", () => {
+  it("A が回し、B が止めると、B が送った位置で全員に配られる。後から押しても変わらない", async () => {
+    // Given
+    const h = setup();
+    for (const [connId, name] of [["r-1", "Alice"], ["r-2", "Bob"], ["r-3", "Carol"]] as const) {
+      await joined(h, connId, name);
+    }
+    await h.handle("r-1", { command: "roulette.mode.set", mode: "press" });
+    await h.handle("r-1", { command: "roulette.spin" });
+    const spin = viewsTo(h, "r-2").at(-1)!.spin!;
+    expect(spin.press?.stop).toBeNull();
+
+    // When
+    h.advance(700);
+    await h.handle("r-2", { command: "roulette.stop", seq: spin.seq, index: 2, settle: 0.25 });
+    await h.handle("r-1", { command: "roulette.stop", seq: spin.seq, index: 0, settle: 0.5 });
+
+    // Then
+    const stop = { index: 2, settle: 0.25, by: "Bob", atMs: 700 };
+    expect(viewsTo(h, "r-1").at(-1)?.spin?.press?.stop).toEqual(stop);
+    expect(viewsTo(h, "r-3").at(-1)?.spin?.press?.stop).toEqual(stop);
+    expect(viewsTo(h, "r-3").at(-1)?.spin?.winnerIndex).toBe(2);
+    expect(errorsTo(h, "r-1")).toEqual([]);
+  });
+
+  it("位置の形が外れていたら ROULETTE_STOP_INVALID", async () => {
+    // Given
+    const h = setup();
+    await joined(h, "r-1", "Alice");
+    await joined(h, "r-2", "Bob");
+    await h.handle("r-1", { command: "roulette.mode.set", mode: "press" });
+    await h.handle("r-1", { command: "roulette.spin" });
+    const seq = viewsTo(h, "r-1").at(-1)!.spin!.seq;
+
+    // When
+    await h.handle("r-2", { command: "roulette.stop", seq, index: 9, settle: 0.5 });
+
+    // Then
+    expect(errorsTo(h, "r-2")).toEqual(["ROULETTE_STOP_INVALID"]);
+  });
+});
+
 describe("保管と配信", () => {
   it("失敗したコマンドは状態を保管せず、配りもしない（名簿から消えた記録の掃除も成功の経路でだけ行う）", async () => {
     // Given: Bob を外した後で Bob が名簿から消える（次のコマンドで prune される記録がある）

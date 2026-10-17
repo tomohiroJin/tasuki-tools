@@ -107,3 +107,15 @@ export const ORDER_NOT_STARTED = 'まだ回していません';
 export const orderProgressText = (done: number, left: number): string => `${done} 人済み・あと ${left} 人`;
 export const ORDER_ALL_DONE = '全員の順番が決まりました';
 export const ORDER_RESET_BUTTON = '最初からやり直す';
+
+// 押して止める（#401 押して止める spec §4.1）
+export const MODE_PRESS = '止めて決める';
+/** 決め方の面の説明 */
+export const PRESS_NOTE = '回っているルーレットを、押した瞬間に止めて決めます';
+export const PRESS_IDLE = '止めたところの人に決まります';
+export const PRESS_SPINNING = '止めると、指している人に決まります';
+export const STOP_BUTTON = '止める';
+export const pressStoppedText = (by: string): string => `${by} さんが止めました`;
+export const PRESS_AUTO_TEXT = '止める人がいませんでした';
+/** 止まった後の一言の読み上げにだけ足す（名前は札が出す） */
+export const pressDecidedText = (name: string): string => `。${name} さんに決まりました`;

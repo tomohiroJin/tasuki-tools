@@ -10,15 +10,15 @@
 #       git apply scripts/mutations/m327-*.patch
 # 復元: git apply -R scripts/mutations/m327-*.patch
 diff --git a/apps/roulette-web/src/roulette-view.ts b/apps/roulette-web/src/roulette-view.ts
-index 36d9251..7b9af6f 100644
+index a4df927..59178a9 100644
 --- a/apps/roulette-web/src/roulette-view.ts
 +++ b/apps/roulette-web/src/roulette-view.ts
-@@ -328,7 +328,7 @@ export function stageViewOf(view: RouletteView): RouletteView {
-   const spin = view.spin;
-   if (spin === null) return view;
-   const orderSpin = spin.turn !== undefined;
--  const keep = modeOf(view) === 'order' ? orderSpin && (view.order ?? null) !== null : !orderSpin;
-+  const keep = modeOf(view) === 'order' ? orderSpin && (view.order ?? null) !== null : true;
+@@ -332,7 +332,7 @@ export function stageViewOf(view: RouletteView): RouletteView {
+   const pressSpin = spin.press !== undefined;
+   const mode = modeOf(view);
+   const keep =
+-    mode === 'press' ? pressSpin : mode === 'order' ? orderSpin && (view.order ?? null) !== null : !orderSpin && !pressSpin;
++    mode === 'press' ? pressSpin : mode === 'order' ? orderSpin && (view.order ?? null) !== null : true;
    return keep ? view : { ...view, spin: null };
  }
  

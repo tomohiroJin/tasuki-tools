@@ -1,0 +1,23 @@
+# 変異 345: web-presser-keeps-spinning
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/press.test.tsx
+#
+# #401 押して止める P3。押した画面がその場で止まらず、返事が来るまで回り続ける（押した位置と見えた位置が食い違う）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m345-*.patch
+# 復元: git apply -R scripts/mutations/m345-*.patch
+diff --git a/apps/roulette-web/src/hooks/use-press-motion.ts b/apps/roulette-web/src/hooks/use-press-motion.ts
+index 675e99b..fee0010 100644
+--- a/apps/roulette-web/src/hooks/use-press-motion.ts
++++ b/apps/roulette-web/src/hooks/use-press-motion.ts
+@@ -71,7 +71,7 @@ export function usePressMotion(input: { spin: Spin | null; receivedAt: number; n
+     const mine = local.current?.seq === spin.seq ? local.current : null;
+     if (stop === null) {
+       sawRunning.current = spin.seq;
+-      position = mine !== null ? mine.position : pressPositionAt(spin, elapsed);
++      position = pressPositionAt(spin, elapsed);
+       landed = false;
+     } else if (mine !== null && mine.index === stop.index && Math.abs(mine.settle - stop.settle) < 1e-6) {
+       position = mine.position;

@@ -1,0 +1,23 @@
+# 変異 347: web-space-in-input-stops
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/press.test.tsx
+#
+# #401 押して止める P9。名前の欄で空白を打つと止まってしまう。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m347-*.patch
+# 復元: git apply -R scripts/mutations/m347-*.patch
+diff --git a/apps/roulette-web/src/screens/RouletteRoom.tsx b/apps/roulette-web/src/screens/RouletteRoom.tsx
+index 281ac7a..a943a4f 100644
+--- a/apps/roulette-web/src/screens/RouletteRoom.tsx
++++ b/apps/roulette-web/src/screens/RouletteRoom.tsx
+@@ -106,7 +106,7 @@ export function RouletteRoom({ roomCode }: { roomCode: string }) {
+       if (event.key !== ' ' || event.repeat) return;
+       const target = event.target as HTMLElement | null;
+       // 文字の欄では空白を打つ。ボタンの上の Space はそのボタンが押す
+-      if (target?.closest('input, textarea, select, button, [contenteditable="true"]')) return;
++      if (target?.closest('textarea, select, button, [contenteditable="true"]')) return;
+       event.preventDefault();
+       doStop();
+     };

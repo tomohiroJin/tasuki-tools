@@ -52,7 +52,7 @@ test.describe('@core ルーレットは全員の画面で同じ人に止まる',
   }) => {
     // ルームはこの 1 本だけで作るので、回す場面がすべてここに積まれる（#94 の 9 回・#401 の 2 人と 4 人の回転）。
     // #401 の 2 回（約 5.6 秒と 8.8 秒）を足して既定の上限（60 秒）を超えたので、この本だけ 30 秒延ばす
-    test.setTimeout(test.info().timeout + 45_000);
+    test.setTimeout(test.info().timeout + 50_000);
     // 取りにいった書体を記録する（常用の層の外を引いていないことを、止まった後に見る）
     const fonts: string[] = [];
     page.on('request', (request) => {
@@ -278,6 +278,19 @@ test.describe('@core ルーレットは全員の画面で同じ人に止まる',
     await expect(page.locator('.wheel-segment'), '回が終わったら円盤は空').toHaveCount(0);
     await expect(orderButton(page, '次の回を始める')).toBeEnabled();
     await expect(peer.page.getByText('全員の順番が決まりました')).toBeVisible();
+
+    // Then 押して止める（#401 押して止める spec §3）。A が決め方を変えて回し、B が止める。
+    //   B が止めた人に A と B の画面がそろう（B は動きを減らす設定だが、このときは回る・spec P8）
+    await modeButton(page, '止めて決める').click();
+    await expect(modeButton(peer.page, '止めて決める'), 'B にも決め方が届く').toHaveAttribute('aria-pressed', 'true');
+    await orderButton(page, 'ルーレットを回す').click();
+    await expect(roulettePhrase(page), '押して止める: 回っている').toHaveText('止めると、指している人に決まります');
+    await orderButton(peer.page, '止める').click();
+    const stopped = new RegExp(`^${NAME_B} さんが止めました。(.+) さんに決まりました$`);
+    await expect(roulettePhrase(peer.page), '押して止める: B の結果').toHaveText(stopped);
+    await expect(roulettePhrase(page), '押して止める: A は寄せてから同じ人').toHaveText(stopped, { timeout: 5000 });
+    expect(await roulettePhrase(page).textContent(), '押して止める: A と B で同じ人').toBe(await roulettePhrase(peer.page).textContent());
+    await expect(page.locator('.wheel-segment--winner'), '押して止める: 真鍮の席が 1 つ').toHaveCount(1);
 
     // どの画面も例外を出していない
     expect(consoleWatcher.errors).toEqual([]);
