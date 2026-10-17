@@ -193,13 +193,13 @@ describe('poker のお題は手元で隠せる（#316 PR 1）', () => {
 
   it('U5: Given お題が開いている / When 「お題を隠す」を押す / Then 札は DOM に残り inert で閉じ、「お題を見る」になる。もう一度押すと開く', () => {
     render(<RoomPage roomId={ROOM_ID} sync={makeSync(topic)} />);
-    const side = document.querySelector('.ui-workspace-side');
+    const side = document.querySelector('.room-topic-side');
     expect(side?.getAttribute('data-state')).toBe('open');
     expect(side?.hasAttribute('inert')).toBe(false);
     fireEvent.click(screen.getByRole('button', { name: TOPIC_HIDE }));
     // 閉じても札は DOM に残る（幅 0・inert）。滑って閉じるために作り直さない（#348 D7）
     expect(document.getElementById(TOPIC_CARD_ID)).not.toBeNull();
-    expect(document.querySelector('.ui-workspace-side')).toBe(side);
+    expect(document.querySelector('.room-topic-side')).toBe(side);
     expect(side?.getAttribute('data-state')).toBe('closed');
     expect(side?.hasAttribute('inert')).toBe(true);
     const show = screen.getByRole('button', { name: TOPIC_SHOW });
@@ -222,7 +222,7 @@ describe('poker のお題は手元で隠せる（#316 PR 1）', () => {
     const { rerender } = render(<RoomPage roomId={ROOM_ID} sync={makeSync(topic)} />);
     fireEvent.click(screen.getByRole('button', { name: TOPIC_HIDE }));
     rerender(<RoomPage roomId={ROOM_ID} sync={makeSync({ ...topic, title: '次のお題' })} />);
-    const side = document.querySelector('.ui-workspace-side');
+    const side = document.querySelector('.room-topic-side');
     expect(side?.getAttribute('data-state')).toBe('closed');
     expect(side?.hasAttribute('inert')).toBe(true);
     expect(screen.getByRole('button', { name: TOPIC_SHOW })).not.toBeNull();

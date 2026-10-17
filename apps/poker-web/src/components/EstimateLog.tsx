@@ -25,19 +25,23 @@ export interface EstimateLogProps {
   disabled: boolean;
   /** 新しい束から数えて出す数。省略で全部 */
   limit?: number;
+  /** 置き場所ごとの修飾（`room-log--side` など） */
+  className?: string;
+  /** 見出しを見せるか。false でも支援技術には残す（シートが自前の見出しを持つとき） */
+  showHeading?: boolean;
 }
 
 const TIME_FORMAT = new Intl.DateTimeFormat('ja-JP', { hour: '2-digit', minute: '2-digit' });
 
-export function EstimateLog({ groups, onSetPoints, disabled, limit }: EstimateLogProps) {
+export function EstimateLog({ groups, onSetPoints, disabled, limit, className, showHeading = true }: EstimateLogProps) {
   const headingId = useId();
   const newestFirst = [...groups].reverse();
   const shown = limit === undefined ? newestFirst : newestFirst.slice(0, limit);
 
   return (
-    <section className="estimate-log" aria-labelledby={headingId}>
-      <h2 id={headingId}>{ESTIMATE_LOG_HEADING}</h2>
-      {shown.length === 0 ? (
+    <section className={className ? `estimate-log ${className}` : 'estimate-log'} aria-labelledby={headingId}>
+      <h2 id={headingId} className={showHeading ? undefined : 'ui-visually-hidden'}>{ESTIMATE_LOG_HEADING}</h2>
+      {groups.length === 0 ? (
         <p className="estimate-log-empty">{ESTIMATE_LOG_EMPTY}</p>
       ) : (
         <ol className="estimate-groups">
@@ -48,22 +52,15 @@ export function EstimateLog({ groups, onSetPoints, disabled, limit }: EstimateLo
                 {group.open ? (
                   <span className="estimate-group-open">{ESTIMATE_OPEN}</span>
                 ) : (
-                  <span className="estimate-group-result">
-                    {group.points === null ? (
-                      <span className="estimate-group-nopoints" data-testid="estimate-nopoints">{ESTIMATE_NO_POINTS}</span>
-                    ) : (
-                      <strong className="estimate-group-points" data-testid="estimate-points">
-                        {group.points}
-                      </strong>
-                    )}
-                    <PointsSelect
-                      value={group.points as NumberCardValue | null}
-                      onChange={(p) => onSetPoints(group.id, p)}
-                      emptyLabel={ESTIMATE_NO_POINTS}
-                      label={ESTIMATE_CHANGE_POINTS}
-                      disabled={disabled}
-                    />
-                  </span>
+                  // ポイントは選択そのものを見出しの強い値として出す（値を別に重ねない）
+                  <PointsSelect
+                    className="estimate-group-points"
+                    value={group.points as NumberCardValue | null}
+                    onChange={(p) => onSetPoints(group.id, p)}
+                    emptyLabel={ESTIMATE_NO_POINTS}
+                    label={ESTIMATE_CHANGE_POINTS}
+                    disabled={disabled}
+                  />
                 )}
               </div>
               <ul className="estimate-entries">

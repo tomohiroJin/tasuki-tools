@@ -70,12 +70,17 @@ describe('EstimateLog', () => {
     expect(screen.queryByRole('combobox')).toBeNull();
   });
 
-  it('Given 閉じた束 points 5 / null / When 描く / Then 5 と ポイントなし', () => {
-    render(<EstimateLog groups={[group(1, { points: 5 })]} onSetPoints={vi.fn()} disabled={false} />);
-    expect(screen.getByTestId('estimate-points').textContent).toBe('5');
+  it('Given 閉じた束 points 5 / null / When 描く / Then 値は選択が見出しの強い値として 1 回だけ出す', () => {
+    const { container } = render(<EstimateLog groups={[group(1, { points: 5 })]} onSetPoints={vi.fn()} disabled={false} />);
+    const select = screen.getByRole('combobox', { name: ESTIMATE_CHANGE_POINTS }) as HTMLSelectElement;
+    expect(select.value).toBe('5');
+    // 見出しに同じ値の別の表示を重ねない
+    expect(container.querySelector('strong, [data-testid="estimate-points"]')).toBeNull();
     cleanup();
     render(<EstimateLog groups={[group(1)]} onSetPoints={vi.fn()} disabled={false} />);
-    expect(screen.getByTestId('estimate-nopoints').textContent).toBe(ESTIMATE_NO_POINTS);
+    const none = screen.getByRole('combobox', { name: ESTIMATE_CHANGE_POINTS }) as HTMLSelectElement;
+    expect(none.value).toBe('');
+    expect(screen.queryByTestId('estimate-nopoints')).toBeNull();
   });
 
   it('Given 閉じた束 / When 選択肢を見る / Then 空と 0 1 2 3 5 8 13 21', () => {
@@ -116,6 +121,11 @@ describe('EstimateLog', () => {
     render(<EstimateLog groups={gs} onSetPoints={vi.fn()} disabled={false} limit={3} />);
     const shown = screen.getAllByRole('listitem').filter((li) => li.getAttribute('data-group') !== null);
     expect(shown.map((li) => li.getAttribute('data-group'))).toEqual(['5', '4', '3']);
+  });
+
+  it('Given 束 3 つ・limit 0 / When 描く / Then 束は出ず、空の文言も出さない（limit は切り出しだけ）', () => {
+    render(<EstimateLog groups={[group(1), group(2), group(3)]} onSetPoints={vi.fn()} disabled={false} limit={0} />);
+    expect(screen.queryByText(ESTIMATE_LOG_EMPTY)).toBeNull();
   });
 
   it('Given 束 / When 描く / Then 束は ol、領域は見出しで名前を持ち、2 つ描いても id が衝突しない', () => {

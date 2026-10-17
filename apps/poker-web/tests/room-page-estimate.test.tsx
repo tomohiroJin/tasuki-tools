@@ -4,7 +4,7 @@
  * @requirements #93
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { clearResumeIdentity, loadResumeIdentity, saveResumeIdentity } from '@tasuki/sync-client';
 import type { RoomStateMessage } from '@tasuki/poker-core';
 import { RoomPage } from '../src/pages/RoomPage';
@@ -147,12 +147,14 @@ describe('アイテム名の欄と記録', () => {
   it('estimate の無い snapshot（古いサーバー）の開票後も描け、記録は空の表示', () => {
     render(<RoomPage roomId={ROOM_ID} sync={makeSync(snapshot('revealed', false))} />);
     expect(screen.getByRole('button', { name: REVOTE })).toBeTruthy();
-    expect(screen.getByText(ESTIMATE_LOG_EMPTY)).toBeTruthy();
+    // 脇と足の 2 か所に描かれる（#93 Task 6）。脇で確かめる
+    expect(within(document.querySelector('.room-log--side') as HTMLElement).getByText(ESTIMATE_LOG_EMPTY)).toBeTruthy();
   });
 
   it('estimate の無い snapshot（古いサーバー）でも描け、記録は空の表示', () => {
     render(<RoomPage roomId={ROOM_ID} sync={makeSync(snapshot('voting', false))} />);
-    expect(screen.getByRole('heading', { name: ESTIMATE_LOG_HEADING })).toBeTruthy();
-    expect(screen.getByText(ESTIMATE_LOG_EMPTY)).toBeTruthy();
+    const side = within(document.querySelector('.room-log--side') as HTMLElement);
+    expect(side.getByRole('heading', { name: ESTIMATE_LOG_HEADING })).toBeTruthy();
+    expect(side.getByText(ESTIMATE_LOG_EMPTY)).toBeTruthy();
   });
 });

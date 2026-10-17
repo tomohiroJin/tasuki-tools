@@ -12,12 +12,14 @@ export interface PointsSelectProps {
   /** 選択全体の名前（支援技術向け） */
   label: string;
   disabled: boolean;
+  /** 置き場所ごとの修飾 */
+  className?: string;
 }
 
-export function PointsSelect({ value, onChange, emptyLabel, label, disabled }: PointsSelectProps) {
+export function PointsSelect({ value, onChange, emptyLabel, label, disabled, className }: PointsSelectProps) {
   return (
     <select
-      className="ui-input estimate-points-select"
+      className={className ? `ui-input estimate-points-select ${className}` : 'ui-input estimate-points-select'}
       aria-label={label}
       value={value === null ? '' : String(value)}
       disabled={disabled}

@@ -10,6 +10,7 @@ import { CurrentTopic, TOPIC_CARD_ID, TOPIC_HIDE, TOPIC_SHOW } from '../componen
 import { ErrorNote } from '../components/ErrorNote';
 import { EstimateItemField } from '../components/EstimateItemField';
 import { EstimateLog } from '../components/EstimateLog';
+import { EstimateLogFoot } from '../components/EstimateLogFoot';
 import { PointsSelect } from '../components/PointsSelect';
 import { ParticipantList } from '../components/ParticipantList';
 import { Results } from '../components/Results';
@@ -113,6 +114,8 @@ export function RoomPage({ roomId, sync }: Props) {
   // 公開後の票を席の札へ渡す（`room-view.ts` の `revealedVoteMap`）
   const revealedVotes = revealedVoteMap(snapshot.round);
   const inviteUrl = sync.inviteUrl(roomId);
+  const estimateLog = snapshot.estimate?.log ?? [];
+  const offline = isOffline(sync.status);
 
   return (
     <main className="ui-page ui-page--wide room">
@@ -154,19 +157,23 @@ export function RoomPage({ roomId, sync }: Props) {
       </header>
       <ErrorNote error={sync.error} onClose={sync.clearError} />
       {/* 段組み（#316・ADR 0025）。64rem 以上は左に読む面（お題）・右に操作の面（場 → 手札 → 結果）。
-          DOM は狭い幅で見せたい順（お題 → 場 → 手札）。隠した脇は DOM に残し（`data-state="closed"`・`inert`）、
-          64rem 以上では段組みが列を 2 本のまま持って脇の列を幅 0 へ移り変わらせる。お題が無いときは脇が無い。
-          どちらも操作の面は約 46rem で中央に寄る（幅・中央寄せ・移り変わりは index.css の `.room-main` が持つ・#348）。 */}
+          DOM は狭い幅で見せたい順（お題 → 場 → 手札 → 記録の足）。脇（`.room-side`）は常に出し、中にお題の札（隠すのは札の包みだけ。
+          DOM に残し `data-state="closed"`・`inert`）と記録を持つ。64rem 以上は列が動かず、64rem 未満は記録を足の側が出す
+          （幅の出し分けは index.css・#93）。 */}
       <div className="ui-workspace ui-workspace--reader">
-        {sync.topic && (
-          <div
-            className="ui-workspace-side room-topic-side"
-            data-state={topicOpen ? 'open' : 'closed'}
-            inert={!topicOpen}
-          >
-            <CurrentTopic topic={sync.topic} />
-          </div>
-        )}
+        <div className="ui-workspace-side room-side">
+          {sync.topic && (
+            <div className="room-topic-side" data-state={topicOpen ? 'open' : 'closed'} inert={!topicOpen}>
+              <CurrentTopic topic={sync.topic} />
+            </div>
+          )}
+          <EstimateLog
+            className="room-log--side"
+            groups={estimateLog}
+            onSetPoints={sync.setPoints}
+            disabled={offline}
+          />
+        </div>
         <div className="ui-workspace-main room-main">
           <section>
             <h2>参加者（{snapshot.participants.length}人）</h2>
@@ -177,12 +184,7 @@ export function RoomPage({ roomId, sync }: Props) {
           ) : (
             <RevealedSection snapshot={snapshot} sync={sync} revealedLive={revealedLive} />
           )}
-          {/* 置き場所は #93 Task 6 で脇の列へ移す */}
-          <EstimateLog
-            groups={snapshot.estimate?.log ?? []}
-            onSetPoints={sync.setPoints}
-            disabled={isOffline(sync.status)}
-          />
+          <EstimateLogFoot groups={estimateLog} onSetPoints={sync.setPoints} disabled={offline} />
         </div>
       </div>
     </main>
