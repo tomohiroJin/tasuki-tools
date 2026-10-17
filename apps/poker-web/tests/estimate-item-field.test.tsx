@@ -40,7 +40,7 @@ describe('EstimateItemField', () => {
     const input = openEditor();
     fireEvent.change(input, { target: { value: 'PROJ-1' } });
     fireEvent.keyDown(input, { key: 'Enter' });
-    fireEvent.blur(input);
+    // 注: アンマウント時の blur は jsdom では再現できないので、二重確定の防止は cancelledRef の実装で担保する
     expect(onCommit).toHaveBeenCalledTimes(1);
     expect(onCommit).toHaveBeenCalledWith('PROJ-1');
   });
@@ -84,5 +84,42 @@ describe('EstimateItemField', () => {
   it('Given disabled / When 描く / Then 題のボタンが押せない', () => {
     render(<EstimateItemField item="" onCommit={vi.fn()} disabled />);
     expect((screen.getByRole('button') as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('Given 編集中に他の人が名前を変えた / When 打たずにフォーカスが外れる / Then 古い値で上書きしない', () => {
+    const onCommit = vi.fn();
+    const { rerender } = render(<EstimateItemField item="X" onCommit={onCommit} disabled={false} />);
+    const input = openEditor();
+    rerender(<EstimateItemField item="Y" onCommit={onCommit} disabled={false} />);
+    fireEvent.blur(input);
+    expect(onCommit).not.toHaveBeenCalled();
+  });
+
+  it('Given 前後に空白のある入力 / When 確定する / Then 空白を除いて送る', () => {
+    const onCommit = vi.fn();
+    render(<EstimateItemField item="" onCommit={onCommit} disabled={false} />);
+    const input = openEditor();
+    fireEvent.change(input, { target: { value: '  PROJ-3  ' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onCommit).toHaveBeenCalledExactlyOnceWith('PROJ-3');
+  });
+
+  it.each(['Enter', 'Escape'])('Given 編集中 / When %s で閉じる / Then フォーカスは題のボタンに戻る', (key) => {
+    render(<EstimateItemField item="元" onCommit={vi.fn()} disabled={false} />);
+    const input = openEditor();
+    fireEvent.keyDown(input, { key });
+    expect(document.activeElement).toBe(screen.getByRole('button'));
+  });
+
+  it('Given 初回描画 / When 何もしない / Then 題のボタンにフォーカスを奪わない', () => {
+    render(<EstimateItemField item="元" onCommit={vi.fn()} disabled={false} />);
+    expect(document.activeElement).not.toBe(screen.getByRole('button'));
+  });
+
+  it('Given disabled で編集中 / When 描く / Then 入力も無効', () => {
+    const { rerender } = render(<EstimateItemField item="" onCommit={vi.fn()} disabled={false} />);
+    openEditor();
+    rerender(<EstimateItemField item="" onCommit={vi.fn()} disabled />);
+    expect(screen.getByRole<HTMLInputElement>('textbox').disabled).toBe(true);
   });
 });
