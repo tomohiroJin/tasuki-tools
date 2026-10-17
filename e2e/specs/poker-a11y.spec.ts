@@ -66,20 +66,49 @@ test.describe('poker の文字が背景に対して読める（WCAG AA）', () =
     //   公開後にだけ出る「結果」の見出しも羅紗の上で測られていること
     expect([...revealed.pairs].some((p) => p.startsWith(ivoryOnFelt)), `公開後の見出し（${ivoryOnFelt}）を測っていない`).toBe(true);
 
-    // When / Then その3（#348）: 動きを抑える設定では、お題を隠したときの読む面の移り変わりに遅延が残らない。
-    //   遅延（`visibility` の 0.32 秒）が残ると、その間 `visible` のまま幅だけ縮む。64rem 未満は `display: none` で
-    //   遅延が効かず何も測れないので、広い幅にしてから押す。
-    //   **フレームを数えて幅と `visibility` を読む形はやめた。** 移り変わりは書き換えの次のフレームで作られ、
-    //   その次で始まる（start time が決まる）ので、並列で流すと 2 フレームでは終わっていない回があった
-    //   （実測: 幅 493.7px のまま）。閉じた区画の計算値の遅延を直に読み、終わった姿は待って確かめる
+    // When / Then その2b（#93）: 記録に束が 2 つ（閉じた束と見積もり中の束）ある状態の画面も AA を満たす。
+    //   次のアイテムへ進めて閉じた束を作り、もう 1 件開票する（1 人なので投票すると自動で公開される）
     await poker.page.setViewportSize({ width: 1280, height: 900 });
+    await poker.page.getByRole('button', { name: '次のアイテムへ' }).click();
+    await chooseCard(poker.page, '3');
+    await expect(resultsSection(poker.page)).toBeVisible();
+    const log = poker.page.locator('.room-log--side');
+    await expect(log.getByText('見積もり中', { exact: true }), '見積もり中の束').toBeVisible();
+    await expect(log.getByRole('combobox', { name: 'ポイントを変える' }), '閉じた束のポイントの選択').toHaveCount(1);
+    await expect(log.locator('.estimate-group'), '束は 2 つ').toHaveCount(2);
+    const withLog = await scanContrast(poker.page, 10);
+    expectReadable(withLog, 8, []);
+    //   走査は `<select>` を測らないので、記録のポイントの選択（字 vs 地）を計算値から直に測る（AA は 4.5:1）
+    const selectRatio = await log.getByRole('combobox', { name: 'ポイントを変える' }).evaluate((el) => {
+      const parse = (css: string) => (css.match(/[\d.]+/g) ?? []).map(Number);
+      const lum = ([r, g, b]: number[]) => {
+        const f = (v: number) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+        return 0.2126 * f(r!) + 0.7152 * f(g!) + 0.0722 * f(b!);
+      };
+      const style = getComputedStyle(el);
+      const ink = parse(style.color);
+      const ground = parse(style.backgroundColor);
+      if (ground.length >= 4 && ground[3]! < 1) return { ratio: 0, note: `地が半透明（${style.backgroundColor}）` };
+      const [a, b] = [lum(ink), lum(ground)];
+      return { ratio: (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05), note: `${style.color} on ${style.backgroundColor}` };
+    });
+    expect(selectRatio.ratio, `記録のポイントの選択が AA を満たさない（${selectRatio.note}）`).toBeGreaterThanOrEqual(4.5);
+
+    // When / Then その3（#348・#93）: 動きを抑える設定では、お題を隠したときの札の畳みに遅延が残らない。
+    //   遅延（`visibility` の 0.32 秒）が残ると、その間 `visible` のまま高さだけ縮む。64rem 未満は `display: none` で
+    //   遅延が効かず何も測れないので、広い幅にしてから押す（上で 1280 にした）。
+    //   **フレームを数えて高さと `visibility` を読む形はやめた。** 移り変わりは書き換えの次のフレームで作られ、
+    //   その次で始まる（start time が決まる）ので、並列で流すと 2 フレームでは終わっていない回があった。
+    //   閉じた札の計算値の遅延を直に読み、終わった姿は待って確かめる
     await poker.page.getByRole('button', { name: 'お題を隠す' }).click();
     const side = poker.page.locator('.room-topic-side');
     await expect(side).toHaveAttribute('data-state', 'closed');
     const delays = await side.evaluate((el) => getComputedStyle(el).transitionDelay.split(',').map((d) => d.trim()));
-    expect(delays.every((d) => d === '0s'), `動きを抑える設定で閉じた区画の移り変わりの遅延が残っている（${delays.join(', ')}）`).toBe(true);
-    await expect.poll(() => side.evaluate((el) => el.getBoundingClientRect().width), '閉じた区画が幅 0 にならない').toBeLessThanOrEqual(1);
-    await expect.poll(() => side.evaluate((el) => getComputedStyle(el).visibility), '閉じた区画が隠れない').toBe('hidden');
+    expect(delays.every((d) => d === '0s'), `動きを抑える設定で閉じた札の移り変わりの遅延が残っている（${delays.join(', ')}）`).toBe(true);
+    //   閉じた札は幅 0 ではなく、高さ 0・hidden（脇の幅は変わらない）
+    await expect.poll(() => side.evaluate((el) => el.getBoundingClientRect().height), '閉じた札が高さ 0 にならない').toBeLessThanOrEqual(1);
+    await expect.poll(() => side.evaluate((el) => getComputedStyle(el).visibility), '閉じた札が隠れない').toBe('hidden');
+    expect(await side.evaluate((el) => el.getBoundingClientRect().width), '閉じた札の幅が 0 になっている（幅ではなく高さで畳む）').toBeGreaterThan(100);
   });
 
   test('Given 2 人のルームで 1 人だけが投票 / When 票を公開する / Then 未投票の印も AA を満たし、動きを抑える設定ではめくりの遅延も止まる', async ({ page, openPeer }) => {

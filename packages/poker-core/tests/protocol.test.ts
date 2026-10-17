@@ -305,3 +305,80 @@ describe('isKnownErrorCode', () => {
     },
   );
 });
+
+describe('parseClientMessage（見積もりの記録 #93）', () => {
+  it('set-item は 120 字まで通り、121 字は落ちる', () => {
+    expect(parseClientMessage(JSON.stringify({ type: 'set-item', item: 'あ'.repeat(120) })).isOk()).toBe(true);
+    const over = parseClientMessage(JSON.stringify({ type: 'set-item', item: 'あ'.repeat(121) }));
+    expect(over.isErr()).toBe(true);
+    expect(over._unsafeUnwrapErr().code).toBe('invalid-message');
+  });
+
+  it('set-item は前後の空白を除いた長さで見る（空白つき 120 字は通る）', () => {
+    const padded = `  ${'あ'.repeat(120)}  `;
+    const parsed = parseClientMessage(JSON.stringify({ type: 'set-item', item: padded }));
+    expect(parsed.isOk()).toBe(true);
+    expect(parsed._unsafeUnwrap()).toEqual({ type: 'set-item', item: 'あ'.repeat(120) });
+  });
+
+  it('next-item の points は 5 と null を通し、4 と文字列の 5 を落とす', () => {
+    expect(parseClientMessage(JSON.stringify({ type: 'next-item', points: 5 })).isOk()).toBe(true);
+    expect(parseClientMessage(JSON.stringify({ type: 'next-item', points: null })).isOk()).toBe(true);
+    expect(parseClientMessage(JSON.stringify({ type: 'next-item', points: 4 })).isErr()).toBe(true);
+    expect(parseClientMessage(JSON.stringify({ type: 'next-item', points: '5' })).isErr()).toBe(true);
+  });
+
+  it('set-points は正の整数の groupId だけを通す', () => {
+    expect(parseClientMessage(JSON.stringify({ type: 'set-points', groupId: 1, points: 8 })).isOk()).toBe(true);
+    expect(parseClientMessage(JSON.stringify({ type: 'set-points', groupId: 2, points: null })).isOk()).toBe(true);
+    expect(parseClientMessage(JSON.stringify({ type: 'set-points', groupId: 0, points: 8 })).isErr()).toBe(true);
+    expect(parseClientMessage(JSON.stringify({ type: 'set-points', groupId: 1.5, points: 8 })).isErr()).toBe(true);
+  });
+
+  it('revote を通し、未知のキーを足すと落ちる（strictObject）', () => {
+    expect(parseClientMessage(JSON.stringify({ type: 'revote' })).isOk()).toBe(true);
+    expect(parseClientMessage(JSON.stringify({ type: 'revote', extra: 1 })).isErr()).toBe(true);
+  });
+});
+
+describe('parseServerMessage（estimate #93）', () => {
+  const ESTIMATE = {
+    item: 'ログイン画面',
+    log: [
+      {
+        id: 1,
+        item: 'ログイン画面',
+        points: null,
+        open: true,
+        entries: [{ attempt: 1, at: 1000, counts: [{ card: { kind: 'number', value: 5 }, count: 2 }] }],
+      },
+    ],
+  };
+
+  it('estimate の無い room-state を通す', () => {
+    const result = parseServerMessage(JSON.stringify(A_REVEALED_ROOM_STATE));
+    expect(result.isOk()).toBe(true);
+    expect('estimate' in result._unsafeUnwrap()).toBe(false);
+  });
+
+  it('estimate を持つ room-state を通し、未知のキーは無視する', () => {
+    const msg = {
+      ...A_REVEALED_ROOM_STATE,
+      estimate: { ...ESTIMATE, future: 1, log: [{ ...ESTIMATE.log[0], future: 2 }] },
+    };
+    const result = parseServerMessage(JSON.stringify(msg));
+    expect(result.isOk()).toBe(true);
+    const parsed = result._unsafeUnwrap();
+    expect(parsed.type === 'room-state' && parsed.estimate).toEqual(ESTIMATE);
+  });
+
+  it('estimate の形が壊れていれば落とす', () => {
+    const msg = { ...A_REVEALED_ROOM_STATE, estimate: { item: 1, log: [] } };
+    expect(parseServerMessage(JSON.stringify(msg)).isErr()).toBe(true);
+  });
+
+  it('estimate-not-found / estimate-open は既知のコード', () => {
+    expect(isKnownErrorCode('estimate-not-found')).toBe(true);
+    expect(isKnownErrorCode('estimate-open')).toBe(true);
+  });
+});

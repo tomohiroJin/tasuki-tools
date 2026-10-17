@@ -21,13 +21,21 @@ import type { RoundError } from './round.js';
  */
 export const DEFAULT_ERROR_MESSAGE = '操作を完了できませんでした';
 
-/** RoundError の表示文言。**#165 PR-2 以前の文字列をそのまま保つ。** */
+/**
+ * RoundError の表示文言。**#165 PR-2 以前の文字列をそのまま保つ**のは
+ * `not-voting` / `not-revealed` の既存 2 枝についての約束で、
+ * #93 で足した `estimate-not-found` / `estimate-open` の枝はその外である。
+ */
 export function messageForRoundError(error: RoundError): string {
   switch (error.code) {
     case 'not-voting':
       return error.op === 'vote' ? '現在は投票を受け付けていません' : 'すでに公開されています';
     case 'not-revealed':
       return '票の公開後にのみ次のラウンドを開始できます';
+    case 'estimate-not-found':
+      return 'この見積もりはもう記録にありません';
+    case 'estimate-open':
+      return '見積もり中のアイテムにはまだポイントを付けられません';
   }
 }
 

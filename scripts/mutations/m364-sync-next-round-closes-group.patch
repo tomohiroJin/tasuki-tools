@@ -1,0 +1,24 @@
+# 変異 364: sync-next-round-closes-group
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/poker/estimate-log.test.ts
+#   - apps/tasuki-sync/test/poker/next-round.test.ts
+#
+# #93。dispatch の next-round を次のアイテムへ向ける（古いクライアントで束が閉じ item が消える）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m364-*.patch
+# 復元: git apply -R scripts/mutations/m364-*.patch
+diff --git a/apps/tasuki-sync/src/application/poker-commit-room-action.ts b/apps/tasuki-sync/src/application/poker-commit-room-action.ts
+index c4347533..ddd79d39 100644
+--- a/apps/tasuki-sync/src/application/poker-commit-room-action.ts
++++ b/apps/tasuki-sync/src/application/poker-commit-room-action.ts
+@@ -159,7 +159,7 @@ export function createDispatch({
+         return;
+       case 'next-round':
+         // 古いクライアント向けの互換。再投票と同じ（item も束も残る）
+-        commitRoomAction(ws, revote);
++        commitRoomAction(ws, (round, participantId) => nextItem(round, participantId, null));
+         return;
+       case 'next-item':
+         commitRoomAction(ws, (round, participantId) => nextItem(round, participantId, msg.points));

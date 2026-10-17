@@ -371,7 +371,7 @@ export function makePokerHandlers(deps: PokerHandlerDeps): PokerHandlers {
     // 名簿を触っても票には触れないことが構造で保証される。
     // 名簿にこの接続が無ければ Err。そのときは #364 より前と同じく名簿を変えない。
     const room = removeConnection(state.room, ws.data.connId).unwrapOr(state.room);
-    commit({ room, round: applyAutoReveal(state.round, fragmentsOf(room)) });
+    commit({ room, round: applyAutoReveal(state.round, fragmentsOf(room), wallClock.now()) });
   }
 
   /**
@@ -651,16 +651,23 @@ export function makePokerHandlers(deps: PokerHandlerDeps): PokerHandlers {
     if (round === undefined || room === undefined) return;
 
     const discarded = discardVote(round, participantId);
-    commit({ room, round: applyAutoReveal(discarded, fragmentsOf(room)) });
+    commit({ room, round: applyAutoReveal(discarded, fragmentsOf(room), wallClock.now()) });
   }
 
-  const commitRoomAction = createCommitRoomAction({ loadState, commit, fragmentsOf, sendError });
+  const commitRoomAction = createCommitRoomAction({
+    loadState,
+    commit,
+    fragmentsOf,
+    sendError,
+    now: () => wallClock.now(),
+  });
 
   const dispatch = createDispatch({
     handleCreateRoom,
     handleJoinRoom,
     handleCheckRoom,
     commitRoomAction,
+    now: () => wallClock.now(),
   });
 
   return {

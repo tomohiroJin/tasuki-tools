@@ -133,12 +133,13 @@ test.describe('@core poker は公開まで他人の票を配らない', () => {
 });
 
 /**
- * poker は 2 人目の参加者が公開でき、次のラウンドへも進められる（#95 S3）。
+ * poker は 2 人目の参加者が公開でき、次のアイテムへも進められる（#95 S3）。
  *
- * かつては「票を公開する」「次のラウンドへ」がどちらもホストにだけ出ており、
+ * かつては「票を公開する」「次のアイテムへ」がどちらもホストにだけ出ており、
  * `not-host` を返して他の参加者を弾いていた。#95 S3 でホストが廃止され、
- * `revealBy` と `nextRound` はどの参加者が呼んでも通る（`packages/poker-core/src/round.ts`
- * の `revealBy` は `_participantId` を無視し、`nextRound` も同様に実行者を見ない）。
+ * `revealBy` と `nextItem` はどの参加者が呼んでも通る（`packages/poker-core/src/round.ts`
+ * の `revealBy` は `_participantId` を無視し、`revote` / `nextItem` も同様に実行者を見ない。#93 で `nextRound` は
+ * この 2 つに分かれた）。
  * 2 つは同じ削除された `requireHost` に守られていた対で、片方だけ確かめても
  * もう片方の権限チェックが復活する壊れ方は捕まえられない——ここは両方を、
  * どちらも**ルームを作った本人ではない**側の操作として続けて確かめる。
@@ -148,8 +149,8 @@ test.describe('@core poker は公開まで他人の票を配らない', () => {
  * 未投票のまま残す。自動公開の経路をたまたま踏んだだけでは、この筋は何も
  * 証明しない。
  */
-test.describe('poker は 2 人目の参加者が公開でき、次のラウンドへも進められる', () => {
-  test('Given 2 人が同じルームに居て、作成者はまだ投票していない / When 2 人目が公開し、続けて次のラウンドへ進める / Then 両方の画面に結果が出て、次のラウンドで投票状態がリセットされる', async ({
+test.describe('poker は 2 人目の参加者が公開でき、次のアイテムへも進められる', () => {
+  test('Given 2 人が同じルームに居て、作成者はまだ投票していない / When 2 人目が公開し、続けて次のアイテムへ進める / Then 両方の画面に結果が出て、次のラウンドで投票状態がリセットされる', async ({
     page,
     openPeer,
   }) => {
@@ -184,10 +185,10 @@ test.describe('poker は 2 人目の参加者が公開でき、次のラウン�
     await expect(resultsSection(page), '再読み込み後の作成者の画面').toBeVisible();
     expect(await statsDelay(), '最初から公開済みで描いたのに集計が待っている').toBe(0);
 
-    // When その2: **同じ、ルームを作った本人ではない**2人目が「次のラウンドへ」を押す
-    await guest.page.getByRole('button', { name: '次のラウンドへ' }).click();
+    // When その2: **同じ、ルームを作った本人ではない**2人目が「次のアイテムへ」を押す
+    await guest.page.getByRole('button', { name: '次のアイテムへ' }).click();
 
-    // Then その3: 次のラウンドへの遷移も非作成者から実際に通る。
+    // Then その3: 次のアイテムへの遷移も非作成者から実際に通る。
     // 結果セクションが消え（round が voting へ戻った）、かつ**中身が本当にリセットされた**
     // ことまで見る。ボタンが押せて画面が変わっただけで投票状態が残っていたら意味が無い
     for (const [label, target] of [
