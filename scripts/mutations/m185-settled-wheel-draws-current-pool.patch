@@ -12,13 +12,14 @@
 # 止まった後に描く席をいまの入る人へ替えると、席数や順が変わったとき針が別の人を指し、札は本当の当たりを
 # 見せる（針と札が食い違う）。次に回すまで、回したときの並びを描き続ける。
 diff --git a/apps/roulette-web/src/wheel-view.ts b/apps/roulette-web/src/wheel-view.ts
+index d5e1f51..11643eb 100644
 --- a/apps/roulette-web/src/wheel-view.ts
 +++ b/apps/roulette-web/src/wheel-view.ts
-@@ -19,5 +19,6 @@
- export function wheelSeatsOf(input: { pool: readonly Entry[]; spin: RouletteView['spin']; settled: boolean }): WheelSeats {
-   const { pool, spin, settled } = input;
-   if (spin === null) return { entries: pool, winnerIndex: -1 };
--  return { entries: spin.wheel, winnerIndex: settled ? spin.winnerIndex : -1 };
-+  if (!settled) return { entries: spin.wheel, winnerIndex: -1 };
-+  return { entries: pool, winnerIndex: pool.findIndex((e) => e.id === spin.wheel[spin.winnerIndex]?.id) };
+@@ -20,5 +20,6 @@ export interface WheelSeats {
+ export function wheelSeatsOf(input: { pool: readonly Entry[]; spin: RouletteView['spin']; revealed: number }): WheelSeats {
+   const { pool, spin, revealed } = input;
+   if (spin === null) return { entries: pool, winners: [] };
+-  return { entries: spin.wheel, winners: picksOf(spin).slice(0, revealed).map((p) => p.index) };
++  if (revealed < picksOf(spin).length) return { entries: spin.wheel, winners: picksOf(spin).slice(0, revealed).map((p) => p.index) };
++  return { entries: pool, winners: picksOf(spin).map((p) => pool.findIndex((e) => e.id === spin.wheel[p.index]?.id)) };
  }

@@ -1,0 +1,23 @@
+# 変異 302: spin-duration-ignores-picks
+#
+# 検出を期待するテスト:
+#   - packages/roulette-core/tests/roulette-multi-pick.test.ts
+#
+# #401 E6・spec M6。回転中の判定が人数を見ず 1 人ぶん（4000ms）で切れる。2 人目以降が止まる前に次の回転が始まる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m302-*.patch
+# 復元: git apply -R scripts/mutations/m302-*.patch
+diff --git a/packages/roulette-core/src/roulette.ts b/packages/roulette-core/src/roulette.ts
+index 52a94d6..1ba2533 100644
+--- a/packages/roulette-core/src/roulette.ts
++++ b/packages/roulette-core/src/roulette.ts
+@@ -38,7 +38,7 @@ type SpinErrorCode =
+ /** 回転中か（`now - startedAt < spinDurationMs(k)`）。k は回した時点の人数（`picks` の件数・#401 spec M3）。 */
+ function isSpinning(state: RouletteState, now: number): boolean {
+   const spin = state.lastSpin;
+-  return spin !== null && now - spin.startedAt < spinDurationMs(spin.picks.length);
++  return spin !== null && now - spin.startedAt < spinDurationMs(1);
+ }
+ 
+ /**

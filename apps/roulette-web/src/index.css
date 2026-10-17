@@ -358,6 +358,83 @@
   margin-left: 0.2em;
 }
 
+/* ── 2 人以上を選ぶ（#401 spec §6.3・§6.4）─────────────────────────────
+   **1 人のときの規則には触れない。** 2 人以上の規則は `.roulette-card--group` と `[data-pick='group']` の下にだけ書く。
+   値は利用者が承認したモック（2026-10-17・320×640 と 1440×900 で撮って確かめた）のもの。 */
+
+/* 組の札: 幅は 1 人の札と同じ。背は 4 行ぶんに固定（人数を変えても舞台が伸び縮みしない）。
+   1440 では 1 人の札と同じ背に収まる。320 では 1 人の札より約 2rem 高いので、下の --card-extra で円盤から引く */
+.roulette-card--group {
+  aspect-ratio: auto;
+  height: 10rem;
+}
+.roulette-card--group .roulette-card-face {
+  justify-items: stretch;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-5);
+  text-align: left;
+}
+.roulette-card--group .roulette-card-label {
+  text-align: center;
+}
+.roulette-group-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+/* 1 行 = [順の数][名前][さん]。名前は 1 行で … に切る（全文は直下の一言と脇の一覧が持つ） */
+.roulette-group-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+  min-height: 1.4em;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--font-size-base);
+  line-height: var(--line-tight);
+  color: var(--coal);
+}
+/* 2 人のときは行に余裕があるので、名前を 1 段大きく */
+.roulette-card--group[data-k='2'] .roulette-group-row {
+  font-size: var(--font-size-lg);
+}
+/* 順の数は円盤の中心の数と同じ書体（Fraunces のイタリック）。丸数字は使わない */
+.roulette-group-num {
+  flex: none;
+  width: 1.1em;
+  font-style: italic;
+  color: var(--coal-soft);
+  font-size: var(--font-size-base);
+  text-align: right;
+}
+.roulette-group-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.roulette-group-row small {
+  flex: none;
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: var(--font-size-sm);
+  color: var(--coal-soft);
+}
+/* まだ決まっていない行は破線だけ見せる（背は先に決まっているので、埋まっても段組みは動かない） */
+.roulette-group-row:not(.is-filled) .roulette-group-name {
+  flex: 1;
+  height: 0.9em;
+  border-bottom: 1px dashed var(--card-inline);
+}
+/* 縦積みの円盤の予算: 組の札が 1 人の札より高い分だけ、円盤の式から引く（1 人の式は上のまま） */
+.roulette-stage[data-layout='stack'][data-pick='group'] {
+  --card-extra: 1.75rem;
+  --wheel-size: clamp(14rem, min(100cqi, 100dvh - 24rem - var(--card-extra)), 32rem);
+}
+
 .roulette-caption {
   margin: 0;
   min-height: 1.7em;
@@ -377,6 +454,25 @@
 }
 
 /* ---------- 脇（ルーレットに入る人・仲間を招く） ---------- */
+/* 選ぶ人数（#401 spec §6.4）。1 行目にラベル、2 行目にボタン 4 つを等分で 1 行に。色と枠は部品（副のボタン ＋ aria-pressed）が持つ */
+.roulette-pick {
+  display: grid;
+  gap: var(--space-2);
+}
+.roulette-pick-label {
+  margin: 0;
+  color: var(--ivory-dim);
+  font-size: var(--font-size-sm);
+}
+.roulette-pick-options {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+.roulette-pick-options .ui-button {
+  min-width: 0;
+  padding-inline: var(--space-2);
+}
 .roulette-side {
   display: grid;
   /* 列の最小幅を 0 にする。名前は 1 行で切る（nowrap）ので、既定の auto だと名前の長さで列が広がり、

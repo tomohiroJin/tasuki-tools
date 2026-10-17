@@ -13,8 +13,8 @@ import { segmentBoundaryIndex } from '../wheel-motion';
 
 interface Props {
   entries: readonly Entry[];
-  /** 止まった後の当たりの席（無ければ -1） */
-  winnerIndex: number;
+  /** 決まった当たりの席（止まった順・無ければ空。2 人以上は止まるたびに増える・#401） */
+  winners: readonly number[];
   /** この一周で選ばれた人（沈めて、字を薄くする） */
   drawnIds: ReadonlySet<string>;
   angle: number;
@@ -24,7 +24,7 @@ interface Props {
   reducedMotion: boolean;
 }
 
-export function Wheel({ entries, winnerIndex, drawnIds, angle, pointerDeg, spinning, reducedMotion }: Props) {
+export function Wheel({ entries, winners, drawnIds, angle, pointerDeg, spinning, reducedMotion }: Props) {
   const n = entries.length;
   // 名前の性質・各書き方の切り方・扇形は席の並びだけで決まるので、回転の毎フレームでは計算し直さない。
   // 向き（`labelPlacement`）だけが回転の角度に依るので毎フレーム決める
@@ -63,7 +63,7 @@ export function Wheel({ entries, winnerIndex, drawnIds, angle, pointerDeg, spinn
         <g>
           {seats.map((seat, i) => {
             const { entry, path } = seat;
-            const isWinner = i === winnerIndex;
+            const isWinner = winners.includes(i);
             const isDrawn = !isWinner && drawnIds.has(entry.id);
             const view = labelViewOf(seat, angle);
             const modifier = `${isDrawn ? ' wheel-segment--drawn' : ''}${isWinner ? ' wheel-segment--winner' : ''}`;

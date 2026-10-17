@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { RosterRoom } from '@tasuki/room-core';
-import type { RouletteView } from '@tasuki/roulette-core';
+import { pickStopsMs, type RouletteView } from '@tasuki/roulette-core';
 import {
   CAPTION_IDLE,
   CYCLE_NOTE,
@@ -12,12 +12,22 @@ import {
   TOO_FEW_TEXT,
   UNREACHABLE_TEXT,
   cycleProgressText,
+  groupIdleText,
+  groupResultText,
+  groupTopicNoteText,
   resultText,
   spunByText,
+  tooFewForPickText,
+  topicNoteText,
 } from '../src/copy';
 import {
   canOperate,
   captionOf,
+  cardPickCountOf,
+  pickCountOf,
+  picksOf,
+  revealedCountOf,
+  topicNoteOf,
   connectionNotice,
   cycleLineOf,
   membersOf,
@@ -266,5 +276,135 @@ describe('接続の告知', () => {
     expect(connectionNotice('reconnecting')).toEqual({ kind: 'reconnecting', text: RECONNECTING_TEXT });
     expect(connectionNotice('stale')).toEqual({ kind: 'stale', text: STALE_TEXT });
     expect(connectionNotice('none')).toEqual({ kind: 'none' });
+  });
+});
+
+/**
+ * 2 人以上を選ぶ回転（#401 spec §6.2・§6.5）。時計は #94 と同じ「受け取った時刻」を基準にする。
+ * 3 人の止まる時刻は core の `pickStopsMs`（4000・5600・7200 ms の見込み）。
+ *
+ * @requirements #401 E7 E8 E9 E10
+ */
+describe('2 人以上を選ぶ回転', () => {
+  const members = membersOf({
+    code: 'R1',
+    participants: ['Aya', 'Yu', 'Ren', 'Mio'].map((n, i) => ({ participantId: `p${i + 1}`, displayName: n, presence: 'online' as const, tools: ['roulette'] })),
+  });
+  const WHEEL = members.map((m) => ({ id: m.id, name: m.name }));
+  const STOPS = pickStopsMs(3);
+  /** p3 → p1 → p4 の順に止まる 3 人の回転 */
+  function viewOf3(elapsedMs = 0, over: Partial<RouletteView> = {}): RouletteView {
+    return {
+      pickCount: 3,
+      excluded: [],
+      guests: [],
+      drawn: ['p2', 'p3', 'p1', 'p4'],
+      ...over,
+      spin: {
+        seq: 1,
+        wheel: WHEEL,
+        winnerIndex: 2,
+        settle: 0.5,
+        picks: [
+          { index: 2, settle: 0.5 },
+          { index: 0, settle: 0.3 },
+          { index: 3, settle: 0.7 },
+        ],
+        spunBy: 'Aya',
+        durationMs: STOPS.at(-1)!,
+        elapsedMs,
+      },
+    };
+  }
+  const at = (view: RouletteView, nowMs: number, reducedMotion = false) => {
+    const phase = phaseOf({ view, receivedAt: 0, nowMs, reducedMotion });
+    const revealed = revealedCountOf({ view, receivedAt: 0, nowMs, reducedMotion });
+    const people = peopleOf({ members, view, selfId: null, phase, pool: poolOfView(members, view), revealed });
+    return {
+      phase,
+      revealed,
+      drawn: people.rows.filter((r) => r.mark === 'drawn').map((r) => r.id),
+      drawnCount: people.drawnCount,
+      caption: captionOf({ view, phase, poolCount: people.poolCount }),
+    };
+  };
+
+  it('古いサーバーのフレーム（picks・pickCount が無い）は 1 人目だけの回転として読む', () => {
+    // Given
+    const old = viewSpinning();
+    // When / Then
+    expect(picksOf(old.spin!)).toEqual([{ index: 1, settle: 0.5 }]);
+    expect(pickCountOf(old)).toBe(1);
+    expect(pickCountOf(IDLE)).toBe(1);
+  });
+
+  it('止まる時刻の前後 10ms で、何人目まで決まったか・一覧の印・一周の数・一言が同じ局面に切り替わる', () => {
+    // Given: 前の周で p2 が選ばれ、今回 p3 → p1 → p4
+    const view = viewOf3();
+    for (const [i, stop] of STOPS.entries()) {
+      // When: 止まる直前と直後
+      const before = at(view, stop - 10);
+      const after = at(view, stop + 10);
+      // Then: 直前は i 人、直後は i + 1 人。一覧の「選ばれた」と一周の数も同じ数だけ増える
+      expect(before.revealed).toBe(i);
+      expect(after.revealed).toBe(i + 1);
+      expect(after.drawnCount - before.drawnCount).toBe(1);
+      expect(before.drawn).toEqual(['p2', ...['p3', 'p1', 'p4'].slice(0, i)].sort());
+      expect(after.drawn).toEqual(['p2', ...['p3', 'p1', 'p4'].slice(0, i + 1)].sort());
+    }
+  });
+
+  it('回っている間（最後の人が止まるまで）は、一言に選ばれた人の名前を出さない', () => {
+    // Given
+    const view = viewOf3();
+    for (const t of [10, STOPS[0]! + 10, STOPS[1]! + 10, STOPS[2]! - 10]) {
+      // When
+      const { phase, caption } = at(view, t);
+      // Then
+      expect(phase).toBe('spinning');
+      expect(caption).toBe(spunByText('Aya'));
+    }
+    // 最後の人が止まったら、選ばれた全員を止まった順に言う
+    expect(at(view, STOPS[2]! + 10).caption).toBe(groupResultText('Ren', 'Aya', 'Mio'));
+  });
+
+  it('動きを減らす設定では、受け取った直後から全員が決まっている', () => {
+    // Given / When
+    const r = at(viewOf3(), 0, true);
+    // Then
+    expect(r.phase).toBe('settled');
+    expect(r.revealed).toBe(3);
+    expect(r.caption).toBe(groupResultText('Ren', 'Aya', 'Mio'));
+  });
+
+  it('途中から入った画面（2 人目へ送っている途中）は、受け取った経過から何人目まで決まったかを出す', () => {
+    // Given: サーバーで 4800ms 経っている
+    const view = viewOf3(4800);
+    // When / Then: 受け取った直後は 1 人目まで、2 人目の時刻を過ぎたら 2 人目まで
+    expect(at(view, 0).revealed).toBe(1);
+    expect(at(view, STOPS[1]! - 4800 + 10).revealed).toBe(2);
+  });
+
+  it('回す前の一言と主ボタンは選ぶ人数を見る（入る人が人数 + 1 に満たなければ回せない）', () => {
+    // Given: 選ぶ人数 3
+    const idle3: RouletteView = { ...IDLE, pickCount: 3 };
+    // When / Then
+    expect(captionOf({ view: idle3, phase: 'idle', poolCount: 4 })).toBe(groupIdleText(3));
+    expect(captionOf({ view: idle3, phase: 'idle', poolCount: 3 })).toBe(tooFewForPickText(3));
+    expect(spinButtonOf({ view: idle3, poolCount: 3, operable: true, serverSpinning: false }).disabled).toBe(true);
+    expect(spinButtonOf({ view: idle3, poolCount: 4, operable: true, serverSpinning: false }).disabled).toBe(false);
+  });
+
+  it('札の種類は、回したことがあれば回転の人数、無ければいまの選ぶ人数で決まる（回した後に人数を変えても結果の札のまま）', () => {
+    // Given / When / Then
+    expect(cardPickCountOf({ ...IDLE, pickCount: 2 })).toBe(2);
+    expect(cardPickCountOf(viewOf3(0, { pickCount: 1 }))).toBe(3);
+    expect(cardPickCountOf(viewSpinning())).toBe(1);
+  });
+
+  it('お題の添え書きは選ぶ人数で変わる（1 人は #94 のまま）', () => {
+    // Given / When / Then
+    expect(topicNoteOf('ふりかえり', 1)).toBe(topicNoteText('ふりかえり'));
+    expect(topicNoteOf('ふりかえり', 2)).toBe(groupTopicNoteText('ふりかえり', 2));
   });
 });

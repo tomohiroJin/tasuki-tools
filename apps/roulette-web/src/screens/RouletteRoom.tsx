@@ -31,27 +31,33 @@ import {
   membersOf,
   peopleOf,
   phaseOf,
+  pickCountOf,
+  picksOf,
   poolOfView,
+  revealedCountOf,
   spinButtonOf,
 } from '../roulette-view';
+import { pickStopsMs } from '@tasuki/roulette-core';
 
 /**
- * 画面が使う「いま」。回転の終わり（`endAt`・`performance.now()` の時刻）に描き直す。
+ * 画面が使う「いま」。回転の終わりと、2 人以上なら**各人が止まる時刻**（`wakeAts`・`performance.now()` の時刻）に描き直す。
  * **止まったかの判定（`phaseOf`）の時計はこれ 1 つ**。円盤（`Stage`）も局面を受けて止まる。
  *
  * **`receivedAt` を下限にする**: 状態を受け取った直後の描画で、古い「いま」を使うと経過が
  * 受け取った値より小さく見え、終わっている回転が一瞬「回っている」になる。
  * 終わりは rAF に頼らない（裏のタブでは止まる）。残り時間の後に必ず描き直す。
  */
-function useNowMs(receivedAt: number, endAt: number | null): number {
+function useNowMs(receivedAt: number, wakeAts: readonly number[]): number {
   const [tick, setTick] = useState(() => performance.now());
+  const key = wakeAts.join(',');
   useEffect(() => {
-    if (endAt === null) return;
-    const delay = endAt - performance.now();
-    if (delay <= 0) return;
-    const timer = setTimeout(() => setTick(performance.now()), delay + 30);
-    return () => clearTimeout(timer);
-  }, [endAt]);
+    // まだ来ていない時刻すべてに timer を置く（#401: 1 人ずつ止まる）。1 つずつ待ち直す形にすると、
+    // 裏のタブで timer が遅れて一度に起きたとき、次の時刻を「もう過ぎた」と見て待たずに止まったままになる
+    const now = performance.now();
+    const timers = wakeAts.filter((at) => at > now).map((at) => setTimeout(() => setTick(performance.now()), at - now + 30));
+    return () => timers.forEach(clearTimeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 時刻の列は key（中身）で比べる（描くたびに新しい配列になる）
+  }, [key]);
   return Math.max(tick, receivedAt);
 }
 
@@ -67,8 +73,11 @@ export function RouletteRoom({ roomCode }: { roomCode: string }) {
 
   const view = sync.roulette;
   const spin = view?.spin ?? null;
-  const endAt = spin === null ? null : sync.receivedAt + spin.durationMs - spin.elapsedMs;
-  const nowMs = useNowMs(sync.receivedAt, endAt);
+  const wakeAts =
+    spin === null
+      ? []
+      : [...pickStopsMs(picksOf(spin).length), spin.durationMs].map((at) => sync.receivedAt + at - spin.elapsedMs);
+  const nowMs = useNowMs(sync.receivedAt, wakeAts);
 
   const notice = connectionNotice(sync.notice);
   const banner = notice.kind !== 'none' && (
@@ -123,10 +132,11 @@ export function RouletteRoom({ roomCode }: { roomCode: string }) {
   const operable = canOperate(sync.status, sync.joined);
   const serverSpinning = isServerSpinning(current, sync.receivedAt, nowMs);
   const phase = phaseOf({ view: current, receivedAt: sync.receivedAt, nowMs, reducedMotion });
+  const revealed = revealedCountOf({ view: current, receivedAt: sync.receivedAt, nowMs, reducedMotion });
   // 入る人は 1 回だけ組み、一覧と円盤へ渡す
   const members = membersOf(sync.roster);
   const pool = poolOfView(members, current);
-  const people = peopleOf({ members, view: current, selfId: sync.selfId, phase, pool });
+  const people = peopleOf({ members, view: current, selfId: sync.selfId, phase, pool, revealed });
   const button = spinButtonOf({ view: current, poolCount: people.poolCount, operable, serverSpinning });
   const topicTitle = sync.topic?.topic?.title ?? null;
 
@@ -159,6 +169,7 @@ export function RouletteRoom({ roomCode }: { roomCode: string }) {
             pool={pool}
             view={current}
             phase={phase}
+            revealed={revealed}
             receivedAt={sync.receivedAt}
             reducedMotion={reducedMotion}
             people={people}
@@ -175,6 +186,8 @@ export function RouletteRoom({ roomCode }: { roomCode: string }) {
               onRemoveGuest={sync.removeGuest}
               onAddGuest={sync.addGuest}
               onResetCycle={sync.resetCycle}
+              pickCount={pickCountOf(current)}
+              onPickCount={sync.setPickCount}
             />
             {/* 招待は脇の最後（spec §6.7 の 3 版）。見出しの下に置くと 320px で 2 段を取り、円盤を押し下げる */}
             <section className="ui-panel roulette-invite" aria-labelledby="roulette-invite-heading">

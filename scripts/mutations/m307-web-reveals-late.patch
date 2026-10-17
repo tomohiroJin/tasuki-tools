@@ -1,0 +1,23 @@
+# 変異 307: web-reveals-late
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/roulette-view.test.ts
+#
+# #401 PR 2・spec §6.2・E9。止まってから 200ms 遅れて決まる。円盤は止まっているのに札・一覧がまだ前の人数のまま。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m307-*.patch
+# 復元: git apply -R scripts/mutations/m307-*.patch
+diff --git a/apps/roulette-web/src/roulette-view.ts b/apps/roulette-web/src/roulette-view.ts
+index 727b219..2e3380e 100644
+--- a/apps/roulette-web/src/roulette-view.ts
++++ b/apps/roulette-web/src/roulette-view.ts
+@@ -125,7 +125,7 @@ export function revealedCountOf(input: { view: RouletteView; receivedAt: number;
+   const elapsed = elapsedOf(spin, input.receivedAt, input.nowMs);
+   // 古いサーバー（1 人・picks 無し）は wire の長さで止まる。表と食い違っても終わったら全員にする
+   if (elapsed >= spin.durationMs) return k;
+-  return pickStopsMs(k).filter((stop) => elapsed >= stop).length;
++  return pickStopsMs(k).filter((stop) => elapsed >= stop + 200).length;
+ }
+ 
+ /** 決まった人（止まった順・`revealed` 人まで）。 */

@@ -113,13 +113,76 @@ describe("ルーレットのフレーム", () => {
         "INVALID_COMMAND",
         "INVALID_GUEST_NAME",
         "INVALID_JSON",
+        "INVALID_PICK_COUNT",
         "MESSAGE_TOO_LARGE",
         "NOT_IN_ROOM",
         "ROULETTE_SPINNING",
         "ROULETTE_TOO_FEW",
+        "ROULETTE_TOO_FEW_FOR_PICK",
         "ROULETTE_TOO_MANY",
         "TOO_MANY_GUESTS",
       ].sort(),
     );
+  });
+});
+
+/**
+ * @requirements #401 E2（選ぶ人数のコマンド）・spec §5.3（wire の互換）
+ */
+describe("選ぶ人数（wire）", () => {
+  it("roulette.pick.set は数の count を受ける（範囲はドメインの setPickCount が見る）", () => {
+    // Given / When / Then
+    expect(ok({ command: "roulette.pick.set", count: 1 })).toBe(true);
+    expect(ok({ command: "roulette.pick.set", count: 5 })).toBe(true);
+    for (const count of ["2", null, true]) {
+      expect(ok({ command: "roulette.pick.set", count })).toBe(false);
+    }
+    expect(ok({ command: "roulette.pick.set" })).toBe(false);
+  });
+
+  it("roulette.pick.set の余剰の項目は落ちる（strictObject）", () => {
+    // Given / When / Then
+    expect(ok({ command: "roulette.pick.set", count: 2, x: 1 })).toBe(false);
+  });
+
+  const spin = {
+    seq: 1,
+    wheel: [
+      { id: "a", name: "A" },
+      { id: "b", name: "B" },
+      { id: "c", name: "C" },
+    ],
+    winnerIndex: 0,
+    settle: 0.5,
+    spunBy: "A",
+    durationMs: 5600,
+    elapsedMs: 0,
+  };
+  const parse = (state: object) => v.safeParse(RouletteFrameSchema, { type: "roulette", state });
+
+  it("古いサーバーのフレーム（pickCount・picks が無い）も通る", () => {
+    // Given / When
+    const r = parse({ excluded: [], guests: [], drawn: [], spin });
+    // Then
+    expect(r.success).toBe(true);
+  });
+
+  it("新しいサーバーのフレーム（pickCount・picks がある）が通り、値をそのまま読む", () => {
+    // Given
+    const picks = [
+      { index: 0, settle: 0.5 },
+      { index: 2, settle: 0.3 },
+    ];
+    // When
+    const r = parse({ pickCount: 2, excluded: [], guests: [], drawn: [], spin: { ...spin, picks } });
+    // Then
+    expect(r.success && r.output.state.pickCount).toBe(2);
+    expect(r.success && r.output.state.spin?.picks).toEqual(picks);
+  });
+
+  it("picks の形が違えば落ちる", () => {
+    // Given / When / Then
+    expect(parse({ excluded: [], guests: [], drawn: [], spin: { ...spin, picks: [{ index: "0", settle: 0.5 }] } }).success).toBe(false);
+    expect(parse({ pickCount: "2", excluded: [], guests: [], drawn: [], spin: null }).success).toBe(false);
   });
 });

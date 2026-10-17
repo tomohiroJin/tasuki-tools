@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { drawWinner as drawWinnerResult } from "../src/draw.js";
+import { drawPicks } from "../src/draw.js";
 import { INITIAL_ROULETTE_STATE, type Entry, type RouletteState } from "../src/index.js";
 
 const A: Entry = { id: "p-a", name: "あおい" };
@@ -12,6 +12,14 @@ const D: Entry = { id: "p-d", name: "遅れて来た人" };
  * 乱数が契約を守る組はここで中身を取り出す（取り出せなければ前提の誤りとして落ちる）。
  */
 const drawWinner = (...args: Parameters<typeof drawWinnerResult>) => drawWinnerResult(...args)._unsafeUnwrap();
+
+/**
+ * 1 人を引く（#94 の `drawWinner`）。**#401 で抽選は k 人を引く `drawPicks` 1 本になった**ので、
+ * #94 の規則を k = 1 の `drawPicks` で確かめる（下の期待値は #94 のまま）。
+ */
+function drawWinnerResult(pool: readonly Entry[], state: RouletteState, randomInt: (n: number) => number) {
+  return drawPicks(pool, state, 1, randomInt).map(({ picks, drawn }) => ({ winnerIndex: picks[0] ?? -1, drawn }));
+}
 
 /** 常に 0 を返す偽の乱数。「選べる先頭」を引き続ける最悪の偏りを作る */
 const alwaysZero = (): number => 0;
@@ -69,7 +77,7 @@ describe("drawWinner（一周の規則）", () => {
       drawnAfter.push(r.drawn);
       state = stateWith({
         drawn: r.drawn,
-        lastSpin: { seq: i + 1, wheel: [A, B], winnerIndex: r.winnerIndex, settle: 0.5, spunBy: "x", startedAt: 0 },
+        lastSpin: { seq: i + 1, wheel: [A, B], winnerIndex: r.winnerIndex, settle: 0.5, picks: [{ index: r.winnerIndex, settle: 0.5 }], spunBy: "x", startedAt: 0 },
       });
     }
     // Then
@@ -82,7 +90,7 @@ describe("drawWinner（一周の規則）", () => {
     const rec = recordingRandom();
     const state = stateWith({
       drawn: ["p-a", "p-b", "p-c"],
-      lastSpin: { seq: 3, wheel: [A, B, C], winnerIndex: 2, settle: 0.5, spunBy: "x", startedAt: 0 },
+      lastSpin: { seq: 3, wheel: [A, B, C], winnerIndex: 2, settle: 0.5, picks: [{ index: 2, settle: 0.5 }], spunBy: "x", startedAt: 0 },
     });
     const { winnerIndex, drawn } = drawWinner([A, B, C], state, rec.randomInt);
     // When
@@ -95,7 +103,7 @@ describe("drawWinner（一周の規則）", () => {
     // Given
     const state = stateWith({
       drawn: ["p-c", "p-a", "p-b"],
-      lastSpin: { seq: 3, wheel: [A, B, C], winnerIndex: 1, settle: 0.5, spunBy: "x", startedAt: 0 },
+      lastSpin: { seq: 3, wheel: [A, B, C], winnerIndex: 1, settle: 0.5, picks: [{ index: 1, settle: 0.5 }], spunBy: "x", startedAt: 0 },
     });
     // 直前の当たりは B（wheel[1]）。末尾でも同じなので、C を入れ替えた並びで区別する
     const { winnerIndex } = drawWinner([A, B, C], state, alwaysZero);
@@ -103,7 +111,7 @@ describe("drawWinner（一周の規則）", () => {
     expect(winnerIndex).toBe(0);
     const state2 = stateWith({
       drawn: ["p-a", "p-b", "p-c"],
-      lastSpin: { seq: 3, wheel: [A, B, C], winnerIndex: 0, settle: 0.5, spunBy: "x", startedAt: 0 },
+      lastSpin: { seq: 3, wheel: [A, B, C], winnerIndex: 0, settle: 0.5, picks: [{ index: 0, settle: 0.5 }], spunBy: "x", startedAt: 0 },
     });
     // 直前の当たりは A なので、周を閉じた後の先頭は B（drawn の末尾 C を信じると A になる）
     expect(drawWinner([A, B, C], state2, alwaysZero).winnerIndex).toBe(1);

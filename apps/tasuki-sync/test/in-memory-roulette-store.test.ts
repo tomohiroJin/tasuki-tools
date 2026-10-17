@@ -19,10 +19,12 @@ const SETTLED: RouletteState = {
     ],
     winnerIndex: 0,
     settle: 0.5,
+    picks: [{ index: 0, settle: 0.5 }],
     spunBy: "あおい",
     startedAt: 10,
   },
   nextGuestSeq: 2,
+  pickCount: 1,
 };
 
 /**
