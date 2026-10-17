@@ -114,6 +114,20 @@ describe('脇は常に出る', () => {
   });
 });
 
+describe('脇の記録のスクロール領域', () => {
+  it('Given 脇の記録 / When 開く / Then フォーカスできる領域は .ui-reader の子孫で、札そのものではない', () => {
+    render(<RoomPage roomId={ROOM_ID} sync={makeSync(null, 1)} />);
+    const card = document.querySelector('.room-log--side') as HTMLElement;
+    expect(card.classList.contains('ui-reader')).toBe(true);
+    expect(card.hasAttribute('tabindex')).toBe(false);
+    expect(card.getAttribute('role')).toBeNull();
+    const region = within(card).getByRole('region', { name: ESTIMATE_LOG_HEADING });
+    expect(region).not.toBe(card);
+    expect(region.getAttribute('tabindex')).toBe('0');
+    expect(region.closest('.ui-reader')).toBe(card);
+  });
+});
+
 describe('操作の面の足の記録', () => {
   it('Given 束 5 つ / When 開く / Then 足の記録は新しい 3 束で、脇は全部', () => {
     render(<RoomPage roomId={ROOM_ID} sync={makeSync(null, 5)} />);

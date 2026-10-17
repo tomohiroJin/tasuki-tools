@@ -125,7 +125,8 @@
     display: none;
   }
 
-  .room-log--side {
+  /* `.ui-reader { display: flex }` と同じ詳細度だと取り込み順で決まるので、親を足して勝たせる */
+  .room .room-log--side {
     display: none;
   }
 }
@@ -158,6 +159,12 @@
   .room-log--side {
     flex: 1 1 auto;
     min-height: 10rem;
+  }
+
+  /* 溢れる束は札の中でスクロールする */
+  .room-log--side > .estimate-log-body {
+    flex: 1 1 auto;
+    min-height: 0;
     overflow: auto;
   }
 
