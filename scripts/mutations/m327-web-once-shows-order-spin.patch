@@ -1,0 +1,24 @@
+# 変異 327: web-once-shows-order-spin
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/turn-order-view.test.ts
+#   - apps/roulette-web/tests/turn-order.test.tsx
+#
+# #401 順番に回す §5.1。1 回で決めるへ戻した後も、順番の回転の結果を「次の進行役」として出す。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m327-*.patch
+# 復元: git apply -R scripts/mutations/m327-*.patch
+diff --git a/apps/roulette-web/src/roulette-view.ts b/apps/roulette-web/src/roulette-view.ts
+index 36d9251..7b9af6f 100644
+--- a/apps/roulette-web/src/roulette-view.ts
++++ b/apps/roulette-web/src/roulette-view.ts
+@@ -328,7 +328,7 @@ export function stageViewOf(view: RouletteView): RouletteView {
+   const spin = view.spin;
+   if (spin === null) return view;
+   const orderSpin = spin.turn !== undefined;
+-  const keep = modeOf(view) === 'order' ? orderSpin && (view.order ?? null) !== null : !orderSpin;
++  const keep = modeOf(view) === 'order' ? orderSpin && (view.order ?? null) !== null : true;
+   return keep ? view : { ...view, spin: null };
+ }
+ 

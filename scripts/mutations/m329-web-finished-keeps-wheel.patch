@@ -1,0 +1,24 @@
+# 変異 329: web-finished-keeps-wheel
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/turn-order-view.test.ts
+#   - apps/roulette-web/tests/turn-order.test.tsx
+#
+# #401 順番に回す T3（案 A）。回が終わっても円盤を空にしない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m329-*.patch
+# 復元: git apply -R scripts/mutations/m329-*.patch
+diff --git a/apps/roulette-web/src/roulette-view.ts b/apps/roulette-web/src/roulette-view.ts
+index 36d9251..9a61984 100644
+--- a/apps/roulette-web/src/roulette-view.ts
++++ b/apps/roulette-web/src/roulette-view.ts
+@@ -370,7 +370,7 @@ export function orderStageOf(input: { view: RouletteView; pool: readonly Entry[]
+ 
+   if (finished) {
+     return {
+-      seats: { entries: [], winners: [] },
++      seats: { entries: pool, winners: [] },
+       hubCount: 0,
+       card: { label: turnLabel(done.length), name: last?.name ?? null, revealed: last !== null },
+       left,

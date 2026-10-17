@@ -1,0 +1,24 @@
+# 変異 330: web-no-last-button
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/turn-order-view.test.ts
+#   - apps/roulette-web/tests/turn-order.test.tsx
+#
+# #401 順番に回す T3。まだの人が 1 人でも主ボタンが「次の人を決める」のまま（回さずに出すことが伝わらない）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m330-*.patch
+# 復元: git apply -R scripts/mutations/m330-*.patch
+diff --git a/apps/roulette-web/src/roulette-view.ts b/apps/roulette-web/src/roulette-view.ts
+index 36d9251..f76354f 100644
+--- a/apps/roulette-web/src/roulette-view.ts
++++ b/apps/roulette-web/src/roulette-view.ts
+@@ -425,7 +425,7 @@ export function orderButtonOf(input: {
+   const { order, poolCount, operable, serverSpinning } = input;
+   if (serverSpinning) return { label: SPINNING_BUTTON, disabled: true };
+   if (order.finished) return { label: ORDER_NEW_ROUND_BUTTON, disabled: !operable || poolCount < 2 };
+-  if (order.inRound) return { label: order.left === 1 ? ORDER_LAST_BUTTON : ORDER_BUTTON, disabled: !operable };
++  if (order.inRound) return { label: ORDER_BUTTON, disabled: !operable };
+   return { label: ORDER_BUTTON, disabled: !operable || poolCount < 2 };
+ }
+ 

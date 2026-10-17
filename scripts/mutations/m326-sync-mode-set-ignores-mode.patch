@@ -1,0 +1,23 @@
+# 変異 326: sync-mode-set-ignores-mode
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/roulette-handlers.test.ts
+#
+# #401 順番に回す T1。同期サーバーが送られた決め方を使わない。1 回で決めるへ戻せない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m326-*.patch
+# 復元: git apply -R scripts/mutations/m326-*.patch
+diff --git a/apps/tasuki-sync/src/application/roulette-handlers.ts b/apps/tasuki-sync/src/application/roulette-handlers.ts
+index c715ba4..846291e 100644
+--- a/apps/tasuki-sync/src/application/roulette-handlers.ts
++++ b/apps/tasuki-sync/src/application/roulette-handlers.ts
+@@ -244,7 +244,7 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
+       }
+       case "roulette.mode.set": {
+         // 回っている間と、順番に回す回の途中は拒む（#401 順番に回す T8）
+-        const next = setMode(state, cmd.mode, monotonicClock.now());
++        const next = setMode(state, "order", monotonicClock.now());
+         if (next.isErr()) {
+           fail(connId, next.error.code);
+           return;

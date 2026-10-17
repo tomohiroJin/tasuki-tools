@@ -1,0 +1,23 @@
+# 変異 322: order-never-restarts
+#
+# 検出を期待するテスト:
+#   - packages/roulette-core/tests/roulette-turn-order.test.ts
+#
+# #401 順番に回す T4。回が終わった後に押しても新しい回を始めない。「次の回を始める」が効かない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m322-*.patch
+# 復元: git apply -R scripts/mutations/m322-*.patch
+diff --git a/packages/roulette-core/src/roulette.ts b/packages/roulette-core/src/roulette.ts
+index 040e099..dfeeca6 100644
+--- a/packages/roulette-core/src/roulette.ts
++++ b/packages/roulette-core/src/roulette.ts
+@@ -92,7 +92,7 @@ function startOnceSpin(state: RouletteState, input: SpinInput): Result<RouletteS
+  * - 選ぶ人数（`pickCount`）と一周の記録（`drawn`）は使わず、変えない（T7）
+  */
+ function startOrderSpin(state: RouletteState, input: SpinInput): Result<RouletteState, RouletteError<SpinErrorCode>> {
+-  const round: OrderRound = state.order === null || state.order.finished ? { done: [], finished: false } : state.order;
++  const round: OrderRound = state.order === null ? { done: [], finished: false } : state.order;
+   const doneIds = new Set(round.done.map((e) => e.id));
+   const pool = poolOf(input.members, state, input.conflicts);
+   const open = pool.filter((e) => !doneIds.has(e.id));
