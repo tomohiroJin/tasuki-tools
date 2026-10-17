@@ -309,7 +309,9 @@ describe('isKnownErrorCode', () => {
 describe('parseClientMessage（見積もりの記録 #93）', () => {
   it('set-item は 120 字まで通り、121 字は落ちる', () => {
     expect(parseClientMessage(JSON.stringify({ type: 'set-item', item: 'あ'.repeat(120) })).isOk()).toBe(true);
-    expect(parseClientMessage(JSON.stringify({ type: 'set-item', item: 'あ'.repeat(121) })).isErr()).toBe(true);
+    const over = parseClientMessage(JSON.stringify({ type: 'set-item', item: 'あ'.repeat(121) }));
+    expect(over.isErr()).toBe(true);
+    expect(over._unsafeUnwrapErr().code).toBe('invalid-message');
   });
 
   it('next-item の points は 5 と null を通し、4 と文字列の 5 を落とす', () => {

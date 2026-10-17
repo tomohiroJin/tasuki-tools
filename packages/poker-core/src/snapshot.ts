@@ -57,6 +57,7 @@ export function createSnapshotBuilder(
     item: round.item,
     log: round.log.groups.map((g) => ({
       id: g.id,
+      // `?? ''` は届かない（trimToLimit が空の束を消すので entries は常に 1 行以上）
       item: g.entries[g.entries.length - 1]?.item ?? '',
       points: g.points,
       open: g.open,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { castVote, createRound, revealBy, type Round } from '../src/round.js';
+import { castVote, createRound, revealBy, revote, setItem, type Round } from '../src/round.js';
 import { createSnapshotBuilder, type ParticipantFragment } from '../src/snapshot.js';
 
 /**
@@ -124,30 +124,48 @@ describe('snapshotFor: 公開後（FR-006 / 契約 #5）', () => {
 });
 
 describe('createSnapshotBuilder の estimate（#93）', () => {
+  const five = { kind: 'number', value: 5 } as const;
+  const eight = { kind: 'number', value: 8 } as const;
+  const vote2 = (r: Round, a: typeof five | typeof eight, b: typeof five | typeof eight) =>
+    castVote(castVote(r, 'p-creator', a)._unsafeUnwrap(), 'p-guest', b)._unsafeUnwrap();
+
   it('item は round.item、束の item は最後の行の item、行に item も参加者 ID も無い', () => {
-    const base = castVote(castVote(createRound(), 'p-creator', { kind: 'number', value: 5 })._unsafeUnwrap(), 'p-guest', { kind: 'number', value: 8 })._unsafeUnwrap();
-    const withItem = { ...base, item: 'A' };
-    const revealed = revealBy(withItem, 'p-creator', 1000)._unsafeUnwrap();
-    const snap = snapshotFor({ ...revealed, item: 'B' }, 'p-creator');
+    const r1 = revealBy({ ...vote2(createRound(), five, eight), item: 'A' }, 'p-creator', 1000)._unsafeUnwrap();
+    const r2 = revote(r1, 'p-creator')._unsafeUnwrap();
+    const r3 = revealBy(
+      vote2(setItem(r2, 'A2'), five, five),
+      'p-creator',
+      2000,
+    )._unsafeUnwrap();
+    const snap = snapshotFor({ ...r3, item: 'B' }, 'p-creator');
     expect(snap.estimate?.item).toBe('B');
+    expect(snap.estimate!.log).toHaveLength(1);
     const group = snap.estimate!.log[0]!;
-    expect(group.item).toBe('A');
+    // 最初の行は 'A'、最後の行は 'A2'。束の見出しは最後の行
+    expect(group.item).toBe('A2');
     expect(group.open).toBe(true);
-    expect(group.entries[0]).toEqual({
-      attempt: 1,
-      at: 1000,
-      counts: [
-        { card: { kind: 'number', value: 5 }, count: 1 },
-        { card: { kind: 'number', value: 8 }, count: 1 },
-      ],
-    });
+    expect(group.entries).toEqual([
+      {
+        attempt: 1,
+        at: 1000,
+        counts: [
+          { card: five, count: 1 },
+          { card: eight, count: 1 },
+        ],
+      },
+      { attempt: 2, at: 2000, counts: [{ card: five, count: 2 }] },
+    ]);
     expect(JSON.stringify(snap.estimate)).not.toContain('p-creator');
     expect(JSON.stringify(snap.estimate)).not.toContain('p-guest');
   });
 
   it('投票中でも記録は全員に同じ内容で出る', () => {
-    const round = castVote(createRound(), 'p-creator', { kind: 'number', value: 5 })._unsafeUnwrap();
-    expect(snapshotFor(round, 'p-creator').estimate).toEqual(snapshotFor(round, 'p-guest').estimate);
-    expect(snapshotFor(round, 'p-guest').estimate).toEqual({ item: '', log: [] });
+    const revealed = revealBy(vote2(createRound(), five, eight), 'p-creator', 1000)._unsafeUnwrap();
+    const voting = castVote(revote(revealed, 'p-creator')._unsafeUnwrap(), 'p-creator', five)._unsafeUnwrap();
+    expect(voting.status).toBe('voting');
+    const a = snapshotFor(voting, 'p-creator').estimate;
+    const b = snapshotFor(voting, 'p-guest').estimate;
+    expect(a?.log.length).toBeGreaterThanOrEqual(1);
+    expect(a).toEqual(b);
   });
 });
