@@ -2698,7 +2698,7 @@ export const MUTATIONS = [
     patch: "m410-core-reveal-records-when-off.patch",
     pkg: "packages/poker-core",
     tests: ["tests/round.test.ts"],
-    note: "#427 設計 D。記録のスイッチが開票に効かない。",
+    note: "#427 設計 D。**対応表より後に足した変異。** 410〜419 は #427 に割り当てた。記録のスイッチが開票に効かない。",
   },
   {
     id: 411,

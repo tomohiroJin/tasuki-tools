@@ -165,7 +165,7 @@ S4a（#245）が外したのは**名簿そのもの**（`Participant` の保管�
 ## 追記（2026-10-12・#94 PR 1） — 文脈を 5 つにする
 
 [#94](https://github.com/tomohiroJin/tasuki-tools/issues/94) で**ルーレットの文脈** = `packages/roulette-core`
-（入る人・一周の規則・回転の帳簿）が加わった。決定と理由は
+（入る人・一周の規則（#427 で撤回）・回転の帳簿）が加わった。決定と理由は
 [`docs/adr/0026`](./0026-facilitator-roulette.md) にある。
 
 **決定 1〜5 はそのまま当てはまる。** ルーレットの文脈はツールのドメインと同格で、**`room-core` を含むどの `@tasuki/*` にも

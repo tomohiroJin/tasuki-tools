@@ -9,6 +9,8 @@
 **Tech Stack:** TypeScript（strict・`exactOptionalPropertyTypes`）、neverthrow、valibot、React 19、vitest（poker-core・roulette-core・poker-web・roulette-web・timer-web・landing）、bun test（tasuki-sync）、Playwright（e2e）
 
 **Spec:** [`docs/superpowers/specs/2026-10-18-release-check-and-feedback-design.md`](../specs/2026-10-18-release-check-and-feedback-design.md)（以下「設計」）。実装者は設計と本計画の両方を読むこと。A〜H・J-n は設計の項目番号。
+> 実施中の裁定で変わった点: 外した変異に m301 も加えた（Task 8）。外された人の行き先は告知つきの参加画面（ルームが残っているとき・Task 6）。
+
 
 ## Constitution Check
 
