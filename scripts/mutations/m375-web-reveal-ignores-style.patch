@@ -1,4 +1,4 @@
-# 変異 365: web-reveal-ignores-style
+# 変異 375: web-reveal-ignores-style
 #
 # 検出を期待するテスト:
 #   - apps/roulette-web/tests/stop-style.test.tsx
@@ -6,8 +6,8 @@
 # #420 振る舞い 4。2 人以上のとき、真鍮の席・札の行が延びる前の時刻で決まる（円盤はまだ動いている）。
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m365-*.patch
-# 復元: git apply -R scripts/mutations/m365-*.patch
+#       git apply scripts/mutations/m375-*.patch
+# 復元: git apply -R scripts/mutations/m375-*.patch
 diff --git a/apps/roulette-web/src/roulette-view.ts b/apps/roulette-web/src/roulette-view.ts
 index 00ac558..0d20688 100644
 --- a/apps/roulette-web/src/roulette-view.ts

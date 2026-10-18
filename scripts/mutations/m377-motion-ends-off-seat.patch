@@ -1,4 +1,4 @@
-# 変異 367: motion-ends-off-seat
+# 変異 377: motion-ends-off-seat
 #
 # 検出を期待するテスト:
 #   - apps/roulette-web/tests/stop-style-motion.test.ts
@@ -7,8 +7,8 @@
 # #420 振る舞い 3。じりじりの最後が当たりの席の位置まで進まない。止まった瞬間に跳ぶ。
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m367-*.patch
-# 復元: git apply -R scripts/mutations/m367-*.patch
+#       git apply scripts/mutations/m377-*.patch
+# 復元: git apply -R scripts/mutations/m377-*.patch
 diff --git a/apps/roulette-web/src/stop-style-motion.ts b/apps/roulette-web/src/stop-style-motion.ts
 index 4c46e4f..aa9d9cb 100644
 --- a/apps/roulette-web/src/stop-style-motion.ts

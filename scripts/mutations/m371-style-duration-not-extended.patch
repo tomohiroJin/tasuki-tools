@@ -1,4 +1,4 @@
-# 変異 361: style-duration-not-extended
+# 変異 371: style-duration-not-extended
 #
 # 検出を期待するテスト:
 #   - packages/roulette-core/tests/roulette-stop-style.test.ts
@@ -6,8 +6,8 @@
 # #420 spec S2。サーバーの回転中の判定が止まり方の分だけ延びない。画面が止まる前に次の回転を受け付ける。
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m361-*.patch
-# 復元: git apply -R scripts/mutations/m361-*.patch
+#       git apply scripts/mutations/m371-*.patch
+# 復元: git apply -R scripts/mutations/m371-*.patch
 diff --git a/packages/roulette-core/src/roulette.ts b/packages/roulette-core/src/roulette.ts
 index 214a37d..090336d 100644
 --- a/packages/roulette-core/src/roulette.ts

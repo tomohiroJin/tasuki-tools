@@ -1,4 +1,4 @@
-# 変異 360: style-hits-every-roll
+# 変異 370: style-hits-every-roll
 #
 # 検出を期待するテスト:
 #   - packages/roulette-core/tests/roulette-stop-style.test.ts
@@ -6,8 +6,8 @@
 # #420 spec S3。1/24 の目を見ずに、毎回変わった止まり方を選ぶ（ごくまれでなくなる）。
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m360-*.patch
-# 復元: git apply -R scripts/mutations/m360-*.patch
+#       git apply scripts/mutations/m370-*.patch
+# 復元: git apply -R scripts/mutations/m370-*.patch
 diff --git a/packages/roulette-core/src/stop-style.ts b/packages/roulette-core/src/stop-style.ts
 index 721747e..33c895e 100644
 --- a/packages/roulette-core/src/stop-style.ts

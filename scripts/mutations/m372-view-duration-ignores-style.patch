@@ -1,4 +1,4 @@
-# 変異 362: view-duration-ignores-style
+# 変異 372: view-duration-ignores-style
 #
 # 検出を期待するテスト:
 #   - packages/roulette-core/tests/roulette-stop-style.test.ts
@@ -6,8 +6,8 @@
 # #420 spec S2・S5。wire の durationMs が延びない。画面が変わった止まり方の途中で結果を出す。
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m362-*.patch
-# 復元: git apply -R scripts/mutations/m362-*.patch
+#       git apply scripts/mutations/m372-*.patch
+# 復元: git apply -R scripts/mutations/m372-*.patch
 diff --git a/packages/roulette-core/src/roulette.ts b/packages/roulette-core/src/roulette.ts
 index 214a37d..482f260 100644
 --- a/packages/roulette-core/src/roulette.ts

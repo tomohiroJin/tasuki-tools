@@ -1,4 +1,4 @@
-# 変異 368: motion-length-off-table
+# 変異 378: motion-length-off-table
 #
 # 検出を期待するテスト:
 #   - apps/roulette-web/tests/stop-style-motion.test.ts
@@ -6,8 +6,8 @@
 # #420 spec S2。行き過ぎて戻るの動きが表より長い。結果が出た後も円盤が動いている（止まった瞬間に跳ぶ）。
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m368-*.patch
-# 復元: git apply -R scripts/mutations/m368-*.patch
+#       git apply scripts/mutations/m378-*.patch
+# 復元: git apply -R scripts/mutations/m378-*.patch
 diff --git a/apps/roulette-web/src/stop-style-motion.ts b/apps/roulette-web/src/stop-style-motion.ts
 index 4c46e4f..46b4848 100644
 --- a/apps/roulette-web/src/stop-style-motion.ts

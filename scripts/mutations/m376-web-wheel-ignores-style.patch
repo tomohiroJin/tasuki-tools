@@ -1,4 +1,4 @@
-# 変異 366: web-wheel-ignores-style
+# 変異 376: web-wheel-ignores-style
 #
 # 検出を期待するテスト:
 #   - apps/roulette-web/tests/stop-style.test.tsx
@@ -6,8 +6,8 @@
 # #420 spec S1。円盤が止まり方を描かず普通に止まり、結果だけが遅れて出る。
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m366-*.patch
-# 復元: git apply -R scripts/mutations/m366-*.patch
+#       git apply scripts/mutations/m376-*.patch
+# 復元: git apply -R scripts/mutations/m376-*.patch
 diff --git a/apps/roulette-web/src/hooks/use-wheel-rotation.ts b/apps/roulette-web/src/hooks/use-wheel-rotation.ts
 index fac0890..5c0b8b6 100644
 --- a/apps/roulette-web/src/hooks/use-wheel-rotation.ts
