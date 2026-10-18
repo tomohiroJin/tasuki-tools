@@ -209,7 +209,7 @@ describe("ルーレットの接続でルームへ入る", () => {
  * @requirements #94 E1・E2・E5
  */
 describe("回す", () => {
-  it("2 人で 2 回回すと、2 回目は 1 回目と違う人（乱数が常に 0 でも）", async () => {
+  it("2 人で 2 回回すと、乱数が常に 0 なら 2 回とも同じ人（前の当たりは覚えない・#427）", async () => {
     // Given: 乱数は常に 0 を返す
     const h = setup();
     await joined(h, "r-1", "Alice");
@@ -224,7 +224,7 @@ describe("回す", () => {
     const spins = viewsTo(h, "r-1").map((v) => v.spin!);
     expect(spins.map((s) => s.seq)).toEqual([1, 2]);
     const winners = spins.map((s) => s.wheel[s.winnerIndex]!.name);
-    expect(winners[0]).not.toBe(winners[1]);
+    expect(winners[0]).toBe(winners[1]);
   });
 
   it("Given 乱数源が範囲外を返す / When 回す / Then INTERNAL_ERROR を返し、ログに on-message-error name=RangeError protocol=roulette と reason=invalid-random の 2 行を残す（#364・#382）", async () => {
@@ -570,21 +570,35 @@ describe("外す・名前を足す", () => {
     expect(errorsTo(h, "r-1")).toEqual(["TOO_MANY_GUESTS"]);
   });
 
-  it("名前を消すと、入る人・一周の記録から落ちる。一周をやり直すと drawn が空になる", async () => {
-    // Given: 客を 1 人足して回し、客が当たりになるまで…ではなく drawn に載った状態を作る
+  it("名前を消すと、入る人から落ちる", async () => {
+    // Given: 客を 1 人足す
     const h = setup();
     await joined(h, "r-1", "Alice");
     await h.handle("r-1", { command: "roulette.guest.add", name: "山田" });
-    await h.handle("r-1", { command: "roulette.spin" });
-    expect(h.roulettes.get(ROOM)!.drawn).toHaveLength(1);
+    expect(h.roulettes.get(ROOM)!.guests).toHaveLength(1);
 
     // When
     await h.handle("r-1", { command: "roulette.guest.remove", id: "g-1" });
-    await h.handle("r-1", { command: "roulette.cycle.reset" });
 
     // Then
     expect(h.roulettes.get(ROOM)!.guests).toEqual([]);
-    expect(h.roulettes.get(ROOM)!.drawn).toEqual([]);
+  });
+
+  it("roulette.cycle.reset は状態を変えず配信しない（一周の規則は外した・古い画面の操作は受けて捨てる）", async () => {
+    // Given: 回した後の状態
+    const h = setup();
+    await joined(h, "r-1", "Alice");
+    await joined(h, "r-2", "Bob");
+    await h.handle("r-1", { command: "roulette.spin" });
+    const before = h.roulettes.get(ROOM)!;
+    h.sent.length = 0;
+
+    // When
+    await h.handle("r-1", { command: "roulette.cycle.reset" });
+
+    // Then: 同じ参照のまま・誰にも何も届かない（エラーも出ない）
+    expect(h.roulettes.get(ROOM)).toBe(before);
+    expect(h.sent).toEqual([]);
   });
 
   it("退出して名簿から消えた参加者の ID は、次のコマンドで excluded から落ちる（prune）", async () => {
@@ -597,8 +611,8 @@ describe("外す・名前を足す", () => {
     const room = h.store.get(ROOM)!;
     h.store.put({ ...room, participants: room.participants.filter((p) => p.id !== bobId) });
 
-    // When
-    await h.handle("r-1", { command: "roulette.cycle.reset" });
+    // When: 変わらない操作でも、prune した状態が保管される
+    await h.handle("r-1", { command: "roulette.guest.remove", id: "g-9" });
 
     // Then
     expect(h.roulettes.get(ROOM)!.excluded).toEqual([]);

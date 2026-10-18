@@ -33,7 +33,6 @@ import {
   INITIAL_ROULETTE_STATE,
   prune,
   removeGuest,
-  resetCycle,
   resetOrder,
   RouletteCommandSchema,
   rouletteErrorMessageFor,
@@ -146,7 +145,7 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
    * 保管してから配る（宛先は呼び出し時点の名簿から決まる）。**保管と配信は必ず対にする。**
    *
    * - 変わらなければ（保管している状態と同じ参照なら）保管も配信もしない。遷移関数は変わらないとき
-   *   同じ参照を返す（`setIncluded`・`removeGuest`・`resetCycle`・`prune`）。知らない ID の押下や連打の
+   *   同じ参照を返す（`setIncluded`・`removeGuest`・`prune`）。知らない ID の押下や連打の
    *   たびに全接続へ同じフレームを配らない
    * - 失敗したコマンドはここを通らない（保管も配信もしない）。`prune` で落とした記録は、次に成功した
    *   コマンドが一緒に保管して配る —— 保管だけして配らないと、画面が見ている状態と保管が食い違う
@@ -232,7 +231,7 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
         commit(room.code, stored, removeGuest(state, cmd.id));
         return;
       case "roulette.cycle.reset":
-        commit(room.code, stored, resetCycle(state));
+        // 一周の規則は外した（#427）。古い画面の操作は受けて何もしない（保管も配信もしない）
         return;
       case "roulette.pick.set": {
         // 範囲は境界のスキーマが先に絞る。ドメインも同じ範囲を見る（#401 spec M2）。

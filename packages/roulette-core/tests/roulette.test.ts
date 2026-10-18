@@ -5,7 +5,6 @@ import {
   addGuest,
   prune,
   removeGuest,
-  resetCycle,
   setIncluded,
   startSpin,
   toView,
@@ -34,7 +33,7 @@ function many(n: number): Member[] {
  * @requirements #94 E1・E5・E6（回す・回転中の拒否・入る人の数）
  */
 describe("startSpin（回す）", () => {
-  it("回すと seq が 1 になり、wheel は pool の写しになり、drawn に当たりが載る", () => {
+  it("回すと seq が 1 になり、wheel は pool の写しになり、状態に drawn が無い", () => {
     // Given
     const s = startSpin(INITIAL_ROULETTE_STATE, spinInput())._unsafeUnwrap();
     // When
@@ -50,7 +49,8 @@ describe("startSpin（回す）", () => {
       spunBy: "あおい",
       startedAt: 1000,
     });
-    expect(s.drawn).toEqual(["p-a"]);
+    // 一周の記録は持たない（#427）
+    expect("drawn" in s).toBe(false);
   });
 
   it("seq は 1 ずつ増える", () => {
@@ -59,8 +59,8 @@ describe("startSpin（回す）", () => {
     const second = startSpin(first, spinInput({ now: 1000 + SPIN_DURATION_MS }))._unsafeUnwrap();
     // When
     expect(second.lastSpin?.seq).toBe(2);
-    // 一周の規則が効いている（乱数は常に 0 なのに 2 回目は B）
-    expect(second.lastSpin?.winnerIndex).toBe(1);
+    // 前の当たりは覚えない（乱数は常に 0 なので 2 回目も A・#427）
+    expect(second.lastSpin?.winnerIndex).toBe(0);
   });
 
   it("後から pool を変えても wheel は変わらない（凍結）", () => {
@@ -71,14 +71,13 @@ describe("startSpin（回す）", () => {
     expect(edited.lastSpin?.wheel.map((e) => e.id)).toEqual(["p-a", "p-b"]);
   });
 
-  it("回転中の startSpin は ROULETTE_SPINNING で、lastSpin も drawn も変わらない", () => {
+  it("回転中の startSpin は ROULETTE_SPINNING で、lastSpin も変わらない", () => {
     // Given
     const first = startSpin(INITIAL_ROULETTE_STATE, spinInput())._unsafeUnwrap();
     const r = startSpin(first, spinInput({ now: 1000 + SPIN_DURATION_MS - 1 }));
     // When
     expect(r._unsafeUnwrapErr()).toEqual({ code: "ROULETTE_SPINNING" });
     expect(first.lastSpin?.seq).toBe(1);
-    expect(first.drawn).toEqual(["p-a"]);
   });
 
   it("ちょうど SPIN_DURATION_MS 経った時点では回せる（境界）", () => {
@@ -152,6 +151,11 @@ describe("startSpin（回す）", () => {
  */
 describe("toView（wire へ載せる形）", () => {
   const spun = startSpin(INITIAL_ROULETTE_STATE, spinInput())._unsafeUnwrap();
+
+  it("toView の drawn は常に空（古い画面が必須で読むので配列だけ送る・#427 J6）", () => {
+    expect(toView(spun, 0).drawn).toEqual([]);
+    expect(toView(INITIAL_ROULETTE_STATE, 0).drawn).toEqual([]);
+  });
 
   it("回していなければ spin は null", () => {
     expect(toView(INITIAL_ROULETTE_STATE, 0)).toEqual({ pickCount: 1, mode: "once", order: null, excluded: [], guests: [], drawn: [], spin: null });
@@ -251,7 +255,7 @@ describe("外す・足す・消す", () => {
     expect(addGuest(one, "Alice", members, neverConflicts).isOk()).toBe(true);
   });
 
-  it("removeGuest はゲストと、excluded・drawn の記録を落とす。知らない ID は何も変えない", () => {
+  it("removeGuest はゲストと、excluded の記録を落とす。知らない ID は何も変えない", () => {
     // Given
     const s = stateWith({
       guests: [
@@ -259,7 +263,6 @@ describe("外す・足す・消す", () => {
         { id: "g-2", name: "二" },
       ],
       excluded: ["g-1", "p-a"],
-      drawn: ["g-1", "g-2"],
       nextGuestSeq: 3,
     });
     // When
@@ -267,29 +270,20 @@ describe("外す・足す・消す", () => {
       ...s,
       guests: [{ id: "g-2", name: "二" }],
       excluded: ["p-a"],
-      drawn: ["g-2"],
     });
     expect(removeGuest(s, "g-99")).toBe(s);
   });
 
-  it("resetCycle は drawn だけを空にする", () => {
-    const s = stateWith({ drawn: ["p-a"], excluded: ["p-b"] });
-    expect(resetCycle(s)).toEqual({ ...s, drawn: [] });
-  });
-
   it("変わらない操作は同じ参照を返す（同期サーバーが「変わっていないので配らない」を判定できる）", () => {
     // Given
-    const s = stateWith({ excluded: ["p-a"], drawn: ["p-b"], guests: [{ id: "g-1", name: "一" }] });
+    const s = stateWith({ excluded: ["p-a"], guests: [{ id: "g-1", name: "一" }] });
     // When / Then: 中身が同じでも新しいオブジェクトを返すと、配らなくてよい配信が全員へ飛ぶ
     expect(setIncluded(s, "p-a", false)).toBe(s);
     expect(setIncluded(s, "p-b", true)).toBe(s);
     expect(removeGuest(s, "g-9")).toBe(s);
     expect(prune(s, ["p-a", "p-b", "g-1"])).toBe(s);
-    const empty = stateWith({ excluded: ["p-a"] });
-    expect(resetCycle(empty)).toBe(empty);
     // 変わるときは新しい参照
     expect(prune(s, ["p-b", "g-1"])).not.toBe(s);
-    expect(resetCycle(s)).not.toBe(s);
   });
 
   it("INITIAL_ROULETTE_STATE は凍結されている（配列も）。共有の既定値を誰かが書き換えると全ルームへ漏れる", () => {
@@ -298,19 +292,16 @@ describe("外す・足す・消す", () => {
     expect(Object.isFrozen(INITIAL_ROULETTE_STATE)).toBe(true);
     expect(Object.isFrozen(INITIAL_ROULETTE_STATE.excluded)).toBe(true);
     expect(Object.isFrozen(INITIAL_ROULETTE_STATE.guests)).toBe(true);
-    expect(Object.isFrozen(INITIAL_ROULETTE_STATE.drawn)).toBe(true);
   });
 
-  it("prune は known に無い ID を excluded・drawn から落とす（ゲストの ID も known に含める前提）", () => {
+  it("prune は known に無い ID を excluded から落とす（ゲストの ID も known に含める前提）", () => {
     // Given
     const s = stateWith({
       guests: [{ id: "g-1", name: "一" }],
       excluded: ["p-a", "p-gone", "g-1"],
-      drawn: ["p-gone", "p-b", "g-1"],
     });
     const pruned = prune(s, ["p-a", "p-b", "g-1"]);
     // When
     expect(pruned.excluded).toEqual(["p-a", "g-1"]);
-    expect(pruned.drawn).toEqual(["p-b", "g-1"]);
   });
 });

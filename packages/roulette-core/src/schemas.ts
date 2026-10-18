@@ -49,6 +49,7 @@ const RouletteViewSchema = v.object({
   order: v.optional(v.nullable(v.object({ done: v.array(entrySchema), finished: v.boolean() }))),
   excluded: v.array(v.string()),
   guests: v.array(entrySchema),
+  // 古い画面が必須で読むので残す。サーバーは常に空の配列で送る（#427）
   drawn: v.array(v.string()),
   spin: v.nullable(
     v.object({

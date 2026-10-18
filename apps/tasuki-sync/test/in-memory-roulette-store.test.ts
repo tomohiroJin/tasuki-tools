@@ -10,7 +10,6 @@ import { InMemoryRouletteStore } from "../src/adapters/in-memory-roulette-store.
 const SETTLED: RouletteState = {
   excluded: ["p-a"],
   guests: [{ id: "g-1", name: "ゲスト" }],
-  drawn: ["p-b"],
   lastSpin: {
     seq: 2,
     wheel: [

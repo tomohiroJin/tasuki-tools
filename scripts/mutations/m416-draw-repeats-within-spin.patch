@@ -1,0 +1,22 @@
+# 変異 416: draw-repeats-within-spin
+#
+# 検出を期待するテスト:
+#   - packages/roulette-core/tests/draw-picks.test.ts
+#
+# #427 設計 F。1 回の回転で、すでに選んだ人を候補から外さない。1 回の回転で同じ人が 2 度選ばれる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m416-*.patch
+# 復元: git apply -R scripts/mutations/m416-*.patch
+diff --git a/packages/roulette-core/src/draw.ts b/packages/roulette-core/src/draw.ts
+--- a/packages/roulette-core/src/draw.ts
++++ b/packages/roulette-core/src/draw.ts
+@@ -24,7 +24,7 @@
+   const picked = new Set<string>();
+   const picks: number[] = [];
+   for (let i = 0; i < pickCount; i++) {
+-    const open = pool.filter((e) => !picked.has(e.id));
++    const open = [...pool];
+     const chosen = open[randomInt(open.length)];
+     // randomInt が契約（[0, n)）を破った。サーバーの乱数源は契約を守るので、ここへは来ない
+     if (chosen === undefined) return err({ code: "INVALID_RANDOM" });

@@ -73,7 +73,7 @@ export function startSpin(state: RouletteState, input: SpinInput): Result<Roulet
 
 /**
  * 1 回で決める（#94・#401 複数人決定）。入る人が選ぶ人数 + 1 人未満（選ぶ人数 1 なら 2 人未満）・`MAX_WHEEL` 超えは拒む。
- * 通れば `lastSpin` と `drawn` を更新した状態を返す（`wheel` は pool の凍結した写し・`picks` は選ぶ人数の件数）。
+ * 通れば `lastSpin` を更新した状態を返す（`wheel` は pool の凍結した写し・`picks` は選ぶ人数の件数）。
  */
 function startOnceSpin(state: RouletteState, input: SpinInput): Result<RouletteState, RouletteError<SpinErrorCode>> {
   const pool = poolOf(input.members, state, input.conflicts);
@@ -87,7 +87,7 @@ function startOnceSpin(state: RouletteState, input: SpinInput): Result<RouletteS
     if (!(settle >= SETTLE_MIN && settle <= SETTLE_MAX)) return err({ code: "INVALID_SETTLE" });
     settles.push(settle);
   }
-  return drawPicks(pool, state, k, input.randomInt).andThen(({ picks: indices, drawn }) => {
+  return drawPicks(pool, k, input.randomInt).andThen((indices) => {
     const picks = indices.map((index, i): Pick => ({ index, settle: settles[i] ?? SETTLE_MIN }));
     const first = picks[0] ?? { index: 0, settle: SETTLE_MIN };
     const spin: Spin = {
@@ -99,7 +99,7 @@ function startOnceSpin(state: RouletteState, input: SpinInput): Result<RouletteS
       spunBy: input.spunBy,
       startedAt: input.now,
     };
-    return withStopStyle(spin, input.randomStyle).map((lastSpin) => ({ ...state, drawn, lastSpin }));
+    return withStopStyle(spin, input.randomStyle).map((lastSpin) => ({ ...state, lastSpin }));
   });
 }
 
@@ -108,7 +108,7 @@ function startOnceSpin(state: RouletteState, input: SpinInput): Result<RouletteS
  *
  * - 回が無い・終わっていれば新しい回を始める。新しい回は 2 人から（`ROULETTE_TOO_FEW`）
  * - まだの人が 1 人なら**回さずに**その人の番にして回を終える（`lastSpin` は変えない・T3）。0 人（途中で全員が抜けた）なら回を終える
- * - 選ぶ人数（`pickCount`）と一周の記録（`drawn`）は使わず、変えない（T7）
+ * - 選ぶ人数（`pickCount`）は使わず、変えない（T7）
  */
 function startOrderSpin(state: RouletteState, input: SpinInput): Result<RouletteState, RouletteError<SpinErrorCode>> {
   const round: OrderRound = state.order === null || state.order.finished ? { done: [], finished: false } : state.order;
@@ -267,7 +267,7 @@ export function addGuest(
 }
 
 /**
- * ゲストを消し、`excluded`・`drawn` の記録も落とす。知らない ID は何も変えない（退出と同時に押されうる）。
+ * ゲストを消し、`excluded` の記録も落とす。知らない ID は何も変えない（退出と同時に押されうる）。
  * 順番に回す回の記録（`order.done`）からは落とさない（`prune` と同じ理由）。
  */
 export function removeGuest(state: RouletteState, id: EntryId): RouletteState {
@@ -276,17 +276,11 @@ export function removeGuest(state: RouletteState, id: EntryId): RouletteState {
     ...state,
     guests: state.guests.filter((g) => g.id !== id),
     excluded: state.excluded.filter((x) => x !== id),
-    drawn: state.drawn.filter((x) => x !== id),
   };
 }
 
-/** 一周をやり直す（`drawn` を空にする）。すでに空なら同じ参照を返す（変わらない操作は配らない）。 */
-export function resetCycle(state: RouletteState): RouletteState {
-  return state.drawn.length === 0 ? state : { ...state, drawn: [] };
-}
-
 /**
- * 名簿から消えた参加者の ID を `excluded` / `drawn` から落とす（退出を繰り返しても配列が膨らまない）。
+ * 名簿から消えた参加者の ID を `excluded` から落とす（退出を繰り返しても配列が膨らまない）。
  * **ゲストの ID も `knownIds` に含めて呼ぶこと**（含めないとゲストの記録が落ちる）。
  *
  * **順番に回す回の記録（`order.done`）からは落とさない**（#401 順番に回す T6・PR #418 のレビュー）。番は `done` の並びの位置なので、
@@ -296,10 +290,9 @@ export function resetCycle(state: RouletteState): RouletteState {
 export function prune(state: RouletteState, knownIds: Iterable<EntryId>): RouletteState {
   const known = new Set(knownIds);
   const excluded = state.excluded.filter((id) => known.has(id));
-  const drawn = state.drawn.filter((id) => known.has(id));
   // 何も落ちなければ同じ参照を返す（同期サーバーが「変わっていない」を参照で判定する）
-  if (excluded.length === state.excluded.length && drawn.length === state.drawn.length) return state;
-  return { ...state, excluded, drawn };
+  if (excluded.length === state.excluded.length) return state;
+  return { ...state, excluded };
 }
 
 /** wire へ載せる形（spec §5.3）。 */
@@ -353,7 +346,8 @@ export function toView(state: RouletteState, now: number): RouletteView {
     order: state.order === null ? null : { done: state.order.done.map((e) => ({ ...e })), finished: state.order.finished },
     excluded: [...state.excluded],
     guests: state.guests.map((g) => ({ ...g })),
-    drawn: [...state.drawn],
+    // 古い画面が必須で読むので空の配列で送り続ける（#427 J6）。新しい画面は読まない
+    drawn: [],
     spin:
       spin === null
         ? null
