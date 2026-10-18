@@ -170,7 +170,7 @@ export function winnerOf(view: RouletteView): Entry | null {
 }
 
 /**
- * 行の印。1 行に出す印はこの 1 つ（離席中が選ばれたより先）。
+ * 行の印。1 行に出す印はこの 1 つ（離席中が同名より先）。
  * 同名のゲストが入る人から外れる印など、印が増えるときはここに足す。
  */
 export type RowMark = 'away' | 'twin' | 'turn' | null;

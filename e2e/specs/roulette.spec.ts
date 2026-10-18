@@ -97,6 +97,8 @@ test.describe('@core ルーレットは全員の画面で同じ人に止まる',
       //   文の変化では新しい結果と見分けられないので、B が新しい回転を受けた印（動きを減らす設定の B は
       //   受けた直後に結果を出し、主ボタンは回転の間だけ押せない）を待ってから読む
       expect(await roulettePhrase(peer.page).textContent(), `${round} 回目: 回す前の B の一言`).toBeTruthy();
+      //   B の主ボタンが押せる状態へ戻ってから押す（前の回の「押せない」を新しい回転と取り違えない）
+      await expect(spinButton(peer.page), `${round} 回目: B の主ボタンが戻っている`).toBeEnabled();
       await spinButton(page).click();
 
       // その1: B は動きを減らす設定なので、回転を待たず 1 秒以内に新しい結果が出る

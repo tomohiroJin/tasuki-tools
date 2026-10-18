@@ -112,7 +112,7 @@ export function useRouletteSync(roomCode: string): RouletteSync {
             // **同じ回転（`seq` が同じ）なら基準を取り直さない。** 取り直すと円盤が回し直しになる。
             // 基準は `receivedAt` と `elapsedMs` の**組**で、片方だけ新しくすると経過を二重に数える
             // （回転中の外す・戻すや再接続で同じ seq が届くたびに、止まる時刻が前へずれる）。
-            // 回転以外（外した人・ゲスト・一周の記録）は新しいフレームのものを採る。
+            // 回転以外（外した人・ゲスト）は新しいフレームのものを採る。
             // 押して止める（#401）は同じ回転のうちに止まった位置が届くので、回転の中身は新しいものを採り、経過だけ古い基準のものを保つ
             prev !== null && prev.view.spin !== null && view.spin !== null && prev.view.spin.seq === view.spin.seq
               ? { view: { ...view, spin: { ...view.spin, elapsedMs: prev.view.spin.elapsedMs } }, receivedAt: prev.receivedAt }

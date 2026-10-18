@@ -18,7 +18,7 @@ index 9cbafdf..cc4d07e 100644
 +++ b/apps/roulette-web/src/hooks/use-roulette-sync.ts
 @@ -115,8 +115,8 @@ export function useRouletteSync(roomCode: string): RouletteSync {
              // （回転中の外す・戻すや再接続で同じ seq が届くたびに、止まる時刻が前へずれる）。
-             // 回転以外（外した人・ゲスト・一周の記録）は新しいフレームのものを採る。
+             // 回転以外（外した人・ゲスト）は新しいフレームのものを採る。
              // 押して止める（#401）は同じ回転のうちに止まった位置が届くので、回転の中身は新しいものを採り、経過だけ古い基準のものを保つ
 -            prev !== null && prev.view.spin !== null && view.spin !== null && prev.view.spin.seq === view.spin.seq
 -              ? { view: { ...view, spin: { ...view.spin, elapsedMs: prev.view.spin.elapsedMs } }, receivedAt: prev.receivedAt }

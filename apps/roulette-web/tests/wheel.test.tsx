@@ -347,11 +347,11 @@ describe('回転中にマウントした広い舞台', () => {
 });
 
 /**
- * 止まったかの判定は 1 か所（spec §6.4）。終わりの時刻の前後で、札・当たりの席・結果の一言・一覧の
- * 「選ばれた」が**同じ瞬間に**切り替わる。円盤が自前の時計で先に止まると、札は当たりを見せているのに
- * 一言と一覧はまだ回している、という食い違いが出る。
+ * 止まったかの判定は 1 か所（spec §6.4）。終わりの時刻の前後で、札・当たりの席・結果の一言が
+ * **同じ瞬間に**切り替わる。円盤が自前の時計で先に止まると、札は当たりを見せているのに
+ * 一言はまだ回している、という食い違いが出る。
  */
-describe('止まった瞬間は円盤と一言と一覧で揃う', () => {
+describe('止まった瞬間は円盤と札と一言で揃う', () => {
   const snapshot = () => ({
     card: card().classList.contains('is-revealed'),
     seat: winnerSeat() !== null,
@@ -431,7 +431,7 @@ describe('結果の札', () => {
 });
 
 /**
- * 円盤の色は「当たりかどうか」だけを表す。当たり以外は落ち着いた濃淡（3 段以内）で、当たりの席だけが真鍮の塗り。
+ * 円盤の色は「当たりかどうか」だけを表す。当たり以外は落ち着いた濃淡（段は a・b・c だけ。状態の修飾クラスを持たない）で、当たりの席だけが真鍮の塗り。
  * 色そのものは index.css（トークン）が持つので、ここでは席に付く段のクラスで数える。
  *
  * @requirements #427 F
@@ -443,14 +443,15 @@ describe('円盤の色', () => {
   const winnerOf = (el: Element): boolean => el.classList.contains('wheel-segment--winner');
   const toneOf = (el: Element): string => [...el.classList].filter((c) => /^wheel-segment--[abc]$/.test(c)).join();
 
-  it.each([2, 3, 5, 6, 7, 9])('Given %i 席で 1 席が当たり / When 描く / Then 当たり以外の段は 3 種類以内で、真鍮の塗りは当たりの席だけ', (n) => {
+  it.each([2, 3, 5, 6, 7, 9])('Given %i 席で 1 席が当たり / When 描く / Then 当たり以外の段は a・b・c だけで、真鍮の塗りは当たりの席だけ', (n) => {
     // Given / When
     render(<Wheel {...props} entries={entriesOf(n)} winners={[1]} />);
     // Then
     const rest = segments().filter((s) => !winnerOf(s));
     expect(segments().filter(winnerOf)).toHaveLength(1);
     expect(rest).toHaveLength(n - 1);
-    expect(new Set(rest.map(toneOf)).size).toBeLessThanOrEqual(3);
+    // どの席にも段が 1 つ付く（a・b・c 以外の段が増えれば、下の「知らない修飾クラスが無い」が捕まえる）
+    expect(segments().map(toneOf).every((t) => /^wheel-segment--[abc]$/.test(t))).toBe(true);
     for (const s of segments()) {
       // 席に付く修飾は段と当たりだけ（沈んだ席などの状態の色を持たない）
       expect([...s.classList].filter((c) => c !== 'wheel-segment' && !/^wheel-segment--[abc]$/.test(c) && c !== 'wheel-segment--winner')).toEqual([]);
