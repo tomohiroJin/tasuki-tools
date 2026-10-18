@@ -1,0 +1,23 @@
+# 変異 411: core-set-recording-keeps-open-group
+#
+# 検出を期待するテスト:
+#   - packages/poker-core/tests/round.test.ts
+#
+# #427。切り替えで open の束を閉じない（しない間の行が前の束に混ざる）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m411-*.patch
+# 復元: git apply -R scripts/mutations/m411-*.patch
+diff --git a/packages/poker-core/src/round.ts b/packages/poker-core/src/round.ts
+index 87db8e70..198e4c90 100644
+--- a/packages/poker-core/src/round.ts
++++ b/packages/poker-core/src/round.ts
+@@ -212,7 +212,7 @@ export function renameGroup(round: Round, groupId: number, item: string): Result
+  */
+ export function setRecording(round: Round, recording: boolean): Round {
+   if (round.recording === recording) return round;
+-  return { ...round, recording, log: closeOpenGroup(round.log, null) };
++  return { ...round, recording };
+ }
+ 
+ /**

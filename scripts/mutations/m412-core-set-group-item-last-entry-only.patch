@@ -1,0 +1,23 @@
+# 変異 412: core-set-group-item-last-entry-only
+#
+# 検出を期待するテスト:
+#   - packages/poker-core/tests/estimate-log.test.ts
+#
+# #427。束の名前の書き換えが最後の行だけを変える（古い行の名前が残る）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m412-*.patch
+# 復元: git apply -R scripts/mutations/m412-*.patch
+diff --git a/packages/poker-core/src/estimate-log.ts b/packages/poker-core/src/estimate-log.ts
+index 919a300a..990af629 100644
+--- a/packages/poker-core/src/estimate-log.ts
++++ b/packages/poker-core/src/estimate-log.ts
+@@ -141,7 +141,7 @@ export function setGroupItem(
+   const target = log.groups[index];
+   if (!target) return err({ code: 'estimate-not-found' });
+   if (target.open) return err({ code: 'estimate-open' });
+-  const entries = target.entries.map((e) => ({ ...e, item }));
++  const entries = target.entries.map((e, i) => (i === target.entries.length - 1 ? { ...e, item } : e));
+   const groups = log.groups.map((g, i) => (i === index ? { ...g, entries } : g));
+   return ok({ ...log, groups });
+ }

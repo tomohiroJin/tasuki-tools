@@ -1,0 +1,23 @@
+# 変異 410: core-reveal-records-when-off
+#
+# 検出を期待するテスト:
+#   - packages/poker-core/tests/round.test.ts
+#
+# #427。記録しない間も開票で行を足す（revealed の recording 判定を外す）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m410-*.patch
+# 復元: git apply -R scripts/mutations/m410-*.patch
+diff --git a/packages/poker-core/src/round.ts b/packages/poker-core/src/round.ts
+index 87db8e70..f0e7046f 100644
+--- a/packages/poker-core/src/round.ts
++++ b/packages/poker-core/src/round.ts
+@@ -106,7 +106,7 @@ export function applyAutoReveal(round: Round, voters: readonly VoterView[], now:
+ function revealed(round: Round, now: number): Round {
+   // 票が 0 枚の開票は行にしない（空の行と、あとで「ポイントなし」で閉じる空の束が残るだけ）。開票自体は行う
+   const log =
+-    !round.recording || round.votes.size === 0
++    round.votes.size === 0
+       ? round.log
+       : recordReveal(round.log, round.item, [...round.votes.values()], now);
+   return { ...round, status: 'revealed', log };

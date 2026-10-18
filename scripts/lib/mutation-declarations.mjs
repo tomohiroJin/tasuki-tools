@@ -2732,4 +2732,28 @@ export const MUTATIONS = [
     tests: ["test/room-removal.test.ts"],
     note: "#419。**対応表より後に足した変異。** 390〜399 は #419 に割り当てた。G-5。m395 は dispatch 側の門、m398 は removeFromRoom 側の門だけを守る。removeFromRoom の「接続中の対象を拒む条件」だけを外す（dispatch の門は触らない）ので、dispatch を通らずに直接呼ぶ単体テストだけが殺せる。",
   },
+  {
+    id: 410,
+    label: "記録しない間も開票で行を足す",
+    patch: "m410-core-reveal-records-when-off.patch",
+    pkg: "packages/poker-core",
+    tests: ["tests/round.test.ts"],
+    note: "#427 設計 D。記録のスイッチが開票に効かない。",
+  },
+  {
+    id: 411,
+    label: "切り替えで open の束を閉じない",
+    patch: "m411-core-set-recording-keeps-open-group.patch",
+    pkg: "packages/poker-core",
+    tests: ["tests/round.test.ts"],
+    note: "#427 J7。しない間の行が前の束に混ざる。",
+  },
+  {
+    id: 412,
+    label: "束の名前の書き換えが最後の行だけを変える",
+    patch: "m412-core-set-group-item-last-entry-only.patch",
+    pkg: "packages/poker-core",
+    tests: ["tests/estimate-log.test.ts"],
+    note: "#427 設計 E。古い行の名前が残る。",
+  },
 ];
