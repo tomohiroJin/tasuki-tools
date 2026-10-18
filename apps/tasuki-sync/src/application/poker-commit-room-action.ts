@@ -80,7 +80,7 @@ export function createCommitRoomAction({
   return function commitRoomAction(ws, action) {
     const { participantId, roomId } = ws.data;
     if (participantId === null || roomId === null) {
-      sendError(ws, 'not-joined', 'ルームに参加していません');
+      sendError(ws, 'not-joined', POKER_ERROR_TEXT.NOT_JOINED);
       return;
     }
     const state = loadState(roomId);
@@ -101,7 +101,7 @@ export function createCommitRoomAction({
     // 名簿に居ない人（片付けで外された人の接続など）とは別物である。ここで弾かないと
     // 「名簿に居ない＝投票していない」と読まれて状態を動かしてしまう。何も変えない。
     if (!state.room.participants.some((p) => p.id === participantId)) {
-      sendError(ws, 'not-joined', 'ルームに参加していません');
+      sendError(ws, 'not-joined', POKER_ERROR_TEXT.NOT_JOINED);
       return;
     }
     const result = action(state.round, participantId);
@@ -201,7 +201,7 @@ export function createDispatch({
         // 参加済みで名簿に居る人だけが外せる（G-9 と同じ検査）。
         const { participantId, roomId } = ws.data;
         if (participantId === null || roomId === null) {
-          sendError(ws, 'not-joined', 'ルームに参加していません');
+          sendError(ws, 'not-joined', POKER_ERROR_TEXT.NOT_JOINED);
           return;
         }
         const state = loadState(roomId);
@@ -211,7 +211,7 @@ export function createDispatch({
           return;
         }
         if (!state.room.participants.some((p) => p.id === participantId)) {
-          sendError(ws, 'not-joined', 'ルームに参加していません');
+          sendError(ws, 'not-joined', POKER_ERROR_TEXT.NOT_JOINED);
           return;
         }
         const target = state.room.participants.find((p) => p.id === msg.participantId);
