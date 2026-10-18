@@ -58,8 +58,8 @@
   display: grid;
   gap: var(--space-5);
   /* 手札の並びは、脇の有無ではなく操作の面の幅で決める（#348 D9）ので、操作の面をコンテナにする。
-     幅は段組みの列が決める。記録の札が無く、開いたお題の札も無いとき（記録しない・お題が無いか隠した）だけは
-     列が 1 本になり、64rem 以上の下の規則が約 46rem で中央に寄せる（#427）。それ以外は脇の列があり、中央寄せは要らない。 */
+     幅は段組みの列が決める。列はいつも 2 本で、記録の札が無く、開いたお題の札も無いとき（記録しない・お題が無いか隠した）だけは
+     脇の列が幅 0 になり、64rem 以上の下の規則が約 46rem で中央に寄せる（#427・v4.1.0 の #348 D7〜D9）。それ以外は脇の列があり、中央寄せは要らない。 */
   width: 100%;
   max-width: 100%;
   container: room-main / inline-size;
@@ -128,7 +128,7 @@
     display: none;
   }
 
-  .room-side:not(:has(> .room-topic-side[data-state='open'])) {
+  .room-side:not(:has(.room-topic-side[data-state='open'])) {
     display: none;
   }
 
@@ -139,12 +139,28 @@
 }
 
 @media (width >= 64rem) {
-  /* 列は常に 2 本・常に同じ比。脇（札約 43%）は常に出るので、列は動かない。
-     手札の側を広げる（poker は手札が横に並ぶので、お題は「あれば見られる程度」に留める）。
-     部品の `.ui-workspace--reader`（0.85fr）に勝つ (0,2,0)。 */
+  /* 列はいつも 2 本持つ（本数が変わると `grid-template-columns` は補間できない）。記録の札が無いとき（#427・v4.1.0 の #348 D7〜D9 と同じ）は、
+     閉じた状態・お題が無い状態は脇の列が幅 0（間隔も 0）で、お題を開くと比（札約 43%）と間隔に滑って移り変わる。
+     記録の札があるときは脇が常に出るので、列は動かず 0.75fr / 1fr のまま。
+     部品の `.ui-workspace--reader`（0.85fr・(0,1,0)）と `.ui-workspace:not(:has(> .ui-workspace-side))`（(0,2,0)）より、
+     ここ（(0,2,0)・後に読む）が勝つ。手札の側を広げる（poker は手札が横に並ぶので、お題は「あれば見られる程度」に留める）。 */
   .room .ui-workspace--reader {
+    grid-template-columns: minmax(0, 0fr) minmax(0, 1fr);
+    column-gap: 0;
+    transition:
+      grid-template-columns 0.32s cubic-bezier(0.2, 0.8, 0.2, 1),
+      column-gap 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .room .ui-workspace--reader:has(.room-topic-side[data-state='open']),
+  .room .ui-workspace--reader:has(.room-log--side) {
     grid-template-columns: minmax(0, 0.75fr) minmax(0, 1fr);
     column-gap: var(--space-6);
+  }
+
+  /* 操作の面はいつも 2 列目（部品は脇が無いと 1 列目へ寄せる。(0,3,0) でそれに勝つ）。 */
+  .room .ui-workspace--reader > .ui-workspace-main {
+    grid-column: 2;
   }
 
   /* 脇は画面に留め（部品の sticky）、高さは札の上限と同じ式で抑える。札と記録が残りを分け合い、記録は中でスクロールする。 */
@@ -152,16 +168,17 @@
     max-height: calc(100dvh - 14rem);
   }
 
-  /* 記録の札が無く、開いたお題の札も無い（脇が無い・お題を隠した）ときは列を 1 本にし、操作の面を約 46rem で中央に寄せる（v4.1.0 と同じ・#427）。
-     上の 2 列の指定（(0,2,0)）に、ここ（(0,4,0) 以上）で勝たせる。閉じた札の包みは幅 0・高さ 0 で 1 列目に重なるだけ。区画の位置も 1 列目へ戻す（上の `grid-column: 2` を持たない部品の規則は :where で (0,1,0)）。 */
-  .room .ui-workspace--reader:not(:has(.room-log--side)):not(:has(.room-topic-side[data-state='open'])) {
-    grid-template-columns: minmax(0, 1fr);
+  /* 記録の札が無く、開いたお題の札も無いときは、操作の面を約 46rem で中央に寄せる（v4.1.0 と同じ）。
+     `max-width` を移り変わらせ、`margin-inline: auto` が毎フレーム中央に寄せ直すので、お題の出し入れで操作の面が跳ばず滑る。
+     64rem 未満では脇が縦に積まれ、閉じると即座に消える（`display: none`）ので、ここで移り変わらせると
+     「脇が消える → 操作の面が遅れて狭まる」の 2 段の動きになる。だから 64rem 以上だけ。 */
+  .room-main {
+    margin-inline: auto;
+    transition: max-width 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
   }
 
   .room .ui-workspace--reader:not(:has(.room-log--side)):not(:has(.room-topic-side[data-state='open'])) > .room-main {
-    grid-column: 1;
     max-width: 46rem;
-    margin-inline: auto;
   }
 
   .room-topic-side[data-state='open'] {
@@ -524,7 +541,7 @@
   flex: 1 1 auto;
   padding-inline: var(--space-2);
   font-family: inherit;
-  font-size: inherit;
+  font-size: inherit; /* scale-exempt: 束の見出しの字と同じ大きさを継ぐ */
   font-weight: 400;
 }
 

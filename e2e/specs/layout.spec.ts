@@ -114,6 +114,8 @@ async function settleWorkspace(page: Page): Promise<void> {
   await page.evaluate(async () => {
     const workspace = document.querySelector('.room .ui-workspace--reader');
     if (workspace === null) throw new Error('段組みが無い');
+    // 状態を替えた直後は移り変わりがまだ始まっていない（getAnimations が空）ので、2 フレーム進めてから待つ
+    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
     await Promise.all(workspace.getAnimations({ subtree: true }).map((a) => a.finished.catch(() => undefined)));
   });
 }
@@ -410,6 +412,28 @@ test.describe('poker のルームは広い画面で読む面と操作の面を�
     const left = main.x - (inner.innerRight - inner.inner);
     const right = inner.innerRight - (main.x + main.width);
     expect(Math.abs(left - right), '操作の面が中央に寄っていない').toBeLessThanOrEqual(2);
+  });
+
+  test('Given 幅 1280・記録しない・お題あり / When 「お題を隠す」を押す / Then 隠した直後から閉じ切るまで、閉じかけの札は操作の面（手札）に重ならない（#427・v4.1.0 の規則）', async ({ page, openPeer }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await openPokerWithTopic(page, openPeer);
+    const overlap = async (): Promise<number> => {
+      // 2 つの箱を別々に測ると、その間に移り変わりが進んで見かけの重なりが出る。1 回の評価で同じ瞬間に測る
+      return page.evaluate(() => {
+        const side = document.querySelector('.room-topic-side')?.getBoundingClientRect();
+        const main = document.querySelector('.ui-workspace-main')?.getBoundingClientRect();
+        if (side === undefined || main === undefined) throw new Error('札か操作の面が描かれていない（判定が空振りする）');
+        return side.right - main.left; // 正なら札の包みの右端が操作の面へ食い込んでいる
+      });
+    };
+    expect(await overlap(), '開いているとき、札と操作の面が重なっている').toBeLessThanOrEqual(1);
+    await page.getByRole('button', { name: 'お題を隠す' }).click();
+    expect(await overlap(), '隠した直後に、閉じかけの札が操作の面に重なっている').toBeLessThanOrEqual(1);
+    await page.waitForTimeout(400);
+    expect(await overlap(), '0.4 秒後に、閉じかけの札が操作の面に重なっている').toBeLessThanOrEqual(1);
+    // 閉じ切った後は札の包みの幅が 0 に向かい（列は 2 本のまま）、操作の面は 46rem で中央に落ち着く
+    expect((await boxOf(page, '.room-topic-side')).width, '閉じた札の包みの幅が 0 にならない').toBeLessThanOrEqual(1);
+    expect(Math.round((await boxOf(page, '.ui-workspace-main')).width)).toBe(46 * REM);
   });
 
   test('Given 幅 1280・記録しない・お題が無い / When ルームを開く / Then 脇も空の列も無く、操作の面は 46rem で中央に寄る（#427）', async ({ page }) => {
