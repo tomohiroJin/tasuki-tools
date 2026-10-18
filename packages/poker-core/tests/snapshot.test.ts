@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { castVote, createRound, revealBy, revote, setItem, setSpectator, type Round } from '../src/round.js';
+import { castVote, createRound, revealBy, revote, setItem, setRecording, setSpectator, type Round } from '../src/round.js';
 import { createSnapshotBuilder, type ParticipantFragment } from '../src/snapshot.js';
+
+/** 記録する新しいラウンド（既定は記録しないので、記録を見るテストはこちらから始める） */
+const recordingRound = (): Round => setRecording(createRound(), true);
 
 /**
  * 受信者 1 人ぶんの投影を取る。
@@ -130,7 +133,7 @@ describe('createSnapshotBuilder の estimate（#93）', () => {
     castVote(castVote(r, 'p-creator', a)._unsafeUnwrap(), 'p-guest', b)._unsafeUnwrap();
 
   it('item は round.item、束の item は最後の行の item、行に item も参加者 ID も無い', () => {
-    const r1 = revealBy({ ...vote2(createRound(), five, eight), item: 'A' }, 'p-creator', 1000)._unsafeUnwrap();
+    const r1 = revealBy({ ...vote2(recordingRound(), five, eight), item: 'A' }, 'p-creator', 1000)._unsafeUnwrap();
     const r2 = revote(r1, 'p-creator')._unsafeUnwrap();
     const r3 = revealBy(
       vote2(setItem(r2, 'A2'), five, five),
@@ -160,7 +163,7 @@ describe('createSnapshotBuilder の estimate（#93）', () => {
   });
 
   it('投票中でも記録は全員に同じ内容で出る', () => {
-    const revealed = revealBy(vote2(createRound(), five, eight), 'p-creator', 1000)._unsafeUnwrap();
+    const revealed = revealBy(vote2(recordingRound(), five, eight), 'p-creator', 1000)._unsafeUnwrap();
     const voting = castVote(revote(revealed, 'p-creator')._unsafeUnwrap(), 'p-creator', five)._unsafeUnwrap();
     expect(voting.status).toBe('voting');
     const a = snapshotFor(voting, 'p-creator').estimate;
@@ -176,5 +179,13 @@ describe('createSnapshotBuilder: 見学（#419）', () => {
     const { participants } = snapshotFor(round, 'p-creator');
     expect(participants.find((p) => p.id === 'p-guest')?.spectator).toBe(true);
     expect(participants.find((p) => p.id === 'p-creator')?.spectator).toBe(false);
+  });
+});
+
+describe('createSnapshotBuilder の recording（#427）', () => {
+  it('recording が載る', () => {
+    const off = createRound();
+    expect(snapshotFor(off, 'p-creator').estimate?.recording).toBe(false);
+    expect(snapshotFor(setRecording(off, true), 'p-creator').estimate?.recording).toBe(true);
   });
 });

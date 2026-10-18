@@ -56,6 +56,7 @@ export function createSnapshotBuilder(
   // 記録は受信者に依存しない。束の item は最後の行の item、行の item は載せない
   const estimate: EstimateView = {
     item: round.item,
+    recording: round.recording,
     log: round.log.groups.map((g) => ({
       id: g.id,
       // `?? ''` は届かない（trimToLimit が空の束を消すので entries は常に 1 行以上）

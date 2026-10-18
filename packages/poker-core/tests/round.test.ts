@@ -7,14 +7,19 @@ import {
   discardVote,
   nextItem,
   revealBy,
+  renameGroup,
   revote,
   setItem,
   setPoints,
+  setRecording,
   setSpectator,
   shouldAutoReveal,
   type Round,
   type VoterView,
 } from '../src/round.js';
+
+/** 記録する新しいラウンド（既定は記録しないので、記録を見るテストはこちらから始める） */
+const recordingRound = (): Round => setRecording(createRound(), true);
 
 const five = { kind: 'number', value: 5 } as const;
 const eight = { kind: 'number', value: 8 } as const;
@@ -160,7 +165,7 @@ describe('revealBy（FR-009）', () => {
 
 describe('revote（FR-011）', () => {
   function revealedRound(): Round {
-    let round = createRound();
+    let round = recordingRound();
     round = castVote(round, 'p1', five)._unsafeUnwrap();
     round = castVote(round, 'p2', eight)._unsafeUnwrap();
     return applyAutoReveal(round, votersOf(2), 1000);
@@ -197,7 +202,7 @@ describe('revote（FR-011）', () => {
 
 describe('nextItem（#93）', () => {
   function revealedRound(): Round {
-    let round = setItem(createRound(), 'PROJ-1');
+    let round = setItem(recordingRound(), 'PROJ-1');
     round = castVote(round, 'p1', five)._unsafeUnwrap();
     return revealBy(round, 'p1', 1000)._unsafeUnwrap();
   }
@@ -232,7 +237,7 @@ describe('nextItem（#93）', () => {
 describe('開票の記録（#93）', () => {
   it('Given 票と item / When revealBy / Then log に at・item・票の枚数の行が足される', () => {
     // Given
-    let round = setItem(createRound(), 'PROJ-1');
+    let round = setItem(recordingRound(), 'PROJ-1');
     round = castVote(round, 'p1', five)._unsafeUnwrap();
     round = castVote(round, 'p2', five)._unsafeUnwrap();
     // When
@@ -245,7 +250,7 @@ describe('開票の記録（#93）', () => {
 
   it('Given 全員投票 / When applyAutoReveal / Then 1 行足される。立たなければ log は同じ参照', () => {
     // Given
-    const voted = castVote(createRound(), 'p1', five)._unsafeUnwrap();
+    const voted = castVote(recordingRound(), 'p1', five)._unsafeUnwrap();
     // When
     const revealed = applyAutoReveal(voted, votersOf(1), 2000);
     const held = applyAutoReveal(voted, votersOf(2), 2000);
@@ -259,7 +264,7 @@ describe('開票の記録（#93）', () => {
 describe('開票後の名前・票なしの開票（#93 PR レビュー）', () => {
   it('Given 名前なしで開票 / When 開票後に setItem / Then 最後の行の item が追う。前の行は変わらない', () => {
     // Given
-    let round = castVote(createRound(), 'p1', five)._unsafeUnwrap();
+    let round = castVote(recordingRound(), 'p1', five)._unsafeUnwrap();
     round = revealBy(round, 'p1', 1000)._unsafeUnwrap();
     round = revote(round, 'p1')._unsafeUnwrap();
     round = castVote(round, 'p1', five)._unsafeUnwrap();
@@ -274,7 +279,7 @@ describe('開票後の名前・票なしの開票（#93 PR レビュー）', () 
 
   it('Given 開票後 / When setItem して nextItem / Then 閉じた束は後から変わらない', () => {
     // Given
-    let round = castVote(createRound(), 'p1', five)._unsafeUnwrap();
+    let round = castVote(recordingRound(), 'p1', five)._unsafeUnwrap();
     round = revealBy(round, 'p1', 1000)._unsafeUnwrap();
     const closed = nextItem(setItem(round, 'A'), 'p1', 5)._unsafeUnwrap();
     // When
@@ -303,7 +308,7 @@ describe('開票後の名前・票なしの開票（#93 PR レビュー）', () 
 describe('setItem / setPoints（#93）', () => {
   it('setItem は前後の空白を削る。status・votes・log は変わらない', () => {
     // Given
-    const round = castVote(createRound(), 'p1', five)._unsafeUnwrap();
+    const round = castVote(recordingRound(), 'p1', five)._unsafeUnwrap();
     // When
     const after = setItem(round, '  PROJ-1  ');
     // Then
@@ -315,7 +320,7 @@ describe('setItem / setPoints（#93）', () => {
 
   it('setPoints は閉じた束のポイントを直し、setGroupPoints のエラーを RoundError として返す', () => {
     // Given
-    let round = castVote(createRound(), 'p1', five)._unsafeUnwrap();
+    let round = castVote(recordingRound(), 'p1', five)._unsafeUnwrap();
     round = revealBy(round, 'p1', 1000)._unsafeUnwrap();
     // Then: open の束
     expect(setPoints(round, 1, 5)._unsafeUnwrapErr()).toEqual({ code: 'estimate-open' });
@@ -335,7 +340,7 @@ describe('setItem / setPoints（#93）', () => {
  * 許可表が `["@tasuki/protocol"]` しか許していない・設計正本 D2）。
  */
 describe('Round が集約ルート（#95 S4a）', () => {
-  const votingRound = (): Round => ({ status: 'voting', votes: new Map(), item: '', log: EMPTY_ESTIMATE_LOG, spectators: new Set() });
+  const votingRound = (): Round => ({ status: 'voting', votes: new Map(), item: '', log: EMPTY_ESTIMATE_LOG, recording: false, spectators: new Set() });
 
   it('投票は Round だけで完結する', () => {
     // Given: votingRound() の呼び出し自体が前提のラウンドを用意する
@@ -389,7 +394,7 @@ describe('Round が集約ルート（#95 S4a）', () => {
 });
 
 describe('discardVote（退出した人の票を捨てる・R8）', () => {
-  const votingRound = (): Round => ({ status: 'voting', votes: new Map(), item: '', log: EMPTY_ESTIMATE_LOG, spectators: new Set() });
+  const votingRound = (): Round => ({ status: 'voting', votes: new Map(), item: '', log: EMPTY_ESTIMATE_LOG, recording: false, spectators: new Set() });
 
   it('Given 票のある人 / When 退出する / Then その票だけが消える', () => {
     // Given: 2 人が投票している
@@ -487,5 +492,87 @@ describe('見学（#419）', () => {
   it('Given 見学者 When 退出で discardVote Then 見学の集合からも外れる', () => {
     const spec = setSpectator(createRound(), 'p1', true);
     expect(discardVote(spec, 'p1').spectators.has('p1')).toBe(false);
+  });
+});
+
+describe('記録の切り替え（#427）', () => {
+  it('Given 新しいラウンド / When 見る / Then 記録しない', () => {
+    expect(createRound().recording).toBe(false);
+  });
+
+  it('Given 記録しない / When 手動で開票 / Then 開票はするが行を足さない', () => {
+    const round = castVote(createRound(), 'p1', five)._unsafeUnwrap();
+    const revealed = revealBy(round, 'p1', 1000)._unsafeUnwrap();
+    expect(revealed.status).toBe('revealed');
+    expect(revealed.log.groups).toHaveLength(0);
+  });
+
+  it('Given 記録しない / When 自動で開票 / Then 開票はするが行を足さない', () => {
+    const round = castVote(createRound(), 'p1', five)._unsafeUnwrap();
+    const revealed = applyAutoReveal(round, votersOf(1), 1000);
+    expect(revealed.status).toBe('revealed');
+    expect(revealed.log.groups).toHaveLength(0);
+  });
+
+  it('Given 記録する / When 手動・自動で開票 / Then 今までどおり行を足す', () => {
+    const base = castVote(recordingRound(), 'p1', five)._unsafeUnwrap();
+    expect(revealBy(base, 'p1', 1000)._unsafeUnwrap().log.groups[0]!.entries).toHaveLength(1);
+    expect(applyAutoReveal(base, votersOf(1), 1000).log.groups[0]!.entries).toHaveLength(1);
+  });
+
+  it('Given open の束がある / When する→しないに切り替える / Then 束はポイントなしで閉じる', () => {
+    let round = castVote(recordingRound(), 'p1', five)._unsafeUnwrap();
+    round = revealBy(round, 'p1', 1000)._unsafeUnwrap();
+    const off = setRecording(round, false);
+    expect(off.recording).toBe(false);
+    expect(off.log.groups[0]!.open).toBe(false);
+    expect(off.log.groups[0]!.points).toBeNull();
+  });
+
+  it('Given しないで open の束がある / When しないからするに切り替える / Then 束はポイントなしで閉じる', () => {
+    let round = castVote(recordingRound(), 'p1', five)._unsafeUnwrap();
+    round = revealBy(round, 'p1', 1000)._unsafeUnwrap();
+    round = { ...round, recording: false, log: { ...round.log } };
+    const on = setRecording(round, true);
+    expect(on.recording).toBe(true);
+    expect(on.log.groups[0]!.open).toBe(false);
+  });
+
+  it('Given 同じ値 / When setRecording / Then 同じ参照を返す', () => {
+    const round = createRound();
+    expect(setRecording(round, false)).toBe(round);
+    const on = setRecording(round, true);
+    expect(setRecording(on, true)).toBe(on);
+  });
+
+  it('Given Review Focus 1 の往復 / When する→しない→する / Then 行は新しい束に入る', () => {
+    let round = castVote(recordingRound(), 'p1', five)._unsafeUnwrap();
+    round = revealBy(round, 'p1', 1000)._unsafeUnwrap();
+    round = revote(round, 'p1')._unsafeUnwrap();
+    round = setRecording(setRecording(round, false), true);
+    round = castVote(round, 'p1', eight)._unsafeUnwrap();
+    round = revealBy(round, 'p1', 2000)._unsafeUnwrap();
+    expect(round.log.groups).toHaveLength(2);
+    expect(round.log.groups[0]!.entries).toHaveLength(1);
+    expect(round.log.groups[1]!.entries).toHaveLength(1);
+    expect(round.log.groups[1]!.open).toBe(true);
+  });
+
+  function closedRound(): Round {
+    let round = castVote(setItem(recordingRound(), 'A'), 'p1', five)._unsafeUnwrap();
+    round = revealBy(round, 'p1', 1000)._unsafeUnwrap();
+    return nextItem(round, 'p1', 5)._unsafeUnwrap();
+  }
+
+  it('renameGroup は不可視文字を除き前後の空白を削る', () => {
+    const after = renameGroup(closedRound(), 1, '  B\u202E\u200BC  ')._unsafeUnwrap();
+    expect(after.log.groups[0]!.entries.map((e) => e.item)).toEqual(['BC']);
+  });
+
+  it('renameGroup は open の束に estimate-open、無い束に estimate-not-found', () => {
+    let round = castVote(recordingRound(), 'p1', five)._unsafeUnwrap();
+    round = revealBy(round, 'p1', 1000)._unsafeUnwrap();
+    expect(renameGroup(round, 1, 'X')._unsafeUnwrapErr()).toEqual({ code: 'estimate-open' });
+    expect(renameGroup(round, 99, 'X')._unsafeUnwrapErr()).toEqual({ code: 'estimate-not-found' });
   });
 });

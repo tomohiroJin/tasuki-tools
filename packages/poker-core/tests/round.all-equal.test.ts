@@ -16,7 +16,7 @@ describe('#95 S3: poker は全員が同格である', () => {
 
   it('作成者でない参加者が手動公開できる', () => {
     // Given
-    const voting: Round = { status: 'voting', votes: new Map(), item: '', log: EMPTY_ESTIMATE_LOG, spectators: new Set() };
+    const voting: Round = { status: 'voting', votes: new Map(), item: '', log: EMPTY_ESTIMATE_LOG, recording: false, spectators: new Set() };
     // When
     // 前提のガードは置かない。落ちていれば _unsafeUnwrap が throw する（ADR-0006 決定 6 と同じ扱い）
     const revealed = revealBy(voting, joinerId, 1000)._unsafeUnwrap();
@@ -26,7 +26,7 @@ describe('#95 S3: poker は全員が同格である', () => {
 
   it('作成者でない参加者が次のラウンドを始められる', () => {
     // Given
-    const revealed: Round = { status: 'revealed', votes: new Map(), item: '', log: EMPTY_ESTIMATE_LOG, spectators: new Set() };
+    const revealed: Round = { status: 'revealed', votes: new Map(), item: '', log: EMPTY_ESTIMATE_LOG, recording: false, spectators: new Set() };
     // When
     // 前提のガードは置かない。落ちていれば _unsafeUnwrap が throw する（ADR-0006 決定 6 と同じ扱い）
     const next = revote(revealed, joinerId)._unsafeUnwrap();

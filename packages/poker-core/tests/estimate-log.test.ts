@@ -4,6 +4,7 @@ import {
   closeOpenGroup,
   EMPTY_ESTIMATE_LOG,
   recordReveal,
+  setGroupItem,
   setGroupPoints,
   type EstimateLog,
 } from '../src/estimate-log.js';
@@ -181,5 +182,33 @@ describe('開票の枚数の畳み方', () => {
 
   it('Given 票が無い / When 開票を記録する / Then 空', () => {
     expect(countsOf([])).toEqual([]);
+  });
+});
+
+describe('setGroupItem（#427）', () => {
+  function twoClosed() {
+    let log = recordReveal(EMPTY_ESTIMATE_LOG, 'A', [num(5)], 1);
+    log = recordReveal(log, 'A2', [num(8)], 2);
+    log = closeOpenGroup(log, 5);
+    log = recordReveal(log, 'B', [num(3)], 3);
+    return closeOpenGroup(log, null);
+  }
+
+  it('setGroupItem は閉じた束の全部の行の名前を変え、ほかの束を変えない', () => {
+    const log = twoClosed();
+    const after = setGroupItem(log, 1, 'Z')._unsafeUnwrap();
+    expect(after.groups[0]!.entries.map((e) => e.item)).toEqual(['Z', 'Z']);
+    expect(after.groups[1]).toBe(log.groups[1]);
+  });
+
+  it('無い ID に estimate-not-found、open の束に estimate-open', () => {
+    expect(setGroupItem(twoClosed(), 99, 'Z')._unsafeUnwrapErr()).toEqual({ code: 'estimate-not-found' });
+    const open = recordReveal(EMPTY_ESTIMATE_LOG, 'A', [num(5)], 1);
+    expect(setGroupItem(open, 1, 'Z')._unsafeUnwrapErr()).toEqual({ code: 'estimate-open' });
+  });
+
+  it('空の名前を受ける', () => {
+    const after = setGroupItem(twoClosed(), 1, '')._unsafeUnwrap();
+    expect(after.groups[0]!.entries.map((e) => e.item)).toEqual(['', '']);
   });
 });

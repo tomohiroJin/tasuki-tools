@@ -127,3 +127,21 @@ export function setGroupPoints(
   const groups = log.groups.map((g, i) => (i === index ? { ...g, points } : g));
   return ok({ ...log, groups });
 }
+
+/**
+ * 閉じた束の全部の行のアイテム名を書き換える（#427）。見出しは最後の行から決まるので、
+ * 全部の行を揃えておけば、後から行が落ちても見出しが戻らない。
+ */
+export function setGroupItem(
+  log: EstimateLog,
+  id: number,
+  item: string,
+): Result<EstimateLog, EstimateLogError> {
+  const index = log.groups.findIndex((g) => g.id === id);
+  const target = log.groups[index];
+  if (!target) return err({ code: 'estimate-not-found' });
+  if (target.open) return err({ code: 'estimate-open' });
+  const entries = target.entries.map((e) => ({ ...e, item }));
+  const groups = log.groups.map((g, i) => (i === index ? { ...g, entries } : g));
+  return ok({ ...log, groups });
+}
