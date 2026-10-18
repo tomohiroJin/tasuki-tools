@@ -52,6 +52,11 @@ async function threePeople() {
   return { a, b, c };
 }
 
+/** 指定した参加者の spectator が want になった room-state か */
+const spectatorIs = (id: string, want: boolean) => (msg: unknown) =>
+  (msg as RoomState).type === 'room-state' &&
+  ((msg as RoomState).participants.find((p) => p.id === id)?.spectator ?? false) === want;
+
 const isRevealed = (msg: unknown) =>
   (msg as RoomState).type === 'room-state' && (msg as RoomState).round.status === 'revealed';
 
@@ -90,6 +95,11 @@ describe('見学（#419）', () => {
     // Then
     const err = (await c.client.nextMatching(isType('error'))) as { code: string };
     expect(err.code).toBe('spectating');
+    // 状態が変わっていないこと: 別の操作で room-state を 1 通出させ、C は未投票のまま
+    a.client.send({ type: 'set-item', item: 'X' });
+    const after = (await c.client.nextMatching(isType('room-state'))) as RoomState;
+    expect(after.participants.find((p) => p.id === c.joined.participantId)?.hasVoted).toBe(false);
+    expect(after.round.status).toBe('voting');
     for (const who of [a, b, c]) who.client.close();
   });
 
@@ -124,6 +134,12 @@ describe('見学（#419）', () => {
 
     // When: 切断してトークンで入り直す
     c.client.close();
+    await a.client.nextMatching(
+      (m) =>
+        (m as RoomState).type === 'room-state' &&
+        (m as RoomState).participants.find((p) => p.id === c.joined.participantId)?.connected ===
+          false,
+    );
     const again = await WsClient.connect(server.port);
     again.send({
       type: 'join-room',
@@ -131,10 +147,18 @@ describe('見学（#419）', () => {
       name: 'う',
       token: c.joined.token,
     });
+    const rejoined = (await again.nextMatching(isType('joined'))) as Joined;
     const state = (await again.nextMatching(isType('room-state'))) as RoomState;
 
-    // Then
-    expect(state.participants.find((p) => p.id === c.joined.participantId)?.spectator).toBe(true);
+    // Then: 同じ参加者として戻り（トークンが無視されて別人で入ると旧行が残るので、ここで見分ける）、
+    // C の行はちょうど 1 つで、接続中かつ見学のまま
+    expect(rejoined.participantId).toBe(c.joined.participantId);
+    expect(state.you).toBe(c.joined.participantId);
+    const rows = state.participants.filter((p) => p.id === c.joined.participantId);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.connected).toBe(true);
+    expect(rows[0]?.spectator).toBe(true);
+    expect(state.participants).toHaveLength(3);
     for (const client of [a.client, b.client, again]) client.close();
   });
 
@@ -148,6 +172,7 @@ describe('見学（#419）', () => {
 
     // When: A が見学へ移り、B が再投票して投票する
     a.client.send({ type: 'set-spectator', spectator: true });
+    await b.client.nextMatching(spectatorIs(a.joined.participantId, true));
     b.client.send({ type: 'revote' });
     await b.client.nextMatching(
       (m) =>
@@ -160,5 +185,32 @@ describe('見学（#419）', () => {
     expect(state.round.status).toBe('revealed');
     a.client.close();
     b.client.close();
+  });
+
+  it('S-2: 見学から投票へ戻ると、その人を待つ（戻る前は待たない）', async () => {
+    // Given: C が見学
+    const { a, b, c } = await threePeople();
+    c.client.send({ type: 'set-spectator', spectator: true });
+    await a.client.nextMatching(spectatorIs(c.joined.participantId, true));
+
+    // When: C が投票に戻る
+    c.client.send({ type: 'set-spectator', spectator: false });
+    await a.client.nextMatching(spectatorIs(c.joined.participantId, false));
+    a.client.send({ type: 'vote', card: CARD });
+    b.client.send({ type: 'vote', card: CARD });
+
+    // Then: A・B が投票しても開かない（C を待つ）。B の投票が反映された時点で voting のまま
+    const waiting = (await a.client.nextMatching(
+      (m) =>
+        (m as RoomState).type === 'room-state' &&
+        (m as RoomState).participants.filter((p) => p.hasVoted).length === 2,
+    )) as RoomState;
+    expect(waiting.round.status).toBe('voting');
+
+    // C が投票すると開く
+    c.client.send({ type: 'vote', card: CARD });
+    const state = (await a.client.nextMatching(isRevealed)) as RoomState;
+    expect(state.round.status).toBe('revealed');
+    for (const who of [a, b, c]) who.client.close();
   });
 });
