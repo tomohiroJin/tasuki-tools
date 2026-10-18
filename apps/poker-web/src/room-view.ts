@@ -25,6 +25,19 @@ export function revealedVoteMap(round: RoomStateMessage['round']): ReadonlyMap<s
   return round.status === 'revealed' ? new Map(round.votes.map((v) => [v.participantId, v.card])) : null;
 }
 
+/**
+ * 席の札を持つ席か（#419）。投票者は常に持つ。見学者は持たないが、開票後に票が残っていれば札を見せる
+ * （集計に入っている札を隠さない）。席の一覧の描画と `--seat-order`・`--seat-count` の数えはこの 1 つに従う。
+ */
+export function holdsSeatCard(p: ParticipantView, votes: ReadonlyMap<string, Card> | null): boolean {
+  return !p.spectator || votes?.has(p.id) === true;
+}
+
+/** 札を持つ席の数（結果の待ち `--seat-count` に渡す）。 */
+export function seatCardCount(participants: readonly ParticipantView[], votes: ReadonlyMap<string, Card> | null): number {
+  return participants.filter((p) => holdsSeatCard(p, votes)).length;
+}
+
 /** 切断・再接続中か。操作を受け付けない（送信しても届かないため）。 */
 export function isOffline(status: ConnectionStatus): boolean {
   return status !== 'open';

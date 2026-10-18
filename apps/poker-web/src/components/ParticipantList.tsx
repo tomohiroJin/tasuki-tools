@@ -3,6 +3,7 @@
 import type { CSSProperties } from 'react';
 import type { Card, ParticipantView } from '@tasuki/poker-core';
 import { cardLabel } from './CardHand';
+import { holdsSeatCard } from '../room-view';
 import { SPECTATOR_BADGE } from '../spectator-copy';
 
 interface Props {
@@ -42,7 +43,7 @@ export function ParticipantList({ participants, you, votes }: Props) {
       {ordered.map((p) => {
         const vote = votes?.get(p.id);
         // 見学者は札を持たない。ただし開票後に票が残っているときは、集計に入った札を隠さない
-        const showCard = !p.spectator || vote !== undefined;
+        const showCard = holdsSeatCard(p, votes);
         const order = showCard ? seatOrder++ : 0;
         return (
           <li key={p.id} className={p.connected ? '' : 'disconnected'}>

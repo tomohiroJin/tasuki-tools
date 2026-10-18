@@ -108,4 +108,19 @@ describe('RoomPage の見学の切り替え', () => {
     render(<RoomPage roomId={ROOM_ID} sync={makeSync(state(false, false))} />);
     expect(screen.getByRole('heading', { name: '参加者（3人・見学1人）' })).toBeTruthy();
   });
+
+  it('Given 開票後・見学者 1 人は票なし / When 描く / Then --seat-count は札を持つ席の数 2', () => {
+    render(<RoomPage roomId={ROOM_ID} sync={makeSync(state(false, true))} />);
+    const results = document.querySelector<HTMLElement>('.results') as HTMLElement;
+    expect(results.style.getPropertyValue('--seat-count')).toBe('2');
+  });
+
+  it('Given 開票後・見学者が票を持つ / When 描く / Then --seat-count は 3', () => {
+    const snap = state(false, true);
+    if (snap.round.status !== 'revealed') throw new Error('revealed の造作ではない');
+    snap.round.votes.push({ participantId: 'p3', card: { kind: 'number', value: 8 } });
+    render(<RoomPage roomId={ROOM_ID} sync={makeSync(snap)} />);
+    const results = document.querySelector<HTMLElement>('.results') as HTMLElement;
+    expect(results.style.getPropertyValue('--seat-count')).toBe('3');
+  });
 });

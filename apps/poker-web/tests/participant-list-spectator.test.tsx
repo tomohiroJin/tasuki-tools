@@ -37,6 +37,7 @@ describe('ParticipantList の見学者', () => {
     render(<ParticipantList participants={mixed} you="a" votes={null} />);
     const row = screen.getByText('いずみ').closest('li') as HTMLElement;
     expect(within(row).queryByRole('img')).toBeNull();
+    expect(row.querySelector('.seat-card')).toBeNull();
     expect(within(row).getByText('見学')).toBeTruthy();
     const voterRow = screen.getByText('うみ').closest('li') as HTMLElement;
     expect(within(voterRow).queryByText('見学')).toBeNull();

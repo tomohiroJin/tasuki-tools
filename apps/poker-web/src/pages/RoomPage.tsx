@@ -18,7 +18,7 @@ import { useRoomEntry } from '../hooks/useRoomEntry';
 import { ESTIMATE_POINTS_LABEL, NEXT_ITEM, REVOTE } from '../estimate-copy';
 import { JOIN_VOTING, SPECTATE, SPECTATING_NOTE, participantsHeading } from '../spectator-copy';
 import type { NumberCardValue } from '@tasuki/poker-core';
-import { isOffline, revealedLiveAfter, revealedVoteMap, spreadPromptOf } from '../room-view';
+import { isOffline, revealedLiveAfter, seatCardCount, revealedVoteMap, spreadPromptOf } from '../room-view';
 
 interface Props {
   roomId: string;
@@ -119,8 +119,8 @@ export function RoomPage({ roomId, sync }: Props) {
   const you = snapshot.participants.find((p) => p.id === snapshot.you);
   const youSpectating = you?.spectator === true;
   const spectatorCount = snapshot.participants.filter((p) => p.spectator).length;
-  // 結果の待ち（`--seat-count`）は札を出す席だけで数える。ParticipantList の showCard と同じ条件
-  const seatCount = snapshot.participants.filter((p) => !p.spectator || revealedVotes?.has(p.id)).length;
+  // 結果の待ち（`--seat-count`）は札を出す席だけで数える（席の一覧と同じ述語・`room-view.ts`）
+  const seatCount = seatCardCount(snapshot.participants, revealedVotes);
 
   return (
     <main className="ui-page ui-page--wide room">
