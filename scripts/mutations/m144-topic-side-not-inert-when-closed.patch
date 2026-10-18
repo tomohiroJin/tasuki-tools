@@ -7,11 +7,11 @@
 # #348・設計正本 D7。
 #
 diff --git a/apps/poker-web/src/pages/RoomPage.tsx b/apps/poker-web/src/pages/RoomPage.tsx
-index 18ee61f6..d17f2a9b 100644
+index 0447d8d5..fecc50c9 100644
 --- a/apps/poker-web/src/pages/RoomPage.tsx
 +++ b/apps/poker-web/src/pages/RoomPage.tsx
-@@ -164,7 +164,7 @@ export function RoomPage({ roomId, sync }: Props) {
-       <div className="ui-workspace ui-workspace--reader">
+@@ -184,7 +184,7 @@ export function RoomPage({ roomId, sync }: Props) {
+         {(sync.topic || recording) && (
          <div className="ui-workspace-side room-side">
            {sync.topic && (
 -            <div className="room-topic-side" data-state={topicOpen ? 'open' : 'closed'} inert={!topicOpen}>

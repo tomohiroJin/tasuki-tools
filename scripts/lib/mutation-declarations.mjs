@@ -2764,4 +2764,12 @@ export const MUTATIONS = [
     tests: ["test/poker/estimate-log.test.ts"],
     note: "#427 設計 E。dispatch の枝が ok(round) を返し、束の名前が変わらない。",
   },
+  {
+    id: 414,
+    label: "open の束が無くても開票後にポイントの欄を出す",
+    patch: "m414-web-points-select-without-open-group.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/room-page-estimate.test.tsx"],
+    note: "#427 設計 J8。記録していれば open の束が無くても帯にポイントの欄が出る。",
+  },
 ];
