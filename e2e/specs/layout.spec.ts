@@ -12,7 +12,7 @@
  */
 import type { Page } from '@playwright/test';
 import { expect, test } from '../fixtures/test';
-import { chooseCard, createRoom as createPokerRoom, joinRoom as joinPokerRoom, participantRow } from '../support/poker';
+import { chooseCard, createRoom as createPokerRoom, joinRoom as joinPokerRoom, participantRow, turnRecordingOn } from '../support/poker';
 import { createRoom as createTimerRoom, joinAsDriver } from '../support/timer';
 import {
   AFTER_LINK_HREF,
@@ -296,7 +296,9 @@ test.describe('poker のルームは広い画面で読む面と操作の面を�
   test('Given 幅 1280・お題が無い / When ルームを開く / Then 脇に記録があり、操作の面は右の列にある', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await createPokerRoom(page, 'layout-no-topic');
-    // 脇は常に在る（お題が無くても記録を持つ）。札の包みは無い
+    // 記録は既定で切れていて、脇は記録を入れたときに出る（#427・設計 D）
+    await turnRecordingOn(page);
+    // 脇は記録がある間は在る（お題が無くても記録を持つ）。札の包みは無い
     expect(await page.locator('.room-side').count()).toBe(1);
     expect(await page.locator('.room-topic-side').count()).toBe(0);
     const log = page.locator('.room-log--side');
@@ -462,6 +464,7 @@ test.describe('poker のルームは広い画面で読む面と操作の面を�
   test('Given 幅 1280・お題を開いている / When 「お題を隠す」「お題を見る」を押し、お題が下ろされ、掲げ直される / Then 札だけが畳まれて記録の上端が脇の上端に寄り、操作の面は動かず、閉じた札は高さ 0・Tab の行き先にならない', async ({ page, openPeer }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     const { topicPage } = await openPokerWithTopicTool(page, openPeer, LONG_BODY);
+    await turnRecordingOn(page);
     const topic = page.locator('.room-topic-side');
     const logHeading = page.locator('.room-log--side').getByRole('heading', { name: '見積もりの記録' });
     const logTop = async () => (await logHeading.boundingBox())!.y;
@@ -548,6 +551,7 @@ test.describe('poker のルームは広い画面で読む面と操作の面を�
   test('Given 幅 1280・高さ 700・長い説明 / When ルームを開く / Then 札と記録は重ならず、本文は札の中でスクロールする', async ({ page, openPeer }) => {
     await page.setViewportSize({ width: 1280, height: 700 });
     await openPokerWithTopic(page, openPeer, LONG_BODY);
+    await turnRecordingOn(page);
     const card = await boxOf(page, '.room-topic-side');
     const heading = await page.locator('.room-log--side').getByRole('heading', { name: '見積もりの記録' }).boundingBox();
     expect(heading, '記録の見出しが描かれていない').not.toBeNull();

@@ -15,7 +15,7 @@
  */
 import { expect, test } from '../fixtures/test';
 import { expectReadable, pairKey, resolveColors, scanContrast } from '../support/a11y';
-import { chooseCard, createRoom, joinRoom, participantRow, recordSeatFlips, resultsSection, seatFlips } from '../support/poker';
+import { chooseCard, createRoom, joinRoom, participantRow, recordSeatFlips, resultsSection, seatFlips, turnRecordingOn } from '../support/poker';
 import { openTopicTool, setTopic } from '../support/topic';
 
 /** 文面は書体の常用の層に収まるもの（`topic.spec.ts` と同じ）。 */
@@ -69,6 +69,12 @@ test.describe('poker の文字が背景に対して読める（WCAG AA）', () =
     // When / Then その2b（#93）: 記録に束が 2 つ（閉じた束と見積もり中の束）ある状態の画面も AA を満たす。
     //   次のアイテムへ進めて閉じた束を作り、もう 1 件開票する（1 人なので投票すると自動で公開される）
     await poker.page.setViewportSize({ width: 1280, height: 900 });
+    //   記録は既定で切れているので入れてから進める（#427）
+    //   公開済みの回は記録に残っていないので、再投票してから入れた状態で開票し直し、閉じた束を作る
+    await turnRecordingOn(poker.page);
+    await poker.page.getByRole('button', { name: '再投票' }).click();
+    await chooseCard(poker.page, '5');
+    await expect(resultsSection(poker.page)).toBeVisible();
     await poker.page.getByRole('button', { name: '次のアイテムへ' }).click();
     await chooseCard(poker.page, '3');
     await expect(resultsSection(poker.page)).toBeVisible();

@@ -294,3 +294,15 @@ export async function seatFlips(page: Page): Promise<SeatFlip[]> {
   );
   return [...flips].sort((a, b) => a.order - b.order);
 }
+
+/**
+ * 「記録する」を押し、押された状態（`aria-pressed="true"`）になるまで待つ（#427）。
+ *
+ * 記録は既定で切れている。記録の欄（脇・足）や、アイテム名・ポイントの欄はこれを押すまで出ない。
+ * 切り替えはルーム全員に効くので、押した本人の画面が押された状態になれば同期サーバーまで届いている。
+ */
+export async function turnRecordingOn(page: Page): Promise<void> {
+  const toggle = page.getByRole('button', { name: '記録する' });
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+}
