@@ -177,7 +177,7 @@ export function RoomPage({ roomId, sync }: Props) {
       <ErrorNote error={sync.error} onClose={sync.clearError} />
       {/* 段組み（#316・ADR 0025）。64rem 以上は左に読む面（お題）・右に操作の面（場 → 手札 → 結果）。
           DOM は狭い幅で見せたい順（お題 → 場 → 手札 → 記録の足）。脇（`.room-side`）は、お題か記録があるときに出し、中にお題の札（隠すのは札の包みだけ。
-          DOM に残し `data-state="closed"`・`inert`）と記録を持つ。64rem 以上は列が動かず、64rem 未満は記録を足の側が出す
+          DOM に残し `data-state="closed"`・`inert`）と記録を持つ。64rem 以上は、記録の札があるときは列が動かず、無いときは 0fr ⇄ 0.75fr で滑る。64rem 未満は記録を足の側が出す
           （幅の出し分けは index.css・#93）。 */}
       <div className="ui-workspace ui-workspace--reader">
         {/* 記録しない間は記録を描かない。お題の札も無ければ脇ごと描かない（空の列を残さない・#427） */}
