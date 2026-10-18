@@ -12,6 +12,9 @@ export const POKER_ERROR_TEXT = {
   RATE_LIMITED: '試行が多すぎます。しばらくしてからお試しください',
   /** `participant-not-found`。`remove-participant` の対象が名簿に居ないとき（#419）。 */
   PARTICIPANT_NOT_FOUND: '参加者が見つかりません',
-  /** `not-removable`。接続している人・自分自身は外せない（#419・G-5）。 */
+  /**
+   * `not-removable`。接続している人・自分自身は外せない（#419・G-5）。
+   * 自分自身・中核の輪の都合の拒否もこの 1 つに畳む（画面は自分の行にボタンを出さず、中核の拒否は理屈の上で届かないので、文言は「接続している人」で足りる）。
+   */
   NOT_REMOVABLE: '接続している人は外せません',
 } as const;

@@ -66,13 +66,19 @@ export function ParticipantList({ participants, you, votes, onRemove, offline = 
     }
   }, [pendingGone, returnFocus]);
   // 確定のあとの待ちは 2 通りで終わる。
-  //  - 拒否（対象が接続中で一覧に残る）: 待ちを解く。のちに退室しても、フォーカスは動かさない
+  //  - 拒否（対象が接続中で一覧に残る）: 待ちを解く。押したボタンが消えてフォーカスが body に落ちたなら
+  //    見出しへ戻す（別の欄に居れば奪わない）。のちに退室しても、フォーカスは動かさない
   //  - 行が消えた: 利用者がまだ押したボタンか body に居るときだけ見出しへ移す
   //    （別の欄へ移っていれば奪わない。欄の onBlur 確定などの副作用を起こさない）
   const awaitingRejected = awaitingId !== null && participants.some((p) => p.id === awaitingId && p.connected);
   const awaitingGone = awaitingId !== null && !participants.some((p) => p.id === awaitingId);
   useEffect(() => {
-    if (awaitingRejected) setAwaitingId(null);
+    if (!awaitingRejected) return;
+    setAwaitingId(null);
+    const active = document.activeElement;
+    if (active === null || active === document.body) {
+      document.getElementById(PARTICIPANTS_HEADING_ID)?.focus();
+    }
   }, [awaitingRejected]);
   useEffect(() => {
     if (!awaitingGone) return;

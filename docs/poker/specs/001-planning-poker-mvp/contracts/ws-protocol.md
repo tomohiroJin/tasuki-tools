@@ -74,7 +74,7 @@
 - 前提: join 済みで**名簿に居る**こと（居なければ `not-joined`）。本人の見学だけを切り替える（他人のは変えられない）。投票中でも開票後でもいつでも送れる
 - `true`: 見学になる。voting 中なら自分の票を捨て、自動公開は再評価される。revealed 後は票を残す
 - `false`: 投票に戻る。同じ状態への切り替えは何も変えない（冪等）
-- 違反: なし（`not-joined` のみ）。見学中に `vote` を送ると `error`（`spectating`）
+- 違反: `not-joined`（join 前・名簿に居ない）、`room-not-found`（参加済みなのにルームが破棄済み）。見学中に `vote` を送ると `error`（`spectating`）
 
 ### remove-participant — 接続の無い人を外す（#419）
 
@@ -85,7 +85,7 @@
 - 前提: join 済みで名簿に居ること。**外せるのは幽霊（どのツールにも接続を 1 本も持たない人）だけ**。自分自身と、いずれかのツールに接続中の人は外せない
 - 結果は timer の `participant.remove` と同じ（名簿・輪から外れ、票と見学は捨てる。在室者が 0 になるならルームを畳む）。timer の状態が無いルームでは timer の状態を作らない
 - poker へ新しい frame は足さない。結果は `room-state` で届く
-- 違反: `error`（`participant-not-found`＝名簿に居ない、`not-removable`＝自分自身または接続中、`not-joined`＝操作者が名簿に居ない）。状態は変わらない
+- 違反: `error`（`participant-not-found`＝名簿に居ない、`not-removable`＝自分自身または接続中、`not-joined`＝操作者が参加していない・名簿に居ない、`room-not-found`＝参加済みなのにルームが破棄済み）。状態は変わらない
 
 ### set-item — アイテム名の設定（#93）
 
@@ -216,7 +216,7 @@ revealed 後の例:
 | code | 意味 | 対応する要求 |
 |------|------|-------------|
 | `invalid-message` | スキーマ検証失敗 | 全 C→S（FR-015） |
-| `room-not-found` | ルーム不存在・破棄済み | join-room（FR-015, US1-AS3）、vote / reveal / next-round / set-item / revote / next-item / set-points（破棄済みルームを指したままの接続。どれも `commitRoomAction` を通る。[#171](https://github.com/tomohiroJin/tasuki-tools/issues/171)・#93） |
+| `room-not-found` | ルーム不存在・破棄済み | join-room（FR-015, US1-AS3）、vote / reveal / next-round / set-item / revote / next-item / set-points / set-spectator / remove-participant（破棄済みルームを指したままの接続。どれも `commitRoomAction` を通る。[#171](https://github.com/tomohiroJin/tasuki-tools/issues/171)・#93） |
 | `not-voting` | voting 中でない | vote, reveal |
 | `not-revealed` | revealed 中でない | next-round, revote, next-item |
 | `not-joined` | join 前の操作、または**名簿に居ない人の操作**（片付けで外された人の接続など。#419） | vote, reveal, next-round, set-item, revote, next-item, set-points, set-spectator, remove-participant |

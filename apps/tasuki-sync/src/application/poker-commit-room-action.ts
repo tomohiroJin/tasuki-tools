@@ -200,12 +200,17 @@ export function createDispatch({
       case 'remove-participant': {
         // 参加済みで名簿に居る人だけが外せる（G-9 と同じ検査）。
         const { participantId, roomId } = ws.data;
-        const state = roomId === null ? undefined : loadState(roomId);
-        if (
-          participantId === null ||
-          roomId === null ||
-          !state?.room.participants.some((p) => p.id === participantId)
-        ) {
+        if (participantId === null || roomId === null) {
+          sendError(ws, 'not-joined', 'ルームに参加していません');
+          return;
+        }
+        const state = loadState(roomId);
+        // 参加済みなのにルームが保管に無い（破棄済み）。ほかの操作と同じく room-not-found（#171）。
+        if (state === undefined) {
+          sendError(ws, 'room-not-found', POKER_ERROR_TEXT.ROOM_NOT_FOUND);
+          return;
+        }
+        if (!state.room.participants.some((p) => p.id === participantId)) {
           sendError(ws, 'not-joined', 'ルームに参加していません');
           return;
         }

@@ -104,6 +104,9 @@ describe('ルームが保管から消えている接続の状態変更（#171）
     { label: 'revote', msg: { type: 'revote' } },
     { label: 'next-item', msg: { type: 'next-item', points: 5 } },
     { label: 'set-points', msg: { type: 'set-points', groupId: 1, points: 5 } },
+    { label: 'set-spectator', msg: { type: 'set-spectator', spectator: true } },
+    // 人を外す操作も同じ（#419）。参加済みなのにルームが無いのは not-joined ではなく room-not-found
+    { label: 'remove-participant', msg: { type: 'remove-participant', participantId: 'p2' } },
   ] as const;
 
   for (const { label, msg } of actions) {

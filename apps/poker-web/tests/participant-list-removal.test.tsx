@@ -248,6 +248,20 @@ describe('接続の無い人を外す（G-4）', () => {
     heading.remove();
   });
 
+  it('Given 確定したが拒否され対象が再接続して残る / When 押したボタンが消える / Then フォーカスは見出しへ戻る', () => {
+    const heading = document.createElement('h2');
+    heading.id = PARTICIPANTS_HEADING_ID;
+    heading.tabIndex = -1;
+    document.body.appendChild(heading);
+    const { view, props, dialog } = open();
+    fireEvent.click(within(dialog).getByRole('button', { name: '退出させる' }));
+    // 拒否: 対象は接続中として残り、切断中の行にだけ出る「退出させる」は消える
+    const rejected = people.map((x) => (x.id === 'z-0004' ? { ...x, connected: true } : x));
+    view.rerender(<ParticipantList participants={rejected} {...props} />);
+    expect(document.activeElement).toBe(heading);
+    heading.remove();
+  });
+
   it('Given 拒否で行が残った / When 利用者が別の欄へ移ったあとで対象が消える / Then フォーカスは奪わない', () => {
     const heading = document.createElement('h2');
     heading.id = PARTICIPANTS_HEADING_ID;

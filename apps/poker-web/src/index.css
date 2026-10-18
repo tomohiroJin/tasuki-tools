@@ -214,7 +214,6 @@
   background: var(--felt-sink);
   border: 1px solid var(--line);
   border-radius: 10px;
-  transition: opacity 0.3s;
 }
 
 .participants li.disconnected {
@@ -676,6 +675,10 @@
    席の幅（6.5rem）で字が割れないよう折り返さず、左右の余白を詰める。 */
 .participants li.disconnected {
   opacity: 1;
+}
+
+.participants li > :not(.remove-ghost) {
+  transition: opacity 0.3s;
 }
 
 .participants li.disconnected > :not(.remove-ghost) {

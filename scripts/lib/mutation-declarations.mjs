@@ -2634,7 +2634,7 @@ export const MUTATIONS = [
     patch: "m395-sync-remove-participant-removes-connected.patch",
     pkg: "apps/tasuki-sync",
     tests: ["test/poker/remove-participant.test.ts"],
-    note: "#419。**対応表より後に足した変異。** 390〜399 は #419 に割り当てた。G-5。dispatch の門と handlers.removeFromRoom の二段目の門の**両方**から接続の検査を抜く（片方だけでは残る方が止めるので、1 本のパッチで両方壊す）。",
+    note: "#419。**対応表より後に足した変異。** 390〜399 は #419 に割り当てた。G-5。dispatch の門と handlers.removeFromRoom の二段目の門の**両方**から接続の検査を抜く。m395 は dispatch 側の門、m398 は removeFromRoom 側の門を守る。dispatch だけを壊しても removeFromRoom が同じ not-removable・同じ文言で拒むため、dispatch 側を単独で殺すテストは作れず（エラーコードも文言も同一）、m395 は両方を壊す形のまま置く。",
   },
   {
     id: 396,
@@ -2651,5 +2651,13 @@ export const MUTATIONS = [
     pkg: "packages/room-core",
     tests: ["tests/participant-label.test.ts"],
     note: "#419。**対応表より後に足した変異。** 390〜399 は #419 に割り当てた。先頭は p_ で全員同じなので、同名の呼び分けにならない。",
+  },
+  {
+    id: 398,
+    label: "removeFromRoom の二段目の門が接続中の対象を拒まない",
+    patch: "m398-sync-remove-from-room-gate-skips-connected.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/room-removal.test.ts"],
+    note: "#419。**対応表より後に足した変異。** 390〜399 は #419 に割り当てた。G-5。m395 は dispatch 側の門、m398 は removeFromRoom 側の門だけを守る。removeFromRoom の「接続中の対象を拒む条件」だけを外す（dispatch の門は触らない）ので、dispatch を通らずに直接呼ぶ単体テストだけが殺せる。",
   },
 ];

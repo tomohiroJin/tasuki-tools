@@ -1,13 +1,11 @@
 /**
  * `participant.remove` 専用分岐（フェーズ5で `handlers.ts` から移動）。
  *
- * `handlers.ts` の `handleRoomCommand` 内にあった `participant.remove` の
- * 専用分岐をそのまま移動した。呼び出し側（`handleRoomCommand`）は在室確認と
- * アクター解決を済ませた `{ room, actor }` を `ctx` として渡す。
- * このハンドラは decide/evolve の共通パイプラインを
- * 経由せず、自分自身で `store.put`/`broadcastSnapshot`/`broadcastSignal` を
- * 完結させて `ok(undefined)` を返す（元の分岐と同じ構造。パイプライン共通処理
- * の手前で完結して return する形をそのまま保つ）。
+ * 呼び出し側（`handleRoomCommand`）は在室確認とアクター解決を済ませた
+ * `{ room, actor }` を `ctx` として渡す。このハンドラは decide/evolve の共通パイプラインを
+ * 経由しない。名簿・輪の計算は `room-removal.ts` の `planRemoval` に、保管・票の捨て・
+ * 予約の突き合わせ・知らせの後段は同じく `applyTimerRemoval` に委ね、ここでは
+ * 対象の解決・本人への専用通知・ルームごと破棄する経路の分岐だけを持つ。
  *
  * Issue #79 で「退出後に在室者が 0 人になるなら、部屋を残さず破棄する」経路を足した。
  * 破棄の後始末はアイドル回収と共通の `destroy-room.ts` へ委ねる。
@@ -60,9 +58,9 @@ export interface ParticipantRemoveDeps {
 
 /**
  * 参加者の退出（⑪）。参加者は Room レベルのため decide ではなくここで扱う。
- * rotation に居れば rotation からも外し（現ドライバーなら evolve が繰り上げ）、
- * **部屋に誰かが残るなら** rotation 最後の1人は外せない（rotation を空にしない）。
- * 誰も残らないなら部屋ごと破棄する（Issue #79）。
+ * rotation に居れば rotation からも外す（現ドライバーなら evolve が繰り上げ）。
+ * 輪の最後の 1 席の持ち主を外すときは、名簿に残る見学の人を繰り上げてから外す（#290）。
+ * 誰も残らないなら部屋ごと破棄する（Issue #79）。計算は `planRemoval`、後段は `applyTimerRemoval`。
  * 自己退出も可能（FR-079）。#95 S3 で在室者は全員同格になったため「誰が実行できるか」
  * という判定は無く、ここでは「結果の状態が妥当か」だけを検査する。
  */

@@ -85,13 +85,48 @@ describe("planRemoval", () => {
 
 // `removeFromRoom`（handlers.ts）の二段目の守り。poker の dispatch も同じ検査をするが、
 // dispatch を通らずに直接呼んでも、接続している人と自分自身は外せない（G-5）。
+// 3 つの門（自分自身・接続中の対象・実行者が名簿に居ない）が**それぞれ単独で**効くことを見るため、
+// 名簿を直接組んで、見たい門以外は通る状況にする（他が通ると、その門を外したときに外せてしまう）。
 describe("removeFromRoom の二段目の守り", () => {
-  it("接続を持つ人・自分自身は not-removable で、名簿は変わらない", async () => {
-    // Host も Bob も timer に接続している（接続を持つ）
-    const { handlers, store, code, ids } = await aRoom().withParticipants("Bob").build();
+  /** 指定した人の接続を 0 本にした名簿を保管し直す（その人は幽霊になる）。 */
+  async function roomWithGhosts(...ghostNames: string[]) {
+    const built = await aRoom().withParticipants("Bob").build();
+    const room = built.store.get(built.code)!;
+    built.store.put({
+      ...room,
+      participants: room.participants.map((p) =>
+        ghostNames.includes(p.displayName) ? { ...p, connections: new Map() } : p,
+      ),
+    });
+    return built;
+  }
 
-    expect(handlers.removeFromRoom(code, ids["Host"]!, ids["Bob"]!)._unsafeUnwrapErr()).toBe("not-removable");
+  it("自分自身: 実行者に接続が無くても（接続の門が通っても）not-removable で名簿は変わらない", async () => {
+    const { handlers, store, code, ids } = await roomWithGhosts("Host");
+
     expect(handlers.removeFromRoom(code, ids["Host"]!, ids["Host"]!)._unsafeUnwrapErr()).toBe("not-removable");
     expect(store.get(code)!.participants).toHaveLength(2);
+  });
+
+  it("接続中の対象: 実行者は名簿に居て自分でもなくても、接続している人は not-removable", async () => {
+    const { handlers, store, code, ids } = await aRoom().withParticipants("Bob").build();
+    expect(store.get(code)!.participants.find((p) => p.id === ids["Bob"]!)!.connections.size).toBeGreaterThan(0);
+
+    expect(handlers.removeFromRoom(code, ids["Host"]!, ids["Bob"]!)._unsafeUnwrapErr()).toBe("not-removable");
+    expect(store.get(code)!.participants).toHaveLength(2);
+  });
+
+  it("実行者が名簿に居ない: 対象が幽霊でも not-removable で名簿は変わらない", async () => {
+    const { handlers, store, code, ids } = await roomWithGhosts("Bob");
+
+    expect(handlers.removeFromRoom(code, "stranger", ids["Bob"]!)._unsafeUnwrapErr()).toBe("not-removable");
+    expect(store.get(code)!.participants).toHaveLength(2);
+  });
+
+  it("対照: 実行者が名簿に居て、対象が自分以外の幽霊なら外せる", async () => {
+    const { handlers, store, code, ids } = await roomWithGhosts("Bob");
+
+    expect(handlers.removeFromRoom(code, ids["Host"]!, ids["Bob"]!).isOk()).toBe(true);
+    expect(store.get(code)!.participants.map((p) => p.id)).toEqual([ids["Host"]!]);
   });
 });

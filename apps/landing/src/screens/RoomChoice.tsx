@@ -5,7 +5,6 @@ import { TOOLS } from '../tools.js';
 import { ToolMark } from '../ToolMark.js';
 import { HistoryLink } from './HistoryLink.js';
 
-
 /**
  * 選択画面（#95 S5a・R1）。ルーム名を見出しに置き、道具・参加者・仲間を招くの 3 つを
  * 見出しつきの領域に分けて並べる（#270）。
