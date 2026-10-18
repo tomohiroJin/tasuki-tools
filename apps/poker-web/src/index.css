@@ -688,7 +688,7 @@
 .participants .remove-ghost {
   white-space: nowrap;
   max-width: 100%;
-  padding-inline: 0.5rem;
+  padding-inline: var(--space-2);
 }
 
 /* 札を持たない席（見学者）の枠。札（`.seat-card`）と同じ幅と高さで、中に「見学」の印を置く。
