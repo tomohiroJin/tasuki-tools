@@ -17,6 +17,14 @@ export {
   conflictsWithExisting,
 } from "./display-name.js";
 
+// ./participant-label —— 呼び分けの規則（#419・landing / timer-web / poker-web が共有する）
+export {
+  shortParticipantId,
+  isAmbiguousName,
+  participantLabel,
+} from "./participant-label.js";
+export type { LabelParticipant } from "./participant-label.js";
+
 // ./passphrase —— 合言葉の長さの上限（#377）
 export { MAX_PASSPHRASE, isPassphraseWithinLimit } from "./passphrase.js";
 

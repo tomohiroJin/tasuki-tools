@@ -307,8 +307,8 @@ describe('選択画面', () => {
     );
 
     // Then
-    expect(screen.getByText('あや（pabc）')).toBeInTheDocument();
-    expect(screen.getByText('あや（pefg）')).toBeInTheDocument();
+    expect(screen.getByText('あや（ID: abcd）')).toBeInTheDocument();
+    expect(screen.getByText('あや（ID: efgh）')).toBeInTheDocument();
   });
 });
 

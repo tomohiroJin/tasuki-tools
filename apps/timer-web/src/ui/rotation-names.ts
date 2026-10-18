@@ -7,7 +7,8 @@
  */
 
 import type { Seat, SeatSkipReason } from "@tasuki/timer-core";
-import { labelPool, participantLabel, type LabelParticipant } from "./participant-label.js";
+import { participantLabel, type LabelParticipant } from "@tasuki/room-core";
+import { labelPool } from "./participant-label.js";
 
 /** rotation 1枠分の表示用ビュー。識別子・表示名・呼び名を対にして持つ。 */
 export interface RotationMember {

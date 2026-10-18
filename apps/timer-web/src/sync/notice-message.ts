@@ -9,7 +9,8 @@
  */
 
 import type { Seat } from "@tasuki/timer-core";
-import { labelPool, participantLabel } from "../ui/participant-label.js";
+import { participantLabel } from "@tasuki/room-core";
+import { labelPool } from "../ui/participant-label.js";
 
 /** サーバーから受け取る notice の内容（`SignalNoticeMsg` と対応）。 */
 export interface NoticeSignal {

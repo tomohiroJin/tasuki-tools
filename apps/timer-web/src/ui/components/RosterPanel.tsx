@@ -14,12 +14,12 @@
 import React, { useState, useEffect, useId, useReducer } from "react";
 import { Users, ChevronUp, ChevronDown, X } from "lucide-react";
 import type { Participant, Seat } from "@tasuki/timer-core";
-import { MAX_DISPLAY_NAME } from "@tasuki/room-core";
+import { MAX_DISPLAY_NAME, participantLabel } from "@tasuki/room-core";
 import { SectionHeader } from "../primitives.js";
 import { presenceLabel } from "../presence.js";
 import { PresenceDot } from "./PresenceDot.js";
 import { RemovalConfirmDialog } from "./RemovalConfirmDialog.js";
-import { labelPool, participantLabel } from "../participant-label.js";
+import { labelPool } from "../participant-label.js";
 import {
   INITIAL_NAME_REQUEST,
   activeRejection,

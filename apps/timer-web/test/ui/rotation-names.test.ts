@@ -6,7 +6,7 @@
 import { describe, it, expect } from "vitest";
 import { rotationMembers } from "../../src/ui/rotation-names.js";
 import type { Seat, SeatSkipReason } from "@tasuki/timer-core";
-import type { LabelParticipant } from "../../src/ui/participant-label.js";
+import type { LabelParticipant } from "@tasuki/room-core";
 
 const seat = (id: string, displayName: string, skipReason: SeatSkipReason | null = null): Seat => ({
   id,

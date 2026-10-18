@@ -1,11 +1,10 @@
-import type { RosterRoom } from '@tasuki/room-core';
+import { participantLabel, type RosterRoom } from '@tasuki/room-core';
 import { useId, useState } from 'react';
 import { useCopyText, useInviteQr } from '@tasuki/invite-ui';
 import { TOOLS } from '../tools.js';
 import { ToolMark } from '../ToolMark.js';
 import { HistoryLink } from './HistoryLink.js';
 
-import { labelFor } from '../hub/participant-label.js';
 
 /**
  * 選択画面（#95 S5a・R1）。ルーム名を見出しに置き、道具・参加者・仲間を招くの 3 つを
@@ -81,7 +80,7 @@ export function RoomChoice({ code, inviteUrl, roster, connection, topicTitle }: 
             <ul className="hub-roster" aria-label="参加者">
               {participants.map((p) => (
                 <li key={p.participantId} className="hub-participant" data-presence={p.presence}>
-                  <span className="hub-participant-name">{labelFor(p, participants)}</span>
+                  <span className="hub-participant-name">{participantLabel(p.displayName, p.participantId, participants)}</span>
                   {p.presence === 'offline' && <span className="hub-presence">切断中</span>}
                   {p.tools.length > 0 && (
                     <span className="hub-participant-where">{whereLabel(p.tools)}</span>

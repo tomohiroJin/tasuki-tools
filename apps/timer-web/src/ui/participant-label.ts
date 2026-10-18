@@ -5,9 +5,8 @@
  * 判別できない。同名が複数いるときだけ識別子を添える。同名がいない通常時に付けると
  * 読みにくいだけなので付けない。
  *
- * **同じ画面で同じ人が別の呼ばれ方をしないよう、規則はここに1つだけ置く。**
- * 通知の文面（`sync/notice-message.ts`）と一覧の操作ラベル（`ui/components/RosterPanel.tsx`）が
- * 別々の規則を持つと、通知で名指しされた人が一覧のどの行だったのか辿れなくなる。
+ * **呼び分けの規則そのもの（`participantLabel` など）は `@tasuki/room-core` に1つだけある（#419）。**
+ * ここに残すのは、timer 固有の `Seat` に依存するプール組み立て（{@link labelPool}）だけ。
  *
  * **判定対象のプール（{@link labelPool}）を組む規則も、同じ理由でここに1つだけ置く。**
  * `seats`（輪の席・見学者を取りこぼさない）と `participants`（timer の在席者・離席者を
@@ -16,14 +15,8 @@
  * もう一方には付かないという非対称が起きる（敵対的レビュー #276 指摘1）。
  */
 
-import { nameSkeleton } from "@tasuki/room-core";
+import type { LabelParticipant } from "@tasuki/room-core";
 import type { Seat } from "@tasuki/timer-core";
-
-/** 呼び名の判定に必要な参加者の情報。Participant 全体を要求しない。 */
-export interface LabelParticipant {
-  participantId: string;
-  displayName: string;
-}
 
 /**
  * 呼び名の判定対象プールを組む（`seats` と `participants` の和集合、id で重複排除）。
@@ -44,56 +37,6 @@ export function labelPool(
   for (const s of seats) byId.set(s.id, { participantId: s.id, displayName: s.displayName });
   for (const p of participants) if (!byId.has(p.participantId)) byId.set(p.participantId, p);
   return [...byId.values()];
-}
-
-/**
- * 識別子の末尾4文字。全体を出すと長く、読み上げでも冗長になるため短縮する。
- * 衝突しうるが、区別したいのは「同じ画面に並んだ同名の数人」なので実用上は足りる。
- */
-export function shortId(participantId: string): string {
-  return participantId.slice(-4);
-}
-
-/**
- * 名簿の中に、その participant と**見分けの付かない**別人がいるか。
- *
- * 比較は文字列の一致ではなく `nameSkeleton`（見え方の骨格）で行う。
- * キリル文字の `Вob` は Latin の `Bob` と画面上まったく同じに見えるが別の文字列なので、
- * 完全一致で見ていると「同名ではない」と判定され、識別子が添えられないまま並ぶ。
- * 利用者にとって見分けが付かないなら、それは曖昧である。
- *
- * 対象が名簿から消えている場合（退出直後の通知など）も曖昧とみなす。
- * 見た目が同じ人が1人だけ載っていて、それが対象自身でないなら、
- * 対象は「消えた見分けの付かない別人」である。
- */
-export function isAmbiguousName(
-  name: string,
-  participantId: string,
-  participants: readonly LabelParticipant[],
-): boolean {
-  const skeleton = nameSkeleton(name);
-  const lookAlike = participants.filter((p) => nameSkeleton(p.displayName) === skeleton);
-  if (lookAlike.length > 1) return true;
-  return lookAlike.length === 1 && lookAlike[0]!.participantId !== participantId;
-}
-
-/**
- * 参加者を指す呼び名を返す。同名が複数いるときだけ識別子を添える。
- *
- * `honorific` を渡すと「名前 さん（ID: xxxx）」の語順にする。敬称を末尾に付け足すと
- * 「Bob（ID: 1234） さん」という不自然な日本語になるため、文脈ごとに語順を選べるようにしている。
- * **共有すべきは「曖昧かどうかの判定」と「識別子の短縮の仕方」であって、敬称の位置ではない。**
- */
-export function participantLabel(
-  name: string,
-  participantId: string,
-  participants: readonly LabelParticipant[],
-  honorific = "",
-): string {
-  const base = honorific ? `${name} ${honorific}` : name;
-  return isAmbiguousName(name, participantId, participants)
-    ? `${base}（ID: ${shortId(participantId)}）`
-    : base;
 }
 
 /**
