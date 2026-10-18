@@ -63,6 +63,7 @@ function makeSync(snap: RoomStateMessage, over: Partial<PokerSync> = {}): PokerS
     revote: vi.fn(),
     nextItem: vi.fn(),
     setPoints: vi.fn(),
+    setSpectator: vi.fn(),
     ...over,
   };
 }

@@ -180,6 +180,17 @@
   margin-top: 0;
 }
 
+.room-participants-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.room-participants-head h2 {
+  margin: 0;
+}
+
 .participants {
   list-style: none;
   padding: 0;
@@ -218,6 +229,12 @@
 
 .participants .badge {
   white-space: nowrap;
+}
+
+/* 見学者の印。札の代わりに席の上段を占めるので、字の色は既存の淡い段にそろえる。 */
+.participants .badge.spectator {
+  color: var(--ivory-faint);
+  border-style: dashed;
 }
 
 .participants .name {

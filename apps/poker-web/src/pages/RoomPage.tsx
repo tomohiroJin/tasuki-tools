@@ -16,6 +16,7 @@ import { Results } from '../components/Results';
 import type { PokerSync } from '../hooks/useSync';
 import { useRoomEntry } from '../hooks/useRoomEntry';
 import { ESTIMATE_POINTS_LABEL, NEXT_ITEM, REVOTE } from '../estimate-copy';
+import { JOIN_VOTING, SPECTATE, SPECTATING_NOTE, participantsHeading } from '../spectator-copy';
 import type { NumberCardValue } from '@tasuki/poker-core';
 import { isOffline, revealedLiveAfter, revealedVoteMap, spreadPromptOf } from '../room-view';
 
@@ -115,6 +116,11 @@ export function RoomPage({ roomId, sync }: Props) {
   const inviteUrl = sync.inviteUrl(roomId);
   const estimateLog = snapshot.estimate?.log ?? [];
   const offline = isOffline(sync.status);
+  const you = snapshot.participants.find((p) => p.id === snapshot.you);
+  const youSpectating = you?.spectator === true;
+  const spectatorCount = snapshot.participants.filter((p) => p.spectator).length;
+  // 結果の待ち（`--seat-count`）は札を出す席だけで数える。ParticipantList の showCard と同じ条件
+  const seatCount = snapshot.participants.filter((p) => !p.spectator || revealedVotes?.has(p.id)).length;
 
   return (
     <main className="ui-page ui-page--wide room">
@@ -176,7 +182,18 @@ export function RoomPage({ roomId, sync }: Props) {
         </div>
         <div className="ui-workspace-main room-main">
           <section>
-            <h2>参加者（{snapshot.participants.length}人）</h2>
+            <div className="room-participants-head">
+              <h2>{participantsHeading(snapshot.participants.length, spectatorCount)}</h2>
+              {/* 自分の切り替え。投票中も開票後も出す（#419・設計 §5.2） */}
+              <button
+                type="button"
+                className="ui-button ui-button--secondary ui-button--sm"
+                onClick={() => sync.setSpectator(!youSpectating)}
+                disabled={offline}
+              >
+                {youSpectating ? JOIN_VOTING : SPECTATE}
+              </button>
+            </div>
             <ParticipantList participants={snapshot.participants} you={snapshot.you} votes={revealedVotes} />
           </section>
           {/* 欄と足の記録は投票中と開票後で同じ位置に置き、描き分けるのは本体（手札か結果）と帯だけにする。
@@ -193,12 +210,16 @@ export function RoomPage({ roomId, sync }: Props) {
           {snapshot.round.status === 'voting' ? (
             <section>
               <h2>あなたのカード</h2>
-              <CardHand selected={snapshot.yourVote} onSelect={sync.vote} disabled={offline} />
+              {youSpectating ? (
+                <p>{SPECTATING_NOTE}</p>
+              ) : (
+                <CardHand selected={snapshot.yourVote} onSelect={sync.vote} disabled={offline} />
+              )}
             </section>
           ) : (
             <Results
               stats={snapshot.round.stats}
-              seatCount={snapshot.participants.length}
+              seatCount={seatCount}
               afterFlip={revealedLive}
               spread={spreadPromptOf(snapshot.round, snapshot.participants)}
             />

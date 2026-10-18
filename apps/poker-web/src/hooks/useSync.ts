@@ -117,6 +117,8 @@ export interface PokerSync {
   nextItem: (points: NumberCardValue | null) => void;
   /** 記録済みのアイテムのポイントを直す（#93） */
   setPoints: (groupId: number, points: NumberCardValue | null) => void;
+  /** 自分の見学を切り替える。true で投票の輪から外れ、false で加わる（#419） */
+  setSpectator: (spectator: boolean) => void;
 }
 
 export function usePokerSync(): PokerSync {
@@ -251,6 +253,7 @@ export function usePokerSync(): PokerSync {
       revote: () => send({ type: 'revote' }),
       nextItem: (points: NumberCardValue | null) => send({ type: 'next-item', points }),
       setPoints: (groupId: number, points: NumberCardValue | null) => send({ type: 'set-points', groupId, points }),
+      setSpectator: (spectator: boolean) => send({ type: 'set-spectator', spectator }),
     };
   }, []);
 

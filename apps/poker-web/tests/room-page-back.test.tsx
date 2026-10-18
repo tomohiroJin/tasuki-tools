@@ -54,6 +54,7 @@ function makeSync(): PokerSync {
     revote: () => {},
     nextItem: () => {},
     setPoints: () => {},
+    setSpectator: () => {},
   };
 }
 
