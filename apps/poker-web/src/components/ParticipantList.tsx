@@ -1,16 +1,23 @@
 // 参加者一覧（入退室・投票状態をリアルタイム表示。FR-004）
 // 投票済みは「伏せたカード」で表現し、公開で同じ札がその場でめくれて表の値を見せる（#348）
-import type { CSSProperties } from 'react';
+import { useRef, useState, type CSSProperties } from 'react';
+import { participantLabel } from '@tasuki/room-core';
 import type { Card, ParticipantView } from '@tasuki/poker-core';
 import { cardLabel } from './CardHand';
 import { holdsSeatCard } from '../room-view';
-import { SPECTATOR_BADGE } from '../spectator-copy';
+import { REMOVE, SPECTATOR_BADGE, removalTitle } from '../spectator-copy';
+import { RemovalConfirm } from './RemovalConfirm';
+
+/** 一覧の見出し（RoomPage）の id。行が消えたあとのフォーカスの戻し先 */
+export const PARTICIPANTS_HEADING_ID = 'poker-participants-heading';
 
 interface Props {
   participants: ParticipantView[];
   you: string;
   /** 公開後の票（参加者 ID → 札）。`null` は投票中 */
   votes: ReadonlyMap<string, Card> | null;
+  /** 接続の無い他人を外す（#419）。確認のあとに呼ぶ */
+  onRemove: (participantId: string) => void;
 }
 
 /**
@@ -33,12 +40,24 @@ function SeatCard({ hasVoted, vote, order }: { hasVoted: boolean; vote: Card | u
   );
 }
 
-export function ParticipantList({ participants, you, votes }: Props) {
+export function ParticipantList({ participants, you, votes, onRemove }: Props) {
+  // 外す確認の対象と、押した行のボタン（閉じたときにフォーカスを戻す）
+  const [pendingId, setPendingId] = useState<string | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  // 同名の呼び分けは一覧の全員で判定する（#419）
+  const everyone = participants.map((p) => ({ participantId: p.id, displayName: p.name }));
+  const pending = participants.find((p) => p.id === pendingId);
+  const returnFocus = () => {
+    const trigger = triggerRef.current;
+    // 行が消えていれば一覧の見出しへ
+    (trigger?.isConnected ? trigger : document.getElementById(PARTICIPANTS_HEADING_ID))?.focus();
+  };
   // 投票者を先に、見学者を後に並べる（それぞれの中は元の順・#419）
   const ordered = [...participants.filter((p) => !p.spectator), ...participants.filter((p) => p.spectator)];
   // 札のめくれる順は札を出す席だけで数える（見学者の行が間に居ても 0 から続く）
   let seatOrder = 0;
   return (
+    <>
     <ul className="participants">
       {ordered.map((p) => {
         const vote = votes?.get(p.id);
@@ -49,7 +68,7 @@ export function ParticipantList({ participants, you, votes }: Props) {
           <li key={p.id} className={p.connected ? '' : 'disconnected'}>
             {showCard && <SeatCard hasVoted={p.hasVoted} vote={vote} order={order} />}
             <span className="name">
-              {p.name}
+              {participantLabel(p.name, p.id, everyone)}
               {p.id === you && <span className="you-mark">（あなた）</span>}
             </span>
             {p.spectator && <span className="badge spectator">{SPECTATOR_BADGE}</span>}
@@ -65,9 +84,37 @@ export function ParticipantList({ participants, you, votes }: Props) {
                     </span>
                   ))}
             {!p.connected && <span className="badge">切断中</span>}
+            {!p.connected && p.id !== you && (
+              <button
+                type="button"
+                className="ui-button ui-button--secondary ui-button--sm"
+                onClick={(e) => {
+                  triggerRef.current = e.currentTarget;
+                  setPendingId(p.id);
+                }}
+              >
+                {REMOVE}
+              </button>
+            )}
           </li>
         );
       })}
     </ul>
+    {pending && (
+      <RemovalConfirm
+        title={removalTitle(participantLabel(pending.name, pending.id, everyone, 'さん'))}
+        onConfirm={() => {
+          if (pendingId !== null) onRemove(pendingId);
+          setPendingId(null);
+          // 外した行はこのあと消えるので、見出しへ戻す
+          document.getElementById(PARTICIPANTS_HEADING_ID)?.focus();
+        }}
+        onCancel={() => {
+          setPendingId(null);
+          returnFocus();
+        }}
+      />
+    )}
+    </>
   );
 }

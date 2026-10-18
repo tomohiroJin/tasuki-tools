@@ -119,6 +119,8 @@ export interface PokerSync {
   setPoints: (groupId: number, points: NumberCardValue | null) => void;
   /** 自分の見学を切り替える。true で投票の輪から外れ、false で加わる（#419） */
   setSpectator: (spectator: boolean) => void;
+  /** 接続の無い他人を一覧から外す（#419）。サーバーは接続中の人・自分を拒む */
+  removeParticipant: (participantId: string) => void;
 }
 
 export function usePokerSync(): PokerSync {
@@ -254,6 +256,7 @@ export function usePokerSync(): PokerSync {
       nextItem: (points: NumberCardValue | null) => send({ type: 'next-item', points }),
       setPoints: (groupId: number, points: NumberCardValue | null) => send({ type: 'set-points', groupId, points }),
       setSpectator: (spectator: boolean) => send({ type: 'set-spectator', spectator }),
+      removeParticipant: (participantId: string) => send({ type: 'remove-participant', participantId }),
     };
   }, []);
 

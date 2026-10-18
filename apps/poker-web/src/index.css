@@ -636,3 +636,17 @@
     font-size: 1.9rem; /* scale-exempt: 結果の大きな数字（計器の数字は段の外） */
   }
 }
+
+/* 接続の無い人を外す確認（#419）。ネイティブ <dialog> を中央に出す */
+.removal-confirm {
+  max-width: min(28rem, calc(100vw - 2rem));
+}
+.removal-confirm h3 {
+  margin-top: 0;
+}
+.removal-confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-4);
+}

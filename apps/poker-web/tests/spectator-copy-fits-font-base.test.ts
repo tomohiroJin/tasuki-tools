@@ -16,10 +16,11 @@ describe('見学の文言は書体の常用の層に収まる', () => {
     const texts = [
       ...constants,
       copy.participantsHeading(3, 1),
+      copy.removalTitle('あや さん（ID: 1a2b）'),
       messageForRoundError({ code: 'spectating', op: 'vote' }),
     ];
     // 対照: 定数が 1 つも拾えないまま空配列で緑に倒れるのを防ぐ
-    expect(constants.length).toBeGreaterThanOrEqual(4);
+    expect(constants.length).toBeGreaterThanOrEqual(6);
     // When / Then
     expect(outsideBase(texts)).toEqual([]);
   });
@@ -29,6 +30,9 @@ describe('見学の文言は書体の常用の層に収まる', () => {
     expect(copy.JOIN_VOTING).toBe('投票に加わる');
     expect(copy.SPECTATOR_BADGE).toBe('見学');
     expect(copy.SPECTATING_NOTE).toBe('見学中です。投票には加わりません。');
+    expect(copy.REMOVE).toBe('退出させる');
+    expect(copy.CANCEL).toBe('キャンセル');
+    expect(copy.removalTitle('あや さん')).toBe('あや さんを退出させますか？');
     expect(copy.participantsHeading(3, 0)).toBe('参加者（3人）');
     expect(copy.participantsHeading(3, 1)).toBe('参加者（3人・見学1人）');
     expect(messageForRoundError({ code: 'spectating', op: 'vote' })).toBe('見学中は投票できません');

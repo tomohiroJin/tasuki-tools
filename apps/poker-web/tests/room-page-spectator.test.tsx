@@ -56,6 +56,7 @@ function makeSync(snapshot: RoomStateMessage, status: ConnectionStatus = 'open')
     nextItem: () => {},
     setPoints: () => {},
     setSpectator,
+    removeParticipant: () => {},
   };
 }
 

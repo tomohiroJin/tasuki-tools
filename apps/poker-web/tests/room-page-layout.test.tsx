@@ -60,6 +60,7 @@ function makeSync(topic: Topic | null, groups: number): PokerSync {
     nextItem: vi.fn(),
     setPoints: vi.fn(),
     setSpectator: vi.fn(),
+    removeParticipant: vi.fn(),
   };
 }
 

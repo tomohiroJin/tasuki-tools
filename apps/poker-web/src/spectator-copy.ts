@@ -14,3 +14,18 @@ export const SPECTATING_NOTE = '見学中です。投票には加わりません
 export function participantsHeading(total: number, spectators: number): string {
   return spectators === 0 ? `参加者（${total}人）` : `参加者（${total}人・見学${spectators}人）`;
 }
+
+/**
+ * 接続の無い人（幽霊）を一覧から外す操作の文言（#419・設計 §7a）。
+ * 書体の base 層に収める（`tests/spectator-copy-fits-font-base.test.ts` が守る）。
+ */
+export const REMOVE = '退出させる';
+export const CANCEL = 'キャンセル';
+
+/**
+ * 確認の題。`label` は `participantLabel(名前, ID, 全員, 'さん')` の結果で、
+ * 同名のときは `名前 さん（ID: xxxx）` になる。
+ */
+export function removalTitle(label: string): string {
+  return `${label}を退出させますか？`;
+}

@@ -11,7 +11,7 @@ import { EstimateItemField } from '../components/EstimateItemField';
 import { EstimateLog } from '../components/EstimateLog';
 import { EstimateLogFoot } from '../components/EstimateLogFoot';
 import { PointsSelect } from '../components/PointsSelect';
-import { ParticipantList } from '../components/ParticipantList';
+import { ParticipantList, PARTICIPANTS_HEADING_ID } from '../components/ParticipantList';
 import { Results } from '../components/Results';
 import type { PokerSync } from '../hooks/useSync';
 import { useRoomEntry } from '../hooks/useRoomEntry';
@@ -183,7 +183,7 @@ export function RoomPage({ roomId, sync }: Props) {
         <div className="ui-workspace-main room-main">
           <section>
             <div className="room-participants-head">
-              <h2>{participantsHeading(snapshot.participants.length, spectatorCount)}</h2>
+              <h2 id={PARTICIPANTS_HEADING_ID} tabIndex={-1}>{participantsHeading(snapshot.participants.length, spectatorCount)}</h2>
               {/* 自分の切り替え。投票中も開票後も出す（#419・設計 §5.2） */}
               <button
                 type="button"
@@ -194,7 +194,7 @@ export function RoomPage({ roomId, sync }: Props) {
                 {youSpectating ? JOIN_VOTING : SPECTATE}
               </button>
             </div>
-            <ParticipantList participants={snapshot.participants} you={snapshot.you} votes={revealedVotes} />
+            <ParticipantList participants={snapshot.participants} you={snapshot.you} votes={revealedVotes} onRemove={sync.removeParticipant} />
           </section>
           {/* 欄と足の記録は投票中と開票後で同じ位置に置き、描き分けるのは本体（手札か結果）と帯だけにする。
               状態ごとに別の部品で包むと、替わるたびに欄と足が作り直され、打ちかけの名前・フォーカス・
