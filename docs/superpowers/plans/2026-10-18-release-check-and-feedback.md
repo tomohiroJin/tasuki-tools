@@ -100,9 +100,9 @@ stash を扱うので統括が行う（実装役は stash に触れない）。
 **Files:** 上の地図の「#419 の残り」
 
 - [ ] **Step 1: 当てる** — `git stash show -p stash@{0} | git apply`（2026-10-18 に `--check` で当たることを確認済み）。`git status --porcelain` で 6 ファイルだけが変わったことを見る
-- [ ] **Step 2: テストを走らせる** — `pnpm --filter @tasuki/tasuki-sync exec bun test test/poker/commit-room-action.test.ts test/room-removal.test.ts`。期待: 緑
+- [ ] **Step 2: テストを走らせる** — `pnpm --filter @tasuki/sync exec bun test test/poker/commit-room-action.test.ts test/room-removal.test.ts`。期待: 緑
 - [ ] **Step 3: 変異を確かめる** — `node scripts/mutation-check.mjs --id 395`。期待: 検出（対照が通り、変異で落ちる）
-- [ ] **Step 4: 直書きを寄せる（H）** — `POKER_ERROR_TEXT` に `NOT_JOINED: 'ルームに参加していません'` を足し、`poker-commit-room-action.ts` の 3 か所を置き換える。`grep -rn "'ルームに参加していません'" apps/tasuki-sync/src` が `poker-error-text.ts` の 1 件だけになることを見る。`pnpm --filter @tasuki/tasuki-sync exec bun test test/poker` が緑
+- [ ] **Step 4: 直書きを寄せる（H）** — `POKER_ERROR_TEXT` に `NOT_JOINED: 'ルームに参加していません'` を足し、`poker-commit-room-action.ts` の 3 か所を置き換える。`grep -rn "'ルームに参加していません'" apps/tasuki-sync/src` が `poker-error-text.ts` の 1 件だけになることを見る。`pnpm --filter @tasuki/sync exec bun test test/poker` が緑
 - [ ] **Step 5: コミット** — `fix: m395 の注記を直し、not-joined の文言を 1 つにする（#427）`。コミットした後に `git stash drop stash@{0}` を打つかどうかは、利用者に確かめる（`stash` は巻き戻しの操作ではないが、消すと戻せない）
 
 ### Task 2: 記録の切り替えと束の名前（poker-core・設計 D・E）
@@ -171,9 +171,9 @@ stash を扱うので統括が行う（実装役は stash に触れない）。
   - 「set-group-item で閉じた束の名前が全員に配られる」
   - 「open の束への set-group-item は estimate-open のエラー」
   - 「名簿に居ない接続の set-recording は not-joined」
-- [ ] **Step 2: 走らせて失敗を見る** — `pnpm --filter @tasuki/tasuki-sync exec bun test test/poker/estimate-log.test.ts`
+- [ ] **Step 2: 走らせて失敗を見る** — `pnpm --filter @tasuki/sync exec bun test test/poker/estimate-log.test.ts`
 - [ ] **Step 3: 実装する**
-- [ ] **Step 4: 走らせる** — 上と同じファイル、続いて `pnpm --filter @tasuki/tasuki-sync test`（全件）・`pnpm --filter @tasuki/tasuki-sync typecheck`。期待: 緑
+- [ ] **Step 4: 走らせる** — 上と同じファイル、続いて `pnpm --filter @tasuki/sync test`（全件）・`pnpm --filter @tasuki/sync typecheck`。期待: 緑
 - [ ] **Step 5: 変異** — m413「set-group-item を set-points と同じ枝で受けて名前を捨てる」（dispatch の枝が `ok(round)` を返す）→ `test/poker/estimate-log.test.ts`。`--id 413` で検出
 - [ ] **Step 6: コミット** — `feat: 同期サーバーで記録の切り替えと束の名前を受ける（#427）`
 
@@ -310,7 +310,7 @@ stash を扱うので統括が行う（実装役は stash に触れない）。
   - tasuki-sync の `roulette-handlers.test.ts`: 「roulette.cycle.reset は状態を変えず配信しない」
 - [ ] **Step 2: 走らせて失敗を見る** — `pnpm --filter @tasuki/roulette-core test`
 - [ ] **Step 3: 実装する。** `draw-winner-oracle.ts`（一周の規則の 1 人の正解）と、それを比べるテストは消す
-- [ ] **Step 4: 走らせる** — `pnpm --filter @tasuki/roulette-core test`・`typecheck`・`pnpm --filter @tasuki/tasuki-sync test`（全件）・`node scripts/audit-public-surface.mjs`。期待: 緑
+- [ ] **Step 4: 走らせる** — `pnpm --filter @tasuki/roulette-core test`・`typecheck`・`pnpm --filter @tasuki/sync test`（全件）・`node scripts/audit-public-surface.mjs`。期待: 緑
 - [ ] **Step 5: 変異を入れ替える**
   - m151・m152・m166・m300 の宣言とパッチを消す
   - m416「1 回の回転で同じ人を 2 度選びうる」（候補から「この回転ですでに選んだ人」を外さない）→ `tests/draw-picks.test.ts` を足して `--id 416` で検出
