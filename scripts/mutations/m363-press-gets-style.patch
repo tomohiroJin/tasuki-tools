@@ -16,7 +16,7 @@ index 214a37d..d868408 100644
        settle: SETTLE_MIN,
        picks: [],
        press: { p0: seat + settle, rate: PRESS_SEATS_PER_SEC, stop: null },
-+      ...(input.randomStyle !== undefined && input.randomStyle(20) === 19 ? { stopStyle: "nudge" as const } : {}),
++      ...(input.randomStyle !== undefined && input.randomStyle(24) === 23 ? { stopStyle: "nudge" as const } : {}),
        spunBy: input.spunBy,
        startedAt: input.now,
      },

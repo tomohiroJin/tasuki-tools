@@ -257,7 +257,7 @@ describe("回す", () => {
     expect(put).not.toHaveBeenCalled();
   });
 
-  it("変わった止まり方（#420）: 乱数源で 1/20 の目が出たら、止まり方を載せて延びた長さで配り、その間は次の回転を拒む", async () => {
+  it("変わった止まり方（#420）: 乱数源で 1/24 の目が出たら、止まり方を載せて延びた長さで配り、その間は次の回転を拒む", async () => {
     // Given: どの n にも最後の値を返す乱数（当たりは最後の席・止まり方は表の最後）
     const h = setup({ randomIntOf: (n) => n - 1 });
     await joined(h, "r-1", "Alice");
@@ -272,8 +272,8 @@ describe("回す", () => {
     expect(spin?.winnerIndex).toBe(1);
     expect(spin?.durationMs).toBe(pickStopsMs(1, "swing")[0]);
     expect(spin?.durationMs).toBeGreaterThan(pickStopsMs(1)[0]!);
-    // 当たり（2 人から 1 人）→ 止まり方が出るか（1/20）→ どの止まり方か
-    expect(h.randomCalls).toEqual([2, 20, STOP_STYLES.length]);
+    // 当たり（2 人から 1 人）→ 止まり方が出るか（1/24）→ どの止まり方か
+    expect(h.randomCalls).toEqual([2, 24, STOP_STYLES.length]);
 
     // When: 普通の長さが過ぎた時点で回す
     h.sent.length = 0;
@@ -283,7 +283,7 @@ describe("回す", () => {
     expect(errorsTo(h, "r-2")).toEqual(["ROULETTE_SPINNING"]);
   });
 
-  it("変わった止まり方（#420）: 1/20 の目が出なければ止まり方を載せない", async () => {
+  it("変わった止まり方（#420）: 1/24 の目が出なければ止まり方を載せない", async () => {
     // Given: 乱数は既定の 0（当たりは最初の席・止まり方は出ない）
     const h = setup();
     await joined(h, "r-1", "Alice");

@@ -27,8 +27,11 @@ export const NEXT_MOVE_MS = 1100;
 export const STOP_STYLES = ["nudge", "overshoot", "creep", "wobble", "reverse", "linger", "double", "swing"] as const;
 export type StopStyle = (typeof STOP_STYLES)[number];
 
-/** 変わった止まり方が出る割合の分母（#420 spec S3）。1 回ごとに一様に 1/20 */
-export const STOP_STYLE_ODDS = 20;
+/**
+ * 変わった止まり方が出る割合の分母（#420 spec S3）。1 回ごとに一様に 1/24。
+ * 24 は 1 日の時間の数: 1 時間に 1 回回すと、1 日に 1 回ほど見られる
+ */
+export const STOP_STYLE_ODDS = 24;
 
 /**
  * 止まり方ごとに、1 人目が止まる時刻を延ばす長さ（ms・#420 spec S2）。長くても +3 秒。

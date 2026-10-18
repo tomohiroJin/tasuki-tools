@@ -54,11 +54,11 @@ function modeState(mode: "once" | "order" | "press", patch: Partial<RouletteStat
  * @requirements #420 振る舞い 1・spec S2（止まり方の表と長さ）
  */
 describe("止まり方の表と回転の長さ", () => {
-  it("止まり方は 8 種で、名前は重ならない。確率は 1/20", () => {
+  it("止まり方は 8 種で、名前は重ならない。確率は 1/24（1 日の時間の数）", () => {
     // Given / When / Then
     expect(STOP_STYLES).toHaveLength(8);
     expect(new Set(STOP_STYLES).size).toBe(STOP_STYLES.length);
-    expect(STOP_STYLE_ODDS).toBe(20);
+    expect(STOP_STYLE_ODDS).toBe(24);
   });
 
   it("どの止まり方も、延びる長さは 1〜3 秒", () => {
@@ -98,7 +98,7 @@ describe("止まり方の表と回転の長さ", () => {
  * @requirements #420 振る舞い 1・spec S3（確率と乱数の注入）
  */
 describe("drawStopStyle（止まり方を引く）", () => {
-  it("1/20 の目（最後の値）のときだけ止まり方を選ぶ。2 回目は止まり方の数を渡す", () => {
+  it("1/24 の目（最後の値）のときだけ止まり方を選ぶ。2 回目は止まり方の数を渡す", () => {
     // Given
     const hit = styleRandom(HIT, 3);
     // When / Then
@@ -106,7 +106,7 @@ describe("drawStopStyle（止まり方を引く）", () => {
     expect(hit.calls).toEqual([STOP_STYLE_ODDS, STOP_STYLES.length]);
   });
 
-  it("ほかの 19 の目では選ばず、2 回目を引かない", () => {
+  it("ほかの 23 の目では選ばず、2 回目を引かない", () => {
     for (let roll = 0; roll < HIT; roll++) {
       // Given
       const miss = styleRandom(roll);

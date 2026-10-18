@@ -2546,7 +2546,7 @@ export const MUTATIONS = [
     patch: "m360-style-hits-every-roll.patch",
     pkg: "packages/roulette-core",
     tests: ["tests/roulette-stop-style.test.ts"],
-    note: "#420 spec S3。1/20 の目を見ずに、毎回変わった止まり方を選ぶ（ごくまれでなくなる）。",
+    note: "#420 spec S3。1/24 の目を見ずに、毎回変わった止まり方を選ぶ（ごくまれでなくなる）。",
   },
   {
     id: 361,
