@@ -2756,4 +2756,12 @@ export const MUTATIONS = [
     tests: ["tests/estimate-log.test.ts"],
     note: "#427 設計 E。古い行の名前が残る。",
   },
+  {
+    id: 413,
+    label: "同期サーバーが set-group-item を受けても名前を捨てる",
+    patch: "m413-sync-set-group-item-drops-name.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/poker/estimate-log.test.ts"],
+    note: "#427 設計 E。dispatch の枝が ok(round) を返し、束の名前が変わらない。",
+  },
 ];
