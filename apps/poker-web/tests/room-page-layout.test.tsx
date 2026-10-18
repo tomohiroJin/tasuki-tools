@@ -33,7 +33,7 @@ function makeSync(topic: Topic | null, groups: number): PokerSync {
     type: 'room-state',
     roomId: ROOM_ID,
     you: 'p1',
-    participants: [{ id: 'p1', name: 'あかり', connected: true, hasVoted: false }],
+    participants: [{ id: 'p1', name: 'あかり', connected: true, hasVoted: false, spectator: false }],
     round: { status: 'voting' },
     yourVote: null,
     estimate: { item: '', log },

@@ -30,6 +30,8 @@ export function messageForRoundError(error: RoundError): string {
   switch (error.code) {
     case 'not-voting':
       return error.op === 'vote' ? '現在は投票を受け付けていません' : 'すでに公開されています';
+    case 'spectating':
+      return '見学中は投票できません';
     case 'not-revealed':
       return '票の公開後にのみ次のラウンドを開始できます';
     case 'estimate-not-found':

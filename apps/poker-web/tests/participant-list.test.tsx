@@ -18,8 +18,8 @@ const eight: Card = { kind: 'number', value: 8 };
 
 function people(votedP1: boolean, votedP2 = false) {
   return [
-    { id: 'p1', name: 'あかり', connected: true, hasVoted: votedP1 },
-    { id: 'p2', name: 'いずみ', connected: true, hasVoted: votedP2 },
+    { id: 'p1', name: 'あかり', connected: true, hasVoted: votedP1, spectator: false },
+    { id: 'p2', name: 'いずみ', connected: true, hasVoted: votedP2, spectator: false },
   ];
 }
 
@@ -79,7 +79,7 @@ describe('ParticipantList の席の札（#348）', () => {
   });
 
   it('U3: Given 3 人 / When 描く / Then 席の札の --seat-order が 0・1・2', () => {
-    const three = [...people(false), { id: 'p3', name: 'うみ', connected: true, hasVoted: false }];
+    const three = [...people(false), { id: 'p3', name: 'うみ', connected: true, hasVoted: false, spectator: false }];
     const { container } = render(<ParticipantList participants={three} you="p1" votes={null} />);
     const orders = [...container.querySelectorAll<HTMLElement>('.seat-card')].map((el) =>
       el.style.getPropertyValue('--seat-order'),

@@ -10,6 +10,7 @@ import {
   revote,
   setItem,
   setPoints,
+  setSpectator,
   shouldAutoReveal,
   type Round,
   type VoterView,
@@ -334,7 +335,7 @@ describe('setItem / setPoints（#93）', () => {
  * 許可表が `["@tasuki/protocol"]` しか許していない・設計正本 D2）。
  */
 describe('Round が集約ルート（#95 S4a）', () => {
-  const votingRound = (): Round => ({ status: 'voting', votes: new Map(), item: '', log: EMPTY_ESTIMATE_LOG });
+  const votingRound = (): Round => ({ status: 'voting', votes: new Map(), item: '', log: EMPTY_ESTIMATE_LOG, spectators: new Set() });
 
   it('投票は Round だけで完結する', () => {
     // Given: votingRound() の呼び出し自体が前提のラウンドを用意する
@@ -388,7 +389,7 @@ describe('Round が集約ルート（#95 S4a）', () => {
 });
 
 describe('discardVote（退出した人の票を捨てる・R8）', () => {
-  const votingRound = (): Round => ({ status: 'voting', votes: new Map(), item: '', log: EMPTY_ESTIMATE_LOG });
+  const votingRound = (): Round => ({ status: 'voting', votes: new Map(), item: '', log: EMPTY_ESTIMATE_LOG, spectators: new Set() });
 
   it('Given 票のある人 / When 退出する / Then その票だけが消える', () => {
     // Given: 2 人が投票している
@@ -426,5 +427,65 @@ describe('discardVote（退出した人の票を捨てる・R8）', () => {
     // Then: 遷移の判断は呼び出し側（applyAutoReveal）の責務で、ここは票だけを触る
     expect(after.status).toBe('revealed');
     expect(after.votes.size).toBe(0);
+  });
+});
+
+describe('見学（#419）', () => {
+  const voted = (ids: string[]): Round =>
+    ids.reduce((r, id) => castVote(r, id, five)._unsafeUnwrap(), createRound());
+
+  it('Given 投票済みの A When 見学へ移る Then 票を捨て見学の集合に入る', () => {
+    const round = setSpectator(voted(['p1', 'p2']), 'p1', true);
+    expect(round.votes.has('p1')).toBe(false);
+    expect(round.votes.has('p2')).toBe(true);
+    expect(round.spectators.has('p1')).toBe(true);
+  });
+
+  it('Given 開票後 When 見学へ移る Then 票もログも変えない', () => {
+    const revealed = revealBy(voted(['p1', 'p2']), 'p1', 1000)._unsafeUnwrap();
+    const after = setSpectator(revealed, 'p1', true);
+    expect(after.votes.size).toBe(2);
+    expect(after.log).toBe(revealed.log);
+    expect(after.spectators.has('p1')).toBe(true);
+  });
+
+  it('Given 見学者 When 投票する Then spectating で拒否される', () => {
+    const round = setSpectator(createRound(), 'p1', true);
+    expect(castVote(round, 'p1', five)._unsafeUnwrapErr()).toEqual({ code: 'spectating', op: 'vote' });
+  });
+
+  it('Given 見学者 A（未投票）と投票済み B When 自動公開を判定 Then 立つ（対照: 見学でなければ立たない）', () => {
+    const base = voted(['p2']);
+    const voters = votersOf(2);
+    expect(shouldAutoReveal(base, voters)).toBe(false);
+    expect(shouldAutoReveal(setSpectator(base, 'p1', true), voters)).toBe(true);
+  });
+
+  it('Given 接続中の全員が見学 When 自動公開を判定 Then 立たない。手動公開は通り記録は増えない', () => {
+    let round = setSpectator(createRound(), 'p1', true);
+    round = setSpectator(round, 'p2', true);
+    expect(shouldAutoReveal(round, votersOf(2))).toBe(false);
+    const revealed = revealBy(round, 'p1', 1000)._unsafeUnwrap();
+    expect(revealed.status).toBe('revealed');
+    expect(revealed.log).toBe(round.log);
+  });
+
+  it('Given 見学から投票へ戻った A When B だけ投票済み Then 自動公開は立たない（未投票から）', () => {
+    let round = setSpectator(voted(['p2']), 'p1', true);
+    round = setSpectator(round, 'p1', false);
+    expect(round.spectators.has('p1')).toBe(false);
+    expect(shouldAutoReveal(round, votersOf(2))).toBe(false);
+  });
+
+  it('Given 同じ状態への切り替え When setSpectator Then 同じ参照を返す', () => {
+    const round = createRound();
+    expect(setSpectator(round, 'p1', false)).toBe(round);
+    const spec = setSpectator(round, 'p1', true);
+    expect(setSpectator(spec, 'p1', true)).toBe(spec);
+  });
+
+  it('Given 見学者 When 退出で discardVote Then 見学の集合からも外れる', () => {
+    const spec = setSpectator(createRound(), 'p1', true);
+    expect(discardVote(spec, 'p1').spectators.has('p1')).toBe(false);
   });
 });

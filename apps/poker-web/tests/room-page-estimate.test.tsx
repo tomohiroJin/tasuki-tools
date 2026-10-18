@@ -20,8 +20,8 @@ import {
 
 const ROOM_ID = 'ABCD1234';
 const participants = [
-  { id: 'p1', name: 'あかり', connected: true, hasVoted: true },
-  { id: 'p2', name: 'みなと', connected: true, hasVoted: true },
+  { id: 'p1', name: 'あかり', connected: true, hasVoted: true, spectator: false },
+  { id: 'p2', name: 'みなと', connected: true, hasVoted: true, spectator: false },
 ];
 
 function snapshot(status: 'voting' | 'revealed', withEstimate = true): RoomStateMessage {

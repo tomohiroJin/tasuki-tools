@@ -38,6 +38,7 @@ export function createSnapshotBuilder(
     name: p.name,
     connected: p.connected,
     hasVoted: round.votes.has(p.id),
+    spectator: round.spectators.has(p.id),
   }));
 
   const roundView: RoomStateMessage['round'] = (() => {

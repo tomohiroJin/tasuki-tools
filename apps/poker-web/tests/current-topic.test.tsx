@@ -24,7 +24,7 @@ function votingSnapshot(): RoomStateMessage {
     type: 'room-state',
     roomId: ROOM_ID,
     you: 'p1',
-    participants: [{ id: 'p1', name: 'あかり', connected: true, hasVoted: false }],
+    participants: [{ id: 'p1', name: 'あかり', connected: true, hasVoted: false, spectator: false }],
     round: { status: 'voting' },
     yourVote: null,
   };

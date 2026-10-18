@@ -28,8 +28,8 @@ function votingSnapshot(): RoomStateMessage {
     roomId: ROOM_ID,
     you: 'p2',
     participants: [
-      { id: 'p1', name: 'あかり', connected: true, hasVoted: false },
-      { id: 'p2', name: 'みなと', connected: true, hasVoted: false },
+      { id: 'p1', name: 'あかり', connected: true, hasVoted: false, spectator: false },
+      { id: 'p2', name: 'みなと', connected: true, hasVoted: false, spectator: false },
     ],
     round: { status: 'voting' },
     yourVote: null,

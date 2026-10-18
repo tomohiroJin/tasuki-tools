@@ -20,10 +20,13 @@ export interface Round {
   item: string;
   /** 開票ごとの記録（#93） */
   log: EstimateLog;
+  /** 見学中の参加者 ID（#419）。票を持たず、自動公開の分母にも入らない */
+  spectators: ReadonlySet<string>;
 }
 
 export type RoundError =
   | { code: 'not-voting'; op: 'vote' | 'reveal' }
+  | { code: 'spectating'; op: 'vote' }
   | { code: 'not-revealed'; op: 'revote' | 'next-item' }
   | { code: 'estimate-not-found' }
   | { code: 'estimate-open' };
@@ -49,13 +52,16 @@ export interface VoterView {
 
 /** 新しいラウンド（voting・票なし）。ルーム作成時にアプリ層が呼ぶ（FR-001）。 */
 export function createRound(): Round {
-  return { status: 'voting', votes: new Map(), item: '', log: EMPTY_ESTIMATE_LOG };
+  return { status: 'voting', votes: new Map(), item: '', log: EMPTY_ESTIMATE_LOG, spectators: new Set() };
 }
 
 /** 投票（公開前は上書き可。FR-005〜007） */
 export function castVote(round: Round, voterId: string, card: Card): Result<Round, RoundError> {
   if (round.status !== 'voting') {
     return err({ code: 'not-voting', op: 'vote' });
+  }
+  if (round.spectators.has(voterId)) {
+    return err({ code: 'spectating', op: 'vote' });
   }
   const votes = new Map(round.votes);
   votes.set(voterId, card);
@@ -65,13 +71,16 @@ export function castVote(round: Round, voterId: string, card: Card): Result<Roun
 /**
  * 自動公開の判定: 接続中の在室者（途中参加者を含む）が全員投票済み（FR-008, Clarification Q3）。
  *
- * **接続中が 0 人なら立たない。** `every` は空集合で真になるので、この番人が無いと
+ * 分母は接続中かつ見学でない人。見学はラウンドが持つので `VoterView` には足さない
+ * （名簿の断片へ写すと、写し忘れたテストが恒真になる）。
+ *
+ * **投票者が 0 人なら立たない。** `every` は空集合で真になるので、この番人が無いと
  * 「名簿を渡し忘れた／空の名簿しか渡さない」テストが常に緑になる（設計正本 §6.4）。
  */
 export function shouldAutoReveal(round: Round, voters: readonly VoterView[]): boolean {
   if (round.status !== 'voting') return false;
-  const connected = voters.filter((v) => v.connected);
-  return connected.length > 0 && connected.every((v) => round.votes.has(v.id));
+  const eligible = voters.filter((v) => v.connected && !round.spectators.has(v.id));
+  return eligible.length > 0 && eligible.every((v) => round.votes.has(v.id));
 }
 
 /** 条件成立時のみ revealed へ遷移させる（不成立ならそのまま返す） */
@@ -171,7 +180,26 @@ export function setPoints(
 }
 
 /**
- * 退出した人の票を捨てる（R8）。**#95 S5b で呼び出し元と一緒に戻した。**
+ * 見学へ移る／投票へ戻る（#419）。投票中に見学へ移ると票も捨てる。開票後は票を変えない
+ * （見えている結果を動かさない）。同じ状態への切り替えは入力と同じ値を返す。
+ * 投票へ戻った人は未投票から始まる。
+ */
+export function setSpectator(round: Round, participantId: string, spectator: boolean): Round {
+  if (round.spectators.has(participantId) === spectator) return round;
+  const spectators = new Set(round.spectators);
+  if (!spectator) {
+    spectators.delete(participantId);
+    return { ...round, spectators };
+  }
+  spectators.add(participantId);
+  if (round.status !== 'voting' || !round.votes.has(participantId)) return { ...round, spectators };
+  const votes = new Map(round.votes);
+  votes.delete(participantId);
+  return { ...round, votes, spectators };
+}
+
+/**
+ * 退出した人の票と見学を捨てる（R8・#419 S-11）。**#95 S5b で呼び出し元と一緒に戻した。**
  *
  * S4a でも一度実装したが、当時は**到達経路が無かった** —— 入口ごとの門により 1 つの
  * ルームは timer か poker のどちらか一方の状態しか持たず、名簿から人を消す
@@ -184,8 +212,10 @@ export function setPoints(
  * 居ない人の ID を渡しても壊れない（何も起きない）。
  */
 export function discardVote(round: Round, voterId: string): Round {
-  if (!round.votes.has(voterId)) return round;
+  if (!round.votes.has(voterId) && !round.spectators.has(voterId)) return round;
   const votes = new Map(round.votes);
   votes.delete(voterId);
-  return { ...round, votes };
+  const spectators = new Set(round.spectators);
+  spectators.delete(voterId);
+  return { ...round, votes, spectators };
 }

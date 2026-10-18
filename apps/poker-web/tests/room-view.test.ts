@@ -44,9 +44,9 @@ describe('isOffline', () => {
 describe('spreadPromptOf（#405）', () => {
   const n = (value: 2 | 3 | 5 | 8) => ({ kind: 'number', value }) as const;
   const participants = [
-    { id: 'p1', name: 'あお', connected: true, hasVoted: true },
-    { id: 'p2', name: 'きい', connected: true, hasVoted: true },
-    { id: 'p3', name: 'しろ', connected: true, hasVoted: true },
+    { id: 'p1', name: 'あお', connected: true, hasVoted: true, spectator: false },
+    { id: 'p2', name: 'きい', connected: true, hasVoted: true, spectator: false },
+    { id: 'p3', name: 'しろ', connected: true, hasVoted: true, spectator: false },
   ];
   const revealed = (votes: { participantId: string; card: ReturnType<typeof n> }[]) =>
     ({ status: 'revealed', votes, stats: { average: 0, modes: [] } }) as Round;
