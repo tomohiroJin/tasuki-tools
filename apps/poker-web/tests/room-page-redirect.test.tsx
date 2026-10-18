@@ -9,7 +9,7 @@
  * 増えると、どちらを通ったかで挙動が割れる）ので、そのモジュールを差し替えて見る。
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, render, renderHook, screen } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import { clearResumeIdentity, loadResumeIdentity, saveResumeIdentity } from '@tasuki/sync-client';
 import { RoomPage } from '../src/pages/RoomPage';
 import type { PokerSync } from '../src/hooks/useSync';
