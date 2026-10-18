@@ -15,9 +15,11 @@ import {
   messageForRoundError,
   nextItem,
   revealBy,
+  renameGroup,
   revote,
   setItem,
   setPoints,
+  setRecording,
   setSpectator,
 } from '@tasuki/poker-core';
 import type {
@@ -191,6 +193,13 @@ export function createDispatch({
         return;
       case 'set-points':
         commitRoomAction(ws, (round) => setPoints(round, msg.groupId, msg.points));
+        return;
+      case 'set-recording':
+        // 記録の入り切り。投票中でも開票後でも受ける（名簿の検査と配信は commitRoomAction と共有）
+        commitRoomAction(ws, (round) => ok(setRecording(round, msg.recording)));
+        return;
+      case 'set-group-item':
+        commitRoomAction(ws, (round) => renameGroup(round, msg.groupId, msg.item));
         return;
       case 'set-spectator':
         commitRoomAction(ws, (round, participantId) =>
