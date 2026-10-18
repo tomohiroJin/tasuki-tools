@@ -1,0 +1,26 @@
+# 変異 365: web-item-field-overwrites-draft
+#
+# 検出を期待するテスト:
+#   - apps/poker-web/tests/estimate-item-field.test.tsx
+#
+# #93。EstimateItemField が編集中に props の item で打ちかけを上書きする。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m365-*.patch
+# 復元: git apply -R scripts/mutations/m365-*.patch
+diff --git a/apps/poker-web/src/components/EstimateItemField.tsx b/apps/poker-web/src/components/EstimateItemField.tsx
+index e9778b66..b88d3c19 100644
+--- a/apps/poker-web/src/components/EstimateItemField.tsx
++++ b/apps/poker-web/src/components/EstimateItemField.tsx
+@@ -36,6 +36,11 @@ export function EstimateItemField({ item, onCommit, disabled }: EstimateItemFiel
+     }
+   }, [draft]);
+ 
++  useEffect(() => {
++    if (draft !== null) setDraft(item);
++    // eslint-disable-next-line react-hooks/exhaustive-deps
++  }, [item]);
++
+   function commit(): void {
+     if (cancelledRef.current) return;
+     if (draft !== null) {

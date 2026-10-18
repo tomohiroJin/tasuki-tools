@@ -4,6 +4,7 @@ import * as v from 'valibot';
 import { type Result } from 'neverthrow';
 import { parseBoundaryMessage } from '@tasuki/protocol';
 import { NUMBER_CARD_VALUES, type Card } from './deck.js';
+import { MAX_ESTIMATE_ITEM } from './estimate-log.js';
 
 // --- スキーマ ---
 
@@ -46,7 +47,23 @@ const ClientMessageSchema = v.variant('type', [
   v.strictObject({ type: v.literal('check-room'), roomId: v.string() }),
   v.strictObject({ type: v.literal('vote'), card: CardSchema }),
   v.strictObject({ type: v.literal('reveal') }),
+  // 'next-round' は古いクライアント向けに残す
   v.strictObject({ type: v.literal('next-round') }),
+  // 見積もりの記録（#93）
+  v.strictObject({
+    type: v.literal('set-item'),
+    item: v.pipe(v.string(), v.trim(), v.maxLength(MAX_ESTIMATE_ITEM)),
+  }),
+  v.strictObject({ type: v.literal('revote') }),
+  v.strictObject({
+    type: v.literal('next-item'),
+    points: v.nullable(v.picklist(NUMBER_CARD_VALUES)),
+  }),
+  v.strictObject({
+    type: v.literal('set-points'),
+    groupId: v.pipe(v.number(), v.integer(), v.minValue(1)),
+    points: v.nullable(v.picklist(NUMBER_CARD_VALUES)),
+  }),
 ]);
 
 export type ClientMessage = v.InferOutput<typeof ClientMessageSchema>;
@@ -63,6 +80,9 @@ export const ERROR_CODES = [
   'server-busy',
   // 入室失敗のレート制限（#103）。総当たりの緩和であり、利用者の入力ミスとは別物。
   'rate-limited',
+  // 見積もりの記録（#93）
+  'estimate-not-found',
+  'estimate-open',
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];
@@ -104,6 +124,27 @@ const RoundViewSchema = v.variant('status', [
   }),
 ]);
 
+// 見積もりの記録（#93）。行の item は載せない（束の見出しが持つ）。束・行は古い順。
+// 参加者 ID は載せない（匿名）。
+const EstimateEntryViewSchema = v.object({
+  attempt: v.number(),
+  at: v.number(),
+  counts: v.array(v.object({ card: CardSchema, count: v.number() })),
+});
+
+const EstimateGroupViewSchema = v.object({
+  id: v.number(),
+  item: v.string(),
+  points: v.nullable(v.number()),
+  open: v.boolean(),
+  entries: v.array(EstimateEntryViewSchema),
+});
+
+const EstimateViewSchema = v.object({
+  item: v.string(),
+  log: v.array(EstimateGroupViewSchema),
+});
+
 // 公開しない（parseServerMessage が唯一の入口であり、外からもテストからも取り込まれない。#182 で index の列挙から外し、#223 で宣言の export も落とした）。
 const ServerMessageSchema = v.variant('type', [
   v.object({
@@ -119,6 +160,8 @@ const ServerMessageSchema = v.variant('type', [
     participants: v.array(ParticipantViewSchema),
     round: RoundViewSchema,
     yourVote: v.nullable(CardSchema),
+    // 新しい web が古いサーバーに当たっても通す（#93）
+    estimate: v.optional(EstimateViewSchema),
   }),
   // **error だけは前方互換にする（#214・docs/poker/adr/0003 決定 1）。**
   //
@@ -155,6 +198,8 @@ export type OutboundServerMessage =
   | Exclude<ServerMessage, { type: 'error' }>
   | { type: 'error'; code: ErrorCode; message: string };
 export type RoomStateMessage = Extract<ServerMessage, { type: 'room-state' }>;
+export type EstimateView = NonNullable<RoomStateMessage['estimate']>;
+export type EstimateGroupView = EstimateView['log'][number];
 export type ParticipantView = v.InferOutput<typeof ParticipantViewSchema>;
 export type RoundStats = v.InferOutput<typeof StatsSchema>;
 export type VoteView = { participantId: string; card: Card };

@@ -4,7 +4,7 @@
  * 純粋関数（`src/room-view.ts`）へ出す前に、**いまの表示を画面の単位で固定する**。
  * - 公開を投票中から見届けたときだけ、集計を札のめくりの後まで待たせる（#348）
  * - 公開後の票は、票のある席にだけ値が出て、票の無い席には「未投票」の印が出る
- * - 切断中は、札・公開・次のラウンドの操作を押させない
+ * - 切断中は、札・公開・再投票・次のアイテムへの操作を押させない
  */
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
@@ -57,7 +57,10 @@ function makeSync(snapshot: RoomStateMessage | null, status: ConnectionStatus = 
     checkRoom: () => {},
     vote: () => {},
     reveal: () => {},
-    nextRound: () => {},
+    setItem: () => {},
+    revote: () => {},
+    nextItem: () => {},
+    setPoints: () => {},
   };
 }
 
@@ -123,9 +126,10 @@ describe('切断中の操作', () => {
     expect((screen.getByRole('button', { name: '票を公開する' }) as HTMLButtonElement).disabled).toBe(false);
   });
 
-  it('公開後も、切断中は次のラウンドへ進ませない', () => {
+  it('公開後も、切断中は再投票にも次のアイテムへにも進ませない', () => {
     render(<RoomPage roomId={ROOM_ID} sync={makeSync(revealed(), 'closed')} />);
-    expect((screen.getByRole('button', { name: '次のラウンドへ' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: '再投票' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: '次のアイテムへ' }) as HTMLButtonElement).disabled).toBe(true);
   });
 });
 

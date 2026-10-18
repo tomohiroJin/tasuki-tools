@@ -50,7 +50,10 @@ function makeSync(): PokerSync {
     checkRoom: () => {},
     vote: () => {},
     reveal: () => {},
-    nextRound: () => {},
+    setItem: () => {},
+    revote: () => {},
+    nextItem: () => {},
+    setPoints: () => {},
   };
 }
 

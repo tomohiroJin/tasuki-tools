@@ -4,14 +4,19 @@
 // 端末に同一性が無いままここへ来た人は玄関の参加画面へ送り返す。
 import { useState } from 'react';
 import { useCopyText } from '@tasuki/invite-ui';
-import type { RoomStateMessage } from '@tasuki/poker-core';
 import { CardHand } from '../components/CardHand';
 import { CurrentTopic, TOPIC_CARD_ID, TOPIC_HIDE, TOPIC_SHOW } from '../components/CurrentTopic';
 import { ErrorNote } from '../components/ErrorNote';
+import { EstimateItemField } from '../components/EstimateItemField';
+import { EstimateLog } from '../components/EstimateLog';
+import { EstimateLogFoot } from '../components/EstimateLogFoot';
+import { PointsSelect } from '../components/PointsSelect';
 import { ParticipantList } from '../components/ParticipantList';
 import { Results } from '../components/Results';
 import type { PokerSync } from '../hooks/useSync';
 import { useRoomEntry } from '../hooks/useRoomEntry';
+import { ESTIMATE_POINTS_LABEL, NEXT_ITEM, REVOTE } from '../estimate-copy';
+import type { NumberCardValue } from '@tasuki/poker-core';
 import { isOffline, revealedLiveAfter, revealedVoteMap, spreadPromptOf } from '../room-view';
 
 interface Props {
@@ -108,6 +113,8 @@ export function RoomPage({ roomId, sync }: Props) {
   // 公開後の票を席の札へ渡す（`room-view.ts` の `revealedVoteMap`）
   const revealedVotes = revealedVoteMap(snapshot.round);
   const inviteUrl = sync.inviteUrl(roomId);
+  const estimateLog = snapshot.estimate?.log ?? [];
+  const offline = isOffline(sync.status);
 
   return (
     <main className="ui-page ui-page--wide room">
@@ -129,7 +136,7 @@ export function RoomPage({ roomId, sync }: Props) {
                 type="button"
                 className="ui-button ui-button--secondary ui-button--sm"
                 aria-expanded={topicOpen}
-                // 閉じても札は DOM に残る（幅 0・`inert`）ので、指し先はいつも在る
+                // 閉じても札は DOM に残る（高さ 0・`inert`）ので、指し先はいつも在る
                 aria-controls={TOPIC_CARD_ID}
                 onClick={() => setTopicOpen((open) => !open)}
               >
@@ -149,93 +156,101 @@ export function RoomPage({ roomId, sync }: Props) {
       </header>
       <ErrorNote error={sync.error} onClose={sync.clearError} />
       {/* 段組み（#316・ADR 0025）。64rem 以上は左に読む面（お題）・右に操作の面（場 → 手札 → 結果）。
-          DOM は狭い幅で見せたい順（お題 → 場 → 手札）。隠した脇は DOM に残し（`data-state="closed"`・`inert`）、
-          64rem 以上では段組みが列を 2 本のまま持って脇の列を幅 0 へ移り変わらせる。お題が無いときは脇が無い。
-          どちらも操作の面は約 46rem で中央に寄る（幅・中央寄せ・移り変わりは index.css の `.room-main` が持つ・#348）。 */}
+          DOM は狭い幅で見せたい順（お題 → 場 → 手札 → 記録の足）。脇（`.room-side`）は常に出し、中にお題の札（隠すのは札の包みだけ。
+          DOM に残し `data-state="closed"`・`inert`）と記録を持つ。64rem 以上は列が動かず、64rem 未満は記録を足の側が出す
+          （幅の出し分けは index.css・#93）。 */}
       <div className="ui-workspace ui-workspace--reader">
-        {sync.topic && (
-          <div
-            className="ui-workspace-side room-topic-side"
-            data-state={topicOpen ? 'open' : 'closed'}
-            inert={!topicOpen}
-          >
-            <CurrentTopic topic={sync.topic} />
-          </div>
-        )}
+        <div className="ui-workspace-side room-side">
+          {sync.topic && (
+            <div className="room-topic-side" data-state={topicOpen ? 'open' : 'closed'} inert={!topicOpen}>
+              <CurrentTopic topic={sync.topic} />
+            </div>
+          )}
+          <EstimateLog
+            className="room-log--side"
+            scrollable
+            groups={estimateLog}
+            onSetPoints={sync.setPoints}
+            disabled={offline}
+          />
+        </div>
         <div className="ui-workspace-main room-main">
           <section>
             <h2>参加者（{snapshot.participants.length}人）</h2>
             <ParticipantList participants={snapshot.participants} you={snapshot.you} votes={revealedVotes} />
           </section>
-          {isVoting ? (
-            <VotingSection snapshot={snapshot} sync={sync} />
+          {/* 欄と足の記録は投票中と開票後で同じ位置に置き、描き分けるのは本体（手札か結果）と帯だけにする。
+              状態ごとに別の部品で包むと、替わるたびに欄と足が作り直され、打ちかけの名前・フォーカス・
+              開いていたシートが消える（#93 最終レビュー）。 */}
+          {/* key は閉じた束の最大 ID（束の ID は振り直されず増えるだけなので、上限で古い束が落ちても束が閉じるたびに変わる）。編集中に境目を越えたら欄を作り直し、
+              前のアイテムの打ちかけを新しいアイテムへ送らない。名前だけの変更では変わらない */}
+          <EstimateItemField
+            key={(snapshot.estimate?.log ?? []).reduce((max, g) => (g.open ? max : Math.max(max, g.id)), 0)}
+            item={snapshot.estimate?.item ?? ''}
+            onCommit={sync.setItem}
+            disabled={offline}
+          />
+          {snapshot.round.status === 'voting' ? (
+            <section>
+              <h2>あなたのカード</h2>
+              <CardHand selected={snapshot.yourVote} onSelect={sync.vote} disabled={offline} />
+            </section>
           ) : (
-            <RevealedSection snapshot={snapshot} sync={sync} revealedLive={revealedLive} />
+            <Results
+              stats={snapshot.round.stats}
+              seatCount={snapshot.participants.length}
+              afterFlip={revealedLive}
+              spread={spreadPromptOf(snapshot.round, snapshot.participants)}
+            />
           )}
+          {/* 下端の帯（sticky）は親の範囲の中でしか留まらないので、帯は操作の面（`.room-main`）の最後の子に置き、
+              足の記録はその手前に置く（帯が記録の末尾を覆わないように） */}
+          <EstimateLogFoot groups={estimateLog} onSetPoints={sync.setPoints} disabled={offline} />
+          {isVoting ? <VotingDock sync={sync} disabled={offline} /> : <RevealedDock sync={sync} disabled={offline} />}
         </div>
       </div>
     </main>
   );
 }
 
-function VotingSection({
-  snapshot,
-  sync,
-}: {
-  snapshot: RoomStateMessage;
-  sync: PokerSync;
-}) {
-  // 切断・再接続中は操作を受け付けない（送信しても届かないため）
-  const offline = isOffline(sync.status);
+/** 投票中の帯。かつてはホストだけに出ていたが、#95 S3 でホストを廃止し全参加者へ開放した */
+function VotingDock({ sync, disabled }: { sync: PokerSync; disabled: boolean }) {
   return (
-    <>
-      <section>
-        <h2>あなたのカード</h2>
-        <CardHand selected={snapshot.yourVote} onSelect={sync.vote} disabled={offline} />
-      </section>
-      {/* かつてはホストだけに出ていたが、#95 S3 でホストを廃止し全参加者へ開放した。
-          下端の帯（sticky）は親の範囲の中でしか留まらないので、節の中ではなく操作の面（`.room-main`）の最後の子に置く。 */}
-      <div className="ui-actions ui-actions--dock">
-        <button type="button" className="ui-button ui-button--lg" onClick={sync.reveal} disabled={offline}>
-          票を公開する
-        </button>
-      </div>
-    </>
+    <div className="ui-actions ui-actions--dock">
+      <button type="button" className="ui-button ui-button--lg" onClick={sync.reveal} disabled={disabled}>
+        票を公開する
+      </button>
+    </div>
   );
 }
 
-function RevealedSection({
-  snapshot,
-  sync,
-  revealedLive,
-}: {
-  snapshot: RoomStateMessage;
-  sync: PokerSync;
-  /** 公開を投票中から見届けた（席の札がめくれる）。集計の待ちはこのときだけ */
-  revealedLive: boolean;
-}) {
-  if (snapshot.round.status !== 'revealed') return null;
-  const { stats } = snapshot.round;
-  const offline = isOffline(sync.status);
-
+/** 開票後の帯。再投票（主・最後）と次のアイテムへ（副）は意味の違う 2 操作（#93・spec §4.3） */
+function RevealedDock({ sync, disabled }: { sync: PokerSync; disabled: boolean }) {
+  // 「次のアイテムへ」に添える点数。押したら空へ戻す（再投票で投票中へ戻ると帯ごと外れて空に戻る）
+  const [points, setPoints] = useState<NumberCardValue | null>(null);
   return (
-    <>
-      <Results
-        stats={stats}
-        seatCount={snapshot.participants.length}
-        afterFlip={revealedLive}
-        spread={spreadPromptOf(snapshot.round, snapshot.participants)}
+    <div className="ui-actions ui-actions--dock">
+      <PointsSelect
+        value={points}
+        onChange={setPoints}
+        emptyLabel={ESTIMATE_POINTS_LABEL}
+        label={ESTIMATE_POINTS_LABEL}
+        disabled={disabled}
       />
-      {/* かつてはホストだけに出ていたが、#95 S3 でホストを廃止し全参加者へ開放した */}
-      <div className="ui-actions ui-actions--dock">
-        {/* 再投票と次ラウンドはドメイン上同一操作（next-round）。ラベルのみ区別（FR-011）。主は最後 */}
-        <button type="button" className="ui-button ui-button--secondary ui-button--lg" onClick={sync.nextRound} disabled={offline}>
-          次のラウンドへ
-        </button>
-        <button type="button" className="ui-button ui-button--lg" onClick={sync.nextRound} disabled={offline}>
-          再投票
-        </button>
-      </div>
-    </>
+      <button
+        type="button"
+        className="ui-button ui-button--secondary ui-button--lg"
+        onClick={() => {
+          sync.nextItem(points);
+          setPoints(null);
+        }}
+        disabled={disabled}
+      >
+        {NEXT_ITEM}
+      </button>
+      <button type="button" className="ui-button ui-button--lg" onClick={sync.revote} disabled={disabled}>
+        {REVOTE}
+      </button>
+    </div>
   );
 }

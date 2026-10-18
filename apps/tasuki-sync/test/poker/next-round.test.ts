@@ -15,6 +15,7 @@ afterAll(async () => {
 interface RoomState {
   type: 'room-state';
   participants: Array<{ id: string; hasVoted: boolean }>;
+  estimate: { item: string; log: Array<{ open: boolean }> };
   round:
     | { status: 'voting' }
     | { status: 'revealed'; votes: unknown[]; stats: { average: number | null; modes: unknown[] } };
@@ -63,8 +64,9 @@ describe('revealed の stats（FR-010）', () => {
   });
 });
 
-describe('next-round（契約 #6 / FR-011）', () => {
-  it('next-round で全員が票リセット済みの voting 状態を受信する', async () => {
+// #93: next-round は「再投票」になった（item も記録の束も残る。新しい題へ進むのは next-item）。
+describe('next-round は再投票になる（契約 #6 / FR-011 / #93）', () => {
+  it('next-round で全員が票リセット済みの voting 状態を受信し、記録の束は閉じない', async () => {
     // Given
     const { host, guest } = await setupRevealedRoom();
     // When
@@ -76,6 +78,9 @@ describe('next-round（契約 #6 / FR-011）', () => {
         (msg) => (msg as RoomState).round?.status === 'voting',
       )) as RoomState;
       expect(state.participants.every((p) => !p.hasVoted)).toBe(true);
+      // 再投票なので、開票の 1 行を持つ束は open のまま残る
+      expect(state.estimate.log).toHaveLength(1);
+      expect(state.estimate.log[0]).toMatchObject({ open: true });
     }
     host.close();
     guest.close();

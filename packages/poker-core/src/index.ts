@@ -17,9 +17,12 @@
 // 値の側は `scripts/audit-structure.mjs` の SC-039④ が見張る（型は数えない）。
 
 // ./deck
-export { FIBONACCI_DECK, cardKey, cardEquals } from './deck.js';
+export { FIBONACCI_DECK, NUMBER_CARD_VALUES, cardKey, cardEquals } from './deck.js';
 // NumberCardValue: Card の number 枝の値型
 export type { NumberCardValue, Card } from './deck.js';
+
+// ./estimate-log（#93。画面がアイテム名の上限を使う）
+export { MAX_ESTIMATE_ITEM } from './estimate-log.js';
 
 // ./error-messages
 export { DEFAULT_ERROR_MESSAGE, messageForRoundError } from './error-messages.js';
@@ -34,6 +37,8 @@ export type {
   ServerMessage,
   OutboundServerMessage,
   RoomStateMessage,
+  EstimateView,
+  EstimateGroupView,
   ParticipantView,
   RoundStats,
   VoteView,
@@ -55,12 +60,15 @@ export {
   applyAutoReveal,
   discardVote,
   revealBy,
-  nextRound,
+  revote,
+  nextItem,
+  setItem,
+  setPoints,
 } from './round.js';
 // Round: 上の関数の引数・戻り値型（`RoundStore` が保管する型でもある）
 // VoterView: applyAutoReveal の引数型。名簿の断片を構造的部分型で受ける
 //   （`ParticipantFragment` はこれを継承した上位集合。定義は `round.ts` 側 1 つ）
-// RoundError: castVote / revealBy / nextRound が返す Result のエラー型
+// RoundError: castVote / revealBy / revote / nextItem / setPoints が返す Result のエラー型
 export type { Round, VoterView, RoundError } from './round.js';
 
 // ./snapshot
