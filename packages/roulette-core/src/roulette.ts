@@ -220,7 +220,7 @@ export function setMode(
 }
 
 /**
- * 順番に回す回を最初からやり直す（#401 順番に回す T8）。一周の記録（`drawn`）は変えない。回が無ければ同じ参照を返す。
+ * 順番に回す回を最初からやり直す（#401 順番に回す T8）。回が無ければ同じ参照を返す。
  * 回っている間は拒む（回っている円盤が、回す前の円盤へ跳ぶ）。
  */
 export function resetOrder(state: RouletteState, now: number): Result<RouletteState, RouletteError<"ROULETTE_SPINNING">> {
