@@ -119,7 +119,20 @@ describe("removeFromRoom の二段目の守り", () => {
   it("実行者が名簿に居ない: 対象が幽霊でも not-removable で名簿は変わらない", async () => {
     const { handlers, store, code, ids } = await roomWithGhosts("Bob");
 
-    expect(handlers.removeFromRoom(code, "stranger", ids["Bob"]!)._unsafeUnwrapErr()).toBe("not-removable");
+    const result = handlers.removeFromRoom(code, "stranger", ids["Bob"]!);
+    // 守りを外すと actor が undefined のまま進んで TypeError で落ちるので、結果を先に見て止める
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr()).toBe("not-removable");
+    expect(store.get(code)!.participants).toHaveLength(2);
+  });
+
+  it("実行者が名簿に居ない（timer の状態が無いルーム）: 同じく not-removable", async () => {
+    const { handlers, store, timers, code, ids } = await roomWithGhosts("Bob");
+    timers.remove(code);
+
+    const result = handlers.removeFromRoom(code, "stranger", ids["Bob"]!);
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr()).toBe("not-removable");
     expect(store.get(code)!.participants).toHaveLength(2);
   });
 

@@ -216,10 +216,6 @@
   border-radius: 10px;
 }
 
-.participants li.disconnected {
-  opacity: 0.45;
-}
-
 /* 名前は区切りの無い長い名前（上限 40 字）でも席の幅に収め、どこでも折り返す。 */
 .participants .you-mark {
   display: block;
@@ -671,7 +667,8 @@
   margin-top: 1.25rem;
 }
 
-/* 切断中の席は札・名前・印を薄めるが、「退出させる」は薄めない（押せるものが薄いと押しにくい）。
+/* 切断中の席の薄めは子へ掛ける（li 自身は opacity 1 のまま）。li 自身を薄めると「退出させる」まで薄くなる。
+   切断中の席は札・名前・印を薄めるが、「退出させる」は薄めない（押せるものが薄いと押しにくい）。
    席の幅（6.5rem）で字が割れないよう折り返さず、左右の余白を詰める。 */
 .participants li.disconnected {
   opacity: 1;

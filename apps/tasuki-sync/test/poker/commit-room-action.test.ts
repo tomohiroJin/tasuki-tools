@@ -65,11 +65,11 @@ const alwaysAllowLimiter: RateLimiter = {
 };
 
 /** ルームを 1 つも持たない保管と、ハンドラ一式を組み立てる */
-function setup(data: Partial<HandlerConnection['data']> = {}) {
+function setup(data: Partial<HandlerConnection['data']> = {}, store = new InMemoryRoomStore()) {
   const socket = spySocket();
   const rounds = new InMemoryRoundStore();
   const handlers = makePokerHandlers({
-    store: new InMemoryRoomStore(), // 何も put しない → get は常に undefined
+    store, // 既定は何も put しない → get は常に undefined
     rounds,
     tokens: createTokenStore(),
     broadcaster: passthroughBroadcaster(),
@@ -181,5 +181,46 @@ describe('名簿に居ない participantId の操作（G-9）', () => {
     // Then
     expect(errors).toEqual([]);
     expect(committed).toHaveLength(1);
+  });
+});
+
+// 人を外す操作の dispatch 側の門（G-5）。注入した removeFromRoom は呼ばれたら throw するので、
+// dispatch が自分で拒んでいること（removeFromRoom の二段目の守りに頼っていないこと）を単独で見る。
+describe('remove-participant の dispatch 側の門（G-5）', () => {
+  function roomWith(connected: string[]) {
+    const store = new InMemoryRoomStore();
+    const participants = ['p1', 'p2'].map((id) => ({
+      id,
+      displayName: id,
+      connections: new Map(connected.includes(id) ? [['c-' + id, null]] : []),
+    }));
+    store.put({ code: 'r1', participants } as never);
+    return store;
+  }
+
+  it('接続中の対象は not-removable で、removeFromRoom は呼ばれない', () => {
+    const { handlers, ws, received } = setup(
+      { participantId: 'p1', roomId: 'r1' },
+      roomWith(['p2']),
+    );
+
+    handlers.dispatch(ws, { type: 'remove-participant', participantId: 'p2' });
+
+    expect(received).toEqual([
+      { type: 'error', code: 'not-removable', message: '接続している人は外せません' },
+    ]);
+  });
+
+  it('自分自身は（接続が無くても）not-removable で、removeFromRoom は呼ばれない', () => {
+    const { handlers, ws, received } = setup(
+      { participantId: 'p1', roomId: 'r1' },
+      roomWith([]),
+    );
+
+    handlers.dispatch(ws, { type: 'remove-participant', participantId: 'p1' });
+
+    expect(received).toEqual([
+      { type: 'error', code: 'not-removable', message: '接続している人は外せません' },
+    ]);
   });
 });

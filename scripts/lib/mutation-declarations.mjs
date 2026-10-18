@@ -2705,8 +2705,8 @@ export const MUTATIONS = [
     label: "remove-participant が接続中の人も外す",
     patch: "m395-sync-remove-participant-removes-connected.patch",
     pkg: "apps/tasuki-sync",
-    tests: ["test/poker/remove-participant.test.ts"],
-    note: "#419。**対応表より後に足した変異。** 390〜399 は #419 に割り当てた。G-5。dispatch の門と handlers.removeFromRoom の二段目の門の**両方**から接続の検査を抜く。m395 は dispatch 側の門、m398 は removeFromRoom 側の門を守る。dispatch だけを壊しても removeFromRoom が同じ not-removable・同じ文言で拒むため、dispatch 側を単独で殺すテストは作れず（エラーコードも文言も同一）、m395 は両方を壊す形のまま置く。",
+    tests: ["test/poker/commit-room-action.test.ts"],
+    note: "#419。**対応表より後に足した変異。** 390〜399 は #419 に割り当てた。G-5。dispatch の門だけから接続中の対象を拒む条件を抜く。m395 は dispatch 側の門、m398 は removeFromRoom 側の門を守る。殺すテストは removeFromRoom を呼ばれたら throw するスタブにした commit-room-action.test.ts の dispatch 側の門。",
   },
   {
     id: 396,
