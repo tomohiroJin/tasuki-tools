@@ -31,6 +31,7 @@
 // テストファイルはいまも このファイルだけである。
 //
 // 既存テストとポートが衝突しないよう `PORT=0` で起動し、`afterAll` で必ず `close()` する。
+import { createRound } from '@tasuki/poker-core';
 import { afterAll, beforeAll, describe, expect, it } from 'bun:test';
 import { loadSyncConfig } from '../../src/config.js';
 import { createSyncServer, type SyncServer } from '../../src/create-sync-server.js';
@@ -84,7 +85,7 @@ describe('createSyncServer を in-process で起動する', () => {
       // poker だけの `rounds` にある。**両方を見る** —— 片方だけ見ると、
       // 「名簿は作ったがラウンドを作っていない」配線の抜けを取り逃がす
       expect(server.store.get(joined.roomId)?.participants[0]?.id).toBe(joined.participantId);
-      expect(server.rounds.get(joined.roomId)).toEqual({ status: 'voting', votes: new Map() });
+      expect(server.rounds.get(joined.roomId)).toEqual(createRound());
     } finally {
       host.close();
     }

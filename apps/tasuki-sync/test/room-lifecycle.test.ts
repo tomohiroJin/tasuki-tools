@@ -20,6 +20,7 @@
  *
  * @requirements #95 S4a（R10・D8）, Issue #79
  */
+import { createRound } from "@tasuki/poker-core";
 import { beforeEach, describe, expect, it } from "bun:test";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
@@ -78,7 +79,7 @@ describe("ルームの寿命", () => {
 
   it("全員 offline のまま TTL を超えると、名簿・timer 状態・ラウンドが揃って消える", () => {
     // Given: 3 つの保管すべてに実体がある状態で、全員が offline になる
-    rounds.put(code, { status: "voting", votes: new Map() });
+    rounds.put(code, createRound());
     handlers.handleDisconnect("c1");
     const reclaimer = reclaimerFor();
 
@@ -121,7 +122,7 @@ describe("ルームの寿命", () => {
     // 上の 1 本は名簿と timer だけを見る。**契機が 2 つある以上、ラウンドの解放も
     // 両方の契機で見ないと片方だけが腐る**（`destroy-room.ts` 冒頭の禁じ手そのもの）。
     // Given
-    rounds.put(code, { status: "voting", votes: new Map() });
+    rounds.put(code, createRound());
     const self = store.get(code)!.participants[0]!.id;
 
     // When

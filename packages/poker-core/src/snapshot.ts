@@ -3,7 +3,7 @@
 //
 // **#95 S4a で入力が「ルーム」から「ラウンド＋名簿の断片」の 2 つになった。**
 // wire（`room-state` の形）は変えていない —— 組み立てる材料の出所が変わっただけである。
-import type { RoomStateMessage, VoteView } from './protocol.js';
+import type { EstimateView, RoomStateMessage, VoteView } from './protocol.js';
 import type { Round, VoterView } from './round.js';
 import { computeStats } from './stats.js';
 
@@ -52,6 +52,19 @@ export function createSnapshotBuilder(
     return { status: 'revealed' as const, votes, stats: computeStats(votes.map((v) => v.card)) };
   })();
 
+  // 記録は受信者に依存しない。束の item は最後の行の item、行の item は載せない
+  const estimate: EstimateView = {
+    item: round.item,
+    log: round.log.groups.map((g) => ({
+      id: g.id,
+      // `?? ''` は届かない（trimToLimit が空の束を消すので entries は常に 1 行以上）
+      item: g.entries[g.entries.length - 1]?.item ?? '',
+      points: g.points,
+      open: g.open,
+      entries: g.entries.map((e) => ({ attempt: e.attempt, at: e.at, counts: e.counts })),
+    })),
+  };
+
   return (viewerId) => ({
     type: 'room-state',
     roomId,
@@ -59,5 +72,6 @@ export function createSnapshotBuilder(
     participants: views,
     round: roundView,
     yourVote: round.votes.get(viewerId) ?? null,
+    estimate,
   });
 }

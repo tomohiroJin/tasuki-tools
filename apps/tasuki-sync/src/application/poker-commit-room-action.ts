@@ -1,5 +1,5 @@
 /**
- * ルーム状態を変更する操作（`vote` / `reveal` / `next-round`）の単一コミットポイントと、
+ * ルーム状態を変更する操作（`vote` / `reveal` / `set-item` / `revote` / `next-item` / `set-points` と古い `next-round`）の単一コミットポイントと、
  * メッセージ種別の振り分け。
  *
  * `commitRoomAction` を 1 本にしているのは、not-joined 検査・自動公開の再評価・
@@ -9,7 +9,16 @@
  * **#95 S4a で操作の対象が `Room` から `Round` になった。** 名簿は
  * `@tasuki/room-core` が持ち、自動公開の判定に要る断片だけを `fragmentsOf` で渡す。
  */
-import { applyAutoReveal, castVote, messageForRoundError, nextRound, revealBy } from '@tasuki/poker-core';
+import {
+  applyAutoReveal,
+  castVote,
+  messageForRoundError,
+  nextItem,
+  revealBy,
+  revote,
+  setItem,
+  setPoints,
+} from '@tasuki/poker-core';
 import type {
   ClientMessage,
   ErrorCode,
@@ -17,7 +26,7 @@ import type {
   Round,
   RoundError,
 } from '@tasuki/poker-core';
-import type { Result } from 'neverthrow';
+import { ok, type Result } from 'neverthrow';
 import type { HandlerConnection, PokerRoomState } from './poker-handlers.js';
 import { POKER_ERROR_TEXT } from './poker-error-text.js';
 
@@ -48,6 +57,11 @@ export interface CommitRoomActionDeps {
    * （ここで作り直すと同じ関数が 2 つになり、片方だけが直る形になる）。
    */
   sendError: (ws: HandlerConnection, code: ErrorCode, message: string) => void;
+  /**
+   * 開票の時刻に載せる壁時計（`handlers.ts` の `wallClock.now`）。見積もりの記録（#93）の
+   * `at` になる。ドメインに時計を持ち込まないため、呼び出し側から値で渡す。
+   */
+  now: () => number;
 }
 
 /**
@@ -60,6 +74,7 @@ export function createCommitRoomAction({
   commit,
   fragmentsOf,
   sendError,
+  now,
 }: CommitRoomActionDeps): CommitRoomAction {
   return function commitRoomAction(ws, action) {
     const { participantId, roomId } = ws.data;
@@ -86,7 +101,10 @@ export function createCommitRoomAction({
       sendError(ws, result.error.code, messageForRoundError(result.error));
       return;
     }
-    commit({ room: state.room, round: applyAutoReveal(result.value, fragmentsOf(state.room)) });
+    commit({
+      room: state.room,
+      round: applyAutoReveal(result.value, fragmentsOf(state.room), now()),
+    });
   };
 }
 
@@ -98,6 +116,8 @@ export interface DispatchDeps {
   handleJoinRoom(ws: HandlerConnection, msg: Extract<ClientMessage, { type: 'join-room' }>): void;
   handleCheckRoom(ws: HandlerConnection, msg: Extract<ClientMessage, { type: 'check-room' }>): void;
   commitRoomAction: CommitRoomAction;
+  /** 開票の時刻（壁時計）。`reveal` が記録の `at` に使う */
+  now: () => number;
 }
 
 /**
@@ -111,6 +131,7 @@ export function createDispatch({
   handleJoinRoom,
   handleCheckRoom,
   commitRoomAction,
+  now,
 }: DispatchDeps): (ws: HandlerConnection, msg: ClientMessage) => void {
   return function dispatch(ws, msg) {
     switch (msg.type) {
@@ -127,10 +148,24 @@ export function createDispatch({
         commitRoomAction(ws, (round, participantId) => castVote(round, participantId, msg.card));
         return;
       case 'reveal':
-        commitRoomAction(ws, revealBy);
+        commitRoomAction(ws, (round, participantId) => revealBy(round, participantId, now()));
+        return;
+      case 'set-item':
+        // 投票中でも開票後でも受ける。not-joined の検査と配信は commitRoomAction と共有する
+        commitRoomAction(ws, (round) => ok(setItem(round, msg.item)));
+        return;
+      case 'revote':
+        commitRoomAction(ws, revote);
         return;
       case 'next-round':
-        commitRoomAction(ws, nextRound);
+        // 古いクライアント向けの互換。再投票と同じ（item も束も残る）
+        commitRoomAction(ws, revote);
+        return;
+      case 'next-item':
+        commitRoomAction(ws, (round, participantId) => nextItem(round, participantId, msg.points));
+        return;
+      case 'set-points':
+        commitRoomAction(ws, (round) => setPoints(round, msg.groupId, msg.points));
         return;
     }
   };

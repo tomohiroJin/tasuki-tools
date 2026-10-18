@@ -12,6 +12,7 @@
  * @requirements Issue #79, #95 S4a（R10・D8）, #91 E6
  */
 
+import { createRound } from "@tasuki/poker-core";
 import { describe, it, expect } from "bun:test";
 import { createRoomDestroyer } from "../src/application/destroy-room.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
@@ -51,7 +52,7 @@ describe("createRoomDestroyer", () => {
     const topics = new InMemoryTopicStore();
     store.put({ code: "BBB", createdAt: 0, participants: [] });
     timers.put({ code: "BBB" } as never);
-    rounds.put("BBB", { status: "voting", votes: new Map() });
+    rounds.put("BBB", createRound());
     topics.put("BBB", INITIAL_TOPIC_STATE);
     const { destroy } = spyDestroyer(store, timers, rounds, topics);
 
@@ -90,7 +91,7 @@ describe("createRoomDestroyer", () => {
     const rounds = new InMemoryRoundStore();
     store.put({ code: "CCC", createdAt: 0, participants: [] });
     timers.put({ code: "CCC" } as never);
-    rounds.put("CCC", { status: "voting", votes: new Map() });
+    rounds.put("CCC", createRound());
     const topics = new InMemoryTopicStore();
     topics.put("CCC", INITIAL_TOPIC_STATE);
     const released: string[] = [];

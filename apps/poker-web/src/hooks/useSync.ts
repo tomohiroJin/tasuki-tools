@@ -25,6 +25,7 @@ import {
   type Card,
   type ClientMessage,
   type ErrorCode,
+  type NumberCardValue,
   type RoomStateMessage,
 } from '@tasuki/poker-core';
 import { parseBoundaryMessage } from '@tasuki/protocol';
@@ -108,7 +109,14 @@ export interface PokerSync {
   checkRoom: (roomId: string) => void;
   vote: (card: Card) => void;
   reveal: () => void;
-  nextRound: () => void;
+  /** いま見積もっているアイテムの名前を決める（#93） */
+  setItem: (item: string) => void;
+  /** 同じアイテムをもう一度投票する（#93） */
+  revote: () => void;
+  /** 次のアイテムへ進む。開票した回のポイント（任意）を添える（#93） */
+  nextItem: (points: NumberCardValue | null) => void;
+  /** 記録済みのアイテムのポイントを直す（#93） */
+  setPoints: (groupId: number, points: NumberCardValue | null) => void;
 }
 
 export function usePokerSync(): PokerSync {
@@ -239,7 +247,10 @@ export function usePokerSync(): PokerSync {
       checkRoom: (roomId: string) => send({ type: 'check-room', roomId }),
       vote: (card: Card) => send({ type: 'vote', card }),
       reveal: () => send({ type: 'reveal' }),
-      nextRound: () => send({ type: 'next-round' }),
+      setItem: (item: string) => send({ type: 'set-item', item }),
+      revote: () => send({ type: 'revote' }),
+      nextItem: (points: NumberCardValue | null) => send({ type: 'next-item', points }),
+      setPoints: (groupId: number, points: NumberCardValue | null) => send({ type: 'set-points', groupId, points }),
     };
   }, []);
 
