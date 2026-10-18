@@ -1,0 +1,23 @@
+# 変異 372: view-duration-ignores-style
+#
+# 検出を期待するテスト:
+#   - packages/roulette-core/tests/roulette-stop-style.test.ts
+#
+# #420 spec S2・S5。wire の durationMs が延びない。画面が変わった止まり方の途中で結果を出す。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m372-*.patch
+# 復元: git apply -R scripts/mutations/m372-*.patch
+diff --git a/packages/roulette-core/src/roulette.ts b/packages/roulette-core/src/roulette.ts
+index 214a37d..482f260 100644
+--- a/packages/roulette-core/src/roulette.ts
++++ b/packages/roulette-core/src/roulette.ts
+@@ -346,7 +346,7 @@ export function toView(state: RouletteState, now: number): RouletteView {
+   const press = stored?.press;
+   const auto = stored !== null && press !== undefined && press.stop === null ? pressStopOf(stored, now - stored.startedAt) : null;
+   const spin = stored !== null && press !== undefined && auto !== null ? withStop({ ...stored, press }, auto) : stored;
+-  const durationMs = spin === null ? 0 : spin.press !== undefined ? PRESS_AUTO_STOP_MS : spinDurationMs(spin.picks.length, spin.stopStyle);
++  const durationMs = spin === null ? 0 : spin.press !== undefined ? PRESS_AUTO_STOP_MS : spinDurationMs(spin.picks.length);
+   return {
+     pickCount: state.pickCount,
+     mode: state.mode,

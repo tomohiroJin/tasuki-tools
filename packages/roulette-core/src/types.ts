@@ -4,6 +4,7 @@
  * **この文脈は参加者 ID の中身を解釈しない**（`room-core` に依存しない・spec R3）。
  * 名簿の断片（{@link Member}）はアプリ層が `room-core` の `Room` から作って渡す。
  */
+import type { StopStyle } from "./limits.js";
 
 /** 抽選に入りうる 1 人。参加者 ID か、ゲストの ID（`g-` で始まる） */
 export type EntryId = string;
@@ -63,6 +64,8 @@ export interface Spin {
   turn?: number;
   /** 押して止める回転のとき（#401 押して止める）。止まるまで `picks` は空で、`winnerIndex`・`settle` は意味を持たない */
   press?: PressSpin;
+  /** 変わった止まり方（#420）。ごくまれにだけ持つ。見せ方だけで、当たり（`picks`）は変えない */
+  stopStyle?: StopStyle;
   /** 回した人の表示名 */
   spunBy: string;
   /** サーバーの単調時計（ms）。**wire には載せない**（spec R5） */

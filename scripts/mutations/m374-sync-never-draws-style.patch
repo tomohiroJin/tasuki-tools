@@ -1,0 +1,22 @@
+# 変異 374: sync-never-draws-style
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/roulette-handlers.test.ts
+#
+# #420 spec S1。同期サーバーが止まり方の乱数を渡さない。変わった止まり方が一度も出ない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m374-*.patch
+# 復元: git apply -R scripts/mutations/m374-*.patch
+diff --git a/apps/tasuki-sync/src/application/roulette-handlers.ts b/apps/tasuki-sync/src/application/roulette-handlers.ts
+index fcf9518..15bd631 100644
+--- a/apps/tasuki-sync/src/application/roulette-handlers.ts
++++ b/apps/tasuki-sync/src/application/roulette-handlers.ts
+@@ -179,7 +179,6 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
+           randomSettle: random.randomSettle,
+           conflicts: conflictsWithExisting,
+           // 変わった止まり方（#420）も同じ乱数源から引く（乱数の権威はサーバー。全画面が同じ止まり方になる）
+-          randomStyle: random.randomInt,
+         });
+         if (next.isErr()) {
+           const code = next.error.code;

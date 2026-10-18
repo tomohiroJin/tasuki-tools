@@ -3,7 +3,11 @@
  *
  * 角度は「真上 0°・時計回り」。席 i は回転子の座標で `[i·s, (i+1)·s)`（`s = 360/n`）を占める。
  */
-import { NEXT_MOVE_MS, STOP_HOLD_MS, pickStopsMs } from '@tasuki/roulette-core';
+import { NEXT_MOVE_MS, STOP_HOLD_MS, pickStopsMs, type StopStyle } from '@tasuki/roulette-core';
+import { easeOutCubic } from './easing';
+import { stopStyleAngle, stopStyleOf } from './stop-style-motion';
+
+export { easeOutCubic };
 
 /** 余分に回る周回（2 版で 5 → 4）。 */
 export const TURNS = 4;
@@ -35,11 +39,6 @@ export function finalAngle(n: number, winnerIndex: number, settle: number, point
   return startDeg + 360 * TURNS + mod(pointerDeg - (winnerIndex + settle) * (360 / n) - startDeg, 360);
 }
 
-/** 3 次の減速（4 次だと最後の 1 秒がほぼ止まって見えた）。 */
-export function easeOutCubic(x: number): number {
-  return 1 - Math.pow(1 - x, 3);
-}
-
 /** 経過 `elapsedMs` の回転子の角度。 */
 export function angleAt(
   elapsedMs: number,
@@ -52,6 +51,22 @@ export function angleAt(
 ): number {
   const t = Math.min(Math.max(elapsedMs / durationMs, 0), 1);
   return startDeg + (finalAngle(n, winnerIndex, settle, pointerDeg, startDeg) - startDeg) * easeOutCubic(t);
+}
+
+/**
+ * 変わった止まり方（#420）で、経過 `elapsedMs` の回転子の角度。引数は {@link angleAt} と同じ（長さは止まり方が持つ）。
+ * 止まる角度は {@link finalAngle} と同じなので、どの画面も同じ席・同じ位置で止まる。
+ */
+export function styledAngleAt(
+  style: StopStyle,
+  elapsedMs: number,
+  n: number,
+  winnerIndex: number,
+  settle: number,
+  pointerDeg: number,
+  startDeg: number,
+): number {
+  return stopStyleAngle(style, elapsedMs, n, settle, startDeg, finalAngle(n, winnerIndex, settle, pointerDeg, startDeg));
 }
 
 /** 回転子が `angle` のとき、指し針の下にある席の番号（指し針の弾みに使う）。 */
@@ -74,6 +89,8 @@ export interface PickSpot {
  *   `NEXT_MOVE_MS` で送る（3 次の減速）。各区間の止まる角度の 360° の剰余は開始角に依らないので、
  *   どの画面も同じ席・同じ順で止まる
  * - 止まる時刻は core の `pickStopsMs`（サーバーの回転の長さと同じ表）から取る
+ * - 変わった止まり方（#420・`stopStyle`）は 1 人目の回転だけを {@link styledAngleAt} で描く。2 人目からはその分だけ後ろへずれる。
+ *   知らない名前・無いときは普通の止まり方
  */
 export function angleAtPicks(
   elapsedMs: number,
@@ -81,12 +98,18 @@ export function angleAtPicks(
   n: number,
   pointerDeg: number,
   startDeg: number,
+  stopStyle?: string | null,
 ): number {
-  const stops = pickStopsMs(picks.length);
+  const style = stopStyleOf(stopStyle);
+  const stops = pickStopsMs(picks.length, style);
   const first = picks[0];
   const firstStop = stops[0];
   if (first === undefined || firstStop === undefined) return startDeg;
-  if (elapsedMs < firstStop) return angleAt(elapsedMs, firstStop, n, first.index, first.settle, pointerDeg, startDeg);
+  if (elapsedMs < firstStop) {
+    return style === null
+      ? angleAt(elapsedMs, firstStop, n, first.index, first.settle, pointerDeg, startDeg)
+      : styledAngleAt(style, elapsedMs, n, first.index, first.settle, pointerDeg, startDeg);
+  }
   let angle = finalAngle(n, first.index, first.settle, pointerDeg, startDeg);
   for (let i = 1; i < picks.length; i++) {
     const p = picks[i]!;
@@ -99,7 +122,7 @@ export function angleAtPicks(
   return angle;
 }
 
-/** k 人の回転が終わった後の角度（最後の人の席の `settle` の位置）。 */
+/** k 人の回転が終わった後の角度（最後の人の席の `settle` の位置）。止まり方に依らない */
 export function finalAngleOfPicks(picks: readonly PickSpot[], n: number, pointerDeg: number, startDeg: number): number {
   return angleAtPicks(Number.POSITIVE_INFINITY, picks, n, pointerDeg, startDeg);
 }
