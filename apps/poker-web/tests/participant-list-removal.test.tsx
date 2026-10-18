@@ -247,4 +247,44 @@ describe('接続の無い人を外す（G-4）', () => {
     expect(document.activeElement).toBe(trigger);
     heading.remove();
   });
+
+  it('Given 拒否で行が残った / When 利用者が別の欄へ移ったあとで対象が消える / Then フォーカスは奪わない', () => {
+    const heading = document.createElement('h2');
+    heading.id = PARTICIPANTS_HEADING_ID;
+    heading.tabIndex = -1;
+    const field = document.createElement('input');
+    document.body.append(heading, field);
+    const { view, props, dialog } = open();
+    fireEvent.click(within(dialog).getByRole('button', { name: '退出させる' }));
+    // 拒否: 対象は接続中として残る
+    const rejected = people.map((x) => (x.id === 'z-0004' ? { ...x, connected: true } : x));
+    view.rerender(<ParticipantList participants={rejected} {...props} />);
+    field.focus();
+    view.rerender(<ParticipantList participants={rejected.filter((x) => x.id !== 'z-0004')} {...props} />);
+    expect(document.activeElement).toBe(field);
+    heading.remove();
+    field.remove();
+  });
+
+  it('Given 確定したが拒否の再描画が無い / When 行が消えるまでに別の欄へ移る / Then フォーカスは奪わない', () => {
+    const heading = document.createElement('h2');
+    heading.id = PARTICIPANTS_HEADING_ID;
+    heading.tabIndex = -1;
+    const field = document.createElement('input');
+    document.body.append(heading, field);
+    const { view, props, dialog } = open();
+    fireEvent.click(within(dialog).getByRole('button', { name: '退出させる' }));
+    field.focus();
+    view.rerender(<ParticipantList participants={people.filter((x) => x.id !== 'z-0004')} {...props} />);
+    expect(document.activeElement).toBe(field);
+    heading.remove();
+    field.remove();
+  });
+
+  it('Given 確認が開いている / When offline になる / Then 確認の「退出させる」も押せない', () => {
+    const { view, props, dialog } = open();
+    expect((within(dialog).getByRole('button', { name: '退出させる' }) as HTMLButtonElement).disabled).toBe(false);
+    view.rerender(<ParticipantList participants={people} {...props} offline />);
+    expect((within(dialog).getByRole('button', { name: '退出させる' }) as HTMLButtonElement).disabled).toBe(true);
+  });
 });

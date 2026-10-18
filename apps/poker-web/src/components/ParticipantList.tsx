@@ -1,6 +1,6 @@
 // 参加者一覧（入退室・投票状態をリアルタイム表示。FR-004）
 // 投票済みは「伏せたカード」で表現し、公開で同じ札がその場でめくれて表の値を見せる（#348）
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { participantLabel } from '@tasuki/room-core';
 import type { Card, ParticipantView } from '@tasuki/poker-core';
 import { cardLabel } from './CardHand';
@@ -52,25 +52,33 @@ export function ParticipantList({ participants, you, votes, onRemove, offline = 
   const [awaitingId, setAwaitingId] = useState<string | null>(null);
   // 確認の対象は、まだ接続の無い人だけ（他の人に外された・再接続した場合は対象でなくなる）
   const pending = participants.find((p) => p.id === pendingId && !p.connected);
-  const returnFocus = () => {
+  // 押した行のボタンへ。行が消えていれば一覧の見出しへ（参照しか使わないので安定）
+  const returnFocus = useCallback(() => {
     const trigger = triggerRef.current;
-    // 行が消えていれば一覧の見出しへ
     (trigger?.isConnected ? trigger : document.getElementById(PARTICIPANTS_HEADING_ID))?.focus();
-  };
+  }, []);
   // 確認が開いている間に対象が消えた・再接続した: dialog は close イベント無しに外れるので、ここで閉じてフォーカスを戻す
   const pendingGone = pendingId !== null && !pending;
   useEffect(() => {
     if (pendingGone) {
       setPendingId(null);
-      const trigger = triggerRef.current;
-      (trigger?.isConnected ? trigger : document.getElementById(PARTICIPANTS_HEADING_ID))?.focus();
+      returnFocus();
     }
-  }, [pendingGone]);
-  // 確定のあと対象の行が消えたら見出しへ。拒否されて行が残るあいだはボタンに留める
+  }, [pendingGone, returnFocus]);
+  // 確定のあとの待ちは 2 通りで終わる。
+  //  - 拒否（対象が接続中で一覧に残る）: 待ちを解く。のちに退室しても、フォーカスは動かさない
+  //  - 行が消えた: 利用者がまだ押したボタンか body に居るときだけ見出しへ移す
+  //    （別の欄へ移っていれば奪わない。欄の onBlur 確定などの副作用を起こさない）
+  const awaitingRejected = awaitingId !== null && participants.some((p) => p.id === awaitingId && p.connected);
   const awaitingGone = awaitingId !== null && !participants.some((p) => p.id === awaitingId);
   useEffect(() => {
-    if (awaitingGone) {
-      setAwaitingId(null);
+    if (awaitingRejected) setAwaitingId(null);
+  }, [awaitingRejected]);
+  useEffect(() => {
+    if (!awaitingGone) return;
+    setAwaitingId(null);
+    const active = document.activeElement;
+    if (active === null || active === document.body || active === triggerRef.current) {
       document.getElementById(PARTICIPANTS_HEADING_ID)?.focus();
     }
   }, [awaitingGone]);
@@ -125,6 +133,7 @@ export function ParticipantList({ participants, you, votes, onRemove, offline = 
       </ul>
       {pending && (
         <RemovalConfirm
+          disabled={offline}
           title={removalTitle(participantLabel(pending.name, pending.id, everyone, 'さん'))}
           onConfirm={() => {
             if (pendingId !== null) onRemove(pendingId);

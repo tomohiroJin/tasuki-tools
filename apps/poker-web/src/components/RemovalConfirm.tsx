@@ -6,6 +6,8 @@ import { CANCEL, REMOVE } from '../spectator-copy';
 interface Props {
   /** 確認の題 */
   title: string;
+  /** 接続が切れている間は確定できない */
+  disabled?: boolean;
   /** 「退出させる」で確定した */
   onConfirm: () => void;
   /** 「キャンセル」・Esc で閉じた（確定では呼ばれない） */
@@ -13,7 +15,7 @@ interface Props {
 }
 
 /** 開くときだけ描く（呼び出し側が対象のあるあいだだけ置く）。置いた時点で `showModal` する。 */
-export function RemovalConfirm({ title, onConfirm, onCancel }: Props) {
+export function RemovalConfirm({ title, disabled = false, onConfirm, onCancel }: Props) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   // 確定の経路で閉じたとき、`close` イベントを取り消しと取り違えない
   const confirmedRef = useRef(false);
@@ -44,6 +46,7 @@ export function RemovalConfirm({ title, onConfirm, onCancel }: Props) {
         <button
           type="button"
           className="ui-button ui-button--danger"
+          disabled={disabled}
           onClick={() => {
             confirmedRef.current = true;
             dialogRef.current?.close();
