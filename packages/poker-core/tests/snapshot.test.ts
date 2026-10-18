@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { castVote, createRound, revealBy, revote, setItem, type Round } from '../src/round.js';
+import { castVote, createRound, revealBy, revote, setItem, setSpectator, type Round } from '../src/round.js';
 import { createSnapshotBuilder, type ParticipantFragment } from '../src/snapshot.js';
 
 /**
@@ -59,8 +59,8 @@ describe('snapshotFor（受信者別投影, research R1）', () => {
     expect(snapshot.roomId).toBe('room0001');
     expect(snapshot.round).toEqual({ status: 'voting' });
     expect(snapshot.participants).toEqual([
-      { id: 'p-creator', name: 'たろう', connected: true, hasVoted: false },
-      { id: 'p-guest', name: 'はなこ', connected: true, hasVoted: false },
+      { id: 'p-creator', name: 'たろう', connected: true, hasVoted: false, spectator: false },
+      { id: 'p-guest', name: 'はなこ', connected: true, hasVoted: false, spectator: false },
     ]);
     expect(snapshot.yourVote).toBeNull();
   });
@@ -167,5 +167,14 @@ describe('createSnapshotBuilder の estimate（#93）', () => {
     const b = snapshotFor(voting, 'p-guest').estimate;
     expect(a?.log.length).toBeGreaterThanOrEqual(1);
     expect(a).toEqual(b);
+  });
+});
+
+describe('createSnapshotBuilder: 見学（#419）', () => {
+  it('Given 見学者 When 投影 Then 見学者に spectator: true、それ以外に false', () => {
+    const round = setSpectator(createRound(), 'p-guest', true);
+    const { participants } = snapshotFor(round, 'p-creator');
+    expect(participants.find((p) => p.id === 'p-guest')?.spectator).toBe(true);
+    expect(participants.find((p) => p.id === 'p-creator')?.spectator).toBe(false);
   });
 });

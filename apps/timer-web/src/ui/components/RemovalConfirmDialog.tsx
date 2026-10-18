@@ -3,11 +3,11 @@
  * Lobby.tsx と RosterPanel.tsx の双方が持つ、ほぼ同一の ConfirmDialog 呼び出しを
  * 単一の共有コンポーネントへ一本化する（FR-177）。差分は isShared による説明文の
  * 分岐のみ。pendingRemovalId の state 自体は呼び出し側に残す（plan.md 参照）。
- * 判定（participantLabel）は participant-label.ts のものをそのまま使う（FR-178）。
+ * 判定（participantLabel）は @tasuki/room-core のものをそのまま使う（FR-178）。
  */
 
 import type { Participant } from "@tasuki/timer-core";
-import { participantLabel, type LabelParticipant } from "../participant-label.js";
+import { participantLabel, type LabelParticipant } from "@tasuki/room-core";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 
 interface RemovalConfirmDialogProps {

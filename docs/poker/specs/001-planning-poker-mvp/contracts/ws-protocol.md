@@ -65,6 +65,28 @@
 - 前提: join 済み・round.status = `voting`。**在室者なら誰でも実行できる**（#95 S3。
   以前はホストのみで、非ホストへ `not-host` を返していた）。revealed 中は `error`（`not-voting`）
 
+### set-spectator — 見学と投票の切り替え（#419）
+
+```json
+{ "type": "set-spectator", "spectator": true }
+```
+
+- 前提: join 済みで**名簿に居る**こと（居なければ `not-joined`）。本人の見学だけを切り替える（他人のは変えられない）。投票中でも開票後でもいつでも送れる
+- `true`: 見学になる。voting 中なら自分の票を捨て、自動公開は再評価される。revealed 後は票を残す
+- `false`: 投票に戻る。同じ状態への切り替えは何も変えない（冪等）
+- 違反: `not-joined`（join 前・名簿に居ない）、`room-not-found`（参加済みなのにルームが破棄済み）。見学中に `vote` を送ると `error`（`spectating`）
+
+### remove-participant — 接続の無い人を外す（#419）
+
+```json
+{ "type": "remove-participant", "participantId": "p2" }
+```
+
+- 前提: join 済みで名簿に居ること。**外せるのは幽霊（どのツールにも接続を 1 本も持たない人）だけ**。自分自身と、いずれかのツールに接続中の人は外せない
+- 結果は timer の `participant.remove` と同じ（名簿・輪から外れ、票と見学は捨てる。在室者が 0 になるならルームを畳む）。timer の状態が無いルームでは timer の状態を作らない
+- poker へ新しい frame は足さない。結果は `room-state` で届く
+- 違反: `error`（`participant-not-found`＝名簿に居ない、`not-removable`＝自分自身または接続中、`not-joined`＝操作者が参加していない・名簿に居ない、`room-not-found`＝参加済みなのにルームが破棄済み）。状態は変わらない
+
 ### set-item — アイテム名の設定（#93）
 
 ```json
@@ -160,6 +182,7 @@ revealed 後の例:
 }
 ```
 
+- `participants[].spectator`（#419）: 見学している人は `true`。**省略時は `false`**（古いサーバーとの互換。受信側は省略可として読む）
 - **秘匿保証（SC-004）**: `round.status = "voting"` の間、他者の選択値はいかなる
   フィールドにも含めない（`hasVoted` のみ）。`yourVote` は受信者本人の票のみ
 - `stats.average`: 数値票の算術平均（生値）。数値票 0 件なら `null`
@@ -193,10 +216,13 @@ revealed 後の例:
 | code | 意味 | 対応する要求 |
 |------|------|-------------|
 | `invalid-message` | スキーマ検証失敗 | 全 C→S（FR-015） |
-| `room-not-found` | ルーム不存在・破棄済み | join-room（FR-015, US1-AS3）、vote / reveal / next-round / set-item / revote / next-item / set-points（破棄済みルームを指したままの接続。どれも `commitRoomAction` を通る。[#171](https://github.com/tomohiroJin/tasuki-tools/issues/171)・#93） |
+| `room-not-found` | ルーム不存在・破棄済み | join-room（FR-015, US1-AS3）、vote / reveal / next-round / set-item / revote / next-item / set-points / set-spectator / remove-participant（破棄済みルームを指したままの接続。どれも `commitRoomAction` を通る。[#171](https://github.com/tomohiroJin/tasuki-tools/issues/171)・#93） |
 | `not-voting` | voting 中でない | vote, reveal |
 | `not-revealed` | revealed 中でない | next-round, revote, next-item |
-| `not-joined` | join 前の操作 | vote, reveal, next-round, set-item, revote, next-item, set-points |
+| `not-joined` | join 前の操作、または**名簿に居ない人の操作**（片付けで外された人の接続など。#419） | vote, reveal, next-round, set-item, revote, next-item, set-points, set-spectator, remove-participant |
+| `spectating` | 見学中は投票できない | vote（#419） |
+| `participant-not-found` | 外す相手が名簿に居ない | remove-participant（#419） |
+| `not-removable` | 自分自身、または接続している人は外せない | remove-participant（#419） |
 | `estimate-not-found` | 指した束が記録に無い（上限で落ちた） | set-points（#93） |
 | `estimate-open` | まだ閉じていない束にポイントは付けられない | set-points（#93） |
 | `message-too-large` | メッセージのバイト数が上限超過 | 全 C→S（[#63](https://github.com/tomohiroJin/tasuki-tools/issues/63)） |
@@ -283,7 +309,7 @@ Origin と接続数の検査は **upgrade を通してから close する**。�
 |---------|------|
 | WS 切断 | participant.connected=false → 全員へ `room-state`。voting 中は自動公開を再評価（US4-AS1）。**ホストの繰上（旧 FR-012）は #95 S3 でホストの概念ごと廃止した** |
 | 接続数 0 | **ルームは残る**（#95 S4a）。名簿も票もそのままで、戻れば続けられる。ルームが消える契機はアイドル回収（全員 offline のまま `ROOM_IDLE_TTL_MS` 超過。既定 30 分）と在室者 0 人になる退出の 2 つだけで、それ以後の join-room が `room-not-found` になる（旧 FR-014 の即時破棄は撤去した） |
-| 全員投票成立 | 自動で revealed へ遷移し全員へ `room-state`（FR-008。分母は接続中の全参加者） |
+| 全員投票成立 | 自動で revealed へ遷移し全員へ `room-state`（FR-008。分母は接続中で見学でない全参加者。#419） |
 | 死活監視での切断 | 上記「WS 切断」と同じ扱い。半開き接続の参加者が connected のまま残らないようにする（#63） |
 
 ## 結合テスト観点（apps/sync, research R7）

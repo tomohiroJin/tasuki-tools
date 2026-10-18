@@ -18,6 +18,7 @@ import {
   revote,
   setItem,
   setPoints,
+  setSpectator,
 } from '@tasuki/poker-core';
 import type {
   ClientMessage,
@@ -96,6 +97,13 @@ export function createCommitRoomAction({
       sendError(ws, 'room-not-found', POKER_ERROR_TEXT.ROOM_NOT_FOUND);
       return;
     }
+    // **G-9: 名簿に居ない人の操作は拒む。** 見学者は「名簿に居て投票しない人」であり、
+    // 名簿に居ない人（片付けで外された人の接続など）とは別物である。ここで弾かないと
+    // 「名簿に居ない＝投票していない」と読まれて状態を動かしてしまう。何も変えない。
+    if (!state.room.participants.some((p) => p.id === participantId)) {
+      sendError(ws, 'not-joined', 'ルームに参加していません');
+      return;
+    }
     const result = action(state.round, participantId);
     if (result.isErr()) {
       sendError(ws, result.error.code, messageForRoundError(result.error));
@@ -116,6 +124,19 @@ export interface DispatchDeps {
   handleJoinRoom(ws: HandlerConnection, msg: Extract<ClientMessage, { type: 'join-room' }>): void;
   handleCheckRoom(ws: HandlerConnection, msg: Extract<ClientMessage, { type: 'check-room' }>): void;
   commitRoomAction: CommitRoomAction;
+  /** エラー応答（`remove-participant` が使う） */
+  sendError: CommitRoomActionDeps['sendError'];
+  /** 名簿と、あればラウンドを読む（`remove-participant` の事前検査用） */
+  loadState: CommitRoomActionDeps['loadState'];
+  /**
+   * 人をルームから外す（`handlers.ts` の `removeFromRoom`・#419 G-6）。
+   * 名簿・timer の輪・票と見学の後始末をまとめて行う。poker の配信は票の後始末が行う。
+   */
+  removeFromRoom: (
+    roomCode: string,
+    actorId: string,
+    targetId: string,
+  ) => Result<void, 'participant-not-found' | 'not-removable'>;
   /** 開票の時刻（壁時計）。`reveal` が記録の `at` に使う */
   now: () => number;
 }
@@ -123,14 +144,18 @@ export interface DispatchDeps {
 /**
  * 検証済みメッセージを種別ごとのユースケースへ振り分ける。
  *
- * `switch` に `default` を置かない（`noFallthroughCasesInSwitch` ＋ 網羅性検査）。
- * `ClientMessage` に種別が増えたら型検査が落ちて気づける。
+ * `switch` の後ろで `msg` を `never` へ代入して網羅性を**型で**強制する。
+ * `ClientMessage` に種別が増えて枝が足りなければ、そこで型検査が落ちて気づける
+ * （`void` 関数は `default` が無くても通るので、この代入が無いと黙って素通りする）。
  */
 export function createDispatch({
   handleCreateRoom,
   handleJoinRoom,
   handleCheckRoom,
   commitRoomAction,
+  sendError,
+  loadState,
+  removeFromRoom,
   now,
 }: DispatchDeps): (ws: HandlerConnection, msg: ClientMessage) => void {
   return function dispatch(ws, msg) {
@@ -167,6 +192,54 @@ export function createDispatch({
       case 'set-points':
         commitRoomAction(ws, (round) => setPoints(round, msg.groupId, msg.points));
         return;
+      case 'set-spectator':
+        commitRoomAction(ws, (round, participantId) =>
+          ok(setSpectator(round, participantId, msg.spectator)),
+        );
+        return;
+      case 'remove-participant': {
+        // 参加済みで名簿に居る人だけが外せる（G-9 と同じ検査）。
+        const { participantId, roomId } = ws.data;
+        if (participantId === null || roomId === null) {
+          sendError(ws, 'not-joined', 'ルームに参加していません');
+          return;
+        }
+        const state = loadState(roomId);
+        // 参加済みなのにルームが保管に無い（破棄済み）。ほかの操作と同じく room-not-found（#171）。
+        if (state === undefined) {
+          sendError(ws, 'room-not-found', POKER_ERROR_TEXT.ROOM_NOT_FOUND);
+          return;
+        }
+        if (!state.room.participants.some((p) => p.id === participantId)) {
+          sendError(ws, 'not-joined', 'ルームに参加していません');
+          return;
+        }
+        const target = state.room.participants.find((p) => p.id === msg.participantId);
+        if (target === undefined) {
+          sendError(ws, 'participant-not-found', POKER_ERROR_TEXT.PARTICIPANT_NOT_FOUND);
+          return;
+        }
+        // 自分自身と、いずれかのツールに接続中の人は外せない（G-5）。外せるのは幽霊だけ。
+        if (target.id === participantId || target.connections.size > 0) {
+          sendError(ws, 'not-removable', POKER_ERROR_TEXT.NOT_REMOVABLE);
+          return;
+        }
+        const removed = removeFromRoom(roomId, participantId, target.id);
+        if (removed.isErr()) {
+          const code = removed.error;
+          sendError(
+            ws,
+            code,
+            code === 'participant-not-found'
+              ? POKER_ERROR_TEXT.PARTICIPANT_NOT_FOUND
+              : POKER_ERROR_TEXT.NOT_REMOVABLE,
+          );
+        }
+        return;
+      }
     }
+    // 網羅性の保証: ここへ来るのは全種別を処理し終えたときだけ（型は `never`）
+    const unhandled: never = msg;
+    return unhandled;
   };
 }

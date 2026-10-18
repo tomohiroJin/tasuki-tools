@@ -46,7 +46,7 @@ const A_REVEALED_ROOM_STATE = {
   type: 'room-state',
   roomId: 'a1b2c3d4',
   you: 'p1',
-  participants: [{ id: 'p1', name: 'たろう', connected: true, hasVoted: true }],
+  participants: [{ id: 'p1', name: 'たろう', connected: true, hasVoted: true, spectator: false }],
   round: {
     status: 'revealed',
     votes: [{ participantId: 'p1', card: { kind: 'number', value: 5 } }],
@@ -68,7 +68,7 @@ describe('parseServerMessage', () => {
         roomId: 'a1b2c3d4',
         you: 'p1',
         participants: [
-          { id: 'p1', name: 'たろう', connected: true, hasVoted: false },
+          { id: 'p1', name: 'たろう', connected: true, hasVoted: false, spectator: false },
         ],
         round: { status: 'voting' },
         yourVote: null,
@@ -81,7 +81,7 @@ describe('parseServerMessage', () => {
         roomId: 'a1b2c3d4',
         you: 'p1',
         participants: [
-          { id: 'p1', name: 'たろう', connected: true, hasVoted: true },
+          { id: 'p1', name: 'たろう', connected: true, hasVoted: true, spectator: false },
         ],
         round: {
           status: 'revealed',
@@ -219,7 +219,7 @@ describe('parseServerMessage', () => {
         type: 'room-state',
         roomId: 'a1b2c3d4',
         you: 'p1',
-        participants: [{ id: 'p1', name: 'たろう', connected: true, hasVoted: false }],
+        participants: [{ id: 'p1', name: 'たろう', connected: true, hasVoted: false, spectator: false }],
         round: { status: 'voting', elapsedMs: 1 },
         yourVote: null,
       },
@@ -380,5 +380,58 @@ describe('parseServerMessage（estimate #93）', () => {
   it('estimate-not-found / estimate-open は既知のコード', () => {
     expect(isKnownErrorCode('estimate-not-found')).toBe(true);
     expect(isKnownErrorCode('estimate-open')).toBe(true);
+  });
+});
+
+describe('parseClientMessage（見学 #419）', () => {
+  it('set-spectator は真偽値だけを通し、真偽以外と余分なキーを落とす', () => {
+    const parse = (o: unknown) => parseClientMessage(JSON.stringify(o));
+    expect(parse({ type: 'set-spectator', spectator: true })._unsafeUnwrap()).toEqual({
+      type: 'set-spectator',
+      spectator: true,
+    });
+    expect(parse({ type: 'set-spectator', spectator: false }).isOk()).toBe(true);
+    expect(parse({ type: 'set-spectator', spectator: 'true' }).isErr()).toBe(true);
+    expect(parse({ type: 'set-spectator' }).isErr()).toBe(true);
+    expect(parse({ type: 'set-spectator', spectator: true, extra: 1 }).isErr()).toBe(true);
+  });
+
+  it('remove-participant は空でない participantId だけを通す', () => {
+    const parse = (o: unknown) => parseClientMessage(JSON.stringify(o));
+    expect(parse({ type: 'remove-participant', participantId: 'p1' }).isOk()).toBe(true);
+    expect(parse({ type: 'remove-participant', participantId: '' }).isErr()).toBe(true);
+    expect(parse({ type: 'remove-participant' }).isErr()).toBe(true);
+    expect(parse({ type: 'remove-participant', participantId: 'p1', extra: 1 }).isErr()).toBe(true);
+  });
+
+  it.each(['spectating', 'participant-not-found', 'not-removable'])('%s は既知のエラーコード', (code) => {
+    expect(isKnownErrorCode(code)).toBe(true);
+  });
+});
+
+describe('parseServerMessage（spectator #419）', () => {
+  const base = {
+    type: 'room-state',
+    roomId: 'a1b2c3d4',
+    you: 'p1',
+    round: { status: 'voting' },
+    yourVote: null,
+  };
+
+  it('Given spectator の無い行（古いサーバー） When パース Then spectator: false になる', () => {
+    const msg = parseServerMessage(
+      JSON.stringify({ ...base, participants: [{ id: 'p1', name: 'a', connected: true, hasVoted: false }] }),
+    )._unsafeUnwrap();
+    expect(msg.type === 'room-state' && msg.participants[0]?.spectator).toBe(false);
+  });
+
+  it('Given spectator: true の行 When パース Then true を保つ', () => {
+    const msg = parseServerMessage(
+      JSON.stringify({
+        ...base,
+        participants: [{ id: 'p1', name: 'a', connected: true, hasVoted: false, spectator: true }],
+      }),
+    )._unsafeUnwrap();
+    expect(msg.type === 'room-state' && msg.participants[0]?.spectator).toBe(true);
   });
 });

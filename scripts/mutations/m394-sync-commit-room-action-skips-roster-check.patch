@@ -1,0 +1,25 @@
+# 変異 394: sync-commit-room-action-skips-roster-check
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/poker/commit-room-action.test.ts
+#
+# #419。commitRoomAction が名簿に居ない人の操作を通す（G-9）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m394-*.patch
+# 復元: git apply -R scripts/mutations/m394-*.patch
+diff --git a/apps/tasuki-sync/src/application/poker-commit-room-action.ts b/apps/tasuki-sync/src/application/poker-commit-room-action.ts
+index 9870665e..fa47ce1d 100644
+--- a/apps/tasuki-sync/src/application/poker-commit-room-action.ts
++++ b/apps/tasuki-sync/src/application/poker-commit-room-action.ts
+@@ -100,10 +100,6 @@ export function createCommitRoomAction({
+     // **G-9: 名簿に居ない人の操作は拒む。** 見学者は「名簿に居て投票しない人」であり、
+     // 名簿に居ない人（片付けで外された人の接続など）とは別物である。ここで弾かないと
+     // 「名簿に居ない＝投票していない」と読まれて状態を動かしてしまう。何も変えない。
+-    if (!state.room.participants.some((p) => p.id === participantId)) {
+-      sendError(ws, 'not-joined', 'ルームに参加していません');
+-      return;
+-    }
+     const result = action(state.round, participantId);
+     if (result.isErr()) {
+       sendError(ws, result.error.code, messageForRoundError(result.error));

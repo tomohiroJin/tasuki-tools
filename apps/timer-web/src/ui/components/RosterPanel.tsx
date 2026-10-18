@@ -14,12 +14,12 @@
 import React, { useState, useEffect, useId, useReducer } from "react";
 import { Users, ChevronUp, ChevronDown, X } from "lucide-react";
 import type { Participant, Seat } from "@tasuki/timer-core";
-import { MAX_DISPLAY_NAME } from "@tasuki/room-core";
+import { MAX_DISPLAY_NAME, participantLabel } from "@tasuki/room-core";
 import { SectionHeader } from "../primitives.js";
 import { presenceLabel } from "../presence.js";
 import { PresenceDot } from "./PresenceDot.js";
 import { RemovalConfirmDialog } from "./RemovalConfirmDialog.js";
-import { labelPool, participantLabel } from "../participant-label.js";
+import { labelPool } from "../participant-label.js";
 import {
   INITIAL_NAME_REQUEST,
   activeRejection,
@@ -252,7 +252,7 @@ export function RosterPanel({
     const rotationIndex = rotation ? rotation.indexOf(p.participantId) : -1;
     const inRotation = rotationIndex >= 0;
     const rotationLen = rotation?.length ?? 0;
-    // 同名が並ぶときだけ識別子を添える（FR-084・規則は participant-label.ts に1つだけ）。
+    // 同名が並ぶときだけ識別子を添える（FR-084・規則は `@tasuki/room-core` の participant-label に1つだけ）。
     // 退出だけでなく全ての操作に使う。同名の行は順番バッジ以外の見た目が同じで、
     // 「どちらに効く操作なのか」を名前だけでは選べない。判定対象は pool
     // （seats と participants の和集合）で、この画面に表示中の participants だけではない。

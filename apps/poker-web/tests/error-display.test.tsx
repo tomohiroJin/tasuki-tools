@@ -55,7 +55,7 @@ const A_ROOM_STATE = {
   type: 'room-state',
   roomId: ROOM_ID,
   you: 'p1',
-  participants: [{ id: 'p1', name: 'はなこ', connected: true, hasVoted: false }],
+  participants: [{ id: 'p1', name: 'はなこ', connected: true, hasVoted: false, spectator: false }],
   round: { status: 'voting' },
   yourVote: null,
 };

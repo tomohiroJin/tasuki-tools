@@ -18,8 +18,8 @@ const eight: Card = { kind: 'number', value: 8 };
 
 function people(votedP1: boolean, votedP2 = false) {
   return [
-    { id: 'p1', name: 'あかり', connected: true, hasVoted: votedP1 },
-    { id: 'p2', name: 'いずみ', connected: true, hasVoted: votedP2 },
+    { id: 'p1', name: 'あかり', connected: true, hasVoted: votedP1, spectator: false },
+    { id: 'p2', name: 'いずみ', connected: true, hasVoted: votedP2, spectator: false },
   ];
 }
 
@@ -43,7 +43,7 @@ function spokenText(node: Node): string {
 
 describe('ParticipantList の席の札（#348）', () => {
   it('U1: Given 公開後 / When 描く / Then 票のある席の札の名前は表の値、無い席は「未投票」', () => {
-    render(<ParticipantList participants={people(true)} you="p1" votes={new Map([['p1', five]])} />);
+    render(<ParticipantList participants={people(true)} you="p1" votes={new Map([['p1', five]])} onRemove={() => {}} />);
     expect(within(rowOf('あかり')).getByRole('img').getAttribute('aria-label')).toBe('5');
     expect(within(rowOf('あかり')).queryByText('投票済み')).toBeNull();
     expect(within(rowOf('いずみ')).getByRole('img').getAttribute('aria-label')).toBe('未投票');
@@ -51,13 +51,13 @@ describe('ParticipantList の席の札（#348）', () => {
   });
 
   it('U7: Given 公開後の未投票の席 / When 読み上げる中身を取る / Then 「未投票」は 1 回だけ（札の名前と見える印で 2 回読ませない）', () => {
-    render(<ParticipantList participants={people(true)} you="p1" votes={new Map([['p1', five]])} />);
+    render(<ParticipantList participants={people(true)} you="p1" votes={new Map([['p1', five]])} onRemove={() => {}} />);
     const spoken = spokenText(rowOf('いずみ'));
     expect(spoken.split('未投票').length - 1, spoken).toBe(1);
   });
 
   it('U1 対照: Given 投票中 / When 描く / Then 票の値は出ず、名前は「投票済み」', () => {
-    render(<ParticipantList participants={people(true)} you="p1" votes={null} />);
+    render(<ParticipantList participants={people(true)} you="p1" votes={null} onRemove={() => {}} />);
     expect(within(rowOf('あかり')).getByRole('img').getAttribute('aria-label')).toBe('投票済み');
     expect(within(rowOf('あかり')).getByText('投票済み')).toBeTruthy();
     expect(rowOf('あかり').textContent).not.toContain('5');
@@ -66,12 +66,12 @@ describe('ParticipantList の席の札（#348）', () => {
 
   it('U2: Given 投票中 / When votes を足して描き直す / Then 席の札は同じ要素で revealed を持つ', () => {
     const { container, rerender } = render(
-      <ParticipantList participants={people(true)} you="p1" votes={null} />,
+      <ParticipantList participants={people(true)} you="p1" votes={null} onRemove={() => {}} />,
     );
     const before = container.querySelector('.seat-card');
     expect(before).not.toBeNull();
     expect(before?.classList.contains('revealed')).toBe(false);
-    rerender(<ParticipantList participants={people(true)} you="p1" votes={new Map([['p1', eight]])} />);
+    rerender(<ParticipantList participants={people(true)} you="p1" votes={new Map([['p1', eight]])} onRemove={() => {}} />);
     const after = container.querySelector('.seat-card');
     expect(after).toBe(before);
     expect(after?.classList.contains('revealed')).toBe(true);
@@ -79,8 +79,8 @@ describe('ParticipantList の席の札（#348）', () => {
   });
 
   it('U3: Given 3 人 / When 描く / Then 席の札の --seat-order が 0・1・2', () => {
-    const three = [...people(false), { id: 'p3', name: 'うみ', connected: true, hasVoted: false }];
-    const { container } = render(<ParticipantList participants={three} you="p1" votes={null} />);
+    const three = [...people(false), { id: 'p3', name: 'うみ', connected: true, hasVoted: false, spectator: false }];
+    const { container } = render(<ParticipantList participants={three} you="p1" votes={null} onRemove={() => {}} />);
     const orders = [...container.querySelectorAll<HTMLElement>('.seat-card')].map((el) =>
       el.style.getPropertyValue('--seat-order'),
     );

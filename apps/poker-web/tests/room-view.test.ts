@@ -3,7 +3,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { RoomStateMessage } from '@tasuki/poker-core';
-import { isOffline, revealedLiveAfter, revealedVoteMap, spreadPromptOf } from '../src/room-view';
+import { holdsSeatCard, isOffline, revealedLiveAfter, seatCardCount, revealedVoteMap, spreadPromptOf } from '../src/room-view';
 
 type Round = RoomStateMessage['round'];
 
@@ -44,9 +44,9 @@ describe('isOffline', () => {
 describe('spreadPromptOf（#405）', () => {
   const n = (value: 2 | 3 | 5 | 8) => ({ kind: 'number', value }) as const;
   const participants = [
-    { id: 'p1', name: 'あお', connected: true, hasVoted: true },
-    { id: 'p2', name: 'きい', connected: true, hasVoted: true },
-    { id: 'p3', name: 'しろ', connected: true, hasVoted: true },
+    { id: 'p1', name: 'あお', connected: true, hasVoted: true, spectator: false },
+    { id: 'p2', name: 'きい', connected: true, hasVoted: true, spectator: false },
+    { id: 'p3', name: 'しろ', connected: true, hasVoted: true, spectator: false },
   ];
   const revealed = (votes: { participantId: string; card: ReturnType<typeof n> }[]) =>
     ({ status: 'revealed', votes, stats: { average: 0, modes: [] } }) as Round;
@@ -101,5 +101,26 @@ describe('spreadPromptOf（#405）', () => {
       high: { card: n(8), names: ['あお'] },
       low: { card: n(2), names: ['きい'] },
     });
+  });
+});
+
+describe('holdsSeatCard / seatCardCount（#419）', () => {
+  const voter = { id: 'v', name: 'v', connected: true, hasVoted: false, spectator: false };
+  const watcher = { id: 'w', name: 'w', connected: true, hasVoted: false, spectator: true };
+  const card = { kind: 'number', value: 5 } as const;
+
+  it.each([
+    ['投票者・投票中', voter, null, true],
+    ['投票者・票なしの開票後', voter, new Map(), true],
+    ['見学者・投票中', watcher, null, false],
+    ['見学者・票なしの開票後', watcher, new Map(), false],
+    ['見学者・票ありの開票後', watcher, new Map([['w', card]]), true],
+  ] as const)('%s では、札を持つ = %s', (_label, p, votes, expected) => {
+    expect(holdsSeatCard(p, votes)).toBe(expected);
+  });
+
+  it('札を持つ席だけを数える', () => {
+    expect(seatCardCount([voter, watcher], new Map())).toBe(1);
+    expect(seatCardCount([voter, watcher], new Map([['w', card]]))).toBe(2);
   });
 });

@@ -1,0 +1,23 @@
+# 変異 398: sync-remove-from-room-gate-skips-connected
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/room-removal.test.ts
+#
+# #419。handlers.removeFromRoom の二段目の門から「接続中の対象を拒む条件」だけを外す（dispatch 側の門は触らない）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m398-*.patch
+# 復元: git apply -R scripts/mutations/m398-*.patch
+diff --git a/apps/tasuki-sync/src/application/handlers.ts b/apps/tasuki-sync/src/application/handlers.ts
+index 455d2434..269973bd 100644
+--- a/apps/tasuki-sync/src/application/handlers.ts
++++ b/apps/tasuki-sync/src/application/handlers.ts
+@@ -533,7 +533,7 @@ export function makeHandlers(deps: HandlerDeps) {
+     // 二段目の守り: poker の dispatch も同じ検査をするが、呼び元が増えても
+     // 「接続している人」「自分自身」を外せないことはここで保つ（G-5）。
+     if (!actor) return err("not-removable");
+-    if (targetId === actorId || target.connections.size > 0) return err("not-removable");
++    if (targetId === actorId) return err("not-removable");
+ 
+     const planned = planRemoval({ membership, timer }, targetId, clock.now());
+     if (planned.isErr()) {

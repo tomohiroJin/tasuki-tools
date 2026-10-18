@@ -33,7 +33,7 @@ function makeSync(topic: Topic | null, groups: number): PokerSync {
     type: 'room-state',
     roomId: ROOM_ID,
     you: 'p1',
-    participants: [{ id: 'p1', name: 'あかり', connected: true, hasVoted: false }],
+    participants: [{ id: 'p1', name: 'あかり', connected: true, hasVoted: false, spectator: false }],
     round: { status: 'voting' },
     yourVote: null,
     estimate: { item: '', log },
@@ -59,6 +59,8 @@ function makeSync(topic: Topic | null, groups: number): PokerSync {
     revote: vi.fn(),
     nextItem: vi.fn(),
     setPoints: vi.fn(),
+    setSpectator: vi.fn(),
+    removeParticipant: vi.fn(),
   };
 }
 

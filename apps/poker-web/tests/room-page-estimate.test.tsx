@@ -20,8 +20,8 @@ import {
 
 const ROOM_ID = 'ABCD1234';
 const participants = [
-  { id: 'p1', name: 'あかり', connected: true, hasVoted: true },
-  { id: 'p2', name: 'みなと', connected: true, hasVoted: true },
+  { id: 'p1', name: 'あかり', connected: true, hasVoted: true, spectator: false },
+  { id: 'p2', name: 'みなと', connected: true, hasVoted: true, spectator: false },
 ];
 
 function snapshot(status: 'voting' | 'revealed', withEstimate = true): RoomStateMessage {
@@ -63,6 +63,8 @@ function makeSync(snap: RoomStateMessage, over: Partial<PokerSync> = {}): PokerS
     revote: vi.fn(),
     nextItem: vi.fn(),
     setPoints: vi.fn(),
+    setSpectator: vi.fn(),
+    removeParticipant: vi.fn(),
     ...over,
   };
 }

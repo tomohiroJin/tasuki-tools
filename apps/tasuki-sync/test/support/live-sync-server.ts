@@ -586,6 +586,11 @@ export class LiveSyncServer {
     return this.server.store;
   }
 
+  /** サーバー内部の timer の状態の保管（輪の中身を直接見たいときだけ使う）。 */
+  get timers(): SyncServer["timers"] {
+    return this.server.timers;
+  }
+
   /**
    * そのルームに timer の状態があるか（#95 S5b）。
    *

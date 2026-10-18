@@ -64,6 +64,12 @@ const ClientMessageSchema = v.variant('type', [
     groupId: v.pipe(v.number(), v.integer(), v.minValue(1)),
     points: v.nullable(v.picklist(NUMBER_CARD_VALUES)),
   }),
+  // 見学（#419）
+  v.strictObject({ type: v.literal('set-spectator'), spectator: v.boolean() }),
+  v.strictObject({
+    type: v.literal('remove-participant'),
+    participantId: v.pipe(v.string(), v.minLength(1)),
+  }),
 ]);
 
 export type ClientMessage = v.InferOutput<typeof ClientMessageSchema>;
@@ -83,6 +89,10 @@ export const ERROR_CODES = [
   // 見積もりの記録（#93）
   'estimate-not-found',
   'estimate-open',
+  // 見学（#419）
+  'spectating',
+  'participant-not-found',
+  'not-removable',
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];
@@ -108,6 +118,8 @@ const ParticipantViewSchema = v.object({
   name: v.string(),
   connected: v.boolean(),
   hasVoted: v.boolean(),
+  // 古いサーバーは送らない（#419）。省略は投票者として読む
+  spectator: v.optional(v.boolean(), false),
 });
 
 const StatsSchema = v.object({

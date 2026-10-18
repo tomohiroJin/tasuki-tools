@@ -1,0 +1,23 @@
+# 変異 393: core-discard-keeps-spectator
+#
+# 検出を期待するテスト:
+#   - packages/poker-core/tests/round.test.ts
+#
+# #419。discardVote が見学の集合から外さない（退出した人が見学に残り、再入室で見学のままになる）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m393-*.patch
+# 復元: git apply -R scripts/mutations/m393-*.patch
+diff --git a/packages/poker-core/src/round.ts b/packages/poker-core/src/round.ts
+index 7b0d8e1d..4d0f2adf 100644
+--- a/packages/poker-core/src/round.ts
++++ b/packages/poker-core/src/round.ts
+@@ -215,7 +215,5 @@ export function discardVote(round: Round, voterId: string): Round {
+   if (!round.votes.has(voterId) && !round.spectators.has(voterId)) return round;
+   const votes = new Map(round.votes);
+   votes.delete(voterId);
+-  const spectators = new Set(round.spectators);
+-  spectators.delete(voterId);
+-  return { ...round, votes, spectators };
++  return { ...round, votes };
+ }

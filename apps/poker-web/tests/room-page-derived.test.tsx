@@ -16,8 +16,8 @@ import type { ConnectionStatus, PokerSync } from '../src/hooks/useSync';
 const ROOM_ID = 'ABCD1234';
 
 const participants = [
-  { id: 'p1', name: 'あかり', connected: true, hasVoted: true },
-  { id: 'p2', name: 'みなと', connected: true, hasVoted: false },
+  { id: 'p1', name: 'あかり', connected: true, hasVoted: true, spectator: false },
+  { id: 'p2', name: 'みなと', connected: true, hasVoted: false, spectator: false },
 ];
 
 function voting(): RoomStateMessage {
@@ -61,6 +61,8 @@ function makeSync(snapshot: RoomStateMessage | null, status: ConnectionStatus = 
     revote: () => {},
     nextItem: () => {},
     setPoints: () => {},
+    setSpectator: () => {},
+    removeParticipant: () => {},
   };
 }
 

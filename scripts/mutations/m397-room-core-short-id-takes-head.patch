@@ -1,0 +1,23 @@
+# 変異 397: room-core-short-id-takes-head
+#
+# 検出を期待するテスト:
+#   - packages/room-core/tests/participant-label.test.ts
+#
+# #419。shortParticipantId が先頭 4 文字を取る（先頭は p_ で全員同じなので呼び分けにならない）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m397-*.patch
+# 復元: git apply -R scripts/mutations/m397-*.patch
+diff --git a/packages/room-core/src/participant-label.ts b/packages/room-core/src/participant-label.ts
+index c373d6f2..dc36cff1 100644
+--- a/packages/room-core/src/participant-label.ts
++++ b/packages/room-core/src/participant-label.ts
+@@ -24,7 +24,7 @@ export interface LabelParticipant {
+  * 衝突しうるが、区別したいのは「同じ画面に並んだ同名の数人」なので実用上は足りる。
+  */
+ export function shortParticipantId(participantId: string): string {
+-  return participantId.slice(-4);
++  return participantId.slice(0, 4);
+ }
+ 
+ /**

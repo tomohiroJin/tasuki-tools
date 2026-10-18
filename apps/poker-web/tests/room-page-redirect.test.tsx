@@ -48,6 +48,8 @@ function makeSync(over: Partial<PokerSync> = {}): PokerSync {
     revote: vi.fn(),
     nextItem: vi.fn(),
     setPoints: vi.fn(),
+    setSpectator: vi.fn(),
+    removeParticipant: vi.fn(),
     ...over,
   };
 }

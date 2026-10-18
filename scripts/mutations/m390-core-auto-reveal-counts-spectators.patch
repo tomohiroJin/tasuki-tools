@@ -1,0 +1,23 @@
+# 変異 390: core-auto-reveal-counts-spectators
+#
+# 検出を期待するテスト:
+#   - packages/poker-core/tests/round.test.ts
+#
+# #419。shouldAutoReveal が見学者を分母から外さない（見学者が票を入れないので自動公開が立たない）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m390-*.patch
+# 復元: git apply -R scripts/mutations/m390-*.patch
+diff --git a/packages/poker-core/src/round.ts b/packages/poker-core/src/round.ts
+index 7b0d8e1d..3690cb7b 100644
+--- a/packages/poker-core/src/round.ts
++++ b/packages/poker-core/src/round.ts
+@@ -79,7 +79,7 @@ export function castVote(round: Round, voterId: string, card: Card): Result<Roun
+  */
+ export function shouldAutoReveal(round: Round, voters: readonly VoterView[]): boolean {
+   if (round.status !== 'voting') return false;
+-  const eligible = voters.filter((v) => v.connected && !round.spectators.has(v.id));
++  const eligible = voters.filter((v) => v.connected);
+   return eligible.length > 0 && eligible.every((v) => round.votes.has(v.id));
+ }
+ 
