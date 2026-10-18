@@ -1,0 +1,30 @@
+# 変異 396: sync-remove-from-room-creates-timer
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/poker/remove-participant.test.ts
+#
+# #419。removeFromRoom が timer の状態の無いルームで timers.put する（初期状態を作ってしまい、のちの timer 入室の遅延生成が働かない）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m396-*.patch
+# 復元: git apply -R scripts/mutations/m396-*.patch
+diff --git a/apps/tasuki-sync/src/application/handlers.ts b/apps/tasuki-sync/src/application/handlers.ts
+index 149e29b6..51f52473 100644
+--- a/apps/tasuki-sync/src/application/handlers.ts
++++ b/apps/tasuki-sync/src/application/handlers.ts
+@@ -7,6 +7,7 @@
+  * authorize（可否判定）の段は無くなった。在室確認とアクター解決だけが残る。
+  */
+ 
++import { createInitialTimerState } from "./initial-timer-state.js";
+ import { ok, err, type Result } from "neverthrow";
+ import {
+   decide,
+@@ -553,6 +554,7 @@ export function makeHandlers(deps: HandlerDeps) {
+       );
+     } else {
+       saveRoster({ store, hub: deps.hub, timers, timerBroadcaster: broadcaster }, outcome.membership);
++      timers.put(createInitialTimerState({ code: roomCode, createdAt: clock.now(), participantId: actorId }));
+       deps.discardPokerVote(roomCode, targetId);
+     }
+     return ok(undefined);

@@ -40,7 +40,7 @@ export interface NoticeContext {
 
 /**
  * 参加者の呼び名を決める。同名が複数いるときだけ識別子を添える規則は
- * `ui/participant-label.ts` に集約しており、一覧の操作ラベルと同じものを使う。
+ * `@tasuki/room-core` の participant-label に集約しており（プールの組み立て `labelPool` は `ui/participant-label.ts`）、一覧の操作ラベルと同じものを使う。
  * 別々の規則を持つと、通知で名指しされた人が一覧のどの行だったのか辿れなくなる。
  * 判定対象プールも同じ関数（`labelPool`）で組み、`participants` だけに絞らない
  * ——絞ると、輪に席は残るが timer 画面には居ない離席者との同名を取りこぼす。

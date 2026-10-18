@@ -9,12 +9,15 @@
 # 復元: git checkout -- <対象ファイル>（同じくリポジトリルートから）
 #
 diff --git a/packages/poker-core/src/round.ts b/packages/poker-core/src/round.ts
+index 7b0d8e1d..dadeb422 100644
 --- a/packages/poker-core/src/round.ts
 +++ b/packages/poker-core/src/round.ts
-@@ -54,5 +54,5 @@
+@@ -80,7 +80,7 @@ export function castVote(round: Round, voterId: string, card: Card): Result<Roun
  export function shouldAutoReveal(round: Round, voters: readonly VoterView[]): boolean {
    if (round.status !== 'voting') return false;
-   const connected = voters.filter((v) => v.connected);
--  return connected.length > 0 && connected.every((v) => round.votes.has(v.id));
-+  return connected.every((v) => round.votes.has(v.id));
+   const eligible = voters.filter((v) => v.connected && !round.spectators.has(v.id));
+-  return eligible.length > 0 && eligible.every((v) => round.votes.has(v.id));
++  return eligible.every((v) => round.votes.has(v.id));
  }
+ 
+ /** 条件成立時のみ revealed へ遷移させる（不成立ならそのまま返す） */

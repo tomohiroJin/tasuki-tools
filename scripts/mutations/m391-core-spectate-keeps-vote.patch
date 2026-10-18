@@ -1,0 +1,23 @@
+# 変異 391: core-spectate-keeps-vote
+#
+# 検出を期待するテスト:
+#   - packages/poker-core/tests/round.test.ts
+#
+# #419。setSpectator が投票中に切り替えた人の票を捨てない（見学者の票が集計に残る）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m391-*.patch
+# 復元: git apply -R scripts/mutations/m391-*.patch
+diff --git a/packages/poker-core/src/round.ts b/packages/poker-core/src/round.ts
+index 7b0d8e1d..771e9d38 100644
+--- a/packages/poker-core/src/round.ts
++++ b/packages/poker-core/src/round.ts
+@@ -192,7 +192,7 @@ export function setSpectator(round: Round, participantId: string, spectator: boo
+     return { ...round, spectators };
+   }
+   spectators.add(participantId);
+-  if (round.status !== 'voting' || !round.votes.has(participantId)) return { ...round, spectators };
++  if (true) return { ...round, spectators };
+   const votes = new Map(round.votes);
+   votes.delete(participantId);
+   return { ...round, votes, spectators };

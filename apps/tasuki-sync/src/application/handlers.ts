@@ -516,7 +516,7 @@ export function makeHandlers(deps: HandlerDeps) {
    *   遅延生成（D8）が「もう在る」と読んで初期状態を作らなくなる。名簿だけ `saveRoster` で保管する。
    * - 外した人の票・見学は `discardPokerVote` が捨て、poker の配信もそちらが行う。
    * - timer の `broadcastSignal` は timer の接続にしか届かない。poker へ新しい frame は足さない（G-6a）。
-   * - 呼び元（poker の dispatch）が接続中の人・自分を弾いてから呼ぶ。ここでは名簿に居ることだけ確かめる。
+   * - 呼び元（poker の dispatch）も接続中の人・自分を弾くが、ここでも二段目として名簿に居ること・自分でないこと・接続中でないことを確かめる。
    */
   function removeFromRoom(
     roomCode: string,

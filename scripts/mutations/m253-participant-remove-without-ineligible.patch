@@ -7,16 +7,16 @@
 # 復元: git apply -R scripts/mutations/m253-*.patch
 #
 # #376（PR #392 の 2 巡目）。運転中の人がルームを抜けると、一時離脱・不在の人に運転が回る（本番の経路）。
-diff --git a/apps/tasuki-sync/src/application/command-handlers/participant-remove.ts b/apps/tasuki-sync/src/application/command-handlers/participant-remove.ts
-index fe53d27..db5ddb8 100644
---- a/apps/tasuki-sync/src/application/command-handlers/participant-remove.ts
-+++ b/apps/tasuki-sync/src/application/command-handlers/participant-remove.ts
-@@ -209,7 +209,7 @@ export async function handleParticipantRemove(
-     // （`handlers.ts` の `ineligible` と同じ。抜ける人の席は選ばれないので、前後どちらでも結果は変わらない）。
-     // 添字は繰り上げを済ませた `working` の輪のもの。繰り上げで輪は 2 席以上あるので、BelowMinMembers は返らない。
-     const ineligible = computeIneligibleIndices(membership, { ...timer, session: working.session, clock: working.clock });
+diff --git a/apps/tasuki-sync/src/application/room-removal.ts b/apps/tasuki-sync/src/application/room-removal.ts
+index abe7a63f..98a145fc 100644
+--- a/apps/tasuki-sync/src/application/room-removal.ts
++++ b/apps/tasuki-sync/src/application/room-removal.ts
+@@ -128,7 +128,7 @@ export function planRemoval(
+       session: working.session,
+       clock: working.clock,
+     });
 -    const removed = decide({ command: "member.remove", index: idx, ineligible }, working, now);
 +    const removed = decide({ command: "member.remove", index: idx, ineligible: undefined }, working, now);
-     if (removed.isErr()) {
-       sendError(connId, removed.error.type, errorMessageFor(removed.error.type));
-       return err(removed.error.type);
+     if (removed.isErr()) return err({ decide: removed.error.type });
+     const agg = removed.value.reduce((acc, event) => evolve(acc, event, now), working);
+     nextTimer = { ...timer, session: agg.session, clock: agg.clock };

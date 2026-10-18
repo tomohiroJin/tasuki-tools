@@ -28,6 +28,8 @@
 | X. 抽象は実需で | 適合 | 呼び分けは 3 つ目の写しを書く代わりに寄せる（振り返りの申し送りの条件どおり） |
 | XI. 秘密と個人情報 | 適合 | 見学かどうかは「個人に紐づく」（揮発のみ・ログへ出さない）。ADR-0011 の分類表へ足す |
 
+**逸脱なし。** Complexity Tracking での正当化を要する項目はない。
+
 ## Global Constraints
 
 - 作業は本体 `/workspaces/claym/local/Tasuki` のブランチ `feature/poker-spectator`。**サブエージェントは `git push`・`gh pr *`・`gh issue *`・作業ツリーやコミットを巻き戻す git 操作（`checkout --`・`checkout HEAD --`・`reset`・`stash`・`restore`）をすべてしない**。戻すときは `Edit` で手で直すか、新しいコミットを積む

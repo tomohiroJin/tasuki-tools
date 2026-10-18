@@ -190,7 +190,7 @@ export function Lobby({
               const isMe = p.participantId === participantId;
               const rotationLen = room.session.rotation.length;
               const isLastDriver = inRotation && rotationLen <= 1;
-              // 同名が並ぶときだけ識別子を添える（FR-084・規則は participant-label.ts に1つだけ）。
+              // 同名が並ぶときだけ識別子を添える（FR-084・規則は `@tasuki/room-core` の participant-label に1つだけ）。
               // 二重参加の幽霊は本人と同名なので、名前だけでは操作の対象を選べない。
               // 表示にも使う: 同名の行はバッジもアイコンも同じで、目で見ても区別できないため。
               const label = participantLabel(p.displayName, p.participantId, labelParticipantPool);
