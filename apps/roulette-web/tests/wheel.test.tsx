@@ -5,11 +5,12 @@
  * 角度の期待値は `wheel-motion`（純粋関数）から取る。その純粋関数が正しい席に止まることは
  * `wheel-motion.test.ts` が別の計算（指し針の先を戻して atan2）で固定している。
  */
-import { act, render, screen, within } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { saveResumeIdentity } from '@tasuki/sync-client';
 import { App } from '../src/App';
-import { DRAWN_MARK, resultText } from '../src/copy';
+import { Wheel } from '../src/components/Wheel';
+import { resultText } from '../src/copy';
 import { labelPlacement } from '../src/wheel-geometry';
 import { angleAt, finalAngle } from '../src/wheel-motion';
 import { redirectTo } from '../src/router';
@@ -351,15 +352,13 @@ describe('回転中にマウントした広い舞台', () => {
  * 一言と一覧はまだ回している、という食い違いが出る。
  */
 describe('止まった瞬間は円盤と一言と一覧で揃う', () => {
-  const rowOf = (name: string) => within(screen.getByRole('list')).getByText(new RegExp(`^${name}`)).closest('li') as HTMLElement;
   const snapshot = () => ({
     card: card().classList.contains('is-revealed'),
     seat: winnerSeat() !== null,
     caption: screen.getByRole('status').textContent === resultText('ゆう'),
-    drawn: within(rowOf('ゆう')).queryByText(DRAWN_MARK) !== null,
   });
 
-  it('Given 回し始めた / When 終わりの時刻の前後を 10ms ずつ進める / Then どの瞬間も 4 つが同じ局面', () => {
+  it('Given 回し始めた / When 終わりの時刻の前後を 10ms ずつ進める / Then どの瞬間も 3 つが同じ局面', () => {
     // Given
     enterRoom();
     deliver(spinState(1, 0));
@@ -368,7 +367,7 @@ describe('止まった瞬間は円盤と一言と一覧で揃う', () => {
     const seen: string[] = [];
     for (let t = 3970; t <= 4060; t += 10) {
       const s = snapshot();
-      const all = [s.card, s.seat, s.caption, s.drawn];
+      const all = [s.card, s.seat, s.caption];
       expect(new Set(all).size, `${t}ms: ${JSON.stringify(s)}`).toBe(1);
       seen.push(String(s.card));
       advance(10);
@@ -428,5 +427,45 @@ describe('結果の札', () => {
     // Then
     expect(card()).not.toHaveClass('is-revealed');
     expect(card().querySelector('.roulette-card-name')?.firstChild?.textContent).toBe('ゆう');
+  });
+});
+
+/**
+ * 円盤の色は「当たりかどうか」だけを表す。当たり以外は落ち着いた濃淡（3 段以内）で、当たりの席だけが真鍮の塗り。
+ * 色そのものは index.css（トークン）が持つので、ここでは席に付く段のクラスで数える。
+ *
+ * @requirements #427 F
+ */
+describe('円盤の色', () => {
+  const entriesOf = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `e${i}`, name: `名${i}` }));
+  const props = { pointerDeg: 90, spinning: false, reducedMotion: true, angle: 0 };
+  const segments = (): Element[] => [...document.querySelectorAll('.wheel-segment')];
+  const winnerOf = (el: Element): boolean => el.classList.contains('wheel-segment--winner');
+  const toneOf = (el: Element): string => [...el.classList].filter((c) => /^wheel-segment--[abc]$/.test(c)).join();
+
+  it.each([2, 3, 5, 6, 7, 9])('Given %i 席で 1 席が当たり / When 描く / Then 当たり以外の段は 3 種類以内で、真鍮の塗りは当たりの席だけ', (n) => {
+    // Given / When
+    render(<Wheel {...props} entries={entriesOf(n)} winners={[1]} />);
+    // Then
+    const rest = segments().filter((s) => !winnerOf(s));
+    expect(segments().filter(winnerOf)).toHaveLength(1);
+    expect(rest).toHaveLength(n - 1);
+    expect(new Set(rest.map(toneOf)).size).toBeLessThanOrEqual(3);
+    for (const s of segments()) {
+      // 席に付く修飾は段と当たりだけ（沈んだ席などの状態の色を持たない）
+      expect([...s.classList].filter((c) => c !== 'wheel-segment' && !/^wheel-segment--[abc]$/.test(c) && c !== 'wheel-segment--winner')).toEqual([]);
+    }
+    for (const l of document.querySelectorAll('.wheel-label')) {
+      expect([...l.classList].filter((c) => c.startsWith('wheel-label--') && !['wheel-label--winner', 'wheel-label--vertical'].includes(c))).toEqual([]);
+    }
+  });
+
+  it.each([3, 5, 7, 9])('Given 奇数の %i 席 / When 当たりが無い / Then 最初と最後の席が同じ段にならず、隣り合う席も同じ段にならない', (n) => {
+    // Given / When
+    render(<Wheel {...props} entries={entriesOf(n)} winners={[]} />);
+    // Then
+    const tones = segments().map(toneOf);
+    expect(tones[0]).not.toBe(tones[n - 1]);
+    for (let i = 0; i < n; i++) expect(tones[i]).not.toBe(tones[(i + 1) % n]);
   });
 });

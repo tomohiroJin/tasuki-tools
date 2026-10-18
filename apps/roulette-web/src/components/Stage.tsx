@@ -10,7 +10,7 @@ import type { Entry, RouletteView } from '@tasuki/roulette-core';
 import { STAGE_HEADING } from '../copy';
 import { useStageLayout } from '../hooks/use-stage-layout';
 import { useWheelRotation } from '../hooks/use-wheel-rotation';
-import type { OrderStage, People, Phase } from '../roulette-view';
+import type { OrderStage, Phase } from '../roulette-view';
 import { cardPickCountOf, revealedPicksOf, topicNoteOf } from '../roulette-view';
 import { wheelSeatsOf } from '../wheel-view';
 import { pointerDegFor } from '../wheel-motion';
@@ -30,7 +30,6 @@ interface Props {
   revealed: number;
   receivedAt: number;
   reducedMotion: boolean;
-  people: People;
   topicTitle: string | null;
   caption: string;
   button: { label: string; disabled: boolean };
@@ -43,7 +42,7 @@ interface Props {
   captionHidden?: string;
 }
 
-export function Stage({ pool, view, phase, revealed, receivedAt, reducedMotion, people, topicTitle, caption, button, onSpin, order, pressPosition = null, captionHidden = '' }: Props) {
+export function Stage({ pool, view, phase, revealed, receivedAt, reducedMotion, topicTitle, caption, button, onSpin, order, pressPosition = null, captionHidden = '' }: Props) {
   const [stage, setStage] = useState<HTMLElement | null>(null);
   const card = useRef<HTMLDivElement>(null);
   const dock = useRef<HTMLDivElement>(null);
@@ -58,7 +57,6 @@ export function Stage({ pool, view, phase, revealed, receivedAt, reducedMotion, 
   const angle = pressing ? pressAngleOf(pressPosition, view.spin?.wheel.length ?? 0, pointerDeg) : rotation.angle;
 
   const seats = order?.seats ?? wheelSeatsOf({ pool, spin: view.spin, revealed });
-  const drawnIds = new Set(people.rows.filter((r) => r.mark === 'drawn').map((r) => r.id));
   const picked = revealedPicksOf(view, revealed);
   // 順番に回す・押して止めるときは 1 回に 1 人（選ぶ人数を使わない。押して止める回転は止まるまで picks が空）
   const cardK = order === null && !pressing ? cardPickCountOf(view) : 1;
@@ -79,7 +77,6 @@ export function Stage({ pool, view, phase, revealed, receivedAt, reducedMotion, 
       <Wheel
         entries={seats.entries}
         winners={seats.winners}
-        drawnIds={drawnIds}
         angle={angle}
         pointerDeg={pointerDeg}
         spinning={pressing ? phase === 'spinning' : rotation.spinning}

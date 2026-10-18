@@ -2748,4 +2748,12 @@ export const MUTATIONS = [
     tests: ["tests/draw-picks.test.ts"],
     note: "#427 設計 F。1 回で決めるとき、1 回の回転の中で同じ人が 2 度選ばれる。",
   },
+  {
+    id: 417,
+    label: "当たり以外の席にも winner の塗りを付ける",
+    patch: "m417-wheel-non-winner-gets-winner-fill.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/wheel.test.tsx"],
+    note: "#427 設計 F。円盤の色が「当たりかどうか」を表さなくなる（全席が真鍮の地になる）。",
+  },
 ];

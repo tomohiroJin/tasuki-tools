@@ -59,7 +59,6 @@ export const IDLE_ROULETTE = { excluded: [], guests: [], drawn: [], spin: null }
 export function spinState(seq: number, elapsedMs = 0) {
   return {
     ...IDLE_ROULETTE,
-    drawn: ['p2'],
     spin: {
       seq,
       wheel: [

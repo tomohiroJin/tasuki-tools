@@ -8,7 +8,6 @@ import { conflictsWithExisting, type RosterRoom } from '@tasuki/room-core';
 import { pickStopsMs, poolOf, type Entry, type Member, type RouletteMode, type RouletteState, type RouletteView } from '@tasuki/roulette-core';
 import {
   CAPTION_IDLE,
-  CYCLE_NOTE,
   ORDER_ALL_DONE,
   ORDER_BUTTON,
   ORDER_LAST_BUTTON,
@@ -22,7 +21,6 @@ import {
   STALE_TEXT,
   TOO_FEW_TEXT,
   UNREACHABLE_TEXT,
-  cycleProgressText,
   groupIdleText,
   groupResultText,
   groupTopicNoteText,
@@ -70,7 +68,7 @@ export type Phase = 'idle' | 'spinning' | 'settled';
 
 /**
  * 画面が見せる局面。**動きを減らす設定では回さず、受け取った直後から止まった局面にする**（spec §6.5）。
- * 結果の一言・「選ばれた」の印・一周の数は、この局面が「止まった」になって初めて当たりを含める。
+ * 結果の一言・円盤の真鍮の席は、この局面が「止まった」になって初めて当たりを含める。
  */
 export function phaseOf(input: {
   view: RouletteView;
@@ -97,7 +95,6 @@ function stateOf(view: RouletteView): RouletteState {
   return {
     excluded: view.excluded,
     guests: view.guests,
-    drawn: view.drawn,
     lastSpin: null,
     nextGuestSeq: 1,
     pickCount: pickCountOf(view),
@@ -133,7 +130,7 @@ export function cardPickCountOf(view: RouletteView): number {
 }
 
 /**
- * いま何人目まで決まったか（0〜k・#401 spec §6.2）。**札・円盤の真鍮の席・一覧の「選ばれた」・一周の数は
+ * いま何人目まで決まったか（0〜k・#401 spec §6.2）。**札・円盤の真鍮の席・一覧の番の印は
  * この 1 つの値で同じ瞬間に切り替わる。** 止まる時刻は core の `pickStopsMs`（サーバーの回転の長さと同じ表）。
  * 動きを減らす設定では、受け取った直後から全員が決まっている（`phaseOf` と同じ扱い）。
  */
@@ -176,7 +173,7 @@ export function winnerOf(view: RouletteView): Entry | null {
  * 行の印。1 行に出す印はこの 1 つ（離席中が選ばれたより先）。
  * 同名のゲストが入る人から外れる印など、印が増えるときはここに足す。
  */
-export type RowMark = 'away' | 'twin' | 'drawn' | 'turn' | null;
+export type RowMark = 'away' | 'twin' | 'turn' | null;
 
 export interface PersonRow {
   id: string;
@@ -197,32 +194,19 @@ export interface People {
   rows: PersonRow[];
   /** 入る人の数 */
   poolCount: number;
-  /** この一周で選ばれた人の数（回っている間は今回の当たりを数えない） */
-  drawnCount: number;
 }
 
-/**
- * 脇の一覧。**回っている間は今回の当たりを選ばれた人に含めない**（見た目でも先に結果が分からないように・
- * spec §6.8）。
- */
+/** 脇の一覧。印は離席中・同名のゲスト・順番に回すときの番だけ（一周の記録は無い・#427）。 */
 export function peopleOf(input: {
   members: readonly Member[];
   view: RouletteView;
   selfId: string | null;
-  phase: Phase;
   /** いまの入る人（`poolOfView`） */
   pool: readonly Entry[];
-  /** 何人目まで決まったか（`revealedCountOf`）。省くと、回っている間は 0 人・それ以外は全員（#94 と同じ） */
-  revealed?: number;
-  /** 順番に回すときの、見せてよい番（`orderStageOf` の `turns`）。渡すと一周の「選ばれた」の代わりに番の印を付ける */
+  /** 順番に回すときの、見せてよい番（`orderStageOf` の `turns`）。渡すと番の印を付ける */
   turns?: ReadonlyMap<string, number> | undefined;
 }): People {
-  const { members, view, selfId, phase, pool } = input;
-  const all = view.spin === null ? 0 : picksOf(view.spin).length;
-  const revealed = input.revealed ?? (phase === 'spinning' ? 0 : all);
-  // まだ止まっていない今回の当たりは「選ばれた」に数えない（見た目でも先に結果が分からないように）
-  const hidden = new Set(view.spin === null ? [] : picksOf(view.spin).slice(revealed).map((p) => view.spin?.wheel[p.index]?.id));
-  const drawn = new Set(view.drawn.filter((id) => !hidden.has(id)));
+  const { members, view, selfId, pool } = input;
   const excluded = new Set(view.excluded);
   const poolIds = new Set(pool.map((e) => e.id));
 
@@ -236,9 +220,7 @@ export function peopleOf(input: {
           ? turns.has(id)
             ? 'turn'
             : null
-          : poolIds.has(id) && drawn.has(id)
-            ? 'drawn'
-            : null;
+          : null;
   const turnOf = (mark: RowMark, id: string): number | null => (mark === 'turn' ? (turns?.get(id) ?? null) : null);
   const memberRows = members.map((m): PersonRow => {
     const mark = markOf(m.id, !m.present);
@@ -272,13 +254,7 @@ export function peopleOf(input: {
     };
   });
   const rows = [...memberRows, ...guestRows];
-  const drawnCount = rows.filter((r) => r.mark === 'drawn').length;
-  return { rows, poolCount: poolIds.size, drawnCount };
-}
-
-/** 一周の行の文。始まる前は規則の説明、始まったら進み具合。 */
-export function cycleLineOf(drawnCount: number, poolCount: number): string {
-  return drawnCount === 0 ? CYCLE_NOTE : cycleProgressText(drawnCount, poolCount);
+  return { rows, poolCount: poolIds.size };
 }
 
 /**

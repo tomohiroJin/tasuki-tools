@@ -309,16 +309,14 @@ describe('ルーレットの操作', () => {
       result.current.setIncluded('p2', false);
       result.current.addGuest('はな');
       result.current.removeGuest('g-1');
-      result.current.resetCycle();
       result.current.stopPress(3, 2, 0.25);
     });
     // Then
-    expect(latestSocket().sentJson().slice(-6)).toEqual([
+    expect(latestSocket().sentJson().slice(-5)).toEqual([
       { command: 'roulette.spin' },
       { command: 'roulette.include', id: 'p2', included: false },
       { command: 'roulette.guest.add', name: 'はな' },
       { command: 'roulette.guest.remove', id: 'g-1' },
-      { command: 'roulette.cycle.reset' },
       { command: 'roulette.stop', seq: 3, index: 2, settle: 0.25 },
     ]);
   });

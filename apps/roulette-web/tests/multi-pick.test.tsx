@@ -49,7 +49,7 @@ function spin3(seq = 1, elapsedMs = 0) {
     pickCount: 3,
     excluded: [],
     guests: [],
-    drawn: ['p3', 'p1', 'p4'],
+    drawn: [],
     spin: {
       seq,
       wheel: WHEEL,

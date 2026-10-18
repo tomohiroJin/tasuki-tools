@@ -20,7 +20,7 @@ export function arcPath(r0: number, r1: number, a0: number, a1: number): string 
 
 export type Tone = 'a' | 'b' | 'c';
 
-/** 席の濃淡: a/b を交互。奇数のときだけ最後の席を c（最後と最初が同じ色で隣り合わない）。 */
+/** 席の濃淡: a/b を交互（当たりかどうかは色の段ではなく別の塗りが示す）。奇数のときだけ最後の席を c（最後と最初が同じ色で隣り合わない）。 */
 export function toneOf(i: number, n: number): Tone {
   if (n % 2 === 1 && i === n - 1 && n > 1) return 'c';
   return i % 2 === 0 ? 'a' : 'b';

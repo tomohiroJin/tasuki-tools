@@ -1,7 +1,6 @@
 import { useId } from 'react';
 import {
   AWAY_MARK,
-  DRAWN_MARK,
   TWIN_MARK,
   PEOPLE_HEADING,
   SELF_SUFFIX,
@@ -12,7 +11,7 @@ import {
 import type { People, PersonRow, RowMark } from '../roulette-view';
 import { GuestForm } from './GuestForm';
 
-const MARK_TEXT: Record<Exclude<RowMark, 'turn' | null>, string> = { away: AWAY_MARK, twin: TWIN_MARK, drawn: DRAWN_MARK };
+const MARK_TEXT: Record<Exclude<RowMark, 'turn' | null>, string> = { away: AWAY_MARK, twin: TWIN_MARK };
 
 /** 行の印の文言。番の印は数を持つ（#401 順番に回す §5.3） */
 function markTextOf(row: PersonRow): string | null {
@@ -31,7 +30,7 @@ interface Props {
 
 /**
  * 脇の「ルーレットに入る人」。チェック = 入れる。行は [チェック][名前][印][名前を消す]（狭いと印と消すが次の行へ）。
- * **人だけを置く**（#401 順番に回す T9）。選ぶ人数・一周・順番の進み具合は「決め方」の面（`ModePanel`）が持つ。
+ * **人だけを置く**（#401 順番に回す T9）。選ぶ人数・順番の進み具合は「決め方」の面（`ModePanel`）が持つ。
  */
 export function PeoplePanel({ people, locked, onInclude, onRemoveGuest, onAddGuest }: Props) {
   return (

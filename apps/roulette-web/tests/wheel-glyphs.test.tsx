@@ -146,7 +146,7 @@ describe('席の名前の字は倒れない（描かれた transform と CSS か
 
   it.each([3, 8, 24])('Given %i 席 / When 代表の角度で描く / Then 描いた DOM は組んだ値と同じで、DOM から組み立てても倒れない', (n) => {
     // Given
-    const props = { entries: entriesOf(n), winners: [], drawnIds: new Set<string>(), pointerDeg: 90, spinning: false, reducedMotion: true };
+    const props = { entries: entriesOf(n), winners: [], pointerDeg: 90, spinning: false, reducedMotion: true };
     const { rerender } = render(<Wheel {...props} angle={0} />);
     const fallen: string[] = [];
     const stacked: string[] = [];

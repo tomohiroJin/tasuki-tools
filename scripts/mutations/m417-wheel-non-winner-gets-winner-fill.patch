@@ -1,0 +1,23 @@
+# 変異 417: wheel-non-winner-gets-winner-fill
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/wheel.test.tsx
+#     describe「円盤の色」の「当たり以外の段は 3 種類以内で、真鍮の塗りは当たりの席だけ」
+#
+# #427 設計 F。当たり以外の席にも winner の塗り（真鍮の地）を付ける。色が「当たりかどうか」を表さなくなる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m417-*.patch
+# 復元: git apply -R scripts/mutations/m417-*.patch
+diff --git a/apps/roulette-web/src/components/Wheel.tsx b/apps/roulette-web/src/components/Wheel.tsx
+--- a/apps/roulette-web/src/components/Wheel.tsx
++++ b/apps/roulette-web/src/components/Wheel.tsx
+@@ -65,7 +65,7 @@
+             const { entry, path } = seat;
+             const isWinner = winners.includes(i);
+             const view = labelViewOf(seat, angle);
+-            const modifier = isWinner ? ' wheel-segment--winner' : '';
++            const modifier = ' wheel-segment--winner';
+             return (
+               <g key={entry.id}>
+                 <path className={`wheel-segment wheel-segment--${toneOf(i, n)}${modifier}`} d={path} />

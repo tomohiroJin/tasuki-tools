@@ -1,7 +1,7 @@
 /* ============================================================
    Tasuki 進行役ルーレット（#94）
    共通の世界観「夜のカードテーブル」は @tasuki/ui が持つ。
-   ここにはルーレット固有のもの（舞台・入る人の一覧・名前の追加・一周の行）だけを置く。
+   ここにはルーレット固有のもの（舞台・入る人の一覧・名前の追加）だけを置く。
    見た目の参照: モック 3 版（利用者承認済み・spec §6.7）。
    **Tailwind と併用しない**（#297：`@import` の書体の url() が解決されず全滅した）。
    **生の色を書かない**（語彙のトークンを使う）。字の大きさは 5 段のトークン。
@@ -121,25 +121,23 @@
   padding-left: var(--space-5);
 }
 
-/* 席。濃淡は 3 段（700 / 900 を交互・奇数のときの最後の席だけ 800）。
-   700 と 900 は明度の差が大きく、仕切りの線が無くても席が分かれる。字はどの段でも --ivory で AA */
+/* 席。色は「止まった席（当たり）かどうか」だけを表す（#427 F）。当たり以外は円盤がひとつのまとまりに
+   見える近い 2 段の交互（800 / 700。明度の差は小さく、席の境は真鍮の細い線 --gold-edge が分ける）。
+   奇数のときの最後の席だけ 3 段目（900）にして、最初の席と同じ色で隣り合わない。
+   字はどの段でも --ivory で AA（800 上 11.27:1・700 上 8.09:1・900 上 13.24:1） */
 .wheel-segment {
   stroke: var(--gold-edge);
   stroke-width: 0.6;
   transition: fill 320ms ease;
 }
 .wheel-segment--a {
-  fill: var(--felt-700);
-}
-.wheel-segment--b {
-  fill: var(--felt-900);
-}
-.wheel-segment--c {
   fill: var(--felt-800);
 }
-/* この一周で選ばれた人。沈めて、字を薄くする（一周の進み具合が円盤の上で見える） */
-.wheel-segment--drawn {
-  fill: var(--felt-950);
+.wheel-segment--b {
+  fill: var(--felt-700);
+}
+.wheel-segment--c {
+  fill: var(--felt-900);
 }
 /* 止まった席。真鍮の地に炭の字（--on-gold は --gold の上で 9.78:1） */
 .wheel-segment--winner {
@@ -152,9 +150,6 @@
   font-size: 10px; /* scale-exempt: 円盤の座標系（viewBox 244）の値。円盤の幅に比例し、14rem の円盤で約 9.2px・32rem で約 21px。名前の全体は脇の一覧が持つ */
   dominant-baseline: central;
   transition: fill 320ms ease;
-}
-.wheel-label--drawn {
-  fill: var(--ivory-faint);
 }
 .wheel-label--vertical {
   /* 縦書き（字は立てる）。半径が画面の縦に近い席で使う（labelPlacement） */
@@ -514,7 +509,7 @@
 .roulette-side {
   display: grid;
   /* 列の最小幅を 0 にする。名前は 1 行で切る（nowrap）ので、既定の auto だと名前の長さで列が広がり、
-     320px で脇のパネルが画面の右へはみ出す（選ばれた印と名前を消すが並ぶ行で実測） */
+     320px で脇のパネルが画面の右へはみ出す（離席中の印と名前を消すが並ぶ行で実測） */
   grid-template-columns: minmax(0, 1fr);
   min-width: 0;
   gap: var(--space-4);
@@ -596,7 +591,7 @@
 .roulette-row--out .roulette-name {
   color: var(--ivory-faint);
 }
-/* 印（色だけで状態を示さない：離席中・選ばれたは文字で出る） */
+/* 印（色だけで状態を示さない：離席中・同名・番は文字で出る） */
 .roulette-chip {
   flex: none;
   padding: 0 var(--space-2);

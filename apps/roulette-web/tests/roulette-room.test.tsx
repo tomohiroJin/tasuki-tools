@@ -2,15 +2,13 @@
  * ルーレットのルームの画面（#94 PR 2）。偽の WebSocket と偽の時計で、受け取ったフレームから
  * 画面に何が出るかを見る。サーバーは立てない。
  */
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MAX_DISPLAY_NAME } from '@tasuki/room-core';
 import { saveResumeIdentity } from '@tasuki/sync-client';
 import { App } from '../src/App';
 import {
   CAPTION_IDLE,
-  CYCLE_NOTE,
-  DRAWN_MARK,
   GUEST_ADD_BUTTON,
   GUEST_HINT,
   SPINNING_BUTTON,
@@ -20,8 +18,6 @@ import {
   TOO_FEW_TEXT,
   UNREACHABLE_TEXT,
   TWIN_MARK,
-  CYCLE_RESET_BUTTON,
-  cycleProgressText,
   guestRemoveLabel,
   resultText,
   spunByText,
@@ -152,28 +148,28 @@ describe('結果の一言は止まってから当たりを言う', () => {
 });
 
 /**
- * 回っている間、一覧の「選ばれた」と一周の数に今回の当たりを入れない。
+ * 一周の規則は無い。止まった後も一覧に「選ばれた」は付かず、一周の行も「一周をやり直す」も出ない。
  *
- * @requirements #94 E19
+ * @requirements #427 F
  */
-describe('一覧と一周の数は止まってから今回の当たりを数える', () => {
-  const rowOf = (name: string) => within(screen.getByRole('list')).getByText(new RegExp(`^${name}`)).closest('li') as HTMLElement;
-
-  it('Given 回している / When 回っている間と止まった後 / Then 当たりの行に選ばれたが出るのは止まった後', () => {
-    // Given: 当たりはゆう。ゆうの行を見る
+describe('一周の印は画面に出ない', () => {
+  it('Given 当たりが決まった（wire の drawn に古い記録があっても） / When 回っている間と止まった後 / Then 一周の行・選ばれた・一周をやり直すはどちらにも無い', () => {
+    // Given
     enterRoom();
-    act(() => latestSocket().deliver({ type: 'roulette', state: spinState(1, 0) }));
-    // When / Then: 回っている間
-    expect(within(rowOf('ゆう')).queryByText(DRAWN_MARK)).toBeNull();
-    expect(screen.getByText(CYCLE_NOTE)).toBeInTheDocument();
-    // When / Then: 止まった後
+    act(() => latestSocket().deliver({ type: 'roulette', state: { ...spinState(1, 0), drawn: ['p2'] } }));
+    const none = (): void => {
+      expect(screen.queryByText(/選ばれた/)).toBeNull();
+      expect(screen.queryByText(/一周/)).toBeNull();
+      expect(screen.queryByRole('button', { name: /やり直す/ })).toBeNull();
+    };
+    // When / Then
+    none();
     act(() => vi.advanceTimersByTime(4100));
-    expect(within(rowOf('ゆう')).getByText(DRAWN_MARK)).toBeInTheDocument();
-    expect(screen.getByText(cycleProgressText(1, 2))).toBeInTheDocument();
+    none();
   });
 });
 
-describe('回す・入る人・一周の操作', () => {
+describe('回す・入る人の操作', () => {
   it('Given 入る人が 2 人 / When 主ボタンを押す / Then 回すコマンドを送る', () => {
     // Given
     enterRoom();
@@ -271,22 +267,12 @@ describe('回す・入る人・一周の操作', () => {
     expect(boxes[1]).toHaveAccessibleDescription(TWIN_MARK);
   });
 
-  it('Given 一周をやり直す / When 押す / Then やり直すコマンドを送る', () => {
-    // Given
-    enterRoom();
-    // When
-    fireEvent.click(screen.getByRole('button', { name: CYCLE_RESET_BUTTON }));
-    // Then
-    expect(latestSocket().sentJson().at(-1)).toEqual({ command: 'roulette.cycle.reset' });
-  });
-
-  it('Given 回っている / When 一覧の操作を見る / Then 外す・足す・やり直すは押せない', () => {
+  it('Given 回っている / When 一覧の操作を見る / Then 外すは押せない', () => {
     // Given
     enterRoom();
     act(() => latestSocket().deliver({ type: 'roulette', state: spinState(1, 0) }));
     // When / Then
     expect(screen.getByRole('checkbox', { name: /^ゆう/ })).toBeDisabled();
-    expect(screen.getByRole('button', { name: CYCLE_RESET_BUTTON })).toBeDisabled();
   });
 });
 

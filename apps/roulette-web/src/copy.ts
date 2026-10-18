@@ -42,18 +42,12 @@ export const TOO_FEW_TEXT = '2 人から回せます';
 export const PEOPLE_HEADING = 'ルーレットに入る人';
 export const SELF_SUFFIX = '（あなた）';
 export const AWAY_MARK = '離席中';
-export const DRAWN_MARK = '選ばれた';
 /** 在室者と同じ名前のゲスト（入る人から外れている）の印 */
 export const TWIN_MARK = '同じ名前の人がいます';
 export const GUEST_HINT = 'ルームにいない人も、名前を追加すれば入れられます';
 export const GUEST_ADD_BUTTON = '名前を追加';
 export const GUEST_REMOVE_BUTTON = '名前を消す';
 export const guestRemoveLabel = (name: string): string => `${name} の名前を消す`;
-
-// 一周
-export const CYCLE_NOTE = '全員が一周するまで、同じ人は選ばれません';
-export const cycleProgressText = (drawn: number, pool: number): string => `この一周で選ばれた人 ${drawn} / ${pool}`;
-export const CYCLE_RESET_BUTTON = '一周をやり直す';
 
 // 2 人以上を選ぶ（#401 spec §6.5。1 人のときは上の文言のまま）
 /** 脇の「選ぶ人数」の切り替え */
