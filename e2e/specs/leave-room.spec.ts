@@ -122,7 +122,7 @@ test.describe('timer で外された人の、ほかのツールとハブのタ�
     await page.getByRole('button', { name: `${GUEST} を退出させる` }).click();
     await page.getByRole('button', { name: '退出させる', exact: true }).click();
 
-    // Then: Bob の timer を含む 5 つのタブすべてが玄関の作成画面で、外された告知を見る
+    // Then: Bob の timer を含む 5 つのタブすべてが玄関の参加画面で、退出の告知を見る
     const all = { timer: bob.page, ...tabs };
     for (const [label, tab] of Object.entries(all)) {
       await expect

@@ -174,6 +174,7 @@ describe('別の場所で外された・抜けた', () => {
     expect(vi.mocked(redirectTo)).toHaveBeenCalledWith(hubPathFor(ROOM_ID, 'removed'));
     expect(vi.mocked(redirectTo).mock.calls.at(-1)?.[0]).toContain('left=removed');
     expect(loadResumeIdentity(ROOM_ID)).toBeNull();
+    expect(FakeListenerSocket.latest().closed, '接続を畳む（畳まないと後の切断で再接続する）').toBe(true);
     expect(screen.queryByText('ルームから外されました')).toBeNull();
   });
 
@@ -189,6 +190,7 @@ describe('別の場所で外された・抜けた', () => {
     deliverError('SOMETHING_NEW', '新しい種類の失敗です');
     expect(vi.mocked(redirectTo)).not.toHaveBeenCalled();
     expect(loadResumeIdentity(ROOM_ID)).not.toBeNull();
+    expect(FakeListenerSocket.latest().closed).toBe(false);
     expect(screen.getByText('新しい種類の失敗です')).toBeTruthy();
   });
 
