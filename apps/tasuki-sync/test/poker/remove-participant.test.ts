@@ -107,15 +107,13 @@ describe('poker から幽霊を外す（#419）', () => {
   });
 
   it('名簿に居ない接続の操作は not-joined（G-9）', async () => {
-    const { a, b, bId, code } = await twoInPoker();
-    // B の名簿の席を A が外すまで待つため、B を閉じて外す。残った B の接続は無いので別の接続で試す
+    const { bId, code } = await twoInPoker();
+    // 入室していない別の接続 c から送る（名簿に居ない接続の操作は何も変えない）
     const c = await server!.connectPoker('c');
     c.send({ type: 'remove-participant', participantId: bId });
 
     await c.take(isError('not-joined'), 'not-joined');
     expect(server!.store.get(code)!.participants.some((p) => p.id === bId)).toBe(true);
-    void a;
-    void b;
   });
 
   it('poker だけのルームでは timer の状態を作らない。のちに timer から入ると初期状態が返る', async () => {
@@ -134,9 +132,13 @@ describe('poker から幽霊を外す（#419）', () => {
     expect(server!.hasTimerState(code)).toBe(false);
     // timer の入口から入ると、遅延生成で初期状態の timer が返る
     const t = await server!.connect('t');
-    await joinRoom(t, code, 'う');
+    const joined = await joinRoom(t, code, 'う');
     const snap = await t.take('snapshot');
-    expect(snap.room.session.rotation.length).toBeGreaterThanOrEqual(0);
+    // 初期状態: 輪には入ってきた人だけ・時計は止まって満タン・段階は setup
+    expect(snap.room.session.rotation).toEqual([joined.participantId]);
+    expect(snap.room.clock.running).toBe(false);
+    expect(snap.room.clock.secondsLeftAtAnchor).toBe(snap.room.clock.intervalSeconds);
+    expect(snap.room.phase).toBe('setup');
     expect(server!.hasTimerState(code)).toBe(true);
   });
 

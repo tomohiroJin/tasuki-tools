@@ -34,7 +34,7 @@ import type { RoomCodeGen } from "../ports/code-gen.js";
 import type { Scheduler } from "./schedule.js";
 import { createRateLimitGate } from "./rate-limit-gate.js";
 import { saveRoster } from "./save-roster.js";
-import { planRemoval } from "./room-removal.js";
+import { applyTimerRemoval, planRemoval } from "./room-removal.js";
 import type { HubBroadcaster } from "../ports/hub-broadcaster.js";
 import type { TopicBroadcaster } from "./topic-broadcast.js";
 import type { TopicStore } from "../ports/topic-store.js";
@@ -530,6 +530,10 @@ export function makeHandlers(deps: HandlerDeps) {
     const target = membership.participants.find((p) => p.id === targetId);
     if (!target) return err("participant-not-found");
     const actor = membership.participants.find((p) => p.id === actorId);
+    // 二段目の守り: poker の dispatch も同じ検査をするが、呼び元が増えても
+    // 「接続している人」「自分自身」を外せないことはここで保つ（G-5）。
+    if (!actor) return err("not-removable");
+    if (targetId === actorId || target.connections.size > 0) return err("not-removable");
 
     const planned = planRemoval({ membership, timer }, targetId, clock.now());
     if (planned.isErr()) {
@@ -541,18 +545,12 @@ export function makeHandlers(deps: HandlerDeps) {
       return ok(undefined);
     }
     if (timer !== undefined && outcome.timer !== undefined) {
-      commit({ membership: outcome.membership, timer: outcome.timer });
-      deps.discardPokerVote(roomCode, targetId);
-      reconcileSchedule(outcome.timer);
-      broadcaster.broadcastSignal(roomCode, {
-        type: "signal",
-        signal: "notice",
-        action: "participant-removed",
-        actorName: actor?.displayName ?? "",
-        actorParticipantId: actorId,
-        targetName: target.displayName,
-        targetParticipantId: targetId,
-      });
+      applyTimerRemoval(
+        { broadcaster, commit, reconcileSchedule, discardPokerVote: deps.discardPokerVote },
+        { membership: outcome.membership, timer: outcome.timer },
+        { id: actorId, displayName: actor.displayName },
+        { id: targetId, displayName: target.displayName },
+      );
     } else {
       saveRoster({ store, hub: deps.hub, timers, timerBroadcaster: broadcaster }, outcome.membership);
       deps.discardPokerVote(roomCode, targetId);

@@ -22,7 +22,7 @@ import {
   type Command,
 } from "@tasuki/timer-core";
 import type { Participant as MembershipParticipant } from "@tasuki/room-core";
-import { planRemoval } from "../room-removal.js";
+import { applyTimerRemoval, planRemoval } from "../room-removal.js";
 import type { WallClock } from "../../ports/wall-clock.js";
 import type { Broadcaster } from "../../ports/broadcaster.js";
 import type { RoomState } from "../apply-room-level-event.js";
@@ -148,24 +148,14 @@ export async function handleParticipantRemove(
   }
   // timer を渡したので、外した後の timer は必ず返る。
   const next: RoomState = { membership: outcome.membership, timer: outcome.timer ?? timer };
-  commit(next);
-  // **退出した人の票を捨てる**（R8・#95 S5b）。名簿を更新し終えてから呼ぶ ——
-  // poker 側は更新後の名簿で自動公開を測り直す（残った全員が投票済みになりうる）。
+  // 保管・票の捨て・予約の突き合わせ・知らせの順は `room-removal.ts` の `applyTimerRemoval` に 1 つだけある。
   // ルームごと破棄する経路（上の在室者 0）では呼ばない（`destroy-room.ts` が両方消す）。
-  discardPokerVote(next.timer.code, targetId);
-  reconcileSchedule(next.timer);
-  // 誰が誰を退出させたかを在室者へ伝える（FR-077）。
-  // store.put の後に配信することが重要で、broadcastSignal は呼び出し時点のストアから
-  // 宛先を決めるため、この順序により退出させられた本人には届かない（本人向けは下の error）。
-  broadcaster.broadcastSignal(next.timer.code, {
-    type: "signal",
-    signal: "notice",
-    action: "participant-removed",
-    actorName: participant.displayName,
-    actorParticipantId: participant.id,
-    targetName: target.displayName,
-    targetParticipantId: target.participantId,
-  });
+  applyTimerRemoval(
+    { broadcaster, commit, reconcileSchedule, discardPokerVote },
+    next,
+    { id: participant.id, displayName: participant.displayName },
+    { id: target.participantId, displayName: target.displayName },
+  );
   // 退出した本人へ専用通知を送る（種類の判定と理由は notifyRemovedTarget の docstring 参照）。
   notifyRemovedTarget();
   return ok(undefined);

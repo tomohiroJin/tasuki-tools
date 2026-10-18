@@ -9,6 +9,9 @@
  * （timer は本人へ通知を送り、poker は timer の状態を持たないルームでも呼ばれる）ので、
  * 呼び出し側が行う。ここへ副作用を入れると片方の入口の都合がもう片方へ漏れる。
  *
+ * 外した後の「保管・票の後始末・予約の突き合わせ・知らせ」の順序だけは両方の入口で同じなので、
+ * 副作用を持つ {@link applyTimerRemoval} をこのファイルの末尾に 1 つだけ置く（planRemoval は純関数のまま）。
+ *
  * `timer` が `undefined` のルーム（poker だけで使っているルーム・D8 の遅延生成）では
  * 輪の処理を飛ばし、名簿だけを更新する。
  */
@@ -21,6 +24,8 @@ import {
   type TimerState,
 } from "@tasuki/timer-core";
 import { hasNoParticipants, removeParticipant, type Room } from "@tasuki/room-core";
+import type { Broadcaster } from "../ports/broadcaster.js";
+import type { RoomState } from "./apply-room-level-event.js";
 import { pickPromotionTarget } from "./pick-promotion-target.js";
 import { computeIneligibleIndices, occupants } from "./timer-snapshot-dto.js";
 
@@ -129,4 +134,42 @@ export function planRemoval(
     nextTimer = { ...timer, session: agg.session, clock: agg.clock };
   }
   return ok({ kind: "removed", membership: membershipAfterRemoval, timer: nextTimer });
+}
+
+export interface TimerRemovalDeps {
+  broadcaster: Broadcaster;
+  /** 名簿と timer の状態を保管し、snapshot を配信する（`handlers.ts` の `commit`）。 */
+  commit: (state: RoomState) => void;
+  reconcileSchedule: (timer: TimerState) => void;
+  discardPokerVote: (roomCode: string, participantId: string) => void;
+}
+
+/**
+ * timer の状態があるルームで人を外した後の、保管から知らせまでの後段（入口 2 つで共通）。
+ *
+ * 順序に意味がある。
+ * 1. `commit`: 保管してから配る。
+ * 2. `discardPokerVote`: **名簿を更新し終えてから**呼ぶ（poker は更新後の名簿で自動公開を測り直す・R8）。
+ * 3. `reconcileSchedule`: 輪が変わったので自動交代の予約を測り直す。
+ * 4. `broadcastSignal`: 保管の後に配るので、外された本人（もう名簿に居ない）には届かない（FR-077）。
+ */
+export function applyTimerRemoval(
+  deps: TimerRemovalDeps,
+  next: RoomState,
+  actor: { id: string; displayName: string },
+  target: { id: string; displayName: string },
+): void {
+  const { broadcaster, commit, reconcileSchedule, discardPokerVote } = deps;
+  commit(next);
+  discardPokerVote(next.timer.code, target.id);
+  reconcileSchedule(next.timer);
+  broadcaster.broadcastSignal(next.timer.code, {
+    type: "signal",
+    signal: "notice",
+    action: "participant-removed",
+    actorName: actor.displayName,
+    actorParticipantId: actor.id,
+    targetName: target.displayName,
+    targetParticipantId: target.id,
+  });
 }

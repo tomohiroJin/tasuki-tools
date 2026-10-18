@@ -82,3 +82,16 @@ describe("planRemoval", () => {
     expect(outcome.membership.participants.map((p) => p.id)).toEqual([ids["Bob"]!]);
   });
 });
+
+// `removeFromRoom`（handlers.ts）の二段目の守り。poker の dispatch も同じ検査をするが、
+// dispatch を通らずに直接呼んでも、接続している人と自分自身は外せない（G-5）。
+describe("removeFromRoom の二段目の守り", () => {
+  it("接続を持つ人・自分自身は not-removable で、名簿は変わらない", async () => {
+    // Host も Bob も timer に接続している（接続を持つ）
+    const { handlers, store, code, ids } = await aRoom().withParticipants("Bob").build();
+
+    expect(handlers.removeFromRoom(code, ids["Host"]!, ids["Bob"]!)._unsafeUnwrapErr()).toBe("not-removable");
+    expect(handlers.removeFromRoom(code, ids["Host"]!, ids["Host"]!)._unsafeUnwrapErr()).toBe("not-removable");
+    expect(store.get(code)!.participants).toHaveLength(2);
+  });
+});
