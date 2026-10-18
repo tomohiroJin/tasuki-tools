@@ -84,7 +84,7 @@ describe("setMode（決め方）", () => {
  * @requirements #401 順番に回す T2・T3・T4・T6・T7
  */
 describe("startSpin（順番に回す）", () => {
-  it("まだの人から 1 人を引き、その人が 1 番になる。選ぶ人数と一周の記録は使わない", () => {
+  it("まだの人から 1 人を引き、その人が 1 番になる。選ぶ人数は使わない", () => {
     // Given: 選ぶ人数 3 でも順番に回すときは 1 人
     const base = setPickCount(orderState(), 3)._unsafeUnwrap();
     // When: 4 人のうち添字 2 を引く

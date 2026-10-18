@@ -933,7 +933,7 @@ describe("保管と配信", () => {
     expect(h.sent.filter((s) => s.msg.type === "roulette")).toEqual([]);
   });
 
-  it("状態が変わらないコマンドは配らない（知らない ID・すでに同じ値・空の一周のやり直し・知らないゲストの削除）", async () => {
+  it("状態が変わらないコマンドは配らない（知らない ID・すでに同じ値・古い画面からの一周のやり直し・知らないゲストの削除）", async () => {
     // Given
     const h = setup();
     await joined(h, "r-1", "Alice");

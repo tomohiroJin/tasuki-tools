@@ -36,7 +36,7 @@ function spinning(): RouletteState {
  * @requirements #401 押して止める P2（回り方）
  */
 describe("startSpin（押して止める）", () => {
-  it("止まる席を決めずに回し始め、起点の位置と速さを持つ。選ぶ人数と一周の記録は使わない", () => {
+  it("止まる席を決めずに回し始め、起点の位置と速さを持つ。選ぶ人数は使わない", () => {
     // Given: 選ぶ人数 3 でも 1 人だけ
     const base = setPickCount(pressState(), 3)._unsafeUnwrap();
     // When

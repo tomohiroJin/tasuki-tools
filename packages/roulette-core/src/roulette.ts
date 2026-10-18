@@ -146,7 +146,7 @@ function startOrderSpin(state: RouletteState, input: SpinInput): Result<Roulette
 
 /**
  * 押して止める（#401 押して止める P2）。止まる席を決めずに回し始める。起点の位置（`p0`）は乱数で決める
- * （30 秒で自動に止まったときに一様になるように）。選ぶ人数と一周の記録は使わず、変えない（P6）。
+ * （30 秒で自動に止まったときに一様になるように）。選ぶ人数は使わず、変えない（P6）。
  */
 function startPressSpin(state: RouletteState, input: SpinInput): Result<RouletteState, RouletteError<SpinErrorCode>> {
   const pool = poolOf(input.members, state, input.conflicts);
