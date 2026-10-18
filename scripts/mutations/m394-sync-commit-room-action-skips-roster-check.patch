@@ -17,7 +17,7 @@ index 9870665e..fa47ce1d 100644
      // 名簿に居ない人（片付けで外された人の接続など）とは別物である。ここで弾かないと
      // 「名簿に居ない＝投票していない」と読まれて状態を動かしてしまう。何も変えない。
 -    if (!state.room.participants.some((p) => p.id === participantId)) {
--      sendError(ws, 'not-joined', 'ルームに参加していません');
+-      sendError(ws, 'not-joined', POKER_ERROR_TEXT.NOT_JOINED);
 -      return;
 -    }
      const result = action(state.round, participantId);
