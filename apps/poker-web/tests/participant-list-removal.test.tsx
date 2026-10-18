@@ -11,7 +11,7 @@ import {
   screen,
   within,
 } from '@testing-library/react';
-import { ParticipantList } from '../src/components/ParticipantList';
+import { PARTICIPANTS_HEADING_ID, ParticipantList } from '../src/components/ParticipantList';
 
 const proto = HTMLDialogElement.prototype;
 const original = { showModal: proto.showModal, close: proto.close };
@@ -61,6 +61,18 @@ describe('同名の呼び分け（G-1）', () => {
       />,
     );
     expect(names()).toEqual(['あや（ID: 1111）', 'あや（ID: 2222）', 'うみ']);
+  });
+
+  it('Given 見学者と投票者が同名 / When 描く / Then 両方に識別子が付く', () => {
+    render(
+      <ParticipantList
+        participants={[p('aaaa-1111', 'あや'), { ...p('bbbb-2222', 'あや'), spectator: true }]}
+        you="aaaa-1111"
+        votes={null}
+        onRemove={() => {}}
+      />,
+    );
+    expect(names()).toEqual(['あや（ID: 1111）', 'あや（ID: 2222）']);
   });
 
   it('Given 同名が居ない / When 描く / Then ID は付かない', () => {
@@ -163,5 +175,76 @@ describe('接続の無い人を外す（G-4）', () => {
     expect(within(dialog).getByRole('heading').textContent).toBe(
       'あや さん（ID: 0002）を退出させますか？',
     );
+  });
+
+  const open = (list = people) => {
+    const onRemove = vi.fn();
+    const props = { you: 'me-0001', votes: null, onRemove };
+    const view = render(<ParticipantList participants={list} {...props} />);
+    const row = screen.getByText('えり').closest('li') as HTMLElement;
+    const trigger = within(row).getByRole('button', { name: '退出させる' });
+    trigger.focus();
+    fireEvent.click(trigger);
+    const dialog = document.querySelector('dialog') as HTMLDialogElement;
+    return { view, props, trigger, dialog, onRemove };
+  };
+
+  it('Given 切断中 / When offline / Then 「退出させる」は押せない', () => {
+    render(<ParticipantList participants={people} you="me-0001" votes={null} onRemove={() => {}} offline />);
+    for (const b of screen.getAllByRole('button', { name: '退出させる' })) {
+      expect((b as HTMLButtonElement).disabled).toBe(true);
+    }
+  });
+
+  it('Given 確認が開いている / When 対象が他の人に外されて一覧から消える / Then 確認は閉じ、フォーカスは見出しへ', () => {
+    const heading = document.createElement('h2');
+    heading.id = PARTICIPANTS_HEADING_ID;
+    heading.tabIndex = -1;
+    document.body.appendChild(heading);
+    const { view, props } = open();
+    view.rerender(<ParticipantList participants={people.filter((x) => x.id !== 'z-0004')} {...props} />);
+    expect(document.querySelector('dialog')).toBeNull();
+    expect(document.activeElement).toBe(heading);
+    heading.remove();
+  });
+
+  it('Given 確認が開いている / When 対象が再接続する / Then 確認は閉じ、再び切断しても勝手に開かない', () => {
+    const heading = document.createElement('h2');
+    heading.id = PARTICIPANTS_HEADING_ID;
+    heading.tabIndex = -1;
+    document.body.appendChild(heading);
+    const { view, props } = open();
+    const back = people.map((x) => (x.id === 'z-0004' ? { ...x, connected: true } : x));
+    view.rerender(<ParticipantList participants={back} {...props} />);
+    expect(document.querySelector('dialog')).toBeNull();
+    expect(document.activeElement).toBe(heading);
+    view.rerender(<ParticipantList participants={people} {...props} />);
+    expect(document.querySelector('dialog')).toBeNull();
+    heading.remove();
+  });
+
+  it('Given 確定した / When 行が消えた再描画 / Then 見出しへ。それまでは押したボタンに留まる', () => {
+    const heading = document.createElement('h2');
+    heading.id = PARTICIPANTS_HEADING_ID;
+    heading.tabIndex = -1;
+    document.body.appendChild(heading);
+    const { view, props, trigger, dialog } = open();
+    fireEvent.click(within(dialog).getByRole('button', { name: '退出させる' }));
+    expect(document.activeElement).toBe(trigger);
+    view.rerender(<ParticipantList participants={people.filter((x) => x.id !== 'z-0004')} {...props} />);
+    expect(document.activeElement).toBe(heading);
+    heading.remove();
+  });
+
+  it('Given 確定したがサーバーが拒み行が残る / When 再描画 / Then フォーカスは押したボタンのまま', () => {
+    const heading = document.createElement('h2');
+    heading.id = PARTICIPANTS_HEADING_ID;
+    heading.tabIndex = -1;
+    document.body.appendChild(heading);
+    const { view, props, trigger, dialog } = open();
+    fireEvent.click(within(dialog).getByRole('button', { name: '退出させる' }));
+    view.rerender(<ParticipantList participants={[...people]} {...props} />);
+    expect(document.activeElement).toBe(trigger);
+    heading.remove();
   });
 });

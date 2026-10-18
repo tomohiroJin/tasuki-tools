@@ -194,7 +194,13 @@ export function RoomPage({ roomId, sync }: Props) {
                 {youSpectating ? JOIN_VOTING : SPECTATE}
               </button>
             </div>
-            <ParticipantList participants={snapshot.participants} you={snapshot.you} votes={revealedVotes} onRemove={sync.removeParticipant} />
+            <ParticipantList
+              participants={snapshot.participants}
+              you={snapshot.you}
+              votes={revealedVotes}
+              onRemove={sync.removeParticipant}
+              offline={offline}
+            />
           </section>
           {/* 欄と足の記録は投票中と開票後で同じ位置に置き、描き分けるのは本体（手札か結果）と帯だけにする。
               状態ごとに別の部品で包むと、替わるたびに欄と足が作り直され、打ちかけの名前・フォーカス・
