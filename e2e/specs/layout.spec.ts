@@ -371,9 +371,43 @@ test.describe('poker のルームは広い画面で読む面と操作の面を�
     expect(logHead.y, '記録の見出しが画面の外').toBeGreaterThanOrEqual(0);
     expect(logHead.y + logHead.height, '記録の見出しが画面の外').toBeLessThanOrEqual(800);
     await expect(log.getByRole('heading', { name: '見積もりの記録' })).toBeInViewport();
-    await page.screenshot({ path: '../.playwright-mcp/427-task5-1280x800.png' });
-    await page.setViewportSize({ width: 1024, height: 700 });
-    await page.screenshot({ path: '../.playwright-mcp/427-task5-1024x700.png' });
+  });
+
+  test('Given 幅 1280・高さ 700・長いお題・記録する / When ルームを開く / Then 記録の見出しが画面に見え、札と重ならない（#427）', async ({ page, openPeer }) => {
+    await page.setViewportSize({ width: 1280, height: 700 });
+    await openPokerWithTopic(page, openPeer, LONG_BODY);
+    await page.getByRole('button', { name: '記録する' }).click();
+    const heading = page.locator('.room-log--side').getByRole('heading', { name: '見積もりの記録' });
+    await expect(heading).toBeInViewport();
+    const card = await boxOf(page, '.room-topic-side');
+    const h = await heading.boundingBox();
+    expect(h!.y, '記録の見出しが札の下端に食い込んでいる').toBeGreaterThanOrEqual(card.y + card.height - 1);
+    const body = await page.locator('.room-topic-side .ui-reader-body').evaluate((el) => ({ scroll: el.scrollHeight, client: el.clientHeight }));
+    expect(body.scroll, '本文が札の中で溢れていない（前提が崩れている）').toBeGreaterThan(body.client + 1);
+  });
+
+  test('Given 幅 1280・記録しない / When 「記録する」を押す / Then 押した状態と押さない状態で見た目が違う（#427）', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await createPokerRoom(page, 'layout-toggle');
+    const toggle = page.getByRole('button', { name: '記録する' });
+    const look = () => toggle.evaluate((el) => { const s = getComputedStyle(el); return `${s.backgroundColor}|${s.boxShadow}`; });
+    const off = await look();
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    expect(await look(), '押した状態が押さない状態と同じ見た目').not.toBe(off);
+  });
+
+  test('Given 幅 1280・記録しない・お題を隠した / When ルームを開く / Then 左に空の列を残さず、操作の面は 46rem で中央に寄る（#427）', async ({ page, openPeer }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await openPokerWithTopic(page, openPeer);
+    await page.getByRole('button', { name: 'お題を隠す' }).click();
+    await expect(page.getByRole('button', { name: 'お題を見る' })).toBeVisible();
+    await expect.poll(async () => Math.round((await boxOf(page, '.ui-workspace-main')).width), '操作の面が 46rem に落ち着かない').toBe(46 * REM);
+    const main = await boxOf(page, '.ui-workspace-main');
+    const inner = await pageBox(page);
+    const left = main.x - (inner.innerRight - inner.inner);
+    const right = inner.innerRight - (main.x + main.width);
+    expect(Math.abs(left - right), '操作の面が中央に寄っていない').toBeLessThanOrEqual(2);
   });
 
   test('Given 幅 1280・記録しない・お題が無い / When ルームを開く / Then 脇も空の列も無く、操作の面は 46rem で中央に寄る（#427）', async ({ page }) => {

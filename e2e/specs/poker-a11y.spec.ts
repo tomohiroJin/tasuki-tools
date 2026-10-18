@@ -111,6 +111,22 @@ test.describe('poker の文字が背景に対して読める（WCAG AA）', () =
     expect(await side.evaluate((el) => el.getBoundingClientRect().width), '閉じた札の幅が 0 になっている（幅ではなく高さで畳む）').toBeGreaterThan(100);
   });
 
+  test('Given 記録するを押したルーム / When 押した状態の切り替えと束の名前のボタンを測る / Then AA を満たす（#427）', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await createRoom(page, 'a11y-recording');
+    const toggle = page.getByRole('button', { name: '記録する' });
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    await chooseCard(page, '5');
+    await expect(resultsSection(page)).toBeVisible();
+    await page.getByRole('button', { name: '次のアイテムへ' }).click();
+    await expect(page.locator('.room-log--side .estimate-item--inline')).toHaveCount(1);
+    // 押した状態の地（`--gold-tint`）は半透明で、パレットの注記が gold-bright の地にして最小 4.62:1（felt-700 上）と保証する。
+    //   画面全体の走査（字と羅紗の組・束の名前のボタンを含む）が AA を満たすことを確かめる
+    const scan = await scanContrast(page, 10);
+    expectReadable(scan, 8, []);
+  });
+
   test('Given 2 人のルームで 1 人だけが投票 / When 票を公開する / Then 未投票の印も AA を満たし、動きを抑える設定ではめくりの遅延も止まる', async ({ page, openPeer }) => {
     // Given: 動きを抑える設定。2 人目が居るので、1 人が投票しても自動では公開されない。
     //   **投票するのは 2 人目（席順 1）で、作成者（席順 0）は未投票のまま。** 席順 0 は遅延が元から 0 なので、
