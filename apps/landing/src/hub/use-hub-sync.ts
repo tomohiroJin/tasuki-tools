@@ -22,6 +22,7 @@ import {
   buildSyncUrl,
   clearLegacyPreferences,
   clearResumeIdentity,
+  planForJoinError,
   loadDefaultDisplayName,
   loadResumeIdentity,
   saveDefaultDisplayName,
@@ -31,6 +32,7 @@ import { parseBoundaryMessage } from '@tasuki/protocol';
 import { HubServerMsgSchema, type HubCommand, type RosterRoom } from '@tasuki/room-core';
 import { TopicFrameSchema } from '@tasuki/topic-core';
 import { readRoomParam } from './room-param.js';
+import { departureHubPath, redirectTo } from './departure.js';
 import { usableDefaultDisplayName } from './default-display-name.js';
 import { useJoinRetry } from '@tasuki/web-kit/sync';
 
@@ -289,6 +291,20 @@ export function useHubSync(): HubSync {
         // 入れなかった」ことが確定しており、待ち続けると読み込み中の表示から抜けられない
         // （合言葉を求められた・混雑で弾かれた場合も、参加画面で文言を読ませて操作させる）。
         setResuming(false);
+        // 抜けた・外された（別のタブ・別のツールの操作でも届く）。組を捨てて接続を畳み、理由を持って
+        // 玄関のそのルームへ置き換えて戻る（#427）。画面に留まると、名簿が古いまま押せる画面が残る。
+        // 判断は他のツールと同じ `planForJoinError`（`REMOVED_BY_HOST` も同じ扱い）。
+        const plan = planForJoinError(msg.code, msg.message, msg.message);
+        if (plan.kind === 'left') {
+          const target = codeRef.current;
+          if (target !== null) {
+            cancelRetry();
+            clearResumeIdentity(target);
+            conn.dispose();
+            redirectTo(departureHubPath(target, plan.reason));
+          }
+          return;
+        }
         if (msg.code === 'PASSPHRASE_REQUIRED' || msg.code === 'PASSPHRASE_MISMATCH') {
           setNeedsPassphrase(true);
           setError(msg.message);

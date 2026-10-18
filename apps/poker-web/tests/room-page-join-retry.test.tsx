@@ -92,6 +92,7 @@ function makeSync(over: Partial<PokerSync> = {}): PokerSync {
     setPoints: vi.fn(),
     setSpectator: vi.fn(),
     removeParticipant: vi.fn(),
+    departed: null,
     setRecording: () => {},
     renameGroup: () => {},
     ...over,

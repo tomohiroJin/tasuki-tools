@@ -11,7 +11,12 @@
  * 読んだ印は URL から落とす。残すと、再読込のたびに同じ告知が出て、
  * 「いま外された」と誤って伝わる。
  */
-import { DEPARTURE_PARAM, departureNoticeFor, parseDepartureReason } from '@tasuki/room-core';
+import {
+  DEPARTURE_PARAM,
+  departureNoticeFor,
+  parseDepartureReason,
+  type DepartureReason,
+} from '@tasuki/room-core';
 
 export interface DepartureNotice {
   /** 出すべき告知（無ければ null）。 */
@@ -29,4 +34,22 @@ export function readDepartureNotice(href: string): DepartureNotice {
     notice: reason === null ? null : departureNoticeFor(reason),
     cleanedHref: url.toString(),
   };
+}
+
+/**
+ * 抜けた・外された人を戻す玄関のそのルーム（`/?room=CODE&left=<理由>`）。
+ *
+ * ハブの画面自身が受けたときの行き先で、他のツールの `hubPathFor` と同じ形になる（#427）。
+ */
+export function departureHubPath(code: string, reason: DepartureReason): string {
+  const params = new URLSearchParams({ room: code });
+  params.set(DEPARTURE_PARAM, reason);
+  return `/?${params.toString()}`;
+}
+
+/**
+ * 別の URL へ**置き換えて**移動する（履歴に残らない）。遷移はここに閉じる（テストは `vi.mock` で差し替える）。
+ */
+export function redirectTo(to: string): void {
+  window.location.replace(to);
 }

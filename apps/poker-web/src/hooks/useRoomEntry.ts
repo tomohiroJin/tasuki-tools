@@ -43,6 +43,13 @@ export function useRoomEntry(sync: PokerSync, roomId: string): RoomEntry {
   // 守りが 1 つ要る: `room-not-found` を受けると下の効果が `forgetIdentity` で保存を
   // 捨てるので、そのまま走り直すと**消滅の案内（戻る道つき）を出す前に玄関へ飛ぶ**。
   const entryAppliedRef = useRef(false);
+  // 抜けた・外された（別のタブ・別のツールの操作でも届く）は、理由を持って玄関へ戻る（#427）。
+  // 復帰の組と接続は同期フックが片付けてある。**帯に出して留まると「押せるのに効かない」画面になる。**
+  const departed = sync.departed;
+  useEffect(() => {
+    if (departed !== null) redirectTo(hubPathFor(roomId, departed));
+  }, [departed, roomId]);
+
   useEffect(() => {
     if (entryAppliedRef.current) return;
     if (sync.error?.code === 'room-not-found') return;

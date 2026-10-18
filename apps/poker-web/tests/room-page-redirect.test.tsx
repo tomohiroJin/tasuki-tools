@@ -9,11 +9,13 @@
  * 増えると、どちらを通ったかで挙動が割れる）ので、そのモジュールを差し替えて見る。
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, renderHook, screen } from '@testing-library/react';
 import { clearResumeIdentity, loadResumeIdentity, saveResumeIdentity } from '@tasuki/sync-client';
 import { RoomPage } from '../src/pages/RoomPage';
 import type { PokerSync } from '../src/hooks/useSync';
+import { usePokerSync } from '../src/hooks/useSync';
 import { hubPathFor, redirectTo } from '../src/router';
+import { FakeListenerSocket } from './support/fakes';
 
 vi.mock('../src/router', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../src/router')>();
@@ -50,6 +52,7 @@ function makeSync(over: Partial<PokerSync> = {}): PokerSync {
     setPoints: vi.fn(),
     setSpectator: vi.fn(),
     removeParticipant: vi.fn(),
+    departed: null,
     setRecording: () => {},
     renameGroup: () => {},
     ...over,
@@ -132,5 +135,65 @@ describe('端末に同一性が無いままルーム画面を開く', () => {
     expect(vi.mocked(redirectTo)).not.toHaveBeenCalled();
     expect(joinRoom).toHaveBeenCalledWith(ROOM_ID, PARTICIPANT_NAME, 'tok-1');
     expect(screen.queryByLabelText('あなたの名前'), '名乗りはハブに 1 つだけある').toBeNull();
+  });
+});
+
+/**
+ * 別のタブ・別のツールで外された／抜けたとき（#427）。サーバーは同じ人の全接続へ
+ * `REMOVED_FROM_ROOM` / `LEFT_ROOM` を送る。poker はこれを知らないコードとして帯に出し、
+ * 「参加者 0 人」の操作できる画面に取り残されていた。実際の同期フックと画面をつないで見る。
+ */
+describe('別の場所で外された・抜けた', () => {
+  function Harness() {
+    const sync = usePokerSync();
+    return <RoomPage roomId={ROOM_ID} sync={sync} />;
+  }
+
+  function mountJoined(): void {
+    saveResumeIdentity({ code: ROOM_ID, participantId: 'p-1', resumeToken: 'tok-1', displayName: PARTICIPANT_NAME });
+    vi.stubGlobal('WebSocket', FakeListenerSocket);
+    FakeListenerSocket.instances = [];
+    render(<Harness />);
+    act(() => {
+      FakeListenerSocket.latest().readyState = FakeListenerSocket.OPEN;
+      FakeListenerSocket.latest().fire('open');
+    });
+  }
+
+  function deliverError(code: string, message: string): void {
+    act(() => {
+      FakeListenerSocket.latest().fire('message', { data: JSON.stringify({ type: 'error', code, message }) });
+    });
+  }
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('Given 入室済み / When REMOVED_FROM_ROOM が届く / Then 玄関へ ?left=removed で移り、復帰の組が消え、帯は出ない', () => {
+    mountJoined();
+    deliverError('REMOVED_FROM_ROOM', 'ルームから外されました');
+    expect(vi.mocked(redirectTo)).toHaveBeenCalledWith(hubPathFor(ROOM_ID, 'removed'));
+    expect(vi.mocked(redirectTo).mock.calls.at(-1)?.[0]).toContain('left=removed');
+    expect(loadResumeIdentity(ROOM_ID)).toBeNull();
+    expect(screen.queryByText('ルームから外されました')).toBeNull();
+  });
+
+  it('Given 入室済み / When LEFT_ROOM が届く / Then 玄関へ ?left=self で移る', () => {
+    mountJoined();
+    deliverError('LEFT_ROOM', 'ルームを抜けました');
+    expect(vi.mocked(redirectTo)).toHaveBeenCalledWith(hubPathFor(ROOM_ID, 'self'));
+    expect(loadResumeIdentity(ROOM_ID)).toBeNull();
+  });
+
+  it('Given 入室済み / When 未知のコードが届く / Then 移動せず今までどおり帯に出る', () => {
+    mountJoined();
+    deliverError('SOMETHING_NEW', '新しい種類の失敗です');
+    expect(vi.mocked(redirectTo)).not.toHaveBeenCalled();
+    expect(loadResumeIdentity(ROOM_ID)).not.toBeNull();
+    expect(screen.getByText('新しい種類の失敗です')).toBeTruthy();
+  });
+
+  it('hubPathFor は理由を ?left= で運び、無ければ付けない', () => {
+    expect(hubPathFor('A-1')).toBe('/?room=A-1');
+    expect(hubPathFor('A-1', 'removed')).toBe('/?room=A-1&left=removed');
   });
 });

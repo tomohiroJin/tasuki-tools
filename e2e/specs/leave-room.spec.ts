@@ -79,3 +79,59 @@ test.describe('timer のロビーからルームを抜けると、玄関で告�
     ).toHaveCount(0);
   });
 });
+
+/**
+ * 別のツール・別のタブで外された人の全タブが、操作できる画面に取り残されない（#427・設計 A）。
+ *
+ * サーバーは外した人の**全接続**へ `REMOVED_FROM_ROOM` を送る。実画面で、timer から外された人の
+ * poker は「参加者（0人）」の操作できる画面に、ハブは名簿の画面に取り残されていた。
+ * 同じ人（同じ端末）の 5 つのタブを開き、どれも玄関で退出の告知を見て名乗り直せることを確かめる
+ * （ルームは生きているので、行き先は作成画面ではなく参加画面である）。
+ */
+test.describe('timer で外された人の、ほかのツールとハブのタブ', () => {
+  test('Given 外される人がハブ・poker・timer・topic・roulette を開いている / When 別の人が timer から外す / Then どのタブも玄関の参加画面で外された告知を見る', async ({
+    page,
+    openPeer,
+  }) => {
+    const code = await createRoom(page, HOST);
+
+    // 外される人（Bob）。timer を開いた最初のタブのほかに、同じ端末（同じ文脈）でタブを足す。
+    const bob = await openPeer('removed-bob');
+    await joinViaHub(bob.page, code, GUEST);
+    await expect(bob.page.getByRole('button', { name: 'ドライバーに加わる' })).toBeVisible();
+
+    const tabs = {
+      hub: await bob.page.context().newPage(),
+      poker: await bob.page.context().newPage(),
+      topic: await bob.page.context().newPage(),
+      roulette: await bob.page.context().newPage(),
+    };
+    const q = `?room=${encodeURIComponent(code)}`;
+    await tabs.hub.goto(`/${q}`);
+    await tabs.poker.goto(`/poker/${q}`);
+    await tabs.topic.goto(`/topic/${q}`);
+    await tabs.roulette.goto(`/roulette/${q}`);
+    // 開いたタブが「操作できる画面」であることを先に確かめる（外される前の対照）
+    await expect(tabs.hub.getByRole('list', { name: 'ツール' })).toBeVisible();
+    await expect(tabs.poker.getByRole('heading', { name: 'プランニングポーカー' })).toBeVisible();
+    await expect(tabs.poker.getByRole('heading', { name: /参加者（1人）/ })).toBeVisible();
+    await expect(tabs.topic.getByRole('heading', { level: 1, name: 'お題', exact: true })).toBeVisible();
+    await expect(tabs.roulette.getByRole('heading', { level: 1, name: '進行役ルーレット', exact: true })).toBeVisible();
+
+    // When: Alice が timer のロビーから Bob を外す
+    await page.getByRole('button', { name: `${GUEST} を退出させる` }).click();
+    await page.getByRole('button', { name: '退出させる', exact: true }).click();
+
+    // Then: Bob の timer を含む 5 つのタブすべてが玄関の作成画面で、外された告知を見る
+    const all = { timer: bob.page, ...tabs };
+    for (const [label, tab] of Object.entries(all)) {
+      await expect
+        .poll(() => new URL(tab.url()).pathname, { message: `${label} のタブの行き先のパス` })
+        .toBe('/');
+      await expect(tab.getByRole('status'), `${label} のタブの告知`).toHaveText(
+        'ルームから退出しました。再参加するには名前を入力してください。',
+      );
+      await expect(tab.getByRole('button', { name: '参加する' }), `${label} のタブは名乗り直す参加画面`).toBeVisible();
+    }
+  });
+});

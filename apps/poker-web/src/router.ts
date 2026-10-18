@@ -1,4 +1,5 @@
 // 自前の軽量ルーティング（research R5: 2 ルートに React Router は過剰）
+import { DEPARTURE_PARAM, type DepartureReason } from '@tasuki/room-core';
 
 /**
  * URL からルートを決める（#95 S5c）。
@@ -57,9 +58,15 @@ function decodeRoomCode(raw: string): string {
   }
 }
 
-/** 玄関のそのルーム（参加用 URL と同じ形・`docs/adr/0018` 決定 2）。 */
-export function hubPathFor(roomId: string): string {
-  return `/?room=${encodeURIComponent(roomId)}`;
+/**
+ * 玄関のそのルーム（参加用 URL と同じ形・`docs/adr/0018` 決定 2）。
+ *
+ * 抜けた・外されたときは理由を `?left=` で運ぶ（#290・#427。topic-web の `hubPathFor` と同じ形）。
+ */
+export function hubPathFor(roomId: string, departure?: DepartureReason): string {
+  const params = new URLSearchParams({ room: roomId });
+  if (departure !== undefined) params.set(DEPARTURE_PARAM, departure);
+  return `/?${params.toString()}`;
 }
 
 /**
