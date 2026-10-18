@@ -63,6 +63,8 @@ function makeSync(snapshot: RoomStateMessage | null, status: ConnectionStatus = 
     setPoints: () => {},
     setSpectator: () => {},
     removeParticipant: () => {},
+    setRecording: () => {},
+    renameGroup: () => {},
   };
 }
 

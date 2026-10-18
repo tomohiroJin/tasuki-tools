@@ -14,6 +14,7 @@ import {
   ESTIMATE_NO_POINTS,
   ESTIMATE_OPEN,
   ESTIMATE_UNNAMED,
+  RENAME_GROUP,
 } from '../src/estimate-copy';
 
 afterEach(cleanup);
@@ -38,13 +39,13 @@ function group(id: number, over: Partial<EstimateGroupView> = {}): EstimateGroup
 
 describe('EstimateLog', () => {
   it('Given 束が 0 / When 描く / Then 見出しと空の文言', () => {
-    render(<EstimateLog groups={[]} onSetPoints={vi.fn()} disabled={false} />);
+    render(<EstimateLog groups={[]} onSetPoints={vi.fn()} onRenameGroup={vi.fn()} disabled={false} />);
     expect(screen.getByRole('heading', { name: ESTIMATE_LOG_HEADING })).toBeTruthy();
     expect(screen.getByText(ESTIMATE_LOG_EMPTY)).toBeTruthy();
   });
 
   it('Given 束 3 つ / When 描く / Then 新しい束が上（wire の逆順）', () => {
-    render(<EstimateLog groups={[group(1), group(2), group(3)]} onSetPoints={vi.fn()} disabled={false} />);
+    render(<EstimateLog groups={[group(1), group(2), group(3)]} onSetPoints={vi.fn()} onRenameGroup={vi.fn()} disabled={false} />);
     const items = screen.getAllByRole('listitem').filter((li) => li.getAttribute('data-group') !== null);
     expect(items.map((li) => li.getAttribute('data-group'))).toEqual(['3', '2', '1']);
   });
@@ -56,7 +57,7 @@ describe('EstimateLog', () => {
         { attempt: 2, at: AT + 60_000, counts: [{ card: { kind: 'number', value: 5 }, count: 4 }] },
       ],
     });
-    render(<EstimateLog groups={[g]} onSetPoints={vi.fn()} disabled={false} />);
+    render(<EstimateLog groups={[g]} onSetPoints={vi.fn()} onRenameGroup={vi.fn()} disabled={false} />);
     const rows = screen.getAllByTestId('estimate-entry');
     expect(rows).toHaveLength(2);
     expect(rows[0]!.textContent).toContain('2 回め');
@@ -68,19 +69,19 @@ describe('EstimateLog', () => {
   });
 
   it('Given open の束 / When 描く / Then 見積もり中でポイントの選択は無い', () => {
-    render(<EstimateLog groups={[group(1, { open: true })]} onSetPoints={vi.fn()} disabled={false} />);
+    render(<EstimateLog groups={[group(1, { open: true })]} onSetPoints={vi.fn()} onRenameGroup={vi.fn()} disabled={false} />);
     expect(screen.getByText(ESTIMATE_OPEN)).toBeTruthy();
     expect(screen.queryByRole('combobox')).toBeNull();
   });
 
   it('Given 閉じた束 points 5 / null / When 描く / Then 値は選択が見出しの強い値として 1 回だけ出す', () => {
-    const { container } = render(<EstimateLog groups={[group(1, { points: 5 })]} onSetPoints={vi.fn()} disabled={false} />);
+    const { container } = render(<EstimateLog groups={[group(1, { points: 5 })]} onSetPoints={vi.fn()} onRenameGroup={vi.fn()} disabled={false} />);
     const select = screen.getByRole('combobox', { name: CHANGE_POINTS_NAME }) as HTMLSelectElement;
     expect(select.value).toBe('5');
     // 見出しに同じ値の別の表示を重ねない
     expect(container.querySelector('strong, [data-testid="estimate-points"]')).toBeNull();
     cleanup();
-    render(<EstimateLog groups={[group(1)]} onSetPoints={vi.fn()} disabled={false} />);
+    render(<EstimateLog groups={[group(1)]} onSetPoints={vi.fn()} onRenameGroup={vi.fn()} disabled={false} />);
     const none = screen.getByRole('combobox', { name: CHANGE_POINTS_NAME }) as HTMLSelectElement;
     expect(none.value).toBe('');
     expect(screen.queryByTestId('estimate-nopoints')).toBeNull();
@@ -88,7 +89,7 @@ describe('EstimateLog', () => {
 
   it('Given 閉じた束 points null / 5 / When 描く / Then 部品の .ui-select で、空のときだけ data-empty（弱く見せる印）', () => {
     // 「ポイントなし」が束で一番強く見えていた（#93 最終レビュー・spec §4.4: 強いのは添えたポイント）
-    render(<EstimateLog groups={[group(1), group(2, { points: 5 })]} onSetPoints={vi.fn()} disabled={false} />);
+    render(<EstimateLog groups={[group(1), group(2, { points: 5 })]} onSetPoints={vi.fn()} onRenameGroup={vi.fn()} disabled={false} />);
     const [withPoints, empty] = screen.getAllByRole('combobox') as HTMLSelectElement[];
     expect(empty!.value).toBe('');
     expect(empty!.classList.contains('ui-select')).toBe(true);
@@ -99,21 +100,21 @@ describe('EstimateLog', () => {
   });
 
   it('Given 閉じた束 / When 選択肢を見る / Then 空と 0 1 2 3 5 8 13 21', () => {
-    render(<EstimateLog groups={[group(1)]} onSetPoints={vi.fn()} disabled={false} />);
+    render(<EstimateLog groups={[group(1)]} onSetPoints={vi.fn()} onRenameGroup={vi.fn()} disabled={false} />);
     const select = screen.getByRole('combobox', { name: CHANGE_POINTS_NAME });
     const values = within(select).getAllByRole('option').map((o) => (o as HTMLOptionElement).value);
     expect(values).toEqual(['', '0', '1', '2', '3', '5', '8', '13', '21']);
   });
 
   it('Given 閉じた束 / When 空の選択肢を見る / Then 見える文言は ポイントなし', () => {
-    render(<EstimateLog groups={[group(1)]} onSetPoints={vi.fn()} disabled={false} />);
+    render(<EstimateLog groups={[group(1)]} onSetPoints={vi.fn()} onRenameGroup={vi.fn()} disabled={false} />);
     const select = screen.getByRole('combobox', { name: CHANGE_POINTS_NAME });
     expect((within(select).getAllByRole('option')[0] as HTMLOptionElement).textContent).toBe(ESTIMATE_NO_POINTS);
   });
 
   it('Given 閉じた束 / When 8 を選ぶ → 空を選ぶ / Then onSetPoints(id, 8) と (id, null)', () => {
     const onSetPoints = vi.fn();
-    render(<EstimateLog groups={[group(7, { points: 5 })]} onSetPoints={onSetPoints} disabled={false} />);
+    render(<EstimateLog groups={[group(7, { points: 5 })]} onSetPoints={onSetPoints} onRenameGroup={vi.fn()} disabled={false} />);
     const select = screen.getByRole('combobox', { name: CHANGE_POINTS_NAME });
     fireEvent.change(select, { target: { value: '8' } });
     expect(onSetPoints).toHaveBeenLastCalledWith(7, 8);
@@ -122,13 +123,13 @@ describe('EstimateLog', () => {
   });
 
   it('Given disabled / When 描く / Then 選択は押せない', () => {
-    render(<EstimateLog groups={[group(1)]} onSetPoints={vi.fn()} disabled />);
+    render(<EstimateLog groups={[group(1)]} onSetPoints={vi.fn()} onRenameGroup={vi.fn()} disabled />);
     expect((screen.getByRole('combobox') as HTMLSelectElement).disabled).toBe(true);
   });
 
   it('Given 閉じた束 2 つ（名前あり・名前なし） / When 選択の名前を読む / Then 束ごとに違い、アイテム名を含む', () => {
     // どの選択も「ポイントを変える」だけだと、読み上げではどの束の選択か区別できない（#93 最終レビュー）
-    render(<EstimateLog groups={[group(1), group(2, { item: '' })]} onSetPoints={vi.fn()} disabled={false} />);
+    render(<EstimateLog groups={[group(1), group(2, { item: '' })]} onSetPoints={vi.fn()} onRenameGroup={vi.fn()} disabled={false} />);
     const names: string[] = [];
     screen.getAllByRole('combobox', { name: (name) => (names.push(name), true) });
     expect(names).toHaveLength(2);
@@ -140,32 +141,61 @@ describe('EstimateLog', () => {
   });
 
   it('Given item が空 / When 描く / Then （名前なし）', () => {
-    render(<EstimateLog groups={[group(1, { item: '' })]} onSetPoints={vi.fn()} disabled={false} />);
+    render(<EstimateLog groups={[group(1, { item: '' })]} onSetPoints={vi.fn()} onRenameGroup={vi.fn()} disabled={false} />);
     expect(screen.getByText(ESTIMATE_UNNAMED)).toBeTruthy();
   });
 
   it('Given 束 5 つ・limit 3 / When 描く / Then 新しい 3 束だけ', () => {
     const gs = [1, 2, 3, 4, 5].map((i) => group(i));
-    render(<EstimateLog groups={gs} onSetPoints={vi.fn()} disabled={false} limit={3} />);
+    render(<EstimateLog groups={gs} onSetPoints={vi.fn()} onRenameGroup={vi.fn()} disabled={false} limit={3} />);
     const shown = screen.getAllByRole('listitem').filter((li) => li.getAttribute('data-group') !== null);
     expect(shown.map((li) => li.getAttribute('data-group'))).toEqual(['5', '4', '3']);
   });
 
   it('Given 束 3 つ・limit 0 / When 描く / Then 束は出ず、空の文言も出さない（limit は切り出しだけ）', () => {
-    render(<EstimateLog groups={[group(1), group(2), group(3)]} onSetPoints={vi.fn()} disabled={false} limit={0} />);
+    render(<EstimateLog groups={[group(1), group(2), group(3)]} onSetPoints={vi.fn()} onRenameGroup={vi.fn()} disabled={false} limit={0} />);
     expect(screen.queryByText(ESTIMATE_LOG_EMPTY)).toBeNull();
   });
 
   it('Given 束 / When 描く / Then 束は ol、領域は見出しで名前を持ち、2 つ描いても id が衝突しない', () => {
     render(
       <>
-        <EstimateLog groups={[group(1)]} onSetPoints={vi.fn()} disabled={false} />
-        <EstimateLog groups={[group(1)]} onSetPoints={vi.fn()} disabled={false} />
+        <EstimateLog groups={[group(1)]} onSetPoints={vi.fn()} onRenameGroup={vi.fn()} disabled={false} />
+        <EstimateLog groups={[group(1)]} onSetPoints={vi.fn()} onRenameGroup={vi.fn()} disabled={false} />
       </>,
     );
     const regions = screen.getAllByRole('region', { name: ESTIMATE_LOG_HEADING });
     expect(regions).toHaveLength(2);
     expect(regions[0]!.getAttribute('aria-labelledby')).not.toBe(regions[1]!.getAttribute('aria-labelledby'));
     expect(regions[0]!.querySelector('ol')).not.toBeNull();
+  });
+});
+
+describe('閉じた束の名前の付け直し（#427・設計 E）', () => {
+  const noop = vi.fn();
+  it('Given 閉じた束 / When 名前を押して打ち Enter / Then onRenameGroup(id, 名前)', () => {
+    const onRenameGroup = vi.fn();
+    render(<EstimateLog groups={[group(4)]} onSetPoints={noop} onRenameGroup={onRenameGroup} disabled={false} />);
+    fireEvent.click(screen.getByRole('button', { name: /ITEM-4/ }));
+    const input = screen.getByRole('textbox', { name: RENAME_GROUP });
+    fireEvent.change(input, { target: { value: '新しい名前' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onRenameGroup).toHaveBeenCalledTimes(1);
+    expect(onRenameGroup).toHaveBeenCalledWith(4, '新しい名前');
+  });
+
+  it('Given open の束 / When 描く / Then 名前は押せない', () => {
+    render(<EstimateLog groups={[group(1, { open: true })]} onSetPoints={noop} onRenameGroup={vi.fn()} disabled={false} />);
+    expect(screen.queryByRole('button', { name: /ITEM-1/ })).toBeNull();
+    expect(screen.getByText('ITEM-1')).toBeTruthy();
+  });
+
+  it('Given 打ちかけ / When 他の人の更新で groups が差し替わる / Then 打ちかけが残る', () => {
+    const { rerender } = render(<EstimateLog groups={[group(1)]} onSetPoints={noop} onRenameGroup={vi.fn()} disabled={false} />);
+    fireEvent.click(screen.getByRole('button', { name: /ITEM-1/ }));
+    const input = screen.getByRole<HTMLInputElement>('textbox');
+    fireEvent.change(input, { target: { value: '打ちかけ' } });
+    rerender(<EstimateLog groups={[group(1, { item: '他の人の名前' }), group(2)]} onSetPoints={noop} onRenameGroup={vi.fn()} disabled={false} />);
+    expect(screen.getByRole<HTMLInputElement>('textbox').value).toBe('打ちかけ');
   });
 });

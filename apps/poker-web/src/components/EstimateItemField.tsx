@@ -16,9 +16,13 @@ export interface EstimateItemFieldProps {
   item: string;
   onCommit: (item: string) => void;
   disabled: boolean;
+  /** 欄のラベル。省略で「いま見積もっているもの」（#427・束の見出しは「アイテム名を変える」を渡す） */
+  label?: string;
+  /** `title` は記録の上の題（既定）。`inline` は束の見出しの中の名前で、ラベルは見せず読み上げにだけ使う */
+  size?: 'title' | 'inline';
 }
 
-export function EstimateItemField({ item, onCommit, disabled }: EstimateItemFieldProps) {
+export function EstimateItemField({ item, onCommit, disabled, label = ESTIMATE_ITEM_LABEL, size = 'title' }: EstimateItemFieldProps) {
   const labelId = useId();
   const [draft, setDraft] = useState<string | null>(null);
   // Escape で畳んだあとにアンマウントの blur が確定として働かないための印
@@ -46,8 +50,9 @@ export function EstimateItemField({ item, onCommit, disabled }: EstimateItemFiel
   }
 
   return (
-    <div className="estimate-item">
-      <span id={labelId} className="estimate-item-label">{ESTIMATE_ITEM_LABEL}</span>
+    <div className={size === 'inline' ? 'estimate-item estimate-item--inline' : 'estimate-item'}>
+      {/* `hidden` でも aria-labelledby / aria-describedby からは読める */}
+      <span id={labelId} className="estimate-item-label" hidden={size === 'inline'}>{label}</span>
       {draft === null ? (
         <button
           type="button"

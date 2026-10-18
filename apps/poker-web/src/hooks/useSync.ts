@@ -117,6 +117,10 @@ export interface PokerSync {
   nextItem: (points: NumberCardValue | null) => void;
   /** 記録済みのアイテムのポイントを直す（#93） */
   setPoints: (groupId: number, points: NumberCardValue | null) => void;
+  /** 見積もりの記録を始める・止める。ルーム全員に効く（#427・設計 D） */
+  setRecording: (recording: boolean) => void;
+  /** 閉じた束の名前を直す（#427・設計 E） */
+  renameGroup: (groupId: number, item: string) => void;
   /** 自分の見学を切り替える。true で投票の輪から外れ、false で加わる（#419） */
   setSpectator: (spectator: boolean) => void;
   /** 接続の無い他人を一覧から外す（#419）。サーバーは接続中の人・自分を拒む */
@@ -255,6 +259,8 @@ export function usePokerSync(): PokerSync {
       revote: () => send({ type: 'revote' }),
       nextItem: (points: NumberCardValue | null) => send({ type: 'next-item', points }),
       setPoints: (groupId: number, points: NumberCardValue | null) => send({ type: 'set-points', groupId, points }),
+      setRecording: (recording: boolean) => send({ type: 'set-recording', recording }),
+      renameGroup: (groupId: number, item: string) => send({ type: 'set-group-item', groupId, item }),
       setSpectator: (spectator: boolean) => send({ type: 'set-spectator', spectator }),
       removeParticipant: (participantId: string) => send({ type: 'remove-participant', participantId }),
     };

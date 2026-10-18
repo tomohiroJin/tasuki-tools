@@ -15,6 +15,7 @@ import {
   ESTIMATE_LOG_HEADING,
   ESTIMATE_POINTS_LABEL,
   NEXT_ITEM,
+  RECORDING_TOGGLE,
   REVOTE,
 } from '../src/estimate-copy';
 
@@ -24,7 +25,10 @@ const participants = [
   { id: 'p2', name: 'みなと', connected: true, hasVoted: true, spectator: false },
 ];
 
-function snapshot(status: 'voting' | 'revealed', withEstimate = true): RoomStateMessage {
+// 開票後にポイントの欄を出すには、記録に open の束が要る（J8）
+const OPEN_GROUP = { id: 1, item: 'PROJ-1', points: null, open: true, entries: [] };
+
+function snapshot(status: 'voting' | 'revealed', withEstimate = true, recording = true): RoomStateMessage {
   const base = { type: 'room-state', roomId: ROOM_ID, you: 'p2', participants, yourVote: null } as const;
   const round =
     status === 'voting'
@@ -37,7 +41,7 @@ function snapshot(status: 'voting' | 'revealed', withEstimate = true): RoomState
   return {
     ...base,
     round,
-    ...(withEstimate ? { estimate: { item: 'PROJ-1', log: [] } } : {}),
+    ...(withEstimate ? { estimate: { item: 'PROJ-1', recording, log: [OPEN_GROUP] } } : {}),
   } as RoomStateMessage;
 }
 
@@ -65,6 +69,8 @@ function makeSync(snap: RoomStateMessage, over: Partial<PokerSync> = {}): PokerS
     setPoints: vi.fn(),
     setSpectator: vi.fn(),
     removeParticipant: vi.fn(),
+    setRecording: vi.fn(),
+    renameGroup: vi.fn(),
     ...over,
   };
 }
@@ -232,5 +238,82 @@ describe('アイテムの境目をまたぐと打ちかけの名前は捨てる�
     fireEvent.change(screen.getByRole('textbox'), { target: { value: '打ちかけ' } });
     rerender(<RoomPage roomId={ROOM_ID} sync={makeSync(withLog('PROJ-7', []))} />);
     expect(screen.getByRole<HTMLInputElement>('textbox').value).toBe('打ちかけ');
+  });
+});
+
+describe('記録の切り替え（#427・設計 D）', () => {
+  const openGroup = { id: 1, item: 'PROJ-1', points: null, open: true, entries: [] };
+  const closedGroup = {
+    id: 1,
+    item: 'PROJ-1',
+    points: null,
+    open: false,
+    entries: [{ attempt: 1, at: 1000, counts: [{ card: { kind: 'number', value: 5 }, count: 1 }] }],
+  };
+  function snap(opts: { recording?: boolean; log?: unknown[]; status?: 'voting' | 'revealed'; noRecordingKey?: boolean }): RoomStateMessage {
+    const base = snapshot(opts.status ?? 'revealed') as unknown as { estimate: Record<string, unknown> };
+    const estimate: Record<string, unknown> = { item: 'PROJ-1', log: opts.log ?? [] };
+    if (!opts.noRecordingKey) estimate.recording = opts.recording ?? true;
+    return { ...base, estimate } as unknown as RoomStateMessage;
+  }
+
+  it('recording false の room-state では記録の欄・いま見積もっているもの・ポイントの欄が無い', () => {
+    render(<RoomPage roomId={ROOM_ID} sync={makeSync(snap({ recording: false, log: [openGroup] }))} />);
+    expect(document.querySelector('.room-log--side')).toBeNull();
+    expect(document.querySelector('.room-log--foot')).toBeNull();
+    expect(screen.queryByText(ESTIMATE_ITEM_LABEL)).toBeNull();
+    expect(screen.queryByRole('combobox', { name: ESTIMATE_POINTS_LABEL })).toBeNull();
+    // 再投票・次のアイテムへは残る
+    expect(screen.getByRole('button', { name: REVOTE })).toBeTruthy();
+  });
+
+  it('recording true では今までどおり出る', () => {
+    render(<RoomPage roomId={ROOM_ID} sync={makeSync(snap({ recording: true, log: [openGroup] }))} />);
+    expect(document.querySelector('.room-log--side')).not.toBeNull();
+    expect(document.querySelector('.room-log--foot')).not.toBeNull();
+    expect(screen.getByText(ESTIMATE_ITEM_LABEL)).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: ESTIMATE_POINTS_LABEL })).toBeTruthy();
+  });
+
+  it('切り替えのボタンは aria-pressed で状態を示し、押すと setRecording を送る', () => {
+    const sync = makeSync(snap({ recording: false }));
+    render(<RoomPage roomId={ROOM_ID} sync={sync} />);
+    const btn = screen.getByRole('button', { name: RECORDING_TOGGLE });
+    expect(btn.getAttribute('aria-pressed')).toBe('false');
+    fireEvent.click(btn);
+    expect(sync.setRecording).toHaveBeenCalledWith(true);
+    cleanup();
+    const on = makeSync(snap({ recording: true }));
+    render(<RoomPage roomId={ROOM_ID} sync={on} />);
+    const btn2 = screen.getByRole('button', { name: RECORDING_TOGGLE });
+    expect(btn2.getAttribute('aria-pressed')).toBe('true');
+    fireEvent.click(btn2);
+    expect(on.setRecording).toHaveBeenCalledWith(false);
+  });
+
+  it('開票後でも open の束が無ければポイントの欄を出さない', () => {
+    render(<RoomPage roomId={ROOM_ID} sync={makeSync(snap({ recording: true, log: [closedGroup] }))} />);
+    expect(screen.queryByRole('combobox', { name: ESTIMATE_POINTS_LABEL })).toBeNull();
+    expect(screen.getByRole('button', { name: NEXT_ITEM })).toBeTruthy();
+  });
+
+  it('recording false でお題も無ければ .room-side が無い', () => {
+    render(<RoomPage roomId={ROOM_ID} sync={makeSync(snap({ recording: false }))} />);
+    expect(document.querySelector('.room-side')).toBeNull();
+  });
+
+  it('recording false でもお題があれば .room-side は札だけを持つ', () => {
+    const sync = makeSync(snap({ recording: false }), { topic: { title: 'FizzBuzz', body: '本文', source: 'manual' } });
+    render(<RoomPage roomId={ROOM_ID} sync={sync} />);
+    const side = document.querySelector('.room-side');
+    expect(side?.querySelector('.room-topic-side')).not.toBeNull();
+    expect(side?.querySelector('.room-log--side')).toBeNull();
+  });
+
+  it('recording が無い（古いサーバー）room-state は記録の欄を出す', () => {
+    render(<RoomPage roomId={ROOM_ID} sync={makeSync(snap({ noRecordingKey: true, log: [openGroup] }))} />);
+    expect(document.querySelector('.room-log--side')).not.toBeNull();
+    expect(screen.getByText(ESTIMATE_ITEM_LABEL)).toBeTruthy();
+    expect(screen.getByRole('button', { name: RECORDING_TOGGLE }).getAttribute('aria-pressed')).toBe('true');
   });
 });

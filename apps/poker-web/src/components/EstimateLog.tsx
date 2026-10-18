@@ -13,8 +13,10 @@ import {
   ESTIMATE_NO_POINTS,
   ESTIMATE_OPEN,
   ESTIMATE_UNNAMED,
+  RENAME_GROUP,
   attemptLabel,
 } from '../estimate-copy';
+import { EstimateItemField } from './EstimateItemField';
 import { cardLabel } from './CardHand';
 import { PointsSelect } from './PointsSelect';
 
@@ -22,6 +24,8 @@ export interface EstimateLogProps {
   /** wire の順（古い束が先） */
   groups: readonly EstimateGroupView[];
   onSetPoints: (groupId: number, points: NumberCardValue | null) => void;
+  /** 閉じた束の名前を直す（#427・設計 E）。open の束の名前は「いま見積もっているもの」の欄が持つ */
+  onRenameGroup: (groupId: number, item: string) => void;
   disabled: boolean;
   /** 新しい束から数えて出す数。省略で全部 */
   limit?: number;
@@ -35,7 +39,7 @@ export interface EstimateLogProps {
 
 const TIME_FORMAT = new Intl.DateTimeFormat('ja-JP', { hour: '2-digit', minute: '2-digit' });
 
-export function EstimateLog({ groups, onSetPoints, disabled, limit, className, labelledBy, scrollable = false }: EstimateLogProps) {
+export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limit, className, labelledBy, scrollable = false }: EstimateLogProps) {
   const headingId = useId();
   // 束ごとの選択の名前は「アイテム名 + ポイントを変える」。文言の側は記録に 1 つだけ置き、隠して名前にだけ使う
   const changeId = `${headingId}-change`;
@@ -69,10 +73,23 @@ export function EstimateLog({ groups, onSetPoints, disabled, limit, className, l
               {shown.map((group) => (
                 <li key={group.id} className="estimate-group" data-group={group.id}>
                   <div className="estimate-group-head">
-                    <span id={itemIdOf(group.id)} className="estimate-group-item">{group.item === '' ? ESTIMATE_UNNAMED : group.item}</span>
                     {group.open ? (
-                      <span className="estimate-group-open">{ESTIMATE_OPEN}</span>
+                      <>
+                        <span id={itemIdOf(group.id)} className="estimate-group-item">{group.item === '' ? ESTIMATE_UNNAMED : group.item}</span>
+                        <span className="estimate-group-open">{ESTIMATE_OPEN}</span>
+                      </>
                     ) : (
+                      <>
+                      {/* 閉じた束の名前は押して直せる。ポイントの選択の名前（`labelledBy`）が指す id は、この欄の外側の包みに付ける */}
+                      <span id={itemIdOf(group.id)} className="estimate-group-item">
+                        <EstimateItemField
+                          item={group.item}
+                          onCommit={(next) => onRenameGroup(group.id, next)}
+                          disabled={disabled}
+                          label={RENAME_GROUP}
+                          size="inline"
+                        />
+                      </span>
                       // ポイントは選択そのものを見出しの強い値として出す（値を別に重ねない）
                       <PointsSelect
                         className="estimate-group-points"
@@ -83,6 +100,7 @@ export function EstimateLog({ groups, onSetPoints, disabled, limit, className, l
                         labelledBy={`${itemIdOf(group.id)} ${changeId}`}
                         disabled={disabled}
                       />
+                      </>
                     )}
                   </div>
                   <ul className="estimate-entries">

@@ -61,6 +61,8 @@ function makeSync(snapshot: RoomStateMessage | null): PokerSync {
     setPoints: () => {},
     setSpectator: () => {},
     removeParticipant: () => {},
+    setRecording: () => {},
+    renameGroup: () => {},
   };
 }
 
