@@ -637,16 +637,70 @@
   }
 }
 
-/* 接続の無い人を外す確認（#419）。ネイティブ <dialog> を中央に出す */
+/* 接続の無い人を外す確認（#419）。ネイティブ <dialog> を中央に出す。
+   timer の確認ダイアログ（`confirm-dialog.css`）と同じ作り: 暗い面・細い縁・落ち影、背後は幕で暗くする。
+   timer の別名（`--panel` など）は poker には無いので、元のトークンで書く。 */
 .removal-confirm {
-  max-width: min(28rem, calc(100vw - 2rem));
+  box-sizing: border-box;
+  width: calc(100% - 2rem); /* 狭い幅でも左右に 1rem の余白を残す */
+  max-width: 24rem;
+  margin: auto;
+  padding: 1.25rem;
+  color: var(--ivory);
+  background-color: var(--felt-800);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    inset 0 1px 0 var(--ivory-inset),
+    var(--shadow-dialog);
 }
+
+.removal-confirm::backdrop {
+  background-color: var(--felt-shade);
+  backdrop-filter: blur(8px);
+}
+
 .removal-confirm h3 {
-  margin-top: 0;
+  margin: 0;
+  font-size: var(--font-size-lg);
+  line-height: var(--line-tight);
+  font-weight: 700;
 }
-.removal-confirm-actions {
+
+/* 並び（取り消し → 確定）は部品の `.ui-actions`。ここは題との間隔だけ */
+.removal-confirm .ui-actions {
+  margin-top: 1.25rem;
+}
+
+/* 切断中の席は札・名前・印を薄めるが、「退出させる」は薄めない（押せるものが薄いと押しにくい）。
+   席の幅（6.5rem）で字が割れないよう折り返さず、左右の余白を詰める。 */
+.participants li.disconnected {
+  opacity: 1;
+}
+
+.participants li.disconnected > :not(.remove-ghost) {
+  opacity: 0.45;
+}
+
+.participants .remove-ghost {
+  white-space: nowrap;
+  max-width: 100%;
+  padding-inline: 0.5rem;
+}
+
+/* 札を持たない席（見学者）の枠。札（`.seat-card`）と同じ幅と高さで、中に「見学」の印を置く。
+   名前の段が投票者の席とずれない。 */
+.seat-slot {
+  flex: none;
+  box-sizing: border-box;
   display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: var(--space-4);
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  height: 3.3rem;
+}
+
+/* 枠は札より狭いので、印の余白を詰めて「見学」が割れないようにする */
+.participants .seat-slot .badge {
+  padding-inline: 0.3rem;
 }

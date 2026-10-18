@@ -287,4 +287,45 @@ describe('接続の無い人を外す（G-4）', () => {
     view.rerender(<ParticipantList participants={people} {...props} offline />);
     expect((within(dialog).getByRole('button', { name: '退出させる' }) as HTMLButtonElement).disabled).toBe(true);
   });
+
+  it('Given 幽霊の行 / When 描く / Then 「退出させる」は薄めの外で折り返さない印（remove-ghost）を持つ。確認は部品の並び（ui-actions）を使う', () => {
+    render(<ParticipantList participants={people} you="me-0001" votes={null} onRemove={() => {}} />);
+    const row = screen.getByText('えり').closest('li') as HTMLElement;
+    expect(within(row).getByRole('button', { name: '退出させる' }).classList.contains('remove-ghost')).toBe(true);
+    fireEvent.click(within(row).getByRole('button', { name: '退出させる' }));
+    const dialog = document.querySelector('dialog') as HTMLDialogElement;
+    expect(dialog.querySelector('.ui-actions')).not.toBeNull();
+    expect(within(dialog).getByRole('button', { name: '退出させる' }).classList.contains('ui-button--danger')).toBe(true);
+  });
+
+  it('Given 見学者と投票者 / When 描く / Then 見学者の席にも札と同じ枠があり、印はその中にある', () => {
+    render(
+      <ParticipantList
+        participants={[p('a', 'あかり'), { ...p('b', 'いずみ'), spectator: true }]}
+        you="a"
+        votes={null}
+        onRemove={() => {}}
+      />,
+    );
+    const row = screen.getByText('いずみ').closest('li') as HTMLElement;
+    const slot = row.querySelector('.seat-slot') as HTMLElement;
+    expect(slot.querySelector('.badge.spectator')?.textContent).toBe('見学');
+    expect(row.firstElementChild).toBe(slot);
+  });
+});
+
+describe('開票後に票を持つ見学者の印', () => {
+  it('Given 票が札として残る見学者 / When 描く / Then 札のほかに「見学」の印も出る', () => {
+    render(
+      <ParticipantList
+        participants={[p('a', 'あかり'), { ...p('b', 'いずみ'), spectator: true }]}
+        you="a"
+        votes={new Map([['b', { kind: 'number', value: 8 }]])}
+        onRemove={() => {}}
+      />,
+    );
+    const row = screen.getByText('いずみ').closest('li') as HTMLElement;
+    expect(within(row).getByRole('img').getAttribute('aria-label')).toBe('8');
+    expect(within(row).getByText('見学')).toBeTruthy();
+  });
 });

@@ -96,15 +96,23 @@ export function ParticipantList({ participants, you, votes, onRemove, offline = 
           const order = showCard ? seatOrder++ : 0;
           return (
             <li key={p.id} className={p.connected ? '' : 'disconnected'}>
-              {showCard && <SeatCard hasVoted={p.hasVoted} vote={vote} order={order} />}
+              {showCard ? (
+                <SeatCard hasVoted={p.hasVoted} vote={vote} order={order} />
+              ) : (
+                // 札を持たない席。札と同じ大きさの枠に「見学」の印を置き、名前の高さを投票者の席にそろえる
+                <span className="seat-slot">
+                  {p.spectator && <span className="badge spectator">{SPECTATOR_BADGE}</span>}
+                </span>
+              )}
               <span className="name">
                 {participantLabel(p.name, p.id, everyone)}
                 {p.id === you && <span className="you-mark">（あなた）</span>}
               </span>
-              {p.spectator && <span className="badge spectator">{SPECTATOR_BADGE}</span>}
+              {/* 開票後の票が札として残る見学者は、札のあとに印を出す（札を持たない席は上の枠の中） */}
+              {p.spectator && showCard && <span className="badge spectator">{SPECTATOR_BADGE}</span>}
               {/* 公開後は札が値を見せるので「投票済み」は出さない。票が無い席だけ印を出す。
-                  印は見える字だけにする（札の `aria-label` が既に「未投票」を読み上げるので、2 回読ませない・#348 のレビュー）。
-                  見学者は投票しないので「未投票」は出さない */}
+                印は見える字だけにする（札の `aria-label` が既に「未投票」を読み上げるので、2 回読ませない・#348 のレビュー）。
+                見学者は投票しないので「未投票」は出さない */}
               {!p.spectator &&
                 (votes === null
                   ? p.hasVoted && <span className="badge voted">投票済み</span>
@@ -117,7 +125,7 @@ export function ParticipantList({ participants, you, votes, onRemove, offline = 
               {!p.connected && p.id !== you && (
                 <button
                   type="button"
-                  className="ui-button ui-button--secondary ui-button--sm"
+                  className="ui-button ui-button--secondary ui-button--sm remove-ghost"
                   disabled={offline}
                   onClick={(e) => {
                     triggerRef.current = e.currentTarget;

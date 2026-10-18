@@ -35,7 +35,7 @@ export function RemovalConfirm({ title, disabled = false, onConfirm, onCancel }:
       }}
     >
       <h3 id="poker-removal-title">{title}</h3>
-      <div className="removal-confirm-actions">
+      <div className="ui-actions">
         <button
           type="button"
           className="ui-button ui-button--secondary"
