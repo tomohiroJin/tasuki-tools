@@ -15,25 +15,18 @@
 
 import { ok, err, type Result } from "neverthrow";
 import {
-  decide,
-  evolve,
   removalNotificationFor,
   errorMessageFor,
-  rotationEntryId,
   type TimerState,
   type ErrorCode,
   type Command,
 } from "@tasuki/timer-core";
-import {
-  hasNoParticipants,
-  removeParticipant,
-  type Participant as MembershipParticipant,
-} from "@tasuki/room-core";
-import { pickPromotionTarget } from "../pick-promotion-target.js";
+import type { Participant as MembershipParticipant } from "@tasuki/room-core";
+import { planRemoval } from "../room-removal.js";
 import type { WallClock } from "../../ports/wall-clock.js";
 import type { Broadcaster } from "../../ports/broadcaster.js";
 import type { RoomState } from "../apply-room-level-event.js";
-import { computeIneligibleIndices, occupants } from "../timer-snapshot-dto.js";
+import { occupants } from "../timer-snapshot-dto.js";
 
 /** `handleRoomCommand` が事前に解決済みの在室ルームと実行者。 */
 export interface ParticipantRemoveContext {
@@ -132,34 +125,17 @@ export async function handleParticipantRemove(
     for (const connId of target.connIds) sendError(connId, removalCode, message);
   };
 
-  // ソロの部屋からの退出（Issue #79）。退出後に在室者が 0 人になるなら、参加者を
-  // 1 人減らした状態は作らず、ルームごと破棄する。
-  //
-  // 下の rotation 長ガード（BelowMinMembers）は「rotation を空にして担当の居ない輪を
-  // 作る」ことを避けるための保護であり（#376 より前は evolve の currentIndex が NaN になった）、**部屋に人が
-  // 残る前提**の不変条件である。ところがこの保護は、作った直後のソロの部屋にも
-  // そのまま効いていた。結果としてルームを作った本人が気が変わっても抜けられず、
-  // タブを閉じるしかない（しかも部屋はアイドル回収まで最大 ROOM_IDLE_TTL_MS 残る）。
-  //
-  // 誰も残らないのであれば rotation を維持する意味は無い。そこで evolve を通さず
-  // ルームごと破棄する。緩めるのはこの一点だけで、1 人でも残るなら従来どおり
-  // 拒否する（rotation が空の部屋に人が取り残される破綻を作らないため）。
-  //
-  // 在室者は名簿の人だけを数える。代理はローテーション上のラベルであり、名簿には居ない（D6）。
-  // 名簿が空になれば、輪に代理が残っていてもルームごと破棄する
-  // （S3 が残した「代理だけが残る部屋」はこの変更で作れなくなる・#95 S4a）。
-  // **`occupants()` の結果（`residents`）で数えないこと** —— あちらは輪の代理を
-  // 混ぜて返すので、代理を「残る人」に数えてしまう。
-  //
-  // 判定は `@tasuki/room-core` の `hasNoParticipants` に任せる。「名簿が空か」は
-  // メンバーシップ文脈の述語であり、ここで `participants.length === 0` を書き写すと
-  // **名簿の表現が変わったときに片側だけが取り残される**（#245 のレビューで、
-  // 書き写しが SC-039③④ の指標としても現れた）。
-  //
-  // 対象が代理なら `removeParticipant` は `PARTICIPANT_NOT_FOUND` を返す（代理は名簿に居ない・D6）。
-  // そのときは名簿を変えずに進むので、ここで先に外しても輪の席の処理は下でそのまま行える。
-  const membershipAfterRemoval = removeParticipant(membership, targetId).unwrapOr(membership);
-  if (hasNoParticipants(membershipAfterRemoval)) {
+  // 名簿・輪の計算は `room-removal.ts` の `planRemoval` に分けてある（#419・poker の入口と共有）。
+  // ソロの退出でルームごと破棄する理由（#79）、最後の 1 席の繰り上げ（#290・#376）の注記もそちらにある。
+  const planned = planRemoval({ membership, timer }, targetId, now);
+  if (planned.isErr()) {
+    const failure = planned.error;
+    const code: ErrorCode = typeof failure === "string" ? failure : failure.decide;
+    sendError(connId, code, errorMessageFor(code));
+    return err(code);
+  }
+  const outcome = planned.value;
+  if (outcome.kind === "destroy") {
     // 後始末はアイドル回収と同じ共通経路へ委ねる（スケジューラ・お題の生成・presence タイマー・
     // トークン・名簿・timer の状態・お題・ラウンド。1 つでも取りこぼすと消えた部屋のタイマーが
     // 生き残る。内訳と順序の正本は `application/destroy-room.ts`）。
@@ -170,53 +146,8 @@ export async function handleParticipantRemove(
     notifyRemovedTarget();
     return ok(undefined);
   }
-
-  // rotation の枠を外すかを決める（D6b・FR-085）。
-  // rotation は参加者IDの配列なので、退出者の枠は ID でそのまま一意に引ける。
-  // 参加順から「枠の持ち主」を推測していた G6 の規則（sameNameOwner）は、
-  // 同名の二重参加や再接続で実態とずれたため撤去した。
-  const idx = timer.session.rotation.findIndex((e) => rotationEntryId(e) === targetId);
-  // 名簿から外す（代理は名簿に居ないので何も起きない。輪の席だけが下で外れる）。
-  // かつてはここで AI の鍵の持ち主の一覧からも落としていた。#91 PR 3 でその一覧ごと消えた。
-  let next: RoomState = {
-    membership: membershipAfterRemoval,
-    timer,
-  };
-  if (idx >= 0) {
-    // 数えるのは**席（`RotationEntry`）**であって名簿の人数ではない。守っているのは
-    // 「evolve が currentIndex を決められる輪が残ること」なので、代理の席も 1 席と数える。
-    //
-    // **最後の 1 席でも拒まない**（#290・D1）。見学者を先に繰り上げてから外すので、
-    // 輪は一瞬も空にならない（担当の居ない輪を作らない。#376 より前は空の輪で
-    // `evolveMemberRemoved` が currentIndex を NaN にした。いまは 0 にして時計も止めるが、空の輪は認めない）。
-    // 拒否を残すのは候補が居ないときの防御で、**名簿が空でない限りここへは来ない** ——
-    // 退出者が唯一の席を持つなら、残る名簿の全員が見学だからである。
-    let working = { session: timer.session, clock: timer.clock };
-    if (timer.session.rotation.length <= 1) {
-      const seatedIds = new Set(timer.session.rotation.map(rotationEntryId));
-      const promoted = pickPromotionTarget(membership.participants, seatedIds, targetId);
-      if (promoted === null) {
-        sendError(connId, "BelowMinMembers", errorMessageFor("BelowMinMembers"));
-        return err("BelowMinMembers");
-      }
-      const added = evolve(working, { type: "MemberAdded", participantId: promoted.id, now }, now);
-      working = { session: added.session, clock: added.clock };
-    }
-    // **`idx` は繰り上げの後も有効である。** `MemberAdded` は席を末尾へ足すので、
-    // 先にある退出者の位置は動かない（ここへ来る時点で `idx` は 0 である）。
-    // 席を外すのは decide の member.remove と同じ 1 つの経路にする（#376）。運転中の人が抜けるなら、
-    // 次の担当は交代と同じ資格の規則で decide が選ぶ。資格は member.remove と同じく**操作の前の名簿**で測る
-    // （`handlers.ts` の `ineligible` と同じ。抜ける人の席は選ばれないので、前後どちらでも結果は変わらない）。
-    // 添字は繰り上げを済ませた `working` の輪のもの。繰り上げで輪は 2 席以上あるので、BelowMinMembers は返らない。
-    const ineligible = computeIneligibleIndices(membership, { ...timer, session: working.session, clock: working.clock });
-    const removed = decide({ command: "member.remove", index: idx, ineligible }, working, now);
-    if (removed.isErr()) {
-      sendError(connId, removed.error.type, errorMessageFor(removed.error.type));
-      return err(removed.error.type);
-    }
-    const agg = removed.value.reduce((acc, event) => evolve(acc, event, now), working);
-    next = { ...next, timer: { ...next.timer, session: agg.session, clock: agg.clock } };
-  }
+  // timer を渡したので、外した後の timer は必ず返る。
+  const next: RoomState = { membership: outcome.membership, timer: outcome.timer ?? timer };
   commit(next);
   // **退出した人の票を捨てる**（R8・#95 S5b）。名簿を更新し終えてから呼ぶ ——
   // poker 側は更新後の名簿で自動公開を測り直す（残った全員が投票済みになりうる）。

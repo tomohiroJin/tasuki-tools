@@ -124,8 +124,19 @@ export interface DispatchDeps {
   handleJoinRoom(ws: HandlerConnection, msg: Extract<ClientMessage, { type: 'join-room' }>): void;
   handleCheckRoom(ws: HandlerConnection, msg: Extract<ClientMessage, { type: 'check-room' }>): void;
   commitRoomAction: CommitRoomAction;
-  /** エラー応答（`remove-participant` の仮の枝が使う。Task 4 で差し替わる） */
+  /** エラー応答（`remove-participant` が使う） */
   sendError: CommitRoomActionDeps['sendError'];
+  /** 名簿と、あればラウンドを読む（`remove-participant` の事前検査用） */
+  loadState: CommitRoomActionDeps['loadState'];
+  /**
+   * 人をルームから外す（`handlers.ts` の `removeFromRoom`・#419 G-6）。
+   * 名簿・timer の輪・票と見学の後始末をまとめて行う。poker の配信は票の後始末が行う。
+   */
+  removeFromRoom: (
+    roomCode: string,
+    actorId: string,
+    targetId: string,
+  ) => Result<void, 'participant-not-found' | 'not-removable'>;
   /** 開票の時刻（壁時計）。`reveal` が記録の `at` に使う */
   now: () => number;
 }
@@ -143,6 +154,8 @@ export function createDispatch({
   handleCheckRoom,
   commitRoomAction,
   sendError,
+  loadState,
+  removeFromRoom,
   now,
 }: DispatchDeps): (ws: HandlerConnection, msg: ClientMessage) => void {
   return function dispatch(ws, msg) {
@@ -184,10 +197,41 @@ export function createDispatch({
           ok(setSpectator(round, participantId, msg.spectator)),
         );
         return;
-      case 'remove-participant':
-        // 仮の枝。Task 4 が名簿から外す実装へ差し替える（それまでは誰も外せない）。
-        sendError(ws, 'not-removable', '接続している人は外せません');
+      case 'remove-participant': {
+        // 参加済みで名簿に居る人だけが外せる（G-9 と同じ検査）。
+        const { participantId, roomId } = ws.data;
+        const state = roomId === null ? undefined : loadState(roomId);
+        if (
+          participantId === null ||
+          roomId === null ||
+          !state?.room.participants.some((p) => p.id === participantId)
+        ) {
+          sendError(ws, 'not-joined', 'ルームに参加していません');
+          return;
+        }
+        const target = state.room.participants.find((p) => p.id === msg.participantId);
+        if (target === undefined) {
+          sendError(ws, 'participant-not-found', POKER_ERROR_TEXT.PARTICIPANT_NOT_FOUND);
+          return;
+        }
+        // 自分自身と、いずれかのツールに接続中の人は外せない（G-5）。外せるのは幽霊だけ。
+        if (target.id === participantId || target.connections.size > 0) {
+          sendError(ws, 'not-removable', POKER_ERROR_TEXT.NOT_REMOVABLE);
+          return;
+        }
+        const removed = removeFromRoom(roomId, participantId, target.id);
+        if (removed.isErr()) {
+          const code = removed.error;
+          sendError(
+            ws,
+            code,
+            code === 'participant-not-found'
+              ? POKER_ERROR_TEXT.PARTICIPANT_NOT_FOUND
+              : POKER_ERROR_TEXT.NOT_REMOVABLE,
+          );
+        }
         return;
+      }
     }
     // 網羅性の保証: ここへ来るのは全種別を処理し終えたときだけ（型は `never`）
     const unhandled: never = msg;

@@ -62,6 +62,10 @@ function setupRoom(names: string[]) {
     rateLimiter: allowLimiter,
     maxRooms: 50,
     topicBroadcaster: { sendCurrent: () => {} },
+    // このテストでは人を外さない（#419）
+    removeFromRoom: () => {
+      throw new Error('removeFromRoom は呼ばれない');
+    },
   });
   const clients: Client[] = names.map((name, i) => {
     const sent: ServerMessage[] = [];

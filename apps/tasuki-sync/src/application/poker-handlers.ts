@@ -45,6 +45,7 @@
  * （`room-not-found`・同じ文言・同じレート制限の積算）で拒む（`docs/adr/0011`）。
  * 選択画面で合言葉を通った人は復帰の組を持っているので、そのまま入れる。
  */
+import type { Result } from 'neverthrow';
 import {
   applyAutoReveal,
   createRound,
@@ -145,6 +146,17 @@ export interface PokerHandlerDeps extends TimerSeatBroadcastDeps {
    * お題ツールでは正しく出るので誰も気づかない。
    */
   topicBroadcaster: Pick<TopicBroadcaster, "sendCurrent">;
+  /**
+   * 人をルームから外す（`handlers.ts` の `removeFromRoom`・#419）。
+   *
+   * **必須にしてある**（理由は {@link PokerHandlerDeps.hub} と同じ）。省略可能にすると、
+   * 配線の繋ぎ忘れで poker の「退出させる」だけが静かに効かなくなる。
+   */
+  removeFromRoom: (
+    roomCode: string,
+    actorId: string,
+    targetId: string,
+  ) => Result<void, 'participant-not-found' | 'not-removable'>;
 }
 
 /** 組み立て済みのユースケース群。WS アダプタと死活監視以外の入口はここに集まる。 */
@@ -159,9 +171,11 @@ export interface PokerHandlers {
   /**
    * 名簿から人が消えたときに、その人の票を捨てる（R8・#95 S5b）。
    *
-   * 呼ぶのは timer の入口（`command-handlers/participant-remove.ts`）である ——
-   * 退出は**ルームの出来事**であって poker の出来事ではないので、poker の wire には
-   * 対応するコマンドが無い。配線は `create-sync-server.ts` が繋ぐ。
+   * 退出は**ルームの出来事**であって poker だけの出来事ではない。入口は 2 つある ——
+   * timer の `participant.remove`（`command-handlers/participant-remove.ts`）と、
+   * poker の `remove-participant`（`poker-commit-room-action.ts`・#419）。どちらも
+   * `handlers.ts` の保管を更新してからここを呼ぶ。配線は `create-sync-server.ts` が繋ぐ。
+   * 票に加えて見学の印も捨てる（`discardVote`）。
    */
   handleParticipantRemoved(roomCode: string, participantId: string): void;
   dispatch(ws: HandlerConnection, msg: ClientMessage): void;
@@ -192,6 +206,7 @@ export function makePokerHandlers(deps: PokerHandlerDeps): PokerHandlers {
     rateLimiter,
     maxRooms,
     topicBroadcaster,
+    removeFromRoom,
   } = deps;
 
   /**
@@ -668,6 +683,8 @@ export function makePokerHandlers(deps: PokerHandlerDeps): PokerHandlers {
     handleCheckRoom,
     commitRoomAction,
     sendError,
+    loadState,
+    removeFromRoom,
     now: () => wallClock.now(),
   });
 

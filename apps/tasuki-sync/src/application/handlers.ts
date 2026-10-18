@@ -34,6 +34,7 @@ import type { RoomCodeGen } from "../ports/code-gen.js";
 import type { Scheduler } from "./schedule.js";
 import { createRateLimitGate } from "./rate-limit-gate.js";
 import { saveRoster } from "./save-roster.js";
+import { planRemoval } from "./room-removal.js";
 import type { HubBroadcaster } from "../ports/hub-broadcaster.js";
 import type { TopicBroadcaster } from "./topic-broadcast.js";
 import type { TopicStore } from "../ports/topic-store.js";
@@ -508,6 +509,58 @@ export function makeHandlers(deps: HandlerDeps) {
   };
 
   /**
+   * poker の入口から人をルームから外す（#419・G-6）。timer の `participant.remove` と
+   * 同じ計算（`planRemoval`）を通し、保管と配信だけを入口に合わせる。
+   *
+   * - **timer の状態が無いルームでは `timers.put` を呼ばない。** 呼ぶと `join-room.ts` の
+   *   遅延生成（D8）が「もう在る」と読んで初期状態を作らなくなる。名簿だけ `saveRoster` で保管する。
+   * - 外した人の票・見学は `discardPokerVote` が捨て、poker の配信もそちらが行う。
+   * - timer の `broadcastSignal` は timer の接続にしか届かない。poker へ新しい frame は足さない（G-6a）。
+   * - 呼び元（poker の dispatch）が接続中の人・自分を弾いてから呼ぶ。ここでは名簿に居ることだけ確かめる。
+   */
+  function removeFromRoom(
+    roomCode: string,
+    actorId: string,
+    targetId: string,
+  ): Result<void, "participant-not-found" | "not-removable"> {
+    const membership = store.get(roomCode);
+    if (!membership) return err("participant-not-found");
+    const timer = timers.get(roomCode);
+    // 名簿の人だけが対象（輪の代理は poker からは外せない）。
+    const target = membership.participants.find((p) => p.id === targetId);
+    if (!target) return err("participant-not-found");
+    const actor = membership.participants.find((p) => p.id === actorId);
+
+    const planned = planRemoval({ membership, timer }, targetId, clock.now());
+    if (planned.isErr()) {
+      return err(planned.error === "PARTICIPANT_NOT_FOUND" ? "participant-not-found" : "not-removable");
+    }
+    const outcome = planned.value;
+    if (outcome.kind === "destroy") {
+      destroyRoom(roomCode);
+      return ok(undefined);
+    }
+    if (timer !== undefined && outcome.timer !== undefined) {
+      commit({ membership: outcome.membership, timer: outcome.timer });
+      deps.discardPokerVote(roomCode, targetId);
+      reconcileSchedule(outcome.timer);
+      broadcaster.broadcastSignal(roomCode, {
+        type: "signal",
+        signal: "notice",
+        action: "participant-removed",
+        actorName: actor?.displayName ?? "",
+        actorParticipantId: actorId,
+        targetName: target.displayName,
+        targetParticipantId: targetId,
+      });
+    } else {
+      saveRoster({ store, hub: deps.hub, timers, timerBroadcaster: broadcaster }, outcome.membership);
+      deps.discardPokerVote(roomCode, targetId);
+    }
+    return ok(undefined);
+  }
+
+  /**
    * セッションを畳む操作（中断・リセット・完成）を、誰が実行したかと一緒に全員へ伝える（#95 S3・FR-077）。
    * 在室者なら誰でも実行できるので、誰が実行したか分からないと画面が突然変わった理由を追えない。
    */
@@ -570,6 +623,7 @@ export function makeHandlers(deps: HandlerDeps) {
     handleConnectionClose,
     releaseRoom,
     advanceForAbsence: autoSwitch,
+    removeFromRoom,
     /**
      * レート制限のゲート（#95 S5a）。
      *

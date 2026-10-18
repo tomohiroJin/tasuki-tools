@@ -10,4 +10,8 @@ export const POKER_ERROR_TEXT = {
   ROOM_NOT_FOUND: 'ルームが見つかりません',
   /** `rate-limited`。入室と照会の 2 か所が返す。 */
   RATE_LIMITED: '試行が多すぎます。しばらくしてからお試しください',
+  /** `participant-not-found`。`remove-participant` の対象が名簿に居ないとき（#419）。 */
+  PARTICIPANT_NOT_FOUND: '参加者が見つかりません',
+  /** `not-removable`。接続している人・自分自身は外せない（#419・G-5）。 */
+  NOT_REMOVABLE: '接続している人は外せません',
 } as const;

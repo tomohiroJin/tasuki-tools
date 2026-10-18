@@ -145,6 +145,10 @@ describe('IdGen の差し替え（衝突再試行）', () => {
       maxRooms: 50,
       // お題の配信はこのテストの対象外。
       topicBroadcaster: { sendCurrent: () => {} },
+      // このテストでは人を外さない（#419）
+      removeFromRoom: () => {
+        throw new Error('removeFromRoom は呼ばれない');
+      },
     }).generateRoomId();
 
     expect(roomId).toBe('fresh999');
@@ -180,6 +184,10 @@ describe('IdGen の差し替え（衝突再試行）', () => {
       rateLimiter: alwaysAllowLimiter(),
       maxRooms: 50,
       topicBroadcaster: { sendCurrent: () => {} },
+      // このテストでは人を外さない（#419）
+      removeFromRoom: () => {
+        throw new Error('removeFromRoom は呼ばれない');
+      },
     });
 
     // When
@@ -236,6 +244,10 @@ describe('MonotonicClock の差し替え（レート制限の窓の境界）', (
       maxRooms: 50,
       // お題の配信はこのテストの対象外。
       topicBroadcaster: { sendCurrent: () => {} },
+      // このテストでは人を外さない（#419）
+      removeFromRoom: () => {
+        throw new Error('removeFromRoom は呼ばれない');
+      },
     });
     const ws = connectionOf(spySocket(), { rateKey: 'client-1' });
 
@@ -336,6 +348,10 @@ describe('RoomStore の差し替え（上限判定を実ルームなしで再現
       maxRooms: 3,
       // お題の配信はこのテストの対象外。
       topicBroadcaster: { sendCurrent: () => {} },
+      // このテストでは人を外さない（#419）
+      removeFromRoom: () => {
+        throw new Error('removeFromRoom は呼ばれない');
+      },
     });
     const ws = connectionOf(spySocket());
 
@@ -413,6 +429,10 @@ describe('RoomStore の差し替え（判定順序: 上限判定は切り離し�
       maxRooms: 1,
       // お題の配信はこのテストの対象外。
       topicBroadcaster: { sendCurrent: () => {} },
+      // このテストでは人を外さない（#419）
+      removeFromRoom: () => {
+        throw new Error('removeFromRoom は呼ばれない');
+      },
     });
     // 既に別ルーム 'r1' に参加中の接続（二重送信・SPA 遷移で create-room を送ってきた想定）
     const ws = connectionOf(spySocket(), { participantId: 'p1', roomId: 'r1' });
@@ -479,6 +499,10 @@ describe('RoomSocket の差し替え（配信の宛先と回数）', () => {
       maxRooms: 50,
       // お題の配信はこのテストの対象外。
       topicBroadcaster: { sendCurrent: () => {} },
+      // このテストでは人を外さない（#419）
+      removeFromRoom: () => {
+        throw new Error('removeFromRoom は呼ばれない');
+      },
     });
 
     // When: ゲストが room01 に参加する
@@ -538,6 +562,10 @@ describe('配線の穴 1: handleCreateRoom の resetRoom 呼び出し', () => {
       maxRooms: 50,
       // お題の配信はこのテストの対象外。
       topicBroadcaster: { sendCurrent: () => {} },
+      // このテストでは人を外さない（#419）
+      removeFromRoom: () => {
+        throw new Error('removeFromRoom は呼ばれない');
+      },
     });
     const newSocket = spySocket();
 
@@ -603,6 +631,10 @@ describe('配線の穴 2: detachFromCurrentRoom の早期 return での detach �
       maxRooms: 50,
       // お題の配信はこのテストの対象外。
       topicBroadcaster: { sendCurrent: () => {} },
+      // このテストでは人を外さない（#419）
+      removeFromRoom: () => {
+        throw new Error('removeFromRoom は呼ばれない');
+      },
     });
     const ws = connectionOf(spySocket(), { participantId: 'p1', roomId: 'gone-room' });
 

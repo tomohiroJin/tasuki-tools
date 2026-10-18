@@ -321,6 +321,9 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     maxRooms: config.maxRooms,
     // お題の状態を参加した本人へ 1 通送る（#91・E4）。配信先はルームの全接続。
     topicBroadcaster,
+    // 人をルームから外す（#419）。`handlers` は上で組み立て済み。
+    removeFromRoom: (roomCode, actorId, targetId) =>
+      handlers.removeFromRoom(roomCode, actorId, targetId),
   });
 
   /**

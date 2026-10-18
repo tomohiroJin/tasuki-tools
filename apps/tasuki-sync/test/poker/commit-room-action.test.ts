@@ -83,6 +83,10 @@ function setup(data: Partial<HandlerConnection['data']> = {}) {
     maxRooms: 50,
     // お題の配信はこのテストの対象外。
     topicBroadcaster: { sendCurrent: () => {} },
+    // このテストでは人を外さない（#419）
+    removeFromRoom: () => {
+      throw new Error('removeFromRoom は呼ばれない');
+    },
   });
   const ws: HandlerConnection = {
     ...socket,
