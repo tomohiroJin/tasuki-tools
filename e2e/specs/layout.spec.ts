@@ -320,6 +320,74 @@ test.describe('poker のルームは広い画面で読む面と操作の面を�
     expect(new Set(tops).size).toBe(1);
   });
 
+  test('Given 幅 1280・高さ 800・お題あり・記録する・6 束 / When ルームを開く / Then お題の札と記録の札は左端がそろい、記録のスクロールバーは札の右端に寄り、お題は札の外へはみ出さない（#427）', async ({ page, openPeer }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    // 実測した場面: 短い本文でも、脇の高さの中で札が縮み、本文が記録の札の裏へはみ出していた
+    await openPokerWithTopic(page, openPeer);
+    await page.getByRole('button', { name: '記録する' }).click();
+    for (let i = 0; i < 6; i += 1) {
+      await chooseCard(page, '5');
+      await page.getByRole('button', { name: '次のアイテムへ' }).click();
+    }
+    const log = page.locator('.room-log--side');
+    await expect(log.locator('.estimate-group')).toHaveCount(6);
+    // お題の見出しと記録の見出しの左端: 札の左右・中身の幅がそろう
+    const topicHead = await boxOf(page, '.room-topic-side .topic-head h2');
+    const logHead = await boxOf(page, '.room-log--side h2');
+    expect(Math.abs(topicHead.x - logHead.x), '見出しの左端がずれている').toBeLessThanOrEqual(1);
+    const cardBox = await boxOf(page, '.room-topic-side > .ui-reader');
+    const logBox = await boxOf(page, '.room-log--side');
+    expect(Math.abs(cardBox.x - logBox.x), '札の左端がずれている').toBeLessThanOrEqual(1);
+    expect(Math.abs(cardBox.x + cardBox.width - (logBox.x + logBox.width)), '札の右端がずれている').toBeLessThanOrEqual(1);
+    // 記録の本文: 右端は札の枠の内側の右端（枠 1px）から 2px 以内。スクロールバーは札の右端に出る
+    const m = await page.locator('.room-log--side').evaluate((el) => {
+      const card = el.getBoundingClientRect();
+      const border = parseFloat(getComputedStyle(el).borderRightWidth);
+      const body = el.querySelector('.estimate-log-body')!;
+      const b = body.getBoundingClientRect();
+      const sel = el.querySelector('.estimate-group-head select')!.getBoundingClientRect();
+      return {
+        cardInnerRight: card.right - border,
+        bodyRight: b.right,
+        scrollable: body.scrollHeight > body.clientHeight,
+        selectRight: sel.right,
+        scrollRangeRight: b.left + body.clientWidth,
+      };
+    });
+    expect(m.scrollable, '記録が溢れていない（前提が崩れている）').toBe(true);
+    expect(Math.abs(m.cardInnerRight - m.bodyRight), '記録の本文の右端が札の内側の右端から離れている').toBeLessThanOrEqual(2);
+    expect(m.scrollRangeRight - m.selectRight, 'ポイントの欄がスクロールバーに近すぎる').toBeGreaterThanOrEqual(16);
+    // お題の札の中身が札の外へはみ出さない（描かれている子の下端が札の下端以内。溢れるなら本文が札の中でスクロールする）
+    const spill = await page.locator('.room-topic-side > .ui-reader').evaluate((el) => {
+      const card = el.getBoundingClientRect();
+      const worst = Math.max(...[...el.children]
+        .filter((k) => getComputedStyle(k).display !== 'none')
+        .map((k) => k.getBoundingClientRect().bottom - card.bottom));
+      return { worst, scroll: el.scrollHeight - el.clientHeight };
+    });
+    expect(spill.worst, 'お題の中身が札の下へはみ出している').toBeLessThanOrEqual(1);
+    expect(spill.scroll, 'お題の札が内側で溢れている').toBeLessThanOrEqual(1);
+    // 記録の見出しが画面の中に見える
+    expect(logHead.y, '記録の見出しが画面の外').toBeGreaterThanOrEqual(0);
+    expect(logHead.y + logHead.height, '記録の見出しが画面の外').toBeLessThanOrEqual(800);
+    await expect(log.getByRole('heading', { name: '見積もりの記録' })).toBeInViewport();
+    await page.screenshot({ path: '../.playwright-mcp/427-task5-1280x800.png' });
+    await page.setViewportSize({ width: 1024, height: 700 });
+    await page.screenshot({ path: '../.playwright-mcp/427-task5-1024x700.png' });
+  });
+
+  test('Given 幅 1280・記録しない・お題が無い / When ルームを開く / Then 脇も空の列も無く、操作の面は 46rem で中央に寄る（#427）', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await createPokerRoom(page, 'layout-no-side');
+    expect(await page.locator('.room-side').count(), '脇が描かれている').toBe(0);
+    const main = await boxOf(page, '.ui-workspace-main');
+    const inner = await pageBox(page);
+    expect(main.width, '操作の面は 46rem').toBeCloseTo(46 * REM, 0);
+    const left = main.x - (inner.innerRight - inner.inner);
+    const right = inner.innerRight - (main.x + main.width);
+    expect(Math.abs(left - right), '操作の面が中央に寄っていない').toBeLessThanOrEqual(2);
+  });
+
   test('Given 幅 1280・お題を開いている / When ルームを開く / Then 「お題を隠す」は見出しと同じ行で、h1 の右隣にある', async ({ page, openPeer }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await openPokerWithTopic(page, openPeer);

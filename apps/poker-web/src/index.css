@@ -145,10 +145,29 @@
     max-height: calc(100dvh - 14rem);
   }
 
+  /* 脇が無い（記録しない・お題も無い）ときは列を 1 本にし、操作の面を約 46rem で中央に寄せる（v4.1.0 と同じ・#427）。
+     部品の `.ui-workspace:not(:has(> .ui-workspace-side))`（(0,2,0)）は上の 2 列の指定（(0,2,0)・後に読む）に負けるので、
+     ここ（(0,3,0)）で勝たせる。区画の位置も 1 列目へ戻す（上の `grid-column: 2` を持たない部品の規則は :where で (0,1,0)）。 */
+  .room .ui-workspace--reader:not(:has(> .ui-workspace-side)) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .room .ui-workspace--reader:not(:has(> .ui-workspace-side)) > .room-main {
+    grid-column: 1;
+    max-width: 46rem;
+    margin-inline: auto;
+  }
+
+  /* 開いた札は縮ませない。かつては記録と縮み代を分け合い、束が増えると札が自分の中身より低くなって、本文が
+     記録の札の裏へはみ出した（#427）。代わりに札は脇の高さの半分までに抑え、長い本文は札の中でスクロールする。 */
   .room-topic-side[data-state='open'] {
-    flex: 0 1 auto;
+    flex: 0 0 auto;
     margin-block-end: var(--space-4);
     max-height: 100dvh;
+  }
+
+  .room-topic-side > .ui-reader {
+    max-height: calc((100dvh - 14rem) / 2);
   }
 
   .room-topic-side[data-state='closed'] {
@@ -161,11 +180,16 @@
     min-height: 10rem;
   }
 
-  /* 溢れる束は札の中でスクロールする */
+  /* 溢れる束は札の中でスクロールする。本文は札の左右の余白の外まで広げ、内側に同じ余白を持たせる（#427）。
+     スクロールバーが札の右端に出て、ポイントの欄に寄らない。`scrollbar-gutter: stable` は、束が増えて溢れた瞬間に
+     中身が横へずれないため。お題の札の本文（部品 `.ui-reader-body`）と同じ作り。 */
   .room-log--side > .estimate-log-body {
     flex: 1 1 auto;
     min-height: 0;
+    margin-inline: calc(-1 * var(--space-5));
+    padding-inline: var(--space-5);
     overflow: auto;
+    scrollbar-gutter: stable;
   }
 
   /* 足の記録は脇が持つので描かない */
@@ -475,6 +499,22 @@
 .estimate-item-title {
   justify-content: flex-start;
   text-align: start;
+}
+
+/* 束の見出しの中の名前（`size="inline"`・#427）。題ほど大きくせず、隣の `.estimate-group-item` と同じ大きさ・太さにする。
+   押せることは、題のボタンと同じ枠つきの二次ボタンのまま示す（押せる大きさ 44px は部品が保つ）。 */
+.estimate-item--inline {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.estimate-item--inline .estimate-item-title,
+.estimate-item--inline .estimate-item-input {
+  flex: 1 1 auto;
+  padding-inline: var(--space-3);
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 600;
 }
 
 /* ---------- 見積もりの記録（#93・spec §4.4。お題と同じ読む面の札の上） ---------- */
