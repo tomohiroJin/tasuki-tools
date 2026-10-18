@@ -11,12 +11,18 @@
 import { describe, expect, it } from 'bun:test';
 import { SpyBroadcaster } from '../support/spy-broadcaster.js';
 import { InMemoryTimerStore } from '../../src/adapters/in-memory-timer-store.js';
-import type { ServerMessage } from '@tasuki/poker-core';
+import { createRound, type ServerMessage } from '@tasuki/poker-core';
+import { ok } from 'neverthrow';
 import type { RateLimiter } from '@tasuki/rate-limit';
 import { InMemoryRoomStore } from '../../src/adapters/in-memory-room-store';
 import { InMemoryRoundStore } from '../../src/adapters/poker-in-memory-round-store';
 import { createTokenStore } from '../../src/application/token-store';
-import { makePokerHandlers, type HandlerConnection } from '../../src/application/poker-handlers';
+import {
+  makePokerHandlers,
+  type HandlerConnection,
+  type PokerRoomState,
+} from '../../src/application/poker-handlers';
+import { createCommitRoomAction } from '../../src/application/poker-commit-room-action';
 import type { PokerBroadcaster, RoomSocket } from '../../src/ports/poker-broadcaster';
 import type { IdGen } from '../../src/ports/poker-id-gen';
 import { spyHub } from '../support/hub.js';
@@ -122,5 +128,51 @@ describe('ルームが保管から消えている接続の状態変更（#171）
     expect(received).toEqual([
       { type: 'error', code: 'not-joined', message: 'ルームに参加していません' },
     ]);
+  });
+});
+
+// G-9: 名簿に居ない人の操作を拒む（見学の導入で「名簿に居ない＝見学」と誤読されないため）。
+// 片付けで外された人の接続が `participantId` を持ち続けても、その操作は何も変えない。
+describe('名簿に居ない participantId の操作（G-9）', () => {
+  function build(rosterIds: string[]) {
+    const committed: unknown[] = [];
+    const errors: Array<{ code: string; message: string }> = [];
+    const commitRoomAction = createCommitRoomAction({
+      loadState: () =>
+        ({
+          room: { code: 'r1', participants: rosterIds.map((id) => ({ id })) },
+          round: createRound(),
+        }) as unknown as PokerRoomState,
+      commit: (state) => void committed.push(state),
+      fragmentsOf: () => [],
+      sendError: (_ws, code, message) => void errors.push({ code, message }),
+      now: () => 0,
+    });
+    const ws = { data: { participantId: 'p1', roomId: 'r1' } } as unknown as HandlerConnection;
+    return { commitRoomAction, ws, committed, errors };
+  }
+
+  it('名簿に居なければ not-joined を返し、commit しない', () => {
+    // Given: 名簿に p1 が居ない
+    const { commitRoomAction, ws, committed, errors } = build(['p2']);
+
+    // When
+    commitRoomAction(ws, (round) => ok(round));
+
+    // Then
+    expect(errors).toEqual([{ code: 'not-joined', message: 'ルームに参加していません' }]);
+    expect(committed).toEqual([]);
+  });
+
+  it('名簿に居れば commit する（対照）', () => {
+    // Given
+    const { commitRoomAction, ws, committed, errors } = build(['p1']);
+
+    // When
+    commitRoomAction(ws, (round) => ok(round));
+
+    // Then
+    expect(errors).toEqual([]);
+    expect(committed).toHaveLength(1);
   });
 });

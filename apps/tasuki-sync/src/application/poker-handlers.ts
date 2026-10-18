@@ -667,6 +667,7 @@ export function makePokerHandlers(deps: PokerHandlerDeps): PokerHandlers {
     handleJoinRoom,
     handleCheckRoom,
     commitRoomAction,
+    sendError,
     now: () => wallClock.now(),
   });
 

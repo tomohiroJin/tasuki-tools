@@ -18,6 +18,7 @@ import {
   revote,
   setItem,
   setPoints,
+  setSpectator,
 } from '@tasuki/poker-core';
 import type {
   ClientMessage,
@@ -96,6 +97,13 @@ export function createCommitRoomAction({
       sendError(ws, 'room-not-found', POKER_ERROR_TEXT.ROOM_NOT_FOUND);
       return;
     }
+    // **G-9: 名簿に居ない人の操作は拒む。** 見学者は「名簿に居て投票しない人」であり、
+    // 名簿に居ない人（片付けで外された人の接続など）とは別物である。ここで弾かないと
+    // 「名簿に居ない＝投票していない」と読まれて状態を動かしてしまう。何も変えない。
+    if (!state.room.participants.some((p) => p.id === participantId)) {
+      sendError(ws, 'not-joined', 'ルームに参加していません');
+      return;
+    }
     const result = action(state.round, participantId);
     if (result.isErr()) {
       sendError(ws, result.error.code, messageForRoundError(result.error));
@@ -116,6 +124,8 @@ export interface DispatchDeps {
   handleJoinRoom(ws: HandlerConnection, msg: Extract<ClientMessage, { type: 'join-room' }>): void;
   handleCheckRoom(ws: HandlerConnection, msg: Extract<ClientMessage, { type: 'check-room' }>): void;
   commitRoomAction: CommitRoomAction;
+  /** エラー応答（`remove-participant` の仮の枝が使う。Task 4 で差し替わる） */
+  sendError: CommitRoomActionDeps['sendError'];
   /** 開票の時刻（壁時計）。`reveal` が記録の `at` に使う */
   now: () => number;
 }
@@ -123,14 +133,16 @@ export interface DispatchDeps {
 /**
  * 検証済みメッセージを種別ごとのユースケースへ振り分ける。
  *
- * `switch` に `default` を置かない（`noFallthroughCasesInSwitch` ＋ 網羅性検査）。
- * `ClientMessage` に種別が増えたら型検査が落ちて気づける。
+ * `switch` の後ろで `msg` を `never` へ代入して網羅性を**型で**強制する。
+ * `ClientMessage` に種別が増えて枝が足りなければ、そこで型検査が落ちて気づける
+ * （`void` 関数は `default` が無くても通るので、この代入が無いと黙って素通りする）。
  */
 export function createDispatch({
   handleCreateRoom,
   handleJoinRoom,
   handleCheckRoom,
   commitRoomAction,
+  sendError,
   now,
 }: DispatchDeps): (ws: HandlerConnection, msg: ClientMessage) => void {
   return function dispatch(ws, msg) {
@@ -167,6 +179,18 @@ export function createDispatch({
       case 'set-points':
         commitRoomAction(ws, (round) => setPoints(round, msg.groupId, msg.points));
         return;
+      case 'set-spectator':
+        commitRoomAction(ws, (round, participantId) =>
+          ok(setSpectator(round, participantId, msg.spectator)),
+        );
+        return;
+      case 'remove-participant':
+        // 仮の枝。Task 4 が名簿から外す実装へ差し替える（それまでは誰も外せない）。
+        sendError(ws, 'not-removable', '接続している人は外せません');
+        return;
     }
+    // 網羅性の保証: ここへ来るのは全種別を処理し終えたときだけ（型は `never`）
+    const unhandled: never = msg;
+    return unhandled;
   };
 }
