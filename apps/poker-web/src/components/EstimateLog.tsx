@@ -81,7 +81,7 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
                     ) : (
                       <>
                       {/* 閉じた束の名前は押して直せる。ポイントの選択の名前（`labelledBy`）が指す id は、この欄の外側の包みに付ける */}
-                      <span id={itemIdOf(group.id)} className="estimate-group-item">
+                      <div id={itemIdOf(group.id)} className="estimate-group-item">
                         <EstimateItemField
                           item={group.item}
                           onCommit={(next) => onRenameGroup(group.id, next)}
@@ -89,8 +89,8 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
                           label={RENAME_GROUP}
                           size="inline"
                         />
-                      </span>
-                      // ポイントは選択そのものを見出しの強い値として出す（値を別に重ねない）
+                      </div>
+                      {/* ポイントは選択そのものを見出しの強い値として出す（値を別に重ねない） */}
                       <PointsSelect
                         className="estimate-group-points"
                         value={group.points as NumberCardValue | null}

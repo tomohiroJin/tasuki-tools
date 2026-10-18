@@ -242,7 +242,6 @@ describe('アイテムの境目をまたぐと打ちかけの名前は捨てる�
 });
 
 describe('記録の切り替え（#427・設計 D）', () => {
-  const openGroup = { id: 1, item: 'PROJ-1', points: null, open: true, entries: [] };
   const closedGroup = {
     id: 1,
     item: 'PROJ-1',
@@ -258,7 +257,7 @@ describe('記録の切り替え（#427・設計 D）', () => {
   }
 
   it('recording false の room-state では記録の欄・いま見積もっているもの・ポイントの欄が無い', () => {
-    render(<RoomPage roomId={ROOM_ID} sync={makeSync(snap({ recording: false, log: [openGroup] }))} />);
+    render(<RoomPage roomId={ROOM_ID} sync={makeSync(snap({ recording: false, log: [OPEN_GROUP] }))} />);
     expect(document.querySelector('.room-log--side')).toBeNull();
     expect(document.querySelector('.room-log--foot')).toBeNull();
     expect(screen.queryByText(ESTIMATE_ITEM_LABEL)).toBeNull();
@@ -268,7 +267,7 @@ describe('記録の切り替え（#427・設計 D）', () => {
   });
 
   it('recording true では今までどおり出る', () => {
-    render(<RoomPage roomId={ROOM_ID} sync={makeSync(snap({ recording: true, log: [openGroup] }))} />);
+    render(<RoomPage roomId={ROOM_ID} sync={makeSync(snap({ recording: true, log: [OPEN_GROUP] }))} />);
     expect(document.querySelector('.room-log--side')).not.toBeNull();
     expect(document.querySelector('.room-log--foot')).not.toBeNull();
     expect(screen.getByText(ESTIMATE_ITEM_LABEL)).toBeTruthy();
@@ -311,7 +310,7 @@ describe('記録の切り替え（#427・設計 D）', () => {
   });
 
   it('recording が無い（古いサーバー）room-state は記録の欄を出す', () => {
-    render(<RoomPage roomId={ROOM_ID} sync={makeSync(snap({ noRecordingKey: true, log: [openGroup] }))} />);
+    render(<RoomPage roomId={ROOM_ID} sync={makeSync(snap({ noRecordingKey: true, log: [OPEN_GROUP] }))} />);
     expect(document.querySelector('.room-log--side')).not.toBeNull();
     expect(screen.getByText(ESTIMATE_ITEM_LABEL)).toBeTruthy();
     expect(screen.getByRole('button', { name: RECORDING_TOGGLE }).getAttribute('aria-pressed')).toBe('true');

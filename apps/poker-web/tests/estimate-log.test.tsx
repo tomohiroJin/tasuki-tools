@@ -198,4 +198,11 @@ describe('閉じた束の名前の付け直し（#427・設計 E）', () => {
     rerender(<EstimateLog groups={[group(1, { item: '他の人の名前' }), group(2)]} onSetPoints={noop} onRenameGroup={vi.fn()} disabled={false} />);
     expect(screen.getByRole<HTMLInputElement>('textbox').value).toBe('打ちかけ');
   });
+
+  it('Given 閉じた束 / When 描く / Then 見出しにソースの注記が文字として描かれない', () => {
+    const { container } = render(<EstimateLog groups={[group(1)]} onSetPoints={noop} onRenameGroup={vi.fn()} disabled={false} />);
+    const head = container.querySelector('.estimate-group-head') as HTMLElement;
+    expect(head.textContent).not.toContain('//');
+    expect(head.textContent).not.toContain('見出しの強い値');
+  });
 });
