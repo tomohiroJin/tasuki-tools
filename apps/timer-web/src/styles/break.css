@@ -15,8 +15,8 @@
  * **地は不透明（画面の地と同じ `--ink`）。** 暗幕（`--scrim`・α 0.92）だと背後の残り時間・ボタン・
  * 参加者一覧が透けて、覆いの文言と重なって読みにくかった（実画面の報告・総合レビュー I4）。
  * 上端の帯（ステータスとバナー・`app.css` の `.app-top-over-break`・z-index 60）は覆いの前に出るので、
- * 中身は上端から帯の高さぶん空けて置く（600px 幅でステータス 2 段とバナー 1 本が収まる高さ。
- * 帯が無い・低いときは余白が増えるだけで、中身は空いた所の中央に来る）。 */
+ * 中身は上端から帯の実際の高さぶん空けて置く（最低でも 600px 幅でステータス 2 段とバナー 1 本が
+ * 収まる高さ。帯が低いときは余白が増えるだけで、中身は空いた所の中央に来る）。 */
 
 .break-overlay {
   position: fixed;
@@ -25,10 +25,13 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  /* `safe`: 中身が覆いより高いとき、上へはみ出して帯の下に潜らず、上端（余白の下）から並べてスクロールさせる（#427）。 */
+  justify-content: safe center;
   gap: var(--space-4);
   padding: var(--space-6) var(--space-4);
-  padding-block-start: calc(var(--space-6) * 5);
+  /* 帯の実際の高さ（`use-top-band-height.ts` が休憩中だけ書く・#427）の下から始める。名前が長く知らせが何行に
+   * 折り返しても隠れない。変数が無い（帯が測れない）ときは従来の固定の余白。 */
+  padding-block-start: max(calc(var(--space-6) * 5), calc(var(--top-band-height, 0px) + var(--space-4)));
   overflow-y: auto;
   text-align: center;
   background-color: var(--ink);
