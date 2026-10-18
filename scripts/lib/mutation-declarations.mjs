@@ -2772,4 +2772,12 @@ export const MUTATIONS = [
     tests: ["tests/room-page-estimate.test.tsx"],
     note: "#427 設計 J8。記録していれば open の束が無くても帯にポイントの欄が出る。",
   },
+  {
+    id: 415,
+    label: "poker が REMOVED_FROM_ROOM を未知のエラーとして帯に出す",
+    patch: "m415-poker-removed-shown-as-unknown-error.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/room-page-redirect.test.tsx"],
+    note: "#427 設計 A。外された・抜けた印を扱わず、組も接続も残して玄関へ戻らない。",
+  },
 ];
