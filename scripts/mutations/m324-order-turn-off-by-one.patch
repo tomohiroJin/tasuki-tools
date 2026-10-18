@@ -9,15 +9,15 @@
 #       git apply scripts/mutations/m324-*.patch
 # 復元: git apply -R scripts/mutations/m324-*.patch
 diff --git a/packages/roulette-core/src/roulette.ts b/packages/roulette-core/src/roulette.ts
-index 040e099..6419d89 100644
+index 214a37d..3bf866c 100644
 --- a/packages/roulette-core/src/roulette.ts
 +++ b/packages/roulette-core/src/roulette.ts
-@@ -117,7 +117,7 @@ function startOrderSpin(state: RouletteState, input: SpinInput): Result<Roulette
-       winnerIndex: index,
-       settle,
-       picks: [{ index, settle }],
--      turn: round.done.length + 1,
-+      turn: round.done.length,
-       spunBy: input.spunBy,
-       startedAt: input.now,
-     },
+@@ -133,7 +133,7 @@ function startOrderSpin(state: RouletteState, input: SpinInput): Result<Roulette
+     winnerIndex: index,
+     settle,
+     picks: [{ index, settle }],
+-    turn: round.done.length + 1,
++    turn: round.done.length,
+     spunBy: input.spunBy,
+     startedAt: input.now,
+   };

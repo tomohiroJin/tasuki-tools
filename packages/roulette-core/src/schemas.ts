@@ -65,6 +65,8 @@ const RouletteViewSchema = v.object({
           stop: v.nullable(v.object({ index: v.number(), settle: v.number(), by: v.nullable(v.string()), atMs: v.number() })),
         }),
       ),
+      // 変わった止まり方（#420）。名前は列挙で縛らない（新しいサーバーの知らない名前でフレームごと捨てない）
+      stopStyle: v.optional(v.string()),
       spunBy: v.string(),
       durationMs: v.number(),
       elapsedMs: v.number(),

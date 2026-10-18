@@ -1,0 +1,22 @@
+# 変異 370: style-hits-every-roll
+#
+# 検出を期待するテスト:
+#   - packages/roulette-core/tests/roulette-stop-style.test.ts
+#
+# #420 spec S3。1/24 の目を見ずに、毎回変わった止まり方を選ぶ（ごくまれでなくなる）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m370-*.patch
+# 復元: git apply -R scripts/mutations/m370-*.patch
+diff --git a/packages/roulette-core/src/stop-style.ts b/packages/roulette-core/src/stop-style.ts
+index 721747e..33c895e 100644
+--- a/packages/roulette-core/src/stop-style.ts
++++ b/packages/roulette-core/src/stop-style.ts
+@@ -15,7 +15,6 @@ const isIndex = (i: number, n: number): boolean => Number.isInteger(i) && i >= 0
+ export function drawStopStyle(randomInt: (n: number) => number): Result<StopStyle | null, RouletteError<"INVALID_RANDOM">> {
+   const roll = randomInt(STOP_STYLE_ODDS);
+   if (!isIndex(roll, STOP_STYLE_ODDS)) return err({ code: "INVALID_RANDOM" });
+-  if (roll !== STOP_STYLE_ODDS - 1) return ok(null);
+   const style = STOP_STYLES[randomInt(STOP_STYLES.length)];
+   return style === undefined ? err({ code: "INVALID_RANDOM" }) : ok(style);
+ }

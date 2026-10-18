@@ -1,0 +1,23 @@
+# 変異 378: motion-length-off-table
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/stop-style-motion.test.ts
+#
+# #420 spec S2。行き過ぎて戻るの動きが表より長い。結果が出た後も円盤が動いている（止まった瞬間に跳ぶ）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m378-*.patch
+# 復元: git apply -R scripts/mutations/m378-*.patch
+diff --git a/apps/roulette-web/src/stop-style-motion.ts b/apps/roulette-web/src/stop-style-motion.ts
+index 4c46e4f..46b4848 100644
+--- a/apps/roulette-web/src/stop-style-motion.ts
++++ b/apps/roulette-web/src/stop-style-motion.ts
+@@ -43,7 +43,7 @@ const LEGS: Readonly<Record<StopStyle, (g: Geo) => Leg[]>> = {
+   // 行き過ぎて戻る: 当たりを 1 席越えて止まり、逆に戻って当たりで止まる
+   overshoot: ({ seat }) => [
+     { to: seat, ms: 4000, ease: easeOutCubic },
+-    hold(seat, 300),
++    hold(seat, 600),
+     { to: 0, ms: 900, ease: easeInOutCubic },
+   ],
+   // じりじり: 当たりの 1 席手前で止まったと見せて、間を置いて 1 席進む

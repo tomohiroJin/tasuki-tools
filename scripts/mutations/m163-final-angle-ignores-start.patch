@@ -13,10 +13,10 @@
 # 開始角に依らず、どの画面も同じ席で止まる。引かないと、開始角が 0° 以外の画面（前の回転の止まった
 # 位置から回す画面）だけが別の席で止まる。開始角 0° だけで試すテストは緑のまま通る。
 diff --git a/apps/roulette-web/src/wheel-motion.ts b/apps/roulette-web/src/wheel-motion.ts
-index 953c7c73..a41e4f9e 100644
+index 5fb60a2..282bcd3 100644
 --- a/apps/roulette-web/src/wheel-motion.ts
 +++ b/apps/roulette-web/src/wheel-motion.ts
-@@ -31,7 +31,7 @@ const mod = (x: number, m: number): number => ((x % m) + m) % m;
+@@ -36,7 +36,7 @@ const mod = (x: number, m: number): number => ((x % m) + m) % m;
   * その画面が見せている角度で、0° へ戻さない（戻すと前の止まった位置から跳ぶ）。
   */
  export function finalAngle(n: number, winnerIndex: number, settle: number, pointerDeg: number, startDeg: number): number {
@@ -24,4 +24,4 @@ index 953c7c73..a41e4f9e 100644
 +  return startDeg + 360 * TURNS + mod(pointerDeg - (winnerIndex + settle) * (360 / n), 360);
  }
  
- /** 3 次の減速（4 次だと最後の 1 秒がほぼ止まって見えた）。 */
+ /** 経過 `elapsedMs` の回転子の角度。 */

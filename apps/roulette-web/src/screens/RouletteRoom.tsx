@@ -86,7 +86,7 @@ export function RouletteRoom({ roomCode }: { roomCode: string }) {
   const wakeAts =
     spin === null
       ? []
-      : [...pickStopsMs(picksOf(spin).length), spin.durationMs].map((at) => sync.receivedAt + at - spin.elapsedMs);
+      : [...pickStopsMs(picksOf(spin).length, spin.stopStyle), spin.durationMs].map((at) => sync.receivedAt + at - spin.elapsedMs);
   const nowMs = useNowMs(sync.receivedAt, wakeAts);
 
   // 押して止める（#401）。位置と「止まって寄せ終わったか」は画面の時計で動くので、早い return より前で持つ

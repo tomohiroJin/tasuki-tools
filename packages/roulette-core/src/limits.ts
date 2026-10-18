@@ -21,20 +21,60 @@ export const STOP_HOLD_MS = 500;
 export const NEXT_MOVE_MS = 1100;
 
 /**
+ * 変わった止まり方（#420 spec S1）。ごくまれに、1 人目の大きな回転の止まり方だけを変える（当たりは変えない）。
+ * 動きそのもの（角度）は画面が描く（`apps/roulette-web/src/stop-style-motion.ts`）。ここは名前と長さだけを持つ。
+ */
+export const STOP_STYLES = ["nudge", "overshoot", "creep", "wobble", "reverse", "linger", "double", "swing"] as const;
+export type StopStyle = (typeof STOP_STYLES)[number];
+
+/**
+ * 変わった止まり方が出る割合の分母（#420 spec S3）。1 回ごとに一様に 1/24。
+ * 24 は 1 日の時間の数: 1 時間に 1 回回すと、1 日に 1 回ほど見られる
+ */
+export const STOP_STYLE_ODDS = 24;
+
+/**
+ * 止まり方ごとに、1 人目が止まる時刻を延ばす長さ（ms・#420 spec S2）。長くても +3 秒。
+ * 画面の動きの長さはこの表に合わせる（写しを持たない）。
+ */
+export const STOP_STYLE_EXTRA_MS: Readonly<Record<StopStyle, number>> = Object.freeze({
+  nudge: 2000,
+  overshoot: 1200,
+  creep: 1500,
+  wobble: 1800,
+  reverse: 1100,
+  linger: 2500,
+  double: 2500,
+  swing: 1600,
+});
+
+/** 止まり方の名前か（wire は文字列で届く。新しいサーバーの知らない名前は止まり方が無いものとして読む） */
+export function isStopStyle(value: unknown): value is StopStyle {
+  return typeof value === "string" && (STOP_STYLES as readonly string[]).includes(value);
+}
+
+/** 止まり方で延びる長さ（ms）。無い・知らない名前なら 0 */
+export function stopStyleExtraMs(style: string | null | undefined): number {
+  return isStopStyle(style) ? STOP_STYLE_EXTRA_MS[style] : 0;
+}
+
+/**
  * i 人目が止まる時刻（回し始めからの ms）の表（#401 spec §6.2）。1 人目は #94 と同じ `SPIN_DURATION_MS`、
  * 2 人目からは止まって `STOP_HOLD_MS` 置き、`NEXT_MOVE_MS` で次の席へ送る。
+ * 変わった止まり方（#420）は 1 人目を延ばし、2 人目からはその分だけ後ろへずれる。
  * **画面（いつ何人目まで決まったか・角度）とサーバー（回転の長さ）がこの表 1 つを読む。**
  */
-export function pickStopsMs(pickCount: number): number[] {
-  return Array.from({ length: pickCount }, (_, i) => SPIN_DURATION_MS + i * (STOP_HOLD_MS + NEXT_MOVE_MS));
+export function pickStopsMs(pickCount: number, style?: string | null): number[] {
+  const first = SPIN_DURATION_MS + stopStyleExtraMs(style);
+  return Array.from({ length: pickCount }, (_, i) => first + i * (STOP_HOLD_MS + NEXT_MOVE_MS));
 }
 
 /**
  * k 人を選ぶ回転の全体の長さ（ms）= 最後の人が止まる時刻。**サーバーの回転中の判定と wire の `durationMs` の正本**
- * （#401 spec §5.1）。k = 1 では `SPIN_DURATION_MS` と同じ（#94 と同じ長さ）。
+ * （#401 spec §5.1）。k = 1 では `SPIN_DURATION_MS` と同じ（#94 と同じ長さ）。変わった止まり方（#420）はその分だけ延びる。
  */
-export function spinDurationMs(pickCount: number): number {
-  return pickStopsMs(pickCount).at(-1) ?? SPIN_DURATION_MS;
+export function spinDurationMs(pickCount: number, style?: string | null): number {
+  return pickStopsMs(pickCount, style).at(-1) ?? SPIN_DURATION_MS + stopStyleExtraMs(style);
 }
 
 /** 押して止めるときの回る速さ（1 秒に指し針を通る席の数・#401 押して止める P2）。利用者がモック 3 版で決めた */
