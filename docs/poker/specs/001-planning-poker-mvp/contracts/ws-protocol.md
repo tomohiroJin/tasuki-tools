@@ -125,6 +125,27 @@
 - 前提: join 済み。在室者なら誰でも設定・変更・消去（`null`）できる。同時なら後に届いた方が勝つ
 - 違反: `error`（`estimate-not-found`＝束が記録に無い、`estimate-open`＝まだ閉じていない束）。状態は変わらない
 
+### set-group-item — 閉じた束のアイテム名の書き換え（#427）
+
+```json
+{ "type": "set-group-item", "groupId": 3, "item": "PROJ-1" }
+```
+
+- 前提: join 済み。在室者なら誰でも書き換えられる。同時なら後に届いた方が勝つ
+- `groupId` は 1 以上の整数。`item` は前後の空白を除いた文字列で、長さは `MAX_ESTIMATE_ITEM` まで（空可。空なら画面は「（名前なし）」と出す）。不可視文字の除去などはいまのアイテム名（`set-item`）と同じ関数を通す
+- 束の中の**すべての行**のアイテム名を書き換える（束の見出しは最後の開票時点の名前から決まる規則のまま、新しい名前になる）
+- 違反: `error`（`estimate-not-found`＝束が記録に無い、`estimate-open`＝まだ閉じていない束。見積もり中の束の名前は `set-item` で直す）。状態は変わらない
+
+### set-recording — 見積もりの記録の切り替え（#427）
+
+```json
+{ "type": "set-recording", "recording": true }
+```
+
+- 前提: join 済み。在室者なら誰でも切り替えられる。全員の画面に配られる
+- 切り替えると、見積もり中の束があればポイントなしで閉じる（どちらの向きでも）。それまでの記録・アイテム名・束は消さない
+- 記録しない間は、開票しても記録に行を足さない。足すのは記録する間の開票で、票が 1 つ以上あるときだけ
+
 ### next-round — 古いクライアント向けの互換（FR-011・#93 で意味を整理）
 
 ```json
@@ -203,6 +224,7 @@ revealed 後の例:
 }
 ```
 
+- `recording`（#427）: 記録するか。新しいルームは `false` で始まる。受信側では省略可で、省略されたら `true` と読む（毎回記録していた古いサーバーとの互換）
 - `item`: いま見積もっているアイテム名（空可）。`log`: 束の配列（古い順）。束の `id` はルームの中で安定（上限で古い束が落ちても変わらない）
 - 束の `item` は最後の行の開票時のアイテム名。行は `attempt`（束の中の N 回め）・`at`（サーバーの壁時計）・`counts`（カードごとの枚数）だけを持つ
 - **記録は匿名**: 参加者 ID・表示名・誰が何を出したかは載せない。行の総数は 100 まで（超えたら古い行から落ちる）
@@ -223,8 +245,8 @@ revealed 後の例:
 | `spectating` | 見学中は投票できない | vote（#419） |
 | `participant-not-found` | 外す相手が名簿に居ない | remove-participant（#419） |
 | `not-removable` | 自分自身、または接続している人は外せない | remove-participant（#419） |
-| `estimate-not-found` | 指した束が記録に無い（上限で落ちた） | set-points（#93） |
-| `estimate-open` | まだ閉じていない束にポイントは付けられない | set-points（#93） |
+| `estimate-not-found` | 指した束が記録に無い（上限で落ちた） | set-points（#93）, set-group-item（#427） |
+| `estimate-open` | まだ閉じていない束にポイントは付けられない・名前は書き換えられない | set-points（#93）, set-group-item（#427） |
 | `message-too-large` | メッセージのバイト数が上限超過 | 全 C→S（[#63](https://github.com/tomohiroJin/tasuki-tools/issues/63)） |
 | `server-busy` | ルーム数が上限に達している | create-room（#63） |
 | `rate-limited` | 入室失敗が続き、レート制限に掛かった | join-room（[#103](https://github.com/tomohiroJin/tasuki-tools/issues/103)・[#147](https://github.com/tomohiroJin/tasuki-tools/issues/147)） |
