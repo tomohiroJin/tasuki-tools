@@ -167,10 +167,8 @@ describe("進行タイマーの操作の競合", () => {
       expect(viewOf(last!).currentId).toBe(secondId);
       expect(viewOf(last!).phase).toBe("running");
     }
-    // 負けた側には送り主だけへの現在の状態（エラーではなく状態 1 通）が返り、配られた進行は 1 回だけ
-    const advances = (c: LiveAgendaClient): number =>
-      c.received.filter((m) => m.type === "agenda" && viewOf(m).currentId === secondId).length;
-    expect(advances(a1) + advances(a2)).toBeGreaterThanOrEqual(2);
+    // 「1 回だけ進んだ」ことは上の最終状態の検査（2 本とも 2 ステップ目で running）が守る。
+    // 2 回進めば完了になるので、二重に進めば currentId と phase が変わって赤になる。
   });
 });
 

@@ -46,6 +46,8 @@ interface Harness {
   armed: () => Armed | undefined;
   /** 張られた期限へ時計を進め、予約の呼び先を呼ぶ（本番の予約が発火したのと同じ） */
   fireArmed: () => void;
+  /** 偽の予約を空にする（ハンドラが張り直すかを見分けるため） */
+  dropArmed: () => void;
   /** ハンドラの `onDue` を直接呼ぶ */
   onDue: (roomCode: string) => void;
 }
@@ -108,6 +110,9 @@ function setup(): Harness {
       const { atMs, onDue } = current;
       now = Math.max(now, atMs);
       onDue(ROOM);
+    },
+    dropArmed: () => {
+      current = undefined;
     },
     onDue: (roomCode) => handlers.onDue(roomCode),
   };
@@ -397,21 +402,22 @@ describe("自動で次へ進む期限の予約", () => {
     expect(h.armed()).toBeUndefined();
   });
 
-  it("期限前に onDue が来ても状態は変わらず、予約は状態に合わせて張られたままである", async () => {
+  it("期限前に onDue が来ても状態は変わらず、予約は状態の期限に張り直される", async () => {
     // Given: 開始して予約が張られている
     const h = setup();
     await joined(h, "a-1", "Alice");
     await loadScenario(h, "a-1");
     await h.handle("a-1", { command: "agenda.start" });
     const at = h.armed()!.atMs;
+    h.dropArmed(); // 予約が失われた状態にする（張り直しが無ければ空のまま）
     h.sent.length = 0;
 
     // When: 期限前に呼ぶ
     h.onDue(ROOM);
 
-    // Then: 配られず、予約は同じ期限のまま
+    // Then: 配られず、予約は状態の期限に張り直されている
     expect(h.sent).toEqual([]);
-    expect(h.armed()!.atMs).toBe(at);
+    expect(h.armed()?.atMs).toBe(at);
   });
 
   it("onDue はルームが消えていたら予約を消して何もしない", async () => {
