@@ -1,0 +1,22 @@
+# 変異 435: next-while-paused-stays-paused
+#
+# 検出を期待するテスト:
+#   - packages/agenda-core/tests/agenda.test.ts
+#
+# #429 一時停止中の次へで、次の区切りが動いて始まらず一時停止のまま残る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m435-*.patch
+# 復元: git apply -R scripts/mutations/m435-*.patch
+diff --git a/packages/agenda-core/src/agenda.ts b/packages/agenda-core/src/agenda.ts
+--- a/packages/agenda-core/src/agenda.ts
++++ b/packages/agenda-core/src/agenda.ts
+@@ -84,7 +84,7 @@ function advanceStep(s: AgendaState, at: number): AgendaState {
+   }
+   return {
+     ...s,
+-    phase: "running",
++    phase: s.phase,
+     steps: settle(nextIdx),
+     currentId: s.steps[nextIdx]!.id,
+     stepStartedAt: at,

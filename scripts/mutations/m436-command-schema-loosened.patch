@@ -1,0 +1,22 @@
+# 変異 436: command-schema-loosened
+#
+# 検出を期待するテスト:
+#   - packages/agenda-core/tests/schemas.test.ts
+#
+# #429 `agenda.next` のコマンドの検めが `v.strictObject` から `v.object` に緩み、余計なフィールドを通す。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m436-*.patch
+# 復元: git apply -R scripts/mutations/m436-*.patch
+diff --git a/packages/agenda-core/src/schemas.ts b/packages/agenda-core/src/schemas.ts
+--- a/packages/agenda-core/src/schemas.ts
++++ b/packages/agenda-core/src/schemas.ts
+@@ -66,7 +66,7 @@ const stepIdStr = v.pipe(v.string(), v.minLength(1), v.maxLength(16));
+ export const AgendaCommandSchema = v.variant("command", [
+   v.strictObject({ command: v.literal("agenda.scenario.set"), scenario: ScenarioInputSchema }),
+   v.strictObject({ command: v.literal("agenda.start") }),
+-  v.strictObject({ command: v.literal("agenda.next"), stepId: stepIdStr }),
++  v.object({ command: v.literal("agenda.next"), stepId: stepIdStr }),
+   v.strictObject({ command: v.literal("agenda.pause") }),
+   v.strictObject({ command: v.literal("agenda.resume") }),
+   v.strictObject({

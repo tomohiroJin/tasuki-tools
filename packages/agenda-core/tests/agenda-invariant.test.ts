@@ -33,6 +33,16 @@ function scenario(rnd: () => number, allWait: boolean): ScenarioInput {
 
 const okOr = (s: AgendaState, r: { isOk(): boolean; _unsafeUnwrap(): AgendaState }): AgendaState => (r.isOk() ? r._unsafeUnwrap() : s);
 
+/** 操作の種類ごとに「状態が実際に変わった（参照が変わった）」回数。`okOr` は失敗を黙って捨てるので、各操作が効いたことを数えて守る */
+const effective: Record<"pause" | "resume" | "extend" | "skip" | "unskip" | "next", number> = {
+  pause: 0,
+  resume: 0,
+  extend: 0,
+  skip: 0,
+  unskip: 0,
+  next: 0,
+};
+
 /** 1 回の実行。操作を適用するたびに不変条件を見て、オラクルの所要を足し上げる */
 function run(seed: number, allWait: boolean): { final: AgendaState; now: number } {
   const rnd = lcg(seed);
@@ -53,18 +63,29 @@ function run(seed: number, allWait: boolean): { final: AgendaState; now: number 
       s = advanceIfDue(s, now);
     } else if (op < 0.55 && cur !== null) {
       now += int(rnd, 0, 300_000);
+      const before = s;
       s = okOr(s, next(s, { stepId: cur, now }));
+      if (s !== before) effective.next++;
     } else if (op < 0.7) {
       now += int(rnd, 0, 300_000);
+      const before = s;
       s = okOr(s, pause(s, now));
+      if (s !== before) effective.pause++;
     } else if (op < 0.85) {
       now += int(rnd, 0, 300_000);
+      const before = s;
       s = okOr(s, resume(s, now));
+      if (s !== before) effective.resume++;
     } else if (op < 0.92 && cur !== null) {
+      const before = s;
       s = okOr(s, extend(s, { stepId: cur, minutes: [1, 3, 5][int(rnd, 0, 2)]!, now }));
+      if (s !== before) effective.extend++;
     } else {
       const target = s.steps[int(rnd, 0, s.steps.length - 1)]!;
-      s = okOr(s, setSkipped(s, { stepId: target.id, skipped: rnd() < 0.5 }));
+      const skipped = rnd() < 0.5;
+      const before = s;
+      s = okOr(s, setSkipped(s, { stepId: target.id, skipped }));
+      if (s !== before) effective[skipped ? "skip" : "unskip"]++;
     }
 
     if (allWait && s.currentId !== oracleCur) {
@@ -117,6 +138,19 @@ describe.each([
       const sum = summaryOf(view);
       expect(sum.rows.reduce((a, x) => a + x.diffMs, 0)).toBe(sum.driftMs);
       expect(sum.rows.reduce((a, x) => a + x.spentMs, 0)).toBe(view.runElapsedMs);
+    }
+  });
+});
+
+describe("性質テストの検出力", () => {
+  it(`${RUNS} 通りの全体で、各操作が少なくとも 1 回は実際に状態を変えている（失敗の黙殺で空振りしていない）`, () => {
+    for (const k of Object.keys(effective) as (keyof typeof effective)[]) effective[k] = 0;
+    for (let seed = 1; seed <= RUNS; seed++) {
+      run(seed, true);
+      run(seed, false);
+    }
+    for (const k of Object.keys(effective) as (keyof typeof effective)[]) {
+      expect(effective[k], `${k} が効いた回数`).toBeGreaterThan(0);
     }
   });
 });

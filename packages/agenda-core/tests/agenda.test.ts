@@ -318,6 +318,25 @@ describe("advanceIfDue", () => {
     expect(r.runningSince).toBe(60_000);
     expect(r.steps[0]!.spentMs).toBe(60_000);
   });
+  it("飛ばした区切りを跨ぐ: A（advance）→ B（飛ばし）→ C は、C が期限で始まり、B の所要は 0", () => {
+    let s = must(
+      replaceScenario(INITIAL_AGENDA_STATE, {
+        title: "t",
+        steps: [
+          { name: "A", durationSec: 60, onTimeout: "advance" },
+          { name: "B", durationSec: 60, onTimeout: "wait" },
+          { name: "C", durationSec: 60, onTimeout: "wait" },
+        ],
+      }),
+    );
+    s = must(start(s, 0));
+    s = must(setSkipped(s, { stepId: "s-2", skipped: true }));
+    const r = advanceIfDue(s, 60_000 + 900);
+    expect(r.currentId).toBe("s-3");
+    expect(r.stepStartedAt).toBe(60_000);
+    expect(r.steps[0]!.spentMs).toBe(60_000);
+    expect(r.steps[1]!.spentMs).toBe(0);
+  });
   it("期限前は同じ参照", () => {
     const s = must(start(advancing(), 0));
     expect(advanceIfDue(s, 59_999)).toBe(s);
