@@ -137,6 +137,8 @@ export const SCANNED_PACKAGES = [
   { pkg: "apps/topic-web", src: "src", test: "tests", entry: "main.tsx" },
   // #94 PR 2 で新設（ルーレット）。
   { pkg: "apps/roulette-web", src: "src", test: "tests", entry: "main.tsx" },
+  // #429 で新設（進行タイマー）。
+  { pkg: "apps/agenda-web", src: "src", test: "tests", entry: "main.tsx" },
   { pkg: "e2e", src: null, test: "tests", entry: null },
 ];
 
