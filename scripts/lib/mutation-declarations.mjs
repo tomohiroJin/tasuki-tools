@@ -2868,4 +2868,12 @@ export const MUTATIONS = [
     tests: ["test/agenda-handlers.test.ts"],
     note: "#429 状態を送るとき、経過を送る時点でなく開始の瞬間で計り、途中参加の画面の経過が 0 になる。publish の経路の経過にも効く。",
   },
+  {
+    id: 448,
+    label: "表に戻ったとき agenda.sync を送らない",
+    patch: "m448-visibility-does-not-resync.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/use-agenda-sync.test.tsx"],
+    note: "#429 裏のタブで止まった時計が、次の操作かフレームまで直らない。表に戻ったときの 1 通を見る。",
+  },
 ];
