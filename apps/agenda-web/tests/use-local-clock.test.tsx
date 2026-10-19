@@ -77,9 +77,19 @@ describe('手元の時計', () => {
     nowMs += 1000;
     act(() => vi.advanceTimersByTime(999));
     expect(result.current?.stepTimerMs).toBe(1000);
-    nowMs += 0;
     act(() => vi.advanceTimersByTime(1));
     expect(result.current?.stepTimerMs).toBe(2000);
+  });
+
+  it('Given rAF で描いている / When 動きを減らす設定に変わる / Then rAF を止めて 1 秒の間隔に切り替える', () => {
+    const { rerender } = renderHook(({ reduced }) => useLocalClock(view({}), 10_000, reduced), {
+      initialProps: { reduced: false },
+    });
+    expect(rafCallbacks.size).toBe(1);
+    expect(vi.getTimerCount()).toBe(0);
+    rerender({ reduced: true });
+    expect(rafCallbacks.size).toBe(0);
+    expect(vi.getTimerCount()).toBe(1);
   });
 
   it('Given 動きを減らさない設定 / When 時間が進む / Then 1 秒の間隔の描き直しは使わない', () => {

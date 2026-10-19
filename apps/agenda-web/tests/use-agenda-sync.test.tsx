@@ -209,6 +209,19 @@ describe('進行タイマーの操作', () => {
 });
 
 /**
+ * @requirements #429 spec §5.6
+ */
+describe('操作の失敗', () => {
+  it('Given 操作が失敗した / When 失敗が届く / Then サーバーの文を見せ、状態が変わったら下ろす', () => {
+    const { result } = joinedHook();
+    act(() => latestSocket().deliver({ type: 'error', code: 'AGENDA_IN_PROGRESS', message: '進行中はシナリオを変えられません' }));
+    expect(result.current.error).toBe('進行中はシナリオを変えられません');
+    act(() => latestSocket().deliver({ type: 'agenda', state: IDLE_AGENDA }));
+    expect(result.current.error).toBeNull();
+  });
+});
+
+/**
  * 裏のタブは時計が止まる・待たされる。表に戻ったら状態を取り直す（`agenda.sync`）。
  *
  * @requirements #429 spec §5.6
@@ -239,11 +252,15 @@ describe('表に戻ったときの取り直し', () => {
     expect(commandsOf()).not.toContain('agenda.sync');
   });
 
-  it('Given フックを外した / When タブが表に戻る / Then 送らない', () => {
+  it('Given 入れた / When フックを外す / Then 付けた visibilitychange の聞き手を同じもので外す', () => {
+    // 外したあとの送信は接続が畳まれて捨てられるので、送信の有無では見えない。登録と解除を直接見る
+    const add = vi.spyOn(document, 'addEventListener');
+    const remove = vi.spyOn(document, 'removeEventListener');
     const { unmount } = joinedHook();
-    const sentBefore = latestSocket().sent.length;
+    const added = add.mock.calls.filter(([type]) => type === 'visibilitychange').map(([, handler]) => handler);
+    expect(added).toHaveLength(1);
     unmount();
-    act(() => setVisibility('visible'));
-    expect(latestSocket().sent.length).toBe(sentBefore);
+    const removed = remove.mock.calls.filter(([type]) => type === 'visibilitychange').map(([, handler]) => handler);
+    expect(removed).toEqual(added);
   });
 });

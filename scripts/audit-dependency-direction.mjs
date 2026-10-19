@@ -180,6 +180,17 @@ export const ALLOWED = {
   // 参加の応答の検めを使い、入る人の計算は roulette-core の `poolOf` を呼ぶ（サーバーと同じ関数・spec R7）。
   // お題の添え書きのために topic-core の `topic` フレームを検める。
   // **timer-core・poker-core を知らない**（ツール同士は直接の関係を持たない）。
+  "apps/roulette-web": [
+    "@tasuki/dev-hub-redirect",
+    "@tasuki/invite-ui",
+    "@tasuki/protocol",
+    "@tasuki/room-core",
+    "@tasuki/roulette-core",
+    "@tasuki/sync-client",
+    "@tasuki/topic-core",
+    "@tasuki/ui",
+    "@tasuki/web-kit",
+  ],
   // 進行タイマー（#429）。roulette-web と同じ形（agenda-core を使い、他のツールの core を知らない）。
   "apps/agenda-web": [
     "@tasuki/agenda-core",
@@ -187,17 +198,6 @@ export const ALLOWED = {
     "@tasuki/invite-ui",
     "@tasuki/protocol",
     "@tasuki/room-core",
-    "@tasuki/sync-client",
-    "@tasuki/topic-core",
-    "@tasuki/ui",
-    "@tasuki/web-kit",
-  ],
-  "apps/roulette-web": [
-    "@tasuki/dev-hub-redirect",
-    "@tasuki/invite-ui",
-    "@tasuki/protocol",
-    "@tasuki/room-core",
-    "@tasuki/roulette-core",
     "@tasuki/sync-client",
     "@tasuki/topic-core",
     "@tasuki/ui",
