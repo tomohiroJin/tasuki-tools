@@ -135,7 +135,8 @@ describe("進行タイマーの配信", () => {
         (m as { state: { topic?: { title?: string } } }).state.topic?.title === "決めた",
       "お題の配信",
     );
-    expect(frame.type).toBe("topic");
+    // AgendaServerMsg の型は topic を含まない（配るが、画面の契約には載せない）ので文字列で見る
+    expect((frame as { type: string }).type).toBe("topic");
   });
 });
 

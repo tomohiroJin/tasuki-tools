@@ -12,11 +12,12 @@ diff --git a/apps/tasuki-sync/src/application/topic-broadcast.ts b/apps/tasuki-s
 index b367cbdd..d7e41ccf 100644
 --- a/apps/tasuki-sync/src/application/topic-broadcast.ts
 +++ b/apps/tasuki-sync/src/application/topic-broadcast.ts
-@@ -27,7 +27,6 @@ export const TOPIC_RECIPIENT_TOOLS: readonly (ToolId | null)[] = [
+@@ -27,8 +27,7 @@ export const TOPIC_RECIPIENT_TOOLS: readonly (ToolId | null)[] = [
    TOOL_HUB,
    TOOL_TIMER,
    TOOL_POKER,
 -  TOOL_ROULETTE,
+   TOOL_AGENDA,
  ];
  
  export interface TopicBroadcasterDeps {

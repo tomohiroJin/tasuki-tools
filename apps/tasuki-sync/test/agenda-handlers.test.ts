@@ -364,6 +364,56 @@ describe("自動で次へ進む期限の予約", () => {
     expect(h.armed()!.atMs).toBe(75_000);
   });
 
+  it("手で次へ進んだあと、元の期限の onDue が来ても二重に進まない（advance → advance → wait）", async () => {
+    // Given: s-1（advance）を開始し、元の期限の呼び先を控える
+    const h = setup();
+    await joined(h, "a-1", "Alice");
+    await loadScenario(h, "a-1");
+    await h.handle("a-1", { command: "agenda.start" });
+    const original = h.armed()!;
+
+    // When: 手で s-2 へ進めてから、元の期限の呼び先を期限の時刻に呼ぶ
+    await h.handle("a-1", { command: "agenda.next", stepId: "s-1" });
+    h.advance(original.atMs - 5_000);
+    original.onDue(ROOM);
+
+    // Then: s-2 のまま（完了へ進まない）
+    expect(h.agendas.get(ROOM)!.currentId).toBe("s-2");
+    expect(h.agendas.get(ROOM)!.phase).toBe("running");
+  });
+
+  it("agenda.reset で期限の予約が消える", async () => {
+    // Given
+    const h = setup();
+    await joined(h, "a-1", "Alice");
+    await loadScenario(h, "a-1");
+    await h.handle("a-1", { command: "agenda.start" });
+    expect(h.armed()).toBeDefined();
+
+    // When
+    await h.handle("a-1", { command: "agenda.reset" });
+
+    // Then
+    expect(h.armed()).toBeUndefined();
+  });
+
+  it("期限前に onDue が来ても状態は変わらず、予約は状態に合わせて張られたままである", async () => {
+    // Given: 開始して予約が張られている
+    const h = setup();
+    await joined(h, "a-1", "Alice");
+    await loadScenario(h, "a-1");
+    await h.handle("a-1", { command: "agenda.start" });
+    const at = h.armed()!.atMs;
+    h.sent.length = 0;
+
+    // When: 期限前に呼ぶ
+    h.onDue(ROOM);
+
+    // Then: 配られず、予約は同じ期限のまま
+    expect(h.sent).toEqual([]);
+    expect(h.armed()!.atMs).toBe(at);
+  });
+
   it("onDue はルームが消えていたら予約を消して何もしない", async () => {
     // Given
     const h = setup();
@@ -396,6 +446,9 @@ describe("ログ", () => {
     await h.handle("a-1", { command: "agenda.pause" });
     await h.handle("a-1", { command: "agenda.resume" });
     await h.handle("a-1", { command: "agenda.extend", stepId: "s-1", minutes: 3 });
+    // 張られた期限が来て自動で進む経路（onDue）と、状態の同期も通す
+    h.fireArmed();
+    await h.handle("a-1", { command: "agenda.sync" });
     await h.handle("a-1", { command: "agenda.skip", stepId: "s-2", skipped: true });
     await h.handle("a-1", { command: "agenda.next", stepId: "s-9" });
     await h.handle("a-1", { command: "agenda.reset" });

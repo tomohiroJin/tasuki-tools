@@ -572,7 +572,7 @@ export class LiveRouletteClient {
 /**
  * **進行タイマーとして**（`/ws?tool=agenda`）繋いだ実 WebSocket クライアント（#429）。
  *
- * {@link LiveAgendaClient} の写しである。話す言葉だけが違う（ハブのコマンドと agenda の
+ * {@link LiveRouletteClient} の写しである。話す言葉だけが違う（ハブのコマンドと agenda の
  * コマンドの和・受け取るフレームは {@link AgendaServerMsg}）。
  */
 export class LiveAgendaClient {
