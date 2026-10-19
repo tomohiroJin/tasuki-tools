@@ -7,7 +7,12 @@
  * Stage の余白ぶん下がった位置にあり、スクロールすると上端に留まる。下端ならどちらでも覆いの中身の始点になる。
  * 位置はスクロールと画面の幅（上の余白が変わる）で変わるので `scroll` と `resize` も購読する。
  *
- * 要素が無い間は何も書かない。外すとき（アンマウント・ref の付け替え）は変数を消す。
+ * `enabled` が false の間、または要素が無い間は何も書かない。外すとき（`enabled` が false になる・
+ * アンマウント・ref の付け替え）は変数を消す。
+ *
+ * scroll / resize は 1 フレームに何度も来るので、`requestAnimationFrame` で 1 フレーム 1 回にまとめて
+ * 測る（`getBoundingClientRect` はレイアウトを強制する）。保留中のフレームは外すときに取り消す。
+ * ResizeObserver の通知はもともと描画の前に 1 回なので、そのまま書く。
  */
 
 import { useEffect } from "react";
@@ -15,22 +20,32 @@ import type { RefObject } from "react";
 
 const VAR = "--top-band-height";
 
-export function useTopBandHeight(ref: RefObject<HTMLElement | null>): void {
+export function useTopBandHeight(ref: RefObject<HTMLElement | null>, enabled: boolean): void {
   useEffect(() => {
+    if (!enabled) return;
     const el = ref.current;
     if (el === null) return;
     const root = document.documentElement;
     const write = () => root.style.setProperty(VAR, `${Math.max(0, el.getBoundingClientRect().bottom)}px`);
+    let frame: number | null = null;
+    const schedule = () => {
+      if (frame !== null) return;
+      frame = requestAnimationFrame(() => {
+        frame = null;
+        write();
+      });
+    };
     write();
-    window.addEventListener("scroll", write, { passive: true });
-    window.addEventListener("resize", write);
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
     const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(write);
     observer?.observe(el);
     return () => {
-      window.removeEventListener("scroll", write);
-      window.removeEventListener("resize", write);
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+      if (frame !== null) cancelAnimationFrame(frame);
       observer?.disconnect();
       root.style.removeProperty(VAR);
     };
-  }, [ref]);
+  }, [ref, enabled]);
 }

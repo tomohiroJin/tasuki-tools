@@ -94,8 +94,7 @@ export default function App() {
   // 休憩中だけ上端の帯の高さを測り、覆いの中身をその下から始める（#427）。休憩の外では測らず、変数も残さない。
   const onBreak = mode === "session" && room != null && isOnBreakRoom(room);
   const bandRef = useRef<HTMLDivElement>(null);
-  const idleRef = useRef<HTMLDivElement>(null);
-  useTopBandHeight(onBreak ? bandRef : idleRef);
+  useTopBandHeight(bandRef, onBreak);
 
   /** セッション/ロビーはダークステージ固定。Summary は通常テーマ。 */
   const renderBody = () => {
