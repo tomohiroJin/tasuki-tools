@@ -62,6 +62,7 @@ import {
   type ToolChannel,
 } from "./ws/tool-channel.js";
 import { sendIfOpen, sendToEach } from "./ws/ws-send.js";
+import type { AgendaOwnFrame, AgendaServerMsg } from "../ports/agenda-server-msg.js";
 import type { RouletteOwnFrame, RouletteServerMsg } from "../ports/roulette-server-msg.js";
 import type { TopicOwnFrame, TopicServerMsg } from "../ports/topic-server-msg.js";
 
@@ -96,6 +97,8 @@ export interface WsAdapterOptions {
   topic: RawMessageHandler;
   /** ルーレット（`?tool=roulette`）のメッセージ層（#94）。 */
   roulette: RawMessageHandler;
+  /** 進行タイマー（`?tool=agenda`）のメッセージ層（#429）。 */
+  agenda: RawMessageHandler;
   /**
    * poker（`?tool=poker`）のメッセージ層。**ほかのツールと形が違う**: 接続そのもの（接続ごとの
    * 参加者・ルーム）を渡し、受理を `onConnect` へ知らせず、切断の後始末を自分で持つ。
@@ -214,6 +217,7 @@ function buildChannels(options: WsAdapterOptions): Readonly<Record<AcceptedProto
     // 契約に無いコードでも通ってしまう。ルーレットも同じ理由で `RouletteOwnFrame`。
     topic: rawTextChannel<TopicOwnFrame>("topic", options.topic, frames),
     roulette: rawTextChannel<RouletteOwnFrame>("roulette", options.roulette, frames),
+    agenda: rawTextChannel<AgendaOwnFrame>("agenda", options.agenda, frames),
     poker: createPokerChannel(options.poker, maxMessageBytes, logger),
   };
 }
@@ -415,6 +419,19 @@ export class WsAdapter {
 
   /** ルーレット（roulette）の接続へ一斉に送る。 */
   broadcastRoulette(connIds: string[], data: RouletteServerMsg): void {
+    sendToEach(this.connections, connIds, JSON.stringify(data));
+  }
+
+  /**
+   * 進行タイマー（agenda）の接続へ送る（#429）。{@link sendRoulette} と同じく、`sendHub` の型では
+   * agenda のフレームを型検査が拒むため分けてある。
+   */
+  sendAgenda(connId: string, data: AgendaServerMsg): void {
+    sendIfOpen(this.connections.get(connId), JSON.stringify(data));
+  }
+
+  /** 進行タイマー（agenda）の接続へ一斉に送る。 */
+  broadcastAgenda(connIds: string[], data: AgendaServerMsg): void {
     sendToEach(this.connections, connIds, JSON.stringify(data));
   }
 

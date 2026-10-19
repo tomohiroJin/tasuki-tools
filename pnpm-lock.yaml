@@ -233,6 +233,9 @@ importers:
 
   apps/tasuki-sync:
     dependencies:
+      '@tasuki/agenda-core':
+        specifier: workspace:*
+        version: link:../../packages/agenda-core
       '@tasuki/poker-core':
         specifier: workspace:*
         version: link:../../packages/poker-core

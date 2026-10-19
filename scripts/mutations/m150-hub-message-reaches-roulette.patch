@@ -25,4 +25,4 @@ index bb9d2d3..3fd0ab1 100644
 +    },
      topic: topicHandlers,
      roulette: rouletteHandlers,
-     // cmd は ws-adapter 側で CommandSchema（valibot）に通した検証済みの値で、型も Command のまま届く（#363）。
+     // Task 2.4 で agenda-handlers に置き換える（Task 2.5）。それまでは何も処理せず INTERNAL_ERROR を返すだけの仮置き。

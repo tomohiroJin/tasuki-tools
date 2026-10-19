@@ -13,6 +13,7 @@
     "lint": "eslint src test"
   },
   "dependencies": {
+    "@tasuki/agenda-core": "workspace:*",
     "@tasuki/poker-core": "workspace:*",
     "@tasuki/protocol": "workspace:*",
     "@tasuki/rate-limit": "workspace:*",

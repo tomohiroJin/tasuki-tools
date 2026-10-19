@@ -41,6 +41,7 @@ import { makeTopicBroadcaster } from "./application/topic-broadcast.js";
 import { makeTopicHandlers } from "./application/topic-handlers.js";
 import { TopicGenerator } from "./application/topic-generation.js";
 import { InMemoryTopicStore } from "./adapters/in-memory-topic-store.js";
+import { agendaErrorMessageFor } from "@tasuki/agenda-core";
 import { InMemoryRouletteStore } from "./adapters/in-memory-roulette-store.js";
 import { createCryptoRandomSource } from "./adapters/crypto-random-source.js";
 import { makeRouletteBroadcaster } from "./application/roulette-broadcast.js";
@@ -418,6 +419,16 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     hub: hubHandlers,
     topic: topicHandlers,
     roulette: rouletteHandlers,
+    // Task 2.4 で agenda-handlers に置き換える（Task 2.5）。それまでは何も処理せず INTERNAL_ERROR を返すだけの仮置き。
+    agenda: {
+      handleMessage: async (connId) => {
+        wsAdapter.sendAgenda(connId, {
+          type: "error",
+          code: "INTERNAL_ERROR",
+          message: agendaErrorMessageFor("INTERNAL_ERROR"),
+        });
+      },
+    },
     // cmd は ws-adapter 側で CommandSchema（valibot）に通した検証済みの値で、型も Command のまま届く（#363）。
     // 表示名の正規化は受け口のアプリケーション側が掛ける（#368）。
     timer: createTimerCommandReceiver({

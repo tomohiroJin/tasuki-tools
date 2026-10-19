@@ -43,6 +43,9 @@ export const TOOL_TOPIC = "topic";
 /** ルーレットの入口から来た接続（#94）。 */
 export const TOOL_ROULETTE = "roulette";
 
+/** 進行タイマーの入口から来た接続（#429）。 */
+export const TOOL_AGENDA = "agenda";
+
 /**
  * ハブの接続が宣言するツール。**どれでもない**（設計正本 D14・S5a の裁定）。
  *

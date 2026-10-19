@@ -7,13 +7,13 @@
  */
 import type { LogSafe } from "../../application/log/log-safe.js";
 import { CONN_REJECT_REASONS } from "../../application/log/vocabulary.js";
-import { TOOL_POKER, TOOL_ROULETTE, TOOL_TIMER, TOOL_TOPIC } from "../../application/tool-id.js";
+import { TOOL_AGENDA, TOOL_POKER, TOOL_ROULETTE, TOOL_TIMER, TOOL_TOPIC } from "../../application/tool-id.js";
 
 /**
- * 接続層の 6 値の選択子。ツール識別子はそのうち 4 つと一致しているだけである
+ * 接続層の 7 値の選択子。ツール識別子はそのうち 5 つと一致しているだけである
  * （`"hub"` / `"unknown"` に対応するツールは無い）。{@link protocolFromRequestUrl} の docstring を参照。
  */
-export type Protocol = "timer" | "poker" | "topic" | "roulette" | "hub" | "unknown";
+export type Protocol = "timer" | "poker" | "topic" | "roulette" | "agenda" | "hub" | "unknown";
 
 /** 受け口の表の鍵になる、受理するプロトコル（`unknown` を除く）。 */
 export type AcceptedProtocol = Exclude<Protocol, "unknown">;
@@ -41,8 +41,8 @@ const TOOL_QUERY_KEY = "tool";
  * リテラルを自前で持つと、次に綴りを変える人がここを取り残し、
  * **wire 互換を壊したことに気づけない**。
  *
- * **戻り値の型はリテラルのまま据え置く。** これは接続層の 6 値の選択子（{@link Protocol}）で、
- * ツール識別子はそのうち 4 つと一致しているだけである（`"hub"` / `"unknown"` に
+ * **戻り値の型はリテラルのまま据え置く。** これは接続層の 7 値の選択子（{@link Protocol}）で、
+ * ツール識別子はそのうち 5 つと一致しているだけである（`"hub"` / `"unknown"` に
  * 対応するツールは無い）。`typeof TOOL_TIMER` にして追従させると、綴りを変えたときに
  * 黙って通る —— リテラルで受けておくと**この関数で型検査が落ちる**ので、
  * `ConnectionData.protocol` と wire の両方を見直す機会になる。
@@ -54,6 +54,7 @@ export function protocolFromRequestUrl(url: URL): Protocol {
   if (declared === TOOL_POKER) return TOOL_POKER;
   if (declared === TOOL_TOPIC) return TOOL_TOPIC;
   if (declared === TOOL_ROULETTE) return TOOL_ROULETTE;
+  if (declared === TOOL_AGENDA) return TOOL_AGENDA;
   return "unknown";
 }
 
