@@ -193,7 +193,9 @@ export const ALLOWED = {
   ],
   // #95 S2 で apps/timer-sync と apps/poker-sync がここへ統合された。
   // poker-core が加わったのはそのため（統合前は poker-sync 側の依存）。
+  // 進行タイマー（#429）の合成ルートが agenda-core を呼ぶ。
   "apps/tasuki-sync": [
+    "@tasuki/agenda-core",
     "@tasuki/poker-core",
     "@tasuki/protocol",
     "@tasuki/rate-limit",
