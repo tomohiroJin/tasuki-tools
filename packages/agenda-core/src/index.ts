@@ -26,6 +26,8 @@ export type { AgendaDomainErrorCode, AgendaError } from "./errors.js";
 
 export { expand, totalPlannedSec } from "./scenario.js";
 
+export { INITIAL_AGENDA_STATE, replaceScenario, start, next, pause, resume, extend, setSkipped, reset } from "./agenda.js";
+
 export {
   StepInputSchema,
   ScenarioInputSchema,
