@@ -99,6 +99,8 @@ export const ALLOWED = {
   // ルーレットの文脈（#94）。**@tasuki/* に依存しない**（room-core にも依存しない・spec R3）。
   // 参加者 ID は不透明な文字列で、名簿の断片はアプリ層が引数で渡す（docs/adr/0017 決定 1・2）。
   "packages/roulette-core": [],
+  // 進行タイマーの文脈（#429）。**@tasuki/* に依存しない**（他の文脈にも依存しない）。
+  "packages/agenda-core": [],
   // 同期クライアントの接続部分（#95 S5a・D18）。**@tasuki/* に依存しない** ——
   // ツールの語彙を持たないことが、4 つの web アプリから使える条件である。
   "packages/sync-client": [],

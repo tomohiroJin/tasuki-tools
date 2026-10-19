@@ -61,6 +61,8 @@ export const SCANNED_PACKAGES = [
   "apps/roulette-web",
   "packages/dev-hub-redirect",
   "packages/poker-core",
+  // 進行タイマーの文脈（#429）。
+  "packages/agenda-core",
   "packages/protocol",
   "packages/rate-limit",
   "packages/room-core",
