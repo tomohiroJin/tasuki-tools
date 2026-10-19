@@ -23,3 +23,17 @@ export type {
 
 export { AGENDA_DOMAIN_ERROR_CODES } from "./errors.js";
 export type { AgendaDomainErrorCode, AgendaError } from "./errors.js";
+
+export { expand, totalPlannedSec } from "./scenario.js";
+
+export {
+  StepInputSchema,
+  ScenarioInputSchema,
+  AgendaCommandSchema,
+  AgendaFrameSchema,
+  AgendaErrorFrameSchema,
+  AGENDA_ERROR_CODES,
+} from "./schemas.js";
+export type { AgendaCommand, AgendaErrorCode } from "./schemas.js";
+
+export { agendaErrorMessageFor } from "./error-messages.js";
