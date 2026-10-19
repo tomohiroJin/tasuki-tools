@@ -147,6 +147,13 @@ describe("pause / resume", () => {
     const s = paused();
     expect(s).toMatchObject({ phase: "paused", accumulatedMs: 3000, runningSince: null });
   });
+  it("一時停止を重ねると計時の積算が足し合わさる", () => {
+    let s = running(1000);
+    s = must(pause(s, 4000));
+    s = must(resume(s, 7000));
+    s = must(pause(s, 9000));
+    expect(s.accumulatedMs).toBe(5000);
+  });
   it("paused の resume で running へ", () => {
     const s = must(resume(paused(), 7000));
     expect(s).toMatchObject({ phase: "running", runningSince: 7000, accumulatedMs: 3000 });
