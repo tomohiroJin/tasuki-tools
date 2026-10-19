@@ -8,7 +8,7 @@ import { err, ok, type Result } from "neverthrow";
 import type { AgendaError } from "./errors.js";
 import { MAX_STEP_BUDGET_SEC } from "./limits.js";
 import { expand } from "./scenario.js";
-import type { AgendaState, PlannedStep, ScenarioInput } from "./types.js";
+import type { AgendaState, AgendaView, PlannedStep, ScenarioInput } from "./types.js";
 
 export const INITIAL_AGENDA_STATE: AgendaState = {
   phase: "idle",
@@ -59,15 +59,19 @@ export function start(s: AgendaState, now: number): R<"AGENDA_EMPTY" | "AGENDA_A
 export function next(s: AgendaState, input: { stepId: string; now: number }): R<"AGENDA_NOT_STARTED"> {
   if (s.phase === "idle") return fail("AGENDA_NOT_STARTED");
   if (s.phase === "finished" || s.currentId !== input.stepId) return ok(s);
-  const { now } = input;
+  return ok(advanceStep(s, input.now));
+}
+
+/** いまの区切りを `at` で確定して次へ進める（running / paused の状態だけが渡る）。`next` と `advanceIfDue` が共有する。 */
+function advanceStep(s: AgendaState, at: number): AgendaState {
   const idx = s.steps.findIndex((x) => x.id === s.currentId);
-  const spent = now - (s.stepStartedAt ?? now);
+  const spent = at - (s.stepStartedAt ?? at);
   const nextIdx = s.steps.findIndex((x, i) => i > idx && !x.skipped);
   // 終えた区切り・通り過ぎた飛ばし済みの区切りの所要を確定する
   const settle = (limit: number): PlannedStep[] =>
     s.steps.map((x, i) => (i === idx ? { ...x, spentMs: spent } : i > idx && i < limit && x.skipped ? { ...x, spentMs: 0 } : x));
   if (nextIdx === -1) {
-    return ok({
+    return {
       ...s,
       phase: "finished",
       steps: settle(s.steps.length),
@@ -75,18 +79,52 @@ export function next(s: AgendaState, input: { stepId: string; now: number }): R<
       stepStartedAt: null,
       runningSince: null,
       accumulatedMs: 0,
-      finishedAtMs: now - (s.startedAt ?? now),
-    });
+      finishedAtMs: at - (s.startedAt ?? at),
+    };
   }
-  return ok({
+  return {
     ...s,
     phase: "running",
     steps: settle(nextIdx),
     currentId: s.steps[nextIdx]!.id,
-    stepStartedAt: now,
-    runningSince: now,
+    stepStartedAt: at,
+    runningSince: at,
     accumulatedMs: 0,
-  });
+  };
+}
+
+/** いまの区切りの持ち時間（ms） */
+const budgetOf = (step: PlannedStep): number => (step.durationSec + step.extensionSec) * 1000;
+
+/** 計時が持ち時間に達する単調時計の時刻。running のときだけ値を持つ（一時停止・開始前・終了は null）。 */
+export function deadlineOf(s: AgendaState): number | null {
+  if (s.phase !== "running" || s.runningSince === null) return null;
+  const step = s.steps.find((x) => x.id === s.currentId);
+  if (step === undefined) return null;
+  return s.runningSince + budgetOf(step) - s.accumulatedMs;
+}
+
+/**
+ * 期限を過ぎた「自動で次へ」の区切りを進める。前の確定も次の始まりも**期限ちょうど**で行う（発火の遅れを持ち込まない）。
+ * 次も期限を過ぎていれば繰り返す。進める区切りがなければ同じ参照を返す。
+ */
+export function advanceIfDue(s: AgendaState, now: number): AgendaState {
+  let cur = s;
+  for (;;) {
+    const deadline = deadlineOf(cur);
+    const step = cur.steps.find((x) => x.id === cur.currentId);
+    if (deadline === null || step === undefined || step.onTimeout !== "advance" || deadline > now) return cur;
+    cur = advanceStep(cur, deadline);
+  }
+}
+
+/** 画面へ送る写し。経過は `now` で計り、単調時計の値は載せない。 */
+export function toView(s: AgendaState, now: number): AgendaView {
+  const finished = s.phase === "finished";
+  const runElapsedMs = finished ? (s.finishedAtMs ?? 0) : s.startedAt === null ? 0 : now - s.startedAt;
+  const stepTimerMs = finished ? 0 : s.accumulatedMs + (s.runningSince === null ? 0 : now - s.runningSince);
+  const stepSpentMs = finished || s.stepStartedAt === null ? 0 : now - s.stepStartedAt;
+  return { phase: s.phase, title: s.title, steps: s.steps, currentId: s.currentId, runElapsedMs, stepTimerMs, stepSpentMs };
 }
 
 /** 一時停止。区切りの計時は止まり、実時間は進む。 */

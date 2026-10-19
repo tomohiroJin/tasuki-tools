@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   INITIAL_AGENDA_STATE,
+  advanceIfDue,
+  deadlineOf,
   extend,
   next,
   pause,
@@ -9,6 +11,7 @@ import {
   resume,
   setSkipped,
   start,
+  toView,
 } from "../src/agenda.js";
 import type { AgendaState } from "../src/types.js";
 import { kptInput } from "./support/fixtures.js";
@@ -271,5 +274,95 @@ describe("reset", () => {
     expect(r.title).toBe("KPT のふりかえり");
     expect(r.steps).toEqual(idle().steps);
     expect(r).toMatchObject({ currentId: null, startedAt: null, stepStartedAt: null, runningSince: null, accumulatedMs: 0, finishedAtMs: null });
+  });
+});
+
+const advancing = (): AgendaState =>
+  must(
+    replaceScenario(INITIAL_AGENDA_STATE, {
+      title: "自動",
+      steps: [
+        { name: "A", durationSec: 60, onTimeout: "advance" },
+        { name: "B", durationSec: 60, onTimeout: "advance" },
+        { name: "C", durationSec: 60, onTimeout: "wait" },
+      ],
+    }),
+  );
+
+describe("deadlineOf", () => {
+  it("running では計時が持ち時間に達する時刻", () => {
+    expect(deadlineOf(running(1000))).toBe(1000 + 300_000);
+  });
+  it("延長を含み、一時停止で積算した分を引く", () => {
+    let s = running(0);
+    s = must(pause(s, 100_000));
+    s = must(resume(s, 500_000));
+    s = must(extend(s, { stepId: "s-1", minutes: 3, now: 500_000 }));
+    expect(deadlineOf(s)).toBe(500_000 + 300_000 + 180_000 - 100_000);
+  });
+  it.each([
+    ["idle", idle],
+    ["paused", paused],
+    ["finished", finished],
+  ])("%s は null", (_n, make) => {
+    expect(deadlineOf(make())).toBeNull();
+  });
+});
+
+describe("advanceIfDue", () => {
+  it("advance のステップは期限ちょうどで次へ。次の始まりは期限（発火時刻ではない）（m433）", () => {
+    const s = must(start(advancing(), 0));
+    const r = advanceIfDue(s, 60_000 + 900);
+    expect(r.currentId).toBe("s-2");
+    expect(r.stepStartedAt).toBe(60_000);
+    expect(r.runningSince).toBe(60_000);
+    expect(r.steps[0]!.spentMs).toBe(60_000);
+  });
+  it("期限前は同じ参照", () => {
+    const s = must(start(advancing(), 0));
+    expect(advanceIfDue(s, 59_999)).toBe(s);
+  });
+  it("次も期限を過ぎていれば繰り返す。最後が wait なら止まる", () => {
+    const s = must(start(advancing(), 0));
+    const r = advanceIfDue(s, 500_000);
+    expect(r.currentId).toBe("s-3");
+    expect(r.stepStartedAt).toBe(120_000);
+    expect(r.steps.map((x) => x.spentMs)).toEqual([60_000, 60_000, null]);
+  });
+  it("最後のステップが advance なら期限で終了し、終了の経過は期限で確定する", () => {
+    let s = must(
+      replaceScenario(INITIAL_AGENDA_STATE, { title: "t", steps: [{ name: "A", durationSec: 60, onTimeout: "advance" }] }),
+    );
+    s = must(start(s, 1000));
+    const r = advanceIfDue(s, 99_999);
+    expect(r.phase).toBe("finished");
+    expect(r.finishedAtMs).toBe(60_000);
+  });
+  it("wait のステップは期限を過ぎても同じ参照", () => {
+    const s = running(0);
+    expect(advanceIfDue(s, 10_000_000)).toBe(s);
+  });
+  it("paused・idle・finished は同じ参照", () => {
+    for (const s of [idle(), paused(), finished()]) expect(advanceIfDue(s, 10_000_000)).toBe(s);
+  });
+});
+
+describe("toView", () => {
+  it("経過は now から計算する", () => {
+    const s = must(pause(running(1000), 4000));
+    expect(toView(s, 10_000)).toMatchObject({ phase: "paused", runElapsedMs: 9000, stepTimerMs: 3000, stepSpentMs: 9000 });
+    const r = must(resume(s, 6000));
+    expect(toView(r, 10_000)).toMatchObject({ runElapsedMs: 9000, stepTimerMs: 3000 + 4000, stepSpentMs: 9000 });
+  });
+  it("idle はすべて 0", () => {
+    expect(toView(idle(), 99_999)).toMatchObject({ runElapsedMs: 0, stepTimerMs: 0, stepSpentMs: 0 });
+  });
+  it("finished は確定値と 0", () => {
+    expect(toView(finished(), 99_999)).toMatchObject({ phase: "finished", runElapsedMs: 5000, stepTimerMs: 0, stepSpentMs: 0 });
+  });
+  it("単調時計の値を出力に持たない", () => {
+    const keys = Object.keys(toView(running(1000), 2000));
+    for (const k of ["startedAt", "stepStartedAt", "runningSince", "accumulatedMs", "finishedAtMs"]) expect(keys).not.toContain(k);
+    expect(keys.sort()).toEqual(["currentId", "phase", "runElapsedMs", "steps", "stepSpentMs", "stepTimerMs", "title"].sort());
   });
 });
