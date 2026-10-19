@@ -13,13 +13,13 @@
 #       git apply scripts/mutations/m80-*.patch
 # 復元: git apply -R scripts/mutations/m80-*.patch
 diff --git a/apps/tasuki-sync/src/application/destroy-room.ts b/apps/tasuki-sync/src/application/destroy-room.ts
-index 4f151cc..64c4b24 100644
+index 4d358fb..33a148f 100644
 --- a/apps/tasuki-sync/src/application/destroy-room.ts
 +++ b/apps/tasuki-sync/src/application/destroy-room.ts
-@@ -75,9 +75,6 @@ export function createRoomDestroyer(deps: RoomDestroyerDeps): (roomCode: string)
- 
+@@ -98,9 +98,6 @@ export function createRoomDestroyer(deps: RoomDestroyerDeps): (roomCode: string)
    return (roomCode: string): void => {
      scheduler?.clear(roomCode);
+     agendaDeadlines.clear(roomCode);
 -    // 生成の中断は保管の解放より先。中断した生成が消えたルームへ書き戻さないため
 -    // （`TopicGenerator#write` は状態が無ければ書かないが、子プロセスは止まらない）。
 -    topicGenerator.cancel(roomCode);

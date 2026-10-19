@@ -21,6 +21,8 @@ import { InMemoryRoundStore } from "../src/adapters/poker-in-memory-round-store.
 import { InMemoryTopicStore } from "../src/adapters/in-memory-topic-store.js";
 import { InMemoryRouletteStore } from "../src/adapters/in-memory-roulette-store.js";
 import { INITIAL_ROULETTE_STATE } from "@tasuki/roulette-core";
+import { INITIAL_AGENDA_STATE } from "@tasuki/agenda-core";
+import { InMemoryAgendaStore } from "../src/adapters/in-memory-agenda-store.js";
 import { INITIAL_TOPIC_STATE } from "@tasuki/topic-core";
 import { spyDestroyer } from "./support/spy-destroyer.js";
 
@@ -38,6 +40,7 @@ describe("createRoomDestroyer", () => {
     // （先に消すと停止処理中に発火したタイマーが参照先の無いルームを触りうる）
     expect(calls).toEqual([
       "scheduler.clear:AAA",
+      "agendaDeadlines.clear:AAA",
       "topicGenerator.cancel:AAA",
       "presence.clearRoomTimers:AAA",
       "releaseRoom:AAA",
@@ -84,6 +87,25 @@ describe("createRoomDestroyer", () => {
     expect(roulettes.get("EEE")).toEqual(INITIAL_ROULETTE_STATE);
   });
 
+  it("破棄の後に agenda の状態が無く、agenda の予約が消えている", () => {
+    // Given: 名簿・agenda の状態・agenda の期限の予約が同じルームコードにぶら下がっている
+    const store = new InMemoryRoomStore();
+    const timers = new InMemoryTimerStore();
+    const agendas = new InMemoryAgendaStore();
+    store.put({ code: "FFF", createdAt: 0, participants: [] });
+    agendas.put("FFF", INITIAL_AGENDA_STATE);
+    agendas.put("GGG", INITIAL_AGENDA_STATE);
+    const { destroy, calls } = spyDestroyer(store, timers, undefined, undefined, undefined, agendas);
+
+    // When
+    destroy("FFF");
+
+    // Then: 予約は止まり（発火しうるものを先に）、破棄したルームの状態だけが消える
+    expect(calls).toContain("agendaDeadlines.clear:FFF");
+    expect(agendas.get("FFF")).toBeUndefined();
+    expect(agendas.get("GGG")).toEqual(INITIAL_AGENDA_STATE);
+  });
+
   it("スケジューラ・presence を持たない構成でも解放とストア削除は行う", () => {
     // Given: makeHandlers 単体（scheduler を省略できる）で組んだ場合
     const store = new InMemoryRoomStore();
@@ -103,6 +125,8 @@ describe("createRoomDestroyer", () => {
       rounds,
       topics,
       roulettes: new InMemoryRouletteStore(),
+      agendas: new InMemoryAgendaStore(),
+      agendaDeadlines: { clear: () => {} },
       topicGenerator: { cancel: () => {} },
       releaseRoom: (c) => released.push(c),
     });

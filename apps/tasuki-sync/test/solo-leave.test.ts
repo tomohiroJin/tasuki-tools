@@ -23,6 +23,7 @@ import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { InMemoryRoundStore } from "../src/adapters/poker-in-memory-round-store.js";
 import { InMemoryTopicStore } from "../src/adapters/in-memory-topic-store.js";
+import { InMemoryAgendaStore } from "../src/adapters/in-memory-agenda-store.js";
 import { InMemoryRouletteStore } from "../src/adapters/in-memory-roulette-store.js";
 import { createTokenStore } from "../src/application/token-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
@@ -92,6 +93,8 @@ describe("ソロの部屋からの退出（Issue #79）", () => {
       rounds,
       topics: new InMemoryTopicStore(),
       roulettes: new InMemoryRouletteStore(),
+      agendas: new InMemoryAgendaStore(),
+      agendaDeadlines: { clear: () => {} },
       // お題の生成はこのテストに居ない（timer の退出だけを見る）。
       topicGenerator: { cancel: () => {} },
       releaseRoom: handlers.releaseRoom,
@@ -217,6 +220,7 @@ describe("ソロの部屋からの退出（Issue #79）", () => {
     result._unsafeUnwrap();
     expect(calls).toEqual([
       `scheduler.clear:${soloCode}`,
+      `agendaDeadlines.clear:${soloCode}`,
       `topicGenerator.cancel:${soloCode}`,
       `presence.clearRoomTimers:${soloCode}`,
       `releaseRoom:${soloCode}`,
@@ -287,6 +291,8 @@ describe("ソロ以外は挙動が変わらない（Issue #79）", () => {
       rounds,
       topics: new InMemoryTopicStore(),
       roulettes: new InMemoryRouletteStore(),
+      agendas: new InMemoryAgendaStore(),
+      agendaDeadlines: { clear: () => {} },
       // お題の生成はこのテストに居ない（timer の退出だけを見る）。
       topicGenerator: { cancel: () => {} },
       releaseRoom: handlers.releaseRoom,
@@ -461,7 +467,7 @@ describe("アイドル回収と在室者0人の退出は同じ後始末を通る
     const forRoom = (roomCode: string): string[] =>
       calls.filter((c) => c.endsWith(`:${roomCode}`)).map((c) => c.split(":")[0]!);
     expect(forRoom(leaveCode)).toEqual([
-      "scheduler.clear", "topicGenerator.cancel", "presence.clearRoomTimers", "releaseRoom",
+      "scheduler.clear", "agendaDeadlines.clear", "topicGenerator.cancel", "presence.clearRoomTimers", "releaseRoom",
     ]);
     expect(forRoom(idleCode)).toEqual(forRoom(leaveCode));
     expect(store.list()).toEqual([]);

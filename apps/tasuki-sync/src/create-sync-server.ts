@@ -43,6 +43,8 @@ import { TopicGenerator } from "./application/topic-generation.js";
 import { InMemoryTopicStore } from "./adapters/in-memory-topic-store.js";
 import { agendaErrorMessageFor } from "@tasuki/agenda-core";
 import { InMemoryRouletteStore } from "./adapters/in-memory-roulette-store.js";
+import { InMemoryAgendaStore } from "./adapters/in-memory-agenda-store.js";
+import { makeAgendaDeadlines } from "./application/agenda-deadlines.js";
 import { createCryptoRandomSource } from "./adapters/crypto-random-source.js";
 import { makeRouletteBroadcaster } from "./application/roulette-broadcast.js";
 import { makeRouletteHandlers } from "./application/roulette-handlers.js";
@@ -114,6 +116,12 @@ export function createSyncServer(config: SyncConfig): SyncServer {
    * ルームコードで対になる（破棄は `destroy-room.ts` が揃えて行う）。
    */
   const roulettes = new InMemoryRouletteStore();
+  const agendas = new InMemoryAgendaStore();
+  // 進行タイマーの期限の予約（#429）。timer の `scheduler` とは別のインスタンス。**単調時計**で測る。
+  const agendaDeadlines = makeAgendaDeadlines({
+    clock: createPerformanceClock(),
+    timer: { set: (fn, ms) => setTimeout(fn, ms), clear: (h) => clearTimeout(h as ReturnType<typeof setTimeout>) },
+  });
   const clock = new SystemWallClock();
   // レート制限の時刻（timer・ハブ・お題の入口）を読む単調時計と、member.shuffle の乱数（#367。以前は
   // アプリケーション層が大域の時計・乱数を直接読んでいた）。
@@ -276,6 +284,8 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     // **#91 でお題の状態と生成もここが解放・中断する**（寿命はルームごとに 1 つ）。
     topics,
     roulettes,
+    agendas,
+    agendaDeadlines,
     scheduler,
     topicGenerator,
     presence: presenceManager,
@@ -481,6 +491,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     close: async () => {
       reclaimer.stop();
       scheduler.clearAll();
+      agendaDeadlines.clearAll();
       // お題の生成も止める（子プロセスを残さない。#91）。
       topicGenerator.cancelAll();
       // 不在猶予タイマー（ドライバー繰り上げ）も解放する。
