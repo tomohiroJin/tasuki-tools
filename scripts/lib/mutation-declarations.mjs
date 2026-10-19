@@ -2758,7 +2758,7 @@ export const MUTATIONS = [
   },
   {
     id: 430,
-    label: "次へが区切り ID を見ない。古い押下で区切りが飛ぶ。",
+    label: "次へが区切り ID を見ず、古い押下で区切りが飛ぶ",
     patch: "m430-next-ignores-step-id.patch",
     pkg: "packages/agenda-core",
     tests: ["tests/agenda.test.ts"],
@@ -2766,7 +2766,7 @@ export const MUTATIONS = [
   },
   {
     id: 431,
-    label: "区切りの所要から一時停止の時間が落ちる。",
+    label: "区切りの所要から一時停止の時間が落ちる",
     patch: "m431-spent-excludes-pause.patch",
     pkg: "packages/agenda-core",
     tests: ["tests/agenda-invariant.test.ts"],
@@ -2774,7 +2774,7 @@ export const MUTATIONS = [
   },
   {
     id: 432,
-    label: "終わる見込みが飛ばした区切りの分だけ延びる。",
+    label: "終わる見込みに、飛ばした区切りの持ち時間が入る",
     patch: "m432-projection-counts-skipped.patch",
     pkg: "packages/agenda-core",
     tests: ["tests/projection.test.ts"],
@@ -2782,7 +2782,7 @@ export const MUTATIONS = [
   },
   {
     id: 433,
-    label: "自動で次へが発火の遅れを持ち込む。",
+    label: "自動で次へが期限ではなく発火した時刻を境にし、発火の遅れを持ち込む",
     patch: "m433-auto-advance-starts-at-fire-time.patch",
     pkg: "packages/agenda-core",
     tests: ["tests/agenda.test.ts"],
@@ -2790,7 +2790,7 @@ export const MUTATIONS = [
   },
   {
     id: 434,
-    label: "延長が区切り ID を見ない。",
+    label: "延長が区切り ID を見ず、違う区切りの延長も受け付ける",
     patch: "m434-extend-ignores-step-id.patch",
     pkg: "packages/agenda-core",
     tests: ["tests/agenda.test.ts"],
@@ -2798,7 +2798,7 @@ export const MUTATIONS = [
   },
   {
     id: 435,
-    label: "一時停止中の次へが止まったまま。",
+    label: "一時停止中に次へを押すと、次の区切りが止まったまま始まる",
     patch: "m435-next-while-paused-stays-paused.patch",
     pkg: "packages/agenda-core",
     tests: ["tests/agenda.test.ts"],
@@ -2806,7 +2806,7 @@ export const MUTATIONS = [
   },
   {
     id: 436,
-    label: "コマンドの検めが余計なフィールドを通す。",
+    label: "コマンドの検めが緩み、余計なフィールドを通す",
     patch: "m436-command-schema-loosened.patch",
     pkg: "packages/agenda-core",
     tests: ["tests/schemas.test.ts"],
@@ -2814,7 +2814,7 @@ export const MUTATIONS = [
   },
   {
     id: 437,
-    label: "進行中にシナリオを置き換えられる。",
+    label: "進行中でもシナリオを置き換えられる",
     patch: "m437-replace-allowed-while-running.patch",
     pkg: "packages/agenda-core",
     tests: ["tests/agenda.test.ts"],
