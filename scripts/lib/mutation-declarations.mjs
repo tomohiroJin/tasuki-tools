@@ -2820,4 +2820,12 @@ export const MUTATIONS = [
     tests: ["tests/agenda.test.ts"],
     note: "#429 進行中でもシナリオの置き換えを許す。",
   },
+  {
+    id: 439,
+    label: "ルーム破棄で進行タイマーの状態を消さない",
+    patch: "m439-destroy-keeps-agenda.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/destroy-room.test.ts"],
+    note: "#429 設計 §5.2。ルーム破棄で進行タイマーの状態を消さない。破棄したルームのコードを引き継いだ別のルームに、古い進行の状態が残る。",
+  },
 ];

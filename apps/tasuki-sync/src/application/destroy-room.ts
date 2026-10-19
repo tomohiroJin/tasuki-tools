@@ -71,6 +71,8 @@ export interface RoomDestroyerDeps {
    * 進行タイマーの期限の予約（#429）。破棄で止める（消えたルームへ自動で次へが発火しない）。
    * timer の `scheduler` とは別の予約である。
    *
+   * ⚠ `Scheduler` も `clear(roomCode)` を持つので型は通るが、渡すと timer の予約を消してしまう（取り違えないこと）。
+   *
    * ⚠ **optional にしてはならない**（理由は {@link RoomDestroyerDeps.rounds} と同じ）。
    */
   agendaDeadlines: Pick<AgendaDeadlines, "clear">;

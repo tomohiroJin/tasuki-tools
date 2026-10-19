@@ -116,16 +116,17 @@ export function createSyncServer(config: SyncConfig): SyncServer {
    * ルームコードで対になる（破棄は `destroy-room.ts` が揃えて行う）。
    */
   const roulettes = new InMemoryRouletteStore();
+  // 単調時計は 1 つを共有する（進行タイマーの予約とハンドラが同じ時計で測る）。
+  const monotonicClock = createPerformanceClock();
   const agendas = new InMemoryAgendaStore();
   // 進行タイマーの期限の予約（#429）。timer の `scheduler` とは別のインスタンス。**単調時計**で測る。
   const agendaDeadlines = makeAgendaDeadlines({
-    clock: createPerformanceClock(),
+    clock: monotonicClock,
     timer: { set: (fn, ms) => setTimeout(fn, ms), clear: (h) => clearTimeout(h as ReturnType<typeof setTimeout>) },
   });
   const clock = new SystemWallClock();
   // レート制限の時刻（timer・ハブ・お題の入口）を読む単調時計と、member.shuffle の乱数（#367。以前は
   // アプリケーション層が大域の時計・乱数を直接読んでいた）。
-  const monotonicClock = createPerformanceClock();
   const random = createCryptoRandomSource();
   /**
    * 復帰トークンとパスフレーズの保管。**timer と poker で 1 個を共有する**（#95 S4a）。
