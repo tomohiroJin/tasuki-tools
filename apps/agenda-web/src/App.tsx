@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { LoadingView } from './components/LoadingView';
+import { AgendaRoom } from './screens/AgendaRoom';
 import { parseRoute, redirectTo } from './router';
 
 export function App() {
@@ -11,6 +12,6 @@ export function App() {
     if (route.name === 'redirect') redirectTo(route.to);
   }, [route]);
 
-  // 部屋の画面は次のコミットで足す（同期フック・盤）
+  if (route.name === 'room') return <AgendaRoom roomCode={route.roomCode} />;
   return <LoadingView />;
 }
