@@ -31,6 +31,10 @@
       "dependsOn": ["^build"],
       "outputs": ["coverage/**"]
     },
+    "@tasuki/agenda-core#test": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"]
+    },
     "lint": {
       "outputs": []
     },
