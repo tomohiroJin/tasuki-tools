@@ -15,7 +15,7 @@
  */
 import { expect, test } from '../fixtures/test';
 import { expectReadable, pairKey, resolveColors, scanContrast } from '../support/a11y';
-import { chooseCard, createRoom, joinRoom, participantRow, recordSeatFlips, resultsSection, seatFlips } from '../support/poker';
+import { chooseCard, createRoom, joinRoom, participantRow, recordSeatFlips, resultsSection, seatFlips, turnRecordingOn } from '../support/poker';
 import { openTopicTool, setTopic } from '../support/topic';
 
 /** 文面は書体の常用の層に収まるもの（`topic.spec.ts` と同じ）。 */
@@ -69,6 +69,12 @@ test.describe('poker の文字が背景に対して読める（WCAG AA）', () =
     // When / Then その2b（#93）: 記録に束が 2 つ（閉じた束と見積もり中の束）ある状態の画面も AA を満たす。
     //   次のアイテムへ進めて閉じた束を作り、もう 1 件開票する（1 人なので投票すると自動で公開される）
     await poker.page.setViewportSize({ width: 1280, height: 900 });
+    //   記録は既定で切れているので入れてから進める（#427）
+    //   公開済みの回は記録に残っていないので、再投票してから入れた状態で開票し直し、閉じた束を作る
+    await turnRecordingOn(poker.page);
+    await poker.page.getByRole('button', { name: '再投票' }).click();
+    await chooseCard(poker.page, '5');
+    await expect(resultsSection(poker.page)).toBeVisible();
     await poker.page.getByRole('button', { name: '次のアイテムへ' }).click();
     await chooseCard(poker.page, '3');
     await expect(resultsSection(poker.page)).toBeVisible();
@@ -109,6 +115,22 @@ test.describe('poker の文字が背景に対して読める（WCAG AA）', () =
     await expect.poll(() => side.evaluate((el) => el.getBoundingClientRect().height), '閉じた札が高さ 0 にならない').toBeLessThanOrEqual(1);
     await expect.poll(() => side.evaluate((el) => getComputedStyle(el).visibility), '閉じた札が隠れない').toBe('hidden');
     expect(await side.evaluate((el) => el.getBoundingClientRect().width), '閉じた札の幅が 0 になっている（幅ではなく高さで畳む）').toBeGreaterThan(100);
+  });
+
+  test('Given 記録するを押したルーム / When 押した状態の切り替えと束の名前のボタンを測る / Then AA を満たす（#427）', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await createRoom(page, 'a11y-recording');
+    const toggle = page.getByRole('button', { name: '記録する' });
+    await toggle.click();
+    await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+    await chooseCard(page, '5');
+    await expect(resultsSection(page)).toBeVisible();
+    await page.getByRole('button', { name: '次のアイテムへ' }).click();
+    await expect(page.locator('.room-log--side .estimate-item--inline')).toHaveCount(1);
+    // 押した状態の地（`--gold-tint`）は半透明で、パレットの注記が gold-bright の地にして最小 4.62:1（felt-700 上）と保証する。
+    //   画面全体の走査（字と羅紗の組・束の名前のボタンを含む）が AA を満たすことを確かめる
+    const scan = await scanContrast(page, 10);
+    expectReadable(scan, 8, []);
   });
 
   test('Given 2 人のルームで 1 人だけが投票 / When 票を公開する / Then 未投票の印も AA を満たし、動きを抑える設定ではめくりの遅延も止まる', async ({ page, openPeer }) => {

@@ -13,12 +13,12 @@ export const FOOT_LOG_LIMIT = 3;
 
 const DRAWER_TITLE_ID = 'poker-estimate-drawer-title';
 
-export function EstimateLogFoot({ groups, onSetPoints, disabled }: Pick<EstimateLogProps, 'groups' | 'onSetPoints' | 'disabled'>) {
+export function EstimateLogFoot({ groups, onSetPoints, onRenameGroup, disabled }: Pick<EstimateLogProps, 'groups' | 'onSetPoints' | 'onRenameGroup' | 'disabled'>) {
   const drawer = useReaderDrawer();
   const hasMore = groups.length > FOOT_LOG_LIMIT;
   return (
     <div className="room-log--foot">
-      <EstimateLog groups={groups} onSetPoints={onSetPoints} disabled={disabled} limit={FOOT_LOG_LIMIT} />
+      <EstimateLog groups={groups} onSetPoints={onSetPoints} onRenameGroup={onRenameGroup} disabled={disabled} limit={FOOT_LOG_LIMIT} />
       {hasMore && (
         <>
           <button
@@ -42,7 +42,7 @@ export function EstimateLogFoot({ groups, onSetPoints, disabled }: Pick<Estimate
               </button>
             </div>
             <div className="ui-drawer-body">
-              <EstimateLog groups={groups} onSetPoints={onSetPoints} disabled={disabled} labelledBy={DRAWER_TITLE_ID} />
+              <EstimateLog groups={groups} onSetPoints={onSetPoints} onRenameGroup={onRenameGroup} disabled={disabled} labelledBy={DRAWER_TITLE_ID} />
             </div>
           </dialog>
         </>

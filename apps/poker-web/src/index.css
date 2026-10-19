@@ -58,16 +58,23 @@
   display: grid;
   gap: var(--space-5);
   /* 手札の並びは、脇の有無ではなく操作の面の幅で決める（#348 D9）ので、操作の面をコンテナにする。
-     幅は段組みの列が決める。かつての中央寄せの規則は、脇が閉じたり無かったりで列が変わる前提だった。
-     脇は常に出す（#93）ので、列は動かず、中央寄せは要らない。 */
+     幅は段組みの列が決める。列はいつも 2 本で、記録の札が無く、開いたお題の札も無いとき（記録しない・お題が無いか隠した）だけは
+     脇の列が幅 0 になり、64rem 以上の下の規則が約 46rem で中央に寄せる（#427・v4.1.0 の #348 D7〜D9）。それ以外は脇の列があり、中央寄せは要らない。 */
   width: 100%;
   max-width: 100%;
   container: room-main / inline-size;
 }
 
+/* 「記録する」の押した状態（`aria-pressed="true"`・#427）。topic-web の「書く / プレビュー」と同じ: 金の薄い敷きと内側の線。
+   部品（副のボタン）は aria-pressed を飾らないので画面が当てる。内側の線で枠を太らせるので大きさは動かない。 */
+.room-title .ui-button[aria-pressed='true'] {
+  background: var(--gold-tint);
+  box-shadow: inset 0 0 0 1px var(--gold-deep);
+}
+
 /* ---------- 脇（お題の札と記録）の出し入れ（#348 D7・D8・#93） ---------- */
 
-/* 脇は常に在る。縦に並べ、上にお題の札、下に記録。閉じるのは札の包み（`.room-topic-side`）だけで、記録は動かない。 */
+/* 脇は、お題があるか記録するときだけ在る（#427）。縦に並べ、上にお題の札、下に記録。閉じるのは札の包み（`.room-topic-side`）だけで、記録は動かない。 */
 .room-side {
   display: flex;
   flex-direction: column;
@@ -121,7 +128,7 @@
     display: none;
   }
 
-  .room-side:not(:has(> .room-topic-side[data-state='open'])) {
+  .room-side:not(:has(.room-topic-side[data-state='open'])) {
     display: none;
   }
 
@@ -132,12 +139,28 @@
 }
 
 @media (width >= 64rem) {
-  /* 列は常に 2 本・常に同じ比。脇（札約 43%）は常に出るので、列は動かない。
-     手札の側を広げる（poker は手札が横に並ぶので、お題は「あれば見られる程度」に留める）。
-     部品の `.ui-workspace--reader`（0.85fr）に勝つ (0,2,0)。 */
+  /* 列はいつも 2 本持つ（本数が変わると `grid-template-columns` は補間できない）。記録の札が無いとき（#427・v4.1.0 の #348 D7〜D9 と同じ）は、
+     閉じた状態・お題が無い状態は脇の列が幅 0（間隔も 0）で、お題を開くと比（札約 43%）と間隔に滑って移り変わる。
+     記録の札があるときは脇が常に出るので、列は動かず 0.75fr / 1fr のまま。
+     部品の `.ui-workspace--reader`（0.85fr・(0,1,0)）と `.ui-workspace:not(:has(> .ui-workspace-side))`（(0,2,0)）より、
+     ここ（(0,2,0)・後に読む）が勝つ。手札の側を広げる（poker は手札が横に並ぶので、お題は「あれば見られる程度」に留める）。 */
   .room .ui-workspace--reader {
+    grid-template-columns: minmax(0, 0fr) minmax(0, 1fr);
+    column-gap: 0;
+    transition:
+      grid-template-columns 0.32s cubic-bezier(0.2, 0.8, 0.2, 1),
+      column-gap 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .room .ui-workspace--reader:has(.room-topic-side[data-state='open']),
+  .room .ui-workspace--reader:has(.room-log--side) {
     grid-template-columns: minmax(0, 0.75fr) minmax(0, 1fr);
     column-gap: var(--space-6);
+  }
+
+  /* 操作の面はいつも 2 列目（部品は脇が無いと 1 列目へ寄せる。(0,3,0) でそれに勝つ）。 */
+  .room .ui-workspace--reader > .ui-workspace-main {
+    grid-column: 2;
   }
 
   /* 脇は画面に留め（部品の sticky）、高さは札の上限と同じ式で抑える。札と記録が残りを分け合い、記録は中でスクロールする。 */
@@ -145,10 +168,34 @@
     max-height: calc(100dvh - 14rem);
   }
 
+  /* 記録の札が無く、開いたお題の札も無いときは、操作の面を約 46rem で中央に寄せる（v4.1.0 と同じ）。
+     `max-width` を移り変わらせ、`margin-inline: auto` が毎フレーム中央に寄せ直すので、お題の出し入れで操作の面が跳ばず滑る。
+     64rem 未満では脇が縦に積まれ、閉じると即座に消える（`display: none`）ので、ここで移り変わらせると
+     「脇が消える → 操作の面が遅れて狭まる」の 2 段の動きになる。だから 64rem 以上だけ。 */
+  .room-main {
+    margin-inline: auto;
+    transition: max-width 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .room .ui-workspace--reader:not(:has(.room-log--side)):not(:has(.room-topic-side[data-state='open'])) > .room-main {
+    max-width: 46rem;
+  }
+
   .room-topic-side[data-state='open'] {
     flex: 0 1 auto;
     margin-block-end: var(--space-4);
     max-height: 100dvh;
+  }
+
+  /* 記録を持つ脇だけ。開いた札を縮ませず（かつては記録と縮み代を分け合い、束が増えると札が自分の中身より低くなって
+     本文が記録の札の裏へはみ出した・#427）、脇の高さの半分までに抑えて、長い本文は札の中でスクロールする。
+     記録しない間は脇にお題しか無いので、v4.1.0 と同じ上限（部品の `calc(100dvh - 14rem)`）のまま。 */
+  .room-side:has(> .room-log--side) > .room-topic-side[data-state='open'] {
+    flex: 0 0 auto;
+  }
+
+  .room-side:has(> .room-log--side) > .room-topic-side > .ui-reader {
+    max-height: calc((100dvh - 14rem) / 2);
   }
 
   .room-topic-side[data-state='closed'] {
@@ -161,11 +208,16 @@
     min-height: 10rem;
   }
 
-  /* 溢れる束は札の中でスクロールする */
+  /* 溢れる束は札の中でスクロールする。本文は札の左右の余白の外まで広げ、内側に同じ余白を持たせる（#427）。
+     スクロールバーが札の右端に出て、ポイントの欄に寄らない。`scrollbar-gutter: stable` は、束が増えて溢れた瞬間に
+     中身が横へずれないため。お題の札の本文（部品 `.ui-reader-body`）と同じ作り。 */
   .room-log--side > .estimate-log-body {
     flex: 1 1 auto;
     min-height: 0;
+    margin-inline: calc(-1 * var(--space-5));
+    padding-inline: var(--space-5);
     overflow: auto;
+    scrollbar-gutter: stable;
   }
 
   /* 足の記録は脇が持つので描かない */
@@ -214,10 +266,6 @@
   background: var(--felt-sink);
   border: 1px solid var(--line);
   border-radius: 10px;
-}
-
-.participants li.disconnected {
-  opacity: 0.45;
 }
 
 /* 名前は区切りの無い長い名前（上限 40 字）でも席の幅に収め、どこでも折り返す。 */
@@ -481,6 +529,28 @@
   text-align: start;
 }
 
+/* 束の見出しの中の名前（`size="inline"`・#427）。記録の中で一番強く見せるのは添えたポイント（#93 §4.4）なので、
+   枠を透かし、字は普通の太さにして、押せることは下線で示す（押せる大きさは部品が保つ）。 */
+.estimate-item--inline {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.estimate-item--inline .estimate-item-title,
+.estimate-item--inline .estimate-item-input {
+  flex: 1 1 auto;
+  padding-inline: var(--space-2);
+  font-family: inherit;
+  font-size: inherit; /* scale-exempt: 束の見出しの字と同じ大きさを継ぐ */
+  font-weight: 400;
+}
+
+.estimate-item--inline .estimate-item-title {
+  border-color: transparent;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
 /* ---------- 見積もりの記録（#93・spec §4.4。お題と同じ読む面の札の上） ---------- */
 
 .estimate-log {
@@ -671,7 +741,8 @@
   margin-top: 1.25rem;
 }
 
-/* 切断中の席は札・名前・印を薄めるが、「退出させる」は薄めない（押せるものが薄いと押しにくい）。
+/* 切断中の席の薄めは子へ掛ける（li 自身は opacity 1 のまま）。li 自身を薄めると「退出させる」まで薄くなる。
+   切断中の席は札・名前・印を薄めるが、「退出させる」は薄めない（押せるものが薄いと押しにくい）。
    席の幅（6.5rem）で字が割れないよう折り返さず、左右の余白を詰める。 */
 .participants li.disconnected {
   opacity: 1;

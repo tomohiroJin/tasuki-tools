@@ -90,6 +90,8 @@ Room から受信者別に生成する読み取り専用ビュー（research R1�
   - **revote**（revealed → voting）: 票を消す。`item` と開いた束は残る（次の開票は同じ束の N 回め）
   - **next-item**（revealed → voting）: 開いた束を閉じてポイントを付け（任意）、`item` を空にする
   - 閉じた束のポイントは `set-points` で状態遷移と無関係にいつでも直せる（開いた束は不可）
+  - **記録の切り替え（#427）**: `Round` は `recording`（記録するか）を持つ。新しいルームは `false`。`set-recording` で切り替わり、切り替えると開いた束をポイントなしで閉じる。開票が `log` へ行を足すのは `recording` が真で票が 1 つ以上あるときだけ
+  - 閉じた束のアイテム名は `set-group-item` で直せる（開いた束は不可）。束の中の全部の行の `item` を書き換える
 - **見学の切り替え（#419・`setSpectator`）**: 見学と投票への復帰は**いつでも本人が切り替えられる**。
   - **見学へ（voting 中）**: その人の票を捨てる。捨てた結果で自動公開が立つかは `applyAutoReveal` が続けて判定する（status は `setSpectator` では変えない）
   - **見学へ（revealed 後）**: 票は残す。開票済みの結果を変えない

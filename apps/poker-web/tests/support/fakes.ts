@@ -43,7 +43,11 @@ export class FakeListenerSocket {
 
   /** 実物と同じく引数を取る（テストから「何を送ったか」を見るため）。 */
   send(_data: string): void {}
-  close(): void {}
+  /** `close()` が呼ばれたか（接続を畳んだことの判定に使う）。 */
+  closed = false;
+  close(): void {
+    this.closed = true;
+  }
 
   /** 直近に作られた接続。作られていなければ落とす（黙って空振りさせない）。 */
   static latest(): FakeListenerSocket {

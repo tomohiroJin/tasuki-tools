@@ -64,6 +64,13 @@ const ClientMessageSchema = v.variant('type', [
     groupId: v.pipe(v.number(), v.integer(), v.minValue(1)),
     points: v.nullable(v.picklist(NUMBER_CARD_VALUES)),
   }),
+  // 記録の切り替えと束の名前（#427）
+  v.strictObject({ type: v.literal('set-recording'), recording: v.boolean() }),
+  v.strictObject({
+    type: v.literal('set-group-item'),
+    groupId: v.pipe(v.number(), v.integer(), v.minValue(1)),
+    item: v.pipe(v.string(), v.trim(), v.maxLength(MAX_ESTIMATE_ITEM)),
+  }),
   // 見学（#419）
   v.strictObject({ type: v.literal('set-spectator'), spectator: v.boolean() }),
   v.strictObject({
@@ -155,6 +162,8 @@ const EstimateGroupViewSchema = v.object({
 const EstimateViewSchema = v.object({
   item: v.string(),
   log: v.array(EstimateGroupViewSchema),
+  // 古いサーバーは送らない（#427）。省略は「記録する」と読む（従来の挙動）
+  recording: v.optional(v.boolean(), true),
 });
 
 // 公開しない（parseServerMessage が唯一の入口であり、外からもテストからも取り込まれない。#182 で index の列挙から外し、#223 で宣言の export も落とした）。

@@ -36,7 +36,7 @@ function spinning(): RouletteState {
  * @requirements #401 押して止める P2（回り方）
  */
 describe("startSpin（押して止める）", () => {
-  it("止まる席を決めずに回し始め、起点の位置と速さを持つ。選ぶ人数と一周の記録は使わない", () => {
+  it("止まる席を決めずに回し始め、起点の位置と速さを持つ。選ぶ人数は使わない", () => {
     // Given: 選ぶ人数 3 でも 1 人だけ
     const base = setPickCount(pressState(), 3)._unsafeUnwrap();
     // When
@@ -45,7 +45,6 @@ describe("startSpin（押して止める）", () => {
     expect(s.lastSpin?.press).toEqual({ p0: 2.5, rate: PRESS_SEATS_PER_SEC, stop: null });
     expect(s.lastSpin?.picks).toEqual([]);
     expect(s.lastSpin?.wheel).toHaveLength(4);
-    expect(s.drawn).toEqual([]);
   });
 
   it("位置は一定の速さで減っていき、席の数で巡る", () => {
@@ -102,7 +101,6 @@ describe("stopPress", () => {
     expect(spin.press?.stop).toEqual({ index: 3, settle: 0.25, by: "健太", atMs: 700 });
     expect(spin.winnerIndex).toBe(3);
     expect(spin.picks).toEqual([{ index: 3, settle: 0.25 }]);
-    expect(stopped.drawn).toEqual([]);
   });
 
   it("最初の押下だけを採る。後から届いた押下・違う回転の押下は何も変えない（同じ参照）", () => {

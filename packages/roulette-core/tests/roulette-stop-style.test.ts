@@ -143,7 +143,6 @@ describe("startSpin（変わった止まり方）", () => {
     // Then: 止まり方だけが違う
     expect(styled.lastSpin?.stopStyle).toBe(STOP_STYLES[1]);
     expect({ ...styled.lastSpin, stopStyle: undefined }).toEqual({ ...plain.lastSpin, stopStyle: undefined });
-    expect(styled.drawn).toEqual(plain.drawn);
   });
 
   it("出なければ止まり方を持たない（wire にも載せない）", () => {

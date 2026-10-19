@@ -54,6 +54,9 @@ function makeSync(topic: Topic | null): PokerSync {
     setPoints: vi.fn(),
     setSpectator: vi.fn(),
     removeParticipant: vi.fn(),
+    departed: null,
+    setRecording: () => {},
+    renameGroup: () => {},
   };
 }
 

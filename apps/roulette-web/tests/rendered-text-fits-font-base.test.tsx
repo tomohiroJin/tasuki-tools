@@ -40,7 +40,7 @@ describe('描いたルーレットの文字は書体の常用の層に収まる'
     ['回す前', IDLE_ROULETTE, false],
     ['ゲストを足した・お題あり', { ...IDLE_ROULETTE, guests: GUESTS }, true],
     ['回している', spinState(1, 0), true],
-    ['止まった（選ばれた印・一周の行）', spinState(1, 4000), true],
+    ['止まった', spinState(1, 4000), true],
   ])('Given %s / When 画面を描く / Then 外れる字は無い', (_label, state, withTopic) => {
     // Given
     saveResumeIdentity(RESUME);

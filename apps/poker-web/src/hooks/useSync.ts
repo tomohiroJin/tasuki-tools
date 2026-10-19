@@ -14,6 +14,7 @@ import {
   buildSyncUrl,
   clearResumeIdentity,
   loadResumeIdentity,
+  planForJoinError,
   saveResumeIdentity,
   type ConnectionStatus,
   type ResumeIdentity,
@@ -29,6 +30,7 @@ import {
   type RoomStateMessage,
 } from '@tasuki/poker-core';
 import { parseBoundaryMessage } from '@tasuki/protocol';
+import type { DepartureReason } from '@tasuki/room-core';
 import { TopicFrameSchema, type Topic } from '@tasuki/topic-core';
 
 /** 接続状態（正本は `@tasuki/sync-client`。#369）。 */
@@ -87,6 +89,13 @@ export interface PokerSync {
   syncStale: boolean;
   clearError: () => void;
   /**
+   * 抜けた・外された理由（無ければ `null`。#427）。
+   *
+   * 別のタブ・別のツールの操作でも届く（サーバーは同じ人の全接続へ送る）。立ったら
+   * 復帰の組を捨てて接続を畳んであるので、画面は理由を持って玄関へ戻る。
+   */
+  departed: DepartureReason | null;
+  /**
    * その部屋に保存してある復帰の組（無ければ `null`）。
    *
    * **端末の保存を読むのはこのフックの仕事である。** 画面（`.tsx`）が触ってよいのは
@@ -117,6 +126,10 @@ export interface PokerSync {
   nextItem: (points: NumberCardValue | null) => void;
   /** 記録済みのアイテムのポイントを直す（#93） */
   setPoints: (groupId: number, points: NumberCardValue | null) => void;
+  /** 見積もりの記録を始める・止める。ルーム全員に効く（#427・設計 D） */
+  setRecording: (recording: boolean) => void;
+  /** 閉じた束の名前を直す（#427・設計 E） */
+  renameGroup: (groupId: number, item: string) => void;
   /** 自分の見学を切り替える。true で投票の輪から外れ、false で加わる（#419） */
   setSpectator: (spectator: boolean) => void;
   /** 接続の無い他人を一覧から外す（#419）。サーバーは接続中の人・自分を拒む */
@@ -129,6 +142,7 @@ export function usePokerSync(): PokerSync {
   const [topic, setTopic] = useState<Topic | null>(null);
   const [joinedThisConnection, setJoinedThisConnection] = useState(false);
   const [error, setError] = useState<SyncError | null>(null);
+  const [departed, setDeparted] = useState<DepartureReason | null>(null);
   // 契約に合わないフレームを捨てて以降、契約を満たすフレームを受け取っていない（#212）。
   const [syncStale, setSyncStale] = useState(false);
   // 「一度も繋がっていない」と「使えていたのに切れた」は利用者への伝え方が違う（#76 F-2）
@@ -137,6 +151,8 @@ export function usePokerSync(): PokerSync {
   const connectionRef = useRef<SyncConnection | null>(null);
   /** joined 時に識別情報を保存するため、直近の join の名前を控える */
   const pendingNameRef = useRef<string>('');
+  /** 直近に入ろうとした（入った）部屋。`error` のフレームは部屋を名指ししないので、ここから引く。 */
+  const currentRoomRef = useRef<string | null>(null);
 
   useEffect(() => {
     const connection = new SyncConnection({
@@ -205,6 +221,7 @@ export function usePokerSync(): PokerSync {
     switch (msg.type) {
       case 'joined':
         setJoinedThisConnection(true);
+        currentRoomRef.current = msg.roomId;
         // **端末に置く同一性は 4 つの画面で 1 つ**（#95 S5b・D12）。選択画面で名乗った人が
         // poker でも同じ人として扱われるのは、同じ鍵を読み書きしているからである。
         saveResumeIdentity({
@@ -218,7 +235,18 @@ export function usePokerSync(): PokerSync {
         setSnapshot(msg);
         setError(null); // 正常な状態受信で過去のエラーは解消したとみなす
         break;
-      case 'error':
+      case 'error': {
+        // 抜けた・外された（別のタブの操作でも届く）は帯に出さず、組を捨てて接続を畳み、
+        // 理由を持って玄関へ戻る（#427。topic・roulette の共通フックと同じ判断）。
+        // **畳まないと「押せるのに効かない」画面が残る。**
+        const plan = planForJoinError(msg.code, msg.message, DEFAULT_ERROR_MESSAGE);
+        if (plan.kind === 'left') {
+          if (currentRoomRef.current !== null) clearResumeIdentity(currentRoomRef.current);
+          connectionRef.current?.dispose();
+          setJoinedThisConnection(false);
+          setDeparted(plan.reason);
+          break;
+        }
         // 未知のコードは畳む。意味を知らないコードから専用画面や再試行を起こすと、
         // 無関係な対処へ利用者を誘導することになる（docs/poker/adr/0003 決定 2）。
         // 文言はサーバーのものを使う —— 未知のコードの意味を知るのは向こうだけである。
@@ -229,6 +257,7 @@ export function usePokerSync(): PokerSync {
           message: msg.message.trim() === '' ? DEFAULT_ERROR_MESSAGE : msg.message,
         });
         break;
+      }
     }
   }
 
@@ -244,6 +273,7 @@ export function usePokerSync(): PokerSync {
       inviteUrl: (roomId: string) => buildInviteUrl(location.origin, roomId),
       joinRoom: (roomId: string, name: string, token?: string) => {
         pendingNameRef.current = name;
+        currentRoomRef.current = roomId;
         setError(null);
         send({ type: 'join-room', roomId, name, ...(token !== undefined ? { token } : {}) });
       },
@@ -255,6 +285,8 @@ export function usePokerSync(): PokerSync {
       revote: () => send({ type: 'revote' }),
       nextItem: (points: NumberCardValue | null) => send({ type: 'next-item', points }),
       setPoints: (groupId: number, points: NumberCardValue | null) => send({ type: 'set-points', groupId, points }),
+      setRecording: (recording: boolean) => send({ type: 'set-recording', recording }),
+      renameGroup: (groupId: number, item: string) => send({ type: 'set-group-item', groupId, item }),
       setSpectator: (spectator: boolean) => send({ type: 'set-spectator', spectator }),
       removeParticipant: (participantId: string) => send({ type: 'remove-participant', participantId }),
     };
@@ -269,6 +301,7 @@ export function usePokerSync(): PokerSync {
       topic,
       joinedThisConnection,
       error,
+      departed,
       syncStale,
       ...actions,
     }),
@@ -280,6 +313,7 @@ export function usePokerSync(): PokerSync {
       topic,
       joinedThisConnection,
       error,
+      departed,
       syncStale,
       actions,
     ],

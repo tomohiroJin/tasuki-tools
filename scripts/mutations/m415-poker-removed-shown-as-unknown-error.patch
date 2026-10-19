@@ -1,0 +1,24 @@
+# 変異 415: poker-sync-removed-shown-as-unknown-error
+#
+# 検出を期待するテスト:
+#   - apps/poker-web/tests/room-page-redirect.test.tsx
+#     「REMOVED_FROM_ROOM が届く / LEFT_ROOM が届く」。
+#
+# #427・設計 A。poker が REMOVED_FROM_ROOM / LEFT_ROOM を抜けた・外された印として扱わず、
+# 未知のエラーとして帯に出す（組は残り、玄関へも戻らず、操作できる画面に取り残される）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m415-*.patch
+# 復元: git apply -R scripts/mutations/m415-*.patch
+diff --git a/apps/poker-web/src/hooks/useSync.ts b/apps/poker-web/src/hooks/useSync.ts
+--- a/apps/poker-web/src/hooks/useSync.ts
++++ b/apps/poker-web/src/hooks/useSync.ts
+@@ -240,7 +240,7 @@
+         // 理由を持って玄関へ戻る（#427。topic・roulette の共通フックと同じ判断）。
+         // **畳まないと「押せるのに効かない」画面が残る。**
+         const plan = planForJoinError(msg.code, msg.message, DEFAULT_ERROR_MESSAGE);
+-        if (plan.kind === 'left') {
++        if (plan.kind === 'left' && false) {
+           if (currentRoomRef.current !== null) clearResumeIdentity(currentRoomRef.current);
+           connectionRef.current?.dispose();
+           setJoinedThisConnection(false);

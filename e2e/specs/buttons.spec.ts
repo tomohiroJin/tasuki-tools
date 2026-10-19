@@ -18,7 +18,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { expect, test } from '../fixtures/test';
 import { expectFieldsAtLeast16px, expectScreenAcrossWidths, expectTouchTargets } from '../support/a11y';
-import { chooseCard } from '../support/poker';
+import { chooseCard, turnRecordingOn } from '../support/poker';
 import { addRouletteGuest, expectCardNameNotCovered, openRouletteFromHub, spinButton } from '../support/roulette';
 import { openTopicTool, setTopic } from '../support/topic';
 import { createRoom as createTimerRoom } from '../support/timer';
@@ -214,7 +214,10 @@ test.describe('玄関と poker のボタンは部品で、押せる大きさが�
     await expectFocusNotHiddenByDock(page, dock, '☕', 'poker（投票中・320）');
     await page.setViewportSize({ width: 390, height: 460 });
 
-    // 全員が投票すると自動で公開される（ホストの 8 で 2 人目が揃う）。公開ボタンは押さない
+    // 全員が投票すると自動で公開される（ホストの 8 で 2 人目が揃う）。公開ボタンは押さない。
+    //   ポイントの選択は「記録する」を入れていて、開いた束があるときにしか出ない（#427・設計 D）ので、開票の前に入れる。
+    //   記録しない帯に選択が出ないことは poker-estimate-log.spec.ts が見る
+    await turnRecordingOn(page);
     await chooseCard(page, '8');
     await expect(page.getByRole('button', { name: '再投票' })).toBeVisible();
     await expectDockPinned(page, dock, 'poker（公開後）');
@@ -290,7 +293,7 @@ test.describe('お題ツールのボタンは部品で、押せる大きさが�
   });
 });
 
-/** ルーレットの画面にある部品のボタン（戻る・回す・名前を追加・一周をやり直す・招待リンクをコピー・名前を消す） */
+/** ルーレットの画面にある部品のボタン（戻る・回す・名前を追加・招待リンクをコピー・名前を消す） */
 const ROULETTE_BUTTONS = 6;
 
 /**

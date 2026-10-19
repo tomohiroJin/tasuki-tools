@@ -91,8 +91,6 @@ export interface RouletteState {
   excluded: readonly EntryId[];
   /** 足した名前。最大 MAX_GUESTS */
   guests: readonly Entry[];
-  /** この一周で選ばれた人（選ばれた順） */
-  drawn: readonly EntryId[];
   lastSpin: Spin | null;
   /** ゲスト ID の採番（`g-1`, `g-2`, …）の次の番号 */
   nextGuestSeq: number;
@@ -123,7 +121,6 @@ export type NameConflict = (
 export const INITIAL_ROULETTE_STATE: RouletteState = Object.freeze({
   excluded: Object.freeze([]),
   guests: Object.freeze([]),
-  drawn: Object.freeze([]),
   lastSpin: null,
   nextGuestSeq: 1,
   pickCount: 1,

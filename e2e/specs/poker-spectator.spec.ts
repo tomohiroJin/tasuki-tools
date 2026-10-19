@@ -131,7 +131,7 @@ test.describe('poker は接続の無い人を一覧から外せる', () => {
     await joinRoom(ghostPeer.page, roomUrl, 'sp-g');
     await expect(page.getByRole('heading', { name: '参加者（3人）' })).toBeVisible();
     // 同名は ID の末尾で呼び分ける（自分と相手の 2 行）
-    await expect(page.locator('.participants .name').filter({ hasText: /^sp-a（ID: \w{4}）/ })).toHaveCount(2);
+    await expect(page.locator('.participants .name').filter({ hasText: /^sp-a（ID: [\w-]{4}）/ })).toHaveCount(2);
 
     // When: 3 人目の文脈を閉じる → 切断中
     await ghostPeer.page.context().close();

@@ -33,6 +33,11 @@ async function setupRevealedRoom() {
   await guest.nextMatching(isType('room-state'));
   await host.nextMatching(isType('room-state'));
 
+  // 記録は既定で「しない」。記録の束を見るので最初に入れる（#427）
+  host.send({ type: 'set-recording', recording: true });
+  await host.nextMatching(isType('room-state'));
+  await guest.nextMatching(isType('room-state'));
+
   guest.send({ type: 'vote', card: { kind: 'number', value: 5 } });
   await guest.nextMatching(isType('room-state'));
   await host.nextMatching(isType('room-state'));

@@ -1,0 +1,24 @@
+# 変異 414: web-points-select-without-open-group
+#
+# 検出を期待するテスト:
+#   - apps/poker-web/tests/room-page-estimate.test.tsx
+#     「開票後でも open の束が無ければポイントの欄を出さない」。
+#
+# #427・設計 J8。open の束が無いのに開票後の帯にポイントの欄が出る（添える先が無く、押しても捨てられる）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m414-*.patch
+# 復元: git apply -R scripts/mutations/m414-*.patch
+diff --git a/apps/poker-web/src/pages/RoomPage.tsx b/apps/poker-web/src/pages/RoomPage.tsx
+index 0447d8d5..9debb123 100644
+--- a/apps/poker-web/src/pages/RoomPage.tsx
++++ b/apps/poker-web/src/pages/RoomPage.tsx
+@@ -118,7 +118,7 @@ export function RoomPage({ roomId, sync }: Props) {
+   // 記録するか。estimate が無い（古いサーバー）・recording が無いときは「する」と読む（#427・J9）
+   const recording = snapshot.estimate?.recording ?? true;
+   // ポイントを添えられるのは、記録していて、点を付ける open の束があるときだけ（J8）
+-  const canAttachPoints = recording && estimateLog.some((g) => g.open);
++  const canAttachPoints = recording;
+   const offline = isOffline(sync.status);
+   const you = snapshot.participants.find((p) => p.id === snapshot.you);
+   const youSpectating = you?.spectator === true;

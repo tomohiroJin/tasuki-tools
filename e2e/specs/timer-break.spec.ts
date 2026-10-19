@@ -200,47 +200,50 @@ test.describe('timer の休憩は全員の画面で時計を止め、元の残�
 
   // 狭い幅では上端の帯（接続状態＋知らせ）が折り返して高くなる。覆いの上の空きが帯より低いと、見出しが帯の下に入る
   // （PR #416 のレビュー）。知らせのバナーが出ている間に、見出しと「休憩を終える」が自分自身に当たるかを測る。
-  test('Given 320px 幅の 2 人のセッション / When 一人が休憩に入り、知らせが出ている / Then もう一人の画面で覆いの見出しと「休憩を終える」が上端の帯に隠れない', async ({
-    page,
-    openPeer,
-  }) => {
-    // Given
-    const code = await createRoom(page, HOST);
-    const guest = await openPeer('timer-guest');
-    await guest.page.setViewportSize({ width: 320, height: 568 });
-    await joinAsDriver(guest.page, code, GUEST);
-    await expect(lobbyRotationRow(page, GUEST, 2)).toHaveCount(1);
-    await chooseElapsedBreak(page);
-    await page.getByRole('button', { name: 'セッションを開始' }).click();
-    await expect(guest.page.getByRole('timer')).toBeVisible();
+  const LONG_HOST = 'あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりる'; // 40 字（表示名の上限）。バナーが 320px 幅で 3 行に折り返す（#427）
+  for (const [label, hostName] of [['短い名前', HOST], ['40 字の長い名前', LONG_HOST]] as const) {
+    test(`Given 320px 幅の 2 人のセッション（ホストは${label}） / When 一人が休憩に入り、知らせが出ている / Then もう一人の画面で覆いの見出しと「休憩を終える」が上端の帯に隠れない`, async ({
+      page,
+      openPeer,
+    }) => {
+      // Given
+      const code = await createRoom(page, hostName);
+      const guest = await openPeer('timer-guest');
+      await guest.page.setViewportSize({ width: 320, height: 568 });
+      await joinAsDriver(guest.page, code, GUEST);
+      await expect(lobbyRotationRow(page, GUEST, 2)).toHaveCount(1);
+      await chooseElapsedBreak(page);
+      await page.getByRole('button', { name: 'セッションを開始' }).click();
+      await expect(guest.page.getByRole('timer')).toBeVisible();
 
-    // When
-    await page.getByRole('button', { name: /休憩する/ }).first().click();
+      // When
+      await page.getByRole('button', { name: /休憩する/ }).first().click();
 
-    // Then
-    const dialog = guest.page.getByRole('dialog', { name: '休憩中' });
-    await expect(dialog).toBeVisible();
-    await expect(guest.page.locator('.app-banner').filter({ hasText: '休憩を始めました' })).toBeVisible();
-    // 見出しは覆いが開いたときの位置で測る（初期フォーカスが置かれる所）
-    const measure = (selector: string) =>
-      guest.page.evaluate((sel) => {
-        const el = document.querySelector(sel);
-        const bar = document.querySelector('.app-top')?.getBoundingClientRect().bottom ?? Infinity;
-        if (el === null) return { hit: false, what: 'not found', top: -1, bar };
-        const r = el.getBoundingClientRect();
-        const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-        return { hit: top !== null && el.contains(top), what: top?.className ?? null, top: r.top, bar };
-      }, selector);
-    const heading = await measure('#break-overlay-heading');
-    expect(heading.hit, `覆いの見出しが他の要素（${heading.what}）に隠れている`).toBe(true);
-    expect(heading.top, '覆いの見出しが上端の帯と重なる').toBeGreaterThanOrEqual(heading.bar);
-    // 「休憩を終える」は覆いの中でスクロールして見せる（Tab で辿ったときと同じく最寄りの端へ寄せる）
-    const end = dialog.getByRole('button', { name: '休憩を終える' });
-    await end.evaluate((el) => {
-      el.setAttribute('data-e2e-end', '');
-      el.scrollIntoView({ block: 'nearest' });
+      // Then
+      const dialog = guest.page.getByRole('dialog', { name: '休憩中' });
+      await expect(dialog).toBeVisible();
+      await expect(guest.page.locator('.app-banner').filter({ hasText: '休憩を始めました' })).toBeVisible();
+      // 見出しは覆いが開いたときの位置で測る（初期フォーカスが置かれる所）
+      const measure = (selector: string) =>
+        guest.page.evaluate((sel) => {
+          const el = document.querySelector(sel);
+          const bar = document.querySelector('.app-top')?.getBoundingClientRect().bottom ?? Infinity;
+          if (el === null) return { hit: false, what: 'not found', top: -1, bar };
+          const r = el.getBoundingClientRect();
+          const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+          return { hit: top !== null && el.contains(top), what: top?.className ?? null, top: r.top, bar };
+        }, selector);
+      const heading = await measure('#break-overlay-heading');
+      expect(heading.hit, `覆いの見出しが他の要素（${heading.what}）に隠れている`).toBe(true);
+      expect(heading.top, '覆いの見出しが上端の帯と重なる').toBeGreaterThanOrEqual(heading.bar);
+      // 「休憩を終える」は覆いの中でスクロールして見せる（Tab で辿ったときと同じく最寄りの端へ寄せる）
+      const end = dialog.getByRole('button', { name: '休憩を終える' });
+      await end.evaluate((el) => {
+        el.setAttribute('data-e2e-end', '');
+        el.scrollIntoView({ block: 'nearest' });
+      });
+      const endHit = await measure('[data-e2e-end]');
+      expect(endHit.hit, `「休憩を終える」が他の要素（${endHit.what}）に隠れている`).toBe(true);
     });
-    const endHit = await measure('[data-e2e-end]');
-    expect(endHit.hit, `「休憩を終える」が他の要素（${endHit.what}）に隠れている`).toBe(true);
-  });
+  }
 });

@@ -28,7 +28,6 @@ import {
   canOperate,
   captionOf,
   connectionNotice,
-  cycleLineOf,
   isServerSpinning,
   membersOf,
   modeOf,
@@ -193,9 +192,9 @@ export function RouletteRoom({ roomCode }: { roomCode: string }) {
   const members = membersOf(sync.roster);
   const pool = poolOfView(members, current);
   const order = mode === 'order' ? orderStageOf({ view: current, pool, phase, revealed }) : null;
-  // 押して止めるときは一周の印を出さない（一周を使わない・spec P6）
+  // 押して止めるときは番の印を出さない（番を使わない・spec P6）
   const turns = order?.turns ?? (pressing ? new Map<string, number>() : undefined);
-  const people = peopleOf({ members, view: current, selfId: sync.selfId, phase, pool, revealed, turns });
+  const people = peopleOf({ members, view: current, selfId: sync.selfId, pool, turns });
   const pressButton = pressing
     ? pressButtonOf({
         hasSpin: current.spin !== null,
@@ -255,7 +254,6 @@ export function RouletteRoom({ roomCode }: { roomCode: string }) {
             revealed={revealed}
             receivedAt={sync.receivedAt}
             reducedMotion={reducedMotion}
-            people={people}
             topicTitle={topicTitle}
             caption={caption}
             button={button}
@@ -273,8 +271,6 @@ export function RouletteRoom({ roomCode }: { roomCode: string }) {
               onMode={sync.setMode}
               pickCount={pickCountOf(current)}
               onPickCount={sync.setPickCount}
-              cycleLine={cycleLineOf(people.drawnCount, people.poolCount)}
-              onResetCycle={sync.resetCycle}
               orderProgress={order === null ? '' : orderProgressOf(order)}
               canResetOrder={(current.order ?? null) !== null}
               onResetOrder={sync.resetOrder}

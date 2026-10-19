@@ -6,7 +6,7 @@
  */
 import { expect, test } from '../fixtures/test';
 import type { Locator, Page } from '@playwright/test';
-import { chooseCard, createRoom, joinRoom, resultsSection } from '../support/poker';
+import { chooseCard, createRoom, joinRoom, resultsSection, turnRecordingOn } from '../support/poker';
 
 const HOST = 'log-a';
 const GUEST = 'log-b';
@@ -21,13 +21,18 @@ function groups(page: Page): Locator {
   return sideLog(page).locator('.estimate-group');
 }
 
+/** 記録の上の題（束の見出しの中の名前は含めない）。 */
+function currentTitle(page: Page): Locator {
+  return page.locator('.estimate-item:not(.estimate-item--inline) .estimate-item-title');
+}
+
 /** 「いま見積もっているもの」を入れ直す（題名のボタン → 入力 → Enter）。 */
 async function setItem(page: Page, item: string): Promise<void> {
-  await page.locator('.estimate-item-title').click();
+  await currentTitle(page).click();
   const input = page.getByRole('textbox', { name: 'いま見積もっているもの' });
   await input.fill(item);
   await input.press('Enter');
-  await expect(page.locator('.estimate-item-title')).toHaveText(item);
+  await expect(currentTitle(page)).toHaveText(item);
 }
 
 /** 2 人が同じ札を選び、結果が出るまで待つ。 */
@@ -42,6 +47,7 @@ async function openTwo(
   page: Page,
   openPeer: (label: string) => Promise<{ page: Page }>,
   label: string,
+  recording = true,
 ): Promise<Page> {
   await page.setViewportSize({ width: 1280, height: 900 });
   const roomUrl = await createRoom(page, HOST);
@@ -50,10 +56,53 @@ async function openTwo(
   await joinRoom(guest.page, roomUrl, GUEST);
   await expect(page.getByRole('heading', { name: '参加者（2人）' })).toBeVisible();
   await expect(guest.page.getByRole('heading', { name: '参加者（2人）' })).toBeVisible();
+  // 記録は既定で切れている（#427）。ここで入れる
+  if (recording) {
+    await turnRecordingOn(page);
+    await expect(sideLog(guest.page)).toBeVisible();
+  }
   return guest.page;
 }
 
 test.describe('poker は見積もりを記録に残す', () => {
+  test('Given 新しいルーム / When 開票する / Then 記録の欄・いま見積もっているもの・ポイントの欄が無い（記録は既定で切れている・#427）', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await createRoom(page, HOST);
+    await expect(page.getByRole('button', { name: '記録する' })).toHaveAttribute('aria-pressed', 'false');
+    // 1 人なので投票すると自動で公開される
+    await chooseCard(page, '5');
+    await expect(resultsSection(page)).toBeVisible();
+    await expect(page.getByRole('heading', { name: '見積もりの記録' }), '記録の欄').toHaveCount(0);
+    await expect(page.locator('.estimate-group'), '束').toHaveCount(0);
+    await expect(page.locator('.estimate-item-title'), 'いま見積もっているもの').toHaveCount(0);
+    await expect(page.getByRole('combobox', { name: 'ポイント（任意）' }), 'ポイントの欄').toHaveCount(0);
+  });
+
+  test('Given 2 人のルーム / When 1 人目が「記録する」を押す / Then 2 人目の画面にも記録の欄が出て、押した状態になる（ルーム全員に効く・#427）', async ({ page, openPeer }) => {
+    const guest = await openTwo(page, openPeer, 'log-guest-toggle', false);
+    await expect(sideLog(guest), '押す前は 2 人目にも欄が無い').toHaveCount(0);
+    await turnRecordingOn(page);
+    await expect(sideLog(guest).getByRole('heading', { name: '見積もりの記録' })).toBeVisible();
+    await expect(guest.getByRole('button', { name: '記録する' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  test('Given 閉じた束 / When 2 人目が束の名前を変える / Then 1 人目の画面の見出しも変わる（#427）', async ({ page, openPeer }) => {
+    const guest = await openTwo(page, openPeer, 'log-guest-rename');
+    await setItem(page, ITEM);
+    await bothVote(page, guest, '5', '5');
+    await page.getByRole('button', { name: '次のアイテムへ' }).click();
+    await expect(resultsSection(guest)).toHaveCount(0);
+
+    const guestHeading = groups(guest).first().locator('.estimate-group-item');
+    await expect(guestHeading.locator('.estimate-item-title')).toHaveText(ITEM);
+    await guestHeading.getByRole('button').click();
+    const input = guest.getByRole('textbox', { name: 'アイテム名を変える' });
+    await input.fill('PROJ-999');
+    await input.press('Enter');
+    await expect(guestHeading.locator('.estimate-item-title'), '押した本人の見出し').toHaveText('PROJ-999');
+    await expect(groups(page).first().locator('.estimate-group-item .estimate-item-title'), '1 人目の画面の見出し').toHaveText('PROJ-999');
+  });
+
   test('Given 2 人のルーム / When アイテム名を入れ、割れて再投票し、そろって 5 で次のアイテムへ、名前なしでもう 1 件開票する / Then 両方の画面の記録に、新しい順で（名前なし）（見積もり中）と PROJ-120（5・2 回めと 1 回め）が出る', async ({ page, openPeer }) => {
     const guest = await openTwo(page, openPeer, 'log-guest-1');
 
@@ -62,7 +111,7 @@ test.describe('poker は見積もりを記録に残す', () => {
 
     // When: アイテム名（片方が入れると両方に出る）→ 割れる → 再投票 → そろう → 次のアイテムへ（点数 5）
     await setItem(page, ITEM);
-    await expect(guest.locator('.estimate-item-title')).toHaveText(ITEM);
+    await expect(currentTitle(guest)).toHaveText(ITEM);
     // 開票の瞬間に操作の面が跳ばない（spec §2）: 最初の開票の前後で `.room-main` の x・y・幅が同じ
     const mainBefore = await page.locator('.room-main').boundingBox();
     expect(mainBefore, '操作の面が描かれていない').not.toBeNull();
@@ -77,7 +126,7 @@ test.describe('poker は見積もりを記録に残す', () => {
     await guest.getByRole('combobox', { name: 'ポイント（任意）' }).selectOption('5');
     await guest.getByRole('button', { name: '次のアイテムへ' }).click();
     await expect(resultsSection(page)).toHaveCount(0);
-    await expect(page.locator('.estimate-item-title')).toHaveText('（名前なし）');
+    await expect(currentTitle(page)).toHaveText('（名前なし）');
 
     // When: 名前なしのままもう 1 件開票する（そろって 3）
     await bothVote(page, guest, '3', '3');
@@ -94,7 +143,7 @@ test.describe('poker は見積もりを記録に残す', () => {
       await expect(newest.locator('.estimate-entry-counts').first()).toHaveText('3×2');
 
       const older = gs.nth(1);
-      await expect(older.locator('.estimate-group-item'), `${label}: 下は ${ITEM}`).toHaveText(ITEM);
+      await expect(older.locator('.estimate-group-item .estimate-item-title'), `${label}: 下は ${ITEM}`).toHaveText(ITEM);
       await expect(older.getByRole('combobox', { name: 'ポイントを変える' }), `${label}: 点数は 5`).toHaveValue('5');
       const entries = older.locator('.estimate-entry');
       await expect(entries, `${label}: ${ITEM} は 2 回`).toHaveCount(2);
@@ -160,6 +209,7 @@ test.describe('poker は見積もりを記録に残す', () => {
   test('Given 幅 1280・高さ 700 / When 開票と次のアイテムへを 10 回くり返す / Then 手札も脇も画面に収まり、記録は脇の中でスクロールする', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 700 });
     await createRoom(page, HOST);
+    await turnRecordingOn(page);
     // 1 人なので投票すると自動で公開される
     for (let i = 0; i < 10; i += 1) {
       await chooseCard(page, '5');

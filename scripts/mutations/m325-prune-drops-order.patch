@@ -9,18 +9,17 @@
 #       git apply scripts/mutations/m325-*.patch
 # 復元: git apply -R scripts/mutations/m325-*.patch
 diff --git a/packages/roulette-core/src/roulette.ts b/packages/roulette-core/src/roulette.ts
-index 2b75c0d..b4f1c74 100644
 --- a/packages/roulette-core/src/roulette.ts
 +++ b/packages/roulette-core/src/roulette.ts
-@@ -218,8 +218,9 @@ export function prune(state: RouletteState, knownIds: Iterable<EntryId>): Roulet
+@@ -291,8 +291,9 @@
+   const known = new Set(knownIds);
    const excluded = state.excluded.filter((id) => known.has(id));
-   const drawn = state.drawn.filter((id) => known.has(id));
    // 何も落ちなければ同じ参照を返す（同期サーバーが「変わっていない」を参照で判定する）
--  if (excluded.length === state.excluded.length && drawn.length === state.drawn.length) return state;
--  return { ...state, excluded, drawn };
+-  if (excluded.length === state.excluded.length) return state;
+-  return { ...state, excluded };
 +  const order = state.order === null ? null : { ...state.order, done: state.order.done.filter((e) => known.has(e.id)) };
-+  if (excluded.length === state.excluded.length && drawn.length === state.drawn.length && order?.done.length === state.order?.done.length) return state;
-+  return { ...state, excluded, drawn, order };
++  if (excluded.length === state.excluded.length && order?.done.length === state.order?.done.length) return state;
++  return { ...state, excluded, order };
  }
  
  /** wire へ載せる形（spec §5.3）。 */

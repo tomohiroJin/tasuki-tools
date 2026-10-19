@@ -1,26 +1,13 @@
 # 変異 395: sync-remove-participant-removes-connected
 #
 # 検出を期待するテスト:
-#   - apps/tasuki-sync/test/poker/remove-participant.test.ts
+#   - apps/tasuki-sync/test/poker/commit-room-action.test.ts
 #
-# #419。remove-participant が接続中の人も外す。二段の門（dispatch と handlers.removeFromRoom）の両方から接続の検査を抜く（片方だけでは残る方が止める）。
+# #419。remove-participant が接続中の人も外す。dispatch の門だけから接続の検査を抜く（removeFromRoom 側の門は m398 が守る）。
 #
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m395-*.patch
 # 復元: git apply -R scripts/mutations/m395-*.patch
-diff --git a/apps/tasuki-sync/src/application/handlers.ts b/apps/tasuki-sync/src/application/handlers.ts
-index 149e29b6..61cd1849 100644
---- a/apps/tasuki-sync/src/application/handlers.ts
-+++ b/apps/tasuki-sync/src/application/handlers.ts
-@@ -533,7 +533,7 @@ export function makeHandlers(deps: HandlerDeps) {
-     // 二段目の守り: poker の dispatch も同じ検査をするが、呼び元が増えても
-     // 「接続している人」「自分自身」を外せないことはここで保つ（G-5）。
-     if (!actor) return err("not-removable");
--    if (targetId === actorId || target.connections.size > 0) return err("not-removable");
-+    if (targetId === actorId) return err("not-removable");
- 
-     const planned = planRemoval({ membership, timer }, targetId, clock.now());
-     if (planned.isErr()) {
 diff --git a/apps/tasuki-sync/src/application/poker-commit-room-action.ts b/apps/tasuki-sync/src/application/poker-commit-room-action.ts
 index 9870665e..9b9ad64e 100644
 --- a/apps/tasuki-sync/src/application/poker-commit-room-action.ts

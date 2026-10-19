@@ -133,7 +133,7 @@ WS の置き場と、URL・接続状態の写しは `scripts/audit-web-sync-boun
 | 公開（reveal） | poker において、伏せていた各参加者の見積り値を開示すること |
 | 接続層のエラー | timer の系統（timer・玄関・お題・ルーレット）が、ツールのコマンドに入る前の接続の段で返すエラー（`INVALID_JSON`・`INVALID_COMMAND`・`MESSAGE_TOO_LARGE`・`INTERNAL_ERROR`）。文言の正本は `apps/tasuki-sync/src/application/connection-errors.ts` で、各 core の写しはテストで一致を固定する（#362）。poker のエラーコード（ケバブ記法）は別の契約である |
 | お題 | **ルームの持ち物としてのお題**（`packages/topic-core` の `Topic` 型。タイトル＋本文）。[#91](https://github.com/tomohiroJin/tasuki-tools/issues/91) で 4 つ目の文脈になった（[`docs/adr/0021`](../adr/0021-topic-as-shared-context.md)）。玄関の 3 枚目の札（お題ツール・`apps/topic-web`、公開パス `/topic/`）で作り（手入力・定型バンク・AI 生成）、`topic` フレームでルームの全接続へ配る。玄関はタイトルを 1 行、timer・poker はタイトルと本文を**読んで表示するだけ**で、お題を変えられるのはお題ツールの接続だけである。本文は Markdown として描き、解析は `packages/markdown`、描画は `@tasuki/web-kit/reader` の `Markdown` が持つ（#371）。timer の完成記録には、完了した時点のお題のタイトルだけを写す（`topicTitle`・お題なしなら `null`）。**かつての timer 独自の概念**（`packages/timer-core` の `Problem` 型。TDD の練習課題）は #91 PR 3 で撤去し、このお題へ統合した。旧い文書・コミットに出てくる `problem` はこちらを指す。**poker の提案**: 見積もり結果をお題へ反映する案は [#93](https://github.com/tomohiroJin/tasuki-tools/issues/93) で扱う（未実装） |
-| 進行役ルーレット | **ルームの入る人から次の進行役を 1 人引くツール**（`packages/roulette-core`）。入る人（`poolOf`・在室者＋足したゲスト）・一周の規則（`drawWinner`）・回転（`startSpin`）は純粋関数で、当たりと止まる位置はサーバーが引き、全画面に同じ値を配る。円盤の角度・指し針・札のめくりは `apps/roulette-web` が持つ（[ADR-0026](../adr/0026-facilitator-roulette.md)） |
+| 進行役ルーレット | **ルームの入る人から次の進行役を 1 人引くツール**（`packages/roulette-core`）。入る人（`poolOf`・在室者＋足したゲスト）・一周の規則（`drawWinner`・#427 で撤回。いまは入る人から一様に引く）・回転（`startSpin`）は純粋関数で、当たりと止まる位置はサーバーが引き、全画面に同じ値を配る。円盤の角度・指し針・札のめくりは `apps/roulette-web` が持つ（[ADR-0026](../adr/0026-facilitator-roulette.md)） |
 
 ## 一般的な方法論との対応
 

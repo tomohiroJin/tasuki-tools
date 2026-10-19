@@ -8,6 +8,7 @@ import {
   EMPTY_ESTIMATE_LOG,
   closeOpenGroup,
   recordReveal,
+  setGroupItem,
   setGroupPoints,
   type EstimateLog,
 } from './estimate-log.js';
@@ -20,6 +21,8 @@ export interface Round {
   item: string;
   /** 開票ごとの記録（#93） */
   log: EstimateLog;
+  /** 開票を記録に足すか（#427）。既定は足さない。切り替えは {@link setRecording} */
+  recording: boolean;
   /** 見学中の参加者 ID（#419）。票を持たず、自動公開の分母にも入らない */
   spectators: ReadonlySet<string>;
 }
@@ -52,7 +55,14 @@ export interface VoterView {
 
 /** 新しいラウンド（voting・票なし）。ルーム作成時にアプリ層が呼ぶ（FR-001）。 */
 export function createRound(): Round {
-  return { status: 'voting', votes: new Map(), item: '', log: EMPTY_ESTIMATE_LOG, spectators: new Set() };
+  return {
+    status: 'voting',
+    votes: new Map(),
+    item: '',
+    log: EMPTY_ESTIMATE_LOG,
+    recording: false,
+    spectators: new Set(),
+  };
 }
 
 /** 投票（公開前は上書き可。FR-005〜007） */
@@ -89,11 +99,14 @@ export function applyAutoReveal(round: Round, voters: readonly VoterView[], now:
   return revealed(round, now);
 }
 
-/** revealed へ移し、票が 1 枚以上あればその時点の item と票の枚数を記録へ 1 行足す（記録は公開の瞬間にだけ増える） */
+/**
+ * revealed へ移し、記録する間で票が 1 枚以上あればその時点の item と票の枚数を記録へ 1 行足す
+ * （記録は公開の瞬間にだけ増える。手動・自動の開票はどちらもここを通る）
+ */
 function revealed(round: Round, now: number): Round {
   // 票が 0 枚の開票は行にしない（空の行と、あとで「ポイントなし」で閉じる空の束が残るだけ）。開票自体は行う
   const log =
-    round.votes.size === 0
+    !round.recording || round.votes.size === 0
       ? round.log
       : recordReveal(round.log, round.item, [...round.votes.values()], now);
   return { ...round, status: 'revealed', log };
@@ -152,13 +165,18 @@ export function nextItem(
 // NFKC とラベル記号の除去を足した、より厳しい兄弟（アイテム名にはそこまで要らない）
 const INVISIBLE_CHARS = /[\p{Cc}\p{Cf}\p{Default_Ignorable_Code_Point}]/gu;
 
+/** アイテム名の整形（不可視文字の除去と前後の空白の削除）。{@link setItem} と {@link renameGroup} が共有する */
+function cleanItem(item: string): string {
+  return item.replace(INVISIBLE_CHARS, '').trim();
+}
+
 /**
  * アイテム名を設定する。不可視文字を除いて前後の空白を削る。長さの上限は境界（ワイヤの検証）が見る。
  * 開票後（revealed）は、いま見ている開票の行（束の最後の行）の名前にも写す —— 束の見出しが追う。
  * 投票中は log に触れない。閉じた束は変えない。
  */
 export function setItem(round: Round, item: string): Round {
-  const next = item.replace(INVISIBLE_CHARS, '').trim();
+  const next = cleanItem(item);
   if (round.status !== 'revealed') return { ...round, item: next };
   const last = round.log.groups[round.log.groups.length - 1];
   const entry = last?.entries[last.entries.length - 1];
@@ -177,6 +195,24 @@ export function setPoints(
   points: NumberCardValue | null,
 ): Result<Round, RoundError> {
   return setGroupPoints(round.log, groupId, points).map((log) => ({ ...round, log }));
+}
+
+/**
+ * 閉じた束のアイテム名を直す（#427）。{@link setItem} と同じ整形を通す。
+ * 失敗は {@link setGroupItem} のエラーをそのまま返す。
+ */
+export function renameGroup(round: Round, groupId: number, item: string): Result<Round, RoundError> {
+  return setGroupItem(round.log, groupId, cleanItem(item)).map((log) => ({ ...round, log }));
+}
+
+/**
+ * 記録する／しないを切り替える（#427）。同じ値への切り替えは入力と同じ値を返す。
+ * 違えば open の束をポイントなしで閉じてから切り替える —— 切り替えをまたいで
+ * 1 つの束に行が混ざらない（しない間の再投票が、しない前の束に足されない）。
+ */
+export function setRecording(round: Round, recording: boolean): Round {
+  if (round.recording === recording) return round;
+  return { ...round, recording, log: closeOpenGroup(round.log, null) };
 }
 
 /**

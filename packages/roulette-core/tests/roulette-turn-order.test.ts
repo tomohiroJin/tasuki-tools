@@ -84,7 +84,7 @@ describe("setMode（決め方）", () => {
  * @requirements #401 順番に回す T2・T3・T4・T6・T7
  */
 describe("startSpin（順番に回す）", () => {
-  it("まだの人から 1 人を引き、その人が 1 番になる。選ぶ人数と一周の記録は使わない", () => {
+  it("まだの人から 1 人を引き、その人が 1 番になる。選ぶ人数は使わない", () => {
     // Given: 選ぶ人数 3 でも順番に回すときは 1 人
     const base = setPickCount(orderState(), 3)._unsafeUnwrap();
     // When: 4 人のうち添字 2 を引く
@@ -94,7 +94,6 @@ describe("startSpin（順番に回す）", () => {
     expect(s.lastSpin?.turn).toBe(1);
     expect(s.lastSpin?.wheel.map((e) => e.id)).toEqual(["p-0", "p-1", "p-2", "p-3"]);
     expect(s.order).toEqual({ done: [{ id: "p-2", name: "人2" }], finished: false });
-    expect(s.drawn).toEqual([]);
     expect(s.pickCount).toBe(3);
   });
 
@@ -216,14 +215,13 @@ describe("startSpin（順番に回す）", () => {
  * @requirements #401 順番に回す T8（最初からやり直す）
  */
 describe("resetOrder（最初からやり直す）", () => {
-  it("回を捨て、一周の記録は変えない", () => {
+  it("回を捨てる", () => {
     // Given
-    const s1 = { ...spinAt(orderState(), 1000), drawn: ["p-9"] };
+    const s1 = spinAt(orderState(), 1000);
     // When
     const s2 = resetOrder(s1, 1000 + SPIN_DURATION_MS)._unsafeUnwrap();
     // Then
     expect(s2.order).toBeNull();
-    expect(s2.drawn).toEqual(["p-9"]);
   });
 
   it("回が無ければ同じ参照を返す", () => {

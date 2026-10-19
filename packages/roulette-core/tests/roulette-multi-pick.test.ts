@@ -73,7 +73,6 @@ describe("startSpin（k 人を回す）", () => {
     ]);
     expect(spin?.winnerIndex).toBe(0);
     expect(spin?.settle).toBe(0.3);
-    expect(s.drawn).toEqual(["p-0", "p-1", "p-2"]);
   });
 
   it("k = 1 の picks は当たり 1 件", () => {

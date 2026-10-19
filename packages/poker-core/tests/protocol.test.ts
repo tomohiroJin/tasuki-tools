@@ -369,7 +369,7 @@ describe('parseServerMessage（estimate #93）', () => {
     const result = parseServerMessage(JSON.stringify(msg));
     expect(result.isOk()).toBe(true);
     const parsed = result._unsafeUnwrap();
-    expect(parsed.type === 'room-state' && parsed.estimate).toEqual(ESTIMATE);
+    expect(parsed.type === 'room-state' && parsed.estimate).toEqual({ ...ESTIMATE, recording: true });
   });
 
   it('estimate の形が壊れていれば落とす', () => {
@@ -433,5 +433,45 @@ describe('parseServerMessage（spectator #419）', () => {
       }),
     )._unsafeUnwrap();
     expect(msg.type === 'room-state' && msg.participants[0]?.spectator).toBe(true);
+  });
+});
+
+describe('記録の切り替えと束の名前（#427）', () => {
+  const parse = (m: unknown) => parseClientMessage(JSON.stringify(m));
+
+  it('2 操作を受ける', () => {
+    expect(parse({ type: 'set-recording', recording: true })._unsafeUnwrap()).toEqual({
+      type: 'set-recording',
+      recording: true,
+    });
+    expect(parse({ type: 'set-recording', recording: false }).isOk()).toBe(true);
+    expect(parse({ type: 'set-recording', recording: 'yes' }).isErr()).toBe(true);
+    expect(parse({ type: 'set-group-item', groupId: 3, item: '  A  ' })._unsafeUnwrap()).toEqual({
+      type: 'set-group-item',
+      groupId: 3,
+      item: 'A',
+    });
+    expect(parse({ type: 'set-group-item', groupId: 1, item: '' }).isOk()).toBe(true);
+  });
+
+  it('groupId 0・小数・MAX_ESTIMATE_ITEM + 1 字を拒む', () => {
+    expect(parse({ type: 'set-group-item', groupId: 0, item: 'A' }).isErr()).toBe(true);
+    expect(parse({ type: 'set-group-item', groupId: 1.5, item: 'A' }).isErr()).toBe(true);
+    expect(parse({ type: 'set-group-item', groupId: 1, item: 'a'.repeat(120) }).isOk()).toBe(true);
+    expect(parse({ type: 'set-group-item', groupId: 1, item: 'a'.repeat(121) }).isErr()).toBe(true);
+  });
+
+  it('余計なキーを拒む', () => {
+    expect(parse({ type: 'set-recording', recording: true, extra: 1 }).isErr()).toBe(true);
+    expect(parse({ type: 'set-group-item', groupId: 1, item: 'A', extra: 1 }).isErr()).toBe(true);
+  });
+
+  it('estimate に recording が無い room-state は recording: true と読む', () => {
+    const msg = { ...A_REVEALED_ROOM_STATE, estimate: { item: '', log: [] } };
+    const parsed = parseServerMessage(JSON.stringify(msg))._unsafeUnwrap();
+    expect(parsed.type === 'room-state' && parsed.estimate?.recording).toBe(true);
+    const off = { ...A_REVEALED_ROOM_STATE, estimate: { item: '', log: [], recording: false } };
+    const parsedOff = parseServerMessage(JSON.stringify(off))._unsafeUnwrap();
+    expect(parsedOff.type === 'room-state' && parsedOff.estimate?.recording).toBe(false);
   });
 });

@@ -56,6 +56,9 @@ function makeSync(): PokerSync {
     setPoints: () => {},
     setSpectator: () => {},
     removeParticipant: () => {},
+    departed: null,
+    setRecording: () => {},
+    renameGroup: () => {},
   };
 }
 

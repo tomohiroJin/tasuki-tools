@@ -64,12 +64,14 @@ export {
   nextItem,
   setItem,
   setPoints,
+  setRecording,
+  renameGroup,
   setSpectator,
 } from './round.js';
 // Round: 上の関数の引数・戻り値型（`RoundStore` が保管する型でもある）
 // VoterView: applyAutoReveal の引数型。名簿の断片を構造的部分型で受ける
 //   （`ParticipantFragment` はこれを継承した上位集合。定義は `round.ts` 側 1 つ）
-// RoundError: castVote / revealBy / revote / nextItem / setPoints が返す Result のエラー型
+// RoundError: castVote / revealBy / revote / nextItem / setPoints / renameGroup が返す Result のエラー型
 export type { Round, VoterView, RoundError } from './round.js';
 
 // ./snapshot

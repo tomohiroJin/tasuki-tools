@@ -15,7 +15,7 @@ import { ParticipantList, PARTICIPANTS_HEADING_ID } from '../components/Particip
 import { Results } from '../components/Results';
 import type { PokerSync } from '../hooks/useSync';
 import { useRoomEntry } from '../hooks/useRoomEntry';
-import { ESTIMATE_POINTS_LABEL, NEXT_ITEM, REVOTE } from '../estimate-copy';
+import { ESTIMATE_POINTS_LABEL, NEXT_ITEM, RECORDING_TOGGLE, REVOTE } from '../estimate-copy';
 import { JOIN_VOTING, SPECTATE, SPECTATING_NOTE, participantsHeading } from '../spectator-copy';
 import type { NumberCardValue } from '@tasuki/poker-core';
 import { isOffline, revealedLiveAfter, seatCardCount, revealedVoteMap, spreadPromptOf } from '../room-view';
@@ -115,6 +115,10 @@ export function RoomPage({ roomId, sync }: Props) {
   const revealedVotes = revealedVoteMap(snapshot.round);
   const inviteUrl = sync.inviteUrl(roomId);
   const estimateLog = snapshot.estimate?.log ?? [];
+  // 記録するか。estimate が無い（古いサーバー）・recording が無いときは「する」と読む（#427・J9）
+  const recording = snapshot.estimate?.recording ?? true;
+  // ポイントを添えられるのは、記録していて、点を付ける open の束があるときだけ（J8）
+  const canAttachPoints = recording && estimateLog.some((g) => g.open);
   const offline = isOffline(sync.status);
   const you = snapshot.participants.find((p) => p.id === snapshot.you);
   const youSpectating = you?.spectator === true;
@@ -149,6 +153,16 @@ export function RoomPage({ roomId, sync }: Props) {
                 {topicOpen ? TOPIC_HIDE : TOPIC_SHOW}
               </button>
             )}
+            {/* 記録のしくみ全体を出し入れする（#427・設計 D）。押した状態が「記録する」。ルーム全員に効く */}
+            <button
+              type="button"
+              className="ui-button ui-button--secondary ui-button--sm"
+              aria-pressed={recording}
+              onClick={() => sync.setRecording(!recording)}
+              disabled={offline}
+            >
+              {RECORDING_TOGGLE}
+            </button>
           </div>
           {/* 選択画面へ戻る導線。旧入口（poker のトップ画面等）が撤去され、他に戻る
               手段が無い（利用者の申し送り・2026-09-14）。行き先は招待リンクと同じ
@@ -162,24 +176,30 @@ export function RoomPage({ roomId, sync }: Props) {
       </header>
       <ErrorNote error={sync.error} onClose={sync.clearError} />
       {/* 段組み（#316・ADR 0025）。64rem 以上は左に読む面（お題）・右に操作の面（場 → 手札 → 結果）。
-          DOM は狭い幅で見せたい順（お題 → 場 → 手札 → 記録の足）。脇（`.room-side`）は常に出し、中にお題の札（隠すのは札の包みだけ。
-          DOM に残し `data-state="closed"`・`inert`）と記録を持つ。64rem 以上は列が動かず、64rem 未満は記録を足の側が出す
+          DOM は狭い幅で見せたい順（お題 → 場 → 手札 → 記録の足）。脇（`.room-side`）は、お題か記録があるときに出し、中にお題の札（隠すのは札の包みだけ。
+          DOM に残し `data-state="closed"`・`inert`）と記録を持つ。64rem 以上は、記録の札があるときは列が動かず、無いときは 0fr ⇄ 0.75fr で滑る。64rem 未満は記録を足の側が出す
           （幅の出し分けは index.css・#93）。 */}
       <div className="ui-workspace ui-workspace--reader">
+        {/* 記録しない間は記録を描かない。お題の札も無ければ脇ごと描かない（空の列を残さない・#427） */}
+        {(sync.topic || recording) && (
         <div className="ui-workspace-side room-side">
           {sync.topic && (
             <div className="room-topic-side" data-state={topicOpen ? 'open' : 'closed'} inert={!topicOpen}>
               <CurrentTopic topic={sync.topic} />
             </div>
           )}
-          <EstimateLog
-            className="room-log--side"
-            scrollable
-            groups={estimateLog}
-            onSetPoints={sync.setPoints}
-            disabled={offline}
-          />
+          {recording && (
+            <EstimateLog
+              className="room-log--side"
+              scrollable
+              groups={estimateLog}
+              onSetPoints={sync.setPoints}
+              onRenameGroup={sync.renameGroup}
+              disabled={offline}
+            />
+          )}
         </div>
+        )}
         <div className="ui-workspace-main room-main">
           <section>
             <div className="room-participants-head">
@@ -207,12 +227,14 @@ export function RoomPage({ roomId, sync }: Props) {
               開いていたシートが消える（#93 最終レビュー）。 */}
           {/* key は閉じた束の最大 ID（束の ID は振り直されず増えるだけなので、上限で古い束が落ちても束が閉じるたびに変わる）。編集中に境目を越えたら欄を作り直し、
               前のアイテムの打ちかけを新しいアイテムへ送らない。名前だけの変更では変わらない */}
-          <EstimateItemField
-            key={(snapshot.estimate?.log ?? []).reduce((max, g) => (g.open ? max : Math.max(max, g.id)), 0)}
-            item={snapshot.estimate?.item ?? ''}
-            onCommit={sync.setItem}
-            disabled={offline}
-          />
+          {recording && (
+            <EstimateItemField
+              key={(snapshot.estimate?.log ?? []).reduce((max, g) => (g.open ? max : Math.max(max, g.id)), 0)}
+              item={snapshot.estimate?.item ?? ''}
+              onCommit={sync.setItem}
+              disabled={offline}
+            />
+          )}
           {snapshot.round.status === 'voting' ? (
             <section>
               <h2>あなたのカード</h2>
@@ -232,8 +254,14 @@ export function RoomPage({ roomId, sync }: Props) {
           )}
           {/* 下端の帯（sticky）は親の範囲の中でしか留まらないので、帯は操作の面（`.room-main`）の最後の子に置き、
               足の記録はその手前に置く（帯が記録の末尾を覆わないように） */}
-          <EstimateLogFoot groups={estimateLog} onSetPoints={sync.setPoints} disabled={offline} />
-          {isVoting ? <VotingDock sync={sync} disabled={offline} /> : <RevealedDock sync={sync} disabled={offline} />}
+          {recording && (
+            <EstimateLogFoot groups={estimateLog} onSetPoints={sync.setPoints} onRenameGroup={sync.renameGroup} disabled={offline} />
+          )}
+          {isVoting ? (
+            <VotingDock sync={sync} disabled={offline} />
+          ) : (
+            <RevealedDock sync={sync} disabled={offline} canAttachPoints={canAttachPoints} />
+          )}
         </div>
       </div>
     </main>
@@ -252,18 +280,20 @@ function VotingDock({ sync, disabled }: { sync: PokerSync; disabled: boolean }) 
 }
 
 /** 開票後の帯。再投票（主・最後）と次のアイテムへ（副）は意味の違う 2 操作（#93・spec §4.3） */
-function RevealedDock({ sync, disabled }: { sync: PokerSync; disabled: boolean }) {
+function RevealedDock({ sync, disabled, canAttachPoints }: { sync: PokerSync; disabled: boolean; canAttachPoints: boolean }) {
   // 「次のアイテムへ」に添える点数。押したら空へ戻す（再投票で投票中へ戻ると帯ごと外れて空に戻る）
   const [points, setPoints] = useState<NumberCardValue | null>(null);
   return (
     <div className="ui-actions ui-actions--dock">
-      <PointsSelect
-        value={points}
-        onChange={setPoints}
-        emptyLabel={ESTIMATE_POINTS_LABEL}
-        label={ESTIMATE_POINTS_LABEL}
-        disabled={disabled}
-      />
+      {canAttachPoints && (
+        <PointsSelect
+          value={points}
+          onChange={setPoints}
+          emptyLabel={ESTIMATE_POINTS_LABEL}
+          label={ESTIMATE_POINTS_LABEL}
+          disabled={disabled}
+        />
+      )}
       <button
         type="button"
         className="ui-button ui-button--secondary ui-button--lg"

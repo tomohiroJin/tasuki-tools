@@ -15,9 +15,11 @@ import {
   messageForRoundError,
   nextItem,
   revealBy,
+  renameGroup,
   revote,
   setItem,
   setPoints,
+  setRecording,
   setSpectator,
 } from '@tasuki/poker-core';
 import type {
@@ -80,7 +82,7 @@ export function createCommitRoomAction({
   return function commitRoomAction(ws, action) {
     const { participantId, roomId } = ws.data;
     if (participantId === null || roomId === null) {
-      sendError(ws, 'not-joined', 'ルームに参加していません');
+      sendError(ws, 'not-joined', POKER_ERROR_TEXT.NOT_JOINED);
       return;
     }
     const state = loadState(roomId);
@@ -101,7 +103,7 @@ export function createCommitRoomAction({
     // 名簿に居ない人（片付けで外された人の接続など）とは別物である。ここで弾かないと
     // 「名簿に居ない＝投票していない」と読まれて状態を動かしてしまう。何も変えない。
     if (!state.room.participants.some((p) => p.id === participantId)) {
-      sendError(ws, 'not-joined', 'ルームに参加していません');
+      sendError(ws, 'not-joined', POKER_ERROR_TEXT.NOT_JOINED);
       return;
     }
     const result = action(state.round, participantId);
@@ -192,6 +194,13 @@ export function createDispatch({
       case 'set-points':
         commitRoomAction(ws, (round) => setPoints(round, msg.groupId, msg.points));
         return;
+      case 'set-recording':
+        // 記録の入り切り。投票中でも開票後でも受ける（名簿の検査と配信は commitRoomAction と共有）
+        commitRoomAction(ws, (round) => ok(setRecording(round, msg.recording)));
+        return;
+      case 'set-group-item':
+        commitRoomAction(ws, (round) => renameGroup(round, msg.groupId, msg.item));
+        return;
       case 'set-spectator':
         commitRoomAction(ws, (round, participantId) =>
           ok(setSpectator(round, participantId, msg.spectator)),
@@ -201,7 +210,7 @@ export function createDispatch({
         // 参加済みで名簿に居る人だけが外せる（G-9 と同じ検査）。
         const { participantId, roomId } = ws.data;
         if (participantId === null || roomId === null) {
-          sendError(ws, 'not-joined', 'ルームに参加していません');
+          sendError(ws, 'not-joined', POKER_ERROR_TEXT.NOT_JOINED);
           return;
         }
         const state = loadState(roomId);
@@ -211,7 +220,7 @@ export function createDispatch({
           return;
         }
         if (!state.room.participants.some((p) => p.id === participantId)) {
-          sendError(ws, 'not-joined', 'ルームに参加していません');
+          sendError(ws, 'not-joined', POKER_ERROR_TEXT.NOT_JOINED);
           return;
         }
         const target = state.room.participants.find((p) => p.id === msg.participantId);

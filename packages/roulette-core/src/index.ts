@@ -21,7 +21,6 @@ export {
   setIncluded,
   addGuest,
   removeGuest,
-  resetCycle,
   prune,
   setPickCount,
   setMode,

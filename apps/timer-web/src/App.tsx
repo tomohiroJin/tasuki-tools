@@ -7,7 +7,7 @@
  * 自分の表示名の導出・クリップボード I/O だけである。
  */
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { decideEntry } from "./ui/entry.js";
 import { currentSearch, navigateTo, redirectTo, reloadPage } from "./platform/location.js";
 import { Lobby } from "./ui/Lobby.js";
@@ -21,6 +21,7 @@ import { deriveConnectionStatus } from "./ui/connection-status.js";
 import { Stage } from "./ui/primitives.js";
 import { isOnBreakRoom } from "./ui/break-view.js";
 import { useBanner } from "./ui/use-banner.js";
+import { useTopBandHeight } from "./ui/use-top-band-height.js";
 import { useTimerSync } from "./sync/use-timer-sync.js";
 // 注: `records/indexeddb.js` は import しない。永続化は同期フックの
 // `saveRecordManually` を通す（画面は表示に徹する・ADR-0015 MUST 3）。
@@ -89,6 +90,11 @@ export default function App() {
   // 接続が生きていても、契約に合わないフレームを捨てて画面が古いままなら
   // 「同期不整合」を出す（#209）。
   const connectionStatus = deriveConnectionStatus(sessionLost, connState, syncStale);
+
+  // 休憩中だけ上端の帯の高さを測り、覆いの中身をその下から始める（#427）。休憩の外では測らず、変数も残さない。
+  const onBreak = mode === "session" && room != null && isOnBreakRoom(room);
+  const bandRef = useRef<HTMLDivElement>(null);
+  useTopBandHeight(bandRef, onBreak);
 
   /** セッション/ロビーはダークステージ固定。Summary は通常テーマ。 */
   const renderBody = () => {
@@ -220,7 +226,7 @@ export default function App() {
       {/* 上端の帯（ステータスとバナー）。休憩中は覆い（`.break-overlay`・z-index 50）より前に出し、上端に留める
           （#402）。覆いの外の Session 本体は inert だが、ここは Session の外なので inert の対象外で、
           接続状態と「X さんが休憩を始めました。」が休憩中も読める。`className` は枝ごとの文字列リテラルで書く。 */}
-      <div className={mode === "session" && room != null && isOnBreakRoom(room) ? "app-top app-top-over-break" : "app-top"}>
+      <div ref={bandRef} className={onBreak ? "app-top app-top-over-break" : "app-top"}>
       {mode !== null && !sessionLost && (
         <div className="app-status-strip">
           <StatusStrip

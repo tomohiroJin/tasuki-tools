@@ -188,7 +188,7 @@ describe('順番に回すときの脇の一覧', () => {
     // Given: 一周の記録に a が居る
     const view = { ...base, drawn: ['a'] };
     // When
-    const people = peopleOf({ members: MEMBERS, view, selfId: null, phase: 'idle', pool: POOL, turns: new Map([['c', 1]]) });
+    const people = peopleOf({ members: MEMBERS, view, selfId: null, pool: POOL, turns: new Map([['c', 1]]) });
     // Then
     expect(people.rows.map((r) => [r.id, r.mark, r.turn])).toEqual([
       ['a', null, null],
@@ -202,7 +202,7 @@ describe('順番に回すときの脇の一覧', () => {
     // Given
     const members = MEMBERS.map((m) => (m.id === 'c' ? { ...m, present: false } : m));
     // When
-    const people = peopleOf({ members, view: base, selfId: null, phase: 'idle', pool: POOL, turns: new Map([['c', 1]]) });
+    const people = peopleOf({ members, view: base, selfId: null, pool: POOL, turns: new Map([['c', 1]]) });
     // Then
     expect(people.rows[2]?.mark).toBe('away');
   });

@@ -1,0 +1,23 @@
+# 変異 413: sync-set-group-item-drops-name
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/poker/estimate-log.test.ts
+#
+# #427。dispatch が set-group-item を受けても名前を捨てる（ok(round) を返す）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m413-*.patch
+# 復元: git apply -R scripts/mutations/m413-*.patch
+diff --git a/apps/tasuki-sync/src/application/poker-commit-room-action.ts b/apps/tasuki-sync/src/application/poker-commit-room-action.ts
+index 5fa9c8cb..c05405f9 100644
+--- a/apps/tasuki-sync/src/application/poker-commit-room-action.ts
++++ b/apps/tasuki-sync/src/application/poker-commit-room-action.ts
+@@ -199,7 +199,7 @@ export function createDispatch({
+         commitRoomAction(ws, (round) => ok(setRecording(round, msg.recording)));
+         return;
+       case 'set-group-item':
+-        commitRoomAction(ws, (round) => renameGroup(round, msg.groupId, msg.item));
++        commitRoomAction(ws, (round) => ok(round));
+         return;
+       case 'set-spectator':
+         commitRoomAction(ws, (round, participantId) =>

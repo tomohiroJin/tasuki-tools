@@ -40,7 +40,7 @@ interface Client {
 }
 
 /** 部屋を 1 つ作り、人数ぶんの参加者を入れる */
-function setupRoom(names: string[]) {
+function setupRoom(names: string[], { recording = true }: { recording?: boolean } = {}) {
   let n = 0;
   const idGen: IdGen = {
     roomIdCandidate: () => 'room0001',
@@ -82,6 +82,8 @@ function setupRoom(names: string[]) {
     c.id = c.ws.data.participantId as string;
   });
   const send = (c: Client, msg: ClientMessage) => handlers.dispatch(c.ws, msg);
+  // 新しいルームの記録は既定で「しない」。このテストの多くは記録を見るので、最初に切り替えておく
+  if (recording) send(clients[0]!, { type: 'set-recording', recording: true });
   const last = (c: Client): RoomStateMsg & { estimate: NonNullable<RoomStateMsg['estimate']> } => {
     const states = c.sent.filter((m): m is RoomStateMsg => m.type === 'room-state');
     const state = states[states.length - 1] as RoomStateMsg;
@@ -259,6 +261,65 @@ describe('見積もりの記録の配線（#93）', () => {
     expect(log[0]!.entries).toHaveLength(1);
     expect(log[0]!.entries[0]!.counts).toEqual([{ card: num(5), count: 1 }]);
     expect(log[0]!.entries[0]!.at).toBe(FAKE_NOW);
+  });
+
+  describe('記録の切り替え（#427）', () => {
+    it('Given 新しいルーム When 開票 Then 記録は空で recording: false', () => {
+      const env = setupRoom(['たろう', 'はなこ'], { recording: false });
+      voteBoth(env, num(5), num(8));
+      for (const c of env.clients) {
+        expect(env.last(c).round.status).toBe('revealed');
+        expect(env.last(c).estimate.log).toEqual([]);
+        expect(env.last(c).estimate.recording).toBe(false);
+      }
+    });
+
+    it('Given set-recording true When 開票 Then 行になり全員に recording: true が配られる', () => {
+      const env = setupRoom(['たろう', 'はなこ'], { recording: false });
+      env.send(env.clients[1]!, { type: 'set-recording', recording: true });
+      for (const c of env.clients) expect(env.last(c).estimate.recording).toBe(true);
+      voteBoth(env, num(5), num(8));
+      for (const c of env.clients) {
+        expect(env.last(c).estimate.log).toHaveLength(1);
+        expect(env.last(c).estimate.log[0]!.entries).toHaveLength(1);
+      }
+    });
+
+    it('Given 名簿に居ない接続 When set-recording Then error not-joined', () => {
+      const env = setupRoom(['たろう', 'はなこ'], { recording: false });
+      const stranger: Client = {
+        ws: {
+          send: (data: string) => void stranger.sent.push(JSON.parse(data) as ServerMessage),
+          data: { connId: 'conn-x', participantId: null, roomId: null, rateKey: 'kx' },
+        } as HandlerConnection,
+        sent: [],
+        id: '',
+        name: '',
+      };
+      env.send(stranger, { type: 'set-recording', recording: true });
+      expect(env.errors(stranger).map((e) => (e as { code: string }).code)).toEqual(['not-joined']);
+    });
+  });
+
+  describe('set-group-item（#427）', () => {
+    it('Given 閉じた束 When set-group-item Then 束の名前が全員に配られる', () => {
+      const env = setupRoom(['たろう', 'はなこ']);
+      voteBoth(env, num(5), num(8));
+      env.send(env.clients[0]!, { type: 'next-item', points: 5 });
+      const id = env.last(env.clients[0]!).estimate.log[0]!.id;
+      env.send(env.clients[1]!, { type: 'set-group-item', groupId: id, item: '直した名前' });
+      for (const c of env.clients) expect(env.last(c).estimate.log[0]!.item).toBe('直した名前');
+    });
+
+    it('Given open の束 When set-group-item Then error estimate-open', () => {
+      const env = setupRoom(['たろう', 'はなこ']);
+      voteBoth(env, num(5), num(8));
+      const id = env.last(env.clients[0]!).estimate.log[0]!.id;
+      env.send(env.clients[0]!, { type: 'set-group-item', groupId: id, item: 'x' });
+      expect(env.errors(env.clients[0]!).map((e) => (e as { code: string }).code)).toEqual([
+        'estimate-open',
+      ]);
+    });
   });
 
   it('記録はどの room-state にも参加者 ID・表示名を含まない', () => {

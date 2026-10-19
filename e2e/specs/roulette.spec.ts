@@ -10,8 +10,8 @@
  * （止まった後の文字の読みやすさ・書体・円盤の席の名前・フォーカス・名前の欄）。幅ごとの当たりと
  * 札の隠れは `buttons.spec.ts` のお題ツールの本（同じルーム）に足した。
  *
- * 入る人は 2 人だけにする。**2 人のときは当たりが必ず交互になる**（spec §5.1）ので、
- * サーバーが一周の規則で引いていることを、乱数に頼らず決定的に確かめられる。交互を確かめた後で
+ * 入る人は 2 人だけにして 3 回回し、どの回も当たりが入る人の 1 人で、全員の画面で同じ人になることを確かめる
+ * （一周の規則は #427 で外れた。同じ人が続くことがあるので、当たりの並びは見ない）。その後で
  * 名前を足して席を増やし、円盤の席の名前と脇の一覧の名前の読みやすさを幅と席数を変えて見る（spec §6.3）。
  */
 import { expect, test } from '../fixtures/test';
@@ -93,28 +93,18 @@ test.describe('@core ルーレットは全員の画面で同じ人に止まる',
       // A は前の回転が終わっていれば押せる（最初の回は回す前）
       await expect(spinButton(page)).toBeEnabled();
       //   2 回目からは B に前の回の結果の一言が残っていて、それも RESULT に合う。本番の往復の遅れの間に
-      //   それを読むと、A と B が別の人を指したように見える（2026-10-14 の e2e:prod）。回す前の一言から
-      //   変わるのを待つ。2 人なので当たりは交互になり、新しい結果は前の回と必ず違う文になる
-      const beforeOnB = await roulettePhrase(peer.page).textContent();
-      //   空のままだと「変わった」が何にでも当たり、前の回の結果も素通りする
-      expect(beforeOnB, `${round} 回目: 回す前の B の一言`).toBeTruthy();
+      //   それを読むと、A と B が別の人を指したように見える（2026-10-14 の e2e:prod）。同じ人が続くこともあり
+      //   文の変化では新しい結果と見分けられないので、B が新しい回転を受けた印（動きを減らす設定の B は
+      //   受けた直後に結果を出し、主ボタンは回転の間だけ押せない）を待ってから読む
+      expect(await roulettePhrase(peer.page).textContent(), `${round} 回目: 回す前の B の一言`).toBeTruthy();
+      //   B の主ボタンが押せる状態へ戻ってから押す（前の回の「押せない」を新しい回転と取り違えない）
+      await expect(spinButton(peer.page), `${round} 回目: B の主ボタンが戻っている`).toBeEnabled();
       await spinButton(page).click();
 
-      // その1: B は動きを減らす設定なので、回転を待たず 1 秒以内に結果が出る。
-      //   変化と結果の形を 1 つの待ちで見る（2 段に分けると待ちの上限が足し算で 2 秒に緩む）。
-      //   判定した値をそのまま当たりとして使う（読み直すと、その間に変わった文を拾いうる）
-      let winnerOnB: string | undefined;
-      await expect
-        .poll(
-          async () => {
-            const text = (await roulettePhrase(peer.page).textContent()) ?? '';
-            winnerOnB = text === beforeOnB ? undefined : RESULT.exec(text)?.[1];
-            return winnerOnB;
-          },
-          // 変わらないまま時間切れなら、同期の遅れか、同じ人が続いた（交互の規則が崩れた）かのどちらか
-          { message: `${round} 回目: B に 1 秒以内に新しい結果が出ない（同期の遅れか、前の回と同じ人に止まった）`, timeout: 1000 },
-        )
-        .toBeTruthy();
+      // その1: B は動きを減らす設定なので、回転を待たず 1 秒以内に新しい結果が出る
+      await expect(spinButton(peer.page), `${round} 回目: B が新しい回転を受ける`).toBeDisabled({ timeout: 1000 });
+      const winnerOnB = RESULT.exec((await roulettePhrase(peer.page).textContent()) ?? '')?.[1];
+      expect(winnerOnB, `${round} 回目: B の結果の形`).toBeTruthy();
 
       // その2: そのとき A は回している最中で、**当たりの名前をまだ言わない**
       await expect(roulettePhrase(page), `${round} 回目: A は回している最中`).toHaveText(`${NAME_A} さんが回しました`);
@@ -127,11 +117,9 @@ test.describe('@core ルーレットは全員の画面で同じ人に止まる',
       winners.push(winnerOnA ?? '');
     }
 
-    // Then: 入る人は A と B の 2 人。一周の規則で、当たりは交互（X → Y → X）
-    expect([NAME_A, NAME_B]).toContain(winners[0]);
-    expect(winners[1]).not.toBe(winners[0]);
-    expect([NAME_A, NAME_B]).toContain(winners[1]);
-    expect(winners[2]).toBe(winners[0]);
+    // Then: 入る人は A と B の 2 人。どの回の当たりもそのどちらか
+    expect(winners).toHaveLength(3);
+    for (const w of winners) expect([NAME_A, NAME_B]).toContain(w);
 
     // Then 見た目と a11y（3 回目が止まった後の A の画面。幅は既定の 1280 で、横並びになる）
     //   文字が読める。余裕の薄い組として、札の上の炭の字（`--coal` on 象牙の札）を測ったことも固定する。

@@ -3,7 +3,6 @@ import type { RosterRoom } from '@tasuki/room-core';
 import { pickStopsMs, type RouletteView } from '@tasuki/roulette-core';
 import {
   CAPTION_IDLE,
-  CYCLE_NOTE,
   RECONNECTING_TEXT,
   SPIN_AGAIN_BUTTON,
   SPIN_BUTTON,
@@ -11,7 +10,6 @@ import {
   STALE_TEXT,
   TOO_FEW_TEXT,
   UNREACHABLE_TEXT,
-  cycleProgressText,
   groupIdleText,
   groupResultText,
   groupTopicNoteText,
@@ -29,7 +27,6 @@ import {
   revealedCountOf,
   topicNoteOf,
   connectionNotice,
-  cycleLineOf,
   membersOf,
   peopleOf,
   poolOfView,
@@ -115,7 +112,7 @@ describe('入る人の一覧', () => {
     // Given
     const view: RouletteView = { ...IDLE, excluded: ['p2'], guests: [{ id: 'g-1', name: 'Hana' }] };
     // When
-    const list = peopleOf({ members, view, selfId: 'p1', phase: 'idle', pool: poolOfView(members, view) });
+    const list = peopleOf({ members, view, selfId: 'p1', pool: poolOfView(members, view) });
     // Then: Aya と Hana の 2 人
     expect(list.poolCount).toBe(2);
     expect(list.rows.map((r) => [r.id, r.checked, r.mark, r.disabled])).toEqual([
@@ -130,7 +127,7 @@ describe('入る人の一覧', () => {
     // Given
     const view: RouletteView = { ...IDLE, guests: [{ id: 'g-1', name: 'Hana' }] };
     // When
-    const rows = peopleOf({ members, view, selfId: 'p1', phase: 'idle', pool: poolOfView(members, view) }).rows;
+    const rows = peopleOf({ members, view, selfId: 'p1', pool: poolOfView(members, view) }).rows;
     // Then
     expect(rows.map((r) => [r.id, r.isSelf, r.removable])).toEqual([
       ['p1', true, false],
@@ -140,23 +137,17 @@ describe('入る人の一覧', () => {
     ]);
   });
 
-  /** m166 の対象: 回っている間は今回の当たりを「選ばれた」に数えない */
-  it('Given 一周の途中に回している / When 回っている間 / Then 今回の当たりは選ばれた印にも一周の数にも入らない', () => {
-    // Given: 前に p1 が選ばれ、今回 p2 が当たりの回転
+  it('Given view.drawn に ID がある / When 一覧の行を作る / Then どの行にも選ばれた印は付かない（止まる前も後も）', () => {
+    // Given: サーバーが古い記録を送ってきても（wire の drawn は読まない）
     const view = viewSpinning({ drawn: ['p1', 'p2'] });
     // When
-    const spinning = peopleOf({ members, view, selfId: null, phase: 'spinning', pool: poolOfView(members, view) });
-    const settled = peopleOf({ members, view, selfId: null, phase: 'settled', pool: poolOfView(members, view) });
-    // Then: 回っている間は p1 だけ。止まったら p2 も出る
-    expect(spinning.rows.filter((r) => r.mark === 'drawn').map((r) => r.id)).toEqual(['p1']);
-    expect(spinning.drawnCount).toBe(1);
-    expect(settled.rows.filter((r) => r.mark === 'drawn').map((r) => r.id)).toEqual(['p1', 'p2']);
-    expect(settled.drawnCount).toBe(2);
-  });
-
-  it('Given 一周の途中 / When 一周の行を作る / Then 始まる前は説明、始まったら進み具合', () => {
-    expect(cycleLineOf(0, 3)).toBe(CYCLE_NOTE);
-    expect(cycleLineOf(2, 3)).toBe(cycleProgressText(2, 3));
+    const spinning = peopleOf({ members, view, selfId: null, pool: poolOfView(members, view) });
+    const settled = peopleOf({ members, view, selfId: null, pool: poolOfView(members, view) });
+    // Then: 記録が空のときと同じ印（離席中の p3 だけ）。選ばれた印は無い
+    const bare = peopleOf({ members, view: viewSpinning({ drawn: [] }), selfId: null, pool: poolOfView(members, view) });
+    expect(spinning.rows.map((r) => r.mark)).toEqual(bare.rows.map((r) => r.mark));
+    expect(settled.rows.map((r) => r.mark)).toEqual(bare.rows.map((r) => r.mark));
+    expect(bare.rows.map((r) => r.mark)).toEqual([null, null, 'away']);
   });
 });
 
@@ -175,7 +166,7 @@ describe('在室者と同じ名前のゲスト', () => {
       ],
     };
     // When
-    const list = peopleOf({ members, view, selfId: null, phase: 'idle', pool: poolOfView(members, view) });
+    const list = peopleOf({ members, view, selfId: null, pool: poolOfView(members, view) });
     // Then: 入る人は Aya・Yu・Sou の 3 人。印は g-1 だけ（外した人は印なし）
     expect(list.poolCount).toBe(3);
     expect(list.rows.filter((r) => r.id.startsWith('g-')).map((r) => [r.id, r.checked, r.mark])).toEqual([
@@ -190,7 +181,7 @@ describe('在室者と同じ名前のゲスト', () => {
     // Given
     const view: RouletteView = { ...IDLE, guests: [{ id: 'g-1', name: 'Aya' }, { id: 'g-2', name: 'Hana' }] };
     // When
-    const rows = peopleOf({ members, view, selfId: null, phase: 'idle', pool: poolOfView(members, view) }).rows;
+    const rows = peopleOf({ members, view, selfId: null, pool: poolOfView(members, view) }).rows;
     // Then
     expect(rows.filter((r) => r.id.startsWith('g-')).map((r) => [r.id, r.mark, r.disabled])).toEqual([
       ['g-1', 'twin', true],
@@ -202,7 +193,7 @@ describe('在室者と同じ名前のゲスト', () => {
     // Given: Ren は離席中で、ゲストにも Ren
     const view: RouletteView = { ...IDLE, guests: [{ id: 'g-1', name: 'Ren' }] };
     // When
-    const list = peopleOf({ members, view, selfId: null, phase: 'idle', pool: poolOfView(members, view) });
+    const list = peopleOf({ members, view, selfId: null, pool: poolOfView(members, view) });
     // Then
     expect(list.rows.find((r) => r.id === 'g-1')).toMatchObject({ checked: true, mark: null });
   });
@@ -319,12 +310,10 @@ describe('2 人以上を選ぶ回転', () => {
   const at = (view: RouletteView, nowMs: number, reducedMotion = false) => {
     const phase = phaseOf({ view, receivedAt: 0, nowMs, reducedMotion });
     const revealed = revealedCountOf({ view, receivedAt: 0, nowMs, reducedMotion });
-    const people = peopleOf({ members, view, selfId: null, phase, pool: poolOfView(members, view), revealed });
+    const people = peopleOf({ members, view, selfId: null, pool: poolOfView(members, view) });
     return {
       phase,
       revealed,
-      drawn: people.rows.filter((r) => r.mark === 'drawn').map((r) => r.id),
-      drawnCount: people.drawnCount,
       caption: captionOf({ view, phase, poolCount: people.poolCount }),
     };
   };
@@ -338,19 +327,16 @@ describe('2 人以上を選ぶ回転', () => {
     expect(pickCountOf(IDLE)).toBe(1);
   });
 
-  it('止まる時刻の前後 10ms で、何人目まで決まったか・一覧の印・一周の数・一言が同じ局面に切り替わる', () => {
-    // Given: 前の周で p2 が選ばれ、今回 p3 → p1 → p4
+  it('止まる時刻の前後 10ms で、何人目まで決まったか・一言が同じ局面に切り替わる', () => {
+    // Given
     const view = viewOf3();
     for (const [i, stop] of STOPS.entries()) {
       // When: 止まる直前と直後
       const before = at(view, stop - 10);
       const after = at(view, stop + 10);
-      // Then: 直前は i 人、直後は i + 1 人。一覧の「選ばれた」と一周の数も同じ数だけ増える
+      // Then: 直前は i 人、直後は i + 1 人
       expect(before.revealed).toBe(i);
       expect(after.revealed).toBe(i + 1);
-      expect(after.drawnCount - before.drawnCount).toBe(1);
-      expect(before.drawn).toEqual(['p2', ...['p3', 'p1', 'p4'].slice(0, i)].sort());
-      expect(after.drawn).toEqual(['p2', ...['p3', 'p1', 'p4'].slice(0, i + 1)].sort());
     }
   });
 

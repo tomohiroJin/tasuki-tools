@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { STOP_STYLES, pickStopsMs } from '@tasuki/roulette-core';
 import { saveResumeIdentity } from '@tasuki/sync-client';
 import { App } from '../src/App';
-import { DRAWN_MARK, groupResultText, resultText, spunByText } from '../src/copy';
+import { groupResultText, resultText, spunByText } from '../src/copy';
 import { RESUME, ScriptedWebSocket, latestSocket } from './support/scripted-web-socket';
 
 vi.mock('../src/router', async (importOriginal) => ({
@@ -48,7 +48,7 @@ function styledSpin(stopStyle: string, durationMs = pickStopsMs(1, stopStyle)[0]
   return {
     excluded: [],
     guests: [],
-    drawn: ['p3'],
+    drawn: [],
     spin: { seq: 1, wheel: WHEEL, winnerIndex: 2, settle: 0.5, picks: [{ index: 2, settle: 0.5 }], stopStyle, spunBy: 'ゆう', durationMs, elapsedMs: 0 },
   };
 }
@@ -84,7 +84,6 @@ const advanceTo = (ms: number): void => {
 const goldSeats = (): number => document.querySelectorAll('.wheel-segment--winner').length;
 const card = () => document.querySelector('.roulette-card') as HTMLElement;
 const caption = () => document.querySelector('.roulette-caption')?.textContent;
-const drawnMarks = (): number => [...document.querySelectorAll('.roulette-chip')].filter((e) => e.textContent === DRAWN_MARK).length;
 const rotorAngle = (): number => Number(/rotate\(([-\d.e]+)\)/.exec(document.querySelector('.wheel-rotor')?.getAttribute('transform') ?? '')?.[1]);
 
 /**
@@ -101,11 +100,10 @@ describe('変わった止まり方の間は結果を出さない', () => {
     const end = pickStopsMs(1, style)[0]!;
     // When: 普通の止まり方なら止まっている時刻
     advanceTo(PLAIN_STOP + 50);
-    // Then: 一言・札・真鍮の席・脇の印は、まだ回している形
+    // Then: 一言・札・真鍮の席は、まだ回している形
     expect(caption()).toBe(spunByText('ゆう'));
     expect(card()).not.toHaveClass('is-revealed');
     expect(goldSeats()).toBe(0);
-    expect(drawnMarks()).toBe(0);
     // When: 最後に止まる直前
     advanceTo(end - 30);
     expect(caption()).toBe(spunByText('ゆう'));
@@ -115,7 +113,6 @@ describe('変わった止まり方の間は結果を出さない', () => {
     expect(caption()).toBe(resultText('れん'));
     expect(card()).toHaveClass('is-revealed');
     expect(goldSeats()).toBe(1);
-    expect(drawnMarks()).toBe(1);
   });
 
   it('Given じりじりの回転 / When 1 席手前で止まって見えている間 / Then 円盤は動かず、まだ結果を出さない。最後は当たりの位置で止まる', () => {
@@ -141,7 +138,7 @@ describe('変わった止まり方の間は結果を出さない', () => {
       pickCount: 2,
       excluded: [],
       guests: [],
-      drawn: ['p3', 'p1'],
+      drawn: [],
       spin: {
         seq: 1,
         wheel: WHEEL,
