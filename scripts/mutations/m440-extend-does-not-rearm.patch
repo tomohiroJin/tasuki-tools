@@ -1,0 +1,26 @@
+# 変異 440: extend-does-not-rearm
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/agenda-handlers.test.ts
+#
+# #429 延長しても期限を張り直さない。延長した区切りが、元の期限で自動で次へ進んでしまう。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m440-*.patch
+# 復元: git apply -R scripts/mutations/m440-*.patch
+diff --git a/apps/tasuki-sync/src/application/agenda-handlers.ts b/apps/tasuki-sync/src/application/agenda-handlers.ts
+index 243e9c2e..c95628d1 100644
+--- a/apps/tasuki-sync/src/application/agenda-handlers.ts
++++ b/apps/tasuki-sync/src/application/agenda-handlers.ts
+@@ -169,6 +169,11 @@ export function makeAgendaHandlers(deps: AgendaHandlerDeps): AgendaHandlers {
+       broadcaster.sendCurrent(connId, room.code);
+       return;
+     }
++    if (cmd.command === "agenda.extend") {
++      agendas.put(room.code, result.value);
++      broadcaster.publish(room.code);
++      return;
++    }
+     commit(room.code, result.value);
+   }
+ 

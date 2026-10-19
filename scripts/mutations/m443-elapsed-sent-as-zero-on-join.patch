@@ -1,0 +1,23 @@
+# 変異 443: elapsed-sent-as-zero-on-join
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/agenda-handlers.test.ts
+#
+# #429 状態を送るとき、経過を送る時点でなく開始の瞬間で計り、途中参加の画面の経過が 0 になる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m443-*.patch
+# 復元: git apply -R scripts/mutations/m443-*.patch
+diff --git a/apps/tasuki-sync/src/application/agenda-broadcast.ts b/apps/tasuki-sync/src/application/agenda-broadcast.ts
+index 01a9b797..b55ec98c 100644
+--- a/apps/tasuki-sync/src/application/agenda-broadcast.ts
++++ b/apps/tasuki-sync/src/application/agenda-broadcast.ts
+@@ -29,7 +29,7 @@ export interface AgendaBroadcaster {
+ export function makeAgendaBroadcaster(deps: AgendaBroadcasterDeps): AgendaBroadcaster {
+   /** 送る時点の経過で写しを作る。`AgendaView.steps` は readonly、wire の型は可変なので配列だけ複製する。 */
+   const frameOf = (state: AgendaState): AgendaServerMsg => {
+-    const view = toView(state, deps.clock.now());
++    const view = toView(state, state.startedAt ?? deps.clock.now());
+     return { type: "agenda", state: { ...view, steps: [...view.steps] } };
+   };
+ 

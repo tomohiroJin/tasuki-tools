@@ -2828,4 +2828,20 @@ export const MUTATIONS = [
     tests: ["test/destroy-room.test.ts"],
     note: "#429 設計 §5.2。ルーム破棄で進行タイマーの状態を消さない。破棄したルームのコードを引き継いだ別のルームに、古い進行の状態が残る。",
   },
+  {
+    id: 440,
+    label: "延長しても自動で次へ進む期限を張り直さない",
+    patch: "m440-extend-does-not-rearm.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/agenda-handlers.test.ts"],
+    note: "#429 延長しても期限を張り直さない。延長した区切りが、元の期限で自動で次へ進んでしまう。",
+  },
+  {
+    id: 443,
+    label: "途中参加の画面へ届く経過が開始の瞬間で計られ 0 になる",
+    patch: "m443-elapsed-sent-as-zero-on-join.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/agenda-handlers.test.ts"],
+    note: "#429 状態を送るとき、経過を送る時点でなく開始の瞬間で計り、途中参加の画面の経過が 0 になる。",
+  },
 ];
