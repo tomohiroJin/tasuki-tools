@@ -112,7 +112,11 @@ export function makeAgendaHandlers(deps: AgendaHandlerDeps): AgendaHandlers {
       return;
     }
     const advanced = advanceIfDue(state, monotonicClock.now());
-    if (advanced === state) return;
+    if (advanced === state) {
+      // まだ期限前（延長・再開で動いた直後に古い予約が来た等）。予約を状態に合わせ直す。
+      rearm(roomCode, state);
+      return;
+    }
     commit(roomCode, advanced);
   }
 

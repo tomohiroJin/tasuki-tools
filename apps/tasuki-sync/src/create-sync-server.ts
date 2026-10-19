@@ -41,9 +41,10 @@ import { makeTopicBroadcaster } from "./application/topic-broadcast.js";
 import { makeTopicHandlers } from "./application/topic-handlers.js";
 import { TopicGenerator } from "./application/topic-generation.js";
 import { InMemoryTopicStore } from "./adapters/in-memory-topic-store.js";
-import { agendaErrorMessageFor } from "@tasuki/agenda-core";
 import { InMemoryRouletteStore } from "./adapters/in-memory-roulette-store.js";
 import { InMemoryAgendaStore } from "./adapters/in-memory-agenda-store.js";
+import { makeAgendaBroadcaster } from "./application/agenda-broadcast.js";
+import { makeAgendaHandlers } from "./application/agenda-handlers.js";
 import { makeAgendaDeadlines } from "./application/agenda-deadlines.js";
 import { createCryptoRandomSource } from "./adapters/crypto-random-source.js";
 import { makeRouletteBroadcaster } from "./application/roulette-broadcast.js";
@@ -414,6 +415,36 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     logger,
   });
 
+  /**
+   * 進行タイマー（`?tool=agenda`）のメッセージ層（#429）。
+   *
+   * **参加の守りはルーレットと同じく `join-room.ts` を通し、レート制限のゲートも `handlers.rateLimitGate`
+   * を渡す。新しく作らない**（別に作ると `connId → クライアント鍵` の対応が空になり、参加の総当たりが
+   * 張り直すだけで枠を回避できる）。時計は期限の予約と同じ単調時計を共有する。
+   */
+  const agendaBroadcaster = makeAgendaBroadcaster({
+    store,
+    agendas,
+    clock: monotonicClock,
+    send: (connIds, msg) => wsAdapter.broadcastAgenda(connIds, msg),
+  });
+  const agendaHandlers = makeAgendaHandlers({
+    store,
+    timerBroadcaster: broadcaster,
+    timers,
+    clock,
+    codeGen,
+    tokenStore: tokens,
+    rateLimitGate: handlers.rateLimitGate,
+    hub: hubBroadcaster,
+    agendas,
+    broadcaster: agendaBroadcaster,
+    send: (connId, msg) => wsAdapter.sendAgenda(connId, msg),
+    monotonicClock,
+    deadlines: agendaDeadlines,
+    logger,
+  });
+
   wsAdapter = new WsAdapter({
     port: config.port,
     host: config.host,
@@ -430,16 +461,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     hub: hubHandlers,
     topic: topicHandlers,
     roulette: rouletteHandlers,
-    // Task 2.4 で agenda-handlers に置き換える（Task 2.5）。それまでは何も処理せず INTERNAL_ERROR を返すだけの仮置き。
-    agenda: {
-      handleMessage: async (connId) => {
-        wsAdapter.sendAgenda(connId, {
-          type: "error",
-          code: "INTERNAL_ERROR",
-          message: agendaErrorMessageFor("INTERNAL_ERROR"),
-        });
-      },
-    },
+    agenda: agendaHandlers,
     // cmd は ws-adapter 側で CommandSchema（valibot）に通した検証済みの値で、型も Command のまま届く（#363）。
     // 表示名の正規化は受け口のアプリケーション側が掛ける（#368）。
     timer: createTimerCommandReceiver({
