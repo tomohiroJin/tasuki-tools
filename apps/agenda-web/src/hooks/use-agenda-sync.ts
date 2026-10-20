@@ -26,8 +26,14 @@
  *
  * `SyncConnection` は確立前の送信をキューに溜め、再接続時に**`onReconnected` より先に**流す。
  * 切断中に押された操作は入り直しより先に届いて `NOT_IN_ROOM` になるので、画面は押させない。
+ *
+ * ## 操作の失敗の表示を下ろすとき（最終レビュー M-1）
+ *
+ * `agenda` フレームは他の人の操作でも届く。届くたびに下ろすと、自分の失敗の文が読む前に消える。
+ * 下ろすのは **自分が次の操作を送ったあとの最初の `agenda` フレーム**（その操作が通った）と、
+ * **いまのステップが変わったフレーム**（失敗の前提が変わった）だけ。送った操作が失敗で返ったら待ちを解く。
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { DepartureReason, RosterRoom } from '@tasuki/room-core';
 import { buildSyncUrl, type ConnectionNoticeKind, type ConnectionStatus } from '@tasuki/sync-client';
 import { useToolRoomSync } from '@tasuki/web-kit/sync';
@@ -97,6 +103,10 @@ export function useAgendaSync(roomCode: string): AgendaSync {
   const [agendaSlot, setAgendaSlot] = useState<{ view: AgendaView; receivedAt: number } | null>(null);
   const [roster, setRoster] = useState<RosterRoom | null>(null);
   const [topic, setTopic] = useState<TopicState | null>(null);
+  /** 自分の操作を送ってから、その返事（フレームか失敗）をまだ受けていない */
+  const awaitingReplyRef = useRef(false);
+  /** 最後に受けたフレームのいまのステップ（変わったら失敗の表示を下ろす） */
+  const lastCurrentIdRef = useRef<string | null | undefined>(undefined);
 
   const room = useToolRoomSync({
     roomCode,
@@ -106,9 +116,11 @@ export function useAgendaSync(roomCode: string): AgendaSync {
     onFrame: (msg, handlers) => {
       switch (msg.type) {
         case 'agenda':
-          // 毎フレーム基準を取り直す。状態が変わったら、前の操作の失敗の表示は下ろす。
+          // 毎フレーム基準を取り直す。失敗の表示は、自分の次の操作が通ったときと、いまのステップが変わったときだけ下ろす
           setAgendaSlot({ view: msg.state, receivedAt: performance.now() });
-          handlers.clearError();
+          if (awaitingReplyRef.current || lastCurrentIdRef.current !== msg.state.currentId) handlers.clearError();
+          awaitingReplyRef.current = false;
+          lastCurrentIdRef.current = msg.state.currentId;
           return;
         case 'topic':
           setTopic(msg.state);
@@ -120,6 +132,7 @@ export function useAgendaSync(roomCode: string): AgendaSync {
           handlers.joined(msg);
           return;
         case 'error':
+          awaitingReplyRef.current = false;
           handlers.failed(msg.code, msg.message);
           return;
         default:
@@ -141,7 +154,10 @@ export function useAgendaSync(roomCode: string): AgendaSync {
   }, [joined, send]);
 
   const actions = useMemo(() => {
-    const sendCommand = (cmd: AgendaCommand): void => send(cmd as unknown as Record<string, unknown>);
+    const sendCommand = (cmd: AgendaCommand): void => {
+      awaitingReplyRef.current = true;
+      send(cmd as unknown as Record<string, unknown>);
+    };
     return {
       setScenario: (scenario: ScenarioInput) => sendCommand({ command: 'agenda.scenario.set', scenario: { title: scenario.title, steps: [...scenario.steps] } }),
       start: () => sendCommand({ command: 'agenda.start' }),

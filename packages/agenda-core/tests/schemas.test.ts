@@ -87,6 +87,16 @@ describe("フレーム", () => {
     expect(ok(AgendaFrameSchema, { type: "agenda", state: view })).toBe(true);
     expect(ok(AgendaFrameSchema, { type: "agenda", extra: 1, state: { ...view, future: 1, steps: [{ ...view.steps[0], more: 1 }] } })).toBe(true);
   });
+  it("知らない時間切れの振る舞い（新しいサーバーが足した値）でもフレームを捨てず、「押すまで待つ」として読む（最終レビュー M-2）", () => {
+    const r = v.safeParse(AgendaFrameSchema, { type: "agenda", state: { ...view, steps: [{ ...view.steps[0], onTimeout: "future" }] } });
+    expect(r.success).toBe(true);
+    expect(r.success && r.output.state.steps[0]?.onTimeout).toBe("wait");
+    const adv = v.safeParse(AgendaFrameSchema, { type: "agenda", state: { ...view, steps: [{ ...view.steps[0], onTimeout: "advance" }] } });
+    expect(adv.success && adv.output.state.steps[0]?.onTimeout).toBe("advance");
+  });
+  it("コマンドの時間切れの振る舞いは列挙のまま（知らない値は拒む）", () => {
+    expect(ok(AgendaCommandSchema, { command: "agenda.scenario.set", scenario: scenario({ steps: [step({ onTimeout: "future" })] }) })).toBe(false);
+  });
   it("不正な state は落ちる", () => {
     expect(ok(AgendaFrameSchema, { type: "agenda", state: { ...view, phase: "x" } })).toBe(false);
   });

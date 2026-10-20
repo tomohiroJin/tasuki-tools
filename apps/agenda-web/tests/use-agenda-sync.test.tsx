@@ -212,12 +212,41 @@ describe('進行タイマーの操作', () => {
  * @requirements #429 spec §5.6
  */
 describe('操作の失敗', () => {
-  it('Given 操作が失敗した / When 失敗が届く / Then サーバーの文を見せ、状態が変わったら下ろす', () => {
+  const IN_PROGRESS = { type: 'error', code: 'AGENDA_IN_PROGRESS', message: '進行中はシナリオを変えられません' };
+
+  it('Given 操作が失敗した / When 次の操作のあとのフレームが届く / Then サーバーの文を見せ、そのフレームで下ろす', () => {
     const { result } = joinedHook();
-    act(() => latestSocket().deliver({ type: 'error', code: 'AGENDA_IN_PROGRESS', message: '進行中はシナリオを変えられません' }));
+    act(() => latestSocket().deliver({ type: 'agenda', state: runningAgenda(1000) }));
+    act(() => latestSocket().deliver(IN_PROGRESS));
     expect(result.current.error).toBe('進行中はシナリオを変えられません');
-    act(() => latestSocket().deliver({ type: 'agenda', state: IDLE_AGENDA }));
+    act(() => result.current.pause());
+    act(() => latestSocket().deliver({ type: 'agenda', state: { ...runningAgenda(1000), phase: 'paused' } }));
     expect(result.current.error).toBeNull();
+  });
+
+  it('Given 操作が失敗した / When いまのステップが同じままの無関係なフレーム（他の人の延長など）が届く / Then 失敗の文は残す', () => {
+    const { result } = joinedHook();
+    act(() => latestSocket().deliver({ type: 'agenda', state: runningAgenda(1000) }));
+    act(() => latestSocket().deliver(IN_PROGRESS));
+    act(() => latestSocket().deliver({ type: 'agenda', state: runningAgenda(2000) }));
+    expect(result.current.error).toBe('進行中はシナリオを変えられません');
+  });
+
+  it('Given 操作が失敗した / When いまのステップが変わったフレームが届く / Then 下ろす', () => {
+    const { result } = joinedHook();
+    act(() => latestSocket().deliver({ type: 'agenda', state: runningAgenda(1000) }));
+    act(() => latestSocket().deliver(IN_PROGRESS));
+    act(() => latestSocket().deliver({ type: 'agenda', state: { ...runningAgenda(1000), currentId: 's-2' } }));
+    expect(result.current.error).toBeNull();
+  });
+
+  it('Given 操作を送った / When その操作が失敗し、続けて無関係なフレームが届く / Then 失敗の文は残す', () => {
+    const { result } = joinedHook();
+    act(() => latestSocket().deliver({ type: 'agenda', state: IDLE_AGENDA }));
+    act(() => result.current.start());
+    act(() => latestSocket().deliver(IN_PROGRESS));
+    act(() => latestSocket().deliver({ type: 'agenda', state: IDLE_AGENDA }));
+    expect(result.current.error).toBe('進行中はシナリオを変えられません');
   });
 });
 

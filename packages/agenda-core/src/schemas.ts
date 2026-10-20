@@ -80,12 +80,22 @@ export const AgendaCommandSchema = v.variant("command", [
 ]);
 export type AgendaCommand = v.InferOutput<typeof AgendaCommandSchema>;
 
+/**
+ * フレームの時間切れの振る舞いは**開いた文字列**で受ける（最終レビュー M-2・ADR 0027）。新しいサーバーが振る舞いを
+ * 足しても、古い web がフレームごと捨てて盤が止まらないように。知らない値は「押すまで待つ」として読む
+ * （画面が勝手に進めたり鳴らしたりしない側へ倒す）。コマンドとシナリオの入力は列挙のまま。
+ */
+const frameTimeoutBehavior = v.pipe(
+  v.string(),
+  v.transform((s): "wait" | "advance" => (s === "advance" ? "advance" : "wait")),
+);
+
 // 受けるフレームは**非 strict**（サーバーが項目を足しても古い web がフレームごと捨てない）。
 const stepViewSchema = v.object({
   id: v.string(),
   name: v.string(),
   durationSec: v.number(),
-  onTimeout: timeoutBehavior,
+  onTimeout: frameTimeoutBehavior,
   skipped: v.boolean(),
   extensionSec: v.number(),
   spentMs: v.nullable(v.number()),
