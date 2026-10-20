@@ -40,6 +40,18 @@ export const PAUSED_LABEL = '一時停止中';
 export const ON_PLAN_LABEL = '予定どおり';
 export const driftText = (sign: '+' | '−', minutes: number): string => `予定より ${sign}${minutes} 分`;
 export const projectedEndText = (clock: string): string => `${clock} に終了見込み`;
+/** 盤の下の一行の前半（次のステップの名前は利用者の入力） */
+export const nextStepText = (name: string): string => `次は ${name}`;
+export const FOOTER_SEPARATOR = ' ・ ';
+// 開始前の盤（中央の名前の段と押し巻きの段）
+export const stepCountText = (count: number): string => `今日の進行 ${count} ステップ`;
+export const NOT_STARTED_LABEL = '開始前';
+// 読み上げの要約（盤の SVG と中央の文字は aria-hidden。同じ情報を文にする）
+export const remainingSummary = (minutes: number): string => `残り ${minutes} 分`;
+export const overrunSummary = (minutes: number): string => `オーバー ${minutes} 分`;
+export const plannedSummary = (minutes: number): string => `予定 ${minutes} 分`;
+export const FINISHED_LABEL = '終了';
+export const SUMMARY_SEPARATOR = '、';
 
 // 組む画面
 export const ADD_STEP_BUTTON = 'ステップを追加';
