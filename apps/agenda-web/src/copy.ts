@@ -5,6 +5,7 @@
  * 文言（関数は仮の名前で呼んだ結果）だけを書体の常用の層（base）に当てて守っている。
  * 直書きした文言はその検査を素通りする。足す・変えるときは `outsideBase` で実測してから使う。
  */
+import { MAX_ITEMS, MAX_TOTAL_SEC, STEP_SEC_MAX, STEP_SEC_MIN } from '@tasuki/agenda-core';
 
 export const LOADING_TEXT = '読み込んでいます…';
 export const JOINING_HEADING = 'ルームに参加しています';
@@ -62,6 +63,37 @@ export const SAMPLE_TITLE = 'サンプル：KPT のふりかえり';
 export const SAVE_LOCAL_BUTTON = 'この端末に保存';
 export const LOAD_TO_ROOM_BUTTON = 'ルームに読み込む';
 export const SCENARIO_CHANGED_NOTE = 'シナリオが変わりました';
+export const BACK_TO_ROOM_SCENARIO_BUTTON = 'ルームのシナリオに戻す';
+export const SCENARIO_TITLE_LABEL = '会の名前';
+/** 行の部品の読み上げの名前（行の番号で区別する） */
+export const stepNameLabel = (n: number): string => `ステップ ${n} の名前`;
+export const stepMinutesLabel = (n: number): string => `ステップ ${n} の分`;
+export const stepMinusLabel = (n: number): string => `ステップ ${n} を 1 分へらす`;
+export const stepPlusLabel = (n: number): string => `ステップ ${n} を 1 分ふやす`;
+export const stepTimeoutLabel = (n: number): string => `ステップ ${n} の時間切れ`;
+export const stepMoveUpLabel = (n: number): string => `ステップ ${n} を上へ`;
+export const stepMoveDownLabel = (n: number): string => `ステップ ${n} を下へ`;
+export const stepRemoveLabel = (n: number): string => `ステップ ${n} を消す`;
+export const REMOVE_BUTTON = '消す';
+/** サンプルの札・保存済みの行の添え書き */
+export const scenarioDetail = (steps: number, minutes: number): string => `${steps} ステップ・${minutes} 分`;
+export const MAX_STEPS_NOTE = `ステップは ${MAX_ITEMS} までです`;
+// 「ルームに読み込む」を押せない理由（最初の 1 つだけ出す）
+export const NEED_STEP_TEXT = 'ステップを追加してください';
+export const TITLE_CONTROL_TEXT = '会の名前に改行やタブは使えません';
+export const stepNameBlankText = (n: number): string => `ステップ ${n} の名前が空です`;
+export const stepNameControlText = (n: number): string => `ステップ ${n} の名前に改行やタブは使えません`;
+export const stepMinutesRangeText = (n: number): string =>
+  `ステップ ${n} の分は ${STEP_SEC_MIN / 60}〜${STEP_SEC_MAX / 60} で入れてください`;
+export const totalTooLongText = (minutes: number): string => `合計は ${MAX_TOTAL_SEC / 60} 分までです（いま ${minutes} 分）`;
+// 端末への保存
+export const SAVED_HEADING = '保存済み';
+export const SAVE_NAME_LABEL = '保存する名前';
+export const SAVED_DONE = '保存しました';
+export const savedRemoveLabel = (name: string): string => `${name} を消す`;
+export const SAVE_FAILED_INVALID = '保存できません（名前とステップを見直してください）';
+export const SAVE_FAILED_UNREADABLE = '保存済みの一覧を読めないため、保存を止めました';
+export const SAVE_FAILED_WRITE = 'この端末に書き込めませんでした';
 
 // 確認
 export const RESET_CONFIRM_TEXT = '最初からやり直しますか';
@@ -80,6 +112,9 @@ export const INVITE_COPY_BUTTON = '招待リンクをコピー';
 export const INVITE_COPIED = 'コピーしました';
 export const INVITE_COPY_FAILED = 'コピーできません（URL を選択してください）';
 export const INVITE_URL_LABEL = '参加用 URL';
+
+/** 操作の失敗の一言を閉じる */
+export const CLOSE_BUTTON = '閉じる';
 
 /** 参加の失敗のうち、サーバーの文言を持たない（または空の）ときの既定。 */
 export const DEFAULT_ERROR_TEXT = '操作を完了できませんでした';
