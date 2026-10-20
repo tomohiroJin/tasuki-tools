@@ -2,7 +2,18 @@
  * 盤の文字（#429 spec §7.3・§7.6）。どの局面で何を出すかを、agenda-core の遷移で作った写しで見る。
  */
 import { describe, expect, it } from 'vitest';
-import { centerLines, driftTone, footerLine, stepRows, summaryText } from '../src/agenda-view';
+import {
+  centerLines,
+  driftShort,
+  driftTone,
+  extensionLine,
+  footerLine,
+  nextStepName,
+  projectedEndClock,
+  signedDuration,
+  stepRows,
+  summaryText,
+} from '../src/agenda-view';
 import { Driver, MIN, idleView } from './support/agenda-states';
 
 /** 2026-10-20 14:00 の手元の時計 */
@@ -131,5 +142,43 @@ describe('読み上げの要約', () => {
   it('開始前と終了', () => {
     expect(summaryText(idleView([5, 7]))).toBe('今日の進行 2 ステップ、予定 12 分、開始前');
     expect(summaryText(new Driver([5, 5]).next(6 * MIN).next(14 * MIN).view(20 * MIN))).toBe('終了、予定より +4 分');
+  });
+});
+
+/**
+ * @requirements #429 spec §7.2（延長の添え書き）・§7.5（映す表示の右の列）・§4.3（終了の一覧）
+ */
+describe('進める画面と映す表示の文字', () => {
+  it('いまのステップを延長したときだけ「予定 7 分 + 3 分」と添える', () => {
+    const d = new Driver([7, 5]);
+    expect(extensionLine(d.view(MIN))).toBe('');
+    expect(extensionLine(d.extend(3, MIN).view(2 * MIN))).toBe('予定 7 分 + 3 分');
+    // 次へ移ったら、前のステップの延長は添えない
+    expect(extensionLine(d.next(8 * MIN).view(9 * MIN))).toBe('');
+  });
+
+  it('映す表示の押し巻きは「+n 分」「−n 分」「予定どおり」', () => {
+    expect(driftShort(new Driver([5, 7]).view(MIN))).toBe('予定どおり');
+    expect(driftShort(new Driver([5, 7]).pause(MIN).view(4 * MIN))).toBe('+3 分');
+    expect(driftShort(new Driver([5, 7]).next(MIN).view(MIN))).toBe('−4 分');
+    expect(driftShort(idleView([5]))).toBe('');
+  });
+
+  it('次のステップの名前は飛ばしたものを除き、最後のステップでは空', () => {
+    const d = new Driver([1, 2, 3]).skip('s-2');
+    expect(nextStepName(d.view(0))).toBe('S3');
+    expect(nextStepName(d.next(MIN).view(MIN))).toBe('');
+  });
+
+  it('終了見込みの時刻は、いまの時刻に残りの見込みを足す', () => {
+    // 12 分の予定を 1 分進めた → 残りの見込みは 11 分
+    expect(projectedEndClock(new Driver([5, 7]).view(MIN), WALL)).toBe('14:11');
+  });
+
+  it('差は印を付けて m:ss（負は U+2212・0 は印なし・秒は四捨五入）', () => {
+    expect(signedDuration(30_000)).toBe('+0:30');
+    expect(signedDuration(-110_000)).toBe('−1:50');
+    expect(signedDuration(400)).toBe('0:00');
+    expect(signedDuration(-29_600)).toBe('−0:30');
   });
 });

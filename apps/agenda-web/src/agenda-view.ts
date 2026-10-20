@@ -11,7 +11,9 @@ import {
   OVERRUN_LABEL,
   PAUSED_LABEL,
   SUMMARY_SEPARATOR,
+  driftShortText,
   driftText,
+  extensionNote,
   nextStepText,
   overrunSummary,
   plannedSummary,
@@ -117,14 +119,52 @@ function nextStep(v: AgendaView): StepView | undefined {
   return v.steps.find((x, i) => i > idx && !x.skipped);
 }
 
+/** 次に始まるステップの名前（無ければ空。映す表示の右の列） */
+export function nextStepName(v: AgendaView): string {
+  return v.phase === 'finished' ? '' : (nextStep(v)?.name ?? '');
+}
+
+/** 終わる見込みの手元の時刻「15:02」。見込みは「開始した瞬間」からの相対なので、いまの時刻へ残りの見込みぶんを足す */
+export function projectedEndClock(v: AgendaView, wallNow: Date): string {
+  const restMs = projectedEndMs(v) - (v.phase === 'idle' ? 0 : v.runElapsedMs);
+  return wallClock(new Date(wallNow.getTime() + restMs));
+}
+
 /** 盤の下の一行: 「次は ◯◯ ・ 15:02 に終了見込み」。終了後は空 */
 export function footerLine(v: AgendaView, wallNow: Date): string {
   if (v.phase === 'finished') return '';
-  // 見込みは「開始した瞬間」からの相対。いまの手元の時刻へ、残りの見込みぶんを足す
-  const restMs = projectedEndMs(v) - (v.phase === 'idle' ? 0 : v.runElapsedMs);
-  const end = projectedEndText(wallClock(new Date(wallNow.getTime() + restMs)));
+  const end = projectedEndText(projectedEndClock(v, wallNow));
   const following = nextStep(v);
   return following === undefined ? end : `${nextStepText(following.name)}${FOOTER_SEPARATOR}${end}`;
+}
+
+/** いまのステップを延長しているときの添え書き「予定 7 分 + 3 分」（spec §7.2）。延長が無ければ空 */
+export function extensionLine(v: AgendaView): string {
+  if (!isActive(v)) return '';
+  const cur = currentStep(v);
+  if (cur === undefined || cur.extensionSec === 0) return '';
+  return extensionNote(cur.durationSec / 60, cur.extensionSec / 60);
+}
+
+/** 映す表示の大きな押し巻き（「+3 分」「−2 分」「予定どおり」）。開始前は空 */
+export function driftShort(v: AgendaView): string {
+  if (v.phase === 'idle') return '';
+  const m = driftMinutes(v);
+  if (m === 0) return ON_PLAN_LABEL;
+  return m > 0 ? driftShortText('+', m) : driftShortText('−', -m);
+}
+
+/** 終了の一覧の長さ「m:ss」（秒は切り捨て。盤のかかった時間と同じ） */
+export const durationClock = (ms: number): string => elapsedClock(Math.max(ms, 0));
+
+/**
+ * 終了の一覧の差「+0:30」「−1:50」（負の印は U+2212）。秒は絶対値で四捨五入し、0 は印を付けない。
+ * 合計の行と各行の差は同じ規則で書く（合計の押し巻きは `summaryOf(v).driftMs`）。
+ */
+export function signedDuration(ms: number): string {
+  const sec = Math.round(Math.abs(ms) / SEC);
+  if (sec === 0) return clockOf(0);
+  return `${ms > 0 ? '+' : '−'}${clockOf(sec)}`;
 }
 
 function statusOf(v: AgendaView, x: StepView): StepStatus {

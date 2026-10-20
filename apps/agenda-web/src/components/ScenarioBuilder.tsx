@@ -16,6 +16,7 @@ import {
   scenarioDetail,
 } from '../copy';
 import { usePrefersReducedMotion } from '../hooks/use-reduced-motion';
+import { useWallClock } from '../hooks/use-wall-clock';
 import { SAMPLE_SCENARIOS } from '../sample-scenarios';
 import {
   addStep,
@@ -38,18 +39,6 @@ import {
 import { Dial } from './Dial';
 import { SavedScenarioList } from './SavedScenarioList';
 import { StepEditorRow, type RowFocusTarget } from './StepEditorRow';
-
-/** 終了見込みの時刻は分までしか出さないので、手元の時計は粗く進めれば足りる */
-const WALL_TICK_MS = 10_000;
-
-function useWallClock(): Date {
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), WALL_TICK_MS);
-    return () => clearInterval(timer);
-  }, []);
-  return now;
-}
 
 interface DraftState {
   readonly draft: Draft;

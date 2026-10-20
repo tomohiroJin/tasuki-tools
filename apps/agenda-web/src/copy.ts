@@ -103,10 +103,46 @@ export const SAVE_FAILED_WRITE = 'この端末に書き込めませんでした'
 
 // 確認
 export const RESET_CONFIRM_TEXT = '最初からやり直しますか';
+export const RESET_CONFIRM_YES = 'やり直す';
+export const RESET_CONFIRM_NO = 'やめる';
+
+// 進める画面
+export const STEP_LIST_HEADING = '進行表';
+export const DONE_MARK = '済';
+export const NOW_MARK = 'いま';
+/** 進行表の行の分（延長があれば「7 分 + 3」と添える） */
+export const minutesText = (minutes: number): string => `${minutes} 分`;
+export const extensionSuffix = (minutes: number): string => ` + ${minutes}`;
+/** 盤の下の添え書き（spec §7.2「予定 7 分 + 3 分」） */
+export const extensionNote = (planned: number, extension: number): string => `予定 ${planned} 分 + ${extension} 分`;
+export const skipStepLabel = (n: number): string => `ステップ ${n} をスキップ`;
+export const unskipStepLabel = (n: number): string => `ステップ ${n} を戻す`;
+
+// 映す表示（spec §7.5）
+export const PROJECT_BUTTON = '映す表示';
+export const PROJECT_EXIT_BUTTON = '手元の表示に戻る';
+export const PROJECT_KEYS_HINT = 'Space で一時停止・→ で次へ・Esc で戻る';
+export const DRIFT_LABEL = '予定より';
+export const NEXT_STEP_LABEL = '次';
+export const PROJECTED_END_LABEL = '終了見込み';
+/** 映す表示の右の列の押し巻き（見出し「予定より」の下に大きく） */
+export const driftShortText = (sign: '+' | '−', minutes: number): string => `${sign}${minutes} 分`;
+
+// 読み上げ（aria-live。spec §7.7 の 4 種と終了だけ）
+export const announceStep = (name: string): string => `いまのステップは ${name}`;
+export const TIMEOUT_ANNOUNCE = '時間切れです';
+export const PAUSED_ANNOUNCE = '一時停止しました';
+export const RESUMED_ANNOUNCE = '再開しました';
+export const FINISHED_ANNOUNCE = '終了しました';
 
 // 終了
 export const SPENT_LABEL = 'かかった時間';
 export const PLANNED_LABEL = '予定';
+export const SUMMARY_STEP_LABEL = 'ステップ';
+/** 延長の列（「延長」の字は base 層の外） */
+export const SUMMARY_EXTENSION_LABEL = '追加';
+export const extensionCell = (minutes: number): string => `+${minutes} 分`;
+export const SUMMARY_TOTAL_LABEL = '合計';
 
 // 音
 export const SOUND_ON = '音あり';
