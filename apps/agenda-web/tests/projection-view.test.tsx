@@ -6,8 +6,8 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { saveResumeIdentity } from '@tasuki/sync-client';
 import { App } from '../src/App';
-import { EXTEND_LABEL, NEXT_BUTTON, NEXT_STEP_LABEL, PROJECTED_END_LABEL, PROJECT_BUTTON, PROJECT_EXIT_BUTTON, STEP_LIST_HEADING } from '../src/copy';
-import { RESUME, ScriptedWebSocket, latestSocket, runningAgenda } from './support/scripted-web-socket';
+import { BACK_LINK, EXTEND_LABEL, NEXT_BUTTON, NEXT_STEP_LABEL, PROJECTED_END_LABEL, PROJECT_BUTTON, PROJECT_EXIT_BUTTON, STEP_LIST_HEADING } from '../src/copy';
+import { IDLE_AGENDA, RESUME, ScriptedWebSocket, latestSocket, runningAgenda } from './support/scripted-web-socket';
 
 vi.mock('../src/router', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../src/router')>()),
@@ -143,5 +143,23 @@ describe('映す表示', () => {
     press(' ', { [mod]: true });
     expect(sentCommands('agenda.next')).toHaveLength(0);
     expect(sentCommands('agenda.pause')).toHaveLength(0);
+  });
+
+  it('Given 映す表示 / When 裏の画面を見る / Then 見出しと「選択画面へ戻る」を描かず、押せるのは映す表示の中の部品だけ。Esc で戻ると両方が戻り、フォーカスは「映す表示」へ', () => {
+    projecting();
+    expect(screen.queryByRole('link', { name: BACK_LINK })).toBeNull();
+    const projection = document.querySelector('.projection')!;
+    const focusable = [...document.querySelectorAll<HTMLElement>('a[href], button, input, select, textarea, [tabindex]')];
+    expect(focusable.filter((el) => !projection.contains(el))).toEqual([]);
+    press('Escape');
+    expect(screen.getByRole('link', { name: BACK_LINK })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: PROJECT_BUTTON })).toHaveFocus();
+  });
+
+  it('Given 映す表示 / When 誰かが「最初から」で開始前に戻す / Then 映す表示を抜けて組む画面を出す', () => {
+    projecting();
+    deliverAgenda({ ...IDLE_AGENDA, title: 'Retro', steps: runningAgenda().steps });
+    expect(document.querySelector('.projection')).toBeNull();
+    expect(screen.getByRole('link', { name: BACK_LINK })).toBeInTheDocument();
   });
 });

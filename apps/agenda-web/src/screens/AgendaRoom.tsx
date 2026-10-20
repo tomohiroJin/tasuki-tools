@@ -7,7 +7,7 @@
  * ここで名前は聞かない（名乗りは玄関に 1 つだけ・`docs/adr/0018`）。端末に同一性が無い・合言葉を求められたら
  * 玄関のそのルームへ送り返す（コードは落とさない）。
  */
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import type { AgendaView } from '@tasuki/agenda-core';
 import { summaryText } from '../agenda-view';
 import { LoadingView } from '../components/LoadingView';
@@ -25,6 +25,14 @@ import { hubPathFor, redirectTo } from '../router';
 
 export function AgendaRoom({ roomCode }: { roomCode: string }) {
   const sync = useAgendaSync(roomCode);
+  // 映す表示か。**ここで持つ**: 映している間は見出し・戻るリンク・失敗の一言を描かない（全画面の重ねの裏に
+  // 押せる部品を残すと、Tab で見えない部品に届く）。開始前に戻ったら（誰かが「最初から」を押した）抜ける
+  const [projectingWanted, setProjecting] = useState(false);
+  const phase = sync.agenda?.phase ?? null;
+  const projecting = projectingWanted && phase !== null && phase !== 'idle';
+  useEffect(() => {
+    if (phase === 'idle') setProjecting(false);
+  }, [phase]);
 
   // 玄関へ送る。**判定は同期フック、適用はここ 1 箇所**。
   useEffect(() => {
@@ -72,13 +80,15 @@ export function AgendaRoom({ roomCode }: { roomCode: string }) {
 
   return (
     <main className="ui-page ui-page--wide">
-      <header className="ui-page-header">
-        <h1>{PAGE_HEADING}</h1>
-        <a className="ui-page-header-back ui-button ui-button--quiet" href={hubPathFor(roomCode)}>
-          {BACK_LINK}
-        </a>
-      </header>
-      {sync.error && (
+      {!projecting && (
+        <header className="ui-page-header">
+          <h1>{PAGE_HEADING}</h1>
+          <a className="ui-page-header-back ui-button ui-button--quiet" href={hubPathFor(roomCode)}>
+            {BACK_LINK}
+          </a>
+        </header>
+      )}
+      {!projecting && sync.error && (
         <p className="agenda-error ui-note ui-note--error" role="alert">
           {sync.error}
           <button type="button" className="ui-button ui-button--quiet ui-button--sm" onClick={sync.clearError}>
@@ -86,7 +96,7 @@ export function AgendaRoom({ roomCode }: { roomCode: string }) {
           </button>
         </p>
       )}
-      {view !== null && <PhaseView view={view} sync={sync} />}
+      {view !== null && <PhaseView view={view} sync={sync} projecting={projecting} onProjectingChange={setProjecting} />}
     </main>
   );
 }
@@ -95,7 +105,17 @@ export function AgendaRoom({ roomCode }: { roomCode: string }) {
  * 段階ごとの中身。開始前は組む画面、それ以外は進める画面。
  * 読み上げの領域は段階に関わらず常に置き、文だけを差し替える（入れた瞬間の領域は読み上げられないことがある）。
  */
-function PhaseView({ view, sync }: { view: AgendaView; sync: AgendaSync }) {
+function PhaseView({
+  view,
+  sync,
+  projecting,
+  onProjectingChange,
+}: {
+  view: AgendaView;
+  sync: AgendaSync;
+  projecting: boolean;
+  onProjectingChange: (projecting: boolean) => void;
+}) {
   const reducedMotion = usePrefersReducedMotion();
   const live = useLocalClock(view, sync.receivedAt, reducedMotion) ?? view;
   const wallNow = useWallClock();
@@ -114,6 +134,8 @@ function PhaseView({ view, sync }: { view: AgendaView; sync: AgendaSync }) {
           canOperate={sync.joined}
           actions={sync}
           onSpeakSummary={() => announce(summaryText(live))}
+          projecting={projecting}
+          onProjectingChange={onProjectingChange}
           soundToggle={<SoundToggle soundOn={soundOn} onToggle={toggleSound} />}
         />
       )}

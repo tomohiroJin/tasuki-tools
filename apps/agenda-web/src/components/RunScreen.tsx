@@ -39,10 +39,12 @@ interface Props {
   soundToggle: ReactNode;
   /** 盤の要約を読み上げの領域へ流す（spec §7.7「要約をいつでも聞ける」） */
   onSpeakSummary: () => void;
+  /** 映す表示か（ルームの画面が持つ。映している間は見出しなど裏の部品も描かないため） */
+  projecting: boolean;
+  onProjectingChange: (projecting: boolean) => void;
 }
 
-export function RunScreen({ view, wallNow, reducedMotion, striking, canOperate, actions, soundToggle, onSpeakSummary }: Props) {
-  const [projecting, setProjecting] = useState(false);
+export function RunScreen({ view, wallNow, reducedMotion, striking, canOperate, actions, soundToggle, onSpeakSummary, projecting, onProjectingChange: setProjecting }: Props) {
   const [returnFocus, setReturnFocus] = useState(false);
   const projectRef = useRef<HTMLButtonElement>(null);
   const summaryHeadingId = useId();
