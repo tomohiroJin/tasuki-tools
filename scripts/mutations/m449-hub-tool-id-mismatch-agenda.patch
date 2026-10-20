@@ -14,7 +14,7 @@
 # 「agenda にいます」と生の綴りが出る。型の綴りも合わせて変えてあるので型検査は通る
 # （綴りのずれを型は拾えない）。
 diff --git a/apps/landing/src/tools.ts b/apps/landing/src/tools.ts
-index be5763f1..1ddbad8f 100644
+index e039f641..9953f8ba 100644
 --- a/apps/landing/src/tools.ts
 +++ b/apps/landing/src/tools.ts
 @@ -12,7 +12,7 @@ export interface Tool {
@@ -32,6 +32,6 @@ index be5763f1..1ddbad8f 100644
    {
 -    id: "agenda",
 +    id: "clock",
-     pip: "進行",
+     pip: "予定",
      name: "Agenda Timer",
      summary: "ステップを順に計って進める",
