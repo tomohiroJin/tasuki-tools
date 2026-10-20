@@ -489,6 +489,9 @@ importers:
 
   e2e:
     dependencies:
+      '@tasuki/agenda-web':
+        specifier: workspace:*
+        version: link:../apps/agenda-web
       '@tasuki/landing':
         specifier: workspace:*
         version: link:../apps/landing

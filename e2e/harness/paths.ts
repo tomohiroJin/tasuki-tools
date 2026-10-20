@@ -38,6 +38,8 @@ export const WEB_ROOTS: readonly WebRoot[] = [
   { link: '/var/www/tasuki-topic', dist: path.join(REPO_ROOT, 'apps/topic-web/dist') },
   // #94 PR 2
   { link: '/var/www/tasuki-roulette', dist: path.join(REPO_ROOT, 'apps/roulette-web/dist') },
+  // #429
+  { link: '/var/www/tasuki-agenda', dist: path.join(REPO_ROOT, 'apps/agenda-web/dist') },
 ];
 
 /** 経路の本体。**内容を 1 バイトも書き換えずに**設置する。 */
@@ -51,6 +53,8 @@ export const FRAGMENT_SOURCES: readonly string[] = [
   'deploy/topic/caddy/40-topic.conf',
   // #94 PR 2
   'deploy/roulette/caddy/50-roulette.conf',
+  // #429
+  'deploy/agenda/caddy/60-agenda.conf',
   'deploy/landing/caddy/90-landing.conf',
 ].map((rel) => path.join(REPO_ROOT, rel));
 
