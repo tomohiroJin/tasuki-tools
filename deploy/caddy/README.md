@@ -80,11 +80,11 @@ scp deploy/timer/caddy/*.conf                   "$TASUKI_SSH_HOST:/tmp/"
 scp deploy/poker/caddy/20-poker.conf            "$TASUKI_SSH_HOST:/tmp/"
 scp deploy/landing/caddy/90-landing.conf        "$TASUKI_SSH_HOST:/tmp/"
 scp deploy/topic/caddy/40-topic.conf            "$TASUKI_SSH_HOST:/tmp/"
+# ↑ /topic/ の断片（#91）。置き忘れると /topic/ は包括フォールバック＝玄関に吸われる
 scp deploy/roulette/caddy/50-roulette.conf      "$TASUKI_SSH_HOST:/tmp/"
 # ↑ /roulette/ の断片（#94）。置き忘れると /roulette/ は包括フォールバック＝玄関に吸われる
 scp deploy/agenda/caddy/60-agenda.conf          "$TASUKI_SSH_HOST:/tmp/"
 # ↑ /agenda/ の断片（#429）。置き忘れると /agenda/ は包括フォールバック＝玄関に吸われる
-# ↑ /topic/ の断片（#91）。置き忘れると /topic/ は包括フォールバック＝玄関に吸われる
 
 # 2) 設置 その 1 — **配信物より先に入れてよい断片だけ**（VPS で・root）
 # #95 S5c で 10-timer-ws.conf を撤去した。WS の入口は 05-hub-ws.conf（/ws）の 1 本だけ
@@ -175,7 +175,7 @@ HOST=https://<公開ドメイン>
 curl -sI "$HOST/"                                        # 200・x-robots-tag: noindex, nofollow・HSTS
 curl -s "$HOST/" | grep -o '<title>[^<]*</title>'        # LP の題名が出る
 
-# 4 系統が並存すること（/topic/ は #91 の配布から）
+# 各系統が並存すること（/topic/ は #91 の配布から）
 for p in / /timer/ /poker/ /topic/ /roulette/ /agenda/; do
   curl -s -o /dev/null -w "$p → %{http_code}\n" "$HOST$p"
 done

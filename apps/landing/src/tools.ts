@@ -60,7 +60,7 @@ export const TOOLS: readonly Tool[] = [
   },
   {
     id: "agenda",
-    pip: "進行",
+    pip: "予定",
     name: "Agenda Timer",
     summary: "ステップを順に計って進める",
     href: "/agenda/",

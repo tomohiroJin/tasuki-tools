@@ -48,3 +48,16 @@ describe.each(TOOLS.map((tool) => [tool.id, tool.href] as const))('%s の公開�
     expect(fragments).toContain(`handle_path ${href}*`);
   });
 });
+
+/**
+ * @requirements #429（札の左上の一語は札ごとに違う。同じ語が 2 枚あると見分けにくい）
+ */
+describe('札の pip', () => {
+  it('Given tools.ts の札 / When pip を集める / Then 重複がなく、進行タイマーは「予定」', () => {
+    // Given / When
+    const pips = TOOLS.map((tool) => tool.pip);
+    // Then
+    expect(new Set(pips).size).toBe(pips.length);
+    expect(TOOLS.find((tool) => tool.id === 'agenda')?.pip).toBe('予定');
+  });
+});
