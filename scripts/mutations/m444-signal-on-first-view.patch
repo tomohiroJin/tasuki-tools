@@ -10,15 +10,14 @@
 #       git apply scripts/mutations/m444-*.patch
 # 復元: git apply -R scripts/mutations/m444-*.patch
 diff --git a/apps/agenda-web/src/timeout-signal.ts b/apps/agenda-web/src/timeout-signal.ts
-index c3e9a548..4065465b 100644
 --- a/apps/agenda-web/src/timeout-signal.ts
 +++ b/apps/agenda-web/src/timeout-signal.ts
-@@ -11,7 +11,7 @@ import { remainingMs, type AgendaView } from '@tasuki/agenda-core';
- const isActive = (v: AgendaView): boolean => v.phase === 'running' || v.phase === 'paused';
+@@ -34,7 +34,7 @@
+ }
  
  export function crossedZero(prev: AgendaView | null, next: AgendaView): boolean {
 -  if (prev === null) return false;
 +  if (prev === null) return isActive(next) && remainingMs(next) <= 0;
+   if (autoAdvancedOnTimeout(prev, next)) return true;
    if (!isActive(prev) || !isActive(next) || prev.currentId !== next.currentId) return false;
    return remainingMs(prev) > 0 && remainingMs(next) <= 0;
- }

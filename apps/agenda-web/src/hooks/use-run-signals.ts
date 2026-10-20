@@ -41,6 +41,8 @@ const lateness = (tone: DriftTone): 'late' | 'not-late' => (tone === 'late' ? 'l
 export function announcementFor(prev: AgendaView, next: AgendaView, struck: boolean): string | null {
   const parts: string[] = [];
   if (prev.phase !== 'finished' && next.phase === 'finished') {
+    // 最後の「自動で次へ」が時間切れで終わったときは、時間切れを先に言う（最終レビュー I-1）
+    if (struck) parts.push(TIMEOUT_ANNOUNCE);
     parts.push(FINISHED_ANNOUNCE);
   } else if (isActive(next)) {
     const stepChanged = prev.currentId !== next.currentId || !isActive(prev);

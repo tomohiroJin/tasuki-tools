@@ -4,6 +4,7 @@
  */
 import {
   INITIAL_AGENDA_STATE,
+  advanceIfDue,
   extend,
   next,
   pause,
@@ -15,6 +16,7 @@ import {
   type AgendaState,
   type AgendaView,
   type StepInput,
+  type TimeoutBehavior,
 } from '@tasuki/agenda-core';
 
 export const MIN = 60_000;
@@ -25,9 +27,9 @@ function unwrap(r: { isOk(): boolean; _unsafeUnwrap(): AgendaState }): AgendaSta
   return r._unsafeUnwrap();
 }
 
-/** 名前と分の並びから、開始前の状態を作る（すべて「押すまで待つ」） */
-export function idleState(minutes: readonly number[], title = 'Retro'): AgendaState {
-  const steps: StepInput[] = minutes.map((m, i) => ({ name: `S${i + 1}`, durationSec: m * 60, onTimeout: 'wait' }));
+/** 名前と分の並びから、開始前の状態を作る（既定はすべて「押すまで待つ」） */
+export function idleState(minutes: readonly number[], title = 'Retro', onTimeout: TimeoutBehavior = 'wait'): AgendaState {
+  const steps: StepInput[] = minutes.map((m, i) => ({ name: `S${i + 1}`, durationSec: m * 60, onTimeout }));
   return unwrap(replaceScenario(INITIAL_AGENDA_STATE, { title, steps }));
 }
 
@@ -38,8 +40,8 @@ export function idleState(minutes: readonly number[], title = 'Retro'): AgendaSt
 export class Driver {
   s: AgendaState;
   private readonly t0 = 1_000_000;
-  constructor(minutes: readonly number[], title?: string) {
-    this.s = unwrap(start(idleState(minutes, title), this.t0));
+  constructor(minutes: readonly number[], title?: string, onTimeout: TimeoutBehavior = 'wait') {
+    this.s = unwrap(start(idleState(minutes, title, onTimeout), this.t0));
   }
   private now(at: number): number {
     return this.t0 + at;
@@ -58,6 +60,11 @@ export class Driver {
   }
   extend(minutes: number, at = 0): this {
     this.s = unwrap(extend(this.s, { stepId: this.s.currentId ?? '', minutes, now: this.now(at) }));
+    return this;
+  }
+  /** サーバーの期限の発火（「自動で次へ」の区切りを期限ちょうどで進める） */
+  tick(at: number): this {
+    this.s = advanceIfDue(this.s, this.now(at));
     return this;
   }
   skip(stepId: string, skipped = true): this {

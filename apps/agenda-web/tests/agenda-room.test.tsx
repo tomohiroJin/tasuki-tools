@@ -11,6 +11,7 @@ import { saveResumeIdentity } from '@tasuki/sync-client';
 import { App } from '../src/App';
 import {
   EXTEND_LABEL,
+  FINISHED_ANNOUNCE,
   NEXT_BUTTON,
   PAUSE_BUTTON,
   RESET_BUTTON,
@@ -22,6 +23,7 @@ import {
   SOUND_ON,
   SPEAK_SUMMARY_BUTTON,
   STEP_LIST_HEADING,
+  TIMEOUT_ANNOUNCE,
   extendButton,
   extensionNote,
   skipStepLabel,
@@ -29,7 +31,7 @@ import {
 } from '../src/copy';
 import { playStrike, unlockAudio } from '../src/platform/sound';
 import { SOUND_SETTING_KEY } from '../src/hooks/use-sound-setting';
-import { Driver } from './support/agenda-states';
+import { Driver, MIN } from './support/agenda-states';
 import { RESUME, ScriptedWebSocket, latestSocket, runningAgenda } from './support/scripted-web-socket';
 
 vi.mock('../src/router', async (importOriginal) => ({
@@ -242,6 +244,48 @@ describe('時間切れの合図と音', () => {
     expect(document.querySelector('.dial--striking')).not.toBeNull();
     act(() => vi.advanceTimersByTime(600));
     expect(document.querySelector('.dial--striking')).toBeNull();
+  });
+});
+
+/**
+ * 「自動で次へ」の時間切れ（最終レビュー I-1）。手元の時計は止めてあるので、盤は届いたフレームの値そのもの。
+ * 残り +30ms の盤のあとに、サーバーが期限ちょうどで次へ（終了へ）移したフレームが届く局面を作る。
+ *
+ * @requirements #429 spec §4.4・§4.7・§7.7
+ */
+describe('自動で次へ移ったときの合図', () => {
+  const live = (): string => document.querySelector<HTMLElement>('[aria-live="polite"].agenda-live')?.textContent ?? '';
+
+  it('Given 音あり・自動で次へのステップが残り +30ms / When 次のステップへ移ったフレームを受ける / Then 鳴らし、光らせ、時間切れを読み上げる', () => {
+    localStorage.setItem(SOUND_SETTING_KEY, 'on');
+    const d = new Driver([1, 2], undefined, 'advance');
+    joinedRoom(d.view(1 * MIN - 30));
+    d.tick(1 * MIN + 20);
+    deliverAgenda(d.view(1 * MIN + 20));
+    expect(playStrike).toHaveBeenCalledTimes(1);
+    expect(document.querySelector('.dial--striking')).not.toBeNull();
+    expect(live()).toContain(TIMEOUT_ANNOUNCE);
+  });
+
+  it('Given 音あり・最後のステップが自動で次へ・残り +30ms / When 終了へ移ったフレームを受ける / Then 鳴らし、時間切れと終了を読み上げる', () => {
+    localStorage.setItem(SOUND_SETTING_KEY, 'on');
+    const d = new Driver([1], undefined, 'advance');
+    joinedRoom(d.view(1 * MIN - 30));
+    d.tick(1 * MIN + 20);
+    deliverAgenda(d.view(1 * MIN + 20));
+    expect(playStrike).toHaveBeenCalledTimes(1);
+    expect(live()).toContain(TIMEOUT_ANNOUNCE);
+    expect(live()).toContain(FINISHED_ANNOUNCE);
+  });
+
+  it('Given 音あり・自動で次へのステップ / When 持ち時間の前に次へ移ったフレームを受ける / Then 鳴らさない', () => {
+    localStorage.setItem(SOUND_SETTING_KEY, 'on');
+    const d = new Driver([1, 2], undefined, 'advance');
+    joinedRoom(d.view(30_000));
+    d.next(31_000);
+    deliverAgenda(d.view(31_000));
+    expect(playStrike).not.toHaveBeenCalled();
+    expect(live()).not.toContain(TIMEOUT_ANNOUNCE);
   });
 });
 
