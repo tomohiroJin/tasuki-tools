@@ -2,6 +2,7 @@
 #
 # 検出を期待するテスト:
 #   - apps/agenda-web/tests/timeout-signal.test.ts
+#   - apps/agenda-web/tests/agenda-room.test.tsx（進める画面が最初の盤・入り直しの最初のフレームで鳴らないこと）
 #
 # #429 最初の描画・再接続・途中参加の画面が、過去に過ぎた 0 に対して合図を出す。
 #

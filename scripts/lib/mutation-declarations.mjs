@@ -2881,7 +2881,7 @@ export const MUTATIONS = [
     label: "最初の描画で残りが 0 以下なら時打ちの合図を出す",
     patch: "m444-signal-on-first-view.patch",
     pkg: "apps/agenda-web",
-    tests: ["tests/timeout-signal.test.ts"],
+    tests: ["tests/timeout-signal.test.ts", "tests/agenda-room.test.tsx"],
     note: "#429 途中参加・再接続の画面が、過去に過ぎた 0 に対して鳴る。prev が null の 1 回を見る。",
   },
   {

@@ -80,12 +80,13 @@ export function useRunSignals(
     staleFrameRef.current = null;
     const prev = prevRef.current;
     prevRef.current = view;
-    if (prev === null) return;
+    // 最初の盤（prev が null）でも判定は `crossedZero` に任せる（過去の 0 に鳴らさない規則の正本はあちら。m444）
     const struck = crossedZero(prev, view);
     if (struck) {
       if (settings.current.soundOn) playStrike();
       if (!settings.current.reducedMotion) setStriking(true);
     }
+    if (prev === null) return;
     const said = announcementFor(prev, view, struck);
     if (said !== null) setAnnouncement(said);
   }, [view, frame, joined]);
