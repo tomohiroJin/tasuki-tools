@@ -9,6 +9,7 @@
  * 時間切れ（サンプルの最短は 1 分）は待たない。実時間の待ちは `apps/tasuki-sync` の偽の時計の検査が持つ。
  */
 import { expect, test } from '../fixtures/test';
+import { parseFrames, watchSentFrames, type FrameLog } from '../support/ws-frames';
 import { dialDrift, dialName, joinAgendaTool, loadSampleAndStart, openAgendaTool, parseDriftMinutes } from '../support/agenda';
 
 const NAME_A = 'e2e-agenda-a';
@@ -32,6 +33,17 @@ async function settleFrames(...pages: import('@playwright/test').Page[]): Promis
   }
 }
 
+/** 送信フレームのうち、`from` 番目以降の `agenda.next` が載せたステップ ID（送った順）。 */
+function nextIdsSince(log: FrameLog, from: number): string[] {
+  return parseFrames(log.payloads.slice(from)).flatMap((f) => {
+    const o = f as { command?: unknown; stepId?: unknown };
+    return o.command === 'agenda.next' && typeof o.stepId === 'string' ? [o.stepId] : [];
+  });
+}
+
+/** 盤の名前を、サンプルの進む順（予備はスキップ後に使わない）の添字で引く */
+const ORDER = ['K を出す', 'P を出す', '投票', 'Try の議論'] as const;
+
 /**
  * @requirements #429
  */
@@ -42,9 +54,11 @@ test.describe('@core 進行タイマーは全員の画面で同じステップ�
     consoleWatcher,
   }) => {
     // Given: A がルームを作って進行タイマーを開き、サンプルを読み込んで開始する。B は別の文脈で招待 URL から入る
+    const sentA = watchSentFrames(page);
     const inviteUrl = await openAgendaTool(page, NAME_A);
     await loadSampleAndStart(page);
     const peer = await openPeer('agenda-b');
+    const sentB = watchSentFrames(peer.page);
     await joinAgendaTool(peer.page, inviteUrl, NAME_B);
     const b = peer.page;
 
@@ -57,15 +71,20 @@ test.describe('@core 進行タイマーは全員の画面で同じステップ�
     await expect(dialName(b)).toHaveText('P を出す');
     await expect(dialName(page)).toHaveText('P を出す');
 
-    // When / Then その3: ほぼ同時に「次へ」を押しても、押した時点のステップ ID が古い方は捨てられ、両方「投票」で止まる
-    //   （「Try の議論」まで飛ぶのは、2 回目の押下が新しいステップに効いたとき）
-    await Promise.all([
-      page.getByRole('button', { name: '次へ', exact: true }).click(),
-      b.getByRole('button', { name: '次へ', exact: true }).click(),
-    ]);
+    // When / Then その3: 同じ画面の 2 連打（同じ回の中で 2 回押す）。2 回とも**同じステップ ID** を載せるので、
+    //   サーバーは 2 回目を捨て、両方の画面は「投票」で止まる（「Try の議論」へ飛ばない）。
+    //   2 つの page の click は同時に届かず、片方の更新が先に届けば相手の押下は新しいステップに効く（正しい動き）。
+    //   重複を確実に起こすため、**1 つの page** の中で同じタスクのうちに 2 回押す
+    const markA = sentA.payloads.length;
+    await page.getByRole('button', { name: '次へ', exact: true }).evaluate((el) => {
+      (el as HTMLButtonElement).click();
+      (el as HTMLButtonElement).click();
+    });
     await expect(dialName(page)).toHaveText('投票');
     await expect(dialName(b)).toHaveText('投票');
-    //   数フレーム進めたあとも、どちらも「Try の議論」へ飛んでいない
+    const doubled = nextIdsSince(sentA, markA);
+    expect(doubled.length, '2 連打で 2 回送っている').toBe(2);
+    expect(new Set(doubled).size, '2 回とも同じステップ ID').toBe(1);
     await settleFrames(page, b);
     await expect(dialName(page)).toHaveText('投票');
     await expect(dialName(b)).toHaveText('投票');
@@ -90,6 +109,31 @@ test.describe('@core 進行タイマーは全員の画面で同じステップ�
     await expect(spareOnB.locator('.step-list-mark--skipped')).toHaveText('スキップ');
     await expect(spareOnB.getByRole('button', { name: 'ステップ 5 を戻す', exact: true })).toBeVisible();
     await expect(spareOnB).toHaveClass(/is-skipped/);
+
+    // When / Then その6: 2 人がほぼ同時に「次へ」（2 つの page。ここは偶然の重なりを許す）。
+    //   **進み方は、送ったステップ ID の種類の数と一致する**（別の ID は 1 つずつ効き、同じ ID の重複は何も進めない）。
+    //   ID が 1 種類なら「Try の議論」、2 種類（片方の更新が先に届いた）なら次の予備はスキップ済みなので終了になる
+    const startIdx = ORDER.indexOf('投票');
+    const markCrossA = sentA.payloads.length;
+    const markCrossB = sentB.payloads.length;
+    await Promise.all([
+      page.getByRole('button', { name: '次へ', exact: true }).click(),
+      b.getByRole('button', { name: '次へ', exact: true }).click(),
+    ]);
+    await expect(dialName(page)).not.toHaveText('投票');
+    await expect(dialName(b)).not.toHaveText('投票');
+    await settleFrames(page, b);
+    const distinct = new Set([...nextIdsSince(sentA, markCrossA), ...nextIdsSince(sentB, markCrossB)]).size;
+    expect(distinct, '送ったステップ ID は 1 種類か 2 種類').toBeGreaterThanOrEqual(1);
+    const expected = ORDER[startIdx + distinct];
+    if (expected !== undefined) {
+      await expect(dialName(page)).toHaveText(expected);
+      await expect(dialName(b)).toHaveText(expected);
+    } else {
+      //   終了: 盤の中央は会の名前になり、進行表は終了の一覧に替わる（「次へ」の帯は消える）
+      await expect(page.getByRole('button', { name: '次へ', exact: true })).toHaveCount(0);
+      await expect(b.getByRole('button', { name: '次へ', exact: true })).toHaveCount(0);
+    }
 
     // Then 最後: どちらのコンソールにもエラーが出ていない
     expect(consoleWatcher.errors).toEqual([]);
