@@ -71,6 +71,9 @@ importers:
       react-dom:
         specifier: ^19.1.0
         version: 19.3.0(react@19.3.0)
+      valibot:
+        specifier: ^1.4.1
+        version: 1.5.0(typescript@6.0.3)
     devDependencies:
       '@tasuki/dev-hub-redirect':
         specifier: workspace:*

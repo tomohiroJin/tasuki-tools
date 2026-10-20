@@ -21,7 +21,8 @@
     "@tasuki/ui": "workspace:*",
     "@tasuki/web-kit": "workspace:*",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "valibot": "^1.4.1"
   },
   "devDependencies": {
     "@tasuki/dev-hub-redirect": "workspace:*",

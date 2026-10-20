@@ -2,6 +2,7 @@
  * シナリオの端末への保存（#429 spec §5・§7.6）。
  */
 import { ScenarioInputSchema, type ScenarioInput } from '@tasuki/agenda-core';
+import * as v from 'valibot';
 import { describe, expect, it } from 'vitest';
 import { SAMPLE_SCENARIOS } from '../src/sample-scenarios';
 import {
@@ -37,7 +38,8 @@ const scenario = (title: string): ScenarioInput => ({
 describe('シナリオの端末への保存', () => {
   it('保存して読み直すと同じ', () => {
     const s = fakeStorage();
-    saveScenario(s, '朝会', scenario('朝会'), 1000);
+    const r = saveScenario(s, '朝会', scenario('朝会'), 1000);
+    expect(r.ok).toBe(true);
     expect(loadSaved(s)).toEqual([{ name: '朝会', savedAt: 1000, scenario: scenario('朝会') }]);
     expect(JSON.parse(s.getItem(SAVED_SCENARIOS_KEY) ?? '').version).toBe(1);
   });
@@ -52,13 +54,90 @@ describe('シナリオの端末への保存', () => {
     expect(got.find((x) => x.name === 'A')?.scenario.title).toBe('3');
   });
 
-  it('削除できる。無い名前の削除は何も起こさない', () => {
+  it('削除できる。無い名前の削除は何も起こさず、戻り値は残りの一覧', () => {
     const s = fakeStorage();
     saveScenario(s, 'A', scenario('1'), 1);
-    deleteSaved(s, 'ない');
-    expect(loadSaved(s)).toHaveLength(1);
-    deleteSaved(s, 'A');
+    const none = deleteSaved(s, 'ない');
+    expect(none.ok && none.items).toHaveLength(1);
+    const gone = deleteSaved(s, 'A');
+    expect(gone).toEqual({ ok: true, items: [] });
     expect(loadSaved(s)).toEqual([]);
+  });
+
+  it('名前は前後の空白を除いて比べる（A と "A " は同じ）', () => {
+    const s = fakeStorage();
+    saveScenario(s, 'A', scenario('1'), 1);
+    saveScenario(s, 'A ', scenario('2'), 2);
+    const got = loadSaved(s);
+    expect(got).toHaveLength(1);
+    expect(got[0]).toMatchObject({ name: 'A', scenario: { title: '2' } });
+  });
+
+  it('規則に合わない名前・シナリオは書かずに invalid を返す', () => {
+    const s = fakeStorage();
+    for (const bad of ['x'.repeat(61), 'a\nb', '   ', '']) {
+      expect(saveScenario(s, bad, scenario('1'), 1)).toEqual({ ok: false, reason: 'invalid' });
+    }
+    expect(saveScenario(s, 'ok', { title: '', steps: [] }, 1)).toEqual({ ok: false, reason: 'invalid' });
+    expect(s.getItem(SAVED_SCENARIOS_KEY)).toBeNull();
+    expect(saveScenario(s, 'x'.repeat(60), scenario('1'), 1).ok).toBe(true);
+  });
+
+  it('将来の版（version 2）の保存は、保存・削除を試みても手つかずで残る', () => {
+    const s = fakeStorage();
+    const future = JSON.stringify({ version: 2, items: [{ name: '未来', shape: 'new' }] });
+    s.setItem(SAVED_SCENARIOS_KEY, future);
+    expect(saveScenario(s, 'A', scenario('1'), 1)).toEqual({ ok: false, reason: 'unreadable' });
+    expect(deleteSaved(s, 'A')).toEqual({ ok: false, reason: 'unreadable' });
+    expect(s.getItem(SAVED_SCENARIOS_KEY)).toBe(future);
+  });
+
+  it('壊れた JSON・移行が投げる保存・getItem の一時失敗でも上書きしない', () => {
+    const s = fakeStorage();
+    s.setItem(SAVED_SCENARIOS_KEY, '{oops');
+    expect(saveScenario(s, 'A', scenario('1'), 1)).toEqual({ ok: false, reason: 'unreadable' });
+    expect(s.getItem(SAVED_SCENARIOS_KEY)).toBe('{oops');
+
+    const old = JSON.stringify({ version: 0, items: [] });
+    s.setItem(SAVED_SCENARIOS_KEY, old);
+    const boom = {
+      0: () => {
+        throw new Error('x');
+      },
+    };
+    expect(saveScenario(s, 'A', scenario('1'), 1, boom)).toEqual({ ok: false, reason: 'unreadable' });
+    expect(s.getItem(SAVED_SCENARIOS_KEY)).toBe(old);
+
+    const good = fakeStorage();
+    saveScenario(good, 'A', scenario('1'), 1);
+    const before = good.getItem(SAVED_SCENARIOS_KEY);
+    const real = good.getItem.bind(good);
+    good.getItem = () => {
+      throw new Error('blocked');
+    };
+    expect(saveScenario(good, 'B', scenario('2'), 2)).toEqual({ ok: false, reason: 'unreadable' });
+    expect(deleteSaved(good, 'A')).toEqual({ ok: false, reason: 'unreadable' });
+    good.getItem = real;
+    expect(good.getItem(SAVED_SCENARIOS_KEY)).toBe(before);
+  });
+
+  it('読めない項目は保存・削除のあとも生のまま残る（読み込みでは飛ばす）', () => {
+    const s = fakeStorage();
+    const odd = { name: '変', savedAt: 1, scenario: { title: 'x', steps: [], future: true } };
+    s.setItem(SAVED_SCENARIOS_KEY, JSON.stringify({ version: 1, items: [odd] }));
+    const r = saveScenario(s, 'A', scenario('1'), 2);
+    expect(r.ok && r.items.map((x) => x.name)).toEqual(['A']);
+    deleteSaved(s, 'A');
+    expect(JSON.parse(s.getItem(SAVED_SCENARIOS_KEY) ?? '').items).toEqual([odd]);
+    expect(loadSaved(s)).toEqual([]);
+  });
+
+  it('書き込みが失敗したら write-failed を返す（保存できたように見せない）', () => {
+    const s = fakeStorage();
+    s.setItem = () => {
+      throw new Error('quota');
+    };
+    expect(saveScenario(s, 'A', scenario('1'), 1)).toEqual({ ok: false, reason: 'write-failed' });
   });
 
   it('何も無い・JSON が壊れている・形が違うときは空で、投げない', () => {
@@ -151,7 +230,7 @@ describe('同梱のサンプル', () => {
   it('KPT のふりかえりが検証を通り、合計が 3600 秒', () => {
     const kpt = SAMPLE_SCENARIOS.find((x) => x.label === 'KPT のふりかえり');
     expect(kpt).toBeDefined();
-    expect((ScenarioInputSchema['~standard'].validate(kpt?.scenario) as { issues?: unknown }).issues).toBeUndefined();
+    expect(v.safeParse(ScenarioInputSchema, kpt?.scenario).success).toBe(true);
     expect(kpt?.scenario.steps.reduce((a, st) => a + st.durationSec, 0)).toBe(3600);
     expect(kpt?.scenario.steps.map((st) => st.name)).toEqual(['K を出す', 'P を出す', '投票', 'Try の議論', '予備']);
     expect(kpt?.scenario.steps.every((st) => st.onTimeout === 'wait')).toBe(true);
