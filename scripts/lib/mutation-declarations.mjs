@@ -2916,4 +2916,12 @@ export const MUTATIONS = [
     tests: ["tests/saved-scenarios.test.ts"],
     note: "#429 版を上げたとき、利用者が端末に保存したシナリオが全部消える。偽の旧版を migrations に差し込んで読む。",
   },
+  {
+    id: 449,
+    label: "玄関の札の ID が agenda の綴りとずれる",
+    patch: "m449-hub-tool-id-mismatch-agenda.patch",
+    pkg: "apps/landing",
+    tests: ["tests/room-choice-layout.test.tsx"],
+    note: "#429。在席の表示が進行タイマーに居る人を札の名前で出せず、「agenda にいます」と生の綴りが出る。型は綴りのずれを拾わない。",
+  },
 ];
