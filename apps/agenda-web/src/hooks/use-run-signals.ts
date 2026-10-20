@@ -9,8 +9,13 @@
  * 過去に過ぎた 0 に対して鳴らさない（spec §4.7）。`room.joined` は新しい `agenda` フレームより先に届くので、
  * 入り直した直後に残っている**切断前のフレーム**（`frame` の同一性で見分ける）からは前の盤を取らない。
  * 取ると、切断前の「残り +1 秒」と入り直しの「残り −5 秒」の間で 0 をまたいだことになって鳴る。
+ * **表に戻ったとき（`visibilitychange` → visible）も同じに扱う。** 同期フックが取り直しを送るので、裏にいた間の
+ * 古いフレームからは比べず、取り直したフレームを最初の盤にする。
+ *
+ * 読み上げの文が前と同じ（延長のあとの 2 回目の「時間切れです」など）ときは、一度空にしてから入れ直す
+ * （文が変わらないと読み上げない支援技術がある）。
  */
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AgendaView } from '@tasuki/agenda-core';
 import { centerLines, driftTone, type DriftTone } from '../agenda-view';
 import {
@@ -60,12 +65,29 @@ interface Options {
 export function useRunSignals(
   view: AgendaView | null,
   { frame, joined, soundOn, reducedMotion }: Options,
-): { striking: boolean; announcement: string } {
+): { striking: boolean; announcement: string; announce: (text: string) => void } {
   const prevRef = useRef<AgendaView | null>(null);
   /** 切断した時点で持っていたフレーム。入り直してから次のフレームが届くまでは比べない */
   const staleFrameRef = useRef<AgendaView | null>(null);
   const [striking, setStriking] = useState(false);
   const [announcement, setAnnouncement] = useState('');
+  /** 空にした後に入れる文（同じ文を続けて読ませるため） */
+  const [pending, setPending] = useState<string | null>(null);
+  const frameRef = useRef(frame);
+  frameRef.current = frame;
+  const announce = useCallback(
+    (text: string): void => {
+      if (text === announcement) {
+        setAnnouncement('');
+        setPending(text);
+      } else {
+        setAnnouncement(text);
+      }
+    },
+    [announcement],
+  );
+  const announceRef = useRef(announce);
+  announceRef.current = announce;
   // 効果の中で最新の設定を読む（設定の変化で前の盤を比べ直さない）
   const settings = useRef({ soundOn, reducedMotion });
   settings.current = { soundOn, reducedMotion };
@@ -88,8 +110,26 @@ export function useRunSignals(
     }
     if (prev === null) return;
     const said = announcementFor(prev, view, struck);
-    if (said !== null) setAnnouncement(said);
+    if (said !== null) announceRef.current(said);
   }, [view, frame, joined]);
+
+  // 表に戻ったら前の盤を捨て、取り直しのフレームが届くまで比べない
+  useEffect(() => {
+    const onVisibility = (): void => {
+      if (document.visibilityState !== 'visible') return;
+      prevRef.current = null;
+      staleFrameRef.current = frameRef.current;
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, []);
+
+  // 空にした描画が DOM に載ってから、待たせた文を入れる
+  useEffect(() => {
+    if (pending === null || announcement !== '') return;
+    setAnnouncement(pending);
+    setPending(null);
+  }, [pending, announcement]);
 
   // 光は 600ms で下ろす（点滅させない。1 度だけ）
   useEffect(() => {
@@ -98,5 +138,5 @@ export function useRunSignals(
     return () => clearTimeout(timer);
   }, [striking]);
 
-  return { striking, announcement };
+  return { striking, announcement, announce };
 }

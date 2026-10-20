@@ -6,6 +6,9 @@
    ============================================================ */
 
 .dial {
+  /* 幅は器いっぱい。盤の中身は絶対配置なので、縮む器（中央揃えの grid の子など）に置くと
+     盤の幅が盤の下の一行の幅まで潰れる（終了の画面では一行が無く、盤が消えた） */
+  width: 100%;
   margin: 0;
   display: grid;
   justify-items: center;
@@ -23,6 +26,20 @@
 }
 .dial--stage .dial-watch {
   width: min(70vmin, 100%);
+}
+/* 映す表示: 名前・押し巻き・小札の上限を盤の大きさに合わせて上げる（数字の上限 9rem はそのまま効く）。
+   盤の下の一行（次・終了見込み）は右の列が大きく持つので落とす */
+.dial--stage .dial-name {
+  font-size: clamp(1.5rem, 5.4cqi, 3.4rem); /* scale-exempt: 映す表示の盤の名前（spec §7.5 の案 clamp(1.5rem, 5vmin, 4rem)。盤の幅に比例） */
+}
+.dial--stage .dial-drift {
+  font-size: clamp(1.2rem, 4.6cqi, 2.8rem); /* scale-exempt: 映す表示の押し巻き（名前に近い大きさまで上げる。spec §7.3） */
+}
+.dial--stage .dial-tag {
+  font-size: clamp(0.9rem, 2.6cqi, 1.5rem); /* scale-exempt: 映す表示の盤の小札（盤の幅に比例） */
+}
+.dial--stage .dial-footer {
+  display: none;
 }
 .dial-svg {
   position: absolute;

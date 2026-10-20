@@ -6,7 +6,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { saveResumeIdentity } from '@tasuki/sync-client';
 import { App } from '../src/App';
-import { EXTEND_LABEL, NEXT_STEP_LABEL, PROJECTED_END_LABEL, PROJECT_BUTTON, PROJECT_EXIT_BUTTON, STEP_LIST_HEADING } from '../src/copy';
+import { EXTEND_LABEL, NEXT_BUTTON, NEXT_STEP_LABEL, PROJECTED_END_LABEL, PROJECT_BUTTON, PROJECT_EXIT_BUTTON, STEP_LIST_HEADING } from '../src/copy';
 import { RESUME, ScriptedWebSocket, latestSocket, runningAgenda } from './support/scripted-web-socket';
 
 vi.mock('../src/router', async (importOriginal) => ({
@@ -49,8 +49,8 @@ function projecting(state: unknown = runningAgenda(1000)): void {
 
 const deliverAgenda = (state: unknown): void => act(() => latestSocket().deliver({ type: 'agenda', state }));
 const sentCommands = (name: string) => latestSocket().sentJson().filter((m) => m['command'] === name);
-const press = (key: string): void => {
-  fireEvent.keyDown(document.activeElement ?? document.body, { key });
+const press = (key: string, init: Partial<KeyboardEventInit> = {}): void => {
+  fireEvent.keyDown(document.activeElement ?? document.body, { key, ...init });
 };
 
 /**
@@ -120,6 +120,27 @@ describe('映す表示', () => {
     });
     press('ArrowRight');
     press(' ');
+    expect(sentCommands('agenda.next')).toHaveLength(0);
+    expect(sentCommands('agenda.pause')).toHaveLength(0);
+  });
+
+  it('Given 映す表示 / When 操作帯の「次へ」を押してから Space を押す / Then フォーカスは表示の根に戻り、Space は一時停止になる（次へを二度送らない）', () => {
+    projecting();
+    const nextButton = screen.getByRole('button', { name: NEXT_BUTTON });
+    nextButton.focus();
+    fireEvent.click(nextButton);
+    expect(document.activeElement).toBe(document.querySelector('.projection'));
+    // 押せる部品にフォーカスが残っていても、Space は一時停止／再開として扱う
+    nextButton.focus();
+    press(' ');
+    expect(sentCommands('agenda.next')).toHaveLength(1);
+    expect(sentCommands('agenda.pause')).toHaveLength(1);
+  });
+
+  it.each([['altKey'], ['ctrlKey'], ['metaKey']])('Given 映す表示 / When %s と一緒に → や Space を押す / Then 何も送らない', (mod) => {
+    projecting();
+    press('ArrowRight', { [mod]: true });
+    press(' ', { [mod]: true });
     expect(sentCommands('agenda.next')).toHaveLength(0);
     expect(sentCommands('agenda.pause')).toHaveLength(0);
   });

@@ -38,9 +38,8 @@ interface Props {
   soundToggle: ReactNode;
 }
 
-/** 押せる部品の上の Space は部品自身が受ける（二重に送らない） */
-const isControl = (target: EventTarget | null): boolean =>
-  target instanceof HTMLElement && target.closest('button, a, input, select, textarea') !== null;
+/** 修飾キーつきはブラウザと OS の操作（Ctrl+→ など）に残す */
+const hasModifier = (e: KeyboardEvent): boolean => e.altKey || e.ctrlKey || e.metaKey;
 
 function useStrip(): { shown: boolean; reveal: () => void } {
   const [shownAt, setShownAt] = useState<number | null>(null);
@@ -67,25 +66,43 @@ export function ProjectionView({ view, wallNow, reducedMotion, striking, canOper
     rootRef.current?.focus();
     const onKey = (e: KeyboardEvent): void => {
       const cur = latest.current;
+      if (hasModifier(e)) return;
       if (e.key === 'Escape') {
         e.preventDefault();
         cur.onExit();
         return;
       }
+      // Space は映す表示の中ではいつも一時停止／再開。押せる部品にフォーカスがあっても、その部品を押させない
+      if (e.key === ' ') e.preventDefault();
       if (!cur.canOperate || e.repeat) return;
       const id = cur.view.currentId;
       if (e.key === 'ArrowRight' && id !== null) {
         e.preventDefault();
         cur.onNext(id);
-      } else if (e.key === ' ' && !isControl(e.target)) {
-        e.preventDefault();
+      } else if (e.key === ' ') {
         if (cur.view.phase === 'paused') cur.onResume();
         else if (cur.view.phase === 'running') cur.onPause();
       }
     };
+    // ボタンの Space による押下は keyup で起きるブラウザがあるので、そちらも止める
+    const onKeyUp = (e: KeyboardEvent): void => {
+      if (e.key === ' ' && !hasModifier(e)) e.preventDefault();
+    };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keyup', onKeyUp);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('keyup', onKeyUp);
+    };
   }, []);
+
+  /** 操作帯のボタンを押したら、フォーカスを表示の根に戻す（帯が出たまま残らず、Space が同じボタンを押し直さない） */
+  const thenRefocus =
+    (action: () => void) =>
+    (): void => {
+      action();
+      rootRef.current?.focus();
+    };
 
   const following = nextStepName(view);
   return (
@@ -115,14 +132,14 @@ export function ProjectionView({ view, wallNow, reducedMotion, striking, canOper
       <div className={shown ? 'projection-strip is-shown' : 'projection-strip'}>
         {active && (
           <>
-            <button type="button" className="ui-button ui-button--secondary ui-button--sm" disabled={!canOperate} onClick={paused ? onResume : onPause}>
+            <button type="button" className="ui-button ui-button--secondary ui-button--sm" disabled={!canOperate} onClick={thenRefocus(paused ? onResume : onPause)}>
               {paused ? RESUME_BUTTON : PAUSE_BUTTON}
             </button>
             <button
               type="button"
               className="ui-button ui-button--sm"
               disabled={!canOperate || view.currentId === null}
-              onClick={() => view.currentId !== null && onNext(view.currentId)}
+              onClick={thenRefocus(() => view.currentId !== null && onNext(view.currentId))}
             >
               {NEXT_BUTTON}
             </button>

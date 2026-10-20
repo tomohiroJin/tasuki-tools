@@ -9,7 +9,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { EXTEND_MINUTES, type AgendaView } from '@tasuki/agenda-core';
 import { extensionLine } from '../agenda-view';
-import { FINISHED_LABEL, PROJECT_BUTTON } from '../copy';
+import { FINISHED_LABEL, PROJECT_BUTTON, SPEAK_SUMMARY_BUTTON } from '../copy';
 import { Dial } from './Dial';
 import { ProjectionView } from './ProjectionView';
 import { ResetControl } from './ResetControl';
@@ -37,9 +37,11 @@ interface Props {
   canOperate: boolean;
   actions: RunActions;
   soundToggle: ReactNode;
+  /** 盤の要約を読み上げの領域へ流す（spec §7.7「要約をいつでも聞ける」） */
+  onSpeakSummary: () => void;
 }
 
-export function RunScreen({ view, wallNow, reducedMotion, striking, canOperate, actions, soundToggle }: Props) {
+export function RunScreen({ view, wallNow, reducedMotion, striking, canOperate, actions, soundToggle, onSpeakSummary }: Props) {
   const [projecting, setProjecting] = useState(false);
   const [returnFocus, setReturnFocus] = useState(false);
   const projectRef = useRef<HTMLButtonElement>(null);
@@ -78,6 +80,9 @@ export function RunScreen({ view, wallNow, reducedMotion, striking, canOperate, 
       <div className="run-bar">
         <p className="run-title">{view.title}</p>
         <div className="run-bar-actions">
+          <button type="button" className="ui-button ui-button--quiet ui-button--sm run-speak" onClick={onSpeakSummary}>
+            {SPEAK_SUMMARY_BUTTON}
+          </button>
           {soundToggle}
           <button ref={projectRef} type="button" className="ui-button ui-button--secondary ui-button--sm run-project" onClick={() => setProjecting(true)}>
             <span className="run-project-mark" aria-hidden="true" />

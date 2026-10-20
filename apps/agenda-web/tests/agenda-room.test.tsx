@@ -20,6 +20,7 @@ import {
   RESUME_BUTTON,
   SOUND_OFF,
   SOUND_ON,
+  SPEAK_SUMMARY_BUTTON,
   STEP_LIST_HEADING,
   extendButton,
   extensionNote,
@@ -218,6 +219,22 @@ describe('時間切れの合図と音', () => {
     expect(document.querySelector('.dial--striking')).toBeNull();
   });
 
+  it('Given 音あり・残り +1 秒でタブを隠した / When 表に戻ったあとの最初のフレームが残り −5 秒 / Then 鳴らさない', () => {
+    soundOn();
+    joinedRoom(runningAgenda(59_000));
+    act(() => {
+      Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    Reflect.deleteProperty(document, 'visibilityState');
+    deliverAgenda(runningAgenda(65_000));
+    expect(playStrike).not.toHaveBeenCalled();
+    // その後の 0 またぎ（延長で正に戻って再び 0）は鳴らす
+    deliverAgenda({ ...runningAgenda(119_000), steps: runningAgenda().steps.map((x, i) => (i === 0 ? { ...x, extensionSec: 60 } : x)) });
+    deliverAgenda({ ...runningAgenda(120_000), steps: runningAgenda().steps.map((x, i) => (i === 0 ? { ...x, extensionSec: 60 } : x)) });
+    expect(playStrike).toHaveBeenCalledTimes(1);
+  });
+
   it('Given 光らせた / When 600ms 過ぎる / Then 光を下ろす', () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     joinedRoom(runningAgenda(59_000));
@@ -264,6 +281,26 @@ describe('読み上げ（aria-live）', () => {
     joinedRoom(runningAgenda(59_000));
     deliverAgenda(runningAgenda(60_000));
     expect(live().textContent).toBe('時間切れです');
+  });
+
+  it('Given 要約を読み上げた / When もう一度「読み上げ」を押す / Then 同じ文でも一度空にしてから入れ直す', () => {
+    joinedRoom(runningAgenda(1000));
+    fireEvent.click(screen.getByRole('button', { name: SPEAK_SUMMARY_BUTTON }));
+    const said = live().textContent;
+    const observer = new MutationObserver(() => undefined);
+    observer.observe(live(), { childList: true, characterData: true, subtree: true });
+    fireEvent.click(screen.getByRole('button', { name: SPEAK_SUMMARY_BUTTON }));
+    const records = observer.takeRecords();
+    observer.disconnect();
+    // 文を一度消した（子の文字が外された）記録があり、最後は同じ文に戻っている。直さなければ DOM は 1 度も変わらない
+    expect(records.some((r) => r.type === 'childList' && r.removedNodes.length > 0)).toBe(true);
+    expect(live().textContent).toBe(said);
+  });
+
+  it('Given 進行中 / When 「読み上げ」を押す / Then 盤の要約を読み上げの領域へ流す', () => {
+    joinedRoom(runningAgenda(1000));
+    fireEvent.click(screen.getByRole('button', { name: SPEAK_SUMMARY_BUTTON }));
+    expect(live().textContent).toContain('Check、残り 1 分');
   });
 
   it('Given 予定どおり / When 押しに変わる / Then 押し巻きを読み上げる', () => {

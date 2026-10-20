@@ -9,6 +9,7 @@
  */
 import { useEffect } from 'react';
 import type { AgendaView } from '@tasuki/agenda-core';
+import { summaryText } from '../agenda-view';
 import { LoadingView } from '../components/LoadingView';
 import { RunScreen } from '../components/RunScreen';
 import { ScenarioBuilder } from '../components/ScenarioBuilder';
@@ -99,7 +100,7 @@ function PhaseView({ view, sync }: { view: AgendaView; sync: AgendaSync }) {
   const live = useLocalClock(view, sync.receivedAt, reducedMotion) ?? view;
   const wallNow = useWallClock();
   const { soundOn, toggleSound } = useSoundSetting();
-  const { striking, announcement } = useRunSignals(live, { frame: view, joined: sync.joined, soundOn, reducedMotion });
+  const { striking, announcement, announce } = useRunSignals(live, { frame: view, joined: sync.joined, soundOn, reducedMotion });
   return (
     <>
       {view.phase === 'idle' ? (
@@ -112,6 +113,7 @@ function PhaseView({ view, sync }: { view: AgendaView; sync: AgendaSync }) {
           striking={striking}
           canOperate={sync.joined}
           actions={sync}
+          onSpeakSummary={() => announce(summaryText(live))}
           soundToggle={<SoundToggle soundOn={soundOn} onToggle={toggleSound} />}
         />
       )}

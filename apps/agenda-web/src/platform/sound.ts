@@ -92,9 +92,13 @@ export async function scheduleTones(
   }
 }
 
-/** 時間切れの時打ちを 1 回鳴らす（fire-and-forget） */
+/**
+ * 時間切れの時打ちを 1 回鳴らす（fire-and-forget）。
+ * **解錠されていない（`running` でない）ときは捨てる。** `scheduleTones` は resume を待ってから予約するので、
+ * 渡すと次に画面を触った瞬間に、過ぎた時打ちが遅れて鳴る。
+ */
 export function playStrike(): void {
   const ctx = getSharedAudioContext();
-  if (!ctx) return;
+  if (!ctx || ctx.state !== 'running') return;
   void scheduleTones(ctx, STRIKE_FREQS, STRIKE_VOLUME, { type: 'triangle', gap: STRIKE_GAP_SEC, gain: STRIKE_GAIN });
 }

@@ -134,6 +134,8 @@ export const TIMEOUT_ANNOUNCE = '時間切れです';
 export const PAUSED_ANNOUNCE = '一時停止しました';
 export const RESUMED_ANNOUNCE = '再開しました';
 export const FINISHED_ANNOUNCE = '終了しました';
+/** 盤の要約をいつでも聞くボタン（spec §7.7。押すと要約を読み上げの領域へ流す） */
+export const SPEAK_SUMMARY_BUTTON = '読み上げ';
 
 // 終了
 export const SPENT_LABEL = 'かかった時間';

@@ -130,6 +130,12 @@
   justify-items: center;
   gap: var(--space-2);
 }
+/* 広い幅では盤が主役。手元の 20rem から、画面の幅に合わせて 32.5rem まで大きくする */
+@media (width >= 64rem) {
+  .run-dial .dial--hand .dial-watch {
+    max-width: clamp(20rem, 38vw, 32.5rem);
+  }
+}
 .run-extension-note {
   margin: 0;
   padding: 0 var(--space-3);
@@ -444,11 +450,14 @@
   padding: var(--space-4);
   background: linear-gradient(to top, var(--felt-scrim), transparent);
   opacity: 0;
+  /* 見えない間は押させない（透明なボタンを誤って押さない） */
+  pointer-events: none;
   transition: opacity 0.3s;
 }
 .projection-strip.is-shown,
 .projection-strip:focus-within {
   opacity: 1;
+  pointer-events: auto;
 }
 .projection-hint {
   color: var(--ivory-faint);
