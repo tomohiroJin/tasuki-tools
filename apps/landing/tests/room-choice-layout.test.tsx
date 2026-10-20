@@ -50,6 +50,19 @@ describe('どのツールに居るか', () => {
     expect(screen.getByText('Facilitator Roulette にいます')).toBeVisible();
     expect(screen.queryByText(/roulette にいます/)).toBeNull();
   });
+
+  /** m449 の対象: 札の ID が同期サーバーの綴り（`agenda`）とずれると、生の綴りのまま出る */
+  it('Given 進行タイマーに居る人 / When 選択画面を開く / Then Agenda Timer にいますと札の名前で出る', () => {
+    // Given
+    const roster = { code: 'R1', participants: [
+      { participantId: 'a', displayName: 'あや', presence: 'online' as const, tools: ['agenda'] },
+    ] };
+    // When
+    render(<RoomChoice code="R1" inviteUrl="https://example.test/?room=R1" roster={roster} connection="online" topicTitle={null} />);
+    // Then
+    expect(screen.getByText('Agenda Timer にいます')).toBeVisible();
+    expect(screen.queryByText(/agenda にいます/)).toBeNull();
+  });
 });
 
 /**

@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import { hubRedirectPlugin } from '@tasuki/dev-hub-redirect';
 
 // サブパス /agenda/ 配信（#429）。公開パスは `apps/landing/src/tools.ts`・`deploy/agenda/app.env` の
-// PUBLIC_PATH・`deploy/agenda/caddy/50-agenda.conf` と揃える（1 つでも取り残すと白画面か 404）。
+// PUBLIC_PATH・`deploy/agenda/caddy/60-agenda.conf` と揃える（1 つでも取り残すと白画面か 404）。
 export default defineConfig({
   base: '/agenda/',
   // hubRedirectPlugin: :5178 を直接開いたときの無限リロード対策（dev のみ・詳細は
