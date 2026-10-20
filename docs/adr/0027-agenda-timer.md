@@ -2,8 +2,9 @@
 
 - **ステータス**: Accepted（2026-10-20）。**PR 1 が `packages/agenda-core` と wire のスキーマを、PR 2 がサーバーの経路を入れた**
   （シナリオの検証と展開・進行の遷移・見込みの計算・コマンドとフレームの形）。**サーバーの経路（`?tool=agenda`・ストア・
-  ハンドラ・期限の予約・お題の配信先）は PR 2 で入れた。画面（agenda-web）は PR 3 で入れる。** 玄関の札・配備資材は PR 4 で入れる。
-  決定 1・2・8・9 のうちサーバーの経路にかかる部分は PR 2 で入った
+  ハンドラ・期限の予約・お題の配信先）は PR 2 で入れた。画面（`apps/agenda-web`）は PR 3 で、玄関の札・配備資材（`deploy/agenda/`）・
+  E2E（`e2e/specs/agenda.spec.ts`）は PR 4 で入れた。** 決定 1・2・8・9 のうちサーバーの経路にかかる部分は PR 2 で入った。
+  **本番への配布はまだ行っていない**（利用者の明示の指示を待つ。設計正本 §9）
 - **関連**: [#429](https://github.com/tomohiroJin/tasuki-tools/issues/429) /
   [設計正本](../superpowers/specs/2026-10-19-agenda-timer-design.md)（§4〜§6 と §11 の J1〜J21） /
   [`docs/adr/0016`](./0016-core-domain-representation.md)（ドメインの表現は選択制。決定 7 の記録先） /
@@ -110,8 +111,8 @@ ID は置き換えの時点の並び順で採番する（`expand`）。後続の
 ### 決定 9: お題のフレームを agenda の接続にも配る
 
 `docs/adr/0021` 決定 2（宛先はツールを問わない）に従う。**PR 2 で** お題の配信先（`application/topic-broadcast.ts` の
-`TOPIC_RECIPIENT_TOOLS`）に agenda を足した。agenda の画面は agenda 固有のスキーマより先に `TopicFrameSchema` で見分ける（同決定の MUST。PR 3 で入れる）。
-第 1 段の画面がお題を表示するかは実装の判断に任せる。
+`TOPIC_RECIPIENT_TOOLS`）に agenda を足した。agenda の画面は agenda 固有のスキーマより先に `TopicFrameSchema` で見分ける（同決定の MUST。PR 3 で
+`apps/agenda-web/src/server-message.ts` に入れた）。第 1 段の画面はお題を受けて保持するが、表示はしない（実装の判断。設計正本 §12）。
 
 ## 却下した案
 
@@ -127,7 +128,7 @@ ID は置き換えの時点の並び順で採番する（`expand`）。後続の
 ## 影響
 
 - ルームの持ち物に、お題・ルーレットに続いて進行の状態が加わる（PR 2）。状態は揮発インメモリで、再起動・デプロイ・アイドルの破棄で
-  進行も終了の一覧も消える（`docs/timer/adr/0007`）。シナリオは保存した端末から読み直せる（画面の保存は PR 3）
+  進行も終了の一覧も消える（`docs/timer/adr/0007`）。シナリオは保存した端末から読み直せる（画面の保存は PR 3 で入れた。`apps/agenda-web/src/storage/saved-scenarios.ts`）
 - **データ分類**: ステップの名前・会の名前は利用者由来のテキストで、人の名前が入りうる。`docs/adr/0011` 決定 1 の
   「個人に紐づく」に置いた（J18。同 ADR の 2026-10-20 の追記）。ハンドラはログを書かず、名前をログの語彙に載せない
 - **コマンドの頻度の上限は設けない**（J16）。お題の `topic.set`・ルーレットと同じ扱いで、効くのはメッセージの大きさの上限と

@@ -3,7 +3,7 @@
 - **ステータス**: Accepted（2026-08-13、決定4・脅威表 S1/S7・データ分類表・影響を
   2026-08-14 改訂。[#103](https://github.com/tomohiroJin/tasuki-tools/issues/103) 実装に
   伴う実態への追随。決定4 の判定表・影響を 2026-08-30 改訂。
-  [#144](https://github.com/tomohiroJin/tasuki-tools/issues/144) 実装に伴う追随。[#95](https://github.com/tomohiroJin/tasuki-tools/issues/95) による役割廃止の決定に伴い、脅威表 S1・S9 と決定1 の注記を 2026-09-06 改訂。同 S3（[#244](https://github.com/tomohiroJin/tasuki-tools/issues/244)）の実施に伴い、脅威表 S1・S9・決定5 の見出し語・影響の持ち出し経路の記述を 2026-09-08 改訂。[#91](https://github.com/tomohiroJin/tasuki-tools/issues/91) PR 3 による timer のお題の撤去に伴い、脅威表 S5・S9 と決定5 の定数の置き場を 2026-09-25 改訂（末尾の改定節）。[#93](https://github.com/tomohiroJin/tasuki-tools/issues/93) の見積もりの記録に伴い、決定1 の分類表を 2026-10-17 改訂（末尾の追記））
+  [#144](https://github.com/tomohiroJin/tasuki-tools/issues/144) 実装に伴う追随。[#95](https://github.com/tomohiroJin/tasuki-tools/issues/95) による役割廃止の決定に伴い、脅威表 S1・S9 と決定1 の注記を 2026-09-06 改訂。同 S3（[#244](https://github.com/tomohiroJin/tasuki-tools/issues/244)）の実施に伴い、脅威表 S1・S9・決定5 の見出し語・影響の持ち出し経路の記述を 2026-09-08 改訂。[#91](https://github.com/tomohiroJin/tasuki-tools/issues/91) PR 3 による timer のお題の撤去に伴い、脅威表 S5・S9 と決定5 の定数の置き場を 2026-09-25 改訂（末尾の改定節）。[#93](https://github.com/tomohiroJin/tasuki-tools/issues/93) の見積もりの記録に伴い、決定1 の分類表を 2026-10-17 改訂（末尾の追記）。[#419](https://github.com/tomohiroJin/tasuki-tools/issues/419) の poker の見学に伴い、決定1 の分類表を 2026-10-18 改訂（末尾の追記）。[#429](https://github.com/tomohiroJin/tasuki-tools/issues/429) の進行タイマーに伴い、決定1 の分類表を 2026-10-20 改訂し、脅威表 S3・S7 の射程を末尾の追記に記録）
 - **関連**: [#136](https://github.com/tomohiroJin/tasuki-tools/issues/136)（セキュリティの規範、
   親 epic [#67](https://github.com/tomohiroJin/tasuki-tools/issues/67)）/
   設計正本 [`docs/superpowers/specs/2026-08-13-security-norms-design.md`](../superpowers/specs/2026-08-13-security-norms-design.md) /
@@ -626,7 +626,7 @@ S1（見知らぬ第三者の入室）と S9（権限のなりすまし）は変
 ## 追記（2026-10-20・#429） — 進行タイマーのコマンドが脅威表の射程に入る
 
 [#429](https://github.com/tomohiroJin/tasuki-tools/issues/429) で進行タイマーの文脈（`packages/agenda-core`）と、
-その接続（`?tool=agenda`）が加わる。この追記の時点でドメインと wire のスキーマに加え、接続の経路（`?tool=agenda`・onConnect・メッセージ層の 2 段目の在席の確認・専用の期限の予約・お題の配信先）が #429 の PR 2 で入った。画面は PR 3、玄関・配備は PR 4 で入れる。
+その接続（`?tool=agenda`）が加わる。この追記の時点でドメインと wire のスキーマに加え、接続の経路（`?tool=agenda`・onConnect・メッセージ層の 2 段目の在席の確認・専用の期限の予約・お題の配信先）が #429 の PR 2 で入った。画面は PR 3、玄関・配備は PR 4 で入れた（本番への配布はまだ）。
 脅威表の行は増やさず、既存の行の射程に進行タイマーのコマンドが入ることだけを記録する。決定は
 [`docs/adr/0027`](./0027-agenda-timer.md)。
 
