@@ -70,9 +70,18 @@
 }
 .run-bar-actions {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   align-items: center;
   gap: var(--space-3);
   margin-inline-start: auto;
+}
+/* 上の帯・進行表・確認・映す表示の操作帯のボタンも字を折らない（狭い幅では並びの側が折り返す） */
+.run-bar-actions .ui-button,
+.step-list-skip,
+.reset-confirm-actions .ui-button,
+.projection-strip .ui-button {
+  white-space: nowrap;
 }
 /* 映す表示の印: 小さなスクリーン（枠と脚）。文言に添える形の手がかり */
 .run-project {
@@ -167,31 +176,50 @@
     background: none;
   }
 }
+/* 延長の群。狭い幅（〜40rem）では見出し「このステップに」を 1 行目に置き、3 つのボタンを 2 行目で等分する
+   （幅 320 で見出しと並べると 1 つ約 57px しか残らず「+1 分」が 2 行に折れた）。40rem 以上は見出しを左に並べる */
 .run-extend {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2) var(--space-3);
 }
 .run-extend-label {
+  grid-column: 1 / -1;
   color: var(--ivory-faint);
   font-size: var(--font-size-xs);
   white-space: nowrap;
 }
-.run-extend-button {
-  flex: 1;
+@media (width >= 40rem) {
+  .run-extend {
+    grid-template-columns: auto repeat(3, minmax(0, 1fr));
+  }
+  .run-extend-label {
+    grid-column: auto;
+  }
+}
+/* 帯のボタンは字を折らない。部品の既定の横の余白（--sm は space-4・既定は 1.4rem）と最小幅（6rem）を、
+   この帯の中でだけ詰める（等分した幅に収めるため）。高さ 44px 以上は部品が持つ */
+.run-extend-button,
+.run-pause,
+.run-next {
   min-width: 0;
+  white-space: nowrap;
+}
+.run-extend-button {
+  padding-inline: var(--space-2);
 }
 .run-main {
   display: flex;
   gap: var(--space-3);
 }
 .run-pause {
-  flex: 0.6;
-  min-width: 0;
+  flex: 0.7;
+  padding-inline: var(--space-3);
 }
 .run-next {
   flex: 1;
-  min-width: 0;
+  padding-inline: var(--space-4);
 }
 
 /* ── 進行表 ───────────────────────────────────────────── */
@@ -296,6 +324,8 @@
 }
 .reset-confirm-actions {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: var(--space-3);
 }
 
