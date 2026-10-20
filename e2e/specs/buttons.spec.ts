@@ -308,10 +308,15 @@ test.describe('お題ツールのボタンは部品で、押せる大きさが�
     expectReadable(await scanContrast(page, 10), 8, []);
     await expectFocusVisibleOnTab(page);
 
-    // 映す表示（盤と右の列だけ。操作の帯は動かすまで隠れるので、測る数の下限は 0 に置く）
+    // 映す表示（盤と右の列だけ。帯を出してから測る（一時停止・次へ・手元の表示に戻る））
     await page.getByRole('button', { name: '映す表示', exact: true }).click();
-    await expect(page.getByRole('button', { name: '手元の表示に戻る', exact: true })).toBeAttached();
-    await expectScreenAcrossWidths(page, '進行タイマー（映す表示）', 0);
+    const exit = page.getByRole('button', { name: '手元の表示に戻る', exact: true });
+    await expect(exit).toBeAttached();
+    //   操作の帯は動かさないと `pointer-events: none` で隠れている（マウスで出ても 3 秒で戻る）。帯の中のボタンにフォーカスを置けば
+    //   `:focus-within` で出たままになり、幅を変えても外れない。出してから測る（隠れたままだと当たりを突いても操作に当たらない）
+    await exit.focus();
+    await expect(exit).toBeFocused();
+    await expectScreenAcrossWidths(page, '進行タイマー（映す表示）', 3);
   });
 });
 
