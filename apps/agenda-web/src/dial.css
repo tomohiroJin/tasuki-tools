@@ -84,9 +84,12 @@
 }
 .dial-plan {
   fill: none;
-  stroke: var(--pewter);
   stroke-width: 3;
   opacity: 0.7;
+}
+/* 飛ばした区画の stroke は TSX の style（斜線の pattern）。ここでは飛ばしていない区画だけを塗る */
+.dial-plan:not(.dial-plan--skipped) {
+  stroke: var(--pewter);
 }
 /* 飛ばした区画: 中を抜いて斜線だけ（stroke は pattern を属性で当てる） */
 .dial-plan--skipped {
@@ -191,8 +194,16 @@
   stroke: var(--gold-deep);
   stroke-width: 0.6;
 }
-.dial-hub {
-  stroke: var(--gold-deep);
+/* 中央の台座。針の軸の内側を覆い、数字と名前の上を針が横切らないようにする */
+.dial-stop--plate-in {
+  stop-color: var(--felt-800);
+}
+.dial-stop--plate-out {
+  stop-color: var(--felt-950);
+}
+.dial-plate {
+  stroke: var(--gold-edge);
+  stroke-width: 0.8;
 }
 
 /* ── 中央の文字（HTML を SVG の上に重ねる）───────────────── */
@@ -247,15 +258,32 @@
   font-weight: 600;
   font-size: clamp(2.2rem, 15cqi, 9rem); /* scale-exempt: 計器の大きな数字（盤の幅に比例する主役）。5 段の外 */
   line-height: 1;
-  text-shadow: 0 0 18px var(--gold-glow);
+  /* 先頭の 2 枚はフェルトの縁取り（台座の外にはみ出す桁の上を針の軸が通っても、字の輪郭を抜く）。最後が金の光 */
+  text-shadow:
+    0 0 2px var(--felt-950),
+    0 0 6px var(--felt-950),
+    0 0 18px var(--gold-glow);
 }
 .is-overrun .dial-time {
   color: var(--rose-bright);
-  text-shadow: 0 0 18px var(--rose-glow);
+  text-shadow:
+    0 0 2px var(--felt-950),
+    0 0 6px var(--felt-950),
+    0 0 18px var(--rose-glow);
 }
 .is-paused .dial-time {
   color: var(--ivory-dim);
-  text-shadow: none;
+  text-shadow:
+    0 0 2px var(--felt-950),
+    0 0 6px var(--felt-950);
+}
+/* 名前・押し巻き・小札も同じ縁取りで針の軸から抜く */
+.dial-name,
+.dial-drift,
+.dial-tag {
+  text-shadow:
+    0 0 2px var(--felt-950),
+    0 0 5px var(--felt-950);
 }
 .dial-drift {
   font-weight: 500;

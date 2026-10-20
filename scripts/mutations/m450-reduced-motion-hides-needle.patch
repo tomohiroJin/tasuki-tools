@@ -9,15 +9,15 @@
 #       git apply scripts/mutations/m450-*.patch
 # 復元: git apply -R scripts/mutations/m450-*.patch
 diff --git a/apps/agenda-web/src/components/Dial.tsx b/apps/agenda-web/src/components/Dial.tsx
-index f7f65dab..56461d2a 100644
+index 91f47a2a..7455c1a7 100644
 --- a/apps/agenda-web/src/components/Dial.tsx
 +++ b/apps/agenda-web/src/components/Dial.tsx
-@@ -253,7 +253,7 @@ export function Dial({ view, wallNow, reducedMotion, striking = false, size = 'h
+@@ -272,7 +272,7 @@ export function Dial({ view, wallNow, reducedMotion, striking = false, size = 'h
            {overrunTrackDeg(view) > 0 && <path className="dial-overrun-track" d={arcPath(R_TRACK, 0, overrunTrackDeg(view))} />}
            {started && <Projection view={view} />}
            <SmallSeconds view={view} brass={brass} />
--          <Needle view={view} brass={brass} />
-+          {!reducedMotion && <Needle view={view} brass={brass} />}
+-          <Needle view={view} />
++          {!reducedMotion && <Needle view={view} />}
+           <Plate id={id} overrun={lines.isOverrun} />
          </svg>
          <Readout view={view} />
-       </div>

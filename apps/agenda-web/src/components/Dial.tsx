@@ -37,9 +37,10 @@ interface Props {
   size?: 'hand' | 'stage';
 }
 
-/* 半径（viewBox 400）。外から: オーバーの軌道・終了見込みの印・縁・目盛り・外の環（予定）・内の環（実際） */
-const R_TRACK = 176;
-const R_MARKER = 175;
+/* 半径（viewBox 400）。外から: 終了見込みの印・オーバーの軌道・縁・目盛り・外の環（予定）・内の環（実際）・中央の台座。
+   印（三角は中心から ±7）は軌道（太さ 4.5）の外に置き、オーバー中に軌道の先端と重ならない */
+const R_MARKER = 184;
+const R_TRACK = 172;
 const R_BEZEL = 160;
 const R_OUT = 146;
 const R_IN = 130;
@@ -51,6 +52,8 @@ const MIN_NUMBER_SPAN = 14;
 /** 6 時のスモールセコンドの中心 */
 const SUB_Y = C + 90;
 const SUB_R = 17;
+/** 中央の台座。針の軸の内側を覆い、中央の数字と名前の上を針が横切らないようにする（矢じりと月の輪は外に残る） */
+const R_PLATE = 72;
 
 const fixed = (n: number): number => Math.round(n * 100) / 100;
 
@@ -69,6 +72,11 @@ function Defs({ id }: { id: string }) {
         <stop offset="0" className="dial-stop--face-in" />
         <stop offset="0.75" className="dial-stop--face-mid" />
         <stop offset="1" className="dial-stop--face-out" />
+      </radialGradient>
+      {/* 中央の台座: 文字盤の中心と同じフェルトから、縁でわずかに沈む */}
+      <radialGradient id={`${id}-plate`} cx="0.5" cy="0.45" r="0.55">
+        <stop offset="0" className="dial-stop--plate-in" />
+        <stop offset="1" className="dial-stop--plate-out" />
       </radialGradient>
       {/* 飛ばした区画の斜線 */}
       <pattern id={`${id}-hatch`} width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
@@ -121,7 +129,8 @@ function PlanRing({ view, hatch }: { view: AgendaView; hatch: string }) {
             <path
               className={seg.skipped ? 'dial-plan dial-plan--skipped' : 'dial-plan'}
               d={arcPath(R_OUT, seg.startDeg + GAP, seg.endDeg - GAP)}
-              stroke={seg.skipped ? hatch : undefined}
+              // 斜線は style で当てる（属性は詳細度 0 で、CSS の `.dial-plan` の stroke に負ける）
+              style={seg.skipped ? { stroke: hatch } : undefined}
             />
             <line className="dial-plan-divider" x1={fixed(sx0)} y1={fixed(sy0)} x2={fixed(sx1)} y2={fixed(sy1)} />
             {seg.endDeg - seg.startDeg > MIN_NUMBER_SPAN && (
@@ -186,18 +195,28 @@ function SmallSeconds({ view, brass }: { view: AgendaView; brass: string }) {
   );
 }
 
-/** 針（ブレゲ針: 細い軸・月の輪・矢じり）。実時間の経過 ＝ 内の環の先端 */
-function Needle({ view, brass }: { view: AgendaView; brass: string }) {
+/**
+ * 針（ブレゲ針: 細い軸・月の輪・矢じり）。実時間の経過 ＝ 内の環の先端。
+ * 軸は中心から描くが、内側は中央の台座が覆う（台座は針の後に描く）。見えるのは台座の縁から外の半分
+ */
+function Needle({ view }: { view: AgendaView }) {
   const tip = C - R_IN;
   return (
-    <>
-      <g className="dial-needle" transform={`rotate(${needleDeg(view)} ${C} ${C})`}>
-        <line className="dial-needle-shaft" x1={C} y1={C + 18} x2={C} y2={tip + 22} />
-        <circle className="dial-needle-moon" cx={C} cy={tip + 34} r="6" />
-        <path className="dial-needle-tip" d={`M${C - 3} ${tip + 22} L${C} ${tip + 8} L${C + 3} ${tip + 22} Z`} />
-      </g>
-      <circle className="dial-hub" cx={C} cy={C} r="5" fill={brass} />
-    </>
+    <g className="dial-needle" transform={`rotate(${needleDeg(view)} ${C} ${C})`}>
+      <line className="dial-needle-shaft" x1={C} y1={C} x2={C} y2={tip + 22} />
+      <circle className="dial-needle-moon" cx={C} cy={tip + 34} r="6" />
+      <path className="dial-needle-tip" d={`M${C - 3} ${tip + 22} L${C} ${tip + 8} L${C + 3} ${tip + 22} Z`} />
+    </g>
+  );
+}
+
+/** 中央の台座。真鍮の細い縁で、針の軸受けの代わりに中心を示す */
+function Plate({ id, overrun }: { id: string; overrun: boolean }) {
+  return (
+    <g>
+      <circle className="dial-plate" cx={C} cy={C} r={R_PLATE} fill={`url(#${id}-plate)`} />
+      {overrun && <circle className="dial-overrun-tint dial-plate-tint" cx={C} cy={C} r={R_PLATE} />}
+    </g>
   );
 }
 
@@ -253,7 +272,8 @@ export function Dial({ view, wallNow, reducedMotion, striking = false, size = 'h
           {overrunTrackDeg(view) > 0 && <path className="dial-overrun-track" d={arcPath(R_TRACK, 0, overrunTrackDeg(view))} />}
           {started && <Projection view={view} />}
           <SmallSeconds view={view} brass={brass} />
-          <Needle view={view} brass={brass} />
+          <Needle view={view} />
+          <Plate id={id} overrun={lines.isOverrun} />
         </svg>
         <Readout view={view} />
       </div>

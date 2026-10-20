@@ -47,6 +47,16 @@ describe('盤の中央の文字', () => {
     expect(driftTone(even)).toBe('even');
   });
 
+  it('巻きも押しと同じ境目で丸める（−30 秒は −1 分・−29 秒は予定どおり・−90 秒は −2 分）', () => {
+    // 5 分 + 7 分。1 つ目を早めに終えた分だけ巻く（見込み = 経過 + 7 分）
+    const at = (earlyMs: number) => new Driver([5, 7]).next(5 * MIN - earlyMs).view(5 * MIN - earlyMs);
+    expect(centerLines(at(30_000)).drift).toBe('予定より \u22121 分');
+    expect(driftTone(at(30_000))).toBe('early');
+    expect(centerLines(at(29_000)).drift).toBe('予定どおり');
+    expect(driftTone(at(29_000))).toBe('even');
+    expect(centerLines(at(90_000)).drift).toBe('予定より \u22122 分');
+  });
+
   it('押し巻きは分へ丸める（29 秒の押しは予定どおり・31 秒は +1 分）', () => {
     expect(centerLines(new Driver([5, 7]).view(5 * MIN + 29_000)).drift).toBe('予定どおり');
     expect(centerLines(new Driver([5, 7]).view(5 * MIN + 31_000)).drift).toBe('予定より +1 分');
@@ -111,6 +121,11 @@ describe('読み上げの要約', () => {
   it('オーバー中・一時停止中は、それぞれを言葉で添える', () => {
     expect(summaryText(new Driver([5, 7]).view(7 * MIN))).toBe('S1、オーバー 2 分、予定より +2 分');
     expect(summaryText(new Driver([5, 7]).pause(1 * MIN).view(3 * MIN))).toBe('S1、残り 4 分、予定より +2 分、一時停止中');
+  });
+
+  it('オーバーの最初の 1 分は「0 分」と言わない', () => {
+    expect(summaryText(new Driver([5, 7]).view(5 * MIN + 20_000))).toBe('S1、オーバー、予定どおり');
+    expect(summaryText(new Driver([5, 7]).view(6 * MIN + 1000))).toBe('S1、オーバー 1 分、予定より +1 分');
   });
 
   it('開始前と終了', () => {

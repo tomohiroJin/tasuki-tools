@@ -8,6 +8,7 @@ import {
   FOOTER_SEPARATOR,
   NOT_STARTED_LABEL,
   ON_PLAN_LABEL,
+  OVERRUN_LABEL,
   PAUSED_LABEL,
   SUMMARY_SEPARATOR,
   driftText,
@@ -63,9 +64,11 @@ export function isOverrun(v: AgendaView): boolean {
   return isActive(v) && remainingMs(v) <= 0;
 }
 
-/** 押し巻きを分へ丸めた値（四捨五入。±30 秒未満は 0） */
+/** 押し巻きを分へ丸めた値（絶対値で四捨五入し、符号を戻す。押しと巻きで境目を揃える: ±30 秒ちょうどは ±1 分） */
 function driftMinutes(v: AgendaView): number {
-  return Math.round(driftMs(v) / MIN);
+  const d = driftMs(v);
+  // `Math.round` は負の .5 を 0 の側へ丸める（−0.5 → −0）ので、絶対値で丸める
+  return Math.sign(d) * Math.round(Math.abs(d) / MIN) || 0;
 }
 
 export function driftTone(v: AgendaView): DriftTone {
@@ -142,6 +145,12 @@ export function stepRows(v: AgendaView): StepRow[] {
   }));
 }
 
+/** オーバーの読み上げ。最初の 1 分は「オーバー 0 分」と言わず「オーバー」だけ */
+const overrunPart = (overMs: number): string => {
+  const minutes = Math.floor(overMs / MIN);
+  return minutes === 0 ? OVERRUN_LABEL : overrunSummary(minutes);
+};
+
 /** 読み上げの要約（例「Try の議論、残り 12 分、予定より +3 分」）。分は残りなら切り上げ・オーバーは切り捨て */
 export function summaryText(v: AgendaView): string {
   const parts: string[] = [];
@@ -153,7 +162,7 @@ export function summaryText(v: AgendaView): string {
     const rest = remainingMs(v);
     parts.push(
       currentStep(v)?.name ?? '',
-      isOverrun(v) ? overrunSummary(Math.floor(-rest / MIN)) : remainingSummary(Math.ceil(rest / MIN)),
+      isOverrun(v) ? overrunPart(-rest) : remainingSummary(Math.ceil(rest / MIN)),
       driftLine(v),
     );
     if (v.phase === 'paused') parts.push(PAUSED_LABEL);

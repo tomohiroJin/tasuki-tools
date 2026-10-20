@@ -67,6 +67,10 @@ describe('盤', () => {
     const v = new Driver([5, 5, 5]).skip('s-2').view(1 * MIN);
     const { container } = render(<Dial view={v} wallNow={WALL} reducedMotion={false} />);
     expect(container.querySelectorAll('.dial-plan--skipped')).toHaveLength(1);
+    // 斜線は style で当てる（属性だと CSS の `.dial-plan` の stroke に負けて、ただの太い帯になる）
+    const skipped = container.querySelector<SVGPathElement>('.dial-plan--skipped');
+    expect(skipped?.style.stroke).toMatch(/^url\(["']?#dial[A-Za-z0-9]+-hatch["']?\)$/);
+    expect(skipped?.getAttribute('stroke')).toBeNull();
     expect(container.querySelectorAll('.dial-plan-number--skipped')).toHaveLength(1);
     expect(container.querySelector('.dial-marker')).toHaveClass('dial-marker--early');
   });
@@ -75,6 +79,30 @@ describe('盤', () => {
     const v = new Driver([5, 5]).extend(3).view(1 * MIN);
     const { container } = render(<Dial view={v} wallNow={WALL} reducedMotion={false} />);
     expect(container.querySelector('.dial-extension')).not.toBeNull();
+  });
+
+  it('中央の台座は針の後に描かれ（軸の内側を覆う）、針の矢じりは台座の外に出る', () => {
+    const v = new Driver([5, 5]).view(1 * MIN);
+    const { container } = render(<Dial view={v} wallNow={WALL} reducedMotion={false} />);
+    const needle = container.querySelector('.dial-needle');
+    const plate = container.querySelector('.dial-plate');
+    expect(needle && plate && needle.compareDocumentPosition(plate) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // 矢じりの付け根（中心から 108）は台座の半径より外
+    const r = Number(plate?.getAttribute('r'));
+    const tipBaseY = Number(container.querySelector('.dial-needle-shaft')?.getAttribute('y2'));
+    expect(200 - tipBaseY).toBeGreaterThan(r + 20);
+  });
+
+  it('オーバー中、終了見込みの印はオーバーの軌道と重ならない（印の三角の内端が軌道の外端より外）', () => {
+    const v = new Driver([5, 5]).next(4 * MIN).view(12 * MIN);
+    const { container } = render(<Dial view={v} wallNow={WALL} reducedMotion={false} />);
+    const track = container.querySelector('.dial-overrun-track')?.getAttribute('d') ?? '';
+    const trackR = Number(/A(\d+(?:\.\d+)?) /.exec(track)?.[1]);
+    const translate = container.querySelector('.dial-marker')?.parentElement?.getAttribute('transform') ?? '';
+    const [, tx, ty] = /translate\(([-\d.]+) ([-\d.]+)\)/.exec(translate) ?? [];
+    const markerR = Math.hypot(Number(tx) - 200, Number(ty) - 200);
+    // 軌道の太さ 4.5 の半分・三角の中心からの広がり 7
+    expect(markerR - 7).toBeGreaterThan(trackR + 2.25);
   });
 
   it('開始前: 針は 12 時・終了見込みの印は出さない・中央は予定の合計', () => {
