@@ -17,7 +17,8 @@
  */
 import type { Locator, Page } from '@playwright/test';
 import { expect, test } from '../fixtures/test';
-import { expectFieldsAtLeast16px, expectScreenAcrossWidths, expectTouchTargets } from '../support/a11y';
+import { expectFieldsAtLeast16px, expectFocusVisibleOnTab, expectReadable, expectScreenAcrossWidths, expectTouchTargets, scanContrast } from '../support/a11y';
+import { loadSampleAndStart, openAgendaFromHub } from '../support/agenda';
 import { chooseCard, turnRecordingOn } from '../support/poker';
 import { addRouletteGuest, expectCardNameNotCovered, openRouletteFromHub, spinButton } from '../support/roulette';
 import { openTopicTool, setTopic } from '../support/topic';
@@ -290,8 +291,34 @@ test.describe('お題ツールのボタンは部品で、押せる大きさが�
     await expect(spinButton(page)).toBeDisabled();
     await expect(spinButton(page)).toBeEnabled({ timeout: 8000 });
     await expectCardNameNotCovered(page);
+
+    // 同じルームで進行タイマー（#429・ルームは足さない）。組む画面 → 進行中 → 映す表示を 4 つの幅で測る
+    await page.setViewportSize({ width: 390, height: 800 });
+    await page.getByRole('link', { name: '選択画面へ戻る' }).click();
+    await openAgendaFromHub(page);
+    await expect(page.getByRole('button', { name: /サンプル：KPT のふりかえり/ })).toBeVisible();
+    await expectScreenAcrossWidths(page, '進行タイマー（組む）', AGENDA_BUILD_TARGETS);
+
+    await loadSampleAndStart(page);
+    await expect(page.locator('.dial-name')).toHaveText('K を出す');
+    await expectScreenAcrossWidths(page, '進行タイマー（進行中）', AGENDA_RUN_TARGETS);
+    //   止まった画面（進行中・1280）の文字が読める・Tab でフォーカスが見える。盤の SVG は aria-hidden で、中央の文字は HTML
+    //   （`scanContrast` が測る span / p）。SVG の `<text>`（区画の番号）は対象外で、ここでは測らない
+    await page.setViewportSize({ width: 1280, height: 900 });
+    expectReadable(await scanContrast(page, 10), 8, []);
+    await expectFocusVisibleOnTab(page);
+
+    // 映す表示（盤と右の列だけ。操作の帯は動かすまで隠れるので、測る数の下限は 0 に置く）
+    await page.getByRole('button', { name: '映す表示', exact: true }).click();
+    await expect(page.getByRole('button', { name: '手元の表示に戻る', exact: true })).toBeAttached();
+    await expectScreenAcrossWidths(page, '進行タイマー（映す表示）', 0);
   });
 });
+
+/** 進行タイマーの組む画面（空のとき）で測る操作の数の下限（サンプルの札・ステップを追加・戻るリンクなど。実測前の控えめな値） */
+const AGENDA_BUILD_TARGETS = 3;
+/** 進行タイマーの進行中の画面で測る操作の数の下限（延長 3・一時停止・次へ・映す表示・スキップなど。実測前の控えめな値） */
+const AGENDA_RUN_TARGETS = 8;
 
 /** ルーレットの画面にある部品のボタン（戻る・回す・名前を追加・招待リンクをコピー・名前を消す） */
 const ROULETTE_BUTTONS = 6;

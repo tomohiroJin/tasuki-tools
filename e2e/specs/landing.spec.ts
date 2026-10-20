@@ -62,6 +62,8 @@ test.describe('選択画面の札から各ツールへ移動できる', () => {
     { card: 'Planning Poker', path: '/poker/', landmark: '票を公開する' },
     // お題ツール（#91 PR 2）。目印は「場に出す」—— 玄関にも timer・poker にも無い
     { card: 'Topic Board', path: '/topic/', landmark: '場に出す' },
+    // 進行タイマー（#429）。目印は「サンプル：KPT のふりかえり」の札（ルームも下書きも空のときの組む画面にだけある）
+    { card: 'Agenda Timer', path: '/agenda/', landmark: /サンプル：KPT のふりかえり/ },
   ] as const;
 
   for (const tool of TOOLS) {
