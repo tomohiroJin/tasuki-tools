@@ -1,7 +1,8 @@
 /**
  * 進行タイマーのルームの画面（#429）。
  *
- * 段階で中身を切り替える: 開始前は組む画面（`ScenarioBuilder`）。**進行中・終了は仮の一覧**（Task 3.6 が置き換える）。
+ * 段階で中身を切り替える: 開始前は組む画面（`ScenarioBuilder`）、進行中・一時停止中・終了は進める画面（`RunScreen`）。
+ * 合図（時打ち・読み上げ）は段階をまたいで前の盤と比べるので、段階の切り替えの外（ここ）で持つ。
  * 器（`.ui-page--wide`）は段階が変わっても変えない（`packages/ui/README.md`「器の選び方」）。
  * ここで名前は聞かない（名乗りは玄関に 1 つだけ・`docs/adr/0018`）。端末に同一性が無い・合言葉を求められたら
  * 玄関のそのルームへ送り返す（コードは落とさない）。
@@ -9,7 +10,14 @@
 import { useEffect } from 'react';
 import type { AgendaView } from '@tasuki/agenda-core';
 import { LoadingView } from '../components/LoadingView';
+import { RunScreen } from '../components/RunScreen';
 import { ScenarioBuilder } from '../components/ScenarioBuilder';
+import { SoundToggle } from '../components/SoundToggle';
+import { useLocalClock } from '../hooks/use-local-clock';
+import { usePrefersReducedMotion } from '../hooks/use-reduced-motion';
+import { useRunSignals } from '../hooks/use-run-signals';
+import { useSoundSetting } from '../hooks/use-sound-setting';
+import { useWallClock } from '../hooks/use-wall-clock';
 import { BACK_LINK, CLOSE_BUTTON, GONE_HEADING, GONE_LINK, GONE_TEXT, JOINING_HEADING, PAGE_HEADING } from '../copy';
 import { useAgendaSync, type AgendaSync } from '../hooks/use-agenda-sync';
 import { hubPathFor, redirectTo } from '../router';
@@ -82,19 +90,34 @@ export function AgendaRoom({ roomCode }: { roomCode: string }) {
   );
 }
 
-/** 段階ごとの中身。開始前は組む画面、それ以外は Task 3.6 までの仮の一覧 */
+/**
+ * 段階ごとの中身。開始前は組む画面、それ以外は進める画面。
+ * 読み上げの領域は段階に関わらず常に置き、文だけを差し替える（入れた瞬間の領域は読み上げられないことがある）。
+ */
 function PhaseView({ view, sync }: { view: AgendaView; sync: AgendaSync }) {
-  if (view.phase === 'idle') {
-    return <ScenarioBuilder view={view} canOperate={sync.joined} onLoad={sync.setScenario} onStart={sync.start} />;
-  }
+  const reducedMotion = usePrefersReducedMotion();
+  const live = useLocalClock(view, sync.receivedAt, reducedMotion) ?? view;
+  const wallNow = useWallClock();
+  const { soundOn, toggleSound } = useSoundSetting();
+  const { striking, announcement } = useRunSignals(live, { frame: view, joined: sync.joined, soundOn, reducedMotion });
   return (
-    <section>
-      <h2>{view.title}</h2>
-      <ol>
-        {view.steps.map((step) => (
-          <li key={step.id}>{step.name}</li>
-        ))}
-      </ol>
-    </section>
+    <>
+      {view.phase === 'idle' ? (
+        <ScenarioBuilder view={view} canOperate={sync.joined} onLoad={sync.setScenario} onStart={sync.start} />
+      ) : (
+        <RunScreen
+          view={live}
+          wallNow={wallNow}
+          reducedMotion={reducedMotion}
+          striking={striking}
+          canOperate={sync.joined}
+          actions={sync}
+          soundToggle={<SoundToggle soundOn={soundOn} onToggle={toggleSound} />}
+        />
+      )}
+      <p className="ui-visually-hidden agenda-live" aria-live="polite">
+        {announcement}
+      </p>
+    </>
   );
 }

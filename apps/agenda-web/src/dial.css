@@ -335,3 +335,30 @@
   font-size: var(--font-size-sm);
   text-align: center;
 }
+
+/* ── 時打ち（spec §7.4）──────────────────────────────────
+   残りが 0 に達した瞬間、縁の真鍮を --gold-glow で 1 度だけ光らせる（600ms・点滅しない）。
+   数字の --rose-bright と中央の --rose-tint はオーバーの装い（.is-overrun）がそのまま持つ。
+   動きを減らす設定では光らせない（クラスも付けないが、CSS でも二重に止める） */
+.dial--striking .dial-bezel {
+  animation: dial-strike 600ms ease-out 1;
+}
+@keyframes dial-strike {
+  0% {
+    filter: drop-shadow(0 0 0 var(--gold-glow));
+  }
+  35% {
+    filter: drop-shadow(0 0 14px var(--gold-glow)) brightness(1.25);
+  }
+  100% {
+    filter: drop-shadow(0 0 0 var(--gold-glow));
+  }
+}
+.dial--reduced.dial--striking .dial-bezel {
+  animation: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dial--striking .dial-bezel {
+    animation: none;
+  }
+}
