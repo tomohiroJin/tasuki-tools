@@ -2908,4 +2908,12 @@ export const MUTATIONS = [
     tests: ["tests/dial.test.tsx"],
     note: "#429 timer の chrono-hand と同じ扱いにすると、押し巻きを読む要が盤から消える。",
   },
+  {
+    id: 445,
+    label: "現在の版でない保存を移行せずに捨てる",
+    patch: "m445-old-saved-version-dropped.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/saved-scenarios.test.ts"],
+    note: "#429 版を上げたとき、利用者が端末に保存したシナリオが全部消える。偽の旧版を migrations に差し込んで読む。",
+  },
 ];
