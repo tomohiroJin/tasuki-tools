@@ -1,0 +1,303 @@
+/* ============================================================
+   懐中時計の盤（#429 spec §7.2〜§7.4。モックの案 A「フェルトの盤」）
+   **生の色を書かない**。色はすべて語彙のトークン。SVG の座標系（viewBox 400）の値は scale-exempt。
+   **色だけに頼らない**: オーバーは「+」・小札・別の軌道（点線・1.5 倍の太さ）、飛ばしは斜線、
+   一時停止は小札と止まったスモールセコンド、押し巻きは文言。
+   ============================================================ */
+
+.dial {
+  margin: 0;
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+}
+.dial-watch {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  /* 中央の文字は盤の幅に比例させる（cqi） */
+  container-type: inline-size;
+}
+.dial--hand .dial-watch {
+  max-width: 20rem;
+}
+.dial--stage .dial-watch {
+  width: min(70vmin, 100%);
+}
+.dial-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* ── 真鍮と文字盤の地 ──────────────────────────────────── */
+.dial-stop--brass-lift {
+  stop-color: var(--gold-lift);
+}
+.dial-stop--brass {
+  stop-color: var(--gold);
+}
+.dial-stop--brass-deep {
+  stop-color: var(--gold-deep);
+}
+.dial-stop--brass-bright {
+  stop-color: var(--gold-bright);
+}
+.dial-stop--face-in {
+  stop-color: var(--felt-800);
+}
+.dial-stop--face-mid {
+  stop-color: var(--felt-950);
+}
+.dial-stop--face-out {
+  stop-color: var(--felt-vignette-deep);
+}
+.dial-bow {
+  fill: none;
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+.dial-crown-knurl {
+  stroke: var(--gold-deep);
+  stroke-width: 1;
+}
+.dial-dial {
+  stroke: var(--gold-deep);
+  stroke-width: 1.5;
+}
+/* オーバー中の地（時打ちのあと、そのまま残る） */
+.dial-overrun-tint {
+  fill: var(--rose-tint);
+}
+
+/* ── 目盛りと外の環（予定）───────────────────────────────── */
+.dial-tick {
+  stroke: var(--pewter);
+  stroke-width: 0.8;
+  opacity: 0.55;
+}
+.dial-tick--long {
+  stroke-width: 1.6;
+  opacity: 0.9;
+}
+.dial-plan {
+  fill: none;
+  stroke: var(--pewter);
+  stroke-width: 3;
+  opacity: 0.7;
+}
+/* 飛ばした区画: 中を抜いて斜線だけ（stroke は pattern を属性で当てる） */
+.dial-plan--skipped {
+  stroke-width: 7;
+  opacity: 0.9;
+}
+.dial-hatch-line {
+  stroke: var(--ivory-faint);
+  stroke-width: 1.2;
+}
+.dial-plan-divider {
+  stroke: var(--gold);
+  stroke-width: 2;
+}
+.dial-plan-number {
+  fill: var(--pewter);
+  font-family: var(--font-display);
+  font-size: 11px; /* scale-exempt: 盤の座標系（viewBox 400）の値。盤の幅に比例する */
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+.dial-plan-number--skipped {
+  fill: var(--ivory-faint);
+  text-decoration: line-through;
+}
+
+/* ── 内の環（実際）と延長の足し ─────────────────────────── */
+.dial-actual {
+  fill: none;
+  stroke: var(--gold-deep);
+  stroke-width: 9;
+  opacity: 0.85;
+}
+.dial-actual--current {
+  stroke: var(--gold-bright);
+  opacity: 1;
+}
+.dial-extension {
+  fill: none;
+  stroke: var(--gold-edge);
+  stroke-width: 3;
+}
+
+/* ── オーバー・押し・巻き ──────────────────────────────── */
+/* 3 本目の環。外の環（3）の 1.5 倍の太さに刻み（点線）を付ける */
+.dial-overrun-track {
+  fill: none;
+  stroke: var(--rose-bright);
+  stroke-width: 4.5;
+  stroke-dasharray: 6 3;
+}
+.dial-late-rim {
+  fill: none;
+  stroke: var(--rose-bright);
+  stroke-width: 5;
+  opacity: 0.9;
+}
+.dial-marker {
+  fill: var(--gold-bright);
+  stroke: var(--gold-deep);
+  stroke-width: 1;
+}
+.dial-marker--late {
+  fill: var(--rose-bright);
+}
+/* 巻き: 縁取りを jade で太く（形の差: 縁の太さ） */
+.dial-marker--early {
+  stroke: var(--jade);
+  stroke-width: 2.2;
+}
+
+/* ── スモールセコンドと針 ──────────────────────────────── */
+.dial-sub {
+  fill: none;
+  stroke: var(--pewter);
+  stroke-width: 0.8;
+  opacity: 0.7;
+}
+.dial-sub-hand {
+  stroke: var(--gold-bright);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+}
+.is-paused .dial-sub-hand {
+  stroke: var(--ivory-faint);
+}
+.dial-needle {
+  filter: drop-shadow(0 0 4px var(--gold-glow));
+}
+.dial-needle-shaft {
+  stroke: var(--gold-bright);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+}
+.dial-needle-moon {
+  fill: none;
+  stroke: var(--gold-bright);
+  stroke-width: 2;
+}
+.dial-needle-tip {
+  fill: var(--gold-bright);
+  stroke: var(--gold-deep);
+  stroke-width: 0.6;
+}
+.dial-hub {
+  stroke: var(--gold-deep);
+}
+
+/* ── 中央の文字（HTML を SVG の上に重ねる）───────────────── */
+.dial-face {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+}
+.dial-readout {
+  width: 56%;
+  text-align: center;
+  translate: 0 -6%;
+}
+.dial-tags {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-1);
+  margin-bottom: var(--space-1);
+}
+.dial-tag {
+  font-size: clamp(0.65rem, 3cqi, 0.9rem); /* scale-exempt: 盤の幅に比例する小札（盤の中の 1 行に収める） */
+  font-weight: 700;
+  line-height: 1.4;
+  padding: 0 0.6em;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+}
+.dial-tag--overrun {
+  color: var(--rose-bright);
+}
+.dial-tag--paused {
+  color: var(--ivory-dim);
+}
+.dial-name {
+  color: var(--ivory);
+  font-weight: 700;
+  font-size: clamp(0.85rem, 4.2cqi, 1.6rem); /* scale-exempt: 盤の幅に比例する（手元 300px で約 0.8rem・映す表示で約 1.6rem） */
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  /* 2 行まで。溢れたら … */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+.dial-time {
+  margin: 0.08em 0 0.04em;
+  color: var(--gold-bright);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(2.2rem, 15cqi, 9rem); /* scale-exempt: 計器の大きな数字（盤の幅に比例する主役）。5 段の外 */
+  line-height: 1;
+  text-shadow: 0 0 18px var(--gold-glow);
+}
+.is-overrun .dial-time {
+  color: var(--rose-bright);
+  text-shadow: 0 0 18px var(--rose-glow);
+}
+.is-paused .dial-time {
+  color: var(--ivory-dim);
+  text-shadow: none;
+}
+.dial-drift {
+  font-weight: 500;
+  font-size: clamp(0.8rem, 4cqi, 1.6rem); /* scale-exempt: 押し巻きは映す表示で名前と同じ大きさまで上げる（spec §7.3） */
+}
+.dial-drift.is-late {
+  color: var(--rose-bright);
+}
+.dial-drift.is-early {
+  color: var(--jade);
+}
+.dial-drift.is-even,
+.dial-drift.is-idle {
+  color: var(--ivory-dim);
+}
+
+/* 桁の箱（TimeDigits）。Fraunces のサブセットに tnum が無いので 1 字ずつ固定幅に置く。
+   幅は最も広い 0（0.666em・40px で 0000 = 106.6px の実測）が収まる値 */
+.time-digits {
+  display: inline-flex;
+  justify-content: center;
+}
+.time-digit,
+.time-colon,
+.time-sign {
+  display: inline-block;
+  text-align: center;
+}
+.time-digit {
+  width: 0.68em;
+}
+.time-colon {
+  width: 0.3em;
+  translate: 0 -0.06em;
+}
+.time-sign {
+  width: 0.56em;
+}
+
+/* ── 盤の下の一行 ─────────────────────────────────────── */
+.dial-footer {
+  color: var(--ivory-dim);
+  font-size: var(--font-size-sm);
+  text-align: center;
+}

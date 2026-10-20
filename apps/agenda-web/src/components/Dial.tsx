@@ -1,0 +1,264 @@
+/**
+ * 懐中時計の盤（#429 spec §7.2〜§7.4・§7.7。モックの案 A「フェルトの盤」）。
+ *
+ * - **SVG は `aria-hidden`**。中央の文字（HTML を SVG の上に重ねる）も `aria-hidden` にし、同じ情報は
+ *   見えない一文（`summaryText`）が持つ。盤の下の一行は見える文として読ませる
+ * - 角度・長さは `dial-geometry` からだけ取る。ここでは半径と形だけを決める
+ * - 色は CSS のクラスで当てる（生の色を書かない）。グラデーションの `<stop>` も CSS の `stop-color`
+ *   （roulette の `Wheel.tsx` と同じ。`scripts/audit-ui-components.mjs` は CSS の生の色を拾う）
+ * - **動きを減らす設定でも針は消さない**（timer の `chrono-hand` と違い、針が押し巻きを読む要）。
+ *   1 秒ごとの描き替えは手元の時計（`useLocalClock`）が受け持つ
+ */
+import { useId } from 'react';
+import type { AgendaView } from '@tasuki/agenda-core';
+import { centerLines, driftTone, footerLine, summaryText } from '../agenda-view';
+import {
+  DIAL_CENTER as C,
+  arcPath,
+  innerSegments,
+  lateRimDeg,
+  needleDeg,
+  outerSegments,
+  overrunTrackDeg,
+  polar,
+  projectedMarkerDeg,
+  smallSecondsDeg,
+} from '../dial-geometry';
+import { OVERRUN_LABEL, PAUSED_LABEL } from '../copy';
+import { TimeDigits } from './TimeDigits';
+
+interface Props {
+  view: AgendaView;
+  wallNow: Date;
+  reducedMotion: boolean;
+  /** 時打ちの瞬間（縁を 1 度光らせる。光らせ方は Task 3.6） */
+  striking?: boolean;
+  /** 手元（300px 前後）か、映す表示（短い辺の 70vmin 前後）か */
+  size?: 'hand' | 'stage';
+}
+
+/* 半径（viewBox 400）。外から: オーバーの軌道・終了見込みの印・縁・目盛り・外の環（予定）・内の環（実際） */
+const R_TRACK = 176;
+const R_MARKER = 175;
+const R_BEZEL = 160;
+const R_OUT = 146;
+const R_IN = 130;
+const R_EXT = R_IN + 8;
+/** 外の環の区画の両端を少し空けて、仕切りを見せる */
+const GAP = 0.6;
+/** 番号を置ける区画の最小の角度（これより狭い区画は番号を省く。名前は中央と進行表が持つ） */
+const MIN_NUMBER_SPAN = 14;
+/** 6 時のスモールセコンドの中心 */
+const SUB_Y = C + 90;
+const SUB_R = 17;
+
+const fixed = (n: number): number => Math.round(n * 100) / 100;
+
+function Defs({ id }: { id: string }) {
+  return (
+    <defs>
+      {/* 真鍮: 円錐のグラデーションは SVG に無いので、斜めの線形で照り返しにする（ルーレットと同じ並び） */}
+      <linearGradient id={`${id}-brass`} x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" className="dial-stop--brass-lift" />
+        <stop offset="0.35" className="dial-stop--brass" />
+        <stop offset="0.7" className="dial-stop--brass-deep" />
+        <stop offset="1" className="dial-stop--brass-bright" />
+      </linearGradient>
+      {/* 文字盤: フェルトの地に周辺減光 */}
+      <radialGradient id={`${id}-face`} cx="0.5" cy="0.42" r="0.6">
+        <stop offset="0" className="dial-stop--face-in" />
+        <stop offset="0.75" className="dial-stop--face-mid" />
+        <stop offset="1" className="dial-stop--face-out" />
+      </radialGradient>
+      {/* 飛ばした区画の斜線 */}
+      <pattern id={`${id}-hatch`} width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+        <line className="dial-hatch-line" x1="0" y1="0" x2="0" y2="5" />
+      </pattern>
+    </defs>
+  );
+}
+
+/** 12 時の竜頭と弓（予定の終わり。動かない） */
+function Crown({ brass }: { brass: string }) {
+  return (
+    <g className="dial-crown">
+      <path className="dial-bow" d="M185 20 Q200 6 215 20" stroke={brass} />
+      <rect x="191" y="20" width="18" height="16" rx="3" fill={brass} />
+      {[0, 1, 2, 3].map((i) => (
+        <line key={i} className="dial-crown-knurl" x1={194 + i * 4} y1="22" x2={194 + i * 4} y2="34" />
+      ))}
+    </g>
+  );
+}
+
+/** 分の目盛り（60 本・5 本ごとに長く） */
+function MinuteTicks() {
+  return (
+    <g>
+      {Array.from({ length: 60 }, (_, i) => {
+        const long = i % 5 === 0;
+        const [x0, y0] = polar(R_BEZEL - 3, i * 6);
+        const [x1, y1] = polar(R_BEZEL - (long ? 10 : 6), i * 6);
+        return (
+          <line key={i} className={long ? 'dial-tick dial-tick--long' : 'dial-tick'} x1={fixed(x0)} y1={fixed(y0)} x2={fixed(x1)} y2={fixed(y1)} />
+        );
+      })}
+    </g>
+  );
+}
+
+/** 外の環（予定）。仕切り・番号・飛ばした区画の斜線 */
+function PlanRing({ view, hatch }: { view: AgendaView; hatch: string }) {
+  return (
+    <g>
+      {outerSegments(view).map((seg, i) => {
+        const [sx0, sy0] = polar(R_OUT - 7, seg.startDeg);
+        const [sx1, sy1] = polar(R_OUT + 7, seg.startDeg);
+        const [nx, ny] = polar(R_OUT - 17, (seg.startDeg + seg.endDeg) / 2);
+        const skipped = seg.skipped ? '--skipped' : '';
+        return (
+          <g key={seg.id}>
+            <path
+              className={seg.skipped ? 'dial-plan dial-plan--skipped' : 'dial-plan'}
+              d={arcPath(R_OUT, seg.startDeg + GAP, seg.endDeg - GAP)}
+              stroke={seg.skipped ? hatch : undefined}
+            />
+            <line className="dial-plan-divider" x1={fixed(sx0)} y1={fixed(sy0)} x2={fixed(sx1)} y2={fixed(sy1)} />
+            {seg.endDeg - seg.startDeg > MIN_NUMBER_SPAN && (
+              <text className={`dial-plan-number dial-plan-number${skipped}`} x={fixed(nx)} y={fixed(ny)}>
+                {i + 1}
+              </text>
+            )}
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+/** 内の環（実際）と延長の足し */
+function ActualRing({ view }: { view: AgendaView }) {
+  return (
+    <g>
+      {innerSegments(view).map((seg) => (
+        <g key={seg.id}>
+          {seg.endDeg > seg.startDeg && (
+            <path
+              className={seg.current ? 'dial-actual dial-actual--current' : 'dial-actual'}
+              d={arcPath(R_IN, seg.startDeg + (seg.current ? 0 : GAP / 2), seg.endDeg - (seg.current ? 0 : GAP / 2))}
+            />
+          )}
+          {seg.extensionStartDeg !== null && seg.extensionEndDeg !== null && seg.extensionEndDeg > seg.extensionStartDeg && (
+            <path className="dial-extension" d={arcPath(R_EXT, seg.extensionStartDeg, seg.extensionEndDeg)} />
+          )}
+        </g>
+      ))}
+    </g>
+  );
+}
+
+/** 終了見込みの印（縁の三角）と、押しているときの 12 時から印までの縁 */
+function Projection({ view }: { view: AgendaView }) {
+  const deg = projectedMarkerDeg(view);
+  const rim = lateRimDeg(view);
+  const tone = driftTone(view);
+  const [tx, ty] = polar(R_MARKER, deg);
+  return (
+    <g>
+      {tone === 'late' && rim > 0 && <path className="dial-late-rim" d={arcPath(R_BEZEL + 3, 0, rim)} />}
+      <g transform={`translate(${fixed(tx)} ${fixed(ty)}) rotate(${fixed(deg)})`}>
+        <path className={`dial-marker dial-marker--${tone}`} d="M0 7 L-6 -5 L6 -5 Z" />
+      </g>
+    </g>
+  );
+}
+
+/** 6 時のスモールセコンド（計時が動いているか。一時停止中は止まる） */
+function SmallSeconds({ view, brass }: { view: AgendaView; brass: string }) {
+  return (
+    <g>
+      <circle className="dial-sub" cx={C} cy={SUB_Y} r={SUB_R} />
+      <g transform={`rotate(${fixed(smallSecondsDeg(view))} ${C} ${SUB_Y})`}>
+        <line className="dial-sub-hand" x1={C} y1={SUB_Y + 3} x2={C} y2={SUB_Y - 13} />
+      </g>
+      <circle cx={C} cy={SUB_Y} r="2" fill={brass} />
+    </g>
+  );
+}
+
+/** 針（ブレゲ針: 細い軸・月の輪・矢じり）。実時間の経過 ＝ 内の環の先端 */
+function Needle({ view, brass }: { view: AgendaView; brass: string }) {
+  const tip = C - R_IN;
+  return (
+    <>
+      <g className="dial-needle" transform={`rotate(${needleDeg(view)} ${C} ${C})`}>
+        <line className="dial-needle-shaft" x1={C} y1={C + 18} x2={C} y2={tip + 22} />
+        <circle className="dial-needle-moon" cx={C} cy={tip + 34} r="6" />
+        <path className="dial-needle-tip" d={`M${C - 3} ${tip + 22} L${C} ${tip + 8} L${C + 3} ${tip + 22} Z`} />
+      </g>
+      <circle className="dial-hub" cx={C} cy={C} r="5" fill={brass} />
+    </>
+  );
+}
+
+function Readout({ view }: { view: AgendaView }) {
+  const lines = centerLines(view);
+  const paused = view.phase === 'paused';
+  return (
+    <div className="dial-face" aria-hidden="true">
+      <div className="dial-readout">
+        {(lines.isOverrun || paused) && (
+          <div className="dial-tags">
+            {lines.isOverrun && <span className="dial-tag dial-tag--overrun">{OVERRUN_LABEL}</span>}
+            {paused && <span className="dial-tag dial-tag--paused">{PAUSED_LABEL}</span>}
+          </div>
+        )}
+        <div className="dial-name">{lines.name}</div>
+        <div className="dial-time">
+          <TimeDigits text={lines.primary} />
+        </div>
+        <div className={`dial-drift is-${driftTone(view)}`}>{lines.drift}</div>
+      </div>
+    </div>
+  );
+}
+
+export function Dial({ view, wallNow, reducedMotion, striking = false, size = 'hand' }: Props) {
+  // 同じ画面に盤が 2 つ（組む画面のプレビューと進行）並んでも id が重ならないように。useId の記号は url() で使わない
+  const id = `dial${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
+  const brass = `url(#${id}-brass)`;
+  const lines = centerLines(view);
+  const started = view.phase !== 'idle';
+  const classes = [
+    'dial',
+    `dial--${size}`,
+    lines.isOverrun ? 'is-overrun' : '',
+    view.phase === 'paused' ? 'is-paused' : '',
+    reducedMotion ? 'dial--reduced' : '',
+    striking ? 'dial--striking' : '',
+  ].filter(Boolean);
+  const footer = footerLine(view, wallNow);
+  return (
+    <figure className={classes.join(' ')}>
+      <div className="dial-watch">
+        <svg className="dial-svg" viewBox="0 0 400 400" aria-hidden="true" focusable="false">
+          <Defs id={id} />
+          <Crown brass={brass} />
+          <circle className="dial-bezel" cx={C} cy={C} r={R_BEZEL + 6} fill={brass} />
+          <circle className="dial-dial" cx={C} cy={C} r={R_BEZEL - 1} fill={`url(#${id}-face)`} />
+          {lines.isOverrun && <circle className="dial-overrun-tint" cx={C} cy={C} r={R_BEZEL - 1} />}
+          <MinuteTicks />
+          <PlanRing view={view} hatch={`url(#${id}-hatch)`} />
+          <ActualRing view={view} />
+          {overrunTrackDeg(view) > 0 && <path className="dial-overrun-track" d={arcPath(R_TRACK, 0, overrunTrackDeg(view))} />}
+          {started && <Projection view={view} />}
+          <SmallSeconds view={view} brass={brass} />
+          <Needle view={view} brass={brass} />
+        </svg>
+        <Readout view={view} />
+      </div>
+      {footer !== '' && <figcaption className="dial-footer">{footer}</figcaption>}
+      <p className="ui-visually-hidden">{summaryText(view)}</p>
+    </figure>
+  );
+}
