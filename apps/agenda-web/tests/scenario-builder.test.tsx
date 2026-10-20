@@ -7,11 +7,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { saveResumeIdentity } from '@tasuki/sync-client';
 import { App } from '../src/App';
 import {
+  ADD_STEP_BUTTON,
+  LOAD_FIRST_TEXT,
   LOAD_TO_ROOM_BUTTON,
   SAMPLE_TITLE,
   SCENARIO_CHANGED_NOTE,
   START_BUTTON,
   plannedSummary,
+  stepMoveDownLabel,
+  stepMoveUpLabel,
+  stepRemoveLabel,
   stepMinutesLabel,
   stepNameLabel,
 } from '../src/copy';
@@ -208,5 +213,87 @@ describe('組む画面', () => {
     typeName(1, 'Changed');
     fireEvent.click(within(list).getByRole('button', { name: /^Retro.*ステップ/ }));
     expect(nameField(1).value).toBe('Check');
+  });
+
+  it('Given 他の人が置き換えた / When 知らせが出る / Then 読み上げの領域は文だけで、戻すボタンは領域の外', () => {
+    joinedRoom();
+    pickSample();
+    typeName(1, 'Mine');
+    deliverAgenda(idleAgenda('Other', [['Theirs', 10]]));
+    const region = screen.getAllByRole('status').find((el) => el.textContent?.includes(SCENARIO_CHANGED_NOTE));
+    expect(region?.textContent).toBe(SCENARIO_CHANGED_NOTE);
+    expect(region?.querySelector('button')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'ルームのシナリオに戻す' }));
+    expect(nameField(1).value).toBe('Theirs');
+    expect(region?.textContent).toBe('');
+  });
+
+  it('Given 読み込んだ後に下書きを触った / When 自分の送ったシナリオが返る / Then 「シナリオが変わりました」は出ない', () => {
+    joinedRoom();
+    pickSample();
+    fireEvent.click(loadButton());
+    typeName(1, 'After');
+    deliverAgenda(
+      idleAgenda('KPT のふりかえり', [
+        ['K を出す', 5],
+        ['P を出す', 7],
+        ['投票', 1],
+        ['Try の議論', 40],
+        ['予備', 7],
+      ]),
+    );
+    expect(document.body.textContent).not.toContain(SCENARIO_CHANGED_NOTE);
+    expect(nameField(1).value).toBe('After');
+    // 他の人の置き換えなら、同じ下書きでも知らせる（送った鍵だけを見逃す）
+    deliverAgenda(idleAgenda('Other', [['Theirs', 10]]));
+    expect(document.body.textContent).toContain(SCENARIO_CHANGED_NOTE);
+  });
+
+  it('Given 押せない主の操作 / When 描く / Then 理由は常設の status にあり、ボタンの説明に結ばれる', () => {
+    joinedRoom();
+    pickSample();
+    // 下書きがルームと違う: 開始は押せず、理由は「読み込んでから」
+    const start = screen.getByRole('button', { name: START_BUTTON });
+    expect(start).toBeDisabled();
+    expect(start).toHaveAccessibleDescription(LOAD_FIRST_TEXT);
+    expect(screen.getAllByRole('status').some((el) => el.textContent === LOAD_FIRST_TEXT)).toBe(true);
+    // 検証で落ちる: 同じ status の文が理由に替わる
+    typeName(2, ' ');
+    expect(screen.getAllByRole('status').some((el) => el.textContent === 'ステップ 2 の名前が空です')).toBe(true);
+    expect(loadButton()).toHaveAccessibleDescription('ステップ 2 の名前が空です');
+  });
+
+  it('Given 5 行 / When 2 行目を消す / Then フォーカスは次の行（新しい 2 行目）の名前へ。最後の 1 行を消すと「ステップを追加」へ', () => {
+    joinedRoom();
+    pickSample();
+    fireEvent.click(screen.getByRole('button', { name: stepRemoveLabel(2) }));
+    expect(nameField(2).value).toBe('投票');
+    expect(document.activeElement).toBe(nameField(2));
+    // 最後の行を消すと前の行へ
+    fireEvent.click(screen.getByRole('button', { name: stepRemoveLabel(4) }));
+    expect(document.activeElement).toBe(nameField(3));
+    for (let n = 3; n >= 1; n--) fireEvent.click(screen.getByRole('button', { name: stepRemoveLabel(n) }));
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: ADD_STEP_BUTTON }));
+  });
+
+  it('Given 2 行目 / When 上へで先頭に着く / Then 押せなくなった上へではなく、同じ行の下へにフォーカス', () => {
+    joinedRoom();
+    pickSample();
+    fireEvent.click(screen.getByRole('button', { name: stepMoveUpLabel(2) }));
+    expect(nameField(1).value).toBe('P を出す');
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: stepMoveDownLabel(1) }));
+    // 端でなければ、押したボタンに留まる
+    fireEvent.click(screen.getByRole('button', { name: stepMoveDownLabel(3) }));
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: stepMoveDownLabel(4) }));
+    // 末尾に着いたら上へ
+    fireEvent.click(screen.getByRole('button', { name: stepMoveDownLabel(4) }));
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: stepMoveUpLabel(5) }));
+  });
+
+  it('Given ルームも下書きも空 / When 描く / Then サンプルの札にステップの名前と分が並ぶ', () => {
+    joinedRoom();
+    const card = screen.getByRole('button', { name: new RegExp(SAMPLE_TITLE) });
+    expect(within(card).getByText('Try の議論 40 分')).toBeDefined();
+    expect(within(card).getByText('K を出す 5 分')).toBeDefined();
   });
 });

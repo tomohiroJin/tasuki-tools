@@ -58,9 +58,35 @@
   background: var(--coal-soft);
 }
 
+/* 中身の並び。区切りは点（文字にしない: 読み上げと書体の検査に混ぜない） */
+.builder-sample-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  color: var(--coal-soft);
+  font-size: var(--font-size-xs);
+}
+.builder-sample-step {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  white-space: nowrap;
+}
+.builder-sample-step + .builder-sample-step::before {
+  content: '';
+  width: 4px;
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: var(--coal-soft);
+}
+
 /* ── 他の人の置き換えの知らせ・操作の失敗 ───────────────────────── */
-.builder-changed-region:empty {
-  display: none;
+/* 知らせの領域は常に置く（ライブリージョン）。空の間は、区画の間隔を 1 つ余分に取らないよう詰める */
+.builder-changed--idle {
+  margin-block-end: calc(var(--space-4) * -1);
+}
+.builder-changed-text {
+  margin: 0;
 }
 .builder-changed,
 .agenda-error {

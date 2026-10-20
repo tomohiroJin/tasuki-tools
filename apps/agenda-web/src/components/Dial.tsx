@@ -24,7 +24,7 @@ import {
   projectedMarkerDeg,
   smallSecondsDeg,
 } from '../dial-geometry';
-import { OVERRUN_LABEL, PAUSED_LABEL } from '../copy';
+import { OVERRUN_LABEL, PAUSED_LABEL, TODAY_PLAN_LABEL, stepCountShort } from '../copy';
 import { TimeDigits } from './TimeDigits';
 
 interface Props {
@@ -232,7 +232,17 @@ function Readout({ view }: { view: AgendaView }) {
             {paused && <span className="dial-tag dial-tag--paused">{PAUSED_LABEL}</span>}
           </div>
         )}
-        <div className="dial-name">{lines.name}</div>
+        <div className="dial-name">
+          {/* 開始前は「今日の進行」と「n ステップ」を折り返さない塊にし、間の空白でだけ折る（小さな盤で「ステッ／プ」と割れない） */}
+          {view.phase === 'idle' ? (
+            <>
+              <span className="dial-name-chunk">{TODAY_PLAN_LABEL}</span>{' '}
+              <span className="dial-name-chunk">{stepCountShort(view.steps.length)}</span>
+            </>
+          ) : (
+            lines.name
+          )}
+        </div>
         <div className="dial-time">
           <TimeDigits text={lines.primary} />
         </div>

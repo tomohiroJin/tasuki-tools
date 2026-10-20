@@ -45,7 +45,10 @@ export const projectedEndText = (clock: string): string => `${clock} に終了�
 export const nextStepText = (name: string): string => `次は ${name}`;
 export const FOOTER_SEPARATOR = ' ・ ';
 // 開始前の盤（中央の名前の段と押し巻きの段）
-export const stepCountText = (count: number): string => `今日の進行 ${count} ステップ`;
+export const TODAY_PLAN_LABEL = '今日の進行';
+export const stepCountShort = (count: number): string => `${count} ステップ`;
+/** 盤では 2 つの塊（`TODAY_PLAN_LABEL`・`stepCountShort`）を別々に組み、語の中で折り返させない */
+export const stepCountText = (count: number): string => `${TODAY_PLAN_LABEL} ${stepCountShort(count)}`;
 export const NOT_STARTED_LABEL = '開始前';
 // 読み上げの要約（盤の SVG と中央の文字は aria-hidden。同じ情報を文にする）
 export const remainingSummary = (minutes: number): string => `残り ${minutes} 分`;
@@ -63,6 +66,7 @@ export const SAMPLE_TITLE = 'サンプル：KPT のふりかえり';
 export const SAVE_LOCAL_BUTTON = 'この端末に保存';
 export const LOAD_TO_ROOM_BUTTON = 'ルームに読み込む';
 export const SCENARIO_CHANGED_NOTE = 'シナリオが変わりました';
+export const LOAD_FIRST_TEXT = 'ルームに読み込んでから開始できます';
 export const BACK_TO_ROOM_SCENARIO_BUTTON = 'ルームのシナリオに戻す';
 export const SCENARIO_TITLE_LABEL = '会の名前';
 /** 行の部品の読み上げの名前（行の番号で区別する） */
@@ -75,6 +79,8 @@ export const stepMoveUpLabel = (n: number): string => `ステップ ${n} を上�
 export const stepMoveDownLabel = (n: number): string => `ステップ ${n} を下へ`;
 export const stepRemoveLabel = (n: number): string => `ステップ ${n} を消す`;
 export const REMOVE_BUTTON = '消す';
+/** サンプルの札の 1 ステップ（名前は同梱の文字で、書体の検査の外） */
+export const sampleStepText = (name: string, minutes: number): string => `${name} ${minutes} 分`;
 /** サンプルの札・保存済みの行の添え書き */
 export const scenarioDetail = (steps: number, minutes: number): string => `${steps} ステップ・${minutes} 分`;
 export const MAX_STEPS_NOTE = `ステップは ${MAX_ITEMS} までです`;

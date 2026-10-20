@@ -141,4 +141,11 @@ describe('盤', () => {
     const { container } = render(<Dial view={v} wallNow={WALL} reducedMotion={false} />);
     expect(outsideBase([container.textContent ?? ''])).toEqual([]);
   });
+
+  it('開始前の名前は「今日の進行」と「n ステップ」を折り返さない塊で組む（小さな盤で語の中で割れない）', () => {
+    const { container } = render(<Dial view={idleView([5, 7, 1, 40, 7])} wallNow={WALL} reducedMotion={false} />);
+    const name = container.querySelector('.dial-name');
+    expect(name?.textContent).toBe('今日の進行 5 ステップ');
+    expect([...(name?.querySelectorAll('.dial-name-chunk') ?? [])].map((el) => el.textContent)).toEqual(['今日の進行', '5 ステップ']);
+  });
 });

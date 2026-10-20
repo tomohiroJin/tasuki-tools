@@ -244,12 +244,18 @@
   font-weight: 700;
   font-size: clamp(0.85rem, 4.2cqi, 1.6rem); /* scale-exempt: 盤の幅に比例する（手元 300px で約 0.8rem・映す表示で約 1.6rem） */
   line-height: 1.35;
+  /* 語の中では折らない（日本語も空白でだけ折る）。空白の無い長い名前だけ、はみ出す所で折る */
+  word-break: keep-all;
   overflow-wrap: anywhere;
   /* 2 行まで。溢れたら … */
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow: hidden;
+}
+.dial-name-chunk {
+  display: inline-block;
+  white-space: nowrap;
 }
 .dial-time {
   margin: 0.08em 0 0.04em;
