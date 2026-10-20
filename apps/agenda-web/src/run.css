@@ -307,6 +307,16 @@
   justify-content: flex-end;
   margin-top: var(--space-4);
 }
+/* 危険の部品（--danger）は地を持たないので、ページ上端の羅紗のグラデーション（felt-700 付近）に乗ると
+   rose-bright が 3.55:1 で AA を割った（E2E のコントラスト走査）。この区画の中でだけ felt-900 の地を敷く:
+   rose-bright / felt-900 = 5.81:1。ホバーは部品と同じ rose-tint を felt-900 の上に重ね、字は部品どおり rose-pale:
+   rose-pale / (rose-tint over felt-900) = 7.76:1。確認の「やり直す」も同じ区画（地は felt-900）にある */
+.run-reset .ui-button--danger {
+  background: var(--felt-900);
+}
+.run-reset .ui-button--danger:where(:hover:not(:disabled)) {
+  background: linear-gradient(var(--rose-tint), var(--rose-tint)), var(--felt-900);
+}
 .reset-confirm {
   display: grid;
   gap: var(--space-3);
