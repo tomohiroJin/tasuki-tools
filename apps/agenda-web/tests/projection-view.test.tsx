@@ -18,6 +18,8 @@ vi.mock('../src/platform/sound', () => ({
   installAudioUnlock: vi.fn(),
   unlockAudio: vi.fn(),
   playStrike: vi.fn(),
+  isAudioUnlocked: () => false,
+  subscribeAudioState: () => () => undefined,
 }));
 
 beforeEach(() => {

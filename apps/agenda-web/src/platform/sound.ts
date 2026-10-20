@@ -23,6 +23,10 @@ function getAudioCtor(): AudioCtor | undefined {
   return window.AudioContext ?? (window as unknown as { webkitAudioContext?: AudioCtor }).webkitAudioContext;
 }
 
+/** 解錠の状態の購読者（画面の「音を有効に」／「音あり」の出し分け。最終レビュー I-2） */
+const stateListeners = new Set<() => void>();
+const notifyState = (): void => stateListeners.forEach((l) => l());
+
 /** 単一 AudioContext（遅延生成・再利用） */
 let sharedCtx: AudioContext | null = null;
 function getSharedAudioContext(): AudioContext | null {
@@ -34,14 +38,35 @@ function getSharedAudioContext(): AudioContext | null {
     } catch {
       return null;
     }
+    // ブラウザが止めた・再び動かしたときも画面へ知らせる
+    if (typeof sharedCtx.addEventListener === 'function') sharedCtx.addEventListener('statechange', notifyState);
   }
   return sharedCtx;
 }
 
-/** いま（利用者の操作の中で）解錠する。「音あり」を押したときに呼ぶ */
+/**
+ * 解錠済み（AudioContext が `running`）か。開き直した直後は操作が無いので false。
+ * **ここでは AudioContext を作らない**（操作の前に作ると、ブラウザが「操作の後に作れ」と警告する）。
+ */
+export function isAudioUnlocked(): boolean {
+  return sharedCtx?.state === 'running';
+}
+
+/** 解錠の状態の変化を購読する（`useSyncExternalStore` の subscribe）。resume の完了と `statechange` で知らせる */
+export function subscribeAudioState(listener: () => void): () => void {
+  stateListeners.add(listener);
+  return () => {
+    stateListeners.delete(listener);
+  };
+}
+
+/** いま（利用者の操作の中で）解錠する。「音あり」「音を有効に」を押したときに呼ぶ */
 export function unlockAudio(): void {
   const ctx = getSharedAudioContext();
-  if (ctx && ctx.state === 'suspended') void ctx.resume().catch(() => {});
+  if (ctx === null) return;
+  // 操作の中で作った AudioContext は最初から running のことがある（statechange が来ない）ので、その場で知らせる
+  if (ctx.state === 'suspended') void ctx.resume().then(notifyState, () => {});
+  else notifyState();
 }
 
 /** 初回の利用者の操作で解錠する。冪等。進める画面を開いたときに呼ぶ */

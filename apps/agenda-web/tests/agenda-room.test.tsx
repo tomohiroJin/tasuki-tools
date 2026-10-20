@@ -19,6 +19,7 @@ import {
   RESET_CONFIRM_TEXT,
   RESET_CONFIRM_YES,
   RESUME_BUTTON,
+  SOUND_LOCKED,
   SOUND_OFF,
   SOUND_ON,
   SPEAK_SUMMARY_BUTTON,
@@ -39,11 +40,26 @@ vi.mock('../src/router', async (importOriginal) => ({
   redirectTo: vi.fn(),
 }));
 
+/** 解錠の状態（既定は解錠済み。覚えた「音あり」で開き直した局面だけ閉じる） */
+const audio = vi.hoisted(() => ({ unlocked: true, listeners: new Set<() => void>() }));
+
 vi.mock('../src/platform/sound', () => ({
   installAudioUnlock: vi.fn(),
   unlockAudio: vi.fn(),
   playStrike: vi.fn(),
+  isAudioUnlocked: () => audio.unlocked,
+  subscribeAudioState: (listener: () => void) => {
+    audio.listeners.add(listener);
+    return () => audio.listeners.delete(listener);
+  },
 }));
+
+/** AudioContext が running になった（resume が済んだ）ことを知らせる */
+const audioUnlocked = (): void =>
+  act(() => {
+    audio.unlocked = true;
+    audio.listeners.forEach((l) => l());
+  });
 
 beforeEach(() => {
   ScriptedWebSocket.instances = [];
@@ -56,6 +72,7 @@ beforeEach(() => {
   window.history.replaceState(null, '', '/agenda/?room=R1');
   vi.mocked(playStrike).mockClear();
   vi.mocked(unlockAudio).mockClear();
+  audio.unlocked = true;
 });
 
 afterEach(() => {
@@ -173,6 +190,48 @@ describe('時間切れの合図と音', () => {
     expect(unlockAudio).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('button', { name: SOUND_ON })).toHaveAttribute('aria-pressed', 'true');
     expect(localStorage.getItem(SOUND_SETTING_KEY)).toBe('on');
+  });
+
+  it('Given 「音あり」を覚えた端末で開き直した・まだ解錠していない / When 画面を見る / Then 「音を有効に」と出し、押されていない', () => {
+    soundOn();
+    audio.unlocked = false;
+    joinedRoom(runningAgenda(1000));
+    expect(screen.getByRole('button', { name: SOUND_LOCKED })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.queryByRole('button', { name: SOUND_ON })).toBeNull();
+  });
+
+  it('Given 「音を有効に」 / When 1 回押す / Then 解錠して「音あり」になり、覚えた設定は「音あり」のまま', () => {
+    soundOn();
+    audio.unlocked = false;
+    vi.mocked(unlockAudio).mockImplementationOnce(() => audioUnlocked());
+    joinedRoom(runningAgenda(1000));
+    fireEvent.click(screen.getByRole('button', { name: SOUND_LOCKED }));
+    expect(unlockAudio).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: SOUND_ON })).toHaveAttribute('aria-pressed', 'true');
+    expect(localStorage.getItem(SOUND_SETTING_KEY)).toBe('on');
+  });
+
+  it('Given 「音を有効に」のまま / When 0 をまたぐ / Then 鳴らさず、画面に触れて解錠したあとの 0 またぎは鳴らす', () => {
+    soundOn();
+    audio.unlocked = false;
+    joinedRoom(runningAgenda(59_000));
+    deliverAgenda(runningAgenda(60_000));
+    expect(playStrike).not.toHaveBeenCalled();
+    // 画面のどこかに触れた（`installAudioUnlock`）→ 解錠
+    audioUnlocked();
+    expect(screen.getByRole('button', { name: SOUND_ON })).toBeInTheDocument();
+    const extended = (ms: number) => ({ ...runningAgenda(ms), steps: runningAgenda().steps.map((x, i) => (i === 0 ? { ...x, extensionSec: 60 } : x)) });
+    deliverAgenda(extended(119_000));
+    deliverAgenda(extended(120_000));
+    expect(playStrike).toHaveBeenCalledTimes(1);
+  });
+
+  it('Given 解錠済みの「音あり」 / When 押す / Then 「音なし」に戻す', () => {
+    soundOn();
+    joinedRoom(runningAgenda(1000));
+    fireEvent.click(screen.getByRole('button', { name: SOUND_ON }));
+    expect(screen.getByRole('button', { name: SOUND_OFF })).toHaveAttribute('aria-pressed', 'false');
+    expect(localStorage.getItem(SOUND_SETTING_KEY)).toBe('off');
   });
 
   it('Given 音あり / When 最初に受けたフレームが残り −5 秒 / Then 鳴らさない（過去の 0 に対して鳴らさない）', () => {

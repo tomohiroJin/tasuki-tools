@@ -119,7 +119,7 @@ function PhaseView({
   const reducedMotion = usePrefersReducedMotion();
   const live = useLocalClock(view, sync.receivedAt, reducedMotion) ?? view;
   const wallNow = useWallClock();
-  const { soundOn, toggleSound } = useSoundSetting();
+  const { soundState, soundOn, toggleSound } = useSoundSetting();
   const { striking, announcement, announce } = useRunSignals(live, { frame: view, joined: sync.joined, soundOn, reducedMotion });
   return (
     <>
@@ -136,7 +136,7 @@ function PhaseView({
           onSpeakSummary={() => announce(summaryText(live))}
           projecting={projecting}
           onProjectingChange={onProjectingChange}
-          soundToggle={<SoundToggle soundOn={soundOn} onToggle={toggleSound} />}
+          soundToggle={<SoundToggle state={soundState} onToggle={toggleSound} />}
         />
       )}
       <p className="ui-visually-hidden agenda-live" aria-live="polite">

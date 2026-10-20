@@ -149,6 +149,8 @@ export const SUMMARY_TOTAL_LABEL = '合計';
 // 音
 export const SOUND_ON = '音あり';
 export const SOUND_OFF = '音なし';
+/** 「音あり」を覚えているが、開き直して解錠されていない（押すと 1 回で有効になる） */
+export const SOUND_LOCKED = '音を有効に';
 
 // 脇: 招待（玄関と同じ見出し）
 export const INVITE_HEADING = '仲間を招く';

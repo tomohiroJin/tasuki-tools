@@ -51,3 +51,25 @@ describe('時打ちの音', () => {
     expect(createOscillator).toHaveBeenCalledTimes(2);
   });
 });
+
+/**
+ * 解錠の状態を画面へ知らせる（最終レビュー I-2）。覚えた「音あり」で開き直した端末は解錠されていないので、
+ * 画面は解錠の状態を読んで「音を有効に」と「音あり」を出し分ける。
+ *
+ * @requirements #429 spec §4.7
+ */
+describe('解錠の状態', () => {
+  it('Given suspended / When 解錠する / Then 解錠済みになり、購読者に知らせる', async () => {
+    state = 'suspended';
+    const { isAudioUnlocked, subscribeAudioState, unlockAudio } = await import('../src/platform/sound');
+    const listener = vi.fn();
+    subscribeAudioState(listener);
+    expect(isAudioUnlocked()).toBe(false);
+    unlockAudio();
+    state = 'running';
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(isAudioUnlocked()).toBe(true);
+    expect(listener).toHaveBeenCalled();
+  });
+});
