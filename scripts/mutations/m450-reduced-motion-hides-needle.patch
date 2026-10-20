@@ -1,0 +1,23 @@
+# 変異 450: reduced-motion-hides-needle
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/dial.test.tsx
+#
+# #429 動きを減らす設定で針を消す（timer の chrono-hand と同じ扱い）。押し巻きを読む要が盤から消える。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m450-*.patch
+# 復元: git apply -R scripts/mutations/m450-*.patch
+diff --git a/apps/agenda-web/src/components/Dial.tsx b/apps/agenda-web/src/components/Dial.tsx
+index f7f65dab..56461d2a 100644
+--- a/apps/agenda-web/src/components/Dial.tsx
++++ b/apps/agenda-web/src/components/Dial.tsx
+@@ -253,7 +253,7 @@ export function Dial({ view, wallNow, reducedMotion, striking = false, size = 'h
+           {overrunTrackDeg(view) > 0 && <path className="dial-overrun-track" d={arcPath(R_TRACK, 0, overrunTrackDeg(view))} />}
+           {started && <Projection view={view} />}
+           <SmallSeconds view={view} brass={brass} />
+-          <Needle view={view} brass={brass} />
++          {!reducedMotion && <Needle view={view} brass={brass} />}
+         </svg>
+         <Readout view={view} />
+       </div>

@@ -1,0 +1,23 @@
+# 変異 447: needle-ignores-pause
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/dial-geometry.test.ts
+#
+# #429 針がいまのステップの計時で進み、一時停止の間は止まる。内の環の先端と離れ、止めている間の押しが盤から読めなくなる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m447-*.patch
+# 復元: git apply -R scripts/mutations/m447-*.patch
+diff --git a/apps/agenda-web/src/dial-geometry.ts b/apps/agenda-web/src/dial-geometry.ts
+index f9d9bdda..9577649a 100644
+--- a/apps/agenda-web/src/dial-geometry.ts
++++ b/apps/agenda-web/src/dial-geometry.ts
+@@ -84,7 +84,7 @@ export function innerSegments(v: AgendaView): InnerSegment[] {
+ 
+ /** 針。実時間の経過の角度（一時停止中も進む）。1 周で頭打ち */
+ export function needleDeg(v: AgendaView): number {
+-  return lap(angleOfMs(v.runElapsedMs, plannedTotalMs(v)));
++  return lap(angleOfMs(v.steps.reduce((a, x) => a + (x.spentMs ?? 0), 0) + v.stepTimerMs, plannedTotalMs(v)));
+ }
+ 
+ /** 終了見込みの印（縁の三角）の角度。12 時を過ぎた分も持つ（2 周目の手前で頭打ち）。描くときは 360 で回り込む */

@@ -1,0 +1,23 @@
+# 変異 446: overrun-without-plus
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/agenda-view.test.ts
+#
+# #429 オーバー中の数字から「+」が落ち、残りと見分ける手がかりが色だけになる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m446-*.patch
+# 復元: git apply -R scripts/mutations/m446-*.patch
+diff --git a/apps/agenda-web/src/agenda-view.ts b/apps/agenda-web/src/agenda-view.ts
+index 4eaa518b..d24353f2 100644
+--- a/apps/agenda-web/src/agenda-view.ts
++++ b/apps/agenda-web/src/agenda-view.ts
+@@ -94,7 +94,7 @@ export function centerLines(v: AgendaView): CenterLines {
+   const over = isOverrun(v);
+   const rest = remainingMs(v);
+   return {
+-    primary: over ? `+${elapsedClock(-rest)}` : remainingClock(rest),
++    primary: over ? elapsedClock(-rest) : remainingClock(rest),
+     isOverrun: over,
+     name: currentStep(v)?.name ?? '',
+     drift: driftLine(v),
