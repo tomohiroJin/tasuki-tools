@@ -8,6 +8,7 @@
 
 @import '@tasuki/ui';
 @import './dial.css';
+@import './builder.css';
 
 /* 遷移中・参加中の一言。卓の上で控えめに置く（topic-web・poker-web と同じ置き方）。色は部品（`.ui-note`）が持つ。 */
 .loading-note {
