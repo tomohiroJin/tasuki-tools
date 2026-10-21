@@ -16,7 +16,10 @@ Tasuki の各アプリは「自分の systemd ユニット + 固有ポート + C
 | `poker` | （無し・静的） | — | `/var/www/tasuki-poker` | `/poker/` | 公開中 |
 | `topic` | （無し・静的） | — | `/var/www/tasuki-topic` | `/topic/` | 公開中 |
 | `roulette` | （無し・静的） | — | `/var/www/tasuki-roulette` | `/roulette/` | 公開中 |
-| `agenda` | （無し・静的） | — | `/var/www/tasuki-agenda` | `/agenda/` | 未配布（#429） |
+| `agenda` | （無し・静的） | — | `/var/www/tasuki-agenda` | `/agenda/` | 公開中 |
+
+> **#429（進行タイマー）は 2026-10-21 に配った**（`v4.3.0`）。初回の用意（web root と `/agenda/` の断片）を済ませてから、
+> agenda → landing → timer の 3 本を続けて流した。手順は [`agenda/NOTES.md`](agenda/NOTES.md)。
 
 > **#94（ルーレット）は、#91 の配布（2026-09-27）より後にマージした未配布分（PR #318〜#383）とまとめて、
 > 5 アプリを 1 回で配った**（2026-10-14・`v4.1.0`）。順序は roulette → poker → topic → landing → timer で、`/roulette/` の断片を先に置いた。手順は [`roulette/NOTES.md`](roulette/NOTES.md)。
