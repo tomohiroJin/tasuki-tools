@@ -18,6 +18,7 @@ import {
   overrunSummary,
   plannedSummary,
   projectedEndText,
+  roundBadgeText,
   remainingSummary,
   stepCountText,
 } from './copy';
@@ -43,6 +44,8 @@ export interface StepRow {
   readonly id: string;
   /** 1 から（盤の目盛りの番号と同じ） */
   readonly number: number;
+  /** 何回目か（回数 1 は常に 1。進行表の回の見出しの区切りに使う） */
+  readonly round: number;
   readonly name: string;
   readonly status: StepStatus;
   readonly plannedMin: number;
@@ -104,6 +107,28 @@ export function centerLines(v: AgendaView): CenterLines {
     name: currentStep(v)?.name ?? '',
     drift: driftLine(v),
   };
+}
+
+/** 盤の中央の回の札「2 / 6 回」。進行中・一時停止中で回数 2 以上のときだけ（それ以外は空） */
+export function roundBadge(v: AgendaView): string {
+  if (!isActive(v) || v.rounds < 2) return '';
+  const cur = currentStep(v);
+  return cur === undefined ? '' : roundBadgeText(cur.round, v.rounds);
+}
+
+/**
+ * 進行表の枠（`overflow-y: auto`）の中で、行が見えるようにする `scrollTop`。
+ * 収まっていればいまのまま・上にはみ出せば行の上端・下にはみ出せば行の下端を枠の下端へ。
+ * （`scrollIntoView` は祖先のページまで動かすので使わない）
+ */
+export function scrollTopToReveal(
+  box: { scrollTop: number; clientHeight: number },
+  row: { offsetTop: number; offsetHeight: number },
+): number {
+  if (row.offsetTop < box.scrollTop) return row.offsetTop;
+  const rowBottom = row.offsetTop + row.offsetHeight;
+  if (rowBottom > box.scrollTop + box.clientHeight) return rowBottom - box.clientHeight;
+  return box.scrollTop;
 }
 
 /** 手元の時計の「時:分」（時は 0 詰めしない・分は 2 桁） */
@@ -178,6 +203,7 @@ export function stepRows(v: AgendaView): StepRow[] {
   return v.steps.map((x, i) => ({
     id: x.id,
     number: i + 1,
+    round: x.round,
     name: x.name,
     status: statusOf(v, x),
     plannedMin: x.durationSec / 60,
@@ -200,8 +226,10 @@ export function summaryText(v: AgendaView): string {
     parts.push(FINISHED_LABEL, driftLine(v));
   } else {
     const rest = remainingMs(v);
+    const round = roundBadge(v);
     parts.push(
       currentStep(v)?.name ?? '',
+      ...(round === '' ? [] : [round]),
       isOverrun(v) ? overrunPart(-rest) : remainingSummary(Math.ceil(rest / MIN)),
       driftLine(v),
     );

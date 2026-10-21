@@ -28,9 +28,14 @@ function unwrap(r: { isOk(): boolean; _unsafeUnwrap(): AgendaState }): AgendaSta
 }
 
 /** 名前と分の並びから、開始前の状態を作る（既定はすべて「押すまで待つ」） */
-export function idleState(minutes: readonly number[], title = 'Retro', onTimeout: TimeoutBehavior = 'wait'): AgendaState {
+export function idleState(
+  minutes: readonly number[],
+  title = 'Retro',
+  onTimeout: TimeoutBehavior = 'wait',
+  rounds = 1,
+): AgendaState {
   const steps: StepInput[] = minutes.map((m, i) => ({ name: `S${i + 1}`, durationSec: m * 60, onTimeout }));
-  return unwrap(replaceScenario(INITIAL_AGENDA_STATE, { title, steps }));
+  return unwrap(replaceScenario(INITIAL_AGENDA_STATE, rounds === 1 ? { title, steps } : { title, steps, rounds }));
 }
 
 /**
@@ -40,8 +45,8 @@ export function idleState(minutes: readonly number[], title = 'Retro', onTimeout
 export class Driver {
   s: AgendaState;
   private readonly t0 = 1_000_000;
-  constructor(minutes: readonly number[], title?: string, onTimeout: TimeoutBehavior = 'wait') {
-    this.s = unwrap(start(idleState(minutes, title, onTimeout), this.t0));
+  constructor(minutes: readonly number[], title?: string, onTimeout: TimeoutBehavior = 'wait', rounds = 1) {
+    this.s = unwrap(start(idleState(minutes, title, onTimeout, rounds), this.t0));
   }
   private now(at: number): number {
     return this.t0 + at;
@@ -77,6 +82,6 @@ export class Driver {
 }
 
 /** 開始前の写し */
-export function idleView(minutes: readonly number[], title?: string): AgendaView {
-  return toView(idleState(minutes, title), 0);
+export function idleView(minutes: readonly number[], title?: string, rounds = 1): AgendaView {
+  return toView(idleState(minutes, title, 'wait', rounds), 0);
 }

@@ -100,6 +100,10 @@ export const ROUNDS_LABEL = 'くりかえし';
 export const ROUNDS_UNIT = '回';
 export const roundsMinusLabel = `${ROUNDS_LABEL}を 1 回へらす`;
 export const roundsPlusLabel = `${ROUNDS_LABEL}を 1 回ふやす`;
+/** 盤の中央の回の札（例「2 / 6 回」）。回数 2 以上の進行中・一時停止中だけ出す */
+export const roundBadgeText = (cur: number, total: number): string => `${cur} / ${total} ${ROUNDS_UNIT}`;
+/** 進行表・終了の一覧の回の見出し（例「2 回」） */
+export const roundHeading = (n: number): string => `${n} ${ROUNDS_UNIT}`;
 export const roundsRangeText = (): string => `くりかえしは ${MIN_ROUNDS}〜${MAX_ROUNDS} 回で入れてください`;
 export const plannedStepsTooManyText = (count: number): string =>
   `ステップ × 回数は ${MAX_PLANNED_STEPS} までです（いま ${count}）`;
