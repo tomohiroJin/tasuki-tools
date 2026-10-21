@@ -1,0 +1,23 @@
+# 変異 455: view-copies-all-expanded-steps
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/scenario-draft.test.ts
+#
+# #429 第 2 段。ルームのシナリオを下書きへ写すとき展開済みの全部を写すと、回数 6 の朝会が 6 区切りの回数なしになり、読み込むたびに回数倍へ増える。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m455-*.patch
+# 復元: git apply -R scripts/mutations/m455-*.patch
+diff --git a/apps/agenda-web/src/scenario-draft.ts b/apps/agenda-web/src/scenario-draft.ts
+index 71d6e257..b18dbe2f 100644
+--- a/apps/agenda-web/src/scenario-draft.ts
++++ b/apps/agenda-web/src/scenario-draft.ts
+@@ -74,7 +74,7 @@ export function draftFromInput(input: ScenarioInput): Draft {
+ 
+ /** ルームのシナリオ（開始前の写し）を入力の形へ戻す。展開済みの全部ではなく 1 回目と回数から組み直す */
+ export function inputFromView(view: AgendaView): ScenarioInput {
+-  return definitionOf(view);
++  return { title: view.title, steps: view.steps.map((s) => ({ name: s.name, durationSec: s.durationSec, onTimeout: s.onTimeout })) };
+ }
+ 
+ /** 分の欄を整数として読む。数でなければ null（範囲は見ない） */

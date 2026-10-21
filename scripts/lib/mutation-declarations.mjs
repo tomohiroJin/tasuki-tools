@@ -2956,4 +2956,28 @@ export const MUTATIONS = [
     tests: ["tests/schemas.test.ts"],
     note: "#429 第 2 段。4 区切り × 16 回（64 区切り）が定義の上限 20 以下で通り、展開後の上限 60 を破れる。",
   },
+  {
+    id: 455,
+    label: "ルームのシナリオを下書きへ写すとき、展開済みの全部を写す",
+    patch: "m455-view-copies-all-expanded-steps.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/scenario-draft.test.ts"],
+    note: "#429 第 2 段。回数 6 の朝会が 6 区切り（回数なし）の下書きになり、読み込むたびに回数倍へ増える。",
+  },
+  {
+    id: 456,
+    label: "比べる鍵から回数を外す",
+    patch: "m456-key-ignores-rounds.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/scenario-draft.test.ts"],
+    note: "#429 第 2 段。回数だけ違う下書きがルームと同じに見え、読み込みや変更の知らせが働かない。",
+  },
+  {
+    id: 457,
+    label: "回数 1 でも rounds: 1 を送る",
+    patch: "m457-draft-sends-rounds-one.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/scenario-draft.test.ts"],
+    note: "#429 第 2 段。回数なしの定義と別の形になり、ルームとの比べが食い違う。",
+  },
 ];
