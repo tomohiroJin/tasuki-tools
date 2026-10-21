@@ -2980,4 +2980,20 @@ export const MUTATIONS = [
     tests: ["tests/scenario-draft.test.ts"],
     note: "#429 第 2 段。回数なしの定義と別の形になり、ルームとの比べが食い違う。",
   },
+  {
+    id: 458,
+    label: "回の札を回数 1 でも出す",
+    patch: "m458-round-badge-shows-for-single-round.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/agenda-view.test.ts"],
+    note: "#429 第 2 段。回数 1 の盤の中央に「1 / 1 回」が出て、第 1 段の盤と変わる（回数 1 は第 1 段のまま、の反目標）。",
+  },
+  {
+    id: 459,
+    label: "進行表のいまの行へ scrollIntoView で合わせる",
+    patch: "m459-step-list-scrolls-page.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/step-list.test.tsx"],
+    note: "#429 第 2 段。scrollIntoView は祖先のページまで動かし、区切りが移るたびに盤がページの外へ出る。枠の scrollTop だけを動かす。",
+  },
 ];
