@@ -1,6 +1,8 @@
 /**
  * 進行タイマー（agenda）の接続へ送るフレーム（#429）。`room.joined` や `roster` はハブと同じ形を返すので
- * `HubServerMsg` を含む。お題の `topic` フレームは agenda へは配らないので含まない。
+ * `HubServerMsg` を含む。お題の `topic` フレームも agenda の接続へ届く（`docs/adr/0021` 決定 2・
+ * `application/topic-broadcast.ts` の宛先に `TOOL_AGENDA` がある）が、お題の配信の層が自分の型で送るので
+ * この和には含めない（agenda-web は `topic` を先に見分ける）。
  *
  * アダプタ（`adapters/ws-adapter.ts`）とアプリ層の両方が使うので、どちらにも依存しないポートに置く。
  */
