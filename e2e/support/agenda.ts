@@ -67,6 +67,22 @@ export async function loadSampleAndStart(page: Page): Promise<void> {
   await expect(page.getByRole('button', { name: '次へ', exact: true })).toBeVisible();
 }
 
+/**
+ * 組む画面で LT 会のサンプルを読み込み、くりかえしを `rounds` 回・発表（ステップ 1）を 1 分にして、
+ * ルームに読み込んで開始する（入れ替えは元から 1 分。自動の時間切れは待たない前提で短くする）。
+ */
+export async function loadLtSampleWithRoundsAndStart(page: Page, rounds: number): Promise<void> {
+  await page.getByRole('button', { name: /サンプル：LT 会/ }).click();
+  await page.getByLabel('ステップ 1 の分', { exact: true }).fill('1');
+  await page.getByLabel('ステップ 2 の分', { exact: true }).fill('1');
+  await page.getByLabel('くりかえし', { exact: true }).fill(String(rounds));
+  await page.getByRole('button', { name: 'ルームに読み込む', exact: true }).click();
+  const start = page.getByRole('button', { name: '開始', exact: true });
+  await expect(start).toBeEnabled();
+  await start.click();
+  await expect(page.getByRole('button', { name: '次へ', exact: true })).toBeVisible();
+}
+
 /** 押し巻きの文から符号つきの分を読む（U+2212 と U+002B。「予定どおり」は 0）。読めなければ null。 */
 export function parseDriftMinutes(text: string): number | null {
   if (text === '予定どおり') return 0;

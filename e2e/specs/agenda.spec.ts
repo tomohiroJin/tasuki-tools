@@ -10,7 +10,14 @@
  */
 import { expect, test } from '../fixtures/test';
 import { parseFrames, watchSentFrames, type FrameLog } from '../support/ws-frames';
-import { dialDrift, dialName, joinAgendaTool, loadSampleAndStart, openAgendaTool, parseDriftMinutes } from '../support/agenda';
+import {
+  dialDrift,
+  dialName,
+  joinAgendaTool,
+  loadLtSampleWithRoundsAndStart,
+  loadSampleAndStart,   openAgendaTool,
+  parseDriftMinutes,
+} from '../support/agenda';
 
 const NAME_A = 'e2e-agenda-a';
 const NAME_B = 'e2e-agenda-b';
@@ -136,6 +143,42 @@ test.describe('@core 進行タイマーは全員の画面で同じステップ�
     }
 
     // Then 最後: どちらのコンソールにもエラーが出ていない
+    expect(consoleWatcher.errors).toEqual([]);
+    expect(peer.console.errors).toEqual([]);
+  });
+
+  test('Given LT 会をくりかえし 2 回で開始する / When 次へを 2 回押す / Then 両方の画面で 1 / 2 回から 2 / 2 回に変わる', async ({
+    page,
+    openPeer,
+    consoleWatcher,
+  }) => {
+    // Given: A が LT 会を読み込み、くりかえし 2・各 1 分にして開始する。B は招待 URL から入る
+    const inviteUrl = await openAgendaTool(page, NAME_A);
+    await loadLtSampleWithRoundsAndStart(page, 2);
+    const peer = await openPeer('agenda-b');
+    await joinAgendaTool(peer.page, inviteUrl, NAME_B);
+    const b = peer.page;
+
+    // Then その1: 両方の画面に「1 / 2 回」が出て、最初のステップは「発表」
+    await expect(page.getByText('1 / 2 回', { exact: true })).toBeVisible();
+    await expect(b.getByText('1 / 2 回', { exact: true })).toBeVisible();
+    await expect(dialName(page)).toHaveText('発表');
+    await expect(dialName(b)).toHaveText('発表');
+
+    // When / Then その2: A が「次へ」→ 両方が「入れ替え」（まだ 1 回目）
+    await page.getByRole('button', { name: '次へ', exact: true }).click();
+    await expect(dialName(page)).toHaveText('入れ替え');
+    await expect(dialName(b)).toHaveText('入れ替え');
+    await expect(b.getByText('1 / 2 回', { exact: true })).toBeVisible();
+
+    // When / Then その3: A がもう一度「次へ」→ 両方が 2 回目の「発表」になり「2 / 2 回」になる
+    await page.getByRole('button', { name: '次へ', exact: true }).click();
+    await expect(page.getByText('2 / 2 回', { exact: true })).toBeVisible();
+    await expect(b.getByText('2 / 2 回', { exact: true })).toBeVisible();
+    await expect(dialName(page)).toHaveText('発表');
+    await expect(dialName(b)).toHaveText('発表');
+    await expect(page.getByText('1 / 2 回', { exact: true })).toHaveCount(0);
+
     expect(consoleWatcher.errors).toEqual([]);
     expect(peer.console.errors).toEqual([]);
   });
