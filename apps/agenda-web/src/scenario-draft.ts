@@ -144,7 +144,7 @@ function firstReason(d: Draft): string | null {
 export function checkDraft(d: Draft, fallbackReason: string): DraftCheck {
   const input = inputFromDraft(d);
   // 読めない回数は入力から落ちる（1 回扱い）ので、スキーマの前に止める
-  if (roundsOfDraft(d) === null) return { ok: false, reason: roundsRangeText() };
+  if (roundsOfDraft(d) === null) return { ok: false, reason: firstReason(d) ?? roundsRangeText() };
   if (v.safeParse(ScenarioInputSchema, input).success) return { ok: true, input };
   return { ok: false, reason: firstReason(d) ?? fallbackReason };
 }

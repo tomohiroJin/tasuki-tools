@@ -3,7 +3,7 @@
  */
 import { INITIAL_AGENDA_STATE, MAX_ROUNDS, MIN_ROUNDS, replaceScenario, roundsOf, toView, type ScenarioInput } from '@tasuki/agenda-core';
 import { describe, expect, it } from 'vitest';
-import { plannedStepsTooManyText, roundsRangeText, totalTooLongText } from '../src/copy';
+import { NEED_STEP_TEXT, plannedStepsTooManyText, stepNameBlankText, roundsRangeText, totalTooLongText } from '../src/copy';
 import {
   bumpRounds,
   checkDraft,
@@ -67,6 +67,16 @@ describe('下書きの回数', () => {
       expect(checkDraft(draftOf([step('a', 60)], rounds), '汎用')).toEqual({ ok: false, reason: roundsRangeText() });
     }
     expect(checkDraft(draftOf([step('a', 60)], '30'), '汎用').ok).toBe(true);
+  });
+
+  it('行の理由と空欄の回数が重なると、行の理由が先に出る', () => {
+    const d = draftOf([step('a', 60), step('b', 60)], '');
+    const blank = { ...d, steps: d.steps.map((s, i) => (i === 1 ? { ...s, name: '' } : s)) };
+    expect(checkDraft(blank, '汎用')).toEqual({ ok: false, reason: stepNameBlankText(2) });
+  });
+
+  it('ステップ 0 件で回数が空欄なら、ステップを足す理由が出る', () => {
+    expect(checkDraft(draftOf([], ''), '汎用')).toEqual({ ok: false, reason: NEED_STEP_TEXT });
   });
 
   it('4 区切り × 16 回は区切りの数の理由で止まる', () => {
