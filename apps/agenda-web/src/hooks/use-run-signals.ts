@@ -12,11 +12,15 @@
  * **表に戻ったとき（`visibilitychange` → visible）も同じに扱う。** 同期フックが取り直しを送るので、裏にいた間の
  * 古いフレームからは比べず、取り直したフレームを最初の盤にする。
  *
+ * **同じ時間切れには 1 度だけ鳴らす。** 鳴らした区切りを `区切りの ID:持ち時間` の鍵で覚え、同じ鍵の 0 またぎは鳴らさない。
+ * 手元で 0 をまたいだ後に、片道の遅れが大きいフレームで残りが +30ms などへ戻ると、再び 0 をまたいで二度鳴るため。
+ * 延長すると持ち時間が変わって鍵も変わるので、延長後の 0 またぎは鳴らす（J20）。覚えた鍵は、いまの区切りが変わったとき（最初からやり直した後に同じ区切りで鳴らすため）と前の盤を捨てるときに捨てる。
+ *
  * 読み上げの文が前と同じ（延長のあとの 2 回目の「時間切れです」など）ときは、一度空にしてから入れ直す
  * （文が変わらないと読み上げない支援技術がある）。
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { AgendaView } from '@tasuki/agenda-core';
+import { budgetMs, type AgendaView } from '@tasuki/agenda-core';
 import { centerLines, driftTone, type DriftTone } from '../agenda-view';
 import {
   FINISHED_ANNOUNCE,
@@ -33,6 +37,12 @@ import { crossedZero } from '../timeout-signal';
 export const STRIKE_MS = 600;
 
 const isActive = (v: AgendaView): boolean => v.phase === 'running' || v.phase === 'paused';
+
+/** 時間切れの鍵（区切りの ID と持ち時間）。延長で持ち時間が変われば別の時間切れになる */
+function strikeKeyOf(v: AgendaView): string | null {
+  const step = v.steps.find((x) => x.id === v.currentId);
+  return step === undefined ? null : `${step.id}:${budgetMs(step)}`;
+}
 
 /** 押し巻きの向き（0 をまたいだかは、押しかそれ以外かで見る。分へ丸めた値なので毎秒は揺れない） */
 const lateness = (tone: DriftTone): 'late' | 'not-late' => (tone === 'late' ? 'late' : 'not-late');
@@ -71,6 +81,8 @@ export function useRunSignals(
   const prevRef = useRef<AgendaView | null>(null);
   /** 切断した時点で持っていたフレーム。入り直してから次のフレームが届くまでは比べない */
   const staleFrameRef = useRef<AgendaView | null>(null);
+  /** 最後に鳴らした時間切れの鍵（`strikeKeyOf`）とその区切り。いまの区切りが変わったら捨てる */
+  const struckKeyRef = useRef<{ key: string; stepId: string } | null>(null);
   const [striking, setStriking] = useState(false);
   const [announcement, setAnnouncement] = useState('');
   /** 空にした後に入れる文（同じ文を続けて読ませるため） */
@@ -97,6 +109,7 @@ export function useRunSignals(
   useEffect(() => {
     if (!joined || view === null) {
       prevRef.current = null;
+      struckKeyRef.current = null;
       staleFrameRef.current = frame;
       return;
     }
@@ -105,7 +118,11 @@ export function useRunSignals(
     const prev = prevRef.current;
     prevRef.current = view;
     // 最初の盤（prev が null）でも判定は `crossedZero` に任せる（過去の 0 に鳴らさない規則の正本はあちら。m444）
-    const struck = crossedZero(prev, view);
+    // 鳴らすのは時間切れの鍵ごとに 1 度だけ（遅れたフレームで残りが正に戻った後の 0 またぎで二度鳴らさない）
+    const key = prev === null ? null : strikeKeyOf(prev);
+    const struck = crossedZero(prev, view) && key !== struckKeyRef.current?.key;
+    if (struck && key !== null && prev !== null && prev.currentId !== null) struckKeyRef.current = { key, stepId: prev.currentId };
+    if (struckKeyRef.current?.stepId !== view.currentId) struckKeyRef.current = null;
     if (struck) {
       if (settings.current.soundOn) playStrike();
       if (!settings.current.reducedMotion) setStriking(true);
@@ -120,6 +137,7 @@ export function useRunSignals(
     const onVisibility = (): void => {
       if (document.visibilityState !== 'visible') return;
       prevRef.current = null;
+      struckKeyRef.current = null;
       staleFrameRef.current = frameRef.current;
     };
     document.addEventListener('visibilitychange', onVisibility);

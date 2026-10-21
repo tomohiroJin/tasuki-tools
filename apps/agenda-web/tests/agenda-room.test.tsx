@@ -296,6 +296,44 @@ describe('時間切れの合図と音', () => {
     expect(playStrike).toHaveBeenCalledTimes(1);
   });
 
+  it('Given 音あり・0 をまたいで鳴らした / When 遅れの大きいフレームで残りが +30ms に戻り、再び 0 をまたぐ / Then 鳴らさず、延長してまたいだときは鳴らす', () => {
+    soundOn();
+    joinedRoom(runningAgenda(59_000));
+    deliverAgenda(runningAgenda(60_000));
+    expect(playStrike).toHaveBeenCalledTimes(1);
+    // 片道の遅れが大きいフレームで残りが +30ms に戻り、手元の時計（ここではフレーム）で再び 0 をまたぐ
+    deliverAgenda(runningAgenda(59_970));
+    deliverAgenda(runningAgenda(60_010));
+    expect(playStrike).toHaveBeenCalledTimes(1);
+    // +1 分の延長で持ち時間が変わったあとの 0 またぎは、別の時間切れとして鳴らす（J20）
+    const extended = (ms: number) => ({ ...runningAgenda(ms), steps: runningAgenda().steps.map((x, i) => (i === 0 ? { ...x, extensionSec: 60 } : x)) });
+    deliverAgenda(extended(119_000));
+    deliverAgenda(extended(120_000));
+    expect(playStrike).toHaveBeenCalledTimes(2);
+  });
+
+  it('Given 音あり・自動で次へのステップの 0 を手元でまたいで鳴らした / When 遅れて +30ms のフレーム、続けて次へ移ったフレームを受ける / Then 二度目は鳴らさない', () => {
+    soundOn();
+    const d = new Driver([1, 2], undefined, 'advance');
+    joinedRoom(d.view(1 * MIN - 1000));
+    deliverAgenda(d.view(1 * MIN));
+    expect(playStrike).toHaveBeenCalledTimes(1);
+    deliverAgenda(d.view(1 * MIN - 30));
+    d.tick(1 * MIN + 20);
+    deliverAgenda(d.view(1 * MIN + 20));
+    expect(playStrike).toHaveBeenCalledTimes(1);
+  });
+
+  it('Given 音あり・0 をまたいで鳴らした / When 最初からやり直して同じステップで再び 0 をまたぐ / Then もう一度鳴らす', () => {
+    soundOn();
+    joinedRoom(runningAgenda(59_000));
+    deliverAgenda(runningAgenda(60_000));
+    deliverAgenda({ ...runningAgenda(0), phase: 'idle', currentId: null });
+    deliverAgenda(runningAgenda(59_000));
+    deliverAgenda(runningAgenda(60_000));
+    expect(playStrike).toHaveBeenCalledTimes(2);
+  });
+
   it('Given 光らせた / When 600ms 過ぎる / Then 光を下ろす', () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     joinedRoom(runningAgenda(59_000));
