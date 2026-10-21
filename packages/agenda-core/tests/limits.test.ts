@@ -2,10 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   EXTEND_MINUTES,
   MAX_ITEMS,
+  MAX_PLANNED_STEPS,
+  MAX_ROUNDS,
   MAX_SCENARIO_TITLE,
   MAX_STEP_BUDGET_SEC,
   MAX_STEP_NAME,
   MAX_TOTAL_SEC,
+  MIN_ROUNDS,
   STEP_SEC_GRANULARITY,
   STEP_SEC_MAX,
   STEP_SEC_MIN,
@@ -22,6 +25,12 @@ describe("進行タイマーの上限", () => {
     expect(MAX_TOTAL_SEC).toBe(10800);
     expect(MAX_STEP_BUDGET_SEC).toBe(14400);
     expect(EXTEND_MINUTES).toEqual([1, 3, 5]);
+  });
+
+  it("回数と展開後の区切りの数の上限を固定する", () => {
+    expect(MIN_ROUNDS).toBe(1);
+    expect(MAX_ROUNDS).toBe(30);
+    expect(MAX_PLANNED_STEPS).toBe(60);
   });
 
   it("合計の上限は個々のステップの上限とは別に効く", () => {

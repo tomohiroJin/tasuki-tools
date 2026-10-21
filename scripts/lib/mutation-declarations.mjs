@@ -2932,4 +2932,28 @@ export const MUTATIONS = [
     tests: ["test/agenda-handlers.test.ts"],
     note: "#429 PR #431 のレビュー。期限を過ぎてから予約が発火するまでの隙に届いた操作が古い区切りに当たり、所要が持ち時間を超えて確定し、一時停止なら終わったはずの区切りで止まる。",
   },
+  {
+    id: 452,
+    label: "最初からに戻すとき、展開済みの区切りをまた回数倍して展開する",
+    patch: "m452-reset-expands-already-expanded-steps.patch",
+    pkg: "packages/agenda-core",
+    tests: ["tests/agenda.test.ts"],
+    note: "#429 第 2 段。`reset` が展開済みの区切りを定義として再展開すると、回数 3 の進行が戻すたびに 3 倍（N²）に増える。",
+  },
+  {
+    id: 453,
+    label: "合計の上限を 1 回あたりで見て、回数を掛けない",
+    patch: "m453-total-limit-ignores-rounds.patch",
+    pkg: "packages/agenda-core",
+    tests: ["tests/schemas.test.ts"],
+    note: "#429 第 2 段。1 区切り 7 分 × 26 回（182 分）が 1 回あたり 7 分で通り、180 分の上限を回数で破れる。",
+  },
+  {
+    id: 454,
+    label: "展開後の区切りの数の上限を見ない",
+    patch: "m454-expanded-step-count-unchecked.patch",
+    pkg: "packages/agenda-core",
+    tests: ["tests/schemas.test.ts"],
+    note: "#429 第 2 段。4 区切り × 16 回（64 区切り）が定義の上限 20 以下で通り、展開後の上限 60 を破れる。",
+  },
 ];

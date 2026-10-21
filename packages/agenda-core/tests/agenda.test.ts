@@ -13,6 +13,7 @@ import {
   start,
   toView,
 } from "../src/agenda.js";
+import type { ScenarioInput } from "../src/types.js";
 import type { AgendaState } from "../src/types.js";
 import { kptInput } from "./support/fixtures.js";
 
@@ -382,6 +383,41 @@ describe("toView", () => {
   it("単調時計の値を出力に持たない", () => {
     const keys = Object.keys(toView(running(1000), 2000));
     for (const k of ["startedAt", "stepStartedAt", "runningSince", "accumulatedMs", "finishedAtMs"]) expect(keys).not.toContain(k);
-    expect(keys.sort()).toEqual(["currentId", "phase", "runElapsedMs", "steps", "stepSpentMs", "stepTimerMs", "title"].sort());
+    expect(keys.sort()).toEqual(["currentId", "phase", "rounds", "runElapsedMs", "steps", "stepSpentMs", "stepTimerMs", "title"].sort());
+  });
+});
+
+describe("回数つきの進行", () => {
+  const rounded = (rounds: number, n = 2): ScenarioInput => ({
+    title: "回",
+    rounds,
+    steps: Array.from({ length: n }, (_, i) => ({ name: `S${i + 1}`, durationSec: 60, onTimeout: "wait" as const })),
+  });
+
+  it("回数 3 の進行を最初からに 2 回戻しても 6 区切りのまま（m452）", () => {
+    let s = must(replaceScenario(INITIAL_AGENDA_STATE, rounded(3)));
+    s = must(start(s, 0));
+    s = must(next(s, { stepId: "s-1", now: 1000 }));
+    s = must(reset(s));
+    s = must(start(s, 2000));
+    s = must(reset(s));
+    expect(s.steps).toHaveLength(6);
+    expect(s.rounds).toBe(3);
+    expect(s.steps.map((x) => x.id)).toEqual(["s-1", "s-2", "s-3", "s-4", "s-5", "s-6"]);
+    expect(s.steps.map((x) => x.round)).toEqual([1, 1, 2, 2, 3, 3]);
+  });
+
+  it("回をまたいで次へが続き、最後の回の最後で終了する", () => {
+    let s = must(start(must(replaceScenario(INITIAL_AGENDA_STATE, rounded(2))), 0));
+    for (let i = 1; i <= 3; i++) s = must(next(s, { stepId: `s-${i}`, now: i * 1000 }));
+    expect(s.currentId).toBe("s-4");
+    s = must(next(s, { stepId: "s-4", now: 4000 }));
+    expect(s.phase).toBe("finished");
+  });
+
+  it("toView が回数を載せる", () => {
+    const s = must(replaceScenario(INITIAL_AGENDA_STATE, rounded(3)));
+    expect(toView(s, 0).rounds).toBe(3);
+    expect(toView(INITIAL_AGENDA_STATE, 0).rounds).toBe(1);
   });
 });

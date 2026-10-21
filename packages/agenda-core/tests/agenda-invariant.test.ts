@@ -3,7 +3,7 @@
  * 乱数は種つきの自前の LCG（依存を足さない）。オラクルは操作の列から足し上げ、projection.ts を使わない。
  */
 import { describe, expect, it } from "vitest";
-import { INITIAL_AGENDA_STATE, advanceIfDue, extend, next, pause, replaceScenario, resume, setSkipped, start, toView } from "../src/agenda.js";
+import { INITIAL_AGENDA_STATE, advanceIfDue, extend, next, pause, replaceScenario, reset, resume, setSkipped, start, toView } from "../src/agenda.js";
 import { summaryOf } from "../src/projection.js";
 import type { AgendaState, ScenarioInput } from "../src/types.js";
 
@@ -23,6 +23,7 @@ function scenario(rnd: () => number, allWait: boolean): ScenarioInput {
   const n = int(rnd, 1, 6);
   return {
     title: "乱数",
+    rounds: int(rnd, 1, 4),
     steps: Array.from({ length: n }, (_, i) => ({
       name: `S${i + 1}`,
       durationSec: int(rnd, 1, 10) * 60,
@@ -48,7 +49,8 @@ function run(seed: number, allWait: boolean): { final: AgendaState; now: number 
   const rnd = lcg(seed);
   let s = okOr(INITIAL_AGENDA_STATE, replaceScenario(INITIAL_AGENDA_STATE, scenario(rnd, allWait)));
   let now = int(rnd, 0, 100_000);
-  const t0 = now;
+  let t0 = now;
+  const initialCount = s.steps.length;
   s = okOr(s, start(s, now));
   // オラクル: ステップごとの所要を、いまのステップが変わった時点で確定する（wait のみのとき。advance は期限で変わるため）
   const spent = new Map<string, number>();
@@ -58,6 +60,19 @@ function run(seed: number, allWait: boolean): { final: AgendaState; now: number 
   for (let i = 0; i < steps && s.phase !== "finished"; i++) {
     const op = rnd();
     const cur = s.currentId;
+    if (op < 0.02) {
+      // 最初からに戻すと、区切りの数は 1 回あたり × 回数のまま（reset が N² 倍にしない）
+      const expected = s.steps.length;
+      s = okOr(s, reset(s));
+      expect(s.steps).toHaveLength(expected);
+      expect(s.steps).toHaveLength(initialCount);
+      s = okOr(s, start(s, now));
+      t0 = now;
+      oracleCur = s.currentId;
+      boundary = now;
+      spent.clear();
+      continue;
+    }
     if (op < 0.3) {
       now += int(rnd, 0, 900_000);
       s = advanceIfDue(s, now);

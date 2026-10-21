@@ -6,6 +6,7 @@ import type { AgendaView, StepView } from "./types.js";
 
 export interface SummaryRow {
   readonly id: string;
+  readonly round: number;
   readonly name: string;
   readonly plannedMs: number;
   readonly extensionMs: number;
@@ -74,7 +75,7 @@ export function summaryOf(v: AgendaView): Summary {
   const rows = v.steps.map((x): SummaryRow => {
     const plannedMs = x.durationSec * 1000;
     const spentMs = x.skipped ? 0 : (x.spentMs ?? 0);
-    return { id: x.id, name: x.name, plannedMs, extensionMs: x.extensionSec * 1000, spentMs, diffMs: spentMs - plannedMs, skipped: x.skipped };
+    return { id: x.id, round: x.round, name: x.name, plannedMs, extensionMs: x.extensionSec * 1000, spentMs, diffMs: spentMs - plannedMs, skipped: x.skipped };
   });
   return { rows, driftMs: driftMs(v) };
 }

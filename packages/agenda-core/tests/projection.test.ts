@@ -4,6 +4,15 @@ import { advanceView, budgetMs, driftMs, overrunMs, plannedTotalMs, projectedEnd
 import type { AgendaState, AgendaView } from "../src/types.js";
 import { kptInput } from "./support/fixtures.js";
 
+const ltInput = {
+  title: "LT",
+  rounds: 3,
+  steps: [
+    { name: "発表", durationSec: 300, onTimeout: "wait" as const },
+    { name: "入れ替え", durationSec: 60, onTimeout: "wait" as const },
+  ],
+};
+
 const must = (r: { _unsafeUnwrap(): AgendaState }): AgendaState => r._unsafeUnwrap();
 const SEC = 1000;
 
@@ -112,8 +121,17 @@ describe("summaryOf", () => {
     s = must(next(s, { stepId: "s-1", now: 400 * SEC }));
     for (const [i, id] of ["s-2", "s-3", "s-5"].entries()) s = must(next(s, { stepId: id, now: (500 + i * 100) * SEC }));
     const sum = summaryOf(toView(s, 9999 * SEC));
-    expect(sum.rows[0]).toEqual({ id: "s-1", name: "Keep", plannedMs: 300 * SEC, extensionMs: 180 * SEC, spentMs: 400 * SEC, diffMs: 100 * SEC, skipped: false });
+    expect(sum.rows[0]).toEqual({ id: "s-1", round: 1, name: "Keep", plannedMs: 300 * SEC, extensionMs: 180 * SEC, spentMs: 400 * SEC, diffMs: 100 * SEC, skipped: false });
     expect(sum.rows[3]).toMatchObject({ id: "s-4", spentMs: 0, diffMs: -2400 * SEC, skipped: true });
     expect(sum.rows.reduce((a, r) => a + r.diffMs, 0)).toBe(sum.driftMs);
+  });
+});
+
+describe("回数つきの予定", () => {
+  it("予定の合計は 1 回あたり × 回数", () => {
+    const s = must(replaceScenario(INITIAL_AGENDA_STATE, ltInput));
+    const view = toView(s, 0);
+    expect(plannedTotalMs(view)).toBe(1_080_000);
+    expect(summaryOf(view).rows.map((r) => r.round)).toEqual([1, 1, 2, 2, 3, 3]);
   });
 });

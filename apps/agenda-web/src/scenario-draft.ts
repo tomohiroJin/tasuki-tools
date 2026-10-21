@@ -135,6 +135,7 @@ export function previewView(d: Draft): AgendaView | null {
   return {
     phase: 'idle',
     title: d.title,
+    rounds: 1,
     steps: expand({ title: d.title, steps }),
     currentId: null,
     runElapsedMs: 0,

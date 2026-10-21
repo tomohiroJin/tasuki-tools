@@ -18,6 +18,13 @@ export const STEP_SEC_GRANULARITY = 60;
 
 /** 予定の合計の上限（秒。180 分） */
 export const MAX_TOTAL_SEC = 10800;
+/** シナリオ全体を繰り返す回数の下限 */
+export const MIN_ROUNDS = 1;
+/** シナリオ全体を繰り返す回数の上限 */
+export const MAX_ROUNDS = 30;
+/** 回数で展開したあとの区切りの数の上限 */
+export const MAX_PLANNED_STEPS = 60;
+
 /** 延長を含めた 1 ステップの持ち時間の上限（秒。240 分） */
 export const MAX_STEP_BUDGET_SEC = 14400;
 

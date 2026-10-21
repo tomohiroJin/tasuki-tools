@@ -7,12 +7,13 @@
 import { err, ok, type Result } from "neverthrow";
 import type { AgendaError } from "./errors.js";
 import { MAX_STEP_BUDGET_SEC } from "./limits.js";
-import { expand } from "./scenario.js";
+import { definitionOf, expand, roundsOf } from "./scenario.js";
 import type { AgendaState, AgendaView, PlannedStep, ScenarioInput } from "./types.js";
 
 export const INITIAL_AGENDA_STATE: AgendaState = {
   phase: "idle",
   title: "",
+  rounds: 1,
   steps: [],
   currentId: null,
   startedAt: null,
@@ -35,7 +36,7 @@ export function replaceScenario(
   if (s.phase === "finished") return fail("AGENDA_FINISHED");
   // 境界で検証済みの入力を前提にする。ドメイン側の守りは空の区切りだけ
   if (input.steps.length === 0) return fail("INVALID_SCENARIO");
-  return ok({ ...INITIAL_AGENDA_STATE, title: input.title, steps: expand(input) });
+  return ok({ ...INITIAL_AGENDA_STATE, title: input.title, rounds: roundsOf(input), steps: expand(input) });
 }
 
 /** 開始する。最初の区切りが始まる。 */
@@ -124,7 +125,7 @@ export function toView(s: AgendaState, now: number): AgendaView {
   const runElapsedMs = finished ? (s.finishedAtMs ?? 0) : s.startedAt === null ? 0 : now - s.startedAt;
   const stepTimerMs = finished ? 0 : s.accumulatedMs + (s.runningSince === null ? 0 : now - s.runningSince);
   const stepSpentMs = finished || s.stepStartedAt === null ? 0 : now - s.stepStartedAt;
-  return { phase: s.phase, title: s.title, steps: s.steps, currentId: s.currentId, runElapsedMs, stepTimerMs, stepSpentMs };
+  return { phase: s.phase, title: s.title, rounds: s.rounds, steps: s.steps, currentId: s.currentId, runElapsedMs, stepTimerMs, stepSpentMs };
 }
 
 /** 一時停止。区切りの計時は止まり、実時間は進む。 */
@@ -173,6 +174,7 @@ export function setSkipped(
 /** シナリオを残して idle に戻す。展開をやり直し、延長・飛ばし・所要を消す。 */
 export function reset(s: AgendaState): R {
   if (s.phase === "idle") return ok(s);
-  const steps = expand({ title: s.title, steps: s.steps });
-  return ok({ ...INITIAL_AGENDA_STATE, title: s.title, steps });
+  // 展開済みの steps をまた回数倍しない。1 回目の定義へ戻してから展開する
+  const steps = expand(definitionOf(s));
+  return ok({ ...INITIAL_AGENDA_STATE, title: s.title, rounds: s.rounds, steps });
 }
