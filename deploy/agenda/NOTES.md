@@ -66,6 +66,9 @@ TASUKI_SSH_HOST=<ホスト別名> ./deploy/deploy.sh timer    # 同期サーバ�
 TASUKI_SSH_HOST=<ホスト別名> ./deploy/deploy.sh agenda
 ```
 
+- 配るまで `pnpm e2e:prod` の agenda の `@core` は赤になる（本番にくりかえしの欄が無い）。配ってから流す
+- 配布の窓の間、第 1 段の古いタブは新しい画面が書いた保存（版 2）を読めず、保存済みの一覧が空になる。上書きはしないので中身は消えない。再読込で直る
+
 ## 静的サイト
 
 同期サーバーを持ちません。`app.env` に `STATIC_ONLY=1` を置いてあるため:
