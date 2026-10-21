@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { saveResumeIdentity } from '@tasuki/sync-client';
 import { App } from '../src/App';
 import { BACK_LINK, EXTEND_LABEL, NEXT_BUTTON, NEXT_STEP_LABEL, PROJECTED_END_LABEL, PROJECT_BUTTON, PROJECT_EXIT_BUTTON, STEP_LIST_HEADING } from '../src/copy';
+import { Driver } from './support/agenda-states';
 import { IDLE_AGENDA, RESUME, ScriptedWebSocket, latestSocket, runningAgenda } from './support/scripted-web-socket';
 
 vi.mock('../src/router', async (importOriginal) => ({
@@ -59,6 +60,17 @@ const press = (key: string, init: Partial<KeyboardEventInit> = {}): void => {
  * @requirements #429 spec §7.5
  */
 describe('映す表示', () => {
+  it('Given 回数 2 以上の進行中 / When 映す表示を見る / Then 盤の中央に「n / N 回」が出る', () => {
+    const d = new Driver([1, 1], 'LT', 'wait', 6).next(60_000).next(120_000);
+    projecting(d.view(120_000 + 1000));
+    expect(document.querySelector('.dial--stage .dial-tag')?.textContent).toBe('2 / 6 回');
+  });
+
+  it('Given 回数 1 の進行中 / When 映す表示を見る / Then 回の札は出ない', () => {
+    projecting();
+    expect(document.querySelector('.dial--stage .dial-tag')).toBeNull();
+  });
+
   it('Given 映す表示に入った / When 画面を見る / Then 進行表と延長を落とし、次と終了見込みを残す', () => {
     projecting();
     expect(screen.queryByRole('region', { name: STEP_LIST_HEADING })).toBeNull();

@@ -2,6 +2,7 @@
  * 終了の一覧（#429 spec §4.3）。ステップごとの予定・追加（延長）・かかった時間・予定より（差）と、合計の押し巻き。
  * 行は agenda-core の `summaryOf` が持ち、ここは書き方だけを決める（合計の差 ＝ `summaryOf(v).driftMs`）。
  */
+import { Fragment } from 'react';
 import { summaryOf, type AgendaView } from '@tasuki/agenda-core';
 import { durationClock, signedDuration } from '../agenda-view';
 import {
@@ -14,6 +15,7 @@ import {
   SUMMARY_TOTAL_LABEL,
   extensionCell,
   minutesText,
+  roundHeading,
 } from '../copy';
 
 const MIN = 60_000;
@@ -45,16 +47,25 @@ export function SummaryTable({ view }: { view: AgendaView }) {
           </tr>
         </thead>
         <tbody>
-          {summary.rows.map((row) => (
-            <tr key={row.id} className={row.skipped ? 'is-skipped' : undefined}>
-              <th scope="row" className="summary-name">
-                {row.name}
-              </th>
-              <td>{minutesText(row.plannedMs / MIN)}</td>
-              <td>{row.extensionMs > 0 ? extensionCell(row.extensionMs / MIN) : ''}</td>
-              <td>{row.skipped ? SKIP_BUTTON : durationClock(row.spentMs)}</td>
-              <td className={toneOf(row.diffMs)}>{signedDuration(row.diffMs)}</td>
-            </tr>
+          {summary.rows.map((row, i) => (
+            <Fragment key={row.id}>
+              {view.rounds >= 2 && row.round !== summary.rows[i - 1]?.round && (
+                <tr className="summary-round">
+                  <th colSpan={5} scope="rowgroup">
+                    {roundHeading(row.round)}
+                  </th>
+                </tr>
+              )}
+              <tr className={row.skipped ? 'is-skipped' : undefined}>
+                <th scope="row" className="summary-name">
+                  {row.name}
+                </th>
+                <td>{minutesText(row.plannedMs / MIN)}</td>
+                <td>{row.extensionMs > 0 ? extensionCell(row.extensionMs / MIN) : ''}</td>
+                <td>{row.skipped ? SKIP_BUTTON : durationClock(row.spentMs)}</td>
+                <td className={toneOf(row.diffMs)}>{signedDuration(row.diffMs)}</td>
+              </tr>
+            </Fragment>
           ))}
         </tbody>
         <tfoot>

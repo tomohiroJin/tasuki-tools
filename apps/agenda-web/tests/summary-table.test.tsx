@@ -7,7 +7,7 @@ import { summaryOf } from '@tasuki/agenda-core';
 import { saveResumeIdentity } from '@tasuki/sync-client';
 import { App } from '../src/App';
 import { signedDuration } from '../src/agenda-view';
-import { RESET_BUTTON, RESET_CONFIRM_YES, SUMMARY_TOTAL_LABEL } from '../src/copy';
+import { RESET_BUTTON, RESET_CONFIRM_YES, SUMMARY_TOTAL_LABEL, roundHeading } from '../src/copy';
 import { Driver } from './support/agenda-states';
 import { RESUME, ScriptedWebSocket, latestSocket } from './support/scripted-web-socket';
 
@@ -97,5 +97,25 @@ describe('終了の一覧', () => {
     fireEvent.click(screen.getByRole('button', { name: RESET_BUTTON }));
     fireEvent.click(screen.getByRole('button', { name: RESET_CONFIRM_YES }));
     expect(latestSocket().sentJson().filter((m) => m['command'] === 'agenda.reset')).toHaveLength(1);
+  });
+
+  it('Given 回数 2 以上で終了した / When 一覧を見る / Then 回の境目に見出しの行が出て、合計の押し巻きは summaryOf(v).driftMs と同じ', () => {
+    // 2 区切り × 3 回。どれも予定の 1 分を 30 秒押して終えた
+    const d = new Driver([1, 1], 'LT', 'wait', 3);
+    for (let i = 1; i <= 6; i++) d.next(i * 90_000);
+    const v = d.view(6 * 90_000);
+    expect(v.phase).toBe('finished');
+    joinedRoom(v);
+    const headings = screen.getAllByRole('rowheader').filter((h) => h.getAttribute('scope') === 'rowgroup');
+    expect(headings.map((h) => h.textContent)).toEqual([roundHeading(1), roundHeading(2), roundHeading(3)]);
+    expect(headings.every((h) => h.getAttribute('colspan') === '5')).toBe(true);
+    const total = rowOf(SUMMARY_TOTAL_LABEL);
+    expect(summaryOf(v).driftMs).toBe(180_000);
+    expect(within(total).getByText(signedDuration(summaryOf(v).driftMs))).toBeInTheDocument();
+  });
+
+  it('Given 回数 1 で終了した / When 一覧を見る / Then 見出しの行は無い', () => {
+    joinedRoom(finished());
+    expect(document.querySelectorAll('th[scope="rowgroup"]')).toHaveLength(0);
   });
 });

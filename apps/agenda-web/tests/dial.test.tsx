@@ -149,3 +149,41 @@ describe('盤', () => {
     expect([...(name?.querySelectorAll('.dial-name-chunk') ?? [])].map((el) => el.textContent)).toEqual(['今日の進行', '5 ステップ']);
   });
 });
+
+/**
+ * @requirements #429 spec §7.3（回の札）
+ */
+describe('盤の回の札', () => {
+  const tagTexts = (el: HTMLElement): string[] => [...el.querySelectorAll('.dial-tag')].map((t) => t.textContent ?? '');
+
+  it('回数 2 以上の進行中は、盤の中央に「2 / 6 回」の札が出る', () => {
+    const v = new Driver([1, 1], 'LT', 'wait', 6).next(MIN).next(2 * MIN).view(2 * MIN + 1000);
+    expect(v.steps.find((s) => s.id === v.currentId)?.round).toBe(2);
+    const { container } = render(<Dial view={v} wallNow={WALL} reducedMotion={false} />);
+    expect(tagTexts(container)).toEqual(['2 / 6 回']);
+  });
+
+  it('一時停止中は「一時停止」の札と並ぶ', () => {
+    const v = new Driver([1, 1], 'LT', 'wait', 6).pause(10_000).view(20_000);
+    const { container } = render(<Dial view={v} wallNow={WALL} reducedMotion={false} />);
+    expect(tagTexts(container)).toEqual(['1 / 6 回', '一時停止中']);
+  });
+
+  it('回数 1 では回の札も、札の入れ物も出ない（第 1 段のまま）（m458）', () => {
+    const v = new Driver([5, 7]).view(MIN);
+    const { container } = render(<Dial view={v} wallNow={WALL} reducedMotion={false} />);
+    expect(container.querySelector('.dial-tags')).toBeNull();
+    expect(container.textContent).not.toMatch(/\d \/ \d 回/);
+  });
+
+  it('外の環の札は planLabels の文字（回数 5 は「1」〜「5」。幅の足りない区画の番号は出ない）', () => {
+    const v = idleView([1, 1], 'LT', 5);
+    const { container } = render(<Dial view={v} wallNow={WALL} reducedMotion={false} />);
+    expect([...container.querySelectorAll('.dial-plan-number')].map((t) => t.textContent)).toEqual(['1', '2', '3', '4', '5']);
+  });
+
+  it('回数 1 の KPT は第 1 段と同じ番号の札（1・2・4・5）', () => {
+    const { container } = render(<Dial view={idleView([5, 7, 1, 40, 7])} wallNow={WALL} reducedMotion={false} />);
+    expect([...container.querySelectorAll('.dial-plan-number')].map((t) => t.textContent)).toEqual(['1', '2', '4', '5']);
+  });
+});
