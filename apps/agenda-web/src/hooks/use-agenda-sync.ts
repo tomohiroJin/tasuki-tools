@@ -37,7 +37,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { DepartureReason, RosterRoom } from '@tasuki/room-core';
 import { buildSyncUrl, type ConnectionNoticeKind, type ConnectionStatus } from '@tasuki/sync-client';
 import { useToolRoomSync } from '@tasuki/web-kit/sync';
-import type { AgendaCommand, AgendaView, ExtendMinutes, ScenarioInput } from '@tasuki/agenda-core';
+import { roundsOf, type AgendaCommand, type AgendaView, type ExtendMinutes, type ScenarioInput } from '@tasuki/agenda-core';
 import type { TopicState } from '@tasuki/topic-core';
 import { DEFAULT_ERROR_TEXT, RETRY_EXHAUSTED_TEXT, RETRY_WAITING_TEXT } from '../copy';
 import { parseAgendaWebMessage } from '../server-message';
@@ -156,7 +156,7 @@ export function useAgendaSync(roomCode: string): AgendaSync {
       send(cmd as unknown as Record<string, unknown>);
     };
     return {
-      setScenario: (scenario: ScenarioInput) => sendCommand({ command: 'agenda.scenario.set', scenario: { title: scenario.title, steps: [...scenario.steps], ...(scenario.rounds === undefined ? {} : { rounds: scenario.rounds }) } }),
+      setScenario: (scenario: ScenarioInput) => sendCommand({ command: 'agenda.scenario.set', scenario: { title: scenario.title, steps: [...scenario.steps], ...(roundsOf(scenario) > 1 ? { rounds: scenario.rounds } : {}) } }),
       start: () => sendCommand({ command: 'agenda.start' }),
       next: (stepId: string) => sendCommand({ command: 'agenda.next', stepId }),
       pause: () => sendCommand({ command: 'agenda.pause' }),

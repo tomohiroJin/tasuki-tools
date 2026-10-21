@@ -131,13 +131,14 @@ function PlanNumber({ label }: { label: PlanLabel }) {
  */
 function PlanRing({ view, hatch }: { view: AgendaView; hatch: string }) {
   const labels = planLabels(view);
+  const labelByKey = new Map(labels.map((l) => [l.key, l]));
   const perSegment = view.rounds < 2;
   return (
     <g>
       {outerSegments(view).map((seg) => {
         const [sx0, sy0] = polar(R_OUT - 7, seg.startDeg);
         const [sx1, sy1] = polar(R_OUT + 7, seg.startDeg);
-        const label = perSegment ? labels.find((l) => l.key === seg.id) : undefined;
+        const label = perSegment ? labelByKey.get(seg.id) : undefined;
         return (
           <g key={seg.id}>
             <path

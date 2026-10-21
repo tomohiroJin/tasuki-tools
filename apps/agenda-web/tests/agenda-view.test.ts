@@ -215,4 +215,9 @@ describe('回の札', () => {
   it('進行表の行は回を持つ', () => {
     expect(stepRows(six().view(0)).map((r) => r.round)).toEqual([1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6]);
   });
+
+  it('進行表の行の番号は、回数 2 以上では回の中の番号、回数 1 では通しの番号', () => {
+    expect(stepRows(six().view(0)).map((r) => r.number)).toEqual([1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2]);
+    expect(stepRows(new Driver([1, 1, 1]).view(0)).map((r) => r.number)).toEqual([1, 2, 3]);
+  });
 });

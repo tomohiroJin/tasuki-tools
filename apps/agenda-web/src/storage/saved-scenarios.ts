@@ -6,7 +6,7 @@ import { MAX_SCENARIO_TITLE, ScenarioInputSchema, hasControlChars, type Scenario
 import * as v from 'valibot';
 
 export const SAVED_SCENARIOS_KEY = 'tasuki.agenda.scenarios';
-export const CURRENT_VERSION = 2;
+export const CURRENT_VERSION = 1;
 
 export interface SavedScenario {
   readonly name: string;
@@ -19,12 +19,10 @@ export interface SavedScenario {
 export type Migrations = Record<number, (raw: unknown) => unknown>;
 
 /**
- * 版 1 → 2: シナリオに回数（`rounds`）が増えた。省略は 1 回なので、形は書き換えず版だけ上げる。
- * 形が変わったらここへ足す。
+ * 版 N → N+1 の移行。いまは空。回数（`rounds`）は省略できる項目なので、版は 1 のまま上げない
+ * （上げると古いコードが保存の全体を読めなくなる）。形が変わったらここへ足す。
  */
-export const MIGRATIONS: Migrations = {
-  1: (raw) => ({ ...(raw as Record<string, unknown>), version: 2 }),
-};
+export const MIGRATIONS: Migrations = {};
 
 const isRecord = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x);
 

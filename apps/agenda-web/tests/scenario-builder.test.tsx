@@ -8,6 +8,8 @@ import { saveResumeIdentity } from '@tasuki/sync-client';
 import { App } from '../src/App';
 import {
   ADD_STEP_BUTTON,
+  MAX_PLANNED_NOTE,
+  MAX_STEPS_NOTE,
   ROUNDS_LABEL,
   roundsMinusLabel,
   roundsPlusLabel,
@@ -375,6 +377,29 @@ describe('組む画面', () => {
     expect(roundsField().value).toBe('6');
     expect(loadButton()).toBeDisabled();
     expect(screen.getByRole('button', { name: START_BUTTON })).toBeEnabled();
+  });
+
+  it('Given 空の組む画面で回数を 5 にした / When ルームのシナリオが変わる / Then 下書きの回数 5 が残る', () => {
+    joinedRoom();
+    fireEvent.change(roundsField(), { target: { value: '5' } });
+    deliverAgenda(idleAgenda('Other', [['Theirs', 10]]));
+    expect(roundsField().value).toBe('5');
+  });
+
+  it('Given 回数 6 で 10 ステップ / When 見る / Then 追加ボタンは無効で、60 の上限の注記が出る（20 の注記ではない）', () => {
+    joinedRoom(idleAgenda('Retro', Array.from({ length: 10 }, (_, i) => [`s${i}`, 60] as const)));
+    fireEvent.change(roundsField(), { target: { value: '6' } });
+    expect(screen.getByRole('button', { name: ADD_STEP_BUTTON })).toBeDisabled();
+    expect(screen.getByText(MAX_PLANNED_NOTE)).toBeDefined();
+    expect(screen.queryByText(MAX_STEPS_NOTE)).toBeNull();
+  });
+
+  it('Given 回数が範囲外（31） / When 合計の行を見る / Then 1 回分の「予定 n 分」を出す', () => {
+    joinedRoom();
+    fireEvent.click(screen.getByRole('button', { name: /朝会/ }));
+    fireEvent.change(roundsField(), { target: { value: '31' } });
+    expect(document.body.textContent).not.toContain('1 回あたり');
+    expect(document.querySelector('.builder-total')?.textContent).toBe(plannedSummary(2));
   });
 
   it('Given 回数の欄を空にした下書き / When ルームのシナリオが変わる / Then 下書きは残り「シナリオが変わりました」が出る', () => {

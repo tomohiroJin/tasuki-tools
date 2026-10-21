@@ -105,6 +105,8 @@ export const roundBadgeText = (cur: number, total: number): string => `${cur} / 
 /** 進行表・終了の一覧の回の見出し（例「2 回」） */
 export const roundHeading = (n: number): string => `${n} ${ROUNDS_UNIT}`;
 export const roundsRangeText = (): string => `くりかえしは ${MIN_ROUNDS}〜${MAX_ROUNDS} 回で入れてください`;
+/** ステップを足せないのが 60 の上限のとき */
+export const MAX_PLANNED_NOTE = `ステップ × くりかえしは ${MAX_PLANNED_STEPS} までです`;
 export const plannedStepsTooManyText = (count: number): string =>
   `ステップ × 回数は ${MAX_PLANNED_STEPS} までです（いま ${count}）`;
 /** 例「1 回あたり 8 分 × 6 回 ＝ 全部で 48 分」 */
@@ -133,8 +135,11 @@ export const minutesText = (minutes: number): string => `${minutes} 分`;
 export const extensionSuffix = (minutes: number): string => ` + ${minutes}`;
 /** 盤の下の添え書き（spec §7.2「予定 7 分 + 3 分」） */
 export const extensionNote = (planned: number, extension: number): string => `予定 ${planned} 分 + ${extension} 分`;
-export const skipStepLabel = (n: number): string => `ステップ ${n} をスキップ`;
-export const unskipStepLabel = (n: number): string => `ステップ ${n} を戻す`;
+/** 回数 2 以上では回を前に付ける（例「3 回のステップ 1 をスキップ」）。回数 1 は `round` を渡さない */
+export const skipStepLabel = (n: number, round?: number): string =>
+  `${round === undefined ? '' : `${round} 回の`}ステップ ${n} をスキップ`;
+export const unskipStepLabel = (n: number, round?: number): string =>
+  `${round === undefined ? '' : `${round} 回の`}ステップ ${n} を戻す`;
 
 // 映す表示（spec §7.5）
 export const PROJECT_BUTTON = '映す表示';

@@ -42,7 +42,7 @@ export type StepStatus = 'done' | 'now' | 'skipped' | 'todo';
 
 export interface StepRow {
   readonly id: string;
-  /** 1 から（盤の目盛りの番号と同じ） */
+  /** 1 から。回数 1 は通しの番号（盤の目盛りと同じ）、回数 2 以上は回の中の番号 */
   readonly number: number;
   /** 何回目か（回数 1 は常に 1。進行表の回の見出しの区切りに使う） */
   readonly round: number;
@@ -201,15 +201,20 @@ function statusOf(v: AgendaView, x: StepView): StepStatus {
 
 /** 進行表の行 */
 export function stepRows(v: AgendaView): StepRow[] {
-  return v.steps.map((x, i) => ({
-    id: x.id,
-    number: i + 1,
-    round: x.round,
-    name: x.name,
-    status: statusOf(v, x),
-    plannedMin: x.durationSec / 60,
-    extensionMin: x.extensionSec / 60,
-  }));
+  const seenInRound = new Map<number, number>();
+  return v.steps.map((x, i) => {
+    const inRound = (seenInRound.get(x.round) ?? 0) + 1;
+    seenInRound.set(x.round, inRound);
+    return {
+      id: x.id,
+      number: v.rounds >= 2 ? inRound : i + 1,
+      round: x.round,
+      name: x.name,
+      status: statusOf(v, x),
+      plannedMin: x.durationSec / 60,
+      extensionMin: x.extensionSec / 60,
+    };
+  });
 }
 
 /** オーバーの読み上げ。最初の 1 分は「オーバー 0 分」と言わず「オーバー」だけ */

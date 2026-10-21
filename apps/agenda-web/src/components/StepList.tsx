@@ -31,7 +31,18 @@ function Mark({ row }: { row: StepRow }) {
   return null;
 }
 
-function RowItem({ row, canOperate, onSetSkipped }: { row: StepRow; canOperate: boolean; onSetSkipped: Props['onSetSkipped'] }) {
+function RowItem({
+  row,
+  grouped,
+  canOperate,
+  onSetSkipped,
+}: {
+  row: StepRow;
+  grouped: boolean;
+  canOperate: boolean;
+  onSetSkipped: Props['onSetSkipped'];
+}) {
+  const labelRound = grouped ? row.round : undefined;
   return (
     <li className={`step-list-row is-${row.status}`} aria-current={row.status === 'now' ? 'step' : undefined}>
       <span className="step-list-number">{row.number}</span>
@@ -45,7 +56,7 @@ function RowItem({ row, canOperate, onSetSkipped }: { row: StepRow; canOperate: 
         <button
           type="button"
           className="ui-button ui-button--quiet ui-button--sm step-list-skip"
-          aria-label={skipStepLabel(row.number)}
+          aria-label={skipStepLabel(row.number, labelRound)}
           disabled={!canOperate}
           onClick={() => onSetSkipped(row.id, true)}
         >
@@ -56,7 +67,7 @@ function RowItem({ row, canOperate, onSetSkipped }: { row: StepRow; canOperate: 
         <button
           type="button"
           className="ui-button ui-button--quiet ui-button--sm step-list-skip"
-          aria-label={unskipStepLabel(row.number)}
+          aria-label={unskipStepLabel(row.number, labelRound)}
           disabled={!canOperate}
           onClick={() => onSetSkipped(row.id, false)}
         >
@@ -96,7 +107,7 @@ export function StepList({ view, canOperate, onSetSkipped }: Props) {
         </li>,
       );
     }
-    items.push(<RowItem key={row.id} row={row} canOperate={canOperate} onSetSkipped={onSetSkipped} />);
+    items.push(<RowItem key={row.id} row={row} grouped={grouped} canOperate={canOperate} onSetSkipped={onSetSkipped} />);
   });
 
   return (

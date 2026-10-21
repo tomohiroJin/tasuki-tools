@@ -5,7 +5,10 @@ import { INITIAL_AGENDA_STATE, MAX_ROUNDS, MIN_ROUNDS, replaceScenario, roundsOf
 import { describe, expect, it } from 'vitest';
 import { NEED_STEP_TEXT, plannedStepsTooManyText, stepNameBlankText, roundsRangeText, totalTooLongText } from '../src/copy';
 import {
+  addBlockedByItems,
   bumpRounds,
+  canAddStep,
+  isEmptyDraft,
   checkDraft,
   draftFromInput,
   inputFromDraft,
@@ -27,6 +30,22 @@ const draftOf = (steps: ScenarioInput['steps'], rounds: string): Draft => ({ ...
  * @requirements #429 第 2 段（シナリオの回数）
  */
 describe('下書きの回数', () => {
+  it('回数の欄が 1 でない下書きは、題もステップも空でも空と見なさない', () => {
+    const empty = draftFromInput({ title: '', steps: [] });
+    expect(isEmptyDraft(empty)).toBe(true);
+    expect(isEmptyDraft({ ...empty, rounds: '5' })).toBe(false);
+    expect(isEmptyDraft({ ...empty, rounds: '' })).toBe(false);
+  });
+
+  it('ステップの追加は「(ステップ + 1) × 回数」が 60 を超えると止まる。回数が読めなければ 1 回として数える', () => {
+    const ten = Array.from({ length: 10 }, (_, i) => step(`s${i}`, 60));
+    expect(canAddStep(draftOf(ten, '6'))).toBe(false);
+    expect(canAddStep(draftOf(ten, '5'))).toBe(true);
+    expect(canAddStep(draftOf(ten, ''))).toBe(true);
+    expect(canAddStep(draftOf(Array.from({ length: 20 }, (_, i) => step(`s${i}`, 60)), '1'))).toBe(false);
+    expect(addBlockedByItems(draftOf(ten, '6'))).toBe(false);
+  });
+
   it('回数 6 のルームのシナリオを下書きへ写すと 1 区切りと回数 6 になる（m455）', () => {
     const state = replaceScenario(INITIAL_AGENDA_STATE, input([step('朝会', 120)], 6));
     const view = toView(state._unsafeUnwrap(), 0);

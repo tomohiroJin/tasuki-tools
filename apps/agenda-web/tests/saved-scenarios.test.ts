@@ -6,7 +6,6 @@ import * as v from 'valibot';
 import { describe, expect, it } from 'vitest';
 import { SAMPLE_SCENARIOS } from '../src/sample-scenarios';
 import {
-  MIGRATIONS,
   SAVED_SCENARIOS_KEY,
   deleteSaved,
   loadSaved,
@@ -42,7 +41,7 @@ describe('シナリオの端末への保存', () => {
     const r = saveScenario(s, '朝会', scenario('朝会'), 1000);
     expect(r.ok).toBe(true);
     expect(loadSaved(s)).toEqual([{ name: '朝会', savedAt: 1000, scenario: scenario('朝会') }]);
-    expect(JSON.parse(s.getItem(SAVED_SCENARIOS_KEY) ?? '').version).toBe(2);
+    expect(JSON.parse(s.getItem(SAVED_SCENARIOS_KEY) ?? '').version).toBe(1);
   });
 
   it('版 1 の保存を読むと回数 1 のシナリオとして読める', () => {
@@ -54,11 +53,11 @@ describe('シナリオの端末への保存', () => {
     expect(got[0]?.scenario).toEqual(scenario('旧'));
   });
 
-  it('回数 6 を保存して読み直すと回数 6 が残り、版 2 で書かれる', () => {
+  it('回数 6 を保存して読み直すと回数 6 が残り、版 1 で書かれる', () => {
     const s = fakeStorage();
     const six: ScenarioInput = { ...scenario('朝会'), rounds: 6 };
     expect(saveScenario(s, '朝会', six, 1).ok).toBe(true);
-    expect(JSON.parse(s.getItem(SAVED_SCENARIOS_KEY) ?? '').version).toBe(2);
+    expect(JSON.parse(s.getItem(SAVED_SCENARIOS_KEY) ?? '').version).toBe(1);
     const got = loadSaved(s);
     expect(got[0] && roundsOf(got[0].scenario)).toBe(6);
   });
@@ -102,9 +101,9 @@ describe('シナリオの端末への保存', () => {
     expect(saveScenario(s, 'x'.repeat(60), scenario('1'), 1).ok).toBe(true);
   });
 
-  it('将来の版（version 3）の保存は、保存・削除を試みても手つかずで残る', () => {
+  it('将来の版（version 2）の保存は、保存・削除を試みても手つかずで残る', () => {
     const s = fakeStorage();
-    const future = JSON.stringify({ version: 3, items: [{ name: '未来', shape: 'new' }] });
+    const future = JSON.stringify({ version: 2, items: [{ name: '未来', shape: 'new' }] });
     s.setItem(SAVED_SCENARIOS_KEY, future);
     expect(saveScenario(s, 'A', scenario('1'), 1)).toEqual({ ok: false, reason: 'unreadable' });
     expect(deleteSaved(s, 'A')).toEqual({ ok: false, reason: 'unreadable' });
@@ -212,7 +211,6 @@ describe('シナリオの端末への保存', () => {
       }),
     );
     const migrations: Record<number, (raw: unknown) => unknown> = {
-      ...MIGRATIONS,
       0: (raw) => {
         const r = raw as { items: { name: string; savedAt: number; scenario: { title: string; steps: { name: string; durationMin: number; onTimeout: string }[] } }[] };
         return {

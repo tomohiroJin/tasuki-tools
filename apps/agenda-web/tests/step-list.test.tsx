@@ -1,11 +1,11 @@
 /**
  * 進行表（#429 spec §7.2）。回数 2 以上では回ごとの見出しで区切り、枠の中で「いま」の行へ合わせる。
  */
-import { render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { StepList } from '../src/components/StepList';
 import { scrollTopToReveal } from '../src/agenda-view';
-import { roundHeading } from '../src/copy';
+import { roundHeading, skipStepLabel } from '../src/copy';
 import { Driver, MIN } from './support/agenda-states';
 
 const noop = (): void => undefined;
@@ -80,9 +80,18 @@ describe('進行表の回の見出し', () => {
     expect(container.querySelector('.step-list-round')).toBeNull();
   });
 
-  it('Given 回数 2 以上 / When 描く / Then 行の番号は回をまたいで通しで 1 から振る', () => {
+  it('Given 回数 2 以上 / When 描く / Then 行の番号は回の中の 1 から振り直す', () => {
     const { container } = render(<StepList view={new Driver([1, 1], 'LT', 'wait', 2).view(0)} canOperate onSetSkipped={noop} />);
-    expect([...container.querySelectorAll('.step-list-number')].map((n) => n.textContent)).toEqual(['1', '2', '3', '4']);
+    expect([...container.querySelectorAll('.step-list-number')].map((n) => n.textContent)).toEqual(['1', '2', '1', '2']);
+  });
+
+  it('Given 回数 2 以上 / When 描く / Then スキップの読み上げ名に回が入る。回数 1 は第 1 段のまま', () => {
+    render(<StepList view={new Driver([1, 1], 'LT', 'wait', 3).view(0)} canOperate onSetSkipped={noop} />);
+    expect(screen.getByRole('button', { name: skipStepLabel(1, 3) }).getAttribute('aria-label')).toBe('3 回のステップ 1 をスキップ');
+    expect(screen.queryByRole('button', { name: 'ステップ 1 をスキップ' })).toBeNull();
+    cleanup();
+    render(<StepList view={new Driver([1, 1, 1]).view(0)} canOperate onSetSkipped={noop} />);
+    expect(screen.getByRole('button', { name: 'ステップ 3 をスキップ' })).toBeDefined();
   });
 });
 

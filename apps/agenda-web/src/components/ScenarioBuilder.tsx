@@ -6,6 +6,7 @@ import {
   DEFAULT_ERROR_TEXT,
   LOAD_FIRST_TEXT,
   LOAD_TO_ROOM_BUTTON,
+  MAX_PLANNED_NOTE,
   MAX_STEPS_NOTE,
   perRoundSummary,
   ROUNDS_LABEL,
@@ -26,6 +27,7 @@ import { SAMPLE_SCENARIOS } from '../sample-scenarios';
 import {
   addStep,
   bumpRounds,
+  addBlockedByItems,
   canAddStep,
   checkDraft,
   clipTitle,
@@ -33,6 +35,7 @@ import {
   inputFromDraft,
   inputFromView,
   isEmptyDraft,
+  roundsInRange,
   moveStep,
   perRoundMinutes,
   previewView,
@@ -209,7 +212,9 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
             <button ref={addRef} type="button" className="ui-button ui-button--secondary" disabled={!canAddStep(draft)} onClick={add}>
               {ADD_STEP_BUTTON}
             </button>
-            {!canAddStep(draft) && <span className="builder-add-note">{MAX_STEPS_NOTE}</span>}
+            {!canAddStep(draft) && (
+              <span className="builder-add-note">{addBlockedByItems(draft) ? MAX_STEPS_NOTE : MAX_PLANNED_NOTE}</span>
+            )}
           </div>
           <div className="builder-rounds">
             <label htmlFor={roundsId}>{ROUNDS_LABEL}</label>
@@ -253,9 +258,9 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
       <div className="ui-workspace-side builder-side">
         <section className="ui-panel builder-preview">
           <p className="builder-total">
-            {roundsNow !== null && roundsNow >= 2
+            {roundsNow !== null && roundsInRange(roundsNow) && roundsNow >= 2
               ? perRoundSummary(perRoundMinutes(draft), roundsNow, totalMinutes(draft))
-              : plannedSummary(totalMinutes(draft))}
+              : plannedSummary(perRoundMinutes(draft))}
           </p>
           {preview !== null && <Dial view={preview} wallNow={wallNow} reducedMotion={reducedMotion} />}
           <p id={reasonId} role="status" className={reason.isError ? 'builder-reason ui-note ui-note--error' : 'builder-reason ui-note'}>

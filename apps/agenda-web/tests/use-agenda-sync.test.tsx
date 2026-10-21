@@ -209,6 +209,27 @@ describe('進行タイマーの操作', () => {
 });
 
 /**
+ * @requirements #429 第 2 段（シナリオの回数）
+ */
+describe('シナリオの送信の回数', () => {
+  const one = { title: 'Retro', steps: [{ name: 'Check', durationSec: 60, onTimeout: 'wait' as const }] };
+  const sentScenario = (): Record<string, unknown> =>
+    latestSocket().sentJson().slice(1)[0]?.['scenario'] as Record<string, unknown>;
+
+  it('Given rounds: 1 が来た / When 送る / Then rounds のキーを落とす', () => {
+    const { result } = joinedHook();
+    act(() => result.current.setScenario({ ...one, rounds: 1 }));
+    expect('rounds' in sentScenario()).toBe(false);
+  });
+
+  it('Given rounds: 3 / When 送る / Then rounds: 3 を載せる', () => {
+    const { result } = joinedHook();
+    act(() => result.current.setScenario({ ...one, rounds: 3 }));
+    expect(sentScenario()['rounds']).toBe(3);
+  });
+});
+
+/**
  * @requirements #429 spec §5.6
  */
 describe('操作の失敗', () => {

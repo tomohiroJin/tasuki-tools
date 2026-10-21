@@ -62,7 +62,8 @@ const nextKey = (): number => ++keySeq;
 export const clipStepName = (s: string): string => s.slice(0, MAX_STEP_NAME);
 export const clipTitle = (s: string): string => s.slice(0, MAX_SCENARIO_TITLE);
 
-export const isEmptyDraft = (d: Draft): boolean => d.title === '' && d.steps.length === 0;
+/** 回数の欄が既定の '1' でないなら、利用者が触ったので空と見なさない */
+export const isEmptyDraft = (d: Draft): boolean => d.title === '' && d.steps.length === 0 && d.rounds === '1';
 
 export function draftFromInput(input: ScenarioInput): Draft {
   return {
@@ -91,7 +92,7 @@ export function roundsOfDraft(d: Draft): number | null {
   return Number(t);
 }
 
-const roundsInRange = (n: number | null): n is number => n !== null && n >= MIN_ROUNDS && n <= MAX_ROUNDS;
+export const roundsInRange = (n: number | null): n is number => n !== null && n >= MIN_ROUNDS && n <= MAX_ROUNDS;
 
 /** −／＋ で回数を 1 つ動かす。読めない欄は下限から数え直す */
 export function bumpRounds(d: Draft, delta: -1 | 1): string {
@@ -185,7 +186,11 @@ export function previewView(d: Draft): AgendaView | null {
 
 // 行の編集（新しい下書きを返す）
 
-export const canAddStep = (d: Draft): boolean => d.steps.length < MAX_ITEMS;
+/** 足したあとの「ステップ × 回数」が上限を超えるなら足せない。回数が読めないときは 1 回として数える */
+export const canAddStep = (d: Draft): boolean => d.steps.length < MAX_ITEMS && (d.steps.length + 1) * (roundsOfDraft(d) ?? 1) <= MAX_PLANNED_STEPS;
+
+/** 足せない理由が 20 の上限か（そうでなければ 60 の上限） */
+export const addBlockedByItems = (d: Draft): boolean => d.steps.length >= MAX_ITEMS;
 
 export function addStep(d: Draft): Draft {
   if (!canAddStep(d)) return d;
