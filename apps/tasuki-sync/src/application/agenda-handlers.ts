@@ -12,6 +12,7 @@
  *
  * 状態が変わるたびに `rearm` で期限の予約を張り直す（`advance` のステップが動いている間だけ張り、それ以外は消す）。
  * 期限が来たら `onDue` が `advanceIfDue` を呼び、変わっていれば保管・配信・張り直しをする。
+ * **操作を当てる前にも `advanceIfDue` を通す**（期限を過ぎてから予約が発火するまでの隙に届いた操作を、進めた後の状態に当てる）。
  * 時計は**単調時計**（`MonotonicClock`）だけを使う。
  *
  * ## 利用者の入力をログに書かない
@@ -142,8 +143,11 @@ export function makeAgendaHandlers(deps: AgendaHandlerDeps): AgendaHandlers {
       broadcaster.sendCurrent(connId, room.code);
       return;
     }
-    const state = agendas.get(room.code) ?? INITIAL_AGENDA_STATE;
+    const stored = agendas.get(room.code) ?? INITIAL_AGENDA_STATE;
     const now = monotonicClock.now();
+    // 期限を過ぎたのに予約がまだ発火していない（発火は遅れうる）なら、**先に自動で次へ進めてから**操作を当てる。
+    // 古い区切りに当てると、所要が持ち時間を超えて確定し、終わったはずの区切りで止まる。
+    const state = advanceIfDue(stored, now);
     const result = (() => {
       switch (cmd.command) {
         case "agenda.scenario.set":
@@ -165,11 +169,14 @@ export function makeAgendaHandlers(deps: AgendaHandlerDeps): AgendaHandlers {
       }
     })();
     if (result.isErr()) {
+      // 操作は拒んでも、自動で次へ進めた分は失わない（保管・配信・張り直し）。
+      if (state !== stored) commit(room.code, state);
       fail(connId, result.error.code);
       return;
     }
     // 変わらなければ（同じ参照）配らず、送り主にだけいまの状態を返す（連打・古い画面の押下を全員へ配らない）。
-    if (result.value === state) {
+    // 自動で次へ進めた後の状態に対して何もしなかった場合は、進めた分を配る（下の commit）。
+    if (result.value === stored) {
       broadcaster.sendCurrent(connId, room.code);
       return;
     }

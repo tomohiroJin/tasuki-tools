@@ -440,6 +440,70 @@ describe("自動で次へ進む期限の予約", () => {
   });
 });
 
+/**
+ * 期限を過ぎたのに予約がまだ発火していない間に届いた操作は、**自動で次へ進めた後の状態**に当てる。
+ * 予約の発火は遅れうる（イベントループの混雑）。その隙に届いた操作が古い区切りに当たると、所要が持ち時間を超えて確定し、
+ * 一時停止なら終わったはずの区切りで止まる。
+ */
+describe("期限を過ぎた状態に届いた操作", () => {
+  it("期限の後（予約の発火前）の agenda.pause は次の区切りで止め、終えた区切りの所要は持ち時間ちょうど", async () => {
+    // Given: s-1（advance・60 秒）を 5_000 に開始し、期限 65_000 を 10_000ms 過ぎた。予約はまだ発火していない
+    const h = setup();
+    await joined(h, "a-1", "Alice");
+    await loadScenario(h, "a-1");
+    await h.handle("a-1", { command: "agenda.start" });
+    h.advance(70_000);
+
+    // When
+    await h.handle("a-1", { command: "agenda.pause" });
+
+    // Then: s-2 へ進んだうえで止まり、s-2 の計時は期限からの 10_000ms
+    const state = h.agendas.get(ROOM)!;
+    expect(state.currentId).toBe("s-2");
+    expect(state.phase).toBe("paused");
+    expect(state.accumulatedMs).toBe(10_000);
+    expect(state.steps[0]!.spentMs).toBe(60_000);
+  });
+
+  it("期限の後に古い画面から届いた s-1 の agenda.next は、進めた後の状態では何もしない（進むのは 1 回だけ）", async () => {
+    // Given
+    const h = setup();
+    await joined(h, "a-1", "Alice");
+    await loadScenario(h, "a-1");
+    await h.handle("a-1", { command: "agenda.start" });
+    h.advance(70_000);
+
+    // When
+    await h.handle("a-1", { command: "agenda.next", stepId: "s-1" });
+
+    // Then: s-2 は期限ちょうど（65_000）に始まったまま動いている（手の次へで 75_000 に始め直していない）
+    const state = h.agendas.get(ROOM)!;
+    expect(state.currentId).toBe("s-2");
+    expect(state.phase).toBe("running");
+    expect(state.stepStartedAt).toBe(65_000);
+    expect(state.steps[0]!.spentMs).toBe(60_000);
+  });
+
+  it("操作が失敗しても、自動で次へ進めた状態は保管して全員へ配る", async () => {
+    // Given
+    const h = setup();
+    await joined(h, "a-1", "Alice");
+    await joined(h, "a-2", "Bob");
+    await loadScenario(h, "a-1");
+    await h.handle("a-1", { command: "agenda.start" });
+    h.advance(70_000);
+    h.sent.length = 0;
+
+    // When: 開始済みなので失敗する
+    await h.handle("a-1", { command: "agenda.start" });
+
+    // Then
+    expect(errorsTo(h, "a-1")).toEqual(["AGENDA_ALREADY_STARTED"]);
+    expect(h.agendas.get(ROOM)!.currentId).toBe("s-2");
+    expect(viewsTo(h, "a-2").map((v) => v.currentId)).toEqual(["s-2"]);
+  });
+});
+
 describe("ログ", () => {
   it("ステップの名前を入れて一通り操作しても、ロガーへ何も書かない", async () => {
     // Given

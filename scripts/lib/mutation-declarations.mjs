@@ -2924,4 +2924,12 @@ export const MUTATIONS = [
     tests: ["tests/room-choice-layout.test.tsx"],
     note: "#429。在席の表示が進行タイマーに居る人を札の名前で出せず、「agenda にいます」と生の綴りが出る。型は綴りのずれを拾わない。",
   },
+  {
+    id: 451,
+    label: "操作を当てる前に自動で次へ進めない",
+    patch: "m451-command-skips-advance-if-due.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/agenda-handlers.test.ts"],
+    note: "#429 PR #431 のレビュー。期限を過ぎてから予約が発火するまでの隙に届いた操作が古い区切りに当たり、所要が持ち時間を超えて確定し、一時停止なら終わったはずの区切りで止まる。",
+  },
 ];
