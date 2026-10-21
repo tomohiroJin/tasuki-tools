@@ -2937,7 +2937,7 @@ export const MUTATIONS = [
     label: "最初からに戻すとき、展開済みの区切りをまた回数倍して展開する",
     patch: "m452-reset-expands-already-expanded-steps.patch",
     pkg: "packages/agenda-core",
-    tests: ["tests/agenda.test.ts"],
+    tests: ["tests/agenda.test.ts", "tests/agenda-invariant.test.ts"],
     note: "#429 第 2 段。`reset` が展開済みの区切りを定義として再展開すると、回数 3 の進行が戻すたびに 3 倍（N²）に増える。",
   },
   {
@@ -2993,7 +2993,15 @@ export const MUTATIONS = [
     label: "進行表のいまの行へ scrollIntoView で合わせる",
     patch: "m459-step-list-scrolls-page.patch",
     pkg: "apps/agenda-web",
-    tests: ["tests/step-list.test.tsx"],
+    tests: ["tests/step-list.test.tsx", "tests/projection-view.test.tsx", "tests/rendered-text-fits-font-base.test.tsx"],
     note: "#429 第 2 段。scrollIntoView は祖先のページまで動かし、区切りが移るたびに盤がページの外へ出る。枠の scrollTop だけを動かす。",
+  },
+  {
+    id: 460,
+    label: "進行表の行の位置を測るとき、枠の scrollTop を足し戻さない",
+    patch: "m460-step-list-ignores-box-scroll-top.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/step-list.test.tsx"],
+    note: "#429 第 2 段。スクロール済みの枠では行の座標が scrollTop の分だけ手前に出る。足し戻さないと二段目の移動が足りず、いまの行が枠の外に残る。",
   },
 ];
