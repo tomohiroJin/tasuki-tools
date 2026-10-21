@@ -188,6 +188,8 @@ describe('組む画面', () => {
     expect(scenario.steps.map((s) => s.durationSec)).toEqual([300, 480, 60, 2400, 420]);
     expect(scenario.steps.map((s) => s.onTimeout)).toEqual(['wait', 'wait', 'wait', 'wait', 'wait']);
     expect(scenario.title).toBe('KPT のふりかえり');
+    // 回数 1 では rounds のキーそのものを送らない（第 1 段の定義と同じ形）
+    expect('rounds' in scenario).toBe(false);
   });
 
   it('Given ルームに読み込んだ / When 自分の置き換えが返る / Then 知らせは出ず、開始で agenda.start を送る', () => {
@@ -359,13 +361,13 @@ describe('組む画面', () => {
     joinedRoom(roundsAgenda('朝会', [['話す', 2]], 6));
     fireEvent.click(screen.getByRole('button', { name: 'この端末に保存' }));
     const list = screen.getByRole('list', { name: '保存済み' });
-    expect(within(list).getByText('1 ステップ・12 分 × 6 回')).toBeDefined();
+    expect(within(list).getByText('1 ステップ × 6 回・全部で 12 分')).toBeDefined();
   });
 
   it('Given サンプルの札 / When 描く / Then 朝会の札は全部の分と回数を出す', () => {
     joinedRoom();
     const card = screen.getByRole('button', { name: /朝会/ });
-    expect(within(card).getByText('1 ステップ・12 分 × 6 回')).toBeDefined();
+    expect(within(card).getByText('1 ステップ × 6 回・全部で 12 分')).toBeDefined();
   });
 
   it('Given ルームのシナリオが回数 6 / When 組む画面を開く / Then 回数の欄は 6 で、ルームと同じ状態（読み込めず開始できる）', () => {

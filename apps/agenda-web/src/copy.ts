@@ -85,7 +85,7 @@ export const REMOVE_BUTTON = '消す';
 export const sampleStepText = (name: string, minutes: number): string => `${name} ${minutes} 分`;
 /** サンプルの札・保存済みの行の添え書き */
 export const scenarioDetail = (steps: number, minutes: number, rounds: number): string =>
-  rounds >= 2 ? `${steps} ステップ・${minutes} 分 × ${rounds} 回` : `${steps} ステップ・${minutes} 分`;
+  rounds >= 2 ? `${steps} ステップ × ${rounds} 回・全部で ${minutes} 分` : `${steps} ステップ・${minutes} 分`;
 export const MAX_STEPS_NOTE = `ステップは ${MAX_ITEMS} までです`;
 // 「ルームに読み込む」を押せない理由（最初の 1 つだけ出す）
 export const NEED_STEP_TEXT = 'ステップを追加してください';

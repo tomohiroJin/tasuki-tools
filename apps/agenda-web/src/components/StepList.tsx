@@ -104,7 +104,12 @@ export function StepList({ view, canOperate, onSetSkipped }: Props) {
       <h2 id={headingId} className="step-list-heading">
         {STEP_LIST_HEADING}
       </h2>
-      <ol ref={boxRef} className={grouped ? 'step-list-rows step-list-rows--scroll' : 'step-list-rows'}>
+      {/* スクロールする枠はキーボードで届き（矢印・PageDown）、見出しで名前が付く。回数 1 の DOM は変えない */}
+      <ol
+        ref={boxRef}
+        className={grouped ? 'step-list-rows step-list-rows--scroll' : 'step-list-rows'}
+        {...(grouped ? { tabIndex: 0, 'aria-labelledby': headingId } : {})}
+      >
         {items}
       </ol>
     </section>

@@ -105,6 +105,23 @@ describe('scrollTopToReveal', () => {
  * @requirements #429 spec §7.2（スクロールは枠の中だけ。m459）
  */
 describe('進行表の枠のスクロール', () => {
+  it('Given 回数 2 以上 / When 描く / Then 枠はキーボードで届き、進行表の見出しで名前が付く。回数 1 には属性が無い', () => {
+    const d = new Driver([1, 1], 'LT', 'wait', 6);
+    const { container, unmount } = render(<StepList view={d.view(0)} canOperate onSetSkipped={noop} />);
+    const box = container.querySelector('.step-list-rows--scroll');
+    expect(box?.getAttribute('tabindex')).toBe('0');
+    const labelledBy = box?.getAttribute('aria-labelledby') ?? '';
+    expect(labelledBy).not.toBe('');
+    expect(container.querySelector('h2')?.id).toBe(labelledBy);
+    unmount();
+
+    const single = render(<StepList view={new Driver([1, 1, 1]).view(0)} canOperate onSetSkipped={noop} />);
+    const ol = single.container.querySelector('.step-list-rows');
+    expect(ol?.hasAttribute('tabindex')).toBe(false);
+    expect(ol?.hasAttribute('aria-labelledby')).toBe(false);
+  });
+
+
   it('Given 回数 2 以上 / When 区切りが移る / Then 枠の scrollTop だけが動き、ページはスクロールしない（m459）', () => {
     const scrollIntoView = vi.fn();
     override(Element.prototype, 'scrollIntoView', { value: scrollIntoView, writable: true });
@@ -117,13 +134,26 @@ describe('進行表の枠のスクロール', () => {
     // 最初の描画: 1 行目は収まっている
     expect(box?.scrollTop).toBe(0);
 
-    // 7 つ目（index 6）の区切りへ。offsetTop 240・高さ 40 → 下にはみ出す: 240 + 40 − 120 = 160
+    // 7 つ目（index 6）の区切りへ。枠の中の位置 240・高さ 40 → 下にはみ出す: 240 + 40 − 120 = 160
     for (let i = 0; i < 6; i++) d.next((i + 1) * MIN);
     rerender(<StepList view={d.view(7 * MIN)} canOperate onSetSkipped={noop} />);
     expect(box?.scrollTop).toBe(scrollTopToReveal({ scrollTop: 0, clientHeight: BOX_H }, { top: 6 * ROW_H, height: ROW_H }));
     expect(box?.scrollTop).toBe(160);
     expect(scrollIntoView).not.toHaveBeenCalled();
     expect(scrollTo).not.toHaveBeenCalled();
+  });
+
+  it('Given 枠がすでにスクロールしている / When 区切りがもう 1 つ移る / Then 枠の中の位置で測り、scrollTop が足し込まれる（m460）', () => {
+    const d = new Driver([1, 1], 'LT', 'wait', 6);
+    const { container, rerender } = render(<StepList view={d.view(0)} canOperate onSetSkipped={noop} />);
+    const box = container.querySelector('.step-list-rows--scroll');
+    for (let i = 0; i < 6; i++) d.next((i + 1) * MIN);
+    rerender(<StepList view={d.view(7 * MIN)} canOperate onSetSkipped={noop} />);
+    // 二段目: scrollTop が 0 でない所（160）から index 7 へ。枠の中の位置 280・高さ 40 → 280 + 40 − 120 = 200
+    expect(box?.scrollTop).toBe(160);
+    d.next(7 * MIN);
+    rerender(<StepList view={d.view(8 * MIN)} canOperate onSetSkipped={noop} />);
+    expect(box?.scrollTop).toBe(200);
   });
 
   it('Given 途中から参加した / When 最初の描画 / Then いまの行へ合わせる', () => {
