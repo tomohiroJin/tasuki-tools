@@ -68,13 +68,10 @@ export async function loadSampleAndStart(page: Page): Promise<void> {
 }
 
 /**
- * 組む画面で LT 会のサンプルを読み込み、くりかえしを `rounds` 回・発表（ステップ 1）を 1 分にして、
- * ルームに読み込んで開始する（入れ替えは元から 1 分。自動の時間切れは待たない前提で短くする）。
+ * 組む画面に残っている下書きのくりかえしを `rounds` 回にして、ルームに読み込んで開始する。
+ * 「最初から」のあとはルームにシナリオが残り、サンプルの札は出ない（空のときだけ出る）ので、いまの下書きを使う。
  */
-export async function loadLtSampleWithRoundsAndStart(page: Page, rounds: number): Promise<void> {
-  await page.getByRole('button', { name: /サンプル：LT 会/ }).click();
-  await page.getByLabel('ステップ 1 の分', { exact: true }).fill('1');
-  await page.getByLabel('ステップ 2 の分', { exact: true }).fill('1');
+export async function setRoundsAndStart(page: Page, rounds: number): Promise<void> {
   await page.getByLabel('くりかえし', { exact: true }).fill(String(rounds));
   await page.getByRole('button', { name: 'ルームに読み込む', exact: true }).click();
   const start = page.getByRole('button', { name: '開始', exact: true });
