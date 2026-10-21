@@ -76,7 +76,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 
 ### 6. 進行タイマー（Agenda Timer）
 
-会の進行表（名前と長さを持つステップの並び）をルームの全員で同じ懐中時計の盤に映し、いまのステップの残りと、会全体が予定より押しているか巻いているかを見せるツール。玄関の 5 枚目の札から開く。**本番未公開**（[#429](https://github.com/tomohiroJin/tasuki-tools/issues/429) の第 1 段。配布の手順は [`deploy/agenda/NOTES.md`](deploy/agenda/NOTES.md)）。
+会の進行表（名前と長さを持つステップの並び）をルームの全員で同じ懐中時計の盤に映し、いまのステップの残りと、会全体が予定より押しているか巻いているかを見せるツール。玄関の 5 枚目の札から開く。**本番公開中**（初回公開は 2026-10-21・[#429](https://github.com/tomohiroJin/tasuki-tools/issues/429) の第 1 段。配布の手順は [`deploy/agenda/NOTES.md`](deploy/agenda/NOTES.md)）。
 
 - **構成**
   - [`packages/agenda-core`](packages/agenda-core/) — ドメインロジック（シナリオの検証と展開・進行の遷移・押し巻きと終了見込みの計算）
@@ -152,7 +152,7 @@ TypeScript / React 19 + Vite / Bun / WebSocket / Valibot / neverthrow / Vitest /
 | 玄関 LP | `/` | 本番公開中 |
 | Topic Board | `/topic/` | 本番公開中 |
 | Facilitator Roulette | `/roulette/` | 本番公開中 |
-| Agenda Timer | `/agenda/` | 実装済み・本番未公開（#429） |
+| Agenda Timer | `/agenda/` | 本番公開中 |
 
 公開の履歴は次のとおりです（GitHub Releases は使っていません。大きめの配布には注釈付きタグを打ち、変更点の要約をタグの本文に書いています。配布の詳しい記録は各 Issue にあります）。
 
@@ -163,6 +163,8 @@ TypeScript / React 19 + Vite / Bun / WebSocket / Valibot / neverthrow / Vitest /
 | 2026-09-23 | `v4.0.0`。入口を玄関 1 つにし、全員を同格にして、同期サーバーを 1 本に統合 | [epic #95](https://github.com/tomohiroJin/tasuki-tools/issues/95) |
 | 2026-09-27 | お題（Topic Board）を初回公開し、timer・poker・玄関にお題を表示（配布時にはタグを打たず、`v4.1.0` に含めた） | [#91](https://github.com/tomohiroJin/tasuki-tools/issues/91) |
 | 2026-10-14 | `v4.1.0`（v4.0.0 以降の 36 PR）。進行役ルーレットを初回公開。デザインシステムの部品層（#320）・timer から Tailwind を外す（#321）・PC の幅の収まり（#316）などをまとめて反映。09-27 に配ったお題（#91）もこのタグに含む | [#94](https://github.com/tomohiroJin/tasuki-tools/issues/94)・[#91](https://github.com/tomohiroJin/tasuki-tools/issues/91) |
+| 2026-10-19 | `v4.2.0`（v4.1.0 以降の 31 PR）。timer の休憩・poker の見積もりの記録と見学者・ルーレットの決め方を増やした | [#402](https://github.com/tomohiroJin/tasuki-tools/issues/402)・[#93](https://github.com/tomohiroJin/tasuki-tools/issues/93)・[#419](https://github.com/tomohiroJin/tasuki-tools/issues/419)・[#401](https://github.com/tomohiroJin/tasuki-tools/issues/401) ほか |
+| 2026-10-21 | `v4.3.0`。進行タイマー（Agenda Timer）を初回公開 | [#429](https://github.com/tomohiroJin/tasuki-tools/issues/429) |
 
 単一 monorepo への統合（[epic #15](https://github.com/tomohiroJin/tasuki-tools/issues/15)・
 設計: [`docs/superpowers/specs/2026-08-04-monorepo-unification-design.md`](docs/superpowers/specs/2026-08-04-monorepo-unification-design.md)）、
