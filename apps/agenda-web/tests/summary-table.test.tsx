@@ -109,6 +109,10 @@ describe('終了の一覧', () => {
     const headings = screen.getAllByRole('rowheader').filter((h) => h.getAttribute('scope') === 'rowgroup');
     expect(headings.map((h) => h.textContent)).toEqual([roundHeading(1), roundHeading(2), roundHeading(3)]);
     expect(headings.every((h) => h.getAttribute('colspan') === '5')).toBe(true);
+    // 回ごとに <tbody> が分かれ、それぞれの先頭が見出しの行
+    const bodies = [...document.querySelectorAll('.summary-table tbody')];
+    expect(bodies).toHaveLength(3);
+    expect(bodies.map((b) => b.querySelector('tr')?.textContent)).toEqual([roundHeading(1), roundHeading(2), roundHeading(3)]);
     const total = rowOf(SUMMARY_TOTAL_LABEL);
     expect(summaryOf(v).driftMs).toBe(180_000);
     expect(within(total).getByText(signedDuration(summaryOf(v).driftMs))).toBeInTheDocument();
@@ -117,5 +121,6 @@ describe('終了の一覧', () => {
   it('Given 回数 1 で終了した / When 一覧を見る / Then 見出しの行は無い', () => {
     joinedRoom(finished());
     expect(document.querySelectorAll('th[scope="rowgroup"]')).toHaveLength(0);
+    expect(document.querySelectorAll('.summary-table tbody')).toHaveLength(1);
   });
 });

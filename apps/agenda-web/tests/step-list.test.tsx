@@ -13,6 +13,8 @@ const noop = (): void => undefined;
 /** 1 行の高さ・枠の高さ（jsdom にレイアウトは無いので、値を与える） */
 const ROW_H = 40;
 const BOX_H = 120;
+/** 枠は body の上から 500px の所にある（盤やヘッダーが上にある）。`offsetTop` は body から測った値になる */
+const BOX_TOP = 500;
 
 /** 差し替えた記述子（後片付けで必ず戻す。`vi.unstubAllGlobals` は defineProperty を戻さない） */
 interface Saved {
@@ -34,7 +36,17 @@ const rowIndex = (el: Element): number => [...(el.closest('.step-list-rows')?.qu
 beforeEach(() => {
   saved = [];
   // 行は上から ROW_H ずつ積む。枠は BOX_H。scrollTop は枠ごとに覚える
-  override(HTMLElement.prototype, 'offsetTop', { get(this: HTMLElement) { return isRow(this) ? rowIndex(this) * ROW_H : 0; } });
+  // offsetParent は body。枠の上の高さ（BOX_TOP）が混ざる。枠の中の位置は getBoundingClientRect の差で測る
+  override(HTMLElement.prototype, 'offsetTop', { get(this: HTMLElement) { return isRow(this) ? BOX_TOP + rowIndex(this) * ROW_H : 0; } });
+  override(Element.prototype, 'getBoundingClientRect', {
+    value(this: Element): DOMRect {
+      const box = this.closest('.step-list-rows');
+      const top = isRow(this) && box !== null ? BOX_TOP + rowIndex(this) * ROW_H - (scrollTops.get(box) ?? 0) : BOX_TOP;
+      const height = isRow(this) ? ROW_H : BOX_H;
+      return { top, height, bottom: top + height, left: 0, right: 0, width: 0, x: 0, y: top, toJSON: () => ({}) };
+    },
+    writable: true,
+  });
   override(HTMLElement.prototype, 'offsetHeight', { get(this: HTMLElement) { return isRow(this) ? ROW_H : 0; } });
   override(Element.prototype, 'clientHeight', { get(this: Element) { return this.classList.contains('step-list-rows') ? BOX_H : 0; } });
   override(Element.prototype, 'scrollTop', {
@@ -77,15 +89,15 @@ describe('進行表の回の見出し', () => {
 describe('scrollTopToReveal', () => {
   const box = { scrollTop: 100, clientHeight: 120 };
   it('行が枠に収まっていれば、いまの scrollTop のまま', () => {
-    expect(scrollTopToReveal(box, { offsetTop: 120, offsetHeight: 40 })).toBe(100);
-    expect(scrollTopToReveal(box, { offsetTop: 100, offsetHeight: 40 })).toBe(100);
-    expect(scrollTopToReveal(box, { offsetTop: 180, offsetHeight: 40 })).toBe(100);
+    expect(scrollTopToReveal(box, { top: 120, height: 40 })).toBe(100);
+    expect(scrollTopToReveal(box, { top: 100, height: 40 })).toBe(100);
+    expect(scrollTopToReveal(box, { top: 180, height: 40 })).toBe(100);
   });
   it('上にはみ出せば、行の上端に合わせる', () => {
-    expect(scrollTopToReveal(box, { offsetTop: 60, offsetHeight: 40 })).toBe(60);
+    expect(scrollTopToReveal(box, { top: 60, height: 40 })).toBe(60);
   });
   it('下にはみ出せば、行の下端が枠の下端に来るよう合わせる', () => {
-    expect(scrollTopToReveal(box, { offsetTop: 200, offsetHeight: 40 })).toBe(120);
+    expect(scrollTopToReveal(box, { top: 200, height: 40 })).toBe(120);
   });
 });
 
@@ -108,7 +120,7 @@ describe('進行表の枠のスクロール', () => {
     // 7 つ目（index 6）の区切りへ。offsetTop 240・高さ 40 → 下にはみ出す: 240 + 40 − 120 = 160
     for (let i = 0; i < 6; i++) d.next((i + 1) * MIN);
     rerender(<StepList view={d.view(7 * MIN)} canOperate onSetSkipped={noop} />);
-    expect(box?.scrollTop).toBe(scrollTopToReveal({ scrollTop: 0, clientHeight: BOX_H }, { offsetTop: 6 * ROW_H, offsetHeight: ROW_H }));
+    expect(box?.scrollTop).toBe(scrollTopToReveal({ scrollTop: 0, clientHeight: BOX_H }, { top: 6 * ROW_H, height: ROW_H }));
     expect(box?.scrollTop).toBe(160);
     expect(scrollIntoView).not.toHaveBeenCalled();
     expect(scrollTo).not.toHaveBeenCalled();

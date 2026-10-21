@@ -81,7 +81,10 @@ export function StepList({ view, canOperate, onSetSkipped }: Props) {
     if (!grouped || box === null || nowId === undefined) return;
     const row = box.querySelector<HTMLElement>('.step-list-row.is-now');
     if (row === null) return;
-    box.scrollTop = scrollTopToReveal(box, row);
+    // 枠の中での行の位置は座標の差で測る（`offsetTop` は offsetParent＝body からで、枠より上の高さが混ざる）
+    const rowRect = row.getBoundingClientRect();
+    const top = rowRect.top - box.getBoundingClientRect().top + box.scrollTop;
+    box.scrollTop = scrollTopToReveal(box, { top, height: rowRect.height });
   }, [grouped, nowId]);
 
   const items: ReactNode[] = [];

@@ -118,15 +118,16 @@ export function roundBadge(v: AgendaView): string {
 
 /**
  * 進行表の枠（`overflow-y: auto`）の中で、行が見えるようにする `scrollTop`。
+ * `row.top` は**枠の中での行の位置**（スクロール分を含む。`offsetTop` は offsetParent からなので使わない）
  * 収まっていればいまのまま・上にはみ出せば行の上端・下にはみ出せば行の下端を枠の下端へ。
  * （`scrollIntoView` は祖先のページまで動かすので使わない）
  */
 export function scrollTopToReveal(
   box: { scrollTop: number; clientHeight: number },
-  row: { offsetTop: number; offsetHeight: number },
+  row: { top: number; height: number },
 ): number {
-  if (row.offsetTop < box.scrollTop) return row.offsetTop;
-  const rowBottom = row.offsetTop + row.offsetHeight;
+  if (row.top < box.scrollTop) return row.top;
+  const rowBottom = row.top + row.height;
   if (rowBottom > box.scrollTop + box.clientHeight) return rowBottom - box.clientHeight;
   return box.scrollTop;
 }
