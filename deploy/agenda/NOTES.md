@@ -47,7 +47,7 @@ HOST=https://<公開ドメイン>
 curl -s "$HOST/agenda/" | grep -o '/agenda/assets/' | head -1   # 1 行出れば正常
 ```
 
-⚠ **配る前の本番へ `pnpm e2e:prod` の `@core` を当てると落ちる。** `/agenda/` がまだ無いので、
+⚠ **（初回の配布の記録）配る前の本番へ `pnpm e2e:prod` の `@core` を当てると落ちる。** `/agenda/` がまだ無いので、
 `/agenda/` を見る `@core` のテストが失敗する。配り終えてから流す。
 
 ## 静的サイト
