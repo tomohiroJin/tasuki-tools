@@ -140,6 +140,65 @@ describe("進行タイマーの配信", () => {
   });
 });
 
+describe("進行タイマーの繰り返し（回数）", () => {
+  /** 2 本の進行タイマーの接続を同じルームへ参加させる。 */
+  async function twoAgendas() {
+    const hub = await server.connectHub("hub");
+    const code = await hubCreate(hub, "モブ", "あや");
+    const a1 = await server.connectAgenda("a1");
+    await agendaJoin(a1, code, "いずみ");
+    const a2 = await server.connectAgenda("a2");
+    await agendaJoin(a2, code, "かえで");
+    return { a1, a2 };
+  }
+
+  it("回数 2 のシナリオを置き換えると、全員のフレームに展開済みの 4 区切りと回数 2 が届く", async () => {
+    // Given
+    const { a1, a2 } = await twoAgendas();
+
+    // When: 区切り 2 つ・回数 2 を送る
+    a1.send({ command: "agenda.scenario.set", scenario: { ...SCENARIO, rounds: 2 } });
+
+    // Then: 送り主も他の接続も、展開済みの 4 区切りと rounds: 2 を受け取る
+    for (const c of [a1, a2]) {
+      const view = viewOf(await c.take(isAgendaWith((v) => v.steps.length === 4), "展開済みのシナリオ"));
+      expect(view.rounds).toBe(2);
+      expect(view.steps.map((s) => s.round)).toEqual([1, 1, 2, 2]);
+    }
+  });
+
+  it("回数を持たないシナリオの置き換えを受ける（第 1 段の画面）と、回数 1 で届く", async () => {
+    // Given
+    const { a1, a2 } = await twoAgendas();
+
+    // When: rounds を載せずに送る
+    a1.send({ command: "agenda.scenario.set", scenario: SCENARIO });
+
+    // Then
+    for (const c of [a1, a2]) {
+      const view = viewOf(await c.take(isAgendaWith((v) => v.steps.length === 2), "シナリオ"));
+      expect(view.rounds).toBe(1);
+      expect(view.steps.map((s) => s.round)).toEqual([1, 1]);
+    }
+  });
+
+  it("回数 31 のシナリオは送り主にだけ INVALID_COMMAND が返り、ほかの接続には何も配られない", async () => {
+    // Given
+    const { a1, a2 } = await twoAgendas();
+    const before = a2.received.length;
+
+    // When
+    a1.send({ command: "agenda.scenario.set", scenario: { ...SCENARIO, rounds: 31 } });
+
+    // Then
+    const err = await a1.take((m) => m.type === "error", "回数超過の拒否");
+    if (err.type !== "error") throw new Error("error ではない");
+    expect(err.code).toBe("INVALID_COMMAND");
+    await Bun.sleep(200);
+    expect(a2.received.length).toBe(before);
+  });
+});
+
 describe("進行タイマーの操作の競合", () => {
   it("2 本から同じ stepId の agenda.next をほぼ同時に送ると、currentId は 1 つだけ進む", async () => {
     // Given: 2 ステップを開始した 2 本の接続
