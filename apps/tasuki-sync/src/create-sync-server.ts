@@ -42,6 +42,10 @@ import { makeTopicHandlers } from "./application/topic-handlers.js";
 import { TopicGenerator } from "./application/topic-generation.js";
 import { InMemoryTopicStore } from "./adapters/in-memory-topic-store.js";
 import { InMemoryRouletteStore } from "./adapters/in-memory-roulette-store.js";
+import { InMemoryAgendaStore } from "./adapters/in-memory-agenda-store.js";
+import { makeAgendaBroadcaster } from "./application/agenda-broadcast.js";
+import { makeAgendaHandlers } from "./application/agenda-handlers.js";
+import { makeAgendaDeadlines } from "./application/agenda-deadlines.js";
 import { createCryptoRandomSource } from "./adapters/crypto-random-source.js";
 import { makeRouletteBroadcaster } from "./application/roulette-broadcast.js";
 import { makeRouletteHandlers } from "./application/roulette-handlers.js";
@@ -113,10 +117,17 @@ export function createSyncServer(config: SyncConfig): SyncServer {
    * ルームコードで対になる（破棄は `destroy-room.ts` が揃えて行う）。
    */
   const roulettes = new InMemoryRouletteStore();
+  // 単調時計は 1 つを共有する（進行タイマーの予約とハンドラが同じ時計で測る）。
+  const monotonicClock = createPerformanceClock();
+  const agendas = new InMemoryAgendaStore();
+  // 進行タイマーの期限の予約（#429）。timer の `scheduler` とは別のインスタンス。**単調時計**で測る。
+  const agendaDeadlines = makeAgendaDeadlines({
+    clock: monotonicClock,
+    timer: { set: (fn, ms) => setTimeout(fn, ms), clear: (h) => clearTimeout(h as ReturnType<typeof setTimeout>) },
+  });
   const clock = new SystemWallClock();
   // レート制限の時刻（timer・ハブ・お題の入口）を読む単調時計と、member.shuffle の乱数（#367。以前は
   // アプリケーション層が大域の時計・乱数を直接読んでいた）。
-  const monotonicClock = createPerformanceClock();
   const random = createCryptoRandomSource();
   /**
    * 復帰トークンとパスフレーズの保管。**timer と poker で 1 個を共有する**（#95 S4a）。
@@ -275,6 +286,8 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     // **#91 でお題の状態と生成もここが解放・中断する**（寿命はルームごとに 1 つ）。
     topics,
     roulettes,
+    agendas,
+    agendaDeadlines,
     scheduler,
     topicGenerator,
     presence: presenceManager,
@@ -402,6 +415,36 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     logger,
   });
 
+  /**
+   * 進行タイマー（`?tool=agenda`）のメッセージ層（#429）。
+   *
+   * **参加の守りはルーレットと同じく `join-room.ts` を通し、レート制限のゲートも `handlers.rateLimitGate`
+   * を渡す。新しく作らない**（別に作ると `connId → クライアント鍵` の対応が空になり、参加の総当たりが
+   * 張り直すだけで枠を回避できる）。時計は期限の予約と同じ単調時計を共有する。
+   */
+  const agendaBroadcaster = makeAgendaBroadcaster({
+    store,
+    agendas,
+    clock: monotonicClock,
+    send: (connIds, msg) => wsAdapter.broadcastAgenda(connIds, msg),
+  });
+  const agendaHandlers = makeAgendaHandlers({
+    store,
+    timerBroadcaster: broadcaster,
+    timers,
+    clock,
+    codeGen,
+    tokenStore: tokens,
+    rateLimitGate: handlers.rateLimitGate,
+    hub: hubBroadcaster,
+    agendas,
+    broadcaster: agendaBroadcaster,
+    send: (connId, msg) => wsAdapter.sendAgenda(connId, msg),
+    monotonicClock,
+    deadlines: agendaDeadlines,
+    logger,
+  });
+
   wsAdapter = new WsAdapter({
     port: config.port,
     host: config.host,
@@ -418,6 +461,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     hub: hubHandlers,
     topic: topicHandlers,
     roulette: rouletteHandlers,
+    agenda: agendaHandlers,
     // cmd は ws-adapter 側で CommandSchema（valibot）に通した検証済みの値で、型も Command のまま届く（#363）。
     // 表示名の正規化は受け口のアプリケーション側が掛ける（#368）。
     timer: createTimerCommandReceiver({
@@ -470,6 +514,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     close: async () => {
       reclaimer.stop();
       scheduler.clearAll();
+      agendaDeadlines.clearAll();
       // お題の生成も止める（子プロセスを残さない。#91）。
       topicGenerator.cancelAll();
       // 不在猶予タイマー（ドライバー繰り上げ）も解放する。

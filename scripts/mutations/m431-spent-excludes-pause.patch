@@ -1,0 +1,22 @@
+# 変異 431: spent-excludes-pause
+#
+# 検出を期待するテスト:
+#   - packages/agenda-core/tests/agenda-invariant.test.ts
+#
+# #429 区切りの所要を一時停止を除いた計時から計算する。所要は実時間であるべき。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m431-*.patch
+# 復元: git apply -R scripts/mutations/m431-*.patch
+diff --git a/packages/agenda-core/src/agenda.ts b/packages/agenda-core/src/agenda.ts
+--- a/packages/agenda-core/src/agenda.ts
++++ b/packages/agenda-core/src/agenda.ts
+@@ -65,7 +65,7 @@ export function next(s: AgendaState, input: { stepId: string; now: number }): R<
+ /** いまの区切りを `at` で確定して次へ進める（running / paused の状態だけが渡る）。`next` と `advanceIfDue` が共有する。 */
+ function advanceStep(s: AgendaState, at: number): AgendaState {
+   const idx = s.steps.findIndex((x) => x.id === s.currentId);
+-  const spent = at - (s.stepStartedAt ?? at);
++  const spent = s.accumulatedMs + (s.runningSince === null ? 0 : at - s.runningSince);
+   const nextIdx = s.steps.findIndex((x, i) => i > idx && !x.skipped);
+   // 終えた区切り・通り過ぎた飛ばし済みの区切りの所要を確定する
+   const settle = (limit: number): PlannedStep[] =>

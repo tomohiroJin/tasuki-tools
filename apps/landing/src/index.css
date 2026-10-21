@@ -143,7 +143,7 @@
 /* ---------- 配る演出 ---------- */
 
 /*
-  卓の中央上から 4 枚が順に配られる。1 度きりの短い所作に留める
+  卓の中央上から 5 枚が順に配られる。1 度きりの短い所作に留める
   （動きを抑えたい環境では @tasuki/ui の base.css が止める）。
 */
 .hand li {
@@ -155,16 +155,20 @@
 }
 
 .hand li:last-child {
-  animation-delay: 0.24s;
+  animation-delay: 0.3s;
 }
 
-/* 3 枚目（#91）・4 枚目（#94）。真ん中の札は傾けず、配る順は左から右にする。 */
+/* 3 枚目（#91）・4 枚目（#94）・5 枚目（#429）。真ん中の札は傾けず、配る順は左から右にする。 */
 .hand li:nth-child(2) {
   animation-delay: 0.12s;
 }
 
 .hand li:nth-child(3) {
   animation-delay: 0.18s;
+}
+
+.hand li:nth-child(4) {
+  animation-delay: 0.24s;
 }
 
 @keyframes deal {
@@ -408,6 +412,18 @@
   display: block;
   max-width: 100%;
   height: auto;
+}
+/* 横に並べる幅（64rem 以上）。札が 5 枚になると 1 列では 1 枚が 15rem を割り、「TDD Mob Pro Timer」が 2 行に折れた
+   （1024・1280 で実測）。**縮めず折り返す**: 札は 15rem を基準の幅にして行をまたぎ（3 + 2）、中央に寄せる。
+   字の大きさは動かさない。64rem 未満の縦積みは下の @media が受け持つ（ここは列方向に効かせない）。 */
+@media (width >= 64rem) {
+  .hub-tools .hand {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .hub-tools .hand li {
+    flex: 0 1 15rem;
+  }
 }
 /* 札の寸法は基底の `.hub-tools .tool-card`（同じ詳細度）より後ろに置かないと負ける。上の縦積みと同じ 64rem 未満。 */
 @media (width < 64rem) {

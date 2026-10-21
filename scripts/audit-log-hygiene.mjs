@@ -59,8 +59,12 @@ export const SCANNED_PACKAGES = [
   "apps/topic-web",
   // #94 PR 2 で新設（ルーレット）。
   "apps/roulette-web",
+  // #429 で新設（進行タイマー）。
+  "apps/agenda-web",
   "packages/dev-hub-redirect",
   "packages/poker-core",
+  // 進行タイマーの文脈（#429）。
+  "packages/agenda-core",
   "packages/protocol",
   "packages/rate-limit",
   "packages/room-core",

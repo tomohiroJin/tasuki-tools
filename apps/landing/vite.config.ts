@@ -10,7 +10,7 @@ export default defineConfig({
   server: {
     // 既定ポートを明示する。画面のアプリを同時に起動するため、既定（5173）のままだと
     // 取り合いになって毎回別のポートに逃げ、起動手順を書けなくなる。
-    // 値は @tasuki/dev-hub-redirect の HUB_PORT と共有する（timer / poker / topic / roulette の
+    // 値は @tasuki/dev-hub-redirect の HUB_PORT と共有する（timer / poker / topic / roulette / agenda の
     // dev-only リダイレクト先と同じ値を 2 箇所に書くと食い違うため）。
     port: HUB_PORT,
     // 全インターフェース(IPv4含む)で待受。コンテナ/WSL からホスト側ブラウザへ
@@ -22,7 +22,7 @@ export default defineConfig({
     proxy: {
       // 開発時、LP は本番の Caddy と同じ「玄関」の役割を担う。
       //
-      // これが無いと、LP の札（/timer/ ・ /poker/ ・ /topic/ ・ /roulette/ を指す）をクリックしても
+      // これが無いと、LP の札（/timer/ ・ /poker/ ・ /topic/ ・ /roulette/ ・ /agenda/ を指す）をクリックしても
       // Vite の SPA フォールバックが LP 自身の index.html を 200 で返すため、
       // LP が再描画されるだけで移動できない（エラーにならないので気づきにくい）。
       //
@@ -37,6 +37,7 @@ export default defineConfig({
       '/poker': { target: 'http://127.0.0.1:5174', changeOrigin: true, ws: true },
       '/topic': { target: 'http://127.0.0.1:5176', changeOrigin: true, ws: true },
       '/roulette': { target: 'http://127.0.0.1:5177', changeOrigin: true, ws: true },
+      '/agenda': { target: 'http://127.0.0.1:5178', changeOrigin: true, ws: true },
     },
   },
 });

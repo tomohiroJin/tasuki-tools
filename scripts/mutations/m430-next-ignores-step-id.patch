@@ -1,0 +1,22 @@
+# 変異 430: next-ignores-step-id
+#
+# 検出を期待するテスト:
+#   - packages/agenda-core/tests/agenda.test.ts
+#
+# #429 区切り ID が違う `next` を捨てず進めてしまう（古い押下で飛ぶ）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m430-*.patch
+# 復元: git apply -R scripts/mutations/m430-*.patch
+diff --git a/packages/agenda-core/src/agenda.ts b/packages/agenda-core/src/agenda.ts
+--- a/packages/agenda-core/src/agenda.ts
++++ b/packages/agenda-core/src/agenda.ts
+@@ -58,7 +58,7 @@ export function start(s: AgendaState, now: number): R<"AGENDA_EMPTY" | "AGENDA_A
+ /** 次の区切りへ進む。区切り ID が違えば何もしない（古い押下を捨てる）。一時停止中なら次は動いて始まる。 */
+ export function next(s: AgendaState, input: { stepId: string; now: number }): R<"AGENDA_NOT_STARTED"> {
+   if (s.phase === "idle") return fail("AGENDA_NOT_STARTED");
+-  if (s.phase === "finished" || s.currentId !== input.stepId) return ok(s);
++  if (s.phase === "finished") return ok(s);
+   return ok(advanceStep(s, input.now));
+ }
+ 

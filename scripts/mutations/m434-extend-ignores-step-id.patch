@@ -1,0 +1,22 @@
+# 変異 434: extend-ignores-step-id
+#
+# 検出を期待するテスト:
+#   - packages/agenda-core/tests/agenda.test.ts
+#
+# #429 区切り ID が違う延長を捨てず、いまの区切りに適用してしまう。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m434-*.patch
+# 復元: git apply -R scripts/mutations/m434-*.patch
+diff --git a/packages/agenda-core/src/agenda.ts b/packages/agenda-core/src/agenda.ts
+--- a/packages/agenda-core/src/agenda.ts
++++ b/packages/agenda-core/src/agenda.ts
+@@ -147,7 +147,7 @@ export function extend(
+   input: { stepId: string; minutes: number },
+ ): R<"AGENDA_NOT_STARTED" | "STEP_BUDGET_EXCEEDED"> {
+   if (s.phase === "idle") return fail("AGENDA_NOT_STARTED");
+-  if (s.phase === "finished" || s.currentId !== input.stepId) return ok(s);
++  if (s.phase === "finished") return ok(s);
+   const step = s.steps.find((x) => x.id === input.stepId);
+   if (step === undefined) return ok(s);
+   const extensionSec = step.extensionSec + input.minutes * 60;

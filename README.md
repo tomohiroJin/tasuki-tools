@@ -74,6 +74,20 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
   - 動きを減らす設定では回さずに結果を出す
 - 設計判断: [`docs/adr/0026`](docs/adr/0026-facilitator-roulette.md)・設計正本 [`docs/superpowers/specs/2026-10-12-facilitator-roulette-design.md`](docs/superpowers/specs/2026-10-12-facilitator-roulette-design.md)
 
+### 6. 進行タイマー（Agenda Timer）
+
+会の進行表（名前と長さを持つステップの並び）をルームの全員で同じ懐中時計の盤に映し、いまのステップの残りと、会全体が予定より押しているか巻いているかを見せるツール。玄関の 5 枚目の札から開く。**本番未公開**（[#429](https://github.com/tomohiroJin/tasuki-tools/issues/429) の第 1 段。配布の手順は [`deploy/agenda/NOTES.md`](deploy/agenda/NOTES.md)）。
+
+- **構成**
+  - [`packages/agenda-core`](packages/agenda-core/) — ドメインロジック（シナリオの検証と展開・進行の遷移・押し巻きと終了見込みの計算）
+  - [`apps/agenda-web`](apps/agenda-web/) — フロントエンド（React + Vite・`base=/agenda/`）
+  - [`apps/tasuki-sync`](apps/tasuki-sync/) — リアルタイム同期サーバー（共用。「自動で次へ」の判断と期限はサーバーが持つ）
+- **特徴**
+  - 時間切れの振る舞いをステップごとに選べる（押すまで待ってオーバーを数える／自動で次へ）。会の最中は延長（+1 / +3 / +5 分）と飛ばすだけで組み替える
+  - 盤は 1 周が予定の合計。12 時の竜頭（予定の終わり）と終了見込みの印の位置で押し巻きが読める。スクリーンに映す表示を持つ
+  - シナリオは端末に保存して読み直せる。サンプル（KPT のふりかえり）から始められる
+- 設計判断: [`docs/adr/0027`](docs/adr/0027-agenda-timer.md)・設計正本 [`docs/superpowers/specs/2026-10-19-agenda-timer-design.md`](docs/superpowers/specs/2026-10-19-agenda-timer-design.md)
+
 ## 🔗 ライブデモ
 
 **<https://tasuki.niku9.click/>** — 玄関（ツール選択 LP）が開きます。玄関でルームを作り、札からツールを選んでください
@@ -86,6 +100,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 | Planning Poker | <https://tasuki.niku9.click/poker/> |
 | お題（Topic Board） | <https://tasuki.niku9.click/topic/> |
 | 進行役ルーレット | <https://tasuki.niku9.click/roulette/> |
+| 進行タイマー（未公開） | <https://tasuki.niku9.click/agenda/>（配布後に開く） |
 
 > ルームを作るのも名乗るのも**玄関 1 つだけ**です（#95 S5c）。ルームコードを伴わずに各ツールの URL を開くと、
 > 玄関へ送られます。
@@ -105,12 +120,12 @@ pnpm dev     # 全アプリの dev サーバーを並列起動する
 pnpm test    # 全パッケージのテストを実行する
 ```
 
-**起動したら <http://localhost:5175/> を開いてください。** `pnpm dev` は 6 つのプロセスを
-立ち上げ、ログには複数のポートが並びますが、**入口はこの 1 つだけ**です（本番と同じ形）。
+**起動したら <http://localhost:5175/> を開いてください。** `pnpm dev` は玄関・各ツールの画面と同期サーバーの
+プロセスをまとめて立ち上げ、ログには複数のポートが並びますが、**入口はこの 1 つだけ**です（本番と同じ形）。
 
-> ⚠ **ツールの dev サーバー（:5173 / :5174 / :5176 / :5177）を直接開かないでください。**
+> ⚠ **ツールの dev サーバー（:5173 / :5174 / :5176 / :5177 / :5178）を直接開かないでください。**
 > #95 S5c で入口を玄関 1 つに畳んだため、ルームコードを伴わずに開くと玄関（`/`）へ
-> 送り返されます。:5173 / :5174 / :5176 / :5177 では `/` がそのツール自身なので、Vite の base
+> 送り返されます。:5173 / :5174 / :5176 / :5177 / :5178 では `/` がそのツール自身なので、Vite の base
 > リダイレクトと噛み合って**ページの再読み込みが止まらなくなります**。
 
 起動・個別プロセスの内訳・検査コマンドの詳しい手順は
@@ -137,6 +152,7 @@ TypeScript / React 19 + Vite / Bun / WebSocket / Valibot / neverthrow / Vitest /
 | 玄関 LP | `/` | 本番公開中 |
 | Topic Board | `/topic/` | 本番公開中 |
 | Facilitator Roulette | `/roulette/` | 本番公開中 |
+| Agenda Timer | `/agenda/` | 実装済み・本番未公開（#429） |
 
 公開の履歴は次のとおりです（GitHub Releases は使っていません。大きめの配布には注釈付きタグを打ち、変更点の要約をタグの本文に書いています。配布の詳しい記録は各 Issue にあります）。
 

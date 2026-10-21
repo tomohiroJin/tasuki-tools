@@ -60,12 +60,13 @@ describe("接続層のエラーの文言（実 WS 越し・同期サーバー全
     return `ws://127.0.0.1:${server!.port}/ws${query}`;
   }
 
-  // ハブ・お題・ルーレットは、壊れた JSON と形の違うコマンドの文言を、それぞれの経路で返す
+  // ハブ・お題・ルーレット・進行タイマーは、壊れた JSON と形の違うコマンドの文言を、それぞれの経路で返す
   // （ハブは hub-handlers の直書き、お題・ルーレットは core の文言の表）。
   for (const [label, tool] of [
     ["ハブ", null],
     ["お題", "topic"],
     ["ルーレット", "roulette"],
+    ["進行タイマー", "agenda"],
   ] as const) {
     it(`Given ${label}の接続 / When 壊れた JSON を送る / Then INVALID_JSON と「JSON の形式が不正です」を返す`, async () => {
       // Given
@@ -91,6 +92,7 @@ describe("接続層のエラーの文言（実 WS 越し・同期サーバー全
     ["ハブ", null],
     ["お題", "topic"],
     ["ルーレット", "roulette"],
+    ["進行タイマー", "agenda"],
   ] as const) {
     it(`Given ${label}の接続 / When 上限を超える本文を送る / Then MESSAGE_TOO_LARGE と「メッセージが大きすぎます」を返す`, async () => {
       // Given
@@ -131,6 +133,7 @@ describe("接続層のエラーの文言（接続層・メッセージ層が失�
     ["ハブ", null, "hub"],
     ["お題", "topic", "topic"],
     ["ルーレット", "roulette", "roulette"],
+    ["進行タイマー", "agenda", "agenda"],
   ] as const) {
     // どの接続の失敗かは `protocol` に出る（固定の語彙。#381）
     const LOG_LINES = [`on-message-error name=Error protocol=${protocol}`];
@@ -145,6 +148,7 @@ describe("接続層のエラーの文言（接続層・メッセージ層が失�
         hub: { handleMessage: rejects },
         topic: { handleMessage: rejects },
         roulette: { handleMessage: rejects },
+        agenda: { handleMessage: rejects },
         onDisconnect: () => {},
         logger,
       });

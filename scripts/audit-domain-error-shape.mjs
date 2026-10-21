@@ -128,6 +128,8 @@ export const DOMAIN_ERROR_TARGETS = [
   // **宣言から落とすのが正しい対応**で、実在しないファイルを残すと検査自体が赤くなる。
   // roulette-core（#94）。判別子 `code` だけを持つ
   { file: "packages/roulette-core/src/errors.ts", type: "RouletteError" },
+  // agenda-core（#429）。判別子 `code` だけを持つ
+  { file: "packages/agenda-core/src/errors.ts", type: "AgendaError" },
   // room-core（#364）。名簿を変える関数の失敗。判別子 `code` だけを持つ
   { file: "packages/room-core/src/room.ts", type: "RoomError" },
   // timer-core（`DomainError` の合併メンバー。フィールドを持つのはこちら）

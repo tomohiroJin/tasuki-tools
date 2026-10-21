@@ -9,13 +9,14 @@
 #       git apply scripts/mutations/m160-*.patch
 # 復元: git apply -R scripts/mutations/m160-*.patch
 diff --git a/apps/tasuki-sync/src/application/destroy-room.ts b/apps/tasuki-sync/src/application/destroy-room.ts
-index 9a7fff4c..f69b7e34 100644
+index 4d358fb..f93df55 100644
 --- a/apps/tasuki-sync/src/application/destroy-room.ts
 +++ b/apps/tasuki-sync/src/application/destroy-room.ts
-@@ -91,6 +91,5 @@ export function createRoomDestroyer(deps: RoomDestroyerDeps): (roomCode: string)
+@@ -107,7 +107,6 @@ export function createRoomDestroyer(deps: RoomDestroyerDeps): (roomCode: string)
      timers.remove(roomCode);
      rounds.remove(roomCode);
      topics.remove(roomCode);
 -    roulettes.remove(roomCode);
+     agendas.remove(roomCode);
    };
  }

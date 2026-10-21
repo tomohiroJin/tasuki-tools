@@ -9,10 +9,10 @@
 #       git apply scripts/mutations/m150-*.patch
 # 復元: git apply -R scripts/mutations/m150-*.patch
 diff --git a/apps/tasuki-sync/src/create-sync-server.ts b/apps/tasuki-sync/src/create-sync-server.ts
-index bb9d2d3..3fd0ab1 100644
+index a9a0728d..2570573a 100644
 --- a/apps/tasuki-sync/src/create-sync-server.ts
 +++ b/apps/tasuki-sync/src/create-sync-server.ts
-@@ -407,7 +407,12 @@ export function createSyncServer(config: SyncConfig): SyncServer {
+@@ -458,7 +458,12 @@ export function createSyncServer(config: SyncConfig): SyncServer {
      logger,
      deriveClientKey,
      requireClientAddress: config.requireClientAddress,
@@ -25,4 +25,4 @@ index bb9d2d3..3fd0ab1 100644
 +    },
      topic: topicHandlers,
      roulette: rouletteHandlers,
-     // cmd は ws-adapter 側で CommandSchema（valibot）に通した検証済みの値で、型も Command のまま届く（#363）。
+     agenda: agendaHandlers,

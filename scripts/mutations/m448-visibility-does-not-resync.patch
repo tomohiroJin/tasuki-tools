@@ -1,0 +1,23 @@
+# 変異 448: visibility-does-not-resync
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/use-agenda-sync.test.tsx
+#
+# #429 表に戻ったとき agenda.sync を送らなくなる。裏のタブで止まった時計が、操作か次の更新まで直らない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m448-*.patch
+# 復元: git apply -R scripts/mutations/m448-*.patch
+diff --git a/apps/agenda-web/src/hooks/use-agenda-sync.ts b/apps/agenda-web/src/hooks/use-agenda-sync.ts
+index 43588c55..22140a21 100644
+--- a/apps/agenda-web/src/hooks/use-agenda-sync.ts
++++ b/apps/agenda-web/src/hooks/use-agenda-sync.ts
+@@ -134,7 +134,7 @@ export function useAgendaSync(roomCode: string): AgendaSync {
+   useEffect(() => {
+     if (!joined) return;
+     const onVisibility = (): void => {
+-      if (document.visibilityState === 'visible') send({ command: 'agenda.sync' } satisfies AgendaCommand);
++      if (document.visibilityState === 'visible') return;
+     };
+     document.addEventListener('visibilitychange', onVisibility);
+     return () => document.removeEventListener('visibilitychange', onVisibility);

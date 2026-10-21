@@ -176,3 +176,17 @@ S4a（#245）が外したのは**名簿そのもの**（`Participant` の保管�
 
 決定 1 の見出しは「3 つに割る」のまま残す（決定当時の記録である）。**依存の向きの現況は
 `scripts/audit-dependency-direction.mjs` の `ALLOWED` を見ること。** ここへ表を写さない。
+
+## 追記（2026-10-20・#429 PR 1） — 文脈を 6 つにする
+
+[#429](https://github.com/tomohiroJin/tasuki-tools/issues/429) で**進行タイマーの文脈** = `packages/agenda-core`
+（シナリオの検証と展開・進行の遷移・見込みの計算）が加わった。決定と理由は
+[`docs/adr/0027`](./0027-agenda-timer.md) にある。
+
+**決定 1〜5 はそのまま当てはまる。** 進行タイマーの文脈はツールのドメインと同格で、**`room-core` を含むどの `@tasuki/*` にも
+依存しない**（参加者を扱わない）。`timer-core`・`poker-core`・`topic-core`・`roulette-core` は `agenda-core` に依存しない。
+在席の確認・お題の配信と進行の状態をつなぐ合成はアプリ層（`apps/tasuki-sync`。#429 の PR 2 で入れた）が行う（決定 3 の形）。
+`agenda-core` の表現の記録（`docs/adr/0016` 決定 1）は `docs/adr/0027` 決定 7 である。
+
+決定 1 の見出しは「3 つに割る」のまま残す（決定当時の記録である）。**依存の向きの現況は
+`scripts/audit-dependency-direction.mjs` の `ALLOWED` を見ること。** ここへ表を写さない。

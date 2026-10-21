@@ -1,0 +1,22 @@
+# 変異 441: topic-excludes-agenda
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/live-ws.agenda.test.ts
+#
+# #429。お題の宛先から進行タイマーの接続を外す。進行タイマーを開いている人には、お題の掲げ直しも取り下げも届かなくなる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m441-*.patch
+# 復元: git apply -R scripts/mutations/m441-*.patch
+diff --git a/apps/tasuki-sync/src/application/topic-broadcast.ts b/apps/tasuki-sync/src/application/topic-broadcast.ts
+index 4a0ad1cd..8bbae6bb 100644
+--- a/apps/tasuki-sync/src/application/topic-broadcast.ts
++++ b/apps/tasuki-sync/src/application/topic-broadcast.ts
+@@ -28,7 +28,6 @@ export const TOPIC_RECIPIENT_TOOLS: readonly (ToolId | null)[] = [
+   TOOL_TIMER,
+   TOOL_POKER,
+   TOOL_ROULETTE,
+-  TOOL_AGENDA,
+ ];
+ 
+ export interface TopicBroadcasterDeps {

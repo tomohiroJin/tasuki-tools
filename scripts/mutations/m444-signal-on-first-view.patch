@@ -1,0 +1,23 @@
+# 変異 444: signal-on-first-view
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/timeout-signal.test.ts
+#   - apps/agenda-web/tests/agenda-room.test.tsx（進める画面が最初の盤・入り直しの最初のフレームで鳴らないこと）
+#
+# #429 最初の描画・再接続・途中参加の画面が、過去に過ぎた 0 に対して合図を出す。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m444-*.patch
+# 復元: git apply -R scripts/mutations/m444-*.patch
+diff --git a/apps/agenda-web/src/timeout-signal.ts b/apps/agenda-web/src/timeout-signal.ts
+--- a/apps/agenda-web/src/timeout-signal.ts
++++ b/apps/agenda-web/src/timeout-signal.ts
+@@ -34,7 +34,7 @@
+ }
+ 
+ export function crossedZero(prev: AgendaView | null, next: AgendaView): boolean {
+-  if (prev === null) return false;
++  if (prev === null) return isActive(next) && remainingMs(next) <= 0;
+   if (autoAdvancedOnTimeout(prev, next)) return true;
+   if (!isActive(prev) || !isActive(next) || prev.currentId !== next.currentId) return false;
+   return remainingMs(prev) > 0 && remainingMs(next) <= 0;

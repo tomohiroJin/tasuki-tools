@@ -30,6 +30,20 @@ export function watchWebSocketFrames(page: Page): FrameLog {
 }
 
 /**
+ * ページが開く WebSocket の**送信**フレームを集め始める（受信の {@link watchWebSocketFrames} の対）。
+ * 「画面が何を送ったか」を見る検査の材料で、**`goto()` より前に呼ぶこと**。
+ */
+export function watchSentFrames(page: Page): FrameLog {
+  const payloads: string[] = [];
+  page.on('websocket', (socket) => {
+    socket.on('framesent', (frame) => {
+      payloads.push(typeof frame.payload === 'string' ? frame.payload : frame.payload.toString());
+    });
+  });
+  return { payloads };
+}
+
+/**
  * JSON として解釈できたフレームだけを受信順に返す。
  *
  * **WS の制御フレーム（ping / pong）はここに来ない。** Playwright の

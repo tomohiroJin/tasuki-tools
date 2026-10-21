@@ -21,6 +21,7 @@ import { spyHub } from "./hub.js";
 import { InMemoryRoundStore } from "../../src/adapters/poker-in-memory-round-store.js";
 import { InMemoryTopicStore } from "../../src/adapters/in-memory-topic-store.js";
 import { InMemoryRouletteStore } from "../../src/adapters/in-memory-roulette-store.js";
+import { InMemoryAgendaStore } from "../../src/adapters/in-memory-agenda-store.js";
 import { createTokenStore } from "../../src/application/token-store.js";
 import { createRoomDestroyer } from "../../src/application/destroy-room.js";
 import { makeTopicBroadcaster } from "../../src/application/topic-broadcast.js";
@@ -393,6 +394,9 @@ export function makeTestHandlers(overrides?: TestHandlerOverrides): TestHandlers
       topics,
       // ルーレットの保管は timer のハンドラが読まない。破棄の配線だけ揃える（#94）。
       roulettes: new InMemoryRouletteStore(),
+      // 進行タイマーの保管と予約も timer のハンドラは読まない。破棄の配線だけ揃える（#429）。
+      agendas: new InMemoryAgendaStore(),
+      agendaDeadlines: { clear: () => {} },
       topicGenerator: { cancel: () => {} },
       // scheduler は `withDeps` で渡されたときだけ後始末に加わる
       // （渡されていなければ、そもそも予約を作る主体が居ない）。

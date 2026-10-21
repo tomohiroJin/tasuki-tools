@@ -1,0 +1,296 @@
+/* ============================================================
+   組む画面（#429 spec §4.2・§7.5）
+   段組みは部品（`.ui-workspace--side-end`）が持つ。ここは区画の中の並びと、組む画面だけの面
+   （サンプルの札・行・時間切れの切り替え）を持つ。**生の色を書かない**。字の大きさは 5 段。
+   ============================================================ */
+
+.builder-main,
+.builder-side {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+  align-content: start;
+  min-width: 0;
+}
+
+/* ── サンプルの札（ルームも下書きも空のとき一番上に大きく）─────────── */
+.builder-samples {
+  display: grid;
+  gap: var(--space-3);
+}
+/* 象牙の札。卓に置いた 1 枚の札として、押すと少し持ち上がる */
+.builder-sample {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+  padding: var(--space-5);
+  border: 1px solid var(--card-edge);
+  border-radius: var(--card-radius);
+  background: linear-gradient(160deg, var(--card-sheen), var(--card-shade));
+  box-shadow: inset 0 0 0 4px var(--card-sheen), inset 0 0 0 5px var(--card-inline), var(--shadow-card);
+  color: var(--coal);
+  text-align: start;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.builder-sample:hover {
+  transform: translateY(-2px);
+  box-shadow: inset 0 0 0 4px var(--card-sheen), inset 0 0 0 5px var(--card-inline), var(--shadow-lift-near), var(--shadow-lift-far);
+}
+.builder-sample-title {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+}
+.builder-sample-detail {
+  color: var(--coal-soft);
+  font-size: var(--font-size-sm);
+}
+/* 長さの割合の帯（名前は出さない。書体の base 層の外の字を最初の画面で引かないため） */
+.builder-sample-bar {
+  display: flex;
+  gap: 3px;
+  width: 100%;
+  height: 6px;
+}
+.builder-sample-segment {
+  flex-basis: 0;
+  border-radius: var(--radius-full);
+  background: var(--coal-soft);
+}
+
+/* 中身の並び。区切りは点（文字にしない: 読み上げと書体の検査に混ぜない） */
+.builder-sample-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  color: var(--coal-soft);
+  font-size: var(--font-size-xs);
+}
+.builder-sample-step {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  white-space: nowrap;
+}
+.builder-sample-step + .builder-sample-step::before {
+  content: '';
+  width: 4px;
+  height: 4px;
+  border-radius: var(--radius-full);
+  background: var(--coal-soft);
+}
+
+/* ── 他の人の置き換えの知らせ・操作の失敗 ───────────────────────── */
+/* 知らせの領域は常に置く（ライブリージョン）。空の間は、区画の間隔を 1 つ余分に取らないよう詰める */
+.builder-changed--idle {
+  margin-block-end: calc(var(--space-4) * -1);
+}
+.builder-changed-text {
+  margin: 0;
+}
+.builder-changed,
+.agenda-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin: 0;
+}
+.agenda-error {
+  margin-block-end: var(--space-4);
+}
+
+/* ── 行の一覧 ─────────────────────────────────────────────── */
+.builder-panel {
+  display: grid;
+  gap: var(--space-4);
+}
+.builder-title {
+  display: grid;
+  gap: var(--space-1);
+}
+.builder-rows {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+/* 1 行 = [番号][名前] の上段と、[分][時間切れ][上へ・下へ・消す] の下段 */
+.builder-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--felt-sink);
+}
+/* 番号は盤の目盛りの番号と同じ字（数字の書体・真鍮） */
+.builder-row-number {
+  display: grid;
+  place-items: center;
+  width: var(--space-6);
+  aspect-ratio: 1;
+  border: 1px solid var(--gold-deep);
+  border-radius: var(--radius-full);
+  color: var(--gold-bright);
+  font-family: var(--font-display);
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.builder-row-controls {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+.builder-minutes {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+/* −／＋ は 44px の正方形（急いで押す・指で押す） */
+.builder-bump {
+  min-width: var(--tap-target);
+  padding: 0;
+  font-family: var(--font-display);
+  font-size: var(--font-size-lg);
+}
+.builder-minutes-input {
+  width: 4.5rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.builder-minutes-unit {
+  color: var(--ivory-dim);
+  font-size: var(--font-size-sm);
+}
+/* 時間切れの 2 択。選んだ側を金の薄い敷きと内側の線で示す（色だけに頼らない: aria-pressed と線） */
+.builder-timeout {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-full);
+}
+.builder-timeout-option {
+  min-height: var(--tap-target);
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--ivory-dim);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  cursor: pointer;
+}
+.builder-timeout-option[aria-pressed='true'] {
+  background: var(--gold-tint);
+  box-shadow: inset 0 0 0 1px var(--gold-deep);
+  color: var(--gold-bright);
+}
+.builder-row-tools {
+  display: flex;
+  gap: var(--space-1);
+  margin-inline-start: auto;
+}
+.builder-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+.builder-add-note {
+  color: var(--ivory-dim);
+  font-size: var(--font-size-xs);
+}
+
+/* ── プレビューと主の操作 ─────────────────────────────────── */
+.builder-preview {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+}
+.builder-total {
+  margin: 0;
+  color: var(--gold-bright);
+  font-family: var(--font-display);
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+}
+.builder-reason {
+  margin: 0;
+  text-align: center;
+}
+.builder-actions {
+  display: grid;
+  gap: var(--space-3);
+  width: 100%;
+}
+
+/* ── 保存済み ────────────────────────────────────────────── */
+.builder-saved {
+  display: grid;
+  gap: var(--space-3);
+}
+.builder-saved-list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.builder-saved-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.builder-saved-pick {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+  min-width: 0;
+  min-height: var(--tap-target);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--felt-sink);
+  color: var(--ivory);
+  text-align: start;
+  cursor: pointer;
+}
+.builder-saved-pick:hover {
+  background: var(--felt-lift);
+}
+.builder-saved-name {
+  overflow: hidden;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.builder-saved-detail {
+  color: var(--ivory-dim);
+  font-size: var(--font-size-xs);
+}
+.builder-save {
+  display: grid;
+  gap: var(--space-1);
+}
+.builder-save-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.builder-save-row .ui-input {
+  flex: 1 1 10rem;
+  min-width: 0;
+}
+.builder-note {
+  margin: 0;
+}

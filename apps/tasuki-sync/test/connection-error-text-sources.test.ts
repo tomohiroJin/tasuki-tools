@@ -18,6 +18,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Glob } from "bun";
 import { topicErrorMessageFor } from "@tasuki/topic-core";
+import { agendaErrorMessageFor } from "@tasuki/agenda-core";
 import { rouletteErrorMessageFor } from "@tasuki/roulette-core";
 import { errorMessageFor } from "@tasuki/timer-core";
 import {
@@ -39,15 +40,17 @@ const CANONICALS = [
 
 describe("core の写しが正本と一致する", () => {
   for (const code of CODES) {
-    it(`Given 接続層のコード ${code} / When core の表から文を引く / Then topic-core・roulette-core とも正本と同じ文`, () => {
+    it(`Given 接続層のコード ${code} / When core の表から文を引く / Then topic-core・roulette-core・agenda-core とも正本と同じ文`, () => {
       // Given
       const canonical = CONNECTION_ERROR_TEXT[code];
       // When
       const fromTopic = topicErrorMessageFor(code);
       const fromRoulette = rouletteErrorMessageFor(code);
+      const fromAgenda = agendaErrorMessageFor(code);
       // Then
       expect(fromTopic).toBe(canonical);
       expect(fromRoulette).toBe(canonical);
+      expect(fromAgenda).toBe(canonical);
     });
   }
 
@@ -55,7 +58,7 @@ describe("core の写しが正本と一致する", () => {
     // Given
     const code = "NOT_IN_ROOM";
     // When
-    const texts = [topicErrorMessageFor(code), rouletteErrorMessageFor(code), errorMessageFor(code)];
+    const texts = [topicErrorMessageFor(code), rouletteErrorMessageFor(code), agendaErrorMessageFor(code), errorMessageFor(code)];
     // Then
     expect(new Set(texts).size).toBe(1);
   });

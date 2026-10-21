@@ -81,6 +81,8 @@ export const DOMAIN_PACKAGES = [
   "packages/topic-core",
   // ルーレットの文脈（#94）。時計と乱数は引数で受ける（Date.now() や Math.random() を置いたら赤になるべき）。
   "packages/roulette-core",
+  // 進行タイマーの文脈（#429）。時計は引数で受ける。
+  "packages/agenda-core",
   "packages/timer-core",
   // #91 PR 3 で新設。純粋な関数のみ（Date.now() や Math.random() を置いたら赤になるべき）。
   "packages/markdown",
@@ -92,6 +94,7 @@ export const EXCLUDED_PACKAGES = [
   { pkg: "apps/poker-web", reason: "アプリ層。副作用を置いてよい境界" },
   { pkg: "apps/topic-web", reason: "アプリ層。副作用を置いてよい境界" },
   { pkg: "apps/roulette-web", reason: "アプリ層。副作用を置いてよい境界" },
+  { pkg: "apps/agenda-web", reason: "アプリ層。副作用を置いてよい境界" },
   {
     pkg: "apps/tasuki-sync",
     reason:

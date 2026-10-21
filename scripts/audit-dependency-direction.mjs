@@ -99,6 +99,8 @@ export const ALLOWED = {
   // ルーレットの文脈（#94）。**@tasuki/* に依存しない**（room-core にも依存しない・spec R3）。
   // 参加者 ID は不透明な文字列で、名簿の断片はアプリ層が引数で渡す（docs/adr/0017 決定 1・2）。
   "packages/roulette-core": [],
+  // 進行タイマーの文脈（#429）。**@tasuki/* に依存しない**（他の文脈にも依存しない）。
+  "packages/agenda-core": [],
   // 同期クライアントの接続部分（#95 S5a・D18）。**@tasuki/* に依存しない** ——
   // ツールの語彙を持たないことが、4 つの web アプリから使える条件である。
   "packages/sync-client": [],
@@ -189,9 +191,23 @@ export const ALLOWED = {
     "@tasuki/ui",
     "@tasuki/web-kit",
   ],
+  // 進行タイマー（#429）。roulette-web と同じ形（agenda-core を使い、他のツールの core を知らない）。
+  "apps/agenda-web": [
+    "@tasuki/agenda-core",
+    "@tasuki/dev-hub-redirect",
+    "@tasuki/invite-ui",
+    "@tasuki/protocol",
+    "@tasuki/room-core",
+    "@tasuki/sync-client",
+    "@tasuki/topic-core",
+    "@tasuki/ui",
+    "@tasuki/web-kit",
+  ],
   // #95 S2 で apps/timer-sync と apps/poker-sync がここへ統合された。
   // poker-core が加わったのはそのため（統合前は poker-sync 側の依存）。
+  // 進行タイマー（#429）の合成ルートが agenda-core を呼ぶ。
   "apps/tasuki-sync": [
+    "@tasuki/agenda-core",
     "@tasuki/poker-core",
     "@tasuki/protocol",
     "@tasuki/rate-limit",
@@ -200,7 +216,7 @@ export const ALLOWED = {
     "@tasuki/timer-core",
     "@tasuki/topic-core",
   ],
-  e2e: ["@tasuki/landing", "@tasuki/poker-web", "@tasuki/roulette-web", "@tasuki/timer-web", "@tasuki/topic-web"],
+  e2e: ["@tasuki/agenda-web", "@tasuki/landing", "@tasuki/poker-web", "@tasuki/roulette-web", "@tasuki/timer-web", "@tasuki/topic-web"],
 };
 
 /**

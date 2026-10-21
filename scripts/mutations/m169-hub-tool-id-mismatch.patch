@@ -14,15 +14,15 @@
 # 「roulette にいます」と生の綴りが出る。型の綴りも合わせて変えてあるので型検査は通る
 # （綴りのずれを型は拾えない）。
 diff --git a/apps/landing/src/tools.ts b/apps/landing/src/tools.ts
-index 5c5daaff..fb4162e2 100644
+index be5763f1..3b230909 100644
 --- a/apps/landing/src/tools.ts
 +++ b/apps/landing/src/tools.ts
 @@ -12,7 +12,7 @@ export interface Tool {
     * 名簿の `tools` に載る値と同じ。在席の表示（`RoomChoice.tsx`）はこれで名前を引く
     * —— 並び順で引くと、札を足したときに名前がずれる（#91 PR 2 で直した）。
     */
--  readonly id: "timer" | "poker" | "topic" | "roulette";
-+  readonly id: "timer" | "poker" | "topic" | "wheel";
+-  readonly id: "timer" | "poker" | "topic" | "roulette" | "agenda";
++  readonly id: "timer" | "poker" | "topic" | "wheel" | "agenda";
    /** 札の左上に出る一語。そのツールが扱うもの。 */
    readonly pip: string;
    /** ツール名（札の下端） */

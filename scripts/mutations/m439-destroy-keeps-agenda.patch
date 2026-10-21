@@ -1,0 +1,21 @@
+# 変異 439: destroy-keeps-agenda
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/destroy-room.test.ts
+#
+# #429 設計 §5.2。ルーム破棄で進行タイマーの状態を消さない。破棄したルームのコードを引き継いだ別のルームに、古い進行の状態が残る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m439-*.patch
+# 復元: git apply -R scripts/mutations/m439-*.patch
+diff --git a/apps/tasuki-sync/src/application/destroy-room.ts b/apps/tasuki-sync/src/application/destroy-room.ts
+index a8181d5..e3ea674 100644
+--- a/apps/tasuki-sync/src/application/destroy-room.ts
++++ b/apps/tasuki-sync/src/application/destroy-room.ts
+@@ -110,6 +110,5 @@ export function createRoomDestroyer(deps: RoomDestroyerDeps): (roomCode: string)
+     rounds.remove(roomCode);
+     topics.remove(roomCode);
+     roulettes.remove(roomCode);
+-    agendas.remove(roomCode);
+   };
+ }

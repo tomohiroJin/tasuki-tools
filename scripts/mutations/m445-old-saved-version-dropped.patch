@@ -1,0 +1,22 @@
+# 変異 445: old-saved-version-dropped
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/saved-scenarios.test.ts
+#
+# #429 現在の版でない保存を、移行せずに捨てる。版を上げたとき、利用者の保存が全部消える。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m445-*.patch
+# 復元: git apply -R scripts/mutations/m445-*.patch
+diff --git a/apps/agenda-web/src/storage/saved-scenarios.ts b/apps/agenda-web/src/storage/saved-scenarios.ts
+index ad0930c7..d1f6f6b5 100644
+--- a/apps/agenda-web/src/storage/saved-scenarios.ts
++++ b/apps/agenda-web/src/storage/saved-scenarios.ts
+@@ -45,6 +45,7 @@ function migrateToCurrent(raw: unknown, migrations: Migrations): unknown {
+   for (let guard = 0; guard < 100; guard++) {
+     if (!isRecord(cur) || typeof cur.version !== 'number') return null;
+     if (cur.version === CURRENT_VERSION) return cur;
++    if (cur.version !== CURRENT_VERSION) return null;
+     const step = migrations[cur.version];
+     if (step === undefined) return null;
+     cur = step(cur);

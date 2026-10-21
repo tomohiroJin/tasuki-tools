@@ -1,0 +1,22 @@
+# 変異 432: projection-counts-skipped
+#
+# 検出を期待するテスト:
+#   - packages/agenda-core/tests/projection.test.ts
+#
+# #429 終わる見込みに、飛ばした未開始の区切りの持ち時間を含める。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m432-*.patch
+# 復元: git apply -R scripts/mutations/m432-*.patch
+diff --git a/packages/agenda-core/src/projection.ts b/packages/agenda-core/src/projection.ts
+--- a/packages/agenda-core/src/projection.ts
++++ b/packages/agenda-core/src/projection.ts
+@@ -60,7 +60,7 @@ export function projectedEndMs(v: AgendaView): number {
+   if (v.phase === "idle") return plannedTotalMs(v);
+   if (v.phase === "finished") return v.runElapsedMs;
+   const idx = v.steps.findIndex((x) => x.id === v.currentId);
+-  const rest = v.steps.reduce((sum, x, i) => (i > idx && !x.skipped ? sum + budgetMs(x) : sum), 0);
++  const rest = v.steps.reduce((sum, x, i) => (i > idx ? sum + budgetMs(x) : sum), 0);
+   return v.runElapsedMs + Math.max(remainingMs(v), 0) + rest;
+ }
+ 

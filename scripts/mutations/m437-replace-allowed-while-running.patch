@@ -1,0 +1,22 @@
+# 変異 437: replace-allowed-while-running
+#
+# 検出を期待するテスト:
+#   - packages/agenda-core/tests/agenda.test.ts
+#
+# #429 進行中でもシナリオの置き換えを許す。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m437-*.patch
+# 復元: git apply -R scripts/mutations/m437-*.patch
+diff --git a/packages/agenda-core/src/agenda.ts b/packages/agenda-core/src/agenda.ts
+--- a/packages/agenda-core/src/agenda.ts
++++ b/packages/agenda-core/src/agenda.ts
+@@ -31,7 +31,7 @@ export function replaceScenario(
+   s: AgendaState,
+   input: ScenarioInput,
+ ): R<"AGENDA_IN_PROGRESS" | "AGENDA_FINISHED" | "INVALID_SCENARIO"> {
+-  if (s.phase === "running" || s.phase === "paused") return fail("AGENDA_IN_PROGRESS");
++  if (s.phase === "paused") return fail("AGENDA_IN_PROGRESS");
+   if (s.phase === "finished") return fail("AGENDA_FINISHED");
+   // 境界で検証済みの入力を前提にする。ドメイン側の守りは空の区切りだけ
+   if (input.steps.length === 0) return fail("INVALID_SCENARIO");

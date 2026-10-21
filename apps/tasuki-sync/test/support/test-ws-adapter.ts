@@ -106,6 +106,22 @@ export function unwiredRouletteHandler(): RawMessageHandler {
 }
 
 /**
+ * 呼ばれたら失敗する進行タイマーのメッセージ層（#429）。「ここへ来るはずがない」を赤で示す。
+ *
+ * ルーレット等と同じ規律 —— 既定を「何もしない」にすると経路の取り違えが見えなくなる。
+ */
+export function unwiredAgendaHandler(): RawMessageHandler {
+  return {
+    handleMessage: () => {
+      throw new Error(
+        "進行タイマーのメッセージ層が呼ばれました。" +
+          "接続層のテストは ?tool=agenda で繋がない想定です（test/support/test-ws-adapter.ts）。",
+      );
+    },
+  };
+}
+
+/**
  * 接続層のテストが渡す timer のメッセージ層（正規化の受け口のブランドを持たない、ただの関数）。
  *
  * 本番は `createTimerCommandReceiver` が作った受け口しか渡せない（`WsAdapterOptions.timer` の型）。
@@ -117,12 +133,12 @@ export type TestTimerHandler = { handleMessage(connId: string, cmd: Command): Pr
 /** 必須オプションのうち、接続層のテストが関心を持たない 6 つだけを任意にし、timer を素の関数で受けるもの。 */
 export type TestWsAdapterOptions = Omit<
   WsAdapterOptions,
-  "maxMessageBytes" | "maxFrameBytes" | "poker" | "hub" | "topic" | "roulette" | "timer"
+  "maxMessageBytes" | "maxFrameBytes" | "poker" | "hub" | "topic" | "roulette" | "agenda" | "timer"
 > & { timer: TestTimerHandler } &
   Partial<
     Pick<
       WsAdapterOptions,
-      "maxMessageBytes" | "maxFrameBytes" | "poker" | "hub" | "topic" | "roulette"
+      "maxMessageBytes" | "maxFrameBytes" | "poker" | "hub" | "topic" | "roulette" | "agenda"
     >
   >;
 
@@ -136,5 +152,6 @@ export function newTestWsAdapter(options: TestWsAdapterOptions): WsAdapter {
     hub: options.hub ?? unwiredHubHandler(),
     topic: options.topic ?? unwiredTopicHandler(),
     roulette: options.roulette ?? unwiredRouletteHandler(),
+    agenda: options.agenda ?? unwiredAgendaHandler(),
   });
 }

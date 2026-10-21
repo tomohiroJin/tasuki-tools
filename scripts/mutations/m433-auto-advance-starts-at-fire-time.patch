@@ -1,0 +1,22 @@
+# 変異 433: auto-advance-starts-at-fire-time
+#
+# 検出を期待するテスト:
+#   - packages/agenda-core/tests/agenda.test.ts
+#
+# #429 自動で次へが、期限ではなく発火した時刻を境にする。発火の遅れが次の区切りへ持ち込まれる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m433-*.patch
+# 復元: git apply -R scripts/mutations/m433-*.patch
+diff --git a/packages/agenda-core/src/agenda.ts b/packages/agenda-core/src/agenda.ts
+--- a/packages/agenda-core/src/agenda.ts
++++ b/packages/agenda-core/src/agenda.ts
+@@ -114,7 +114,7 @@ export function advanceIfDue(s: AgendaState, now: number): AgendaState {
+     const deadline = deadlineOf(cur);
+     const step = cur.steps.find((x) => x.id === cur.currentId);
+     if (deadline === null || step === undefined || step.onTimeout !== "advance" || deadline > now) return cur;
+-    cur = advanceStep(cur, deadline);
++    cur = advanceStep(cur, now);
+   }
+ }
+ 

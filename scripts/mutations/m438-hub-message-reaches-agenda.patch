@@ -1,0 +1,28 @@
+# 変異 438: hub-message-reaches-agenda
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/live-ws.agenda.test.ts
+#
+# #429。ハブの層の onHubMessage から進行タイマーのハンドラも呼ぶ。進行タイマーの層は『進行タイマーとして在席しているか』で 2 段目を守るので状態は変わらないが、ハブの接続が 2 通目の拒否を受け取る。5 種の接続で拒否が 1 通ずつであることを見る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m438-*.patch
+# 復元: git apply -R scripts/mutations/m438-*.patch
+diff --git a/apps/tasuki-sync/src/create-sync-server.ts b/apps/tasuki-sync/src/create-sync-server.ts
+index a9a0728d..c8b79e09 100644
+--- a/apps/tasuki-sync/src/create-sync-server.ts
++++ b/apps/tasuki-sync/src/create-sync-server.ts
+@@ -458,7 +458,12 @@ export function createSyncServer(config: SyncConfig): SyncServer {
+     logger,
+     deriveClientKey,
+     requireClientAddress: config.requireClientAddress,
+-    hub: hubHandlers,
++    hub: {
++      handleMessage: async (connId, raw) => {
++        await hubHandlers.handleMessage(connId, raw);
++        await agendaHandlers.handleMessage(connId, raw);
++      },
++    },
+     topic: topicHandlers,
+     roulette: rouletteHandlers,
+     agenda: agendaHandlers,

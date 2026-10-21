@@ -16,6 +16,7 @@ import で切り離す**。アプリを増やしてもホストの `Caddyfile` �
         ├── 30-timer-spa.conf        # deploy/timer/caddy/
         ├── 40-topic.conf            # deploy/topic/caddy/（#91 の配布で設置。順序は deploy/topic/NOTES.md）
         ├── 50-roulette.conf         # deploy/roulette/caddy/（#94 の配布で設置。順序は deploy/roulette/NOTES.md）
+        ├── 60-agenda.conf           # deploy/agenda/caddy/（#429 の配布で設置。順序は deploy/agenda/NOTES.md）
         └── 90-landing.conf          # deploy/landing/caddy/（包括フォールバック）
 ```
 
@@ -79,9 +80,11 @@ scp deploy/timer/caddy/*.conf                   "$TASUKI_SSH_HOST:/tmp/"
 scp deploy/poker/caddy/20-poker.conf            "$TASUKI_SSH_HOST:/tmp/"
 scp deploy/landing/caddy/90-landing.conf        "$TASUKI_SSH_HOST:/tmp/"
 scp deploy/topic/caddy/40-topic.conf            "$TASUKI_SSH_HOST:/tmp/"
+# ↑ /topic/ の断片（#91）。置き忘れると /topic/ は包括フォールバック＝玄関に吸われる
 scp deploy/roulette/caddy/50-roulette.conf      "$TASUKI_SSH_HOST:/tmp/"
 # ↑ /roulette/ の断片（#94）。置き忘れると /roulette/ は包括フォールバック＝玄関に吸われる
-# ↑ /topic/ の断片（#91）。置き忘れると /topic/ は包括フォールバック＝玄関に吸われる
+scp deploy/agenda/caddy/60-agenda.conf          "$TASUKI_SSH_HOST:/tmp/"
+# ↑ /agenda/ の断片（#429）。置き忘れると /agenda/ は包括フォールバック＝玄関に吸われる
 
 # 2) 設置 その 1 — **配信物より先に入れてよい断片だけ**（VPS で・root）
 # #95 S5c で 10-timer-ws.conf を撤去した。WS の入口は 05-hub-ws.conf（/ws）の 1 本だけ
@@ -106,6 +109,8 @@ sudo install -m 644 /tmp/40-topic.conf /etc/caddy/tasuki/apps/
 # #94（ルーレット）の配布では、50-roulette.conf もこの段で入れる（理由は 40-topic.conf と同じ。
 # 順序の正本は ../roulette/NOTES.md の「配布の手順」）。
 sudo install -m 644 /tmp/50-roulette.conf /etc/caddy/tasuki/apps/
+# #429（進行タイマー）の配布では、60-agenda.conf もこの段で入れる（順序の正本は ../agenda/NOTES.md）。
+sudo install -m 644 /tmp/60-agenda.conf /etc/caddy/tasuki/apps/
 
 # **旧共有リンクの救済（40-timer-legacy-room.conf・S5a で撤去）はこの段で消す。**
 # 後回しにできない —— 残したまま `deploy.sh landing` を走らせると、新しい玄関が配る
@@ -170,8 +175,8 @@ HOST=https://<公開ドメイン>
 curl -sI "$HOST/"                                        # 200・x-robots-tag: noindex, nofollow・HSTS
 curl -s "$HOST/" | grep -o '<title>[^<]*</title>'        # LP の題名が出る
 
-# 4 系統が並存すること（/topic/ は #91 の配布から）
-for p in / /timer/ /poker/ /topic/ /roulette/; do
+# 各系統が並存すること（/topic/ は #91 の配布から）
+for p in / /timer/ /poker/ /topic/ /roulette/ /agenda/; do
   curl -s -o /dev/null -w "$p → %{http_code}\n" "$HOST$p"
 done
 # **/topic/ は断片を置き忘れても玄関が 200 を返す**（90-landing.conf の包括フォールバック）ので、
@@ -179,6 +184,7 @@ done
 # e2e/specs/routing.spec.ts の資材の接頭辞の見方と同じ）
 curl -s "$HOST/topic/" | grep -o '/topic/assets/' | head -1
 curl -s "$HOST/roulette/" | grep -o '/roulette/assets/' | head -1   # #94 の配布から
+curl -s "$HOST/agenda/" | grep -o '/agenda/assets/' | head -1   # #429 の配布から
 
 # WebSocket が SPA に吸われていないこと。統合 sync（apps/tasuki-sync）は
 # 非 Upgrade の HTTP に 426 を返す。

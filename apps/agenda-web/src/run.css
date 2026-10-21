@@ -1,0 +1,510 @@
+/* ============================================================
+   進める画面・映す表示・終了の一覧（#429 spec §7.4・§7.5・§7.7。モックの案 A）
+   **生の色を書かない**（語彙のトークン）。字の大きさは 5 段か、理由つきの scale-exempt。
+   色だけに頼らない: 進行表は「済」「いま」「スキップ」の札と打ち消し線、差は「+」「−」の印。
+   ============================================================ */
+
+/* ── 段組み ─────────────────────────────────────────────── */
+/* 手元（〜64rem）: 盤 → 進行表 → 「最初から」を積み、主の操作の帯は画面の下に固定する。
+   帯の高さぶん下を空けて、最後の行が帯の下に隠れないようにする */
+.run {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    'bar'
+    'dial'
+    'aside';
+  gap: var(--space-4);
+  padding-bottom: 9.5rem;
+}
+.run--finished {
+  padding-bottom: 0;
+}
+.run-bar {
+  grid-area: bar;
+}
+.run-dial {
+  grid-area: dial;
+}
+.run-aside {
+  grid-area: aside;
+}
+.run-controls {
+  grid-area: controls;
+}
+
+/* 広い幅: 左に盤と操作の帯、右に進行表 */
+@media (width >= 64rem) {
+  .run {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 26rem);
+    grid-template-areas:
+      'bar bar'
+      'dial aside'
+      'controls aside';
+    align-items: start;
+    column-gap: var(--space-6);
+    padding-bottom: 0;
+  }
+  .run--finished {
+    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1fr);
+    grid-template-areas:
+      'bar bar'
+      'dial aside';
+  }
+}
+
+/* ── 上の帯（会の名前・音・映す表示）──────────────────────── */
+.run-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+}
+.run-title {
+  margin: 0;
+  min-width: 0;
+  color: var(--ivory-dim);
+  font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
+}
+.run-bar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: var(--space-3);
+  margin-inline-start: auto;
+}
+/* 上の帯・進行表・確認・映す表示の操作帯のボタンも字を折らない（狭い幅では並びの側が折り返す） */
+.run-bar-actions .ui-button,
+.step-list-skip,
+.reset-confirm-actions .ui-button,
+.projection-strip .ui-button {
+  white-space: nowrap;
+}
+/* 映す表示の印: 小さなスクリーン（枠と脚）。文言に添える形の手がかり */
+.run-project {
+  gap: var(--space-2);
+}
+.run-project-mark {
+  position: relative;
+  width: 0.95em;
+  height: 0.65em;
+  border: 1.5px solid currentColor;
+  border-radius: 2px;
+}
+.run-project-mark::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -0.32em;
+  width: 0.5em;
+  height: 1.5px;
+  translate: -50% 0;
+  background: currentColor;
+}
+
+/* 音の切り替え。音なしは鈴の印に斜線、音ありは鈴だけ（文言と aria-pressed が正本） */
+.sound-toggle {
+  gap: var(--space-2);
+  color: var(--ivory-dim);
+  text-decoration: none;
+}
+.sound-toggle.is-on {
+  color: var(--gold-bright);
+}
+.sound-toggle-mark {
+  position: relative;
+  width: 0.7em;
+  height: 0.8em;
+  border: 1.5px solid currentColor;
+  border-radius: 0.4em 0.4em 0.1em 0.1em;
+}
+.sound-toggle:not(.is-on) .sound-toggle-mark::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1.25em;
+  height: 1.5px;
+  translate: -50% -50%;
+  rotate: -45deg;
+  background: currentColor;
+}
+
+/* ── 盤と添え書き ─────────────────────────────────────── */
+.run-dial {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+}
+/* 広い幅では盤が主役。手元の 20rem から、画面の幅に合わせて 32.5rem まで大きくする */
+@media (width >= 64rem) {
+  .run-dial .dial--hand .dial-watch {
+    max-width: clamp(20rem, 38vw, 32.5rem);
+  }
+}
+.run-extension-note {
+  margin: 0;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--gold-edge);
+  border-radius: var(--radius-full);
+  color: var(--gold-bright);
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 主の操作の帯 ─────────────────────────────────────── */
+/* 手元では画面の下に固定する。地はフェルトの暗幕で、上へ向かって溶かす */
+.run-controls {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  z-index: 10;
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4) clamp(var(--space-4), 4vw, var(--space-6)) calc(var(--space-4) + env(safe-area-inset-bottom));
+  background: linear-gradient(to top, var(--felt-950) 72%, transparent);
+}
+@media (width >= 64rem) {
+  .run-controls {
+    position: static;
+    width: min(100%, 26rem);
+    justify-self: center;
+    padding: 0;
+    background: none;
+  }
+}
+/* 延長の群。狭い幅（〜40rem）では見出し「このステップに」を 1 行目に置き、3 つのボタンを 2 行目で等分する
+   （幅 320 で見出しと並べると 1 つ約 57px しか残らず「+1 分」が 2 行に折れた）。40rem 以上は見出しを左に並べる */
+.run-extend {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+.run-extend-label {
+  grid-column: 1 / -1;
+  color: var(--ivory-faint);
+  font-size: var(--font-size-xs);
+  white-space: nowrap;
+}
+@media (width >= 40rem) {
+  .run-extend {
+    grid-template-columns: auto repeat(3, minmax(0, 1fr));
+  }
+  .run-extend-label {
+    grid-column: auto;
+  }
+}
+/* 帯のボタンは字を折らない。部品の既定の横の余白（--sm は space-4・既定は 1.4rem）と最小幅（6rem）を、
+   この帯の中でだけ詰める（等分した幅に収めるため）。高さ 44px 以上は部品が持つ */
+.run-extend-button,
+.run-pause,
+.run-next {
+  min-width: 0;
+  white-space: nowrap;
+}
+.run-extend-button {
+  padding-inline: var(--space-2);
+}
+.run-main {
+  display: flex;
+  gap: var(--space-3);
+}
+.run-pause {
+  flex: 0.7;
+  padding-inline: var(--space-3);
+}
+.run-next {
+  flex: 1;
+  padding-inline: var(--space-4);
+}
+
+/* ── 進行表 ───────────────────────────────────────────── */
+.step-list-heading {
+  margin: 0 0 var(--space-2);
+  color: var(--ivory-dim);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+}
+.step-list-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.step-list-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--tap-target);
+  padding: var(--space-1) 0;
+  border-bottom: 1px solid var(--line);
+  font-size: var(--font-size-sm);
+}
+.step-list-row:last-child {
+  border-bottom: 0;
+}
+.step-list-number {
+  width: 1.4em;
+  flex: none;
+  color: var(--pewter);
+  font-family: var(--font-display);
+  text-align: center;
+}
+.step-list-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.step-list-mark {
+  flex: none;
+  padding: 0 0.6em;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  line-height: 1.5;
+}
+.step-list-minutes {
+  margin-inline-start: auto;
+  flex: none;
+  color: var(--ivory-faint);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.step-list-extension {
+  color: var(--gold-bright);
+}
+.step-list-skip {
+  flex: none;
+}
+/* 済み: 落ち着いた字 */
+.step-list-row.is-done {
+  color: var(--ivory-faint);
+}
+/* いま: 金の字と、左の細い真鍮の縁 */
+.step-list-row.is-now {
+  color: var(--gold-bright);
+  font-weight: 700;
+  box-shadow: inset 3px 0 0 var(--gold);
+}
+.step-list-row.is-now .step-list-number {
+  color: var(--gold-bright);
+}
+/* スキップ: 番号と名前に打ち消し線（spec §7.2） */
+.step-list-row.is-skipped {
+  color: var(--ivory-faint);
+}
+.step-list-row.is-skipped .step-list-number,
+.step-list-row.is-skipped .step-list-name {
+  text-decoration: line-through;
+}
+
+/* ── 「最初から」と確認 ─────────────────────────────────── */
+.run-reset {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--space-4);
+}
+/* 危険の部品（--danger）は地を持たないので、ページ上端の羅紗のグラデーション（felt-700 付近）に乗ると
+   rose-bright が 3.55:1 で AA を割った（E2E のコントラスト走査）。この区画の中でだけ felt-900 の地を敷く:
+   rose-bright / felt-900 = 5.81:1。ホバーは部品と同じ rose-tint を felt-900 の上に重ね、字は部品どおり rose-pale:
+   rose-pale / (rose-tint over felt-900) = 7.76:1。確認の「やり直す」も同じ区画（地は felt-900）にある */
+.run-reset .ui-button--danger {
+  background: var(--felt-900);
+}
+.run-reset .ui-button--danger:where(:hover:not(:disabled)) {
+  background: linear-gradient(var(--rose-tint), var(--rose-tint)), var(--felt-900);
+}
+.reset-confirm {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: end;
+  padding: var(--space-4);
+  border: 1px solid var(--rose-edge);
+  border-radius: var(--radius-lg);
+  background: var(--felt-900);
+}
+.reset-confirm-text {
+  margin: 0;
+  color: var(--ivory);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+.reset-confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
+/* ── 終了の一覧 ───────────────────────────────────────── */
+.run-summary-heading {
+  margin: 0 0 var(--space-3);
+  color: var(--gold-bright);
+  font-family: var(--font-display);
+  font-size: var(--font-size-lg);
+}
+.summary-scroll {
+  overflow-x: auto;
+}
+.summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+.summary-table th,
+.summary-table td {
+  padding: var(--space-2) var(--space-2);
+  border-bottom: 1px solid var(--line);
+  text-align: end;
+  white-space: nowrap;
+}
+.summary-table thead th {
+  color: var(--ivory-faint);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+}
+.summary-table th[scope='row'] {
+  text-align: start;
+  font-weight: 500;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.summary-table thead th:first-child {
+  text-align: start;
+}
+.summary-table tr.is-skipped th {
+  color: var(--ivory-faint);
+  text-decoration: line-through;
+}
+.summary-table tfoot th,
+.summary-table tfoot td {
+  border-top: 1px solid var(--gold-edge);
+  border-bottom: 0;
+  font-weight: 700;
+}
+.summary-table .is-late {
+  color: var(--rose-bright);
+}
+.summary-table .is-early {
+  color: var(--jade);
+}
+.summary-table .is-even {
+  color: var(--ivory-dim);
+}
+.summary-total {
+  font-family: var(--font-display);
+  font-size: var(--font-size-lg);
+}
+
+/* ── 映す表示（spec §7.5 判断 J13）─────────────────────────── */
+/* 字の段は既存の 5 段（最大 1.9rem）ではスクリーンに足りないので、映す表示だけの段を CSS のつまみで持つ
+   （値は spec §7.5 の案。数字・名前は盤の中で cqi に比例する） */
+.projection {
+  --stage-value: clamp(2rem, 9vmin, 7rem);
+  --stage-label: clamp(1rem, 2.6vmin, 2rem);
+  --stage-text: clamp(1.5rem, 5vmin, 4rem);
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: center;
+  justify-items: center;
+  gap: var(--space-6);
+  padding: var(--space-6) var(--space-4);
+  overflow-y: auto;
+  background: radial-gradient(ellipse at 38% 45%, var(--felt-800), var(--felt-950) 70%);
+  outline: none;
+}
+@media (width >= 64rem) {
+  .projection {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+    align-items: center;
+    justify-items: stretch;
+    padding: var(--space-6) clamp(var(--space-6), 6vw, 8rem);
+  }
+}
+.projection-dial {
+  width: 100%;
+  display: grid;
+  justify-items: center;
+}
+.projection-corner {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-4);
+}
+.projection-side {
+  margin: 0;
+  display: grid;
+  gap: clamp(var(--space-4), 5vmin, 3.5rem);
+}
+.projection-item dt {
+  margin-bottom: 0.2em;
+  color: var(--ivory-faint);
+  font-size: var(--stage-label); /* scale-exempt: 映す表示の段（スクリーンで部屋の後ろから読む見出し。spec §7.5） */
+}
+.projection-item dd {
+  margin: 0;
+  color: var(--ivory);
+  font-weight: 700;
+  font-size: var(--stage-text); /* scale-exempt: 映す表示の段（次のステップ・終了見込み。spec §7.5） */
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+.projection-end {
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+}
+.projection-item .projection-drift {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--stage-value); /* scale-exempt: 映す表示の押し巻き（名前と並ぶ 2 番目の大きさまで上げる。spec §7.3） */
+  line-height: 1;
+}
+.projection-drift.is-late {
+  color: var(--rose-bright);
+  text-shadow: 0 0 24px var(--rose-glow);
+}
+.projection-drift.is-early {
+  color: var(--jade);
+}
+.projection-drift.is-even {
+  color: var(--ivory-dim);
+}
+
+/* マウスを動かしたときだけ出す薄い操作帯。キーボードで入ったときも出す */
+.projection-strip {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: linear-gradient(to top, var(--felt-scrim), transparent);
+  opacity: 0;
+  /* 見えない間は押させない（透明なボタンを誤って押さない） */
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+.projection-strip.is-shown,
+.projection-strip:focus-within {
+  opacity: 1;
+  pointer-events: auto;
+}
+.projection-hint {
+  color: var(--ivory-faint);
+  font-size: var(--font-size-xs);
+}
+@media (prefers-reduced-motion: reduce) {
+  .projection-strip {
+    transition: none;
+  }
+}

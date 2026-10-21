@@ -53,3 +53,4 @@ Michael Nygard 形式（背景 / 決定 / 影響 / ステータス）に従い�
 | [0024](./0024-vulnerability-detection-outside-ci.md) | 依存の脆弱性の検知を CI から GitHub と Renovate へ移す | Accepted |
 | [0025](./0025-responsive-layout.md) | 幅の段・器・段組み・ボタンを部品層で揃える | Accepted |
 | [0026](./0026-facilitator-roulette.md) | ルーレットを 5 つ目の文脈にし、乱数と一周の規則をサーバーが持つ（決定 4 は #427 で撤回） | Accepted |
+| [0027](./0027-agenda-timer.md) | 進行タイマーを 6 つ目の文脈にし、自動で次へ移す判断と期限をサーバーが持つ | Accepted |

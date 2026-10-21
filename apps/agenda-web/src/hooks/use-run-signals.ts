@@ -1,0 +1,162 @@
+/**
+ * 進行の合図（#429 spec §4.7・§7.4・§7.7）: 時打ち（音と縁の光）と読み上げの一言。
+ *
+ * 前に描いた盤（手元の時計で進めた写し）といまの盤を比べて、**変わり目でだけ**出す。
+ * - 時打ち: `crossedZero` が true のときだけ。音ありなら `playStrike()`、動きを減らす設定でなければ縁を 600ms 光らせる
+ * - 読み上げ: ステップの切り替わり・時間切れ・一時停止／再開・押し巻きが 0 をまたいだとき（と終了）。毎秒の残りは流さない
+ *
+ * **参加していない間（切断中・入り直し中）は前の盤を捨てる。** 入り直して受けた最初のフレームは「最初の盤」として扱い、
+ * 過去に過ぎた 0 に対して鳴らさない（spec §4.7）。`room.joined` は新しい `agenda` フレームより先に届くので、
+ * 入り直した直後に残っている**切断前のフレーム**（`frame` の同一性で見分ける）からは前の盤を取らない。
+ * 取ると、切断前の「残り +1 秒」と入り直しの「残り −5 秒」の間で 0 をまたいだことになって鳴る。
+ * **表に戻ったとき（`visibilitychange` → visible）も同じに扱う。** 同期フックが取り直しを送るので、裏にいた間の
+ * 古いフレームからは比べず、取り直したフレームを最初の盤にする。
+ *
+ * **同じ時間切れには 1 度だけ鳴らす。** 鳴らした区切りを `区切りの ID:持ち時間` の鍵で覚え、同じ鍵の 0 またぎは鳴らさない。
+ * 手元で 0 をまたいだ後に、片道の遅れが大きいフレームで残りが +30ms などへ戻ると、再び 0 をまたいで二度鳴るため。
+ * 延長すると持ち時間が変わって鍵も変わるので、延長後の 0 またぎは鳴らす（J20）。覚えた鍵は、いまの区切りが変わったとき（最初からやり直した後に同じ区切りで鳴らすため）と前の盤を捨てるときに捨てる。
+ *
+ * 読み上げの文が前と同じ（延長のあとの 2 回目の「時間切れです」など）ときは、一度空にしてから入れ直す
+ * （文が変わらないと読み上げない支援技術がある）。
+ */
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { budgetMs, type AgendaView } from '@tasuki/agenda-core';
+import { centerLines, driftTone, type DriftTone } from '../agenda-view';
+import {
+  FINISHED_ANNOUNCE,
+  PAUSED_ANNOUNCE,
+  RESUMED_ANNOUNCE,
+  SUMMARY_SEPARATOR,
+  TIMEOUT_ANNOUNCE,
+  announceStep,
+} from '../copy';
+import { playStrike } from '../platform/sound';
+import { crossedZero } from '../timeout-signal';
+
+/** 時打ちの光の長さ（spec §7.4） */
+export const STRIKE_MS = 600;
+
+const isActive = (v: AgendaView): boolean => v.phase === 'running' || v.phase === 'paused';
+
+/** 時間切れの鍵（区切りの ID と持ち時間）。延長で持ち時間が変われば別の時間切れになる */
+function strikeKeyOf(v: AgendaView): string | null {
+  const step = v.steps.find((x) => x.id === v.currentId);
+  return step === undefined ? null : `${step.id}:${budgetMs(step)}`;
+}
+
+/** 押し巻きの向き（0 をまたいだかは、押しかそれ以外かで見る。分へ丸めた値なので毎秒は揺れない） */
+const lateness = (tone: DriftTone): 'late' | 'not-late' => (tone === 'late' ? 'late' : 'not-late');
+
+/** 前の盤といまの盤から、読み上げる一言を組む（無ければ null）。並びは重さの順 */
+export function announcementFor(prev: AgendaView, next: AgendaView, struck: boolean): string | null {
+  const parts: string[] = [];
+  if (prev.phase !== 'finished' && next.phase === 'finished') {
+    // 最後の「自動で次へ」が時間切れで終わったときは、時間切れを先に言う（最終レビュー I-1）
+    if (struck) parts.push(TIMEOUT_ANNOUNCE);
+    parts.push(FINISHED_ANNOUNCE);
+  } else if (isActive(next)) {
+    const stepChanged = prev.currentId !== next.currentId || !isActive(prev);
+    if (stepChanged) parts.push(announceStep(centerLines(next).name));
+    if (struck) parts.push(TIMEOUT_ANNOUNCE);
+    if (prev.phase === 'running' && next.phase === 'paused') parts.push(PAUSED_ANNOUNCE);
+    if (prev.phase === 'paused' && next.phase === 'running' && !stepChanged) parts.push(RESUMED_ANNOUNCE);
+    if (isActive(prev) && lateness(driftTone(prev)) !== lateness(driftTone(next))) parts.push(centerLines(next).drift);
+  }
+  return parts.length === 0 ? null : parts.join(SUMMARY_SEPARATOR);
+}
+
+interface Options {
+  /** 受け取ったフレームそのもの（手元の時計で進める前。フレームを受けるたびに別の値になる） */
+  readonly frame: AgendaView | null;
+  /** 参加済みか（切断・入り直しの間は前の盤を捨てる） */
+  readonly joined: boolean;
+  readonly soundOn: boolean;
+  readonly reducedMotion: boolean;
+}
+
+export function useRunSignals(
+  view: AgendaView | null,
+  { frame, joined, soundOn, reducedMotion }: Options,
+): { striking: boolean; announcement: string; announce: (text: string) => void } {
+  const prevRef = useRef<AgendaView | null>(null);
+  /** 切断した時点で持っていたフレーム。入り直してから次のフレームが届くまでは比べない */
+  const staleFrameRef = useRef<AgendaView | null>(null);
+  /** 最後に鳴らした時間切れの鍵（`strikeKeyOf`）とその区切り。いまの区切りが変わったら捨てる */
+  const struckKeyRef = useRef<{ key: string; stepId: string } | null>(null);
+  const [striking, setStriking] = useState(false);
+  const [announcement, setAnnouncement] = useState('');
+  /** 空にした後に入れる文（同じ文を続けて読ませるため） */
+  const [pending, setPending] = useState<string | null>(null);
+  const frameRef = useRef(frame);
+  frameRef.current = frame;
+  const announce = useCallback(
+    (text: string): void => {
+      if (text === announcement) {
+        setAnnouncement('');
+        setPending(text);
+      } else {
+        setAnnouncement(text);
+      }
+    },
+    [announcement],
+  );
+  const announceRef = useRef(announce);
+  announceRef.current = announce;
+  // 効果の中で最新の設定を読む（設定の変化で前の盤を比べ直さない）
+  const settings = useRef({ soundOn, reducedMotion });
+  settings.current = { soundOn, reducedMotion };
+
+  useEffect(() => {
+    if (!joined || view === null) {
+      prevRef.current = null;
+      struckKeyRef.current = null;
+      staleFrameRef.current = frame;
+      return;
+    }
+    if (frame !== null && frame === staleFrameRef.current) return;
+    staleFrameRef.current = null;
+    const prev = prevRef.current;
+    prevRef.current = view;
+    // 最初の盤（prev が null）でも判定は `crossedZero` に任せる（過去の 0 に鳴らさない規則の正本はあちら。m444）
+    // 鳴らすのは時間切れの鍵ごとに 1 度だけ（遅れたフレームで残りが正に戻った後の 0 またぎで二度鳴らさない）
+    const key = prev === null ? null : strikeKeyOf(prev);
+    const struck = crossedZero(prev, view) && key !== struckKeyRef.current?.key;
+    if (struck && key !== null && prev !== null && prev.currentId !== null) struckKeyRef.current = { key, stepId: prev.currentId };
+    if (struckKeyRef.current?.stepId !== view.currentId) struckKeyRef.current = null;
+    if (struck) {
+      if (settings.current.soundOn) playStrike();
+      if (!settings.current.reducedMotion) setStriking(true);
+    }
+    if (prev === null) return;
+    const said = announcementFor(prev, view, struck);
+    if (said !== null) announceRef.current(said);
+  }, [view, frame, joined]);
+
+  // 表に戻ったら前の盤を捨て、取り直しのフレームが届くまで比べない
+  useEffect(() => {
+    const onVisibility = (): void => {
+      if (document.visibilityState !== 'visible') return;
+      prevRef.current = null;
+      struckKeyRef.current = null;
+      staleFrameRef.current = frameRef.current;
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, []);
+
+  // 空にした描画が DOM に載ってから、待たせた文を入れる
+  useEffect(() => {
+    if (pending === null || announcement !== '') return;
+    setAnnouncement(pending);
+    setPending(null);
+  }, [pending, announcement]);
+
+  // 光は 600ms で下ろす（点滅させない。1 度だけ）
+  useEffect(() => {
+    if (!striking) return;
+    const timer = setTimeout(() => setStriking(false), STRIKE_MS);
+    return () => clearTimeout(timer);
+  }, [striking]);
+
+  return { striking, announcement, announce };
+}

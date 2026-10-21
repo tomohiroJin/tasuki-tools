@@ -1,5 +1,5 @@
 /**
- * timer と poker と topic と roulette の `vite.config.ts` が、玄関へのリダイレクト（`@tasuki/dev-hub-redirect`）を
+ * timer と poker と topic と roulette と agenda の `vite.config.ts` が、玄関へのリダイレクト（`@tasuki/dev-hub-redirect`）を
  * **すべて配線しているか**を固定する（#95 S5c 追補・#249）。
  *
  * プラグイン本体の振る舞いは `packages/dev-hub-redirect/tests/hub-redirect.test.ts` が見る。
@@ -36,7 +36,7 @@ function findRepoRoot(from: string): string {
 const REPO_ROOT = findRepoRoot(process.cwd());
 
 /** 玄関へ送り返す必要があるのは、玄関以外の dev サーバー（＝ツール側）である。 */
-const TOOL_APPS = ['timer-web', 'poker-web', 'topic-web', 'roulette-web'];
+const TOOL_APPS = ['timer-web', 'poker-web', 'topic-web', 'roulette-web', 'agenda-web'];
 
 describe.each(TOOL_APPS)('%s の vite.config.ts', (app) => {
   const source = readFileSync(path.join(REPO_ROOT, 'apps', app, 'vite.config.ts'), 'utf8');
