@@ -21,7 +21,7 @@ describe("予定の合計と持ち時間", () => {
     expect(plannedTotalMs(toView(s, 600 * SEC))).toBe(3600 * SEC);
   });
   it("持ち時間は長さ＋延長", () => {
-    const s = must(extend(midP(), { stepId: "s-2", minutes: 3, now: 600 * SEC }));
+    const s = must(extend(midP(), { stepId: "s-2", minutes: 3 }));
     expect(budgetMs(s.steps[1]!)).toBe((420 + 180) * SEC);
   });
 });
@@ -36,7 +36,7 @@ describe("見込みと押し巻き", () => {
     expect(driftMs(toView(midP(), 600 * SEC))).toBe(0);
   });
   it("P の途中で +3 分すると押し 180 秒", () => {
-    const s = must(extend(midP(), { stepId: "s-2", minutes: 3, now: 600 * SEC }));
+    const s = must(extend(midP(), { stepId: "s-2", minutes: 3 }));
     expect(driftMs(toView(s, 600 * SEC))).toBe(180_000);
   });
   it("Try を飛ばすと 2400 秒の巻き（m432）", () => {
@@ -107,7 +107,7 @@ describe("advanceView", () => {
 describe("summaryOf", () => {
   it("行は予定・延長・所要・差・飛ばしを持ち、差の合計は押し巻きと等しい", () => {
     let s = must(start(must(replaceScenario(INITIAL_AGENDA_STATE, kptInput)), 0));
-    s = must(extend(s, { stepId: "s-1", minutes: 3, now: 0 }));
+    s = must(extend(s, { stepId: "s-1", minutes: 3 }));
     s = must(setSkipped(s, { stepId: "s-4", skipped: true }));
     s = must(next(s, { stepId: "s-1", now: 400 * SEC }));
     for (const [i, id] of ["s-2", "s-3", "s-5"].entries()) s = must(next(s, { stepId: id, now: (500 + i * 100) * SEC }));

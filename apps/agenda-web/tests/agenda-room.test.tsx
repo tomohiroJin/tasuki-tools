@@ -165,7 +165,7 @@ describe('進める画面の操作', () => {
   });
 
   it('Given いまのステップを 3 分延長した / When 盤の下を見る / Then 「予定 1 分 + 3 分」と添える', () => {
-    joinedRoom(new Driver([1, 2]).extend(3, 500).view(1000));
+    joinedRoom(new Driver([1, 2]).extend(3).view(1000));
     expect(screen.getByText(extensionNote(1, 3))).toBeInTheDocument();
   });
 

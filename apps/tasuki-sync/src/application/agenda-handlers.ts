@@ -161,7 +161,7 @@ export function makeAgendaHandlers(deps: AgendaHandlerDeps): AgendaHandlers {
         case "agenda.resume":
           return resume(state, now);
         case "agenda.extend":
-          return extend(state, { stepId: cmd.stepId, minutes: cmd.minutes, now });
+          return extend(state, { stepId: cmd.stepId, minutes: cmd.minutes });
         case "agenda.skip":
           return setSkipped(state, { stepId: cmd.stepId, skipped: cmd.skipped });
         case "agenda.reset":

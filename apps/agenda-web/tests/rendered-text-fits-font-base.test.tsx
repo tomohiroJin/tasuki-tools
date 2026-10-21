@@ -47,8 +47,8 @@ describe('描いた進行タイマーの文字は書体の常用の層に収ま�
     ['組む前', IDLE_AGENDA],
     ['進行中', runningAgenda(1000)],
     ['オーバー中', runningAgenda(65_000)],
-    ['一時停止中・延長・スキップあり', new Driver([1, 2, 3]).extend(3, 500).skip('s-3').pause(1000).view(2000)],
-    ['終了', new Driver([1, 2, 3]).skip('s-3').next(90_000).extend(1, 100_000).next(250_000).view(250_000)],
+    ['一時停止中・延長・スキップあり', new Driver([1, 2, 3]).extend(3).skip('s-3').pause(1000).view(2000)],
+    ['終了', new Driver([1, 2, 3]).skip('s-3').next(90_000).extend(1).next(250_000).view(250_000)],
   ])('Given %s / When 画面を描く / Then 外れる字は無く、描けている', (_label, state) => {
     saveResumeIdentity(RESUME);
     render(<App />);

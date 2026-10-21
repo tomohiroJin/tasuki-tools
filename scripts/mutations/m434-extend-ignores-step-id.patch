@@ -12,7 +12,7 @@ diff --git a/packages/agenda-core/src/agenda.ts b/packages/agenda-core/src/agend
 --- a/packages/agenda-core/src/agenda.ts
 +++ b/packages/agenda-core/src/agenda.ts
 @@ -147,7 +147,7 @@ export function extend(
-   input: { stepId: string; minutes: number; now: number },
+   input: { stepId: string; minutes: number },
  ): R<"AGENDA_NOT_STARTED" | "STEP_BUDGET_EXCEEDED"> {
    if (s.phase === "idle") return fail("AGENDA_NOT_STARTED");
 -  if (s.phase === "finished" || s.currentId !== input.stepId) return ok(s);

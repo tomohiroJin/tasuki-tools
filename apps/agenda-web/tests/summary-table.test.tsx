@@ -47,7 +47,7 @@ function joinedRoom(state: unknown): void {
 
 /** S1（1 分）を 1:30 かけ、S2（2 分）に +1 分して 2:40 かけ、S3（3 分）を飛ばして終えた */
 function finished() {
-  return new Driver([1, 2, 3]).skip('s-3').next(90_000).extend(1, 100_000).next(250_000).view(250_000);
+  return new Driver([1, 2, 3]).skip('s-3').next(90_000).extend(1).next(250_000).view(250_000);
 }
 
 const rowOf = (name: string): HTMLElement => {

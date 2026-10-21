@@ -78,7 +78,7 @@ function run(seed: number, allWait: boolean): { final: AgendaState; now: number 
       if (s !== before) effective.resume++;
     } else if (op < 0.92 && cur !== null) {
       const before = s;
-      s = okOr(s, extend(s, { stepId: cur, minutes: [1, 3, 5][int(rnd, 0, 2)]!, now }));
+      s = okOr(s, extend(s, { stepId: cur, minutes: [1, 3, 5][int(rnd, 0, 2)]! }));
       if (s !== before) effective.extend++;
     } else {
       const target = s.steps[int(rnd, 0, s.steps.length - 1)]!;

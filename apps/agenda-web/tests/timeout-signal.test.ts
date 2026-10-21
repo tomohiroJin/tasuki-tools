@@ -29,7 +29,7 @@ describe('時間切れの合図', () => {
   it('延長で正に戻ってから再び 0 に達したら、もう一度鳴らす（J20）', () => {
     const d = new Driver([5, 5]);
     const over = d.view(6 * MIN);
-    d.extend(3, 6 * MIN);
+    d.extend(3);
     const back = d.view(6 * MIN);
     expect(crossedZero(over, back)).toBe(false);
     expect(crossedZero(d.view(8 * MIN - 1), d.view(8 * MIN))).toBe(true);
@@ -83,7 +83,7 @@ describe('自動で次へ移ったときの合図', () => {
 
   it('延長したステップでも、延長後の持ち時間で自動で移ったら鳴らす', () => {
     const d = new Driver([1, 2], undefined, 'advance');
-    d.extend(1, 30_000);
+    d.extend(1);
     const before = d.view(2 * MIN - 30);
     d.tick(2 * MIN + 20);
     expect(crossedZero(before, d.view(2 * MIN + 20))).toBe(true);

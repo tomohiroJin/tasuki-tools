@@ -58,8 +58,8 @@ export class Driver {
     this.s = unwrap(resume(this.s, this.now(at)));
     return this;
   }
-  extend(minutes: number, at = 0): this {
-    this.s = unwrap(extend(this.s, { stepId: this.s.currentId ?? '', minutes, now: this.now(at) }));
+  extend(minutes: number): this {
+    this.s = unwrap(extend(this.s, { stepId: this.s.currentId ?? '', minutes }));
     return this;
   }
   /** サーバーの期限の発火（「自動で次へ」の区切りを期限ちょうどで進める） */

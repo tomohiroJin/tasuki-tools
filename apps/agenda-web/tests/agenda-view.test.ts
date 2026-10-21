@@ -152,7 +152,7 @@ describe('進める画面と映す表示の文字', () => {
   it('いまのステップを延長したときだけ「予定 7 分 + 3 分」と添える', () => {
     const d = new Driver([7, 5]);
     expect(extensionLine(d.view(MIN))).toBe('');
-    expect(extensionLine(d.extend(3, MIN).view(2 * MIN))).toBe('予定 7 分 + 3 分');
+    expect(extensionLine(d.extend(3).view(2 * MIN))).toBe('予定 7 分 + 3 分');
     // 次へ移ったら、前のステップの延長は添えない
     expect(extensionLine(d.next(8 * MIN).view(9 * MIN))).toBe('');
   });

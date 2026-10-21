@@ -141,10 +141,10 @@ export function resume(s: AgendaState, now: number): R<"AGENDA_NOT_STARTED"> {
   return ok({ ...s, phase: "running", runningSince: now });
 }
 
-/** いまの区切りを延長する。区切り ID が違えば何もしない。持ち時間が上限を超えれば拒む。`now` は呼び出しの対称性のために受ける。 */
+/** いまの区切りを延長する。区切り ID が違えば何もしない。持ち時間が上限を超えれば拒む。時刻は要らない（期限は `deadlineOf` が持ち時間から導く）。 */
 export function extend(
   s: AgendaState,
-  input: { stepId: string; minutes: number; now: number },
+  input: { stepId: string; minutes: number },
 ): R<"AGENDA_NOT_STARTED" | "STEP_BUDGET_EXCEEDED"> {
   if (s.phase === "idle") return fail("AGENDA_NOT_STARTED");
   if (s.phase === "finished" || s.currentId !== input.stepId) return ok(s);

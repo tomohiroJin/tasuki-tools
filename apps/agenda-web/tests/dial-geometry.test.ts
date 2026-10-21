@@ -80,7 +80,7 @@ function run(seed: number, check: (v: ReturnType<typeof toView>) => void): numbe
       now += int(rnd, 0, 300_000);
       s = okOr(s, resume(s, now));
     } else if (op < 0.92 && cur !== null) {
-      s = okOr(s, extend(s, { stepId: cur, minutes: [1, 3, 5][int(rnd, 0, 2)]!, now }));
+      s = okOr(s, extend(s, { stepId: cur, minutes: [1, 3, 5][int(rnd, 0, 2)]! }));
     } else {
       const target = s.steps[int(rnd, 0, s.steps.length - 1)]!;
       s = okOr(s, setSkipped(s, { stepId: target.id, skipped: rnd() < 0.5 }));

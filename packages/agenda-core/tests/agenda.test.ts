@@ -178,29 +178,29 @@ describe("pause / resume", () => {
 
 describe("extend", () => {
   it("idle は AGENDA_NOT_STARTED", () => {
-    expect(codeOf(extend(idle(), { stepId: "s-1", minutes: 3, now: 0 }))).toBe("AGENDA_NOT_STARTED");
+    expect(codeOf(extend(idle(), { stepId: "s-1", minutes: 3 }))).toBe("AGENDA_NOT_STARTED");
   });
   it("running で足す", () => {
-    const s = must(extend(running(), { stepId: "s-1", minutes: 3, now: 2000 }));
+    const s = must(extend(running(), { stepId: "s-1", minutes: 3 }));
     expect(s.steps[0]!.extensionSec).toBe(180);
   });
   it("paused でも足せる", () => {
-    const s = must(extend(paused(), { stepId: "s-1", minutes: 1, now: 5000 }));
+    const s = must(extend(paused(), { stepId: "s-1", minutes: 1 }));
     expect(s.steps[0]!.extensionSec).toBe(60);
   });
   it("同じ stepId に 3 分を 2 回で 360 秒（J7）", () => {
     let s = running();
-    s = must(extend(s, { stepId: "s-1", minutes: 3, now: 2000 }));
-    s = must(extend(s, { stepId: "s-1", minutes: 3, now: 2100 }));
+    s = must(extend(s, { stepId: "s-1", minutes: 3 }));
+    s = must(extend(s, { stepId: "s-1", minutes: 3 }));
     expect(s.steps[0]!.extensionSec).toBe(360);
   });
   it("ID 違いは何も変えない（m434）", () => {
     const s = running();
-    expect(must(extend(s, { stepId: "s-2", minutes: 3, now: 2000 }))).toBe(s);
+    expect(must(extend(s, { stepId: "s-2", minutes: 3 }))).toBe(s);
   });
   it("finished は同じ参照", () => {
     const s = finished();
-    expect(must(extend(s, { stepId: "s-5", minutes: 3, now: 9 }))).toBe(s);
+    expect(must(extend(s, { stepId: "s-5", minutes: 3 }))).toBe(s);
   });
   it("持ち時間が 14400 秒を超えると STEP_BUDGET_EXCEEDED", () => {
     // 14340 + 120 = 14460 秒は超える
@@ -208,14 +208,14 @@ describe("extend", () => {
       replaceScenario(INITIAL_AGENDA_STATE, { title: "t", steps: [{ name: "a", durationSec: 14340, onTimeout: "wait" }] }),
     );
     const s = must(start(big, 0));
-    expect(codeOf(extend(s, { stepId: "s-1", minutes: 2, now: 1 }))).toBe("STEP_BUDGET_EXCEEDED");
+    expect(codeOf(extend(s, { stepId: "s-1", minutes: 2 }))).toBe("STEP_BUDGET_EXCEEDED");
   });
   it("ちょうど 14400 秒は通る", () => {
     const big = must(
       replaceScenario(INITIAL_AGENDA_STATE, { title: "t", steps: [{ name: "a", durationSec: 14340, onTimeout: "wait" }] }),
     );
     const s = must(start(big, 0));
-    expect(must(extend(s, { stepId: "s-1", minutes: 1, now: 1 })).steps[0]!.extensionSec).toBe(60);
+    expect(must(extend(s, { stepId: "s-1", minutes: 1 })).steps[0]!.extensionSec).toBe(60);
   });
 });
 
@@ -266,7 +266,7 @@ describe("reset", () => {
   ])("%s から idle へ。延長・飛ばし・所要を消し、シナリオは残す", (_n, make) => {
     let s = make();
     if (s.phase !== "finished") {
-      s = must(extend(s, { stepId: "s-1", minutes: 3, now: 5000 }));
+      s = must(extend(s, { stepId: "s-1", minutes: 3 }));
       s = must(setSkipped(s, { stepId: "s-3", skipped: true }));
     }
     const r = must(reset(s));
@@ -297,7 +297,7 @@ describe("deadlineOf", () => {
     let s = running(0);
     s = must(pause(s, 100_000));
     s = must(resume(s, 500_000));
-    s = must(extend(s, { stepId: "s-1", minutes: 3, now: 500_000 }));
+    s = must(extend(s, { stepId: "s-1", minutes: 3 }));
     expect(deadlineOf(s)).toBe(500_000 + 300_000 + 180_000 - 100_000);
   });
   it.each([
