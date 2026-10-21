@@ -18,8 +18,14 @@ import {
 
 const MIN = 60_000;
 
-/** 差の向き（色に加えて「+」「−」の印が向きを持つ） */
-const toneOf = (ms: number): string => (Math.round(ms / 1000) > 0 ? 'is-late' : Math.round(ms / 1000) < 0 ? 'is-early' : 'is-even');
+/**
+ * 差の向き（色に加えて「+」「−」の印が向きを持つ）。**丸めは `signedDuration` と同じく絶対値で行う**
+ * （符号つきのまま丸めると −500ms が 0 になり、印は「−0:01」なのに色は「予定どおり」になる）。
+ */
+const toneOf = (ms: number): string => {
+  if (Math.round(Math.abs(ms) / 1000) === 0) return 'is-even';
+  return ms > 0 ? 'is-late' : 'is-early';
+};
 
 export function SummaryTable({ view }: { view: AgendaView }) {
   const summary = summaryOf(view);

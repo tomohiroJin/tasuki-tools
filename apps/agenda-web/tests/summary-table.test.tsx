@@ -83,6 +83,15 @@ describe('終了の一覧', () => {
     expect(within(s3).getByText('−3:00')).toBeInTheDocument();
   });
 
+  it('Given 予定より 500ms 早い行と 500ms 遅い行 / When 一覧を見る / Then 印と色の向きがそろう（どちらも絶対値を丸めて 1 秒）', () => {
+    // S1（1 分）を 59.5 秒・S2（2 分）を 2:00.5 で終えた
+    joinedRoom(new Driver([1, 2]).next(59_500).next(180_000).view(180_000));
+    const early = within(rowOf('S1')).getByText('−0:01');
+    expect(early).toHaveClass('is-early');
+    const late = within(rowOf('S2')).getByText('+0:01');
+    expect(late).toHaveClass('is-late');
+  });
+
   it('Given 終了した / When 「最初から」を確かめて押す / Then agenda.reset を送る', () => {
     joinedRoom(finished());
     fireEvent.click(screen.getByRole('button', { name: RESET_BUTTON }));
