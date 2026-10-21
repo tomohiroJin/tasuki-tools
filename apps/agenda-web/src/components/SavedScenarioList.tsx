@@ -1,5 +1,5 @@
 import { useId, useState, type FormEvent } from 'react';
-import { MAX_SCENARIO_TITLE, totalPlannedSec, type ScenarioInput } from '@tasuki/agenda-core';
+import { MAX_SCENARIO_TITLE, roundsOf, scenarioTotalSec, type ScenarioInput } from '@tasuki/agenda-core';
 import {
   REMOVE_BUTTON,
   SAVED_DONE,
@@ -31,7 +31,7 @@ const FAILURE_TEXT: Record<Extract<SaveResult, { ok: false }>['reason'], string>
 
 type Note = { readonly kind: 'done' | 'error'; readonly text: string } | null;
 
-const minutesOf = (s: ScenarioInput): number => totalPlannedSec(s.steps) / 60;
+const minutesOf = (s: ScenarioInput): number => scenarioTotalSec(s) / 60;
 
 interface Props {
   /** 保存する中身（検証を通った下書き。通らなければ null で、保存を押させない） */
@@ -88,7 +88,7 @@ export function SavedScenarioList({ scenario, suggestedName, onPick }: Props) {
             <li key={item.name} className="builder-saved-row">
               <button type="button" className="builder-saved-pick" onClick={() => onPick(item.scenario)}>
                 <span className="builder-saved-name">{item.name}</span>
-                <span className="builder-saved-detail">{scenarioDetail(item.scenario.steps.length, minutesOf(item.scenario))}</span>
+                <span className="builder-saved-detail">{scenarioDetail(item.scenario.steps.length, minutesOf(item.scenario), roundsOf(item.scenario))}</span>
               </button>
               <button
                 type="button"

@@ -156,7 +156,7 @@ export function useAgendaSync(roomCode: string): AgendaSync {
       send(cmd as unknown as Record<string, unknown>);
     };
     return {
-      setScenario: (scenario: ScenarioInput) => sendCommand({ command: 'agenda.scenario.set', scenario: { title: scenario.title, steps: [...scenario.steps] } }),
+      setScenario: (scenario: ScenarioInput) => sendCommand({ command: 'agenda.scenario.set', scenario: { title: scenario.title, steps: [...scenario.steps], ...(scenario.rounds === undefined ? {} : { rounds: scenario.rounds }) } }),
       start: () => sendCommand({ command: 'agenda.start' }),
       next: (stepId: string) => sendCommand({ command: 'agenda.next', stepId }),
       pause: () => sendCommand({ command: 'agenda.pause' }),

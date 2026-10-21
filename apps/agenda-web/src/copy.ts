@@ -84,7 +84,8 @@ export const REMOVE_BUTTON = '消す';
 /** サンプルの札の 1 ステップ（名前は同梱の文字で、書体の検査の外） */
 export const sampleStepText = (name: string, minutes: number): string => `${name} ${minutes} 分`;
 /** サンプルの札・保存済みの行の添え書き */
-export const scenarioDetail = (steps: number, minutes: number): string => `${steps} ステップ・${minutes} 分`;
+export const scenarioDetail = (steps: number, minutes: number, rounds: number): string =>
+  rounds >= 2 ? `${steps} ステップ・${minutes} 分 × ${rounds} 回` : `${steps} ステップ・${minutes} 分`;
 export const MAX_STEPS_NOTE = `ステップは ${MAX_ITEMS} までです`;
 // 「ルームに読み込む」を押せない理由（最初の 1 つだけ出す）
 export const NEED_STEP_TEXT = 'ステップを追加してください';
@@ -97,6 +98,8 @@ export const totalTooLongText = (minutes: number): string => `合計は ${MAX_TO
 // くりかえし（回数）
 export const ROUNDS_LABEL = 'くりかえし';
 export const ROUNDS_UNIT = '回';
+export const roundsMinusLabel = `${ROUNDS_LABEL}を 1 回へらす`;
+export const roundsPlusLabel = `${ROUNDS_LABEL}を 1 回ふやす`;
 export const roundsRangeText = (): string => `くりかえしは ${MIN_ROUNDS}〜${MAX_ROUNDS} 回で入れてください`;
 export const plannedStepsTooManyText = (count: number): string =>
   `ステップ × 回数は ${MAX_PLANNED_STEPS} までです（いま ${count}）`;
