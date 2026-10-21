@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { MAX_SCENARIO_TITLE, type AgendaView, type ScenarioInput } from '@tasuki/agenda-core';
+import { MAX_SCENARIO_TITLE, totalPlannedSec, type AgendaView, type ScenarioInput } from '@tasuki/agenda-core';
 import {
   ADD_STEP_BUTTON,
   BACK_TO_ROOM_SCENARIO_BUTTON,
@@ -246,7 +246,7 @@ function SampleCards({ onPick }: { onPick: (scenario: ScenarioInput) => void }) 
   return (
     <div className="builder-samples">
       {SAMPLE_SCENARIOS.map((sample) => {
-        const minutes = sample.scenario.steps.reduce((sum, s) => sum + s.durationSec, 0) / 60;
+        const minutes = totalPlannedSec(sample.scenario.steps) / 60;
         return (
           <button key={sample.label} type="button" className="builder-sample" onClick={() => onPick(sample.scenario)}>
             <span className="builder-sample-title">{SAMPLE_TITLE}</span>

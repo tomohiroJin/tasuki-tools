@@ -4,10 +4,8 @@
  *
  * 「次へ」と延長は**押した瞬間のいまのステップの ID** を載せる（spec §4.6。古い画面の押下はサーバーが捨てる）。
  */
-import { EXTEND_MINUTES, type AgendaView } from '@tasuki/agenda-core';
+import { EXTEND_MINUTES, type AgendaView, type ExtendMinutes } from '@tasuki/agenda-core';
 import { EXTEND_LABEL, NEXT_BUTTON, PAUSE_BUTTON, RESUME_BUTTON, extendButton } from '../copy';
-
-type ExtendMinutes = (typeof EXTEND_MINUTES)[number];
 
 interface Props {
   view: AgendaView;

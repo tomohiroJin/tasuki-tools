@@ -17,23 +17,31 @@ import {
   STEP_SEC_MAX,
   STEP_SEC_MIN,
 } from "./limits.js";
+import { totalPlannedSec } from "./scenario.js";
 
 /** C0 制御文字と DEL */
 // eslint-disable-next-line no-control-regex -- 制御文字を拒むのが目的
 const CONTROL_CHARS = /[\u0000-\u001F\u007F]/;
 
+/**
+ * 制御文字（C0 と DEL）を含むか。**境界のスキーマと画面の検証（作る画面・端末の保存）が同じ規則を使う**ための正本。
+ */
+export function hasControlChars(s: string): boolean {
+  return CONTROL_CHARS.test(s);
+}
+
 const stepNameStr = v.pipe(
   v.string(),
   v.maxLength(MAX_STEP_NAME),
   v.check((s) => s.trim().length > 0, "step name must not be blank"),
-  v.check((s) => !CONTROL_CHARS.test(s), "step name must not contain control characters"),
+  v.check((s) => !hasControlChars(s), "step name must not contain control characters"),
 );
 
 // 会の名前は空を許す
 const scenarioTitleStr = v.pipe(
   v.string(),
   v.maxLength(MAX_SCENARIO_TITLE),
-  v.check((s) => !CONTROL_CHARS.test(s), "title must not contain control characters"),
+  v.check((s) => !hasControlChars(s), "title must not contain control characters"),
 );
 
 const timeoutBehavior = v.picklist(["wait", "advance"]);
@@ -56,7 +64,7 @@ export const ScenarioInputSchema = v.strictObject({
     v.array(StepInputSchema),
     v.minLength(1),
     v.maxLength(MAX_ITEMS),
-    v.check((steps) => steps.reduce((sum, s) => sum + s.durationSec, 0) <= MAX_TOTAL_SEC, "total duration too long"),
+    v.check((steps) => totalPlannedSec(steps) <= MAX_TOTAL_SEC, "total duration too long"),
   ),
 });
 

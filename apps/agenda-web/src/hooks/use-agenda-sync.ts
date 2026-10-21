@@ -37,13 +37,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { DepartureReason, RosterRoom } from '@tasuki/room-core';
 import { buildSyncUrl, type ConnectionNoticeKind, type ConnectionStatus } from '@tasuki/sync-client';
 import { useToolRoomSync } from '@tasuki/web-kit/sync';
-import type { AgendaCommand, AgendaView, EXTEND_MINUTES, ScenarioInput } from '@tasuki/agenda-core';
+import type { AgendaCommand, AgendaView, ExtendMinutes, ScenarioInput } from '@tasuki/agenda-core';
 import type { TopicState } from '@tasuki/topic-core';
 import { DEFAULT_ERROR_TEXT, RETRY_EXHAUSTED_TEXT, RETRY_WAITING_TEXT } from '../copy';
 import { parseAgendaWebMessage } from '../server-message';
-
-/** 延長の刻み（分）。1 / 3 / 5 だけ（agenda-core の `EXTEND_MINUTES`） */
-type ExtendMinutes = (typeof EXTEND_MINUTES)[number];
 
 /** 同期サーバーへの URL。**入口は玄関と同じ `/ws` で、ツールはクエリが宣言する**。 */
 export function agendaSyncUrl(location: { protocol: string; host: string }): string {

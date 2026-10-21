@@ -6,6 +6,7 @@ import {
   AgendaErrorFrameSchema,
   AgendaFrameSchema,
   ScenarioInputSchema,
+  hasControlChars,
 } from "../src/index.js";
 
 const step = (over: Record<string, unknown> = {}) => ({ name: "a", durationSec: 300, onTimeout: "wait", ...over });
@@ -106,5 +107,15 @@ describe("フレーム", () => {
     expect(AGENDA_ERROR_CODES.slice(0, 6)).toEqual([
       "INVALID_JSON", "INVALID_COMMAND", "NOT_IN_ROOM", "RATE_LIMITED", "MESSAGE_TOO_LARGE", "INTERNAL_ERROR",
     ]);
+  });
+});
+
+describe("hasControlChars（画面の検証と境界のスキーマが同じ規則を使う）", () => {
+  it.each(["a\u0000b", "\t", "改\n行", "\u001F", "\u007F"])("制御文字を含む: %j", (s) => {
+    expect(hasControlChars(s)).toBe(true);
+  });
+
+  it.each(["", "ふりかえり", "a b", "\u0080"])("含まない: %j", (s) => {
+    expect(hasControlChars(s)).toBe(false);
   });
 });

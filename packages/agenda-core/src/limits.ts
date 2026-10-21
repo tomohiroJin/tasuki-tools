@@ -23,3 +23,5 @@ export const MAX_STEP_BUDGET_SEC = 14400;
 
 /** 延長の刻み（分）。1 / 3 / 5 だけ */
 export const EXTEND_MINUTES = [1, 3, 5] as const;
+/** 延長の刻み（分）の型。画面の操作と同期の層はこれを使う（`EXTEND_MINUTES` から導く） */
+export type ExtendMinutes = (typeof EXTEND_MINUTES)[number];

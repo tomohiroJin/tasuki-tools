@@ -9,6 +9,7 @@ export {
   MAX_STEP_BUDGET_SEC,
   EXTEND_MINUTES,
 } from "./limits.js";
+export type { ExtendMinutes } from "./limits.js";
 
 export type {
   TimeoutBehavior,
@@ -38,6 +39,7 @@ export {
   AgendaFrameSchema,
   AgendaErrorFrameSchema,
   AGENDA_ERROR_CODES,
+  hasControlChars,
 } from "./schemas.js";
 export type { AgendaCommand, AgendaErrorCode } from "./schemas.js";
 

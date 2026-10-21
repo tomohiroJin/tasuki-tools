@@ -25,4 +25,8 @@ describe("シナリオの展開", () => {
   it("予定の合計秒を返す", () => {
     expect(totalPlannedSec(expand(input))).toBe(780);
   });
+
+  it("予定の合計秒は、展開前の入力のステップからも数えられる（画面の分の合計と同じ数え方）", () => {
+    expect(totalPlannedSec(input.steps)).toBe(780);
+  });
 });

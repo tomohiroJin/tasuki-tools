@@ -7,7 +7,7 @@
  * - 終了: 盤（かかった時間と予定より）と一覧（`SummaryTable`）・「最初から」
  */
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
-import { EXTEND_MINUTES, type AgendaView } from '@tasuki/agenda-core';
+import type { AgendaView, ExtendMinutes } from '@tasuki/agenda-core';
 import { extensionLine } from '../agenda-view';
 import { FINISHED_LABEL, PROJECT_BUTTON, SPEAK_SUMMARY_BUTTON } from '../copy';
 import { Dial } from './Dial';
@@ -16,8 +16,6 @@ import { ResetControl } from './ResetControl';
 import { RunControls } from './RunControls';
 import { StepList } from './StepList';
 import { SummaryTable } from './SummaryTable';
-
-type ExtendMinutes = (typeof EXTEND_MINUTES)[number];
 
 export interface RunActions {
   next(stepId: string): void;

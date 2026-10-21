@@ -2,7 +2,7 @@
  * シナリオの端末への保存（#429 spec §5）。localStorage に版つきで持ち、読むときに最新の形へ移す。
  * 読み込みは決して投げない（壊れた JSON は空、合わない項目は読み飛ばす）。
  */
-import { MAX_SCENARIO_TITLE, ScenarioInputSchema, type ScenarioInput } from '@tasuki/agenda-core';
+import { MAX_SCENARIO_TITLE, ScenarioInputSchema, hasControlChars, type ScenarioInput } from '@tasuki/agenda-core';
 import * as v from 'valibot';
 
 export const SAVED_SCENARIOS_KEY = 'tasuki.agenda.scenarios';
@@ -21,13 +21,10 @@ export type Migrations = Record<number, (raw: unknown) => unknown>;
 /** 現在は移行する旧版が無い。形が変わったらここへ足す。 */
 export const MIGRATIONS: Migrations = {};
 
-// eslint-disable-next-line no-control-regex -- 制御文字を拒むのが目的
-const CONTROL_CHARS = /[\u0000-\u001F\u007F]/;
-
 const isRecord = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x);
 
 const validName = (name: unknown): name is string =>
-  typeof name === 'string' && name.trim().length > 0 && name.length <= MAX_SCENARIO_TITLE && !CONTROL_CHARS.test(name);
+  typeof name === 'string' && name.trim().length > 0 && name.length <= MAX_SCENARIO_TITLE && !hasControlChars(name);
 
 const validScenario = (x: unknown): x is ScenarioInput =>
   v.safeParse(ScenarioInputSchema, x).success;

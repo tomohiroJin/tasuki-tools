@@ -13,6 +13,7 @@ import {
   STEP_SEC_MIN,
   ScenarioInputSchema,
   expand,
+  hasControlChars,
   type AgendaView,
   type ScenarioInput,
   type TimeoutBehavior,
@@ -44,9 +45,6 @@ export const MIN_MINUTES = STEP_SEC_MIN / 60;
 export const MAX_MINUTES = STEP_SEC_MAX / 60;
 /** 行を足したときの分 */
 const NEW_STEP_MINUTES = 5;
-
-// eslint-disable-next-line no-control-regex -- 制御文字を拒むのが目的（agenda-core の検証と同じ範囲）
-const CONTROL_CHARS = /[\u0000-\u001F\u007F]/;
 
 let keySeq = 0;
 const nextKey = (): number => ++keySeq;
@@ -99,10 +97,10 @@ export type DraftCheck = { readonly ok: true; readonly input: ScenarioInput } | 
 /** 最初に見つかった理由を 1 つ返す。理由の順は画面の上から（会の名前 → 行 → 合計） */
 function firstReason(d: Draft): string | null {
   if (d.steps.length === 0) return NEED_STEP_TEXT;
-  if (CONTROL_CHARS.test(d.title)) return TITLE_CONTROL_TEXT;
+  if (hasControlChars(d.title)) return TITLE_CONTROL_TEXT;
   for (const [i, s] of d.steps.entries()) {
     if (s.name.trim() === '') return stepNameBlankText(i + 1);
-    if (CONTROL_CHARS.test(s.name)) return stepNameControlText(i + 1);
+    if (hasControlChars(s.name)) return stepNameControlText(i + 1);
     if (!inRange(minutesOf(s))) return stepMinutesRangeText(i + 1);
   }
   const total = totalMinutes(d);
