@@ -66,6 +66,39 @@ describe('手元の時計', () => {
     expect(result.current?.runElapsedMs).toBe(8000);
   });
 
+  it('Given 進行中の状態 / When 同じ秒の中で rAF が回る / Then 描き直さず、秒の境目を越えた rAF で描き直す', () => {
+    // 盤の数字は秒で変わる。毎フレーム（60fps）画面全体を描き直さない
+    let renders = 0;
+    const { result } = renderHook(() => {
+      renders += 1;
+      return useLocalClock(view({}), 10_000, false);
+    });
+    const before = renders;
+    nowMs += 500;
+    act(() => frame());
+    nowMs += 499;
+    act(() => frame());
+    expect(renders).toBe(before);
+    expect(rafCallbacks.size).toBe(1);
+    nowMs += 1;
+    act(() => frame());
+    expect(renders).toBe(before + 1);
+    expect(result.current?.stepTimerMs).toBe(2000);
+  });
+
+  it('Given 一時停止中の状態 / When 実時間の経過が秒の境目を越える / Then 描き直す（区切りの計時は止まっていても所要と経過は進む）', () => {
+    let renders = 0;
+    const { result } = renderHook(() => {
+      renders += 1;
+      return useLocalClock(view({ phase: 'paused' }), 10_000, false);
+    });
+    const before = renders;
+    nowMs += 1000;
+    act(() => frame());
+    expect(renders).toBe(before + 1);
+    expect(result.current?.runElapsedMs).toBe(4000);
+  });
+
   it('Given 受け取った時刻が過去 / When 描く / Then 受け取ってからの経過ぶん進める', () => {
     const { result } = renderHook(() => useLocalClock(view({}), 7000, false));
     expect(result.current?.stepTimerMs).toBe(4000);
