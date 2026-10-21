@@ -69,12 +69,15 @@ export function unlockAudio(): void {
   else notifyState();
 }
 
-/** 初回の利用者の操作で解錠する。冪等。進める画面を開いたときに呼ぶ */
+/** 初回の利用者の操作で解錠する（音の切り替えの上の押下を除く）。冪等。進める画面を開いたときに呼ぶ */
 let unlockInstalled = false;
 export function installAudioUnlock(): void {
   if (unlockInstalled || typeof window === 'undefined') return;
   unlockInstalled = true;
-  const unlock = (): void => {
+  const unlock = (e: Event): void => {
+    // 音の切り替えの上の押下は、切り替え自身の click に任せる（ここで解錠すると、click の時点で「音あり」に
+    // なっていて押下が「音なし」へ倒す。pointerdown / keydown は click より先に起きる）
+    if (e.target instanceof Element && e.target.closest('[data-sound-toggle]') !== null) return;
     unlockAudio();
     window.removeEventListener('pointerdown', unlock);
     window.removeEventListener('keydown', unlock);

@@ -24,6 +24,7 @@ export function SoundToggle({ state, onToggle }: Props) {
       type="button"
       className={soundOn ? 'sound-toggle is-on ui-button ui-button--quiet ui-button--sm' : 'sound-toggle ui-button ui-button--quiet ui-button--sm'}
       aria-pressed={soundOn}
+      data-sound-toggle
       onClick={onToggle}
     >
       <span className="sound-toggle-mark" aria-hidden="true" />
