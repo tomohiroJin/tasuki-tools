@@ -5,7 +5,7 @@
  * 文言（関数は仮の名前で呼んだ結果）だけを書体の常用の層（base）に当てて守っている。
  * 直書きした文言はその検査を素通りする。足す・変えるときは `outsideBase` で実測してから使う。
  */
-import { MAX_ITEMS, MAX_TOTAL_SEC, STEP_SEC_MAX, STEP_SEC_MIN } from '@tasuki/agenda-core';
+import { MAX_ITEMS, MAX_PLANNED_STEPS, MAX_ROUNDS, MAX_TOTAL_SEC, MIN_ROUNDS, STEP_SEC_MAX, STEP_SEC_MIN } from '@tasuki/agenda-core';
 
 export const LOADING_TEXT = '読み込んでいます…';
 export const JOINING_HEADING = 'ルームに参加しています';
@@ -62,7 +62,9 @@ export const ADD_STEP_BUTTON = 'ステップを追加';
 export const MOVE_UP_BUTTON = '上へ';
 export const MOVE_DOWN_BUTTON = '下へ';
 export const MINUTES_UNIT = '分';
-export const SAMPLE_TITLE = 'サンプル：KPT のふりかえり';
+/** サンプルの札の見出し（札ごとに会の名前で区別する） */
+export const sampleTitle = (label: string): string => `サンプル：${label}`;
+export const SAMPLE_TITLE = sampleTitle('KPT のふりかえり');
 export const SAVE_LOCAL_BUTTON = 'この端末に保存';
 export const LOAD_TO_ROOM_BUTTON = 'ルームに読み込む';
 export const SCENARIO_CHANGED_NOTE = 'シナリオが変わりました';
@@ -92,6 +94,15 @@ export const stepNameControlText = (n: number): string => `ステップ ${n} の
 export const stepMinutesRangeText = (n: number): string =>
   `ステップ ${n} の分は ${STEP_SEC_MIN / 60}〜${STEP_SEC_MAX / 60} で入れてください`;
 export const totalTooLongText = (minutes: number): string => `合計は ${MAX_TOTAL_SEC / 60} 分までです（いま ${minutes} 分）`;
+// くりかえし（回数）
+export const ROUNDS_LABEL = 'くりかえし';
+export const ROUNDS_UNIT = '回';
+export const roundsRangeText = (): string => `くりかえしは ${MIN_ROUNDS}〜${MAX_ROUNDS} 回で入れてください`;
+export const plannedStepsTooManyText = (count: number): string =>
+  `ステップ × 回数は ${MAX_PLANNED_STEPS} までです（いま ${count}）`;
+/** 例「1 回あたり 8 分 × 6 回 ＝ 全部で 48 分」 */
+export const perRoundSummary = (perRoundMin: number, rounds: number, totalMin: number): string =>
+  `1 回あたり ${perRoundMin} 分 × ${rounds} 回 ＝ 全部で ${totalMin} 分`;
 // 端末への保存
 export const SAVED_HEADING = '保存済み';
 export const SAVE_NAME_LABEL = '保存する名前';

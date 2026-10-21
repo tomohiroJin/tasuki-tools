@@ -7,7 +7,7 @@ import {
   LOAD_FIRST_TEXT,
   LOAD_TO_ROOM_BUTTON,
   MAX_STEPS_NOTE,
-  SAMPLE_TITLE,
+  sampleTitle,
   SCENARIO_CHANGED_NOTE,
   SCENARIO_TITLE_LABEL,
   START_BUTTON,
@@ -249,7 +249,7 @@ function SampleCards({ onPick }: { onPick: (scenario: ScenarioInput) => void }) 
         const minutes = totalPlannedSec(sample.scenario.steps) / 60;
         return (
           <button key={sample.label} type="button" className="builder-sample" onClick={() => onPick(sample.scenario)}>
-            <span className="builder-sample-title">{SAMPLE_TITLE}</span>
+            <span className="builder-sample-title">{sampleTitle(sample.label)}</span>
             <span className="builder-sample-detail">{scenarioDetail(sample.scenario.steps.length, minutes)}</span>
             <span className="builder-sample-bar" aria-hidden="true">
               {sample.scenario.steps.map((s) => (

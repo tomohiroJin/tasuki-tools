@@ -1,11 +1,12 @@
 /**
  * シナリオの端末への保存（#429 spec §5・§7.6）。
  */
-import { ScenarioInputSchema, type ScenarioInput } from '@tasuki/agenda-core';
+import { ScenarioInputSchema, roundsOf, type ScenarioInput } from '@tasuki/agenda-core';
 import * as v from 'valibot';
 import { describe, expect, it } from 'vitest';
 import { SAMPLE_SCENARIOS } from '../src/sample-scenarios';
 import {
+  MIGRATIONS,
   SAVED_SCENARIOS_KEY,
   deleteSaved,
   loadSaved,
@@ -41,7 +42,25 @@ describe('シナリオの端末への保存', () => {
     const r = saveScenario(s, '朝会', scenario('朝会'), 1000);
     expect(r.ok).toBe(true);
     expect(loadSaved(s)).toEqual([{ name: '朝会', savedAt: 1000, scenario: scenario('朝会') }]);
-    expect(JSON.parse(s.getItem(SAVED_SCENARIOS_KEY) ?? '').version).toBe(1);
+    expect(JSON.parse(s.getItem(SAVED_SCENARIOS_KEY) ?? '').version).toBe(2);
+  });
+
+  it('版 1 の保存を読むと回数 1 のシナリオとして読める', () => {
+    const s = fakeStorage();
+    s.setItem(SAVED_SCENARIOS_KEY, JSON.stringify({ version: 1, items: [{ name: '旧', savedAt: 3, scenario: scenario('旧') }] }));
+    const got = loadSaved(s);
+    expect(got).toHaveLength(1);
+    expect(got[0] && roundsOf(got[0].scenario)).toBe(1);
+    expect(got[0]?.scenario).toEqual(scenario('旧'));
+  });
+
+  it('回数 6 を保存して読み直すと回数 6 が残り、版 2 で書かれる', () => {
+    const s = fakeStorage();
+    const six: ScenarioInput = { ...scenario('朝会'), rounds: 6 };
+    expect(saveScenario(s, '朝会', six, 1).ok).toBe(true);
+    expect(JSON.parse(s.getItem(SAVED_SCENARIOS_KEY) ?? '').version).toBe(2);
+    const got = loadSaved(s);
+    expect(got[0] && roundsOf(got[0].scenario)).toBe(6);
   });
 
   it('同じ名前は上書きし、別の名前は足す', () => {
@@ -83,9 +102,9 @@ describe('シナリオの端末への保存', () => {
     expect(saveScenario(s, 'x'.repeat(60), scenario('1'), 1).ok).toBe(true);
   });
 
-  it('将来の版（version 2）の保存は、保存・削除を試みても手つかずで残る', () => {
+  it('将来の版（version 3）の保存は、保存・削除を試みても手つかずで残る', () => {
     const s = fakeStorage();
-    const future = JSON.stringify({ version: 2, items: [{ name: '未来', shape: 'new' }] });
+    const future = JSON.stringify({ version: 3, items: [{ name: '未来', shape: 'new' }] });
     s.setItem(SAVED_SCENARIOS_KEY, future);
     expect(saveScenario(s, 'A', scenario('1'), 1)).toEqual({ ok: false, reason: 'unreadable' });
     expect(deleteSaved(s, 'A')).toEqual({ ok: false, reason: 'unreadable' });
@@ -193,6 +212,7 @@ describe('シナリオの端末への保存', () => {
       }),
     );
     const migrations: Record<number, (raw: unknown) => unknown> = {
+      ...MIGRATIONS,
       0: (raw) => {
         const r = raw as { items: { name: string; savedAt: number; scenario: { title: string; steps: { name: string; durationMin: number; onTimeout: string }[] } }[] };
         return {
@@ -234,5 +254,23 @@ describe('同梱のサンプル', () => {
     expect(kpt?.scenario.steps.reduce((a, st) => a + st.durationSec, 0)).toBe(3600);
     expect(kpt?.scenario.steps.map((st) => st.name)).toEqual(['K を出す', 'P を出す', '投票', 'Try の議論', '予備']);
     expect(kpt?.scenario.steps.every((st) => st.onTimeout === 'wait')).toBe(true);
+  });
+
+  it('朝会と LT 会が KPT のあとに並び、回数つきで検証を通る', () => {
+    expect(SAMPLE_SCENARIOS.map((x) => x.label)).toEqual(['KPT のふりかえり', '朝会', 'LT 会']);
+    for (const x of SAMPLE_SCENARIOS) expect(v.safeParse(ScenarioInputSchema, x.scenario).success).toBe(true);
+    expect(SAMPLE_SCENARIOS[1]?.scenario).toEqual({
+      title: '朝会',
+      steps: [{ name: '話す', durationSec: 120, onTimeout: 'advance' }],
+      rounds: 6,
+    });
+    expect(SAMPLE_SCENARIOS[2]?.scenario).toEqual({
+      title: 'LT 会',
+      steps: [
+        { name: '発表', durationSec: 300, onTimeout: 'advance' },
+        { name: '入れ替え', durationSec: 60, onTimeout: 'advance' },
+      ],
+      rounds: 5,
+    });
   });
 });

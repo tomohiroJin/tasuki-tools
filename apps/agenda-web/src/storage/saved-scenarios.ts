@@ -6,7 +6,7 @@ import { MAX_SCENARIO_TITLE, ScenarioInputSchema, hasControlChars, type Scenario
 import * as v from 'valibot';
 
 export const SAVED_SCENARIOS_KEY = 'tasuki.agenda.scenarios';
-export const CURRENT_VERSION = 1;
+export const CURRENT_VERSION = 2;
 
 export interface SavedScenario {
   readonly name: string;
@@ -18,8 +18,13 @@ export interface SavedScenario {
 /** 版 N の生の中身を版 N+1 へ移す。キーは移す元の版。 */
 export type Migrations = Record<number, (raw: unknown) => unknown>;
 
-/** 現在は移行する旧版が無い。形が変わったらここへ足す。 */
-export const MIGRATIONS: Migrations = {};
+/**
+ * 版 1 → 2: シナリオに回数（`rounds`）が増えた。省略は 1 回なので、形は書き換えず版だけ上げる。
+ * 形が変わったらここへ足す。
+ */
+export const MIGRATIONS: Migrations = {
+  1: (raw) => ({ ...(raw as Record<string, unknown>), version: 2 }),
+};
 
 const isRecord = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x);
 

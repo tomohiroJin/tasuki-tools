@@ -17,4 +17,23 @@ export const SAMPLE_SCENARIOS: readonly { readonly label: string; readonly scena
       ],
     },
   },
+  {
+    label: '朝会',
+    scenario: {
+      title: '朝会',
+      steps: [{ name: '話す', durationSec: 120, onTimeout: 'advance' }],
+      rounds: 6,
+    },
+  },
+  {
+    label: 'LT 会',
+    scenario: {
+      title: 'LT 会',
+      steps: [
+        { name: '発表', durationSec: 300, onTimeout: 'advance' },
+        { name: '入れ替え', durationSec: 60, onTimeout: 'advance' },
+      ],
+      rounds: 5,
+    },
+  },
 ];
