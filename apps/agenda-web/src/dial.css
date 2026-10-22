@@ -390,6 +390,10 @@
   align-items: center;
   gap: var(--space-1);
 }
+/* 小さな印は 1em（約 16px）に畳むので、線は小さな大きさに合わせて細くする（巻きの太い縁取りにも勝つ） */
+.dial-end-mark .dial-marker {
+  stroke-width: 1;
+}
 .dial-end-mark {
   flex: none;
   width: 1em;

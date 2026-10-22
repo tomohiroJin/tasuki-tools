@@ -185,7 +185,7 @@ const MARKER_PATH = 'M0 7 L-6 -5 L6 -5 Z';
 export function ProjectedEndMark({ view }: { view: AgendaView }) {
   return (
     <svg className="dial-end-mark" viewBox="-8 -7 16 16" aria-hidden="true" focusable="false">
-      <path className={`dial-marker dial-marker--${driftTone(view)}`} d={MARKER_PATH} />
+      <path className={`dial-marker dial-marker--${driftTone(view)} dial-marker--small`} d={MARKER_PATH} />
     </svg>
   );
 }

@@ -5,7 +5,6 @@
 import { driftMs, plannedTotalMs, projectedEndMs, remainingMs, type AgendaView, type StepView } from '@tasuki/agenda-core';
 import {
   FINISHED_LABEL,
-  FOOTER_SEPARATOR,
   NOT_STARTED_LABEL,
   ON_PLAN_LABEL,
   OVERRUN_LABEL,
@@ -166,12 +165,6 @@ export function footerParts(v: AgendaView, wallNow: Date): { next: string; end: 
   return { next: following === undefined ? '' : nextStepText(following.name), end: projectedEndText(projectedEndClock(v, wallNow)) };
 }
 
-/** 盤の下の一行: 「次は ◯◯ ・ 15:02 に終了見込み」。終了後は空 */
-export function footerLine(v: AgendaView, wallNow: Date): string {
-  const { next, end } = footerParts(v, wallNow);
-  return next === '' ? end : `${next}${FOOTER_SEPARATOR}${end}`;
-}
-
 /** 1 回あたり 1 ステップで回数 2 以上（朝会）。回の見出しを出さず、行の番号に回の数を出す */
 export const isSingleStepRounds = (v: AgendaView): boolean => v.rounds >= 2 && definedStepCount(v) === 1;
 
@@ -213,12 +206,13 @@ function statusOf(v: AgendaView, x: StepView): StepStatus {
 /** 進行表の行 */
 export function stepRows(v: AgendaView): StepRow[] {
   const seenInRound = new Map<number, number>();
+  const singleStepRounds = isSingleStepRounds(v);
   return v.steps.map((x, i) => {
     const inRound = (seenInRound.get(x.round) ?? 0) + 1;
     seenInRound.set(x.round, inRound);
     return {
       id: x.id,
-      number: isSingleStepRounds(v) ? x.round : v.rounds >= 2 ? inRound : i + 1,
+      number: singleStepRounds ? x.round : v.rounds >= 2 ? inRound : i + 1,
       round: x.round,
       name: x.name,
       status: statusOf(v, x),

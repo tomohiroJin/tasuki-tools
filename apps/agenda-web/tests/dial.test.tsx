@@ -179,7 +179,10 @@ describe('盤の下の一行の終了見込みの印', () => {
     const rimPath = container.querySelector('.dial-watch .dial-marker');
     expect(path?.getAttribute('d')).toBe('M0 7 L-6 -5 L6 -5 Z');
     expect(path?.getAttribute('d')).toBe(rimPath?.getAttribute('d'));
-    expect(path?.getAttribute('class')).toBe(rimPath?.getAttribute('class'));
+    // 小さな印は線を細くするクラスを足す。盤の縁の印には足さない
+    expect(path).toHaveClass('dial-marker--small');
+    expect(rimPath).not.toHaveClass('dial-marker--small');
+    expect(path?.getAttribute('class')).toBe(`${rimPath?.getAttribute('class')} dial-marker--small`);
     // 印は終了見込みの文の前、文は変わらない
     const end = footer?.querySelector('.dial-footer-end');
     expect(end?.firstElementChild).toBe(mark);

@@ -115,10 +115,7 @@ export const roundsRangeText = (): string => `くりかえしは ${MIN_ROUNDS}�
 export const MAX_PLANNED_NOTE = `ステップ × くりかえしは ${MAX_PLANNED_STEPS} までです`;
 export const plannedStepsTooManyText = (count: number): string =>
   `ステップ × 回数は ${MAX_PLANNED_STEPS} までです（いま ${count}）`;
-/** 例「1 回あたり 8 分 × 6 回 ＝ 全部で 48 分」 */
-export const perRoundSummary = (perRoundMin: number, rounds: number, totalMin: number): string =>
-  perRoundSummaryParts(perRoundMin, rounds, totalMin).join(' ');
-/** 合計の行の意味の塊（画面は塊を折り返さず、塊の間でだけ折る） */
+/** 合計の行の意味の塊（例「1 回あたり 8 分」「× 6 回」「＝ 全部で 48 分」。画面は塊を折り返さず、塊の間でだけ折る） */
 export const perRoundSummaryParts = (perRoundMin: number, rounds: number, totalMin: number): string[] => [
   `1 回あたり ${perRoundMin} 分`,
   `× ${rounds} 回`,

@@ -137,6 +137,8 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
   const canLoad = canOperate && check.ok && !sameAsRoom;
   const canStart = canOperate && roomReady && sameAsRoom;
   const draftIsEmpty = isEmptyDraft(draft);
+  // ルームのシナリオの写しのままの下書き（ルームが空なら写しではない）。消えても取り戻せるので確かめない
+  const draftIsRoom = roomReady && scenarioKey(inputFromDraft(draft)) === scenarioKey(room);
   const preview = previewView(draft);
   const reason = actionReason(check, draft.steps.length > 0, sameAsRoom);
   const roundsNow = roundsOfDraft(draft);
@@ -257,7 +259,7 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
           </div>
         </section>
         {/* 主の欄（会の名前・ステップ・くりかえし）の下に控えめに置く（主役を押しのけない） */}
-        <SampleMenu draftIsEmpty={draftIsEmpty} onPick={(s) => setDraft(draftFromInput(s))} />
+        <SampleMenu draftIsDisposable={draftIsEmpty || draftIsRoom} onPick={(s) => setDraft(draftFromInput(s))} />
       </div>
       <div className="ui-workspace-side builder-side">
         <section className="ui-panel builder-preview">
@@ -309,10 +311,10 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
 
 /**
  * 「サンプルから選ぶ」（#429 フィードバック F1〜F3）。小さな開閉のボタンで、押したときだけ 3 行の一覧を開く。
- * 下書きに中身があるときに選んだら、その場で「いまの下書きを消して読み込みますか」と確かめる（「最初から」と同じ作り:
+ * 下書きに中身があり、ルームのシナリオとも違うときに選んだら、その場で「いまの下書きを消して読み込みますか」と確かめる（「最初から」と同じ作り:
  * 確かめを開いたら安全な側＝やめる にフォーカス、閉じたら開閉のボタンへ返す）。
  */
-function SampleMenu({ draftIsEmpty, onPick }: { draftIsEmpty: boolean; onPick: (scenario: ScenarioInput) => void }) {
+function SampleMenu({ draftIsDisposable, onPick }: { draftIsDisposable: boolean; onPick: (scenario: ScenarioInput) => void }) {
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState<ScenarioInput | null>(null);
   const [returnFocus, setReturnFocus] = useState(false);
@@ -321,9 +323,16 @@ function SampleMenu({ draftIsEmpty, onPick }: { draftIsEmpty: boolean; onPick: (
   const listId = useId();
   const confirmId = useId();
 
+  // 中身のある下書きは黙って消さない（ルームの写しのままなら消えても取り戻せるので確かめない）
+  const needsConfirm = !draftIsDisposable;
+
   useEffect(() => {
     if (pending !== null) noRef.current?.focus();
   }, [pending]);
+  // 確かめを出している間に要らなくなったら（下書きがルームと同じになった）閉じる
+  useEffect(() => {
+    if (!needsConfirm && pending !== null) setPending(null);
+  }, [needsConfirm, pending]);
   useEffect(() => {
     if (pending === null && returnFocus) {
       toggleRef.current?.focus();
@@ -337,9 +346,6 @@ function SampleMenu({ draftIsEmpty, onPick }: { draftIsEmpty: boolean; onPick: (
     setOpen(false);
     setReturnFocus(true);
   };
-  // 中身のある下書きは黙って消さない
-  const needsConfirm = !draftIsEmpty;
-
   return (
     <div className="builder-sample-menu">
       <button
@@ -355,7 +361,7 @@ function SampleMenu({ draftIsEmpty, onPick }: { draftIsEmpty: boolean; onPick: (
       >
         {SAMPLE_MENU_BUTTON}
       </button>
-      <div id={listId} hidden={!open}>
+      <div id={listId}>
         {open && pending === null && (
           <ul className="builder-sample-list">
             {SAMPLE_SCENARIOS.map((sample) => (
@@ -374,8 +380,18 @@ function SampleMenu({ draftIsEmpty, onPick }: { draftIsEmpty: boolean; onPick: (
             ))}
           </ul>
         )}
-        {open && pending !== null && (
-          <div className="builder-sample-confirm" role="group" aria-labelledby={confirmId}>
+        {open && pending !== null && needsConfirm && (
+          <div
+            className="builder-sample-confirm"
+            role="group"
+            aria-labelledby={confirmId}
+            onKeyDown={(event) => {
+              if (event.key !== 'Escape') return;
+              event.stopPropagation();
+              setPending(null);
+              setReturnFocus(true);
+            }}
+          >
             <p id={confirmId} className="builder-sample-confirm-text">
               {SAMPLE_REPLACE_CONFIRM}
             </p>

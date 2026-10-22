@@ -287,14 +287,16 @@
   scrollbar-width: thin;
   scrollbar-color: var(--gold-edge) transparent;
 }
-/* 枠の高さの上限（撮影で詰める値はここ 1 か所）。狭い幅は画面の高さの 7 割前後、広い幅は
-   盤の列の上端から画面の下端まで（上端までの高さを見積もって引く）。中身が収まれば上限に届かずバーは出ない */
+/* 枠の高さの上限（撮影で詰める値はここ 1 か所）。狭い幅は画面の高さの 7 割に下限 36rem を付け、広い幅は
+   盤の列の上端から画面の下端まで（上端までの高さを見積もって引く）に下限 40rem を付ける。
+   どちらも最後に「画面の高さ − 4rem」で上から押さえる（背の低い画面で枠が画面より高くならない）。
+   中身が収まれば上限に届かずバーは出ない */
 .step-list {
-  --step-list-max-height: max(70dvh, 36rem);
+  --step-list-max-height: min(max(70dvh, 36rem), calc(100dvh - 4rem));
 }
 @media (width >= 64rem) {
   .step-list {
-    --step-list-max-height: max(calc(100dvh - 14rem), 40rem);
+    --step-list-max-height: min(max(calc(100dvh - 14rem), 40rem), calc(100dvh - 4rem));
   }
 }
 .step-list-round {
@@ -557,7 +559,8 @@
   width: auto;
   height: auto;
   margin: 0;
-  padding-inline: var(--space-4);
+  min-height: 2.25rem; /* ui-button--sm と同じ（当たりの拡張 ::before で押せる高さは 44px） */
+  padding: 0 var(--space-4);
   border-width: 1px;
   overflow: visible;
   clip-path: none;

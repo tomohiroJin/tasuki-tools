@@ -7,7 +7,6 @@ import {
   driftShort,
   driftTone,
   extensionLine,
-  footerLine,
   footerParts,
   nextStepName,
   projectedEndClock,
@@ -16,6 +15,7 @@ import {
   stepRows,
   summaryText,
 } from '../src/agenda-view';
+import { FOOTER_SEPARATOR } from '../src/copy';
 import { Driver, MIN, idleView } from './support/agenda-states';
 
 /** 2026-10-20 14:00 の手元の時計 */
@@ -101,27 +101,32 @@ describe('盤の中央の文字', () => {
 });
 
 describe('盤の下の一行', () => {
+  /** 画面が描く並び（次の案内があれば区切りでつなぎ、終了後は空） */
+  const line = (v: Parameters<typeof footerParts>[0]): string => {
+    const { next, end } = footerParts(v, WALL);
+    return next === '' ? end : `${next}${FOOTER_SEPARATOR}${end}`;
+  };
+
   it('次のステップの名前と終了見込みを出す', () => {
     // 10 分の盤の 1 分目・予定どおり → 14:09 に終わる見込み
-    expect(footerLine(new Driver([5, 5]).view(1 * MIN), WALL)).toBe('次は S2 ・ 14:09 に終了見込み');
+    expect(line(new Driver([5, 5]).view(1 * MIN))).toBe('次は S2 ・ 14:09 に終了見込み');
   });
 
   it('飛ばしたステップは次に数えない。最後のステップなら終了見込みだけ', () => {
-    expect(footerLine(new Driver([5, 5, 5]).skip('s-2').view(0), WALL)).toBe('次は S3 ・ 14:10 に終了見込み');
-    expect(footerLine(new Driver([5]).view(0), WALL)).toBe('14:05 に終了見込み');
+    expect(line(new Driver([5, 5, 5]).skip('s-2').view(0))).toBe('次は S3 ・ 14:10 に終了見込み');
+    expect(line(new Driver([5]).view(0))).toBe('14:05 に終了見込み');
   });
 
   it('開始前は 1 つ目と、いま始めたときの終了見込み。終了後は出さない', () => {
-    expect(footerLine(idleView([30, 32]), WALL)).toBe('次は S1 ・ 15:02 に終了見込み');
-    expect(footerLine(new Driver([5]).next(1 * MIN).view(2 * MIN), WALL)).toBe('');
+    expect(line(idleView([30, 32]))).toBe('次は S1 ・ 15:02 に終了見込み');
+    expect(line(new Driver([5]).next(1 * MIN).view(2 * MIN))).toBe('');
   });
 });
 
 describe('盤の下の一行の部品', () => {
-  it('次のステップと終了見込みに分かれ、footerLine はこれまでと同じ文になる', () => {
+  it('次のステップと終了見込みに分かれる', () => {
     const v = new Driver([5, 5]).view(1 * MIN);
     expect(footerParts(v, WALL)).toEqual({ next: '次は S2', end: '14:09 に終了見込み' });
-    expect(footerLine(v, WALL)).toBe('次は S2 ・ 14:09 に終了見込み');
   });
 
   it('最後のステップは next が空、終了後は両方空', () => {

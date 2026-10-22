@@ -13,7 +13,7 @@ import {
   ROUNDS_LABEL,
   roundsMinusLabel,
   roundsPlusLabel,
-  perRoundSummary,
+  perRoundSummaryParts,
   LOAD_FIRST_TEXT,
   LOAD_TO_ROOM_BUTTON,
   SAMPLE_MENU_BUTTON,
@@ -339,9 +339,9 @@ describe('組む画面', () => {
     joinedRoom();
     pickRow(/朝会/);
     fireEvent.change(roundsField(), { target: { value: '3' } });
-    expect(document.querySelector('.builder-total')?.textContent).toBe(perRoundSummary(2, 3, 6));
+    expect(document.querySelector('.builder-total')?.textContent).toBe(perRoundSummaryParts(2, 3, 6).join(' '));
     fireEvent.change(roundsField(), { target: { value: '6' } });
-    expect(document.querySelector('.builder-total')?.textContent).toBe(perRoundSummary(2, 6, 12));
+    expect(document.querySelector('.builder-total')?.textContent).toBe(perRoundSummaryParts(2, 6, 12).join(' '));
     // 意味の塊 3 つに分かれ、各塊は折り返さない。文全体の textContent は変わらない
     const total = document.querySelector('.builder-total');
     expect([...(total?.querySelectorAll('.builder-total-chunk') ?? [])].map((c) => c.textContent)).toEqual(['1 回あたり 2 分', '× 6 回', '＝ 全部で 12 分']);
@@ -534,6 +534,45 @@ describe('サンプルから選ぶ', () => {
     expect(roundsField().value).toBe('3');
     expect(screen.queryByText(SAMPLE_REPLACE_CONFIRM)).toBeNull();
     expect(document.activeElement).toBe(menuButton());
+  });
+
+  it('Given ルームに KPT があり下書きがその写しのまま / When 朝会を選ぶ / Then 確かめずに読み込む', () => {
+    joinedRoom(idleAgenda('Retro', [['Check', 5]]));
+    expect(nameField(1).value).toBe('Check');
+    pickRow(/朝会/);
+    expect(screen.queryByText(SAMPLE_REPLACE_CONFIRM)).toBeNull();
+    expect((screen.getByRole('textbox', { name: '会の名前' }) as HTMLInputElement).value).toBe('朝会');
+  });
+
+  it('Given ルームの写しの下書きを 1 文字変えた / When 朝会を選ぶ / Then 確かめる', () => {
+    joinedRoom(idleAgenda('Retro', [['Check', 5]]));
+    typeName(1, 'Checkx');
+    pickRow(/朝会/);
+    expect(screen.getByRole('group', { name: SAMPLE_REPLACE_CONFIRM })).toBeDefined();
+    expect(nameField(1).value).toBe('Checkx');
+  });
+
+  it('Given 確かめを出している / When Esc を押す / Then 確かめは閉じて下書きはそのままで、「サンプルから選ぶ」にフォーカスが戻る', () => {
+    joinedRoom();
+    pickSample();
+    typeName(1, 'Mine');
+    pickRow(/朝会/);
+    const group = screen.getByRole('group', { name: SAMPLE_REPLACE_CONFIRM });
+    fireEvent.keyDown(within(group).getByRole('button', { name: SAMPLE_REPLACE_NO }), { key: 'Escape' });
+    expect(screen.queryByRole('group', { name: SAMPLE_REPLACE_CONFIRM })).toBeNull();
+    expect(nameField(1).value).toBe('Mine');
+    expect(document.activeElement).toBe(menuButton());
+  });
+
+  it('Given 確かめを出している / When 下書きがルームと同じになって確かめが要らなくなる / Then 確かめは閉じる', () => {
+    joinedRoom(idleAgenda('Retro', [['Check', 5]]));
+    typeName(1, 'Checkx');
+    pickRow(/朝会/);
+    expect(screen.getByRole('group', { name: SAMPLE_REPLACE_CONFIRM })).toBeDefined();
+    // 他の人が置き換えたルームのシナリオが、手元の下書きと同じになる
+    deliverAgenda(idleAgenda('Retro', [['Checkx', 5]]));
+    expect(nameField(1).value).toBe('Checkx');
+    expect(screen.queryByRole('group', { name: SAMPLE_REPLACE_CONFIRM })).toBeNull();
   });
 
   it('Given 会の名前とステップの欄 / When DOM の順を見る / Then 「サンプルから選ぶ」はそれらより後にある', () => {

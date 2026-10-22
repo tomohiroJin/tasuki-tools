@@ -92,6 +92,8 @@ describe('描いた進行タイマーの文字は書体の常用の層に収ま�
       latestSocket().deliver({ type: 'room.joined', code: 'R1', participantId: 'p1', resumeToken: 't1' });
       latestSocket().deliver({ type: 'agenda', state: { ...IDLE_AGENDA, title: 'Retro', steps: [{ id: 's-1', name: 'Check', durationSec: 60, onTimeout: 'wait', skipped: false, extensionSec: 0, spentMs: null }] } });
     });
+    // ルームの写しのままなら確かめない。1 文字変えて、消える下書きにしてから選ぶ
+    fireEvent.change(screen.getByRole('textbox', { name: 'ステップ 1 の名前' }), { target: { value: 'Checkx' } });
     fireEvent.click(screen.getByRole('button', { name: SAMPLE_MENU_BUTTON }));
     fireEvent.click(screen.getByRole('button', { name: /朝会/ }));
     expect(renderedText()).toContain(SAMPLE_REPLACE_CONFIRM);
