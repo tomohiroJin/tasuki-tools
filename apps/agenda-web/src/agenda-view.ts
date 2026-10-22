@@ -18,6 +18,7 @@ import {
   overrunSummary,
   plannedSummary,
   projectedEndText,
+  roundBadgeText,
   remainingSummary,
   stepCountText,
 } from './copy';
@@ -41,8 +42,10 @@ export type StepStatus = 'done' | 'now' | 'skipped' | 'todo';
 
 export interface StepRow {
   readonly id: string;
-  /** 1 から（盤の目盛りの番号と同じ） */
+  /** 1 から。回数 1 は通しの番号（盤の目盛りと同じ）、回数 2 以上は回の中の番号 */
   readonly number: number;
+  /** 何回目か（回数 1 は常に 1。進行表の回の見出しの区切りに使う） */
+  readonly round: number;
   readonly name: string;
   readonly status: StepStatus;
   readonly plannedMin: number;
@@ -89,9 +92,12 @@ function driftLine(v: AgendaView): string {
 
 const currentStep = (v: AgendaView): StepView | undefined => v.steps.find((x) => x.id === v.currentId);
 
+/** 定義のステップ数（回数で展開する前。回数 1 なら展開後と同じ） */
+export const definedStepCount = (v: AgendaView): number => v.steps.filter((s) => s.round === 1).length;
+
 export function centerLines(v: AgendaView): CenterLines {
   if (v.phase === 'idle') {
-    return { primary: elapsedClock(plannedTotalMs(v)), isOverrun: false, name: stepCountText(v.steps.length), drift: driftLine(v) };
+    return { primary: elapsedClock(plannedTotalMs(v)), isOverrun: false, name: stepCountText(definedStepCount(v), v.rounds), drift: driftLine(v) };
   }
   if (v.phase === 'finished') {
     return { primary: elapsedClock(v.runElapsedMs), isOverrun: false, name: v.title, drift: driftLine(v) };
@@ -104,6 +110,29 @@ export function centerLines(v: AgendaView): CenterLines {
     name: currentStep(v)?.name ?? '',
     drift: driftLine(v),
   };
+}
+
+/** 盤の中央の回の札「2 / 6 回」。進行中・一時停止中で回数 2 以上のときだけ（それ以外は空） */
+export function roundBadge(v: AgendaView): string {
+  if (!isActive(v) || v.rounds < 2) return '';
+  const cur = currentStep(v);
+  return cur === undefined ? '' : roundBadgeText(cur.round, v.rounds);
+}
+
+/**
+ * 進行表の枠（`overflow-y: auto`）の中で、行が見えるようにする `scrollTop`。
+ * `row.top` は**枠の中での行の位置**（スクロール分を含む。`offsetTop` は offsetParent からなので使わない）
+ * 収まっていればいまのまま・上にはみ出せば行の上端・下にはみ出せば行の下端を枠の下端へ。
+ * （`scrollIntoView` は祖先のページまで動かすので使わない）
+ */
+export function scrollTopToReveal(
+  box: { scrollTop: number; clientHeight: number },
+  row: { top: number; height: number },
+): number {
+  if (row.top < box.scrollTop) return row.top;
+  const rowBottom = row.top + row.height;
+  if (rowBottom > box.scrollTop + box.clientHeight) return rowBottom - box.clientHeight;
+  return box.scrollTop;
 }
 
 /** 手元の時計の「時:分」（時は 0 詰めしない・分は 2 桁） */
@@ -175,14 +204,20 @@ function statusOf(v: AgendaView, x: StepView): StepStatus {
 
 /** 進行表の行 */
 export function stepRows(v: AgendaView): StepRow[] {
-  return v.steps.map((x, i) => ({
-    id: x.id,
-    number: i + 1,
-    name: x.name,
-    status: statusOf(v, x),
-    plannedMin: x.durationSec / 60,
-    extensionMin: x.extensionSec / 60,
-  }));
+  const seenInRound = new Map<number, number>();
+  return v.steps.map((x, i) => {
+    const inRound = (seenInRound.get(x.round) ?? 0) + 1;
+    seenInRound.set(x.round, inRound);
+    return {
+      id: x.id,
+      number: v.rounds >= 2 ? inRound : i + 1,
+      round: x.round,
+      name: x.name,
+      status: statusOf(v, x),
+      plannedMin: x.durationSec / 60,
+      extensionMin: x.extensionSec / 60,
+    };
+  });
 }
 
 /** オーバーの読み上げ。最初の 1 分は「オーバー 0 分」と言わず「オーバー」だけ */
@@ -195,13 +230,15 @@ const overrunPart = (overMs: number): string => {
 export function summaryText(v: AgendaView): string {
   const parts: string[] = [];
   if (v.phase === 'idle') {
-    parts.push(stepCountText(v.steps.length), plannedSummary(Math.round(plannedTotalMs(v) / MIN)), NOT_STARTED_LABEL);
+    parts.push(stepCountText(definedStepCount(v), v.rounds), plannedSummary(Math.round(plannedTotalMs(v) / MIN)), NOT_STARTED_LABEL);
   } else if (v.phase === 'finished') {
     parts.push(FINISHED_LABEL, driftLine(v));
   } else {
     const rest = remainingMs(v);
+    const round = roundBadge(v);
     parts.push(
       currentStep(v)?.name ?? '',
+      ...(round === '' ? [] : [round]),
       isOverrun(v) ? overrunPart(-rest) : remainingSummary(Math.ceil(rest / MIN)),
       driftLine(v),
     );

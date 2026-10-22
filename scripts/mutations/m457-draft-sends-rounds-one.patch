@@ -1,0 +1,23 @@
+# 変異 457: draft-sends-rounds-one
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/scenario-draft.test.ts
+#
+# #429 第 2 段。回数 1 でも rounds: 1 を載せると、回数なしの定義と別の形になり、ルームとの比べが食い違う。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m457-*.patch
+# 復元: git apply -R scripts/mutations/m457-*.patch
+diff --git a/apps/agenda-web/src/scenario-draft.ts b/apps/agenda-web/src/scenario-draft.ts
+index 71d6e257..917f8a31 100644
+--- a/apps/agenda-web/src/scenario-draft.ts
++++ b/apps/agenda-web/src/scenario-draft.ts
+@@ -109,7 +109,7 @@ const inRange = (m: number | null): m is number => m !== null && m >= MIN_MINUTE
+ export function inputFromDraft(d: Draft): ScenarioInput {
+   const steps = d.steps.map((s) => ({ name: s.name, durationSec: (minutesOf(s) ?? 0) * 60, onTimeout: s.onTimeout }));
+   const rounds = roundsOfDraft(d);
+-  return rounds === null || rounds === 1 ? { title: d.title, steps } : { title: d.title, steps, rounds };
++  return rounds === null ? { title: d.title, steps } : { title: d.title, steps, rounds };
+ }
+ 
+ /** 比べるための鍵（名前・秒・振る舞いの並びと会の名前と回数） */

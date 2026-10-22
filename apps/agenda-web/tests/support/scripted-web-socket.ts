@@ -56,6 +56,7 @@ export const RESUME = { code: 'R1', participantId: 'p1', resumeToken: 't1', disp
 export const IDLE_AGENDA = {
   phase: 'idle',
   title: '',
+  rounds: 1,
   steps: [],
   currentId: null,
   runElapsedMs: 0,
@@ -68,9 +69,10 @@ export function runningAgenda(stepTimerMs = 0, runElapsedMs = stepTimerMs) {
   return {
     phase: 'running',
     title: 'Retro',
+    rounds: 1,
     steps: [
-      { id: 's-1', name: 'Check', durationSec: 60, onTimeout: 'wait', skipped: false, extensionSec: 0, spentMs: null },
-      { id: 's-2', name: 'Talk', durationSec: 120, onTimeout: 'advance', skipped: false, extensionSec: 0, spentMs: null },
+      { id: 's-1', round: 1, name: 'Check', durationSec: 60, onTimeout: 'wait', skipped: false, extensionSec: 0, spentMs: null },
+      { id: 's-2', round: 1, name: 'Talk', durationSec: 120, onTimeout: 'advance', skipped: false, extensionSec: 0, spentMs: null },
     ],
     currentId: 's-1',
     runElapsedMs,

@@ -8,6 +8,12 @@ import { saveResumeIdentity } from '@tasuki/sync-client';
 import { App } from '../src/App';
 import {
   ADD_STEP_BUTTON,
+  MAX_PLANNED_NOTE,
+  MAX_STEPS_NOTE,
+  ROUNDS_LABEL,
+  roundsMinusLabel,
+  roundsPlusLabel,
+  perRoundSummary,
   LOAD_FIRST_TEXT,
   LOAD_TO_ROOM_BUTTON,
   SAMPLE_TITLE,
@@ -55,6 +61,19 @@ function idleAgenda(title: string, steps: readonly (readonly [string, number])[]
     })),
   };
 }
+
+/** 回数つきの開始前の状態（steps は 1 回目の定義を回数ぶん写した展開済みの形） */
+function roundsAgenda(title: string, steps: readonly (readonly [string, number])[], rounds: number) {
+  const base = idleAgenda(title, steps).steps;
+  return {
+    ...IDLE_AGENDA,
+    title,
+    rounds,
+    steps: Array.from({ length: rounds }, (_, r) => base.map((s) => ({ ...s, round: r + 1 }))).flat().map((s, i) => ({ ...s, id: `s-${i + 1}` })),
+  };
+}
+
+const roundsField = () => screen.getByRole('spinbutton', { name: ROUNDS_LABEL }) as HTMLInputElement;
 
 /** 入室して、最初の `agenda` フレームを受けた画面 */
 function joinedRoom(state: unknown = IDLE_AGENDA): void {
@@ -171,6 +190,8 @@ describe('組む画面', () => {
     expect(scenario.steps.map((s) => s.durationSec)).toEqual([300, 480, 60, 2400, 420]);
     expect(scenario.steps.map((s) => s.onTimeout)).toEqual(['wait', 'wait', 'wait', 'wait', 'wait']);
     expect(scenario.title).toBe('KPT のふりかえり');
+    // 回数 1 では rounds のキーそのものを送らない（第 1 段の定義と同じ形）
+    expect('rounds' in scenario).toBe(false);
   });
 
   it('Given ルームに読み込んだ / When 自分の置き換えが返る / Then 知らせは出ず、開始で agenda.start を送る', () => {
@@ -295,5 +316,106 @@ describe('組む画面', () => {
     const card = screen.getByRole('button', { name: new RegExp(SAMPLE_TITLE) });
     expect(within(card).getByText('Try の議論 40 分')).toBeDefined();
     expect(within(card).getByText('K を出す 5 分')).toBeDefined();
+  });
+
+  it('Given サンプルを読んだ / When くりかえしを 6 にする / Then 合計が「1 回あたり 2 分 × 6 回 ＝ 全部で 12 分」になる', () => {
+    joinedRoom();
+    fireEvent.click(screen.getByRole('button', { name: /朝会/ }));
+    fireEvent.change(roundsField(), { target: { value: '3' } });
+    expect(screen.getByText(perRoundSummary(2, 3, 6))).toBeDefined();
+    fireEvent.change(roundsField(), { target: { value: '6' } });
+    expect(screen.getByText(perRoundSummary(2, 6, 12))).toBeDefined();
+  });
+
+  it('Given 回数 1 / When 合計の行を見る / Then 第 1 段と同じ「予定 n 分」', () => {
+    joinedRoom();
+    pickSample();
+    expect(screen.getByText(plannedSummary(60))).toBeDefined();
+    expect(roundsField().value).toBe('1');
+    expect(document.body.textContent).not.toContain('1 回あたり');
+  });
+
+  it('Given 朝会のサンプル / When 押す / Then 回数の欄が 6 になる。−／＋ で動き、下限と上限で押せなくなる', () => {
+    joinedRoom();
+    fireEvent.click(screen.getByRole('button', { name: /朝会/ }));
+    expect(roundsField().value).toBe('6');
+    fireEvent.click(screen.getByRole('button', { name: roundsPlusLabel }));
+    expect(roundsField().value).toBe('7');
+    fireEvent.click(screen.getByRole('button', { name: roundsMinusLabel }));
+    expect(roundsField().value).toBe('6');
+    fireEvent.change(roundsField(), { target: { value: '1' } });
+    expect(screen.getByRole('button', { name: roundsMinusLabel })).toBeDisabled();
+    fireEvent.change(roundsField(), { target: { value: '30' } });
+    expect(screen.getByRole('button', { name: roundsPlusLabel })).toBeDisabled();
+  });
+
+  it('Given 回数を 8 にした / When 「ルームに読み込む」を押す / Then 送るのはそのときだけで、scenario に rounds が載る', () => {
+    joinedRoom();
+    fireEvent.click(screen.getByRole('button', { name: /朝会/ }));
+    fireEvent.change(roundsField(), { target: { value: '8' } });
+    expect(sentCommands('agenda.scenario.set')).toHaveLength(0);
+    fireEvent.click(loadButton());
+    const scenario = sentCommands('agenda.scenario.set')[0]?.['scenario'] as { rounds?: number };
+    expect(scenario.rounds).toBe(8);
+  });
+
+  it('Given 保存済みの回数 6 の朝会 / When 一覧を見る / Then 全部の分と回数を出す', () => {
+    joinedRoom(roundsAgenda('朝会', [['話す', 2]], 6));
+    fireEvent.click(screen.getByRole('button', { name: 'この端末に保存' }));
+    const list = screen.getByRole('list', { name: '保存済み' });
+    expect(within(list).getByText('1 ステップ × 6 回・全部で 12 分')).toBeDefined();
+  });
+
+  it('Given サンプルの札 / When 描く / Then 朝会の札は全部の分と回数を出す', () => {
+    joinedRoom();
+    const card = screen.getByRole('button', { name: /朝会/ });
+    expect(within(card).getByText('1 ステップ × 6 回・全部で 12 分')).toBeDefined();
+  });
+
+  it('Given ルームのシナリオが回数 6 / When 組む画面を開く / Then 回数の欄は 6 で、ルームと同じ状態（読み込めず開始できる）', () => {
+    joinedRoom(roundsAgenda('朝会', [['話す', 2]], 6));
+    expect(roundsField().value).toBe('6');
+    expect(loadButton()).toBeDisabled();
+    expect(screen.getByRole('button', { name: START_BUTTON })).toBeEnabled();
+  });
+
+  it('Given 空の組む画面で回数を 5 にした / When ルームのシナリオが変わる / Then 下書きの回数 5 が残る', () => {
+    joinedRoom();
+    fireEvent.change(roundsField(), { target: { value: '5' } });
+    deliverAgenda(idleAgenda('Other', [['Theirs', 10]]));
+    expect(roundsField().value).toBe('5');
+  });
+
+  it('Given 回数 6 で 10 ステップ / When 見る / Then 追加ボタンは無効で、60 の上限の注記が出る（20 の注記ではない）', () => {
+    joinedRoom(idleAgenda('Retro', Array.from({ length: 10 }, (_, i) => [`s${i}`, 60] as const)));
+    fireEvent.change(roundsField(), { target: { value: '6' } });
+    expect(screen.getByRole('button', { name: ADD_STEP_BUTTON })).toBeDisabled();
+    expect(screen.getByText(MAX_PLANNED_NOTE)).toBeDefined();
+    expect(screen.queryByText(MAX_STEPS_NOTE)).toBeNull();
+  });
+
+  it('Given 回数が範囲外（99） / When 見る / Then 追加ボタンは押せて、60 の上限の注記は出ない', () => {
+    joinedRoom();
+    fireEvent.change(roundsField(), { target: { value: '99' } });
+    expect(screen.getByRole('button', { name: ADD_STEP_BUTTON })).toBeEnabled();
+    expect(screen.queryByText(MAX_PLANNED_NOTE)).toBeNull();
+    expect(screen.queryByText(MAX_STEPS_NOTE)).toBeNull();
+  });
+
+  it('Given 回数が範囲外（31） / When 合計の行を見る / Then 1 回分の「予定 n 分」を出す', () => {
+    joinedRoom();
+    fireEvent.click(screen.getByRole('button', { name: /朝会/ }));
+    fireEvent.change(roundsField(), { target: { value: '31' } });
+    expect(document.body.textContent).not.toContain('1 回あたり');
+    expect(document.querySelector('.builder-total')?.textContent).toBe(plannedSummary(2));
+  });
+
+  it('Given 回数の欄を空にした下書き / When ルームのシナリオが変わる / Then 下書きは残り「シナリオが変わりました」が出る', () => {
+    joinedRoom(idleAgenda('Retro', [['Check', 5]]));
+    fireEvent.change(roundsField(), { target: { value: '' } });
+    deliverAgenda(idleAgenda('Other', [['Theirs', 10]]));
+    expect(nameField(1).value).toBe('Check');
+    expect(roundsField().value).toBe('');
+    expect(screen.getAllByRole('status').some((el) => el.textContent?.includes(SCENARIO_CHANGED_NOTE))).toBe(true);
   });
 });

@@ -1,0 +1,147 @@
+/**
+ * 組む画面の下書き（#429 第 2 段・回数）。純粋関数だけを確かめる。
+ */
+import { INITIAL_AGENDA_STATE, MAX_ROUNDS, MIN_ROUNDS, replaceScenario, roundsOf, toView, type ScenarioInput } from '@tasuki/agenda-core';
+import { describe, expect, it } from 'vitest';
+import { NEED_STEP_TEXT, plannedStepsTooManyText, stepNameBlankText, roundsRangeText, totalTooLongText } from '../src/copy';
+import {
+  addBlockedByItems,
+  bumpRounds,
+  canAddStep,
+  isEmptyDraft,
+  checkDraft,
+  draftFromInput,
+  inputFromDraft,
+  inputFromView,
+  perRoundMinutes,
+  previewView,
+  roundsOfDraft,
+  scenarioKey,
+  totalMinutes,
+  type Draft,
+} from '../src/scenario-draft';
+
+const step = (name: string, durationSec: number) => ({ name, durationSec, onTimeout: 'advance' as const });
+const input = (steps: ScenarioInput['steps'], rounds?: number): ScenarioInput =>
+  rounds === undefined ? { title: '会', steps } : { title: '会', steps, rounds };
+const draftOf = (steps: ScenarioInput['steps'], rounds: string): Draft => ({ ...draftFromInput(input(steps)), rounds });
+
+/**
+ * @requirements #429 第 2 段（シナリオの回数）
+ */
+describe('下書きの回数', () => {
+  it('回数の欄が 1 でない下書きは、題もステップも空でも空と見なさない', () => {
+    const empty = draftFromInput({ title: '', steps: [] });
+    expect(isEmptyDraft(empty)).toBe(true);
+    expect(isEmptyDraft({ ...empty, rounds: '5' })).toBe(false);
+    expect(isEmptyDraft({ ...empty, rounds: '' })).toBe(false);
+  });
+
+  it('ステップの追加は「(ステップ + 1) × 回数」が 60 を超えると止まる。回数が読めなければ 1 回として数える', () => {
+    const ten = Array.from({ length: 10 }, (_, i) => step(`s${i}`, 60));
+    expect(canAddStep(draftOf(ten, '6'))).toBe(false);
+    expect(canAddStep(draftOf(ten, '5'))).toBe(true);
+    expect(canAddStep(draftOf(ten, ''))).toBe(true);
+    expect(canAddStep(draftOf(Array.from({ length: 20 }, (_, i) => step(`s${i}`, 60)), '1'))).toBe(false);
+    expect(addBlockedByItems(draftOf(ten, '6'))).toBe(false);
+  });
+
+  it('回数が範囲外（99・0）でも、ステップの追加は 1 回として数える（範囲の理由は回数の欄が示す）', () => {
+    const ten = Array.from({ length: 10 }, (_, i) => step(`s${i}`, 60));
+    expect(canAddStep(draftOf([], '99'))).toBe(true);
+    expect(canAddStep(draftOf(ten, '99'))).toBe(true);
+    expect(canAddStep(draftOf(ten, '0'))).toBe(true);
+    expect(canAddStep(draftOf(Array.from({ length: 20 }, (_, i) => step(`s${i}`, 60)), '99'))).toBe(false);
+  });
+
+  it('回数 6 のルームのシナリオを下書きへ写すと 1 区切りと回数 6 になる（m455）', () => {
+    const state = replaceScenario(INITIAL_AGENDA_STATE, input([step('朝会', 120)], 6));
+    const view = toView(state._unsafeUnwrap(), 0);
+    expect(view.steps).toHaveLength(6);
+    const got = inputFromView(view);
+    expect(got.steps).toHaveLength(1);
+    expect(got.rounds).toBe(6);
+    expect(draftFromInput(got).rounds).toBe('6');
+  });
+
+  it('回数だけ違う下書きはルームと同じと見なさない（m456）', () => {
+    const steps = [step('a', 60)];
+    expect(scenarioKey(input(steps, 2))).not.toBe(scenarioKey(input(steps, 3)));
+    expect(scenarioKey(input(steps))).toBe(scenarioKey(input(steps, 1)));
+  });
+
+  it('回数 1 の下書きは回数のキーを送らない（m457）', () => {
+    const steps = [step('a', 60)];
+    expect('rounds' in inputFromDraft(draftOf(steps, '1'))).toBe(false);
+    expect(inputFromDraft(draftOf(steps, '3')).rounds).toBe(3);
+  });
+
+  it('draftFromInput は省略を 1 として文字で持つ', () => {
+    expect(draftFromInput(input([step('a', 60)])).rounds).toBe('1');
+    expect(draftFromInput(input([step('a', 60)], 4)).rounds).toBe('4');
+  });
+
+  it('1 回あたり 40 分 × 5 回は合計の理由で止まる', () => {
+    const d = draftOf([step('a', 2400)], '5');
+    expect(perRoundMinutes(d)).toBe(40);
+    expect(totalMinutes(d)).toBe(200);
+    const r = checkDraft(d, '汎用');
+    expect(r).toEqual({ ok: false, reason: totalTooLongText(200) });
+  });
+
+  it('回数 0・31・空欄は回数の理由で止まる', () => {
+    for (const rounds of ['0', '31', '', 'x']) {
+      expect(checkDraft(draftOf([step('a', 60)], rounds), '汎用')).toEqual({ ok: false, reason: roundsRangeText() });
+    }
+    expect(checkDraft(draftOf([step('a', 60)], '30'), '汎用').ok).toBe(true);
+  });
+
+  it('行の理由と空欄の回数が重なると、行の理由が先に出る', () => {
+    const d = draftOf([step('a', 60), step('b', 60)], '');
+    const blank = { ...d, steps: d.steps.map((s, i) => (i === 1 ? { ...s, name: '' } : s)) };
+    expect(checkDraft(blank, '汎用')).toEqual({ ok: false, reason: stepNameBlankText(2) });
+  });
+
+  it('ステップ 0 件で回数が空欄なら、ステップを足す理由が出る', () => {
+    expect(checkDraft(draftOf([], ''), '汎用')).toEqual({ ok: false, reason: NEED_STEP_TEXT });
+  });
+
+  it('4 区切り × 16 回は区切りの数の理由で止まる', () => {
+    const steps = [step('a', 60), step('b', 60), step('c', 60), step('d', 60)];
+    expect(checkDraft(draftOf(steps, '16'), '汎用')).toEqual({ ok: false, reason: plannedStepsTooManyText(64) });
+    expect(checkDraft(draftOf(steps, '15'), '汎用').ok).toBe(true);
+  });
+
+  it('回数 6 の下書きは検証を通り、回数つきで送る', () => {
+    const r = checkDraft(draftOf([step('話す', 120)], '6'), '汎用');
+    expect(r.ok && roundsOf(r.input)).toBe(6);
+  });
+
+  it('bumpRounds は 1 と 30 で止まる', () => {
+    const at = (rounds: string) => draftOf([step('a', 60)], rounds);
+    expect(bumpRounds(at('1'), -1)).toBe(String(MIN_ROUNDS));
+    expect(bumpRounds(at('30'), 1)).toBe(String(MAX_ROUNDS));
+    expect(bumpRounds(at('3'), 1)).toBe('4');
+    expect(bumpRounds(at('3'), -1)).toBe('2');
+    expect(bumpRounds(at(''), 1)).toBe('1');
+  });
+
+  it('roundsOfDraft は整数でなければ null', () => {
+    expect(roundsOfDraft(draftOf([], ' 7 '))).toBe(7);
+    expect(roundsOfDraft(draftOf([], ''))).toBeNull();
+    expect(roundsOfDraft(draftOf([], '1.5'))).toBeNull();
+  });
+
+  it('previewView は回数ぶん展開し、読めない・範囲外の回数は 1 として展開する', () => {
+    const steps = [step('a', 60), step('b', 60)];
+    const six = previewView(draftOf(steps, '3'));
+    expect(six?.rounds).toBe(3);
+    expect(six?.steps).toHaveLength(6);
+    expect(six?.steps.map((s) => s.round)).toEqual([1, 1, 2, 2, 3, 3]);
+    for (const bad of ['', '0', '31']) {
+      const v = previewView(draftOf(steps, bad));
+      expect(v?.rounds).toBe(1);
+      expect(v?.steps).toHaveLength(2);
+    }
+  });
+});

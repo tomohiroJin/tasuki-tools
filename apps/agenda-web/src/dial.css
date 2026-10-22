@@ -253,6 +253,9 @@
 .dial-tag--overrun {
   color: var(--rose-bright);
 }
+.dial-tag--round {
+  color: var(--gold-bright);
+}
 .dial-tag--paused {
   color: var(--ivory-dim);
 }

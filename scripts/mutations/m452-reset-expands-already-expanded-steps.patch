@@ -1,0 +1,22 @@
+# 変異 452: reset-expands-already-expanded-steps
+#
+# 検出を期待するテスト:
+#   - packages/agenda-core/tests/agenda.test.ts
+#
+# #429 第 2 段。最初からに戻すとき、展開済みの区切りをまた回数倍して展開する。戻すたびに区切りが回数倍に増える。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m452-*.patch
+# 復元: git apply -R scripts/mutations/m452-*.patch
+diff --git a/packages/agenda-core/src/agenda.ts b/packages/agenda-core/src/agenda.ts
+index b40803a2..c33f6b3f 100644
+--- a/packages/agenda-core/src/agenda.ts
++++ b/packages/agenda-core/src/agenda.ts
+@@ -175,6 +175,6 @@ export function setSkipped(
+ export function reset(s: AgendaState): R {
+   if (s.phase === "idle") return ok(s);
+   // 展開済みの steps をまた回数倍しない。1 回目の定義へ戻してから展開する
+-  const steps = expand(definitionOf(s));
++  const steps = expand({ title: s.title, steps: s.steps, rounds: s.rounds });
+   return ok({ ...INITIAL_AGENDA_STATE, title: s.title, rounds: s.rounds, steps });
+ }

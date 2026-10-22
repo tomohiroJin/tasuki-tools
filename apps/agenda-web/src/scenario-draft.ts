@@ -8,15 +8,20 @@ import {
   MAX_ITEMS,
   MAX_SCENARIO_TITLE,
   MAX_STEP_NAME,
+  MAX_PLANNED_STEPS,
+  MAX_ROUNDS,
   MAX_TOTAL_SEC,
+  MIN_ROUNDS,
   STEP_SEC_MAX,
   STEP_SEC_MIN,
   ScenarioInputSchema,
+  definitionOf,
   expand,
   hasControlChars,
   type AgendaView,
   type ScenarioInput,
   type TimeoutBehavior,
+  roundsOf,
 } from '@tasuki/agenda-core';
 import * as v from 'valibot';
 import {
@@ -24,6 +29,8 @@ import {
   TITLE_CONTROL_TEXT,
   stepMinutesRangeText,
   stepNameBlankText,
+  plannedStepsTooManyText,
+  roundsRangeText,
   stepNameControlText,
   totalTooLongText,
 } from './copy';
@@ -39,6 +46,8 @@ export interface DraftStep {
 export interface Draft {
   readonly title: string;
   readonly steps: readonly DraftStep[];
+  /** くりかえしの回数。分の欄と同じく文字のまま持つ（新しい下書きは '1'） */
+  readonly rounds: string;
 }
 
 export const MIN_MINUTES = STEP_SEC_MIN / 60;
@@ -53,21 +62,20 @@ const nextKey = (): number => ++keySeq;
 export const clipStepName = (s: string): string => s.slice(0, MAX_STEP_NAME);
 export const clipTitle = (s: string): string => s.slice(0, MAX_SCENARIO_TITLE);
 
-export const isEmptyDraft = (d: Draft): boolean => d.title === '' && d.steps.length === 0;
+/** 回数の欄が既定の '1' でないなら、利用者が触ったので空と見なさない */
+export const isEmptyDraft = (d: Draft): boolean => d.title === '' && d.steps.length === 0 && d.rounds === '1';
 
 export function draftFromInput(input: ScenarioInput): Draft {
   return {
     title: input.title,
     steps: input.steps.map((s) => ({ key: nextKey(), name: s.name, minutes: String(s.durationSec / 60), onTimeout: s.onTimeout })),
+    rounds: String(roundsOf(input)),
   };
 }
 
-/** ルームのシナリオ（開始前の写し）を入力の形へ戻す */
+/** ルームのシナリオ（開始前の写し）を入力の形へ戻す。展開済みの全部ではなく 1 回目と回数から組み直す */
 export function inputFromView(view: AgendaView): ScenarioInput {
-  return {
-    title: view.title,
-    steps: view.steps.map((s) => ({ name: s.name, durationSec: s.durationSec, onTimeout: s.onTimeout })),
-  };
+  return definitionOf(view);
 }
 
 /** 分の欄を整数として読む。数でなければ null（範囲は見ない） */
@@ -77,24 +85,42 @@ export function minutesOf(step: DraftStep): number | null {
   return Number(t);
 }
 
-const inRange = (m: number | null): m is number => m !== null && m >= MIN_MINUTES && m <= MAX_MINUTES;
-
-/** 下書きを送る形にする（検証はしない）。分が読めない行は 0 秒として残す（検証で落ちる） */
-export function inputFromDraft(d: Draft): ScenarioInput {
-  return {
-    title: d.title,
-    steps: d.steps.map((s) => ({ name: s.name, durationSec: (minutesOf(s) ?? 0) * 60, onTimeout: s.onTimeout })),
-  };
+/** 回数の欄を整数として読む。数でなければ null（範囲は見ない） */
+export function roundsOfDraft(d: Draft): number | null {
+  const t = d.rounds.trim();
+  if (!/^\d+$/.test(t)) return null;
+  return Number(t);
 }
 
-/** 比べるための鍵（名前・秒・振る舞いの並びと会の名前） */
+export const roundsInRange = (n: number | null): n is number => n !== null && n >= MIN_ROUNDS && n <= MAX_ROUNDS;
+
+/** −／＋ で回数を 1 つ動かす。読めない欄は下限から数え直す */
+export function bumpRounds(d: Draft, delta: -1 | 1): string {
+  const cur = roundsOfDraft(d);
+  const base = cur === null ? MIN_ROUNDS : cur + delta;
+  return String(Math.min(MAX_ROUNDS, Math.max(MIN_ROUNDS, base)));
+}
+
+const inRange = (m: number | null): m is number => m !== null && m >= MIN_MINUTES && m <= MAX_MINUTES;
+
+/**
+ * 下書きを送る形にする（検証はしない）。分が読めない行は 0 秒として残す（検証で落ちる）。
+ * 回数が 1（または読めない）なら `rounds` キーを持たない。0・31 などは載せて、検証で落とす。
+ */
+export function inputFromDraft(d: Draft): ScenarioInput {
+  const steps = d.steps.map((s) => ({ name: s.name, durationSec: (minutesOf(s) ?? 0) * 60, onTimeout: s.onTimeout }));
+  const rounds = roundsOfDraft(d);
+  return rounds === null || rounds === 1 ? { title: d.title, steps } : { title: d.title, steps, rounds };
+}
+
+/** 比べるための鍵（名前・秒・振る舞いの並びと会の名前と回数） */
 export function scenarioKey(input: ScenarioInput): string {
-  return JSON.stringify([input.title, input.steps.map((s) => [s.name, s.durationSec, s.onTimeout])]);
+  return JSON.stringify([input.title, roundsOf(input), input.steps.map((s) => [s.name, s.durationSec, s.onTimeout])]);
 }
 
 export type DraftCheck = { readonly ok: true; readonly input: ScenarioInput } | { readonly ok: false; readonly reason: string };
 
-/** 最初に見つかった理由を 1 つ返す。理由の順は画面の上から（会の名前 → 行 → 合計） */
+/** 最初に見つかった理由を 1 つ返す。理由の順は画面の上から（会の名前 → 行 → 回数 → 区切りの数 → 合計） */
 function firstReason(d: Draft): string | null {
   if (d.steps.length === 0) return NEED_STEP_TEXT;
   if (hasControlChars(d.title)) return TITLE_CONTROL_TEXT;
@@ -103,24 +129,36 @@ function firstReason(d: Draft): string | null {
     if (hasControlChars(s.name)) return stepNameControlText(i + 1);
     if (!inRange(minutesOf(s))) return stepMinutesRangeText(i + 1);
   }
+  const rounds = roundsOfDraft(d);
+  if (!roundsInRange(rounds)) return roundsRangeText();
+  const planned = d.steps.length * rounds;
+  if (planned > MAX_PLANNED_STEPS) return plannedStepsTooManyText(planned);
   const total = totalMinutes(d);
   if (total * 60 > MAX_TOTAL_SEC) return totalTooLongText(total);
   return null;
 }
 
 /**
- * 下書きを検証する。**合否は `ScenarioInputSchema` が決める**（サーバーと同じ境界）。理由の文はここで組む。
+ * 下書きを検証する。**合否は `ScenarioInputSchema` が決める**（サーバーと同じ境界）。ただし回数の欄が読めないときだけはスキーマの前で止める
+ * （`inputFromDraft` が読めない回数を落とすので、そのままではスキーマを通ってしまうため）。理由の文はここで組む。
  * スキーマが落としたのに理由が見つからないときも、押させない（理由は汎用の一文）。
  */
 export function checkDraft(d: Draft, fallbackReason: string): DraftCheck {
   const input = inputFromDraft(d);
+  // 読めない回数は入力から落ちる（1 回扱い）ので、スキーマの前に止める
+  if (roundsOfDraft(d) === null) return { ok: false, reason: firstReason(d) ?? roundsRangeText() };
   if (v.safeParse(ScenarioInputSchema, input).success) return { ok: true, input };
   return { ok: false, reason: firstReason(d) ?? fallbackReason };
 }
 
-/** 合計の分（読める行だけ） */
-export function totalMinutes(d: Draft): number {
+/** 1 回あたりの分（読める行だけ） */
+export function perRoundMinutes(d: Draft): number {
   return d.steps.reduce((sum, s) => sum + (minutesOf(s) ?? 0), 0);
+}
+
+/** 全部の分（1 回あたり × 回数。回数が読めなければ 1 回として数える） */
+export function totalMinutes(d: Draft): number {
+  return perRoundMinutes(d) * (roundsOfDraft(d) ?? 1);
 }
 
 /**
@@ -132,10 +170,14 @@ export function previewView(d: Draft): AgendaView | null {
     .filter((s) => inRange(minutesOf(s)))
     .map((s) => ({ name: s.name, durationSec: (minutesOf(s) ?? 0) * 60, onTimeout: s.onTimeout }));
   if (steps.length === 0) return null;
+  // 回数が読めない・範囲外のときは 1 回として展開する
+  const parsed = roundsOfDraft(d);
+  const rounds = roundsInRange(parsed) ? parsed : 1;
   return {
     phase: 'idle',
     title: d.title,
-    steps: expand({ title: d.title, steps }),
+    rounds,
+    steps: expand({ title: d.title, steps, ...(rounds === 1 ? {} : { rounds }) }),
     currentId: null,
     runElapsedMs: 0,
     stepTimerMs: 0,
@@ -145,7 +187,17 @@ export function previewView(d: Draft): AgendaView | null {
 
 // 行の編集（新しい下書きを返す）
 
-export const canAddStep = (d: Draft): boolean => d.steps.length < MAX_ITEMS;
+/** 足したあとの「ステップ × 回数」が上限を超えるなら足せない。回数が読めない・範囲外のときは 1 回として数える */
+export const canAddStep = (d: Draft): boolean => d.steps.length < MAX_ITEMS && (d.steps.length + 1) * effectiveRounds(d) <= MAX_PLANNED_STEPS;
+
+/** 数える回数。読めない・範囲外（`MIN_ROUNDS`〜`MAX_ROUNDS` の外）は別の理由の欄が示すので 1 回として数える */
+const effectiveRounds = (d: Draft): number => {
+  const r = roundsOfDraft(d);
+  return roundsInRange(r) ? r : 1;
+};
+
+/** 足せない理由が 20 の上限か（そうでなければ 60 の上限） */
+export const addBlockedByItems = (d: Draft): boolean => d.steps.length >= MAX_ITEMS;
 
 export function addStep(d: Draft): Draft {
   if (!canAddStep(d)) return d;

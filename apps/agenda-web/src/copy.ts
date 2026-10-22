@@ -5,7 +5,7 @@
  * 文言（関数は仮の名前で呼んだ結果）だけを書体の常用の層（base）に当てて守っている。
  * 直書きした文言はその検査を素通りする。足す・変えるときは `outsideBase` で実測してから使う。
  */
-import { MAX_ITEMS, MAX_TOTAL_SEC, STEP_SEC_MAX, STEP_SEC_MIN } from '@tasuki/agenda-core';
+import { MAX_ITEMS, MAX_PLANNED_STEPS, MAX_ROUNDS, MAX_TOTAL_SEC, MIN_ROUNDS, STEP_SEC_MAX, STEP_SEC_MIN } from '@tasuki/agenda-core';
 
 export const LOADING_TEXT = '読み込んでいます…';
 export const JOINING_HEADING = 'ルームに参加しています';
@@ -47,8 +47,10 @@ export const FOOTER_SEPARATOR = ' ・ ';
 // 開始前の盤（中央の名前の段と押し巻きの段）
 export const TODAY_PLAN_LABEL = '今日の進行';
 export const stepCountShort = (count: number): string => `${count} ステップ`;
-/** 盤では 2 つの塊（`TODAY_PLAN_LABEL`・`stepCountShort`）を別々に組み、語の中で折り返させない */
-export const stepCountText = (count: number): string => `${TODAY_PLAN_LABEL} ${stepCountShort(count)}`;
+/** 盤では塊（`TODAY_PLAN_LABEL`・`stepCountShort`・回数 2 以上なら `roundsShort`）を別々に組み、語の中で折り返させない */
+export const roundsShort = (rounds: number): string => `× ${rounds} 回`;
+export const stepCountText = (count: number, rounds = 1): string =>
+  rounds >= 2 ? `${TODAY_PLAN_LABEL} ${stepCountShort(count)} ${roundsShort(rounds)}` : `${TODAY_PLAN_LABEL} ${stepCountShort(count)}`;
 export const NOT_STARTED_LABEL = '開始前';
 // 読み上げの要約（盤の SVG と中央の文字は aria-hidden。同じ情報を文にする）
 export const remainingSummary = (minutes: number): string => `残り ${minutes} 分`;
@@ -62,7 +64,9 @@ export const ADD_STEP_BUTTON = 'ステップを追加';
 export const MOVE_UP_BUTTON = '上へ';
 export const MOVE_DOWN_BUTTON = '下へ';
 export const MINUTES_UNIT = '分';
-export const SAMPLE_TITLE = 'サンプル：KPT のふりかえり';
+/** サンプルの札の見出し（札ごとに会の名前で区別する） */
+export const sampleTitle = (label: string): string => `サンプル：${label}`;
+export const SAMPLE_TITLE = sampleTitle('KPT のふりかえり');
 export const SAVE_LOCAL_BUTTON = 'この端末に保存';
 export const LOAD_TO_ROOM_BUTTON = 'ルームに読み込む';
 export const SCENARIO_CHANGED_NOTE = 'シナリオが変わりました';
@@ -82,7 +86,8 @@ export const REMOVE_BUTTON = '消す';
 /** サンプルの札の 1 ステップ（名前は同梱の文字で、書体の検査の外） */
 export const sampleStepText = (name: string, minutes: number): string => `${name} ${minutes} 分`;
 /** サンプルの札・保存済みの行の添え書き */
-export const scenarioDetail = (steps: number, minutes: number): string => `${steps} ステップ・${minutes} 分`;
+export const scenarioDetail = (steps: number, minutes: number, rounds: number): string =>
+  rounds >= 2 ? `${steps} ステップ × ${rounds} 回・全部で ${minutes} 分` : `${steps} ステップ・${minutes} 分`;
 export const MAX_STEPS_NOTE = `ステップは ${MAX_ITEMS} までです`;
 // 「ルームに読み込む」を押せない理由（最初の 1 つだけ出す）
 export const NEED_STEP_TEXT = 'ステップを追加してください';
@@ -92,6 +97,23 @@ export const stepNameControlText = (n: number): string => `ステップ ${n} の
 export const stepMinutesRangeText = (n: number): string =>
   `ステップ ${n} の分は ${STEP_SEC_MIN / 60}〜${STEP_SEC_MAX / 60} で入れてください`;
 export const totalTooLongText = (minutes: number): string => `合計は ${MAX_TOTAL_SEC / 60} 分までです（いま ${minutes} 分）`;
+// くりかえし（回数）
+export const ROUNDS_LABEL = 'くりかえし';
+export const ROUNDS_UNIT = '回';
+export const roundsMinusLabel = `${ROUNDS_LABEL}を 1 回へらす`;
+export const roundsPlusLabel = `${ROUNDS_LABEL}を 1 回ふやす`;
+/** 盤の中央の回の札（例「2 / 6 回」）。回数 2 以上の進行中・一時停止中だけ出す */
+export const roundBadgeText = (cur: number, total: number): string => `${cur} / ${total} ${ROUNDS_UNIT}`;
+/** 進行表・終了の一覧の回の見出し（例「2 回」） */
+export const roundHeading = (n: number): string => `${n} ${ROUNDS_UNIT}`;
+export const roundsRangeText = (): string => `くりかえしは ${MIN_ROUNDS}〜${MAX_ROUNDS} 回で入れてください`;
+/** ステップを足せないのが 60 の上限のとき */
+export const MAX_PLANNED_NOTE = `ステップ × くりかえしは ${MAX_PLANNED_STEPS} までです`;
+export const plannedStepsTooManyText = (count: number): string =>
+  `ステップ × 回数は ${MAX_PLANNED_STEPS} までです（いま ${count}）`;
+/** 例「1 回あたり 8 分 × 6 回 ＝ 全部で 48 分」 */
+export const perRoundSummary = (perRoundMin: number, rounds: number, totalMin: number): string =>
+  `1 回あたり ${perRoundMin} 分 × ${rounds} 回 ＝ 全部で ${totalMin} 分`;
 // 端末への保存
 export const SAVED_HEADING = '保存済み';
 export const SAVE_NAME_LABEL = '保存する名前';
@@ -115,8 +137,11 @@ export const minutesText = (minutes: number): string => `${minutes} 分`;
 export const extensionSuffix = (minutes: number): string => ` + ${minutes}`;
 /** 盤の下の添え書き（spec §7.2「予定 7 分 + 3 分」） */
 export const extensionNote = (planned: number, extension: number): string => `予定 ${planned} 分 + ${extension} 分`;
-export const skipStepLabel = (n: number): string => `ステップ ${n} をスキップ`;
-export const unskipStepLabel = (n: number): string => `ステップ ${n} を戻す`;
+/** 回数 2 以上では回を前に付ける（例「3 回のステップ 1 をスキップ」）。回数 1 は `round` を渡さない */
+export const skipStepLabel = (n: number, round?: number): string =>
+  `${round === undefined ? '' : `${round} 回の`}ステップ ${n} をスキップ`;
+export const unskipStepLabel = (n: number, round?: number): string =>
+  `${round === undefined ? '' : `${round} 回の`}ステップ ${n} を戻す`;
 
 // 映す表示（spec §7.5）
 export const PROJECT_BUTTON = '映す表示';

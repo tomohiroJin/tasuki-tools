@@ -13,6 +13,61 @@ const step = (over: Record<string, unknown> = {}) => ({ name: "a", durationSec: 
 const scenario = (over: Record<string, unknown> = {}) => ({ title: "会", steps: [step()], ...over });
 const ok = (schema: Parameters<typeof v.safeParse>[0], x: unknown) => v.safeParse(schema, x).success;
 
+describe("ScenarioInputSchema の回数", () => {
+  const sc = (rounds: unknown, steps: unknown[]) => ({ title: "会", rounds, steps });
+  const min = (n: number, sec = 60) => Array.from({ length: n }, () => step({ durationSec: sec }));
+  it.each([
+    ["回数の省略", { title: "会", steps: [step()] }],
+    ["回数 1", sc(1, [step()])],
+    ["回数 30", sc(30, [step({ durationSec: 60 })])],
+    ["展開後 60 区切り（3 区切り × 20 回）", sc(20, min(3))],
+    ["展開後 180 分（1 区切り 6 分 × 30 回）", sc(30, [step({ durationSec: 360 })])],
+  ])("通る: %s", (_n, x) => {
+    expect(ok(ScenarioInputSchema, x)).toBe(true);
+  });
+  it.each([
+    ["回数 0", sc(0, [step()])],
+    ["回数 31", sc(31, [step({ durationSec: 60 })])],
+    ["回数 1.5", sc(1.5, [step()])],
+    ["回数が文字列", sc("2", [step()])],
+    ["展開後 61 区切り以上（4 区切り × 16 回）（m454）", sc(16, min(4))],
+    ["展開後 181 分以上（7 分 × 26 回）（m453）", sc(26, [step({ durationSec: 420 })])],
+  ])("拒む: %s", (_n, x) => {
+    expect(ok(ScenarioInputSchema, x)).toBe(false);
+  });
+  it("回数つきでも回数なしでも set を受け、知らないキーは拒む", () => {
+    expect(ok(AgendaCommandSchema, { command: "agenda.scenario.set", scenario: scenario({ rounds: 2 }) })).toBe(true);
+    expect(ok(AgendaCommandSchema, { command: "agenda.scenario.set", scenario: scenario() })).toBe(true);
+    expect(ok(AgendaCommandSchema, { command: "agenda.scenario.set", scenario: scenario({ repeat: 2 }) })).toBe(false);
+  });
+});
+
+describe("AgendaFrameSchema の回数", () => {
+  const frame = (state: Record<string, unknown>, stepOver: Record<string, unknown> = {}) => ({
+    type: "agenda",
+    state: {
+      phase: "idle",
+      title: "",
+      steps: [{ id: "s-1", name: "a", durationSec: 60, onTimeout: "wait", skipped: false, extensionSec: 0, spentMs: null, ...stepOver }],
+      currentId: null,
+      runElapsedMs: 0,
+      stepTimerMs: 0,
+      stepSpentMs: 0,
+      ...state,
+    },
+  });
+  it("回数も回も無い第 1 段の形を受け、1 として読む", () => {
+    const r = v.parse(AgendaFrameSchema, frame({}));
+    expect(r.state.rounds).toBe(1);
+    expect(r.state.steps[0]!.round).toBe(1);
+  });
+  it("回数と回はそのまま出る", () => {
+    const r = v.parse(AgendaFrameSchema, frame({ rounds: 3 }, { round: 2 }));
+    expect(r.state.rounds).toBe(3);
+    expect(r.state.steps[0]!.round).toBe(2);
+  });
+});
+
 describe("AgendaCommandSchema", () => {
   const valid = [
     { command: "agenda.scenario.set", scenario: scenario() },

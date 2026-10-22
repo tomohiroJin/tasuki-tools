@@ -23,7 +23,7 @@ export type RowFocusTarget = 'name' | 'up' | 'down';
 
 interface Props {
   step: DraftStep;
-  /** 1 から（盤の目盛りの番号と同じ） */
+  /** 1 から（組む画面の行の番号。盤の目盛りと同じなのは回数 1 のときだけで、回数 2 以上の盤の札は回の番号） */
   number: number;
   isFirst: boolean;
   isLast: boolean;

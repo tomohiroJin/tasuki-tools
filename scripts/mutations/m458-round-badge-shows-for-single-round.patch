@@ -1,0 +1,23 @@
+# 変異 458: round-badge-shows-for-single-round
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/agenda-view.test.ts
+#
+# #429 回の札の「回数 2 以上」の条件を外す。回数 1 の盤に「1 / 1 回」が出て、第 1 段の盤と変わる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m458-*.patch
+# 復元: git apply -R scripts/mutations/m458-*.patch
+diff --git a/apps/agenda-web/src/agenda-view.ts b/apps/agenda-web/src/agenda-view.ts
+index ad1b9212..29f856b9 100644
+--- a/apps/agenda-web/src/agenda-view.ts
++++ b/apps/agenda-web/src/agenda-view.ts
+@@ -111,7 +111,7 @@ export function centerLines(v: AgendaView): CenterLines {
+ 
+ /** 盤の中央の回の札「2 / 6 回」。進行中・一時停止中で回数 2 以上のときだけ（それ以外は空） */
+ export function roundBadge(v: AgendaView): string {
+-  if (!isActive(v) || v.rounds < 2) return '';
++  if (!isActive(v)) return '';
+   const cur = currentStep(v);
+   return cur === undefined ? '' : roundBadgeText(cur.round, v.rounds);
+ }

@@ -10,14 +10,17 @@ import { AGENDA_DOMAIN_ERROR_CODES } from "./errors.js";
 import {
   EXTEND_MINUTES,
   MAX_ITEMS,
+  MAX_PLANNED_STEPS,
+  MAX_ROUNDS,
   MAX_SCENARIO_TITLE,
   MAX_STEP_NAME,
   MAX_TOTAL_SEC,
+  MIN_ROUNDS,
   STEP_SEC_GRANULARITY,
   STEP_SEC_MAX,
   STEP_SEC_MIN,
 } from "./limits.js";
-import { totalPlannedSec } from "./scenario.js";
+import { plannedStepCount, scenarioTotalSec } from "./scenario.js";
 
 /** C0 制御文字と DEL */
 // eslint-disable-next-line no-control-regex -- 制御文字を拒むのが目的
@@ -58,15 +61,16 @@ export const StepInputSchema = v.strictObject({
   onTimeout: timeoutBehavior,
 });
 
-export const ScenarioInputSchema = v.strictObject({
-  title: scenarioTitleStr,
-  steps: v.pipe(
-    v.array(StepInputSchema),
-    v.minLength(1),
-    v.maxLength(MAX_ITEMS),
-    v.check((steps) => totalPlannedSec(steps) <= MAX_TOTAL_SEC, "total duration too long"),
-  ),
-});
+export const ScenarioInputSchema = v.pipe(
+  v.strictObject({
+    title: scenarioTitleStr,
+    steps: v.pipe(v.array(StepInputSchema), v.minLength(1), v.maxLength(MAX_ITEMS)),
+    rounds: v.optional(v.pipe(v.number(), v.integer(), v.minValue(MIN_ROUNDS), v.maxValue(MAX_ROUNDS))),
+  }),
+  // 合計と区切りの数は回数を掛けた展開後で見る（回数が無いと数えられないのでオブジェクト全体で検査する）
+  v.check((input) => scenarioTotalSec(input) <= MAX_TOTAL_SEC, "total duration too long"),
+  v.check((input) => plannedStepCount(input) <= MAX_PLANNED_STEPS, "too many steps after expansion"),
+);
 
 const stepIdStr = v.pipe(v.string(), v.minLength(1), v.maxLength(16));
 
@@ -101,6 +105,7 @@ const frameTimeoutBehavior = v.pipe(
 // 受けるフレームは**非 strict**（サーバーが項目を足しても古い web がフレームごと捨てない）。
 const stepViewSchema = v.object({
   id: v.string(),
+  round: v.optional(v.number(), 1),
   name: v.string(),
   durationSec: v.number(),
   onTimeout: frameTimeoutBehavior,
@@ -112,6 +117,7 @@ const stepViewSchema = v.object({
 const AgendaViewSchema = v.object({
   phase: v.picklist(["idle", "running", "paused", "finished"]),
   title: v.string(),
+  rounds: v.optional(v.number(), 1),
   steps: v.array(stepViewSchema),
   currentId: v.nullable(v.string()),
   runElapsedMs: v.number(),

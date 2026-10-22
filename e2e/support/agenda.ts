@@ -67,6 +67,19 @@ export async function loadSampleAndStart(page: Page): Promise<void> {
   await expect(page.getByRole('button', { name: '次へ', exact: true })).toBeVisible();
 }
 
+/**
+ * 組む画面に残っている下書きのくりかえしを `rounds` 回にして、ルームに読み込んで開始する。
+ * 「最初から」のあとはルームにシナリオが残り、サンプルの札は出ない（空のときだけ出る）ので、いまの下書きを使う。
+ */
+export async function setRoundsAndStart(page: Page, rounds: number): Promise<void> {
+  await page.getByLabel('くりかえし', { exact: true }).fill(String(rounds));
+  await page.getByRole('button', { name: 'ルームに読み込む', exact: true }).click();
+  const start = page.getByRole('button', { name: '開始', exact: true });
+  await expect(start).toBeEnabled();
+  await start.click();
+  await expect(page.getByRole('button', { name: '次へ', exact: true })).toBeVisible();
+}
+
 /** 押し巻きの文から符号つきの分を読む（U+2212 と U+002B。「予定どおり」は 0）。読めなければ null。 */
 export function parseDriftMinutes(text: string): number | null {
   if (text === '予定どおり') return 0;

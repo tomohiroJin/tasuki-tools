@@ -1,0 +1,24 @@
+# 変異 460: step-list-ignores-box-scroll-top
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/step-list.test.tsx
+#
+# #429 枠の中の行の位置を測るとき、枠の scrollTop を足し戻さない。スクロール済みの枠から次の区切りへ動くと、
+# 行の位置が scrollTop の分だけ手前に測られ、二段目の移動が足りなくなる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m460-*.patch
+# 復元: git apply -R scripts/mutations/m460-*.patch
+diff --git a/apps/agenda-web/src/components/StepList.tsx b/apps/agenda-web/src/components/StepList.tsx
+index e5ff229e..acbb54ed 100644
+--- a/apps/agenda-web/src/components/StepList.tsx
++++ b/apps/agenda-web/src/components/StepList.tsx
+@@ -83,7 +83,7 @@ export function StepList({ view, canOperate, onSetSkipped }: Props) {
+     if (row === null) return;
+     // 枠の中での行の位置は座標の差で測る（`offsetTop` は offsetParent＝body からで、枠より上の高さが混ざる）
+     const rowRect = row.getBoundingClientRect();
+-    const top = rowRect.top - box.getBoundingClientRect().top + box.scrollTop;
++    const top = rowRect.top - box.getBoundingClientRect().top;
+     box.scrollTop = scrollTopToReveal(box, { top, height: rowRect.height });
+   }, [grouped, nowId]);
+ 

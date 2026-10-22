@@ -1,0 +1,22 @@
+# 変異 454: expanded-step-count-unchecked
+#
+# 検出を期待するテスト:
+#   - packages/agenda-core/tests/schemas.test.ts
+#
+# #429 第 2 段。展開後の区切りの数の上限を見ず、回数で 60 区切りを超えるシナリオを通す。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m454-*.patch
+# 復元: git apply -R scripts/mutations/m454-*.patch
+diff --git a/packages/agenda-core/src/schemas.ts b/packages/agenda-core/src/schemas.ts
+index c33bf1f2..f7ede790 100644
+--- a/packages/agenda-core/src/schemas.ts
++++ b/packages/agenda-core/src/schemas.ts
+@@ -69,7 +69,6 @@ export const ScenarioInputSchema = v.pipe(
+   }),
+   // 合計と区切りの数は回数を掛けた展開後で見る（回数が無いと数えられないのでオブジェクト全体で検査する）
+   v.check((input) => scenarioTotalSec(input) <= MAX_TOTAL_SEC, "total duration too long"),
+-  v.check((input) => plannedStepCount(input) <= MAX_PLANNED_STEPS, "too many steps after expansion"),
+ );
+ 
+ const stepIdStr = v.pipe(v.string(), v.minLength(1), v.maxLength(16));

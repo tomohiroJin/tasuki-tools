@@ -1,0 +1,23 @@
+# 変異 456: key-ignores-rounds
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/scenario-draft.test.ts
+#
+# #429 第 2 段。比べる鍵から回数を外すと、回数だけ変えた下書きがルームと同じに見え、読み込みを押せない・変更の知らせが出ない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m456-*.patch
+# 復元: git apply -R scripts/mutations/m456-*.patch
+diff --git a/apps/agenda-web/src/scenario-draft.ts b/apps/agenda-web/src/scenario-draft.ts
+index 71d6e257..6d5fd810 100644
+--- a/apps/agenda-web/src/scenario-draft.ts
++++ b/apps/agenda-web/src/scenario-draft.ts
+@@ -114,7 +114,7 @@ export function inputFromDraft(d: Draft): ScenarioInput {
+ 
+ /** 比べるための鍵（名前・秒・振る舞いの並びと会の名前と回数） */
+ export function scenarioKey(input: ScenarioInput): string {
+-  return JSON.stringify([input.title, roundsOf(input), input.steps.map((s) => [s.name, s.durationSec, s.onTimeout])]);
++  return JSON.stringify([input.title, input.steps.map((s) => [s.name, s.durationSec, s.onTimeout])]);
+ }
+ 
+ export type DraftCheck = { readonly ok: true; readonly input: ScenarioInput } | { readonly ok: false; readonly reason: string };

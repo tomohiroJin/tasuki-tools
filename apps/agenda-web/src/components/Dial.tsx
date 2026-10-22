@@ -11,7 +11,7 @@
  */
 import { useId } from 'react';
 import type { AgendaView } from '@tasuki/agenda-core';
-import { centerLines, driftTone, footerLine, summaryText } from '../agenda-view';
+import { centerLines, definedStepCount, driftTone, footerLine, roundBadge, summaryText } from '../agenda-view';
 import {
   DIAL_CENTER as C,
   arcPath,
@@ -20,11 +20,13 @@ import {
   needleDeg,
   outerSegments,
   overrunTrackDeg,
+  planLabels,
   polar,
   projectedMarkerDeg,
   smallSecondsDeg,
+  type PlanLabel,
 } from '../dial-geometry';
-import { OVERRUN_LABEL, PAUSED_LABEL, TODAY_PLAN_LABEL, stepCountShort } from '../copy';
+import { OVERRUN_LABEL, PAUSED_LABEL, TODAY_PLAN_LABEL, roundsShort, stepCountShort } from '../copy';
 import { TimeDigits } from './TimeDigits';
 
 interface Props {
@@ -47,8 +49,6 @@ const R_IN = 130;
 const R_EXT = R_IN + 8;
 /** 外の環の区画の両端を少し空けて、仕切りを見せる */
 const GAP = 0.6;
-/** 番号を置ける区画の最小の角度（これより狭い区画は番号を省く。名前は中央と進行表が持つ） */
-const MIN_NUMBER_SPAN = 14;
 /** 6 時のスモールセコンドの中心 */
 const SUB_Y = C + 90;
 const SUB_R = 17;
@@ -115,15 +115,30 @@ function MinuteTicks() {
   );
 }
 
-/** 外の環（予定）。仕切り・番号・飛ばした区画の斜線 */
+function PlanNumber({ label }: { label: PlanLabel }) {
+  const [nx, ny] = polar(R_OUT - 17, label.deg);
+  const skipped = label.skipped ? '--skipped' : '';
+  return (
+    <text className={`dial-plan-number dial-plan-number${skipped}`} x={fixed(nx)} y={fixed(ny)}>
+      {label.text}
+    </text>
+  );
+}
+
+/**
+ * 外の環（予定）。仕切り・札・飛ばした区画の斜線。
+ * 回数 1 は区画ごとの番号を区画の中に置き（第 1 段と同じ DOM）、回数 2 以上は回の札を環の後ろにまとめて置く
+ */
 function PlanRing({ view, hatch }: { view: AgendaView; hatch: string }) {
+  const labels = planLabels(view);
+  const labelByKey = new Map(labels.map((l) => [l.key, l]));
+  const perSegment = view.rounds < 2;
   return (
     <g>
-      {outerSegments(view).map((seg, i) => {
+      {outerSegments(view).map((seg) => {
         const [sx0, sy0] = polar(R_OUT - 7, seg.startDeg);
         const [sx1, sy1] = polar(R_OUT + 7, seg.startDeg);
-        const [nx, ny] = polar(R_OUT - 17, (seg.startDeg + seg.endDeg) / 2);
-        const skipped = seg.skipped ? '--skipped' : '';
+        const label = perSegment ? labelByKey.get(seg.id) : undefined;
         return (
           <g key={seg.id}>
             <path
@@ -133,14 +148,11 @@ function PlanRing({ view, hatch }: { view: AgendaView; hatch: string }) {
               style={seg.skipped ? { stroke: hatch } : undefined}
             />
             <line className="dial-plan-divider" x1={fixed(sx0)} y1={fixed(sy0)} x2={fixed(sx1)} y2={fixed(sy1)} />
-            {seg.endDeg - seg.startDeg > MIN_NUMBER_SPAN && (
-              <text className={`dial-plan-number dial-plan-number${skipped}`} x={fixed(nx)} y={fixed(ny)}>
-                {i + 1}
-              </text>
-            )}
+            {label !== undefined && <PlanNumber label={label} />}
           </g>
         );
       })}
+      {!perSegment && labels.map((label) => <PlanNumber key={label.key} label={label} />)}
     </g>
   );
 }
@@ -223,11 +235,13 @@ function Plate({ id, overrun }: { id: string; overrun: boolean }) {
 function Readout({ view }: { view: AgendaView }) {
   const lines = centerLines(view);
   const paused = view.phase === 'paused';
+  const round = roundBadge(view);
   return (
     <div className="dial-face" aria-hidden="true">
       <div className="dial-readout">
-        {(lines.isOverrun || paused) && (
+        {(lines.isOverrun || paused || round !== '') && (
           <div className="dial-tags">
+            {round !== '' && <span className="dial-tag dial-tag--round">{round}</span>}
             {lines.isOverrun && <span className="dial-tag dial-tag--overrun">{OVERRUN_LABEL}</span>}
             {paused && <span className="dial-tag dial-tag--paused">{PAUSED_LABEL}</span>}
           </div>
@@ -237,7 +251,13 @@ function Readout({ view }: { view: AgendaView }) {
           {view.phase === 'idle' ? (
             <>
               <span className="dial-name-chunk">{TODAY_PLAN_LABEL}</span>{' '}
-              <span className="dial-name-chunk">{stepCountShort(view.steps.length)}</span>
+              <span className="dial-name-chunk">{stepCountShort(definedStepCount(view))}</span>
+              {view.rounds >= 2 && (
+                <>
+                  {' '}
+                  <span className="dial-name-chunk">{roundsShort(view.rounds)}</span>
+                </>
+              )}
             </>
           ) : (
             lines.name

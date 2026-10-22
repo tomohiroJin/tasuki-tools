@@ -107,6 +107,48 @@ export function smallSecondsDeg(v: AgendaView): number {
   return ((v.stepTimerMs / MS_PER_SEC) % SEC_PER_MIN) * (FULL / SEC_PER_MIN);
 }
 
+/** 番号を置ける区画の最小の角度（これより狭い区画は番号を省く。名前は中央と進行表が持つ） */
+export const MIN_NUMBER_SPAN = 14;
+
+export interface PlanLabel {
+  readonly key: string;
+  readonly text: string;
+  /** 札を置く角度（区画の中央） */
+  readonly deg: number;
+  readonly skipped: boolean;
+}
+
+/**
+ * 外の環の札。回数 1 は区画ごとの番号（幅が `MIN_NUMBER_SPAN` を超える区画だけ）。
+ * 回数 2 以上は**回ごとに 1 つ**（回の数・その回の区画全体の中央・その回の幅が `MIN_NUMBER_SPAN` を超えるときだけ。
+ * 60 区画でも札が重ならない）。`skipped` はその回の全区切りが飛ばされたとき。
+ */
+export function planLabels(v: AgendaView): PlanLabel[] {
+  const segs = outerSegments(v);
+  if (v.rounds < 2) {
+    return segs.flatMap((seg, i) =>
+      seg.endDeg - seg.startDeg > MIN_NUMBER_SPAN
+        ? [{ key: seg.id, text: String(i + 1), deg: (seg.startDeg + seg.endDeg) / 2, skipped: seg.skipped }]
+        : [],
+    );
+  }
+  const out: PlanLabel[] = [];
+  for (let round = 1; round <= v.rounds; round++) {
+    const mine = segs.filter((_, i) => v.steps[i]?.round === round);
+    const first = mine[0];
+    const last = mine[mine.length - 1];
+    if (first === undefined || last === undefined) continue;
+    if (last.endDeg - first.startDeg <= MIN_NUMBER_SPAN) continue;
+    out.push({
+      key: `round-${round}`,
+      text: String(round),
+      deg: (first.startDeg + last.endDeg) / 2,
+      skipped: mine.every((s) => s.skipped),
+    });
+  }
+  return out;
+}
+
 /* ── SVG の座標（viewBox 0 0 400 400・中心 200,200） ─────────────────── */
 
 export const DIAL_CENTER = 200;

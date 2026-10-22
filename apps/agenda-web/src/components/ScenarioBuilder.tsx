@@ -1,13 +1,19 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { MAX_SCENARIO_TITLE, totalPlannedSec, type AgendaView, type ScenarioInput } from '@tasuki/agenda-core';
+import { MAX_ROUNDS, MAX_SCENARIO_TITLE, MIN_ROUNDS, roundsOf, scenarioTotalSec, type AgendaView, type ScenarioInput } from '@tasuki/agenda-core';
 import {
   ADD_STEP_BUTTON,
   BACK_TO_ROOM_SCENARIO_BUTTON,
   DEFAULT_ERROR_TEXT,
   LOAD_FIRST_TEXT,
   LOAD_TO_ROOM_BUTTON,
+  MAX_PLANNED_NOTE,
   MAX_STEPS_NOTE,
-  SAMPLE_TITLE,
+  perRoundSummary,
+  ROUNDS_LABEL,
+  ROUNDS_UNIT,
+  roundsMinusLabel,
+  roundsPlusLabel,
+  sampleTitle,
   SCENARIO_CHANGED_NOTE,
   SCENARIO_TITLE_LABEL,
   START_BUTTON,
@@ -20,6 +26,8 @@ import { useWallClock } from '../hooks/use-wall-clock';
 import { SAMPLE_SCENARIOS } from '../sample-scenarios';
 import {
   addStep,
+  bumpRounds,
+  addBlockedByItems,
   canAddStep,
   checkDraft,
   clipTitle,
@@ -27,9 +35,12 @@ import {
   inputFromDraft,
   inputFromView,
   isEmptyDraft,
+  roundsInRange,
   moveStep,
+  perRoundMinutes,
   previewView,
   removeStep,
+  roundsOfDraft,
   scenarioKey,
   totalMinutes,
   updateStep,
@@ -63,7 +74,8 @@ function useScenarioDraft(room: ScenarioInput) {
   let current = state;
   if (state.roomKey !== key) {
     const draftKey = scenarioKey(inputFromDraft(state.draft));
-    const untouched = isEmptyDraft(state.draft) || draftKey === state.roomKey;
+    // 回数の欄を空にした下書きは `rounds` キーを落とし、回数 1 のルームと同じ鍵になる。触った下書きとして扱う
+    const untouched = isEmptyDraft(state.draft) || (roundsOfDraft(state.draft) !== null && draftKey === state.roomKey);
     current = untouched
       ? { ...state, draft: draftFromInput(room), roomKey: key, changed: false }
       : { ...state, roomKey: key, changed: key !== state.sentKey && draftKey !== key };
@@ -106,6 +118,7 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
   const reducedMotion = usePrefersReducedMotion();
   const reasonId = useId();
   const titleId = useId();
+  const roundsId = useId();
   const addRef = useRef<HTMLButtonElement>(null);
   const [focusRequest, setFocusRequest] = useState<FocusRequest>(null);
 
@@ -123,6 +136,7 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
   const showSample = !roomReady && isEmptyDraft(draft);
   const preview = previewView(draft);
   const reason = actionReason(check, draft.steps.length > 0, sameAsRoom);
+  const roundsNow = roundsOfDraft(draft);
   const describedBy = reason.text === '' ? undefined : reasonId;
 
   const remove = (i: number): void => {
@@ -198,13 +212,56 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
             <button ref={addRef} type="button" className="ui-button ui-button--secondary" disabled={!canAddStep(draft)} onClick={add}>
               {ADD_STEP_BUTTON}
             </button>
-            {!canAddStep(draft) && <span className="builder-add-note">{MAX_STEPS_NOTE}</span>}
+            {!canAddStep(draft) && (
+              <span className="builder-add-note">{addBlockedByItems(draft) ? MAX_STEPS_NOTE : MAX_PLANNED_NOTE}</span>
+            )}
+          </div>
+          <div className="builder-rounds">
+            <label htmlFor={roundsId}>{ROUNDS_LABEL}</label>
+            <div className="builder-minutes">
+              <button
+                type="button"
+                className="ui-button ui-button--secondary builder-bump"
+                aria-label={roundsMinusLabel}
+                disabled={roundsNow !== null && roundsNow <= MIN_ROUNDS}
+                onClick={() => setDraft({ ...draft, rounds: bumpRounds(draft, -1) })}
+              >
+                −
+              </button>
+              <input
+                id={roundsId}
+                type="number"
+                inputMode="numeric"
+                className="ui-input builder-minutes-input"
+                min={MIN_ROUNDS}
+                max={MAX_ROUNDS}
+                step={1}
+                value={draft.rounds}
+                onChange={(event) => setDraft({ ...draft, rounds: event.target.value })}
+              />
+              <button
+                type="button"
+                className="ui-button ui-button--secondary builder-bump"
+                aria-label={roundsPlusLabel}
+                disabled={roundsNow !== null && roundsNow >= MAX_ROUNDS}
+                onClick={() => setDraft({ ...draft, rounds: bumpRounds(draft, 1) })}
+              >
+                +
+              </button>
+              <span className="builder-minutes-unit" aria-hidden="true">
+                {ROUNDS_UNIT}
+              </span>
+            </div>
           </div>
         </section>
       </div>
       <div className="ui-workspace-side builder-side">
         <section className="ui-panel builder-preview">
-          <p className="builder-total">{plannedSummary(totalMinutes(draft))}</p>
+          <p className="builder-total">
+            {roundsNow !== null && roundsInRange(roundsNow) && roundsNow >= 2
+              ? perRoundSummary(perRoundMinutes(draft), roundsNow, totalMinutes(draft))
+              : plannedSummary(perRoundMinutes(draft))}
+          </p>
           {preview !== null && <Dial view={preview} wallNow={wallNow} reducedMotion={reducedMotion} />}
           <p id={reasonId} role="status" className={reason.isError ? 'builder-reason ui-note ui-note--error' : 'builder-reason ui-note'}>
             {reason.text}
@@ -246,11 +303,11 @@ function SampleCards({ onPick }: { onPick: (scenario: ScenarioInput) => void }) 
   return (
     <div className="builder-samples">
       {SAMPLE_SCENARIOS.map((sample) => {
-        const minutes = totalPlannedSec(sample.scenario.steps) / 60;
+        const minutes = scenarioTotalSec(sample.scenario) / 60;
         return (
           <button key={sample.label} type="button" className="builder-sample" onClick={() => onPick(sample.scenario)}>
-            <span className="builder-sample-title">{SAMPLE_TITLE}</span>
-            <span className="builder-sample-detail">{scenarioDetail(sample.scenario.steps.length, minutes)}</span>
+            <span className="builder-sample-title">{sampleTitle(sample.label)}</span>
+            <span className="builder-sample-detail">{scenarioDetail(sample.scenario.steps.length, minutes, roundsOf(sample.scenario))}</span>
             <span className="builder-sample-bar" aria-hidden="true">
               {sample.scenario.steps.map((s) => (
                 <span key={s.name} className="builder-sample-segment" style={{ flexGrow: s.durationSec }} />

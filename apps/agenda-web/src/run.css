@@ -279,6 +279,23 @@
 .step-list-skip {
   flex: none;
 }
+/* 回数 2 以上: 枠の高さの上限（撮影で詰める値はここ 1 か所）。回数 1 は枠のクラスを付けない */
+.step-list-rows--scroll {
+  max-height: min(24rem, 50vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.step-list-round {
+  padding-top: var(--space-2);
+  border-bottom: 1px solid var(--gold-edge);
+}
+.step-list-round-heading {
+  margin: 0;
+  color: var(--ivory-dim);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+}
 /* 済み: 落ち着いた字 */
 .step-list-row.is-done {
   color: var(--ivory-faint);
@@ -375,6 +392,14 @@
 }
 .summary-table thead th:first-child {
   text-align: start;
+}
+.summary-table th[scope='rowgroup'] {
+  padding-top: var(--space-3);
+  color: var(--ivory-dim);
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  text-align: start;
+  letter-spacing: 0.08em;
 }
 .summary-table tr.is-skipped th {
   color: var(--ivory-faint);

@@ -18,7 +18,10 @@ export interface SavedScenario {
 /** 版 N の生の中身を版 N+1 へ移す。キーは移す元の版。 */
 export type Migrations = Record<number, (raw: unknown) => unknown>;
 
-/** 現在は移行する旧版が無い。形が変わったらここへ足す。 */
+/**
+ * 版 N → N+1 の移行。いまは空。回数（`rounds`）は省略できる項目なので、版は 1 のまま上げない
+ * （上げると古いコードが保存の全体を読めなくなる）。形が変わったらここへ足す。
+ */
 export const MIGRATIONS: Migrations = {};
 
 const isRecord = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x);

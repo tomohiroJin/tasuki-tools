@@ -1,0 +1,32 @@
+# 変異 453: total-limit-ignores-rounds
+#
+# 検出を期待するテスト:
+#   - packages/agenda-core/tests/schemas.test.ts
+#
+# #429 第 2 段。合計の上限を 1 回あたりで見て、回数を掛けた合計が 180 分を超えるシナリオを通す。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m453-*.patch
+# 復元: git apply -R scripts/mutations/m453-*.patch
+diff --git a/packages/agenda-core/src/schemas.ts b/packages/agenda-core/src/schemas.ts
+index c33bf1f2..669489bc 100644
+--- a/packages/agenda-core/src/schemas.ts
++++ b/packages/agenda-core/src/schemas.ts
+@@ -20,7 +20,7 @@ import {
+   STEP_SEC_MAX,
+   STEP_SEC_MIN,
+ } from "./limits.js";
+-import { plannedStepCount, scenarioTotalSec } from "./scenario.js";
++import { plannedStepCount, scenarioTotalSec, totalPlannedSec } from "./scenario.js";
+ 
+ /** C0 制御文字と DEL */
+ // eslint-disable-next-line no-control-regex -- 制御文字を拒むのが目的
+@@ -68,7 +68,7 @@ export const ScenarioInputSchema = v.pipe(
+     rounds: v.optional(v.pipe(v.number(), v.integer(), v.minValue(MIN_ROUNDS), v.maxValue(MAX_ROUNDS))),
+   }),
+   // 合計と区切りの数は回数を掛けた展開後で見る（回数が無いと数えられないのでオブジェクト全体で検査する）
+-  v.check((input) => scenarioTotalSec(input) <= MAX_TOTAL_SEC, "total duration too long"),
++  v.check((input) => totalPlannedSec(input.steps) <= MAX_TOTAL_SEC, "total duration too long"),
+   v.check((input) => plannedStepCount(input) <= MAX_PLANNED_STEPS, "too many steps after expansion"),
+ );
+ 

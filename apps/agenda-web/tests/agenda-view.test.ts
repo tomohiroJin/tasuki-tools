@@ -10,6 +10,7 @@ import {
   footerLine,
   nextStepName,
   projectedEndClock,
+  roundBadge,
   signedDuration,
   stepRows,
   summaryText,
@@ -81,6 +82,9 @@ describe('盤の中央の文字', () => {
   });
 
   it('開始前は予定の合計・ステップの数・開始前を出す', () => {
+    expect(centerLines(idleView([5], undefined, 6)).name).toBe('今日の進行 1 ステップ × 6 回');
+    expect(centerLines(idleView([5], undefined, 6)).name).not.toContain('6 ステップ');
+    expect(centerLines(idleView([5, 7], undefined, 3)).name).toBe('今日の進行 2 ステップ × 3 回');
     const lines = centerLines(idleView([5, 7, 1, 40, 7]));
     expect(lines).toEqual({ primary: '60:00', isOverrun: false, name: '今日の進行 5 ステップ', drift: '開始前' });
     expect(driftTone(idleView([5]))).toBe('idle');
@@ -141,6 +145,9 @@ describe('読み上げの要約', () => {
 
   it('開始前と終了', () => {
     expect(summaryText(idleView([5, 7]))).toBe('今日の進行 2 ステップ、予定 12 分、開始前');
+    // 回数 2 以上は定義のステップ数 × 回数（展開後の数ではない）
+    expect(summaryText(idleView([5], undefined, 6))).toBe('今日の進行 1 ステップ × 6 回、予定 30 分、開始前');
+    expect(summaryText(idleView([5, 7], undefined, 2))).toContain('今日の進行 2 ステップ × 2 回');
     expect(summaryText(new Driver([5, 5]).next(6 * MIN).next(14 * MIN).view(20 * MIN))).toBe('終了、予定より +4 分');
   });
 });
@@ -180,5 +187,43 @@ describe('進める画面と映す表示の文字', () => {
     expect(signedDuration(-110_000)).toBe('−1:50');
     expect(signedDuration(400)).toBe('0:00');
     expect(signedDuration(-29_600)).toBe('−0:30');
+  });
+});
+
+/**
+ * @requirements #429 spec §7.3（回の札）
+ */
+describe('回の札', () => {
+  // 2 区切り × 6 回。s-3・s-4 が 2 回目
+  const six = (): Driver => new Driver([1, 1], 'LT', 'wait', 6);
+
+  it('回数 6 の進行で 2 回目の区切りにいると「2 / 6 回」（m458）', () => {
+    expect(roundBadge(six().view(0))).toBe('1 / 6 回');
+    expect(roundBadge(six().next(MIN).next(2 * MIN).view(2 * MIN))).toBe('2 / 6 回');
+  });
+
+  it('一時停止中も出る', () => {
+    expect(roundBadge(six().next(MIN).next(2 * MIN).pause(2 * MIN).view(3 * MIN))).toBe('2 / 6 回');
+  });
+
+  it('回数 1・開始前・終了では空（m458）', () => {
+    expect(roundBadge(new Driver([1, 1]).view(0))).toBe('');
+    expect(roundBadge(idleView([1, 1], 'LT', 6))).toBe('');
+    const d = new Driver([1], 'LT', 'wait', 2);
+    expect(roundBadge(d.next(MIN).next(2 * MIN).view(2 * MIN))).toBe('');
+  });
+
+  it('読み上げの要約は回数 2 以上なら名前の次に回を入れ、回数 1 は第 1 段のまま', () => {
+    expect(summaryText(six().next(MIN).next(2 * MIN).view(2 * MIN + 30_000))).toBe('S1、2 / 6 回、残り 1 分、予定どおり');
+    expect(summaryText(new Driver([5, 7]).view(MIN))).toBe('S1、残り 4 分、予定どおり');
+  });
+
+  it('進行表の行は回を持つ', () => {
+    expect(stepRows(six().view(0)).map((r) => r.round)).toEqual([1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6]);
+  });
+
+  it('進行表の行の番号は、回数 2 以上では回の中の番号、回数 1 では通しの番号', () => {
+    expect(stepRows(six().view(0)).map((r) => r.number)).toEqual([1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2]);
+    expect(stepRows(new Driver([1, 1, 1]).view(0)).map((r) => r.number)).toEqual([1, 2, 3]);
   });
 });

@@ -6,6 +6,9 @@ export {
   STEP_SEC_MAX,
   STEP_SEC_GRANULARITY,
   MAX_TOTAL_SEC,
+  MIN_ROUNDS,
+  MAX_ROUNDS,
+  MAX_PLANNED_STEPS,
   MAX_STEP_BUDGET_SEC,
   EXTEND_MINUTES,
 } from "./limits.js";
@@ -25,7 +28,7 @@ export type {
 export { AGENDA_DOMAIN_ERROR_CODES } from "./errors.js";
 export type { AgendaDomainErrorCode, AgendaError } from "./errors.js";
 
-export { expand, totalPlannedSec } from "./scenario.js";
+export { expand, totalPlannedSec, roundsOf, scenarioTotalSec, plannedStepCount, definitionOf } from "./scenario.js";
 
 export { INITIAL_AGENDA_STATE, replaceScenario, start, next, pause, resume, extend, setSkipped, reset, deadlineOf, advanceIfDue, toView } from "./agenda.js";
 

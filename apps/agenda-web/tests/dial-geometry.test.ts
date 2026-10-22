@@ -24,8 +24,10 @@ import {
   innerSegments,
   lateRimDeg,
   needleDeg,
+  MIN_NUMBER_SPAN,
   outerSegments,
   overrunTrackDeg,
+  planLabels,
   projectedMarkerDeg,
   smallSecondsDeg,
 } from '../src/dial-geometry';
@@ -199,5 +201,62 @@ describe('盤の幾何', () => {
     expect(smallSecondsDeg(d.view(15_000))).toBe(90);
     d.pause(15_000);
     expect(smallSecondsDeg(d.view(50_000))).toBe(90);
+  });
+});
+
+/**
+ * @requirements #429 spec §7.2（回数が多いときの札）
+ */
+describe('外の環の札', () => {
+  const gaps = (degs: readonly number[]): number[] => degs.slice(1).map((d, i) => d - (degs[i] ?? 0));
+
+  it('回数 1 は第 1 段と同じ。区画ごとの番号で、幅が MIN_NUMBER_SPAN を超える区画だけ（KPT は 3 の札が出ない）', () => {
+    const labels = planLabels(idleView([5, 7, 1, 40, 7]));
+    expect(labels.map((l) => l.text)).toEqual(['1', '2', '4', '5']);
+    // 1 の札は最初の区画（5/60 周 ＝ 30°）の中央
+    expect(labels[0]?.deg).toBeCloseTo(15, 6);
+    expect(labels.every((l) => !l.skipped)).toBe(true);
+  });
+
+  it('回数 1 で飛ばした区画の札は skipped', () => {
+    const d = new Driver([5, 7, 40]).skip('s-2');
+    expect(planLabels(d.view(0)).map((l) => [l.text, l.skipped])).toEqual([
+      ['1', false],
+      ['2', true],
+      ['3', false],
+    ]);
+  });
+
+  it('回数 5 の LT 会（10 区画）は回ごとに 1 つ「1」〜「5」で、隣との差は MIN_NUMBER_SPAN より大きい', () => {
+    const labels = planLabels(idleView([1, 1], 'LT', 5));
+    expect(labels.map((l) => l.text)).toEqual(['1', '2', '3', '4', '5']);
+    // 回の区画全体の中央（1 回 72°）
+    expect(labels.map((l) => l.deg)).toEqual([36, 108, 180, 252, 324]);
+    expect(gaps(labels.map((l) => l.deg)).every((g) => g > MIN_NUMBER_SPAN)).toBe(true);
+  });
+
+  it('回数 30・2 区切り（60 区画）でも、出る札は隣との差が MIN_NUMBER_SPAN を超えるものだけ（重ならない）', () => {
+    const labels = planLabels(idleView([1, 1], 'LT', 30));
+    expect(gaps(labels.map((l) => l.deg)).every((g) => g > MIN_NUMBER_SPAN)).toBe(true);
+    // 1 回 12° ＜ 14° なので 1 つも出ない（60 区画の番号が重ならない）
+    expect(labels).toEqual([]);
+  });
+
+  it('回数 20（1 回 18°）は 20 個すべて出て、隣との差は 18°', () => {
+    const labels = planLabels(idleView([1], 'LT', 20));
+    expect(labels).toHaveLength(20);
+    expect(gaps(labels.map((l) => l.deg)).every((g) => g > MIN_NUMBER_SPAN)).toBe(true);
+  });
+
+  it('回数 2 以上で、ある回の全区切りを飛ばすとその回の札だけ skipped', () => {
+    const d = new Driver([1, 1], 'LT', 'wait', 3).skip('s-3').skip('s-4');
+    expect(planLabels(d.view(0)).map((l) => [l.text, l.skipped])).toEqual([
+      ['1', false],
+      ['2', true],
+      ['3', false],
+    ]);
+    // 1 区切りだけでは飛ばした回にならない
+    const one = new Driver([1, 1], 'LT', 'wait', 3).skip('s-3');
+    expect(planLabels(one.view(0)).map((l) => l.skipped)).toEqual([false, false, false]);
   });
 });

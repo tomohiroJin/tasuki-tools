@@ -14,6 +14,7 @@ import {
   SUMMARY_TOTAL_LABEL,
   extensionCell,
   minutesText,
+  roundHeading,
 } from '../copy';
 
 const MIN = 60_000;
@@ -32,6 +33,13 @@ export function SummaryTable({ view }: { view: AgendaView }) {
   const planned = summary.rows.reduce((sum, r) => sum + r.plannedMs, 0);
   const extension = summary.rows.reduce((sum, r) => sum + r.extensionMs, 0);
   const spent = summary.rows.reduce((sum, r) => sum + r.spentMs, 0);
+  // 回ごとに <tbody> を分ける（1 つの <tbody> に見出しを並べると、前の回の見出しが後ろの回のセルにもかかる）。回数 1 は 1 つ
+  const rowGroups = summary.rows.reduce<{ round: number; rows: (typeof summary.rows)[number][] }[]>((groups, row) => {
+    const last = groups[groups.length - 1];
+    if (last !== undefined && last.round === row.round) last.rows.push(row);
+    else groups.push({ round: row.round, rows: [row] });
+    return groups;
+  }, []);
   return (
     <div className="summary-scroll">
       <table className="summary-table">
@@ -44,19 +52,28 @@ export function SummaryTable({ view }: { view: AgendaView }) {
             <th scope="col">{DRIFT_LABEL}</th>
           </tr>
         </thead>
-        <tbody>
-          {summary.rows.map((row) => (
-            <tr key={row.id} className={row.skipped ? 'is-skipped' : undefined}>
-              <th scope="row" className="summary-name">
-                {row.name}
-              </th>
-              <td>{minutesText(row.plannedMs / MIN)}</td>
-              <td>{row.extensionMs > 0 ? extensionCell(row.extensionMs / MIN) : ''}</td>
-              <td>{row.skipped ? SKIP_BUTTON : durationClock(row.spentMs)}</td>
-              <td className={toneOf(row.diffMs)}>{signedDuration(row.diffMs)}</td>
-            </tr>
-          ))}
-        </tbody>
+        {rowGroups.map((group) => (
+          <tbody key={group.round}>
+            {view.rounds >= 2 && (
+              <tr className="summary-round">
+                <th colSpan={5} scope="rowgroup">
+                  {roundHeading(group.round)}
+                </th>
+              </tr>
+            )}
+            {group.rows.map((row) => (
+              <tr key={row.id} className={row.skipped ? 'is-skipped' : undefined}>
+                <th scope="row" className="summary-name">
+                  {row.name}
+                </th>
+                <td>{minutesText(row.plannedMs / MIN)}</td>
+                <td>{row.extensionMs > 0 ? extensionCell(row.extensionMs / MIN) : ''}</td>
+                <td>{row.skipped ? SKIP_BUTTON : durationClock(row.spentMs)}</td>
+                <td className={toneOf(row.diffMs)}>{signedDuration(row.diffMs)}</td>
+              </tr>
+            ))}
+          </tbody>
+        ))}
         <tfoot>
           <tr>
             <th scope="row">{SUMMARY_TOTAL_LABEL}</th>

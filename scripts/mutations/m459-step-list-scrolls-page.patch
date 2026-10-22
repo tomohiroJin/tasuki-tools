@@ -1,0 +1,26 @@
+# 変異 459: step-list-scrolls-page
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/step-list.test.tsx
+#
+# #429 いまの行へ合わせる処理を scrollIntoView にする。祖先のページまでスクロールし、盤が見えなくなる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m459-*.patch
+# 復元: git apply -R scripts/mutations/m459-*.patch
+diff --git a/apps/agenda-web/src/components/StepList.tsx b/apps/agenda-web/src/components/StepList.tsx
+index 29c9008d..2b0917da 100644
+--- a/apps/agenda-web/src/components/StepList.tsx
++++ b/apps/agenda-web/src/components/StepList.tsx
+@@ -81,10 +81,7 @@ export function StepList({ view, canOperate, onSetSkipped }: Props) {
+     if (!grouped || box === null || nowId === undefined) return;
+     const row = box.querySelector<HTMLElement>('.step-list-row.is-now');
+     if (row === null) return;
+-    // 枠の中での行の位置は座標の差で測る（`offsetTop` は offsetParent＝body からで、枠より上の高さが混ざる）
+-    const rowRect = row.getBoundingClientRect();
+-    const top = rowRect.top - box.getBoundingClientRect().top + box.scrollTop;
+-    box.scrollTop = scrollTopToReveal(box, { top, height: rowRect.height });
++    row.scrollIntoView();
+   }, [grouped, nowId]);
+ 
+   const items: ReactNode[] = [];
