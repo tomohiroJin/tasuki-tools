@@ -9,6 +9,14 @@ import type { AgendaState, ScenarioInput } from "../src/types.js";
 
 const RUNS = 500;
 
+// 性質テスト 1 本あたりの時間の上限。vitest の既定（5 秒）では CI で
+// `Test timed out in 5000ms` になる。理由は 3 つ:
+// - CI は手元より 10 倍以上遅い
+// - #433 で生成器にくりかえし（rounds: 1〜4）を足し、1 試行の区切りが最大 4 倍に増えた
+// - 手元の実測は 1 本 0.3〜0.7 秒
+// 試行の数（RUNS）と生成器は検出力のため変えない。
+const PROPERTY_TIMEOUT_MS = 60_000;
+
 function lcg(seed: number): () => number {
   let x = seed >>> 0;
   return () => {
@@ -143,7 +151,7 @@ describe.each([
 ])("不変条件の性質テスト: %s", (_n, allWait) => {
   it(`任意の操作の列のあとで、所要の合計は実時間の経過と等しい（${RUNS} 通り）（m431）`, () => {
     for (let seed = 1; seed <= RUNS; seed++) run(seed, allWait);
-  });
+  }, PROPERTY_TIMEOUT_MS);
 
   it(`終了後、行の差の合計は押し巻きと等しい（${RUNS} 通り）`, () => {
     for (let seed = 1; seed <= RUNS; seed++) {
@@ -154,7 +162,7 @@ describe.each([
       expect(sum.rows.reduce((a, x) => a + x.diffMs, 0)).toBe(sum.driftMs);
       expect(sum.rows.reduce((a, x) => a + x.spentMs, 0)).toBe(view.runElapsedMs);
     }
-  });
+  }, PROPERTY_TIMEOUT_MS);
 });
 
 describe("性質テストの検出力", () => {
@@ -167,5 +175,5 @@ describe("性質テストの検出力", () => {
     for (const k of Object.keys(effective) as (keyof typeof effective)[]) {
       expect(effective[k], `${k} が効いた回数`).toBeGreaterThan(0);
     }
-  });
+  }, PROPERTY_TIMEOUT_MS);
 });
