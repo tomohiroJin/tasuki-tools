@@ -125,6 +125,7 @@ export function ProjectionView({ view, wallNow, reducedMotion, striking, canOper
           )}
           <div className="projection-item">
             <dt>
+              {/* この見出しは進行中・一時停止中だけ（active）。開始前は出ないので、盤の縁の印と常に対になる */}
               <ProjectedEndMark view={view} />
               {PROJECTED_END_LABEL}
             </dt>

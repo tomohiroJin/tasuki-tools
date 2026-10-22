@@ -339,9 +339,13 @@ describe('組む画面', () => {
     joinedRoom();
     pickRow(/朝会/);
     fireEvent.change(roundsField(), { target: { value: '3' } });
-    expect(screen.getByText(perRoundSummary(2, 3, 6))).toBeDefined();
+    expect(document.querySelector('.builder-total')?.textContent).toBe(perRoundSummary(2, 3, 6));
     fireEvent.change(roundsField(), { target: { value: '6' } });
-    expect(screen.getByText(perRoundSummary(2, 6, 12))).toBeDefined();
+    expect(document.querySelector('.builder-total')?.textContent).toBe(perRoundSummary(2, 6, 12));
+    // 意味の塊 3 つに分かれ、各塊は折り返さない。文全体の textContent は変わらない
+    const total = document.querySelector('.builder-total');
+    expect([...(total?.querySelectorAll('.builder-total-chunk') ?? [])].map((c) => c.textContent)).toEqual(['1 回あたり 2 分', '× 6 回', '＝ 全部で 12 分']);
+    expect(total?.textContent).toBe('1 回あたり 2 分 × 6 回 ＝ 全部で 12 分');
   });
 
   it('Given 回数 1 / When 合計の行を見る / Then 第 1 段と同じ「予定 n 分」', () => {

@@ -290,11 +290,11 @@
 /* 枠の高さの上限（撮影で詰める値はここ 1 か所）。狭い幅は画面の高さの 7 割前後、広い幅は
    盤の列の上端から画面の下端まで（上端までの高さを見積もって引く）。中身が収まれば上限に届かずバーは出ない */
 .step-list {
-  --step-list-max-height: 70dvh;
+  --step-list-max-height: max(70dvh, 36rem);
 }
 @media (width >= 64rem) {
   .step-list {
-    --step-list-max-height: calc(100dvh - 14rem);
+    --step-list-max-height: max(calc(100dvh - 14rem), 40rem);
   }
 }
 .step-list-round {

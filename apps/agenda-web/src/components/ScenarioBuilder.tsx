@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { Fragment, useEffect, useId, useRef, useState } from 'react';
 import { MAX_ROUNDS, MAX_SCENARIO_TITLE, MIN_ROUNDS, roundsOf, scenarioTotalSec, type AgendaView, type ScenarioInput } from '@tasuki/agenda-core';
 import {
   ADD_STEP_BUTTON,
@@ -8,7 +8,7 @@ import {
   LOAD_TO_ROOM_BUTTON,
   MAX_PLANNED_NOTE,
   MAX_STEPS_NOTE,
-  perRoundSummary,
+  perRoundSummaryParts,
   ROUNDS_LABEL,
   ROUNDS_UNIT,
   roundsMinusLabel,
@@ -263,7 +263,12 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
         <section className="ui-panel builder-preview">
           <p className="builder-total">
             {roundsNow !== null && roundsInRange(roundsNow) && roundsNow >= 2
-              ? perRoundSummary(perRoundMinutes(draft), roundsNow, totalMinutes(draft))
+              ? perRoundSummaryParts(perRoundMinutes(draft), roundsNow, totalMinutes(draft)).map((part, i) => (
+                  <Fragment key={part}>
+                    {i > 0 && ' '}
+                    <span className="builder-total-chunk">{part}</span>
+                  </Fragment>
+                ))
               : plannedSummary(perRoundMinutes(draft))}
           </p>
           {preview !== null && <Dial view={preview} wallNow={wallNow} reducedMotion={reducedMotion} />}

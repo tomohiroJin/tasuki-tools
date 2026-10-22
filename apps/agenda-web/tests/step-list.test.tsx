@@ -121,7 +121,7 @@ describe('1 ステップの回（朝会）の進行表', () => {
     expect(container.querySelectorAll('.step-list-round')).toHaveLength(2);
   });
 
-  it('Given 回数 1 で 1 ステップ / When 描く / Then 枠も見出しも無い（第 1 段の DOM のまま）', () => {
+  it('Given 回数 1 で 2 ステップ / When 描く / Then 枠も見出しも無い（第 1 段の DOM のまま）', () => {
     const { container } = render(<StepList view={new Driver([1, 1]).view(0)} canOperate onSetSkipped={noop} />);
     expect(container.querySelector('.step-list-rows--scroll')).toBeNull();
     expect(container.querySelector('.step-list-round')).toBeNull();
@@ -172,6 +172,21 @@ describe('進行表の枠のスクロール', () => {
     expect(ol?.hasAttribute('aria-labelledby')).toBe(false);
   });
 
+
+  it('Given 1 回あたり 1 ステップの平らな一覧 / When 区切りが移る / Then 枠の scrollTop だけが動き、ページは動かない', () => {
+    const scrollIntoView = vi.fn();
+    override(Element.prototype, 'scrollIntoView', { value: scrollIntoView, writable: true });
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
+    const d = new Driver([1], 'Daily', 'wait', 10);
+    const { container, rerender } = render(<StepList view={d.view(0)} canOperate onSetSkipped={noop} />);
+    const box = container.querySelector('.step-list-rows--scroll');
+    expect(container.querySelector('.step-list-round')).toBeNull();
+    for (let i = 0; i < 6; i++) d.next((i + 1) * MIN);
+    rerender(<StepList view={d.view(7 * MIN)} canOperate onSetSkipped={noop} />);
+    expect(box?.scrollTop).toBe(160);
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    expect(scrollTo).not.toHaveBeenCalled();
+  });
 
   it('Given 回数 2 以上 / When 区切りが移る / Then 枠の scrollTop だけが動き、ページはスクロールしない（m459）', () => {
     const scrollIntoView = vi.fn();

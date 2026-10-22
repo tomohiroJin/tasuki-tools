@@ -187,6 +187,15 @@ describe('盤の下の一行の終了見込みの印', () => {
     expect(footer?.textContent).toMatch(/^次は S[23] ・ \d\d:\d\d に終了見込み$/);
   });
 
+  it('Given 開始前 / When 描く / Then 盤の縁の印が無いので、下の一行にも印は出さない。進行中には出る', () => {
+    const idle = render(<Dial view={idleView([30, 30])} wallNow={WALL} reducedMotion={false} />);
+    expect(idle.container.querySelector('.dial-footer')?.textContent).toMatch(/に終了見込み$/);
+    expect(idle.container.querySelector('.dial-footer .dial-marker')).toBeNull();
+    idle.unmount();
+    const running = render(<Dial view={new Driver([5, 5]).view(1 * MIN)} wallNow={WALL} reducedMotion={false} />);
+    expect(running.container.querySelector('.dial-footer .dial-marker')).not.toBeNull();
+  });
+
   it('Given 最後のステップ / When 描く / Then 次の案内は無く、印つきの終了見込みだけ', () => {
     const { container } = render(<Dial view={new Driver([5]).view(0)} wallNow={WALL} reducedMotion={false} />);
     expect(container.querySelector('.dial-footer')?.textContent).toBe('14:05 に終了見込み');

@@ -293,3 +293,9 @@
 .builder-note {
   margin: 0;
 }
+
+/* 合計の行は意味の塊（「1 回あたり 2 分」「× 6 回」「＝ 全部で 12 分」）を折り返さず、塊の間でだけ折る */
+.builder-total-chunk {
+  display: inline-block;
+  white-space: nowrap;
+}

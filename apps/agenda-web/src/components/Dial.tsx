@@ -323,7 +323,7 @@ export function Dial({ view, wallNow, reducedMotion, striking = false, size = 'h
         <figcaption className="dial-footer">
           {footer.next !== '' && `${footer.next}${FOOTER_SEPARATOR}`}
           <span className="dial-footer-end">
-            <ProjectedEndMark view={view} />
+            {started && <ProjectedEndMark view={view} />}
             {footer.end}
           </span>
         </figcaption>
