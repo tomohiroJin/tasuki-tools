@@ -3004,4 +3004,12 @@ export const MUTATIONS = [
     tests: ["tests/step-list.test.tsx"],
     note: "#429 第 2 段。スクロール済みの枠では行の座標が scrollTop の分だけ手前に出る。足し戻さないと二段目の移動が足りず、いまの行が枠の外に残る。",
   },
+  {
+    id: 461,
+    label: "下書きに中身があっても、確かめずにサンプルで置き換える",
+    patch: "m461-sample-replaces-draft-unasked.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/scenario-builder.test.tsx"],
+    note: "#429 フィードバック F3。組みかけの下書きが黙って消える。中身のある下書きでは「いまの下書きを消して読み込みますか」と確かめ、やめれば下書きはそのまま。",
+  },
 ];

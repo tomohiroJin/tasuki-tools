@@ -1,7 +1,7 @@
 /* ============================================================
    組む画面（#429 spec §4.2・§7.5）
    段組みは部品（`.ui-workspace--side-end`）が持つ。ここは区画の中の並びと、組む画面だけの面
-   （サンプルの札・行・時間切れの切り替え）を持つ。**生の色を書かない**。字の大きさは 5 段。
+   （サンプルの一覧・行・時間切れの切り替え）を持つ。**生の色を書かない**。字の大きさは 5 段。
    ============================================================ */
 
 .builder-main,
@@ -13,71 +13,64 @@
   min-width: 0;
 }
 
-/* ── サンプルの札（ルームも下書きも空のとき一番上に大きく）─────────── */
-.builder-samples {
-  display: grid;
-  gap: var(--space-3);
-}
-/* 象牙の札。卓に置いた 1 枚の札として、押すと少し持ち上がる */
-.builder-sample {
+/* ── サンプルから選ぶ（組む画面の下に小さく。押したときだけ 3 行の一覧）───────── */
+.builder-sample-menu {
   display: grid;
   gap: var(--space-2);
   justify-items: start;
-  padding: var(--space-5);
-  border: 1px solid var(--card-edge);
-  border-radius: var(--card-radius);
-  background: linear-gradient(160deg, var(--card-sheen), var(--card-shade));
-  box-shadow: inset 0 0 0 4px var(--card-sheen), inset 0 0 0 5px var(--card-inline), var(--shadow-card);
-  color: var(--coal);
+}
+.builder-sample-list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+/* 1 行 = 名前と中身の要約。押せる部品の高さを確保する */
+.builder-sample-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  min-height: var(--tap-target);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: var(--ivory);
   text-align: start;
   cursor: pointer;
-  transition: transform 0.15s, box-shadow 0.15s;
 }
-.builder-sample:hover {
-  transform: translateY(-2px);
-  box-shadow: inset 0 0 0 4px var(--card-sheen), inset 0 0 0 5px var(--card-inline), var(--shadow-lift-near), var(--shadow-lift-far);
+.builder-sample-row:hover {
+  background: var(--felt-900);
 }
 .builder-sample-title {
-  font-size: var(--font-size-lg);
+  font-size: var(--font-size-sm);
   font-weight: 700;
 }
 .builder-sample-detail {
-  color: var(--coal-soft);
-  font-size: var(--font-size-sm);
-}
-/* 長さの割合の帯（名前は出さない。書体の base 層の外の字を最初の画面で引かないため） */
-.builder-sample-bar {
-  display: flex;
-  gap: 3px;
-  width: 100%;
-  height: 6px;
-}
-.builder-sample-segment {
-  flex-basis: 0;
-  border-radius: var(--radius-full);
-  background: var(--coal-soft);
-}
-
-/* 中身の並び。区切りは点（文字にしない: 読み上げと書体の検査に混ぜない） */
-.builder-sample-steps {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1) var(--space-2);
-  color: var(--coal-soft);
+  color: var(--ivory-dim);
   font-size: var(--font-size-xs);
 }
-.builder-sample-step {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  white-space: nowrap;
+/* 下書きを置き換える確かめ（「最初から」の確かめと同じ作り） */
+.builder-sample-confirm {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--rose-edge);
+  border-radius: var(--radius-lg);
+  background: var(--felt-900);
 }
-.builder-sample-step + .builder-sample-step::before {
-  content: '';
-  width: 4px;
-  height: 4px;
-  border-radius: var(--radius-full);
-  background: var(--coal-soft);
+.builder-sample-confirm-text {
+  margin: 0;
+  color: var(--ivory);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+.builder-sample-confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
 }
 
 /* ── 他の人の置き換えの知らせ・操作の失敗 ───────────────────────── */

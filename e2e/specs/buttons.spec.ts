@@ -296,7 +296,7 @@ test.describe('お題ツールのボタンは部品で、押せる大きさが�
     await page.setViewportSize({ width: 390, height: 800 });
     await page.getByRole('link', { name: '選択画面へ戻る' }).click();
     await openAgendaFromHub(page);
-    await expect(page.getByRole('button', { name: /サンプル：KPT のふりかえり/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'サンプルから選ぶ', exact: true })).toBeVisible();
     await expectScreenAcrossWidths(page, '進行タイマー（組む）', AGENDA_BUILD_TARGETS);
 
     await loadSampleAndStart(page);
@@ -320,7 +320,7 @@ test.describe('お題ツールのボタンは部品で、押せる大きさが�
   });
 });
 
-/** 進行タイマーの組む画面（空のとき）で測る操作の数の下限（サンプルの札・ステップを追加・戻るリンクなど。実測前の控えめな値） */
+/** 進行タイマーの組む画面（空のとき）で測る操作の数の下限（サンプルから選ぶ・ステップを追加・戻るリンクなど。実測前の控えめな値） */
 const AGENDA_BUILD_TARGETS = 3;
 /** 進行タイマーの進行中の画面で測る操作の数の下限（延長 3・一時停止・次へ・映す表示・スキップなど。実測前の控えめな値） */
 const AGENDA_RUN_TARGETS = 8;

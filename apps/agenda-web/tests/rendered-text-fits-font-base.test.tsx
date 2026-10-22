@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { saveResumeIdentity } from '@tasuki/sync-client';
 import { App } from '../src/App';
-import { PROJECT_BUTTON, RESET_BUTTON } from '../src/copy';
+import { PROJECT_BUTTON, RESET_BUTTON, SAMPLE_MENU_BUTTON, SAMPLE_REPLACE_CONFIRM } from '../src/copy';
 import { SAMPLE_SCENARIOS } from '../src/sample-scenarios';
 import { Driver } from './support/agenda-states';
 import { outsideBase } from './support/font-base';
@@ -31,7 +31,7 @@ function renderedText(): string {
 
 /**
  * 判定に掛ける文字。**同梱のサンプルの名前（会・ステップ）は利用者の入力と同じく判定の外**（spec §7.6）。
- * 描いた文字から取り除いてから当てる（サンプルの札は「組む前」の画面に名前を並べる）。
+ * 描いた文字から取り除いてから当てる（サンプルの一覧は開くと名前を並べる）。
  */
 function checkedText(): string {
   const bundled = SAMPLE_SCENARIOS.flatMap((s) => [s.scenario.title, ...s.scenario.steps.map((x) => x.name)]);
@@ -66,7 +66,7 @@ describe('描いた進行タイマーの文字は書体の常用の層に収ま�
     expect(renderedText().length).toBeGreaterThan(5);
   });
 
-  it('Given 組む前 / When 画面を描く / Then サンプルの札にステップの名前が並び、それを除けば外れる字は無い', () => {
+  it('Given 組む前 / When サンプルの一覧を開く / Then 同梱の名前（会の名前）が並び、それを除けば外れる字は無い', () => {
     saveResumeIdentity(RESUME);
     render(<App />);
     act(() => {
@@ -74,9 +74,23 @@ describe('描いた進行タイマーの文字は書体の常用の層に収ま�
       latestSocket().deliver({ type: 'room.joined', code: 'R1', participantId: 'p1', resumeToken: 't1' });
       latestSocket().deliver({ type: 'agenda', state: IDLE_AGENDA });
     });
-    // 除く対象が実際に描かれている（除外が空振りして緑にならない）
-    expect(renderedText()).toContain('Try の議論');
-    expect(outsideBase([renderedText()])).not.toEqual([]);
+    fireEvent.click(screen.getByRole('button', { name: SAMPLE_MENU_BUTTON }));
+    // 一覧が実際に開いて描かれている（開かずに緑にならない）
+    expect(renderedText()).toContain('KPT のふりかえり');
+    expect(outsideBase([checkedText()])).toEqual([]);
+  });
+
+  it('Given ルームにシナリオがある / When サンプルを選んで置き換えの確かめを開く / Then 確かめの字も外れない', () => {
+    saveResumeIdentity(RESUME);
+    render(<App />);
+    act(() => {
+      latestSocket().open();
+      latestSocket().deliver({ type: 'room.joined', code: 'R1', participantId: 'p1', resumeToken: 't1' });
+      latestSocket().deliver({ type: 'agenda', state: { ...IDLE_AGENDA, title: 'Retro', steps: [{ id: 's-1', name: 'Check', durationSec: 60, onTimeout: 'wait', skipped: false, extensionSec: 0, spentMs: null }] } });
+    });
+    fireEvent.click(screen.getByRole('button', { name: SAMPLE_MENU_BUTTON }));
+    fireEvent.click(screen.getByRole('button', { name: /朝会/ }));
+    expect(renderedText()).toContain(SAMPLE_REPLACE_CONFIRM);
     expect(outsideBase([checkedText()])).toEqual([]);
   });
 

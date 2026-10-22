@@ -64,9 +64,15 @@ export const ADD_STEP_BUTTON = 'ステップを追加';
 export const MOVE_UP_BUTTON = '上へ';
 export const MOVE_DOWN_BUTTON = '下へ';
 export const MINUTES_UNIT = '分';
-/** サンプルの札の見出し（札ごとに会の名前で区別する） */
+/** サンプルの一覧の行の見出し（行ごとに会の名前で区別する） */
 export const sampleTitle = (label: string): string => `サンプル：${label}`;
 export const SAMPLE_TITLE = sampleTitle('KPT のふりかえり');
+/** 組む画面の小さな開閉のボタン。押したときだけサンプルの一覧を開く（いつでも選べる） */
+export const SAMPLE_MENU_BUTTON = 'サンプルから選ぶ';
+/** 下書きに中身があるときに選んだら、その場で確かめる（黙って消さない） */
+export const SAMPLE_REPLACE_CONFIRM = 'いまの下書きを消して読み込みますか';
+export const SAMPLE_REPLACE_YES = '消して読み込む';
+export const SAMPLE_REPLACE_NO = 'やめる';
 export const SAVE_LOCAL_BUTTON = 'この端末に保存';
 export const LOAD_TO_ROOM_BUTTON = 'ルームに読み込む';
 export const SCENARIO_CHANGED_NOTE = 'シナリオが変わりました';
@@ -83,8 +89,6 @@ export const stepMoveUpLabel = (n: number): string => `ステップ ${n} を上�
 export const stepMoveDownLabel = (n: number): string => `ステップ ${n} を下へ`;
 export const stepRemoveLabel = (n: number): string => `ステップ ${n} を消す`;
 export const REMOVE_BUTTON = '消す';
-/** サンプルの札の 1 ステップ（名前は同梱の文字で、書体の検査の外） */
-export const sampleStepText = (name: string, minutes: number): string => `${name} ${minutes} 分`;
 /** サンプルの札・保存済みの行の添え書き */
 export const scenarioDetail = (steps: number, minutes: number, rounds: number): string =>
   rounds >= 2 ? `${steps} ステップ × ${rounds} 回・全部で ${minutes} 分` : `${steps} ステップ・${minutes} 分`;

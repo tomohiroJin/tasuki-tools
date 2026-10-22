@@ -143,7 +143,7 @@ test.describe('@core 進行タイマーは全員の画面で同じステップ�
       await expect(b.getByRole('button', { name: '次へ', exact: true })).toHaveCount(0);
     }
 
-    // When / Then その7: 「最初から」（確認を挟む）で開始前の組む画面に戻す。ルームには KPT が残っていてサンプルの札は出ないので、
+    // When / Then その7: 「最初から」（確認を挟む）で開始前の組む画面に戻す。ルームには KPT が残っているので、
     //   残っている下書きのくりかえしを 2 にして、**同じルーム**で読み込み直して開始する（5 区切り × 2 回 ＝ 10 区切り）
     await page.getByRole('button', { name: '最初から', exact: true }).click();
     await page.getByRole('button', { name: 'やり直す', exact: true }).click();

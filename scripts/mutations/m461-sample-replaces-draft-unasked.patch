@@ -1,0 +1,23 @@
+# 変異 461: sample-replaces-draft-unasked
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/scenario-builder.test.tsx
+#
+# #429 フィードバック F3。下書きに中身があっても確かめずにサンプルで置き換える。組みかけの下書きが黙って消える。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m461-*.patch
+# 復元: git apply -R scripts/mutations/m461-*.patch
+diff --git a/apps/agenda-web/src/components/ScenarioBuilder.tsx b/apps/agenda-web/src/components/ScenarioBuilder.tsx
+index 043e6b50..103fccb4 100644
+--- a/apps/agenda-web/src/components/ScenarioBuilder.tsx
++++ b/apps/agenda-web/src/components/ScenarioBuilder.tsx
+@@ -333,7 +333,7 @@ function SampleMenu({ draftIsEmpty, onPick }: { draftIsEmpty: boolean; onPick: (
+     setReturnFocus(true);
+   };
+   // 中身のある下書きは黙って消さない
+-  const needsConfirm = !draftIsEmpty;
++  const needsConfirm = false;
+ 
+   return (
+     <div className="builder-sample-menu">

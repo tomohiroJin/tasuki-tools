@@ -14,11 +14,14 @@ import {
   roundsMinusLabel,
   roundsPlusLabel,
   sampleTitle,
+  SAMPLE_MENU_BUTTON,
+  SAMPLE_REPLACE_CONFIRM,
+  SAMPLE_REPLACE_NO,
+  SAMPLE_REPLACE_YES,
   SCENARIO_CHANGED_NOTE,
   SCENARIO_TITLE_LABEL,
   START_BUTTON,
   plannedSummary,
-  sampleStepText,
   scenarioDetail,
 } from '../copy';
 import { usePrefersReducedMotion } from '../hooks/use-reduced-motion';
@@ -109,7 +112,7 @@ function actionReason(check: DraftCheck, hasSteps: boolean, sameAsRoom: boolean)
 
 /**
  * 組む画面（#429 spec §4.2・§7.5）。左に行の一覧、右にプレビューの盤と主の操作。狭い幅では
- * サンプル → 行 → 盤と操作 → 保存 の順に積む（DOM の順）。
+ * 行 → サンプルの開閉 → 盤と操作 → 保存 の順に積む（DOM の順）。
  */
 export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
   const room = inputFromView(view);
@@ -133,7 +136,7 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
   const roomReady = view.steps.length > 0;
   const canLoad = canOperate && check.ok && !sameAsRoom;
   const canStart = canOperate && roomReady && sameAsRoom;
-  const showSample = !roomReady && isEmptyDraft(draft);
+  const draftIsEmpty = isEmptyDraft(draft);
   const preview = previewView(draft);
   const reason = actionReason(check, draft.steps.length > 0, sameAsRoom);
   const roundsNow = roundsOfDraft(draft);
@@ -165,7 +168,6 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
   return (
     <div className="ui-workspace ui-workspace--side-end builder">
       <div className="ui-workspace-main builder-main">
-        {showSample && <SampleCards onPick={(s) => setDraft(draftFromInput(s))} />}
         <div className={changed ? 'builder-changed' : 'builder-changed builder-changed--idle'}>
           {/* ライブリージョンは常に置き、文だけを差し替える（入れた瞬間の領域は読み上げられないことがある）。
               ボタンは領域の外（読み上げに操作の名前を混ぜない） */}
@@ -254,6 +256,8 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
             </div>
           </div>
         </section>
+        {/* 主の欄（会の名前・ステップ・くりかえし）の下に控えめに置く（主役を押しのけない） */}
+        <SampleMenu draftIsEmpty={draftIsEmpty} onPick={(s) => setDraft(draftFromInput(s))} />
       </div>
       <div className="ui-workspace-side builder-side">
         <section className="ui-panel builder-preview">
@@ -298,32 +302,97 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
   );
 }
 
-/** ルームも下書きも空のときの、一番上の大きな札（1 回で下書きに読み込む） */
-function SampleCards({ onPick }: { onPick: (scenario: ScenarioInput) => void }) {
+/**
+ * 「サンプルから選ぶ」（#429 フィードバック F1〜F3）。小さな開閉のボタンで、押したときだけ 3 行の一覧を開く。
+ * 下書きに中身があるときに選んだら、その場で「いまの下書きを消して読み込みますか」と確かめる（「最初から」と同じ作り:
+ * 確かめを開いたら安全な側＝やめる にフォーカス、閉じたら開閉のボタンへ返す）。
+ */
+function SampleMenu({ draftIsEmpty, onPick }: { draftIsEmpty: boolean; onPick: (scenario: ScenarioInput) => void }) {
+  const [open, setOpen] = useState(false);
+  const [pending, setPending] = useState<ScenarioInput | null>(null);
+  const [returnFocus, setReturnFocus] = useState(false);
+  const toggleRef = useRef<HTMLButtonElement>(null);
+  const noRef = useRef<HTMLButtonElement>(null);
+  const listId = useId();
+  const confirmId = useId();
+
+  useEffect(() => {
+    if (pending !== null) noRef.current?.focus();
+  }, [pending]);
+  useEffect(() => {
+    if (pending === null && returnFocus) {
+      toggleRef.current?.focus();
+      setReturnFocus(false);
+    }
+  }, [pending, returnFocus]);
+
+  const load = (scenario: ScenarioInput): void => {
+    onPick(scenario);
+    setPending(null);
+    setOpen(false);
+    setReturnFocus(true);
+  };
+  // 中身のある下書きは黙って消さない
+  const needsConfirm = !draftIsEmpty;
+
   return (
-    <div className="builder-samples">
-      {SAMPLE_SCENARIOS.map((sample) => {
-        const minutes = scenarioTotalSec(sample.scenario) / 60;
-        return (
-          <button key={sample.label} type="button" className="builder-sample" onClick={() => onPick(sample.scenario)}>
-            <span className="builder-sample-title">{sampleTitle(sample.label)}</span>
-            <span className="builder-sample-detail">{scenarioDetail(sample.scenario.steps.length, minutes, roundsOf(sample.scenario))}</span>
-            <span className="builder-sample-bar" aria-hidden="true">
-              {sample.scenario.steps.map((s) => (
-                <span key={s.name} className="builder-sample-segment" style={{ flexGrow: s.durationSec }} />
-              ))}
-            </span>
-            {/* 中身を押す前に見せる（急いでいる進行役が、合うかを札の上で決められるように） */}
-            <span className="builder-sample-steps">
-              {sample.scenario.steps.map((s) => (
-                <span key={s.name} className="builder-sample-step">
-                  {sampleStepText(s.name, s.durationSec / 60)}
-                </span>
-              ))}
-            </span>
-          </button>
-        );
-      })}
+    <div className="builder-sample-menu">
+      <button
+        ref={toggleRef}
+        type="button"
+        className="ui-button ui-button--quiet ui-button--sm builder-sample-toggle"
+        aria-expanded={open}
+        aria-controls={listId}
+        onClick={() => {
+          setOpen(!open);
+          setPending(null);
+        }}
+      >
+        {SAMPLE_MENU_BUTTON}
+      </button>
+      <div id={listId} hidden={!open}>
+        {open && pending === null && (
+          <ul className="builder-sample-list">
+            {SAMPLE_SCENARIOS.map((sample) => (
+              <li key={sample.label}>
+                <button
+                  type="button"
+                  className="builder-sample-row"
+                  onClick={() => (needsConfirm ? setPending(sample.scenario) : load(sample.scenario))}
+                >
+                  <span className="builder-sample-title">{sampleTitle(sample.label)}</span>
+                  <span className="builder-sample-detail">
+                    {scenarioDetail(sample.scenario.steps.length, scenarioTotalSec(sample.scenario) / 60, roundsOf(sample.scenario))}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {open && pending !== null && (
+          <div className="builder-sample-confirm" role="group" aria-labelledby={confirmId}>
+            <p id={confirmId} className="builder-sample-confirm-text">
+              {SAMPLE_REPLACE_CONFIRM}
+            </p>
+            <div className="builder-sample-confirm-actions">
+              <button
+                ref={noRef}
+                type="button"
+                className="ui-button ui-button--secondary ui-button--sm"
+                onClick={() => {
+                  setPending(null);
+                  setReturnFocus(true);
+                }}
+              >
+                {SAMPLE_REPLACE_NO}
+              </button>
+              <button type="button" className="ui-button ui-button--danger ui-button--sm" onClick={() => load(pending)}>
+                {SAMPLE_REPLACE_YES}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

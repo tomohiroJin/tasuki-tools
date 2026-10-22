@@ -16,6 +16,10 @@ import {
   perRoundSummary,
   LOAD_FIRST_TEXT,
   LOAD_TO_ROOM_BUTTON,
+  SAMPLE_MENU_BUTTON,
+  SAMPLE_REPLACE_CONFIRM,
+  SAMPLE_REPLACE_NO,
+  SAMPLE_REPLACE_YES,
   SAMPLE_TITLE,
   SCENARIO_CHANGED_NOTE,
   START_BUTTON,
@@ -98,9 +102,20 @@ const typeName = (n: number, value: string): void => {
   fireEvent.change(nameField(n), { target: { value } });
 };
 
-const pickSample = (): void => {
-  fireEvent.click(screen.getByRole('button', { name: new RegExp(SAMPLE_TITLE) }));
+const menuButton = () => screen.getByRole('button', { name: SAMPLE_MENU_BUTTON });
+
+/** 「サンプルから選ぶ」を開く（開いていれば何もしない） */
+const openSamples = (): void => {
+  if (menuButton().getAttribute('aria-expanded') !== 'true') fireEvent.click(menuButton());
 };
+
+/** 一覧を開いて、名前に label を含む行を押す */
+const pickRow = (label: RegExp | string): void => {
+  openSamples();
+  fireEvent.click(screen.getByRole('button', { name: label }));
+};
+
+const pickSample = (): void => pickRow(new RegExp(SAMPLE_TITLE));
 
 /**
  * @requirements #429 spec §4.2（準備）
@@ -175,7 +190,8 @@ describe('組む画面', () => {
     expect(screen.getAllByRole('textbox', { name: /^ステップ \d+ の名前$/ })).toHaveLength(5);
     expect(minutes.reduce((a, b) => a + b, 0)).toBe(60);
     expect(screen.getByText(plannedSummary(60))).toBeDefined();
-    // サンプルの札は下書きが空でなくなったら下がる
+    // 読み込んだら一覧は閉じる（開閉のボタンは残り、また選べる）
+    expect(menuButton().getAttribute('aria-expanded')).toBe('false');
     expect(screen.queryByRole('button', { name: new RegExp(SAMPLE_TITLE) })).toBeNull();
   });
 
@@ -311,16 +327,17 @@ describe('組む画面', () => {
     expect(document.activeElement).toBe(screen.getByRole('button', { name: stepMoveUpLabel(5) }));
   });
 
-  it('Given ルームも下書きも空 / When 描く / Then サンプルの札にステップの名前と分が並ぶ', () => {
+  it('Given ルームも下書きも空 / When 一覧を開く / Then 3 行が名前と全部の分・回数を 1 行ずつ出す', () => {
     joinedRoom();
-    const card = screen.getByRole('button', { name: new RegExp(SAMPLE_TITLE) });
-    expect(within(card).getByText('Try の議論 40 分')).toBeDefined();
-    expect(within(card).getByText('K を出す 5 分')).toBeDefined();
+    openSamples();
+    const rows = screen.getAllByRole('button', { name: /^サンプル：/ });
+    expect(rows).toHaveLength(3);
+    expect(within(rows[0] as HTMLElement).getByText('5 ステップ・60 分')).toBeDefined();
   });
 
   it('Given サンプルを読んだ / When くりかえしを 6 にする / Then 合計が「1 回あたり 2 分 × 6 回 ＝ 全部で 12 分」になる', () => {
     joinedRoom();
-    fireEvent.click(screen.getByRole('button', { name: /朝会/ }));
+    pickRow(/朝会/);
     fireEvent.change(roundsField(), { target: { value: '3' } });
     expect(screen.getByText(perRoundSummary(2, 3, 6))).toBeDefined();
     fireEvent.change(roundsField(), { target: { value: '6' } });
@@ -337,7 +354,7 @@ describe('組む画面', () => {
 
   it('Given 朝会のサンプル / When 押す / Then 回数の欄が 6 になる。−／＋ で動き、下限と上限で押せなくなる', () => {
     joinedRoom();
-    fireEvent.click(screen.getByRole('button', { name: /朝会/ }));
+    pickRow(/朝会/);
     expect(roundsField().value).toBe('6');
     fireEvent.click(screen.getByRole('button', { name: roundsPlusLabel }));
     expect(roundsField().value).toBe('7');
@@ -351,7 +368,7 @@ describe('組む画面', () => {
 
   it('Given 回数を 8 にした / When 「ルームに読み込む」を押す / Then 送るのはそのときだけで、scenario に rounds が載る', () => {
     joinedRoom();
-    fireEvent.click(screen.getByRole('button', { name: /朝会/ }));
+    pickRow(/朝会/);
     fireEvent.change(roundsField(), { target: { value: '8' } });
     expect(sentCommands('agenda.scenario.set')).toHaveLength(0);
     fireEvent.click(loadButton());
@@ -366,10 +383,11 @@ describe('組む画面', () => {
     expect(within(list).getByText('1 ステップ × 6 回・全部で 12 分')).toBeDefined();
   });
 
-  it('Given サンプルの札 / When 描く / Then 朝会の札は全部の分と回数を出す', () => {
+  it('Given 一覧を開いた / When 朝会の行を見る / Then 全部の分と回数を出す', () => {
     joinedRoom();
-    const card = screen.getByRole('button', { name: /朝会/ });
-    expect(within(card).getByText('1 ステップ × 6 回・全部で 12 分')).toBeDefined();
+    openSamples();
+    const row = screen.getByRole('button', { name: /朝会/ });
+    expect(within(row).getByText('1 ステップ × 6 回・全部で 12 分')).toBeDefined();
   });
 
   it('Given ルームのシナリオが回数 6 / When 組む画面を開く / Then 回数の欄は 6 で、ルームと同じ状態（読み込めず開始できる）', () => {
@@ -404,7 +422,7 @@ describe('組む画面', () => {
 
   it('Given 回数が範囲外（31） / When 合計の行を見る / Then 1 回分の「予定 n 分」を出す', () => {
     joinedRoom();
-    fireEvent.click(screen.getByRole('button', { name: /朝会/ }));
+    pickRow(/朝会/);
     fireEvent.change(roundsField(), { target: { value: '31' } });
     expect(document.body.textContent).not.toContain('1 回あたり');
     expect(document.querySelector('.builder-total')?.textContent).toBe(plannedSummary(2));
@@ -416,6 +434,121 @@ describe('組む画面', () => {
     deliverAgenda(idleAgenda('Other', [['Theirs', 10]]));
     expect(nameField(1).value).toBe('Check');
     expect(roundsField().value).toBe('');
+    expect(screen.getAllByRole('status').some((el) => el.textContent?.includes(SCENARIO_CHANGED_NOTE))).toBe(true);
+  });
+});
+
+/**
+ * @requirements #429 利用者フィードバック F1〜F3（サンプルは小さな一覧に畳み、いつでも選べる。中身のある下書きは確かめてから置き換える）
+ */
+describe('サンプルから選ぶ', () => {
+  const rowNames = () => screen.queryAllByRole('button', { name: /^サンプル：/ });
+
+  it('Given 空のルーム / When 組む画面を開く / Then 札は出ず、閉じた「サンプルから選ぶ」が 1 つだけあり、押すと 3 行が開く', () => {
+    joinedRoom();
+    expect(screen.getAllByRole('button', { name: SAMPLE_MENU_BUTTON })).toHaveLength(1);
+    expect(menuButton().getAttribute('aria-expanded')).toBe('false');
+    expect(rowNames()).toHaveLength(0);
+    fireEvent.click(menuButton());
+    expect(rowNames().map((b) => b.textContent)).toEqual([
+      expect.stringContaining('KPT のふりかえり'),
+      expect.stringContaining('朝会'),
+      expect.stringContaining('LT 会'),
+    ]);
+  });
+
+  it('Given 一覧は閉じている / When 押す・もう一度押す / Then aria-expanded が true、false になり、aria-controls が一覧を指す', () => {
+    joinedRoom();
+    fireEvent.click(menuButton());
+    expect(menuButton().getAttribute('aria-expanded')).toBe('true');
+    const target = document.getElementById(menuButton().getAttribute('aria-controls') ?? '');
+    expect(target).not.toBeNull();
+    expect(rowNames()).toHaveLength(3);
+    fireEvent.click(menuButton());
+    expect(menuButton().getAttribute('aria-expanded')).toBe('false');
+    expect(rowNames()).toHaveLength(0);
+  });
+
+  it('Given ルームにシナリオがある / When 組む画面を開く / Then 「サンプルから選ぶ」がある（これまでは空のときだけだった）', () => {
+    joinedRoom(idleAgenda('Retro', [['Check', 5]]));
+    expect(screen.getAllByRole('button', { name: SAMPLE_MENU_BUTTON })).toHaveLength(1);
+    fireEvent.click(menuButton());
+    expect(rowNames()).toHaveLength(3);
+  });
+
+  it('Given 下書きに中身がある / When 描く / Then 「サンプルから選ぶ」がある', () => {
+    joinedRoom();
+    pickSample();
+    typeName(1, 'Mine');
+    expect(screen.getAllByRole('button', { name: SAMPLE_MENU_BUTTON })).toHaveLength(1);
+  });
+
+  it('Given 下書きが空 / When 行を選ぶ / Then 確かめずにそのまま読み込み、一覧は閉じる', () => {
+    joinedRoom();
+    pickRow(/朝会/);
+    expect(screen.queryByText(SAMPLE_REPLACE_CONFIRM)).toBeNull();
+    expect((screen.getByRole('textbox', { name: '会の名前' }) as HTMLInputElement).value).toBe('朝会');
+    expect(roundsField().value).toBe('6');
+    expect(menuButton().getAttribute('aria-expanded')).toBe('false');
+    expect(rowNames()).toHaveLength(0);
+  });
+
+  it('Given 下書きに中身がある / When 行を選ぶ / Then 「いまの下書きを消して読み込みますか」が出て、まだ読み込まれない', () => {
+    joinedRoom();
+    pickSample();
+    typeName(1, 'Mine');
+    pickRow(/朝会/);
+    const group = screen.getByRole('group', { name: SAMPLE_REPLACE_CONFIRM });
+    expect(within(group).getByRole('button', { name: SAMPLE_REPLACE_YES })).toBeDefined();
+    expect(nameField(1).value).toBe('Mine');
+    // 安全な側（やめる）にフォーカスがある
+    expect(document.activeElement).toBe(within(group).getByRole('button', { name: SAMPLE_REPLACE_NO }));
+  });
+
+  it('Given 下書きに中身がある / When 確かめで消して読み込むを押す / Then 選んだサンプルが下書きになり、一覧は閉じる', () => {
+    joinedRoom();
+    pickSample();
+    typeName(1, 'Mine');
+    pickRow(/朝会/);
+    fireEvent.click(screen.getByRole('button', { name: SAMPLE_REPLACE_YES }));
+    expect((screen.getByRole('textbox', { name: '会の名前' }) as HTMLInputElement).value).toBe('朝会');
+    expect(nameField(1).value).toBe('話す');
+    expect(roundsField().value).toBe('6');
+    expect(screen.queryByText(SAMPLE_REPLACE_CONFIRM)).toBeNull();
+    expect(menuButton().getAttribute('aria-expanded')).toBe('false');
+    expect(document.activeElement).toBe(menuButton());
+  });
+
+  it('Given 下書きに中身がある / When 確かめでやめるを押す / Then 下書きはそのままで、フォーカスは開閉のボタンへ戻る', () => {
+    joinedRoom();
+    pickSample();
+    typeName(1, 'Mine');
+    fireEvent.change(roundsField(), { target: { value: '3' } });
+    pickRow(/朝会/);
+    fireEvent.click(screen.getByRole('button', { name: SAMPLE_REPLACE_NO }));
+    expect(nameField(1).value).toBe('Mine');
+    expect(roundsField().value).toBe('3');
+    expect(screen.queryByText(SAMPLE_REPLACE_CONFIRM)).toBeNull();
+    expect(document.activeElement).toBe(menuButton());
+  });
+
+  it('Given 会の名前とステップの欄 / When DOM の順を見る / Then 「サンプルから選ぶ」はそれらより後にある', () => {
+    joinedRoom();
+    pickSample();
+    const after = (el: HTMLElement) => Boolean(el.compareDocumentPosition(menuButton()) & Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(after(screen.getByRole('textbox', { name: '会の名前' }))).toBe(true);
+    expect(after(nameField(1))).toBe(true);
+    expect(after(roundsField())).toBe(true);
+  });
+
+  it('Given 一覧を開いたまま / When 他の人がルームのシナリオを置き換える / Then 一覧は開いたまま、「シナリオが変わりました」も出る', () => {
+    joinedRoom();
+    pickSample();
+    typeName(1, 'Mine');
+    openSamples();
+    deliverAgenda(idleAgenda('Other', [['Theirs', 10]]));
+    expect(menuButton().getAttribute('aria-expanded')).toBe('true');
+    expect(rowNames()).toHaveLength(3);
     expect(screen.getAllByRole('status').some((el) => el.textContent?.includes(SCENARIO_CHANGED_NOTE))).toBe(true);
   });
 });
