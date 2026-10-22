@@ -11,7 +11,7 @@
  */
 import { useId } from 'react';
 import type { AgendaView } from '@tasuki/agenda-core';
-import { centerLines, driftTone, footerLine, roundBadge, summaryText } from '../agenda-view';
+import { centerLines, definedStepCount, driftTone, footerLine, roundBadge, summaryText } from '../agenda-view';
 import {
   DIAL_CENTER as C,
   arcPath,
@@ -26,7 +26,7 @@ import {
   smallSecondsDeg,
   type PlanLabel,
 } from '../dial-geometry';
-import { OVERRUN_LABEL, PAUSED_LABEL, TODAY_PLAN_LABEL, stepCountShort } from '../copy';
+import { OVERRUN_LABEL, PAUSED_LABEL, TODAY_PLAN_LABEL, roundsShort, stepCountShort } from '../copy';
 import { TimeDigits } from './TimeDigits';
 
 interface Props {
@@ -251,7 +251,13 @@ function Readout({ view }: { view: AgendaView }) {
           {view.phase === 'idle' ? (
             <>
               <span className="dial-name-chunk">{TODAY_PLAN_LABEL}</span>{' '}
-              <span className="dial-name-chunk">{stepCountShort(view.steps.length)}</span>
+              <span className="dial-name-chunk">{stepCountShort(definedStepCount(view))}</span>
+              {view.rounds >= 2 && (
+                <>
+                  {' '}
+                  <span className="dial-name-chunk">{roundsShort(view.rounds)}</span>
+                </>
+              )}
             </>
           ) : (
             lines.name

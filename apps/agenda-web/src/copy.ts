@@ -47,8 +47,10 @@ export const FOOTER_SEPARATOR = ' ・ ';
 // 開始前の盤（中央の名前の段と押し巻きの段）
 export const TODAY_PLAN_LABEL = '今日の進行';
 export const stepCountShort = (count: number): string => `${count} ステップ`;
-/** 盤では 2 つの塊（`TODAY_PLAN_LABEL`・`stepCountShort`）を別々に組み、語の中で折り返させない */
-export const stepCountText = (count: number): string => `${TODAY_PLAN_LABEL} ${stepCountShort(count)}`;
+/** 盤では塊（`TODAY_PLAN_LABEL`・`stepCountShort`・回数 2 以上なら `roundsShort`）を別々に組み、語の中で折り返させない */
+export const roundsShort = (rounds: number): string => `× ${rounds} 回`;
+export const stepCountText = (count: number, rounds = 1): string =>
+  rounds >= 2 ? `${TODAY_PLAN_LABEL} ${stepCountShort(count)} ${roundsShort(rounds)}` : `${TODAY_PLAN_LABEL} ${stepCountShort(count)}`;
 export const NOT_STARTED_LABEL = '開始前';
 // 読み上げの要約（盤の SVG と中央の文字は aria-hidden。同じ情報を文にする）
 export const remainingSummary = (minutes: number): string => `残り ${minutes} 分`;

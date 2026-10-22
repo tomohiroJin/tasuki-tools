@@ -82,6 +82,9 @@ describe('盤の中央の文字', () => {
   });
 
   it('開始前は予定の合計・ステップの数・開始前を出す', () => {
+    expect(centerLines(idleView([5], undefined, 6)).name).toBe('今日の進行 1 ステップ × 6 回');
+    expect(centerLines(idleView([5], undefined, 6)).name).not.toContain('6 ステップ');
+    expect(centerLines(idleView([5, 7], undefined, 3)).name).toBe('今日の進行 2 ステップ × 3 回');
     const lines = centerLines(idleView([5, 7, 1, 40, 7]));
     expect(lines).toEqual({ primary: '60:00', isOverrun: false, name: '今日の進行 5 ステップ', drift: '開始前' });
     expect(driftTone(idleView([5]))).toBe('idle');
@@ -142,6 +145,9 @@ describe('読み上げの要約', () => {
 
   it('開始前と終了', () => {
     expect(summaryText(idleView([5, 7]))).toBe('今日の進行 2 ステップ、予定 12 分、開始前');
+    // 回数 2 以上は定義のステップ数 × 回数（展開後の数ではない）
+    expect(summaryText(idleView([5], undefined, 6))).toBe('今日の進行 1 ステップ × 6 回、予定 30 分、開始前');
+    expect(summaryText(idleView([5, 7], undefined, 2))).toContain('今日の進行 2 ステップ × 2 回');
     expect(summaryText(new Driver([5, 5]).next(6 * MIN).next(14 * MIN).view(20 * MIN))).toBe('終了、予定より +4 分');
   });
 });

@@ -46,6 +46,14 @@ describe('下書きの回数', () => {
     expect(addBlockedByItems(draftOf(ten, '6'))).toBe(false);
   });
 
+  it('回数が範囲外（99・0）でも、ステップの追加は 1 回として数える（範囲の理由は回数の欄が示す）', () => {
+    const ten = Array.from({ length: 10 }, (_, i) => step(`s${i}`, 60));
+    expect(canAddStep(draftOf([], '99'))).toBe(true);
+    expect(canAddStep(draftOf(ten, '99'))).toBe(true);
+    expect(canAddStep(draftOf(ten, '0'))).toBe(true);
+    expect(canAddStep(draftOf(Array.from({ length: 20 }, (_, i) => step(`s${i}`, 60)), '99'))).toBe(false);
+  });
+
   it('回数 6 のルームのシナリオを下書きへ写すと 1 区切りと回数 6 になる（m455）', () => {
     const state = replaceScenario(INITIAL_AGENDA_STATE, input([step('朝会', 120)], 6));
     const view = toView(state._unsafeUnwrap(), 0);

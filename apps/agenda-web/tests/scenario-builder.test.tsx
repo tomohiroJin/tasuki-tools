@@ -394,6 +394,14 @@ describe('組む画面', () => {
     expect(screen.queryByText(MAX_STEPS_NOTE)).toBeNull();
   });
 
+  it('Given 回数が範囲外（99） / When 見る / Then 追加ボタンは押せて、60 の上限の注記は出ない', () => {
+    joinedRoom();
+    fireEvent.change(roundsField(), { target: { value: '99' } });
+    expect(screen.getByRole('button', { name: ADD_STEP_BUTTON })).toBeEnabled();
+    expect(screen.queryByText(MAX_PLANNED_NOTE)).toBeNull();
+    expect(screen.queryByText(MAX_STEPS_NOTE)).toBeNull();
+  });
+
   it('Given 回数が範囲外（31） / When 合計の行を見る / Then 1 回分の「予定 n 分」を出す', () => {
     joinedRoom();
     fireEvent.click(screen.getByRole('button', { name: /朝会/ }));

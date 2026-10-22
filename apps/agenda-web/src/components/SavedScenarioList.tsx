@@ -42,7 +42,7 @@ interface Props {
 }
 
 /**
- * 「この端末に保存」と保存済みの一覧（#429 spec §4.2 の 6）。行は 名前・ステップ数・合計の分 を 1 行。
+ * 「この端末に保存」と保存済みの一覧（#429 spec §4.2 の 6）。行は 名前・ステップ数・合計の分（回数 2 以上では回数も。`scenarioDetail`）を 1 行。
  * 選ぶと下書きに読み込む（ルームへは送らない）。
  */
 export function SavedScenarioList({ scenario, suggestedName, onPick }: Props) {

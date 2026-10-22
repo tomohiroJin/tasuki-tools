@@ -148,6 +148,13 @@ describe('盤', () => {
     expect(name?.textContent).toBe('今日の進行 5 ステップ');
     expect([...(name?.querySelectorAll('.dial-name-chunk') ?? [])].map((el) => el.textContent)).toEqual(['今日の進行', '5 ステップ']);
   });
+
+  it('回数 2 以上の開始前の名前は 3 つの塊（今日の進行・定義のステップ数・× 回数）で、展開後の数を出さない', () => {
+    const { container } = render(<Dial view={idleView([5], undefined, 6)} wallNow={WALL} reducedMotion={false} />);
+    const name = container.querySelector('.dial-name');
+    expect(name?.textContent).toBe('今日の進行 1 ステップ × 6 回');
+    expect([...(name?.querySelectorAll('.dial-name-chunk') ?? [])].map((el) => el.textContent)).toEqual(['今日の進行', '1 ステップ', '× 6 回']);
+  });
 });
 
 /**

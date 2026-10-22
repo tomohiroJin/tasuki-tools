@@ -139,7 +139,8 @@ function firstReason(d: Draft): string | null {
 }
 
 /**
- * 下書きを検証する。**合否は `ScenarioInputSchema` が決める**（サーバーと同じ境界）。理由の文はここで組む。
+ * 下書きを検証する。**合否は `ScenarioInputSchema` が決める**（サーバーと同じ境界）。ただし回数の欄が読めないときだけはスキーマの前で止める
+ * （`inputFromDraft` が読めない回数を落とすので、そのままではスキーマを通ってしまうため）。理由の文はここで組む。
  * スキーマが落としたのに理由が見つからないときも、押させない（理由は汎用の一文）。
  */
 export function checkDraft(d: Draft, fallbackReason: string): DraftCheck {
@@ -186,8 +187,14 @@ export function previewView(d: Draft): AgendaView | null {
 
 // 行の編集（新しい下書きを返す）
 
-/** 足したあとの「ステップ × 回数」が上限を超えるなら足せない。回数が読めないときは 1 回として数える */
-export const canAddStep = (d: Draft): boolean => d.steps.length < MAX_ITEMS && (d.steps.length + 1) * (roundsOfDraft(d) ?? 1) <= MAX_PLANNED_STEPS;
+/** 足したあとの「ステップ × 回数」が上限を超えるなら足せない。回数が読めない・範囲外のときは 1 回として数える */
+export const canAddStep = (d: Draft): boolean => d.steps.length < MAX_ITEMS && (d.steps.length + 1) * effectiveRounds(d) <= MAX_PLANNED_STEPS;
+
+/** 数える回数。読めない・範囲外（`MIN_ROUNDS`〜`MAX_ROUNDS` の外）は別の理由の欄が示すので 1 回として数える */
+const effectiveRounds = (d: Draft): number => {
+  const r = roundsOfDraft(d);
+  return roundsInRange(r) ? r : 1;
+};
 
 /** 足せない理由が 20 の上限か（そうでなければ 60 の上限） */
 export const addBlockedByItems = (d: Draft): boolean => d.steps.length >= MAX_ITEMS;

@@ -92,9 +92,12 @@ function driftLine(v: AgendaView): string {
 
 const currentStep = (v: AgendaView): StepView | undefined => v.steps.find((x) => x.id === v.currentId);
 
+/** 定義のステップ数（回数で展開する前。回数 1 なら展開後と同じ） */
+export const definedStepCount = (v: AgendaView): number => v.steps.filter((s) => s.round === 1).length;
+
 export function centerLines(v: AgendaView): CenterLines {
   if (v.phase === 'idle') {
-    return { primary: elapsedClock(plannedTotalMs(v)), isOverrun: false, name: stepCountText(v.steps.length), drift: driftLine(v) };
+    return { primary: elapsedClock(plannedTotalMs(v)), isOverrun: false, name: stepCountText(definedStepCount(v), v.rounds), drift: driftLine(v) };
   }
   if (v.phase === 'finished') {
     return { primary: elapsedClock(v.runElapsedMs), isOverrun: false, name: v.title, drift: driftLine(v) };
@@ -227,7 +230,7 @@ const overrunPart = (overMs: number): string => {
 export function summaryText(v: AgendaView): string {
   const parts: string[] = [];
   if (v.phase === 'idle') {
-    parts.push(stepCountText(v.steps.length), plannedSummary(Math.round(plannedTotalMs(v) / MIN)), NOT_STARTED_LABEL);
+    parts.push(stepCountText(definedStepCount(v), v.rounds), plannedSummary(Math.round(plannedTotalMs(v) / MIN)), NOT_STARTED_LABEL);
   } else if (v.phase === 'finished') {
     parts.push(FINISHED_LABEL, driftLine(v));
   } else {
