@@ -8,6 +8,7 @@ import {
   driftTone,
   extensionLine,
   footerLine,
+  footerParts,
   nextStepName,
   projectedEndClock,
   roundBadge,
@@ -116,7 +117,25 @@ describe('盤の下の一行', () => {
   });
 });
 
+describe('盤の下の一行の部品', () => {
+  it('次のステップと終了見込みに分かれ、footerLine はこれまでと同じ文になる', () => {
+    const v = new Driver([5, 5]).view(1 * MIN);
+    expect(footerParts(v, WALL)).toEqual({ next: '次は S2', end: '14:09 に終了見込み' });
+    expect(footerLine(v, WALL)).toBe('次は S2 ・ 14:09 に終了見込み');
+  });
+
+  it('最後のステップは next が空、終了後は両方空', () => {
+    expect(footerParts(new Driver([5]).view(0), WALL)).toEqual({ next: '', end: '14:05 に終了見込み' });
+    expect(footerParts(new Driver([5]).next(1 * MIN).view(2 * MIN), WALL)).toEqual({ next: '', end: '' });
+  });
+});
+
 describe('進行表の行', () => {
+  it('1 回あたり 1 ステップで回数 2 以上は、行の番号が回の数になる。2 ステップ以上は回の中の番号', () => {
+    expect(stepRows(new Driver([5], 'Daily', 'wait', 3).view(0)).map((r) => r.number)).toEqual([1, 2, 3]);
+    expect(stepRows(new Driver([5, 5], 'LT', 'wait', 2).view(0)).map((r) => r.number)).toEqual([1, 2, 1, 2]);
+  });
+
   it('済み・いま・スキップ・まだ を分ける', () => {
     const v = new Driver([5, 5, 5, 5]).skip('s-3').next(4 * MIN).extend(3).view(5 * MIN);
     expect(stepRows(v).map((r) => [r.number, r.status, r.plannedMin, r.extensionMin])).toEqual([

@@ -80,7 +80,7 @@ export function RunScreen({ view, wallNow, reducedMotion, striking, canOperate, 
       <div className="run-bar">
         <p className="run-title">{view.title}</p>
         <div className="run-bar-actions">
-          <button type="button" className="ui-button ui-button--quiet ui-button--sm run-speak" onClick={onSpeakSummary}>
+          <button type="button" className="ui-button ui-button--quiet ui-button--sm ui-visually-hidden run-speak" onClick={onSpeakSummary}>
             {SPEAK_SUMMARY_BUTTON}
           </button>
           {soundToggle}

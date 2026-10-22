@@ -144,6 +144,9 @@ export const extensionNote = (planned: number, extension: number): string => `�
 /** 回数 2 以上では回を前に付ける（例「3 回のステップ 1 をスキップ」）。回数 1 は `round` を渡さない */
 export const skipStepLabel = (n: number, round?: number): string =>
   `${round === undefined ? '' : `${round} 回の`}ステップ ${n} をスキップ`;
+/** 1 ステップの回（朝会）では行が回そのもの（例「3 回をスキップ」） */
+export const skipRoundLabel = (round: number): string => `${round} ${ROUNDS_UNIT}をスキップ`;
+export const unskipRoundLabel = (round: number): string => `${round} ${ROUNDS_UNIT}を戻す`;
 export const unskipStepLabel = (n: number, round?: number): string =>
   `${round === undefined ? '' : `${round} 回の`}ステップ ${n} を戻す`;
 

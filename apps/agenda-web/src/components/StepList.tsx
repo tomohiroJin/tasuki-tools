@@ -4,7 +4,7 @@
  */
 import { useEffect, useId, useRef, type ReactNode } from 'react';
 import type { AgendaView } from '@tasuki/agenda-core';
-import { scrollTopToReveal, stepRows, type StepRow } from '../agenda-view';
+import { isSingleStepRounds, scrollTopToReveal, stepRows, type StepRow } from '../agenda-view';
 import {
   DONE_MARK,
   NOW_MARK,
@@ -14,7 +14,9 @@ import {
   extensionSuffix,
   minutesText,
   roundHeading,
+  skipRoundLabel,
   skipStepLabel,
+  unskipRoundLabel,
   unskipStepLabel,
 } from '../copy';
 
@@ -34,11 +36,14 @@ function Mark({ row }: { row: StepRow }) {
 function RowItem({
   row,
   grouped,
+  flatRounds,
   canOperate,
   onSetSkipped,
 }: {
   row: StepRow;
   grouped: boolean;
+  /** 1 ステップの回: 行そのものが回なので、読み上げ名は回を名指す */
+  flatRounds: boolean;
   canOperate: boolean;
   onSetSkipped: Props['onSetSkipped'];
 }) {
@@ -56,7 +61,7 @@ function RowItem({
         <button
           type="button"
           className="ui-button ui-button--quiet ui-button--sm step-list-skip"
-          aria-label={skipStepLabel(row.number, labelRound)}
+          aria-label={flatRounds ? skipRoundLabel(row.round) : skipStepLabel(row.number, labelRound)}
           disabled={!canOperate}
           onClick={() => onSetSkipped(row.id, true)}
         >
@@ -67,7 +72,7 @@ function RowItem({
         <button
           type="button"
           className="ui-button ui-button--quiet ui-button--sm step-list-skip"
-          aria-label={unskipStepLabel(row.number, labelRound)}
+          aria-label={flatRounds ? unskipRoundLabel(row.round) : unskipStepLabel(row.number, labelRound)}
           disabled={!canOperate}
           onClick={() => onSetSkipped(row.id, false)}
         >
@@ -82,21 +87,24 @@ export function StepList({ view, canOperate, onSetSkipped }: Props) {
   const headingId = useId();
   const boxRef = useRef<HTMLOListElement>(null);
   const rows = stepRows(view);
-  const grouped = view.rounds >= 2;
+  // 回数 2 以上は枠（スクロール・キーボード）を持つ。見出しで区切るのは 1 回に 2 ステップ以上のときだけ
+  const scrolling = view.rounds >= 2;
+  const flatRounds = isSingleStepRounds(view);
+  const grouped = scrolling && !flatRounds;
   const nowId = rows.find((r) => r.status === 'now')?.id;
 
   // 回数 2 以上の枠の中で、いまの行が見えるようにする。動かすのは枠の `scrollTop` だけ
   // （`scrollIntoView` は祖先のページまで動かす）。最初の描画と、いまの行が変わったときに合わせる
   useEffect(() => {
     const box = boxRef.current;
-    if (!grouped || box === null || nowId === undefined) return;
+    if (!scrolling || box === null || nowId === undefined) return;
     const row = box.querySelector<HTMLElement>('.step-list-row.is-now');
     if (row === null) return;
     // 枠の中での行の位置は座標の差で測る（`offsetTop` は offsetParent＝body からで、枠より上の高さが混ざる）
     const rowRect = row.getBoundingClientRect();
     const top = rowRect.top - box.getBoundingClientRect().top + box.scrollTop;
     box.scrollTop = scrollTopToReveal(box, { top, height: rowRect.height });
-  }, [grouped, nowId]);
+  }, [scrolling, nowId]);
 
   const items: ReactNode[] = [];
   rows.forEach((row, i) => {
@@ -107,7 +115,7 @@ export function StepList({ view, canOperate, onSetSkipped }: Props) {
         </li>,
       );
     }
-    items.push(<RowItem key={row.id} row={row} grouped={grouped} canOperate={canOperate} onSetSkipped={onSetSkipped} />);
+    items.push(<RowItem key={row.id} row={row} grouped={grouped} flatRounds={flatRounds} canOperate={canOperate} onSetSkipped={onSetSkipped} />);
   });
 
   return (
@@ -118,8 +126,8 @@ export function StepList({ view, canOperate, onSetSkipped }: Props) {
       {/* スクロールする枠はキーボードで届き（矢印・PageDown）、見出しで名前が付く。回数 1 の DOM は変えない */}
       <ol
         ref={boxRef}
-        className={grouped ? 'step-list-rows step-list-rows--scroll' : 'step-list-rows'}
-        {...(grouped ? { tabIndex: 0, 'aria-labelledby': headingId } : {})}
+        className={scrolling ? 'step-list-rows step-list-rows--scroll' : 'step-list-rows'}
+        {...(scrolling ? { tabIndex: 0, 'aria-labelledby': headingId } : {})}
       >
         {items}
       </ol>

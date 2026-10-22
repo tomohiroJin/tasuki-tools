@@ -19,7 +19,7 @@ import {
   PROJECT_KEYS_HINT,
   RESUME_BUTTON,
 } from '../copy';
-import { Dial } from './Dial';
+import { Dial, ProjectedEndMark } from './Dial';
 
 /** マウスを動かしてから操作帯を出しておく長さ */
 export const STRIP_SHOWN_MS = 3000;
@@ -124,7 +124,10 @@ export function ProjectionView({ view, wallNow, reducedMotion, striking, canOper
             </div>
           )}
           <div className="projection-item">
-            <dt>{PROJECTED_END_LABEL}</dt>
+            <dt>
+              <ProjectedEndMark view={view} />
+              {PROJECTED_END_LABEL}
+            </dt>
             <dd className="projection-end">{projectedEndClock(view, wallNow)}</dd>
           </div>
         </dl>

@@ -42,6 +42,10 @@ function checkedText(): string {
  * @requirements #429 spec §6.6（UI 文言は書体の base 層に収める）
  */
 describe('描いた進行タイマーの文字は書体の常用の層に収まる', () => {
+  it('対照: 検査は base 層に無い字を拾う（拾えない検査は常に緑になる）', () => {
+    expect(outsideBase(['議論'])).not.toEqual([]);
+  });
+
   it.each([
     ['参加の途中', null],
     ['組む前', IDLE_AGENDA],

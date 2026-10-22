@@ -5,7 +5,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { StepList } from '../src/components/StepList';
 import { scrollTopToReveal } from '../src/agenda-view';
-import { roundHeading, skipStepLabel } from '../src/copy';
+import { roundHeading, skipRoundLabel, skipStepLabel, unskipRoundLabel } from '../src/copy';
 import { Driver, MIN } from './support/agenda-states';
 
 const noop = (): void => undefined;
@@ -92,6 +92,48 @@ describe('進行表の回の見出し', () => {
     cleanup();
     render(<StepList view={new Driver([1, 1, 1]).view(0)} canOperate onSetSkipped={noop} />);
     expect(screen.getByRole('button', { name: 'ステップ 3 をスキップ' })).toBeDefined();
+  });
+});
+
+/**
+ * @requirements #429 フィードバック F4（1 回あたり 1 ステップは回の見出しを出さず 1 行にまとめる。m462）
+ */
+describe('1 ステップの回（朝会）の進行表', () => {
+  it('Given 回数 2 以上で 1 回あたり 1 ステップ / When 描く / Then 回の見出しを出さず、行の番号に回の数（1〜N）を出す（m462）', () => {
+    const { container } = render(<StepList view={new Driver([1], 'Daily', 'wait', 6).view(0)} canOperate onSetSkipped={noop} />);
+    expect(screen.queryAllByRole('heading', { level: 3 })).toEqual([]);
+    expect(container.querySelector('.step-list-round')).toBeNull();
+    expect([...container.querySelectorAll('.step-list-number')].map((n) => n.textContent)).toEqual(['1', '2', '3', '4', '5', '6']);
+    // 平らな 1 本の一覧で、行は 6 つ
+    expect(container.querySelectorAll('ol > li')).toHaveLength(6);
+  });
+
+  it('Given 1 回あたり 1 ステップ / When 描く / Then 枠のクラスとキーボードの tabindex は回数 2 以上のまま', () => {
+    const { container } = render(<StepList view={new Driver([1], 'Daily', 'wait', 6).view(0)} canOperate onSetSkipped={noop} />);
+    const box = container.querySelector('.step-list-rows--scroll');
+    expect(box?.getAttribute('tabindex')).toBe('0');
+    expect(box?.getAttribute('aria-labelledby')).toBe(container.querySelector('h2')?.id);
+  });
+
+  it('Given 1 回あたり 2 ステップ以上 / When 描く / Then これまでどおり回の見出しで区切る', () => {
+    const { container } = render(<StepList view={new Driver([1, 1], 'LT', 'wait', 2).view(0)} canOperate onSetSkipped={noop} />);
+    expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual([roundHeading(1), roundHeading(2)]);
+    expect(container.querySelectorAll('.step-list-round')).toHaveLength(2);
+  });
+
+  it('Given 回数 1 で 1 ステップ / When 描く / Then 枠も見出しも無い（第 1 段の DOM のまま）', () => {
+    const { container } = render(<StepList view={new Driver([1, 1]).view(0)} canOperate onSetSkipped={noop} />);
+    expect(container.querySelector('.step-list-rows--scroll')).toBeNull();
+    expect(container.querySelector('.step-list-round')).toBeNull();
+    expect(screen.getByRole('button', { name: 'ステップ 2 をスキップ' })).toBeDefined();
+  });
+
+  it('Given 1 回あたり 1 ステップ / When 描く / Then スキップ・戻すの読み上げ名は回を名指す', () => {
+    const d = new Driver([1], 'Daily', 'wait', 4).skip('s-3');
+    render(<StepList view={d.view(0)} canOperate onSetSkipped={noop} />);
+    expect(screen.getByRole('button', { name: skipRoundLabel(2) }).getAttribute('aria-label')).toBe('2 回をスキップ');
+    expect(screen.getByRole('button', { name: unskipRoundLabel(3) }).getAttribute('aria-label')).toBe('3 回を戻す');
+    expect(screen.queryByRole('button', { name: /ステップ/ })).toBeNull();
   });
 });
 

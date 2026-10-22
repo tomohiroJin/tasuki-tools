@@ -159,13 +159,21 @@ export function projectedEndClock(v: AgendaView, wallNow: Date): string {
   return wallClock(new Date(wallNow.getTime() + restMs));
 }
 
+/** 盤の下の一行の部品: 次のステップ（無ければ空）と終了見込み。終了後は両方空（印を終了見込みの前に置くため分ける） */
+export function footerParts(v: AgendaView, wallNow: Date): { next: string; end: string } {
+  if (v.phase === 'finished') return { next: '', end: '' };
+  const following = nextStep(v);
+  return { next: following === undefined ? '' : nextStepText(following.name), end: projectedEndText(projectedEndClock(v, wallNow)) };
+}
+
 /** 盤の下の一行: 「次は ◯◯ ・ 15:02 に終了見込み」。終了後は空 */
 export function footerLine(v: AgendaView, wallNow: Date): string {
-  if (v.phase === 'finished') return '';
-  const end = projectedEndText(projectedEndClock(v, wallNow));
-  const following = nextStep(v);
-  return following === undefined ? end : `${nextStepText(following.name)}${FOOTER_SEPARATOR}${end}`;
+  const { next, end } = footerParts(v, wallNow);
+  return next === '' ? end : `${next}${FOOTER_SEPARATOR}${end}`;
 }
+
+/** 1 回あたり 1 ステップで回数 2 以上（朝会）。回の見出しを出さず、行の番号に回の数を出す */
+export const isSingleStepRounds = (v: AgendaView): boolean => v.rounds >= 2 && definedStepCount(v) === 1;
 
 /** いまのステップを延長しているときの添え書き「予定 7 分 + 3 分」（spec §7.2）。延長が無ければ空 */
 export function extensionLine(v: AgendaView): string {
@@ -210,7 +218,7 @@ export function stepRows(v: AgendaView): StepRow[] {
     seenInRound.set(x.round, inRound);
     return {
       id: x.id,
-      number: v.rounds >= 2 ? inRound : i + 1,
+      number: isSingleStepRounds(v) ? x.round : v.rounds >= 2 ? inRound : i + 1,
       round: x.round,
       name: x.name,
       status: statusOf(v, x),

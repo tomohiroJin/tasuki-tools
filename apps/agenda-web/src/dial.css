@@ -382,3 +382,16 @@
     animation: none;
   }
 }
+
+/* 盤の下の一行の終了見込み: 盤の縁の三角と同じ形・同じ色の段の小さな印を字の前に添える（F6）。
+   色は `.dial-marker--{tone}` がそのまま当たる。大きさは字の高さ程度 */
+.dial-footer-end {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.dial-end-mark {
+  flex: none;
+  width: 1em;
+  height: 1em;
+}
