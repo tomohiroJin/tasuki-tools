@@ -7,17 +7,16 @@
 #
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m461-*.patch
-# 復元: git apply -R scripts/mutations/m461-*.patch
 diff --git a/apps/agenda-web/src/components/ScenarioBuilder.tsx b/apps/agenda-web/src/components/ScenarioBuilder.tsx
-index 043e6b50..103fccb4 100644
+index 03498a45..27c0a8b4 100644
 --- a/apps/agenda-web/src/components/ScenarioBuilder.tsx
 +++ b/apps/agenda-web/src/components/ScenarioBuilder.tsx
-@@ -333,7 +333,7 @@ function SampleMenu({ draftIsEmpty, onPick }: { draftIsEmpty: boolean; onPick: (
-     setReturnFocus(true);
-   };
-   // 中身のある下書きは黙って消さない
--  const needsConfirm = !draftIsEmpty;
+@@ -324,7 +324,7 @@ function SampleMenu({ draftIsDisposable, onPick }: { draftIsDisposable: boolean;
+   const confirmId = useId();
+ 
+   // 中身のある下書きは黙って消さない（ルームの写しのままなら消えても取り戻せるので確かめない）
+-  const needsConfirm = !draftIsDisposable;
 +  const needsConfirm = false;
  
-   return (
-     <div className="builder-sample-menu">
+   useEffect(() => {
+     if (pending !== null) noRef.current?.focus();
