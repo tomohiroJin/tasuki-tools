@@ -302,6 +302,30 @@ test.describe('お題ツールのボタンは部品で、押せる大きさが�
     await loadSampleAndStart(page);
     await expect(page.locator('.dial-name')).toHaveText('K を出す');
     await expectScreenAcrossWidths(page, '進行タイマー（進行中）', AGENDA_RUN_TARGETS);
+    //   「読み上げ」のボタンはふだん隠し（`ui-visually-hidden`）、キーボードのフォーカスのときだけ見せる。上の測定は隠した箱を測らないので、
+    //   ここでフォーカスを当てて別に測る（見える・44px 以上・中央を突けばそのボタンに当たる・押すと読み上げの領域に文が入る）
+    const speak = page.getByRole('button', { name: '読み上げ', exact: true });
+    await speak.focus();
+    //   プログラムのフォーカスで `:focus-visible` が付かないときは、キーボードで移す
+    if (!(await speak.evaluate((el) => el.matches(':focus-visible')))) {
+      await page.keyboard.press('Shift+Tab');
+      await page.keyboard.press('Tab');
+    }
+    await expect(speak).toBeFocused();
+    const claim = await speak.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      const before = getComputedStyle(el, '::before');
+      const bw = parseFloat(before.width) || 0, bh = parseFloat(before.height) || 0;
+      const x = r.left + r.width / 2, y = r.top + r.height / 2;
+      const hit = document.elementFromPoint(x, y);
+      return { width: Math.max(r.width, bw), height: Math.max(r.height, bh), hitsSelf: hit === el || (hit !== null && el.contains(hit)) };
+    });
+    expect(claim.width, '読み上げのボタン（フォーカス）の幅').toBeGreaterThanOrEqual(44);
+    expect(claim.height, '読み上げのボタン（フォーカス）の高さ').toBeGreaterThanOrEqual(44);
+    expect(claim.hitsSelf, '読み上げのボタンの中央を突くとそのボタンに当たる').toBe(true);
+    //   進行の通知（「いまのステップは …」）ではなく、要約（ステップ名に残りなどが続く）が入る
+    await speak.click();
+    await expect(page.locator('.agenda-live')).toHaveText(/^(?!いまのステップは).*K を出す/);
     //   止まった画面（進行中・1280）の文字が読める・Tab でフォーカスが見える。盤の SVG は aria-hidden で、中央の文字は HTML
     //   （`scanContrast` が測る span / p）。SVG の `<text>`（区画の番号）は対象外で、ここでは測らない
     await page.setViewportSize({ width: 1280, height: 900 });
