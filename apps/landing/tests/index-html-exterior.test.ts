@@ -85,6 +85,19 @@ describe('全ページ共通', () => {
         expect(meta(doc, 'twitter:card')).toBe('summary_large_image');
       });
 
+      it('検査する meta が 1 ページに 1 つずつだけある（重複した古い行が黙って残らない）', () => {
+        const keys = [
+          'og:type', 'og:site_name', 'og:locale', 'og:title', 'og:description',
+          'og:image', 'og:image:width', 'og:image:height', 'og:image:alt',
+          'twitter:card', 'twitter:title', 'twitter:description',
+          'description', 'theme-color',
+        ];
+        for (const key of keys) {
+          const found = doc.head.querySelectorAll(`meta[name="${key}"], meta[property="${key}"]`);
+          expect(found.length, `${key} の meta の数`).toBe(1);
+        }
+      });
+
       it('og:title と twitter:title が同じ', () => {
         const title = meta(doc, 'og:title');
         expect(title).toBeTruthy();
