@@ -108,7 +108,7 @@ describe('盤', () => {
   it('開始前: 針は 12 時・終了見込みの印は出さない・中央は予定の合計', () => {
     const { container } = render(<Dial view={idleView([30, 30])} wallNow={WALL} reducedMotion={false} />);
     expect(container.querySelector('.dial-needle')?.getAttribute('transform')).toBe('rotate(0 200 200)');
-    expect(container.querySelector('.dial-marker')).toBeNull();
+    expect(container.querySelector('.dial-watch .dial-marker')).toBeNull();
     expect(container.querySelector('.dial-time')?.textContent).toBe('60:00');
     expect(container.querySelector('.dial-drift')?.textContent).toBe('開始前');
   });
@@ -160,6 +160,57 @@ describe('盤', () => {
 /**
  * @requirements #429 spec §7.3（回の札）
  */
+/**
+ * @requirements #429 フィードバック F6（盤の下の一行の終了見込みに、盤の縁の印と同じ形・同じ色の段の印を添える）
+ */
+describe('盤の下の一行の終了見込みの印', () => {
+  it.each([
+    ['押している', new Driver([5, 5]).view(8 * MIN), 'late'],
+    ['予定どおり', new Driver([5, 5]).view(1 * MIN), 'even'],
+    ['巻いている', new Driver([5, 5, 5]).skip('s-2').view(1 * MIN), 'early'],
+  ])('Given %s / When 描く / Then 終了見込みの前に、盤の印と同じ形・同じ色の段の印があり読み上げから外れる', (_label, v, tone) => {
+    const { container } = render(<Dial view={v} wallNow={WALL} reducedMotion={false} />);
+    const footer = container.querySelector('.dial-footer');
+    const mark = footer?.querySelector('svg.dial-end-mark');
+    expect(mark).toHaveAttribute('aria-hidden', 'true');
+    const path = mark?.querySelector('path');
+    expect(path).toHaveClass('dial-marker', `dial-marker--${tone}`);
+    // 盤の縁の印と同じ形・同じ色の段
+    const rimPath = container.querySelector('.dial-watch .dial-marker');
+    expect(path?.getAttribute('d')).toBe('M0 7 L-6 -5 L6 -5 Z');
+    expect(path?.getAttribute('d')).toBe(rimPath?.getAttribute('d'));
+    // 小さな印は線を細くするクラスを足す。盤の縁の印には足さない
+    expect(path).toHaveClass('dial-marker--small');
+    expect(rimPath).not.toHaveClass('dial-marker--small');
+    expect(path?.getAttribute('class')).toBe(`${rimPath?.getAttribute('class')} dial-marker--small`);
+    // 印は終了見込みの文の前、文は変わらない
+    const end = footer?.querySelector('.dial-footer-end');
+    expect(end?.firstElementChild).toBe(mark);
+    expect(end?.textContent).toMatch(/に終了見込み$/);
+    expect(footer?.textContent).toMatch(/^次は S[23] ・ \d\d:\d\d に終了見込み$/);
+  });
+
+  it('Given 開始前 / When 描く / Then 盤の縁の印が無いので、下の一行にも印は出さない。進行中には出る', () => {
+    const idle = render(<Dial view={idleView([30, 30])} wallNow={WALL} reducedMotion={false} />);
+    expect(idle.container.querySelector('.dial-footer')?.textContent).toMatch(/に終了見込み$/);
+    expect(idle.container.querySelector('.dial-footer .dial-marker')).toBeNull();
+    idle.unmount();
+    const running = render(<Dial view={new Driver([5, 5]).view(1 * MIN)} wallNow={WALL} reducedMotion={false} />);
+    expect(running.container.querySelector('.dial-footer .dial-marker')).not.toBeNull();
+  });
+
+  it('Given 最後のステップ / When 描く / Then 次の案内は無く、印つきの終了見込みだけ', () => {
+    const { container } = render(<Dial view={new Driver([5]).view(0)} wallNow={WALL} reducedMotion={false} />);
+    expect(container.querySelector('.dial-footer')?.textContent).toBe('14:05 に終了見込み');
+    expect(container.querySelector('.dial-footer svg.dial-end-mark')).not.toBeNull();
+  });
+
+  it('Given 終了 / When 描く / Then 一行ごと出さない', () => {
+    const { container } = render(<Dial view={new Driver([5]).next(1 * MIN).view(2 * MIN)} wallNow={WALL} reducedMotion={false} />);
+    expect(container.querySelector('.dial-footer')).toBeNull();
+  });
+});
+
 describe('盤の回の札', () => {
   const tagTexts = (el: HTMLElement): string[] => [...el.querySelectorAll('.dial-tag')].map((t) => t.textContent ?? '');
 

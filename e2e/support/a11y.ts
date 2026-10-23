@@ -276,9 +276,14 @@ async function scanTargets(page: Page, scope: string): Promise<Scan> {
     const shown = (el: Element): boolean => {
       const r = el.getBoundingClientRect();
       const cs = getComputedStyle(el);
+      // 見えなく隠された箱（`ui-visually-hidden` の隠し方）は押せる部品として測らない。ふだん隠し、フォーカスのときだけ見せる部品
+      // （進行タイマーの「読み上げ」）は、1px の隠した箱を測ると当たりを突いても当たらず誤検出になる。そうした部品は
+      // フォーカスを当てたときに別に測る。この判定は `packages/ui/src/components/visually-hidden.css` の宣言
+      // の `clip-path: inset(50%)` だけを見る（1px に潰れただけの部品は隠したものと読まず、測って赤にする）。あちらの隠し方を変えたらここも合わせる
+      const hidden = cs.clipPath === 'inset(50%)';
       // `checkVisibility()` は閉じた `<details>` の中身（`content-visibility: hidden`）を見えないと読む。箱の大きさだけでは
       // 閉じた中身も幅と高さを持って見え、画面の外の位置で測られていた（#316 PR 4・突きで「画面の外」と出て見つかった）
-      return r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && el.checkVisibility() && el.closest('[inert]') === null;
+      return !hidden && r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && el.checkVisibility() && el.closest('[inert]') === null;
     };
     // 文の中のリンク: Markdown の本文の中、または最も近い段落・項目（`p` / `li`）に自分以外の文字がある。
     // 親が並べるための入れ物（ステータスの帯など）なだけのリンクは操作として測る。「親の字が自分と違えば行内」とすると、

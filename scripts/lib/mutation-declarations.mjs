@@ -3004,4 +3004,20 @@ export const MUTATIONS = [
     tests: ["tests/step-list.test.tsx"],
     note: "#429 第 2 段。スクロール済みの枠では行の座標が scrollTop の分だけ手前に出る。足し戻さないと二段目の移動が足りず、いまの行が枠の外に残る。",
   },
+  {
+    id: 461,
+    label: "下書きに中身があっても、確かめずにサンプルで置き換える",
+    patch: "m461-sample-replaces-draft-unasked.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/scenario-builder.test.tsx"],
+    note: "#429 フィードバック F3。組みかけの下書きが黙って消える。中身のある下書きでは「いまの下書きを消して読み込みますか」と確かめ、やめれば下書きはそのまま。",
+  },
+  {
+    id: 462,
+    label: "1 回あたり 1 ステップの回でも、回の見出しを出す",
+    patch: "m462-single-step-rounds-show-headings.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/step-list.test.tsx"],
+    note: "#429 フィードバック F4。朝会（1 ステップ × 6 回）で見出しと行が交互に並び、12 項目になって枠からはみ出してバーが出る。1 回あたり 1 ステップは見出しを出さず、行の番号に回の数を出す。",
+  },
 ];

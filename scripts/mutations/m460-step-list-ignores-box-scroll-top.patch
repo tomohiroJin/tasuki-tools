@@ -20,5 +20,5 @@ index e5ff229e..acbb54ed 100644
 -    const top = rowRect.top - box.getBoundingClientRect().top + box.scrollTop;
 +    const top = rowRect.top - box.getBoundingClientRect().top;
      box.scrollTop = scrollTopToReveal(box, { top, height: rowRect.height });
-   }, [grouped, nowId]);
+   }, [scrolling, nowId]);
  

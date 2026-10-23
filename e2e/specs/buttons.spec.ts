@@ -296,12 +296,36 @@ test.describe('お題ツールのボタンは部品で、押せる大きさが�
     await page.setViewportSize({ width: 390, height: 800 });
     await page.getByRole('link', { name: '選択画面へ戻る' }).click();
     await openAgendaFromHub(page);
-    await expect(page.getByRole('button', { name: /サンプル：KPT のふりかえり/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'サンプルから選ぶ', exact: true })).toBeVisible();
     await expectScreenAcrossWidths(page, '進行タイマー（組む）', AGENDA_BUILD_TARGETS);
 
     await loadSampleAndStart(page);
     await expect(page.locator('.dial-name')).toHaveText('K を出す');
     await expectScreenAcrossWidths(page, '進行タイマー（進行中）', AGENDA_RUN_TARGETS);
+    //   「読み上げ」のボタンはふだん隠し（`ui-visually-hidden`）、キーボードのフォーカスのときだけ見せる。上の測定は隠した箱を測らないので、
+    //   ここでフォーカスを当てて別に測る（見える・44px 以上・中央を突けばそのボタンに当たる・押すと読み上げの領域に文が入る）
+    const speak = page.getByRole('button', { name: '読み上げ', exact: true });
+    await speak.focus();
+    //   プログラムのフォーカスで `:focus-visible` が付かないときは、キーボードで移す
+    if (!(await speak.evaluate((el) => el.matches(':focus-visible')))) {
+      await page.keyboard.press('Shift+Tab');
+      await page.keyboard.press('Tab');
+    }
+    await expect(speak).toBeFocused();
+    const claim = await speak.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      const before = getComputedStyle(el, '::before');
+      const bw = parseFloat(before.width) || 0, bh = parseFloat(before.height) || 0;
+      const x = r.left + r.width / 2, y = r.top + r.height / 2;
+      const hit = document.elementFromPoint(x, y);
+      return { width: Math.max(r.width, bw), height: Math.max(r.height, bh), hitsSelf: hit === el || (hit !== null && el.contains(hit)) };
+    });
+    expect(claim.width, '読み上げのボタン（フォーカス）の幅').toBeGreaterThanOrEqual(44);
+    expect(claim.height, '読み上げのボタン（フォーカス）の高さ').toBeGreaterThanOrEqual(44);
+    expect(claim.hitsSelf, '読み上げのボタンの中央を突くとそのボタンに当たる').toBe(true);
+    //   進行の通知（「いまのステップは …」）ではなく、要約（ステップ名に残りなどが続く）が入る
+    await speak.click();
+    await expect(page.locator('.agenda-live')).toHaveText(/^(?!いまのステップは).*K を出す/);
     //   止まった画面（進行中・1280）の文字が読める・Tab でフォーカスが見える。盤の SVG は aria-hidden で、中央の文字は HTML
     //   （`scanContrast` が測る span / p）。SVG の `<text>`（区画の番号）は対象外で、ここでは測らない
     await page.setViewportSize({ width: 1280, height: 900 });
@@ -320,7 +344,7 @@ test.describe('お題ツールのボタンは部品で、押せる大きさが�
   });
 });
 
-/** 進行タイマーの組む画面（空のとき）で測る操作の数の下限（サンプルの札・ステップを追加・戻るリンクなど。実測前の控えめな値） */
+/** 進行タイマーの組む画面（空のとき）で測る操作の数の下限（サンプルから選ぶ・ステップを追加・戻るリンクなど。実測前の控えめな値） */
 const AGENDA_BUILD_TARGETS = 3;
 /** 進行タイマーの進行中の画面で測る操作の数の下限（延長 3・一時停止・次へ・映す表示・スキップなど。実測前の控えめな値） */
 const AGENDA_RUN_TARGETS = 8;

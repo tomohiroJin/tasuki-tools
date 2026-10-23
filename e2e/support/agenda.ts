@@ -59,6 +59,7 @@ export function dialDrift(page: Page): Locator {
 
 /** 組む画面でサンプルを下書きへ読み込み、ルームへ読み込み、開始して進行中の画面にする。 */
 export async function loadSampleAndStart(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'サンプルから選ぶ', exact: true }).click();
   await page.getByRole('button', { name: /サンプル：KPT のふりかえり/ }).click();
   await page.getByRole('button', { name: 'ルームに読み込む', exact: true }).click();
   const start = page.getByRole('button', { name: '開始', exact: true });
@@ -69,7 +70,7 @@ export async function loadSampleAndStart(page: Page): Promise<void> {
 
 /**
  * 組む画面に残っている下書きのくりかえしを `rounds` 回にして、ルームに読み込んで開始する。
- * 「最初から」のあとはルームにシナリオが残り、サンプルの札は出ない（空のときだけ出る）ので、いまの下書きを使う。
+ * 「最初から」のあとはルームにシナリオが残っているので、サンプルは選び直さず、いまの下書きを使う。
  */
 export async function setRoundsAndStart(page: Page, rounds: number): Promise<void> {
   await page.getByLabel('くりかえし', { exact: true }).fill(String(rounds));

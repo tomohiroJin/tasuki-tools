@@ -64,9 +64,15 @@ export const ADD_STEP_BUTTON = 'ステップを追加';
 export const MOVE_UP_BUTTON = '上へ';
 export const MOVE_DOWN_BUTTON = '下へ';
 export const MINUTES_UNIT = '分';
-/** サンプルの札の見出し（札ごとに会の名前で区別する） */
+/** サンプルの一覧の行の見出し（行ごとに会の名前で区別する） */
 export const sampleTitle = (label: string): string => `サンプル：${label}`;
 export const SAMPLE_TITLE = sampleTitle('KPT のふりかえり');
+/** 組む画面の小さな開閉のボタン。押したときだけサンプルの一覧を開く（いつでも選べる） */
+export const SAMPLE_MENU_BUTTON = 'サンプルから選ぶ';
+/** 下書きに中身があるときに選んだら、その場で確かめる（黙って消さない） */
+export const SAMPLE_REPLACE_CONFIRM = 'いまの下書きを消して読み込みますか';
+export const SAMPLE_REPLACE_YES = '消して読み込む';
+export const SAMPLE_REPLACE_NO = 'やめる';
 export const SAVE_LOCAL_BUTTON = 'この端末に保存';
 export const LOAD_TO_ROOM_BUTTON = 'ルームに読み込む';
 export const SCENARIO_CHANGED_NOTE = 'シナリオが変わりました';
@@ -83,8 +89,6 @@ export const stepMoveUpLabel = (n: number): string => `ステップ ${n} を上�
 export const stepMoveDownLabel = (n: number): string => `ステップ ${n} を下へ`;
 export const stepRemoveLabel = (n: number): string => `ステップ ${n} を消す`;
 export const REMOVE_BUTTON = '消す';
-/** サンプルの札の 1 ステップ（名前は同梱の文字で、書体の検査の外） */
-export const sampleStepText = (name: string, minutes: number): string => `${name} ${minutes} 分`;
 /** サンプルの札・保存済みの行の添え書き */
 export const scenarioDetail = (steps: number, minutes: number, rounds: number): string =>
   rounds >= 2 ? `${steps} ステップ × ${rounds} 回・全部で ${minutes} 分` : `${steps} ステップ・${minutes} 分`;
@@ -111,9 +115,12 @@ export const roundsRangeText = (): string => `くりかえしは ${MIN_ROUNDS}�
 export const MAX_PLANNED_NOTE = `ステップ × くりかえしは ${MAX_PLANNED_STEPS} までです`;
 export const plannedStepsTooManyText = (count: number): string =>
   `ステップ × 回数は ${MAX_PLANNED_STEPS} までです（いま ${count}）`;
-/** 例「1 回あたり 8 分 × 6 回 ＝ 全部で 48 分」 */
-export const perRoundSummary = (perRoundMin: number, rounds: number, totalMin: number): string =>
-  `1 回あたり ${perRoundMin} 分 × ${rounds} 回 ＝ 全部で ${totalMin} 分`;
+/** 合計の行の意味の塊（例「1 回あたり 8 分」「× 6 回」「＝ 全部で 48 分」。画面は塊を折り返さず、塊の間でだけ折る） */
+export const perRoundSummaryParts = (perRoundMin: number, rounds: number, totalMin: number): string[] => [
+  `1 回あたり ${perRoundMin} 分`,
+  `× ${rounds} 回`,
+  `＝ 全部で ${totalMin} 分`,
+];
 // 端末への保存
 export const SAVED_HEADING = '保存済み';
 export const SAVE_NAME_LABEL = '保存する名前';
@@ -140,6 +147,9 @@ export const extensionNote = (planned: number, extension: number): string => `�
 /** 回数 2 以上では回を前に付ける（例「3 回のステップ 1 をスキップ」）。回数 1 は `round` を渡さない */
 export const skipStepLabel = (n: number, round?: number): string =>
   `${round === undefined ? '' : `${round} 回の`}ステップ ${n} をスキップ`;
+/** 1 ステップの回（朝会）では行が回そのもの（例「3 回をスキップ」） */
+export const skipRoundLabel = (round: number): string => `${round} ${ROUNDS_UNIT}をスキップ`;
+export const unskipRoundLabel = (round: number): string => `${round} ${ROUNDS_UNIT}を戻す`;
 export const unskipStepLabel = (n: number, round?: number): string =>
   `${round === undefined ? '' : `${round} 回の`}ステップ ${n} を戻す`;
 

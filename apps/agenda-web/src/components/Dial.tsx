@@ -11,7 +11,7 @@
  */
 import { useId } from 'react';
 import type { AgendaView } from '@tasuki/agenda-core';
-import { centerLines, definedStepCount, driftTone, footerLine, roundBadge, summaryText } from '../agenda-view';
+import { centerLines, definedStepCount, driftTone, footerParts, roundBadge, summaryText } from '../agenda-view';
 import {
   DIAL_CENTER as C,
   arcPath,
@@ -26,7 +26,7 @@ import {
   smallSecondsDeg,
   type PlanLabel,
 } from '../dial-geometry';
-import { OVERRUN_LABEL, PAUSED_LABEL, TODAY_PLAN_LABEL, roundsShort, stepCountShort } from '../copy';
+import { FOOTER_SEPARATOR, OVERRUN_LABEL, PAUSED_LABEL, TODAY_PLAN_LABEL, roundsShort, stepCountShort } from '../copy';
 import { TimeDigits } from './TimeDigits';
 
 interface Props {
@@ -178,6 +178,18 @@ function ActualRing({ view }: { view: AgendaView }) {
   );
 }
 
+/** 終了見込みの印の形（盤の縁の三角。盤の下の一行・映す表示の見出しの小さな印も同じ形） */
+const MARKER_PATH = 'M0 7 L-6 -5 L6 -5 Z';
+
+/** 終了見込みの小さな印（盤の縁の三角と同じ形・同じ色の段）。字に添える飾りなので読み上げから外す */
+export function ProjectedEndMark({ view }: { view: AgendaView }) {
+  return (
+    <svg className="dial-end-mark" viewBox="-8 -7 16 16" aria-hidden="true" focusable="false">
+      <path className={`dial-marker dial-marker--${driftTone(view)} dial-marker--small`} d={MARKER_PATH} />
+    </svg>
+  );
+}
+
 /** 終了見込みの印（縁の三角）と、押しているときの 12 時から印までの縁 */
 function Projection({ view }: { view: AgendaView }) {
   const deg = projectedMarkerDeg(view);
@@ -188,7 +200,7 @@ function Projection({ view }: { view: AgendaView }) {
     <g>
       {tone === 'late' && rim > 0 && <path className="dial-late-rim" d={arcPath(R_BEZEL + 3, 0, rim)} />}
       <g transform={`translate(${fixed(tx)} ${fixed(ty)}) rotate(${fixed(deg)})`}>
-        <path className={`dial-marker dial-marker--${tone}`} d="M0 7 L-6 -5 L6 -5 Z" />
+        <path className={`dial-marker dial-marker--${tone}`} d={MARKER_PATH} />
       </g>
     </g>
   );
@@ -286,7 +298,7 @@ export function Dial({ view, wallNow, reducedMotion, striking = false, size = 'h
     reducedMotion ? 'dial--reduced' : '',
     striking ? 'dial--striking' : '',
   ].filter(Boolean);
-  const footer = footerLine(view, wallNow);
+  const footer = footerParts(view, wallNow);
   return (
     <figure className={classes.join(' ')}>
       <div className="dial-watch">
@@ -307,7 +319,15 @@ export function Dial({ view, wallNow, reducedMotion, striking = false, size = 'h
         </svg>
         <Readout view={view} />
       </div>
-      {footer !== '' && <figcaption className="dial-footer">{footer}</figcaption>}
+      {footer.end !== '' && (
+        <figcaption className="dial-footer">
+          {footer.next !== '' && `${footer.next}${FOOTER_SEPARATOR}`}
+          <span className="dial-footer-end">
+            {started && <ProjectedEndMark view={view} />}
+            {footer.end}
+          </span>
+        </figcaption>
+      )}
       <p className="ui-visually-hidden">{summaryText(view)}</p>
     </figure>
   );

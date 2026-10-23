@@ -1,0 +1,24 @@
+# 変異 462: single-step-rounds-show-headings
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/step-list.test.tsx
+#
+# #429 フィードバック F4。1 回あたり 1 ステップ（朝会）でも回の見出しを出す。見出しが 6 つ並び、
+# 1 行ずつの進行表が見出しと行の 12 項目に膨らんで、枠からはみ出してバーが出る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m462-*.patch
+# 復元: git apply -R scripts/mutations/m462-*.patch
+diff --git a/apps/agenda-web/src/components/StepList.tsx b/apps/agenda-web/src/components/StepList.tsx
+index 3b758242..6ffb7a4b 100644
+--- a/apps/agenda-web/src/components/StepList.tsx
++++ b/apps/agenda-web/src/components/StepList.tsx
+@@ -90,7 +90,7 @@ export function StepList({ view, canOperate, onSetSkipped }: Props) {
+   // 回数 2 以上は枠（スクロール・キーボード）を持つ。見出しで区切るのは 1 回に 2 ステップ以上のときだけ
+   const scrolling = view.rounds >= 2;
+   const flatRounds = isSingleStepRounds(view);
+-  const grouped = scrolling && !flatRounds;
++  const grouped = scrolling;
+   const nowId = rows.find((r) => r.status === 'now')?.id;
+ 
+   // 回数 2 以上の枠の中で、いまの行が見えるようにする。動かすのは枠の `scrollTop` だけ

@@ -424,6 +424,17 @@ describe('読み上げ（aria-live）', () => {
     expect(live().textContent).toBe('時間切れです');
   });
 
+  it('Given 進行中 / When 「読み上げ」を探す / Then 隠し方のクラスを持ち、Tab でフォーカスが当たり、押すと要約が aria-live の領域に入る', () => {
+    joinedRoom(runningAgenda(1000));
+    const button = screen.getByRole('button', { name: SPEAK_SUMMARY_BUTTON });
+    expect(button).toHaveClass('ui-visually-hidden');
+    button.focus();
+    expect(document.activeElement).toBe(button);
+    expect(button.tabIndex).toBeGreaterThanOrEqual(0);
+    fireEvent.click(button);
+    expect(live().textContent).toBe('Check、残り 1 分、予定どおり');
+  });
+
   it('Given 要約を読み上げた / When もう一度「読み上げ」を押す / Then 同じ文でも一度空にしてから入れ直す', () => {
     joinedRoom(runningAgenda(1000));
     fireEvent.click(screen.getByRole('button', { name: SPEAK_SUMMARY_BUTTON }));
