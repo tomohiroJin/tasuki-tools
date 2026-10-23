@@ -213,12 +213,33 @@ curl -s -o /dev/null -w '?room 付き（200 が正しい） → %{http_code} %{r
 1. web を全アプリ配る。順序は #433 の決めを守る（timer → agenda）。公開ファイル
    （`og.png`・アイコン・`robots.txt`・`site.webmanifest`・`.well-known/security.txt`）は LP の
    `apps/landing/public` に入っているので、LP の配布で届く。
-2. `deploy/caddy/tasuki.conf`（`site.conf`）と 6 本の断片（`05` を除く配信断片
-   `20`・`30`・`40`・`50`・`60`・`90`）を `/tmp` へ送る。
-3. 設置先の現行ファイルを退避してから `install` する。
-4. `site.conf` の `<公開ドメイン>` を実ドメインに置換する。
-5. `caddy validate --config /etc/caddy/Caddyfile` が通ることを確かめ、通ったら reload する。
-   通らなければ退避から戻す（「切り戻し」の節）。
+2. 7 ファイル（`tasuki.conf` は `site.conf` の名で）を `/tmp` へ送る。
+   ```bash
+   scp deploy/caddy/tasuki.conf "$SSH_HOST":/tmp/site.conf
+   scp deploy/landing/caddy/90-landing.conf deploy/timer/caddy/30-timer-spa.conf \
+       deploy/poker/caddy/20-poker.conf deploy/topic/caddy/40-topic.conf \
+       deploy/roulette/caddy/50-roulette.conf deploy/agenda/caddy/60-agenda.conf \
+       "$SSH_HOST":/tmp/
+   ```
+3. 設置先ごと退避してから `install` し、`<公開ドメイン>` を置換する。
+   ```bash
+   sudo cp -a /etc/caddy/tasuki /etc/caddy/tasuki.bak."$(date +%Y%m%d-%H%M)"
+   sudo install -m 644 /tmp/site.conf /etc/caddy/tasuki/site.conf
+   sudo install -m 644 /tmp/20-poker.conf /tmp/30-timer-spa.conf /tmp/40-topic.conf \
+       /tmp/50-roulette.conf /tmp/60-agenda.conf /tmp/90-landing.conf /etc/caddy/tasuki/apps/
+   sudo sed -i 's/<公開ドメイン>/実ドメイン/' /etc/caddy/tasuki/site.conf
+   ```
+4. 検証して reload する。
+   ```bash
+   sudo caddy validate --config /etc/caddy/Caddyfile && sudo systemctl reload caddy
+   ```
+5. 通らない・挙動がおかしいときは、退避したディレクトリを戻す（`/etc/caddy/Caddyfile.bak` では
+   戻らない。#434 が変えるのは `/etc/caddy/tasuki` の中）。
+   ```bash
+   sudo rm -rf /etc/caddy/tasuki
+   sudo cp -a /etc/caddy/tasuki.bak.<日付-時刻> /etc/caddy/tasuki
+   sudo caddy validate --config /etc/caddy/Caddyfile && sudo systemctl reload caddy
+   ```
 
 ```bash
 # 確認（$HOST は公開ドメイン）
@@ -226,9 +247,13 @@ curl -s -o /dev/null -w 'robots.txt → %{http_code}\n' "$HOST/robots.txt"
 curl -s -o /dev/null -w 'og.png → %{http_code} %{content_type}\n' "$HOST/og.png"
 curl -s -o /dev/null -w '実体の無いファイル（404 が正しい） → %{http_code}\n' "$HOST/no-such.txt"
 curl -s -o /dev/null -w '?room 付き（200 が正しい） → %{http_code}\n' "$HOST/?room=TEST"
+curl -s -o /dev/null -w '/poker/room/TEST（200 が正しい） → %{http_code}\n' "$HOST/poker/room/TEST"
 curl -sI "$HOST/" | grep -i '^cache-control'                  # no-cache
-curl -sI "$HOST/timer/" | grep -io '/timer/assets/[^"]*' | head -1   # 資材の名前を取り、
-# その資材の cache-control に immutable が付いていること
+# 資材: HTML の本文から最初の資材を取り、そのヘッダを見る（immutable が正しい）
+ASSET=$(curl -s "$HOST/timer/" | grep -o '/timer/assets/[^"]*' | head -1)
+curl -sI "$HOST$ASSET" | grep -i '^cache-control'
+# 欠落した資材は 404 で、immutable が付かない（0 が正しい）
+curl -sI "$HOST/timer/assets/no-such.js" | grep -ic immutable
 ```
 
 配布後は Slack に URL を貼り、紹介（OGP）とアイコンが実物で出ることを目で確かめる
