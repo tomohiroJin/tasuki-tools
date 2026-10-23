@@ -203,3 +203,33 @@ curl -s -o /dev/null -w 'poker/ws（旧入口。200 が正しい） → %{http_c
 # **ここで 301 が返ったら断片が消し残っている。** 200（玄関 LP）が正しい。
 curl -s -o /dev/null -w '?room 付き（200 が正しい） → %{http_code} %{redirect_url}\n' "$HOST/?room=TEST"
 ```
+
+## #434 の配布（サイトの外側）
+
+紹介の画像・アイコン・`robots.txt` などを公開し、実体の無いファイルを 404 にし、
+キャッシュを指定する変更の配布手順。**配布は利用者の明示の指示を待つ**（勝手に配らない。
+ルームは揮発インメモリなので、配布で全消滅する）。
+
+1. web を全アプリ配る。順序は #433 の決めを守る（timer → agenda）。公開ファイル
+   （`og.png`・アイコン・`robots.txt`・`site.webmanifest`・`.well-known/security.txt`）は LP の
+   `apps/landing/public` に入っているので、LP の配布で届く。
+2. `deploy/caddy/tasuki.conf`（`site.conf`）と 6 本の断片（`05` を除く配信断片
+   `20`・`30`・`40`・`50`・`60`・`90`）を `/tmp` へ送る。
+3. 設置先の現行ファイルを退避してから `install` する。
+4. `site.conf` の `<公開ドメイン>` を実ドメインに置換する。
+5. `caddy validate --config /etc/caddy/Caddyfile` が通ることを確かめ、通ったら reload する。
+   通らなければ退避から戻す（「切り戻し」の節）。
+
+```bash
+# 確認（$HOST は公開ドメイン）
+curl -s -o /dev/null -w 'robots.txt → %{http_code}\n' "$HOST/robots.txt"
+curl -s -o /dev/null -w 'og.png → %{http_code} %{content_type}\n' "$HOST/og.png"
+curl -s -o /dev/null -w '実体の無いファイル（404 が正しい） → %{http_code}\n' "$HOST/no-such.txt"
+curl -s -o /dev/null -w '?room 付き（200 が正しい） → %{http_code}\n' "$HOST/?room=TEST"
+curl -sI "$HOST/" | grep -i '^cache-control'                  # no-cache
+curl -sI "$HOST/timer/" | grep -io '/timer/assets/[^"]*' | head -1   # 資材の名前を取り、
+# その資材の cache-control に immutable が付いていること
+```
+
+配布後は Slack に URL を貼り、紹介（OGP）とアイコンが実物で出ることを目で確かめる
+（設計 `docs/superpowers/specs/2026-10-23-site-exterior-design.md` の §7）。
