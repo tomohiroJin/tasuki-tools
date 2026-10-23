@@ -321,6 +321,7 @@ function SampleMenu({ draftIsDisposable, onPick }: { draftIsDisposable: boolean;
   const toggleRef = useRef<HTMLButtonElement>(null);
   const noRef = useRef<HTMLButtonElement>(null);
   const confirmRef = useRef<HTMLDivElement>(null);
+  const focusInConfirmRef = useRef(false);
   const listId = useId();
   const confirmId = useId();
 
@@ -330,11 +331,12 @@ function SampleMenu({ draftIsDisposable, onPick }: { draftIsDisposable: boolean;
   useEffect(() => {
     if (pending !== null) noRef.current?.focus();
   }, [pending]);
-  // 確かめを出している間に要らなくなったら（下書きがルームと同じになった）閉じる。確かめの要素はこの effect が閉じるまで残してあり、
-  // フォーカスが確かめの中にあったときだけ開閉のボタンへ返す（外にあるフォーカスは奪わない）
+  // 確かめを出している間に要らなくなったら（下書きがルームと同じになった）閉じる。確かめの要素は同じ描画で消えるので、
+  // フォーカスが中にあったかは onFocus / onBlur で持った ref を見る（消えた要素には blur が来ない）。外にあるフォーカスは奪わない
   useEffect(() => {
     if (needsConfirm || pending === null) return;
-    if (confirmRef.current?.contains(document.activeElement)) setReturnFocus(true);
+    if (focusInConfirmRef.current) setReturnFocus(true);
+    focusInConfirmRef.current = false;
     setPending(null);
   }, [needsConfirm, pending]);
   useEffect(() => {
@@ -384,9 +386,15 @@ function SampleMenu({ draftIsDisposable, onPick }: { draftIsDisposable: boolean;
             ))}
           </ul>
         )}
-        {open && pending !== null && (
+        {open && pending !== null && needsConfirm && (
           <div
             ref={confirmRef}
+            onFocus={() => {
+              focusInConfirmRef.current = true;
+            }}
+            onBlur={(event) => {
+              focusInConfirmRef.current = event.relatedTarget instanceof Node && (confirmRef.current?.contains(event.relatedTarget) ?? false);
+            }}
             className="builder-sample-confirm"
             role="group"
             aria-labelledby={confirmId}

@@ -2,6 +2,7 @@
  * 組む画面（#429 spec §4.2）。**画面はルームを通して描く**（同期フックの差し込みと、他の人の置き換えの
  * フレームを実際の経路で受けるため）。送った中身は `ScriptedWebSocket` が覚えている。
  */
+import { flushSync } from 'react-dom';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { saveResumeIdentity } from '@tasuki/sync-client';
@@ -592,6 +593,30 @@ describe('サンプルから選ぶ', () => {
     deliverAgenda(idleAgenda('Retro', [['Checkx', 5]]));
     expect(screen.queryByRole('group', { name: SAMPLE_REPLACE_CONFIRM })).toBeNull();
     expect(document.activeElement).toBe(menuButton());
+  });
+
+  it('Given 確かめを出している / When 下書きがルームと同じになった直後の描画 / Then もう要らない確かめは DOM に無い（自動で閉じる effect より前に押せない）', () => {
+    joinedRoom(idleAgenda('Retro', [['Check', 5]]));
+    typeName(1, 'Checkx');
+    pickRow(/朝会/);
+    expect(screen.getByRole('group', { name: SAMPLE_REPLACE_CONFIRM })).toBeDefined();
+    let during: HTMLElement | null = null;
+    act(() => {
+      // 画面に反映するところまでを同期で進め、effect はまだ流さない
+      flushSync(() => latestSocket().deliver({ type: 'agenda', state: idleAgenda('Retro', [['Checkx', 5]]) }));
+      during = screen.queryByText(SAMPLE_REPLACE_CONFIRM);
+    });
+    expect(during).toBeNull();
+  });
+
+  it('Given 確かめの外にフォーカスがある / When 確かめが自動で閉じる / Then フォーカスを奪わない', () => {
+    joinedRoom(idleAgenda('Retro', [['Check', 5]]));
+    typeName(1, 'Checkx');
+    pickRow(/朝会/);
+    nameField(1).focus();
+    deliverAgenda(idleAgenda('Retro', [['Checkx', 5]]));
+    expect(screen.queryByRole('group', { name: SAMPLE_REPLACE_CONFIRM })).toBeNull();
+    expect(document.activeElement).toBe(nameField(1));
   });
 
   it('Given 会の名前とステップの欄 / When DOM の順を見る / Then 「サンプルから選ぶ」はそれらより後にある', () => {
