@@ -1,0 +1,21 @@
+# 変異 467: immutable-cache-without-defer
+#
+# 検出を期待するテスト:
+#   - apps/landing/tests/caddy-fragment-order.test.ts
+#
+# #434。immutable 側の defer を外す。404 になった資材にまで 1 年の immutable が付き、置き直してもブラウザが 404 を覚え続ける。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m467-*.patch
+diff --git a/deploy/caddy/tasuki.conf b/deploy/caddy/tasuki.conf
+index de13d59b..dfe674a0 100644
+--- a/deploy/caddy/tasuki.conf
++++ b/deploy/caddy/tasuki.conf
+@@ -73,7 +73,6 @@
+ 	@unhashed not path */assets/*
+ 	header @hashed {
+ 		Cache-Control "public, max-age=31536000, immutable"
+-		defer
+ 	}
+ 	header @unhashed Cache-Control "no-cache"
+ 

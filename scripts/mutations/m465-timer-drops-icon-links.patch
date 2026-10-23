@@ -1,0 +1,24 @@
+# 変異 465: timer-drops-icon-links
+#
+# 検出を期待するテスト:
+#   - apps/landing/tests/index-html-exterior.test.ts
+#
+# #434。timer の icon・apple-touch-icon・manifest の link を外す。タブのアイコンが出ず、ホーム画面に追加しても既定の絵になる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m465-*.patch
+diff --git a/apps/timer-web/index.html b/apps/timer-web/index.html
+index 95a1cbc6..b2fc8d7a 100644
+--- a/apps/timer-web/index.html
++++ b/apps/timer-web/index.html
+@@ -22,10 +22,6 @@
+     <meta name="twitter:card" content="summary_large_image" />
+     <meta name="twitter:title" content="TDD Mob Pro Timer — Tasuki" />
+     <meta name="twitter:description" content="ドライバーの交代を計る" />
+-    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+-    <link rel="manifest" href="/site.webmanifest" />
+   </head>
+   <body>
+     <!--

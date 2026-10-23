@@ -1,0 +1,21 @@
+# 変異 463: poker-drops-og-image
+#
+# 検出を期待するテスト:
+#   - apps/landing/tests/index-html-exterior.test.ts
+#
+# #434。poker の og:image を外す。Slack などに貼ったリンクの紹介に画像が出ず、文字だけの地味な札になる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m463-*.patch
+diff --git a/apps/poker-web/index.html b/apps/poker-web/index.html
+index c27c223d..64952faf 100644
+--- a/apps/poker-web/index.html
++++ b/apps/poker-web/index.html
+@@ -15,7 +15,6 @@
+     <meta property="og:locale" content="ja_JP" />
+     <meta property="og:title" content="Planning Poker — Tasuki" />
+     <meta property="og:description" content="見積もりを揃える" />
+-    <meta property="og:image" content="https://tasuki.niku9.click/og.png" />
+     <meta property="og:image:width" content="1200" />
+     <meta property="og:image:height" content="630" />
+     <meta property="og:image:alt" content="Tasuki — 緑の卓に置かれたトランプの札" />
