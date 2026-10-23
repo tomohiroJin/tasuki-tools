@@ -164,4 +164,41 @@ describe('Caddy 断片', () => {
       expect(fragment.name).toMatch(/^\d{2}-/);
     }
   });
+  it('配信断片は try_files を使わず、拡張子つきの欠落は 404 にして拡張子なしだけ index.html へ書き換える（#434）', () => {
+    // Given: root を持つ（＝ファイルを配信する）断片
+    // When: SPA フォールバックの書き方を見る
+    // Then: 古い try_files {path} /index.html が 1 本も残っていない。
+    //       あると /no-such.txt や消えた資材が index.html の 200 で返り、
+    //       robots.txt などの存在確認が偽の緑になる
+    const serving = fragments.filter((f) => /^\s*root\s+\*/m.test(f.body));
+    expect(serving.length, '配信断片が 6 本以上見つかる').toBeGreaterThanOrEqual(6);
+    for (const fragment of serving) {
+      expect(fragment.body, `${fragment.source} に try_files が残っている`).not.toMatch(/^\s*try_files\b/m);
+      expect(fragment.body, `${fragment.source} の @spa に not file が無い`).toMatch(
+        /@spa\s*\{[^}]*^\s*not file\s*$[^}]*\}/m,
+      );
+      expect(fragment.body, `${fragment.source} の @spa に拡張子の除外が無い`).toMatch(
+        /@spa\s*\{[^}]*^\s*not path_regexp \\\.\[\^\/\]\*\$\s*$[^}]*\}/m,
+      );
+      expect(fragment.body, `${fragment.source} が @spa を /index.html へ書き換えていない`).toMatch(
+        /^\s*rewrite @spa \/index\.html\s*$/m,
+      );
+    }
+  });
+
+  it('サイトブロックは資材に immutable を（defer 付きで）、それ以外に no-cache を付ける（#434）', () => {
+    // Given: deploy/caddy/tasuki.conf（コメントを除く）
+    const body = readFileSync(path.join(DEPLOY_ROOT, 'caddy', 'tasuki.conf'), 'utf8')
+      .split('\n')
+      .filter((line) => !line.trim().startsWith('#'))
+      .join('\n');
+    // Then: ハッシュ付き資材（*/assets/*）だけに immutable。defer が無いと 404 にも付いてしまう
+    expect(body).toMatch(/^\s*@hashed path \*\/assets\/\*\s*$/m);
+    expect(body).toMatch(
+      /header @hashed \{[^}]*Cache-Control "public, max-age=31536000, immutable"[^}]*^\s*defer\s*$[^}]*\}/m,
+    );
+    // Then: それ以外は no-cache。2 条件は排他（同じ応答に 2 つ付かない）
+    expect(body).toMatch(/^\s*@unhashed not path \*\/assets\/\*\s*$/m);
+    expect(body).toMatch(/^\s*header @unhashed Cache-Control "no-cache"\s*$/m);
+  });
 });
