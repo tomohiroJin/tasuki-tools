@@ -138,7 +138,7 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
   const canStart = canOperate && roomReady && sameAsRoom;
   const draftIsEmpty = isEmptyDraft(draft);
   // ルームのシナリオの写しのままの下書き（ルームが空なら写しではない）。消えても取り戻せるので確かめない
-  const draftIsRoom = roomReady && scenarioKey(inputFromDraft(draft)) === scenarioKey(room);
+  const draftIsRoom = roomReady && roundsOfDraft(draft) !== null && scenarioKey(inputFromDraft(draft)) === scenarioKey(room);
   const preview = previewView(draft);
   const reason = actionReason(check, draft.steps.length > 0, sameAsRoom);
   const roundsNow = roundsOfDraft(draft);
@@ -320,6 +320,7 @@ function SampleMenu({ draftIsDisposable, onPick }: { draftIsDisposable: boolean;
   const [returnFocus, setReturnFocus] = useState(false);
   const toggleRef = useRef<HTMLButtonElement>(null);
   const noRef = useRef<HTMLButtonElement>(null);
+  const confirmRef = useRef<HTMLDivElement>(null);
   const listId = useId();
   const confirmId = useId();
 
@@ -329,9 +330,12 @@ function SampleMenu({ draftIsDisposable, onPick }: { draftIsDisposable: boolean;
   useEffect(() => {
     if (pending !== null) noRef.current?.focus();
   }, [pending]);
-  // 確かめを出している間に要らなくなったら（下書きがルームと同じになった）閉じる
+  // 確かめを出している間に要らなくなったら（下書きがルームと同じになった）閉じる。確かめの要素はこの effect が閉じるまで残してあり、
+  // フォーカスが確かめの中にあったときだけ開閉のボタンへ返す（外にあるフォーカスは奪わない）
   useEffect(() => {
-    if (!needsConfirm && pending !== null) setPending(null);
+    if (needsConfirm || pending === null) return;
+    if (confirmRef.current?.contains(document.activeElement)) setReturnFocus(true);
+    setPending(null);
   }, [needsConfirm, pending]);
   useEffect(() => {
     if (pending === null && returnFocus) {
@@ -380,8 +384,9 @@ function SampleMenu({ draftIsDisposable, onPick }: { draftIsDisposable: boolean;
             ))}
           </ul>
         )}
-        {open && pending !== null && needsConfirm && (
+        {open && pending !== null && (
           <div
+            ref={confirmRef}
             className="builder-sample-confirm"
             role="group"
             aria-labelledby={confirmId}

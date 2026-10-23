@@ -575,6 +575,25 @@ describe('サンプルから選ぶ', () => {
     expect(screen.queryByRole('group', { name: SAMPLE_REPLACE_CONFIRM })).toBeNull();
   });
 
+  it('Given 回数 1 のルームの写しの下書きで、くりかえしの欄を空にした / When 朝会を選ぶ / Then 写しではないので確かめる', () => {
+    joinedRoom(idleAgenda('Retro', [['Check', 5]]));
+    fireEvent.change(roundsField(), { target: { value: '' } });
+    pickRow(/朝会/);
+    expect(screen.getByRole('group', { name: SAMPLE_REPLACE_CONFIRM })).toBeDefined();
+    expect(nameField(1).value).toBe('Check');
+  });
+
+  it('Given 確かめを出していてフォーカスは「やめる」 / When 下書きがルームと同じになって確かめが自動で閉じる / Then フォーカスは「サンプルから選ぶ」にある', () => {
+    joinedRoom(idleAgenda('Retro', [['Check', 5]]));
+    typeName(1, 'Checkx');
+    pickRow(/朝会/);
+    const group = screen.getByRole('group', { name: SAMPLE_REPLACE_CONFIRM });
+    expect(document.activeElement).toBe(within(group).getByRole('button', { name: SAMPLE_REPLACE_NO }));
+    deliverAgenda(idleAgenda('Retro', [['Checkx', 5]]));
+    expect(screen.queryByRole('group', { name: SAMPLE_REPLACE_CONFIRM })).toBeNull();
+    expect(document.activeElement).toBe(menuButton());
+  });
+
   it('Given 会の名前とステップの欄 / When DOM の順を見る / Then 「サンプルから選ぶ」はそれらより後にある', () => {
     joinedRoom();
     pickSample();
