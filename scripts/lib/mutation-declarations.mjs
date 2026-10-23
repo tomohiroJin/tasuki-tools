@@ -3042,7 +3042,7 @@ export const MUTATIONS = [
     patch: "m465-timer-drops-icon-links.patch",
     pkg: "apps/landing",
     tests: ["tests/index-html-exterior.test.ts"],
-    note: "#434。タブにアイコンが出ず、ホーム画面に追加しても既定の絵になり、アプリとして入れられない。",
+    note: "#434。タブにアイコンが出ず、ホーム画面に追加しても既定の絵になる。",
   },
   {
     id: 466,

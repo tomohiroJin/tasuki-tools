@@ -210,39 +210,52 @@ curl -s -o /dev/null -w '?room 付き（200 が正しい） → %{http_code} %{r
 キャッシュを指定する変更の配布手順。**配布は利用者の明示の指示を待つ**（勝手に配らない。
 ルームは揮発インメモリなので、配布で全消滅する）。
 
-1. web を全アプリ配る。順序は #433 の決めを守る（timer → agenda）。公開ファイル
+`pnpm e2e:prod` は、web と Caddy の両方を配るまで、新しい @smoke（site-exterior）で赤のままになる。
+
+1. **ローカルで** web を全アプリ配る。順序は #433 の決めを守る（timer → agenda）。公開ファイル
    （`og.png`・アイコン・`robots.txt`・`site.webmanifest`・`.well-known/security.txt`）は LP の
    `apps/landing/public` に入っているので、LP の配布で届く。
-2. 7 ファイル（`tasuki.conf` は `site.conf` の名で）を `/tmp` へ送る。
+2. **ローカルで** 7 ファイル（`tasuki.conf` は `site.conf` の名で）を、新しい専用ディレクトリへ送る。
+   `/tmp` 直下には前の配布の古いファイルが残りうるので、そこからは入れない。
    ```bash
-   scp deploy/caddy/tasuki.conf "$SSH_HOST":/tmp/site.conf
+   export TASUKI_SSH_HOST=<ユーザー@ホスト>   # deploy.sh と同じ変数
+   ssh "$TASUKI_SSH_HOST" 'rm -rf /tmp/tasuki-434 && mkdir -p /tmp/tasuki-434'
+   scp deploy/caddy/tasuki.conf "$TASUKI_SSH_HOST":/tmp/tasuki-434/site.conf
    scp deploy/landing/caddy/90-landing.conf deploy/timer/caddy/30-timer-spa.conf \
        deploy/poker/caddy/20-poker.conf deploy/topic/caddy/40-topic.conf \
        deploy/roulette/caddy/50-roulette.conf deploy/agenda/caddy/60-agenda.conf \
-       "$SSH_HOST":/tmp/
+       "$TASUKI_SSH_HOST":/tmp/tasuki-434/
    ```
-3. 設置先ごと退避してから `install` し、`<公開ドメイン>` を置換する。
+3. **サーバーで（root）** 設置先ごと退避してから `/tmp/tasuki-434/` から `install` する。
    ```bash
    sudo cp -a /etc/caddy/tasuki /etc/caddy/tasuki.bak."$(date +%Y%m%d-%H%M)"
-   sudo install -m 644 /tmp/site.conf /etc/caddy/tasuki/site.conf
-   sudo install -m 644 /tmp/20-poker.conf /tmp/30-timer-spa.conf /tmp/40-topic.conf \
-       /tmp/50-roulette.conf /tmp/60-agenda.conf /tmp/90-landing.conf /etc/caddy/tasuki/apps/
-   sudo sed -i 's/<公開ドメイン>/実ドメイン/' /etc/caddy/tasuki/site.conf
+   sudo install -m 644 /tmp/tasuki-434/site.conf /etc/caddy/tasuki/site.conf
+   cd /tmp/tasuki-434
+   sudo install -m 644 20-poker.conf 30-timer-spa.conf 40-topic.conf \
+       50-roulette.conf 60-agenda.conf 90-landing.conf /etc/caddy/tasuki/apps/
    ```
-4. 検証して reload する。
+4. **サーバーで（root）** `<公開ドメイン>` を置換し、アドレスの行を目で確かめる。
+   ```bash
+   sudo sed -i 's|<公開ドメイン>|tasuki.niku9.click|' /etc/caddy/tasuki/site.conf
+   grep -n '{$' /etc/caddy/tasuki/site.conf   # 行頭のアドレスが tasuki.niku9.click になっているか見る
+   ```
+5. **サーバーで（root）** 検証して reload する。
    ```bash
    sudo caddy validate --config /etc/caddy/Caddyfile && sudo systemctl reload caddy
    ```
-5. 通らない・挙動がおかしいときは、退避したディレクトリを戻す（`/etc/caddy/Caddyfile.bak` では
-   戻らない。#434 が変えるのは `/etc/caddy/tasuki` の中）。
+6. **サーバーで（root）** 通らない・挙動がおかしいときは、退避したディレクトリを戻す
+   （`/etc/caddy/Caddyfile.bak` では戻らない。#434 が変えるのは `/etc/caddy/tasuki` の中）。
+   消す前に、退避の名前が実在するか確かめる。
    ```bash
+   ls -d /etc/caddy/tasuki.bak.*     # 戻す退避の名前を確かめる（無ければ rm しない）
    sudo rm -rf /etc/caddy/tasuki
    sudo cp -a /etc/caddy/tasuki.bak.<日付-時刻> /etc/caddy/tasuki
    sudo caddy validate --config /etc/caddy/Caddyfile && sudo systemctl reload caddy
    ```
 
+**ローカルで** 確認する。
 ```bash
-# 確認（$HOST は公開ドメイン）
+HOST=https://tasuki.niku9.click   # 先に定義する。空だと curl が黙って失敗し、最後の 0 が偽の緑になる
 curl -s -o /dev/null -w 'robots.txt → %{http_code}\n' "$HOST/robots.txt"
 curl -s -o /dev/null -w 'og.png → %{http_code} %{content_type}\n' "$HOST/og.png"
 curl -s -o /dev/null -w '実体の無いファイル（404 が正しい） → %{http_code}\n' "$HOST/no-such.txt"
