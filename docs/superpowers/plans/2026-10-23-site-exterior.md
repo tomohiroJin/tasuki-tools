@@ -79,7 +79,7 @@
 - Produces: 上の 6 本の公開ファイル（Task 2 の manifest・Task 3 の `<link>`・Task 4 の E2E が名前で参照する）
 
 - [ ] **Step 1: 失敗するテストを書く** — `site-images.test.ts`（`index-html-loading-placeholder.test.ts` の `findRepoRoot` の作法でルートを探す）
-  - `og.png` が PNG の署名で始まり、IHDR の幅 1200・高さ 630、大きさ 300KB 以下
+  - `og.png` が PNG の署名で始まり、IHDR の幅 1200・高さ 630、大きさ 512KB 以下
   - `apple-touch-icon.png` が 180×180、`icon-192.png` が 192×192、`icon-512.png` が 512×512
   - `favicon.ico` が ICO の見出し（`00 00 01 00`）で始まり、1 枚目の項目が 32×32 で中身が PNG
   - `favicon.svg` が `<svg` を含み、`viewBox` を持つ

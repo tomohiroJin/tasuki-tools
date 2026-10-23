@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!--
+    Tasuki のアイコンの正本（#434・設計 §4.3）。紹介の画像の中央の札（緑の卓の上の象牙の A♠）を、
+    16〜32px でも潰れないよう札 1 枚とスートだけに絞った。PNG と ICO は
+    apps/landing/og/render-site-images.mjs がこれを撮って書き出す。
+    色は packages/ui/src/tokens/palette.css の felt-800 / felt-950 / card-sheen / card-edge / gold-bright。
+  -->
+  <defs>
+    <radialGradient id="felt" cx="50%" cy="40%" r="70%">
+      <stop offset="0%" stop-color="#175040" />
+      <stop offset="100%" stop-color="#071f18" />
+    </radialGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="url(#felt)" />
+  <g transform="rotate(-8 32 33)">
+    <rect x="16" y="8" width="32" height="46" rx="5" fill="#fffdf4" stroke="#cdc4a8" stroke-width="1.5" />
+    <path
+      transform="translate(18.5 17.5) scale(0.27)"
+      d="M50 4 C50 4 8 40 8 62 C8 79 24 88 37 83 C42 81 46 77 48 72 C47 83 42 91 34 96 L66 96 C58 91 53 83 52 72 C54 77 58 81 63 83 C76 88 92 79 92 62 C92 40 50 4 50 4 Z"
+      fill="#26231c"
+    />
+  </g>
+  <rect x="2" y="2" width="60" height="60" rx="12.5" fill="none" stroke="#ecc879" stroke-opacity="0.45" stroke-width="1.5" />
+</svg>
