@@ -60,6 +60,7 @@
         /* card-sheen → card-shade・縁は card-edge */
         background: linear-gradient(160deg, #fffdf4, #eae1c6);
         border: 2px solid #cdc4a8;
+        /* 影は色ではなく黒の濃さ（パレットの外だが、色相を持たないので画面の影と同じ扱い） */
         box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
         color: #26231c;
         font-family: 'Fraunces', serif;
@@ -105,14 +106,19 @@
         height: 272px;
       }
 
+      /* 赤いスート（rose） */
       .red {
-        color: #9b2c22;
+        color: #c65f45;
       }
 
-      /* 伏せた札の裏（card-back の斜め縞・縁は真鍮） */
+      /* 伏せた札の裏。poker-web の .seat-card-back と同じ作り（card-back の地に gold-edge と
+         gold-glow の斜め格子・縁は gold-deep） */
       .back {
-        background: repeating-linear-gradient(45deg, #7d3c2b 0 10px, #6a3224 10px 20px);
-        border-color: #cfa14c;
+        background:
+          repeating-linear-gradient(45deg, rgba(236, 200, 121, 0.5) 0 4px, transparent 4px 10px),
+          repeating-linear-gradient(-45deg, rgba(236, 200, 121, 0.35) 0 4px, transparent 4px 10px),
+          #7d3c2b;
+        border-color: #9a7330;
       }
 
       .back::before {

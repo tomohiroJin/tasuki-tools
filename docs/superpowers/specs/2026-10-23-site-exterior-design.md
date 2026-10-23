@@ -64,7 +64,7 @@ Slack などは貼られたページの `<head>` にある OGP（`og:*`）を読
 - 中央に札 2 枚（伏せ札 `--card-back` と、象牙の A♠）。その下に「Tasuki」（Fraunces・`--gold-bright`・淡い発光）と一行「チームで開発を回すための道具。」（Zen Kaku Gothic New・`--ivory-dim`）
 - 四隅: 左上に伏せ札の端、右下に Q♦ の端、左下と右上に真鍮のチップ
 - 道具の数・名前は入れない（利用者の決定 2）
-- **作り方【判断 S1】**: 絵の正本は HTML（`apps/landing/og/og-image.html`）に置き、`packages/ui` の書体ファイルと色の値をそのまま使う。PNG への書き出しは開発者が手で走らせるスクリプト（`scripts/render-site-images.mjs`）で行い、**書き出した PNG をコミットする**。スクリプトは E2E がすでに持つ Playwright（Chromium）で撮る。ビルドのたびに生成しない（ビルドにブラウザを持ち込まない）。新しい依存は足さない（原則 II）
+- **作り方【判断 S1】**: 絵の正本は HTML（`apps/landing/og/og-image.html`）に置き、`packages/ui` の書体ファイルと色の値をそのまま使う。PNG への書き出しは開発者が手で走らせるスクリプト（`apps/landing/og/render-site-images.mjs`）で行い、**書き出した PNG をコミットする**。スクリプトは E2E がすでに持つ Playwright（Chromium）で撮る。ビルドのたびに生成しない（ビルドにブラウザを持ち込まない）。新しい依存は足さない（原則 II）
 - 書き出した PNG はファイルの大きさを抑える（上限 512KB。Slack・X とも 5MB まで受けるが、軽いほど取得が速い。当初の目安 300KB は、卓のグラデーションで約 420KB になり、圧縮の道具を足さないために上げた）
 
 ### 4.2 紹介の文（利用者の決定 5）

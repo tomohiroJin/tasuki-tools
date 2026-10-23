@@ -12,7 +12,7 @@
  * Playwright は E2E（`e2e/`）が持つものを借りる。新しい依存は足さない（原則 II）。
  * ブラウザが無ければ `cd e2e && pnpm exec playwright install chromium`。
  */
-import { writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -46,6 +46,11 @@ async function renderOgImage(browser) {
   const page = await browser.newPage({ viewport: OG_SIZE, deviceScaleFactor: 1 });
   await page.goto(pathToFileURL(path.join(HERE, 'og-image.html')).href);
   await page.evaluate(() => document.fonts.ready);
+  // fonts.ready は読み込みに失敗しても解決するので、代替書体のまま書き出さないよう確かめる
+  const loaded = await page.evaluate(() =>
+    document.fonts.check('600 112px Fraunces') && document.fonts.check('500 34px "Zen Kaku Gothic New"', 'チ'),
+  );
+  if (!loaded) throw new Error('書体が読み込めていません（packages/ui/src/fonts の woff2 を確かめてください）');
   const png = await page.locator('#og').screenshot({ type: 'png' });
   await page.close();
   return png;
@@ -91,7 +96,7 @@ try {
   write('og.png', await renderOgImage(browser));
 
   // 書体を使わない SVG なので、data: で渡せば file:// の読み込み制限に掛からない
-  const svg = (await import('node:fs')).readFileSync(path.join(PUBLIC_DIR, 'favicon.svg'));
+  const svg = readFileSync(path.join(PUBLIC_DIR, 'favicon.svg'));
   const svgUrl = `data:image/svg+xml;base64,${svg.toString('base64')}`;
   for (const icon of ICONS) write(icon.file, await renderIcon(browser, svgUrl, icon));
   write('favicon.ico', toIco(await renderIcon(browser, svgUrl, { size: ICO_SIZE, opaque: false }), ICO_SIZE));
