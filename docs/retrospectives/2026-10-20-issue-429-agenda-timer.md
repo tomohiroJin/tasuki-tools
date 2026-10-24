@@ -5,7 +5,7 @@
 - **計画**: [`docs/superpowers/plans/2026-10-20-agenda-timer.md`](../superpowers/plans/2026-10-20-agenda-timer.md)
 - **決定の記録**: [`docs/adr/0027`](../adr/0027-agenda-timer.md)
 - **日付**: 2026-10-20（ブランチ `feature/issue-429-agenda-timer` 時点）
-- **本番**: 2026-10-21 に配布（`v4.3.0`。手順と記録は [`deploy/agenda/NOTES.md`](../../deploy/agenda/NOTES.md)）
+- **本番**: 第 1 段は 2026-10-21 に配布（`v4.3.0`）。第 2 段のくりかえし（#433）とフィードバックの直し（#435）は 2026-10-24 に配布（`v4.4.0`）。手順と記録は [`deploy/agenda/NOTES.md`](../../deploy/agenda/NOTES.md)
 
 ## この Issue が扱ったもの
 

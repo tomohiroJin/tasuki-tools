@@ -214,7 +214,7 @@ curl -s -o /dev/null -w '?room 付き（200 が正しい） → %{http_code} %{r
 > 本番の Caddy は Debian の apt の **2.6.2** で、当時の `header @hashed { …; match status 2xx }` を条件として
 > 読まず、消えた資材の 404 に immutable が付いた（E2E は 2.11.4 だったので緑）。PR #437 で `handle_errors` の形に
 > 直し、E2E の Caddy を 2.6.2 に揃えたうえで、`site.conf` の 1 本だけを入れ直した（Tasuki は再起動していない）。
-> その後の `pnpm e2e:prod` は全件通った。以下の手順は記録として残す（入れ直しの形は手順 2・3 の `site.conf` の行だけ）。
+> その後の `pnpm e2e:prod` は全件通った。以下の手順は記録として残す（入れ直しは、手順 2〜5 を `site.conf` の 1 本だけで行った形。手順 4 の `<公開ドメイン>` の置換と手順 5 の validate・reload も要る）。
 
 `pnpm e2e:prod` は、web と Caddy の両方を配るまで、新しい @smoke（site-exterior）で赤のままになる。
 

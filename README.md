@@ -169,6 +169,7 @@ TypeScript / React 19 + Vite / Bun / WebSocket / Valibot / neverthrow / Vitest /
 | 2026-10-14 | `v4.1.0`（v4.0.0 以降の 36 PR）。進行役ルーレットを初回公開。デザインシステムの部品層（#320）・timer から Tailwind を外す（#321）・PC の幅の収まり（#316）などをまとめて反映。09-27 に配ったお題（#91）もこのタグに含む | [#94](https://github.com/tomohiroJin/tasuki-tools/issues/94)・[#91](https://github.com/tomohiroJin/tasuki-tools/issues/91) |
 | 2026-10-19 | `v4.2.0`（v4.1.0 以降の 31 PR）。timer の休憩・poker の見積もりの記録と見学者・ルーレットの決め方を増やした | [#402](https://github.com/tomohiroJin/tasuki-tools/issues/402)・[#93](https://github.com/tomohiroJin/tasuki-tools/issues/93)・[#419](https://github.com/tomohiroJin/tasuki-tools/issues/419)・[#401](https://github.com/tomohiroJin/tasuki-tools/issues/401) ほか |
 | 2026-10-21 | `v4.3.0`（v4.2.0 以降の 1 PR）。進行タイマー（Agenda Timer）を初回公開。玄関に 5 枚目の札を出し、同期サーバーが `?tool=agenda` を受けるようにした | [#429](https://github.com/tomohiroJin/tasuki-tools/issues/429) |
+| 2026-10-24 | `v4.4.0`（v4.3.0 以降の 6 PR）。進行タイマーのくりかえしと利用者フィードバックの直し、Slack などに貼ったときの紹介・共通のアイコン・robots.txt などサイトの外側を揃えた。本番の Caddy 2.6.2 に合わせてキャッシュの指定を直した（#437） | [#429](https://github.com/tomohiroJin/tasuki-tools/issues/429)・[#434](https://github.com/tomohiroJin/tasuki-tools/issues/434) |
 
 単一 monorepo への統合（[epic #15](https://github.com/tomohiroJin/tasuki-tools/issues/15)・
 設計: [`docs/superpowers/specs/2026-08-04-monorepo-unification-design.md`](docs/superpowers/specs/2026-08-04-monorepo-unification-design.md)）、
