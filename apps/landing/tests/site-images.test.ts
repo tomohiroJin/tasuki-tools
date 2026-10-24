@@ -30,7 +30,7 @@ const PUBLIC_DIR = path.join(findRepoRoot(process.cwd()), 'apps/landing/public')
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 
 /**
- * 紹介の画像の大きさの上限。Slack・X は 5MB まで受けるが、軽いほど取得が速い。
+ * 紹介の画像の大きさの上限。Slack は 5MB まで受けるが、軽いほど取得が速い。
  * 卓のグラデーションで Chromium の書き出しは約 420KB になる（2026-10-24 実測）。圧縮の道具は足さない。
  */
 const OG_IMAGE_MAX_BYTES = 512 * 1024;

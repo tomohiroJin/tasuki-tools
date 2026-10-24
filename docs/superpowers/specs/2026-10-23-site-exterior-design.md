@@ -118,10 +118,10 @@ Slack などは貼られたページの `<head>` にある OGP（`og:*`）を読
 
 ### 4.8 Cache-Control
 
-- サイトブロック（`deploy/caddy/tasuki.conf`）で一括して付ける。パスに `/assets/` を含むもの（Vite が名前にハッシュを入れた成果物）は `public, max-age=31536000, immutable`、それ以外は `no-cache`（毎回 ETag で確かめる）
-- 同じ見出しを 2 つの `header` で付けると、どちらが後に効くかが Caddy の並べ替えで決まる。**2 つの条件を互いに排他にする**（`/assets/` を含む・含まない）【判断 S9】
+- サイトブロック（`deploy/caddy/tasuki.conf`）で一括して付ける。パスに `/assets/` を含み拡張子のあるもの（Vite が名前にハッシュを入れた成果物）で成功した応答は `public, max-age=31536000, immutable`、それ以外は `no-cache`（毎回 ETag で確かめる）
+- 同じ見出しを 2 つの `header` で付けると、どちらが後に効くかが Caddy の並べ替えで決まる。**2 つの条件を互いに排他にする**（`/assets/` 配下で拡張子つき・その補集合）【判断 S9】
 - **実体の無い `assets/` の 404 に 1 年の immutable を付けない**（配布の途中に新しい `index.html` が先に届くと、まだ無い資産の 404 が 1 年キャッシュされうる）。`assets/` 側の `header` に `match status 2xx` を付け、成功した応答にだけ immutable を付ける（`defer` は状態コードを見ないので使わない。2026-10-24 の訂正）。あわせて、拡張子なしの `/…/assets/x`（断片が index.html へ書き換える）が immutable な HTML にならないよう、`@hashed` は拡張子つき（`path_regexp \.[^/]+$`）に絞り、`@unhashed` はその厳密な補集合にする。Caddy 2.11.4 で確かめた: `/assets/a-1.js` は immutable、`/assets/none.js` は 404 で `Cache-Control` 無し、拡張子なしは `no-cache`。`.webmanifest` は Go の MIME 表に無く text/plain になるので Content-Type を明示する。E2E で「404 に immutable が付かない」ことも見る【判断 S10】
-- CSP の `img-src data:` は残す（羅紗の織り目の模様が `data:` の SVG を使う）。アイコンが `data:` でなくなったので、サイトブロックのコメントの理由を直す
+- CSP の `img-src data:` は残す（羅紗の織り目の模様が `data:` の SVG を、招待の QR が `data:image/png` を使う）。アイコンが `data:` でなくなったので、サイトブロックのコメントの理由を直す
 
 ## 5. 検査
 
@@ -173,5 +173,5 @@ Slack などは貼られたページの `<head>` にある OGP（`og:*`）を読
 | S6 | manifest の `display` は `browser` | §4.4 |
 | S7 | security.txt は `SECURITY.md` を指す（非公開の窓口が無効のため） | §4.6 |
 | S8 | security.txt の期限切れを 30 日前に赤くする単体テストを置く | §4.6 |
-| S9 | Cache-Control は互いに排他な 2 条件で付ける | §4.8 |
+| S9 | Cache-Control は互いに排他な 2 条件（`/assets/` 配下で拡張子つき・その補集合）で付ける | §4.8 |
 | S10 | `assets/` の immutable は `defer` で付け、404 には付けない | §4.8 |
