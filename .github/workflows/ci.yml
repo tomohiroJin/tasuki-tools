@@ -55,6 +55,7 @@ jobs:
         with:
           # 本番（VPS）と手元の Bun に揃えて固定する。latest だと新しい版が出るたびに本番と違う版で試す
           # （2026-10-22 に 1.4.4 で同期サーバーの試験が 1 件落ちた）。上げるときは本番の Bun と同時に上げる
+          # Renovate の更新は Dependency Dashboard の承認制（renovate.json・#442）。手順は deploy/README.md の「Bun を上げる」
           bun-version: 1.4.3
 
       - run: pnpm install --frozen-lockfile
@@ -101,6 +102,7 @@ jobs:
         with:
           # 本番（VPS）と手元の Bun に揃えて固定する。latest だと新しい版が出るたびに本番と違う版で試す
           # （2026-10-22 に 1.4.4 で同期サーバーの試験が 1 件落ちた）。上げるときは本番の Bun と同時に上げる
+          # Renovate の更新は Dependency Dashboard の承認制（renovate.json・#442）。手順は deploy/README.md の「Bun を上げる」
           bun-version: 1.4.3
 
       - run: pnpm install --frozen-lockfile
@@ -197,6 +199,7 @@ jobs:
         with:
           # 本番（VPS）と手元の Bun に揃えて固定する。latest だと新しい版が出るたびに本番と違う版で試す
           # （2026-10-22 に 1.4.4 で同期サーバーの試験が 1 件落ちた）。上げるときは本番の Bun と同時に上げる
+          # Renovate の更新は Dependency Dashboard の承認制（renovate.json・#442）。手順は deploy/README.md の「Bun を上げる」
           bun-version: 1.4.3
 
       # **素の `pnpm install` に戻さないこと。** ラッパは install を包んで、供給網ポリシーの
