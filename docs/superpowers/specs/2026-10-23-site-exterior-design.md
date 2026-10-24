@@ -65,7 +65,7 @@ Slack などは貼られたページの `<head>` にある OGP（`og:*`）を読
 - 四隅: 左上に伏せ札の端、右下に Q♦ の端、左下と右上に真鍮のチップ
 - 道具の数・名前は入れない（利用者の決定 2）
 - **作り方【判断 S1】**: 絵の正本は HTML（`apps/landing/og/og-image.html`）に置き、`packages/ui` の書体ファイルと色の値をそのまま使う。PNG への書き出しは開発者が手で走らせるスクリプト（`apps/landing/og/render-site-images.mjs`）で行い、**書き出した PNG をコミットする**。スクリプトは E2E がすでに持つ Playwright（Chromium）で撮る。ビルドのたびに生成しない（ビルドにブラウザを持ち込まない）。新しい依存は足さない（原則 II）
-- 書き出した PNG はファイルの大きさを抑える（上限 512KB。Slack・X とも 5MB まで受けるが、軽いほど取得が速い。当初の目安 300KB は、卓のグラデーションで約 420KB になり、圧縮の道具を足さないために上げた）
+- 書き出した PNG はファイルの大きさを抑える（上限 512KB。Slack は 5MB まで受けるが、軽いほど取得が速い。当初の目安 300KB は、卓のグラデーションで約 420KB になり、圧縮の道具を足さないために上げた）
 
 ### 4.2 紹介の文（利用者の決定 5）
 
@@ -101,6 +101,8 @@ Slack などは貼られたページの `<head>` にある OGP（`og:*`）を読
 - 玄関の `public/robots.txt` に `User-agent: *` と `Disallow: /`。`apps/timer-web/public/robots.txt` は消す（サブパスの robots.txt は検索エンジンに読まれない。正本を 1 つにする）
 - Slack の紹介の取得役（`Slackbot-LinkExpanding`）は robots.txt を守らないと Slack 自身が書いている（<https://api.slack.com/robots>、2026-10-23 取得。更新日の記載なし）。**これは推測として扱い、配布後に実物で確かめる**（§7）
 
+- 【決定 2026-10-24】紹介が出ると約束する相手は **Slack**。`Disallow: /` は残す（検索除外を保つ）ので、robots.txt を守る取得役（X の Twitterbot など）は紹介を取らない。X での表示は約束しない。`index.html` の冒頭コメントもそう書く
+
 ### 4.6 security.txt
 
 - `/.well-known/security.txt`: `Contact:` と `Policy:` に `https://github.com/tomohiroJin/tasuki-tools/blob/main/SECURITY.md`、`Expires:` に作成日から 1 年後、`Preferred-Languages: ja, en`
@@ -118,7 +120,7 @@ Slack などは貼られたページの `<head>` にある OGP（`og:*`）を読
 
 - サイトブロック（`deploy/caddy/tasuki.conf`）で一括して付ける。パスに `/assets/` を含むもの（Vite が名前にハッシュを入れた成果物）は `public, max-age=31536000, immutable`、それ以外は `no-cache`（毎回 ETag で確かめる）
 - 同じ見出しを 2 つの `header` で付けると、どちらが後に効くかが Caddy の並べ替えで決まる。**2 つの条件を互いに排他にする**（`/assets/` を含む・含まない）【判断 S9】
-- **実体の無い `assets/` の 404 に 1 年の immutable を付けない**（配布の途中に新しい `index.html` が先に届くと、まだ無い資産の 404 が 1 年キャッシュされうる）。`assets/` 側の `header` を `defer` にすると、Caddy はエラー応答（`file_server` の 404）にはそれを付けない。2026-10-23 に Caddy 2.11.4 で試作して確かめた: `/assets/a-123.js` は immutable、`/assets/none.js` は 404 で `Cache-Control` 無し。E2E で「404 に immutable が付かない」ことも見る【判断 S10】
+- **実体の無い `assets/` の 404 に 1 年の immutable を付けない**（配布の途中に新しい `index.html` が先に届くと、まだ無い資産の 404 が 1 年キャッシュされうる）。`assets/` 側の `header` に `match status 2xx` を付け、成功した応答にだけ immutable を付ける（`defer` は状態コードを見ないので使わない。2026-10-24 の訂正）。あわせて、拡張子なしの `/…/assets/x`（断片が index.html へ書き換える）が immutable な HTML にならないよう、`@hashed` は拡張子つき（`path_regexp \.[^/]+$`）に絞り、`@unhashed` はその厳密な補集合にする。Caddy 2.11.4 で確かめた: `/assets/a-1.js` は immutable、`/assets/none.js` は 404 で `Cache-Control` 無し、拡張子なしは `no-cache`。`.webmanifest` は Go の MIME 表に無く text/plain になるので Content-Type を明示する。E2E で「404 に immutable が付かない」ことも見る【判断 S10】
 - CSP の `img-src data:` は残す（羅紗の織り目の模様が `data:` の SVG を使う）。アイコンが `data:` でなくなったので、サイトブロックのコメントの理由を直す
 
 ## 5. 検査

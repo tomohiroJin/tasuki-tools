@@ -253,6 +253,11 @@ curl -s -o /dev/null -w '?room 付き（200 が正しい） → %{http_code} %{r
    sudo caddy validate --config /etc/caddy/Caddyfile && sudo systemctl reload caddy
    ```
 
+**途中の見え方と戻し方。** 手順 1（web）から Caddy の reload までのあいだ、そして Caddy だけを戻したあと
+（web は新しいまま）は、古い断片が欠けたファイルにも index.html を 200 で返す。
+`/timer/robots.txt` などが 200 に見えるのはそのためで、害は無く、新しい Caddy を入れれば終わる。
+全部を戻すときは、Caddy に加えて前の web も要る（前のタグから `deploy.sh` を流す）。
+
 **ローカルで** 確認する。
 ```bash
 HOST=https://tasuki.niku9.click   # 先に定義する。空だと curl が黙って失敗し、最後の 0 が偽の緑になる
@@ -270,4 +275,5 @@ curl -sI "$HOST/timer/assets/no-such.js" | grep -ic immutable
 ```
 
 配布後は Slack に URL を貼り、紹介（OGP）とアイコンが実物で出ることを目で確かめる
+（約束する相手は Slack。`Disallow: /` を残すので、robots.txt を守る X の Twitterbot などは取らない）
 （設計 `docs/superpowers/specs/2026-10-23-site-exterior-design.md` の §7）。
