@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-supply-chain-config.mjs b/scripts/audit-supply-chain-config.mjs
+index 13d6a9c9..8f3cfc78 100644
+--- a/scripts/audit-supply-chain-config.mjs
++++ b/scripts/audit-supply-chain-config.mjs
+@@ -117,7 +117,7 @@ export const SETTINGS = {
+     // ERR_PNPM_INVALID_DEPENDENCY_NAME で止まる。それを止める目撃者はこの検査しか無いので必須にする。
+     presence: "required",
+     validate: (v) =>
+-      v === false
++      typeof v === "boolean"
+         ? null
+         : "false である必要があります（true だと仮想ストアを逃がした手元の install が止まる。#439）",
+   },

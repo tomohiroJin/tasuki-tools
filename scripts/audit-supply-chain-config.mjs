@@ -111,6 +111,16 @@ export const SETTINGS = {
     validate: (v) =>
       v && typeof v === "object" && !Array.isArray(v) ? null : "写像である必要があります",
   },
+  hoistWorkspacePackages: {
+    // 供給網の防御ではなく、9p 回避で仮想ストアを逃がした手元のための設定（#439）。
+    // CI は逃がさないので、消しても true にしても CI は緑のまま、逃がした手元の install だけが
+    // ERR_PNPM_INVALID_DEPENDENCY_NAME で止まる。それを止める目撃者はこの検査しか無いので必須にする。
+    presence: "required",
+    validate: (v) =>
+      v === false
+        ? null
+        : "false である必要があります（true だと仮想ストアを逃がした手元の install が止まる。#439）",
+  },
   trustPolicyIgnoreAfter: {
     presence: "forbidden",
     reason:

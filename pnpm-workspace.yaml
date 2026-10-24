@@ -7,6 +7,16 @@ packages:
 allowBuilds:
   esbuild: true
 
+# 作業パッケージ（@tasuki/*）をルートの node_modules へ持ち上げない。
+# 9p の遅さを避けて仮想ストアの実体をホームへ逃がす配置（--virtual-store-dir=.pnpm-virtual）では、
+# pnpm 11.28 以降が持ち上げを ERR_PNPM_INVALID_DEPENDENCY_NAME で拒み、install もスクリプト前の
+# 依存の確認も止まる。作業パッケージは各パッケージの依存として直接リンクされるので、持ち上げは要らない。
+# 名前で読むなら、読む側の package.json に workspace:* で宣言すること。
+# CI は逃がさないので、この行を消しても true にしても CI は緑のまま手元だけが壊れる。
+# そのため scripts/audit-supply-chain-config.mjs が false を必須として見ている（#439）。
+# 手順は docs/guides/development.md の「9p 越しで実行するときは依存の実体を逃がす」を参照。
+hoistWorkspacePackages: false
+
 # 公開直後の版を掴まないための待機期間（単位: 分。10080 = 7 日）。
 # npm パッケージの乗っ取り・改ざんは公開から数日以内に発覚することが多いため、
 # 公開から 7 日未満の版は pnpm install の段で拒否する。

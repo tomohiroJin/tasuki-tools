@@ -3084,4 +3084,15 @@ export const MUTATIONS = [
     tests: ["tests/caddy-fragment-order.test.ts"],
     note: "#434。本番の Caddy 2.6.2 は match を条件と読まず、validate も E2E も通ったまま 404 に 1 年の immutable が付く。",
   },
+  {
+    id: 471,
+    label: "audit-supply-chain-config が hoistWorkspacePackages: true を通す",
+    patch: "m471-hoist-workspace-packages-accepts-true.patch",
+    pkg: "scripts",
+    tests: ["audit-supply-chain-config.test.mjs"],
+    note:
+      "#439。CI は仮想ストアを逃がさないので true でも緑のまま、逃がした手元の install だけが " +
+      "ERR_PNPM_INVALID_DEPENDENCY_NAME で止まる。本番の pnpm-workspace.yaml は false なので、" +
+      "この検出が消えても検査結果は変わらない（id 20 と同じ型）。",
+  },
 ];
