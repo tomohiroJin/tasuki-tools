@@ -10,6 +10,7 @@
   },
   "packageRules": [
     { "matchUpdateTypes": ["minor", "patch"], "groupName": "非破壊的な更新", "groupSlug": "non-breaking" },
-    { "matchUpdateTypes": ["major"], "dependencyDashboardApproval": true }
+    { "matchUpdateTypes": ["major"], "dependencyDashboardApproval": true },
+    { "matchDepNames": ["bun"], "groupName": null, "dependencyDashboardApproval": true }
   ]
 }

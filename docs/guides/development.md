@@ -644,6 +644,12 @@ major は Dependency Dashboard の Issue に提示。決定は ADR 0008）。脆
   `groupName` から作り、日本語は空に潰れてブランチ名が `renovate` だけになります。git は `renovate` と
   `renovate/…` を同時に持てないため、他の更新や脆弱性の PR のブランチが作れなくなります
   （2026-10-03 の実行ログで確認。「非破壊的な更新」は `non-breaking` を添えてある）
+- **Bun（CI の `bun-version`）は「非破壊的な更新」にまとめず、Dependency Dashboard での承認制にしてあります**（#442）。
+  本番（VPS）と手元と CI を同じ版に揃えて固定しているため、CI だけが上がると「本番と同じ版で試す」が崩れ、
+  まとまりに入っている他の更新（脆弱性の修正を含む）も Bun の試験の赤に巻き込まれます。
+  承認するときは、本番・手元・CI（`.github/workflows/ci.yml` の 3 か所）を同時に上げてください。
+  規則は `packageRules` の**末尾**に置いてあります（後の規則が前の規則を上書きするので、前へ動かすと
+  「非破壊的な更新」の `groupName` に負けます）
 - **Renovate の有効化にはリポジトリ管理者による GitHub App の許可が別途必要です。**
   `renovate.json` をコミットするだけでは動きません。脆弱性の PR は、加えて GitHub の
   Dependabot alerts が有効であることを要します（Renovate はそこから勧告を読みます）
