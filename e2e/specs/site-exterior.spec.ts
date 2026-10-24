@@ -67,13 +67,17 @@ test.describe('@smoke サイトの外側', () => {
     });
   }
 
-  test('Given 実体の無い資材 / When /timer/assets/no-such.js を GET / Then 404 に immutable が付かない', async ({
+  test('Given 実体の無い資材 / When /timer/assets/no-such.js を GET / Then 404 は no-cache で、安全の見出しも残る', async ({
     request,
   }) => {
-    // 付くと、あとで同名の資材を置いても長期キャッシュされた 404 が残る
+    // immutable が付くと、あとで同名の資材を置いても長期キャッシュされた 404 が残る。
+    // 「immutable を含まない」だけでは、見出しが無い・immutable 無しの長期キャッシュも通ってしまう
     const response = await request.get('/timer/assets/no-such.js');
     expect(response.status()).toBe(404);
-    expect(response.headers()['cache-control'] ?? '').not.toContain('immutable');
+    expect(response.headers()['cache-control']).toBe('no-cache');
+    // エラーの応答は handle_errors を通る。そこで前段の見出しが落ちていないこと
+    expect(response.headers()['content-security-policy']).toContain("default-src 'self'");
+    expect(response.headers()['x-content-type-options']).toBe('nosniff');
   });
 
   test('Given 拡張子の無い /timer/assets/no-such-page / When GET / Then index.html の 200 で no-cache（immutable な HTML にならない）', async ({

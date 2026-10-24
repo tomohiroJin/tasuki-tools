@@ -1,4 +1,4 @@
-# 変異 467: immutable-cache-on-any-status
+# 変異 467: error-responses-keep-immutable
 #
 # 検出を期待するテスト:
 #   - apps/landing/tests/caddy-fragment-order.test.ts
