@@ -3054,7 +3054,7 @@ export const MUTATIONS = [
   },
   {
     id: 467,
-    label: "ハッシュ付き資材の immutable ヘッダから match status 2xx を外す",
+    label: "エラーの応答を no-cache に上書きする handle_errors を外す",
     patch: "m467-immutable-cache-on-any-status.patch",
     pkg: "apps/landing",
     tests: ["tests/caddy-fragment-order.test.ts"],
