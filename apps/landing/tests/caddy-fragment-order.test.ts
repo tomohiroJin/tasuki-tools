@@ -164,4 +164,48 @@ describe('Caddy 断片', () => {
       expect(fragment.name).toMatch(/^\d{2}-/);
     }
   });
+  it('配信断片は try_files を使わず、拡張子つきの欠落は 404 にして拡張子なしだけ index.html へ書き換える（#434）', () => {
+    // Given: root を持つ（＝ファイルを配信する）断片
+    // When: SPA フォールバックの書き方を見る
+    // Then: 古い try_files {path} /index.html が 1 本も残っていない。
+    //       あると /no-such.txt や消えた資材が index.html の 200 で返り、
+    //       robots.txt などの存在確認が偽の緑になる
+    const serving = fragments.filter((f) => /^\s*root\s+\*/m.test(f.body));
+    expect(serving.length, '配信断片が 6 本以上見つかる').toBeGreaterThanOrEqual(6);
+    for (const fragment of serving) {
+      expect(fragment.body, `${fragment.source} に try_files が残っている`).not.toMatch(/^\s*try_files\b/m);
+      expect(fragment.body, `${fragment.source} の @spa に not file が無い`).toMatch(
+        /@spa\s*\{[^}]*^\s*not file\s*$[^}]*\}/m,
+      );
+      expect(fragment.body, `${fragment.source} の @spa に拡張子の除外が無い`).toMatch(
+        /@spa\s*\{[^}]*^\s*not path_regexp \\\.\[\^\/\]\*\$\s*$[^}]*\}/m,
+      );
+      expect(fragment.body, `${fragment.source} が @spa を /index.html へ書き換えていない`).toMatch(
+        /^\s*rewrite @spa \/index\.html\s*$/m,
+      );
+    }
+  });
+
+  it('サイトブロックは拡張子つきの資材の成功応答だけに immutable、それ以外に no-cache を付ける（#434）', () => {
+    // Given: deploy/caddy/tasuki.conf（コメントを除く）
+    const body = readFileSync(path.join(DEPLOY_ROOT, 'caddy', 'tasuki.conf'), 'utf8')
+      .split('\n')
+      .filter((line) => !line.trim().startsWith('#'))
+      .join('\n');
+    // Then: @hashed は */assets/* かつ拡張子つき（拡張子なしは index.html に書き換わるので除く）
+    expect(body).toMatch(
+      /^\s*@hashed \{\s*^\s*path \*\/assets\/\*\s*^\s*path_regexp \\\.\[\^\/\]\+\$\s*^\s*\}/m,
+    );
+    // Then: immutable は成功（2xx）の応答だけ。無いと 404 にも 1 年の immutable が付く
+    expect(body).toMatch(
+      /header @hashed \{[^}]*Cache-Control "public, max-age=31536000, immutable"[^}]*^\s*match status 2xx\s*$[^}]*\}/m,
+    );
+    // Then: @unhashed は同じ 2 行の not（厳密な補集合。同じ応答に 2 つ付かない）
+    expect(body).toMatch(
+      /^\s*@unhashed not \{\s*^\s*path \*\/assets\/\*\s*^\s*path_regexp \\\.\[\^\/\]\+\$\s*^\s*\}/m,
+    );
+    expect(body).toMatch(/^\s*header @unhashed Cache-Control "no-cache"\s*$/m);
+    // Then: manifest は Caddy の MIME 表に無いので Content-Type を明示する
+    expect(body).toMatch(/^\s*header \/site\.webmanifest Content-Type "application\/manifest\+json"\s*$/m);
+  });
 });

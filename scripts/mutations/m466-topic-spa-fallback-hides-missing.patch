@@ -1,0 +1,26 @@
+# 変異 466: topic-spa-fallback-hides-missing
+#
+# 検出を期待するテスト:
+#   - apps/landing/tests/caddy-fragment-order.test.ts
+#
+# #434。お題ツールの配信を try_files に戻す。消えた資材が index.html の 200 に化け、欠落が見えなくなる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m466-*.patch
+diff --git a/deploy/topic/caddy/40-topic.conf b/deploy/topic/caddy/40-topic.conf
+index 99aea7bf..8ca60beb 100644
+--- a/deploy/topic/caddy/40-topic.conf
++++ b/deploy/topic/caddy/40-topic.conf
+@@ -21,11 +21,7 @@ handle_path /topic/* {
+ 	# （SPA のルート・/?room=…）だけ index.html へ書き換える。try_files では
+ 	# 欠落が index.html の 200 に化け、存在確認も資材の消失も見えなくなる（#434）。
+ 	# 名前付きマッチャは handle ごとに閉じるので、各断片で @spa を使い回してよい。
+-	@spa {
+-		not file
+-		not path_regexp \.[^/]*$
+-	}
+-	rewrite @spa /index.html
++	try_files {path} /index.html
+ 	file_server
+ }
+ 

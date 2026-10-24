@@ -1,0 +1,19 @@
+# 変異 469: robots-allows-all
+#
+# 検出を期待するテスト:
+#   - apps/landing/tests/site-files.test.ts
+#
+# #434。robots.txt の Disallow を空にして全許可にする。個人・チーム用の道具が検索結果に出てしまう。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m469-*.patch
+diff --git a/apps/landing/public/robots.txt b/apps/landing/public/robots.txt
+index 398f1610..e1ee8f12 100644
+--- a/apps/landing/public/robots.txt
++++ b/apps/landing/public/robots.txt
+@@ -1,4 +1,4 @@
+ # 個人・チーム用の道具で検索結果に出す意図がないため、全クローラを拒否する（#434）。
+ # 正本はこの 1 本。各ツールの public には重ねて置かない。
+ User-agent: *
+-Disallow: /
++Disallow:

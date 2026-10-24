@@ -78,9 +78,9 @@ test.describe('@smoke 資材が正しい接頭辞を持ち、実際に取得で�
       }
 
       // Then その3: **実際に取得でき、しかも中身がその資材であること。**
-      // status だけを見てはいけない。断片は try_files {path} /index.html を持つため、
-      // **資材が消えていても SPA フォールバックが index.html を 200 で返す**。
-      // 実測で確認済み: 資材を削除しても status は 200 のままだった。
+      // status だけでなく Content-Type も見る。拡張子なしの経路は index.html へ書き換わるので、
+      // 資材の参照が拡張子を持たない形に壊れると、HTML が 200 で返って status だけでは素通りする。
+      // （拡張子つきの欠落は #434 から 404 になる。その検査は site-exterior.spec.ts）
       // Content-Type で「返ってきたのが JS/CSS か、HTML へ縮退したか」を見分ける。
       for (const ref of refs) {
         const asset = await request.get(ref);

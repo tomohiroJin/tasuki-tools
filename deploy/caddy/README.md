@@ -203,3 +203,77 @@ curl -s -o /dev/null -w 'poker/ws（旧入口。200 が正しい） → %{http_c
 # **ここで 301 が返ったら断片が消し残っている。** 200（玄関 LP）が正しい。
 curl -s -o /dev/null -w '?room 付き（200 が正しい） → %{http_code} %{redirect_url}\n' "$HOST/?room=TEST"
 ```
+
+## #434 の配布（サイトの外側）
+
+紹介の画像・アイコン・`robots.txt` などを公開し、実体の無いファイルを 404 にし、
+キャッシュを指定する変更の配布手順。**配布は利用者の明示の指示を待つ**（勝手に配らない。
+ルームは揮発インメモリなので、配布で全消滅する）。
+
+`pnpm e2e:prod` は、web と Caddy の両方を配るまで、新しい @smoke（site-exterior）で赤のままになる。
+
+1. **ローカルで** web を全アプリ配る。順序は #433 の決めを守る（timer → agenda）。公開ファイル
+   （`og.png`・アイコン・`robots.txt`・`site.webmanifest`・`.well-known/security.txt`）は LP の
+   `apps/landing/public` に入っているので、LP の配布で届く。
+2. **ローカルで** 7 ファイル（`tasuki.conf` は `site.conf` の名で）を、新しい専用ディレクトリへ送る。
+   `/tmp` 直下には前の配布の古いファイルが残りうるので、そこからは入れない。
+   ```bash
+   export TASUKI_SSH_HOST=<ユーザー@ホスト>   # deploy.sh と同じ変数
+   ssh "$TASUKI_SSH_HOST" 'rm -rf /tmp/tasuki-434 && mkdir -p /tmp/tasuki-434'
+   scp deploy/caddy/tasuki.conf "$TASUKI_SSH_HOST":/tmp/tasuki-434/site.conf
+   scp deploy/landing/caddy/90-landing.conf deploy/timer/caddy/30-timer-spa.conf \
+       deploy/poker/caddy/20-poker.conf deploy/topic/caddy/40-topic.conf \
+       deploy/roulette/caddy/50-roulette.conf deploy/agenda/caddy/60-agenda.conf \
+       "$TASUKI_SSH_HOST":/tmp/tasuki-434/
+   ```
+3. **サーバーで（root）** 設置先ごと退避してから `/tmp/tasuki-434/` から `install` する。
+   ```bash
+   sudo cp -a /etc/caddy/tasuki /etc/caddy/tasuki.bak."$(date +%Y%m%d-%H%M)"
+   sudo install -m 644 /tmp/tasuki-434/site.conf /etc/caddy/tasuki/site.conf
+   cd /tmp/tasuki-434
+   sudo install -m 644 20-poker.conf 30-timer-spa.conf 40-topic.conf \
+       50-roulette.conf 60-agenda.conf 90-landing.conf /etc/caddy/tasuki/apps/
+   ```
+4. **サーバーで（root）** `<公開ドメイン>` を置換し、アドレスの行を目で確かめる。
+   ```bash
+   sudo sed -i 's|<公開ドメイン>|tasuki.niku9.click|' /etc/caddy/tasuki/site.conf
+   grep -n '{$' /etc/caddy/tasuki/site.conf   # 行頭のアドレスが tasuki.niku9.click になっているか見る
+   ```
+5. **サーバーで（root）** 検証して reload する。
+   ```bash
+   sudo caddy validate --config /etc/caddy/Caddyfile && sudo systemctl reload caddy
+   ```
+6. **サーバーで（root）** 通らない・挙動がおかしいときは、退避したディレクトリを戻す
+   （`/etc/caddy/Caddyfile.bak` では戻らない。#434 が変えるのは `/etc/caddy/tasuki` の中）。
+   消す前に、退避の名前が実在するか確かめる。
+   ```bash
+   ls -d /etc/caddy/tasuki.bak.*     # 戻す退避の名前を確かめる（無ければ rm しない）
+   sudo rm -rf /etc/caddy/tasuki
+   sudo cp -a /etc/caddy/tasuki.bak.<日付-時刻> /etc/caddy/tasuki
+   sudo caddy validate --config /etc/caddy/Caddyfile && sudo systemctl reload caddy
+   ```
+
+**途中の見え方と戻し方。** 手順 1（web）から Caddy の reload までのあいだ、そして Caddy だけを戻したあと
+（web は新しいまま）は、古い断片が欠けたファイルにも index.html を 200 で返す。
+`/timer/robots.txt` などが 200 に見えるのはそのためで、害は無く、新しい Caddy を入れれば終わる。
+全部を戻すときは、Caddy に加えて前の web も要る（前のタグから `deploy.sh` を流す）。
+
+**ローカルで** 確認する。
+```bash
+HOST=https://tasuki.niku9.click   # 先に定義する。空だと curl が黙って失敗し、最後の 0 が偽の緑になる
+curl -s -o /dev/null -w 'robots.txt → %{http_code}\n' "$HOST/robots.txt"
+curl -s -o /dev/null -w 'og.png → %{http_code} %{content_type}\n' "$HOST/og.png"
+curl -s -o /dev/null -w '実体の無いファイル（404 が正しい） → %{http_code}\n' "$HOST/no-such.txt"
+curl -s -o /dev/null -w '?room 付き（200 が正しい） → %{http_code}\n' "$HOST/?room=TEST"
+curl -s -o /dev/null -w '/poker/room/TEST（200 が正しい） → %{http_code}\n' "$HOST/poker/room/TEST"
+curl -sI "$HOST/" | grep -i '^cache-control'                  # no-cache
+# 資材: HTML の本文から最初の資材を取り、そのヘッダを見る（immutable が正しい）
+ASSET=$(curl -s "$HOST/timer/" | grep -o '/timer/assets/[^"]*' | head -1)
+curl -sI "$HOST$ASSET" | grep -i '^cache-control'
+# 欠落した資材は 404 で、immutable が付かない（0 が正しい）
+curl -sI "$HOST/timer/assets/no-such.js" | grep -ic immutable
+```
+
+配布後は Slack に URL を貼り、紹介（OGP）とアイコンが実物で出ることを目で確かめる
+（約束する相手は Slack。`Disallow: /` を残すので、robots.txt を守る X の Twitterbot などは取らない）
+（設計 `docs/superpowers/specs/2026-10-23-site-exterior-design.md` の §7）。

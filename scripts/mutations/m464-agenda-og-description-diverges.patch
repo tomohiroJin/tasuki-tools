@@ -1,0 +1,22 @@
+# 変異 464: agenda-og-description-diverges
+#
+# 検出を期待するテスト:
+#   - apps/landing/tests/index-html-exterior.test.ts
+#
+# #434。agenda の og:description が tools.ts の紹介文と食い違う。玄関の説明と貼ったリンクの紹介で同じ道具の説明が変わる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m464-*.patch
+diff --git a/apps/agenda-web/index.html b/apps/agenda-web/index.html
+index db06d4ac..b241b08e 100644
+--- a/apps/agenda-web/index.html
++++ b/apps/agenda-web/index.html
+@@ -14,7 +14,7 @@
+     <meta property="og:site_name" content="Tasuki" />
+     <meta property="og:locale" content="ja_JP" />
+     <meta property="og:title" content="Agenda Timer — Tasuki" />
+-    <meta property="og:description" content="ステップを順に計って進める" />
++    <meta property="og:description" content="ステップを計る" />
+     <meta property="og:image" content="https://tasuki.niku9.click/og.png" />
+     <meta property="og:image:width" content="1200" />
+     <meta property="og:image:height" content="630" />

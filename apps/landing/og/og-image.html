@@ -1,0 +1,211 @@
+<!doctype html>
+<!--
+  サイトの紹介の画像（/og.png）の絵の正本（#434・設計 §4.1）。
+
+  1200×630 で描き、render-site-images.mjs が撮って apps/landing/public/og.png に書き出す。
+  直したら書き出し直してコミットする（ビルドでは作らない）。
+
+  - 道具の数や名前は入れない（道具を足すたびに作り直さないため。利用者の決定）
+  - 色は packages/ui/src/tokens/palette.css の値を写している（CSS 変数は読み込まない —
+    この頁はアプリの CSS を通らない）。書体は packages/ui の woff2 を直に読む
+  - スートは書体に任せず SVG の図形で描く（環境によって代替書体の字形に変わるため）
+-->
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Tasuki og:image</title>
+    <style>
+      @font-face {
+        font-family: 'Fraunces';
+        src: url('../../../packages/ui/src/fonts/fraunces-latin-normal.woff2') format('woff2');
+        font-weight: 100 900;
+      }
+      @font-face {
+        font-family: 'Zen Kaku Gothic New';
+        src: url('../../../packages/ui/src/fonts/zkgn-500-base.woff2') format('woff2');
+        font-weight: 500;
+      }
+
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+      }
+
+      .og {
+        position: relative;
+        width: 1200px;
+        height: 630px;
+        overflow: hidden;
+        /* felt-700 → felt-800 → felt-950 */
+        background: radial-gradient(ellipse at 50% 42%, #175040 0%, #10382a 55%, #071f18 100%);
+        color: #f5efdd;
+      }
+
+      /* 真鍮の細い縁（gold-bright の半透明） */
+      .og::after {
+        content: '';
+        position: absolute;
+        inset: 20px;
+        border: 2px solid rgba(236, 200, 121, 0.45);
+        border-radius: 8px;
+        z-index: 10;
+      }
+
+      .card {
+        position: absolute;
+        width: 172px;
+        height: 244px;
+        border-radius: 14px;
+        /* card-sheen → card-shade・縁は card-edge */
+        background: linear-gradient(160deg, #fffdf4, #eae1c6);
+        border: 2px solid #cdc4a8;
+        /* 影は色ではなく黒の濃さ（パレットの外だが、色相を持たないので画面の影と同じ扱い） */
+        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+        color: #26231c;
+        font-family: 'Fraunces', serif;
+        font-weight: 600;
+      }
+
+      /* 札の内枠（card-inline） */
+      .card::before {
+        content: '';
+        position: absolute;
+        inset: 10px;
+        border: 2px solid rgba(38, 35, 28, 0.18);
+        border-radius: 8px;
+      }
+
+      .card .index {
+        position: absolute;
+        top: 16px;
+        left: 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        font-size: 30px;
+        line-height: 1;
+      }
+
+      .card .index svg {
+        width: 22px;
+        height: 22px;
+      }
+
+      .card .pip {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .card.large {
+        width: 192px;
+        height: 272px;
+      }
+
+      /* 赤いスート（rose） */
+      .red {
+        color: #c65f45;
+      }
+
+      /* 伏せた札の裏。poker-web の .seat-card-back と同じ作り（card-back の地に gold-edge と
+         gold-glow の斜め格子・縁は gold-deep） */
+      .back {
+        background:
+          repeating-linear-gradient(45deg, rgba(236, 200, 121, 0.5) 0 4px, transparent 4px 10px),
+          repeating-linear-gradient(-45deg, rgba(236, 200, 121, 0.35) 0 4px, transparent 4px 10px),
+          #7d3c2b;
+        border-color: #9a7330;
+      }
+
+      .back::before {
+        border-color: rgba(236, 200, 121, 0.6);
+      }
+
+      /* 真鍮のチップ（gold-bright・gold-deep・gold・ivory の同心円） */
+      .chip {
+        position: absolute;
+        width: 108px;
+        height: 108px;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle,
+          #ecc879 0 30%,
+          #9a7330 31% 36%,
+          #cfa14c 37% 62%,
+          #f5efdd 63% 70%,
+          #cfa14c 71%
+        );
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.45);
+      }
+
+      .title {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 370px;
+        text-align: center;
+      }
+
+      .wordmark {
+        margin: 0;
+        font-family: 'Fraunces', serif;
+        font-weight: 600;
+        font-size: 112px;
+        line-height: 1;
+        letter-spacing: 0.01em;
+        color: #ecc879;
+        text-shadow: 0 0 28px rgba(236, 200, 121, 0.35);
+      }
+
+      .tagline {
+        margin: 26px 0 0;
+        font-family: 'Zen Kaku Gothic New', sans-serif;
+        font-weight: 500;
+        font-size: 34px;
+        letter-spacing: 0.04em;
+        /* ivory-dim */
+        color: rgba(245, 239, 221, 0.82);
+      }
+    </style>
+  </head>
+  <body>
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <defs>
+        <path
+          id="spade"
+          d="M50 4 C50 4 8 40 8 62 C8 79 24 88 37 83 C42 81 46 77 48 72 C47 83 42 91 34 96 L66 96 C58 91 53 83 52 72 C54 77 58 81 63 83 C76 88 92 79 92 62 C92 40 50 4 50 4 Z"
+          fill="currentColor"
+        />
+        <path id="diamond" d="M50 4 L88 50 L50 96 L12 50 Z" fill="currentColor" />
+      </defs>
+    </svg>
+
+    <div class="og" id="og">
+      <!-- 四隅: 左上に伏せ札の端・右下に Q♦ の端・左下と右上にチップ -->
+      <div class="card back" style="left: -56px; top: -76px; transform: rotate(28deg)"></div>
+      <div class="card" style="left: 1060px; top: 440px; transform: rotate(-22deg)">
+        <span class="index red">Q<svg viewBox="0 0 100 100"><use href="#diamond" /></svg></span>
+        <span class="pip red"><svg width="72" height="72" viewBox="0 0 100 100"><use href="#diamond" /></svg></span>
+      </div>
+      <div class="chip" style="left: 116px; top: 456px"></div>
+      <div class="chip" style="left: 188px; top: 488px; transform: scale(0.8)"></div>
+      <div class="chip" style="left: 976px; top: 68px"></div>
+
+      <!-- 中央: 伏せ札と A♠ -->
+      <div class="card large back" style="left: 420px; top: 64px; transform: rotate(-9deg)"></div>
+      <div class="card large" style="left: 512px; top: 52px; transform: rotate(4deg)">
+        <span class="index">A<svg viewBox="0 0 100 100"><use href="#spade" /></svg></span>
+        <span class="pip"><svg width="104" height="104" viewBox="0 0 100 100"><use href="#spade" /></svg></span>
+      </div>
+
+      <div class="title">
+        <h1 class="wordmark">Tasuki</h1>
+        <p class="tagline">チームで開発を回すための道具。</p>
+      </div>
+    </div>
+  </body>
+</html>

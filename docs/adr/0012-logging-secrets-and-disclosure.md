@@ -419,3 +419,18 @@ PR 1（main `3cddcdc`）で実装が入り、PR 3 で timer の旧い生成の�
 
 **決定 D10 そのものは変えていない。** 経路の受容の判断は `docs/adr/0011` の改定（2026-09-25・#91 PR 3）に記録した。
 
+## 追記（2026-10-24・#434） — D7 の `img-src data:` の理由を訂正した
+
+決定 D7 の「理由」は、`img-src 'self' data:` が必要なのは favicon が `data:` URI で埋め込まれているため、と書いていた。
+[#434](https://github.com/tomohiroJin/tasuki-tools/issues/434) で favicon を実ファイル（`/favicon.ico`・`/favicon.svg`）へ移したので、
+**この理由は事実でなくなった。** 決定（`img-src 'self' data:`）は変えていない。変えたのは根拠だけである。
+
+**今 `data:` が要る理由は 2 つある。**
+
+- 羅紗の織り目の模様が CSS の `data:` SVG である（`packages/ui/src/elements/reset.css`・`apps/timer-web/src/styles/base.css`）
+- 招待の QR コードが `data:` の画像である。`packages/invite-ui/src/use-invite-qr.ts` が `toDataURL` で
+  `<img src="data:image/png…">` を作る
+
+**`data:` を外すと招待の QR コードが出なくなる。** favicon を実ファイルにしたことは、`data:` を外す根拠にならない。
+
+本追記は上の「`style-src 'unsafe-inline'` を外す条件」と同じく、決定を覆さずに本文の事実誤認を訂正するものである。

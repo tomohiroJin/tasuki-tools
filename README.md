@@ -105,6 +105,9 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 
 > ルームを作るのも名乗るのも**玄関 1 つだけ**です（#95 S5c）。ルームコードを伴わずに各ツールの URL を開くと、
 > 玄関へ送られます。
+>
+> Slack などに URL を貼ると、Tasuki の紹介（題名・一行の説明・画像）が出ます（[#434](https://github.com/tomohiroJin/tasuki-tools/issues/434)・配布待ち）。
+> 検索エンジンには出しません（`robots.txt` と `X-Robots-Tag: noindex`）。
 
 ## クイックスタート
 
