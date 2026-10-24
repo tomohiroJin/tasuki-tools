@@ -54,6 +54,15 @@ curl -s "$HOST/agenda/" | grep -o '/agenda/assets/' | head -1   # 1 行出れば
 
 シナリオの回数（くりかえし）を足した段の配り方。第 1 段の記録（上）は書き換えない。
 
+> **2026-10-24 に配った**（`v4.4.0`。#435 のフィードバックの直しと #434 のサイトの外側も同じ回）。
+> 下の順序どおり timer → agenda と流し、続けて landing → poker → topic → roulette の順に配った（#434 の head と
+> 公開ファイルがどのアプリにも入ったため）。**この順は [`../roulette/NOTES.md`](../roulette/NOTES.md) の決め
+> （未配布の変更がある静的アプリは landing の前）から外れていた**。全部を数十秒で続けて流し、接続 0 本の時間帯だったので
+> 害は無かったが、次は静的アプリを landing の前に置く。
+> 配った後の `pnpm e2e:prod` は、agenda の `@core` を含めて 55 passed・1 failed で、赤の 1 件は Caddy 側
+> （404 の immutable・[`../caddy/README.md`](../caddy/README.md) の「#434 の配布」）。#437 で `site.conf` を入れ直した後は
+> 全件通った。以下の手順は記録として残す。
+
 **`deploy.sh timer` → `deploy.sh agenda` の順に流す。** 同期サーバー（timer の配布で入れ替わる）を先に新しくする。
 
 - 理由: 古い同期サーバーは `v.strictObject` で回数のキーを拒む。新しい画面が先に出ると、回数 2 以上のシナリオを送った時点で

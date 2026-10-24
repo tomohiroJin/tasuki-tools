@@ -86,7 +86,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
   - 時間切れの振る舞いをステップごとに選べる（押すまで待ってオーバーを数える／自動で次へ）。会の最中は延長（+1 / +3 / +5 分）と飛ばすだけで組み替える
   - 盤は 1 周が予定の合計。12 時の竜頭（予定の終わり）と終了見込みの印の位置で押し巻きが読める。スクリーンに映す表示を持つ
   - シナリオは端末に保存して読み直せる。サンプル（KPT のふりかえり・朝会・LT 会）から始められる
-  - 「くりかえし」でシナリオ全体を指定の回数だけ繰り返せる（朝会の 6 回、LT 会の 5 回など。回ごとの見出しで進行表を区切る）（配布待ち）
+  - 「くりかえし」でシナリオ全体を指定の回数だけ繰り返せる（朝会の 6 回、LT 会の 5 回など。回ごとの見出しで進行表を区切る）
 - 設計判断: [`docs/adr/0027`](docs/adr/0027-agenda-timer.md)・設計正本 [`docs/superpowers/specs/2026-10-19-agenda-timer-design.md`](docs/superpowers/specs/2026-10-19-agenda-timer-design.md)
 
 ## 🔗 ライブデモ
@@ -106,7 +106,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 > ルームを作るのも名乗るのも**玄関 1 つだけ**です（#95 S5c）。ルームコードを伴わずに各ツールの URL を開くと、
 > 玄関へ送られます。
 >
-> Slack などに URL を貼ると、Tasuki の紹介（題名・一行の説明・画像）が出ます（[#434](https://github.com/tomohiroJin/tasuki-tools/issues/434)・配布待ち）。
+> Slack などに URL を貼ると、Tasuki の紹介（題名・一行の説明・画像）が出ます（[#434](https://github.com/tomohiroJin/tasuki-tools/issues/434)）。
 > 検索エンジンには出しません（`robots.txt` と `X-Robots-Tag: noindex`）。
 
 ## クイックスタート
@@ -169,6 +169,7 @@ TypeScript / React 19 + Vite / Bun / WebSocket / Valibot / neverthrow / Vitest /
 | 2026-10-14 | `v4.1.0`（v4.0.0 以降の 36 PR）。進行役ルーレットを初回公開。デザインシステムの部品層（#320）・timer から Tailwind を外す（#321）・PC の幅の収まり（#316）などをまとめて反映。09-27 に配ったお題（#91）もこのタグに含む | [#94](https://github.com/tomohiroJin/tasuki-tools/issues/94)・[#91](https://github.com/tomohiroJin/tasuki-tools/issues/91) |
 | 2026-10-19 | `v4.2.0`（v4.1.0 以降の 31 PR）。timer の休憩・poker の見積もりの記録と見学者・ルーレットの決め方を増やした | [#402](https://github.com/tomohiroJin/tasuki-tools/issues/402)・[#93](https://github.com/tomohiroJin/tasuki-tools/issues/93)・[#419](https://github.com/tomohiroJin/tasuki-tools/issues/419)・[#401](https://github.com/tomohiroJin/tasuki-tools/issues/401) ほか |
 | 2026-10-21 | `v4.3.0`（v4.2.0 以降の 1 PR）。進行タイマー（Agenda Timer）を初回公開。玄関に 5 枚目の札を出し、同期サーバーが `?tool=agenda` を受けるようにした | [#429](https://github.com/tomohiroJin/tasuki-tools/issues/429) |
+| 2026-10-24 | `v4.4.0`（v4.3.0 以降の 6 PR）。進行タイマーのくりかえしと利用者フィードバックの直し、Slack などに貼ったときの紹介・共通のアイコン・robots.txt などサイトの外側を揃えた。本番の Caddy 2.6.2 に合わせてキャッシュの指定を直した（#437） | [#429](https://github.com/tomohiroJin/tasuki-tools/issues/429)・[#434](https://github.com/tomohiroJin/tasuki-tools/issues/434) |
 
 単一 monorepo への統合（[epic #15](https://github.com/tomohiroJin/tasuki-tools/issues/15)・
 設計: [`docs/superpowers/specs/2026-08-04-monorepo-unification-design.md`](docs/superpowers/specs/2026-08-04-monorepo-unification-design.md)）、

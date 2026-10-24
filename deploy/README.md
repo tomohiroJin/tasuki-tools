@@ -18,6 +18,11 @@ Tasuki の各アプリは「自分の systemd ユニット + 固有ポート + C
 | `roulette` | （無し・静的） | — | `/var/www/tasuki-roulette` | `/roulette/` | 公開中 |
 | `agenda` | （無し・静的） | — | `/var/www/tasuki-agenda` | `/agenda/` | 公開中 |
 
+> **#429 第 2 段（くりかえし #433）・フィードバック（#435）・#434（サイトの外側）は 2026-10-24 にまとめて配った**（`v4.4.0`）。
+> web は timer → agenda → landing → poker → topic → roulette、続けて root で Caddy の 7 本を入れた。本番の Caddy 2.6.2 で
+> 404 に immutable が付いたので、#437 の後に `site.conf` だけを入れ直した。手順と記録は [`agenda/NOTES.md`](agenda/NOTES.md)・
+> [`caddy/README.md`](caddy/README.md) の「#434 の配布」。
+
 > **#429（進行タイマー）は 2026-10-21 に配った**（`v4.3.0`）。初回の用意（web root と `/agenda/` の断片）を済ませてから、
 > agenda → landing → timer の 3 本を続けて流した。手順は [`agenda/NOTES.md`](agenda/NOTES.md)。
 
