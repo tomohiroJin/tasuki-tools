@@ -270,8 +270,8 @@ curl -sI "$HOST/" | grep -i '^cache-control'                  # no-cache
 # 資材: HTML の本文から最初の資材を取り、そのヘッダを見る（immutable が正しい）
 ASSET=$(curl -s "$HOST/timer/" | grep -o '/timer/assets/[^"]*' | head -1)
 curl -sI "$HOST$ASSET" | grep -i '^cache-control'
-# 欠落した資材は 404 で、immutable が付かない（0 が正しい）
-curl -sI "$HOST/timer/assets/no-such.js" | grep -ic immutable
+# 欠落した資材は 404 で no-cache（immutable の件数だけを数えると、見出しが無くても 0 で合格に見える）
+curl -sI "$HOST/timer/assets/no-such.js" | grep -i -E '^HTTP|^cache-control'   # 404 と no-cache
 ```
 
 配布後は Slack に URL を貼り、紹介（OGP）とアイコンが実物で出ることを目で確かめる

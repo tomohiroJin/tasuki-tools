@@ -186,7 +186,7 @@ describe('Caddy 断片', () => {
     }
   });
 
-  it('サイトブロックは拡張子つきの資材の成功応答だけに immutable、それ以外に no-cache を付ける（#434）', () => {
+  it('サイトブロックは拡張子つきの資材に immutable、それ以外とエラーの応答に no-cache を付ける（#434）', () => {
     // Given: deploy/caddy/tasuki.conf（コメントを除く）
     const body = readFileSync(path.join(DEPLOY_ROOT, 'caddy', 'tasuki.conf'), 'utf8')
       .split('\n')
@@ -196,10 +196,11 @@ describe('Caddy 断片', () => {
     expect(body).toMatch(
       /^\s*@hashed \{\s*^\s*path \*\/assets\/\*\s*^\s*path_regexp \\\.\[\^\/\]\+\$\s*^\s*\}/m,
     );
-    // Then: immutable は成功（2xx）の応答だけ。無いと 404 にも 1 年の immutable が付く
-    expect(body).toMatch(
-      /header @hashed \{[^}]*Cache-Control "public, max-age=31536000, immutable"[^}]*^\s*match status 2xx\s*$[^}]*\}/m,
-    );
+    expect(body).toMatch(/^\s*header @hashed Cache-Control "public, max-age=31536000, immutable"\s*$/m);
+    // Then: エラーの応答は handle_errors で no-cache に上書きする。無いと 404 にも 1 年の immutable が付く
+    expect(body).toMatch(/^\s*handle_errors \{\s*^\s*header Cache-Control "no-cache"\s*^\s*\}/m);
+    // Then: header の match は使わない。本番の Caddy 2.6.2 は条件と読まず、黙って効かない
+    expect(body).not.toMatch(/^\s*match\b/m);
     // Then: @unhashed は同じ 2 行の not（厳密な補集合。同じ応答に 2 つ付かない）
     expect(body).toMatch(
       /^\s*@unhashed not \{\s*^\s*path \*\/assets\/\*\s*^\s*path_regexp \\\.\[\^\/\]\+\$\s*^\s*\}/m,

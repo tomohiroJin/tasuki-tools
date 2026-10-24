@@ -3054,8 +3054,8 @@ export const MUTATIONS = [
   },
   {
     id: 467,
-    label: "ハッシュ付き資材の immutable ヘッダから match status 2xx を外す",
-    patch: "m467-immutable-cache-on-any-status.patch",
+    label: "エラーの応答を no-cache に上書きする handle_errors を外す",
+    patch: "m467-error-responses-keep-immutable.patch",
     pkg: "apps/landing",
     tests: ["tests/caddy-fragment-order.test.ts"],
     note: "#434。404 や将来のエラーページにも 1 年の immutable が付き、配布の途中に覚えた欠落を利用者のブラウザが 1 年持ち続ける。",
@@ -3075,5 +3075,13 @@ export const MUTATIONS = [
     pkg: "apps/landing",
     tests: ["tests/site-files.test.ts"],
     note: "#434。個人・チーム用の道具が検索結果に出てしまい、意図せず公開された形になる。",
+  },
+  {
+    id: 470,
+    label: "immutable の header に match status 2xx を戻す",
+    patch: "m470-header-match-status-returns.patch",
+    pkg: "apps/landing",
+    tests: ["tests/caddy-fragment-order.test.ts"],
+    note: "#434。本番の Caddy 2.6.2 は match を条件と読まず、validate も E2E も通ったまま 404 に 1 年の immutable が付く。",
   },
 ];

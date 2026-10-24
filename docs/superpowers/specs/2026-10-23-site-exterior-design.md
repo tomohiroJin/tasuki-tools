@@ -118,9 +118,9 @@ Slack などは貼られたページの `<head>` にある OGP（`og:*`）を読
 
 ### 4.8 Cache-Control
 
-- サイトブロック（`deploy/caddy/tasuki.conf`）で一括して付ける。パスに `/assets/` を含み拡張子のあるもの（Vite が名前にハッシュを入れた成果物）で成功した応答は `public, max-age=31536000, immutable`、それ以外は `no-cache`（毎回 ETag で確かめる）
+- サイトブロック（`deploy/caddy/tasuki.conf`）で一括して付ける。パスに `/assets/` を含み拡張子のあるもの（Vite が名前にハッシュを入れた成果物）は `public, max-age=31536000, immutable`、それ以外とエラーの応答は `no-cache`（毎回 ETag で確かめる）
 - 同じ見出しを 2 つの `header` で付けると、どちらが後に効くかが Caddy の並べ替えで決まる。**2 つの条件を互いに排他にする**（`/assets/` 配下で拡張子つき・その補集合）【判断 S9】
-- **実体の無い `assets/` の 404 に 1 年の immutable を付けない**（配布の途中に新しい `index.html` が先に届くと、まだ無い資産の 404 が 1 年キャッシュされうる）。`assets/` 側の `header` に `match status 2xx` を付け、成功した応答にだけ immutable を付ける（`defer` は状態コードを見ないので使わない。2026-10-24 の訂正）。あわせて、拡張子なしの `/…/assets/x`（断片が index.html へ書き換える）が immutable な HTML にならないよう、`@hashed` は拡張子つき（`path_regexp \.[^/]+$`）に絞り、`@unhashed` はその厳密な補集合にする。Caddy 2.11.4 で確かめた: `/assets/a-1.js` は immutable、`/assets/none.js` は 404 で `Cache-Control` 無し、拡張子なしは `no-cache`。`.webmanifest` は Go の MIME 表に無く text/plain になるので Content-Type を明示する。E2E で「404 に immutable が付かない」ことも見る【判断 S10】
+- **実体の無い `assets/` の 404 に 1 年の immutable を付けない**（配布の途中に新しい `index.html` が先に届くと、まだ無い資産の 404 が 1 年キャッシュされうる）。エラーの応答は `handle_errors { header Cache-Control "no-cache" }` で上書きする（`header` は応答を書く前に付くので、file_server の 404 にも immutable が残っている）。`header { … match status 2xx }` は使わない: **本番の Caddy 2.6.2（Debian の apt）は `match` を条件として読まず**、404 にも immutable が付いた（2026-10-24 の配布で実測。E2E の 2.11.4 では効くので手元は緑だった）。`defer` も状態コードを見ないので使わない。あわせて、拡張子なしの `/…/assets/x`（断片が index.html へ書き換える）が immutable な HTML にならないよう、`@hashed` は拡張子つき（`path_regexp \.[^/]+$`）に絞り、`@unhashed` はその厳密な補集合にする。Caddy 2.6.2 と 2.11.4 の両方で確かめた: `/assets/a-1.js` は immutable、`/assets/none.js` は 404 で `no-cache`、拡張子なしは `no-cache`。`.webmanifest` は Go の MIME 表に無く text/plain になるので Content-Type を明示する。E2E で「404 に immutable が付かない」ことも見る【判断 S10】
 - CSP の `img-src data:` は残す（羅紗の織り目の模様が `data:` の SVG を、招待の QR が `data:image/png` を使う）。アイコンが `data:` でなくなったので、サイトブロックのコメントの理由を直す
 
 ## 5. 検査

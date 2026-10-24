@@ -169,7 +169,7 @@
 	rewrite @spa /index.html
 ```
 
-  `tasuki.conf` のサイトブロックに `@hashed path */assets/*`・`@unhashed not path */assets/*`・`header @hashed { Cache-Control "public, max-age=31536000, immutable"; defer }`・`header @unhashed Cache-Control "no-cache"` を足す。各所に「なぜ」のコメント（拡張子つきだけ 404 にする理由・`defer` で 404 に immutable を付けない理由・2 条件を排他にする理由。設計 §4.7・§4.8）。CSP の上のコメントの「favicon が data: URI なので img-src に data: が要る」を「羅紗の織り目の模様が data: の SVG なので…」に直す（`packages/ui/src/elements/reset.css`・`apps/timer-web/src/styles/base.css`）
+  `tasuki.conf` のサイトブロックに `@hashed path */assets/*`・`@unhashed not path */assets/*`・`header @hashed { Cache-Control "public, max-age=31536000, immutable"; defer }`・`header @unhashed Cache-Control "no-cache"` を足す（**訂正**: `defer` は状態コードを見ないので使わない。その後の `match status 2xx` も本番の Caddy 2.6.2 では効かなかった。いまの形は設計正本の判断 S10 と `deploy/caddy/tasuki.conf` を見る）。各所に「なぜ」のコメント（拡張子つきだけ 404 にする理由・`defer` で 404 に immutable を付けない理由・2 条件を排他にする理由。設計 §4.7・§4.8）。CSP の上のコメントの「favicon が data: URI なので img-src に data: が要る」を「羅紗の織り目の模様が data: の SVG なので…」に直す（`packages/ui/src/elements/reset.css`・`apps/timer-web/src/styles/base.css`）
 - [ ] **Step 5: 単体の緑を見る** — Step 3 のコマンドと `pnpm --filter @tasuki/landing test` が PASS
 - [ ] **Step 6: 配布の手順を書く** — `deploy/caddy/README.md` の末尾に「#434 の配布（サイトの外側）」の節: web を全アプリ配ってから（#433 の順 timer → agenda を守る）、`site.conf` と 6 断片を `/tmp` へ送り、退避 → `install` → `<公開ドメイン>` の置換 → `caddy validate` → reload。確認のコマンド（`/robots.txt`・`/og.png`・`/no-such.txt` の 404・`/?room=TEST` の 200・`cache-control`）と、Slack に貼る実物確認（設計 §7）。**配布は利用者の指示を待つ**と書く
 - [ ] **Step 7（controller）: E2E の赤と緑** — 実装の前のコミットで `pnpm e2e --grep "@smoke"` が新しいシナリオで赤、実装の後に全シナリオ緑（既存の `routing.spec.ts` も緑であること＝Review Focus 2）
