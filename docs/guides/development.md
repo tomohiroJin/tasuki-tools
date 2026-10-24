@@ -702,6 +702,14 @@ devcontainer を **Windows / WSL のマウント（`/workspaces` など 9p 越�
 **この設定は任意（opt-in）です。** 既定では何も変わらないので、9p 越しでない環境と
 CI は以下を一切気にする必要がありません。
 
+ただし、逃がした配置に合わせて **`pnpm-workspace.yaml` の `hoistWorkspacePackages: false`
+はリポジトリ全体に効きます**（CI を含む）。逃がした配置では、pnpm 11.28 以降が作業パッケージの
+持ち上げを `ERR_PNPM_INVALID_DEPENDENCY_NAME` で拒み、install もスクリプト前の依存の確認も
+止まるためです（#439）。作業パッケージは使う側の依存として直接リンクされるので、
+**`@tasuki/*` を名前で読むなら、読む側の `package.json` に `workspace:*` で宣言してください。**
+宣言せずに持ち上げに頼っていた参照は解決できなくなります。
+環境変数 `pnpm_config_hoist_workspace_packages` はこの設定より優先されるので、置かないでください。
+
 ```bash
 # 一度だけ: 逃がし先を作り、ワークスペース直下から symlink を張る
 # 逃がし先は「チェックアウトごとに別のディレクトリ」にすること（下記 5 を参照）

@@ -111,6 +111,12 @@ export const SETTINGS = {
     validate: (v) =>
       v && typeof v === "object" && !Array.isArray(v) ? null : "写像である必要があります",
   },
+  hoistWorkspacePackages: {
+    // 供給網の防御ではなく、9p 回避で仮想ストアを逃がした手元のための設定（#439）。
+    // 消えても防御は消えず、手元の install が止まるだけなので任意にする。
+    presence: "optional",
+    validate: (v) => (typeof v === "boolean" ? null : "真偽値である必要があります"),
+  },
   trustPolicyIgnoreAfter: {
     presence: "forbidden",
     reason:

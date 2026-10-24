@@ -60,6 +60,11 @@ describe("SETTINGS: 射程を緩める変更を止める", () => {
       assert.equal(SETTINGS[key]?.presence, "optional", `${key} が任意でない`);
     }
   });
+
+  test("hoistWorkspacePackages は任意（供給網の防御ではなく、手元の 9p 回避のための設定）", () => {
+    // #439: 消えても防御は消えない。消えれば仮想ストアを逃がした手元の install が大きな音で止まる
+    assert.equal(SETTINGS.hoistWorkspacePackages?.presence, "optional");
+  });
 });
 
 describe("deriveOwnKeys: リポジトリ側にしか無い設定を取り出す", () => {
@@ -243,6 +248,16 @@ describe("checkValues: 既知キーの不正な値（経路⑦）", () => {
     const problems = checkValues({ ...CONFIG, packages: [] }, KEYS);
     assert.equal(problems.length, 1);
     assert.equal(problems[0].key, "packages");
+  });
+
+  test("hoistWorkspacePackages の値が真偽値でなければ落ちる（#439）", () => {
+    // Given: 文字列の "false" は真偽値ではない
+    const keys = [...KEYS, "hoistWorkspacePackages"];
+    assert.deepEqual(checkValues({ ...CONFIG, hoistWorkspacePackages: false }, keys), []);
+    const problems = checkValues({ ...CONFIG, hoistWorkspacePackages: "false" }, keys);
+    // When / Then
+    assert.equal(problems.length, 1);
+    assert.equal(problems[0].key, "hoistWorkspacePackages");
   });
 
   test("宣言に無いキーは値を見ない（未知の判定は checkKeyMembership の仕事）", () => {
