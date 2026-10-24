@@ -699,15 +699,18 @@ devcontainer を **Windows / WSL のマウント（`/workspaces` など 9p 越�
 `pnpm-lock.yaml` から再生成できます。そこで **ソースは 9p 上に置いたまま、
 依存の実体だけをコンテナのファイルシステムへ逃がします。**
 
-**この設定は任意（opt-in）です。** 既定では何も変わらないので、9p 越しでない環境と
-CI は以下を一切気にする必要がありません。
+**逃がすこと自体は任意（opt-in）です。** 下の手順を踏まなければ依存の置き場所は変わらないので、
+9p 越しでない環境と CI は手順そのものを気にする必要はありません。
 
-ただし、逃がした配置に合わせて **`pnpm-workspace.yaml` の `hoistWorkspacePackages: false`
-はリポジトリ全体に効きます**（CI を含む）。逃がした配置では、pnpm 11.28 以降が作業パッケージの
-持ち上げを `ERR_PNPM_INVALID_DEPENDENCY_NAME` で拒み、install もスクリプト前の依存の確認も
-止まるためです（#439）。作業パッケージは使う側の依存として直接リンクされるので、
+**ただし 1 点だけ、逃がさない環境と CI にも効く設定があります。** 逃がした配置では、
+pnpm 11.28 以降が作業パッケージの持ち上げを `ERR_PNPM_INVALID_DEPENDENCY_NAME` で拒み、
+install もスクリプト前の依存の確認も止まります。そのため `pnpm-workspace.yaml` に
+`hoistWorkspacePackages: false` を置いていて、これはリポジトリ全体に効きます（#439）。
+作業パッケージは使う側の依存として直接リンクされるので持ち上げは要りませんが、
 **`@tasuki/*` を名前で読むなら、読む側の `package.json` に `workspace:*` で宣言してください。**
-宣言せずに持ち上げに頼っていた参照は解決できなくなります。
+宣言しないと、どの環境でも解決できずに落ちます。
+この行を消したり `true` にしたりしても CI は緑のままで、逃がした手元だけが壊れるので、
+`scripts/audit-supply-chain-config.mjs` が `false` であることを必須として見ています。
 環境変数 `pnpm_config_hoist_workspace_packages` はこの設定より優先されるので、置かないでください。
 
 ```bash

@@ -61,9 +61,9 @@ describe("SETTINGS: 射程を緩める変更を止める", () => {
     }
   });
 
-  test("hoistWorkspacePackages は任意（供給網の防御ではなく、手元の 9p 回避のための設定）", () => {
-    // #439: 消えても防御は消えない。消えれば仮想ストアを逃がした手元の install が大きな音で止まる
-    assert.equal(SETTINGS.hoistWorkspacePackages?.presence, "optional");
+  test("hoistWorkspacePackages は必須（消しても CI は緑のまま、逃がした手元だけが壊れる）", () => {
+    // #439: CI は仮想ストアを逃がさないので、行を消しても何も赤くならない。ここが唯一の目撃者になる
+    assert.equal(SETTINGS.hoistWorkspacePackages?.presence, "required");
   });
 });
 
@@ -94,7 +94,7 @@ describe("deriveOwnKeys: リポジトリ側にしか無い設定を取り出す"
 });
 
 describe("checkKeyMembership: 未知・禁止・必須欠落（経路⑦）", () => {
-  const KEYS = ["packages", "allowBuilds", "minimumReleaseAge", "trustPolicy"];
+  const KEYS = ["packages", "allowBuilds", "minimumReleaseAge", "trustPolicy", "hoistWorkspacePackages"];
   /** 素の環境が何も足していない場合（＝持ち込んだ鍵と実効設定が一致する）。 */
   const same = (keys) => checkKeyMembership(keys, keys);
 
@@ -114,7 +114,7 @@ describe("checkKeyMembership: 未知・禁止・必須欠落（経路⑦）", ()
 
   test("既知キーの綴り誤りは「未知」と「必須の欠落」の両方で落ちる", () => {
     // Given: trustPolicy → trustPolicyy（#116 が実測した経路そのもの）
-    const problems = same(["packages", "allowBuilds", "minimumReleaseAge", "trustPolicyy"]);
+    const problems = same(["packages", "allowBuilds", "minimumReleaseAge", "trustPolicyy", "hoistWorkspacePackages"]);
     // When / Then: 落ちた鍵と、増えた鍵の両方を名指しする
     assert.deepEqual(problems.map((p) => p.key).sort(), ["trustPolicy", "trustPolicyy"]);
   });
@@ -146,7 +146,7 @@ describe("checkKeyMembership: 未知・禁止・必須欠落（経路⑦）", ()
     //        「必須の設定キーがありません」は**事実に反する**（レビュー指摘）
     // When
     const problems = checkKeyMembership(
-      ["packages", "allowBuilds", "minimumReleaseAge"], // trustPolicy が差分から落ちた
+      ["packages", "allowBuilds", "minimumReleaseAge", "hoistWorkspacePackages"], // trustPolicy が差分から落ちた
       KEYS, // だが実効設定には在る
     );
     // Then
@@ -250,14 +250,17 @@ describe("checkValues: 既知キーの不正な値（経路⑦）", () => {
     assert.equal(problems[0].key, "packages");
   });
 
-  test("hoistWorkspacePackages の値が真偽値でなければ落ちる（#439）", () => {
-    // Given: 文字列の "false" は真偽値ではない
+  test("hoistWorkspacePackages は false だけが通る（#439）", () => {
+    // Given: true は持ち上げが戻り、逃がした手元の install が ERR_PNPM_INVALID_DEPENDENCY_NAME で止まる。
+    // 文字列の "false" は真偽値ではない
     const keys = [...KEYS, "hoistWorkspacePackages"];
-    assert.deepEqual(checkValues({ ...CONFIG, hoistWorkspacePackages: false }, keys), []);
-    const problems = checkValues({ ...CONFIG, hoistWorkspacePackages: "false" }, keys);
     // When / Then
-    assert.equal(problems.length, 1);
-    assert.equal(problems[0].key, "hoistWorkspacePackages");
+    assert.deepEqual(checkValues({ ...CONFIG, hoistWorkspacePackages: false }, keys), []);
+    for (const bad of [true, "false"]) {
+      const problems = checkValues({ ...CONFIG, hoistWorkspacePackages: bad }, keys);
+      assert.equal(problems.length, 1, `${JSON.stringify(bad)} が通った`);
+      assert.equal(problems[0].key, "hoistWorkspacePackages");
+    }
   });
 
   test("宣言に無いキーは値を見ない（未知の判定は checkKeyMembership の仕事）", () => {
