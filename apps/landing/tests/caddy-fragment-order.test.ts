@@ -186,19 +186,26 @@ describe('Caddy 断片', () => {
     }
   });
 
-  it('サイトブロックは資材に immutable を（defer 付きで）、それ以外に no-cache を付ける（#434）', () => {
+  it('サイトブロックは拡張子つきの資材の成功応答だけに immutable、それ以外に no-cache を付ける（#434）', () => {
     // Given: deploy/caddy/tasuki.conf（コメントを除く）
     const body = readFileSync(path.join(DEPLOY_ROOT, 'caddy', 'tasuki.conf'), 'utf8')
       .split('\n')
       .filter((line) => !line.trim().startsWith('#'))
       .join('\n');
-    // Then: ハッシュ付き資材（*/assets/*）だけに immutable。defer が無いと 404 にも付いてしまう
-    expect(body).toMatch(/^\s*@hashed path \*\/assets\/\*\s*$/m);
+    // Then: @hashed は */assets/* かつ拡張子つき（拡張子なしは index.html に書き換わるので除く）
     expect(body).toMatch(
-      /header @hashed \{[^}]*Cache-Control "public, max-age=31536000, immutable"[^}]*^\s*defer\s*$[^}]*\}/m,
+      /^\s*@hashed \{\s*^\s*path \*\/assets\/\*\s*^\s*path_regexp \\\.\[\^\/\]\+\$\s*^\s*\}/m,
     );
-    // Then: それ以外は no-cache。2 条件は排他（同じ応答に 2 つ付かない）
-    expect(body).toMatch(/^\s*@unhashed not path \*\/assets\/\*\s*$/m);
+    // Then: immutable は成功（2xx）の応答だけ。無いと 404 にも 1 年の immutable が付く
+    expect(body).toMatch(
+      /header @hashed \{[^}]*Cache-Control "public, max-age=31536000, immutable"[^}]*^\s*match status 2xx\s*$[^}]*\}/m,
+    );
+    // Then: @unhashed は同じ 2 行の not（厳密な補集合。同じ応答に 2 つ付かない）
+    expect(body).toMatch(
+      /^\s*@unhashed not \{\s*^\s*path \*\/assets\/\*\s*^\s*path_regexp \\\.\[\^\/\]\+\$\s*^\s*\}/m,
+    );
     expect(body).toMatch(/^\s*header @unhashed Cache-Control "no-cache"\s*$/m);
+    // Then: manifest は Caddy の MIME 表に無いので Content-Type を明示する
+    expect(body).toMatch(/^\s*header \/site\.webmanifest Content-Type "application\/manifest\+json"\s*$/m);
   });
 });

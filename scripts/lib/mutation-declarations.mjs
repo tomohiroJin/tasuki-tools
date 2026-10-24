@@ -3054,11 +3054,11 @@ export const MUTATIONS = [
   },
   {
     id: 467,
-    label: "ハッシュ付き資材の immutable ヘッダから defer を外す",
-    patch: "m467-immutable-cache-without-defer.patch",
+    label: "ハッシュ付き資材の immutable ヘッダから match status 2xx を外す",
+    patch: "m467-immutable-cache-on-any-status.patch",
     pkg: "apps/landing",
     tests: ["tests/caddy-fragment-order.test.ts"],
-    note: "#434。404 になった資材にまで 1 年の immutable が付き、同名の資材を置き直してもブラウザが 404 を覚え続けて画面が直らない。",
+    note: "#434。404 や将来のエラーページにも 1 年の immutable が付き、配布の途中に覚えた欠落を利用者のブラウザが 1 年持ち続ける。",
   },
   {
     id: 468,

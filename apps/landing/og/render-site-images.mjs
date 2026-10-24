@@ -46,9 +46,14 @@ async function renderOgImage(browser) {
   const page = await browser.newPage({ viewport: OG_SIZE, deviceScaleFactor: 1 });
   await page.goto(pathToFileURL(path.join(HERE, 'og-image.html')).href);
   await page.evaluate(() => document.fonts.ready);
-  // fonts.ready は読み込みに失敗しても解決するので、代替書体のまま書き出さないよう確かめる
+  // fonts.ready は読み込みに失敗しても解決し、fonts.check() は一致する面が無いと true を返す。
+  // 代替書体のまま書き出さないよう、両方の書体について loaded の FontFace が実在することを確かめる
   const loaded = await page.evaluate(() =>
-    document.fonts.check('600 112px Fraunces') && document.fonts.check('500 34px "Zen Kaku Gothic New"', 'チ'),
+    ['Fraunces', 'Zen Kaku Gothic New'].every((family) =>
+      [...document.fonts].some(
+        (face) => face.family.replace(/["']/g, '') === family && face.status === 'loaded',
+      ),
+    ),
   );
   if (!loaded) throw new Error('書体が読み込めていません（packages/ui/src/fonts の woff2 を確かめてください）');
   const png = await page.locator('#og').screenshot({ type: 'png' });

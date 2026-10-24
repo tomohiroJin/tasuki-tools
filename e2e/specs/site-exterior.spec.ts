@@ -7,6 +7,15 @@
  */
 import { expect, test } from '@playwright/test';
 
+/** HTML から指定のタグ（meta / link）をすべて集め、属性を順序に依らず読めるようにする。 */
+function tagsOf(html: string, name: 'meta' | 'link'): Array<Record<string, string>> {
+  return [...html.matchAll(new RegExp(`<${name}\\b[^>]*>`, 'g'))].map((m) => {
+    const attrs: Record<string, string> = {};
+    for (const a of m[0].matchAll(/([a-zA-Z:-]+)="([^"]*)"/g)) attrs[a[1] ?? ''] = a[2] ?? '';
+    return attrs;
+  });
+}
+
 /** 6 ページ（玄関と 5 ツール）。 */
 const PAGES = ['/', '/timer/', '/poker/', '/topic/', '/roulette/', '/agenda/'] as const;
 
@@ -26,6 +35,14 @@ test.describe('@smoke サイトの外側', () => {
     const response = await request.get('/og.png');
     expect(response.status()).toBe(200);
     expect(response.headers()['content-type']).toContain('image/png');
+  });
+
+  test('Given 稼働中のサイト / When /site.webmanifest を GET / Then Content-Type が application/manifest+json', async ({
+    request,
+  }) => {
+    // Go の MIME 表に .webmanifest が無く、明示しないと text/plain＋nosniff で返る
+    const response = await request.get('/site.webmanifest');
+    expect(response.headers()['content-type']).toContain('application/manifest+json');
   });
 
   for (const filePath of [
@@ -59,6 +76,15 @@ test.describe('@smoke サイトの外側', () => {
     expect(response.headers()['cache-control'] ?? '').not.toContain('immutable');
   });
 
+  test('Given 拡張子の無い /timer/assets/no-such-page / When GET / Then index.html の 200 で no-cache（immutable な HTML にならない）', async ({
+    request,
+  }) => {
+    const response = await request.get('/timer/assets/no-such-page');
+    expect(response.status()).toBe(200);
+    expect(response.headers()['content-type']).toContain('text/html');
+    expect(response.headers()['cache-control']).toBe('no-cache');
+  });
+
   for (const spaPath of ['/no-such-page', '/?room=E2E-abc1', '/poker/room/E2E-abc1']) {
     test(`Given 拡張子の無い経路 / When ${spaPath} を GET / Then index.html が 200 で返る`, async ({
       request,
@@ -77,15 +103,17 @@ test.describe('@smoke サイトの外側', () => {
       const html = await (await request.get(pagePath)).text();
 
       // Then その1: og:image のパス部分を同じ相手へ GET して画像が返る
-      const og = /<meta property="og:image" content="([^"]+)"/.exec(html);
-      expect(og, `${pagePath} に og:image が無い`).not.toBeNull();
-      const ogPath = new URL(og?.[1] ?? '').pathname;
+      const og = tagsOf(html, 'meta').find((t) => t.property === 'og:image');
+      expect(og?.content, `${pagePath} に og:image が無い`).toBeTruthy();
+      const ogPath = new URL(og?.content ?? '').pathname;
       const image = await request.get(ogPath);
       expect(image.status(), `${ogPath} の応答`).toBe(200);
       expect(image.headers()['content-type']).toContain('image/png');
 
       // Then その2: アイコンの参照は常にルート直下（サブパスに書き換わっていない）で、取得できる
-      const hrefs = [...html.matchAll(/<link rel="icon"[^>]*\bhref="([^"]+)"/g)].map((m) => m[1] ?? '');
+      const hrefs = tagsOf(html, 'link')
+        .filter((t) => t.rel === 'icon')
+        .map((t) => t.href ?? '');
       expect(hrefs.length, `${pagePath} に rel=icon が無い`).toBeGreaterThan(0);
       for (const href of hrefs) {
         expect(href.startsWith('/'), `${href} が / で始まらない`).toBe(true);
