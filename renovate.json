@@ -12,6 +12,7 @@
   "packageRules": [
     { "matchUpdateTypes": ["minor", "patch"], "groupName": "非破壊的な更新", "groupSlug": "non-breaking" },
     { "matchUpdateTypes": ["major"], "dependencyDashboardApproval": true },
+    { "matchUpdateTypes": ["lockFileMaintenance"], "minimumReleaseAge": null },
     { "matchDepNames": ["bun", "@types/bun"], "groupName": "Bun", "groupSlug": "bun", "dependencyDashboardApproval": true }
   ]
 }
