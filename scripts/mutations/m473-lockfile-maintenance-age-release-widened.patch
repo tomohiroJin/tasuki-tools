@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-supply-chain-config.mjs b/scripts/audit-supply-chain-config.mjs
+index 1257d866..f0af0c93 100644
+--- a/scripts/audit-supply-chain-config.mjs
++++ b/scripts/audit-supply-chain-config.mjs
+@@ -321,7 +321,7 @@ function isLockFileMaintenanceAgeRelease(rule) {
+   const types = rule.matchUpdateTypes;
+   if (!Array.isArray(types) || types.length !== 1 || types[0] !== "lockFileMaintenance") return false;
+   // matchUpdateTypes 以外の match* を持てば、絞り込みが足されている
+-  return Object.keys(rule).every((k) => k === "matchUpdateTypes" || !k.startsWith("match"));
++  return true;
+ }
+ 
+ export function checkRenovateReleaseAge(config, floor) {

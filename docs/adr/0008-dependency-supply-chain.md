@@ -279,3 +279,5 @@ CI キャッシュへ載せる・`--trust-lockfile` が紛れ込む・pnpm の�
 検知は GitHub の Dependabot alerts、修正の提案は Renovate が担い、CI の `audit` ジョブは外した。
 「仕組みと検知を同時に入れる」という方針と、残りの決定（待機期間・置き場・自動更新 bot は Renovate・
 Renovate の待機期間は pnpm 側以上・自動マージしない）はそのまま有効である。
+推移依存の修正が Renovate の脆弱性の PR では届かず、lockfile の解き直しの PR で届くことは
+ADR-0024 の追記（2026-10-25・#444）にある。

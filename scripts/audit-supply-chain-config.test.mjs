@@ -409,8 +409,12 @@ describe("checkRenovateReleaseAge: Renovate の待機期間が pnpm 側を下回
   /** 規範どおりの設定（renovate.json の写し）。 */
   const valid = () => ({
     minimumReleaseAge: "7 days",
+    lockFileMaintenance: { enabled: true },
     vulnerabilityAlerts: { minimumReleaseAge: "7 days" },
-    packageRules: [{ matchUpdateTypes: ["major"], dependencyDashboardApproval: true }],
+    packageRules: [
+      { matchUpdateTypes: ["major"], dependencyDashboardApproval: true },
+      { matchUpdateTypes: ["lockFileMaintenance"], minimumReleaseAge: null },
+    ],
   });
 
   test("全体と脆弱性の PR がどちらも 7 日以上なら問題なし", () => {
@@ -470,6 +474,39 @@ describe("checkRenovateReleaseAge: Renovate の待機期間が pnpm 側を下回
       "packageRules[0].minimumReleaseAge",
       "packageRules[1].minimumReleaseAge",
     ]);
+  });
+
+  test("lockFileMaintenance が無い・無効なら落とす（#444: 推移依存の修正が届かなくなる）", () => {
+    // Given: キーごと消した形と、enabled: false の形
+    const { lockFileMaintenance: _, ...missing } = valid();
+    const disabled = { ...valid(), lockFileMaintenance: { enabled: false } };
+    // When / Then
+    for (const config of [missing, disabled]) {
+      const problems = checkRenovateReleaseAge(config, MINIMUM_RELEASE_AGE_FLOOR);
+      assert.deepEqual(problems.map((p) => p.key), ["lockFileMaintenance.enabled"]);
+    }
+  });
+
+  test("lockFileMaintenance は待機期間の外し方を 1 つだけ認める（Renovate は公開日を持たず無期限に保留する）", () => {
+    // Given: 外すのは更新の種類が lockFileMaintenance だけの規則に限る。待機期間は pnpm が担う
+    const config = valid();
+    // When / Then
+    assert.deepEqual(checkRenovateReleaseAge(config, MINIMUM_RELEASE_AGE_FLOOR), []);
+  });
+
+  test("lockFileMaintenance に別の種類や絞り込みを混ぜた規則で待機期間を外すと落とす", () => {
+    // Given: patch を混ぜた形・パッケージ名で絞った形（どちらも通常の更新の待機期間まで外れる）
+    for (const rule of [
+      { matchUpdateTypes: ["lockFileMaintenance", "patch"], minimumReleaseAge: null },
+      { matchUpdateTypes: ["lockFileMaintenance"], matchPackageNames: ["x"], minimumReleaseAge: null },
+      { matchUpdateTypes: ["lockFileMaintenance"], minimumReleaseAge: "1 day" },
+    ]) {
+      const config = { ...valid(), packageRules: [rule] };
+      // When
+      const problems = checkRenovateReleaseAge(config, MINIMUM_RELEASE_AGE_FLOOR);
+      // Then
+      assert.deepEqual(problems.map((p) => p.key), ["packageRules[0].minimumReleaseAge"], JSON.stringify(rule));
+    }
   });
 
   test("読めない形は落とす", () => {

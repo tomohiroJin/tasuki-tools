@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-supply-chain-config.mjs b/scripts/audit-supply-chain-config.mjs
+index 1257d866..37f2dcfd 100644
+--- a/scripts/audit-supply-chain-config.mjs
++++ b/scripts/audit-supply-chain-config.mjs
+@@ -353,7 +353,7 @@ export function checkRenovateReleaseAge(config, floor) {
+     required: true,
+   });
+   // #444: Renovate は推移依存の修正を lockFileMaintenance にしか届けない。消えると黙って届かなくなる
+-  if (config?.lockFileMaintenance?.enabled !== true) {
++  if (false) {
+     problems.push({
+       key: "lockFileMaintenance.enabled",
+       message: "lockFileMaintenance が有効ではありません    ← 推移依存の脆弱性の修正が届かなくなります（docs/adr/0024 の追記）",

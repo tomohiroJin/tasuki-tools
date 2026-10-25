@@ -308,6 +308,22 @@ export function parseRenovateAge(value) {
  * 設定定義で確認）。下回った PR は pnpm の検証で必ず赤くなり、その赤を消そうとして
  * pnpm 側の待機期間を緩める動機になる。
  */
+/**
+ * 待機期間を外してよい唯一の規則か（#444）。
+ *
+ * lockFileMaintenance の PR は公開日を持たないので、Renovate の待機期間が掛かると無期限に保留される
+ * （Renovate の `security:minimumReleaseAge*` プリセットも同じ規則で外している）。待機期間は
+ * pnpm の `minimumReleaseAge` が担う。**種類が lockFileMaintenance だけで、他の絞り込みを持たず、
+ * 値が null の規則に限る。** 種類を混ぜたり絞り込みを足したりすると、通常の更新の待機期間まで外れうる。
+ */
+function isLockFileMaintenanceAgeRelease(rule) {
+  if (!rule || rule.minimumReleaseAge !== null) return false;
+  const types = rule.matchUpdateTypes;
+  if (!Array.isArray(types) || types.length !== 1 || types[0] !== "lockFileMaintenance") return false;
+  // matchUpdateTypes 以外の match* を持てば、絞り込みが足されている
+  return Object.keys(rule).every((k) => k === "matchUpdateTypes" || !k.startsWith("match"));
+}
+
 export function checkRenovateReleaseAge(config, floor) {
   const problems = [];
   const check = (key, value, { required }) => {
@@ -336,7 +352,15 @@ export function checkRenovateReleaseAge(config, floor) {
   check("vulnerabilityAlerts.minimumReleaseAge", config?.vulnerabilityAlerts?.minimumReleaseAge, {
     required: true,
   });
+  // #444: Renovate は推移依存の修正を lockFileMaintenance にしか届けない。消えると黙って届かなくなる
+  if (config?.lockFileMaintenance?.enabled !== true) {
+    problems.push({
+      key: "lockFileMaintenance.enabled",
+      message: "lockFileMaintenance が有効ではありません    ← 推移依存の脆弱性の修正が届かなくなります（docs/adr/0024 の追記）",
+    });
+  }
   for (const [i, rule] of (config?.packageRules ?? []).entries()) {
+    if (isLockFileMaintenanceAgeRelease(rule)) continue;
     check(`packageRules[${i}].minimumReleaseAge`, rule?.minimumReleaseAge, { required: false });
   }
   return problems;
