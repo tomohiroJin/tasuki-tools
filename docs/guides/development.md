@@ -116,12 +116,18 @@ pnpm update <pkg>  # 宣言済み semver 範囲内で更新
 [`docs/adr/0024`](../adr/0024-vulnerability-detection-outside-ci.md)）。CI は勧告の公開では赤くなりません。
 
 - **気づく経路**: GitHub の Dependabot alerts（リポジトリの **Security** タブと、管理者への通知）。
-  直る版が公開から 7 日を過ぎると、Renovate が `security` ラベルつきの PR を立てます
+  **alert の経路（`relationship`）で、修正の届き方が違います**（#444）:
+  - **直接の依存**: 直る版が公開から 7 日を過ぎると、Renovate が `security` ラベルつきの PR か、
+    通常の更新の PR で版を上げます
+  - **推移依存**: Renovate は脆弱性の PR を立てません（公式文書が「transitive dependencies は
+    パッケージマネージャーと `lockFileMaintenance` に任せる」と明記）。週 1 回（月曜 4 時前・UTC）の
+    lockfile の解き直しの PR（`renovate/lock-file-maintenance`）で届きます
 - **直る版があり、Renovate の PR が立った**: 通常の Renovate の PR と同じく、CI が緑であることを
   確かめて人がマージします（自動マージはしません）
-- **直る版があるが、Renovate の PR が版を上げきれない**（推移依存が lockfile 上で据え置かれる など）:
+- **推移依存で、週 1 回の解き直しを待てない、または解き直しでも版が上がらない**:
   下の[推移依存の脆弱性を overrides で塞ぐ](#推移依存の脆弱性を-overrides-で塞ぐ)の手順で直し、
-  手元の `pnpm audit` で勧告が消えたことを確かめます
+  手元の `pnpm audit` で勧告が消えたことを確かめます。親の要求範囲が修正版を含むなら、
+  「既存の lockfile を動かす」で overrides を一時的に置いて解き直し、外せば済みます
 - **直る版が公開から 7 日未満で、待てない**: 下の例外手順を使います。Renovate の設定で待機期間を外しません
 - **直る版がまだ公開されていない**: アラートを開いたまま待ちます。**「直る版が無い」だけを理由に
   却下（Dismiss）しないでください**（却下すると、直る版が出ても知らせが来ません）
@@ -630,6 +636,10 @@ lockfile の検証を常に効かせるためです（決定は ADR 0008）。
 `renovate.json` により、Renovate が更新を提案します（minor/patch は PR を自動作成、
 major は Dependency Dashboard の Issue に提示。決定は ADR 0008）。脆弱性を直す更新は
 `security` ラベルつきの別の PR になります（決定は ADR 0024）。
+**lockfile 全体の解き直し（`lockFileMaintenance`）の PR も週 1 回立ちます**（月曜 4 時前・UTC・#444）。
+推移依存の修正版はこの PR で届きます。待機期間は pnpm の `minimumReleaseAge` が効くので、
+公開から 7 日未満の版は選ばれません。差分が lockfile 全体に及ぶので、CI が緑であることに加えて
+`package.json` が動いていないことを確かめてからマージしてください。
 
 - **自動マージはしません。** 取り込みは人が判断します。CI が緑であることを
   確認してからマージしてください
