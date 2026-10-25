@@ -3095,4 +3095,25 @@ export const MUTATIONS = [
       "ERR_PNPM_INVALID_DEPENDENCY_NAME で止まる。本番の pnpm-workspace.yaml は false なので、" +
       "この検出が消えても検査結果は変わらない（id 20 と同じ型）。",
   },
+  {
+    id: 472,
+    label: "audit-supply-chain-config が lockFileMaintenance の無効を見ない",
+    patch: "m472-lockfile-maintenance-unchecked.patch",
+    pkg: "scripts",
+    tests: ["audit-supply-chain-config.test.mjs"],
+    note:
+      "#444・docs/adr/0024 の追記。Renovate は推移依存の修正を lockFileMaintenance にしか届けないので、" +
+      "消えても CI は緑のまま推移依存の勧告が放置される。本番の renovate.json は有効なので、" +
+      "この検出が消えても検査結果は変わらない（id 20 と同じ型）。",
+  },
+  {
+    id: 473,
+    label: "audit-supply-chain-config が絞り込みを足した規則の待機期間の外しを通す",
+    patch: "m473-lockfile-maintenance-age-release-widened.patch",
+    pkg: "scripts",
+    tests: ["audit-supply-chain-config.test.mjs"],
+    note:
+      "#444。待機期間を外してよいのは種類が lockFileMaintenance だけで絞り込みの無い規則に限る。" +
+      "絞り込みを足した規則まで通すと、例外の形を借りて特定のパッケージの待機期間を外せる。",
+  },
 ];
