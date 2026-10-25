@@ -84,6 +84,7 @@
   - Task 6: `m169-hub-tool-id-mismatch.patch`・`m449-hub-tool-id-mismatch-agenda.patch`
   - パッチの対象の試験は `scripts/lib/mutation-declarations.mjs` の、そのパッチの宣言の `pkg` と `tests` にある
 - `node scripts/mutation-check.mjs` は打たない（全件に倒れて数時間かかる）
+- **コミットは `git add <パス>` で自分の変えたファイルだけを足す**（`git add -A`・`git add .` をしない。統括の使い捨ての撮影 `e2e/specs/zz-shots-447.spec.ts` が未追跡で置いてある）
 - 実行してよいのは `pnpm --filter <パッケージ> test|typecheck|lint` と `git` の add・commit・diff・log・show・apply だけ。コマンドは 1 つずつ・各 5 分以内
 
 ## ファイルの地図
@@ -107,13 +108,14 @@
 **Files:**
 - Create: `packages/invite-ui/src/room-header-copy.ts`・`packages/invite-ui/src/RoomHeader.tsx`・`packages/ui/src/components/room-header.css`
 - Create (test): `packages/invite-ui/tests/room-header.test.tsx`・`packages/invite-ui/tests/room-header-copy-fits-font-base.test.ts`・`packages/invite-ui/tests/support/font-base.ts`
-- Modify: `packages/invite-ui/src/index.ts`・`packages/invite-ui/tsconfig.json`（`"jsx": "react-jsx"` を足す。`packages/web-kit/tsconfig.json` と同じ）・`packages/invite-ui/vitest.config.ts`（`include` を `tests/**/*.test.{ts,tsx}` に）・`packages/ui/src/components/index.css`（`@import './room-header.css';` を `./invite.css` の直後に）・`packages/ui/README.md`（部品の表に `.ui-room-header` の行）・`packages/invite-ui/README.md`（部品の説明を 1 段落）
+- Modify: `scripts/audit-ui-components.mjs`（`SHARED_UI_ENTRIES` に 1 要素）・`packages/invite-ui/src/index.ts`・`packages/invite-ui/tsconfig.json`（`"jsx": "react-jsx"` を足す。`packages/web-kit/tsconfig.json` と同じ）・`packages/invite-ui/vitest.config.ts`（`include` を `tests/**/*.test.{ts,tsx}` に）・`packages/ui/src/components/index.css`（`@import './room-header.css';` を `./invite.css` の直後に）・`packages/ui/README.md`（部品の表に `.ui-room-header` の行）・`packages/invite-ui/README.md`（部品の説明を 1 段落）
 
 **Interfaces:**
 - Produces（後のタスクが使う。名前はこのとおりにする）:
-  - `room-header-copy.ts`: `export const ROOM_HEADER_TEXT = { back: '選択画面へ戻る', roomLabel: 'ルーム', urlLabel: '参加用 URL', copy: '招待リンクをコピー', copied: 'コピーしました', copyFailed: 'コピーできません（URL を選択してください）', qrShow: 'QR コードを表示', qrHide: 'QR コードを閉じる', qrAlt: '参加用 URL の QR コード', qrPreparing: 'QR コードを準備しています…', qrFailed: 'QR コードを表示できません。URL を選んでコピーしてください。' } as const;`
-  - `RoomHeader.tsx`: `export interface RoomHeaderProps { readonly title: string; readonly backHref: string; readonly roomCode: string; readonly inviteUrl: string; readonly titleExtras?: ReactNode }` と `export function RoomHeader(props: RoomHeaderProps): JSX.Element`
-  - `index.ts` から `RoomHeader`・`type RoomHeaderProps`・`ROOM_HEADER_TEXT` を出す
+  - `room-header-copy.ts`: `export const ROOM_HEADER_TEXT = { back: '選択画面へ戻る', roomLabel: 'ルーム', copy: '招待リンクをコピー', copied: 'コピーしました', copyFailed: 'コピーできません（URL を選択してください）', qrShow: 'QR コードを表示', qrHide: 'QR コードを閉じる', qrAlt: '参加用 URL の QR コード', qrPreparing: 'QR コードを準備しています…', qrFailed: 'QR コードを表示できません。URL を選んでコピーしてください。' } as const;`
+  - `RoomHeader.tsx`: `import { useId, useState, type ReactNode } from 'react';`。`export interface RoomHeaderProps { readonly title: string; readonly backHref: string; readonly roomCode: string; readonly inviteUrl: string; readonly titleExtras?: ReactNode }` と `export function RoomHeader({ … }: RoomHeaderProps)`（**戻り値の型は書かない**。グローバルの `JSX` 名前空間は @types/react 19 に無く、型検査が落ちる）
+  - `index.ts` から `RoomHeader`・`type RoomHeaderProps`・`ROOM_HEADER_TEXT` を出す（相対 import は `'./RoomHeader.js'`・`'./room-header-copy.js'` と **`.js` を付ける**。既存の行と同じ）
+  - `ROOM_HEADER_TEXT` から `urlLabel` は**持たない**（R2 で URL に名前を付けないので、使い道の無い文言になる）。文言は 10 個
 
 組み立て（DOM。クラス名と順はこのとおり。設計 §4）:
 
@@ -127,8 +129,8 @@
     <p class="ui-room-header-code"><span class="ui-room-header-code-label">{roomLabel}</span> <span class="ui-room-header-code-value">{roomCode}</span></p>
     <div class="ui-invite">
       <span class="ui-invite-url">{inviteUrl}</span>
-      <button type="button" class="ui-button ui-button--secondary ui-button--sm">{copy | copied | copyFailed}</button>
       <button type="button" class="ui-button ui-button--secondary ui-button--sm" aria-expanded={open} aria-controls={qrId}>{qrShow | qrHide}</button>
+      <button type="button" class="ui-button ui-button--secondary ui-button--sm">{copy | copied | copyFailed}</button>
     </div>
   </div>
   <div id={qrId} hidden={!open} class="ui-room-header-qr">
@@ -138,6 +140,7 @@
 </header>
 ```
 
+- ボタンの並びは QR → コピー（よく使うコピーを末尾に置く。玄関 `RoomChoice.tsx` の並びと同じ）
 - `qrId` は `useId()`。`open` は `useState(false)`。`useCopyText(inviteUrl)`・`useInviteQr(inviteUrl, open)`
 - ルームコードの見出しと値の間の空白は、字として 1 つ入れる（読み上げで「ルーム ABC123」と読まれるように）
 
@@ -148,7 +151,12 @@
 - `.ui-room-header-code { margin: 0; font-size: var(--font-size-sm); }`・`.ui-room-header-code-label { color: var(--ivory-dim); }`・`.ui-room-header-code-value { font-family: var(--font-mono); letter-spacing: 0.08em; }`
 - `.ui-room-header-qr img { display: block; max-width: 100%; height: auto; }`
 
-- [ ] **Step 1: 赤いテストを書く**（`room-header.test.tsx`。`vi.mock('qrcode', …)` は `use-invite-qr.test.ts` の型。クリップボードは `Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })` で差し、`afterEach` で消す）
+- [ ] **Step 1: 赤いテストを書く**（`room-header.test.tsx`）。**試験の土台**:
+  - 描き方は `packages/web-kit/tests/markdown.test.tsx` の型（`render` と `screen`）。**invite-ui には jest-dom が無い**ので `toBeInTheDocument`・`toHaveAttribute` は使えない。`getAttribute`・`hidden` プロパティ・`textContent` を `toBe` で見る。`afterEach` で `cleanup()` を明示する
+  - `vi.mock('qrcode', …)` は `use-invite-qr.test.ts` の型
+  - クリップボードと `execCommand` は `tests/use-copy-text.test.ts` の型（`vi.stubGlobal('navigator', …)` と、そのファイルの `restoreExecCommand` の差し戻し）。**後の試験へ漏らさない**（`afterEach` で `vi.unstubAllGlobals()` と差し戻し）
+  - `aria-controls` の指す要素は `document.getElementById(button.getAttribute('aria-controls')!)` で引く（`useId` の字は `querySelector('#…')` で壊れる）
+  - 相対 import は `.js` を付ける（`'../src/index.js'`。eslint が求める）
   - 「Given 道具名・戻り先・ルームコード・URL / When 描く / Then 見出し・戻るリンク・ルームコード・URL・コピーのボタンが出る」: `getByRole('heading', { level: 1, name: 'お題' })`・`getByRole('link', { name: '選択画面へ戻る' })` の `href` が渡した `backHref`・`getByText('ABC123')`・`getByText('https://example.test/?room=ABC123')`・`getByRole('button', { name: '招待リンクをコピー' })`
   - 「Given 描いた直後 / When 何もしない / Then QR は閉じていて、qrcode を呼ばない」: QR のボタンの `aria-expanded` が `'false'`、`aria-controls` の指す要素が `hidden`、`toDataURL` が呼ばれていない、`queryByRole('img')` が null
   - 「Given 閉じた QR / When 開くボタンを押す / Then その URL の QR が出て、ボタンが閉じるに変わる」: `findByRole('img', { name: '参加用 URL の QR コード' })`・`toDataURL` が `('https://example.test/?room=ABC123', { width: 200 })` で呼ばれた・ボタンの名前が `QR コードを閉じる`・`aria-expanded` が `'true'`・指す要素の `hidden` が false。もう一度押すと `hidden` に戻る
@@ -158,16 +166,16 @@
   - 「Given クリップボードが使える / When コピーを押す / Then ボタンがコピーしましたになる」
   - 「Given 道具に固有のボタン / When titleExtras に渡す / Then 見出しの隣に置かれ、戻るリンクは行の 2 つ目の子のまま」: `container.querySelector('.ui-page-header')!.children.length === 2`・2 つ目が戻るリンク・渡したボタンの親が `h1` の親と同じ（Review Focus 3）
   - 「Given URL の欄 / When 描く / Then aria-label を持たない」: `.ui-invite-url` の `hasAttribute('aria-label')` が false
-- [ ] **Step 2: 書体の試験を書く**（`room-header-copy-fits-font-base.test.ts`。`apps/roulette-web/tests/copy-fits-font-base.test.ts` の型。`support/font-base.ts` は `apps/topic-web/tests/support/font-base.ts` の写しで、`FONTS_CSS` の相対パスだけを `'../../../ui/src/tokens/fonts.css'` に変える）: 面が 3 つ見つかる・`Object.values(ROOM_HEADER_TEXT)` に外れる字が無い・件数が 11
+- [ ] **Step 2: 書体の試験を書く**（`room-header-copy-fits-font-base.test.ts`。`apps/roulette-web/tests/copy-fits-font-base.test.ts` の型。`support/font-base.ts` は `apps/topic-web/tests/support/font-base.ts` の写しで、`FONTS_CSS` の相対パスだけを `'../../../ui/src/tokens/fonts.css'` に変える。import は `'./support/font-base.js'`・`'../src/index.js'`）: 面が 3 つ見つかる・`Object.values(ROOM_HEADER_TEXT)` に外れる字が無い・件数が 10
 - [ ] **Step 3: 赤を見る**: `pnpm --filter @tasuki/invite-ui test` → 部品が無いので落ちる
 - [ ] **Step 4: 実装する**（上の Interfaces と組み立てのとおり。CSS・README・index.css も）
-- [ ] **Step 5: 緑を見る**: `pnpm --filter @tasuki/invite-ui test`・`pnpm --filter @tasuki/invite-ui typecheck`・`pnpm --filter @tasuki/invite-ui lint`・`pnpm --filter @tasuki/ui test`・`pnpm --filter @tasuki/ui lint`・`node scripts/audit-ui-components.mjs` がすべて通る（最後のものは、新しいクラスがどの画面にも使われていない間は「死んだ部品」として落ちうる。落ちたらその出力を報告に書き、Task 2 の後に通ることを統括が見る）
+- [ ] **Step 5: 緑を見る**: `pnpm --filter @tasuki/invite-ui test`・`pnpm --filter @tasuki/invite-ui typecheck`・`pnpm --filter @tasuki/invite-ui lint`・`pnpm --filter @tasuki/ui test`・`pnpm --filter @tasuki/ui lint`・`node --test scripts/audit-ui-components.test.mjs` がすべて通る。**`scripts/audit-ui-components.mjs` の `SHARED_UI_ENTRIES` に `{ specifier: "@tasuki/invite-ui", parts: [{ name: "RoomHeader", file: "packages/invite-ui/src/RoomHeader.tsx" }] }` を足す**（共有の部品の中のクラスを、それを取り込むアプリの使用として数える仕組み。足さないと `.ui-room-header*` が永久に「死んだ部品」になる）。`node scripts/audit-ui-components.mjs` 本体は、どのアプリも `RoomHeader` を取り込んでいない Task 1 の時点では落ちうる。出力を報告に書く（統括が Task 2 以降で通ることを見る）
 - [ ] **Step 6: コミット**: `feat: ルーム画面の共通の見出しの部品を足す（#447）`
 
 ### Task 2: topic を共通の見出しにする
 
 **Files:**
-- Modify: `apps/topic-web/src/screens/TopicRoom.tsx`・`apps/topic-web/src/copy.ts`（`BACK_LINK`・`INVITE_COPY_BUTTON`・`INVITE_COPIED`・`INVITE_COPY_FAILED` を消す）・`apps/topic-web/src/index.css`（`.topic-room-header` の規則を、`.ui-room-header` に下の余白を当てる規則へ置き換える: `.ui-room-header { margin-block-end: var(--space-5); }` をアプリの CSS に。コメントの poker への言及は消す）・`apps/topic-web/tests/topic-room.test.tsx`
+- Modify: `apps/topic-web/src/screens/TopicRoom.tsx`・`apps/topic-web/src/copy.ts`（`BACK_LINK`・`INVITE_COPY_BUTTON`・`INVITE_COPIED`・`INVITE_COPY_FAILED` と、その上の「// 招待リンク（poker の `InviteLink` と同じ文）」のコメントを消す）・`apps/topic-web/src/index.css`（`.topic-room-header` の規則を、`.ui-room-header` に下の余白を当てる規則へ置き換える: `.ui-room-header { margin-block-end: var(--space-5); }` をアプリの CSS に。コメントの poker への言及は消す）・`apps/topic-web/tests/topic-room.test.tsx`
 - Delete: `apps/topic-web/src/components/InviteLink.tsx`
 
 **Interfaces:**
@@ -182,10 +190,10 @@
 ### Task 3: roulette を共通の見出しにする
 
 **Files:**
-- Modify: `apps/roulette-web/src/screens/RouletteRoom.tsx`・`apps/roulette-web/src/copy.ts`（`BACK_LINK`・`INVITE_HEADING`・`INVITE_COPY_BUTTON`・`INVITE_COPIED`・`INVITE_COPY_FAILED`・`INVITE_URL_LABEL` を消す）・`apps/roulette-web/src/index.css`（`.roulette-room-header` を `.ui-room-header { margin-block-end: var(--space-5); }` へ置き換え、`.roulette-invite` と `.roulette-invite h2` の規則を消す）・関係する試験
+- Modify: `apps/roulette-web/src/screens/RouletteRoom.tsx`・`apps/roulette-web/src/copy.ts`（`BACK_LINK`・`INVITE_HEADING`・`INVITE_COPY_BUTTON`・`INVITE_COPIED`・`INVITE_COPY_FAILED`・`INVITE_URL_LABEL` と、その上の「// 脇: 招待（玄関と同じ見出し）」のコメントを消す）・`apps/roulette-web/src/index.css`（`.roulette-room-header` を `.ui-room-header { margin-block-end: var(--space-5); }` へ置き換え、`.roulette-invite` と `.roulette-invite h2` の規則を消す。**円盤の大きさの式（`--wheel-size` の `100dvh - 24rem` など）の値は変えない**。ただし 47 行のコメント「3 版: 招待を脇へ移して見出しの下が空いたので…」は前提が崩れるので、「招待は見出しへ移った（#447）。見出しが高くなった分は撮影で確かめる」の趣旨に書き換える）・`apps/roulette-web/tests/roulette-room.test.tsx`
 - Delete: `apps/roulette-web/src/components/InviteLink.tsx`
 
-- [ ] **Step 1: 赤いテスト**（ルーム画面を描く既存の試験のファイルに足す。無ければ `tests/roulette-room-header.test.tsx` を作り、既存のルーム画面の試験の描き方を写す）: 「Given 入室したルーム / When 描く / Then 招待は見出しに 1 つだけ」: `getAllByRole('button', { name: '招待リンクをコピー' })` の長さが 1・そのボタンが `.ui-room-header` の中・`queryByRole('heading', { name: '仲間を招く' })` が null・ルームコードが出る（Review Focus 5）
+- [ ] **Step 1: 赤いテスト**（既存の `tests/roulette-room.test.tsx` に足す。そのファイルの描き方を使う）: 「Given 入室したルーム / When 描く / Then 招待は見出しに 1 つだけ」: `getAllByRole('button', { name: '招待リンクをコピー' })` の長さが 1・そのボタンが `.ui-room-header` の中・`queryByRole('heading', { name: '仲間を招く' })` が null・ルームコードが出る（Review Focus 5）
 - [ ] **Step 2: 赤を見る**
 - [ ] **Step 3: 実装**: ルームの画面の `<div className="roulette-room-header">…</div>` を `RoomHeader` に置き換え（Task 2 と同じ渡し方。`inviteUrl={sync.inviteUrl}`）、脇の `<section className="ui-panel roulette-invite" …>` を消す。脇の直前のコメント（「脇は 決め方 → 入る人 → 仲間を招く」）と段組みのコメントの並び（「… → 仲間を招く」）から招待を外す。入室を待つ画面の戻るリンクは `ROOM_HEADER_TEXT.back`。`grep -rn "BACK_LINK\|INVITE_" apps/roulette-web` が 0 件
 - [ ] **Step 4: 緑**: `pnpm --filter @tasuki/roulette-web test`・`typecheck`・`lint`。取り決めの既存パッチ 8 本の `git apply --check`
@@ -194,10 +202,10 @@
 ### Task 4: agenda を共通の見出しにする
 
 **Files:**
-- Modify: `apps/agenda-web/src/screens/AgendaRoom.tsx`・`apps/agenda-web/src/copy.ts`（`BACK_LINK`・`INVITE_HEADING`・`INVITE_COPY_BUTTON`・`INVITE_COPIED`・`INVITE_COPY_FAILED`・`INVITE_URL_LABEL` と、その上の「脇: 招待」のコメントを消す）・関係する試験
+- Modify: `apps/agenda-web/src/screens/AgendaRoom.tsx`・`apps/agenda-web/src/copy.ts`（`BACK_LINK`・`INVITE_HEADING`・`INVITE_COPY_BUTTON`・`INVITE_COPIED`・`INVITE_COPY_FAILED`・`INVITE_URL_LABEL` と、その上の「脇: 招待」のコメントを消す）・`apps/agenda-web/src/index.css`（`.ui-room-header { margin-block-end: var(--space-5); }` を足す。agenda に見出しの余白の規則は今は無い）・`apps/agenda-web/tests/agenda-room.test.tsx`・`apps/agenda-web/tests/projection-view.test.tsx`（`BACK_LINK` の import を `ROOM_HEADER_TEXT.back` に）。**`run.css` の `100dvh - 14rem`（見出しより上の高さの見積もり）の値は変えない**（撮影で統括が確かめる）
 - Delete: `apps/agenda-web/src/components/InviteLink.tsx`（どこからも使われていない写し）
 
-- [ ] **Step 1: 赤いテスト**（`AgendaRoom` を描く既存の試験に足す。`tests/projection-view.test.tsx` が映す表示を描いているので、その描き方を使う）: 「Given 入室したルーム / When 描く / Then 共通の見出しにルームコード・URL・QR のボタンが出る」と「Given 映している / When 描く / Then 見出しごと描かない」: `container.querySelector('.ui-room-header')` が null・`queryByRole('link', { name: '選択画面へ戻る' })` が null（Review Focus 4）
+- [ ] **Step 1: 赤いテスト**（既存の `tests/agenda-room.test.tsx` に足す。映す表示の場合は `tests/projection-view.test.tsx` の描き方を使う）: 「Given 入室したルーム / When 描く / Then 共通の見出しにルームコード・URL・QR のボタンが出る」と「Given 映している / When 描く / Then 見出しごと描かない」: `container.querySelector('.ui-room-header')` が null・`queryByRole('link', { name: '選択画面へ戻る' })` が null（Review Focus 4）
 - [ ] **Step 2: 赤を見る**
 - [ ] **Step 3: 実装**: ルームの画面の `{!projecting && (<header className="ui-page-header">…</header>)}` を `{!projecting && <RoomHeader title={PAGE_HEADING} backHref={hubPathFor(roomCode)} roomCode={roomCode} inviteUrl={sync.inviteUrl} />}` に置き換える。入室を待つ画面の戻るリンクは `ROOM_HEADER_TEXT.back`。`grep -rn "BACK_LINK\|INVITE_" apps/agenda-web` が 0 件。下の余白は agenda の CSS に既にある見出しの余白の規則を見て、無ければ `.ui-room-header { margin-block-end: var(--space-5); }` を `apps/agenda-web/src/` の画面の CSS に足す
 - [ ] **Step 4: 緑**: `pnpm --filter @tasuki/agenda-web test`・`typecheck`・`lint`
@@ -231,6 +239,7 @@
 - Create: `scripts/mutations/m474〜m483-<名前>.patch`（使うのは必要な本数だけ。帯の残りは空けておく）
 - Modify: `scripts/lib/mutation-declarations.mjs`（末尾に `{ id, label, patch, pkg, tests, note }` の形で足す。`note` は `"#447。…"` で始める）
 
+- [ ] 宣言の `pkg` はパッケージ名ではなくパス（例 `"packages/invite-ui"`・`"apps/roulette-web"`）。既存の宣言の型に合わせる
 - [ ] 少なくとも次を変異にする（各 1 本・各パッチを当てると対象の試験が赤・戻すと緑）: 閉じている間も QR を作る（`useInviteQr(inviteUrl, true)`）／QR の容器の `hidden` を外す／`aria-controls` が容器の `id` を指さない／戻るリンクが `backHref` を使わない／`titleExtras` を `.ui-page-header` の直下に置く（戻るリンクが真ん中に浮く）／URL の欄に `aria-label` を付ける／玄関の札の順を作った順に戻す／roulette の脇に招待を戻す（二重）／agenda が映している間も見出しを描く
 - [ ] 各パッチの 1 行目は `# 変異 NNN: <名前>`、適用の手順は既存のパッチの型に合わせる
 - [ ] 1 本ずつ: `git status --porcelain` が空 → `git apply` → 対象の試験で赤 → `git apply -R` → 空に戻る

@@ -30,7 +30,7 @@ React の部品 `RoomHeader` を `packages/invite-ui` に置く。見た目は `
 
 1 行目: 道具名（`h1`）と、選択画面へ戻るリンク（両端）。poker の切り替えのように、道具に固有のボタンは見出しの隣に差し込める（`titleExtras`）。
 
-2 行目: ルームコード、参加用 URL、URL のコピー、QR の開け閉め。
+2 行目: ルームコード、参加用 URL、QR の開け閉め、URL のコピー（よく使うコピーを末尾に置く。玄関と同じ並び）。
 
 QR は普段は閉じている。開け閉めのボタンで開く（玄関と同じ型・同じ文言）。開いたときに初めて qrcode を読み込む（`useInviteQr` の `enabled`）。
 
@@ -56,7 +56,6 @@ QR は普段は閉じている。開け閉めのボタンで開く（玄関と�
 |---|---|---|
 | 戻るリンク | `選択画面へ戻る` | 5 アプリ |
 | ルームコードの見出し | `ルーム` | 玄関の選択画面（`hub-label`） |
-| URL の名前（読み上げ） | `参加用 URL` | 玄関・agenda・roulette |
 | コピーのボタン | `招待リンクをコピー` | topic・roulette・poker |
 | コピーした | `コピーしました` | 同上 |
 | コピーできない | `コピーできません（URL を選択してください）` | 同上 |
@@ -73,7 +72,7 @@ QR は普段は閉じている。開け閉めのボタンで開く（玄関と�
 ```
 
 - `<header class="ui-room-header">` が全体。1 行目は既存の `.ui-page-header`（`h1` と `.ui-page-header-back`）
-- 2 行目は `.ui-room-header-invite`。ルームコード（`.ui-room-header-code`）と、既存の `.ui-invite`（URL の `.ui-invite-url` とボタン 2 つ）
+- 2 行目は `.ui-room-header-invite`。ルームコード（`.ui-room-header-code`）と、既存の `.ui-invite`（URL の `.ui-invite-url` と、QR・コピーのボタン）
 - QR は `hidden` の付いた `.ui-room-header-qr`。開け閉めのボタンは `aria-expanded` と `aria-controls`
 - URL は `<span>` のままにする（E2E の `e2e/support/poker.ts` が `.ui-invite-url` の字を読む）。**`<span>` に `aria-label` は付けない**。`<span>` は役割の無い要素で、ARIA 1.2 はこの要素に名前を付けることを禁じている。agenda と roulette の写しにあった `aria-label` は消える。読み上げでは URL の字そのものが読まれる
 
@@ -82,6 +81,8 @@ QR は普段は閉じている。開け閉めのボタンで開く（玄関と�
 ルームの画面で、`main` の最初の子にする（バナーより後）。roulette は、脇の「仲間を招く」パネルをやめて見出しへ移す。320px では見出しが今より 1〜2 行高くなり、円盤が少し下がる。EARS の「どのアプリも同じ位置に」を優先した（§6 R1）。
 
 agenda は、映している間は見出しごと描かない（今と同じ）。
+
+見出しが高くなるので、roulette の円盤の大きさの式（`--wheel-size`）と agenda の進行表の枠の高さの式（`run.css` の `100dvh - 14rem`）の見込みが変わる。値は撮影で確かめてから直す（実装の段では変えない）。
 
 入室を待つ画面（`JOINING_HEADING` の画面）は変えない。招待を出すのは、入室が成立したルームの画面だけにする。
 
