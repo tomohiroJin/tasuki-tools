@@ -114,13 +114,20 @@ jobs:
         if: steps.scope.outputs.code == 'true'
 
       # 版を固定してキャッシュする。「最新」を取ると、ある日突然赤くなる。
-      # 版は本番に揃え、e2e/harness/paths.ts の CADDY_VERSION と同じにする（#434）。
+      # 版は本番に揃える（#434）。正本は e2e/harness/paths.ts の CADDY_VERSION で、鍵はそこから導く。
+      # 鍵に版を直書きすると、paths.ts だけ上げたときに古い鍵が当たり、新しい版が毎回取り直しになる。
+      - id: caddy-version
+        if: steps.scope.outputs.code == 'true'
+        run: |
+          version="$(sed -n "s/^export const CADDY_VERSION = '\([0-9.]*\)';$/\1/p" e2e/harness/paths.ts)"
+          test -n "$version" || { echo "e2e/harness/paths.ts から CADDY_VERSION を読めませんでした" >&2; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
       - name: Cache Caddy
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         if: steps.scope.outputs.code == 'true'
         with:
           path: ~/.cache/tasuki-e2e
-          key: caddy-2.11.7
+          key: caddy-${{ steps.caddy-version.outputs.version }}
 
       # Playwright の版は package.json で完全固定している。
       # revision は版に 1 対 1 で紐づくので、版をそのまま鍵にする。
