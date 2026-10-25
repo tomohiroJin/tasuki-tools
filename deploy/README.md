@@ -204,6 +204,26 @@ ssh "$TASUKI_SSH_HOST" 'sudo systemctl start tasuki-sync'
 RENDER_ONLY=1 DEPLOY_USER=<user> bash deploy/setup.sh timer
 ```
 
+## Bun を上げる
+
+Bun は**本番・手元・CI を同じ版に揃えて固定**しています（CI は `.github/workflows/ci.yml` の
+`bun-version` すべて）。CI だけを上げると、本番と違う版で試すことになります
+（2026-10-22 に 1.4.4 で同期サーバーの試験が 1 件落ち、CI を固定しました）。
+Renovate の Bun の更新は Dependency Dashboard の承認制です（`renovate.json`・#442）。
+承認すると `renovate/bun` の PR が出るので、その PR の中で次を済ませます。
+
+1. **手元**: `bun upgrade`（公式のインストーラーで入れた `~/.bun/bin/bun` を上げる）または版を指定して入れ直し、
+   `bun --version` で確かめる。新しい版で全件（同期サーバーの試験を含む）を流し、赤があれば先に調べる
+2. **CI**: Renovate の PR が `bun-version` を上げる。`@types/bun` も同じ PR に入る
+3. **本番**（root が要る・**人のいない時間に**。同期サーバーの再起動でルームが消える）:
+   1. 公式の配布物（GitHub Releases の `bun-linux-x64.zip`）を `SHASUMS256.txt` と照合して取得する
+   2. 今の `/usr/local/bin/bun` を `/usr/local/bin/bun-<旧版>` へ退避し、新しい実体に入れ替える（入れ替えだけで再起動はしない）
+   3. `TASUKI_SSH_HOST=<ホスト別名> ./deploy/deploy.sh timer` で、手元の新しい Bun でバンドルし直して再起動する
+   4. `/proc/<PID>/exe --version` で動いている版を確かめ、`pnpm e2e:prod` を流す
+4. PR をマージする
+
+切り戻しは、退避した `/usr/local/bin/bun-<旧版>` を `sudo cp -p` で戻して `TASUKI_SSH_HOST=<ホスト別名> ./deploy/deploy.sh timer` です。
+
 ## 同一 IP の同時接続数制限（#143）
 
 **同一送信元 IP からの 443 同時接続を 80 本までに制限する。** 適用は
