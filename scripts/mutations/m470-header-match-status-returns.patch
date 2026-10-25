@@ -3,7 +3,7 @@
 # 検出を期待するテスト:
 #   - apps/landing/tests/caddy-fragment-order.test.ts
 #
-# #434。immutable の header に `match status 2xx` を戻す。本番の Caddy 2.6.2 は match を条件と読まず、validate も E2E も通ったまま 404 に 1 年の immutable が付く（2026-10-24 の配布で実際に起きた）。
+# #434。immutable の header に `match status 2xx` を戻す。Caddy 2.6.2（当時の本番）は match を条件と読まず、validate も E2E も通ったまま 404 に 1 年の immutable が付いた（2026-10-24 の配布で実際に起きた）。
 #
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m470-*.patch

@@ -17,6 +17,7 @@
  * 代わりに**設置した断片の数を数える**。
  */
 import { type ChildProcess, execFileSync, spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   createWriteStream,
   existsSync,
@@ -43,9 +44,29 @@ import { LOCAL_BASE_URL } from './target';
 import { waitForPort } from './wait-for-port';
 
 const CADDY_BINARY = path.join(CADDY_CACHE_DIR, 'caddy');
-const CADDY_TARBALL_URL =
-  `https://github.com/caddyserver/caddy/releases/download/v${CADDY_VERSION}` +
-  `/caddy_${CADDY_VERSION}_linux_amd64.tar.gz`;
+const CADDY_RELEASE_URL = `https://github.com/caddyserver/caddy/releases/download/v${CADDY_VERSION}`;
+const CADDY_TARBALL_NAME = `caddy_${CADDY_VERSION}_linux_amd64.tar.gz`;
+const CADDY_TARBALL_URL = `${CADDY_RELEASE_URL}/${CADDY_TARBALL_NAME}`;
+const CADDY_CHECKSUMS_URL = `${CADDY_RELEASE_URL}/caddy_${CADDY_VERSION}_checksums.txt`;
+
+/**
+ * 取得した tarball を公式の checksums.txt（sha512）と照合する。
+ * 版の文字列だけでは、差し替えられた配布物や途中で切れた取得を見分けられない。
+ * 取得した本体は sudo で動かすので、展開する前に止める。
+ */
+function verifyTarball(tarball: string, checksums: string): void {
+  const line = readFileSync(checksums, 'utf8')
+    .split('\n')
+    .find((l) => l.trim().endsWith(`  ${CADDY_TARBALL_NAME}`));
+  const expected = line?.trim().split(/\s+/)[0];
+  if (!expected) {
+    throw new Error(`checksums.txt に ${CADDY_TARBALL_NAME} の行がありません。`);
+  }
+  const actual = createHash('sha512').update(readFileSync(tarball)).digest('hex');
+  if (actual !== expected) {
+    throw new Error(`取得した Caddy の sha512 が公式の値と違います（${CADDY_TARBALL_NAME}）。`);
+  }
+}
 
 /** 版を固定して取得し、キャッシュする。 */
 export async function ensureCaddyBinary(): Promise<string> {
@@ -56,12 +77,15 @@ export async function ensureCaddyBinary(): Promise<string> {
   // 次回は existsSync が true を返して検証せずに使われてしまう。
   const staging = path.join(CADDY_CACHE_DIR, 'staging');
   const tarball = path.join(staging, 'caddy.tar.gz');
+  const checksums = path.join(staging, 'checksums.txt');
   const stagedBinary = path.join(staging, 'caddy');
   rmSync(staging, { recursive: true, force: true });
   mkdirSync(staging, { recursive: true });
 
   try {
     execFileSync('curl', ['-fsSL', '-o', tarball, CADDY_TARBALL_URL], { stdio: 'inherit' });
+    execFileSync('curl', ['-fsSL', '-o', checksums, CADDY_CHECKSUMS_URL], { stdio: 'inherit' });
+    verifyTarball(tarball, checksums);
     execFileSync('tar', ['-xzf', tarball, '-C', staging, 'caddy'], { stdio: 'inherit' });
     execFileSync('chmod', ['+x', stagedBinary]);
 

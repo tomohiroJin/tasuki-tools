@@ -3082,7 +3082,7 @@ export const MUTATIONS = [
     patch: "m470-header-match-status-returns.patch",
     pkg: "apps/landing",
     tests: ["tests/caddy-fragment-order.test.ts"],
-    note: "#434。本番の Caddy 2.6.2 は match を条件と読まず、validate も E2E も通ったまま 404 に 1 年の immutable が付く。",
+    note: "#434。Caddy 2.6.2（当時の本番）は match を条件と読まず、validate も E2E も通ったまま 404 に 1 年の immutable が付いた。",
   },
   {
     id: 471,

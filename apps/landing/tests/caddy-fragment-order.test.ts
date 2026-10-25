@@ -199,7 +199,7 @@ describe('Caddy 断片', () => {
     expect(body).toMatch(/^\s*header @hashed Cache-Control "public, max-age=31536000, immutable"\s*$/m);
     // Then: エラーの応答は handle_errors で no-cache に上書きする。無いと 404 にも 1 年の immutable が付く
     expect(body).toMatch(/^\s*handle_errors \{\s*^\s*header Cache-Control "no-cache"\s*^\s*\}/m);
-    // Then: header の match は使わない。本番の Caddy 2.6.2 は条件と読まず、黙って効かない
+    // Then: header の match は使わない。Caddy 2.6.2 は条件と読まず、黙って効かない（#434 で本番が踏んだ）
     expect(body).not.toMatch(/^\s*match\b/m);
     // Then: @unhashed は同じ 2 行の not（厳密な補集合。同じ応答に 2 つ付かない）
     expect(body).toMatch(

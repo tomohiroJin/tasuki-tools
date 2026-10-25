@@ -211,7 +211,7 @@ curl -s -o /dev/null -w '?room 付き（200 が正しい） → %{http_code} %{r
 ルームは揮発インメモリなので、配布で全消滅する）。
 
 > **2026-10-24 に配った**（`v4.4.0`）。この手順で 7 本を入れた後の `pnpm e2e:prod` が 1 件赤だった:
-> 本番の Caddy は Debian の apt の **2.6.2** で、当時の `header @hashed { …; match status 2xx }` を条件として
+> 当時の本番の Caddy は Debian の apt の **2.6.2** で（2026-10-25 に 2.11.7 へ上げた。`../README.md` の「Caddy を上げる」）、当時の `header @hashed { …; match status 2xx }` を条件として
 > 読まず、消えた資材の 404 に immutable が付いた（E2E は 2.11.4 だったので緑）。PR #437 で `handle_errors` の形に
 > 直し、E2E の Caddy を 2.6.2 に揃えたうえで、`site.conf` の 1 本だけを入れ直した（Tasuki は再起動していない）。
 > その後の `pnpm e2e:prod` は全件通った。以下の手順は記録として残す（入れ直しは、手順 2〜5 を `site.conf` の 1 本だけで行った形。手順 4 の `<公開ドメイン>` の置換と手順 5 の validate・reload も要る）。
