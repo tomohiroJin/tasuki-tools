@@ -69,11 +69,11 @@ export const LOG_DIR = path.join(TEST_RESULTS_DIR, 'logs');
 
 /**
  * Caddy の版は固定する。「最新」を取ると、ある日突然赤くなって原因が分からない。
- * 版は本番（Debian の apt の caddy）に揃える。2.11.4 で試していたときは、
+ * 版は本番（Caddy 公式の apt の caddy）に揃える。本番が Debian の 2.6.2 で E2E が 2.11.4 だったときは、
  * 2.6.2 では効かない `header { match status 2xx }` が緑のまま本番へ出た（#434）。
- * 本番の Caddy を上げたら、ここと CI のキャッシュの鍵を同じ版へ上げる。
+ * 本番の Caddy を上げたら、ここと CI のキャッシュの鍵を同じ版へ上げる（手順は deploy/README.md の「Caddy を上げる」）。
  */
-export const CADDY_VERSION = '2.6.2';
+export const CADDY_VERSION = '2.11.7';
 export const CADDY_CACHE_DIR = path.join(
   process.env['HOME'] ?? '/tmp',
   '.cache/tasuki-e2e',

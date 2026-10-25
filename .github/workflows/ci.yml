@@ -120,7 +120,7 @@ jobs:
         if: steps.scope.outputs.code == 'true'
         with:
           path: ~/.cache/tasuki-e2e
-          key: caddy-2.6.2
+          key: caddy-2.11.7
 
       # Playwright の版は package.json で完全固定している。
       # revision は版に 1 対 1 で紐づくので、版をそのまま鍵にする。

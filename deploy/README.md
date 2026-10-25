@@ -224,6 +224,31 @@ Renovate の Bun の更新は Dependency Dashboard の承認制です（`renovat
 
 切り戻しは、退避した `/usr/local/bin/bun-<旧版>` を `sudo cp -p` で戻して `TASUKI_SSH_HOST=<ホスト別名> ./deploy/deploy.sh timer` です。
 
+## Caddy を上げる
+
+Caddy も**本番・E2E・CI を同じ版に揃えて固定**しています（E2E は `e2e/harness/paths.ts` の
+`CADDY_VERSION`、CI は `.github/workflows/ci.yml` のキャッシュの鍵 `caddy-<版>`）。
+版が違うと、本番でだけ効かない書き方が緑のまま出ます（#434 で 2.6.2 と 2.11.4 の差を踏みました）。
+
+本番の Caddy は他のサイトと共用で、Caddy 公式の apt リポジトリ（`dl.cloudsmith.io/public/caddy/stable`）
+から入れています（2026-10-25 に Debian の 2.6.2 から 2.11.7 へ切り替え）。このリポジトリは
+unattended-upgrades の対象外なので、**勝手には上がりません。上げるときは手で**次を済ませます。
+
+1. **手元**: 本番の設定一式（`/etc/caddy/Caddyfile` と `/etc/caddy/tasuki/`）を写し、今の版と新しい版の両方で
+   `caddy adapt` の結果と、起動したときの応答（状態コード・ヘッダー・本文）を比べる。他のサイトの設定も含める
+2. **E2E と CI**: `CADDY_VERSION` とキャッシュの鍵を新しい版へ上げる PR を出し、E2E を通す
+3. **本番**（root が要る。Caddy の再起動で全サイトが数秒止まる。Tasuki の同期サーバーは再起動しないのでルームは残る）:
+   1. `/usr/bin/caddy` と `/etc/caddy` を退避し、今の版の deb を `apt-get download` で取っておく
+   2. 入れる前に、新しい版の本体で `caddy validate --config /etc/caddy/Caddyfile` を通す
+   3. `apt-get install caddy=<版>`（`--force-confold` で今の Caddyfile を残す）→ `systemctl restart caddy`
+   4. 各サイトの状態コードと `pnpm e2e:prod` で確かめる
+4. PR をマージする
+
+切り戻しは、退避した deb を `apt-get install --allow-downgrades` で入れ直して `systemctl restart caddy` です。
+`apt-get update` が `EXPKEYSIG` で落ちたら、`/usr/share/keyrings/caddy-stable-archive-keyring.gpg` の署名用の
+副鍵の期限が切れています。公式の `gpg.key` を取り直し、主鍵の指紋（`6576 0C51 EDEA 2017 CEA2 CA15 155B 6D79 CA56 EA34`）を
+確かめてから置き換えます（2026-10-25 に踏みました）。
+
 ## 同一 IP の同時接続数制限（#143）
 
 **同一送信元 IP からの 443 同時接続を 80 本までに制限する。** 適用は
