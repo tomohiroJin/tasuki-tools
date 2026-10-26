@@ -14,7 +14,6 @@ export const GONE_TEXT = 'ルームは終了したか、リンクが正しくな
 export const GONE_LINK = 'トップへ戻る';
 
 export const PAGE_HEADING = '進行タイマー';
-export const BACK_LINK = '選択画面へ戻る';
 
 // 主の操作
 export const START_BUTTON = '開始';
@@ -186,13 +185,6 @@ export const SOUND_ON = '音あり';
 export const SOUND_OFF = '音なし';
 /** 「音あり」を覚えているが、開き直して解錠されていない（押すと 1 回で有効になる） */
 export const SOUND_LOCKED = '音を有効に';
-
-// 脇: 招待（玄関と同じ見出し）
-export const INVITE_HEADING = '仲間を招く';
-export const INVITE_COPY_BUTTON = '招待リンクをコピー';
-export const INVITE_COPIED = 'コピーしました';
-export const INVITE_COPY_FAILED = 'コピーできません（URL を選択してください）';
-export const INVITE_URL_LABEL = '参加用 URL';
 
 /** 操作の失敗の一言を閉じる */
 export const CLOSE_BUTTON = '閉じる';
