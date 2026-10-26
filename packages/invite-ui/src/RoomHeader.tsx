@@ -18,6 +18,25 @@ export interface RoomHeaderProps {
 /** QR のカードを画面の端から離す幅（px）。ページの左右の余白（`--space-4`）と同じ。 */
 const QR_EDGE_PX = 16;
 
+/** 招待の欄をたたむ境目。`room-header.css` の `@media (width < 40rem)` と同じ。 */
+const NARROW_QUERY = '(width < 40rem)';
+
+/** 狭い幅で、招待の欄が「仲間を招く」でたたまれているか。 */
+function isNarrowFolded(shareOpen: boolean): boolean {
+  return !shareOpen && (window.matchMedia?.(NARROW_QUERY).matches ?? false);
+}
+
+/** QR のカードを測り、画面の端から {@link QR_EDGE_PX} の内側に収まるよう寄せる。 */
+function placeQrCard(card: HTMLElement): void {
+  card.style.setProperty('--ui-room-header-qr-shift', '0px');
+  const { left, right } = card.getBoundingClientRect();
+  const viewport = document.documentElement.clientWidth;
+  const shift = right > viewport - QR_EDGE_PX
+    ? viewport - QR_EDGE_PX - right
+    : left < QR_EDGE_PX ? QR_EDGE_PX - left : 0;
+  card.style.setProperty('--ui-room-header-qr-shift', `${shift}px`);
+}
+
 /**
  * ルーム画面の見出し・戻るリンク・ルームコード・参加用 URL をまとめて組む（#447 段 1）。
  *
@@ -37,28 +56,31 @@ export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras }
   const qrCardRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
-    const closeOnOutside = (event: MouseEvent) => {
+    // タッチやペンで外を押したときも拾えるよう pointerdown で見る（mousedown はタッチの長押しなどで出ない）。
+    const closeOnOutside = (event: PointerEvent) => {
       if (!qrAnchorRef.current?.contains(event.target as Node)) setOpen(false);
     };
-    document.addEventListener('mousedown', closeOnOutside);
-    return () => document.removeEventListener('mousedown', closeOnOutside);
+    document.addEventListener('pointerdown', closeOnOutside);
+    return () => document.removeEventListener('pointerdown', closeOnOutside);
   }, [open]);
   // カードはボタンの左端から出す。URL が長くてボタンが行の右端へ押されると画面の外へ切れるので、開いたときに測って内側へ寄せる。
+  // 画像が出る・作れないと分かる・画面の幅が変わる（端末を回す）とカードの位置が変わるので、そのたびに測り直す。
   useLayoutEffect(() => {
     const card = qrCardRef.current;
     if (!open || !card) return;
-    card.style.setProperty('--ui-room-header-qr-shift', '0px');
-    const { left, right } = card.getBoundingClientRect();
-    const viewport = document.documentElement.clientWidth;
-    const shift = right > viewport - QR_EDGE_PX
-      ? viewport - QR_EDGE_PX - right
-      : left < QR_EDGE_PX ? QR_EDGE_PX - left : 0;
-    card.style.setProperty('--ui-room-header-qr-shift', `${shift}px`);
-    // 画像が出る・作れないと分かるとカードの幅が変わるので、そのたびに測り直す。
-  }, [open, qr.dataUrl, qr.failed]);
+    const place = () => placeQrCard(card);
+    // 狭い幅になって招待の欄がたたまれたら、見えない欄に開いた QR を残さない。
+    const placeOrClose = () => (isNarrowFolded(shareOpen) ? setOpen(false) : place());
+    place();
+    window.addEventListener('resize', placeOrClose);
+    return () => window.removeEventListener('resize', placeOrClose);
+  }, [open, shareOpen, qr.dataUrl, qr.failed]);
   // Esc は QR の中（ボタン）にフォーカスがあるときだけ拾う。画面の他の欄の Esc と、変換を取り消す Esc は奪わない。
+  // 閉じた Esc は画面の他の処理（引き出しを閉じるなど）へ伝えない。
   const closeQrOnEscape = (event: KeyboardEvent<HTMLDivElement>) => {
     if (!open || event.key !== 'Escape' || event.nativeEvent.isComposing) return;
+    event.preventDefault();
+    event.stopPropagation();
     setOpen(false);
     qrToggleRef.current?.focus();
   };
@@ -90,7 +112,11 @@ export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras }
         className="ui-button ui-button--secondary ui-button--sm ui-room-header-share-toggle"
         aria-expanded={shareOpen}
         aria-controls={shareId}
-        onClick={() => setShareOpen((value) => !value)}
+        onClick={() => {
+          // 招待の欄をたたむときは、中の QR も閉じる（次に開いたとき、開いた覚えのない QR が浮かない）。
+          if (shareOpen) setOpen(false);
+          setShareOpen(!shareOpen);
+        }}
       >
         {ROOM_HEADER_TEXT.inviteToggle}
       </button>

@@ -164,6 +164,81 @@ describe('ルーム画面の共通の見出し', () => {
     expect(document.activeElement).toBe(toggle);
   });
 
+  it('Given QR が開いている / When ボタンで Esc を押して閉じる / Then 同じ Esc を画面の他の処理へ伝えない', async () => {
+    // Given: 画面の側にも Esc を聞く処理がある（引き出しを閉じるなど）。
+    toDataURL.mockResolvedValue('data:image/png;base64,qr');
+    renderHeader();
+    const toggle = qrToggle();
+    fireEvent.click(toggle);
+    await screen.findByRole('img', { name: '参加用 URL の QR コード' });
+    const pageEscape = vi.fn();
+    document.addEventListener('keydown', pageEscape);
+
+    // When
+    fireEvent.keyDown(toggle, { key: 'Escape' });
+
+    // Then: 1 回の Esc で閉じるのは QR だけ。
+    expect(qrRegion(toggle).hidden).toBe(true);
+    expect(pageEscape).not.toHaveBeenCalled();
+    document.removeEventListener('keydown', pageEscape);
+  });
+
+  it('Given QR が開いている / When 画面の幅が変わる（端末を回す） / Then 測り直して寄せる', async () => {
+    // Given: 開いたときは収まっていた（右端 300px・画面 700px）。
+    toDataURL.mockResolvedValue('data:image/png;base64,qr');
+    renderHeader();
+    const toggle = qrToggle();
+    const card = qrRegion(toggle);
+    const width = vi.spyOn(document.documentElement, 'clientWidth', 'get').mockReturnValue(700);
+    vi.spyOn(card, 'getBoundingClientRect').mockReturnValue({ left: 80, right: 300, width: 220 } as DOMRect);
+    fireEvent.click(toggle);
+    await screen.findByRole('img', { name: '参加用 URL の QR コード' });
+    expect(card.style.getPropertyValue('--ui-room-header-qr-shift')).toBe('0px');
+
+    // When: 画面が 280px に狭まる
+    width.mockReturnValue(280);
+    fireEvent(window, new Event('resize'));
+
+    // Then: 右端を 264px に収める（300 - 264 = 36px 左へ）。
+    expect(card.style.getPropertyValue('--ui-room-header-qr-shift')).toBe('-36px');
+    expect(qrRegion(toggle).hidden).toBe(false);
+  });
+
+  it('Given 広い幅で QR が開いている / When 狭い幅へ変わり招待の欄がたたまれる / Then QR も閉じる', async () => {
+    // Given
+    toDataURL.mockResolvedValue('data:image/png;base64,qr');
+    let narrow = false;
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('40rem') && narrow }) as MediaQueryList);
+    renderHeader();
+    fireEvent.click(qrToggle());
+    await screen.findByRole('img', { name: '参加用 URL の QR コード' });
+
+    // When: 40rem 未満になる（「仲間を招く」は閉じたまま）
+    narrow = true;
+    fireEvent(window, new Event('resize'));
+
+    // Then: 見えない欄に開いた QR を残さない（後で「仲間を招く」を開いたとき、開いた覚えのない QR が浮かない）。
+    expect(qrToggle().getAttribute('aria-expanded')).toBe('false');
+    expect(qrRegion(qrToggle()).hidden).toBe(true);
+  });
+
+  it('Given 狭い幅で招待の欄と QR を開いている / When 「仲間を招く」で欄を閉じる / Then QR も閉じる', async () => {
+    // Given
+    toDataURL.mockResolvedValue('data:image/png;base64,qr');
+    renderHeader();
+    const share = screen.getByRole('button', { name: '仲間を招く' });
+    fireEvent.click(share);
+    fireEvent.click(qrToggle());
+    await screen.findByRole('img', { name: '参加用 URL の QR コード' });
+
+    // When
+    fireEvent.click(share);
+
+    // Then
+    expect(qrToggle().getAttribute('aria-expanded')).toBe('false');
+    expect(qrRegion(qrToggle()).hidden).toBe(true);
+  });
+
   it('Given QR が開いている / When 字を変換している途中の Esc / Then 閉じない', async () => {
     // Given
     toDataURL.mockResolvedValue('data:image/png;base64,qr');
@@ -219,14 +294,14 @@ describe('ルーム画面の共通の見出し', () => {
     fireEvent.click(qrToggle());
     const image = await screen.findByRole('img', { name: '参加用 URL の QR コード' });
 
-    // When: QR の上を押す
-    fireEvent.mouseDown(image);
+    // When: QR の上を押す（タッチやペンも拾えるよう pointerdown で見る）
+    fireEvent.pointerDown(image);
 
     // Then: 開いたまま
     expect(qrRegion(qrToggle()).hidden).toBe(false);
 
     // When: 見出しの外（画面の本体）を押す
-    fireEvent.mouseDown(document.body);
+    fireEvent.pointerDown(document.body);
 
     // Then
     expect(qrToggle().getAttribute('aria-expanded')).toBe('false');
@@ -453,23 +528,5 @@ describe('狭い幅で招待をたたむ「仲間を招く」', () => {
     // Then: 仲間を招くは開いたまま、QR だけ閉じる
     expect(inviteToggle().getAttribute('aria-expanded')).toBe('true');
     expect(qrToggle().getAttribute('aria-expanded')).toBe('false');
-  });
-
-  it('Given QR を開いたまま / When 仲間を招くを押して閉じる / Then QR のボタンは開いたままの \'true\' で、欄も見えている', async () => {
-    // Given
-    toDataURL.mockResolvedValue('data:image/png;base64,qr');
-    renderHeader();
-    fireEvent.click(qrToggle());
-    await screen.findByRole('img', { name: '参加用 URL の QR コード' });
-    fireEvent.click(inviteToggle());
-
-    // When: 仲間を招くを閉じる
-    fireEvent.click(inviteToggle());
-
-    // Then: 招待は閉じ、QR は開いたまま（逆方向の独立）
-    expect(inviteToggle().getAttribute('aria-expanded')).toBe('false');
-    expect(shareRegion(inviteToggle()).getAttribute('data-open')).toBe(null);
-    expect(qrToggle().getAttribute('aria-expanded')).toBe('true');
-    expect(qrRegion(qrToggle()).hidden).toBe(false);
   });
 });
