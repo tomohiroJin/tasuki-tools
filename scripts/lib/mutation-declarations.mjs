@@ -3154,7 +3154,7 @@ export const MUTATIONS = [
     patch: "m478-title-extras-under-page-header.patch",
     pkg: "packages/invite-ui",
     tests: ["tests/room-header.test.tsx"],
-    note: "#447。行の子が 3 つになり、両端寄せの並びで戻るリンクが真ん中に浮く（topic の「お題を隠す」で起きる）。",
+    note: "#447。行の子が 3 つになり、両端寄せの並びで戻るリンクが真ん中に浮く（poker の「お題を隠す」「記録する」を差し込む画面で起きる）。",
   },
   {
     id: 479,

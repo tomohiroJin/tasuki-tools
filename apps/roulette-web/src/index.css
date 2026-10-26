@@ -428,7 +428,7 @@
 /* 縦積みの円盤の予算: 組の札が 1 人の札より高い分だけ、円盤の式から引く（1 人の式は上のまま） */
 .roulette-stage[data-layout='stack'][data-pick='group'] {
   --card-extra: 1.75rem;
-  --wheel-size: clamp(14rem, min(100cqi, 100dvh - 24rem - var(--card-extra)), 32rem);
+  --wheel-size: clamp(14rem, min(100cqi, 100dvh - 26rem - var(--card-extra)), 32rem);
 }
 
 .roulette-caption {
