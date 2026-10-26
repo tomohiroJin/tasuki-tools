@@ -78,7 +78,7 @@ export function TopicRoom({ roomCode }: { roomCode: string }) {
     <>
       {banner}
       <main className="ui-page ui-page--wide">
-        {/* 見出し・戻る・ルームコード・招待 URL は共通の部品が描く（#447 段 1）。下の段組みとの余白も部品の CSS が持つ */}
+        {/* 見出し・戻る・ルームコード・招待 URL は共通の部品が描く（#447 段 1）。下の段組みとの余白はこのアプリの index.css の `.ui-room-header` が持つ */}
         <RoomHeader title={PAGE_HEADING} backHref={hubPathFor(roomCode)} roomCode={roomCode} inviteUrl={sync.inviteUrl} />
         {/* 入り直しの途中の混雑も、この画面で伝える（伝えないと、ボタンが黙って押せなくなる） */}
         {sync.retryNotice && <p className="topic-notice ui-note" role="status">{sync.retryNotice}</p>}

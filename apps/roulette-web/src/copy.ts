@@ -16,7 +16,6 @@ export const GONE_TEXT = 'ルームは終了したか、リンクが正しくな
 export const GONE_LINK = 'トップへ戻る';
 
 export const PAGE_HEADING = '進行役ルーレット';
-export const BACK_LINK = '選択画面へ戻る';
 /** 舞台（操作の面）の見出し。目には出さず、領域の名前にする */
 export const STAGE_HEADING = 'ルーレット';
 
@@ -62,13 +61,6 @@ export const groupResultText = (...names: string[]): string =>
 /** 入る人が選ぶ人数 + 1 に満たない */
 export const tooFewForPickText = (k: number): string => `${k + 1} 人から回せます`;
 export const groupTopicNoteText = (title: string, k: number): string => `お題「${title}」の ${k} 人を決めます`;
-
-// 脇: 招待（玄関と同じ見出し）
-export const INVITE_HEADING = '仲間を招く';
-export const INVITE_COPY_BUTTON = '招待リンクをコピー';
-export const INVITE_COPIED = 'コピーしました';
-export const INVITE_COPY_FAILED = 'コピーできません（URL を選択してください）';
-export const INVITE_URL_LABEL = '参加用 URL';
 
 /** 参加の失敗のうち、サーバーの文言を持たない（または空の）ときの既定。 */
 export const DEFAULT_ERROR_TEXT = '操作を完了できませんでした';

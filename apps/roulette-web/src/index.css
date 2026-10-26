@@ -17,7 +17,8 @@
 }
 
 /* ---------- 見出しと戻る導線は部品層（`.ui-page-header`・ADR 0022）が持つ ---------- */
-.roulette-room-header {
+/* 共通の見出し（`RoomHeader`）と段組みの間（読む面の札が行に接しない）。 */
+.ui-room-header {
   margin-block-end: var(--space-5);
 }
 
@@ -44,7 +45,7 @@
     'wheel'
     'card'
     'after';
-  /* 3 版: 招待を脇へ移して見出しの下が空いたので、320×640 でも 円盤・札・下端の帯 が 1 画面に入る大きさにする */
+  /* 招待は見出しへ移った（#447）。見出しが高くなった分は撮影で確かめる */
   --wheel-size: clamp(14rem, min(100cqi, 100dvh - 24rem), 32rem);
 }
 .roulette-stage[data-layout='row'] {
@@ -514,14 +515,6 @@
   min-width: 0;
   gap: var(--space-4);
   align-content: start;
-}
-.roulette-invite {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-3);
-}
-.roulette-invite h2 {
-  margin: 0;
 }
 .roulette-people {
   display: grid;
