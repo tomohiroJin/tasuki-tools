@@ -485,11 +485,14 @@ describe('ルームの見出しは共通の部品が描く（#447 段 1）', () 
     expect(within(header!).getByRole('button', { name: ROOM_HEADER_TEXT.qrShow })).toBeInTheDocument();
   });
 
-  it('Given 入室したルーム / When 戻るリンクを見る / Then 選択画面を指し、脇の「仲間を招く」は見出しの中の 1 つだけ', () => {
+  it('Given 入室したルーム / When 戻るリンクを見る / Then 選択画面を指し、「仲間を招く」は見出しの中の 1 つだけ', () => {
     // Given / When
     joinedRoom(runningAgenda(1000));
     // Then
     expect(screen.getByRole('link', { name: ROOM_HEADER_TEXT.back })).toHaveAttribute('href', '/?room=R1');
+    const header = document.querySelector<HTMLElement>('.ui-room-header');
+    expect(header).not.toBeNull();
+    expect(within(header!).getByRole('button', { name: ROOM_HEADER_TEXT.inviteToggle })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: ROOM_HEADER_TEXT.inviteToggle })).toHaveLength(1);
   });
 });

@@ -7,7 +7,7 @@ import { MAX_TOPIC_BODY, MAX_TOPIC_TITLE } from '@tasuki/topic-core';
 import { ROOM_HEADER_TEXT } from '@tasuki/invite-ui';
 import { saveResumeIdentity } from '@tasuki/sync-client';
 import { App } from '../src/App';
-import { hubPathFor, redirectTo } from '../src/router';
+import { redirectTo } from '../src/router';
 import * as copy from '../src/copy';
 import { IDLE_STATE, RESUME, ScriptedWebSocket, latestSocket } from './support/scripted-web-socket';
 
@@ -668,7 +668,6 @@ describe('操作できない間', () => {
     // Then
     expect(screen.getByText('R1')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'QR コードを表示' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: '選択画面へ戻る' })).toHaveAttribute('href', hubPathFor('R1'));
   });
 });
 

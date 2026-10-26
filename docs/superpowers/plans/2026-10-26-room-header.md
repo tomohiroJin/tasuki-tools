@@ -199,7 +199,7 @@
 - [ ] **Step 4: 緑**: `pnpm --filter @tasuki/roulette-web test`・`typecheck`・`lint`。取り決めの既存パッチ 8 本の `git apply --check`
 - [ ] **Step 5: コミット**: `feat: ルーレットのルーム画面を共通の見出しにする（#447）`
 
-### Task 3b: 狭い幅で招待をたたむ（設計 §7 R6・撮影の後に足した）
+### Task 3b: 狭い幅で招待をたたむ（設計 §8 R6・撮影の後に足した）
 
 **Files:**
 - Modify: `packages/invite-ui/src/RoomHeader.tsx`・`packages/invite-ui/src/room-header-copy.ts`・`packages/ui/src/components/room-header.css`・`packages/ui/README.md`（`.ui-room-header` の行に、狭い幅でたたむことを 1 文）
@@ -214,7 +214,7 @@
   - `@media (width < 40rem) { .ui-room-header-share:not([data-open='true']) { display: none; } }`
   - `@media (width >= 40rem) { .ui-room-header-share-toggle { display: none; } }`
   - ボタンを `justify-self: start` にする（グリッドの行いっぱいに伸ばさない）
-  - 頭のコメントに、40rem 未満でたたむ理由（ルーレットの 320×640 で止まった札が下端の帯に隠れた・設計 §7 R6）と、40rem が `actions.css` と同じ境目であることを書く
+  - 頭のコメントに、40rem 未満でたたむ理由（ルーレットの 320×640 で止まった札が下端の帯に隠れた・設計 §8 R6）と、40rem が `actions.css` と同じ境目であることを書く
 
 - [ ] **Step 1: 赤いテスト**（`room-header.test.tsx` に足す。jsdom は `@media` を解かないので、見るのは属性）:
   - 「Given 描いた直後 / When 何もしない / Then 仲間を招くのボタンは閉じていて、指す先は招待の行と QR の欄を包む」: `getByRole('button', { name: '仲間を招く' })` の `aria-expanded` が `'false'`・`aria-controls` で `getElementById` した要素が `.ui-room-header-share`・その要素が `data-open` を持たない・その要素の中に `.ui-room-header-invite` と `.ui-room-header-qr` がある

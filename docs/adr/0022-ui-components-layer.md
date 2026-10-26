@@ -100,4 +100,4 @@
 
 ## 追記（2026-10-26・#447）
 
-ルームの画面の見出し（`RoomHeader`・`packages/invite-ui`）は、本節の「表示の構造（マークアップと React の部品）は各画面のまま」の例外であり、その構造は [ADR-0020 の 2026-10-26 の追記](./0020-invite-browser-operations.md) が定める通り invite-ui の部品が持つ。
+ルームの画面の見出し（`RoomHeader`・`packages/invite-ui`）は、決定 5 の「表示の構造（マークアップと React の部品）は各画面のまま」の例外であり、その構造は [ADR-0020 の 2026-10-26 の追記](./0020-invite-browser-operations.md) が定める通り invite-ui の部品が持つ。

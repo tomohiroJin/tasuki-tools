@@ -20,7 +20,6 @@
 /* 見出しと「選択画面へ戻る」を 1 行に組む並びは部品（`.ui-page-header`・ADR 0022）が持つ（#95 S5c 追補）。
    ここには poker の見出し自身の大きさと余白だけを置く。 */
 .room header h1 {
-  margin: 0;
   font-style: italic;
   font-size: var(--font-size-xl);
 }
