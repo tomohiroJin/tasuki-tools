@@ -648,6 +648,10 @@ export const SHARED_UI_ENTRIES = [
     specifier: "@tasuki/web-kit/reader",
     parts: [{ name: "Markdown", file: "packages/web-kit/src/reader/markdown.tsx" }],
   },
+  {
+    specifier: "@tasuki/invite-ui",
+    parts: [{ name: "RoomHeader", file: "packages/invite-ui/src/RoomHeader.tsx" }],
+  },
 ];
 
 /**

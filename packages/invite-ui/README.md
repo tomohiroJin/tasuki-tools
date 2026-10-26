@@ -9,6 +9,10 @@
 - `useInviteQr(url, enabled)` — `dataUrl` と `failed`。
   `enabled` が真になってから qrcode を読み込む。生成失敗時も URL を残す。
 
+- `RoomHeader` — ルーム画面の見出し・戻るリンク・ルームコード・参加用 URL を 1 つに組んだ部品（#447 段 1）。
+  QR は普段は閉じておき、開くまで qrcode を読まない。文言の正本は `room-header-copy.ts` の `ROOM_HEADER_TEXT`。
+  DOM とクラス（`.ui-room-header`）は `packages/ui/src/components/room-header.css` が持つ。
+
 選択画面では「参加用 URL をコピー」「QR コードを表示」から共有できる。
 timer のコード・URL コピーと QR、poker とお題ツール（topic-web）の招待リンクコピーも
 同じ処理を使う。
