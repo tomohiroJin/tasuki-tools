@@ -77,6 +77,11 @@
 }
 
 /* QR は画面の幅に合わせて縮む。白い余白は QR の画像が描くので、地は敷かない（玄関の `.hub-invite-qr img` と同じ）。 */
+/* QR の状態の知らせ。字が空の間も読み上げのために置いてあるので、余白で欄を広げない。 */
+.ui-room-header-qr-status {
+  margin: 0;
+}
+
 .ui-room-header-qr img {
   display: block;
   max-width: 100%;

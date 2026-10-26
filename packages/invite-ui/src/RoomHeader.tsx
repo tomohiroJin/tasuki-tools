@@ -82,9 +82,10 @@ export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras }
         </div>
         <div id={qrId} hidden={!open} className="ui-room-header-qr">
           {qr.dataUrl && <img src={qr.dataUrl} width="200" height="200" alt={ROOM_HEADER_TEXT.qrAlt} />}
-          {open && !qr.dataUrl && (
-            <p className="ui-note" role="status">{qr.failed ? ROOM_HEADER_TEXT.qrFailed : ROOM_HEADER_TEXT.qrPreparing}</p>
-          )}
+          {/* 知らせの要素は閉じている間も置いておき、字だけを差し替える（差し込んだ要素の字は読み上げに届かないことがある）。 */}
+          <p className="ui-note ui-room-header-qr-status" role="status">
+            {open && !qr.dataUrl ? (qr.failed ? ROOM_HEADER_TEXT.qrFailed : ROOM_HEADER_TEXT.qrPreparing) : ''}
+          </p>
         </div>
       </div>
     </header>

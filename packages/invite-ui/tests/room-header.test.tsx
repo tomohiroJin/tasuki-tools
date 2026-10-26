@@ -136,6 +136,32 @@ describe('ルーム画面の共通の見出し', () => {
     expect(screen.getByRole('status').textContent).toBe('QR コードを表示できません。URL を選んでコピーしてください。');
   });
 
+  it('Given QR を開いて準備中 / When 生成が失敗する / Then 同じ知らせの要素の字を差し替える（読み上げに届く）', async () => {
+    // Given: 準備中の知らせが出ている。知らせの要素を作り直すと、読み上げは差し込まれた字を読まない。
+    let fail: (error: Error) => void = () => {};
+    toDataURL.mockReturnValue(new Promise<string>((_, reject) => { fail = reject; }));
+    renderHeader();
+    fireEvent.click(qrToggle());
+    const preparing = await screen.findByText('QR コードを準備しています…');
+
+    // When
+    fail(new Error('QR failed'));
+
+    // Then: 失敗の字は、準備中の字を出していた同じ要素に入る。
+    await screen.findByText('QR コードを表示できません。URL を選んでコピーしてください。');
+    expect(screen.getByRole('status')).toBe(preparing);
+  });
+
+  it('Given QR を閉じている / When 描く / Then 知らせの要素は先に置いてあり、字は空', () => {
+    // Given / When
+    renderHeader();
+
+    // Then: 開いたときに中身だけが変わるよう、知らせの要素は閉じている間も QR の欄の中にある。
+    const status = qrRegion(qrToggle()).querySelector('[role="status"]');
+    expect(status).not.toBeNull();
+    expect(status!.textContent).toBe('');
+  });
+
   it('Given QR を開いている / When URL が変わる / Then 新しい URL で作り直す', async () => {
     // Given
     toDataURL.mockResolvedValue('data:image/png;base64,qr');
