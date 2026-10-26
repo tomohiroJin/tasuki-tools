@@ -53,7 +53,6 @@
 
 /* 包む欄の中で招待の行と QR の欄の間を空ける（ふつうのブロックだと間の gap が消える）。 */
 .ui-room-header-share {
-  position: relative;
   display: grid;
   gap: var(--space-2);
 }
@@ -67,11 +66,6 @@
   .ui-room-header-share:not([data-open='true']) {
     display: none;
   }
-
-  /* 狭い幅ではボタンが行の左端にも右端にも来るので、ボタンではなく招待の欄の左端に浮かべる（画面の外へ切れない）。 */
-  .ui-room-header-qr-anchor {
-    position: static;
-  }
 }
 
 /* `.ui-room-header .ui-room-header-share-toggle`（(0,2,0)）にするのは、`.ui-button` の `display: inline-flex`（後に読み込まれる・
@@ -83,7 +77,8 @@
 }
 
 /* QR は開いても下の画面を押し下げないよう、ボタンの下に浮かぶカードにする（#447・段として差し込むと画面全体が約 210px 動いた）。
-   閉じるのはボタン・Esc・外側を押す（`RoomHeader`）。出るときだけ、上から少し降りながら浮かび上がる。 */
+   閉じるのはボタン・Esc・外側を押す・Tab で外へ出る（`RoomHeader`）。出るときだけ、上から少し降りながら浮かび上がる。
+   ボタンの左端から出し、画面の外へ切れる分は `RoomHeader` が開いたときに測って `--ui-room-header-qr-shift` で内側へ寄せる。 */
 .ui-room-header-qr-anchor {
   position: relative;
 }
@@ -91,7 +86,7 @@
 .ui-room-header-qr {
   position: absolute;
   inset-block-start: calc(100% + var(--space-2));
-  inset-inline-start: 0;
+  inset-inline-start: var(--ui-room-header-qr-shift, 0px);
   z-index: 30;
   box-sizing: border-box;
   inline-size: max-content;

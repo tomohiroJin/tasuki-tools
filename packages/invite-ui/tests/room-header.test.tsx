@@ -46,6 +46,8 @@ function flushAsync(): Promise<void> {
 afterEach(() => {
   cleanup();
   vi.resetAllMocks();
+  // 画面の幅と位置の spyOn（はみ出しの試験）を元に戻す。
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
   restoreExecCommand();
 });
@@ -132,25 +134,75 @@ describe('ルーム画面の共通の見出し', () => {
     fireEvent.click(qrToggle());
 
     // Then: 失敗の字が出るまで待つ（準備中の字と取り違えない）。
-    expect(await screen.findByText('QR コードを表示できません。URL を選んでコピーしてください。')).toBeTruthy();
-    expect(screen.getByRole('status').textContent).toBe('QR コードを表示できません。URL を選んでコピーしてください。');
+    await waitFor(() => expect(screen.getByRole('status').textContent).toBe('QR コードを表示できません。URL を選んでコピーしてください。'));
+    // カードの中にも同じ字を見える形で出す（読み上げは知らせの側だけが読む）。
+    expect(qrRegion(qrToggle()).textContent).toBe('QR コードを表示できません。URL を選んでコピーしてください。');
   });
 
-  it('Given QR が開いている / When Esc を押す / Then 閉じて、開いたボタンへ戻る', async () => {
+  it('Given QR が開いている / When ボタンで Esc を押す / Then 閉じて、開いたボタンにとどまる', async () => {
     // Given: QR は画面の上に浮かぶので、キーボードだけでも閉じられる必要がある。
     toDataURL.mockResolvedValue('data:image/png;base64,qr');
     renderHeader();
+    const toggle = qrToggle();
+    toggle.focus();
+    fireEvent.click(toggle);
+    await screen.findByRole('img', { name: '参加用 URL の QR コード' });
+
+    // When
+    fireEvent.keyDown(toggle, { key: 'Escape' });
+
+    // Then
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(qrRegion(toggle).hidden).toBe(true);
+    expect(document.activeElement).toBe(toggle);
+  });
+
+  it('Given QR が開いている / When 字を変換している途中の Esc / Then 閉じない', async () => {
+    // Given
+    toDataURL.mockResolvedValue('data:image/png;base64,qr');
+    renderHeader();
+    const toggle = qrToggle();
+    fireEvent.click(toggle);
+    await screen.findByRole('img', { name: '参加用 URL の QR コード' });
+
+    // When: 日本語の変換を取り消す Esc
+    fireEvent.keyDown(toggle, { key: 'Escape', isComposing: true });
+
+    // Then
+    expect(qrRegion(toggle).hidden).toBe(false);
+  });
+
+  it('Given QR が開いている / When 画面の他の欄で Esc を押す / Then QR は Esc を拾わない', async () => {
+    // Given: 見出しの外に、自分の Esc を持つ欄がある。
+    toDataURL.mockResolvedValue('data:image/png;base64,qr');
+    renderHeader();
+    const field = document.body.appendChild(document.createElement('input'));
     fireEvent.click(qrToggle());
     await screen.findByRole('img', { name: '参加用 URL の QR コード' });
 
     // When
-    fireEvent.keyDown(document, { key: 'Escape' });
+    fireEvent.keyDown(field, { key: 'Escape' });
+
+    // Then: 欄の Esc を奪わず、フォーカスを見出しへ引き寄せない。
+    expect(qrRegion(qrToggle()).hidden).toBe(false);
+    expect(document.activeElement).not.toBe(qrToggle());
+    field.remove();
+  });
+
+  it('Given QR が開いている / When Tab でボタンから外へ出る / Then 閉じる（浮かぶ QR が次の欄を覆わない）', async () => {
+    // Given
+    toDataURL.mockResolvedValue('data:image/png;base64,qr');
+    renderHeader();
+    const toggle = qrToggle();
+    fireEvent.click(toggle);
+    await screen.findByRole('img', { name: '参加用 URL の QR コード' });
+
+    // When: フォーカスがコピーのボタン（QR の外）へ移る
+    fireEvent.blur(toggle, { relatedTarget: screen.getByRole('button', { name: '招待リンクをコピー' }) });
 
     // Then
-    const toggle = qrToggle();
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
     expect(qrRegion(toggle).hidden).toBe(true);
-    expect(document.activeElement).toBe(toggle);
   });
 
   it('Given QR が開いている / When QR の外を押す / Then 閉じる。QR の上を押しても閉じない', async () => {
@@ -174,17 +226,38 @@ describe('ルーム画面の共通の見出し', () => {
     expect(qrRegion(qrToggle()).hidden).toBe(true);
   });
 
-  it('Given QR が閉じている / When Esc を押す / Then 何も変わらず、ボタンへ寄せない', () => {
-    // Given
+  it('Given QR を開くとカードが画面の右へはみ出す / When 開く / Then はみ出す分だけ左へ寄せる', async () => {
+    // Given: 画面の幅 320px。カードは右端 400px まで伸びる位置に出る。
+    toDataURL.mockResolvedValue('data:image/png;base64,qr');
     renderHeader();
-    const before = document.activeElement;
+    const toggle = qrToggle();
+    const card = qrRegion(toggle);
+    vi.spyOn(document.documentElement, 'clientWidth', 'get').mockReturnValue(320);
+    vi.spyOn(card, 'getBoundingClientRect').mockReturnValue({ left: 180, right: 400, width: 220 } as DOMRect);
 
     // When
-    fireEvent.keyDown(document, { key: 'Escape' });
+    fireEvent.click(toggle);
+    await screen.findByRole('img', { name: '参加用 URL の QR コード' });
 
-    // Then: 閉じている間はキーを拾わない（画面の他の Esc の操作を奪わない）。
-    expect(document.activeElement).toBe(before);
-    expect(qrToggle().getAttribute('aria-expanded')).toBe('false');
+    // Then: 右端を画面の端から 16px 内側（304px）に収める。400 - 304 = 96px 左へ寄せる。
+    expect(card.style.getPropertyValue('--ui-room-header-qr-shift')).toBe('-96px');
+  });
+
+  it('Given QR を開くとカードが画面の左へはみ出す / When 開く / Then 左端を画面の内側に収める', async () => {
+    // Given: 狭い画面でボタンが左端にあり、カードが左へ 10px はみ出す位置に出る。
+    toDataURL.mockResolvedValue('data:image/png;base64,qr');
+    renderHeader();
+    const toggle = qrToggle();
+    const card = qrRegion(toggle);
+    vi.spyOn(document.documentElement, 'clientWidth', 'get').mockReturnValue(320);
+    vi.spyOn(card, 'getBoundingClientRect').mockReturnValue({ left: -10, right: 210, width: 220 } as DOMRect);
+
+    // When
+    fireEvent.click(toggle);
+    await screen.findByRole('img', { name: '参加用 URL の QR コード' });
+
+    // Then: 左端を 16px にする（26px 右へ）。
+    expect(card.style.getPropertyValue('--ui-room-header-qr-shift')).toBe('26px');
   });
 
   it('Given QR を開いて準備中 / When 生成が失敗する / Then 同じ知らせの要素の字を差し替える（読み上げに届く）', async () => {
@@ -192,25 +265,29 @@ describe('ルーム画面の共通の見出し', () => {
     let fail: (error: Error) => void = () => {};
     toDataURL.mockReturnValue(new Promise<string>((_, reject) => { fail = reject; }));
     renderHeader();
+    const status = screen.getByRole('status');
     fireEvent.click(qrToggle());
-    const preparing = await screen.findByText('QR コードを準備しています…');
+    await waitFor(() => expect(status.textContent).toBe('QR コードを準備しています…'));
 
     // When
     fail(new Error('QR failed'));
 
     // Then: 失敗の字は、準備中の字を出していた同じ要素に入る。
-    await screen.findByText('QR コードを表示できません。URL を選んでコピーしてください。');
-    expect(screen.getByRole('status')).toBe(preparing);
+    await waitFor(() => expect(status.textContent).toBe('QR コードを表示できません。URL を選んでコピーしてください。'));
+    expect(screen.getByRole('status')).toBe(status);
   });
 
-  it('Given QR を閉じている / When 描く / Then 知らせの要素は先に置いてあり、字は空', () => {
+  it('Given QR を閉じている / When 描く / Then 知らせの要素は隠れる欄の外に先に置いてあり、字は空', () => {
     // Given / When
     renderHeader();
 
-    // Then: 開いたときに中身だけが変わるよう、知らせの要素は閉じている間も QR の欄の中にある。
-    const status = qrRegion(qrToggle()).querySelector('[role="status"]');
-    expect(status).not.toBeNull();
-    expect(status!.textContent).toBe('');
+    // Then: 隠れた欄（hidden）の中の知らせは読み上げの木に入らない。開いたときに字だけが変わるよう、欄の外に置く。
+    const card = qrRegion(qrToggle());
+    const status = screen.getByRole('status');
+    expect(card.hidden).toBe(true);
+    expect(card.contains(status)).toBe(false);
+    expect(status.closest('[hidden]')).toBeNull();
+    expect(status.textContent).toBe('');
   });
 
   it('Given QR を開いている / When URL が変わる / Then 新しい URL で作り直す', async () => {
