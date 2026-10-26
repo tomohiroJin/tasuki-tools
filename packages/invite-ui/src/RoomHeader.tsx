@@ -13,6 +13,8 @@ export interface RoomHeaderProps {
   readonly inviteUrl: string;
   /** 道具に固有のボタンなど。見出しの隣に置く（戻るリンクの位置は変わらない）。 */
   readonly titleExtras?: ReactNode;
+  /** 詰めた見た目（既定は通常）。「仲間を招く」を全幅でも出して招待の欄をたたみ、見出しを 1 段小さくする（timer のセッション中・#447 段 2）。 */
+  readonly compact?: boolean;
 }
 
 /** QR のカードを画面の端から離す幅（px）。ページの左右の余白（`--space-4`）と同じ。 */
@@ -40,7 +42,7 @@ function placeQrCard(card: HTMLElement): void {
  * 5 つのアプリの写しを 1 つにまとめるための部品。QR は普段は閉じておき、開くまで生成ライブラリを読まない。
  * 戻り値の型は書かない（グローバルの `JSX` 名前空間に頼らない）。
  */
-export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras }: RoomHeaderProps) {
+export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras, compact = false }: RoomHeaderProps) {
   const qrId = useId();
   const shareId = useId();
   const [open, setOpen] = useState(false);
@@ -102,7 +104,7 @@ export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras }
       : ROOM_HEADER_TEXT.copy;
 
   return (
-    <header className="ui-room-header">
+    <header className={compact ? 'ui-room-header ui-room-header--compact' : 'ui-room-header'}>
       <div className="ui-page-header">
         <div className="ui-room-header-title">
           <h1>{title}</h1>

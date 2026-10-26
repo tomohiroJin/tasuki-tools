@@ -24,6 +24,11 @@ const read = (name) => readFileSync(resolve(COMPONENTS, name), 'utf8');
 const CLASS_CHAIN = /^\.[\w-]+(?:\s+\.[\w-]+)*$/;
 
 /** 狭い幅でたたむ規則の選択子。許可リストの外の形なので、字の完全一致で見る。 */
+const WIDE_HIDE_SELECTOR = '.ui-room-header .ui-room-header-share-toggle';
+
+/** 詰めた見た目で、広い幅でも「仲間を招く」を出す規則の選択子（組を重ねた形。この検査の読める形の外なので、字の完全一致で見る）。 */
+const COMPACT_SHOW_SELECTOR = '.ui-room-header.ui-room-header--compact .ui-room-header-share-toggle';
+
 const NARROW_FOLD_SELECTOR = ".ui-room-header-share:not([data-open='true'])";
 
 /** コメントを落とす。 */
@@ -60,8 +65,8 @@ function classCount(selector) {
 
 function wideHideRule() {
   const block = mediaBlock(read('room-header.css'), '@media (width >= 40rem)');
-  const found = rules(block).filter((r) => r.selector.includes('.ui-room-header-share-toggle'));
-  assert.equal(found.length, 1, `40rem 以上の @media で「仲間を招く」を指す規則がちょうど 1 つではない（${found.length} 件）`);
+  const found = rules(block).filter((r) => r.selector === WIDE_HIDE_SELECTOR);
+  assert.equal(found.length, 1, `40rem 以上の @media で「仲間を招く」を隠す規則がちょうど 1 つではない（${found.length} 件）`);
   return found[0];
 }
 
@@ -96,4 +101,17 @@ test('Given 40rem 未満の @media / When 招待の欄をたたむ規則を読�
   const block = mediaBlock(read('room-header.css'), '@media (width < 40rem)');
   const found = rules(block).filter((r) => r.selector === NARROW_FOLD_SELECTOR && /display:\s*none/.test(r.body));
   assert.equal(found.length, 1, `40rem 未満の @media に \`${NARROW_FOLD_SELECTOR} { display: none }\` がちょうど 1 つではない（${found.length} 件）`);
+});
+
+test('Given 40rem 以上の @media / When 詰めた見た目の規則を読む / Then 「仲間を招く」を出す規則がちょうど 1 つあり、隠す規則より後で、組の数も多い', () => {
+  const list = rules(mediaBlock(read('room-header.css'), '@media (width >= 40rem)'));
+  const shown = list.filter((r) => r.selector === COMPACT_SHOW_SELECTOR);
+  assert.equal(shown.length, 1, `詰めた見た目の規則がちょうど 1 つではない（${shown.length} 件）`);
+  assert.match(shown[0].body, /display:\s*inline-flex/);
+  const hideAt = list.findIndex((r) => r.selector === WIDE_HIDE_SELECTOR);
+  const showAt = list.findIndex((r) => r.selector === COMPACT_SHOW_SELECTOR);
+  assert.ok(showAt > hideAt, '詰めた見た目の規則が隠す規則より先にある（後勝ちで負ける）');
+  // 組の数: `.a.b .c` は 3 個。隠す規則（2 個）より多いこと
+  const count = (sel) => sel.split(/[\s.]+/).filter(Boolean).length;
+  assert.ok(count(COMPACT_SHOW_SELECTOR) > count(WIDE_HIDE_SELECTOR));
 });

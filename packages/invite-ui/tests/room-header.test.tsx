@@ -531,3 +531,76 @@ describe('狭い幅で招待をたたむ「仲間を招く」', () => {
     expect(qrToggle().getAttribute('aria-expanded')).toBe('false');
   });
 });
+
+describe('詰めた見た目（compact）', () => {
+  it('Given compact を渡さない / When 描く / Then 見出しのクラスは ui-room-header だけ', () => {
+    // Given / When
+    const { container } = renderHeader();
+
+    // Then
+    expect(container.querySelector('header')!.className).toBe('ui-room-header');
+  });
+
+  it('Given compact を渡す / When 描く / Then 見出しに ui-room-header--compact が付く', () => {
+    // Given / When
+    const { container } = renderHeader({ compact: true });
+
+    // Then
+    expect(container.querySelector('header')!.className).toBe('ui-room-header ui-room-header--compact');
+  });
+
+  it('Given compact を明示的に false にする / When 描く / Then 付かない', () => {
+    // Given / When
+    const { container } = renderHeader({ compact: false });
+
+    // Then
+    expect(container.querySelector('header')!.classList.contains('ui-room-header--compact')).toBe(false);
+  });
+
+  it('Given compact / When 仲間を招くを押す / Then aria-expanded が切り替わり、欄の data-open が付く・外れる', () => {
+    // Given
+    renderHeader({ compact: true });
+    const toggle = inviteToggle();
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(shareRegion(toggle).getAttribute('data-open')).toBe(null);
+
+    // When: 開く
+    fireEvent.click(toggle);
+
+    // Then
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(shareRegion(toggle).getAttribute('data-open')).toBe('true');
+
+    // When: たたむ
+    fireEvent.click(toggle);
+
+    // Then
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(shareRegion(toggle).getAttribute('data-open')).toBe(null);
+  });
+
+  it('Given compact で欄と QR を開いた / When 仲間を招くでたたみ、もう一度開く / Then QR は閉じている', async () => {
+    // Given
+    toDataURL.mockResolvedValue('data:image/png;base64,qr');
+    renderHeader({ compact: true });
+    const share = inviteToggle();
+    fireEvent.click(share);
+    fireEvent.click(qrToggle());
+    await screen.findByRole('img', { name: '参加用 URL の QR コード' });
+
+    // When: たたむ
+    fireEvent.click(share);
+
+    // Then: QR も閉じる
+    expect(qrToggle().getAttribute('aria-expanded')).toBe('false');
+    expect(qrRegion(qrToggle()).hidden).toBe(true);
+
+    // When: もう一度開く
+    fireEvent.click(share);
+
+    // Then: QR は閉じたまま
+    expect(shareRegion(share).getAttribute('data-open')).toBe('true');
+    expect(qrToggle().getAttribute('aria-expanded')).toBe('false');
+    expect(qrRegion(qrToggle()).hidden).toBe(true);
+  });
+});

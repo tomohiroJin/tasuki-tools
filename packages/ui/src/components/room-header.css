@@ -10,6 +10,8 @@
    狭い幅（40rem 未満）では、招待の欄（ルームコード・URL・QR・コピー）を「仲間を招く」のボタンでたたむ。
    ルーレットの 320×640 の撮影で、見出しが約 210px 高くなり、止まった札が下端の帯に隠れたため（設計 §8 R6）。
    40rem は `actions.css` の並びの切り替えと同じ境目。
+   詰めた見た目（`.ui-room-header--compact`。timer のセッション中・#447 段 2）では、「仲間を招く」を全幅でも出し、招待の欄を
+   幅によらず開くまでたたむ。見出しの行と「仲間を招く」を 1 行に並べ、開いた欄はその下の行に全幅で出す。見出しは 1 段小さい字にする。
    ============================================================ */
 
 .ui-room-header {
@@ -62,6 +64,25 @@
   justify-self: start;
 }
 
+/* 詰めた見た目: 1 行目と「仲間を招く」を 1 行に並べ、招待の欄は次の行に全幅で出す。幅によらず開くまでたたむ（@media の外）。 */
+.ui-room-header--compact {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--space-2);
+}
+
+.ui-room-header--compact .ui-room-header-title > h1 {
+  font-size: var(--font-size-lg);
+}
+
+.ui-room-header--compact .ui-room-header-share {
+  grid-column: 1 / -1;
+}
+
+.ui-room-header--compact .ui-room-header-share:not([data-open='true']) {
+  display: none;
+}
+
 @media (width < 40rem) {
   .ui-room-header-share:not([data-open='true']) {
     display: none;
@@ -73,6 +94,11 @@
 @media (width >= 40rem) {
   .ui-room-header .ui-room-header-share-toggle {
     display: none;
+  }
+
+  /* 詰めた見た目では広い幅でも「仲間を招く」を出す。上の規則（(0,2,0)）に勝つよう組を重ね、後に書く。 */
+  .ui-room-header.ui-room-header--compact .ui-room-header-share-toggle {
+    display: inline-flex;
   }
 }
 
