@@ -3,7 +3,7 @@
  * 値は要素層の `h1` と同じ（`--font-display`・600・`--ivory`・`--font-size-xl`・行の高さ 1.25）。
  *
  * 詳細度: ここは (0,1,1)。詰めた見た目の h1（`.ui-room-header--compact .ui-room-header-title > h1`・(0,2,1)・部品層）が
- * `font-size: var(--font-size-lg)` で勝つ。reset は `@layer reset` でレイヤー外のここより常に弱い。
+ * 1 段小さい字（`--font-size-lg`）で勝つ。reset は `@layer reset` でレイヤー外のここより常に弱い。
  */
 .app-room-header h1 {
   margin: 0;
