@@ -24,3 +24,8 @@
   position: relative;
   z-index: 30;
 }
+
+/* 詰めた見た目（セッション・完了）は計器が主役なので、下との間を 1 段詰める（狭い幅でタイマーを最初の画面に収める）。 */
+.app-room-header-compact {
+  margin-block-end: var(--space-3);
+}

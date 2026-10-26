@@ -252,7 +252,7 @@ export default function App() {
       {/* ルーム画面の共通の見出し（#447 段 2）。帯と同じ条件で 1 か所に置く（画面が変わっても位置が変わらず、完了にも戻るリンクが残る）。
           ロビーは通常、セッションと完了は詰めた見た目。休憩中は覆いの外へフォーカスを入れさせない（Session の本体と同じ inert）。 */}
       {mode !== null && !sessionLost && room != null && (
-        <div inert={onBreak} className="app-room-header">
+        <div inert={onBreak} className={mode === "lobby" ? "app-room-header" : "app-room-header app-room-header-compact"}>
           <RoomHeader
             title={ROOM_HEADING}
             backHref={`/?room=${encodeURIComponent(room.code)}`}

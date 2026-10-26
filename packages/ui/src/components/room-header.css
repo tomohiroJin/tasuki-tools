@@ -64,7 +64,7 @@
   justify-self: start;
 }
 
-/* 詰めた見た目: 題・戻るリンク・「仲間を招く」を折り返す 1 つの行に並べ（320px では 2 行、広ければ 1 行）、招待の欄は開いたとき次の行に全幅で出す。
+/* 詰めた見た目: 題・戻るリンク・「仲間を招く」を 1 つの行に並べ（40rem 未満は題を目に出さないので 1 行・下の @media）、招待の欄は開いたとき次の行に全幅で出す。
    `.ui-page-header` は `display: contents` で外し、題と戻るリンクを直接の子にする。通常の見た目の規則より強い連鎖で書く。幅によらず開くまでたたむ（@media の外）。 */
 .ui-room-header.ui-room-header--compact {
   display: flex;
@@ -102,6 +102,21 @@
 @media (width < 40rem) {
   .ui-room-header-share:not([data-open='true']) {
     display: none;
+  }
+
+  /* 詰めた見た目の狭い幅では、道具名を目に出さず読み上げにだけ残し、戻るリンクと「仲間を招く」を 1 行に収める。
+     道具名を出したままだと 2 行（約 90px）になり、390×844 の timer のセッションで計器が下端の帯に潜った（#447 段 2）。
+     宣言は部品の `.ui-visually-hidden` と同じ。空になった題の箱は伸びて、戻るリンクと「仲間を招く」を右へ寄せる。 */
+  .ui-room-header--compact .ui-room-header-title > h1 {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border-width: 0;
   }
 }
 
