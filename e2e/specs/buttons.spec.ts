@@ -570,7 +570,10 @@ test.describe('timer の各画面（ロビー・セッション・確認・ま�
     // 余白そのものは値で固定する（要素層と同じ 6rem・40rem 未満だけ）。
     expect(await page.evaluate(() => getComputedStyle(document.documentElement).scrollPaddingBottom), '390: scroll-padding-block-end が 6rem でない').toBe('96px');
 
-    // Tab は「完成!」まで帯に隠れない
+    // Tab は「完成!」まで帯に隠れない。
+    // 先に通知のヒントを閉じる（#447 段 2）。共通の見出しの分だけ計器のカードが下がり、ヒントが出たままの 390×460 では
+    // 頁の先頭で帯が留まらない（カードの上端に阻まれる）。留まった帯の上を Tab が通る場面を作れず、下の検査が空振りした
+    await page.locator('.notify-hint').getByRole('button', { name: '閉じる' }).click();
     await expectTabNeverUnderDock(page, '完成!', 'timer セッション（390）');
 
     // 40rem 以上は流れの中
