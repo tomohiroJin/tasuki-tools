@@ -1,0 +1,24 @@
+# 変異 487: timer-session-not-compact
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/ui/App.room-header.test.tsx
+#     「Given セッション中 / When 描く / Then 詰めた見た目の見出しが 1 つ」
+#
+# #447 段 2。timer のセッションで compact を渡さない。見出しが通常の高さになり、390×844 で計器が下端の帯に潜る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m487-*.patch
+# 復元: git apply -R scripts/mutations/m487-*.patch
+diff --git a/apps/timer-web/src/App.tsx b/apps/timer-web/src/App.tsx
+index fac1a215..6a882965 100644
+--- a/apps/timer-web/src/App.tsx
++++ b/apps/timer-web/src/App.tsx
+@@ -258,7 +258,7 @@ export default function App() {
+             backHref={`/?room=${encodeURIComponent(room.code)}`}
+             roomCode={room.code}
+             inviteUrl={sync.inviteUrl ?? ""}
+-            compact={mode === "session" || mode === "celebration"}
++            compact={mode === "celebration"}
+           />
+         </div>
+       )}

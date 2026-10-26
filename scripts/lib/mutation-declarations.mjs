@@ -3210,4 +3210,83 @@ export const MUTATIONS = [
       "#447。設計 §8 R6。320px で開く前から招待の欄が出て見出しが約 210px 高くなり、ルーレットの止まった札が下端の帯に隠れる。" +
       "jsdom は @media を解かないので部品の試験では見えない。m483 と同じ理由で、変異検査の中で拾う側として 40rem 未満の規則を字で読む。",
   },
+  {
+    id: 485,
+    label: "compact を受け取っても見出しに詰めた見た目のクラスを付けない",
+    patch: "m485-room-header-compact-class-dropped.patch",
+    pkg: "packages/invite-ui",
+    tests: ["tests/room-header.test.tsx"],
+    note: "#447 段 2。timer のセッションで見出しが通常の高さに戻り、広い幅では「仲間を招く」が消えて招待の欄が開いたまま出る。",
+  },
+  {
+    id: 486,
+    label: "詰めた見た目で 40rem 以上の「仲間を招く」を出す規則を消す",
+    patch: "m486-compact-wide-invite-toggle-hidden.patch",
+    pkg: "packages/ui",
+    tests: ["tests/room-header-wide-toggle.test.mjs"],
+    note:
+      "#447 段 2。広い幅の timer のセッションで、招待の欄はたたまれたまま開くボタンも消え、招待に辿り着けない。" +
+      "jsdom は @media を解かないので部品の試験では見えない。m483 と同じ理由で、変異検査の中で拾う側として 40rem 以上の規則を字で読む。",
+  },
+  {
+    id: 487,
+    label: "timer のセッションで見出しに compact を渡さない",
+    patch: "m487-timer-session-not-compact.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/App.room-header.test.tsx"],
+    note: "#447 段 2。見出しが通常の高さになり、390×844 で計器が下端の帯に潜る。",
+  },
+  {
+    id: 488,
+    label: "timer の完了の画面で見出しを描かない",
+    patch: "m488-timer-header-hidden-on-celebration.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/App.room-header.test.tsx"],
+    note: "#447 段 2。帯から戻るリンクを外したので、完了の画面からルームの選択画面へ戻る道が無くなる。",
+  },
+  {
+    id: 489,
+    label: "timer の休憩中に見出しを包む要素の inert を外す",
+    patch: "m489-timer-header-not-inert-on-break.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/App.room-header.test.tsx"],
+    note: "#447 段 2。休憩の覆いの裏の戻るリンクと「仲間を招く」に Tab で入れ、覆いから抜け出せる。",
+  },
+  {
+    id: 490,
+    label: "timer でルームを失っても見出しを描く",
+    patch: "m490-timer-header-after-room-lost.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/App.room-header.test.tsx"],
+    note: "#447 段 2。失ったルームの招待（コード・URL・QR）を配れてしまい、描かない帯とも食い違う。",
+  },
+  {
+    id: 491,
+    label: "timer の見出しの戻る先を /（ルームを付けない）にする",
+    patch: "m491-timer-back-link-to-root.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/App.room-header.test.tsx"],
+    note: "#447 段 2。ルームの選択画面ではなく玄関の入口へ戻され、ルームを離れる（m477 の、timer の配線の側）。",
+  },
+  {
+    id: 492,
+    label: "40rem 未満の詰めた見た目で道具名を隠す規則を消す",
+    patch: "m492-compact-narrow-title-shown.patch",
+    pkg: "packages/ui",
+    tests: ["tests/room-header-wide-toggle.test.mjs"],
+    note:
+      "#447 段 2。見出しが 2 行（約 90px）になり、390×844 の timer のセッションで計器が下端の帯に潜る。" +
+      "実際の見え方は E2E（`e2e/specs/layout.spec.ts` の timer の幅 390）が見るが、E2E の spec は変異検査のランナーに載らないので、" +
+      "m483 と同じ理由で、変異検査の中で拾う側として 40rem 未満の規則を字で読む試験を足した。",
+  },
+  {
+    id: 493,
+    label: "詰めた見た目で幅によらず招待の欄をたたむ規則を消す",
+    patch: "m493-compact-invite-fold-removed.patch",
+    pkg: "packages/ui",
+    tests: ["tests/room-header-wide-toggle.test.mjs"],
+    note:
+      "#447 段 2。広い幅の timer のセッションで開く前から招待の欄が出て見出しが高くなり、「仲間を招く」の aria-expanded と見た目が食い違う。" +
+      "40rem 未満は通常の見た目のたたみの規則が重ねて隠すので、狭い幅では見えない。@media の外の規則を字で読む試験を足した。",
+  },
 ];

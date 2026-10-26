@@ -118,3 +118,49 @@ test('Given 40rem 以上の @media / When 詰めた見た目の規則を読む /
   const showAt = list.findIndex((r) => r.selector === COMPACT_SHOW_SELECTOR);
   assert.ok(showAt > hideAt, '詰めた見た目の規則が隠す規則より先にある（後勝ちで負ける）');
 });
+
+/** 詰めた見た目で、幅によらず招待の欄をたたむ規則の選択子（@media の外に置く）。 */
+const COMPACT_FOLD_SELECTOR = ".ui-room-header--compact .ui-room-header-share:not([data-open='true'])";
+
+/** 詰めた見た目の狭い幅で、道具名を目に出さず読み上げにだけ残す規則の選択子。 */
+const COMPACT_NARROW_TITLE_SELECTOR = '.ui-room-header--compact .ui-room-header-title > h1';
+
+/** コメントを落とし、@media の塊（波括弧の対応で切り出す）を除いた残り。@media の外に置いた規則を読むのに使う。 */
+function outsideMedia(css) {
+  let plain = stripComments(css);
+  for (let at = plain.indexOf('@media'); at !== -1; at = plain.indexOf('@media')) {
+    const open = plain.indexOf('{', at);
+    let depth = 0;
+    let end = -1;
+    for (let i = open; i < plain.length && end === -1; i += 1) {
+      if (plain[i] === '{') depth += 1;
+      if (plain[i] === '}') {
+        depth -= 1;
+        if (depth === 0) end = i;
+      }
+    }
+    assert.notEqual(end, -1, '@media が閉じていない');
+    plain = plain.slice(0, at) + plain.slice(end + 1);
+  }
+  return plain;
+}
+
+test('Given @media の外 / When 詰めた見た目の招待の欄の規則を読む / Then 幅によらず開いていない間を display: none にする規則がちょうど 1 つある（#447 段 2）', () => {
+  // 広い幅の詰めた見た目は「仲間を招く」を出すので、欄をたたむ規則が @media の外に無いと、開く前から欄が出て見出しが高くなる
+  const found = rules(outsideMedia(read('room-header.css'))).filter(
+    (r) => r.selector === COMPACT_FOLD_SELECTOR && /display:\s*none/.test(r.body),
+  );
+  assert.equal(found.length, 1, `@media の外に \`${COMPACT_FOLD_SELECTOR} { display: none }\` がちょうど 1 つではない（${found.length} 件）`);
+});
+
+test('Given 40rem 未満の @media / When 詰めた見た目の道具名の規則を読む / Then 目に出さず読み上げに残す規則（.ui-visually-hidden と同じ宣言）がちょうど 1 つある（#447 段 2）', () => {
+  // 実際の見え方（390×844 で計器が下端の帯に潜らない）は E2E の layout.spec が見る。ここは変異検査の中で走る側として字で読む
+  const found = rules(mediaBlock(read('room-header.css'), '@media (width < 40rem)')).filter(
+    (r) => r.selector === COMPACT_NARROW_TITLE_SELECTOR,
+  );
+  assert.equal(found.length, 1, `40rem 未満の @media に \`${COMPACT_NARROW_TITLE_SELECTOR}\` の規則がちょうど 1 つではない（${found.length} 件）`);
+  assert.match(found[0].body, /position:\s*absolute/);
+  assert.match(found[0].body, /clip-path:\s*inset\(50%\)/);
+  assert.match(found[0].body, /width:\s*1px/);
+  assert.match(found[0].body, /height:\s*1px/);
+});

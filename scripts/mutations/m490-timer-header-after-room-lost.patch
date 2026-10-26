@@ -1,0 +1,24 @@
+# 変異 490: timer-header-after-room-lost
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/ui/App.room-header.test.tsx
+#     「Given ルームを失った / When 描く / Then 見出しを描かない」
+#
+# #447 段 2。ルームを失っても見出しを描く。失ったルームの招待（コード・URL・QR）を配れてしまい、帯（描かない）とも食い違う。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m490-*.patch
+# 復元: git apply -R scripts/mutations/m490-*.patch
+diff --git a/apps/timer-web/src/App.tsx b/apps/timer-web/src/App.tsx
+index fac1a215..0533dc8a 100644
+--- a/apps/timer-web/src/App.tsx
++++ b/apps/timer-web/src/App.tsx
+@@ -251,7 +251,7 @@ export default function App() {
+ 
+       {/* ルーム画面の共通の見出し（#447 段 2）。帯と同じ条件で 1 か所に置く（画面が変わっても位置が変わらず、完了にも戻るリンクが残る）。
+           ロビーは通常、セッションと完了は詰めた見た目。休憩中は覆いの外へフォーカスを入れさせない（Session の本体と同じ inert）。 */}
+-      {mode !== null && !sessionLost && room != null && (
++      {mode !== null && room != null && (
+         <div inert={onBreak} className={mode === "lobby" ? "app-room-header" : "app-room-header app-room-header-compact"}>
+           <RoomHeader
+             title={ROOM_HEADING}

@@ -1,0 +1,25 @@
+# 変異 493: compact-invite-fold-removed
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/room-header-wide-toggle.test.mjs（@media の外の詰めた見た目のたたみの規則を読む）
+#
+# #447 段 2。詰めた見た目で幅によらず招待の欄をたたむ規則を消す。広い幅の timer のセッションで、開く前から招待の欄が出て見出しが高くなり、「仲間を招く」の aria-expanded と見た目が食い違う。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m493-*.patch
+# 復元: git apply -R scripts/mutations/m493-*.patch
+diff --git a/packages/ui/src/components/room-header.css b/packages/ui/src/components/room-header.css
+index 4f90cde2..b43d27ee 100644
+--- a/packages/ui/src/components/room-header.css
++++ b/packages/ui/src/components/room-header.css
+@@ -95,10 +95,6 @@
+   flex-basis: 100%;
+ }
+ 
+-.ui-room-header--compact .ui-room-header-share:not([data-open='true']) {
+-  display: none;
+-}
+-
+ @media (width < 40rem) {
+   .ui-room-header-share:not([data-open='true']) {
+     display: none;

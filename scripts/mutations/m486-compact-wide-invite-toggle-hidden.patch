@@ -1,0 +1,27 @@
+# 変異 486: compact-wide-invite-toggle-hidden
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/room-header-wide-toggle.test.mjs（40rem 以上の詰めた見た目の規則を読む）
+#   - e2e/support/timer.ts の招待を読む手順を通る timer の E2E（広い幅のセッションで「仲間を招く」を押す。推定・変異検査の外・手元では赤を見ていない）
+#
+# #447 段 2。詰めた見た目で 40rem 以上の「仲間を招く」を出す規則を消す。広い幅の timer のセッションで招待の欄が幅によらずたたまれたまま、開くボタンも無くなり、招待に辿り着けない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m486-*.patch
+# 復元: git apply -R scripts/mutations/m486-*.patch
+diff --git a/packages/ui/src/components/room-header.css b/packages/ui/src/components/room-header.css
+index 4f90cde2..2a86f4c4 100644
+--- a/packages/ui/src/components/room-header.css
++++ b/packages/ui/src/components/room-header.css
+@@ -126,11 +126,6 @@
+   .ui-room-header .ui-room-header-share-toggle {
+     display: none;
+   }
+-
+-  /* 詰めた見た目では広い幅でも「仲間を招く」を出す。上の規則（(0,2,0)）に勝つよう組を重ね、後に書く。 */
+-  .ui-room-header.ui-room-header--compact .ui-room-header-share-toggle {
+-    display: inline-flex;
+-  }
+ }
+ 
+ /* QR は開いても下の画面を押し下げないよう、ボタンの下に浮かぶカードにする（#447・段として差し込むと画面全体が約 210px 動いた）。
