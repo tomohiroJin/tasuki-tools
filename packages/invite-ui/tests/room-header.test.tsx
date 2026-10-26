@@ -270,4 +270,22 @@ describe('狭い幅で招待をたたむ「仲間を招く」', () => {
     expect(inviteToggle().getAttribute('aria-expanded')).toBe('true');
     expect(qrToggle().getAttribute('aria-expanded')).toBe('false');
   });
+
+  it('Given QR を開いたまま / When 仲間を招くを押して閉じる / Then QR のボタンは開いたままの \'true\' で、欄も見えている', async () => {
+    // Given
+    toDataURL.mockResolvedValue('data:image/png;base64,qr');
+    renderHeader();
+    fireEvent.click(qrToggle());
+    await screen.findByRole('img', { name: '参加用 URL の QR コード' });
+    fireEvent.click(inviteToggle());
+
+    // When: 仲間を招くを閉じる
+    fireEvent.click(inviteToggle());
+
+    // Then: 招待は閉じ、QR は開いたまま（逆方向の独立）
+    expect(inviteToggle().getAttribute('aria-expanded')).toBe('false');
+    expect(shareRegion(inviteToggle()).getAttribute('data-open')).toBe(null);
+    expect(qrToggle().getAttribute('aria-expanded')).toBe('true');
+    expect(qrRegion(qrToggle()).hidden).toBe(false);
+  });
 });

@@ -166,4 +166,27 @@ test.describe('パネルの面と、見出し・戻る導線（#320 PR 3）', ()
       'お題ツールの入室を待つ画面',
     );
   });
+
+  test('Given お題ツールのルーム画面 / When 1280×800 と 320×640 で招待の行を測る / Then 広い幅では「仲間を招く」は隠れ、狭い幅では閉じていて押すと開く', async ({
+    page,
+  }) => {
+    // Given: 広い幅（40rem 以上）の画面
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await openTopicTool(page, 'panel-share');
+    const toggle = page.getByRole('button', { name: '仲間を招く', exact: true });
+    const copy = page.getByRole('button', { name: '招待リンクをコピー', exact: true });
+
+    // When / Then: 広い幅では「仲間を招く」は隠れ、招待の行（コピー）は常に見える
+    await expect(toggle, '1280px の「仲間を招く」').toBeHidden();
+    await expect(copy, '1280px の招待リンクをコピー').toBeVisible();
+
+    // When: 狭い幅（40rem 未満）に縮める / Then: 招待の行は閉じ、「仲間を招く」が出る
+    await page.setViewportSize({ width: 320, height: 640 });
+    await expect(toggle, '320px の「仲間を招く」').toBeVisible();
+    await expect(copy, '320px の招待リンクをコピー（閉じている間）').toBeHidden();
+
+    // When: 「仲間を招く」を押す / Then: 招待の行が開く
+    await toggle.click();
+    await expect(copy, '320px で開いた後の招待リンクをコピー').toBeVisible();
+  });
 });

@@ -50,6 +50,12 @@
   letter-spacing: 0.08em;
 }
 
+/* 包む欄の中で招待の行と QR の欄の間を空ける（ふつうのブロックだと間の gap が消える）。 */
+.ui-room-header-share {
+  display: grid;
+  gap: var(--space-2);
+}
+
 /* 狭い幅では招待の行を「仲間を招く」でたたむ。開いたときだけ data-open='true' が付いて見える。 */
 .ui-room-header-share-toggle {
   justify-self: start;
@@ -61,8 +67,10 @@
   }
 }
 
+/* `.ui-room-header .ui-room-header-share-toggle`（(0,2,0)）にするのは、`.ui-button` の `display: inline-flex`（後に読み込まれる・
+   同じ詳細度）に勝って 40rem 以上で隠すため */
 @media (width >= 40rem) {
-  .ui-room-header-share-toggle {
+  .ui-room-header .ui-room-header-share-toggle {
     display: none;
   }
 }

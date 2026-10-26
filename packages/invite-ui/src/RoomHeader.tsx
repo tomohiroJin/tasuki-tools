@@ -86,7 +86,7 @@ export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras }
             <p className="ui-note" role="status">{qr.failed ? ROOM_HEADER_TEXT.qrFailed : ROOM_HEADER_TEXT.qrPreparing}</p>
           )}
         </div>
-        </div>
+      </div>
     </header>
   );
 }
