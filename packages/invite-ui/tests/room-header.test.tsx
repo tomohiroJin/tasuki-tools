@@ -243,6 +243,29 @@ describe('ルーム画面の共通の見出し', () => {
     expect(card.style.getPropertyValue('--ui-room-header-qr-shift')).toBe('-96px');
   });
 
+  it('Given 準備中の字のカードは収まる / When QR の画像が出てカードが広がる / Then 測り直して寄せる', async () => {
+    // Given: 準備中は字だけで幅が狭く収まる（右端 300px）。画像が出ると右端 400px まで広がる。
+    let resolve: (url: string) => void = () => {};
+    toDataURL.mockReturnValue(new Promise<string>((done) => { resolve = done; }));
+    renderHeader();
+    const toggle = qrToggle();
+    const card = qrRegion(toggle);
+    vi.spyOn(document.documentElement, 'clientWidth', 'get').mockReturnValue(320);
+    vi.spyOn(card, 'getBoundingClientRect').mockImplementation(() => (
+      card.querySelector('img') ? { left: 180, right: 400, width: 220 } : { left: 180, right: 300, width: 120 }
+    ) as DOMRect);
+    fireEvent.click(toggle);
+    await waitFor(() => expect(screen.getByRole('status').textContent).toBe('QR コードを準備しています…'));
+    expect(card.style.getPropertyValue('--ui-room-header-qr-shift')).toBe('0px');
+
+    // When
+    resolve('data:image/png;base64,qr');
+    await screen.findByRole('img', { name: '参加用 URL の QR コード' });
+
+    // Then
+    expect(card.style.getPropertyValue('--ui-room-header-qr-shift')).toBe('-96px');
+  });
+
   it('Given QR を開くとカードが画面の左へはみ出す / When 開く / Then 左端を画面の内側に収める', async () => {
     // Given: 狭い画面でボタンが左端にあり、カードが左へ 10px はみ出す位置に出る。
     toDataURL.mockResolvedValue('data:image/png;base64,qr');

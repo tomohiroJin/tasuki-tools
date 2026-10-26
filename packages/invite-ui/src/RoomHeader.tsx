@@ -54,7 +54,8 @@ export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras }
       ? viewport - QR_EDGE_PX - right
       : left < QR_EDGE_PX ? QR_EDGE_PX - left : 0;
     card.style.setProperty('--ui-room-header-qr-shift', `${shift}px`);
-  }, [open]);
+    // 画像が出る・作れないと分かるとカードの幅が変わるので、そのたびに測り直す。
+  }, [open, qr.dataUrl, qr.failed]);
   // Esc は QR の中（ボタン）にフォーカスがあるときだけ拾う。画面の他の欄の Esc と、変換を取り消す Esc は奪わない。
   const closeQrOnEscape = (event: KeyboardEvent<HTMLDivElement>) => {
     if (!open || event.key !== 'Escape' || event.nativeEvent.isComposing) return;
