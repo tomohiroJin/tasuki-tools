@@ -6,6 +6,9 @@
    **行の中の並びと行の間の間隔まで部品が持つ**（配置は画面が持つ、の例外）。見出しの行とルームコードの行の並びを
    画面に残すと、片方だけ直ったときに画面ごとに並びがずれる。見出しの字の大きさは要素層の h1 と画面が持ち、
    h1 の上下の余白は部品が 0 にする（行の間は `.ui-room-header` の gap が持つ）。
+   狭い幅（40rem 未満）では、招待の行（ルームコード・URL・QR・コピー）を「仲間を招く」のボタンでたたむ。
+   ルーレットの 320×640 の撮影で、見出しが約 210px 高くなり、止まった札が下端の帯に隠れたため（設計 §7 R6）。
+   40rem は `actions.css` の並びの切り替えと同じ境目。
    ============================================================ */
 
 .ui-room-header {
@@ -45,6 +48,23 @@
 .ui-room-header-code-value {
   font-family: var(--font-mono);
   letter-spacing: 0.08em;
+}
+
+/* 狭い幅では招待の行を「仲間を招く」でたたむ。開いたときだけ data-open='true' が付いて見える。 */
+.ui-room-header-share-toggle {
+  justify-self: start;
+}
+
+@media (width < 40rem) {
+  .ui-room-header-share:not([data-open='true']) {
+    display: none;
+  }
+}
+
+@media (width >= 40rem) {
+  .ui-room-header-share-toggle {
+    display: none;
+  }
 }
 
 /* QR は画面の幅に合わせて縮む。白い余白は QR の画像が描くので、地は敷かない（玄関の `.hub-invite-qr img` と同じ）。 */

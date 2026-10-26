@@ -19,7 +19,7 @@ describe('ルーム画面の共通の見出しの文言は書体の常用の層�
     expect(faces).toEqual(['zkgn-400-base.woff2', 'zkgn-500-base.woff2', 'zkgn-700-base.woff2']);
   });
 
-  it('Given 見出しの部品の文言 / When 常用の層の範囲に当てる / Then 外れる字は無く、件数は 10', () => {
+  it('Given 見出しの部品の文言 / When 常用の層の範囲に当てる / Then 外れる字は無く、件数は 11', () => {
     // Given
     const texts = Object.values(ROOM_HEADER_TEXT);
 
@@ -28,6 +28,6 @@ describe('ルーム画面の共通の見出しの文言は書体の常用の層�
 
     // Then（件数も固定する。import が空振りしても緑にしない）
     expect(failures).toEqual([]);
-    expect(texts.length).toBe(10);
+    expect(texts.length).toBe(11);
   });
 });

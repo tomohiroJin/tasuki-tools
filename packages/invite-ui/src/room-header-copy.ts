@@ -6,6 +6,7 @@
  */
 export const ROOM_HEADER_TEXT = {
   back: '選択画面へ戻る',
+  inviteToggle: '仲間を招く',
   roomLabel: 'ルーム',
   copy: '招待リンクをコピー',
   copied: 'コピーしました',

@@ -23,7 +23,10 @@ export interface RoomHeaderProps {
  */
 export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras }: RoomHeaderProps) {
   const qrId = useId();
+  const shareId = useId();
   const [open, setOpen] = useState(false);
+  // 狭い幅でたたむ招待の行の開閉。QR の開閉（`open`）とは別の状態。
+  const [shareOpen, setShareOpen] = useState(false);
   const qr = useInviteQr(inviteUrl, open);
   const copy = useCopyText(inviteUrl);
 
@@ -42,37 +45,48 @@ export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras }
         </div>
         <a className="ui-page-header-back ui-button ui-button--quiet" href={backHref}>{ROOM_HEADER_TEXT.back}</a>
       </div>
-      <div className="ui-room-header-invite">
-        <p className="ui-room-header-code">
-          <span className="ui-room-header-code-label">{ROOM_HEADER_TEXT.roomLabel}</span>{' '}
-          <span className="ui-room-header-code-value">{roomCode}</span>
-        </p>
-        <div className="ui-invite">
-          <span className="ui-invite-url">{inviteUrl}</span>
-          <button
-            type="button"
-            className="ui-button ui-button--secondary ui-button--sm"
-            aria-expanded={open}
-            aria-controls={qrId}
-            onClick={() => setOpen((value) => !value)}
-          >
-            {open ? ROOM_HEADER_TEXT.qrHide : ROOM_HEADER_TEXT.qrShow}
-          </button>
-          <button
-            type="button"
-            className="ui-button ui-button--secondary ui-button--sm"
-            onClick={() => { void copy.copy(); }}
-          >
-            {copyLabel}
-          </button>
+      <button
+        type="button"
+        className="ui-button ui-button--secondary ui-button--sm ui-room-header-share-toggle"
+        aria-expanded={shareOpen}
+        aria-controls={shareId}
+        onClick={() => setShareOpen((value) => !value)}
+      >
+        {ROOM_HEADER_TEXT.inviteToggle}
+      </button>
+      <div id={shareId} className="ui-room-header-share" data-open={shareOpen ? 'true' : undefined}>
+        <div className="ui-room-header-invite">
+          <p className="ui-room-header-code">
+            <span className="ui-room-header-code-label">{ROOM_HEADER_TEXT.roomLabel}</span>{' '}
+            <span className="ui-room-header-code-value">{roomCode}</span>
+          </p>
+          <div className="ui-invite">
+            <span className="ui-invite-url">{inviteUrl}</span>
+            <button
+              type="button"
+              className="ui-button ui-button--secondary ui-button--sm"
+              aria-expanded={open}
+              aria-controls={qrId}
+              onClick={() => setOpen((value) => !value)}
+            >
+              {open ? ROOM_HEADER_TEXT.qrHide : ROOM_HEADER_TEXT.qrShow}
+            </button>
+            <button
+              type="button"
+              className="ui-button ui-button--secondary ui-button--sm"
+              onClick={() => { void copy.copy(); }}
+            >
+              {copyLabel}
+            </button>
+          </div>
         </div>
-      </div>
-      <div id={qrId} hidden={!open} className="ui-room-header-qr">
-        {qr.dataUrl && <img src={qr.dataUrl} width="200" height="200" alt={ROOM_HEADER_TEXT.qrAlt} />}
-        {open && !qr.dataUrl && (
-          <p className="ui-note" role="status">{qr.failed ? ROOM_HEADER_TEXT.qrFailed : ROOM_HEADER_TEXT.qrPreparing}</p>
-        )}
-      </div>
+        <div id={qrId} hidden={!open} className="ui-room-header-qr">
+          {qr.dataUrl && <img src={qr.dataUrl} width="200" height="200" alt={ROOM_HEADER_TEXT.qrAlt} />}
+          {open && !qr.dataUrl && (
+            <p className="ui-note" role="status">{qr.failed ? ROOM_HEADER_TEXT.qrFailed : ROOM_HEADER_TEXT.qrPreparing}</p>
+          )}
+        </div>
+        </div>
     </header>
   );
 }

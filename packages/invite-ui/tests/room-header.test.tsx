@@ -203,3 +203,71 @@ describe('ルーム画面の共通の見出し', () => {
     expect(container.querySelector('.ui-invite-url')!.hasAttribute('aria-label')).toBe(false);
   });
 });
+
+/** 狭い幅でたたむ「仲間を招く」の開閉。aria-controls の指す先は `.ui-room-header-share`。 */
+function inviteToggle(): HTMLElement {
+  return screen.getByRole('button', { name: '仲間を招く' });
+}
+function shareRegion(button: HTMLElement): HTMLElement {
+  return document.getElementById(button.getAttribute('aria-controls')!)!;
+}
+
+describe('狭い幅で招待をたたむ「仲間を招く」', () => {
+  it('Given 描いた直後 / When 何もしない / Then 仲間を招くは閉じていて、指す先は招待の行と QR の欄を包む', () => {
+    // Given / When
+    const { container } = renderHeader();
+    const toggle = inviteToggle();
+    const region = shareRegion(toggle);
+
+    // Then: 押す前は `data-open` を持たない（常に 'true' を付ける壊し方を、ここで赤くする）
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(region.classList.contains('ui-room-header-share')).toBe(true);
+    expect(region.getAttribute('data-open')).toBe(null);
+    expect(region.querySelector('.ui-room-header-invite')).not.toBeNull();
+    expect(region.querySelector('.ui-room-header-qr')).not.toBeNull();
+    expect(container.querySelectorAll('.ui-room-header-share-toggle').length).toBe(1);
+  });
+
+  it('Given 閉じた招待 / When 仲間を招くを押す / Then 開く。もう一度押すと閉じる', () => {
+    // Given
+    renderHeader();
+    const toggle = inviteToggle();
+
+    // When: 1 回目
+    fireEvent.click(toggle);
+
+    // Then: 開いた
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(shareRegion(toggle).getAttribute('data-open')).toBe('true');
+
+    // When: 2 回目
+    fireEvent.click(toggle);
+
+    // Then: 閉じた（属性は消える。'false' を書く実装とは区別しない・null で見る）
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(shareRegion(toggle).getAttribute('data-open')).toBe(null);
+  });
+
+  it('Given 招待を開いた / When QR を開く / Then 2 つの開閉は互いに動かさない', async () => {
+    // Given
+    toDataURL.mockResolvedValue('data:image/png;base64,qr');
+    renderHeader();
+    const toggle = inviteToggle();
+    fireEvent.click(toggle);
+
+    // When
+    fireEvent.click(qrToggle());
+    await screen.findByRole('img', { name: '参加用 URL の QR コード' });
+
+    // Then: 仲間を招くは開いたまま
+    expect(inviteToggle().getAttribute('aria-expanded')).toBe('true');
+    expect(shareRegion(inviteToggle()).getAttribute('data-open')).toBe('true');
+
+    // When: QR を閉じる
+    fireEvent.click(screen.getByRole('button', { name: 'QR コードを閉じる' }));
+
+    // Then: 仲間を招くは開いたまま、QR だけ閉じる
+    expect(inviteToggle().getAttribute('aria-expanded')).toBe('true');
+    expect(qrToggle().getAttribute('aria-expanded')).toBe('false');
+  });
+});
