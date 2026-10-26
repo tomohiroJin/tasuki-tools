@@ -199,6 +199,33 @@
 - [ ] **Step 4: 緑**: `pnpm --filter @tasuki/roulette-web test`・`typecheck`・`lint`。取り決めの既存パッチ 8 本の `git apply --check`
 - [ ] **Step 5: コミット**: `feat: ルーレットのルーム画面を共通の見出しにする（#447）`
 
+### Task 3b: 狭い幅で招待をたたむ（設計 §7 R6・撮影の後に足した）
+
+**Files:**
+- Modify: `packages/invite-ui/src/RoomHeader.tsx`・`packages/invite-ui/src/room-header-copy.ts`・`packages/ui/src/components/room-header.css`・`packages/ui/README.md`（`.ui-room-header` の行に、狭い幅でたたむことを 1 文）
+- Test: `packages/invite-ui/tests/room-header.test.tsx`・`packages/invite-ui/tests/room-header-copy-fits-font-base.test.ts`（件数 10 → 11）
+
+**Interfaces:**
+- Produces: `ROOM_HEADER_TEXT.inviteToggle = '仲間を招く'`（11 個目）。DOM に 2 つ足す（クラス名はこのとおり）:
+  - `.ui-page-header` の直後（2 行目より前）に `<button type="button" class="ui-button ui-button--secondary ui-button--sm ui-room-header-share-toggle" aria-expanded={shareOpen} aria-controls={shareId}>{inviteToggle}</button>`。文言は開閉で変えない（状態は `aria-expanded` が伝える）
+  - 既存の `.ui-room-header-invite`（2 行目）と `.ui-room-header-qr`（QR の欄）を、`<div id={shareId} class="ui-room-header-share" data-open={shareOpen ? 'true' : undefined}>` で包む
+  - `shareId` は `useId()`、`shareOpen` は `useState(false)`。QR の開閉（`open`）とは別の状態
+- CSS（`room-header.css` に足す。値はこのとおり）:
+  - `@media (width < 40rem) { .ui-room-header-share:not([data-open='true']) { display: none; } }`
+  - `@media (width >= 40rem) { .ui-room-header-share-toggle { display: none; } }`
+  - ボタンを `justify-self: start` にする（グリッドの行いっぱいに伸ばさない）
+  - 頭のコメントに、40rem 未満でたたむ理由（ルーレットの 320×640 で止まった札が下端の帯に隠れた・設計 §7 R6）と、40rem が `actions.css` と同じ境目であることを書く
+
+- [ ] **Step 1: 赤いテスト**（`room-header.test.tsx` に足す。jsdom は `@media` を解かないので、見るのは属性）:
+  - 「Given 描いた直後 / When 何もしない / Then 仲間を招くのボタンは閉じていて、指す先は招待の行と QR の欄を包む」: `getByRole('button', { name: '仲間を招く' })` の `aria-expanded` が `'false'`・`aria-controls` で `getElementById` した要素が `.ui-room-header-share`・その要素が `data-open` を持たない・その要素の中に `.ui-room-header-invite` と `.ui-room-header-qr` がある
+  - 「Given 閉じた招待 / When 仲間を招くを押す / Then 開く。もう一度押すと閉じる」: `aria-expanded` が `'true'`・指す先の `getAttribute('data-open')` が `'true'`。もう一度押すと `'false'` と `null`
+  - 「Given 招待を開いた / When QR を開く / Then 2 つの開閉は互いに動かさない」: 仲間を招くを押してから QR を開き、仲間を招くの `aria-expanded` が `'true'` のまま。QR を閉じても同じ
+  - 書体の試験の件数を 11 に
+- [ ] **Step 2: 赤を見る**: `pnpm --filter @tasuki/invite-ui test`
+- [ ] **Step 3: 実装**（上の Interfaces のとおり）
+- [ ] **Step 4: 緑**: `pnpm --filter @tasuki/invite-ui test`・`typecheck`・`lint`・`pnpm --filter @tasuki/ui test`・`lint`・`node scripts/audit-ui-components.mjs`（OK のまま）・`pnpm --filter @tasuki/topic-web test`・`pnpm --filter @tasuki/roulette-web test`（部品を使うアプリが緑のまま）
+- [ ] **Step 5: コミット**: `feat: 狭い幅では見出しの招待を「仲間を招く」でたたむ（#447）`
+
 ### Task 4: agenda を共通の見出しにする
 
 **Files:**
