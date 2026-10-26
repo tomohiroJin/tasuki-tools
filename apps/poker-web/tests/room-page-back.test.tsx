@@ -5,7 +5,7 @@
  * 戻る手段を失う（利用者の申し送り・2026-09-14）。行き先は**同じルームの選択画面**
  * （`/?room=CODE`）——玄関まで戻すと、ルームから出たことになってしまう。
  *
- * 招待リンク（`InviteLink`）が配る URL も同じ選択画面の URL なので（#95 D11・
+ * 招待リンク（共通の見出し `RoomHeader` が配る URL）も同じ選択画面の URL なので（#95 D11・
  * `docs/adr/0018` 決定 2）、戻る導線は `sync.inviteUrl(roomId)` を再利用する
  * （組み立ては `@tasuki/sync-client` に 1 つだけ・画面は同期クライアントを直接
  * import しない・`docs/adr/0015` MUST 2）。
@@ -137,5 +137,33 @@ describe('RoomPage のヘッダ', () => {
     expect(screen.getByRole('link', { name: '選択画面へ戻る' }).getAttribute('href')).toBe(
       'https://example.test/?room=ABCD1234',
     );
+  });
+
+  it('Given 入室したルーム / When 描く / Then 共通の見出しにルームコードと QR のボタンが出る', () => {
+    // Given / When
+    render(<RoomPage roomId={ROOM_ID} sync={makeSync()} />);
+
+    // Then: ルームコードは共通の見出しの値の欄に、ルームコードそのものの字で出る。
+    // 招待 URL にもルームコードは入るので、文字全体の部分一致では見ない。
+    expect(document.querySelector('.ui-room-header-code-value')?.textContent).toBe(ROOM_ID);
+    expect(screen.getByRole('button', { name: 'QR コードを表示' })).toBeDefined();
+  });
+
+  it('Given お題がある / When 描く / Then 切り替え 2 つは見出しの隣、戻るリンクは行の 2 つ目の子', () => {
+    // Given: お題があると「お題を隠す」が出る
+    const sync: PokerSync = { ...makeSync(), topic: { title: 'FizzBuzz', body: '本文', source: 'manual' } };
+
+    // When
+    render(<RoomPage roomId={ROOM_ID} sync={sync} />);
+
+    // Then: 見出しの行の子は 2 つ（見出しの塊と戻る導線）で、その行は共通の見出しの中にある
+    const row = document.querySelector('.ui-page-header');
+    expect(row?.closest('.ui-room-header')).not.toBeNull();
+    expect(row?.children).toHaveLength(2);
+    expect(screen.getByRole('link', { name: '選択画面へ戻る' }).parentElement).toBe(row);
+    // 切り替え 2 つは、見出し（h1）と同じ塊の中に並ぶ（Review Focus 3）
+    const h1 = screen.getByRole('heading', { level: 1, name: 'プランニングポーカー' });
+    expect(screen.getByRole('button', { name: 'お題を隠す' }).parentElement).toBe(h1.parentElement);
+    expect(screen.getByRole('button', { name: '記録する' }).parentElement).toBe(h1.parentElement);
   });
 });

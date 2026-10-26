@@ -3,7 +3,7 @@
 // **ここで名前は聞かない**（#95 S5c・R9）。名乗る場所は玄関に 1 つだけあり、
 // 端末に同一性が無いままここへ来た人は玄関の参加画面へ送り返す。
 import { useState } from 'react';
-import { useCopyText } from '@tasuki/invite-ui';
+import { RoomHeader } from '@tasuki/invite-ui';
 import { CardHand } from '../components/CardHand';
 import { CurrentTopic, TOPIC_CARD_ID, TOPIC_HIDE, TOPIC_SHOW } from '../components/CurrentTopic';
 import { ErrorNote } from '../components/ErrorNote';
@@ -50,29 +50,6 @@ function JoiningView({ sync, notice }: { sync: PokerSync; notice: string | null 
           ErrorNote 側で出さない（二重表示の回避） */}
       <ErrorNote error={sync.error} onClose={sync.clearError} />
     </main>
-  );
-}
-
-/**
- * 招待リンク。**配るのは選択画面（ハブ）の URL である**（#95 S5b・D11）。
- *
- * S5a で参加用 URL は `/?room=CODE` に決まった（`docs/adr/0018` 決定 2）。poker だけが
- * 旧い `/poker/room/<id>` を配っていると、受け取った人は選択画面を通らずに poker へ
- * 着地し、**ツールを選び直せない**。組み立ては `@tasuki/sync-client` に 1 つあり、
- * **画面は同期フックから受け取る**（画面は同期クライアントを直接 import しない）。
- */
-function InviteLink({ url }: { url: string }) {
-  const { state: copyState, copy } = useCopyText(url);
-
-  return (
-    <div className="ui-invite">
-      <span className="ui-invite-url">{url}</span>
-      <button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={copy}>
-        {copyState === 'done' && 'コピーしました'}
-        {copyState === 'failed' && 'コピーできません（URL を選択してください）'}
-        {copyState === 'idle' && '招待リンクをコピー'}
-      </button>
-    </div>
   );
 }
 
@@ -128,15 +105,17 @@ export function RoomPage({ roomId, sync }: Props) {
 
   return (
     <main className="ui-page ui-page--wide room">
-      <header>
-        {/* 見出しと戻る導線を 1 行に組む（#95 S5c 追補・利用者の実画面フィードバック）。
-            素のリンクを招待リンクの塊の上へ置くと、どこへ属する操作か分からず浮いていた。
-            timer は `StatusStrip` の中に収めてあるので、こちらも見出しの相方にする。 */}
-        <div className="ui-page-header">
-          {/* 見出しと切り替えを 1 つの塊にする。`.ui-page-header` は子を両端に振り分けるので、
-              子が 3 つだと戻る導線が真ん中に浮く（#316 PR 1）。 */}
-          <div className="room-title">
-            <h1>プランニングポーカー</h1>
+      {/* 見出し・戻る導線・ルームコード・招待 URL は共通の部品が描く（#447 段 1）。 */}
+      <RoomHeader
+        title="プランニングポーカー"
+        // 戻る導線の行き先は招待リンクと同じ**同じルームの選択画面**（玄関まで戻すとルームから出たことになる）。
+        // 旧入口（poker のトップ画面等）が撤去され、他に戻る手段が無い（利用者の申し送り・2026-09-14）。
+        // 組み立ては増やさず sync.inviteUrl を再利用する。
+        backHref={inviteUrl}
+        roomCode={roomId}
+        inviteUrl={inviteUrl}
+        titleExtras={
+          <>
             {/* お題があるときだけ。隠すのは札を閉じて `inert` にする（DOM には残す。残すから滑って閉じられる・#348）。シートは札の中の `<dialog>` で、
                 開いている間はモーダルなので、この切り替えは押せない（フォーカスが失われる経路が無い）。
                 ただし切り替えのボタンにフォーカスがあるまま他の人がお題を下ろすと、ボタンごと消えて
@@ -163,17 +142,9 @@ export function RoomPage({ roomId, sync }: Props) {
             >
               {RECORDING_TOGGLE}
             </button>
-          </div>
-          {/* 選択画面へ戻る導線。旧入口（poker のトップ画面等）が撤去され、他に戻る
-              手段が無い（利用者の申し送り・2026-09-14）。行き先は招待リンクと同じ
-              **同じルームの選択画面**（玄関まで戻すとルームから出たことになる）ので、
-              組み立ては増やさず sync.inviteUrl を再利用する。 */}
-          <a className="ui-page-header-back ui-button ui-button--quiet" href={inviteUrl}>
-            選択画面へ戻る
-          </a>
-        </div>
-        <InviteLink url={inviteUrl} />
-      </header>
+          </>
+        }
+      />
       <ErrorNote error={sync.error} onClose={sync.clearError} />
       {/* 段組み（#316・ADR 0025）。64rem 以上は左に読む面（お題）・右に操作の面（場 → 手札 → 結果）。
           DOM は狭い幅で見せたい順（お題 → 場 → 手札 → 記録の足）。脇（`.room-side`）は、お題か記録があるときに出し、中にお題の札（隠すのは札の包みだけ。
