@@ -3,12 +3,31 @@
  */
 import { expect, type Locator, type Page } from '@playwright/test';
 
-/** 招待パネルの QR の代替テキストからルームコードを読む形。 */
-const QR_ALT = /^ルーム (.+) の QR コード$/;
-
 /** 選択画面のツールの札。ここから各ツールへ入る（#95 S5a・R1）。 */
 function toolCard(page: Page, name: string): Locator {
   return page.getByRole('list', { name: 'ツール' }).getByRole('link', { name: new RegExp(name) });
+}
+
+/**
+ * 共通の見出し（`RoomHeader`）の招待の欄がたたまれていれば「仲間を招く」で開く。
+ * 戻り値の関数を呼ぶと、**開いたときだけ**閉じて元の画面に戻す（他の試験の前提を変えない）。
+ *
+ * たたまれるのは、ロビーで 40rem 未満のとき、と、セッション・完了（詰めた見た目）では幅を問わず。
+ * 欄が CSS で隠れているかは `display` の結果（`toggle` の可視）で決まるので、ここでも見えるかで分ける。
+ */
+export async function revealInvite(page: Page): Promise<() => Promise<void>> {
+  // 見出しが描かれてから分かれる。開いているときは「仲間を招く」が見えない（広いロビー）か、aria-expanded が true
+  await expect(page.locator('.ui-room-header'), 'ルームの見出し').toBeVisible();
+  const toggle = page.getByRole('button', { name: '仲間を招く', exact: true });
+  if (!(await toggle.isVisible()) || (await toggle.getAttribute('aria-expanded')) === 'true') {
+    return async () => {};
+  }
+  await toggle.click();
+  await expect(toggle, '「仲間を招く」を開いた').toHaveAttribute('aria-expanded', 'true');
+  return async () => {
+    await toggle.click();
+    await expect(toggle, '「仲間を招く」を閉じた').toHaveAttribute('aria-expanded', 'false');
+  };
 }
 
 /**
@@ -18,11 +37,13 @@ function toolCard(page: Page, name: string): Locator {
  * 「`/timer/` を開いて名前を入れる」経路はもう無い。ここが通らなくなったら、
  * それは手順が古いのではなく**入口が壊れている**。
  *
- * コードを **QR の `alt` から読む**のは、画面上でコードを載せている要素のうち
- * アクセシブル名を持つのがそこだけだから（大きな数字は素の `<span>`、
- * 招待 URL も素の `<p>`）。`alt` は製品が元から持っている情報で、
- * テストのために足したものではない。**玄関の URL から読み取らない** ——
- * 自分の居場所を読むだけでは、timer が実際にそのルームを映していることを見ない。
+ * コードは**画面に出た招待 URL（`invitedUrlText`）の `room` から読む**。共通の見出しの QR は
+ * 汎用の代替テキスト（「参加用 URL の QR コード」）で、ルームコードを持たないため。そのうえで
+ * **見出しのルームコード（`.ui-room-header-code-value`）が同じ値を見せていること**を確かめて返す
+ * （#447 段 2・R11）。**`page.url()` から読み取らない** —— 自分の居場所を読むだけでは、
+ * timer が実際にそのルームを映していることを見ない。
+ *
+ * 招待の欄がたたまれていれば開いて読み、読んだら閉じて返す（狭い幅から呼ばれることがある）。
  */
 export async function createRoom(page: Page, name: string): Promise<string> {
   await page.goto('/');
@@ -30,20 +51,26 @@ export async function createRoom(page: Page, name: string): Promise<string> {
   await page.getByRole('button', { name: 'ルームを作る' }).click();
   await toolCard(page, 'TDD Mob Pro Timer').click();
 
-  const qr = page.getByRole('img', { name: QR_ALT });
-  await expect(qr).toBeVisible();
-  const alt = await qr.getAttribute('alt');
-  const code = QR_ALT.exec(alt ?? '')?.[1];
-  if (code === undefined || code === '') {
-    throw new Error(`ルームコードを読み取れませんでした（alt: ${String(alt)}）。`);
+  const restore = await revealInvite(page);
+  const urlText = invitedUrlText(page);
+  await expect(urlText, '見出しの招待 URL').toBeVisible();
+  const invited = (await urlText.innerText()).trim();
+  const code = new URL(invited).searchParams.get('room');
+  if (code === null || code === '') {
+    throw new Error(`招待 URL からルームコードを読み取れませんでした（URL: ${invited}）。`);
   }
+  await expect(
+    page.locator('.ui-room-header .ui-room-header-code-value'),
+    '見出しのルームコードが招待 URL の room と違う',
+  ).toHaveText(code);
+  await restore();
   return code;
 }
 
 /**
  * 渡された参加用 URL を玄関で開いて名乗り、timer を開く（輪には入らない）。
  *
- * **URL を組み立てずに受け取るのが要点。** 招待パネルが出した URL 文字列
+ * **URL を組み立てずに受け取るのが要点。** 見出しが出した URL 文字列
  * そのものを開く回帰シナリオ（#76 F-1）は、こちらを直接使う。
  *
  * 撤去前は timer の `Join` が名前と参加方法（ドライバー/見学）を聞いていた。
@@ -96,9 +123,10 @@ export function lobbyRotationRow(page: Page, name: string, order: number): Locat
 }
 
 /**
- * 招待パネルが画面に出している参加 URL。
+ * 共通の見出し（`RoomHeader` の `.ui-invite-url`）が画面に出している参加 URL。
+ * 招待の欄がたたまれているときは見えない（`revealInvite` で開く）。
  *
- * この段落（`InvitePanel.tsx`）は素の `<p>` でアクセシブル名を持たないため、
+ * この要素は素の `<span>` でアクセシブル名を持たないため、
  * **可視テキストの形で掴む**しかない。範囲を狭めるために「`http` で始まる文字列」
  * という形そのものを条件にしている。
  *

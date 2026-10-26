@@ -24,6 +24,7 @@ import {
   intervalButton,
   selectedIntervalLabel,
   invitedUrlText,
+  revealInvite,
   joinAsDriver,
   joinViaHub,
   MISSING_ROOM_CODE,
@@ -216,7 +217,7 @@ test.describe('timer の在室の点は状態ごとにトークンの色で塗�
 });
 
 /**
- * 招待パネルに出た URL でそのまま参加できること（#11・#76 F-1 の回帰防止）。
+ * 共通の見出しに出た招待 URL でそのまま参加できること（#11・#76 F-1 の回帰防止）。
  *
  * **向き先は #95 S5a で変わった。** 入口が LP（ハブ）に一本化されたので、招待 URL は
  * ルート直下の `/?room=CODE` を指す（`docs/adr/0018` 決定 2）。旧リンク救済の 301
@@ -226,23 +227,25 @@ test.describe('timer の在室の点は状態ごとにトークンの色で塗�
  * **「開いて何か出た」だけでは壊れ方を検出できない。** 表示された URL の pathname を
  * 固定し、そこがハブの名乗り画面であることまで見る。
  */
-test.describe('招待パネルに表示された URL でそのまま参加できる', () => {
+test.describe('見出しに表示された招待 URL でそのまま参加できる', () => {
   test('Given ルームの作成者 / When 画面に出た URL を 2 人目が開く / Then 玄関の名乗り画面に着く', async ({
     page,
     openPeer,
   }) => {
-    // Given: 作成者がルームを作り、招待パネルが出ている
+    // Given: 作成者がルームを作り、共通の見出しに招待 URL が出ている
     await createRoom(page, HOST);
+    // 招待の欄がたたまれていれば開く（見えていないと URL は読めない）
+    await revealInvite(page);
 
     // When: **画面に表示されている URL 文字列を読む。**
     //       `page.url()` を使うと、生成が壊れていても自分の居場所が返るだけで緑になる
     const shown = invitedUrlText(page);
-    await expect(shown, '招待パネルの参加 URL').toHaveCount(1);
+    await expect(shown, '見出しの参加 URL').toHaveCount(1);
     // **見えていることまで見る。** `toHaveCount` も `innerText()` も可視性を問わないので、
     // URL の段落を `display: none` にしても、値は読めて参加も成立し、緑のまま通る
     // （実測）。非セキュアオリジンでは `navigator.clipboard` が無くコピーボタンが
     // 黙って何もしないため、**画面に出ている URL が唯一の招待手段**になる（#76 F-1）
-    await expect(shown, '招待パネルの参加 URL が見えていない').toBeVisible();
+    await expect(shown, '見出しの参加 URL が見えていない').toBeVisible();
     const invited = (await shown.innerText()).trim();
 
     // Then その1: **ルート直下を指していること**（#95 S5a・D11）。

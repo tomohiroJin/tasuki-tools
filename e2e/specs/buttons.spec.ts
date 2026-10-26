@@ -360,8 +360,8 @@ const ROULETTE_BUTTONS = 6;
  * 「完成!」は次のカードにあるので `expectFocusNotHiddenByDock`（辿った先の下端 ≤ 帯の上端）は当てはまらない。
  * そこで、Tab の一歩ごとに「辿った先の箱が帯の箱と重ならない（帯の中の操作を除く）」を見る。
  */
-/** ロビーで測る操作の数の下限（交代間隔のチップ・開始・通知のカードの操作・ステータスの戻るリンクと「通知」など） */
-const LOBBY_TARGETS = 8;
+/** ロビーで測る操作の数の下限（交代間隔のチップ・開始・通知のカードの操作・見出しの戻るリンクと「仲間を招く」・ステータスの「通知」など）。390 では招待の欄がたたまれ、見える招待の操作が「コピー」2 つから「仲間を招く」1 つに減ったので 8 から 7 */
+const LOBBY_TARGETS = 7;
 
 // 幅の広い字を 30 字、切れ目なしで並べる（名簿の名前が `overflow-wrap` で折れないと 22rem の脇から溢れる）
 const LONG_NAME = 'W'.repeat(30);
@@ -584,7 +584,7 @@ test.describe('timer の各画面（ロビー・セッション・確認・ま�
     await expect(page.getByRole('button', { name: '完成!', exact: true })).toBeVisible();
     await expectScreen(page, 'timer セッション（390）', 6, { minTargets: 6 + 10 });
 
-    // 「ルーム」のタブ（招待・パスフレーズ）
+    // 「ルーム」のタブ（パスフレーズ・自己退出など。招待は見出しへ移った）
     await page.getByRole('tab', { name: 'ルーム' }).click();
     await expect(page.getByRole('tab', { name: 'ルーム' })).toHaveAttribute('aria-selected', 'true');
     await expect(page.locator('.session-room')).toBeVisible();
