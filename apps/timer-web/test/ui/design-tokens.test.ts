@@ -26,7 +26,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../src");
  * 「直すのが面倒」は理由にしない。
  */
 const ALLOW: { file: string; pattern: RegExp }[] = [
-  // いまは無い。QR の白地と影の黒は、素の CSS へ移した（`.invite-panel-qr` は `ui-exempt:` つき・影は `--shadow-dialog`）。
+  // いまは無い。QR は共通の見出し（`@tasuki/invite-ui`・部品層）へ移り、timer には QR の白地も影も残らない。
   // 生の色の例外をやむを得ず足すなら、ここへ file と pattern を理由つきで書く（足した例外が使われなくなれば、未使用として落ちる）。
 ];
 

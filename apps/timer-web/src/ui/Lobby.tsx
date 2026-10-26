@@ -132,7 +132,7 @@ export function Lobby({
         />
       )}
       {/* 段組みは部品層の `.ui-workspace`（#316 PR 3）。操作の面＝開始・設定・通知（狭い幅でも先に見える）、
-          脇（右・22rem）＝お題・参加者・招待・パスフレーズ。 */}
+          脇（右・22rem）＝お題・参加者・パスフレーズ（招待は上の共通の見出し）。 */}
       <div className="ui-workspace ui-workspace--side-end">
         <div className="ui-workspace-main lobby-column">
         {startButton}

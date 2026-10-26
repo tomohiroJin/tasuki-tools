@@ -11,10 +11,16 @@
   font-size: var(--font-size-xl);
   font-weight: 600;
   line-height: 1.25;
+  letter-spacing: 0.01em;
   color: var(--ivory);
 }
 
 /* 見出しと下の段組みの間（他のアプリの `.ui-room-header` の `margin-block-end` と同じ値）。 */
 .app-room-header {
   margin-block-end: var(--space-5);
+  /* 1280px のセッションでは、開いた QR のカード（部品の z-index 5）が計器（`.circular-progress-content` 10・
+     `.team-orbit-avatar` 20/10）の下に潜る。見出しごと中身より上（30）に重ねる。上の帯 `.app-top`（40）と
+     休憩の覆い（50）よりは下なので、帯と覆いは見出しに隠されない。 */
+  position: relative;
+  z-index: 30;
 }

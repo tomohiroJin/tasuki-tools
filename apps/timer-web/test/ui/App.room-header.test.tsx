@@ -80,6 +80,17 @@ describe("timer の共通の見出し（#447 段 2）", () => {
     expect(header()).not.toHaveClass("ui-room-header--compact");
   });
 
+  it("Given ロビー / When 描く / Then 見出しは同期の参加用 URL とルームコードを見せる（配線）", () => {
+    // Given / When
+    enter("ready");
+
+    // Then: 値は同期フックが組み立てた URL（?room=ROOM01 を含む）。空に壊すと赤になる
+    const h = header();
+    const url = h.querySelector(".ui-invite-url")?.textContent ?? "";
+    expect(url).toMatch(/^https?:\/\/.+[?&]room=ROOM01$/);
+    expect(h.querySelector(".ui-room-header-code-value")?.textContent).toBe("ROOM01");
+  });
+
   it("Given セッション中 / When 描く / Then 詰めた見た目の見出しが 1 つ", () => {
     // Given / When
     enter("session");
