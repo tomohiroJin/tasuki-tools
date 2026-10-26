@@ -10,15 +10,14 @@
 #       git apply scripts/mutations/m486-*.patch
 # 復元: git apply -R scripts/mutations/m486-*.patch
 diff --git a/packages/ui/src/components/room-header.css b/packages/ui/src/components/room-header.css
-index 4f90cde2..2a86f4c4 100644
+index 1538c078..0e961b7c 100644
 --- a/packages/ui/src/components/room-header.css
 +++ b/packages/ui/src/components/room-header.css
-@@ -126,11 +126,6 @@
-   .ui-room-header .ui-room-header-share-toggle {
+@@ -127,10 +127,6 @@
      display: none;
    }
--
--  /* 詰めた見た目では広い幅でも「仲間を招く」を出す。上の規則（(0,2,0)）に勝つよう組を重ね、後に書く。 */
+ 
+-  /* 詰めた見た目では広い幅でも「仲間を招く」を出す。組を重ねた (0,3,0) なので、上の規則（(0,2,0)）に書く順によらず勝つ。 */
 -  .ui-room-header.ui-room-header--compact .ui-room-header-share-toggle {
 -    display: inline-flex;
 -  }

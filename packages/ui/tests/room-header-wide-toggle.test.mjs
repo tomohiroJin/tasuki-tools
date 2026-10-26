@@ -116,7 +116,7 @@ test('Given 40rem 以上の @media / When 詰めた見た目の規則を読む /
   assert.match(shown[0].body, /display:\s*inline-flex/);
   const hideAt = list.findIndex((r) => r.selector === WIDE_HIDE_SELECTOR);
   const showAt = list.findIndex((r) => r.selector === COMPACT_SHOW_SELECTOR);
-  assert.ok(showAt > hideAt, '詰めた見た目の規則が隠す規則より先にある（後勝ちで負ける）');
+  assert.ok(showAt > hideAt, '詰めた見た目の規則が隠す規則より先にある（読む順を揃える。勝ち負けは詳細度で決まる）');
 });
 
 /** 詰めた見た目で、幅によらず招待の欄をたたむ規則の選択子（@media の外に置く）。 */

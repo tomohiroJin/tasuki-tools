@@ -10,12 +10,12 @@
 #       git apply scripts/mutations/m491-*.patch
 # 復元: git apply -R scripts/mutations/m491-*.patch
 diff --git a/apps/timer-web/src/App.tsx b/apps/timer-web/src/App.tsx
-index fac1a215..364d54e3 100644
+index f0464292..880a3f69 100644
 --- a/apps/timer-web/src/App.tsx
 +++ b/apps/timer-web/src/App.tsx
-@@ -255,7 +255,7 @@ export default function App() {
-         <div inert={onBreak} className={mode === "lobby" ? "app-room-header" : "app-room-header app-room-header-compact"}>
+@@ -258,7 +258,7 @@ export default function App() {
            <RoomHeader
+             key={mode === "lobby" ? "normal" : "compact"}
              title={ROOM_HEADING}
 -            backHref={`/?room=${encodeURIComponent(room.code)}`}
 +            backHref="/"

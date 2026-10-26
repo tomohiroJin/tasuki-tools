@@ -46,4 +46,4 @@ React とブラウザ API に依存する共有フックが増えるが、ドメ
 - 狭い幅（40rem 未満）では、見出しが高くなって札が下端の帯に隠れるのを避けるため、招待の行を「仲間を招く」のボタンでたたむ（[設計 §8 R6](../superpowers/specs/2026-10-26-room-header-design.md)）。
 - 部品は共有の部品として `scripts/audit-ui-components.mjs` の `SHARED_UI_ENTRIES` に登録する。共有の部品が使う `.ui-*` は、その入口を値として取り込むアプリの使用として数え、2 つ未満なら死んだ部品として検出する。
 
-段 2（2026-10-27・#447）で `RoomHeader` に `compact`（全幅でたたむ詰めた見た目）を足し、timer のセッションもこの部品を使う。timer の `InvitePanel` は無くなった。
+段 2（2026-10-27・#447）で `RoomHeader` に `compact`（全幅でたたむ詰めた見た目）を足し、timer のロビー（通常の見た目）・セッションと完了（詰めた見た目）もこの部品を使う。timer の `InvitePanel` は無くなった。

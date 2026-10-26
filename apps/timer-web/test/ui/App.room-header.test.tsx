@@ -128,6 +128,59 @@ describe("timer の共通の見出し", () => {
     expect(screen.queryByRole("heading", { name: "TDD Mob Pro Timer" })).toBeNull();
   });
 
+  it("Given ロビーで招待の欄を開いた / When セッションが始まる / Then 詰めた見た目の招待の欄はたたまれている", () => {
+    // Given: 狭いロビーで「仲間を招く」を開いた
+    const ws = enter("ready");
+    act(() => {
+      screen.getByRole("button", { name: "仲間を招く" }).click();
+    });
+    expect(screen.getByRole("button", { name: "仲間を招く" })).toHaveAttribute("aria-expanded", "true");
+
+    // When: セッションが始まる
+    sendServer(ws, {
+      type: "snapshot",
+      room: aRoomView({
+        code: "ROOM01",
+        phase: "session",
+        session: {
+          rotation: [ME],
+          driverCounts: [0],
+          seats: [{ id: ME, displayName: "アリス", isProxy: false, skipReason: null }],
+        },
+        participants: [{ participantId: ME, displayName: "アリス", presence: "online", joinedAt: 0 }],
+      }),
+    });
+
+    // Then: 開いたままだと計器が押し下げられる
+    expect(header()).toHaveClass("ui-room-header--compact");
+    expect(screen.getByRole("button", { name: "仲間を招く" })).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("Given 日本語を含むルームコード / When ロビーを描く / Then 戻るリンクの行き先は符号化されている", () => {
+    // Given / When
+    const ws = enterRoomAndConnect({ code: "朝会モブ-a1b2", participantId: ME, displayName: "アリス" });
+    sendServer(ws, { type: "room.joined", resumeToken: "rt", participantId: ME });
+    sendServer(ws, {
+      type: "snapshot",
+      room: aRoomView({
+        code: "朝会モブ-a1b2",
+        phase: "ready",
+        session: {
+          rotation: [ME],
+          driverCounts: [0],
+          seats: [{ id: ME, displayName: "アリス", isProxy: false, skipReason: null }],
+        },
+        participants: [{ participantId: ME, displayName: "アリス", presence: "online", joinedAt: 0 }],
+      }),
+    });
+
+    // Then
+    expect(screen.getByRole("link", { name: "選択画面へ戻る" })).toHaveAttribute(
+      "href",
+      `/?room=${encodeURIComponent("朝会モブ-a1b2")}`,
+    );
+  });
+
   it("Given ルームを失った / When 描く / Then 見出しを描かない", () => {
     // Given
     const ws = enter("session");

@@ -253,7 +253,10 @@ export default function App() {
           ロビーは通常、セッションと完了は詰めた見た目。休憩中は覆いの外へフォーカスを入れさせない（Session の本体と同じ inert）。 */}
       {mode !== null && !sessionLost && room != null && (
         <div inert={onBreak} className={mode === "lobby" ? "app-room-header" : "app-room-header app-room-header-compact"}>
+          {/* 見た目が変わる（ロビー → セッション）ときは部品を作り直す。狭いロビーで開いた招待の欄や QR を、
+              詰めた見た目のセッションへ持ち越さない（開いたままだと計器が押し下げられる）。 */}
           <RoomHeader
+            key={mode === "lobby" ? "normal" : "compact"}
             title={ROOM_HEADING}
             backHref={`/?room=${encodeURIComponent(room.code)}`}
             roomCode={room.code}

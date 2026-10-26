@@ -10,7 +10,7 @@
 #       git apply scripts/mutations/m489-*.patch
 # 復元: git apply -R scripts/mutations/m489-*.patch
 diff --git a/apps/timer-web/src/App.tsx b/apps/timer-web/src/App.tsx
-index fac1a215..a75a4ace 100644
+index f0464292..d0a41a2a 100644
 --- a/apps/timer-web/src/App.tsx
 +++ b/apps/timer-web/src/App.tsx
 @@ -252,7 +252,7 @@ export default function App() {
@@ -19,6 +19,6 @@ index fac1a215..a75a4ace 100644
        {mode !== null && !sessionLost && room != null && (
 -        <div inert={onBreak} className={mode === "lobby" ? "app-room-header" : "app-room-header app-room-header-compact"}>
 +        <div className={mode === "lobby" ? "app-room-header" : "app-room-header app-room-header-compact"}>
+           {/* 見た目が変わる（ロビー → セッション）ときは部品を作り直す。狭いロビーで開いた招待の欄や QR を、
+               詰めた見た目のセッションへ持ち越さない（開いたままだと計器が押し下げられる）。 */}
            <RoomHeader
-             title={ROOM_HEADING}
-             backHref={`/?room=${encodeURIComponent(room.code)}`}

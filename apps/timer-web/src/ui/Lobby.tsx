@@ -291,7 +291,7 @@ export function Lobby({
           {room.participants.length === 1 && (
             <div className="lobby-empty-hint">
               <EmptyHint>
-                まだあなただけです。上の招待リンクで仲間を呼び、揃ったら「開始」しましょう。
+                まだあなただけです。上の「仲間を招く」や招待リンクで仲間を呼び、揃ったら「開始」しましょう。
               </EmptyHint>
             </div>
           )}
