@@ -10,14 +10,14 @@
 #       git apply scripts/mutations/m484-*.patch
 # 復元: git apply -R scripts/mutations/m484-*.patch
 diff --git a/packages/ui/src/components/room-header.css b/packages/ui/src/components/room-header.css
-index 669850fd..514999ec 100644
+index dbd8888c..8d860dd1 100644
 --- a/packages/ui/src/components/room-header.css
 +++ b/packages/ui/src/components/room-header.css
-@@ -65,7 +65,6 @@
+@@ -64,7 +64,6 @@
  
  @media (width < 40rem) {
    .ui-room-header-share:not([data-open='true']) {
 -    display: none;
    }
+ }
  
-   /* 狭い幅ではボタンが行の左端にも右端にも来るので、ボタンではなく招待の欄の左端に浮かべる（画面の外へ切れない）。 */

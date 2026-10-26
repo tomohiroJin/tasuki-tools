@@ -10,15 +10,15 @@
 #       git apply scripts/mutations/m475-*.patch
 # 復元: git apply -R scripts/mutations/m475-*.patch
 diff --git a/packages/invite-ui/src/RoomHeader.tsx b/packages/invite-ui/src/RoomHeader.tsx
-index 6f8174a5..7709df21 100644
+index f16c5bce..32c86280 100644
 --- a/packages/invite-ui/src/RoomHeader.tsx
 +++ b/packages/invite-ui/src/RoomHeader.tsx
-@@ -94,7 +94,7 @@ export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras }
+@@ -113,7 +113,7 @@ export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras }
                >
                  {open ? ROOM_HEADER_TEXT.qrHide : ROOM_HEADER_TEXT.qrShow}
                </button>
--              <div id={qrId} hidden={!open} className="ui-room-header-qr">
-+              <div id={qrId} className="ui-room-header-qr">
+-              <div ref={qrCardRef} id={qrId} hidden={!open} className="ui-room-header-qr">
++              <div ref={qrCardRef} id={qrId} className="ui-room-header-qr">
                  {qr.dataUrl && <img src={qr.dataUrl} width="200" height="200" alt={ROOM_HEADER_TEXT.qrAlt} />}
-                 {/* 知らせの要素は閉じている間も置いておき、字だけを差し替える（差し込んだ要素の字は読み上げに届かないことがある）。 */}
-                 <p className="ui-note ui-room-header-qr-status" role="status">
+                 {/* 見える字。読み上げは下の知らせが読むので、二重に読ませない。 */}
+                 {!qr.dataUrl && <p className="ui-note ui-room-header-qr-status" aria-hidden="true">{qrStatus}</p>}

@@ -10,15 +10,15 @@
 #       git apply scripts/mutations/m474-*.patch
 # 復元: git apply -R scripts/mutations/m474-*.patch
 diff --git a/packages/invite-ui/src/RoomHeader.tsx b/packages/invite-ui/src/RoomHeader.tsx
-index 6f8174a5..292384ce 100644
+index f16c5bce..f0111666 100644
 --- a/packages/invite-ui/src/RoomHeader.tsx
 +++ b/packages/invite-ui/src/RoomHeader.tsx
-@@ -27,7 +27,7 @@ export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras }
+@@ -30,7 +30,7 @@ export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras }
    const [open, setOpen] = useState(false);
    // 狭い幅でたたむ招待の行の開閉。QR の開閉（`open`）とは別の状態。
    const [shareOpen, setShareOpen] = useState(false);
 -  const qr = useInviteQr(inviteUrl, open);
 +  const qr = useInviteQr(inviteUrl, true);
-   // QR は画面の上に浮かべる（開いても下の画面を押し下げない）。浮かぶ物なので、Esc と外側を押して閉じられるようにする。
+   // QR は画面の上に浮かべる（開いても下の画面を押し下げない）。浮かぶ物なので、Esc・外側を押す・Tab で外へ出ると閉じる。
    const qrAnchorRef = useRef<HTMLDivElement>(null);
    const qrToggleRef = useRef<HTMLButtonElement>(null);
