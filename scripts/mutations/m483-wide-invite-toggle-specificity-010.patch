@@ -13,7 +13,7 @@ diff --git a/packages/ui/src/components/room-header.css b/packages/ui/src/compon
 index 599d4f1f..dec1f8a6 100644
 --- a/packages/ui/src/components/room-header.css
 +++ b/packages/ui/src/components/room-header.css
-@@ -70,7 +70,7 @@
+@@ -71,7 +71,7 @@
  /* `.ui-room-header .ui-room-header-share-toggle`（(0,2,0)）にするのは、`.ui-button` の `display: inline-flex`（後に読み込まれる・
     同じ詳細度）に勝って 40rem 以上で隠すため */
  @media (width >= 40rem) {

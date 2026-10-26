@@ -13,7 +13,7 @@ diff --git a/packages/ui/src/components/room-header.css b/packages/ui/src/compon
 index 599d4f1f..5365a72c 100644
 --- a/packages/ui/src/components/room-header.css
 +++ b/packages/ui/src/components/room-header.css
-@@ -63,7 +63,6 @@
+@@ -64,7 +64,6 @@
  
  @media (width < 40rem) {
    .ui-room-header-share:not([data-open='true']) {
