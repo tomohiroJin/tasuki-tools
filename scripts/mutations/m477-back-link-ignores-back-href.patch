@@ -10,10 +10,10 @@
 #       git apply scripts/mutations/m477-*.patch
 # 復元: git apply -R scripts/mutations/m477-*.patch
 diff --git a/packages/invite-ui/src/RoomHeader.tsx b/packages/invite-ui/src/RoomHeader.tsx
-index e18e7914..26872347 100644
+index f9336773..bec633d8 100644
 --- a/packages/invite-ui/src/RoomHeader.tsx
 +++ b/packages/invite-ui/src/RoomHeader.tsx
-@@ -43,7 +43,7 @@ export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras }
+@@ -108,7 +108,7 @@ export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras }
            <h1>{title}</h1>
            {titleExtras}
          </div>
@@ -21,4 +21,4 @@ index e18e7914..26872347 100644
 +        <a className="ui-page-header-back ui-button ui-button--quiet" href="/">{ROOM_HEADER_TEXT.back}</a>
        </div>
        <button
-         type="button"
+         ref={shareToggleRef}
