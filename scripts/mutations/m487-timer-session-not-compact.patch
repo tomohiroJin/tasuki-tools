@@ -10,15 +10,15 @@
 #       git apply scripts/mutations/m487-*.patch
 # 復元: git apply -R scripts/mutations/m487-*.patch
 diff --git a/apps/timer-web/src/App.tsx b/apps/timer-web/src/App.tsx
-index fac1a215..6a882965 100644
+index b1bdce89..e69a807a 100644
 --- a/apps/timer-web/src/App.tsx
 +++ b/apps/timer-web/src/App.tsx
-@@ -258,7 +258,7 @@ export default function App() {
-             backHref={`/?room=${encodeURIComponent(room.code)}`}
-             roomCode={room.code}
-             inviteUrl={sync.inviteUrl ?? ""}
--            compact={mode === "session" || mode === "celebration"}
-+            compact={mode === "celebration"}
-           />
-         </div>
-       )}
+@@ -97,7 +97,7 @@ export default function App() {
+   const onBreak = mode === "session" && room != null && isOnBreakRoom(room);
+   // 見出しの見た目（#447 段 2）。セッションと完了は計器や記録が主役なので詰めた見た目、ロビーは通常の見た目。
+   // 包む要素のクラス・部品の作り直しの鍵・部品の `compact` は、すべてこの 1 つを読む（別々に書くと食い違う）。
+-  const compactHeader = mode === "session" || mode === "celebration";
++  const compactHeader = mode === "celebration";
+   const bandRef = useRef<HTMLDivElement>(null);
+   useTopBandHeight(bandRef, onBreak);
+ 

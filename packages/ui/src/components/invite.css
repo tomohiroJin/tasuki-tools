@@ -25,4 +25,7 @@
   color: var(--ivory-dim);
   font-family: var(--font-mono);
   word-break: break-all;
+  /* 1 回押すと URL 全体が選ばれる。クリップボードが使えない端末（非セキュアオリジン）で、手で選んでコピーする唯一の道（#76 F-1）。
+     timer の旧 InvitePanel が持っていた性質を、5 つのアプリの共通の部品へ移した（#447 段 2） */
+  user-select: all;
 }

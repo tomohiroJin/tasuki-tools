@@ -95,6 +95,9 @@ export default function App() {
 
   // 休憩中だけ上端の帯の高さを測り、覆いの中身をその下から始める（#427）。休憩の外では測らず、変数も残さない。
   const onBreak = mode === "session" && room != null && isOnBreakRoom(room);
+  // 見出しの見た目（#447 段 2）。セッションと完了は計器や記録が主役なので詰めた見た目、ロビーは通常の見た目。
+  // 包む要素のクラス・部品の作り直しの鍵・部品の `compact` は、すべてこの 1 つを読む（別々に書くと食い違う）。
+  const compactHeader = mode === "session" || mode === "celebration";
   const bandRef = useRef<HTMLDivElement>(null);
   useTopBandHeight(bandRef, onBreak);
 
@@ -252,16 +255,16 @@ export default function App() {
       {/* ルーム画面の共通の見出し（#447 段 2）。帯と同じ条件で 1 か所に置く（画面が変わっても位置が変わらず、完了にも戻るリンクが残る）。
           ロビーは通常、セッションと完了は詰めた見た目。休憩中は覆いの外へフォーカスを入れさせない（Session の本体と同じ inert）。 */}
       {mode !== null && !sessionLost && room != null && (
-        <div inert={onBreak} className={mode === "lobby" ? "app-room-header" : "app-room-header app-room-header-compact"}>
+        <div inert={onBreak} className={compactHeader ? "app-room-header app-room-header-compact" : "app-room-header"}>
           {/* 見た目が変わる（ロビー → セッション）ときは部品を作り直す。狭いロビーで開いた招待の欄や QR を、
               詰めた見た目のセッションへ持ち越さない（開いたままだと計器が押し下げられる）。 */}
           <RoomHeader
-            key={mode === "lobby" ? "normal" : "compact"}
+            key={compactHeader ? "compact" : "normal"}
             title={ROOM_HEADING}
             backHref={`/?room=${encodeURIComponent(room.code)}`}
             roomCode={room.code}
             inviteUrl={sync.inviteUrl ?? ""}
-            compact={mode === "session" || mode === "celebration"}
+            compact={compactHeader}
           />
         </div>
       )}
