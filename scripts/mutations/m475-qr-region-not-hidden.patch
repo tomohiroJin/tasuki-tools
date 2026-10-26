@@ -10,15 +10,15 @@
 #       git apply scripts/mutations/m475-*.patch
 # 復元: git apply -R scripts/mutations/m475-*.patch
 diff --git a/packages/invite-ui/src/RoomHeader.tsx b/packages/invite-ui/src/RoomHeader.tsx
-index e18e7914..c78ae8ee 100644
+index 6f8174a5..7709df21 100644
 --- a/packages/invite-ui/src/RoomHeader.tsx
 +++ b/packages/invite-ui/src/RoomHeader.tsx
-@@ -80,7 +80,7 @@ export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras }
-             </button>
-           </div>
-         </div>
--        <div id={qrId} hidden={!open} className="ui-room-header-qr">
-+        <div id={qrId} className="ui-room-header-qr">
-           {qr.dataUrl && <img src={qr.dataUrl} width="200" height="200" alt={ROOM_HEADER_TEXT.qrAlt} />}
-           {/* 知らせの要素は閉じている間も置いておき、字だけを差し替える（差し込んだ要素の字は読み上げに届かないことがある）。 */}
-           <p className="ui-note ui-room-header-qr-status" role="status">
+@@ -94,7 +94,7 @@ export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras }
+               >
+                 {open ? ROOM_HEADER_TEXT.qrHide : ROOM_HEADER_TEXT.qrShow}
+               </button>
+-              <div id={qrId} hidden={!open} className="ui-room-header-qr">
++              <div id={qrId} className="ui-room-header-qr">
+                 {qr.dataUrl && <img src={qr.dataUrl} width="200" height="200" alt={ROOM_HEADER_TEXT.qrAlt} />}
+                 {/* 知らせの要素は閉じている間も置いておき、字だけを差し替える（差し込んだ要素の字は読み上げに届かないことがある）。 */}
+                 <p className="ui-note ui-room-header-qr-status" role="status">

@@ -10,15 +10,15 @@
 #       git apply scripts/mutations/m476-*.patch
 # 復元: git apply -R scripts/mutations/m476-*.patch
 diff --git a/packages/invite-ui/src/RoomHeader.tsx b/packages/invite-ui/src/RoomHeader.tsx
-index e18e7914..dd116737 100644
+index 6f8174a5..8bf6716e 100644
 --- a/packages/invite-ui/src/RoomHeader.tsx
 +++ b/packages/invite-ui/src/RoomHeader.tsx
-@@ -66,7 +66,7 @@ export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras }
-               type="button"
-               className="ui-button ui-button--secondary ui-button--sm"
-               aria-expanded={open}
--              aria-controls={qrId}
-+              aria-controls={shareId}
-               onClick={() => setOpen((value) => !value)}
-             >
-               {open ? ROOM_HEADER_TEXT.qrHide : ROOM_HEADER_TEXT.qrShow}
+@@ -89,7 +89,7 @@ export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras }
+                 type="button"
+                 className="ui-button ui-button--secondary ui-button--sm"
+                 aria-expanded={open}
+-                aria-controls={qrId}
++                aria-controls={shareId}
+                 onClick={() => setOpen((value) => !value)}
+               >
+                 {open ? ROOM_HEADER_TEXT.qrHide : ROOM_HEADER_TEXT.qrShow}

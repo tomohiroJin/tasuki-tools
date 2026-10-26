@@ -10,15 +10,15 @@
 #       git apply scripts/mutations/m479-*.patch
 # 復元: git apply -R scripts/mutations/m479-*.patch
 diff --git a/packages/invite-ui/src/RoomHeader.tsx b/packages/invite-ui/src/RoomHeader.tsx
-index e18e7914..dd6f7726 100644
+index 6f8174a5..115a013a 100644
 --- a/packages/invite-ui/src/RoomHeader.tsx
 +++ b/packages/invite-ui/src/RoomHeader.tsx
-@@ -61,7 +61,7 @@ export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras }
+@@ -81,7 +81,7 @@ export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras }
              <span className="ui-room-header-code-value">{roomCode}</span>
            </p>
            <div className="ui-invite">
 -            <span className="ui-invite-url">{inviteUrl}</span>
 +            <span className="ui-invite-url" aria-label={inviteUrl}>{inviteUrl}</span>
-             <button
-               type="button"
-               className="ui-button ui-button--secondary ui-button--sm"
+             {/* ボタンと浮かぶ QR を包む。外側を押したかの判定と、QR を浮かべる位置の基準にする。 */}
+             <div ref={qrAnchorRef} className="ui-room-header-qr-anchor">
+               <button
