@@ -12,6 +12,7 @@
 - `RoomHeader` — ルーム画面の見出し・戻るリンク・ルームコード・参加用 URL を 1 つに組んだ部品（#447 段 1）。
   QR は普段は閉じておき、開くまで qrcode を読まない。文言の正本は `room-header-copy.ts` の `ROOM_HEADER_TEXT`。
   DOM は `RoomHeader.tsx` が組み、見た目は `packages/ui` の `room-header.css` が持つ。
+  `compact`（#447 段 2）は詰めた見た目で、全幅で招待の行を「仲間を招く」でたたむ。40rem 未満では道具名を目に出さず読み上げに残し、1 行にする。timer のセッションが使う。
 
 選択画面では「参加用 URL をコピー」「QR コードを表示」から共有できる。
 timer のコード・URL コピーと QR、poker とお題ツール（topic-web）の招待リンクコピーも
