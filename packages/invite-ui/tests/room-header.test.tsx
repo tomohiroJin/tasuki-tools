@@ -136,6 +136,57 @@ describe('ルーム画面の共通の見出し', () => {
     expect(screen.getByRole('status').textContent).toBe('QR コードを表示できません。URL を選んでコピーしてください。');
   });
 
+  it('Given QR が開いている / When Esc を押す / Then 閉じて、開いたボタンへ戻る', async () => {
+    // Given: QR は画面の上に浮かぶので、キーボードだけでも閉じられる必要がある。
+    toDataURL.mockResolvedValue('data:image/png;base64,qr');
+    renderHeader();
+    fireEvent.click(qrToggle());
+    await screen.findByRole('img', { name: '参加用 URL の QR コード' });
+
+    // When
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    // Then
+    const toggle = qrToggle();
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(qrRegion(toggle).hidden).toBe(true);
+    expect(document.activeElement).toBe(toggle);
+  });
+
+  it('Given QR が開いている / When QR の外を押す / Then 閉じる。QR の上を押しても閉じない', async () => {
+    // Given
+    toDataURL.mockResolvedValue('data:image/png;base64,qr');
+    renderHeader();
+    fireEvent.click(qrToggle());
+    const image = await screen.findByRole('img', { name: '参加用 URL の QR コード' });
+
+    // When: QR の上を押す
+    fireEvent.mouseDown(image);
+
+    // Then: 開いたまま
+    expect(qrRegion(qrToggle()).hidden).toBe(false);
+
+    // When: 見出しの外（画面の本体）を押す
+    fireEvent.mouseDown(document.body);
+
+    // Then
+    expect(qrToggle().getAttribute('aria-expanded')).toBe('false');
+    expect(qrRegion(qrToggle()).hidden).toBe(true);
+  });
+
+  it('Given QR が閉じている / When Esc を押す / Then 何も変わらず、ボタンへ寄せない', () => {
+    // Given
+    renderHeader();
+    const before = document.activeElement;
+
+    // When
+    fireEvent.keyDown(document, { key: 'Escape' });
+
+    // Then: 閉じている間はキーを拾わない（画面の他の Esc の操作を奪わない）。
+    expect(document.activeElement).toBe(before);
+    expect(qrToggle().getAttribute('aria-expanded')).toBe('false');
+  });
+
   it('Given QR を開いて準備中 / When 生成が失敗する / Then 同じ知らせの要素の字を差し替える（読み上げに届く）', async () => {
     // Given: 準備中の知らせが出ている。知らせの要素を作り直すと、読み上げは差し込まれた字を読まない。
     let fail: (error: Error) => void = () => {};

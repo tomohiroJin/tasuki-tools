@@ -1,4 +1,4 @@
-import { useId, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { ROOM_HEADER_TEXT } from './room-header-copy.js';
 import { useCopyText } from './use-copy-text.js';
 import { useInviteQr } from './use-invite-qr.js';
@@ -28,6 +28,26 @@ export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras }
   // 狭い幅でたたむ招待の行の開閉。QR の開閉（`open`）とは別の状態。
   const [shareOpen, setShareOpen] = useState(false);
   const qr = useInviteQr(inviteUrl, open);
+  // QR は画面の上に浮かべる（開いても下の画面を押し下げない）。浮かぶ物なので、Esc と外側を押して閉じられるようにする。
+  const qrAnchorRef = useRef<HTMLDivElement>(null);
+  const qrToggleRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const closeOnOutside = (event: MouseEvent) => {
+      if (!qrAnchorRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setOpen(false);
+      qrToggleRef.current?.focus();
+    };
+    document.addEventListener('mousedown', closeOnOutside);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('mousedown', closeOnOutside);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [open]);
   const copy = useCopyText(inviteUrl);
 
   const copyLabel = copy.state === 'done'
@@ -62,15 +82,26 @@ export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras }
           </p>
           <div className="ui-invite">
             <span className="ui-invite-url">{inviteUrl}</span>
-            <button
-              type="button"
-              className="ui-button ui-button--secondary ui-button--sm"
-              aria-expanded={open}
-              aria-controls={qrId}
-              onClick={() => setOpen((value) => !value)}
-            >
-              {open ? ROOM_HEADER_TEXT.qrHide : ROOM_HEADER_TEXT.qrShow}
-            </button>
+            {/* ボタンと浮かぶ QR を包む。外側を押したかの判定と、QR を浮かべる位置の基準にする。 */}
+            <div ref={qrAnchorRef} className="ui-room-header-qr-anchor">
+              <button
+                ref={qrToggleRef}
+                type="button"
+                className="ui-button ui-button--secondary ui-button--sm"
+                aria-expanded={open}
+                aria-controls={qrId}
+                onClick={() => setOpen((value) => !value)}
+              >
+                {open ? ROOM_HEADER_TEXT.qrHide : ROOM_HEADER_TEXT.qrShow}
+              </button>
+              <div id={qrId} hidden={!open} className="ui-room-header-qr">
+                {qr.dataUrl && <img src={qr.dataUrl} width="200" height="200" alt={ROOM_HEADER_TEXT.qrAlt} />}
+                {/* 知らせの要素は閉じている間も置いておき、字だけを差し替える（差し込んだ要素の字は読み上げに届かないことがある）。 */}
+                <p className="ui-note ui-room-header-qr-status" role="status">
+                  {open && !qr.dataUrl ? (qr.failed ? ROOM_HEADER_TEXT.qrFailed : ROOM_HEADER_TEXT.qrPreparing) : ''}
+                </p>
+              </div>
+            </div>
             <button
               type="button"
               className="ui-button ui-button--secondary ui-button--sm"
@@ -79,13 +110,6 @@ export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras }
               {copyLabel}
             </button>
           </div>
-        </div>
-        <div id={qrId} hidden={!open} className="ui-room-header-qr">
-          {qr.dataUrl && <img src={qr.dataUrl} width="200" height="200" alt={ROOM_HEADER_TEXT.qrAlt} />}
-          {/* 知らせの要素は閉じている間も置いておき、字だけを差し替える（差し込んだ要素の字は読み上げに届かないことがある）。 */}
-          <p className="ui-note ui-room-header-qr-status" role="status">
-            {open && !qr.dataUrl ? (qr.failed ? ROOM_HEADER_TEXT.qrFailed : ROOM_HEADER_TEXT.qrPreparing) : ''}
-          </p>
         </div>
       </div>
     </header>
