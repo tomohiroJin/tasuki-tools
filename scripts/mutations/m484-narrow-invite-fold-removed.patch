@@ -13,11 +13,11 @@ diff --git a/packages/ui/src/components/room-header.css b/packages/ui/src/compon
 index dbd8888c..8d860dd1 100644
 --- a/packages/ui/src/components/room-header.css
 +++ b/packages/ui/src/components/room-header.css
-@@ -64,7 +64,6 @@
+@@ -101,7 +101,6 @@
  
  @media (width < 40rem) {
    .ui-room-header-share:not([data-open='true']) {
 -    display: none;
    }
- }
  
+   /* 詰めた見た目の狭い幅では、道具名を目に出さず読み上げにだけ残し、戻るリンクと「仲間を招く」を 1 行に収める。
