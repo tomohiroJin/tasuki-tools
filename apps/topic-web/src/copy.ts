@@ -16,11 +16,6 @@ export const GONE_TEXT = 'ルームは終了したか、リンクが正しくな
 export const GONE_LINK = 'トップへ戻る';
 
 export const PAGE_HEADING = 'お題';
-export const BACK_LINK = '選択画面へ戻る';
-// 招待リンク（poker の `InviteLink` と同じ文）
-export const INVITE_COPY_BUTTON = '招待リンクをコピー';
-export const INVITE_COPIED = 'コピーしました';
-export const INVITE_COPY_FAILED = 'コピーできません（URL を選択してください）';
 
 // 読む面（region）の名前。タブ（場のお題・下書き）のどちらを見ていても当たる名前にする（#316 最終レビュー M2）
 export const READER_HEADING = 'お題';
