@@ -26,8 +26,8 @@ index be5763f1..3b230909 100644
    /** 札の左上に出る一語。そのツールが扱うもの。 */
    readonly pip: string;
    /** ツール名（札の下端） */
-@@ -51,7 +51,7 @@ export const TOOLS: readonly Tool[] = [
-     mark: "flag",
+@@ -43,7 +43,7 @@ export const TOOLS: readonly Tool[] = [
+     mark: "spade",
    },
    {
 -    id: "roulette",
