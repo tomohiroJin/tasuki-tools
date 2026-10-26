@@ -381,7 +381,7 @@ describe('ルームの見出しは共通の部品が描く（#447 段 1）', () 
     expect(copyButtons).toHaveLength(1);
     expect(copyButtons[0]?.closest('.ui-room-header')).toBeTruthy();
     expect(screen.queryByRole('heading', { name: '仲間を招く' })).toBeNull();
-    // ルームコードも見出しに出る
-    expect(document.querySelector('.ui-room-header')).toHaveTextContent('R1');
+    // ルームコードも見出しに出る（招待 URL の中の 'R1' とは区別し、コードの値だけを見る）
+    expect(document.querySelector('.ui-room-header-code-value')?.textContent).toBe('R1');
   });
 });
