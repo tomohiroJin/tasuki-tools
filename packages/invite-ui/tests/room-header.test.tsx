@@ -34,6 +34,13 @@ function renderHeader(overrides: Partial<RoomHeaderProps> = {}) {
 function qrToggle(): HTMLElement {
   return screen.getByRole('button', { name: /^QR コードを(表示|閉じる)$/ });
 }
+/** QR の状態を読み上げる知らせ（`aria-live`。画面の status とは別に持つ）。 */
+function qrLive(): HTMLElement {
+  const live = document.querySelector<HTMLElement>('.ui-room-header [aria-live="polite"]');
+  if (!live) throw new Error('QR の読み上げの知らせが無い');
+  return live;
+}
+
 function qrRegion(button: HTMLElement): HTMLElement {
   return document.getElementById(button.getAttribute('aria-controls')!)!;
 }
@@ -103,9 +110,9 @@ describe('ルーム画面の共通の見出し', () => {
     // When
     fireEvent.click(qrToggle());
 
-    // Then: 準備中の字が出て、画像はまだ無い。
-    const status = await screen.findByRole('status');
-    expect(status.textContent).toBe('QR コードを準備しています…');
+    // Then: 準備中の字が読み上げとカードの両方に出て、画像はまだ無い。
+    await waitFor(() => expect(qrLive().textContent).toBe('QR コードを準備しています…'));
+    expect(qrRegion(qrToggle()).textContent).toBe('QR コードを準備しています…');
     expect(document.querySelector('img')).toBeNull();
   });
 
@@ -134,7 +141,7 @@ describe('ルーム画面の共通の見出し', () => {
     fireEvent.click(qrToggle());
 
     // Then: 失敗の字が出るまで待つ（準備中の字と取り違えない）。
-    await waitFor(() => expect(screen.getByRole('status').textContent).toBe('QR コードを表示できません。URL を選んでコピーしてください。'));
+    await waitFor(() => expect(qrLive().textContent).toBe('QR コードを表示できません。URL を選んでコピーしてください。'));
     // カードの中にも同じ字を見える形で出す（読み上げは知らせの側だけが読む）。
     expect(qrRegion(qrToggle()).textContent).toBe('QR コードを表示できません。URL を選んでコピーしてください。');
   });
@@ -255,7 +262,7 @@ describe('ルーム画面の共通の見出し', () => {
       card.querySelector('img') ? { left: 180, right: 400, width: 220 } : { left: 180, right: 300, width: 120 }
     ) as DOMRect);
     fireEvent.click(toggle);
-    await waitFor(() => expect(screen.getByRole('status').textContent).toBe('QR コードを準備しています…'));
+    await waitFor(() => expect(qrLive().textContent).toBe('QR コードを準備しています…'));
     expect(card.style.getPropertyValue('--ui-room-header-qr-shift')).toBe('0px');
 
     // When
@@ -288,7 +295,7 @@ describe('ルーム画面の共通の見出し', () => {
     let fail: (error: Error) => void = () => {};
     toDataURL.mockReturnValue(new Promise<string>((_, reject) => { fail = reject; }));
     renderHeader();
-    const status = screen.getByRole('status');
+    const status = qrLive();
     fireEvent.click(qrToggle());
     await waitFor(() => expect(status.textContent).toBe('QR コードを準備しています…'));
 
@@ -297,7 +304,7 @@ describe('ルーム画面の共通の見出し', () => {
 
     // Then: 失敗の字は、準備中の字を出していた同じ要素に入る。
     await waitFor(() => expect(status.textContent).toBe('QR コードを表示できません。URL を選んでコピーしてください。'));
-    expect(screen.getByRole('status')).toBe(status);
+    expect(qrLive()).toBe(status);
   });
 
   it('Given QR を閉じている / When 描く / Then 知らせの要素は隠れる欄の外に先に置いてあり、字は空', () => {
@@ -306,7 +313,7 @@ describe('ルーム画面の共通の見出し', () => {
 
     // Then: 隠れた欄（hidden）の中の知らせは読み上げの木に入らない。開いたときに字だけが変わるよう、欄の外に置く。
     const card = qrRegion(qrToggle());
-    const status = screen.getByRole('status');
+    const status = qrLive();
     expect(card.hidden).toBe(true);
     expect(card.contains(status)).toBe(false);
     expect(status.closest('[hidden]')).toBeNull();

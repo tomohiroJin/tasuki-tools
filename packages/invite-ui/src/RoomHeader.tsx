@@ -119,8 +119,9 @@ export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras }
                 {/* 見える字。読み上げは下の知らせが読むので、二重に読ませない。 */}
                 {!qr.dataUrl && <p className="ui-note ui-room-header-qr-status" aria-hidden="true">{qrStatus}</p>}
               </div>
-              {/* 読み上げの知らせ。隠れた欄の中だと読み上げの木に入らないので、欄の外に常に置き、字だけを差し替える。 */}
-              <p className="ui-visually-hidden" role="status">{qrStatus}</p>
+              {/* 読み上げの知らせ。隠れた欄の中だと読み上げの木に入らないので、欄の外に常に置き、字だけを差し替える。
+                  role="status" にしないのは、各画面が自分の知らせを status として持つため（1 画面に status が 2 つ並ぶ）。 */}
+              <p className="ui-visually-hidden ui-room-header-qr-live" aria-live="polite">{qrStatus}</p>
             </div>
             <button
               type="button"
