@@ -11,7 +11,7 @@
    ルーレットの 320×640 の撮影で、見出しが約 210px 高くなり、止まった札が下端の帯に隠れたため（設計 §8 R6）。
    40rem は `actions.css` の並びの切り替えと同じ境目。
    詰めた見た目（`.ui-room-header--compact`。timer のセッション中・#447 段 2）では、「仲間を招く」を全幅でも出し、招待の欄を
-   幅によらず開くまでたたむ。見出しの行と「仲間を招く」を 1 行に並べ、開いた欄はその下の行に全幅で出す。見出しは 1 段小さい字にする。
+   幅によらず開くまでたたむ。題・戻るリンク・「仲間を招く」を折り返す 1 行に並べ（狭ければ 2 行）、開いた欄は次の行に全幅で出す。見出しは 1 段小さい字にする。
    ============================================================ */
 
 .ui-room-header {
@@ -64,19 +64,35 @@
   justify-self: start;
 }
 
-/* 詰めた見た目: 1 行目と「仲間を招く」を 1 行に並べ、招待の欄は次の行に全幅で出す。幅によらず開くまでたたむ（@media の外）。 */
-.ui-room-header--compact {
-  grid-template-columns: minmax(0, 1fr) auto;
+/* 詰めた見た目: 題・戻るリンク・「仲間を招く」を折り返す 1 つの行に並べ（320px では 2 行、広ければ 1 行）、招待の欄は開いたとき次の行に全幅で出す。
+   `.ui-page-header` は `display: contents` で外し、題と戻るリンクを直接の子にする。通常の見た目の規則より強い連鎖で書く。幅によらず開くまでたたむ（@media の外）。 */
+.ui-room-header.ui-room-header--compact {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  column-gap: var(--space-2);
+  gap: var(--space-2) var(--space-3);
+}
+
+.ui-room-header--compact .ui-page-header {
+  display: contents;
+}
+
+.ui-room-header--compact .ui-room-header-title {
+  flex: 1 1 auto;
 }
 
 .ui-room-header--compact .ui-room-header-title > h1 {
   font-size: var(--font-size-lg);
+  /* 道具名の中で折り返さない */
+  white-space: nowrap;
+}
+
+.ui-room-header--compact .ui-page-header-back {
+  margin-inline-start: auto;
 }
 
 .ui-room-header--compact .ui-room-header-share {
-  grid-column: 1 / -1;
+  flex-basis: 100%;
 }
 
 .ui-room-header--compact .ui-room-header-share:not([data-open='true']) {
