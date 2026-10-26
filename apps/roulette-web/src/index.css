@@ -45,8 +45,8 @@
     'wheel'
     'card'
     'after';
-  /* 招待は見出しへ移った（#447）。見出しが高くなった分は撮影で確かめる */
-  --wheel-size: clamp(14rem, min(100cqi, 100dvh - 24rem), 32rem);
+  /* 見出しは狭い幅で「仲間を招く」のボタンの分（実測 44px）、広い幅で招待の行の分（実測 52px）高くなった（#447）。狭い幅は 640px の高さで円盤を 2rem 小さくして札の位置を変更前に戻し、広い幅は 3.25rem を引く */
+  --wheel-size: clamp(14rem, min(100cqi, 100dvh - 26rem), 32rem);
 }
 .roulette-stage[data-layout='row'] {
   /* 円盤の列は円盤の幅に任せる（auto）。**`var(--wheel-size)` をここへ入れない**: `--wheel-size` は `cqi`
@@ -63,7 +63,7 @@
   align-items: center;
   column-gap: 0;
   row-gap: var(--space-4);
-  --wheel-size: clamp(20rem, min(100cqi - 19rem, 100dvh - 16rem), 40rem);
+  --wheel-size: clamp(20rem, min(100cqi - 19rem, 100dvh - 19.25rem), 40rem);
 }
 .roulette-topic {
   grid-area: topic;
