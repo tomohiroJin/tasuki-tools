@@ -204,22 +204,23 @@ describe('ルーム画面の共通の見出し', () => {
     expect(qrRegion(toggle).hidden).toBe(false);
   });
 
-  it('Given 広い幅で QR が開いている / When 狭い幅へ変わり招待の欄がたたまれる / Then QR も閉じる', async () => {
+  it('Given 広い幅で QR を開いてボタンにフォーカス / When 狭い幅へ変わり招待の欄がたたまれる / Then QR を閉じ、フォーカスを「仲間を招く」へ移す', async () => {
     // Given
     toDataURL.mockResolvedValue('data:image/png;base64,qr');
-    let narrow = false;
-    vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('40rem') && narrow }) as MediaQueryList);
     renderHeader();
-    fireEvent.click(qrToggle());
+    const toggle = qrToggle();
+    toggle.focus();
+    fireEvent.click(toggle);
     await screen.findByRole('img', { name: '参加用 URL の QR コード' });
 
-    // When: 40rem 未満になる（「仲間を招く」は閉じたまま）
-    narrow = true;
+    // When: 40rem 未満になり、CSS が招待の欄を消す（ここでは消えた姿を直に作る）。境目の値は CSS の 1 か所だけが持つ。
+    shareRegion(screen.getByRole('button', { name: '仲間を招く' })).style.display = 'none';
     fireEvent(window, new Event('resize'));
 
-    // Then: 見えない欄に開いた QR を残さない（後で「仲間を招く」を開いたとき、開いた覚えのない QR が浮かない）。
-    expect(qrToggle().getAttribute('aria-expanded')).toBe('false');
-    expect(qrRegion(qrToggle()).hidden).toBe(true);
+    // Then: 見えない欄に開いた QR を残さない。消えたボタンにフォーカスを置き去りにしない。
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(qrRegion(toggle).hidden).toBe(true);
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: '仲間を招く' }));
   });
 
   it('Given 狭い幅で招待の欄と QR を開いている / When 「仲間を招く」で欄を閉じる / Then QR も閉じる', async () => {

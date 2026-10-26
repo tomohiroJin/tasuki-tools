@@ -18,12 +18,9 @@ export interface RoomHeaderProps {
 /** QR のカードを画面の端から離す幅（px）。ページの左右の余白（`--space-4`）と同じ。 */
 const QR_EDGE_PX = 16;
 
-/** 招待の欄をたたむ境目。`room-header.css` の `@media (width < 40rem)` と同じ。 */
-const NARROW_QUERY = '(width < 40rem)';
-
-/** 狭い幅で、招待の欄が「仲間を招く」でたたまれているか。 */
-function isNarrowFolded(shareOpen: boolean): boolean {
-  return !shareOpen && (window.matchMedia?.(NARROW_QUERY).matches ?? false);
+/** 招待の欄が CSS でたたまれて（`display: none`）見えないか。境目の値（40rem）は CSS の 1 か所だけが持つので、ここでは表示そのものを見る。 */
+function isFolded(share: HTMLElement | null): boolean {
+  return share !== null && getComputedStyle(share).display === 'none';
 }
 
 /** QR のカードを測り、画面の端から {@link QR_EDGE_PX} の内側に収まるよう寄せる。 */
@@ -54,6 +51,8 @@ export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras }
   const qrAnchorRef = useRef<HTMLDivElement>(null);
   const qrToggleRef = useRef<HTMLButtonElement>(null);
   const qrCardRef = useRef<HTMLDivElement>(null);
+  const shareRef = useRef<HTMLDivElement>(null);
+  const shareToggleRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (!open) return;
     // タッチやペンで外を押したときも拾えるよう pointerdown で見る（mousedown はタッチの長押しなどで出ない）。
@@ -69,12 +68,16 @@ export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras }
     const card = qrCardRef.current;
     if (!open || !card) return;
     const place = () => placeQrCard(card);
-    // 狭い幅になって招待の欄がたたまれたら、見えない欄に開いた QR を残さない。
-    const placeOrClose = () => (isNarrowFolded(shareOpen) ? setOpen(false) : place());
+    // 狭い幅になって招待の欄がたたまれたら、見えない欄に開いた QR を残さない。消えたボタンにあったフォーカスは「仲間を招く」へ移す。
+    const placeOrClose = () => {
+      if (!isFolded(shareRef.current)) return place();
+      if (qrAnchorRef.current?.contains(document.activeElement)) shareToggleRef.current?.focus();
+      setOpen(false);
+    };
     place();
     window.addEventListener('resize', placeOrClose);
     return () => window.removeEventListener('resize', placeOrClose);
-  }, [open, shareOpen, qr.dataUrl, qr.failed]);
+  }, [open, qr.dataUrl, qr.failed]);
   // Esc は QR の中（ボタン）にフォーカスがあるときだけ拾う。画面の他の欄の Esc と、変換を取り消す Esc は奪わない。
   // 閉じた Esc は画面の他の処理（引き出しを閉じるなど）へ伝えない。
   const closeQrOnEscape = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -108,6 +111,7 @@ export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras }
         <a className="ui-page-header-back ui-button ui-button--quiet" href={backHref}>{ROOM_HEADER_TEXT.back}</a>
       </div>
       <button
+        ref={shareToggleRef}
         type="button"
         className="ui-button ui-button--secondary ui-button--sm ui-room-header-share-toggle"
         aria-expanded={shareOpen}
@@ -120,7 +124,7 @@ export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras }
       >
         {ROOM_HEADER_TEXT.inviteToggle}
       </button>
-      <div id={shareId} className="ui-room-header-share" data-open={shareOpen ? 'true' : undefined}>
+      <div ref={shareRef} id={shareId} className="ui-room-header-share" data-open={shareOpen ? 'true' : undefined}>
         <div className="ui-room-header-invite">
           <p className="ui-room-header-code">
             <span className="ui-room-header-code-label">{ROOM_HEADER_TEXT.roomLabel}</span>{' '}
