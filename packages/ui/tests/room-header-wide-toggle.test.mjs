@@ -1,13 +1,15 @@
 /**
- * 広い幅（40rem 以上）で「仲間を招く」を隠す規則が、`.ui-button` の `display` に勝つことを検査する（#447 段 1・設計 §7 R6）。
+ * 「仲間を招く」のたたみの規則を字で読む（#447 段 1・設計 §8 R6）。
  *
- * 開閉のボタンは `ui-button` の組と `ui-room-header-share-toggle` を併せ持つ。`button.css` は `room-header.css` より
- * 後に読み込まれるので、隠す規則が同じ詳細度 (0,1,0) だと `.ui-button` の `display: inline-flex` が後勝ちし、
- * 広い幅にも開閉のボタンが出る。jsdom は @media を解かないので、部品の試験では見えない。実際の見え方は
- * E2E（`e2e/specs/panels-headers.spec.ts` の「1280×800 と 320×640」）が見る。ここは変異検査の中で走る側として、
- * 規則の詳細度と読み込みの順を字で読む。
+ * 広い幅（40rem 以上）: 開閉のボタンは `ui-button` の組と `ui-room-header-share-toggle` を併せ持つ。`button.css` は
+ * `room-header.css` より後に読み込まれるので、隠す規則が同じ詳細度 (0,1,0) だと `.ui-button` の `display: inline-flex`
+ * が後勝ちし、広い幅にも開閉のボタンが出る。狭い幅（40rem 未満）: 開いていない間は招待の欄を `display: none` でたたむ。
+ * jsdom は @media を解かないので、部品の試験ではどちらも見えない。実際の見え方は E2E
+ * （`e2e/specs/panels-headers.spec.ts` の「1280×800 と 320×640」）が見る。ここは変異検査の中で走る側として字で読む。
  *
- * 切り出しを誤って空を読むと恒真になるので、規則が見つかることと `display: none` であることを先に見る。
+ * 詳細度は自前で計算しない（計算を賢くすると `:is()`・カンマ・擬似要素で穴が開く）。読めるのは「組を子孫結合子で
+ * 繋いだだけ」の選択子に限り、それ以外は「この検査では読めない」で赤にする（許可リストで閉じる）。
+ * 切り出しを誤って空を読むと恒真になるので、規則がちょうど 1 つ見つかることを先に見る。
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -18,17 +20,28 @@ import { fileURLToPath } from 'node:url';
 const COMPONENTS = resolve(dirname(fileURLToPath(import.meta.url)), '../src/components');
 const read = (name) => readFileSync(resolve(COMPONENTS, name), 'utf8');
 
-/** `head` で始まる @media の中身（波括弧の対応で切り出す）。 */
+/** この検査が読める選択子の形（組を子孫結合子で繋いだだけ）。 */
+const CLASS_CHAIN = /^\.[\w-]+(?:\s+\.[\w-]+)*$/;
+
+/** 狭い幅でたたむ規則の選択子。許可リストの外の形なので、字の完全一致で見る。 */
+const NARROW_FOLD_SELECTOR = ".ui-room-header-share:not([data-open='true'])";
+
+/** コメントを落とす。 */
+const stripComments = (css) => css.replace(/\/\*[\s\S]*?\*\//g, '');
+
+/** `head` で始まる @media の中身（波括弧の対応で切り出す）。同じ頭の @media が 2 つあれば読み分けられないので赤にする。 */
 function mediaBlock(css, head) {
-  const at = css.indexOf(head);
+  const plain = stripComments(css);
+  const at = plain.indexOf(head);
   assert.notEqual(at, -1, `${head} が無い`);
-  const open = css.indexOf('{', at);
+  assert.equal(plain.indexOf(head, at + 1), -1, `${head} が 2 つ以上ある。この検査では読み分けられない。検査を書き直す`);
+  const open = plain.indexOf('{', at);
   let depth = 0;
-  for (let i = open; i < css.length; i += 1) {
-    if (css[i] === '{') depth += 1;
-    if (css[i] === '}') {
+  for (let i = open; i < plain.length; i += 1) {
+    if (plain[i] === '{') depth += 1;
+    if (plain[i] === '}') {
       depth -= 1;
-      if (depth === 0) return css.slice(open + 1, i);
+      if (depth === 0) return plain.slice(open + 1, i);
     }
   }
   throw new Error(`${head} が閉じていない`);
@@ -36,38 +49,28 @@ function mediaBlock(css, head) {
 
 /** コメントを落とした CSS から、`selector { body }` の組を拾う（入れ子の無いブロックの中身に使う）。 */
 function rules(css) {
-  const plain = css.replace(/\/\*[\s\S]*?\*\//g, '');
-  return [...plain.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({ selector: m[1].trim(), body: m[2] }));
+  return [...stripComments(css).matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({ selector: m[1].trim(), body: m[2] }));
 }
 
-/**
- * 単純な詳細度（id, 組・属性・擬似クラス, 要素）。`:where()` は 0 なので中身ごと落とす。
- * ここで読むのは組だけの選択子なので、擬似要素などの細部は扱わない。
- */
-function specificity(selector) {
-  const s = selector.replace(/:where\([^)]*\)/g, '');
-  const ids = (s.match(/#[\w-]+/g) ?? []).length;
-  const classes = (s.match(/\.[\w-]+|\[[^\]]*\]|:(?!:)[\w-]+/g) ?? []).length;
-  const types = (s.replace(/[.#:][\w-]+|\[[^\]]*\]/g, ' ').match(/[a-z][\w-]*/gi) ?? []).length;
-  return [ids, classes, types];
-}
-
-function greater(a, b) {
-  for (let i = 0; i < 3; i += 1) if (a[i] !== b[i]) return a[i] > b[i];
-  return false;
+/** 組だけの選択子の組の数。許可リストの外の形は読まずに赤にする。 */
+function classCount(selector) {
+  assert.match(selector, CLASS_CHAIN, `\`${selector}\` はこの検査では読めない（組を子孫結合子で繋いだ形だけを読む）。検査を書き直す`);
+  return selector.split(/\s+/).length;
 }
 
 function wideHideRule() {
   const block = mediaBlock(read('room-header.css'), '@media (width >= 40rem)');
-  const rule = rules(block).find((r) => r.selector.includes('.ui-room-header-share-toggle'));
-  assert.ok(rule, '40rem 以上の @media に「仲間を招く」を指す規則が無い');
-  return rule;
+  const found = rules(block).filter((r) => r.selector.includes('.ui-room-header-share-toggle'));
+  assert.equal(found.length, 1, `40rem 以上の @media で「仲間を招く」を指す規則がちょうど 1 つではない（${found.length} 件）`);
+  return found[0];
 }
 
 function buttonDisplayRule() {
-  const rule = rules(read('button.css')).find((r) => r.selector === '.ui-button' && /display:\s*inline-flex/.test(r.body));
-  assert.ok(rule, 'button.css に `.ui-button { display: inline-flex }` が無い');
-  return rule;
+  const found = rules(read('button.css')).filter((r) => /(?:^|[;{\s])display\s*:/.test(r.body));
+  assert.equal(found.length, 1, `button.css で display を宣言する規則がちょうど 1 つではない（${found.length} 件）。比べる相手を見直す`);
+  assert.equal(found[0].selector, '.ui-button', 'button.css で display を宣言する規則が `.ui-button` ではない。比べる相手を見直す');
+  assert.match(found[0].body, /display:\s*inline-flex/);
+  return found[0];
 }
 
 test('Given 40rem 以上の @media / When 「仲間を招く」の規則を読む / Then display: none を持つ（対照）', () => {
@@ -83,8 +86,14 @@ test('Given 部品層の読み込み順 / When index.css を読む / Then button
   assert.ok(button > roomHeader, 'button.css が先に読まれるなら、この検査の前提を見直す');
 });
 
-test('Given 広い幅で隠す規則 / When .ui-button の display の規則と詳細度を比べる / Then 隠す規則の方が高い', () => {
-  const hide = specificity(wideHideRule().selector);
-  const button = specificity(buttonDisplayRule().selector);
-  assert.ok(greater(hide, button), `隠す規則 (${hide.join(',')}) が .ui-button (${button.join(',')}) に勝たない`);
+test('Given 広い幅で隠す規則 / When .ui-button の display の規則と組の数を比べる / Then 隠す規則の方が多い', () => {
+  const hide = classCount(wideHideRule().selector);
+  const button = classCount(buttonDisplayRule().selector);
+  assert.ok(hide > button, `隠す規則（組 ${hide} 個）が .ui-button（組 ${button} 個）に勝たない`);
+});
+
+test('Given 40rem 未満の @media / When 招待の欄をたたむ規則を読む / Then 開いていない間を display: none にする規則がちょうど 1 つある', () => {
+  const block = mediaBlock(read('room-header.css'), '@media (width < 40rem)');
+  const found = rules(block).filter((r) => r.selector === NARROW_FOLD_SELECTOR && /display:\s*none/.test(r.body));
+  assert.equal(found.length, 1, `40rem 未満の @media に \`${NARROW_FOLD_SELECTOR} { display: none }\` がちょうど 1 つではない（${found.length} 件）`);
 });

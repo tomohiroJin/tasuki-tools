@@ -3200,4 +3200,14 @@ export const MUTATIONS = [
       "「1280×800 と 320×640」）が見る。E2E の spec は変異検査のランナー（e2e は vitest で tests/ だけ）に載らないので、" +
       "変異検査の中で拾う側として詳細度と読み込み順を字で読む試験を足した。",
   },
+  {
+    id: 484,
+    label: "狭い幅で招待の欄をたたむ display: none を消す",
+    patch: "m484-narrow-invite-fold-removed.patch",
+    pkg: "packages/ui",
+    tests: ["tests/room-header-wide-toggle.test.mjs"],
+    note:
+      "#447。設計 §8 R6。320px で開く前から招待の欄が出て見出しが約 210px 高くなり、ルーレットの止まった札が下端の帯に隠れる。" +
+      "jsdom は @media を解かないので部品の試験では見えない。m483 と同じ理由で、変異検査の中で拾う側として 40rem 未満の規則を字で読む。",
+  },
 ];
