@@ -1,0 +1,23 @@
+# 変異 484: narrow-invite-fold-removed
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/room-header-wide-toggle.test.mjs（40rem 未満でたたむ規則を読む）
+#   - e2e/specs/panels-headers.spec.ts の「1280×800 と 320×640」（実際の見え方。変異検査の外）
+#
+# #447 段 1・設計 §8 R6。狭い幅で招待の欄をたたむ display: none を消す。320px で開く前から招待の欄が出て見出しが約 210px 高くなり、ルーレットの止まった札が下端の帯に隠れる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m484-*.patch
+# 復元: git apply -R scripts/mutations/m484-*.patch
+diff --git a/packages/ui/src/components/room-header.css b/packages/ui/src/components/room-header.css
+index dbd8888c..8d860dd1 100644
+--- a/packages/ui/src/components/room-header.css
++++ b/packages/ui/src/components/room-header.css
+@@ -64,7 +64,6 @@
+ 
+ @media (width < 40rem) {
+   .ui-room-header-share:not([data-open='true']) {
+-    display: none;
+   }
+ }
+ 

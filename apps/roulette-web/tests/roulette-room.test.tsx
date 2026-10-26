@@ -4,6 +4,7 @@
  */
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ROOM_HEADER_TEXT } from '@tasuki/invite-ui';
 import { MAX_DISPLAY_NAME } from '@tasuki/room-core';
 import { saveResumeIdentity } from '@tasuki/sync-client';
 import { App } from '../src/App';
@@ -368,5 +369,19 @@ describe('入り方と戻り方', () => {
     act(() => latestSocket().deliver({ type: 'error', code: 'GUEST_NAME_TAKEN', message: 'この名前はすでにいます' }));
     // Then
     expect(screen.getByRole('alert')).toHaveTextContent('この名前はすでにいます');
+  });
+});
+
+describe('ルームの見出しは共通の部品が描く（#447 段 1）', () => {
+  it('Given 入室したルーム / When 描く / Then 招待は見出しに 1 つだけ', () => {
+    // Given / When
+    enterRoom();
+    // Then: 招待リンクのコピーは見出しの中に 1 つだけ。脇の「仲間を招く」は無い
+    const copyButtons = screen.getAllByRole('button', { name: ROOM_HEADER_TEXT.copy });
+    expect(copyButtons).toHaveLength(1);
+    expect(copyButtons[0]?.closest('.ui-room-header')).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: '仲間を招く' })).toBeNull();
+    // ルームコードも見出しに出る（招待 URL の中の 'R1' とは区別し、コードの値だけを見る）
+    expect(document.querySelector('.ui-room-header-code-value')?.textContent).toBe('R1');
   });
 });

@@ -295,8 +295,9 @@
   --step-list-max-height: min(max(70dvh, 36rem), calc(100dvh - 4rem));
 }
 @media (width >= 64rem) {
+  /* 見出しに招待の行が入った分（広い幅で実測 52px＝3.25rem・#447）を足した */
   .step-list {
-    --step-list-max-height: min(max(calc(100dvh - 14rem), 40rem), calc(100dvh - 4rem));
+    --step-list-max-height: min(max(calc(100dvh - 17.25rem), 40rem), calc(100dvh - 4rem));
   }
 }
 .step-list-round {

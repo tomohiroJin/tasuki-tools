@@ -3,10 +3,11 @@
  * 進行表・延長のボタンは落とし、盤・名前・残り・押し巻き・次・終了見込みを残す。
  */
 import { act, fireEvent, render, screen } from '@testing-library/react';
+import { ROOM_HEADER_TEXT } from '@tasuki/invite-ui';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { saveResumeIdentity } from '@tasuki/sync-client';
 import { App } from '../src/App';
-import { BACK_LINK, EXTEND_LABEL, NEXT_BUTTON, NEXT_STEP_LABEL, PROJECTED_END_LABEL, PROJECT_BUTTON, PROJECT_EXIT_BUTTON, STEP_LIST_HEADING } from '../src/copy';
+import { EXTEND_LABEL, NEXT_BUTTON, NEXT_STEP_LABEL, PROJECTED_END_LABEL, PROJECT_BUTTON, PROJECT_EXIT_BUTTON, STEP_LIST_HEADING } from '../src/copy';
 import { Driver } from './support/agenda-states';
 import { IDLE_AGENDA, RESUME, ScriptedWebSocket, latestSocket, runningAgenda } from './support/scripted-web-socket';
 
@@ -159,14 +160,20 @@ describe('映す表示', () => {
     expect(sentCommands('agenda.pause')).toHaveLength(0);
   });
 
+  it('Given 映す表示 / When 描く / Then 共通の見出し（ルームコード・招待・戻る）を描かない', () => {
+    projecting();
+    expect(document.querySelector('.ui-room-header')).toBeNull();
+    expect(screen.queryByRole('link', { name: ROOM_HEADER_TEXT.back })).toBeNull();
+  });
+
   it('Given 映す表示 / When 裏の画面を見る / Then 見出しと「選択画面へ戻る」を描かず、押せるのは映す表示の中の部品だけ。Esc で戻ると両方が戻り、フォーカスは「映す表示」へ', () => {
     projecting();
-    expect(screen.queryByRole('link', { name: BACK_LINK })).toBeNull();
+    expect(screen.queryByRole('link', { name: ROOM_HEADER_TEXT.back })).toBeNull();
     const projection = document.querySelector('.projection')!;
     const focusable = [...document.querySelectorAll<HTMLElement>('a[href], button, input, select, textarea, [tabindex]')];
     expect(focusable.filter((el) => !projection.contains(el))).toEqual([]);
     press('Escape');
-    expect(screen.getByRole('link', { name: BACK_LINK })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: ROOM_HEADER_TEXT.back })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: PROJECT_BUTTON })).toHaveFocus();
   });
 
@@ -174,6 +181,6 @@ describe('映す表示', () => {
     projecting();
     deliverAgenda({ ...IDLE_AGENDA, title: 'Retro', steps: runningAgenda().steps });
     expect(document.querySelector('.projection')).toBeNull();
-    expect(screen.getByRole('link', { name: BACK_LINK })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: ROOM_HEADER_TEXT.back })).toBeInTheDocument();
   });
 });

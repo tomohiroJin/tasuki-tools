@@ -24,7 +24,7 @@ describe('進行表の枠の高さの上限', () => {
   });
 
   it('Given 広い幅 / When 式を見る / Then 下限を付けたうえで画面の高さ − 4rem で上から押さえる', () => {
-    expect(css).toContain('--step-list-max-height: min(max(calc(100dvh - 14rem), 40rem), calc(100dvh - 4rem));');
+    expect(css).toContain('--step-list-max-height: min(max(calc(100dvh - 17.25rem), 40rem), calc(100dvh - 4rem));');
   });
 });
 

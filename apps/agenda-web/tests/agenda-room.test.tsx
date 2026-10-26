@@ -7,6 +7,7 @@
  */
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ROOM_HEADER_TEXT } from '@tasuki/invite-ui';
 import { saveResumeIdentity } from '@tasuki/sync-client';
 import { App } from '../src/App';
 import {
@@ -466,5 +467,32 @@ describe('読み上げ（aria-live）', () => {
     joinedRoom(runningAgenda(1000));
     expect(screen.getByRole('heading', { name: STEP_LIST_HEADING })).toBeInTheDocument();
     expect(screen.getByText(/Check、残り 1 分/)).toBeInTheDocument();
+  });
+});
+
+/**
+ * @requirements #447 段 1
+ */
+describe('ルームの見出しは共通の部品が描く（#447 段 1）', () => {
+  it('Given 入室したルーム / When 描く / Then 共通の見出しにルームコード・招待 URL・QR のボタンが出る', () => {
+    // Given / When
+    joinedRoom(runningAgenda(1000));
+    // Then: ルームコードは値の要素だけを見る（招待 URL の中にも 'R1' の字が入るため、見出しの文字全体では見ない）
+    const header = document.querySelector<HTMLElement>('.ui-room-header');
+    expect(header).not.toBeNull();
+    expect(document.querySelector('.ui-room-header-code-value')?.textContent).toBe('R1');
+    expect(header!.querySelector('.ui-invite-url')?.textContent).toBe(`${location.origin}/?room=R1`);
+    expect(within(header!).getByRole('button', { name: ROOM_HEADER_TEXT.qrShow })).toBeInTheDocument();
+  });
+
+  it('Given 入室したルーム / When 戻るリンクを見る / Then 選択画面を指し、「仲間を招く」は見出しの中の 1 つだけ', () => {
+    // Given / When
+    joinedRoom(runningAgenda(1000));
+    // Then
+    expect(screen.getByRole('link', { name: ROOM_HEADER_TEXT.back })).toHaveAttribute('href', '/?room=R1');
+    const header = document.querySelector<HTMLElement>('.ui-room-header');
+    expect(header).not.toBeNull();
+    expect(within(header!).getByRole('button', { name: ROOM_HEADER_TEXT.inviteToggle })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: ROOM_HEADER_TEXT.inviteToggle })).toHaveLength(1);
   });
 });

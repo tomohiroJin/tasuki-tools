@@ -43,20 +43,20 @@ export const TOOLS: readonly Tool[] = [
     mark: "spade",
   },
   {
-    id: "topic",
-    pip: "お題",
-    name: "Topic Board",
-    summary: "お題を用意して全員に見せる",
-    href: "/topic/",
-    mark: "flag",
-  },
-  {
     id: "roulette",
     pip: "進行",
     name: "Facilitator Roulette",
     summary: "その場で進行役を決める",
     href: "/roulette/",
     mark: "wheel",
+  },
+  {
+    id: "topic",
+    pip: "お題",
+    name: "Topic Board",
+    summary: "お題を用意して全員に見せる",
+    href: "/topic/",
+    mark: "flag",
   },
   {
     id: "agenda",

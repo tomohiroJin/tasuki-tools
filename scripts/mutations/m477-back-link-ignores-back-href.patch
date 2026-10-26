@@ -1,0 +1,24 @@
+# 変異 477: back-link-ignores-back-href
+#
+# 検出を期待するテスト:
+#   - packages/invite-ui/tests/room-header.test.tsx
+#     「Given 道具名・戻り先・ルームコード・URL / When 描く / Then 見出し・戻るリンク…が出る」
+#
+# #447 段 1。戻るリンクが backHref を使わず根へ飛ぶ。ルームの選択画面ではなく玄関の入口へ戻され、ルームを離れる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m477-*.patch
+# 復元: git apply -R scripts/mutations/m477-*.patch
+diff --git a/packages/invite-ui/src/RoomHeader.tsx b/packages/invite-ui/src/RoomHeader.tsx
+index f9336773..bec633d8 100644
+--- a/packages/invite-ui/src/RoomHeader.tsx
++++ b/packages/invite-ui/src/RoomHeader.tsx
+@@ -108,7 +108,7 @@ export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras }
+           <h1>{title}</h1>
+           {titleExtras}
+         </div>
+-        <a className="ui-page-header-back ui-button ui-button--quiet" href={backHref}>{ROOM_HEADER_TEXT.back}</a>
++        <a className="ui-page-header-back ui-button ui-button--quiet" href="/">{ROOM_HEADER_TEXT.back}</a>
+       </div>
+       <button
+         ref={shareToggleRef}

@@ -1,0 +1,24 @@
+# 変異 476: qr-toggle-controls-wrong-id
+#
+# 検出を期待するテスト:
+#   - packages/invite-ui/tests/room-header.test.tsx
+#     QR のボタンの aria-controls から欄を引く試験（「Then QR は閉じていて」など）
+#
+# #447 段 1。QR のボタンの aria-controls が QR の欄ではなく包む欄を指す。読み上げの「開閉する先」が嘘になる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m476-*.patch
+# 復元: git apply -R scripts/mutations/m476-*.patch
+diff --git a/packages/invite-ui/src/RoomHeader.tsx b/packages/invite-ui/src/RoomHeader.tsx
+index 6f8174a5..8bf6716e 100644
+--- a/packages/invite-ui/src/RoomHeader.tsx
++++ b/packages/invite-ui/src/RoomHeader.tsx
+@@ -89,7 +89,7 @@ export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras }
+                 type="button"
+                 className="ui-button ui-button--secondary ui-button--sm"
+                 aria-expanded={open}
+-                aria-controls={qrId}
++                aria-controls={shareId}
+                 onClick={() => setOpen((value) => !value)}
+               >
+                 {open ? ROOM_HEADER_TEXT.qrHide : ROOM_HEADER_TEXT.qrShow}

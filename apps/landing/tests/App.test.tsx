@@ -5,7 +5,7 @@
  * 受け持ち、ここが見るのは「どの画面が出るか」と「札の意匠を変えていないこと」である。
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { StrictMode } from 'react';
 import { App } from '../src/App.js';
 import { TOOLS } from '../src/tools.js';
@@ -244,6 +244,42 @@ describe('選択画面', () => {
       );
       expect(link).toHaveAttribute('data-label', tool.pip);
     }
+  });
+
+  it('Given 玄関の札 / When 並びを読む / Then timer → poker → roulette → topic → agenda の順になる', () => {
+    // Given（準備）: 札の定義（TOOLS）が玄関の並びの正本
+
+    // When（操作）: ID の並びを読む
+    const ids = TOOLS.map((tool) => tool.id);
+
+    // Then: 使う流れの順（交代 → 見積もり → 進行 → お題 → 予定）
+    expect(ids).toEqual(['timer', 'poker', 'roulette', 'topic', 'agenda']);
+  });
+
+  it('Given 玄関の札 / When 選択画面を描く / Then 札のリンクが同じ順で並ぶ', () => {
+    // Given（準備）: 名簿が届いている
+    render(<RoomChoice
+        code="朝会モブ-a1b2"
+        inviteUrl={INVITE_URL}
+        roster={roster}
+        connection="online"
+        topicTitle={null}
+      />);
+
+    // When（操作）: 札のリンクの遷移先を並びどおりに読む
+    const hrefs = within(screen.getByRole('list', { name: 'ツール' }))
+      .getAllByRole('link')
+      .map((link) => link.getAttribute('href'));
+
+    // Then: 公開パスの順が timer → poker → roulette → topic → agenda
+    const room = `?room=${encodeURIComponent('朝会モブ-a1b2')}`;
+    expect(hrefs).toEqual([
+      `/timer/${room}`,
+      `/poker/${room}`,
+      `/roulette/${room}`,
+      `/topic/${room}`,
+      `/agenda/${room}`,
+    ]);
   });
 
   it('Given ツールに居る人 / When 一覧を見る / Then どこに居るかが分かる', () => {

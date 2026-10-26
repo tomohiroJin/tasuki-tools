@@ -1,0 +1,46 @@
+# 変異 480: hub-tools-in-creation-order
+#
+# 検出を期待するテスト:
+#   - apps/landing/tests/App.test.tsx
+#     「Given 玄関の札 / When 並びを読む / Then timer → poker → roulette → topic → agenda の順になる」と
+#     「Given 玄関の札 / When 選択画面を描く / Then 札のリンクが同じ順で並ぶ」
+#
+# #447 段 1。玄関の札を作った順（topic が roulette の前）に戻す。使う流れ（交代 → 見積もり → 進行 → お題 → 予定）と並びがずれる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m480-*.patch
+# 復元: git apply -R scripts/mutations/m480-*.patch
+diff --git a/apps/landing/src/tools.ts b/apps/landing/src/tools.ts
+index c8b5fe52..e039f641 100644
+--- a/apps/landing/src/tools.ts
++++ b/apps/landing/src/tools.ts
+@@ -42,14 +42,6 @@ export const TOOLS: readonly Tool[] = [
+     href: "/poker/",
+     mark: "spade",
+   },
+-  {
+-    id: "roulette",
+-    pip: "進行",
+-    name: "Facilitator Roulette",
+-    summary: "その場で進行役を決める",
+-    href: "/roulette/",
+-    mark: "wheel",
+-  },
+   {
+     id: "topic",
+     pip: "お題",
+@@ -58,6 +50,14 @@ export const TOOLS: readonly Tool[] = [
+     href: "/topic/",
+     mark: "flag",
+   },
++  {
++    id: "roulette",
++    pip: "進行",
++    name: "Facilitator Roulette",
++    summary: "その場で進行役を決める",
++    href: "/roulette/",
++    mark: "wheel",
++  },
+   {
+     id: "agenda",
+     pip: "予定",

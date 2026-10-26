@@ -356,8 +356,8 @@
   }
 }
 
-/* お題ツールの頭（見出しと招待リンク）と段組みの間（読む面の札が行に接しない）。poker の `.room > header` と同じ値 */
-.topic-room-header {
+/* 共通の見出しと段組みの間（読む面の札が行に接しない）。 */
+.ui-room-header {
   margin-block-end: var(--space-5);
 }
 

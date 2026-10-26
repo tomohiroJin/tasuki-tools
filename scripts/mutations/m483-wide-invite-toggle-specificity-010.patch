@@ -1,0 +1,24 @@
+# 変異 483: wide-invite-toggle-specificity-010
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/room-header-wide-toggle.test.mjs（詳細度を読む）
+#   - e2e/specs/panels-headers.spec.ts の「1280×800 と 320×640」（実際の見え方。変異検査の外）
+#
+# #447 段 1・設計 R6。広い幅で「仲間を招く」を隠す規則を (0,1,0) に戻す。後に読み込む .ui-button の display: inline-flex が勝ち、広い幅にも開かない開閉のボタンが出る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m483-*.patch
+# 復元: git apply -R scripts/mutations/m483-*.patch
+diff --git a/packages/ui/src/components/room-header.css b/packages/ui/src/components/room-header.css
+index 599d4f1f..dec1f8a6 100644
+--- a/packages/ui/src/components/room-header.css
++++ b/packages/ui/src/components/room-header.css
+@@ -71,7 +71,7 @@
+ /* `.ui-room-header .ui-room-header-share-toggle`（(0,2,0)）にするのは、`.ui-button` の `display: inline-flex`（後に読み込まれる・
+    同じ詳細度）に勝って 40rem 以上で隠すため */
+ @media (width >= 40rem) {
+-  .ui-room-header .ui-room-header-share-toggle {
++  .ui-room-header-share-toggle {
+     display: none;
+   }
+ }

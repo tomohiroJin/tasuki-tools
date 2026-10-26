@@ -17,7 +17,8 @@
 }
 
 /* ---------- 見出しと戻る導線は部品層（`.ui-page-header`・ADR 0022）が持つ ---------- */
-.roulette-room-header {
+/* 共通の見出し（`RoomHeader`）と段組みの間（読む面の札が行に接しない）。 */
+.ui-room-header {
   margin-block-end: var(--space-5);
 }
 
@@ -44,8 +45,8 @@
     'wheel'
     'card'
     'after';
-  /* 3 版: 招待を脇へ移して見出しの下が空いたので、320×640 でも 円盤・札・下端の帯 が 1 画面に入る大きさにする */
-  --wheel-size: clamp(14rem, min(100cqi, 100dvh - 24rem), 32rem);
+  /* 見出しは狭い幅で「仲間を招く」のボタンの分（実測 44px）、広い幅で招待の行の分（実測 52px）高くなった（#447）。狭い幅は 640px の高さで円盤を 2rem 小さくして札の位置を変更前に戻し、広い幅は 3.25rem を引く */
+  --wheel-size: clamp(14rem, min(100cqi, 100dvh - 26rem), 32rem);
 }
 .roulette-stage[data-layout='row'] {
   /* 円盤の列は円盤の幅に任せる（auto）。**`var(--wheel-size)` をここへ入れない**: `--wheel-size` は `cqi`
@@ -62,7 +63,7 @@
   align-items: center;
   column-gap: 0;
   row-gap: var(--space-4);
-  --wheel-size: clamp(20rem, min(100cqi - 19rem, 100dvh - 16rem), 40rem);
+  --wheel-size: clamp(20rem, min(100cqi - 19rem, 100dvh - 19.25rem), 40rem);
 }
 .roulette-topic {
   grid-area: topic;
@@ -427,7 +428,7 @@
 /* 縦積みの円盤の予算: 組の札が 1 人の札より高い分だけ、円盤の式から引く（1 人の式は上のまま） */
 .roulette-stage[data-layout='stack'][data-pick='group'] {
   --card-extra: 1.75rem;
-  --wheel-size: clamp(14rem, min(100cqi, 100dvh - 24rem - var(--card-extra)), 32rem);
+  --wheel-size: clamp(14rem, min(100cqi, 100dvh - 26rem - var(--card-extra)), 32rem);
 }
 
 .roulette-caption {
@@ -457,7 +458,7 @@
   white-space: nowrap;
 }
 
-/* ---------- 脇（決め方・ルーレットに入る人・仲間を招く） ---------- */
+/* ---------- 脇（決め方・ルーレットに入る人） ---------- */
 /* 決め方の面（#401 順番に回す T9）: 見出し → 2 つのボタン（等分で 1 行）→ 選んだ決め方の説明・設定・進み具合 */
 .roulette-mode {
   display: grid;
@@ -514,14 +515,6 @@
   min-width: 0;
   gap: var(--space-4);
   align-content: start;
-}
-.roulette-invite {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-3);
-}
-.roulette-invite h2 {
-  margin: 0;
 }
 .roulette-people {
   display: grid;

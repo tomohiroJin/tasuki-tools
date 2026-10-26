@@ -1,0 +1,122 @@
+/* ============================================================
+   Tasuki UI — ルーム画面の共通の見出し（#447 段 1）
+   見出しの行・「仲間を招く」のボタン（狭い幅だけ）・招待の欄を、ルーム画面の上に積んで組む容器。招待の欄は
+   招待の行（`.ui-room-header-invite`。ルームコードと、参加用 URL・QR・コピーの `.ui-invite` を 1 行に並べる）と
+   QR の欄（閉じている間は隠れる）を包む。`RoomHeader`（`packages/invite-ui`）が組む DOM に当てる。見出しの行は
+   `.ui-page-header`、URL の並びは `.ui-invite` をそのまま使い、その上に並びだけを足す。
+   **行の中の並びと行の間の間隔まで部品が持つ**（配置は画面が持つ、の例外）。見出しの行と招待の行の並びを
+   画面に残すと、片方だけ直ったときに画面ごとに並びがずれる。見出しの字の大きさは要素層の h1 と画面が持ち、
+   h1 の上下の余白は部品が 0 にする（行の間は `.ui-room-header` の gap が持つ）。
+   狭い幅（40rem 未満）では、招待の欄（ルームコード・URL・QR・コピー）を「仲間を招く」のボタンでたたむ。
+   ルーレットの 320×640 の撮影で、見出しが約 210px 高くなり、止まった札が下端の帯に隠れたため（設計 §8 R6）。
+   40rem は `actions.css` の並びの切り替えと同じ境目。
+   ============================================================ */
+
+.ui-room-header {
+  display: grid;
+  gap: var(--space-2);
+}
+
+/* 見出しの隣に道具固有のボタンを置けるよう、見出しと並べて折り返す。 */
+.ui-room-header-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.ui-room-header-title > h1 {
+  margin: 0;
+}
+
+.ui-room-header-invite {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+/* ルームコードは添え書きの段に寄せ、値だけを等幅で桁を揃える。 */
+.ui-room-header-code {
+  margin: 0;
+  font-size: var(--font-size-sm);
+}
+
+.ui-room-header-code-label {
+  color: var(--ivory-dim);
+}
+
+.ui-room-header-code-value {
+  font-family: var(--font-mono);
+  letter-spacing: 0.08em;
+}
+
+/* 包む欄の中で招待の行と QR の欄の間を空ける（ふつうのブロックだと間の gap が消える）。 */
+.ui-room-header-share {
+  display: grid;
+  gap: var(--space-2);
+}
+
+/* 狭い幅では招待の行を「仲間を招く」でたたむ。開いたときだけ data-open='true' が付いて見える。 */
+.ui-room-header-share-toggle {
+  justify-self: start;
+}
+
+@media (width < 40rem) {
+  .ui-room-header-share:not([data-open='true']) {
+    display: none;
+  }
+}
+
+/* `.ui-room-header .ui-room-header-share-toggle`（(0,2,0)）にするのは、`.ui-button` の `display: inline-flex`（後に読み込まれる・
+   同じ詳細度）に勝って 40rem 以上で隠すため */
+@media (width >= 40rem) {
+  .ui-room-header .ui-room-header-share-toggle {
+    display: none;
+  }
+}
+
+/* QR は開いても下の画面を押し下げないよう、ボタンの下に浮かぶカードにする（#447・段として差し込むと画面全体が約 210px 動いた）。
+   閉じるのはボタン・Esc・外側を押す・Tab で外へ出る（`RoomHeader`）。出るときだけ、上から少し降りながら浮かび上がる。
+   ボタンの左端から出し、画面の外へ切れる分は `RoomHeader` が開いたときに測って `--ui-room-header-qr-shift` で内側へ寄せる。 */
+.ui-room-header-qr-anchor {
+  position: relative;
+}
+
+.ui-room-header-qr {
+  position: absolute;
+  inset-block-start: calc(100% + var(--space-2));
+  inset-inline-start: var(--ui-room-header-qr-shift, 0px);
+  /* 中身（下端に貼り付く帯 z-index: 1）より上、接続の告知の帯（`.ui-banner` 10）と agenda の操作の帯（10）より下。
+     告知の帯の上にかぶさると「繋がらない」が読めなくなる */
+  z-index: 5;
+  box-sizing: border-box;
+  inline-size: max-content;
+  max-inline-size: min(15rem, calc(100vw - 2 * var(--space-4)));
+  padding: var(--space-3);
+  border: 1px solid var(--gold-edge);
+  border-radius: var(--radius-lg);
+  background: var(--felt-900);
+  box-shadow: var(--shadow-popover);
+  transition: opacity 160ms ease-out, translate 160ms ease-out;
+}
+
+@starting-style {
+  .ui-room-header-qr {
+    opacity: 0;
+    translate: 0 calc(-1 * var(--space-2));
+  }
+}
+
+/* QR の状態の知らせ。字が空の間も読み上げのために置いてあるので、余白で欄を広げない。 */
+.ui-room-header-qr-status {
+  margin: 0;
+}
+
+/* QR はカードの幅に合わせて縮む。白い余白は QR の画像が描くので、地は敷かず角だけ丸める。 */
+.ui-room-header-qr img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-md);
+}

@@ -1,0 +1,24 @@
+# 変異 479: invite-url-with-aria-label
+#
+# 検出を期待するテスト:
+#   - packages/invite-ui/tests/room-header.test.tsx
+#     「Given URL の欄 / When 描く / Then aria-label を持たない」
+#
+# #447 段 1・設計 R2。URL の欄に aria-label を付ける。role の無い span の aria-label は読み上げで扱いが揺れ、見えている字と名前が二重になる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m479-*.patch
+# 復元: git apply -R scripts/mutations/m479-*.patch
+diff --git a/packages/invite-ui/src/RoomHeader.tsx b/packages/invite-ui/src/RoomHeader.tsx
+index f16c5bce..4308fcc5 100644
+--- a/packages/invite-ui/src/RoomHeader.tsx
++++ b/packages/invite-ui/src/RoomHeader.tsx
+@@ -100,7 +100,7 @@ export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras }
+             <span className="ui-room-header-code-value">{roomCode}</span>
+           </p>
+           <div className="ui-invite">
+-            <span className="ui-invite-url">{inviteUrl}</span>
++            <span className="ui-invite-url" aria-label={inviteUrl}>{inviteUrl}</span>
+             {/* ボタンと浮かぶ QR を包む。外側を押したかの判定と、QR を浮かべる位置の基準にする。 */}
+             <div ref={qrAnchorRef} className="ui-room-header-qr-anchor" onKeyDown={closeQrOnEscape} onBlur={closeQrOnFocusLeave}>
+               <button

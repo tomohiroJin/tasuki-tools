@@ -7,20 +7,12 @@
  * 舞台（円盤・札・一言・回す）は `Stage` が持つ（PR 3）。
  */
 import { useCallback, useEffect, useState } from 'react';
-import { InviteLink } from '../components/InviteLink';
+import { ROOM_HEADER_TEXT, RoomHeader } from '@tasuki/invite-ui';
 import { LoadingView } from '../components/LoadingView';
 import { ModePanel } from '../components/ModePanel';
 import { PeoplePanel } from '../components/PeoplePanel';
 import { Stage } from '../components/Stage';
-import {
-  BACK_LINK,
-  GONE_HEADING,
-  GONE_LINK,
-  GONE_TEXT,
-  INVITE_HEADING,
-  JOINING_HEADING,
-  PAGE_HEADING,
-} from '../copy';
+import { GONE_HEADING, GONE_LINK, GONE_TEXT, JOINING_HEADING, PAGE_HEADING } from '../copy';
 import { useRouletteSync } from '../hooks/use-roulette-sync';
 import { usePrefersReducedMotion } from '../hooks/use-reduced-motion';
 import { hubPathFor, redirectTo } from '../router';
@@ -143,7 +135,7 @@ export function RouletteRoom({ roomCode }: { roomCode: string }) {
             <h1>{JOINING_HEADING}</h1>
             {/* 参加の返事が来ないまま待つ期限は無い。待たされた人が自分で戻れるように。 */}
             <a className="ui-page-header-back ui-button ui-button--quiet" href={hubPathFor(roomCode)}>
-              {BACK_LINK}
+              {ROOM_HEADER_TEXT.back}
             </a>
           </header>
           {sync.retryNotice && (
@@ -226,14 +218,8 @@ export function RouletteRoom({ roomCode }: { roomCode: string }) {
     <>
       {banner}
       <main className="ui-page ui-page--wide">
-        <div className="roulette-room-header">
-          <header className="ui-page-header">
-            <h1>{PAGE_HEADING}</h1>
-            <a className="ui-page-header-back ui-button ui-button--quiet" href={hubPathFor(roomCode)}>
-              {BACK_LINK}
-            </a>
-          </header>
-        </div>
+        {/* 見出し・戻る・ルームコード・招待 URL は共通の部品が描く（#447 段 1）。下の段組みとの余白はこのアプリの index.css の `.ui-room-header` が持つ */}
+        <RoomHeader title={PAGE_HEADING} backHref={hubPathFor(roomCode)} roomCode={roomCode} inviteUrl={sync.inviteUrl} />
         {sync.retryNotice && (
           <p className="roulette-notice ui-note" role="status">
             {sync.retryNotice}
@@ -245,7 +231,7 @@ export function RouletteRoom({ roomCode }: { roomCode: string }) {
           </p>
         )}
         {/* 段組み（ADR 0025）。操作の面が主役、脇は右。DOM は狭い幅で見せたい順:
-            お題 → 結果の一言 → 回す → 決め方 → 入る人 → 名前を追加 → 仲間を招く */}
+            お題 → 結果の一言 → 回す → 決め方 → 入る人 → 名前を追加 */}
         <div className="ui-workspace ui-workspace--side-end">
           <Stage
             pool={pool}
@@ -263,7 +249,7 @@ export function RouletteRoom({ roomCode }: { roomCode: string }) {
             captionHidden={pressCaption?.hidden ?? ''}
           />
           <div className="ui-workspace-side roulette-side">
-            {/* 脇は 決め方 → 入る人 → 仲間を招く（#401 順番に回す T9）。決め方ごとの設定と進み具合は決め方の面だけが持つ */}
+            {/* 脇は 決め方 → 入る人（#401 順番に回す T9）。決め方ごとの設定と進み具合は決め方の面だけが持つ */}
             <ModePanel
               mode={mode}
               locked={locked}
@@ -282,11 +268,6 @@ export function RouletteRoom({ roomCode }: { roomCode: string }) {
               onRemoveGuest={sync.removeGuest}
               onAddGuest={sync.addGuest}
             />
-            {/* 招待は脇の最後（spec §6.7 の 3 版）。見出しの下に置くと 320px で 2 段を取り、円盤を押し下げる */}
-            <section className="ui-panel roulette-invite" aria-labelledby="roulette-invite-heading">
-              <h2 id="roulette-invite-heading">{INVITE_HEADING}</h2>
-              <InviteLink url={sync.inviteUrl} />
-            </section>
           </div>
         </div>
       </main>

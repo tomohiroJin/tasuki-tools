@@ -97,3 +97,7 @@
 部品の約束（2 アプリ以上が使う・決定 1）に従い、象牙の札（`.ui-sheet`・`sheet.css`）と読む面のタブ（`.ui-reader-tabs`）を
 部品層から外し、お題ツールの CSS（`.topic-sheet`・`.topic-reader-tabs`）へ移した。poker のお題は読む面（`.ui-reader`）へ移り、
 どちらも使うのがお題ツールだけになったため。決定 4 の一覧のうち「象牙の札」の行は、この追記で現行ではなくなった。
+
+## 追記（2026-10-26・#447）
+
+ルームの画面の見出し（`RoomHeader`・`packages/invite-ui`）は、決定 5 の「表示の構造（マークアップと React の部品）は各画面のまま」の例外であり、その構造は [ADR-0020 の 2026-10-26 の追記](./0020-invite-browser-operations.md) が定める通り invite-ui の部品が持つ。

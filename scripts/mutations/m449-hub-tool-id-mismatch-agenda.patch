@@ -27,7 +27,7 @@ index e039f641..9953f8ba 100644
    readonly pip: string;
    /** ツール名（札の下端） */
 @@ -59,7 +59,7 @@ export const TOOLS: readonly Tool[] = [
-     mark: "wheel",
+     mark: "flag",
    },
    {
 -    id: "agenda",

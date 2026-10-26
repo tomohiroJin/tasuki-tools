@@ -4,6 +4,7 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MAX_TOPIC_BODY, MAX_TOPIC_TITLE } from '@tasuki/topic-core';
+import { ROOM_HEADER_TEXT } from '@tasuki/invite-ui';
 import { saveResumeIdentity } from '@tasuki/sync-client';
 import { App } from '../src/App';
 import { redirectTo } from '../src/router';
@@ -556,7 +557,7 @@ describe('操作できない間', () => {
     act(() => latestSocket().open());
     // Then
     expect(screen.getByRole('heading', { name: copy.JOINING_HEADING })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: copy.BACK_LINK })).toHaveAttribute('href', '/?room=R1');
+    expect(screen.getByRole('link', { name: ROOM_HEADER_TEXT.back })).toHaveAttribute('href', '/?room=R1');
   });
 
   it('Given 解錠済みで下書きがある / When 切れて繋ぎ直し、参加の返事を待つ / Then どの操作も押せず、返事が来たら押せる', () => {
@@ -649,7 +650,7 @@ describe('操作できない間', () => {
 
   it('Given 画面 / When 戻る導線を見る / Then 同じルームの選択画面を指す', () => {
     enterWith();
-    expect(screen.getByRole('link', { name: copy.BACK_LINK })).toHaveAttribute('href', '/?room=R1');
+    expect(screen.getByRole('link', { name: ROOM_HEADER_TEXT.back })).toHaveAttribute('href', '/?room=R1');
   });
 
   it('Given 画面 / When 招待リンクを見る / Then 玄関のそのルームの参加用 URL を配る', () => {
@@ -658,7 +659,15 @@ describe('操作できない間', () => {
     enterWith();
     // Then
     expect(screen.getByText(`${location.origin}/?room=R1`)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: copy.INVITE_COPY_BUTTON })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: ROOM_HEADER_TEXT.copy })).toBeInTheDocument();
+  });
+
+  it('Given 入室したルーム / When 描く / Then 共通の見出しにルームコードと QR のボタンが出る', () => {
+    // Given / When
+    enterWith();
+    // Then
+    expect(screen.getByText('R1')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'QR コードを表示' })).toBeInTheDocument();
   });
 });
 
