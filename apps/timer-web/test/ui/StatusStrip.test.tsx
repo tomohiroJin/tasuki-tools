@@ -67,7 +67,7 @@ describe("StatusStrip", () => {
     expect(screen.getByText(/ABCD01/)).toBeTruthy();
   });
 
-  it("Given ルームに入っている / When ステータスを描く / Then 戻るリンクは無い（共通の見出しが持つ・#447 段 2）", () => {
+  it("Given ルームに入っている / When ステータスを描く / Then 戻るリンクは無い（共通の見出しが持つ）", () => {
     // Given / When
     render(
       <StatusStrip phase="lobby" displayName="あや" connectionStatus="online" roomCode="朝会モブ-a1b2" />,

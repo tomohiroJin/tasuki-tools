@@ -145,7 +145,7 @@ function outsideMedia(css) {
   return plain;
 }
 
-test('Given @media の外 / When 詰めた見た目の招待の欄の規則を読む / Then 幅によらず開いていない間を display: none にする規則がちょうど 1 つある（#447 段 2）', () => {
+test('Given @media の外 / When 詰めた見た目の招待の欄の規則を読む / Then 幅によらず開いていない間を display: none にする規則がちょうど 1 つある', () => {
   // 広い幅の詰めた見た目は「仲間を招く」を出すので、欄をたたむ規則が @media の外に無いと、開く前から欄が出て見出しが高くなる
   const found = rules(outsideMedia(read('room-header.css'))).filter(
     (r) => r.selector === COMPACT_FOLD_SELECTOR && /display:\s*none/.test(r.body),
@@ -153,7 +153,7 @@ test('Given @media の外 / When 詰めた見た目の招待の欄の規則を�
   assert.equal(found.length, 1, `@media の外に \`${COMPACT_FOLD_SELECTOR} { display: none }\` がちょうど 1 つではない（${found.length} 件）`);
 });
 
-test('Given 40rem 未満の @media / When 詰めた見た目の道具名の規則を読む / Then 目に出さず読み上げに残す規則（.ui-visually-hidden と同じ宣言）がちょうど 1 つある（#447 段 2）', () => {
+test('Given 40rem 未満の @media / When 詰めた見た目の道具名の規則を読む / Then 目に出さず読み上げに残す規則（.ui-visually-hidden と同じ宣言）がちょうど 1 つある', () => {
   // 実際の見え方（390×844 で計器が下端の帯に潜らない）は E2E の layout.spec が見る。ここは変異検査の中で走る側として字で読む
   const found = rules(mediaBlock(read('room-header.css'), '@media (width < 40rem)')).filter(
     (r) => r.selector === COMPACT_NARROW_TITLE_SELECTOR,

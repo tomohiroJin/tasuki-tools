@@ -68,7 +68,7 @@ function header(): HTMLElement {
   return screen.getByRole("heading", { name: "TDD Mob Pro Timer", level: 1 }).closest("header") as HTMLElement;
 }
 
-describe("timer の共通の見出し（#447 段 2）", () => {
+describe("timer の共通の見出し", () => {
   it("Given ロビー / When 描く / Then 見出しが 1 つ・戻るリンクは同じルームの選択画面・詰めた見た目ではない", () => {
     // Given / When
     enter("ready");

@@ -65,7 +65,7 @@ function baseHandlers() {
 /**
  * @requirements v2.2 Epic1 #1
  */
-describe("Session の「ルーム」タブ（招待は共通の見出しへ移った・#447 段 2）", () => {
+describe("Session の「ルーム」タブ（招待は共通の見出しへ移った）", () => {
   it("デフォルトは「セッション」タブが表示される", () => {
     // Given
     render(<Session room={makeRoom()} participantId="p-alice" {...baseHandlers()} />);

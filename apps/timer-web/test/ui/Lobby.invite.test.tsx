@@ -41,7 +41,7 @@ function makeRoom(overrides?: Partial<Room>): Room {
 describe("Lobby の脇と開始", () => {
   const noop = vi.fn();
 
-  it("招待（ルームコード・コピー）は脇に出さない（共通の見出しが持つ・#447 段 2）", () => {
+  it("招待（ルームコード・コピー）は脇に出さない（共通の見出しが持つ）", () => {
     // Given / When
     render(<Lobby room={makeRoom()} participantId="creator-p" onStartSession={noop} />);
     // Then
