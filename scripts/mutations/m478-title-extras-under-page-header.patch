@@ -1,0 +1,25 @@
+# 変異 478: title-extras-under-page-header
+#
+# 検出を期待するテスト:
+#   - packages/invite-ui/tests/room-header.test.tsx
+#     「Given 道具に固有のボタン / When titleExtras に渡す / Then 見出しの隣に置かれ、戻るリンクは行の 2 つ目の子のまま」
+#
+# #447 段 1。titleExtras を .ui-page-header の直下に置く。行の子が 3 つになり、両端寄せの並びで戻るリンクが真ん中に浮く。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m478-*.patch
+# 復元: git apply -R scripts/mutations/m478-*.patch
+diff --git a/packages/invite-ui/src/RoomHeader.tsx b/packages/invite-ui/src/RoomHeader.tsx
+index e18e7914..cfb22528 100644
+--- a/packages/invite-ui/src/RoomHeader.tsx
++++ b/packages/invite-ui/src/RoomHeader.tsx
+@@ -41,8 +41,8 @@ export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras }
+       <div className="ui-page-header">
+         <div className="ui-room-header-title">
+           <h1>{title}</h1>
+-          {titleExtras}
+         </div>
++        {titleExtras}
+         <a className="ui-page-header-back ui-button ui-button--quiet" href={backHref}>{ROOM_HEADER_TEXT.back}</a>
+       </div>
+       <button

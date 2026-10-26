@@ -3116,4 +3116,88 @@ export const MUTATIONS = [
       "#444。待機期間を外してよいのは種類が lockFileMaintenance だけで絞り込みの無い規則に限る。" +
       "絞り込みを足した規則まで通すと、例外の形を借りて特定のパッケージの待機期間を外せる。",
   },
+  {
+    id: 474,
+    label: "見出しの QR を閉じている間も作る（useInviteQr(inviteUrl, true)）",
+    patch: "m474-qr-built-while-closed.patch",
+    pkg: "packages/invite-ui",
+    tests: ["tests/room-header.test.tsx"],
+    note: "#447。開かない人まで qrcode を読み込み、閉じた欄に画像が残る。QR は開くまで生成ライブラリを読まない約束。",
+  },
+  {
+    id: 475,
+    label: "見出しの QR の欄から hidden を外す",
+    patch: "m475-qr-region-not-hidden.patch",
+    pkg: "packages/invite-ui",
+    tests: ["tests/room-header.test.tsx"],
+    note: "#447。閉じたはずの欄（準備中・失敗の案内）が見えたまま残り、ボタンの aria-expanded と見た目が食い違う。",
+  },
+  {
+    id: 476,
+    label: "QR のボタンの aria-controls が QR の欄ではなく包む欄を指す",
+    patch: "m476-qr-toggle-controls-wrong-id.patch",
+    pkg: "packages/invite-ui",
+    tests: ["tests/room-header.test.tsx"],
+    note: "#447。開閉する先の読み上げが嘘になる。試験は aria-controls から欄を引いて hidden を見るので、指す先がずれると赤くなる。",
+  },
+  {
+    id: 477,
+    label: "見出しの戻るリンクが backHref を使わず根へ飛ぶ",
+    patch: "m477-back-link-ignores-back-href.patch",
+    pkg: "packages/invite-ui",
+    tests: ["tests/room-header.test.tsx"],
+    note: "#447。ルームの選択画面ではなく玄関の入口へ戻され、ルームを離れる。",
+  },
+  {
+    id: 478,
+    label: "titleExtras を見出しの隣ではなく .ui-page-header の直下に置く",
+    patch: "m478-title-extras-under-page-header.patch",
+    pkg: "packages/invite-ui",
+    tests: ["tests/room-header.test.tsx"],
+    note: "#447。行の子が 3 つになり、両端寄せの並びで戻るリンクが真ん中に浮く（topic の「お題を隠す」で起きる）。",
+  },
+  {
+    id: 479,
+    label: "見出しの URL の欄に aria-label を付ける",
+    patch: "m479-invite-url-with-aria-label.patch",
+    pkg: "packages/invite-ui",
+    tests: ["tests/room-header.test.tsx"],
+    note: "#447。設計 R2。揃える向きは「付けない」。role の無い span の aria-label は読み上げの扱いが揺れ、見えている字と名前が二重になる。",
+  },
+  {
+    id: 480,
+    label: "玄関の札を作った順（topic が roulette の前）に戻す",
+    patch: "m480-hub-tools-in-creation-order.patch",
+    pkg: "apps/landing",
+    tests: ["tests/App.test.tsx"],
+    note: "#447。使う流れ（交代 → 見積もり → 進行 → お題 → 予定）と札の並びがずれる。",
+  },
+  {
+    id: 481,
+    label: "ルーレットの脇に「仲間を招く」を戻す（招待が二重）",
+    patch: "m481-roulette-side-invite-returns.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/roulette-room.test.tsx"],
+    note: "#447。設計 R1。招待が見出しと脇の二重になり、320px で脇の分だけ縦に伸びる。消した InviteLink は戻さず、同じ形の欄を書いて戻す。",
+  },
+  {
+    id: 482,
+    label: "agenda が映している間も共通の見出しを描く",
+    patch: "m482-agenda-header-while-projecting.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/projection-view.test.tsx"],
+    note: "#447。全画面の重ねの裏に押せるリンクとボタンが残り、Tab で映す表示から抜け出せる。",
+  },
+  {
+    id: 483,
+    label: "広い幅で「仲間を招く」を隠す規則の詳細度を (0,1,0) に戻す",
+    patch: "m483-wide-invite-toggle-specificity-010.patch",
+    pkg: "packages/ui",
+    tests: ["tests/room-header-wide-toggle.test.mjs"],
+    note:
+      "#447。設計 R6。後に読み込む `.ui-button` の `display: inline-flex` が後勝ちし、広い幅にも開閉のボタンが出る。" +
+      "jsdom は @media を解かないので部品の試験では見えず、実際の見え方は E2E（`e2e/specs/panels-headers.spec.ts` の" +
+      "「1280×800 と 320×640」）が見る。E2E の spec は変異検査のランナー（e2e は vitest で tests/ だけ）に載らないので、" +
+      "変異検査の中で拾う側として詳細度と読み込み順を字で読む試験を足した。",
+  },
 ];

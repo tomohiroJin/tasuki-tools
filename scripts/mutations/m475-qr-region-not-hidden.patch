@@ -1,0 +1,24 @@
+# 変異 475: qr-region-not-hidden
+#
+# 検出を期待するテスト:
+#   - packages/invite-ui/tests/room-header.test.tsx
+#     「Given 描いた直後 / When 何もしない / Then QR は閉じていて、qrcode を呼ばない」ほか、QR の欄の hidden を見る試験
+#
+# #447 段 1。QR の欄の hidden を外す。閉じたはずの欄（準備中・失敗の案内）が見えたまま残る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m475-*.patch
+# 復元: git apply -R scripts/mutations/m475-*.patch
+diff --git a/packages/invite-ui/src/RoomHeader.tsx b/packages/invite-ui/src/RoomHeader.tsx
+index e18e7914..c78ae8ee 100644
+--- a/packages/invite-ui/src/RoomHeader.tsx
++++ b/packages/invite-ui/src/RoomHeader.tsx
+@@ -80,7 +80,7 @@ export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras }
+             </button>
+           </div>
+         </div>
+-        <div id={qrId} hidden={!open} className="ui-room-header-qr">
++        <div id={qrId} className="ui-room-header-qr">
+           {qr.dataUrl && <img src={qr.dataUrl} width="200" height="200" alt={ROOM_HEADER_TEXT.qrAlt} />}
+           {open && !qr.dataUrl && (
+             <p className="ui-note" role="status">{qr.failed ? ROOM_HEADER_TEXT.qrFailed : ROOM_HEADER_TEXT.qrPreparing}</p>

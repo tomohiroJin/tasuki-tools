@@ -1,0 +1,29 @@
+# 変異 481: roulette-side-invite-returns
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/roulette-room.test.tsx
+#     「Given 入室したルーム / When 描く / Then 招待は見出しに 1 つだけ」
+#
+# #447 段 1・設計 R1。ルーレットの脇の「仲間を招く」を戻す。招待が見出しと脇の二重になり、320px で脇の分だけ円盤の下が伸びる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m481-*.patch
+# 復元: git apply -R scripts/mutations/m481-*.patch
+diff --git a/apps/roulette-web/src/screens/RouletteRoom.tsx b/apps/roulette-web/src/screens/RouletteRoom.tsx
+index 4bb931e4..cbdfd4c9 100644
+--- a/apps/roulette-web/src/screens/RouletteRoom.tsx
++++ b/apps/roulette-web/src/screens/RouletteRoom.tsx
+@@ -268,6 +268,13 @@ export function RouletteRoom({ roomCode }: { roomCode: string }) {
+               onRemoveGuest={sync.removeGuest}
+               onAddGuest={sync.addGuest}
+             />
++            <section className="ui-panel roulette-invite" aria-labelledby="roulette-invite-heading">
++              <h2 id="roulette-invite-heading">仲間を招く</h2>
++              <div className="ui-invite">
++                <span className="ui-invite-url">{sync.inviteUrl}</span>
++                <button type="button" className="ui-button ui-button--secondary ui-button--sm">{ROOM_HEADER_TEXT.copy}</button>
++              </div>
++            </section>
+           </div>
+         </div>
+       </main>

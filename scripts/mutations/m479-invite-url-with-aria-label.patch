@@ -1,0 +1,24 @@
+# 変異 479: invite-url-with-aria-label
+#
+# 検出を期待するテスト:
+#   - packages/invite-ui/tests/room-header.test.tsx
+#     「Given URL の欄 / When 描く / Then aria-label を持たない」
+#
+# #447 段 1・設計 R2。URL の欄に aria-label を付ける。role の無い span の aria-label は読み上げで扱いが揺れ、見えている字と名前が二重になる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m479-*.patch
+# 復元: git apply -R scripts/mutations/m479-*.patch
+diff --git a/packages/invite-ui/src/RoomHeader.tsx b/packages/invite-ui/src/RoomHeader.tsx
+index e18e7914..dd6f7726 100644
+--- a/packages/invite-ui/src/RoomHeader.tsx
++++ b/packages/invite-ui/src/RoomHeader.tsx
+@@ -61,7 +61,7 @@ export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras }
+             <span className="ui-room-header-code-value">{roomCode}</span>
+           </p>
+           <div className="ui-invite">
+-            <span className="ui-invite-url">{inviteUrl}</span>
++            <span className="ui-invite-url" aria-label={inviteUrl}>{inviteUrl}</span>
+             <button
+               type="button"
+               className="ui-button ui-button--secondary ui-button--sm"
