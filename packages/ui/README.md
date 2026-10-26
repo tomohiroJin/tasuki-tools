@@ -40,7 +40,7 @@ src/
 | `.ui-panel` | 見出しを持つまとまりの面（`<section>`・`<form>`）。地・枠・角丸・内側の余白を持つ | なし |
 | `.ui-page-header` | 画面の見出し（h1）と戻る導線を 1 行の両端に組む容器。戻る導線の `<a>` に `.ui-page-header-back` を当てる | なし |
 | `.ui-invite` | 参加用 URL とコピーのボタンを 1 行に組む容器。URL の `<span>` に `.ui-invite-url` を当てる | なし |
-| `.ui-room-header` | ルーム画面の見出し・戻るリンク・ルームコード・参加用 URL を 2 段に組む容器（`RoomHeader`・`@tasuki/invite-ui`）。見出しの行に `.ui-page-header`、招待の行に `.ui-invite` を使う。道具に固有のボタンは見出しの隣に置く | なし |
+| `.ui-room-header` | ルーム画面の見出し・戻るリンク・ルームコード・参加用 URL を、見出しの行・参加用 URL の行・QR の欄（閉じている間は隠れる）の順に組む容器（`RoomHeader`・`@tasuki/invite-ui`）。見出しの行に `.ui-page-header`、参加用 URL の行に `.ui-invite` を使う。道具に固有のボタンは見出しの隣に置く | なし |
 | `.ui-button` | ボタンの形をする `<button>`・`<a>`。既定が主（金の地）。`--secondary`（金の枠）・`--quiet`（下線の字）で役割を、`--sm`・`--lg` で大きさを変える。選び方は下の「画面を組む」 | なし |
 | `.ui-actions` | 操作の並び。40rem 以上は右寄せの横並び、未満は縦に積む。左へ離すものは `.ui-actions-start` に入れる。`--dock` は 40rem 未満で下端に留まる帯 | なし |
 | `.ui-md` | Markdown の根。各要素に `.ui-md-h`・`.ui-md-p`・`.ui-md-ul`・`.ui-md-ol`・`.ui-md-quote`・`.ui-md-code`・`.ui-md-pre`・`.ui-md-link` を当てる。タスクリストの項目は `.ui-md-task`・`.ui-md-task-label`・`.ui-md-check`・`.ui-md-task-text`（#315）。暗い面ではつまみ `--ui-md-edge`（コード・引用の枠）・`--ui-md-link`（リンクの字）・`--ui-md-check`（チェックボックスの色）を面が宣言する | `--ui-md-edge`・`--ui-md-link`・`--ui-md-check` |

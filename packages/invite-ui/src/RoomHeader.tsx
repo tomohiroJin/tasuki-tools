@@ -18,7 +18,7 @@ export interface RoomHeaderProps {
 /**
  * ルーム画面の見出し・戻るリンク・ルームコード・参加用 URL をまとめて組む（#447 段 1）。
  *
- * 5 つのアプリで写しになっていた組み方を 1 つにした。QR は普段は閉じておき、開くまで生成ライブラリを読まない。
+ * 5 つのアプリの写しを 1 つにまとめるための部品。QR は普段は閉じておき、開くまで生成ライブラリを読まない。
  * 戻り値の型は書かない（グローバルの `JSX` 名前空間に頼らない）。
  */
 export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras }: RoomHeaderProps) {
