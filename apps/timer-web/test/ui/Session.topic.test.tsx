@@ -9,9 +9,6 @@ import { Session } from "../../src/ui/Session.js";
 import type { Room, Participant, SessionConfig } from "@tasuki/timer-core";
 import { aRoomView } from "../support/room-view.js";
 
-/** 参加用 URL は同期フックが組み立てる（#95 S5b）。画面へは値として渡す。 */
-const INVITE_URL_FOR_TEST = "https://tasuki.example/?room=TEST";
-
 function makeParticipant(overrides: Partial<Participant>): Participant {
   return {
     participantId: "p1",
@@ -73,7 +70,6 @@ describe("Session のお題の札", () => {
     // When
     render(
       <Session
-        inviteUrl={INVITE_URL_FOR_TEST}
         room={makeRoom()}
         participantId="p-alice"
         {...baseHandlers()}
@@ -89,7 +85,6 @@ describe("Session のお題の札", () => {
     // When: 描く
     render(
       <Session
-        inviteUrl={INVITE_URL_FOR_TEST}
         room={makeRoom()}
         participantId="p-alice"
         {...baseHandlers()}

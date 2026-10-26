@@ -93,19 +93,6 @@ export function StatusStrip({
         )}
       </span>
 
-      {/* 選択画面へ戻る導線。旧入口（Setup/Join）が撤去され、他に戻る手段が無い
-          （利用者の申し送り・2026-09-14）。行き先は**同じルームの選択画面**
-          （玄関まで戻すとルームから出たことになる）。別アプリ（玄関）への遷移
-          なので SPA 内遷移ではなく素直な <a href> にする。 */}
-      {roomCode !== undefined && (
-        <a
-          className="status-strip-back-link"
-          href={`/?room=${encodeURIComponent(roomCode)}`}
-        >
-          選択画面へ戻る
-        </a>
-      )}
-
       {/* 自分の名前 */}
       <span className="status-strip-group">
         <span className="status-strip-name">{displayName}</span>

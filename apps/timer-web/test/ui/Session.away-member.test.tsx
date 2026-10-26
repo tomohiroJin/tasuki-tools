@@ -16,8 +16,6 @@ import { Session } from "../../src/ui/Session.js";
 import type { Participant, Room, Seat, SeatSkipReason } from "@tasuki/timer-core";
 import { aRoomView } from "../support/room-view.js";
 
-const INVITE_URL_FOR_TEST = "https://tasuki.example/?room=TEST";
-
 function p(participantId: string, displayName: string): Participant {
   return { participantId, displayName, presence: "online", joinedAt: 1 };
 }
@@ -61,7 +59,7 @@ describe("Session 輪に席が残る離席者", () => {
 
     // When
     render(
-      <Session inviteUrl={INVITE_URL_FOR_TEST} room={room} participantId="aya-p" {...handlers} />,
+      <Session room={room} participantId="aya-p" {...handlers} />,
     );
 
     // Then（名前なしの空枠にならず、番が回らない理由が読める）
@@ -75,7 +73,7 @@ describe("Session 輪に席が残る離席者", () => {
 
     // When
     render(
-      <Session inviteUrl={INVITE_URL_FOR_TEST} room={room} participantId="aya-p" {...handlers} />,
+      <Session room={room} participantId="aya-p" {...handlers} />,
     );
 
     // Then
@@ -111,7 +109,7 @@ describe("Session 「次」はサーバーの nextIndex が指す人を出す（
       participants: [p("aya-p", "あや"), p("kai-p", "かい")],
     });
 
-    render(<Session room={room} participantId="aya-p" inviteUrl={INVITE_URL_FOR_TEST} {...handlers} />);
+    render(<Session room={room} participantId="aya-p" {...handlers} />);
 
     // 「次:」欄そのものの文字列で判定する。単に「かい」が画面のどこかに
     // 出ていることだけを見ると、交代順ストリップ側の「かい」の行と区別が付かず、
@@ -147,7 +145,7 @@ describe("Session 「次」はサーバーの nextIndex が指す人を出す（
       participants: [p("yuu-p", "ゆう")],
     });
 
-    render(<Session room={room} participantId="yuu-p" inviteUrl={INVITE_URL_FOR_TEST} {...handlers} />);
+    render(<Session room={room} participantId="yuu-p" {...handlers} />);
 
     expect(screen.getByText("（交代できる人がいません）")).toBeTruthy();
   });

@@ -12,7 +12,6 @@ import { Session } from "../../src/ui/Session.js";
 import type { Participant } from "@tasuki/timer-core";
 import { aRoomView, type RoomViewOverrides } from "../support/room-view.js";
 
-const INVITE_URL_FOR_TEST = "https://tasuki.example/?room=TEST";
 const NOW = 1_000_000;
 
 const noop = () => {};
@@ -38,7 +37,7 @@ function threeSeats(overrides: RoomViewOverrides = {}) {
 }
 
 function renderSession(room = threeSeats()) {
-  return render(<Session inviteUrl={INVITE_URL_FOR_TEST} room={room} participantId="a" {...handlers} />);
+  return render(<Session room={room} participantId="a" {...handlers} />);
 }
 
 function setViewport(width: number) {

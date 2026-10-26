@@ -16,6 +16,8 @@ import { Summary } from "./ui/Summary.js";
 import { SessionLost } from "./ui/SessionLost.js";
 import { History } from "./ui/History.js";
 import { Loading } from "./ui/Loading.js";
+import { RoomHeader } from "@tasuki/invite-ui";
+import { ROOM_HEADING } from "./ui/room-heading.js";
 import { StatusStrip } from "./ui/components/StatusStrip.js";
 import { deriveConnectionStatus } from "./ui/connection-status.js";
 import { Stage } from "./ui/primitives.js";
@@ -129,7 +131,6 @@ export default function App() {
         <Lobby
           key={room.code}
           room={room}
-          inviteUrl={sync.inviteUrl ?? ''}
           participantId={participantId}
           onStartSession={sync.startSession}
           onConfigSet={commands.setConfig}
@@ -149,7 +150,6 @@ export default function App() {
         <Session
           key={room.code}
           room={room}
-          inviteUrl={sync.inviteUrl ?? ''}
           participantId={participantId}
           clockOffset={sync.clockOffset}
           onSkip={() => act("SWITCH")}
@@ -248,6 +248,20 @@ export default function App() {
         </div>
       )}
       </div>
+
+      {/* ルーム画面の共通の見出し（#447 段 2）。帯と同じ条件で 1 か所に置く（画面が変わっても位置が変わらず、完了にも戻るリンクが残る）。
+          ロビーは通常、セッションと完了は詰めた見た目。休憩中は覆いの外へフォーカスを入れさせない（Session の本体と同じ inert）。 */}
+      {mode !== null && !sessionLost && room != null && (
+        <div inert={onBreak} className="app-room-header">
+          <RoomHeader
+            title={ROOM_HEADING}
+            backHref={`/?room=${encodeURIComponent(room.code)}`}
+            roomCode={room.code}
+            inviteUrl={sync.inviteUrl ?? ""}
+            compact={mode === "session" || mode === "celebration"}
+          />
+        </div>
+      )}
 
       {renderBody()}
     </Stage>

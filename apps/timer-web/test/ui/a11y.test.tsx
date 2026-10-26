@@ -8,7 +8,6 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import React from "react";
 import { StatusStrip } from "../../src/ui/components/StatusStrip.js";
 import { EndSessionZone } from "../../src/ui/components/EndSessionZone.js";
-import { InvitePanel } from "../../src/ui/components/InvitePanel.js";
 
 const noop = vi.fn();
 
@@ -100,16 +99,6 @@ describe("アクセシビリティ", () => {
       // Then
       expect(screen.getByRole("button", { name: /完成/ })).toBeTruthy();
       expect(screen.getByRole("button", { name: /最初から|リセット|再スタート/ })).toBeTruthy();
-    });
-
-    it("InvitePanel のコピー操作は aria-label でアクセシブル名を持つ", () => {
-      // Given
-      // When
-      render(<InvitePanel code="ABC123" roomUrl="https://tasuki.example/?room=ABC123" />);
-      // Then
-      expect(
-        screen.getByRole("button", { name: "ルームコードをコピー" }),
-      ).toBeTruthy();
     });
   });
 });
