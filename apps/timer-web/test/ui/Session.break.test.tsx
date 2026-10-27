@@ -13,8 +13,6 @@ import { Session } from "../../src/ui/Session.js";
 import type { Room, Participant, SessionConfig } from "@tasuki/timer-core";
 import { aRoomView } from "../support/room-view.js";
 
-const INVITE_URL_FOR_TEST = "https://tasuki.example/?room=TEST";
-
 const ELAPSED: Partial<SessionConfig> = {
   intervalMinutes: 5,
   break: { trigger: "elapsed", every: 60, mode: "auto" },
@@ -59,7 +57,6 @@ const onBreakRoom = (since: number, o: RoomOpts = {}) =>
 const noop = () => {};
 function props(room: Room) {
   return {
-    inviteUrl: INVITE_URL_FOR_TEST,
     room,
     participantId: "p-alice",
     onSkip: noop, onPause: noop, onResume: noop, onRestartTimer: noop, onComplete: noop, onAbort: noop,

@@ -1,0 +1,24 @@
+# 変異 490: timer-header-after-room-lost
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/ui/App.room-header.test.tsx
+#     「Given ルームを失った / When 描く / Then 見出しを描かない」
+#
+# #447 段 2。ルームを失っても見出しを描く。失ったルームの招待（コード・URL・QR）を配れてしまい、帯（描かない）とも食い違う。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m490-*.patch
+# 復元: git apply -R scripts/mutations/m490-*.patch
+diff --git a/apps/timer-web/src/App.tsx b/apps/timer-web/src/App.tsx
+index 1e55a051..0ee27d67 100644
+--- a/apps/timer-web/src/App.tsx
++++ b/apps/timer-web/src/App.tsx
+@@ -254,7 +254,7 @@ export default function App() {
+ 
+       {/* ルーム画面の共通の見出し（#447 段 2）。帯と同じ条件で 1 か所に置く（画面が変わっても位置が変わらず、完了にも戻るリンクが残る）。
+           ロビーは通常、セッションと完了は詰めた見た目。休憩中は覆いの外へフォーカスを入れさせない（Session の本体と同じ inert）。 */}
+-      {mode !== null && !sessionLost && room != null && (
++      {mode !== null && room != null && (
+         <div inert={onBreak} className={compactHeader ? "app-room-header app-room-header-compact" : "app-room-header"}>
+           {/* 画面が変わる（ロビー → セッション → 完了）たびに部品を作り直す。開いた招待の欄や QR を次の画面へ
+               持ち越さない（開いたままだと計器や記録が押し下げられる）。 */}

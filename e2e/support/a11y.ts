@@ -287,7 +287,7 @@ async function scanTargets(page: Page, scope: string): Promise<Scan> {
     };
     // 文の中のリンク: Markdown の本文の中、または最も近い段落・項目（`p` / `li`）に自分以外の文字がある。
     // 親が並べるための入れ物（ステータスの帯など）なだけのリンクは操作として測る。「親の字が自分と違えば行内」とすると、
-    // 帯の「選択画面へ戻る」が隣のフェーズや名前の字で行内と読まれ、測られなかった（#316 PR 4・実測）
+    // ステータスの帯にあった「選択画面へ戻る」（#447 段 2 で共通の見出しへ移った）が隣のフェーズや名前の字で行内と読まれ、測られなかった（#316 PR 4・実測）
     const inline = (el: Element): boolean => {
       if (el.tagName !== 'A') return false;
       if (el.closest('.ui-md') !== null) return true;

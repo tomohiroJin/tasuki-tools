@@ -1,7 +1,7 @@
 /**
  * ロビー画面（1 画面。旧「ルーム」「お題」タブは #91 PR 3 で撤去した）
  * T058, T059: FR-011 ＋ デザインシステム適用
- * v2.2 #5/#6: 開始ボタンを上部固定、招待を InvitePanel に委譲
+ * v2.2 #5/#6: 開始ボタンを上部固定。招待は共通の見出し（`App.tsx` の `RoomHeader`・#447 段 2）が持つ
  */
 
 import React, { useState } from "react";
@@ -11,7 +11,6 @@ import type { Topic } from "@tasuki/topic-core";
 import { Card, SectionHeader } from "./primitives.js";
 import { TopicCard } from "./components/TopicCard.js";
 import { SessionConfigPanel } from "./components/SessionConfigPanel.js";
-import { InvitePanel } from "./components/InvitePanel.js";
 import { PassphrasePanel } from "./components/PassphrasePanel.js";
 import { EmptyHint } from "./components/EmptyHint.js";
 import { NotifySettingsPanel } from "./components/NotifySettingsPanel.js";
@@ -28,8 +27,6 @@ import type { SessionConfig } from "@tasuki/timer-core";
 
 interface LobbyProps {
   room: Room;
-  /** 参加用 URL（組み立ては同期フックが持つ。画面は受け取って渡すだけ・#95 S5b）。 */
-  inviteUrl: string;
   participantId: string;
   onStartSession: () => void;
   /** セッション設定の変更（言語/難易度/間隔/オプション）。config.set を送る。 */
@@ -76,7 +73,6 @@ function RowIconButton({
 
 export function Lobby({
   room,
-  inviteUrl,
   participantId,
   onStartSession,
   onConfigSet,
@@ -136,7 +132,7 @@ export function Lobby({
         />
       )}
       {/* 段組みは部品層の `.ui-workspace`（#316 PR 3）。操作の面＝開始・設定・通知（狭い幅でも先に見える）、
-          脇（右・22rem）＝お題・参加者・招待・パスフレーズ。 */}
+          脇（右・22rem）＝お題・参加者・パスフレーズ（招待は上の共通の見出し）。 */}
       <div className="ui-workspace ui-workspace--side-end">
         <div className="ui-workspace-main lobby-column">
         {startButton}
@@ -165,9 +161,6 @@ export function Lobby({
         <div className="ui-workspace-side lobby-column">
         {/* いまのお題（#91）。timer は読むだけで、変えるのはお題ツールの仕事（spec T4）。 */}
         {topic && <TopicCard topic={topic} />}
-        {/* 招待はお題のすぐ下（#316 PR 3）。狭い幅では脇が操作の面の後に積まれるので、参加者の一覧より後ろに置くと
-            ルームを作った直後にコードを探してスクロールすることになる（下の一覧のヒントも「上の招待リンク」を指す）。 */}
-        <InvitePanel code={room.code} roomUrl={inviteUrl} />
         {/* 参加者一覧 */}
         <Card>
           <SectionHeader
@@ -298,7 +291,7 @@ export function Lobby({
           {room.participants.length === 1 && (
             <div className="lobby-empty-hint">
               <EmptyHint>
-                まだあなただけです。上の招待リンクで仲間を呼び、揃ったら「開始」しましょう。
+                まだあなただけです。上の招待から仲間を呼び、揃ったら「開始」しましょう。
               </EmptyHint>
             </div>
           )}

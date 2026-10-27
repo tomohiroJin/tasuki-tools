@@ -1,0 +1,32 @@
+/* ルーム画面の共通の見出し（`App.tsx` の `.app-room-header` の中の `RoomHeader`・#447 段 2）。
+ * timer は要素層（`elements.css`）を読まない（`index.css` の冒頭）ので、reset で素になった h1 の字はここが持つ。
+ * 値は要素層の `h1` と同じ（`--font-display`・600・`--ivory`・`--font-size-xl`・行の高さ 1.25）。
+ *
+ * 詳細度: ここは (0,1,1)。詰めた見た目の h1（`.ui-room-header--compact .ui-room-header-title > h1`・(0,2,1)・部品層）が
+ * 1 段小さい字（`--font-size-lg`）で勝つ。reset は `@layer reset` でレイヤー外のここより常に弱い。
+ */
+.app-room-header h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: 0.01em;
+  color: var(--ivory);
+}
+
+/* 見出しと下の段組みの間（他のアプリの `.ui-room-header` の `margin-block-end` と同じ値）。 */
+.app-room-header {
+  margin-block-end: var(--space-5);
+  /* 1280px のセッションでは、開いた QR のカード（部品の z-index 5）が計器（`.circular-progress-content` 10・
+     `.team-orbit-avatar` 20/10）の下に潜る。見出しごと中身より上（35）に重ねる。休憩を勧める帯（`.break-suggest-band` 30）より
+     上にするのは、帯が出ている間に開いた QR を帯が横切らないため（帯が上端に留まるまでスクロールすると見出しは画面の外にある）。
+     上の帯 `.app-top`（40）と休憩の覆い（50）よりは下なので、帯と覆いは見出しに隠されない。 */
+  position: relative;
+  z-index: 35;
+}
+
+/* 詰めた見た目（セッション・完了）は計器が主役なので、下との間を 1 段詰める（狭い幅でタイマーを最初の画面に収める）。 */
+.app-room-header-compact {
+  margin-block-end: var(--space-3);
+}

@@ -23,6 +23,12 @@ const read = (name) => readFileSync(resolve(COMPONENTS, name), 'utf8');
 /** この検査が読める選択子の形（組を子孫結合子で繋いだだけ）。 */
 const CLASS_CHAIN = /^\.[\w-]+(?:\s+\.[\w-]+)*$/;
 
+/** 広い幅（40rem 以上）で「仲間を招く」を隠す規則の選択子。 */
+const WIDE_HIDE_SELECTOR = '.ui-room-header .ui-room-header-share-toggle';
+
+/** 詰めた見た目で、広い幅でも「仲間を招く」を出す規則の選択子（組を重ねた形。この検査の読める形の外なので、字の完全一致で見る）。 */
+const COMPACT_SHOW_SELECTOR = '.ui-room-header.ui-room-header--compact .ui-room-header-share-toggle';
+
 /** 狭い幅でたたむ規則の選択子。許可リストの外の形なので、字の完全一致で見る。 */
 const NARROW_FOLD_SELECTOR = ".ui-room-header-share:not([data-open='true'])";
 
@@ -60,9 +66,14 @@ function classCount(selector) {
 
 function wideHideRule() {
   const block = mediaBlock(read('room-header.css'), '@media (width >= 40rem)');
-  const found = rules(block).filter((r) => r.selector.includes('.ui-room-header-share-toggle'));
-  assert.equal(found.length, 1, `40rem 以上の @media で「仲間を招く」を指す規則がちょうど 1 つではない（${found.length} 件）`);
-  return found[0];
+  // 「仲間を招く」を指す規則はすべて拾い、知っている 2 本とちょうど一致することを求める（知らない規則が 1 本でも入れば赤）。
+  const all = rules(block).filter((r) => r.selector.includes('.ui-room-header-share-toggle'));
+  assert.deepEqual(
+    all.map((r) => r.selector).sort(),
+    [WIDE_HIDE_SELECTOR, COMPACT_SHOW_SELECTOR].sort(),
+    '40rem 以上の @media の「仲間を招く」の規則が、隠す規則と詰めた見た目の規則の 2 本と一致しない。検査を見直す',
+  );
+  return all.find((r) => r.selector === WIDE_HIDE_SELECTOR);
 }
 
 function buttonDisplayRule() {
@@ -96,4 +107,60 @@ test('Given 40rem 未満の @media / When 招待の欄をたたむ規則を読�
   const block = mediaBlock(read('room-header.css'), '@media (width < 40rem)');
   const found = rules(block).filter((r) => r.selector === NARROW_FOLD_SELECTOR && /display:\s*none/.test(r.body));
   assert.equal(found.length, 1, `40rem 未満の @media に \`${NARROW_FOLD_SELECTOR} { display: none }\` がちょうど 1 つではない（${found.length} 件）`);
+});
+
+test('Given 40rem 以上の @media / When 詰めた見た目の規則を読む / Then 「仲間を招く」を出す規則がちょうど 1 つあり、隠す規則より後', () => {
+  const list = rules(mediaBlock(read('room-header.css'), '@media (width >= 40rem)'));
+  const shown = list.filter((r) => r.selector === COMPACT_SHOW_SELECTOR);
+  assert.equal(shown.length, 1, `詰めた見た目の規則がちょうど 1 つではない（${shown.length} 件）`);
+  assert.match(shown[0].body, /display:\s*inline-flex/);
+  const hideAt = list.findIndex((r) => r.selector === WIDE_HIDE_SELECTOR);
+  const showAt = list.findIndex((r) => r.selector === COMPACT_SHOW_SELECTOR);
+  assert.ok(showAt > hideAt, '詰めた見た目の規則が隠す規則より先にある（読む順を揃える。勝ち負けは詳細度で決まる）');
+});
+
+/** 詰めた見た目で、幅によらず招待の欄をたたむ規則の選択子（@media の外に置く）。 */
+const COMPACT_FOLD_SELECTOR = ".ui-room-header--compact .ui-room-header-share:not([data-open='true'])";
+
+/** 詰めた見た目の狭い幅で、道具名を目に出さず読み上げにだけ残す規則の選択子。 */
+const COMPACT_NARROW_TITLE_SELECTOR = '.ui-room-header--compact .ui-room-header-title > h1';
+
+/** コメントを落とし、@media の塊（波括弧の対応で切り出す）を除いた残り。@media の外に置いた規則を読むのに使う。 */
+function outsideMedia(css) {
+  let plain = stripComments(css);
+  for (let at = plain.indexOf('@media'); at !== -1; at = plain.indexOf('@media')) {
+    const open = plain.indexOf('{', at);
+    let depth = 0;
+    let end = -1;
+    for (let i = open; i < plain.length && end === -1; i += 1) {
+      if (plain[i] === '{') depth += 1;
+      if (plain[i] === '}') {
+        depth -= 1;
+        if (depth === 0) end = i;
+      }
+    }
+    assert.notEqual(end, -1, '@media が閉じていない');
+    plain = plain.slice(0, at) + plain.slice(end + 1);
+  }
+  return plain;
+}
+
+test('Given @media の外 / When 詰めた見た目の招待の欄の規則を読む / Then 幅によらず開いていない間を display: none にする規則がちょうど 1 つある', () => {
+  // 広い幅の詰めた見た目は「仲間を招く」を出すので、欄をたたむ規則が @media の外に無いと、開く前から欄が出て見出しが高くなる
+  const found = rules(outsideMedia(read('room-header.css'))).filter(
+    (r) => r.selector === COMPACT_FOLD_SELECTOR && /display:\s*none/.test(r.body),
+  );
+  assert.equal(found.length, 1, `@media の外に \`${COMPACT_FOLD_SELECTOR} { display: none }\` がちょうど 1 つではない（${found.length} 件）`);
+});
+
+test('Given 40rem 未満の @media / When 詰めた見た目の道具名の規則を読む / Then 目に出さず読み上げに残す規則（.ui-visually-hidden と同じ宣言）がちょうど 1 つある', () => {
+  // 実際の見え方（390×844 で計器が下端の帯に潜らない）は E2E の layout.spec が見る。ここは変異検査の中で走る側として字で読む
+  const found = rules(mediaBlock(read('room-header.css'), '@media (width < 40rem)')).filter(
+    (r) => r.selector === COMPACT_NARROW_TITLE_SELECTOR,
+  );
+  assert.equal(found.length, 1, `40rem 未満の @media に \`${COMPACT_NARROW_TITLE_SELECTOR}\` の規則がちょうど 1 つではない（${found.length} 件）`);
+  assert.match(found[0].body, /position:\s*absolute/);
+  assert.match(found[0].body, /clip-path:\s*inset\(50%\)/);
+  assert.match(found[0].body, /width:\s*1px/);
+  assert.match(found[0].body, /height:\s*1px/);
 });

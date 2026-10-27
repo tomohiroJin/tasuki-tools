@@ -1,0 +1,24 @@
+# 変異 491: timer-back-link-to-root
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/ui/App.room-header.test.tsx
+#     「Given ロビー / When 描く / Then 見出しが 1 つ・戻るリンクは同じルームの選択画面…」と「Given 完了 …」
+#
+# #447 段 2。戻る先を / にする（ルームを付けない）。ルームの選択画面ではなく玄関の入口へ戻され、ルームを離れる（m477 の timer の配線の側）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m491-*.patch
+# 復元: git apply -R scripts/mutations/m491-*.patch
+diff --git a/apps/timer-web/src/App.tsx b/apps/timer-web/src/App.tsx
+index 1e55a051..e79a1ffa 100644
+--- a/apps/timer-web/src/App.tsx
++++ b/apps/timer-web/src/App.tsx
+@@ -261,7 +261,7 @@ export default function App() {
+           <RoomHeader
+             key={mode}
+             title={ROOM_HEADING}
+-            backHref={roomChoiceHref(room.code)}
++            backHref="/"
+             roomCode={room.code}
+             inviteUrl={sync.inviteUrl ?? ""}
+             compact={compactHeader}

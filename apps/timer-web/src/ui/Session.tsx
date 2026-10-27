@@ -41,15 +41,13 @@ import { useIsWide, useViewportWidth } from "./use-breakpoint.js";
 import { useNotifyPreferences } from "./use-notify-preferences.js";
 import { formatRemaining, formatElapsed } from "./format-time.js";
 import { Tabs } from "./components/Tabs.js";
-import { InvitePanel } from "./components/InvitePanel.js";
 import { PassphrasePanel } from "./components/PassphrasePanel.js";
 import { NotifyHint } from "./components/NotifyHint.js";
+import { roomChoiceHref } from "./room-heading.js";
 import { loadNotifyHintSeen, saveNotifyHintSeen } from "../prefs/local-prefs.js";
 
 interface SessionProps {
   room: Room;
-  /** 参加用 URL（組み立ては同期フックが持つ。画面は受け取って渡すだけ・#95 S5b）。 */
-  inviteUrl: string;
   participantId: string;
   clockOffset?: number;
   onSkip: () => void;
@@ -95,7 +93,6 @@ interface SessionProps {
 
 export function Session({
   room,
-  inviteUrl,
   participantId,
   clockOffset = 0,
   onSkip,
@@ -460,8 +457,7 @@ export function Session({
             label: "ルーム",
             content: (
               <div className="session-room">
-                <InvitePanel code={room.code} roomUrl={inviteUrl} />
-                {/* ルームのパスフレーズ設定/解除（R4-2）。招待のすぐ下に置く。 */}
+                {/* ルームのパスフレーズ設定/解除（R4-2）。招待は上の共通の見出しが持つ（#447 段 2）。 */}
                 {onSetPassphrase && (
                   <Card>
                     <PassphrasePanel
@@ -530,6 +526,7 @@ export function Session({
           isShared={room.code !== "SOLO"}
           onEnd={onEndBreak}
           onComplete={onComplete}
+          backHref={roomChoiceHref(room.code)}
           onStandDown={
             currentParticipant &&
             room.session.rotation.includes(currentParticipant.participantId) &&

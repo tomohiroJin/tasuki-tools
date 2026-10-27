@@ -13,9 +13,6 @@ import { Lobby } from "../../src/ui/Lobby.js";
 import type { Room } from "@tasuki/timer-core";
 import { aRoomView } from "../support/room-view.js";
 
-/** 参加用 URL は同期フックが組み立てる（#95 S5b）。画面へは値として渡す。 */
-const INVITE_URL_FOR_TEST = 'https://tasuki.example/?room=TEST';
-
 function makeRoom(overrides?: Partial<Room>): Room {
   return aRoomView({
     createdAt: 1000000,
@@ -41,42 +38,22 @@ function makeRoom(overrides?: Partial<Room>): Room {
  * @requirements T058, T059, FR-004, FR-005, FR-006, FR-008, FR-026, FR-033,
  * FR-034, FR-052, FR-060, US2, US6, US8, R1-4
  */
-describe("Lobby 招待 1 操作", () => {
+describe("Lobby の脇と開始", () => {
   const noop = vi.fn();
 
-  it("ルームコードが表示される", () => {
-    // Given
-    // When
-    render(
-      <Lobby inviteUrl={INVITE_URL_FOR_TEST}
-        room={makeRoom()}
-        participantId="creator-p"
-        onStartSession={noop}
-      />,
-    );
-    // Then: コード自体の表示（参加 URL にもコードは含まれるので、完全一致で絞る）
-    expect(screen.getByText("TEST01")).toBeTruthy();
-  });
-
-  it("コピーボタンが存在する（1 操作で招待）", () => {
-    // Given
-    // When
-    render(
-      <Lobby inviteUrl={INVITE_URL_FOR_TEST}
-        room={makeRoom()}
-        participantId="creator-p"
-        onStartSession={noop}
-      />,
-    );
-    // Then（ルームコードコピー or 参加URLコピーが少なくとも1つある）
-    expect(screen.getAllByRole("button", { name: /コピー|copy/i }).length).toBeGreaterThan(0);
+  it("招待（ルームコード・コピー）は脇に出さない（共通の見出しが持つ）", () => {
+    // Given / When
+    render(<Lobby room={makeRoom()} participantId="creator-p" onStartSession={noop} />);
+    // Then
+    expect(screen.queryByText("TEST01")).toBeNull();
+    expect(screen.queryByRole("button", { name: /コピー/ })).toBeNull();
   });
 
   it("参加者一覧が表示される", () => {
     // Given
     // When
     render(
-      <Lobby inviteUrl={INVITE_URL_FOR_TEST}
+      <Lobby
         room={makeRoom()}
         participantId="creator-p"
         onStartSession={noop}
@@ -90,7 +67,7 @@ describe("Lobby 招待 1 操作", () => {
     // Given
     // When
     render(
-      <Lobby inviteUrl={INVITE_URL_FOR_TEST}
+      <Lobby
         room={makeRoom()}
         participantId="creator-p"
         onStartSession={noop}
@@ -106,7 +83,7 @@ describe("Lobby 招待 1 操作", () => {
     const user = userEvent.setup();
     const onStart = vi.fn();
     render(
-      <Lobby inviteUrl={INVITE_URL_FOR_TEST}
+      <Lobby
         room={roomWithProblem}
         participantId="creator-p"
         onStartSession={onStart}

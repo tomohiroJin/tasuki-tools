@@ -1,6 +1,6 @@
 /**
- * Session × InvitePanel 結合テスト
- * v2.2 Epic1 #1: セッション開始後も「ルーム」タブから招待URLをコピーできる
+ * Session の「ルーム」タブ
+ * 招待は共通の見出し（App.tsx の RoomHeader・#447 段 2）へ移った。ここにはパスフレーズ等が残る
  */
 
 import { describe, it, expect, vi } from "vitest";
@@ -10,9 +10,6 @@ import React from "react";
 import { Session } from "../../src/ui/Session.js";
 import type { Room, Participant, SessionConfig } from "@tasuki/timer-core";
 import { aRoomView } from "../support/room-view.js";
-
-/** 参加用 URL は同期フックが組み立てる（#95 S5b）。画面へは値として渡す。 */
-const INVITE_URL_FOR_TEST = 'https://tasuki.example/?room=TEST';
 
 function makeParticipant(overrides: Partial<Participant>): Participant {
   return {
@@ -68,39 +65,33 @@ function baseHandlers() {
 /**
  * @requirements v2.2 Epic1 #1
  */
-describe("Session × InvitePanel 結合", () => {
-  it("「ルーム」タブから参加URLをコピーできる", async () => {
-    // Given
-    const user = userEvent.setup();
-    // user-event v14 は setup() 時に navigator.clipboard を独自 stub に差し替えるため、
-    // setup() 後に spyOn で writeText を差し込む
-    const writeText = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue(undefined);
-    render(<Session inviteUrl={INVITE_URL_FOR_TEST} room={makeRoom()} participantId="p-alice" {...baseHandlers()} />);
-
-    // When
-    await user.click(screen.getByRole("tab", { name: "ルーム" }));
-    await user.click(screen.getByRole("button", { name: /参加 URL/ }));
-
-    // Then
-    // 公開パス配下を指すこと（ルート直下だと玄関 LP に着地する・#76 F-1）
-    // **画面へ渡された URL をそのまま配ること**（組み立ては同期フックの責務・#95 S5b）。
-    expect(writeText).toHaveBeenCalledWith(INVITE_URL_FOR_TEST);
-  });
-
+describe("Session の「ルーム」タブ（招待は共通の見出しへ移った）", () => {
   it("デフォルトは「セッション」タブが表示される", () => {
     // Given
-    render(<Session inviteUrl={INVITE_URL_FOR_TEST} room={makeRoom()} participantId="p-alice" {...baseHandlers()} />);
+    render(<Session room={makeRoom()} participantId="p-alice" {...baseHandlers()} />);
     // Then（タイマーが「セッション」タブのデフォルト表示として存在する）
     expect(screen.getByRole("timer")).toBeTruthy();
   });
 
-  it("「ルーム」タブにルームコード ABC123 が表示される", async () => {
+  it("「ルーム」タブに招待（ルームコードのコピー・参加 URL のコピー）は無い", async () => {
     // Given
     const user = userEvent.setup();
-    render(<Session inviteUrl={INVITE_URL_FOR_TEST} room={makeRoom()} participantId="p-alice" {...baseHandlers()} />);
+    render(<Session room={makeRoom()} participantId="p-alice" {...baseHandlers()} />);
     // When
     await user.click(screen.getByRole("tab", { name: "ルーム" }));
     // Then
-    expect(screen.getByText("ABC123")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /参加 URL/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "ルームコードをコピー" })).toBeNull();
+    expect(screen.queryByText("ABC123")).toBeNull();
+  });
+
+  it("「ルーム」タブにパスフレーズの設定は残る", async () => {
+    // Given
+    const user = userEvent.setup();
+    render(<Session room={makeRoom()} participantId="p-alice" {...baseHandlers()} onSetPassphrase={vi.fn()} />);
+    // When
+    await user.click(screen.getByRole("tab", { name: "ルーム" }));
+    // Then
+    expect(screen.getByText(/パスフレーズ/, { selector: "*" })).toBeTruthy();
   });
 });

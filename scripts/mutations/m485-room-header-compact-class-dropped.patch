@@ -1,0 +1,24 @@
+# 変異 485: room-header-compact-class-dropped
+#
+# 検出を期待するテスト:
+#   - packages/invite-ui/tests/room-header.test.tsx
+#     「Given compact を渡す / When 描く / Then 見出しに ui-room-header--compact が付く」
+#
+# #447 段 2。compact を受け取っても詰めた見た目のクラスを付けない。timer のセッションで見出しが通常の高さに戻り、広い幅では「仲間を招く」が消えて招待の欄が開いたまま出る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m485-*.patch
+# 復元: git apply -R scripts/mutations/m485-*.patch
+diff --git a/packages/invite-ui/src/RoomHeader.tsx b/packages/invite-ui/src/RoomHeader.tsx
+index 3771f02d..159b5014 100644
+--- a/packages/invite-ui/src/RoomHeader.tsx
++++ b/packages/invite-ui/src/RoomHeader.tsx
+@@ -104,7 +104,7 @@ export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras,
+       : ROOM_HEADER_TEXT.copy;
+ 
+   return (
+-    <header className={compact ? 'ui-room-header ui-room-header--compact' : 'ui-room-header'}>
++    <header className="ui-room-header">
+       <div className="ui-page-header">
+         <div className="ui-room-header-title">
+           <h1>{title}</h1>

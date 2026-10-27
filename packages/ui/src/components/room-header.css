@@ -1,7 +1,7 @@
 /* ============================================================
    Tasuki UI — ルーム画面の共通の見出し（#447 段 1）
    見出しの行・「仲間を招く」のボタン（狭い幅だけ）・招待の欄を、ルーム画面の上に積んで組む容器。招待の欄は
-   招待の行（`.ui-room-header-invite`。ルームコードと、参加用 URL・QR・コピーの `.ui-invite` を 1 行に並べる）と
+   招待の行（`.ui-room-header-invite`。ルームコードと、参加用 URL・QR・コピーの `.ui-invite` を欄の幅に合わせて組む）と
    QR の欄（閉じている間は隠れる）を包む。`RoomHeader`（`packages/invite-ui`）が組む DOM に当てる。見出しの行は
    `.ui-page-header`、URL の並びは `.ui-invite` をそのまま使い、その上に並びだけを足す。
    **行の中の並びと行の間の間隔まで部品が持つ**（配置は画面が持つ、の例外）。見出しの行と招待の行の並びを
@@ -10,6 +10,8 @@
    狭い幅（40rem 未満）では、招待の欄（ルームコード・URL・QR・コピー）を「仲間を招く」のボタンでたたむ。
    ルーレットの 320×640 の撮影で、見出しが約 210px 高くなり、止まった札が下端の帯に隠れたため（設計 §8 R6）。
    40rem は `actions.css` の並びの切り替えと同じ境目。
+   詰めた見た目（`.ui-room-header--compact`。timer のセッション中・#447 段 2）では、「仲間を招く」を全幅でも出し、招待の欄を
+   幅によらず開くまでたたむ。題・戻るリンク・「仲間を招く」を 1 行に並べ（40rem 未満は題を目に出さず読み上げに残す）、開いた欄は次の行に全幅で出す。見出しは 1 段小さい字にする。
    ============================================================ */
 
 .ui-room-header {
@@ -29,11 +31,59 @@
   margin: 0;
 }
 
+/* 招待の行は、欄の実際の幅で 3 通りに組む（コンテナクエリ・#447 段 2）。
+   広い（44rem 以上）: 1 行に「ルームコード｜URL｜QR｜コピー」。URL は中身の幅まで（空の枠を伸ばさない）、足りなければ URL だけが縮んで折り返す。
+   中くらい（30〜44rem）: ルームコード → URL → QR とコピー（中身の幅で左に寄せる）。
+   狭い（30rem 未満・スマートフォン）: ボタンを同じ幅で 2 等分して並べる。
+   折り返す flex のままだと、URL が縮む前にボタンが次の行へ落ち、「コピー」だけが 1 つ取り残された（利用者の指摘）。
+   幅の境目は画面の幅ではなく欄の幅で見る（通常の見た目と詰めた見た目で欄の幅が違うため）。 */
 .ui-room-header-invite {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   gap: var(--space-3);
+}
+
+.ui-room-header-invite > .ui-invite {
+  display: grid;
+  grid-template-columns: minmax(0, max-content) auto auto;
+  justify-content: start;
+  align-items: center;
+}
+
+@container ui-room-header-share (width < 44rem) {
+  .ui-room-header-invite {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-2);
+  }
+
+  .ui-room-header-invite > .ui-invite {
+    grid-template-columns: auto auto;
+  }
+
+  /* URL は 2 つのボタンの上に置く */
+  .ui-room-header-invite .ui-invite-url {
+    grid-column: 1 / -1;
+    justify-self: start;
+    max-inline-size: 100%;
+  }
+}
+
+@container ui-room-header-share (width < 30rem) {
+  .ui-room-header-invite > .ui-invite {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ui-room-header-invite .ui-invite-url {
+    justify-self: stretch;
+  }
+
+  /* ボタンは列の幅いっぱいに揃える。320px でも「招待リンクをコピー」が 1 行に収まるよう、左右の余白を 1 段詰める */
+  .ui-room-header-invite .ui-invite .ui-button {
+    inline-size: 100%;
+    min-width: 0;
+    padding-inline: var(--space-2);
+  }
 }
 
 /* ルームコードは添え書きの段に寄せ、値だけを等幅で桁を揃える。 */
@@ -55,6 +105,8 @@
 .ui-room-header-share {
   display: grid;
   gap: var(--space-2);
+  /* 招待の行の組み方を、この欄の幅で切り替える（上のコンテナクエリ） */
+  container: ui-room-header-share / inline-size;
 }
 
 /* 狭い幅では招待の行を「仲間を招く」でたたむ。開いたときだけ data-open='true' が付いて見える。 */
@@ -62,9 +114,59 @@
   justify-self: start;
 }
 
+/* 詰めた見た目: 題・戻るリンク・「仲間を招く」を 1 つの行に並べ（40rem 未満は題を目に出さないので 1 行・下の @media）、招待の欄は開いたとき次の行に全幅で出す。
+   `.ui-page-header` は `display: contents` で外し、題と戻るリンクを直接の子にする。通常の見た目の規則より強い連鎖で書く。幅によらず開くまでたたむ（@media の外）。 */
+.ui-room-header.ui-room-header--compact {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.ui-room-header--compact .ui-page-header {
+  display: contents;
+}
+
+.ui-room-header--compact .ui-room-header-title {
+  flex: 1 1 auto;
+}
+
+.ui-room-header--compact .ui-room-header-title > h1 {
+  font-size: var(--font-size-lg);
+  /* 道具名の中で折り返さない */
+  white-space: nowrap;
+}
+
+.ui-room-header--compact .ui-page-header-back {
+  margin-inline-start: auto;
+}
+
+.ui-room-header--compact .ui-room-header-share {
+  flex-basis: 100%;
+}
+
+.ui-room-header--compact .ui-room-header-share:not([data-open='true']) {
+  display: none;
+}
+
 @media (width < 40rem) {
   .ui-room-header-share:not([data-open='true']) {
     display: none;
+  }
+
+  /* 詰めた見た目の狭い幅では、道具名を目に出さず読み上げにだけ残し、戻るリンクと「仲間を招く」を 1 行に収める。
+     道具名を出したままだと 2 行（約 90px）になり、390×844 の timer のセッションで計器が下端の帯に潜った（#447 段 2）。
+     宣言は部品の `.ui-visually-hidden` と同じ。空になった題の箱は伸びて、戻るリンクと「仲間を招く」を右へ寄せる。 */
+  .ui-room-header--compact .ui-room-header-title > h1 {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border-width: 0;
   }
 }
 
@@ -73,6 +175,11 @@
 @media (width >= 40rem) {
   .ui-room-header .ui-room-header-share-toggle {
     display: none;
+  }
+
+  /* 詰めた見た目では広い幅でも「仲間を招く」を出す。組を重ねた (0,3,0) なので、上の規則（(0,2,0)）に書く順によらず勝つ。 */
+  .ui-room-header.ui-room-header--compact .ui-room-header-share-toggle {
+    display: inline-flex;
   }
 }
 

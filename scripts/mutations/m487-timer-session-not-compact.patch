@@ -1,0 +1,24 @@
+# 変異 487: timer-session-not-compact
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/ui/App.room-header.test.tsx
+#     「Given セッション中 / When 描く / Then 詰めた見た目の見出しが 1 つ」
+#
+# #447 段 2。timer のセッションで compact を渡さない。見出しが通常の高さになり、390×844 で計器が下端の帯に潜る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m487-*.patch
+# 復元: git apply -R scripts/mutations/m487-*.patch
+diff --git a/apps/timer-web/src/App.tsx b/apps/timer-web/src/App.tsx
+index b1bdce89..e69a807a 100644
+--- a/apps/timer-web/src/App.tsx
++++ b/apps/timer-web/src/App.tsx
+@@ -97,7 +97,7 @@ export default function App() {
+   const onBreak = mode === "session" && room != null && isOnBreakRoom(room);
+   // 見出しの見た目（#447 段 2）。セッションと完了は計器や記録が主役なので詰めた見た目、ロビーは通常の見た目。
+   // 包む要素のクラス・部品の作り直しの鍵・部品の `compact` は、すべてこの 1 つを読む（別々に書くと食い違う）。
+-  const compactHeader = mode === "session" || mode === "celebration";
++  const compactHeader = mode === "celebration";
+   const bandRef = useRef<HTMLDivElement>(null);
+   useTopBandHeight(bandRef, onBreak);
+ 

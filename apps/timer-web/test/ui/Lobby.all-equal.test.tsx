@@ -23,9 +23,6 @@ import { Lobby } from "../../src/ui/Lobby.js";
 import type { Room, Participant } from "@tasuki/timer-core";
 import { aRoomView, type RoomViewOverrides } from "../support/room-view.js";
 
-/** 参加用 URL は同期フックが組み立てる（#95 S5b）。画面へは値として渡す。 */
-const INVITE_URL_FOR_TEST = 'https://tasuki.example/?room=TEST';
-
 function p(overrides: Partial<Participant>): Participant {
   return {
     participantId: "x", displayName: "X", presence: "online", joinedAt: 1, ...overrides,
@@ -55,7 +52,7 @@ describe("ロビーの開始は全員が押せる", () => {
     // Given（視点=Bob。かつては主催者にしか開始ボタンが出なかった）
     const onStartSession = vi.fn();
     // When
-    render(<Lobby inviteUrl={INVITE_URL_FOR_TEST} room={makeRoom()} participantId="bob-p" onStartSession={onStartSession} />);
+    render(<Lobby room={makeRoom()} participantId="bob-p" onStartSession={onStartSession} />);
     const btn = screen.getByRole("button", { name: /セッションを開始/ }) as HTMLButtonElement;
     fireEvent.click(btn);
     // Then
@@ -66,7 +63,7 @@ describe("ロビーの開始は全員が押せる", () => {
   it("開始を待たせる案内をどこにも出さない", () => {
     // Given（視点=Bob）
     // When
-    render(<Lobby inviteUrl={INVITE_URL_FOR_TEST} room={makeRoom()} participantId="bob-p" onStartSession={noop} />);
+    render(<Lobby room={makeRoom()} participantId="bob-p" onStartSession={noop} />);
     // Then（開始ボタンが描かれていることを先に固定してから、案内の不在を見る）
     expect(screen.getByRole("button", { name: /セッションを開始/ })).toBeTruthy();
     expect(screen.queryByText(/開始を待/)).toBeNull();
@@ -86,7 +83,7 @@ describe("ロビーの行操作は全員に出る", () => {
     const room = makeRoom({ session: { rotation: [], currentIndex: 0, isPaused: false, driverCounts: [], totalSwitches: 0 } });
     // When
     render(
-      <Lobby inviteUrl={INVITE_URL_FOR_TEST} room={room} participantId="bob-p" onStartSession={noop} onJoinRotation={onJoinRotation} />,
+      <Lobby room={room} participantId="bob-p" onStartSession={noop} onJoinRotation={onJoinRotation} />,
     );
     fireEvent.click(screen.getByRole("button", { name: "Alice をドライバーに追加" }));
     // Then
@@ -97,7 +94,7 @@ describe("ロビーの行操作は全員に出る", () => {
     // Given（視点=Bob）
     // When
     render(
-      <Lobby inviteUrl={INVITE_URL_FOR_TEST} room={makeRoom()} participantId="bob-p" onStartSession={noop} onRemoveParticipant={vi.fn()} />,
+      <Lobby room={makeRoom()} participantId="bob-p" onStartSession={noop} onRemoveParticipant={vi.fn()} />,
     );
     // Then
     expect(screen.getByRole("button", { name: "Alice を退出させる" })).toBeTruthy();
@@ -112,7 +109,7 @@ describe("ロビーの行操作は全員に出る", () => {
     });
     // When
     render(
-      <Lobby inviteUrl={INVITE_URL_FOR_TEST} room={room} participantId="bob-p" onStartSession={noop} onMoveRotation={onMoveRotation} />,
+      <Lobby room={room} participantId="bob-p" onStartSession={noop} onMoveRotation={onMoveRotation} />,
     );
     fireEvent.click(screen.getByRole("button", { name: "Alice を後の順番へ" }));
     // Then

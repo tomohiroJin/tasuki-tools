@@ -67,17 +67,14 @@ describe("StatusStrip", () => {
     expect(screen.getByText(/ABCD01/)).toBeTruthy();
   });
 
-  it("Given ルームに入っている / When ステータスを描く / Then 選択画面へ戻る道がある", () => {
-    // Given
-    // When（ルームに入っている状態でステータスを描く）
+  it("Given ルームに入っている / When ステータスを描く / Then 戻るリンクは無い（共通の見出しが持つ）", () => {
+    // Given / When
     render(
       <StatusStrip phase="lobby" displayName="あや" connectionStatus="online" roomCode="朝会モブ-a1b2" />,
     );
 
-    // Then: 行き先は**同じルームの選択画面**。玄関まで戻すと、ルームから出たことになる
-    expect(screen.getByRole("link", { name: "選択画面へ戻る" })).toHaveAttribute(
-      "href",
-      "/?room=%E6%9C%9D%E4%BC%9A%E3%83%A2%E3%83%96-a1b2",
-    );
+    // Then: ルームコードは状態として残り、リンクは無い
+    expect(screen.queryByRole("link", { name: "選択画面へ戻る" })).toBeNull();
+    expect(screen.getByText(/朝会モブ-a1b2/)).toBeTruthy();
   });
 });
