@@ -18,3 +18,6 @@ export {
   prune,
   applyAutoReveal,
 } from "./checkin.js";
+
+export { playersOf, toView } from "./projection.js";
+export type { SeatInput, SeatView, PileView, RoundView, CheckinView } from "./projection.js";
