@@ -14,7 +14,7 @@ index ea56423d..53c03975 100644
 +++ b/apps/agenda-web/src/agenda-view.ts
 @@ -64,7 +64,7 @@ export const LONG_MEETING_SEC = 10_800;
  
- /** 書き方を決めるのは予定の合計だけ（延長込みの見込みや出す値の大きさでは決めない。設計 §3.2） */
+ /** 書き方を決めるのは予定の合計だけ（延長込みの見込みや出す値の大きさでは決めない。設計 §3.1） */
  export function clockStyleForPlannedMs(plannedMs: number): ClockStyle {
 -  return plannedMs >= LONG_MEETING_SEC * SEC ? 'h:mm:ss' : 'm:ss';
 +  return plannedMs > LONG_MEETING_SEC * SEC ? 'h:mm:ss' : 'm:ss';

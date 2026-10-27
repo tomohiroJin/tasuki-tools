@@ -62,7 +62,7 @@ export type ClockStyle = 'm:ss' | 'h:mm:ss';
  */
 export const LONG_MEETING_SEC = 10_800;
 
-/** 書き方を決めるのは予定の合計だけ（延長込みの見込みや出す値の大きさでは決めない。設計 §3.2） */
+/** 書き方を決めるのは予定の合計だけ（延長込みの見込みや出す値の大きさでは決めない。設計 §3.1） */
 export function clockStyleForPlannedMs(plannedMs: number): ClockStyle {
   return plannedMs >= LONG_MEETING_SEC * SEC ? 'h:mm:ss' : 'm:ss';
 }

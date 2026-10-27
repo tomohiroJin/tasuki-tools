@@ -90,7 +90,7 @@ export function StepList({ view, canOperate, onSetSkipped }: Props) {
   const headingId = useId();
   const boxRef = useRef<HTMLOListElement>(null);
   const rows = stepRows(view);
-  // 回数 2 以上、または回数 1 でも 20 行を超えたら枠（スクロール・キーボード）を持つ。
+  // 回数 2 以上、または回数 1 でも `FLAT_LIST_MAX_ROWS` を超えたら枠（スクロール・キーボード）を持つ。
   // 見出しで区切るのは回数 2 以上で 1 回に 2 ステップ以上のときだけ（枠の有無から導かない）
   const scrolling = view.rounds >= 2 || rows.length > FLAT_LIST_MAX_ROWS;
   const flatRounds = isSingleStepRounds(view);
