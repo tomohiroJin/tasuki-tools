@@ -11,7 +11,7 @@
  */
 import { useId } from 'react';
 import type { AgendaView } from '@tasuki/agenda-core';
-import { centerLines, definedStepCount, driftTone, footerParts, roundBadge, summaryText } from '../agenda-view';
+import { centerLines, clockStyleOf, definedStepCount, driftTone, footerParts, roundBadge, summaryText } from '../agenda-view';
 import {
   DIAL_CENTER as C,
   arcPath,
@@ -275,7 +275,7 @@ function Readout({ view }: { view: AgendaView }) {
             lines.name
           )}
         </div>
-        <div className="dial-time">
+        <div className={clockStyleOf(view) === 'h:mm:ss' ? 'dial-time dial-time--hms' : 'dial-time'}>
           <TimeDigits text={lines.primary} />
         </div>
         <div className={`dial-drift is-${driftTone(view)}`}>{lines.drift}</div>

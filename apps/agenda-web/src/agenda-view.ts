@@ -53,15 +53,35 @@ export interface StepRow {
 
 const isActive = (v: AgendaView): boolean => v.phase === 'running' || v.phase === 'paused';
 
-/** 秒を `m:ss` にする（分は 60 を超えても繰り上げない。盤の 1 周は最大 180 分） */
-function clockOf(totalSec: number): string {
-  const m = Math.floor(totalSec / 60);
-  return `${m}:${String(totalSec % 60).padStart(2, '0')}`;
+/** 時計の書き方。`m:ss`（分は 60 を超えても繰り上げない）か `h:mm:ss`（長い会） */
+export type ClockStyle = 'm:ss' | 'h:mm:ss';
+
+/**
+ * 予定の合計がこれ以上の会は、その会のすべての時計を `h:mm:ss` で書く（#455 の決定）。
+ * 上限 `MAX_TOTAL_SEC` とは別の値で、そこから導かない。
+ */
+export const LONG_MEETING_SEC = 10_800;
+
+/** 書き方を決めるのは予定の合計だけ（延長込みの見込みや出す値の大きさでは決めない。設計 §3.2） */
+export function clockStyleForPlannedMs(plannedMs: number): ClockStyle {
+  return plannedMs >= LONG_MEETING_SEC * SEC ? 'h:mm:ss' : 'm:ss';
+}
+
+export const clockStyleOf = (v: AgendaView): ClockStyle => clockStyleForPlannedMs(plannedTotalMs(v));
+
+const pad2 = (n: number): string => String(n).padStart(2, '0');
+
+/** 秒を時計の書き方にする（`m:ss` の分は繰り上げない。`h:mm:ss` は 1 時間未満でも時を省かない） */
+export function formatClock(totalSec: number, style: ClockStyle): string {
+  if (style === 'h:mm:ss') {
+    return `${Math.floor(totalSec / 3600)}:${pad2(Math.floor(totalSec / 60) % 60)}:${pad2(totalSec % 60)}`;
+  }
+  return `${Math.floor(totalSec / 60)}:${pad2(totalSec % 60)}`;
 }
 
 /** 残りは秒を切り上げる（0:00 は残りが尽きた瞬間だけ）。オーバーは切り捨て */
-const remainingClock = (ms: number): string => clockOf(Math.ceil(ms / SEC));
-const elapsedClock = (ms: number): string => clockOf(Math.floor(ms / SEC));
+const remainingClock = (ms: number, style: ClockStyle): string => formatClock(Math.ceil(ms / SEC), style);
+const elapsedClock = (ms: number, style: ClockStyle): string => formatClock(Math.floor(ms / SEC), style);
 
 /** オーバーか。**残りが 0 になった瞬間から**（時打ちの判定 `crossedZero` と同じ境目） */
 export function isOverrun(v: AgendaView): boolean {
@@ -95,16 +115,17 @@ const currentStep = (v: AgendaView): StepView | undefined => v.steps.find((x) =>
 export const definedStepCount = (v: AgendaView): number => v.steps.filter((s) => s.round === 1).length;
 
 export function centerLines(v: AgendaView): CenterLines {
+  const style = clockStyleOf(v);
   if (v.phase === 'idle') {
-    return { primary: elapsedClock(plannedTotalMs(v)), isOverrun: false, name: stepCountText(definedStepCount(v), v.rounds), drift: driftLine(v) };
+    return { primary: elapsedClock(plannedTotalMs(v), style), isOverrun: false, name: stepCountText(definedStepCount(v), v.rounds), drift: driftLine(v) };
   }
   if (v.phase === 'finished') {
-    return { primary: elapsedClock(v.runElapsedMs), isOverrun: false, name: v.title, drift: driftLine(v) };
+    return { primary: elapsedClock(v.runElapsedMs, style), isOverrun: false, name: v.title, drift: driftLine(v) };
   }
   const over = isOverrun(v);
   const rest = remainingMs(v);
   return {
-    primary: over ? `+${elapsedClock(-rest)}` : remainingClock(rest),
+    primary: over ? `+${elapsedClock(-rest, style)}` : remainingClock(rest, style),
     isOverrun: over,
     name: currentStep(v)?.name ?? '',
     drift: driftLine(v),
@@ -184,17 +205,17 @@ export function driftShort(v: AgendaView): string {
   return m > 0 ? driftShortText('+', m) : driftShortText('−', -m);
 }
 
-/** 終了の一覧の長さ「m:ss」（秒は切り捨て。盤のかかった時間と同じ） */
-export const durationClock = (ms: number): string => elapsedClock(Math.max(ms, 0));
+/** 終了の一覧の長さ「m:ss」「h:mm:ss」（秒は切り捨て。盤のかかった時間と同じ。書き方は必ず渡す） */
+export const durationClock = (ms: number, style: ClockStyle): string => elapsedClock(Math.max(ms, 0), style);
 
 /**
  * 終了の一覧の差「+0:30」「−1:50」（負の印は U+2212）。秒は絶対値で四捨五入し、0 は印を付けない。
  * 合計の行と各行の差は同じ規則で書く（合計の押し巻きは `summaryOf(v).driftMs`）。
  */
-export function signedDuration(ms: number): string {
+export function signedDuration(ms: number, style: ClockStyle): string {
   const sec = Math.round(Math.abs(ms) / SEC);
-  if (sec === 0) return clockOf(0);
-  return `${ms > 0 ? '+' : '−'}${clockOf(sec)}`;
+  if (sec === 0) return formatClock(0, style);
+  return `${ms > 0 ? '+' : '−'}${formatClock(sec, style)}`;
 }
 
 function statusOf(v: AgendaView, x: StepView): StepStatus {

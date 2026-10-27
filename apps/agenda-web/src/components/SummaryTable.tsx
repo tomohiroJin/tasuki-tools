@@ -3,7 +3,7 @@
  * 行は agenda-core の `summaryOf` が持ち、ここは書き方だけを決める（合計の差 ＝ `summaryOf(v).driftMs`）。
  */
 import { summaryOf, type AgendaView } from '@tasuki/agenda-core';
-import { durationClock, signedDuration } from '../agenda-view';
+import { clockStyleOf, durationClock, signedDuration } from '../agenda-view';
 import {
   DRIFT_LABEL,
   PLANNED_LABEL,
@@ -29,6 +29,7 @@ const toneOf = (ms: number): string => {
 };
 
 export function SummaryTable({ view }: { view: AgendaView }) {
+  const style = clockStyleOf(view);
   const summary = summaryOf(view);
   const planned = summary.rows.reduce((sum, r) => sum + r.plannedMs, 0);
   const extension = summary.rows.reduce((sum, r) => sum + r.extensionMs, 0);
@@ -68,8 +69,8 @@ export function SummaryTable({ view }: { view: AgendaView }) {
                 </th>
                 <td>{minutesText(row.plannedMs / MIN)}</td>
                 <td>{row.extensionMs > 0 ? extensionCell(row.extensionMs / MIN) : ''}</td>
-                <td>{row.skipped ? SKIP_BUTTON : durationClock(row.spentMs)}</td>
-                <td className={toneOf(row.diffMs)}>{signedDuration(row.diffMs)}</td>
+                <td>{row.skipped ? SKIP_BUTTON : durationClock(row.spentMs, style)}</td>
+                <td className={toneOf(row.diffMs)}>{signedDuration(row.diffMs, style)}</td>
               </tr>
             ))}
           </tbody>
@@ -79,8 +80,8 @@ export function SummaryTable({ view }: { view: AgendaView }) {
             <th scope="row">{SUMMARY_TOTAL_LABEL}</th>
             <td>{minutesText(planned / MIN)}</td>
             <td>{extension > 0 ? extensionCell(extension / MIN) : ''}</td>
-            <td>{durationClock(spent)}</td>
-            <td className={`summary-total ${toneOf(summary.driftMs)}`}>{signedDuration(summary.driftMs)}</td>
+            <td>{durationClock(spent, style)}</td>
+            <td className={`summary-total ${toneOf(summary.driftMs)}`}>{signedDuration(summary.driftMs, style)}</td>
           </tr>
         </tfoot>
       </table>

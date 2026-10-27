@@ -6,9 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { summaryOf } from '@tasuki/agenda-core';
 import { saveResumeIdentity } from '@tasuki/sync-client';
 import { App } from '../src/App';
-import { signedDuration } from '../src/agenda-view';
 import { RESET_BUTTON, RESET_CONFIRM_YES, SUMMARY_TOTAL_LABEL, roundHeading } from '../src/copy';
-import { Driver } from './support/agenda-states';
+import { Driver, MIN } from './support/agenda-states';
 import { RESUME, ScriptedWebSocket, latestSocket } from './support/scripted-web-socket';
 
 vi.mock('../src/router', async (importOriginal) => ({
@@ -65,7 +64,6 @@ describe('終了の一覧', () => {
     const total = rowOf(SUMMARY_TOTAL_LABEL);
     // 予定 6 分・かかった 4:10 → 1:50 巻き
     expect(summaryOf(v).driftMs).toBe(-110_000);
-    expect(within(total).getByText(signedDuration(summaryOf(v).driftMs))).toBeInTheDocument();
     expect(within(total).getByText('−1:50')).toBeInTheDocument();
   });
 
@@ -115,7 +113,20 @@ describe('終了の一覧', () => {
     expect(bodies.map((b) => b.querySelector('tr')?.textContent)).toEqual([roundHeading(1), roundHeading(2), roundHeading(3)]);
     const total = rowOf(SUMMARY_TOTAL_LABEL);
     expect(summaryOf(v).driftMs).toBe(180_000);
-    expect(within(total).getByText(signedDuration(summaryOf(v).driftMs))).toBeInTheDocument();
+    expect(within(total).getByText('+3:00')).toBeInTheDocument();
+  });
+
+  it('Given 予定の合計 180 分で終えた / When 一覧を見る / Then かかった時間と差を h:mm:ss で書き、合計の行も同じ', () => {
+    joinedRoom(new Driver([120, 60]).next(125 * MIN).next(175 * MIN).view(175 * MIN));
+    const s1 = rowOf('S1');
+    expect(within(s1).getByText('2:05:00')).toBeInTheDocument();
+    expect(within(s1).getByText('+0:05:00')).toBeInTheDocument();
+    const s2 = rowOf('S2');
+    expect(within(s2).getByText('0:50:00')).toBeInTheDocument();
+    expect(within(s2).getByText('−0:10:00')).toBeInTheDocument();
+    const total = rowOf(SUMMARY_TOTAL_LABEL);
+    expect(within(total).getByText('2:55:00')).toBeInTheDocument();
+    expect(within(total).getByText('−0:05:00')).toBeInTheDocument();
   });
 
   it('Given 回数 1 で終了した / When 一覧を見る / Then 見出しの行は無い', () => {

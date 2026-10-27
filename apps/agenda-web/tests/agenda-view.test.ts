@@ -4,6 +4,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   centerLines,
+  clockStyleForPlannedMs,
+  clockStyleOf,
+  durationClock,
+  formatClock,
   driftShort,
   driftTone,
   extensionLine,
@@ -207,10 +211,10 @@ describe('進める画面と映す表示の文字', () => {
   });
 
   it('差は印を付けて m:ss（負は U+2212・0 は印なし・秒は四捨五入）', () => {
-    expect(signedDuration(30_000)).toBe('+0:30');
-    expect(signedDuration(-110_000)).toBe('−1:50');
-    expect(signedDuration(400)).toBe('0:00');
-    expect(signedDuration(-29_600)).toBe('−0:30');
+    expect(signedDuration(30_000, 'm:ss')).toBe('+0:30');
+    expect(signedDuration(-110_000, 'm:ss')).toBe('−1:50');
+    expect(signedDuration(400, 'm:ss')).toBe('0:00');
+    expect(signedDuration(-29_600, 'm:ss')).toBe('−0:30');
   });
 });
 
@@ -249,5 +253,57 @@ describe('回の札', () => {
   it('進行表の行の番号は、回数 2 以上では回の中の番号、回数 1 では通しの番号', () => {
     expect(stepRows(six().view(0)).map((r) => r.number)).toEqual([1, 2, 1, 2, 1, 2, 1, 2, 1, 2, 1, 2]);
     expect(stepRows(new Driver([1, 1, 1]).view(0)).map((r) => r.number)).toEqual([1, 2, 3]);
+  });
+});
+
+/**
+ * @requirements #455（設計 §3）
+ */
+describe('長い会の時計', () => {
+  it('書き方は m:ss と h:mm:ss', () => {
+    expect(formatClock(240, 'm:ss')).toBe('4:00');
+    expect(formatClock(7200, 'm:ss')).toBe('120:00');
+    expect(formatClock(0, 'h:mm:ss')).toBe('0:00:00');
+    expect(formatClock(300, 'h:mm:ss')).toBe('0:05:00');
+    expect(formatClock(11109, 'h:mm:ss')).toBe('3:05:09');
+    expect(formatClock(43200, 'h:mm:ss')).toBe('12:00:00');
+    expect(formatClock(47100, 'h:mm:ss')).toBe('13:05:00');
+  });
+
+  it('境目は予定の合計 180 分ちょうど（以上が h:mm:ss）', () => {
+    expect(clockStyleForPlannedMs(10_799_000)).toBe('m:ss');
+    expect(clockStyleForPlannedMs(10_800_000)).toBe('h:mm:ss');
+  });
+
+  it('179 分の会は m:ss、180 分の会は h:mm:ss', () => {
+    expect(centerLines(idleView([120, 59])).primary).toBe('179:00');
+    expect(centerLines(idleView([120, 60])).primary).toBe('3:00:00');
+    expect(centerLines(new Driver([120, 59]).view(0)).primary).toBe('120:00');
+    expect(centerLines(new Driver([120, 60]).view(0)).primary).toBe('2:00:00');
+  });
+
+  it('長い会の 1 時間未満の残りも時を省かない', () => {
+    expect(centerLines(new Driver([120, 60]).next(120 * MIN).view(176 * MIN)).primary).toBe('0:04:00');
+  });
+
+  it('長い会のオーバーは +h:mm:ss', () => {
+    expect(centerLines(new Driver([120, 60]).view(120 * MIN + 30_000)).primary).toBe('+0:00:30');
+  });
+
+  it('延長しても書き方は変わらない（179 分の会を 5 分延長しても m:ss）', () => {
+    const v = new Driver([120, 59]).extend(5).view(MIN);
+    expect(clockStyleOf(v)).toBe('m:ss');
+    expect(centerLines(v).primary).toBe('124:00');
+  });
+
+  it('長い会を終えたら、かかった時間を h:mm:ss', () => {
+    expect(centerLines(new Driver([120, 60]).next(125 * MIN).next(175 * MIN).view(175 * MIN)).primary).toBe('2:55:00');
+  });
+
+  it('差と長さは渡した書き方で書く', () => {
+    expect(signedDuration(30_000, 'h:mm:ss')).toBe('+0:00:30');
+    expect(signedDuration(-600_000, 'h:mm:ss')).toBe('−0:10:00');
+    expect(signedDuration(400, 'h:mm:ss')).toBe('0:00:00');
+    expect(durationClock(7_500_000, 'h:mm:ss')).toBe('2:05:00');
   });
 });
