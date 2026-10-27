@@ -190,3 +190,47 @@ test.describe('パネルの面と、見出し・戻る導線（#320 PR 3）', ()
     await expect(copy, '320px で開いた後の招待リンクをコピー').toBeVisible();
   });
 });
+
+/**
+ * 招待の行の組み方（#447 段 2・利用者の指摘）。
+ *
+ * 折り返す flex のままだと、狭い幅で「URL ＋ QR コードを表示」が 1 行に並び、「招待リンクをコピー」だけが次の行へ落ちた。
+ * 欄の幅（コンテナクエリ）で 3 通りに組むので、どの幅でも 2 つのボタンは同じ行に並び、欄の外へはみ出さない。
+ * 狭い幅（30rem 未満の欄）では 2 つを同じ幅にし、広い幅（44rem 以上の欄）では URL も同じ行に並べる。
+ */
+test.describe('招待の行は幅に合わせて組み替わり、ボタンが 1 つだけ取り残されない', () => {
+  for (const width of [320, 414, 700, 1280]) {
+    test(`Given 幅 ${String(width)} のお題ツール / When 招待の行を見る / Then 2 つのボタンが同じ行に並び、欄に収まる`, async ({ page }) => {
+      // Given: 狭い幅では「仲間を招く」で開いてから測る
+      await page.setViewportSize({ width, height: 800 });
+      await openTopicTool(page, 'あや');
+      const toggle = page.getByRole('button', { name: '仲間を招く' });
+      if (width < 640) await toggle.click();
+      const qr = page.getByRole('button', { name: 'QR コードを表示' });
+      const copy = page.getByRole('button', { name: '招待リンクをコピー' });
+      await expect(copy).toBeVisible();
+
+      // When
+      const m = await page.evaluate(() => {
+        const box = (sel: string) => document.querySelector(sel)!.getBoundingClientRect();
+        const buttons = Array.from(document.querySelectorAll('.ui-room-header-invite .ui-invite .ui-button')).map((b) => b.getBoundingClientRect());
+        return { share: box('.ui-room-header-share'), url: box('.ui-room-header-invite .ui-invite-url'), buttons };
+      });
+      const [qrBox, copyBox] = m.buttons;
+      if (qrBox === undefined || copyBox === undefined) throw new Error('招待の行のボタンが 2 つ無い（判定が空振りする）');
+
+      // Then: 同じ行（上端が揃う）・欄の右端の内側
+      expect(Math.abs(qrBox.top - copyBox.top), `${String(width)}: QR とコピーが別の行にある`).toBeLessThanOrEqual(1);
+      expect(copyBox.right, `${String(width)}: コピーが欄の外へはみ出す`).toBeLessThanOrEqual(m.share.right + 0.5);
+      if (width < 480) {
+        // 狭い: URL は上の行、2 つのボタンは同じ幅
+        expect(m.url.bottom, `${String(width)}: URL がボタンの上の行に無い`).toBeLessThanOrEqual(qrBox.top);
+        expect(Math.abs(qrBox.width - copyBox.width), `${String(width)}: 2 つのボタンの幅が揃っていない`).toBeLessThanOrEqual(1);
+      } else if (width >= 1024) {
+        // 広い: URL もボタンと同じ行
+        expect(Math.abs((m.url.top + m.url.bottom) / 2 - (qrBox.top + qrBox.bottom) / 2), `${String(width)}: URL がボタンと同じ行に無い`).toBeLessThanOrEqual(2);
+      }
+      await expect(qr).toBeVisible();
+    });
+  }
+});
