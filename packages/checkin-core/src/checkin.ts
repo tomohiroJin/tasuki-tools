@@ -123,10 +123,14 @@ export function prune(s: CheckinState, knownIds: ReadonlySet<string>): CheckinSt
   return { ...s, spectators, round: { ...r, cards } };
 }
 
-/** open で、札を出す人が 1 人以上かつ全員が札を持つときだけ開く（0 人では開かない） */
+/**
+ * open で、札を出す人が 1 人以上かつ全員が札を持つときだけ開く（0 人では開かない）。
+ * `players` に見学者が混じっていても、ここで除いてから数える（呼び手の取りこぼしで開かなくならないように）。
+ */
 export function applyAutoReveal(s: CheckinState, players: readonly string[]): CheckinState {
   const r = s.round;
   if (r === null || r.status !== "open") return s;
-  if (players.length === 0 || !players.every((id) => r.cards.has(id))) return s;
+  const counted = players.filter((id) => !s.spectators.has(id));
+  if (counted.length === 0 || !counted.every((id) => r.cards.has(id))) return s;
   return { ...s, round: { ...r, status: "revealed" } };
 }

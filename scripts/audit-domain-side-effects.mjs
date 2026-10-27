@@ -83,6 +83,7 @@ export const DOMAIN_PACKAGES = [
   "packages/roulette-core",
   // 進行タイマーの文脈（#429）。時計は引数で受ける。
   "packages/agenda-core",
+  // 会の始まりと終わりの札の文脈（#406）。乱数は引数で受ける。
   "packages/checkin-core",
   "packages/timer-core",
   // #91 PR 3 で新設。純粋な関数のみ（Date.now() や Math.random() を置いたら赤になるべき）。

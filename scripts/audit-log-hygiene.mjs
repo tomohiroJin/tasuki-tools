@@ -65,6 +65,7 @@ export const SCANNED_PACKAGES = [
   "packages/poker-core",
   // 進行タイマーの文脈（#429）。
   "packages/agenda-core",
+  // 会の始まりと終わりの札の文脈（#406）。
   "packages/checkin-core",
   "packages/protocol",
   "packages/rate-limit",

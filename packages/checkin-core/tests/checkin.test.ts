@@ -117,6 +117,17 @@ describe("playCard", () => {
     const s = chooseMethod(chooseMethod(empty, "weather"), "weather");
     expect(playCard(s, { participantId: a, seq: 1, card: "sunny" })._unsafeUnwrap()).toBe(s);
   });
+
+  it("古い seq は、開いた回・見学者・未知の札より先に判定し ok で同じ参照〈m503〉", () => {
+    // 回 1 の札が回 2 に届く。回 2 の都合（開いた・見学・札の種類）でエラーを返すと、古い操作が新しい回に響く
+    const fresh = chooseMethod(chooseMethod(empty, "weather"), "energy");
+    const revealed = unwrap(reveal(fresh, { seq: 2 }));
+    expect(playCard(revealed, { participantId: a, seq: 1, card: "1" })._unsafeUnwrap()).toBe(revealed);
+    const spectating = setSpectator(fresh, a, true);
+    expect(playCard(spectating, { participantId: a, seq: 1, card: "1" })._unsafeUnwrap()).toBe(spectating);
+    // sunny は回 1 の weather の札で、回 2 の energy には無い
+    expect(playCard(fresh, { participantId: a, seq: 1, card: "sunny" })._unsafeUnwrap()).toBe(fresh);
+  });
 });
 
 describe("setVisibility", () => {
@@ -140,6 +151,11 @@ describe("setVisibility", () => {
 
   it("古い seq は同じ参照〈m503〉", () => {
     const s = chooseMethod(chooseMethod(empty, "weather"), "weather");
+    expect(setVisibility(s, { seq: 1, visibility: "anonymous" })._unsafeUnwrap()).toBe(s);
+  });
+
+  it("古い seq は、札のある回でも LOCKED より先に判定し ok で同じ参照〈m503〉", () => {
+    const s = play(chooseMethod(chooseMethod(empty, "weather"), "weather"), a, "sunny");
     expect(setVisibility(s, { seq: 1, visibility: "anonymous" })._unsafeUnwrap()).toBe(s);
   });
 });
@@ -252,10 +268,16 @@ describe("applyAutoReveal", () => {
     expect(applyAutoReveal(s, [a, b, c])).toBe(s);
   });
 
-  it("見学者は分母に入らない（E9）〈m500〉", () => {
+  it("見学者は分母に入らない。players に見学者が混じっても除いて数える（E9）〈m500〉", () => {
+    // c を players に渡したまま見学にする。applyAutoReveal 自身が見学者を除かなければ開かない
     let s = setSpectator(room(), c, true);
     s = play(play(s, a, "sunny"), b, "rain");
-    expect(roundOf(applyAutoReveal(s, [a, b])).status).toBe("revealed");
+    expect(roundOf(applyAutoReveal(s, [a, b, c])).status).toBe("revealed");
+  });
+
+  it("players が全員見学なら、除いた後の 0 人で開かない（every の空集合の罠）〈m500〉", () => {
+    const s = setSpectator(room(), c, true);
+    expect(applyAutoReveal(s, [c])).toBe(s);
   });
 
   it("players が空なら開かない（every の空集合の罠）", () => {
