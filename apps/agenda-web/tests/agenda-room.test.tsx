@@ -519,7 +519,7 @@ describe('開始を押した本人の画面だけ進める画面へ寄せる（#
 
   const runTitle = (): HTMLElement => document.querySelector<HTMLElement>('.run-title')!;
 
-  it('Given 組む画面で開始を押した / When 進行中のフレームを受けて描く / Then 会の名前の行へ focus が移り、smooth で上端へ寄せる', () => {
+  it('Given 組む画面で開始を押した / When 進行中のフレームを受けて描く / Then 会の名前の行へ focus が移り、一度で（auto）上端へ寄せる', () => {
     // Given
     joinedRoom(idleWithScenario);
     fireEvent.click(screen.getByRole('button', { name: START_BUTTON }));
@@ -529,7 +529,7 @@ describe('開始を押した本人の画面だけ進める画面へ寄せる（#
     // Then
     expect(document.activeElement).toBe(runTitle());
     expect(scrollIntoView).toHaveBeenCalledTimes(1);
-    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'start', behavior: 'smooth' });
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'start', behavior: 'auto' });
     expect(scrollIntoView.mock.contexts[0]).toBe(runTitle());
   });
 
@@ -553,20 +553,5 @@ describe('開始を押した本人の画面だけ進める画面へ寄せる（#
     // Then
     expect(scrollIntoView).not.toHaveBeenCalled();
     expect(document.activeElement).not.toBe(runTitle());
-  });
-
-  it('Given 動きを減らす設定で開始を押した / When 進行中に変わる / Then behavior は auto', () => {
-    // Given
-    vi.stubGlobal('matchMedia', (query: string) => ({
-      matches: query.includes('reduce'),
-      addEventListener: () => undefined,
-      removeEventListener: () => undefined,
-    }));
-    joinedRoom(idleWithScenario);
-    fireEvent.click(screen.getByRole('button', { name: START_BUTTON }));
-    // When
-    deliverAgenda(runningAgenda(0));
-    // Then
-    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'start', behavior: 'auto' });
   });
 });

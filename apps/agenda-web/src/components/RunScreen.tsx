@@ -57,8 +57,9 @@ export function RunScreen({ view, wallNow, reducedMotion, striking, canOperate, 
   useEffect(() => {
     if (!consumeStartArrival()) return;
     titleRef.current?.focus({ preventScroll: true });
-    titleRef.current?.scrollIntoView({ block: 'start', behavior: reducedMotion ? 'auto' : 'smooth' });
-    // 最初の描画の 1 度だけ（動きの設定が後で変わっても寄せ直さない）
+    // 一度で寄せる（`smooth` は動いている間に「次へ」・延長を押すと的が逃げる。E2E の当たりの測りでも重なりと読まれた）
+    titleRef.current?.scrollIntoView({ block: 'start', behavior: 'auto' });
+    // 最初の描画の 1 度だけ
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const summaryHeadingId = useId();
