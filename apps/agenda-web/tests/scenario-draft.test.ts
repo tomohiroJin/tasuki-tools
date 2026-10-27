@@ -42,7 +42,8 @@ describe('下書きの回数', () => {
     expect(canAddStep(draftOf(ten, '6'))).toBe(false);
     expect(canAddStep(draftOf(ten, '5'))).toBe(true);
     expect(canAddStep(draftOf(ten, ''))).toBe(true);
-    expect(canAddStep(draftOf(Array.from({ length: 20 }, (_, i) => step(`s${i}`, 60)), '1'))).toBe(false);
+    expect(canAddStep(draftOf(Array.from({ length: 40 }, (_, i) => step(`s${i}`, 60)), '1'))).toBe(false);
+    expect(canAddStep(draftOf(Array.from({ length: 39 }, (_, i) => step(`s${i}`, 60)), '1'))).toBe(true);
     expect(addBlockedByItems(draftOf(ten, '6'))).toBe(false);
   });
 
@@ -51,7 +52,8 @@ describe('下書きの回数', () => {
     expect(canAddStep(draftOf([], '99'))).toBe(true);
     expect(canAddStep(draftOf(ten, '99'))).toBe(true);
     expect(canAddStep(draftOf(ten, '0'))).toBe(true);
-    expect(canAddStep(draftOf(Array.from({ length: 20 }, (_, i) => step(`s${i}`, 60)), '99'))).toBe(false);
+    expect(canAddStep(draftOf(Array.from({ length: 40 }, (_, i) => step(`s${i}`, 60)), '99'))).toBe(false);
+    expect(canAddStep(draftOf(Array.from({ length: 39 }, (_, i) => step(`s${i}`, 60)), '99'))).toBe(true);
   });
 
   it('回数 6 のルームのシナリオを下書きへ写すと 1 区切りと回数 6 になる（m455）', () => {
@@ -81,12 +83,19 @@ describe('下書きの回数', () => {
     expect(draftFromInput(input([step('a', 60)], 4)).rounds).toBe('4');
   });
 
-  it('1 回あたり 40 分 × 5 回は合計の理由で止まる', () => {
-    const d = draftOf([step('a', 2400)], '5');
-    expect(perRoundMinutes(d)).toBe(40);
-    expect(totalMinutes(d)).toBe(200);
+  it('1 回あたり 120 分 × 7 回は合計の理由で止まる', () => {
+    const d = draftOf([step('a', 7200)], '7');
+    expect(perRoundMinutes(d)).toBe(120);
+    expect(totalMinutes(d)).toBe(840);
     const r = checkDraft(d, '汎用');
-    expect(r).toEqual({ ok: false, reason: totalTooLongText(200) });
+    expect(r).toEqual({ ok: false, reason: totalTooLongText(840) });
+  });
+
+  it('合計 720 分ちょうどは通り、721 分は上限といまの合計を示して止まる', () => {
+    const six = Array.from({ length: 6 }, (_, i) => step(`s${i}`, 7200));
+    expect(checkDraft(draftOf(six, '1'), '汎用').ok).toBe(true);
+    expect(checkDraft(draftOf([...six, step('x', 60)], '1'), '汎用')).toEqual({ ok: false, reason: totalTooLongText(721) });
+    expect(totalTooLongText(721)).toBe('合計は 720 分までです（いま 721 分）');
   });
 
   it('回数 0・31・空欄は回数の理由で止まる', () => {

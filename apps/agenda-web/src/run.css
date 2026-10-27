@@ -279,7 +279,7 @@
 .step-list-skip {
   flex: none;
 }
-/* 回数 2 以上: 枠の高さの上限（撮影で詰める値はここ 1 か所）。回数 1 は枠のクラスを付けない */
+/* 枠の高さの上限（撮影で詰める値はここ 1 か所）。回数 2 以上、または回数 1 でも 20 行を超えたら枠のクラスを付ける */
 .step-list-rows--scroll {
   max-height: var(--step-list-max-height);
   overflow-y: auto;

@@ -417,6 +417,20 @@ describe('組む画面', () => {
     expect(screen.queryByText(MAX_STEPS_NOTE)).toBeNull();
   });
 
+  it('Given 40 ステップのルームのシナリオ / When 見る / Then 追加ボタンは無効で、「ステップは 40 までです」が出る', () => {
+    joinedRoom(idleAgenda('Long', Array.from({ length: 40 }, (_, i) => [`s${i}`, 1] as const)));
+    expect(screen.getByRole('button', { name: ADD_STEP_BUTTON })).toBeDisabled();
+    expect(screen.getByText('ステップは 40 までです')).toBeDefined();
+    expect(screen.queryByText(MAX_PLANNED_NOTE)).toBeNull();
+  });
+
+  it('Given 39 ステップ / When 見る / Then 追加ボタンは押せて、上限の注記は出ない', () => {
+    joinedRoom(idleAgenda('Long', Array.from({ length: 39 }, (_, i) => [`s${i}`, 1] as const)));
+    expect(screen.getByRole('button', { name: ADD_STEP_BUTTON })).toBeEnabled();
+    expect(screen.queryByText('ステップは 40 までです')).toBeNull();
+    expect(screen.queryByText(MAX_PLANNED_NOTE)).toBeNull();
+  });
+
   it('Given 回数が範囲外（99） / When 見る / Then 追加ボタンは押せて、60 の上限の注記は出ない', () => {
     joinedRoom();
     fireEvent.change(roundsField(), { target: { value: '99' } });

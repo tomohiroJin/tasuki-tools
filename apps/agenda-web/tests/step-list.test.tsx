@@ -173,6 +173,38 @@ describe('進行表の枠のスクロール', () => {
   });
 
 
+  it('Given 回数 1 で 21 ステップ / When 描く / Then 枠のクラスが付き、回の見出しは無い', () => {
+    const { container } = render(<StepList view={new Driver(Array.from({ length: 21 }, () => 1)).view(0)} canOperate onSetSkipped={noop} />);
+    const box = container.querySelector<HTMLElement>('.step-list-rows--scroll');
+    expect(box).not.toBeNull();
+    expect(box?.tabIndex).toBe(0);
+    expect(box?.getAttribute('aria-labelledby')).toBe(container.querySelector('h2')?.id);
+    expect(screen.queryAllByRole('heading', { level: 3 })).toEqual([]);
+    expect(container.querySelector('.step-list-round')).toBeNull();
+  });
+
+  it('Given 回数 1 で 20 ステップ / When 描く / Then 枠も見出しも無い（第 1 段の DOM のまま）', () => {
+    const { container } = render(<StepList view={new Driver(Array.from({ length: 20 }, () => 1)).view(0)} canOperate onSetSkipped={noop} />);
+    expect(container.querySelector('.step-list-rows--scroll')).toBeNull();
+    expect(screen.queryAllByRole('heading', { level: 3 })).toEqual([]);
+    expect(container.querySelector('.step-list-round')).toBeNull();
+  });
+
+  it('Given 回数 1 で 30 ステップ / When 25 番目へ移る / Then 枠の scrollTop だけが動き、ページは動かない', () => {
+    const scrollIntoView = vi.fn();
+    override(Element.prototype, 'scrollIntoView', { value: scrollIntoView, writable: true });
+    const scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
+    const d = new Driver(Array.from({ length: 30 }, () => 1));
+    const { container, rerender } = render(<StepList view={d.view(0)} canOperate onSetSkipped={noop} />);
+    const box = container.querySelector('.step-list-rows--scroll');
+    expect(box).not.toBeNull();
+    for (let i = 0; i < 24; i++) d.next((i + 1) * MIN);
+    rerender(<StepList view={d.view(25 * MIN)} canOperate onSetSkipped={noop} />);
+    expect(box?.scrollTop).toBeGreaterThan(0);
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    expect(scrollTo).not.toHaveBeenCalled();
+  });
+
   it('Given 1 回あたり 1 ステップの平らな一覧 / When 区切りが移る / Then 枠の scrollTop だけが動き、ページは動かない', () => {
     const scrollIntoView = vi.fn();
     override(Element.prototype, 'scrollIntoView', { value: scrollIntoView, writable: true });
