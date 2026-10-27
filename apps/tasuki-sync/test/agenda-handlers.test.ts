@@ -504,6 +504,68 @@ describe("期限を過ぎた状態に届いた操作", () => {
   });
 });
 
+/**
+ * @requirements #455
+ */
+describe("シナリオの上限（境界のスキーマ）", () => {
+  const stepOf = (durationSec: number) => ({ name: "s", durationSec, onTimeout: "wait" });
+  const setScenario = (steps: unknown[]) => ({
+    command: "agenda.scenario.set" as const,
+    scenario: { title: "長い会", steps },
+  });
+
+  it("合計 720 分（120 分 × 6）のシナリオは受けて全員へ配る", async () => {
+    // Given
+    const h = setup();
+    await joined(h, "a-1", "Alice");
+    await joined(h, "a-2", "Bob");
+    h.sent.length = 0;
+
+    // When
+    await h.handle("a-1", setScenario(Array.from({ length: 6 }, () => stepOf(7200))));
+
+    // Then
+    expect(errorsTo(h, "a-1")).toEqual([]);
+    expect(viewsTo(h, "a-2").at(-1)!.steps).toHaveLength(6);
+  });
+
+  it("合計 721 分（120 分 × 6 ＋ 1 分）は送り主にだけ INVALID_COMMAND を返し、配らない", async () => {
+    // Given
+    const h = setup();
+    await joined(h, "a-1", "Alice");
+    await joined(h, "a-2", "Bob");
+    h.sent.length = 0;
+
+    // When
+    await h.handle("a-1", setScenario([...Array.from({ length: 6 }, () => stepOf(7200)), stepOf(60)]));
+
+    // Then
+    expect(errorsTo(h, "a-1")).toEqual(["INVALID_COMMAND"]);
+    expect(h.sent.filter((s) => s.connId === "a-2")).toEqual([]);
+  });
+
+  it("40 ステップ（各 1 分）は受け、41 ステップは INVALID_COMMAND", async () => {
+    // Given
+    const h = setup();
+    await joined(h, "a-1", "Alice");
+    h.sent.length = 0;
+
+    // When: 40 ステップ
+    await h.handle("a-1", setScenario(Array.from({ length: 40 }, () => stepOf(60))));
+
+    // Then
+    expect(errorsTo(h, "a-1")).toEqual([]);
+    expect(viewsTo(h, "a-1").at(-1)!.steps).toHaveLength(40);
+
+    // When: 41 ステップ
+    h.sent.length = 0;
+    await h.handle("a-1", setScenario(Array.from({ length: 41 }, () => stepOf(60))));
+
+    // Then
+    expect(errorsTo(h, "a-1")).toEqual(["INVALID_COMMAND"]);
+  });
+});
+
 describe("ログ", () => {
   it("ステップの名前を入れて一通り操作しても、ロガーへ何も書かない", async () => {
     // Given
