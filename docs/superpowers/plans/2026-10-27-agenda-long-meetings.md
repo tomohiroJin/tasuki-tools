@@ -70,8 +70,8 @@
 | `pnpm --filter @tasuki/sync test -- test/agenda-handlers.test.ts` | Task 1 | 20 秒 | 3 | 1 分 |
 | `pnpm --filter @tasuki/agenda-web test`（ファイルを絞って） | Task 2・3・4 | 20〜40 秒 | 15 | 8 分 |
 | `pnpm --filter @tasuki/agenda-web test`（全件） | Task 2・3 の終わり | 1〜2 分 | 2 | 4 分 |
-| 各パッケージの `typecheck`・`lint` | Task 1〜3 | 30 秒 | 6 | 3 分 |
-| 変異を 1 本ずつ当てて赤を見る（新しい 9 本＋直す 3 本） | Task 4 | 1 分 | 12 | 12 分 |
+| 各パッケージの `typecheck`・`lint`、`@tasuki/ui` の test | Task 1〜3 | 30 秒 | 7 | 4 分 |
+| 変異を 1 本ずつ当てて赤を見る（新しい 9 本＋直す 4 本） | Task 4 | 1 分 | 13 | 13 分 |
 | 既存のパッチの `git apply --check` | Task 1〜4 | 数秒 | 15 | 1 分 |
 | `node scripts/check-links.mjs`・`node scripts/audit-plan-gate.mjs` | Task 5 | 10 秒 | 2 | 1 分 |
 | `pnpm test`（turbo の全件）＋ scripts の自己テスト ＋ 全 audit | 統括・PR の前 | 10〜15 分 | 1〜2 | 25 分 |
@@ -87,7 +87,7 @@
 - **既存の変異が当たらなくなる恐れ**: 触ったファイルに当たる既存のパッチを、タスクの終わりに `git apply --check scripts/mutations/<名前>.patch` で 1 本ずつ確かめる。当たらなければ**パッチの文脈の行だけ**を今のファイルに合わせて直す（番号・変異の中身は変えない）。直したら、当てて対象の試験が赤くなり、`git apply -R` で戻ることを見る。対象:
   - Task 1: `m436-command-schema-loosened.patch`・`m453-total-limit-ignores-rounds.patch`・`m454-expanded-step-count-unchecked.patch`（`schemas.ts` は変えないので当たるはず。m453 は**試験の側が変わる**ので Task 4 で中身を見直す）
   - Task 2: `m446-overrun-without-plus.patch`（**中身の行が変わるので当たらない**。直すのは Task 4）・`m458-round-badge-shows-for-single-round.patch`・`m450-reduced-motion-hides-needle.patch`
-  - Task 3: `m455-view-copies-all-expanded-steps.patch`・`m456-key-ignores-rounds.patch`・`m457-draft-sends-rounds-one.patch`・`m459-step-list-scrolls-page.patch`・`m460-step-list-ignores-box-scroll-top.patch`・`m462-single-step-rounds-show-headings.patch`
+  - Task 3: `m455-view-copies-all-expanded-steps.patch`・`m456-key-ignores-rounds.patch`・`m457-draft-sends-rounds-one.patch`・`m459-step-list-scrolls-page.patch`・`m460-step-list-ignores-box-scroll-top.patch`。`m462-single-step-rounds-show-headings.patch` は文脈の 3 行（`const scrolling = view.rounds >= 2;`・注記「回数 2 以上の枠の中で」・`const grouped = scrolling && !flatRounds;`）がすべて変わるので**当たらない**。直すのは Task 4
   - パッチの対象の試験は `scripts/lib/mutation-declarations.mjs` の、そのパッチの宣言の `pkg` と `tests` にある
 - `node scripts/mutation-check.mjs` は打たない（全件に倒れて数時間かかる）
 - **コミットは `git add <パス>` で自分の変えたファイルだけを足す**（`git add -A`・`git add .` をしない）
@@ -136,7 +136,7 @@
 
 **Files:**
 - Modify: `apps/agenda-web/src/agenda-view.ts`・`src/components/SummaryTable.tsx`・`src/components/Dial.tsx`・`src/dial.css`
-- Test: `apps/agenda-web/tests/agenda-view.test.ts`・`tests/summary-table.test.tsx`・`tests/dial.test.tsx`・`tests/time-digits.test.tsx`
+- Test: `apps/agenda-web/tests/agenda-view.test.ts`・`tests/summary-table.test.tsx`（既存の 3 か所を直す。下の Step 2）・`tests/dial.test.tsx`・`tests/time-digits.test.tsx`
 
 **Interfaces:**
 - Produces（`agenda-view.ts`。名前はこのとおり）:
@@ -150,7 +150,8 @@
   - `centerLines(v)` は中で `clockStyleOf(v)` を使う（引数は変えない）
 - `SummaryTable`: `const style = clockStyleOf(view);` を 1 回作り、4 か所の `durationClock`・`signedDuration` に渡す
 - `Dial` の `Readout`: `<div className={clockStyleOf(view) === 'h:mm:ss' ? 'dial-time dial-time--hms' : 'dial-time'}>`
-- `dial.css`: `.is-paused .dial-time` の規則の直後に `.dial-time--hms { font-size: clamp(1.8rem, 12cqi, 7.2rem); /* scale-exempt: 長い会の h:mm:ss（設計 §3.3）。12:00:00 が読む欄 56% に収まる大きさ。.dial-time の 0.8 倍 */ }`
+- `dial.css`: `.is-paused .dial-time` の規則の直後に `.dial-time--hms { font-size: clamp(1.8rem, 12cqi, 7.2rem); /* scale-exempt: 長い会の h:mm:ss（設計 §3.3）。12:00:00 が読む欄 56% に収まる大きさ。.dial-time の 0.8 倍。撮影で 0.9 倍と比べて決める */ }`
+- **盤の字の倍率は撮影で 0.8 倍と 0.9 倍（`clamp(2rem, 13.5cqi, 8.1rem)`）を比べて決める**（設計 §3.3）。実装は 0.8 倍で置き、統括が撮影の後に決める
 - `clockOf` の上の注記（「盤の 1 周は最大 180 分」）は、書き方の規則（設計 §3.2）を指す注記に書き換える
 
 - [ ] **Step 1: 赤いテストを書く**（`agenda-view.test.ts` に `describe('長い会の時計', …)` を足し、`@requirements #455（設計 §3）` の注記を付ける。状態は `./support/agenda-states` の `Driver`・`idleView`・`MIN`）
@@ -164,12 +165,13 @@
   - 「差と長さは渡した書き方で書く」: `signedDuration(30_000, 'h:mm:ss')` が `'+0:00:30'`・`signedDuration(-600_000, 'h:mm:ss')` が `'−0:10:00'`（U+2212）・`signedDuration(400, 'h:mm:ss')` が `'0:00:00'`・`durationClock(7_500_000, 'h:mm:ss')` が `'2:05:00'`
   - 既存の「差は印を付けて m:ss（…）」の 4 行は、第 2 引数に `'m:ss'` を渡す形に直す（期待値は変えない）。既存の「60 分を超える残りも分を繰り上げずに出す」（90 分の会）はそのまま残す（短い会の見た目を変えないことの固定）
 - [ ] **Step 2: 赤いテストを書く（部品）**
+  - `summary-table.test.tsx` の既存の 3 か所（`signedDuration` の引数を必須にすると型検査で落ちる）: 9 行の `import { signedDuration } from '../src/agenda-view';` を外す。68 行の `expect(within(total).getByText(signedDuration(summaryOf(v).driftMs))).toBeInTheDocument();` を消す（69 行に `'−1:50'` の直書きがある）。118 行は `expect(within(total).getByText('+3:00')).toBeInTheDocument();` の直書きにする（実装と同じ関数で期待値を作る恒真をやめる）。試験の名前の「summaryOf(v).driftMs と同じ表記」はそのままでよい（`summaryOf(v).driftMs` の値の行は残る）
   - `summary-table.test.tsx` に「Given 予定の合計 180 分で終えた / When 一覧を見る / Then かかった時間と差を h:mm:ss で書き、合計の行も同じ」: `joinedRoom(new Driver([120, 60]).next(125 * MIN).next(175 * MIN).view(175 * MIN))`。`rowOf('S1')` に `'2:05:00'` と `'+0:05:00'`・`rowOf('S2')` に `'0:50:00'` と `'−0:10:00'`・`rowOf(SUMMARY_TOTAL_LABEL)` に `'2:55:00'` と `'−0:05:00'`（Review Focus 5。`MIN` はそのファイルが使う `./support/agenda-states` から import）
   - `dial.test.tsx` に「Given 予定の合計 180 分の会 / When 描く / Then 数字は h:mm:ss で、長い会の字の大きさのクラスが付く」: `render(<Dial view={new Driver([120, 60]).view(0)} wallNow={WALL} reducedMotion={false} />)` の `.dial-time` の `textContent` が `'2:00:00'`・`classList.contains('dial-time--hms')` が true。同じ試験で `new Driver([5, 7]).view(MIN)` を描いた `.dial-time` は `dial-time--hms` を持たない
   - `time-digits.test.tsx` に「h:mm:ss の 2 つのコロンはどちらも狭い箱に入る」: `<TimeDigits text="+3:05:09" />` の `.time-colon` が 2 個・`.time-sign` が 1 個・`.time-digit` が 5 個（部品は変えないので**最初から緑**。部品が `h:mm:ss` を扱えることの固定。報告に書く）
 - [ ] **Step 3: 赤を見る**: `pnpm --filter @tasuki/agenda-web test -- tests/agenda-view.test.ts tests/summary-table.test.tsx tests/dial.test.tsx tests/time-digits.test.tsx`（`formatClock` 等が無いので落ちる）
 - [ ] **Step 4: 実装**（上の Interfaces のとおり）
-- [ ] **Step 5: 緑を見る**: 上の 4 ファイル、続けて `pnpm --filter @tasuki/agenda-web test`（全件。書体の層の試験 `rendered-text-fits-font-base` も含む）・`typecheck`・`lint`。取り決めのパッチ m458・m450 の `git apply --check`。m446 は当たらない見込み（Task 4 で直す）。結果を報告に書く
+- [ ] **Step 5: 緑を見る**: 上の 4 ファイル、続けて `pnpm --filter @tasuki/agenda-web test`（全件。書体の層の試験 `rendered-text-fits-font-base` も含む）・`typecheck`・`lint`、`corepack pnpm --filter @tasuki/ui test`（`dial.css` を触るため。`typography-scale.test.mjs` が apps の CSS を読み、`scale-exempt` の理由を見る）。取り決めのパッチ m458・m450 の `git apply --check`。m446 は当たらない見込み（Task 4 で直す）。結果を報告に書く
 - [ ] **Step 6: コミット**: `feat: 予定の合計が 180 分以上の会は時計を h:mm:ss で出す（#455）`
 
 ### Task 3: 組む画面の上限と進行表の枠（Sonnet）
@@ -190,9 +192,9 @@
     - 「Given 40 ステップのルームのシナリオ / When 見る / Then 追加ボタンは無効で、『ステップは 40 までです』が出る」: `joinedRoom(idleAgenda('Long', Array.from({ length: 40 }, (_, i) => [`s${i}`, 1] as const)))` → `getByRole('button', { name: ADD_STEP_BUTTON })` が無効・`getByText('ステップは 40 までです')`・`MAX_PLANNED_NOTE` は出ない
     - 「Given 39 ステップ / When 見る / Then 追加ボタンは押せて、上限の注記は出ない」
   - `step-list.test.tsx`:
-    - 「Given 回数 1 で 21 ステップ / When 描く / Then 枠のクラスが付き、回の見出しは無い」: `new Driver(Array.from({ length: 21 }, () => 1)).view(0)` → `.step-list-rows--scroll` がある・`queryAllByRole('heading', { level: 3 })` が `[]`・`.step-list-round` が無い（Review Focus 3）
+    - 「Given 回数 1 で 21 ステップ / When 描く / Then 枠のクラスが付き、回の見出しは無い」: `new Driver(Array.from({ length: 21 }, () => 1)).view(0)` → `.step-list-rows--scroll` がある・その枠の `tabIndex` が `0`・`getAttribute('aria-labelledby')` が `container.querySelector('h2')?.id`（キーボードでスクロールでき、名前を持つ。回数 2 以上の既存の試験と同じ見方）・`queryAllByRole('heading', { level: 3 })` が `[]`・`.step-list-round` が無い（Review Focus 3）
     - 「Given 回数 1 で 20 ステップ / When 描く / Then 枠も見出しも無い（第 1 段の DOM のまま）」
-    - 「Given 回数 1 で 30 ステップ / When 25 番目へ移る / Then 枠の scrollTop だけが動き、ページは動かない」: 同じファイルの「Given 1 回あたり 1 ステップの平らな一覧 / When 区切りが移る / …」の土台（行の高さの差し替えと `scrollTops`）をそのまま使い、`Driver(Array.from({ length: 30 }, () => 1))` を 24 回 `next` して描き直す。枠の `scrollTop` が 0 より大きく、`window.scrollY` などページ側は動かない（既存の試験と同じ見方）
+    - 「Given 回数 1 で 30 ステップ / When 25 番目へ移る / Then 枠の scrollTop だけが動き、ページは動かない」: 同じファイルの「Given 1 回あたり 1 ステップの平らな一覧 / When 区切りが移る / …」の土台（行の高さの差し替えと `scrollTops`）をそのまま使い、`Driver(Array.from({ length: 30 }, () => 1))` を 24 回 `next` して描き直す。枠の `scrollTop` が 0 より大きく、ページは動かない。ページの見方は既存の試験に揃える: `scrollIntoView` を `vi.fn()` に差し替え（`override(Element.prototype, 'scrollIntoView', …)`）、`vi.spyOn(window, 'scrollTo')` を張り、どちらも `not.toHaveBeenCalled()`
 - [ ] **Step 2: 赤を見る**: `pnpm --filter @tasuki/agenda-web test -- tests/scenario-draft.test.ts tests/scenario-builder.test.tsx tests/step-list.test.tsx`。Task 1 の後なので、上限の試験は**緑のものがある**（定数から組んでいるため）。落ちるのは進行表の 2 本の見込み。どれが赤でどれが緑だったかを報告に書く
 - [ ] **Step 3: 実装**（上の Interfaces と注記）
 - [ ] **Step 4: 緑を見る**: 上の 3 ファイル、続けて `pnpm --filter @tasuki/agenda-web test`・`typecheck`・`lint`。取り決めのパッチ 6 本の `git apply --check`
@@ -202,7 +204,7 @@
 
 **Files:**
 - Create: `scripts/mutations/m500〜m508-<名前>.patch`
-- Modify: `scripts/lib/mutation-declarations.mjs`（末尾に `{ id, label, patch, pkg, tests, note }` で足す。`note` は `"#455。…"` で始める。`pkg` はパス）・`scripts/mutations/m446-overrun-without-plus.patch`・`m453-total-limit-ignores-rounds.patch`・`m454-expanded-step-count-unchecked.patch`
+- Modify: `scripts/lib/mutation-declarations.mjs`（末尾に `{ id, label, patch, pkg, tests, note }` で足す。`note` は `"#455。…"` で始める。`pkg` はパス）・`scripts/mutations/m446-overrun-without-plus.patch`・`m453-total-limit-ignores-rounds.patch`・`m454-expanded-step-count-unchecked.patch`・`m462-single-step-rounds-show-headings.patch`
 
 **帯の確かめ**: main の台帳の最大は 484、PR #453（#447-2）が 485〜493 を使い、494〜499 は #449 に空けてある。着手時に `grep -oE 'id: *[0-9]+' scripts/lib/mutation-declarations.mjs | sort -t: -k2 -n | tail -3` と `gh pr diff 453 | grep -oE 'm[0-9]{3}' | sort -u` で 500〜508 が空いていることを見る。PR #453 も宣言の末尾に足すので、後からマージする側で台帳の末尾が衝突する（中身はどちらも残す）
 
@@ -224,11 +226,12 @@
 - **m446**（オーバーの `+` を落とす）: Task 2 で `centerLines` の行が変わり当たらない。今の行に合わせて**中身の行**を作り直す（壊し方は同じ: オーバーの `+` を落とす）。試験 `tests/agenda-view.test.ts` の「オーバー中は「+」が付いて…（m446）」で赤を見る
 - **m453**（合計の上限を 1 回あたりで見る）: パッチは当たるが、殺していた試験が 180 分の値（7 分 × 26 回）に依っていた。Task 1 で試験を「25 分 × 29 回 ＝ 725 分」に改めたので、それで赤になることを確かめる。宣言の `note` を「#429 第 2 段。1 区切り 25 分 × 29 回（725 分）が 1 回あたり 25 分で通り、720 分の上限を回数で破れる（#455 で値を改めた）。」に、パッチの頭の説明の「180 分」を「720 分」に直す
 - **m454**（展開後の区切りの数を見ない）: 試験（4 区切り × 16 回）は新しい値でも効く。宣言の `note` の「定義の上限 20 以下」を「定義の上限 40 以下」に直す。当てて赤を見る
+- **m462**（1 回あたり 1 ステップでも回の見出しを出す）: Task 3 で文脈の 3 行（`scrolling`・`useEffect` の注記・`grouped`）が変わり当たらない。新しい壊し方を `const grouped = view.rounds >= 2;`（`!flatRounds` を落とす）として作り直す。試験 `tests/step-list.test.tsx` の「Given 回数 2 以上で 1 回あたり 1 ステップ / When 描く / Then 回の見出しを出さず、…（m462）」で赤を見る。宣言の `label`・`note` の意味は変わらないので直さない
 - ほかに旧い値（`180 分`・`10800`・`20 項目`）を note・パッチに書いた変異が無いことを `grep -n "180 分\|10800\|20 項目\|上限 20" scripts/lib/mutation-declarations.mjs scripts/mutations/*.patch` で確かめる（2026-10-27 の実測では m453 と m454 だけ）
 
 - [ ] 各パッチの 1 行目は `# 変異 NNN: <名前>`、検出を期待する試験・説明・適用と復元の手順は既存のパッチ（m446）の型に合わせる
-- [ ] 1 本ずつ: `git status --porcelain` が空 → `git apply` → 対象の試験で赤 → `git apply -R` → 空に戻る。12 本の赤の行（試験の名前）を報告に書く
-- [ ] Task 1〜3 で「当たる」と確かめた既存のパッチをもう一度 `git apply --check`（m436・m450・m455〜m460・m462）
+- [ ] 1 本ずつ: `git status --porcelain` が空 → `git apply` → 対象の試験で赤 → `git apply -R` → 空に戻る。13 本の赤の行（試験の名前）を報告に書く
+- [ ] Task 1〜3 で「当たる」と確かめた既存のパッチをもう一度 `git apply --check`（m436・m450・m455〜m460）
 - [ ] コミット: `test: 長い会の時計と上限の変異を足し、旧い値に依っていた変異を直す（#455）`（`Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`）
 
 ### Task 5: 第 1 段・第 2 段の設計へ追記（Sonnet）
@@ -239,6 +242,7 @@
 - [ ] 第 1 段の設計の**末尾**に `## 13. 長い会のための上限の見直し（#455・2026-10-27）` を足す。中身: 定義の項目の数を 40・予定の合計を 720 分とする（理由は #455 のコメントの表を 1 行ずつ）。区切りの長さ（120 分）と延長込みの 240 分は変えない。予定の合計が 180 分以上の会は時計を `h:mm:ss` で書く。詳細は同じ置き場の `2026-10-27-agenda-long-meetings-design.md` を相対リンクで指す
 - [ ] 第 2 段の設計の**末尾**に `## 12. 長い会のための上限の見直し（#455・2026-10-27）` を足す。中身: 予定の合計は 720 分とし、展開後の合計で数える規則はそのまま。展開後の区切りの数（60）と回数（30）は変えない。定義の区切りの数を 40 とする。回数 1 でも進行表が 20 行を超えたら枠を付ける（§4.4 の「回数 2 以上のときだけ」を広げる）。同じ設計を指す
 - [ ] 各設計の上限の表（第 1 段 §6・第 2 段 §5.2）の**直後**に 1 行の注記を置く: `> 予定の合計と定義の項目の数の値は #455 で改めた（§13）。` と `> 予定の合計と定義の区切りの数の値は #455 で改めた（§12）。`。**表の中の値は書き換えない**（当時の決定の記録を保つ。`docs/adr/0002`）。**見出しを表の直後に足さない**（直後の小節の親が変わる）
+- [ ] 第 2 段の設計 §5.2 の表の下の箇条書き「展開後の区切りの数の上限は、`STEP_SEC_MIN = 60` と予定の合計 180 分からは 180 まで通ってしまうので…」（約 131 行）も古くなる（720 分では 720 まで通る）。§12 に、この理由が 720 分でも成り立つこと（60 区切りの上限は合計からは導けない）を 1 文で書き添える。箇条書きそのものは書き換えない
 - [ ] 書き方は**決定の時制**（「〜とする」）。完了形（「〜にした」「〜になった」）で書かない
 - [ ] `node scripts/check-links.mjs` が通る
 - [ ] コミット: `docs: 第 1 段・第 2 段の設計の上限の表に #455 の見直しを追記する`
@@ -247,7 +251,7 @@
 
 - `pnpm test --force`・scripts の自己テスト・全 audit・`pnpm typecheck`・`pnpm lint`
 - E2E 全件（`e2e/specs/agenda.spec.ts` を含む）。短い会の見た目が変わっていないこと
-- 撮影（設計 §8.3）: 8 時間の会と 12 時間の会（29 ステップ）を、組む画面・進める画面・映す表示・進行表・盤の 1 周・終了の一覧で、1280px と 375px。720 分ちょうどを読み込めること・721 分の下書きが止まること・40 行で追加が止まること。対照に KPT のサンプル（60 分）。盤の数字の大きさ（`dial-time--hms`）を詰める必要があれば `dial.css` の 1 か所を直す
+- 撮影（設計 §8.3）: 8 時間の会と 12 時間の会（29 ステップ）を、組む画面・進める画面・映す表示・進行表・盤の 1 周・終了の一覧で、1280px と 375px。720 分ちょうどを読み込めること・721 分の下書きが止まること・40 行で追加が止まること。対照に KPT のサンプル（60 分）。盤の数字の大きさ（`dial-time--hms`）は 0.8 倍と 0.9 倍（`clamp(2rem, 13.5cqi, 8.1rem)`）を同じ局面で撮って比べ、`12:00:00` と `+0:59:59` が読む欄に収まり読みやすい方に決める（`dial.css` の 1 か所）
 - 撮るために起動した dev サーバーは使い終わったら止める（`ss -tlnp` で確かめる）。8787 は headroom のプロキシが持っていることがあるので、同期サーバーは別のポートで起動する
 - 最終レビュー（Opus）・PR（本文に「配布は agenda-web と同期サーバーの両方。同期サーバーの配布で本番のルームが消える」）・`/code-review <番号>`・CI
 - 利用者へ一覧で渡すもの: 設計 §9 の R1〜R6
