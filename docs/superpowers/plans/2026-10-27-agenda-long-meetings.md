@@ -151,7 +151,7 @@
 - `SummaryTable`: `const style = clockStyleOf(view);` を 1 回作り、4 か所の `durationClock`・`signedDuration` に渡す
 - `Dial` の `Readout`: `<div className={clockStyleOf(view) === 'h:mm:ss' ? 'dial-time dial-time--hms' : 'dial-time'}>`
 - `dial.css`: `.is-paused .dial-time` の規則の直後に `.dial-time--hms { font-size: clamp(1.8rem, 12cqi, 7.2rem); /* scale-exempt: 長い会の h:mm:ss（設計 §3.3）。12:00:00 が読む欄 56% に収まる大きさ。.dial-time の 0.8 倍。撮影で 0.9 倍と比べ、0.8 倍にする（`0:44:59`・`11:50:00` が 390px と 1280px と映す表示で盤の読む欄に収まる）。下限 1.8rem は 2.2rem × 0.8 ＝ 1.76rem を丸めた値 */ }`
-- **盤の字の倍率は 0.8 倍に決めた**（撮影で 0.9 倍 `clamp(2rem, 13.5cqi, 8.1rem)` と比べた。設計 §3.3）。撮影で 0.9 倍と比べ、0.8 倍にする（`0:44:59`・`11:50:00` が 390px と 1280px と映す表示で盤の読む欄に収まる）。下限 1.8rem は 2.2rem × 0.8 ＝ 1.76rem を丸めた値
+- **盤の字の倍率は 0.8 倍にする**（撮影で 0.9 倍 `clamp(2rem, 13.5cqi, 8.1rem)` と比べた。設計 §3.3。`0:44:59`・`11:50:00` が 390px と 1280px と映す表示で盤の読む欄に収まる）。下限 1.8rem は 2.2rem × 0.8 ＝ 1.76rem を丸めた値
 - `clockOf` の上の注記（「盤の 1 周は最大 180 分」）は、書き方の規則（設計 §3.2）を指す注記に書き換える
 
 - [ ] **Step 1: 赤いテストを書く**（`agenda-view.test.ts` に `describe('長い会の時計', …)` を足し、`@requirements #455（設計 §3）` の注記を付ける。状態は `./support/agenda-states` の `Driver`・`idleView`・`MIN`）
