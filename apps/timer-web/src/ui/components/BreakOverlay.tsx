@@ -14,6 +14,7 @@ import { useFocusTrap } from "../useFocusTrap.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { COMPLETE_BUTTON_LABEL, completeConfirmText } from "./EndSessionZone.js";
 import { SELF_SKIP_LABEL } from "./SelfDriverToggle.js";
+import { ROOM_HEADER_TEXT } from "@tasuki/invite-ui";
 
 interface BreakOverlayProps {
   elapsedMs: number;
@@ -25,6 +26,11 @@ interface BreakOverlayProps {
   onComplete: () => void;
   /** 自分の一時離脱（輪に居て、まだ離脱していないときだけ渡す） */
   onStandDown?: (() => void) | undefined;
+  /**
+   * 選択画面へ戻るリンクの行き先（#447 段 2）。休憩のあいだ見出しは覆いの裏で inert になるので、
+   * 休憩中に別の道具へ移れる道を覆いの中に置く（以前は覆いより前に出る上の帯が持っていた）。
+   */
+  backHref: string;
 }
 
 export function BreakOverlay({
@@ -35,6 +41,7 @@ export function BreakOverlay({
   onEnd,
   onComplete,
   onStandDown,
+  backHref,
 }: BreakOverlayProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
@@ -67,6 +74,7 @@ export function BreakOverlay({
         <button type="button" className="ui-button ui-button--quiet ui-button--sm" onClick={() => setConfirming(true)}>
           {COMPLETE_BUTTON_LABEL}
         </button>
+        <a className="ui-button ui-button--quiet ui-button--sm" href={backHref}>{ROOM_HEADER_TEXT.back}</a>
       </div>
       {confirming && (
         <ConfirmDialog

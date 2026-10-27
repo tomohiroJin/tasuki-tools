@@ -7,7 +7,7 @@
  * jsdom は CSS を評価しないので、ここで見るのは DOM とクラスと属性だけ。
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, act } from "@testing-library/react";
+import { render, screen, act, within } from "@testing-library/react";
 import { FakeWS } from "../support/fakes.js";
 import { enterRoomAndConnect } from "../support/enter-room.js";
 import { aRoomView } from "../support/room-view.js";
@@ -219,5 +219,41 @@ describe("timer の共通の見出し", () => {
 
     // Then
     expect(header().parentElement).toHaveAttribute("inert");
+  });
+
+  it("Given 休憩中のセッション / When 覆いを見る / Then 覆いの中に同じルームの選択画面へ戻るリンクがある", () => {
+    // Given / When: 見出しは覆いの裏で inert なので、休憩中に別の道具へ移る道は覆いが持つ
+    enter("session", { break: { since: 1000, suggestedAtSwitches: 0, suggestedAtElapsedMs: null } });
+
+    // Then
+    const overlay = screen.getByRole("dialog");
+    expect(within(overlay).getByRole("link", { name: "選択画面へ戻る" })).toHaveAttribute("href", "/?room=ROOM01");
+  });
+
+  it("Given セッションで招待の欄を開いた / When 完了する / Then 完了の画面の招待の欄はたたまれている", () => {
+    // Given
+    const ws = enter("session");
+    act(() => {
+      screen.getByRole("button", { name: "仲間を招く" }).click();
+    });
+    expect(screen.getByRole("button", { name: "仲間を招く" })).toHaveAttribute("aria-expanded", "true");
+
+    // When
+    sendServer(ws, {
+      type: "snapshot",
+      room: aRoomView({
+        code: "ROOM01",
+        phase: "celebration",
+        session: {
+          rotation: [ME],
+          driverCounts: [0],
+          seats: [{ id: ME, displayName: "アリス", isProxy: false, skipReason: null }],
+        },
+        participants: [{ participantId: ME, displayName: "アリス", presence: "online", joinedAt: 0 }],
+      }),
+    });
+
+    // Then
+    expect(screen.getByRole("button", { name: "仲間を招く" })).toHaveAttribute("aria-expanded", "false");
   });
 });

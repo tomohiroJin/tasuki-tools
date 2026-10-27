@@ -17,7 +17,7 @@ import { SessionLost } from "./ui/SessionLost.js";
 import { History } from "./ui/History.js";
 import { Loading } from "./ui/Loading.js";
 import { RoomHeader } from "@tasuki/invite-ui";
-import { ROOM_HEADING } from "./ui/room-heading.js";
+import { ROOM_HEADING, roomChoiceHref } from "./ui/room-heading.js";
 import { StatusStrip } from "./ui/components/StatusStrip.js";
 import { deriveConnectionStatus } from "./ui/connection-status.js";
 import { Stage } from "./ui/primitives.js";
@@ -256,12 +256,12 @@ export default function App() {
           ロビーは通常、セッションと完了は詰めた見た目。休憩中は覆いの外へフォーカスを入れさせない（Session の本体と同じ inert）。 */}
       {mode !== null && !sessionLost && room != null && (
         <div inert={onBreak} className={compactHeader ? "app-room-header app-room-header-compact" : "app-room-header"}>
-          {/* 見た目が変わる（ロビー → セッション）ときは部品を作り直す。狭いロビーで開いた招待の欄や QR を、
-              詰めた見た目のセッションへ持ち越さない（開いたままだと計器が押し下げられる）。 */}
+          {/* 画面が変わる（ロビー → セッション → 完了）たびに部品を作り直す。開いた招待の欄や QR を次の画面へ
+              持ち越さない（開いたままだと計器や記録が押し下げられる）。 */}
           <RoomHeader
-            key={compactHeader ? "compact" : "normal"}
+            key={mode}
             title={ROOM_HEADING}
-            backHref={`/?room=${encodeURIComponent(room.code)}`}
+            backHref={roomChoiceHref(room.code)}
             roomCode={room.code}
             inviteUrl={sync.inviteUrl ?? ""}
             compact={compactHeader}

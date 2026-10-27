@@ -43,6 +43,7 @@ import { formatRemaining, formatElapsed } from "./format-time.js";
 import { Tabs } from "./components/Tabs.js";
 import { PassphrasePanel } from "./components/PassphrasePanel.js";
 import { NotifyHint } from "./components/NotifyHint.js";
+import { roomChoiceHref } from "./room-heading.js";
 import { loadNotifyHintSeen, saveNotifyHintSeen } from "../prefs/local-prefs.js";
 
 interface SessionProps {
@@ -525,6 +526,7 @@ export function Session({
           isShared={room.code !== "SOLO"}
           onEnd={onEndBreak}
           onComplete={onComplete}
+          backHref={roomChoiceHref(room.code)}
           onStandDown={
             currentParticipant &&
             room.session.rotation.includes(currentParticipant.participantId) &&
