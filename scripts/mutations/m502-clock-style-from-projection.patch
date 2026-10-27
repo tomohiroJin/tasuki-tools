@@ -1,0 +1,23 @@
+# 変異 502: clock-style-from-projection
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/agenda-view.test.ts
+#
+# #455。書き方を予定の合計でなく延長込みの見込みで決め、179 分の会を延長すると途中で h:mm:ss へ切り替わる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m502-*.patch
+# 復元: git apply -R scripts/mutations/m502-*.patch
+diff --git a/apps/agenda-web/src/agenda-view.ts b/apps/agenda-web/src/agenda-view.ts
+index ea56423d..30e7c634 100644
+--- a/apps/agenda-web/src/agenda-view.ts
++++ b/apps/agenda-web/src/agenda-view.ts
+@@ -67,7 +67,7 @@ export function clockStyleForPlannedMs(plannedMs: number): ClockStyle {
+   return plannedMs >= LONG_MEETING_SEC * SEC ? 'h:mm:ss' : 'm:ss';
+ }
+ 
+-export const clockStyleOf = (v: AgendaView): ClockStyle => clockStyleForPlannedMs(plannedTotalMs(v));
++export const clockStyleOf = (v: AgendaView): ClockStyle => clockStyleForPlannedMs(projectedEndMs(v));
+ 
+ const pad2 = (n: number): string => String(n).padStart(2, '0');
+ 

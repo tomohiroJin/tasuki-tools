@@ -1,0 +1,23 @@
+# 変異 505: dial-time-without-hms-class
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/dial.test.tsx
+#
+# #455。長い会の数字に字の大きさのクラスを付けず、h:mm:ss の 7 字が m:ss の大きさのまま円からはみ出す。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m505-*.patch
+# 復元: git apply -R scripts/mutations/m505-*.patch
+diff --git a/apps/agenda-web/src/components/Dial.tsx b/apps/agenda-web/src/components/Dial.tsx
+index 16655246..1b31286d 100644
+--- a/apps/agenda-web/src/components/Dial.tsx
++++ b/apps/agenda-web/src/components/Dial.tsx
+@@ -275,7 +275,7 @@ function Readout({ view }: { view: AgendaView }) {
+             lines.name
+           )}
+         </div>
+-        <div className={clockStyleOf(view) === 'h:mm:ss' ? 'dial-time dial-time--hms' : 'dial-time'}>
++        <div className="dial-time">
+           <TimeDigits text={lines.primary} />
+         </div>
+         <div className={`dial-drift is-${driftTone(view)}`}>{lines.drift}</div>

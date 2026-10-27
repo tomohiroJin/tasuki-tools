@@ -1,0 +1,23 @@
+# 変異 504: summary-table-always-mss
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/summary-table.test.tsx
+#
+# #455。結果の一覧が会の書き方を見ず、長い会でも m:ss（180:00）で書く。文字盤の h:mm:ss と食い違う。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m504-*.patch
+# 復元: git apply -R scripts/mutations/m504-*.patch
+diff --git a/apps/agenda-web/src/components/SummaryTable.tsx b/apps/agenda-web/src/components/SummaryTable.tsx
+index 4ff4fafb..fd7cd980 100644
+--- a/apps/agenda-web/src/components/SummaryTable.tsx
++++ b/apps/agenda-web/src/components/SummaryTable.tsx
+@@ -29,7 +29,7 @@ const toneOf = (ms: number): string => {
+ };
+ 
+ export function SummaryTable({ view }: { view: AgendaView }) {
+-  const style = clockStyleOf(view);
++  const style = 'm:ss';
+   const summary = summaryOf(view);
+   const planned = summary.rows.reduce((sum, r) => sum + r.plannedMs, 0);
+   const extension = summary.rows.reduce((sum, r) => sum + r.extensionMs, 0);

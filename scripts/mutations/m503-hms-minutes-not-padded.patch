@@ -1,0 +1,23 @@
+# 変異 503: hms-minutes-not-padded
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/agenda-view.test.ts
+#
+# #455。h:mm:ss の分を 2 桁に詰めず、3 時間 5 分 9 秒が 3:5:09 と出る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m503-*.patch
+# 復元: git apply -R scripts/mutations/m503-*.patch
+diff --git a/apps/agenda-web/src/agenda-view.ts b/apps/agenda-web/src/agenda-view.ts
+index ea56423d..2a65dcec 100644
+--- a/apps/agenda-web/src/agenda-view.ts
++++ b/apps/agenda-web/src/agenda-view.ts
+@@ -74,7 +74,7 @@ const pad2 = (n: number): string => String(n).padStart(2, '0');
+ /** 秒を時計の書き方にする（`m:ss` の分は繰り上げない。`h:mm:ss` は 1 時間未満でも時を省かない） */
+ export function formatClock(totalSec: number, style: ClockStyle): string {
+   if (style === 'h:mm:ss') {
+-    return `${Math.floor(totalSec / 3600)}:${pad2(Math.floor(totalSec / 60) % 60)}:${pad2(totalSec % 60)}`;
++    return `${Math.floor(totalSec / 3600)}:${Math.floor(totalSec / 60) % 60}:${pad2(totalSec % 60)}`;
+   }
+   return `${Math.floor(totalSec / 60)}:${pad2(totalSec % 60)}`;
+ }
