@@ -200,7 +200,9 @@ describe('進行表の枠のスクロール', () => {
     expect(box).not.toBeNull();
     for (let i = 0; i < 24; i++) d.next((i + 1) * MIN);
     rerender(<StepList view={d.view(25 * MIN)} canOperate onSetSkipped={noop} />);
-    expect(box?.scrollTop).toBeGreaterThan(0);
+    // 25 番目の行は上から 24 × ROW_H ＝ 960、下端は 1000。枠の高さ BOX_H の分を引いた所まで送る
+    expect(box?.scrollTop).toBe(24 * ROW_H + ROW_H - BOX_H);
+    expect(box?.scrollTop).toBe(880);
     expect(scrollIntoView).not.toHaveBeenCalled();
     expect(scrollTo).not.toHaveBeenCalled();
   });

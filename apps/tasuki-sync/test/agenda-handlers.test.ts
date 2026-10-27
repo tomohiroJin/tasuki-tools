@@ -548,6 +548,7 @@ describe("シナリオの上限（境界のスキーマ）", () => {
     // Given
     const h = setup();
     await joined(h, "a-1", "Alice");
+    await joined(h, "a-2", "Bob");
     h.sent.length = 0;
 
     // When: 40 ステップ
@@ -563,6 +564,11 @@ describe("シナリオの上限（境界のスキーマ）", () => {
 
     // Then
     expect(errorsTo(h, "a-1")).toEqual(["INVALID_COMMAND"]);
+    // 誰にも配られず、ルームの状態は 40 ステップのまま
+    expect(h.sent.filter((s) => s.connId === "a-2")).toEqual([]);
+    h.sent.length = 0;
+    await h.handle("a-2", { command: "agenda.sync" });
+    expect(viewsTo(h, "a-2").at(-1)!.steps).toHaveLength(40);
   });
 });
 

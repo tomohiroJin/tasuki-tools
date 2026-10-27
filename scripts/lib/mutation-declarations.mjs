@@ -3335,7 +3335,7 @@ export const MUTATIONS = [
     patch: "m505-dial-time-without-hms-class.patch",
     pkg: "apps/agenda-web",
     tests: ["tests/dial.test.tsx"],
-    note: "#455。設計 §3.3。h:mm:ss の 7 字が m:ss の字の大きさのまま出て、文字盤の読む欄に収まらない。jsdom は大きさを測らないので、クラスの有無で見る。",
+    note: "#455。設計 §3.3。h:mm:ss の数字（最長 8 字）が m:ss の字の大きさのまま出て、文字盤の読む欄（盤の 56%）に収まらない。jsdom は大きさを測らないので、クラスの有無で見る。",
   },
   {
     id: 506,
@@ -3358,8 +3358,8 @@ export const MUTATIONS = [
     label: "ステップを足せる条件を 1 つずらし、41 行目を足せる",
     patch: "m508-add-step-allows-one-over.patch",
     pkg: "apps/agenda-web",
-    tests: ["tests/scenario-draft.test.ts"],
-    note: "#455。組み立て画面で定義の上限 40 を超えて足せ、送るとサーバーが拒む。",
+    tests: ["tests/scenario-draft.test.ts", "tests/scenario-builder.test.tsx"],
+    note: "#455。組む画面で定義の上限 40 を超えて足せ、送ると `checkDraft` がスキーマで止めて汎用の理由を出す。",
   },
   {
     id: 509,

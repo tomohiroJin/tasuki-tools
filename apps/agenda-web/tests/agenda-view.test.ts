@@ -286,6 +286,15 @@ describe('長い会の時計', () => {
     expect(centerLines(new Driver([120, 60]).next(120 * MIN).view(176 * MIN)).primary).toBe('0:04:00');
   });
 
+  it('長い会の残りは切り上げ（239.5 秒は 0:04:00）', () => {
+    // 2 ステップ目（60 分）を 120 分で始め、176 分 0.5 秒の時点＝残り 239.5 秒
+    expect(centerLines(new Driver([120, 60]).next(120 * MIN).view(176 * MIN + 500)).primary).toBe('0:04:00');
+  });
+
+  it('長い会のオーバーは切り捨て（30.9 秒は +0:00:30）', () => {
+    expect(centerLines(new Driver([120, 60]).view(120 * MIN + 30_900)).primary).toBe('+0:00:30');
+  });
+
   it('長い会のオーバーは +h:mm:ss', () => {
     expect(centerLines(new Driver([120, 60]).view(120 * MIN + 30_000)).primary).toBe('+0:00:30');
   });

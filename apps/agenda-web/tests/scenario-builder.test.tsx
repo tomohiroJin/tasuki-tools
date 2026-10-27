@@ -409,7 +409,7 @@ describe('組む画面', () => {
     expect(roundsField().value).toBe('5');
   });
 
-  it('Given 回数 6 で 10 ステップ / When 見る / Then 追加ボタンは無効で、60 の上限の注記が出る（20 の注記ではない）', () => {
+  it('Given 回数 6 で 10 ステップ / When 見る / Then 追加ボタンは無効で、60 の上限の注記が出る（定義の数の注記ではない）', () => {
     joinedRoom(idleAgenda('Retro', Array.from({ length: 10 }, (_, i) => [`s${i}`, 60] as const)));
     fireEvent.change(roundsField(), { target: { value: '6' } });
     expect(screen.getByRole('button', { name: ADD_STEP_BUTTON })).toBeDisabled();
