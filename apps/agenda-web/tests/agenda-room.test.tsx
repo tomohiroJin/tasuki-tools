@@ -507,19 +507,18 @@ describe('ルームの見出しは共通の部品が描く（#447 段 1）', () 
  */
 describe('開始を押した本人の画面だけ進める画面へ寄せる（#455）', () => {
   const idleWithScenario = { ...runningAgenda(0), phase: 'idle', currentId: null };
-  let scrollIntoView: ReturnType<typeof vi.fn>;
+  let scrollTo: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    scrollIntoView = vi.fn();
-    Element.prototype.scrollIntoView = scrollIntoView as unknown as typeof Element.prototype.scrollIntoView;
+    scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
   });
   afterEach(() => {
-    delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView;
+    scrollTo.mockRestore();
   });
 
   const runTitle = (): HTMLElement => document.querySelector<HTMLElement>('.run-title')!;
 
-  it('Given 組む画面で開始を押した / When 進行中のフレームを受けて描く / Then 会の名前の行へ focus が移り、一度で（auto）上端へ寄せる', () => {
+  it('Given 組む画面で開始を押した / When 進行中のフレームを受けて描く / Then 会の名前の行へ focus が移り、ページの先頭へ一度で（auto）戻す', () => {
     // Given
     joinedRoom(idleWithScenario);
     fireEvent.click(screen.getByRole('button', { name: START_BUTTON }));
@@ -528,9 +527,8 @@ describe('開始を押した本人の画面だけ進める画面へ寄せる（#
     deliverAgenda(runningAgenda(0));
     // Then
     expect(document.activeElement).toBe(runTitle());
-    expect(scrollIntoView).toHaveBeenCalledTimes(1);
-    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'start', behavior: 'auto' });
-    expect(scrollIntoView.mock.contexts[0]).toBe(runTitle());
+    expect(scrollTo).toHaveBeenCalledTimes(1);
+    expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'auto' });
   });
 
   it('Given 他の参加者が開始を押した（自分は押していない） / When 進行中に変わったフレームを受ける / Then 寄せず focus も動かさない', () => {
@@ -539,7 +537,7 @@ describe('開始を押した本人の画面だけ進める画面へ寄せる（#
     // When
     deliverAgenda(runningAgenda(0));
     // Then
-    expect(scrollIntoView).not.toHaveBeenCalled();
+    expect(scrollTo).not.toHaveBeenCalled();
     expect(document.activeElement).not.toBe(runTitle());
   });
 
@@ -551,7 +549,7 @@ describe('開始を押した本人の画面だけ進める画面へ寄せる（#
     // When
     deliverAgenda(runningAgenda(0));
     // Then
-    expect(scrollIntoView).not.toHaveBeenCalled();
+    expect(scrollTo).not.toHaveBeenCalled();
     expect(document.activeElement).not.toBe(runTitle());
   });
 });

@@ -52,13 +52,13 @@ export function RunScreen({ view, wallNow, reducedMotion, striking, canOperate, 
   const projectRef = useRef<HTMLButtonElement>(null);
   const titleRef = useRef<HTMLParagraphElement>(null);
 
-  // 組む画面は長い会で縦に長く、押した位置のまま来ると盤が画面の外に残る。押した本人だけ、この画面の上端（会の名前の行）へ寄せる。
-  // 見出しの要素は進行表の `h2` しか無く、そこへ寄せると盤が上に外れるため、盤の直前の行を使う
+  // 組む画面は長い会で縦に長く、押した位置のまま来ると盤が画面の外に残る。押した本人だけ、ページの先頭へ戻す（開き直したのと同じ位置）。
+  // 会の名前の行へ寄せると、狭い幅で下端に固定した操作の帯の下に「最初から」が隠れる（E2E の当たりの測りで実測）。
+  // 一度で戻す（`smooth` は動いている間に「次へ」・延長を押すと的が逃げる）。focus は盤の直前の会の名前の行へ移す（見出しの要素は進行表の `h2` しか無い）
   useEffect(() => {
     if (!consumeStartArrival()) return;
     titleRef.current?.focus({ preventScroll: true });
-    // 一度で寄せる（`smooth` は動いている間に「次へ」・延長を押すと的が逃げる。E2E の当たりの測りでも重なりと読まれた）
-    titleRef.current?.scrollIntoView({ block: 'start', behavior: 'auto' });
+    window.scrollTo({ top: 0, behavior: 'auto' });
     // 最初の描画の 1 度だけ
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
