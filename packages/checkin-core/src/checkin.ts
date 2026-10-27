@@ -1,0 +1,132 @@
+/**
+ * 会の始まりと終わりの札の状態の遷移（#406）。
+ *
+ * **表現は直接遷移関数＋`Result`**（agenda-core の `agenda.ts` と同じ）。乱数は引数で受ける（ドメインは環境を読まない）。
+ * **状態が変わらないときは同じ参照を返す**。同期サーバーは参照の比較で「配るか」を決める。
+ * **`seq` がいまの回と違う操作は、何もせず同じ参照を `ok` で返す**（回にまたがる取り違えの防止）。
+ */
+import { err, ok, type Result } from "neverthrow";
+import type { CheckinError } from "./errors.js";
+import { METHODS, methodsOf, type CardId, type MethodId, type Side, type Visibility } from "./methods.js";
+import type { CheckinState, Round } from "./types.js";
+
+const fail = <C extends CheckinError["code"]>(code: C): Result<never, CheckinError<C>> => err({ code });
+
+/** 新しい回を始める。公開の仕方は既定に戻り、札は空 */
+function startRound(s: CheckinState, method: MethodId): CheckinState {
+  const seq = s.lastSeq + 1;
+  const round: Round = {
+    seq,
+    method,
+    visibility: METHODS[method].defaultVisibility,
+    status: "open",
+    cards: new Map(),
+  };
+  return { ...s, round, lastSeq: seq };
+}
+
+/** やり方を選ぶ。いつでも受ける（前の回は捨てる） */
+export function chooseMethod(s: CheckinState, method: MethodId): CheckinState {
+  return startRound(s, method);
+}
+
+/** 片側からくじで選ぶ。いまのやり方は候補から除く（反対側のやり方なら 5 つ全部） */
+export function drawMethod(
+  s: CheckinState,
+  side: Side,
+  randomInt: (n: number) => number,
+): Result<CheckinState, CheckinError<"CHECKIN_INVALID_RANDOM">> {
+  const candidates = methodsOf(side).filter((m) => m !== s.round?.method);
+  const i = randomInt(candidates.length);
+  const picked = Number.isInteger(i) ? candidates[i] : undefined;
+  if (picked === undefined) return fail("CHECKIN_INVALID_RANDOM");
+  return ok(startRound(s, picked));
+}
+
+type NoRound = CheckinError<"CHECKIN_NO_ROUND">;
+
+export function playCard(
+  s: CheckinState,
+  input: { participantId: string; seq: number; card: CardId },
+): Result<
+  CheckinState,
+  CheckinError<"CHECKIN_NO_ROUND" | "CHECKIN_REVEALED" | "CHECKIN_SPECTATING" | "CHECKIN_CARD_UNKNOWN">
+> {
+  const r = s.round;
+  if (r === null) return fail("CHECKIN_NO_ROUND");
+  if (r.seq !== input.seq) return ok(s);
+  if (r.status === "revealed") return fail("CHECKIN_REVEALED");
+  if (s.spectators.has(input.participantId)) return fail("CHECKIN_SPECTATING");
+  if (!METHODS[r.method].cards.includes(input.card)) return fail("CHECKIN_CARD_UNKNOWN");
+  if (r.cards.get(input.participantId) === input.card) return ok(s);
+  const cards = new Map(r.cards);
+  cards.set(input.participantId, input.card);
+  return ok({ ...s, round: { ...r, cards } });
+}
+
+/** 公開の仕方を変える。その回に札が 1 枚でもあれば変えられない（開いた後も） */
+export function setVisibility(
+  s: CheckinState,
+  input: { seq: number; visibility: Visibility },
+): Result<CheckinState, CheckinError<"CHECKIN_NO_ROUND" | "CHECKIN_VISIBILITY_LOCKED">> {
+  const r = s.round;
+  if (r === null) return fail("CHECKIN_NO_ROUND");
+  if (r.seq !== input.seq) return ok(s);
+  if (r.cards.size > 0) return fail("CHECKIN_VISIBILITY_LOCKED");
+  if (r.visibility === input.visibility) return ok(s);
+  return ok({ ...s, round: { ...r, visibility: input.visibility } });
+}
+
+export function reveal(s: CheckinState, input: { seq: number }): Result<CheckinState, NoRound> {
+  const r = s.round;
+  if (r === null) return fail("CHECKIN_NO_ROUND");
+  if (r.seq !== input.seq || r.status === "revealed") return ok(s);
+  return ok({ ...s, round: { ...r, status: "revealed" } });
+}
+
+/** 同じやり方の新しい回（公開の仕方は既定に戻り、札は空） */
+export function playAgain(s: CheckinState, input: { seq: number }): Result<CheckinState, NoRound> {
+  const r = s.round;
+  if (r === null) return fail("CHECKIN_NO_ROUND");
+  if (r.seq !== input.seq) return ok(s);
+  return ok(startRound(s, r.method));
+}
+
+/**
+ * 見学へ移る／戻る。poker の `setSpectator` と同じ規則 ——
+ * 開く前に見学へ移ると出した札を捨てる。開いた後は見えている結果を動かさない。
+ */
+export function setSpectator(s: CheckinState, participantId: string, spectator: boolean): CheckinState {
+  if (s.spectators.has(participantId) === spectator) return s;
+  const spectators = new Set(s.spectators);
+  if (!spectator) {
+    spectators.delete(participantId);
+    return { ...s, spectators };
+  }
+  spectators.add(participantId);
+  const r = s.round;
+  if (r === null || r.status !== "open" || !r.cards.has(participantId)) return { ...s, spectators };
+  const cards = new Map(r.cards);
+  cards.delete(participantId);
+  return { ...s, spectators, round: { ...r, cards } };
+}
+
+/** 名簿に居ない人の札と見学を落とす。何も落ちなければ同じ参照。status は変えない（自動公開は別に判定する） */
+export function prune(s: CheckinState, knownIds: ReadonlySet<string>): CheckinState {
+  const r = s.round;
+  const staleCards = r === null ? [] : [...r.cards.keys()].filter((id) => !knownIds.has(id));
+  const staleSpectators = [...s.spectators].filter((id) => !knownIds.has(id));
+  if (staleCards.length === 0 && staleSpectators.length === 0) return s;
+  const spectators = new Set([...s.spectators].filter((id) => knownIds.has(id)));
+  if (r === null || staleCards.length === 0) return { ...s, spectators };
+  const cards = new Map([...r.cards].filter(([id]) => knownIds.has(id)));
+  return { ...s, spectators, round: { ...r, cards } };
+}
+
+/** open で、札を出す人が 1 人以上かつ全員が札を持つときだけ開く（0 人では開かない） */
+export function applyAutoReveal(s: CheckinState, players: readonly string[]): CheckinState {
+  const r = s.round;
+  if (r === null || r.status !== "open") return s;
+  if (players.length === 0 || !players.every((id) => r.cards.has(id))) return s;
+  return { ...s, round: { ...r, status: "revealed" } };
+}

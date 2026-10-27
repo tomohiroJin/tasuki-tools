@@ -101,6 +101,7 @@ export const ALLOWED = {
   "packages/roulette-core": [],
   // 進行タイマーの文脈（#429）。**@tasuki/* に依存しない**（他の文脈にも依存しない）。
   "packages/agenda-core": [],
+  "packages/checkin-core": [],
   // 同期クライアントの接続部分（#95 S5a・D18）。**@tasuki/* に依存しない** ——
   // ツールの語彙を持たないことが、4 つの web アプリから使える条件である。
   "packages/sync-client": [],

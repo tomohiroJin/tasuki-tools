@@ -65,6 +65,7 @@ export const SCANNED_PACKAGES = [
   "packages/poker-core",
   // 進行タイマーの文脈（#429）。
   "packages/agenda-core",
+  "packages/checkin-core",
   "packages/protocol",
   "packages/rate-limit",
   "packages/room-core",

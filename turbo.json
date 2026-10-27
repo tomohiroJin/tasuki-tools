@@ -35,6 +35,10 @@
       "dependsOn": ["^build"],
       "outputs": ["coverage/**"]
     },
+    "@tasuki/checkin-core#test": {
+      "dependsOn": ["^build"],
+      "outputs": ["coverage/**"]
+    },
     "lint": {
       "outputs": []
     },
