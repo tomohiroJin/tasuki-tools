@@ -92,10 +92,10 @@ export function toView(s: CheckinState, viewerId: string, seats: readonly SeatIn
   }
 
   const piles: PileView[] = METHODS[r.method].cards.map((card) => {
-    const count = [...r.cards.values()].filter((c) => c === card).length;
-    if (r.visibility === "anonymous") return { card, count };
-    const names = seatViews.filter((x) => r.cards.get(x.id) === card).map((x) => x.name);
-    return { card, count, names };
+    // count と names は同じ基準（seats 入力に居る人の札だけ）で数える
+    const holders = seatViews.filter((x) => r.cards.get(x.id) === card);
+    if (r.visibility === "anonymous") return { card, count: holders.length };
+    return { card, count: holders.length, names: holders.map((x) => x.name) };
   });
   return { ...base, round: { ...head, status: "revealed", piles } };
 }

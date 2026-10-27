@@ -53,16 +53,17 @@ describe("toView: 開く前", () => {
     let s = chooseMethod(empty, "weather");
     s = play(s, a, "sunny");
     s = play(s, b, "rain");
+    s = play(s, c, "thunder");
     const v = toView(s, a, seats);
     const r = openRound(v);
     expect(r.yourCard).toBe("sunny");
-    expect(r.playedCount).toBe(2);
+    expect(r.playedCount).toBe(3);
     expect(r.playerCount).toBe(3);
     expect(r.locked).toBe(true);
     expect(r.seats).toEqual([
       { id: a, name: "アキラ", played: true },
       { id: b, name: "ベス", played: true },
-      { id: c, name: "チカ", played: false },
+      { id: c, name: "チカ", played: true },
     ]);
     const text = JSON.stringify(v);
     for (const other of ["rain", "thunder"]) expect(text).not.toContain(other);
@@ -125,12 +126,33 @@ describe("toView: 名前つきで開いた後", () => {
     ]);
   });
 
-  it("seats に無い人の札は names に載らないが count には数える", () => {
+  it("seats に無い人の札は count にも names にも入らない（基準は seats 入力）", () => {
     let s = chooseMethod(empty, "weather");
     s = play(s, "ghost", "sunny");
+    s = play(s, a, "sunny");
     const r = revealedRound(toView(doReveal(s), a, seats));
-    expect(r.piles[0]).toEqual({ card: "sunny", count: 1, names: [] });
+    expect(r.piles[0]).toEqual({ card: "sunny", count: 1, names: ["アキラ"] });
     expect(r.seats.map((x) => x.id)).toEqual([a, b, c]);
+  });
+
+  it("開いた後の seats は seats 入力の並びのまま・played は札の有無だけ（札の順に並べ替えない）", () => {
+    // 札の順（sunny < rain < thunder）と席の順（a, b, c）が食い違う: a=thunder b=sunny c=rain
+    let s = chooseMethod(empty, "weather");
+    s = play(s, a, "thunder");
+    s = play(s, b, "sunny");
+    s = play(s, c, "rain");
+    for (const visibility of ["named", "anonymous"] as const) {
+      const t = visibility === "named" ? s : { ...s, round: { ...s.round!, visibility } };
+      const r = revealedRound(toView(doReveal(t), a, seats));
+      expect(r.seats).toEqual([
+        { id: a, name: "アキラ", played: true },
+        { id: b, name: "ベス", played: true },
+        { id: c, name: "チカ", played: true },
+      ]);
+    }
+    // 出していない人は played: false のまま
+    const half = doReveal(play(chooseMethod(empty, "weather"), b, "rain"));
+    expect(revealedRound(toView(half, a, seats)).seats.map((x) => x.played)).toEqual([false, true, false]);
   });
 });
 

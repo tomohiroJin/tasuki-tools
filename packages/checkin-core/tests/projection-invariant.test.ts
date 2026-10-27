@@ -6,11 +6,11 @@ import {
   chooseMethod,
   playAgain,
   playCard,
+  playersOf,
   reveal,
   setSpectator,
   setVisibility,
   toView,
-  playersOf,
   type CheckinState,
   type SeatInput,
 } from "../src/index.js";
@@ -25,119 +25,133 @@ const lcg = (seed: number) => {
   };
 };
 
-// 札の ID と衝突しない、長めの ID と名前（部分一致の偽陽性を避ける）
-const seats: SeatInput[] = ["p-alpha", "p-bravo", "p-charlie", "p-delta"].map((id) => ({
-  id,
-  name: `name-${id}`,
-  present: true,
-}));
-const ids = seats.map((s) => s.id);
+// ID と名前は札の ID と部分一致しない形にする。echo は在席でない席、ghost は seats に居ない人
+const seats: SeatInput[] = [
+  { id: "p-alpha", name: "name-alpha", present: true },
+  { id: "p-bravo", name: "name-bravo", present: true },
+  { id: "p-echo", name: "name-echo", present: false },
+  { id: "p-charlie", name: "name-charlie", present: true },
+  { id: "p-delta", name: "name-delta", present: true },
+];
+const actors = [...seats.map((s) => s.id), "p-ghost"];
+const viewers = [...actors, "p-outsider"];
 
-/** 札の文字列は JSON の値として完全一致で探す（"1" が "p-1" に当たらないように） */
-const hasCardValue = (node: unknown, card: string): boolean => JSON.stringify(node).includes(JSON.stringify(card));
-const mentions = (node: unknown, seat: SeatInput): boolean => {
-  const text = JSON.stringify(node);
-  return text.includes(seat.id) || text.includes(seat.name);
+/** JSON の値として完全一致で探す（"1" が "p-1" に当たらないように） */
+const hasValue = (node: unknown, v: string): boolean => JSON.stringify(node).includes(JSON.stringify(v));
+const mentions = (node: unknown, seat: SeatInput): boolean => hasValue(node, seat.id) || hasValue(node, seat.name);
+
+/** 投影の中の「要素」（席の要素・山の要素）。結びつきは同じ要素に同居したときに成立する */
+const elementsOf = (round: NonNullable<ReturnType<typeof toView>["round"]>): unknown[] =>
+  round.status === "revealed" ? [...round.seats, ...round.piles] : [...round.seats, { yourCard: round.yourCard }];
+
+const step = (s: CheckinState, rnd: (n: number) => number): CheckinState => {
+  const seq = s.round?.seq ?? 0;
+  const who = actors[rnd(actors.length)]!;
+  const pick = rnd(100);
+  const ok = (r: { isOk(): boolean; _unsafeUnwrap(): CheckinState }): CheckinState => (r.isOk() ? r._unsafeUnwrap() : s);
+  // 回の始めに 50% で匿名へ（札が付く前なので変えられる）
+  const startedAnon = (n: CheckinState): CheckinState =>
+    rnd(2) === 0 ? ok(setVisibility(n, { seq: n.round?.seq ?? 0, visibility: "anonymous" })) : n;
+  if (pick < 4) return startedAnon(chooseMethod(s, METHOD_IDS[rnd(METHOD_IDS.length)]!));
+  if (pick < 62) {
+    if (s.round === null) return startedAnon(chooseMethod(s, METHOD_IDS[rnd(METHOD_IDS.length)]!));
+    const cards = METHODS[s.round.method].cards;
+    return ok(playCard(s, { participantId: who, seq, card: cards[rnd(cards.length)]! }));
+  }
+  if (pick < 72) return setSpectator(s, who, rnd(3) === 0);
+  if (pick < 78) return ok(setVisibility(s, { seq, visibility: rnd(2) === 0 ? "named" : "anonymous" }));
+  if (pick < 86) return ok(reveal(s, { seq }));
+  if (pick < 90) return startedAnon(ok(playAgain(s, { seq })));
+  return applyAutoReveal(s, playersOf(s, seats));
 };
 
-/** 投影の中の「要素」（席の要素・山の要素）を、それぞれ 1 つのまとまりとして列挙する */
-const elements = (view: ReturnType<typeof toView>): unknown[] => {
-  const r = view.round;
-  if (r === null) return [];
-  const out: unknown[] = [...r.seats];
-  if (r.status === "revealed") out.push(...r.piles);
-  else out.push({ yourCard: r.yourCard });
-  return out;
+/** 数万回呼ぶので、一致している間は expect を通さない（不一致のときだけ expect で詳細を出す） */
+const is = (actual: unknown, expected: unknown, msg: string): void => {
+  if (!Object.is(actual, expected)) expect(actual, msg).toBe(expected);
+};
+const same = (actual: unknown, expected: unknown, msg: string): void => {
+  if (JSON.stringify(actual) !== JSON.stringify(expected)) expect(actual, msg).toEqual(expected);
+};
+
+const reach = { anonRevealedMulti: 0, namedRevealedMulti: 0, openMulti: 0, checks: 0 };
+
+/** 1 つの状態をすべての受け手について検査する。オラクルは投影を使わず状態から作る */
+const checkState = (s: CheckinState, label: string): void => {
+  const round = s.round;
+  if (round === null) return;
+  const cardsInSeats = [...round.cards].filter(([id]) => seats.some((x) => x.id === id));
+  // 期待する席: 札を出す人 ∪ 札を持つ人、seats 入力の並び・played は札の有無だけ
+  const expectedSeats = seats
+    .filter((x) => (x.present && !s.spectators.has(x.id)) || round.cards.has(x.id))
+    .map((x) => ({ id: x.id, name: x.name, played: round.cards.has(x.id) }));
+
+  for (const viewer of viewers) {
+    const view = toView(s, viewer, seats);
+    const r = view.round;
+    if (r === null) throw new Error(`${label}: round が無い`);
+    reach.checks++;
+    same(r.seats, expectedSeats, `${label} seats`);
+    for (const sv of r.seats) same(Object.keys(sv).sort(), ["id", "name", "played"], `${label} seat keys`);
+
+    const others = cardsInSeats.filter(([id]) => id !== viewer);
+    if (others.length >= 2) {
+      if (round.status === "open") reach.openMulti++;
+      else if (round.visibility === "anonymous") reach.anonRevealedMulti++;
+      else reach.namedRevealedMulti++;
+    }
+
+    for (const [holder, card] of others) {
+      const seat = seats.find((x) => x.id === holder)!;
+      if (round.status === "open") {
+        // 自分の札と同じ値でない限り、他人の札の値は投影のどこにも現れない
+        if (round.cards.get(viewer) !== card) is(hasValue(view, card), false, `${label} open ${holder}:${card}`);
+        continue;
+      }
+      if (r.status !== "revealed") throw new Error("unreachable");
+      is("yourCard" in r, false, `${label} yourCard`);
+      if (round.visibility === "named") {
+        // 結びつきが許されるのは names だけ。名前は自分の札の山にだけ入る
+        for (const pile of r.piles) {
+          is((pile.names ?? []).includes(seat.name), pile.card === card, `${label} named ${holder}`);
+        }
+        is(JSON.stringify(r.piles).includes(JSON.stringify(holder)), false, `${label} id in piles`);
+        continue;
+      }
+      // 匿名: どの要素にも (ID または名前) と 札 が同居せず、山は names の鍵を持たない
+      for (const el of elementsOf(r)) {
+        is(mentions(el, seat) && hasValue(el, card), false, `${label} anon ${holder}:${card}`);
+      }
+      for (const pile of r.piles) is("names" in pile, false, `${label} names key`);
+      is(mentions(r.piles, seat), false, `${label} piles identity`);
+    }
+
+    // 山の count は seats 入力に居る人の札だけを数え、並びはやり方の札の順
+    if (r.status === "revealed") {
+      same(r.piles.map((p) => p.card), METHODS[round.method].cards, `${label} order`);
+      for (const pile of r.piles) {
+        is(pile.count, cardsInSeats.filter(([, c]) => c === pile.card).length, `${label} count ${pile.card}`);
+      }
+    }
+  }
 };
 
 describe("性質: 受け手 X の投影に他人の (ID, 札) の結びつきが現れない", () => {
-  it("500 通りの操作列", () => {
+  it("500 通りの操作列の各手順の後で検査する", () => {
     for (let seed = 1; seed <= 500; seed++) {
       const rnd = lcg(seed);
       let s: CheckinState = empty;
-      const steps = 3 + rnd(25);
+      const steps = 10 + rnd(30);
       for (let i = 0; i < steps; i++) {
-        const who = ids[rnd(ids.length)]!;
-        const seq = s.round === null ? 0 : s.round.seq;
-        switch (rnd(7)) {
-          case 0:
-            s = chooseMethod(s, METHOD_IDS[rnd(METHOD_IDS.length)]!);
-            break;
-          case 1:
-          case 2: {
-            if (s.round === null) break;
-            const cards = METHODS[s.round.method].cards;
-            const r = playCard(s, { participantId: who, seq, card: cards[rnd(cards.length)]! });
-            if (r.isOk()) s = r.value;
-            break;
-          }
-          case 3:
-            s = setSpectator(s, who, rnd(2) === 0);
-            break;
-          case 4: {
-            const r = setVisibility(s, { seq, visibility: rnd(2) === 0 ? "named" : "anonymous" });
-            if (r.isOk()) s = r.value;
-            break;
-          }
-          case 5: {
-            const r = reveal(s, { seq });
-            if (r.isOk()) s = r.value;
-            break;
-          }
-          default: {
-            if (rnd(2) === 0) {
-              const r = playAgain(s, { seq });
-              if (r.isOk()) s = r.value;
-            } else s = applyAutoReveal(s, playersOf(s, seats));
-          }
-        }
-      }
-
-      const round = s.round;
-      for (const viewer of [...ids, "outsider"]) {
-        const view = toView(s, viewer, seats);
-        if (round === null) continue;
-        const namedRevealed = round.status === "revealed" && round.visibility === "named";
-        // オラクル: 状態だけから「現れてはいけない (ID, 札)」を作る（投影は使わない）
-        for (const [holder, card] of round.cards) {
-          if (holder === viewer) continue;
-          const seat = seats.find((x) => x.id === holder);
-          if (seat === undefined) continue;
-          // 開く前: 他人の札の値は、それが誰の札でもどこにも現れない（自分の札と同じ値でない限り）
-          if (round.status === "open") {
-            const ownCard = round.cards.get(viewer);
-            if (ownCard !== card) {
-              // 札の値そのものが他人にしか無い → どこにも出てはならない（キー名との偶然一致を除くため値の形で探す）
-              expect(hasCardValue(view.round, card), `seed ${seed} open leak ${holder}:${card}`).toBe(false);
-            }
-            continue;
-          }
-          // 開いた後: 結びつき（同じ要素に ID/名前 と 札 が同居）が許されるのは名前つきの names だけ
-          if (namedRevealed) {
-            const r = view.round;
-            if (r === null || r.status !== "revealed") throw new Error("unreachable");
-            // 名前つきでも、holder の名前は holder の札の山にだけ入る
-            for (const pile of r.piles) {
-              const inNames = (pile.names ?? []).includes(seat.name);
-              expect(inNames, `seed ${seed} named ${holder}`).toBe(pile.card === card);
-            }
-            // ID は決して載らない
-            expect(JSON.stringify(r.piles)).not.toContain(JSON.stringify(holder));
-            continue;
-          }
-          // 匿名で開いた後: 山の要素は ID・名前を持たない。席の要素は札を持たない
-          for (const el of elements(view)) {
-            expect(mentions(el, seat) && hasCardValue(el, card), `seed ${seed} anon ${holder}:${card}`).toBe(false);
-          }
-          expect(JSON.stringify((view.round as { piles: unknown }).piles), `seed ${seed}`).not.toContain(seat.name);
-          expect(JSON.stringify((view.round as { piles: unknown }).piles)).not.toContain(JSON.stringify(seat.id));
-          expect("yourCard" in (view.round as object), `seed ${seed} yourCard`).toBe(false);
-        }
-        // 全状態で: 席の要素は札の値を持たない（played だけ）
-        for (const seatView of view.round?.seats ?? []) {
-          expect(Object.keys(seatView).sort()).toEqual(["id", "name", "played"]);
-        }
+        s = step(s, rnd);
+        checkState(s, `seed ${seed} step ${i}`);
       }
     }
+  });
+
+  it("値が分かれる局面に十分届いている（到達の下限）", () => {
+    // 上のテストと同じ生成で、局面ごとの検査回数が下限を超えていること
+    expect(reach.anonRevealedMulti).toBeGreaterThanOrEqual(100);
+    expect(reach.namedRevealedMulti).toBeGreaterThanOrEqual(100);
+    expect(reach.openMulti).toBeGreaterThanOrEqual(100);
   });
 });
