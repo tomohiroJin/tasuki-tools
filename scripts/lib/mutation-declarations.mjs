@@ -3361,4 +3361,12 @@ export const MUTATIONS = [
     tests: ["tests/scenario-draft.test.ts"],
     note: "#455。組み立て画面で定義の上限 40 を超えて足せ、送るとサーバーが拒む。",
   },
+  {
+    id: 509,
+    label: "開始を押した本人かを見ず、進行中に変わった全員の画面を寄せる",
+    patch: "m509-start-arrival-for-everyone.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/agenda-room.test.tsx"],
+    note: "#455。他の参加者が開始した画面（位相が進行中に変わっただけ）まで進める画面の上端へ寄せ、読んでいる途中の画面が勝手に動く。",
+  },
 ];

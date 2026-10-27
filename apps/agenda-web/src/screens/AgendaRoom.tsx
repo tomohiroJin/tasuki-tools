@@ -7,7 +7,7 @@
  * ここで名前は聞かない（名乗りは玄関に 1 つだけ・`docs/adr/0018`）。端末に同一性が無い・合言葉を求められたら
  * 玄関のそのルームへ送り返す（コードは落とさない）。
  */
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AgendaView } from '@tasuki/agenda-core';
 import { ROOM_HEADER_TEXT, RoomHeader } from '@tasuki/invite-ui';
 import { summaryText } from '../agenda-view';
@@ -118,10 +118,26 @@ function PhaseView({
   const wallNow = useWallClock();
   const { soundState, soundOn, toggleSound } = useSoundSetting();
   const { striking, announcement, announce } = useRunSignals(live, { frame: view, joined: sync.joined, soundOn, reducedMotion });
+  // 「開始」を押した本人の印。進める画面の最初の描画で消費する（他の参加者の画面は位相が変わっても寄せない・#455）
+  const startedHereRef = useRef(false);
+  const syncStart = sync.start;
+  const start = useCallback(() => {
+    startedHereRef.current = true;
+    syncStart();
+  }, [syncStart]);
+  const consumeStartArrival = useCallback(() => {
+    const mine = startedHereRef.current;
+    startedHereRef.current = false;
+    return mine;
+  }, []);
+  // 送信が失敗したら印を消す（後で他の人が開始した画面を動かさない）
+  useEffect(() => {
+    if (sync.error !== null) startedHereRef.current = false;
+  }, [sync.error]);
   return (
     <>
       {view.phase === 'idle' ? (
-        <ScenarioBuilder view={view} canOperate={sync.joined} onLoad={sync.setScenario} onStart={sync.start} />
+        <ScenarioBuilder view={view} canOperate={sync.joined} onLoad={sync.setScenario} onStart={start} />
       ) : (
         <RunScreen
           view={live}
@@ -133,6 +149,7 @@ function PhaseView({
           onSpeakSummary={() => announce(summaryText(live))}
           projecting={projecting}
           onProjectingChange={onProjectingChange}
+          consumeStartArrival={consumeStartArrival}
           soundToggle={<SoundToggle state={soundState} onToggle={toggleSound} />}
         />
       )}

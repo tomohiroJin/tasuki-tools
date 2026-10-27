@@ -1,0 +1,23 @@
+# 変異 509: start-arrival-for-everyone
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/agenda-room.test.tsx
+#
+# #455。「開始」を押した本人かを見ず、進行中に変わった全員の画面を進める画面の上端へ寄せる（他の参加者の画面が勝手に動く）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m509-*.patch
+# 復元: git apply -R scripts/mutations/m509-*.patch
+diff --git a/apps/agenda-web/src/screens/AgendaRoom.tsx b/apps/agenda-web/src/screens/AgendaRoom.tsx
+index 5c884d78..74bf1f0e 100644
+--- a/apps/agenda-web/src/screens/AgendaRoom.tsx
++++ b/apps/agenda-web/src/screens/AgendaRoom.tsx
+@@ -128,7 +128,7 @@ function PhaseView({
+   const consumeStartArrival = useCallback(() => {
+     const mine = startedHereRef.current;
+     startedHereRef.current = false;
+-    return mine;
++    return mine || true;
+   }, []);
+   // 送信が失敗したら印を消す（後で他の人が開始した画面を動かさない）
+   useEffect(() => {

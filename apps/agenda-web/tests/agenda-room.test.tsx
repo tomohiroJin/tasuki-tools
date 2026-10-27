@@ -24,6 +24,7 @@ import {
   SOUND_OFF,
   SOUND_ON,
   SPEAK_SUMMARY_BUTTON,
+  START_BUTTON,
   STEP_LIST_HEADING,
   TIMEOUT_ANNOUNCE,
   extendButton,
@@ -494,5 +495,78 @@ describe('ルームの見出しは共通の部品が描く（#447 段 1）', () 
     expect(header).not.toBeNull();
     expect(within(header!).getByRole('button', { name: ROOM_HEADER_TEXT.inviteToggle })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: ROOM_HEADER_TEXT.inviteToggle })).toHaveLength(1);
+  });
+});
+
+/**
+ * 「開始」を押した本人の画面だけ、進める画面へ寄せる（#455）。長い会は組む画面が縦に長く、
+ * 押した位置のまま進める画面に入ると盤が画面の外に残るため。他の参加者の画面は動かさない。
+ * 寄せ先は進める画面の上端（会の名前の行）。見出し要素はステップ表の `h2` しか無く、そこへ寄せると盤が上に外れる。
+ *
+ * @requirements #455
+ */
+describe('開始を押した本人の画面だけ進める画面へ寄せる（#455）', () => {
+  const idleWithScenario = { ...runningAgenda(0), phase: 'idle', currentId: null };
+  let scrollIntoView: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView as unknown as typeof Element.prototype.scrollIntoView;
+  });
+  afterEach(() => {
+    delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView;
+  });
+
+  const runTitle = (): HTMLElement => document.querySelector<HTMLElement>('.run-title')!;
+
+  it('Given 組む画面で開始を押した / When 進行中のフレームを受けて描く / Then 会の名前の行へ focus が移り、smooth で上端へ寄せる', () => {
+    // Given
+    joinedRoom(idleWithScenario);
+    fireEvent.click(screen.getByRole('button', { name: START_BUTTON }));
+    expect(sentCommands('agenda.start')).toHaveLength(1);
+    // When
+    deliverAgenda(runningAgenda(0));
+    // Then
+    expect(document.activeElement).toBe(runTitle());
+    expect(scrollIntoView).toHaveBeenCalledTimes(1);
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'start', behavior: 'smooth' });
+    expect(scrollIntoView.mock.contexts[0]).toBe(runTitle());
+  });
+
+  it('Given 他の参加者が開始を押した（自分は押していない） / When 進行中に変わったフレームを受ける / Then 寄せず focus も動かさない', () => {
+    // Given
+    joinedRoom(idleWithScenario);
+    // When
+    deliverAgenda(runningAgenda(0));
+    // Then
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    expect(document.activeElement).not.toBe(runTitle());
+  });
+
+  it('Given 開始を押したが失敗が返った / When 後で他の参加者が開始して進行中に変わる / Then 寄せない', () => {
+    // Given
+    joinedRoom(idleWithScenario);
+    fireEvent.click(screen.getByRole('button', { name: START_BUTTON }));
+    act(() => latestSocket().deliver({ type: 'error', code: 'INVALID_COMMAND', message: 'x' }));
+    // When
+    deliverAgenda(runningAgenda(0));
+    // Then
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    expect(document.activeElement).not.toBe(runTitle());
+  });
+
+  it('Given 動きを減らす設定で開始を押した / When 進行中に変わる / Then behavior は auto', () => {
+    // Given
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query.includes('reduce'),
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }));
+    joinedRoom(idleWithScenario);
+    fireEvent.click(screen.getByRole('button', { name: START_BUTTON }));
+    // When
+    deliverAgenda(runningAgenda(0));
+    // Then
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'start', behavior: 'auto' });
   });
 });

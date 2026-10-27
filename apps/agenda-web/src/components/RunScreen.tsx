@@ -40,11 +40,27 @@ interface Props {
   /** 映す表示か（ルームの画面が持つ。映している間は見出しなど裏の部品も描かないため） */
   projecting: boolean;
   onProjectingChange: (projecting: boolean) => void;
+  /**
+   * 「開始」を押した本人がここへ来たのか（来たなら印を消して true）。最初の描画で 1 度だけ聞く。
+   * 位相が変わっただけの他の参加者の画面は動かさない（#455）
+   */
+  consumeStartArrival: () => boolean;
 }
 
-export function RunScreen({ view, wallNow, reducedMotion, striking, canOperate, actions, soundToggle, onSpeakSummary, projecting, onProjectingChange: setProjecting }: Props) {
+export function RunScreen({ view, wallNow, reducedMotion, striking, canOperate, actions, soundToggle, onSpeakSummary, projecting, onProjectingChange: setProjecting, consumeStartArrival }: Props) {
   const [returnFocus, setReturnFocus] = useState(false);
   const projectRef = useRef<HTMLButtonElement>(null);
+  const titleRef = useRef<HTMLParagraphElement>(null);
+
+  // 組む画面は長い会で縦に長く、押した位置のまま来ると盤が画面の外に残る。押した本人だけ、この画面の上端（会の名前の行）へ寄せる。
+  // 見出しの要素は進行表の `h2` しか無く、そこへ寄せると盤が上に外れるため、盤の直前の行を使う
+  useEffect(() => {
+    if (!consumeStartArrival()) return;
+    titleRef.current?.focus({ preventScroll: true });
+    titleRef.current?.scrollIntoView({ block: 'start', behavior: reducedMotion ? 'auto' : 'smooth' });
+    // 最初の描画の 1 度だけ（動きの設定が後で変わっても寄せ直さない）
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const summaryHeadingId = useId();
 
   useEffect(() => {
@@ -78,7 +94,7 @@ export function RunScreen({ view, wallNow, reducedMotion, striking, canOperate, 
   return (
     <div className={finished ? 'run run--finished' : 'run'}>
       <div className="run-bar">
-        <p className="run-title">{view.title}</p>
+        <p ref={titleRef} tabIndex={-1} className="run-title">{view.title}</p>
         <div className="run-bar-actions">
           <button type="button" className="ui-button ui-button--quiet ui-button--sm ui-visually-hidden run-speak" onClick={onSpeakSummary}>
             {SPEAK_SUMMARY_BUTTON}
