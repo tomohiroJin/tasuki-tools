@@ -21,3 +21,13 @@ export {
 
 export { playersOf, toView } from "./projection.js";
 export type { SeatInput, SeatView, PileView, RoundView, CheckinView } from "./projection.js";
+
+export {
+  CheckinCommandSchema,
+  CheckinFrameSchema,
+  CheckinErrorFrameSchema,
+  CHECKIN_ERROR_CODES,
+} from "./schemas.js";
+export type { CheckinCommand, CheckinErrorCode } from "./schemas.js";
+
+export { checkinErrorMessageFor } from "./error-messages.js";
