@@ -50,6 +50,11 @@
 .seg-button[aria-pressed='true'] {
   background: var(--gold-tint);
   box-shadow: inset 0 0 0 1px var(--gold-deep); /* 色だけに頼らない: 金の薄い敷きと内側の線（builder・poker と同じ） */
+  color: var(--gold-bright);
+}
+
+/* お題の板の中は地が少し明るく（象牙の薄い敷き）、金の字が AA に届かない（4.14:1）。押された側は象牙の字にする（金の敷きと内側の線は残る） */
+.prompt-panel .seg-button[aria-pressed='true'] {
   color: var(--ivory);
 }
 
@@ -71,7 +76,7 @@
 
 .method-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr));
   gap: var(--space-3);
   margin: 0;
   padding: 0;
@@ -79,29 +84,93 @@
 }
 
 .method-option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
   inline-size: 100%;
   min-block-size: var(--tap-target);
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-4);
   border: 1px solid var(--gold-edge);
   border-radius: var(--radius-lg);
-  background: var(--felt-sink);
+  background: linear-gradient(180deg, var(--ivory-inset), var(--felt-sink));
   color: var(--ivory);
   font-family: inherit;
-  font-size: var(--font-size-base);
-  font-weight: 700;
   text-align: start;
   cursor: pointer;
-  transition: background 0.18s ease, transform 0.18s ease;
+  transition: background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
 }
 
 .method-option:hover {
   background: var(--gold-tint);
+  box-shadow: var(--shadow-lift-far);
   transform: translateY(-2px);
 }
 
 .method-option--random {
   border-style: dashed;
+}
+
+/* 札の見本: そのやり方の札を少し重ねた小さな扇 */
+.method-fan {
+  display: flex;
+  flex: none;
+  padding-inline-end: var(--space-3);
+}
+
+.method-fan-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  inline-size: 2.6rem;
+  block-size: 3.6rem;
+  margin-inline-end: -1.2rem;
+  border: 1px solid var(--gold-deep);
+  border-radius: 6px;
+  background: linear-gradient(165deg, var(--card-sheen) 0%, var(--ivory) 60%, var(--card-shade) 100%);
+  box-shadow: var(--shadow-chip);
+  transform: rotate(calc((var(--k) - 1) * 9deg));
+  transform-origin: 50% 110%;
+}
+
+.method-fan-card .card-art {
+  inline-size: 1.7rem;
+  block-size: 1.7rem;
+}
+
+.method-fan-card .card-numeral {
+  font-size: 1.6rem; /* scale-exempt: 札の見本の小さな数字（絵の代わり） */
+}
+
+/* 伏せ札の見本: 席の伏せ札と同じ裏模様 */
+.method-fan-card--back {
+  border-color: var(--gold-deep);
+  background:
+    repeating-linear-gradient(45deg, var(--gold-edge) 0 2px, transparent 2px 5px),
+    repeating-linear-gradient(-45deg, var(--gold-glow) 0 2px, transparent 2px 5px),
+    var(--card-back);
+}
+
+.method-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-inline-size: 0;
+}
+
+.method-title {
+  font-size: var(--font-size-base);
+  font-weight: 700;
+}
+
+.method-option--random .method-title {
   color: var(--gold-bright);
+}
+
+.method-prompt {
+  color: var(--ivory-dim);
+  font-size: var(--font-size-xs);
+  font-weight: 400;
+  line-height: 1.5;
 }
 
 /* ---------- お題の板 ---------- */
@@ -190,7 +259,7 @@
 .seat-list {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: var(--space-4);
   margin: 0;
   padding: 0;
@@ -202,7 +271,9 @@
   flex-direction: column;
   align-items: center;
   gap: var(--space-2);
-  min-inline-size: 5rem;
+  inline-size: 6.5rem;
+  min-inline-size: 0;
+  text-align: center;
   color: var(--ivory-dim);
   font-size: var(--font-size-sm);
 }
@@ -216,6 +287,17 @@
   block-size: 4.4rem;
   border: 1.5px dashed var(--line-strong);
   border-radius: 7px;
+}
+
+/* 名前は 2 行まで折り返し、超えたら省略（全名は title）。席の幅は一定で、長い名前でも列が伸びない */
+.seat-name {
+  display: -webkit-box;
+  max-inline-size: 100%;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 /* 伏せた札: poker の席の札と同じ裏模様 */

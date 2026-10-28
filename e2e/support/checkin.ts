@@ -11,10 +11,10 @@ function toolCard(page: Page, name: string): Locator {
   return page.getByRole('list', { name: 'ツール' }).getByRole('link', { name: new RegExp(name) });
 }
 
-/** Check-in Cards の画面が開いていること（公開パスと見出し）。 */
+/** Check-in Cards の画面が開いていること（公開パスと見出し。画面の見出しは日本語で、玄関の札の名前は Check-in Cards）。 */
 async function expectCheckinOpen(page: Page): Promise<void> {
   await expect.poll(() => new URL(page.url()).pathname, { message: 'Check-in Cards の公開パス' }).toBe('/checkin/');
-  await expect(page.getByRole('heading', { level: 1, name: 'Check-in Cards', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'チェックイン・チェックアウト', exact: true })).toBeVisible();
 }
 
 /** 玄関でルームを作って Check-in Cards を開き、**招待パネルが出している参加用 URL** を返す。 */

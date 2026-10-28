@@ -13,7 +13,8 @@ interface Props {
   visibility: Visibility;
   locked: boolean;
   onSetVisibility: (visibility: Visibility) => void;
-  onChangeMethod: () => void;
+  /** 開いた後は下の帯に同じ操作があるので渡さない（2 つ出さない） */
+  onChangeMethod?: (() => void) | undefined;
 }
 
 export function PromptPanel({ method, visibility, locked, onSetVisibility, onChangeMethod }: Props) {
@@ -40,9 +41,11 @@ export function PromptPanel({ method, visibility, locked, onSetVisibility, onCha
             </button>
           ))}
         </div>
-        <button type="button" className="ui-button ui-button--quiet ui-button--sm" onClick={onChangeMethod}>
-          {CHANGE_METHOD}
-        </button>
+        {onChangeMethod !== undefined && (
+          <button type="button" className="ui-button ui-button--quiet ui-button--sm" onClick={onChangeMethod}>
+            {CHANGE_METHOD}
+          </button>
+        )}
       </div>
       <h2 className="prompt-question">{copy.prompt}</h2>
       <ul className="prompt-legend">

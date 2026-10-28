@@ -12,7 +12,7 @@ export const GONE_HEADING = 'ルームが見つかりません';
 export const GONE_TEXT = 'ルームは終了したか、リンクが正しくない可能性があります。';
 export const GONE_LINK = 'トップへ戻る';
 
-export const PAGE_HEADING = 'Check-in Cards';
+export const PAGE_HEADING = 'チェックイン・チェックアウト';
 
 /** 操作の失敗の一言を閉じる */
 export const CLOSE_BUTTON = '閉じる';
@@ -39,6 +39,8 @@ export const CARD_MARK = '始終';
 export const SIDE_LABEL = { checkin: 'チェックイン', checkout: 'チェックアウト' } as const;
 export const METHOD_PICKER_HEADING = 'やり方を選んでください';
 export const RANDOM_LABEL = 'ランダム';
+/** ランダムの箱に添える一言（伏せ札の見本の下） */
+export const RANDOM_HINT = '引いて決める';
 export const BACK_LABEL = '戻る';
 export const CHANGE_METHOD = '別のやり方';
 export const VISIBILITY_GROUP_LABEL = '公開の仕方';
@@ -50,7 +52,7 @@ export const SEAT_WAITING_SR = 'まだです';
 export const HAND_GROUP_LABEL = 'あなたの札';
 export const SPECTATING_TEXT = '見学中です。札は出しません。';
 export const SPECTATE = '見学する';
-export const STOP_SPECTATING = '見学をやめる';
+export const STOP_SPECTATING = '投票に加わる';
 export const REVEAL_NOW = '待たずに開く';
 export const PLAY_AGAIN = 'もう一回';
 export function playedCountText(played: number, total: number): string {

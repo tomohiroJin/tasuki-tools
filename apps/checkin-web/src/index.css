@@ -69,3 +69,9 @@
   line-height: 1;
   color: var(--coal);
 }
+
+/* 見出しは poker と同じ斜体・同じ大きさ（日本語の見出しを斜体で組む） */
+.checkin-room header h1 {
+  font-style: italic;
+  font-size: var(--font-size-xl);
+}

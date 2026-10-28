@@ -114,9 +114,9 @@ async function expectScreen(page: Page, label: string, minButtons: number, optio
 }
 
 /*
- * **ルームは画面の種類ごとに 1 つ（玄関・poker・帯 / お題ツール / timer の 3 つ）しか作らない。** 同期サーバーのルームの枠（既定 100・アイドル 30 分で解放）を E2E 全件が使い切りに近い。
+ * **ルームは画面の種類ごとに 1 つ（玄関・poker・帯 / お題ツール / timer / Check-in Cards の 4 つ）しか作らない。** 同期サーバーのルームの枠（既定 100・アイドル 30 分で解放）を E2E 全件が使い切りに近い。
  * 画面ごとにルームを作ると、全件を流したときに末尾のテストが「操作を完了できませんでした」で落ちる（実測: 6 ルーム足して 2 件落ちた）。
- * そのため、玄関・poker・帯は 1 つのルームで、お題ツールは別の 1 つで、timer も 1 つ（ロビー → セッション → 確認 → まとめの順）で、
+ * そのため、玄関・poker・帯は 1 つのルームで、お題ツールは別の 1 つで、timer も 1 つ（ロビー → セッション → 確認 → まとめの順）で、Check-in Cards も 1 つ（選ぶ → 出す途中 → 開いた後の順。2 人目は別の文脈）で、
  * 幅を変えながら続けて測る。timer は layout.spec.ts にも 1 室ある（#316 PR 3 で 6 室から 2 室に減らした。main は 1 室）。
  */
 
@@ -642,7 +642,7 @@ const CHECKIN_OPEN_TARGETS = 5;
 /** Check-in Cards の開いた後の画面（別のやり方・もう一回・戻るリンクなど） */
 const CHECKIN_REVEALED_TARGETS = 3;
 
-test.describe('チェックインのカードのボタンは部品で、押せる大きさがあり、帯が留まる', () => {
+test.describe('チェックインのカードのボタンは部品で、押せる大きさがある', () => {
   test('Given 2 人が Check-in Cards を開く / When 選ぶ・出す途中・開いた後 / Then 素のボタンは許した札と切り替えだけで、当たりが 44px 以上で重ならず、止まった画面の字が読めてフォーカスが見える', async ({ page, openPeer }) => {
     await page.setViewportSize({ width: 390, height: 800 });
     const inviteUrl = await openCheckinTool(page, 'buttons-c-a');
@@ -652,6 +652,10 @@ test.describe('チェックインのカードのボタンは部品で、押せ�
     // 選ぶ（やり方が決まる前）
     await expect(page.getByRole('button', { name: 'ランダム', exact: true })).toBeVisible();
     await expectScreen(page, 'Check-in Cards（選ぶ）', CHECKIN_PICK_TARGETS);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    expectReadable(await scanContrast(page, 10), 5, []);
+    await expectFocusVisibleOnTab(page);
+    await page.setViewportSize({ width: 390, height: 800 });
 
     // 出す途中（A が出して B はまだ。手札・公開の仕方・待たずに開くが並ぶ）
     await chooseMethod(page, 'チェックイン', '今日の天気');

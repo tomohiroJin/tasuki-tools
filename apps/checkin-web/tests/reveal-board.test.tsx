@@ -154,6 +154,17 @@ describe('卓に組んだ開いた後', () => {
     expect(four.querySelector('.pile-name')?.textContent).toBe('4');
     expect(four.querySelector('.pile-meaning')?.textContent).toBe('得るものが多かった');
     expect(screen.getByText('いちばん多いのは 4')).toBeInTheDocument();
+    // 札の顔に数字が出ているので、山の下の名前（数字）は読み上げだけに隠す。0 枚の山は数字と意味を 1 行に出す
+    expect(four.querySelector('.pile-name')?.classList.contains('ui-visually-hidden')).toBe(true);
+    const empty = document.querySelectorAll('.pile')[0]!;
+    expect(empty.querySelector('.pile-name')?.classList.contains('ui-visually-hidden')).toBe(false);
+    expect(empty.querySelector('.pile-label')?.textContent).toBe('1 時間のむだ');
+  });
+
+  it('Given 長い名前の山 / Then 小札に title で全名が付く', () => {
+    const long = 'Product Owner の佐藤さん（一時参加・見学）';
+    render(<RevealBoard method="weather" piles={[{ card: 'sunny', count: 1, names: [long] }]} />);
+    expect(document.querySelector('.pile-chip')).toHaveAttribute('title', long);
   });
 
   it('Given 通常のやり方 / Then 意味の行は出さない', () => {

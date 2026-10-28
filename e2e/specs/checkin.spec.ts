@@ -100,6 +100,9 @@ test.describe('@core 札を伏せて出し、全員の画面で一斉に開く',
     expect(before.length, '出した後に B が受けた checkin フレーム').toBeGreaterThan(0);
     for (const view of before) {
       const round = view['round'] as Record<string, unknown>;
+      expect(Object.keys(round).sort(), '開く前の回の鍵（余分な鍵が増えたら落ちる）').toEqual(
+        ['playedCount', 'playerCount', 'seats', 'seq', 'status', 'visibility', 'locked', 'method', 'yourCard'].sort(),
+      );
       expect(round['status'], '開く前').toBe('open');
       expect(round['yourCard'], 'B はまだ出していない').toBeNull();
       expect('piles' in round, '開く前に山は無い').toBe(false);
@@ -107,6 +110,14 @@ test.describe('@core 札を伏せて出し、全員の画面で一斉に開く',
         expect(Object.keys(seat).sort(), '席は札を持たない').toEqual(['id', 'name', 'played']);
       }
     }
+    // A が出したことは席の played に載っている（札の中身ではなく出したかどうかだけ）
+    expect(
+      before.some((v) => {
+        const seats = (v['round'] as { seats: Array<{ id: string; played: boolean }> }).seats;
+        return seats.find((s) => s.id === idA)?.played === true;
+      }),
+      'A が出したことがフレームの席に入っている',
+    ).toBe(true);
     const markReveal = framesB.payloads.length;
 
     // A が「待たずに開く」→ 両方開く（E4）
@@ -122,7 +133,13 @@ test.describe('@core 札を伏せて出し、全員の画面で一斉に開く',
     expect(after.length, '開いた後に B が受けた checkin フレーム').toBeGreaterThan(0);
     for (const view of after) {
       const round = view['round'] as Record<string, unknown>;
+      expect(Object.keys(round).sort(), '開いた後の回の鍵（yourCard・names 等の余分な鍵が無い）').toEqual(
+        ['locked', 'method', 'piles', 'seats', 'seq', 'status', 'visibility'].sort(),
+      );
       expect('yourCard' in round, '匿名で開いた後は yourCard の鍵が無い').toBe(false);
+      for (const seat of round['seats'] as Array<Record<string, unknown>>) {
+        expect(Object.keys(seat).sort(), '開いた後の席も札を持たない').toEqual(['id', 'name', 'played']);
+      }
       const piles = round['piles'] as Array<Record<string, unknown>>;
       expect(piles.reduce((n, p) => n + (p['count'] as number), 0), '山の枚数の合計').toBe(1);
       for (const p of piles) {

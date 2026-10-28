@@ -31,12 +31,12 @@ describe('手札', () => {
     expect(onPlay).toHaveBeenCalledExactlyOnceWith('cloudy');
   });
 
-  it('Given 見学中 / When 描く / Then 札のボタンは 0 個で、見学中と見学をやめるが出る（E9）', () => {
+  it('Given 見学中 / When 描く / Then 札のボタンは 0 個で、見学中と投票に加わるが出る（E9）', () => {
     const onSetSpectator = vi.fn();
     render(<Hand method="weather" selected={null} spectating onPlay={noop} onSetSpectator={onSetSpectator} />);
     expect(screen.queryAllByRole('button', { name: /晴れ|くもり|雨|雷/ })).toHaveLength(0);
     expect(screen.getByText(/見学中/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: '見学をやめる' }));
+    fireEvent.click(screen.getByRole('button', { name: '投票に加わる' }));
     expect(onSetSpectator).toHaveBeenCalledExactlyOnceWith(false);
   });
 

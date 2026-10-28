@@ -72,7 +72,7 @@ export function CheckinRoom({ roomCode }: { roomCode: string }) {
   const showPicker = view !== null && (round === null || picking);
 
   return (
-    <main className="ui-page ui-page--wide">
+    <main className="ui-page ui-page--wide checkin-room">
       <RoomHeader title={PAGE_HEADING} backHref={hubPathFor(roomCode)} roomCode={roomCode} inviteUrl={sync.inviteUrl} />
 
       {sync.error && (
@@ -112,7 +112,7 @@ export function CheckinRoom({ roomCode }: { roomCode: string }) {
             visibility={round.visibility}
             locked={round.locked}
             onSetVisibility={(v) => sync.setVisibility(round.seq, v)}
-            onChangeMethod={() => setPicking(true)}
+            onChangeMethod={round.status === 'open' ? () => setPicking(true) : undefined}
           />
           {round.status === 'open' && (
             <>

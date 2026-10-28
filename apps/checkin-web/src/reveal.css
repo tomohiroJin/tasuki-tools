@@ -18,7 +18,7 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-4);
-  align-items: end;
+  align-items: stretch;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -35,7 +35,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: flex-start;
   gap: var(--space-1);
   min-inline-size: 0;
   padding: var(--space-4) var(--space-3) var(--space-3);
@@ -61,13 +61,14 @@
   position: relative;
   inline-size: var(--pile-card-w);
   block-size: calc(var(--pile-card-h) + (var(--stack-max) - 1) * var(--pile-step));
+  margin-inline: auto;
   margin-block-end: var(--space-3);
 }
 
 .pile-card {
   position: absolute;
   inset-inline-start: 0;
-  inset-block-end: calc(var(--i) * var(--pile-step));
+  inset-block-start: calc((var(--n) - 1 - var(--i)) * var(--pile-step)); /* 一番上の札が箱の上端、下の札が下へのぞく */
   inline-size: var(--pile-card-w);
   block-size: var(--pile-card-h);
   perspective: 600px;
@@ -132,7 +133,7 @@
 .pile-ghost {
   position: absolute;
   inset-inline-start: 0;
-  inset-block-end: 0;
+  inset-block-start: 0;
   inline-size: var(--pile-card-w);
   block-size: var(--pile-card-h);
   border: 1.5px dashed var(--line-strong);
@@ -157,6 +158,10 @@
   font-size: var(--font-size-sm);
 }
 
+.pile-label {
+  margin: 0;
+}
+
 .pile-meaning {
   margin: 0;
   color: var(--ivory-dim);
@@ -164,6 +169,7 @@
 }
 
 .pile-names {
+  max-inline-size: 100%;
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
@@ -174,6 +180,10 @@
 }
 
 .pile-chip {
+  max-inline-size: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   padding: 2px var(--space-2);
   border-radius: var(--radius-full);
   background: var(--ivory-inset);

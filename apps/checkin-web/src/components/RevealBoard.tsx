@@ -59,7 +59,7 @@ export function RevealBoard({ method, piles }: Props) {
           const cls = `pile${top.has(pile.card) ? ' pile--top' : ''}${pile.count === 0 ? ' pile--empty' : ''}`;
           return (
             <li key={pile.card} className={cls}>
-              <div className="pile-stack">
+              <div className="pile-stack" style={{ '--n': pile.count } as CSSProperties}>
                 {pile.count === 0 ? (
                   <span className="pile-ghost" aria-hidden="true" />
                 ) : (
@@ -92,12 +92,21 @@ export function RevealBoard({ method, piles }: Props) {
                 {pile.count}
                 <span className="ui-visually-hidden">{PILE_UNIT_SR}</span>
               </p>
-              <p className="pile-name">{cardCopy?.name ?? pile.card}</p>
-              {NUMERIC_METHODS.has(method) && <p className="pile-meaning">{cardCopy?.meaning}</p>}
+              {NUMERIC_METHODS.has(method) ? (
+                // 数のやり方: 札の顔に数字が出ているので、山の下は意味だけ（札の名前は読み上げ用に隠して残す）。
+                // 0 枚の山は枠に数字が無いので、数字と意味を 1 行に並べる
+                <p className="pile-label">
+                  <span className={pile.count === 0 ? 'pile-name' : 'pile-name ui-visually-hidden'}>{cardCopy?.name ?? pile.card}</span>
+                  {pile.count === 0 && ' '}
+                  <span className="pile-meaning">{cardCopy?.meaning}</span>
+                </p>
+              ) : (
+                <p className="pile-name">{cardCopy?.name ?? pile.card}</p>
+              )}
               {pile.names !== undefined && pile.names.length > 0 && (
                 <ul className="pile-names">
                   {pile.names.map((name, i) => (
-                    <li key={`${name}-${i}`} className="pile-chip">
+                    <li key={`${name}-${i}`} className="pile-chip" title={name}>
                       {name}
                     </li>
                   ))}

@@ -20,7 +20,7 @@ export function SeatRow({ seats, selfId, playedCount, playerCount, spectatorCoun
         {seats.map((seat) => (
           <li key={seat.id} className={`seat${seat.id === selfId ? ' seat--me' : ''}`}>
             <span className={`seat-slot${seat.played ? ' seat-slot--down' : ''}`} aria-hidden="true" />
-            <span className="seat-name">
+            <span className="seat-name" title={seat.name}>
               {seat.name}
               {seat.id === selfId && YOU_MARK}
             </span>

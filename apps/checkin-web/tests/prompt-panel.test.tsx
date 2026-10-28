@@ -55,4 +55,9 @@ describe('お題の板', () => {
     fireEvent.click(screen.getByRole('button', { name: '別のやり方' }));
     expect(p.onChangeMethod).toHaveBeenCalledTimes(1);
   });
+
+  it('Given onChangeMethod を渡さない（開いた後） / When 描く / Then 別のやり方は出ない（下の帯と 2 つ出さない）', () => {
+    panel({ onChangeMethod: undefined });
+    expect(screen.queryByRole('button', { name: '別のやり方' })).toBeNull();
+  });
 });

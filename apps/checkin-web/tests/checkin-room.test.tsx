@@ -68,7 +68,7 @@ describe('開いている回', () => {
   it('Given 見学中 / When 描く / Then 手札のボタンは 0 個（E9・m513）', () => {
     enter({ ...openCheckin(null), spectating: true });
     expect(screen.queryAllByRole('button', { name: /晴れ|くもり|雨|雷/ })).toHaveLength(0);
-    expect(screen.getByRole('button', { name: '見学をやめる' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '投票に加わる' })).toBeInTheDocument();
   });
 
   it('Given 見学中 / When 待たずに開くを押す / Then 送れる（参加者は対等）', () => {
@@ -82,6 +82,12 @@ describe('開いている回', () => {
     enter({ ...s, round: { ...s.round, locked: true } });
     expect(screen.getByRole('button', { name: '匿名' })).toBeDisabled();
     expect(screen.getByRole('button', { name: '名前つき' })).toBeDisabled();
+  });
+
+  it('Given 開いた回 / When 描く / Then 別のやり方は下の帯の 1 つだけ', () => {
+    const s = openCheckin('sunny');
+    enter({ ...s, round: { ...s.round, status: 'revealed', seq: 3, piles: [] } });
+    expect(screen.getAllByRole('button', { name: '別のやり方' })).toHaveLength(1);
   });
 
   it('Given 別のやり方を押す / Then 何も送らず、やり方の選択が出る', () => {
