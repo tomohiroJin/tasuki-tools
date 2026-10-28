@@ -1,0 +1,23 @@
+# 変異 507: roster-change-skips-auto-reveal
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/checkin-handlers.test.ts
+#
+# #406 段 2。名簿の変化で自動公開を測り直さない。最後のまだの人がタブを閉じても、残った全員が出していながら開かない（Review Focus 3）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m507-*.patch
+# 復元: git apply -R scripts/mutations/m507-*.patch
+diff --git a/apps/tasuki-sync/src/application/checkin-handlers.ts b/apps/tasuki-sync/src/application/checkin-handlers.ts
+index 59d07747..61c5f5b6 100644
+--- a/apps/tasuki-sync/src/application/checkin-handlers.ts
++++ b/apps/tasuki-sync/src/application/checkin-handlers.ts
+@@ -171,7 +171,7 @@ export function makeCheckinHandlers(deps: CheckinHandlerDeps): CheckinHandlers {
+       const room = deps.store.get(roomCode);
+       const state = checkins.get(roomCode);
+       if (room === undefined || state === undefined) return;
+-      const next = settle(room, state);
++      const next = prune(state, idsOf(room));
+       if (next !== state) checkins.put(roomCode, next);
+       // 席は名簿から導くので、状態が同じでも画面は変わる
+       broadcaster.publish(roomCode);

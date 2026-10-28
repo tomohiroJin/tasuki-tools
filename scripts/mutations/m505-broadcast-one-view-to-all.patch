@@ -1,0 +1,23 @@
+# 変異 505: broadcast-one-view-to-all
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/checkin-handlers.test.ts
+#
+# #406 段 2。配信が受け手ごとの投影でなく、全員へ同じ投影（名簿の先頭の人に向けたもの）を送る。開く前に先頭の人の札が全員へ届き、匿名で開いた後も先頭の人の札の山が全員へ分かる（設計 §6・E5）。匿名をサーバーで守る変異。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m505-*.patch
+# 復元: git apply -R scripts/mutations/m505-*.patch
+diff --git a/apps/tasuki-sync/src/application/checkin-broadcast.ts b/apps/tasuki-sync/src/application/checkin-broadcast.ts
+index ada252d1..76366e7d 100644
+--- a/apps/tasuki-sync/src/application/checkin-broadcast.ts
++++ b/apps/tasuki-sync/src/application/checkin-broadcast.ts
+@@ -40,7 +40,7 @@ export function makeCheckinBroadcaster(deps: CheckinBroadcasterDeps): CheckinBro
+       for (const p of room.participants) {
+         for (const [connId, tool] of p.connections) {
+           if (tool !== TOOL_CHECKIN) continue;
+-          deps.send(connId, { type: "checkin", state: toView(state, p.id, seats) });
++          deps.send(connId, { type: "checkin", state: toView(state, room.participants[0]!.id, seats) });
+         }
+       }
+     },

@@ -1,0 +1,24 @@
+# 変異 509: hub-message-reaches-checkin
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/ws-adapter-tool-query.test.ts
+#   - apps/tasuki-sync/test/live-ws.checkin.test.ts
+#
+# #406 段 2。?tool=checkin の接続の受け口がハブの層へ渡す。チェックインの接続の札の操作がハブの層で拒まれ、参加もハブとしての扱いになる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m509-*.patch
+# 復元: git apply -R scripts/mutations/m509-*.patch
+diff --git a/apps/tasuki-sync/src/adapters/ws-adapter.ts b/apps/tasuki-sync/src/adapters/ws-adapter.ts
+index a5d6971e..552b9d32 100644
+--- a/apps/tasuki-sync/src/adapters/ws-adapter.ts
++++ b/apps/tasuki-sync/src/adapters/ws-adapter.ts
+@@ -221,7 +221,7 @@ function buildChannels(options: WsAdapterOptions): Readonly<Record<AcceptedProto
+     topic: rawTextChannel<TopicOwnFrame>("topic", options.topic, frames),
+     roulette: rawTextChannel<RouletteOwnFrame>("roulette", options.roulette, frames),
+     agenda: rawTextChannel<AgendaOwnFrame>("agenda", options.agenda, frames),
+-    checkin: rawTextChannel<CheckinOwnFrame>("checkin", options.checkin, frames),
++    checkin: rawTextChannel<CheckinOwnFrame>("checkin", options.hub as never, frames),
+     poker: createPokerChannel(options.poker, maxMessageBytes, logger),
+   };
+ }
