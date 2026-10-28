@@ -26,18 +26,29 @@ function startRound(s: CheckinState, method: MethodId): CheckinState {
   return { ...s, round, lastSeq: seq };
 }
 
-/** やり方を選ぶ。いつでも受ける（前の回は捨てる） */
-export function chooseMethod(s: CheckinState, method: MethodId): CheckinState {
-  return startRound(s, method);
+/**
+ * 置き換える回が、いまの回か（回が無いときは 0）。
+ * やり方を選ぶ・引く操作は前の回を捨てるので、**見ていた回と違えば何もしない**
+ * （ほぼ同時の 2 回の選択や、開いたままの選択画面からの押下が、札の入った新しい回を黙って捨てないように）
+ */
+function replacesCurrent(s: CheckinState, seq: number): boolean {
+  return (s.round?.seq ?? 0) === seq;
 }
 
-/** 片側からくじで選ぶ。いまのやり方は候補から除く（反対側のやり方なら 5 つ全部） */
+/** やり方を選ぶ。見ていた回（`seq`）を置き換える（前の回は捨てる）。違う回を見ていたら同じ参照 */
+export function chooseMethod(s: CheckinState, input: { seq: number; method: MethodId }): CheckinState {
+  if (!replacesCurrent(s, input.seq)) return s;
+  return startRound(s, input.method);
+}
+
+/** 片側からくじで選ぶ。いまのやり方は候補から除く（反対側のやり方なら 5 つ全部）。違う回を見ていたら引かずに同じ参照 */
 export function drawMethod(
   s: CheckinState,
-  side: Side,
+  input: { seq: number; side: Side },
   randomInt: (n: number) => number,
 ): Result<CheckinState, CheckinError<"CHECKIN_INVALID_RANDOM">> {
-  const candidates = methodsOf(side).filter((m) => m !== s.round?.method);
+  if (!replacesCurrent(s, input.seq)) return ok(s);
+  const candidates = methodsOf(input.side).filter((m) => m !== s.round?.method);
   const i = randomInt(candidates.length);
   const picked = Number.isInteger(i) ? candidates[i] : undefined;
   if (picked === undefined) return fail("CHECKIN_INVALID_RANDOM");
@@ -65,7 +76,11 @@ export function playCard(
   return ok({ ...s, round: { ...r, cards } });
 }
 
-/** 公開の仕方を変える。その回に札が 1 枚でもあれば変えられない（開いた後も） */
+/**
+ * 公開の仕方を変える。その回に札が 1 枚でもある・開いた後なら変えられない（札が 0 枚で開いた後も）。
+ * **変えたら回の seq を進める**（札は 0 枚なので失うものは無い）。前の公開の仕方を見て押した札
+ * （古い seq）は `playCard` が無視するので、匿名のつもりで出した札が名前つきの回に入らない
+ */
 export function setVisibility(
   s: CheckinState,
   input: { seq: number; visibility: Visibility },
@@ -73,9 +88,15 @@ export function setVisibility(
   const r = s.round;
   if (r === null) return fail("CHECKIN_NO_ROUND");
   if (r.seq !== input.seq) return ok(s);
-  if (r.cards.size > 0) return fail("CHECKIN_VISIBILITY_LOCKED");
+  if (isVisibilityLocked(r)) return fail("CHECKIN_VISIBILITY_LOCKED");
   if (r.visibility === input.visibility) return ok(s);
-  return ok({ ...s, round: { ...r, visibility: input.visibility } });
+  const seq = s.lastSeq + 1;
+  return ok({ ...s, round: { ...r, seq, visibility: input.visibility }, lastSeq: seq });
+}
+
+/** 公開の仕方を変えられないか（札が 1 枚以上、または開いた後）。投影の `locked` も同じ条件 */
+export function isVisibilityLocked(r: Round): boolean {
+  return r.cards.size > 0 || r.status === "revealed";
 }
 
 export function reveal(s: CheckinState, input: { seq: number }): Result<CheckinState, NoRound> {

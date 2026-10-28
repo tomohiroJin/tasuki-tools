@@ -114,10 +114,10 @@ export function makeCheckinHandlers(deps: CheckinHandlerDeps): CheckinHandlers {
     let result: Result<CheckinState, { code: CheckinDomainErrorCode }>;
     switch (cmd.command) {
       case "checkin.method.choose":
-        result = ok(chooseMethod(state, cmd.method));
+        result = ok(chooseMethod(state, { seq: cmd.seq, method: cmd.method }));
         break;
       case "checkin.method.draw":
-        result = drawMethod(state, cmd.side, deps.random.randomInt);
+        result = drawMethod(state, { seq: cmd.seq, side: cmd.side }, deps.random.randomInt);
         break;
       case "checkin.card.play":
         result = playCard(state, { participantId: me.id, seq: cmd.seq, card: cmd.card });

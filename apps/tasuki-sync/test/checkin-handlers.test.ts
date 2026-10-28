@@ -122,9 +122,9 @@ async function twoPlayers(): Promise<Harness> {
   return h;
 }
 
-/** やり方を選んで新しい回を始める（準備用） */
+/** やり方を選んで新しい回を始める（準備用）。いまの回（無ければ 0）を置き換える */
 const choose = (h: Harness, connId: string, method: string): Promise<void> =>
-  h.handle(connId, { command: "checkin.method.choose", method });
+  h.handle(connId, { command: "checkin.method.choose", seq: h.checkins.get(ROOM)?.round?.seq ?? 0, method });
 
 const seqOf = (v: CheckinView): number => v.round!.seq;
 
@@ -351,11 +351,57 @@ describe("匿名と公開の仕方の鍵", () => {
   });
 });
 
+describe("公開の仕方を変えた直後の札・置き換える回の取り違え", () => {
+  it("匿名の回で B の「名前つき」が先に届くと、匿名の画面で押した A の札（古い seq）は入らず、A に今の状態が届く〈m521〉", async () => {
+    const h = await twoPlayers();
+    await choose(h, "a", "energy");
+    expect(lastView(h, "a").round).toMatchObject({ seq: 1, visibility: "anonymous" });
+    h.sent.length = 0;
+
+    await h.handle("b", { command: "checkin.visibility.set", seq: 1, visibility: "named" });
+    await h.handle("a", { command: "checkin.card.play", seq: 1, card: "3" });
+
+    expect(h.checkins.get(ROOM)!.round!.cards.size).toBe(0);
+    expect(errorsTo(h, "a")).toEqual([]);
+    const now = lastView(h, "a").round!;
+    expect(now).toMatchObject({ seq: 2, visibility: "named", status: "open", yourCard: null });
+  });
+
+  it("札が 0 枚で開いた後の checkin.visibility.set も CHECKIN_VISIBILITY_LOCKED", async () => {
+    const h = await twoPlayers();
+    await choose(h, "a", "weather");
+    await h.handle("a", { command: "checkin.reveal", seq: 1 });
+    h.sent.length = 0;
+
+    await h.handle("a", { command: "checkin.visibility.set", seq: 1, visibility: "anonymous" });
+
+    expect(errorsTo(h, "a")).toEqual(["CHECKIN_VISIBILITY_LOCKED"]);
+    expect(h.checkins.get(ROOM)!.round!.visibility).toBe("named");
+  });
+
+  it("ほぼ同時の 2 回目の選択（古い回を置き換えるつもり）は、札の入った新しい回を捨てず、送り主に今の状態だけを返す〈m522〉", async () => {
+    const h = await twoPlayers();
+    await choose(h, "a", "weather");
+    await h.handle("a", { command: "checkin.method.choose", seq: 1, method: "energy" });
+    await h.handle("a", { command: "checkin.card.play", seq: 2, card: "4" });
+    const before = h.checkins.get(ROOM);
+    h.sent.length = 0;
+
+    await h.handle("b", { command: "checkin.method.choose", seq: 1, method: "roti" });
+    await h.handle("b", { command: "checkin.method.draw", seq: 1, side: "checkout" });
+
+    expect(h.checkins.get(ROOM)).toBe(before);
+    expect(errorsTo(h, "b")).toEqual([]);
+    expect(h.sent.map((s) => s.connId)).toEqual(["b", "b"]);
+    expect(lastView(h, "b").round).toMatchObject({ seq: 2, method: "energy" });
+  });
+});
+
 describe("くじ", () => {
   it("乱数 0 のくじは候補の先頭を選ぶ", async () => {
     const h = await twoPlayers();
 
-    await h.handle("a", { command: "checkin.method.draw", side: "checkin" });
+    await h.handle("a", { command: "checkin.method.draw", seq: 0, side: "checkin" });
 
     expect(lastView(h, "b").round).toMatchObject({ method: "weather", seq: 1 });
   });
@@ -365,7 +411,7 @@ describe("くじ", () => {
     await joined(h, "a", "Alice");
     const before = h.checkins.get(ROOM);
 
-    await h.handle("a", { command: "checkin.method.draw", side: "checkin" });
+    await h.handle("a", { command: "checkin.method.draw", seq: 0, side: "checkin" });
 
     expect(errorsTo(h, "a")).toEqual(["INTERNAL_ERROR"]);
     expect(h.sent).toHaveLength(1);

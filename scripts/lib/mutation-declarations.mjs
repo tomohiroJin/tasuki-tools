@@ -3458,6 +3458,26 @@ export const MUTATIONS = [
       "同期サーバーの試験（checkin-handlers.test.ts の〈m520〉）も赤になるが、宣言はパッケージ 1 つに絞る。帯の予備を統括の判断で使った。",
   },
   {
+    id: 521,
+    label: "公開の仕方を変えても回の番号を進めない",
+    patch: "m521-visibility-change-keeps-seq.patch",
+    pkg: "packages/checkin-core",
+    tests: ["tests/checkin.test.ts"],
+    note:
+      "#406 PR の自動レビューの修正。匿名の画面で押した札が、先に届いた「名前つき」の後の回に受理され、名前が付いて開かれる（判断 5・設計 §6）。" +
+      "同期サーバーの試験（checkin-handlers.test.ts の〈m521〉）も赤になるが、宣言はパッケージ 1 つに絞る。帯を 521 まで広げた（統括の判断）。",
+  },
+  {
+    id: 522,
+    label: "やり方を選ぶ・引く操作で置き換える回の番号を見ない",
+    patch: "m522-method-ignores-replaced-seq.patch",
+    pkg: "packages/checkin-core",
+    tests: ["tests/checkin.test.ts"],
+    note:
+      "#406 PR の自動レビューの修正。ほぼ同時の「ランダム」2 回や開いたままの選択画面からの押下が、札の入った新しい回を黙って捨てる。" +
+      "同期サーバーの試験（checkin-handlers.test.ts の〈m522〉）も赤になるが、宣言はパッケージ 1 つに絞る。統括の判断で帯の外に 1 本足した。",
+  },
+  {
     id: 513,
     label: "見学中も手札を出す",
     patch: "m513-spectator-sees-hand.patch",

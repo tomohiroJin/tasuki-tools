@@ -12,9 +12,10 @@ const ok = (schema: Parameters<typeof v.safeParse>[0], x: unknown) => v.safePars
 
 describe("CheckinCommandSchema", () => {
   it.each([
-    ["やり方を選ぶ", { command: "checkin.method.choose", method: "weather" }],
-    ["山から引く（始め）", { command: "checkin.method.draw", side: "checkin" }],
-    ["山から引く（終わり）", { command: "checkin.method.draw", side: "checkout" }],
+    ["やり方を選ぶ（回が無い: seq 0）", { command: "checkin.method.choose", seq: 0, method: "weather" }],
+    ["やり方を選ぶ（回 2 を置き換える）", { command: "checkin.method.choose", seq: 2, method: "weather" }],
+    ["山から引く（始め）", { command: "checkin.method.draw", seq: 0, side: "checkin" }],
+    ["山から引く（終わり）", { command: "checkin.method.draw", seq: 3, side: "checkout" }],
     ["札を出す", { command: "checkin.card.play", seq: 1, card: "sunny" }],
     ["札の最大長 16 字", { command: "checkin.card.play", seq: 3, card: "a".repeat(16) }],
     ["公開の仕方", { command: "checkin.visibility.set", seq: 1, visibility: "anonymous" }],
@@ -27,16 +28,20 @@ describe("CheckinCommandSchema", () => {
 
   it.each([
     ["余剰の項目（m504）", { command: "checkin.reveal", seq: 1, x: 1 }],
-    ["余剰の項目（method.choose）", { command: "checkin.method.choose", method: "weather", x: 1 }],
+    ["余剰の項目（method.choose）", { command: "checkin.method.choose", seq: 0, method: "weather", x: 1 }],
+    ["置き換える回が無い（method.choose）", { command: "checkin.method.choose", method: "weather" }],
+    ["置き換える回が無い（method.draw）", { command: "checkin.method.draw", side: "checkin" }],
+    ["置き換える回が負（method.choose）", { command: "checkin.method.choose", seq: -1, method: "weather" }],
+    ["置き換える回が 0.5（method.draw）", { command: "checkin.method.draw", seq: 0.5, side: "checkin" }],
     ["seq 0", { command: "checkin.reveal", seq: 0 }],
     ["seq 1.5", { command: "checkin.reveal", seq: 1.5 }],
     ["seq が文字列", { command: "checkin.reveal", seq: "1" }],
     ["seq が無い", { command: "checkin.again" }],
     ["card が空", { command: "checkin.card.play", seq: 1, card: "" }],
     ["card が 17 字", { command: "checkin.card.play", seq: 1, card: "a".repeat(17) }],
-    ["知らないやり方", { command: "checkin.method.choose", method: "weather2" }],
+    ["知らないやり方", { command: "checkin.method.choose", seq: 0, method: "weather2" }],
     ["知らない公開の仕方", { command: "checkin.visibility.set", seq: 1, visibility: "secret" }],
-    ["知らない側", { command: "checkin.method.draw", side: "middle" }],
+    ["知らない側", { command: "checkin.method.draw", seq: 0, side: "middle" }],
     ["spectator が文字列", { command: "checkin.spectator.set", spectator: "true" }],
     ["知らないコマンド", { command: "checkin.nope" }],
     ["他ツールのコマンド", { command: "agenda.start" }],

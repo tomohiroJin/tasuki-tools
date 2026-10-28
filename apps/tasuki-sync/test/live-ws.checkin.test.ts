@@ -114,7 +114,7 @@ describe("チェックインの配信", () => {
     const others = await otherTools(code, hub);
 
     // When
-    a.send({ command: "checkin.method.choose", method: "weather" });
+    a.send({ command: "checkin.method.choose", seq: 0, method: "weather" });
 
     // Then
     const va = viewOf(await a.take(isCheckinWith((v) => v.round?.method === "weather"), "a のやり方"));
@@ -138,7 +138,7 @@ describe("チェックインの配信", () => {
   it("2 人とも出すと両方に revealed が届き、名前つきの山の names に出した人の名前が載る", async () => {
     // Given
     const { a, b } = await twoCheckins();
-    a.send({ command: "checkin.method.choose", method: "weather" });
+    a.send({ command: "checkin.method.choose", seq: 0, method: "weather" });
     const seq = viewOf(await a.take(isCheckinWith((v) => v.round?.method === "weather"), "やり方")).round!.seq;
 
     // When
@@ -159,7 +159,7 @@ describe("チェックインの匿名", () => {
   it("匿名で開いた後、a が受けたどの checkin フレームにも b の ID と札の組も yourCard の鍵も無い", async () => {
     // Given: roti は匿名が既定
     const { a, b, jb } = await twoCheckins();
-    a.send({ command: "checkin.method.choose", method: "roti" });
+    a.send({ command: "checkin.method.choose", seq: 0, method: "roti" });
     const seq = viewOf(await a.take(isCheckinWith((v) => v.round?.method === "roti"), "やり方")).round!.seq;
 
     // When
@@ -200,7 +200,7 @@ describe("チェックインの名簿の変化", () => {
   it("b が出さずに接続を閉じると、a だけで開く", async () => {
     // Given: a が出して、b の出番を待っている
     const { a, b } = await twoCheckins();
-    a.send({ command: "checkin.method.choose", method: "weather" });
+    a.send({ command: "checkin.method.choose", seq: 0, method: "weather" });
     const seq = viewOf(await a.take(isCheckinWith((v) => v.round?.method === "weather"), "やり方")).round!.seq;
     a.send({ command: "checkin.card.play", seq, card: "sunny" });
     await a.take(isCheckinWith((v) => v.round?.status === "open" && v.round.yourCard === "sunny"), "a の札");
@@ -217,7 +217,7 @@ describe("チェックインの名簿の変化", () => {
   it("b が出した後に閉じて、同じ resumeToken で張り直すと、b の札は b の札のまま", async () => {
     // Given: b だけが出した（a は出さないので開かない）
     const { code, a, b, jb } = await twoCheckins();
-    a.send({ command: "checkin.method.choose", method: "weather" });
+    a.send({ command: "checkin.method.choose", seq: 0, method: "weather" });
     const seq = viewOf(await a.take(isCheckinWith((v) => v.round?.method === "weather"), "やり方")).round!.seq;
     b.send({ command: "checkin.card.play", seq, card: "rain" });
     await b.take(isCheckinWith((v) => v.round?.status === "open" && v.round.yourCard === "rain"), "b の札");
@@ -242,7 +242,7 @@ describe("チェックインの操作の競合", () => {
   it("checkin.reveal { seq: 1 } と checkin.again { seq: 1 } をほぼ同時に送っても、seq 2 の回は開かない", async () => {
     // Given: 1 人が出した回
     const { a, b } = await twoCheckins();
-    a.send({ command: "checkin.method.choose", method: "weather" });
+    a.send({ command: "checkin.method.choose", seq: 0, method: "weather" });
     const seq = viewOf(await a.take(isCheckinWith((v) => v.round?.method === "weather"), "やり方")).round!.seq;
     expect(seq).toBe(1);
     a.send({ command: "checkin.card.play", seq, card: "sunny" });
@@ -266,7 +266,7 @@ describe("チェックインの古い seq の操作", () => {
   it("again で seq 2 の回が始まった後に届いた checkin.reveal { seq: 1 } は、seq 2 の回を開かない", async () => {
     // Given: seq 1 で a が出し、again で seq 2 の受付中になった
     const { a, b } = await twoCheckins();
-    a.send({ command: "checkin.method.choose", method: "weather" });
+    a.send({ command: "checkin.method.choose", seq: 0, method: "weather" });
     const seq = viewOf(await a.take(isCheckinWith((v) => v.round?.method === "weather"), "やり方")).round!.seq;
     expect(seq).toBe(1);
     a.send({ command: "checkin.card.play", seq, card: "sunny" });
@@ -298,7 +298,7 @@ describe("チェックインの操作はチェックインの接続だけ", () =
     const code = await hubCreate(hub, "モブ", "あや");
     const c = await server.connectCheckin("c");
     await checkinJoin(c, code, "いずみ");
-    c.send({ command: "checkin.method.choose", method: "weather" });
+    c.send({ command: "checkin.method.choose", seq: 0, method: "weather" });
     await c.take(isCheckinWith((v) => v.round?.method === "weather"), "やり方");
     const { timer, poker, topic, roulette, agenda } = await otherTools(code, hub);
     await settle(c);

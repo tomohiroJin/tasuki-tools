@@ -169,8 +169,8 @@ describe('Check-in Cards の操作', () => {
   it('Given 入れた / When 各操作を呼ぶ / Then 対応するコマンドを送る', () => {
     const { result } = joinedHook();
     act(() => {
-      result.current.chooseMethod('weather');
-      result.current.drawMethod('checkin');
+      result.current.chooseMethod(0, 'weather');
+      result.current.drawMethod(2, 'checkin');
       result.current.playCard(3, 'sunny');
       result.current.setVisibility(3, 'anonymous');
       result.current.reveal(3);
@@ -179,8 +179,8 @@ describe('Check-in Cards の操作', () => {
       result.current.setSpectator(false);
     });
     expect(latestSocket().sentJson().slice(1)).toEqual([
-      { command: 'checkin.method.choose', method: 'weather' },
-      { command: 'checkin.method.draw', side: 'checkin' },
+      { command: 'checkin.method.choose', seq: 0, method: 'weather' },
+      { command: 'checkin.method.draw', seq: 2, side: 'checkin' },
       { command: 'checkin.card.play', seq: 3, card: 'sunny' },
       { command: 'checkin.visibility.set', seq: 3, visibility: 'anonymous' },
       { command: 'checkin.reveal', seq: 3 },
@@ -224,6 +224,17 @@ describe('操作の失敗', () => {
     const { result } = joinedHook();
     act(() => latestSocket().deliver({ type: 'checkin', state: openCheckin() }));
     act(() => latestSocket().deliver(REVEALED));
+    act(() => latestSocket().deliver({ type: 'checkin', state: openCheckin() }));
+    expect(result.current.error).toBe('開いた後は出せません');
+  });
+
+  it('Given 操作を送った / When 返事の前に他の人の状態が届き、続けて自分の操作が失敗する / Then その失敗の文を見せ、続く無関係な状態でも残す', () => {
+    const { result } = joinedHook();
+    act(() => latestSocket().deliver({ type: 'checkin', state: openCheckin() }));
+    act(() => result.current.reveal(1));
+    act(() => latestSocket().deliver({ type: 'checkin', state: openCheckin() }));
+    act(() => latestSocket().deliver(REVEALED));
+    expect(result.current.error).toBe('開いた後は出せません');
     act(() => latestSocket().deliver({ type: 'checkin', state: openCheckin() }));
     expect(result.current.error).toBe('開いた後は出せません');
   });

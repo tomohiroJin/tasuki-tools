@@ -64,6 +64,7 @@ export function CheckinRoom({ roomCode }: { roomCode: string }) {
   const view = sync.checkin;
   const round = view?.round ?? null;
   const showPicker = view !== null && (round === null || picking);
+  // 選択は「見ている回」を置き換える。サーバーはいまの回と違えば何もしない（札の入った新しい回を黙って捨てない）
   const roundSeq = round?.seq ?? null;
   // 選択画面を開いている間に、他の人の操作で回が替わったら閉じる（古い回の上で選び直させない）
   useEffect(() => {
@@ -156,11 +157,11 @@ export function CheckinRoom({ roomCode }: { roomCode: string }) {
             headingRef={targetRef}
             onChoose={own((method) => {
               setPicking(false);
-              sync.chooseMethod(method);
+              sync.chooseMethod(roundSeq ?? 0, method);
             })}
             onDraw={own((side) => {
               setPicking(false);
-              sync.drawMethod(side);
+              sync.drawMethod(roundSeq ?? 0, side);
             })}
             onCancel={round === null ? undefined : own(() => setPicking(false))}
           />
@@ -188,8 +189,7 @@ export function CheckinRoom({ roomCode }: { roomCode: string }) {
               <SeatRow
                 seats={round.seats}
                 selfId={view.you}
-                playedCount={round.playedCount}
-                playerCount={round.playerCount}
+                progress={{ played: round.playedCount, total: round.playerCount }}
                 spectatorCount={view.spectatorCount}
               />
               <Hand
@@ -205,14 +205,9 @@ export function CheckinRoom({ roomCode }: { roomCode: string }) {
           {round.status === 'revealed' && (
             <>
               <RevealBoard method={round.method} piles={round.piles} />
-              {/* 席の伏せ札は裏返さない（開く動きは山の側だけ）。札の絵も名前もここには載せない */}
-              <SeatRow
-                seats={round.seats}
-                selfId={view.you}
-                playedCount={round.seats.filter((x) => x.played).length}
-                playerCount={round.seats.length}
-                spectatorCount={view.spectatorCount}
-              />
+              {/* 席の伏せ札は裏返さない（開く動きは山の側だけ）。札の絵も名前もここには載せない。
+                  出した人数は出さない（席は名簿どおりに変わり、凍った山の合計と退出で食い違う） */}
+              <SeatRow seats={round.seats} selfId={view.you} spectatorCount={view.spectatorCount} />
             </>
           )}
           <RoundDock

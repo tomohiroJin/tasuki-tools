@@ -11,13 +11,15 @@ import { METHOD_IDS, SIDES, VISIBILITIES } from "./methods.js";
 
 /** 回の番号（1 から） */
 const seqNum = v.pipe(v.number(), v.integer(), v.minValue(1));
+/** 置き換える回の番号（やり方を選ぶ・引く）。回が無いときは 0 */
+const replacedSeqNum = v.pipe(v.number(), v.integer(), v.minValue(0));
 /** 札の ID（1〜16 字）。やり方に属する札かどうかはドメインが判定する */
 const cardStr = v.pipe(v.string(), v.minLength(1), v.maxLength(16));
 
 // **余計なフィールドは拒む**（`v.strictObject`）。`docs/adr/0011` 決定 2 S3 の MUST。
 export const CheckinCommandSchema = v.variant("command", [
-  v.strictObject({ command: v.literal("checkin.method.choose"), method: v.picklist(METHOD_IDS) }),
-  v.strictObject({ command: v.literal("checkin.method.draw"), side: v.picklist(SIDES) }),
+  v.strictObject({ command: v.literal("checkin.method.choose"), seq: replacedSeqNum, method: v.picklist(METHOD_IDS) }),
+  v.strictObject({ command: v.literal("checkin.method.draw"), seq: replacedSeqNum, side: v.picklist(SIDES) }),
   v.strictObject({ command: v.literal("checkin.card.play"), seq: seqNum, card: cardStr }),
   v.strictObject({
     command: v.literal("checkin.visibility.set"),

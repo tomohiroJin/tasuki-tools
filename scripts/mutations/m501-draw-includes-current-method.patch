@@ -10,15 +10,14 @@
 #       git apply scripts/mutations/m501-*.patch
 # 復元: git apply -R scripts/mutations/m501-*.patch
 diff --git a/packages/checkin-core/src/checkin.ts b/packages/checkin-core/src/checkin.ts
-index 0fcfba95..c803d92b 100644
 --- a/packages/checkin-core/src/checkin.ts
 +++ b/packages/checkin-core/src/checkin.ts
-@@ -36,7 +36,7 @@ export function drawMethod(
-   side: Side,
+@@ -48,7 +48,7 @@
    randomInt: (n: number) => number,
  ): Result<CheckinState, CheckinError<"CHECKIN_INVALID_RANDOM">> {
--  const candidates = methodsOf(side).filter((m) => m !== s.round?.method);
-+  const candidates = methodsOf(side);
+   if (!replacesCurrent(s, input.seq)) return ok(s);
+-  const candidates = methodsOf(input.side).filter((m) => m !== s.round?.method);
++  const candidates = methodsOf(input.side);
    const i = randomInt(candidates.length);
    const picked = Number.isInteger(i) ? candidates[i] : undefined;
    if (picked === undefined) return fail("CHECKIN_INVALID_RANDOM");

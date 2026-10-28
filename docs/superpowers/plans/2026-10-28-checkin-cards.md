@@ -48,7 +48,7 @@
 - 動きは全体で 2 秒以内。`prefers-reduced-motion` では動かさず、開いた形をすぐ出す（E12）
 - ハンドラはログを書かない。表示名・札をログへ出さない
 - `e2e/specs/buttons.spec.ts` には既存の test に相乗りせず、この道具の独立した `test.describe` を足す
-- 変異 ID は **495〜520 だけ**。着手時に `scripts/lib/mutation-declarations.mjs` で空きを確かめる（別セッションの epic #360 と衝突させない）
+- 変異 ID は **495〜520 だけ**（PR の自動レビューの修正で 521・522 を足し、帯は 495〜522 になった）。着手時に `scripts/lib/mutation-declarations.mjs` で空きを確かめる（別セッションの epic #360 と衝突させない）
 - **`pnpm install` は打たない。** 新しい `package.json` を足したら統括に lockfile の更新を依頼して止まる
 - コミットの末尾は **`Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>`**（Opus のタスクは `Claude Opus 5.5`）。閉鎖キーワード（Closes / Fixes / Resolves と番号の組）を書かない
 - **サブエージェントは push・PR 作成・マージをしない。プロセスを止めない。dev サーバー・E2E・Playwright を起動しない。ブランチを切り替えない。作業ツリーやコミットを巻き戻す git 操作（`checkout`・`switch`・`stash`・`reset`・`restore`）をしない**（戻すときは手で直すか、新しいコミット）。変異を当てて戻すのは `git apply` / `git apply -R` だけ
@@ -510,7 +510,7 @@ export function makeCheckinHandlers(deps: CheckinHandlerDeps): CheckinHandlers;
 
 ## 変異の割り当て
 
-**ID の帯は 495〜520**（519・520 は予備。使わなければ使わない）。
+**ID の帯は 495〜520**（519・520 は予備。使わなければ使わない）。PR の自動レビューの修正で 521・522 を足し、帯は **495〜522** になった（統括の判断）。
 
 | ID | 名前（パッチのファイル名の後半） | タスク | パッケージ | 赤になるテスト |
 |---|---|---|---|---|

@@ -10,14 +10,13 @@
 #       git apply scripts/mutations/m498-*.patch
 # 復元: git apply -R scripts/mutations/m498-*.patch
 diff --git a/packages/checkin-core/src/checkin.ts b/packages/checkin-core/src/checkin.ts
-index 0fcfba95..242ad0bc 100644
 --- a/packages/checkin-core/src/checkin.ts
 +++ b/packages/checkin-core/src/checkin.ts
-@@ -72,7 +72,6 @@ export function setVisibility(
+@@ -88,7 +88,6 @@
    const r = s.round;
    if (r === null) return fail("CHECKIN_NO_ROUND");
    if (r.seq !== input.seq) return ok(s);
--  if (r.cards.size > 0) return fail("CHECKIN_VISIBILITY_LOCKED");
+-  if (isVisibilityLocked(r)) return fail("CHECKIN_VISIBILITY_LOCKED");
    if (r.visibility === input.visibility) return ok(s);
-   return ok({ ...s, round: { ...r, visibility: input.visibility } });
- }
+   const seq = s.lastSeq + 1;
+   return ok({ ...s, round: { ...r, seq, visibility: input.visibility }, lastSeq: seq });

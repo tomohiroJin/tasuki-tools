@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  chooseMethod,
   playCard,
   reveal,
   setSpectator,
@@ -12,7 +11,7 @@ import {
   type CheckinState,
   type SeatInput,
 } from "../src/index.js";
-import { a, b, c, empty } from "./support/fixtures.js";
+import { a, b, c, choose, empty } from "./support/fixtures.js";
 
 const seats: SeatInput[] = [
   { id: a, name: "アキラ", present: true },
@@ -34,7 +33,7 @@ const doReveal = (s: CheckinState): CheckinState => unwrap(reveal(s, { seq: s.ro
 
 /** weather・named: a=sunny b=rain c=thunder */
 const threePlayed = (visibility: "named" | "anonymous"): CheckinState => {
-  let s = chooseMethod(empty, "weather");
+  let s = choose(empty, "weather");
   s = unwrap(setVisibility(s, { seq: 1, visibility }));
   // 札が付くと公開の仕方は変えられないので、先に決めてから出す
   s = play(s, a, "sunny");
@@ -52,7 +51,7 @@ describe("playersOf", () => {
 
 describe("toView: 開く前", () => {
   it("他人の札の ID がどこにも現れない。yourCard は自分の札だけ・他の席は played だけ（E5）〈m495〉", () => {
-    let s = chooseMethod(empty, "weather");
+    let s = choose(empty, "weather");
     s = play(s, a, "sunny");
     s = play(s, b, "rain");
     s = play(s, c, "thunder");
@@ -74,10 +73,15 @@ describe("toView: 開く前", () => {
   });
 
   it("まだ出していなければ yourCard は null・札が無ければ locked は false", () => {
-    const s = chooseMethod(empty, "weather");
+    const s = choose(empty, "weather");
     const r = openRound(toView(s, a, seats));
     expect(r.yourCard).toBeNull();
     expect(r.locked).toBe(false);
+  });
+
+  it("札が 0 枚でも開いた後は locked（公開の仕方はもう変えられない）", () => {
+    const v = toView(doReveal(choose(empty, "weather")), a, seats);
+    expect(v.round?.locked).toBe(true);
   });
 
   it("回が無ければ round は null", () => {
@@ -106,7 +110,7 @@ describe("toView: 匿名で開いた後", () => {
 
 describe("toView: 名前つきで開いた後", () => {
   it("山の names が出した人の名前を席の並びで持つ（E8）。yourCard は持たない", () => {
-    let s = chooseMethod(empty, "weather");
+    let s = choose(empty, "weather");
     s = play(s, c, "sunny");
     s = play(s, a, "sunny");
     s = play(s, b, "rain");
@@ -117,7 +121,7 @@ describe("toView: 名前つきで開いた後", () => {
   });
 
   it("0 枚の札も count: 0 で残り、並びはやり方の札の順", () => {
-    let s = chooseMethod(empty, "weather");
+    let s = choose(empty, "weather");
     s = play(s, a, "thunder");
     const r = revealedRound(toView(doReveal(s), a, seats));
     expect(r.piles).toEqual([
@@ -129,7 +133,7 @@ describe("toView: 名前つきで開いた後", () => {
   });
 
   it("開いた回の count は回の札から数え、seats 入力に依存しない。名前を引けない人は names に入らない", () => {
-    let s = chooseMethod(empty, "weather");
+    let s = choose(empty, "weather");
     s = play(s, "ghost", "sunny");
     s = play(s, a, "sunny");
     const r = revealedRound(toView(doReveal(s), a, seats));
@@ -140,7 +144,7 @@ describe("toView: 名前つきで開いた後", () => {
 
   it("開いた後の seats は seats 入力の並びのまま・played は札の有無だけ（札の順に並べ替えない）", () => {
     // 札の順（sunny < rain < thunder）と席の順（a, b, c）が食い違う: a=thunder b=sunny c=rain
-    let s = chooseMethod(empty, "weather");
+    let s = choose(empty, "weather");
     s = play(s, a, "thunder");
     s = play(s, b, "sunny");
     s = play(s, c, "rain");
@@ -154,7 +158,7 @@ describe("toView: 名前つきで開いた後", () => {
       ]);
     }
     // 出していない人は played: false のまま
-    const half = doReveal(play(chooseMethod(empty, "weather"), b, "rain"));
+    const half = doReveal(play(choose(empty, "weather"), b, "rain"));
     expect(revealedRound(toView(half, a, seats)).seats.map((x) => x.played)).toEqual([false, true, false]);
   });
 });
@@ -166,7 +170,7 @@ describe("toView: 開いた回は結果を凍らせる（名簿から外れて�
   const leaveAfterReveal = (s: CheckinState): CheckinState => prune(recordRevealedNames(doReveal(s), seats), new Set([a, c]));
 
   it("匿名: 開いた後に 1 人が名簿から外れても、全員の山が変わらない（前後の差で札が分からない）〈m520〉", () => {
-    let s = chooseMethod(empty, "energy");
+    let s = choose(empty, "energy");
     s = play(play(play(s, a, "3"), b, "1"), c, "3");
     const before = doReveal(s);
     const after = leaveAfterReveal(s);
@@ -181,7 +185,7 @@ describe("toView: 開いた回は結果を凍らせる（名簿から外れて�
   });
 
   it("名前つき: 開いた後に 1 人が名簿から外れても、山の count と names が変わらない〈m520〉", () => {
-    let s = chooseMethod(empty, "weather");
+    let s = choose(empty, "weather");
     s = play(play(play(s, a, "sunny"), b, "rain"), c, "sunny");
     const pilesBefore = revealedRound(toView(doReveal(s), a, seats)).piles;
     const pilesAfter = revealedRound(toView(leaveAfterReveal(s), a, withoutB)).piles;
@@ -190,20 +194,20 @@ describe("toView: 開いた回は結果を凍らせる（名簿から外れて�
   });
 
   it("recordRevealedNames は名前つきで開いた回にだけ写し、足すものが無ければ同じ参照", () => {
-    const open = play(chooseMethod(empty, "weather"), a, "sunny");
+    const open = play(choose(empty, "weather"), a, "sunny");
     expect(recordRevealedNames(open, seats)).toBe(open);
     const named = recordRevealedNames(doReveal(open), seats);
     expect(named.round?.names).toEqual(new Map([[a, "アキラ"]]));
     expect(recordRevealedNames(named, seats)).toBe(named);
     // 匿名の回には名前を持たせない（サーバーの中でも結びつきを作らない）
-    const anon = doReveal(play(chooseMethod(empty, "energy"), a, "1"));
+    const anon = doReveal(play(choose(empty, "energy"), a, "1"));
     expect(recordRevealedNames(anon, seats)).toBe(anon);
   });
 });
 
 describe("toView: 見学者", () => {
   it("spectating: true・yourCard: null。spectatorCount が数える", () => {
-    let s = chooseMethod(empty, "weather");
+    let s = choose(empty, "weather");
     s = setSpectator(s, c, true);
     s = play(s, a, "sunny");
     const v = toView(s, c, seats);
@@ -218,7 +222,7 @@ describe("toView: 見学者", () => {
   });
 
   it("在席でない見学者は数えない", () => {
-    const s = setSpectator(chooseMethod(empty, "weather"), "d", true);
+    const s = setSpectator(choose(empty, "weather"), "d", true);
     expect(toView(s, a, [...seats, { id: "d", name: "D", present: false }]).spectatorCount).toBe(0);
   });
 });

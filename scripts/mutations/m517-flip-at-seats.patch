@@ -13,7 +13,7 @@
 diff --git a/apps/checkin-web/src/components/SeatRow.tsx b/apps/checkin-web/src/components/SeatRow.tsx
 --- a/apps/checkin-web/src/components/SeatRow.tsx
 +++ b/apps/checkin-web/src/components/SeatRow.tsx
-@@ -17,9 +17,13 @@ export function SeatRow({ seats, selfId, playedCount, playerCount, spectatorCoun
+@@ -18,9 +18,13 @@
    return (
      <div className="seat-row">
        <ul className="seat-list" aria-label={SEATS_LABEL}>
@@ -32,26 +32,13 @@ diff --git a/apps/checkin-web/src/components/SeatRow.tsx b/apps/checkin-web/src/
 diff --git a/apps/checkin-web/src/screens/CheckinRoom.tsx b/apps/checkin-web/src/screens/CheckinRoom.tsx
 --- a/apps/checkin-web/src/screens/CheckinRoom.tsx
 +++ b/apps/checkin-web/src/screens/CheckinRoom.tsx
-@@ -135,14 +135,15 @@ export function CheckinRoom({ roomCode }: { roomCode: string }) {
-           {round.status === 'revealed' && (
-             <>
+@@ -207,7 +207,9 @@
                <RevealBoard method={round.method} piles={round.piles} />
--              {/* 席の伏せ札は裏返さない（開く動きは山の側だけ）。札の絵も名前もここには載せない */}
--              <SeatRow
--                seats={round.seats}
--                selfId={view.you}
--                playedCount={round.seats.filter((x) => x.played).length}
--                playerCount={round.seats.length}
--                spectatorCount={view.spectatorCount}
--              />
+               {/* 席の伏せ札は裏返さない（開く動きは山の側だけ）。札の絵も名前もここには載せない。
+                   出した人数は出さない（席は名簿どおりに変わり、凍った山の合計と退出で食い違う） */}
+-              <SeatRow seats={round.seats} selfId={view.you} spectatorCount={view.spectatorCount} />
 +              <div className="reveal-board reveal-board--run">
-+                <SeatRow
-+                  seats={round.seats}
-+                  selfId={view.you}
-+                  playedCount={round.seats.filter((x) => x.played).length}
-+                  playerCount={round.seats.length}
-+                  spectatorCount={view.spectatorCount}
-+                />
++                <SeatRow seats={round.seats} selfId={view.you} spectatorCount={view.spectatorCount} />
 +              </div>
              </>
            )}

@@ -7,6 +7,7 @@
  * - 開いた後の山は回の札から数える（席は名簿どおりに変わっても、山は変わらない）
  */
 import { METHODS, type CardId, type MethodId, type Visibility } from "./methods.js";
+import { isVisibilityLocked } from "./checkin.js";
 import type { CheckinState } from "./types.js";
 
 export interface SeatInput {
@@ -75,7 +76,7 @@ export function toView(s: CheckinState, viewerId: string, seats: readonly SeatIn
     seq: r.seq,
     method: r.method,
     visibility: r.visibility,
-    locked: r.cards.size > 0,
+    locked: isVisibilityLocked(r),
     seats: seatViews,
   };
 

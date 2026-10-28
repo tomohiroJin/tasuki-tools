@@ -80,10 +80,10 @@ export interface CheckinSync {
   readonly error: string | null;
   readonly retryNotice: string | null;
   clearError(): void;
-  /** やり方を選ぶ（新しい回が始まる） */
-  chooseMethod(method: MethodId): void;
-  /** 始まり／終わりの側から 1 つ引く（いまのやり方は除かれる） */
-  drawMethod(side: Side): void;
+  /** やり方を選ぶ（新しい回が始まる）。`seq` は置き換える回の番号（自分が見ている回。回が無ければ 0） */
+  chooseMethod(seq: number, method: MethodId): void;
+  /** 始まり／終わりの側から 1 つ引く（いまのやり方は除かれる）。`seq` は chooseMethod と同じ */
+  drawMethod(seq: number, side: Side): void;
   /** 札を出す（出し直すと上書き）。`seq` はいまの回の番号 */
   playCard(seq: number, card: CardId): void;
   setVisibility(seq: number, visibility: Visibility): void;
@@ -141,8 +141,8 @@ export function useCheckinSync(roomCode: string): CheckinSync {
       send(cmd as unknown as Record<string, unknown>);
     };
     return {
-      chooseMethod: (method: MethodId) => sendCommand({ command: 'checkin.method.choose', method }),
-      drawMethod: (side: Side) => sendCommand({ command: 'checkin.method.draw', side }),
+      chooseMethod: (seq: number, method: MethodId) => sendCommand({ command: 'checkin.method.choose', seq, method }),
+      drawMethod: (seq: number, side: Side) => sendCommand({ command: 'checkin.method.draw', seq, side }),
       playCard: (seq: number, card: CardId) => sendCommand({ command: 'checkin.card.play', seq, card }),
       setVisibility: (seq: number, visibility: Visibility) =>
         sendCommand({ command: 'checkin.visibility.set', seq, visibility }),

@@ -3,7 +3,6 @@ import {
   METHOD_IDS,
   METHODS,
   applyAutoReveal,
-  chooseMethod,
   playAgain,
   playCard,
   playersOf,
@@ -16,7 +15,7 @@ import {
   type CheckinState,
   type SeatInput,
 } from "../src/index.js";
-import { empty } from "./support/fixtures.js";
+import { choose, empty } from "./support/fixtures.js";
 
 /** 種つきの線形合同法（依存を足さない） */
 const lcg = (seed: number) => {
@@ -54,9 +53,9 @@ const step = (s: CheckinState, rnd: (n: number) => number): CheckinState => {
   // 回の始めに 50% で匿名へ（札が付く前なので変えられる）
   const startedAnon = (n: CheckinState): CheckinState =>
     rnd(2) === 0 ? ok(setVisibility(n, { seq: n.round?.seq ?? 0, visibility: "anonymous" })) : n;
-  if (pick < 4) return startedAnon(chooseMethod(s, METHOD_IDS[rnd(METHOD_IDS.length)]!));
+  if (pick < 4) return startedAnon(choose(s, METHOD_IDS[rnd(METHOD_IDS.length)]!));
   if (pick < 62) {
-    if (s.round === null) return startedAnon(chooseMethod(s, METHOD_IDS[rnd(METHOD_IDS.length)]!));
+    if (s.round === null) return startedAnon(choose(s, METHOD_IDS[rnd(METHOD_IDS.length)]!));
     const cards = METHODS[s.round.method].cards;
     return ok(playCard(s, { participantId: who, seq, card: cards[rnd(cards.length)]! }));
   }

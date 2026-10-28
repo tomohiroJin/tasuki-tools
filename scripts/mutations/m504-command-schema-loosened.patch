@@ -10,19 +10,18 @@
 #       git apply scripts/mutations/m504-*.patch
 # 復元: git apply -R scripts/mutations/m504-*.patch
 diff --git a/packages/checkin-core/src/schemas.ts b/packages/checkin-core/src/schemas.ts
-index 8c8b3e43..1c329f05 100644
 --- a/packages/checkin-core/src/schemas.ts
 +++ b/packages/checkin-core/src/schemas.ts
-@@ -16,17 +16,17 @@ const cardStr = v.pipe(v.string(), v.minLength(1), v.maxLength(16));
+@@ -18,17 +18,17 @@
  
  // **余計なフィールドは拒む**（`v.strictObject`）。`docs/adr/0011` 決定 2 S3 の MUST。
  export const CheckinCommandSchema = v.variant("command", [
--  v.strictObject({ command: v.literal("checkin.method.choose"), method: v.picklist(METHOD_IDS) }),
--  v.strictObject({ command: v.literal("checkin.method.draw"), side: v.picklist(SIDES) }),
+-  v.strictObject({ command: v.literal("checkin.method.choose"), seq: replacedSeqNum, method: v.picklist(METHOD_IDS) }),
+-  v.strictObject({ command: v.literal("checkin.method.draw"), seq: replacedSeqNum, side: v.picklist(SIDES) }),
 -  v.strictObject({ command: v.literal("checkin.card.play"), seq: seqNum, card: cardStr }),
 -  v.strictObject({
-+  v.object({ command: v.literal("checkin.method.choose"), method: v.picklist(METHOD_IDS) }),
-+  v.object({ command: v.literal("checkin.method.draw"), side: v.picklist(SIDES) }),
++  v.object({ command: v.literal("checkin.method.choose"), seq: replacedSeqNum, method: v.picklist(METHOD_IDS) }),
++  v.object({ command: v.literal("checkin.method.draw"), seq: replacedSeqNum, side: v.picklist(SIDES) }),
 +  v.object({ command: v.literal("checkin.card.play"), seq: seqNum, card: cardStr }),
 +  v.object({
      command: v.literal("checkin.visibility.set"),

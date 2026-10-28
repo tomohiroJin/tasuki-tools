@@ -40,13 +40,13 @@ describe('回が無いとき', () => {
   it('Given 回が無い / When やり方を押す / Then choose が 1 通', () => {
     enter(IDLE_CHECKIN);
     fireEvent.click(screen.getByRole('button', { name: /今日の天気/ }));
-    expect(commands()).toEqual([{ command: 'checkin.method.choose', method: 'weather' }]);
+    expect(commands()).toEqual([{ command: 'checkin.method.choose', seq: 0, method: 'weather' }]);
   });
 
   it('Given 回が無い / When ランダムを押す / Then draw に側を載せる', () => {
     enter(IDLE_CHECKIN);
     fireEvent.click(screen.getByRole('button', { name: 'ランダム' }));
-    expect(commands()).toEqual([{ command: 'checkin.method.draw', side: 'checkin' }]);
+    expect(commands()).toEqual([{ command: 'checkin.method.draw', seq: 0, side: 'checkin' }]);
   });
 });
 
@@ -119,6 +119,15 @@ describe('開いた後', () => {
     enter({ ...s, round: { ...s.round, status: 'revealed', seq: 3, piles: [] } });
     fireEvent.click(screen.getByRole('button', { name: 'もう一回' }));
     expect(commands()).toEqual([{ command: 'checkin.again', seq: 3 }]);
+  });
+});
+
+describe('開いた後の席', () => {
+  it('Given 開いた後に 1 人が退出した（席 2・山の合計 3）/ When 描く / Then 「n / m 人が出しました」の行を出さない（山と食い違わない）', () => {
+    const s = revealedCheckin();
+    enter({ ...s, round: { ...s.round, seats: [{ id: 'p1', name: 'あや', played: true }, { id: 'p2', name: 'ゆう', played: true }] } });
+    expect(screen.getByRole('list', { name: '席' })).toBeInTheDocument();
+    expect(screen.queryByText(/人が出しました/)).toBeNull();
   });
 });
 
@@ -245,6 +254,19 @@ describe('やり方の選択の初期の側と閉じ方（B5・B6）', () => {
     enter({ ...s, round: { ...s.round, method: 'roti', visibility: 'anonymous', piles: [] } });
     fireEvent.click(screen.getByRole('button', { name: '別のやり方' }));
     expect(screen.getByRole('button', { name: 'チェックアウト' })).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('Given 開いた回 3 の上で選択画面を開いた / When やり方・ランダムを押す / Then 置き換える回として seq 3 を載せる', () => {
+    const s = revealedCheckin(3);
+    enter(s);
+    fireEvent.click(screen.getByRole('button', { name: '別のやり方' }));
+    fireEvent.click(screen.getByRole('button', { name: /今日の天気/ }));
+    fireEvent.click(screen.getByRole('button', { name: '別のやり方' }));
+    fireEvent.click(screen.getByRole('button', { name: 'ランダム' }));
+    expect(commands()).toEqual([
+      { command: 'checkin.method.choose', seq: 3, method: 'weather' },
+      { command: 'checkin.method.draw', seq: 3, side: 'checkin' },
+    ]);
   });
 
   it('Given 選択画面を開いている / When 他の人の操作で回が替わる / Then 選択画面を閉じる', () => {
