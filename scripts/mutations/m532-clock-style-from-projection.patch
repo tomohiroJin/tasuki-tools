@@ -1,4 +1,4 @@
-# 変異 502: clock-style-from-projection
+# 変異 532: clock-style-from-projection
 #
 # 検出を期待するテスト:
 #   - apps/agenda-web/tests/agenda-view.test.ts
@@ -6,8 +6,8 @@
 # #455。書き方を予定の合計でなく延長込みの見込みで決め、179 分の会を延長すると途中で h:mm:ss へ切り替わる。
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m502-*.patch
-# 復元: git apply -R scripts/mutations/m502-*.patch
+#       git apply scripts/mutations/m532-*.patch
+# 復元: git apply -R scripts/mutations/m532-*.patch
 diff --git a/apps/agenda-web/src/agenda-view.ts b/apps/agenda-web/src/agenda-view.ts
 index ea56423d..30e7c634 100644
 --- a/apps/agenda-web/src/agenda-view.ts

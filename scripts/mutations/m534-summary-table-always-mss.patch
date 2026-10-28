@@ -1,4 +1,4 @@
-# 変異 504: summary-table-always-mss
+# 変異 534: summary-table-always-mss
 #
 # 検出を期待するテスト:
 #   - apps/agenda-web/tests/summary-table.test.tsx
@@ -6,8 +6,8 @@
 # #455。結果の一覧が会の書き方を見ず、長い会でも m:ss（180:00）で書く。文字盤の h:mm:ss と食い違う。
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m504-*.patch
-# 復元: git apply -R scripts/mutations/m504-*.patch
+#       git apply scripts/mutations/m534-*.patch
+# 復元: git apply -R scripts/mutations/m534-*.patch
 diff --git a/apps/agenda-web/src/components/SummaryTable.tsx b/apps/agenda-web/src/components/SummaryTable.tsx
 index 64bbf02f..152b19e7 100644
 --- a/apps/agenda-web/src/components/SummaryTable.tsx

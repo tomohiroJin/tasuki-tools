@@ -1,4 +1,4 @@
-# 変異 505: dial-time-without-hms-class
+# 変異 535: dial-time-without-hms-class
 #
 # 検出を期待するテスト:
 #   - apps/agenda-web/tests/dial.test.tsx
@@ -6,8 +6,8 @@
 # #455。長い会の数字に字の大きさのクラスを付けず、h:mm:ss の数字（最長 8 字）が m:ss の大きさのまま、盤の読む欄（盤の 56%）に収まらない。
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m505-*.patch
-# 復元: git apply -R scripts/mutations/m505-*.patch
+#       git apply scripts/mutations/m535-*.patch
+# 復元: git apply -R scripts/mutations/m535-*.patch
 diff --git a/apps/agenda-web/src/components/Dial.tsx b/apps/agenda-web/src/components/Dial.tsx
 index ebf568ea..32b60588 100644
 --- a/apps/agenda-web/src/components/Dial.tsx

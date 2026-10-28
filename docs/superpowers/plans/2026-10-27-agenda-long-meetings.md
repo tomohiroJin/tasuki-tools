@@ -26,7 +26,7 @@
 | IV. 境界の型安全 | 通過 | 境界のスキーマは同じ 1 本のまま、値だけを変える。同期サーバーの試験で 720/721 分・40/41 ステップを境界から見る（Task 1） |
 | V. 実画面検証 | 通過 | 8 時間と 12 時間（29 ステップ）の会を本物の WebSocket 越しに組み・進め・映して撮る。短い会の対照も撮る（統括） |
 | VI. 依存は内向き | 通過 | 書き方の境目は agenda-web に置き、agenda-core は表示を知らない。依存の向きは変わらない |
-| VII. 検査は壊して確かめる | 通過 | 変異 500〜508 を足し、旧い値に依っていた m453・m454 の試験と注記を新しい値で殺し直す（Task 4） |
+| VII. 検査は壊して確かめる | 通過 | 変異 530〜538 を足し、旧い値に依っていた m453・m454 の試験と注記を新しい値で殺し直す（Task 4） |
 | VIII. 記録が正本 | 通過 | 第 1 段・第 2 段の設計の上限の表に、決定の時制で追記する（Task 5） |
 | IX. 小さく回す | 通過 | PR 1 本。配布は agenda-web と同期サーバーの両方で、利用者の指示を待つ（同期サーバーの配布で本番のルームが消える） |
 | X. 抽象は実需で | 通過 | 上限を設定で変えられるようにはしない（Issue のスコープ外）。書き方は 2 通りの文字列の型だけ |
@@ -53,11 +53,11 @@
 
 設計が求めているのに、素のテストでは突かない入力のうち、使う人に効きそうなもの（効く順）。各行のテストは担当のタスクに足してある。
 
-1. **179 分の会を 5 分延長した** → 書き方は `m:ss` のまま（延長は予定の合計に入らない）。途中で `h:mm:ss` に切り替わらない（Task 2・m502）
-2. **長い会で 1 時間未満の残り** → `0:04:00`（`4:00` にしない。5 時間と読める）（Task 2・m501）
-3. **回数 1 で 21 ステップ** → 進行表に枠が付くが、「1 回」の見出しは出ない（`grouped` を `scrolling` から導くと出る）（Task 3・m506）
+1. **179 分の会を 5 分延長した** → 書き方は `m:ss` のまま（延長は予定の合計に入らない）。途中で `h:mm:ss` に切り替わらない（Task 2・m532）
+2. **長い会で 1 時間未満の残り** → `0:04:00`（`4:00` にしない。5 時間と読める）（Task 2・m531）
+3. **回数 1 で 21 ステップ** → 進行表に枠が付くが、「1 回」の見出しは出ない（`grouped` を `scrolling` から導くと出る）（Task 3・m536）
 4. **合計 721 分のシナリオを古い画面や手で作った電文で送る** → 同期サーバーが送り主にだけ `INVALID_COMMAND` を返し、他の人に配らない（Task 1）
-5. **長い会の終了の一覧の合計の行** → 各行と同じ `h:mm:ss`（合計の行だけ `m:ss` に残さない）（Task 2・m504）
+5. **長い会の終了の一覧の合計の行** → 各行と同じ `h:mm:ss`（合計の行だけ `m:ss` に残さない）（Task 2・m534）
 6. **12 時間の会の開始前の盤 `12:00:00`** → 読む欄に収まり、針の軸と重ならない（撮影・統括）
 
 ## 検証の実行時間の見積もり
@@ -100,7 +100,7 @@
 | `packages/agenda-core` | `src/limits.ts`・`tests/limits.test.ts`・`tests/schemas.test.ts`・`tests/error-messages.test.ts` | — |
 | `apps/tasuki-sync` | `test/agenda-handlers.test.ts` | — |
 | `apps/agenda-web` | `src/agenda-view.ts`・`src/components/SummaryTable.tsx`・`src/components/Dial.tsx`・`src/dial.css`・`src/components/StepList.tsx`・`src/run.css`（コメント）・`src/scenario-draft.ts`（コメント）・`tests/agenda-view.test.ts`・`tests/summary-table.test.tsx`・`tests/dial.test.tsx`・`tests/time-digits.test.tsx`・`tests/scenario-draft.test.ts`・`tests/scenario-builder.test.tsx`・`tests/step-list.test.tsx` | — |
-| 検査 | `scripts/lib/mutation-declarations.mjs`・`scripts/mutations/m446-*.patch`・`m453-*.patch`・`m454-*.patch` | `scripts/mutations/m500〜m508-*.patch` |
+| 検査 | `scripts/lib/mutation-declarations.mjs`・`scripts/mutations/m446-*.patch`・`m453-*.patch`・`m454-*.patch` | `scripts/mutations/m530〜m538-*.patch` |
 | 文書 | `docs/superpowers/specs/2026-10-19-agenda-timer-design.md`・`docs/superpowers/specs/2026-10-21-agenda-timer-repeat-design.md` | — |
 
 ---
@@ -200,27 +200,27 @@
 - [ ] **Step 4: 緑を見る**: 上の 3 ファイル、続けて `pnpm --filter @tasuki/agenda-web test`・`typecheck`・`lint`。取り決めのパッチ 6 本の `git apply --check`
 - [ ] **Step 5: コミット**: `feat: 進行表は回数 1 でも 20 行を超えたら枠の中でスクロールする（#455）`
 
-### Task 4: 変異 500〜508 と、旧い値に依っていた変異の見直し（Opus）
+### Task 4: 変異 530〜538 と、旧い値に依っていた変異の見直し（Opus）
 
 **Files:**
-- Create: `scripts/mutations/m500〜m508-<名前>.patch`
+- Create: `scripts/mutations/m530〜m538-<名前>.patch`
 - Modify: `scripts/lib/mutation-declarations.mjs`（末尾に `{ id, label, patch, pkg, tests, note }` で足す。`note` は `"#455。…"` で始める。`pkg` はパス）・`scripts/mutations/m446-overrun-without-plus.patch`・`m453-total-limit-ignores-rounds.patch`・`m454-expanded-step-count-unchecked.patch`・`m462-single-step-rounds-show-headings.patch`
 
-**帯の確かめ**: main の台帳の最大は 484、PR #453（#447-2）が 485〜493 を使い、494〜499 は #449 に空けてある。着手時に `grep -oE 'id: *[0-9]+' scripts/lib/mutation-declarations.mjs | sort -t: -k2 -n | tail -3` と `gh pr diff 453 | grep -oE 'm[0-9]{3}' | sort -u` で 500〜508 が空いていることを見る。PR #453 も宣言の末尾に足すので、後からマージする側で台帳の末尾が衝突する（中身はどちらも残す）
+**帯の確かめ**: main の台帳の最大は 484、PR #453（#447-2）が 485〜493 を使い、494〜499 は #449 に空けてある。着手時に `grep -oE 'id: *[0-9]+' scripts/lib/mutation-declarations.mjs | sort -t: -k2 -n | tail -3` と `gh pr diff 453 | grep -oE 'm[0-9]{3}' | sort -u` で 530〜538 が空いていることを見る。PR #453 も宣言の末尾に足すので、後からマージする側で台帳の末尾が衝突する（中身はどちらも残す）
 
 **新しい変異**（各 1 本・当てると対象の試験が赤・戻すと緑）:
 
 | ID | 名前 | 壊し方 | pkg | 赤になる試験 |
 |---|---|---|---|---|
-| m500 | long-clock-threshold-exclusive | `clockStyleForPlannedMs` の `>=` を `>`（180 分ちょうどが `m:ss`） | `apps/agenda-web` | `tests/agenda-view.test.ts` |
-| m501 | clock-style-per-value | 書き方を会でなく値で決める（`formatClock` の中で `totalSec >= 3600` なら `h:mm:ss`、`style` を見ない） | `apps/agenda-web` | `tests/agenda-view.test.ts` |
-| m502 | clock-style-from-projection | `clockStyleOf` が `plannedTotalMs` でなく `projectedEndMs` で決める（延長で切り替わる） | `apps/agenda-web` | `tests/agenda-view.test.ts` |
-| m503 | hms-minutes-not-padded | `h:mm:ss` の分を 2 桁に詰めない（`3:5:09`） | `apps/agenda-web` | `tests/agenda-view.test.ts` |
-| m504 | summary-table-always-mss | `SummaryTable` が `clockStyleOf(view)` でなく `'m:ss'` を渡す | `apps/agenda-web` | `tests/summary-table.test.tsx` |
-| m505 | dial-time-without-hms-class | `Readout` が `dial-time--hms` を付けない | `apps/agenda-web` | `tests/dial.test.tsx` |
-| m506 | flat-list-never-scrolls | `scrolling` から `rows.length > FLAT_LIST_MAX_ROWS` を外す（回数 1 の 40 行が枠なし） | `apps/agenda-web` | `tests/step-list.test.tsx` |
-| m507 | grouped-follows-scrolling | `grouped = scrolling && !flatRounds` に戻す（回数 1 の 21 行に「1 回」の見出し） | `apps/agenda-web` | `tests/step-list.test.tsx` |
-| m508 | add-step-allows-one-over | `canAddStep` の `d.steps.length < MAX_ITEMS` を `<=`（41 行目を足せる） | `apps/agenda-web` | `tests/scenario-draft.test.ts` |
+| m530 | long-clock-threshold-exclusive | `clockStyleForPlannedMs` の `>=` を `>`（180 分ちょうどが `m:ss`） | `apps/agenda-web` | `tests/agenda-view.test.ts` |
+| m531 | clock-style-per-value | 書き方を会でなく値で決める（`formatClock` の中で `totalSec >= 3600` なら `h:mm:ss`、`style` を見ない） | `apps/agenda-web` | `tests/agenda-view.test.ts` |
+| m532 | clock-style-from-projection | `clockStyleOf` が `plannedTotalMs` でなく `projectedEndMs` で決める（延長で切り替わる） | `apps/agenda-web` | `tests/agenda-view.test.ts` |
+| m533 | hms-minutes-not-padded | `h:mm:ss` の分を 2 桁に詰めない（`3:5:09`） | `apps/agenda-web` | `tests/agenda-view.test.ts` |
+| m534 | summary-table-always-mss | `SummaryTable` が `clockStyleOf(view)` でなく `'m:ss'` を渡す | `apps/agenda-web` | `tests/summary-table.test.tsx` |
+| m535 | dial-time-without-hms-class | `Readout` が `dial-time--hms` を付けない | `apps/agenda-web` | `tests/dial.test.tsx` |
+| m536 | flat-list-never-scrolls | `scrolling` から `rows.length > FLAT_LIST_MAX_ROWS` を外す（回数 1 の 40 行が枠なし） | `apps/agenda-web` | `tests/step-list.test.tsx` |
+| m537 | grouped-follows-scrolling | `grouped = scrolling && !flatRounds` に戻す（回数 1 の 21 行に「1 回」の見出し） | `apps/agenda-web` | `tests/step-list.test.tsx` |
+| m538 | add-step-allows-one-over | `canAddStep` の `d.steps.length < MAX_ITEMS` を `<=`（41 行目を足せる） | `apps/agenda-web` | `tests/scenario-draft.test.ts` |
 
 **直す変異**:
 - **m446**（オーバーの `+` を落とす）: Task 2 で `centerLines` の行が変わり当たらない。今の行に合わせて**中身の行**を作り直す（壊し方は同じ: オーバーの `+` を落とす）。試験 `tests/agenda-view.test.ts` の「オーバー中は「+」が付いて…（m446）」で赤を見る

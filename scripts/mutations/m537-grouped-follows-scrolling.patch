@@ -1,4 +1,4 @@
-# 変異 507: grouped-follows-scrolling
+# 変異 537: grouped-follows-scrolling
 #
 # 検出を期待するテスト:
 #   - apps/agenda-web/tests/step-list.test.tsx
@@ -6,8 +6,8 @@
 # #455。回の見出しを枠の有無から導き、回数 1 で 21 行を超えて枠を持つと「1 回」の見出しが出る。
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m507-*.patch
-# 復元: git apply -R scripts/mutations/m507-*.patch
+#       git apply scripts/mutations/m537-*.patch
+# 復元: git apply -R scripts/mutations/m537-*.patch
 diff --git a/apps/agenda-web/src/components/StepList.tsx b/apps/agenda-web/src/components/StepList.tsx
 index 3768509e..1dc70feb 100644
 --- a/apps/agenda-web/src/components/StepList.tsx

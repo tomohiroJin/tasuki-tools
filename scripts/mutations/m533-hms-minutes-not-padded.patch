@@ -1,4 +1,4 @@
-# 変異 503: hms-minutes-not-padded
+# 変異 533: hms-minutes-not-padded
 #
 # 検出を期待するテスト:
 #   - apps/agenda-web/tests/agenda-view.test.ts
@@ -6,8 +6,8 @@
 # #455。h:mm:ss の分を 2 桁に詰めず、3 時間 5 分 9 秒が 3:5:09 と出る。
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m503-*.patch
-# 復元: git apply -R scripts/mutations/m503-*.patch
+#       git apply scripts/mutations/m533-*.patch
+# 復元: git apply -R scripts/mutations/m533-*.patch
 diff --git a/apps/agenda-web/src/agenda-view.ts b/apps/agenda-web/src/agenda-view.ts
 index ea56423d..2a65dcec 100644
 --- a/apps/agenda-web/src/agenda-view.ts

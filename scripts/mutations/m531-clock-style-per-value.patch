@@ -1,4 +1,4 @@
-# 変異 501: clock-style-per-value
+# 変異 531: clock-style-per-value
 #
 # 検出を期待するテスト:
 #   - apps/agenda-web/tests/agenda-view.test.ts
@@ -7,8 +7,8 @@
 # （59:59 の次が 1:00:00）。長い会でも 1 時間未満の値は m:ss になる。
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m501-*.patch
-# 復元: git apply -R scripts/mutations/m501-*.patch
+#       git apply scripts/mutations/m531-*.patch
+# 復元: git apply -R scripts/mutations/m531-*.patch
 diff --git a/apps/agenda-web/src/agenda-view.ts b/apps/agenda-web/src/agenda-view.ts
 index ea56423d..8046d978 100644
 --- a/apps/agenda-web/src/agenda-view.ts

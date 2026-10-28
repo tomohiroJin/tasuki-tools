@@ -1,4 +1,4 @@
-# 変異 506: flat-list-never-scrolls
+# 変異 536: flat-list-never-scrolls
 #
 # 検出を期待するテスト:
 #   - apps/agenda-web/tests/step-list.test.tsx
@@ -6,8 +6,8 @@
 # #455。回数 1 の一覧は行が何行でも枠を持たず、40 行が画面の縦に伸びて文字盤を押し下げる。
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m506-*.patch
-# 復元: git apply -R scripts/mutations/m506-*.patch
+#       git apply scripts/mutations/m536-*.patch
+# 復元: git apply -R scripts/mutations/m536-*.patch
 diff --git a/apps/agenda-web/src/components/StepList.tsx b/apps/agenda-web/src/components/StepList.tsx
 index 3768509e..b50bbcf3 100644
 --- a/apps/agenda-web/src/components/StepList.tsx
