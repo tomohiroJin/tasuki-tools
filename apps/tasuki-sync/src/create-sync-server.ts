@@ -43,6 +43,7 @@ import { TopicGenerator } from "./application/topic-generation.js";
 import { InMemoryTopicStore } from "./adapters/in-memory-topic-store.js";
 import { InMemoryRouletteStore } from "./adapters/in-memory-roulette-store.js";
 import { InMemoryAgendaStore } from "./adapters/in-memory-agenda-store.js";
+import { InMemoryCheckinStore } from "./adapters/in-memory-checkin-store.js";
 import { makeAgendaBroadcaster } from "./application/agenda-broadcast.js";
 import { makeAgendaHandlers } from "./application/agenda-handlers.js";
 import { makeAgendaDeadlines } from "./application/agenda-deadlines.js";
@@ -120,6 +121,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
   // 単調時計は 1 つを共有する（進行タイマーの予約とハンドラが同じ時計で測る）。
   const monotonicClock = createPerformanceClock();
   const agendas = new InMemoryAgendaStore();
+  const checkins = new InMemoryCheckinStore();
   // 進行タイマーの期限の予約（#429）。timer の `scheduler` とは別のインスタンス。**単調時計**で測る。
   const agendaDeadlines = makeAgendaDeadlines({
     clock: monotonicClock,
@@ -287,6 +289,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     topics,
     roulettes,
     agendas,
+    checkins,
     agendaDeadlines,
     scheduler,
     topicGenerator,
@@ -462,6 +465,8 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     topic: topicHandlers,
     roulette: rouletteHandlers,
     agenda: agendaHandlers,
+    // チェックインのメッセージ層の本配線は 2.4 で差し替える（今は受けて捨てるだけ）。
+    checkin: { handleMessage: async () => {} },
     // cmd は ws-adapter 側で CommandSchema（valibot）に通した検証済みの値で、型も Command のまま届く（#363）。
     // 表示名の正規化は受け口のアプリケーション側が掛ける（#368）。
     timer: createTimerCommandReceiver({

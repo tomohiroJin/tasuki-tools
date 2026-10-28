@@ -32,6 +32,7 @@ import type { RoundStore } from "../ports/poker-round-store.js";
 import type { TopicStore } from "../ports/topic-store.js";
 import type { RouletteStore } from "../ports/roulette-store.js";
 import type { AgendaStore } from "../ports/agenda-store.js";
+import type { CheckinStore } from "../ports/checkin-store.js";
 import type { AgendaDeadlines } from "./agenda-deadlines.js";
 
 export interface RoomDestroyerDeps {
@@ -68,6 +69,12 @@ export interface RoomDestroyerDeps {
    */
   agendas: Pick<AgendaStore, "remove">;
   /**
+   * チェックインの状態の実体（#406）。**名簿と対で消す**（`agendas` と同じ規律）。
+   *
+   * ⚠ **optional にしてはならない**（理由は {@link RoomDestroyerDeps.rounds} と同じ）。
+   */
+  checkins: Pick<CheckinStore, "delete">;
+  /**
    * 進行タイマーの期限の予約（#429）。破棄で止める（消えたルームへ自動で次へが発火しない）。
    * timer の `scheduler` とは別の予約である。
    *
@@ -94,7 +101,7 @@ export interface RoomDestroyerDeps {
 
 /** ルームを破棄する関数を組み立てる。返す関数は何度呼んでも安全（各解放は不在なら no-op）。 */
 export function createRoomDestroyer(deps: RoomDestroyerDeps): (roomCode: string) => void {
-  const { store, timers, rounds, topics, roulettes, agendas, agendaDeadlines, scheduler, topicGenerator, presence, releaseRoom } =
+  const { store, timers, rounds, topics, roulettes, agendas, checkins, agendaDeadlines, scheduler, topicGenerator, presence, releaseRoom } =
     deps;
 
   return (roomCode: string): void => {
@@ -111,5 +118,6 @@ export function createRoomDestroyer(deps: RoomDestroyerDeps): (roomCode: string)
     topics.remove(roomCode);
     roulettes.remove(roomCode);
     agendas.remove(roomCode);
+    checkins.delete(roomCode);
   };
 }

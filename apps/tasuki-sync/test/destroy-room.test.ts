@@ -23,6 +23,8 @@ import { InMemoryRouletteStore } from "../src/adapters/in-memory-roulette-store.
 import { INITIAL_ROULETTE_STATE } from "@tasuki/roulette-core";
 import { INITIAL_AGENDA_STATE } from "@tasuki/agenda-core";
 import { InMemoryAgendaStore } from "../src/adapters/in-memory-agenda-store.js";
+import { INITIAL_CHECKIN_STATE } from "@tasuki/checkin-core";
+import { InMemoryCheckinStore } from "../src/adapters/in-memory-checkin-store.js";
 import { INITIAL_TOPIC_STATE } from "@tasuki/topic-core";
 import { spyDestroyer } from "./support/spy-destroyer.js";
 
@@ -106,6 +108,24 @@ describe("createRoomDestroyer", () => {
     expect(agendas.get("GGG")).toEqual(INITIAL_AGENDA_STATE);
   });
 
+  it("破棄の後に checkin の状態が無い", () => {
+    // Given: 名簿と checkin の状態が同じルームコードにぶら下がっている
+    const store = new InMemoryRoomStore();
+    const timers = new InMemoryTimerStore();
+    const checkins = new InMemoryCheckinStore();
+    store.put({ code: "HHH", createdAt: 0, participants: [] });
+    checkins.put("HHH", INITIAL_CHECKIN_STATE);
+    checkins.put("III", INITIAL_CHECKIN_STATE);
+    const { destroy } = spyDestroyer(store, timers, undefined, undefined, undefined, undefined, checkins);
+
+    // When
+    destroy("HHH");
+
+    // Then: 破棄したルームの状態だけが消える
+    expect(checkins.get("HHH")).toBeUndefined();
+    expect(checkins.get("III")).toEqual(INITIAL_CHECKIN_STATE);
+  });
+
   it("スケジューラ・presence を持たない構成でも解放とストア削除は行う", () => {
     // Given: makeHandlers 単体（scheduler を省略できる）で組んだ場合
     const store = new InMemoryRoomStore();
@@ -126,6 +146,7 @@ describe("createRoomDestroyer", () => {
       topics,
       roulettes: new InMemoryRouletteStore(),
       agendas: new InMemoryAgendaStore(),
+      checkins: new InMemoryCheckinStore(),
       agendaDeadlines: { clear: () => {} },
       topicGenerator: { cancel: () => {} },
       releaseRoom: (c) => released.push(c),

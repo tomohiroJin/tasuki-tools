@@ -24,6 +24,7 @@ import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { InMemoryRoundStore } from "../src/adapters/poker-in-memory-round-store.js";
 import { InMemoryTopicStore } from "../src/adapters/in-memory-topic-store.js";
 import { InMemoryAgendaStore } from "../src/adapters/in-memory-agenda-store.js";
+import { InMemoryCheckinStore } from "../src/adapters/in-memory-checkin-store.js";
 import { InMemoryRouletteStore } from "../src/adapters/in-memory-roulette-store.js";
 import { createTokenStore } from "../src/application/token-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
@@ -94,6 +95,7 @@ describe("ソロの部屋からの退出（Issue #79）", () => {
       topics: new InMemoryTopicStore(),
       roulettes: new InMemoryRouletteStore(),
       agendas: new InMemoryAgendaStore(),
+      checkins: new InMemoryCheckinStore(),
       agendaDeadlines: { clear: () => {} },
       // お題の生成はこのテストに居ない（timer の退出だけを見る）。
       topicGenerator: { cancel: () => {} },
@@ -292,6 +294,7 @@ describe("ソロ以外は挙動が変わらない（Issue #79）", () => {
       topics: new InMemoryTopicStore(),
       roulettes: new InMemoryRouletteStore(),
       agendas: new InMemoryAgendaStore(),
+      checkins: new InMemoryCheckinStore(),
       agendaDeadlines: { clear: () => {} },
       // お題の生成はこのテストに居ない（timer の退出だけを見る）。
       topicGenerator: { cancel: () => {} },

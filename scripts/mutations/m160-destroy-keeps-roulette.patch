@@ -18,5 +18,5 @@ index 4d358fb..f93df55 100644
      topics.remove(roomCode);
 -    roulettes.remove(roomCode);
      agendas.remove(roomCode);
+     checkins.delete(roomCode);
    };
- }
