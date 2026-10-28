@@ -67,6 +67,15 @@ const isCheckinWith =
 const checkinFrames = (c: LiveCheckinClient): CheckinView[] =>
   c.received.filter((m) => m.type === "checkin").map(viewOf);
 
+/** 新しいフレームが 150ms 届かなくなるまで待つ（最後の参加で起きる名簿の配信が届き終わるのを待つ）。 */
+async function settle(client: LiveCheckinClient): Promise<void> {
+  let seen = -1;
+  while (seen !== client.received.length) {
+    seen = client.received.length;
+    await Bun.sleep(150);
+  }
+}
+
 /** ハブ・timer・poker・お題・ルーレット・進行タイマーの接続を同じルームへ揃える。 */
 async function otherTools(code: string, hub: LiveHubClient) {
   const timer = await server.connect("timer");
@@ -169,14 +178,21 @@ describe("チェックインの匿名", () => {
       const v = viewOf(frame);
       if (v.round?.status !== "revealed") throw new Error("revealed ではない");
       expect(v.round.piles.every((p) => Object.keys(p).sort().join() === "card,count")).toBe(true);
+      // 枚数だけは届く（2 人が出した）
+      expect(v.round.piles.reduce((n, p) => n + p.count, 0)).toBe(2);
     }
-    // 開く前のフレームも含め、b の ID が札と組になって載ることはない（席の `played` だけ）
-    for (const v of checkinFrames(a)) {
-      if (v.round?.status !== "open") continue;
-      expect(v.round.yourCard === null || v.round.yourCard === "2").toBe(true);
-      const seat = v.round.seats.find((s) => s.id === jb.participantId);
-      expect(seat === undefined || Object.keys(seat).sort().join() === "id,name,played").toBe(true);
+    // 開く前も開いた後も、a が受けたすべてのフレームで席の鍵は id・name・played だけ（札を載せる鍵が無い）
+    const all = checkinFrames(a);
+    expect(all.length).toBeGreaterThan(0);
+    for (const v of all) {
+      if (v.round === null) continue;
+      for (const seat of v.round.seats) {
+        expect(Object.keys(seat).sort().join()).toBe("id,name,played");
+      }
+      if (v.round.status === "open") expect(v.round.yourCard === null || v.round.yourCard === "2").toBe(true);
     }
+    // b の席があるフレームが少なくとも 1 つあり、そこでも札は載っていない
+    expect(all.some((v) => v.round?.seats.some((x) => x.id === jb.participantId))).toBe(true);
   });
 });
 
@@ -246,6 +262,35 @@ describe("チェックインの操作の競合", () => {
   });
 });
 
+describe("チェックインの古い seq の操作", () => {
+  it("again で seq 2 の回が始まった後に届いた checkin.reveal { seq: 1 } は、seq 2 の回を開かない", async () => {
+    // Given: seq 1 で a が出し、again で seq 2 の受付中になった
+    const { a, b } = await twoCheckins();
+    a.send({ command: "checkin.method.choose", method: "weather" });
+    const seq = viewOf(await a.take(isCheckinWith((v) => v.round?.method === "weather"), "やり方")).round!.seq;
+    expect(seq).toBe(1);
+    a.send({ command: "checkin.card.play", seq, card: "sunny" });
+    await a.take(isCheckinWith((v) => v.round?.status === "open" && v.round.yourCard === "sunny"), "a の札");
+    b.send({ command: "checkin.again", seq: 1 });
+    await a.take(isCheckinWith((v) => v.round?.seq === 2 && v.round.status === "open"), "seq 2 の受付");
+    await b.take(isCheckinWith((v) => v.round?.seq === 2 && v.round.status === "open"), "b の seq 2 の受付");
+
+    // When: 遅れて届いた seq 1 の reveal
+    a.send({ command: "checkin.reveal", seq: 1 });
+    await Bun.sleep(300);
+
+    // Then: seq 2 のフレームがあり、最後の状態は seq 2 のまま開いていない
+    const frames = checkinFrames(a);
+    expect(frames.filter((v) => v.round?.seq === 2).length).toBeGreaterThanOrEqual(1);
+    const last = frames.at(-1);
+    expect(last?.round?.seq).toBe(2);
+    expect(last?.round?.status).toBe("open");
+    const lastB = checkinFrames(b).at(-1);
+    expect(lastB?.round?.seq).toBe(2);
+    expect(lastB?.round?.status).toBe("open");
+  });
+});
+
 describe("チェックインの操作はチェックインの接続だけ", () => {
   it("ハブ・timer・poker・お題・ルーレット・進行タイマーの接続から送った checkin.reveal は拒まれ、状態は変わらない", async () => {
     // Given
@@ -256,6 +301,7 @@ describe("チェックインの操作はチェックインの接続だけ", () =
     c.send({ command: "checkin.method.choose", method: "weather" });
     await c.take(isCheckinWith((v) => v.round?.method === "weather"), "やり方");
     const { timer, poker, topic, roulette, agenda } = await otherTools(code, hub);
+    await settle(c);
     const before = checkinFrames(c).length;
 
     // When
