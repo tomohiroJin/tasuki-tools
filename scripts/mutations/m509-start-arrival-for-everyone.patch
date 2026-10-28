@@ -9,15 +9,15 @@
 #       git apply scripts/mutations/m509-*.patch
 # 復元: git apply -R scripts/mutations/m509-*.patch
 diff --git a/apps/agenda-web/src/screens/AgendaRoom.tsx b/apps/agenda-web/src/screens/AgendaRoom.tsx
-index 5c884d78..74bf1f0e 100644
+index f94934ac..2c812a3a 100644
 --- a/apps/agenda-web/src/screens/AgendaRoom.tsx
 +++ b/apps/agenda-web/src/screens/AgendaRoom.tsx
-@@ -128,7 +128,7 @@ function PhaseView({
+@@ -132,7 +132,7 @@ function PhaseView({
    const consumeStartArrival = useCallback(() => {
-     const mine = startedHereRef.current;
-     startedHereRef.current = false;
--    return mine;
-+    return mine || true;
+     const at = startedAtRef.current;
+     startedAtRef.current = null;
+-    return at !== null && Date.now() - at <= START_ARRIVAL_WINDOW_MS;
++    return true;
    }, []);
    // 送信が失敗したら印を消す（後で他の人が開始した画面を動かさない）
    useEffect(() => {

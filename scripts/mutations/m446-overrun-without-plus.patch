@@ -9,15 +9,15 @@
 #       git apply scripts/mutations/m446-*.patch
 # 復元: git apply -R scripts/mutations/m446-*.patch
 diff --git a/apps/agenda-web/src/agenda-view.ts b/apps/agenda-web/src/agenda-view.ts
-index ea56423d..bdf1ac47 100644
+index d8c75566..0a72a2c8 100644
 --- a/apps/agenda-web/src/agenda-view.ts
 +++ b/apps/agenda-web/src/agenda-view.ts
-@@ -125,7 +125,7 @@ export function centerLines(v: AgendaView): CenterLines {
+@@ -127,7 +127,7 @@ export function centerLines(v: AgendaView): CenterLines {
    const over = isOverrun(v);
    const rest = remainingMs(v);
    return {
 -    primary: over ? `+${elapsedClock(-rest, style)}` : remainingClock(rest, style),
 +    primary: over ? elapsedClock(-rest, style) : remainingClock(rest, style),
+     style,
      isOverrun: over,
      name: currentStep(v)?.name ?? '',
-     drift: driftLine(v),

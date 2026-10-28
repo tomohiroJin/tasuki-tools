@@ -9,13 +9,13 @@
 #       git apply scripts/mutations/m504-*.patch
 # 復元: git apply -R scripts/mutations/m504-*.patch
 diff --git a/apps/agenda-web/src/components/SummaryTable.tsx b/apps/agenda-web/src/components/SummaryTable.tsx
-index 4ff4fafb..fd7cd980 100644
+index 64bbf02f..152b19e7 100644
 --- a/apps/agenda-web/src/components/SummaryTable.tsx
 +++ b/apps/agenda-web/src/components/SummaryTable.tsx
-@@ -29,7 +29,7 @@ const toneOf = (ms: number): string => {
- };
+@@ -30,7 +30,7 @@ const toneOf = (ms: number): string => {
  
  export function SummaryTable({ view }: { view: AgendaView }) {
+   // 書き方は会の予定の合計（盤と同じ `clockStyleOf`）で決める。下の `planned` は表の行の足し上げで、行の定義が変わると盤とずれるので使わない
 -  const style = clockStyleOf(view);
 +  const style = 'm:ss';
    const summary = summaryOf(view);

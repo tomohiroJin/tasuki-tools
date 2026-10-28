@@ -3367,6 +3367,6 @@ export const MUTATIONS = [
     patch: "m509-start-arrival-for-everyone.patch",
     pkg: "apps/agenda-web",
     tests: ["tests/agenda-room.test.tsx"],
-    note: "#455。他の参加者が開始した画面（位相が進行中に変わっただけ）まで進める画面の上端へ寄せ、読んでいる途中の画面が勝手に動く。",
+    note: "#455。他の参加者が開始した画面（位相が進行中に変わっただけ）までページの先頭へ戻し、読んでいる途中の画面が勝手に動く。",
   },
 ];
