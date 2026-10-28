@@ -18,6 +18,10 @@ describe("進行タイマーのエラーの文言", () => {
     expect(agendaErrorMessageFor("INTERNAL_ERROR")).toBe(CONNECTION_INTERNAL_ERROR_TEXT);
   });
 
+  it("INVALID_SCENARIO は定義の数と合計の上限を言う", () => {
+    expect(agendaErrorMessageFor("INVALID_SCENARIO")).toBe("ステップは 40 まで、合計 720 分までです");
+  });
+
   it("文言は書体の常用の層（base）に収まる", () => {
     expect([...baseFaces().keys()].sort()).toEqual([
       "zkgn-400-base.woff2",

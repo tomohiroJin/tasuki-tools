@@ -24,4 +24,11 @@ describe('残りの数字', () => {
     const { container } = render(<TimeDigits text="60:00" />);
     expect(container.textContent).toBe('60:00');
   });
+
+  it('h:mm:ss の 2 つのコロンはどちらも狭い箱に入る', () => {
+    const { container } = render(<TimeDigits text="+3:05:09" />);
+    expect(container.querySelectorAll('.time-colon')).toHaveLength(2);
+    expect(container.querySelectorAll('.time-sign')).toHaveLength(1);
+    expect(container.querySelectorAll('.time-digit')).toHaveLength(5);
+  });
 });

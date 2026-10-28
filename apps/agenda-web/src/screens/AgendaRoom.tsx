@@ -7,7 +7,7 @@
  * ここで名前は聞かない（名乗りは玄関に 1 つだけ・`docs/adr/0018`）。端末に同一性が無い・合言葉を求められたら
  * 玄関のそのルームへ送り返す（コードは落とさない）。
  */
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AgendaView } from '@tasuki/agenda-core';
 import { ROOM_HEADER_TEXT, RoomHeader } from '@tasuki/invite-ui';
 import { summaryText } from '../agenda-view';
@@ -23,6 +23,9 @@ import { useWallClock } from '../hooks/use-wall-clock';
 import { CLOSE_BUTTON, GONE_HEADING, GONE_LINK, GONE_TEXT, JOINING_HEADING, PAGE_HEADING } from '../copy';
 import { useAgendaSync, type AgendaSync } from '../hooks/use-agenda-sync';
 import { hubPathFor, redirectTo } from '../router';
+
+/** 「開始」を押してから、進行中が届けば本人の開始の返事と見なす時間（ms）。遅い回線でも届き、他の人の開始と取り違えにくい長さ */
+const START_ARRIVAL_WINDOW_MS = 10_000;
 
 export function AgendaRoom({ roomCode }: { roomCode: string }) {
   const sync = useAgendaSync(roomCode);
@@ -118,10 +121,27 @@ function PhaseView({
   const wallNow = useWallClock();
   const { soundState, soundOn, toggleSound } = useSoundSetting();
   const { striking, announcement, announce } = useRunSignals(live, { frame: view, joined: sync.joined, soundOn, reducedMotion });
+  // 「開始」を押した本人の印（押した時刻）。進める画面の最初の描画で消費する（他の参加者の画面は位相が変わっても寄せない・#455）。
+  // 返事が来ない開始（同じ文言の失敗で表示が変わらない・送信が黙って落ちた）でも印が残らないよう、時間で切る
+  const startedAtRef = useRef<number | null>(null);
+  const syncStart = sync.start;
+  const start = useCallback(() => {
+    startedAtRef.current = Date.now();
+    syncStart();
+  }, [syncStart]);
+  const consumeStartArrival = useCallback(() => {
+    const at = startedAtRef.current;
+    startedAtRef.current = null;
+    return at !== null && Date.now() - at <= START_ARRIVAL_WINDOW_MS;
+  }, []);
+  // 送信が失敗したら印を消す（後で他の人が開始した画面を動かさない）
+  useEffect(() => {
+    if (sync.error !== null) startedAtRef.current = null;
+  }, [sync.error]);
   return (
     <>
       {view.phase === 'idle' ? (
-        <ScenarioBuilder view={view} canOperate={sync.joined} onLoad={sync.setScenario} onStart={sync.start} />
+        <ScenarioBuilder view={view} canOperate={sync.joined} onLoad={sync.setScenario} onStart={start} />
       ) : (
         <RunScreen
           view={live}
@@ -133,6 +153,7 @@ function PhaseView({
           onSpeakSummary={() => announce(summaryText(live))}
           projecting={projecting}
           onProjectingChange={onProjectingChange}
+          consumeStartArrival={consumeStartArrival}
           soundToggle={<SoundToggle state={soundState} onToggle={toggleSound} />}
         />
       )}

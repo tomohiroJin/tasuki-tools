@@ -245,3 +245,18 @@ describe('盤の回の札', () => {
     expect([...container.querySelectorAll('.dial-plan-number')].map((t) => t.textContent)).toEqual(['1', '2', '4', '5']);
   });
 });
+
+/**
+ * @requirements #455（設計 §3.3）
+ */
+describe('盤の長い会の数字', () => {
+  it('Given 予定の合計 180 分の会 / When 描く / Then 数字は h:mm:ss で、長い会の字の大きさのクラスが付く', () => {
+    const long = render(<Dial view={new Driver([120, 60]).view(0)} wallNow={WALL} reducedMotion={false} />);
+    const time = long.container.querySelector('.dial-time');
+    expect(time?.textContent).toBe('2:00:00');
+    expect(time?.classList.contains('dial-time--hms')).toBe(true);
+    long.unmount();
+    const short = render(<Dial view={new Driver([5, 7]).view(MIN)} wallNow={WALL} reducedMotion={false} />);
+    expect(short.container.querySelector('.dial-time')?.classList.contains('dial-time--hms')).toBe(false);
+  });
+});

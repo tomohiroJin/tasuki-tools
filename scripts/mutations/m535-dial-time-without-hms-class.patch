@@ -1,0 +1,23 @@
+# 変異 535: dial-time-without-hms-class
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/dial.test.tsx
+#
+# #455。長い会の数字に字の大きさのクラスを付けず、h:mm:ss の数字（最長 8 字）が m:ss の大きさのまま、盤の読む欄（盤の 56%）に収まらない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m535-*.patch
+# 復元: git apply -R scripts/mutations/m535-*.patch
+diff --git a/apps/agenda-web/src/components/Dial.tsx b/apps/agenda-web/src/components/Dial.tsx
+index ebf568ea..32b60588 100644
+--- a/apps/agenda-web/src/components/Dial.tsx
++++ b/apps/agenda-web/src/components/Dial.tsx
+@@ -275,7 +275,7 @@ function Readout({ view }: { view: AgendaView }) {
+             lines.name
+           )}
+         </div>
+-        <div className={lines.style === 'h:mm:ss' ? 'dial-time dial-time--hms' : 'dial-time'}>
++        <div className="dial-time">
+           <TimeDigits text={lines.primary} />
+         </div>
+         <div className={`dial-drift is-${driftTone(view)}`}>{lines.drift}</div>

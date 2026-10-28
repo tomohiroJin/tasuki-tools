@@ -3,7 +3,7 @@
  */
 
 /** 定義の項目（ステップ）の最大数 */
-export const MAX_ITEMS = 20;
+export const MAX_ITEMS = 40;
 /** ステップの名前の最大文字数 */
 export const MAX_STEP_NAME = 40;
 /** 会の名前の最大文字数（0 字は許す） */
@@ -16,8 +16,8 @@ export const STEP_SEC_MAX = 7200;
 /** 入力するステップの持ち時間の刻み（秒） */
 export const STEP_SEC_GRANULARITY = 60;
 
-/** 予定の合計の上限（秒。180 分） */
-export const MAX_TOTAL_SEC = 10800;
+/** 予定の合計の上限（秒。720 分。回数で展開したあとの合計で数える） */
+export const MAX_TOTAL_SEC = 43200;
 /** シナリオ全体を繰り返す回数の下限 */
 export const MIN_ROUNDS = 1;
 /** シナリオ全体を繰り返す回数の上限 */

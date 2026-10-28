@@ -1,0 +1,23 @@
+# 変異 537: grouped-follows-scrolling
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/step-list.test.tsx
+#
+# #455。回の見出しを枠の有無から導き、回数 1 で 21 行を超えて枠を持つと「1 回」の見出しが出る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m537-*.patch
+# 復元: git apply -R scripts/mutations/m537-*.patch
+diff --git a/apps/agenda-web/src/components/StepList.tsx b/apps/agenda-web/src/components/StepList.tsx
+index 3768509e..1dc70feb 100644
+--- a/apps/agenda-web/src/components/StepList.tsx
++++ b/apps/agenda-web/src/components/StepList.tsx
+@@ -94,7 +94,7 @@ export function StepList({ view, canOperate, onSetSkipped }: Props) {
+   // 見出しで区切るのは回数 2 以上で 1 回に 2 ステップ以上のときだけ（枠の有無から導かない）
+   const scrolling = view.rounds >= 2 || rows.length > FLAT_LIST_MAX_ROWS;
+   const flatRounds = isSingleStepRounds(view);
+-  const grouped = view.rounds >= 2 && !flatRounds;
++  const grouped = scrolling && !flatRounds;
+   const nowId = rows.find((r) => r.status === 'now')?.id;
+ 
+   // 枠の中で、いまの行が見えるようにする。動かすのは枠の `scrollTop` だけ
