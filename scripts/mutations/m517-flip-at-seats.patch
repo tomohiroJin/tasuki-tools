@@ -26,9 +26,9 @@ diff --git a/apps/checkin-web/src/components/SeatRow.tsx b/apps/checkin-web/src/
 +              style={{ '--d': `${i * 90}ms` } as React.CSSProperties}
 +              aria-hidden="true"
 +            />
-             <span className="seat-name">
+             <span className="seat-name" title={seat.name}>
                {seat.name}
-               {seat.id === selfId && YOU_MARK}
+             </span>
 diff --git a/apps/checkin-web/src/screens/CheckinRoom.tsx b/apps/checkin-web/src/screens/CheckinRoom.tsx
 --- a/apps/checkin-web/src/screens/CheckinRoom.tsx
 +++ b/apps/checkin-web/src/screens/CheckinRoom.tsx

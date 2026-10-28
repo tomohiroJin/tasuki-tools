@@ -34,6 +34,8 @@ describe('Check-in Cards が受け取るフレーム', () => {
     expect(parseCheckinWebMessage(JSON.stringify({ type: 'checkin', state }))).toEqual({ type: 'checkin', state });
   });
 
+  // 注: この試験だけでは「topic を先に」の順は守れない。topic と checkin は type が互いに素なので、
+  // 順を入れ替えても緑になる（順は type で守られている）。ここは topic が受理されることを固定する。
   it('Given お題の状態のフレーム / When 検める / Then お題として受け取る（topic を先に見分ける）', () => {
     const raw = JSON.stringify({ type: 'topic', state: TOPIC_STATE });
     expect(parseCheckinWebMessage(raw)).toEqual({ type: 'topic', state: TOPIC_STATE });

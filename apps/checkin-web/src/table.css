@@ -300,6 +300,11 @@
   line-clamp: 2;
 }
 
+/* 「（あなた）」の印。名前の省略の外にあるので、長い名前でも切れない */
+.seat-you {
+  font-size: var(--font-size-sm);
+}
+
 /* 伏せた札: poker の席の札と同じ裏模様 */
 .seat-slot--down {
   border: 1px solid var(--gold-deep);

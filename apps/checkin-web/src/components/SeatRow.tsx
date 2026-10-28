@@ -22,8 +22,9 @@ export function SeatRow({ seats, selfId, playedCount, playerCount, spectatorCoun
             <span className={`seat-slot${seat.played ? ' seat-slot--down' : ''}`} aria-hidden="true" />
             <span className="seat-name" title={seat.name}>
               {seat.name}
-              {seat.id === selfId && YOU_MARK}
             </span>
+            {/* 印は名前の外に置く（名前が 2 行で省略されても「（あなた）」が切れない） */}
+            {seat.id === selfId && <span className="seat-you">{YOU_MARK}</span>}
             <span className="ui-visually-hidden">{seat.played ? SEAT_PLAYED_SR : SEAT_WAITING_SR}</span>
           </li>
         ))}

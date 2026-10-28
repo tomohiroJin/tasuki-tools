@@ -3379,7 +3379,7 @@ export const MUTATIONS = [
     patch: "m505-broadcast-one-view-to-all.patch",
     pkg: "apps/tasuki-sync",
     tests: ["test/checkin-handlers.test.ts"],
-    note: "#406 段 2。開く前に名簿の先頭の人の札が全員へ届き、匿名で開いた後もその人の札の山が全員へ分かる（設計 §6・E5）。匿名をサーバーで守る変異。",
+    note: "#406 段 2。開く前に名簿の先頭の人の札が全員へ届く（設計 §6・E5）。匿名をサーバーで守る変異。",
   },
   {
     id: 506,
@@ -3387,7 +3387,7 @@ export const MUTATIONS = [
     patch: "m506-players-by-presence-not-tool.patch",
     pkg: "apps/tasuki-sync",
     tests: ["test/checkin-handlers.test.ts"],
-    note: "#406 段 2。選択画面（ハブ）だけに居る人が分母に入り、チェックインを開いている全員が出しても開かない（判断 10）。匿名をサーバーで守る変異（数える人）。",
+    note: "#406 段 2。分母の誤り（選択画面〔ハブ〕だけに居る人が数えられ、チェックインを開いている全員が出しても開かない。判断 10）。匿名の漏れではなく、自動で開く判断が狂う実害を固定する。",
   },
   {
     id: 507,

@@ -28,4 +28,10 @@ describe('玄関の札の文言は書体の常用の層に収まる', () => {
     expect(texts.length).toBe(TOOLS.length * 3);
     expect(texts.length).toBeGreaterThanOrEqual(18);
   });
+
+  it('Given 範囲外の字（base 層に無い字）/ When 判定する / Then 空でない（判定が恒に空を返さない対照）', () => {
+    // 上の「外れる字は無い」が、判定の故障で緑になっていないことを示す
+    expect(outsideBase(['𠮷'])).not.toEqual([]);
+    expect(outsideBase(['札を出す'])).toEqual([]);
+  });
 });

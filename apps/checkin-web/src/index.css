@@ -14,7 +14,7 @@
   text-align: center;
 }
 
-/* 共通の見出し（`RoomHeader`）と段組みの間（盤・進行表の札が行に接しない）。topic-web・roulette-web と同じ値 */
+/* 共通の見出し（`RoomHeader`）と段組みの間（盤・札の列が行に接しない）。topic-web・roulette-web と同じ値 */
 .ui-room-header {
   margin-block-end: var(--space-5);
 }

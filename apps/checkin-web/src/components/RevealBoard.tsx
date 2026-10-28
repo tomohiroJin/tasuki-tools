@@ -94,10 +94,10 @@ export function RevealBoard({ method, piles }: Props) {
               </p>
               {NUMERIC_METHODS.has(method) ? (
                 // 数のやり方: 札の顔に数字が出ているので、山の下は意味だけ（札の名前は読み上げ用に隠して残す）。
-                // 0 枚の山は枠に数字が無いので、数字と意味を 1 行に並べる
+                // 0 枚の山は枠に数字が無いので、名前と意味を 1 行に並べる。隠した名前と意味の間にも空白を置く（読み上げで連結しない）
                 <p className="pile-label">
                   <span className={pile.count === 0 ? 'pile-name' : 'pile-name ui-visually-hidden'}>{cardCopy?.name ?? pile.card}</span>
-                  {pile.count === 0 && ' '}
+                  {' '}
                   <span className="pile-meaning">{cardCopy?.meaning}</span>
                 </p>
               ) : (
