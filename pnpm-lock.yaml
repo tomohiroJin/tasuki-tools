@@ -306,6 +306,9 @@ importers:
       '@tasuki/agenda-core':
         specifier: workspace:*
         version: link:../../packages/agenda-core
+      '@tasuki/checkin-core':
+        specifier: workspace:*
+        version: link:../../packages/checkin-core
       '@tasuki/poker-core':
         specifier: workspace:*
         version: link:../../packages/poker-core

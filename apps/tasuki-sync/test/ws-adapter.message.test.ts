@@ -656,6 +656,85 @@ describe("WsAdapter 進行タイマーのメッセージ経路", () => {
 });
 
 /**
+ * チェックインのメッセージ経路（#406）。進行タイマーと同じ形で、サイズ超過は
+ * `MESSAGE_TOO_LARGE`、メッセージ層の同期 throw は `INTERNAL_ERROR` を返して接続を保つ。
+ *
+ * @requirements #406
+ */
+describe("WsAdapter チェックインのメッセージ経路", () => {
+  it("Given ?tool=checkin の接続 / When 64KB を超える本文を送る / Then checkin の層へ渡さず MESSAGE_TOO_LARGE を返し接続は保つ", async () => {
+    // Given
+    let called = false;
+    adapter = newTestWsAdapter({
+      port: 0,
+      host: "127.0.0.1",
+      allowedOrigins: [],
+      timer: { handleMessage: async () => {} },
+      checkin: { handleMessage: async () => {
+        called = true;
+      } },
+      onDisconnect: () => {},
+      logger: testLogger,
+    });
+    const ws = new WebSocket(`ws://127.0.0.1:${adapter.port}/ws?tool=checkin`);
+    await waitOpen(ws);
+
+    // When: 64KB 超（境界の外側）
+    ws.send("x".repeat(64 * 1024 + 1));
+    const msg = await waitMessage(ws);
+
+    // Then
+    expect(msg).toMatchObject({ type: "error", code: "MESSAGE_TOO_LARGE" });
+    expect(ws.readyState).toBe(WebSocket.OPEN);
+    expect(called).toBe(false);
+    ws.close();
+  });
+
+  it("Given 最初の 1 通だけ同期 throw する checkin の層 / When 2 通送る / Then INTERNAL_ERROR を返し、接続もプロセスも落ちず 2 通目が届く", async () => {
+    // Given
+    const { logger, lines } = collectingLogger();
+    let calls = 0;
+    adapter = newTestWsAdapter({
+      port: 0,
+      host: "127.0.0.1",
+      allowedOrigins: [],
+      timer: { handleMessage: async () => {} },
+      checkin: { handleMessage: (_connId: string, _raw: string): Promise<void> => {
+        calls++;
+        if (calls === 1) throw new Error("boom in onCheckinMessage");
+        return Promise.resolve();
+      } },
+      onDisconnect: () => {},
+      logger,
+    });
+    const ws = new WebSocket(`ws://127.0.0.1:${adapter.port}/ws?tool=checkin`);
+    await waitOpen(ws);
+    try {
+      // When
+      ws.send("1通目");
+      const msg = await waitMessage(ws);
+
+      // Then: エラーフレームが返り、例外の分類だけが記録される（例外メッセージは載せない）
+      expect(msg).toMatchObject({ type: "error", code: "INTERNAL_ERROR" });
+      await waitFor(() => lines.some((l) => l.startsWith("on-message-error ")));
+      expect(lines.find((l) => l.startsWith("on-message-error "))!).not.toContain("boom in onCheckinMessage");
+      expect(lines.find((l) => l.startsWith("on-message-error "))!).toContain("protocol=checkin");
+      expect(ws.readyState).toBe(WebSocket.OPEN);
+
+      // Then: 2 通目がハンドラへ届き、新しい接続も張れる
+      ws.send("2通目");
+      await waitFor(() => calls === 2);
+      const second = new WebSocket(`ws://127.0.0.1:${adapter.port}/ws?tool=checkin`);
+      await waitOpen(second);
+      expect(second.readyState).toBe(WebSocket.OPEN);
+      second.close();
+    } finally {
+      ws.close();
+    }
+  });
+});
+
+/**
  * poker のメッセージ層が throw してもプロセスを落とさない（#95 S2）。
  *
  * **統合でこの隔離の重みが変わった。** 統合前は poker のハンドラの同期 throw で

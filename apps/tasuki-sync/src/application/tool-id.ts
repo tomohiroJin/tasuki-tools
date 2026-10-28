@@ -46,6 +46,9 @@ export const TOOL_ROULETTE = "roulette";
 /** 進行タイマーの入口から来た接続（#429）。 */
 export const TOOL_AGENDA = "agenda";
 
+/** チェックイン（Check-in Cards）の入口から来た接続（#406）。 */
+export const TOOL_CHECKIN = "checkin";
+
 /**
  * ハブの接続が宣言するツール。**どれでもない**（設計正本 D14・S5a の裁定）。
  *

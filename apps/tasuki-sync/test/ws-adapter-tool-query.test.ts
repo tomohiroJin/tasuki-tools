@@ -363,6 +363,83 @@ describe("進行タイマー（?tool=agenda）の接続の振り分け", () => {
 });
 
 /**
+ * チェックインの接続は専用のメッセージ層だけへ届き、timer・ハブ・ルーレット・進行タイマーの層へは届かない（#406）。
+ *
+ * @requirements #406
+ */
+describe("チェックイン（?tool=checkin）の接続の振り分け", () => {
+  it("Given ?tool=checkin の接続 / When 生テキストを送る / Then checkin の層にだけ届き、timer・ハブ・ルーレット・agenda の層へは届かない", async () => {
+    // Given
+    const calls = { checkin: [] as string[], timer: 0, hub: 0, roulette: 0, agenda: 0 };
+    const adapter: WsAdapter = newTestWsAdapter({
+      port: 0,
+      host: "127.0.0.1",
+      allowedOrigins: [],
+      timer: { handleMessage: async () => {
+        calls.timer++;
+      } },
+      hub: { handleMessage: async () => {
+        calls.hub++;
+      } },
+      roulette: { handleMessage: async () => {
+        calls.roulette++;
+      } },
+      agenda: { handleMessage: async () => {
+        calls.agenda++;
+      } },
+      checkin: { handleMessage: async (_connId, raw) => {
+        calls.checkin.push(raw);
+      } },
+      onDisconnect: () => {},
+      logger: testLogger,
+    });
+    try {
+      const ws = new WebSocket(`ws://127.0.0.1:${adapter.port}/ws?tool=checkin`);
+      await waitOpen(ws);
+
+      // When
+      ws.send("札のテキスト");
+      await waitForCondition(() => calls.checkin.length > 0);
+
+      // Then
+      expect(calls.checkin).toEqual(["札のテキスト"]);
+      expect([calls.timer, calls.hub, calls.roulette, calls.agenda]).toEqual([0, 0, 0, 0]);
+      ws.close();
+    } finally {
+      await adapter.close();
+    }
+  });
+
+  it("Given ?tool=checkin で繋ぐ / When 受理されてから閉じる / Then 受理と切断が 1 回ずつ通知される（接続 ID と鍵つき）", async () => {
+    // Given
+    const connectCalls: Array<[string, string]> = [];
+    const disconnectCalls: string[] = [];
+    const adapter: WsAdapter = newTestWsAdapter({
+      port: 0,
+      host: "127.0.0.1",
+      allowedOrigins: [],
+      timer: { handleMessage: async () => {} },
+      onConnect: (connId, rateKey) => connectCalls.push([connId, rateKey]),
+      onDisconnect: (connId) => disconnectCalls.push(connId),
+      logger: testLogger,
+    });
+    try {
+      // When
+      const ws = new WebSocket(`ws://127.0.0.1:${adapter.port}/ws?tool=checkin`);
+      await waitOpen(ws);
+      ws.close();
+      await waitForCondition(() => disconnectCalls.length > 0);
+
+      // Then
+      expect(connectCalls.length).toBe(1);
+      expect(disconnectCalls).toEqual([connectCalls[0]![0]]);
+    } finally {
+      await adapter.close();
+    }
+  });
+});
+
+/**
  * poker の接続の受理と切断（#368 Task 1）。
  *
  * poker は受理のフックを持たず（レート制限の鍵は `ws.data.rateKey` から直接読む）、切断の後始末は

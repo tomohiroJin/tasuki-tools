@@ -29,6 +29,7 @@ describe("protocolFromRequestUrl（?tool= の判定）", () => {
     ["?tool=topic", "topic"],
     ["?tool=roulette", "roulette"],
     ["?tool=agenda", "agenda"],
+    ["?tool=checkin", "checkin"],
     ["?tool=hub", "unknown"],
     ["?tool=Timer", "unknown"],
     ["?tool=", "unknown"],
