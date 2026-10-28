@@ -205,6 +205,18 @@ export const ALLOWED = {
     "@tasuki/ui",
     "@tasuki/web-kit",
   ],
+  // Check-in Cards（#406）。agenda-web と同じ形（自分の core だけを使い、他のツールの core を知らない）。
+  "apps/checkin-web": [
+    "@tasuki/checkin-core",
+    "@tasuki/dev-hub-redirect",
+    "@tasuki/invite-ui",
+    "@tasuki/protocol",
+    "@tasuki/room-core",
+    "@tasuki/sync-client",
+    "@tasuki/topic-core",
+    "@tasuki/ui",
+    "@tasuki/web-kit",
+  ],
   // #95 S2 で apps/timer-sync と apps/poker-sync がここへ統合された。
   // poker-core が加わったのはそのため（統合前は poker-sync 側の依存）。
   // 進行タイマー（#429）の合成ルートが agenda-core を呼ぶ。チェックイン（#406）のハンドラと配信が checkin-core を呼ぶ。

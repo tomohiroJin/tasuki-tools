@@ -1,0 +1,20 @@
+/* ============================================================
+   Tasuki Check-in Cards（#406）
+   共通の世界観「夜のカードテーブル」は @tasuki/ui が持つ。
+   ここには Check-in Cards 固有のものだけを置く。
+   **Tailwind と併用しない**（#297：`@import` の書体の url() が解決されず全滅した）。
+   **生の色を書かない**（語彙のトークンを使う）。字の大きさは 5 段のトークン。
+   ============================================================ */
+
+@import '@tasuki/ui';
+/* 遷移中・参加中の一言。卓の上で控えめに置く（topic-web・poker-web と同じ置き方）。色は部品（`.ui-note`）が持つ。 */
+.loading-note {
+  margin: 0;
+  padding: var(--space-6) 0;
+  text-align: center;
+}
+
+/* 共通の見出し（`RoomHeader`）と段組みの間（盤・進行表の札が行に接しない）。topic-web・roulette-web と同じ値 */
+.ui-room-header {
+  margin-block-end: var(--space-5);
+}

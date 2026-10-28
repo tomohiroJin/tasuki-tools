@@ -177,6 +177,14 @@ export const WEB_APPS = [
     allowedImporters: [],
     wsHolders: [],
   },
+  {
+    app: "apps/checkin-web",
+    // #406。agenda-web と同じ宣言（接続の実体は `@tasuki/sync-client`。src は WS を自分で持たない）。
+    // その守りは `tests/screens-do-not-import-sync-client.test.ts` が checkin-web の中で持つ。
+    syncModules: [],
+    allowedImporters: [],
+    wsHolders: [],
+  },
 ];
 
 /**
