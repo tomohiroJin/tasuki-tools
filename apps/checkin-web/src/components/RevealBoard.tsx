@@ -1,0 +1,96 @@
+/**
+ * 開いた後の画面（#406 3.5・設計 §5 の B と C）。札の種類ごとの山・山の下の大きな数字と札の名前・
+ * 名前つきなら名前の小札・一番多い山は金の縁と淡い光・下に 1 行の要約。
+ *
+ * **開く動きは山の側だけ**（各山の札が伏せた姿から `revealSchedule` の遅れで裏返り、最後に数字と名前が出る）。
+ * 席の伏せ札はここに無く、裏返さない（匿名で席と札が結びついて見えるのを防ぐ）。名前つきも匿名も同じ動き。
+ * 動きを減らす設定では、遅れも動きのクラスも付けず、開いた形をすぐ出す（E12）。
+ */
+import { METHODS, type MethodId, type PileView } from '@tasuki/checkin-core';
+import type { CSSProperties } from 'react';
+import { PILE_UNIT_SR, REVEAL_LABEL } from '../copy';
+import { usePrefersReducedMotion } from '../hooks/use-reduced-motion';
+import { METHOD_COPY } from '../method-copy';
+import { revealSchedule, summaryLine, topCards } from '../reveal-view';
+import { CardFace } from './CardFace';
+
+interface Props {
+  method: MethodId;
+  piles: readonly PileView[];
+}
+
+export function RevealBoard({ method, piles }: Props) {
+  const reduced = usePrefersReducedMotion();
+  // 山は「やり方の札の順」。サーバーの順に頼らず、札の定義の順に並べ直す
+  const ordered = METHODS[method].cards.map((card) => piles.find((p) => p.card === card) ?? { card, count: 0 });
+  const total = ordered.reduce((n, p) => n + p.count, 0);
+  const schedule = revealSchedule(total, reduced);
+  const top = topCards(ordered);
+  const maxCount = ordered.reduce((m, p) => Math.max(m, p.count), 0);
+
+  const boardStyle = {
+    '--pile-count': ordered.length,
+    '--stack-max': Math.max(1, maxCount),
+    ...(reduced ? {} : { '--reveal-total': `${schedule.totalMs}ms` }),
+  } as CSSProperties;
+
+  let next = 0; // 山をまたいで通し番号で遅れを振る
+  return (
+    <section className={`reveal-board${reduced ? '' : ' reveal-board--run'}`} style={boardStyle}>
+      <ul className="piles" aria-label={REVEAL_LABEL}>
+        {ordered.map((pile) => {
+          const cardCopy = METHOD_COPY[method].cards[pile.card];
+          const cls = `pile${top.has(pile.card) ? ' pile--top' : ''}${pile.count === 0 ? ' pile--empty' : ''}`;
+          return (
+            <li key={pile.card} className={cls}>
+              <div className="pile-stack">
+                {pile.count === 0 ? (
+                  <span className="pile-ghost" aria-hidden="true" />
+                ) : (
+                  Array.from({ length: pile.count }, (_, i) => {
+                    const delay = schedule.delaysMs[next++] ?? 0;
+                    return (
+                      <span
+                        key={i}
+                        className="pile-card"
+                        style={
+                          {
+                            '--i': i,
+                            ...(reduced ? {} : { '--d': `${delay}ms` }),
+                          } as CSSProperties
+                        }
+                        aria-hidden="true"
+                      >
+                        <span className="pile-card-in">
+                          <span className="pile-card-back" />
+                          <span className="pile-card-face">
+                            <CardFace method={method} card={pile.card} />
+                          </span>
+                        </span>
+                      </span>
+                    );
+                  })
+                )}
+              </div>
+              <p className="pile-count">
+                {pile.count}
+                <span className="ui-visually-hidden">{PILE_UNIT_SR}</span>
+              </p>
+              <p className="pile-name">{cardCopy?.name ?? pile.card}</p>
+              {pile.names !== undefined && pile.names.length > 0 && (
+                <ul className="pile-names">
+                  {pile.names.map((name, i) => (
+                    <li key={`${name}-${i}`} className="pile-chip">
+                      {name}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      <p className="reveal-summary">{summaryLine(method, ordered)}</p>
+    </section>
+  );
+}

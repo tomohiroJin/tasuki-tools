@@ -1,0 +1,223 @@
+/* ============================================================
+   開いた後の画面（#406 3.5）: 札の種類ごとの山・数字・強調・要約。
+   羅紗の上に象牙の小札を積む。開く動きは山の側だけ（席の伏せ札は動かさない）。
+   生の色は書かない（トークン）。字の大きさは 5 段のトークン。
+   ============================================================ */
+
+.reveal-board {
+  --pile-card-w: 4rem;
+  --pile-card-h: 5.6rem;
+  --pile-step: 0.8rem; /* 山の中で札が上へずれる量 */
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  container: reveal-board / inline-size;
+}
+
+.piles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+  align-items: end;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* 広い幅では、山を札の数だけ横に並べる。狭い幅は 2 列に折り返す */
+@container reveal-board (width >= 36rem) {
+  .piles {
+    grid-template-columns: repeat(var(--pile-count), minmax(0, 1fr));
+  }
+}
+
+.pile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-1);
+  min-inline-size: 0;
+  padding: var(--space-4) var(--space-3) var(--space-3);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--ivory-inset);
+  text-align: center;
+}
+
+/* 一番多い山: 金の縁と淡い光（同数なら全部） */
+.pile--top {
+  border-color: var(--gold-edge);
+  background: var(--gold-tint);
+  box-shadow: 0 0 30px var(--gold-glow);
+}
+
+.pile--empty {
+  opacity: 0.6;
+}
+
+/* ---------- 山（札を縦にずらして積む） ---------- */
+.pile-stack {
+  position: relative;
+  inline-size: var(--pile-card-w);
+  block-size: calc(var(--pile-card-h) + (var(--stack-max) - 1) * var(--pile-step));
+  margin-block-end: var(--space-3);
+}
+
+.pile-card {
+  position: absolute;
+  inset-inline-start: 0;
+  inset-block-end: calc(var(--i) * var(--pile-step));
+  inline-size: var(--pile-card-w);
+  block-size: var(--pile-card-h);
+  perspective: 600px;
+}
+
+.pile-card-in {
+  position: relative;
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  transform-style: preserve-3d;
+  transform: rotateY(180deg); /* 開いた形（顔が表） */
+}
+
+.pile-card-back,
+.pile-card-face {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  backface-visibility: hidden;
+}
+
+/* 伏せた札の裏: 席の伏せ札（table.css）と同じ模様 */
+.pile-card-back {
+  border: 1px solid var(--gold-deep);
+  background:
+    repeating-linear-gradient(45deg, var(--gold-edge) 0 2px, transparent 2px 5px),
+    repeating-linear-gradient(-45deg, var(--gold-glow) 0 2px, transparent 2px 5px),
+    var(--card-back);
+  box-shadow: var(--shadow-chip);
+}
+
+.pile-card-face {
+  transform: rotateY(180deg);
+  border: 1px solid var(--gold-deep);
+  background: linear-gradient(165deg, var(--card-sheen) 0%, var(--ivory) 60%, var(--card-shade) 100%);
+  box-shadow: var(--shadow-card);
+}
+
+.pile-card-face::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border: 1px solid var(--card-inline);
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+/* 小札の顔: 手札より小さく */
+.pile-card-face .card-art {
+  inline-size: 2.6rem;
+  block-size: 2.6rem;
+}
+
+.pile-card-face .card-numeral {
+  font-size: 2.2rem; /* scale-exempt: 小札の顔の大きな数字（絵の代わり） */
+}
+
+.pile-ghost {
+  position: absolute;
+  inset-inline-start: 0;
+  inset-block-end: 0;
+  inline-size: var(--pile-card-w);
+  block-size: var(--pile-card-h);
+  border: 1.5px dashed var(--line-strong);
+  border-radius: 7px;
+}
+
+/* ---------- 数・名前・名前の小札 ---------- */
+.pile-count {
+  margin: 0;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 600;
+  font-size: var(--font-size-xl);
+  line-height: 1;
+  color: var(--gold-bright);
+  text-shadow: 0 0 14px var(--gold-glow);
+}
+
+.pile-name {
+  margin: 0;
+  color: var(--ivory-faint);
+  font-size: var(--font-size-sm);
+}
+
+.pile-names {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-1);
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pile-chip {
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--ivory-inset);
+  color: var(--ivory-dim);
+  font-size: var(--font-size-xs);
+}
+
+.reveal-summary {
+  margin: 0;
+  color: var(--ivory-dim);
+  font-size: var(--font-size-base);
+  text-align: center;
+}
+
+/* ---------- 開く動き（山の側だけ）----------
+   動きを減らす設定では、そもそも `--run` を付けない（JS が止める）。reset.css も全体で止める。
+   札は伏せた姿で上から配られ、遅れ（--d）ずつ Y 軸に裏返る。最後に数・名前・要約が出る。 */
+.reveal-board--run .pile-card {
+  animation: reveal-deal 0.35s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: var(--d);
+}
+
+.reveal-board--run .pile-card-in {
+  animation: reveal-flip 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: calc(var(--d) + 0.35s);
+}
+
+.reveal-board--run .pile-count,
+.reveal-board--run .pile-name,
+.reveal-board--run .pile-names,
+.reveal-board--run .reveal-summary {
+  animation: reveal-fade 0.4s ease both;
+  animation-delay: var(--reveal-total);
+}
+
+@keyframes reveal-deal {
+  from {
+    opacity: 0;
+    transform: translateY(-24px) scale(0.9);
+  }
+}
+
+@keyframes reveal-flip {
+  from {
+    transform: rotateY(0deg);
+  }
+}
+
+@keyframes reveal-fade {
+  from {
+    opacity: 0;
+  }
+}

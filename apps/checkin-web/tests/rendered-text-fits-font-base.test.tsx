@@ -41,6 +41,17 @@ describe('描いた Check-in Cards の文字は書体の常用の層に収まる
     ['回の無い状態', IDLE_CHECKIN],
     ['開いている回', openCheckin('sunny')],
     ['見学中の開いている回', { ...openCheckin(null), spectating: true, spectatorCount: 1 }],
+    ['開いた後（名前つきの山）', (() => {
+      const s = openCheckin('sunny');
+      const names = (n: string[]) => ({ count: n.length, names: n });
+      const piles = [
+        { card: 'sunny', ...names(['あや']) },
+        { card: 'cloudy', ...names(['ゆう']) },
+        { card: 'rain', ...names([]) },
+        { card: 'thunder', ...names([]) },
+      ];
+      return { ...s, round: { ...s.round, status: 'revealed', piles } };
+    })()],
     ['開いた後', (() => { const s = openCheckin('sunny'); return { ...s, round: { ...s.round, status: 'revealed', piles: [] } }; })()],
   ])('Given %s / When 画面を描く / Then 外れる字は無く、描けている', (_label, state) => {
     saveResumeIdentity(RESUME);

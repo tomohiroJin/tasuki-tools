@@ -2,7 +2,7 @@
  * お題の板（#406・設計 §5）。小見出し（側とやり方の名前）・問い・凡例の 1 行。
  * 右上に公開の仕方の切り替えと「別のやり方」。公開の仕方は誰かが出したあと（`locked`）は変えられない（E7）。
  */
-import { METHODS, SIDES, type MethodId, type Visibility } from '@tasuki/checkin-core';
+import { METHODS, type MethodId, type Visibility } from '@tasuki/checkin-core';
 import { CHANGE_METHOD, SIDE_KICKER, VISIBILITY_GROUP_LABEL, VISIBILITY_LABEL } from '../copy';
 import { METHOD_COPY } from '../method-copy';
 
@@ -18,7 +18,7 @@ interface Props {
 
 export function PromptPanel({ method, visibility, locked, onSetVisibility, onChangeMethod }: Props) {
   const copy = METHOD_COPY[method];
-  const side = SIDES.find((s) => s === METHODS[method].side) ?? 'checkin';
+  const side = METHODS[method].side;
   return (
     <section className="prompt-panel">
       <p className="prompt-kicker">

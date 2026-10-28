@@ -2,7 +2,7 @@
  * Check-in Cards のルームの画面（#406）。
  *
  * 参加中・ルームなし・玄関への送り返し・共通の見出し・失敗の一言（3.1）に、やり方の選択・お題の板・席・
- * 手札・下の操作の帯（3.3）を組む。開いた後の見せ方（RevealBoard）は 3.4。
+ * 手札・下の操作の帯（3.3）、開いた後の画面（RevealBoard・3.5）を組む。
  * ここで名前は聞かない（名乗りは玄関に 1 つだけ・`docs/adr/0018`）。端末に同一性が無い・合言葉を求められたら
  * 玄関のそのルームへ送り返す（コードは落とさない）。
  */
@@ -12,6 +12,7 @@ import { Hand, SpectatorToggle } from '../components/Hand';
 import { LoadingView } from '../components/LoadingView';
 import { MethodPicker } from '../components/MethodPicker';
 import { PromptPanel } from '../components/PromptPanel';
+import { RevealBoard } from '../components/RevealBoard';
 import { RoundDock } from '../components/RoundDock';
 import { SeatRow } from '../components/SeatRow';
 import { CLOSE_BUTTON, GONE_HEADING, GONE_LINK, GONE_TEXT, JOINING_HEADING, PAGE_HEADING } from '../copy';
@@ -128,6 +129,19 @@ export function CheckinRoom({ roomCode }: { roomCode: string }) {
                 spectating={view.spectating}
                 onPlay={(card) => sync.playCard(round.seq, card)}
                 onSetSpectator={sync.setSpectator}
+              />
+            </>
+          )}
+          {round.status === 'revealed' && (
+            <>
+              <RevealBoard method={round.method} piles={round.piles} />
+              {/* 席の伏せ札は裏返さない（開く動きは山の側だけ）。札の絵も名前もここには載せない */}
+              <SeatRow
+                seats={round.seats}
+                selfId={view.you}
+                playedCount={round.seats.filter((x) => x.played).length}
+                playerCount={round.seats.length}
+                spectatorCount={view.spectatorCount}
               />
             </>
           )}

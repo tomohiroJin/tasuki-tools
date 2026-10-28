@@ -59,3 +59,7 @@ export function playedCountText(played: number, total: number): string {
 export function spectatorCountText(count: number): string {
   return `見学 ${count} 人`;
 }
+
+// ---- 開いた後の画面（#406 3.5）。要約の行は `reveal-view.ts` ----
+export const REVEAL_LABEL = '開いた札';
+export const PILE_UNIT_SR = ' 人';

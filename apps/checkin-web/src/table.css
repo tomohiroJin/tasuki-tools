@@ -30,7 +30,7 @@
   border: 0;
   background: transparent;
   color: var(--ivory-dim);
-  font: inherit;
+  font-family: inherit;
   font-size: var(--font-size-sm);
   font-weight: 700;
   cursor: pointer;
@@ -38,6 +38,7 @@
 
 .seg-button[aria-pressed='true'] {
   background: var(--gold-tint);
+  box-shadow: inset 0 0 0 1px var(--gold-deep); /* 色だけに頼らない: 金の薄い敷きと内側の線（builder・poker と同じ） */
   color: var(--gold-bright);
 }
 
@@ -74,7 +75,7 @@
   border-radius: var(--radius-lg);
   background: var(--felt-sink);
   color: var(--ivory);
-  font: inherit;
+  font-family: inherit;
   font-size: var(--font-size-base);
   font-weight: 700;
   text-align: start;
@@ -289,6 +290,11 @@
   box-shadow: var(--shadow-lift-near), var(--shadow-lift-far);
 }
 
+/* フォーカスの輪は、選んだ札の金の輪（3px）と接して見分けにくくならないよう、外へ離す */
+.hand-card:focus-visible {
+  outline-offset: 7px;
+}
+
 .hand-card[aria-pressed='true'] {
   transform: translateY(-14px);
   border-color: var(--gold-bright);
@@ -298,14 +304,9 @@
     0 0 28px var(--gold-glow);
 }
 
+/* 動きを減らす設定の transition は reset.css が全体で止める。選んだ札の持ち上げは静止した姿（動きではない）ので残す */
 @media (prefers-reduced-motion: reduce) {
-  .hand-card,
-  .method-option {
-    transition: none;
-  }
-
-  .hand-card:hover,
-  .hand-card[aria-pressed='true'],
+  .hand-card:not([aria-pressed='true']):hover,
   .method-option:hover {
     transform: none;
   }
