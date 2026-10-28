@@ -68,9 +68,10 @@ export {
   setRecording,
   renameGroup,
   setSpectator,
-  setSeated,
-  dealHands,
-  showHands,
+  settleRound,
+  exchangeHand,
+  dealAgain,
+  closeGame,
 } from './round.js';
 // Round: 上の関数の引数・戻り値型（`RoundStore` が保管する型でもある）
 // VoterView: applyAutoReveal の引数型。名簿の断片を構造的部分型で受ける
@@ -78,12 +79,12 @@ export {
 // RoundError: castVote / revealBy / revote / nextItem / setPoints / renameGroup が返す Result のエラー型
 export type { Round, VoterView, RoundError } from './round.js';
 
-// ./card-table・./playing-card・./hand-rank（#403 隠しモードのテーブル）
+// ./card-game・./playing-card・./hand-rank（#403 隠しモードのゲーム）
 //
-// 値は載せない。状態遷移の入口は `round.ts` の `setSeated` / `dealHands` / `showHands`、
+// 値は載せない。状態遷移の入口は `round.ts` の `settleRound` / `exchangeHand` / `dealAgain` / `closeGame`、
 // 役の判定は投影（`createSnapshotBuilder`）の中で閉じる。画面へは役の分類だけが届く。
-// CardTable: Round の table の型。TableError: RoundError の枝。RandomInt: dealHands の引数型
-export type { CardTable, TableError, RandomInt } from './card-table.js';
+// CardGame: Round の game の型。GameError: RoundError の枝。RandomInt: settleRound ほかの引数型
+export type { CardGame, GameError, RandomInt } from './card-game.js';
 // PlayingCard / Suit / Rank: TableView の札の型（画面が札を描くときに名前を要る）
 export type { PlayingCard, Suit, Rank } from './playing-card.js';
 // HandCategory: TableView の役の分類（画面が役の名前を引く鍵）

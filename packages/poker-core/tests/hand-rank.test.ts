@@ -1,10 +1,10 @@
 /**
  * 5 枚の役の判定（#403・設計 §6）。
  *
- * @requirements #403 T-5
+ * @requirements #403 G-7
  */
 import { describe, expect, it } from 'vitest';
-import { HAND_CATEGORIES, compareHands, evaluateHand } from '../src/hand-rank.js';
+import { HAND_CATEGORIES, evaluateHand } from '../src/hand-rank.js';
 import type { PlayingCard, Suit } from '../src/playing-card.js';
 
 /** `'AS KH 10D'` の形から札を作る（J=11 Q=12 K=13 A=14） */
@@ -56,39 +56,8 @@ describe('evaluateHand（#403）', () => {
   });
 });
 
-describe('compareHands（#403）', () => {
-  const cmp = (a: string, b: string) => Math.sign(compareHands(evaluateHand(hand(a)), evaluateHand(hand(b))));
-
-  it('Given 役が違う / When 比べる / Then 役の強い方が勝つ', () => {
-    expect(cmp('2S 2H 3D 4C 5S', 'AS KH QD JC 9S')).toBe(1);
-    expect(cmp('2C 7C 9C JC KC', '10S 9H 8D 7C 6S')).toBe(1);
-  });
-
-  it('Given 同じワンペア / When 比べる / Then ペアの数字、次に残りの高い順で決める', () => {
-    expect(cmp('9S 9H 2D 3C 4S', '8S 8H AD KC QS')).toBe(1);
-    expect(cmp('9S 9H AD 3C 4S', '9D 9C KD QC JS')).toBe(1);
-    expect(cmp('9S 9H AD KC 3S', '9D 9C AH KD 2S')).toBe(1);
-  });
-
-  it('Given 同じツーペア / When 比べる / Then 上のペア → 下のペア → 残り', () => {
-    expect(cmp('JS JH 3D 3C 2S', '10S 10H 9D 9C AS')).toBe(1);
-    expect(cmp('JS JH 4D 4C 2S', 'JD JC 3D 3C AS')).toBe(1);
-    expect(cmp('JS JH 4D 4C 5S', 'JD JC 4H 4S 2S')).toBe(1);
-  });
-
-  it('Given フルハウス同士 / When 比べる / Then 3 枚の側の数字で決める', () => {
-    expect(cmp('4S 4H 4D 2C 2S', '3S 3H 3D AC AS')).toBe(1);
-  });
-
-  it('Given 5 高のストレートと 6 高のストレート / When 比べる / Then 6 高が勝つ（A は 1 として数える）', () => {
-    expect(cmp('6S 5H 4D 3C 2S', '5S 4H 3D 2C AS')).toBe(1);
-  });
-
-  it('Given スートだけが違う同じ手 / When 比べる / Then 引き分け', () => {
-    expect(cmp('AS JH 9D 4C 2S', 'AH JD 9C 4S 2H')).toBe(0);
-  });
-
-  it('Given 逆の順 / When 比べる / Then 符号が反転する', () => {
-    expect(cmp('8S 8H KD 4C 2S', 'QS QH QD 4C 2S')).toBe(-1);
+describe('ストレートの高さ（#403）', () => {
+  it('Given A-2-3-4-5 / When 判定する / Then 5 高（A は 1 として数える）', () => {
+    expect(evaluateHand(hand('5S 4H 3D 2C AS')).ranks).toEqual([5]);
   });
 });

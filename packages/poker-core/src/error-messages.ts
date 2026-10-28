@@ -38,15 +38,15 @@ export function messageForRoundError(error: RoundError): string {
       return 'この見積もりはもう記録にありません';
     case 'estimate-open':
       return '見積もり中のアイテムにはまだポイントを付けられません';
-    // 隠しモードのテーブル（#403）。「着」「配」は書体の base 層から外れるので使わない
-    case 'table-not-seated':
-      return 'テーブルに入っていません';
+    // 隠しモードのゲーム（#403）。「配」「札」「枚」は書体の base 層から外れるので使わない
+    case 'table-not-player':
+      return 'この手には加わっていません';
+    case 'table-exchanged':
+      return 'チェンジは 1 回だけです';
+    case 'table-no-game':
+      return 'いまはポーカーをしていません';
     case 'table-in-play':
-      return 'いまの手を見せてから引き直してください';
-    case 'table-no-hand':
-      return 'まだカードを引いていません';
-    case 'table-full':
-      return 'テーブルは満員です';
+      return 'ポーカーの最中です。見積もりに戻ってから操作してください';
   }
 }
 

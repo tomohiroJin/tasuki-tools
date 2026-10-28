@@ -1,4 +1,4 @@
-// 5 枚の役の判定（#403・設計 §6）。サーバーが見せるときにだけ呼ぶ（画面へは分類だけが届く）。
+// 5 枚の役の判定（#403・設計 §6）。サーバーが開くときにだけ呼ぶ（画面へは分類だけが届く）。勝ち負けは付けない（設計 D2）。
 import type { PlayingCard } from './playing-card.js';
 
 /** 役の分類。**弱い順**（添字がそのまま強さ） */
@@ -18,15 +18,15 @@ export type HandCategory = (typeof HAND_CATEGORIES)[number];
 
 export interface HandValue {
   category: HandCategory;
-  /** 同じ役の中で比べる数字の並び（強い順に先頭から比べる） */
+  /** 役を作る数字の並び（枚数の多い順、同じ枚数なら大きい順。ストレートは最も高い数字だけ） */
   ranks: readonly number[];
 }
 
 /**
  * 5 枚の役を判定する。
  *
- * 数字は「枚数の多い順、同じ枚数なら数字の大きい順」に並べる。これだけで、ペア・ツーペア・
- * フルハウスなどの同じ役どうしは並びを先頭から比べれば決まる。A-2-3-4-5 のストレートは 5 高として扱う。
+ * 数字は「枚数の多い順、同じ枚数なら数字の大きい順」に並べ、その並びの形（4-1・3-2・2-2-1 など）で役を決める。
+ * A-2-3-4-5 のストレートは 5 高として扱う。
  */
 export function evaluateHand(cards: readonly PlayingCard[]): HandValue {
   const counts = new Map<number, number>();
@@ -58,15 +58,4 @@ function straightHighOf(ranks: readonly number[]): number | null {
   if (high - low === 4) return high;
   if (high === 14 && ranks[1] === 5 && low === 2) return 5;
   return null;
-}
-
-/** a が強ければ正、弱ければ負、同じ強さなら 0 */
-export function compareHands(a: HandValue, b: HandValue): number {
-  const byCategory = HAND_CATEGORIES.indexOf(a.category) - HAND_CATEGORIES.indexOf(b.category);
-  if (byCategory !== 0) return byCategory;
-  for (let i = 0; i < Math.max(a.ranks.length, b.ranks.length); i++) {
-    const diff = (a.ranks[i] ?? 0) - (b.ranks[i] ?? 0);
-    if (diff !== 0) return diff;
-  }
-  return 0;
 }

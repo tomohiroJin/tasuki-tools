@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { EMPTY_ESTIMATE_LOG } from '../src/estimate-log.js';
-import { EMPTY_TABLE } from '../src/card-table.js';
 import {
   applyAutoReveal,
   castVote,
@@ -341,7 +340,7 @@ describe('setItem / setPoints（#93）', () => {
  * 許可表が `["@tasuki/protocol"]` しか許していない・設計正本 D2）。
  */
 describe('Round が集約ルート（#95 S4a）', () => {
-  const votingRound = (): Round => ({ status: 'voting', votes: new Map(), item: '', log: EMPTY_ESTIMATE_LOG, recording: false, spectators: new Set(), table: EMPTY_TABLE });
+  const votingRound = (): Round => ({ status: 'voting', votes: new Map(), item: '', log: EMPTY_ESTIMATE_LOG, recording: false, spectators: new Set(), coffeeArmed: false, game: null });
 
   it('投票は Round だけで完結する', () => {
     // Given: votingRound() の呼び出し自体が前提のラウンドを用意する
@@ -395,7 +394,7 @@ describe('Round が集約ルート（#95 S4a）', () => {
 });
 
 describe('discardVote（退出した人の票を捨てる・R8）', () => {
-  const votingRound = (): Round => ({ status: 'voting', votes: new Map(), item: '', log: EMPTY_ESTIMATE_LOG, recording: false, spectators: new Set(), table: EMPTY_TABLE });
+  const votingRound = (): Round => ({ status: 'voting', votes: new Map(), item: '', log: EMPTY_ESTIMATE_LOG, recording: false, spectators: new Set(), coffeeArmed: false, game: null });
 
   it('Given 票のある人 / When 退出する / Then その票だけが消える', () => {
     // Given: 2 人が投票している

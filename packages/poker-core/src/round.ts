@@ -13,15 +13,14 @@ import {
   type EstimateLog,
 } from './estimate-log.js';
 import {
-  EMPTY_TABLE,
-  dealTable,
-  leaveTable,
-  seatAt,
-  showTable,
-  type CardTable,
+  dealGame,
+  dropPlayer,
+  exchangeCards,
+  revealIfReady,
+  type CardGame,
+  type GameError,
   type RandomInt,
-  type TableError,
-} from './card-table.js';
+} from './card-game.js';
 
 export interface Round {
   status: 'voting' | 'revealed';
@@ -35,8 +34,13 @@ export interface Round {
   recording: boolean;
   /** 見学中の参加者 ID（#419）。票を持たず、自動公開の分母にも入らない */
   spectators: ReadonlySet<string>;
-  /** 隠しモードのテーブル（#403）。見積もりの状態とは互いに変えない */
-  table: CardTable;
+  /**
+   * 隠しモードの入口の構え（#403 E-1〜E-3）。全員 ☕ の開票が 1 回あり、まだゲームが始まっていない。
+   * 再投票では残し、次のアイテムへ・全員 ☕ でない開票で解く
+   */
+  coffeeArmed: boolean;
+  /** 隠しモードのゲーム（#403）。無ければ見積もりだけ。ある間は見積もりの投票系の操作を拒む（G-11） */
+  game: CardGame | null;
 }
 
 export type RoundError =
@@ -45,7 +49,7 @@ export type RoundError =
   | { code: 'not-revealed'; op: 'revote' | 'next-item' }
   | { code: 'estimate-not-found' }
   | { code: 'estimate-open' }
-  | TableError;
+  | GameError;
 
 /**
  * 名簿の断片（自動公開の判定に要るぶんだけ）。
@@ -75,12 +79,14 @@ export function createRound(): Round {
     log: EMPTY_ESTIMATE_LOG,
     recording: false,
     spectators: new Set(),
-    table: EMPTY_TABLE,
+    coffeeArmed: false,
+    game: null,
   };
 }
 
 /** 投票（公開前は上書き可。FR-005〜007） */
 export function castVote(round: Round, voterId: string, card: Card): Result<Round, RoundError> {
+  if (round.game !== null) return err({ code: 'table-in-play' });
   if (round.status !== 'voting') {
     return err({ code: 'not-voting', op: 'vote' });
   }
@@ -137,6 +143,7 @@ function revealed(round: Round, now: number): Round {
  * 引数の形を保つためだけに残る。
  */
 export function revealBy(round: Round, _actorId: string, now: number): Result<Round, RoundError> {
+  if (round.game !== null) return err({ code: 'table-in-play' });
   if (round.status !== 'voting') {
     return err({ code: 'not-voting', op: 'reveal' });
   }
@@ -148,6 +155,7 @@ export function revealBy(round: Round, _actorId: string, now: number): Result<Ro
  * —— 同じアイテムの 2 回目の開票が同じ束に足される。在室確認をしない理由は {@link revealBy} と同じ。
  */
 export function revote(round: Round, _actorId: string): Result<Round, RoundError> {
+  if (round.game !== null) return err({ code: 'table-in-play' });
   if (round.status !== 'revealed') {
     return err({ code: 'not-revealed', op: 'revote' });
   }
@@ -163,6 +171,7 @@ export function nextItem(
   _actorId: string,
   points: NumberCardValue | null,
 ): Result<Round, RoundError> {
+  if (round.game !== null) return err({ code: 'table-in-play' });
   if (round.status !== 'revealed') {
     return err({ code: 'not-revealed', op: 'next-item' });
   }
@@ -171,6 +180,8 @@ export function nextItem(
     status: 'voting' as const,
     votes: new Map(),
     item: '',
+    // 次のアイテムへ進んだら入口の構えを解く（#403 E-3）
+    coffeeArmed: false,
     log: closeOpenGroup(round.log, points),
   });
 }
@@ -262,28 +273,87 @@ export function setSpectator(round: Round, participantId: string, spectator: boo
  * 居ない人の ID を渡しても壊れない（何も起きない）。
  */
 export function discardVote(round: Round, voterId: string): Round {
-  const table = leaveTable(round.table, voterId);
-  if (!round.votes.has(voterId) && !round.spectators.has(voterId) && table === round.table) return round;
+  const game = round.game === null ? null : dropPlayer(round.game, voterId);
+  if (!round.votes.has(voterId) && !round.spectators.has(voterId) && game === round.game) return round;
   const votes = new Map(round.votes);
   votes.delete(voterId);
   const spectators = new Set(round.spectators);
   spectators.delete(voterId);
-  // テーブルの席と手も捨てる（#403 T-11）。名簿に居ない人の手を見せない
-  return { ...round, votes, spectators, table };
+  // ゲームのプレイヤーからも外す（#403 G-8）。最後のプレイヤーが外れたら見積もりへ戻す
+  if (round.game !== null && game === null) return { ...round, spectators, ...backToEstimate };
+  return { ...round, votes, spectators, game };
 }
 
-/** テーブルの席に着く／離れる（#403 T-1・T-10）。見積もりの状態には触れない */
-export function setSeated(round: Round, participantId: string, seated: boolean): Result<Round, RoundError> {
-  if (!seated) return ok({ ...round, table: leaveTable(round.table, participantId) });
-  return seatAt(round.table, participantId).map((table) => ({ ...round, table }));
+/** 見積もりへ戻すときの差分（ゲームを消し、票の無い投票中へ・#403 G-10） */
+const backToEstimate = {
+  status: 'voting' as const,
+  votes: new Map<string, Card>(),
+  game: null,
+  coffeeArmed: false,
+};
+
+/** 投票者（接続中で見学でない人）。`shouldAutoReveal` の分母と同じ集合 */
+function eligibleVoters(round: Round, voters: readonly VoterView[]): VoterView[] {
+  return voters.filter((v) => v.connected && !round.spectators.has(v.id));
 }
 
-/** テーブルの席の全員へ配る（#403 T-3）。乱数は呼び出し側が注入する */
-export function dealHands(round: Round, actorId: string, randomInt: RandomInt): Result<Round, RoundError> {
-  return dealTable(round.table, actorId, randomInt).map((table) => ({ ...round, table }));
+/**
+ * 操作のあとに必ず通す後処理（#403）。サーバーは開票・切断・退出のどの経路でもこれを呼ぶ。
+ *
+ * 1. 自動公開（{@link applyAutoReveal}）
+ * 2. 入口の判定（E-1〜E-5）: この操作で開票が起きたとき、投票者の全員が ☕ なら、構えていれば配って始め、
+ *    構えていなければ構える。全員 ☕ でなければ構えを解く
+ * 3. ゲームの最中なら、接続中のプレイヤーが全員チェンジを済ませたかを見て開く（G-7）
+ */
+export function settleRound(
+  before: Round,
+  after: Round,
+  voters: readonly VoterView[],
+  now: number,
+  randomInt: RandomInt,
+): Round {
+  let round = applyAutoReveal(after, voters, now);
+  if (before.status === 'voting' && round.status === 'revealed' && round.game === null) {
+    const eligible = eligibleVoters(round, voters);
+    const allCoffee = eligible.length > 0 && eligible.every((v) => round.votes.get(v.id)?.kind === 'coffee');
+    if (!allCoffee) round = { ...round, coffeeArmed: false };
+    else if (!round.coffeeArmed) round = { ...round, coffeeArmed: true };
+    else round = { ...round, coffeeArmed: false, game: dealGame(eligible.map((v) => v.id), randomInt) };
+  }
+  if (round.game !== null) {
+    const connected = new Set(voters.filter((v) => v.connected).map((v) => v.id));
+    const game = revealIfReady(round.game, (id) => connected.has(id));
+    if (game !== round.game) round = { ...round, game };
+  }
+  return round;
 }
 
-/** テーブルの手を全員へ見せる（#403 T-5） */
-export function showHands(round: Round, actorId: string): Result<Round, RoundError> {
-  return showTable(round.table, actorId).map((table) => ({ ...round, table }));
+/** チェンジ（#403 G-4〜G-6）。開くかどうかは {@link settleRound} が決める */
+export function exchangeHand(
+  round: Round,
+  participantId: string,
+  discard: readonly number[],
+  randomInt: RandomInt,
+): Result<Round, RoundError> {
+  if (round.game === null) return err({ code: 'table-no-game' });
+  return exchangeCards(round.game, participantId, discard, randomInt).map((game) => ({ ...round, game }));
+}
+
+/** 開いたあとのもう一度（#403 G-9）。いまの投票者で配り直す。投票者が居なければ見積もりへ戻す */
+export function dealAgain(
+  round: Round,
+  _actorId: string,
+  voters: readonly VoterView[],
+  randomInt: RandomInt,
+): Result<Round, RoundError> {
+  if (round.game === null) return err({ code: 'table-no-game' });
+  if (round.game.status !== 'shown') return err({ code: 'table-in-play' });
+  const game = dealGame(eligibleVoters(round, voters).map((v) => v.id), randomInt);
+  return ok(game === null ? { ...round, ...backToEstimate } : { ...round, game });
+}
+
+/** 見積もりに戻る（#403 G-10）。誰でも、ゲームの最中でも押せる */
+export function closeGame(round: Round): Result<Round, RoundError> {
+  if (round.game === null) return err({ code: 'table-no-game' });
+  return ok({ ...round, ...backToEstimate });
 }
