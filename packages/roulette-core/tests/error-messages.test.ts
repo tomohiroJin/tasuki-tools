@@ -25,7 +25,7 @@ describe("ルーレットのエラーの文言", () => {
     expect(rouletteErrorMessageFor("ROULETTE_TOO_FEW")).toBe("2 人から回せます");
     expect(rouletteErrorMessageFor("ROULETTE_SPINNING")).toBe("回っている間は回せません");
     expect(rouletteErrorMessageFor("GUEST_NAME_TAKEN")).toBe("この名前はすでにいます");
-    expect(rouletteErrorMessageFor("TOO_MANY_GUESTS")).toBe("名前は 12 人まで追加できます");
+    expect(rouletteErrorMessageFor("TOO_MANY_GUESTS")).toBe("名前は 24 人まで追加できます");
     expect(rouletteErrorMessageFor("ROULETTE_TOO_MANY")).toBe("24 人までで回せます");
     expect(rouletteErrorMessageFor("INVALID_PICK_COUNT")).toBe("この人数は選べません");
     expect(rouletteErrorMessageFor("ROULETTE_TOO_FEW_FOR_PICK")).toBe("選ぶ人数の人より、入る人が要ります");
