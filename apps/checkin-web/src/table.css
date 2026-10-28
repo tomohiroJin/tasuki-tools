@@ -36,10 +36,21 @@
   cursor: pointer;
 }
 
+/* 外側の丸い枠で角が切り取られる。ボタン自身も同じ丸みを持ち、当たりの角が枠の外に出ない（e2e の突きが角で外れる） */
+.seg-button:first-child {
+  border-start-start-radius: var(--radius-full);
+  border-end-start-radius: var(--radius-full);
+}
+
+.seg-button:last-child {
+  border-start-end-radius: var(--radius-full);
+  border-end-end-radius: var(--radius-full);
+}
+
 .seg-button[aria-pressed='true'] {
   background: var(--gold-tint);
   box-shadow: inset 0 0 0 1px var(--gold-deep); /* 色だけに頼らない: 金の薄い敷きと内側の線（builder・poker と同じ） */
-  color: var(--gold-bright);
+  color: var(--ivory);
 }
 
 .seg-button:disabled {
@@ -110,7 +121,7 @@
   align-items: baseline;
   gap: var(--space-2) var(--space-3);
   margin: 0;
-  color: var(--gold);
+  color: var(--gold-bright);
   font-size: var(--font-size-sm);
   font-weight: 700;
 }
@@ -120,7 +131,7 @@
 }
 
 .prompt-title {
-  color: var(--ivory-faint);
+  color: var(--ivory-dim);
   font-weight: 500;
 }
 
@@ -279,7 +290,7 @@
   position: absolute;
   inset-block-start: 9px;
   inset-inline-start: 11px;
-  color: var(--gold-deep);
+  color: var(--coal-soft); /* 象牙の札の上。深い金は 3.30:1 で割れる（poker の札と同じ） */
   font-size: var(--font-size-xs);
   font-weight: 700;
   letter-spacing: 0.1em;

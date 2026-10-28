@@ -33,4 +33,4 @@ diff --git a/apps/landing/src/tools.ts b/apps/landing/src/tools.ts
 +    id: "cards",
      pip: "始終",
      name: "Check-in Cards",
-     summary: "会の始まりと終わりに札を出し合う",
+     summary: "始めと終わりに札を出し合う",

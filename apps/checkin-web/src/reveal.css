@@ -153,13 +153,13 @@
 
 .pile-name {
   margin: 0;
-  color: var(--ivory-faint);
+  color: var(--ivory-dim);
   font-size: var(--font-size-sm);
 }
 
 .pile-meaning {
   margin: 0;
-  color: var(--ivory-faint);
+  color: var(--ivory-dim);
   font-size: var(--font-size-xs);
 }
 

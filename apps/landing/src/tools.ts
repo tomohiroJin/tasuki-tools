@@ -70,7 +70,7 @@ export const TOOLS: readonly Tool[] = [
     id: "checkin",
     pip: "始終",
     name: "Check-in Cards",
-    summary: "会の始まりと終わりに札を出し合う",
+    summary: "始めと終わりに札を出し合う",
     href: "/checkin/",
     mark: "cards",
   },

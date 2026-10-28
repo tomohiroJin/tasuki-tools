@@ -7,12 +7,13 @@
 import { expect, test } from '@playwright/test';
 
 /**
+ * `/checkin/` は #406 で足した（Check-in Cards。`deploy/checkin`）。`/agenda/` と同じく本番へ配る前の `pnpm e2e:prod` では落ちる。
  * `/agenda/` は #429 で足した（進行タイマー。`deploy/agenda`）。`/topic/` と同じく本番へ配る前の `pnpm e2e:prod` では落ちる。
  *
  * `/topic/` は #91 PR 3 で足した。**本番にお題ツール（`deploy/topic`）が入った後の `pnpm e2e:prod` が見る前提**で、
  * 配布の前の本番に当てると 404 ではなく包括フォールバック（玄関）の 200 が返り、資材の接頭辞の検査で落ちる。
  */
-const PAGES = ['/', '/timer/', '/poker/', '/topic/', '/agenda/'] as const;
+const PAGES = ['/', '/timer/', '/poker/', '/topic/', '/agenda/', '/checkin/'] as const;
 
 test.describe('@smoke 5 系統が並存する', () => {
   for (const pagePath of PAGES) {
@@ -46,6 +47,7 @@ const ASSET_PREFIXES: Readonly<Record<string, string>> = {
   '/poker/': '/poker/assets/',
   '/topic/': '/topic/assets/',
   '/agenda/': '/agenda/assets/',
+  '/checkin/': '/checkin/assets/',
 };
 
 /** 資材の拡張子から、期待される Content-Type の断片を返す。 */
@@ -99,6 +101,7 @@ test.describe('@smoke 末尾スラッシュの救済', () => {
     ['/poker', '/poker/'],
     ['/topic', '/topic/'],
     ['/agenda', '/agenda/'],
+    ['/checkin', '/checkin/'],
   ] as const) {
     test(`Given ${from} / When GET する / Then 301 で ${to} へ送られる`, async ({ request }) => {
       // Given / When: **追跡させない。** 既定では追跡され、最終的な 200 を見て

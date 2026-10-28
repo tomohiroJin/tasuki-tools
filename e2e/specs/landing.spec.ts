@@ -64,6 +64,8 @@ test.describe('選択画面の札から各ツールへ移動できる', () => {
     { card: 'Topic Board', path: '/topic/', landmark: '場に出す' },
     // 進行タイマー（#429）。目印は組む画面の「サンプルから選ぶ」のボタン
     { card: 'Agenda Timer', path: '/agenda/', landmark: /サンプルから選ぶ/ },
+    // Check-in Cards（#406）。目印は選ぶ画面の「ランダム」（玄関にも他のツールにも無い）
+    { card: 'Check-in Cards', path: '/checkin/', landmark: 'ランダム' },
   ] as const;
 
   for (const tool of TOOLS) {
