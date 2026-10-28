@@ -12,7 +12,7 @@ export interface Tool {
    * 名簿の `tools` に載る値と同じ。在席の表示（`RoomChoice.tsx`）はこれで名前を引く
    * —— 並び順で引くと、札を足したときに名前がずれる（#91 PR 2 で直した）。
    */
-  readonly id: "timer" | "poker" | "topic" | "roulette" | "agenda";
+  readonly id: "timer" | "poker" | "topic" | "roulette" | "agenda" | "checkin";
   /** 札の左上に出る一語。そのツールが扱うもの。 */
   readonly pip: string;
   /** ツール名（札の下端） */
@@ -22,7 +22,7 @@ export interface Tool {
   /** 公開パス */
   readonly href: string;
   /** 札の中央に出る意匠 */
-  readonly mark: "ring" | "spade" | "flag" | "wheel" | "watch";
+  readonly mark: "ring" | "spade" | "flag" | "wheel" | "watch" | "cards";
 }
 
 export const TOOLS: readonly Tool[] = [
@@ -65,5 +65,13 @@ export const TOOLS: readonly Tool[] = [
     summary: "ステップを順に計って進める",
     href: "/agenda/",
     mark: "watch",
+  },
+  {
+    id: "checkin",
+    pip: "始終",
+    name: "Check-in Cards",
+    summary: "会の始まりと終わりに札を出し合う",
+    href: "/checkin/",
+    mark: "cards",
   },
 ];

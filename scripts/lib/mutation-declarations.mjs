@@ -3489,4 +3489,13 @@ export const MUTATIONS = [
       "#406 段 3。席の行を開く動きの板の中に置き、出した席の伏せ札を山と同じ動きで裏返す。匿名で席と札が結びついて見える（Review Focus 1）。" +
       "試験は 3.5 の修正で CheckinRoom に組んだ開いた後を reveal-board.test.tsx の中で描く。",
   },
+  {
+    id: 518,
+    label: "玄関の札の ID が同期サーバーの綴り（checkin）とずれる",
+    patch: "m518-hub-tool-id-mismatch-checkin.patch",
+    pkg: "apps/landing",
+    tests: ["tests/room-choice-layout.test.tsx"],
+    note:
+      "#406 段 4。m169・m449 と同じ型。札の id を引く在席の表示が、知らない綴りを生のまま「checkin にいます」と出す。型の綴りも合わせて変えるので型検査は通る。",
+  },
 ];

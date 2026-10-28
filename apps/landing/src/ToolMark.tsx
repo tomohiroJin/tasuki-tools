@@ -5,7 +5,7 @@
  * （札の上では線の太さが世界観に直結する）。
  */
 interface Props {
-  readonly kind: "ring" | "spade" | "flag" | "wheel" | "watch";
+  readonly kind: "ring" | "spade" | "flag" | "wheel" | "watch" | "cards";
 }
 
 export function ToolMark({ kind }: Props) {
@@ -68,6 +68,32 @@ export function ToolMark({ kind }: Props) {
           <line x1="24" y1="27" x2="24" y2="16" />
           <line x1="24" y1="27" x2="31" y2="31" />
         </g>
+      </svg>
+    );
+  }
+
+  if (kind === "cards") {
+    // チェックインの札。少しずらして重ねた 2 枚の札（奥の札は手前に隠れる側を開けた線で描く）。線の太さは他の意匠と同じ 2.5。
+    return (
+      <svg viewBox="0 0 48 48" className="tool-mark" aria-hidden="true" focusable="false">
+        <path
+          d="M21 9H12a3 3 0 0 0-3 3v22a3 3 0 0 0 3 3h9"
+          fill="none"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          transform="rotate(-8 19 23)"
+        />
+        <rect
+          x="19"
+          y="11"
+          width="20"
+          height="28"
+          rx="3"
+          fill="none"
+          strokeWidth="2.5"
+          transform="rotate(8 29 25)"
+        />
       </svg>
     );
   }
