@@ -541,6 +541,33 @@ describe('開始を押した本人の画面だけ進める画面へ寄せる（#
     expect(document.activeElement).not.toBe(runTitle());
   });
 
+  it('Given 開始を押したが返事が来ない（同じ文言の失敗・届かない送信） / When 時間がたってから他の参加者が開始する / Then 寄せない', () => {
+    // Given: 押した瞬間の印。失敗の表示が変わらない・送信が黙って落ちると、印を消すきっかけが無い。
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1_000_000);
+    joinedRoom(idleWithScenario);
+    fireEvent.click(screen.getByRole('button', { name: START_BUTTON }));
+    // When: 押してから 11 秒後に、他の参加者の開始で進行中に変わる
+    now.mockReturnValue(1_011_000);
+    deliverAgenda(runningAgenda(0));
+    // Then: 本人の開始の返事とは見なさない
+    expect(scrollTo).not.toHaveBeenCalled();
+    expect(document.activeElement).not.toBe(runTitle());
+    now.mockRestore();
+  });
+
+  it('Given 開始を押した / When 9 秒後に進行中が届く / Then 本人の開始の返事として寄せる（遅い回線でも効く）', () => {
+    // Given
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1_000_000);
+    joinedRoom(idleWithScenario);
+    fireEvent.click(screen.getByRole('button', { name: START_BUTTON }));
+    // When
+    now.mockReturnValue(1_009_000);
+    deliverAgenda(runningAgenda(0));
+    // Then
+    expect(scrollTo).toHaveBeenCalledTimes(1);
+    now.mockRestore();
+  });
+
   it('Given 開始を押したが失敗が返った / When 後で他の参加者が開始して進行中に変わる / Then 寄せない', () => {
     // Given
     joinedRoom(idleWithScenario);

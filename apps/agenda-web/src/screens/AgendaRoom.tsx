@@ -24,6 +24,9 @@ import { CLOSE_BUTTON, GONE_HEADING, GONE_LINK, GONE_TEXT, JOINING_HEADING, PAGE
 import { useAgendaSync, type AgendaSync } from '../hooks/use-agenda-sync';
 import { hubPathFor, redirectTo } from '../router';
 
+/** 「開始」を押してから、進行中が届けば本人の開始の返事と見なす時間（ms）。遅い回線でも届き、他の人の開始と取り違えにくい長さ */
+const START_ARRIVAL_WINDOW_MS = 10_000;
+
 export function AgendaRoom({ roomCode }: { roomCode: string }) {
   const sync = useAgendaSync(roomCode);
   // 映す表示か。**ここで持つ**: 映している間は見出し・戻るリンク・失敗の一言を描かない（全画面の重ねの裏に
@@ -118,21 +121,22 @@ function PhaseView({
   const wallNow = useWallClock();
   const { soundState, soundOn, toggleSound } = useSoundSetting();
   const { striking, announcement, announce } = useRunSignals(live, { frame: view, joined: sync.joined, soundOn, reducedMotion });
-  // 「開始」を押した本人の印。進める画面の最初の描画で消費する（他の参加者の画面は位相が変わっても寄せない・#455）
-  const startedHereRef = useRef(false);
+  // 「開始」を押した本人の印（押した時刻）。進める画面の最初の描画で消費する（他の参加者の画面は位相が変わっても寄せない・#455）。
+  // 返事が来ない開始（同じ文言の失敗で表示が変わらない・送信が黙って落ちた）でも印が残らないよう、時間で切る
+  const startedAtRef = useRef<number | null>(null);
   const syncStart = sync.start;
   const start = useCallback(() => {
-    startedHereRef.current = true;
+    startedAtRef.current = Date.now();
     syncStart();
   }, [syncStart]);
   const consumeStartArrival = useCallback(() => {
-    const mine = startedHereRef.current;
-    startedHereRef.current = false;
-    return mine;
+    const at = startedAtRef.current;
+    startedAtRef.current = null;
+    return at !== null && Date.now() - at <= START_ARRIVAL_WINDOW_MS;
   }, []);
   // 送信が失敗したら印を消す（後で他の人が開始した画面を動かさない）
   useEffect(() => {
-    if (sync.error !== null) startedHereRef.current = false;
+    if (sync.error !== null) startedAtRef.current = null;
   }, [sync.error]);
   return (
     <>

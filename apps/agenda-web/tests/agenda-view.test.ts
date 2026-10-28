@@ -91,7 +91,7 @@ describe('盤の中央の文字', () => {
     expect(centerLines(idleView([5], undefined, 6)).name).not.toContain('6 ステップ');
     expect(centerLines(idleView([5, 7], undefined, 3)).name).toBe('今日の進行 2 ステップ × 3 回');
     const lines = centerLines(idleView([5, 7, 1, 40, 7]));
-    expect(lines).toEqual({ primary: '60:00', isOverrun: false, name: '今日の進行 5 ステップ', drift: '開始前' });
+    expect(lines).toEqual({ primary: '60:00', style: 'm:ss', isOverrun: false, name: '今日の進行 5 ステップ', drift: '開始前' });
     expect(driftTone(idleView([5]))).toBe('idle');
   });
 

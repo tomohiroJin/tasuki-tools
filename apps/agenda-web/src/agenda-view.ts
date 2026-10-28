@@ -26,8 +26,10 @@ const SEC = 1000;
 const MIN = 60 * SEC;
 
 export interface CenterLines {
-  /** 最大の数字。残り（`m:ss`）・オーバー（`+m:ss`）・開始前は予定の合計・終了はかかった時間 */
+  /** 最大の数字。残り・オーバー（`+` を付ける）・開始前は予定の合計・終了はかかった時間。書き方は `style`（180 分以上の会は `h:mm:ss`） */
   readonly primary: string;
+  /** `primary` の書き方。盤の字の大きさもこれで決める（数字と大きさを同じ判定から取る） */
+  readonly style: ClockStyle;
   readonly isOverrun: boolean;
   /** いまのステップの名前（切り詰めない。2 行の切り詰めは CSS）。開始前はステップの数・終了は会の名前 */
   readonly name: string;
@@ -117,15 +119,16 @@ export const definedStepCount = (v: AgendaView): number => v.steps.filter((s) =>
 export function centerLines(v: AgendaView): CenterLines {
   const style = clockStyleOf(v);
   if (v.phase === 'idle') {
-    return { primary: elapsedClock(plannedTotalMs(v), style), isOverrun: false, name: stepCountText(definedStepCount(v), v.rounds), drift: driftLine(v) };
+    return { primary: elapsedClock(plannedTotalMs(v), style), style, isOverrun: false, name: stepCountText(definedStepCount(v), v.rounds), drift: driftLine(v) };
   }
   if (v.phase === 'finished') {
-    return { primary: elapsedClock(v.runElapsedMs, style), isOverrun: false, name: v.title, drift: driftLine(v) };
+    return { primary: elapsedClock(v.runElapsedMs, style), style, isOverrun: false, name: v.title, drift: driftLine(v) };
   }
   const over = isOverrun(v);
   const rest = remainingMs(v);
   return {
     primary: over ? `+${elapsedClock(-rest, style)}` : remainingClock(rest, style),
+    style,
     isOverrun: over,
     name: currentStep(v)?.name ?? '',
     drift: driftLine(v),

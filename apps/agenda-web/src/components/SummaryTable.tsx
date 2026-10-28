@@ -29,6 +29,7 @@ const toneOf = (ms: number): string => {
 };
 
 export function SummaryTable({ view }: { view: AgendaView }) {
+  // 書き方は会の予定の合計（盤と同じ `clockStyleOf`）で決める。下の `planned` は表の行の足し上げで、行の定義が変わると盤とずれるので使わない
   const style = clockStyleOf(view);
   const summary = summaryOf(view);
   const planned = summary.rows.reduce((sum, r) => sum + r.plannedMs, 0);
