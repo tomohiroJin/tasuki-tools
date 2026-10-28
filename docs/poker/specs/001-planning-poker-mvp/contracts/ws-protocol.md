@@ -87,6 +87,21 @@
 - poker へ新しい frame は足さない。結果は `room-state` で届く
 - 違反: `error`（`participant-not-found`＝名簿に居ない、`not-removable`＝自分自身または接続中、`not-joined`＝操作者が参加していない・名簿に居ない、`room-not-found`＝参加済みなのにルームが破棄済み）。状態は変わらない
 
+### table-seat / table-deal / table-show — 隠しモードのテーブル（#403）
+
+```json
+{ "type": "table-seat", "seated": true }
+{ "type": "table-deal" }
+{ "type": "table-show" }
+```
+
+- 前提: join 済みで名簿に居ること。**見積もりの状態（投票・公開・記録・見学）には一切触れない**（設計正本 `docs/superpowers/specs/2026-10-28-poker-card-table-design.md`）
+- `table-seat`: 本人を席に着ける（`true`）・席から外して手を捨てる（`false`）。同じ状態への切り替えは何も変えない。席は 10 人まで
+- `table-deal`: 席の全員へサーバーが 52 枚を切って 5 枚ずつ配る。**札も順列もクライアントからは受け取らない**
+- `table-show`: 配った手を全員へ見せる
+- 違反: `table-not-seated`（席に着いていない人の deal / show）、`table-in-play`（配っている間の deal）、`table-no-hand`（配っていないときの show）、`table-full`（11 人目の seat）、`not-joined`、`room-not-found`。状態は変わらない
+- 退出・片付けで名簿から外れた人は、票と一緒に席と手も捨てる
+
 ### set-item — アイテム名の設定（#93）
 
 ```json
@@ -209,6 +224,26 @@ revealed 後の例:
 - `stats.average`: 数値票の算術平均（生値）。数値票 0 件なら `null`
 - `stats.modes`: 最頻カードの配列（同数複数可、?・☕ 含む）
 
+#### `table` — 隠しモードのテーブル（#403）
+
+**席が空のルームでは載らない**（普段の wire は変わらない）。受信側では省略可。
+
+```json
+"table": {
+  "status": "dealt",
+  "seats": ["p1", "p2"],
+  "yourHand": [ { "suit": "S", "rank": 14 }, { "suit": "H", "rank": 10 } ],
+  "hands": [],
+  "winners": []
+}
+```
+
+- `status`: `idle`（配る前）/ `dealt`（配った）/ `shown`（見せた）
+- `yourHand`: 受信者が席に着いていて手を持つときだけ値（5 枚）。それ以外は `null`
+- **秘匿保証**: `dealt` の間、他の人の手はいかなるフィールドにも含めない（`seats` のみ）。受信者別の投影で作る（SC-004 と同じ仕組み）
+- `hands` / `winners`: `shown` のときだけ中身がある。`hands[]` は `{ participantId, cards, category }`、`winners` はいちばん強い手の持ち主（同点なら全員）
+- 札: `suit` は `S` `H` `D` `C`、`rank` は 2〜14（11=J 12=Q 13=K 14=A）。`category` は `high-card` 〜 `royal-flush` の 10 分類
+
 #### `estimate` — 見積もりの記録（#93）
 
 `room-state` に `estimate` が付く（受信者に依らず全員同じ内容。受信側では省略可＝古いサーバーとの互換）。
@@ -238,15 +273,19 @@ revealed 後の例:
 | code | 意味 | 対応する要求 |
 |------|------|-------------|
 | `invalid-message` | スキーマ検証失敗 | 全 C→S（FR-015） |
-| `room-not-found` | ルーム不存在・破棄済み | join-room（FR-015, US1-AS3）、vote / reveal / next-round / set-item / revote / next-item / set-points / set-spectator / remove-participant（破棄済みルームを指したままの接続。remove-participant 以外は `commitRoomAction` を通り、remove-participant は同じ検査を dispatch で自前に行う。[#171](https://github.com/tomohiroJin/tasuki-tools/issues/171)・#93） |
+| `room-not-found` | ルーム不存在・破棄済み | join-room（FR-015, US1-AS3）、vote / reveal / next-round / set-item / revote / next-item / set-points / set-spectator / table-seat / table-deal / table-show / remove-participant（破棄済みルームを指したままの接続。remove-participant 以外は `commitRoomAction` を通り、remove-participant は同じ検査を dispatch で自前に行う。[#171](https://github.com/tomohiroJin/tasuki-tools/issues/171)・#93） |
 | `not-voting` | voting 中でない | vote, reveal |
 | `not-revealed` | revealed 中でない | next-round, revote, next-item |
-| `not-joined` | join 前の操作、または**名簿に居ない人の操作**（片付けで外された人の接続など。#419） | vote, reveal, next-round, set-item, revote, next-item, set-points, set-spectator, remove-participant |
+| `not-joined` | join 前の操作、または**名簿に居ない人の操作**（片付けで外された人の接続など。#419） | vote, reveal, next-round, set-item, revote, next-item, set-points, set-spectator, table-seat, table-deal, table-show, remove-participant |
 | `spectating` | 見学中は投票できない | vote（#419） |
 | `participant-not-found` | 外す相手が名簿に居ない | remove-participant（#419） |
 | `not-removable` | 自分自身、または接続している人は外せない | remove-participant（#419） |
 | `estimate-not-found` | 指した束が記録に無い（上限で落ちた） | set-points（#93）, set-group-item（#427） |
 | `estimate-open` | まだ閉じていない束にポイントは付けられない・名前は書き換えられない | set-points（#93）, set-group-item（#427） |
+| `table-not-seated` | テーブルの席に着いていない | table-deal, table-show（#403） |
+| `table-in-play` | 配った手をまだ見せていない | table-deal（#403） |
+| `table-no-hand` | 見せる手が配られていない | table-show（#403） |
+| `table-full` | 席が 10 人で埋まっている | table-seat（#403） |
 | `message-too-large` | メッセージのバイト数が上限超過 | 全 C→S（[#63](https://github.com/tomohiroJin/tasuki-tools/issues/63)） |
 | `server-busy` | ルーム数が上限に達している | create-room（#63） |
 | `rate-limited` | 入室失敗が続き、レート制限に掛かった | join-room（[#103](https://github.com/tomohiroJin/tasuki-tools/issues/103)・[#147](https://github.com/tomohiroJin/tasuki-tools/issues/147)） |

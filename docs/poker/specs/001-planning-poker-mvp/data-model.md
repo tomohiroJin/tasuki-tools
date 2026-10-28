@@ -48,6 +48,7 @@ ID・トークンの生成規則は [research.md R3/R4](./research.md) を参照
 | status | `'voting' \| 'revealed'` | 状態機械（下記） |
 | votes | Map<participantId, Vote> | 投票の集合。voting 中は本人以外へ値を配信しない（FR-006） |
 | spectators | Set<participantId> | 見学している人（#419）。**名簿に居て、いまの見積もりに加わっていない人**。投票を受けず、自動公開の分母から外れる。ラウンドをまたいで残る（revote・next-item で消さない） |
+| table | CardTable | 隠しモードのテーブル（#403）。`seats`（着いた順の参加者 ID・10 人まで）・`status`（`idle` / `dealt` / `shown`）・`hands`（参加者 ID → 5 枚）。**見積もりの状態とは互いに変えない** |
 
 ### Room（ルーム）— 集約ルート
 
@@ -97,6 +98,11 @@ Room から受信者別に生成する読み取り専用ビュー（research R1�
   - **見学へ（revealed 後）**: 票は残す。開票済みの結果を変えない
   - **投票へ戻る**: `spectators` から外すだけ。票は持たない状態で戻る
   - 見学中の `vote` は `spectating` で拒む。退出（`discardVote`）は票と見学の両方を捨てる
+- **隠しモードのテーブル（#403・`setSeated` / `dealHands` / `showHands`）**: 投票・公開・記録・見学のどれとも独立に動く。
+  - **配る**（`idle` / `shown` → `dealt`）: 席の人だけが行える。52 枚を注入された乱数で切り、席の順に 5 枚ずつ配る
+  - **見せる**（`dealt` → `shown`）: 席の人だけが行える
+  - **席を離れる**: その人の手を捨てる。席が空になれば最初の状態へ、手を持つ人が居なくなれば `idle` へ戻る。退出（`discardVote`）も席と手を捨てる
+  - 投影: `dealt` の間、手は受信者本人の分だけを `yourHand` に載せる。`shown` で全員の手・役・勝者を載せる。席が空なら `table` を載せない
 - **voting 中に許可される操作**: vote（上書き可）, join, leave, reveal（在室者なら誰でも）
 - **revealed 中に許可される操作**: join（閲覧）, leave, revote / next-item（在室者なら誰でも。古い `next-round` は revote として受ける）
 - **revealed 中の vote は拒否**（エラー応答）
