@@ -8,8 +8,10 @@
 #       git apply scripts/mutations/m91-*.patch
 # 復元: git apply -R scripts/mutations/m91-*.patch
 #
-# #91 PR 2。topic-core の `GENERATION_COOLDOWN` の文を「少し待ってから、もう一度
-# 作ってください。」へ戻す。「少」の字は書体の常用の層（base）の範囲に無く、
+# #91 PR 2。topic-core の `GENERATION_COOLDOWN` の文を「暫く待ってから、もう一度
+# 作ってください。」へ変える。「暫」の字は書体の常用の層（base）の範囲に無い。元は「少し」だったが、
+# #406 で「少」を base 層に足したので、まだ範囲外の「暫」に替えた（2026-10-29）。
+# 「しばらく」へ言い換えたのは計画を書く段の実測で「少」が外れていたためである
 # 「しばらく」へ言い換えたのは計画を書く段の実測でこれが外れていたためである
 # （global-constraints「実測で spec から外したこと」）。
 #
@@ -23,7 +25,7 @@ diff --git a/packages/topic-core/src/error-messages.ts b/packages/topic-core/src
    RATE_LIMITED: "続けて失敗しました。しばらく待ってから再試行してください。",
    AI_UNLOCK_FAILED: "合言葉が正しくありません。",
 -  GENERATION_COOLDOWN: "しばらく待ってから、もう一度作ってください。",
-+  GENERATION_COOLDOWN: "少し待ってから、もう一度作ってください。",
++  GENERATION_COOLDOWN: "暫く待ってから、もう一度作ってください。",
    MESSAGE_TOO_LARGE: "メッセージが大きすぎます",
    INTERNAL_ERROR: "サーバー内部でエラーが発生しました",
  };

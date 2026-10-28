@@ -947,9 +947,10 @@ export const MUTATIONS = [
     pkg: "apps/topic-web",
     tests: ["tests/copy-fits-font-base.test.ts"],
     note:
-      "#91 PR 2。topic-core の `GENERATION_COOLDOWN` を「少し待ってから、もう一度" +
-      "作ってください。」へ戻す。「少」は書体の常用の層（base）の範囲に無く、" +
-      "「しばらく」へ言い換えたのは計画を書く段の実測でこれが外れていたためである" +
+      "#91 PR 2。topic-core の `GENERATION_COOLDOWN` を「暫く待ってから、もう一度" +
+      "作ってください。」へ変える。「暫」は書体の常用の層（base）の範囲に無い。元は「少し」だったが、" +
+      "#406 で「少」を base 層に足したので、まだ範囲外の「暫」に替えた（2026-10-29）。" +
+      "「しばらく」へ言い換えたのは計画を書く段の実測で「少」が外れていたためである" +
       "（global-constraints「実測で spec から外したこと」）。`packages/topic-core/" +
       "tests/error-messages.test.ts` も赤になるが、対応表に載せるのは書体の検査である" +
       "（「base 層に収める」を守っている本体はこちら）。",
