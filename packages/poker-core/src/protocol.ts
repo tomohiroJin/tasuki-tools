@@ -5,6 +5,8 @@ import { type Result } from 'neverthrow';
 import { parseBoundaryMessage } from '@tasuki/protocol';
 import { NUMBER_CARD_VALUES, type Card } from './deck.js';
 import { MAX_ESTIMATE_ITEM } from './estimate-log.js';
+import { HAND_CATEGORIES } from './hand-rank.js';
+import { RANKS, SUITS } from './playing-card.js';
 
 // --- スキーマ ---
 
@@ -77,6 +79,10 @@ const ClientMessageSchema = v.variant('type', [
     type: v.literal('remove-participant'),
     participantId: v.pipe(v.string(), v.minLength(1)),
   }),
+  // 隠しモードのテーブル（#403）。**札も順列も受け取らない** —— 配るのはサーバーである（設計 D4）
+  v.strictObject({ type: v.literal('table-seat'), seated: v.boolean() }),
+  v.strictObject({ type: v.literal('table-deal') }),
+  v.strictObject({ type: v.literal('table-show') }),
 ]);
 
 export type ClientMessage = v.InferOutput<typeof ClientMessageSchema>;
@@ -100,6 +106,11 @@ export const ERROR_CODES = [
   'spectating',
   'participant-not-found',
   'not-removable',
+  // 隠しモードのテーブル（#403）
+  'table-not-seated',
+  'table-in-play',
+  'table-no-hand',
+  'table-full',
 ] as const;
 
 export type ErrorCode = (typeof ERROR_CODES)[number];
@@ -166,6 +177,26 @@ const EstimateViewSchema = v.object({
   recording: v.optional(v.boolean(), true),
 });
 
+// 隠しモードのテーブル（#403・設計 §6.3）。**席が空のルームでは載らない**ので、普段の wire は変わらない。
+// 札の値の集合は契約そのもの（`CardSchema` と同じ理由）なので、範囲外の数字・未知のスートは落とす。
+const PlayingCardSchema = v.object({ suit: v.picklist(SUITS), rank: v.picklist(RANKS) });
+
+const TableViewSchema = v.object({
+  status: v.picklist(['idle', 'dealt', 'shown']),
+  seats: v.array(v.string()),
+  /** 受信者の手。席に着いていて手を持つときだけ値（見せる前の秘匿・T-4） */
+  yourHand: v.nullable(v.array(PlayingCardSchema)),
+  /** 見せたあとだけ中身がある */
+  hands: v.array(
+    v.object({
+      participantId: v.string(),
+      cards: v.array(PlayingCardSchema),
+      category: v.picklist(HAND_CATEGORIES),
+    }),
+  ),
+  winners: v.array(v.string()),
+});
+
 // 公開しない（parseServerMessage が唯一の入口であり、外からもテストからも取り込まれない。#182 で index の列挙から外し、#223 で宣言の export も落とした）。
 const ServerMessageSchema = v.variant('type', [
   v.object({
@@ -183,6 +214,8 @@ const ServerMessageSchema = v.variant('type', [
     yourVote: v.nullable(CardSchema),
     // 新しい web が古いサーバーに当たっても通す（#93）
     estimate: v.optional(EstimateViewSchema),
+    // 古いサーバーは送らない。新しいサーバーも席が空なら送らない（#403）
+    table: v.optional(TableViewSchema),
   }),
   // **error だけは前方互換にする（#214・docs/poker/adr/0003 決定 1）。**
   //
@@ -224,6 +257,7 @@ export type EstimateGroupView = EstimateView['log'][number];
 export type ParticipantView = v.InferOutput<typeof ParticipantViewSchema>;
 export type RoundStats = v.InferOutput<typeof StatsSchema>;
 export type VoteView = { participantId: string; card: Card };
+export type TableView = v.InferOutput<typeof TableViewSchema>;
 
 export type ProtocolError = { code: 'invalid-message'; message: string };
 

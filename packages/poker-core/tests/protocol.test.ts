@@ -475,3 +475,67 @@ describe('記録の切り替えと束の名前（#427）', () => {
     expect(parsedOff.type === 'room-state' && parsedOff.estimate?.recording).toBe(false);
   });
 });
+
+describe('隠しモードのテーブル（#403）', () => {
+  const parse = (m: unknown) => parseClientMessage(JSON.stringify(m));
+
+  it('table-seat は真偽値だけを通し、余分なキーを落とす', () => {
+    expect(parse({ type: 'table-seat', seated: true })._unsafeUnwrap()).toEqual({ type: 'table-seat', seated: true });
+    expect(parse({ type: 'table-seat', seated: false }).isOk()).toBe(true);
+    expect(parse({ type: 'table-seat', seated: 1 }).isErr()).toBe(true);
+    expect(parse({ type: 'table-seat' }).isErr()).toBe(true);
+    expect(parse({ type: 'table-seat', seated: true, extra: 1 }).isErr()).toBe(true);
+  });
+
+  it.each(['table-deal', 'table-show'])('%s は中身を持たない（余分なキーを落とす）', (type) => {
+    expect(parse({ type })._unsafeUnwrap()).toEqual({ type });
+    // クライアントが札や順列を送り込めない（配るのはサーバー・設計 D4）
+    expect(parse({ type, cards: [] }).isErr()).toBe(true);
+  });
+
+  it.each(['table-not-seated', 'table-in-play', 'table-no-hand', 'table-full'])('%s は既知のエラーコード', (code) => {
+    expect(isKnownErrorCode(code)).toBe(true);
+  });
+
+  const base = {
+    type: 'room-state',
+    roomId: 'a1b2c3d4',
+    you: 'p1',
+    participants: [{ id: 'p1', name: 'a', connected: true, hasVoted: false }],
+    round: { status: 'voting' },
+    yourVote: null,
+  };
+  const card = (suit: string, rank: number) => ({ suit, rank });
+
+  it('Given table の無い room-state（古いサーバー・席が空） When パース Then 通り、table は無い', () => {
+    const msg = parseServerMessage(JSON.stringify(base))._unsafeUnwrap();
+    expect(msg.type === 'room-state' && msg.table).toBeUndefined();
+  });
+
+  it('Given 見せたあとの table When パース Then 手・役・勝者を保つ', () => {
+    const table = {
+      status: 'shown',
+      seats: ['p1'],
+      yourHand: [card('S', 14), card('S', 13), card('S', 12), card('S', 11), card('S', 10)],
+      hands: [
+        {
+          participantId: 'p1',
+          cards: [card('S', 14), card('S', 13), card('S', 12), card('S', 11), card('S', 10)],
+          category: 'royal-flush',
+        },
+      ],
+      winners: ['p1'],
+    };
+    const msg = parseServerMessage(JSON.stringify({ ...base, table }))._unsafeUnwrap();
+    expect(msg.type === 'room-state' && msg.table).toEqual(table);
+  });
+
+  it.each([
+    ['範囲外の数字', card('S', 15)],
+    ['1（A は 14）', card('S', 1)],
+    ['未知のスート', card('X', 2)],
+  ])('Given %s の札 When パース Then 落とす', (_label, bad) => {
+    const table = { status: 'dealt', seats: ['p1'], yourHand: [bad], hands: [], winners: [] };
+    expect(parseServerMessage(JSON.stringify({ ...base, table })).isErr()).toBe(true);
+  });
+});

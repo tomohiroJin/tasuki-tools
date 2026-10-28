@@ -12,6 +12,16 @@ import {
   setGroupPoints,
   type EstimateLog,
 } from './estimate-log.js';
+import {
+  EMPTY_TABLE,
+  dealTable,
+  leaveTable,
+  seatAt,
+  showTable,
+  type CardTable,
+  type RandomInt,
+  type TableError,
+} from './card-table.js';
 
 export interface Round {
   status: 'voting' | 'revealed';
@@ -25,6 +35,8 @@ export interface Round {
   recording: boolean;
   /** 見学中の参加者 ID（#419）。票を持たず、自動公開の分母にも入らない */
   spectators: ReadonlySet<string>;
+  /** 隠しモードのテーブル（#403）。見積もりの状態とは互いに変えない */
+  table: CardTable;
 }
 
 export type RoundError =
@@ -32,7 +44,8 @@ export type RoundError =
   | { code: 'spectating'; op: 'vote' }
   | { code: 'not-revealed'; op: 'revote' | 'next-item' }
   | { code: 'estimate-not-found' }
-  | { code: 'estimate-open' };
+  | { code: 'estimate-open' }
+  | TableError;
 
 /**
  * 名簿の断片（自動公開の判定に要るぶんだけ）。
@@ -62,6 +75,7 @@ export function createRound(): Round {
     log: EMPTY_ESTIMATE_LOG,
     recording: false,
     spectators: new Set(),
+    table: EMPTY_TABLE,
   };
 }
 
@@ -248,10 +262,28 @@ export function setSpectator(round: Round, participantId: string, spectator: boo
  * 居ない人の ID を渡しても壊れない（何も起きない）。
  */
 export function discardVote(round: Round, voterId: string): Round {
-  if (!round.votes.has(voterId) && !round.spectators.has(voterId)) return round;
+  const table = leaveTable(round.table, voterId);
+  if (!round.votes.has(voterId) && !round.spectators.has(voterId) && table === round.table) return round;
   const votes = new Map(round.votes);
   votes.delete(voterId);
   const spectators = new Set(round.spectators);
   spectators.delete(voterId);
-  return { ...round, votes, spectators };
+  // テーブルの席と手も捨てる（#403 T-11）。名簿に居ない人の手を見せない
+  return { ...round, votes, spectators, table };
+}
+
+/** テーブルの席に着く／離れる（#403 T-1・T-10）。見積もりの状態には触れない */
+export function setSeated(round: Round, participantId: string, seated: boolean): Result<Round, RoundError> {
+  if (!seated) return ok({ ...round, table: leaveTable(round.table, participantId) });
+  return seatAt(round.table, participantId).map((table) => ({ ...round, table }));
+}
+
+/** テーブルの席の全員へ配る（#403 T-3）。乱数は呼び出し側が注入する */
+export function dealHands(round: Round, actorId: string, randomInt: RandomInt): Result<Round, RoundError> {
+  return dealTable(round.table, actorId, randomInt).map((table) => ({ ...round, table }));
+}
+
+/** テーブルの手を全員へ見せる（#403 T-5） */
+export function showHands(round: Round, actorId: string): Result<Round, RoundError> {
+  return showTable(round.table, actorId).map((table) => ({ ...round, table }));
 }

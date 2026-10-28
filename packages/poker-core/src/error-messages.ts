@@ -38,6 +38,15 @@ export function messageForRoundError(error: RoundError): string {
       return 'この見積もりはもう記録にありません';
     case 'estimate-open':
       return '見積もり中のアイテムにはまだポイントを付けられません';
+    // 隠しモードのテーブル（#403）。「着」「配」は書体の base 層から外れるので使わない
+    case 'table-not-seated':
+      return 'テーブルに入っていません';
+    case 'table-in-play':
+      return 'いまの手を見せてから引き直してください';
+    case 'table-no-hand':
+      return 'まだカードを引いていません';
+    case 'table-full':
+      return 'テーブルは満員です';
   }
 }
 
