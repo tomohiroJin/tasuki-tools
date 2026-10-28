@@ -23,6 +23,7 @@ import {
   playCard,
   playersOf,
   prune,
+  recordRevealedNames,
   reveal,
   setSpectator,
   setVisibility,
@@ -42,7 +43,6 @@ import { seatsOf } from "./checkin-broadcast.js";
 import { findRoomByToolConnection } from "./room-lookup.js";
 import { joinToolRoom } from "./join-tool-room.js";
 import { TOOL_CHECKIN } from "./tool-id.js";
-import type { Logger } from "./log/logger.js";
 import { boundaryErrorCode } from "./connection-errors.js";
 
 /** 受ける言葉は**ハブの言葉（`room.join` のため）とチェックインのコマンドの和**。 */
@@ -53,7 +53,6 @@ export interface CheckinHandlerDeps extends JoinRoomDeps, SaveRosterDeps {
   broadcaster: CheckinBroadcaster;
   send: (connId: string, msg: CheckinServerMsg) => void;
   random: Pick<RandomSource, "randomInt">;
-  logger: Logger;
 }
 
 export interface CheckinHandlers {
@@ -93,10 +92,13 @@ export function makeCheckinHandlers(deps: CheckinHandlerDeps): CheckinHandlers {
 
   const idsOf = (room: Room): Set<string> => new Set(room.participants.map((p) => p.id));
 
-  /** 名簿から消えた人の記録を落とし、全員が出していれば開く。 */
-  function settle(room: Room, state: CheckinState): CheckinState {
-    const pruned = prune(state, idsOf(room));
-    return applyAutoReveal(pruned, playersOf(pruned, seatsOf(room)));
+  /**
+   * 全員が出していれば開き、開いた回には札を持つ人の名前を写す（後で名簿から外れても山の names が変わらない）。
+   * 開く遷移はすべてここを通す（コマンドの後と名簿の変化の後）。
+   */
+  function finish(room: Room, state: CheckinState): CheckinState {
+    const seats = seatsOf(room);
+    return recordRevealedNames(applyAutoReveal(state, playersOf(state, seats)), seats);
   }
 
   function handleCheckinCommand(connId: string, cmd: CheckinCommand): void {
@@ -137,7 +139,7 @@ export function makeCheckinHandlers(deps: CheckinHandlerDeps): CheckinHandlers {
       failDomain(connId, result.error.code);
       return;
     }
-    const next = applyAutoReveal(result.value, playersOf(result.value, seatsOf(room)));
+    const next = finish(room, result.value);
     // 変わらなければ（保管している状態と同じ参照なら）全員へは配らず、送り主にだけ今の状態を返す。
     if (next === base) {
       broadcaster.sendCurrent(connId, room.code);
@@ -171,7 +173,8 @@ export function makeCheckinHandlers(deps: CheckinHandlerDeps): CheckinHandlers {
       const room = deps.store.get(roomCode);
       const state = checkins.get(roomCode);
       if (room === undefined || state === undefined) return;
-      const next = settle(room, state);
+      // 名簿から消えた人の記録を落とし（開いた回の札は残る）、全員が出していれば開く
+      const next = finish(room, prune(state, idsOf(room)));
       if (next !== state) checkins.put(roomCode, next);
       // 席は名簿から導くので、状態が同じでも画面は変わる
       broadcaster.publish(roomCode);

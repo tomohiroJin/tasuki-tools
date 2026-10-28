@@ -6,6 +6,8 @@ import {
   setSpectator,
   setVisibility,
   playersOf,
+  prune,
+  recordRevealedNames,
   toView,
   type CheckinState,
   type SeatInput,
@@ -126,12 +128,13 @@ describe("toView: 名前つきで開いた後", () => {
     ]);
   });
 
-  it("seats に無い人の札は count にも names にも入らない（基準は seats 入力）", () => {
+  it("開いた回の count は回の札から数え、seats 入力に依存しない。名前を引けない人は names に入らない", () => {
     let s = chooseMethod(empty, "weather");
     s = play(s, "ghost", "sunny");
     s = play(s, a, "sunny");
     const r = revealedRound(toView(doReveal(s), a, seats));
-    expect(r.piles[0]).toEqual({ card: "sunny", count: 1, names: ["アキラ"] });
+    expect(r.piles[0]).toEqual({ card: "sunny", count: 2, names: ["アキラ"] });
+    // 席は名簿（seats 入力）どおり
     expect(r.seats.map((x) => x.id)).toEqual([a, b, c]);
   });
 
@@ -153,6 +156,48 @@ describe("toView: 名前つきで開いた後", () => {
     // 出していない人は played: false のまま
     const half = doReveal(play(chooseMethod(empty, "weather"), b, "rain"));
     expect(revealedRound(toView(half, a, seats)).seats.map((x) => x.played)).toEqual([false, true, false]);
+  });
+});
+
+describe("toView: 開いた回は結果を凍らせる（名簿から外れても山が変わらない）", () => {
+  /** 開いた後に b が名簿から外れたときの、残った人の seats 入力 */
+  const withoutB = seats.filter((x) => x.id !== b);
+  /** 開いた（名前を写した）後に b が名簿から外れたときの状態 */
+  const leaveAfterReveal = (s: CheckinState): CheckinState => prune(recordRevealedNames(doReveal(s), seats), new Set([a, c]));
+
+  it("匿名: 開いた後に 1 人が名簿から外れても、全員の山が変わらない（前後の差で札が分からない）〈m520〉", () => {
+    let s = chooseMethod(empty, "energy");
+    s = play(play(play(s, a, "3"), b, "1"), c, "3");
+    const before = doReveal(s);
+    const after = leaveAfterReveal(s);
+    for (const viewer of [a, c, "outsider"]) {
+      const pilesBefore = revealedRound(toView(before, viewer, seats)).piles;
+      const pilesAfter = revealedRound(toView(after, viewer, withoutB)).piles;
+      expect(pilesAfter).toEqual(pilesBefore);
+      expect(pilesAfter.find((p) => p.card === "1")).toEqual({ card: "1", count: 1 });
+      // 席は名簿どおり（外れた人は並ばない）
+      expect(revealedRound(toView(after, viewer, withoutB)).seats.map((x) => x.id)).toEqual([a, c]);
+    }
+  });
+
+  it("名前つき: 開いた後に 1 人が名簿から外れても、山の count と names が変わらない〈m520〉", () => {
+    let s = chooseMethod(empty, "weather");
+    s = play(play(play(s, a, "sunny"), b, "rain"), c, "sunny");
+    const pilesBefore = revealedRound(toView(doReveal(s), a, seats)).piles;
+    const pilesAfter = revealedRound(toView(leaveAfterReveal(s), a, withoutB)).piles;
+    expect(pilesAfter).toEqual(pilesBefore);
+    expect(pilesAfter.find((p) => p.card === "rain")).toEqual({ card: "rain", count: 1, names: ["ベス"] });
+  });
+
+  it("recordRevealedNames は名前つきで開いた回にだけ写し、足すものが無ければ同じ参照", () => {
+    const open = play(chooseMethod(empty, "weather"), a, "sunny");
+    expect(recordRevealedNames(open, seats)).toBe(open);
+    const named = recordRevealedNames(doReveal(open), seats);
+    expect(named.round?.names).toEqual(new Map([[a, "アキラ"]]));
+    expect(recordRevealedNames(named, seats)).toBe(named);
+    // 匿名の回には名前を持たせない（サーバーの中でも結びつきを作らない）
+    const anon = doReveal(play(chooseMethod(empty, "energy"), a, "1"));
+    expect(recordRevealedNames(anon, seats)).toBe(anon);
   });
 });
 

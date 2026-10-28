@@ -479,7 +479,6 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     broadcaster: checkinBroadcaster,
     send,
     random,
-    logger,
   });
 
   wsAdapter = new WsAdapter({

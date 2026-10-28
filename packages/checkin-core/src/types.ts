@@ -9,6 +9,11 @@ export interface Round {
   readonly status: "open" | "revealed";
   /** participantId → 札（最後に出したもの） */
   readonly cards: ReadonlyMap<string, CardId>;
+  /**
+   * participantId → 開いた時点の表示名。**名前つきで開いた回だけ**（`recordRevealedNames` が写す）。
+   * 開いた後に名簿から外れた人も、名前つきの山の names に残すため（開いた回は結果を凍らせる）
+   */
+  readonly names?: ReadonlyMap<string, string>;
 }
 
 export interface CheckinState {

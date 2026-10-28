@@ -8,6 +8,7 @@
 import { err, ok, type Result } from "neverthrow";
 import type { CheckinError } from "./errors.js";
 import { METHODS, methodsOf, type CardId, type MethodId, type Side, type Visibility } from "./methods.js";
+import type { SeatInput } from "./projection.js";
 import type { CheckinState, Round } from "./types.js";
 
 const fail = <C extends CheckinError["code"]>(code: C): Result<never, CheckinError<C>> => err({ code });
@@ -111,10 +112,14 @@ export function setSpectator(s: CheckinState, participantId: string, spectator: 
   return { ...s, spectators, round: { ...r, cards } };
 }
 
-/** 名簿に居ない人の札と見学を落とす。何も落ちなければ同じ参照。status は変えない（自動公開は別に判定する） */
+/**
+ * 名簿に居ない人の札と見学を落とす。何も落ちなければ同じ参照。status は変えない（自動公開は別に判定する）。
+ * **開いた回の札は落とさない（結果を凍らせる）。** 落とすと、前後 2 枚のフレームの山の差で、抜けた人の札が分かる（匿名の漏れ）
+ */
 export function prune(s: CheckinState, knownIds: ReadonlySet<string>): CheckinState {
   const r = s.round;
-  const staleCards = r === null ? [] : [...r.cards.keys()].filter((id) => !knownIds.has(id));
+  const isFrozen = r === null || r.status === "revealed";
+  const staleCards = isFrozen ? [] : [...r.cards.keys()].filter((id) => !knownIds.has(id));
   const staleSpectators = [...s.spectators].filter((id) => !knownIds.has(id));
   if (staleCards.length === 0 && staleSpectators.length === 0) return s;
   const spectators = new Set([...s.spectators].filter((id) => knownIds.has(id)));
@@ -133,4 +138,19 @@ export function applyAutoReveal(s: CheckinState, players: readonly string[]): Ch
   const counted = players.filter((id) => !s.spectators.has(id));
   if (counted.length === 0 || !counted.every((id) => r.cards.has(id))) return s;
   return { ...s, round: { ...r, status: "revealed" } };
+}
+
+/**
+ * 名前つきで開いた回に、札を持つ人の表示名を写す（後で名簿から外れても、山の names から消えないように）。
+ * 匿名の回には写さない（サーバーの中でも名前と札を結びつけない）。足すものが無ければ同じ参照。
+ * 開く遷移（`reveal`・`applyAutoReveal`）の後に呼ぶ。
+ */
+export function recordRevealedNames(s: CheckinState, seats: readonly Pick<SeatInput, "id" | "name">[]): CheckinState {
+  const r = s.round;
+  if (r === null || r.status !== "revealed" || r.visibility !== "named") return s;
+  const missing = seats.filter((x) => r.cards.has(x.id) && r.names?.has(x.id) !== true);
+  if (missing.length === 0) return s;
+  const names = new Map(r.names ?? []);
+  for (const x of missing) names.set(x.id, x.name);
+  return { ...s, round: { ...r, names } };
 }

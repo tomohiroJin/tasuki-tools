@@ -7,6 +7,8 @@ import {
   playAgain,
   playCard,
   playersOf,
+  prune,
+  recordRevealedNames,
   reveal,
   setSpectator,
   setVisibility,
@@ -125,11 +127,11 @@ const checkState = (s: CheckinState, label: string): void => {
       is(mentions(r.piles, seat), false, `${label} piles identity`);
     }
 
-    // 山の count は seats 入力に居る人の札だけを数え、並びはやり方の札の順
+    // 開いた回の山の count は回の札（seats 入力に居ない人の札も）を数え、並びはやり方の札の順
     if (r.status === "revealed") {
       same(r.piles.map((p) => p.card), METHODS[round.method].cards, `${label} order`);
       for (const pile of r.piles) {
-        is(pile.count, cardsInSeats.filter(([, c]) => c === pile.card).length, `${label} count ${pile.card}`);
+        is(pile.count, [...round.cards.values()].filter((c) => c === pile.card).length, `${label} count ${pile.card}`);
       }
     }
   }
@@ -151,5 +153,33 @@ describe("性質: 受け手 X の投影に他人の (ID, 札) の結びつきが
     expect(reach.anonRevealedMulti).toBeGreaterThanOrEqual(100);
     expect(reach.namedRevealedMulti).toBeGreaterThanOrEqual(100);
     expect(reach.openMulti).toBeGreaterThanOrEqual(100);
+  }, 60_000);
+});
+
+describe("性質: 開いた後に名簿から人が外れても、どの受け手の山も変わらない〈m520〉", () => {
+  it("500 通りの操作列で、開いた局面ごとに名簿の部分集合へ prune しても山が同じ", () => {
+    let reached = 0;
+    for (let seed = 1; seed <= 500; seed++) {
+      const rnd = lcg(seed);
+      let s: CheckinState = empty;
+      const steps = 10 + rnd(30);
+      for (let i = 0; i < steps; i++) {
+        // 同期サーバーと同じく、開く遷移の後に名前を写す
+        s = recordRevealedNames(step(s, rnd), seats);
+        if (s.round?.status !== "revealed" || s.round.cards.size === 0) continue;
+        // 名簿から何人かを外す（ビット列で残す人を選ぶ）
+        const mask = rnd(2 ** seats.length);
+        const kept = seats.filter((_, k) => (mask & (1 << k)) !== 0);
+        const pruned = prune(s, new Set(kept.map((x) => x.id)));
+        reached++;
+        for (const viewer of viewers) {
+          const before = toView(s, viewer, seats).round;
+          const after = toView(pruned, viewer, kept).round;
+          if (before?.status !== "revealed" || after?.status !== "revealed") throw new Error("開いていない");
+          same(after.piles, before.piles, `seed ${seed} step ${i} viewer ${viewer} mask ${mask}`);
+        }
+      }
+    }
+    expect(reached).toBeGreaterThanOrEqual(100);
   }, 60_000);
 });

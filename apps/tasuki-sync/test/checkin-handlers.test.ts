@@ -2,7 +2,7 @@
  * チェックイン（`?tool=checkin`）のメッセージ層と配信（#406 Task 2.3）。
  *
  * 依存はフェイクとスパイで組む。**配信は本物の `makeCheckinBroadcaster`** を通し、送り先の記録（`sent`）で観測する。
- * 乱数は常に 0 を返す偽物、ロガーは行を記録する偽物（ハンドラはログを書かない）。
+ * 乱数は常に 0 を返す偽物。ハンドラはロガーを依存に持たない（ログを書けない。表示名・札をログへ出さないため）。
  */
 import { describe, expect, it } from "bun:test";
 import { createTokenBucketLimiter, DEFAULT_CAPACITY, DEFAULT_REFILL_PER_SEC } from "@tasuki/rate-limit";
@@ -16,7 +16,6 @@ import { InMemoryCheckinStore } from "../src/adapters/in-memory-checkin-store.js
 import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import type { CheckinServerMsg } from "../src/ports/checkin-server-msg.js";
-import { createLogger } from "../src/application/log/logger.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
 import { spyHub } from "./support/hub.js";
@@ -32,7 +31,6 @@ function setup(randomInt: (n: number) => number = () => 0) {
   const store = new InMemoryRoomStore();
   const checkins = new InMemoryCheckinStore();
   const sent: Sent[] = [];
-  const logLines: string[] = [];
   const record = (connId: string, msg: CheckinServerMsg): void => {
     sent.push({ connId, msg });
   };
@@ -53,7 +51,6 @@ function setup(randomInt: (n: number) => number = () => 0) {
     send: record,
     monotonicClock: { now: () => 5_000 },
     random: { randomInt },
-    logger: createLogger((level, line) => logLines.push(`${level} ${line}`)),
   });
   store.put({ code: ROOM, createdAt: 0, participants: [] });
   return {
@@ -63,7 +60,6 @@ function setup(randomInt: (n: number) => number = () => 0) {
     store,
     checkins,
     sent,
-    logLines,
   };
 }
 type Harness = ReturnType<typeof setup>;
@@ -97,6 +93,17 @@ function disconnect(h: Harness, displayName: string): void {
     participants: room.participants.map((p) => (p.displayName === displayName ? { ...p, connections: new Map() } : p)),
   });
 }
+
+/** 参加者を名簿から外す（退出）。 */
+function leave(h: Harness, displayName: string): void {
+  const room = h.store.get(ROOM)!;
+  h.store.put({ ...room, participants: room.participants.filter((p) => p.displayName !== displayName) });
+}
+
+const pilesOf = (v: CheckinView) => {
+  if (v.round?.status !== "revealed") throw new Error("開いていない");
+  return v.round.piles;
+};
 
 /** 選択画面（ハブ）だけに居る参加者を名簿に足す。 */
 function addHubOnly(h: Harness, id: string, name: string, connId: string): void {
@@ -289,6 +296,47 @@ describe("匿名と公開の仕方の鍵", () => {
     expect(round.piles.find((p) => p.card === "sunny")!.names).toEqual(["Alice"]);
   });
 
+  it("匿名で開いた後に 1 人が退出しても、全員へのフレームの山が変わらない（前後の差で札が分からない）〈m520〉", async () => {
+    const h = await twoPlayers();
+    await joined(h, "c", "Carol");
+    await choose(h, "a", "energy");
+    await h.handle("a", { command: "checkin.card.play", seq: 1, card: "1" });
+    await h.handle("b", { command: "checkin.card.play", seq: 1, card: "5" });
+    await h.handle("c", { command: "checkin.card.play", seq: 1, card: "5" });
+    const before = { b: pilesOf(lastView(h, "b")), c: pilesOf(lastView(h, "c")) };
+    h.sent.length = 0;
+
+    leave(h, "Alice");
+    h.rosterChanged(ROOM);
+    // 退出の後の操作（prune を通る）でも変わらない
+    await h.handle("b", { command: "checkin.spectator.set", spectator: true });
+
+    for (const connId of ["b", "c"] as const) {
+      const views = viewsTo(h, connId);
+      expect(views.length).toBeGreaterThanOrEqual(2);
+      for (const v of views) expect(pilesOf(v)).toEqual(before[connId]);
+      expect(pilesOf(views[views.length - 1]!).find((p) => p.card === "1")).toEqual({ card: "1", count: 1 });
+      // 席は名簿どおり（外れた人は並ばない）
+      expect(views[0]!.round!.seats.map((x) => x.name)).toEqual(["Bob", "Carol"]);
+    }
+  });
+
+  it("名前つきで開いた後に 1 人が退出しても、山の count と names が変わらない〈m520〉", async () => {
+    const h = await twoPlayers();
+    await choose(h, "a", "weather");
+    await h.handle("a", { command: "checkin.card.play", seq: 1, card: "sunny" });
+    await h.handle("b", { command: "checkin.card.play", seq: 1, card: "rain" });
+    const before = pilesOf(lastView(h, "b"));
+    h.sent.length = 0;
+
+    leave(h, "Alice");
+    h.rosterChanged(ROOM);
+
+    const after = pilesOf(lastView(h, "b"));
+    expect(after).toEqual(before);
+    expect(after.find((p) => p.card === "sunny")).toEqual({ card: "sunny", count: 1, names: ["Alice"] });
+  });
+
   it("開いた後の checkin.visibility.set は CHECKIN_VISIBILITY_LOCKED（E7）", async () => {
     const h = await twoPlayers();
     await choose(h, "a", "weather");
@@ -303,7 +351,7 @@ describe("匿名と公開の仕方の鍵", () => {
   });
 });
 
-describe("くじ・ログ", () => {
+describe("くじ", () => {
   it("乱数 0 のくじは候補の先頭を選ぶ", async () => {
     const h = await twoPlayers();
 
@@ -322,20 +370,5 @@ describe("くじ・ログ", () => {
     expect(errorsTo(h, "a")).toEqual(["INTERNAL_ERROR"]);
     expect(h.sent).toHaveLength(1);
     expect(h.checkins.get(ROOM)).toBe(before);
-    expect(h.logLines).toEqual([]);
-  });
-
-  it("一通り操作した後、偽のロガーの記録が空", async () => {
-    const h = await twoPlayers();
-    await choose(h, "a", "weather");
-    await h.handle("a", { command: "checkin.card.play", seq: 1, card: "sunny" });
-    await h.handle("b", { command: "checkin.card.play", seq: 1, card: "rain" });
-    await h.handle("a", { command: "checkin.visibility.set", seq: 1, visibility: "anonymous" });
-    await h.handle("a", { command: "checkin.spectator.set", spectator: true });
-    await h.handle("a", { command: "checkin.again", seq: 1 });
-    await h.handle("a", { command: "not json{" });
-    h.rosterChanged(ROOM);
-
-    expect(h.logLines).toEqual([]);
   });
 });

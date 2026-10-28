@@ -17,6 +17,7 @@ export {
   setSpectator,
   prune,
   applyAutoReveal,
+  recordRevealedNames,
 } from "./checkin.js";
 
 export { playersOf, toView } from "./projection.js";

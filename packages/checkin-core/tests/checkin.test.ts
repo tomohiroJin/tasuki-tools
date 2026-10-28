@@ -259,6 +259,20 @@ describe("prune", () => {
     expect(u.spectators.size).toBe(0);
   });
 
+  it("開いた回では札を落とさない（結果を凍らせる）。見学は名簿どおり落とす〈m520〉", () => {
+    // 落とすと、前後のフレームの山の差で抜けた人の札が分かる（匿名の漏れ）
+    let s = chooseMethod(empty, "energy");
+    s = play(play(s, a, "1"), b, "5");
+    s = setSpectator(unwrap(reveal(s, { seq: 1 })), c, true);
+    const t = prune(s, new Set([b]));
+    expect(roundOf(t).cards).toBe(roundOf(s).cards);
+    expect(roundOf(t).status).toBe("revealed");
+    expect(t.spectators.size).toBe(0);
+    // 見学も札も落ちるものが無ければ同じ参照
+    const u = unwrap(reveal(play(chooseMethod(empty, "energy"), a, "1"), { seq: 1 }));
+    expect(prune(u, new Set())).toBe(u);
+  });
+
   it("名簿に居る人（切断しても残る）は落とさず、何も落ちなければ同じ参照", () => {
     let s = play(chooseMethod(empty, "weather"), a, "sunny");
     s = setSpectator(s, b, true);
