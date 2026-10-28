@@ -1,0 +1,23 @@
+# 変異 497: anonymous-reveal-keeps-your-card
+#
+# 検出を期待するテスト:
+#   - packages/checkin-core/tests/projection.test.ts
+#     「yourCard の鍵を持たない（判断 7）〈m497〉」
+#
+# #406 段 1。匿名で開いた後も自分の札を返す。画面がそれを山に印すと、肩越しに見た人に自分の札が分かる（判断 7）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m497-*.patch
+# 復元: git apply -R scripts/mutations/m497-*.patch
+diff --git a/packages/checkin-core/src/projection.ts b/packages/checkin-core/src/projection.ts
+index 7fef8430..78319ea6 100644
+--- a/packages/checkin-core/src/projection.ts
++++ b/packages/checkin-core/src/projection.ts
+@@ -97,5 +97,6 @@ export function toView(s: CheckinState, viewerId: string, seats: readonly SeatIn
+     if (r.visibility === "anonymous") return { card, count: holders.length };
+     return { card, count: holders.length, names: holders.map((x) => x.name) };
+   });
+-  return { ...base, round: { ...head, status: "revealed", piles } };
++  const yours = r.visibility === "anonymous" ? { yourCard: r.cards.get(viewerId) ?? null } : {};
++  return { ...base, round: { ...head, status: "revealed", piles, ...yours } };
+ }

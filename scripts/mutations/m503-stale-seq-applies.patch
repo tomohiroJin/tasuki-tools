@@ -1,0 +1,23 @@
+# 変異 503: stale-seq-applies
+#
+# 検出を期待するテスト:
+#   - packages/checkin-core/tests/checkin.test.ts
+#     playCard の「古い seq は同じ参照〈m503〉」「古い seq は、開いた回・見学者・未知の札より先に判定し…〈m503〉」
+#
+# #406 段 1。札を出す操作で回の番号を見ない。もう一回の直後に届いた古い回の札が新しい回に入る（Review Focus 2）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m503-*.patch
+# 復元: git apply -R scripts/mutations/m503-*.patch
+diff --git a/packages/checkin-core/src/checkin.ts b/packages/checkin-core/src/checkin.ts
+index 0fcfba95..c41a0fc9 100644
+--- a/packages/checkin-core/src/checkin.ts
++++ b/packages/checkin-core/src/checkin.ts
+@@ -54,7 +54,6 @@ export function playCard(
+ > {
+   const r = s.round;
+   if (r === null) return fail("CHECKIN_NO_ROUND");
+-  if (r.seq !== input.seq) return ok(s);
+   if (r.status === "revealed") return fail("CHECKIN_REVEALED");
+   if (s.spectators.has(input.participantId)) return fail("CHECKIN_SPECTATING");
+   if (!METHODS[r.method].cards.includes(input.card)) return fail("CHECKIN_CARD_UNKNOWN");

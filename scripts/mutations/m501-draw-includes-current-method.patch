@@ -1,0 +1,24 @@
+# 変異 501: draw-includes-current-method
+#
+# 検出を期待するテスト:
+#   - packages/checkin-core/tests/checkin.test.ts
+#     「いまのやり方を除いた 4 つから選ぶ…（E2）〈m501〉」
+#
+# #406 段 1。くじの候補にいまのやり方を残す。引き直しても同じやり方が出る（E2）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m501-*.patch
+# 復元: git apply -R scripts/mutations/m501-*.patch
+diff --git a/packages/checkin-core/src/checkin.ts b/packages/checkin-core/src/checkin.ts
+index 0fcfba95..c803d92b 100644
+--- a/packages/checkin-core/src/checkin.ts
++++ b/packages/checkin-core/src/checkin.ts
+@@ -36,7 +36,7 @@ export function drawMethod(
+   side: Side,
+   randomInt: (n: number) => number,
+ ): Result<CheckinState, CheckinError<"CHECKIN_INVALID_RANDOM">> {
+-  const candidates = methodsOf(side).filter((m) => m !== s.round?.method);
++  const candidates = methodsOf(side);
+   const i = randomInt(candidates.length);
+   const picked = Number.isInteger(i) ? candidates[i] : undefined;
+   if (picked === undefined) return fail("CHECKIN_INVALID_RANDOM");

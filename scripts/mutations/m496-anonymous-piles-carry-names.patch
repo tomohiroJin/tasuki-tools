@@ -1,0 +1,23 @@
+# 変異 496: anonymous-piles-carry-names
+#
+# 検出を期待するテスト:
+#   - packages/checkin-core/tests/projection.test.ts
+#     「names の鍵が無く、piles に ID も名前も現れない（E6）〈m496〉」
+#
+# #406 段 1。匿名で開いた後の山に出した人の名前が載る。匿名を選んだ回で誰がどの札かが全員に分かる（設計 §6・E6）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m496-*.patch
+# 復元: git apply -R scripts/mutations/m496-*.patch
+diff --git a/packages/checkin-core/src/projection.ts b/packages/checkin-core/src/projection.ts
+index 7fef8430..71ff5e72 100644
+--- a/packages/checkin-core/src/projection.ts
++++ b/packages/checkin-core/src/projection.ts
+@@ -94,7 +94,6 @@ export function toView(s: CheckinState, viewerId: string, seats: readonly SeatIn
+   const piles: PileView[] = METHODS[r.method].cards.map((card) => {
+     // count と names は同じ基準（seats 入力に居る人の札だけ）で数える
+     const holders = seatViews.filter((x) => r.cards.get(x.id) === card);
+-    if (r.visibility === "anonymous") return { card, count: holders.length };
+     return { card, count: holders.length, names: holders.map((x) => x.name) };
+   });
+   return { ...base, round: { ...head, status: "revealed", piles } };

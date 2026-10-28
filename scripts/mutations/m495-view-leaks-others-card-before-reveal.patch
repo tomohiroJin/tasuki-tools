@@ -1,0 +1,25 @@
+# 変異 495: view-leaks-others-card-before-reveal
+#
+# 検出を期待するテスト:
+#   - packages/checkin-core/tests/projection.test.ts
+#     「他人の札の ID がどこにも現れない…〈m495〉」
+#   - packages/checkin-core/tests/projection-invariant.test.ts
+#     「500 通りの操作列の各手順の後で検査する」
+#
+# #406 段 1。開く前の席に札を載せる。誰が何を出したかが開く前に全員へ届き、札を伏せる意味が無くなる（設計 §6・E5）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m495-*.patch
+# 復元: git apply -R scripts/mutations/m495-*.patch
+diff --git a/packages/checkin-core/src/projection.ts b/packages/checkin-core/src/projection.ts
+index 7fef8430..c2415f66 100644
+--- a/packages/checkin-core/src/projection.ts
++++ b/packages/checkin-core/src/projection.ts
+@@ -83,6 +83,7 @@ export function toView(s: CheckinState, viewerId: string, seats: readonly SeatIn
+       ...base,
+       round: {
+         ...head,
++        seats: seatViews.map((x) => ({ ...x, card: r.cards.get(x.id) ?? null })),
+         status: "open",
+         playedCount: players.filter((id) => r.cards.has(id)).length,
+         playerCount: players.length,
