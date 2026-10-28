@@ -127,7 +127,7 @@ export function StepList({ view, canOperate, onSetSkipped }: Props) {
       <h2 id={headingId} className="step-list-heading">
         {STEP_LIST_HEADING}
       </h2>
-      {/* スクロールする枠はキーボードで届き（矢印・PageDown）、見出しで名前が付く。回数 1 の DOM は変えない */}
+      {/* スクロールする枠はキーボードで届き（矢印・PageDown）、見出しで名前が付く。枠でない一覧（回数 1 で `FLAT_LIST_MAX_ROWS` 以下）の DOM は第 1 段のまま */}
       <ol
         ref={boxRef}
         className={scrolling ? 'step-list-rows step-list-rows--scroll' : 'step-list-rows'}

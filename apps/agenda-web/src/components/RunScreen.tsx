@@ -59,7 +59,8 @@ export function RunScreen({ view, wallNow, reducedMotion, striking, canOperate, 
     if (!consumeStartArrival()) return;
     titleRef.current?.focus({ preventScroll: true });
     window.scrollTo({ top: 0, behavior: 'auto' });
-    // 最初の描画の 1 度だけ
+    // 最初の描画の 1 度だけ。開始で RunScreen が新しく描かれる（組む画面から入れ替わる）ことに頼っている。開始の後に作り直す・別の画面へ分ける
+    // 変更をするときは、印を消費する場所をここと揃える（`AgendaRoom` の `consumeStartArrival`）
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const summaryHeadingId = useId();

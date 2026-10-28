@@ -206,7 +206,7 @@
 - Create: `scripts/mutations/m530〜m538-<名前>.patch`
 - Modify: `scripts/lib/mutation-declarations.mjs`（末尾に `{ id, label, patch, pkg, tests, note }` で足す。`note` は `"#455。…"` で始める。`pkg` はパス）・`scripts/mutations/m446-overrun-without-plus.patch`・`m453-total-limit-ignores-rounds.patch`・`m454-expanded-step-count-unchecked.patch`・`m462-single-step-rounds-show-headings.patch`
 
-**帯の確かめ**: main の台帳の最大は 484、PR #453（#447-2）が 485〜493 を使い、494〜499 は #449 に空けてある。着手時に `grep -oE 'id: *[0-9]+' scripts/lib/mutation-declarations.mjs | sort -t: -k2 -n | tail -3` と `gh pr diff 453 | grep -oE 'm[0-9]{3}' | sort -u` で 530〜538 が空いていることを見る。PR #453 も宣言の末尾に足すので、後からマージする側で台帳の末尾が衝突する（中身はどちらも残す）
+**帯の確かめ**（2026-10-28 追記: 並行する #406 の枝が 495〜504・519 を使うので、#455 は 530〜539 に付け替えた）: main の台帳の最大は 484、PR #453（#447-2）が 485〜493 を使い、494〜499 は #449 に空けてある。着手時に `grep -oE 'id: *[0-9]+' scripts/lib/mutation-declarations.mjs | sort -t: -k2 -n | tail -3` と `gh pr diff 453 | grep -oE 'm[0-9]{3}' | sort -u` で 530〜538 が空いていることを見る。PR #453 も宣言の末尾に足すので、後からマージする側で台帳の末尾が衝突する（中身はどちらも残す）
 
 **新しい変異**（各 1 本・当てると対象の試験が赤・戻すと緑）:
 

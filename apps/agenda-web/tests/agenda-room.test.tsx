@@ -555,6 +555,19 @@ describe('開始を押した本人の画面だけ進める画面へ寄せる（#
     now.mockRestore();
   });
 
+  it('Given 失敗の表示が出たまま開始を押し、同じ文言で拒まれた / When 直後に他の参加者が開始する / Then 寄せない（送るときに表示を下ろすので、同じ文言の失敗でも表示が変わり印が消える）', () => {
+    // Given: 前の失敗の表示が残っている。`send` が表示を下ろしてから送る（`useToolRoomSync`）ので、同じ文言で拒まれても null から変わる
+    joinedRoom(idleWithScenario);
+    act(() => latestSocket().deliver({ type: 'error', code: 'INVALID_COMMAND', message: 'x' }));
+    fireEvent.click(screen.getByRole('button', { name: START_BUTTON }));
+    act(() => latestSocket().deliver({ type: 'error', code: 'INVALID_COMMAND', message: 'x' }));
+    // When
+    deliverAgenda(runningAgenda(0));
+    // Then
+    expect(scrollTo).not.toHaveBeenCalled();
+    expect(document.activeElement).not.toBe(runTitle());
+  });
+
   it('Given 開始を押した / When 9 秒後に進行中が届く / Then 本人の開始の返事として寄せる（遅い回線でも効く）', () => {
     // Given
     const now = vi.spyOn(Date, 'now').mockReturnValue(1_000_000);
