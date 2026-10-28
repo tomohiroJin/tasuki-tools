@@ -1,0 +1,70 @@
+/* 隠しモードのテーブル（#403・設計 §5.2）。部品と一緒に遅延読み込みの塊へ入る（普段の CSS は増やさない）。 */
+
+.card-table {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--gold-edge);
+  border-radius: var(--card-radius);
+  background: var(--felt-sink);
+}
+
+.playing-hand {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* 象牙の札（`.card` と同じ材質。`.card` は当てない: ボタン向けの :hover・:disabled が乗るため） */
+.playing-card {
+  display: grid;
+  place-items: center;
+  width: 2.8rem;
+  height: 3.9rem;
+  border: 1px solid var(--card-edge);
+  border-radius: var(--card-radius);
+  background: linear-gradient(165deg, var(--card-sheen) 0%, var(--ivory) 60%, var(--card-shade) 100%);
+  box-shadow: var(--shadow-card);
+  color: var(--coal);
+  font-family: var(--font-display);
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+}
+
+/* 赤のスート。--card-back は札の地の最も暗い端（--card-shade）の上でも 6.3:1（AA を満たす。--rose は 4.1:1 で割る） */
+.playing-card[data-suit='H'],
+.playing-card[data-suit='D'] {
+  color: var(--card-back);
+}
+
+.card-table-results {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card-table-results > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.card-table-name {
+  min-width: 5rem;
+  font-weight: 600;
+}
+
+.card-table-category {
+  color: var(--ivory-dim);
+}
+
+.card-table-winner {
+  color: var(--gold-bright);
+  border-color: var(--gold-edge);
+}

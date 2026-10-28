@@ -134,6 +134,12 @@ export interface PokerSync {
   setSpectator: (spectator: boolean) => void;
   /** 接続の無い他人を一覧から外す（#419）。サーバーは接続中の人・自分を拒む */
   removeParticipant: (participantId: string) => void;
+  /** 隠しモードのテーブルの席に着く・離れる（#403）。入口が true、テーブルの「閉じる」が false を送る */
+  setTableSeat: (seated: boolean) => void;
+  /** テーブルの席の全員へ配る（#403）。配るのはサーバーで、ここは頼むだけ */
+  dealHands: () => void;
+  /** テーブルの手を全員へ見せる（#403） */
+  showHands: () => void;
 }
 
 export function usePokerSync(): PokerSync {
@@ -289,6 +295,9 @@ export function usePokerSync(): PokerSync {
       renameGroup: (groupId: number, item: string) => send({ type: 'set-group-item', groupId, item }),
       setSpectator: (spectator: boolean) => send({ type: 'set-spectator', spectator }),
       removeParticipant: (participantId: string) => send({ type: 'remove-participant', participantId }),
+      setTableSeat: (seated: boolean) => send({ type: 'table-seat', seated }),
+      dealHands: () => send({ type: 'table-deal' }),
+      showHands: () => send({ type: 'table-show' }),
     };
   }, []);
 

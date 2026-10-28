@@ -2,7 +2,7 @@
 //
 // **ここで名前は聞かない**（#95 S5c・R9）。名乗る場所は玄関に 1 つだけあり、
 // 端末に同一性が無いままここへ来た人は玄関の参加画面へ送り返す。
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { RoomHeader } from '@tasuki/invite-ui';
 import { CardHand } from '../components/CardHand';
 import { CurrentTopic, TOPIC_CARD_ID, TOPIC_HIDE, TOPIC_SHOW } from '../components/CurrentTopic';
@@ -15,10 +15,14 @@ import { ParticipantList, PARTICIPANTS_HEADING_ID } from '../components/Particip
 import { Results } from '../components/Results';
 import type { PokerSync } from '../hooks/useSync';
 import { useRoomEntry } from '../hooks/useRoomEntry';
+import { useSecretEntry } from '../hooks/useSecretEntry';
 import { ESTIMATE_POINTS_LABEL, NEXT_ITEM, RECORDING_TOGGLE, REVOTE } from '../estimate-copy';
 import { JOIN_VOTING, SPECTATE, SPECTATING_NOTE, participantsHeading } from '../spectator-copy';
 import type { NumberCardValue } from '@tasuki/poker-core';
 import { isOffline, revealedLiveAfter, seatCardCount, revealedVoteMap, spreadPromptOf } from '../room-view';
+
+// 隠しモードのテーブル（#403）。席に着いたときにだけ読み込む（普段の初回の読み込みを増やさない・設計 D6）
+const CardTable = lazy(() => import('../components/CardTable'));
 
 interface Props {
   roomId: string;
@@ -68,6 +72,9 @@ export function RoomPage({ roomId, sync }: Props) {
   }
   // 入口の振り分け・自動の復帰・混雑の入り直し・消えたルームの組の破棄は同期フックの仕事（#369）。
   const { retryNotice } = useRoomEntry(sync, roomId);
+  // 隠しの入口（#403・設計 §5.1）。コナミコマンドと参加者の見出しの 5 回押しで席に着く。
+  // フックは早期 return より前に置く（呼ぶ順を描画ごとに変えない）。切断中は数えない
+  const onSecretTap = useSecretEntry(() => sync.setTableSeat(true), !isOffline(sync.status));
 
   // room-not-found はページ全体をエラー表示に（FR-015 / US1-AS3）
   if (sync.error?.code === 'room-not-found') {
@@ -102,6 +109,8 @@ export function RoomPage({ roomId, sync }: Props) {
   const spectatorCount = snapshot.participants.filter((p) => p.spectator).length;
   // 結果の待ち（`--seat-count`）は札を出す席だけで数える（席の一覧と同じ述語・`room-view.ts`）
   const seatCount = seatCardCount(snapshot.participants, revealedVotes);
+  // テーブルは自分が席に着いているときだけ出す（#403 T-2）。他の人が遊んでいても画面は変わらない
+  const seated = snapshot.table?.seats.includes(snapshot.you) === true;
 
   return (
     <main className="ui-page ui-page--wide room">
@@ -172,9 +181,27 @@ export function RoomPage({ roomId, sync }: Props) {
         </div>
         )}
         <div className="ui-workspace-main room-main">
+          {/* 隠しモードのテーブル（#403）。自分が席に着いているときだけ。見積もりの面より先に置く */}
+          {seated && snapshot.table && (
+            <Suspense fallback={null}>
+              <CardTable
+                table={snapshot.table}
+                participants={snapshot.participants}
+                you={snapshot.you}
+                disabled={offline}
+                onDeal={sync.dealHands}
+                onShow={sync.showHands}
+                onLeave={() => sync.setTableSeat(false)}
+              />
+            </Suspense>
+          )}
           <section>
             <div className="room-participants-head">
-              <h2 id={PARTICIPANTS_HEADING_ID} tabIndex={-1}>{participantsHeading(snapshot.participants.length, spectatorCount)}</h2>
+              {/* 押下は隠しの入口（#403）。**ボタンにはしない** —— ボタンにすると入口が見えてしまう。
+                  キーボードの利用者はコナミコマンドで入れる */}
+              <h2 id={PARTICIPANTS_HEADING_ID} tabIndex={-1} onClick={onSecretTap}>
+                {participantsHeading(snapshot.participants.length, spectatorCount)}
+              </h2>
               {/* 自分の切り替え。投票中も開票後も出す（#419・設計 §5.2） */}
               <button
                 type="button"
