@@ -3,7 +3,7 @@
  *
  * @requirements #403 G-11
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { clearResumeIdentity, loadResumeIdentity, saveResumeIdentity } from '@tasuki/sync-client';
 import type { RoomStateMessage, TableView } from '@tasuki/poker-core';
@@ -11,6 +11,8 @@ import { RoomPage } from '../src/pages/RoomPage';
 import type { PokerSync } from '../src/hooks/useSync';
 
 const ROOM_ID = 'ABCD1234';
+/** 遅延読み込みの塊を待つ上限。並列のテストの負荷では findBy の既定（1 秒）を超えることがある */
+const LAZY_WAIT = { timeout: 10_000 };
 
 function state(table?: TableView): RoomStateMessage {
   return {
@@ -72,6 +74,13 @@ const playing: TableView = {
   hands: [],
 };
 
+// テーブルは遅延読み込みの塊。初めての読み込み（変換を含む）は並列のテストの負荷で 1 秒を超えることがあり、
+// findBy の既定の待ち（1 秒）で落ちる。この試験が見るのは出し分けで、読み込みの速さではないので、先に読んでおく
+// （React.lazy の import() はモジュールの読み込み済みの値を受け取る）
+beforeAll(async () => {
+  await import('../src/components/CardTable');
+});
+
 beforeEach(() => {
   localStorage.clear();
   saveResumeIdentity({ code: ROOM_ID, participantId: 'p2', resumeToken: 'tok-2', displayName: 'みなと' });
@@ -88,7 +97,7 @@ describe('テーブルの出し分け（#403）', () => {
 
   it('Given ゲームの最中 / When 描く / Then テーブルが出て、見積もりの結果と帯は無い。席の一覧は残る', async () => {
     render(<RoomPage roomId={ROOM_ID} sync={makeSync(state(playing))} />);
-    expect(await screen.findByRole('heading', { name: 'トランプのポーカー' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'トランプのポーカー' }, LAZY_WAIT)).toBeTruthy();
     expect(screen.queryByRole('button', { name: '再投票' })).toBeNull();
     expect(screen.queryByRole('button', { name: '票を公開する' })).toBeNull();
     expect(document.querySelector('.results')).toBeNull();
@@ -97,7 +106,7 @@ describe('テーブルの出し分け（#403）', () => {
 
   it('Given ゲームの最中 / When 「見積もりに戻る」 / Then closeGame', async () => {
     render(<RoomPage roomId={ROOM_ID} sync={makeSync(state(playing))} />);
-    fireEvent.click(await screen.findByRole('button', { name: '見積もりに戻る' }));
+    fireEvent.click(await screen.findByRole('button', { name: '見積もりに戻る' }, LAZY_WAIT));
     expect(closeGame).toHaveBeenCalledOnce();
   });
 });

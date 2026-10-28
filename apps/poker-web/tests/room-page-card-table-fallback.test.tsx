@@ -17,6 +17,8 @@ vi.mock('../src/components/CardTable', () => {
 });
 
 const ROOM_ID = 'ABCD1234';
+/** 遅延読み込みの塊を待つ上限。並列のテストの負荷では findBy の既定（1 秒）を超えることがある */
+const LAZY_WAIT = { timeout: 10_000 };
 
 const snapshot: RoomStateMessage = {
   type: 'room-state',
@@ -78,7 +80,7 @@ afterEach(() => {
 describe('テーブルの読み込みに失敗したとき（#403）', () => {
   it('Given 塊を読み込めない / When ゲームが始まる / Then 画面は残り、伝える一文と「見積もりに戻る」「読み込み直す」が出る', async () => {
     render(<RoomPage roomId={ROOM_ID} sync={makeSync()} />);
-    expect(await screen.findByText('トランプのポーカーを読み込めませんでした')).toBeTruthy();
+    expect(await screen.findByText('トランプのポーカーを読み込めませんでした', {}, LAZY_WAIT)).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'プランニングポーカー' })).toBeTruthy();
     expect(screen.getByRole('button', { name: '読み込み直す' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '見積もりに戻る' }));

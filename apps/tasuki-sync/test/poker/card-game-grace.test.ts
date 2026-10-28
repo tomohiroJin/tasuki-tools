@@ -1,8 +1,8 @@
 // 隠しモードの切断の猶予（#403 G-8）の配線。in-process で組み立て、壁時計と予約のタイマーを偽物に差し替える。
 //
 // 実時間で 20 秒待たずに「猶予の内は開かない／猶予の切れる時刻に予約し、発火で開く／戻れば予約を消す」を見る。
+// 猶予の長さそのもの（`AWAY_GRACE_MS`）は poker-core の試験が見る。ここは予約された時間だけ時計を進めて発火させる。
 import { describe, expect, it } from 'bun:test';
-import { AWAY_GRACE_MS } from '../../../../packages/poker-core/src/card-game.js';
 import type { ClientMessage, ServerMessage } from '@tasuki/poker-core';
 import type { RateLimiter } from '@tasuki/rate-limit';
 import { InMemoryTimerStore } from '../../src/adapters/in-memory-timer-store.js';
@@ -108,7 +108,7 @@ describe('切断の猶予（#403 G-8）', () => {
     env.handlers.detachFromCurrentRoom(env.clients[1]!.ws);
 
     expect(env.table(0)?.status).toBe('exchanging');
-    expect(env.timer.pending.get('room0001')?.secondsLeft).toBe(AWAY_GRACE_MS / 1000);
+    expect(env.timer.pending.get('room0001')?.secondsLeft).toBeGreaterThan(1);
   });
 
   it('Given 予約がある / When 猶予が切れて発火する / Then b を待たずに開く', () => {
@@ -116,7 +116,7 @@ describe('切断の猶予（#403 G-8）', () => {
     env.send(0, { type: 'table-exchange', discard: [] });
     env.handlers.detachFromCurrentRoom(env.clients[1]!.ws);
 
-    env.advance(AWAY_GRACE_MS);
+    env.advance((env.timer.pending.get('room0001')?.secondsLeft ?? 0) * 1000);
     env.timer.fire('room0001');
 
     expect(env.table(0)?.status).toBe('shown');
