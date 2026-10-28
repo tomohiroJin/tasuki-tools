@@ -132,7 +132,7 @@
 .ct-mini-hand .ct-card {
   width: clamp(2.4rem, 7vw, 3.2rem);
   margin-inline-start: -0.9rem;
-  transform: rotate(calc((var(--i) - 2) * 5deg)) translateY(calc(abs(var(--i) - 2) * 2px));
+  transform: rotate(calc((var(--i) - 2) * 5deg)) translateY(calc(var(--d) * 2px));
   transform-origin: 50% 120%;
 }
 

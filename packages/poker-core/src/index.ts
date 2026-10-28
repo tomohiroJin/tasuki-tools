@@ -72,6 +72,7 @@ export {
   exchangeHand,
   dealAgain,
   closeGame,
+  gameDeadline,
 } from './round.js';
 // Round: 上の関数の引数・戻り値型（`RoundStore` が保管する型でもある）
 // VoterView: settleRound・dealAgain の引数型。名簿の断片を構造的部分型で受ける
@@ -81,7 +82,9 @@ export type { Round, VoterView, RoundError } from './round.js';
 
 // ./card-game・./playing-card・./hand-rank（#403 隠しモードのゲーム）
 //
-// 値は載せない。状態遷移の入口は `round.ts` の `settleRound` / `exchangeHand` / `dealAgain` / `closeGame`、
+// HAND_SIZE: 画面が伏せた札の枚数に使う（枚数の定義を 1 つに保つ）
+export { HAND_SIZE } from './card-game.js';
+// 状態遷移の値はここに載せない。状態遷移の入口は `round.ts` の `settleRound` / `exchangeHand` / `dealAgain` / `closeGame`、
 // 役の判定は投影（`createSnapshotBuilder`）の中で閉じる。画面へは役の分類だけが届く。
 // CardGame: Round の game の型。GameError: RoundError の枝。RandomInt: settleRound ほかの引数型
 export type { CardGame, GameError, RandomInt } from './card-game.js';

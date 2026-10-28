@@ -5,6 +5,7 @@
 import { lazy, Suspense, useState } from 'react';
 import { RoomHeader } from '@tasuki/invite-ui';
 import { CardHand } from '../components/CardHand';
+import { CardTableBoundary } from '../components/CardTableBoundary';
 import { CurrentTopic, TOPIC_CARD_ID, TOPIC_HIDE, TOPIC_SHOW } from '../components/CurrentTopic';
 import { ErrorNote } from '../components/ErrorNote';
 import { EstimateItemField } from '../components/EstimateItemField';
@@ -213,6 +214,7 @@ export function RoomPage({ roomId, sync }: Props) {
             />
           )}
           {table ? (
+            <CardTableBoundary disabled={offline} onClose={sync.closeGame}>
             <Suspense fallback={null}>
               <CardTable
                 table={table}
@@ -224,6 +226,7 @@ export function RoomPage({ roomId, sync }: Props) {
                 onClose={sync.closeGame}
               />
             </Suspense>
+            </CardTableBoundary>
           ) : snapshot.round.status === 'voting' ? (
             <section>
               <h2>あなたのカード</h2>

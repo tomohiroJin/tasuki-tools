@@ -56,6 +56,9 @@ const unusedIdGen: IdGen = {
   },
 };
 
+/** 隠しモードの判定の予約（#403）。このテストではゲームを始めないので、予約を消す呼び出しだけが来る */
+const idleGameTimer = { schedule: () => {}, clear: () => {} };
+
 /** テーブルの山を切る乱数（#403）。このテストでは配らない */
 const unusedRandom = {
   randomInt: (): number => {
@@ -88,6 +91,7 @@ function setup(data: Partial<HandlerConnection['data']> = {}, store = new InMemo
     wallClock: { now: () => 0 },
     rateLimiter: alwaysAllowLimiter,
     random: unusedRandom,
+      gameTimer: idleGameTimer,
     maxRooms: 50,
     // お題の配信はこのテストの対象外。
     topicBroadcaster: { sendCurrent: () => {} },

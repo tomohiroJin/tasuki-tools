@@ -4,6 +4,9 @@
 // 「配」「札」「枚」「着」「届」「勝」は外れるので使わない。札は SVG なので、書体に頼るのは角の数字（ASCII）だけである。
 import type { HandCategory, PlayingCard, Rank, Suit } from '@tasuki/poker-core';
 
+// 「見積もりに戻る」は読み込みに失敗したときの画面と同じ文言。正本は初回の塊にある方
+export { BACK_TO_ESTIMATE } from './card-table-fallback-copy';
+
 export const TABLE_HEADING = 'トランプのポーカー';
 export const PROMPT_CHOOSE = 'チェンジするカードを選んでください（1 回だけ）';
 export const PROMPT_WAIT = 'ほかの人のチェンジを待っています';
@@ -15,7 +18,6 @@ export const EXCHANGED = 'チェンジ済み';
 export const EXCHANGING = 'チェンジ中';
 export const KEEP = 'このまま';
 export const AGAIN = 'もう一度';
-export const BACK_TO_ESTIMATE = '見積もりに戻る';
 export const CARD_BACK = 'ふせたカード';
 
 /** チェンジのボタン（選んだ数を添える）。0 のときは {@link KEEP} を出す */

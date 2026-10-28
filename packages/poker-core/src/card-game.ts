@@ -9,6 +9,11 @@ import { FULL_DECK, type PlayingCard } from './playing-card.js';
 export const HAND_SIZE = 5;
 /** プレイヤーの上限。52 枚で 5 枚ずつ配れるのは 10 人まで（G-2） */
 export const MAX_PLAYERS = 10;
+/**
+ * 接続の切れたプレイヤーを待つ猶予（G-8）。スマホがタブを裏に回す・回線を切り替えるといった一瞬の切断で、
+ * その人がチェンジする前に全員の手が開いてしまわないように待つ。過ぎたら待たずに開く
+ */
+export const AWAY_GRACE_MS = 20_000;
 
 export interface CardGame {
   status: 'exchanging' | 'shown';
@@ -22,6 +27,8 @@ export interface CardGame {
   deck: readonly PlayingCard[];
   /** 捨て札（wire には出さない） */
   discards: readonly PlayingCard[];
+  /** 接続の切れたプレイヤー → 切れた時刻（壁時計）。戻れば消える（wire には出さない） */
+  away: ReadonlyMap<string, number>;
 }
 
 export type GameError =
@@ -46,6 +53,7 @@ export function dealGame(candidates: readonly string[], randomInt: RandomInt): C
     exchanged: new Set(),
     deck: deck.slice(players.length * HAND_SIZE),
     discards: [],
+    away: new Map(),
   };
 }
 
@@ -92,16 +100,46 @@ export function exchangeCards(
 }
 
 /**
- * 接続中のプレイヤーが全員チェンジを済ませていれば開く（G-7）。そうでなければ入力と同じ値を返す。
- *
- * **接続の切れた人は待たない**（席を離れたまま戻らない人でゲームが止まらないように）。手は残すので、
- * 戻ってくれば開いた結果に自分の手も並ぶ。接続中のプレイヤーが 1 人も居なければ開かない。
+ * 接続の切れたプレイヤーと切れた時刻を記録する（G-8）。戻った人の記録は消す。切れたままの人の時刻は最初のまま（延ばさない）。
+ * チェンジの最中だけ記録する。変化が無ければ入力と同じ値を返す
  */
-export function revealIfReady(game: CardGame, isConnected: (participantId: string) => boolean): CardGame {
+export function trackPresence(game: CardGame, isConnected: (participantId: string) => boolean, now: number): CardGame {
   if (game.status !== 'exchanging') return game;
-  const waiting = game.players.filter(isConnected);
-  if (waiting.length === 0 || !waiting.every((id) => game.exchanged.has(id))) return game;
-  return { ...game, status: 'shown' };
+  const away = new Map(game.away);
+  for (const id of game.players) {
+    if (isConnected(id)) away.delete(id);
+    else if (!away.has(id)) away.set(id, now);
+  }
+  const same = away.size === game.away.size && [...away].every(([id, at]) => game.away.get(id) === at);
+  return same ? game : { ...game, away };
+}
+
+/**
+ * 待っているプレイヤーが全員チェンジを済ませていれば開く（G-7）。そうでなければ入力と同じ値を返す。
+ *
+ * **接続の切れた人は {@link AWAY_GRACE_MS} の間だけ待つ**（一瞬の切断で、その人のチェンジを待たずに開かないように）。
+ * 過ぎたら待たない。手は残すので、戻ってくれば開いた結果に自分の手も並ぶ。
+ * 接続中のプレイヤーが 1 人も居なければ開かない（見る人が居ない）。
+ */
+export function revealIfReady(game: CardGame, now: number): CardGame {
+  if (game.status !== 'exchanging') return game;
+  const connected = game.players.filter((id) => !game.away.has(id));
+  const waiting = game.players.filter((id) => {
+    const at = game.away.get(id);
+    return at === undefined || now - at < AWAY_GRACE_MS;
+  });
+  if (connected.length === 0 || !waiting.every((id) => game.exchanged.has(id))) return game;
+  return { ...game, status: 'shown', away: new Map() };
+}
+
+/**
+ * 次に開くかどうかを判定し直す時刻（G-8）。未チェンジのまま切れた人の猶予がいちばん早く切れる時刻で、
+ * 待つ相手が居なければ null。サーバーはこの時刻に判定を予約する（切れた人が戻らなくても、猶予が切れた瞬間に開く）
+ */
+export function nextAwayDeadline(game: CardGame): number | null {
+  if (game.status !== 'exchanging') return null;
+  const pending = [...game.away].filter(([id]) => !game.exchanged.has(id)).map(([, at]) => at + AWAY_GRACE_MS);
+  return pending.length === 0 ? null : Math.min(...pending);
 }
 
 /** プレイヤーを外す（G-8）。手は捨て札へ。プレイヤーが居なくなればゲームを終える（null） */
@@ -114,7 +152,9 @@ export function dropPlayer(game: CardGame, participantId: string): CardGame | nu
   hands.delete(participantId);
   const exchanged = new Set(game.exchanged);
   exchanged.delete(participantId);
-  return { ...game, players, hands, exchanged, discards: [...game.discards, ...hand] };
+  const away = new Map(game.away);
+  away.delete(participantId);
+  return { ...game, players, hands, exchanged, away, discards: [...game.discards, ...hand] };
 }
 
 /** Fisher–Yates（その場で並べ替えて返す） */

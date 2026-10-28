@@ -4,13 +4,23 @@
  * @requirements #403 G-1 G-2 G-4 G-5 G-6 G-7 G-8 G-9
  */
 import { describe, expect, it } from 'vitest';
-import { HAND_SIZE, MAX_PLAYERS, dealGame, dropPlayer, exchangeCards, revealIfReady, type CardGame } from '../src/card-game.js';
+import {
+  AWAY_GRACE_MS,
+  HAND_SIZE,
+  MAX_PLAYERS,
+  dealGame,
+  dropPlayer,
+  exchangeCards,
+  nextAwayDeadline,
+  revealIfReady,
+  trackPresence,
+  type CardGame,
+} from '../src/card-game.js';
 import { FULL_DECK, type PlayingCard } from '../src/playing-card.js';
 
 /** 何もしない乱数（Fisher–Yates が並びを変えない）。配られる札が決まる */
 const identity = (n: number) => n - 1;
 const key = (c: PlayingCard) => `${c.rank}${c.suit}`;
-const all = () => true;
 
 function dealt(...players: string[]): CardGame {
   const game = dealGame(players, identity);
@@ -85,7 +95,7 @@ describe('チェンジ（G-4・G-5・G-6）', () => {
   });
 
   it('Given 開いたあと / When チェンジ / Then table-exchanged（もう替えられない）', () => {
-    const shown = revealIfReady(exchangeCards(dealt('a'), 'a', [], identity)._unsafeUnwrap(), all);
+    const shown = revealIfReady(exchangeCards(dealt('a'), 'a', [], identity)._unsafeUnwrap(), 0);
     expect(exchangeCards(shown, 'a', [0], identity)._unsafeUnwrapErr()).toEqual({ code: 'table-exchanged' });
   });
 
@@ -115,24 +125,61 @@ describe('チェンジ（G-4・G-5・G-6）', () => {
 describe('開く（G-7）', () => {
   it('Given 1 人だけ済んだ / When 判定 / Then まだ開かない', () => {
     const game = exchangeCards(dealt('a', 'b'), 'a', [], identity)._unsafeUnwrap();
-    expect(revealIfReady(game, all)).toBe(game);
+    expect(revealIfReady(game, 0)).toBe(game);
   });
 
   it('Given 全員が済んだ / When 判定 / Then shown になる', () => {
     let game = dealt('a', 'b');
     game = exchangeCards(game, 'a', [], identity)._unsafeUnwrap();
     game = exchangeCards(game, 'b', [4], identity)._unsafeUnwrap();
-    expect(revealIfReady(game, all).status).toBe('shown');
+    expect(revealIfReady(game, 0).status).toBe('shown');
   });
+});
 
-  it('Given 接続の切れた人だけが未チェンジ / When 判定 / Then 待たずに開く', () => {
+describe('切断の猶予（G-8）', () => {
+  /** a は済み、b は未チェンジのまま 1000 に切れた */
+  function bAway(): CardGame {
     const game = exchangeCards(dealt('a', 'b'), 'a', [], identity)._unsafeUnwrap();
-    expect(revealIfReady(game, (id) => id !== 'b').status).toBe('shown');
+    return trackPresence(game, (id) => id === 'a', 1000);
+  }
+
+  it('Given 未チェンジの人が切れた / When 猶予の内 / Then 待つ（一瞬の切断で開かない）', () => {
+    expect(revealIfReady(bAway(), 1000 + AWAY_GRACE_MS - 1).status).toBe('exchanging');
   });
 
-  it('Given 全員の接続が切れた / When 判定 / Then 開かない（見る人が居ない）', () => {
+  it('Given 未チェンジの人が切れた / When 猶予を過ぎた / Then 待たずに開く', () => {
+    expect(revealIfReady(bAway(), 1000 + AWAY_GRACE_MS).status).toBe('shown');
+  });
+
+  it('Given 切れた人 / When 猶予の内に戻る / Then 切れた記録が消え、猶予を過ぎても待つ', () => {
+    const back = trackPresence(bAway(), () => true, 5000);
+    expect(back.away.size).toBe(0);
+    expect(revealIfReady(back, 1000 + AWAY_GRACE_MS * 10).status).toBe('exchanging');
+  });
+
+  it('Given 切れたままの人 / When もう一度見る / Then 切れた時刻は最初のまま（延ばさない）', () => {
+    expect(trackPresence(bAway(), (id) => id === 'a', 9000).away.get('b')).toBe(1000);
+  });
+
+  it('Given 猶予の内の切断 / When 次の判定の時刻を尋ねる / Then 猶予が切れる時刻', () => {
+    expect(nextAwayDeadline(bAway())).toBe(1000 + AWAY_GRACE_MS);
+  });
+
+  it('Given 切れた人が居ない・済んだ人だけが切れた・開いたあと / When 尋ねる / Then 予約は要らない', () => {
+    const game = exchangeCards(dealt('a', 'b'), 'a', [], identity)._unsafeUnwrap();
+    expect(nextAwayDeadline(game)).toBeNull();
+    expect(nextAwayDeadline(trackPresence(game, (id) => id === 'b', 1000))).toBeNull();
+    expect(nextAwayDeadline(revealIfReady(bAway(), 1000 + AWAY_GRACE_MS))).toBeNull();
+  });
+
+  it('Given 全員が猶予を過ぎて切れた / When 判定 / Then 開かない（見る人が居ない）', () => {
+    const game = trackPresence(dealt('a'), () => false, 0);
+    expect(revealIfReady(game, AWAY_GRACE_MS * 2).status).toBe('exchanging');
+  });
+
+  it('Given 変化が無い / When 在席を当てる / Then 入力と同じ値', () => {
     const game = dealt('a');
-    expect(revealIfReady(game, () => false)).toBe(game);
+    expect(trackPresence(game, () => true, 0)).toBe(game);
   });
 });
 

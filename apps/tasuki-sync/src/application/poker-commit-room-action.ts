@@ -34,7 +34,7 @@ import type {
   Round,
   RoundError,
 } from '@tasuki/poker-core';
-import { ok, type Result } from 'neverthrow';
+import { err, ok, type Result } from 'neverthrow';
 import type { HandlerConnection, PokerRoomState } from './poker-handlers.js';
 import { POKER_ERROR_TEXT } from './poker-error-text.js';
 
@@ -167,6 +167,24 @@ export interface DispatchDeps {
  * `ClientMessage` に種別が増えて枝が足りなければ、そこで型検査が落ちて気づける
  * （`void` 関数は `default` が無くても通るので、この代入が無いと黙って素通りする）。
  */
+/**
+ * 隠しモードのゲームの最中にも受ける操作（#403 G-11）。**ここに無い操作は `table-in-play` で拒む。**
+ *
+ * 拒む側ではなく受ける側を並べる: 見積もりの操作を新しく足したとき、ここへ足し忘れても
+ * 「ゲームの裏で見積もりが動く」ことは起きず、拒まれるだけで済む（安全な側に倒れる）。
+ * 入室・確認（create / join / check-room）と人の片付けは `commitRoomAction` を通らないので並べない。
+ */
+const ALLOWED_DURING_GAME: ReadonlySet<ClientMessage['type']> = new Set([
+  'set-item',
+  'set-points',
+  'set-recording',
+  'set-group-item',
+  'set-spectator',
+  'table-exchange',
+  'table-deal',
+  'table-close',
+]);
+
 export function createDispatch({
   handleCreateRoom,
   handleJoinRoom,
@@ -179,6 +197,13 @@ export function createDispatch({
   randomInt,
 }: DispatchDeps): (ws: HandlerConnection, msg: ClientMessage) => void {
   return function dispatch(ws, msg) {
+    // ゲームの最中の見積もりの操作を 1 か所で拒む（#403 G-11）。判定はラウンドを読む `commitRoomAction` の中で行う
+    const guarded: CommitRoomAction = ALLOWED_DURING_GAME.has(msg.type)
+      ? commitRoomAction
+      : (socket, action) =>
+          commitRoomAction(socket, (round, participantId, voters) =>
+            round.game !== null ? err({ code: 'table-in-play' as const }) : action(round, participantId, voters),
+          );
     switch (msg.type) {
       case 'create-room':
         handleCreateRoom(ws, msg);
@@ -190,49 +215,49 @@ export function createDispatch({
         handleCheckRoom(ws, msg);
         return;
       case 'vote':
-        commitRoomAction(ws, (round, participantId) => castVote(round, participantId, msg.card));
+        guarded(ws, (round, participantId) => castVote(round, participantId, msg.card));
         return;
       case 'reveal':
-        commitRoomAction(ws, (round, participantId) => revealBy(round, participantId, now()));
+        guarded(ws, (round, participantId) => revealBy(round, participantId, now()));
         return;
       case 'set-item':
         // 投票中でも開票後でも受ける。not-joined の検査と配信は commitRoomAction と共有する
-        commitRoomAction(ws, (round) => ok(setItem(round, msg.item)));
+        guarded(ws, (round) => ok(setItem(round, msg.item)));
         return;
       case 'revote':
-        commitRoomAction(ws, revote);
+        guarded(ws, revote);
         return;
       case 'next-round':
         // 古いクライアント向けの互換。再投票と同じ（item も束も残る）
-        commitRoomAction(ws, revote);
+        guarded(ws, revote);
         return;
       case 'next-item':
-        commitRoomAction(ws, (round, participantId) => nextItem(round, participantId, msg.points));
+        guarded(ws, (round, participantId) => nextItem(round, participantId, msg.points));
         return;
       case 'set-points':
-        commitRoomAction(ws, (round) => setPoints(round, msg.groupId, msg.points));
+        guarded(ws, (round) => setPoints(round, msg.groupId, msg.points));
         return;
       case 'set-recording':
         // 記録の入り切り。投票中でも開票後でも受ける（名簿の検査と配信は commitRoomAction と共有）
-        commitRoomAction(ws, (round) => ok(setRecording(round, msg.recording)));
+        guarded(ws, (round) => ok(setRecording(round, msg.recording)));
         return;
       case 'set-group-item':
-        commitRoomAction(ws, (round) => renameGroup(round, msg.groupId, msg.item));
+        guarded(ws, (round) => renameGroup(round, msg.groupId, msg.item));
         return;
       case 'set-spectator':
-        commitRoomAction(ws, (round, participantId) =>
+        guarded(ws, (round, participantId) =>
           ok(setSpectator(round, participantId, msg.spectator)),
         );
         return;
       // 隠しモードのゲーム（#403）。入口は見積もりの操作（☕・公開・再投票）だけで、開くコマンドは無い
       case 'table-exchange':
-        commitRoomAction(ws, (round, participantId) => exchangeHand(round, participantId, msg.discard, randomInt));
+        guarded(ws, (round, participantId) => exchangeHand(round, participantId, msg.discard, randomInt));
         return;
       case 'table-deal':
-        commitRoomAction(ws, (round, participantId, voters) => dealAgain(round, participantId, voters, randomInt));
+        guarded(ws, (round, participantId, voters) => dealAgain(round, participantId, voters, randomInt));
         return;
       case 'table-close':
-        commitRoomAction(ws, closeGame);
+        guarded(ws, closeGame);
         return;
       case 'remove-participant': {
         // 参加済みで名簿に居る人だけが外せる（G-9 と同じ検査）。

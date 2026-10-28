@@ -20,8 +20,10 @@ const low: PlayingCard[] = ([2, 4, 6, 8, 10] as const).map((rank, i) => ({ suit:
 
 function renderTable(table: TableView, you = 'p1', disabled = false) {
   const handlers = { onExchange: vi.fn(), onDealAgain: vi.fn(), onClose: vi.fn() };
-  render(<CardTable table={table} participants={people} you={you} disabled={disabled} {...handlers} />);
-  return handlers;
+  const view = render(<CardTable table={table} participants={people} you={you} disabled={disabled} {...handlers} />);
+  const update = (next: TableView) =>
+    view.rerender(<CardTable table={next} participants={people} you={you} disabled={disabled} {...handlers} />);
+  return { ...handlers, update };
 }
 
 const exchanging = (exchanged: Record<string, boolean> = {}, yourHand: PlayingCard[] | null = royal): TableView => ({
@@ -56,7 +58,9 @@ describe('チェンジ（#403 G-4）', () => {
     fireEvent.click(myCards()[0]!);
     expect(myCards().map((b) => b.getAttribute('aria-pressed'))).toEqual(['true', 'false', 'false', 'true', 'false']);
     fireEvent.click(screen.getByRole('button', { name: 'チェンジする（2）' }));
-    expect(onExchange).toHaveBeenCalledExactlyOnceWith([0, 3]);
+    // 位置は押した順のまま送る（サーバーは順不同で受ける）
+    expect(onExchange).toHaveBeenCalledOnce();
+    expect([...onExchange.mock.calls[0]![0]].sort()).toEqual([0, 3]);
   });
 
   it('Given 選んだ札 / When もう一度押す / Then 選びが外れる', () => {
@@ -135,11 +139,62 @@ describe('開いたあと（#403 G-7・G-9）', () => {
     expect(screen.queryByText(/強い|勝ち/)).toBeNull();
   });
 
-  it('Given 開いた / When 「もう一度」「見積もりに戻る」 / Then それぞれ送る', () => {
-    const { onDealAgain, onClose } = renderTable(shown);
+  it('Given 開いた / When 「もう一度」 / Then 配り直しを頼む', () => {
+    const { onDealAgain } = renderTable(shown);
     fireEvent.click(screen.getByRole('button', { name: 'もう一度' }));
-    fireEvent.click(screen.getByRole('button', { name: '見積もりに戻る' }));
     expect(onDealAgain).toHaveBeenCalledOnce();
+  });
+
+  it('Given 開いた / When 「見積もりに戻る」 / Then 戻す', () => {
+    const { onClose } = renderTable(shown);
+    fireEvent.click(screen.getByRole('button', { name: '見積もりに戻る' }));
     expect(onClose).toHaveBeenCalledOnce();
   });
 });
+
+describe('二重送信を防ぐ（#403）', () => {
+  it('Given チェンジを押した / When サーバーの返事より先にもう一度押す / Then 1 回しか送らず、操作は押せない', () => {
+    const { onExchange } = renderTable(exchanging());
+    const keep = screen.getByRole('button', { name: 'このまま' });
+    fireEvent.click(keep);
+    fireEvent.click(keep);
+    expect(onExchange).toHaveBeenCalledOnce();
+    expect((keep as HTMLButtonElement).disabled).toBe(true);
+    expect((myCards()[0] as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: '見積もりに戻る' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('Given 押したあと / When サーバーから新しい状態が届く / Then また押せる', () => {
+    const { onClose, update } = renderTable(exchanging());
+    fireEvent.click(screen.getByRole('button', { name: 'このまま' }));
+    update(exchanging({ p1: true }));
+    const back = screen.getByRole('button', { name: '見積もりに戻る' }) as HTMLButtonElement;
+    expect(back.disabled).toBe(false);
+    fireEvent.click(back);
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it('Given 開いたあと / When 「もう一度」を 2 回押す / Then 1 回しか送らない', () => {
+    const shown: TableView = {
+      status: 'shown',
+      players: [{ participantId: 'p1', exchanged: true }],
+      yourHand: royal,
+      hands: [{ participantId: 'p1', cards: royal, category: 'royal-flush' }],
+    };
+    const { onDealAgain } = renderTable(shown);
+    const again = screen.getByRole('button', { name: 'もう一度' });
+    fireEvent.click(again);
+    fireEvent.click(again);
+    expect(onDealAgain).toHaveBeenCalledOnce();
+  });
+});
+
+describe('扇の形（#403）', () => {
+  it('Given 他の人の伏せた 5 枚 / When 描く / Then 真ん中からの離れ（0〜2）を値で渡す（CSS の abs() に頼らない）', () => {
+    renderTable(exchanging());
+    const seat = screen.getByRole('listitem', { name: 'みなとの手' });
+    const cards = [...seat.querySelectorAll<HTMLElement>('.ct-card')];
+    expect(cards.map((c) => c.style.getPropertyValue('--d'))).toEqual(['2', '1', '0', '1', '2']);
+  });
+});
+

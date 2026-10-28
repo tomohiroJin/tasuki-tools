@@ -1,7 +1,9 @@
 /**
  * 入口（全員 ☕ → 開く → 再投票 → 全員 ☕ → 開く）と、見積もりとの関係（#403・設計 §4）。
  *
- * @requirements #403 E-1 E-2 E-3 E-4 E-5 G-8 G-9 G-10 G-11
+ * @requirements #403 E-1 E-2 E-3 E-4 E-5 G-8 G-9 G-10
+ *
+ * G-11（最中の見積もりの操作を拒む）はサーバーの振り分けが 1 か所で守る（`apps/tasuki-sync/test/poker/card-game.test.ts`）。
  */
 import { describe, expect, it } from 'vitest';
 import {
@@ -11,6 +13,7 @@ import {
   dealAgain,
   discardVote,
   exchangeHand,
+  gameDeadline,
   nextItem,
   revealBy,
   revote,
@@ -21,6 +24,7 @@ import {
   type VoterView,
 } from '../src/round.js';
 import type { Card } from '../src/deck.js';
+import { AWAY_GRACE_MS } from '../src/card-game.js';
 
 const COFFEE: Card = { kind: 'coffee' };
 const FIVE: Card = { kind: 'number', value: 5 };
@@ -108,14 +112,6 @@ function playing(): { round: Round; voters: VoterView[] } {
 }
 
 describe('ゲームの最中（G-7・G-11）', () => {
-  it('Given 最中 / When 投票・公開・再投票・次のアイテムへ / Then table-in-play', () => {
-    const { round } = playing();
-    expect(castVote(round, 'a', FIVE)._unsafeUnwrapErr()).toEqual({ code: 'table-in-play' });
-    expect(revealBy(round, 'a', 0)._unsafeUnwrapErr()).toEqual({ code: 'table-in-play' });
-    expect(revote(round, 'a')._unsafeUnwrapErr()).toEqual({ code: 'table-in-play' });
-    expect(nextItem(round, 'a', null)._unsafeUnwrapErr()).toEqual({ code: 'table-in-play' });
-  });
-
   it('Given 最中 / When アイテム名を設定 / Then 受ける', () => {
     expect(setItem(playing().round, 'ログイン').item).toBe('ログイン');
   });
@@ -128,12 +124,17 @@ describe('ゲームの最中（G-7・G-11）', () => {
     expect(r.game?.status).toBe('shown');
   });
 
-  it('Given b の接続が切れた / When a がチェンジ / Then b を待たずに開く', () => {
+  it('Given b の接続が切れた / When a がチェンジ / Then 猶予の間は待ち、猶予を過ぎた判定で開く', () => {
     const { round } = playing();
-    const r = act(round, [{ id: 'a', connected: true }, { id: 'b', connected: false }], (x) =>
-      exchangeHand(x, 'a', [], identity)._unsafeUnwrap(),
-    );
-    expect(r.game?.status).toBe('shown');
+    const away = [{ id: 'a', connected: true }, { id: 'b', connected: false }];
+    const r = settleRound(round, exchangeHand(round, 'a', [], identity)._unsafeUnwrap(), away, 1000, identity);
+    expect(r.game?.status).toBe('exchanging');
+    expect(gameDeadline(r)).toBe(1000 + AWAY_GRACE_MS);
+    expect(settleRound(r, r, away, 1000 + AWAY_GRACE_MS, identity).game?.status).toBe('shown');
+  });
+
+  it('Given ゲームが無い / 開いたあと / When 予約の時刻を尋ねる / Then 要らない', () => {
+    expect(gameDeadline(createRound())).toBeNull();
   });
 
   it('Given ゲームが無い / When チェンジ / Then table-no-game', () => {

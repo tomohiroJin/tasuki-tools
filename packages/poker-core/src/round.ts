@@ -16,7 +16,9 @@ import {
   dealGame,
   dropPlayer,
   exchangeCards,
+  nextAwayDeadline,
   revealIfReady,
+  trackPresence,
   type CardGame,
   type GameError,
   type RandomInt,
@@ -39,7 +41,11 @@ export interface Round {
    * 再投票では残し、次のアイテムへ・全員 ☕ でない開票で解く
    */
   coffeeArmed: boolean;
-  /** 隠しモードのゲーム（#403）。無ければ見積もりだけ。ある間は見積もりの投票系の操作を拒む（G-11） */
+  /**
+   * 隠しモードのゲーム（#403）。無ければ見積もりだけ。
+   * ある間は見積もりの投票系の操作を拒む（G-11）。**拒むのはサーバーの振り分け 1 か所**（`poker-commit-room-action.ts` の
+   * ゲームの最中に受けてよい操作の一覧）で、ここの関数は見積もりのことだけを見る
+   */
   game: CardGame | null;
 }
 
@@ -86,7 +92,6 @@ export function createRound(): Round {
 
 /** 投票（公開前は上書き可。FR-005〜007） */
 export function castVote(round: Round, voterId: string, card: Card): Result<Round, RoundError> {
-  if (round.game !== null) return err({ code: 'table-in-play' });
   if (round.status !== 'voting') {
     return err({ code: 'not-voting', op: 'vote' });
   }
@@ -143,7 +148,6 @@ function revealed(round: Round, now: number): Round {
  * 引数の形を保つためだけに残る。
  */
 export function revealBy(round: Round, _actorId: string, now: number): Result<Round, RoundError> {
-  if (round.game !== null) return err({ code: 'table-in-play' });
   if (round.status !== 'voting') {
     return err({ code: 'not-voting', op: 'reveal' });
   }
@@ -155,7 +159,6 @@ export function revealBy(round: Round, _actorId: string, now: number): Result<Ro
  * —— 同じアイテムの 2 回目の開票が同じ束に足される。在室確認をしない理由は {@link revealBy} と同じ。
  */
 export function revote(round: Round, _actorId: string): Result<Round, RoundError> {
-  if (round.game !== null) return err({ code: 'table-in-play' });
   if (round.status !== 'revealed') {
     return err({ code: 'not-revealed', op: 'revote' });
   }
@@ -171,7 +174,6 @@ export function nextItem(
   _actorId: string,
   points: NumberCardValue | null,
 ): Result<Round, RoundError> {
-  if (round.game !== null) return err({ code: 'table-in-play' });
   if (round.status !== 'revealed') {
     return err({ code: 'not-revealed', op: 'next-item' });
   }
@@ -303,7 +305,7 @@ function eligibleVoters(round: Round, voters: readonly VoterView[]): VoterView[]
  * 1. 自動公開（{@link applyAutoReveal}）
  * 2. 入口の判定（E-1〜E-5）: この操作で開票が起きたとき、投票者の全員が ☕ なら、構えていれば配って始め、
  *    構えていなければ構える。全員 ☕ でなければ構えを解く
- * 3. ゲームの最中なら、接続中のプレイヤーが全員チェンジを済ませたかを見て開く（G-7）
+ * 3. ゲームの最中なら、切れたプレイヤーを記録し、待っているプレイヤーが全員チェンジを済ませたかを見て開く（G-7・G-8）
  */
 export function settleRound(
   before: Round,
@@ -322,10 +324,18 @@ export function settleRound(
   }
   if (round.game !== null) {
     const connected = new Set(voters.filter((v) => v.connected).map((v) => v.id));
-    const game = revealIfReady(round.game, (id) => connected.has(id));
+    const game = revealIfReady(trackPresence(round.game, (id) => connected.has(id), now), now);
     if (game !== round.game) round = { ...round, game };
   }
   return round;
+}
+
+/**
+ * 次に {@link settleRound} を通すべき時刻（#403 G-8）。未チェンジのまま切れた人の猶予が切れる時刻で、要らなければ null。
+ * サーバーはこの時刻に判定を予約する
+ */
+export function gameDeadline(round: Round): number | null {
+  return round.game === null ? null : nextAwayDeadline(round.game);
 }
 
 /** チェンジ（#403 G-4〜G-6）。開くかどうかは {@link settleRound} が決める */

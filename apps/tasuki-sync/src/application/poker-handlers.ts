@@ -47,6 +47,7 @@
  */
 import type { Result } from 'neverthrow';
 import {
+  gameDeadline,
   settleRound,
   createRound,
   discardVote,
@@ -78,6 +79,7 @@ import type { PokerBroadcaster, RoomSocket } from '../ports/poker-broadcaster.js
 import type { IdGen } from '../ports/poker-id-gen.js';
 import type { MonotonicClock } from '../ports/monotonic-clock.js';
 import type { RandomSource } from '../ports/random-source.js';
+import type { Scheduler } from './schedule.js';
 import type { RoundStore } from '../ports/poker-round-store.js';
 import { TOOL_POKER } from './tool-id.js';
 import { createCommitRoomAction, createDispatch } from './poker-commit-room-action.js';
@@ -140,6 +142,11 @@ export interface PokerHandlerDeps extends TimerSeatBroadcastDeps {
   rateLimiter: RateLimiter;
   /** 隠しモードのテーブルの山を切る乱数（#403）。timer のシャッフル・ルーレットと同じもの */
   random: Pick<RandomSource, 'randomInt'>;
+  /**
+   * 隠しモードの判定の予約（#403 G-8）。未チェンジのまま切れた人の猶予が切れる時刻に、開くかどうかを判定し直す。
+   * timer の `scheduler` とは別のインスタンス（ルームコードごとに 1 つの予約を上書きで持つので、混ぜると消し合う）
+   */
+  gameTimer: Pick<Scheduler, 'schedule' | 'clear'>;
   maxRooms: number;
   /**
    * いまのお題を参加・復帰した本人へ 1 通送る（#91・E4）。
@@ -208,6 +215,7 @@ export function makePokerHandlers(deps: PokerHandlerDeps): PokerHandlers {
     wallClock,
     rateLimiter,
     random,
+    gameTimer,
     maxRooms,
     topicBroadcaster,
     removeFromRoom,
@@ -312,6 +320,29 @@ export function makePokerHandlers(deps: PokerHandlerDeps): PokerHandlers {
     saveRoster(deps, state.room);
     rounds.put(state.room.code, state.round);
     broadcaster.broadcastSnapshot(state.room.code, state.round, fragmentsOf(state.room));
+    armGameTimer(state);
+  }
+
+  /**
+   * 隠しモードの判定を予約し直す（#403 G-8）。未チェンジのまま切れた人が居れば、その猶予が切れる時刻に
+   * {@link settleRound} を通して配信する（戻ってこなくても、猶予が切れた瞬間に開く）。要らなければ予約を消す。
+   * 保管のたびに呼ぶので、戻った・チェンジした・ゲームを終えたで予約は自然に消える。
+   */
+  function armGameTimer(state: PokerRoomState): void {
+    const code = state.room.code;
+    const deadline = gameDeadline(state.round);
+    if (deadline === null) {
+      gameTimer.clear(code);
+      return;
+    }
+    gameTimer.schedule(code, Math.max(0, deadline - wallClock.now()) / 1000, (roomCode) => {
+      const current = loadState(roomCode);
+      if (current === undefined) return;
+      commit({
+        room: current.room,
+        round: settleRound(current.round, current.round, fragmentsOf(current.room), wallClock.now(), randomInt),
+      });
+    });
   }
 
   /**
@@ -420,7 +451,11 @@ export function makePokerHandlers(deps: PokerHandlerDeps): PokerHandlers {
     ws.data.roomId = roomId;
     sendJoined(ws, roomId, participantId, token);
     if (persist) {
-      commit(state);
+      // 戻ってきた人を隠しモードの「切れた人」から外す（#403 G-8。猶予の予約もここで消える）
+      commit({
+        ...state,
+        round: settleRound(state.round, state.round, fragmentsOf(state.room), wallClock.now(), randomInt),
+      });
     } else {
       broadcaster.broadcastSnapshot(roomId, state.round, fragmentsOf(state.room));
     }

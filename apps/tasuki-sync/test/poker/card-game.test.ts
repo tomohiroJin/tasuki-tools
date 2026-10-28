@@ -168,7 +168,7 @@ describe('隠しモードのゲーム（#403）', () => {
     a.client.close();
   });
 
-  it('未チェンジの人が抜けると、残りが済んでいれば開く（G-8）', async () => {
+  it('未チェンジの人が切れても、すぐには開かない（G-8・猶予の配線は card-game-grace.test.ts）', async () => {
     const a = await createHost();
     const b = await join(a.joined.roomId, 'い');
     await enter([a, b]);
@@ -176,7 +176,29 @@ describe('隠しモードのゲーム（#403）', () => {
     await a.client.nextMatching(tableIs((t) => t.players.some((p) => p.exchanged)));
 
     b.client.close();
-    await a.client.nextMatching(tableIs((t) => t.status === 'shown'));
+    const after = (await a.client.nextMatching(state(() => true))) as RoomState;
+    expect(after.table?.status).toBe('exchanging');
+    a.client.close();
+  });
+});
+
+describe('ゲームの最中の見積もりの操作（#403 G-11）', () => {
+  it('投票・公開・再投票・次のアイテムへ・古い next-round は table-in-play、アイテム名と記録と見学は受ける', async () => {
+    const a = await createHost();
+    await enter([a]);
+    for (const msg of [
+      { type: 'vote', card: { kind: 'number', value: 5 } },
+      { type: 'reveal' },
+      { type: 'revote' },
+      { type: 'next-item', points: null },
+      { type: 'next-round' },
+    ]) {
+      a.client.send(msg);
+      expect(((await a.client.nextMatching(isType('error'))) as ErrorFrame).code).toBe('table-in-play');
+    }
+    a.client.send({ type: 'set-item', item: 'ログイン' });
+    const s = (await a.client.nextMatching(state((x) => (x as unknown as { estimate?: { item: string } }).estimate?.item === 'ログイン'))) as RoomState;
+    expect(s.table?.status).toBe('exchanging');
     a.client.close();
   });
 });

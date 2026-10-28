@@ -7,12 +7,14 @@ import { describe, expect, it } from 'vitest';
 import { messageForRoundError } from '@tasuki/poker-core';
 import { outsideBase } from './support/font-base';
 import * as copy from '../src/card-table-copy';
+import * as fallback from '../src/card-table-fallback-copy';
 
 describe('テーブルの文言は書体の常用の層に収まる', () => {
   it('Given 文言・役の名前・札の読み上げ・サーバーのエラー文言 / When 常用の層の範囲に当てる / Then 外れる字は無い', () => {
     const constants = Object.values(copy as Record<string, unknown>).filter((v): v is string => typeof v === 'string');
     const texts = [
       ...constants,
+      ...Object.values(fallback),
       ...Object.values(copy.CATEGORY_LABELS),
       copy.exchangeLabel(3),
       copy.handOf('あや'),

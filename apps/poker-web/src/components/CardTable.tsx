@@ -4,7 +4,7 @@
 // 卓（フェルト）の上に、他の人の席（開くまでは裏向きの 5 枚と「チェンジ済み」）と、手前に自分の手を並べる。
 // 配った札は山から滑って届き、開くと他の人の札が席順にめくれる（動きを減らす設定では止める）。
 import { useState, type CSSProperties } from 'react';
-import type { ParticipantView, PlayingCard, TableView } from '@tasuki/poker-core';
+import { HAND_SIZE, type ParticipantView, type PlayingCard, type TableView } from '@tasuki/poker-core';
 import {
   AGAIN,
   BACK_TO_ESTIMATE,
@@ -36,10 +36,12 @@ interface Props {
   onClose: () => void;
 }
 
-const HAND_SIZE = 5;
 const cardKey = (c: PlayingCard) => `${c.rank}${c.suit}`;
-/** 札の順番（配る・めくる動きの遅れに使う） */
-const order = (i: number) => ({ '--i': i }) as CSSProperties;
+/**
+ * 札の順番（配る・めくる動きの遅れ）と、扇の真ん中からの離れ（傾きと沈み）。
+ * 離れは CSS の `abs()` で求めず値で渡す（`abs()` に対応しないブラウザで `transform` ごと無効になるため）
+ */
+const order = (i: number) => ({ '--i': i, '--d': Math.abs(i - (HAND_SIZE - 1) / 2) }) as CSSProperties;
 
 /** 他の人の札。開いたら表へめくる（裏 → 表の 1 回だけ。表になったあとは描き直しても動かない） */
 function SeatCard({ card, index }: { card: PlayingCard | null; index: number }) {
@@ -63,16 +65,29 @@ function SeatCard({ card, index }: { card: PlayingCard | null; index: number }) 
 export function CardTable({ table, participants, you, disabled, onExchange, onDealAgain, onClose }: Props) {
   const nameOf = (id: string) => participants.find((p) => p.id === id)?.name ?? '?';
   const shown = table.status === 'shown';
+  // 手はプレイヤーにしか届かない（サーバーが守る）ので、`yourHand` があることがプレイヤーであることを表す
+  const myHand = table.yourHand;
   const me = table.players.find((p) => p.participantId === you);
-  const myHand = me !== undefined ? table.yourHand : null;
-  const canExchange = !shown && me !== undefined && !me.exchanged && myHand !== null;
+  const canExchange = !shown && myHand !== null && me?.exchanged === false;
 
   // 選んだ位置。手が替わったら（配り直し・チェンジ）選びを捨てる
   const handKey = myHand?.map(cardKey).join(',') ?? '';
   const [selection, setSelection] = useState<{ handKey: string; picks: number[] }>({ handKey, picks: [] });
   const picks = selection.handKey === handKey ? selection.picks : [];
+  // 並べ替えない（サーバーは捨てる位置を順不同で受ける）
   const toggle = (i: number) =>
-    setSelection({ handKey, picks: picks.includes(i) ? picks.filter((p) => p !== i) : [...picks, i].sort() });
+    setSelection({ handKey, picks: picks.includes(i) ? picks.filter((p) => p !== i) : [...picks, i] });
+
+  // 送った操作の返事（新しい状態）が届くまで、操作を押せなくする（二重送信で「1 回だけです」のエラーを見せない）。
+  // 状態の鍵が変われば自然に解ける。「見積もりに戻る」が通ればテーブルごと消える
+  const stateKey = `${table.status}|${handKey}|${table.players.map((p) => Number(p.exchanged)).join('')}`;
+  const [sentFor, setSentFor] = useState<string | null>(null);
+  const locked = disabled || sentFor === stateKey;
+  const once = (send: () => void) => () => {
+    if (sentFor === stateKey) return;
+    setSentFor(stateKey);
+    send();
+  };
 
   const prompt = shown ? PROMPT_SHOWN : myHand === null ? WATCHING : canExchange ? PROMPT_CHOOSE : PROMPT_WAIT;
   const handsById = new Map(table.hands.map((h) => [h.participantId, h]));
@@ -150,7 +165,7 @@ export function CardTable({ table, participants, you, disabled, onExchange, onDe
                     style={order(i)}
                     aria-label={cardSpeech(c)}
                     aria-pressed={picks.includes(i)}
-                    disabled={disabled}
+                    disabled={locked}
                     onClick={() => toggle(i)}
                   >
                     <PlayingCardSvg card={c} decorative />
@@ -171,16 +186,16 @@ export function CardTable({ table, participants, you, disabled, onExchange, onDe
       </div>
 
       <div className="ui-actions ct-actions">
-        <button type="button" className="ui-button ui-button--quiet" onClick={onClose} disabled={disabled}>
+        <button type="button" className="ui-button ui-button--quiet" onClick={once(onClose)} disabled={locked}>
           {BACK_TO_ESTIMATE}
         </button>
         {canExchange && (
-          <button type="button" className="ui-button ui-button--lg" onClick={() => onExchange(picks)} disabled={disabled}>
+          <button type="button" className="ui-button ui-button--lg" onClick={once(() => onExchange(picks))} disabled={locked}>
             {picks.length === 0 ? KEEP : exchangeLabel(picks.length)}
           </button>
         )}
         {shown && (
-          <button type="button" className="ui-button ui-button--lg" onClick={onDealAgain} disabled={disabled}>
+          <button type="button" className="ui-button ui-button--lg" onClick={once(onDealAgain)} disabled={locked}>
             {AGAIN}
           </button>
         )}
