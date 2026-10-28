@@ -1,0 +1,23 @@
+# 変異 499: table-shown-to-unseated
+#
+# 検出を期待するテスト:
+#   - apps/poker-web/tests/room-page-card-table.test.tsx（他の人だけが席に着いている / Then テーブルは出ない）
+#
+# #403 T-2。誰か 1 人が隠しモードに入ると、ルームの全員の画面にテーブルが出る（隠しでなくなる）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m499-*.patch
+# 復元: git apply -R scripts/mutations/m499-*.patch
+diff --git a/apps/poker-web/src/pages/RoomPage.tsx b/apps/poker-web/src/pages/RoomPage.tsx
+index ca3d417..1c2045f 100644
+--- a/apps/poker-web/src/pages/RoomPage.tsx
++++ b/apps/poker-web/src/pages/RoomPage.tsx
+@@ -110,7 +110,7 @@ export function RoomPage({ roomId, sync }: Props) {
+   // 結果の待ち（`--seat-count`）は札を出す席だけで数える（席の一覧と同じ述語・`room-view.ts`）
+   const seatCount = seatCardCount(snapshot.participants, revealedVotes);
+   // テーブルは自分が席に着いているときだけ出す（#403 T-2）。他の人が遊んでいても画面は変わらない
+-  const seated = snapshot.table?.seats.includes(snapshot.you) === true;
++  const seated = snapshot.table !== undefined;
+ 
+   return (
+     <main className="ui-page ui-page--wide room">
