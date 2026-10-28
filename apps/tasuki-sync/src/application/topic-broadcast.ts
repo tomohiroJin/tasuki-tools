@@ -11,7 +11,7 @@ import { INITIAL_TOPIC_STATE, type TopicState } from "@tasuki/topic-core";
 import type { RoomStore } from "../ports/room-store.js";
 import type { TopicStore } from "../ports/topic-store.js";
 import type { TopicServerMsg } from "../ports/topic-server-msg.js";
-import { TOOL_HUB, TOOL_TOPIC, TOOL_TIMER, TOOL_POKER, TOOL_ROULETTE, TOOL_AGENDA } from "./tool-id.js";
+import { TOOL_HUB, TOOL_TOPIC, TOOL_TIMER, TOOL_POKER, TOOL_ROULETTE, TOOL_AGENDA, TOOL_CHECKIN } from "./tool-id.js";
 
 /**
  * お題の状態を受け取る接続のツール。**ルームの全接続である**（spec T3・E2）。
@@ -20,7 +20,7 @@ import { TOOL_HUB, TOOL_TOPIC, TOOL_TIMER, TOOL_POKER, TOOL_ROULETTE, TOOL_AGEND
  * 害が無かったが、timer と poker は捨てたことを利用者へ通知する（#209・#212）ため、
  * 両者が `topic` フレームを先に見分けるようになった PR 3 で足した。
  * ルーレットは「お題に対する進行役を決める」（#94・spec R15）ので `TOOL_ROULETTE` を足した。
- * 進行タイマー（#429）も同じ理由でルームの全接続の一員として足した（名簿の宛先には足さない）。
+ * 進行タイマー（#429）も同じ理由でルームの全接続の一員として足した（名簿の宛先には足さない）。チェックイン（#406）も同じ理由で足した。
  */
 export const TOPIC_RECIPIENT_TOOLS: readonly (ToolId | null)[] = [
   TOOL_TOPIC,
@@ -29,6 +29,7 @@ export const TOPIC_RECIPIENT_TOOLS: readonly (ToolId | null)[] = [
   TOOL_POKER,
   TOOL_ROULETTE,
   TOOL_AGENDA,
+  TOOL_CHECKIN,
 ];
 
 export interface TopicBroadcasterDeps {

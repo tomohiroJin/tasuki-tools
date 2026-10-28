@@ -28,6 +28,13 @@ export interface TimerWsBroadcasterDeps {
    * 循環する。組み立ては WS アダプタを後で代入する（`create-sync-server.ts` の前方参照）。
    */
   ws: () => TimerWsOutbound;
+  /**
+   * 名簿を配ったあとに呼ぶ（#406）。名簿は `saveRoster` の 1 経路でしか書かれず、その最後に必ず
+   * `broadcastRoster` が呼ばれる（`test/save-roster.wiring.test.ts`）ので、ここに口を置けば参加・切断・
+   * 退出・ハブへの移動のすべてで「名簿が変わった」を拾える。チェックインが席と自動開票を測り直す。
+   * 前方参照で渡される（ハンドラは配信を受け、配信はハンドラを呼ぶため）。
+   */
+  onRosterBroadcast: (roomCode: string) => void;
 }
 
 export function createTimerWsBroadcaster(deps: TimerWsBroadcasterDeps): {
@@ -89,6 +96,7 @@ export function createTimerWsBroadcaster(deps: TimerWsBroadcasterDeps): {
         type: "roster",
         room: buildRoster(room),
       });
+      deps.onRosterBroadcast(roomCode);
     },
   };
 

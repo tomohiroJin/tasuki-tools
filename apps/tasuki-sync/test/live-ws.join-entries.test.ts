@@ -15,7 +15,7 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { DEFAULT_CAPACITY } from "@tasuki/rate-limit";
 import { createRoom, startLiveSyncServer, type LiveClient, type LiveSyncServer } from "./support/live-sync-server.js";
 
-type Entry = "hub" | "topic" | "roulette" | "timer";
+type Entry = "hub" | "topic" | "roulette" | "agenda" | "checkin" | "timer";
 type Scene =
   | "新しく参加する"
   | "復帰する"
@@ -46,6 +46,10 @@ async function connect(s: LiveSyncServer, entry: Entry): Promise<AnyClient> {
       return s.connectTopic();
     case "roulette":
       return s.connectRoulette();
+    case "agenda":
+      return s.connectAgenda();
+    case "checkin":
+      return s.connectCheckin();
     case "timer":
       return s.connect();
   }
@@ -159,7 +163,7 @@ async function play(entry: Entry, scene: Scene): Promise<unknown> {
   }
 }
 
-const ENTRIES: readonly Entry[] = ["hub", "topic", "roulette", "timer"];
+const ENTRIES: readonly Entry[] = ["hub", "topic", "roulette", "agenda", "checkin", "timer"];
 const SCENES: readonly Scene[] = [
   "新しく参加する",
   "復帰する",
@@ -493,6 +497,175 @@ const EXPECTED: Record<string, unknown> = {
     }
   ],
   "roulette / 参加の試しすぎ": [
+    {
+      "type": "error",
+      "code": "JOIN_RATE_LIMITED",
+      "message": "参加の試行が多すぎます。しばらく待ってから再試行してください。"
+    }
+  ],
+  "agenda / 新しく参加する": [
+    {
+      "type": "room.joined",
+      "code": "<room>",
+      "participantId": "<p1>",
+      "resumeToken": "<token>"
+    },
+    {
+      "type": "agenda",
+      "state": {
+        "phase": "idle",
+        "title": "",
+        "rounds": 1,
+        "steps": [],
+        "currentId": null,
+        "runElapsedMs": 0,
+        "stepTimerMs": 0,
+        "stepSpentMs": 0
+      }
+    }
+  ],
+  "agenda / 復帰する": [
+    {
+      "type": "room.joined",
+      "code": "<room>",
+      "participantId": "<p1>",
+      "resumeToken": "<token>"
+    },
+    {
+      "type": "agenda",
+      "state": {
+        "phase": "idle",
+        "title": "",
+        "rounds": 1,
+        "steps": [],
+        "currentId": null,
+        "runElapsedMs": 0,
+        "stepTimerMs": 0,
+        "stepSpentMs": 0
+      }
+    }
+  ],
+  "agenda / 2 度目の参加": [
+    {
+      "type": "error",
+      "code": "INVALID_COMMAND",
+      "message": "コマンドの形式が不正です"
+    }
+  ],
+  "agenda / 表示名が規約に合わない": [
+    {
+      "type": "error",
+      "code": "INVALID_COMMAND",
+      "message": "表示名の形式が正しくありません"
+    }
+  ],
+  "agenda / ルームが無い": [
+    {
+      "type": "error",
+      "code": "ROOM_NOT_FOUND",
+      "message": "指定されたルームコードが見つかりません"
+    }
+  ],
+  "agenda / 合言葉が要る": [
+    {
+      "type": "error",
+      "code": "PASSPHRASE_REQUIRED",
+      "message": "このルームはパスフレーズが必要です。"
+    }
+  ],
+  "agenda / 合言葉が違う": [
+    {
+      "type": "error",
+      "code": "PASSPHRASE_MISMATCH",
+      "message": "パスフレーズが一致しません。"
+    }
+  ],
+  "agenda / 参加の試しすぎ": [
+    {
+      "type": "error",
+      "code": "JOIN_RATE_LIMITED",
+      "message": "参加の試行が多すぎます。しばらく待ってから再試行してください。"
+    }
+  ],
+  "checkin / 新しく参加する": [
+    {
+      "type": "room.joined",
+      "code": "<room>",
+      "participantId": "<p1>",
+      "resumeToken": "<token>"
+    },
+    {
+      "type": "checkin",
+      "state": {
+        "you": "<p1>",
+        "spectating": false,
+        "spectatorCount": 0,
+        "round": null
+      }
+    }
+  ],
+  "checkin / 復帰する": [
+    {
+      "type": "room.joined",
+      "code": "<room>",
+      "participantId": "<p1>",
+      "resumeToken": "<token>"
+    },
+    {
+      "type": "checkin",
+      "state": {
+        "you": "<p1>",
+        "spectating": false,
+        "spectatorCount": 0,
+        "round": null
+      }
+    },
+    {
+      "type": "checkin",
+      "state": {
+        "you": "<p1>",
+        "spectating": false,
+        "spectatorCount": 0,
+        "round": null
+      }
+    }
+  ],
+  "checkin / 2 度目の参加": [
+    {
+      "type": "error",
+      "code": "INVALID_COMMAND",
+      "message": "コマンドの形式が不正です"
+    }
+  ],
+  "checkin / 表示名が規約に合わない": [
+    {
+      "type": "error",
+      "code": "INVALID_COMMAND",
+      "message": "表示名の形式が正しくありません"
+    }
+  ],
+  "checkin / ルームが無い": [
+    {
+      "type": "error",
+      "code": "ROOM_NOT_FOUND",
+      "message": "指定されたルームコードが見つかりません"
+    }
+  ],
+  "checkin / 合言葉が要る": [
+    {
+      "type": "error",
+      "code": "PASSPHRASE_REQUIRED",
+      "message": "このルームはパスフレーズが必要です。"
+    }
+  ],
+  "checkin / 合言葉が違う": [
+    {
+      "type": "error",
+      "code": "PASSPHRASE_MISMATCH",
+      "message": "パスフレーズが一致しません。"
+    }
+  ],
+  "checkin / 参加の試しすぎ": [
     {
       "type": "error",
       "code": "JOIN_RATE_LIMITED",
