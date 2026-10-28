@@ -1,0 +1,23 @@
+# 変異 530: long-clock-threshold-exclusive
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/agenda-view.test.ts
+#
+# #455。長い会の境目を「180 分ちょうど」から外し、予定の合計 180 分の会が m:ss（180:00）で出る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m530-*.patch
+# 復元: git apply -R scripts/mutations/m530-*.patch
+diff --git a/apps/agenda-web/src/agenda-view.ts b/apps/agenda-web/src/agenda-view.ts
+index ea56423d..53c03975 100644
+--- a/apps/agenda-web/src/agenda-view.ts
++++ b/apps/agenda-web/src/agenda-view.ts
+@@ -64,7 +64,7 @@ export const LONG_MEETING_SEC = 10_800;
+ 
+ /** 書き方を決めるのは予定の合計だけ（延長込みの見込みや出す値の大きさでは決めない。設計 §3.1） */
+ export function clockStyleForPlannedMs(plannedMs: number): ClockStyle {
+-  return plannedMs >= LONG_MEETING_SEC * SEC ? 'h:mm:ss' : 'm:ss';
++  return plannedMs > LONG_MEETING_SEC * SEC ? 'h:mm:ss' : 'm:ss';
+ }
+ 
+ export const clockStyleOf = (v: AgendaView): ClockStyle => clockStyleForPlannedMs(plannedTotalMs(v));

@@ -196,7 +196,7 @@ const effectiveRounds = (d: Draft): number => {
   return roundsInRange(r) ? r : 1;
 };
 
-/** 足せない理由が 20 の上限か（そうでなければ 60 の上限） */
+/** 足せない理由が定義の数の上限（`MAX_ITEMS`）か（そうでなければ展開後の上限） */
 export const addBlockedByItems = (d: Draft): boolean => d.steps.length >= MAX_ITEMS;
 
 export function addStep(d: Draft): Draft {

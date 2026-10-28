@@ -24,6 +24,7 @@ import {
   SOUND_OFF,
   SOUND_ON,
   SPEAK_SUMMARY_BUTTON,
+  START_BUTTON,
   STEP_LIST_HEADING,
   TIMEOUT_ANNOUNCE,
   extendButton,
@@ -494,5 +495,101 @@ describe('ルームの見出しは共通の部品が描く（#447 段 1）', () 
     expect(header).not.toBeNull();
     expect(within(header!).getByRole('button', { name: ROOM_HEADER_TEXT.inviteToggle })).toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: ROOM_HEADER_TEXT.inviteToggle })).toHaveLength(1);
+  });
+});
+
+/**
+ * 「開始」を押した本人の画面だけ、進める画面へ寄せる（#455）。長い会は組む画面が縦に長く、
+ * 押した位置のまま進める画面に入ると盤が画面の外に残るため。他の参加者の画面は動かさない。
+ * 寄せ先は進める画面の上端（会の名前の行）。見出し要素はステップ表の `h2` しか無く、そこへ寄せると盤が上に外れる。
+ *
+ * @requirements #455
+ */
+describe('開始を押した本人の画面だけ進める画面へ寄せる（#455）', () => {
+  const idleWithScenario = { ...runningAgenda(0), phase: 'idle', currentId: null };
+  let scrollTo: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    scrollTo = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
+  });
+  afterEach(() => {
+    scrollTo.mockRestore();
+  });
+
+  const runTitle = (): HTMLElement => document.querySelector<HTMLElement>('.run-title')!;
+
+  it('Given 組む画面で開始を押した / When 進行中のフレームを受けて描く / Then 会の名前の行へ focus が移り、ページの先頭へ一度で（auto）戻す', () => {
+    // Given
+    joinedRoom(idleWithScenario);
+    fireEvent.click(screen.getByRole('button', { name: START_BUTTON }));
+    expect(sentCommands('agenda.start')).toHaveLength(1);
+    // When
+    deliverAgenda(runningAgenda(0));
+    // Then
+    expect(document.activeElement).toBe(runTitle());
+    expect(scrollTo).toHaveBeenCalledTimes(1);
+    expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'auto' });
+  });
+
+  it('Given 他の参加者が開始を押した（自分は押していない） / When 進行中に変わったフレームを受ける / Then 寄せず focus も動かさない', () => {
+    // Given
+    joinedRoom(idleWithScenario);
+    // When
+    deliverAgenda(runningAgenda(0));
+    // Then
+    expect(scrollTo).not.toHaveBeenCalled();
+    expect(document.activeElement).not.toBe(runTitle());
+  });
+
+  it('Given 開始を押したが返事が来ない（同じ文言の失敗・届かない送信） / When 時間がたってから他の参加者が開始する / Then 寄せない', () => {
+    // Given: 押した瞬間の印。失敗の表示が変わらない・送信が黙って落ちると、印を消すきっかけが無い。
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1_000_000);
+    joinedRoom(idleWithScenario);
+    fireEvent.click(screen.getByRole('button', { name: START_BUTTON }));
+    // When: 押してから 11 秒後に、他の参加者の開始で進行中に変わる
+    now.mockReturnValue(1_011_000);
+    deliverAgenda(runningAgenda(0));
+    // Then: 本人の開始の返事とは見なさない
+    expect(scrollTo).not.toHaveBeenCalled();
+    expect(document.activeElement).not.toBe(runTitle());
+    now.mockRestore();
+  });
+
+  it('Given 失敗の表示が出たまま開始を押し、同じ文言で拒まれた / When 直後に他の参加者が開始する / Then 寄せない（送るときに表示を下ろすので、同じ文言の失敗でも表示が変わり印が消える）', () => {
+    // Given: 前の失敗の表示が残っている。`send` が表示を下ろしてから送る（`useToolRoomSync`）ので、同じ文言で拒まれても null から変わる
+    joinedRoom(idleWithScenario);
+    act(() => latestSocket().deliver({ type: 'error', code: 'INVALID_COMMAND', message: 'x' }));
+    fireEvent.click(screen.getByRole('button', { name: START_BUTTON }));
+    act(() => latestSocket().deliver({ type: 'error', code: 'INVALID_COMMAND', message: 'x' }));
+    // When
+    deliverAgenda(runningAgenda(0));
+    // Then
+    expect(scrollTo).not.toHaveBeenCalled();
+    expect(document.activeElement).not.toBe(runTitle());
+  });
+
+  it('Given 開始を押した / When 9 秒後に進行中が届く / Then 本人の開始の返事として寄せる（遅い回線でも効く）', () => {
+    // Given
+    const now = vi.spyOn(Date, 'now').mockReturnValue(1_000_000);
+    joinedRoom(idleWithScenario);
+    fireEvent.click(screen.getByRole('button', { name: START_BUTTON }));
+    // When
+    now.mockReturnValue(1_009_000);
+    deliverAgenda(runningAgenda(0));
+    // Then
+    expect(scrollTo).toHaveBeenCalledTimes(1);
+    now.mockRestore();
+  });
+
+  it('Given 開始を押したが失敗が返った / When 後で他の参加者が開始して進行中に変わる / Then 寄せない', () => {
+    // Given
+    joinedRoom(idleWithScenario);
+    fireEvent.click(screen.getByRole('button', { name: START_BUTTON }));
+    act(() => latestSocket().deliver({ type: 'error', code: 'INVALID_COMMAND', message: 'x' }));
+    // When
+    deliverAgenda(runningAgenda(0));
+    // Then
+    expect(scrollTo).not.toHaveBeenCalled();
+    expect(document.activeElement).not.toBe(runTitle());
   });
 });

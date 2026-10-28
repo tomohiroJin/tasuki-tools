@@ -83,17 +83,21 @@ function RowItem({
   );
 }
 
+/** 回数 1 の平らな一覧を枠なしで出す最大の行数（第 1 段で撮影して確かめた 20 行。#455 で定義の上限が 40 になった） */
+const FLAT_LIST_MAX_ROWS = 20;
+
 export function StepList({ view, canOperate, onSetSkipped }: Props) {
   const headingId = useId();
   const boxRef = useRef<HTMLOListElement>(null);
   const rows = stepRows(view);
-  // 回数 2 以上は枠（スクロール・キーボード）を持つ。見出しで区切るのは 1 回に 2 ステップ以上のときだけ
-  const scrolling = view.rounds >= 2;
+  // 回数 2 以上、または回数 1 でも `FLAT_LIST_MAX_ROWS` を超えたら枠（スクロール・キーボード）を持つ。
+  // 見出しで区切るのは回数 2 以上で 1 回に 2 ステップ以上のときだけ（枠の有無から導かない）
+  const scrolling = view.rounds >= 2 || rows.length > FLAT_LIST_MAX_ROWS;
   const flatRounds = isSingleStepRounds(view);
-  const grouped = scrolling && !flatRounds;
+  const grouped = view.rounds >= 2 && !flatRounds;
   const nowId = rows.find((r) => r.status === 'now')?.id;
 
-  // 回数 2 以上の枠の中で、いまの行が見えるようにする。動かすのは枠の `scrollTop` だけ
+  // 枠の中で、いまの行が見えるようにする。動かすのは枠の `scrollTop` だけ
   // （`scrollIntoView` は祖先のページまで動かす）。最初の描画と、いまの行が変わったときに合わせる
   useEffect(() => {
     const box = boxRef.current;
@@ -123,7 +127,7 @@ export function StepList({ view, canOperate, onSetSkipped }: Props) {
       <h2 id={headingId} className="step-list-heading">
         {STEP_LIST_HEADING}
       </h2>
-      {/* スクロールする枠はキーボードで届き（矢印・PageDown）、見出しで名前が付く。回数 1 の DOM は変えない */}
+      {/* スクロールする枠はキーボードで届き（矢印・PageDown）、見出しで名前が付く。枠でない一覧（回数 1 で `FLAT_LIST_MAX_ROWS` 以下）の DOM は第 1 段のまま */}
       <ol
         ref={boxRef}
         className={scrolling ? 'step-list-rows step-list-rows--scroll' : 'step-list-rows'}

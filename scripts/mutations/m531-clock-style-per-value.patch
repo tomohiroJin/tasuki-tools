@@ -1,0 +1,24 @@
+# 変異 531: clock-style-per-value
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/agenda-view.test.ts
+#
+# #455。書き方を会でなく出す値の大きさで決め、同じ会の中で 1 時間をまたぐと桁の形が変わる
+# （59:59 の次が 1:00:00）。長い会でも 1 時間未満の値は m:ss になる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m531-*.patch
+# 復元: git apply -R scripts/mutations/m531-*.patch
+diff --git a/apps/agenda-web/src/agenda-view.ts b/apps/agenda-web/src/agenda-view.ts
+index ea56423d..8046d978 100644
+--- a/apps/agenda-web/src/agenda-view.ts
++++ b/apps/agenda-web/src/agenda-view.ts
+@@ -73,7 +73,7 @@ const pad2 = (n: number): string => String(n).padStart(2, '0');
+ 
+ /** 秒を時計の書き方にする（`m:ss` の分は繰り上げない。`h:mm:ss` は 1 時間未満でも時を省かない） */
+ export function formatClock(totalSec: number, style: ClockStyle): string {
+-  if (style === 'h:mm:ss') {
++  if (totalSec >= 3600) {
+     return `${Math.floor(totalSec / 3600)}:${pad2(Math.floor(totalSec / 60) % 60)}:${pad2(totalSec % 60)}`;
+   }
+   return `${Math.floor(totalSec / 60)}:${pad2(totalSec % 60)}`;
