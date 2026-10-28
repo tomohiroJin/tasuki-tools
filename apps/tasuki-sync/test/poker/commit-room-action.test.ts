@@ -162,6 +162,10 @@ describe('名簿に居ない participantId の操作（G-9）', () => {
       fragmentsOf: () => [],
       sendError: (_ws, code, message) => void errors.push({ code, message }),
       now: () => 0,
+      // 隠しモードの山を切る乱数（#403）。このテストでは配らない
+      randomInt: () => {
+        throw new Error('randomInt は呼ばれない');
+      },
     });
     const ws = { data: { participantId: 'p1', roomId: 'r1' } } as unknown as HandlerConnection;
     return { commitRoomAction, ws, committed, errors };

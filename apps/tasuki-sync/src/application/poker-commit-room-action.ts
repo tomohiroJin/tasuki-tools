@@ -10,9 +10,10 @@
  * `@tasuki/room-core` が持ち、自動公開の判定に要る断片だけを `fragmentsOf` で渡す。
  */
 import {
-  applyAutoReveal,
   castVote,
-  dealHands,
+  closeGame,
+  dealAgain,
+  exchangeHand,
   messageForRoundError,
   nextItem,
   revealBy,
@@ -21,13 +22,13 @@ import {
   setItem,
   setPoints,
   setRecording,
-  setSeated,
   setSpectator,
-  showHands,
+  settleRound,
 } from '@tasuki/poker-core';
 import type {
   ClientMessage,
   RandomInt,
+  VoterView,
   ErrorCode,
   ParticipantFragment,
   Round,
@@ -38,7 +39,12 @@ import type { HandlerConnection, PokerRoomState } from './poker-handlers.js';
 import { POKER_ERROR_TEXT } from './poker-error-text.js';
 
 /** ドメイン操作 1 つ。ラウンドと実行者から次のラウンドを返す（失敗は `RoundError`）。 */
-export type RoomAction = (round: Round, participantId: string) => Result<Round, RoundError>;
+export type RoomAction = (
+  round: Round,
+  participantId: string,
+  /** 名簿の断片（もう一度配るときの投票者・#403 G-9）。要らない操作は受け取らなくてよい */
+  voters: readonly VoterView[],
+) => Result<Round, RoundError>;
 
 /** `commitRoomAction` の形。`dispatch` が種別ごとに束ねる。 */
 export type CommitRoomAction = (ws: HandlerConnection, action: RoomAction) => void;
@@ -69,6 +75,8 @@ export interface CommitRoomActionDeps {
    * `at` になる。ドメインに時計を持ち込まないため、呼び出し側から値で渡す。
    */
   now: () => number;
+  /** 隠しモードの山を切る乱数（#403）。入口が開いたとき `settleRound` が配るのに使う */
+  randomInt: RandomInt;
 }
 
 /**
@@ -82,6 +90,7 @@ export function createCommitRoomAction({
   fragmentsOf,
   sendError,
   now,
+  randomInt,
 }: CommitRoomActionDeps): CommitRoomAction {
   return function commitRoomAction(ws, action) {
     const { participantId, roomId } = ws.data;
@@ -110,14 +119,16 @@ export function createCommitRoomAction({
       sendError(ws, 'not-joined', POKER_ERROR_TEXT.NOT_JOINED);
       return;
     }
-    const result = action(state.round, participantId);
+    const voters = fragmentsOf(state.room);
+    const result = action(state.round, participantId, voters);
     if (result.isErr()) {
       sendError(ws, result.error.code, messageForRoundError(result.error));
       return;
     }
+    // 自動公開・隠しモードの入口・全員チェンジ済みの判定はここで 1 回だけ通す（#403。切断・退出の経路も同じ関数）
     commit({
       room: state.room,
-      round: applyAutoReveal(result.value, fragmentsOf(state.room), now()),
+      round: settleRound(state.round, result.value, voters, now(), randomInt),
     });
   };
 }
@@ -213,15 +224,15 @@ export function createDispatch({
           ok(setSpectator(round, participantId, msg.spectator)),
         );
         return;
-      // 隠しモードのテーブル（#403）。見積もりの状態には触れない（T-12）。名簿の検査と配信は共有する
-      case 'table-seat':
-        commitRoomAction(ws, (round, participantId) => setSeated(round, participantId, msg.seated));
+      // 隠しモードのゲーム（#403）。入口は見積もりの操作（☕・公開・再投票）だけで、開くコマンドは無い
+      case 'table-exchange':
+        commitRoomAction(ws, (round, participantId) => exchangeHand(round, participantId, msg.discard, randomInt));
         return;
       case 'table-deal':
-        commitRoomAction(ws, (round, participantId) => dealHands(round, participantId, randomInt));
+        commitRoomAction(ws, (round, participantId, voters) => dealAgain(round, participantId, voters, randomInt));
         return;
-      case 'table-show':
-        commitRoomAction(ws, showHands);
+      case 'table-close':
+        commitRoomAction(ws, closeGame);
         return;
       case 'remove-participant': {
         // 参加済みで名簿に居る人だけが外せる（G-9 と同じ検査）。

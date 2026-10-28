@@ -47,7 +47,7 @@
  */
 import type { Result } from 'neverthrow';
 import {
-  applyAutoReveal,
+  settleRound,
   createRound,
   discardVote,
   type ClientMessage,
@@ -218,6 +218,8 @@ export function makePokerHandlers(deps: PokerHandlerDeps): PokerHandlers {
    * 渡す時計が単調でなければならない理由もそこに書いてある。
    */
   const rateLimitGate = createPokerRateLimitGate({ clock, rateLimiter });
+  /** 隠しモードの山を切る乱数（#403）。開票・切断・退出・操作のどの経路も同じものを使う */
+  const randomInt = (n: number) => random.randomInt(n);
 
   /**
    * poker の一覧に出す人か（R5・#95 S5b）。
@@ -390,7 +392,8 @@ export function makePokerHandlers(deps: PokerHandlerDeps): PokerHandlers {
     // 名簿を触っても票には触れないことが構造で保証される。
     // 名簿にこの接続が無ければ Err。そのときは #364 より前と同じく名簿を変えない。
     const room = removeConnection(state.room, ws.data.connId).unwrapOr(state.room);
-    commit({ room, round: applyAutoReveal(state.round, fragmentsOf(room), wallClock.now()) });
+    // 切断でも自動公開・入口・全員チェンジ済みの判定を通す（#403。切れた人はチェンジを待たない）
+    commit({ room, round: settleRound(state.round, state.round, fragmentsOf(room), wallClock.now(), randomInt) });
   }
 
   /**
@@ -670,7 +673,7 @@ export function makePokerHandlers(deps: PokerHandlerDeps): PokerHandlers {
     if (round === undefined || room === undefined) return;
 
     const discarded = discardVote(round, participantId);
-    commit({ room, round: applyAutoReveal(discarded, fragmentsOf(room), wallClock.now()) });
+    commit({ room, round: settleRound(round, discarded, fragmentsOf(room), wallClock.now(), randomInt) });
   }
 
   const commitRoomAction = createCommitRoomAction({
@@ -679,6 +682,7 @@ export function makePokerHandlers(deps: PokerHandlerDeps): PokerHandlers {
     fragmentsOf,
     sendError,
     now: () => wallClock.now(),
+    randomInt,
   });
 
   const dispatch = createDispatch({
@@ -690,7 +694,7 @@ export function makePokerHandlers(deps: PokerHandlerDeps): PokerHandlers {
     loadState,
     removeFromRoom,
     now: () => wallClock.now(),
-    randomInt: (n) => random.randomInt(n),
+    randomInt,
   });
 
   return {
