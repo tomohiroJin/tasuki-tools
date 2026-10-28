@@ -3447,4 +3447,46 @@ export const MUTATIONS = [
       "#406 段 1。古い回の「名前つきにする」が既定が匿名の新しい回に当たり、匿名のつもりで出す札が名前つきで開かれる（判断 5・8）。" +
       "帯の予備を統括の判断で使った（匿名の保護に直結する）。",
   },
+  {
+    id: 513,
+    label: "見学中も手札を出す",
+    patch: "m513-spectator-sees-hand.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/checkin-room.test.tsx", "tests/hand.test.tsx"],
+    note: "#406 段 3。札を出す人に数えない見学者が札を押せ、見学をやめるも出ない（E9・判断 10）。",
+  },
+  {
+    id: 514,
+    label: "動きを減らす設定でも札の裏返る遅れを付ける",
+    patch: "m514-reduced-motion-still-staggers.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/reveal-view.test.ts"],
+    note: "#406 段 3。E12。RevealBoard は reduced で遅れを渡さないので画面の試験は緑のまま。純粋関数 revealSchedule の契約を守る変異。",
+  },
+  {
+    id: 515,
+    label: "誰かが出したあとも公開の仕方を押せる",
+    patch: "m515-visibility-toggle-enabled-when-locked.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/prompt-panel.test.tsx", "tests/checkin-room.test.tsx"],
+    note: "#406 段 3。サーバーは LOCKED で拒むが、押せる見た目が「変えられる」と誤らせる（E7・判断 5）。",
+  },
+  {
+    id: 516,
+    label: "同数の最多の山の最初の 1 つだけを強調する",
+    patch: "m516-top-pile-first-only.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/reveal-view.test.ts", "tests/reveal-board.test.tsx"],
+    note: "#406 段 3。割れているのに札の順で先の 1 つが勝ったように見え、要約も「ずつ」にならない（設計 §5）。",
+  },
+  {
+    id: 517,
+    label: "開く動きを席の側で起こす",
+    patch: "m517-flip-at-seats.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/reveal-board.test.tsx"],
+    note:
+      "#406 段 3。席の行を開く動きの板の中に置き、出した席の伏せ札を山と同じ動きで裏返す。匿名で席と札が結びついて見える（Review Focus 1）。" +
+      "試験は 3.5 の修正で CheckinRoom に組んだ開いた後を reveal-board.test.tsx の中で描く。",
+  },
 ];

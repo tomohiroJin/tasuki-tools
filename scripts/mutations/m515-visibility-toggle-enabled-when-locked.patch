@@ -1,0 +1,25 @@
+# 変異 515: visibility-toggle-enabled-when-locked
+#
+# 検出を期待するテスト:
+#   - apps/checkin-web/tests/prompt-panel.test.tsx
+#     「Given locked / When 描く / Then 公開の仕方の 2 つとも disabled（E7）」
+#   - apps/checkin-web/tests/checkin-room.test.tsx
+#     「Given 誰かが出した / When 描く / Then 公開の仕方は disabled（m515）」
+#
+# #406 段 3。誰かが出したあとも公開の仕方を押せる。サーバーは LOCKED で拒むが、押せる見た目が「変えられる」と誤らせる（E7・判断 5）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m515-*.patch
+# 復元: git apply -R scripts/mutations/m515-*.patch
+diff --git a/apps/checkin-web/src/components/PromptPanel.tsx b/apps/checkin-web/src/components/PromptPanel.tsx
+--- a/apps/checkin-web/src/components/PromptPanel.tsx
++++ b/apps/checkin-web/src/components/PromptPanel.tsx
+@@ -33,7 +33,7 @@ export function PromptPanel({ method, visibility, locked, onSetVisibility, onCha
+               type="button"
+               className="seg-button"
+               aria-pressed={v === visibility}
+-              disabled={locked}
++              disabled={false}
+               onClick={() => onSetVisibility(v)}
+             >
+               {VISIBILITY_LABEL[v]}

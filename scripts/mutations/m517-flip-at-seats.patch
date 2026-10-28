@@ -1,0 +1,58 @@
+# 変異 517: flip-at-seats
+#
+# 検出を期待するテスト:
+#   - apps/checkin-web/tests/reveal-board.test.tsx
+#     「Given 開いた / Then 席の行に札の絵も札の名前も無い（m517）」（CheckinRoom に組んだ開いた後）
+#
+# #406 段 3。開いた後の席の行を開く動きの板（reveal-board--run）の中に置き、出した席の伏せ札に山と同じ札の動き（pile-card と遅れ --d）を付けて席の位置で裏返す。
+# 匿名で開いたとき、席の伏せ札が裏返る動きで席と札が結びついて見える（Review Focus 1・設計 §6）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m517-*.patch
+# 復元: git apply -R scripts/mutations/m517-*.patch
+diff --git a/apps/checkin-web/src/components/SeatRow.tsx b/apps/checkin-web/src/components/SeatRow.tsx
+--- a/apps/checkin-web/src/components/SeatRow.tsx
++++ b/apps/checkin-web/src/components/SeatRow.tsx
+@@ -17,9 +17,13 @@ export function SeatRow({ seats, selfId, playedCount, playerCount, spectatorCoun
+   return (
+     <div className="seat-row">
+       <ul className="seat-list" aria-label={SEATS_LABEL}>
+-        {seats.map((seat) => (
++        {seats.map((seat, i) => (
+           <li key={seat.id} className={`seat${seat.id === selfId ? ' seat--me' : ''}`}>
+-            <span className={`seat-slot${seat.played ? ' seat-slot--down' : ''}`} aria-hidden="true" />
++            <span
++              className={`seat-slot${seat.played ? ' seat-slot--down pile-card' : ''}`}
++              style={{ '--d': `${i * 90}ms` } as React.CSSProperties}
++              aria-hidden="true"
++            />
+             <span className="seat-name">
+               {seat.name}
+               {seat.id === selfId && YOU_MARK}
+diff --git a/apps/checkin-web/src/screens/CheckinRoom.tsx b/apps/checkin-web/src/screens/CheckinRoom.tsx
+--- a/apps/checkin-web/src/screens/CheckinRoom.tsx
++++ b/apps/checkin-web/src/screens/CheckinRoom.tsx
+@@ -135,14 +135,15 @@ export function CheckinRoom({ roomCode }: { roomCode: string }) {
+           {round.status === 'revealed' && (
+             <>
+               <RevealBoard method={round.method} piles={round.piles} />
+-              {/* 席の伏せ札は裏返さない（開く動きは山の側だけ）。札の絵も名前もここには載せない */}
+-              <SeatRow
+-                seats={round.seats}
+-                selfId={view.you}
+-                playedCount={round.seats.filter((x) => x.played).length}
+-                playerCount={round.seats.length}
+-                spectatorCount={view.spectatorCount}
+-              />
++              <div className="reveal-board reveal-board--run">
++                <SeatRow
++                  seats={round.seats}
++                  selfId={view.you}
++                  playedCount={round.seats.filter((x) => x.played).length}
++                  playerCount={round.seats.length}
++                  spectatorCount={view.spectatorCount}
++                />
++              </div>
+             </>
+           )}
+           <RoundDock

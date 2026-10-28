@@ -1,0 +1,25 @@
+# 変異 516: top-pile-first-only
+#
+# 検出を期待するテスト:
+#   - apps/checkin-web/tests/reveal-view.test.ts
+#     「Given 最多が同数で 2 つ / Then 2 つとも（m516）」・要約の「ずつ」
+#   - apps/checkin-web/tests/reveal-board.test.tsx
+#     「Given 最多が同数で 2 つ / Then 2 つとも強調のクラス（m516）」
+#
+# #406 段 3。同数の最多の山のうち、札の順で最初の 1 つだけを強調する。割れているのに 1 つが勝ったように見える（設計 §5）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m516-*.patch
+# 復元: git apply -R scripts/mutations/m516-*.patch
+diff --git a/apps/checkin-web/src/reveal-view.ts b/apps/checkin-web/src/reveal-view.ts
+--- a/apps/checkin-web/src/reveal-view.ts
++++ b/apps/checkin-web/src/reveal-view.ts
+@@ -28,7 +28,7 @@ export const NUMERIC_METHODS: ReadonlySet<MethodId> = new Set<MethodId>(['energy
+ export function topCards(piles: readonly PileView[]): ReadonlySet<CardId> {
+   const max = piles.reduce((m, p) => Math.max(m, p.count), 0);
+   if (max === 0) return new Set();
+-  return new Set(piles.filter((p) => p.count === max).map((p) => p.card));
++  return new Set(piles.filter((p) => p.count === max).slice(0, 1).map((p) => p.card));
+ }
+ 
+ /**
