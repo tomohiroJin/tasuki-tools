@@ -79,12 +79,12 @@ export function CardTable({ table, participants, you, disabled, onExchange, onDe
     setSelection({ handKey, picks: picks.includes(i) ? picks.filter((p) => p !== i) : [...picks, i] });
 
   // 送った操作の返事（新しい状態）が届くまで、操作を押せなくする（二重送信で「1 回だけです」のエラーを見せない）。
+  // 押せなくした（disabled の）ボタンにはクリックが届かないので、これだけで 2 回目は送られない。
   // 状態の鍵が変われば自然に解ける。「見積もりに戻る」が通ればテーブルごと消える
   const stateKey = `${table.status}|${handKey}|${table.players.map((p) => Number(p.exchanged)).join('')}`;
   const [sentFor, setSentFor] = useState<string | null>(null);
   const locked = disabled || sentFor === stateKey;
   const once = (send: () => void) => () => {
-    if (sentFor === stateKey) return;
     setSentFor(stateKey);
     send();
   };
