@@ -6,7 +6,7 @@ export function MoodArt({ card }: { card: string }) {
         <>
           <circle cx="32" cy="34" r="22" className="ca-ink" />
           <path className="ca-ink" d="M23 30a3 3 0 0 1 6 0M35 30a3 3 0 0 1 6 0M23 41a11 8 0 0 0 18 0" />
-          <path className="ca-gold" d="M52 6l1.800 4.200 4.200 1.800-4.200 1.800L52 18l-1.800-4.200L46 12l4.200-1.800z" />
+          <path className="ca-gold" d="M52 6l1.8 4.2 4.2 1.8-4.2 1.8L52 18l-1.8-4.2L46 12l4.2-1.8z" />
         </>
       );
     case 'foggy':
@@ -31,7 +31,7 @@ export function MoodArt({ card }: { card: string }) {
       return (
         <>
           <circle cx="32" cy="34" r="22" className="ca-ink" />
-          <path className="ca-gold" d="M24 24l1.600 3.400 3.400.5-2.500 2.400.6 3.500-3.100-1.700-3.100 1.700.6-3.500-2.500-2.400 3.400-.5zM40 24l1.600 3.400 3.400.5-2.500 2.400.6 3.500-3.100-1.700-3.100 1.700.6-3.500-2.500-2.400 3.400-.5z" />
+          <path className="ca-gold" d="M24 24l1.6 3.4 3.4.5-2.5 2.4.6 3.5-3.1-1.7-3.1 1.7.6-3.5-2.5-2.4 3.4-.5zM40 24l1.6 3.4 3.4.5-2.5 2.4.6 3.5-3.1-1.7-3.1 1.7.6-3.5-2.5-2.4 3.4-.5z" />
           <path className="ca-ink" d="M22 41h20a10 10 0 0 1-20 0z" />
         </>
       );

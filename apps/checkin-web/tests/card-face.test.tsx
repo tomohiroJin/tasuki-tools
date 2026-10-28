@@ -41,6 +41,25 @@ describe('CardFace', () => {
     }
   });
 
+  it('金の面の path は面積を持つ（同じ半径の弧の往復で潰れた形を作らない）', () => {
+    for (const [method, card] of ALL) {
+      const { container } = render(<CardFace method={method} card={card} />);
+      for (const el of container.querySelectorAll('path.ca-gold')) {
+        // 弧は `a` の後に 7 つの数を 1 組として、省略形で続けて書ける。組に分けて半径と向きを見る
+        const arcs = [...(el.getAttribute('d') ?? '').matchAll(/a((?:-?[\d.]+[ ,]?){7}(?:\s*(?:-?[\d.]+[ ,]?){7})*)/g)]
+          .flatMap((m) => {
+            const nums = (m[1] ?? '').match(/-?\d+(?:\.\d+)?/g) ?? [];
+            return Array.from({ length: Math.floor(nums.length / 7) }, (_, i) => nums.slice(i * 7, i * 7 + 7));
+          });
+        if (arcs.length === 2) {
+          const [a, b] = arcs;
+          const sameRadius = a?.[0] === b?.[0] && a?.[1] === b?.[1];
+          expect(sameRadius && a?.[4] !== b?.[4], `${method}/${card}`).toBe(false);
+        }
+      }
+    }
+  });
+
   it('知らない札は何も描かない（落ちない）', () => {
     const { container } = render(<CardFace method="weather" card="nope" />);
     expect(container.textContent).toBe('');

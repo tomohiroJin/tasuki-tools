@@ -79,9 +79,9 @@ export const METHOD_COPY: Readonly<Record<MethodId, MethodCopy>> = {
     prompt: 'この時間、使った分の価値はありましたか？',
     cards: {
       '1': { name: '1', meaning: '時間のむだ' },
-      '2': { name: '2', meaning: 'ひとつ学べた' },
+      '2': { name: '2', meaning: '少し得た' },
       '3': { name: '3', meaning: '使った分だけ' },
-      '4': { name: '4', meaning: 'かなり学べた' },
+      '4': { name: '4', meaning: '得るものが多かった' },
       '5': { name: '5', meaning: '来てよかった' },
     },
   },

@@ -46,12 +46,9 @@
   fill: var(--coal);
 }
 
-/* 金の面: 塗りに細い墨の縁を添えて、象牙の地から浮かせる */
+/* 金の面: 塗りだけ（縁取りは付けない・モックアップの `.f-gold` と同じ） */
 .card-art .ca-gold {
   fill: var(--gold);
-  stroke: var(--coal);
-  stroke-width: 2;
-  stroke-linejoin: round;
 }
 
 .card-art .ca-paper {

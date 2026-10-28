@@ -14,7 +14,7 @@ export function TakeawayGoalArt({ card }: { card: string }) {
       return (
         <>
           <circle cx="27" cy="27" r="16" className="ca-ink" />
-          <path className="ca-gold" d="M20 24a8 8 0 0 1 8-8 8 8 0 0 0-8 8z" />
+          <path className="ca-gold" d="M19 25a9 9 0 0 1 9-9 11 11 0 0 0-9 9z" />
           <path className="ca-ink" d="M39 39l16 16" />
         </>
       );

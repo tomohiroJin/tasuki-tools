@@ -17,7 +17,7 @@ const CHECKIN_ERROR_MESSAGES: Record<CheckinErrorCode, string> = {
   CHECKIN_REVEALED: "もう開いています",
   CHECKIN_SPECTATING: "見学中は札を出せません",
   CHECKIN_CARD_UNKNOWN: "この札は選べません",
-  CHECKIN_VISIBILITY_LOCKED: "札を出したあとは公開の仕方を変えられません",
+  CHECKIN_VISIBILITY_LOCKED: "札が出たあとは公開の仕方を変えられません",
   CHECKIN_INVALID_RANDOM: "やり方を引けませんでした。もう一度試してください",
 };
 
