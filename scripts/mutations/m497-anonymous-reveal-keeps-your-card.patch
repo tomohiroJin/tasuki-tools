@@ -10,12 +10,12 @@
 #       git apply scripts/mutations/m497-*.patch
 # 復元: git apply -R scripts/mutations/m497-*.patch
 diff --git a/packages/checkin-core/src/projection.ts b/packages/checkin-core/src/projection.ts
-index 7fef8430..78319ea6 100644
+index 123c50b2..0e6da9c9 100644
 --- a/packages/checkin-core/src/projection.ts
 +++ b/packages/checkin-core/src/projection.ts
-@@ -97,5 +97,6 @@ export function toView(s: CheckinState, viewerId: string, seats: readonly SeatIn
-     if (r.visibility === "anonymous") return { card, count: holders.length };
-     return { card, count: holders.length, names: holders.map((x) => x.name) };
+@@ -114,5 +114,6 @@ export function toView(s: CheckinState, viewerId: string, seats: readonly SeatIn
+     });
+     return { card, count: holders.length, names };
    });
 -  return { ...base, round: { ...head, status: "revealed", piles } };
 +  const yours = r.visibility === "anonymous" ? { yourCard: r.cards.get(viewerId) ?? null } : {};

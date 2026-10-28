@@ -3448,6 +3448,16 @@ export const MUTATIONS = [
       "帯の予備を統括の判断で使った（匿名の保護に直結する）。",
   },
   {
+    id: 520,
+    label: "開いた回の prune が札を落とす",
+    patch: "m520-revealed-prune-drops-cards.patch",
+    pkg: "packages/checkin-core",
+    tests: ["tests/checkin.test.ts", "tests/projection.test.ts", "tests/projection-invariant.test.ts"],
+    note:
+      "#406 最終レビューの修正。匿名で開いた後に誰かが退出すると、前後 2 枚のフレームの山の差で抜けた人の札が分かる。" +
+      "同期サーバーの試験（checkin-handlers.test.ts の〈m520〉）も赤になるが、宣言はパッケージ 1 つに絞る。帯の予備を統括の判断で使った。",
+  },
+  {
     id: 513,
     label: "見学中も手札を出す",
     patch: "m513-spectator-sees-hand.patch",

@@ -10,14 +10,14 @@
 #       git apply scripts/mutations/m496-*.patch
 # 復元: git apply -R scripts/mutations/m496-*.patch
 diff --git a/packages/checkin-core/src/projection.ts b/packages/checkin-core/src/projection.ts
-index 7fef8430..71ff5e72 100644
+index 123c50b2..6726dad8 100644
 --- a/packages/checkin-core/src/projection.ts
 +++ b/packages/checkin-core/src/projection.ts
-@@ -94,7 +94,6 @@ export function toView(s: CheckinState, viewerId: string, seats: readonly SeatIn
+@@ -106,7 +106,6 @@ export function toView(s: CheckinState, viewerId: string, seats: readonly SeatIn
+   ];
    const piles: PileView[] = METHODS[r.method].cards.map((card) => {
-     // count と names は同じ基準（seats 入力に居る人の札だけ）で数える
-     const holders = seatViews.filter((x) => r.cards.get(x.id) === card);
+     const holders = holderOrder.filter((id) => r.cards.get(id) === card);
 -    if (r.visibility === "anonymous") return { card, count: holders.length };
-     return { card, count: holders.length, names: holders.map((x) => x.name) };
-   });
-   return { ...base, round: { ...head, status: "revealed", piles } };
+     // 名簿に居る人はいまの名前、外れた人は開いた時点の名前。どちらも引けない人は names に入れない
+     const names = holders.flatMap((id) => {
+       const name = seatName.get(id) ?? r.names?.get(id);
