@@ -1,7 +1,7 @@
 /**
- * テーブルの文言は書体の常用の層に収まる（#403・設計 §5.3）。
+ * テーブルの文言は書体の常用の層に収まる（#403・設計 §5.4）。札は SVG なので、角の文字（ASCII）以外は書体に頼らない。
  *
- * @requirements #403 設計 §5.3
+ * @requirements #403 設計 §5.4
  */
 import { describe, expect, it } from 'vitest';
 import { messageForRoundError } from '@tasuki/poker-core';
@@ -14,28 +14,28 @@ describe('テーブルの文言は書体の常用の層に収まる', () => {
     const texts = [
       ...constants,
       ...Object.values(copy.CATEGORY_LABELS),
-      ...(['S', 'H', 'D', 'C'] as const).map((suit) => copy.cardText({ suit, rank: 14 })),
+      copy.exchangeLabel(3),
+      copy.handOf('あや'),
       ...(['S', 'H', 'D', 'C'] as const).map((suit) => copy.cardSpeech({ suit, rank: 12 })),
-      ...(['table-not-seated', 'table-in-play', 'table-no-hand', 'table-full'] as const).map((code) =>
+      ...(['table-not-player', 'table-exchanged', 'table-no-game', 'table-in-play'] as const).map((code) =>
         messageForRoundError({ code }),
       ),
     ];
     // 対照: 定数が拾えないまま空配列で緑に倒れるのを防ぐ
-    expect(constants.length).toBeGreaterThanOrEqual(6);
+    expect(constants.length).toBeGreaterThanOrEqual(10);
     expect(outsideBase(texts)).toEqual([]);
   });
 
-  it('Given 札 / When 文字にする / Then 「A♠」の形、読み上げは「スペードのA」の形', () => {
-    expect(copy.cardText({ suit: 'S', rank: 14 })).toBe('A♠');
-    expect(copy.cardText({ suit: 'H', rank: 10 })).toBe('10♥');
-    expect(copy.cardText({ suit: 'D', rank: 11 })).toBe('J♦');
-    expect(copy.cardText({ suit: 'C', rank: 2 })).toBe('2♣');
+  it('Given 札 / When 読み上げ名・角の文字にする / Then 「スペードのA」「10」の形', () => {
     expect(copy.cardSpeech({ suit: 'D', rank: 13 })).toBe('ダイヤのK');
+    expect(copy.cardSpeech({ suit: 'C', rank: 10 })).toBe('クラブの10');
+    expect(copy.rankText(14)).toBe('A');
+    expect(copy.rankText(11)).toBe('J');
+    expect(copy.rankText(9)).toBe('9');
   });
 
   it('Given 役の分類 / When 名前を引く / Then 10 分類すべてに名前がある', () => {
     expect(copy.CATEGORY_LABELS['royal-flush']).toBe('ロイヤルストレートフラッシュ');
-    expect(copy.CATEGORY_LABELS['three-of-a-kind']).toBe('スリーカード');
     expect(Object.keys(copy.CATEGORY_LABELS)).toHaveLength(10);
   });
 });

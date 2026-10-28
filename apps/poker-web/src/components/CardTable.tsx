@@ -1,21 +1,29 @@
-// 隠しモードのテーブル（#403・設計 §5.2）。**席に着いたときにだけ `React.lazy` で読み込む**（設計 D6）。
-// 普段の利用者の初回の読み込みに、この部品・文言・見た目は入らない。
+// 隠しモードのテーブル（#403・設計 §5.2）。ゲームの間、操作の面の手札・結果・帯をこれに置き換える。
+// **`room-state.table` が届いたときにだけ `React.lazy` で読み込む**（設計 §5.5）。札の SVG・文言・見た目もこの塊に入る。
+//
+// 卓（フェルト）の上に、他の人の席（開くまでは裏向きの 5 枚と「チェンジ済み」）と、手前に自分の手を並べる。
+// 配った札は山から滑って届き、開くと他の人の札が席順にめくれる（動きを減らす設定では止める）。
+import { useState, type CSSProperties } from 'react';
 import type { ParticipantView, PlayingCard, TableView } from '@tasuki/poker-core';
 import {
+  AGAIN,
+  BACK_TO_ESTIMATE,
   CATEGORY_LABELS,
-  DEAL,
-  EVERYONE_HANDS,
-  IDLE_NOTE,
-  LATE_NOTE,
-  LEAVE,
-  SHOW,
+  EXCHANGED,
+  EXCHANGING,
+  KEEP,
+  PROMPT_CHOOSE,
+  PROMPT_SHOWN,
+  PROMPT_WAIT,
   TABLE_HEADING,
-  WINNER,
+  WATCHING,
+  YOU,
   YOUR_HAND,
   cardSpeech,
-  cardText,
+  exchangeLabel,
   handOf,
 } from '../card-table-copy';
+import { PlayingCardSvg } from './playing-card/PlayingCardSvg';
 import './CardTable.css';
 
 interface Props {
@@ -23,59 +31,159 @@ interface Props {
   participants: readonly ParticipantView[];
   you: string;
   disabled: boolean;
-  onDeal: () => void;
-  onShow: () => void;
-  onLeave: () => void;
+  onExchange: (discard: number[]) => void;
+  onDealAgain: () => void;
+  onClose: () => void;
 }
 
-function Hand({ cards, label }: { cards: readonly PlayingCard[]; label: string }) {
+const HAND_SIZE = 5;
+const cardKey = (c: PlayingCard) => `${c.rank}${c.suit}`;
+/** 札の順番（配る・めくる動きの遅れに使う） */
+const order = (i: number) => ({ '--i': i }) as CSSProperties;
+
+/** 他の人の札。開いたら表へめくる（裏 → 表の 1 回だけ。表になったあとは描き直しても動かない） */
+function SeatCard({ card, index }: { card: PlayingCard | null; index: number }) {
+  if (card === null) {
+    return (
+      <li className="ct-card ct-card--dealt" style={order(index)}>
+        <PlayingCardSvg card={null} />
+      </li>
+    );
+  }
   return (
-    <ul className="playing-hand" aria-label={label}>
-      {cards.map((card) => (
-        <li key={cardText(card)} className="playing-card" data-suit={card.suit} aria-label={cardSpeech(card)}>
-          {cardText(card)}
-        </li>
-      ))}
-    </ul>
+    <li className="ct-card ct-card--flip" style={order(index)}>
+      <span className="ct-rotor">
+        <PlayingCardSvg className="ct-rotor-face" card={card} />
+        <PlayingCardSvg className="ct-rotor-back" card={null} decorative />
+      </span>
+    </li>
   );
 }
 
-export function CardTable({ table, participants, you, disabled, onDeal, onShow, onLeave }: Props) {
+export function CardTable({ table, participants, you, disabled, onExchange, onDealAgain, onClose }: Props) {
   const nameOf = (id: string) => participants.find((p) => p.id === id)?.name ?? '?';
-  const dealt = table.status === 'dealt';
+  const shown = table.status === 'shown';
+  const me = table.players.find((p) => p.participantId === you);
+  const myHand = me !== undefined ? table.yourHand : null;
+  const canExchange = !shown && me !== undefined && !me.exchanged && myHand !== null;
+
+  // 選んだ位置。手が替わったら（配り直し・チェンジ）選びを捨てる
+  const handKey = myHand?.map(cardKey).join(',') ?? '';
+  const [selection, setSelection] = useState<{ handKey: string; picks: number[] }>({ handKey, picks: [] });
+  const picks = selection.handKey === handKey ? selection.picks : [];
+  const toggle = (i: number) =>
+    setSelection({ handKey, picks: picks.includes(i) ? picks.filter((p) => p !== i) : [...picks, i].sort() });
+
+  const prompt = shown ? PROMPT_SHOWN : myHand === null ? WATCHING : canExchange ? PROMPT_CHOOSE : PROMPT_WAIT;
+  const handsById = new Map(table.hands.map((h) => [h.participantId, h]));
+  const others = table.players.filter((p) => p.participantId !== you);
 
   return (
-    <section className="card-table" aria-labelledby="card-table-heading">
-      <h2 id="card-table-heading">{TABLE_HEADING}</h2>
-      {table.status === 'shown' ? (
-        <ul className="card-table-results" aria-label={EVERYONE_HANDS}>
-          {table.hands.map((h) => (
-            <li key={h.participantId} aria-label={handOf(nameOf(h.participantId))} data-you={h.participantId === you}>
-              <span className="card-table-name">{nameOf(h.participantId)}</span>
-              <Hand cards={h.cards} label={handOf(nameOf(h.participantId))} />
-              <span className="card-table-category">{CATEGORY_LABELS[h.category]}</span>
-              {table.winners.includes(h.participantId) && <span className="badge card-table-winner">{WINNER}</span>}
-            </li>
+    <section className="card-table" aria-labelledby="card-table-heading" data-status={table.status}>
+      <header className="ct-head">
+        <h2 id="card-table-heading">{TABLE_HEADING}</h2>
+        <p className="ct-prompt" role="status">
+          {prompt}
+        </p>
+      </header>
+
+      <div className="ct-felt">
+        {/* 山（飾り）。配った札はここから滑って席へ届く */}
+        <div className="ct-deck" aria-hidden="true">
+          {[0, 1, 2].map((i) => (
+            <PlayingCardSvg key={i} card={null} decorative />
           ))}
+        </div>
+
+        <ul className="ct-seats">
+          {others.map((p) => {
+            const opened = handsById.get(p.participantId);
+            return (
+              <li key={p.participantId} className="ct-seat" aria-label={handOf(nameOf(p.participantId))}>
+                <div className="ct-seat-head">
+                  <span className="ct-seat-name">{nameOf(p.participantId)}</span>
+                  {opened ? (
+                    <span className="ct-category">{CATEGORY_LABELS[opened.category]}</span>
+                  ) : (
+                    <span className={`badge ct-badge${p.exchanged ? ' ct-badge--done' : ''}`}>
+                      {p.exchanged ? EXCHANGED : EXCHANGING}
+                    </span>
+                  )}
+                </div>
+                <ul className="ct-mini-hand">
+                  {opened
+                    ? opened.cards.map((c, i) => <SeatCard key={cardKey(c)} card={c} index={i} />)
+                    : Array.from({ length: HAND_SIZE }, (_, i) => <SeatCard key={i} card={null} index={i} />)}
+                </ul>
+              </li>
+            );
+          })}
         </ul>
-      ) : table.yourHand ? (
-        <Hand cards={table.yourHand} label={YOUR_HAND} />
-      ) : (
-        <p className="ui-note">{dealt ? LATE_NOTE : IDLE_NOTE}</p>
-      )}
-      <div className="ui-actions">
-        {dealt ? (
-          <button type="button" className="ui-button" onClick={onShow} disabled={disabled}>
-            {SHOW}
-          </button>
-        ) : (
-          <button type="button" className="ui-button" onClick={onDeal} disabled={disabled}>
-            {DEAL}
+
+        {myHand !== null && (
+          <div className="ct-mine">
+            {shown ? (
+              <ul className="ct-seats ct-seats--mine">
+                <li className="ct-seat ct-seat--mine" aria-label={handOf(nameOf(you))}>
+                  <div className="ct-seat-head">
+                    <span className="ct-seat-name">{YOU}</span>
+                    {handsById.get(you) && (
+                      <span className="ct-category ct-category--mine">{CATEGORY_LABELS[handsById.get(you)!.category]}</span>
+                    )}
+                  </div>
+                  <ul className="ct-hand">
+                    {myHand.map((c, i) => (
+                      <li key={cardKey(c)} className="ct-card" style={order(i)}>
+                        <PlayingCardSvg card={c} />
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              </ul>
+            ) : canExchange ? (
+              <div className="ct-hand" role="group" aria-label={YOUR_HAND}>
+                {myHand.map((c, i) => (
+                  <button
+                    key={cardKey(c)}
+                    type="button"
+                    className="ct-card ct-card--dealt ct-pick"
+                    style={order(i)}
+                    aria-label={cardSpeech(c)}
+                    aria-pressed={picks.includes(i)}
+                    disabled={disabled}
+                    onClick={() => toggle(i)}
+                  >
+                    <PlayingCardSvg card={c} decorative />
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <ul className="ct-hand" aria-label={YOUR_HAND}>
+                {myHand.map((c, i) => (
+                  <li key={cardKey(c)} className="ct-card ct-card--dealt" style={order(i)}>
+                    <PlayingCardSvg card={c} />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="ui-actions ct-actions">
+        <button type="button" className="ui-button ui-button--quiet" onClick={onClose} disabled={disabled}>
+          {BACK_TO_ESTIMATE}
+        </button>
+        {canExchange && (
+          <button type="button" className="ui-button ui-button--lg" onClick={() => onExchange(picks)} disabled={disabled}>
+            {picks.length === 0 ? KEEP : exchangeLabel(picks.length)}
           </button>
         )}
-        <button type="button" className="ui-button ui-button--quiet" onClick={onLeave} disabled={disabled}>
-          {LEAVE}
-        </button>
+        {shown && (
+          <button type="button" className="ui-button ui-button--lg" onClick={onDealAgain} disabled={disabled}>
+            {AGAIN}
+          </button>
+        )}
       </div>
     </section>
   );

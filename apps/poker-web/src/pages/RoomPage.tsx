@@ -15,13 +15,13 @@ import { ParticipantList, PARTICIPANTS_HEADING_ID } from '../components/Particip
 import { Results } from '../components/Results';
 import type { PokerSync } from '../hooks/useSync';
 import { useRoomEntry } from '../hooks/useRoomEntry';
-import { useSecretEntry } from '../hooks/useSecretEntry';
 import { ESTIMATE_POINTS_LABEL, NEXT_ITEM, RECORDING_TOGGLE, REVOTE } from '../estimate-copy';
 import { JOIN_VOTING, SPECTATE, SPECTATING_NOTE, participantsHeading } from '../spectator-copy';
 import type { NumberCardValue } from '@tasuki/poker-core';
 import { isOffline, revealedLiveAfter, seatCardCount, revealedVoteMap, spreadPromptOf } from '../room-view';
 
-// 隠しモードのテーブル（#403）。席に着いたときにだけ読み込む（普段の初回の読み込みを増やさない・設計 D6）
+// 隠しモードのテーブル（#403）。ゲームが始まったとき（`room-state.table` が届いたとき）にだけ読み込む
+// （普段の初回の読み込みを増やさない・設計 §5.5）。入口は見積もりの操作だけで、判定はサーバーが行う
 const CardTable = lazy(() => import('../components/CardTable'));
 
 interface Props {
@@ -72,9 +72,6 @@ export function RoomPage({ roomId, sync }: Props) {
   }
   // 入口の振り分け・自動の復帰・混雑の入り直し・消えたルームの組の破棄は同期フックの仕事（#369）。
   const { retryNotice } = useRoomEntry(sync, roomId);
-  // 隠しの入口（#403・設計 §5.1）。コナミコマンドと参加者の見出しの 5 回押しで席に着く。
-  // フックは早期 return より前に置く（呼ぶ順を描画ごとに変えない）。切断中は数えない
-  const onSecretTap = useSecretEntry(() => sync.setTableSeat(true), !isOffline(sync.status));
 
   // room-not-found はページ全体をエラー表示に（FR-015 / US1-AS3）
   if (sync.error?.code === 'room-not-found') {
@@ -109,8 +106,8 @@ export function RoomPage({ roomId, sync }: Props) {
   const spectatorCount = snapshot.participants.filter((p) => p.spectator).length;
   // 結果の待ち（`--seat-count`）は札を出す席だけで数える（席の一覧と同じ述語・`room-view.ts`）
   const seatCount = seatCardCount(snapshot.participants, revealedVotes);
-  // テーブルは自分が席に着いているときだけ出す（#403 T-2）。他の人が遊んでいても画面は変わらない
-  const seated = snapshot.table?.seats.includes(snapshot.you) === true;
+  // ゲームの間は、手札・結果・下端の帯をテーブルに置き換える（#403・設計 §5.2）。席の一覧・お題・記録は残す
+  const table = snapshot.table;
 
   return (
     <main className="ui-page ui-page--wide room">
@@ -181,27 +178,9 @@ export function RoomPage({ roomId, sync }: Props) {
         </div>
         )}
         <div className="ui-workspace-main room-main">
-          {/* 隠しモードのテーブル（#403）。自分が席に着いているときだけ。見積もりの面より先に置く */}
-          {seated && snapshot.table && (
-            <Suspense fallback={null}>
-              <CardTable
-                table={snapshot.table}
-                participants={snapshot.participants}
-                you={snapshot.you}
-                disabled={offline}
-                onDeal={sync.dealHands}
-                onShow={sync.showHands}
-                onLeave={() => sync.setTableSeat(false)}
-              />
-            </Suspense>
-          )}
           <section>
             <div className="room-participants-head">
-              {/* 押下は隠しの入口（#403）。**ボタンにはしない** —— ボタンにすると入口が見えてしまう。
-                  キーボードの利用者はコナミコマンドで入れる */}
-              <h2 id={PARTICIPANTS_HEADING_ID} tabIndex={-1} onClick={onSecretTap}>
-                {participantsHeading(snapshot.participants.length, spectatorCount)}
-              </h2>
+              <h2 id={PARTICIPANTS_HEADING_ID} tabIndex={-1}>{participantsHeading(snapshot.participants.length, spectatorCount)}</h2>
               {/* 自分の切り替え。投票中も開票後も出す（#419・設計 §5.2） */}
               <button
                 type="button"
@@ -233,7 +212,19 @@ export function RoomPage({ roomId, sync }: Props) {
               disabled={offline}
             />
           )}
-          {snapshot.round.status === 'voting' ? (
+          {table ? (
+            <Suspense fallback={null}>
+              <CardTable
+                table={table}
+                participants={snapshot.participants}
+                you={snapshot.you}
+                disabled={offline}
+                onExchange={sync.exchangeCards}
+                onDealAgain={sync.dealAgain}
+                onClose={sync.closeGame}
+              />
+            </Suspense>
+          ) : snapshot.round.status === 'voting' ? (
             <section>
               <h2>あなたのカード</h2>
               {youSpectating ? (
@@ -255,7 +246,7 @@ export function RoomPage({ roomId, sync }: Props) {
           {recording && (
             <EstimateLogFoot groups={estimateLog} onSetPoints={sync.setPoints} onRenameGroup={sync.renameGroup} disabled={offline} />
           )}
-          {isVoting ? (
+          {table ? null : isVoting ? (
             <VotingDock sync={sync} disabled={offline} />
           ) : (
             <RevealedDock sync={sync} disabled={offline} canAttachPoints={canAttachPoints} />

@@ -134,12 +134,15 @@ export interface PokerSync {
   setSpectator: (spectator: boolean) => void;
   /** 接続の無い他人を一覧から外す（#419）。サーバーは接続中の人・自分を拒む */
   removeParticipant: (participantId: string) => void;
-  /** 隠しモードのテーブルの席に着く・離れる（#403）。入口が true、テーブルの「閉じる」が false を送る */
-  setTableSeat: (seated: boolean) => void;
-  /** テーブルの席の全員へ配る（#403）。配るのはサーバーで、ここは頼むだけ */
-  dealHands: () => void;
-  /** テーブルの手を全員へ見せる（#403） */
-  showHands: () => void;
+  /**
+   * 隠しモードのチェンジ（#403）。`discard` は手の位置（0〜4）で、空なら「このまま」。1 回だけ。
+   * 入口（全員 ☕ を 2 回）はサーバーが見積もりの操作から判定するので、始めるための操作は無い
+   */
+  exchangeCards: (discard: number[]) => void;
+  /** 開いたあとのもう一度（#403）。いまの投票者で配り直す。配るのはサーバー */
+  dealAgain: () => void;
+  /** 見積もりに戻る（#403）。誰でも、最中でも押せる。ルームの全員に効く */
+  closeGame: () => void;
 }
 
 export function usePokerSync(): PokerSync {
@@ -295,9 +298,9 @@ export function usePokerSync(): PokerSync {
       renameGroup: (groupId: number, item: string) => send({ type: 'set-group-item', groupId, item }),
       setSpectator: (spectator: boolean) => send({ type: 'set-spectator', spectator }),
       removeParticipant: (participantId: string) => send({ type: 'remove-participant', participantId }),
-      setTableSeat: (seated: boolean) => send({ type: 'table-seat', seated }),
-      dealHands: () => send({ type: 'table-deal' }),
-      showHands: () => send({ type: 'table-show' }),
+      exchangeCards: (discard: number[]) => send({ type: 'table-exchange', discard }),
+      dealAgain: () => send({ type: 'table-deal' }),
+      closeGame: () => send({ type: 'table-close' }),
     };
   }, []);
 
