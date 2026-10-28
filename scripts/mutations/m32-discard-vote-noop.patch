@@ -1,13 +1,13 @@
 diff --git a/packages/poker-core/src/round.ts b/packages/poker-core/src/round.ts
-index 7b0d8e1d..77313baa 100644
+index eaa8831..b84b2dc 100644
 --- a/packages/poker-core/src/round.ts
 +++ b/packages/poker-core/src/round.ts
-@@ -212,7 +212,7 @@ export function setSpectator(round: Round, participantId: string, spectator: boo
-  * 居ない人の ID を渡しても壊れない（何も起きない）。
+@@ -263,7 +263,7 @@ export function setSpectator(round: Round, participantId: string, spectator: boo
   */
  export function discardVote(round: Round, voterId: string): Round {
--  if (!round.votes.has(voterId) && !round.spectators.has(voterId)) return round;
-+  if (true || (!round.votes.has(voterId) && !round.spectators.has(voterId))) return round;
+   const table = leaveTable(round.table, voterId);
+-  if (!round.votes.has(voterId) && !round.spectators.has(voterId) && table === round.table) return round;
++  if (true || (!round.votes.has(voterId) && !round.spectators.has(voterId) && table === round.table)) return round;
    const votes = new Map(round.votes);
    votes.delete(voterId);
    const spectators = new Set(round.spectators);

@@ -9,15 +9,18 @@
 #       git apply scripts/mutations/m393-*.patch
 # 復元: git apply -R scripts/mutations/m393-*.patch
 diff --git a/packages/poker-core/src/round.ts b/packages/poker-core/src/round.ts
-index 7b0d8e1d..4d0f2adf 100644
+index eaa8831..245df41 100644
 --- a/packages/poker-core/src/round.ts
 +++ b/packages/poker-core/src/round.ts
-@@ -215,7 +215,5 @@ export function discardVote(round: Round, voterId: string): Round {
-   if (!round.votes.has(voterId) && !round.spectators.has(voterId)) return round;
+@@ -266,10 +266,8 @@ export function discardVote(round: Round, voterId: string): Round {
+   if (!round.votes.has(voterId) && !round.spectators.has(voterId) && table === round.table) return round;
    const votes = new Map(round.votes);
    votes.delete(voterId);
 -  const spectators = new Set(round.spectators);
 -  spectators.delete(voterId);
--  return { ...round, votes, spectators };
-+  return { ...round, votes };
+   // テーブルの席と手も捨てる（#403 T-11）。名簿に居ない人の手を見せない
+-  return { ...round, votes, spectators, table };
++  return { ...round, votes, table };
  }
+ 
+ /** テーブルの席に着く／離れる（#403 T-1・T-10）。見積もりの状態には触れない */
