@@ -338,7 +338,7 @@
 .pc-index-rank {
   fill: currentColor;
   font-family: var(--font-display);
-  font-size: 40px;
+  font-size: 40px; /* scale-exempt: SVG の座標系（252 × 352）の中の角の文字の大きさ。画面の文字の尺度ではない */
   font-weight: 700;
   letter-spacing: -1px;
 }
