@@ -179,7 +179,7 @@ describe("reveal", () => {
     expect(unwrap(reveal(s, { seq: 1 }))).toBe(s);
   });
 
-  it("古い seq は同じ参照〈m503〉", () => {
+  it("古い seq は同じ参照", () => {
     const s = chooseMethod(chooseMethod(empty, "weather"), "weather");
     expect(unwrap(reveal(s, { seq: 1 }))).toBe(s);
     expect(roundOf(s).status).toBe("open");
@@ -201,7 +201,7 @@ describe("playAgain", () => {
     expect(roundOf(next).cards.size).toBe(0);
   });
 
-  it("古い seq は同じ参照〈m503〉", () => {
+  it("古い seq は同じ参照", () => {
     const s = chooseMethod(chooseMethod(empty, "weather"), "weather");
     expect(unwrap(playAgain(s, { seq: 1 }))).toBe(s);
   });

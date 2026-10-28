@@ -190,3 +190,18 @@ S4a（#245）が外したのは**名簿そのもの**（`Participant` の保管�
 
 決定 1 の見出しは「3 つに割る」のまま残す（決定当時の記録である）。**依存の向きの現況は
 `scripts/audit-dependency-direction.mjs` の `ALLOWED` を見ること。** ここへ表を写さない。
+
+## 追記（2026-10-28・#406 段 1） — 文脈を 7 つにする
+
+[#406](https://github.com/tomohiroJin/tasuki-tools/issues/406) で**会の始まりと終わりの札の文脈** = `packages/checkin-core`
+（やり方の定義・札を出す／開く／もう一回の遷移・受け手ごとの投影・境界のスキーマ）が加わった。決定と理由は
+[`docs/adr/0028`](./0028-checkin-cards.md) にある。
+
+**決定 1〜5 はそのまま当てはまる。** この文脈はツールのドメインと同格で、**`room-core` を含むどの `@tasuki/*` にも
+依存しない**（参加者 ID は不透明な文字列で、札を出す人の一覧はアプリ層が引数で渡す）。`timer-core`・`poker-core`・
+`topic-core`・`roulette-core`・`agenda-core` は `checkin-core` に依存しない。名簿・在席・お題と札の状態をつなぐ合成は
+アプリ層（`apps/tasuki-sync`。段 2 で入れる）が行う（決定 3 の形）。`checkin-core` の表現の記録（`docs/adr/0016` 決定 1）は
+`docs/adr/0028` 決定 10 である。
+
+決定 1 の見出しは「3 つに割る」のまま残す（決定当時の記録である）。**依存の向きの現況は
+`scripts/audit-dependency-direction.mjs` の `ALLOWED` を見ること。** ここへ表を写さない。

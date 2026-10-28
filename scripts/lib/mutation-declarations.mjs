@@ -3363,7 +3363,7 @@ export const MUTATIONS = [
     tests: ["tests/checkin.test.ts"],
     note:
       "#406 段 1。もう一回の直後に届いた古い回の札が新しい回に入る（Review Focus 2）。" +
-      "seq の検査を他の検査の後ろへ回す変形（playCard・setVisibility）も同じ試験が赤にすることを手で確かめた。",
+      "seq の検査を他の検査の後ろへ回す変形（playCard）も同じ試験が赤にすることを手で確かめた。setVisibility 側は m519 が受け持つ。",
   },
   {
     id: 504,
