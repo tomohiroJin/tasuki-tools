@@ -52,6 +52,11 @@ describe('描いた Check-in Cards の文字は書体の常用の層に収まる
       ];
       return { ...s, round: { ...s.round, status: 'revealed', piles } };
     })()],
+    ['開いた後（数のやり方）', (() => {
+      const s = openCheckin('sunny');
+      const piles = ['1', '2', '3', '4', '5'].map((card) => ({ card, count: card === '4' ? 2 : 0 }));
+      return { ...s, round: { ...s.round, method: 'roti', visibility: 'anonymous', status: 'revealed', piles } };
+    })()],
     ['開いた後', (() => { const s = openCheckin('sunny'); return { ...s, round: { ...s.round, status: 'revealed', piles: [] } }; })()],
   ])('Given %s / When 画面を描く / Then 外れる字は無く、描けている', (_label, state) => {
     saveResumeIdentity(RESUME);

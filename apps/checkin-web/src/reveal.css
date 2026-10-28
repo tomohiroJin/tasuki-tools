@@ -157,6 +157,12 @@
   font-size: var(--font-size-sm);
 }
 
+.pile-meaning {
+  margin: 0;
+  color: var(--ivory-faint);
+  font-size: var(--font-size-xs);
+}
+
 .pile-names {
   display: flex;
   flex-wrap: wrap;
@@ -184,23 +190,25 @@
 
 /* ---------- 開く動き（山の側だけ）----------
    動きを減らす設定では、そもそも `--run` を付けない（JS が止める）。reset.css も全体で止める。
-   札は伏せた姿で上から配られ、遅れ（--d）ずつ Y 軸に裏返る。最後に数・名前・要約が出る。 */
+   札は伏せた姿で上から配られ、遅れ（--d）ずつ Y 軸に裏返る。最後に数・小札・要約が出る。
+   時間（--reveal-deal・--reveal-turn・--reveal-fade・--reveal-fade-at）は `reveal-view.ts` の定数から
+   `RevealBoard` が渡す（正本は JS 側・2 秒の予算もそちらで計算する）。札の名前は最初から出す。 */
 .reveal-board--run .pile-card {
-  animation: reveal-deal 0.35s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation: reveal-deal var(--reveal-deal) cubic-bezier(0.2, 0.7, 0.2, 1) both;
   animation-delay: var(--d);
 }
 
 .reveal-board--run .pile-card-in {
-  animation: reveal-flip 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-  animation-delay: calc(var(--d) + 0.35s);
+  animation: reveal-flip var(--reveal-turn) cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: calc(var(--d) + var(--reveal-deal));
 }
 
 .reveal-board--run .pile-count,
-.reveal-board--run .pile-name,
+.reveal-board--run .pile-meaning,
 .reveal-board--run .pile-names,
 .reveal-board--run .reveal-summary {
-  animation: reveal-fade 0.4s ease both;
-  animation-delay: var(--reveal-total);
+  animation: reveal-fade var(--reveal-fade) ease both;
+  animation-delay: var(--reveal-fade-at);
 }
 
 @keyframes reveal-deal {

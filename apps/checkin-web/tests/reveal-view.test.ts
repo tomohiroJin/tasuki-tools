@@ -3,7 +3,7 @@
  */
 import type { PileView } from '@tasuki/checkin-core';
 import { describe, expect, it } from 'vitest';
-import { REVEAL_STAGGER_MS, REVEAL_TOTAL_MAX_MS, revealSchedule, summaryLine, topCards } from '../src/reveal-view';
+import { REVEAL_FADE_MS, REVEAL_FLIP_MS, REVEAL_STAGGER_MS, REVEAL_TOTAL_MAX_MS, revealSchedule, summaryLine, topCards } from '../src/reveal-view';
 
 const weather = (sunny: number, cloudy: number, rain: number, thunder: number): PileView[] => [
   { card: 'sunny', count: sunny },
@@ -43,9 +43,14 @@ describe('summaryLine（要約の 1 行）', () => {
     expect(summaryLine('weather', weather(0, 0, 0, 0))).toBe('出した人はいません');
   });
 
-  it('Given 数のやり方 / Then 札の名前（数）で言う', () => {
+  it('Given 数のやり方で同数の最多 / Then 「4・5」と並べる', () => {
+    const piles: PileView[] = ['1', '2', '3', '4', '5'].map((card) => ({ card, count: card === '4' || card === '5' ? 2 : 0 }));
+    expect(summaryLine('roti', piles)).toBe('いちばん多いのは 4・5');
+  });
+
+  it('Given 数のやり方 / Then 人数と紛れない言い方', () => {
     const piles: PileView[] = ['1', '2', '3', '4', '5'].map((card) => ({ card, count: card === '4' ? 4 : 1 }));
-    expect(summaryLine('roti', piles)).toBe('4が 4 人');
+    expect(summaryLine('roti', piles)).toBe('いちばん多いのは 4');
   });
 });
 
@@ -57,12 +62,23 @@ describe('revealSchedule（開く動きの遅れ）', () => {
     expect(s.totalMs).toBeLessThanOrEqual(REVEAL_TOTAL_MAX_MS);
   });
 
-  it('Given 30 枚 / Then 間隔を縮めて 2 秒以内（E12 の上限）', () => {
+  it('Given 30 枚 / Then 間隔を縮め、最後の遅れ＋裏返し＋出る時間が 2 秒以内（E12 の上限）', () => {
     const s = revealSchedule(30, false);
     expect(s.delaysMs).toHaveLength(30);
     expect(s.delaysMs[1]! - s.delaysMs[0]!).toBeLessThan(REVEAL_STAGGER_MS);
+    expect(s.delaysMs.at(-1)! + REVEAL_FLIP_MS + REVEAL_FADE_MS).toBe(s.totalMs);
     expect(s.totalMs).toBeLessThanOrEqual(REVEAL_TOTAL_MAX_MS);
     expect(s.delaysMs).toEqual([...s.delaysMs].sort((a, b) => a - b));
+  });
+
+  it('Given 10 枚 / Then 最後の遅れ＋裏返し＋出る時間が totalMs で 2 秒以内', () => {
+    const s = revealSchedule(10, false);
+    expect(s.delaysMs.at(-1)! + REVEAL_FLIP_MS + REVEAL_FADE_MS).toBe(s.totalMs);
+    expect(s.totalMs).toBeLessThanOrEqual(REVEAL_TOTAL_MAX_MS);
+  });
+
+  it('Given 1 枚 / Then 遅れは [0]', () => {
+    expect(revealSchedule(1, false).delaysMs).toEqual([0]);
   });
 
   it('Given 動きを減らす設定 / Then 遅れは全部 0 で全体も 0（E12・m514）', () => {

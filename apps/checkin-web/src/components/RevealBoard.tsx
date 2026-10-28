@@ -11,7 +11,15 @@ import type { CSSProperties } from 'react';
 import { PILE_UNIT_SR, REVEAL_LABEL } from '../copy';
 import { usePrefersReducedMotion } from '../hooks/use-reduced-motion';
 import { METHOD_COPY } from '../method-copy';
-import { revealSchedule, summaryLine, topCards } from '../reveal-view';
+import {
+  NUMERIC_METHODS,
+  REVEAL_DEAL_MS,
+  REVEAL_FADE_MS,
+  REVEAL_TURN_MS,
+  revealSchedule,
+  summaryLine,
+  topCards,
+} from '../reveal-view';
 import { CardFace } from './CardFace';
 
 interface Props {
@@ -31,7 +39,15 @@ export function RevealBoard({ method, piles }: Props) {
   const boardStyle = {
     '--pile-count': ordered.length,
     '--stack-max': Math.max(1, maxCount),
-    ...(reduced ? {} : { '--reveal-total': `${schedule.totalMs}ms` }),
+    // 動きの時間は reveal-view.ts の定数が正本。CSS へはここで渡す（reduced では渡さない＝動きを付けない）
+    ...(reduced
+      ? {}
+      : {
+          '--reveal-deal': `${REVEAL_DEAL_MS}ms`,
+          '--reveal-turn': `${REVEAL_TURN_MS}ms`,
+          '--reveal-fade': `${REVEAL_FADE_MS}ms`,
+          '--reveal-fade-at': `${schedule.totalMs - REVEAL_FADE_MS}ms`,
+        }),
   } as CSSProperties;
 
   let next = 0; // 山をまたいで通し番号で遅れを振る
@@ -77,6 +93,7 @@ export function RevealBoard({ method, piles }: Props) {
                 <span className="ui-visually-hidden">{PILE_UNIT_SR}</span>
               </p>
               <p className="pile-name">{cardCopy?.name ?? pile.card}</p>
+              {NUMERIC_METHODS.has(method) && <p className="pile-meaning">{cardCopy?.meaning}</p>}
               {pile.names !== undefined && pile.names.length > 0 && (
                 <ul className="pile-names">
                   {pile.names.map((name, i) => (

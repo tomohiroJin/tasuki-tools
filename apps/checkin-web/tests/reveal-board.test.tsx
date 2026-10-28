@@ -92,6 +92,8 @@ describe('開く動き（E12・m514）', () => {
     expect(container.querySelector('.reveal-board--run')).not.toBeNull();
     const delays = [...container.querySelectorAll<HTMLElement>('.pile-card')].map((c) => c.style.getPropertyValue('--d'));
     expect(delays).toEqual(['0ms', '90ms', '180ms', '270ms', '360ms']);
+    // 札の名前は最初から出す（遅れて出るのは数・小札・要約だけ）
+    expect(container.querySelector('.reveal-board')?.getAttribute('style')).toContain('--reveal-fade-at: 1210ms');
   });
 
   it('Given 動きを減らす設定 / Then 山の札に遅れも動きのクラスも無い', () => {
@@ -106,7 +108,7 @@ describe('開く動き（E12・m514）', () => {
 });
 
 describe('卓に組んだ開いた後', () => {
-  function enterRevealed(piles: PileView[]) {
+  function enterRevealed(piles: PileView[], visibility: 'named' | 'anonymous' = 'named', method = 'weather') {
     saveResumeIdentity(RESUME);
     render(<CheckinRoom roomCode="R1" />);
     const s = openCheckin('sunny');
@@ -118,7 +120,7 @@ describe('卓に組んだ開いた後', () => {
       latestSocket().open();
       latestSocket().deliver({ type: 'room.joined', code: 'R1', participantId: 'p1', resumeToken: 't1' });
       latestSocket().deliver(ROSTER_FRAME);
-      latestSocket().deliver({ type: 'checkin', state: { ...s, round: { ...s.round, status: 'revealed', seq: 3, seats, piles } } });
+      latestSocket().deliver({ type: 'checkin', state: { ...s, round: { ...s.round, method, visibility, status: 'revealed', seq: 3, seats, piles } } });
     });
   }
 
@@ -128,7 +130,35 @@ describe('卓に組んだ開いた後', () => {
     expect(within(seats).getByText(/ゆう/)).toBeInTheDocument();
     expect(seats.querySelector('svg')).toBeNull();
     expect(seats.querySelector('.pile-card, .reveal-board')).toBeNull();
+    // 席に開く動きは付かない（m517）: 動きのクラスも遅れも、席の側には無い
+    expect(seats.querySelector('[class*="reveal"], [class*="pile"], [style*="--d"]')).toBeNull();
+    expect(seats.closest('.reveal-board')).toBeNull();
     expect(seats.textContent).not.toMatch(/晴れ|くもり|雨|雷/);
+  });
+
+  it('Given 匿名で開いた / Then 席の行の外に席の名前が無く、席の行には残る', () => {
+    enterRevealed(anonymous.map((p) => (p.card === 'sunny' ? { ...p, count: 2 } : { ...p, count: 0 })), 'anonymous');
+    const seats = screen.getByRole('list', { name: '席' });
+    expect(within(seats).getByText(/ゆう/)).toBeInTheDocument();
+    const board = document.querySelector('.reveal-board')!;
+    expect(board.textContent).not.toMatch(/あや|ゆう/);
+    expect(board.querySelector('.pile-names')).toBeNull();
+    const rest = (document.body.textContent ?? '').replace(seats.textContent ?? '', '');
+    expect(rest).not.toMatch(/ゆう/);
+  });
+
+  it('Given 数のやり方 / Then 山の下に札の数字と凡例の意味が出る', () => {
+    const piles = ['1', '2', '3', '4', '5'].map((card) => ({ card, count: card === '4' ? 2 : 0 }));
+    enterRevealed(piles, 'anonymous', 'roti');
+    const four = document.querySelectorAll('.pile')[3]!;
+    expect(four.querySelector('.pile-name')?.textContent).toBe('4');
+    expect(four.querySelector('.pile-meaning')?.textContent).toBe('得るものが多かった');
+    expect(screen.getByText('いちばん多いのは 4')).toBeInTheDocument();
+  });
+
+  it('Given 通常のやり方 / Then 意味の行は出さない', () => {
+    render(<RevealBoard method="weather" piles={named} />);
+    expect(document.querySelector('.pile-meaning')).toBeNull();
   });
 
   it('Given 開いた / When もう一回を押す / Then seq を載せた again が送られる（E11）', () => {
