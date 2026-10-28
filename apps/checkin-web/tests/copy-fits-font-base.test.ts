@@ -7,6 +7,7 @@
 import { describe, expect, it } from 'vitest';
 import { CHECKIN_ERROR_CODES, checkinErrorMessageFor } from '@tasuki/checkin-core';
 import * as copy from '../src/copy';
+import { METHOD_COPY } from '../src/method-copy';
 import { baseFaces, outsideBase } from './support/font-base';
 
 /**
@@ -19,7 +20,12 @@ function allTexts(): string[] {
     if (typeof value === 'function') return [(value as (...args: unknown[]) => string)('Ab', 2, 3)];
     return [];
   });
-  return [...fromCopy, ...CHECKIN_ERROR_CODES.map(checkinErrorMessageFor)];
+  const fromMethods = Object.values(METHOD_COPY).flatMap((m) => [
+    m.title,
+    m.prompt,
+    ...Object.values(m.cards).flatMap((c) => [c.name, c.meaning]),
+  ]);
+  return [...fromCopy, ...Object.values(copy.SIDE_KICKER), ...fromMethods, ...CHECKIN_ERROR_CODES.map(checkinErrorMessageFor)];
 }
 
 /**
@@ -40,7 +46,7 @@ describe('UI の文言は書体の常用の層に収まる', () => {
     const failures = outsideBase(texts);
     // Then（件数も固定する。`copy.ts` の import が空振りしても緑にしない）
     expect(failures).toEqual([]);
-    expect(texts.length).toBeGreaterThan(20);
+    expect(texts.length).toBeGreaterThan(100);
   });
 
   it('対照: 検査は base 層に無い字を拾う（拾えない検査は常に緑になる）', () => {

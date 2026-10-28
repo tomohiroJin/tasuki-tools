@@ -15,9 +15,9 @@ const CHECKIN_ERROR_MESSAGES: Record<CheckinErrorCode, string> = {
   INTERNAL_ERROR: "サーバー内部でエラーが発生しました",
   CHECKIN_NO_ROUND: "まだ始まっていません",
   CHECKIN_REVEALED: "もう開いています",
-  CHECKIN_SPECTATING: "見学中は出せません",
-  CHECKIN_CARD_UNKNOWN: "これは選べません",
-  CHECKIN_VISIBILITY_LOCKED: "出したあとは公開の方法を変えられません",
+  CHECKIN_SPECTATING: "見学中は札を出せません",
+  CHECKIN_CARD_UNKNOWN: "この札は選べません",
+  CHECKIN_VISIBILITY_LOCKED: "札を出したあとは公開の仕方を変えられません",
   CHECKIN_INVALID_RANDOM: "やり方を引けませんでした。もう一度試してください",
 };
 

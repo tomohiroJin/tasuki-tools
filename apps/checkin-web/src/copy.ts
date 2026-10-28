@@ -29,3 +29,6 @@ export const STALE_TEXT = '同期できていません。表示が最新でな�
 // 混雑で参加を拒まれたとき。**poker の「混み合っています」を写さない**（「混」「雑」が base 層外）
 export const RETRY_WAITING_TEXT = '参加を待っています。自動で入り直しています…';
 export const RETRY_EXHAUSTED_TEXT = '参加できません。時間をおいてから再読込してください';
+
+/** お題の枠の小見出し（やり方の側）。英字なので base 層の外に出ない */
+export const SIDE_KICKER = { checkin: 'CHECK-IN', checkout: 'CHECK-OUT' } as const;

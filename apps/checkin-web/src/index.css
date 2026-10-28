@@ -18,3 +18,57 @@
 .ui-room-header {
   margin-block-end: var(--space-5);
 }
+
+/* ---------- 札の顔（`CardFace`・#406） ----------
+   象牙の札の上に、細い墨（--coal）の線を引き、金（--gold）を一点だけ差す。色は SVG の属性に書かず、ここで当てる。 */
+.card-art {
+  width: 4rem;
+  height: 4rem;
+  overflow: visible;
+}
+
+.card-art .ca-ink,
+.card-art .ca-gold-line,
+.card-art .ca-ink-dot {
+  fill: none;
+  stroke: var(--coal);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.card-art .ca-gold-line {
+  stroke: var(--gold-deep);
+  stroke-width: 3.2;
+}
+
+.card-art .ca-ink-dot {
+  fill: var(--coal);
+}
+
+/* 金の面: 塗りに細い墨の縁を添えて、象牙の地から浮かせる */
+.card-art .ca-gold {
+  fill: var(--gold);
+  stroke: var(--coal);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.card-art .ca-paper {
+  fill: var(--card-sheen);
+}
+
+.card-art .ca-dashed {
+  stroke-dasharray: 3 5;
+}
+
+/* 数のやり方: 数字が絵の代わり */
+.card-numeral {
+  display: block;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 600;
+  font-size: 3.4rem; /* scale-exempt: 札の顔の大きな数字（絵の代わり） */
+  line-height: 1;
+  color: var(--coal);
+}
