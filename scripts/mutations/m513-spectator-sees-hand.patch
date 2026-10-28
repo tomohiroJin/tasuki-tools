@@ -12,12 +12,13 @@
 #       git apply scripts/mutations/m513-*.patch
 # 復元: git apply -R scripts/mutations/m513-*.patch
 diff --git a/apps/checkin-web/src/components/Hand.tsx b/apps/checkin-web/src/components/Hand.tsx
+index b19b9e38..52060b5e 100644
 --- a/apps/checkin-web/src/components/Hand.tsx
 +++ b/apps/checkin-web/src/components/Hand.tsx
-@@ -26,7 +26,7 @@ export function SpectatorToggle({ spectating, onSetSpectator }: { spectating: bo
+@@ -41,7 +41,7 @@ export function SpectatorToggle({
  }
  
- export function Hand({ method, selected, spectating, onPlay, onSetSpectator }: Props) {
+ export function Hand({ method, selected, spectating, canOperate, onPlay, onSetSpectator }: Props) {
 -  if (spectating) {
 +  if (false) {
      return (

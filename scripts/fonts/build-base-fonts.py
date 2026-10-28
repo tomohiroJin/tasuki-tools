@@ -12,6 +12,9 @@
 - `fonts.css` の base 3 面の unicode-range は、新しい cmap から生成する（手で書かない）
 - ext 層（zkgn-*-ext.woff2）は作り直さない
 - 3 面とも作って「古い cmap ⊆ 新しい cmap」を確かめてから、まとめて置き換える（途中で落ちたら何も置き換えない。fail-closed）
+- 置き換えは、置き換え先と同じディレクトリに一時ファイルを写してから `replace` する
+  （--cache-dir が別のファイルシステムにあると、そこからの rename は EXDEV で失敗し、途中まで置き換わる）
+- 元の書体の置き場の名前には REV を入れる（--rev を替えたときに、古いコミットの書体を取り違えない）
 - 字を足さない再生成は `--add-chars` を省く（いまの字のまま作り直すだけ）
 - 画面の文言が base 層に収まるかは `tests/support/font-base.ts` の `outsideBase` で先に測る
 """
@@ -59,6 +62,25 @@ def fetch(rev: str, name: str, dest: Path) -> Path:
     return dest
 
 
+def sibling_tmp(target: Path) -> Path:
+    """置き換え先と同じディレクトリの一時ファイル（同じファイルシステムの中の rename にする）。"""
+    return target.with_name(f".{target.name}.staging")
+
+
+def replace_all(pairs: list[tuple[Path, bytes]]) -> None:
+    """中身をそれぞれの置き換え先の隣へ書き切ってから、まとめて置き換える。書き切る前に落ちたら何も置き換えない。"""
+    tmps = [(sibling_tmp(target), target) for target, _ in pairs]
+    try:
+        for (tmp, _), (_, data) in zip(tmps, pairs):
+            tmp.write_bytes(data)
+    except BaseException:
+        for tmp, _ in tmps:
+            tmp.unlink(missing_ok=True)
+        raise
+    for tmp, target in tmps:
+        tmp.replace(target)
+
+
 def build(src: Path, codes: set[int], dest: Path) -> None:
     """`pyftsubset` の既定に揃える: woff2・layout_features='*'・ヒント無し。"""
     opts = subset.Options()
@@ -91,7 +113,7 @@ def main() -> int:
     for weight, name in WEIGHTS.items():
         target = args.fonts_dir / f"zkgn-{weight}-base.woff2"
         old_codes, old_size = cmap_of(target), target.stat().st_size
-        src = fetch(args.rev, name, args.cache_dir / f"ZenKakuGothicNew-{name}.ttf")
+        src = fetch(args.rev, name, args.cache_dir / f"ZenKakuGothicNew-{name}-{args.rev}.ttf")
         have = set(TTFont(str(src)).getBestCmap())
         missing = sorted(c for c in add if c not in have)
         if missing:
@@ -121,10 +143,8 @@ def main() -> int:
         if n != 1:
             print(f"{weight}: fonts.css の base 面が見つからない", file=sys.stderr)
             return 1
-    # 3 面とも検証済み。ここで初めてまとめて置き換える
-    for tmp, target in staged:
-        tmp.replace(target)
-    args.css.write_text(css, encoding="utf8")
+    # 3 面とも検証済み。ここで初めてまとめて置き換える（置き換え先の隣に写してから rename する）
+    replace_all([(target, tmp.read_bytes()) for tmp, target in staged] + [(args.css, css.encode("utf8"))])
 
     print("太さ  字数(前→後)  大きさ(前→後, 増分)")
     total = 0

@@ -635,12 +635,17 @@ async function expectTimerDockPinned(page: Page, dock: Locator): Promise<void> {
   expect(end.dockBottom, '最下部で帯が画面から出ている').toBeLessThanOrEqual(end.viewport + 0.5);
 }
 
-/** Check-in Cards の選ぶ画面で測る操作の数の下限（側 2・やり方 5＋ランダム・戻るリンクなど。実測前の控えめな値） */
-const CHECKIN_PICK_TARGETS = 4;
-/** Check-in Cards の札を出す途中の画面（公開の仕方 2・別のやり方・手札 4・見学・待たずに開くなど） */
-const CHECKIN_OPEN_TARGETS = 5;
-/** Check-in Cards の開いた後の画面（別のやり方・もう一回・戻るリンクなど） */
-const CHECKIN_REVEALED_TARGETS = 3;
+/*
+ * Check-in Cards の画面ごとの下限。**部品のボタン（`.ui-button`）の数を実測した値**（2026-10-29・390px）で、当たりの数の下限にも使う。
+ * 側・やり方・ランダム・公開の仕方・手札は部品の外（許した素のボタン）なので、この数には入らない。
+ * 見出しの 4 つ（選択画面へ戻る・仲間を招く・QR コードを表示・招待リンクをコピー）はどの画面にもある。
+ */
+/** 選ぶ画面: 見出しの 4 つ＋見学する */
+const CHECKIN_PICK_TARGETS = 5;
+/** 札を出す途中の画面: 見出しの 4 つ＋別のやり方・見学する・待たずに開く */
+const CHECKIN_OPEN_TARGETS = 7;
+/** 開いた後の画面: 見出しの 4 つ＋別のやり方・もう一回 */
+const CHECKIN_REVEALED_TARGETS = 6;
 
 test.describe('チェックインのカードのボタンは部品で、押せる大きさがある', () => {
   test('Given 2 人が Check-in Cards を開く / When 選ぶ・出す途中・開いた後 / Then 素のボタンは許した札と切り替えだけで、当たりが 44px 以上で重ならず、止まった画面の字が読めてフォーカスが見える', async ({ page, openPeer }) => {

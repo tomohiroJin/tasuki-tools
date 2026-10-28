@@ -12,14 +12,15 @@
 #       git apply scripts/mutations/m515-*.patch
 # 復元: git apply -R scripts/mutations/m515-*.patch
 diff --git a/apps/checkin-web/src/components/PromptPanel.tsx b/apps/checkin-web/src/components/PromptPanel.tsx
+index c45b4590..452c2097 100644
 --- a/apps/checkin-web/src/components/PromptPanel.tsx
 +++ b/apps/checkin-web/src/components/PromptPanel.tsx
-@@ -33,7 +33,7 @@ export function PromptPanel({ method, visibility, locked, onSetVisibility, onCha
+@@ -41,7 +41,7 @@ export function PromptPanel({ method, visibility, locked, canOperate, headingRef
                type="button"
                className="seg-button"
                aria-pressed={v === visibility}
--              disabled={locked}
-+              disabled={false}
+-              disabled={locked || !canOperate}
++              disabled={!canOperate}
+               aria-describedby={locked ? LOCKED_NOTE_ID : undefined}
                onClick={() => onSetVisibility(v)}
              >
-               {VISIBILITY_LABEL[v]}

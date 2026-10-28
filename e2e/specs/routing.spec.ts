@@ -15,7 +15,7 @@ import { expect, test } from '@playwright/test';
  */
 const PAGES = ['/', '/timer/', '/poker/', '/topic/', '/agenda/', '/checkin/'] as const;
 
-test.describe('@smoke 5 系統が並存する', () => {
+test.describe('@smoke 6 系統が並存する', () => {
   for (const pagePath of PAGES) {
     test(`Given 稼働中のサイト / When ${pagePath} を GET / Then 200 が返る`, async ({ request }) => {
       // Given: ハーネス（または本番）が動いている

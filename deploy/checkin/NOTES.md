@@ -10,20 +10,22 @@
 
 ### 順序
 
-**checkin → landing → timer。** 静的な 2 本と timer は**間を空けずに続けて流す**。
+**checkin → main 側の未配布の静的アプリ → landing → timer。** 静的なものと timer は**間を空けずに続けて流す**。
 同期サーバーを再起動するのは最後の `deploy.sh timer` だけである（ほかは `STATIC_ONLY=1`）。
 静的アプリは landing の前に置く（未配布の変更がある静的アプリは landing より先。[`../roulette/NOTES.md`](../roulette/NOTES.md) の決め）。
 
 | # | やること | なぜこの位置か |
 |---|---|---|
 | 1 | 初回の用意（下）で web root を作り、`caddy/70-checkin.conf` を設置して `caddy validate` → reload する（[`../caddy/README.md`](../caddy/README.md) の「設置」） | **置き忘れると `/checkin/` は包括フォールバック（玄関）に吸われ、札を押しても玄関が描き直されるだけになる** |
-| 2 | `deploy.sh checkin` | ここから 4 までを続けて流す |
-| 3 | `deploy.sh landing` | 玄関に 6 枚目の札が出る。静的の最後に回し、札が見えてから同期サーバーの再起動までを短くする |
-| 4 | `deploy.sh timer` | web を配ってから同期サーバーを再起動する |
-| 5 | 動作確認（下） | **`pnpm e2e:prod` は 4 まで配り終えてから流す** |
+| 2 | `deploy.sh checkin` | ここから 5 までを続けて流す |
+| 3 | `deploy.sh poker`・`deploy.sh topic`・`deploy.sh roulette`・`deploy.sh agenda` | **main 側の未配布の変更**（#447 段 1 のルーム画面の共通の見出し）。未配布の変更がある静的アプリは landing の前に置く。配る直前に `git log --oneline <最後のタグ>..HEAD -- 'apps/*-web' 'apps/timer*' packages/ui packages/invite-ui` で数え直し、増えていれば足す・配り済みなら外す |
+| 4 | `deploy.sh landing` | 玄関に 6 枚目の札が出る。静的の最後に回し、札が見えてから同期サーバーの再起動までを短くする |
+| 5 | `deploy.sh timer` | web を配ってから同期サーバーを再起動する。timer の web には #447 段 2（ロビーとセッションの見出し）も載る |
+| 6 | 動作確認（下） | **`pnpm e2e:prod` は 5 まで配り終えてから流す** |
 
 ```bash
 TASUKI_SSH_HOST=<ホスト別名> ./deploy/deploy.sh checkin
+for app in poker topic roulette agenda; do TASUKI_SSH_HOST=<ホスト別名> ./deploy/deploy.sh "$app"; done
 TASUKI_SSH_HOST=<ホスト別名> ./deploy/deploy.sh landing
 TASUKI_SSH_HOST=<ホスト別名> ./deploy/deploy.sh timer    # 同期サーバーもここで入れ替わる
 ```
@@ -44,8 +46,8 @@ HOST=https://<公開ドメイン>
 curl -s "$HOST/checkin/" | grep -o '/checkin/assets/' | head -1   # 1 行出れば正常
 ```
 
-⚠ **配布前の本番へ `pnpm e2e:prod` の `@core` を当てると落ちる。** `/checkin/` がまだ無いので、
-`/checkin/` を見る `@core` のテストが失敗する。配り終えてから流す。
+⚠ **配布前の本番へ `pnpm e2e:prod` を当てると `@smoke`（`routing`・`site-exterior`）と `@core` が落ちる。**
+`/checkin/` がまだ無いので、`/checkin/` を見るテストが失敗する。配り終えてから流す。
 
 ## 静的サイト
 

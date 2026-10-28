@@ -2,7 +2,8 @@
  * Check-in Cards（#406 Task 4.3）。
  *
  * - `@core` — 札を伏せて出し、全員の画面で一斉に開くこと。**本番に Check-in Cards が入った後の `pnpm e2e:prod` が見る前提**で、
- *   配布の前の本番に当てると落ちる（`/checkin/` がまだ無い。`deploy/checkin`）。
+ *   配布の前の本番に当てると落ちる（`/checkin/` がまだ無い。`deploy/checkin`）。配布の前に落ちるのはこの `@core` と、
+ *   `/checkin/` を並べた `@smoke`（`routing.spec.ts`・`site-exterior.spec.ts`）である。
  *   タグは describe のタイトルの先頭に置く（`e2e/tests/spec-tags.test.ts`）。
  *
  * **ルームを作るのはこの 1 本だけ**（ルームの増分は +1）。
