@@ -40,7 +40,7 @@ import type { SaveRosterDeps } from "./save-roster.js";
 import type { CheckinBroadcaster } from "./checkin-broadcast.js";
 import { seatsOf } from "./checkin-broadcast.js";
 import { findRoomByToolConnection } from "./room-lookup.js";
-import { joinToolRoom, type JoinReply } from "./join-tool-room.js";
+import { joinToolRoom } from "./join-tool-room.js";
 import { TOOL_CHECKIN } from "./tool-id.js";
 import type { Logger } from "./log/logger.js";
 import { boundaryErrorCode } from "./connection-errors.js";
@@ -51,8 +51,7 @@ const CheckinConnectionMessageSchema = v.union([HubCommandSchema, CheckinCommand
 export interface CheckinHandlerDeps extends JoinRoomDeps, SaveRosterDeps {
   checkins: CheckinStore;
   broadcaster: CheckinBroadcaster;
-  /** 参加の返事（`room.joined`）はハブと同じ形で、この道具のフレームの型の外にある */
-  send: (connId: string, msg: CheckinServerMsg | JoinReply) => void;
+  send: (connId: string, msg: CheckinServerMsg) => void;
   random: Pick<RandomSource, "randomInt">;
   logger: Logger;
 }

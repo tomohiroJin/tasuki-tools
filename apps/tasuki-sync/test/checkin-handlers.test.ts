@@ -16,7 +16,6 @@ import { InMemoryCheckinStore } from "../src/adapters/in-memory-checkin-store.js
 import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
 import { FakeClock } from "../src/adapters/system-clock.js";
 import type { CheckinServerMsg } from "../src/ports/checkin-server-msg.js";
-import type { JoinReply } from "../src/application/join-tool-room.js";
 import { createLogger } from "../src/application/log/logger.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
 import { SpyBroadcaster } from "./support/spy-broadcaster.js";
@@ -26,7 +25,7 @@ const ROOM = "ROOM-A";
 
 interface Sent {
   connId: string;
-  msg: CheckinServerMsg | JoinReply;
+  msg: CheckinServerMsg;
 }
 
 function setup(randomInt: (n: number) => number = () => 0) {
@@ -34,7 +33,7 @@ function setup(randomInt: (n: number) => number = () => 0) {
   const checkins = new InMemoryCheckinStore();
   const sent: Sent[] = [];
   const logLines: string[] = [];
-  const record = (connId: string, msg: CheckinServerMsg | JoinReply): void => {
+  const record = (connId: string, msg: CheckinServerMsg): void => {
     sent.push({ connId, msg });
   };
   const broadcaster = makeCheckinBroadcaster({ store, checkins, send: record });
@@ -116,6 +115,10 @@ async function twoPlayers(): Promise<Harness> {
   return h;
 }
 
+/** やり方を選んで新しい回を始める（準備用） */
+const choose = (h: Harness, connId: string, method: string): Promise<void> =>
+  h.handle(connId, { command: "checkin.method.choose", method });
+
 const seqOf = (v: CheckinView): number => v.round!.seq;
 
 /**
@@ -141,7 +144,7 @@ describe("チェックインの接続でルームへ入る", () => {
     await h.handle("x", { command: "room.create", roomName: "新しい部屋", displayName: "Alice" });
     await h.handle("x", { command: "room.check", code: "NOPE" });
     await h.handle("h-1", { command: "checkin.reveal", seq: 1 });
-    await h.handle("nobody", { command: "checkin.method.choose", method: "weather" });
+    await choose(h, "nobody", "weather");
 
     expect(errorsTo(h, "x")).toEqual(["INVALID_COMMAND", "INVALID_COMMAND"]);
     expect(errorsTo(h, "h-1")).toEqual(["NOT_IN_ROOM"]);
@@ -153,7 +156,7 @@ describe("チェックインの接続でルームへ入る", () => {
 describe("受け手ごとの投影と自動公開", () => {
   it("a が出した後、b に届いたフレームに a の札が無く、a に届いたフレームの yourCard が a の札（E5）〈m505〉", async () => {
     const h = await twoPlayers();
-    await h.handle("a", { command: "checkin.method.choose", method: "weather" });
+    await choose(h, "a", "weather");
     h.sent.length = 0;
     const seq = 1;
 
@@ -170,7 +173,7 @@ describe("受け手ごとの投影と自動公開", () => {
   it("選択画面（ハブ）だけに居る c は札を出す人に数えない: a・b が出すと開く（判断 10）〈m506〉", async () => {
     const h = await twoPlayers();
     addHubOnly(h, "p-c", "Carol", "h-c");
-    await h.handle("a", { command: "checkin.method.choose", method: "weather" });
+    await choose(h, "a", "weather");
 
     await h.handle("a", { command: "checkin.card.play", seq: 1, card: "sunny" });
     expect(lastView(h, "a").round!.status).toBe("open");
@@ -182,7 +185,7 @@ describe("受け手ごとの投影と自動公開", () => {
 
   it("b がまだのまま切断 → rosterChanged で a だけが出していれば開き、a に開いたフレームが届く〈m507〉", async () => {
     const h = await twoPlayers();
-    await h.handle("a", { command: "checkin.method.choose", method: "weather" });
+    await choose(h, "a", "weather");
     await h.handle("a", { command: "checkin.card.play", seq: 1, card: "sunny" });
     expect(lastView(h, "a").round!.status).toBe("open");
     h.sent.length = 0;
@@ -211,7 +214,7 @@ describe("受け手ごとの投影と自動公開", () => {
 
   it("開く前に途中で参加した c は札を出す人に入り、a・b が出しても c が出すまで開かない", async () => {
     const h = await twoPlayers();
-    await h.handle("a", { command: "checkin.method.choose", method: "weather" });
+    await choose(h, "a", "weather");
     await joined(h, "c", "Carol");
 
     await h.handle("a", { command: "checkin.card.play", seq: 1, card: "sunny" });
@@ -225,7 +228,7 @@ describe("受け手ごとの投影と自動公開", () => {
   it("見学中の c が送った checkin.reveal で開く。見学中の c の checkin.card.play は CHECKIN_SPECTATING（判断 4）", async () => {
     const h = await twoPlayers();
     await joined(h, "c", "Carol");
-    await h.handle("a", { command: "checkin.method.choose", method: "weather" });
+    await choose(h, "a", "weather");
     await h.handle("c", { command: "checkin.spectator.set", spectator: true });
 
     await h.handle("c", { command: "checkin.card.play", seq: 1, card: "sunny" });
@@ -240,7 +243,7 @@ describe("受け手ごとの投影と自動公開", () => {
 
   it("古い seq の checkin.reveal は全員へは配らず、送り主にだけ 1 通", async () => {
     const h = await twoPlayers();
-    await h.handle("a", { command: "checkin.method.choose", method: "weather" });
+    await choose(h, "a", "weather");
     await h.handle("a", { command: "checkin.again", seq: 1 });
     expect(seqOf(lastView(h, "a"))).toBe(2);
     h.sent.length = 0;
@@ -255,7 +258,7 @@ describe("受け手ごとの投影と自動公開", () => {
 describe("匿名と公開の仕方の鍵", () => {
   it("匿名で開いた後に届いたすべてのフレームに、他人の ID と札の組が無い（E6）", async () => {
     const h = await twoPlayers();
-    await h.handle("a", { command: "checkin.method.choose", method: "energy" });
+    await choose(h, "a", "energy");
     await h.handle("a", { command: "checkin.card.play", seq: 1, card: "5" });
     await h.handle("b", { command: "checkin.card.play", seq: 1, card: "1" });
 
@@ -269,6 +272,7 @@ describe("匿名と公開の仕方の鍵", () => {
       const text = JSON.stringify(msg);
       expect(text).not.toContain('"names"');
       expect(text).not.toContain("yourCard");
+      expect(round.seats.every((x) => Object.keys(x).sort().join() === "id,name,played")).toBe(true);
       expect(round.piles.find((p) => p.card === "5")).toEqual({ card: "5", count: 1 });
       expect(round.piles.every((p) => Object.keys(p).sort().join() === "card,count")).toBe(true);
     }
@@ -276,7 +280,7 @@ describe("匿名と公開の仕方の鍵", () => {
 
   it("名前つきで開くと山に名前が載る", async () => {
     const h = await twoPlayers();
-    await h.handle("a", { command: "checkin.method.choose", method: "weather" });
+    await choose(h, "a", "weather");
     await h.handle("a", { command: "checkin.card.play", seq: 1, card: "sunny" });
     await h.handle("b", { command: "checkin.card.play", seq: 1, card: "rain" });
 
@@ -287,7 +291,7 @@ describe("匿名と公開の仕方の鍵", () => {
 
   it("開いた後の checkin.visibility.set は CHECKIN_VISIBILITY_LOCKED（E7）", async () => {
     const h = await twoPlayers();
-    await h.handle("a", { command: "checkin.method.choose", method: "weather" });
+    await choose(h, "a", "weather");
     await h.handle("a", { command: "checkin.card.play", seq: 1, card: "sunny" });
     await h.handle("b", { command: "checkin.card.play", seq: 1, card: "rain" });
     h.sent.length = 0;
@@ -323,7 +327,7 @@ describe("くじ・ログ", () => {
 
   it("一通り操作した後、偽のロガーの記録が空", async () => {
     const h = await twoPlayers();
-    await h.handle("a", { command: "checkin.method.choose", method: "weather" });
+    await choose(h, "a", "weather");
     await h.handle("a", { command: "checkin.card.play", seq: 1, card: "sunny" });
     await h.handle("b", { command: "checkin.card.play", seq: 1, card: "rain" });
     await h.handle("a", { command: "checkin.visibility.set", seq: 1, visibility: "anonymous" });
