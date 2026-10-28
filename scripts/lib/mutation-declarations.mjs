@@ -3335,7 +3335,9 @@ export const MUTATIONS = [
     patch: "m500-auto-reveal-counts-spectators.patch",
     pkg: "packages/checkin-core",
     tests: ["tests/checkin.test.ts"],
-    note: "#406 段 1。見学者は札を出せないので、見学者が混じると全員が出しても開かない（E9）。",
+    note:
+      "#406 段 1。見学者は札を出せないので、見学者が混じると全員が出しても開かない（E9）。" +
+      "隣の「players が全員見学なら…開かない」はこの変異では赤にならない（除外の後の 0 人の判定を守る試験）。",
   },
   {
     id: 501,
@@ -3370,5 +3372,15 @@ export const MUTATIONS = [
     pkg: "packages/checkin-core",
     tests: ["tests/schemas.test.ts"],
     note: "#406 段 1。v.strictObject を v.object に緩める。`docs/adr/0011` 決定 2 S3 の MUST に反する。",
+  },
+  {
+    id: 519,
+    label: "公開の仕方を変える操作で回の番号を見ない",
+    patch: "m519-stale-seq-sets-visibility.patch",
+    pkg: "packages/checkin-core",
+    tests: ["tests/checkin.test.ts"],
+    note:
+      "#406 段 1。古い回の「名前つきにする」が既定が匿名の新しい回に当たり、匿名のつもりで出す札が名前つきで開かれる（判断 5・8）。" +
+      "帯の予備を統括の判断で使った（匿名の保護に直結する）。",
   },
 ];

@@ -149,12 +149,20 @@ describe("setVisibility", () => {
     expect(setVisibility(r, { seq: 1, visibility: "anonymous" })._unsafeUnwrapErr().code).toBe("CHECKIN_VISIBILITY_LOCKED");
   });
 
-  it("古い seq は同じ参照〈m503〉", () => {
+  it("古い seq は同じ参照〈m519〉", () => {
     const s = chooseMethod(chooseMethod(empty, "weather"), "weather");
     expect(setVisibility(s, { seq: 1, visibility: "anonymous" })._unsafeUnwrap()).toBe(s);
   });
 
-  it("古い seq は、札のある回でも LOCKED より先に判定し ok で同じ参照〈m503〉", () => {
+  it("古い seq の「名前つきにする」は、既定が匿名で札の無い新しい回に当たらない〈m519〉", () => {
+    // 回 1 の切り替えが回 2 に届く。LOCKED も同一値判定も通り抜ける局面なので、seq の検査だけが止める
+    const s = chooseMethod(chooseMethod(empty, "weather"), "energy");
+    const t = setVisibility(s, { seq: 1, visibility: "named" })._unsafeUnwrap();
+    expect(t).toBe(s);
+    expect(roundOf(t).visibility).toBe("anonymous");
+  });
+
+  it("古い seq は、札のある回でも LOCKED より先に判定し ok で同じ参照〈m519〉", () => {
     const s = play(chooseMethod(chooseMethod(empty, "weather"), "weather"), a, "sunny");
     expect(setVisibility(s, { seq: 1, visibility: "anonymous" })._unsafeUnwrap()).toBe(s);
   });
@@ -275,7 +283,7 @@ describe("applyAutoReveal", () => {
     expect(roundOf(applyAutoReveal(s, [a, b, c])).status).toBe("revealed");
   });
 
-  it("players が全員見学なら、除いた後の 0 人で開かない（every の空集合の罠）〈m500〉", () => {
+  it("players が全員見学なら、除いた後の 0 人で開かない（every の空集合の罠。m500 では赤にならない、除外の後の 0 人の判定を守る試験）", () => {
     const s = setSpectator(room(), c, true);
     expect(applyAutoReveal(s, [c])).toBe(s);
   });
