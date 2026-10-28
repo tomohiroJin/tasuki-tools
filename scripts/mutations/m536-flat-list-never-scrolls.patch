@@ -1,0 +1,23 @@
+# 変異 536: flat-list-never-scrolls
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/step-list.test.tsx
+#
+# #455。回数 1 の一覧は行が何行でも枠を持たず、40 行が画面の縦に伸びて文字盤を押し下げる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m536-*.patch
+# 復元: git apply -R scripts/mutations/m536-*.patch
+diff --git a/apps/agenda-web/src/components/StepList.tsx b/apps/agenda-web/src/components/StepList.tsx
+index 3768509e..b50bbcf3 100644
+--- a/apps/agenda-web/src/components/StepList.tsx
++++ b/apps/agenda-web/src/components/StepList.tsx
+@@ -92,7 +92,7 @@ export function StepList({ view, canOperate, onSetSkipped }: Props) {
+   const rows = stepRows(view);
+   // 回数 2 以上、または回数 1 でも `FLAT_LIST_MAX_ROWS` を超えたら枠（スクロール・キーボード）を持つ。
+   // 見出しで区切るのは回数 2 以上で 1 回に 2 ステップ以上のときだけ（枠の有無から導かない）
+-  const scrolling = view.rounds >= 2 || rows.length > FLAT_LIST_MAX_ROWS;
++  const scrolling = view.rounds >= 2;
+   const flatRounds = isSingleStepRounds(view);
+   const grouped = view.rounds >= 2 && !flatRounds;
+   const nowId = rows.find((r) => r.status === 'now')?.id;

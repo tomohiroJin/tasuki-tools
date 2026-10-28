@@ -1,0 +1,23 @@
+# 変異 538: add-step-allows-one-over
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/scenario-draft.test.ts
+#
+# #455。ステップを足せる条件を 1 つずらし、定義の上限 40 を超えて 41 行目を足せる（送るとサーバーが拒む）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m538-*.patch
+# 復元: git apply -R scripts/mutations/m538-*.patch
+diff --git a/apps/agenda-web/src/scenario-draft.ts b/apps/agenda-web/src/scenario-draft.ts
+index 890573e4..cd71296a 100644
+--- a/apps/agenda-web/src/scenario-draft.ts
++++ b/apps/agenda-web/src/scenario-draft.ts
+@@ -188,7 +188,7 @@ export function previewView(d: Draft): AgendaView | null {
+ // 行の編集（新しい下書きを返す）
+ 
+ /** 足したあとの「ステップ × 回数」が上限を超えるなら足せない。回数が読めない・範囲外のときは 1 回として数える */
+-export const canAddStep = (d: Draft): boolean => d.steps.length < MAX_ITEMS && (d.steps.length + 1) * effectiveRounds(d) <= MAX_PLANNED_STEPS;
++export const canAddStep = (d: Draft): boolean => d.steps.length <= MAX_ITEMS && (d.steps.length + 1) * effectiveRounds(d) <= MAX_PLANNED_STEPS;
+ 
+ /** 数える回数。読めない・範囲外（`MIN_ROUNDS`〜`MAX_ROUNDS` の外）は別の理由の欄が示すので 1 回として数える */
+ const effectiveRounds = (d: Draft): number => {

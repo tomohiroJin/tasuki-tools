@@ -40,11 +40,29 @@ interface Props {
   /** 映す表示か（ルームの画面が持つ。映している間は見出しなど裏の部品も描かないため） */
   projecting: boolean;
   onProjectingChange: (projecting: boolean) => void;
+  /**
+   * 「開始」を押した本人がここへ来たのか（来たなら印を消して true）。最初の描画で 1 度だけ聞く。
+   * 位相が変わっただけの他の参加者の画面は動かさない（#455）
+   */
+  consumeStartArrival: () => boolean;
 }
 
-export function RunScreen({ view, wallNow, reducedMotion, striking, canOperate, actions, soundToggle, onSpeakSummary, projecting, onProjectingChange: setProjecting }: Props) {
+export function RunScreen({ view, wallNow, reducedMotion, striking, canOperate, actions, soundToggle, onSpeakSummary, projecting, onProjectingChange: setProjecting, consumeStartArrival }: Props) {
   const [returnFocus, setReturnFocus] = useState(false);
   const projectRef = useRef<HTMLButtonElement>(null);
+  const titleRef = useRef<HTMLParagraphElement>(null);
+
+  // 組む画面は長い会で縦に長く、押した位置のまま来ると盤が画面の外に残る。押した本人だけ、ページの先頭へ戻す（開き直したのと同じ位置）。
+  // 会の名前の行へ寄せると、狭い幅で下端に固定した操作の帯の下に「最初から」が隠れる（E2E の当たりの測りで実測）。
+  // 一度で戻す（`smooth` は動いている間に「次へ」・延長を押すと的が逃げる）。focus は盤の直前の会の名前の行へ移す（見出しの要素は進行表の `h2` しか無い）
+  useEffect(() => {
+    if (!consumeStartArrival()) return;
+    titleRef.current?.focus({ preventScroll: true });
+    window.scrollTo({ top: 0, behavior: 'auto' });
+    // 最初の描画の 1 度だけ。開始で RunScreen が新しく描かれる（組む画面から入れ替わる）ことに頼っている。開始の後に作り直す・別の画面へ分ける
+    // 変更をするときは、印を消費する場所をここと揃える（`AgendaRoom` の `consumeStartArrival`）
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const summaryHeadingId = useId();
 
   useEffect(() => {
@@ -78,7 +96,7 @@ export function RunScreen({ view, wallNow, reducedMotion, striking, canOperate, 
   return (
     <div className={finished ? 'run run--finished' : 'run'}>
       <div className="run-bar">
-        <p className="run-title">{view.title}</p>
+        <p ref={titleRef} tabIndex={-1} className="run-title">{view.title}</p>
         <div className="run-bar-actions">
           <button type="button" className="ui-button ui-button--quiet ui-button--sm ui-visually-hidden run-speak" onClick={onSpeakSummary}>
             {SPEAK_SUMMARY_BUTTON}

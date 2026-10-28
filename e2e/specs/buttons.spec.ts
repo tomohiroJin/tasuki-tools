@@ -306,6 +306,9 @@ test.describe('お題ツールのボタンは部品で、押せる大きさが�
 
     await loadSampleAndStart(page);
     await expect(page.locator('.dial-name')).toHaveText('K を出す');
+    //   進行中の画面は、狭い幅で操作の帯を下端に固定する。帯の下に隠れた操作（「最初から」）は、スクロールして届く位置で押す。
+    //   開始を押した本人の画面はページの先頭へ戻る（#455）ので、下端まで送ってから測る（それまでは組む画面の下端の位置のまま来ていた）
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
     await expectScreenAcrossWidths(page, '進行タイマー（進行中）', AGENDA_RUN_TARGETS);
     //   「読み上げ」のボタンはふだん隠し（`ui-visually-hidden`）、キーボードのフォーカスのときだけ見せる。上の測定は隠した箱を測らないので、
     //   ここでフォーカスを当てて別に測る（見える・44px 以上・中央を突けばそのボタンに当たる・押すと読み上げの領域に文が入る）

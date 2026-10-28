@@ -21,7 +21,7 @@ describe("ScenarioInputSchema の回数", () => {
     ["回数 1", sc(1, [step()])],
     ["回数 30", sc(30, [step({ durationSec: 60 })])],
     ["展開後 60 区切り（3 区切り × 20 回）", sc(20, min(3))],
-    ["展開後 180 分（1 区切り 6 分 × 30 回）", sc(30, [step({ durationSec: 360 })])],
+    ["展開後 720 分（1 区切り 24 分 × 30 回）", sc(30, [step({ durationSec: 1440 })])],
   ])("通る: %s", (_n, x) => {
     expect(ok(ScenarioInputSchema, x)).toBe(true);
   });
@@ -31,7 +31,7 @@ describe("ScenarioInputSchema の回数", () => {
     ["回数 1.5", sc(1.5, [step()])],
     ["回数が文字列", sc("2", [step()])],
     ["展開後 61 区切り以上（4 区切り × 16 回）（m454）", sc(16, min(4))],
-    ["展開後 181 分以上（7 分 × 26 回）（m453）", sc(26, [step({ durationSec: 420 })])],
+    ["展開後 721 分以上（25 分 × 29 回 ＝ 725 分）（m453）", sc(29, [step({ durationSec: 1500 })])],
   ])("拒む: %s", (_n, x) => {
     expect(ok(ScenarioInputSchema, x)).toBe(false);
   });
@@ -102,14 +102,15 @@ describe("AgendaCommandSchema", () => {
 });
 
 describe("ScenarioInputSchema", () => {
-  it("通る: 名前 40 字・会の名前が空・合計ちょうど 10800 秒", () => {
+  it("通る: 名前 40 字・会の名前が空・合計ちょうど 43200 秒・40 項目", () => {
     expect(ok(ScenarioInputSchema, scenario({ steps: [step({ name: "あ".repeat(40) })] }))).toBe(true);
     expect(ok(ScenarioInputSchema, scenario({ title: "" }))).toBe(true);
-    expect(ok(ScenarioInputSchema, scenario({ steps: [step({ durationSec: 7200 }), step({ durationSec: 3600 })] }))).toBe(true);
+    expect(ok(ScenarioInputSchema, scenario({ steps: Array.from({ length: 6 }, () => step({ durationSec: 7200 })) }))).toBe(true);
+    expect(ok(ScenarioInputSchema, scenario({ steps: Array.from({ length: 40 }, () => step({ durationSec: 60 })) }))).toBe(true);
   });
 
   it.each([
-    ["21 項目", scenario({ steps: Array.from({ length: 21 }, () => step({ durationSec: 60 })) })],
+    ["41 項目", scenario({ steps: Array.from({ length: 41 }, () => step({ durationSec: 60 })) })],
     ["0 項目", scenario({ steps: [] })],
     ["名前 41 字", scenario({ steps: [step({ name: "あ".repeat(41) })] })],
     ["名前が空白だけ", scenario({ steps: [step({ name: "  　".slice(0, 2) })] })],
@@ -123,7 +124,7 @@ describe("ScenarioInputSchema", () => {
     ["7260 秒", scenario({ steps: [step({ durationSec: 7260 })] })],
     ["90 秒", scenario({ steps: [step({ durationSec: 90 })] })],
     ["onTimeout が不正", scenario({ steps: [step({ onTimeout: "x" })] })],
-    ["合計 10860 秒", scenario({ steps: [step({ durationSec: 7200 }), step({ durationSec: 3660 })] })],
+    ["合計 43260 秒", scenario({ steps: [...Array.from({ length: 6 }, () => step({ durationSec: 7200 })), step({ durationSec: 60 })] })],
   ])("落ちる: %s", (_n, input) => {
     expect(ok(ScenarioInputSchema, input)).toBe(false);
   });

@@ -10,15 +10,15 @@
 #       git apply scripts/mutations/m462-*.patch
 # 復元: git apply -R scripts/mutations/m462-*.patch
 diff --git a/apps/agenda-web/src/components/StepList.tsx b/apps/agenda-web/src/components/StepList.tsx
-index 3b758242..6ffb7a4b 100644
+index 3768509e..4ee7192a 100644
 --- a/apps/agenda-web/src/components/StepList.tsx
 +++ b/apps/agenda-web/src/components/StepList.tsx
-@@ -90,7 +90,7 @@ export function StepList({ view, canOperate, onSetSkipped }: Props) {
-   // 回数 2 以上は枠（スクロール・キーボード）を持つ。見出しで区切るのは 1 回に 2 ステップ以上のときだけ
-   const scrolling = view.rounds >= 2;
+@@ -94,7 +94,7 @@ export function StepList({ view, canOperate, onSetSkipped }: Props) {
+   // 見出しで区切るのは回数 2 以上で 1 回に 2 ステップ以上のときだけ（枠の有無から導かない）
+   const scrolling = view.rounds >= 2 || rows.length > FLAT_LIST_MAX_ROWS;
    const flatRounds = isSingleStepRounds(view);
--  const grouped = scrolling && !flatRounds;
-+  const grouped = scrolling;
+-  const grouped = view.rounds >= 2 && !flatRounds;
++  const grouped = view.rounds >= 2;
    const nowId = rows.find((r) => r.status === 'now')?.id;
  
-   // 回数 2 以上の枠の中で、いまの行が見えるようにする。動かすのは枠の `scrollTop` だけ
+   // 枠の中で、いまの行が見えるようにする。動かすのは枠の `scrollTop` だけ
