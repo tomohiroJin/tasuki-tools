@@ -9,14 +9,15 @@
 #       git apply scripts/mutations/m501-*.patch
 # 復元: git apply -R scripts/mutations/m501-*.patch
 diff --git a/apps/poker-web/src/components/CardTable.tsx b/apps/poker-web/src/components/CardTable.tsx
-index 5b23f57..d9fe343 100644
+index c1d9ade..c260dc9 100644
 --- a/apps/poker-web/src/components/CardTable.tsx
 +++ b/apps/poker-web/src/components/CardTable.tsx
-@@ -84,7 +84,6 @@ export function CardTable({ table, participants, you, disabled, onExchange, onDe
+@@ -83,7 +83,7 @@ export function CardTable({ table, participants, you, disabled, onExchange, onDe
+   // 状態の鍵が変われば自然に解ける。「見積もりに戻る」が通ればテーブルごと消える
+   const stateKey = `${table.status}|${handKey}|${table.players.map((p) => Number(p.exchanged)).join('')}`;
    const [sentFor, setSentFor] = useState<string | null>(null);
-   const locked = disabled || sentFor === stateKey;
+-  const locked = disabled || sentFor === stateKey;
++  const locked = disabled;
    const once = (send: () => void) => () => {
--    if (sentFor === stateKey) return;
      setSentFor(stateKey);
      send();
-   };
