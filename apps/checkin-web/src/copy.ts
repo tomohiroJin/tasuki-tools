@@ -32,3 +32,30 @@ export const RETRY_EXHAUSTED_TEXT = '参加できません。時間をおいて�
 
 /** お題の枠の小見出し（やり方の側）。英字なので base 層の外に出ない */
 export const SIDE_KICKER = { checkin: 'CHECK-IN', checkout: 'CHECK-OUT' } as const;
+
+// ---- 卓の画面（#406 3.3） ----
+/** 札の左上の一語（道具の印） */
+export const CARD_MARK = '始終';
+export const SIDE_LABEL = { checkin: 'チェックイン', checkout: 'チェックアウト' } as const;
+export const METHOD_PICKER_HEADING = 'やり方を選んでください';
+export const RANDOM_LABEL = 'ランダム';
+export const BACK_LABEL = '戻る';
+export const CHANGE_METHOD = '別のやり方';
+export const VISIBILITY_GROUP_LABEL = '公開の仕方';
+export const VISIBILITY_LABEL = { named: '名前つき', anonymous: '匿名' } as const;
+export const SEATS_LABEL = '席';
+export const YOU_MARK = '（あなた）';
+export const SEAT_PLAYED_SR = '出しました';
+export const SEAT_WAITING_SR = 'まだです';
+export const HAND_GROUP_LABEL = 'あなたの札';
+export const SPECTATING_TEXT = '見学中です。札は出しません。';
+export const SPECTATE = '見学する';
+export const STOP_SPECTATING = '見学をやめる';
+export const REVEAL_NOW = '待たずに開く';
+export const PLAY_AGAIN = 'もう一回';
+export function playedCountText(played: number, total: number): string {
+  return `${played} / ${total} 人が出しました`;
+}
+export function spectatorCountText(count: number): string {
+  return `見学 ${count} 人`;
+}
