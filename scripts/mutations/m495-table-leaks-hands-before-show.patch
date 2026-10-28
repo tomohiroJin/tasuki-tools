@@ -1,23 +1,23 @@
 # 変異 495: table-leaks-hands-before-show
 #
 # 検出を期待するテスト:
-#   - packages/poker-core/tests/snapshot-table.test.ts（配られている間に他の人の手が届かない）
+#   - packages/poker-core/tests/snapshot-game.test.ts（チェンジの最中に他の人の手が届かない）
 #
-# #403 T-4。見せる前の手を全員へ載せる（配った瞬間に他人の札が手元の JS に届く）。
+# #403 G-3。開く前の手を全員へ載せる（配った瞬間に他人の札が手元の JS に届く）。
 #
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m495-*.patch
 # 復元: git apply -R scripts/mutations/m495-*.patch
 diff --git a/packages/poker-core/src/snapshot.ts b/packages/poker-core/src/snapshot.ts
-index 4159072..dcd019d 100644
+index 0865869..5b49432 100644
 --- a/packages/poker-core/src/snapshot.ts
 +++ b/packages/poker-core/src/snapshot.ts
-@@ -95,7 +95,7 @@ export function createSnapshotBuilder(
-  * 見せたあとは全員の手・役・いちばん強い手の持ち主（同点なら全員）を載せる。
+@@ -96,7 +96,7 @@ export function createSnapshotBuilder(
   */
- function sharedTableView(table: CardTable): Omit<TableView, 'yourHand'> {
--  if (table.status !== 'shown') return { status: table.status, seats: [...table.seats], hands: [], winners: [] };
-+  if (table.status === 'idle') return { status: table.status, seats: [...table.seats], hands: [], winners: [] };
-   const hands = [...table.hands.entries()].map(([participantId, cards]) => ({
-     participantId,
-     cards: [...cards],
+ function sharedTableView(game: CardGame): Omit<TableView, 'yourHand'> {
+   const players = game.players.map((participantId) => ({ participantId, exchanged: game.exchanged.has(participantId) }));
+-  if (game.status !== 'shown') return { status: game.status, players, hands: [] };
++  if (game.status === 'exchanging' && game.players.length === 0) return { status: game.status, players, hands: [] };
+   return {
+     status: 'shown',
+     players,
