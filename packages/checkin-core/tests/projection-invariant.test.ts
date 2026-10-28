@@ -136,7 +136,8 @@ const checkState = (s: CheckinState, label: string): void => {
 };
 
 describe("性質: 受け手 X の投影に他人の (ID, 札) の結びつきが現れない", () => {
-  it("500 通りの操作列の各手順の後で検査する", () => {
+  // 単独では 0.5 秒だが、全パッケージの試験を並べて流すと 10 倍遅くなり既定の 5 秒を超える。時間の上限だけを緩める
+  it("500 通りの操作列の各手順の後で検査し、値が分かれる局面に十分届く（到達の下限）", () => {
     for (let seed = 1; seed <= 500; seed++) {
       const rnd = lcg(seed);
       let s: CheckinState = empty;
@@ -146,13 +147,9 @@ describe("性質: 受け手 X の投影に他人の (ID, 札) の結びつきが
         checkState(s, `seed ${seed} step ${i}`);
       }
     }
-    // 単独では 0.5 秒だが、全パッケージの試験を並べて流すと 10 倍遅くなり既定の 5 秒を超える。時間の上限だけを緩める
-  }, 60_000);
-
-  it("値が分かれる局面に十分届いている（到達の下限）", () => {
-    // 上のテストと同じ生成で、局面ごとの検査回数が下限を超えていること
+    // 同じ it の中で集計を読む（別の it の副作用に頼らないので、単独で流しても壊れない）
     expect(reach.anonRevealedMulti).toBeGreaterThanOrEqual(100);
     expect(reach.namedRevealedMulti).toBeGreaterThanOrEqual(100);
     expect(reach.openMulti).toBeGreaterThanOrEqual(100);
-  });
+  }, 60_000);
 });
