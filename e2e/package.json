@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@tasuki/agenda-web": "workspace:*",
+    "@tasuki/checkin-web": "workspace:*",
     "@tasuki/landing": "workspace:*",
     "@tasuki/poker-web": "workspace:*",
     "@tasuki/roulette-web": "workspace:*",

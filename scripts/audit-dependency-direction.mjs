@@ -231,7 +231,7 @@ export const ALLOWED = {
     "@tasuki/timer-core",
     "@tasuki/topic-core",
   ],
-  e2e: ["@tasuki/agenda-web", "@tasuki/landing", "@tasuki/poker-web", "@tasuki/roulette-web", "@tasuki/timer-web", "@tasuki/topic-web"],
+  e2e: ["@tasuki/agenda-web", "@tasuki/checkin-web", "@tasuki/landing", "@tasuki/poker-web", "@tasuki/roulette-web", "@tasuki/timer-web", "@tasuki/topic-web"],
 };
 
 /**

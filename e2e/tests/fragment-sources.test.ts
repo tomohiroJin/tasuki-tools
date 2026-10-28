@@ -41,20 +41,21 @@ describe('FRAGMENT_SOURCES とディスク上の断片の一致', () => {
   const onDisk = fragmentsOnDisk();
   const declared = [...FRAGMENT_SOURCES];
 
-  it('Given deploy 配下 / When *.conf を走査する / Then 7 本ある（0 件で素通りしないことの固定）', () => {
+  it('Given deploy 配下 / When *.conf を走査する / Then 8 本ある（0 件で素通りしないことの固定）', () => {
     // Given / When: fragmentsOnDisk() が deploy/<app>/caddy を正しく辿れている
     // Then: 0 件だと以降の比較が常に成立してしまう（実際にこの穴を踏んだ）。
     // #95 S5c で 10-timer-ws.conf を撤去し、5 本 → 4 本になった（WS の入口が /ws の 1 本に畳まれたため）。
     // #91 PR 2 で 40-topic.conf が加わり、4 本 → 5 本になった。
     // #94 PR 2 で 50-roulette.conf が加わり、5 本 → 6 本になった。
     // #429 で 60-agenda.conf が加わり、6 本 → 7 本になった。
-    expect(onDisk).toHaveLength(7);
+    // #406 で 70-checkin.conf が加わり、7 本 → 8 本になった。
+    expect(onDisk).toHaveLength(8);
   });
 
-  it('Given FRAGMENT_SOURCES / When 本数を見る / Then 7 本ある', () => {
+  it('Given FRAGMENT_SOURCES / When 本数を見る / Then 8 本ある', () => {
     // Given / When
     // Then: 手書きの配列自体が空・欠落していないこと（#95 S5c で 5 本 → 4 本・#91 PR 2 で 4 本 → 5 本・#94 PR 2 で 5 本 → 6 本）
-    expect(declared).toHaveLength(7);
+    expect(declared).toHaveLength(8);
   });
 
   it('Given FRAGMENT_SOURCES とディスクの一覧 / When 集合として比べる / Then 完全一致する', () => {

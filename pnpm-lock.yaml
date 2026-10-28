@@ -565,6 +565,9 @@ importers:
       '@tasuki/agenda-web':
         specifier: workspace:*
         version: link:../apps/agenda-web
+      '@tasuki/checkin-web':
+        specifier: workspace:*
+        version: link:../apps/checkin-web
       '@tasuki/landing':
         specifier: workspace:*
         version: link:../apps/landing
