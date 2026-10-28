@@ -33,7 +33,7 @@ S2〜S4a では poker 側の入れ子（src/poker 配下。**S4b で畳みまし
 | 層 | 置き場 | 依存してよいもの |
 |---|---|---|
 | ドメイン（メンバーシップ文脈） | `packages/room-core` | なし（純粋関数と型のみ） |
-| ドメイン（ツール） | `packages/timer-core` `packages/poker-core` `packages/topic-core` `packages/roulette-core` `packages/agenda-core` | なし（純粋関数と型のみ。例外として `packages/poker-core` だけが境界のパースのため `packages/protocol` に依存する）。**#95 S1 で生じた `packages/timer-core` → `packages/room-core` の期限つき一時依存は S4b（#246）で解消した** —— 表示名の規約は `room-core` に残し、境界で適用する場所を `apps/tasuki-sync/src/application/normalize-command-names.ts` へ移した（`docs/adr/0017` の追記 2026-09-11）。`scripts/audit-dependency-direction.mjs` の許可表からも行が消えている |
+| ドメイン（ツール） | `packages/timer-core` `packages/poker-core` `packages/topic-core` `packages/roulette-core` `packages/agenda-core` `packages/checkin-core` | なし（純粋関数と型のみ。例外として `packages/poker-core` だけが境界のパースのため `packages/protocol` に依存する）。**#95 S1 で生じた `packages/timer-core` → `packages/room-core` の期限つき一時依存は S4b（#246）で解消した** —— 表示名の規約は `room-core` に残し、境界で適用する場所を `apps/tasuki-sync/src/application/normalize-command-names.ts` へ移した（`docs/adr/0017` の追記 2026-09-11）。`scripts/audit-dependency-direction.mjs` の許可表からも行が消えている |
 | プロトコル契約 | `packages/protocol`・各 core の `protocol.ts`（例: `packages/poker-core/src/protocol.ts`） | `packages/protocol` はなし（`@tasuki/*` に依存しない。境界のパースはコードも文言も決め打ちしない）。各 core の `protocol.ts` はその core の型 |
 | 共有ユーティリティ（sync 専用） | `packages/rate-limit` | なし（node 標準ライブラリのみ。ドメインの型にも依存しない） |
 | アプリケーション | `apps/*-sync/src/application` | ドメイン・プロトコル契約・ポート・`packages/rate-limit` |
@@ -93,7 +93,7 @@ WS の置き場と、URL・接続状態の写しは `scripts/audit-web-sync-boun
    乱数生成などの副作用はすべてアダプタ（`apps/*-sync/src/adapters`）に置き、
    ポートの型で上位層へ注入します。
 2. **複数アプリで使う純粋ロジックか？ → core。ただし ADR 0007 の抽出基準を
-   先に確認。** `packages/timer-core` / `packages/poker-core` / `packages/topic-core` / `packages/roulette-core` / `packages/agenda-core` に
+   先に確認。** `packages/timer-core` / `packages/poker-core` / `packages/topic-core` / `packages/roulette-core` / `packages/agenda-core` / `packages/checkin-core` に
    置けるのは純粋関数・型のみです。抽出してよいかどうかは
    [`docs/adr/0007`](../adr/0007-abstraction-criteria.md)（抽象化の基準。
    憲法 原則 X「抽象は実需で」）を先に確認します。呼び出し箇所が 1 つしか
@@ -131,10 +131,11 @@ WS の置き場と、URL・接続状態の写しは `scripts/audit-web-sync-boun
 | ~~見学者~~ | **[#95](https://github.com/tomohiroJin/tasuki-tools/issues/95) S3（[#244](https://github.com/tomohiroJin/tasuki-tools/issues/244)・2026-09-08）で廃止した用語。** かつては役割 `viewer` を指し、閲覧はできるが操作を制限された参加者を意味した。役割ごと撤去したので、**制限という区別は存在しない**。生きている「見学」とは 1 文字違いだが、あちらは**ローテーションの層**、こちらは**廃止した役割の層**であり、まったくの別物である。実際に S3 の作業中、実画面の検証が両者を混同して偽の失敗を出した。旧い文書・コミット・Issue でどちらの意味かを取り違えないために、行を消さずに残す |
 | ラウンド（poker） | poker において、1 テーマに対する 1 回の投票 |
 | 公開（reveal） | poker において、伏せていた各参加者の見積り値を開示すること |
-| 接続層のエラー | timer の系統（timer・玄関・お題・ルーレット・進行タイマー）が、ツールのコマンドに入る前の接続の段で返すエラー（`INVALID_JSON`・`INVALID_COMMAND`・`MESSAGE_TOO_LARGE`・`INTERNAL_ERROR`）。文言の正本は `apps/tasuki-sync/src/application/connection-errors.ts` で、各 core の写しはテストで一致を固定する（#362）。poker のエラーコード（ケバブ記法）は別の契約である |
+| 接続層のエラー | timer の系統（timer・玄関・お題・ルーレット・進行タイマー・チェックイン）が、ツールのコマンドに入る前の接続の段で返すエラー（`INVALID_JSON`・`INVALID_COMMAND`・`MESSAGE_TOO_LARGE`・`INTERNAL_ERROR`）。文言の正本は `apps/tasuki-sync/src/application/connection-errors.ts` で、各 core の写しはテストで一致を固定する（#362）。poker のエラーコード（ケバブ記法）は別の契約である |
 | お題 | **ルームの持ち物としてのお題**（`packages/topic-core` の `Topic` 型。タイトル＋本文）。[#91](https://github.com/tomohiroJin/tasuki-tools/issues/91) で 4 つ目の文脈になった（[`docs/adr/0021`](../adr/0021-topic-as-shared-context.md)）。玄関の 3 枚目の札（お題ツール・`apps/topic-web`、公開パス `/topic/`）で作り（手入力・定型バンク・AI 生成）、`topic` フレームでルームの全接続へ配る。玄関はタイトルを 1 行、timer・poker はタイトルと本文を**読んで表示するだけ**で、お題を変えられるのはお題ツールの接続だけである。本文は Markdown として描き、解析は `packages/markdown`、描画は `@tasuki/web-kit/reader` の `Markdown` が持つ（#371）。timer の完成記録には、完了した時点のお題のタイトルだけを写す（`topicTitle`・お題なしなら `null`）。**かつての timer 独自の概念**（`packages/timer-core` の `Problem` 型。TDD の練習課題）は #91 PR 3 で撤去し、このお題へ統合した。旧い文書・コミットに出てくる `problem` はこちらを指す。**poker の提案**: 見積もり結果をお題へ反映する案は [#93](https://github.com/tomohiroJin/tasuki-tools/issues/93) で扱う（未実装） |
 | 進行役ルーレット | **ルームの入る人から次の進行役を 1 人引くツール**（`packages/roulette-core`）。入る人（`poolOf`・在室者＋足したゲスト）・一周の規則（`drawWinner`・#427 で撤回。いまは入る人から一様に引く）・回転（`startSpin`）は純粋関数で、当たりと止まる位置はサーバーが引き、全画面に同じ値を配る。円盤の角度・指し針・札のめくりは `apps/roulette-web` が持つ（[ADR-0026](../adr/0026-facilitator-roulette.md)） |
 | 進行タイマー | **会の進行表（名前と長さを持つステップの並び）を全員で同じ盤に映して順に計るツール**（`packages/agenda-core`・接続の種類 `?tool=agenda`・公開パス `/agenda/`）。定義（シナリオ・`ScenarioInput`）と展開済みの並び（`PlannedStep[]`・`expand`）を分け、進行の遷移（開始・次へ・一時停止・延長・飛ばす・最初から）は純粋関数で、操作はステップの ID で指す。**押し巻き**は実時間の経過と予定の差（一時停止中も増える）。「自動で次へ」の判断と期限の予約はサーバーが単調時計で持ち、画面へは送る時点で計った経過を配る。懐中時計の盤・映す表示・端末の保存は `apps/agenda-web` が持つ（[ADR-0027](../adr/0027-agenda-timer.md)） |
+| チェックイン・チェックアウト | **会の始まりと終わりに、全員が絞り込んだ札から 1 枚を伏せて出し、一斉に開くツール**（`packages/checkin-core`・接続の種類 `?tool=checkin`・公開パス `/checkin/`）。**匿名はサーバーが送らないことで守る**: 写し（`toView`）は受け手ごとに作り、開く前は他人の札の中身を、匿名で開いた後は誰がどの山かを載せない。操作は回の番号 `seq` で指し、違う回の操作は何もしない。「全員」はこの道具に在席し見学でない人で、名簿の変化は `hub.broadcastRoster` の口で受けて測り直す。見学者はこの道具が自前で持つ。やり方の札の絵・開く動きは `apps/checkin-web` が持つ（[ADR-0028](../adr/0028-checkin-cards.md)） |
 
 ## 一般的な方法論との対応
 
