@@ -6,13 +6,14 @@
  * 席の伏せ札はここに無く、裏返さない（匿名で席と札が結びついて見えるのを防ぐ）。名前つきも匿名も同じ動き。
  * 動きを減らす設定では、遅れも動きのクラスも付けず、開いた形をすぐ出す（E12）。
  */
-import { METHODS, type MethodId, type PileView } from '@tasuki/checkin-core';
+import type { MethodId, PileView } from '@tasuki/checkin-core';
 import type { CSSProperties } from 'react';
 import { PILE_UNIT_SR, REVEAL_LABEL } from '../copy';
 import { usePrefersReducedMotion } from '../hooks/use-reduced-motion';
 import { METHOD_COPY } from '../method-copy';
 import {
   NUMERIC_METHODS,
+  orderedPiles,
   REVEAL_DEAL_MS,
   REVEAL_FADE_MS,
   REVEAL_TURN_MS,
@@ -30,7 +31,7 @@ interface Props {
 export function RevealBoard({ method, piles }: Props) {
   const reduced = usePrefersReducedMotion();
   // 山は「やり方の札の順」。サーバーの順に頼らず、札の定義の順に並べ直す
-  const ordered = METHODS[method].cards.map((card) => piles.find((p) => p.card === card) ?? { card, count: 0 });
+  const ordered = orderedPiles(method, piles);
   const total = ordered.reduce((n, p) => n + p.count, 0);
   const schedule = revealSchedule(total, reduced);
   const top = topCards(ordered);

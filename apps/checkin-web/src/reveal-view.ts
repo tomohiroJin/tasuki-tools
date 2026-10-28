@@ -5,7 +5,7 @@
  * - `summaryLine`: 山の下の 1 行の要約
  * - `revealSchedule`: 山の札が裏返る遅れ。**動きを減らす設定では全部 0**（E12）
  */
-import type { CardId, MethodId, PileView } from '@tasuki/checkin-core';
+import { METHODS, type CardId, type MethodId, type PileView } from '@tasuki/checkin-core';
 import { METHOD_COPY } from './method-copy';
 
 /** 山の札が 1 枚ずつ裏返る間隔 */
@@ -23,6 +23,11 @@ export const REVEAL_FADE_MS = 400;
 
 /** 札の数字が人数の大きな数字と紛らわしい、数のやり方（山の下に札の意味を添える） */
 export const NUMERIC_METHODS: ReadonlySet<MethodId> = new Set<MethodId>(['energy', 'focus', 'roti']);
+
+/** 山を「やり方の札の順」に並べ直す（サーバーの順に頼らない）。無い札は 0 枚の山で埋める */
+export function orderedPiles(method: MethodId, piles: readonly PileView[]): PileView[] {
+  return METHODS[method].cards.map((card) => piles.find((p) => p.card === card) ?? { card, count: 0 });
+}
 
 /** 枚数が最大（1 以上）の札を全部。全部 0 なら空 */
 export function topCards(piles: readonly PileView[]): ReadonlySet<CardId> {

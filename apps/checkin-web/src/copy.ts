@@ -45,6 +45,8 @@ export const BACK_LABEL = '戻る';
 export const CHANGE_METHOD = '別のやり方';
 export const VISIBILITY_GROUP_LABEL = '公開の仕方';
 export const VISIBILITY_LABEL = { named: '名前つき', anonymous: '匿名' } as const;
+/** 公開の仕方が押せないときの理由（サーバーの CHECKIN_VISIBILITY_LOCKED の文と同じ） */
+export const VISIBILITY_LOCKED_NOTE = '札が出たあとは公開の仕方を変えられません';
 export const SEATS_LABEL = '席';
 export const YOU_MARK = '（あなた）';
 export const SEAT_PLAYED_SR = '出しました';

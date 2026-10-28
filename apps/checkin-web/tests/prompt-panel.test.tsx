@@ -10,6 +10,7 @@ function panel(over: Partial<React.ComponentProps<typeof PromptPanel>> = {}) {
     method: 'weather' as const,
     visibility: 'named' as const,
     locked: false,
+    canOperate: true,
     onSetVisibility: vi.fn(),
     onChangeMethod: vi.fn(),
     ...over,

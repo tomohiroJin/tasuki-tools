@@ -153,7 +153,8 @@ describe('卓に組んだ開いた後', () => {
     const four = document.querySelectorAll('.pile')[3]!;
     expect(four.querySelector('.pile-name')?.textContent).toBe('4');
     expect(four.querySelector('.pile-meaning')?.textContent).toBe('得るものが多かった');
-    expect(screen.getByText('いちばん多いのは 4')).toBeInTheDocument();
+    // 要約は板の下の 1 行（読み上げの領域にも同じ文が流れるので、板の中で探す）
+    expect(document.querySelector('.reveal-summary')).toHaveTextContent('いちばん多いのは 4');
     // 札の顔に数字が出ているので、山の下の名前（数字）は読み上げだけに隠す。0 枚の山は数字と意味を 1 行に出す
     expect(four.querySelector('.pile-name')?.classList.contains('ui-visually-hidden')).toBe(true);
     const empty = document.querySelectorAll('.pile')[0]!;

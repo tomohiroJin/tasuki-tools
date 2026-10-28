@@ -211,6 +211,13 @@
   gap: var(--space-2);
 }
 
+/* 公開の仕方が押せない理由（切り替えの aria-describedby に結ぶ） */
+.prompt-locked-note {
+  margin: 0;
+  color: var(--ivory-dim);
+  font-size: var(--font-size-xs);
+}
+
 .prompt-question {
   margin: 0;
   font-size: var(--font-size-xl);
