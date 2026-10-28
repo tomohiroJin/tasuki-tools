@@ -284,9 +284,23 @@ src/
   OFL 全文は `src/fonts/LICENSE-*.txt` に同梱してある
 - Fraunces は実使用が `font-weight: 600` のみなのでウェイトを固定した。
   `opsz 9–80` は残す（9.6px のコーナーピップと 80px のワードマークで字形を変えるため）
-- **base 層はアプリの表示文字から自動抽出している。** UI 文言を足すと、
-  その文字が base 層に無ければ黙って ext 層（+約 210 KB）を引く。
-  資材の作り直しは `#78` の作業メモにある `build-fonts.py` を使う
+- **base 層に無い字を画面に出すと、黙って ext 層（+約 210 KB）を引く。** 文言は先に
+  `tests/support/font-base.ts` の `outsideBase` で測る
+- **base 層の作り直し**は `scripts/fonts/build-base-fonts.py`（運用者が手で流す・CI では流さない）。
+  字の集合 = いまの base 層の cmap ∪ `--add-chars`。いまの字は 1 字も落とさず（最後に
+  古い cmap ⊆ 新しい cmap を確かめて、崩れていたら失敗で終わる）、`fonts.css` の base 3 面の
+  `unicode-range` も新しい cmap から生成する。ext 層は作り直さない。
+
+  ```bash
+  pip install fonttools brotli
+  python3 scripts/fonts/build-base-fonts.py --add-chars '足したい文言' \
+    --cache-dir .superpowers/sdd/<作業名>/tmp/ttf   # 元の ttf はここへ取得（リポジトリには入れない）
+  ```
+
+  元の書体は Google Fonts（`github.com/google/fonts` の `ofl/zenkakugothicnew/` の
+  Regular / Medium / Bold）の**コミット `ba225958c40ae6268a256861d80355a84b26e535`**
+  （スクリプトの `REV` が既定値）。サブセットは `pyftsubset` の既定に揃える
+  （woff2・`layout_features='*'`・ヒント無し）。
 
 ## トークン
 
