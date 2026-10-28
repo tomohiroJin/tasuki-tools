@@ -56,6 +56,13 @@ const unusedIdGen: IdGen = {
   },
 };
 
+/** テーブルの山を切る乱数（#403）。このテストでは配らない */
+const unusedRandom = {
+  randomInt: (): number => {
+    throw new Error('randomInt は呼ばれない');
+  },
+};
+
 const alwaysAllowLimiter: RateLimiter = {
   shouldReject: () => false,
   consume: () => undefined,
@@ -80,6 +87,7 @@ function setup(data: Partial<HandlerConnection['data']> = {}, store = new InMemo
     clock: { now: () => 0 },
     wallClock: { now: () => 0 },
     rateLimiter: alwaysAllowLimiter,
+    random: unusedRandom,
     maxRooms: 50,
     // お題の配信はこのテストの対象外。
     topicBroadcaster: { sendCurrent: () => {} },

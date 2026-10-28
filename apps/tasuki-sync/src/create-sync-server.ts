@@ -331,6 +331,8 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     clock: pokerClock,
     wallClock: clock,
     rateLimiter,
+    // 隠しモードのテーブルの山を切る（#403）。timer のシャッフル・ルーレットと同じ乱数源
+    random,
     maxRooms: config.maxRooms,
     // お題の状態を参加した本人へ 1 通送る（#91・E4）。配信先はルームの全接続。
     topicBroadcaster,

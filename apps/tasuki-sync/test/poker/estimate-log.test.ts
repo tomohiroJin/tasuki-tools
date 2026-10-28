@@ -60,6 +60,12 @@ function setupRoom(names: string[], { recording = true }: { recording?: boolean 
     clock: { now: () => 0 },
     wallClock: { now: () => FAKE_NOW },
     rateLimiter: allowLimiter,
+    // テーブルの山を切る乱数（#403）。このテストでは配らない
+    random: {
+      randomInt: () => {
+        throw new Error('randomInt は呼ばれない');
+      },
+    },
     maxRooms: 50,
     topicBroadcaster: { sendCurrent: () => {} },
     // このテストでは人を外さない（#419）

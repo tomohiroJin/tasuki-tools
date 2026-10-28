@@ -12,6 +12,7 @@
 import {
   applyAutoReveal,
   castVote,
+  dealHands,
   messageForRoundError,
   nextItem,
   revealBy,
@@ -20,10 +21,13 @@ import {
   setItem,
   setPoints,
   setRecording,
+  setSeated,
   setSpectator,
+  showHands,
 } from '@tasuki/poker-core';
 import type {
   ClientMessage,
+  RandomInt,
   ErrorCode,
   ParticipantFragment,
   Round,
@@ -141,6 +145,8 @@ export interface DispatchDeps {
   ) => Result<void, 'participant-not-found' | 'not-removable'>;
   /** 開票の時刻（壁時計）。`reveal` が記録の `at` に使う */
   now: () => number;
+  /** テーブルの山を切る乱数（#403）。本番は `RandomSource#randomInt`（`node:crypto`） */
+  randomInt: RandomInt;
 }
 
 /**
@@ -159,6 +165,7 @@ export function createDispatch({
   loadState,
   removeFromRoom,
   now,
+  randomInt,
 }: DispatchDeps): (ws: HandlerConnection, msg: ClientMessage) => void {
   return function dispatch(ws, msg) {
     switch (msg.type) {
@@ -205,6 +212,16 @@ export function createDispatch({
         commitRoomAction(ws, (round, participantId) =>
           ok(setSpectator(round, participantId, msg.spectator)),
         );
+        return;
+      // 隠しモードのテーブル（#403）。見積もりの状態には触れない（T-12）。名簿の検査と配信は共有する
+      case 'table-seat':
+        commitRoomAction(ws, (round, participantId) => setSeated(round, participantId, msg.seated));
+        return;
+      case 'table-deal':
+        commitRoomAction(ws, (round, participantId) => dealHands(round, participantId, randomInt));
+        return;
+      case 'table-show':
+        commitRoomAction(ws, showHands);
         return;
       case 'remove-participant': {
         // 参加済みで名簿に居る人だけが外せる（G-9 と同じ検査）。

@@ -77,6 +77,7 @@ import type { TokenStore } from './token-store.js';
 import type { PokerBroadcaster, RoomSocket } from '../ports/poker-broadcaster.js';
 import type { IdGen } from '../ports/poker-id-gen.js';
 import type { MonotonicClock } from '../ports/monotonic-clock.js';
+import type { RandomSource } from '../ports/random-source.js';
 import type { RoundStore } from '../ports/poker-round-store.js';
 import { TOOL_POKER } from './tool-id.js';
 import { createCommitRoomAction, createDispatch } from './poker-commit-room-action.js';
@@ -137,6 +138,8 @@ export interface PokerHandlerDeps extends TimerSeatBroadcastDeps {
    */
   wallClock: WallClock;
   rateLimiter: RateLimiter;
+  /** 隠しモードのテーブルの山を切る乱数（#403）。timer のシャッフル・ルーレットと同じもの */
+  random: Pick<RandomSource, 'randomInt'>;
   maxRooms: number;
   /**
    * いまのお題を参加・復帰した本人へ 1 通送る（#91・E4）。
@@ -204,6 +207,7 @@ export function makePokerHandlers(deps: PokerHandlerDeps): PokerHandlers {
     clock,
     wallClock,
     rateLimiter,
+    random,
     maxRooms,
     topicBroadcaster,
     removeFromRoom,
@@ -686,6 +690,7 @@ export function makePokerHandlers(deps: PokerHandlerDeps): PokerHandlers {
     loadState,
     removeFromRoom,
     now: () => wallClock.now(),
+    randomInt: (n) => random.randomInt(n),
   });
 
   return {

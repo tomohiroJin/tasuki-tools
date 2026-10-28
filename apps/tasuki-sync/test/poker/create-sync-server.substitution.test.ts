@@ -102,6 +102,13 @@ function fixedClock(n: number): MonotonicClock {
 }
 
 /** 常に許可するレート制限。レート制限そのものを検証したいテスト以外で使う */
+/** テーブルの山を切る乱数（#403）。このテストでは配らない */
+const unusedRandom = {
+  randomInt: (): number => {
+    throw new Error('randomInt は呼ばれない');
+  },
+};
+
 function alwaysAllowLimiter(): RateLimiter {
   return {
     shouldReject: () => false,
@@ -142,6 +149,7 @@ describe('IdGen の差し替え（衝突再試行）', () => {
       clock: fixedClock(0),
       wallClock: fixedClock(0),
       rateLimiter: alwaysAllowLimiter(),
+      random: unusedRandom,
       maxRooms: 50,
       // お題の配信はこのテストの対象外。
       topicBroadcaster: { sendCurrent: () => {} },
@@ -182,6 +190,7 @@ describe('IdGen の差し替え（衝突再試行）', () => {
       clock: fixedClock(0),
       wallClock: fixedClock(0),
       rateLimiter: alwaysAllowLimiter(),
+      random: unusedRandom,
       maxRooms: 50,
       topicBroadcaster: { sendCurrent: () => {} },
       // このテストでは人を外さない（#419）
@@ -241,6 +250,7 @@ describe('MonotonicClock の差し替え（レート制限の窓の境界）', (
       clock,
       wallClock: fixedClock(0),
       rateLimiter,
+      random: unusedRandom,
       maxRooms: 50,
       // お題の配信はこのテストの対象外。
       topicBroadcaster: { sendCurrent: () => {} },
@@ -345,6 +355,7 @@ describe('RoomStore の差し替え（上限判定を実ルームなしで再現
       clock: fixedClock(0),
       wallClock: fixedClock(0),
       rateLimiter: alwaysAllowLimiter(),
+      random: unusedRandom,
       maxRooms: 3,
       // お題の配信はこのテストの対象外。
       topicBroadcaster: { sendCurrent: () => {} },
@@ -426,6 +437,7 @@ describe('RoomStore の差し替え（判定順序: 上限判定は切り離し�
       clock: fixedClock(0),
       wallClock: fixedClock(0),
       rateLimiter: alwaysAllowLimiter(),
+      random: unusedRandom,
       maxRooms: 1,
       // お題の配信はこのテストの対象外。
       topicBroadcaster: { sendCurrent: () => {} },
@@ -496,6 +508,7 @@ describe('RoomSocket の差し替え（配信の宛先と回数）', () => {
       clock: fixedClock(0),
       wallClock: fixedClock(0),
       rateLimiter: alwaysAllowLimiter(),
+      random: unusedRandom,
       maxRooms: 50,
       // お題の配信はこのテストの対象外。
       topicBroadcaster: { sendCurrent: () => {} },
@@ -559,6 +572,7 @@ describe('配線の穴 1: handleCreateRoom の resetRoom 呼び出し', () => {
       clock: fixedClock(0),
       wallClock: fixedClock(0),
       rateLimiter: alwaysAllowLimiter(),
+      random: unusedRandom,
       maxRooms: 50,
       // お題の配信はこのテストの対象外。
       topicBroadcaster: { sendCurrent: () => {} },
@@ -628,6 +642,7 @@ describe('配線の穴 2: detachFromCurrentRoom の早期 return での detach �
       clock: fixedClock(0),
       wallClock: fixedClock(0),
       rateLimiter: alwaysAllowLimiter(),
+      random: unusedRandom,
       maxRooms: 50,
       // お題の配信はこのテストの対象外。
       topicBroadcaster: { sendCurrent: () => {} },
