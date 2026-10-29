@@ -3,7 +3,7 @@
 # 検出を期待するテスト:
 #   - packages/roulette-core/tests/roulette-guest-batch.test.ts
 #
-# #458。`addGuests` が上限を足す前の件数（`state.guests.length`）で比べ、束の途中で増えたゲスト数を見ない。ゲスト 20 人に 8 人を渡すと 28 人入る。
+# #458。設計 §8。`addGuests` が上限を `state.guests.length`（束を足す前）で比べ、ゲスト 20 人に 8 人を渡すと 28 人入る。
 #
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m572-*.patch

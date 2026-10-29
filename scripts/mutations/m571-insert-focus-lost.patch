@@ -12,11 +12,11 @@ diff --git a/apps/roulette-web/src/components/RegularsSection.tsx b/apps/roulett
 index e91002f3..bebad399 100644
 --- a/apps/roulette-web/src/components/RegularsSection.tsx
 +++ b/apps/roulette-web/src/components/RegularsSection.tsx
-@@ -162,7 +162,6 @@ export function RegularsSection({ locked, guestNames, onInsert }: Props) {
+@@ -175,7 +175,6 @@ export function RegularsSection({ locked, guestNames, onInsert }: Props) {
      const message = onInsert(group);
      touch(group.id);
      announce(message);
 -    setFocusId(pickId(group.id));
    };
  
-   const nameInvalid = error === REGULARS_ERROR_NAME_EMPTY || error === REGULARS_ERROR_NAME_TAKEN;
+   const nameInvalid = error !== '' && errorField === 'name';
