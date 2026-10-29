@@ -32,7 +32,7 @@ import {
   regularsCountText,
 } from '../copy';
 import { useRegulars } from '../hooks/use-regulars';
-import { parseMemberLines, type RegularGroup } from '../storage/regulars';
+import { isValidGroupName, parseMemberLines, type RegularGroup } from '../storage/regulars';
 
 interface Props {
   /** 切断中・回転中。札（入れる）だけ止める。作る・直す・消すは端末の中だけなので止めない */
@@ -63,14 +63,18 @@ const REASON_TEXT = {
   'name-taken': REGULARS_ERROR_NAME_TAKEN,
 } as const;
 
+/** エラーの印を付ける欄（名前の欄か、複数行の欄か） */
+type ErrorField = 'name' | 'members';
+
 /** 入力の検証。保存の関数が黙って落とす名前（長すぎる・見えない）も、ここで見つけて止める */
-function validate(name: string, text: string): { error: string } | { members: string[] } {
-  if (name.trim() === '') return { error: REGULARS_ERROR_NAME_EMPTY };
+function validate(name: string, text: string): { error: string; field: ErrorField } | { members: string[] } {
+  if (name.trim() === '') return { error: REGULARS_ERROR_NAME_EMPTY, field: 'name' };
+  if (!isValidGroupName(name.trim())) return { error: REGULARS_ERROR_BAD_NAME, field: 'name' };
   const lines = text.split(/\r?\n/).filter((l) => l.trim() !== '');
-  if (lines.some((l) => parseMemberLines(l).length === 0)) return { error: REGULARS_ERROR_BAD_NAME };
+  if (lines.some((l) => parseMemberLines(l).length === 0)) return { error: REGULARS_ERROR_BAD_NAME, field: 'members' };
   const members = parseMemberLines(text);
-  if (members.length === 0) return { error: REGULARS_ERROR_NO_MEMBERS };
-  if (members.length > MAX_GUESTS) return { error: REGULARS_ERROR_TOO_MANY_MEMBERS };
+  if (members.length === 0) return { error: REGULARS_ERROR_NO_MEMBERS, field: 'members' };
+  if (members.length > MAX_GUESTS) return { error: REGULARS_ERROR_TOO_MANY_MEMBERS, field: 'members' };
   return { members };
 }
 
@@ -88,6 +92,7 @@ export function RegularsSection({ locked, guestNames, onInsert }: Props) {
   const [name, setName] = useState('');
   const [text, setText] = useState('');
   const [error, setError] = useState('');
+  const [errorField, setErrorField] = useState<ErrorField>('members');
   const [notice, setNotice] = useState('');
   /** 同じ文が続くときのため、いったん空にしてから入れる */
   const [pendingNotice, setPendingNotice] = useState<string | null>(null);
@@ -110,6 +115,14 @@ export function RegularsSection({ locked, guestNames, onInsert }: Props) {
     setPendingNotice(message);
   };
 
+  const fail = (message: string, field: ErrorField): void => {
+    setError(message);
+    setErrorField(field);
+  };
+
+  /** 保存・削除の後の行き先。回転中・切断中は札が止まっているので、その組の「直す」へ移す */
+  const rowTarget = (id: string): string => (locked ? editId(id) : pickId(id));
+
   const openForm = (init: { id: string | null; name: string; text: string; opener: string }): void => {
     setName(init.name);
     setText(init.text);
@@ -129,16 +142,16 @@ export function RegularsSection({ locked, guestNames, onInsert }: Props) {
     if (mode.kind !== 'form') return;
     const checked = validate(name, text);
     if ('error' in checked) {
-      setError(checked.error);
+      fail(checked.error, checked.field);
       return;
     }
     const result = save({ ...(mode.id === null ? {} : { id: mode.id }), name, members: checked.members });
     if (!result.ok) {
-      setError(REASON_TEXT[result.reason]);
+      fail(REASON_TEXT[result.reason], result.reason === 'name-taken' ? 'name' : 'members');
       return;
     }
     const saved = result.items.find((g) => g.name === name.trim());
-    closeForm(saved === undefined ? NEW_ID : pickId(saved.id));
+    closeForm(saved === undefined ? NEW_ID : rowTarget(saved.id));
     announce(REGULARS_SAVED_TEXT);
   };
 
@@ -150,11 +163,11 @@ export function RegularsSection({ locked, guestNames, onInsert }: Props) {
     const result = remove(target.id);
     if (!result.ok) {
       setMode({ ...mode, confirming: false });
-      setError(REASON_TEXT[result.reason]);
+      fail(REASON_TEXT[result.reason], 'members');
       return;
     }
     const next = groups[index + 1] ?? groups[index - 1];
-    closeForm(next === undefined ? NEW_ID : pickId(next.id));
+    closeForm(next === undefined ? NEW_ID : rowTarget(next.id));
     announce(regularDeletedText(target.name));
   };
 
@@ -165,7 +178,8 @@ export function RegularsSection({ locked, guestNames, onInsert }: Props) {
     setFocusId(pickId(group.id));
   };
 
-  const nameInvalid = error === REGULARS_ERROR_NAME_EMPTY || error === REGULARS_ERROR_NAME_TAKEN;
+  const nameInvalid = error !== '' && errorField === 'name';
+  const membersInvalid = error !== '' && errorField === 'members';
   const editing = mode.kind === 'form' && mode.id !== null ? groups.find((g) => g.id === mode.id) : undefined;
 
   return (
@@ -281,8 +295,8 @@ export function RegularsSection({ locked, guestNames, onInsert }: Props) {
               className="ui-input"
               rows={6}
               value={text}
-              aria-invalid={error !== '' ? true : undefined}
-              aria-describedby={error !== '' ? `${countId} ${errorId}` : countId}
+              aria-invalid={membersInvalid ? true : undefined}
+              aria-describedby={membersInvalid ? `${countId} ${errorId}` : countId}
               onChange={(event) => setText(event.target.value)}
             />
           </div>

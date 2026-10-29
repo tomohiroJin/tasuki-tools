@@ -137,6 +137,33 @@ describe('保存の検証', () => {
     expect(field.getAttribute('aria-describedby')).toBe(screen.getByRole('alert').id);
   });
 
+  it.each([
+    ['名前が空', '', 'さとう', true, false],
+    ['名前に制御文字', '朝\t会', 'さとう', true, false],
+    ['0 人', '朝会', '\n', false, true],
+    ['使えない名前', '朝会', 'あ'.repeat(41), false, true],
+  ])('Given %s / When 保存 / Then 印の付く欄が正しい', (_label, name, members, onName, onMembers) => {
+    setup();
+    fireEvent.click(btn('新しく作る'));
+    type('メンツの名前', name);
+    type('入る人の名前（1 行に 1 人）', members);
+    fireEvent.click(btn('この端末に保存'));
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(screen.getByLabelText('メンツの名前').hasAttribute('aria-invalid')).toBe(onName);
+    expect(screen.getByLabelText('入る人の名前（1 行に 1 人）').hasAttribute('aria-invalid')).toBe(onMembers);
+  });
+
+  it('Given 同じ名前のメンツがある / When 保存 / Then 印は名前の欄だけ', () => {
+    seed([{ id: 'a', name: '朝会', usedAt: 1, members: ['さとう'] }]);
+    setup();
+    fireEvent.click(btn('新しく作る'));
+    type('メンツの名前', '朝会');
+    type('入る人の名前（1 行に 1 人）', 'すずき');
+    fireEvent.click(btn('この端末に保存'));
+    expect(screen.getByLabelText('メンツの名前')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByLabelText('入る人の名前（1 行に 1 人）').hasAttribute('aria-invalid')).toBe(false);
+  });
+
   it('Given 同じ名前のメンツがある / When 作って保存 / Then 同じ名前のメンツがもうあります', () => {
     seed([{ id: 'a', name: '朝会', usedAt: 1, members: ['さとう'] }]);
     setup();
@@ -299,6 +326,29 @@ describe('直す・消す', () => {
     fireEvent.click(btn('このメンツを消す'));
     fireEvent.click(btn('消す'));
     expect(document.activeElement).toBe(btn('三番 1 人を入れる'));
+  });
+
+  it('Given 回転中（locked）で直して保存 / Then 止まった札でなく、その組の直すボタンへフォーカス', () => {
+    two();
+    setup({ locked: true });
+    fireEvent.click(btn('朝会 を直す'));
+    type('メンツの名前', '朝の会');
+    fireEvent.click(btn('この端末に保存'));
+    expect(btn('朝の会 2 人を入れる')).toBeDisabled();
+    expect(document.activeElement).toBe(btn('朝の会 を直す'));
+  });
+
+  it('Given 回転中（locked）で消す / Then 次の組の直すボタンへ、最後の 1 組なら新しく作るへフォーカス', () => {
+    two();
+    setup({ locked: true });
+    fireEvent.click(btn('朝会 を直す'));
+    fireEvent.click(btn('このメンツを消す'));
+    fireEvent.click(btn('消す'));
+    expect(document.activeElement).toBe(btn('夕会 を直す'));
+    fireEvent.click(btn('夕会 を直す'));
+    fireEvent.click(btn('このメンツを消す'));
+    fireEvent.click(btn('消す'));
+    expect(document.activeElement).toBe(btn('新しく作る'));
   });
 
   it('Given 末尾の組を消す / Then 前の札にフォーカス', () => {

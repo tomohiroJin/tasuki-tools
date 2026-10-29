@@ -42,7 +42,8 @@ const isRecord = (x: unknown): x is Record<string, unknown> => typeof x === 'obj
 // eslint-disable-next-line no-control-regex
 const CONTROL_CHARS = /[\u0000-\u001f\u007f]/;
 
-const validGroupName = (name: unknown): name is string =>
+/** 組名として使える名前か（空・長すぎ・制御文字なし）。画面が保存の前に同じ規則で見る */
+export const isValidGroupName = (name: unknown): name is string =>
   typeof name === 'string' && name.trim().length > 0 && name.length <= MAX_DISPLAY_NAME && !CONTROL_CHARS.test(name);
 
 const validMember = (m: unknown): m is string =>
@@ -53,7 +54,7 @@ function parseItem(raw: unknown): RegularGroup | null {
   if (!isRecord(raw)) return null;
   const { id, name, usedAt, members } = raw;
   if (typeof id !== 'string' || id === '') return null;
-  if (!validGroupName(name)) return null;
+  if (!isValidGroupName(name)) return null;
   if (typeof usedAt !== 'number' || !Number.isFinite(usedAt)) return null;
   if (!Array.isArray(members) || members.length < 1 || members.length > MAX_GUESTS) return null;
   if (!members.every(validMember)) return null;
@@ -157,17 +158,26 @@ function mutate(
   return { ok: true, items: validItems(c.kept) };
 }
 
+/**
+ * 組の ID の既定。`crypto.randomUUID` は安全でない文脈（http の LAN など）で未定義なので、
+ * 無ければ時刻と乱数から作る（保存の関数は投げない）。
+ */
+export function defaultNewId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  return `r-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 /** `id` が無ければ作り、あれば直す。直すときも usedAt は now になる */
 export function saveGroup(
   storage: Storage | null,
   input: { id?: string; name: string; members: readonly string[] },
   now: number = Date.now(),
-  newId: () => string = () => crypto.randomUUID(),
+  newId: () => string = defaultNewId,
   migrations: Migrations = MIGRATIONS,
 ): GroupsResult {
   const name = input.name.trim();
   const members = foldMembers(input.members);
-  if (!validGroupName(name) || members.length < 1 || members.length > MAX_GUESTS) return { ok: false, reason: 'invalid' };
+  if (!isValidGroupName(name) || members.length < 1 || members.length > MAX_GUESTS) return { ok: false, reason: 'invalid' };
   return mutate(storage, migrations, (rawItems) => {
     const groups = rawItems.flatMap((it) => {
       const p = parseItem(it);

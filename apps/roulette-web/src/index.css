@@ -748,6 +748,7 @@
 /* 知らせは常に置く（読み上げの対象を最初から持つ）。空のあいだは段の間隔も詰めて、高さを 0 に見せる */
 .roulette-regulars-notice {
   margin: 0;
+  font-size: var(--font-size-sm);
 }
 .roulette-regulars-notice:empty {
   margin-block-start: calc(-1 * var(--space-3));

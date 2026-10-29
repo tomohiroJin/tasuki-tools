@@ -100,6 +100,20 @@ describe('いつものメンツの端末への保存', () => {
   });
 
   describe('保存する', () => {
+    it('crypto.randomUUID が無い環境（http の LAN）でも投げず、空でない ID で保存できる', () => {
+      vi.stubGlobal('crypto', {});
+      try {
+        const s = fakeStorage();
+        const r = saveGroup(s, { name: '朝会', members: ['さとう'] }, 1000);
+        expect(r.ok).toBe(true);
+        if (!r.ok) return;
+        expect(r.items[0]?.id).not.toBe('');
+        expect(typeof r.items[0]?.id).toBe('string');
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    });
+
     it('新しい組は newId の ID と now の usedAt で入り、版 1 で書かれる', () => {
       const s = fakeStorage();
       const r = saveGroup(s, { name: '  朝会  ', members: ['alice', 'ＡＬＩＣＥ', ' 佐藤 ', ''] }, 1000, () => 'id-1');
