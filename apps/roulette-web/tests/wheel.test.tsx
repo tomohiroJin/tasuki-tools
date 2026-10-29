@@ -355,7 +355,7 @@ describe('止まった瞬間は円盤と札と一言で揃う', () => {
   const snapshot = () => ({
     card: card().classList.contains('is-revealed'),
     seat: winnerSeat() !== null,
-    caption: screen.getByRole('status').textContent === resultText('ゆう'),
+    caption: (screen.getAllByRole('status').find((el) => el.classList.contains('roulette-caption')) as HTMLElement).textContent === resultText('ゆう'),
   });
 
   it('Given 回し始めた / When 終わりの時刻の前後を 10ms ずつ進める / Then どの瞬間も 3 つが同じ局面', () => {
