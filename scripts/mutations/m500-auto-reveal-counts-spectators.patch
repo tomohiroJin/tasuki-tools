@@ -1,0 +1,24 @@
+# 変異 500: auto-reveal-counts-spectators
+#
+# 検出を期待するテスト:
+#   - packages/checkin-core/tests/checkin.test.ts
+#     「見学者は分母に入らない。players に見学者が混じっても除いて数える（E9）〈m500〉」
+#
+# #406 段 1。自動公開で見学者を除かない。見学者は札を出せないので、見学者が混じると全員が出しても開かない（E9）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m500-*.patch
+# 復元: git apply -R scripts/mutations/m500-*.patch
+diff --git a/packages/checkin-core/src/checkin.ts b/packages/checkin-core/src/checkin.ts
+index 0fcfba95..541aceeb 100644
+--- a/packages/checkin-core/src/checkin.ts
++++ b/packages/checkin-core/src/checkin.ts
+@@ -130,7 +130,7 @@ export function prune(s: CheckinState, knownIds: ReadonlySet<string>): CheckinSt
+ export function applyAutoReveal(s: CheckinState, players: readonly string[]): CheckinState {
+   const r = s.round;
+   if (r === null || r.status !== "open") return s;
+-  const counted = players.filter((id) => !s.spectators.has(id));
++  const counted = players;
+   if (counted.length === 0 || !counted.every((id) => r.cards.has(id))) return s;
+   return { ...s, round: { ...r, status: "revealed" } };
+ }

@@ -1,0 +1,24 @@
+# 変異 502: replay-keeps-first-card
+#
+# 検出を期待するテスト:
+#   - packages/checkin-core/tests/checkin.test.ts
+#     「札を出せる。出し直すと最後の札だけが残る（E10）〈m502〉」
+#
+# #406 段 1。出し直しを受けず最初の札が残る。札を選び直せない（E10）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m502-*.patch
+# 復元: git apply -R scripts/mutations/m502-*.patch
+diff --git a/packages/checkin-core/src/checkin.ts b/packages/checkin-core/src/checkin.ts
+index 0fcfba95..8bc73e0d 100644
+--- a/packages/checkin-core/src/checkin.ts
++++ b/packages/checkin-core/src/checkin.ts
+@@ -58,7 +58,7 @@ export function playCard(
+   if (r.status === "revealed") return fail("CHECKIN_REVEALED");
+   if (s.spectators.has(input.participantId)) return fail("CHECKIN_SPECTATING");
+   if (!METHODS[r.method].cards.includes(input.card)) return fail("CHECKIN_CARD_UNKNOWN");
+-  if (r.cards.get(input.participantId) === input.card) return ok(s);
++  if (r.cards.has(input.participantId)) return ok(s);
+   const cards = new Map(r.cards);
+   cards.set(input.participantId, input.card);
+   return ok({ ...s, round: { ...r, cards } });

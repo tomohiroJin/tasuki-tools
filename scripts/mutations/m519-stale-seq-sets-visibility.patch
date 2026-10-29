@@ -1,0 +1,24 @@
+# 変異 519: stale-seq-sets-visibility
+#
+# 検出を期待するテスト:
+#   - packages/checkin-core/tests/checkin.test.ts
+#     setVisibility の「古い seq は同じ参照〈m519〉」「古い seq の「名前つきにする」は、既定が匿名で札の無い新しい回に当たらない〈m519〉」
+#     「古い seq は、札のある回でも LOCKED より先に判定し ok で同じ参照〈m519〉」
+#
+# #406 段 1。公開の仕方を変える操作で回の番号を見ない。もう一回の直後に届いた古い回の「名前つきにする」が、
+# 既定が匿名の新しい回に当たり、匿名のつもりで出す札が名前つきで開かれる（判断 5・判断 8）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m519-*.patch
+# 復元: git apply -R scripts/mutations/m519-*.patch
+diff --git a/packages/checkin-core/src/checkin.ts b/packages/checkin-core/src/checkin.ts
+--- a/packages/checkin-core/src/checkin.ts
++++ b/packages/checkin-core/src/checkin.ts
+@@ -87,7 +87,6 @@
+ ): Result<CheckinState, CheckinError<"CHECKIN_NO_ROUND" | "CHECKIN_VISIBILITY_LOCKED">> {
+   const r = s.round;
+   if (r === null) return fail("CHECKIN_NO_ROUND");
+-  if (r.seq !== input.seq) return ok(s);
+   if (isVisibilityLocked(r)) return fail("CHECKIN_VISIBILITY_LOCKED");
+   if (r.visibility === input.visibility) return ok(s);
+   const seq = s.lastSeq + 1;

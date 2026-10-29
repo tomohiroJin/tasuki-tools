@@ -63,6 +63,19 @@ describe('どのツールに居るか', () => {
     expect(screen.getByText('Agenda Timer にいます')).toBeVisible();
     expect(screen.queryByText(/agenda にいます/)).toBeNull();
   });
+
+  /** m518 の対象: 札の ID が同期サーバーの綴り（`checkin`）とずれると、生の綴りのまま出る */
+  it('Given チェックインに居る人 / When 選択画面を開く / Then Check-in Cards にいますと札の名前で出る', () => {
+    // Given
+    const roster = { code: 'R1', participants: [
+      { participantId: 'a', displayName: 'あや', presence: 'online' as const, tools: ['checkin'] },
+    ] };
+    // When
+    render(<RoomChoice code="R1" inviteUrl="https://example.test/?room=R1" roster={roster} connection="online" topicTitle={null} />);
+    // Then
+    expect(screen.getByText('Check-in Cards にいます')).toBeVisible();
+    expect(screen.queryByText(/checkin にいます/)).toBeNull();
+  });
 });
 
 /**

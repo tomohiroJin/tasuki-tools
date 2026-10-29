@@ -70,6 +70,11 @@ export interface SyncConfig {
   /** 連続でこの回数分 pong が確認できない接続を terminate する（Issue #25）。 */
   heartbeatMaxMisses: number;
   /**
+   * チェックインの切断による自動公開の猶予（ms・#406・ADR 0028）。まだの人が切断しただけで開けるとき、
+   * この時間だけ待って測り直す。既定はハンドラの `CHECKIN_DISCONNECT_REVEAL_GRACE_MS` と同じ 10 秒（`config.test.ts` が突き合わせる）。実 WS の試験が縮めるための口で、本番では設定しない。
+   */
+  checkinRevealGraceMs: number;
+  /**
    * 1 メッセージの最大バイト数。超過はエラー応答（接続は保つ）。
    *
    * 旧 `apps/poker-sync/src/config.ts` から持ち込んだ（#95 S2）。統合前の timer 側は
@@ -192,6 +197,7 @@ export function loadSyncConfig(env: Record<string, string | undefined>): SyncCon
     aiDailyLimit: nonNegIntEnv(env["AI_DAILY_LIMIT"], 100),
     heartbeatIntervalMs: intEnv(env["HEARTBEAT_INTERVAL_MS"], 15_000),
     heartbeatMaxMisses: intEnv(env["HEARTBEAT_MAX_MISSES"], 2),
+    checkinRevealGraceMs: intEnv(env["CHECKIN_REVEAL_GRACE_MS"], 10_000),
     maxMessageBytes,
     maxFrameBytes: maxMessageBytes * FRAME_BYTES_MULTIPLIER,
     requireClientAddress: isProduction,

@@ -1,0 +1,22 @@
+# 変異 511: topic-excludes-checkin
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/live-ws.checkin.test.ts
+#
+# #406 段 2。お題の宛先からチェックインの接続を外す。チェックインを開いている人には、お題の掲げ直しも取り下げも届かなくなる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m511-*.patch
+# 復元: git apply -R scripts/mutations/m511-*.patch
+diff --git a/apps/tasuki-sync/src/application/topic-broadcast.ts b/apps/tasuki-sync/src/application/topic-broadcast.ts
+index 47f581e1..5a5c07d2 100644
+--- a/apps/tasuki-sync/src/application/topic-broadcast.ts
++++ b/apps/tasuki-sync/src/application/topic-broadcast.ts
+@@ -29,7 +29,6 @@ export const TOPIC_RECIPIENT_TOOLS: readonly (ToolId | null)[] = [
+   TOOL_POKER,
+   TOOL_ROULETTE,
+   TOOL_AGENDA,
+-  TOOL_CHECKIN,
+ ];
+ 
+ export interface TopicBroadcasterDeps {

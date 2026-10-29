@@ -39,7 +39,13 @@ function setup() {
     sendHub: (connId, msg) => sent.push({ kind: "sendHub", to: [connId], msg }),
     broadcastHub: (connIds, msg) => sent.push({ kind: "broadcastHub", to: connIds, msg }),
   };
-  return { store, sent, ...createTimerWsBroadcaster({ store, ws: () => ws }) };
+  const rosterChanged: string[] = [];
+  return {
+    store,
+    sent,
+    rosterChanged,
+    ...createTimerWsBroadcaster({ store, ws: () => ws, onRosterBroadcast: (code) => rosterChanged.push(code) }),
+  };
 }
 
 describe("timer の配信", () => {
@@ -74,12 +80,22 @@ describe("ハブの配信", () => {
     expect(h.sent[0]).toMatchObject({ kind: "broadcastHub", to: ["c-hub", "c-roulette"], msg: { type: "roster" } });
   });
 
-  it("Given 名簿に無いルーム / When 名簿を配る / Then 何も送らない", () => {
+  it("Given 名簿に無いルーム / When 名簿を配る / Then 何も送らず、名簿の変化も知らせない", () => {
     // Given
     const h = setup();
     // When
     h.hubBroadcaster.broadcastRoster("NOPE");
     // Then
     expect(h.sent).toEqual([]);
+    expect(h.rosterChanged).toEqual([]);
+  });
+
+  it("Given 名簿にあるルーム / When 名簿を配る / Then 配ったあとにそのルームの名簿の変化を知らせる（#406）", () => {
+    // Given
+    const h = setup();
+    // When
+    h.hubBroadcaster.broadcastRoster("ROOM-A");
+    // Then
+    expect(h.rosterChanged).toEqual(["ROOM-A"]);
   });
 });

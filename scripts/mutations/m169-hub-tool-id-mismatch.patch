@@ -21,8 +21,8 @@ index be5763f1..3b230909 100644
     * 名簿の `tools` に載る値と同じ。在席の表示（`RoomChoice.tsx`）はこれで名前を引く
     * —— 並び順で引くと、札を足したときに名前がずれる（#91 PR 2 で直した）。
     */
--  readonly id: "timer" | "poker" | "topic" | "roulette" | "agenda";
-+  readonly id: "timer" | "poker" | "topic" | "wheel" | "agenda";
+-  readonly id: "timer" | "poker" | "topic" | "roulette" | "agenda" | "checkin";
++  readonly id: "timer" | "poker" | "topic" | "wheel" | "agenda" | "checkin";
    /** 札の左上に出る一語。そのツールが扱うもの。 */
    readonly pip: string;
    /** ツール名（札の下端） */

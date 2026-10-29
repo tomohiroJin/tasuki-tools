@@ -16,8 +16,8 @@ function tagsOf(html: string, name: 'meta' | 'link'): Array<Record<string, strin
   });
 }
 
-/** 6 ページ（玄関と 5 ツール）。 */
-const PAGES = ['/', '/timer/', '/poker/', '/topic/', '/roulette/', '/agenda/'] as const;
+/** 7 ページ（玄関と 6 ツール）。 */
+const PAGES = ['/', '/timer/', '/poker/', '/topic/', '/roulette/', '/agenda/', '/checkin/'] as const;
 
 test.describe('@smoke サイトの外側', () => {
   test('Given 稼働中のサイト / When /robots.txt を GET / Then 200・text/plain で Disallow: / を含む', async ({

@@ -1,0 +1,23 @@
+# 変異 514: reduced-motion-still-staggers
+#
+# 検出を期待するテスト:
+#   - apps/checkin-web/tests/reveal-view.test.ts
+#     「Given 動きを減らす設定 / Then 遅れは全部 0 で全体も 0（E12・m514）」
+#
+# #406 段 3。動きを減らす設定でも札の裏返る遅れと全体の時間を付ける（E12）。
+# RevealBoard は reduced のとき遅れを style に渡さないので、画面の試験は緑のまま。純粋関数の契約を守る変異。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m514-*.patch
+# 復元: git apply -R scripts/mutations/m514-*.patch
+diff --git a/apps/checkin-web/src/reveal-view.ts b/apps/checkin-web/src/reveal-view.ts
+--- a/apps/checkin-web/src/reveal-view.ts
++++ b/apps/checkin-web/src/reveal-view.ts
+@@ -53,7 +53,6 @@ export function revealSchedule(
+   reducedMotion: boolean,
+ ): { delaysMs: readonly number[]; totalMs: number } {
+   if (cardCount <= 0) return { delaysMs: [], totalMs: 0 };
+-  if (reducedMotion) return { delaysMs: Array.from({ length: cardCount }, () => 0), totalMs: 0 };
+   const room = REVEAL_TOTAL_MAX_MS - REVEAL_FLIP_MS - REVEAL_FADE_MS;
+   const step = cardCount > 1 ? Math.min(REVEAL_STAGGER_MS, room / (cardCount - 1)) : 0;
+   const delaysMs = Array.from({ length: cardCount }, (_, i) => Math.round(i * step));

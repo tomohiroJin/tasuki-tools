@@ -63,6 +63,7 @@ import {
 } from "./ws/tool-channel.js";
 import { sendIfOpen, sendToEach } from "./ws/ws-send.js";
 import type { AgendaOwnFrame, AgendaServerMsg } from "../ports/agenda-server-msg.js";
+import type { CheckinOwnFrame, CheckinServerMsg } from "../ports/checkin-server-msg.js";
 import type { RouletteOwnFrame, RouletteServerMsg } from "../ports/roulette-server-msg.js";
 import type { TopicOwnFrame, TopicServerMsg } from "../ports/topic-server-msg.js";
 
@@ -99,6 +100,8 @@ export interface WsAdapterOptions {
   roulette: RawMessageHandler;
   /** 進行タイマー（`?tool=agenda`）のメッセージ層（#429）。 */
   agenda: RawMessageHandler;
+  /** チェックイン（`?tool=checkin`）のメッセージ層（#406）。 */
+  checkin: RawMessageHandler;
   /**
    * poker（`?tool=poker`）のメッセージ層。**ほかのツールと形が違う**: 接続そのもの（接続ごとの
    * 参加者・ルーム）を渡し、受理を `onConnect` へ知らせず、切断の後始末を自分で持つ。
@@ -218,6 +221,7 @@ function buildChannels(options: WsAdapterOptions): Readonly<Record<AcceptedProto
     topic: rawTextChannel<TopicOwnFrame>("topic", options.topic, frames),
     roulette: rawTextChannel<RouletteOwnFrame>("roulette", options.roulette, frames),
     agenda: rawTextChannel<AgendaOwnFrame>("agenda", options.agenda, frames),
+    checkin: rawTextChannel<CheckinOwnFrame>("checkin", options.checkin, frames),
     poker: createPokerChannel(options.poker, maxMessageBytes, logger),
   };
 }
@@ -433,6 +437,14 @@ export class WsAdapter {
   /** 進行タイマー（agenda）の接続へ一斉に送る。 */
   broadcastAgenda(connIds: string[], data: AgendaServerMsg): void {
     sendToEach(this.connections, connIds, JSON.stringify(data));
+  }
+
+  /**
+   * チェックイン（checkin）の接続へ**1 本だけ**送る（#406）。受け手ごとに中身が違う（匿名を送らないことで守る）ので、
+   * 全員へ同じものを送る口は**作らない**。
+   */
+  sendCheckin(connId: string, data: CheckinServerMsg): void {
+    sendIfOpen(this.connections.get(connId), JSON.stringify(data));
   }
 
   broadcast(connIds: string[], data: ServerMsg): void {

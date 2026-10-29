@@ -2,7 +2,7 @@
 
 Tasuki の共通ビジュアル「**夜のカードテーブル**」。深緑のフェルト、象牙のカード、真鍮のアクセント。
 
-**すべての web アプリ（`apps/timer-web` / `apps/poker-web` / `apps/landing` / `apps/topic-web` / `apps/roulette-web` / `apps/agenda-web`）が使う。**
+**すべての web アプリ（`apps/timer-web` / `apps/poker-web` / `apps/landing` / `apps/topic-web` / `apps/roulette-web` / `apps/agenda-web` / `apps/checkin-web`）が使う。**
 ただし読む層が違う（下記）。判断の経緯は [ADR-0001](../../docs/adr/0001-design-system-scope.md)。
 
 > かつては「`apps/timer-web` は使わない（Tailwind ベースの別系統のため）」としていた。
@@ -21,7 +21,7 @@ src/
 
 | 利用側 | 読むもの | 理由 |
 |---|---|---|
-| `apps/poker-web` / `apps/landing` / `apps/topic-web` / `apps/roulette-web` / `apps/agenda-web` | `@import '@tasuki/ui';`（3 層とも） | 素の CSS で組んでいるので要素層がそのまま効く |
+| `apps/poker-web` / `apps/landing` / `apps/topic-web` / `apps/roulette-web` / `apps/agenda-web` / `apps/checkin-web` | `@import '@tasuki/ui';`（3 層とも） | 素の CSS で組んでいるので要素層がそのまま効く |
 | `apps/timer-web` | `src/index.css` から `@import '@tasuki/ui/tokens.css';` の次に `@import '@tasuki/ui/components.css';`（トークン層と部品層。要素層は読まない） | 要素層の見出し（h1〜h3）・リンク・ラベル・フォーカスの輪は timer の計器の意匠と別物で、読ませると一つひとつに打ち消す規則が要る（ADR 0023 決定 4）。#316 でも読ませないと決めた（ADR 0025 決定 6）。ボタンの見た目は部品層から来る。部品層はクラスを当てたときだけ効くので衝突しない |
 
 **この境界は stylelint が機械的に守る。** `src/tokens/` では `selector-max-type` /
@@ -52,7 +52,7 @@ src/
 
 **使い方**
 
-- 読み込み: poker-web / landing / topic-web / roulette-web / agenda-web は `@import '@tasuki/ui';` に含まれます。timer-web は `src/index.css` で
+- 読み込み: poker-web / landing / topic-web / roulette-web / agenda-web / checkin-web は `@import '@tasuki/ui';` に含まれます。timer-web は `src/index.css` で
   `@tasuki/ui/tokens.css` の次・画面の CSS の前に `@import '@tasuki/ui/components.css';` を置きます
 - 画面が持つのは配置（幅の割り付け・並び・外側の余白）と画面固有の上書きです。**配置もクラスで書きます**
   （画面の CSS で `select` / `input` / `textarea` / `option` の型を含むセレクタを書くと、検査が落とします）
@@ -284,9 +284,23 @@ src/
   OFL 全文は `src/fonts/LICENSE-*.txt` に同梱してある
 - Fraunces は実使用が `font-weight: 600` のみなのでウェイトを固定した。
   `opsz 9–80` は残す（9.6px のコーナーピップと 80px のワードマークで字形を変えるため）
-- **base 層はアプリの表示文字から自動抽出している。** UI 文言を足すと、
-  その文字が base 層に無ければ黙って ext 層（+約 210 KB）を引く。
-  資材の作り直しは `#78` の作業メモにある `build-fonts.py` を使う
+- **base 層に無い字を画面に出すと、黙って ext 層（+約 210 KB）を引く。** 文言は先に
+  `tests/support/font-base.ts` の `outsideBase` で測る
+- **base 層の作り直し**は `scripts/fonts/build-base-fonts.py`（運用者が手で流す・CI では流さない）。
+  字の集合 = いまの base 層の cmap ∪ `--add-chars`。いまの字は 1 字も落とさず（最後に
+  古い cmap ⊆ 新しい cmap を確かめて、崩れていたら失敗で終わる）、`fonts.css` の base 3 面の
+  `unicode-range` も新しい cmap から生成する。ext 層は作り直さない。
+
+  ```bash
+  pip install fonttools brotli
+  python3 scripts/fonts/build-base-fonts.py --add-chars '足したい文言' \
+    --cache-dir .superpowers/sdd/<作業名>/tmp/ttf   # 元の ttf はここへ取得（リポジトリには入れない）
+  ```
+
+  元の書体は Google Fonts（`github.com/google/fonts` の `ofl/zenkakugothicnew/` の
+  Regular / Medium / Bold）の**コミット `ba225958c40ae6268a256861d80355a84b26e535`**
+  （スクリプトの `REV` が既定値）。サブセットは `pyftsubset` の既定に揃える
+  （woff2・`layout_features='*'`・ヒント無し）。
 
 ## トークン
 

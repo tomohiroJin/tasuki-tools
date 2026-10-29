@@ -1,0 +1,25 @@
+# 変異 499: again-keeps-visibility
+#
+# 検出を期待するテスト:
+#   - packages/checkin-core/tests/checkin.test.ts
+#     「名前つきに切り替えて 1 枚出した roti も、もう一回で匿名・札なしの新しい回（判断 8）〈m499〉」
+#
+# #406 段 1。もう一回で前の回の公開の仕方を引き継ぐ。前の回で名前つきに切り替えた ROTI が、次の回も名前つきのまま始まる（判断 8）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m499-*.patch
+# 復元: git apply -R scripts/mutations/m499-*.patch
+diff --git a/packages/checkin-core/src/checkin.ts b/packages/checkin-core/src/checkin.ts
+index 0fcfba95..d4885384 100644
+--- a/packages/checkin-core/src/checkin.ts
++++ b/packages/checkin-core/src/checkin.ts
+@@ -89,7 +89,8 @@ export function playAgain(s: CheckinState, input: { seq: number }): Result<Check
+   const r = s.round;
+   if (r === null) return fail("CHECKIN_NO_ROUND");
+   if (r.seq !== input.seq) return ok(s);
+-  return ok(startRound(s, r.method));
++  const next = startRound(s, r.method);
++  return ok({ ...next, round: { ...next.round!, visibility: r.visibility } });
+ }
+ 
+ /**

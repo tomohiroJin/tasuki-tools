@@ -17,6 +17,6 @@ index 4a0ad1cd..8bbae6bb 100644
    TOOL_POKER,
    TOOL_ROULETTE,
 -  TOOL_AGENDA,
+   TOOL_CHECKIN,
  ];
  
- export interface TopicBroadcasterDeps {

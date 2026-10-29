@@ -1,0 +1,23 @@
+# 変異 506: players-by-presence-not-tool
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/checkin-handlers.test.ts
+#
+# #406 段 2。札を出す人を、チェックインを開いている在席者ではなくルームの在席者（選択画面だけに居る人も）で数える。札を出せない人が分母に入り、全員が出しても開かない（判断 10）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m506-*.patch
+# 復元: git apply -R scripts/mutations/m506-*.patch
+diff --git a/apps/tasuki-sync/src/application/checkin-broadcast.ts b/apps/tasuki-sync/src/application/checkin-broadcast.ts
+index ada252d1..4291eeaf 100644
+--- a/apps/tasuki-sync/src/application/checkin-broadcast.ts
++++ b/apps/tasuki-sync/src/application/checkin-broadcast.ts
+@@ -27,7 +27,7 @@ export interface CheckinBroadcaster {
+ 
+ /** 席の入力。名簿の並びのまま。`present` は**この道具に**在席しているか（ハブだけに居る人は数えない・判断 10） */
+ export function seatsOf(room: Room): SeatInput[] {
+-  return room.participants.map((p) => ({ id: p.id, name: p.displayName, present: isPresentIn(p, TOOL_CHECKIN) }));
++  return room.participants.map((p) => ({ id: p.id, name: p.displayName, present: p.connections.size > 0 }));
+ }
+ 
+ export function makeCheckinBroadcaster(deps: CheckinBroadcasterDeps): CheckinBroadcaster {

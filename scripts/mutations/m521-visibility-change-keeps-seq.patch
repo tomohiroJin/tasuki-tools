@@ -1,0 +1,25 @@
+# 変異 521: visibility-change-keeps-seq
+#
+# 検出を期待するテスト:
+#   - packages/checkin-core/tests/checkin.test.ts
+#     setVisibility の「変えると回の seq が進む〈m521〉」「匿名の画面で出した札は、先に届いた「名前つき」の後の回に入らない（筋書き）〈m521〉」
+#
+# #406 PR の自動レビューの修正。公開の仕方を変えても回の番号を進めない。匿名の画面で押した札（同じ seq）が、
+# 先に届いた「名前つき」の後の回に受理され、匿名のつもりで出した札に名前が付いて開かれる（判断 5・設計 §6）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m521-*.patch
+# 復元: git apply -R scripts/mutations/m521-*.patch
+diff --git a/packages/checkin-core/src/checkin.ts b/packages/checkin-core/src/checkin.ts
+--- a/packages/checkin-core/src/checkin.ts
++++ b/packages/checkin-core/src/checkin.ts
+@@ -90,8 +90,7 @@
+   if (r.seq !== input.seq) return ok(s);
+   if (isVisibilityLocked(r)) return fail("CHECKIN_VISIBILITY_LOCKED");
+   if (r.visibility === input.visibility) return ok(s);
+-  const seq = s.lastSeq + 1;
+-  return ok({ ...s, round: { ...r, seq, visibility: input.visibility }, lastSeq: seq });
++  return ok({ ...s, round: { ...r, visibility: input.visibility } });
+ }
+ 
+ /** 公開の仕方を変えられないか（札が 1 枚以上、または開いた後）。投影の `locked` も同じ条件 */

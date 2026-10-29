@@ -43,6 +43,9 @@ import { TopicGenerator } from "./application/topic-generation.js";
 import { InMemoryTopicStore } from "./adapters/in-memory-topic-store.js";
 import { InMemoryRouletteStore } from "./adapters/in-memory-roulette-store.js";
 import { InMemoryAgendaStore } from "./adapters/in-memory-agenda-store.js";
+import { InMemoryCheckinStore } from "./adapters/in-memory-checkin-store.js";
+import { makeCheckinBroadcaster } from "./application/checkin-broadcast.js";
+import { makeCheckinHandlers } from "./application/checkin-handlers.js";
 import { makeAgendaBroadcaster } from "./application/agenda-broadcast.js";
 import { makeAgendaHandlers } from "./application/agenda-handlers.js";
 import { makeAgendaDeadlines } from "./application/agenda-deadlines.js";
@@ -73,6 +76,7 @@ import { createCryptoIdGen } from "./adapters/poker-crypto-id-gen.js";
 import { createWsBroadcaster } from "./adapters/poker-ws-broadcaster.js";
 import { createTimerWsBroadcaster } from "./adapters/timer-ws-broadcaster.js";
 import { makePokerHandlers } from "./application/poker-handlers.js";
+import type { CheckinServerMsg } from "./ports/checkin-server-msg.js";
 import type { SyncConfig } from "./config.js";
 
 /** アイドルルーム回収の sweep 間隔（ms）。 */
@@ -120,6 +124,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
   // 単調時計は 1 つを共有する（進行タイマーの予約とハンドラが同じ時計で測る）。
   const monotonicClock = createPerformanceClock();
   const agendas = new InMemoryAgendaStore();
+  const checkins = new InMemoryCheckinStore();
   // 進行タイマーの期限の予約（#429）。timer の `scheduler` とは別のインスタンス。**単調時計**で測る。
   const agendaDeadlines = makeAgendaDeadlines({
     clock: monotonicClock,
@@ -151,7 +156,12 @@ export function createSyncServer(config: SyncConfig): SyncServer {
 
   // timer とハブの配信（宛先の選び方を含む）は `adapters/timer-ws-broadcaster.ts`（#367 で組み立てから出した）。
   // `wsAdapter` は下で代入する（前方参照。WS アダプタはハンドラを受け、ハンドラは配信を受けるので循環する）。
-  const { broadcaster, hubBroadcaster } = createTimerWsBroadcaster({ store, ws: () => wsAdapter });
+  const { broadcaster, hubBroadcaster } = createTimerWsBroadcaster({
+    store,
+    ws: () => wsAdapter,
+    // 名簿が変わったらチェックインが席と自動開票を測り直す（#406）。`checkinHandlers` は下で組み立てる。
+    onRosterBroadcast: (roomCode) => checkinHandlers.rosterChanged(roomCode),
+  });
 
   // AI お題生成（トークンと合言葉が両方あるときだけ有効。spec 2026-06-12 参照）
   const aiReady = Boolean(config.claudeOauthToken && config.aiUnlockKey);
@@ -287,7 +297,10 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     topics,
     roulettes,
     agendas,
+    checkins,
     agendaDeadlines,
+    // チェックインの猶予のタイマー（#406）。`checkinHandlers` は下で組み立てる（呼ぶのは破棄のときだけ）。
+    checkinGrace: { clearRoom: (roomCode) => checkinHandlers.clearRoom(roomCode) },
     scheduler,
     topicGenerator,
     presence: presenceManager,
@@ -450,6 +463,33 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     logger,
   });
 
+  /**
+   * チェックイン（`?tool=checkin`）のメッセージ層と配信（#406）。
+   *
+   * **参加の守りはルーレットと同じく `join-room.ts` を通し、レート制限のゲートも `handlers.rateLimitGate`
+   * を渡す。新しく作らない**（別に作ると `connId → クライアント鍵` の対応が空になり、参加の総当たりが
+   * 張り直すだけで枠を回避できる）。配信は受け手ごとに中身が違う投影で、接続 1 本ずつへ送る。
+   */
+  const send = (connId: string, msg: CheckinServerMsg): void => wsAdapter.sendCheckin(connId, msg);
+  const checkinBroadcaster = makeCheckinBroadcaster({ store, checkins, send });
+  const checkinHandlers = makeCheckinHandlers({
+    store,
+    timerBroadcaster: broadcaster,
+    monotonicClock,
+    timers,
+    clock,
+    codeGen,
+    tokenStore: tokens,
+    rateLimitGate: handlers.rateLimitGate,
+    hub: hubBroadcaster,
+    checkins,
+    broadcaster: checkinBroadcaster,
+    send,
+    random,
+    // 切断による自動公開の猶予（ADR 0028）。実 WS の試験だけが設定で縮める。
+    disconnectRevealGraceMs: config.checkinRevealGraceMs,
+  });
+
   wsAdapter = new WsAdapter({
     port: config.port,
     host: config.host,
@@ -467,6 +507,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     topic: topicHandlers,
     roulette: rouletteHandlers,
     agenda: agendaHandlers,
+    checkin: checkinHandlers,
     // cmd は ws-adapter 側で CommandSchema（valibot）に通した検証済みの値で、型も Command のまま届く（#363）。
     // 表示名の正規化は受け口のアプリケーション側が掛ける（#368）。
     timer: createTimerCommandReceiver({
@@ -528,6 +569,8 @@ export function createSyncServer(config: SyncConfig): SyncServer {
       // 同一プロセスでサーバーを何度も起動し直すテストでは、放置すると
       // 閉じたはずのサーバーのタイマーが後から発火してしまう。
       presenceManager.clearAllTimers();
+      // チェックインの切断による自動公開の猶予も同じ理由で解放する（#406）。
+      checkinHandlers.clearAll();
       await wsAdapter.close();
     },
   };

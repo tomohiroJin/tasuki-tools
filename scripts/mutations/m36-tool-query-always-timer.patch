@@ -2,7 +2,7 @@ diff --git a/apps/tasuki-sync/src/adapters/ws/connection-gate.ts b/apps/tasuki-s
 index a5c4984..4f7a03f 100644
 --- a/apps/tasuki-sync/src/adapters/ws/connection-gate.ts
 +++ b/apps/tasuki-sync/src/adapters/ws/connection-gate.ts
-@@ -46,12 +46,7 @@ const TOOL_QUERY_KEY = "tool";
+@@ -46,13 +46,7 @@ const TOOL_QUERY_KEY = "tool";
  export function protocolFromRequestUrl(url: URL): Protocol {
    const declared = url.searchParams.get(TOOL_QUERY_KEY);
    if (declared === null) return "hub";
@@ -11,6 +11,7 @@ index a5c4984..4f7a03f 100644
 -  if (declared === TOOL_TOPIC) return TOOL_TOPIC;
 -  if (declared === TOOL_ROULETTE) return TOOL_ROULETTE;
 -  if (declared === TOOL_AGENDA) return TOOL_AGENDA;
+-  if (declared === TOOL_CHECKIN) return TOOL_CHECKIN;
 -  return "unknown";
 +  return TOOL_TIMER;
  }

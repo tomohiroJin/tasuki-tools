@@ -10,8 +10,8 @@ import { afterEach, describe, expect, it } from "bun:test";
 import { MAX_PASSPHRASE } from "@tasuki/room-core";
 import { createRoom, startLiveSyncServer, type LiveSyncServer } from "./support/live-sync-server.js";
 
-type Entry = "hub" | "topic" | "roulette" | "timer";
-const ENTRIES: readonly Entry[] = ["hub", "topic", "roulette", "timer"];
+type Entry = "hub" | "topic" | "roulette" | "agenda" | "checkin" | "timer";
+const ENTRIES: readonly Entry[] = ["hub", "topic", "roulette", "agenda", "checkin", "timer"];
 
 interface AnyClient {
   readonly received: readonly unknown[];
@@ -32,6 +32,10 @@ async function connect(s: LiveSyncServer, entry: Entry): Promise<AnyClient> {
       return s.connectTopic();
     case "roulette":
       return s.connectRoulette();
+    case "agenda":
+      return s.connectAgenda();
+    case "checkin":
+      return s.connectCheckin();
     case "timer":
       return s.connect();
   }

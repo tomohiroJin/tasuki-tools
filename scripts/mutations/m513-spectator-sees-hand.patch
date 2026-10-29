@@ -1,0 +1,26 @@
+# 変異 513: spectator-sees-hand
+#
+# 検出を期待するテスト:
+#   - apps/checkin-web/tests/checkin-room.test.tsx
+#     「Given 見学中 / When 描く / Then 手札のボタンは 0 個（E9・m513）」
+#   - apps/checkin-web/tests/hand.test.tsx
+#     「Given 見学中 / When 描く / Then 札のボタンは 0 個で、見学中と見学をやめるが出る（E9）」
+#
+# #406 段 3。見学中も手札を出す。札を出す人に数えられない見学者が札を押せてしまい、見学をやめるも出ない（E9・判断 10）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m513-*.patch
+# 復元: git apply -R scripts/mutations/m513-*.patch
+diff --git a/apps/checkin-web/src/components/Hand.tsx b/apps/checkin-web/src/components/Hand.tsx
+index b19b9e38..52060b5e 100644
+--- a/apps/checkin-web/src/components/Hand.tsx
++++ b/apps/checkin-web/src/components/Hand.tsx
+@@ -41,7 +41,7 @@ export function SpectatorToggle({
+ }
+ 
+ export function Hand({ method, selected, spectating, canOperate, onPlay, onSetSpectator }: Props) {
+-  if (spectating) {
++  if (false) {
+     return (
+       <div className="hand-spectating">
+         <p className="ui-note">{SPECTATING_TEXT}</p>

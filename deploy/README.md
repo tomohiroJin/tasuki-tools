@@ -17,6 +17,7 @@ Tasuki の各アプリは「自分の systemd ユニット + 固有ポート + C
 | `topic` | （無し・静的） | — | `/var/www/tasuki-topic` | `/topic/` | 公開中 |
 | `roulette` | （無し・静的） | — | `/var/www/tasuki-roulette` | `/roulette/` | 公開中 |
 | `agenda` | （無し・静的） | — | `/var/www/tasuki-agenda` | `/agenda/` | 公開中 |
+| `checkin` | （無し・静的） | — | `/var/www/tasuki-checkin` | `/checkin/` | 未配布 |
 
 > **#429 第 2 段（くりかえし #433）・フィードバック（#435）・#434（サイトの外側）は 2026-10-24 にまとめて配った**（`v4.4.0`）。
 > web は timer → agenda → landing → poker → topic → roulette、続けて root で Caddy の 7 本を入れた。本番の Caddy 2.6.2 で
@@ -50,7 +51,7 @@ Tasuki の各アプリは「自分の systemd ユニット + 固有ポート + C
 
 公開中かどうかはアプリごとに上の表の「状態」が正本である（timer / poker / landing は 2026-08-28・#66、
 `topic` は 2026-09-27・#91、`roulette` は 2026-10-14・#94 に初回公開）。同期サーバーはすべてのアプリで共用の 1 本（`tasuki-sync`）で、
-`topic`・`roulette`・`agenda` は `poker` / `landing` と同じ静的アプリである。
+`topic`・`roulette`・`agenda`・`checkin` は `poker` / `landing` と同じ静的アプリである。
 デプロイはアプリ単位（`./deploy/deploy.sh <app>`）で、指定したアプリだけが転送される。
 
 `timer` 以外（表で「サービス」が無いもの）は **sync サーバーを持たない静的サイト**で、Caddy が直接配信する。`app.env` に
