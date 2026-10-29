@@ -41,9 +41,9 @@ export async function joinRouletteTool(page: Page, url: string, name: string): P
   await expectRouletteOpen(page);
 }
 
-/** 結果の一言（`role="status"`）。この画面に 1 つだけ。 */
+/** 結果の一言（舞台の `.roulette-caption`）。区画の知らせも `role="status"` なので、役割だけでは引かない。 */
 export function roulettePhrase(page: Page): Locator {
-  return page.getByRole('status');
+  return page.locator('.roulette-caption[role="status"]');
 }
 
 /** 主ボタン（回す前・回しているとき・回し終えたあとで文言が変わる）。 */
