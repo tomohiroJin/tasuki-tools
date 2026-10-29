@@ -35,6 +35,11 @@ describe('planBatch', () => {
     expect(planBatch({ view: { ...IDLE, guests: guestsOf(24) }, members: MEMBERS, names: ['A1'] })).toEqual({ added: 0, skipped: 0, overflow: 1, poolAfter: 25 });
   });
 
+  it('Given 中核と同じ g-1 形式の ID で g-1 を外している / When 1 人入れる / Then 新しい人は外れた扱いにならない', () => {
+    const view = { ...IDLE, guests: [{ id: 'g-1', name: 'ゲスト1' }, { id: 'g-2', name: 'ゲスト2' }], excluded: ['g-1'] };
+    expect(planBatch({ view, members: [{ id: 'p1', name: 'あや', present: true }], names: ['A1'] })).toEqual({ added: 1, skipped: 0, overflow: 0, poolAfter: 3 });
+  });
+
   it('Given 外してあるゲスト / When 入れる / Then 入る人に数えない', () => {
     const view = { ...IDLE, guests: guestsOf(2), excluded: ['g1'] };
     expect(planBatch({ view, members: MEMBERS, names: ['A1'] })).toEqual({ added: 1, skipped: 0, overflow: 0, poolAfter: 3 });

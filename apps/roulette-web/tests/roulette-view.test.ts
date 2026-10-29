@@ -401,11 +401,11 @@ describe('2 人以上を選ぶ回転', () => {
  */
 describe('入る人が 24 人を超えたとき', () => {
   const guests = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `g${i}`, name: `G${i}` }));
-  const poolOf24 = (n: number) => poolOfView([{ id: 'p1', name: 'Aya', present: true }], { ...IDLE, guests: guests(n) }).length;
+  const poolCountWithGuests = (n: number) => poolOfView([{ id: 'p1', name: 'Aya', present: true }], { ...IDLE, guests: guests(n) }).length;
 
   it('Given 自分 1 人とゲスト 24 人 / When 数える / Then 25 人（境目の確認）', () => {
-    expect(poolOf24(24)).toBe(25);
-    expect(poolOf24(23)).toBe(24);
+    expect(poolCountWithGuests(24)).toBe(25);
+    expect(poolCountWithGuests(23)).toBe(24);
   });
 
   it('Given 入る人が 25 人 / When 主ボタンを決める / Then 押せない', () => {

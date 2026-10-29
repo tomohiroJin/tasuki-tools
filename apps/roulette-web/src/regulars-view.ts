@@ -36,7 +36,9 @@ export function planBatch(input: { view: RouletteView; members: readonly Member[
     added: batch.added.length,
     skipped: batch.skipped.length,
     overflow: batch.overflow.length,
-    poolAfter: poolOf(members, batch.state, conflictsWithExisting).length,
+    // 足した人は誰とも同名でないので、いまの入る人に足すだけでよい。
+    // （`stateOf` は `nextGuestSeq` を持たないので、足した後の状態から数えると新しい ID が既存の `g-1`… とぶつかる）
+    poolAfter: poolOf(members, stateOf(view), conflictsWithExisting).length + batch.added.length,
   };
 }
 
