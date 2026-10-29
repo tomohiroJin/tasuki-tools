@@ -20,7 +20,7 @@ import { expect, test } from '../fixtures/test';
 import { expectFieldsAtLeast16px, expectFocusVisibleOnTab, expectReadable, expectScreenAcrossWidths, expectTouchTargets, scanContrast } from '../support/a11y';
 import { loadSampleAndStart, openAgendaFromHub } from '../support/agenda';
 import { chooseCard, turnRecordingOn } from '../support/poker';
-import { addRouletteGuest, expectCardNameNotCovered, openRouletteFromHub, spinButton } from '../support/roulette';
+import { addRouletteGuest, expectCardNameNotCovered, openRouletteFromHub, openRouletteTool, spinButton } from '../support/roulette';
 import { openTopicTool, setTopic } from '../support/topic';
 import { createRoom as createTimerRoom } from '../support/timer';
 
@@ -34,10 +34,12 @@ import { createRoom as createTimerRoom } from '../support/timer';
  * - `.session-config-interval`: timer の交代間隔の選択肢（排他の選択肢の札。ボタンの形をした操作ではない）
  * - `.notify-settings-switch-on`・`.notify-settings-switch-off`: timer の通知の ON/OFF（`role="switch"` のスイッチ）
  * - `.notify-settings-preview`: timer の通知音の「試聴」（設定の行の中の小さな文字の操作で、画面の操作の並びに入らない）
+ * - `.roulette-regulars-pick`: ルーレットの「いつものメンツ」の札（名前と人数を 1 つの帯に載せる、一覧の行の形の操作。大きさと重なりは当たりの測りが見る）
  */
 const BARE_ALLOWED = [
   '.card', '.topic-tab', '.tab', '.roster-panel-mini-button', '.notify-hint-close', '.notify-settings-trigger',
   '.session-config-interval', '.notify-settings-switch-on', '.notify-settings-switch-off', '.notify-settings-preview',
+  '.roulette-regulars-pick',
 ];
 
 /** 画面に描かれた（箱を持つ）ボタンを集め、素のもの・並びごとの主・当たりを返す。 */
@@ -632,3 +634,52 @@ async function expectTimerDockPinned(page: Page, dock: Locator): Promise<void> {
   expect(end.bodyBottom, '最下部で計器の中身が帯に隠れる').toBeLessThanOrEqual(end.dockTop + 0.5);
   expect(end.dockBottom, '最下部で帯が画面から出ている').toBeLessThanOrEqual(end.viewport + 0.5);
 }
+
+/** 「いつものメンツ」の保存（`apps/roulette-web/src/storage/regulars.ts` の `REGULARS_KEY` と版 1 の形） */
+const REGULARS_STORAGE_KEY = 'tasuki.roulette.regulars';
+
+test.describe('ルーレットの「いつものメンツ」のボタンは部品で、押せる大きさがあり、重ならない', () => {
+  test('Given 端末に 2 組ある / When 一覧・直す欄・消す確認・0 組・作る欄を開く / Then 素のボタンは札だけで、当たりが 44px 以上で重ならず、横に溢れない', async ({ page }) => {
+    // 2 組（1 組は長い名前）を端末に置いてから開く。ルームは 1 つだけ作り、消して 0 組にして続けて測る（ルームを足さない）
+    await page.addInitScript(([key, long]) => {
+      const items = [
+        { id: 'buttons-r1', name: long, usedAt: 2, members: ['アリス', 'ボブ', 'キャロル'] },
+        { id: 'buttons-r2', name: 'いつもの3人', usedAt: 1, members: ['ダン', 'イブ'] },
+      ];
+      window.localStorage.setItem(key as string, JSON.stringify({ version: 1, items }));
+    }, [REGULARS_STORAGE_KEY, LONG_NAME] as const);
+    await page.setViewportSize({ width: 390, height: 800 });
+    await openRouletteTool(page, 'buttons-r');
+    const section = page.getByRole('region', { name: 'いつものメンツ', exact: true });
+    await expect(section.getByRole('button', { name: /人を入れる$/ })).toHaveCount(2);
+
+    // 一覧: 札 2 + 直す 2 + 新しく作る 1。測る範囲は区画の中
+    const regulars = { scope: '.roulette-regulars', minTargets: 5 };
+    await expectScreen(page, 'いつものメンツ（2 組）', 1, regulars);
+
+    // 直す欄: やめる・保存・このメンツを消す
+    await section.getByRole('button', { name: /を直す$/ }).first().click();
+    await expect(section.getByRole('button', { name: 'このメンツを消す', exact: true })).toBeVisible();
+    await expectScreen(page, 'いつものメンツ（直す欄）', 3, { scope: '.roulette-regulars', minTargets: 3 });
+
+    // 消す確認: やめる・消す
+    await section.getByRole('button', { name: 'このメンツを消す', exact: true }).click();
+    await expect(section.getByRole('button', { name: '消す', exact: true })).toBeVisible();
+    await expectScreen(page, 'いつものメンツ（消す確認）', 2, { scope: '.roulette-regulars', minTargets: 2 });
+
+    // 1 組目を消し、2 組目も消して 0 組にする
+    await section.getByRole('button', { name: '消す', exact: true }).click();
+    await expect(section.getByRole('button', { name: /人を入れる$/ })).toHaveCount(1);
+    await section.getByRole('button', { name: /を直す$/ }).first().click();
+    await section.getByRole('button', { name: 'このメンツを消す', exact: true }).click();
+    await section.getByRole('button', { name: '消す', exact: true }).click();
+    await expect(section.getByRole('button', { name: /人を入れる$/ })).toHaveCount(0);
+    await expect(section.getByRole('button', { name: '新しく作る', exact: true })).toBeVisible();
+    await expectScreen(page, 'いつものメンツ（0 組）', 1, { scope: '.roulette-regulars', minTargets: 1 });
+
+    // 作る欄: やめる・保存
+    await section.getByRole('button', { name: '新しく作る', exact: true }).click();
+    await expect(section.getByRole('button', { name: 'この端末に保存', exact: true })).toBeVisible();
+    await expectScreen(page, 'いつものメンツ（作る欄）', 2, { scope: '.roulette-regulars', minTargets: 2 });
+  });
+});
