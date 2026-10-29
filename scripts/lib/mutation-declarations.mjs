@@ -3465,7 +3465,6 @@ export const MUTATIONS = [
     tests: ["tests/regulars-section.test.tsx"],
     note: "#458。入れると usedAt が変わって札が先頭へ移り、要素が付け替わってフォーカスが body へ落ちる。キーボードで続けて操作できない。",
   },
-
   {
     id: 572,
     label: "上限を足す前の件数で比べる",
