@@ -588,16 +588,18 @@ describe("外す・名前を足す", () => {
       expect(viewsTo(h, "r-2").at(-1)?.guests.map((g) => g.name)).toEqual(["佐藤", "鈴木"]);
     });
 
-    it("名簿の参加者と同じ名前は飛ばし、エラーを返さない", async () => {
-      // Given
+    it("名簿の参加者と同じ名前は（離席中でも・大小違いでも）飛ばし、エラーを返さない", async () => {
+      // Given: Alice は在室、Bob は離席中
       const h = setup();
       await joined(h, "r-1", "Alice");
+      await joined(h, "r-2", "Bob");
+      goOffline(h, "Bob");
       h.sent.length = 0;
 
-      // When: 在室者 Alice を含む束
-      await h.handle("r-1", { command: "roulette.guest.addMany", names: ["Alice", "佐藤"] });
+      // When: 大小違いの bob・alice を含む束
+      await h.handle("r-1", { command: "roulette.guest.addMany", names: ["bob", "alice", "佐藤"] });
 
-      // Then
+      // Then: 在室者だけを比べる実装・大小を区別する判定は bob / alice を足す
       expect(errorsTo(h, "r-1")).toEqual([]);
       expect(h.roulettes.get(ROOM)!.guests.map((g) => g.name)).toEqual(["佐藤"]);
     });
@@ -634,6 +636,7 @@ describe("外す・名前を足す", () => {
       // Then
       expect(errorsTo(h, "r-1")).toEqual([]);
       expect(h.roulettes.get(ROOM)!.guests).toHaveLength(24);
+      expect(h.roulettes.get(ROOM)!.guests.slice(20).map((g) => g.name)).toEqual(["組0", "組1", "組2", "組3"]);
     });
 
     it("全員が同じ名前なら配らない", async () => {
@@ -1062,6 +1065,7 @@ describe("ログ", () => {
 
     // Then
     expect(spies.map((s) => s.mock.calls.length)).toEqual([0, 0, 0, 0, 0]);
+    expect(h.logLines).toEqual([]);
   });
 
   /** @requirements #458 */
@@ -1078,5 +1082,6 @@ describe("ログ", () => {
 
     // Then
     expect(spies.map((s) => s.mock.calls.length)).toEqual([0, 0, 0, 0, 0]);
+    expect(h.logLines).toEqual([]);
   });
 });
