@@ -61,10 +61,14 @@ export const SCANNED_PACKAGES = [
   "apps/roulette-web",
   // #429 で新設（進行タイマー）。
   "apps/agenda-web",
+  // #406 で新設（Check-in Cards）。
+  "apps/checkin-web",
   "packages/dev-hub-redirect",
   "packages/poker-core",
   // 進行タイマーの文脈（#429）。
   "packages/agenda-core",
+  // 会の始まりと終わりの札の文脈（#406）。
+  "packages/checkin-core",
   "packages/protocol",
   "packages/rate-limit",
   "packages/room-core",

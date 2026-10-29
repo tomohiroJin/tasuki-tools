@@ -130,6 +130,8 @@ export const DOMAIN_ERROR_TARGETS = [
   { file: "packages/roulette-core/src/errors.ts", type: "RouletteError" },
   // agenda-core（#429）。判別子 `code` だけを持つ
   { file: "packages/agenda-core/src/errors.ts", type: "AgendaError" },
+  // checkin-core（#406）。判別子 `code` だけを持つ
+  { file: "packages/checkin-core/src/errors.ts", type: "CheckinError" },
   // room-core（#364）。名簿を変える関数の失敗。判別子 `code` だけを持つ
   { file: "packages/room-core/src/room.ts", type: "RoomError" },
   // timer-core（`DomainError` の合併メンバー。フィールドを持つのはこちら）

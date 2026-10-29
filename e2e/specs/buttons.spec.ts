@@ -19,6 +19,7 @@ import type { Locator, Page } from '@playwright/test';
 import { expect, test } from '../fixtures/test';
 import { expectFieldsAtLeast16px, expectFocusVisibleOnTab, expectReadable, expectScreenAcrossWidths, expectTouchTargets, scanContrast } from '../support/a11y';
 import { loadSampleAndStart, openAgendaFromHub } from '../support/agenda';
+import { chooseMethod, handCard, joinCheckinTool, openCheckinTool } from '../support/checkin';
 import { chooseCard, turnRecordingOn } from '../support/poker';
 import { addRouletteGuest, expectCardNameNotCovered, openRouletteFromHub, openRouletteTool, spinButton } from '../support/roulette';
 import { openTopicTool, setTopic } from '../support/topic';
@@ -34,11 +35,15 @@ import { createRoom as createTimerRoom } from '../support/timer';
  * - `.session-config-interval`: timer の交代間隔の選択肢（排他の選択肢の札。ボタンの形をした操作ではない）
  * - `.notify-settings-switch-on`・`.notify-settings-switch-off`: timer の通知の ON/OFF（`role="switch"` のスイッチ）
  * - `.notify-settings-preview`: timer の通知音の「試聴」（設定の行の中の小さな文字の操作で、画面の操作の並びに入らない）
+ * - `.hand-card`: Check-in Cards の手札（札の形をした選択肢。poker の `.card` と同じ）
+ * - `.seg-button`: Check-in Cards の切り替え（側・公開の仕方。排他の選択肢）
+ * - `.method-option`: Check-in Cards のやり方の選択肢（一覧の行の形をした操作）
  * - `.roulette-regulars-pick`: ルーレットの「いつものメンツ」の札（名前と人数を 1 つの帯に載せる、一覧の行の形の操作。大きさと重なりは当たりの測りが見る）
  */
 const BARE_ALLOWED = [
   '.card', '.topic-tab', '.tab', '.roster-panel-mini-button', '.notify-hint-close', '.notify-settings-trigger',
   '.session-config-interval', '.notify-settings-switch-on', '.notify-settings-switch-off', '.notify-settings-preview',
+  '.hand-card', '.seg-button', '.method-option',
   '.roulette-regulars-pick',
 ];
 
@@ -111,9 +116,9 @@ async function expectScreen(page: Page, label: string, minButtons: number, optio
 }
 
 /*
- * **ルームは画面の種類ごとに 1 つ（玄関・poker・帯 / お題ツール / timer の 3 つ）しか作らない。** 同期サーバーのルームの枠（既定 100・アイドル 30 分で解放）を E2E 全件が使い切りに近い。
+ * **ルームは画面の種類ごとに 1 つ（玄関・poker・帯 / お題ツール / timer / Check-in Cards の 4 つ）しか作らない。** 同期サーバーのルームの枠（既定 100・アイドル 30 分で解放）を E2E 全件が使い切りに近い。
  * 画面ごとにルームを作ると、全件を流したときに末尾のテストが「操作を完了できませんでした」で落ちる（実測: 6 ルーム足して 2 件落ちた）。
- * そのため、玄関・poker・帯は 1 つのルームで、お題ツールは別の 1 つで、timer も 1 つ（ロビー → セッション → 確認 → まとめの順）で、
+ * そのため、玄関・poker・帯は 1 つのルームで、お題ツールは別の 1 つで、timer も 1 つ（ロビー → セッション → 確認 → まとめの順）で、Check-in Cards も 1 つ（選ぶ → 出す途中 → 開いた後の順。2 人目は別の文脈）で、
  * 幅を変えながら続けて測る。timer は layout.spec.ts にも 1 室ある（#316 PR 3 で 6 室から 2 室に減らした。main は 1 室）。
  */
 
@@ -634,6 +639,62 @@ async function expectTimerDockPinned(page: Page, dock: Locator): Promise<void> {
   expect(end.bodyBottom, '最下部で計器の中身が帯に隠れる').toBeLessThanOrEqual(end.dockTop + 0.5);
   expect(end.dockBottom, '最下部で帯が画面から出ている').toBeLessThanOrEqual(end.viewport + 0.5);
 }
+
+/*
+ * Check-in Cards の画面ごとの下限。**部品のボタン（`.ui-button`）の数を実測した値**（2026-10-29・390px）で、当たりの数の下限にも使う。
+ * 側・やり方・ランダム・公開の仕方・手札は部品の外（許した素のボタン）なので、この数には入らない。
+ * 見出しの 4 つ（選択画面へ戻る・仲間を招く・QR コードを表示・招待リンクをコピー）はどの画面にもある。
+ */
+/** 選ぶ画面: 見出しの 4 つ＋見学する */
+const CHECKIN_PICK_TARGETS = 5;
+/** 札を出す途中の画面: 見出しの 4 つ＋別のやり方・見学する・待たずに開く */
+const CHECKIN_OPEN_TARGETS = 7;
+/** 開いた後の画面: 見出しの 4 つ＋別のやり方・もう一回 */
+const CHECKIN_REVEALED_TARGETS = 6;
+
+test.describe('チェックインのカードのボタンは部品で、押せる大きさがある', () => {
+  test('Given 2 人が Check-in Cards を開く / When 選ぶ・出す途中・開いた後 / Then 素のボタンは許した札と切り替えだけで、当たりが 44px 以上で重ならず、止まった画面の字が読めてフォーカスが見える', async ({ page, openPeer }) => {
+    await page.setViewportSize({ width: 390, height: 800 });
+    const inviteUrl = await openCheckinTool(page, 'buttons-c-a');
+    const peer = await openPeer('buttons-c-b');
+    await joinCheckinTool(peer.page, inviteUrl, 'buttons-c-b');
+
+    // 選ぶ（やり方が決まる前）
+    await expect(page.getByRole('button', { name: 'ランダム', exact: true })).toBeVisible();
+    await expectScreen(page, 'Check-in Cards（選ぶ）', CHECKIN_PICK_TARGETS);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    expectReadable(await scanContrast(page, 10), 5, []);
+    await expectFocusVisibleOnTab(page);
+    await page.setViewportSize({ width: 390, height: 800 });
+
+    // 出す途中（A が出して B はまだ。手札・公開の仕方・待たずに開くが並ぶ）
+    await chooseMethod(page, 'チェックイン', '今日の天気');
+    await expect(handCard(page, '晴れ')).toBeVisible();
+    await handCard(page, '晴れ').click();
+    await expect(handCard(page, '晴れ')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByRole('button', { name: '待たずに開く', exact: true })).toBeVisible();
+    await expectScreen(page, 'Check-in Cards（出す途中）', CHECKIN_OPEN_TARGETS);
+    //   手札の当たりが 44px 以上（札の形の選択肢は部品のボタンの外なので別に測る）
+    for (const name of ['晴れ', 'くもり', '雨', '雷']) {
+      const box = await handCard(page, name).boundingBox();
+      expect(box?.width ?? 0, `手札「${name}」の幅`).toBeGreaterThanOrEqual(44);
+      expect(box?.height ?? 0, `手札「${name}」の高さ`).toBeGreaterThanOrEqual(44);
+    }
+    await page.setViewportSize({ width: 1280, height: 900 });
+    expectReadable(await scanContrast(page, 10), 8, []);
+    await expectFocusVisibleOnTab(page);
+
+    // 開いた後（B も出して開く）
+    await page.setViewportSize({ width: 390, height: 800 });
+    await handCard(peer.page, '雨').click();
+    await expect(page.getByRole('button', { name: 'もう一回', exact: true })).toBeVisible();
+    await expect(page.locator('.piles')).toBeVisible();
+    await expectScreen(page, 'Check-in Cards（開いた後）', CHECKIN_REVEALED_TARGETS);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    expectReadable(await scanContrast(page, 10), 8, []);
+    await expectFocusVisibleOnTab(page);
+  });
+});
 
 /** 「いつものメンツ」の保存（`apps/roulette-web/src/storage/regulars.ts` の `REGULARS_KEY` と版 1 の形） */
 const REGULARS_STORAGE_KEY = 'tasuki.roulette.regulars';

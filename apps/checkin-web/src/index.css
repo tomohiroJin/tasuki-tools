@@ -1,0 +1,77 @@
+/* ============================================================
+   Tasuki Check-in Cards（#406）
+   共通の世界観「夜のカードテーブル」は @tasuki/ui が持つ。
+   ここには Check-in Cards 固有のものだけを置く。
+   **Tailwind と併用しない**（#297：`@import` の書体の url() が解決されず全滅した）。
+   **生の色を書かない**（語彙のトークンを使う）。字の大きさは 5 段のトークン。
+   ============================================================ */
+
+@import '@tasuki/ui';
+/* 遷移中・参加中の一言。卓の上で控えめに置く（topic-web・poker-web と同じ置き方）。色は部品（`.ui-note`）が持つ。 */
+.loading-note {
+  margin: 0;
+  padding: var(--space-6) 0;
+  text-align: center;
+}
+
+/* 共通の見出し（`RoomHeader`）と段組みの間（盤・札の列が行に接しない）。topic-web・roulette-web と同じ値 */
+.ui-room-header {
+  margin-block-end: var(--space-5);
+}
+
+/* ---------- 札の顔（`CardFace`・#406） ----------
+   象牙の札の上に、細い墨（--coal）の線を引き、金（--gold）を一点だけ差す。色は SVG の属性に書かず、ここで当てる。 */
+.card-art {
+  width: 4rem;
+  height: 4rem;
+  overflow: visible;
+}
+
+.card-art .ca-ink,
+.card-art .ca-gold-line,
+.card-art .ca-ink-dot {
+  fill: none;
+  stroke: var(--coal);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.card-art .ca-gold-line {
+  stroke: var(--gold-deep);
+  stroke-width: 3.2;
+}
+
+.card-art .ca-ink-dot {
+  fill: var(--coal);
+}
+
+/* 金の面: 塗りだけ（縁取りは付けない・モックアップの `.f-gold` と同じ） */
+.card-art .ca-gold {
+  fill: var(--gold);
+}
+
+.card-art .ca-paper {
+  fill: var(--card-sheen);
+}
+
+.card-art .ca-dashed {
+  stroke-dasharray: 3 5;
+}
+
+/* 数のやり方: 数字が絵の代わり */
+.card-numeral {
+  display: block;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 600;
+  font-size: 3.4rem; /* scale-exempt: 札の顔の大きな数字（絵の代わり） */
+  line-height: 1;
+  color: var(--coal);
+}
+
+/* 見出しは poker と同じ斜体・同じ大きさ（日本語の見出しを斜体で組む） */
+.checkin-room header h1 {
+  font-style: italic;
+  font-size: var(--font-size-xl);
+}

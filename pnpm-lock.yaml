@@ -109,6 +109,76 @@ importers:
         specifier: ^4.1.11
         version: 4.1.12(@types/node@26.6.5)(@vitest/coverage-v8@4.1.12)(jsdom@30.1.3)(vite@8.3.4(@types/node@26.6.5)(jiti@2.7.0))
 
+  apps/checkin-web:
+    dependencies:
+      '@tasuki/checkin-core':
+        specifier: workspace:*
+        version: link:../../packages/checkin-core
+      '@tasuki/invite-ui':
+        specifier: workspace:*
+        version: link:../../packages/invite-ui
+      '@tasuki/protocol':
+        specifier: workspace:*
+        version: link:../../packages/protocol
+      '@tasuki/room-core':
+        specifier: workspace:*
+        version: link:../../packages/room-core
+      '@tasuki/sync-client':
+        specifier: workspace:*
+        version: link:../../packages/sync-client
+      '@tasuki/topic-core':
+        specifier: workspace:*
+        version: link:../../packages/topic-core
+      '@tasuki/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      '@tasuki/web-kit':
+        specifier: workspace:*
+        version: link:../../packages/web-kit
+      react:
+        specifier: ^19.1.0
+        version: 19.3.1
+      react-dom:
+        specifier: ^19.1.0
+        version: 19.3.1(react@19.3.1)
+      valibot:
+        specifier: ^1.4.1
+        version: 1.5.0(typescript@6.0.3)
+    devDependencies:
+      '@tasuki/dev-hub-redirect':
+        specifier: workspace:*
+        version: link:../../packages/dev-hub-redirect
+      '@testing-library/jest-dom':
+        specifier: ^7.0.0
+        version: 7.0.1(@testing-library/dom@10.4.1)(vitest@4.1.12)
+      '@testing-library/react':
+        specifier: ^16.1.0
+        version: 16.3.3(@testing-library/dom@10.4.1)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      '@types/node':
+        specifier: ^26.1.2
+        version: 26.6.5
+      '@types/react':
+        specifier: ^19.1.0
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: ^19.1.0
+        version: 19.3.0(@types/react@19.3.0)
+      '@vitejs/plugin-react':
+        specifier: ^6.0.5
+        version: 6.1.2(vite@8.3.4(@types/node@26.6.5)(jiti@2.7.0))
+      jsdom:
+        specifier: ^30.0.1
+        version: 30.1.3
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vite:
+        specifier: ^8.2.0
+        version: 8.3.4(@types/node@26.6.5)(jiti@2.7.0)
+      vitest:
+        specifier: ^4.1.11
+        version: 4.1.12(@types/node@26.6.5)(@vitest/coverage-v8@4.1.12)(jsdom@30.1.3)(vite@8.3.4(@types/node@26.6.5)(jiti@2.7.0))
+
   apps/landing:
     dependencies:
       '@tasuki/invite-ui':
@@ -306,6 +376,9 @@ importers:
       '@tasuki/agenda-core':
         specifier: workspace:*
         version: link:../../packages/agenda-core
+      '@tasuki/checkin-core':
+        specifier: workspace:*
+        version: link:../../packages/checkin-core
       '@tasuki/poker-core':
         specifier: workspace:*
         version: link:../../packages/poker-core
@@ -492,6 +565,9 @@ importers:
       '@tasuki/agenda-web':
         specifier: workspace:*
         version: link:../apps/agenda-web
+      '@tasuki/checkin-web':
+        specifier: workspace:*
+        version: link:../apps/checkin-web
       '@tasuki/landing':
         specifier: workspace:*
         version: link:../apps/landing
@@ -525,6 +601,22 @@ importers:
         version: 4.1.12(@types/node@26.6.5)(@vitest/coverage-v8@4.1.12)(jsdom@30.1.3)(vite@8.3.4(@types/node@26.6.5)(jiti@2.7.0))
 
   packages/agenda-core:
+    dependencies:
+      neverthrow:
+        specifier: ^8.1.1
+        version: 8.2.0
+      valibot:
+        specifier: ^1.0.0
+        version: 1.5.0(typescript@6.0.3)
+    devDependencies:
+      '@vitest/coverage-v8':
+        specifier: ^4.1.11
+        version: 4.1.12(vitest@4.1.12)
+      vitest:
+        specifier: ^4.1.11
+        version: 4.1.12(@types/node@26.6.5)(@vitest/coverage-v8@4.1.12)(jsdom@30.1.3)(vite@8.3.4(@types/node@26.6.5)(jiti@2.7.0))
+
+  packages/checkin-core:
     dependencies:
       neverthrow:
         specifier: ^8.1.1

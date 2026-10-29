@@ -2,7 +2,7 @@
  * ツールごとの受け口（#368 Task 7。`ws-adapter.ts` の 4 つの `handleXMessage` と poker の受け口を分けた）。
  *
  * 受け口は「大きさの上限 → 解析 → 渡す先 → 失敗の隔離とエラーフレーム」の 1 本の流れである。
- * hub・topic・roulette・agenda・timer の 5 つは同じ形で、違いは spec（{@link TextChannelSpec}）で渡す。
+ * hub・topic・roulette・agenda・checkin・timer の 6 つは同じ形で、違いは spec（{@link TextChannelSpec}）で渡す。
  * **新しいツールを足すときに書くのは spec 1 つと、WS アダプタの表の 1 行である**（開放閉鎖）。
  *
  * poker だけは形が違うので {@link createPokerChannel} に分けてある（接続そのものを渡す・エラーは
@@ -42,7 +42,7 @@ export interface ToolChannel {
    * 受理を接続層の `onConnect` へ知らせるか。**知らせない受け口は poker だけ**
    * （poker のレート制限の鍵は `ws.data.rateKey` から直接読む）。
    *
-   * ⚠ **お題（topic）・ルーレット（roulette）・進行タイマー（agenda）を false にしてはならない**（#91 spec §5.3 の MUST・#94 spec §5.2）。
+   * ⚠ **お題（topic）・ルーレット（roulette）・進行タイマー（agenda）・チェックイン（checkin）を false にしてはならない**（#91 spec §5.3 の MUST・#94 spec §5.2）。
    * `onConnect` が呼ばれないと `rateLimitGate.open` が接続とクライアント鍵を結ばず、鍵は接続 ID へ落ちる。
    * すると `ai.unlock` や `room.join` の総当たりが**張り直すだけで**枠を回避できる（2026-09-23 のレビュー）。
    */
@@ -71,7 +71,7 @@ export interface TextChannelSpec<Payload, Frame> {
 }
 
 /**
- * hub・topic・roulette・agenda・timer の受け口を作る。
+ * hub・topic・roulette・agenda・checkin・timer の受け口を作る。
  *
  * 大きすぎるフレームはパーサへ渡さない。超過は接続を保ったままエラーフレームで返す
  * （再送で回復できる種類の失敗のため）。

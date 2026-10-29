@@ -101,6 +101,8 @@ export const ALLOWED = {
   "packages/roulette-core": [],
   // 進行タイマーの文脈（#429）。**@tasuki/* に依存しない**（他の文脈にも依存しない）。
   "packages/agenda-core": [],
+  // 会の始まりと終わりの札の文脈（#406）。**@tasuki/* に依存しない**（他の文脈にも依存しない）。
+  "packages/checkin-core": [],
   // 同期クライアントの接続部分（#95 S5a・D18）。**@tasuki/* に依存しない** ——
   // ツールの語彙を持たないことが、4 つの web アプリから使える条件である。
   "packages/sync-client": [],
@@ -203,11 +205,24 @@ export const ALLOWED = {
     "@tasuki/ui",
     "@tasuki/web-kit",
   ],
+  // Check-in Cards（#406）。agenda-web と同じ形（自分の core だけを使い、他のツールの core を知らない）。
+  "apps/checkin-web": [
+    "@tasuki/checkin-core",
+    "@tasuki/dev-hub-redirect",
+    "@tasuki/invite-ui",
+    "@tasuki/protocol",
+    "@tasuki/room-core",
+    "@tasuki/sync-client",
+    "@tasuki/topic-core",
+    "@tasuki/ui",
+    "@tasuki/web-kit",
+  ],
   // #95 S2 で apps/timer-sync と apps/poker-sync がここへ統合された。
   // poker-core が加わったのはそのため（統合前は poker-sync 側の依存）。
-  // 進行タイマー（#429）の合成ルートが agenda-core を呼ぶ。
+  // 進行タイマー（#429）の合成ルートが agenda-core を呼ぶ。チェックイン（#406）のハンドラと配信が checkin-core を呼ぶ。
   "apps/tasuki-sync": [
     "@tasuki/agenda-core",
+    "@tasuki/checkin-core",
     "@tasuki/poker-core",
     "@tasuki/protocol",
     "@tasuki/rate-limit",
@@ -216,7 +231,7 @@ export const ALLOWED = {
     "@tasuki/timer-core",
     "@tasuki/topic-core",
   ],
-  e2e: ["@tasuki/agenda-web", "@tasuki/landing", "@tasuki/poker-web", "@tasuki/roulette-web", "@tasuki/timer-web", "@tasuki/topic-web"],
+  e2e: ["@tasuki/agenda-web", "@tasuki/checkin-web", "@tasuki/landing", "@tasuki/poker-web", "@tasuki/roulette-web", "@tasuki/timer-web", "@tasuki/topic-web"],
 };
 
 /**

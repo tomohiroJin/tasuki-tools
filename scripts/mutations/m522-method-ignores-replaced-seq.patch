@@ -1,0 +1,25 @@
+# 変異 522: method-ignores-replaced-seq
+#
+# 検出を期待するテスト:
+#   - packages/checkin-core/tests/checkin.test.ts
+#     「置き換える回の seq がいまの回と違えば何もしない（同じ参照）。札の入った回を黙って捨てない〈m522〉」
+#     「置き換える回の seq がいまの回と違えば、くじを引かずに ok で同じ参照〈m522〉」
+#
+# #406 PR の自動レビューの修正。やり方を選ぶ・引く操作で、置き換える回の番号を見ない。ほぼ同時の「ランダム」2 回や
+# 開いたままの選択画面からの押下が、札の入った新しい回を黙って捨てる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m522-*.patch
+# 復元: git apply -R scripts/mutations/m522-*.patch
+diff --git a/packages/checkin-core/src/checkin.ts b/packages/checkin-core/src/checkin.ts
+--- a/packages/checkin-core/src/checkin.ts
++++ b/packages/checkin-core/src/checkin.ts
+@@ -32,7 +32,7 @@
+  * （ほぼ同時の 2 回の選択や、開いたままの選択画面からの押下が、札の入った新しい回を黙って捨てないように）
+  */
+ function replacesCurrent(s: CheckinState, seq: number): boolean {
+-  return (s.round?.seq ?? 0) === seq;
++  return true;
+ }
+ 
+ /** やり方を選ぶ。見ていた回（`seq`）を置き換える（前の回は捨てる）。違う回を見ていたら同じ参照 */

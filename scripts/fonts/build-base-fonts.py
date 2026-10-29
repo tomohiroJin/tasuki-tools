@@ -1,0 +1,159 @@
+#!/usr/bin/env python3
+"""書体の base 層（zkgn-{400,500,700}-base.woff2）を作り直す。運用者が手で流す（CI では流さない）。
+
+字の集合 = いまの base 層の cmap ∪ --add-chars の字。いまの字は 1 字も落とさない。
+元の書体は Google Fonts の Zen Kaku Gothic New（OFL）。既定は下の REV のコミット。
+
+使い方（リポジトリの根から）:
+    pip install fonttools brotli
+    python3 scripts/fonts/build-base-fonts.py [--add-chars '足したい字や文言'] --cache-dir <作業用ディレクトリ>
+
+- 元の書体（ttf）は --cache-dir に無ければ GitHub から取る。リポジトリには入れない
+- `fonts.css` の base 3 面の unicode-range は、新しい cmap から生成する（手で書かない）
+- ext 層（zkgn-*-ext.woff2）は作り直さない
+- 3 面とも作って「古い cmap ⊆ 新しい cmap」を確かめてから、まとめて置き換える（途中で落ちたら何も置き換えない。fail-closed）
+- 置き換えは、置き換え先と同じディレクトリに一時ファイルを写してから `replace` する
+  （--cache-dir が別のファイルシステムにあると、そこからの rename は EXDEV で失敗し、途中まで置き換わる）
+- 元の書体の置き場の名前には REV を入れる（--rev を替えたときに、古いコミットの書体を取り違えない）
+- 字を足さない再生成は `--add-chars` を省く（いまの字のまま作り直すだけ）
+- 画面の文言が base 層に収まるかは `tests/support/font-base.ts` の `outsideBase` で先に測る
+"""
+import argparse
+import re
+import sys
+import urllib.request
+from pathlib import Path
+
+from fontTools import subset
+from fontTools.ttLib import TTFont
+
+# 元の書体を取得したコミット（github.com/google/fonts・ofl/zenkakugothicnew。2026-10-28 に確認）
+REV = "ba225958c40ae6268a256861d80355a84b26e535"
+WEIGHTS = {400: "Regular", 500: "Medium", 700: "Bold"}
+FETCH_TIMEOUT_SEC = 30  # 取得が固まったまま止まらないように
+RAW = "https://raw.githubusercontent.com/google/fonts/{rev}/ofl/zenkakugothicnew/ZenKakuGothicNew-{name}.ttf"
+
+
+def cmap_of(path: Path) -> set[int]:
+    return set(TTFont(str(path)).getBestCmap())
+
+
+def to_ranges(codes: set[int]) -> str:
+    """cmap を `U+0020-007E,U+00A2-00A3,…` に畳む（`fonts.css` の unicode-range）。"""
+    out, run = [], []
+    for c in sorted(codes):
+        if run and c == run[-1] + 1:
+            run.append(c)
+            continue
+        if run:
+            out.append(run)
+        run = [c]
+    if run:
+        out.append(run)
+    return ",".join(
+        f"U+{r[0]:04X}" if len(r) == 1 else f"U+{r[0]:04X}-{r[-1]:04X}" for r in out
+    )
+
+
+def fetch(rev: str, name: str, dest: Path) -> Path:
+    if not dest.exists():
+        with urllib.request.urlopen(RAW.format(rev=rev, name=name), timeout=FETCH_TIMEOUT_SEC) as res:
+            dest.write_bytes(res.read())
+    return dest
+
+
+def sibling_tmp(target: Path) -> Path:
+    """置き換え先と同じディレクトリの一時ファイル（同じファイルシステムの中の rename にする）。"""
+    return target.with_name(f".{target.name}.staging")
+
+
+def replace_all(pairs: list[tuple[Path, bytes]]) -> None:
+    """中身をそれぞれの置き換え先の隣へ書き切ってから、まとめて置き換える。書き切る前に落ちたら何も置き換えない。"""
+    tmps = [(sibling_tmp(target), target) for target, _ in pairs]
+    try:
+        for (tmp, _), (_, data) in zip(tmps, pairs):
+            tmp.write_bytes(data)
+    except BaseException:
+        for tmp, _ in tmps:
+            tmp.unlink(missing_ok=True)
+        raise
+    for tmp, target in tmps:
+        tmp.replace(target)
+
+
+def build(src: Path, codes: set[int], dest: Path) -> None:
+    """`pyftsubset` の既定に揃える: woff2・layout_features='*'・ヒント無し。"""
+    opts = subset.Options()
+    opts.flavor = "woff2"
+    opts.layout_features = ["*"]
+    opts.hinting = False
+    font = subset.load_font(str(src), opts)
+    sub = subset.Subsetter(opts)
+    sub.populate(unicodes=sorted(codes))
+    sub.subset(font)
+    subset.save_font(font, str(dest), opts)
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--add-chars", default="", help="足す字（文言をそのまま渡してよい。空白は無視。省くと字は足さない）")
+    ap.add_argument("--rev", default=REV, help="google/fonts のコミット（既定: %(default)s）")
+    ap.add_argument("--cache-dir", type=Path, required=True, help="元の書体（ttf）の置き場。リポジトリの外か gitignore の中")
+    ap.add_argument("--fonts-dir", type=Path, default=Path("packages/ui/src/fonts"))
+    ap.add_argument("--css", type=Path, default=Path("packages/ui/src/tokens/fonts.css"))
+    args = ap.parse_args()
+
+    args.cache_dir.mkdir(parents=True, exist_ok=True)
+    add = {ord(c) for c in args.add_chars if not c.isspace()}
+    report = []
+    ranges: dict[int, str] = {}
+    staged: list[tuple[Path, Path]] = []  # (作ったファイル, 置き換え先)。全部検証してから置き換える
+    stage_dir = args.cache_dir / "staged"
+    stage_dir.mkdir(parents=True, exist_ok=True)
+    for weight, name in WEIGHTS.items():
+        target = args.fonts_dir / f"zkgn-{weight}-base.woff2"
+        old_codes, old_size = cmap_of(target), target.stat().st_size
+        src = fetch(args.rev, name, args.cache_dir / f"ZenKakuGothicNew-{name}-{args.rev}.ttf")
+        have = set(TTFont(str(src)).getBestCmap())
+        missing = sorted(c for c in add if c not in have)
+        if missing:
+            print(f"元の書体に無い字: {''.join(map(chr, missing))}", file=sys.stderr)
+            return 1
+        want = old_codes | add
+        tmp = stage_dir / target.name
+        build(src, want, tmp)
+        new_codes = cmap_of(tmp)
+        lost = old_codes - new_codes
+        if lost:  # fail-closed: 1 字でも落ちたら何も置き換えない
+            print(f"{weight}: 落ちた字がある: {''.join(map(chr, sorted(lost)))}", file=sys.stderr)
+            return 1
+        if not add <= new_codes:
+            print(f"{weight}: 足したはずの字が無い", file=sys.stderr)
+            return 1
+        staged.append((tmp, target))
+        ranges[weight] = to_ranges(new_codes)
+        report.append((weight, len(old_codes), len(new_codes), old_size, tmp.stat().st_size))
+
+    # fonts.css も置き換える前に組み立てて検証する（面が見つからなければ何も置き換えない）
+    css = args.css.read_text(encoding="utf8")
+    css = re.sub(r"^/\* 自動生成: [^*]*\*/", "/* 自動生成: scripts/fonts/build-base-fonts.py（base 層の unicode-range）。手で編集しないこと。 */", css, count=1)
+    for weight, rng in ranges.items():
+        pat = re.compile(r"(url\('\.\./fonts/zkgn-%d-base\.woff2'\) format\('woff2'\);\n\s*unicode-range: )[^;]+;" % weight)
+        css, n = pat.subn(lambda m: m.group(1) + rng + ";", css)
+        if n != 1:
+            print(f"{weight}: fonts.css の base 面が見つからない", file=sys.stderr)
+            return 1
+    # 3 面とも検証済み。ここで初めてまとめて置き換える（置き換え先の隣に写してから rename する）
+    replace_all([(target, tmp.read_bytes()) for tmp, target in staged] + [(args.css, css.encode("utf8"))])
+
+    print("太さ  字数(前→後)  大きさ(前→後, 増分)")
+    total = 0
+    for w, a, b, s0, s1 in report:
+        total += s1 - s0
+        print(f"{w}  {a}→{b}  {s0}→{s1}  {s1 - s0:+d}")
+    print(f"合計の増分: {total} bytes")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

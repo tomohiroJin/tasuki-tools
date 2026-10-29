@@ -1,0 +1,39 @@
+# 変異 504: command-schema-loosened
+#
+# 検出を期待するテスト:
+#   - packages/checkin-core/tests/schemas.test.ts
+#     「拒む: 余剰の項目（m504）」「拒む: 余剰の項目（method.choose）」
+#
+# #406 段 1。コマンドの余計なフィールドを拒まない（ADR 0011 決定 2 S3 の MUST に反する）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m504-*.patch
+# 復元: git apply -R scripts/mutations/m504-*.patch
+diff --git a/packages/checkin-core/src/schemas.ts b/packages/checkin-core/src/schemas.ts
+--- a/packages/checkin-core/src/schemas.ts
++++ b/packages/checkin-core/src/schemas.ts
+@@ -18,17 +18,17 @@
+ 
+ // **余計なフィールドは拒む**（`v.strictObject`）。`docs/adr/0011` 決定 2 S3 の MUST。
+ export const CheckinCommandSchema = v.variant("command", [
+-  v.strictObject({ command: v.literal("checkin.method.choose"), seq: replacedSeqNum, method: v.picklist(METHOD_IDS) }),
+-  v.strictObject({ command: v.literal("checkin.method.draw"), seq: replacedSeqNum, side: v.picklist(SIDES) }),
+-  v.strictObject({ command: v.literal("checkin.card.play"), seq: seqNum, card: cardStr }),
+-  v.strictObject({
++  v.object({ command: v.literal("checkin.method.choose"), seq: replacedSeqNum, method: v.picklist(METHOD_IDS) }),
++  v.object({ command: v.literal("checkin.method.draw"), seq: replacedSeqNum, side: v.picklist(SIDES) }),
++  v.object({ command: v.literal("checkin.card.play"), seq: seqNum, card: cardStr }),
++  v.object({
+     command: v.literal("checkin.visibility.set"),
+     seq: seqNum,
+     visibility: v.picklist(VISIBILITIES),
+   }),
+-  v.strictObject({ command: v.literal("checkin.reveal"), seq: seqNum }),
+-  v.strictObject({ command: v.literal("checkin.again"), seq: seqNum }),
+-  v.strictObject({ command: v.literal("checkin.spectator.set"), spectator: v.boolean() }),
++  v.object({ command: v.literal("checkin.reveal"), seq: seqNum }),
++  v.object({ command: v.literal("checkin.again"), seq: seqNum }),
++  v.object({ command: v.literal("checkin.spectator.set"), spectator: v.boolean() }),
+ ]);
+ export type CheckinCommand = v.InferOutput<typeof CheckinCommandSchema>;
+ 

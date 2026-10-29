@@ -87,5 +87,6 @@ export const PROTOCOL_LOG_NAMES = {
   topic: publicText("topic"), // log-hygiene:allow 語彙定義
   roulette: publicText("roulette"), // log-hygiene:allow 語彙定義
   agenda: publicText("agenda"), // log-hygiene:allow 語彙定義
+  checkin: publicText("checkin"), // log-hygiene:allow 語彙定義
   poker: publicText("poker"), // log-hygiene:allow 語彙定義
 } as const satisfies Record<AcceptedProtocol, LogSafe>;

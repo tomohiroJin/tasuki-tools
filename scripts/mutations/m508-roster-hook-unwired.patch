@@ -1,0 +1,23 @@
+# 変異 508: roster-hook-unwired
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/live-ws.checkin.test.ts
+#
+# #406 段 2。合成ルートで名簿の変化をチェックインへ渡さない。ハンドラの試験は rosterChanged を直に呼ぶので緑のまま、実 WS でだけ、最後のまだの人が閉じても開かないことが分かる（Review Focus 3）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m508-*.patch
+# 復元: git apply -R scripts/mutations/m508-*.patch
+diff --git a/apps/tasuki-sync/src/create-sync-server.ts b/apps/tasuki-sync/src/create-sync-server.ts
+index 080a6c64..f8cf4743 100644
+--- a/apps/tasuki-sync/src/create-sync-server.ts
++++ b/apps/tasuki-sync/src/create-sync-server.ts
+@@ -160,7 +160,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
+     store,
+     ws: () => wsAdapter,
+     // 名簿が変わったらチェックインが席と自動開票を測り直す（#406）。`checkinHandlers` は下で組み立てる。
+-    onRosterBroadcast: (roomCode) => checkinHandlers.rosterChanged(roomCode),
++    onRosterBroadcast: () => {},
+   });
+ 
+   // AI お題生成（トークンと合言葉が両方あるときだけ有効。spec 2026-06-12 参照）

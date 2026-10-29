@@ -89,6 +89,21 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
   - 「くりかえし」でシナリオ全体を指定の回数だけ繰り返せる（朝会の 6 回、LT 会の 5 回など。回ごとの見出しで進行表を区切る）
 - 設計判断: [`docs/adr/0027`](docs/adr/0027-agenda-timer.md)・設計正本 [`docs/superpowers/specs/2026-10-19-agenda-timer-design.md`](docs/superpowers/specs/2026-10-19-agenda-timer-design.md)
 
+### 7. チェックイン・チェックアウト（Check-in Cards）
+
+会の始まり（チェックイン）と終わり（チェックアウト）に、全員が絞り込んだ札から 1 枚を伏せて出し、一斉に開いて、誰がどれを出したか（匿名なら分布）を見せるツール。玄関の 6 枚目の札から開く。**本番へはまだ配っていない**（[#406](https://github.com/tomohiroJin/tasuki-tools/issues/406)・配布の手順は [`deploy/checkin/NOTES.md`](deploy/checkin/NOTES.md)）。
+
+- **構成**
+  - [`packages/checkin-core`](packages/checkin-core/) — ドメインロジック（やり方の表・回の遷移・受け手ごとの投影・境界のスキーマ）
+  - [`apps/checkin-web`](apps/checkin-web/) — フロントエンド（React + Vite・`base=/checkin/`・dev は :5179）
+  - [`apps/tasuki-sync`](apps/tasuki-sync/) — リアルタイム同期サーバー（共用。`?tool=checkin`。受け手ごとに写しを作って送る）
+- **特徴**
+  - 10 種のやり方（天気・数・ひとこと など）から 1 つ選び、全員が出したら自動で開く（待たずに開くこともできる）
+  - **匿名はサーバーが送らないことで守る**。開く前は他人の札の中身を載せず、匿名で開いた後は札ごとの枚数だけを載せる。公開の仕方は誰かが出したら変えられない
+  - 開いた後は札ごとに山に寄せる（一番多い山は金の縁）。動きを減らす設定では動かさず、開いた形をすぐ出す
+  - 結果は保存しない（揮発インメモリ）。見学の人は札を出さず、数にも入らない
+- 設計判断: [`docs/adr/0028`](docs/adr/0028-checkin-cards.md)・設計正本 [`docs/superpowers/specs/2026-10-28-checkin-checkout-design.md`](docs/superpowers/specs/2026-10-28-checkin-checkout-design.md)
+
 ## 🔗 ライブデモ
 
 **<https://tasuki.niku9.click/>** — 玄関（ツール選択 LP）が開きます。玄関でルームを作り、札からツールを選んでください
@@ -127,9 +142,9 @@ pnpm test    # 全パッケージのテストを実行する
 **起動したら <http://localhost:5175/> を開いてください。** `pnpm dev` は玄関・各ツールの画面と同期サーバーの
 プロセスをまとめて立ち上げ、ログには複数のポートが並びますが、**入口はこの 1 つだけ**です（本番と同じ形）。
 
-> ⚠ **ツールの dev サーバー（:5173 / :5174 / :5176 / :5177 / :5178）を直接開かないでください。**
+> ⚠ **ツールの dev サーバー（:5173 / :5174 / :5176 / :5177 / :5178 / :5179）を直接開かないでください。**
 > #95 S5c で入口を玄関 1 つに畳んだため、ルームコードを伴わずに開くと玄関（`/`）へ
-> 送り返されます。:5173 / :5174 / :5176 / :5177 / :5178 では `/` がそのツール自身なので、Vite の base
+> 送り返されます。:5173 / :5174 / :5176 / :5177 / :5178 / :5179 では `/` がそのツール自身なので、Vite の base
 > リダイレクトと噛み合って**ページの再読み込みが止まらなくなります**。
 
 起動・個別プロセスの内訳・検査コマンドの詳しい手順は
@@ -157,6 +172,7 @@ TypeScript / React 19 + Vite / Bun / WebSocket / Valibot / neverthrow / Vitest /
 | Topic Board | `/topic/` | 本番公開中 |
 | Facilitator Roulette | `/roulette/` | 本番公開中 |
 | Agenda Timer | `/agenda/` | 本番公開中 |
+| Check-in Cards | `/checkin/` | 未配布（実装は #406 の枝） |
 
 公開の履歴は次のとおりです（GitHub Releases は使っていません。大きめの配布には注釈付きタグを打ち、変更点の要約をタグの本文に書いています。配布の詳しい記録は各 Issue にあります）。
 

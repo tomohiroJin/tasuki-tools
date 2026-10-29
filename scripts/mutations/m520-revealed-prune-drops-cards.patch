@@ -1,0 +1,29 @@
+# 変異 520: revealed-prune-drops-cards
+#
+# 検出を期待するテスト:
+#   - packages/checkin-core/tests/checkin.test.ts
+#     prune の「開いた回では札を落とさない（結果を凍らせる）。見学は名簿どおり落とす〈m520〉」
+#   - packages/checkin-core/tests/projection.test.ts
+#     「匿名: 開いた後に 1 人が名簿から外れても、全員の山が変わらない〈m520〉」「名前つき: …山の count と names が変わらない〈m520〉」
+#   - packages/checkin-core/tests/projection-invariant.test.ts
+#     「性質: 開いた後に名簿から人が外れても、どの受け手の山も変わらない〈m520〉」
+#
+# #406 最終レビューの修正。開いた回の prune が札を落とす。匿名で開いた後に誰かが退出すると、
+# 前後 2 枚のフレームの山の差（「1」の山が 1→0）で、抜けた人の札が特定できる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m520-*.patch
+# 復元: git apply -R scripts/mutations/m520-*.patch
+diff --git a/packages/checkin-core/src/checkin.ts b/packages/checkin-core/src/checkin.ts
+index 1f771da6..f061c0f4 100644
+--- a/packages/checkin-core/src/checkin.ts
++++ b/packages/checkin-core/src/checkin.ts
+@@ -118,7 +118,7 @@ export function setSpectator(s: CheckinState, participantId: string, spectator:
+  */
+ export function prune(s: CheckinState, knownIds: ReadonlySet<string>): CheckinState {
+   const r = s.round;
+-  const isFrozen = r === null || r.status === "revealed";
++  const isFrozen = r === null;
+   const staleCards = isFrozen ? [] : [...r.cards.keys()].filter((id) => !knownIds.has(id));
+   const staleSpectators = [...s.spectators].filter((id) => !knownIds.has(id));
+   if (staleCards.length === 0 && staleSpectators.length === 0) return s;

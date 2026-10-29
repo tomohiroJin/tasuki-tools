@@ -1,5 +1,6 @@
 import { describe, it, expect } from "bun:test";
 import { loadSyncConfig } from "../src/config.js";
+import { CHECKIN_DISCONNECT_REVEAL_GRACE_MS } from "../src/application/checkin-handlers.js";
 
 describe("loadSyncConfig", () => {
   it("既定値を返す（env 空）", () => {
@@ -161,7 +162,16 @@ describe("loadSyncConfig", () => {
       expect(c.heartbeatMaxMisses).toBe(3);
     });
 
-    it("ハートビート設定の不正値は既定値にフォールバック", () => {
+    it("チェックインの切断による自動公開の猶予は既定でハンドラの定数と同じ。env で縮められる（#406）", () => {
+    // Given / When
+    const byDefault = loadSyncConfig({});
+    const shortened = loadSyncConfig({ CHECKIN_REVEAL_GRACE_MS: "300" });
+    // Then
+    expect(byDefault.checkinRevealGraceMs).toBe(CHECKIN_DISCONNECT_REVEAL_GRACE_MS);
+    expect(shortened.checkinRevealGraceMs).toBe(300);
+  });
+
+  it("ハートビート設定の不正値は既定値にフォールバック", () => {
       // Given
       const env = { HEARTBEAT_INTERVAL_MS: "abc", HEARTBEAT_MAX_MISSES: "-1" };
       // When

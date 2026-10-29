@@ -947,9 +947,10 @@ export const MUTATIONS = [
     pkg: "apps/topic-web",
     tests: ["tests/copy-fits-font-base.test.ts"],
     note:
-      "#91 PR 2。topic-core の `GENERATION_COOLDOWN` を「少し待ってから、もう一度" +
-      "作ってください。」へ戻す。「少」は書体の常用の層（base）の範囲に無く、" +
-      "「しばらく」へ言い換えたのは計画を書く段の実測でこれが外れていたためである" +
+      "#91 PR 2。topic-core の `GENERATION_COOLDOWN` を「暫く待ってから、もう一度" +
+      "作ってください。」へ変える。「暫」は書体の常用の層（base）の範囲に無い。元は「少し」だったが、" +
+      "#406 で「少」を base 層に足したので、まだ範囲外の「暫」に替えた（2026-10-29）。" +
+      "「しばらく」へ言い換えたのは計画を書く段の実測で「少」が外れていたためである" +
       "（global-constraints「実測で spec から外したこと」）。`packages/topic-core/" +
       "tests/error-messages.test.ts` も赤になるが、対応表に載せるのは書体の検査である" +
       "（「base 層に収める」を守っている本体はこちら）。",
@@ -3288,6 +3289,255 @@ export const MUTATIONS = [
     note:
       "#447 段 2。広い幅の timer のセッションで開く前から招待の欄が出て見出しが高くなり、「仲間を招く」の aria-expanded と見た目が食い違う。" +
       "40rem 未満は通常の見た目のたたみの規則が重ねて隠すので、狭い幅では見えない。@media の外の規則を字で読む試験を足した。",
+  },
+  {
+    id: 495,
+    label: "開く前の席に各人の札を載せる",
+    patch: "m495-view-leaks-others-card-before-reveal.patch",
+    pkg: "packages/checkin-core",
+    tests: ["tests/projection.test.ts", "tests/projection-invariant.test.ts"],
+    note: "#406 段 1。誰が何を出したかが開く前に全員へ届き、札を伏せる意味が無くなる（設計 §6・E5）。匿名をサーバーで守る変異。",
+  },
+  {
+    id: 496,
+    label: "匿名で開いた後の山に出した人の名前を載せる",
+    patch: "m496-anonymous-piles-carry-names.patch",
+    pkg: "packages/checkin-core",
+    tests: ["tests/projection.test.ts"],
+    note: "#406 段 1。匿名を選んだ回で誰がどの札かが全員に分かる（設計 §6・E6）。匿名をサーバーで守る変異。",
+  },
+  {
+    id: 497,
+    label: "匿名で開いた後も受け手に自分の札を返す",
+    patch: "m497-anonymous-reveal-keeps-your-card.patch",
+    pkg: "packages/checkin-core",
+    tests: ["tests/projection.test.ts"],
+    note: "#406 段 1。画面が自分の札の山を印すと、肩越しに見た人に自分の札が分かる（判断 7）。匿名をサーバーで守る変異。",
+  },
+  {
+    id: 498,
+    label: "札が出た後も公開の仕方を変えられる",
+    patch: "m498-visibility-unlocked-after-play.patch",
+    pkg: "packages/checkin-core",
+    tests: ["tests/checkin.test.ts"],
+    note: "#406 段 1。匿名のつもりで出した札が名前つきで開かれる（判断 5・E7）。匿名をサーバーで守る変異。",
+  },
+  {
+    id: 499,
+    label: "もう一回で前の回の公開の仕方を引き継ぐ",
+    patch: "m499-again-keeps-visibility.patch",
+    pkg: "packages/checkin-core",
+    tests: ["tests/checkin.test.ts"],
+    note: "#406 段 1。前の回で名前つきに切り替えた ROTI が、次の回も名前つきのまま始まる（判断 8）。",
+  },
+  {
+    id: 500,
+    label: "自動公開で players から見学者を除かない",
+    patch: "m500-auto-reveal-counts-spectators.patch",
+    pkg: "packages/checkin-core",
+    tests: ["tests/checkin.test.ts"],
+    note:
+      "#406 段 1。見学者は札を出せないので、見学者が混じると全員が出しても開かない（E9）。" +
+      "隣の「players が全員見学なら…開かない」はこの変異では赤にならない（除外の後の 0 人の判定を守る試験）。",
+  },
+  {
+    id: 501,
+    label: "くじの候補にいまのやり方を残す",
+    patch: "m501-draw-includes-current-method.patch",
+    pkg: "packages/checkin-core",
+    tests: ["tests/checkin.test.ts"],
+    note: "#406 段 1。引き直しても同じやり方が出る（E2）。",
+  },
+  {
+    id: 502,
+    label: "出し直しを受けず最初の札が残る",
+    patch: "m502-replay-keeps-first-card.patch",
+    pkg: "packages/checkin-core",
+    tests: ["tests/checkin.test.ts"],
+    note: "#406 段 1。札を選び直せない（E10）。",
+  },
+  {
+    id: 503,
+    label: "札を出す操作で回の番号を見ない",
+    patch: "m503-stale-seq-applies.patch",
+    pkg: "packages/checkin-core",
+    tests: ["tests/checkin.test.ts"],
+    note:
+      "#406 段 1。もう一回の直後に届いた古い回の札が新しい回に入る（Review Focus 2）。" +
+      "seq の検査を他の検査の後ろへ回す変形（playCard）も同じ試験が赤にすることを手で確かめた。setVisibility 側は m519 が受け持つ。",
+  },
+  {
+    id: 504,
+    label: "コマンドのスキーマが余計なフィールドを拒まない",
+    patch: "m504-command-schema-loosened.patch",
+    pkg: "packages/checkin-core",
+    tests: ["tests/schemas.test.ts"],
+    note: "#406 段 1。v.strictObject を v.object に緩める。`docs/adr/0011` 決定 2 S3 の MUST に反する。",
+  },
+  {
+    id: 505,
+    label: "配信が受け手ごとでなく全員へ同じ投影を送る",
+    patch: "m505-broadcast-one-view-to-all.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/checkin-handlers.test.ts"],
+    note: "#406 段 2。開く前に名簿の先頭の人の札が全員へ届く（設計 §6・E5）。匿名をサーバーで守る変異。",
+  },
+  {
+    id: 506,
+    label: "札を出す人をチェックインでなくルームの在席で数える",
+    patch: "m506-players-by-presence-not-tool.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/checkin-handlers.test.ts"],
+    note: "#406 段 2。分母の誤り（選択画面〔ハブ〕だけに居る人が数えられ、チェックインを開いている全員が出しても開かない。判断 10）。匿名の漏れではなく、自動で開く判断が狂う実害を固定する。",
+  },
+  {
+    id: 507,
+    label: "名簿の変化で自動公開を測り直さない",
+    patch: "m507-roster-change-skips-auto-reveal.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/checkin-handlers.test.ts"],
+    note: "#406 段 2。最後のまだの人がタブを閉じても、残った全員が出していながら開かない（Review Focus 3）。",
+  },
+  {
+    id: 508,
+    label: "合成ルートで名簿の変化をチェックインへ渡さない",
+    patch: "m508-roster-hook-unwired.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/live-ws.checkin.test.ts"],
+    note: "#406 段 2。ハンドラの試験は rosterChanged を直に呼ぶので緑のまま。実 WS で、まだの人が閉じても開かないことを見る（Review Focus 3）。",
+  },
+  {
+    id: 509,
+    label: "チェックインの接続の受け口がハブの層へ渡す",
+    patch: "m509-hub-message-reaches-checkin.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/ws-adapter-tool-query.test.ts", "test/live-ws.checkin.test.ts"],
+    note: "#406 段 2。?tool=checkin の振り分けを崩す。チェックインの接続の札の操作がハブの層で拒まれる。",
+  },
+  {
+    id: 510,
+    label: "ルーム破棄でチェックインの状態を消さない",
+    patch: "m510-destroy-keeps-checkin.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/destroy-room.test.ts"],
+    note: "#406 段 2。破棄したルームのコードを引き継いだ別のルームに、古い回の札が残る。",
+  },
+  {
+    id: 511,
+    label: "お題の宛先からチェックインの接続を外す",
+    patch: "m511-topic-excludes-checkin.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/live-ws.checkin.test.ts"],
+    note: "#406 段 2。チェックインを開いている人に、お題の掲げ直しも取り下げも届かなくなる。",
+  },
+  {
+    id: 512,
+    label: "チェックインの接続の受理で onConnect を通さない",
+    patch: "m512-checkin-skips-on-connect.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/live-ws.checkin.test.ts"],
+    note: "#406 段 2。poker の早期 return に足す。レート制限の鍵が接続 ID に落ち、room.join の総当たりが接続を張り直すだけで枠を回避できる。",
+  },
+  {
+    id: 519,
+    label: "公開の仕方を変える操作で回の番号を見ない",
+    patch: "m519-stale-seq-sets-visibility.patch",
+    pkg: "packages/checkin-core",
+    tests: ["tests/checkin.test.ts"],
+    note:
+      "#406 段 1。古い回の「名前つきにする」が既定が匿名の新しい回に当たり、匿名のつもりで出す札が名前つきで開かれる（判断 5・8）。" +
+      "帯の予備を統括の判断で使った（匿名の保護に直結する）。",
+  },
+  {
+    id: 520,
+    label: "開いた回の prune が札を落とす",
+    patch: "m520-revealed-prune-drops-cards.patch",
+    pkg: "packages/checkin-core",
+    tests: ["tests/checkin.test.ts", "tests/projection.test.ts", "tests/projection-invariant.test.ts"],
+    note:
+      "#406 最終レビューの修正。匿名で開いた後に誰かが退出すると、前後 2 枚のフレームの山の差で抜けた人の札が分かる。" +
+      "同期サーバーの試験（checkin-handlers.test.ts の〈m520〉）も赤になるが、宣言はパッケージ 1 つに絞る。帯の予備を統括の判断で使った。",
+  },
+  {
+    id: 521,
+    label: "公開の仕方を変えても回の番号を進めない",
+    patch: "m521-visibility-change-keeps-seq.patch",
+    pkg: "packages/checkin-core",
+    tests: ["tests/checkin.test.ts"],
+    note:
+      "#406 PR の自動レビューの修正。匿名の画面で押した札が、先に届いた「名前つき」の後の回に受理され、名前が付いて開かれる（判断 5・設計 §6）。" +
+      "同期サーバーの試験（checkin-handlers.test.ts の〈m521〉）も赤になるが、宣言はパッケージ 1 つに絞る。帯を 521 まで広げた（統括の判断）。",
+  },
+  {
+    id: 522,
+    label: "やり方を選ぶ・引く操作で置き換える回の番号を見ない",
+    patch: "m522-method-ignores-replaced-seq.patch",
+    pkg: "packages/checkin-core",
+    tests: ["tests/checkin.test.ts"],
+    note:
+      "#406 PR の自動レビューの修正。ほぼ同時の「ランダム」2 回や開いたままの選択画面からの押下が、札の入った新しい回を黙って捨てる。" +
+      "同期サーバーの試験（checkin-handlers.test.ts の〈m522〉）も赤になるが、宣言はパッケージ 1 つに絞る。統括の判断で帯の外に 1 本足した。",
+  },
+  {
+    id: 523,
+    label: "切断による自動公開に猶予を置かない",
+    patch: "m523-disconnect-reveals-without-grace.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/checkin-handlers.test.ts"],
+    note:
+      "#406 PR のレビューの修正。まだの人が再読み込みで一瞬切れただけで匿名の回が開き、戻った人には山 1 枚で残った人の札が分かる（ADR 0028）。" +
+      "統括の判断で帯を 523 まで広げた。",
+  },
+  {
+    id: 513,
+    label: "見学中も手札を出す",
+    patch: "m513-spectator-sees-hand.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/checkin-room.test.tsx", "tests/hand.test.tsx"],
+    note: "#406 段 3。札を出す人に数えない見学者が札を押せ、見学をやめるも出ない（E9・判断 10）。",
+  },
+  {
+    id: 514,
+    label: "動きを減らす設定でも札の裏返る遅れを付ける",
+    patch: "m514-reduced-motion-still-staggers.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/reveal-view.test.ts"],
+    note: "#406 段 3。E12。RevealBoard は reduced で遅れを渡さないので画面の試験は緑のまま。純粋関数 revealSchedule の契約を守る変異。",
+  },
+  {
+    id: 515,
+    label: "誰かが出したあとも公開の仕方を押せる",
+    patch: "m515-visibility-toggle-enabled-when-locked.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/prompt-panel.test.tsx", "tests/checkin-room.test.tsx"],
+    note: "#406 段 3。サーバーは LOCKED で拒むが、押せる見た目が「変えられる」と誤らせる（E7・判断 5）。",
+  },
+  {
+    id: 516,
+    label: "同数の最多の山の最初の 1 つだけを強調する",
+    patch: "m516-top-pile-first-only.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/reveal-view.test.ts", "tests/reveal-board.test.tsx"],
+    note: "#406 段 3。割れているのに札の順で先の 1 つが勝ったように見え、要約も「ずつ」にならない（設計 §5）。",
+  },
+  {
+    id: 517,
+    label: "開く動きを席の側で起こす",
+    patch: "m517-flip-at-seats.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/reveal-board.test.tsx"],
+    note:
+      "#406 段 3。席の行を開く動きの板の中に置き、出した席の伏せ札を山と同じ動きで裏返す。匿名で席と札が結びついて見える（Review Focus 1）。" +
+      "試験は 3.5 の修正で CheckinRoom に組んだ開いた後を reveal-board.test.tsx の中で描く。",
+  },
+  {
+    id: 518,
+    label: "玄関の札の ID が同期サーバーの綴り（checkin）とずれる",
+    patch: "m518-hub-tool-id-mismatch-checkin.patch",
+    pkg: "apps/landing",
+    tests: ["tests/room-choice-layout.test.tsx"],
+    note:
+      "#406 段 4。m169・m449 と同じ型。札の id を引く在席の表示が、知らない綴りを生のまま「checkin にいます」と出す。型の綴りも合わせて変えるので型検査は通る。",
   },
   {
     id: 540,
