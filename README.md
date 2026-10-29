@@ -91,7 +91,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 
 ### 7. チェックイン・チェックアウト（Check-in Cards）
 
-会の始まり（チェックイン）と終わり（チェックアウト）に、全員が絞り込んだ札から 1 枚を伏せて出し、一斉に開いて、誰がどれを出したか（匿名なら分布）を見せるツール。玄関の 6 枚目の札から開く。**本番へはまだ配っていない**（[#406](https://github.com/tomohiroJin/tasuki-tools/issues/406)・配布の手順は [`deploy/checkin/NOTES.md`](deploy/checkin/NOTES.md)）。
+会の始まり（チェックイン）と終わり（チェックアウト）に、全員が絞り込んだ札から 1 枚を伏せて出し、一斉に開いて、誰がどれを出したか（匿名なら分布）を見せるツール。玄関の 6 枚目の札から開く。2026-10-30 に本番へ配った（[#406](https://github.com/tomohiroJin/tasuki-tools/issues/406)・配布の記録は [`deploy/checkin/NOTES.md`](deploy/checkin/NOTES.md)）。
 
 - **構成**
   - [`packages/checkin-core`](packages/checkin-core/) — ドメインロジック（やり方の表・回の遷移・受け手ごとの投影・境界のスキーマ）
@@ -186,7 +186,7 @@ TypeScript / React 19 + Vite / Bun / WebSocket / Valibot / neverthrow / Vitest /
 | 2026-10-19 | `v4.2.0`（v4.1.0 以降の 31 PR）。timer の休憩・poker の見積もりの記録と見学者・ルーレットの決め方を増やした | [#402](https://github.com/tomohiroJin/tasuki-tools/issues/402)・[#93](https://github.com/tomohiroJin/tasuki-tools/issues/93)・[#419](https://github.com/tomohiroJin/tasuki-tools/issues/419)・[#401](https://github.com/tomohiroJin/tasuki-tools/issues/401) ほか |
 | 2026-10-21 | `v4.3.0`（v4.2.0 以降の 1 PR）。進行タイマー（Agenda Timer）を初回公開。玄関に 5 枚目の札を出し、同期サーバーが `?tool=agenda` を受けるようにした | [#429](https://github.com/tomohiroJin/tasuki-tools/issues/429) |
 | 2026-10-24 | `v4.4.0`（v4.3.0 以降の 6 PR）。進行タイマーのくりかえしと利用者フィードバックの直し、Slack などに貼ったときの紹介・共通のアイコン・robots.txt などサイトの外側を揃えた。本番の Caddy 2.6.2 に合わせてキャッシュの指定を直した（#437） | [#429](https://github.com/tomohiroJin/tasuki-tools/issues/429)・[#434](https://github.com/tomohiroJin/tasuki-tools/issues/434) |
-| 2026-10-30 | `v4.5.0`（v4.4.0 以降の 14 PR）。会の始まりと終わりの札（Check-in Cards）を初回公開し、玄関に 6 枚目の札を出した。ルーム画面の見出しを各道具で揃え、進行タイマーで 12 時間までの会・poker の隠しモード・ルーレットの「いつものメンツ」を足した | [#406](https://github.com/tomohiroJin/tasuki-tools/issues/406)・[#447](https://github.com/tomohiroJin/tasuki-tools/issues/447)・[#455](https://github.com/tomohiroJin/tasuki-tools/issues/455)・[#403](https://github.com/tomohiroJin/tasuki-tools/issues/403)・[#458](https://github.com/tomohiroJin/tasuki-tools/issues/458) |
+| 2026-10-30 | `v4.5.0`（v4.4.0 以降の 14 PR）。会の始まりと終わりの札（Check-in Cards）を初回公開し、玄関に 6 枚目の札を出した。ルーム画面の見出しを各道具で揃え、進行タイマーで 12 時間までの会・poker の隠しモード・ルーレットの「いつものメンツ」を足した。推移依存の脆弱性の解き直し（fast-uri）と、E2E・CI の Caddy を本番の 2.11.7 へ揃えたのもこの回 | [#406](https://github.com/tomohiroJin/tasuki-tools/issues/406)・[#447](https://github.com/tomohiroJin/tasuki-tools/issues/447)・[#455](https://github.com/tomohiroJin/tasuki-tools/issues/455)・[#403](https://github.com/tomohiroJin/tasuki-tools/issues/403)・[#458](https://github.com/tomohiroJin/tasuki-tools/issues/458)・[#444](https://github.com/tomohiroJin/tasuki-tools/issues/444) ほか |
 
 単一 monorepo への統合（[epic #15](https://github.com/tomohiroJin/tasuki-tools/issues/15)・
 設計: [`docs/superpowers/specs/2026-08-04-monorepo-unification-design.md`](docs/superpowers/specs/2026-08-04-monorepo-unification-design.md)）、
