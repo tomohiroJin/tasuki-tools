@@ -1,0 +1,23 @@
+# 変異 565: spin-allows-over-wheel
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/roulette-view.test.ts
+#
+# #458。いつものメンツを入れて入る人が 25 人以上になっても回すボタンが押せ、サーバーが拒む（円盤は 24 席まで）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m565-*.patch
+# 復元: git apply -R scripts/mutations/m565-*.patch
+diff --git a/apps/roulette-web/src/roulette-view.ts b/apps/roulette-web/src/roulette-view.ts
+index a00b6576..d62d2d68 100644
+--- a/apps/roulette-web/src/roulette-view.ts
++++ b/apps/roulette-web/src/roulette-view.ts
+@@ -289,7 +289,7 @@ export function spinButtonOf(input: {
+   const { view, poolCount, operable, serverSpinning } = input;
+   if (serverSpinning) return { label: SPINNING_BUTTON, disabled: true };
+   // 入る人がちょうど選ぶ人数なら全員が選ばれ、回す意味が無い（#401 spec M5。1 人なら #94 の「2 人から」と同じ）
+-  return { label: view.spin === null ? SPIN_BUTTON : SPIN_AGAIN_BUTTON, disabled: !operable || poolCount < pickCountOf(view) + 1 || poolCount > MAX_WHEEL };
++  return { label: view.spin === null ? SPIN_BUTTON : SPIN_AGAIN_BUTTON, disabled: !operable || poolCount < pickCountOf(view) + 1 };
+ }
+ 
+ // ---------- 順番に回す（#401 順番に回す spec §5） ----------

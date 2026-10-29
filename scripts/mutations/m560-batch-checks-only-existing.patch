@@ -1,0 +1,23 @@
+# 変異 560: batch-checks-only-existing
+#
+# 検出を期待するテスト:
+#   - packages/roulette-core/tests/roulette-guest-batch.test.ts
+#
+# #458。`addGuests` が同名の相手を呼ぶ前のゲストだけにし、束の中の表記違いの同じ名前（alice と ALICE）が 2 人とも入る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m560-*.patch
+# 復元: git apply -R scripts/mutations/m560-*.patch
+diff --git a/packages/roulette-core/src/roulette.ts b/packages/roulette-core/src/roulette.ts
+index df11a9df..b2d506a6 100644
+--- a/packages/roulette-core/src/roulette.ts
++++ b/packages/roulette-core/src/roulette.ts
+@@ -302,7 +302,7 @@ export function addGuests(
+   const skipped: string[] = [];
+   const overflow: string[] = [];
+   for (const name of names) {
+-    if (conflicts(existingOf(members, guests), name)) {
++    if (conflicts(existingOf(members, state.guests), name)) {
+       skipped.push(name);
+     } else if (guests.length < MAX_GUESTS) {
+       guests = [...guests, { id: `g-${seq}`, name }];

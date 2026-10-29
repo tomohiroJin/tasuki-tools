@@ -1,0 +1,31 @@
+# 変異 570: sync-batch-skips-name-rule
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/roulette-handlers.test.ts
+#
+# #458。`roulette.guest.addMany` が `applyDisplayNameRule` を通さず生の名前を足す。制御文字や見えない名前が円盤に入り、正規化しないので同名の判定もすり抜ける。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m570-*.patch
+# 復元: git apply -R scripts/mutations/m570-*.patch
+diff --git a/apps/tasuki-sync/src/application/roulette-handlers.ts b/apps/tasuki-sync/src/application/roulette-handlers.ts
+index 8bb66321..f1930464 100644
+--- a/apps/tasuki-sync/src/application/roulette-handlers.ts
++++ b/apps/tasuki-sync/src/application/roulette-handlers.ts
+@@ -230,15 +230,7 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
+       }
+       case "roulette.guest.addMany": {
+         // 1 つでも規約に通らなければ全体を拒む（一部だけ足すと、押した本人が何が入ったか分からない）。
+-        const normalized: string[] = [];
+-        for (const raw of cmd.names) {
+-          const applied = applyDisplayNameRule(raw);
+-          if (applied.isErr()) {
+-            fail(connId, "INVALID_GUEST_NAME");
+-            return;
+-          }
+-          normalized.push(applied.value);
+-        }
++        const normalized: string[] = [...cmd.names];
+         // 同名・上限は拒まず飛ばす（`addGuests` は失敗を返さない）。足す名前が 0 件なら同じ参照で、commit は配らない。
+         // ログは書かない（名前は ADR 0011 のデータ分類で記録しない）。
+         const batch = addGuests(state, normalized, membersOf(room), conflictsWithExisting);

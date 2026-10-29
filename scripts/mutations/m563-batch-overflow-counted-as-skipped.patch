@@ -1,0 +1,23 @@
+# 変異 563: batch-overflow-counted-as-skipped
+#
+# 検出を期待するテスト:
+#   - packages/roulette-core/tests/roulette-guest-batch.test.ts
+#
+# #458。ゲストの上限で入らなかった名前を「同名で飛ばした」と数え、画面の知らせが「もういる」と誤る。`planBatch` が同じ関数を呼ぶので apps/roulette-web/tests/regulars-view.test.ts でも赤になる（宣言の pkg は 1 つなので tests は中核の試験だけ）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m563-*.patch
+# 復元: git apply -R scripts/mutations/m563-*.patch
+diff --git a/packages/roulette-core/src/roulette.ts b/packages/roulette-core/src/roulette.ts
+index df11a9df..afb70c65 100644
+--- a/packages/roulette-core/src/roulette.ts
++++ b/packages/roulette-core/src/roulette.ts
+@@ -309,7 +309,7 @@ export function addGuests(
+       seq += 1;
+       added.push(name);
+     } else {
+-      overflow.push(name);
++      skipped.push(name);
+     }
+   }
+   if (added.length === 0) return { state, added, skipped, overflow };
