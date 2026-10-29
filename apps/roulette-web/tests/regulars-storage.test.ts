@@ -50,6 +50,12 @@ describe('いつものメンツの端末への保存', () => {
   });
 
   describe('読む', () => {
+    it.each([[' Alice'], ['ｱﾘｽ'], ['\u200b'], ['あ'.repeat(41)]])('正規化されていない・長すぎ・見えない名前「%s」を含む組は読まない', (m) => {
+      const s = fakeStorage();
+      put(s, { version: 1, items: [g('a', 'A', 1, [m]), g('b', 'B', 2, ['alice'])] });
+      expect(loadGroups(s).map((x) => x.id)).toEqual(['b']);
+    });
+
     it('空の保存は 0 組', () => {
       expect(loadGroups(fakeStorage())).toEqual([]);
     });
@@ -100,6 +106,12 @@ describe('いつものメンツの端末への保存', () => {
   });
 
   describe('保存する', () => {
+    it('見えない文字だけの組名は invalid で、保存に触れない', () => {
+      const s = fakeStorage();
+      expect(saveGroup(s, { name: '\u200b', members: ['さとう'] }, 1)).toEqual({ ok: false, reason: 'invalid' });
+      expect(s.setCalls).toBe(0);
+    });
+
     it('crypto.randomUUID が無い環境（http の LAN）でも投げず、空でない ID で保存できる', () => {
       vi.stubGlobal('crypto', {});
       try {

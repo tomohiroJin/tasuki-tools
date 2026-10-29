@@ -1,5 +1,5 @@
 import { useEffect, useId, useState, type FormEvent } from 'react';
-import { MAX_DISPLAY_NAME } from '@tasuki/room-core';
+import { MAX_DISPLAY_NAME, rendersAsNothing } from '@tasuki/room-core';
 import { MAX_GUESTS } from '@tasuki/roulette-core';
 import {
   REGULARS_CANCEL_BUTTON,
@@ -68,7 +68,7 @@ type ErrorField = 'name' | 'members';
 
 /** 入力の検証。保存の関数が黙って落とす名前（長すぎる・見えない）も、ここで見つけて止める */
 function validate(name: string, text: string): { error: string; field: ErrorField } | { members: string[] } {
-  if (name.trim() === '') return { error: REGULARS_ERROR_NAME_EMPTY, field: 'name' };
+  if (name.trim() === '' || rendersAsNothing(name)) return { error: REGULARS_ERROR_NAME_EMPTY, field: 'name' };
   if (!isValidGroupName(name.trim())) return { error: REGULARS_ERROR_BAD_NAME, field: 'name' };
   const lines = text.split(/\r?\n/).filter((l) => l.trim() !== '');
   if (lines.some((l) => parseMemberLines(l).length === 0)) return { error: REGULARS_ERROR_BAD_NAME, field: 'members' };
@@ -109,6 +109,15 @@ export function RegularsSection({ locked, guestNames, onInsert }: Props) {
     document.getElementById(focusId)?.focus();
     setFocusId(null);
   }, [focusId, mode, groups]);
+
+  /** 別のタブで編集中の組が消えたら、欄を閉じて一覧へ戻す（「作る」の題に化けない） */
+  useEffect(() => {
+    if (mode.kind !== 'form' || mode.id === null) return;
+    if (groups.some((g) => g.id === mode.id)) return;
+    setMode({ kind: 'list' });
+    setError('');
+    setFocusId(NEW_ID);
+  }, [groups, mode]);
 
   const announce = (message: string): void => {
     setNotice('');
@@ -164,6 +173,7 @@ export function RegularsSection({ locked, guestNames, onInsert }: Props) {
     if (!result.ok) {
       setMode({ ...mode, confirming: false });
       fail(REASON_TEXT[result.reason], 'members');
+      setFocusId(DELETE_ID);
       return;
     }
     const next = groups[index + 1] ?? groups[index - 1];

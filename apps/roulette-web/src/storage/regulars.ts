@@ -44,10 +44,21 @@ const CONTROL_CHARS = /[\u0000-\u001f\u007f]/;
 
 /** 組名として使える名前か（空・長すぎ・制御文字なし）。画面が保存の前に同じ規則で見る */
 export const isValidGroupName = (name: unknown): name is string =>
-  typeof name === 'string' && name.trim().length > 0 && name.length <= MAX_DISPLAY_NAME && !CONTROL_CHARS.test(name);
+  typeof name === 'string' &&
+  name.trim().length > 0 &&
+  name.length <= MAX_DISPLAY_NAME &&
+  !CONTROL_CHARS.test(name) &&
+  !rendersAsNothing(name);
 
-const validMember = (m: unknown): m is string =>
-  typeof m === 'string' && m.length > 0 && m.length <= MAX_DISPLAY_NAME && normalizeDisplayName(m) !== '' && !rendersAsNothing(m);
+/**
+ * 読み込みで通す名前。保存の関数は正規化してから書くので、正規化済みでない名前は手で書き換えた保存。
+ * 参加の重複判定・サーバーの上限（正規化してから比べる）とずれるので、合わない項目として扱う。
+ */
+const validMember = (m: unknown): m is string => {
+  if (typeof m !== 'string' || m.length === 0) return false;
+  const n = normalizeDisplayName(m);
+  return n === m && n.length > 0 && n.length <= MAX_DISPLAY_NAME && !rendersAsNothing(n);
+};
 
 /** 最新の版の項目として合うものだけを返す。巨大な配列は名前の規約を当てる前に落とす */
 function parseItem(raw: unknown): RegularGroup | null {

@@ -2,7 +2,7 @@
  * 「いつものメンツ」の区画（#458 画面案 §1・§2・§5）。端末の保存（jsdom の localStorage）と
  * フォーカスの移り方（document.activeElement）を、押した結果から確かめる。
  */
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { RegularsSection } from '../src/components/RegularsSection';
 import { REGULARS_KEY } from '../src/storage/regulars';
@@ -358,6 +358,75 @@ describe('直す・消す', () => {
     fireEvent.click(btn('このメンツを消す'));
     fireEvent.click(btn('消す'));
     expect(document.activeElement).toBe(btn('朝会 2 人を入れる'));
+  });
+});
+
+describe('読み直し・失敗', () => {
+  it('Given 消すが書き込めずに失敗 / Then このメンツを消すへフォーカスが戻る', () => {
+    seed([{ id: 'a', name: '朝会', usedAt: 1, members: ['さとう'] }]);
+    setup();
+    fireEvent.click(btn('朝会 を直す'));
+    fireEvent.click(btn('このメンツを消す'));
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('quota');
+    });
+    fireEvent.click(btn('消す'));
+    spy.mockRestore();
+    expect(screen.getByRole('alert')).toHaveTextContent('この端末に書き込めませんでした');
+    expect(document.activeElement).toBe(btn('このメンツを消す'));
+  });
+
+  it('Given 別のタブが保存を変えた / When storage イベント / Then 一覧が変わる', () => {
+    seed([{ id: 'a', name: '朝会', usedAt: 1, members: ['さとう'] }]);
+    setup();
+    seed([{ id: 'b', name: '夕会', usedAt: 1, members: ['すずき'] }]);
+    act(() => {
+      window.dispatchEvent(new StorageEvent('storage', { key: REGULARS_KEY }));
+    });
+    expect(screen.queryByRole('button', { name: '朝会 1 人を入れる' })).toBeNull();
+    expect(btn('夕会 1 人を入れる')).toBeInTheDocument();
+  });
+
+  it('Given 別のタブが無関係なキーを変えた / Then 一覧は読み直さない', () => {
+    seed([{ id: 'a', name: '朝会', usedAt: 1, members: ['さとう'] }]);
+    setup();
+    seed([{ id: 'b', name: '夕会', usedAt: 1, members: ['すずき'] }]);
+    act(() => {
+      window.dispatchEvent(new StorageEvent('storage', { key: 'other' }));
+    });
+    expect(btn('朝会 1 人を入れる')).toBeInTheDocument();
+  });
+
+  it('Given 直している組が別のタブで消された / Then 欄を閉じて一覧へ戻り、新しく作るへフォーカス', () => {
+    seed([{ id: 'a', name: '朝会', usedAt: 1, members: ['さとう'] }]);
+    setup();
+    fireEvent.click(btn('朝会 を直す'));
+    localStorage.setItem(REGULARS_KEY, JSON.stringify({ version: 1, items: [] }));
+    act(() => {
+      window.dispatchEvent(new StorageEvent('storage', { key: REGULARS_KEY }));
+    });
+    expect(screen.queryByLabelText('メンツの名前')).toBeNull();
+    expect(document.activeElement).toBe(btn('新しく作る'));
+  });
+
+  it('Given 見えない文字だけの組名 / When 保存 / Then 名前を入れてくださいで名前の欄に印', () => {
+    setup();
+    fireEvent.click(btn('新しく作る'));
+    type('メンツの名前', '\u200b');
+    type('入る人の名前（1 行に 1 人）', 'さとう');
+    fireEvent.click(btn('この端末に保存'));
+    expect(screen.getByRole('alert')).toHaveTextContent('メンツの名前を入れてください');
+    expect(screen.getByLabelText('メンツの名前')).toHaveAttribute('aria-invalid', 'true');
+  });
+
+  it.each([[' Alice'], ['ｱﾘｽ']])('Given 保存に正規化されていない名前「%s」の組 / Then 一覧に出ない', (member) => {
+    seed([
+      { id: 'a', name: '壊れ', usedAt: 2, members: [member] },
+      { id: 'b', name: '朝会', usedAt: 1, members: ['さとう'] },
+    ]);
+    setup();
+    expect(screen.queryByRole('button', { name: /壊れ/ })).toBeNull();
+    expect(btn('朝会 1 人を入れる')).toBeInTheDocument();
   });
 });
 
