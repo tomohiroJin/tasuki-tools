@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ROOM_HEADER_TEXT } from '@tasuki/invite-ui';
 import { MAX_DISPLAY_NAME } from '@tasuki/room-core';
 import { saveResumeIdentity } from '@tasuki/sync-client';
+import { REGULARS_KEY } from '../src/storage/regulars';
 import { App } from '../src/App';
 import {
   CAPTION_IDLE,
@@ -25,6 +26,7 @@ import {
   topicNoteText,
 } from '../src/copy';
 import { redirectTo } from '../src/router';
+import { stageCaption } from './support/stage-caption';
 import { IDLE_ROULETTE, RESUME, ROSTER_FRAME, ScriptedWebSocket, latestSocket, spinState } from './support/scripted-web-socket';
 
 vi.mock('../src/router', async (importOriginal) => ({
@@ -70,7 +72,7 @@ function enterRoom(state: unknown = IDLE_ROULETTE): void {
   });
 }
 
-const caption = () => screen.getByRole('status');
+const caption = stageCaption;
 const spinButton = () => screen.getByRole('button', { name: new RegExp(`${SPIN_BUTTON}|${SPINNING_BUTTON}|${SPIN_AGAIN_BUTTON}`) });
 
 /**
@@ -383,5 +385,67 @@ describe('ルームの見出しは共通の部品が描く（#447 段 1）', () 
     expect(screen.queryByRole('heading', { name: '仲間を招く' })).toBeNull();
     // ルームコードも見出しに出る（招待 URL の中の 'R1' とは区別し、コードの値だけを見る）
     expect(document.querySelector('.ui-room-header-code-value')?.textContent).toBe('R1');
+  });
+});
+
+describe('いつものメンツを入れる（#458）', () => {
+  const seedGroups = (items: { id: string; name: string; usedAt: number; members: string[] }[]): void => {
+    localStorage.setItem(REGULARS_KEY, JSON.stringify({ version: 1, items }));
+  };
+
+  it('Given 自分の名前を含む組 / When 札を押す / Then addMany を送り、とばした知らせが出て、組が先頭へ動いてもフォーカスは札のまま', () => {
+    // Given: あや（自分）・ゆうが在室。組に あや が入っている
+    seedGroups([
+      { id: 'a', name: '朝会', usedAt: 1, members: ['あや', 'さとう', 'すずき'] },
+      { id: 'b', name: '夕会', usedAt: 2, members: ['たなか'] },
+    ]);
+    enterRoom();
+    expect(screen.getAllByRole('button', { name: /を入れる$/ })[0]).toHaveTextContent('夕会');
+    // When
+    fireEvent.click(screen.getByRole('button', { name: '朝会 3 人を入れる' }));
+    // Then
+    expect(latestSocket().sentJson()).toContainEqual({ command: 'roulette.guest.addMany', names: ['あや', 'さとう', 'すずき'] });
+    expect(screen.getAllByRole('status').map((el) => el.textContent)).toContain('2 人を入れました。1 人はもう入っているので、とばしました');
+    const picks = screen.getAllByRole('button', { name: /を入れる$/ });
+    expect(picks[0]).toHaveTextContent('朝会');
+    expect(document.activeElement).toBe(picks[0]);
+    expect(JSON.parse(localStorage.getItem(REGULARS_KEY) ?? '{}').items.find((g: { id: string }) => g.id === 'a').usedAt).toBeGreaterThan(2);
+  });
+
+  it('Given 切断した / When 描く / Then 札は押せず、直す・新しく作るは押せる', () => {
+    seedGroups([{ id: 'a', name: '朝会', usedAt: 1, members: ['さとう'] }]);
+    enterRoom();
+    act(() => latestSocket().drop());
+    expect(screen.getByRole('button', { name: '朝会 1 人を入れる' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: '朝会 を直す' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: '新しく作る' })).toBeEnabled();
+  });
+
+  it('Given ゲストが 1 人いる / When 追加した名前から作る / Then 複数行欄にそのゲストの名前', () => {
+    enterRoom({ ...IDLE_ROULETTE, guests: [{ id: 'g-1', name: 'さとう' }] });
+    fireEvent.click(screen.getByRole('button', { name: '追加した名前から作る' }));
+    expect(screen.getByLabelText('入る人の名前（1 行に 1 人）')).toHaveValue('さとう');
+  });
+
+  it('Given 離席中（offline）の参加者と同じ名前を含む組 / When 札を押す / Then 名簿の全員と比べて、その人はとばす', () => {
+    // Given: ゆうは名簿にいるが在室ではない。members を在室者だけにすると、ゆうが「入る」と数えられてしまう
+    seedGroups([{ id: 'a', name: '朝会', usedAt: 1, members: ['ゆう', 'さとう'] }]);
+    enterRoom();
+    act(() =>
+      latestSocket().deliver({
+        type: 'roster',
+        room: {
+          code: 'R1',
+          participants: [
+            { participantId: 'p1', displayName: 'あや', presence: 'online', tools: ['roulette'] },
+            { participantId: 'p2', displayName: 'ゆう', presence: 'offline', tools: [] },
+          ],
+        },
+      }),
+    );
+    // When
+    fireEvent.click(screen.getByRole('button', { name: '朝会 2 人を入れる' }));
+    // Then
+    expect(screen.getAllByRole('status').map((el) => el.textContent)).toContain('1 人を入れました。1 人はもう入っているので、とばしました');
   });
 });

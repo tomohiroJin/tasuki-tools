@@ -1,5 +1,6 @@
-// 回転の長さ・人数の上限（`SPIN_DURATION_MS`・`MAX_GUESTS`・`MAX_WHEEL`）は載せない（#365）。外の製品コードは
-// 使わず、回転の長さは wire の `durationMs` で届く。要るようになったら、そのとき載せる。
+// 回転の長さ（`SPIN_DURATION_MS`）は載せない（#365）。外の製品コードは使わず、wire の `durationMs` で届く。
+// 人数の上限（`MAX_GUESTS`・`MAX_WHEEL`）は #458 で画面が使うので載せる。
+export { MAX_GUESTS, MAX_WHEEL } from "./limits.js";
 export { SETTLE_MIN, SETTLE_MAX } from "./limits.js";
 // 止まる時刻の表と、2 人目からの「置く」「送る」の長さ（#401）。画面が何人目まで決まったかと角度を、
 // サーバーと同じ表から出すために載せる（写しを持つと片方だけ直る）。
@@ -20,6 +21,7 @@ export {
   startSpin,
   setIncluded,
   addGuest,
+  addGuests,
   removeGuest,
   prune,
   setPickCount,
@@ -28,7 +30,7 @@ export {
   stopPress,
   toView,
 } from "./roulette.js";
-export type { SpinInput, StopInput, RouletteView } from "./roulette.js";
+export type { GuestBatch, SpinInput, StopInput, RouletteView } from "./roulette.js";
 
 export { ROULETTE_ERROR_CODES } from "./errors.js";
 export type { RouletteError, RouletteDomainErrorCode, RouletteErrorCode } from "./errors.js";

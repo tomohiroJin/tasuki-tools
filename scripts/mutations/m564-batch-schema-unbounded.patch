@@ -1,0 +1,23 @@
+# 変異 564: batch-schema-unbounded
+#
+# 検出を期待するテスト:
+#   - packages/roulette-core/tests/schemas.test.ts
+#
+# #458。`v.maxLength(MAX_GUESTS)` を外すと、名前の規約を当てる前に巨大な配列がサーバーへ通る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m564-*.patch
+# 復元: git apply -R scripts/mutations/m564-*.patch
+diff --git a/packages/roulette-core/src/schemas.ts b/packages/roulette-core/src/schemas.ts
+index 69d9633f..3f5ca1de 100644
+--- a/packages/roulette-core/src/schemas.ts
++++ b/packages/roulette-core/src/schemas.ts
+@@ -28,7 +28,7 @@ export const RouletteCommandSchema = v.variant("command", [
+   // 束の大きさは境界で縛る（名前の規約の前に巨大な配列を落とす）。各名前の長さは縛らない（`guest.add` と同じ）。
+   v.strictObject({
+     command: v.literal("roulette.guest.addMany"),
+-    names: v.pipe(v.array(v.string()), v.minLength(1), v.maxLength(MAX_GUESTS)),
++    names: v.pipe(v.array(v.string()), v.minLength(1)),
+   }),
+   v.strictObject({ command: v.literal("roulette.guest.remove"), id: idStr }),
+   v.strictObject({ command: v.literal("roulette.cycle.reset") }),

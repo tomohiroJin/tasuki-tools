@@ -215,7 +215,7 @@ describe("外す・足す・消す", () => {
     expect(addGuest(gone, "ゲスト一", [], foldCase)._unsafeUnwrap().guests[0]?.id).toBe("g-2");
   });
 
-  it("MAX_GUESTS 件目までは足せ、13 件目は TOO_MANY_GUESTS", () => {
+  it("MAX_GUESTS（24）件目までは足せ、25 件目は TOO_MANY_GUESTS", () => {
     // Given
     let s = INITIAL_ROULETTE_STATE;
     for (let i = 0; i < MAX_GUESTS; i++) s = addGuest(s, `名前${i}`, [], foldCase)._unsafeUnwrap();

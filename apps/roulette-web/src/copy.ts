@@ -1,3 +1,6 @@
+import { MAX_GUESTS, MAX_WHEEL } from '@tasuki/roulette-core';
+import { MAX_GROUPS } from './storage/regulars';
+
 /**
  * ルーレットの UI 文言のすべて（#94 spec §6.6）。
  *
@@ -36,6 +39,8 @@ export const CAPTION_IDLE = '回すと、次の進行役が決まります';
 export const spunByText = (name: string): string => `${name} さんが回しました`;
 export const resultText = (name: string): string => `次の進行役は ${name} さんです`;
 export const TOO_FEW_TEXT = '2 人から回せます';
+/** 入る人が `MAX_WHEEL` を超えたとき（#458 E6）。回すボタンを押せなくし、一言をこれにする */
+export const TOO_MANY_TEXT = `回せるのは ${MAX_WHEEL} 人までなので、チェックを外してください`;
 
 // 脇: ルーレットに入る人
 export const PEOPLE_HEADING = 'ルーレットに入る人';
@@ -105,3 +110,47 @@ export const pressStoppedText = (by: string): string => `${by} さんが止め�
 export const PRESS_AUTO_TEXT = '止める人がいませんでした';
 /** 止まった後の一言の読み上げにだけ足す（名前は札が出す） */
 export const pressDecidedText = (name: string): string => `。${name} さんに決まりました`;
+
+const MAX_GUESTS_TEXT = `名前は ${MAX_GUESTS} 人まで追加できます`;
+
+// いつものメンツ（#458 画面案 §3）。数は定数から組む。「顔」「覚」「飛」「超」「多」などは base 層の外なので使わない
+export const REGULARS_HEADING = 'いつものメンツ';
+export const REGULARS_WHERE = 'この端末だけ';
+export const REGULARS_EMPTY = 'よく入れる名前をまとめておくと、次から一度で入れられます';
+export const REGULARS_NEW_BUTTON = '新しく作る';
+export const REGULARS_FROM_GUESTS_BUTTON = '追加した名前から作る';
+/** 札の右 */
+export const regularPickText = (n: number): string => `${n} 人を入れる`;
+export const REGULARS_EDIT_BUTTON = '直す';
+export const regularEditLabel = (name: string): string => `${name} を直す`;
+export const REGULARS_CREATE_TITLE = 'メンツを作る';
+export const regularEditTitle = (name: string): string => `「${name}」を直す`;
+export const REGULARS_NAME_LABEL = 'メンツの名前';
+export const REGULARS_MEMBERS_LABEL = '入る人の名前（1 行に 1 人）';
+export const regularsCountText = (n: number): string => `${n} / ${MAX_GUESTS} 人`;
+export const REGULARS_SAVE_BUTTON = 'この端末に保存';
+export const REGULARS_CANCEL_BUTTON = 'やめる';
+export const REGULARS_DELETE_BUTTON = 'このメンツを消す';
+export const REGULARS_DELETE_CONFIRM_BUTTON = '消す';
+export const regularDeleteConfirmText = (name: string): string => `「${name}」をこの端末から消しますか`;
+
+// 入れたときの知らせ（role="status"）。前半は同期サーバーの `TOO_MANY_GUESTS` と同じ文
+export const addedText = (n: number): string => `${n} 人を入れました`;
+export const skippedText = (n: number): string => `${n} 人はもう入っているので、とばしました`;
+export const overflowText = (n: number): string => `${MAX_GUESTS_TEXT}。${n} 人は入りませんでした`;
+export const ALL_PRESENT_TEXT = '全員もう入っています';
+export const NONE_ADDED_OVERFLOW_TEXT = `${MAX_GUESTS_TEXT}。入れられませんでした`;
+/** 入れた結果、入る人が `MAX_WHEEL` を超えたとき、知らせの末尾に足す */
+export const tooManyInPoolText = (n: number): string => `入る人がいま ${n} 人です。${TOO_MANY_TEXT}`;
+export const REGULARS_SAVED_TEXT = 'この端末に保存しました';
+export const regularDeletedText = (name: string): string => `「${name}」を消しました`;
+
+// 保存の検証エラー（role="alert"）
+export const REGULARS_ERROR_NAME_EMPTY = 'メンツの名前を入れてください';
+export const REGULARS_ERROR_NO_MEMBERS = '名前を 1 人から入れてください';
+export const REGULARS_ERROR_TOO_MANY_MEMBERS = `1 組は ${MAX_GUESTS} 人までです`;
+export const REGULARS_ERROR_NAME_TAKEN = '同じ名前のメンツがもうあります';
+export const REGULARS_ERROR_BAD_NAME = '使えない名前があります';
+export const REGULARS_ERROR_FULL = `メンツは ${MAX_GROUPS} 組まで保存できます`;
+export const REGULARS_ERROR_UNREADABLE = '保存したメンツを読めないため、保存を止めました';
+export const REGULARS_ERROR_WRITE_FAILED = 'この端末に書き込めませんでした';

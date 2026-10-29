@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import { useId, type ReactNode } from 'react';
 import {
   AWAY_MARK,
   TWIN_MARK,
@@ -26,13 +26,15 @@ interface Props {
   onInclude: (id: string, included: boolean) => void;
   onRemoveGuest: (id: string) => void;
   onAddGuest: (name: string) => void;
+  /** 「いつものメンツ」の区画（名前を追加の下）。端末だけの物なので、人の一覧とは罫で分かれる */
+  regulars: ReactNode;
 }
 
 /**
  * 脇の「ルーレットに入る人」。チェック = 入れる。行は [チェック][名前][印][名前を消す]（狭いと印と消すが次の行へ）。
  * **人だけを置く**（#401 順番に回す T9）。選ぶ人数・順番の進み具合は「決め方」の面（`ModePanel`）が持つ。
  */
-export function PeoplePanel({ people, locked, onInclude, onRemoveGuest, onAddGuest }: Props) {
+export function PeoplePanel({ people, locked, onInclude, onRemoveGuest, onAddGuest, regulars }: Props) {
   return (
     <section className="ui-panel roulette-people" aria-labelledby="roulette-people-heading">
       <h2 id="roulette-people-heading">
@@ -44,6 +46,7 @@ export function PeoplePanel({ people, locked, onInclude, onRemoveGuest, onAddGue
         ))}
       </ul>
       <GuestForm disabled={locked} onAdd={onAddGuest} />
+      {regulars}
     </section>
   );
 }

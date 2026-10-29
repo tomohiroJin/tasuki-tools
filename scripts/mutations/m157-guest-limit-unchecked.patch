@@ -12,12 +12,12 @@ diff --git a/packages/roulette-core/src/roulette.ts b/packages/roulette-core/src
 index 90f32874..86ecf2eb 100644
 --- a/packages/roulette-core/src/roulette.ts
 +++ b/packages/roulette-core/src/roulette.ts
-@@ -80,7 +80,7 @@ export function addGuest(
+@@ -259,7 +259,7 @@ export function addGuest(
    members: readonly Member[],
    conflicts: NameConflict,
  ): Result<RouletteState, RouletteError<"TOO_MANY_GUESTS" | "GUEST_NAME_TAKEN">> {
 -  if (state.guests.length >= MAX_GUESTS) return err({ code: "TOO_MANY_GUESTS" });
 +
-   const existing = [...members, ...state.guests].map((e) => ({ participantId: e.id, displayName: e.name }));
-   if (conflicts(existing, name)) return err({ code: "GUEST_NAME_TAKEN" });
+   if (conflicts(existingOf(members, state.guests), name)) return err({ code: "GUEST_NAME_TAKEN" });
    const guest: Entry = { id: `g-${state.nextGuestSeq}`, name };
+   return ok({ ...state, guests: [...state.guests, guest], nextGuestSeq: state.nextGuestSeq + 1 });

@@ -276,3 +276,33 @@ describe("変わった止まり方（wire）", () => {
     expect(parse({ stopStyle: 3 }).success).toBe(false);
   });
 });
+
+/**
+ * @requirements #458（名前をまとめて足す。束の大きさは境界で縛る）
+ */
+describe("ルーレットのコマンド（guest.addMany の境界）", () => {
+  const names = (n: number): string[] => Array.from({ length: n }, (_, i) => `客${i}`);
+
+  it("1 件と 24 件は通る", () => {
+    // Given
+    // When
+    expect(ok({ command: "roulette.guest.addMany", names: names(1) })).toBe(true);
+    expect(ok({ command: "roulette.guest.addMany", names: names(24) })).toBe(true);
+  });
+
+  it("0 件と 25 件は落ちる", () => {
+    // Given
+    // When
+    expect(ok({ command: "roulette.guest.addMany", names: [] })).toBe(false);
+    expect(ok({ command: "roulette.guest.addMany", names: names(25) })).toBe(false);
+  });
+
+  it("余計な項目と、文字列でない names は落ちる", () => {
+    // Given
+    // When
+    expect(ok({ command: "roulette.guest.addMany", names: ["a"], x: 1 })).toBe(false);
+    expect(ok({ command: "roulette.guest.addMany", names: [1] })).toBe(false);
+    expect(ok({ command: "roulette.guest.addMany", names: "a" })).toBe(false);
+    expect(ok({ command: "roulette.guest.addMany" })).toBe(false);
+  });
+});

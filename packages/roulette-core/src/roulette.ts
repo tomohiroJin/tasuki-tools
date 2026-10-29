@@ -260,10 +260,60 @@ export function addGuest(
   conflicts: NameConflict,
 ): Result<RouletteState, RouletteError<"TOO_MANY_GUESTS" | "GUEST_NAME_TAKEN">> {
   if (state.guests.length >= MAX_GUESTS) return err({ code: "TOO_MANY_GUESTS" });
-  const existing = [...members, ...state.guests].map((e) => ({ participantId: e.id, displayName: e.name }));
-  if (conflicts(existing, name)) return err({ code: "GUEST_NAME_TAKEN" });
+  if (conflicts(existingOf(members, state.guests), name)) return err({ code: "GUEST_NAME_TAKEN" });
   const guest: Entry = { id: `g-${state.nextGuestSeq}`, name };
   return ok({ ...state, guests: [...state.guests, guest], nextGuestSeq: state.nextGuestSeq + 1 });
+}
+
+/** 同名の判定の相手（名簿の全参加者＋足したゲスト）。`addGuest` と `addGuests` が同じ相手と比べるための共通部 */
+function existingOf(
+  members: readonly Member[],
+  guests: readonly Entry[],
+): { participantId: string; displayName: string }[] {
+  return [...members, ...guests].map((e) => ({ participantId: e.id, displayName: e.name }));
+}
+
+/** {@link addGuests} の結果。`added`・`skipped`・`overflow` は渡された名前の並びのまま */
+export interface GuestBatch {
+  state: RouletteState;
+  /** 足した名前 */
+  added: string[];
+  /** 同じ名前がすでにいて飛ばした名前（束の中の重複も含む） */
+  skipped: string[];
+  /** 上限（{@link MAX_GUESTS}）に達していて入らなかった名前 */
+  overflow: string[];
+}
+
+/**
+ * 名前をまとめて足す（#458）。**名前は正規化済みで受ける**（{@link addGuest} と同じ）。
+ * 前から 1 件ずつ見て、同名なら `skipped`、ゲストが上限未満なら足し、それ以外は `overflow`。
+ * 同名の判定は上限より先なので、上限に達した後でも同名は `skipped` に入る。
+ * 1 人も足さないときは渡された `state` をそのまま返す。
+ */
+export function addGuests(
+  state: RouletteState,
+  names: readonly string[],
+  members: readonly Member[],
+  conflicts: NameConflict,
+): GuestBatch {
+  let guests = state.guests;
+  let seq = state.nextGuestSeq;
+  const added: string[] = [];
+  const skipped: string[] = [];
+  const overflow: string[] = [];
+  for (const name of names) {
+    if (conflicts(existingOf(members, guests), name)) {
+      skipped.push(name);
+    } else if (guests.length < MAX_GUESTS) {
+      guests = [...guests, { id: `g-${seq}`, name }];
+      seq += 1;
+      added.push(name);
+    } else {
+      overflow.push(name);
+    }
+  }
+  if (added.length === 0) return { state, added, skipped, overflow };
+  return { state: { ...state, guests, nextGuestSeq: seq }, added, skipped, overflow };
 }
 
 /**

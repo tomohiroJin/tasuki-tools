@@ -5,7 +5,8 @@
  * 角度の期待値は `wheel-motion`（純粋関数）から取る。その純粋関数が正しい席に止まることは
  * `wheel-motion.test.ts` が別の計算（指し針の先を戻して atan2）で固定している。
  */
-import { act, render, screen } from '@testing-library/react';
+import { act, render } from '@testing-library/react';
+import { stageCaption } from './support/stage-caption';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { saveResumeIdentity } from '@tasuki/sync-client';
 import { App } from '../src/App';
@@ -355,7 +356,7 @@ describe('止まった瞬間は円盤と札と一言で揃う', () => {
   const snapshot = () => ({
     card: card().classList.contains('is-revealed'),
     seat: winnerSeat() !== null,
-    caption: screen.getByRole('status').textContent === resultText('ゆう'),
+    caption: stageCaption().textContent === resultText('ゆう'),
   });
 
   it('Given 回し始めた / When 終わりの時刻の前後を 10ms ずつ進める / Then どの瞬間も 3 つが同じ局面', () => {

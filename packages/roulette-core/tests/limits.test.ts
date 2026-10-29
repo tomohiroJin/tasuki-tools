@@ -21,7 +21,7 @@ describe("ルーレットの定数", () => {
     // When: 読む
     // Then
     expect(SPIN_DURATION_MS).toBe(4000);
-    expect(MAX_GUESTS).toBe(12);
+    expect(MAX_GUESTS).toBe(24);
     expect(MAX_WHEEL).toBe(24);
   });
 

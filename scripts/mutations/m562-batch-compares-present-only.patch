@@ -1,0 +1,23 @@
+# 変異 562: batch-compares-present-only
+#
+# 検出を期待するテスト:
+#   - packages/roulette-core/tests/roulette-guest-batch.test.ts
+#
+# #458。比べる相手は名簿の全参加者（在室を問わない・`addGuest` と同じ）。在室だけにすると、席を外した参加者と同じ名前のゲストが入り、戻ったときに同じ名前が 2 人になる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m562-*.patch
+# 復元: git apply -R scripts/mutations/m562-*.patch
+diff --git a/packages/roulette-core/src/roulette.ts b/packages/roulette-core/src/roulette.ts
+index df11a9df..3d490685 100644
+--- a/packages/roulette-core/src/roulette.ts
++++ b/packages/roulette-core/src/roulette.ts
+@@ -302,7 +302,7 @@ export function addGuests(
+   const skipped: string[] = [];
+   const overflow: string[] = [];
+   for (const name of names) {
+-    if (conflicts(existingOf(members, guests), name)) {
++    if (conflicts(existingOf(members.filter((m) => m.present), guests), name)) {
+       skipped.push(name);
+     } else if (guests.length < MAX_GUESTS) {
+       guests = [...guests, { id: `g-${seq}`, name }];

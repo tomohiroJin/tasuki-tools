@@ -1,0 +1,22 @@
+# 変異 571: insert-focus-lost
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/regulars-section.test.tsx
+#
+# #458。入れると usedAt が変わって札が先頭へ移り、要素が付け替わってフォーカスが body へ落ちる。キーボードで続けて操作できない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m571-*.patch
+# 復元: git apply -R scripts/mutations/m571-*.patch
+diff --git a/apps/roulette-web/src/components/RegularsSection.tsx b/apps/roulette-web/src/components/RegularsSection.tsx
+index e91002f3..bebad399 100644
+--- a/apps/roulette-web/src/components/RegularsSection.tsx
++++ b/apps/roulette-web/src/components/RegularsSection.tsx
+@@ -175,7 +175,6 @@ export function RegularsSection({ locked, guestNames, onInsert }: Props) {
+     const message = onInsert(group);
+     touch(group.id);
+     announce(message);
+-    setFocusId(pickId(group.id));
+   };
+ 
+   const nameInvalid = error !== '' && errorField === 'name';

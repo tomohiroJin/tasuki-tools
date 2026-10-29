@@ -9,6 +9,7 @@
  */
 import * as v from "valibot";
 import { ROULETTE_ERROR_CODES } from "./errors.js";
+import { MAX_GUESTS } from "./limits.js";
 
 const idStr = v.pipe(v.string(), v.minLength(1), v.maxLength(64));
 const entrySchema = v.object({ id: v.string(), name: v.string() });
@@ -24,6 +25,11 @@ export const RouletteCommandSchema = v.variant("command", [
   // 境界に別の狭い上限を置くと、`room.join` では通る名前（前後の空白を含むなど）がここだけで落ちる。
   // 巨大入力は接続層のメッセージの大きさの上限が先に落とす。
   v.strictObject({ command: v.literal("roulette.guest.add"), name: v.string() }),
+  // 束の大きさは境界で縛る（名前の規約の前に巨大な配列を落とす）。各名前の長さは縛らない（`guest.add` と同じ）。
+  v.strictObject({
+    command: v.literal("roulette.guest.addMany"),
+    names: v.pipe(v.array(v.string()), v.minLength(1), v.maxLength(MAX_GUESTS)),
+  }),
   v.strictObject({ command: v.literal("roulette.guest.remove"), id: idStr }),
   v.strictObject({ command: v.literal("roulette.cycle.reset") }),
   // 選ぶ人数（#401 spec M2）。**範囲（1〜MAX_PICK の整数）はここで縛らない**: ドメインの `setPickCount` が

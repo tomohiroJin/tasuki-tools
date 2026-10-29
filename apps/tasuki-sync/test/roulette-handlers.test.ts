@@ -556,11 +556,11 @@ describe("外す・名前を足す", () => {
     expect(errorsTo(h, "r-1")).toEqual(["GUEST_NAME_TAKEN", "GUEST_NAME_TAKEN", "GUEST_NAME_TAKEN"]);
   });
 
-  it("13 件目の名前は TOO_MANY_GUESTS", async () => {
+  it("25 件目の名前は TOO_MANY_GUESTS", async () => {
     // Given
     const h = setup();
     await joined(h, "r-1", "Alice");
-    for (let i = 0; i < 12; i++) await h.handle("r-1", { command: "roulette.guest.add", name: `客${i}` });
+    for (let i = 0; i < 24; i++) await h.handle("r-1", { command: "roulette.guest.add", name: `客${i}` });
     h.sent.length = 0;
 
     // When
@@ -568,6 +568,93 @@ describe("外す・名前を足す", () => {
 
     // Then
     expect(errorsTo(h, "r-1")).toEqual(["TOO_MANY_GUESTS"]);
+  });
+
+  /** @requirements #458 */
+  describe("名前をまとめて足す", () => {
+    it("束を正規化して足し、全員へ配る", async () => {
+      // Given
+      const h = setup();
+      await joined(h, "r-1", "Alice");
+      await joined(h, "r-2", "Bob");
+      h.sent.length = 0;
+
+      // When
+      await h.handle("r-1", { command: "roulette.guest.addMany", names: ["  佐藤  ", "鈴木"] });
+
+      // Then: 規約を通さない実装は空白つきのまま足す。両方の接続に配られる
+      expect(h.roulettes.get(ROOM)!.guests.map((g) => g.name)).toEqual(["佐藤", "鈴木"]);
+      expect(viewsTo(h, "r-1").at(-1)?.guests.map((g) => g.name)).toEqual(["佐藤", "鈴木"]);
+      expect(viewsTo(h, "r-2").at(-1)?.guests.map((g) => g.name)).toEqual(["佐藤", "鈴木"]);
+    });
+
+    it("名簿の参加者と同じ名前は（離席中でも・大小違いでも）飛ばし、エラーを返さない", async () => {
+      // Given: Alice は在室、Bob は離席中
+      const h = setup();
+      await joined(h, "r-1", "Alice");
+      await joined(h, "r-2", "Bob");
+      goOffline(h, "Bob");
+      h.sent.length = 0;
+
+      // When: 大小違いの bob・alice を含む束
+      await h.handle("r-1", { command: "roulette.guest.addMany", names: ["bob", "alice", "佐藤"] });
+
+      // Then: 在室者だけを比べる実装・大小を区別する判定は bob / alice を足す
+      expect(errorsTo(h, "r-1")).toEqual([]);
+      expect(h.roulettes.get(ROOM)!.guests.map((g) => g.name)).toEqual(["佐藤"]);
+    });
+
+    it("1 つでも規約に通らない名前があれば INVALID_GUEST_NAME で、1 人も足さない", async () => {
+      // Given
+      const h = setup();
+      await joined(h, "r-1", "Alice");
+      h.sent.length = 0;
+
+      // When: 規約外が後ろにある束と、前にある束
+      await h.handle("r-1", { command: "roulette.guest.addMany", names: ["佐藤", "   "] });
+      await h.handle("r-1", { command: "roulette.guest.addMany", names: ["   ", "鈴木"] });
+
+      // Then: 規約外だけを飛ばす実装は、佐藤・鈴木を足してしまう
+      expect(errorsTo(h, "r-1")).toEqual(["INVALID_GUEST_NAME", "INVALID_GUEST_NAME"]);
+      expect(h.roulettes.get(ROOM)?.guests ?? []).toEqual([]);
+      expect(h.sent.filter((s) => s.msg.type === "roulette")).toEqual([]);
+    });
+
+    it("上限で入らない分は足さず、エラーを返さない", async () => {
+      // Given: 20 件足してある
+      const h = setup();
+      await joined(h, "r-1", "Alice");
+      for (let i = 0; i < 20; i++) await h.handle("r-1", { command: "roulette.guest.add", name: `客${i}` });
+      h.sent.length = 0;
+
+      // When: 8 件の束（入るのは 4 件）
+      await h.handle("r-1", {
+        command: "roulette.guest.addMany",
+        names: ["組0", "組1", "組2", "組3", "組4", "組5", "組6", "組7"],
+      });
+
+      // Then
+      expect(errorsTo(h, "r-1")).toEqual([]);
+      expect(h.roulettes.get(ROOM)!.guests).toHaveLength(24);
+      expect(h.roulettes.get(ROOM)!.guests.slice(20).map((g) => g.name)).toEqual(["組0", "組1", "組2", "組3"]);
+    });
+
+    it("全員が同じ名前なら配らない", async () => {
+      // Given: 佐藤はすでにゲストにいる
+      const h = setup();
+      await joined(h, "r-1", "Alice");
+      await h.handle("r-1", { command: "roulette.guest.add", name: "佐藤" });
+      const before = h.roulettes.get(ROOM);
+      h.sent.length = 0;
+
+      // When: 名簿の Alice・既存のゲスト佐藤だけの束
+      await h.handle("r-1", { command: "roulette.guest.addMany", names: ["Alice", "佐藤"] });
+
+      // Then
+      expect(h.sent.filter((s) => s.msg.type === "roulette")).toEqual([]);
+      expect(errorsTo(h, "r-1")).toEqual([]);
+      expect(h.roulettes.get(ROOM)).toBe(before);
+    });
   });
 
   it("名前を消すと、入る人から落ちる", async () => {
@@ -978,5 +1065,23 @@ describe("ログ", () => {
 
     // Then
     expect(spies.map((s) => s.mock.calls.length)).toEqual([0, 0, 0, 0, 0]);
+    expect(h.logLines).toEqual([]);
+  });
+
+  /** @requirements #458 */
+  it("名前をまとめて足した後も、ログは 1 行も出ない", async () => {
+    // Given
+    for (const m of ["log", "info", "warn", "error", "debug"] as const) spies.push(spyOn(console, m));
+    const h = setup();
+
+    // When: 足せる束・規約外の束・全部重複の束
+    await joined(h, "r-1", "Alice");
+    await h.handle("r-1", { command: "roulette.guest.addMany", names: ["秘密の名前", "Alice"] });
+    await h.handle("r-1", { command: "roulette.guest.addMany", names: ["秘密の名前2", "   "] });
+    await h.handle("r-1", { command: "roulette.guest.addMany", names: ["秘密の名前"] });
+
+    // Then
+    expect(spies.map((s) => s.mock.calls.length)).toEqual([0, 0, 0, 0, 0]);
+    expect(h.logLines).toEqual([]);
   });
 });

@@ -1,0 +1,27 @@
+# 変異 567: regulars-overwrites-unreadable
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/regulars-storage.test.ts
+#
+# #458。設計 §5。壊れた JSON・知らない版の保存を空とみなして上書きし、新しい版の画面が書いた組を消す。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m567-*.patch
+# 復元: git apply -R scripts/mutations/m567-*.patch
+diff --git a/apps/roulette-web/src/storage/regulars.ts b/apps/roulette-web/src/storage/regulars.ts
+index f58fdca7..7f71a9c5 100644
+--- a/apps/roulette-web/src/storage/regulars.ts
++++ b/apps/roulette-web/src/storage/regulars.ts
+@@ -149,9 +149,9 @@ function mutate(
+ ): GroupsResult {
+   if (storage === null) return { ok: false, reason: 'write-failed' };
+   const r = readDocument(storage, migrations);
+-  if (r.kind === 'unreadable') return { ok: false, reason: 'unreadable' };
+-  const c = change(r.rawItems);
+-  if (c === null) return { ok: true, items: validItems(r.rawItems) };
++  const rawItems = r.kind === 'ok' ? r.rawItems : [];
++  const c = change(rawItems);
++  if (c === null) return { ok: true, items: validItems(rawItems) };
+   if ('reason' in c) return { ok: false, reason: c.reason };
+   if (!writeBack(storage, c.kept)) return { ok: false, reason: 'write-failed' };
+   return { ok: true, items: validItems(c.kept) };

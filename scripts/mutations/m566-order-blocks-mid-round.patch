@@ -1,0 +1,23 @@
+# 変異 566: order-blocks-mid-round
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/turn-order-view.test.ts
+#
+# #458。回の途中は「まだの人」で見る。総数で見ると、途中で人が増えて総数が 25 人以上になっただけで、まだの人が 24 人以下でも回の続きを押せない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m566-*.patch
+# 復元: git apply -R scripts/mutations/m566-*.patch
+diff --git a/apps/roulette-web/src/roulette-view.ts b/apps/roulette-web/src/roulette-view.ts
+index a00b6576..6c7f2d24 100644
+--- a/apps/roulette-web/src/roulette-view.ts
++++ b/apps/roulette-web/src/roulette-view.ts
+@@ -411,7 +411,7 @@ export function orderButtonOf(input: {
+   const { order, poolCount, operable, serverSpinning } = input;
+   if (serverSpinning) return { label: SPINNING_BUTTON, disabled: true };
+   if (order.finished) return { label: ORDER_NEW_ROUND_BUTTON, disabled: !operable || poolCount < 2 || poolCount > MAX_WHEEL };
+-  if (order.inRound) return { label: order.left === 1 ? ORDER_LAST_BUTTON : ORDER_BUTTON, disabled: !operable || order.left > MAX_WHEEL };
++  if (order.inRound) return { label: order.left === 1 ? ORDER_LAST_BUTTON : ORDER_BUTTON, disabled: !operable || poolCount > MAX_WHEEL };
+   return { label: ORDER_BUTTON, disabled: !operable || poolCount < 2 || poolCount > MAX_WHEEL };
+ }
+ 

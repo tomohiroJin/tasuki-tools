@@ -1,0 +1,23 @@
+# 変異 569: regulars-parse-keeps-duplicates
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/regulars-storage.test.ts
+#
+# #458。`foldMembers` が `conflictsWithExisting` を使わず、NFKC の後に大小だけが違う同じ名前を 2 人として残す（参加の重複拒否と食い違う）。`parseMemberLines` と `saveGroup` の両方を通る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m569-*.patch
+# 復元: git apply -R scripts/mutations/m569-*.patch
+diff --git a/apps/roulette-web/src/storage/regulars.ts b/apps/roulette-web/src/storage/regulars.ts
+index f58fdca7..90b8b8c3 100644
+--- a/apps/roulette-web/src/storage/regulars.ts
++++ b/apps/roulette-web/src/storage/regulars.ts
+@@ -128,7 +128,7 @@ function foldMembers(candidates: readonly string[]): string[] {
+   for (const c of candidates) {
+     const n = normalizeDisplayName(c);
+     if (n === '' || n.length > MAX_DISPLAY_NAME || rendersAsNothing(n)) continue;
+-    if (conflictsWithExisting(out.map((d) => ({ participantId: d, displayName: d })), n)) continue;
++    if (out.includes(n)) continue;
+     out.push(n);
+   }
+   return out;

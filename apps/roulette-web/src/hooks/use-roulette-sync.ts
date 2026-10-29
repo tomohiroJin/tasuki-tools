@@ -79,6 +79,8 @@ export interface RouletteSync {
   spin(): void;
   setIncluded(id: string, included: boolean): void;
   addGuest(name: string): void;
+  /** 名前をまとめて足す（#458 いつものメンツ。1 つのコマンド） */
+  addGuests(names: readonly string[]): void;
   removeGuest(id: string): void;
   /** 選ぶ人数を変える（#401。1〜4。ルームの全員で共有する） */
   setPickCount(count: number): void;
@@ -146,6 +148,7 @@ export function useRouletteSync(roomCode: string): RouletteSync {
       spin: () => sendCommand({ command: 'roulette.spin' }),
       setIncluded: (id: string, included: boolean) => sendCommand({ command: 'roulette.include', id, included }),
       addGuest: (name: string) => sendCommand({ command: 'roulette.guest.add', name }),
+      addGuests: (names: readonly string[]) => sendCommand({ command: 'roulette.guest.addMany', names: [...names] }),
       removeGuest: (id: string) => sendCommand({ command: 'roulette.guest.remove', id }),
       setPickCount: (count: number) => sendCommand({ command: 'roulette.pick.set', count }),
       setMode: (mode: RouletteMode) => sendCommand({ command: 'roulette.mode.set', mode }),

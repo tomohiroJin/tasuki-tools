@@ -4,7 +4,7 @@
  * 円盤の位置（席の単位・`pressPositionAt`）は指し針の位置に依らない。並び（縦積み / 横並び）が違う画面どうしでも、
  * **指し針から見て同じ席**を同じ時刻に指す。角度は `pressAngleOf` で、その画面の指し針の位置から出す。
  */
-import { pressStopOf, type PressStop, type RouletteView } from '@tasuki/roulette-core';
+import { MAX_WHEEL, pressStopOf, type PressStop, type RouletteView } from '@tasuki/roulette-core';
 import {
   PRESS_AUTO_TEXT,
   PRESS_IDLE,
@@ -13,6 +13,7 @@ import {
   SPIN_BUTTON,
   STOP_BUTTON,
   TOO_FEW_TEXT,
+  TOO_MANY_TEXT,
   pressDecidedText,
   pressStoppedText,
 } from './copy';
@@ -77,7 +78,7 @@ export function pressCaptionOf(input: {
     return { text: stop.by === null ? PRESS_AUTO_TEXT : pressStoppedText(stop.by), hidden: pressDecidedText(winnerName) };
   }
   if (phase === 'spinning') return { text: PRESS_SPINNING, hidden: '' };
-  return { text: poolCount < 2 ? TOO_FEW_TEXT : PRESS_IDLE, hidden: '' };
+  return { text: poolCount < 2 ? TOO_FEW_TEXT : poolCount > MAX_WHEEL ? TOO_MANY_TEXT : PRESS_IDLE, hidden: '' };
 }
 
 /**
@@ -94,5 +95,5 @@ export function pressButtonOf(input: {
 }): { label: string; disabled: boolean; stop: boolean } {
   const { hasSpin, stopped, landed, pressedHere, poolCount, operable } = input;
   if (hasSpin && !stopped) return { label: STOP_BUTTON, disabled: !operable || pressedHere, stop: true };
-  return { label: hasSpin ? SPIN_AGAIN_BUTTON : SPIN_BUTTON, disabled: !operable || poolCount < 2 || (hasSpin && !landed), stop: false };
+  return { label: hasSpin ? SPIN_AGAIN_BUTTON : SPIN_BUTTON, disabled: !operable || poolCount < 2 || poolCount > MAX_WHEEL || (hasSpin && !landed), stop: false };
 }

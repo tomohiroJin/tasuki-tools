@@ -1,0 +1,22 @@
+# 変異 561: batch-rejects-on-conflict
+#
+# 検出を期待するテスト:
+#   - packages/roulette-core/tests/roulette-guest-batch.test.ts
+#
+# #458。同名だけを飛ばして残りを足す決まりを、1 人でも同名がいれば何も足さない形に変える。いつものメンツの大半が在室していると誰も入らない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m561-*.patch
+# 復元: git apply -R scripts/mutations/m561-*.patch
+diff --git a/packages/roulette-core/src/roulette.ts b/packages/roulette-core/src/roulette.ts
+index df11a9df..fe2534d8 100644
+--- a/packages/roulette-core/src/roulette.ts
++++ b/packages/roulette-core/src/roulette.ts
+@@ -301,6 +301,7 @@ export function addGuests(
+   const added: string[] = [];
+   const skipped: string[] = [];
+   const overflow: string[] = [];
++  if (names.some((n) => conflicts(existingOf(members, state.guests), n))) return { state, added, skipped: [...names], overflow };
+   for (const name of names) {
+     if (conflicts(existingOf(members, guests), name)) {
+       skipped.push(name);

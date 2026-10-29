@@ -622,6 +622,137 @@
   flex: 1;
   min-width: 0;
 }
+/* いつものメンツ（#458）。端末だけの物なので、ルームの一覧と罫で分ける（.roulette-foot と同じ罫） */
+.roulette-regulars {
+  display: grid;
+  /* 列の最小幅を 0 にする。名前は nowrap なので、既定の auto だと長い組名の幅まで区画ごと広がり、320px で横に溢れる */
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+}
+.roulette-regulars-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.roulette-regulars-head h3 {
+  margin: 0;
+}
+.roulette-regulars-where,
+.roulette-regulars-count {
+  color: var(--ivory-dim);
+  font-size: var(--font-size-xs);
+}
+.roulette-regulars-empty,
+.roulette-regulars-title {
+  margin: 0;
+  font-size: var(--font-size-sm);
+}
+.roulette-regulars-title {
+  color: var(--ivory);
+  font-weight: 500;
+}
+/* 組の名前は 40 字まで・空白なしでもよい。題と確認の文は折り返さないと 320px で区画ごと横に溢れる */
+.roulette-regulars-title,
+.roulette-regulars-confirm p {
+  overflow-wrap: anywhere;
+}
+.roulette-regulars-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-1);
+}
+.roulette-regulars-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+/* 札（入れる）。地と高さは一覧の行（.roulette-row）に、折り方は agenda の .builder-saved-pick に倣う */
+.roulette-regulars-pick {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+  min-width: 0;
+  min-height: var(--tap-target);
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--felt-sink);
+  color: var(--ivory);
+  text-align: start;
+  cursor: pointer;
+}
+.roulette-regulars-pick:hover:not(:disabled) {
+  background: var(--felt-lift);
+}
+.roulette-regulars-pick:disabled {
+  color: var(--ivory-faint);
+  cursor: default;
+}
+/* 名前は 500（700 は base 層しか無く、名前の漢字が別の書体に落ちる・円盤の .wheel-label--winner の注記） */
+.roulette-regulars-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+}
+.roulette-regulars-tools,
+.roulette-regulars-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.roulette-regulars-actions {
+  justify-content: flex-end;
+}
+.roulette-regulars-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+}
+.roulette-regulars-field {
+  display: grid;
+  gap: var(--space-1);
+}
+.roulette-regulars-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+.roulette-regulars-danger {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--line);
+}
+/* 消す確認。agenda の .reset-confirm（--rose-edge の枠）と同じ形 */
+.roulette-regulars-confirm {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--rose-edge);
+  border-radius: var(--radius-lg);
+}
+.roulette-regulars-confirm p {
+  margin: 0;
+}
+/* 知らせは常に置く（読み上げの対象を最初から持つ）。空のあいだは段の間隔も詰めて、高さを 0 に見せる */
+.roulette-regulars-notice {
+  margin: 0;
+  font-size: var(--font-size-sm);
+}
+.roulette-regulars-notice:empty {
+  margin-block-start: calc(-1 * var(--space-3));
+}
 .roulette-foot {
   display: flex;
   flex-wrap: wrap;

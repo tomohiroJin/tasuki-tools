@@ -11,6 +11,7 @@ import { ROOM_HEADER_TEXT, RoomHeader } from '@tasuki/invite-ui';
 import { LoadingView } from '../components/LoadingView';
 import { ModePanel } from '../components/ModePanel';
 import { PeoplePanel } from '../components/PeoplePanel';
+import { RegularsSection } from '../components/RegularsSection';
 import { Stage } from '../components/Stage';
 import { GONE_HEADING, GONE_LINK, GONE_TEXT, JOINING_HEADING, PAGE_HEADING } from '../copy';
 import { useRouletteSync } from '../hooks/use-roulette-sync';
@@ -37,6 +38,8 @@ import {
   stageViewOf,
 } from '../roulette-view';
 import { pickStopsMs } from '@tasuki/roulette-core';
+import { batchNoticeText, planBatch } from '../regulars-view';
+import type { RegularGroup } from '../storage/regulars';
 import { usePressMotion } from '../hooks/use-press-motion';
 import { pressButtonOf, pressCaptionOf, pressStopOfView, withPressStop } from '../press-view';
 
@@ -213,6 +216,12 @@ export function RouletteRoom({ roomCode }: { roomCode: string }) {
         : orderCaptionOf({ view: current, phase, poolCount: people.poolCount, order });
   const topicTitle = sync.topic?.topic?.title ?? null;
   const locked = !operable || serverSpinning;
+  // いつものメンツを入れる（#458）。知らせは押した時点の状態から、サーバーと同じ関数で組む（通信に返事は無い）
+  const insertRegular = (group: RegularGroup): string => {
+    const text = batchNoticeText(planBatch({ view: received, members, names: group.members }));
+    sync.addGuests(group.members);
+    return text;
+  };
 
   return (
     <>
@@ -267,6 +276,13 @@ export function RouletteRoom({ roomCode }: { roomCode: string }) {
               onInclude={sync.setIncluded}
               onRemoveGuest={sync.removeGuest}
               onAddGuest={sync.addGuest}
+              regulars={
+                <RegularsSection
+                  locked={locked}
+                  guestNames={received.guests.map((g) => g.name)}
+                  onInsert={insertRegular}
+                />
+              }
             />
           </div>
         </div>

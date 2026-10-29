@@ -1,0 +1,23 @@
+# 変異 568: regulars-drops-invalid-items
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/regulars-storage.test.ts
+#
+# #458。設計 §5。今の版で読めない項目を書き戻しで落とし、別の版の画面が持つ組を消す。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m568-*.patch
+# 復元: git apply -R scripts/mutations/m568-*.patch
+diff --git a/apps/roulette-web/src/storage/regulars.ts b/apps/roulette-web/src/storage/regulars.ts
+index f58fdca7..0ccf304a 100644
+--- a/apps/roulette-web/src/storage/regulars.ts
++++ b/apps/roulette-web/src/storage/regulars.ts
+@@ -115,7 +115,7 @@ export function loadGroups(storage: Storage | null, migrations: Migrations = MIG
+ 
+ function writeBack(storage: Storage, kept: readonly unknown[]): boolean {
+   try {
+-    storage.setItem(REGULARS_KEY, JSON.stringify({ version: CURRENT_VERSION, items: kept }));
++    storage.setItem(REGULARS_KEY, JSON.stringify({ version: CURRENT_VERSION, items: kept.filter((it) => parseItem(it) !== null) }));
+     return true;
+   } catch {
+     return false;
