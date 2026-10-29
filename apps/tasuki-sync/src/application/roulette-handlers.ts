@@ -30,6 +30,7 @@ import {
 import { parseBoundaryMessage } from "@tasuki/protocol";
 import {
   addGuest,
+  addGuests,
   INITIAL_ROULETTE_STATE,
   prune,
   removeGuest,
@@ -225,6 +226,23 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
           return;
         }
         commit(room.code, stored, added.value);
+        return;
+      }
+      case "roulette.guest.addMany": {
+        // 1 つでも規約に通らなければ全体を拒む（一部だけ足すと、押した本人が何が入ったか分からない）。
+        const normalized: string[] = [];
+        for (const raw of cmd.names) {
+          const applied = applyDisplayNameRule(raw);
+          if (applied.isErr()) {
+            fail(connId, "INVALID_GUEST_NAME");
+            return;
+          }
+          normalized.push(applied.value);
+        }
+        // 同名・上限は拒まず飛ばす（`addGuests` は失敗を返さない）。足す名前が 0 件なら同じ参照で、commit は配らない。
+        // ログは書かない（名前は ADR 0011 のデータ分類で記録しない）。
+        const batch = addGuests(state, normalized, membersOf(room), conflictsWithExisting);
+        commit(room.code, stored, batch.state);
         return;
       }
       case "roulette.guest.remove":
