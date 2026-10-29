@@ -26,6 +26,7 @@ import {
   topicNoteText,
 } from '../src/copy';
 import { redirectTo } from '../src/router';
+import { stageCaption } from './support/stage-caption';
 import { IDLE_ROULETTE, RESUME, ROSTER_FRAME, ScriptedWebSocket, latestSocket, spinState } from './support/scripted-web-socket';
 
 vi.mock('../src/router', async (importOriginal) => ({
@@ -71,8 +72,7 @@ function enterRoom(state: unknown = IDLE_ROULETTE): void {
   });
 }
 
-/** 結果の一言（脇の区画にも role=status があるので、舞台のものを指す） */
-const caption = () => screen.getAllByRole('status').find((el) => el.classList.contains('roulette-caption')) as HTMLElement;
+const caption = stageCaption;
 const spinButton = () => screen.getByRole('button', { name: new RegExp(`${SPIN_BUTTON}|${SPINNING_BUTTON}|${SPIN_AGAIN_BUTTON}`) });
 
 /**
@@ -425,5 +425,27 @@ describe('いつものメンツを入れる（#458）', () => {
     enterRoom({ ...IDLE_ROULETTE, guests: [{ id: 'g-1', name: 'さとう' }] });
     fireEvent.click(screen.getByRole('button', { name: '追加した名前から作る' }));
     expect(screen.getByLabelText('入る人の名前（1 行に 1 人）')).toHaveValue('さとう');
+  });
+
+  it('Given 離席中（offline）の参加者と同じ名前を含む組 / When 札を押す / Then 名簿の全員と比べて、その人はとばす', () => {
+    // Given: ゆうは名簿にいるが在室ではない。members を在室者だけにすると、ゆうが「入る」と数えられてしまう
+    seedGroups([{ id: 'a', name: '朝会', usedAt: 1, members: ['ゆう', 'さとう'] }]);
+    enterRoom();
+    act(() =>
+      latestSocket().deliver({
+        type: 'roster',
+        room: {
+          code: 'R1',
+          participants: [
+            { participantId: 'p1', displayName: 'あや', presence: 'online', tools: ['roulette'] },
+            { participantId: 'p2', displayName: 'ゆう', presence: 'offline', tools: [] },
+          ],
+        },
+      }),
+    );
+    // When
+    fireEvent.click(screen.getByRole('button', { name: '朝会 2 人を入れる' }));
+    // Then
+    expect(screen.getAllByRole('status').map((el) => el.textContent)).toContain('1 人を入れました。1 人はもう入っているので、とばしました');
   });
 });

@@ -116,6 +116,27 @@ describe('保存の検証', () => {
     expect(stored()).toEqual([]);
   });
 
+  it('Given 24 人ちょうど / When 保存 / Then 保存できる', () => {
+    setup();
+    open();
+    type('メンツの名前', '朝会');
+    type('入る人の名前（1 行に 1 人）', Array.from({ length: 24 }, (_, i) => `ひと${i}`).join('\n'));
+    save();
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(stored()[0]?.members).toHaveLength(24);
+    expect(btn('朝会 24 人を入れる')).toBeInTheDocument();
+  });
+
+  it('Given 名前が空 / When 保存 / Then 名前の欄に印が付き、エラーと結ばれる', () => {
+    setup();
+    open();
+    type('入る人の名前（1 行に 1 人）', 'さとう');
+    save();
+    const field = screen.getByLabelText('メンツの名前');
+    expect(field).toHaveAttribute('aria-invalid', 'true');
+    expect(field.getAttribute('aria-describedby')).toBe(screen.getByRole('alert').id);
+  });
+
   it('Given 同じ名前のメンツがある / When 作って保存 / Then 同じ名前のメンツがもうあります', () => {
     seed([{ id: 'a', name: '朝会', usedAt: 1, members: ['さとう'] }]);
     setup();
@@ -265,6 +286,19 @@ describe('直す・消す', () => {
     fireEvent.click(btn('このメンツを消す'));
     fireEvent.click(btn('消す'));
     expect(document.activeElement).toBe(btn('新しく作る'));
+  });
+
+  it('Given 3 組の真ん中を消す / Then 前ではなく次の札にフォーカス', () => {
+    seed([
+      { id: 'a', name: '一番', usedAt: 3, members: ['さとう'] },
+      { id: 'b', name: '二番', usedAt: 2, members: ['すずき'] },
+      { id: 'c', name: '三番', usedAt: 1, members: ['たなか'] },
+    ]);
+    setup();
+    fireEvent.click(btn('二番 を直す'));
+    fireEvent.click(btn('このメンツを消す'));
+    fireEvent.click(btn('消す'));
+    expect(document.activeElement).toBe(btn('三番 1 人を入れる'));
   });
 
   it('Given 末尾の組を消す / Then 前の札にフォーカス', () => {

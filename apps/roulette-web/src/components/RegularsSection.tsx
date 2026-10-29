@@ -165,6 +165,7 @@ export function RegularsSection({ locked, guestNames, onInsert }: Props) {
     setFocusId(pickId(group.id));
   };
 
+  const nameInvalid = error === REGULARS_ERROR_NAME_EMPTY || error === REGULARS_ERROR_NAME_TAKEN;
   const editing = mode.kind === 'form' && mode.id !== null ? groups.find((g) => g.id === mode.id) : undefined;
 
   return (
@@ -262,6 +263,8 @@ export function RegularsSection({ locked, guestNames, onInsert }: Props) {
               className="ui-input"
               autoComplete="off"
               maxLength={MAX_DISPLAY_NAME}
+              aria-invalid={nameInvalid ? true : undefined}
+              aria-describedby={nameInvalid ? errorId : undefined}
               value={name}
               onChange={(event) => setName(event.target.value)}
             />
