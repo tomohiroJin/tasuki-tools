@@ -205,6 +205,28 @@ describe("toView: 開いた回は結果を凍らせる（名簿から外れて�
   });
 });
 
+describe("toView: 札を出した後に切断した人", () => {
+  it("playedCount と playerCount は在席の札を出す人だけで数え、切断した人の札は数えない（席には札の持ち主として並ぶ）", () => {
+    // Given: a・b が出し、c はまだ。その後 b が切断した（名簿には居るが在席でない札の持ち主）
+    let s = choose(empty, "weather");
+    s = play(s, a, "sunny");
+    s = play(s, b, "rain");
+    const withBGone: SeatInput[] = seats.map((x) => (x.id === b ? { ...x, present: false } : x));
+
+    // When
+    const r = openRound(toView(s, a, withBGone));
+
+    // Then: 札は 2 枚あるが、在席の札を出す人（a・c）のうち出したのは a だけ
+    expect(r.playedCount).toBe(1);
+    expect(r.playerCount).toBe(2);
+    expect(r.seats.map((x) => [x.id, x.played])).toEqual([
+      [a, true],
+      [b, true],
+      [c, false],
+    ]);
+  });
+});
+
 describe("toView: 見学者", () => {
   it("spectating: true・yourCard: null。spectatorCount が数える", () => {
     let s = choose(empty, "weather");
