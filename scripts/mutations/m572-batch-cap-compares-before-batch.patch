@@ -1,0 +1,22 @@
+# 変異 572: batch-cap-compares-before-batch
+#
+# 検出を期待するテスト:
+#   - packages/roulette-core/tests/roulette-guest-batch.test.ts
+#
+# #458。`addGuests` が上限を足す前の件数（`state.guests.length`）で比べ、束の途中で増えたゲスト数を見ない。ゲスト 20 人に 8 人を渡すと 28 人入る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m572-*.patch
+# 復元: git apply -R scripts/mutations/m572-*.patch
+diff --git a/packages/roulette-core/src/roulette.ts b/packages/roulette-core/src/roulette.ts
+--- a/packages/roulette-core/src/roulette.ts
++++ b/packages/roulette-core/src/roulette.ts
+@@ -305,7 +305,7 @@ export function addGuests(
+   for (const name of names) {
+     if (conflicts(existingOf(members, guests), name)) {
+       skipped.push(name);
+-    } else if (guests.length < MAX_GUESTS) {
++    } else if (state.guests.length < MAX_GUESTS) {
+       guests = [...guests, { id: `g-${seq}`, name }];
+       seq += 1;
+       added.push(name);

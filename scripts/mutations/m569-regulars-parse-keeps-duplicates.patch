@@ -3,7 +3,7 @@
 # 検出を期待するテスト:
 #   - apps/roulette-web/tests/regulars-storage.test.ts
 #
-# #458。`foldMembers` が `conflictsWithExisting` を使わず、大小・全角半角の違う同じ名前を 2 人として残す（参加の重複拒否と食い違う）。`parseMemberLines` と `saveGroup` の両方を通る。
+# #458。`foldMembers` が `conflictsWithExisting` を使わず、NFKC の後に大小だけが違う同じ名前を 2 人として残す（参加の重複拒否と食い違う）。`parseMemberLines` と `saveGroup` の両方を通る。
 #
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m569-*.patch

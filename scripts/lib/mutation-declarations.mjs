@@ -3447,7 +3447,7 @@ export const MUTATIONS = [
     patch: "m569-regulars-parse-keeps-duplicates.patch",
     pkg: "apps/roulette-web",
     tests: ["tests/regulars-storage.test.ts"],
-    note: "#458。`foldMembers` が `conflictsWithExisting` を使わず、大小・全角半角の違う同じ名前を 2 人として残す（参加の重複拒否と食い違う）。`parseMemberLines` と `saveGroup` の両方を通る。",
+    note: "#458。`foldMembers` が `conflictsWithExisting` を使わず、NFKC の後に大小だけが違う同じ名前を 2 人として残す（参加の重複拒否と食い違う）。`parseMemberLines` と `saveGroup` の両方を通る。",
   },
   {
     id: 570,
@@ -3464,5 +3464,14 @@ export const MUTATIONS = [
     pkg: "apps/roulette-web",
     tests: ["tests/regulars-section.test.tsx"],
     note: "#458。入れると usedAt が変わって札が先頭へ移り、要素が付け替わってフォーカスが body へ落ちる。キーボードで続けて操作できない。",
+  },
+
+  {
+    id: 572,
+    label: "上限を足す前の件数で比べる",
+    patch: "m572-batch-cap-compares-before-batch.patch",
+    pkg: "packages/roulette-core",
+    tests: ["tests/roulette-guest-batch.test.ts"],
+    note: "#458。設計 §8。`addGuests` が上限を `state.guests.length`（束を足す前）で比べ、ゲスト 20 人に 8 人を渡すと 28 人入る。",
   },
 ];
