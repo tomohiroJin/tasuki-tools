@@ -5,7 +5,7 @@
  * 角度の期待値は `wheel-motion`（純粋関数）から取る。その純粋関数が正しい席に止まることは
  * `wheel-motion.test.ts` が別の計算（指し針の先を戻して atan2）で固定している。
  */
-import { act, render, screen } from '@testing-library/react';
+import { act, render } from '@testing-library/react';
 import { stageCaption } from './support/stage-caption';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { saveResumeIdentity } from '@tasuki/sync-client';
