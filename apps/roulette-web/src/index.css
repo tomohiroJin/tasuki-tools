@@ -625,6 +625,8 @@
 /* いつものメンツ（#458）。端末だけの物なので、ルームの一覧と罫で分ける（.roulette-foot と同じ罫） */
 .roulette-regulars {
   display: grid;
+  /* 列の最小幅を 0 にする。名前は nowrap なので、既定の auto だと長い組名の幅まで区画ごと広がり、320px で横に溢れる */
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-3);
   padding-top: var(--space-4);
   border-top: 1px solid var(--line);
@@ -652,11 +654,17 @@
   color: var(--ivory);
   font-weight: 500;
 }
+/* 組の名前は 40 字まで・空白なしでもよい。題と確認の文は折り返さないと 320px で区画ごと横に溢れる */
+.roulette-regulars-title,
+.roulette-regulars-confirm p {
+  overflow-wrap: anywhere;
+}
 .roulette-regulars-list {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-1);
 }
 .roulette-regulars-row {
@@ -709,6 +717,7 @@
 }
 .roulette-regulars-form {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-3);
 }
 .roulette-regulars-field {
