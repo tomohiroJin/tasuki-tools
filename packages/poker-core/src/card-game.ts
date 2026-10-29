@@ -133,12 +133,19 @@ export function revealIfReady(game: CardGame, now: number): CardGame {
 }
 
 /**
- * 次に開くかどうかを判定し直す時刻（G-8）。未チェンジのまま切れた人の猶予がいちばん早く切れる時刻で、
- * 待つ相手が居なければ null。サーバーはこの時刻に判定を予約する（切れた人が戻らなくても、猶予が切れた瞬間に開く）
+ * 次に開くかどうかを判定し直す時刻（G-8）。未チェンジのまま切れた人の猶予のうち、**まだ来ていない**締切の
+ * いちばん早いもので、無ければ null。サーバーはこの時刻に判定を予約する（切れた人が戻らなくても、猶予が切れた瞬間に開く）。
+ *
+ * **過ぎた締切は返さない。** 猶予が切れても開けない（接続中の誰かがまだチェンジしていない）とき、過ぎた締切を返すと
+ * 予約は残り 0 でその場で発火し、判定 → 保管 → 予約 → 発火 … が同期に続いてサーバーごと落ちる（コードレビュー 2026-10-29）。
+ * 過ぎた猶予は {@link revealIfReady} がもう待たないので、判定し直す必要も無い。
  */
-export function nextAwayDeadline(game: CardGame): number | null {
+export function nextAwayDeadline(game: CardGame, now: number): number | null {
   if (game.status !== 'exchanging') return null;
-  const pending = [...game.away].filter(([id]) => !game.exchanged.has(id)).map(([, at]) => at + AWAY_GRACE_MS);
+  const pending = [...game.away]
+    .filter(([id]) => !game.exchanged.has(id))
+    .map(([, at]) => at + AWAY_GRACE_MS)
+    .filter((deadline) => deadline > now);
   return pending.length === 0 ? null : Math.min(...pending);
 }
 

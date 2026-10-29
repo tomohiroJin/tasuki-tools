@@ -330,18 +330,21 @@ export function makePokerHandlers(deps: PokerHandlerDeps): PokerHandlers {
    */
   function armGameTimer(state: PokerRoomState): void {
     const code = state.room.code;
-    const deadline = gameDeadline(state.round);
+    const now = wallClock.now();
+    // まだ来ていない締切だけが返る（過ぎた締切で残り 0 の予約を作ると、本物の Scheduler はその場で同期に呼び、
+    // 判定 → 保管 → 予約 → 発火 … の連鎖でスタックが溢れてサーバーごと落ちる。コードレビュー 2026-10-29）
+    const deadline = gameDeadline(state.round, now);
     if (deadline === null) {
       gameTimer.clear(code);
       return;
     }
-    gameTimer.schedule(code, Math.max(0, deadline - wallClock.now()) / 1000, (roomCode) => {
+    gameTimer.schedule(code, (deadline - now) / 1000, (roomCode) => {
       const current = loadState(roomCode);
       if (current === undefined) return;
-      commit({
-        room: current.room,
-        round: settleRound(current.round, current.round, fragmentsOf(current.room), wallClock.now(), randomInt),
-      });
+      const round = settleRound(current.round, current.round, fragmentsOf(current.room), wallClock.now(), randomInt);
+      // 判定で何も変わらなければ保管も配信もしない（全員へ同じ状態を配り直さない・予約の連鎖の二重の歯止め）
+      if (round === current.round) return;
+      commit({ room: current.room, round });
     });
   }
 

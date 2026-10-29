@@ -221,6 +221,7 @@ export function RoomPage({ roomId, sync }: Props) {
                 participants={snapshot.participants}
                 you={snapshot.you}
                 disabled={offline}
+                error={sync.error}
                 onExchange={sync.exchangeCards}
                 onDealAgain={sync.dealAgain}
                 onClose={sync.closeGame}

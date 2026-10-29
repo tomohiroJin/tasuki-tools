@@ -162,14 +162,20 @@ describe('切断の猶予（G-8）', () => {
   });
 
   it('Given 猶予の内の切断 / When 次の判定の時刻を尋ねる / Then 猶予が切れる時刻', () => {
-    expect(nextAwayDeadline(bAway())).toBe(1000 + AWAY_GRACE_MS);
+    expect(nextAwayDeadline(bAway(), 1000)).toBe(1000 + AWAY_GRACE_MS);
+    expect(nextAwayDeadline(bAway(), 1000 + AWAY_GRACE_MS - 1)).toBe(1000 + AWAY_GRACE_MS);
+  });
+
+  it('Given 猶予がもう切れた / When 尋ねる / Then 予約は要らない（過ぎた締切を返すと、その場で発火する予約を延々と繰り返す）', () => {
+    expect(nextAwayDeadline(bAway(), 1000 + AWAY_GRACE_MS)).toBeNull();
+    expect(nextAwayDeadline(bAway(), 1000 + AWAY_GRACE_MS * 3)).toBeNull();
   });
 
   it('Given 切れた人が居ない・済んだ人だけが切れた・開いたあと / When 尋ねる / Then 予約は要らない', () => {
     const game = exchangeCards(dealt('a', 'b'), 'a', [], identity)._unsafeUnwrap();
-    expect(nextAwayDeadline(game)).toBeNull();
-    expect(nextAwayDeadline(trackPresence(game, (id) => id === 'b', 1000))).toBeNull();
-    expect(nextAwayDeadline(revealIfReady(bAway(), 1000 + AWAY_GRACE_MS))).toBeNull();
+    expect(nextAwayDeadline(game, 1000)).toBeNull();
+    expect(nextAwayDeadline(trackPresence(game, (id) => id === 'b', 1000), 1000)).toBeNull();
+    expect(nextAwayDeadline(revealIfReady(bAway(), 1000 + AWAY_GRACE_MS), 1000)).toBeNull();
   });
 
   it('Given 全員が猶予を過ぎて切れた / When 判定 / Then 開かない（見る人が居ない）', () => {

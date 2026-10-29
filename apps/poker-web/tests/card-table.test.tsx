@@ -20,9 +20,18 @@ const low: PlayingCard[] = ([2, 4, 6, 8, 10] as const).map((rank, i) => ({ suit:
 
 function renderTable(table: TableView, you = 'p1', disabled = false) {
   const handlers = { onExchange: vi.fn(), onDealAgain: vi.fn(), onClose: vi.fn() };
-  const view = render(<CardTable table={table} participants={people} you={you} disabled={disabled} {...handlers} />);
-  const update = (next: TableView) =>
-    view.rerender(<CardTable table={next} participants={people} you={you} disabled={disabled} {...handlers} />);
+  const view = render(<CardTable table={table} participants={people} you={you} disabled={disabled} error={null} {...handlers} />);
+  const update = (next: TableView, more: { disabled?: boolean; error?: object | null } = {}) =>
+    view.rerender(
+      <CardTable
+        table={next}
+        participants={people}
+        you={you}
+        disabled={more.disabled ?? disabled}
+        error={more.error ?? null}
+        {...handlers}
+      />,
+    );
   return { ...handlers, update };
 }
 
@@ -172,6 +181,22 @@ describe('二重送信を防ぐ（#403）', () => {
     expect(back.disabled).toBe(false);
     fireEvent.click(back);
     expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it('Given 押したあと / When 接続が切れて同じ状態のまま戻る / Then また押せる（送った操作が失われても封鎖を残さない）', () => {
+    const { update } = renderTable(exchanging());
+    fireEvent.click(screen.getByRole('button', { name: 'このまま' }));
+    update(exchanging(), { disabled: true });
+    update(exchanging(), { disabled: false });
+    expect((screen.getByRole('button', { name: 'このまま' }) as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByRole('button', { name: '見積もりに戻る' }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('Given 押したあと / When サーバーがエラーを返す（状態は同じ） / Then また押せる', () => {
+    const { update } = renderTable(exchanging());
+    fireEvent.click(screen.getByRole('button', { name: 'このまま' }));
+    update(exchanging(), { error: { code: 'rate-limited', message: 'しばらくお待ちください' } });
+    expect((screen.getByRole('button', { name: 'このまま' }) as HTMLButtonElement).disabled).toBe(false);
   });
 
   it('Given 開いたあと / When 「もう一度」を 2 回押す / Then 1 回しか送らない', () => {

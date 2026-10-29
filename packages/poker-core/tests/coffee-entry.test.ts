@@ -100,6 +100,19 @@ describe('入口（E-1〜E-5）', () => {
     expect(r.game?.players).toEqual(['a', 'b']);
   });
 
+  it('Given 名簿の断片に見学者が居る / When 投票者の全員が ☕ を 2 回 / Then 見学者は ☕ を出していなくても数えず、プレイヤーにもしない', () => {
+    // 判定に渡す断片に見学者 s を入れる（サーバーと同じ形）。見学者を数えると「全員 ☕」が立たず、配ると s に手が回る
+    const three = people('a', 'b', 's');
+    let r = act(createRound(), three, (x) => setSpectator(x, 's', true));
+    const coffee = (x: Round) =>
+      ['a', 'b'].reduce((y, id) => act(y, three, (z) => castVote(z, id, COFFEE)._unsafeUnwrap()), x);
+    r = coffee(r);
+    expect(r.coffeeArmed).toBe(true);
+    r = coffee(again(r, three));
+    expect(r.game?.players).toEqual(['a', 'b']);
+    expect(r.game?.hands.has('s')).toBe(false);
+  });
+
   it('Given 普段の見積もり / When ☕ 以外で開く / Then 構えない', () => {
     expect(everyone(createRound(), two, FIVE).coffeeArmed).toBe(false);
   });
@@ -129,12 +142,13 @@ describe('ゲームの最中（G-7・G-11）', () => {
     const away = [{ id: 'a', connected: true }, { id: 'b', connected: false }];
     const r = settleRound(round, exchangeHand(round, 'a', [], identity)._unsafeUnwrap(), away, 1000, identity);
     expect(r.game?.status).toBe('exchanging');
-    expect(gameDeadline(r)).toBe(1000 + AWAY_GRACE_MS);
+    expect(gameDeadline(r, 1000)).toBe(1000 + AWAY_GRACE_MS);
+    expect(gameDeadline(r, 1000 + AWAY_GRACE_MS)).toBeNull();
     expect(settleRound(r, r, away, 1000 + AWAY_GRACE_MS, identity).game?.status).toBe('shown');
   });
 
   it('Given ゲームが無い / 開いたあと / When 予約の時刻を尋ねる / Then 要らない', () => {
-    expect(gameDeadline(createRound())).toBeNull();
+    expect(gameDeadline(createRound(), 0)).toBeNull();
   });
 
   it('Given ゲームが無い / When チェンジ / Then table-no-game', () => {

@@ -331,11 +331,11 @@ export function settleRound(
 }
 
 /**
- * 次に {@link settleRound} を通すべき時刻（#403 G-8）。未チェンジのまま切れた人の猶予が切れる時刻で、要らなければ null。
+ * 次に {@link settleRound} を通すべき時刻（#403 G-8）。未チェンジのまま切れた人の猶予が切れる、まだ来ていない時刻で、要らなければ null。
  * サーバーはこの時刻に判定を予約する
  */
-export function gameDeadline(round: Round): number | null {
-  return round.game === null ? null : nextAwayDeadline(round.game);
+export function gameDeadline(round: Round, now: number): number | null {
+  return round.game === null ? null : nextAwayDeadline(round.game, now);
 }
 
 /** チェンジ（#403 G-4〜G-6）。開くかどうかは {@link settleRound} が決める */

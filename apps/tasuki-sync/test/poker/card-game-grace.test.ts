@@ -11,6 +11,7 @@ import { InMemoryRoundStore } from '../../src/adapters/poker-in-memory-round-sto
 import { createWsBroadcaster } from '../../src/adapters/poker-ws-broadcaster';
 import { createTokenStore } from '../../src/application/token-store';
 import { makePokerHandlers, type HandlerConnection } from '../../src/application/poker-handlers';
+import { Scheduler } from '../../src/application/schedule';
 import type { RoomSocket } from '../../src/ports/poker-broadcaster';
 import { SpyBroadcaster } from '../support/spy-broadcaster.js';
 import { spyHub } from '../support/hub.js';
@@ -44,10 +45,14 @@ function fakeTimer() {
   };
 }
 
-function setup() {
+function setup({ names = ['あ', 'い'], realScheduler = false }: { names?: string[]; realScheduler?: boolean } = {}) {
   let now = 1_000_000;
   let n = 0;
-  const timer = fakeTimer();
+  const fake = fakeTimer();
+  // 本物の Scheduler は、締切を過ぎた予約（残り 0 以下）をその場で同期に呼ぶ。偽物はそれをしないので、
+  // 「猶予が切れても開けない」ときの再予約の連鎖（コードレビュー 2026-10-29 の Critical）は本物でしか再現しない
+  const real = new Scheduler({ now: () => now });
+  const timer = realScheduler ? real : fake;
   const handlers = makePokerHandlers({
     store: new InMemoryRoomStore(),
     rounds: new InMemoryRoundStore(),
@@ -68,21 +73,23 @@ function setup() {
       throw new Error('removeFromRoom は呼ばれない');
     },
   });
-  const clients = ['あ', 'い'].map((name, i) => {
+  const clients = names.map((name, i) => {
     const sent: ServerMessage[] = [];
     const socket: RoomSocket = { send: (data) => void sent.push(JSON.parse(data) as ServerMessage) };
     const ws: HandlerConnection = { ...socket, data: { connId: `conn-${i}`, participantId: null, roomId: null, rateKey: `k${i}` } };
     return { ws, sent };
   });
-  handlers.handleCreateRoom(clients[0]!.ws, { type: 'create-room', name: 'あ' });
-  handlers.handleJoinRoom(clients[1]!.ws, { type: 'join-room', roomId: 'room0001', name: 'い' });
+  clients.forEach((c, i) => {
+    if (i === 0) handlers.handleCreateRoom(c.ws, { type: 'create-room', name: names[0]! });
+    else handlers.handleJoinRoom(c.ws, { type: 'join-room', roomId: 'room0001', name: names[i]! });
+  });
   const send = (i: number, msg: ClientMessage) => handlers.dispatch(clients[i]!.ws, msg);
   const table = (i: number) => {
     const states = clients[i]!.sent.filter((m): m is RoomStateMsg => m.type === 'room-state');
     return states[states.length - 1]?.table;
   };
   // 入口: 全員 ☕ → 開く → 再投票 → 全員 ☕ → 開く
-  const coffee = () => [0, 1].forEach((i) => send(i, { type: 'vote', card: { kind: 'coffee' } }));
+  const coffee = () => clients.forEach((_, i) => send(i, { type: 'vote', card: { kind: 'coffee' } }));
   coffee();
   send(0, { type: 'revote' });
   coffee();
@@ -91,7 +98,8 @@ function setup() {
     clients,
     send,
     table,
-    timer,
+    timer: fake,
+    real,
     advance: (ms: number) => {
       now += ms;
     },
@@ -139,3 +147,32 @@ describe('切断の猶予（#403 G-8）', () => {
     expect(env.table(0)?.status).toBe('shown');
   });
 });
+
+describe('猶予が切れても開けないとき（#403 G-8a・コードレビュー 2026-10-29 の Critical）', () => {
+  it('Given b は未チェンジで接続中・c は未チェンジのまま切れた / When 猶予が過ぎてから a が操作する / Then 落ちず、待ち続け、予約も残らない', () => {
+    const env = setup({ names: ['あ', 'い', 'う'], realScheduler: true });
+    env.send(0, { type: 'table-exchange', discard: [] });
+    env.handlers.detachFromCurrentRoom(env.clients[2]!.ws);
+    env.advance(60_000);
+
+    const before = env.clients[1]!.sent.length;
+    expect(() => env.send(0, { type: 'set-item', item: 'ログイン' })).not.toThrow();
+
+    // b がまだチェンジしていないので開かない。配信は操作の 1 通だけ（予約の連鎖で配り続けない）
+    expect(env.table(1)?.status).toBe('exchanging');
+    expect(env.clients[1]!.sent.length - before).toBe(1);
+    env.real.clearAll();
+  });
+
+  it('Given a は未チェンジで接続中・c は未チェンジのまま切れた / When 誰も操作せずに猶予が切れる / Then 予約の発火で落ちない', async () => {
+    const env = setup({ names: ['あ', 'い', 'う'], realScheduler: true });
+    env.send(1, { type: 'table-exchange', discard: [] });
+    env.handlers.detachFromCurrentRoom(env.clients[2]!.ws);
+    // 本物の Scheduler は最大 1 秒刻みで待ち直すので、壁時計を先へ進めてから 1 刻みぶん待つ
+    env.advance(60_000);
+    await new Promise((r) => setTimeout(r, 1100));
+    expect(env.table(0)?.status).toBe('exchanging');
+    env.real.clearAll();
+  });
+});
+

@@ -31,6 +31,11 @@ interface Props {
   participants: readonly ParticipantView[];
   you: string;
   disabled: boolean;
+  /**
+   * いま出ているサーバーのエラー（`PokerSync['error']`。中身は見ず、変わったかだけを見る）。
+   * 送った操作が拒まれたら状態は変わらないので、エラーが届いたことで送った後の封鎖を解く
+   */
+  error: object | null;
   onExchange: (discard: number[]) => void;
   onDealAgain: () => void;
   onClose: () => void;
@@ -62,7 +67,7 @@ function SeatCard({ card, index }: { card: PlayingCard | null; index: number }) 
   );
 }
 
-export function CardTable({ table, participants, you, disabled, onExchange, onDealAgain, onClose }: Props) {
+export function CardTable({ table, participants, you, disabled, error, onExchange, onDealAgain, onClose }: Props) {
   const nameOf = (id: string) => participants.find((p) => p.id === id)?.name ?? '?';
   const shown = table.status === 'shown';
   // 手はプレイヤーにしか届かない（サーバーが守る）ので、`yourHand` があることがプレイヤーであることを表す
@@ -80,9 +85,17 @@ export function CardTable({ table, participants, you, disabled, onExchange, onDe
 
   // 送った操作の返事（新しい状態）が届くまで、操作を押せなくする（二重送信で「1 回だけです」のエラーを見せない）。
   // 押せなくした（disabled の）ボタンにはクリックが届かないので、これだけで 2 回目は送られない。
-  // 状態の鍵が変われば自然に解ける。「見積もりに戻る」が通ればテーブルごと消える
+  // 状態の鍵が変われば解ける（「見積もりに戻る」が通ればテーブルごと消える）。エラーと接続の切り替わりでも解く（下）
   const stateKey = `${table.status}|${handKey}|${table.players.map((p) => Number(p.exchanged)).join('')}`;
   const [sentFor, setSentFor] = useState<string | null>(null);
+  // 返事が来ないまま状態が変わらないこともある: サーバーが拒んだ（エラーが届く）・接続が切れて送った操作が失われた
+  // （disabled が切り替わる）。どちらでも封鎖を解く。解かないと、その人が最後の未チェンジ者なら誰かが
+  // 「見積もりに戻る」を押すまでゲームが止まる（コードレビュー 2026-10-29）。前の描画と比べて描画中に直す（React の型）
+  const [seen, setSeen] = useState({ disabled, error });
+  if (seen.disabled !== disabled || seen.error !== error) {
+    setSeen({ disabled, error });
+    setSentFor(null);
+  }
   const locked = disabled || sentFor === stateKey;
   const once = (send: () => void) => () => {
     setSentFor(stateKey);
