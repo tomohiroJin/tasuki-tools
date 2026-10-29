@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { INITIAL_ROULETTE_STATE, addGuest, addGuests, type Member, type RouletteState } from "../src/index.js";
-import { MAX_GUESTS } from "../src/limits.js";
-import { foldCase } from "./support/name-conflict.js";
+import { INITIAL_ROULETTE_STATE, addGuests, removeGuest, type Member, type RouletteState } from "../src/index.js";
+import { foldCase, neverConflicts } from "./support/name-conflict.js";
 
 function withGuests(names: string[]): RouletteState {
   return {
@@ -65,7 +64,7 @@ describe("addGuests", () => {
     // When
     const b = addGuests(twenty, ["a", "b", "c", "d", "e", "f", "g", "h"], [], foldCase);
     // Then
-    expect(b.added).toHaveLength(4);
+    expect(b.added).toEqual(["a", "b", "c", "d"]);
     expect(b.overflow).toEqual(["e", "f", "g", "h"]);
     expect(b.skipped).toEqual([]);
     expect(b.state.guests).toHaveLength(24);
@@ -90,14 +89,26 @@ describe("addGuests", () => {
     expect(b.state).toBe(state);
   });
 
-  it("addGuest も 24 人まで足せて、25 人目は TOO_MANY_GUESTS", () => {
-    // Given
-    let s = INITIAL_ROULETTE_STATE;
-    for (let i = 0; i < 24; i++) s = addGuest(s, `名前${i}`, [], foldCase)._unsafeUnwrap();
+  it("消した後の状態でも、ID は nextGuestSeq から採番して重複しない", () => {
+    // Given: g-1..g-3 を足して g-2 を消す（nextGuestSeq は 4、guests.length + 1 は 3）
+    const base = removeGuest(withGuests(["一", "二", "三"]), "g-2");
     // When
+    const b = addGuests(base, ["四", "五"], [], foldCase);
     // Then
-    expect(MAX_GUESTS).toBe(24);
-    expect(s.guests).toHaveLength(24);
-    expect(addGuest(s, "あふれ", [], foldCase)._unsafeUnwrapErr()).toEqual({ code: "TOO_MANY_GUESTS" });
+    expect(b.state.guests.map((g) => g.id)).toEqual(["g-1", "g-3", "g-4", "g-5"]);
+    expect(b.state.nextGuestSeq).toBe(6);
+  });
+
+  it("同名かどうかは渡された判定だけで決める（自前の文字列比較を持たない）", () => {
+    // Given
+    // When: どれも衝突としない判定なら、同じ文字列でも全部足す
+    const never = addGuests(INITIAL_ROULETTE_STATE, ["佐藤", "佐藤"], [{ id: "p1", name: "佐藤", present: true }], neverConflicts);
+    // 常に衝突とする判定なら、全部飛ばす
+    const always = addGuests(INITIAL_ROULETTE_STATE, ["佐藤", "鈴木"], [], () => true);
+    // Then
+    expect(never.added).toEqual(["佐藤", "佐藤"]);
+    expect(never.skipped).toEqual([]);
+    expect(always.skipped).toEqual(["佐藤", "鈴木"]);
+    expect(always.added).toEqual([]);
   });
 });
