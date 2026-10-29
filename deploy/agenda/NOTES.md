@@ -85,6 +85,8 @@ TASUKI_SSH_HOST=<ホスト別名> ./deploy/deploy.sh agenda
 定義の項目の上限が 40・予定の合計の上限が 720 分になり、180 分以上の会の時計が `h:mm:ss` になった変更の配り方（設計 [§6](../../docs/superpowers/specs/2026-10-27-agenda-long-meetings-design.md)）。
 第 1 段・第 2 段の記録（上）は書き換えない。
 
+> **2026-10-30 にこの順（timer → agenda）で配った**（`v4.5.0`・#406 などと同じ回。全体の順は [`../checkin/NOTES.md`](../checkin/NOTES.md) の冒頭）。
+
 **`deploy.sh timer` → `deploy.sh agenda` の順に流す。** 同期サーバー（timer の配布で入れ替わる）を先に新しくする。
 
 - 理由: 古い同期サーバーは旧い上限（合計 180 分・定義 20 ステップ）を超える会を拒む。**agenda-web を先に配ると、新しい画面が通した 180 分超・21 ステップ以上の会をまだ旧い同期サーバーが拒み、「コマンドの形式が不正です」（`INVALID_COMMAND`）になる**

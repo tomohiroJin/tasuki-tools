@@ -17,7 +17,11 @@ Tasuki の各アプリは「自分の systemd ユニット + 固有ポート + C
 | `topic` | （無し・静的） | — | `/var/www/tasuki-topic` | `/topic/` | 公開中 |
 | `roulette` | （無し・静的） | — | `/var/www/tasuki-roulette` | `/roulette/` | 公開中 |
 | `agenda` | （無し・静的） | — | `/var/www/tasuki-agenda` | `/agenda/` | 公開中 |
-| `checkin` | （無し・静的） | — | `/var/www/tasuki-checkin` | `/checkin/` | 未配布 |
+| `checkin` | （無し・静的） | — | `/var/www/tasuki-checkin` | `/checkin/` | 公開中 |
+
+> **#406（Check-in Cards）・#447・#455・#403・#458 は 2026-10-30 にまとめて配った**（`v4.5.0`）。初回の用意（web root と
+> `/checkin/` の断片）を root で済ませてから、timer → checkin → roulette → agenda → poker → topic → landing の順に流した。
+> #455・#458 の「同期サーバーが先」に合わせて timer を先頭にした。記録は [`checkin/NOTES.md`](checkin/NOTES.md)。
 
 > **#429 第 2 段（くりかえし #433）・フィードバック（#435）・#434（サイトの外側）は 2026-10-24 にまとめて配った**（`v4.4.0`）。
 > web は timer → agenda → landing → poker → topic → roulette、続けて root で Caddy の 7 本を入れた。本番の Caddy 2.6.2 で
@@ -432,7 +436,7 @@ CI から自動デプロイもしません。
 | 切り戻し | スクリプト化していない。本 README の手順を手でたどる（**退避だけは `deploy.sh` が行う**・#146） |
 | デプロイ後の検証 | 配信ハッシュの一致・`/ws` の応答（唯一の WS 入口。#95 S5c）・各アプリの公開パスの応答を手で確認する（`deploy.sh` は確認コマンドを案内するだけで実行しない）。**起動の確認（`is-active` 2 回と `NRestarts`）だけは `deploy.sh` が実行する**（#146） |
 
-（timer / poker / landing は #66 で公開済み。`topic` は #91 の配布で公開する）
+（各アプリの公開の状態は冒頭の表、配った回の記録はその下の注記を見る。2026-10-30 の `v4.5.0` で 7 本すべてが公開中）
 
 最後に、サイト全体を外から通しで確認します。
 

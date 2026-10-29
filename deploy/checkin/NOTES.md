@@ -4,11 +4,18 @@
 
 ## 配布の手順（#406）
 
-> **未配布。** この資材は置いただけで、本番へは配っていない。配るのは**利用者の明示の指示を得てから**で、
-> **利用者が使っていない時間帯**に行う（`deploy.sh timer` の再起動で、すべてのツールのルームが消える）。
-> 同期サーバー（`?tool=checkin`）と web を同じ回で配る。
+> **2026-10-30 に配った**（`v4.5.0`・接続 0 本の時間帯）。root で初回の用意（web root と `70-checkin.conf`・退避
+> `/etc/caddy/tasuki.bak.20261030-0034`）を済ませてから、**timer → checkin → roulette → agenda → poker → topic → landing**
+> の順に流した。下の順序表（timer が最後）からは外れている。同じ回に配った #455（`../agenda/NOTES.md`）と
+> #458（`../roulette/NOTES.md`）がどちらも「同期サーバーが先」と決めていたので、それに合わせた。timer を先にしたときの窓は
+> 下の「配布中の窓」の 3（古い玄関に `checkin` と生の綴りが出る）のほかに、**断片を置いた 00:34 から `deploy.sh checkin` までの
+> 約 4 分、`/checkin/` が空の web root を指していた**（古い玄関には `/checkin/` への札が無いので、URL を直に打たない限り届かない）。
+> どちらも接続 0 本の時間帯で害は無かった。次に新しいアプリを timer 先頭で配るなら、断片の設置から `deploy.sh <app>` までを続けて流す。
+> 7 本のハッシュ一致・`/checkin/assets/` の確認・`pnpm e2e:prod` 62 passed。
+>
+> **以下の「順序」「配布中の窓」と ⚠ の注意は、配る前に書いた案の記録である**（実際の順は上のとおり）。
 
-### 順序
+### 順序（配る前に書いた案・実際は冒頭の記録の順で配った）
 
 **checkin → main 側の未配布の静的アプリ → landing → timer。** 静的なものと timer は**間を空けずに続けて流す**。
 同期サーバーを再起動するのは最後の `deploy.sh timer` だけである（ほかは `STATIC_ONLY=1`）。
@@ -46,7 +53,7 @@ HOST=https://<公開ドメイン>
 curl -s "$HOST/checkin/" | grep -o '/checkin/assets/' | head -1   # 1 行出れば正常
 ```
 
-⚠ **配布前の本番へ `pnpm e2e:prod` を当てると `@smoke`（`routing`・`site-exterior`）と `@core` が落ちる。**
+⚠ **（初回の配布の記録）配布前の本番へ `pnpm e2e:prod` を当てると `@smoke`（`routing`・`site-exterior`）と `@core` が落ちる。**
 `/checkin/` がまだ無いので、`/checkin/` を見るテストが失敗する。配り終えてから流す。
 
 ## 静的サイト
