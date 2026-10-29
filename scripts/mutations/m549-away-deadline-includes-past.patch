@@ -1,0 +1,26 @@
+# 変異 549: away-deadline-includes-past
+#
+# 検出を期待するテスト:
+#   - packages/poker-core/tests/card-game.test.ts（猶予がもう切れた / When 尋ねる / Then 予約は要らない）
+#   - apps/tasuki-sync/test/poker/card-game-grace.test.ts（猶予が切れても開けないとき / Then 落ちない）
+#
+# #403 G-8a。過ぎた締切を返し、残り 0 の予約がその場で発火して判定 → 保管 → 予約の連鎖になり、
+# 同期サーバーがスタックの溢れで落ちる（コードレビュー 2026-10-29 の Critical）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m549-*.patch
+# 復元: git apply -R scripts/mutations/m549-*.patch
+diff --git a/packages/poker-core/src/card-game.ts b/packages/poker-core/src/card-game.ts
+index 2bfe80f..a0fff16 100644
+--- a/packages/poker-core/src/card-game.ts
++++ b/packages/poker-core/src/card-game.ts
+@@ -144,8 +144,7 @@ export function nextAwayDeadline(game: CardGame, now: number): number | null {
+   if (game.status !== 'exchanging') return null;
+   const pending = [...game.away]
+     .filter(([id]) => !game.exchanged.has(id))
+-    .map(([, at]) => at + AWAY_GRACE_MS)
+-    .filter((deadline) => deadline > now);
++    .map(([, at]) => at + AWAY_GRACE_MS);
+   return pending.length === 0 ? null : Math.min(...pending);
+ }
+ 

@@ -1,0 +1,23 @@
+# 変異 550: lock-kept-after-error
+#
+# 検出を期待するテスト:
+#   - apps/poker-web/tests/card-table.test.tsx（押したあと / When 接続が切れて同じ状態のまま戻る・サーバーがエラーを返す / Then また押せる）
+#
+# #403。送った操作が拒まれた・失われたあとも封鎖が残り、最後の未チェンジ者なら誰かが見積もりに戻るまでゲームが止まる
+# （コードレビュー 2026-10-29）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m550-*.patch
+# 復元: git apply -R scripts/mutations/m550-*.patch
+diff --git a/apps/poker-web/src/components/CardTable.tsx b/apps/poker-web/src/components/CardTable.tsx
+index bc3fe8f..0bd9bd9 100644
+--- a/apps/poker-web/src/components/CardTable.tsx
++++ b/apps/poker-web/src/components/CardTable.tsx
+@@ -94,7 +94,6 @@ export function CardTable({ table, participants, you, disabled, error, onExchang
+   const [seen, setSeen] = useState({ disabled, error });
+   if (seen.disabled !== disabled || seen.error !== error) {
+     setSeen({ disabled, error });
+-    setSentFor(null);
+   }
+   const locked = disabled || sentFor === stateKey;
+   const once = (send: () => void) => () => {

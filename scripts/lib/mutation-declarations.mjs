@@ -3441,4 +3441,20 @@ export const MUTATIONS = [
     tests: ["tests/agenda-room.test.tsx"],
     note: "#455。他の参加者が開始した画面（位相が進行中に変わっただけ）までページの先頭へ戻し、読んでいる途中の画面が勝手に動く。",
   },
+  {
+    id: 549,
+    label: "切断の猶予の締切が過ぎても予約を返す",
+    patch: "m549-away-deadline-includes-past.patch",
+    pkg: "packages/poker-core",
+    tests: ["tests/card-game.test.ts"],
+    note: "#403 G-8a。残り 0 の予約がその場で発火し続け、同期サーバーがスタックの溢れで落ちる（コードレビュー 2026-10-29 の Critical）。sync の `test/poker/card-game-grace.test.ts` も本物の Scheduler で同じ場面を見る。",
+  },
+  {
+    id: 550,
+    label: "送った後の封鎖を、エラーと接続の切り替わりで解かない",
+    patch: "m550-lock-kept-after-error.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/card-table.test.tsx"],
+    note: "#403。拒まれた・失われた操作のあとも押せないまま残り、ゲームが止まる（コードレビュー 2026-10-29）。",
+  },
 ];
