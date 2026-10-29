@@ -88,6 +88,8 @@ TASUKI_SSH_HOST=<ホスト別名> ./deploy/deploy.sh timer    # 同期サーバ�
 
 ### #458（いつものメンツ）を配るときの窓
 
+> **2026-10-30 にこの順（timer → roulette）で配った**（`v4.5.0`・#406 などと同じ回。全体の順は [`../checkin/NOTES.md`](../checkin/NOTES.md) の冒頭）。
+
 **同期サーバー（`deploy.sh timer`）が先、roulette-web が後。** 逆にすると、新しい画面が送る `roulette.guest.addMany` を旧い同期サーバーが
 知らず、`INVALID_COMMAND` で拒む（[設計正本](../../docs/superpowers/specs/2026-10-29-roulette-regulars-design.md) §4.3）。
 同期サーバーを先に配れば、旧い画面は新しいコマンドを送らないので何も起きない。

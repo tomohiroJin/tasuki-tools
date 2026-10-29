@@ -172,7 +172,7 @@ TypeScript / React 19 + Vite / Bun / WebSocket / Valibot / neverthrow / Vitest /
 | Topic Board | `/topic/` | 本番公開中 |
 | Facilitator Roulette | `/roulette/` | 本番公開中 |
 | Agenda Timer | `/agenda/` | 本番公開中 |
-| Check-in Cards | `/checkin/` | 未配布（実装は #406 の枝） |
+| Check-in Cards | `/checkin/` | 本番公開中 |
 
 公開の履歴は次のとおりです（GitHub Releases は使っていません。大きめの配布には注釈付きタグを打ち、変更点の要約をタグの本文に書いています。配布の詳しい記録は各 Issue にあります）。
 
@@ -186,6 +186,7 @@ TypeScript / React 19 + Vite / Bun / WebSocket / Valibot / neverthrow / Vitest /
 | 2026-10-19 | `v4.2.0`（v4.1.0 以降の 31 PR）。timer の休憩・poker の見積もりの記録と見学者・ルーレットの決め方を増やした | [#402](https://github.com/tomohiroJin/tasuki-tools/issues/402)・[#93](https://github.com/tomohiroJin/tasuki-tools/issues/93)・[#419](https://github.com/tomohiroJin/tasuki-tools/issues/419)・[#401](https://github.com/tomohiroJin/tasuki-tools/issues/401) ほか |
 | 2026-10-21 | `v4.3.0`（v4.2.0 以降の 1 PR）。進行タイマー（Agenda Timer）を初回公開。玄関に 5 枚目の札を出し、同期サーバーが `?tool=agenda` を受けるようにした | [#429](https://github.com/tomohiroJin/tasuki-tools/issues/429) |
 | 2026-10-24 | `v4.4.0`（v4.3.0 以降の 6 PR）。進行タイマーのくりかえしと利用者フィードバックの直し、Slack などに貼ったときの紹介・共通のアイコン・robots.txt などサイトの外側を揃えた。本番の Caddy 2.6.2 に合わせてキャッシュの指定を直した（#437） | [#429](https://github.com/tomohiroJin/tasuki-tools/issues/429)・[#434](https://github.com/tomohiroJin/tasuki-tools/issues/434) |
+| 2026-10-30 | `v4.5.0`（v4.4.0 以降の 14 PR）。会の始まりと終わりの札（Check-in Cards）を初回公開し、玄関に 6 枚目の札を出した。ルーム画面の見出しを各道具で揃え、進行タイマーで 12 時間までの会・poker の隠しモード・ルーレットの「いつものメンツ」を足した | [#406](https://github.com/tomohiroJin/tasuki-tools/issues/406)・[#447](https://github.com/tomohiroJin/tasuki-tools/issues/447)・[#455](https://github.com/tomohiroJin/tasuki-tools/issues/455)・[#403](https://github.com/tomohiroJin/tasuki-tools/issues/403)・[#458](https://github.com/tomohiroJin/tasuki-tools/issues/458) |
 
 単一 monorepo への統合（[epic #15](https://github.com/tomohiroJin/tasuki-tools/issues/15)・
 設計: [`docs/superpowers/specs/2026-08-04-monorepo-unification-design.md`](docs/superpowers/specs/2026-08-04-monorepo-unification-design.md)）、
