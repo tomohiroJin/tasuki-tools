@@ -38,6 +38,15 @@ export function messageForRoundError(error: RoundError): string {
       return 'この見積もりはもう記録にありません';
     case 'estimate-open':
       return '見積もり中のアイテムにはまだポイントを付けられません';
+    // 隠しモードのゲーム（#403）。「配」「札」「枚」は書体の base 層から外れるので使わない
+    case 'table-not-player':
+      return 'この手には加わっていません';
+    case 'table-exchanged':
+      return 'チェンジは 1 回だけです';
+    case 'table-no-game':
+      return 'いまはポーカーをしていません';
+    case 'table-in-play':
+      return 'ポーカーの最中です。見積もりに戻ってから操作してください';
   }
 }
 

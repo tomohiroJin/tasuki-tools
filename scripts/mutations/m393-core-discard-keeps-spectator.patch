@@ -9,15 +9,16 @@
 #       git apply scripts/mutations/m393-*.patch
 # 復元: git apply -R scripts/mutations/m393-*.patch
 diff --git a/packages/poker-core/src/round.ts b/packages/poker-core/src/round.ts
-index 7b0d8e1d..4d0f2adf 100644
+index 8d99391..a4a53ba 100644
 --- a/packages/poker-core/src/round.ts
 +++ b/packages/poker-core/src/round.ts
-@@ -215,7 +215,5 @@ export function discardVote(round: Round, voterId: string): Round {
-   if (!round.votes.has(voterId) && !round.spectators.has(voterId)) return round;
+@@ -277,8 +277,7 @@ export function discardVote(round: Round, voterId: string): Round {
+   if (!round.votes.has(voterId) && !round.spectators.has(voterId) && game === round.game) return round;
    const votes = new Map(round.votes);
    votes.delete(voterId);
 -  const spectators = new Set(round.spectators);
 -  spectators.delete(voterId);
--  return { ...round, votes, spectators };
-+  return { ...round, votes };
- }
++  const spectators = round.spectators;
+   // ゲームのプレイヤーからも外す（#403 G-8）。最後のプレイヤーが外れたら見積もりへ戻す
+   if (round.game !== null && game === null) return { ...round, spectators, ...backToEstimate };
+   return { ...round, votes, spectators, game };

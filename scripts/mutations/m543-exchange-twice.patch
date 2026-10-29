@@ -1,0 +1,23 @@
+# 変異 543: exchange-twice
+#
+# 検出を期待するテスト:
+#   - packages/poker-core/tests/card-game.test.ts（済んだ人 / When もう一度チェンジ / Then table-exchanged）
+#
+# #403 G-6。チェンジが何度でもできる（1 回だけの約束が崩れ、引き直しで役を作れる）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m543-*.patch
+# 復元: git apply -R scripts/mutations/m543-*.patch
+diff --git a/packages/poker-core/src/card-game.ts b/packages/poker-core/src/card-game.ts
+index 8e04237..ca502af 100644
+--- a/packages/poker-core/src/card-game.ts
++++ b/packages/poker-core/src/card-game.ts
+@@ -64,7 +64,7 @@ export function exchangeCards(
+ ): Result<CardGame, GameError> {
+   const hand = game.hands.get(playerId);
+   if (hand === undefined) return err({ code: 'table-not-player' });
+-  if (game.status !== 'exchanging' || game.exchanged.has(playerId)) return err({ code: 'table-exchanged' });
++  if (game.status !== 'exchanging') return err({ code: 'table-exchanged' });
+ 
+   const drop = new Set(discard.filter((i) => i >= 0 && i < hand.length));
+   let thrown = hand.filter((_, i) => drop.has(i));

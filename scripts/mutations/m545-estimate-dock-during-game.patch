@@ -1,0 +1,23 @@
+# 変異 545: estimate-dock-during-game
+#
+# 検出を期待するテスト:
+#   - apps/poker-web/tests/room-page-card-table.test.tsx（ゲームの最中 / Then テーブルが出て、見積もりの結果と帯は無い）
+#
+# #403 設計 §5.2。ゲームの最中も見積もりの帯（再投票など）が出る（押すと table-in-play で拒まれるだけのボタンが並ぶ）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m545-*.patch
+# 復元: git apply -R scripts/mutations/m545-*.patch
+diff --git a/apps/poker-web/src/pages/RoomPage.tsx b/apps/poker-web/src/pages/RoomPage.tsx
+index c1c8b2b..f31ad8a 100644
+--- a/apps/poker-web/src/pages/RoomPage.tsx
++++ b/apps/poker-web/src/pages/RoomPage.tsx
+@@ -246,7 +246,7 @@ export function RoomPage({ roomId, sync }: Props) {
+           {recording && (
+             <EstimateLogFoot groups={estimateLog} onSetPoints={sync.setPoints} onRenameGroup={sync.renameGroup} disabled={offline} />
+           )}
+-          {table ? null : isVoting ? (
++          {isVoting ? (
+             <VotingDock sync={sync} disabled={offline} />
+           ) : (
+             <RevealedDock sync={sync} disabled={offline} canAttachPoints={canAttachPoints} />

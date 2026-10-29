@@ -10,15 +10,15 @@
 #       git apply scripts/mutations/m364-*.patch
 # 復元: git apply -R scripts/mutations/m364-*.patch
 diff --git a/apps/tasuki-sync/src/application/poker-commit-room-action.ts b/apps/tasuki-sync/src/application/poker-commit-room-action.ts
-index c4347533..ddd79d39 100644
+index 317bc16..65af5be 100644
 --- a/apps/tasuki-sync/src/application/poker-commit-room-action.ts
 +++ b/apps/tasuki-sync/src/application/poker-commit-room-action.ts
-@@ -159,7 +159,7 @@ export function createDispatch({
+@@ -229,7 +229,7 @@ export function createDispatch({
          return;
        case 'next-round':
          // 古いクライアント向けの互換。再投票と同じ（item も束も残る）
--        commitRoomAction(ws, revote);
-+        commitRoomAction(ws, (round, participantId) => nextItem(round, participantId, null));
+-        guarded(ws, revote);
++        guarded(ws, (round, participantId) => nextItem(round, participantId, null));
          return;
        case 'next-item':
-         commitRoomAction(ws, (round, participantId) => nextItem(round, participantId, msg.points));
+         guarded(ws, (round, participantId) => nextItem(round, participantId, msg.points));

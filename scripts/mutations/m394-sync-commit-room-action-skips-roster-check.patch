@@ -9,10 +9,10 @@
 #       git apply scripts/mutations/m394-*.patch
 # 復元: git apply -R scripts/mutations/m394-*.patch
 diff --git a/apps/tasuki-sync/src/application/poker-commit-room-action.ts b/apps/tasuki-sync/src/application/poker-commit-room-action.ts
-index 9870665e..fa47ce1d 100644
+index d90d5d4..667ba89 100644
 --- a/apps/tasuki-sync/src/application/poker-commit-room-action.ts
 +++ b/apps/tasuki-sync/src/application/poker-commit-room-action.ts
-@@ -100,10 +100,6 @@ export function createCommitRoomAction({
+@@ -115,10 +115,6 @@ export function createCommitRoomAction({
      // **G-9: 名簿に居ない人の操作は拒む。** 見学者は「名簿に居て投票しない人」であり、
      // 名簿に居ない人（片付けで外された人の接続など）とは別物である。ここで弾かないと
      // 「名簿に居ない＝投票していない」と読まれて状態を動かしてしまう。何も変えない。
@@ -20,6 +20,6 @@ index 9870665e..fa47ce1d 100644
 -      sendError(ws, 'not-joined', POKER_ERROR_TEXT.NOT_JOINED);
 -      return;
 -    }
-     const result = action(state.round, participantId);
+     const voters = fragmentsOf(state.room);
+     const result = action(state.round, participantId, voters);
      if (result.isErr()) {
-       sendError(ws, result.error.code, messageForRoundError(result.error));

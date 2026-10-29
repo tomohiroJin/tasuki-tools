@@ -48,6 +48,8 @@ ID・トークンの生成規則は [research.md R3/R4](./research.md) を参照
 | status | `'voting' \| 'revealed'` | 状態機械（下記） |
 | votes | Map<participantId, Vote> | 投票の集合。voting 中は本人以外へ値を配信しない（FR-006） |
 | spectators | Set<participantId> | 見学している人（#419）。**名簿に居て、いまの見積もりに加わっていない人**。投票を受けず、自動公開の分母から外れる。ラウンドをまたいで残る（revote・next-item で消さない） |
+| coffeeArmed | boolean | 隠しモードの入口の構え（#403）。全員 ☕ の開票が 1 回あり、まだゲームが始まっていない。再投票では残し、次のアイテムへ・全員 ☕ でない開票で解く |
+| game | CardGame \| null | 隠しモードのゲーム（#403）。`players`（席順・最大 10 人）・`status`（`exchanging` / `shown`）・`hands`（5 枚）・`exchanged`・`deck`・`discards`・`away`（切れた時刻）。ある間は見積もりの投票系の操作を拒む |
 
 ### Room（ルーム）— 集約ルート
 
@@ -97,6 +99,16 @@ Room から受信者別に生成する読み取り専用ビュー（research R1�
   - **見学へ（revealed 後）**: 票は残す。開票済みの結果を変えない
   - **投票へ戻る**: `spectators` から外すだけ。票は持たない状態で戻る
   - 見学中の `vote` は `spectating` で拒む。退出（`discardVote`）は票と見学の両方を捨てる
+- **隠しモードのゲーム（#403・`settleRound` / `exchangeHand` / `dealAgain` / `closeGame`）**:
+  - **後処理（`settleRound`）**: 開票・切断・退出のあと必ず通す。自動公開 → 入口の判定 → 全員チェンジ済みの判定の順
+  - **入口**: その操作で開票が起きたとき、投票者（接続中で見学でない人）の全員が ☕ なら、構えていれば配って始め、構えていなければ構える。全員 ☕ でなければ構えを解く。次のアイテムへも構えを解く
+  - **配る**: 52 枚を注入された乱数で切り、投票者の先頭 10 人へ席順に 5 枚ずつ。残りは山
+  - **チェンジ**（`exchanging` の間・1 人 1 回）: 選んだ位置を捨て、同じ位置へ山から引く。山が足りなければ捨て札を切り直して足す
+  - **開く**（`exchanging` → `shown`）: 待っているプレイヤーが全員済んだら。接続の切れた人は切れた時刻（`away`）から 20 秒だけ待つ。サーバーは猶予の切れる時刻（`gameDeadline`）に判定を予約する
+  - **もう一度**（`shown` → `exchanging`）: いまの投票者で配り直す。**見積もりに戻る**: ゲームを消し、票の無い投票中へ（誰でも・最中でも）
+  - **退出**（`discardVote`）: プレイヤーから外し手を捨て札へ。最後のプレイヤーが外れたら見積もりへ戻す
+  - 最中は vote / reveal / revote / next-item を `table-in-play` で拒む（サーバーの振り分けが、受けてよい操作の一覧で 1 か所で拒む）
+  - 投影: `exchanging` の間、手は受信者本人の分だけを `yourHand` に載せ、他の人は `exchanged` だけ。`shown` で全員の手と役。ゲームが無ければ `table` を載せない
 - **voting 中に許可される操作**: vote（上書き可）, join, leave, reveal（在室者なら誰でも）
 - **revealed 中に許可される操作**: join（閲覧）, leave, revote / next-item（在室者なら誰でも。古い `next-round` は revote として受ける）
 - **revealed 中の vote は拒否**（エラー応答）
