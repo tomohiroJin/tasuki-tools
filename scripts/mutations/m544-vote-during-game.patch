@@ -1,4 +1,4 @@
-# 変異 498: vote-during-game
+# 変異 544: vote-during-game
 #
 # 検出を期待するテスト:
 #   - apps/tasuki-sync/test/poker/card-game.test.ts（ゲームの最中の見積もりの操作 / Then table-in-play）
@@ -6,8 +6,8 @@
 # #403 G-11。ゲームの最中に見積もりの票・公開・再投票が通る（テーブルに隠れた画面の裏で見積もりが動く）。
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m498-*.patch
-# 復元: git apply -R scripts/mutations/m498-*.patch
+#       git apply scripts/mutations/m544-*.patch
+# 復元: git apply -R scripts/mutations/m544-*.patch
 diff --git a/apps/tasuki-sync/src/application/poker-commit-room-action.ts b/apps/tasuki-sync/src/application/poker-commit-room-action.ts
 index 317bc16..3ca5dc6 100644
 --- a/apps/tasuki-sync/src/application/poker-commit-room-action.ts

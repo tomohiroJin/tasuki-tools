@@ -1,4 +1,4 @@
-# 変異 494: wheel-straight-not-recognized
+# 変異 540: wheel-straight-not-recognized
 #
 # 検出を期待するテスト:
 #   - packages/poker-core/tests/hand-rank.test.ts（5D 4D 3D 2D AD / 5S 4H 3D 2C AS / A-2-3-4-5 は 5 高）
@@ -6,8 +6,8 @@
 # #403。A を 1 として使うストレート（A-2-3-4-5）を認めない。ストレートがハイカードに落ちる。
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m494-*.patch
-# 復元: git apply -R scripts/mutations/m494-*.patch
+#       git apply scripts/mutations/m540-*.patch
+# 復元: git apply -R scripts/mutations/m540-*.patch
 diff --git a/packages/poker-core/src/hand-rank.ts b/packages/poker-core/src/hand-rank.ts
 index 28e03b6..8199e5d 100644
 --- a/packages/poker-core/src/hand-rank.ts

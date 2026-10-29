@@ -1,4 +1,4 @@
-# 変異 502: table-load-failure-unhandled
+# 変異 548: table-load-failure-unhandled
 #
 # 検出を期待するテスト:
 #   - apps/poker-web/tests/room-page-card-table-fallback.test.tsx（塊を読み込めない / Then 画面は残り、見積もりに戻れる）
@@ -6,8 +6,8 @@
 # #403。テーブルの塊を読み込めないとルーム画面ごと消え、ゲームを終える操作も失う（コードレビュー 2026-10-28 の指摘 1）。
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m502-*.patch
-# 復元: git apply -R scripts/mutations/m502-*.patch
+#       git apply scripts/mutations/m548-*.patch
+# 復元: git apply -R scripts/mutations/m548-*.patch
 diff --git a/apps/poker-web/src/components/CardTableBoundary.tsx b/apps/poker-web/src/components/CardTableBoundary.tsx
 index 1d56534..8ab5f7a 100644
 --- a/apps/poker-web/src/components/CardTableBoundary.tsx

@@ -1,4 +1,4 @@
-# 変異 497: exchange-twice
+# 変異 543: exchange-twice
 #
 # 検出を期待するテスト:
 #   - packages/poker-core/tests/card-game.test.ts（済んだ人 / When もう一度チェンジ / Then table-exchanged）
@@ -6,8 +6,8 @@
 # #403 G-6。チェンジが何度でもできる（1 回だけの約束が崩れ、引き直しで役を作れる）。
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m497-*.patch
-# 復元: git apply -R scripts/mutations/m497-*.patch
+#       git apply scripts/mutations/m543-*.patch
+# 復元: git apply -R scripts/mutations/m543-*.patch
 diff --git a/packages/poker-core/src/card-game.ts b/packages/poker-core/src/card-game.ts
 index 8e04237..ca502af 100644
 --- a/packages/poker-core/src/card-game.ts

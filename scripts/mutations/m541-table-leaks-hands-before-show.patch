@@ -1,4 +1,4 @@
-# 変異 495: table-leaks-hands-before-show
+# 変異 541: table-leaks-hands-before-show
 #
 # 検出を期待するテスト:
 #   - packages/poker-core/tests/snapshot-game.test.ts（チェンジの最中に他の人の手が届かない）
@@ -6,8 +6,8 @@
 # #403 G-3。開く前の手を全員へ載せる（配った瞬間に他人の札が手元の JS に届く）。
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m495-*.patch
-# 復元: git apply -R scripts/mutations/m495-*.patch
+#       git apply scripts/mutations/m541-*.patch
+# 復元: git apply -R scripts/mutations/m541-*.patch
 diff --git a/packages/poker-core/src/snapshot.ts b/packages/poker-core/src/snapshot.ts
 index 0865869..5b49432 100644
 --- a/packages/poker-core/src/snapshot.ts

@@ -1,4 +1,4 @@
-# 変異 501: exchange-sent-twice
+# 変異 547: exchange-sent-twice
 #
 # 検出を期待するテスト:
 #   - apps/poker-web/tests/card-table.test.tsx（チェンジを押した / When 返事より先にもう一度押す / Then 1 回しか送らない）
@@ -6,8 +6,8 @@
 # #403。二重送信で 2 回目が拒まれ、正しい操作のあとに「チェンジは 1 回だけです」が出る（コードレビュー 2026-10-28 の指摘 3）。
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m501-*.patch
-# 復元: git apply -R scripts/mutations/m501-*.patch
+#       git apply scripts/mutations/m547-*.patch
+# 復元: git apply -R scripts/mutations/m547-*.patch
 diff --git a/apps/poker-web/src/components/CardTable.tsx b/apps/poker-web/src/components/CardTable.tsx
 index c1d9ade..c260dc9 100644
 --- a/apps/poker-web/src/components/CardTable.tsx
