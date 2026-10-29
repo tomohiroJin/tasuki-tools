@@ -21,8 +21,14 @@ import {
 
 let server: LiveSyncServer;
 
+/**
+ * 切断による自動公開の猶予（ADR 0028・既定 10 秒）を縮める。名簿の変化で開く経路（m508）を、
+ * 猶予の後の開票で見る（猶予の長さそのものは `checkin-handlers.test.ts` が偽のタイマーで見る）。
+ */
+const GRACE_MS = 300;
+
 beforeEach(() => {
-  server = startLiveSyncServer();
+  server = startLiveSyncServer({ CHECKIN_REVEAL_GRACE_MS: String(GRACE_MS) });
 });
 afterEach(async () => {
   await server.close();
@@ -197,7 +203,7 @@ describe("チェックインの匿名", () => {
 });
 
 describe("チェックインの名簿の変化", () => {
-  it("b が出さずに接続を閉じると、a だけで開く", async () => {
+  it("b が出さずに接続を閉じて戻らないと、猶予の後に a だけで開く", async () => {
     // Given: a が出して、b の出番を待っている
     const { a, b } = await twoCheckins();
     a.send({ command: "checkin.method.choose", seq: 0, method: "weather" });
@@ -208,7 +214,7 @@ describe("チェックインの名簿の変化", () => {
     // When
     await b.close();
 
-    // Then
+    // Then: 猶予の後に開く（b は戻らない）
     const v = viewOf(await a.take(isCheckinWith((x) => x.round?.status === "revealed"), "a だけの開票"));
     if (v.round?.status !== "revealed") throw new Error("revealed ではない");
     expect(v.round.piles.find((p) => p.card === "sunny")?.count).toBe(1);

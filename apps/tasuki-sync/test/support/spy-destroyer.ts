@@ -65,6 +65,7 @@ export function spyDestroyer(
     agendas,
     checkins,
     agendaDeadlines: { clear: (c) => calls.push(`agendaDeadlines.clear:${c}`) },
+    checkinGrace: { clearRoom: (c) => calls.push(`checkinGrace.clearRoom:${c}`) },
     scheduler: { clear: (c) => calls.push(`scheduler.clear:${c}`) },
     topicGenerator: { cancel: (c) => calls.push(`topicGenerator.cancel:${c}`) },
     presence: { clearRoomTimers: (c) => calls.push(`presence.clearRoomTimers:${c}`) },

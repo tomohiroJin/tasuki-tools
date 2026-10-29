@@ -97,6 +97,7 @@ describe("ソロの部屋からの退出（Issue #79）", () => {
       agendas: new InMemoryAgendaStore(),
       checkins: new InMemoryCheckinStore(),
       agendaDeadlines: { clear: () => {} },
+      checkinGrace: { clearRoom: () => {} },
       // お題の生成はこのテストに居ない（timer の退出だけを見る）。
       topicGenerator: { cancel: () => {} },
       releaseRoom: handlers.releaseRoom,
@@ -223,6 +224,7 @@ describe("ソロの部屋からの退出（Issue #79）", () => {
     expect(calls).toEqual([
       `scheduler.clear:${soloCode}`,
       `agendaDeadlines.clear:${soloCode}`,
+      `checkinGrace.clearRoom:${soloCode}`,
       `topicGenerator.cancel:${soloCode}`,
       `presence.clearRoomTimers:${soloCode}`,
       `releaseRoom:${soloCode}`,
@@ -296,6 +298,7 @@ describe("ソロ以外は挙動が変わらない（Issue #79）", () => {
       agendas: new InMemoryAgendaStore(),
       checkins: new InMemoryCheckinStore(),
       agendaDeadlines: { clear: () => {} },
+      checkinGrace: { clearRoom: () => {} },
       // お題の生成はこのテストに居ない（timer の退出だけを見る）。
       topicGenerator: { cancel: () => {} },
       releaseRoom: handlers.releaseRoom,
@@ -470,7 +473,7 @@ describe("アイドル回収と在室者0人の退出は同じ後始末を通る
     const forRoom = (roomCode: string): string[] =>
       calls.filter((c) => c.endsWith(`:${roomCode}`)).map((c) => c.split(":")[0]!);
     expect(forRoom(leaveCode)).toEqual([
-      "scheduler.clear", "agendaDeadlines.clear", "topicGenerator.cancel", "presence.clearRoomTimers", "releaseRoom",
+      "scheduler.clear", "agendaDeadlines.clear", "checkinGrace.clearRoom", "topicGenerator.cancel", "presence.clearRoomTimers", "releaseRoom",
     ]);
     expect(forRoom(idleCode)).toEqual(forRoom(leaveCode));
     expect(store.list()).toEqual([]);

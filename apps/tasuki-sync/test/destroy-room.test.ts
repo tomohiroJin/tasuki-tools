@@ -43,6 +43,7 @@ describe("createRoomDestroyer", () => {
     expect(calls).toEqual([
       "scheduler.clear:AAA",
       "agendaDeadlines.clear:AAA",
+      "checkinGrace.clearRoom:AAA",
       "topicGenerator.cancel:AAA",
       "presence.clearRoomTimers:AAA",
       "releaseRoom:AAA",
@@ -148,6 +149,7 @@ describe("createRoomDestroyer", () => {
       agendas: new InMemoryAgendaStore(),
       checkins: new InMemoryCheckinStore(),
       agendaDeadlines: { clear: () => {} },
+      checkinGrace: { clearRoom: () => {} },
       topicGenerator: { cancel: () => {} },
       releaseRoom: (c) => released.push(c),
     });

@@ -7,7 +7,8 @@
 import { describe, expect, it } from "bun:test";
 import { createTokenBucketLimiter, DEFAULT_CAPACITY, DEFAULT_REFILL_PER_SEC } from "@tasuki/rate-limit";
 import type { CheckinView } from "@tasuki/checkin-core";
-import { makeCheckinHandlers } from "../src/application/checkin-handlers.js";
+import { CHECKIN_DISCONNECT_REVEAL_GRACE_MS, makeCheckinHandlers } from "../src/application/checkin-handlers.js";
+import type { TimerPort } from "../src/application/agenda-deadlines.js";
 import { makeCheckinBroadcaster } from "../src/application/checkin-broadcast.js";
 import { createRateLimitGate } from "../src/application/rate-limit-gate.js";
 import { createTokenStore } from "../src/application/token-store.js";
@@ -27,7 +28,37 @@ interface Sent {
   msg: CheckinServerMsg;
 }
 
+/** 偽のタイマー（`agenda-deadlines.test.ts` と同じ形）。`advance` で待ちを手で進める。 */
+function fakeTimer() {
+  let now = 0;
+  let seq = 0;
+  const pending = new Map<number, { at: number; fn: () => void }>();
+  const timer: TimerPort = {
+    set(fn, ms) {
+      const id = ++seq;
+      pending.set(id, { at: now + ms, fn });
+      return id;
+    },
+    clear(handle) {
+      pending.delete(handle as number);
+    },
+  };
+  const advance = (ms: number): void => {
+    const target = now + ms;
+    for (;;) {
+      const next = [...pending.entries()].filter(([, t]) => t.at <= target).sort((a, b) => a[1].at - b[1].at)[0];
+      if (next === undefined) break;
+      pending.delete(next[0]);
+      now = next[1].at;
+      next[1].fn();
+    }
+    now = target;
+  };
+  return { timer, advance, pendingCount: () => pending.size };
+}
+
 function setup(randomInt: (n: number) => number = () => 0) {
+  const grace = fakeTimer();
   const store = new InMemoryRoomStore();
   const checkins = new InMemoryCheckinStore();
   const sent: Sent[] = [];
@@ -51,12 +82,16 @@ function setup(randomInt: (n: number) => number = () => 0) {
     send: record,
     monotonicClock: { now: () => 5_000 },
     random: { randomInt },
+    graceTimer: grace.timer,
   });
   store.put({ code: ROOM, createdAt: 0, participants: [] });
   return {
     handle: (connId: string, msg: unknown) =>
       handlers.handleMessage(connId, typeof msg === "string" ? msg : JSON.stringify(msg)),
     rosterChanged: (code: string) => handlers.rosterChanged(code),
+    clearRoom: (code: string) => handlers.clearRoom(code),
+    advance: grace.advance,
+    pendingGrace: grace.pendingCount,
     store,
     checkins,
     sent,
@@ -91,6 +126,28 @@ function disconnect(h: Harness, displayName: string): void {
   h.store.put({
     ...room,
     participants: room.participants.map((p) => (p.displayName === displayName ? { ...p, connections: new Map() } : p)),
+  });
+}
+
+/** 切断した参加者が同じ組で戻る（再読み込み）。 */
+function reconnect(h: Harness, displayName: string, connId: string): void {
+  const room = h.store.get(ROOM)!;
+  h.store.put({
+    ...room,
+    participants: room.participants.map((p) =>
+      p.displayName === displayName ? { ...p, connections: new Map([[connId, "checkin"]]) } : p,
+    ),
+  });
+}
+
+/** 参加者のチェックインの接続を選択画面（ハブ）の接続に替える（ハブへの移動）。 */
+function moveToHub(h: Harness, displayName: string, connId: string): void {
+  const room = h.store.get(ROOM)!;
+  h.store.put({
+    ...room,
+    participants: room.participants.map((p) =>
+      p.displayName === displayName ? { ...p, connections: new Map([[connId, null]]) } : p,
+    ),
   });
 }
 
@@ -190,7 +247,7 @@ describe("受け手ごとの投影と自動公開", () => {
     expect(lastView(h, "b").round!.status).toBe("revealed");
   });
 
-  it("b がまだのまま切断 → rosterChanged で a だけが出していれば開き、a に開いたフレームが届く〈m507〉", async () => {
+  it("b がまだのまま切断して戻らなければ、猶予（10 秒）の後に a だけで開き、a に開いたフレームが届く〈m507〉", async () => {
     const h = await twoPlayers();
     await choose(h, "a", "weather");
     await h.handle("a", { command: "checkin.card.play", seq: 1, card: "sunny" });
@@ -199,9 +256,16 @@ describe("受け手ごとの投影と自動公開", () => {
 
     disconnect(h, "Bob");
     h.rosterChanged(ROOM);
+    // 切断しただけではすぐには開かない（再読み込みかもしれない）
+    expect(lastView(h, "a").round!.status).toBe("open");
+    h.advance(CHECKIN_DISCONNECT_REVEAL_GRACE_MS - 1);
+    expect(h.checkins.get(ROOM)!.round!.status).toBe("open");
+
+    h.advance(1);
 
     expect(lastView(h, "a").round!.status).toBe("revealed");
     expect(h.checkins.get(ROOM)!.round!.status).toBe("revealed");
+    expect(h.pendingGrace()).toBe(0);
   });
 
   it("rosterChanged は状態が変わらなくても配る（席は名簿から導く）。状態が無ければ何もしない", async () => {
@@ -259,6 +323,134 @@ describe("受け手ごとの投影と自動公開", () => {
 
     expect(h.sent.map((s) => s.connId)).toEqual(["b"]);
     expect(viewsTo(h, "b")[0]!.round).toMatchObject({ seq: 2, status: "open" });
+  });
+});
+
+/**
+ * 切断による自動公開の猶予（#406 PR のレビュー・ADR 0028）。
+ * まだの人の再読み込み・瞬断で匿名の回が開くと、戻った人には山 1 枚で残った人の札が分かる。
+ */
+describe("切断による自動公開の猶予", () => {
+  /** 匿名の回で a だけが出した局面（b はまだ） */
+  async function anonymousAPlayed(): Promise<Harness> {
+    const h = await twoPlayers();
+    await choose(h, "a", "energy");
+    expect(h.checkins.get(ROOM)!.round!.visibility).toBe("anonymous");
+    await h.handle("a", { command: "checkin.card.play", seq: 1, card: "1" });
+    h.sent.length = 0;
+    return h;
+  }
+
+  it("匿名の回で b が切断して猶予の内に戻ると開かない（戻った b のフレームに a の札が載らない）〈m523〉", async () => {
+    const h = await anonymousAPlayed();
+
+    disconnect(h, "Bob");
+    h.rosterChanged(ROOM);
+    h.advance(CHECKIN_DISCONNECT_REVEAL_GRACE_MS - 1);
+    reconnect(h, "Bob", "b2");
+    h.rosterChanged(ROOM);
+    h.advance(CHECKIN_DISCONNECT_REVEAL_GRACE_MS * 2);
+
+    expect(h.checkins.get(ROOM)!.round!.status).toBe("open");
+    for (const s of h.sent) {
+      if (s.msg.type === "checkin") expect(s.msg.state.round!.status).toBe("open");
+    }
+    expect(JSON.stringify(viewsTo(h, "b2"))).not.toContain('"1"');
+    expect(h.pendingGrace()).toBe(0);
+  });
+
+  it("b がハブへ移っても猶予を置く（再読み込みと見分けられない）。戻らなければ猶予の後に開く", async () => {
+    const h = await anonymousAPlayed();
+
+    moveToHub(h, "Bob", "h-b");
+    h.rosterChanged(ROOM);
+    expect(h.checkins.get(ROOM)!.round!.status).toBe("open");
+    h.advance(CHECKIN_DISCONNECT_REVEAL_GRACE_MS);
+
+    expect(h.checkins.get(ROOM)!.round!.status).toBe("revealed");
+    expect(lastView(h, "a").round!.status).toBe("revealed");
+  });
+
+  it("b が退出（名簿から外れる）ならすぐ開く。選択画面だけに居る c がいても待たない", async () => {
+    const h = await anonymousAPlayed();
+    addHubOnly(h, "p-c", "Carol", "h-c");
+    h.rosterChanged(ROOM);
+    expect(h.pendingGrace()).toBe(0);
+
+    leave(h, "Bob");
+    h.rosterChanged(ROOM);
+
+    expect(h.checkins.get(ROOM)!.round!.status).toBe("revealed");
+    expect(lastView(h, "a").round!.status).toBe("revealed");
+    expect(h.pendingGrace()).toBe(0);
+  });
+
+  it("b が切断している間に a が出しても、その場では開かず、猶予の後に開く", async () => {
+    const h = await twoPlayers();
+    await choose(h, "a", "energy");
+    disconnect(h, "Bob");
+    h.rosterChanged(ROOM);
+
+    await h.handle("a", { command: "checkin.card.play", seq: 1, card: "1" });
+    expect(h.checkins.get(ROOM)!.round!.status).toBe("open");
+    expect(lastView(h, "a").round!.status).toBe("open");
+
+    h.advance(CHECKIN_DISCONNECT_REVEAL_GRACE_MS);
+    expect(h.checkins.get(ROOM)!.round!.status).toBe("revealed");
+  });
+
+  it("猶予の間に「待たずに開く」で開いたら、猶予のタイマーは残らない", async () => {
+    const h = await anonymousAPlayed();
+    disconnect(h, "Bob");
+    h.rosterChanged(ROOM);
+    expect(h.pendingGrace()).toBe(1);
+
+    await h.handle("a", { command: "checkin.reveal", seq: 1 });
+
+    expect(h.checkins.get(ROOM)!.round!.status).toBe("revealed");
+    expect(h.pendingGrace()).toBe(0);
+  });
+
+  it("猶予の間に別のやり方で新しい回を始めたら、猶予のタイマーは残らず、新しい回は開かない", async () => {
+    const h = await anonymousAPlayed();
+    disconnect(h, "Bob");
+    h.rosterChanged(ROOM);
+
+    await choose(h, "a", "weather");
+    h.advance(CHECKIN_DISCONNECT_REVEAL_GRACE_MS);
+
+    expect(h.pendingGrace()).toBe(0);
+    expect(h.checkins.get(ROOM)!.round).toMatchObject({ seq: 2, status: "open" });
+  });
+
+  it("猶予の間にルームが破棄されると（clearRoom）、タイマーが残らず、時間が経っても何も送らない", async () => {
+    const h = await anonymousAPlayed();
+    disconnect(h, "Bob");
+    h.rosterChanged(ROOM);
+    expect(h.pendingGrace()).toBe(1);
+
+    h.clearRoom(ROOM);
+    h.store.remove(ROOM);
+    h.checkins.delete(ROOM);
+    h.sent.length = 0;
+    h.advance(CHECKIN_DISCONNECT_REVEAL_GRACE_MS * 2);
+
+    expect(h.pendingGrace()).toBe(0);
+    expect(h.sent).toEqual([]);
+  });
+
+  it("clearRoom を通らずにルームが消えても、猶予の発火は何も送らない", async () => {
+    const h = await anonymousAPlayed();
+    disconnect(h, "Bob");
+    h.rosterChanged(ROOM);
+    h.store.remove(ROOM);
+    h.checkins.delete(ROOM);
+    h.sent.length = 0;
+
+    h.advance(CHECKIN_DISCONNECT_REVEAL_GRACE_MS);
+
+    expect(h.sent).toEqual([]);
+    expect(h.checkins.get(ROOM)).toBeUndefined();
   });
 });
 

@@ -1,0 +1,24 @@
+# 変異 523: disconnect-reveals-without-grace
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/checkin-handlers.test.ts
+#
+# #406 PR のレビューの修正。切断による自動公開に猶予を置かない。まだの人が再読み込みで一瞬切れただけで匿名の回が開き、
+# 戻った人には山 1 枚で残った人の札が分かる（ADR 0028）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m523-*.patch
+# 復元: git apply -R scripts/mutations/m523-*.patch
+diff --git a/apps/tasuki-sync/src/application/checkin-handlers.ts b/apps/tasuki-sync/src/application/checkin-handlers.ts
+--- a/apps/tasuki-sync/src/application/checkin-handlers.ts
++++ b/apps/tasuki-sync/src/application/checkin-handlers.ts
+@@ -186,8 +186,7 @@
+     const present = playersOf(state, seats);
+     const absent = absentPlayers(room, state, present);
+     const opened = applyAutoReveal(state, present);
+-    const opensOnlyByAbsence =
+-      opened !== state && absent.length > 0 && applyAutoReveal(state, [...present, ...absent]) === state;
++    const opensOnlyByAbsence = absent.length < 0;
+     if (opensOnlyByAbsence) {
+       armGrace(room.code, restartGrace);
+       return state;

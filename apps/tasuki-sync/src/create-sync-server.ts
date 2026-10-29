@@ -299,6 +299,8 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     agendas,
     checkins,
     agendaDeadlines,
+    // チェックインの猶予のタイマー（#406）。`checkinHandlers` は下で組み立てる（呼ぶのは破棄のときだけ）。
+    checkinGrace: { clearRoom: (roomCode) => checkinHandlers.clearRoom(roomCode) },
     scheduler,
     topicGenerator,
     presence: presenceManager,
@@ -479,6 +481,8 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     broadcaster: checkinBroadcaster,
     send,
     random,
+    // 切断による自動公開の猶予（ADR 0028）。実 WS の試験だけが設定で縮める。
+    disconnectRevealGraceMs: config.checkinRevealGraceMs,
   });
 
   wsAdapter = new WsAdapter({
@@ -559,6 +563,8 @@ export function createSyncServer(config: SyncConfig): SyncServer {
       // 同一プロセスでサーバーを何度も起動し直すテストでは、放置すると
       // 閉じたはずのサーバーのタイマーが後から発火してしまう。
       presenceManager.clearAllTimers();
+      // チェックインの切断による自動公開の猶予も同じ理由で解放する（#406）。
+      checkinHandlers.clearAll();
       await wsAdapter.close();
     },
   };

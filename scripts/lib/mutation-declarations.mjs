@@ -3479,6 +3479,16 @@ export const MUTATIONS = [
       "同期サーバーの試験（checkin-handlers.test.ts の〈m522〉）も赤になるが、宣言はパッケージ 1 つに絞る。統括の判断で帯の外に 1 本足した。",
   },
   {
+    id: 523,
+    label: "切断による自動公開に猶予を置かない",
+    patch: "m523-disconnect-reveals-without-grace.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/checkin-handlers.test.ts"],
+    note:
+      "#406 PR のレビューの修正。まだの人が再読み込みで一瞬切れただけで匿名の回が開き、戻った人には山 1 枚で残った人の札が分かる（ADR 0028）。" +
+      "統括の判断で帯を 523 まで広げた。",
+  },
+  {
     id: 513,
     label: "見学中も手札を出す",
     patch: "m513-spectator-sees-hand.patch",

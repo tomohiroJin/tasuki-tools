@@ -9,14 +9,13 @@
 #       git apply scripts/mutations/m507-*.patch
 # 復元: git apply -R scripts/mutations/m507-*.patch
 diff --git a/apps/tasuki-sync/src/application/checkin-handlers.ts b/apps/tasuki-sync/src/application/checkin-handlers.ts
-index 4685266f..e0b8a74f 100644
 --- a/apps/tasuki-sync/src/application/checkin-handlers.ts
 +++ b/apps/tasuki-sync/src/application/checkin-handlers.ts
-@@ -174,7 +174,7 @@ export function makeCheckinHandlers(deps: CheckinHandlerDeps): CheckinHandlers {
+@@ -279,7 +279,7 @@
        const state = checkins.get(roomCode);
        if (room === undefined || state === undefined) return;
        // 名簿から消えた人の記録を落とし（開いた回の札は残る）、全員が出していれば開く
--      const next = finish(room, prune(state, idsOf(room)));
+-      const next = finish(room, prune(state, idsOf(room)), true);
 +      const next = prune(state, idsOf(room));
        if (next !== state) checkins.put(roomCode, next);
        // 席は名簿から導くので、状態が同じでも画面は変わる

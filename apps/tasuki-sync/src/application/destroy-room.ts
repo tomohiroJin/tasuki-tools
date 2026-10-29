@@ -84,6 +84,13 @@ export interface RoomDestroyerDeps {
    */
   agendaDeadlines: Pick<AgendaDeadlines, "clear">;
   /**
+   * チェックインの切断による自動公開の猶予のタイマー（#406・ADR 0028）。破棄で止める（消えたルームの
+   * タイマーと記録を残さない）。
+   *
+   * ⚠ **optional にしてはならない**（理由は {@link RoomDestroyerDeps.rounds} と同じ）。
+   */
+  checkinGrace: { clearRoom(roomCode: string): void };
+  /**
    * お題の生成（#91・`TopicGenerator`）。破棄で進行中の生成を中断する（子プロセスを止める）。
    *
    * ⚠ **optional にしてはならない。** 省略時の構成を持たない ——
@@ -101,12 +108,26 @@ export interface RoomDestroyerDeps {
 
 /** ルームを破棄する関数を組み立てる。返す関数は何度呼んでも安全（各解放は不在なら no-op）。 */
 export function createRoomDestroyer(deps: RoomDestroyerDeps): (roomCode: string) => void {
-  const { store, timers, rounds, topics, roulettes, agendas, checkins, agendaDeadlines, scheduler, topicGenerator, presence, releaseRoom } =
-    deps;
+  const {
+    store,
+    timers,
+    rounds,
+    topics,
+    roulettes,
+    agendas,
+    checkins,
+    agendaDeadlines,
+    checkinGrace,
+    scheduler,
+    topicGenerator,
+    presence,
+    releaseRoom,
+  } = deps;
 
   return (roomCode: string): void => {
     scheduler?.clear(roomCode);
     agendaDeadlines.clear(roomCode);
+    checkinGrace.clearRoom(roomCode);
     // 生成の中断は保管の解放より先。中断した生成が消えたルームへ書き戻さないため
     // （`TopicGenerator#write` は状態が無ければ書かないが、子プロセスは止まらない）。
     topicGenerator.cancel(roomCode);

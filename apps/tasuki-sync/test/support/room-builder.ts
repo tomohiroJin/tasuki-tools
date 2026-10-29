@@ -399,6 +399,8 @@ export function makeTestHandlers(overrides?: TestHandlerOverrides): TestHandlers
       agendas: new InMemoryAgendaStore(),
       checkins: new InMemoryCheckinStore(),
       agendaDeadlines: { clear: () => {} },
+      // チェックインの猶予のタイマーも timer のハンドラは持たない。破棄の配線だけ揃える（#406）。
+      checkinGrace: { clearRoom: () => {} },
       topicGenerator: { cancel: () => {} },
       // scheduler は `withDeps` で渡されたときだけ後始末に加わる
       // （渡されていなければ、そもそも予約を作る主体が居ない）。
