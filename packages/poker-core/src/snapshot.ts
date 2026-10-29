@@ -3,7 +3,9 @@
 //
 // **#95 S4a で入力が「ルーム」から「ラウンド＋名簿の断片」の 2 つになった。**
 // wire（`room-state` の形）は変えていない —— 組み立てる材料の出所が変わっただけである。
-import type { EstimateView, RoomStateMessage, VoteView } from './protocol.js';
+import type { CardGame } from './card-game.js';
+import { evaluateHand } from './hand-rank.js';
+import type { EstimateView, RoomStateMessage, TableView, VoteView } from './protocol.js';
 import type { Round, VoterView } from './round.js';
 import { computeStats } from './stats.js';
 
@@ -67,13 +69,40 @@ export function createSnapshotBuilder(
     })),
   };
 
-  return (viewerId) => ({
-    type: 'room-state',
-    roomId,
-    you: viewerId,
-    participants: views,
-    round: roundView,
-    yourVote: round.votes.get(viewerId) ?? null,
-    estimate,
-  });
+  const table = round.game === null ? null : sharedTableView(round.game);
+
+  return (viewerId) => {
+    const hand = round.game?.hands.get(viewerId);
+    return {
+      type: 'room-state',
+      roomId,
+      you: viewerId,
+      participants: views,
+      round: roundView,
+      yourVote: round.votes.get(viewerId) ?? null,
+      estimate,
+      // ゲームが無ければ載せない（#403・設計 D6）。手は受信者の分だけを足す
+      ...(table && { table: { ...table, yourHand: hand === undefined ? null : [...hand] } }),
+    };
+  };
+}
+
+/**
+ * ゲームの受信者に依存しない部分（#403・設計 §6.3）。
+ *
+ * **開く前の手はここに載せない**（G-3）。他の人について届くのは「チェンジを済ませたか」だけで、
+ * 手は {@link createSnapshotBuilder} が受信者本人の分だけを `yourHand` に足す。山と捨て札はどこにも載せない。
+ * 開いたあとは全員の手と役を載せる（勝ち負けは付けない・設計 D2）。
+ */
+function sharedTableView(game: CardGame): Omit<TableView, 'yourHand'> {
+  const players = game.players.map((participantId) => ({ participantId, exchanged: game.exchanged.has(participantId) }));
+  if (game.status !== 'shown') return { status: game.status, players, hands: [] };
+  return {
+    status: 'shown',
+    players,
+    hands: game.players.flatMap((participantId) => {
+      const cards = game.hands.get(participantId);
+      return cards === undefined ? [] : [{ participantId, cards: [...cards], category: evaluateHand(cards).category }];
+    }),
+  };
 }

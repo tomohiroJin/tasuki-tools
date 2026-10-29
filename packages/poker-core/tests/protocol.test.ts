@@ -475,3 +475,72 @@ describe('記録の切り替えと束の名前（#427）', () => {
     expect(parsedOff.type === 'room-state' && parsedOff.estimate?.recording).toBe(false);
   });
 });
+
+describe('隠しモードのゲーム（#403）', () => {
+  const parse = (m: unknown) => parseClientMessage(JSON.stringify(m));
+
+  it('table-exchange は手の位置（0〜4・重複なし・5 個まで）だけを通す', () => {
+    expect(parse({ type: 'table-exchange', discard: [0, 3] })._unsafeUnwrap()).toEqual({ type: 'table-exchange', discard: [0, 3] });
+    expect(parse({ type: 'table-exchange', discard: [] }).isOk()).toBe(true);
+    expect(parse({ type: 'table-exchange', discard: [0, 1, 2, 3, 4] }).isOk()).toBe(true);
+    expect(parse({ type: 'table-exchange', discard: [5] }).isErr()).toBe(true);
+    expect(parse({ type: 'table-exchange', discard: [-1] }).isErr()).toBe(true);
+    expect(parse({ type: 'table-exchange', discard: [1.5] }).isErr()).toBe(true);
+    expect(parse({ type: 'table-exchange', discard: [1, 1] }).isErr()).toBe(true);
+    expect(parse({ type: 'table-exchange', discard: [0, 1, 2, 3, 4, 0] }).isErr()).toBe(true);
+    expect(parse({ type: 'table-exchange' }).isErr()).toBe(true);
+    // 札を送り込めない（引くのはサーバー・設計 §6.2）
+    expect(parse({ type: 'table-exchange', discard: [0], cards: [] }).isErr()).toBe(true);
+  });
+
+  it.each(['table-deal', 'table-close'])('%s は中身を持たない（余分なキーを落とす）', (type) => {
+    expect(parse({ type })._unsafeUnwrap()).toEqual({ type });
+    expect(parse({ type, players: [] }).isErr()).toBe(true);
+  });
+
+  it('入口を開くコマンドは無い（入口は見積もりの操作だけ・設計 §5.1）', () => {
+    expect(parse({ type: 'table-seat', seated: true }).isErr()).toBe(true);
+    expect(parse({ type: 'table-start' }).isErr()).toBe(true);
+  });
+
+  it.each(['table-not-player', 'table-exchanged', 'table-no-game', 'table-in-play'])('%s は既知のエラーコード', (code) => {
+    expect(isKnownErrorCode(code)).toBe(true);
+  });
+
+  const base = {
+    type: 'room-state',
+    roomId: 'a1b2c3d4',
+    you: 'p1',
+    participants: [{ id: 'p1', name: 'a', connected: true, hasVoted: false }],
+    round: { status: 'revealed', votes: [], stats: { average: null, modes: [] } },
+    yourVote: null,
+  };
+  const card = (suit: string, rank: number) => ({ suit, rank });
+  const royal = [card('S', 14), card('S', 13), card('S', 12), card('S', 11), card('S', 10)];
+
+  it('Given table の無い room-state（古いサーバー・ゲームが無い） When パース Then 通り、table は無い', () => {
+    const msg = parseServerMessage(JSON.stringify(base))._unsafeUnwrap();
+    expect(msg.type === 'room-state' && msg.table).toBeUndefined();
+  });
+
+  it('Given 開いたあとの table When パース Then プレイヤー・手・役を保つ', () => {
+    const table = {
+      status: 'shown',
+      players: [{ participantId: 'p1', exchanged: true }],
+      yourHand: royal,
+      hands: [{ participantId: 'p1', cards: royal, category: 'royal-flush' }],
+    };
+    const msg = parseServerMessage(JSON.stringify({ ...base, table }))._unsafeUnwrap();
+    expect(msg.type === 'room-state' && msg.table).toEqual(table);
+  });
+
+  it.each([
+    ['範囲外の数字', card('S', 15)],
+    ['1（A は 14）', card('S', 1)],
+    ['未知のスート', card('X', 2)],
+    ['ジョーカー', { joker: true }],
+  ])('Given %s の札 When パース Then 落とす', (_label, bad) => {
+    const table = { status: 'exchanging', players: [], yourHand: [bad], hands: [] };
+    expect(parseServerMessage(JSON.stringify({ ...base, table })).isErr()).toBe(true);
+  });
+});

@@ -1,0 +1,23 @@
+# 変異 546: reveal-ignores-away-grace
+#
+# 検出を期待するテスト:
+#   - packages/poker-core/tests/card-game.test.ts（未チェンジの人が切れた / When 猶予の内 / Then 待つ）
+#
+# #403 G-8a。一瞬の切断で、その人のチェンジを待たずに全員の手が開く（コードレビュー 2026-10-28 の指摘 2）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m546-*.patch
+# 復元: git apply -R scripts/mutations/m546-*.patch
+diff --git a/packages/poker-core/src/card-game.ts b/packages/poker-core/src/card-game.ts
+index 6d907ac..605f0f6 100644
+--- a/packages/poker-core/src/card-game.ts
++++ b/packages/poker-core/src/card-game.ts
+@@ -126,7 +126,7 @@ export function revealIfReady(game: CardGame, now: number): CardGame {
+   const connected = game.players.filter((id) => !game.away.has(id));
+   const waiting = game.players.filter((id) => {
+     const at = game.away.get(id);
+-    return at === undefined || now - at < AWAY_GRACE_MS;
++    return at === undefined;
+   });
+   if (connected.length === 0 || !waiting.every((id) => game.exchanged.has(id))) return game;
+   return { ...game, status: 'shown', away: new Map() };

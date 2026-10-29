@@ -9,15 +9,15 @@
 #       git apply scripts/mutations/m413-*.patch
 # 復元: git apply -R scripts/mutations/m413-*.patch
 diff --git a/apps/tasuki-sync/src/application/poker-commit-room-action.ts b/apps/tasuki-sync/src/application/poker-commit-room-action.ts
-index 5fa9c8cb..c05405f9 100644
+index 317bc16..257b10f 100644
 --- a/apps/tasuki-sync/src/application/poker-commit-room-action.ts
 +++ b/apps/tasuki-sync/src/application/poker-commit-room-action.ts
-@@ -199,7 +199,7 @@ export function createDispatch({
-         commitRoomAction(ws, (round) => ok(setRecording(round, msg.recording)));
+@@ -242,7 +242,7 @@ export function createDispatch({
+         guarded(ws, (round) => ok(setRecording(round, msg.recording)));
          return;
        case 'set-group-item':
--        commitRoomAction(ws, (round) => renameGroup(round, msg.groupId, msg.item));
-+        commitRoomAction(ws, (round) => ok(round));
+-        guarded(ws, (round) => renameGroup(round, msg.groupId, msg.item));
++        guarded(ws, (round) => ok(round));
          return;
        case 'set-spectator':
-         commitRoomAction(ws, (round, participantId) =>
+         guarded(ws, (round, participantId) =>
