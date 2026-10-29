@@ -3,6 +3,7 @@ import type { RosterRoom } from '@tasuki/room-core';
 import { pickStopsMs, type RouletteView } from '@tasuki/roulette-core';
 import {
   CAPTION_IDLE,
+  TOO_MANY_TEXT,
   RECONNECTING_TEXT,
   SPIN_AGAIN_BUTTON,
   SPIN_BUTTON,
@@ -392,5 +393,47 @@ describe('2 人以上を選ぶ回転', () => {
     // Given / When / Then
     expect(topicNoteOf('ふりかえり', 1)).toBe(topicNoteText('ふりかえり'));
     expect(topicNoteOf('ふりかえり', 2)).toBe(groupTopicNoteText('ふりかえり', 2));
+  });
+});
+
+/**
+ * @requirements #458 E6（入る人が 24 を超えたら回せない）
+ */
+describe('入る人が 24 人を超えたとき', () => {
+  const guests = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `g${i}`, name: `G${i}` }));
+  const poolOf24 = (n: number) => poolOfView([{ id: 'p1', name: 'Aya', present: true }], { ...IDLE, guests: guests(n) }).length;
+
+  it('Given 自分 1 人とゲスト 24 人 / When 数える / Then 25 人（境目の確認）', () => {
+    expect(poolOf24(24)).toBe(25);
+    expect(poolOf24(23)).toBe(24);
+  });
+
+  it('Given 入る人が 25 人 / When 主ボタンを決める / Then 押せない', () => {
+    expect(spinButtonOf({ view: IDLE, poolCount: 25, operable: true, serverSpinning: false })).toEqual({ label: SPIN_BUTTON, disabled: true });
+  });
+
+  it('Given 入る人が 24 人 / When 主ボタンを決める / Then 押せる', () => {
+    expect(spinButtonOf({ view: IDLE, poolCount: 24, operable: true, serverSpinning: false })).toEqual({ label: SPIN_BUTTON, disabled: false });
+  });
+
+  it('Given 入る人が 25 人 / When 一言を決める / Then チェックを外す案内', () => {
+    expect(captionOf({ view: IDLE, phase: 'idle', poolCount: 25 })).toBe('回せるのは 24 人までなので、チェックを外してください');
+    expect(TOO_MANY_TEXT).toBe('回せるのは 24 人までなので、チェックを外してください');
+  });
+
+  it('Given 入る人が 24 人 / When 一言を決める / Then 通常の案内', () => {
+    expect(captionOf({ view: IDLE, phase: 'idle', poolCount: 24 })).toBe(CAPTION_IDLE);
+  });
+
+  it('Given 2 人選ぶで 25 人 / When 一言を決める / Then やはり外す案内', () => {
+    expect(captionOf({ view: { ...IDLE, pickCount: 2 }, phase: 'idle', poolCount: 25 })).toBe(TOO_MANY_TEXT);
+  });
+
+  it('Given 止まって発表した後で 25 人になった / When 一言を決める / Then 発表した結果を言い続ける', () => {
+    expect(captionOf({ view: viewSpinning(), phase: 'settled', poolCount: 25 })).toBe(resultText('Yu'));
+  });
+
+  it('Given 回っている途中で 25 人 / When 一言を決める / Then 回した人を言う', () => {
+    expect(captionOf({ view: viewSpinning(), phase: 'spinning', poolCount: 25 })).toBe(spunByText('Aya'));
   });
 });

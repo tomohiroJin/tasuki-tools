@@ -9,6 +9,7 @@ import {
   ORDER_NOT_STARTED,
   SPINNING_BUTTON,
   TOO_FEW_TEXT,
+  TOO_MANY_TEXT,
   orderLastText,
   orderProgressText,
   spunByText,
@@ -205,5 +206,56 @@ describe('順番に回すときの脇の一覧', () => {
     const people = peopleOf({ members, view: base, selfId: null, pool: POOL, turns: new Map([['c', 1]]) });
     // Then
     expect(people.rows[2]?.mark).toBe('away');
+  });
+});
+
+/**
+ * @requirements #458 E6（順番に回すでも、24 人を超えたら回せない。回の途中は「まだの人」で見る）
+ */
+describe('順番に回す: 24 人を超えたとき', () => {
+  const entries = (n: number) => Array.from({ length: n }, (_, i) => E(`x${i}`));
+  const stageOf = (view: RouletteView, pool: Entry[], phase: Phase) => orderStageOf({ view, pool, phase, revealed: phase === 'settled' ? 1 : 0 });
+  const press = (o: ReturnType<typeof orderStageOf>, poolCount: number) => orderButtonOf({ order: o, poolCount, operable: true, serverSpinning: false });
+  const caption = (view: RouletteView, o: ReturnType<typeof orderStageOf>, poolCount: number) => orderCaptionOf({ view, phase: 'idle', poolCount, order: o });
+
+  it('Given 回の前で 25 人 / When ボタンと一言を決める / Then 押せず、外す案内', () => {
+    const o = stageOf(base, entries(25), 'idle');
+    expect(press(o, 25).disabled).toBe(true);
+    expect(caption(base, o, 25)).toBe('回せるのは 24 人までなので、チェックを外してください');
+    expect(caption(base, o, 25)).toBe(TOO_MANY_TEXT);
+  });
+
+  it('Given 回の前で 24 人 / When ボタンと一言を決める / Then 押せて、通常の説明', () => {
+    const o = stageOf(base, entries(24), 'idle');
+    expect(press(o, 24).disabled).toBe(false);
+    expect(caption(base, o, 24)).toBe(ORDER_NOTE);
+  });
+
+  it('Given 回の前で 1 人 / When 一言を決める / Then 2 人から回せます（少なすぎる側が先）', () => {
+    const o = stageOf(base, entries(1), 'idle');
+    expect(caption(base, o, 1)).toBe(TOO_FEW_TEXT);
+  });
+
+  it('Given 回の途中で全体は 26 人だがまだの人は 24 人 / When ボタンを決める / Then 押せる', () => {
+    const view = inRound(['x0', 'x1'], ['x2', 'x3'], 0);
+    const o = stageOf(view, entries(26), 'settled');
+    expect(o.left).toBe(24);
+    expect(press(o, 26).disabled).toBe(false);
+    expect(caption(view, o, 26)).toBe(ORDER_NOTE);
+  });
+
+  it('Given 回の途中でまだの人が 25 人 / When ボタンと一言を決める / Then 押せず、外す案内', () => {
+    const view = inRound(['x0', 'x1'], ['x2', 'x3'], 0);
+    const o = stageOf(view, entries(27), 'settled');
+    expect(o.left).toBe(25);
+    expect(press(o, 27).disabled).toBe(true);
+    expect(caption(view, o, 27)).toBe(TOO_MANY_TEXT);
+  });
+
+  it('Given 回が終わって 25 人 / When 次の回のボタンを決める / Then 押せない', () => {
+    const view: RouletteView = { ...base, order: { done: entries(3), finished: true } };
+    const o = stageOf(view, entries(25), 'settled');
+    expect(press(o, 25).disabled).toBe(true);
+    expect(press(o, 24).disabled).toBe(false);
   });
 });

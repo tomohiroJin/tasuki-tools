@@ -13,12 +13,12 @@ diff --git a/apps/roulette-web/src/roulette-view.ts b/apps/roulette-web/src/roul
 index 36d9251..f76354f 100644
 --- a/apps/roulette-web/src/roulette-view.ts
 +++ b/apps/roulette-web/src/roulette-view.ts
-@@ -425,7 +425,7 @@ export function orderButtonOf(input: {
+@@ -403,7 +403,7 @@ export function orderButtonOf(input: {
    const { order, poolCount, operable, serverSpinning } = input;
    if (serverSpinning) return { label: SPINNING_BUTTON, disabled: true };
-   if (order.finished) return { label: ORDER_NEW_ROUND_BUTTON, disabled: !operable || poolCount < 2 };
--  if (order.inRound) return { label: order.left === 1 ? ORDER_LAST_BUTTON : ORDER_BUTTON, disabled: !operable };
-+  if (order.inRound) return { label: ORDER_BUTTON, disabled: !operable };
-   return { label: ORDER_BUTTON, disabled: !operable || poolCount < 2 };
+   if (order.finished) return { label: ORDER_NEW_ROUND_BUTTON, disabled: !operable || poolCount < 2 || poolCount > MAX_WHEEL };
+-  if (order.inRound) return { label: order.left === 1 ? ORDER_LAST_BUTTON : ORDER_BUTTON, disabled: !operable || order.left > MAX_WHEEL };
++  if (order.inRound) return { label: ORDER_BUTTON, disabled: !operable || order.left > MAX_WHEEL };
+   return { label: ORDER_BUTTON, disabled: !operable || poolCount < 2 || poolCount > MAX_WHEEL };
  }
  

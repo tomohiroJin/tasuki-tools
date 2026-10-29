@@ -7,6 +7,7 @@ import {
   SPIN_BUTTON,
   STOP_BUTTON,
   TOO_FEW_TEXT,
+  TOO_MANY_TEXT,
   pressDecidedText,
   pressStoppedText,
 } from '../src/copy';
@@ -115,5 +116,35 @@ describe('withPressStop', () => {
     expect(withPressStop(view, null)).toBe(view);
     expect(withPressStop(stopped, { ...stop, index: 0 })).toBe(stopped);
     expect(withPressStop(once, stop)).toBe(once);
+  });
+});
+
+/**
+ * @requirements #458 E6（押して止めるでも、24 人を超えたら回せない）
+ */
+describe('押して止める: 24 人を超えたとき', () => {
+  const idle = { hasSpin: false, stopped: false, landed: false, pressedHere: false, operable: true };
+
+  it('Given 回す前で 25 人 / When 主ボタンと一言を決める / Then 押せず、外す案内', () => {
+    expect(pressButtonOf({ ...idle, poolCount: 25 })).toEqual({ label: SPIN_BUTTON, disabled: true, stop: false });
+    expect(pressCaptionOf({ phase: 'idle', stop: null, winnerName: null, poolCount: 25 })).toEqual({
+      text: '回せるのは 24 人までなので、チェックを外してください',
+      hidden: '',
+    });
+    expect(TOO_MANY_TEXT).toBe('回せるのは 24 人までなので、チェックを外してください');
+  });
+
+  it('Given 回す前で 24 人 / When 主ボタンと一言を決める / Then 押せて、通常の案内', () => {
+    expect(pressButtonOf({ ...idle, poolCount: 24 }).disabled).toBe(false);
+    expect(pressCaptionOf({ phase: 'idle', stop: null, winnerName: null, poolCount: 24 }).text).toBe(PRESS_IDLE);
+  });
+
+  it('Given 止まって寄せ終えたあとで 25 人 / When 主ボタンを決める / Then 次は回せない', () => {
+    expect(pressButtonOf({ hasSpin: true, stopped: true, landed: true, pressedHere: false, poolCount: 25, operable: true }).disabled).toBe(true);
+    expect(pressButtonOf({ hasSpin: true, stopped: true, landed: true, pressedHere: false, poolCount: 24, operable: true }).disabled).toBe(false);
+  });
+
+  it('Given 回っている最中で 25 人 / When 主ボタンを決める / Then 止めるは押せる', () => {
+    expect(pressButtonOf({ hasSpin: true, stopped: false, landed: false, pressedHere: false, poolCount: 25, operable: true })).toEqual({ label: STOP_BUTTON, disabled: false, stop: true });
   });
 });

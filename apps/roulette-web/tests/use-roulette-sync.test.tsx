@@ -404,3 +404,19 @@ describe('ルーレットのルームへの入り直し（#369 で共通の部�
     expect(result.current.retryNotice).toBe(RETRY_WAITING_TEXT);
   });
 });
+
+/**
+ * @requirements #458 D3（まとめて足すコマンド）
+ */
+describe('いつものメンツをまとめて入れる', () => {
+  it('Given 入室済み / When addGuests する / Then 名前の束を 1 つのコマンドで送る', () => {
+    // Given
+    const { result } = joinedHook();
+    // When
+    act(() => {
+      result.current.addGuests(['佐藤', '鈴木']);
+    });
+    // Then
+    expect(latestSocket().sentJson().slice(-1)).toEqual([{ command: 'roulette.guest.addMany', names: ['佐藤', '鈴木'] }]);
+  });
+});

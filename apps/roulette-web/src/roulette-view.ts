@@ -5,7 +5,7 @@
  * 1 度だけ取る基準）。**回転の経過 = サーバーが送った `elapsedMs` + 受け取ってからの時間。**
  */
 import { conflictsWithExisting, type RosterRoom } from '@tasuki/room-core';
-import { pickStopsMs, poolOf, type Entry, type Member, type RouletteMode, type RouletteState, type RouletteView } from '@tasuki/roulette-core';
+import { MAX_WHEEL, pickStopsMs, poolOf, type Entry, type Member, type RouletteMode, type RouletteState, type RouletteView } from '@tasuki/roulette-core';
 import {
   CAPTION_IDLE,
   ORDER_ALL_DONE,
@@ -20,6 +20,7 @@ import {
   SPINNING_BUTTON,
   STALE_TEXT,
   TOO_FEW_TEXT,
+  TOO_MANY_TEXT,
   UNREACHABLE_TEXT,
   groupIdleText,
   groupResultText,
@@ -90,8 +91,8 @@ export function membersOf(roster: RosterRoom | null): Member[] {
   }));
 }
 
-/** `poolOf` が読む形（`excluded` と `guests` だけが効く）。 */
-function stateOf(view: RouletteView): RouletteState {
+/** `poolOf` が読む形（`excluded` と `guests` だけが効く）。まとめて入れる知らせの計算（`planBatch`）も使う。 */
+export function stateOf(view: RouletteView): RouletteState {
   return {
     excluded: view.excluded,
     guests: view.guests,
@@ -273,6 +274,8 @@ export function captionOf(input: { view: RouletteView; phase: Phase; poolCount: 
   }
   const k = pickCountOf(view);
   if (poolCount < k + 1) return k === 1 ? TOO_FEW_TEXT : tooFewForPickText(k);
+  // 少なすぎる側を先に見る（2 人未満と 25 人以上は同時に起きない）
+  if (poolCount > MAX_WHEEL) return TOO_MANY_TEXT;
   return k === 1 ? CAPTION_IDLE : groupIdleText(k);
 }
 
@@ -286,7 +289,7 @@ export function spinButtonOf(input: {
   const { view, poolCount, operable, serverSpinning } = input;
   if (serverSpinning) return { label: SPINNING_BUTTON, disabled: true };
   // 入る人がちょうど選ぶ人数なら全員が選ばれ、回す意味が無い（#401 spec M5。1 人なら #94 の「2 人から」と同じ）
-  return { label: view.spin === null ? SPIN_BUTTON : SPIN_AGAIN_BUTTON, disabled: !operable || poolCount < pickCountOf(view) + 1 };
+  return { label: view.spin === null ? SPIN_BUTTON : SPIN_AGAIN_BUTTON, disabled: !operable || poolCount < pickCountOf(view) + 1 || poolCount > MAX_WHEEL };
 }
 
 // ---------- 順番に回す（#401 順番に回す spec §5） ----------
@@ -390,7 +393,9 @@ export function orderCaptionOf(input: { view: RouletteView; phase: Phase; poolCo
   if (phase === 'spinning' && view.spin !== null) return spunByText(view.spin.spunBy);
   if (order.last !== null) return orderLastText(order.last.name);
   if (phase === 'settled' && view.spin?.turn !== undefined && order.card.name !== null) return turnResultText(view.spin.turn, order.card.name);
-  return !order.inRound && poolCount < 2 ? TOO_FEW_TEXT : ORDER_NOTE;
+  if (!order.inRound && poolCount < 2) return TOO_FEW_TEXT;
+  // 回の途中は「まだの人」で見る（回の前・回が終わった後は入る人で見る）
+  return (order.inRound ? order.left : poolCount) > MAX_WHEEL ? TOO_MANY_TEXT : ORDER_NOTE;
 }
 
 /**
@@ -405,9 +410,9 @@ export function orderButtonOf(input: {
 }): { label: string; disabled: boolean } {
   const { order, poolCount, operable, serverSpinning } = input;
   if (serverSpinning) return { label: SPINNING_BUTTON, disabled: true };
-  if (order.finished) return { label: ORDER_NEW_ROUND_BUTTON, disabled: !operable || poolCount < 2 };
-  if (order.inRound) return { label: order.left === 1 ? ORDER_LAST_BUTTON : ORDER_BUTTON, disabled: !operable };
-  return { label: ORDER_BUTTON, disabled: !operable || poolCount < 2 };
+  if (order.finished) return { label: ORDER_NEW_ROUND_BUTTON, disabled: !operable || poolCount < 2 || poolCount > MAX_WHEEL };
+  if (order.inRound) return { label: order.left === 1 ? ORDER_LAST_BUTTON : ORDER_BUTTON, disabled: !operable || order.left > MAX_WHEEL };
+  return { label: ORDER_BUTTON, disabled: !operable || poolCount < 2 || poolCount > MAX_WHEEL };
 }
 
 /** 決め方の面の進み具合（順番に回すとき）。 */
