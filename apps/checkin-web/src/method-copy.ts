@@ -74,6 +74,27 @@ export const METHOD_COPY: Readonly<Record<MethodId, MethodCopy>> = {
       energizer: { name: '盛り上げ役', meaning: '場を明るくする' },
     },
   },
+  expectation: {
+    title: '期待の大きさ',
+    prompt: 'この時間に、どのくらい期待していますか？',
+    cards: {
+      '1': { name: '1', meaning: 'あまり期待していない' },
+      '2': { name: '2', meaning: '少しだけ' },
+      '3': { name: '3', meaning: 'ふつう' },
+      '4': { name: '4', meaning: '期待している' },
+      '5': { name: '5', meaning: '大いに期待' },
+    },
+  },
+  'mood-start': {
+    title: '始まりの気分',
+    prompt: '始まる前の、いまの気分は？',
+    cards: {
+      eager: { name: '楽しみ', meaning: '始まるのが待ち遠しい' },
+      calm: { name: '落ち着いている', meaning: 'いつもどおり' },
+      sleepy: { name: '眠い', meaning: 'まだ頭が起きていない' },
+      restless: { name: 'そわそわ', meaning: '気がかりがある' },
+    },
+  },
   roti: {
     title: 'ROTI（時間に見合ったか）',
     prompt: 'この時間、使った分の価値はありましたか？',
@@ -122,6 +143,27 @@ export const METHOD_COPY: Readonly<Record<MethodId, MethodCopy>> = {
       shorter: { name: '短く', meaning: '時間を短くする' },
       fewer: { name: '人を絞る', meaning: '必要な人だけで' },
       skip: { name: '無くてもいい', meaning: 'やらなくても回る' },
+    },
+  },
+  'weather-end': {
+    title: '終わりの天気',
+    prompt: '終わったいま、あなたの空模様は？',
+    cards: {
+      sunny: { name: '晴れ', meaning: '絶好調' },
+      cloudy: { name: 'くもり', meaning: 'まあまあ' },
+      rain: { name: '雨', meaning: 'ちょっと沈み気味' },
+      thunder: { name: '雷', meaning: '荒れ模様・余裕がない' },
+    },
+  },
+  understanding: {
+    title: 'わかった度',
+    prompt: 'この時間の中身は、どのくらいわかりましたか？',
+    cards: {
+      '1': { name: '1', meaning: 'ほとんどわからない' },
+      '2': { name: '2', meaning: '少しわかった' },
+      '3': { name: '3', meaning: '半分くらい' },
+      '4': { name: '4', meaning: 'だいたいわかった' },
+      '5': { name: '5', meaning: 'よくわかった' },
     },
   },
 };

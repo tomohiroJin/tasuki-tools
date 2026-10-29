@@ -3,7 +3,13 @@ import { describe, expect, it } from 'vitest';
 import { METHOD_IDS, METHODS } from '@tasuki/checkin-core';
 import { CardFace } from '../src/components/CardFace';
 
-const NUMERIC = { energy: ['1', '2', '3', '4', '5'], roti: ['1', '2', '3', '4', '5'], focus: ['2', '5', '8', '10'] } as const;
+const NUMERIC = {
+  energy: ['1', '2', '3', '4', '5'],
+  expectation: ['1', '2', '3', '4', '5'],
+  roti: ['1', '2', '3', '4', '5'],
+  understanding: ['1', '2', '3', '4', '5'],
+  focus: ['2', '5', '8', '10'],
+} as const;
 
 const ALL = METHOD_IDS.flatMap((method) => METHODS[method].cards.map((card) => [method, card] as const));
 
@@ -57,6 +63,21 @@ describe('CardFace', () => {
           expect(sameRadius && a?.[4] !== b?.[4], `${method}/${card}`).toBe(false);
         }
       }
+    }
+  });
+
+  it('終わりの天気は今日の天気と同じ絵（#465・並べて比べやすいように）', () => {
+    for (const card of METHODS['weather-end'].cards) {
+      const end = render(<CardFace method="weather-end" card={card} />).container.innerHTML;
+      const start = render(<CardFace method="weather" card={card} />).container.innerHTML;
+      expect(end).toBe(start);
+    }
+  });
+
+  it('始まりの気分は終わりの気分（mood）と絵を使い回さない', () => {
+    const end = new Set(METHODS.mood.cards.map((card) => render(<CardFace method="mood" card={card} />).container.innerHTML));
+    for (const card of METHODS['mood-start'].cards) {
+      expect(end.has(render(<CardFace method="mood-start" card={card} />).container.innerHTML)).toBe(false);
     }
   });
 

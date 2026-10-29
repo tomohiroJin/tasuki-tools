@@ -17,11 +17,15 @@ export const METHOD_IDS = [
   "focus",
   "takeaway-goal",
   "role",
+  "expectation",
+  "mood-start",
   "roti",
   "takeaway-done",
   "best-part",
   "mood",
   "next-meeting",
+  "weather-end",
+  "understanding",
 ] as const;
 export type MethodId = (typeof METHOD_IDS)[number];
 
@@ -40,11 +44,15 @@ export const METHODS: Readonly<Record<MethodId, MethodRule>> = {
   focus: { side: "checkin", cards: ["20", "50", "80", "100"], defaultVisibility: "named" },
   "takeaway-goal": { side: "checkin", cards: ["decide", "learn", "discuss", "listen"], defaultVisibility: "named" },
   role: { side: "checkin", cards: ["listener", "questioner", "summarizer", "energizer"], defaultVisibility: "named" },
+  expectation: { side: "checkin", cards: ["1", "2", "3", "4", "5"], defaultVisibility: "anonymous" },
+  "mood-start": { side: "checkin", cards: ["eager", "calm", "sleepy", "restless"], defaultVisibility: "named" },
   roti: { side: "checkout", cards: ["1", "2", "3", "4", "5"], defaultVisibility: "anonymous" },
   "takeaway-done": { side: "checkout", cards: ["yes", "half", "no"], defaultVisibility: "named" },
   "best-part": { side: "checkout", cards: ["decided", "talked", "learned", "nothing"], defaultVisibility: "named" },
   mood: { side: "checkout", cards: ["clear", "foggy", "tired", "excited"], defaultVisibility: "named" },
   "next-meeting": { side: "checkout", cards: ["keep", "shorter", "fewer", "skip"], defaultVisibility: "anonymous" },
+  "weather-end": { side: "checkout", cards: ["sunny", "cloudy", "rain", "thunder"], defaultVisibility: "named" },
+  understanding: { side: "checkout", cards: ["1", "2", "3", "4", "5"], defaultVisibility: "anonymous" },
 };
 
 /** 片側のやり方（`METHOD_IDS` の並びのまま） */

@@ -66,28 +66,28 @@ describe("drawMethod", () => {
     return { calls, fn: (n: number) => (calls.push(n), value === -1 ? n - 1 : value) };
   };
 
-  it("いまのやり方を除いた 4 つから選ぶ。0 番目も n-1 番目も weather ではない（E2）〈m501〉", () => {
+  it("いまのやり方を除いた 6 つから選ぶ。0 番目も n-1 番目も weather ではない（E2）〈m501〉", () => {
     const base = choose(empty, "weather");
     for (const v of [0, -1]) {
       const r = record(v);
       const s = draw(base, "checkin", r.fn)._unsafeUnwrap();
-      expect(r.calls).toEqual([4]);
+      expect(r.calls).toEqual([6]);
       expect(roundOf(s).method).not.toBe("weather");
       expect(METHODS[roundOf(s).method].side).toBe("checkin");
       expect(roundOf(s).seq).toBe(2);
     }
   });
 
-  it("いまのやり方が反対側なら 5 つ全部が候補", () => {
+  it("いまのやり方が反対側なら 7 つ全部が候補", () => {
     const r = record(0);
     draw(choose(empty, "roti"), "checkin", r.fn)._unsafeUnwrap();
-    expect(r.calls).toEqual([5]);
+    expect(r.calls).toEqual([7]);
   });
 
-  it("回が無いときも 5 つ全部が候補。0 番目は側の先頭", () => {
+  it("回が無いときも 7 つ全部が候補。0 番目は側の先頭", () => {
     const r = record(0);
     const s = draw(empty, "checkout", r.fn)._unsafeUnwrap();
-    expect(r.calls).toEqual([5]);
+    expect(r.calls).toEqual([7]);
     expect(roundOf(s).method).toBe("roti");
   });
 
@@ -100,7 +100,7 @@ describe("drawMethod", () => {
 
   it("[0, n) の整数でない乱数は CHECKIN_INVALID_RANDOM", () => {
     const base = choose(empty, "weather");
-    for (const v of [4, 1.5, -1, Number.NaN]) {
+    for (const v of [6, 1.5, -1, Number.NaN]) {
       const r = draw(base, "checkin", () => v);
       expect(r._unsafeUnwrapErr()).toEqual({ code: "CHECKIN_INVALID_RANDOM" });
     }

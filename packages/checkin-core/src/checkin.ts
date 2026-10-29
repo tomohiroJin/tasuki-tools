@@ -41,7 +41,7 @@ export function chooseMethod(s: CheckinState, input: { seq: number; method: Meth
   return startRound(s, input.method);
 }
 
-/** 片側からくじで選ぶ。いまのやり方は候補から除く（反対側のやり方なら 5 つ全部）。違う回を見ていたら引かずに同じ参照 */
+/** 片側からくじで選ぶ。いまのやり方は候補から除く（反対側のやり方なら 7 つ全部）。違う回を見ていたら引かずに同じ参照 */
 export function drawMethod(
   s: CheckinState,
   input: { seq: number; side: Side },
