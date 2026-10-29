@@ -56,6 +56,16 @@ const unusedIdGen: IdGen = {
   },
 };
 
+/** 隠しモードの判定の予約（#403）。このテストではゲームを始めないので、予約を消す呼び出しだけが来る */
+const idleGameTimer = { schedule: () => {}, clear: () => {} };
+
+/** テーブルの山を切る乱数（#403）。このテストでは配らない */
+const unusedRandom = {
+  randomInt: (): number => {
+    throw new Error('randomInt は呼ばれない');
+  },
+};
+
 const alwaysAllowLimiter: RateLimiter = {
   shouldReject: () => false,
   consume: () => undefined,
@@ -80,6 +90,8 @@ function setup(data: Partial<HandlerConnection['data']> = {}, store = new InMemo
     clock: { now: () => 0 },
     wallClock: { now: () => 0 },
     rateLimiter: alwaysAllowLimiter,
+    random: unusedRandom,
+      gameTimer: idleGameTimer,
     maxRooms: 50,
     // お題の配信はこのテストの対象外。
     topicBroadcaster: { sendCurrent: () => {} },
@@ -154,6 +166,10 @@ describe('名簿に居ない participantId の操作（G-9）', () => {
       fragmentsOf: () => [],
       sendError: (_ws, code, message) => void errors.push({ code, message }),
       now: () => 0,
+      // 隠しモードの山を切る乱数（#403）。このテストでは配らない
+      randomInt: () => {
+        throw new Error('randomInt は呼ばれない');
+      },
     });
     const ws = { data: { participantId: 'p1', roomId: 'r1' } } as unknown as HandlerConnection;
     return { commitRoomAction, ws, committed, errors };

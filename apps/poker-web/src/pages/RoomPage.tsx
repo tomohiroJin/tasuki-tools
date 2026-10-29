@@ -2,9 +2,10 @@
 //
 // **ここで名前は聞かない**（#95 S5c・R9）。名乗る場所は玄関に 1 つだけあり、
 // 端末に同一性が無いままここへ来た人は玄関の参加画面へ送り返す。
-import { useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { RoomHeader } from '@tasuki/invite-ui';
 import { CardHand } from '../components/CardHand';
+import { CardTableBoundary } from '../components/CardTableBoundary';
 import { CurrentTopic, TOPIC_CARD_ID, TOPIC_HIDE, TOPIC_SHOW } from '../components/CurrentTopic';
 import { ErrorNote } from '../components/ErrorNote';
 import { EstimateItemField } from '../components/EstimateItemField';
@@ -19,6 +20,10 @@ import { ESTIMATE_POINTS_LABEL, NEXT_ITEM, RECORDING_TOGGLE, REVOTE } from '../e
 import { JOIN_VOTING, SPECTATE, SPECTATING_NOTE, participantsHeading } from '../spectator-copy';
 import type { NumberCardValue } from '@tasuki/poker-core';
 import { isOffline, revealedLiveAfter, seatCardCount, revealedVoteMap, spreadPromptOf } from '../room-view';
+
+// 隠しモードのテーブル（#403）。ゲームが始まったとき（`room-state.table` が届いたとき）にだけ読み込む
+// （普段の初回の読み込みを増やさない・設計 §5.5）。入口は見積もりの操作だけで、判定はサーバーが行う
+const CardTable = lazy(() => import('../components/CardTable'));
 
 interface Props {
   roomId: string;
@@ -102,6 +107,8 @@ export function RoomPage({ roomId, sync }: Props) {
   const spectatorCount = snapshot.participants.filter((p) => p.spectator).length;
   // 結果の待ち（`--seat-count`）は札を出す席だけで数える（席の一覧と同じ述語・`room-view.ts`）
   const seatCount = seatCardCount(snapshot.participants, revealedVotes);
+  // ゲームの間は、手札・結果・下端の帯をテーブルに置き換える（#403・設計 §5.2）。席の一覧・お題・記録は残す
+  const table = snapshot.table;
 
   return (
     <main className="ui-page ui-page--wide room">
@@ -206,7 +213,22 @@ export function RoomPage({ roomId, sync }: Props) {
               disabled={offline}
             />
           )}
-          {snapshot.round.status === 'voting' ? (
+          {table ? (
+            <CardTableBoundary disabled={offline} onClose={sync.closeGame}>
+            <Suspense fallback={null}>
+              <CardTable
+                table={table}
+                participants={snapshot.participants}
+                you={snapshot.you}
+                disabled={offline}
+                error={sync.error}
+                onExchange={sync.exchangeCards}
+                onDealAgain={sync.dealAgain}
+                onClose={sync.closeGame}
+              />
+            </Suspense>
+            </CardTableBoundary>
+          ) : snapshot.round.status === 'voting' ? (
             <section>
               <h2>あなたのカード</h2>
               {youSpectating ? (
@@ -228,7 +250,7 @@ export function RoomPage({ roomId, sync }: Props) {
           {recording && (
             <EstimateLogFoot groups={estimateLog} onSetPoints={sync.setPoints} onRenameGroup={sync.renameGroup} disabled={offline} />
           )}
-          {isVoting ? (
+          {table ? null : isVoting ? (
             <VotingDock sync={sync} disabled={offline} />
           ) : (
             <RevealedDock sync={sync} disabled={offline} canAttachPoints={canAttachPoints} />

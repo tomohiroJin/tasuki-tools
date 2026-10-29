@@ -7,7 +7,7 @@
 //
 // - **値**（関数・定数）は、このパッケージの外の製品コードが取り込むものだけを載せる。
 //   代わりの入口があるなら載せない（例: `ClientMessageSchema` ではなく
-//   `parseClientMessage`、`shouldAutoReveal` ではなく `applyAutoReveal`）。
+//   `parseClientMessage`、`shouldAutoReveal` ではなく `settleRound`）。
 //   落としてもパッケージ内部の相対 import は変わらないので、振る舞いは変わらない。
 // - **型**は、載せた値の**署名から到達できる**なら載せる。取り込まれていなくても
 //   契約の一部である —— `parseClientMessage(raw): Result<ClientMessage, ProtocolError>` は
@@ -42,6 +42,7 @@ export type {
   ParticipantView,
   RoundStats,
   VoteView,
+  TableView,
   ProtocolError,
 } from './protocol.js';
 
@@ -51,13 +52,13 @@ export type {
 
 // ./round
 //
-// `shouldAutoReveal` は**載せない**。`applyAutoReveal` が代わりの入口である。
+// `shouldAutoReveal` と `applyAutoReveal` は**載せない**。`settleRound` が代わりの入口である
+// （#403 で、開票・切断・退出のあとの後処理が自動公開 → 隠しモードの入口 → 全員チェンジ済みの判定の 3 段になった）。
 // `discardVote`（R8）は **#95 S5b で呼び出し元と一緒に戻した**ので載せる
 // （`apps/tasuki-sync` が退出の経路で呼ぶ。代わりの入口は無い）。
 export {
   createRound,
   castVote,
-  applyAutoReveal,
   discardVote,
   revealBy,
   revote,
@@ -67,12 +68,30 @@ export {
   setRecording,
   renameGroup,
   setSpectator,
+  settleRound,
+  exchangeHand,
+  dealAgain,
+  closeGame,
+  gameDeadline,
 } from './round.js';
 // Round: 上の関数の引数・戻り値型（`RoundStore` が保管する型でもある）
-// VoterView: applyAutoReveal の引数型。名簿の断片を構造的部分型で受ける
+// VoterView: settleRound・dealAgain の引数型。名簿の断片を構造的部分型で受ける
 //   （`ParticipantFragment` はこれを継承した上位集合。定義は `round.ts` 側 1 つ）
 // RoundError: castVote / revealBy / revote / nextItem / setPoints / renameGroup が返す Result のエラー型
 export type { Round, VoterView, RoundError } from './round.js';
+
+// ./card-game・./playing-card・./hand-rank（#403 隠しモードのゲーム）
+//
+// HAND_SIZE: 画面が伏せた札の枚数に使う（枚数の定義を 1 つに保つ）
+export { HAND_SIZE } from './card-game.js';
+// 状態遷移の値はここに載せない。状態遷移の入口は `round.ts` の `settleRound` / `exchangeHand` / `dealAgain` / `closeGame`、
+// 役の判定は投影（`createSnapshotBuilder`）の中で閉じる。画面へは役の分類だけが届く。
+// CardGame: Round の game の型。GameError: RoundError の枝。RandomInt: settleRound ほかの引数型
+export type { CardGame, GameError, RandomInt } from './card-game.js';
+// PlayingCard / Suit / Rank: TableView の札の型（画面が札を描くときに名前を要る）
+export type { PlayingCard, Suit, Rank } from './playing-card.js';
+// HandCategory: TableView の役の分類（画面が役の名前を引く鍵）
+export type { HandCategory } from './hand-rank.js';
 
 // ./snapshot
 export { createSnapshotBuilder } from './snapshot.js';

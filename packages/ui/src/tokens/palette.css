@@ -117,6 +117,12 @@
   --card-inline: rgba(38, 35, 28, 0.18); /* 札の内枠（coal の淡い線） */
   --card-back: #7d3c2b; /* 伏せた札の裏の地 */
 
+  /* トランプの札の絵（#403 poker の隠しモード）。象牙の地（--card-sheen〜--card-shade）の上で使う。黒のスートは --coal */
+  --suit-red: #b3261e; /* 赤のスート・角の文字。--card-shade 上 5.0:1 / --ivory 上 5.7:1（AA） */
+  --court-blue: #2f4a86; /* 絵札の衣の青（古典的な絵札の 4 色の 1 つ） */
+  --court-skin: #f2d4b4; /* 絵札の顔 */
+  --court-hair: #6a4425; /* 絵札の髪・髭 */
+
   /* 在室状況（色 + テキスト/アイコン併記で色のみに頼らない。timer が `--color-presence-*` で使う） */
   --presence-online: #16a34a;
   --presence-idle: #d97706;

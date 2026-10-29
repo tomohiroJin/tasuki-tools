@@ -47,7 +47,8 @@
  */
 import type { Result } from 'neverthrow';
 import {
-  applyAutoReveal,
+  gameDeadline,
+  settleRound,
   createRound,
   discardVote,
   type ClientMessage,
@@ -77,6 +78,8 @@ import type { TokenStore } from './token-store.js';
 import type { PokerBroadcaster, RoomSocket } from '../ports/poker-broadcaster.js';
 import type { IdGen } from '../ports/poker-id-gen.js';
 import type { MonotonicClock } from '../ports/monotonic-clock.js';
+import type { RandomSource } from '../ports/random-source.js';
+import type { Scheduler } from './schedule.js';
 import type { RoundStore } from '../ports/poker-round-store.js';
 import { TOOL_POKER } from './tool-id.js';
 import { createCommitRoomAction, createDispatch } from './poker-commit-room-action.js';
@@ -137,6 +140,13 @@ export interface PokerHandlerDeps extends TimerSeatBroadcastDeps {
    */
   wallClock: WallClock;
   rateLimiter: RateLimiter;
+  /** 隠しモードのテーブルの山を切る乱数（#403）。timer のシャッフル・ルーレットと同じもの */
+  random: Pick<RandomSource, 'randomInt'>;
+  /**
+   * 隠しモードの判定の予約（#403 G-8）。未チェンジのまま切れた人の猶予が切れる時刻に、開くかどうかを判定し直す。
+   * timer の `scheduler` とは別のインスタンス（ルームコードごとに 1 つの予約を上書きで持つので、混ぜると消し合う）
+   */
+  gameTimer: Pick<Scheduler, 'schedule' | 'clear'>;
   maxRooms: number;
   /**
    * いまのお題を参加・復帰した本人へ 1 通送る（#91・E4）。
@@ -204,6 +214,8 @@ export function makePokerHandlers(deps: PokerHandlerDeps): PokerHandlers {
     clock,
     wallClock,
     rateLimiter,
+    random,
+    gameTimer,
     maxRooms,
     topicBroadcaster,
     removeFromRoom,
@@ -214,6 +226,8 @@ export function makePokerHandlers(deps: PokerHandlerDeps): PokerHandlers {
    * 渡す時計が単調でなければならない理由もそこに書いてある。
    */
   const rateLimitGate = createPokerRateLimitGate({ clock, rateLimiter });
+  /** 隠しモードの山を切る乱数（#403）。開票・切断・退出・操作のどの経路も同じものを使う */
+  const randomInt = (n: number) => random.randomInt(n);
 
   /**
    * poker の一覧に出す人か（R5・#95 S5b）。
@@ -306,6 +320,32 @@ export function makePokerHandlers(deps: PokerHandlerDeps): PokerHandlers {
     saveRoster(deps, state.room);
     rounds.put(state.room.code, state.round);
     broadcaster.broadcastSnapshot(state.room.code, state.round, fragmentsOf(state.room));
+    armGameTimer(state);
+  }
+
+  /**
+   * 隠しモードの判定を予約し直す（#403 G-8）。未チェンジのまま切れた人が居れば、その猶予が切れる時刻に
+   * {@link settleRound} を通して配信する（戻ってこなくても、猶予が切れた瞬間に開く）。要らなければ予約を消す。
+   * 保管のたびに呼ぶので、戻った・チェンジした・ゲームを終えたで予約は自然に消える。
+   */
+  function armGameTimer(state: PokerRoomState): void {
+    const code = state.room.code;
+    const now = wallClock.now();
+    // まだ来ていない締切だけが返る（過ぎた締切で残り 0 の予約を作ると、本物の Scheduler はその場で同期に呼び、
+    // 判定 → 保管 → 予約 → 発火 … の連鎖でスタックが溢れてサーバーごと落ちる。コードレビュー 2026-10-29）
+    const deadline = gameDeadline(state.round, now);
+    if (deadline === null) {
+      gameTimer.clear(code);
+      return;
+    }
+    gameTimer.schedule(code, (deadline - now) / 1000, (roomCode) => {
+      const current = loadState(roomCode);
+      if (current === undefined) return;
+      const round = settleRound(current.round, current.round, fragmentsOf(current.room), wallClock.now(), randomInt);
+      // 判定で何も変わらなければ保管も配信もしない（全員へ同じ状態を配り直さない・予約の連鎖の二重の歯止め）
+      if (round === current.round) return;
+      commit({ room: current.room, round });
+    });
   }
 
   /**
@@ -386,7 +426,8 @@ export function makePokerHandlers(deps: PokerHandlerDeps): PokerHandlers {
     // 名簿を触っても票には触れないことが構造で保証される。
     // 名簿にこの接続が無ければ Err。そのときは #364 より前と同じく名簿を変えない。
     const room = removeConnection(state.room, ws.data.connId).unwrapOr(state.room);
-    commit({ room, round: applyAutoReveal(state.round, fragmentsOf(room), wallClock.now()) });
+    // 切断でも自動公開・入口・全員チェンジ済みの判定を通す（#403。切れた人はチェンジを待たない）
+    commit({ room, round: settleRound(state.round, state.round, fragmentsOf(room), wallClock.now(), randomInt) });
   }
 
   /**
@@ -413,7 +454,11 @@ export function makePokerHandlers(deps: PokerHandlerDeps): PokerHandlers {
     ws.data.roomId = roomId;
     sendJoined(ws, roomId, participantId, token);
     if (persist) {
-      commit(state);
+      // 戻ってきた人を隠しモードの「切れた人」から外す（#403 G-8。猶予の予約もここで消える）
+      commit({
+        ...state,
+        round: settleRound(state.round, state.round, fragmentsOf(state.room), wallClock.now(), randomInt),
+      });
     } else {
       broadcaster.broadcastSnapshot(roomId, state.round, fragmentsOf(state.room));
     }
@@ -666,7 +711,7 @@ export function makePokerHandlers(deps: PokerHandlerDeps): PokerHandlers {
     if (round === undefined || room === undefined) return;
 
     const discarded = discardVote(round, participantId);
-    commit({ room, round: applyAutoReveal(discarded, fragmentsOf(room), wallClock.now()) });
+    commit({ room, round: settleRound(round, discarded, fragmentsOf(room), wallClock.now(), randomInt) });
   }
 
   const commitRoomAction = createCommitRoomAction({
@@ -675,6 +720,7 @@ export function makePokerHandlers(deps: PokerHandlerDeps): PokerHandlers {
     fragmentsOf,
     sendError,
     now: () => wallClock.now(),
+    randomInt,
   });
 
   const dispatch = createDispatch({
@@ -686,6 +732,7 @@ export function makePokerHandlers(deps: PokerHandlerDeps): PokerHandlers {
     loadState,
     removeFromRoom,
     now: () => wallClock.now(),
+    randomInt,
   });
 
   return {

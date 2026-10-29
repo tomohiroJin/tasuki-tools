@@ -332,6 +332,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
   const pokerClock = createPerformanceClock();
   const pokerIdGen = createCryptoIdGen();
   const pokerBroadcaster = createWsBroadcaster();
+  const pokerGameTimer = new Scheduler(clock);
   const pokerHandlers = makePokerHandlers({
     store,
     timers,
@@ -344,6 +345,10 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     clock: pokerClock,
     wallClock: clock,
     rateLimiter,
+    // 隠しモードの山を切る（#403）。timer のシャッフル・ルーレットと同じ乱数源
+    random,
+    // 隠しモードの切断の猶予が切れる時刻の予約（#403 G-8）。timer の `scheduler` とは別のインスタンス
+    gameTimer: pokerGameTimer,
     maxRooms: config.maxRooms,
     // お題の状態を参加した本人へ 1 通送る（#91・E4）。配信先はルームの全接続。
     topicBroadcaster,
@@ -555,6 +560,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     close: async () => {
       reclaimer.stop();
       scheduler.clearAll();
+      pokerGameTimer.clearAll();
       agendaDeadlines.clearAll();
       // お題の生成も止める（子プロセスを残さない。#91）。
       topicGenerator.cancelAll();
