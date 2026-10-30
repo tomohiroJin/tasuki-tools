@@ -1,0 +1,24 @@
+# 変異 612: hub-redirect-drops-departure
+#
+# 検出を期待するテスト:
+#   - packages/web-kit/tests/use-hub-redirect.test.tsx
+#   - 「Given 抜けた（理由つき）と玄関が要るが同時」
+#
+# #472。玄関が要る判定を理由つきの判定より先に見て、外された人に理由が運ばれない（玄関が告知を出せない・#290）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m612-*.patch
+# 復元: git apply -R scripts/mutations/m612-*.patch
+diff --git a/packages/web-kit/src/room/use-hub-redirect.ts b/packages/web-kit/src/room/use-hub-redirect.ts
+--- a/packages/web-kit/src/room/use-hub-redirect.ts
++++ b/packages/web-kit/src/room/use-hub-redirect.ts
+@@ -15,7 +15,7 @@ export interface HubRedirectOptions<Departure extends string> {
+ /** 玄関へ送り返す。**判定は同期フック、適用はここ 1 箇所**。理由つき（departed）を先に見る。 */
+ export function useHubRedirect<Departure extends string>({ departed, needsHub, roomCode, hubPathFor, redirectTo }: HubRedirectOptions<Departure>): void {
+   useEffect(() => {
+-    if (departed !== null) redirectTo(hubPathFor(roomCode, departed));
+-    else if (needsHub) redirectTo(hubPathFor(roomCode));
++    if (needsHub) redirectTo(hubPathFor(roomCode));
++    else if (departed !== null) redirectTo(hubPathFor(roomCode, departed));
+   }, [departed, needsHub, roomCode, hubPathFor, redirectTo]);
+ }

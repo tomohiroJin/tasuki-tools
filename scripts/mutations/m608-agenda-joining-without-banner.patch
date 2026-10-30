@@ -4,20 +4,20 @@
 #   - apps/agenda-web/tests/agenda-room.test.tsx
 #   - 「接続の告知の帯 / Given 一度も繋がらないまま失敗した」
 #
-# #471。入室前の画面（見出しだけ）で帯を描かない。同期サーバーに繋がらないまま、理由が伝わらず待たされる。
+# #471（#472 で部品へ寄せたので作り直し）。入室前の画面（見出しだけ）で帯を渡さない。同期サーバーに繋がらないまま、理由が伝わらず待たされる。
 #
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m608-*.patch
 # 復元: git apply -R scripts/mutations/m608-*.patch
 diff --git a/apps/agenda-web/src/screens/AgendaRoom.tsx b/apps/agenda-web/src/screens/AgendaRoom.tsx
-index 0b83ef7c..782d3683 100644
 --- a/apps/agenda-web/src/screens/AgendaRoom.tsx
 +++ b/apps/agenda-web/src/screens/AgendaRoom.tsx
-@@ -69,7 +69,6 @@ export function AgendaRoom({ roomCode }: { roomCode: string }) {
-             {ROOM_HEADER_TEXT.back}
-           </a>
-         </header>
--        <ConnectionBanner kind={sync.notice} />
-         {sync.retryNotice && (
-           <p className="ui-note" role="status">
-             {sync.retryNotice}
+@@ -52,7 +52,7 @@ export function AgendaRoom({ roomCode }: { roomCode: string }) {
+         backLabel={ROOM_HEADER_TEXT.back}
+         retryNotice={sync.retryNotice}
+         error={sync.error}
+-        banner={<ConnectionBanner kind={sync.notice} />}
++        banner={null}
+         bannerPlacement="after-header"
+       />
+     );

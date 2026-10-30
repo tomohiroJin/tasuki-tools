@@ -31,7 +31,7 @@ web アプリが共有する React の部品（#360 の波 2・設計正本 §5.
   フォーカスを戻す処理。マークアップは各画面が持つ
 
 
-## `@tasuki/web-kit/room`（ルーム画面の部品・#471）
+## `@tasuki/web-kit/room`（ルーム画面の部品・#471・#472）
 
 画面から読んでよい。`@tasuki/sync-client` は型（`import type`）だけを読む。
 
@@ -39,6 +39,13 @@ web アプリが共有する React の部品（#360 の波 2・設計正本 §5.
 - `ConnectionBanner` — 告知の帯（`ui-banner`）。届かないは `role="alert"`、それ以外は `role="status"`、無いときは描かない。
   checkin・roulette・topic・agenda・poker が同じ文・役割で出す。位置は、checkin の本画面は `<main>` の中・見出しの後、roulette・topic・poker・agenda の本画面は `<main>` の直前、agenda の映す表示の間は映す表示（`.projection`）の中の上端（全面を覆うので外では見えない）、参加前の画面（checkin・agenda）は `<main>` の中・見出しの後。アプリごとに違い、揃えてはいない。
   agenda は映す表示に出入りするたびに帯の親が変わる（main の直前 ↔ 映す表示の中）ので、帯は mount し直され、`role` の読み上げもやり直される。映す表示は fixed で全面を覆うため、同じ要素を保つ手段が無い（外に残すと覆われ、z-index を上げると隅の操作を覆う）。
+
+- `LoadingView` — 読み込み中・送り返している間の画面（`main` の中の `role="status"` の一言。見た目の `.loading-note` は `packages/ui` が持つ）
+- `RoomGoneView` — ルームが無いときの画面（h1・説明・トップ（`/`）へのリンク。消えたルームの選択画面へは送らない）
+- `RoomJoiningView` — 最初の入室が成立するまでの画面（h1・戻るリンク・混雑の知らせ・失敗の一言）。戻るリンクの文（`backLabel`）は web-kit が invite-ui に依存しないので呼ぶ側が渡す。帯は `banner` で受け取り、位置は `bannerPlacement`（`before-main`: roulette・topic、`after-header`: agenda・checkin。揃えてはいない）
+- `useHubRedirect` — 玄関のそのルームへ送り返す（理由つきの `departed` を先に、次に `needsHub`）。`hubPathFor`・`redirectTo` は各アプリの `router.ts` のものを渡す
+- `usePrefersReducedMotion` — 動きを減らす設定か（変化を購読）。timer-web の `use-reduced-motion` は書き方が違うので寄せていない
+- `ROOM_GATE_TEXT` — 入室の門の文 5 つの正本。書体の base 層に収まるかは `tests/room-gate-copy-fits-font-base.test.ts` が測る
 
 種類を決める規則（諦めるまでの回数を含む）は `@tasuki/sync-client` の `connectionNoticeKind` で、同期フックが引いて `notice` として返す。
 

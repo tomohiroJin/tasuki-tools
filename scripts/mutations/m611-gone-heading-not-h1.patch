@@ -1,0 +1,23 @@
+# 変異 611: gone-heading-not-h1
+#
+# 検出を期待するテスト:
+#   - packages/web-kit/tests/room-gate.test.tsx
+#   - 「RoomGoneView / Given ルームが無い」
+#
+# #472。ルームが無い画面の見出しが h1 でなくなり、ページの見出しの階層が壊れる（読み上げの見出し一覧に出ない）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m611-*.patch
+# 復元: git apply -R scripts/mutations/m611-*.patch
+diff --git a/packages/web-kit/src/room/room-gone-view.tsx b/packages/web-kit/src/room/room-gone-view.tsx
+--- a/packages/web-kit/src/room/room-gone-view.tsx
++++ b/packages/web-kit/src/room/room-gone-view.tsx
+@@ -7,7 +7,7 @@ import { ROOM_GATE_TEXT } from './room-gate-copy.js';
+ export function RoomGoneView() {
+   return (
+     <main className="ui-page ui-page--prose">
+-      <h1>{ROOM_GATE_TEXT.goneHeading}</h1>
++      <h2>{ROOM_GATE_TEXT.goneHeading}</h2>
+       <p>{ROOM_GATE_TEXT.goneText}</p>
+       <a className="ui-button ui-button--quiet" href="/">
+         {ROOM_GATE_TEXT.goneLink}

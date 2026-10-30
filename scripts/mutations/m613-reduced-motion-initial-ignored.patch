@@ -1,0 +1,23 @@
+# 変異 613: reduced-motion-initial-ignored
+#
+# 検出を期待するテスト:
+#   - packages/web-kit/tests/use-prefers-reduced-motion.test.tsx
+#   - 「Given 減らす設定 / When 描く / Then true」
+#
+# #472。最初の描画で設定を読まず false にする。動きを減らす設定の人に、変化が来るまで回転が見えてしまう。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m613-*.patch
+# 復元: git apply -R scripts/mutations/m613-*.patch
+diff --git a/packages/web-kit/src/room/use-prefers-reduced-motion.ts b/packages/web-kit/src/room/use-prefers-reduced-motion.ts
+--- a/packages/web-kit/src/room/use-prefers-reduced-motion.ts
++++ b/packages/web-kit/src/room/use-prefers-reduced-motion.ts
+@@ -12,7 +12,7 @@ function read(): boolean {
+  * timer-web の `use-reduced-motion` は書き方が違う（既存の変異が当たる）ので寄せていない。
+  */
+ export function usePrefersReducedMotion(): boolean {
+-  const [reduced, setReduced] = useState(read);
++  const [reduced, setReduced] = useState(false);
+   useEffect(() => {
+     if (typeof window.matchMedia !== 'function') return;
+     const media = window.matchMedia(QUERY);
