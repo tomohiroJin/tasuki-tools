@@ -24,7 +24,7 @@ import {
   plannedSummary,
   scenarioDetail,
 } from '../copy';
-import { usePrefersReducedMotion } from '../hooks/use-reduced-motion';
+import { usePrefersReducedMotion } from '@tasuki/web-kit/room';
 import { useWallClock } from '../hooks/use-wall-clock';
 import { SAMPLE_SCENARIOS } from '../sample-scenarios';
 import {

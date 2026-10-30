@@ -10,15 +10,3 @@
 @import './dial.css';
 @import './builder.css';
 @import './run.css';
-
-/* 遷移中・参加中の一言。卓の上で控えめに置く（topic-web・poker-web と同じ置き方）。色は部品（`.ui-note`）が持つ。 */
-.loading-note {
-  margin: 0;
-  padding: var(--space-6) 0;
-  text-align: center;
-}
-
-/* 共通の見出し（`RoomHeader`）と段組みの間（盤・進行表の札が行に接しない）。topic-web・roulette-web と同じ値 */
-.ui-room-header {
-  margin-block-end: var(--space-5);
-}

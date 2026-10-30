@@ -8,15 +8,13 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { ROOM_HEADER_TEXT, RoomHeader } from '@tasuki/invite-ui';
-import { ConnectionBanner } from '@tasuki/web-kit/room';
-import { LoadingView } from '../components/LoadingView';
+import { ConnectionBanner, LoadingView, RoomGoneView, RoomJoiningView, useHubRedirect, usePrefersReducedMotion } from '@tasuki/web-kit/room';
 import { ModePanel } from '../components/ModePanel';
 import { PeoplePanel } from '../components/PeoplePanel';
 import { RegularsSection } from '../components/RegularsSection';
 import { Stage } from '../components/Stage';
-import { GONE_HEADING, GONE_LINK, GONE_TEXT, JOINING_HEADING, PAGE_HEADING } from '../copy';
+import { PAGE_HEADING } from '../copy';
 import { useRouletteSync } from '../hooks/use-roulette-sync';
-import { usePrefersReducedMotion } from '../hooks/use-reduced-motion';
 import { hubPathFor, redirectTo } from '../router';
 import {
   canOperate,
@@ -70,10 +68,7 @@ export function RouletteRoom({ roomCode }: { roomCode: string }) {
   const reducedMotion = usePrefersReducedMotion();
 
   // 玄関へ戻す。抜けた・外されたときは理由を運ぶ（玄関が告知を出す・#290）。
-  useEffect(() => {
-    if (sync.departed !== null) redirectTo(hubPathFor(roomCode, sync.departed));
-    else if (sync.needsHub) redirectTo(hubPathFor(roomCode));
-  }, [sync.departed, sync.needsHub, roomCode]);
+  useHubRedirect({ departed: sync.departed, needsHub: sync.needsHub, roomCode, hubPathFor, redirectTo });
 
   const view = sync.roulette;
   const spin = view?.spin ?? null;
@@ -110,44 +105,21 @@ export function RouletteRoom({ roomCode }: { roomCode: string }) {
 
   const banner = <ConnectionBanner kind={sync.notice} />;
 
-  if (sync.gone) {
-    return (
-      <main className="ui-page ui-page--prose">
-        <h1>{GONE_HEADING}</h1>
-        <p>{GONE_TEXT}</p>
-        {/* 消えたルームの選択画面へは送らない（そこで名乗っても必ず失敗する・poker と同じ扱い） */}
-        <a className="ui-button ui-button--quiet" href="/">
-          {GONE_LINK}
-        </a>
-      </main>
-    );
-  }
+  // 消えたルームの選択画面へは送らない（そこで名乗っても必ず失敗する・poker と同じ扱い）
+  if (sync.gone) return <RoomGoneView />;
   if (sync.needsHub || sync.departed !== null) return <LoadingView />;
   // 最初の入室が成立するまで。再接続の間は画面を保ち、操作だけを止める（`canOperate`）。
   if (!sync.joined && view === null) {
+    // 参加の返事が来ないまま待つ期限は無い。待たされた人が自分で戻れるよう、戻るリンクを置く。
     return (
-      <>
-        {banner}
-        <main className="ui-page ui-page--prose">
-          <header className="ui-page-header">
-            <h1>{JOINING_HEADING}</h1>
-            {/* 参加の返事が来ないまま待つ期限は無い。待たされた人が自分で戻れるように。 */}
-            <a className="ui-page-header-back ui-button ui-button--quiet" href={hubPathFor(roomCode)}>
-              {ROOM_HEADER_TEXT.back}
-            </a>
-          </header>
-          {sync.retryNotice && (
-            <p className="ui-note" role="status">
-              {sync.retryNotice}
-            </p>
-          )}
-          {sync.error && (
-            <p className="ui-note ui-note--error" role="alert">
-              {sync.error}
-            </p>
-          )}
-        </main>
-      </>
+      <RoomJoiningView
+        backHref={hubPathFor(roomCode)}
+        backLabel={ROOM_HEADER_TEXT.back}
+        retryNotice={sync.retryNotice}
+        error={sync.error}
+        banner={banner}
+        bannerPlacement="before-main"
+      />
     );
   }
 

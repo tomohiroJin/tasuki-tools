@@ -7,13 +7,6 @@
 
 @import '@tasuki/ui';
 
-/* 遷移中・参加中の一言。卓の上で控えめに置く（poker-web と同じ置き方）。色は部品（`.ui-note`）が持つ。 */
-.loading-note {
-  margin: 0;
-  padding: var(--space-6) 0;
-  text-align: center;
-}
-
 /* ---------- 見出しと戻る導線は部品層（`.ui-page-header`・ADR 0022）が持つ ---------- */
 
 /* ---------- いまのお題（#316。読む面は部品層の `.ui-reader` が持つ） ----------
@@ -354,11 +347,6 @@
   .topic-compose .topic-compose-caption {
     display: block;
   }
-}
-
-/* 共通の見出しと段組みの間（読む面の札が行に接しない）。 */
-.ui-room-header {
-  margin-block-end: var(--space-5);
 }
 
 /* 64rem 以上では、説明のプレビューは右の読む面（「下書き」のタブ）が受け持つ（#316）。

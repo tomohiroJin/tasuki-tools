@@ -9,7 +9,7 @@
 import type { MethodId, PileView } from '@tasuki/checkin-core';
 import type { CSSProperties } from 'react';
 import { PILE_UNIT_SR, REVEAL_LABEL } from '../copy';
-import { usePrefersReducedMotion } from '../hooks/use-reduced-motion';
+import { usePrefersReducedMotion } from '@tasuki/web-kit/room';
 import { METHOD_COPY } from '../method-copy';
 import {
   NUMERIC_METHODS,

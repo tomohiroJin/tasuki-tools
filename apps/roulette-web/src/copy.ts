@@ -12,11 +12,6 @@ import { MAX_GROUPS } from './storage/regulars';
  * 「候補」→「入る人」。「誰」は使わない。「以上」の「以」も外れる（「24 人まで」と書く）。
  */
 
-export const LOADING_TEXT = '読み込んでいます…';
-export const JOINING_HEADING = 'ルームに参加しています';
-export const GONE_HEADING = 'ルームが見つかりません';
-export const GONE_TEXT = 'ルームは終了したか、リンクが正しくない可能性があります。';
-export const GONE_LINK = 'トップへ戻る';
 
 export const PAGE_HEADING = '進行役ルーレット';
 /** 舞台（操作の面）の見出し。目には出さず、領域の名前にする */

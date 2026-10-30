@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { LoadingView } from './components/LoadingView';
+import { LoadingView } from '@tasuki/web-kit/room';
 import { TopicRoom } from './screens/TopicRoom';
 import { parseRoute, redirectTo } from './router';
 

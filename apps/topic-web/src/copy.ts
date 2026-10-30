@@ -9,11 +9,6 @@
  */
 import type { Difficulty } from '@tasuki/topic-core';
 
-export const LOADING_TEXT = '読み込んでいます…';
-export const JOINING_HEADING = 'ルームに参加しています';
-export const GONE_HEADING = 'ルームが見つかりません';
-export const GONE_TEXT = 'ルームは終了したか、リンクが正しくない可能性があります。';
-export const GONE_LINK = 'トップへ戻る';
 
 export const PAGE_HEADING = 'お題';
 

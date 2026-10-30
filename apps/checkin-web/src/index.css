@@ -7,17 +7,6 @@
    ============================================================ */
 
 @import '@tasuki/ui';
-/* 遷移中・参加中の一言。卓の上で控えめに置く（topic-web・poker-web と同じ置き方）。色は部品（`.ui-note`）が持つ。 */
-.loading-note {
-  margin: 0;
-  padding: var(--space-6) 0;
-  text-align: center;
-}
-
-/* 共通の見出し（`RoomHeader`）と段組みの間（盤・札の列が行に接しない）。topic-web・roulette-web と同じ値 */
-.ui-room-header {
-  margin-block-end: var(--space-5);
-}
 
 /* ---------- 札の顔（`CardFace`・#406） ----------
    象牙の札の上に、細い墨（--coal）の線を引き、金（--gold）を一点だけ差す。色は SVG の属性に書かず、ここで当てる。 */
