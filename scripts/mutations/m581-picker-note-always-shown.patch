@@ -1,0 +1,23 @@
+# 変異 581: picker-note-always-shown
+#
+# 検出を期待するテスト:
+#   - apps/checkin-web/tests/method-picker.test.tsx
+#
+# #468（#463-A）。回が無いときも「新しい回が始まります」の添え書きを出す。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m581-*.patch
+# 復元: git apply -R scripts/mutations/m581-*.patch
+diff --git a/apps/checkin-web/src/components/MethodPicker.tsx b/apps/checkin-web/src/components/MethodPicker.tsx
+index dc401821..1a4bdce5 100644
+--- a/apps/checkin-web/src/components/MethodPicker.tsx
++++ b/apps/checkin-web/src/components/MethodPicker.tsx
+@@ -35,7 +35,7 @@ export function MethodPicker({ canOperate, initialSide, headingRef, onChoose, on
+             {BACK_LABEL}
+           </button>
+         )}
+-        {onCancel && <p className="method-picker-note">{PICKER_REPLACE_NOTE}</p>}
++        {true && <p className="method-picker-note">{PICKER_REPLACE_NOTE}</p>}
+       </div>
+       <div className="seg" role="group" aria-label={METHOD_PICKER_HEADING}>
+         {SIDES.map((s) => (

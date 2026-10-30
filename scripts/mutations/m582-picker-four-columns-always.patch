@@ -1,0 +1,23 @@
+# 変異 582: picker-four-columns-always
+#
+# 検出を期待するテスト:
+#   - apps/checkin-web/tests/picker-layout-css.test.ts
+#
+# #468（#463-A）。40rem 未満でも 4 列にする。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m582-*.patch
+# 復元: git apply -R scripts/mutations/m582-*.patch
+diff --git a/apps/checkin-web/src/table.css b/apps/checkin-web/src/table.css
+index f2d5959e..5a5220fb 100644
+--- a/apps/checkin-web/src/table.css
++++ b/apps/checkin-web/src/table.css
+@@ -113,7 +113,7 @@
+   --fan-art: 1.7rem;
+   --fan-numeral: 1.6rem; /* scale-exempt: 札の見本の小さな数字（絵の代わり） */
+   display: grid;
+-  grid-template-columns: repeat(2, minmax(0, 1fr));
++  grid-template-columns: repeat(4, minmax(0, 1fr));
+   grid-auto-rows: 1fr;
+   gap: var(--space-3);
+   margin: 0;
