@@ -101,6 +101,8 @@ describe('やり方の選択', () => {
     unmount();
     render(<MethodPicker canOperate initialSide="checkin" onChoose={vi.fn()} onDraw={vi.fn()} />);
     expect(screen.getByRole('list')).toHaveAccessibleDescription('');
+    // 無い要素の id を指さない（説明が空でも属性が残る変異を拾う）
+    expect(screen.getByRole('list')).not.toHaveAttribute('aria-describedby');
   });
 
   it('Given 側の切り替え / Then 一文がグループの説明になり、切り替えで替わる（#468 D4）', () => {
