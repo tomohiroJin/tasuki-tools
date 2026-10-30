@@ -19,7 +19,7 @@ import {
   tooManyInPoolText,
 } from './copy';
 import { stateOf, type PersonRow } from './roulette-view';
-import { parseMemberLines } from './storage/regulars';
+import { parseMemberLines, sameMemberName } from './storage/regulars';
 
 export interface BatchPlan {
   /** 足した人数 */
@@ -59,8 +59,10 @@ export interface RestoreCount {
 
 /** 入れた後の知らせ（`role="status"` の 1 文）。区切りは句点。 */
 export function batchNoticeText(plan: BatchPlan, restore: RestoreCount = { restored: 0, blocked: 0 }): string {
-  const { added, overflow, overflowNames, poolAfter } = plan;
+  const { added, overflow, overflowNames } = plan;
   const { restored, blocked } = restore;
+  // 戻した人もルーレットに入る
+  const poolAfter = plan.poolAfter + restored;
   // サーバーは同名をすべてとばす。そのうち戻した・戻せなかった分を引いた残りが「もう入っている」
   const skipped = Math.max(0, plan.skipped - restored - blocked);
   const who = overflowNames.length > 0 ? overflowNamesText(overflowNames.join('、')) : '';
@@ -81,17 +83,25 @@ export function batchNoticeText(plan: BatchPlan, restore: RestoreCount = { resto
 }
 
 /**
- * 入れるとき、組の名前が既存の行（名簿・ゲスト）と同名で、チェックが外れていて押せるなら、その行を入れ直す対象にする。
- * サーバーの `addMany` は同名をとばすだけで、外れた人はルーレットに戻らないため（#469）。押せない行は `blocked`。
+ * 入れるとき、組の名前が既存の行（名簿・ゲスト）と同名で、**同名の行がどれも外れていて**、押せる行があるなら、その行を入れ直す対象にする。
+ * サーバーの `addMany` は同名をとばすだけで、外れた人はルーレットに戻らないため（#469）。
+ * - 同名の行のどれか 1 つでも入っていれば何もしない（もう入っている）
+ * - 押せる行が無いとき（離席中・同名のゲスト）だけ `blocked`
+ *
+ * 比べ方はサーバーの `addGuests` と同じ `conflictsWithExisting`。名簿の表示名は入室時、ゲストと束の名前は追加時に
+ * サーバーが `applyDisplayNameRule` で正規化済みで、組の名前も保存時に正規化済みなので、ここでは正規化し直さない。
+ *
+ * 戻すのは `addMany` とは別の `setIncluded` なので、知らせは**送った時点の見込み**（`planBatch` と同じ扱い）。
  */
 export function restoreOf(rows: readonly PersonRow[], names: readonly string[]): { ids: string[]; blocked: number } {
   const ids: string[] = [];
   let blocked = 0;
   for (const name of names) {
-    const hit = rows.find((r) => !r.checked && sameName(normalizeDisplayName(r.name), normalizeDisplayName(name)));
-    if (hit === undefined) continue;
-    if (hit.disabled) blocked += 1;
-    else if (!ids.includes(hit.id)) ids.push(hit.id);
+    const same = rows.filter((r) => sameName(r.name, name));
+    if (same.length === 0 || same.some((r) => r.checked)) continue;
+    const usable = same.find((r) => !r.disabled);
+    if (usable === undefined) blocked += 1;
+    else if (!ids.includes(usable.id)) ids.push(usable.id);
   }
   return { ids, blocked };
 }
@@ -102,7 +112,7 @@ export interface Candidate {
   readonly checked: boolean;
 }
 
-const sameName = (a: string, b: string): boolean => conflictsWithExisting([{ participantId: a, displayName: a }], b);
+const sameName = sameMemberName;
 
 /**
  * 名簿とゲストの全員を、重複なく候補にする（#469 D1）。名前は保存と同じ正規化にそろえ、

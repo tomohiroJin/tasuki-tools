@@ -255,7 +255,7 @@ export function RegularsSection({ locked, people, onInsert }: Props) {
           >
             {REGULARS_NEW_BUTTON}
           </button>
-          {people.length > 0 && (
+          {candidatesOf(people).length > 1 && (
             <button
               type="button"
               id={FROM_PEOPLE_ID}
@@ -319,9 +319,10 @@ export function RegularsSection({ locked, people, onInsert }: Props) {
                         type="checkbox"
                         className="roulette-check"
                         checked={r.checked}
-                        onChange={(event) =>
-                          setCheckRows(checkRows.map((x, j) => (j === i ? { name: x.name, checked: event.target.checked } : x)))
-                        }
+                        onChange={(event) => {
+                          const on = event.target.checked;
+                          setCheckRows((prev) => prev.map((x, j) => (j === i ? { name: x.name, checked: on } : x)));
+                        }}
                       />
                       <span className="roulette-name">{r.name}</span>
                     </label>

@@ -35,6 +35,11 @@ describe('0 組のとき', () => {
     expect(btn('新しく作る')).toBeInTheDocument();
   });
 
+  it('Given 自分だけ（候補 1 人）/ When 描く / Then いまの人から作るは出さない', () => {
+    setup({ candidates: [{ name: 'あや', checked: true }] });
+    expect(screen.queryByRole('button', { name: 'いまの人から作る' })).toBeNull();
+  });
+
   it('Given 人が 0 人 / When 描く / Then いまの人から作るは無く、新しく作ると手入力だけでチェックの一覧は出ない', () => {
     setup({ candidates: [] });
     expect(screen.queryByRole('button', { name: 'いまの人から作る' })).toBeNull();
@@ -141,7 +146,7 @@ describe('作る', () => {
   });
 
   it('Given 作る欄 / When やめる / Then 開いたボタンへフォーカスが戻る', () => {
-    setup({ candidates: [{ name: 'さとう', checked: true }] });
+    setup({ candidates: [{ name: 'さとう', checked: true }, { name: 'あや', checked: true }] });
     fireEvent.click(btn('新しく作る'));
     fireEvent.click(btn('やめる'));
     expect(document.activeElement).toBe(btn('新しく作る'));

@@ -167,8 +167,8 @@ const prow = (id: string, name: string, checked: boolean, disabled = false): Per
 /** @requirements #469 指摘 1（外れている名簿の人を入れるときルーレットに戻す） */
 describe('restoreOf', () => {
   const rows = [prow('p1', 'あや', true), prow('p2', 'Bob', false), prow('p3', 'れん', false, true), prow('g-1', 'ゲスト', false)];
-  it('Given 外れていて押せる行と同名 / Then その ID を戻す対象にする（大小・全角半角・空白違いも）', () => {
-    expect(restoreOf(rows, ['bob', ' ゲスト ', 'ｂｏｂ'])).toEqual({ ids: ['p2', 'g-1'], blocked: 0 });
+  it('Given 外れていて押せる行と同名 / Then その ID を戻す対象にする（サーバーと同じ比べ方: 大小・前後の空白違いも）', () => {
+    expect(restoreOf(rows, ['bob', ' ゲスト '])).toEqual({ ids: ['p2', 'g-1'], blocked: 0 });
   });
   it('Given 入っている人 / Then 何もしない', () => {
     expect(restoreOf(rows, ['あや'])).toEqual({ ids: [], blocked: 0 });
@@ -176,12 +176,37 @@ describe('restoreOf', () => {
   it('Given 離席中などで押せない行と同名 / Then 戻せないので blocked に数える', () => {
     expect(restoreOf(rows, ['れん', 'Bob'])).toEqual({ ids: ['p2'], blocked: 1 });
   });
+  it('Given 名簿の Alice が入っていてゲストの alice が外れている（twin）/ Then 何もしない（もう入っている）', () => {
+    const r = [prow('p1', 'Alice', true), prow('g-1', 'alice', false)];
+    expect(restoreOf(r, ['Alice'])).toEqual({ ids: [], blocked: 0 });
+  });
+  it('Given 名簿が不在で外れ、同名のゲストが入っている / Then 戻せないではなくもう入っている', () => {
+    const r = [prow('p1', 'Bob', false, true), prow('g-1', 'bob', true)];
+    expect(restoreOf(r, ['Bob'])).toEqual({ ids: [], blocked: 0 });
+  });
+  it('Given 同名が名簿(押せない)とゲスト(押せる)の両方で外れている / Then 押せる方を戻す', () => {
+    const r = [prow('p1', 'Bob', false, true), prow('g-1', 'bob', false)];
+    expect(restoreOf(r, ['Bob'])).toEqual({ ids: ['g-1'], blocked: 0 });
+  });
+  it('Given 同名がどちらも外れて押せない / Then 戻せない 1 人', () => {
+    const r = [prow('p1', 'Bob', false, true), prow('g-1', 'bob', false, true)];
+    expect(restoreOf(r, ['Bob'])).toEqual({ ids: [], blocked: 1 });
+  });
+  it('Given 名簿が入っていて、外れた押せる同名ゲストがいる / Then 何もしない', () => {
+    const r = [prow('p1', 'Bob', true), prow('g-1', 'bob', false)];
+    expect(restoreOf(r, ['Bob'])).toEqual({ ids: [], blocked: 0 });
+  });
   it('Given 行に無い名前 / Then 無視', () => {
     expect(restoreOf(rows, ['だれか'])).toEqual({ ids: [], blocked: 0 });
   });
 });
 
 describe('batchNoticeText（戻した人）', () => {
+  it('Given 戻した分で入る人が 25 人になる / Then 注意を出す', () => {
+    const p = { added: 0, skipped: 2, overflow: 0, overflowNames: [], poolAfter: 24 };
+    expect(batchNoticeText(p, { restored: 1, blocked: 0 })).toContain('入る人がいま 25 人です');
+    expect(batchNoticeText(p, { restored: 0, blocked: 0 })).not.toContain('入る人がいま');
+  });
   const plan = { added: 0, skipped: 3, overflow: 0, overflowNames: [], poolAfter: 5 };
   it('Given 3 人中 2 人を戻した / Then 戻した数を言い、残りだけ「もう入っている」', () => {
     expect(batchNoticeText(plan, { restored: 2, blocked: 0 })).toBe('2 人をルーレットに戻しました。1 人はもう入っているので、とばしました');

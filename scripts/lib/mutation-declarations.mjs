@@ -3849,7 +3849,7 @@ export const MUTATIONS = [
     patch: "m590-build-members-keeps-checked-duplicates.patch",
     pkg: "apps/roulette-web",
     tests: ["tests/regulars-view.test.ts"],
-    note: "#469。`buildMembers` がチェックした人と手入力の重複を畳まない。同じ人が二度入る。",
+    note: "#469。`orderedMembers` がチェックした人と手入力の重複を畳まない。同じ人が二度入る。",
   },
   {
     id: 591,
