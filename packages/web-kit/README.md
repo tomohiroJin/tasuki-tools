@@ -30,6 +30,17 @@ web アプリが共有する React の部品（#360 の波 2・設計正本 §5.
 - `useReaderDrawer` — 「続きを読む」の引き出し（`<dialog class="ui-drawer">`）の開閉と、閉じたときに開いたボタンへ
   フォーカスを戻す処理。マークアップは各画面が持つ
 
+
+## `@tasuki/web-kit/room`（ルーム画面の部品・#471）
+
+画面から読んでよい。`@tasuki/sync-client` は型（`import type`）だけを読む。
+
+- `connectionNotice(kind)` — 接続の告知の種類（`ConnectionNoticeKind`）を文にする。**文 3 つ（再接続中・最新でない・届かない）の正本はここ 1 か所**
+- `ConnectionBanner` — 告知の帯（`ui-banner`）。届かないは `role="alert"`、それ以外は `role="status"`、無いときは描かない。
+  checkin・roulette・topic・agenda・poker が同じ文・役割・位置（`<main>` の直前）で出す
+
+種類を決める規則（諦めるまでの回数を含む）は `@tasuki/sync-client` の `connectionNoticeKind` で、同期フックが引いて `notice` として返す。
+
 依存してよいのは `react`（peer）・`@tasuki/sync-client`・`@tasuki/markdown` だけ（`scripts/audit-dependency-direction.mjs`）。
 ドメインの core には依存しない。`@tasuki/invite-ui` は同期に依存しないと決めてある（`docs/adr/0020`）ので、
 同期の部品はこちらに置く。

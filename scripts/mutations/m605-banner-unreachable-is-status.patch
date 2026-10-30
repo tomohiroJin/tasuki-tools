@@ -1,0 +1,24 @@
+# 変異 605: banner-unreachable-is-status
+#
+# 検出を期待するテスト:
+#   - packages/web-kit/tests/connection-banner.test.tsx
+#   - 「Given unreachable / When 描く / Then ui-banner--unreachable を重ね role=alert で出す」
+#
+# #471。届かない帯も role=status で出す。割り込みで読まれるべき「繋がらない」が静かな更新に埋もれる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m605-*.patch
+# 復元: git apply -R scripts/mutations/m605-*.patch
+diff --git a/packages/web-kit/src/room/connection-banner.tsx b/packages/web-kit/src/room/connection-banner.tsx
+index d030dbc3..a791386d 100644
+--- a/packages/web-kit/src/room/connection-banner.tsx
++++ b/packages/web-kit/src/room/connection-banner.tsx
+@@ -11,7 +11,7 @@ export function ConnectionBanner({ kind }: { kind: ConnectionNoticeKind }) {
+   if (notice.kind === 'none') return null;
+   const unreachable = notice.kind === 'unreachable';
+   return (
+-    <p className={`ui-banner${unreachable ? ' ui-banner--unreachable' : ''}`} role={unreachable ? 'alert' : 'status'}>
++    <p className={`ui-banner${unreachable ? ' ui-banner--unreachable' : ''}`} role="status">
+       {notice.text}
+     </p>
+   );

@@ -1,0 +1,24 @@
+# 変異 607: agenda-banner-not-wired
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/agenda-room.test.tsx
+#   - 「接続の告知の帯 / Given 進行中に切断された」ほか
+#
+# #471。進行中の画面の帯へ同期フックの notice を渡さない。切断しても告知が出ない（寄せる前の agenda の欠陥そのもの）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m607-*.patch
+# 復元: git apply -R scripts/mutations/m607-*.patch
+diff --git a/apps/agenda-web/src/screens/AgendaRoom.tsx b/apps/agenda-web/src/screens/AgendaRoom.tsx
+index 0b83ef7c..f7fca720 100644
+--- a/apps/agenda-web/src/screens/AgendaRoom.tsx
++++ b/apps/agenda-web/src/screens/AgendaRoom.tsx
+@@ -87,7 +87,7 @@ export function AgendaRoom({ roomCode }: { roomCode: string }) {
+   return (
+     <>
+       {/* 接続の告知は本文の外・直前（上端に貼りつく帯・他のアプリと同じ位置）。映している間も出す（切れていることは隠さない） */}
+-      <ConnectionBanner kind={sync.notice} />
++      <ConnectionBanner kind="none" />
+       <main className="ui-page ui-page--wide">
+         {/* 映している間は描かない（全画面の重ねの裏に押せる部品を残さない）。見出し・戻る・招待は共通の部品が描く（#447 段 1） */}
+         {!projecting && (
