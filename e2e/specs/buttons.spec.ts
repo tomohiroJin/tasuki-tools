@@ -770,7 +770,9 @@ test.describe('ルーレットの「いつものメンツ」のボタンは部�
     await section.getByLabel('メンツの名前', { exact: true }).fill('自分だけ');
     await section.getByLabel('ほかの名前（1 行に 1 人）', { exact: true }).fill('buttons-r');
     await section.getByRole('button', { name: 'この端末に保存', exact: true }).click();
-    await ownCheck.uncheck();
+    // 入る人のチェックはサーバーの返事で変わる（制御された入力）ので、uncheck の即時の確かめは使わない
+    await ownCheck.click();
+    await expect(ownCheck).not.toBeChecked();
     await section.getByRole('button', { name: '自分だけ 1 人を入れる', exact: true }).click();
     await expect(ownCheck).toBeChecked();
     await expect(section.getByRole('status')).toContainText('1 人をルーレットに戻しました');
