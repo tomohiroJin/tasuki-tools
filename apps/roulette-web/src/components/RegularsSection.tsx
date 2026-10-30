@@ -16,11 +16,12 @@ import {
   REGULARS_ERROR_TOO_MANY_MEMBERS,
   REGULARS_ERROR_UNREADABLE,
   REGULARS_ERROR_WRITE_FAILED,
-  REGULARS_FROM_GUESTS_BUTTON,
+  REGULARS_FROM_PEOPLE_BUTTON,
   REGULARS_HEADING,
   REGULARS_MEMBERS_LABEL,
   REGULARS_NAME_LABEL,
   REGULARS_NEW_BUTTON,
+  REGULARS_PEOPLE_LEGEND,
   REGULARS_SAVED_TEXT,
   REGULARS_SAVE_BUTTON,
   REGULARS_WHERE,
@@ -32,13 +33,14 @@ import {
   regularsCountText,
 } from '../copy';
 import { useRegulars } from '../hooks/use-regulars';
+import { buildMembers, splitForEdit, type Candidate } from '../regulars-view';
 import { isValidGroupName, parseMemberLines, type RegularGroup } from '../storage/regulars';
 
 interface Props {
   /** 切断中・回転中。札（入れる）だけ止める。作る・直す・消すは端末の中だけなので止めない */
   locked: boolean;
-  /** いま「追加した名前」（ゲスト）の名前。追加した名前から作る、の元 */
-  guestNames: readonly string[];
+  /** いまの人（名簿＋ゲスト・重複なし）。チェックは「いまルーレットに入っているか」（#469 D1） */
+  candidates: readonly Candidate[];
   /** 札を押したとき。組の名前を入れ、知らせの文を返す */
   onInsert: (group: RegularGroup) => string;
 }
@@ -49,7 +51,7 @@ type Mode =
   | { kind: 'form'; id: string | null; opener: string; confirming: boolean };
 
 const NEW_ID = 'roulette-regulars-new';
-const FROM_GUESTS_ID = 'roulette-regulars-from-guests';
+const FROM_PEOPLE_ID = 'roulette-regulars-from-people';
 const CONFIRM_CANCEL_ID = 'roulette-regulars-confirm-cancel';
 const DELETE_ID = 'roulette-regulars-delete';
 const pickId = (id: string): string => `roulette-regulars-pick-${id}`;
@@ -67,12 +69,12 @@ const REASON_TEXT = {
 type ErrorField = 'name' | 'members';
 
 /** 入力の検証。保存の関数が黙って落とす名前（長すぎる・見えない）も、ここで見つけて止める */
-function validate(name: string, text: string): { error: string; field: ErrorField } | { members: string[] } {
+function validate(name: string, checked: readonly string[], text: string): { error: string; field: ErrorField } | { members: string[] } {
   if (name.trim() === '' || rendersAsNothing(name)) return { error: REGULARS_ERROR_NAME_EMPTY, field: 'name' };
   if (!isValidGroupName(name.trim())) return { error: REGULARS_ERROR_BAD_NAME, field: 'name' };
   const lines = text.split(/\r?\n/).filter((l) => l.trim() !== '');
   if (lines.some((l) => parseMemberLines(l).length === 0)) return { error: REGULARS_ERROR_BAD_NAME, field: 'members' };
-  const members = parseMemberLines(text);
+  const members = buildMembers(checked, text);
   if (members.length === 0) return { error: REGULARS_ERROR_NO_MEMBERS, field: 'members' };
   if (members.length > MAX_GUESTS) return { error: REGULARS_ERROR_TOO_MANY_MEMBERS, field: 'members' };
   return { members };
@@ -82,7 +84,7 @@ function validate(name: string, text: string): { error: string; field: ErrorFiel
  * 脇の「ルーレットに入る人」の面の末尾。端末にだけある名前の組を作る・一手で入れる・直す・消す（画面案 §1・§2）。
  * フォーカスは id で追う（並びが変わっても、消えても、行き先を見失わない）。
  */
-export function RegularsSection({ locked, guestNames, onInsert }: Props) {
+export function RegularsSection({ locked, candidates, onInsert }: Props) {
   const { groups, save, remove, touch } = useRegulars();
   const headingId = useId();
   const formTitleId = useId();
@@ -91,6 +93,8 @@ export function RegularsSection({ locked, guestNames, onInsert }: Props) {
   const [mode, setMode] = useState<Mode>({ kind: 'list' });
   const [name, setName] = useState('');
   const [text, setText] = useState('');
+  /** 欄を開いた時点の「いまの人」とチェック。開いている間は人が出入りしても動かさない */
+  const [rows, setRows] = useState<readonly Candidate[]>([]);
   const [error, setError] = useState('');
   const [errorField, setErrorField] = useState<ErrorField>('members');
   const [notice, setNotice] = useState('');
@@ -132,9 +136,10 @@ export function RegularsSection({ locked, guestNames, onInsert }: Props) {
   /** 保存・削除の後の行き先。回転中・切断中は札が止まっているので、その組の「直す」へ移す */
   const rowTarget = (id: string): string => (locked ? editId(id) : pickId(id));
 
-  const openForm = (init: { id: string | null; name: string; text: string; opener: string }): void => {
+  const openForm = (init: { id: string | null; name: string; text: string; rows: readonly Candidate[]; opener: string }): void => {
     setName(init.name);
     setText(init.text);
+    setRows(init.rows);
     setError('');
     setNotice('');
     setMode({ kind: 'form', id: init.id, opener: init.opener, confirming: false });
@@ -149,7 +154,8 @@ export function RegularsSection({ locked, guestNames, onInsert }: Props) {
   const submit = (event: FormEvent): void => {
     event.preventDefault();
     if (mode.kind !== 'form') return;
-    const checked = validate(name, text);
+    const checkedNames = rows.filter((r) => r.checked).map((r) => r.name);
+    const checked = validate(name, checkedNames, text);
     if ('error' in checked) {
       fail(checked.error, checked.field);
       return;
@@ -221,7 +227,7 @@ export function RegularsSection({ locked, guestNames, onInsert }: Props) {
                     id={editId(g.id)}
                     className="ui-button ui-button--secondary ui-button--sm"
                     aria-label={regularEditLabel(g.name)}
-                    onClick={() => openForm({ id: g.id, name: g.name, text: g.members.join('\n'), opener: editId(g.id) })}
+                    onClick={() => openForm({ id: g.id, name: g.name, ...splitForEdit(candidates, g.members), opener: editId(g.id) })}
                   >
                     {REGULARS_EDIT_BUTTON}
                   </button>
@@ -240,18 +246,18 @@ export function RegularsSection({ locked, guestNames, onInsert }: Props) {
             type="button"
             id={NEW_ID}
             className="ui-button ui-button--secondary ui-button--sm"
-            onClick={() => openForm({ id: null, name: '', text: '', opener: NEW_ID })}
+            onClick={() => openForm({ id: null, name: '', text: '', rows: candidates.map((c) => ({ name: c.name, checked: false })), opener: NEW_ID })}
           >
             {REGULARS_NEW_BUTTON}
           </button>
-          {guestNames.length > 0 && (
+          {candidates.length > 0 && (
             <button
               type="button"
-              id={FROM_GUESTS_ID}
+              id={FROM_PEOPLE_ID}
               className="ui-button ui-button--secondary ui-button--sm"
-              onClick={() => openForm({ id: null, name: '', text: guestNames.join('\n'), opener: FROM_GUESTS_ID })}
+              onClick={() => openForm({ id: null, name: '', text: '', rows: candidates, opener: FROM_PEOPLE_ID })}
             >
-              {REGULARS_FROM_GUESTS_BUTTON}
+              {REGULARS_FROM_PEOPLE_BUTTON}
             </button>
           )}
         </div>
@@ -293,23 +299,43 @@ export function RegularsSection({ locked, guestNames, onInsert }: Props) {
               onChange={(event) => setName(event.target.value)}
             />
           </div>
+          {rows.length > 0 && (
+            <fieldset className="roulette-regulars-people" aria-describedby={countId}>
+              <legend>{REGULARS_PEOPLE_LEGEND}</legend>
+              <ul className="roulette-regulars-checks">
+                {rows.map((r, i) => (
+                  <li key={r.name}>
+                    <label className="roulette-regulars-check">
+                      <input
+                        type="checkbox"
+                        className="roulette-check"
+                        checked={r.checked}
+                        onChange={(event) =>
+                          setRows(rows.map((x, j) => (j === i ? { name: x.name, checked: event.target.checked } : x)))
+                        }
+                      />
+                      <span className="roulette-name">{r.name}</span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            </fieldset>
+          )}
           <div className="roulette-regulars-field">
-            <div className="roulette-regulars-label-row">
-              <label htmlFor="roulette-regulars-members">{REGULARS_MEMBERS_LABEL}</label>
-              <span id={countId} className="roulette-regulars-count">
-                {regularsCountText(parseMemberLines(text).length)}
-              </span>
-            </div>
+            <label htmlFor="roulette-regulars-members">{REGULARS_MEMBERS_LABEL}</label>
             <textarea
               id="roulette-regulars-members"
               className="ui-input"
-              rows={6}
+              rows={rows.length > 0 ? 3 : 6}
               value={text}
               aria-invalid={membersInvalid ? true : undefined}
               aria-describedby={membersInvalid ? `${countId} ${errorId}` : countId}
               onChange={(event) => setText(event.target.value)}
             />
           </div>
+          <p id={countId} className="roulette-regulars-count">
+            {regularsCountText(buildMembers(rows.filter((r) => r.checked).map((r) => r.name), text).length)}
+          </p>
           {error !== '' && (
             <p id={errorId} className="ui-note ui-note--error" role="alert">
               {error}

@@ -36,7 +36,7 @@ import {
   stageViewOf,
 } from '../roulette-view';
 import { pickStopsMs } from '@tasuki/roulette-core';
-import { batchNoticeText, planBatch } from '../regulars-view';
+import { batchNoticeText, candidatesOf, planBatch } from '../regulars-view';
 import type { RegularGroup } from '../storage/regulars';
 import { usePressMotion } from '../hooks/use-press-motion';
 import { pressButtonOf, pressCaptionOf, pressStopOfView, withPressStop } from '../press-view';
@@ -246,7 +246,7 @@ export function RouletteRoom({ roomCode }: { roomCode: string }) {
               regulars={
                 <RegularsSection
                   locked={locked}
-                  guestNames={received.guests.map((g) => g.name)}
+                  candidates={candidatesOf(people.rows)}
                   onInsert={insertRegular}
                 />
               }

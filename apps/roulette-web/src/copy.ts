@@ -106,7 +106,7 @@ export const REGULARS_HEADING = 'いつものメンツ';
 export const REGULARS_WHERE = 'この端末だけ';
 export const REGULARS_EMPTY = 'よく入れる名前をまとめておくと、次から一度で入れられます';
 export const REGULARS_NEW_BUTTON = '新しく作る';
-export const REGULARS_FROM_GUESTS_BUTTON = '追加した名前から作る';
+export const REGULARS_FROM_PEOPLE_BUTTON = 'いまの人から作る';
 /** 札の右 */
 export const regularPickText = (n: number): string => `${n} 人を入れる`;
 export const REGULARS_EDIT_BUTTON = '直す';
@@ -114,7 +114,8 @@ export const regularEditLabel = (name: string): string => `${name} を直す`;
 export const REGULARS_CREATE_TITLE = 'メンツを作る';
 export const regularEditTitle = (name: string): string => `「${name}」を直す`;
 export const REGULARS_NAME_LABEL = 'メンツの名前';
-export const REGULARS_MEMBERS_LABEL = '入る人の名前（1 行に 1 人）';
+export const REGULARS_PEOPLE_LEGEND = 'ルーレットにいる人';
+export const REGULARS_MEMBERS_LABEL = 'ほかの名前（1 行に 1 人）';
 export const regularsCountText = (n: number): string => `${n} / ${MAX_GUESTS} 人`;
 export const REGULARS_SAVE_BUTTON = 'この端末に保存';
 export const REGULARS_CANCEL_BUTTON = 'やめる';
@@ -126,6 +127,8 @@ export const regularDeleteConfirmText = (name: string): string => `「${name}」
 export const addedText = (n: number): string => `${n} 人を入れました`;
 export const skippedText = (n: number): string => `${n} 人はもう入っているので、とばしました`;
 export const overflowText = (n: number): string => `${MAX_GUESTS_TEXT}。${n} 人は入りませんでした`;
+/** 上限で入らなかった人の名前（知らせの末尾） */
+export const overflowNamesText = (names: string): string => `（${names}）`;
 export const ALL_PRESENT_TEXT = '全員もう入っています';
 export const NONE_ADDED_OVERFLOW_TEXT = `${MAX_GUESTS_TEXT}。入れられませんでした`;
 /** 入れた結果、入る人が `MAX_WHEEL` を超えたとき、知らせの末尾に足す */

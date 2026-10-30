@@ -1,0 +1,23 @@
+# 変異 593: candidates-keep-twins
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/regulars-view.test.ts
+#
+# #469。`candidatesOf` が同名の twin を 1 人にまとめない。一覧に同じ名前が二度出て、チェックの key も重なる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m593-*.patch
+# 復元: git apply -R scripts/mutations/m593-*.patch
+diff --git a/apps/roulette-web/src/regulars-view.ts b/apps/roulette-web/src/regulars-view.ts
+index 6a4f848e..ed7f8134 100644
+--- a/apps/roulette-web/src/regulars-view.ts
++++ b/apps/roulette-web/src/regulars-view.ts
+@@ -83,7 +83,7 @@ export function candidatesOf(rows: readonly PersonRow[]): Candidate[] {
+   for (const row of rows) {
+     const [name] = parseMemberLines(normalizeDisplayName(row.name));
+     if (name === undefined) continue;
+-    const found = out.find((c) => sameName(c.name, name));
++    const found = undefined as { checked: boolean } | undefined;
+     if (found === undefined) out.push({ name, checked: row.checked });
+     else found.checked = found.checked || row.checked;
+   }

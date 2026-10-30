@@ -1,0 +1,23 @@
+# 変異 592: batch-notice-drops-overflow-names
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/regulars-view.test.ts
+#
+# #469。`planBatch` が入らなかった人の名前を持たず、知らせに名前が出ない（数だけになる）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m592-*.patch
+# 復元: git apply -R scripts/mutations/m592-*.patch
+diff --git a/apps/roulette-web/src/regulars-view.ts b/apps/roulette-web/src/regulars-view.ts
+index 6a4f848e..bea02b0b 100644
+--- a/apps/roulette-web/src/regulars-view.ts
++++ b/apps/roulette-web/src/regulars-view.ts
+@@ -40,7 +40,7 @@ export function planBatch(input: { view: RouletteView; members: readonly Member[
+     added: batch.added.length,
+     skipped: batch.skipped.length,
+     overflow: batch.overflow.length,
+-    overflowNames: [...batch.overflow],
++    overflowNames: [],
+     // 足した人は誰とも同名でないので、いまの入る人に足すだけでよい。
+     // （`stateOf` は `nextGuestSeq` を持たないので、足した後の状態から数えると新しい ID が既存の `g-1`… とぶつかる）
+     poolAfter: poolOf(members, stateOf(view), conflictsWithExisting).length + batch.added.length,

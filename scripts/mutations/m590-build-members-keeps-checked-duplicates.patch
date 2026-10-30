@@ -1,0 +1,21 @@
+# 変異 590: build-members-keeps-checked-duplicates
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/regulars-view.test.ts
+#
+# #469。`buildMembers` がチェックした人と手入力の重複を畳まない（保存の正規化を通すのは手入力だけ）。同じ人が二度入り、人数の表示も保存も食い違う。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m590-*.patch
+# 復元: git apply -R scripts/mutations/m590-*.patch
+diff --git a/apps/roulette-web/src/regulars-view.ts b/apps/roulette-web/src/regulars-view.ts
+index 6a4f848e..4bf8cb89 100644
+--- a/apps/roulette-web/src/regulars-view.ts
++++ b/apps/roulette-web/src/regulars-view.ts
+@@ -102,5 +102,5 @@ export function splitForEdit(candidates: readonly Candidate[], members: readonly
+ 
+ /** チェックした人（先）と手入力の行（後）から組の名前の列を作る。保存と同じ正規化・重複除去 */
+ export function buildMembers(checked: readonly string[], text: string): string[] {
+-  return parseMemberLines([...checked, text].join('\n'));
++  return [...checked, ...parseMemberLines(text)];
+ }
