@@ -4,7 +4,7 @@ import { connectionNotice } from './connection-notice.js';
 /**
  * 接続の告知の帯（`ui-banner`・#471）。画面の上端に貼りつく（位置は部品層の CSS が持つ）。
  * 繋がらない（戻る見込みが無い）ときは `role="alert"`、それ以外は `role="status"`。告知が無いときは何も描かない。
- * 呼ぶ側は `<main>` の外（直前）か、参加前の画面なら見出しの直後に置く。
+ * 位置は呼ぶ側が決める。本画面では `<main>` の直前、checkin・agenda の参加前の画面では `<main>` の中の見出しの後に置いている（揃えてはいない）。
  */
 export function ConnectionBanner({ kind }: { kind: ConnectionNoticeKind }) {
   const notice = connectionNotice(kind);

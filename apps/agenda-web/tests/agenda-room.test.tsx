@@ -182,7 +182,7 @@ describe('進める画面の操作', () => {
  * @requirements #471（#463-C2）接続の告知の帯。文・役割・位置は他のアプリ（checkin・roulette・topic・poker）と同じ
  */
 describe('接続の告知の帯', () => {
-  it('Given 進行中に切断された / When 画面を見る / Then 再接続中の帯を role=status で、本文（main）の直前に出す', () => {
+  it('Given 進行中に切断された / When 画面を見る / Then 再接続中の帯を role=status で、本画面では main の直前に出す', () => {
     joinedRoom(runningAgenda(1000));
     act(() => latestSocket().drop());
     const banner = screen.getByText('接続中です…（切断された場合は自動で再接続します）');

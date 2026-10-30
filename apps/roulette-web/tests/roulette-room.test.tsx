@@ -348,7 +348,7 @@ describe('入り方と戻り方', () => {
     // Given / When: 入れていた画面が切れる
     enterRoom();
     act(() => latestSocket().drop());
-    // Then: 告知の種類は共有の規則（`@tasuki/sync-client`）が決め、文はこの画面の文言になる
+    // Then: 告知の種類は共有の規則（`@tasuki/sync-client`）が決め、文は `@tasuki/web-kit/room` の正本になる
     expect(screen.getByText('接続中です…（切断された場合は自動で再接続します）')).toBeInTheDocument();
   });
 

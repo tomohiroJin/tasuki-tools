@@ -61,6 +61,17 @@ const press = (key: string, init: Partial<KeyboardEventInit> = {}): void => {
  * @requirements #429 spec §7.5
  */
 describe('映す表示', () => {
+  it('Given 映す表示の途中で切断された / When 画面を見る / Then 接続の告知の帯が DOM に残り、映す表示の外（前）に置かれる', () => {
+    projecting();
+    act(() => latestSocket().drop());
+    const banner = screen.getByRole('status');
+    expect(banner).toHaveClass('ui-banner');
+    const projection = document.querySelector('.projection');
+    expect(projection).not.toBeNull();
+    // 帯は映す表示の中ではなく手前の兄弟（層で前に出す・見えることは E2E が固める）
+    expect(projection!.contains(banner)).toBe(false);
+  });
+
   it('Given 回数 2 以上の進行中 / When 映す表示を見る / Then 盤の中央に「n / N 回」が出る', () => {
     const d = new Driver([1, 1], 'LT', 'wait', 6).next(60_000).next(120_000);
     projecting(d.view(120_000 + 1000));

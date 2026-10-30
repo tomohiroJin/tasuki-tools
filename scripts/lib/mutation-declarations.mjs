@@ -3843,4 +3843,12 @@ export const MUTATIONS = [
     tests: ["tests/agenda-room.test.tsx"],
     note: "#471。入室前の画面（見出しだけ）で帯を描かず、同期サーバーに繋がらないまま理由が伝わらない。",
   },
+  {
+    id: 609,
+    label: "告知の帯の層を映す表示より下にする",
+    patch: "m609-banner-under-projection.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/css-formulas.test.ts"],
+    note: "#471 レビュー。`.ui-banner` の z-index を映す表示（20）より下に戻し、映している間は帯が覆われて切断が伝わらない。",
+  },
 ];

@@ -21,7 +21,7 @@ import type { Locator, Page, WebSocketRoute } from '@playwright/test';
 import { expect, test } from '../fixtures/test';
 import { expectReadable, pairKey, resolveColors, scanContrast } from '../support/a11y';
 import { createRoom } from '../support/poker';
-import { openAgendaTool } from '../support/agenda';
+import { loadSampleAndStart, openAgendaTool } from '../support/agenda';
 import { openTopicTool } from '../support/topic';
 
 type Tool = 'poker' | 'topic' | 'agenda';
@@ -103,7 +103,7 @@ test.describe('接続の帯と一言が読める（WCAG AA・#320 E8）', () => 
     // Then その2: 帯は上端に貼りつき、不透明な地で、細い下線（繋がらない帯と区別がつく側）
     const paint = await paintOf(banner);
     expect(paint).toMatchObject({ color: rosePale, background: felt950, underline: '1px', position: 'sticky', marginTop: '0px' });
-    expect(paint.weight, '繋がらない帯と同じ太字になっている').not.toBe('700');
+    expect(paint.weight, '太字ではない（繋がらない帯と区別がつく）').not.toBe('700');
 
     // Then その3: 画面の文字がすべて読め、帯の字（--rose-pale on --felt-950）を測ったことを固定する
     expectReadable(await scanContrast(page, 10), 8, [pairKey(rosePale!, felt950!)]);
@@ -154,7 +154,7 @@ test.describe('接続の帯と一言が読める（WCAG AA・#320 E8）', () => 
     await expect(banner, '同期できていない帯').toBeVisible();
     const paint = await paintOf(banner);
     expect(paint).toMatchObject({ color: rosePale, background: felt950, underline: '1px', position: 'sticky', marginTop: '0px' });
-    expect(paint.weight, '繋がらない帯と同じ太字になっている').not.toBe('700');
+    expect(paint.weight, '太字ではない（繋がらない帯と区別がつく）').not.toBe('700');
 
     // Then: 画面の文字がすべて読め、帯の字を測ったことを固定する
     expectReadable(await scanContrast(page, 5), 5, [pairKey(rosePale!, felt950!)]);
@@ -198,8 +198,32 @@ test.describe('接続の帯と一言が読める（WCAG AA・#320 E8）', () => 
     // Then
     const paint = await paintOf(banner);
     expect(paint).toMatchObject({ color: rosePale, background: felt950, underline: '1px', position: 'sticky', marginTop: '0px' });
-    expect(paint.weight, '繋がらない帯と同じ太字になっている').not.toBe('700');
+    expect(paint.weight, '太字ではない（繋がらない帯と区別がつく）').not.toBe('700');
     expectReadable(await scanContrast(page, 5), 5, [pairKey(rosePale!, felt950!)]);
+  });
+
+  test('Given 進行タイマーの映す表示 / When 「同期できていません」を出す / Then 帯は映す表示の上（最前面）にあり、隠れない（#471）', async ({
+    page,
+  }) => {
+    // Given: 進行中にして映す表示を開く（映す表示は fixed で全面を覆う。帯の層がそれ以下だと覆われて切断が伝わらない）
+    const inject = await relayToolSync(page, 'agenda');
+    await openAgendaTool(page, 'notice-agenda-projection');
+    await loadSampleAndStart(page);
+    await page.getByRole('button', { name: '映す表示', exact: true }).click();
+    await expect(page.locator('.projection')).toBeVisible();
+
+    // When: 契約に合わないフレームを届ける
+    inject({ type: 'agenda' });
+    const banner = page.getByRole('status').filter({ hasText: STALE });
+    await expect(banner, '映している間の帯').toBeVisible();
+
+    // Then: 帯の中心の点で最前面にある要素が帯自身（またはその中）である
+    const onTop = await banner.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return top !== null && el.contains(top);
+    });
+    expect(onTop, '映す表示が帯を覆っている').toBe(true);
   });
 
   test('Given 進行タイマーの同期サーバーへ繋がらない / When 開く / Then 繋がらない帯は太い下線と太字で区別され、AA を満たす（#471）', async ({

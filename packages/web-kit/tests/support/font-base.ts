@@ -41,8 +41,9 @@ export function baseFaces(): Map<string, Range[]> {
 /** 文言ごとに、どれかの太さの base 層から外れる字を「面名「文言」: 字」の形で返す（外れなければ空）。 */
 export function outsideBase(texts: readonly string[]): string[] {
   const failures: string[] = [];
+  const faces = baseFaces();
   for (const text of texts) {
-    for (const [file, ranges] of baseFaces()) {
+    for (const [file, ranges] of faces) {
       const outside = [...new Set(text)].filter((ch) => {
         const cp = ch.codePointAt(0) ?? 0;
         return cp > 0x7e && !ranges.some(([from, to]) => cp >= from && cp <= to);

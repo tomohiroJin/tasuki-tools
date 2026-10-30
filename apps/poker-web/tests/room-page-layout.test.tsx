@@ -50,6 +50,7 @@ function makeSync(topic: Topic | null, groups: number): PokerSync {
     joinedThisConnection: true,
     error: null,
     syncStale: false,
+    notice: 'none',
     clearError: vi.fn(),
     joinRoom: vi.fn(),
     checkRoom: vi.fn(),

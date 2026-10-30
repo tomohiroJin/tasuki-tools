@@ -36,6 +36,7 @@ function makeSync(over: Partial<PokerSync> = {}): PokerSync {
     topic: null,
     joinedThisConnection: false,
     syncStale: false,
+    notice: 'none',
     error: null,
     clearError: vi.fn(),
     // **保存の読み書きは本物を通す。** 偽物にすると「端末の同一性を見ているか」を確かめられない

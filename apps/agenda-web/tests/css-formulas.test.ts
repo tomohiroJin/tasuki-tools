@@ -46,3 +46,21 @@ describe('小さな終了見込みの印の線', () => {
     expect(ruleBody(css, '.dial-marker--early')).toContain('stroke-width: 2.2;');
   });
 });
+
+/**
+ * 映している間も接続の告知の帯が見えること（#471 レビュー）。映す表示（`.projection`）は fixed で全面を覆うので、
+ * 帯（sticky）の層がそれ以下だと覆われて見えない。jsdom は重なりを測れないので、書いてある層の値を比べる。
+ * 実際に最前面にあることは E2E（notices-a11y の agenda）が elementFromPoint で見る。
+ */
+describe('接続の告知の帯は映す表示より前に出る', () => {
+  const zOf = (css: string, selector: string): number => {
+    const m = /z-index:\s*(\d+)/.exec(ruleBody(css, selector));
+    expect(m, `${selector} に z-index が無い`).not.toBeNull();
+    return Number(m![1]);
+  };
+
+  it('Given 帯と映す表示の CSS / When z-index を比べる / Then 帯の方が大きい', () => {
+    const banner = readFileSync(path.resolve(__dirname, '../../../packages/ui/src/components/banner.css'), 'utf8');
+    expect(zOf(banner, '.ui-banner')).toBeGreaterThan(zOf(read('run.css'), '.projection'));
+  });
+});
