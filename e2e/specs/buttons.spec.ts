@@ -744,17 +744,25 @@ test.describe('ルーレットの「いつものメンツ」のボタンは部�
     await expectScreen(page, 'いつものメンツ（作る欄）', 2, { scope: '.roulette-regulars', minTargets: 2 });
 
     // #469: いまの人から作る → チェックの一覧（自分が入っている）と手入力の二段。チェックも押せる大きさで、幅ごとに溢れない
+    // 自分だけのときは「いまの人から作る」を出さない（新しく作ると同じになる）。ゲストを 1 人足すと出る
     await section.getByRole('button', { name: 'やめる', exact: true }).click();
+    await expect(section.getByRole('button', { name: 'いまの人から作る', exact: true })).toHaveCount(0);
+    await addRouletteGuest(page, 'ゲストのキャロル');
     await section.getByRole('button', { name: 'いまの人から作る', exact: true }).click();
     const people = section.getByRole('group', { name: 'ルーレットにいる人', exact: true });
-    await expect(people.getByRole('checkbox')).toHaveCount(1);
+    await expect(people.getByRole('checkbox')).toHaveCount(2);
     await expect(people.getByRole('checkbox').first()).toBeChecked();
     await expect(section.getByLabel('ほかの名前（1 行に 1 人）', { exact: true })).toHaveValue('');
+    await expect(people.getByRole('checkbox').nth(1)).toBeChecked();
     await expectScreen(page, 'いつものメンツ（いまの人から作る）', 2, { scope: '.roulette-regulars', minTargets: 2 });
+    // 以降の数を自分だけで数えるため、ゲストは組から外し、ルーレットからも消す
+    await people.getByRole('checkbox').nth(1).uncheck();
     await section.getByLabel('メンツの名前', { exact: true }).fill('先週の顔');
     await section.getByLabel('ほかの名前（1 行に 1 人）', { exact: true }).fill(`${LONG_NAME}\nボブ`);
     await section.getByRole('button', { name: 'この端末に保存', exact: true }).click();
     await expect(section.getByRole('button', { name: '先週の顔 3 人を入れる', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'ゲストのキャロル の名前を消す', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'ゲストのキャロル の名前を消す', exact: true })).toHaveCount(0);
 
     // 直す: ルーレットにいる人はチェック、いない人は手入力。チェックを外して保存すると組から外れる
     await section.getByRole('button', { name: '先週の顔 を直す', exact: true }).click();
