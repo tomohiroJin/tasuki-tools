@@ -3876,6 +3876,22 @@ export const MUTATIONS = [
     note: "#469。`candidatesOf` が名簿とゲストの同名を 1 人にまとめない。",
   },
   {
+    id: 594,
+    label: "チェック済みの行も戻す対象にする",
+    patch: "m594-restore-includes-checked-rows.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/regulars-view.test.ts"],
+    note: "#469。`restoreOf` が入っている行も戻す対象にし、知らせが嘘をつく。",
+  },
+  {
+    id: 595,
+    label: "保存順を候補側に書き換える",
+    patch: "m595-ordered-members-uses-candidate-order.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/regulars-view.test.ts"],
+    note: "#469。`orderedMembers` が保存済みの順と綴りを保たない。",
+  },
+  {
     id: 600,
     label: "parseRoomRoute が先頭の base を確かめない",
     patch: "m600-room-route-base-not-checked.patch",

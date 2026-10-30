@@ -1,0 +1,21 @@
+# 変異 595: ordered-members-uses-candidate-order
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/regulars-view.test.ts
+#
+# #469。`orderedMembers` が保存済みの順と綴りを使わず候補側のまま返す。直すを開いて保存するだけで members が書き換わる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m595-*.patch
+# 復元: git apply -R scripts/mutations/m595-*.patch
+diff --git a/apps/roulette-web/src/regulars-view.ts b/apps/roulette-web/src/regulars-view.ts
+index 14ae22fb..431ea0ac 100644
+--- a/apps/roulette-web/src/regulars-view.ts
++++ b/apps/roulette-web/src/regulars-view.ts
+@@ -140,5 +140,5 @@ export function orderedMembers(saved: readonly string[], checked: readonly strin
+   const wanted = parseMemberLines([...checked, text].join('\n'));
+   const kept = saved.filter((m) => wanted.some((w) => sameName(w, m)));
+   const rest = wanted.filter((w) => !kept.some((m) => sameName(w, m)));
+-  return [...kept, ...rest];
++  return wanted;
+ }
