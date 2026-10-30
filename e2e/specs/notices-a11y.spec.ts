@@ -21,9 +21,10 @@ import type { Locator, Page, WebSocketRoute } from '@playwright/test';
 import { expect, test } from '../fixtures/test';
 import { expectReadable, pairKey, resolveColors, scanContrast } from '../support/a11y';
 import { createRoom } from '../support/poker';
+import { openAgendaTool } from '../support/agenda';
 import { openTopicTool } from '../support/topic';
 
-type Tool = 'poker' | 'topic';
+type Tool = 'poker' | 'topic' | 'agenda';
 
 /** 画面の既定のエラーの文（poker の `DEFAULT_ERROR_MESSAGE`・お題ツールの `DEFAULT_ERROR_TEXT`）。 */
 const ERROR_TEXT = '操作を完了できませんでした';
@@ -166,6 +167,48 @@ test.describe('接続の帯と一言が読める（WCAG AA・#320 E8）', () => 
     await openTopicTool(page, 'notice-topic-down');
     // When: お題ツールの接続だけを成立させないようにして、開き直す
     await toolSyncIsDown(page, 'topic');
+    await page.reload();
+    const [rosePale, felt950] = await resolveColors(page, ['--rose-pale', '--felt-950']);
+
+    const banner = page.getByRole('alert').filter({ hasText: UNREACHABLE });
+    await expect(banner, '繋がらない帯').toBeVisible();
+    expect(await paintOf(banner)).toMatchObject({
+      color: rosePale,
+      background: felt950,
+      weight: '700',
+      underline: '2px',
+      position: 'sticky',
+      marginTop: '0px',
+    });
+    expectReadable(await scanContrast(page, 1), 1, [pairKey(rosePale!, felt950!)]);
+  });
+
+  test('Given 進行タイマー / When 「同期できていません」を出す / Then 他のアプリと同じ貼りついた不透明な帯が出て、AA を満たす（#471）', async ({
+    page,
+  }) => {
+    // Given: 中継を掛けてから進行タイマーを開く（agenda はこの帯を #471 で足した。他のアプリと同じ見た目・位置であること）
+    const inject = await relayToolSync(page, 'agenda');
+    await openAgendaTool(page, 'notice-agenda');
+    const [rosePale, felt950] = await resolveColors(page, ['--rose-pale', '--felt-950']);
+
+    // When: 契約に合わないフレームを届ける（`agenda` の形にも、ハブの応答の形にも合わない）
+    inject({ type: 'agenda' });
+    const banner = page.getByRole('status').filter({ hasText: STALE });
+    await expect(banner, '同期できていない帯').toBeVisible();
+    // Then
+    const paint = await paintOf(banner);
+    expect(paint).toMatchObject({ color: rosePale, background: felt950, underline: '1px', position: 'sticky', marginTop: '0px' });
+    expect(paint.weight, '繋がらない帯と同じ太字になっている').not.toBe('700');
+    expectReadable(await scanContrast(page, 5), 5, [pairKey(rosePale!, felt950!)]);
+  });
+
+  test('Given 進行タイマーの同期サーバーへ繋がらない / When 開く / Then 繋がらない帯は太い下線と太字で区別され、AA を満たす（#471）', async ({
+    page,
+  }) => {
+    // Given: 進行タイマーを一度開いて、端末に同一性を残す
+    await openAgendaTool(page, 'notice-agenda-down');
+    // When: 進行タイマーの接続だけを成立させないようにして、開き直す
+    await toolSyncIsDown(page, 'agenda');
     await page.reload();
     const [rosePale, felt950] = await resolveColors(page, ['--rose-pale', '--felt-950']);
 
