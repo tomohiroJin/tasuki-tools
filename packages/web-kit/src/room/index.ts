@@ -6,3 +6,9 @@
  */
 export { ConnectionBanner } from './connection-banner.js';
 export { connectionNotice, type ConnectionNotice } from './connection-notice.js';
+export { LoadingView } from './loading-view.js';
+export { ROOM_GATE_TEXT } from './room-gate-copy.js';
+export { RoomGoneView } from './room-gone-view.js';
+export { RoomJoiningView, type RoomJoiningViewProps } from './room-joining-view.js';
+export { useHubRedirect, type HubRedirectOptions } from './use-hub-redirect.js';
+export { usePrefersReducedMotion } from './use-prefers-reduced-motion.js';
