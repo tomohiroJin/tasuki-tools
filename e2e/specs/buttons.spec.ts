@@ -764,6 +764,17 @@ test.describe('ルーレットの「いつものメンツ」のボタンは部�
     await section.getByRole('button', { name: 'この端末に保存', exact: true }).click();
     await expect(section.getByRole('button', { name: '先週の顔 2 人を入れる', exact: true })).toBeVisible();
 
+    // 外れている自分の行は、自分を含む組を入れるとルーレットに戻る（もう入っているとは数えない）
+    const ownCheck = page.locator('.roulette-list').getByRole('checkbox').first();
+    await section.getByRole('button', { name: '新しく作る', exact: true }).click();
+    await section.getByLabel('メンツの名前', { exact: true }).fill('自分だけ');
+    await section.getByLabel('ほかの名前（1 行に 1 人）', { exact: true }).fill('buttons-r');
+    await section.getByRole('button', { name: 'この端末に保存', exact: true }).click();
+    await ownCheck.uncheck();
+    await section.getByRole('button', { name: '自分だけ 1 人を入れる', exact: true }).click();
+    await expect(ownCheck).toBeChecked();
+    await expect(section.getByRole('status')).toContainText('1 人をルーレットに戻しました');
+
     // 上限: 24 人の組を入れてから、新しい 2 人の組を入れる。入らなかった 2 人の名前が知らせに出る
     const many = Array.from({ length: 24 }, (_, i) => `客${i + 1}`).join('\n');
     await section.getByRole('button', { name: '新しく作る', exact: true }).click();

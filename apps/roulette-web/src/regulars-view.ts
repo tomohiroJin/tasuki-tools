@@ -12,10 +12,12 @@ import {
   NONE_ADDED_OVERFLOW_TEXT,
   addedText,
   overflowText,
+  overflowNamesText,
+  restoredText,
+  blockedText,
   skippedText,
   tooManyInPoolText,
 } from './copy';
-import { overflowNamesText } from './copy';
 import { stateOf, type PersonRow } from './roulette-view';
 import { parseMemberLines } from './storage/regulars';
 
@@ -47,13 +49,26 @@ export function planBatch(input: { view: RouletteView; members: readonly Member[
   };
 }
 
+/** 入れるとき既存の行を入れ直した結果（`restoreOf`） */
+export interface RestoreCount {
+  /** ルーレットに戻した人数 */
+  restored: number;
+  /** 同名の行はあるが、押せない（離席中・同名のゲスト）ので戻せなかった人数 */
+  blocked: number;
+}
+
 /** 入れた後の知らせ（`role="status"` の 1 文）。区切りは句点。 */
-export function batchNoticeText(plan: BatchPlan): string {
-  const { added, skipped, overflow, overflowNames, poolAfter } = plan;
+export function batchNoticeText(plan: BatchPlan, restore: RestoreCount = { restored: 0, blocked: 0 }): string {
+  const { added, overflow, overflowNames, poolAfter } = plan;
+  const { restored, blocked } = restore;
+  // サーバーは同名をすべてとばす。そのうち戻した・戻せなかった分を引いた残りが「もう入っている」
+  const skipped = Math.max(0, plan.skipped - restored - blocked);
   const who = overflowNames.length > 0 ? overflowNamesText(overflowNames.join('、')) : '';
   const parts: string[] = [];
-  if (added > 0) {
-    parts.push(addedText(added));
+  if (added + restored + blocked > 0) {
+    if (added > 0) parts.push(addedText(added));
+    if (restored > 0) parts.push(restoredText(restored));
+    if (blocked > 0) parts.push(blockedText(blocked));
     if (skipped > 0) parts.push(skippedText(skipped));
     if (overflow > 0) parts.push(overflowText(overflow) + who);
   } else if (overflow > 0) {
@@ -63,6 +78,22 @@ export function batchNoticeText(plan: BatchPlan): string {
   }
   if (poolAfter > MAX_WHEEL) parts.push(tooManyInPoolText(poolAfter));
   return parts.join('。');
+}
+
+/**
+ * 入れるとき、組の名前が既存の行（名簿・ゲスト）と同名で、チェックが外れていて押せるなら、その行を入れ直す対象にする。
+ * サーバーの `addMany` は同名をとばすだけで、外れた人はルーレットに戻らないため（#469）。押せない行は `blocked`。
+ */
+export function restoreOf(rows: readonly PersonRow[], names: readonly string[]): { ids: string[]; blocked: number } {
+  const ids: string[] = [];
+  let blocked = 0;
+  for (const name of names) {
+    const hit = rows.find((r) => !r.checked && sameName(normalizeDisplayName(r.name), normalizeDisplayName(name)));
+    if (hit === undefined) continue;
+    if (hit.disabled) blocked += 1;
+    else if (!ids.includes(hit.id)) ids.push(hit.id);
+  }
+  return { ids, blocked };
 }
 
 /** 欄の候補（いまの人）。`checked` はいまルーレットに入っているか */
@@ -81,7 +112,7 @@ const sameName = (a: string, b: string): boolean => conflictsWithExisting([{ par
 export function candidatesOf(rows: readonly PersonRow[]): Candidate[] {
   const out: { name: string; checked: boolean }[] = [];
   for (const row of rows) {
-    const [name] = parseMemberLines(normalizeDisplayName(row.name));
+    const [name] = parseMemberLines(row.name);
     if (name === undefined) continue;
     const found = out.find((c) => sameName(c.name, name));
     if (found === undefined) out.push({ name, checked: row.checked });
@@ -100,7 +131,14 @@ export function splitForEdit(candidates: readonly Candidate[], members: readonly
   return { rows, text: manual.join('\n') };
 }
 
-/** チェックした人（先）と手入力の行（後）から組の名前の列を作る。保存と同じ正規化・重複除去 */
-export function buildMembers(checked: readonly string[], text: string): string[] {
-  return parseMemberLines([...checked, text].join('\n'));
+/**
+ * 保存する名前の列。保存済みの組の名前（`saved`）のうち、まだチェックか手入力に残っているものは**保存済みの綴りで元の位置**に置き、
+ * 新しくチェックした人・手入力した人は後ろ（チェック、手入力の順）へ。新しい組は `saved` を空にする。
+ * 重複と正規化は保存と同じ（`parseMemberLines`）。
+ */
+export function orderedMembers(saved: readonly string[], checked: readonly string[], text: string): string[] {
+  const wanted = parseMemberLines([...checked, text].join('\n'));
+  const kept = saved.filter((m) => wanted.some((w) => sameName(w, m)));
+  const rest = wanted.filter((w) => !kept.some((m) => sameName(w, m)));
+  return [...kept, ...rest];
 }

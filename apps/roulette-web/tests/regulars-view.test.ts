@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Member, RouletteView } from '@tasuki/roulette-core';
-import { batchNoticeText, buildMembers, candidatesOf, planBatch, splitForEdit } from '../src/regulars-view';
+import { batchNoticeText, candidatesOf, orderedMembers, planBatch, restoreOf, splitForEdit } from '../src/regulars-view';
 import type { PersonRow } from '../src/roulette-view';
 
 const IDLE: RouletteView = { excluded: [], guests: [], drawn: [], spin: null };
@@ -125,9 +125,9 @@ describe('splitForEdit', () => {
   });
 });
 
-describe('buildMembers', () => {
+describe('orderedMembers（新しい組）', () => {
   it('Given チェックと手入力 / When 組む / Then チェックが先、手入力が後', () => {
-    expect(buildMembers(['あや', 'れん'], 'さとう\nすずき')).toEqual(['あや', 'れん', 'さとう', 'すずき']);
+    expect(orderedMembers([], ['あや', 'れん'], 'さとう\nすずき')).toEqual(['あや', 'れん', 'さとう', 'すずき']);
   });
 
   it.each([
@@ -137,10 +137,67 @@ describe('buildMembers', () => {
     ['手入力の中の重複', [], 'x\nX\n x', ['x']],
     ['空行と CRLF', ['a'], '\r\n\r\nb\r\n', ['a', 'b']],
   ])('Given %s の重複 / When 組む / Then 保存と同じ正規化で 1 人', (_l, checked, text, expected) => {
-    expect(buildMembers(checked, text)).toEqual(expected);
+    expect(orderedMembers([], checked, text)).toEqual(expected);
   });
 
   it('Given 何も無い / When 組む / Then 空', () => {
-    expect(buildMembers([], '  \n')).toEqual([]);
+    expect(orderedMembers([], [], '  \n')).toEqual([]);
+  });
+});
+
+/** @requirements #469 指摘 2（直すを開いて保存しても順と綴りを保つ） */
+describe('orderedMembers（保存済みの組）', () => {
+  it('Given 何も変えない / Then 保存済みの順と綴りのまま', () => {
+    // 候補側の綴り（正規化後）は Alice だが、保存済みは alice・順も候補と違う
+    expect(orderedMembers(['zed', 'alice', 'いない人'], ['Alice', 'zed'], 'いない人')).toEqual(['zed', 'alice', 'いない人']);
+  });
+  it('Given チェックを外した / Then 保存済みから消える', () => {
+    expect(orderedMembers(['a', 'b', 'c'], ['a', 'c'], '')).toEqual(['a', 'c']);
+  });
+  it('Given 新しくチェックと手入力を足した / Then 後ろへ（チェック、手入力の順）', () => {
+    expect(orderedMembers(['a', 'b'], ['a', 'b', 'n1'], 'n2\nb')).toEqual(['a', 'b', 'n1', 'n2']);
+  });
+  it('Given 手入力の保存済みの名前を消した / Then 組から外れる', () => {
+    expect(orderedMembers(['a', 'x'], ['a'], '')).toEqual(['a']);
+  });
+});
+
+const prow = (id: string, name: string, checked: boolean, disabled = false): PersonRow => ({ ...row(id, name, checked), disabled });
+
+/** @requirements #469 指摘 1（外れている名簿の人を入れるときルーレットに戻す） */
+describe('restoreOf', () => {
+  const rows = [prow('p1', 'あや', true), prow('p2', 'Bob', false), prow('p3', 'れん', false, true), prow('g-1', 'ゲスト', false)];
+  it('Given 外れていて押せる行と同名 / Then その ID を戻す対象にする（大小・全角半角・空白違いも）', () => {
+    expect(restoreOf(rows, ['bob', ' ゲスト ', 'ｂｏｂ'])).toEqual({ ids: ['p2', 'g-1'], blocked: 0 });
+  });
+  it('Given 入っている人 / Then 何もしない', () => {
+    expect(restoreOf(rows, ['あや'])).toEqual({ ids: [], blocked: 0 });
+  });
+  it('Given 離席中などで押せない行と同名 / Then 戻せないので blocked に数える', () => {
+    expect(restoreOf(rows, ['れん', 'Bob'])).toEqual({ ids: ['p2'], blocked: 1 });
+  });
+  it('Given 行に無い名前 / Then 無視', () => {
+    expect(restoreOf(rows, ['だれか'])).toEqual({ ids: [], blocked: 0 });
+  });
+});
+
+describe('batchNoticeText（戻した人）', () => {
+  const plan = { added: 0, skipped: 3, overflow: 0, overflowNames: [], poolAfter: 5 };
+  it('Given 3 人中 2 人を戻した / Then 戻した数を言い、残りだけ「もう入っている」', () => {
+    expect(batchNoticeText(plan, { restored: 2, blocked: 0 })).toBe('2 人をルーレットに戻しました。1 人はもう入っているので、とばしました');
+  });
+  it('Given 全員もう入っている / Then 従来どおり', () => {
+    expect(batchNoticeText(plan, { restored: 0, blocked: 0 })).toBe('全員もう入っています');
+  });
+  it('Given 戻した人と足した人 / Then 足した→戻した', () => {
+    expect(batchNoticeText({ ...plan, added: 1, skipped: 1 }, { restored: 1, blocked: 0 })).toBe('1 人を入れました。1 人をルーレットに戻しました');
+  });
+  it('Given 押せない人 / Then 嘘をつかず戻せなかったと言う', () => {
+    expect(batchNoticeText({ ...plan, skipped: 1 }, { restored: 0, blocked: 1 })).toBe('1 人はいま戻せません');
+  });
+  it('Given 上限で入らない人と戻した人 / Then 両方言う', () => {
+    expect(batchNoticeText({ ...plan, skipped: 1, overflow: 1, overflowNames: ['A'] }, { restored: 1, blocked: 0 })).toBe(
+      '1 人をルーレットに戻しました。名前は 24 人まで追加できます。1 人は入りませんでした（A）',
+    );
   });
 });

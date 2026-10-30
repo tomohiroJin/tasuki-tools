@@ -15,7 +15,7 @@ const stored = (): { id: string; name: string; members: string[] }[] =>
 
 const setup = (props: Partial<{ locked: boolean; candidates: { name: string; checked: boolean }[]; onInsert: (g: unknown) => string }> = {}) => {
   const onInsert = vi.fn(props.onInsert ?? (() => '3 人を入れました'));
-  render(<RegularsSection locked={props.locked ?? false} candidates={props.candidates ?? []} onInsert={onInsert} />);
+  render(<RegularsSection locked={props.locked ?? false} people={(props.candidates ?? []).map((c, i) => ({ id: `r${i}`, name: c.name, checked: c.checked, disabled: false, isSelf: false, removable: false, mark: null, turn: null }))} onInsert={onInsert} />);
   return { onInsert };
 };
 const btn = (name: string | RegExp) => screen.getByRole('button', { name });
@@ -326,7 +326,55 @@ describe('直す・消す', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'さとう' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'あや' }));
     fireEvent.click(btn('この端末に保存'));
-    expect(stored()[0]?.members).toEqual(['あや', 'すずき', 'いない人']);
+    expect(stored()[0]?.members).toEqual(['すずき', 'いない人', 'あや']);
+  });
+
+  it('Given 保存済みの順と綴りが候補と違う組 / When 直すを開いて何も変えず保存 / Then members は完全に同じ', () => {
+    seed([{ id: 'a', name: '朝会', usedAt: 1, members: ['zed', 'alice', 'いない人', 'さとう'] }]);
+    setup({ candidates: [{ name: 'さとう', checked: true }, { name: 'Alice', checked: true }, { name: 'zed', checked: false }] });
+    fireEvent.click(btn('朝会 を直す'));
+    fireEvent.click(btn('この端末に保存'));
+    expect(stored()[0]?.members).toEqual(['zed', 'alice', 'いない人', 'さとう']);
+  });
+
+  it('Given 直す欄 / When 新しくチェックして手入力も足す / Then 保存済みの後ろへ', () => {
+    seed([{ id: 'a', name: '朝会', usedAt: 1, members: ['zed', 'alice'] }]);
+    setup({ candidates: [{ name: 'Alice', checked: true }, { name: 'new', checked: false }] });
+    fireEvent.click(btn('朝会 を直す'));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'new' }));
+    type('ほかの名前（1 行に 1 人）', 'zed\nmanual');
+    fireEvent.click(btn('この端末に保存'));
+    expect(stored()[0]?.members).toEqual(['zed', 'alice', 'new', 'manual']);
+  });
+
+  it('Given チェックが 0 人で手入力も空 / When 保存 / Then 一覧側に印が付き、入力欄には付かない', () => {
+    setup({ candidates: [{ name: 'あや', checked: false }] });
+    fireEvent.click(btn('新しく作る'));
+    type('メンツの名前', '朝会');
+    fireEvent.click(btn('この端末に保存'));
+    const group = screen.getByRole('group', { name: 'ルーレットにいる人' });
+    expect(group).toHaveAttribute('aria-invalid', 'true');
+    expect(group.getAttribute('aria-describedby')).toContain(screen.getByRole('alert').id);
+    expect(screen.getByLabelText('ほかの名前（1 行に 1 人）').hasAttribute('aria-invalid')).toBe(false);
+  });
+
+  it('Given チェックだけで 25 人 / When 保存 / Then 一覧側に印、入力欄には付かない', () => {
+    setup({ candidates: Array.from({ length: 25 }, (_, i) => ({ name: `人${i}`, checked: true })) });
+    fireEvent.click(btn('いまの人から作る'));
+    type('メンツの名前', '朝会');
+    fireEvent.click(btn('この端末に保存'));
+    expect(screen.getByRole('group', { name: 'ルーレットにいる人' })).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByLabelText('ほかの名前（1 行に 1 人）').hasAttribute('aria-invalid')).toBe(false);
+  });
+
+  it('Given 手入力が足して 25 人 / When 保存 / Then 入力欄に印（両方が原因のときは入力欄）', () => {
+    setup({ candidates: Array.from({ length: 24 }, (_, i) => ({ name: `人${i}`, checked: true })) });
+    fireEvent.click(btn('いまの人から作る'));
+    type('メンツの名前', '朝会');
+    type('ほかの名前（1 行に 1 人）', 'もう一人');
+    fireEvent.click(btn('この端末に保存'));
+    expect(screen.getByLabelText('ほかの名前（1 行に 1 人）')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByRole('group', { name: 'ルーレットにいる人' }).hasAttribute('aria-invalid')).toBe(false);
   });
 
   it('Given 直して保存 / Then 同じ組が更新され、新しい札にフォーカス', () => {

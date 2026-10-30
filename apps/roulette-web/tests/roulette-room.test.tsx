@@ -419,6 +419,17 @@ describe('いつものメンツを入れる（#458）', () => {
     expect(texts.some((t) => t?.startsWith('1 人を入れました。1 人はもう入っているので、とばしました。名前は 24 人まで追加できます。1 人は入りませんでした（すずき）。'))).toBe(true);
   });
 
+  it('Given 名簿の人のチェックが外れている / When その人を含む組を入れる / Then ルーレットに戻し、戻した数を知らせる', () => {
+    // ゆう（p2）は在室。外している
+    seedGroups([{ id: 'a', name: '朝会', usedAt: 1, members: ['ゆう', 'さとう'] }]);
+    enterRoom({ ...IDLE_ROULETTE, excluded: ['p2'] });
+    fireEvent.click(screen.getByRole('button', { name: '朝会 2 人を入れる' }));
+    const sent = latestSocket().sentJson();
+    expect(sent).toContainEqual({ command: 'roulette.guest.addMany', names: ['ゆう', 'さとう'] });
+    expect(sent).toContainEqual(expect.objectContaining({ command: 'roulette.include', id: 'p2', included: true }));
+    expect(screen.getAllByRole('status').map((el) => el.textContent).some((t) => t?.startsWith('1 人を入れました。1 人をルーレットに戻しました'))).toBe(true);
+  });
+
   it('Given 切断した / When 描く / Then 札は押せず、直す・新しく作るは押せる', () => {
     seedGroups([{ id: 'a', name: '朝会', usedAt: 1, members: ['さとう'] }]);
     enterRoom();
@@ -457,6 +468,6 @@ describe('いつものメンツを入れる（#458）', () => {
     // When
     fireEvent.click(screen.getByRole('button', { name: '朝会 2 人を入れる' }));
     // Then
-    expect(screen.getAllByRole('status').map((el) => el.textContent)).toContain('1 人を入れました。1 人はもう入っているので、とばしました');
+    expect(screen.getAllByRole('status').map((el) => el.textContent)).toContain('1 人を入れました。1 人はいま戻せません');
   });
 });

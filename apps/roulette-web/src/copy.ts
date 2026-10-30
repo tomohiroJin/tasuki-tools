@@ -129,6 +129,8 @@ export const skippedText = (n: number): string => `${n} 人はもう入ってい
 export const overflowText = (n: number): string => `${MAX_GUESTS_TEXT}。${n} 人は入りませんでした`;
 /** 上限で入らなかった人の名前（知らせの末尾） */
 export const overflowNamesText = (names: string): string => `（${names}）`;
+export const restoredText = (n: number): string => `${n} 人をルーレットに戻しました`;
+export const blockedText = (n: number): string => `${n} 人はいま戻せません`;
 export const ALL_PRESENT_TEXT = '全員もう入っています';
 export const NONE_ADDED_OVERFLOW_TEXT = `${MAX_GUESTS_TEXT}。入れられませんでした`;
 /** 入れた結果、入る人が `MAX_WHEEL` を超えたとき、知らせの末尾に足す */
