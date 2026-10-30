@@ -10,11 +10,11 @@
 #       git apply scripts/mutations/m482-*.patch
 # 復元: git apply -R scripts/mutations/m482-*.patch
 diff --git a/apps/agenda-web/src/screens/AgendaRoom.tsx b/apps/agenda-web/src/screens/AgendaRoom.tsx
-index 0b83ef7c..23c03dc0 100644
+index 426195ec..3d79027b 100644
 --- a/apps/agenda-web/src/screens/AgendaRoom.tsx
 +++ b/apps/agenda-web/src/screens/AgendaRoom.tsx
-@@ -90,9 +90,7 @@ export function AgendaRoom({ roomCode }: { roomCode: string }) {
-       <ConnectionBanner kind={sync.notice} />
+@@ -91,9 +91,7 @@ export function AgendaRoom({ roomCode }: { roomCode: string }) {
+       {!projecting && <ConnectionBanner kind={sync.notice} />}
        <main className="ui-page ui-page--wide">
          {/* 映している間は描かない（全画面の重ねの裏に押せる部品を残さない）。見出し・戻る・招待は共通の部品が描く（#447 段 1） */}
 -        {!projecting && (
