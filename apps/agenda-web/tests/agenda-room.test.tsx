@@ -206,7 +206,7 @@ describe('接続の告知の帯', () => {
     expect(banner).toHaveClass('ui-banner', 'ui-banner--unreachable');
   });
 
-  it('Given 切断中に帯が出ている / When 再接続して状態を受ける / Then 帯は消える', () => {
+  it('Given 切断中に帯が出ている / When 再接続して入り直し状態を受ける / Then 接続が開いたので帯は消える', () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
     joinedRoom(runningAgenda(1000));
     act(() => latestSocket().drop());

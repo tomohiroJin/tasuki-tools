@@ -4,7 +4,8 @@
  * base 層に無い字を 1 つ画面に出すと、その字が出た瞬間に拡張の層（約 210KB）を取りに行き、
  * `font-display: swap` で代替字形が一瞬見える。
  */
-// web-kit は @types/node を持たない（fs で fonts.css を読む検査の台だけが要る）。ルートの型を明示で取る
+// invite-ui など他パッケージの写しと同じ中身。web-kit は @types/node を持たず（invite-ui は @types/qrcode 経由で node の型が巻き上がる）、
+// ここでは巻き上がらないため、ルートの型を明示で取る。共有化は別（今回はしない）
 /// <reference types="node" />
 import { readFileSync } from 'node:fs';
 import path from 'node:path';

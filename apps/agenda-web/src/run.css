@@ -478,6 +478,20 @@
   top: var(--space-3);
   right: var(--space-4);
 }
+/* 上端の枠。接続の告知の帯（部品の `.ui-banner`）は映す表示（fixed・全面）に覆われるので、映している間は
+   帯をこの枠に入れて映す表示の中の上端に置く。部品の z-index は上げない（上げると隅の音の切り替えを覆う）。
+   帯が無いときは高さ 0 で、上の負の余白が grid の padding を打ち消すだけ（盤の位置は動かない）。
+   帯があるときは流れの中で高さを取り、盤を帯の分だけ下げる。音の切り替えは枠の下端から間をあけて置く（帯と重ならない） */
+.projection-top {
+  grid-column: 1 / -1;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: calc(-1 * var(--space-6)) calc(-1 * var(--space-4)) 0;
+}
+.projection-top .projection-corner {
+  top: calc(100% + var(--space-3));
+}
 .projection-side {
   margin: 0;
   display: grid;

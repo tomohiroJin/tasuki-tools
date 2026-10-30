@@ -20,7 +20,7 @@
 
 ## 決定
 
-**接続の告知（`connection-notice.ts`）に 3 つ目の種別 `stale` を足し、
+**接続の告知（種類は `packages/sync-client` の `connectionNoticeKind`、文と帯は `packages/web-kit` の `@tasuki/web-kit/room`。当時は poker の `connection-notice.ts`、#471 で寄せた）に 3 つ目の種別 `stale` を足し、
 契約に合わないフレームを捨てたら必ず伝える。**
 文言は「同期できていません。表示が最新でない可能性があります。」
 

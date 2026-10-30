@@ -1,0 +1,66 @@
+# 変異 609: banner-outside-projection
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/projection-view.test.tsx
+#     「Given 映す表示の途中で切断された / Then 接続の告知の帯は映す表示の中にあり、外には無い」
+#
+# #471 レビュー。映している間も帯を映す表示の外（手前）に描く。fixed・全面の映す表示に覆われて、切断が伝わらない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m609-*.patch
+# 復元: git apply -R scripts/mutations/m609-*.patch
+diff --git a/apps/agenda-web/src/screens/AgendaRoom.tsx b/apps/agenda-web/src/screens/AgendaRoom.tsx
+index 0b83ef7c..3ed269ba 100644
+--- a/apps/agenda-web/src/screens/AgendaRoom.tsx
++++ b/apps/agenda-web/src/screens/AgendaRoom.tsx
+@@ -7,7 +7,7 @@
+  * ここで名前は聞かない（名乗りは玄関に 1 つだけ・`docs/adr/0018`）。端末に同一性が無い・合言葉を求められたら
+  * 玄関のそのルームへ送り返す（コードは落とさない）。
+  */
+-import { useCallback, useEffect, useRef, useState } from 'react';
++import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+ import type { AgendaView } from '@tasuki/agenda-core';
+ import { ROOM_HEADER_TEXT, RoomHeader } from '@tasuki/invite-ui';
+ import { ConnectionBanner } from '@tasuki/web-kit/room';
+@@ -86,7 +86,8 @@ export function AgendaRoom({ roomCode }: { roomCode: string }) {
+ 
+   return (
+     <>
+-      {/* 接続の告知は本文の外・直前（上端に貼りつく帯・他のアプリと同じ位置）。映している間も出す（切れていることは隠さない） */}
++      {/* 接続の告知の帯。手元の画面では本文（main）の直前（上端に貼りつく）。映している間は全面を覆う映す表示の外では
++          覆われて見えないので、ここでは描かず、映す表示の中の上端に置く（`banner` で渡す・切れていることは隠さない） */}
+       <ConnectionBanner kind={sync.notice} />
+       <main className="ui-page ui-page--wide">
+         {/* 映している間は描かない（全画面の重ねの裏に押せる部品を残さない）。見出し・戻る・招待は共通の部品が描く（#447 段 1） */}
+@@ -101,7 +102,7 @@ export function AgendaRoom({ roomCode }: { roomCode: string }) {
+             </button>
+           </p>
+         )}
+-        {view !== null && <PhaseView view={view} sync={sync} projecting={projecting} onProjectingChange={setProjecting} />}
++        {view !== null && <PhaseView view={view} sync={sync} projecting={projecting} onProjectingChange={setProjecting} banner={<ConnectionBanner kind={sync.notice} />} />}
+       </main>
+     </>
+   );
+@@ -116,11 +117,14 @@ function PhaseView({
+   sync,
+   projecting,
+   onProjectingChange,
++  banner,
+ }: {
+   view: AgendaView;
+   sync: AgendaSync;
+   projecting: boolean;
+   onProjectingChange: (projecting: boolean) => void;
++  /** 接続の告知の帯（映す表示の中に置くため、進める画面へ渡す） */
++  banner: ReactNode;
+ }) {
+   const reducedMotion = usePrefersReducedMotion();
+   const live = useLocalClock(view, sync.receivedAt, reducedMotion) ?? view;
+@@ -161,6 +165,7 @@ function PhaseView({
+           onProjectingChange={onProjectingChange}
+           consumeStartArrival={consumeStartArrival}
+           soundToggle={<SoundToggle state={soundState} onToggle={toggleSound} />}
++          banner={banner}
+         />
+       )}
+       <p className="ui-visually-hidden agenda-live" aria-live="polite">

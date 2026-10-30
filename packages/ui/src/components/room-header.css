@@ -194,7 +194,7 @@
   position: absolute;
   inset-block-start: calc(100% + var(--space-2));
   inset-inline-start: var(--ui-room-header-qr-shift, 0px);
-  /* 中身（下端に貼り付く帯 z-index: 1）より上、接続の告知の帯（`.ui-banner` 30）と agenda の操作の帯（10）より下。
+  /* 中身（下端に貼り付く帯 z-index: 1）より上、接続の告知の帯（`.ui-banner` 10）と agenda の操作の帯（10）より下。
      告知の帯の上にかぶさると「繋がらない」が読めなくなる */
   z-index: 5;
   box-sizing: border-box;

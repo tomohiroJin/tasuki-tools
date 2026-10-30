@@ -202,7 +202,7 @@ test.describe('接続の帯と一言が読める（WCAG AA・#320 E8）', () => 
     expectReadable(await scanContrast(page, 5), 5, [pairKey(rosePale!, felt950!)]);
   });
 
-  test('Given 進行タイマーの映す表示 / When 「同期できていません」を出す / Then 帯は映す表示の上（最前面）にあり、隠れない（#471）', async ({
+  test('Given 進行タイマーの映す表示 / When 「同期できていません」を出す / Then 帯は映す表示の中の上端で最前面にあり、音の切り替えを覆わない（#471）', async ({
     page,
   }) => {
     // Given: 進行中にして映す表示を開く（映す表示は fixed で全面を覆う。帯の層がそれ以下だと覆われて切断が伝わらない）
@@ -217,12 +217,33 @@ test.describe('接続の帯と一言が読める（WCAG AA・#320 E8）', () => 
     const banner = page.getByRole('status').filter({ hasText: STALE });
     await expect(banner, '映している間の帯').toBeVisible();
 
-    // Then: 帯の中心の点で最前面にある要素が帯自身（またはその中）である
+    // Then その1: 帯の中心の点で最前面にある要素が帯自身（またはその中）である（映す表示が覆っていない）
     const onTop = await banner.evaluate((el) => {
       const r = el.getBoundingClientRect();
       const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
       return top !== null && el.contains(top);
     });
+    expect(onTop, '映す表示が帯を覆っている').toBe(true);
+    // Then その2: 帯は映す表示の中にある（部品の z-index を上げて外に出すと、隅の操作を覆う）
+    await expect(page.locator('.projection .ui-banner'), '帯が映す表示の外にある').toHaveCount(1);
+
+    // Then その3: 隅の音の切り替えは帯に覆われず押せる（中心の点の最前面が音の切り替え自身）
+    const toggle = page.locator('.projection .sound-toggle');
+    await expect(toggle, '音の切り替え').toBeVisible();
+    const toggleOnTop = await toggle.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return top !== null && el.contains(top);
+    });
+    expect(toggleOnTop, '帯が音の切り替えを覆っている').toBe(true);
+
+    // Then その4: 帯と音の切り替えの箱は重ならない（帯の分だけ音の切り替えが下がっている）
+    const bannerBox = await banner.boundingBox();
+    const toggleBox = await toggle.boundingBox();
+    expect(bannerBox, '帯の箱').not.toBeNull();
+    expect(toggleBox, '音の切り替えの箱').not.toBeNull();
+    expect(toggleBox!.y, '音の切り替えが帯の下にある').toBeGreaterThanOrEqual(bannerBox!.y + bannerBox!.height);
+  });
     expect(onTop, '映す表示が帯を覆っている').toBe(true);
   });
 

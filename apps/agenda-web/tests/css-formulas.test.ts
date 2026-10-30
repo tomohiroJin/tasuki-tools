@@ -48,19 +48,23 @@ describe('小さな終了見込みの印の線', () => {
 });
 
 /**
- * 映している間も接続の告知の帯が見えること（#471 レビュー）。映す表示（`.projection`）は fixed で全面を覆うので、
- * 帯（sticky）の層がそれ以下だと覆われて見えない。jsdom は重なりを測れないので、書いてある層の値を比べる。
- * 実際に最前面にあることは E2E（notices-a11y の agenda）が elementFromPoint で見る。
+ * 映している間の接続の告知の帯（#471 レビュー）。映す表示（`.projection`）は fixed で全面を覆うので、帯は映す表示の
+ * 中の上端に置く（部品の z-index は上げない。上げると隅の音の切り替えを覆う）。jsdom は重なりを測れないので、
+ * 書いてある式を見る。重なりの実測は E2E（notices-a11y の agenda）が elementFromPoint と箱で固める。
  */
-describe('接続の告知の帯は映す表示より前に出る', () => {
-  const zOf = (css: string, selector: string): number => {
-    const m = /z-index:\s*(\d+)/.exec(ruleBody(css, selector));
-    expect(m, `${selector} に z-index が無い`).not.toBeNull();
-    return Number(m![1]);
-  };
+describe('映す表示の中の接続の告知の帯', () => {
+  const css = read('run.css');
 
-  it('Given 帯と映す表示の CSS / When z-index を比べる / Then 帯の方が大きい', () => {
-    const banner = readFileSync(path.resolve(__dirname, '../../../packages/ui/src/components/banner.css'), 'utf8');
-    expect(zOf(banner, '.ui-banner')).toBeGreaterThan(zOf(read('run.css'), '.projection'));
+  it('Given 上端の枠 / When 規則を見る / Then 流れの中で全幅・上端に貼りつき、帯が無いときは高さを取らない', () => {
+    const body = ruleBody(css, '.projection-top');
+    expect(body).toContain('grid-column: 1 / -1;');
+    expect(body).toContain('position: sticky;');
+    expect(body).toContain('top: 0;');
+    // 外側の余白を打ち消して縁まで広げる。下は 0（隙間の分だけ帯が無いと 0 になる）
+    expect(body).toContain('margin: calc(-1 * var(--space-6)) calc(-1 * var(--space-4)) 0;');
+  });
+
+  it('Given 帯の下の音の切り替え / When 規則を見る / Then 上端の枠の下端から間をあけて置く', () => {
+    expect(ruleBody(css, '.projection-top .projection-corner')).toContain('top: calc(100% + var(--space-3));');
   });
 });

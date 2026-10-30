@@ -3845,10 +3845,10 @@ export const MUTATIONS = [
   },
   {
     id: 609,
-    label: "告知の帯の層を映す表示より下にする",
-    patch: "m609-banner-under-projection.patch",
+    label: "映している間も帯を映す表示の外に描く",
+    patch: "m609-banner-outside-projection.patch",
     pkg: "apps/agenda-web",
-    tests: ["tests/css-formulas.test.ts"],
-    note: "#471 レビュー。`.ui-banner` の z-index を映す表示（20）より下に戻し、映している間は帯が覆われて切断が伝わらない。",
+    tests: ["tests/projection-view.test.tsx"],
+    note: "#471 レビュー。映している間も告知の帯を映す表示の外（手前）に描き、fixed・全面の映す表示に覆われて切断が伝わらない。",
   },
 ];

@@ -45,9 +45,11 @@ interface Props {
    * 位相が変わっただけの他の参加者の画面は動かさない（#455）
    */
   consumeStartArrival: () => boolean;
+  /** 接続の告知の帯。映す表示のときだけ受け取り、映す表示の中に置く（手元の画面では呼ぶ側が外に置く） */
+  banner?: ReactNode;
 }
 
-export function RunScreen({ view, wallNow, reducedMotion, striking, canOperate, actions, soundToggle, onSpeakSummary, projecting, onProjectingChange: setProjecting, consumeStartArrival }: Props) {
+export function RunScreen({ view, wallNow, reducedMotion, striking, canOperate, actions, soundToggle, onSpeakSummary, projecting, onProjectingChange: setProjecting, consumeStartArrival, banner }: Props) {
   const [returnFocus, setReturnFocus] = useState(false);
   const projectRef = useRef<HTMLButtonElement>(null);
   const titleRef = useRef<HTMLParagraphElement>(null);
@@ -87,6 +89,7 @@ export function RunScreen({ view, wallNow, reducedMotion, striking, canOperate, 
           setReturnFocus(true);
         }}
         soundToggle={soundToggle}
+        banner={banner}
       />
     );
   }

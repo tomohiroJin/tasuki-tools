@@ -37,7 +37,7 @@ web アプリが共有する React の部品（#360 の波 2・設計正本 §5.
 
 - `connectionNotice(kind)` — 接続の告知の種類（`ConnectionNoticeKind`）を文にする。**文 3 つ（再接続中・最新でない・届かない）の正本はここ 1 か所**
 - `ConnectionBanner` — 告知の帯（`ui-banner`）。届かないは `role="alert"`、それ以外は `role="status"`、無いときは描かない。
-  checkin・roulette・topic・agenda・poker が同じ文・役割で出す。位置は、ルームの本画面では `<main>` の直前。参加前の画面（checkin・agenda）では `<main>` の中の見出しの後（アプリごとに違い、揃えてはいない）
+  checkin・roulette・topic・agenda・poker が同じ文・役割で出す。位置は、checkin の本画面は `<main>` の中・見出しの後、roulette・topic・poker・agenda の本画面は `<main>` の直前、agenda の映す表示の間は映す表示（`.projection`）の中の上端（全面を覆うので外では見えない）、参加前の画面（checkin・agenda）は `<main>` の中・見出しの後。アプリごとに違い、揃えてはいない。
 
 種類を決める規則（諦めるまでの回数を含む）は `@tasuki/sync-client` の `connectionNoticeKind` で、同期フックが引いて `notice` として返す。
 
