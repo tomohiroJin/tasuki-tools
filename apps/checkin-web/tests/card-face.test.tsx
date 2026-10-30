@@ -2,6 +2,7 @@ import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { METHOD_IDS, METHODS } from '@tasuki/checkin-core';
 import { CardFace } from '../src/components/CardFace';
+import { NUMERIC_METHODS } from '../src/reveal-view';
 
 const NUMERIC = {
   energy: ['1', '2', '3', '4', '5'],
@@ -38,6 +39,11 @@ describe('CardFace', () => {
       expect(container.textContent).toBe(shown[i]);
       expect(container.firstElementChild?.className).toContain('card-numeral');
     });
+  });
+
+  it('顔に数字を出すやり方と、開いた後に数のやり方として扱うやり方（NUMERIC_METHODS）が一致する', () => {
+    const shown = METHOD_IDS.filter((m) => render(<CardFace method={m} card={METHODS[m].cards[0]!} />).container.querySelector('.card-numeral'));
+    expect([...NUMERIC_METHODS].sort()).toEqual([...shown].sort());
   });
 
   it('同じやり方の中で札ごとに絵が違う', () => {

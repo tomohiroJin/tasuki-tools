@@ -21,8 +21,17 @@ export const REVEAL_FLIP_MS = REVEAL_DEAL_MS + REVEAL_TURN_MS;
 /** 数・小札・要約が出る時間（最後の札が裏返ったあと） */
 export const REVEAL_FADE_MS = 400;
 
-/** 札の数字が人数の大きな数字と紛らわしい、数のやり方（山の下に札の意味を添える） */
-export const NUMERIC_METHODS: ReadonlySet<MethodId> = new Set<MethodId>(['energy', 'focus', 'roti']);
+/**
+ * 数のやり方。札の顔は数字（`CardFace`）で、開いた後は人数の大きな数字と紛らわしいので山の下に札の意味を添える。
+ * **数のやり方の正本はここだけ**（`CardFace` もここから決める。#465 で 2 か所の一覧がずれた）
+ */
+export const NUMERIC_METHODS: ReadonlySet<MethodId> = new Set<MethodId>([
+  'energy',
+  'expectation',
+  'focus',
+  'roti',
+  'understanding',
+]);
 
 /** 山を「やり方の札の順」に並べ直す（サーバーの順に頼らない）。無い札は 0 枚の山で埋める */
 export function orderedPiles(method: MethodId, piles: readonly PileView[]): PileView[] {

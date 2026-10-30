@@ -13,20 +13,12 @@ import { RoleArt } from '../card-art/role';
 import { TakeawayDoneArt } from '../card-art/takeaway-done';
 import { TakeawayGoalArt } from '../card-art/takeaway-goal';
 import { WeatherArt } from '../card-art/weather';
+import { NUMERIC_METHODS } from '../reveal-view';
 
-/** 数のやり方が顔に出す数字。focus だけ札の ID（20…100）と違い、割の数（2・5・8・10）を出す */
+/** 数のやり方（`NUMERIC_METHODS`）が顔に出す数字。focus だけ札の ID（20…100）と違い、割の数（2・5・8・10）を出す */
 function numeralOf(method: MethodId, card: CardId): string | null {
-  switch (method) {
-    case 'energy':
-    case 'expectation':
-    case 'roti':
-    case 'understanding':
-      return card;
-    case 'focus':
-      return String(Number(card) / 10);
-    default:
-      return null;
-  }
+  if (!NUMERIC_METHODS.has(method)) return null;
+  return method === 'focus' ? String(Number(card) / 10) : card;
 }
 
 function Art({ method, card }: { method: MethodId; card: CardId }) {

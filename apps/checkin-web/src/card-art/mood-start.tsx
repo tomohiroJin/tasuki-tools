@@ -6,7 +6,7 @@ export function MoodStartArt({ card }: { card: string }) {
         <>
           <circle cx="32" cy="34" r="22" className="ca-ink" />
           <path className="ca-ink" d="M22 31a4 4 0 0 1 8 0M34 31a4 4 0 0 1 8 0M24 40a9 7 0 0 0 16 0" />
-          <path className="ca-gold" d="M52 6v11a3 3 0 1 1-2-2.8V6h8v4h-6z" />
+          <path className="ca-gold" d="M55 2v11a3 3 0 1 1-2-2.8V2h7v4h-5z" />
         </>
       );
     case 'calm':
@@ -14,14 +14,15 @@ export function MoodStartArt({ card }: { card: string }) {
         <>
           <circle cx="32" cy="34" r="22" className="ca-ink" />
           <path className="ca-ink" d="M22 30a4 3 0 0 0 8 0M34 30a4 3 0 0 0 8 0M26 42h12" />
-          <path className="ca-gold" d="M46 18c0-7 5-12 12-12 0 7-5 12-12 12z" />
+          <path className="ca-gold" d="M50 14c0-6 4-10 10-10 0 6-4 10-10 10z" />
         </>
       );
     case 'sleepy':
       return (
         <>
           <circle cx="32" cy="34" r="22" className="ca-ink" />
-          <path className="ca-ink" d="M22 32h8M34 32h8" />
+          {/* 半分閉じた目（くたくたの横線だけの目と見分ける） */}
+          <path className="ca-ink" d="M22 30h8a4 4 0 0 1-8 0M34 30h8a4 4 0 0 1-8 0" />
           <circle cx="32" cy="43" r="3" className="ca-ink" />
           <path className="ca-gold-line" d="M48 6h8l-8 8h8" />
         </>
