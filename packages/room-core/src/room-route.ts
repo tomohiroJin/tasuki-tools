@@ -20,7 +20,7 @@ export function parseRoomRoute(base: string, pathname: string, search = ""): Roo
   // base の末尾スラッシュは落として扱う（`/agenda/` を渡されても `/agenda` と同じ）。
   const root = base.replace(/\/+$/, "");
   // base が空（`""`・`"/"`）では「アプリの置き場」が無い。玄関（`/`）自身を入口と誤判定しないよう、
-  // どのパスも入口にせず玄関へ送る（投げない: ドメインは throw しない・SC の規則）。
+  // どのパスも入口にせず玄関へ送る（例外にはしない。ドメインは Result か値で返す決まり）。
   if (root === "") {
     const code = new URLSearchParams(search).get("room");
     return { name: "redirect", to: code ? roomHubPath(code) : "/" };
