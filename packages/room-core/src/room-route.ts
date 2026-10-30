@@ -19,6 +19,12 @@ export type RoomRoute = { name: "room"; roomCode: string } | { name: "redirect";
 export function parseRoomRoute(base: string, pathname: string, search = ""): RoomRoute {
   // base の末尾スラッシュは落として扱う（`/agenda/` を渡されても `/agenda` と同じ）。
   const root = base.replace(/\/+$/, "");
+  // base が空（`""`・`"/"`）では「アプリの置き場」が無い。玄関（`/`）自身を入口と誤判定しないよう、
+  // どのパスも入口にせず玄関へ送る（投げない: ドメインは throw しない・SC の規則）。
+  if (root === "") {
+    const code = new URLSearchParams(search).get("room");
+    return { name: "redirect", to: code ? roomHubPath(code) : "/" };
+  }
   const rest = pathname.startsWith(root) ? pathname.slice(root.length) : null;
   // 空のコードでは入室させない（`?room=` だけが付いた URL も行き先が無い）。
   const roomCode = new URLSearchParams(search).get("room");

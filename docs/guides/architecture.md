@@ -39,7 +39,7 @@ S2〜S4a では poker 側の入れ子（src/poker 配下。**S4b で畳みまし
 | アプリケーション | `apps/*-sync/src/application` | ドメイン・プロトコル契約・ポート・`packages/rate-limit` |
 | ポート | `apps/*-sync/src/ports` | ドメインの型 |
 | アダプタ | `apps/*-sync/src/adapters`・web アプリ | 上のすべて |
-| web の純粋判断 | web アプリ配下で React・I/O に依存しない `.ts`（例: `apps/timer-web/src/ui/screen.ts`・`apps/poker-web/src/router.ts` の `parseRoute` / `hubPathFor`・`apps/landing/src/hub/hub-state.ts`） | ドメインの型のみ（React・I/O に依存しない） |
+| web の純粋判断 | web アプリ配下で React・I/O に依存しない `.ts`（例: `apps/timer-web/src/ui/screen.ts`・`apps/poker-web/src/router.ts` の `parseRoute`・`apps/landing/src/hub/hub-state.ts`） | ドメインの型のみ（React・I/O に依存しない） |
 | web の同期フック | web アプリの同期フック（例: `apps/poker-web/src/hooks/useSync.ts`・`apps/landing/src/hub/use-hub-sync.ts`）。大きくなったら同じ層のサブフックに分けてよい（例: `apps/timer-web/src/sync/use-timer-entry.ts`・`apps/poker-web/src/hooks/useRoomEntry.ts`。#369） | 上のすべて ＋ WebSocket |
 | web の同期クライアント | `packages/sync-client` | なし（ツールの語彙を持たない。WS の保持と再接続・参加の失敗の判断・端末の同一性。同期フックだけが読む） |
 | web の同期の共有部品 | `packages/web-kit` の入口 `@tasuki/web-kit/sync`（`useJoinRetry`・`useToolRoomSync`。#369） | `react`（peer）・`@tasuki/sync-client` のみ。ドメインの core には依存しない。**同期フックの側として扱い、画面は直接読まない**（お題・ルーレット・進行タイマーの `screens-do-not-import-sync-client` のテスト） |
@@ -51,7 +51,7 @@ S2〜S4a では poker 側の入れ子（src/poker 配下。**S4b で畳みまし
 | web の読む面の共有部品 | `packages/web-kit` の入口 `@tasuki/web-kit/reader`（`Markdown`・`useReaderDrawer`。#371） | `react`（peer）・`@tasuki/markdown`。**画面から読んでよい**（同期の入口 `./sync` とは別） |
 | 開発用の設定 | `packages/dev-hub-redirect` | なし（dev サーバー専用の Vite プラグインと玄関のポートの正本。各アプリの `vite.config.ts` だけが読む。層の外） |
 
-**#371 で寄せなかったもの**: 玄関への道（`hubPathFor` など）・`parseRoute`・招待の表示・タブ・timer の確認のダイアログは、
+**#371 で寄せなかったもの（#470 で一部を寄せた・下記）**: 玄関への道（`hubPathFor` など）・`parseRoute`・招待の表示・タブ・timer の確認のダイアログは、
 各アプリに写しのまま置く（理由は [`2026-10-14-refactor-r11-shared-display-parts.md`](../superpowers/plans/2026-10-14-refactor-r11-shared-display-parts.md) §9）。
 
 **#470（#463-C1）で寄せた**: ルームの URL の解析 `parseRoomRoute(base, …)` と玄関への道 `roomHubPath` は `@tasuki/room-core`（`src/room-route.ts`）にある。
