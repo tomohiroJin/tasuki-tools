@@ -244,8 +244,6 @@ test.describe('接続の帯と一言が読める（WCAG AA・#320 E8）', () => 
     expect(toggleBox, '音の切り替えの箱').not.toBeNull();
     expect(toggleBox!.y, '音の切り替えが帯の下にある').toBeGreaterThanOrEqual(bannerBox!.y + bannerBox!.height);
   });
-    expect(onTop, '映す表示が帯を覆っている').toBe(true);
-  });
 
   test('Given 進行タイマーの同期サーバーへ繋がらない / When 開く / Then 繋がらない帯は太い下線と太字で区別され、AA を満たす（#471）', async ({
     page,
