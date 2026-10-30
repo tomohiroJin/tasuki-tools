@@ -12,13 +12,13 @@
 diff --git a/packages/web-kit/src/room/use-hub-redirect.ts b/packages/web-kit/src/room/use-hub-redirect.ts
 --- a/packages/web-kit/src/room/use-hub-redirect.ts
 +++ b/packages/web-kit/src/room/use-hub-redirect.ts
-@@ -15,7 +15,7 @@ export interface HubRedirectOptions<Departure extends string> {
- /** 玄関へ送り返す。**判定は同期フック、適用はここ 1 箇所**。理由つき（departed）を先に見る。 */
- export function useHubRedirect<Departure extends string>({ departed, needsHub, roomCode, hubPathFor, redirectTo }: HubRedirectOptions<Departure>): void {
+@@ -21,7 +21,7 @@ export function useHubRedirect<Departure extends string>({ departed, needsHub, r
+   });
    useEffect(() => {
--    if (departed !== null) redirectTo(hubPathFor(roomCode, departed));
--    else if (needsHub) redirectTo(hubPathFor(roomCode));
-+    if (needsHub) redirectTo(hubPathFor(roomCode));
-+    else if (departed !== null) redirectTo(hubPathFor(roomCode, departed));
-   }, [departed, needsHub, roomCode, hubPathFor, redirectTo]);
+     const { hubPathFor: pathFor, redirectTo: go } = latest.current;
+-    if (departed !== null) go(pathFor(roomCode, departed));
+-    else if (needsHub) go(pathFor(roomCode));
++    if (needsHub) go(pathFor(roomCode));
++    else if (departed !== null) go(pathFor(roomCode, departed));
+   }, [departed, needsHub, roomCode]);
  }
