@@ -7,7 +7,6 @@
  */
 import { MAX_ITEMS, MAX_PLANNED_STEPS, MAX_ROUNDS, MAX_TOTAL_SEC, MIN_ROUNDS, STEP_SEC_MAX, STEP_SEC_MIN } from '@tasuki/agenda-core';
 
-
 export const PAGE_HEADING = '進行タイマー';
 
 // 主の操作

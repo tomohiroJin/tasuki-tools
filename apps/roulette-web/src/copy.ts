@@ -12,7 +12,6 @@ import { MAX_GROUPS } from './storage/regulars';
  * 「候補」→「入る人」。「誰」は使わない。「以上」の「以」も外れる（「24 人まで」と書く）。
  */
 
-
 export const PAGE_HEADING = '進行役ルーレット';
 /** 舞台（操作の面）の見出し。目には出さず、領域の名前にする */
 export const STAGE_HEADING = 'ルーレット';

@@ -9,7 +9,6 @@
  */
 import type { Difficulty } from '@tasuki/topic-core';
 
-
 export const PAGE_HEADING = 'お題';
 
 // 読む面（region）の名前。タブ（場のお題・下書き）のどちらを見ていても当たる名前にする（#316 最終レビュー M2）

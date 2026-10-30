@@ -1,6 +1,6 @@
 /**
  * 読み込み中の一言（#472）。部品層の規則は `.ui-note.loading-note` の組のセレクタ（`.ui-` 始まりを保つため）。
- * 組で書くと、`ui-note` を持たない要素には効かない。読み込み中の一言を描く 5 か所（web-kit の `LoadingView` と
+ * 組で書くと、`ui-note` を持たない要素には効かない。読み込み中の一言を描く 2 つの部品（4 アプリが使う web-kit の `LoadingView` と
  * poker の `App.tsx`）が、どちらも `loading-note` と `ui-note` の両方のクラスを持つことを固定する。
  */
 import { test } from 'node:test';

@@ -10,9 +10,10 @@
 #       git apply scripts/mutations/m610-*.patch
 # 復元: git apply -R scripts/mutations/m610-*.patch
 diff --git a/packages/web-kit/src/room/room-joining-view.tsx b/packages/web-kit/src/room/room-joining-view.tsx
+index 471d1c3e..fe4b6476 100644
 --- a/packages/web-kit/src/room/room-joining-view.tsx
 +++ b/packages/web-kit/src/room/room-joining-view.tsx
-@@ -29,7 +29,7 @@ export function RoomJoiningView({ backHref, backLabel, retryNotice, error, banne
+@@ -31,7 +31,7 @@ export function RoomJoiningView({ backHref, backLabel, retryNotice, error, notic
            {backLabel}
          </a>
        </header>

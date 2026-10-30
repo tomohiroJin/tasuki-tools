@@ -42,7 +42,7 @@ web アプリが共有する React の部品（#360 の波 2・設計正本 §5.
 
 - `LoadingView` — 読み込み中・送り返している間の画面（`main` の中の `role="status"` の一言。見た目の `.loading-note` は `packages/ui` が持つ）
 - `RoomGoneView` — ルームが無いときの画面（h1・説明・トップ（`/`）へのリンク。消えたルームの選択画面へは送らない）
-- `RoomJoiningView` — 最初の入室が成立するまでの画面（h1・戻るリンク・混雑の知らせ・失敗の一言）。戻るリンクの文（`backLabel`）は web-kit が invite-ui に依存しないので呼ぶ側が渡す。帯は `banner` で受け取り、位置は `bannerPlacement`（`before-main`: roulette・topic、`after-header`: agenda・checkin。揃えてはいない）
+- `RoomJoiningView` — 最初の入室が成立するまでの画面（h1・戻るリンク・混雑の知らせ・失敗の一言）。戻るリンクの文（`backLabel`）は web-kit が invite-ui に依存しないので呼ぶ側が渡す。帯は `notice`（接続の告知の種類）を受け取って中で描き、位置は `bannerPlacement`（`before-main`: roulette・topic、`after-header`: agenda・checkin。揃えてはいない）
 - `useHubRedirect` — 玄関のそのルームへ送り返す（理由つきの `departed` を先に、次に `needsHub`）。`hubPathFor`・`redirectTo` は各アプリの `router.ts` のものを渡す
 - `usePrefersReducedMotion` — 動きを減らす設定か（変化を購読）。timer-web の `use-reduced-motion` は書き方が違うので寄せていない
 - `ROOM_GATE_TEXT` — 入室の門の文 5 つの正本。書体の base 層に収まるかは `tests/room-gate-copy-fits-font-base.test.ts` が測る
