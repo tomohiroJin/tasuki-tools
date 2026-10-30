@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { DEGRADED_TEXT, GENERATING_TEXT, RECONNECTING_TEXT, STALE_TEXT, UNREACHABLE_TEXT } from '../src/copy';
+import { DEGRADED_TEXT, GENERATING_TEXT } from '../src/copy';
 import {
   canOperate,
   canSubmitTopic,
   canUnlock,
-  connectionNotice,
   generationNotice,
   isDraftBlank,
   readerTabForDraft,
@@ -63,14 +62,6 @@ describe('お題ツールの操作可否と知らせ', () => {
     expect(generationNotice(null)).toBeNull();
   });
 
-  it('Given 告知の種類 / When 文にする / Then 種類ごとの文言になり、何も無いときは文を持たない', () => {
-    // 種類を決める規則は `@tasuki/sync-client` のテストが見る（ここは文言の当て方だけ）。
-    // 配線（切れたら再接続中・一度も繋がらないなら繋がらない）は topic-room.test.tsx が画面で見る
-    expect(connectionNotice('unreachable')).toEqual({ kind: 'unreachable', text: UNREACHABLE_TEXT });
-    expect(connectionNotice('reconnecting')).toEqual({ kind: 'reconnecting', text: RECONNECTING_TEXT });
-    expect(connectionNotice('stale')).toEqual({ kind: 'stale', text: STALE_TEXT });
-    expect(connectionNotice('none')).toEqual({ kind: 'none' });
-  });
 });
 
 /**

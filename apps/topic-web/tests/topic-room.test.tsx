@@ -619,7 +619,7 @@ describe('操作できない間', () => {
     // When
     act(() => latestSocket().drop());
     // Then
-    expect(screen.getByText(copy.RECONNECTING_TEXT)).toBeInTheDocument();
+    expect(screen.getByText('接続中です…（切断された場合は自動で再接続します）')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'FizzBuzz' })).toBeInTheDocument();
   });
 
@@ -630,7 +630,7 @@ describe('操作できない間', () => {
     // When
     act(() => latestSocket().drop());
     // Then
-    expect(screen.getByRole('alert')).toHaveTextContent(copy.UNREACHABLE_TEXT);
+    expect(screen.getByRole('alert')).toHaveTextContent('同期サーバーに接続できません。復旧するまでルームに参加できません。再試行を続けています。');
   });
 
   it('Given 繋ぎ直して入り直す途中 / When 混雑で拒まれる / Then お題の画面のまま待っていると伝える', () => {

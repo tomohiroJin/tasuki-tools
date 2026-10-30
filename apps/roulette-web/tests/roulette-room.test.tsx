@@ -16,9 +16,7 @@ import {
   SPINNING_BUTTON,
   SPIN_AGAIN_BUTTON,
   SPIN_BUTTON,
-  RECONNECTING_TEXT,
   TOO_FEW_TEXT,
-  UNREACHABLE_TEXT,
   TWIN_MARK,
   guestRemoveLabel,
   resultText,
@@ -351,7 +349,7 @@ describe('入り方と戻り方', () => {
     enterRoom();
     act(() => latestSocket().drop());
     // Then: 告知の種類は共有の規則（`@tasuki/sync-client`）が決め、文はこの画面の文言になる
-    expect(screen.getByText(RECONNECTING_TEXT)).toBeInTheDocument();
+    expect(screen.getByText('接続中です…（切断された場合は自動で再接続します）')).toBeInTheDocument();
   });
 
   it('Given 一度も繋がらない / When 失敗する / Then 繋がらないと警告する', () => {
@@ -361,7 +359,7 @@ describe('入り方と戻り方', () => {
     // When
     act(() => latestSocket().drop());
     // Then
-    expect(screen.getByRole('alert')).toHaveTextContent(UNREACHABLE_TEXT);
+    expect(screen.getByRole('alert')).toHaveTextContent('同期サーバーに接続できません。復旧するまでルームに参加できません。再試行を続けています。');
   });
 
   it('Given 操作の失敗が届く / When 画面を見る / Then サーバーの文を見せる', () => {

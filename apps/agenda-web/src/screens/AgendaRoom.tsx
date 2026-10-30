@@ -10,6 +10,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AgendaView } from '@tasuki/agenda-core';
 import { ROOM_HEADER_TEXT, RoomHeader } from '@tasuki/invite-ui';
+import { ConnectionBanner } from '@tasuki/web-kit/room';
 import { summaryText } from '../agenda-view';
 import { LoadingView } from '../components/LoadingView';
 import { RunScreen } from '../components/RunScreen';
@@ -68,6 +69,7 @@ export function AgendaRoom({ roomCode }: { roomCode: string }) {
             {ROOM_HEADER_TEXT.back}
           </a>
         </header>
+        <ConnectionBanner kind={sync.notice} />
         {sync.retryNotice && (
           <p className="ui-note" role="status">
             {sync.retryNotice}
@@ -83,21 +85,25 @@ export function AgendaRoom({ roomCode }: { roomCode: string }) {
   }
 
   return (
-    <main className="ui-page ui-page--wide">
-      {/* 映している間は描かない（全画面の重ねの裏に押せる部品を残さない）。見出し・戻る・招待は共通の部品が描く（#447 段 1） */}
-      {!projecting && (
-        <RoomHeader title={PAGE_HEADING} backHref={hubPathFor(roomCode)} roomCode={roomCode} inviteUrl={sync.inviteUrl} />
-      )}
-      {!projecting && sync.error && (
-        <p className="agenda-error ui-note ui-note--error" role="alert">
-          {sync.error}
-          <button type="button" className="ui-button ui-button--quiet ui-button--sm" onClick={sync.clearError}>
-            {CLOSE_BUTTON}
-          </button>
-        </p>
-      )}
-      {view !== null && <PhaseView view={view} sync={sync} projecting={projecting} onProjectingChange={setProjecting} />}
-    </main>
+    <>
+      {/* 接続の告知は本文の外・直前（上端に貼りつく帯・他のアプリと同じ位置）。映している間も出す（切れていることは隠さない） */}
+      <ConnectionBanner kind={sync.notice} />
+      <main className="ui-page ui-page--wide">
+        {/* 映している間は描かない（全画面の重ねの裏に押せる部品を残さない）。見出し・戻る・招待は共通の部品が描く（#447 段 1） */}
+        {!projecting && (
+          <RoomHeader title={PAGE_HEADING} backHref={hubPathFor(roomCode)} roomCode={roomCode} inviteUrl={sync.inviteUrl} />
+        )}
+        {!projecting && sync.error && (
+          <p className="agenda-error ui-note ui-note--error" role="alert">
+            {sync.error}
+            <button type="button" className="ui-button ui-button--quiet ui-button--sm" onClick={sync.clearError}>
+              {CLOSE_BUTTON}
+            </button>
+          </p>
+        )}
+        {view !== null && <PhaseView view={view} sync={sync} projecting={projecting} onProjectingChange={setProjecting} />}
+      </main>
+    </>
   );
 }
 

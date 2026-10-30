@@ -8,7 +8,7 @@ import { joinRetryDelayMs, loadResumeIdentity, saveResumeIdentity } from '@tasuk
 import { App } from '../src/App';
 import { redirectTo } from '../src/router';
 import { topicSyncUrl } from '../src/hooks/use-topic-sync';
-import { GONE_HEADING, RETRY_EXHAUSTED_TEXT, RETRY_WAITING_TEXT, STALE_TEXT } from '../src/copy';
+import { GONE_HEADING, RETRY_EXHAUSTED_TEXT, RETRY_WAITING_TEXT } from '../src/copy';
 import { IDLE_STATE, RESUME, ScriptedWebSocket, latestSocket } from './support/scripted-web-socket';
 
 vi.mock('../src/router', async (importOriginal) => ({
@@ -188,7 +188,7 @@ describe('お題ツールのルームへの入り方', () => {
     // When
     act(() => latestSocket().deliver({ type: 'topic', state: { topic: 'broken' } }));
     // Then
-    expect(screen.getByText(STALE_TEXT)).toBeInTheDocument();
+    expect(screen.getByText('同期できていません。表示が最新でない可能性があります。')).toBeInTheDocument();
   });
 
   it('Given 合わないフレームで告知が出ている / When 正しいフレームが届く / Then 告知が下りる', () => {
@@ -201,7 +201,7 @@ describe('お題ツールのルームへの入り方', () => {
     // When
     act(() => latestSocket().deliver({ type: 'topic', state: IDLE_STATE }));
     // Then
-    expect(screen.queryByText(STALE_TEXT)).toBeNull();
+    expect(screen.queryByText('同期できていません。表示が最新でない可能性があります。')).toBeNull();
   });
 
   it('Given 入れた / When 参加の応答が届く / Then 新しい復帰の組を名乗った名前のまま保存する', () => {

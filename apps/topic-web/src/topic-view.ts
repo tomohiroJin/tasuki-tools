@@ -2,7 +2,7 @@
  * お題ツールの画面の判断（`docs/adr/0015` MUST 1）。React にも I/O にも依存しない。
  */
 import type { TopicState } from '@tasuki/topic-core';
-import { DEGRADED_TEXT, GENERATING_TEXT, RECONNECTING_TEXT, STALE_TEXT, UNREACHABLE_TEXT } from './copy';
+import { DEGRADED_TEXT, GENERATING_TEXT } from './copy';
 // 接続状態の型の正本は `@tasuki/sync-client`（#369）。型だけを取る（実行時には同期クライアントを読まない）。
 import type { ConnectionStatus } from '@tasuki/sync-client';
 
@@ -41,28 +41,6 @@ export function generationNotice(state: TopicState | null): string | null {
   if (state.generating) return GENERATING_TEXT;
   if (state.degraded) return DEGRADED_TEXT;
   return null;
-}
-
-export type ConnectionNotice =
-  | { kind: 'none' }
-  | { kind: 'reconnecting' | 'unreachable' | 'stale'; text: string };
-
-/**
- * 告知の種類を利用者向けの文にする。**種類を決める規則（諦めるまでの回数を含む）は
- * `@tasuki/sync-client` の `connectionNoticeKind` にあり、同期フックが引く**（poker・ルーレットと同じ規則。
- * 写しを持たない）。ここは文言を当てるだけである。
- */
-export function connectionNotice(kind: ConnectionNotice['kind']): ConnectionNotice {
-  switch (kind) {
-    case 'none':
-      return { kind };
-    case 'stale':
-      return { kind, text: STALE_TEXT };
-    case 'unreachable':
-      return { kind, text: UNREACHABLE_TEXT };
-    case 'reconnecting':
-      return { kind, text: RECONNECTING_TEXT };
-  }
 }
 
 /** 下書き（またはプレビュー）が空か。空白だけは空とみなす（#370 で画面から出した）。 */

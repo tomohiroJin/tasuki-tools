@@ -6,6 +6,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { ROOM_HEADER_TEXT, RoomHeader } from '@tasuki/invite-ui';
+import { ConnectionBanner } from '@tasuki/web-kit/room';
 import { CurrentTopic, type Draft } from '../components/CurrentTopic';
 import { LoadingView } from '../components/LoadingView';
 import { TopicEditor, type FillRequest } from '../components/TopicEditor';
@@ -13,7 +14,7 @@ import { TopicMaker } from '../components/TopicMaker';
 import { GONE_HEADING, GONE_LINK, GONE_TEXT, JOINING_HEADING, PAGE_HEADING } from '../copy';
 import { useTopicSync } from '../hooks/use-topic-sync';
 import { hubPathFor, redirectTo } from '../router';
-import { canOperate, connectionNotice, generationNotice } from '../topic-view';
+import { canOperate, generationNotice } from '../topic-view';
 
 export function TopicRoom({ roomCode }: { roomCode: string }) {
   const sync = useTopicSync(roomCode);
@@ -34,12 +35,7 @@ export function TopicRoom({ roomCode }: { roomCode: string }) {
     else if (sync.needsHub) redirectTo(hubPathFor(roomCode));
   }, [sync.departed, sync.needsHub, roomCode]);
 
-  const notice = connectionNotice(sync.notice);
-  const banner = notice.kind !== 'none' && (
-    <p className={`ui-banner${notice.kind === 'unreachable' ? ' ui-banner--unreachable' : ''}`} role={notice.kind === 'unreachable' ? 'alert' : 'status'}>
-      {notice.text}
-    </p>
-  );
+  const banner = <ConnectionBanner kind={sync.notice} />;
 
   if (sync.gone) {
     return (

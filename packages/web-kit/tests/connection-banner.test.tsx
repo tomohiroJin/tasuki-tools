@@ -26,13 +26,13 @@ describe('connectionNotice（種類 → 文）', () => {
     });
   });
 
-  it('Given 繋がらない / When 文を見る / Then 操作できない理由まで書き、「作成」とは言わない（#95 S5c）', () => {
+  it('Given 繋がらない / When 文を見る / Then 操作できない理由まで書き、「作成」とは言わない', () => {
     const notice = connectionNotice('unreachable');
     expect(notice.kind === 'unreachable' && notice.text).toContain('参加できません');
     expect(notice.kind === 'unreachable' && notice.text).not.toContain('作成');
   });
 
-  it('Given 同期できていない / When 文を見る / Then 再読込を促さない（直らない・docs/poker/adr/0002）', () => {
+  it('Given 同期できていない / When 文を見る / Then 再読込を促さない（直らない）', () => {
     const notice = connectionNotice('stale');
     expect(notice.kind === 'stale' && notice.text).not.toContain('再読込');
   });

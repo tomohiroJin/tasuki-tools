@@ -649,6 +649,10 @@ export const SHARED_UI_ENTRIES = [
     parts: [{ name: "Markdown", file: "packages/web-kit/src/reader/markdown.tsx" }],
   },
   {
+    specifier: "@tasuki/web-kit/room",
+    parts: [{ name: "ConnectionBanner", file: "packages/web-kit/src/room/connection-banner.tsx" }],
+  },
+  {
     specifier: "@tasuki/invite-ui",
     parts: [{ name: "RoomHeader", file: "packages/invite-ui/src/RoomHeader.tsx" }],
   },
