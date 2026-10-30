@@ -55,13 +55,11 @@ describe('小さな終了見込みの印の線', () => {
 describe('映す表示の中の接続の告知の帯', () => {
   const css = read('run.css');
 
-  it('Given 上端の枠 / When 規則を見る / Then 流れの中で全幅・上端に貼りつき、帯が無いときは高さを取らない', () => {
+  it('Given 上端の枠 / When 規則を見る / Then 流れの外で映す表示の上端に全幅で貼る（中央寄せの grid に巻き込まれない）', () => {
     const body = ruleBody(css, '.projection-top');
-    expect(body).toContain('grid-column: 1 / -1;');
-    expect(body).toContain('position: sticky;');
-    expect(body).toContain('top: 0;');
-    // 外側の余白を打ち消して縁まで広げる。下は 0（隙間の分だけ帯が無いと 0 になる）
-    expect(body).toContain('margin: calc(-1 * var(--space-6)) calc(-1 * var(--space-4)) 0;');
+    expect(body).toContain('position: absolute;');
+    expect(body).toContain('inset: 0 0 auto;');
+    expect(body).not.toContain('grid-column');
   });
 
   it('Given 帯の下の音の切り替え / When 規則を見る / Then 上端の枠の下端から間をあけて置く', () => {
