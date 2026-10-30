@@ -9,15 +9,15 @@
 #       git apply scripts/mutations/m590-*.patch
 # 復元: git apply -R scripts/mutations/m590-*.patch
 diff --git a/apps/roulette-web/src/regulars-view.ts b/apps/roulette-web/src/regulars-view.ts
-index 14ae22fb..cc740cbe 100644
+index d2959220..6db20a36 100644
 --- a/apps/roulette-web/src/regulars-view.ts
 +++ b/apps/roulette-web/src/regulars-view.ts
-@@ -137,7 +137,7 @@ export function splitForEdit(candidates: readonly Candidate[], members: readonly
+@@ -145,7 +145,7 @@ export function splitForEdit(candidates: readonly Candidate[], members: readonly
   * 重複と正規化は保存と同じ（`parseMemberLines`）。
   */
  export function orderedMembers(saved: readonly string[], checked: readonly string[], text: string): string[] {
 -  const wanted = parseMemberLines([...checked, text].join('\n'));
 +  const wanted = [...checked, ...parseMemberLines(text)];
-   const kept = saved.filter((m) => wanted.some((w) => sameName(w, m)));
-   const rest = wanted.filter((w) => !kept.some((m) => sameName(w, m)));
+   const kept = saved.filter((m) => wanted.some((w) => sameMemberName(w, m)));
+   const rest = wanted.filter((w) => !kept.some((m) => sameMemberName(w, m)));
    return [...kept, ...rest];

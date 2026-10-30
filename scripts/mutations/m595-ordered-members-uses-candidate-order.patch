@@ -9,13 +9,13 @@
 #       git apply scripts/mutations/m595-*.patch
 # 復元: git apply -R scripts/mutations/m595-*.patch
 diff --git a/apps/roulette-web/src/regulars-view.ts b/apps/roulette-web/src/regulars-view.ts
-index 14ae22fb..431ea0ac 100644
+index d2959220..f6420a1c 100644
 --- a/apps/roulette-web/src/regulars-view.ts
 +++ b/apps/roulette-web/src/regulars-view.ts
-@@ -140,5 +140,5 @@ export function orderedMembers(saved: readonly string[], checked: readonly strin
+@@ -148,5 +148,5 @@ export function orderedMembers(saved: readonly string[], checked: readonly strin
    const wanted = parseMemberLines([...checked, text].join('\n'));
-   const kept = saved.filter((m) => wanted.some((w) => sameName(w, m)));
-   const rest = wanted.filter((w) => !kept.some((m) => sameName(w, m)));
+   const kept = saved.filter((m) => wanted.some((w) => sameMemberName(w, m)));
+   const rest = wanted.filter((w) => !kept.some((m) => sameMemberName(w, m)));
 -  return [...kept, ...rest];
 +  return wanted;
  }

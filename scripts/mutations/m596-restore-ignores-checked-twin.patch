@@ -9,15 +9,15 @@
 #       git apply scripts/mutations/m596-*.patch
 # 復元: git apply -R scripts/mutations/m596-*.patch
 diff --git a/apps/roulette-web/src/regulars-view.ts b/apps/roulette-web/src/regulars-view.ts
-index 696ead64..9974bde5 100644
+index d2959220..5750674a 100644
 --- a/apps/roulette-web/src/regulars-view.ts
 +++ b/apps/roulette-web/src/regulars-view.ts
 @@ -98,7 +98,7 @@ export function restoreOf(rows: readonly PersonRow[], names: readonly string[]):
    let blocked = 0;
    for (const name of names) {
-     const same = rows.filter((r) => sameName(r.name, name));
+     const same = rows.filter((r) => sameMemberName(r.name, name));
 -    if (same.length === 0 || same.some((r) => r.checked)) continue;
 +    if (same.length === 0) continue;
      const usable = same.find((r) => !r.disabled);
      if (usable === undefined) blocked += 1;
-     else if (!ids.includes(usable.id)) ids.push(usable.id);
+     else ids.push(usable.id);
