@@ -17,6 +17,9 @@
 .ui-room-header {
   display: grid;
   gap: var(--space-2);
+  /* 見出しと下の段組みの間（盤・札・進行表が行に接しない・#472）。agenda・checkin・roulette・topic が同じ値で持っていた。
+     timer の `.app-room-header` と poker の `.room > .ui-room-header` も同じ値 */
+  margin-block-end: var(--space-5);
 }
 
 /* 見出しの隣に道具固有のボタンを置けるよう、見出しと並べて折り返す。 */

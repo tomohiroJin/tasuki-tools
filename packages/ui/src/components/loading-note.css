@@ -1,0 +1,11 @@
+/* ============================================================
+   Tasuki UI — 読み込み中・送り返し中の一言（#472・#463-C3）
+   `LoadingView`（`@tasuki/web-kit/room`）と poker の `RedirectingView` が、`.ui-note`（色）に重ねる（`class="loading-note ui-note"`）。部品層は `.ui-` で始まる規則だけを持つので、`.ui-note` と組にして書く。
+   卓の上で控えめに、中央へ置く。余白と並びはここが持つ（一言そのものの色は `.ui-note`）。
+   ============================================================ */
+
+.ui-note.loading-note {
+  margin: 0;
+  padding: var(--space-6) 0;
+  text-align: center;
+}

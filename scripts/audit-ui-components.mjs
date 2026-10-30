@@ -650,7 +650,12 @@ export const SHARED_UI_ENTRIES = [
   },
   {
     specifier: "@tasuki/web-kit/room",
-    parts: [{ name: "ConnectionBanner", file: "packages/web-kit/src/room/connection-banner.tsx" }],
+    parts: [
+      { name: "ConnectionBanner", file: "packages/web-kit/src/room/connection-banner.tsx" },
+      { name: "LoadingView", file: "packages/web-kit/src/room/loading-view.tsx" },
+      { name: "RoomGoneView", file: "packages/web-kit/src/room/room-gone-view.tsx" },
+      { name: "RoomJoiningView", file: "packages/web-kit/src/room/room-joining-view.tsx" },
+    ],
   },
   {
     specifier: "@tasuki/invite-ui",
