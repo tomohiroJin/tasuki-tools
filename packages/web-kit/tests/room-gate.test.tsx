@@ -6,7 +6,7 @@
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
-import { ConnectionBanner, LoadingView, RoomGoneView, RoomJoiningView } from '../src/room/index.js';
+import { LoadingView, RoomGoneView, RoomJoiningView } from '../src/room/index.js';
 
 afterEach(cleanup);
 
@@ -40,10 +40,10 @@ describe('RoomGoneView', () => {
 });
 
 describe('RoomJoiningView', () => {
-  const base = { backHref: '/?room=ABC', backLabel: '選択画面へ戻る', retryNotice: null, error: null } as const;
+  const base = { backHref: '/?room=ABC', backLabel: '選択画面へ戻る', retryNotice: null, error: null, notice: 'none' } as const;
 
   it('Given 参加中 / When 描く / Then header の h1 と戻るリンク（玄関のそのルーム）を出し、知らせは出さない', () => {
-    const { container } = render(<RoomJoiningView {...base} banner={null} bannerPlacement="before-main" />);
+    const { container } = render(<RoomJoiningView {...base} bannerPlacement="before-main" />);
     const main = container.querySelector('main') as HTMLElement;
     expect(main.className).toBe('ui-page ui-page--prose');
     const header = main.firstElementChild as HTMLElement;
@@ -59,7 +59,7 @@ describe('RoomJoiningView', () => {
   });
 
   it('Given 混雑の知らせと失敗 / When 描く / Then 知らせは status、失敗は alert（ui-note--error）で見出しの後に並べる', () => {
-    const { container } = render(<RoomJoiningView {...base} retryNotice="混み合っています" error="失敗しました" banner={null} bannerPlacement="before-main" />);
+    const { container } = render(<RoomJoiningView {...base} retryNotice="混み合っています" error="失敗しました" bannerPlacement="before-main" />);
     const main = container.querySelector('main') as HTMLElement;
     const notice = screen.getByRole('status');
     const error = screen.getByRole('alert');
@@ -73,7 +73,7 @@ describe('RoomJoiningView', () => {
   });
 
   it('Given 帯を main の前に置く指定 / When 描く / Then 帯は main の直前の兄弟になる', () => {
-    const { container } = render(<RoomJoiningView {...base} banner={<ConnectionBanner kind="stale" />} bannerPlacement="before-main" />);
+    const { container } = render(<RoomJoiningView {...base} notice="stale" bannerPlacement="before-main" />);
     expect([...container.children].map((el) => el.tagName)).toEqual(['P', 'MAIN']);
     expect((container.firstElementChild as HTMLElement).className).toBe('ui-banner');
     expect(container.querySelector('main .ui-banner')).toBeNull();
@@ -81,7 +81,7 @@ describe('RoomJoiningView', () => {
 
   it('Given 帯を見出しの後に置く指定 / When 描く / Then 帯は main の中の header の直後で、知らせより前になる', () => {
     const { container } = render(
-      <RoomJoiningView {...base} retryNotice="混み合っています" banner={<ConnectionBanner kind="stale" />} bannerPlacement="after-header" />,
+      <RoomJoiningView {...base} retryNotice="混み合っています" notice="stale" bannerPlacement="after-header" />,
     );
     expect([...container.children].map((el) => el.tagName)).toEqual(['MAIN']);
     const main = container.firstElementChild as HTMLElement;

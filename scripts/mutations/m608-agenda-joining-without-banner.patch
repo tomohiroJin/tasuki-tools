@@ -17,7 +17,7 @@ diff --git a/apps/agenda-web/src/screens/AgendaRoom.tsx b/apps/agenda-web/src/sc
          retryNotice={sync.retryNotice}
          error={sync.error}
 -        banner={<ConnectionBanner kind={sync.notice} />}
-+        banner={null}
++        notice="none"
          bannerPlacement="after-header"
        />
      );

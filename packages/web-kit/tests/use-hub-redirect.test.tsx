@@ -38,4 +38,25 @@ describe('useHubRedirect', () => {
     rerender({ code: 'B' });
     expect(redirectTo.mock.calls).toEqual([['HUB:A:-'], ['HUB:B:-']]);
   });
+
+  it('Given 描くたびに新しい関数を渡す / When 再描画する / Then 同じ行き先へ送り直さず、最新の関数で送る', () => {
+    const first = vi.fn();
+    const second = vi.fn();
+    const { rerender } = renderHook(({ fn }) => useHubRedirect({ departed: null, needsHub: true, roomCode: 'R', hubPathFor: (c) => `HUB:${c}`, redirectTo: fn }), {
+      initialProps: { fn: first },
+    });
+    rerender({ fn: first });
+    rerender({ fn: second });
+    expect(first.mock.calls).toEqual([['HUB:R']]);
+    expect(second).not.toHaveBeenCalled();
+  });
+  it('Given 新しい関数に差し替えた後で理由が変わる / When 送る / Then 最新の redirectTo が呼ばれる', () => {
+    const first = vi.fn();
+    const second = vi.fn();
+    const { rerender } = renderHook(({ fn, departed }: { fn: (to: string) => void; departed: string | null }) =>
+      useHubRedirect({ departed, needsHub: false, roomCode: 'R', hubPathFor, redirectTo: fn }), { initialProps: { fn: first, departed: null as string | null } });
+    rerender({ fn: second, departed: 'removed' });
+    expect(first).not.toHaveBeenCalled();
+    expect(second.mock.calls).toEqual([['HUB:R:removed']]);
+  });
 });

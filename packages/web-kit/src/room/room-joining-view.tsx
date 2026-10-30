@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react';
+import type { ConnectionNoticeKind } from '@tasuki/sync-client';
+import { ConnectionBanner } from './connection-banner.js';
 import { ROOM_GATE_TEXT } from './room-gate-copy.js';
 
 export interface RoomJoiningViewProps {
@@ -10,8 +11,8 @@ export interface RoomJoiningViewProps {
   readonly retryNotice: string | null;
   /** 失敗の一言。 */
   readonly error: string | null;
-  /** 接続の告知の帯（`ConnectionBanner`）。 */
-  readonly banner: ReactNode;
+  /** 接続の告知の種類（同期フックの `notice`）。帯はこの部品が描く。 */
+  readonly notice: ConnectionNoticeKind;
   /**
    * 帯の位置。**アプリごとに違い、今は揃えていない**: `before-main`（`<main>` の直前・roulette・topic）、
    * `after-header`（`<main>` の中の見出しの後・agenda・checkin）。
@@ -20,7 +21,8 @@ export interface RoomJoiningViewProps {
 }
 
 /** 最初の入室が成立するまでの画面。再接続の間は本画面を保つので、ここへは戻らない。 */
-export function RoomJoiningView({ backHref, backLabel, retryNotice, error, banner, bannerPlacement }: RoomJoiningViewProps) {
+export function RoomJoiningView({ backHref, backLabel, retryNotice, error, notice, bannerPlacement }: RoomJoiningViewProps) {
+  const banner = <ConnectionBanner kind={notice} />;
   const main = (
     <main className="ui-page ui-page--prose">
       <header className="ui-page-header">

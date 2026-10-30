@@ -88,7 +88,7 @@ export function CheckinRoom({ roomCode }: { roomCode: string }) {
         backLabel={ROOM_HEADER_TEXT.back}
         retryNotice={sync.retryNotice}
         error={sync.error}
-        banner={banner}
+        notice={sync.notice}
         bannerPlacement="after-header"
       />
     );

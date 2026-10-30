@@ -8,6 +8,12 @@
 
 @import '@tasuki/ui';
 
+/* 共通の見出し（`RoomHeader`）と段組みの間（札・盤が行に接しない）。部品層には置かない:
+   timer の詰めた見出し（`.app-room-header-compact`）と margin が相殺して、詰めた間隔が space-5 に戻るため（#472 レビュー）。 */
+.ui-room-header {
+  margin-block-end: var(--space-5);
+}
+
 /* ---------- 札の顔（`CardFace`・#406） ----------
    象牙の札の上に、細い墨（--coal）の線を引き、金（--gold）を一点だけ差す。色は SVG の属性に書かず、ここで当てる。 */
 .card-art {
