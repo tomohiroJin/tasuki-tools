@@ -10,14 +10,15 @@
 #       git apply scripts/mutations/m609-*.patch
 # 復元: git apply -R scripts/mutations/m609-*.patch
 diff --git a/packages/ui/src/components/banner.css b/packages/ui/src/components/banner.css
-index ab7bad37..685f04b6 100644
+index e146ff99..685f04b6 100644
 --- a/packages/ui/src/components/banner.css
 +++ b/packages/ui/src/components/banner.css
-@@ -13,6 +13,7 @@
-   box-sizing: border-box;
+@@ -14,7 +14,7 @@
    position: sticky;
    top: 0;
-+  /* 層の決めごと: 全面を覆うもの（agenda の映す表示 `.projection` 20）より前に置く。覆われると切断が映って伝わらない。 */
-   z-index: 10;
+   /* 層の決めごと: 全面を覆うもの（agenda の映す表示 `.projection` 20）より前に置く。覆われると切断が映って伝わらない。 */
+-  z-index: 30;
++  z-index: 10;
    /* `<p>` の既定の余白を消す。残すと帯が上端から浮き、上に内容が覗く。 */
    margin: 0;
+   padding: var(--space-2) var(--space-4);
