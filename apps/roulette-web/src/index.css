@@ -776,6 +776,8 @@
 .roulette-regulars-notice {
   margin: 0;
   font-size: var(--font-size-sm);
+  /* 入らなかった人の名前（#469 D5）は区切りの無い長い名前でも折る（320px で横に溢れた） */
+  overflow-wrap: anywhere;
 }
 .roulette-regulars-notice:empty {
   margin-block-start: calc(-1 * var(--space-3));
