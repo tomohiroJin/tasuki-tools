@@ -3813,11 +3813,11 @@ export const MUTATIONS = [
   },
   {
     id: 600,
-    label: "parseRoute が先頭の base を確かめない",
+    label: "parseRoomRoute が先頭の base を確かめない",
     patch: "m600-room-route-base-not-checked.patch",
     pkg: "packages/room-core",
     tests: ["tests/room-route.test.ts"],
-    note: "#470。`parseRoute` が pathname の先頭が base かを見ずに長さだけで切る。他アプリの base や大文字違いのパスが入口として通ってしまう。",
+    note: "#470。`parseRoomRoute` が pathname の先頭が base かを見ずに長さだけで切る。他アプリの base や大文字違いのパスが入口として通ってしまう。",
   },
   {
     id: 601,
@@ -3825,7 +3825,7 @@ export const MUTATIONS = [
     patch: "m601-room-route-hub-drops-departure.patch",
     pkg: "packages/room-core",
     tests: ["tests/room-route.test.ts"],
-    note: "#470。`hubPathFor` が `DEPARTURE_PARAM` でなく別の名前で理由を運ぶ。玄関が読めず退出の告知が出ない。",
+    note: "#470。`roomHubPath` が `DEPARTURE_PARAM` でなく別の名前で理由を運ぶ。玄関が読めず退出の告知が出ない。",
   },
   {
     id: 605,

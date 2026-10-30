@@ -5,16 +5,12 @@
  * `@tasuki/room-core` に寄せてある（#470）。ここは BASE を渡す薄い結線と、
  * `location` を触る `redirectTo`（テストが `vi.mock` で差し替える）だけを持つ。
  */
-import { parseRoomRoute, roomHubPath, type DepartureReason, type Route } from '@tasuki/room-core';
+import { parseRoomRoute, type RoomRoute } from '@tasuki/room-core';
 
-export type { Route };
+export { roomHubPath as hubPathFor } from '@tasuki/room-core';
+export type Route = RoomRoute;
 
 const BASE = '/agenda';
-
-/** 玄関のそのルーム（抜けた理由は `?left=` で運ぶ）。 */
-export function hubPathFor(roomCode: string, departure?: DepartureReason): string {
-  return roomHubPath(roomCode, departure);
-}
 
 export function parseRoute(pathname: string, search = ''): Route {
   return parseRoomRoute(BASE, pathname, search);

@@ -9,10 +9,10 @@
 #       git apply scripts/mutations/m601-*.patch
 # 復元: git apply -R scripts/mutations/m601-*.patch
 diff --git a/packages/room-core/src/room-route.ts b/packages/room-core/src/room-route.ts
-index ff7d9f52..8f0cb5eb 100644
+index 108b03d3..6152bd60 100644
 --- a/packages/room-core/src/room-route.ts
 +++ b/packages/room-core/src/room-route.ts
-@@ -37,6 +37,6 @@ export function parseRoomRoute(base: string, pathname: string, search = ""): Rou
+@@ -37,6 +37,6 @@ export function parseRoomRoute(base: string, pathname: string, search = ""): Roo
   */
  export function roomHubPath(roomCode: string, departure?: DepartureReason): string {
    const params = new URLSearchParams({ room: roomCode });

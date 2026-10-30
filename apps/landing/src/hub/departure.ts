@@ -15,6 +15,7 @@ import {
   DEPARTURE_PARAM,
   departureNoticeFor,
   parseDepartureReason,
+  roomHubPath,
   type DepartureReason,
 } from '@tasuki/room-core';
 
@@ -42,9 +43,7 @@ export function readDepartureNotice(href: string): DepartureNotice {
  * ハブの画面自身が受けたときの行き先で、他のツールの `hubPathFor` と同じ形になる（#427）。
  */
 export function departureHubPath(code: string, reason: DepartureReason): string {
-  const params = new URLSearchParams({ room: code });
-  params.set(DEPARTURE_PARAM, reason);
-  return `/?${params.toString()}`;
+  return roomHubPath(code, reason);
 }
 
 /**

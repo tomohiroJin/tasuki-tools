@@ -11,12 +11,12 @@
  */
 import { DEPARTURE_PARAM, type DepartureReason } from "./departure.js";
 
-export type Route = { name: "room"; roomCode: string } | { name: "redirect"; to: string };
+export type RoomRoute = { name: "room"; roomCode: string } | { name: "redirect"; to: string };
 
 /**
  * URL からルートを決める。`base` はアプリの置き場（例 `/agenda`。末尾スラッシュは有っても無くても同じ）。
  */
-export function parseRoomRoute(base: string, pathname: string, search = ""): Route {
+export function parseRoomRoute(base: string, pathname: string, search = ""): RoomRoute {
   // base の末尾スラッシュは落として扱う（`/agenda/` を渡されても `/agenda` と同じ）。
   const root = base.replace(/\/+$/, "");
   const rest = pathname.startsWith(root) ? pathname.slice(root.length) : null;

@@ -51,14 +51,13 @@ S2〜S4a では poker 側の入れ子（src/poker 配下。**S4b で畳みまし
 | web の読む面の共有部品 | `packages/web-kit` の入口 `@tasuki/web-kit/reader`（`Markdown`・`useReaderDrawer`。#371） | `react`（peer）・`@tasuki/markdown`。**画面から読んでよい**（同期の入口 `./sync` とは別） |
 | 開発用の設定 | `packages/dev-hub-redirect` | なし（dev サーバー専用の Vite プラグインと玄関のポートの正本。各アプリの `vite.config.ts` だけが読む。層の外） |
 
-**#371 で寄せなかったもの**: 招待の表示・タブ・timer の確認のダイアログは、
+**#371 で寄せなかったもの**: 玄関への道（`hubPathFor` など）・`parseRoute`・招待の表示・タブ・timer の確認のダイアログは、
 各アプリに写しのまま置く（理由は [`2026-10-14-refactor-r11-shared-display-parts.md`](../superpowers/plans/2026-10-14-refactor-r11-shared-display-parts.md) §9）。
 
-**ルームの URL の解析と玄関への道は #470（#463-C1）で寄せた**: `parseRoomRoute(base, …)` と `roomHubPath` は
-`@tasuki/room-core`（`src/room-route.ts`）にあり、agenda・checkin・roulette・topic の `router.ts` は BASE を渡す薄い結線と
-`redirectTo`（`location` を触るのでアプリに残す）だけを持つ。**poker と timer は寄せていない**（原則 X）:
-poker の `parseRoute` は旧リンク `/poker/room/<id>` の救済（コードの復号を含む）を持ち、変異 37 がそこを守る。
-timer の `hubRoomPath`（`ui/entry.ts`）は形が違う。
+**#470（#463-C1）で寄せた**: ルームの URL の解析 `parseRoomRoute(base, …)` と玄関への道 `roomHubPath` は `@tasuki/room-core`（`src/room-route.ts`）にある。
+agenda・checkin・roulette・topic の `router.ts` は BASE を渡す薄い結線と `redirectTo`（`location` を触るのでアプリに残す）だけを持ち、
+poker の `hubPathFor` と landing の `departureHubPath` も `roomHubPath` を使う。**poker の `parseRoute` と timer の `hubRoomPath`（`ui/entry.ts`）は寄せていない**（原則 X）:
+poker の `parseRoute` は旧リンク `/poker/room/<id>` の救済（コードの復号を含む）を持ち、変異 37 がそこを守る。timer は形が違う。
 
 web の画面は、招待のコピー・QR 生成については `packages/invite-ui` のフックを使う。
 同期フックから受け取った URL を渡し、操作結果を描画する。URL の組み立てや
