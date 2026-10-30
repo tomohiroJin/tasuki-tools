@@ -3478,7 +3478,7 @@ export const MUTATIONS = [
   },
   {
     id: 581,
-    label: "回が無いときも「新しい回が始まります」を添える",
+    label: "回が無いときも「新しい回が始まります」を札の説明に結ぶ",
     patch: "m581-picker-note-always-shown.patch",
     pkg: "apps/checkin-web",
     tests: ["tests/method-picker.test.tsx"],
