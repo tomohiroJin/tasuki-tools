@@ -31,7 +31,9 @@ async function pickerBoxes(page: Page): Promise<Array<{ x: number; y: number; wi
   return boxes;
 }
 
-/** 札が同じ幅・同じ高さで、列の数が期待どおりで、横スクロールが無いこと（#468 D1・D2）。 */
+/**
+ * 配置の検査は @core の流れの中（今の場所）に置く: ルームを増やさないため（ルームの増分は +1 のまま）。
+ * 札が同じ幅・同じ高さで、列の数が期待どおりで、横スクロールが無いこと（#468 D1・D2）。 */
 async function expectPickerGrid(page: Page, columns: number): Promise<void> {
   const boxes = await pickerBoxes(page);
   for (const b of boxes) {
@@ -42,11 +44,14 @@ async function expectPickerGrid(page: Page, columns: number): Promise<void> {
   const inside = await page.locator('.method-list .method-option').evaluateAll((els) =>
     els.every((el) => {
       const o = el.getBoundingClientRect();
-      const f = (el.querySelector('.method-fan') as HTMLElement).getBoundingClientRect();
-      return f.left >= o.left - 1 && f.right <= o.right + 1 && f.top >= o.top - 1 && f.bottom <= o.bottom + 1;
+      // 扇の各札（transform の回転を含む外接箱）が札の箱の内側に入る
+      return [...el.querySelectorAll('.method-fan-card')].every((c) => {
+        const f = c.getBoundingClientRect();
+        return f.left >= o.left - 1 && f.right <= o.right + 1 && f.top >= o.top - 1 && f.bottom <= o.bottom + 1;
+      });
     }),
   );
-  expect(inside, '扇が札の箱の内側に収まる').toBe(true);
+  expect(inside, '扇の各札が札の箱の内側に収まる').toBe(true);
   const xs = new Set(boxes.map((b) => Math.round(b.x)));
   expect(xs.size, `${page.viewportSize()?.width}px の列の数`).toBe(columns);
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);

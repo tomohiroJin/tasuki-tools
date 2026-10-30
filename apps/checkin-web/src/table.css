@@ -65,10 +65,6 @@
 
 /* ---------- やり方の選択 ---------- */
 /* 見出しの行の並びは部品（.ui-page-header）が持つ。添え書きは次の行に全幅（#468 D5）。戻るは折り返さない */
-.method-picker-head .ui-page-header-back {
-  margin-inline-start: auto; /* 狭い幅で折り返しても右端に置く（部品の CSS は変えない） */
-  white-space: nowrap;
-}
 
 .method-picker-heading {
   margin: 0;
@@ -80,6 +76,12 @@
 .method-side-hint {
   margin: 0;
   font-size: var(--font-size-sm);
+}
+
+/* 札が消える注意は側の一文と見分けがつくよう、字を太くして金の字にする */
+.method-picker-note {
+  color: var(--gold-bright);
+  font-weight: 700;
 }
 
 

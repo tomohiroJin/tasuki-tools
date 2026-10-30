@@ -54,7 +54,7 @@ describe('やり方の選択', () => {
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
-  it('Given 回がある（onCancel あり） / Then 戻るボタンと添え書きが見出しの行に戻るが入り、注意文は直後に出る（#468 D5）', () => {
+  it('Given 回がある（onCancel あり） / Then 見出しの行は見出しと戻るの 2 つで、注意文は行の直後に出る（#468 D5）', () => {
     render(<MethodPicker canOperate initialSide="checkin" onChoose={vi.fn()} onDraw={vi.fn()} onCancel={vi.fn()} />);
 
     const head = screen.getByRole('heading', { name: 'やり方を選んでください' }).parentElement as HTMLElement;
@@ -95,14 +95,23 @@ describe('やり方の選択', () => {
     for (const item of items) expect(item.querySelector('button')).toHaveClass('method-option');
   });
 
-  it('Given 回がある / Then 札の一覧が注意文で説明され、回が無ければ説明されない（#468 D5）', () => {
+  it('Given 回がある / Then 8 枚すべての札の説明が「お題の説明 + 注意文」になり、回が無ければ注意文は無い（#468 D5）', () => {
     const { unmount } = render(<MethodPicker canOperate initialSide="checkin" onChoose={vi.fn()} onDraw={vi.fn()} onCancel={vi.fn()} />);
-    expect(screen.getByRole('list')).toHaveAccessibleDescription(/新しい回が始まります/);
+    const cards = screen.getAllByRole('listitem').map((li) => li.querySelector('button') as HTMLElement);
+    expect(cards).toHaveLength(8);
+    for (const c of cards) {
+      expect(c).toHaveAccessibleDescription(/新しい回が始まります（いまの回の札は消えます）$/);
+      // 先頭はその札の説明（注意文だけの説明にならない）
+      expect(c.getAttribute('aria-describedby')).toMatch(/^method-[a-z-]+-(prompt|hint) method-picker-note$/);
+    }
+    expect(screen.getByRole('list')).not.toHaveAttribute('aria-describedby');
     unmount();
     render(<MethodPicker canOperate initialSide="checkin" onChoose={vi.fn()} onDraw={vi.fn()} />);
-    expect(screen.getByRole('list')).toHaveAccessibleDescription('');
-    // 無い要素の id を指さない（説明が空でも属性が残る変異を拾う）
-    expect(screen.getByRole('list')).not.toHaveAttribute('aria-describedby');
+    for (const li of screen.getAllByRole('listitem')) {
+      const c = li.querySelector('button') as HTMLElement;
+      expect(c).not.toHaveAccessibleDescription(/新しい回が始まります/);
+      expect(c.getAttribute('aria-describedby')).not.toContain('method-picker-note');
+    }
   });
 
   it('Given 側の切り替え / Then 一文がグループの説明になり、切り替えで替わる（#468 D4）', () => {

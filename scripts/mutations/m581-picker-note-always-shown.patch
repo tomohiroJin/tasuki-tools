@@ -3,7 +3,7 @@
 # 検出を期待するテスト:
 #   - apps/checkin-web/tests/method-picker.test.tsx
 #
-# #468（#463-A）。回が無いときも「新しい回が始まります」の注意文を札の一覧に結ぶ。
+# #468（#463-A）。回が無いときも「新しい回が始まります」の注意文を札の説明に結ぶ。
 #
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m581-*.patch

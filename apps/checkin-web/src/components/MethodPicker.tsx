@@ -24,6 +24,8 @@ interface Props {
 
 export function MethodPicker({ canOperate, initialSide, headingRef, onChoose, onDraw, onCancel }: Props) {
   const [side, setSide] = useState<Side>(initialSide);
+  /** 回があるときは、札が消える注意文を全ての札の説明の後ろに併記する（フォーカスした札で読まれるように・#468 D5） */
+  const describedBy = (id: string) => (onCancel ? `${id} method-picker-note` : id);
   return (
     <section className="method-picker" aria-labelledby="method-picker-heading">
       <div className="ui-page-header method-picker-head">
@@ -49,14 +51,14 @@ export function MethodPicker({ canOperate, initialSide, headingRef, onChoose, on
         ))}
       </div>
       <p id="method-side-hint" className="ui-note method-side-hint">{SIDE_HINT[side]}</p>
-      <ul className="method-list" aria-describedby={onCancel ? 'method-picker-note' : undefined}>
+      <ul className="method-list">
         {methodsOf(side).map((m) => (
           <li key={m}>
             <button
               type="button"
               className="method-option"
               aria-labelledby={`method-${m}-title`}
-              aria-describedby={`method-${m}-prompt`}
+              aria-describedby={describedBy(`method-${m}-prompt`)}
               disabled={!canOperate}
               onClick={() => onChoose(m)}
             >
@@ -84,7 +86,7 @@ export function MethodPicker({ canOperate, initialSide, headingRef, onChoose, on
             type="button"
             className="method-option method-option--random"
             aria-labelledby="method-random-title"
-            aria-describedby="method-random-hint"
+            aria-describedby={describedBy('method-random-hint')}
             disabled={!canOperate}
             onClick={() => onDraw(side)}
           >
