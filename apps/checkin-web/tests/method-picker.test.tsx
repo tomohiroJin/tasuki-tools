@@ -54,12 +54,16 @@ describe('やり方の選択', () => {
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
-  it('Given 回がある（onCancel あり） / Then 戻るボタンと添え書きが見出しの行に入る（#468 D5）', () => {
+  it('Given 回がある（onCancel あり） / Then 戻るボタンと添え書きが見出しの行に戻るが入り、注意文は直後に出る（#468 D5）', () => {
     render(<MethodPicker canOperate initialSide="checkin" onChoose={vi.fn()} onDraw={vi.fn()} onCancel={vi.fn()} />);
 
     const head = screen.getByRole('heading', { name: 'やり方を選んでください' }).parentElement as HTMLElement;
-    expect(head).toHaveClass("method-picker-head");
+    expect(head).toHaveClass('method-picker-head');
     expect(head).toContainElement(screen.getByRole('button', { name: 'いまの回に戻る' }));
+    // 部品は見出しと戻るの 2 子の前提。注意文は外（直後の兄弟）に置く
+    expect(head.children).toHaveLength(2);
+    expect(head).not.toContainElement(screen.getByText(/選ぶと新しい回が始まります/));
+    expect(head.nextElementSibling).toBe(screen.getByText(/選ぶと新しい回が始まります/));
     expect(screen.getByText(/選ぶと新しい回が始まります/)).toBeInTheDocument();
     expect(screen.getByText(/いまの回の札は消えます/)).toBeInTheDocument();
   });
@@ -91,14 +95,19 @@ describe('やり方の選択', () => {
     for (const item of items) expect(item.querySelector('button')).toHaveClass('method-option');
   });
 
-  it('Given 回がある / Then 全ての札の説明に注意文が併記され、回が無ければ併記されない（#468 D5）', () => {
+  it('Given 回がある / Then 札の一覧が注意文で説明され、回が無ければ説明されない（#468 D5）', () => {
     const { unmount } = render(<MethodPicker canOperate initialSide="checkin" onChoose={vi.fn()} onDraw={vi.fn()} onCancel={vi.fn()} />);
-    const note = screen.getByText(/選ぶと新しい回が始まります/);
-    const cards = screen.getAllByRole('listitem').map((li) => li.querySelector('button') as HTMLElement);
-    expect(cards).toHaveLength(8);
-    for (const c of cards) expect(c.getAttribute('aria-describedby')).toContain(note.id);
+    expect(screen.getByRole('list')).toHaveAccessibleDescription(/新しい回が始まります/);
     unmount();
     render(<MethodPicker canOperate initialSide="checkin" onChoose={vi.fn()} onDraw={vi.fn()} />);
-    for (const li of screen.getAllByRole('listitem')) expect(li.querySelector('button')?.getAttribute('aria-describedby')).not.toContain('note');
+    expect(screen.getByRole('list')).toHaveAccessibleDescription('');
+  });
+
+  it('Given 側の切り替え / Then 一文がグループの説明になり、切り替えで替わる（#468 D4）', () => {
+    render(<MethodPicker canOperate initialSide="checkin" onChoose={vi.fn()} onDraw={vi.fn()} />);
+    const group = screen.getByRole('group', { name: 'やり方を選んでください' });
+    expect(group).toHaveAccessibleDescription('チェックインは会の始まりに使います');
+    fireEvent.click(screen.getByRole('button', { name: 'チェックアウト' }));
+    expect(group).toHaveAccessibleDescription('チェックアウトは会の終わりに使います');
   });
 });

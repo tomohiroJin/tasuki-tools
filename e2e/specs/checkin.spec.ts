@@ -124,6 +124,22 @@ test.describe('@core 札を伏せて出し、全員の画面で一斉に開く',
 
     // When / Then その4（E5・E6・E7）: 別のやり方で ROTI（既定は匿名）
     await page.getByRole('button', { name: '別のやり方', exact: true }).click();
+    // 回ありの選択画面（#468 D5）: 320px・1280px で、戻るが見出しの行の右端・横溢れ 0・注意文が見える
+    const viewBefore = page.viewportSize() ?? { width: 1280, height: 800 };
+    for (const width of [320, 1280]) {
+      await page.setViewportSize({ width, height: viewBefore.height });
+      const back = page.getByRole('button', { name: 'いまの回に戻る', exact: true });
+      await expect(back).toBeVisible();
+      await expect(page.getByText('選ぶと新しい回が始まります（いまの回の札は消えます）')).toBeVisible();
+      const gap = await back.evaluate((el) => {
+        const head = el.closest('.method-picker-head') as HTMLElement;
+        return head.getBoundingClientRect().right - el.getBoundingClientRect().right;
+      });
+      expect(Math.abs(gap), `${width}px で戻るが見出しの行の右端`).toBeLessThanOrEqual(1);
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      expect(overflow, `${width}px の横溢れ`).toBeLessThanOrEqual(0);
+    }
+    await page.setViewportSize(viewBefore);
     await chooseMethod(page, 'チェックアウト', 'ROTI（時間に見合ったか）');
     for (const p of [page, b]) {
       await expect(p.getByRole('heading', { level: 2, name: 'この時間、使った分の価値はありましたか？' })).toBeVisible();

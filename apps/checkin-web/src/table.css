@@ -66,6 +66,7 @@
 /* ---------- やり方の選択 ---------- */
 /* 見出しの行の並びは部品（.ui-page-header）が持つ。添え書きは次の行に全幅（#468 D5）。戻るは折り返さない */
 .method-picker-head .ui-page-header-back {
+  margin-inline-start: auto; /* 狭い幅で折り返しても右端に置く（部品の CSS は変えない） */
   white-space: nowrap;
 }
 
@@ -81,9 +82,6 @@
   font-size: var(--font-size-sm);
 }
 
-.method-picker-note {
-  flex-basis: 100%;
-}
 
 /* 側の切り替えは札の真上。狭い幅では横いっぱい（各ボタンが半分ずつ）、40rem 以上は内容の幅で左に寄せる（#468 D4） */
 .method-picker .seg {

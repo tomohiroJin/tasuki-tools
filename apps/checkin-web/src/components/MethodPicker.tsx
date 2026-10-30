@@ -24,8 +24,6 @@ interface Props {
 
 export function MethodPicker({ canOperate, initialSide, headingRef, onChoose, onDraw, onCancel }: Props) {
   const [side, setSide] = useState<Side>(initialSide);
-  /** 回があるときは「新しい回が始まる」注意文も札の説明に併記する */
-  const describedBy = (id: string) => (onCancel ? `${id} method-picker-note` : id);
   return (
     <section className="method-picker" aria-labelledby="method-picker-heading">
       <div className="ui-page-header method-picker-head">
@@ -33,32 +31,32 @@ export function MethodPicker({ canOperate, initialSide, headingRef, onChoose, on
           {METHOD_PICKER_HEADING}
         </h2>
         {onCancel && (
-          <>
-            <button type="button" className="ui-button ui-button--quiet ui-button--sm ui-page-header-back" onClick={onCancel}>
-              {BACK_LABEL}
-            </button>
-            <p id="method-picker-note" className="ui-note method-picker-note">
-              {PICKER_REPLACE_NOTE}
-            </p>
-          </>
+          <button type="button" className="ui-button ui-button--quiet ui-button--sm ui-page-header-back" onClick={onCancel}>
+            {BACK_LABEL}
+          </button>
         )}
       </div>
-      <div className="seg" role="group" aria-label={METHOD_PICKER_HEADING}>
+      {onCancel && (
+        <p id="method-picker-note" className="ui-note method-picker-note">
+          {PICKER_REPLACE_NOTE}
+        </p>
+      )}
+      <div className="seg" role="group" aria-label={METHOD_PICKER_HEADING} aria-describedby="method-side-hint">
         {SIDES.map((s) => (
           <button key={s} type="button" className="seg-button" aria-pressed={s === side} onClick={() => setSide(s)}>
             {SIDE_LABEL[s]}
           </button>
         ))}
       </div>
-      <p className="ui-note method-side-hint">{SIDE_HINT[side]}</p>
-      <ul className="method-list">
+      <p id="method-side-hint" className="ui-note method-side-hint">{SIDE_HINT[side]}</p>
+      <ul className="method-list" aria-describedby={onCancel ? 'method-picker-note' : undefined}>
         {methodsOf(side).map((m) => (
           <li key={m}>
             <button
               type="button"
               className="method-option"
               aria-labelledby={`method-${m}-title`}
-              aria-describedby={describedBy(`method-${m}-prompt`)}
+              aria-describedby={`method-${m}-prompt`}
               disabled={!canOperate}
               onClick={() => onChoose(m)}
             >
@@ -86,7 +84,7 @@ export function MethodPicker({ canOperate, initialSide, headingRef, onChoose, on
             type="button"
             className="method-option method-option--random"
             aria-labelledby="method-random-title"
-            aria-describedby={describedBy('method-random-hint')}
+            aria-describedby="method-random-hint"
             disabled={!canOperate}
             onClick={() => onDraw(side)}
           >

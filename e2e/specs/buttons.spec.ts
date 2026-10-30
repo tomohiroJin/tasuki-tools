@@ -37,7 +37,7 @@ import { createRoom as createTimerRoom } from '../support/timer';
  * - `.notify-settings-preview`: timer の通知音の「試聴」（設定の行の中の小さな文字の操作で、画面の操作の並びに入らない）
  * - `.hand-card`: Check-in Cards の手札（札の形をした選択肢。poker の `.card` と同じ）
  * - `.seg-button`: Check-in Cards の切り替え（側・公開の仕方。排他の選択肢）
- * - `.method-option`: Check-in Cards のやり方の選択肢（一覧の行の形をした操作）
+ * - `.method-option`: Check-in Cards のやり方の選択肢（扇の上・題と説明の下の縦の札。8 枚が同じ幅・高さで並ぶ操作）
  * - `.roulette-regulars-pick`: ルーレットの「いつものメンツ」の札（名前と人数を 1 つの帯に載せる、一覧の行の形の操作。大きさと重なりは当たりの測りが見る）
  */
 const BARE_ALLOWED = [
