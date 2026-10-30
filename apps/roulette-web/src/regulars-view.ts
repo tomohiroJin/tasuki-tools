@@ -97,11 +97,11 @@ export function restoreOf(rows: readonly PersonRow[], names: readonly string[]):
   const ids: string[] = [];
   let blocked = 0;
   for (const name of names) {
-    const same = rows.filter((r) => sameName(r.name, name));
+    const same = rows.filter((r) => sameMemberName(r.name, name));
     if (same.length === 0 || same.some((r) => r.checked)) continue;
     const usable = same.find((r) => !r.disabled);
     if (usable === undefined) blocked += 1;
-    else if (!ids.includes(usable.id)) ids.push(usable.id);
+    else ids.push(usable.id);
   }
   return { ids, blocked };
 }
@@ -111,8 +111,6 @@ export interface Candidate {
   readonly name: string;
   readonly checked: boolean;
 }
-
-const sameName = sameMemberName;
 
 /**
  * 名簿とゲストの全員を、重複なく候補にする（#469 D1）。名前は保存と同じ正規化にそろえ、
@@ -124,7 +122,7 @@ export function candidatesOf(rows: readonly PersonRow[]): Candidate[] {
   for (const row of rows) {
     const [name] = parseMemberLines(row.name);
     if (name === undefined) continue;
-    const found = out.find((c) => sameName(c.name, name));
+    const found = out.find((c) => sameMemberName(c.name, name));
     if (found === undefined) out.push({ name, checked: row.checked });
     else found.checked = found.checked || row.checked;
   }
@@ -136,8 +134,8 @@ export function candidatesOf(rows: readonly PersonRow[]): Candidate[] {
  * 候補との照合は保存と同じ正規化・大小無視（手入力へ同じ人を重ねない）。
  */
 export function splitForEdit(candidates: readonly Candidate[], members: readonly string[]): { rows: Candidate[]; text: string } {
-  const rows = candidates.map((c) => ({ name: c.name, checked: members.some((m) => sameName(c.name, normalizeDisplayName(m))) }));
-  const manual = members.filter((m) => !candidates.some((c) => sameName(c.name, normalizeDisplayName(m))));
+  const rows = candidates.map((c) => ({ name: c.name, checked: members.some((m) => sameMemberName(c.name, normalizeDisplayName(m))) }));
+  const manual = members.filter((m) => !candidates.some((c) => sameMemberName(c.name, normalizeDisplayName(m))));
   return { rows, text: manual.join('\n') };
 }
 
@@ -148,7 +146,7 @@ export function splitForEdit(candidates: readonly Candidate[], members: readonly
  */
 export function orderedMembers(saved: readonly string[], checked: readonly string[], text: string): string[] {
   const wanted = parseMemberLines([...checked, text].join('\n'));
-  const kept = saved.filter((m) => wanted.some((w) => sameName(w, m)));
-  const rest = wanted.filter((w) => !kept.some((m) => sameName(w, m)));
+  const kept = saved.filter((m) => wanted.some((w) => sameMemberName(w, m)));
+  const rest = wanted.filter((w) => !kept.some((m) => sameMemberName(w, m)));
   return [...kept, ...rest];
 }

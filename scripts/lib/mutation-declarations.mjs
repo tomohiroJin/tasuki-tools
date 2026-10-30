@@ -3878,7 +3878,7 @@ export const MUTATIONS = [
   {
     id: 594,
     label: "押せない行も戻す対象にする",
-    patch: "m594-restore-includes-checked-rows.patch",
+    patch: "m594-restore-picks-disabled-row.patch",
     pkg: "apps/roulette-web",
     tests: ["tests/regulars-view.test.ts"],
     note: "#469。`restoreOf` が押せない行も戻す対象にし、知らせが嘘をつく。",

@@ -358,7 +358,7 @@ describe('直す・消す', () => {
     type('メンツの名前', '朝会');
     fireEvent.click(btn('この端末に保存'));
     const group = screen.getByRole('group', { name: 'ルーレットにいる人' });
-    expect(group).toHaveAttribute('aria-invalid', 'true');
+    expect(group.hasAttribute('aria-invalid')).toBe(false);
     expect(group.getAttribute('aria-describedby')).toContain(screen.getByRole('alert').id);
     expect(screen.getByLabelText('ほかの名前（1 行に 1 人）').hasAttribute('aria-invalid')).toBe(false);
   });
@@ -368,7 +368,7 @@ describe('直す・消す', () => {
     fireEvent.click(btn('いまの人から作る'));
     type('メンツの名前', '朝会');
     fireEvent.click(btn('この端末に保存'));
-    expect(screen.getByRole('group', { name: 'ルーレットにいる人' })).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByRole('group', { name: 'ルーレットにいる人' }).getAttribute('aria-describedby')).toContain(screen.getByRole('alert').id);
     expect(screen.getByLabelText('ほかの名前（1 行に 1 人）').hasAttribute('aria-invalid')).toBe(false);
   });
 
@@ -379,7 +379,7 @@ describe('直す・消す', () => {
     type('ほかの名前（1 行に 1 人）', 'もう一人');
     fireEvent.click(btn('この端末に保存'));
     expect(screen.getByLabelText('ほかの名前（1 行に 1 人）')).toHaveAttribute('aria-invalid', 'true');
-    expect(screen.getByRole('group', { name: 'ルーレットにいる人' }).hasAttribute('aria-invalid')).toBe(false);
+    expect(screen.getByRole('group', { name: 'ルーレットにいる人' }).getAttribute('aria-describedby')).not.toContain(screen.getByRole('alert').id);
   });
 
   it('Given 直して保存 / Then 同じ組が更新され、新しい札にフォーカス', () => {

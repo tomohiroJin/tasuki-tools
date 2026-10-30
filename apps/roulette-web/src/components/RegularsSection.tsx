@@ -1,4 +1,4 @@
-import { useEffect, useId, useState, type FormEvent } from 'react';
+import { useEffect, useId, useMemo, useState, type FormEvent } from 'react';
 import { MAX_DISPLAY_NAME, rendersAsNothing } from '@tasuki/room-core';
 import { MAX_GUESTS } from '@tasuki/roulette-core';
 import {
@@ -40,7 +40,7 @@ import { isValidGroupName, parseMemberLines, type RegularGroup } from '../storag
 interface Props {
   /** 切断中・回転中。札（入れる）だけ止める。作る・直す・消すは端末の中だけなので止めない */
   locked: boolean;
-  /** いまの人の行（名簿＋ゲスト）。欄を開くときだけ候補にする（#469 D1）。チェックは「いまルーレットに入っているか」 */
+  /** いまの人の行（名簿＋ゲスト）。候補にして欄を開く（#469 D1）。欄のチェックは「組に入れるか」で、開いたときの初期値がいまルーレットに入っているか */
   people: readonly PersonRow[];
   /** 札を押したとき。組の名前を入れ、知らせの文を返す */
   onInsert: (group: RegularGroup) => string;
@@ -69,6 +69,12 @@ const REASON_TEXT = {
 /** エラーの印を付ける欄（名前の欄か、複数行の欄か） */
 type ErrorField = 'name' | 'members' | 'people';
 
+/** 人数・保存の失敗の原因が一覧だけか。手入力がチェックに無い人を 1 人も足していなければ一覧（両方が原因なら入力欄） */
+function countFieldOf(hasList: boolean, checked: readonly string[], text: string): ErrorField {
+  const manualAdds = orderedMembers([], checked, text).length > orderedMembers([], checked, '').length;
+  return hasList && !manualAdds ? 'people' : 'members';
+}
+
 /** 入力の検証。保存の関数が黙って落とす名前（長すぎる・見えない）も、ここで見つけて止める */
 function validate(name: string, saved: readonly string[], checked: readonly string[], text: string, hasList: boolean): { error: string; field: ErrorField } | { members: string[] } {
   if (name.trim() === '' || rendersAsNothing(name)) return { error: REGULARS_ERROR_NAME_EMPTY, field: 'name' };
@@ -77,7 +83,7 @@ function validate(name: string, saved: readonly string[], checked: readonly stri
   if (lines.some((l) => parseMemberLines(l).length === 0)) return { error: REGULARS_ERROR_BAD_NAME, field: 'members' };
   const members = orderedMembers(saved, checked, text);
   // 人数の誤りは、手入力が一人も足していなければチェックだけが原因（一覧の側）。手入力が足しているなら入力欄の側に寄せる（両方が原因のときは入力欄）
-  const countField: ErrorField = hasList && parseMemberLines(text).length === 0 ? 'people' : 'members';
+  const countField = countFieldOf(hasList, checked, text);
   if (members.length === 0) return { error: REGULARS_ERROR_NO_MEMBERS, field: countField };
   if (members.length > MAX_GUESTS) return { error: REGULARS_ERROR_TOO_MANY_MEMBERS, field: countField };
   return { members };
@@ -93,6 +99,7 @@ export function RegularsSection({ locked, people, onInsert }: Props) {
   const formTitleId = useId();
   const countId = useId();
   const errorId = useId();
+  const candidates = useMemo(() => candidatesOf(people), [people]);
   const [mode, setMode] = useState<Mode>({ kind: 'list' });
   const [name, setName] = useState('');
   const [text, setText] = useState('');
@@ -166,7 +173,7 @@ export function RegularsSection({ locked, people, onInsert }: Props) {
     }
     const result = save({ ...(mode.id === null ? {} : { id: mode.id }), name, members: checked.members });
     if (!result.ok) {
-      fail(REASON_TEXT[result.reason], result.reason === 'name-taken' ? 'name' : 'members');
+      fail(REASON_TEXT[result.reason], result.reason === 'name-taken' ? 'name' : countFieldOf(checkRows.length > 0, checkedNames, text));
       return;
     }
     const saved = result.items.find((g) => g.name === name.trim());
@@ -232,7 +239,7 @@ export function RegularsSection({ locked, people, onInsert }: Props) {
                     id={editId(g.id)}
                     className="ui-button ui-button--secondary ui-button--sm"
                     aria-label={regularEditLabel(g.name)}
-                    onClick={() => openForm({ id: g.id, name: g.name, ...splitForEdit(candidatesOf(people), g.members), opener: editId(g.id) })}
+                    onClick={() => openForm({ id: g.id, name: g.name, ...splitForEdit(candidates, g.members), opener: editId(g.id) })}
                   >
                     {REGULARS_EDIT_BUTTON}
                   </button>
@@ -251,16 +258,16 @@ export function RegularsSection({ locked, people, onInsert }: Props) {
             type="button"
             id={NEW_ID}
             className="ui-button ui-button--secondary ui-button--sm"
-            onClick={() => openForm({ id: null, name: '', text: '', rows: candidatesOf(people).map((c) => ({ name: c.name, checked: false })), opener: NEW_ID })}
+            onClick={() => openForm({ id: null, name: '', text: '', rows: candidates.map((c) => ({ name: c.name, checked: false })), opener: NEW_ID })}
           >
             {REGULARS_NEW_BUTTON}
           </button>
-          {candidatesOf(people).length > 1 && (
+          {candidates.length > 1 && (
             <button
               type="button"
               id={FROM_PEOPLE_ID}
               className="ui-button ui-button--secondary ui-button--sm"
-              onClick={() => openForm({ id: null, name: '', text: '', rows: candidatesOf(people), opener: FROM_PEOPLE_ID })}
+              onClick={() => openForm({ id: null, name: '', text: '', rows: candidates, opener: FROM_PEOPLE_ID })}
             >
               {REGULARS_FROM_PEOPLE_BUTTON}
             </button>
@@ -307,7 +314,6 @@ export function RegularsSection({ locked, people, onInsert }: Props) {
           {checkRows.length > 0 && (
             <fieldset
               className="roulette-regulars-people"
-              aria-invalid={peopleInvalid ? true : undefined}
               aria-describedby={peopleInvalid ? `${countId} ${errorId}` : countId}
             >
               <legend>{REGULARS_PEOPLE_LEGEND}</legend>
