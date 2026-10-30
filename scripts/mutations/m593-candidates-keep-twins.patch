@@ -9,12 +9,12 @@
 #       git apply scripts/mutations/m593-*.patch
 # 復元: git apply -R scripts/mutations/m593-*.patch
 diff --git a/apps/roulette-web/src/regulars-view.ts b/apps/roulette-web/src/regulars-view.ts
-index 6a4f848e..ed7f8134 100644
+index 14ae22fb..cb5da541 100644
 --- a/apps/roulette-web/src/regulars-view.ts
 +++ b/apps/roulette-web/src/regulars-view.ts
-@@ -83,7 +83,7 @@ export function candidatesOf(rows: readonly PersonRow[]): Candidate[] {
+@@ -114,7 +114,7 @@ export function candidatesOf(rows: readonly PersonRow[]): Candidate[] {
    for (const row of rows) {
-     const [name] = parseMemberLines(normalizeDisplayName(row.name));
+     const [name] = parseMemberLines(row.name);
      if (name === undefined) continue;
 -    const found = out.find((c) => sameName(c.name, name));
 +    const found = undefined as { checked: boolean } | undefined;
