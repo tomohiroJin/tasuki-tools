@@ -6,7 +6,7 @@
  */
 import { useState, type CSSProperties, type Ref } from 'react';
 import { METHODS, SIDES, methodsOf, type MethodId, type Side } from '@tasuki/checkin-core';
-import { BACK_LABEL, METHOD_PICKER_HEADING, RANDOM_HINT, RANDOM_LABEL, SIDE_LABEL } from '../copy';
+import { BACK_LABEL, METHOD_PICKER_HEADING, PICKER_REPLACE_NOTE, RANDOM_HINT, RANDOM_LABEL, SIDE_HINT, SIDE_LABEL } from '../copy';
 import { CardFace } from './CardFace';
 import { METHOD_COPY } from '../method-copy';
 
@@ -26,9 +26,17 @@ export function MethodPicker({ canOperate, initialSide, headingRef, onChoose, on
   const [side, setSide] = useState<Side>(initialSide);
   return (
     <section className="method-picker" aria-labelledby="method-picker-heading">
-      <h2 ref={headingRef} id="method-picker-heading" className="method-picker-heading" tabIndex={-1}>
-        {METHOD_PICKER_HEADING}
-      </h2>
+      <div className="method-picker-head">
+        <h2 ref={headingRef} id="method-picker-heading" className="method-picker-heading" tabIndex={-1}>
+          {METHOD_PICKER_HEADING}
+        </h2>
+        {onCancel && (
+          <button type="button" className="ui-button ui-button--quiet ui-button--sm" onClick={onCancel}>
+            {BACK_LABEL}
+          </button>
+        )}
+        {onCancel && <p className="method-picker-note">{PICKER_REPLACE_NOTE}</p>}
+      </div>
       <div className="seg" role="group" aria-label={METHOD_PICKER_HEADING}>
         {SIDES.map((s) => (
           <button key={s} type="button" className="seg-button" aria-pressed={s === side} onClick={() => setSide(s)}>
@@ -36,6 +44,7 @@ export function MethodPicker({ canOperate, initialSide, headingRef, onChoose, on
           </button>
         ))}
       </div>
+      <p className="method-side-hint">{SIDE_HINT[side]}</p>
       <ul className="method-list">
         {methodsOf(side).map((m) => (
           <li key={m}>
@@ -92,11 +101,6 @@ export function MethodPicker({ canOperate, initialSide, headingRef, onChoose, on
           </button>
         </li>
       </ul>
-      {onCancel && (
-        <button type="button" className="ui-button ui-button--quiet ui-button--sm" onClick={onCancel}>
-          {BACK_LABEL}
-        </button>
-      )}
     </section>
   );
 }

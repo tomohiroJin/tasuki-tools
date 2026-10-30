@@ -29,7 +29,12 @@ export const METHOD_PICKER_HEADING = 'やり方を選んでください';
 export const RANDOM_LABEL = 'ランダム';
 /** ランダムの箱に添える一言（伏せ札の見本の下） */
 export const RANDOM_HINT = '引いて決める';
-export const BACK_LABEL = '戻る';
+/** 選択画面から卓の画面へ戻るボタン。回は変わらない（#468） */
+export const BACK_LABEL = 'いまの回に戻る';
+/** 回があって選択画面を開いたときの添え書き。選ぶと `startRound` で新しい回になり、前の回の札は捨てられる（#468 D5） */
+export const PICKER_REPLACE_NOTE = '選ぶと新しい回が始まります（いまの回の札は消えます）';
+/** 側の切り替えの下の一文（どの場で使う一覧か・#468 D4） */
+export const SIDE_HINT = { checkin: 'チェックインは会の始まりに使います', checkout: 'チェックアウトは会の終わりに使います' } as const;
 export const CHANGE_METHOD = '別のやり方';
 export const VISIBILITY_GROUP_LABEL = '公開の仕方';
 export const VISIBILITY_LABEL = { named: '名前つき', anonymous: '匿名' } as const;

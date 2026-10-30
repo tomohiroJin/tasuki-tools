@@ -64,38 +64,82 @@
 }
 
 /* ---------- やり方の選択 ---------- */
+/* 見出しの行: 見出しが左、「いまの回に戻る」が右。添え書きは次の行に全幅（#468 D5） */
+.method-picker-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+}
+
 .method-picker-heading {
   margin: 0;
   font-size: var(--font-size-lg);
   color: var(--gold-bright);
 }
 
-.method-picker .seg {
-  align-self: flex-start;
+.method-picker-note,
+.method-side-hint {
+  margin: 0;
+  color: var(--ivory-dim);
+  font-size: var(--font-size-sm);
 }
 
+.method-picker-note {
+  flex-basis: 100%;
+}
+
+/* 側の切り替えは札の真上。狭い幅では横いっぱい（各ボタンが半分ずつ）、40rem 以上は内容の幅で左に寄せる（#468 D4） */
+.method-picker .seg {
+  display: flex;
+  align-self: stretch;
+}
+
+.method-picker .seg-button {
+  flex: 1;
+}
+
+.method-picker .method-side-hint {
+  margin-block-start: calc(var(--space-3) * -1); /* 切り替えと一文は一組（段落の間隔 --space-5 を詰める） */
+}
+
+/* 札は縦長（上に扇・下に題と説明）。全札が同じ幅・同じ高さ（行は 1fr で揃える・#468 D1）。
+   40rem 未満は 2 列（4 行）、40rem 以上は 4 列（2 行）。64rem 以上は中身を一段大きくする（会議室の投影・D2） */
 .method-list {
+  --fan-w: 2.6rem;
+  --fan-h: 3.6rem;
+  --fan-overlap: -1.2rem;
+  --fan-art: 1.7rem;
+  --fan-numeral: 1.6rem; /* scale-exempt: 札の見本の小さな数字（絵の代わり） */
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
   gap: var(--space-3);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
+.method-list > li {
+  display: flex;
+  min-inline-size: 0;
+}
+
 .method-option {
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-3);
   inline-size: 100%;
   min-block-size: var(--tap-target);
-  padding: var(--space-4);
+  padding: var(--space-4) var(--space-3);
   border: 1px solid var(--gold-edge);
   border-radius: var(--radius-lg);
   background: linear-gradient(180deg, var(--ivory-inset), var(--felt-sink));
   color: var(--ivory);
   font-family: inherit;
-  text-align: start;
+  text-align: center;
   cursor: pointer;
   transition: background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
 }
@@ -106,24 +150,27 @@
   transform: translateY(-2px);
 }
 
+/* ランダムは同じ大きさの破線の枠。裏模様の扇で区別する（#468 D3） */
 .method-option--random {
   border-style: dashed;
 }
 
-/* 札の見本: そのやり方の札を少し重ねた小さな扇 */
+/* 札の見本: そのやり方の札を少し重ねた小さな扇（札 3 枚の幅だけ中央に置く） */
 .method-fan {
   display: flex;
   flex: none;
-  padding-inline-end: var(--space-3);
+  justify-content: center;
+  /* 重ねた分（負の余白）で右が余るので、最後の札の余白だけ戻して中央に置く */
+  padding-inline-end: calc(var(--fan-overlap) * -1);
 }
 
 .method-fan-card {
   display: flex;
   align-items: center;
   justify-content: center;
-  inline-size: 2.6rem;
-  block-size: 3.6rem;
-  margin-inline-end: -1.2rem;
+  inline-size: var(--fan-w);
+  block-size: var(--fan-h);
+  margin-inline-end: var(--fan-overlap);
   border: 1px solid var(--gold-deep);
   border-radius: 6px;
   background: linear-gradient(165deg, var(--card-sheen) 0%, var(--ivory) 60%, var(--card-shade) 100%);
@@ -133,12 +180,12 @@
 }
 
 .method-fan-card .card-art {
-  inline-size: 1.7rem;
-  block-size: 1.7rem;
+  inline-size: var(--fan-art);
+  block-size: var(--fan-art);
 }
 
 .method-fan-card .card-numeral {
-  font-size: 1.6rem; /* scale-exempt: 札の見本の小さな数字（絵の代わり） */
+  font-size: var(--fan-numeral);
 }
 
 /* 伏せ札の見本: 席の伏せ札と同じ裏模様 */
@@ -171,6 +218,44 @@
   font-size: var(--font-size-xs);
   font-weight: 400;
   line-height: 1.5;
+}
+
+@media (width >= 40rem) {
+  .method-picker .seg {
+    display: inline-flex;
+    align-self: flex-start;
+  }
+
+  .method-picker .seg-button {
+    flex: none;
+  }
+
+  .method-list {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (width >= 64rem) {
+  .method-list {
+    --fan-w: 3.4rem;
+    --fan-h: 4.7rem;
+    --fan-overlap: -1.6rem;
+    --fan-art: 2.2rem;
+    --fan-numeral: 2.1rem; /* scale-exempt: 札の見本の小さな数字（絵の代わり） */
+  }
+
+  .method-option {
+    gap: var(--space-4);
+    padding-block: var(--space-5);
+  }
+
+  .method-title {
+    font-size: var(--font-size-lg);
+  }
+
+  .method-prompt {
+    font-size: var(--font-size-sm);
+  }
 }
 
 /* ---------- お題の板 ---------- */

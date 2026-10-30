@@ -228,13 +228,13 @@ describe('画面が替わったときのフォーカス（B4）', () => {
     expect(promptHeading()).toHaveFocus();
   });
 
-  it('Given 別のやり方を押す / Then やり方の選択の見出しへ移り、戻るでお題の見出しへ戻る', () => {
+  it('Given 別のやり方を押す / Then やり方の選択の見出しへ移り、「いまの回に戻る」でお題の見出しへ戻る', () => {
     enter(revealedCheckin());
     const button = screen.getByRole('button', { name: '別のやり方' });
     button.focus();
     fireEvent.click(button);
     expect(screen.getByRole('heading', { name: 'やり方を選んでください' })).toHaveFocus();
-    fireEvent.click(screen.getByRole('button', { name: '戻る' }));
+    fireEvent.click(screen.getByRole('button', { name: 'いまの回に戻る' }));
     expect(promptHeading()).toHaveFocus();
   });
 
