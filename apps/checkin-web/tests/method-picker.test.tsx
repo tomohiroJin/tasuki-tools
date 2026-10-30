@@ -58,7 +58,7 @@ describe('やり方の選択', () => {
     render(<MethodPicker canOperate initialSide="checkin" onChoose={vi.fn()} onDraw={vi.fn()} onCancel={vi.fn()} />);
 
     const head = screen.getByRole('heading', { name: 'やり方を選んでください' }).parentElement as HTMLElement;
-    expect(head).toHaveClass('method-picker-head');
+    expect(head).toHaveClass("method-picker-head");
     expect(head).toContainElement(screen.getByRole('button', { name: 'いまの回に戻る' }));
     expect(screen.getByText(/選ぶと新しい回が始まります/)).toBeInTheDocument();
     expect(screen.getByText(/いまの回の札は消えます/)).toBeInTheDocument();
@@ -89,5 +89,16 @@ describe('やり方の選択', () => {
     expect(last).toHaveAccessibleName('ランダム');
     expect(last).toHaveClass('method-option', 'method-option--random');
     for (const item of items) expect(item.querySelector('button')).toHaveClass('method-option');
+  });
+
+  it('Given 回がある / Then 全ての札の説明に注意文が併記され、回が無ければ併記されない（#468 D5）', () => {
+    const { unmount } = render(<MethodPicker canOperate initialSide="checkin" onChoose={vi.fn()} onDraw={vi.fn()} onCancel={vi.fn()} />);
+    const note = screen.getByText(/選ぶと新しい回が始まります/);
+    const cards = screen.getAllByRole('listitem').map((li) => li.querySelector('button') as HTMLElement);
+    expect(cards).toHaveLength(8);
+    for (const c of cards) expect(c.getAttribute('aria-describedby')).toContain(note.id);
+    unmount();
+    render(<MethodPicker canOperate initialSide="checkin" onChoose={vi.fn()} onDraw={vi.fn()} />);
+    for (const li of screen.getAllByRole('listitem')) expect(li.querySelector('button')?.getAttribute('aria-describedby')).not.toContain('note');
   });
 });

@@ -64,13 +64,9 @@
 }
 
 /* ---------- やり方の選択 ---------- */
-/* 見出しの行: 見出しが左、「いまの回に戻る」が右。添え書きは次の行に全幅（#468 D5） */
-.method-picker-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2) var(--space-4);
+/* 見出しの行の並びは部品（.ui-page-header）が持つ。添え書きは次の行に全幅（#468 D5）。戻るは折り返さない */
+.method-picker-head .ui-page-header-back {
+  white-space: nowrap;
 }
 
 .method-picker-heading {
@@ -82,7 +78,6 @@
 .method-picker-note,
 .method-side-hint {
   margin: 0;
-  color: var(--ivory-dim);
   font-size: var(--font-size-sm);
 }
 
@@ -185,7 +180,7 @@
 }
 
 .method-fan-card .card-numeral {
-  font-size: var(--fan-numeral);
+  font-size: var(--fan-numeral); /* scale-exempt: 札の見本の小さな数字（絵の代わり） */
 }
 
 /* 伏せ札の見本: 席の伏せ札と同じ裏模様 */

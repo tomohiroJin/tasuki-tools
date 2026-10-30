@@ -38,6 +38,15 @@ async function expectPickerGrid(page: Page, columns: number): Promise<void> {
     expect(Math.abs(b.width - boxes[0]!.width), '札の幅が揃っている').toBeLessThanOrEqual(1);
     expect(Math.abs(b.height - boxes[0]!.height), '札の高さが揃っている').toBeLessThanOrEqual(1);
   }
+  // 扇が札の外へはみ出さない（札の箱の内側に扇の箱が入る）
+  const inside = await page.locator('.method-list .method-option').evaluateAll((els) =>
+    els.every((el) => {
+      const o = el.getBoundingClientRect();
+      const f = (el.querySelector('.method-fan') as HTMLElement).getBoundingClientRect();
+      return f.left >= o.left - 1 && f.right <= o.right + 1 && f.top >= o.top - 1 && f.bottom <= o.bottom + 1;
+    }),
+  );
+  expect(inside, '扇が札の箱の内側に収まる').toBe(true);
   const xs = new Set(boxes.map((b) => Math.round(b.x)));
   expect(xs.size, `${page.viewportSize()?.width}px の列の数`).toBe(columns);
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
@@ -81,9 +90,9 @@ test.describe('@core 札を伏せて出し、全員の画面で一斉に開く',
     await joinCheckinTool(peer.page, inviteUrl, NAME_B);
     const b = peer.page;
 
-    // When / Then その0（#468）: 選択画面の札は同じ大きさで、39rem 幅（624px）は 2 列・40rem 幅（640px）は 4 列。両方の側で同じ
+    // When / Then その0（#468）: 選択画面の札は同じ大きさで、320px・39rem 幅（624px）は 2 列、40rem 幅（640px）・1280px は 4 列。両方の側で同じ
     const original = page.viewportSize() ?? { width: 1280, height: 800 };
-    for (const [width, columns] of [[624, 2], [640, 4]] as const) {
+    for (const [width, columns] of [[320, 2], [624, 2], [640, 4], [1280, 4]] as const) {
       await page.setViewportSize({ width, height: original.height });
       for (const side of ['チェックイン', 'チェックアウト']) {
         await page.getByRole('group', { name: 'やり方を選んでください' }).getByRole('button', { name: side, exact: true }).click();
