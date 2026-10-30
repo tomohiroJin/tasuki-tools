@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     "./sync": "./src/sync/index.ts",
-    "./reader": "./src/reader/index.ts"
+    "./reader": "./src/reader/index.ts",
+    "./room": "./src/room/index.ts"
   },
   "scripts": {
     "test": "vitest run",
