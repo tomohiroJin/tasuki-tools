@@ -9,15 +9,15 @@
 #       git apply scripts/mutations/m600-*.patch
 # 復元: git apply -R scripts/mutations/m600-*.patch
 diff --git a/packages/room-core/src/room-route.ts b/packages/room-core/src/room-route.ts
-index 98bf0b65..6d42483e 100644
+index ff7d9f52..9473eb46 100644
 --- a/packages/room-core/src/room-route.ts
 +++ b/packages/room-core/src/room-route.ts
-@@ -17,7 +17,7 @@ export type Route = { name: "room"; roomCode: string } | { name: "redirect"; to:
-  * URL からルートを決める。`base` はアプリの置き場（例 `/agenda`・末尾スラッシュ無し）。
-  */
- export function parseRoute(base: string, pathname: string, search = ""): Route {
--  const rest = pathname.startsWith(base) ? pathname.slice(base.length) : null;
-+  const rest = pathname.slice(base.length);
+@@ -19,7 +19,7 @@ export type Route = { name: "room"; roomCode: string } | { name: "redirect"; to:
+ export function parseRoomRoute(base: string, pathname: string, search = ""): Route {
+   // base の末尾スラッシュは落として扱う（`/agenda/` を渡されても `/agenda` と同じ）。
+   const root = base.replace(/\/+$/, "");
+-  const rest = pathname.startsWith(root) ? pathname.slice(root.length) : null;
++  const rest = pathname.slice(root.length);
    // 空のコードでは入室させない（`?room=` だけが付いた URL も行き先が無い）。
    const roomCode = new URLSearchParams(search).get("room");
    if (rest !== "" && rest !== "/") {

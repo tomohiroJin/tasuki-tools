@@ -49,7 +49,7 @@ export { DEPARTURE_PARAM, parseDepartureReason, departureNoticeFor } from "./dep
 export type { DepartureReason } from "./departure.js";
 
 // ./room-route —— ルームの URL の解析と玄関への道（#470・agenda / checkin / roulette / topic が共有する）
-export { parseRoute, hubPathFor } from "./room-route.js";
+export { parseRoomRoute, roomHubPath } from "./room-route.js";
 export type { Route } from "./room-route.js";
 
 // ./wire —— 選択画面（ハブ）との間の言葉（#95 S5a）
