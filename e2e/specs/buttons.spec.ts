@@ -742,5 +742,43 @@ test.describe('ルーレットの「いつものメンツ」のボタンは部�
     await section.getByRole('button', { name: '新しく作る', exact: true }).click();
     await expect(section.getByRole('button', { name: 'この端末に保存', exact: true })).toBeVisible();
     await expectScreen(page, 'いつものメンツ（作る欄）', 2, { scope: '.roulette-regulars', minTargets: 2 });
+
+    // #469: いまの人から作る → チェックの一覧（自分が入っている）と手入力の二段。チェックも押せる大きさで、幅ごとに溢れない
+    await section.getByRole('button', { name: 'やめる', exact: true }).click();
+    await section.getByRole('button', { name: 'いまの人から作る', exact: true }).click();
+    const people = section.getByRole('group', { name: 'ルーレットにいる人', exact: true });
+    await expect(people.getByRole('checkbox')).toHaveCount(1);
+    await expect(people.getByRole('checkbox').first()).toBeChecked();
+    await expect(section.getByLabel('ほかの名前（1 行に 1 人）', { exact: true })).toHaveValue('');
+    await expectScreen(page, 'いつものメンツ（いまの人から作る）', 2, { scope: '.roulette-regulars', minTargets: 2 });
+    await section.getByLabel('メンツの名前', { exact: true }).fill('先週の顔');
+    await section.getByLabel('ほかの名前（1 行に 1 人）', { exact: true }).fill(`${LONG_NAME}\nボブ`);
+    await section.getByRole('button', { name: 'この端末に保存', exact: true }).click();
+    await expect(section.getByRole('button', { name: '先週の顔 3 人を入れる', exact: true })).toBeVisible();
+
+    // 直す: ルーレットにいる人はチェック、いない人は手入力。チェックを外して保存すると組から外れる
+    await section.getByRole('button', { name: '先週の顔 を直す', exact: true }).click();
+    await expect(people.getByRole('checkbox').first()).toBeChecked();
+    await expect(section.getByLabel('ほかの名前（1 行に 1 人）', { exact: true })).toHaveValue(`${LONG_NAME}\nボブ`);
+    await people.getByRole('checkbox').first().uncheck();
+    await section.getByRole('button', { name: 'この端末に保存', exact: true }).click();
+    await expect(section.getByRole('button', { name: '先週の顔 2 人を入れる', exact: true })).toBeVisible();
+
+    // 上限: 24 人の組を入れてから、新しい 2 人の組を入れる。入らなかった 2 人の名前が知らせに出る
+    const many = Array.from({ length: 24 }, (_, i) => `客${i + 1}`).join('\n');
+    await section.getByRole('button', { name: '新しく作る', exact: true }).click();
+    await section.getByLabel('メンツの名前', { exact: true }).fill('大人数');
+    await section.getByLabel('ほかの名前（1 行に 1 人）', { exact: true }).fill(many);
+    await section.getByRole('button', { name: 'この端末に保存', exact: true }).click();
+    await section.getByRole('button', { name: '大人数 24 人を入れる', exact: true }).click();
+    await expect(page.getByRole('checkbox')).toHaveCount(25);
+    await section.getByRole('button', { name: '先週の顔 2 人を入れる', exact: true }).click();
+    await expect(section.getByRole('status')).toContainText('入れられませんでした（');
+    await expect(section.getByRole('status')).toContainText('ボブ');
+    for (const width of [320, 1280]) {
+      await page.setViewportSize({ width, height: 900 });
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      expect(overflow, `${width}px で横に溢れない`).toBeLessThanOrEqual(0);
+    }
   });
 });
