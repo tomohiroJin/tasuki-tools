@@ -52,6 +52,14 @@ describe('summaryLine（要約の 1 行）', () => {
     const piles: PileView[] = ['1', '2', '3', '4', '5'].map((card) => ({ card, count: card === '4' ? 4 : 1 }));
     expect(summaryLine('roti', piles)).toBe('いちばん多いのは 4');
   });
+
+  it.each(['expectation', 'understanding'] as const)(
+    'Given #465 で足した数のやり方 %s / Then 人数と紛れない言い方',
+    (method) => {
+      const piles: PileView[] = ['1', '2', '3', '4', '5'].map((card) => ({ card, count: card === '4' ? 3 : 0 }));
+      expect(summaryLine(method, piles)).toBe('いちばん多いのは 4');
+    },
+  );
 });
 
 describe('revealSchedule（開く動きの遅れ）', () => {

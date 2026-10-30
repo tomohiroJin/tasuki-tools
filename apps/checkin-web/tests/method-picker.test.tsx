@@ -6,8 +6,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { MethodPicker } from '../src/components/MethodPicker';
 
 describe('やり方の選択', () => {
-  it('Given 初期 / When 描く / Then チェックインの 5 つのやり方とランダムが出る', () => {
+  it('Given 初期 / When 描く / Then チェックインの 7 つのやり方とランダムの 8 枚が出る', () => {
     render(<MethodPicker canOperate initialSide="checkin" onChoose={vi.fn()} onDraw={vi.fn()} />);
+    expect(screen.getAllByRole('listitem')).toHaveLength(8);
+    expect(screen.getByRole('button', { name: /期待の大きさ/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /始まりの気分/ })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'チェックイン' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: 'チェックアウト' })).toHaveAttribute('aria-pressed', 'false');
     expect(screen.getByRole('button', { name: /今日の天気/ })).toBeInTheDocument();
@@ -18,7 +21,10 @@ describe('やり方の選択', () => {
   it('Given チェックアウトへ切り替え / When 描く / Then チェックアウトのやり方に替わる', () => {
     render(<MethodPicker canOperate initialSide="checkin" onChoose={vi.fn()} onDraw={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: 'チェックアウト' }));
+    expect(screen.getAllByRole('listitem')).toHaveLength(8);
     expect(screen.getByRole('button', { name: /ROTI/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /終わりの天気/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /わかった度/ })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /今日の天気/ })).toBeNull();
   });
 

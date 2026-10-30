@@ -2,8 +2,15 @@ import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { METHOD_IDS, METHODS } from '@tasuki/checkin-core';
 import { CardFace } from '../src/components/CardFace';
+import { NUMERIC_METHODS } from '../src/reveal-view';
 
-const NUMERIC = { energy: ['1', '2', '3', '4', '5'], roti: ['1', '2', '3', '4', '5'], focus: ['2', '5', '8', '10'] } as const;
+const NUMERIC = {
+  energy: ['1', '2', '3', '4', '5'],
+  expectation: ['1', '2', '3', '4', '5'],
+  roti: ['1', '2', '3', '4', '5'],
+  understanding: ['1', '2', '3', '4', '5'],
+  focus: ['2', '5', '8', '10'],
+} as const;
 
 const ALL = METHOD_IDS.flatMap((method) => METHODS[method].cards.map((card) => [method, card] as const));
 
@@ -34,6 +41,11 @@ describe('CardFace', () => {
     });
   });
 
+  it('顔に数字を出すやり方と、開いた後に数のやり方として扱うやり方（NUMERIC_METHODS）が一致する', () => {
+    const shown = METHOD_IDS.filter((m) => render(<CardFace method={m} card={METHODS[m].cards[0]!} />).container.querySelector('.card-numeral'));
+    expect([...NUMERIC_METHODS].sort()).toEqual([...shown].sort());
+  });
+
   it('同じやり方の中で札ごとに絵が違う', () => {
     for (const method of METHOD_IDS) {
       const seen = METHODS[method].cards.map((card) => render(<CardFace method={method} card={card} />).container.innerHTML);
@@ -57,6 +69,21 @@ describe('CardFace', () => {
           expect(sameRadius && a?.[4] !== b?.[4], `${method}/${card}`).toBe(false);
         }
       }
+    }
+  });
+
+  it('終わりの天気は今日の天気と同じ絵（#465・並べて比べやすいように）', () => {
+    for (const card of METHODS['weather-end'].cards) {
+      const end = render(<CardFace method="weather-end" card={card} />).container.innerHTML;
+      const start = render(<CardFace method="weather" card={card} />).container.innerHTML;
+      expect(end).toBe(start);
+    }
+  });
+
+  it('始まりの気分は終わりの気分（mood）と絵を使い回さない', () => {
+    const end = new Set(METHODS.mood.cards.map((card) => render(<CardFace method="mood" card={card} />).container.innerHTML));
+    for (const card of METHODS['mood-start'].cards) {
+      expect(end.has(render(<CardFace method="mood-start" card={card} />).container.innerHTML)).toBe(false);
     }
   });
 

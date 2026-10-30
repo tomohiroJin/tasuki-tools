@@ -3,7 +3,7 @@ import { METHOD_IDS, METHODS } from '@tasuki/checkin-core';
 import { METHOD_COPY } from '../src/method-copy';
 
 /**
- * @requirements #406 E1（やり方 10 種・札の並び）
+ * @requirements #406 E1（やり方の種類・札の並び）・#465（各側 7 つ）
  */
 describe('やり方ごとの文言の表', () => {
   it('鍵が METHOD_IDS と過不足なく一致する', () => {
@@ -37,5 +37,23 @@ describe('やり方ごとの文言の表', () => {
     expect(METHOD_COPY.weather.cards['thunder']).toEqual({ name: '雷', meaning: '荒れ模様・余裕がない' });
     expect(METHOD_COPY.focus.cards['100']?.name).toBe('10 割');
     expect(METHOD_COPY.roti.prompt).toBe('この時間、使った分の価値はありましたか？');
+  });
+
+  it('#465 で足した 4 つの名前（設計 §3.1）', () => {
+    expect(METHOD_COPY.expectation.title).toBe('期待の大きさ');
+    expect(METHOD_COPY['mood-start'].title).toBe('始まりの気分');
+    expect(METHOD_COPY['weather-end'].title).toBe('終わりの天気');
+    expect(METHOD_COPY.understanding.title).toBe('わかった度');
+  });
+
+  it('終わりの天気の札は今日の天気と同じ名前と意味（口頭で比べやすい）', () => {
+    expect(METHOD_COPY['weather-end'].cards).toEqual(METHOD_COPY.weather.cards);
+  });
+
+  it('始まりの気分と終わりの気分（mood）の札の名前は重ならない', () => {
+    const end = new Set(Object.values(METHOD_COPY.mood.cards).map((c) => c.name));
+    for (const card of Object.values(METHOD_COPY['mood-start'].cards)) {
+      expect(end.has(card.name), card.name).toBe(false);
+    }
   });
 });
