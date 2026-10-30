@@ -9,15 +9,15 @@
 #       git apply scripts/mutations/m594-*.patch
 # 復元: git apply -R scripts/mutations/m594-*.patch
 diff --git a/apps/roulette-web/src/regulars-view.ts b/apps/roulette-web/src/regulars-view.ts
-index 14ae22fb..87f4e745 100644
+index 696ead64..85fd1063 100644
 --- a/apps/roulette-web/src/regulars-view.ts
 +++ b/apps/roulette-web/src/regulars-view.ts
-@@ -88,7 +88,7 @@ export function restoreOf(rows: readonly PersonRow[], names: readonly string[]):
-   const ids: string[] = [];
-   let blocked = 0;
+@@ -99,7 +99,7 @@ export function restoreOf(rows: readonly PersonRow[], names: readonly string[]):
    for (const name of names) {
--    const hit = rows.find((r) => !r.checked && sameName(normalizeDisplayName(r.name), normalizeDisplayName(name)));
-+    const hit = rows.find((r) => sameName(normalizeDisplayName(r.name), normalizeDisplayName(name)));
-     if (hit === undefined) continue;
-     if (hit.disabled) blocked += 1;
-     else if (!ids.includes(hit.id)) ids.push(hit.id);
+     const same = rows.filter((r) => sameName(r.name, name));
+     if (same.length === 0 || same.some((r) => r.checked)) continue;
+-    const usable = same.find((r) => !r.disabled);
++    const usable = same[0];
+     if (usable === undefined) blocked += 1;
+     else if (!ids.includes(usable.id)) ids.push(usable.id);
+   }

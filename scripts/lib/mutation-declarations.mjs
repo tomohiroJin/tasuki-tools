@@ -3877,11 +3877,11 @@ export const MUTATIONS = [
   },
   {
     id: 594,
-    label: "チェック済みの行も戻す対象にする",
+    label: "押せない行も戻す対象にする",
     patch: "m594-restore-includes-checked-rows.patch",
     pkg: "apps/roulette-web",
     tests: ["tests/regulars-view.test.ts"],
-    note: "#469。`restoreOf` が入っている行も戻す対象にし、知らせが嘘をつく。",
+    note: "#469。`restoreOf` が押せない行も戻す対象にし、知らせが嘘をつく。",
   },
   {
     id: 595,
@@ -3890,6 +3890,22 @@ export const MUTATIONS = [
     pkg: "apps/roulette-web",
     tests: ["tests/regulars-view.test.ts"],
     note: "#469。`orderedMembers` が保存済みの順と綴りを保たない。",
+  },
+  {
+    id: 596,
+    label: "同名の行の片方が入っていても戻す",
+    patch: "m596-restore-ignores-checked-twin.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/regulars-view.test.ts"],
+    note: "#469。`restoreOf` が twin の片方が入っていても外れた行を戻す。",
+  },
+  {
+    id: 597,
+    label: "戻した人を入る人の数に足さない",
+    patch: "m597-notice-pool-ignores-restored.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/regulars-view.test.ts"],
+    note: "#469。知らせの入る人の数に戻した人を足さない。",
   },
   {
     id: 600,
