@@ -9,6 +9,18 @@
     "minimumReleaseAge": "7 days",
     "labels": ["dependencies", "security"]
   },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "toolchain.json の Bun（#487・docs/adr/0031）。ci.yml の bun-version から移したので、github-actions の manager はもう拾わない。depName は下の Bun の規則（承認制）に当てるため bun にする",
+      "managerFilePatterns": ["/^toolchain\\.json$/"],
+      "matchStrings": ["\"bun\":\\s*\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""],
+      "depNameTemplate": "bun",
+      "packageNameTemplate": "oven-sh/bun",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^bun-v(?<version>.+)$"
+    }
+  ],
   "packageRules": [
     { "matchUpdateTypes": ["minor", "patch"], "groupName": "非破壊的な更新", "groupSlug": "non-breaking" },
     { "matchUpdateTypes": ["major"], "dependencyDashboardApproval": true },

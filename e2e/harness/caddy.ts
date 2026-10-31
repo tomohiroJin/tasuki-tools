@@ -68,6 +68,31 @@ function verifyTarball(tarball: string, checksums: string): void {
   }
 }
 
+/**
+ * 宣言の版の配布物を取る。**取れないときは、何が無く、どう入れるかを示して止める**（#487）。
+ * curl の失敗だけを出すと、プロキシや閉じたネットワークの環境で「なぜ E2E が流せないか」が読めない。
+ */
+function fetchRelease(tarball: string, checksums: string): void {
+  try {
+    execFileSync('curl', ['-fsSL', '-o', tarball, CADDY_TARBALL_URL], { stdio: 'inherit' });
+    execFileSync('curl', ['-fsSL', '-o', checksums, CADDY_CHECKSUMS_URL], { stdio: 'inherit' });
+  } catch (cause) {
+    throw new Error(caddyMissingMessage(), { cause });
+  }
+}
+
+/** Caddy が無く、取れもしなかったときの案内。テストから文言を確かめられるように分けてある。 */
+export function caddyMissingMessage(): string {
+  return (
+    `E2E に要る Caddy ${CADDY_VERSION} がありません（置き場: ${CADDY_BINARY}）。取得にも失敗しました。\n` +
+    `ハーネスは起動しません。次のどちらかで入れてから流し直してください。\n` +
+    `  - ${CADDY_RELEASE_URL} に届くネットワークで流し直す（ハーネスが取得して checksums と照合する）\n` +
+    `  - 別の場所で ${CADDY_TARBALL_NAME} を取り、${CADDY_CHECKSUMS_URL} の sha512 と照合してから、` +
+    `中の caddy を ${CADDY_BINARY} へ置く（chmod +x）\n` +
+    '版の正本は toolchain.json の caddy（docs/adr/0031）。'
+  );
+}
+
 /** 版を固定して取得し、キャッシュする。 */
 export async function ensureCaddyBinary(): Promise<string> {
   if (existsSync(CADDY_BINARY)) return CADDY_BINARY;
@@ -83,8 +108,7 @@ export async function ensureCaddyBinary(): Promise<string> {
   mkdirSync(staging, { recursive: true });
 
   try {
-    execFileSync('curl', ['-fsSL', '-o', tarball, CADDY_TARBALL_URL], { stdio: 'inherit' });
-    execFileSync('curl', ['-fsSL', '-o', checksums, CADDY_CHECKSUMS_URL], { stdio: 'inherit' });
+    fetchRelease(tarball, checksums);
     verifyTarball(tarball, checksums);
     execFileSync('tar', ['-xzf', tarball, '-C', staging, 'caddy'], { stdio: 'inherit' });
     execFileSync('chmod', ['+x', stagedBinary]);

@@ -7,7 +7,7 @@
  * 使わないが、turbo の `^build` に「先にビルドせよ」と伝えるための宣言**であり、
  * 実際に読むのは下の WEB_ROOTS が指す dist だけである。
  */
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -75,10 +75,25 @@ export const LOG_DIR = path.join(TEST_RESULTS_DIR, 'logs');
  * Caddy の版は固定する。「最新」を取ると、ある日突然赤くなって原因が分からない。
  * 版は本番（Caddy 公式の apt の caddy）に揃える。本番が Debian の 2.6.2 で E2E が 2.11.4 だったときは、
  * 2.6.2 では効かない `header { match status 2xx }` が緑のまま本番へ出た（#434）。
- * 本番の Caddy を上げたら、ここを同じ版へ上げる（CI のキャッシュの鍵はここから導く。
- * 手順は deploy/README.md の「Caddy を上げる」）。CI はこの行を sed で読むので、形を変えない。
+ *
+ * **版の正本はリポジトリ直下の `toolchain.json` の `caddy`**（#487・docs/adr/0031）。ここには写さない。
+ * CI のキャッシュの鍵も同じところから導く。本番の Caddy を上げたら、そこを同じ版へ上げる
+ * （手順は deploy/README.md の「Caddy を上げる」）。
  */
-export const CADDY_VERSION = '2.11.7';
+export const TOOLCHAIN_PATH = path.join(REPO_ROOT, 'toolchain.json');
+
+/** `toolchain.json` から Caddy の版を読む。境界なので形を確かめ、違えば起動前に落とす。 */
+export function readCaddyVersion(file: string = TOOLCHAIN_PATH): string {
+  const raw: unknown = JSON.parse(readFileSync(file, 'utf8'));
+  const version =
+    typeof raw === 'object' && raw !== null && 'caddy' in raw ? (raw as { caddy: unknown }).caddy : undefined;
+  if (typeof version !== 'string' || !/^\d+\.\d+\.\d+$/.test(version)) {
+    throw new Error(`${file} の caddy が x.y.z の形の版ではありません（実際: ${JSON.stringify(version)}）。`);
+  }
+  return version;
+}
+
+export const CADDY_VERSION = readCaddyVersion();
 export const CADDY_CACHE_DIR = path.join(
   process.env['HOME'] ?? '/tmp',
   '.cache/tasuki-e2e',

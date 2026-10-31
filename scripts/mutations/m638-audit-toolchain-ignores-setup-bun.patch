@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-toolchain.mjs b/scripts/audit-toolchain.mjs
+index 3b7055c..070e38d 100644
+--- a/scripts/audit-toolchain.mjs
++++ b/scripts/audit-toolchain.mjs
+@@ -143,7 +143,7 @@ export function checkWorkflow(text, declared) {
+       }
+       if (/uses:\s*oven-sh\/setup-bun@/.test(step.text)) {
+         counts.setupBun++;
+-        if (valueOf(step.text, "bun-version") !== BUN_REF || valueOf(step.text, "bun-version-file") !== null) {
++        if (false) {
+           problems.push(`行 ${step.line}（${job.name}）: setup-bun の bun-version は ${BUN_REF} にしてください`);
+         }
+       }
