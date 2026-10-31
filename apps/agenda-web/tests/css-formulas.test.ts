@@ -55,14 +55,33 @@ describe('小さな終了見込みの印の線', () => {
 describe('映す表示の中の接続の告知の帯', () => {
   const css = read('run.css');
 
-  it('Given 上端の枠 / When 規則を見る / Then 流れの外で映す表示の上端に全幅で貼る（中央寄せの grid に巻き込まれない）', () => {
-    const body = ruleBody(css, '.projection-top');
-    expect(body).toContain('position: absolute;');
-    expect(body).toContain('inset: 0 0 auto;');
-    expect(body).not.toContain('grid-column');
+  it('Given 映す表示の外枠 / When 規則を見る / Then 縦に並べる flex（上端の枠＋残りの領域の 2 段）で、中央寄せは外枠に持たない', () => {
+    const body = ruleBody(css, '.projection');
+    expect(body).toContain('display: flex;');
+    expect(body).toContain('flex-direction: column;');
+    expect(body).not.toContain('align-content');
   });
 
-  it('Given 帯の下の音の切り替え / When 規則を見る / Then 上端の枠の下端から間をあけて置く', () => {
-    expect(ruleBody(css, '.projection-top .projection-corner')).toContain('top: calc(100% + var(--space-3));');
+  it('Given 上端の枠 / When 規則を見る / Then 流れの中で全幅・上端に貼りつく（sticky・縦にスクロールしても画面の上に留まる）', () => {
+    const body = ruleBody(css, '.projection-top');
+    expect(body).toContain('position: sticky;');
+    expect(body).toContain('top: 0;');
+    expect(body).toContain('flex: none;');
+    expect(body).not.toContain('position: absolute;');
   });
+
+  it('Given 残りの領域 / When 規則を見る / Then 今の中央寄せの grid（盤と横の情報）を持ち、残りの高さを取る', () => {
+    const body = ruleBody(css, '.projection-body');
+    expect(body).toContain('display: grid;');
+    expect(body).toContain('flex: 1;');
+    expect(body).toContain('align-content: center;');
+  });
+
+  it('Given 音の切り替えの隅 / When 規則を見る / Then 流れの中で右寄せ（帯の下で盤と重ならない）', () => {
+    const body = ruleBody(css, '.projection-corner');
+    expect(body).toContain('display: flex;');
+    expect(body).toContain('justify-content: flex-end;');
+    expect(body).not.toContain('position: absolute;');
+  });
+
 });

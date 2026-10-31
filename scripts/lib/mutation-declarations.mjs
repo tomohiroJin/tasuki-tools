@@ -3851,4 +3851,20 @@ export const MUTATIONS = [
     tests: ["tests/projection-view.test.tsx"],
     note: "#471 レビュー。映している間も告知の帯を映す表示の外（手前）に描き、fixed・全面の映す表示に覆われて切断が伝わらない。",
   },
+  {
+    id: 615,
+    label: "poker の告知で everConnected を固定する",
+    patch: "m615-poker-notice-ever-connected-fixed.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/connection-banner-wiring.test.tsx"],
+    note: "#471。poker の `notice` が `everConnected: true` 固定で、一度も繋がらないのに「再接続中」と出し、繋がらないことが伝わらない。",
+  },
+  {
+    id: 616,
+    label: "poker の告知で failedAttempts を固定する",
+    patch: "m616-poker-notice-failed-attempts-zero.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/connection-banner-wiring.test.tsx"],
+    note: "#471。poker の `notice` が `failedAttempts: 0` 固定で、失敗が続いても「繋がらない」へ移らない。",
+  },
 ];

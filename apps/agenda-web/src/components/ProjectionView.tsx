@@ -113,31 +113,33 @@ export function ProjectionView({ view, wallNow, reducedMotion, striking, canOper
         {banner}
         <div className="projection-corner">{soundToggle}</div>
       </div>
-      <div className="projection-dial">
-        <Dial view={view} wallNow={wallNow} reducedMotion={reducedMotion} striking={striking} size="stage" />
-      </div>
-      {active && (
-        <dl className="projection-side">
-          <div className="projection-item">
-            <dt>{DRIFT_LABEL}</dt>
-            <dd className={`projection-drift is-${driftTone(view)}`}>{driftShort(view)}</dd>
-          </div>
-          {following !== '' && (
+      <div className="projection-body">
+        <div className="projection-dial">
+          <Dial view={view} wallNow={wallNow} reducedMotion={reducedMotion} striking={striking} size="stage" />
+        </div>
+        {active && (
+          <dl className="projection-side">
             <div className="projection-item">
-              <dt>{NEXT_STEP_LABEL}</dt>
-              <dd className="projection-next">{following}</dd>
+              <dt>{DRIFT_LABEL}</dt>
+              <dd className={`projection-drift is-${driftTone(view)}`}>{driftShort(view)}</dd>
             </div>
-          )}
-          <div className="projection-item">
-            <dt>
-              {/* この見出しは進行中・一時停止中だけ（active）。開始前は出ないので、盤の縁の印と常に対になる */}
-              <ProjectedEndMark view={view} />
-              {PROJECTED_END_LABEL}
-            </dt>
-            <dd className="projection-end">{projectedEndClock(view, wallNow)}</dd>
-          </div>
-        </dl>
-      )}
+            {following !== '' && (
+              <div className="projection-item">
+                <dt>{NEXT_STEP_LABEL}</dt>
+                <dd className="projection-next">{following}</dd>
+              </div>
+            )}
+            <div className="projection-item">
+              <dt>
+                {/* この見出しは進行中・一時停止中だけ（active）。開始前は出ないので、盤の縁の印と常に対になる */}
+                <ProjectedEndMark view={view} />
+                {PROJECTED_END_LABEL}
+              </dt>
+              <dd className="projection-end">{projectedEndClock(view, wallNow)}</dd>
+            </div>
+          </dl>
+        )}
+      </div>
       <div className={shown ? 'projection-strip is-shown' : 'projection-strip'}>
         {active && (
           <>

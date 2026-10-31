@@ -65,6 +65,39 @@ async function relayToolSync(page: Page, tool: Tool): Promise<(frame: unknown) =
   };
 }
 
+/**
+ * `relayToolSync` に加え、**以後の接続を成立させない切断**を起こせる口を返す（繋がらない状態まで測る）。
+ * `cut()` は掴んでいる接続を閉じ、新しい接続は開く前に閉じる。
+ */
+async function relayToolSyncWithOutage(
+  page: Page,
+  tool: Tool,
+): Promise<{ inject: (frame: unknown) => void; cut: () => Promise<void> }> {
+  let client: WebSocketRoute | null = null;
+  let down = false;
+  await page.routeWebSocket(toolSocket(tool), (ws) => {
+    if (down) {
+      void ws.close();
+      return;
+    }
+    const server = ws.connectToServer();
+    ws.onMessage((message) => server.send(message));
+    server.onMessage((message) => ws.send(message));
+    client = ws;
+  });
+  return {
+    inject: (frame) => {
+      expect(client, '中継が接続を掴んでいない').not.toBeNull();
+      client!.send(JSON.stringify(frame));
+    },
+    cut: async () => {
+      down = true;
+      expect(client, '中継が接続を掴んでいない').not.toBeNull();
+      await client!.close();
+    },
+  };
+}
+
 /** 帯と一言の見た目のうち、判定が分岐を見る値。 */
 async function paintOf(locator: Locator) {
   return locator.evaluate((el) => {
@@ -202,48 +235,94 @@ test.describe('接続の帯と一言が読める（WCAG AA・#320 E8）', () => 
     expectReadable(await scanContrast(page, 5), 5, [pairKey(rosePale!, felt950!)]);
   });
 
-  test('Given 進行タイマーの映す表示 / When 「同期できていません」を出す / Then 帯は映す表示の中の上端で最前面にあり、音の切り替えを覆わない（#471）', async ({
-    page,
-  }) => {
-    // Given: 進行中にして映す表示を開く（映す表示は fixed で全面を覆う。帯の層がそれ以下だと覆われて切断が伝わらない）
-    const inject = await relayToolSync(page, 'agenda');
-    await openAgendaTool(page, 'notice-agenda-projection');
-    await loadSampleAndStart(page);
-    await page.getByRole('button', { name: '映す表示', exact: true }).click();
-    await expect(page.locator('.projection')).toBeVisible();
+  for (const viewport of [
+    { width: 320, height: 568 },
+    { width: 390, height: 844 },
+    { width: 1280, height: 800 },
+  ]) {
+    test(`Given 進行タイマーの映す表示（${viewport.width}×${viewport.height}） / When 帯が出る / Then 帯は上端で最前面にあり、帯・音の切り替え・盤・横の情報は重ならず、スクロールしても帯は画面の上に留まる（#471）`, async ({
+      page,
+    }) => {
+      // Given: 中継（切断も起こせる）を掛けて進行中にし、映す表示を開く
+      const link = await relayToolSyncWithOutage(page, 'agenda');
+      await openAgendaTool(page, `notice-agenda-projection-${viewport.width}`);
+      await loadSampleAndStart(page);
+      await page.setViewportSize(viewport);
+      await page.getByRole('button', { name: '映す表示', exact: true }).click();
+      await expect(page.locator('.projection')).toBeVisible();
+      const toggle = page.locator('.projection .sound-toggle');
+      const dial = page.locator('.projection .projection-dial');
+      const side = page.locator('.projection .projection-side');
+      await expect(toggle, '音の切り替え').toBeVisible();
 
-    // When: 契約に合わないフレームを届ける
-    inject({ type: 'agenda' });
-    const banner = page.getByRole('status').filter({ hasText: STALE });
-    await expect(banner, '映している間の帯').toBeVisible();
+      /** 要素の中心で最前面にあるのが、その要素（の中）であること */
+      const onTop = (loc: Locator) =>
+        loc.evaluate((el) => {
+          const r = el.getBoundingClientRect();
+          const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+          return top !== null && el.contains(top);
+        });
+      const boxesOf = async (...locs: Locator[]) => {
+        const boxes = [];
+        for (const l of locs) {
+          if ((await l.count()) === 0) continue;
+          const b = await l.boundingBox();
+          expect(b, '箱が測れない').not.toBeNull();
+          boxes.push(b!);
+        }
+        return boxes;
+      };
+      const overlaps = (a: { x: number; y: number; width: number; height: number }, b: typeof a): boolean =>
+        a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+      const expectNoOverlap = async (state: string, ...locs: Locator[]) => {
+        const boxes = await boxesOf(...locs);
+        for (let i = 0; i < boxes.length; i++) {
+          for (let j = i + 1; j < boxes.length; j++) {
+            expect(overlaps(boxes[i]!, boxes[j]!), `${state}: ${i} 番と ${j} 番の箱が重なっている`).toBe(false);
+          }
+        }
+      };
 
-    // Then その1: 帯の中心の点で最前面にある要素が帯自身（またはその中）である（映す表示が覆っていない）
-    const onTop = await banner.evaluate((el) => {
-      const r = el.getBoundingClientRect();
-      const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-      return top !== null && el.contains(top);
+      // 状態 1: 帯なし。音の切り替えは盤と重ならない。盤は残りの領域の中央（収まるとき、上端の枠の下の領域の中心と 1px 以内）
+      await expect(page.locator('.projection .ui-banner')).toHaveCount(0);
+      await expectNoOverlap('帯なし', toggle, dial, side);
+      const fits = await page.locator('.projection').evaluate((el) => el.scrollHeight <= el.clientHeight);
+      if (fits) {
+        const topBox = (await boxesOf(page.locator('.projection .projection-top')))[0]!;
+        const dialBox = (await boxesOf(dial))[0]!;
+        const areaTop = topBox.y + topBox.height;
+        const areaCenter = areaTop + (viewport.height - areaTop) / 2;
+        expect(Math.abs(dialBox.y + dialBox.height / 2 - areaCenter), '盤が残りの領域の中央にない').toBeLessThanOrEqual(1);
+      }
+
+      // 状態 2: 同期できていない（1 行）
+      link.inject({ type: 'agenda' });
+      const banner = page.locator('.projection .ui-banner');
+      await expect(banner.filter({ hasText: STALE })).toBeVisible();
+      expect(await onTop(banner), '映す表示が帯を覆っている').toBe(true);
+      expect(await onTop(toggle), '帯が音の切り替えを覆っている').toBe(true);
+      await expectNoOverlap('同期できていない', banner, toggle, dial, side);
+
+      // 状態 3: 繋がらない（狭い画面では 3 行）。切って、以後の接続も成立させない
+      await link.cut();
+      await expect(banner.filter({ hasText: UNREACHABLE }), '繋がらない帯').toBeVisible({ timeout: 45_000 });
+      expect(await onTop(banner), '映す表示が帯を覆っている').toBe(true);
+      expect(await onTop(toggle), '帯が音の切り替えを覆っている').toBe(true);
+      await expectNoOverlap('繋がらない', banner, toggle, dial, side);
+      const bannerBox = (await boxesOf(banner))[0]!;
+      expect(bannerBox.width, '帯が全幅でない').toBeGreaterThanOrEqual(viewport.width - 1);
+      expect(bannerBox.y, '帯が上端にない').toBeLessThanOrEqual(1);
+
+      // 縦にスクロールしても帯は画面の上に留まる（sticky）
+      await page.locator('.projection').evaluate((el) => {
+        el.scrollTop = el.scrollHeight;
+      });
+      const scrolled = (await boxesOf(banner))[0]!;
+      expect(scrolled.y, 'スクロールで帯が画面の上から外れた').toBeLessThanOrEqual(1);
+      expect(scrolled.y + scrolled.height, 'スクロールで帯が画面の外へ出た').toBeGreaterThan(0);
+      expect(await onTop(banner), 'スクロール後に帯が覆われている').toBe(true);
     });
-    expect(onTop, '映す表示が帯を覆っている').toBe(true);
-    // Then その2: 帯は映す表示の中にある（部品の z-index を上げて外に出すと、隅の操作を覆う）
-    await expect(page.locator('.projection .ui-banner'), '帯が映す表示の外にある').toHaveCount(1);
-
-    // Then その3: 隅の音の切り替えは帯に覆われず押せる（中心の点の最前面が音の切り替え自身）
-    const toggle = page.locator('.projection .sound-toggle');
-    await expect(toggle, '音の切り替え').toBeVisible();
-    const toggleOnTop = await toggle.evaluate((el) => {
-      const r = el.getBoundingClientRect();
-      const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-      return top !== null && el.contains(top);
-    });
-    expect(toggleOnTop, '帯が音の切り替えを覆っている').toBe(true);
-
-    // Then その4: 帯と音の切り替えの箱は重ならない（帯の分だけ音の切り替えが下がっている）
-    const bannerBox = await banner.boundingBox();
-    const toggleBox = await toggle.boundingBox();
-    expect(bannerBox, '帯の箱').not.toBeNull();
-    expect(toggleBox, '音の切り替えの箱').not.toBeNull();
-    expect(toggleBox!.y, '音の切り替えが帯の下にある').toBeGreaterThanOrEqual(bannerBox!.y + bannerBox!.height);
-  });
+  }
 
   test('Given 進行タイマーの同期サーバーへ繋がらない / When 開く / Then 繋がらない帯は太い下線と太字で区別され、AA を満たす（#471）', async ({
     page,

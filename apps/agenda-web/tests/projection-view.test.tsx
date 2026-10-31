@@ -71,10 +71,16 @@ describe('映す表示', () => {
     expect(projection!.contains(banner)).toBe(true);
     // 外に二重に出さない
     expect(document.querySelectorAll('.ui-banner')).toHaveLength(1);
-    // 音の切り替えの隅は帯と同じ上端の枠の中（帯の下へ置く）で、帯と別の箱にいる
+    // 映す表示は「上端の枠（帯→音の切り替え）」と「残りの領域（盤・横の情報）」の 2 段。帯は上端の枠の先頭
     const top = banner.parentElement!;
     expect(top).toHaveClass('projection-top');
+    expect(top.firstElementChild).toBe(banner);
     expect(top.querySelector('.projection-corner')).not.toBeNull();
+    expect(projection!.children[0]).toBe(top);
+    expect(projection!.children[1]).toHaveClass('projection-body');
+    expect(projection!.children[1]!.querySelector('.projection-dial')).not.toBeNull();
+    // 上端の枠の中に盤は無い（重ならない構造）
+    expect(top.querySelector('.projection-dial')).toBeNull();
   });
 
   it('Given 映す表示で接続が生きている / When 画面を見る / Then 帯は無く、音の切り替えの隅は映す表示の中にある', () => {

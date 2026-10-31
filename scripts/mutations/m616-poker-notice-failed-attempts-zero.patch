@@ -1,0 +1,23 @@
+# 変異 616: poker-notice-failed-attempts-zero
+#
+# 検出を期待するテスト:
+#   - apps/poker-web/tests/connection-banner-wiring.test.tsx
+#
+# #471。告知の入力の failedAttempts を 0 に固定。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m616-*.patch
+# 復元: git apply -R scripts/mutations/m616-*.patch
+diff --git a/apps/poker-web/src/hooks/useSync.ts b/apps/poker-web/src/hooks/useSync.ts
+index 674e91f1..2d33d657 100644
+--- a/apps/poker-web/src/hooks/useSync.ts
++++ b/apps/poker-web/src/hooks/useSync.ts
+@@ -319,7 +319,7 @@ export function usePokerSync(): PokerSync {
+       error,
+       departed,
+       syncStale,
+-      notice: connectionNoticeKind({ status, everConnected, failedAttempts, syncStale }),
++      notice: connectionNoticeKind({ status, everConnected, failedAttempts: 0, syncStale }),
+       ...actions,
+     }),
+     [
