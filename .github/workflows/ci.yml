@@ -182,10 +182,79 @@ jobs:
       # docs ジョブは絞り込まず、pnpm install も要らない（git ls-files とファイル読み取りだけ）。
       - run: node scripts/audit-plan-gate.mjs
 
+  # 変異検査。**全件を毎回流す**（PR でも main でも。絞り込まない）。
+  # 1 本で直列に流すと 13〜19 分かかり CI 全体の律速だった（#481）。そこで 2 段に分ける
+  # （決定は docs/adr/0029・設計正本 docs/superpowers/specs/2026-10-31-ci-wait-design.md）。
+  # - ジョブを分ける: matrix の行の数だけジョブを起こし、全件を --shard k/n で分けて流す
+  # - ジョブの中で分ける: --jobs で作業ツリー（git worktree）を分け、runner のコアで並列に流す
+  # **増やすときは matrix の行を足すだけ**（スクリプトは変えない）。目安は設計正本 §6。
+  mutation:
+    name: mutation (${{ matrix.shard }})
+    runs-on: ubuntu-latest
+    strategy:
+      # 1 つが落ちても他を止めない。検出されなかった変異を一度にすべて見るため
+      fail-fast: false
+      matrix:
+        # **表示用の番号。** --shard へ渡す番号と数は matrix の値から取らず、GitHub が数える
+        # strategy.job-index / job-total から取る（下のステップ）。matrix の値を渡すと、
+        # [1, 2, 4] のような書き間違いで 1 つのシャードが黙って流れなくなる。
+        shard: [1, 2]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      # 走らせる範囲を決める。ジョブ単位の if ではなくステップ単位の if を使い、
+      # ジョブは常に起動して常に success を報告する（ADR 0009 D4）。
+      - id: scope
+        run: node scripts/ci-scope.mjs
+      - run: corepack enable
+        if: steps.scope.outputs.code == 'true'
+
+      # mutation-check.mjs は変異が属するパッケージの test スクリプトに実際のランナーを
+      # 合わせる（apps/tasuki-sync は bun test）。そのため setup-bun が必要。
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        if: steps.scope.outputs.code == 'true'
+        with:
+          # 本番（VPS）と手元の Bun に揃えて固定する。latest だと新しい版が出るたびに本番と違う版で試す
+          # （2026-10-22 に 1.4.4 で同期サーバーの試験が 1 件落ちた）。上げるときは本番の Bun と同時に上げる
+          # Renovate の更新は Dependency Dashboard の承認制（renovate.json・#442）。手順は deploy/README.md の「Bun を上げる」
+          bun-version: 1.4.3
+
+      # 供給網ポリシーの検証の目撃者は quality の 1 ジョブだけでよい（下の quality のコメント・設計正本 D5）。
+      # ここで入れた依存のストアから、--jobs の作業ツリーが --offline で依存を引く。
+      - run: pnpm install --frozen-lockfile
+        if: steps.scope.outputs.code == 'true'
+
+      # 変異検査は作業ツリーが clean であることを要求する。
+      # actions/checkout 直後は clean で、pnpm install は追跡ファイルを変更しない。
+      # --jobs は ubuntu-latest（公開リポジトリは 4 vCPU）のコアの数に合わせる。
+      - name: 変異検査（分けた 1 つ）
+        if: steps.scope.outputs.code == 'true'
+        env:
+          SHARD_INDEX: ${{ strategy.job-index }}
+          SHARD_TOTAL: ${{ strategy.job-total }}
+        run: node scripts/mutation-check.mjs --shard "$((SHARD_INDEX + 1))/$SHARD_TOTAL" --jobs 4
+
+  # 変異検査のシャードを 1 つにまとめる。シャードが 1 つでも success でなければ（失敗・取り消し・飛ばし）赤くなる。
+  # 必須チェックにするときはこの 1 つを指す（シャードの数を変えても名前が変わらない）。
+  mutation-all:
+    needs: mutation
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: 変異検査の全シャードが通ったか
+        env:
+          RESULT: ${{ needs.mutation.result }}
+        run: |
+          echo "変異検査のシャードの結果: $RESULT"
+          test "$RESULT" = success
+
   # 手動でしか走らなかった検査を寄せる。ci に混ぜると臨界経路が
   # 2 分 12 秒 → 2 分 42 秒 に伸びるので独立ジョブにする。
-  # mutation-check.mjs は変異が属するパッケージの test スクリプトに実際のランナーを
-  # 合わせる（apps/tasuki-sync は bun test）。そのため setup-bun が必要。
+  # 変異検査は #481 で上の mutation ジョブへ移した。
   quality:
     runs-on: ubuntu-latest
     steps:
@@ -200,7 +269,8 @@ jobs:
       - run: corepack enable
         if: steps.scope.outputs.code == 'true'
 
-      # mutation-check.mjs が apps/tasuki-sync の変異を bun test で実行するため必要。
+      # 変異検査は mutation ジョブへ移したが、scripts の自己テスト（mutation-check.test.mjs）が
+      # apps/tasuki-sync の変異の実行コマンドを組むときに bun の実行体を探すため、ここでも要る。
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         if: steps.scope.outputs.code == 'true'
         with:
@@ -285,11 +355,6 @@ jobs:
           set -euo pipefail
           targets="$(node scripts/list-scan-targets.mjs script-tests)"
           node --test $targets
-
-      # 変異検査は作業ツリーが clean であることを要求する。
-      # actions/checkout 直後は clean で、pnpm install は追跡ファイルを変更しない。
-      - run: node scripts/mutation-check.mjs
-        if: steps.scope.outputs.code == 'true'
 
       # shellcheck。対象は git から導出する（グロブが非再帰でサブディレクトリの
       # .sh が無検査だった。#135 経路④）。除外は無い（#71 で .specify/ を廃止。ADR 0009 追記）。
