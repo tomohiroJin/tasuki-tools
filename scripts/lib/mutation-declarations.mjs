@@ -4039,7 +4039,7 @@ export const MUTATIONS = [
   },
   {
     id: 622,
-    label: "分け方が重さを見ず、鍵の順だけで配る",
+    label: "分け方が置き場の中で組の重さを見ず、鍵の順だけで配る",
     patch: "m622-partition-ignores-weight.patch",
     pkg: "scripts",
     tests: ["lib/mutation-partition.test.mjs"],
