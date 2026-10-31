@@ -1158,7 +1158,7 @@ describe("0 件ガードと照合の配線: scripts/audit-agent-entries.mjs（#4
   });
 
   test("候補の列挙が空になると非ゼロで終了する（宣言していない入口を見なくなる経路）", () => {
-    const needle = "const candidates = listTrackedFiles(REPO_ROOT, ENTRY_CANDIDATE_PATTERNS);";
+    const needle = "const candidates = listTrackedFiles(REPO_ROOT, ENTRY_CANDIDATE_PATTERNS).filter(isEntryCandidate);";
     const mutate = (s) => s.replace(needle, "const candidates = [];");
     const r = runScriptCopy("audit-agent-entries.mjs", mutate);
     assertBrokenBy("audit-agent-entries.mjs", r.source, needle, "候補の列挙");

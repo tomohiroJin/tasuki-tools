@@ -58,10 +58,10 @@ export const ALLOWED_SCRIPT_IMPORTS = [
   {
     from: "scripts/audit-agent-entries.mjs",
     to: "scripts/audit-plan-gate.mjs",
-    names: ["CONSTITUTION_PATH", "extractPrinciples"],
+    names: ["CONSTITUTION_PATH", "extractPrinciples", "stripCodeFences"],
     reason:
-      "憲法の置き場と原則の見出しの読み方の正本は audit-plan-gate.mjs に置く。写すと、" +
-      "憲法の見出しの形が変わったときに片方の検査だけが読み方を直すことになる（#483）",
+      "憲法の置き場・原則の見出しの読み方・コードフェンスの剥がし方の正本は audit-plan-gate.mjs に置く。" +
+      "写すと、形が変わったときに片方の検査だけが読み方を直すことになる（#483）",
   },
 ];
 

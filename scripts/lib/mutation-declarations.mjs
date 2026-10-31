@@ -4128,4 +4128,13 @@ export const MUTATIONS = [
       "#483・docs/adr/0030 決定 3。憲法の見出しを改名しても AGENTS.md が古い表題のまま通る。" +
       "docs/adr/0002 決定 5 の見出し同期が、番号の数合わせに痩せる。",
   },
+  {
+    id: 633,
+    label: "audit-agent-entries がコードブロックの中のリンクと取り込みを数える",
+    patch: "m633-agent-entries-counts-fenced-links.patch",
+    pkg: "scripts",
+    tests: ["audit-agent-entries.test.mjs"],
+    note:
+      "#485 のレビュー。描画も読み込みもされない例文の中の [x](AGENTS.md) で、正本へ向いていない入口が通る。",
+  },
 ];

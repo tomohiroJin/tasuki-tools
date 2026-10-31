@@ -4,6 +4,8 @@ import {
   SOURCE_PATH,
   ENTRY_FILES,
   MAX_ENTRY_LINES,
+  MAX_ENTRY_CHARS,
+  isEntryCandidate,
   extractAgentsPrinciples,
   comparePrinciples,
   linksToSource,
@@ -104,6 +106,15 @@ describe("comparePrinciples: 憲法と AGENTS.md の見出しを突き合わせ�
     assert.match(problems[0], /技術選定は ADR を通す/);
   });
 
+  test("番号の重複を名指しする（Map の上書きで表題の違いを見落とさない）", () => {
+    // Given: AGENTS.md に I が 2 本ある
+    const agents = [{ numeral: "I", title: "Z" }, CONSTITUTION_PRINCIPLES[0], CONSTITUTION_PRINCIPLES[1]];
+    // When
+    const problems = comparePrinciples(CONSTITUTION_PRINCIPLES, agents);
+    // Then
+    assert.ok(problems.some((p) => /原則 I が AGENTS\.md に 2 本あります/.test(p)), problems.join("\n"));
+  });
+
   test("順序の違いを報告する", () => {
     const agents = [CONSTITUTION_PRINCIPLES[1], CONSTITUTION_PRINCIPLES[0]];
     const problems = comparePrinciples(CONSTITUTION_PRINCIPLES, agents);
@@ -123,6 +134,30 @@ describe("linksToSource: 入口が正本へ向いているか", () => {
 
   test("./ つき・アンカーつきでも解く", () => {
     assert.equal(linksToSource("GEMINI.md", "[規則](./AGENTS.md#絶対規則)"), true);
+  });
+
+  test("題名つきのリンクも解く", () => {
+    assert.equal(linksToSource("CLAUDE.md", '[規則](AGENTS.md "正本")'), true);
+  });
+
+  test("行頭の @ による取り込み（Claude Code・Gemini CLI）を正本と解く", () => {
+    // Given: 取り込みなら本文が読み込まれる。リンクより強い向け方
+    assert.equal(linksToSource("CLAUDE.md", "@AGENTS.md"), true);
+    assert.equal(linksToSource("GEMINI.md", "@./AGENTS.md"), true);
+    assert.equal(linksToSource("docs/CLAUDE.md", "@../AGENTS.md"), true);
+  });
+
+  test("文の途中の @ は取り込みと見なさない", () => {
+    assert.equal(linksToSource("CLAUDE.md", "メールは x@AGENTS.md へ"), false);
+  });
+
+  test("コードブロックの中のリンクは向いていない", () => {
+    assert.equal(linksToSource("CLAUDE.md", "```\n[a](AGENTS.md)\n@AGENTS.md\n```"), false);
+  });
+
+  test("HTML コメントの中のリンクは向いていない", () => {
+    assert.equal(linksToSource("CLAUDE.md", "<!-- [a](AGENTS.md) -->"), false);
+    assert.equal(linksToSource("CLAUDE.md", "<!--\n@AGENTS.md\n-->"), false);
   });
 
   test("リンクにせず名前を書いただけでは向いていない", () => {
@@ -150,7 +185,7 @@ describe("checkEntry: 入口は薄い", () => {
   test("正本へ向いていない入口を報告する", () => {
     const problems = checkEntry("CLAUDE.md", "# CLAUDE.md\n\n決めごとは README を読んでください。\n");
     assert.equal(problems.length, 1);
-    assert.match(problems[0], /AGENTS\.md へのリンクがありません/);
+    assert.match(problems[0], /AGENTS\.md へのリンクも取り込み/);
   });
 
   test("上限ちょうどの行数は通る（空行は数えない）", () => {
@@ -168,6 +203,58 @@ describe("checkEntry: 入口は薄い", () => {
     const problems = checkEntry("CLAUDE.md", lines.join("\n"));
     assert.equal(problems.length, 1);
     assert.match(problems[0], new RegExp(`${MAX_ENTRY_LINES + 1} 行`));
+  });
+});
+
+describe("checkEntry: 1 行に詰め込んだ規則", () => {
+  test("上限ちょうどの文字数は通る", () => {
+    const head = "[AGENTS.md](AGENTS.md)";
+    const text = head + "あ".repeat(MAX_ENTRY_CHARS - head.length);
+    assert.deepEqual(checkEntry("CLAUDE.md", text), []);
+  });
+
+  test("上限を超えた文字数を報告する", () => {
+    const head = "[AGENTS.md](AGENTS.md)";
+    const text = head + "あ".repeat(MAX_ENTRY_CHARS - head.length + 1);
+    const problems = checkEntry("CLAUDE.md", text);
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], new RegExp(`${MAX_ENTRY_CHARS + 1} 文字`));
+  });
+});
+
+describe("isEntryCandidate: ツールが読みうるファイルか", () => {
+  test("どの階層の CLAUDE.md・AGENTS.md・GEMINI.md も候補", () => {
+    for (const rel of ["CLAUDE.md", "apps/x/CLAUDE.md", "AGENTS.md", "e2e/AGENTS.md", "GEMINI.md", "docs/GEMINI.md"]) {
+      assert.equal(isEntryCandidate(rel), true, rel);
+    }
+  });
+
+  test("名前の末尾が一致するだけのファイルは候補にしない", () => {
+    for (const rel of ["docs/NOTCLAUDE.md", "MYAGENTS.md", "apps/x/XGEMINI.md"]) {
+      assert.equal(isEntryCandidate(rel), false, rel);
+    }
+  });
+
+  test("ツールが規則として読む他の置き場も候補", () => {
+    for (const rel of [
+      "AGENTS.override.md",
+      "apps/x/AGENTS.override.md",
+      "CLAUDE.local.md",
+      ".claude/rules/style.md",
+      ".github/copilot-instructions.md",
+      ".github/instructions/a.instructions.md",
+      ".cursorrules",
+      ".cursor/rules/a.mdc",
+      ".windsurfrules",
+    ]) {
+      assert.equal(isEntryCandidate(rel), true, rel);
+    }
+  });
+
+  test("ふつうの文書は候補にしない", () => {
+    for (const rel of ["README.md", "docs/README.md", ".github/pull_request_template.md"]) {
+      assert.equal(isEntryCandidate(rel), false, rel);
+    }
   });
 });
 
