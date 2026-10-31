@@ -56,4 +56,4 @@ Michael Nygard 形式（背景 / 決定 / 影響 / ステータス）に従い�
 | [0027](./0027-agenda-timer.md) | 進行タイマーを 6 つ目の文脈にし、自動で次へ移す判断と期限をサーバーが持つ | Accepted |
 | [0028](./0028-checkin-cards.md) | 会の始まりと終わりの札を 7 つ目の文脈にし、匿名はサーバーが送らないことで守る | Accepted |
 | [0029](./0029-mutation-shards-in-ci.md) | 変異検査は全件のまま、ジョブと作業ツリーの 2 段に分けて並行に流す | Accepted |
-| [0030](./0030-ai-driven-development-operations.md) | AI 駆動開発の運用 —— 任せる範囲を決め、品質は機械的な検査で保証する | Proposed |
+| [0030](./0030-ai-driven-development-operations.md) | AI 駆動開発の運用 —— 任せる範囲を決め、品質は機械的な検査で保証する | Accepted |

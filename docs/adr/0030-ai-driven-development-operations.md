@@ -1,6 +1,6 @@
 # ADR-0030: AI 駆動開発の運用 —— 任せる範囲を決め、品質は機械的な検査で保証する
 
-- **ステータス**: Proposed（2026-10-31。採択は人が判断する。決定 1 のとおり）
+- **ステータス**: Accepted（2026-10-31。利用者が PR tomohiroJin/tasuki-tools#485 で採択。決定 1 のとおり人が判断した）
 - **関連**: [#483](https://github.com/tomohiroJin/tasuki-tools/issues/483) /
   [ADR-0002](./0002-document-system-three-layers.md)（文書体系の三層構造・決定 5 の見出し同期） /
   [ADR-0003](./0003-agile-operations.md)（DoD の運用） /
