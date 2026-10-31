@@ -46,7 +46,10 @@ Thumbs.db
 # **追跡外にしないと `scripts/mutation-check.mjs` が起動を拒む** ——
 # あれは「作業ツリーが clean であること」を復元の前提にしており、
 # 未追跡ファイルが 1 つでも残っていると変異検査に入れない（#271 で踏んだ）。
-.claude/
+# `.claude/skills/` だけは追跡する（手順書へ向ける薄い入口。#489・docs/guides/procedures/README.md）。
+# 中身は scripts/audit-agent-entries.mjs が見る。
+.claude/*
+!.claude/skills/
 .serena/
 
 # 変異検査（scripts/mutation-check.mjs）が実行中だけ作る 2 つ。

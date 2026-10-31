@@ -11,6 +11,9 @@ import {
   linksToSource,
   checkEntry,
   findUndeclaredEntries,
+  PROCEDURES_DIR,
+  MAX_SKILL_DESCRIPTION_CHARS,
+  checkSkill,
 } from "./audit-agent-entries.mjs";
 
 /** AGENTS.md の「絶対規則」節の写し（形式だけを再現した最小の本文）。 */
@@ -276,5 +279,117 @@ describe("findUndeclaredEntries: 宣言されていない入口", () => {
 
   test("全部が宣言どおりなら空", () => {
     assert.deepEqual(findUndeclaredEntries(["AGENTS.md", "CLAUDE.md"], [{ path: "CLAUDE.md" }]), []);
+  });
+});
+
+describe("checkSkill: スキルは手順書へ向ける薄い入口", () => {
+  const PROC = `${PROCEDURES_DIR}adversarial-review.md`;
+  const PROCEDURES = [PROC];
+  const REL = ".claude/skills/adversarial-review/SKILL.md";
+  const skill = (body, fm = "name: adversarial-review\ndescription: 差分を敵対的に確かめる") =>
+    `---\n${fm}\n---\n\n${body}\n`;
+  const GOOD_BODY = "手順の正本は [敵対的レビュー](../../../docs/guides/procedures/adversarial-review.md)。読んでから従う。";
+
+  test("手順書へ向く数行のスキルは通る", () => {
+    assert.deepEqual(checkSkill(REL, skill(GOOD_BODY), PROCEDURES), []);
+  });
+
+  test("手順書へ向いていないスキルを報告する（手順を本文に書いている）", () => {
+    const problems = checkSkill(REL, skill("1. 差分を読む\n2. 変異で壊す"), PROCEDURES);
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /手順書へのリンクがありません/);
+  });
+
+  test("手順書の置き場の外へのリンクは向いていない", () => {
+    const body = "正本は [開発ガイド](../../../docs/guides/development.md)。";
+    const problems = checkSkill(REL, skill(body), PROCEDURES);
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /手順書へのリンクがありません/);
+  });
+
+  test("置き場の中でも、追跡下に無い手順書へのリンクは向いていない", () => {
+    const body = "正本は [無い](../../../docs/guides/procedures/missing.md)。";
+    const problems = checkSkill(REL, skill(body), PROCEDURES);
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /手順書へのリンクがありません/);
+  });
+
+  test("階層を解き違えたリンクは向いていない", () => {
+    const body = "正本は [敵対的レビュー](../../docs/guides/procedures/adversarial-review.md)。";
+    assert.equal(checkSkill(REL, skill(body), PROCEDURES).length, 1);
+  });
+
+  test("コードブロックの中のリンクは向いていない", () => {
+    const body = "```\n[x](../../../docs/guides/procedures/adversarial-review.md)\n```";
+    assert.equal(checkSkill(REL, skill(body), PROCEDURES).length, 1);
+  });
+
+  test("frontmatter の中のリンクは数えない（本文から向ける）", () => {
+    const fm = "name: adversarial-review\ndescription: [x](../../../docs/guides/procedures/adversarial-review.md)";
+    const problems = checkSkill(REL, skill("本文", fm), PROCEDURES);
+    assert.ok(problems.some((p) => /手順書へのリンクがありません/.test(p)), problems.join("\n"));
+  });
+
+  test("本文の空でない行が上限を超えたら報告する", () => {
+    const lines = [GOOD_BODY];
+    while (lines.length < MAX_ENTRY_LINES + 1) lines.push("- 手順");
+    const problems = checkSkill(REL, skill(lines.join("\n")), PROCEDURES);
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], new RegExp(`${MAX_ENTRY_LINES + 1} 行`));
+  });
+
+  test("本文の行数に frontmatter を数えない（上限ちょうどは通る）", () => {
+    const lines = [GOOD_BODY];
+    while (lines.length < MAX_ENTRY_LINES) lines.push("補足");
+    assert.deepEqual(checkSkill(REL, skill(lines.join("\n")), PROCEDURES), []);
+  });
+
+  test("本文の文字数が上限を超えたら報告する", () => {
+    const body = GOOD_BODY + "あ".repeat(MAX_ENTRY_CHARS - GOOD_BODY.length + 1);
+    const problems = checkSkill(REL, skill(body), PROCEDURES);
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], new RegExp(`${MAX_ENTRY_CHARS + 1} 文字`));
+  });
+
+  test("description が上限を超えたら報告する（手順を description に詰め込む抜け道）", () => {
+    const fm = `name: adversarial-review\ndescription: ${"あ".repeat(MAX_SKILL_DESCRIPTION_CHARS + 1)}`;
+    const problems = checkSkill(REL, skill(GOOD_BODY, fm), PROCEDURES);
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], new RegExp(`${MAX_SKILL_DESCRIPTION_CHARS + 1} 文字`));
+  });
+
+  test("description の上限ちょうどは通る", () => {
+    const fm = `name: adversarial-review\ndescription: ${"あ".repeat(MAX_SKILL_DESCRIPTION_CHARS)}`;
+    assert.deepEqual(checkSkill(REL, skill(GOOD_BODY, fm), PROCEDURES), []);
+  });
+
+  test("frontmatter が無ければ報告する", () => {
+    const problems = checkSkill(REL, `${GOOD_BODY}\n`, PROCEDURES);
+    assert.ok(problems.some((p) => /frontmatter/.test(p)), problems.join("\n"));
+  });
+
+  test("name がディレクトリ名と違えば報告する", () => {
+    const fm = "name: review\ndescription: 差分を敵対的に確かめる";
+    const problems = checkSkill(REL, skill(GOOD_BODY, fm), PROCEDURES);
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /name/);
+  });
+
+  test("description が無ければ報告する", () => {
+    const problems = checkSkill(REL, skill(GOOD_BODY, "name: adversarial-review"), PROCEDURES);
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /description/);
+  });
+
+  test("SKILL.md 以外のファイルを報告する（手順をスクリプトや参照文書に持ち込む）", () => {
+    const problems = checkSkill(".claude/skills/adversarial-review/steps.md", "1. 差分を読む\n", PROCEDURES);
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /SKILL\.md 以外/);
+  });
+
+  test("置き場の直下に置いたファイルも SKILL.md 以外として報告する", () => {
+    const problems = checkSkill(".claude/skills/SKILL.md", skill(GOOD_BODY), PROCEDURES);
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /SKILL\.md 以外/);
   });
 });

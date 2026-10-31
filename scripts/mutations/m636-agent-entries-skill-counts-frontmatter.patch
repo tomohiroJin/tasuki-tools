@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-agent-entries.mjs b/scripts/audit-agent-entries.mjs
+index 5622539..a67fe59 100644
+--- a/scripts/audit-agent-entries.mjs
++++ b/scripts/audit-agent-entries.mjs
+@@ -237,7 +237,7 @@ export function checkSkill(rel, text, procedures) {
+       );
+     }
+   }
+-  const body = parsed ? parsed.body : text;
++  const body = text;
+   const known = new Set(procedures);
+   if (!linkTargets(rel, body).some((t) => t.startsWith(PROCEDURES_DIR) && known.has(t))) {
+     problems.push(`${rel}: 本文に手順書へのリンクがありません（${PROCEDURES_DIR} の追跡下のファイル）    ← 手順は書かず、手順書へ向けてください`);

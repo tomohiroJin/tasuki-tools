@@ -239,6 +239,7 @@ export const LIVE_DOCS = [
   "e2e/",
   "docs/constitution.md",
   "docs/ai-manifesto.md", // #483: AI と開発するときの宣言。憲法・ADR を指す。
+  ".claude/skills/", // #489: スキル。手順書（docs/guides/procedures/）へ向ける薄い入口。
   "docs/poker/adr/",
   "packages/invite-ui/README.md", // ADR-0020 の現行 API 案内。コードパスも検査する。
   "packages/markdown/README.md", // #91 PR 3: Markdown サブセットの解析の API 案内。

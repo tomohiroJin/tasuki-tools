@@ -851,7 +851,7 @@ node scripts/audit-ui-components.mjs             # 部品層の写しと規則�
 node scripts/audit-timer-classes.mjs             # timer のクラス名の書き方と定義（ADR-0023）
 node scripts/audit-supply-chain-config.mjs       # pnpm 供給網設定の退化（除外の版指定・死んだ除外行・未知のキーと値。ADR-0008 / ADR-0010）と Renovate の待機期間（ADR-0024）
 node scripts/audit-plan-gate.mjs                 # 実装計画の Constitution Check ゲート（境界日以降の plan が全原則の判定表と逸脱の結論を持つか。憲法 Governance / ADR-0003）
-node scripts/audit-agent-entries.mjs             # AI ツールの入口（CLAUDE.md ほか）が AGENTS.md へ向いて薄いか・AGENTS.md の原則の見出しが憲法と一致するか（ADR-0030 決定 3 / ADR-0002 決定 5）
+node scripts/audit-agent-entries.mjs             # AI ツールの入口（CLAUDE.md ほか）が AGENTS.md へ向いて薄いか・AGENTS.md の原則の見出しが憲法と一致するか（ADR-0030 決定 3 / ADR-0002 決定 5）・スキル（.claude/skills/）が手順書へ向く薄い入口か（#489）
 node scripts/mutation-check.mjs                  # 変異検査
 node scripts/check-links.mjs                     # リンク検査
 
@@ -932,6 +932,7 @@ CI は変異も E2E も全件を流し続けます。手元で絞った分の漏
 
 **変異を足すときは、宣言を `scripts/lib/mutation-declarations.mjs` の表 `MUTATIONS` に足し、パッチを `scripts/mutations/` に置きます**
 （宣言とパッチは 1 対 1。ID は詰めない・使い回さない）。表は #380 で機構（`scripts/mutation-check.mjs`）から分けました。
+足し方・作り直し方・消し方の手順は [変異の足し方・作り直し方](./procedures/mutations.md) にあります。
 
 **変異検査は作業ツリーが汚れていると実行できません。** `mutation-check.mjs` は
 対象箇所を意図的に壊して既存テストが赤くなるかを確認する仕組みのため、
