@@ -134,6 +134,15 @@ describe("partitionMutations: n 個に分ける", () => {
     }
   });
 
+  test("置き場の中でも重い組から配る（鍵の順に配ると偏る）", () => {
+    // 同じ置き場に重さ 1・1・2 の組。重い順なら 2 | 1+1 で揃う。鍵の順（x・y・z）に配ると 1+2 | 1 に偏る
+    const x = { id: 1, pkg: "p", tests: ["x"] };
+    const y = { id: 2, pkg: "p", tests: ["y"] };
+    const z = { id: 3, pkg: "p", tests: ["z"] };
+    const weight = (g) => (g.tests[0] === "z" ? 2 : 1);
+    assert.deepEqual(partitionMutations([x, y, z], 2, weight).map(idsOf), [[3], [1, 2]]);
+  });
+
   test("組の数より多くは分けられない（空の分け前を作らない）", () => {
     assert.throws(() => partitionMutations(MUTS, 5, launches), /対照の組が 4 個しかなく、5 個に分けられません/);
   });
