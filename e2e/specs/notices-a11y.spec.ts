@@ -21,9 +21,10 @@ import type { Locator, Page, WebSocketRoute } from '@playwright/test';
 import { expect, test } from '../fixtures/test';
 import { expectReadable, pairKey, resolveColors, scanContrast } from '../support/a11y';
 import { createRoom } from '../support/poker';
+import { loadSampleAndStart, openAgendaTool } from '../support/agenda';
 import { openTopicTool } from '../support/topic';
 
-type Tool = 'poker' | 'topic';
+type Tool = 'poker' | 'topic' | 'agenda';
 
 /** 画面の既定のエラーの文（poker の `DEFAULT_ERROR_MESSAGE`・お題ツールの `DEFAULT_ERROR_TEXT`）。 */
 const ERROR_TEXT = '操作を完了できませんでした';
@@ -61,6 +62,39 @@ async function relayToolSync(page: Page, tool: Tool): Promise<(frame: unknown) =
     // 掴めていないまま進むと、下の判定は差し込んでいない画面を見る
     expect(client, '中継が接続を掴んでいない').not.toBeNull();
     client!.send(JSON.stringify(frame));
+  };
+}
+
+/**
+ * `relayToolSync` に加え、**以後の接続を成立させない切断**を起こせる口を返す（繋がらない状態まで測る）。
+ * `cut()` は掴んでいる接続を閉じ、新しい接続は開く前に閉じる。
+ */
+async function relayToolSyncWithOutage(
+  page: Page,
+  tool: Tool,
+): Promise<{ inject: (frame: unknown) => void; cut: () => Promise<void> }> {
+  let client: WebSocketRoute | null = null;
+  let down = false;
+  await page.routeWebSocket(toolSocket(tool), (ws) => {
+    if (down) {
+      void ws.close();
+      return;
+    }
+    const server = ws.connectToServer();
+    ws.onMessage((message) => server.send(message));
+    server.onMessage((message) => ws.send(message));
+    client = ws;
+  });
+  return {
+    inject: (frame) => {
+      expect(client, '中継が接続を掴んでいない').not.toBeNull();
+      client!.send(JSON.stringify(frame));
+    },
+    cut: async () => {
+      down = true;
+      expect(client, '中継が接続を掴んでいない').not.toBeNull();
+      await client!.close();
+    },
   };
 }
 
@@ -102,7 +136,7 @@ test.describe('接続の帯と一言が読める（WCAG AA・#320 E8）', () => 
     // Then その2: 帯は上端に貼りつき、不透明な地で、細い下線（繋がらない帯と区別がつく側）
     const paint = await paintOf(banner);
     expect(paint).toMatchObject({ color: rosePale, background: felt950, underline: '1px', position: 'sticky', marginTop: '0px' });
-    expect(paint.weight, '繋がらない帯と同じ太字になっている').not.toBe('700');
+    expect(paint.weight, '太字ではない（繋がらない帯と区別がつく）').not.toBe('700');
 
     // Then その3: 画面の文字がすべて読め、帯の字（--rose-pale on --felt-950）を測ったことを固定する
     expectReadable(await scanContrast(page, 10), 8, [pairKey(rosePale!, felt950!)]);
@@ -153,7 +187,7 @@ test.describe('接続の帯と一言が読める（WCAG AA・#320 E8）', () => 
     await expect(banner, '同期できていない帯').toBeVisible();
     const paint = await paintOf(banner);
     expect(paint).toMatchObject({ color: rosePale, background: felt950, underline: '1px', position: 'sticky', marginTop: '0px' });
-    expect(paint.weight, '繋がらない帯と同じ太字になっている').not.toBe('700');
+    expect(paint.weight, '太字ではない（繋がらない帯と区別がつく）').not.toBe('700');
 
     // Then: 画面の文字がすべて読め、帯の字を測ったことを固定する
     expectReadable(await scanContrast(page, 5), 5, [pairKey(rosePale!, felt950!)]);
@@ -166,6 +200,154 @@ test.describe('接続の帯と一言が読める（WCAG AA・#320 E8）', () => 
     await openTopicTool(page, 'notice-topic-down');
     // When: お題ツールの接続だけを成立させないようにして、開き直す
     await toolSyncIsDown(page, 'topic');
+    await page.reload();
+    const [rosePale, felt950] = await resolveColors(page, ['--rose-pale', '--felt-950']);
+
+    const banner = page.getByRole('alert').filter({ hasText: UNREACHABLE });
+    await expect(banner, '繋がらない帯').toBeVisible();
+    expect(await paintOf(banner)).toMatchObject({
+      color: rosePale,
+      background: felt950,
+      weight: '700',
+      underline: '2px',
+      position: 'sticky',
+      marginTop: '0px',
+    });
+    expectReadable(await scanContrast(page, 1), 1, [pairKey(rosePale!, felt950!)]);
+  });
+
+  test('Given 進行タイマー / When 「同期できていません」を出す / Then 他のアプリと同じ貼りついた不透明な帯が出て、AA を満たす（#471）', async ({
+    page,
+  }) => {
+    // Given: 中継を掛けてから進行タイマーを開く（agenda はこの帯を #471 で足した。他のアプリと同じ見た目・位置であること）
+    const inject = await relayToolSync(page, 'agenda');
+    await openAgendaTool(page, 'notice-agenda');
+    const [rosePale, felt950] = await resolveColors(page, ['--rose-pale', '--felt-950']);
+
+    // When: 契約に合わないフレームを届ける（`agenda` の形にも、ハブの応答の形にも合わない）
+    inject({ type: 'agenda' });
+    const banner = page.getByRole('status').filter({ hasText: STALE });
+    await expect(banner, '同期できていない帯').toBeVisible();
+    // Then
+    const paint = await paintOf(banner);
+    expect(paint).toMatchObject({ color: rosePale, background: felt950, underline: '1px', position: 'sticky', marginTop: '0px' });
+    expect(paint.weight, '太字ではない（繋がらない帯と区別がつく）').not.toBe('700');
+    expectReadable(await scanContrast(page, 5), 5, [pairKey(rosePale!, felt950!)]);
+  });
+
+  for (const viewport of [
+    { width: 320, height: 568 },
+    { width: 390, height: 844 },
+    { width: 1280, height: 800 },
+  ]) {
+    test(`Given 進行タイマーの映す表示（${viewport.width}×${viewport.height}） / When 帯が出る / Then 帯は上端で最前面にあり、帯・音の切り替え・盤・横の情報は重ならず、スクロールしても帯は画面の上に留まる（#471）`, async ({
+      page,
+    }) => {
+      // Given: 中継（切断も起こせる）を掛けて進行中にし、映す表示を開く
+      const link = await relayToolSyncWithOutage(page, 'agenda');
+      await openAgendaTool(page, `notice-agenda-projection-${viewport.width}`);
+      await loadSampleAndStart(page);
+      await page.setViewportSize(viewport);
+      await page.getByRole('button', { name: '映す表示', exact: true }).click();
+      await expect(page.locator('.projection')).toBeVisible();
+      const toggle = page.locator('.projection .sound-toggle');
+      const dial = page.locator('.projection .projection-dial');
+      const side = page.locator('.projection .projection-side');
+      await expect(toggle, '音の切り替え').toBeVisible();
+
+      /** 要素の中心で最前面にあるのが、その要素（の中）であること */
+      const onTop = (loc: Locator) =>
+        loc.evaluate((el) => {
+          const r = el.getBoundingClientRect();
+          const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+          return top !== null && el.contains(top);
+        });
+      const boxesOf = async (...locs: Locator[]) => {
+        const boxes = [];
+        for (const l of locs) {
+          if ((await l.count()) === 0) continue;
+          const b = await l.boundingBox();
+          expect(b, '箱が測れない').not.toBeNull();
+          boxes.push(b!);
+        }
+        return boxes;
+      };
+      const overlaps = (a: { x: number; y: number; width: number; height: number }, b: typeof a): boolean =>
+        a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+      const expectNoOverlap = async (state: string, ...locs: Locator[]) => {
+        const boxes = await boxesOf(...locs);
+        for (let i = 0; i < boxes.length; i++) {
+          for (let j = i + 1; j < boxes.length; j++) {
+            expect(overlaps(boxes[i]!, boxes[j]!), `${state}: ${i} 番と ${j} 番の箱が重なっている`).toBe(false);
+          }
+        }
+      };
+
+      // 状態 1: 帯なし。音の切り替えは盤と重ならない。中身（盤と横の情報をまとめた箱）は残りの領域の縦の中央
+      // （収まるとき、上端の枠の下の領域の中心と 1px 以内。狭い幅では盤と横の情報が縦に積まれるので、盤だけでは見ない）
+      await expect(page.locator('.projection .ui-banner')).toHaveCount(0);
+      await expectNoOverlap('帯なし', toggle, dial, side);
+      const fits = await page.locator('.projection').evaluate((el) => el.scrollHeight <= el.clientHeight);
+      if (fits) {
+        const topBox = (await boxesOf(page.locator('.projection .projection-top')))[0]!;
+        const [dialBox, sideBox] = await boxesOf(dial, side);
+        const contentTop = Math.min(dialBox!.y, sideBox!.y);
+        const contentBottom = Math.max(dialBox!.y + dialBox!.height, sideBox!.y + sideBox!.height);
+        const areaTop = topBox.y + topBox.height;
+        const areaCenter = areaTop + (viewport.height - areaTop) / 2;
+        expect(Math.abs((contentTop + contentBottom) / 2 - areaCenter), '中身が残りの領域の縦の中央にない').toBeLessThanOrEqual(1);
+      }
+
+      // 状態 2: 同期できていない（1 行）
+      link.inject({ type: 'agenda' });
+      const banner = page.locator('.projection .ui-banner');
+      await expect(banner.filter({ hasText: STALE })).toBeVisible();
+      expect(await onTop(banner), '映す表示が帯を覆っている').toBe(true);
+      expect(await onTop(toggle), '帯が音の切り替えを覆っている').toBe(true);
+      await expectNoOverlap('同期できていない', banner, toggle, dial, side);
+
+      // 状態 3: 繋がらない（狭い画面では 3 行）。切って、以後の接続も成立させない
+      await link.cut();
+      await expect(banner.filter({ hasText: UNREACHABLE }), '繋がらない帯').toBeVisible({ timeout: 45_000 });
+      expect(await onTop(banner), '映す表示が帯を覆っている').toBe(true);
+      expect(await onTop(toggle), '帯が音の切り替えを覆っている').toBe(true);
+      await expectNoOverlap('繋がらない', banner, toggle, dial, side);
+      const bannerBox = (await boxesOf(banner))[0]!;
+      expect(bannerBox.width, '帯が全幅でない').toBeGreaterThanOrEqual(viewport.width - 1);
+      expect(bannerBox.y, '帯が上端にない').toBeLessThanOrEqual(1);
+      // 映す画面の大きさ（高さ 800 以上）では、帯が出ても下へはみ出さない（映している画面は誰もスクロールしない）。
+      // 320×568 は帯と隅の行を除くと中身が収まらず、スクロールで見る（帯は上に留まる）
+      if (viewport.height >= 800) {
+        const overflow = await page.locator('.projection').evaluate((el) => el.scrollHeight - el.clientHeight);
+        expect(overflow, '帯が出て映す表示の下の端が画面の外へ出た').toBeLessThanOrEqual(0);
+      }
+      // 隅の操作はスクロールで流れる（上端の枠に留まって盤の上に乗らない）
+      await page.locator('.projection').evaluate((el) => {
+        el.scrollTop = el.scrollHeight;
+      });
+      await expectNoOverlap('繋がらない（下までスクロール）', toggle, dial);
+      await page.locator('.projection').evaluate((el) => {
+        el.scrollTop = 0;
+      });
+
+      // 縦にスクロールしても帯は画面の上に留まる（sticky）
+      await page.locator('.projection').evaluate((el) => {
+        el.scrollTop = el.scrollHeight;
+      });
+      const scrolled = (await boxesOf(banner))[0]!;
+      expect(scrolled.y, 'スクロールで帯が画面の上から外れた').toBeLessThanOrEqual(1);
+      expect(scrolled.y + scrolled.height, 'スクロールで帯が画面の外へ出た').toBeGreaterThan(0);
+      expect(await onTop(banner), 'スクロール後に帯が覆われている').toBe(true);
+    });
+  }
+
+  test('Given 進行タイマーの同期サーバーへ繋がらない / When 開く / Then 繋がらない帯は太い下線と太字で区別され、AA を満たす（#471）', async ({
+    page,
+  }) => {
+    // Given: 進行タイマーを一度開いて、端末に同一性を残す
+    await openAgendaTool(page, 'notice-agenda-down');
+    // When: 進行タイマーの接続だけを成立させないようにして、開き直す
+    await toolSyncIsDown(page, 'agenda');
     await page.reload();
     const [rosePale, felt950] = await resolveColors(page, ['--rose-pale', '--felt-950']);
 

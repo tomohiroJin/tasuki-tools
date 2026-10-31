@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { parseRoute, redirectTo } from './router';
 import { usePokerSync } from './hooks/useSync';
-import { connectionNotice } from './connection-notice';
+import { ConnectionBanner } from '@tasuki/web-kit/room';
 import { RoomPage } from './pages/RoomPage';
 
 function useRoute() {
@@ -47,20 +47,7 @@ export function App() {
   // 切断中は再接続バナーを出しつつ画面は維持する（自動再接続 + トークン復帰。US4）。
   // 繋がらないときは、待っても直らないことと操作できない理由まで伝える（#76 F-2）。
   // 接続が生きていても、契約に合わないフレームを捨てて画面が古いままなら伝える（#212）。
-  const notice = connectionNotice({
-    status: sync.status,
-    everConnected: sync.everConnected,
-    failedAttempts: sync.failedAttempts,
-    syncStale: sync.syncStale,
-  });
-  const banner = notice.kind !== 'none' && (
-    <p
-      className={`ui-banner${notice.kind === 'unreachable' ? ' ui-banner--unreachable' : ''}`}
-      role={notice.kind === 'unreachable' ? 'alert' : 'status'}
-    >
-      {notice.text}
-    </p>
-  );
+  const banner = <ConnectionBanner kind={sync.notice} />;
 
   // **送り返している間も白いままにしない**（#95 S5c 追補・利用者の実画面フィードバック）。
   // `location.replace` が効くまでの間、ここで `null` を返すと画面には何も出ない。

@@ -14,14 +14,11 @@ import {
   ORDER_NEW_ROUND_BUTTON,
   ORDER_NOTE,
   ORDER_NOT_STARTED,
-  RECONNECTING_TEXT,
   SPIN_AGAIN_BUTTON,
   SPIN_BUTTON,
   SPINNING_BUTTON,
-  STALE_TEXT,
   TOO_FEW_TEXT,
   TOO_MANY_TEXT,
-  UNREACHABLE_TEXT,
   groupIdleText,
   groupResultText,
   groupTopicNoteText,
@@ -421,24 +418,3 @@ export function orderProgressOf(order: OrderStage): string {
   return order.doneCount === 0 ? ORDER_NOT_STARTED : orderProgressText(order.doneCount, order.left);
 }
 
-export type ConnectionNotice =
-  | { kind: 'none' }
-  | { kind: 'reconnecting' | 'unreachable' | 'stale'; text: string };
-
-/**
- * 告知の種類を利用者向けの文にする。**種類を決める規則（諦めるまでの回数を含む）は
- * `@tasuki/sync-client` の `connectionNoticeKind` にあり、同期フックが引く**（poker・お題と同じ規則。
- * 写しを持たない）。ここは文言を当てるだけである。
- */
-export function connectionNotice(kind: ConnectionNotice['kind']): ConnectionNotice {
-  switch (kind) {
-    case 'none':
-      return { kind };
-    case 'stale':
-      return { kind, text: STALE_TEXT };
-    case 'unreachable':
-      return { kind, text: UNREACHABLE_TEXT };
-    case 'reconnecting':
-      return { kind, text: RECONNECTING_TEXT };
-  }
-}

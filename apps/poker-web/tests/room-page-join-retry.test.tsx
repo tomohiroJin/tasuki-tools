@@ -75,6 +75,7 @@ function makeSync(over: Partial<PokerSync> = {}): PokerSync {
     topic: null,
     joinedThisConnection: false,
     syncStale: false,
+    notice: 'none',
     error: null,
     clearError: vi.fn(),
     // **保存の読み書きは本物を通す。** ここを偽物にすると、保存済みの組で入り直す

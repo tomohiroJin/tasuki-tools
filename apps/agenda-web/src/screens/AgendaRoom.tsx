@@ -7,9 +7,10 @@
  * ここで名前は聞かない（名乗りは玄関に 1 つだけ・`docs/adr/0018`）。端末に同一性が無い・合言葉を求められたら
  * 玄関のそのルームへ送り返す（コードは落とさない）。
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { AgendaView } from '@tasuki/agenda-core';
 import { ROOM_HEADER_TEXT, RoomHeader } from '@tasuki/invite-ui';
+import { ConnectionBanner } from '@tasuki/web-kit/room';
 import { summaryText } from '../agenda-view';
 import { LoadingView } from '../components/LoadingView';
 import { RunScreen } from '../components/RunScreen';
@@ -68,6 +69,7 @@ export function AgendaRoom({ roomCode }: { roomCode: string }) {
             {ROOM_HEADER_TEXT.back}
           </a>
         </header>
+        <ConnectionBanner kind={sync.notice} />
         {sync.retryNotice && (
           <p className="ui-note" role="status">
             {sync.retryNotice}
@@ -83,21 +85,26 @@ export function AgendaRoom({ roomCode }: { roomCode: string }) {
   }
 
   return (
-    <main className="ui-page ui-page--wide">
-      {/* 映している間は描かない（全画面の重ねの裏に押せる部品を残さない）。見出し・戻る・招待は共通の部品が描く（#447 段 1） */}
-      {!projecting && (
-        <RoomHeader title={PAGE_HEADING} backHref={hubPathFor(roomCode)} roomCode={roomCode} inviteUrl={sync.inviteUrl} />
-      )}
-      {!projecting && sync.error && (
-        <p className="agenda-error ui-note ui-note--error" role="alert">
-          {sync.error}
-          <button type="button" className="ui-button ui-button--quiet ui-button--sm" onClick={sync.clearError}>
-            {CLOSE_BUTTON}
-          </button>
-        </p>
-      )}
-      {view !== null && <PhaseView view={view} sync={sync} projecting={projecting} onProjectingChange={setProjecting} />}
-    </main>
+    <>
+      {/* 接続の告知の帯。手元の画面では本文（main）の直前（上端に貼りつく）。映している間は全面を覆う映す表示の外では
+          覆われて見えないので、ここでは描かず、映す表示の中の上端に置く（`banner` で渡す・切れていることは隠さない） */}
+      {!projecting && <ConnectionBanner kind={sync.notice} />}
+      <main className="ui-page ui-page--wide">
+        {/* 映している間は描かない（全画面の重ねの裏に押せる部品を残さない）。見出し・戻る・招待は共通の部品が描く（#447 段 1） */}
+        {!projecting && (
+          <RoomHeader title={PAGE_HEADING} backHref={hubPathFor(roomCode)} roomCode={roomCode} inviteUrl={sync.inviteUrl} />
+        )}
+        {!projecting && sync.error && (
+          <p className="agenda-error ui-note ui-note--error" role="alert">
+            {sync.error}
+            <button type="button" className="ui-button ui-button--quiet ui-button--sm" onClick={sync.clearError}>
+              {CLOSE_BUTTON}
+            </button>
+          </p>
+        )}
+        {view !== null && <PhaseView view={view} sync={sync} projecting={projecting} onProjectingChange={setProjecting} banner={<ConnectionBanner kind={sync.notice} />} />}
+      </main>
+    </>
   );
 }
 
@@ -110,11 +117,14 @@ function PhaseView({
   sync,
   projecting,
   onProjectingChange,
+  banner,
 }: {
   view: AgendaView;
   sync: AgendaSync;
   projecting: boolean;
   onProjectingChange: (projecting: boolean) => void;
+  /** 接続の告知の帯（映す表示の中に置くため、進める画面へ渡す） */
+  banner: ReactNode;
 }) {
   const reducedMotion = usePrefersReducedMotion();
   const live = useLocalClock(view, sync.receivedAt, reducedMotion) ?? view;
@@ -155,6 +165,7 @@ function PhaseView({
           onProjectingChange={onProjectingChange}
           consumeStartArrival={consumeStartArrival}
           soundToggle={<SoundToggle state={soundState} onToggle={toggleSound} />}
+          banner={banner}
         />
       )}
       <p className="ui-visually-hidden agenda-live" aria-live="polite">

@@ -1,0 +1,24 @@
+# 変異 609: banner-outside-projection
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/projection-view.test.tsx
+#     「Given 映す表示の途中で切断された / Then 接続の告知の帯は映す表示の中にあり、外には無い」
+#
+# #471 レビュー。映している間も帯を映す表示の外（手前）に描く。fixed・全面の映す表示に覆われて、切断が伝わらない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m609-*.patch
+# 復元: git apply -R scripts/mutations/m609-*.patch
+diff --git a/apps/agenda-web/src/screens/AgendaRoom.tsx b/apps/agenda-web/src/screens/AgendaRoom.tsx
+index 426195ec..3ed269ba 100644
+--- a/apps/agenda-web/src/screens/AgendaRoom.tsx
++++ b/apps/agenda-web/src/screens/AgendaRoom.tsx
+@@ -88,7 +88,7 @@ export function AgendaRoom({ roomCode }: { roomCode: string }) {
+     <>
+       {/* 接続の告知の帯。手元の画面では本文（main）の直前（上端に貼りつく）。映している間は全面を覆う映す表示の外では
+           覆われて見えないので、ここでは描かず、映す表示の中の上端に置く（`banner` で渡す・切れていることは隠さない） */}
+-      {!projecting && <ConnectionBanner kind={sync.notice} />}
++      <ConnectionBanner kind={sync.notice} />
+       <main className="ui-page ui-page--wide">
+         {/* 映している間は描かない（全画面の重ねの裏に押せる部品を残さない）。見出し・戻る・招待は共通の部品が描く（#447 段 1） */}
+         {!projecting && (

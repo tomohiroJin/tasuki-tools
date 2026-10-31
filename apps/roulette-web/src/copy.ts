@@ -70,12 +70,6 @@ export const groupTopicNoteText = (title: string, k: number): string => `お題�
 /** 参加の失敗のうち、サーバーの文言を持たない（または空の）ときの既定。 */
 export const DEFAULT_ERROR_TEXT = '操作を完了できませんでした';
 
-// 接続の告知（poker-web の `connection-notice.ts` と同じ文。3 つとも base 層に収まる）
-export const RECONNECTING_TEXT = '接続中です…（切断された場合は自動で再接続します）';
-export const UNREACHABLE_TEXT =
-  '同期サーバーに接続できません。復旧するまでルームに参加できません。再試行を続けています。';
-export const STALE_TEXT = '同期できていません。表示が最新でない可能性があります。';
-
 // 混雑で参加を拒まれたとき。**poker の「混み合っています」を写さない**（「混」「雑」が base 層外）
 export const RETRY_WAITING_TEXT = '参加を待っています。自動で入り直しています…';
 export const RETRY_EXHAUSTED_TEXT = '参加できません。時間をおいてから再読込してください';

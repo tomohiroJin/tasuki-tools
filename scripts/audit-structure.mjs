@@ -124,8 +124,8 @@ export const SCANNED_PACKAGES = [
   // #95 S5a で新設（同期クライアントの接続部分・D18）。
   { pkg: "packages/sync-client", src: "src", test: "tests", entry: "index.ts" },
   { pkg: "packages/invite-ui", src: "src", test: "tests", entry: "index.ts" },
-  // #369 で新設（web の同期フックが共有する React の部品）。入口は `./sync` と、#371 の `./reader`（読む面の部品）。
-  { pkg: "packages/web-kit", src: "src", test: "tests", entry: ["sync/index.ts", "reader/index.ts"] },
+  // #369 で新設（web の同期フックが共有する React の部品）。入口は `./sync` と、#371 の `./reader`（読む面の部品）・#471 の `./room`（接続の告知の帯）。
+  { pkg: "packages/web-kit", src: "src", test: "tests", entry: ["sync/index.ts", "reader/index.ts", "room/index.ts"] },
   // #91 PR 3: Markdown サブセットの解析(純粋な関数)を timer-web/topic-web から出す。
   { pkg: "packages/markdown", src: "src", test: "tests", entry: "index.ts" },
   // #95 S5c 追補で新設（dev サーバー専用の Vite プラグインと玄関のポートの正本）。

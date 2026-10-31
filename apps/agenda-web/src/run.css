@@ -450,18 +450,27 @@
   position: fixed;
   inset: 0;
   z-index: 20;
+  /* 縦に 3 つ: 上端の枠（帯・sticky）・音の切り替えの隅（帯が無いときは浮かべ、帯が出ている間は帯の下の流れ）・残りの領域（盤と横の情報・中央寄せ）。縦にスクロールするのはこの外枠 */
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  background: radial-gradient(ellipse at 38% 45%, var(--felt-800), var(--felt-950) 70%);
+  outline: none;
+}
+/* 残りの領域: 今までの映す表示の段組み（盤と横の情報・中央寄せ）をここへ移した。
+   高さは残りの高さ（中身が多ければ伸びる）。帯が無いときは画面いっぱいで main と同じ配置。
+   帯が出たときは帯（と隅の行）を除いた高さの中で中央に寄せ、画面の下へはみ出さない */
+.projection-body {
+  flex: 1 0 auto;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-content: center;
   justify-items: center;
   gap: var(--space-6);
   padding: var(--space-6) var(--space-4);
-  overflow-y: auto;
-  background: radial-gradient(ellipse at 38% 45%, var(--felt-800), var(--felt-950) 70%);
-  outline: none;
 }
 @media (width >= 64rem) {
-  .projection {
+  .projection-body {
     grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
     align-items: center;
     justify-items: stretch;
@@ -473,10 +482,28 @@
   display: grid;
   justify-items: center;
 }
+/* 上端の枠。接続の告知の帯（部品の `.ui-banner`）は映す表示（fixed・全面）に覆われるので、映している間は
+   帯をこの枠に入れて映す表示の中の上端に置く。部品の z-index は上げない（上げると隅の音の切り替えを覆う）。
+   枠は外枠（縦の flex）の最初の子で、流れの中に全幅で置く。sticky なので縦にスクロールしても画面の上に留まる。
+   帯が無いときは高さ 0 */
+.projection-top {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  flex: none;
+}
+/* 音の切り替えの隅。帯が無いときは main と同じく右上の隅に浮かべる（流れの外・スクロールで流れる）。
+   上端の枠（sticky）の中に置くと、スクロールしても上に留まり盤の上に乗った */
 .projection-corner {
   position: absolute;
   top: var(--space-3);
   right: var(--space-4);
+}
+/* 帯が出ている間は、隅を帯の下の流れの中に置く（右寄せ）。帯・隅・盤が重ならず、隅はスクロールで流れる */
+.projection:has(> .projection-top > .ui-banner) > .projection-corner {
+  position: static;
+  align-self: flex-end;
+  padding: var(--space-3) var(--space-4) 0;
 }
 .projection-side {
   margin: 0;

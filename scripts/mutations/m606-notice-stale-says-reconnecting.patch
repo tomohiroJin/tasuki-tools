@@ -1,0 +1,24 @@
+# 変異 606: notice-stale-says-reconnecting
+#
+# 検出を期待するテスト:
+#   - packages/web-kit/tests/connection-banner.test.tsx
+#   - 「Given 4 種の種類 / When 文を当てる / Then 手で書いた文と一致する」
+#
+# #471。「同期できていない」の告知に再接続中の文を当てる。画面が古いままなのに、待てば戻ると伝えてしまう。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m606-*.patch
+# 復元: git apply -R scripts/mutations/m606-*.patch
+diff --git a/packages/web-kit/src/room/connection-notice.ts b/packages/web-kit/src/room/connection-notice.ts
+index 6e83a73c..de2b8f2f 100644
+--- a/packages/web-kit/src/room/connection-notice.ts
++++ b/packages/web-kit/src/room/connection-notice.ts
+@@ -22,7 +22,7 @@ export function connectionNotice(kind: ConnectionNoticeKind): ConnectionNotice {
+     case 'none':
+       return { kind };
+     case 'stale':
+-      return { kind, text: STALE_TEXT };
++      return { kind, text: RECONNECTING_TEXT };
+     case 'unreachable':
+       return { kind, text: UNREACHABLE_TEXT };
+     case 'reconnecting':

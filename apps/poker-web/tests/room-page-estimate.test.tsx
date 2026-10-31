@@ -58,6 +58,7 @@ function makeSync(snap: RoomStateMessage, over: Partial<PokerSync> = {}): PokerS
     joinedThisConnection: true,
     error: null,
     syncStale: false,
+    notice: 'none',
     clearError: () => {},
     joinRoom: () => {},
     checkRoom: () => {},

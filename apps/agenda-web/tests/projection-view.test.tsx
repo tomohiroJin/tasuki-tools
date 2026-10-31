@@ -61,6 +61,36 @@ const press = (key: string, init: Partial<KeyboardEventInit> = {}): void => {
  * @requirements #429 spec §7.5
  */
 describe('映す表示', () => {
+  it('Given 映す表示の途中で切断された / When 画面を見る / Then 接続の告知の帯は映す表示の中にあり、外には無い', () => {
+    projecting();
+    act(() => latestSocket().drop());
+    const banner = screen.getByRole('status');
+    expect(banner).toHaveClass('ui-banner');
+    const projection = document.querySelector('.projection');
+    expect(projection).not.toBeNull();
+    expect(projection!.contains(banner)).toBe(true);
+    // 外に二重に出さない
+    expect(document.querySelectorAll('.ui-banner')).toHaveLength(1);
+    // 映す表示は「上端の枠（帯）」「音の切り替えの隅」「残りの領域（盤・横の情報）」の順。
+    // 隅は上端の枠（sticky）の外（中に置くとスクロールしても上に留まり、盤の上に乗った）
+    const top = banner.parentElement!;
+    expect(top).toHaveClass('projection-top');
+    expect(top.firstElementChild).toBe(banner);
+    expect(top.querySelector('.projection-corner')).toBeNull();
+    expect(projection!.children[0]).toBe(top);
+    expect(projection!.children[1]).toHaveClass('projection-corner');
+    expect(projection!.children[2]).toHaveClass('projection-body');
+    expect(projection!.children[2]!.querySelector('.projection-dial')).not.toBeNull();
+    // 上端の枠の中に盤は無い（重ならない構造）
+    expect(top.querySelector('.projection-dial')).toBeNull();
+  });
+
+  it('Given 映す表示で接続が生きている / When 画面を見る / Then 帯は無く、音の切り替えの隅は映す表示の中にある', () => {
+    projecting();
+    expect(document.querySelector('.ui-banner')).toBeNull();
+    expect(document.querySelector('.projection .projection-corner')).not.toBeNull();
+  });
+
   it('Given 回数 2 以上の進行中 / When 映す表示を見る / Then 盤の中央に「n / N 回」が出る', () => {
     const d = new Driver([1, 1], 'LT', 'wait', 6).next(60_000).next(120_000);
     projecting(d.view(120_000 + 1000));

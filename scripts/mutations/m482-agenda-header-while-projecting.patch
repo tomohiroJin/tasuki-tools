@@ -10,17 +10,17 @@
 #       git apply scripts/mutations/m482-*.patch
 # 復元: git apply -R scripts/mutations/m482-*.patch
 diff --git a/apps/agenda-web/src/screens/AgendaRoom.tsx b/apps/agenda-web/src/screens/AgendaRoom.tsx
-index a1868d71..dc4b9449 100644
+index 426195ec..3d79027b 100644
 --- a/apps/agenda-web/src/screens/AgendaRoom.tsx
 +++ b/apps/agenda-web/src/screens/AgendaRoom.tsx
-@@ -82,9 +82,7 @@ export function AgendaRoom({ roomCode }: { roomCode: string }) {
-   return (
-     <main className="ui-page ui-page--wide">
-       {/* 映している間は描かない（全画面の重ねの裏に押せる部品を残さない）。見出し・戻る・招待は共通の部品が描く（#447 段 1） */}
--      {!projecting && (
--        <RoomHeader title={PAGE_HEADING} backHref={hubPathFor(roomCode)} roomCode={roomCode} inviteUrl={sync.inviteUrl} />
--      )}
-+      <RoomHeader title={PAGE_HEADING} backHref={hubPathFor(roomCode)} roomCode={roomCode} inviteUrl={sync.inviteUrl} />
-       {!projecting && sync.error && (
-         <p className="agenda-error ui-note ui-note--error" role="alert">
-           {sync.error}
+@@ -91,9 +91,7 @@ export function AgendaRoom({ roomCode }: { roomCode: string }) {
+       {!projecting && <ConnectionBanner kind={sync.notice} />}
+       <main className="ui-page ui-page--wide">
+         {/* 映している間は描かない（全画面の重ねの裏に押せる部品を残さない）。見出し・戻る・招待は共通の部品が描く（#447 段 1） */}
+-        {!projecting && (
+-          <RoomHeader title={PAGE_HEADING} backHref={hubPathFor(roomCode)} roomCode={roomCode} inviteUrl={sync.inviteUrl} />
+-        )}
++        <RoomHeader title={PAGE_HEADING} backHref={hubPathFor(roomCode)} roomCode={roomCode} inviteUrl={sync.inviteUrl} />
+         {!projecting && sync.error && (
+           <p className="agenda-error ui-note ui-note--error" role="alert">
+             {sync.error}

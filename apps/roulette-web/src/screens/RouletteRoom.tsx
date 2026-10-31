@@ -8,6 +8,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { ROOM_HEADER_TEXT, RoomHeader } from '@tasuki/invite-ui';
+import { ConnectionBanner } from '@tasuki/web-kit/room';
 import { LoadingView } from '../components/LoadingView';
 import { ModePanel } from '../components/ModePanel';
 import { PeoplePanel } from '../components/PeoplePanel';
@@ -20,7 +21,6 @@ import { hubPathFor, redirectTo } from '../router';
 import {
   canOperate,
   captionOf,
-  connectionNotice,
   isServerSpinning,
   membersOf,
   modeOf,
@@ -108,12 +108,7 @@ export function RouletteRoom({ roomCode }: { roomCode: string }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [canStopByKey, doStop]);
 
-  const notice = connectionNotice(sync.notice);
-  const banner = notice.kind !== 'none' && (
-    <p className={`ui-banner${notice.kind === 'unreachable' ? ' ui-banner--unreachable' : ''}`} role={notice.kind === 'unreachable' ? 'alert' : 'status'}>
-      {notice.text}
-    </p>
-  );
+  const banner = <ConnectionBanner kind={sync.notice} />;
 
   if (sync.gone) {
     return (

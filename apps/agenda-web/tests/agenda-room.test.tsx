@@ -179,6 +179,46 @@ describe('進める画面の操作', () => {
 });
 
 /**
+ * @requirements #471（#463-C2）接続の告知の帯。文・役割・位置は他のアプリ（checkin・roulette・topic・poker）と同じ
+ */
+describe('接続の告知の帯', () => {
+  it('Given 進行中に切断された / When 画面を見る / Then 再接続中の帯を role=status で、本画面では main の直前に出す', () => {
+    joinedRoom(runningAgenda(1000));
+    act(() => latestSocket().drop());
+    const banner = screen.getByText('接続中です…（切断された場合は自動で再接続します）');
+    expect(banner).toHaveAttribute('role', 'status');
+    expect(banner).toHaveClass('ui-banner');
+    expect(banner).not.toHaveClass('ui-banner--unreachable');
+    expect(banner.nextElementSibling?.tagName).toBe('MAIN');
+  });
+
+  it('Given 接続が生きている / When 画面を見る / Then 帯は出ない', () => {
+    joinedRoom(runningAgenda(1000));
+    expect(document.querySelector('.ui-banner')).toBeNull();
+  });
+
+  it('Given 一度も繋がらないまま失敗した / When 参加前の画面を見る / Then 届かない帯を role=alert で出す', () => {
+    saveResumeIdentity(RESUME);
+    render(<App />);
+    act(() => latestSocket().drop());
+    const banner = screen.getByRole('alert');
+    expect(banner).toHaveTextContent('同期サーバーに接続できません。復旧するまでルームに参加できません。再試行を続けています。');
+    expect(banner).toHaveClass('ui-banner', 'ui-banner--unreachable');
+  });
+
+  it('Given 切断中に帯が出ている / When 再接続して入り直し状態を受ける / Then 接続が開いたので帯は消える', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval'] });
+    joinedRoom(runningAgenda(1000));
+    act(() => latestSocket().drop());
+    expect(document.querySelector('.ui-banner')).not.toBeNull();
+    act(() => vi.advanceTimersByTime(30_000));
+    join();
+    deliverAgenda(runningAgenda(2000));
+    expect(document.querySelector('.ui-banner')).toBeNull();
+  });
+});
+
+/**
  * @requirements #429 spec §4.7・§7.4
  */
 describe('時間切れの合図と音', () => {

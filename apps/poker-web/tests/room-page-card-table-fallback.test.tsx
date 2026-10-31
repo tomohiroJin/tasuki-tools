@@ -45,6 +45,7 @@ function makeSync(): PokerSync {
     joinedThisConnection: true,
     error: null,
     syncStale: false,
+    notice: 'none',
     clearError: () => {},
     joinRoom: () => {},
     checkRoom: () => {},

@@ -13,9 +13,11 @@ import {
   buildInviteUrl,
   buildSyncUrl,
   clearResumeIdentity,
+  connectionNoticeKind,
   loadResumeIdentity,
   planForJoinError,
   saveResumeIdentity,
+  type ConnectionNoticeKind,
   type ConnectionStatus,
   type ResumeIdentity,
 } from '@tasuki/sync-client';
@@ -87,6 +89,8 @@ export interface PokerSync {
    * 接続は生きているので `status` では表せない。告知の `stale` に使う。
    */
   syncStale: boolean;
+  /** 接続の告知の種類（規則は `@tasuki/sync-client` の `connectionNoticeKind`。文と帯は画面が `@tasuki/web-kit/room` で描く） */
+  notice: ConnectionNoticeKind;
   clearError: () => void;
   /**
    * 抜けた・外された理由（無ければ `null`。#427）。
@@ -315,6 +319,7 @@ export function usePokerSync(): PokerSync {
       error,
       departed,
       syncStale,
+      notice: connectionNoticeKind({ status, everConnected, failedAttempts, syncStale }),
       ...actions,
     }),
     [

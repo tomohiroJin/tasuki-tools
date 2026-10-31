@@ -46,6 +46,7 @@ function makeSync(snapshot: RoomStateMessage, status: ConnectionStatus = 'open')
     joinedThisConnection: true,
     error: null,
     syncStale: false,
+    notice: 'none',
     clearError: () => {},
     joinRoom: () => {},
     checkRoom: () => {},

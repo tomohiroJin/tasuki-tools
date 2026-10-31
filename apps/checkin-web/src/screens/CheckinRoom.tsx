@@ -13,6 +13,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { METHODS } from '@tasuki/checkin-core';
 import { ROOM_HEADER_TEXT, RoomHeader } from '@tasuki/invite-ui';
+import { ConnectionBanner } from '@tasuki/web-kit/room';
 import { Hand, SpectatorToggle } from '../components/Hand';
 import { LoadingView } from '../components/LoadingView';
 import { MethodPicker } from '../components/MethodPicker';
@@ -20,7 +21,6 @@ import { PromptPanel } from '../components/PromptPanel';
 import { RevealBoard } from '../components/RevealBoard';
 import { RoundDock } from '../components/RoundDock';
 import { SeatRow } from '../components/SeatRow';
-import { connectionNotice } from '../connection-notice';
 import { CLOSE_BUTTON, GONE_HEADING, GONE_LINK, GONE_TEXT, JOINING_HEADING, PAGE_HEADING } from '../copy';
 import { useCheckinSync } from '../hooks/use-checkin-sync';
 import { orderedPiles, summaryLine } from '../reveal-view';
@@ -93,12 +93,7 @@ export function CheckinRoom({ roomCode }: { roomCode: string }) {
   }
   if (sync.needsHub || sync.departed !== null) return <LoadingView />;
 
-  const notice = connectionNotice(sync.notice);
-  const banner = notice.kind !== 'none' && (
-    <p className={`ui-banner${notice.kind === 'unreachable' ? ' ui-banner--unreachable' : ''}`} role={notice.kind === 'unreachable' ? 'alert' : 'status'}>
-      {notice.text}
-    </p>
-  );
+  const banner = <ConnectionBanner kind={sync.notice} />;
 
   if (!sync.joined && sync.checkin === null) {
     return (

@@ -58,7 +58,7 @@ export interface AgendaSync {
   readonly everConnected: boolean;
   readonly failedAttempts: number;
   readonly syncStale: boolean;
-  /** 接続の告知の種類（規則は `@tasuki/sync-client` が持つ。文言は画面が `connectionNotice` で引く） */
+  /** 接続の告知の種類（規則は `@tasuki/sync-client` が持つ。文と帯は画面が `@tasuki/web-kit/room` の `ConnectionBanner` で描く） */
   readonly notice: ConnectionNoticeKind;
   /** この接続で `room.joined` を受け取ったか（再接続で下りる） */
   readonly joined: boolean;
