@@ -195,3 +195,17 @@ export function formatSelectionHeader(selector, { selected, fallbackToAll }, tot
   if (fallbackToAll !== null) return `絞り込み実行（${label}）: 全件に倒しました —— ${fallbackToAll}（${total} 件）`;
   return `絞り込み実行（${label}）: ${total} 件中 ${selected.length} 件`;
 }
+
+/**
+ * 緑で終わるときの最後の 1 行。**全件の緑と、分けた・絞った緑を取り違えない**ように言い分ける。
+ */
+export function successMessage(selector, fallbackToAll, count) {
+  if (selector.kind === "all" || fallbackToAll !== null) return "全変異が検出されました（ベースラインとして妥当）。";
+  if (selector.kind === "shard") {
+    return (
+      `シャード ${selector.index}/${selector.total} の ${count} 件の変異がすべて検出されました` +
+      `（全件ではありません。全件は ${selector.total} 個のシャードの合計です）。`
+    );
+  }
+  return `選んだ ${count} 件の変異がすべて検出されました（全件ではありません。全件は CI が流します）。`;
+}

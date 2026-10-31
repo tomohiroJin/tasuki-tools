@@ -73,7 +73,13 @@ import {
   hasZeroScanTargets,
 } from "./lib/scan-targets.mjs";
 import { isDirectRun } from "./lib/direct-run.mjs";
-import { parseSelector, selectMutations, mechanismFilesFrom, formatSelectionHeader } from "./lib/mutation-select.mjs";
+import {
+  parseSelector,
+  selectMutations,
+  mechanismFilesFrom,
+  formatSelectionHeader,
+  successMessage,
+} from "./lib/mutation-select.mjs";
 import { createControlCache } from "./lib/mutation-control-cache.mjs";
 import {
   parseJobs,
@@ -817,20 +823,6 @@ function resolveSelector(selector) {
     patchDir: path.relative(REPO_ROOT, MUTATIONS_DIR),
     affectedFilesOf: (m) => affectedFilesOf(path.join(MUTATIONS_DIR, m.patch)),
   };
-}
-
-/**
- * 緑で終わるときの最後の 1 行。**全件の緑と、分けた・絞った緑を取り違えない**ように言い分ける。
- */
-export function successMessage(selector, fallbackToAll, count) {
-  if (selector.kind === "all" || fallbackToAll !== null) return "全変異が検出されました（ベースラインとして妥当）。";
-  if (selector.kind === "shard") {
-    return (
-      `シャード ${selector.index}/${selector.total} の ${count} 件の変異がすべて検出されました` +
-      `（全件ではありません。全件は ${selector.total} 個のシャードの合計です）。`
-    );
-  }
-  return `選んだ ${count} 件の変異がすべて検出されました（全件ではありません。全件は CI が流します）。`;
 }
 
 /** 本体の作業ツリーが HEAD と一致しているか（未追跡を含め、除外なしで見る）。並列は HEAD の写しで流すため。 */

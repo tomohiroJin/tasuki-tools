@@ -1,6 +1,6 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { parseSelector, selectMutations, mechanismFilesFrom, formatSelectionHeader } from "./mutation-select.mjs";
+import { parseSelector, selectMutations, mechanismFilesFrom, formatSelectionHeader, successMessage } from "./mutation-select.mjs";
 
 /**
  * `scripts/lib/mutation-select.mjs` の自己テスト（#387）。
@@ -307,5 +307,25 @@ describe("formatSelectionHeader: 表題で全件と絞り込みを取り違え�
       formatSelectionHeader({ kind: "changed", base: "origin/main" }, { selected: sel(155).selected, fallbackToAll: "差分が取れない" }, 155),
       "絞り込み実行（--changed・基準 origin/main）: 全件に倒しました —— 差分が取れない（155 件）",
     );
+  });
+});
+
+describe("緑の最後の 1 行（successMessage）", () => {
+  test("全件と、全件に倒した絞り込みは「全変異」", () => {
+    assert.match(successMessage({ kind: "all" }, null, 440), /全変異が検出されました/);
+    assert.match(successMessage({ kind: "changed" }, "差分が取れない", 440), /全変異が検出されました/);
+  });
+
+  test("シャードは全件でないことと、全件の在りかを言う", () => {
+    const msg = successMessage({ kind: "shard", index: 2, total: 4 }, null, 110);
+    assert.match(msg, /シャード 2\/4 の 110 件/);
+    assert.match(msg, /全件ではありません。全件は 4 個のシャードの合計です/);
+    assert.doesNotMatch(msg, /全変異/);
+  });
+
+  test("絞り込みは全件でないことを言う", () => {
+    const msg = successMessage({ kind: "pkg", pkg: "apps/a" }, null, 3);
+    assert.match(msg, /選んだ 3 件/);
+    assert.doesNotMatch(msg, /全変異/);
   });
 });

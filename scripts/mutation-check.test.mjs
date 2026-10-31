@@ -19,7 +19,6 @@ import {
   DIRTY_CHECK_EXCLUDES,
   RUNNER_COST_SECONDS,
   weightOfGroup,
-  successMessage,
 } from "./mutation-check.mjs";
 import { MUTATIONS } from "./lib/mutation-declarations.mjs";
 import { mechanismFilesFrom, selectMutations } from "./lib/mutation-select.mjs";
@@ -447,26 +446,6 @@ describe("宣言の全件を分けて流す配線（#481）", () => {
       assert.deepEqual(new Set(ids), new Set(MUTATIONS.map((m) => m.id)));
     });
   }
-});
-
-describe("緑の最後の 1 行（successMessage）", () => {
-  test("全件と、全件に倒した絞り込みは「全変異」", () => {
-    assert.match(successMessage({ kind: "all" }, null, 440), /全変異が検出されました/);
-    assert.match(successMessage({ kind: "changed" }, "差分が取れない", 440), /全変異が検出されました/);
-  });
-
-  test("シャードは全件でないことと、全件の在りかを言う", () => {
-    const msg = successMessage({ kind: "shard", index: 2, total: 4 }, null, 110);
-    assert.match(msg, /シャード 2\/4 の 110 件/);
-    assert.match(msg, /全件ではありません。全件は 4 個のシャードの合計です/);
-    assert.doesNotMatch(msg, /全変異/);
-  });
-
-  test("絞り込みは全件でないことを言う", () => {
-    const msg = successMessage({ kind: "pkg", pkg: "apps/a" }, null, 3);
-    assert.match(msg, /選んだ 3 件/);
-    assert.doesNotMatch(msg, /全変異/);
-  });
 });
 
 describe("対照実行の使い回しの鍵（controlKeyOf）", () => {
