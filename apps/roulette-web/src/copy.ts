@@ -127,8 +127,8 @@ export const regularDeleteConfirmText = (name: string): string => `「${name}」
 export const addedText = (n: number): string => `${n} 人を入れました`;
 export const skippedText = (n: number): string => `${n} 人はもう入っているので、とばしました`;
 export const overflowText = (n: number): string => `${MAX_GUESTS_TEXT}。${n} 人は入りませんでした`;
-/** 上限で入らなかった人の名前（知らせの末尾） */
-export const overflowNamesText = (names: string): string => `（${names}）`;
+/** 上限で入らなかった人の名前（知らせの末尾）。並べる区切りもここで持つ（書体の base 層の検査が文言をここで見るため） */
+export const overflowNamesText = (...names: string[]): string => `（${names.join('、')}）`;
 export const restoredText = (n: number): string => `${n} 人をルーレットに戻しました`;
 export const blockedText = (n: number): string => `${n} 人はいま戻せません`;
 export const ALL_PRESENT_TEXT = '全員もう入っています';

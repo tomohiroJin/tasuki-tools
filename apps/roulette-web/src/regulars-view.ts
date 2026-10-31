@@ -65,7 +65,7 @@ export function batchNoticeText(plan: BatchPlan, restore: RestoreCount = { resto
   const poolAfter = plan.poolAfter + restored;
   // サーバーは同名をすべてとばす。そのうち戻した・戻せなかった分を引いた残りが「もう入っている」
   const skipped = Math.max(0, plan.skipped - restored - blocked);
-  const who = overflowNames.length > 0 ? overflowNamesText(overflowNames.join('、')) : '';
+  const who = overflowNames.length > 0 ? overflowNamesText(...overflowNames) : '';
   const parts: string[] = [];
   if (added + restored + blocked > 0) {
     if (added > 0) parts.push(addedText(added));

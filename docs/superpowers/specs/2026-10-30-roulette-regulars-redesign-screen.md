@@ -62,7 +62,8 @@
 |---|---|
 | `candidatesOf(rows)` | 名簿＋ゲストの行から候補を作る。名前は保存と同じ正規化、同名（大小・全角半角・前後の空白）は先に出た 1 人にまとめ、どちらかが入っていればチェック。見えない名前は落とす |
 | `splitForEdit(candidates, members)` | 組の名前を候補のチェックと手入力に振り分ける |
-| `buildMembers(checked, text)` | チェック（先）と手入力（後）から、保存と同じ正規化・重複除去で組の名前の列を作る（`parseMemberLines` の再利用） |
+| `orderedMembers(saved, checked, text)` | 保存済みの順と綴りを保ち、新しくチェックした人・新しく手入力した人を後ろに足す。保存と同じ正規化・重複除去（`parseMemberLines` の再利用） |
+| `restoreOf(rows, names)` | 入れるとき、同名の行がどれも外れていて押せる行がある人の ID を返す（ルーレットに戻す） |
 | `planBatch` / `batchNoticeText` | 入らなかった人の名前（`overflowNames`）を含める |
 
 ### 入れるときに外れている人を戻す（レビュー指摘）
@@ -103,4 +104,4 @@
 | 欄の振る舞い・フォーカス・上限 | `apps/roulette-web/tests/regulars-section.test.tsx` |
 | 部屋との結線・入らなかった人の名前 | `apps/roulette-web/tests/roulette-room.test.tsx` |
 | いまの人から作る→保存→入れる、直すでチェックを外す、上限、320px・1280px | `e2e/specs/buttons.spec.ts`（ルーレットの「いつものメンツ」の本） |
-| 変異 590〜593 | 重複の畳み・照合・入らなかった人の名前・twin のまとめ |
+| 変異 590〜597 | 重複の畳み・照合・入らなかった人の名前・twin のまとめ・戻す行の選び方・保存の順・同名の片方が入っているとき戻さない・戻した人を入る人の数に足す |
