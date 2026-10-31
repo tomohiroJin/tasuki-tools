@@ -1,0 +1,23 @@
+# 変異 583: picker-back-not-right-aligned
+#
+# 検出を期待するテスト:
+#   - apps/checkin-web/tests/picker-layout-css.test.ts
+#
+# #468（#463-A）。checkin の見出しの行の「いまの回に戻る」から右寄せを外す（折り返すと左端に落ちる）。
+# 右寄せを共有部品へ戻す変更（他のアプリの戻るも右に寄る）で、checkin 側の規則を消したときもこれが捕まえる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m583-*.patch
+# 復元: git apply -R scripts/mutations/m583-*.patch
+diff --git a/apps/checkin-web/src/table.css b/apps/checkin-web/src/table.css
+index e4370569..ae8440df 100644
+--- a/apps/checkin-web/src/table.css
++++ b/apps/checkin-web/src/table.css
+@@ -67,7 +67,6 @@
+ /* 見出しの行の並びは部品（.ui-page-header）が持つ。右寄せだけ checkin の見出しの行で足す（折り返しても右端・字は折らない・#468 D5）。
+    部品は他のアプリの見出しにも効くので変えない（#468 の範囲を守る） */
+ .method-picker-head .ui-page-header-back {
+-  margin-inline-start: auto;
+   white-space: nowrap;
+ }
+ 

@@ -25,7 +25,7 @@ function allTexts(): string[] {
     m.prompt,
     ...Object.values(m.cards).flatMap((c) => [c.name, c.meaning]),
   ]);
-  return [...fromCopy, ...Object.values(copy.SIDE_KICKER), ...fromMethods, ...CHECKIN_ERROR_CODES.map(checkinErrorMessageFor)];
+  return [...fromCopy, ...Object.values(copy.SIDE_KICKER), ...Object.values(copy.SIDE_HINT), ...fromMethods, ...CHECKIN_ERROR_CODES.map(checkinErrorMessageFor)];
 }
 
 /**

@@ -6,7 +6,7 @@
  */
 import { useState, type CSSProperties, type Ref } from 'react';
 import { METHODS, SIDES, methodsOf, type MethodId, type Side } from '@tasuki/checkin-core';
-import { BACK_LABEL, METHOD_PICKER_HEADING, RANDOM_HINT, RANDOM_LABEL, SIDE_LABEL } from '../copy';
+import { BACK_LABEL, METHOD_PICKER_HEADING, PICKER_REPLACE_NOTE, RANDOM_HINT, RANDOM_LABEL, SIDE_HINT, SIDE_LABEL } from '../copy';
 import { CardFace } from './CardFace';
 import { METHOD_COPY } from '../method-copy';
 
@@ -24,18 +24,33 @@ interface Props {
 
 export function MethodPicker({ canOperate, initialSide, headingRef, onChoose, onDraw, onCancel }: Props) {
   const [side, setSide] = useState<Side>(initialSide);
+  /** 回があるときは、札が消える注意文を全ての札の説明の後ろに併記する（フォーカスした札で読まれるように・#468 D5） */
+  const describedBy = (id: string) => (onCancel ? `${id} method-picker-note` : id);
   return (
     <section className="method-picker" aria-labelledby="method-picker-heading">
-      <h2 ref={headingRef} id="method-picker-heading" className="method-picker-heading" tabIndex={-1}>
-        {METHOD_PICKER_HEADING}
-      </h2>
-      <div className="seg" role="group" aria-label={METHOD_PICKER_HEADING}>
+      <div className="ui-page-header method-picker-head">
+        <h2 ref={headingRef} id="method-picker-heading" className="method-picker-heading" tabIndex={-1}>
+          {METHOD_PICKER_HEADING}
+        </h2>
+        {onCancel && (
+          <button type="button" className="ui-button ui-button--secondary ui-button--sm ui-page-header-back" onClick={onCancel}>
+            {BACK_LABEL}
+          </button>
+        )}
+      </div>
+      {onCancel && (
+        <p id="method-picker-note" className="ui-note method-picker-note">
+          {PICKER_REPLACE_NOTE}
+        </p>
+      )}
+      <div className="seg" role="group" aria-label={METHOD_PICKER_HEADING} aria-describedby="method-side-hint">
         {SIDES.map((s) => (
           <button key={s} type="button" className="seg-button" aria-pressed={s === side} onClick={() => setSide(s)}>
             {SIDE_LABEL[s]}
           </button>
         ))}
       </div>
+      <p id="method-side-hint" className="ui-note method-side-hint">{SIDE_HINT[side]}</p>
       <ul className="method-list">
         {methodsOf(side).map((m) => (
           <li key={m}>
@@ -43,7 +58,7 @@ export function MethodPicker({ canOperate, initialSide, headingRef, onChoose, on
               type="button"
               className="method-option"
               aria-labelledby={`method-${m}-title`}
-              aria-describedby={`method-${m}-prompt`}
+              aria-describedby={describedBy(`method-${m}-prompt`)}
               disabled={!canOperate}
               onClick={() => onChoose(m)}
             >
@@ -71,7 +86,7 @@ export function MethodPicker({ canOperate, initialSide, headingRef, onChoose, on
             type="button"
             className="method-option method-option--random"
             aria-labelledby="method-random-title"
-            aria-describedby="method-random-hint"
+            aria-describedby={describedBy('method-random-hint')}
             disabled={!canOperate}
             onClick={() => onDraw(side)}
           >
@@ -92,11 +107,6 @@ export function MethodPicker({ canOperate, initialSide, headingRef, onChoose, on
           </button>
         </li>
       </ul>
-      {onCancel && (
-        <button type="button" className="ui-button ui-button--quiet ui-button--sm" onClick={onCancel}>
-          {BACK_LABEL}
-        </button>
-      )}
     </section>
   );
 }

@@ -18,6 +18,46 @@ import { chooseMethod, handCard, joinCheckinTool, openCheckinTool, pile, visibil
 const NAME_A = 'e2e-checkin-a';
 const NAME_B = 'e2e-checkin-b';
 
+/** やり方の選択の札（ランダムを含む 8 枚）の外接箱。 */
+async function pickerBoxes(page: Page): Promise<Array<{ x: number; y: number; width: number; height: number }>> {
+  const cards = page.locator('.method-list .method-option');
+  await expect(cards).toHaveCount(8);
+  const boxes = await cards.evaluateAll((els) =>
+    els.map((el) => {
+      const r = el.getBoundingClientRect();
+      return { x: r.x, y: r.y, width: r.width, height: r.height };
+    }),
+  );
+  return boxes;
+}
+
+/**
+ * 配置の検査は @core の流れの中（今の場所）に置く: ルームを増やさないため（ルームの増分は +1 のまま）。
+ * 札が同じ幅・同じ高さで、列の数が期待どおりで、横スクロールが無いこと（#468 D1・D2）。 */
+async function expectPickerGrid(page: Page, columns: number): Promise<void> {
+  const boxes = await pickerBoxes(page);
+  for (const b of boxes) {
+    expect(Math.abs(b.width - boxes[0]!.width), '札の幅が揃っている').toBeLessThanOrEqual(1);
+    expect(Math.abs(b.height - boxes[0]!.height), '札の高さが揃っている').toBeLessThanOrEqual(1);
+  }
+  // 扇が札の外へはみ出さない（札の箱の内側に扇の箱が入る）
+  const inside = await page.locator('.method-list .method-option').evaluateAll((els) =>
+    els.every((el) => {
+      const o = el.getBoundingClientRect();
+      // 扇の各札（transform の回転を含む外接箱）が札の箱の内側に入る
+      return [...el.querySelectorAll('.method-fan-card')].every((c) => {
+        const f = c.getBoundingClientRect();
+        return f.left >= o.left - 1 && f.right <= o.right + 1 && f.top >= o.top - 1 && f.bottom <= o.bottom + 1;
+      });
+    }),
+  );
+  expect(inside, '扇の各札が札の箱の内側に収まる').toBe(true);
+  const xs = new Set(boxes.map((b) => Math.round(b.x)));
+  expect(xs.size, `${page.viewportSize()?.width}px の列の数`).toBe(columns);
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow, '横スクロールが出ない').toBeLessThanOrEqual(0);
+}
+
 /** `checkin` フレームの中身（受け手ごとの見え方）を、`from` 番目以降について受信順に返す。 */
 function checkinViews(log: FrameLog, from = 0): Array<Record<string, unknown>> {
   return parseFrames(log.payloads.slice(from)).flatMap((f) => {
@@ -55,6 +95,17 @@ test.describe('@core 札を伏せて出し、全員の画面で一斉に開く',
     await joinCheckinTool(peer.page, inviteUrl, NAME_B);
     const b = peer.page;
 
+    // When / Then その0（#468）: 選択画面の札は同じ大きさで、320px・39rem 幅（624px）は 2 列、40rem 幅（640px）・1280px は 4 列。両方の側で同じ
+    const original = page.viewportSize() ?? { width: 1280, height: 800 };
+    for (const [width, columns] of [[320, 2], [624, 2], [640, 4], [1280, 4]] as const) {
+      await page.setViewportSize({ width, height: original.height });
+      for (const side of ['チェックイン', 'チェックアウト']) {
+        await page.getByRole('group', { name: 'やり方を選んでください' }).getByRole('button', { name: side, exact: true }).click();
+        await expectPickerGrid(page, columns);
+      }
+    }
+    await page.setViewportSize(original);
+
     // When / Then その1（E1）: A が「今日の天気」を選ぶ → B にも同じ問いと手札
     await chooseMethod(page, 'チェックイン', '今日の天気');
     for (const p of [page, b]) {
@@ -78,6 +129,30 @@ test.describe('@core 札を伏せて出し、全員の画面で一斉に開く',
 
     // When / Then その4（E5・E6・E7）: 別のやり方で ROTI（既定は匿名）
     await page.getByRole('button', { name: '別のやり方', exact: true }).click();
+    // 回ありの選択画面（#468 D5）: 320px・1280px で、戻るが見出しの行の右端・横溢れ 0・注意文が見える
+    const viewBefore = page.viewportSize() ?? { width: 1280, height: 800 };
+    for (const width of [320, 1280]) {
+      await page.setViewportSize({ width, height: viewBefore.height });
+      const back = page.getByRole('button', { name: 'いまの回に戻る', exact: true });
+      await expect(back).toBeVisible();
+      await expect(page.getByText('選ぶと新しい回が始まります（いまの回の札は消えます）')).toBeVisible();
+      const gap = await back.evaluate((el) => {
+        const head = el.closest('.method-picker-head') as HTMLElement;
+        return head.getBoundingClientRect().right - el.getBoundingClientRect().right;
+      });
+      expect(Math.abs(gap), `${width}px で戻るが見出しの行の右端`).toBeLessThanOrEqual(1);
+      if (width === 320) {
+        // 320px では見出しの次の行に回り、右端に来る
+        const below = await back.evaluate((el) => {
+          const h = document.querySelector('#method-picker-heading') as HTMLElement;
+          return el.getBoundingClientRect().top >= h.getBoundingClientRect().bottom - 1;
+        });
+        expect(below, '320px で戻るが見出しの次の行').toBe(true);
+      }
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      expect(overflow, `${width}px の横溢れ`).toBeLessThanOrEqual(0);
+    }
+    await page.setViewportSize(viewBefore);
     await chooseMethod(page, 'チェックアウト', 'ROTI（時間に見合ったか）');
     for (const p of [page, b]) {
       await expect(p.getByRole('heading', { level: 2, name: 'この時間、使った分の価値はありましたか？' })).toBeVisible();

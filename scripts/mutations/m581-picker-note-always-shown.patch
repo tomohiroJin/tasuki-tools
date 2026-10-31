@@ -1,0 +1,23 @@
+# 変異 581: picker-note-always-shown
+#
+# 検出を期待するテスト:
+#   - apps/checkin-web/tests/method-picker.test.tsx
+#
+# #468（#463-A）。回が無いときも「新しい回が始まります」の注意文を札の説明に結ぶ。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m581-*.patch
+# 復元: git apply -R scripts/mutations/m581-*.patch
+diff --git a/apps/checkin-web/src/components/MethodPicker.tsx b/apps/checkin-web/src/components/MethodPicker.tsx
+index ba97876e..e6bf9e0e 100644
+--- a/apps/checkin-web/src/components/MethodPicker.tsx
++++ b/apps/checkin-web/src/components/MethodPicker.tsx
+@@ -25,7 +25,7 @@ interface Props {
+ export function MethodPicker({ canOperate, initialSide, headingRef, onChoose, onDraw, onCancel }: Props) {
+   const [side, setSide] = useState<Side>(initialSide);
+   /** 回があるときは、札が消える注意文を全ての札の説明の後ろに併記する（フォーカスした札で読まれるように・#468 D5） */
+-  const describedBy = (id: string) => (onCancel ? `${id} method-picker-note` : id);
++  const describedBy = (id: string) => (true ? `${id} method-picker-note` : id);
+   return (
+     <section className="method-picker" aria-labelledby="method-picker-heading">
+       <div className="ui-page-header method-picker-head">
