@@ -7,45 +7,21 @@ import { hubPathFor, parseRoute } from '../src/router';
  * @requirements #429 spec §5.6
  */
 describe('進行タイマーの URL', () => {
-  it('Given 玄関の札の URL / When 開く / Then そのルームの画面になる', () => {
+  // 解析と玄関への道の表は `packages/room-core/tests/room-route.test.ts`（#470）。ここは BASE の結線だけ。
+  it('Given 自アプリの玄関の札 / When 開く / Then そのルームの画面になる', () => {
     expect(parseRoute('/agenda/', '?room=R1')).toEqual({ name: 'room', roomCode: 'R1' });
   });
 
-  it('Given 日本語を含むルームコード / When 開く / Then 復号したコードで入る', () => {
-    const search = `?room=${encodeURIComponent('朝会モブ-a1b2')}`;
-    expect(parseRoute('/agenda/', search)).toEqual({ name: 'room', roomCode: '朝会モブ-a1b2' });
-  });
-
-  it('Given ルームコードの無い URL / When 開く / Then 玄関へ送り返す', () => {
-    expect(parseRoute('/agenda/', '')).toEqual({ name: 'redirect', to: '/' });
-    expect(parseRoute('/agenda/', '?room=')).toEqual({ name: 'redirect', to: '/' });
+  it('Given 他アプリの玄関の札 / When 開く / Then 入口ではないので玄関のそのルームへ送る', () => {
+    const other = '/topic/';
+    expect(parseRoute(other, '?room=R1')).toEqual({ name: 'redirect', to: '/?room=R1' });
   });
 
   it('Given 知らない下位パス / When 開く / Then 玄関へ送り返す', () => {
     expect(parseRoute('/agenda/room/R1', '')).toEqual({ name: 'redirect', to: '/' });
   });
 
-  /** 下位パスが知らないものでも、ルームコードは落とさない（poker の旧リンクの救済と同じ考え方） */
-  it('Given ルームコードの付いた知らない下位パス / When 開く / Then コードを保ったまま玄関のそのルームへ送る', () => {
-    const code = '朝会 a&b';
-    const search = `?room=${encodeURIComponent(code)}`;
-    expect(parseRoute('/agenda/x', search)).toEqual({ name: 'redirect', to: hubPathFor(code) });
-    expect(parseRoute('/agenda/room/R1/', '?room=R1')).toEqual({ name: 'redirect', to: '/?room=R1' });
-  });
-
-  it('Given ルームコード / When 玄関のそのルームを組み立てる / Then 符号化した ?room= になる', () => {
-    // Given: 記号を含むルームコード。
-    // 玄関は `URLSearchParams` で読む（`apps/landing/src/hub/room-param.ts`）ので、読み戻して比べる
-    // When
-    const url = new URL(hubPathFor('朝会 a&b'), 'http://x');
-    // Then
-    expect(url.pathname).toBe('/');
-    expect(url.searchParams.get('room')).toBe('朝会 a&b');
-  });
-
   it('Given 抜けた理由 / When 玄関のそのルームを組み立てる / Then 理由を ?left= で運ぶ', () => {
-    // 玄関が告知を出す（#290・`@tasuki/room-core` の DEPARTURE_PARAM）
     expect(hubPathFor('R1', 'self')).toBe('/?room=R1&left=self');
-    expect(hubPathFor('R1', 'removed')).toBe('/?room=R1&left=removed');
   });
 });

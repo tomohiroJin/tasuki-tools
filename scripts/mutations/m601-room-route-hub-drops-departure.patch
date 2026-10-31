@@ -1,0 +1,22 @@
+# 変異 601: room-route-hub-drops-departure
+#
+# 検出を期待するテスト:
+#   - packages/room-core/tests/room-route.test.ts
+#
+# #470。玄関への道が抜けた理由を DEPARTURE_PARAM でなく別の名前で運ぶ（玄関が読めず告知が出ない）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m601-*.patch
+# 復元: git apply -R scripts/mutations/m601-*.patch
+diff --git a/packages/room-core/src/room-route.ts b/packages/room-core/src/room-route.ts
+index 5333623c..6d67070a 100644
+--- a/packages/room-core/src/room-route.ts
++++ b/packages/room-core/src/room-route.ts
+@@ -43,6 +43,6 @@ export function parseRoomRoute(base: string, pathname: string, search = ""): Roo
+  */
+ export function roomHubPath(roomCode: string, departure?: DepartureReason): string {
+   const params = new URLSearchParams({ room: roomCode });
+-  if (departure !== undefined) params.set(DEPARTURE_PARAM, departure);
++  if (departure !== undefined) params.set("reason", departure);
+   return `/?${params.toString()}`;
+ }

@@ -1,40 +1,19 @@
 /**
  * URL からルートを決める（#94・`docs/adr/0018`）。
  *
- * **入口は玄関の札（`/roulette/?room=CODE`）だけである。** 名乗りと合言葉の入力は玄関に 1 つだけあり、
- * ルームコードを伴わない URL には行き先が無いので玄関へ送る（知らない下位パスはコードを保って玄関のそのルームへ）。新しいアプリなので、poker の
- * 旧リンク（`/poker/room/<id>`）のような救済は持たない。
- *
- * ルームコードには日本語が入りうるので、復号は `URLSearchParams` に任せる。
+ * 入口は玄関の札（`/roulette/?room=CODE`）だけである。解析と玄関への道は
+ * `@tasuki/room-core` に寄せてある（#470）。ここは BASE を渡す薄い結線と、
+ * `location` を触る `redirectTo`（テストが `vi.mock` で差し替える）だけを持つ。
  */
-import { DEPARTURE_PARAM, type DepartureReason } from '@tasuki/room-core';
+import { parseRoomRoute, type RoomRoute } from '@tasuki/room-core';
 
-export type Route = { name: 'room'; roomCode: string } | { name: 'redirect'; to: string };
+export { roomHubPath as hubPathFor } from '@tasuki/room-core';
+export type Route = RoomRoute;
 
 const BASE = '/roulette';
 
 export function parseRoute(pathname: string, search = ''): Route {
-  const rest = pathname.startsWith(BASE) ? pathname.slice(BASE.length) : null;
-  // 空のコードでは入室させない（`?room=` だけが付いた URL も行き先が無い）。
-  const roomCode = new URLSearchParams(search).get('room');
-  if (rest !== '' && rest !== '/') {
-    // 知らない下位パスでも、**ルームコードは落とさない**（玄関のそのルームへ送る。
-    // 落とすと、玄関でコードを打ち直させることになる。poker の旧リンクの救済と同じ考え方）。
-    return { name: 'redirect', to: roomCode ? hubPathFor(roomCode) : '/' };
-  }
-  return roomCode ? { name: 'room', roomCode } : { name: 'redirect', to: '/' };
-}
-
-/**
- * 玄関のそのルーム（参加用 URL と同じ形・`docs/adr/0018` 決定 2）。
- *
- * 抜けた・外されたときは理由を `?left=` で運ぶ（#290）。文言は玄関が `@tasuki/room-core` から引く
- * （timer の `ui/entry.ts` の `hubRoomPath` と同じ形）。
- */
-export function hubPathFor(roomCode: string, departure?: DepartureReason): string {
-  const params = new URLSearchParams({ room: roomCode });
-  if (departure !== undefined) params.set(DEPARTURE_PARAM, departure);
-  return `/?${params.toString()}`;
+  return parseRoomRoute(BASE, pathname, search);
 }
 
 /**

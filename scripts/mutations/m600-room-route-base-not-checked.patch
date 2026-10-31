@@ -1,0 +1,23 @@
+# 変異 600: room-route-base-not-checked
+#
+# 検出を期待するテスト:
+#   - packages/room-core/tests/room-route.test.ts
+#
+# #470。parseRoomRoute が pathname の先頭が base かを確かめず、長さだけで切る（他アプリの・大文字違いのパスが入口になる）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m600-*.patch
+# 復元: git apply -R scripts/mutations/m600-*.patch
+diff --git a/packages/room-core/src/room-route.ts b/packages/room-core/src/room-route.ts
+index 5333623c..05b4ec6b 100644
+--- a/packages/room-core/src/room-route.ts
++++ b/packages/room-core/src/room-route.ts
+@@ -25,7 +25,7 @@ export function parseRoomRoute(base: string, pathname: string, search = ""): Roo
+     const code = new URLSearchParams(search).get("room");
+     return { name: "redirect", to: code ? roomHubPath(code) : "/" };
+   }
+-  const rest = pathname.startsWith(root) ? pathname.slice(root.length) : null;
++  const rest = pathname.slice(root.length);
+   // 空のコードでは入室させない（`?room=` だけが付いた URL も行き先が無い）。
+   const roomCode = new URLSearchParams(search).get("room");
+   if (rest !== "" && rest !== "/") {

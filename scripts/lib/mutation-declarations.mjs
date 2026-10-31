@@ -3812,6 +3812,22 @@ export const MUTATIONS = [
     note: "#458。設計 §8。`addGuests` が上限を `state.guests.length`（束を足す前）で比べ、ゲスト 20 人に 8 人を渡すと 28 人入る。",
   },
   {
+    id: 600,
+    label: "parseRoomRoute が先頭の base を確かめない",
+    patch: "m600-room-route-base-not-checked.patch",
+    pkg: "packages/room-core",
+    tests: ["tests/room-route.test.ts"],
+    note: "#470。`parseRoomRoute` が pathname の先頭が base かを見ずに長さだけで切る。他アプリの base や大文字違いのパスが入口として通ってしまう。",
+  },
+  {
+    id: 601,
+    label: "玄関への道が理由を別の名前で運ぶ",
+    patch: "m601-room-route-hub-drops-departure.patch",
+    pkg: "packages/room-core",
+    tests: ["tests/room-route.test.ts"],
+    note: "#470。`roomHubPath` が `DEPARTURE_PARAM` でなく別の名前で理由を運ぶ。玄関が読めず退出の告知が出ない。",
+  },
+  {
     id: 605,
     label: "届かない帯も status で出す",
     patch: "m605-banner-unreachable-is-status.patch",

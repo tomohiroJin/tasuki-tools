@@ -1,4 +1,11 @@
 {
   "extends": "../../tsconfig.base.json",
+  // "types": ["node"] が要る理由: room-route.ts が URL / URLSearchParams を使うが、lib は ES2022 のままで
+  // 型が無い。実測では `"lib": ["ES2022", "DOM"]` でも通ったが、DOM は window / document まで全部入り、
+  // サーバーでも走るこのパッケージに無関係なブラウザ API の誤用を型検査が見逃す。node の型は
+  // URL / URLSearchParams を持ち、agenda-core・roulette-core も @types/node を devDependencies に持たず同じ形（巻き上げ頼み）。
+  // node の型を入れると逆向きの誤用（process・Buffer）も通るが、src は audit-domain-side-effects が
+  // 環境の値の直読み（process.env など）を止める（実測済み）。
+  "compilerOptions": { "types": ["node"] },
   "include": ["src", "tests"]
 }
