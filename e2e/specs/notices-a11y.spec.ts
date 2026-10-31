@@ -283,16 +283,19 @@ test.describe('接続の帯と一言が読める（WCAG AA・#320 E8）', () => 
         }
       };
 
-      // 状態 1: 帯なし。音の切り替えは盤と重ならない。盤は残りの領域の中央（収まるとき、上端の枠の下の領域の中心と 1px 以内）
+      // 状態 1: 帯なし。音の切り替えは盤と重ならない。中身（盤と横の情報をまとめた箱）は残りの領域の縦の中央
+      // （収まるとき、上端の枠の下の領域の中心と 1px 以内。狭い幅では盤と横の情報が縦に積まれるので、盤だけでは見ない）
       await expect(page.locator('.projection .ui-banner')).toHaveCount(0);
       await expectNoOverlap('帯なし', toggle, dial, side);
       const fits = await page.locator('.projection').evaluate((el) => el.scrollHeight <= el.clientHeight);
       if (fits) {
         const topBox = (await boxesOf(page.locator('.projection .projection-top')))[0]!;
-        const dialBox = (await boxesOf(dial))[0]!;
+        const [dialBox, sideBox] = await boxesOf(dial, side);
+        const contentTop = Math.min(dialBox!.y, sideBox!.y);
+        const contentBottom = Math.max(dialBox!.y + dialBox!.height, sideBox!.y + sideBox!.height);
         const areaTop = topBox.y + topBox.height;
         const areaCenter = areaTop + (viewport.height - areaTop) / 2;
-        expect(Math.abs(dialBox.y + dialBox.height / 2 - areaCenter), '盤が残りの領域の中央にない').toBeLessThanOrEqual(1);
+        expect(Math.abs((contentTop + contentBottom) / 2 - areaCenter), '中身が残りの領域の縦の中央にない').toBeLessThanOrEqual(1);
       }
 
       // 状態 2: 同期できていない（1 行）

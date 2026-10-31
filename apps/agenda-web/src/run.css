@@ -457,9 +457,12 @@
   background: radial-gradient(ellipse at 38% 45%, var(--felt-800), var(--felt-950) 70%);
   outline: none;
 }
-/* 残りの領域: 今までの映す表示の段組み（盤と横の情報・中央寄せ）をここへ移した */
+/* 残りの領域: 今までの映す表示の段組み（盤と横の情報・中央寄せ）をここへ移した。
+   高さは画面いっぱい（縮めない）。帯が出ても中身の配置は帯が無いときと同じで、帯の高さだけ下へずれる
+   （縮めると中央寄せの基準が変わり、盤が帯ほど下がらず右上の音の切り替えと重なった） */
 .projection-body {
-  flex: 1;
+  flex: 1 0 auto;
+  min-block-size: 100%;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-content: center;
@@ -490,11 +493,13 @@
   z-index: 1;
   flex: none;
 }
-/* 音の切り替えの隅。帯の下で右寄せ（流れの中なので帯が出たら下がる） */
+/* 音の切り替えの隅。上端の枠の下端から間をあけた右上に浮かべる（流れの外）。帯が無いとき枠の高さは 0 なので
+   main と同じ位置（右上の隅）で、盤の位置も変わらない。帯が出ると枠ごと帯の高さだけ下がり、盤も同じだけ下がる。
+   流れの中に置くと隅の 1 行の高さだけ盤が下がった（320×568 で 30px） */
 .projection-corner {
-  display: flex;
-  justify-content: flex-end;
-  padding: var(--space-3) var(--space-4) 0;
+  position: absolute;
+  top: calc(100% + var(--space-3));
+  right: var(--space-4);
 }
 .projection-side {
   margin: 0;
