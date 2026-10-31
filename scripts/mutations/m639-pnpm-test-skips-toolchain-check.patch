@@ -1,0 +1,13 @@
+diff --git a/package.json b/package.json
+index 6503bde..3acfb73 100644
+--- a/package.json
++++ b/package.json
+@@ -4,7 +4,7 @@
+   "version": "0.0.1",
+   "scripts": {
+     "build": "turbo run build",
+-    "test": "node scripts/check-toolchain.mjs test && turbo run test",
++    "test": "turbo run test",
+     "test:unit": "turbo run test:unit",
+     "lint": "turbo run lint",
+     "typecheck": "turbo run typecheck",

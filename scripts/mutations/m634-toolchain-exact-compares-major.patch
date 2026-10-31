@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/toolchain.mjs b/scripts/lib/toolchain.mjs
+index d3c0ed6..f30e970 100644
+--- a/scripts/lib/toolchain.mjs
++++ b/scripts/lib/toolchain.mjs
+@@ -171,7 +171,7 @@ export function checkNode(actualText, declared) {
+ /** 完全一致で比べる。`actual` が null なら「見つからない」。 */
+ export function checkExact(tool, actualText, declared, context) {
+   const actual = actualText === null ? null : parseVersion(actualText);
+-  if (actual && formatVersion(actual) === declared) return null;
++  if (actual && String(actual[0]) === declared.split(".")[0]) return null;
+   return {
+     tool,
+     declared,
