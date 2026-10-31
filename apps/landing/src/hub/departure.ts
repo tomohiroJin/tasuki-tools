@@ -40,7 +40,7 @@ export function readDepartureNotice(href: string): DepartureNotice {
 /**
  * 抜けた・外された人を戻す玄関のそのルーム（`/?room=CODE&left=<理由>`）。
  *
- * ハブの画面自身が受けたときの行き先で、他のツールの `hubPathFor` と同じ形になる（#427）。
+ * ハブの画面自身が受けたときの行き先。他のツールの `hubPathFor` と同じ `@tasuki/room-core` の `roomHubPath` を呼ぶ（#427・#470）。
  */
 export function departureHubPath(code: string, reason: DepartureReason): string {
   return roomHubPath(code, reason);
