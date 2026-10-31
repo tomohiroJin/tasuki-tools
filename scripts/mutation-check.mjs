@@ -16,7 +16,9 @@
  *   node scripts/mutation-check.mjs --changed --base <ref>  基準を変える（積み上げた枝・機構を変えた枝）
  *   node scripts/mutation-check.mjs --id 150,151        番号で選ぶ
  *   node scripts/mutation-check.mjs --pkg apps/roulette-web  pkg の完全一致で選ぶ
- *   選び方は 1 回に 1 つ。知らない指定はエラー。CI は指定なし（全件）で流す。
+ *   node scripts/mutation-check.mjs --shard 2/4         全件を 4 つに分けた 2 つ目（#481。CI のジョブ分け）
+ *   node scripts/mutation-check.mjs --jobs 4            作業ツリーを 4 つに分けて並列に流す（#481。どの選び方とも組める）
+ *   選び方は 1 回に 1 つ。知らない指定はエラー。CI は全件を --shard で分け、各ジョブが --jobs で並列に流す。
  *   選び方の規則は scripts/lib/mutation-select.mjs と設計正本
  *   docs/superpowers/specs/2026-10-14-test-weight-design.md §4。
  *
@@ -59,7 +61,7 @@
  *   変異が残った。踏んだ側は原因を「9p マウント固有の失敗」と誤診している。
  */
 
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import os from "node:os";
 import path from "node:path";
@@ -73,6 +75,14 @@ import {
 import { isDirectRun } from "./lib/direct-run.mjs";
 import { parseSelector, selectMutations, mechanismFilesFrom, formatSelectionHeader } from "./lib/mutation-select.mjs";
 import { createControlCache } from "./lib/mutation-control-cache.mjs";
+import {
+  parseJobs,
+  planWorkers,
+  workerArgs,
+  worktreeDirFor,
+  staleWorktreesFrom,
+  formatWorkerSummary,
+} from "./lib/mutation-parallel.mjs";
 import { MUTATIONS } from "./lib/mutation-declarations.mjs";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
@@ -526,9 +536,13 @@ function restoreCurrentMutation() {
   if (outcome.restored === false) process.exit(1);
 }
 
+/** 並列（`--jobs`）で起こした子。親が止められたら子も止める（子はそれぞれ自分の作業ツリーで復元する）。 */
+const childProcesses = new Set();
+
 // 異常終了（Ctrl-C・kill・未捕捉例外）でも必ず復元する。
 for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"]) {
   process.on(sig, () => {
+    for (const child of childProcesses) child.kill("SIGTERM");
     restoreCurrentMutation();
     process.exit(130);
   });
@@ -766,20 +780,174 @@ function refExists(ref) {
 }
 
 /**
+ * 対照の組の重さの目安（秒）。分け方（`scripts/lib/mutation-partition.mjs`）が、シャードとワーカーへ
+ * 偏りなく配るために使う。値は 2026-10-31 の手元（4 コア）の全件の実測の、ランナーごとの平均
+ * （設計正本 `docs/superpowers/specs/2026-10-31-ci-wait-design.md` §2.3）。
+ *
+ * **値がずれても正しさは崩れない**（偏って遅くなるだけ）。偏りは各シャード・各ワーカーの所要時間に出るので、
+ * 最長と最短の差が開いてきたら測り直す。
+ */
+export const RUNNER_COST_SECONDS = Object.freeze({
+  vitest: Object.freeze({ control: 3, mutation: 3 }),
+  bun: Object.freeze({ control: 0.3, mutation: 2 }),
+  node: Object.freeze({ control: 0.4, mutation: 0.4 }),
+});
+
+/** 対照の組の重さ。対照 1 回＋変異の件数ぶんの起動を、ランナーごとの目安で足す。 */
+export function weightOfGroup(group) {
+  const cost = RUNNER_COST_SECONDS[detectRunner(path.join(WORKSPACE_ROOT, group.pkg))];
+  return cost.control + cost.mutation * group.mutations.length;
+}
+
+/**
  * parseSelector の結果に、`--changed` のときだけ選び方の材料を足す。
  * リポジトリのルートとワークスペースのルートが違うときは、`pkg`（ワークスペース基準）と
  * 差分（リポジトリ基準）を比べられないので、差分を null にして全件に倒す。
  */
 function resolveSelector(selector) {
+  if (selector.kind === "shard") return { ...selector, weightOf: weightOfGroup };
   if (selector.kind !== "changed") return selector;
   const self = fileURLToPath(import.meta.url);
   return {
     ...selector,
     changedFiles: REPO_ROOT === WORKSPACE_ROOT ? changedFilesSince(selector.base) : null,
-    mechanismFiles: mechanismFilesFrom(fs.readFileSync(self, "utf8"), path.relative(REPO_ROOT, self)),
+    mechanismFiles: mechanismFilesFrom(fs.readFileSync(self, "utf8"), path.relative(REPO_ROOT, self), (rel) =>
+      fs.readFileSync(path.join(REPO_ROOT, rel), "utf8"),
+    ),
     patchDir: path.relative(REPO_ROOT, MUTATIONS_DIR),
     affectedFilesOf: (m) => affectedFilesOf(path.join(MUTATIONS_DIR, m.patch)),
   };
+}
+
+/**
+ * 緑で終わるときの最後の 1 行。**全件の緑と、分けた・絞った緑を取り違えない**ように言い分ける。
+ */
+export function successMessage(selector, fallbackToAll, count) {
+  if (selector.kind === "all" || fallbackToAll !== null) return "全変異が検出されました（ベースラインとして妥当）。";
+  if (selector.kind === "shard") {
+    return (
+      `シャード ${selector.index}/${selector.total} の ${count} 件の変異がすべて検出されました` +
+      `（全件ではありません。全件は ${selector.total} 個のシャードの合計です）。`
+    );
+  }
+  return `選んだ ${count} 件の変異がすべて検出されました（全件ではありません。全件は CI が流します）。`;
+}
+
+/** 本体の作業ツリーが HEAD と一致しているか（未追跡を含め、除外なしで見る）。並列は HEAD の写しで流すため。 */
+function gitStatusPorcelainStrict() {
+  return execFileSync("git", ["status", "--porcelain"], { cwd: REPO_ROOT, encoding: "utf8" });
+}
+
+/** 子を起こし、標準出力と標準エラーを届いた順に 1 つにまとめて返す。 */
+function runChild(cmd, args, cwd) {
+  return new Promise((resolve) => {
+    const child = spawn(cmd, args, { cwd, stdio: ["ignore", "pipe", "pipe"] });
+    childProcesses.add(child);
+    let output = "";
+    child.stdout.on("data", (chunk) => (output += chunk));
+    child.stderr.on("data", (chunk) => (output += chunk));
+    child.on("error", (err) => {
+      childProcesses.delete(child);
+      resolve({ exitCode: null, output: `${output}\n起動できませんでした: ${err.message}` });
+    });
+    child.on("close", (code) => {
+      childProcesses.delete(child);
+      resolve({ exitCode: code, output });
+    });
+  });
+}
+
+/** 変異検査の作業ツリーを消す。消せなくても終了は妨げない（次の実行が残骸として拾う）。 */
+function removeWorktrees(dirs) {
+  for (const dir of dirs) {
+    try {
+      execFileSync("git", ["worktree", "remove", "--force", "--force", dir], { cwd: REPO_ROOT, stdio: "ignore" });
+    } catch {
+      // 作る前に止まった・既に消えた。下の prune が帳簿を片づける
+    }
+  }
+  try {
+    execFileSync("git", ["worktree", "prune"], { cwd: REPO_ROOT, stdio: "ignore" });
+  } catch {
+    // 帳簿の片づけに失敗しても終了は妨げない
+  }
+}
+
+/** 持ち主の親がもう居ない、変異検査の作業ツリーを消す（SIGKILL で殺された実行の残骸）。 */
+function removeStaleWorktrees() {
+  const porcelain = execFileSync("git", ["worktree", "list", "--porcelain"], { cwd: REPO_ROOT, encoding: "utf8" });
+  const stale = staleWorktreesFrom(porcelain, isPidAlive);
+  if (stale.length === 0) return;
+  console.error(`[mutation-check] 前回の並列の実行が残した作業ツリーを消します:\n${stale.map((d) => `  - ${d}`).join("\n")}`);
+  removeWorktrees(stale);
+}
+
+/**
+ * 作業ツリーを分けて並列に流す（`--jobs m`。設計正本 §4.4）。
+ *
+ * 親は HEAD の写しの作業ツリーを作り、依存を入れ、それぞれで普段の 1 回の実行（`--id …`）を子として起こす。
+ * **ロック・復元・マーカー・未コミット変更の検査は、子が自分の作業ツリーで今までどおり行う**（作り直さない）。
+ * 本体の作業ツリーには変異を当てない。
+ *
+ * **この関数自体は単体テストの対象に入っていない**（作業ツリー・子プロセス・後片づけの I/O の塊）。
+ * 判定の部分は `scripts/lib/mutation-parallel.mjs` に分けて自己テストで見る。ここは CI の実行そのものが確かめる。
+ *
+ * @returns {Promise<number>} 終了コード
+ */
+async function runInWorktrees(selected, jobs, full, selector, selection, header) {
+  const plan = planWorkers(selected, jobs, weightOfGroup);
+  removeStaleWorktrees();
+  const dirs = plan.map((_, i) => worktreeDirFor(os.tmpdir(), process.pid, i + 1));
+  // **作る前に片づけを仕掛ける。** 作っている途中で止まっても残さない
+  process.on("exit", () => removeWorktrees(dirs));
+
+  console.log(`[mutation-check] ${header}`);
+  console.log(`[mutation-check] 並列: 作業ツリー ${plan.length} 個（--jobs ${jobs}）。各ワーカーの出力は終わった順に出します\n`);
+  const startedAt = Date.now();
+
+  for (const dir of dirs) {
+    execFileSync("git", ["worktree", "add", "--detach", "--quiet", dir, "HEAD"], { cwd: REPO_ROOT, stdio: "inherit" });
+  }
+  // 依存の実体は pnpm のストアから引く（ネットワークに出ない）。本体で pnpm install を済ませてあることが前提
+  const installs = await Promise.all(
+    dirs.map((dir) => runChild("pnpm", ["install", "--frozen-lockfile", "--offline", "--reporter=append-only"], dir)),
+  );
+  const failedInstall = installs.findIndex((r) => r.exitCode !== 0);
+  if (failedInstall !== -1) {
+    console.error(
+      `[mutation-check] 作業ツリー ${dirs[failedInstall]} に依存を入れられませんでした（pnpm install --offline）。\n` +
+        "本体で pnpm install を済ませてから再実行してください。\n\n--- 出力（末尾） ---\n" +
+        installs[failedInstall].output.split("\n").slice(-40).join("\n"),
+    );
+    return 1;
+  }
+  console.log(`[mutation-check] 作業ツリーの準備: ${((Date.now() - startedAt) / 1000).toFixed(0)} 秒`);
+
+  const self = path.relative(REPO_ROOT, fileURLToPath(import.meta.url));
+  const results = await Promise.all(
+    plan.map(async (mutations, i) => {
+      const t = Date.now();
+      const r = await runChild(process.execPath, [path.join(dirs[i], self), ...workerArgs(mutations, full)], dirs[i]);
+      console.log(`\n===== ワーカー ${i + 1}/${plan.length}（${mutations.length} 件・exit ${r.exitCode}）=====`);
+      console.log(r.output.trimEnd());
+      return { index: i + 1, count: mutations.length, exitCode: r.exitCode, ms: Date.now() - t };
+    }),
+  );
+
+  const { lines, failed } = formatWorkerSummary(results);
+  console.log(`\n=== 変異検査 並列の結果（${header}）===`);
+  for (const line of lines) console.log(line);
+  console.log(`\n[mutation-check] 所要時間: ${((Date.now() - startedAt) / 1000).toFixed(0)} 秒（作業ツリー ${plan.length} 個・変異 ${selected.length} 件）`);
+
+  if (failed.length > 0) {
+    console.error(
+      `\n[mutation-check] ワーカー ${failed.join(", ")} が失敗しました。上のそのワーカーの出力を見てください` +
+        "（検出されなかった変異・対照実行の失敗・作業ツリーの準備の失敗のどれか）。",
+    );
+    return 1;
+  }
+  console.log(`\n[mutation-check] ${successMessage(selector, selection.fallbackToAll, selected.length)}`);
+  return 0;
 }
 
 /** 対照実行の使い回しの鍵。cwd（pkg）と、実際に流すコマンドと引数。 */
@@ -794,8 +962,10 @@ function main() {
   // **指定の誤りはロックより前に止める。** 何も触らずに終わらせるため（#387）。
   let selector;
   let selection;
+  let jobs;
   try {
     selector = parseSelector(process.argv.slice(2));
+    jobs = parseJobs(process.argv.slice(2));
     if (selector.kind === "changed" && selector.baseExplicit && !refExists(selector.base)) {
       throw new Error(`--base の ref が見つかりません: ${selector.base}`);
     }
@@ -834,6 +1004,37 @@ function main() {
     // ロックの解放は process.on("exit") が行う
     console.log(`[mutation-check] ${header}。この差分に該当する変異はありません。`);
     process.exit(0);
+  }
+
+  if (jobs > 1) {
+    // 並列は HEAD の写しで流す。上の検査が除外する置き場（宣言の表・パッチ）の未コミットの変更も、
+    // 写しには入らない —— 流したつもりの変異が流れない。除外なしで見て止める
+    const strict = gitStatusPorcelainStrict();
+    if (strict.trim() !== "") {
+      console.error(
+        "[mutation-check] 並列（--jobs）は HEAD の写しの作業ツリーで流すので、未コミットの変更があると流せません\n" +
+          "（宣言の表・パッチの置き場も含めます。写しに入らず、流したつもりの変異が流れないため）。\n" +
+          "コミットしてから再実行するか、--jobs を外して流してください。\n\n" +
+          "git status --porcelain の出力:\n" +
+          strict,
+      );
+      process.exit(1);
+    }
+    runInWorktrees(
+      selection.selected.map((s) => s.mutation),
+      jobs,
+      full,
+      selector,
+      selection,
+      header,
+    ).then(
+      (code) => process.exit(code),
+      (err) => {
+        console.error("[mutation-check] 並列の実行が例外で止まりました:", err);
+        process.exit(1);
+      },
+    );
+    return;
   }
 
   console.log(`[mutation-check] モード: ${full ? "--full（パッケージ全体）" : "対応表のテストのみ"}`);
@@ -935,11 +1136,7 @@ function main() {
     process.exit(1);
   }
 
-  console.log(
-    selector.kind === "all" || selection.fallbackToAll !== null
-      ? "\n[mutation-check] 全変異が検出されました（ベースラインとして妥当）。"
-      : `\n[mutation-check] 選んだ ${results.length} 件の変異がすべて検出されました（全件ではありません。全件は CI が流します）。`,
-  );
+  console.log(`\n[mutation-check] ${successMessage(selector, selection.fallbackToAll, results.length)}`);
   process.exit(0);
 }
 

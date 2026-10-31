@@ -17,9 +17,13 @@ import {
   decideMutationRestore,
   controlKeyOf,
   DIRTY_CHECK_EXCLUDES,
+  RUNNER_COST_SECONDS,
+  weightOfGroup,
+  successMessage,
 } from "./mutation-check.mjs";
 import { MUTATIONS } from "./lib/mutation-declarations.mjs";
-import { mechanismFilesFrom } from "./lib/mutation-select.mjs";
+import { mechanismFilesFrom, selectMutations } from "./lib/mutation-select.mjs";
+import { groupByControl } from "./lib/mutation-partition.mjs";
 
 /**
  * `scripts/mutation-check.mjs` の自己テスト（#174）。
@@ -385,6 +389,83 @@ describe("選び方の指定の配線（#387）", () => {
     assert.notEqual(r.status, 0);
     assert.match(r.stderr, /no-such-ref-387/);
     assert.doesNotMatch(r.stderr, /別の実行（PID/);
+  });
+
+  test("--shard の範囲の外はロックより前に止まる（#481）", () => {
+    const r = run("--shard", "5/4");
+    assert.notEqual(r.status, 0);
+    assert.match(r.stderr, /--shard は k\/n/);
+    assert.doesNotMatch(r.stderr, /別の実行（PID/);
+  });
+
+  test("--jobs の不正な値はロックより前に止まる（#481）", () => {
+    const r = run("--jobs", "0");
+    assert.notEqual(r.status, 0);
+    assert.match(r.stderr, /--jobs は正の整数/);
+    assert.doesNotMatch(r.stderr, /別の実行（PID/);
+  });
+
+  test("組の数より多いシャードはロックより前に止まる（空のシャードを 0 件の緑にしない・#481）", () => {
+    const r = run("--shard", "1/100000");
+    assert.notEqual(r.status, 0);
+    assert.match(r.stderr, /100000 個に分けられません/);
+    assert.doesNotMatch(r.stderr, /別の実行（PID/);
+  });
+});
+
+/**
+ * 分けて流す（#481）。宣言の表そのものを回して、CI の形（4 シャード）で全件が覆われることを見る。
+ * 分け方の性質そのものは `scripts/lib/mutation-partition.test.mjs` が造作で見る。ここは実物の表との配線。
+ */
+describe("宣言の全件を分けて流す配線（#481）", () => {
+  const groups = groupByControl(MUTATIONS);
+
+  test("どの対照の組の重さも、正の有限の数になる（ランナーごとの目安が全ランナーにある）", () => {
+    for (const g of groups) {
+      const w = weightOfGroup(g);
+      assert.ok(Number.isFinite(w) && w > 0, `${g.pkg}: ${w}`);
+    }
+  });
+
+  test("重さは件数に比例して増え、ランナーごとの目安を使う", () => {
+    const g = { pkg: "scripts", tests: ["x.test.mjs"], mutations: [{}, {}] };
+    const { control, mutation } = RUNNER_COST_SECONDS.node;
+    assert.equal(weightOfGroup(g), control + 2 * mutation);
+    const vitest = { pkg: "apps/timer-web", tests: ["x.test.ts"], mutations: [{}, {}] };
+    assert.equal(weightOfGroup(vitest), RUNNER_COST_SECONDS.vitest.control + 2 * RUNNER_COST_SECONDS.vitest.mutation);
+  });
+
+  for (const total of [2, 4]) {
+    test(`${total} 個のシャードを合わせると宣言の全件になり、重ならない`, () => {
+      const ids = [];
+      for (let index = 1; index <= total; index++) {
+        const { selected } = selectMutations(MUTATIONS, { kind: "shard", index, total, weightOf: weightOfGroup });
+        assert.ok(selected.length > 0, `シャード ${index}/${total} が空`);
+        ids.push(...selected.map((s) => s.mutation.id));
+      }
+      assert.equal(ids.length, MUTATIONS.length);
+      assert.deepEqual(new Set(ids), new Set(MUTATIONS.map((m) => m.id)));
+    });
+  }
+});
+
+describe("緑の最後の 1 行（successMessage）", () => {
+  test("全件と、全件に倒した絞り込みは「全変異」", () => {
+    assert.match(successMessage({ kind: "all" }, null, 440), /全変異が検出されました/);
+    assert.match(successMessage({ kind: "changed" }, "差分が取れない", 440), /全変異が検出されました/);
+  });
+
+  test("シャードは全件でないことと、全件の在りかを言う", () => {
+    const msg = successMessage({ kind: "shard", index: 2, total: 4 }, null, 110);
+    assert.match(msg, /シャード 2\/4 の 110 件/);
+    assert.match(msg, /全件ではありません。全件は 4 個のシャードの合計です/);
+    assert.doesNotMatch(msg, /全変異/);
+  });
+
+  test("絞り込みは全件でないことを言う", () => {
+    const msg = successMessage({ kind: "pkg", pkg: "apps/a" }, null, 3);
+    assert.match(msg, /選んだ 3 件/);
+    assert.doesNotMatch(msg, /全変異/);
   });
 });
 
@@ -809,5 +890,39 @@ describe("通常サイクルの復元判定（decideMutationRestore）", () => {
       logs.some((m) => /a\.ts/.test(m)),
       "致命的なログにファイル名が出ていない",
     );
+  });
+});
+
+/**
+ * CI への配線（#481・設計正本 `docs/superpowers/specs/2026-10-31-ci-wait-design.md` §4.3）。
+ *
+ * 分けて流す形は、**どこか 1 つが崩れると変異の一部が黙って流れなくなる**（CI は緑のまま）。
+ * 崩れ方を 1 つずつ塞ぐ:
+ * - シャードの番号と数を matrix の値から取る → `[1, 2, 4]` の書き間違いで 1 つ抜ける。GitHub が数える job-index / job-total から取る
+ * - 素の全件の呼び出しが別のジョブに残る → 全件が二重に流れて分けた意味が無くなる（遅いだけで緑）
+ * - 集約のジョブが結果を見ない → シャードが落ちても集約が緑になる
+ */
+describe("CI への配線: 変異検査を分けて流す（#481）", () => {
+  const ci = fs.readFileSync(path.join(WORKSPACE_ROOT, ".github/workflows/ci.yml"), "utf8");
+  const calls = ci.split("\n").filter((line) => line.includes("node scripts/mutation-check.mjs"));
+
+  test("ci.yml は変異検査をちょうど 1 か所で呼び、それは --shard つき", () => {
+    assert.equal(calls.length, 1, `呼び出しが ${calls.length} か所:\n${calls.join("\n")}`);
+    assert.match(calls[0], /--shard "\$\(\(SHARD_INDEX \+ 1\)\)\/\$SHARD_TOTAL"/);
+  });
+
+  test("シャードの番号と数は strategy.job-index / job-total から取る（matrix の値から取らない）", () => {
+    assert.match(ci, /^\s*SHARD_INDEX: \$\{\{ strategy\.job-index \}\}\s*$/m);
+    assert.match(ci, /^\s*SHARD_TOTAL: \$\{\{ strategy\.job-total \}\}\s*$/m);
+    assert.doesNotMatch(calls[0], /matrix\./);
+  });
+
+  test("集約のジョブはシャードのジョブを needs に持ち、いつも走り、結果が success でなければ赤くなる", () => {
+    const block = ci.slice(ci.indexOf("\n  mutation-all:"), ci.indexOf("\n  quality:"));
+    assert.ok(block.length > 0, "mutation-all ジョブが見つからない");
+    assert.match(block, /^\s*needs: mutation\s*$/m);
+    assert.match(block, /^\s*if: always\(\)\s*$/m);
+    assert.match(block, /^\s*RESULT: \$\{\{ needs\.mutation\.result \}\}\s*$/m);
+    assert.match(block, /test "\$RESULT" = success/);
   });
 });
