@@ -8,7 +8,7 @@ import { joinRetryDelayMs, loadResumeIdentity, saveResumeIdentity } from '@tasuk
 import { App } from '../src/App';
 import { redirectTo } from '../src/router';
 import { topicSyncUrl } from '../src/hooks/use-topic-sync';
-import { GONE_HEADING, RETRY_EXHAUSTED_TEXT, RETRY_WAITING_TEXT } from '../src/copy';
+import { RETRY_EXHAUSTED_TEXT, RETRY_WAITING_TEXT } from '../src/copy';
 import { IDLE_STATE, RESUME, ScriptedWebSocket, latestSocket } from './support/scripted-web-socket';
 
 vi.mock('../src/router', async (importOriginal) => ({
@@ -91,7 +91,7 @@ describe('お題ツールのルームへの入り方', () => {
     act(() => latestSocket().deliver({ type: 'error', code: 'ROOM_NOT_FOUND', message: 'x' }));
     // Then
     expect(loadResumeIdentity('R1')).toBeNull();
-    expect(screen.getByRole('heading', { name: GONE_HEADING })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'ルームが見つかりません' })).toBeInTheDocument();
     // Then: 接続を畳んでいるので、切れても繋ぎ直さない
     act(() => latestSocket().drop());
     act(() => vi.advanceTimersByTime(30_000));

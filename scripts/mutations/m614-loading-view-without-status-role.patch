@@ -1,0 +1,23 @@
+# 変異 614: loading-view-without-status-role
+#
+# 検出を期待するテスト:
+#   - packages/web-kit/tests/room-gate.test.tsx
+#   - 「LoadingView / Given 読み込み中」
+#
+# #472。読み込み中の一言から role="status" を外し、読み上げに「読み込んでいます」が伝わらない（白いままと同じ）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m614-*.patch
+# 復元: git apply -R scripts/mutations/m614-*.patch
+diff --git a/packages/web-kit/src/room/loading-view.tsx b/packages/web-kit/src/room/loading-view.tsx
+--- a/packages/web-kit/src/room/loading-view.tsx
++++ b/packages/web-kit/src/room/loading-view.tsx
+@@ -7,7 +7,7 @@ import { ROOM_GATE_TEXT } from './room-gate-copy.js';
+ export function LoadingView() {
+   return (
+     <main className="ui-page ui-page--prose">
+-      <p className="loading-note ui-note" role="status">
++      <p className="loading-note ui-note">
+         {ROOM_GATE_TEXT.loading}
+       </p>
+     </main>

@@ -9,19 +9,7 @@
 
 @import '@tasuki/ui';
 
-/* 遷移中・参加中の一言。卓の上で控えめに置く（topic-web・poker-web と同じ置き方）。色は部品（`.ui-note`）が持つ。 */
-.loading-note {
-  margin: 0;
-  padding: var(--space-6) 0;
-  text-align: center;
-}
-
 /* ---------- 見出しと戻る導線は部品層（`.ui-page-header`・ADR 0022）が持つ ---------- */
-/* 共通の見出し（`RoomHeader`）と段組みの間（読む面の札が行に接しない）。 */
-.ui-room-header {
-  margin-block-end: var(--space-5);
-}
-
 /* 入り直しの途中の混雑・操作の失敗。色は部品（`.ui-note`）が持つ */
 .roulette-notice {
   margin: 0 0 var(--space-4);
@@ -766,4 +754,10 @@
 }
 .roulette-foot p {
   margin: 0;
+}
+
+/* 共通の見出し（`RoomHeader`）と段組みの間（札・盤が行に接しない）。部品層には置かない:
+   timer の詰めた見出し（`.app-room-header-compact`）と margin が相殺して、詰めた間隔が space-5 に戻るため（#472 レビュー）。 */
+.ui-room-header {
+  margin-block-end: var(--space-5);
 }

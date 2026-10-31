@@ -13,15 +13,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { METHODS } from '@tasuki/checkin-core';
 import { ROOM_HEADER_TEXT, RoomHeader } from '@tasuki/invite-ui';
-import { ConnectionBanner } from '@tasuki/web-kit/room';
+import { ConnectionBanner, LoadingView, RoomGoneView, RoomJoiningView, useHubRedirect } from '@tasuki/web-kit/room';
 import { Hand, SpectatorToggle } from '../components/Hand';
-import { LoadingView } from '../components/LoadingView';
 import { MethodPicker } from '../components/MethodPicker';
 import { PromptPanel } from '../components/PromptPanel';
 import { RevealBoard } from '../components/RevealBoard';
 import { RoundDock } from '../components/RoundDock';
 import { SeatRow } from '../components/SeatRow';
-import { CLOSE_BUTTON, GONE_HEADING, GONE_LINK, GONE_TEXT, JOINING_HEADING, PAGE_HEADING } from '../copy';
+import { CLOSE_BUTTON, PAGE_HEADING } from '../copy';
 import { useCheckinSync } from '../hooks/use-checkin-sync';
 import { orderedPiles, summaryLine } from '../reveal-view';
 import { hubPathFor, redirectTo } from '../router';
@@ -74,48 +73,24 @@ export function CheckinRoom({ roomCode }: { roomCode: string }) {
   const { targetRef, markOwnAction } = useLandingFocus(focusKey);
 
   // 玄関へ送る。**判定は同期フック、適用はここ 1 箇所**。
-  useEffect(() => {
-    if (sync.departed !== null) redirectTo(hubPathFor(roomCode, sync.departed));
-    else if (sync.needsHub) redirectTo(hubPathFor(roomCode));
-  }, [sync.departed, sync.needsHub, roomCode]);
+  useHubRedirect({ departed: sync.departed, needsHub: sync.needsHub, roomCode, hubPathFor, redirectTo });
 
-  if (sync.gone) {
-    return (
-      <main className="ui-page ui-page--prose">
-        <h1>{GONE_HEADING}</h1>
-        <p>{GONE_TEXT}</p>
-        {/* 消えたルームの選択画面へは送らない（そこで名乗っても必ず失敗する） */}
-        <a className="ui-button ui-button--quiet" href="/">
-          {GONE_LINK}
-        </a>
-      </main>
-    );
-  }
+  // 消えたルームの選択画面へは送らない（そこで名乗っても必ず失敗する）
+  if (sync.gone) return <RoomGoneView />;
   if (sync.needsHub || sync.departed !== null) return <LoadingView />;
 
   const banner = <ConnectionBanner kind={sync.notice} />;
 
   if (!sync.joined && sync.checkin === null) {
     return (
-      <main className="ui-page ui-page--prose">
-        <header className="ui-page-header">
-          <h1>{JOINING_HEADING}</h1>
-          <a className="ui-page-header-back ui-button ui-button--quiet" href={hubPathFor(roomCode)}>
-            {ROOM_HEADER_TEXT.back}
-          </a>
-        </header>
-        {banner}
-        {sync.retryNotice && (
-          <p className="ui-note" role="status">
-            {sync.retryNotice}
-          </p>
-        )}
-        {sync.error && (
-          <p className="ui-note ui-note--error" role="alert">
-            {sync.error}
-          </p>
-        )}
-      </main>
+      <RoomJoiningView
+        backHref={hubPathFor(roomCode)}
+        backLabel={ROOM_HEADER_TEXT.back}
+        retryNotice={sync.retryNotice}
+        error={sync.error}
+        notice={sync.notice}
+        bannerPlacement="after-header"
+      />
     );
   }
 

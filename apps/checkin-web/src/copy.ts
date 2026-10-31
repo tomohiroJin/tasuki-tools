@@ -6,12 +6,6 @@
  * 直書きした文言はその検査を素通りする。足す・変えるときは `outsideBase` で実測してから使う。
  */
 
-export const LOADING_TEXT = '読み込んでいます…';
-export const JOINING_HEADING = 'ルームに参加しています';
-export const GONE_HEADING = 'ルームが見つかりません';
-export const GONE_TEXT = 'ルームは終了したか、リンクが正しくない可能性があります。';
-export const GONE_LINK = 'トップへ戻る';
-
 export const PAGE_HEADING = 'チェックイン・チェックアウト';
 
 /** 操作の失敗の一言を閉じる */

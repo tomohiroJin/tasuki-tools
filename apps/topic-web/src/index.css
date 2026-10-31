@@ -7,13 +7,6 @@
 
 @import '@tasuki/ui';
 
-/* 遷移中・参加中の一言。卓の上で控えめに置く（poker-web と同じ置き方）。色は部品（`.ui-note`）が持つ。 */
-.loading-note {
-  margin: 0;
-  padding: var(--space-6) 0;
-  text-align: center;
-}
-
 /* ---------- 見出しと戻る導線は部品層（`.ui-page-header`・ADR 0022）が持つ ---------- */
 
 /* ---------- いまのお題（#316。読む面は部品層の `.ui-reader` が持つ） ----------
@@ -356,11 +349,6 @@
   }
 }
 
-/* 共通の見出しと段組みの間（読む面の札が行に接しない）。 */
-.ui-room-header {
-  margin-block-end: var(--space-5);
-}
-
 /* 64rem 以上では、説明のプレビューは右の読む面（「下書き」のタブ）が受け持つ（#316）。
    欄の中のプレビューと切り替えは、読む面が書く欄から遠い 64rem 未満のためにだけ残す。
    **容器クエリの規則（上）と同じ詳細度で、後に書いてあるので勝つ。順序を入れ替えないこと。** */
@@ -414,4 +402,10 @@
   .topic-make .topic-unlock-row > :last-child {
     flex: none;
   }
+}
+
+/* 共通の見出し（`RoomHeader`）と段組みの間（札・盤が行に接しない）。部品層には置かない:
+   timer の詰めた見出し（`.app-room-header-compact`）と margin が相殺して、詰めた間隔が space-5 に戻るため（#472 レビュー）。 */
+.ui-room-header {
+  margin-block-end: var(--space-5);
 }

@@ -47,7 +47,7 @@ S2〜S4a では poker 側の入れ子（src/poker 配下。**S4b で畳みまし
 | UI 資産 | `packages/ui` | なし（CSS のトークン・要素・部品と静的資産。ADR 0022） |
 | 招待のブラウザ操作 | `packages/invite-ui` | React・ブラウザ API・既存の qrcode。ドメイン・同期クライアントには依存しない（[ADR-0020](../adr/0020-invite-browser-operations.md)） |
 | Markdown の解析 | `packages/markdown` | なし（純粋関数のみ。React を知らない）。描画は `@tasuki/web-kit/reader` の `Markdown` が持つ（[ADR-0021](../adr/0021-topic-as-shared-context.md) 決定 7 と 2026-10-14 の追記・#371） |
-| web のルーム画面の共有部品 | `packages/web-kit` の入口 `@tasuki/web-kit/room`（`ConnectionBanner`・`connectionNotice`。#471） | `react`（peer）・`@tasuki/sync-client` は型（`import type`）だけ。**画面から読んでよい**。接続の告知（再接続中・最新でない・届かない）の文 3 つの正本と帯（届かないは `role="alert"`、それ以外は `role="status"`、無いときは描かない）。種類を決める規則は `@tasuki/sync-client` の `connectionNoticeKind` で、同期フックが引く |
+| web のルーム画面の共有部品 | `packages/web-kit` の入口 `@tasuki/web-kit/room`（`ConnectionBanner`・`connectionNotice`（#471）、`LoadingView`・`RoomGoneView`・`RoomJoiningView`・`useHubRedirect`・`usePrefersReducedMotion`・`ROOM_GATE_TEXT`（#472）） | `react`（peer）・`@tasuki/sync-client` は型（`import type`）だけ。**画面から読んでよい**。接続の告知（再接続中・最新でない・届かない）の文 3 つの正本と帯（届かないは `role="alert"`、それ以外は `role="status"`、無いときは描かない）。種類を決める規則は `@tasuki/sync-client` の `connectionNoticeKind` で、同期フックが引く。入室の門（読み込み中・ルームが無い・参加中）の画面と文言（`ROOM_GATE_TEXT`）の正本もここ 1 か所（agenda・checkin・roulette・topic）。参加中の画面の帯の位置（`<main>` の前か、見出しの後か）はアプリごとに違い、揃えていないので呼ぶ側が選ぶ。timer の `use-reduced-motion` は書き方が違うので寄せていない |
 | web の読む面の共有部品 | `packages/web-kit` の入口 `@tasuki/web-kit/reader`（`Markdown`・`useReaderDrawer`。#371） | `react`（peer）・`@tasuki/markdown`。**画面から読んでよい**（同期の入口 `./sync` とは別） |
 | 開発用の設定 | `packages/dev-hub-redirect` | なし（dev サーバー専用の Vite プラグインと玄関のポートの正本。各アプリの `vite.config.ts` だけが読む。層の外） |
 

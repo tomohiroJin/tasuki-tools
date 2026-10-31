@@ -546,7 +546,7 @@ describe('操作できない間', () => {
     render(<App />);
     act(() => latestSocket().open());
     // Then
-    expect(screen.getByRole('heading', { name: copy.JOINING_HEADING })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'ルームに参加しています' })).toBeInTheDocument();
   });
 
   it('Given 参加の応答がまだ / When 画面を見る / Then 同じルームの選択画面へ戻る導線がある', () => {
@@ -556,7 +556,7 @@ describe('操作できない間', () => {
     render(<App />);
     act(() => latestSocket().open());
     // Then
-    expect(screen.getByRole('heading', { name: copy.JOINING_HEADING })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'ルームに参加しています' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: ROOM_HEADER_TEXT.back })).toHaveAttribute('href', '/?room=R1');
   });
 

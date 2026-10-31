@@ -1,0 +1,24 @@
+# 変異 610: joining-banner-placement-ignored
+#
+# 検出を期待するテスト:
+#   - packages/web-kit/tests/room-gate.test.tsx
+#   - 「RoomJoiningView / Given 帯を main の前に置く指定」ほか
+#
+# #472。参加中の画面で、帯の位置の指定を無視して常に main の中へも描く（main の前に置くアプリ roulette・topic で帯が 2 重に出る）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m610-*.patch
+# 復元: git apply -R scripts/mutations/m610-*.patch
+diff --git a/packages/web-kit/src/room/room-joining-view.tsx b/packages/web-kit/src/room/room-joining-view.tsx
+index 471d1c3e..fe4b6476 100644
+--- a/packages/web-kit/src/room/room-joining-view.tsx
++++ b/packages/web-kit/src/room/room-joining-view.tsx
+@@ -31,7 +31,7 @@ export function RoomJoiningView({ backHref, backLabel, retryNotice, error, notic
+           {backLabel}
+         </a>
+       </header>
+-      {bannerPlacement === 'after-header' && banner}
++      {banner}
+       {retryNotice && (
+         <p className="ui-note" role="status">
+           {retryNotice}
