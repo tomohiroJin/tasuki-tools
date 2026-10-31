@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/mutation-parallel.mjs b/scripts/lib/mutation-parallel.mjs
+index 58795de..08a31e2 100644
+--- a/scripts/lib/mutation-parallel.mjs
++++ b/scripts/lib/mutation-parallel.mjs
+@@ -44,7 +44,7 @@ export function parseJobs(args) {
+  */
+ export function planWorkers(mutations, jobs, weightOf) {
+   if (mutations.length === 0) return [];
+-  const workers = Math.min(jobs, groupByControl(mutations).length);
++  const workers = jobs;
+   return partitionMutations(mutations, workers, weightOf);
+ }
+ 

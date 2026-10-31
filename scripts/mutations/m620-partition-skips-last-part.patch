@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/mutation-partition.mjs b/scripts/lib/mutation-partition.mjs
+index 661e398..db63d6a 100644
+--- a/scripts/lib/mutation-partition.mjs
++++ b/scripts/lib/mutation-partition.mjs
+@@ -69,7 +69,7 @@ export function partitionMutations(mutations, n, weightOf) {
+   const assigned = Array.from({ length: n }, () => new Set());
+   for (const { group, weight } of weighted) {
+     let lightest = 0;
+-    for (let i = 1; i < n; i++) if (loads[i] < loads[lightest]) lightest = i;
++    for (let i = 1; i < n - 1; i++) if (loads[i] < loads[lightest]) lightest = i;
+     loads[lightest] += weight;
+     for (const mutation of group.mutations) assigned[lightest].add(mutation);
+   }

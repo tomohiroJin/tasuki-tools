@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/mutation-select.mjs b/scripts/lib/mutation-select.mjs
+index a639cec..e9b01a3 100644
+--- a/scripts/lib/mutation-select.mjs
++++ b/scripts/lib/mutation-select.mjs
+@@ -200,7 +200,7 @@ export function formatSelectionHeader(selector, { selected, fallbackToAll }, tot
+  * 緑で終わるときの最後の 1 行。**全件の緑と、分けた・絞った緑を取り違えない**ように言い分ける。
+  */
+ export function successMessage(selector, fallbackToAll, count) {
+-  if (selector.kind === "all" || fallbackToAll !== null) return "全変異が検出されました（ベースラインとして妥当）。";
++  if (selector.kind === "all" || selector.kind === "shard" || fallbackToAll !== null) return "全変異が検出されました（ベースラインとして妥当）。";
+   if (selector.kind === "shard") {
+     return (
+       `シャード ${selector.index}/${selector.total} の ${count} 件の変異がすべて検出されました` +

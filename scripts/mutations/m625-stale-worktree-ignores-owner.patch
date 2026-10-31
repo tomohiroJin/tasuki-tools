@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/mutation-parallel.mjs b/scripts/lib/mutation-parallel.mjs
+index 58795de..bfea768 100644
+--- a/scripts/lib/mutation-parallel.mjs
++++ b/scripts/lib/mutation-parallel.mjs
+@@ -72,7 +72,7 @@ export function staleWorktreesFrom(porcelain, isAlive) {
+     if (!line.startsWith("worktree ")) continue;
+     const dir = line.slice("worktree ".length);
+     const m = pattern.exec(path.basename(dir));
+-    if (m && !isAlive(Number(m[1]))) stale.push(dir);
++    if (m) stale.push(dir);
+   }
+   return stale;
+ }

@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/mutation-partition.mjs b/scripts/lib/mutation-partition.mjs
+index 661e398..d347afd 100644
+--- a/scripts/lib/mutation-partition.mjs
++++ b/scripts/lib/mutation-partition.mjs
+@@ -63,7 +63,7 @@ export function partitionMutations(mutations, n, weightOf) {
+     }
+     return { group, weight };
+   });
+-  weighted.sort((a, b) => b.weight - a.weight || (a.group.key < b.group.key ? -1 : a.group.key > b.group.key ? 1 : 0));
++  weighted.sort((a, b) => (a.group.key < b.group.key ? -1 : a.group.key > b.group.key ? 1 : 0));
+ 
+   const loads = Array.from({ length: n }, () => 0);
+   const assigned = Array.from({ length: n }, () => new Set());

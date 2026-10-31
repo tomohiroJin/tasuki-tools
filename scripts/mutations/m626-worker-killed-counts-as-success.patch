@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/mutation-parallel.mjs b/scripts/lib/mutation-parallel.mjs
+index 58795de..f9e22fb 100644
+--- a/scripts/lib/mutation-parallel.mjs
++++ b/scripts/lib/mutation-parallel.mjs
+@@ -85,7 +85,7 @@ export function staleWorktreesFrom(porcelain, isAlive) {
+  */
+ export function formatWorkerSummary(results) {
+   const total = results.length;
+-  const failed = results.filter((r) => r.exitCode !== 0).map((r) => r.index);
++  const failed = results.filter((r) => r.exitCode > 0).map((r) => r.index);
+   const lines = results.map(
+     (r) =>
+       `ワーカー ${r.index}/${total}: ${r.count} 件・${(r.ms / 1000).toFixed(0)} 秒・exit ${r.exitCode}` +

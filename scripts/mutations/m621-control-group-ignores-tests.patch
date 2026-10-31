@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/mutation-partition.mjs b/scripts/lib/mutation-partition.mjs
+index 661e398..da85161 100644
+--- a/scripts/lib/mutation-partition.mjs
++++ b/scripts/lib/mutation-partition.mjs
+@@ -14,7 +14,7 @@
+ 
+ /** 対照の組の鍵。cwd（pkg）と、対照のコマンドの引数（tests の並び）が同じなら同じ組。 */
+ function controlGroupKey(mutation) {
+-  return `${mutation.pkg}\n${JSON.stringify(mutation.tests)}`;
++  return `${mutation.pkg}`;
+ }
+ 
+ /**
