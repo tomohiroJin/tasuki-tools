@@ -1,13 +1,13 @@
 diff --git a/scripts/lib/mutation-parallel.mjs b/scripts/lib/mutation-parallel.mjs
-index 58795de..bfea768 100644
+index 95998e5..70f0758 100644
 --- a/scripts/lib/mutation-parallel.mjs
 +++ b/scripts/lib/mutation-parallel.mjs
-@@ -72,7 +72,7 @@ export function staleWorktreesFrom(porcelain, isAlive) {
-     if (!line.startsWith("worktree ")) continue;
-     const dir = line.slice("worktree ".length);
-     const m = pattern.exec(path.basename(dir));
--    if (m && !isAlive(Number(m[1]))) stale.push(dir);
-+    if (m) stale.push(dir);
+@@ -152,7 +152,7 @@ export function staleWorktreesFrom(porcelain, isAlive, host) {
+     const dir = head.slice("worktree ".length);
+     if (!path.basename(dir).startsWith(WORKTREE_PREFIX)) continue;
+     const lock = lines.map((l) => reasonPattern.exec(l)).find((m) => m !== null);
+-    if (lock && lock[2] === host && !isAlive(Number(lock[1]))) stale.push(dir);
++    if (lock && lock[2] === host) stale.push(dir);
    }
    return stale;
  }

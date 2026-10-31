@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/mutation-parallel.mjs b/scripts/lib/mutation-parallel.mjs
+index 95998e5..c74801f 100644
+--- a/scripts/lib/mutation-parallel.mjs
++++ b/scripts/lib/mutation-parallel.mjs
+@@ -56,8 +56,6 @@ export function workerArgs(mutations, full, testWorkers) {
+   return [
+     "--id",
+     mutations.map((m) => m.id).join(","),
+-    "--test-workers",
+-    String(testWorkers),
+     ...(full ? ["--full"] : []),
+   ];
+ }

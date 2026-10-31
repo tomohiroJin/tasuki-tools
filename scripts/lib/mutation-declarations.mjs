@@ -4085,4 +4085,37 @@ export const MUTATIONS = [
     tests: ["lib/mutation-select.test.mjs"],
     note: "#481。1 つのシャードの緑を全件の緑と取り違える（手元で 1 つだけ流して全件と思い込む）。",
   },
+  // 628〜631: #481 のレビュー（ロックの理由のホスト・テストランナーの並列の上限・出力をその場で流す）。
+  {
+    id: 628,
+    label: "残骸の作業ツリーを、別のホストのものでも PID だけで消す",
+    patch: "m628-stale-worktree-ignores-host.patch",
+    pkg: "scripts",
+    tests: ["lib/mutation-parallel.test.mjs"],
+    note: "#481 のレビュー。.git を共有する別の環境（9p 越しのコンテナなど）の PID はこちらから見えず、相手が実行中の作業ツリーを消す。",
+  },
+  {
+    id: 629,
+    label: "ワーカーへテストランナーの並列の上限を渡さない",
+    patch: "m629-worker-args-drop-test-workers.patch",
+    pkg: "scripts",
+    tests: ["lib/mutation-parallel.test.mjs"],
+    note: "#481 のレビュー。子のテストランナーがそれぞれコアの数だけ並列に起動して取り合い、時間切れの失敗を「検出」と数えうる。",
+  },
+  {
+    id: 630,
+    label: "テストランナーの並列の上限をワーカーの数で割らない",
+    patch: "m630-test-workers-not-split-by-jobs.patch",
+    pkg: "scripts",
+    tests: ["lib/mutation-parallel.test.mjs"],
+    note: "#481 のレビュー。上限を渡しても、コアの数のままでは取り合いが減らない。",
+  },
+  {
+    id: 631,
+    label: "子の出力の、行の途中で切れた断片をそのまま 1 行として出す",
+    patch: "m631-line-prefixer-splits-partial-lines.patch",
+    pkg: "scripts",
+    tests: ["lib/mutation-parallel.test.mjs"],
+    note: "#481 のレビュー。その場で流す出力で、1 行が 2 行に割れて別のワーカーの行と混ざる。",
+  },
 ];
