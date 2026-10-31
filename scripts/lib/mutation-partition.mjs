@@ -38,8 +38,15 @@ export function groupByControl(mutations) {
 /**
  * 全件を n 個に分ける。返り値は長さ n の配列で、各要素は宣言の順に並んだ変異の配列。
  *
- * 重い組から順に、その時点でいちばん軽い分け前へ入れる（貪欲法・LPT）。
- * 同点は組の鍵の辞書順・分け前の番号の若い順で決めるので、同じ表と同じ n からは、どの機械でも同じ割り当てになる。
+ * **置き場（`pkg`）ごとに散らす貪欲法。** 置き場を重い順に取り、その置き場の組を重い順に、
+ * 「その置き場の中で最も軽い分け前」へ入れる。置き場の中で同点なら全体で最も軽い分け前、それも同点なら番号の若い方。
+ * 置き場の順は重さ→名前、組の順は重さ→鍵の辞書順で決めるので、同じ表と同じ n からは、どの機械でも同じ割り当てになる。
+ *
+ * **なぜ置き場ごとに散らすか。** 重さの目安はランナーごとの秒数だが、同じランナーでも置き場によって速さが違う
+ * （2026-10-31 の実測で、jsdom を使う `apps/*-web` は `packages/*-core` の 2〜3 倍かかった）。全体の重さだけで配ると
+ * （初めの形。CI の 2 つのシャードが 1.3〜2 倍偏った）、遅い置き場の組が 1 つの分け前に固まりうる。
+ * 置き場ごとに散らせば、どの分け前も各置き場をおおむね同じ割合で持つので、目安のずれが分け前の間で打ち消し合う。
+ * 置き場の名前で速さを決め打ちしない（置き場が増えるたびに腐る）。
  *
  * **空の分け前を作らない。** 組の数が n より少なければエラーにする（空の分け前は 0 件の緑になり、
  * 分ける数を誤ったことに気づけない）。重さが正なら、初めの n 個の組は必ず別々の分け前に入るので、
@@ -56,22 +63,34 @@ export function partitionMutations(mutations, n, weightOf) {
     throw new Error(`対照の組が ${groups.length} 個しかなく、${n} 個に分けられません`);
   }
 
-  const weighted = groups.map((group) => {
+  const pkgs = new Map();
+  for (const group of groups) {
     const weight = weightOf(group);
     if (!Number.isFinite(weight) || weight <= 0) {
       throw new Error(`組の重さは正の有限の数です: ${weight}（${group.pkg}）`);
     }
-    return { group, weight };
-  });
-  weighted.sort((a, b) => b.weight - a.weight || (a.group.key < b.group.key ? -1 : a.group.key > b.group.key ? 1 : 0));
+    if (!pkgs.has(group.pkg)) pkgs.set(group.pkg, { pkg: group.pkg, total: 0, groups: [] });
+    const entry = pkgs.get(group.pkg);
+    entry.total += weight;
+    entry.groups.push({ group, weight });
+  }
+  const byName = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+  const pkgOrder = [...pkgs.values()].sort((a, b) => b.total - a.total || byName(a.pkg, b.pkg));
 
   const loads = Array.from({ length: n }, () => 0);
   const assigned = Array.from({ length: n }, () => new Set());
-  for (const { group, weight } of weighted) {
-    let lightest = 0;
-    for (let i = 1; i < n; i++) if (loads[i] < loads[lightest]) lightest = i;
-    loads[lightest] += weight;
-    for (const mutation of group.mutations) assigned[lightest].add(mutation);
+  for (const { groups: pkgGroups } of pkgOrder) {
+    pkgGroups.sort((a, b) => b.weight - a.weight || byName(a.group.key, b.group.key));
+    const pkgLoads = Array.from({ length: n }, () => 0);
+    for (const { group, weight } of pkgGroups) {
+      let target = 0;
+      for (let i = 1; i < n; i++) {
+        if (pkgLoads[i] < pkgLoads[target] || (pkgLoads[i] === pkgLoads[target] && loads[i] < loads[target])) target = i;
+      }
+      pkgLoads[target] += weight;
+      loads[target] += weight;
+      for (const mutation of group.mutations) assigned[target].add(mutation);
+    }
   }
   return assigned.map((set) => mutations.filter((m) => set.has(m)));
 }

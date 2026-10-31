@@ -237,9 +237,6 @@ jobs:
           SHARD_INDEX: ${{ strategy.job-index }}
           SHARD_TOTAL: ${{ strategy.job-total }}
         run: node scripts/mutation-check.mjs --shard "$((SHARD_INDEX + 1))/$SHARD_TOTAL" --jobs 4
-      - name: 一時的な確かめ（2 つ目のシャードだけを落とす。すぐ戻す）
-        if: strategy.job-index == 1
-        run: exit 1
 
   # 変異検査のシャードを 1 つにまとめる。シャードが 1 つでも success でなければ（失敗・取り消し・飛ばし）赤くなる。
   # 必須チェックにするときはこの 1 つを指す（シャードの数を変えても名前が変わらない）。

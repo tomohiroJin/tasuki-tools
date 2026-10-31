@@ -88,9 +88,10 @@ describe("partitionMutations: n 個に分ける", () => {
     );
   });
 
-  test("重い組から、いちばん軽い分け前へ入れる（重さに従って偏らない）", () => {
-    // 組 A（重さ 4）・組 B（3）・組 A_OTHER（2）・組 C（2）の順に配る（同点の 2 つは鍵の辞書順）。
-    // A が 1 つ目、B が 2 つ目、A_OTHER は軽い 2 つ目（3 → 5）、C は軽くなった 1 つ目（4 → 6）へ
+  test("置き場の重い順に、その置き場の中で軽い分け前へ入れ、同点は全体で軽い分け前へ", () => {
+    // 置き場の重さ: apps/a 6（A 4・A_OTHER 2）・apps/b 3・apps/c 2。
+    // apps/a: A は 1 つ目、A_OTHER は apps/a の中で軽い 2 つ目へ（全体 4 対 2）。
+    // apps/b: 置き場の中では同点なので、全体で軽い 2 つ目へ（2 → 5）。apps/c: 全体で軽い 1 つ目へ（4 → 6）
     const parts = partitionMutations(MUTS, 2, launches);
     assert.deepEqual(parts.map(idsOf), [
       [1, 3, 4, 5],
@@ -108,10 +109,29 @@ describe("partitionMutations: n 個に分ける", () => {
   });
 
   test("渡した重さを使う（重さを無視して件数で配らない）", () => {
-    // 件数では組 A（3 件）が最も重いが、重さの関数では組 C を最も重くする
+    // 件数では組 A（3 件）が最も重いが、重さの関数では組 C を最も重くする。
+    // C が 1 つ目に入ると、残りの 3 組は 1 つ目（100）より軽い 2 つ目へ寄る。ただし apps/a の 2 組は
+    // 置き場の中で散らすので、A_OTHER だけは 1 つ目へ入る
     const heavyC = (g) => (g.pkg === "apps/c" ? 100 : 1);
     const parts = partitionMutations(MUTS, 2, heavyC);
-    assert.deepEqual(parts.map(idsOf), [[4], [1, 2, 3, 5, 6, 7]]);
+    assert.deepEqual(parts.map(idsOf), [
+      [4, 7],
+      [1, 2, 3, 5, 6],
+    ]);
+  });
+
+  test("同じ置き場の組は分け前に散らす（置き場ごとの速さの違いを分け前の間で打ち消す）", () => {
+    // 重さの目安では同じでも、実際は置き場ごとに速さが違う（jsdom を使うアプリは core の 2〜3 倍）。
+    // 全体の重さだけで配ると、遅い置き場の組が 1 つの分け前に固まりうる。置き場ごとに散らせば、
+    // 目安がずれても偏りは打ち消し合う
+    // 全体の重さだけで配ると、重さ 8 の 1 組が 1 つ目に入り、重さ 4 の 2 組はどちらも 2 つ目へ固まる
+    const slow = [1, 2].map((i) => ({ id: i, pkg: "apps/slow", tests: [`t${i}`] }));
+    const fast = { id: 3, pkg: "packages/fast", tests: ["t3"] };
+    const weight = (g) => (g.pkg === "packages/fast" ? 8 : 4);
+    const parts = partitionMutations([...slow, fast], 2, weight);
+    for (const part of parts) {
+      assert.equal(part.filter((m) => m.pkg === "apps/slow").length, 1, `apps/slow が偏った: ${idsOf(part)}`);
+    }
   });
 
   test("組の数より多くは分けられない（空の分け前を作らない）", () => {
