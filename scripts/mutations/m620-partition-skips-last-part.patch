@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/mutation-partition.mjs b/scripts/lib/mutation-partition.mjs
+index c07a5e9..657d013 100644
+--- a/scripts/lib/mutation-partition.mjs
++++ b/scripts/lib/mutation-partition.mjs
+@@ -84,7 +84,7 @@ export function partitionMutations(mutations, n, weightOf) {
+     const pkgLoads = Array.from({ length: n }, () => 0);
+     for (const { group, weight } of pkgGroups) {
+       let target = 0;
+-      for (let i = 1; i < n; i++) {
++      for (let i = 1; i < n - 1; i++) {
+         if (pkgLoads[i] < pkgLoads[target] || (pkgLoads[i] === pkgLoads[target] && loads[i] < loads[target])) target = i;
+       }
+       pkgLoads[target] += weight;

@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/mutation-parallel.mjs b/scripts/lib/mutation-parallel.mjs
+index 95998e5..5ecf902 100644
+--- a/scripts/lib/mutation-parallel.mjs
++++ b/scripts/lib/mutation-parallel.mjs
+@@ -70,7 +70,7 @@ export function workerArgs(mutations, full, testWorkers) {
+  * テストが実際には変異を捕まえていなくても、混んでいるだけで緑になりうる（対照実行は別の時刻なので防げない）。
+  */
+ export function testWorkersPerJob(cores, jobs) {
+-  return Math.max(1, Math.floor(cores / jobs));
++  return Math.max(1, cores);
+ }
+ 
+ /**

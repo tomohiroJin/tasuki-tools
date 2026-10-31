@@ -1,6 +1,6 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { parseSelector, selectMutations, mechanismFilesFrom, formatSelectionHeader } from "./mutation-select.mjs";
+import { parseSelector, selectMutations, mechanismFilesFrom, formatSelectionHeader, successMessage } from "./mutation-select.mjs";
 
 /**
  * `scripts/lib/mutation-select.mjs` の自己テスト（#387）。
@@ -66,6 +66,29 @@ describe("parseSelector: 指定の解釈", () => {
   test("--base は --changed の無いところでは使えない", () => {
     assert.throws(() => parseSelector(["--base", "HEAD~1"]), /--changed と一緒に/);
     assert.throws(() => parseSelector(["--pkg", "a", "--base", "HEAD~1"]), /--changed と一緒に/);
+  });
+
+  test("--shard は k/n を読む（1 ≤ k ≤ n）", () => {
+    assert.deepEqual(parseSelector(["--shard", "2/4"]), { kind: "shard", index: 2, total: 4 });
+    assert.deepEqual(parseSelector(["--shard", "1/1"]), { kind: "shard", index: 1, total: 1 });
+    assert.deepEqual(parseSelector(["--full", "--shard", "4/4"]), { kind: "shard", index: 4, total: 4 });
+  });
+
+  test("--shard の不正な値はエラー（範囲の外・形の崩れ）", () => {
+    for (const bad of ["0/4", "5/4", "1/0", "a/b", "2", "2/", "/4", "1.5/4", "-1/4", "2/4/1"]) {
+      assert.throws(() => parseSelector(["--shard", bad]), /--shard/, bad);
+    }
+  });
+
+  test("--shard は他の選び方と混ぜられない", () => {
+    assert.throws(() => parseSelector(["--shard", "1/2", "--changed"]), /1 回に 1 つ/);
+    assert.throws(() => parseSelector(["--pkg", "a", "--shard", "1/2"]), /1 回に 1 つ/);
+  });
+
+  test("--jobs は選び方に関わらない（値ごと読み飛ばす。解釈は parseJobs）", () => {
+    assert.deepEqual(parseSelector(["--jobs", "4"]), { kind: "all" });
+    assert.deepEqual(parseSelector(["--jobs", "2", "--shard", "1/2"]), { kind: "shard", index: 1, total: 2 });
+    assert.throws(() => parseSelector(["--jobs"]), /値が要ります/);
   });
 });
 
@@ -191,6 +214,30 @@ describe("selectMutations: --id / --pkg / 全件", () => {
   });
 });
 
+describe("selectMutations: --shard", () => {
+  // 4 つの変異はどれも別の対照の組（pkg が違う）。重さは起動の回数（対照 1 回＋件数）
+  const shard = (index, total) => ({ kind: "shard", index, total, weightOf: (g) => 1 + g.mutations.length });
+
+  test("n 個のシャードを合わせると全件で、重ならない", () => {
+    const parts = [1, 2, 3].map((k) => ids(selectMutations(MUTS, shard(k, 3))));
+    assert.deepEqual(parts.flat().sort((a, b) => a - b), [1, 2, 3, 4]);
+  });
+
+  test("k 番目は分け方の k 番目（1 から数える）", () => {
+    // 重さはどれも 2。鍵の辞書順（apps/a・apps/a-x・apps/b・apps/d）に配る
+    assert.deepEqual(ids(selectMutations(MUTS, shard(1, 2))), [1, 2]);
+    assert.deepEqual(ids(selectMutations(MUTS, shard(2, 2))), [3, 4]);
+  });
+
+  test("選んだ理由に --shard k/n を出す", () => {
+    assert.deepEqual(selectMutations(MUTS, shard(1, 2)).selected[0].reasons, ["--shard 1/2"]);
+  });
+
+  test("組の数より多くは分けられない（空のシャードを 0 件の緑にしない）", () => {
+    assert.throws(() => selectMutations(MUTS, shard(1, 5)), /5 個に分けられません/);
+  });
+});
+
 describe("mechanismFilesFrom: 機構のファイルを import から導く", () => {
   test("自分自身と、相対 import のファイルを返す（node: の import は含めない）", () => {
     const source = [
@@ -203,6 +250,34 @@ describe("mechanismFilesFrom: 機構のファイルを import から導く", () 
       "scripts/mutation-check.mjs",
       "scripts/lib/scan-targets.mjs",
       "scripts/lib/direct-run.mjs",
+      "scripts/lib/mutation-select.mjs",
+    ]);
+  });
+});
+
+describe("mechanismFilesFrom: lib が lib を import するときはたどる", () => {
+  test("読み手を渡すと、相対 import を再帰にたどり、同じファイルは 1 回だけ数える", () => {
+    const sources = {
+      "scripts/lib/mutation-select.mjs": 'import { p } from "./mutation-partition.mjs";',
+      "scripts/lib/mutation-parallel.mjs": 'import { p } from "./mutation-partition.mjs";',
+      "scripts/lib/mutation-partition.mjs": 'import path from "node:path";',
+    };
+    const entry = [
+      'import { a } from "./lib/mutation-select.mjs";',
+      'import { b } from "./lib/mutation-parallel.mjs";',
+    ].join("\n");
+    assert.deepEqual(mechanismFilesFrom(entry, "scripts/mutation-check.mjs", (rel) => sources[rel]), [
+      "scripts/mutation-check.mjs",
+      "scripts/lib/mutation-select.mjs",
+      "scripts/lib/mutation-partition.mjs",
+      "scripts/lib/mutation-parallel.mjs",
+    ]);
+  });
+
+  test("読み手が無ければ 1 段だけ（今までの呼び方）", () => {
+    const entry = 'import { a } from "./lib/mutation-select.mjs";';
+    assert.deepEqual(mechanismFilesFrom(entry, "scripts/mutation-check.mjs"), [
+      "scripts/mutation-check.mjs",
       "scripts/lib/mutation-select.mjs",
     ]);
   });
@@ -221,10 +296,36 @@ describe("formatSelectionHeader: 表題で全件と絞り込みを取り違え�
     assert.equal(formatSelectionHeader({ kind: "pkg", pkg: "apps/a" }, sel(3), 155), "絞り込み実行（--pkg apps/a）: 155 件中 3 件");
     assert.equal(formatSelectionHeader({ kind: "id", ids: [1, 2] }, sel(2), 155), "絞り込み実行（--id 1,2）: 155 件中 2 件");
   });
+  test("分割実行", () => {
+    assert.equal(
+      formatSelectionHeader({ kind: "shard", index: 2, total: 4 }, sel(110), 440),
+      "分割実行（--shard 2/4）: 440 件中 110 件",
+    );
+  });
   test("全件に倒したときは理由を出す", () => {
     assert.equal(
       formatSelectionHeader({ kind: "changed", base: "origin/main" }, { selected: sel(155).selected, fallbackToAll: "差分が取れない" }, 155),
       "絞り込み実行（--changed・基準 origin/main）: 全件に倒しました —— 差分が取れない（155 件）",
     );
+  });
+});
+
+describe("緑の最後の 1 行（successMessage）", () => {
+  test("全件と、全件に倒した絞り込みは「全変異」", () => {
+    assert.match(successMessage({ kind: "all" }, null, 440), /全変異が検出されました/);
+    assert.match(successMessage({ kind: "changed" }, "差分が取れない", 440), /全変異が検出されました/);
+  });
+
+  test("シャードは全件でないことと、全件の在りかを言う", () => {
+    const msg = successMessage({ kind: "shard", index: 2, total: 4 }, null, 110);
+    assert.match(msg, /シャード 2\/4 の 110 件/);
+    assert.match(msg, /全件ではありません。全件は 4 個のシャードの合計です/);
+    assert.doesNotMatch(msg, /全変異/);
+  });
+
+  test("絞り込みは全件でないことを言う", () => {
+    const msg = successMessage({ kind: "pkg", pkg: "apps/a" }, null, 3);
+    assert.match(msg, /選んだ 3 件/);
+    assert.doesNotMatch(msg, /全変異/);
   });
 });

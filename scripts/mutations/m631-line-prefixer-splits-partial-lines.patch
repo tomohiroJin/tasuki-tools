@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/mutation-parallel.mjs b/scripts/lib/mutation-parallel.mjs
+index 95998e5..5703618 100644
+--- a/scripts/lib/mutation-parallel.mjs
++++ b/scripts/lib/mutation-parallel.mjs
+@@ -102,7 +102,7 @@ export function createLinePrefixer(prefix, write) {
+       all += text;
+       pending += text;
+       const lines = pending.split("\n");
+-      pending = lines.pop();
++      pending = "";
+       for (const line of lines) write(prefix + line);
+     },
+     flush() {

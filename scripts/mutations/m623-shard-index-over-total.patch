@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/mutation-select.mjs b/scripts/lib/mutation-select.mjs
+index 1e77ade..4ac9174 100644
+--- a/scripts/lib/mutation-select.mjs
++++ b/scripts/lib/mutation-select.mjs
+@@ -74,7 +74,7 @@ function parseShard(value) {
+   const m = /^([1-9]\d*)\/([1-9]\d*)$/.exec(value);
+   const index = m ? Number(m[1]) : NaN;
+   const total = m ? Number(m[2]) : NaN;
+-  if (!m || index > total) {
++  if (!m) {
+     throw new Error(`--shard は k/n（1 ≤ k ≤ n の正の整数）で書きます: ${value}`);
+   }
+   return { kind: "shard", index, total };
