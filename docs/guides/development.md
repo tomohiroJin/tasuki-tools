@@ -8,10 +8,23 @@
 
 ## 前提
 
-- **Node.js 22.22.2 以上**（`package.json` の `engines`。pnpm 11 系が `node:sqlite` を使うため、20 では起動しません）
-- pnpm（版は `package.json` の `packageManager` が決める。`corepack enable` すればその版が使われる。
-  Renovate が版を上げるので、ここには版を書かない）
-- **Bun** — 同期サーバー（`apps/tasuki-sync`）の起動とテストに必要
+道具の版はリポジトリの中の 1 か所にだけ書いてあります（決定は
+[`docs/adr/0031`](../adr/0031-toolchain-declaration-and-preflight.md)）。**ここには版を書きません**（上げるたびに腐るため）。
+
+| 道具 | 版の正本 | 比べ方 |
+|---|---|---|
+| Node.js | `toolchain.json` の `node` | その版以上・同じ major（pnpm 11 系が `node:sqlite` を使うため、20 では起動しません） |
+| pnpm | `package.json` の `packageManager` | 完全一致（`corepack enable` すればその版が使われる） |
+| Bun（同期サーバーの起動とテスト） | `toolchain.json` の `bun` | 完全一致（本番と同じ版） |
+| Chromium（E2E） | `e2e/package.json` の `@playwright/test` | その版が要求する revision が入っていること |
+| Caddy（E2E） | `toolchain.json` の `caddy` | 完全一致（ハーネスが取得してキャッシュする） |
+
+**`pnpm test`・`pnpm e2e`・変異検査は、始める前に版を比べ、合わなければ始めません。**
+どの道具がどの版で、どう揃えるかを出して止まります。先に確かめるだけなら次を叩きます。
+
+```bash
+node scripts/check-toolchain.mjs test   # test・mutation は Node・pnpm・Bun、e2e は Chromium と Caddy も見る
+```
 
 ```bash
 corepack enable
@@ -851,6 +864,7 @@ node scripts/audit-ui-components.mjs             # 部品層の写しと規則�
 node scripts/audit-timer-classes.mjs             # timer のクラス名の書き方と定義（ADR-0023）
 node scripts/audit-supply-chain-config.mjs       # pnpm 供給網設定の退化（除外の版指定・死んだ除外行・未知のキーと値。ADR-0008 / ADR-0010）と Renovate の待機期間（ADR-0024）
 node scripts/audit-plan-gate.mjs                 # 実装計画の Constitution Check ゲート（境界日以降の plan が全原則の判定表と逸脱の結論を持つか。憲法 Governance / ADR-0003）
+node scripts/audit-toolchain.mjs                 # 開発環境の版の宣言（toolchain.json ほか）と、それを読む CI・ハーネス・package.json のずれ（ADR-0031 決定 3）
 node scripts/audit-agent-entries.mjs             # AI ツールの入口（CLAUDE.md ほか）が AGENTS.md へ向いて薄いか・AGENTS.md の原則の見出しが憲法と一致するか（ADR-0030 決定 3 / ADR-0002 決定 5）
 node scripts/mutation-check.mjs                  # 変異検査
 node scripts/check-links.mjs                     # リンク検査

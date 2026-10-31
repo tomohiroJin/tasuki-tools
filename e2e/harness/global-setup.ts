@@ -15,6 +15,7 @@ import type { ChildProcess } from 'node:child_process';
 import { buildWebApps } from './build';
 import { ensureCaddyBinary, installCaddyConfig, removeCaddyConfig, startCaddy, stopCaddy } from './caddy';
 import { runPreflight } from './preflight';
+import { assertToolchain } from './toolchain';
 import { startSyncServers, stopSyncServers } from './sync';
 import { linkWebRoots, unlinkWebRoots } from './www';
 import { resolveTarget } from './target';
@@ -26,6 +27,10 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
       /* 起動していないので何もしない */
     };
   }
+
+  // **何よりも先に置く**（#487）。版が合わない環境では、ビルドも起動もせずに止める。
+  // Chromium の revision の検査もここに含まれる（以前は preflight の中で、変数が未設定なら何も見なかった）。
+  assertToolchain();
 
   // **preflight より前に置く。** 配信するのは「ここで作った成果物」であって、
   // 「そのとき置いてあったもの」ではない。turbo 経由（`pnpm e2e`）なら

@@ -222,6 +222,20 @@ export function lockRefusalReason(rawLockText, isAlive = isPidAlive) {
 }
 
 /** ロックを取る。取れなければ理由を出して非 0 で終わる。 */
+/**
+ * 開発環境の版を宣言と比べ、合わなければ止める（#487）。判定の正本は `scripts/check-toolchain.mjs`。
+ * 取り込まずに子プロセスで起動するのは、`pnpm test`・E2E のハーネスと同じ入口を通すため。
+ */
+function assertToolchain() {
+  const r = spawnSync(process.execPath, [path.join(SCRIPT_DIR, "check-toolchain.mjs"), "mutation"], {
+    stdio: "inherit",
+  });
+  if (r.status !== 0) {
+    console.error("[mutation-check] 開発環境の版が宣言と合わないため、変異を流しません（上の出力）");
+    process.exit(1);
+  }
+}
+
 function acquireLock() {
   const raw = fs.existsSync(LOCK_PATH) ? fs.readFileSync(LOCK_PATH, "utf8") : null;
   const reason = lockRefusalReason(raw);
@@ -1037,6 +1051,12 @@ function main() {
     console.log(`[mutation-check] ${header}。この差分に該当する変異はありません。`);
     process.exit(0);
   }
+
+  // **変異を 1 件も当てる前に、開発環境の版を宣言と比べる**（#487・docs/adr/0031）。
+  // 環境の Bun の版が違うと、変異と無関係のテストが落ちて「検出した」に数えられるか、対照実行で止まる
+  // （#487 で Bun 1.4.4 が ws-adapter.message.test.ts を落とした）。0 件の終了より後に置くのは、
+  // 変異を流さない実行（docs だけの枝）に、テストを流すための道具を求めないため
+  assertToolchain();
 
   if (jobs > 1) {
     // 並列は HEAD の写しで流す。上の検査が除外する置き場（宣言の表・パッチ）の未コミットの変更も、

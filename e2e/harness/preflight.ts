@@ -7,7 +7,6 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, lstatSync } from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
-import { assertChromiumInstalled } from './browsers';
 import { CADDY_ETC_DIR, PORTS, WEB_ROOTS, type WebRoot } from './paths';
 import { resolveTarget } from './target';
 
@@ -101,7 +100,6 @@ export function assertDistsBuilt(roots: readonly WebRoot[] = WEB_ROOTS): void {
 /** すべての検査をまとめて実行する。 */
 export async function runPreflight(env: Record<string, string | undefined>): Promise<void> {
   resolveTarget(env); // ターゲットの取り違えをここでも落とす
-  assertChromiumInstalled(env);
   assertNoCaddyLeftovers();
   assertWebRootsSafe();
   assertDistsBuilt();

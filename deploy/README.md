@@ -211,15 +211,16 @@ RENDER_ONLY=1 DEPLOY_USER=<user> bash deploy/setup.sh timer
 
 ## Bun を上げる
 
-Bun は**本番・手元・CI を同じ版に揃えて固定**しています（CI は `.github/workflows/ci.yml` の
-`bun-version` すべて）。CI だけを上げると、本番と違う版で試すことになります
+Bun は**本番・手元・CI を同じ版に揃えて固定**しています。版の正本はリポジトリ直下の `toolchain.json` の
+`bun` の 1 か所で、CI（`.github/workflows/ci.yml`）はそこから読みます。手元の版が違うと、`pnpm test`・
+変異検査が始まる前に止まります（`docs/adr/0031`）。CI だけを上げると、本番と違う版で試すことになります
 （2026-10-22 に 1.4.4 で同期サーバーの試験が 1 件落ち、CI を固定しました）。
 Renovate の Bun の更新は Dependency Dashboard の承認制です（`renovate.json`・#442）。
 承認すると `renovate/bun` の PR が出るので、その PR の中で次を済ませます。
 
 1. **手元**: `bun upgrade`（公式のインストーラーで入れた `~/.bun/bin/bun` を上げる）または版を指定して入れ直し、
    `bun --version` で確かめる。新しい版で全件（同期サーバーの試験を含む）を流し、赤があれば先に調べる
-2. **CI**: Renovate の PR が `bun-version` を上げる。`@types/bun` も同じ PR に入る
+2. **CI**: Renovate の PR が `toolchain.json` の `bun` を上げる（`renovate.json` の `customManagers`）。`@types/bun` も同じ PR に入る
 3. **本番**（root が要る・**人のいない時間に**。同期サーバーの再起動でルームが消える）:
    1. 公式の配布物（GitHub Releases の `bun-linux-x64.zip`）を `SHASUMS256.txt` と照合して取得する
    2. 今の `/usr/local/bin/bun` を `/usr/local/bin/bun-<旧版>` へ退避し、新しい実体に入れ替える（入れ替えだけで再起動はしない）
@@ -231,8 +232,8 @@ Renovate の Bun の更新は Dependency Dashboard の承認制です（`renovat
 
 ## Caddy を上げる
 
-Caddy も**本番・E2E・CI を同じ版に揃えて固定**しています。版の正本は `e2e/harness/paths.ts` の
-`CADDY_VERSION` の 1 か所で、CI のキャッシュの鍵はそこから導きます（`.github/workflows/ci.yml`）。
+Caddy も**本番・E2E・CI を同じ版に揃えて固定**しています。版の正本はリポジトリ直下の `toolchain.json` の
+`caddy` の 1 か所で、E2E のハーネス（`e2e/harness/paths.ts`）と CI のキャッシュの鍵はそこから読みます。
 版が違うと、本番でだけ効かない書き方が緑のまま出ます（#434 で 2.6.2 と 2.11.4 の差を踏みました）。
 
 本番の Caddy は他のサイトと共用で、Caddy 公式の apt リポジトリ（`dl.cloudsmith.io/public/caddy/stable`）
@@ -244,7 +245,7 @@ unattended-upgrades の対象外で、さらに `apt-mark hold caddy` で止め�
    `caddy adapt` の結果と、起動したときの応答（状態コード・ヘッダー・本文）を比べる。他のサイトの設定も含める。
    `/ws` の先に受け取ったヘッダーを返すだけのサーバーを置き、偽の `X-Forwarded-For` が実際の接続元で
    上書きされることも比べる（IP 単位のレート制限の前提・#103）
-2. **E2E と CI**: `CADDY_VERSION` を新しい版へ上げる PR を出し、手元と CI の E2E を通す。**この PR はまだマージしない**
+2. **E2E と CI**: `toolchain.json` の `caddy` を新しい版へ上げる PR を出し、手元と CI の E2E を通す。**この PR はまだマージしない**
 3. **本番**（root が要る。Caddy の再起動で全サイトが数秒止まる。Tasuki の同期サーバーは再起動しないのでルームは残る）:
    1. 今の版の deb を版を指定して取っておく（`apt-get download caddy=$(dpkg-query -W -f='${Version}' caddy)`。
       版を付けないと新しい版の deb が来て、切り戻せなくなる）。`/usr/bin/caddy` と `/etc/caddy` も退避する

@@ -33,11 +33,19 @@ jobs:
           # 差分の取得に必要。.git は 17MB / 713 コミットで数秒。
           fetch-depth: 0
 
+      # 版の正本は toolchain.json（#487・docs/adr/0031）。**このファイルに版を書かない**（scripts/audit-toolchain.mjs が見る）。
+      # setup-node より前なので jq で読む（ubuntu-latest に入っている）。-e で、無いキーを null のまま渡さない。
+      - id: toolchain
+        run: |
+          node_version="$(jq -er .node toolchain.json)"
+          bun_version="$(jq -er .bun toolchain.json)"
+          caddy_version="$(jq -er .caddy toolchain.json)"
+          { echo "node=$node_version"; echo "bun=$bun_version"; echo "caddy=$caddy_version"; } >> "$GITHUB_OUTPUT"
       # Node 22 必須。ルートが宣言する pnpm（11 系）は node:sqlite（Node 22.5 以降）を
       # 使うため、Node 20 では ERR_UNKNOWN_BUILTIN_MODULE で起動すらしない。
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 22
+          node-version: ${{ steps.toolchain.outputs.node }}
 
       # 走らせる範囲を決める。ジョブ単位の if ではなくステップ単位の if を使い、
       # ジョブは常に起動して常に success を報告する（必須チェックにしても壊れない）。
@@ -53,10 +61,9 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         if: steps.scope.outputs.code == 'true'
         with:
-          # 本番（VPS）と手元の Bun に揃えて固定する。latest だと新しい版が出るたびに本番と違う版で試す
-          # （2026-10-22 に 1.4.4 で同期サーバーの試験が 1 件落ちた）。上げるときは本番の Bun と同時に上げる
-          # Renovate の更新は Dependency Dashboard の承認制（renovate.json・#442）。手順は deploy/README.md の「Bun を上げる」
-          bun-version: 1.4.3
+          # 本番（VPS）と手元の Bun に揃えて固定する（2026-10-22 に 1.4.4 で同期サーバーの試験が 1 件落ちた）。
+          # 版は toolchain.json の bun。上げるときは deploy/README.md の「Bun を上げる」
+          bun-version: ${{ steps.toolchain.outputs.bun }}
 
       - run: pnpm install --frozen-lockfile
         if: steps.scope.outputs.code == 'true'
@@ -84,9 +91,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      # 版の正本は toolchain.json（#487・docs/adr/0031）。**このファイルに版を書かない**（scripts/audit-toolchain.mjs が見る）。
+      # setup-node より前なので jq で読む（ubuntu-latest に入っている）。-e で、無いキーを null のまま渡さない。
+      - id: toolchain
+        run: |
+          node_version="$(jq -er .node toolchain.json)"
+          bun_version="$(jq -er .bun toolchain.json)"
+          caddy_version="$(jq -er .caddy toolchain.json)"
+          { echo "node=$node_version"; echo "bun=$bun_version"; echo "caddy=$caddy_version"; } >> "$GITHUB_OUTPUT"
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 22
+          node-version: ${{ steps.toolchain.outputs.node }}
 
       # 走らせる範囲を決める。ジョブ単位の if ではなくステップ単位の if を使い、
       # ジョブは常に起動して常に success を報告する（必須チェックにしても壊れない）。
@@ -100,10 +115,9 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         if: steps.scope.outputs.code == 'true'
         with:
-          # 本番（VPS）と手元の Bun に揃えて固定する。latest だと新しい版が出るたびに本番と違う版で試す
-          # （2026-10-22 に 1.4.4 で同期サーバーの試験が 1 件落ちた）。上げるときは本番の Bun と同時に上げる
-          # Renovate の更新は Dependency Dashboard の承認制（renovate.json・#442）。手順は deploy/README.md の「Bun を上げる」
-          bun-version: 1.4.3
+          # 本番（VPS）と手元の Bun に揃えて固定する（2026-10-22 に 1.4.4 で同期サーバーの試験が 1 件落ちた）。
+          # 版は toolchain.json の bun。上げるときは deploy/README.md の「Bun を上げる」
+          bun-version: ${{ steps.toolchain.outputs.bun }}
 
       - run: pnpm install --frozen-lockfile
         if: steps.scope.outputs.code == 'true'
@@ -114,20 +128,14 @@ jobs:
         if: steps.scope.outputs.code == 'true'
 
       # 版を固定してキャッシュする。「最新」を取ると、ある日突然赤くなる。
-      # 版は本番に揃える（#434）。正本は e2e/harness/paths.ts の CADDY_VERSION で、鍵はそこから導く。
-      # 鍵に版を直書きすると、paths.ts だけ上げたときに古い鍵が当たり、新しい版が毎回取り直しになる。
-      - id: caddy-version
-        if: steps.scope.outputs.code == 'true'
-        run: |
-          version="$(sed -n "s/^export const CADDY_VERSION = '\([0-9.]*\)';$/\1/p" e2e/harness/paths.ts)"
-          test -n "$version" || { echo "e2e/harness/paths.ts から CADDY_VERSION を読めませんでした" >&2; exit 1; }
-          echo "version=$version" >> "$GITHUB_OUTPUT"
+      # 版は本番に揃える（#434）。正本は toolchain.json の caddy で、鍵はそこから導く（上の toolchain の段）。
+      # 鍵に版を直書きすると、toolchain.json だけ上げたときに古い鍵が当たり、新しい版が毎回取り直しになる。
       - name: Cache Caddy
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         if: steps.scope.outputs.code == 'true'
         with:
           path: ~/.cache/tasuki-e2e
-          key: caddy-${{ steps.caddy-version.outputs.version }}
+          key: caddy-${{ steps.toolchain.outputs.caddy }}
 
       # Playwright の版は package.json で完全固定している。
       # revision は版に 1 対 1 で紐づくので、版をそのまま鍵にする。
@@ -170,9 +178,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      # 版の正本は toolchain.json（#487・docs/adr/0031）。**このファイルに版を書かない**（scripts/audit-toolchain.mjs が見る）。
+      # setup-node より前なので jq で読む（ubuntu-latest に入っている）。-e で、無いキーを null のまま渡さない。
+      - id: toolchain
+        run: |
+          node_version="$(jq -er .node toolchain.json)"
+          bun_version="$(jq -er .bun toolchain.json)"
+          caddy_version="$(jq -er .caddy toolchain.json)"
+          { echo "node=$node_version"; echo "bun=$bun_version"; echo "caddy=$caddy_version"; } >> "$GITHUB_OUTPUT"
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 22
+          node-version: ${{ steps.toolchain.outputs.node }}
       - run: node scripts/check-links.mjs
 
       # 実装計画の Constitution Check ゲート（#155・#135 経路⑨）。**quality ジョブへ
@@ -185,6 +201,11 @@ jobs:
       # AI ツールの入口（CLAUDE.md ほか）が正本 AGENTS.md とずれていないか（#483・docs/adr/0030 決定 3）。
       # 入口も AGENTS.md も *.md なので、plan-gate と同じ理由で quality ジョブへ置かない。
       - run: node scripts/audit-agent-entries.mjs
+
+      # 開発環境の版の宣言（toolchain.json ほか）と、それを読む側（この workflow・E2E のハーネス・package.json）の
+      # ずれ（#487・docs/adr/0031）。workflow だけを変える PR でも走らせたいので、絞り込みのある quality ジョブへ置かない。
+      # pnpm install も要らない（git ls-files とファイル読み取りだけ）。
+      - run: node scripts/audit-toolchain.mjs
 
   # 変異検査。**全件を毎回流す**（PR でも main でも。絞り込まない）。
   # 1 本で直列に流すと 13〜19 分かかり CI 全体の律速だった（#481）。そこで 2 段に分ける
@@ -210,9 +231,17 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
+      # 版の正本は toolchain.json（#487・docs/adr/0031）。**このファイルに版を書かない**（scripts/audit-toolchain.mjs が見る）。
+      # setup-node より前なので jq で読む（ubuntu-latest に入っている）。-e で、無いキーを null のまま渡さない。
+      - id: toolchain
+        run: |
+          node_version="$(jq -er .node toolchain.json)"
+          bun_version="$(jq -er .bun toolchain.json)"
+          caddy_version="$(jq -er .caddy toolchain.json)"
+          { echo "node=$node_version"; echo "bun=$bun_version"; echo "caddy=$caddy_version"; } >> "$GITHUB_OUTPUT"
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 22
+          node-version: ${{ steps.toolchain.outputs.node }}
       # 走らせる範囲を決める。ジョブ単位の if ではなくステップ単位の if を使い、
       # ジョブは常に起動して常に success を報告する（ADR 0009 D4）。
       - id: scope
@@ -225,10 +254,9 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         if: steps.scope.outputs.code == 'true'
         with:
-          # 本番（VPS）と手元の Bun に揃えて固定する。latest だと新しい版が出るたびに本番と違う版で試す
-          # （2026-10-22 に 1.4.4 で同期サーバーの試験が 1 件落ちた）。上げるときは本番の Bun と同時に上げる
-          # Renovate の更新は Dependency Dashboard の承認制（renovate.json・#442）。手順は deploy/README.md の「Bun を上げる」
-          bun-version: 1.4.3
+          # 本番（VPS）と手元の Bun に揃えて固定する（2026-10-22 に 1.4.4 で同期サーバーの試験が 1 件落ちた）。
+          # 版は toolchain.json の bun。上げるときは deploy/README.md の「Bun を上げる」
+          bun-version: ${{ steps.toolchain.outputs.bun }}
 
       # 供給網ポリシーの検証の目撃者は quality の 1 ジョブだけでよい（下の quality のコメント・設計正本 D5）。
       # ここで入れた依存のストアから、--jobs の作業ツリーが --offline で依存を引く。
@@ -268,9 +296,17 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
+      # 版の正本は toolchain.json（#487・docs/adr/0031）。**このファイルに版を書かない**（scripts/audit-toolchain.mjs が見る）。
+      # setup-node より前なので jq で読む（ubuntu-latest に入っている）。-e で、無いキーを null のまま渡さない。
+      - id: toolchain
+        run: |
+          node_version="$(jq -er .node toolchain.json)"
+          bun_version="$(jq -er .bun toolchain.json)"
+          caddy_version="$(jq -er .caddy toolchain.json)"
+          { echo "node=$node_version"; echo "bun=$bun_version"; echo "caddy=$caddy_version"; } >> "$GITHUB_OUTPUT"
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
-          node-version: 22
+          node-version: ${{ steps.toolchain.outputs.node }}
       - id: scope
         run: node scripts/ci-scope.mjs
       - run: corepack enable
@@ -281,10 +317,9 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         if: steps.scope.outputs.code == 'true'
         with:
-          # 本番（VPS）と手元の Bun に揃えて固定する。latest だと新しい版が出るたびに本番と違う版で試す
-          # （2026-10-22 に 1.4.4 で同期サーバーの試験が 1 件落ちた）。上げるときは本番の Bun と同時に上げる
-          # Renovate の更新は Dependency Dashboard の承認制（renovate.json・#442）。手順は deploy/README.md の「Bun を上げる」
-          bun-version: 1.4.3
+          # 本番（VPS）と手元の Bun に揃えて固定する（2026-10-22 に 1.4.4 で同期サーバーの試験が 1 件落ちた）。
+          # 版は toolchain.json の bun。上げるときは deploy/README.md の「Bun を上げる」
+          bun-version: ${{ steps.toolchain.outputs.bun }}
 
       # **素の `pnpm install` に戻さないこと。** ラッパは install を包んで、供給網ポリシーの
       # 検証（minimumReleaseAge / trustPolicy の再適用）が実際に走ったことを確かめる
