@@ -33,7 +33,7 @@ export function MethodPicker({ canOperate, initialSide, headingRef, onChoose, on
           {METHOD_PICKER_HEADING}
         </h2>
         {onCancel && (
-          <button type="button" className="ui-button ui-button--quiet ui-button--sm ui-page-header-back" onClick={onCancel}>
+          <button type="button" className="ui-button ui-button--secondary ui-button--sm ui-page-header-back" onClick={onCancel}>
             {BACK_LABEL}
           </button>
         )}

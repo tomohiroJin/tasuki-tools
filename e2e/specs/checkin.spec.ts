@@ -141,6 +141,14 @@ test.describe('@core 札を伏せて出し、全員の画面で一斉に開く',
         return head.getBoundingClientRect().right - el.getBoundingClientRect().right;
       });
       expect(Math.abs(gap), `${width}px で戻るが見出しの行の右端`).toBeLessThanOrEqual(1);
+      if (width === 320) {
+        // 320px では見出しの次の行に回り、右端に来る
+        const below = await back.evaluate((el) => {
+          const h = document.querySelector('#method-picker-heading') as HTMLElement;
+          return el.getBoundingClientRect().top >= h.getBoundingClientRect().bottom - 1;
+        });
+        expect(below, '320px で戻るが見出しの次の行').toBe(true);
+      }
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       expect(overflow, `${width}px の横溢れ`).toBeLessThanOrEqual(0);
     }

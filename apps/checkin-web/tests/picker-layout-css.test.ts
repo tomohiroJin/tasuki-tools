@@ -38,4 +38,10 @@ describe('やり方の選択の札の並び', () => {
     expect(opt).toMatch(/flex-direction:\s*column/);
     expect(opt).toMatch(/min-block-size:\s*var\(--tap-target\)/);
   });
+
+  it('Given 見出しの行 / Then 戻るの右寄せは checkin の見出しの行の規則で持つ（部品は変えない）', () => {
+    const back = block('.method-picker-head .ui-page-header-back');
+    expect(back).toMatch(/margin-inline-start:\s*auto/);
+    expect(back).toMatch(/white-space:\s*nowrap/);
+  });
 });

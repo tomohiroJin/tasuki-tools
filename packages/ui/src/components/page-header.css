@@ -20,7 +20,4 @@
    `<a>` には `.ui-button .ui-button--quiet` も当てる。色・字の大きさ・当たりの高さはそちらが持つ。 */
 .ui-page-header-back {
   flex: none;
-  /* 狭い幅で折り返しても右端に置く（1 行のときは space-between で既に右端）。字は折らない */
-  margin-inline-start: auto;
-  white-space: nowrap;
 }

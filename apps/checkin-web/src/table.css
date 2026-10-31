@@ -64,7 +64,12 @@
 }
 
 /* ---------- やり方の選択 ---------- */
-/* 見出しの行の並びは部品（.ui-page-header）が持つ。添え書きは次の行に全幅（#468 D5）。戻るは折り返さない */
+/* 見出しの行の並びは部品（.ui-page-header）が持つ。右寄せだけ checkin の見出しの行で足す（折り返しても右端・字は折らない・#468 D5）。
+   部品は他のアプリの見出しにも効くので変えない（#468 の範囲を守る） */
+.method-picker-head .ui-page-header-back {
+  margin-inline-start: auto;
+  white-space: nowrap;
+}
 
 .method-picker-heading {
   margin: 0;

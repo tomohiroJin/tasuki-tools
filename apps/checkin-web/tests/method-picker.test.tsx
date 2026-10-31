@@ -68,6 +68,12 @@ describe('やり方の選択', () => {
     expect(screen.getByText(/いまの回の札は消えます/)).toBeInTheDocument();
   });
 
+  it('Given 回がある / Then 「いまの回に戻る」は枠付きの小さなボタン（RoomHeader のリンクと見分ける）', () => {
+    render(<MethodPicker canOperate initialSide="checkin" onChoose={vi.fn()} onDraw={vi.fn()} onCancel={vi.fn()} />);
+
+    expect(screen.getByRole('button', { name: 'いまの回に戻る' })).toHaveClass('ui-button', 'ui-button--secondary', 'ui-button--sm');
+  });
+
   it('Given 回が無い（onCancel なし） / Then 戻るボタンも添え書きも出ない（#468 D5）', () => {
     render(<MethodPicker canOperate initialSide="checkin" onChoose={vi.fn()} onDraw={vi.fn()} />);
 
