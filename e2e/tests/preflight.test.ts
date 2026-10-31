@@ -63,7 +63,7 @@ describe('assertPortsFree', () => {
     // Given
     await occupy(19805);
     // When / Then: 誰が掴んでいるかを調べる手掛かりが出る
-    await expect(assertPortsFree([19805])).rejects.toThrow(/19805/);
+    await expect(assertPortsFree([19805])).rejects.toThrow(/TASUKI_E2E_CADDY_PORT/);
   });
 
   it('Given 空きポート / When 検査する / Then 通る', async () => {

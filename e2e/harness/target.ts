@@ -1,13 +1,7 @@
-/**
- * E2E の実行対象（ターゲット）を解決する。
- *
- * ローカルの入口は固定ポートにしている。動的に確保すると、その値を
- * playwright.config.ts へ渡す経路が別途必要になるうえ、ポートの占有検査が
- * そのまま二重起動の排他として使えなくなる。
- */
+import { PORTS } from './paths';
 
 /** ローカルのハーネスが待ち受ける入口。Caddy がこのポートで listen する。 */
-export const LOCAL_BASE_URL = 'http://127.0.0.1:18080';
+export const LOCAL_BASE_URL = `http://127.0.0.1:${PORTS.caddy}`;
 
 export interface Target {
   readonly kind: 'local' | 'production';

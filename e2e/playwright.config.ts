@@ -5,6 +5,7 @@
  * Playwright が default export を要求するため。
  */
 import { defineConfig, devices } from '@playwright/test';
+import { TEST_RESULTS_DIR } from './harness/paths';
 import { resolveTarget } from './harness/target';
 
 const target = resolveTarget(process.env);
@@ -15,7 +16,7 @@ export default defineConfig({
   testDir: './specs',
   testMatch: '**/*.spec.ts',
   globalSetup: './harness/global-setup.ts',
-  outputDir: './test-results/artifacts',
+  outputDir: `${TEST_RESULTS_DIR}/artifacts`,
   fullyParallel: true,
   // **`.only` の置き忘れで検査対象が黙って縮むのを止める。**
   // 1 つでも `.only` があると Playwright はそれだけを走らせ、終了コード 0 で緑になる
@@ -29,7 +30,7 @@ export default defineConfig({
   retries: isProduction ? 0 : isCi ? 1 : 0,
   timeout: isProduction ? 120_000 : 60_000,
   expect: { timeout: isProduction ? 10_000 : 5_000 },
-  reporter: [['list'], ['html', { outputFolder: './test-results/html', open: 'never' }]],
+  reporter: [['list'], ['html', { outputFolder: `${TEST_RESULTS_DIR}/html`, open: 'never' }]],
   use: {
     baseURL: target.baseURL,
     navigationTimeout: isProduction ? 30_000 : 15_000,

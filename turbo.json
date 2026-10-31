@@ -49,11 +49,11 @@
     "e2e": {
       "dependsOn": ["^build"],
       "cache": false,
-      "passThroughEnv": ["TASUKI_E2E_BASE_URL", "PLAYWRIGHT_BROWSERS_PATH", "WAYLAND_DISPLAY"]
+      "passThroughEnv": ["TASUKI_E2E_CADDY_PORT", "TASUKI_E2E_SYNC_PORT", "TASUKI_E2E_BASE_URL", "PLAYWRIGHT_BROWSERS_PATH", "WAYLAND_DISPLAY"]
     },
     "e2e:prod": {
       "cache": false,
-      "passThroughEnv": ["TASUKI_E2E_BASE_URL", "PLAYWRIGHT_BROWSERS_PATH", "WAYLAND_DISPLAY"]
+      "passThroughEnv": ["TASUKI_E2E_CADDY_PORT", "TASUKI_E2E_SYNC_PORT", "TASUKI_E2E_BASE_URL", "PLAYWRIGHT_BROWSERS_PATH", "WAYLAND_DISPLAY"]
     },
     "@tasuki/e2e#test": {
       "dependsOn": []

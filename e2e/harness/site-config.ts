@@ -1,13 +1,4 @@
-/**
- * 本番のサイトブロック（deploy/caddy/tasuki.conf）からローカル用を作る。
- *
- * **差し替えるのはアドレス行 1 行だけ。** ドメインと TLS(ACME) はローカルで
- * 再現できないためで、それ以外に理由は無い。header ブロックと
- * `import /etc/caddy/tasuki/apps/*.conf` はそのまま活かす。
- *
- * 断片（deploy/<app>/caddy/*.conf）はこの関数を通さない。あちらは内容を
- * 1 バイトも変えずに設置する。
- */
+/** 本番のサイトアドレスと、ローカルコピーの接続先を変換する。 */
 
 /** 本番のアドレス行。デプロイ時に sed で実ドメインへ置換される前の形。 */
 export const PRODUCTION_ADDRESS_LINE = '<公開ドメイン> {';
@@ -36,4 +27,17 @@ export function toLocalSiteConfig(productionConf: string, address: string): stri
   const replaced = [...lines];
   replaced[target!.index] = `${address} {`;
   return replaced.join('\n');
+}
+
+/** 本番ファイルは保持し、E2E コピーの上流と静的ファイルの位置だけを置換する。 */
+export function toLocalFragment(
+  source: string,
+  syncPort: number,
+  roots: readonly { readonly link: string; readonly dist: string }[],
+): string {
+  let result = source.replaceAll('127.0.0.1:8787', `127.0.0.1:${syncPort}`);
+  for (const { link, dist } of [...roots].sort((a, b) => b.link.length - a.link.length)) {
+    result = result.replaceAll(link, `"${dist}"`);
+  }
+  return result;
 }
