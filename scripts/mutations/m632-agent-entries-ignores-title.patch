@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-agent-entries.mjs b/scripts/audit-agent-entries.mjs
+index af9b003..05f4f8c 100644
+--- a/scripts/audit-agent-entries.mjs
++++ b/scripts/audit-agent-entries.mjs
+@@ -91,7 +91,7 @@ export function comparePrinciples(constitution, agents) {
+   for (const p of constitution) {
+     const a = agentsBy.get(p.numeral);
+     if (!a) problems.push(`原則 ${p.numeral}「${p.title}」が AGENTS.md にありません`);
+-    else if (a.title !== p.title) {
++    else if (false) {
+       problems.push(`原則 ${p.numeral} の表題が違います: AGENTS.md「${a.title}」/ 憲法「${p.title}」`);
+     }
+   }

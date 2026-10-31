@@ -229,6 +229,7 @@ export const LIVE_DOCS = [
   "README.md",
   "AGENTS.md",
   "CLAUDE.md",
+  "GEMINI.md", // #483: AI ツールの入口。AGENTS.md へ向ける薄いファイル。
   "SECURITY.md",
   "docs/README.md",
   "docs/adr/",
@@ -237,6 +238,7 @@ export const LIVE_DOCS = [
   ".github/",
   "e2e/",
   "docs/constitution.md",
+  "docs/ai-manifesto.md", // #483: AI と開発するときの宣言。憲法・ADR を指す。
   "docs/poker/adr/",
   "packages/invite-ui/README.md", // ADR-0020 の現行 API 案内。コードパスも検査する。
   "packages/markdown/README.md", // #91 PR 3: Markdown サブセットの解析の API 案内。

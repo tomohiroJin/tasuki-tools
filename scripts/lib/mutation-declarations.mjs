@@ -4118,4 +4118,14 @@ export const MUTATIONS = [
     tests: ["lib/mutation-parallel.test.mjs"],
     note: "#481 のレビュー。その場で流す出力で、1 行が 2 行に割れて別のワーカーの行と混ざる。",
   },
+  {
+    id: 632,
+    label: "audit-agent-entries が原則の表題の違いを見ない（番号だけを突き合わせる）",
+    patch: "m632-agent-entries-ignores-title.patch",
+    pkg: "scripts",
+    tests: ["audit-agent-entries.test.mjs"],
+    note:
+      "#483・docs/adr/0030 決定 3。憲法の見出しを改名しても AGENTS.md が古い表題のまま通る。" +
+      "docs/adr/0002 決定 5 の見出し同期が、番号の数合わせに痩せる。",
+  },
 ];
