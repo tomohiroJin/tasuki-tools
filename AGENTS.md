@@ -22,7 +22,34 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 
 ### AI 運用規則
 
-- 本番デプロイ（deploy.sh / systemctl / Caddy reload）は明示指示を待つ
+決定と根拠は [`docs/adr/0030`](docs/adr/0030-ai-driven-development-operations.md)、
+価値観の要約は [`docs/ai-manifesto.md`](docs/ai-manifesto.md)。ここは今日どう動くかの正本。
+
+**作業の始めに**
+
+- 依頼の ISSUE・関係する ADR とガイドを読む。作業ブランチを確かめる
+- 同じブランチ・作業ツリーを別のエージェントが触っていないか確かめる。並行するなら分ける
+
+**人の明示の指示か承認を待つ操作**（基準は `docs/adr/0030` 決定 1。一覧に無くても基準に当たれば聞く）
+
+- 本番デプロイ（deploy.sh / systemctl / Caddy reload）
+- ADR の採択（Proposed → Accepted）・憲法の改版
+- 検査を飛ばす・無効にする・弱める変更（テストの skip・変異の宣言の削除・走査対象の除外の追加）
+- 依頼に含まれない ISSUE・PR・コメントの投稿、外部のサービスへの送信
+- 他人のブランチの履歴の書き換え・force push・データや記録の削除
+- 秘密・資格情報（`docs/adr/0011` の分類）を読む・書く・移す
+
+**作業の終わりに**
+
+- 触った範囲の検査を流す（下の「基本コマンド」。段ごとの使い分けは `docs/guides/development.md`）
+- 報告は次の 3 つに分けて書く（PR 本文・ISSUE・会話のどれでも）
+  - **変えたこと**
+  - **確かめたこと** — 流したコマンドと結果
+  - **確かめられなかったこと** — 流せなかった検査とその理由。無ければ「なし」と書く
+- 会話の中で決めたことは、ADR・ISSUE・振り返りのどれかへ残す
+
+**環境について**
+
 - 9p マウント（`/workspaces` など）上で検査が遅いときは、ソースを移さず
   **依存の実体だけ**をコンテナ側へ逃がす（手順は
   [`docs/guides/development.md`](docs/guides/development.md) の「9p 越しで実行するとき」）
@@ -32,6 +59,8 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 
 - 憲法: [`docs/constitution.md`](docs/constitution.md) —
   何を守るか（原則 I〜XI）
+- マニフェスト: [`docs/ai-manifesto.md`](docs/ai-manifesto.md) —
+  AI と開発するときの価値観の要約。新しい義務は持たず、憲法と ADR を指す（`docs/adr/0030` 決定 6）
 - ADR: [`docs/adr/`](docs/adr/)（横断）・`docs/<app>/adr/`（アプリ固有） —
   なぜそう決まっているか。参照は置き場つき（例: `docs/adr/0002`）
 - ガイド: [`docs/guides/`](docs/guides/) —
@@ -50,6 +79,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 - `node scripts/audit-domain-error-shape.mjs` — ドメインエラー型の形（core のエラー型が文言を持たない）
 - `node scripts/audit-domain-side-effects.mjs` — ドメインの副作用（core が環境から直接値を読まない）
 - `node scripts/check-links.mjs` — リンク検査
+- `node scripts/audit-agent-entries.mjs` — AI ツールの入口（`CLAUDE.md` ほか）が本書とずれていないか
 - `node scripts/mutation-check.mjs` — 変異検査（全件。手元の実装中は `--changed` / `--pkg <dir>` / `--id <番号,…>` で絞る。`--jobs <数>` で作業ツリーを分けて並列に流せる。CI は `--shard k/n` で分ける。段ごとの使い分けは `docs/guides/development.md`）
 - `bash -c 'set -euo pipefail; targets="$(node scripts/list-scan-targets.mjs script-tests)"; node --test $targets'` — scripts の自己テスト
 
