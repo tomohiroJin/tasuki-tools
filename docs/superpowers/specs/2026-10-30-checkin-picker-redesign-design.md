@@ -43,7 +43,7 @@
 | 札どうしの間 | `--space-3` |
 | 札の内側 | `--space-4` 縦 / `--space-3` 横（64rem 以上は縦 `--space-5`） |
 | 扇と文の間 | `--space-3`（64rem 以上は `--space-4`） |
-| 見出しの行（見出しと戻る） | 並びは部品 `.ui-page-header`（間 `--space-3`）。戻るは折り返しても `margin-inline-start: auto` で右端。添え書きは行の外（直後の兄弟）で全幅 |
+| 見出しの行（見出しと戻る） | 並びは部品 `.ui-page-header`（間 `--space-3`）。戻るは折り返しても右端（checkin の `table.css` の `.method-picker-head .ui-page-header-back` が `margin-inline-start: auto` を持つ。部品は変えない・§7）。添え書きは行の外（直後の兄弟）で全幅 |
 | 切り替えと一文 | 切り替えの直下に詰める（一組） |
 
 ## 5. a11y

@@ -3836,6 +3836,14 @@ export const MUTATIONS = [
     note: "#468 D2。320px で札が潰れる。",
   },
   {
+    id: 583,
+    label: "見出しの行の「いまの回に戻る」を右に寄せない",
+    patch: "m583-picker-back-not-right-aligned.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/picker-layout-css.test.ts"],
+    note: "#468 D5。狭い幅で折り返した「いまの回に戻る」が左端に落ちる。右寄せを共有部品へ戻して checkin の規則を消す変更も捕まえる。",
+  },
+  {
     id: 600,
     label: "parseRoomRoute が先頭の base を確かめない",
     patch: "m600-room-route-base-not-checked.patch",
