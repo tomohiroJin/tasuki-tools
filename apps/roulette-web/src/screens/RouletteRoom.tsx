@@ -36,7 +36,7 @@ import {
   stageViewOf,
 } from '../roulette-view';
 import { pickStopsMs } from '@tasuki/roulette-core';
-import { batchNoticeText, planBatch } from '../regulars-view';
+import { batchNoticeText, planBatch, restoreOf } from '../regulars-view';
 import type { RegularGroup } from '../storage/regulars';
 import { usePressMotion } from '../hooks/use-press-motion';
 import { pressButtonOf, pressCaptionOf, pressStopOfView, withPressStop } from '../press-view';
@@ -185,8 +185,14 @@ export function RouletteRoom({ roomCode }: { roomCode: string }) {
   const locked = !operable || serverSpinning;
   // いつものメンツを入れる（#458）。知らせは押した時点の状態から、サーバーと同じ関数で組む（通信に返事は無い）
   const insertRegular = (group: RegularGroup): string => {
-    const text = batchNoticeText(planBatch({ view: received, members, names: group.members }));
+    // 外れている名簿・ゲストの行はサーバーの addMany がとばすだけなので、同じ名前の行は入れ直す（#469）
+    const restore = restoreOf(people.rows, group.members);
+    const text = batchNoticeText(planBatch({ view: received, members, names: group.members }), {
+      restored: restore.ids.length,
+      blocked: restore.blocked,
+    });
     sync.addGuests(group.members);
+    for (const id of restore.ids) sync.setIncluded(id, true);
     return text;
   };
 
@@ -246,7 +252,7 @@ export function RouletteRoom({ roomCode }: { roomCode: string }) {
               regulars={
                 <RegularsSection
                   locked={locked}
-                  guestNames={received.guests.map((g) => g.name)}
+                  people={people.rows}
                   onInsert={insertRegular}
                 />
               }

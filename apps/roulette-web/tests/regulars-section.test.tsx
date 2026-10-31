@@ -13,9 +13,9 @@ const seed = (items: { id: string; name: string; usedAt: number; members: string
 const stored = (): { id: string; name: string; members: string[] }[] =>
   (JSON.parse(localStorage.getItem(REGULARS_KEY) ?? '{"items":[]}') as { items: { id: string; name: string; members: string[] }[] }).items;
 
-const setup = (props: Partial<{ locked: boolean; guestNames: string[]; onInsert: (g: unknown) => string }> = {}) => {
+const setup = (props: Partial<{ locked: boolean; candidates: { name: string; checked: boolean }[]; onInsert: (g: unknown) => string }> = {}) => {
   const onInsert = vi.fn(props.onInsert ?? (() => '3 人を入れました'));
-  render(<RegularsSection locked={props.locked ?? false} guestNames={props.guestNames ?? []} onInsert={onInsert} />);
+  render(<RegularsSection locked={props.locked ?? false} people={(props.candidates ?? []).map((c, i) => ({ id: `r${i}`, name: c.name, checked: c.checked, disabled: false, isSelf: false, removable: false, mark: null, turn: null }))} onInsert={onInsert} />);
   return { onInsert };
 };
 const btn = (name: string | RegExp) => screen.getByRole('button', { name });
@@ -35,9 +35,21 @@ describe('0 組のとき', () => {
     expect(btn('新しく作る')).toBeInTheDocument();
   });
 
-  it('Given 追加した名前が 0 人 / When 描く / Then 追加した名前から作るは無い', () => {
-    setup({ guestNames: [] });
-    expect(screen.queryByRole('button', { name: '追加した名前から作る' })).toBeNull();
+  it('Given 自分だけ（候補 1 人）/ When 描く / Then いまの人から作るは出さない', () => {
+    setup({ candidates: [{ name: 'あや', checked: true }] });
+    expect(screen.queryByRole('button', { name: 'いまの人から作る' })).toBeNull();
+  });
+
+  it('Given 人が 0 人 / When 描く / Then いまの人から作るは無く、新しく作ると手入力だけでチェックの一覧は出ない', () => {
+    setup({ candidates: [] });
+    expect(screen.queryByRole('button', { name: 'いまの人から作る' })).toBeNull();
+    fireEvent.click(btn('新しく作る'));
+    expect(screen.queryByRole('group', { name: 'ルーレットにいる人' })).toBeNull();
+    expect(screen.queryAllByRole('checkbox')).toHaveLength(0);
+    type('メンツの名前', '朝会');
+    type('ほかの名前（1 行に 1 人）', 'さとう');
+    fireEvent.click(btn('この端末に保存'));
+    expect(stored().map((g) => g.members)).toEqual([['さとう']]);
   });
 
   it('Given 保存が壊れている / When 描く / Then 0 組で描け、保存で止めて中身は触らない', () => {
@@ -46,7 +58,7 @@ describe('0 組のとき', () => {
     expect(screen.getByText('よく入れる名前をまとめておくと、次から一度で入れられます')).toBeInTheDocument();
     fireEvent.click(btn('新しく作る'));
     type('メンツの名前', '朝会');
-    type('入る人の名前（1 行に 1 人）', 'さとう');
+    type('ほかの名前（1 行に 1 人）', 'さとう');
     fireEvent.click(btn('この端末に保存'));
     expect(screen.getByRole('alert')).toHaveTextContent('保存したメンツを読めないため、保存を止めました');
     expect(localStorage.getItem(REGULARS_KEY)).toBe('{');
@@ -64,7 +76,7 @@ describe('作る', () => {
     setup();
     fireEvent.click(btn('新しく作る'));
     type('メンツの名前', '朝会');
-    type('入る人の名前（1 行に 1 人）', 'さとう\nすずき\n\n  たなか  \nさとう');
+    type('ほかの名前（1 行に 1 人）', 'さとう\nすずき\n\n  たなか  \nさとう');
     expect(screen.getByText('3 / 24 人')).toBeInTheDocument();
     fireEvent.click(btn('この端末に保存'));
     const pick = btn('朝会 3 人を入れる');
@@ -74,21 +86,73 @@ describe('作る', () => {
     expect(stored().map((g) => [g.name, g.members])).toEqual([['朝会', ['さとう', 'すずき', 'たなか']]]);
   });
 
-  it('Given 追加した名前が 2 人 / When 追加した名前から作る / Then 複数行欄に 1 行ずつ入り、名前の欄にフォーカス', () => {
-    setup({ guestNames: ['さとう', 'すずき'] });
-    fireEvent.click(btn('追加した名前から作る'));
-    expect(screen.getByLabelText('入る人の名前（1 行に 1 人）')).toHaveValue('さとう\nすずき');
+  const PEOPLE = [
+    { name: 'あや', checked: true },
+    { name: 'さとう', checked: false },
+    { name: 'すずき', checked: true },
+  ];
+  const box = (name: string) => screen.getByRole('checkbox', { name });
+
+  it('Given 3 人（2 人が入っている）/ When いまの人から作る / Then 全員が一覧に出て入っている人にチェック、手入力は空、名前の欄にフォーカス', () => {
+    setup({ candidates: PEOPLE });
+    fireEvent.click(btn('いまの人から作る'));
+    const group = screen.getByRole('group', { name: 'ルーレットにいる人' });
+    expect(group).toBeInTheDocument();
+    expect(screen.getAllByRole('checkbox').map((c) => [c.closest('label')?.textContent, (c as HTMLInputElement).checked])).toEqual([
+      ['あや', true],
+      ['さとう', false],
+      ['すずき', true],
+    ]);
+    expect(screen.getByLabelText('ほかの名前（1 行に 1 人）')).toHaveValue('');
+    expect(screen.getByText('2 / 24 人')).toBeInTheDocument();
     expect(document.activeElement).toBe(screen.getByLabelText('メンツの名前'));
   });
 
+  it('Given いまの人から作る / When チェックを足し手入力も足して保存 / Then 合計の重複なし 1 組を保存する', () => {
+    setup({ candidates: PEOPLE });
+    fireEvent.click(btn('いまの人から作る'));
+    fireEvent.click(box('さとう'));
+    type('ほかの名前（1 行に 1 人）', 'いない人\n  ＡＹＡ \nいない人');
+    type('メンツの名前', '朝会');
+    fireEvent.click(btn('この端末に保存'));
+    expect(stored().map((g) => g.members)).toEqual([['あや', 'さとう', 'すずき', 'いない人', 'ＡＹＡ'.normalize('NFKC')]]);
+  });
+
+  it('Given 新しく作る / Then チェックは全部外れ、手入力は空', () => {
+    setup({ candidates: PEOPLE });
+    fireEvent.click(btn('新しく作る'));
+    expect(screen.getAllByRole('checkbox').every((c) => !(c as HTMLInputElement).checked)).toBe(true);
+    expect(screen.getByLabelText('ほかの名前（1 行に 1 人）')).toHaveValue('');
+    expect(screen.getByText('0 / 24 人')).toBeInTheDocument();
+  });
+
+  it('Given チェックと手入力の合計が 25 人 / When 保存 / Then 保存せず上限の理由を出す', () => {
+    const many = Array.from({ length: 20 }, (_, i) => ({ name: `人${i}`, checked: true }));
+    setup({ candidates: many });
+    fireEvent.click(btn('いまの人から作る'));
+    type('メンツの名前', '朝会');
+    type('ほかの名前（1 行に 1 人）', Array.from({ length: 5 }, (_, i) => `外${i}`).join('\n'));
+    expect(screen.getByText('25 / 24 人')).toBeInTheDocument();
+    fireEvent.click(btn('この端末に保存'));
+    expect(screen.getByRole('alert')).toHaveTextContent('1 組は 24 人までです');
+    expect(stored()).toEqual([]);
+  });
+
+  it('Given チェックの人と手入力が同じ人 / When 保存 / Then 人数は重複を除いた数', () => {
+    setup({ candidates: PEOPLE });
+    fireEvent.click(btn('いまの人から作る'));
+    type('ほかの名前（1 行に 1 人）', 'あや');
+    expect(screen.getByText('2 / 24 人')).toBeInTheDocument();
+  });
+
   it('Given 作る欄 / When やめる / Then 開いたボタンへフォーカスが戻る', () => {
-    setup({ guestNames: ['さとう'] });
+    setup({ candidates: [{ name: 'さとう', checked: true }, { name: 'あや', checked: true }] });
     fireEvent.click(btn('新しく作る'));
     fireEvent.click(btn('やめる'));
     expect(document.activeElement).toBe(btn('新しく作る'));
-    fireEvent.click(btn('追加した名前から作る'));
+    fireEvent.click(btn('いまの人から作る'));
     fireEvent.click(btn('やめる'));
-    expect(document.activeElement).toBe(btn('追加した名前から作る'));
+    expect(document.activeElement).toBe(btn('いまの人から作る'));
   });
 });
 
@@ -109,7 +173,7 @@ describe('保存の検証', () => {
     setup();
     open();
     type('メンツの名前', name);
-    type('入る人の名前（1 行に 1 人）', members);
+    type('ほかの名前（1 行に 1 人）', members);
     save();
     expect(screen.getByRole('alert')).toHaveTextContent(message);
     expect(screen.getByLabelText('メンツの名前')).toBeInTheDocument();
@@ -120,7 +184,7 @@ describe('保存の検証', () => {
     setup();
     open();
     type('メンツの名前', '朝会');
-    type('入る人の名前（1 行に 1 人）', Array.from({ length: 24 }, (_, i) => `ひと${i}`).join('\n'));
+    type('ほかの名前（1 行に 1 人）', Array.from({ length: 24 }, (_, i) => `ひと${i}`).join('\n'));
     save();
     expect(screen.queryByRole('alert')).toBeNull();
     expect(stored()[0]?.members).toHaveLength(24);
@@ -130,7 +194,7 @@ describe('保存の検証', () => {
   it('Given 名前が空 / When 保存 / Then 名前の欄に印が付き、エラーと結ばれる', () => {
     setup();
     open();
-    type('入る人の名前（1 行に 1 人）', 'さとう');
+    type('ほかの名前（1 行に 1 人）', 'さとう');
     save();
     const field = screen.getByLabelText('メンツの名前');
     expect(field).toHaveAttribute('aria-invalid', 'true');
@@ -146,11 +210,11 @@ describe('保存の検証', () => {
     setup();
     fireEvent.click(btn('新しく作る'));
     type('メンツの名前', name);
-    type('入る人の名前（1 行に 1 人）', members);
+    type('ほかの名前（1 行に 1 人）', members);
     fireEvent.click(btn('この端末に保存'));
     expect(screen.getByRole('alert')).toBeInTheDocument();
     expect(screen.getByLabelText('メンツの名前').hasAttribute('aria-invalid')).toBe(onName);
-    expect(screen.getByLabelText('入る人の名前（1 行に 1 人）').hasAttribute('aria-invalid')).toBe(onMembers);
+    expect(screen.getByLabelText('ほかの名前（1 行に 1 人）').hasAttribute('aria-invalid')).toBe(onMembers);
   });
 
   it('Given 同じ名前のメンツがある / When 保存 / Then 印は名前の欄だけ', () => {
@@ -158,10 +222,10 @@ describe('保存の検証', () => {
     setup();
     fireEvent.click(btn('新しく作る'));
     type('メンツの名前', '朝会');
-    type('入る人の名前（1 行に 1 人）', 'すずき');
+    type('ほかの名前（1 行に 1 人）', 'すずき');
     fireEvent.click(btn('この端末に保存'));
     expect(screen.getByLabelText('メンツの名前')).toHaveAttribute('aria-invalid', 'true');
-    expect(screen.getByLabelText('入る人の名前（1 行に 1 人）').hasAttribute('aria-invalid')).toBe(false);
+    expect(screen.getByLabelText('ほかの名前（1 行に 1 人）').hasAttribute('aria-invalid')).toBe(false);
   });
 
   it('Given 同じ名前のメンツがある / When 作って保存 / Then 同じ名前のメンツがもうあります', () => {
@@ -169,7 +233,7 @@ describe('保存の検証', () => {
     setup();
     open();
     type('メンツの名前', '朝会');
-    type('入る人の名前（1 行に 1 人）', 'すずき');
+    type('ほかの名前（1 行に 1 人）', 'すずき');
     save();
     expect(screen.getByRole('alert')).toHaveTextContent('同じ名前のメンツがもうあります');
     expect(stored()).toHaveLength(1);
@@ -180,7 +244,7 @@ describe('保存の検証', () => {
     setup();
     open();
     type('メンツの名前', '十一');
-    type('入る人の名前（1 行に 1 人）', 'すずき');
+    type('ほかの名前（1 行に 1 人）', 'すずき');
     save();
     expect(screen.getByRole('alert')).toHaveTextContent('メンツは 10 組まで保存できます');
     expect(stored()).toHaveLength(10);
@@ -190,7 +254,7 @@ describe('保存の検証', () => {
     setup();
     open();
     type('メンツの名前', '朝会');
-    type('入る人の名前（1 行に 1 人）', 'さとう');
+    type('ほかの名前（1 行に 1 人）', 'さとう');
     const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('quota');
     });
@@ -253,8 +317,69 @@ describe('直す・消す', () => {
     fireEvent.click(btn('朝会 を直す'));
     expect(screen.getByText('「朝会」を直す')).toBeInTheDocument();
     expect(screen.getByLabelText('メンツの名前')).toHaveValue('朝会');
-    expect(screen.getByLabelText('入る人の名前（1 行に 1 人）')).toHaveValue('さとう\nすずき');
+    expect(screen.getByLabelText('ほかの名前（1 行に 1 人）')).toHaveValue('さとう\nすずき');
     expect(document.activeElement).toBe(screen.getByLabelText('メンツの名前'));
+  });
+
+  it('Given ルーレットにいる人とそうでない人を含む組 / When 直す / Then いる人はチェック、いない人は手入力。チェックを外して保存すると外れる', () => {
+    seed([{ id: 'a', name: '朝会', usedAt: 1, members: ['さとう', 'すずき', 'いない人'] }]);
+    setup({ candidates: [{ name: 'あや', checked: true }, { name: 'さとう', checked: true }, { name: 'すずき', checked: true }] });
+    fireEvent.click(btn('朝会 を直す'));
+    expect((screen.getByRole('checkbox', { name: 'あや' }) as HTMLInputElement).checked).toBe(false);
+    expect((screen.getByRole('checkbox', { name: 'さとう' }) as HTMLInputElement).checked).toBe(true);
+    expect(screen.getByLabelText('ほかの名前（1 行に 1 人）')).toHaveValue('いない人');
+    fireEvent.click(screen.getByRole('checkbox', { name: 'さとう' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'あや' }));
+    fireEvent.click(btn('この端末に保存'));
+    expect(stored()[0]?.members).toEqual(['すずき', 'いない人', 'あや']);
+  });
+
+  it('Given 保存済みの順と綴りが候補と違う組 / When 直すを開いて何も変えず保存 / Then members は完全に同じ', () => {
+    seed([{ id: 'a', name: '朝会', usedAt: 1, members: ['zed', 'alice', 'いない人', 'さとう'] }]);
+    setup({ candidates: [{ name: 'さとう', checked: true }, { name: 'Alice', checked: true }, { name: 'zed', checked: false }] });
+    fireEvent.click(btn('朝会 を直す'));
+    fireEvent.click(btn('この端末に保存'));
+    expect(stored()[0]?.members).toEqual(['zed', 'alice', 'いない人', 'さとう']);
+  });
+
+  it('Given 直す欄 / When 新しくチェックして手入力も足す / Then 保存済みの後ろへ', () => {
+    seed([{ id: 'a', name: '朝会', usedAt: 1, members: ['zed', 'alice'] }]);
+    setup({ candidates: [{ name: 'Alice', checked: true }, { name: 'new', checked: false }] });
+    fireEvent.click(btn('朝会 を直す'));
+    fireEvent.click(screen.getByRole('checkbox', { name: 'new' }));
+    type('ほかの名前（1 行に 1 人）', 'zed\nmanual');
+    fireEvent.click(btn('この端末に保存'));
+    expect(stored()[0]?.members).toEqual(['zed', 'alice', 'new', 'manual']);
+  });
+
+  it('Given チェックが 0 人で手入力も空 / When 保存 / Then 一覧側に印が付き、入力欄には付かない', () => {
+    setup({ candidates: [{ name: 'あや', checked: false }] });
+    fireEvent.click(btn('新しく作る'));
+    type('メンツの名前', '朝会');
+    fireEvent.click(btn('この端末に保存'));
+    const group = screen.getByRole('group', { name: 'ルーレットにいる人' });
+    expect(group.hasAttribute('aria-invalid')).toBe(false);
+    expect(group.getAttribute('aria-describedby')).toContain(screen.getByRole('alert').id);
+    expect(screen.getByLabelText('ほかの名前（1 行に 1 人）').hasAttribute('aria-invalid')).toBe(false);
+  });
+
+  it('Given チェックだけで 25 人 / When 保存 / Then 一覧側に印、入力欄には付かない', () => {
+    setup({ candidates: Array.from({ length: 25 }, (_, i) => ({ name: `人${i}`, checked: true })) });
+    fireEvent.click(btn('いまの人から作る'));
+    type('メンツの名前', '朝会');
+    fireEvent.click(btn('この端末に保存'));
+    expect(screen.getByRole('group', { name: 'ルーレットにいる人' }).getAttribute('aria-describedby')).toContain(screen.getByRole('alert').id);
+    expect(screen.getByLabelText('ほかの名前（1 行に 1 人）').hasAttribute('aria-invalid')).toBe(false);
+  });
+
+  it('Given 手入力が足して 25 人 / When 保存 / Then 入力欄に印（両方が原因のときは入力欄）', () => {
+    setup({ candidates: Array.from({ length: 24 }, (_, i) => ({ name: `人${i}`, checked: true })) });
+    fireEvent.click(btn('いまの人から作る'));
+    type('メンツの名前', '朝会');
+    type('ほかの名前（1 行に 1 人）', 'もう一人');
+    fireEvent.click(btn('この端末に保存'));
+    expect(screen.getByLabelText('ほかの名前（1 行に 1 人）')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByRole('group', { name: 'ルーレットにいる人' }).getAttribute('aria-describedby')).not.toContain(screen.getByRole('alert').id);
   });
 
   it('Given 直して保存 / Then 同じ組が更新され、新しい札にフォーカス', () => {
@@ -413,7 +538,7 @@ describe('読み直し・失敗', () => {
     setup();
     fireEvent.click(btn('新しく作る'));
     type('メンツの名前', '\u200b');
-    type('入る人の名前（1 行に 1 人）', 'さとう');
+    type('ほかの名前（1 行に 1 人）', 'さとう');
     fireEvent.click(btn('この端末に保存'));
     expect(screen.getByRole('alert')).toHaveTextContent('メンツの名前を入れてください');
     expect(screen.getByLabelText('メンツの名前')).toHaveAttribute('aria-invalid', 'true');

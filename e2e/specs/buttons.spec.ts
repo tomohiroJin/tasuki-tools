@@ -742,5 +742,64 @@ test.describe('ルーレットの「いつものメンツ」のボタンは部�
     await section.getByRole('button', { name: '新しく作る', exact: true }).click();
     await expect(section.getByRole('button', { name: 'この端末に保存', exact: true })).toBeVisible();
     await expectScreen(page, 'いつものメンツ（作る欄）', 2, { scope: '.roulette-regulars', minTargets: 2 });
+
+    // #469: いまの人から作る → チェックの一覧（自分が入っている）と手入力の二段。チェックも押せる大きさで、幅ごとに溢れない
+    // 自分だけのときは「いまの人から作る」を出さない（新しく作ると同じになる）。ゲストを 1 人足すと出る
+    await section.getByRole('button', { name: 'やめる', exact: true }).click();
+    await expect(section.getByRole('button', { name: 'いまの人から作る', exact: true })).toHaveCount(0);
+    await addRouletteGuest(page, 'ゲストのキャロル');
+    await section.getByRole('button', { name: 'いまの人から作る', exact: true }).click();
+    const people = section.getByRole('group', { name: 'ルーレットにいる人', exact: true });
+    await expect(people.getByRole('checkbox')).toHaveCount(2);
+    await expect(people.getByRole('checkbox').first()).toBeChecked();
+    await expect(section.getByLabel('ほかの名前（1 行に 1 人）', { exact: true })).toHaveValue('');
+    await expect(people.getByRole('checkbox').nth(1)).toBeChecked();
+    await expectScreen(page, 'いつものメンツ（いまの人から作る）', 2, { scope: '.roulette-regulars', minTargets: 2 });
+    // 以降の数を自分だけで数えるため、ゲストは組から外し、ルーレットからも消す
+    await people.getByRole('checkbox').nth(1).uncheck();
+    await section.getByLabel('メンツの名前', { exact: true }).fill('先週の顔');
+    await section.getByLabel('ほかの名前（1 行に 1 人）', { exact: true }).fill(`${LONG_NAME}\nボブ`);
+    await section.getByRole('button', { name: 'この端末に保存', exact: true }).click();
+    await expect(section.getByRole('button', { name: '先週の顔 3 人を入れる', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'ゲストのキャロル の名前を消す', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'ゲストのキャロル の名前を消す', exact: true })).toHaveCount(0);
+
+    // 直す: ルーレットにいる人はチェック、いない人は手入力。チェックを外して保存すると組から外れる
+    await section.getByRole('button', { name: '先週の顔 を直す', exact: true }).click();
+    await expect(people.getByRole('checkbox').first()).toBeChecked();
+    await expect(section.getByLabel('ほかの名前（1 行に 1 人）', { exact: true })).toHaveValue(`${LONG_NAME}\nボブ`);
+    await people.getByRole('checkbox').first().uncheck();
+    await section.getByRole('button', { name: 'この端末に保存', exact: true }).click();
+    await expect(section.getByRole('button', { name: '先週の顔 2 人を入れる', exact: true })).toBeVisible();
+
+    // 外れている自分の行は、自分を含む組を入れるとルーレットに戻る（もう入っているとは数えない）
+    const ownCheck = page.locator('.roulette-list').getByRole('checkbox').first();
+    await section.getByRole('button', { name: '新しく作る', exact: true }).click();
+    await section.getByLabel('メンツの名前', { exact: true }).fill('自分だけ');
+    await section.getByLabel('ほかの名前（1 行に 1 人）', { exact: true }).fill('buttons-r');
+    await section.getByRole('button', { name: 'この端末に保存', exact: true }).click();
+    // 入る人のチェックはサーバーの返事で変わる（制御された入力）ので、uncheck の即時の確かめは使わない
+    await ownCheck.click();
+    await expect(ownCheck).not.toBeChecked();
+    await section.getByRole('button', { name: '自分だけ 1 人を入れる', exact: true }).click();
+    await expect(ownCheck).toBeChecked();
+    await expect(section.getByRole('status')).toContainText('1 人をルーレットに戻しました');
+
+    // 上限: 24 人の組を入れてから、新しい 2 人の組を入れる。入らなかった 2 人の名前が知らせに出る
+    const many = Array.from({ length: 24 }, (_, i) => `客${i + 1}`).join('\n');
+    await section.getByRole('button', { name: '新しく作る', exact: true }).click();
+    await section.getByLabel('メンツの名前', { exact: true }).fill('大人数');
+    await section.getByLabel('ほかの名前（1 行に 1 人）', { exact: true }).fill(many);
+    await section.getByRole('button', { name: 'この端末に保存', exact: true }).click();
+    await section.getByRole('button', { name: '大人数 24 人を入れる', exact: true }).click();
+    await expect(page.getByRole('checkbox')).toHaveCount(25);
+    await section.getByRole('button', { name: '先週の顔 2 人を入れる', exact: true }).click();
+    await expect(section.getByRole('status')).toContainText('入れられませんでした（');
+    await expect(section.getByRole('status')).toContainText('ボブ');
+    for (const width of [320, 1280]) {
+      await page.setViewportSize({ width, height: 900 });
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      expect(overflow, `${width}px で横に溢れない`).toBeLessThanOrEqual(0);
+    }
   });
 });

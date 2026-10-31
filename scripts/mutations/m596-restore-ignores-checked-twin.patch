@@ -1,0 +1,23 @@
+# 変異 596: restore-ignores-checked-twin
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/regulars-view.test.ts
+#
+# #469。`restoreOf` が同名の行のどれかが入っていても外れた行を戻す。twin の片方が入っているのに入れ直し、知らせが嘘をつく。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m596-*.patch
+# 復元: git apply -R scripts/mutations/m596-*.patch
+diff --git a/apps/roulette-web/src/regulars-view.ts b/apps/roulette-web/src/regulars-view.ts
+index d2959220..5750674a 100644
+--- a/apps/roulette-web/src/regulars-view.ts
++++ b/apps/roulette-web/src/regulars-view.ts
+@@ -98,7 +98,7 @@ export function restoreOf(rows: readonly PersonRow[], names: readonly string[]):
+   let blocked = 0;
+   for (const name of names) {
+     const same = rows.filter((r) => sameMemberName(r.name, name));
+-    if (same.length === 0 || same.some((r) => r.checked)) continue;
++    if (same.length === 0) continue;
+     const usable = same.find((r) => !r.disabled);
+     if (usable === undefined) blocked += 1;
+     else ids.push(usable.id);

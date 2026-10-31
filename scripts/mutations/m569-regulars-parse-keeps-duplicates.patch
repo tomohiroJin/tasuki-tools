@@ -9,14 +9,14 @@
 #       git apply scripts/mutations/m569-*.patch
 # 復元: git apply -R scripts/mutations/m569-*.patch
 diff --git a/apps/roulette-web/src/storage/regulars.ts b/apps/roulette-web/src/storage/regulars.ts
-index f58fdca7..90b8b8c3 100644
+index 3da50cde..005afe15 100644
 --- a/apps/roulette-web/src/storage/regulars.ts
 +++ b/apps/roulette-web/src/storage/regulars.ts
-@@ -128,7 +128,7 @@ function foldMembers(candidates: readonly string[]): string[] {
+@@ -143,7 +143,7 @@ function foldMembers(candidates: readonly string[]): string[] {
    for (const c of candidates) {
      const n = normalizeDisplayName(c);
      if (n === '' || n.length > MAX_DISPLAY_NAME || rendersAsNothing(n)) continue;
--    if (conflictsWithExisting(out.map((d) => ({ participantId: d, displayName: d })), n)) continue;
+-    if (out.some((d) => sameMemberName(d, n))) continue;
 +    if (out.includes(n)) continue;
      out.push(n);
    }

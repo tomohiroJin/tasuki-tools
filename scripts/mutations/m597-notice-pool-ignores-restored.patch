@@ -1,0 +1,23 @@
+# 変異 597: notice-pool-ignores-restored
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/regulars-view.test.ts
+#
+# #469。知らせの入る人の数に戻した人を足さず、25 人超の注意が戻した分で出ない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m597-*.patch
+# 復元: git apply -R scripts/mutations/m597-*.patch
+diff --git a/apps/roulette-web/src/regulars-view.ts b/apps/roulette-web/src/regulars-view.ts
+index 696ead64..b8d9c1fd 100644
+--- a/apps/roulette-web/src/regulars-view.ts
++++ b/apps/roulette-web/src/regulars-view.ts
+@@ -62,7 +62,7 @@ export function batchNoticeText(plan: BatchPlan, restore: RestoreCount = { resto
+   const { added, overflow, overflowNames } = plan;
+   const { restored, blocked } = restore;
+   // 戻した人もルーレットに入る
+-  const poolAfter = plan.poolAfter + restored;
++  const poolAfter = plan.poolAfter;
+   // サーバーは同名をすべてとばす。そのうち戻した・戻せなかった分を引いた残りが「もう入っている」
+   const skipped = Math.max(0, plan.skipped - restored - blocked);
+   const who = overflowNames.length > 0 ? overflowNamesText(...overflowNames) : '';

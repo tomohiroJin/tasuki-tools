@@ -1,0 +1,23 @@
+# 変異 591: split-matches-exact-only
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/regulars-view.test.ts
+#
+# #469。`splitForEdit` が候補との照合を完全一致にする。大小・全角が違う組の名前がチェックにならず、手入力へ重なって同じ人が二度出る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m591-*.patch
+# 復元: git apply -R scripts/mutations/m591-*.patch
+diff --git a/apps/roulette-web/src/regulars-view.ts b/apps/roulette-web/src/regulars-view.ts
+index d2959220..60e49bc1 100644
+--- a/apps/roulette-web/src/regulars-view.ts
++++ b/apps/roulette-web/src/regulars-view.ts
+@@ -134,7 +134,7 @@ export function candidatesOf(rows: readonly PersonRow[]): Candidate[] {
+  * 候補との照合は保存と同じ正規化・大小無視（手入力へ同じ人を重ねない）。
+  */
+ export function splitForEdit(candidates: readonly Candidate[], members: readonly string[]): { rows: Candidate[]; text: string } {
+-  const rows = candidates.map((c) => ({ name: c.name, checked: members.some((m) => sameMemberName(c.name, normalizeDisplayName(m))) }));
++  const rows = candidates.map((c) => ({ name: c.name, checked: members.includes(c.name) }));
+   const manual = members.filter((m) => !candidates.some((c) => sameMemberName(c.name, normalizeDisplayName(m))));
+   return { rows, text: manual.join('\n') };
+ }

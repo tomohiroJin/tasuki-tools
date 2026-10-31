@@ -2,7 +2,7 @@
  * ルーレットのルームの画面（#94 PR 2）。偽の WebSocket と偽の時計で、受け取ったフレームから
  * 画面に何が出るかを見る。サーバーは立てない。
  */
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ROOM_HEADER_TEXT } from '@tasuki/invite-ui';
 import { MAX_DISPLAY_NAME } from '@tasuki/room-core';
@@ -410,6 +410,26 @@ describe('いつものメンツを入れる（#458）', () => {
     expect(JSON.parse(localStorage.getItem(REGULARS_KEY) ?? '{}').items.find((g: { id: string }) => g.id === 'a').usedAt).toBeGreaterThan(2);
   });
 
+  it('Given ゲストが 23 人 / When 3 人の組を入れる / Then 入らなかった人の名前が知らせに出る（もう入っていた人は数のみ）', () => {
+    const guests = Array.from({ length: 23 }, (_, i) => ({ id: `g-${i + 1}`, name: `客${i + 1}` }));
+    seedGroups([{ id: 'a', name: '朝会', usedAt: 1, members: ['あや', 'さとう', 'すずき'] }]);
+    enterRoom({ ...IDLE_ROULETTE, guests });
+    fireEvent.click(screen.getByRole('button', { name: '朝会 3 人を入れる' }));
+    const texts = screen.getAllByRole('status').map((el) => el.textContent);
+    expect(texts.some((t) => t?.startsWith('1 人を入れました。1 人はもう入っているので、とばしました。名前は 24 人まで追加できます。1 人は入りませんでした（すずき）。'))).toBe(true);
+  });
+
+  it('Given 名簿の人のチェックが外れている / When その人を含む組を入れる / Then ルーレットに戻し、戻した数を知らせる', () => {
+    // ゆう（p2）は在室。外している
+    seedGroups([{ id: 'a', name: '朝会', usedAt: 1, members: ['ゆう', 'さとう'] }]);
+    enterRoom({ ...IDLE_ROULETTE, excluded: ['p2'] });
+    fireEvent.click(screen.getByRole('button', { name: '朝会 2 人を入れる' }));
+    const sent = latestSocket().sentJson();
+    expect(sent).toContainEqual({ command: 'roulette.guest.addMany', names: ['ゆう', 'さとう'] });
+    expect(sent).toContainEqual(expect.objectContaining({ command: 'roulette.include', id: 'p2', included: true }));
+    expect(screen.getAllByRole('status').map((el) => el.textContent).some((t) => t?.startsWith('1 人を入れました。1 人をルーレットに戻しました'))).toBe(true);
+  });
+
   it('Given 切断した / When 描く / Then 札は押せず、直す・新しく作るは押せる', () => {
     seedGroups([{ id: 'a', name: '朝会', usedAt: 1, members: ['さとう'] }]);
     enterRoom();
@@ -419,10 +439,14 @@ describe('いつものメンツを入れる（#458）', () => {
     expect(screen.getByRole('button', { name: '新しく作る' })).toBeEnabled();
   });
 
-  it('Given ゲストが 1 人いる / When 追加した名前から作る / Then 複数行欄にそのゲストの名前', () => {
+  it('Given ゲストが 1 人いる / When いまの人から作る / Then 名簿の人もゲストも一覧に出て、入っている人にチェック', () => {
     enterRoom({ ...IDLE_ROULETTE, guests: [{ id: 'g-1', name: 'さとう' }] });
-    fireEvent.click(screen.getByRole('button', { name: '追加した名前から作る' }));
-    expect(screen.getByLabelText('入る人の名前（1 行に 1 人）')).toHaveValue('さとう');
+    fireEvent.click(screen.getByRole('button', { name: 'いまの人から作る' }));
+    const group = screen.getByRole('group', { name: 'ルーレットにいる人' });
+    const boxes = within(group).getAllByRole('checkbox');
+    expect(boxes.map((b) => b.closest('label')?.textContent)).toEqual(expect.arrayContaining(['あや', 'さとう']));
+    expect(boxes.every((b) => (b as HTMLInputElement).checked)).toBe(true);
+    expect(screen.getByLabelText('ほかの名前（1 行に 1 人）')).toHaveValue('');
   });
 
   it('Given 離席中（offline）の参加者と同じ名前を含む組 / When 札を押す / Then 名簿の全員と比べて、その人はとばす', () => {
@@ -444,6 +468,6 @@ describe('いつものメンツを入れる（#458）', () => {
     // When
     fireEvent.click(screen.getByRole('button', { name: '朝会 2 人を入れる' }));
     // Then
-    expect(screen.getAllByRole('status').map((el) => el.textContent)).toContain('1 人を入れました。1 人はもう入っているので、とばしました');
+    expect(screen.getAllByRole('status').map((el) => el.textContent)).toContain('1 人を入れました。1 人はいま戻せません');
   });
 });
