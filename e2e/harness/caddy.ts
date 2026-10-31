@@ -1,27 +1,12 @@
-/**
- * Caddy の取得・設置・起動・撤去。
- *
- * ## なぜ設置（コピー）が要るのか
- *
- * `deploy/caddy/tasuki.conf` の import は **絶対パス固定**である。
- *
- *     import /etc/caddy/tasuki/apps/*.conf
- *
- * Caddyfile 側にこれを読み替える手段は無いので、断片を所定の場所へ置くしかない。
- * **置くだけで、内容は 1 バイトも変えない。**
- *
- * ## なぜ caddy validate を起動ゲートにしないのか
- *
- * import のグロブが 0 件マッチでも `Valid configuration` を返すため（実測）。
- * 断片が 1 本も読まれていない状態でも「通った」ことになってしまう。
- * 代わりに**設置した断片の数を数える**。
- */
+/** 実行ごとの Caddy 設定を生成し、起動・撤去する。本番の断片は変更しない。 */
 import { type ChildProcess, execFileSync, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   createWriteStream,
   existsSync,
   mkdirSync,
+  mkdtempSync,
+  readdirSync,
   readFileSync,
   renameSync,
   rmSync,
@@ -38,8 +23,9 @@ import {
   PORTS,
   SITE_CONF_SOURCE,
   TEST_RESULTS_DIR,
+  WEB_ROOTS,
 } from './paths';
-import { toLocalSiteConfig } from './site-config';
+import { toLocalFragment, toLocalSiteConfig } from './site-config';
 import { LOCAL_BASE_URL } from './target';
 import { waitForPort } from './wait-for-port';
 
@@ -75,7 +61,7 @@ export async function ensureCaddyBinary(): Promise<string> {
   mkdirSync(CADDY_CACHE_DIR, { recursive: true });
   // 最終配置先へ直接展開しない。途中で落ちると壊れたバイナリが残り、
   // 次回は existsSync が true を返して検証せずに使われてしまう。
-  const staging = path.join(CADDY_CACHE_DIR, 'staging');
+  const staging = mkdtempSync(path.join(CADDY_CACHE_DIR, 'staging-'));
   const tarball = path.join(staging, 'caddy.tar.gz');
   const checksums = path.join(staging, 'checksums.txt');
   const stagedBinary = path.join(staging, 'caddy');
@@ -106,32 +92,25 @@ export async function ensureCaddyBinary(): Promise<string> {
 function writeTopCaddyfile(): string {
   mkdirSync(TEST_RESULTS_DIR, { recursive: true });
   const filePath = path.join(TEST_RESULTS_DIR, 'Caddyfile');
-  writeFileSync(filePath, `import ${CADDY_ETC_DIR}/site.conf\n`, 'utf8');
+  writeFileSync(filePath, `{\n admin off\n auto_https off\n persist_config off\n}\nimport ${CADDY_ETC_DIR}/site.conf\n`, 'utf8');
   return filePath;
 }
 
 /**
  * 断片（`FRAGMENT_SOURCES`）と site.conf を設置する。
  *
- * 断片は内容を変えずにコピーする。site.conf だけアドレス行 1 行を差し替える。
+ * コピーの上流ポート・配信元・import とサイトアドレスだけを差し替える。
  */
 export function installCaddyConfig(): void {
-  execFileSync('sudo', ['mkdir', '-p', CADDY_APPS_DIR]);
-
+  mkdirSync(CADDY_APPS_DIR, { recursive: true });
   for (const source of FRAGMENT_SOURCES) {
-    execFileSync('sudo', ['install', '-m', '644', source, CADDY_APPS_DIR]);
+    writeFileSync(path.join(CADDY_APPS_DIR, path.basename(source)),
+      toLocalFragment(readFileSync(source, 'utf8'), PORTS.sync, WEB_ROOTS));
   }
-
-  const localSiteConf = toLocalSiteConfig(readFileSync(SITE_CONF_SOURCE, 'utf8'), LOCAL_BASE_URL);
-  const staged = path.join(TEST_RESULTS_DIR, 'site.conf');
-  mkdirSync(TEST_RESULTS_DIR, { recursive: true });
-  writeFileSync(staged, localSiteConf, 'utf8');
-  execFileSync('sudo', ['install', '-m', '644', staged, path.join(CADDY_ETC_DIR, 'site.conf')]);
-
-  // caddy validate は import が 0 件でも成功するため、設置数を自分で数える。
-  const installed = execFileSync('sudo', ['ls', '-1', CADDY_APPS_DIR], { encoding: 'utf8' })
-    .split('\n')
-    .filter((name) => name.endsWith('.conf'));
+  const localSiteConf = toLocalSiteConfig(readFileSync(SITE_CONF_SOURCE, 'utf8'), LOCAL_BASE_URL)
+    .replaceAll('/etc/caddy/tasuki/apps', CADDY_APPS_DIR);
+  writeFileSync(path.join(CADDY_ETC_DIR, 'site.conf'), localSiteConf);
+  const installed = readdirSync(CADDY_APPS_DIR).filter(name => name.endsWith('.conf'));
   if (installed.length !== FRAGMENT_SOURCES.length) {
     throw new Error(
       `断片の設置数が合いません（期待 ${FRAGMENT_SOURCES.length} / 実際 ${installed.length}）: ${installed.join(', ')}`,
@@ -140,7 +119,7 @@ export function installCaddyConfig(): void {
 }
 
 export function removeCaddyConfig(): void {
-  execFileSync('sudo', ['rm', '-rf', CADDY_ETC_DIR]);
+  rmSync(CADDY_ETC_DIR, { recursive: true, force: true });
 }
 
 export async function startCaddy(binaryPath: string): Promise<ChildProcess> {
@@ -154,6 +133,7 @@ export async function startCaddy(binaryPath: string): Promise<ChildProcess> {
   // シグナルハンドラにも入らないため、/etc/caddy/tasuki と symlink が残る。
   // waitForPort の起動待ちと競わせ、どちらか先に決着した方を採用する。
   const failure = new Promise<never>((_, reject) => {
+    proc.once('exit', (code) => reject(new Error(`caddy exited during startup (${code}); see ${LOG_DIR}/caddy.log`)));
     proc.once('error', (cause: Error) => {
       reject(new Error(`caddy の起動に失敗しました: ${cause.message}`, { cause }));
     });

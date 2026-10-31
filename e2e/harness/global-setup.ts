@@ -16,7 +16,6 @@ import { buildWebApps } from './build';
 import { ensureCaddyBinary, installCaddyConfig, removeCaddyConfig, startCaddy, stopCaddy } from './caddy';
 import { runPreflight } from './preflight';
 import { startSyncServers, stopSyncServers } from './sync';
-import { linkWebRoots, unlinkWebRoots } from './www';
 import { resolveTarget } from './target';
 
 export default async function globalSetup(): Promise<() => Promise<void>> {
@@ -55,7 +54,6 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     if (filesCleaned) return;
     filesCleaned = true;
     removeCaddyConfig();
-    unlinkWebRoots();
   };
 
   const teardown = async (): Promise<void> => {
@@ -82,7 +80,6 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
   process.once('SIGTERM', () => onSignal(143));
 
   startup = (async () => {
-    linkWebRoots();
     installCaddyConfig();
     syncProcs = await startSyncServers();
     caddyProc = await startCaddy(binary);

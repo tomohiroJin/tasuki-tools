@@ -9,7 +9,7 @@
  *
  * MAX_ROOMS は、ハーネスが渡す env では `E2E_MAX_ROOMS` で上書きする（本番の既定 100 とは異なる。#387）。
  *
- * ポートは本番と同じ 8787。断片が絶対値で宣言しているため変えられない。
+ * ポートは実行ごとに選び、Caddy のローカルコピーへも同じ番号を渡す。
  *
  * ALLOWED_ORIGINS にはローカルの入口 URL を渡す。空で起動を
  * 拒否するのは NODE_ENV=production のときだけだが、Origin 検査を本番と同じ形で
@@ -87,6 +87,7 @@ export async function startSyncServers(): Promise<ChildProcess[]> {
     // 入らないため、/etc/caddy/tasuki と symlink が残る。
     failures.push(
       new Promise<never>((_, reject) => {
+        proc.once('exit', (code) => reject(new Error(`${server.name} exited during startup (${code}); see ${LOG_DIR}`)));
         proc.once('error', (cause: Error) => {
           reject(new Error(`${server.name} の起動に失敗しました: ${cause.message}`, { cause }));
         });

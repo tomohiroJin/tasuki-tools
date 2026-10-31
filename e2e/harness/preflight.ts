@@ -43,7 +43,7 @@ export async function assertPortsFree(ports: readonly number[]): Promise<void> {
   if (busy.length === 0) return;
   throw new Error(
     `ポートが使用中です: ${busy.join(', ')}\n` +
-      '`pnpm dev` が動いているか、前回の E2E の残骸が残っています。\n' +
+      'TASUKI_E2E_CADDY_PORT と TASUKI_E2E_SYNC_PORT に別の空きポートを指定するか、unset して自動選択してください。\n' +
       `${describePortHolders(busy)}`,
   );
 }
@@ -103,7 +103,7 @@ export async function runPreflight(env: Record<string, string | undefined>): Pro
   resolveTarget(env); // ターゲットの取り違えをここでも落とす
   assertChromiumInstalled(env);
   assertNoCaddyLeftovers();
-  assertWebRootsSafe();
+
   assertDistsBuilt();
   await assertPortsFree([PORTS.caddy, PORTS.sync]);
 }
