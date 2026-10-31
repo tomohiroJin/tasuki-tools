@@ -87,7 +87,11 @@ import {
   workerArgs,
   worktreeDirFor,
   staleWorktreesFrom,
+  worktreeLockReason,
   formatWorkerSummary,
+  parseTestWorkers,
+  testWorkersPerJob,
+  createLinePrefixer,
 } from "./lib/mutation-parallel.mjs";
 import { MUTATIONS } from "./lib/mutation-declarations.mjs";
 
@@ -685,14 +689,22 @@ export function detectRunner(pkgDir) {
   );
 }
 
-/** ランナーごとに、実行コマンドと引数を組み立てる。 */
-export function buildCommand(runner, mutation, full) {
+/**
+ * ランナーごとに、実行コマンドと引数を組み立てる。
+ *
+ * `testWorkers` はテストランナーの並列の上限（`--jobs` の子が受け取る。`scripts/lib/mutation-parallel.mjs` の
+ * testWorkersPerJob）。null なら今までのコマンドのまま。bun test は 1 つのプロセスの中でファイルを順に流すので足さない。
+ */
+export function buildCommand(runner, mutation, full, testWorkers = null) {
   switch (runner) {
-    case "vitest":
-      return { cmd: "npx", args: full ? ["vitest", "run"] : ["vitest", "run", ...mutation.tests] };
+    case "vitest": {
+      const limit = testWorkers === null ? [] : [`--maxWorkers=${testWorkers}`];
+      return { cmd: "npx", args: ["vitest", "run", ...limit, ...(full ? [] : mutation.tests)] };
+    }
     case "bun":
       return { cmd: resolveBunBin(), args: full ? ["test"] : ["test", ...mutation.tests] };
     case "node": {
+      const nodeLimit = testWorkers === null ? [] : [`--test-concurrency=${testWorkers}`];
       if (full) {
         // package.json があれば scripts.test（例: "node --test tests/*.test.mjs"）を
         // そのまま使う。パッケージが自分で決めた「全体実行」がそれだからである。
@@ -700,6 +712,7 @@ export function buildCommand(runner, mutation, full) {
         if (fs.existsSync(pkgJsonPath)) {
           const testScript = JSON.parse(fs.readFileSync(pkgJsonPath, "utf8")).scripts.test;
           const [cmd, ...args] = testScript.split(/\s+/);
+          if (cmd === "node" && args[0] === "--test") return { cmd, args: ["--test", ...nodeLimit, ...args.slice(1)] };
           return { cmd, args };
         }
         // package.json が無い対象（scripts/ 等）は、ファイルを 1 つも指定せずに
@@ -707,9 +720,9 @@ export function buildCommand(runner, mutation, full) {
         // ここへテストファイルの列挙やグロブを書くと、CI が使っている導出
         // （`node scripts/list-scan-targets.mjs script-tests`）と二重管理になり、
         // 片側だけ直したときに黙ってずれる（#135・ADR-0014）。
-        return { cmd: "node", args: ["--test"] };
+        return { cmd: "node", args: ["--test", ...nodeLimit] };
       }
-      return { cmd: "node", args: ["--test", ...mutation.tests] };
+      return { cmd: "node", args: ["--test", ...nodeLimit, ...mutation.tests] };
     }
     default:
       throw new Error(`未対応のランナーです: ${runner}`);
@@ -725,10 +738,10 @@ export function buildCommand(runner, mutation, full) {
  *          passed は「テストが 1 件も落ちずに完走した」= exit code 0。
  *          「検出」かどうかの解釈は呼び出し側（対照実行か変異後の実行か）で決める。
  */
-function runTests(mutation, full) {
+function runTests(mutation, full, testWorkers = null) {
   const pkgDir = path.join(WORKSPACE_ROOT, mutation.pkg);
   const runner = detectRunner(pkgDir);
-  const { cmd, args } = buildCommand(runner, mutation, full);
+  const { cmd, args } = buildCommand(runner, mutation, full, testWorkers);
   const result = spawnSync(cmd, args, {
     cwd: pkgDir,
     stdio: "pipe",
@@ -830,21 +843,27 @@ function gitStatusPorcelainStrict() {
   return execFileSync("git", ["status", "--porcelain"], { cwd: REPO_ROOT, encoding: "utf8" });
 }
 
-/** 子を起こし、標準出力と標準エラーを届いた順に 1 つにまとめて返す。 */
-function runChild(cmd, args, cwd) {
+/**
+ * 子を起こし、標準出力と標準エラーを届いた順に 1 つにまとめて返す。
+ * `prefix` を渡すと、行ごとにその接頭辞を付けて**その場で**流す（`--jobs` の子。固まった子に気づけるように）。
+ */
+function runChild(cmd, args, cwd, prefix = null) {
   return new Promise((resolve) => {
     const child = spawn(cmd, args, { cwd, stdio: ["ignore", "pipe", "pipe"] });
     childProcesses.add(child);
-    let output = "";
-    child.stdout.on("data", (chunk) => (output += chunk));
-    child.stderr.on("data", (chunk) => (output += chunk));
+    // eslint-disable-next-line no-console
+    const lines = createLinePrefixer(prefix ?? "", prefix === null ? () => {} : (line) => console.log(line));
+    child.stdout.on("data", (chunk) => lines.push(chunk));
+    child.stderr.on("data", (chunk) => lines.push(chunk));
     child.on("error", (err) => {
       childProcesses.delete(child);
-      resolve({ exitCode: null, output: `${output}\n起動できませんでした: ${err.message}` });
+      lines.flush();
+      resolve({ exitCode: null, output: `${lines.text()}\n起動できませんでした: ${err.message}` });
     });
     child.on("close", (code) => {
       childProcesses.delete(child);
-      resolve({ exitCode: code, output });
+      lines.flush();
+      resolve({ exitCode: code, output: lines.text() });
     });
   });
 }
@@ -868,7 +887,7 @@ function removeWorktrees(dirs) {
 /** 持ち主の親がもう居ない、変異検査の作業ツリーを消す（SIGKILL で殺された実行の残骸）。 */
 function removeStaleWorktrees() {
   const porcelain = execFileSync("git", ["worktree", "list", "--porcelain"], { cwd: REPO_ROOT, encoding: "utf8" });
-  const stale = staleWorktreesFrom(porcelain, isPidAlive);
+  const stale = staleWorktreesFrom(porcelain, isPidAlive, os.hostname());
   if (stale.length === 0) return;
   console.error(`[mutation-check] 前回の並列の実行が残した作業ツリーを消します:\n${stale.map((d) => `  - ${d}`).join("\n")}`);
   removeWorktrees(stale);
@@ -894,11 +913,21 @@ async function runInWorktrees(selected, jobs, full, selector, selection, header)
   process.on("exit", () => removeWorktrees(dirs));
 
   console.log(`[mutation-check] ${header}`);
-  console.log(`[mutation-check] 並列: 作業ツリー ${plan.length} 個（--jobs ${jobs}）。各ワーカーの出力は終わった順に出します\n`);
+  const perChild = testWorkersPerJob(os.availableParallelism(), plan.length);
+  console.log(
+    `[mutation-check] 並列: 作業ツリー ${plan.length} 個（--jobs ${jobs}）・テストランナーの並列は子 1 つあたり ${perChild}。` +
+      "各ワーカーの出力は行の頭に [w番号] を付けて、その場で流します\n",
+  );
   const startedAt = Date.now();
 
+  // **ロックつきで作る。** 他の環境の `git worktree prune` に、流している最中の登録を消されないため
+  // （理由は scripts/lib/mutation-parallel.mjs の worktreeLockReason）
+  const lockReason = worktreeLockReason(process.pid, os.hostname());
   for (const dir of dirs) {
-    execFileSync("git", ["worktree", "add", "--detach", "--quiet", dir, "HEAD"], { cwd: REPO_ROOT, stdio: "inherit" });
+    execFileSync("git", ["worktree", "add", "--detach", "--quiet", "--lock", "--reason", lockReason, dir, "HEAD"], {
+      cwd: REPO_ROOT,
+      stdio: "inherit",
+    });
   }
   // 依存の実体は pnpm のストアから引く（ネットワークに出ない）。本体で pnpm install を済ませてあることが前提
   const installs = await Promise.all(
@@ -919,10 +948,14 @@ async function runInWorktrees(selected, jobs, full, selector, selection, header)
   const results = await Promise.all(
     plan.map(async (mutations, i) => {
       const t = Date.now();
-      const r = await runChild(process.execPath, [path.join(dirs[i], self), ...workerArgs(mutations, full)], dirs[i]);
-      console.log(`\n===== ワーカー ${i + 1}/${plan.length}（${mutations.length} 件・exit ${r.exitCode}）=====`);
-      console.log(r.output.trimEnd());
-      return { index: i + 1, count: mutations.length, exitCode: r.exitCode, ms: Date.now() - t };
+      const r = await runChild(
+        process.execPath,
+        [path.join(dirs[i], self), ...workerArgs(mutations, full, perChild)],
+        dirs[i],
+        `[w${i + 1}] `,
+      );
+      console.log(`[mutation-check] ワーカー ${i + 1}/${plan.length} が終わりました（${mutations.length} 件・exit ${r.exitCode}）`);
+      return { index: i + 1, count: mutations.length, exitCode: r.exitCode, ms: Date.now() - t, output: r.output };
     }),
   );
 
@@ -932,8 +965,13 @@ async function runInWorktrees(selected, jobs, full, selector, selection, header)
   console.log(`\n[mutation-check] 所要時間: ${((Date.now() - startedAt) / 1000).toFixed(0)} 秒（作業ツリー ${plan.length} 個・変異 ${selected.length} 件）`);
 
   if (failed.length > 0) {
+    // 出力は流れの中で混ざっているので、落ちたワーカーの末尾だけをまとめてもう一度出す
+    for (const index of failed) {
+      console.error(`\n--- ワーカー ${index} の出力（末尾。全体は上の [w${index}] の行） ---`);
+      console.error(results[index - 1].output.trimEnd().split("\n").slice(-60).join("\n"));
+    }
     console.error(
-      `\n[mutation-check] ワーカー ${failed.join(", ")} が失敗しました。上のそのワーカーの出力を見てください` +
+      `\n[mutation-check] ワーカー ${failed.join(", ")} が失敗しました` +
         "（検出されなかった変異・対照実行の失敗・作業ツリーの準備の失敗のどれか）。",
     );
     return 1;
@@ -943,9 +981,9 @@ async function runInWorktrees(selected, jobs, full, selector, selection, header)
 }
 
 /** 対照実行の使い回しの鍵。cwd（pkg）と、実際に流すコマンドと引数。 */
-export function controlKeyOf(mutation, full) {
+export function controlKeyOf(mutation, full, testWorkers = null) {
   const runner = detectRunner(path.join(WORKSPACE_ROOT, mutation.pkg));
-  return JSON.stringify([mutation.pkg, buildCommand(runner, mutation, full)]);
+  return JSON.stringify([mutation.pkg, buildCommand(runner, mutation, full, testWorkers)]);
 }
 
 function main() {
@@ -955,9 +993,11 @@ function main() {
   let selector;
   let selection;
   let jobs;
+  let testWorkers;
   try {
     selector = parseSelector(process.argv.slice(2));
     jobs = parseJobs(process.argv.slice(2));
+    testWorkers = parseTestWorkers(process.argv.slice(2));
     if (selector.kind === "changed" && selector.baseExplicit && !refExists(selector.base)) {
       throw new Error(`--base の ref が見つかりません: ${selector.base}`);
     }
@@ -1035,10 +1075,10 @@ function main() {
   const startedAt = Date.now();
   let controlMs = 0;
   const controls = createControlCache(
-    (m) => controlKeyOf(m, full),
+    (m) => controlKeyOf(m, full, testWorkers),
     (m) => {
       const t = Date.now();
-      const r = runTests(m, full);
+      const r = runTests(m, full, testWorkers);
       controlMs += Date.now() - t;
       return r;
     },
@@ -1084,7 +1124,7 @@ function main() {
     let outcome;
     try {
       applyMutation(mutation);
-      const testResult = runTests(mutation, full);
+      const testResult = runTests(mutation, full, testWorkers);
       outcome = { ...mutation, detected: !testResult.passed, exitCode: testResult.exitCode, output: testResult.output };
     } finally {
       restoreMutation();

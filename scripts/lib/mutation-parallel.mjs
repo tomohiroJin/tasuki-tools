@@ -48,9 +48,71 @@ export function planWorkers(mutations, jobs, weightOf) {
   return partitionMutations(mutations, workers, weightOf);
 }
 
-/** ワーカーに渡す引数。ワーカーは普段の 1 回の実行そのものなので、割り当てを `--id` で渡す。 */
-export function workerArgs(mutations, full) {
-  return ["--id", mutations.map((m) => m.id).join(","), ...(full ? ["--full"] : [])];
+/**
+ * ワーカーに渡す引数。ワーカーは普段の 1 回の実行そのものなので、割り当てを `--id` で渡す。
+ * テストランナーの並列の上限（{@link testWorkersPerJob}）を `--test-workers` で渡す。
+ */
+export function workerArgs(mutations, full, testWorkers) {
+  return [
+    "--id",
+    mutations.map((m) => m.id).join(","),
+    "--test-workers",
+    String(testWorkers),
+    ...(full ? ["--full"] : []),
+  ];
+}
+
+/**
+ * 子 1 つあたりのテストランナーの並列の上限。コアの数をワーカーの数で割り、1 を下回らない。
+ *
+ * **なぜ抑えるか**（#481 のレビュー）: 子のテストランナー（vitest・`node --test`）は、それぞれがコアの数だけ並列に起動する。
+ * ワーカー m 個がそうすると、コアの m 倍の本数が取り合う。変異を当てた実行が**時間切れで落ちても「検出」に数わる**ので、
+ * テストが実際には変異を捕まえていなくても、混んでいるだけで緑になりうる（対照実行は別の時刻なので防げない）。
+ */
+export function testWorkersPerJob(cores, jobs) {
+  return Math.max(1, Math.floor(cores / jobs));
+}
+
+/**
+ * 引数から `--test-workers` を読む。指定が無ければ null（テストランナーの既定のまま。直列の今までの振る舞い）。
+ * 親が `--jobs` の子へ渡す。手で書いてもよい。
+ */
+export function parseTestWorkers(args) {
+  const i = args.indexOf("--test-workers");
+  if (i === -1) return null;
+  const value = args[i + 1] ?? "";
+  if (!/^[1-9]\d*$/.test(value)) throw new Error(`--test-workers は正の整数で書きます: ${value}`);
+  return Number(value);
+}
+
+/**
+ * 子の出力を行ごとに、接頭辞（`[w2] ` など）を付けてその場で書く。
+ *
+ * **ためてから出さない**（#481 のレビュー）: 子の出力をためて、終わってからまとめて出すと、子が 1 つでも固まったとき
+ * ログに何も出ないまま CI が上限まで待つ。直列のときは変異ごとに `--- 変異 #… ---` がその場で出ていた。
+ * 行の途中で切れた断片は次の断片とつなぐ（混ざった行を出さない）。書いたものは接頭辞なしでも持ち、
+ * 失敗したワーカーの末尾を最後にもう一度出すのに使う。
+ */
+export function createLinePrefixer(prefix, write) {
+  let pending = "";
+  let all = "";
+  return {
+    push(chunk) {
+      const text = String(chunk);
+      all += text;
+      pending += text;
+      const lines = pending.split("\n");
+      pending = lines.pop();
+      for (const line of lines) write(prefix + line);
+    },
+    flush() {
+      if (pending !== "") write(prefix + pending);
+      pending = "";
+    },
+    text() {
+      return all;
+    },
+  };
 }
 
 /** i 番目（1 から数える）のワーカーの作業ツリーの置き場。親の PID を名前に入れ、残骸の持ち主を見分ける。 */
@@ -59,20 +121,38 @@ export function worktreeDirFor(tmpRoot, pid, index) {
 }
 
 /**
- * `git worktree list --porcelain` の出力から、**持ち主の親がもう居ない**変異検査の作業ツリーを拾う。
+ * 作業ツリーのロックの理由（`git worktree add --lock --reason …`）。持ち主の PID とホスト名を書く。
+ *
+ * **ロックつきで作る理由**（#481 のレビュー）: `git worktree prune` は、ロックされた作業ツリーの登録を消さない。
+ * `.git` を共有したまま `/tmp` と PID の名前空間が別の環境（9p 越しのコンテナ 2 つなど）では、相手の作業ツリーは
+ * 「無い」ように見え、ロックが無いと prune が相手の実行中の登録を消す。片づけは `remove --force --force` なので、
+ * ロックされていても自分の作業ツリーは消せる。
+ */
+export function worktreeLockReason(pid, host) {
+  return `${WORKTREE_PREFIX.replace(/-$/, "")} pid=${pid} host=${host}`;
+}
+
+/**
+ * `git worktree list --porcelain` の出力から、**同じホストで、持ち主の親がもう居ない**変異検査の作業ツリーを拾う。
  *
  * 親は終わるときに自分の作業ツリーを消すが、SIGKILL などで殺されると残る。残っても本体の作業ツリーには
  * 触らない（変異が当たったままなのはその写しの中だけ）ので害は無いが、`git worktree list` に溜まり続ける。
- * **生きている親の作業ツリーは消さない**（別の端末で並走している実行を壊さない）。
+ *
+ * - **生きている親の作業ツリーは消さない**（別の端末で並走している実行を壊さない）
+ * - **別のホストの作業ツリーは消さない。** PID は名前空間をまたぐと当てにならない（相手の PID はこちらから見えない）
+ * - **ロックの理由を持たないものは消さない**（人が作ったもの・名前だけ似たもの）
  */
-export function staleWorktreesFrom(porcelain, isAlive) {
-  const pattern = new RegExp(`^${WORKTREE_PREFIX}(\\d+)-\\d+$`);
+export function staleWorktreesFrom(porcelain, isAlive, host) {
+  const reasonPattern = new RegExp(`^locked ${WORKTREE_PREFIX.replace(/-$/, "")} pid=(\\d+) host=(\\S+)$`);
   const stale = [];
-  for (const line of porcelain.split("\n")) {
-    if (!line.startsWith("worktree ")) continue;
-    const dir = line.slice("worktree ".length);
-    const m = pattern.exec(path.basename(dir));
-    if (m && !isAlive(Number(m[1]))) stale.push(dir);
+  for (const block of porcelain.split("\n\n")) {
+    const lines = block.split("\n");
+    const head = lines.find((l) => l.startsWith("worktree "));
+    if (head === undefined) continue;
+    const dir = head.slice("worktree ".length);
+    if (!path.basename(dir).startsWith(WORKTREE_PREFIX)) continue;
+    const lock = lines.map((l) => reasonPattern.exec(l)).find((m) => m !== null);
+    if (lock && lock[2] === host && !isAlive(Number(lock[1]))) stale.push(dir);
   }
   return stale;
 }

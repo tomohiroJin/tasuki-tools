@@ -17,8 +17,8 @@ import { partitionMutations } from "./mutation-partition.mjs";
 
 /** 選び方の指定。1 回に 1 つだけ使える。 */
 const SELECTOR_FLAGS = ["--changed", "--id", "--pkg", "--shard"];
-/** 値を取るが選び方ではない指定。`--jobs` の値の解釈は `scripts/lib/mutation-parallel.mjs` の parseJobs。 */
-const KNOWN_FLAGS = new Set(["--full", "--base", "--jobs", ...SELECTOR_FLAGS]);
+/** 値を取るが選び方ではない指定（`--jobs`・`--test-workers`）。値の解釈は `scripts/lib/mutation-parallel.mjs`。 */
+const KNOWN_FLAGS = new Set(["--full", "--base", "--jobs", "--test-workers", ...SELECTOR_FLAGS]);
 
 /**
  * 引数（`process.argv.slice(2)`）から選び方を組む。
@@ -44,7 +44,7 @@ export function parseSelector(args) {
     i++;
     if (arg === "--base") {
       base = value;
-    } else if (arg === "--jobs") {
+    } else if (arg === "--jobs" || arg === "--test-workers") {
       continue;
     } else if (arg === "--shard") {
       found.push(parseShard(value));

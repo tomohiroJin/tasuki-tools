@@ -448,6 +448,26 @@ describe("宣言の全件を分けて流す配線（#481）", () => {
   }
 });
 
+describe("テストランナーの並列の上限（--jobs の子・#481 レビュー）", () => {
+  const m = { id: 1, pkg: "scripts", tests: ["lib/a.test.mjs"] };
+
+  test("vitest には --maxWorkers を、node --test には --test-concurrency を足す", () => {
+    assert.deepEqual(buildCommand("vitest", m, false, 1).args, ["vitest", "run", "--maxWorkers=1", "lib/a.test.mjs"]);
+    assert.deepEqual(buildCommand("node", m, false, 2).args, ["--test", "--test-concurrency=2", "lib/a.test.mjs"]);
+    assert.deepEqual(buildCommand("vitest", m, true, 1).args, ["vitest", "run", "--maxWorkers=1"]);
+  });
+
+  test("上限が無ければ今までのコマンドのまま（直列の実行は変えない）", () => {
+    assert.deepEqual(buildCommand("vitest", m, false).args, ["vitest", "run", "lib/a.test.mjs"]);
+    assert.deepEqual(buildCommand("node", m, false, null).args, ["--test", "lib/a.test.mjs"]);
+  });
+
+  test("bun test は 1 つのプロセスの中でファイルを順に流すので、足さない", () => {
+    const sync = { id: 3, pkg: "apps/tasuki-sync", tests: ["test/a.test.ts"] };
+    assert.deepEqual(buildCommand("bun", sync, false, 1).args, ["test", "test/a.test.ts"]);
+  });
+});
+
 describe("対照実行の使い回しの鍵（controlKeyOf）", () => {
   const a = { id: 1, pkg: "scripts", tests: ["lib/a.test.mjs"] };
   test("同じ pkg でも tests が違えば鍵が違う", () => {
