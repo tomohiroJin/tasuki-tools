@@ -916,6 +916,12 @@ describe("CI への配線: 変異検査を分けて流す（#481）", () => {
     assert.doesNotMatch(calls[0], /matrix\./);
   });
 
+  test("シャードのジョブに上限の時間がある（子が固まっても既定の 360 分まで待たない）", () => {
+    const block = ci.slice(ci.indexOf("\n  mutation:"), ci.indexOf("\n  mutation-all:"));
+    assert.ok(block.length > 0, "mutation ジョブが見つからない");
+    assert.match(block, /^ {4}timeout-minutes: \d+\s*$/m);
+  });
+
   test("集約のジョブはシャードのジョブを needs に持ち、いつも走り、結果が success でなければ赤くなる", () => {
     const block = ci.slice(ci.indexOf("\n  mutation-all:"), ci.indexOf("\n  quality:"));
     assert.ok(block.length > 0, "mutation-all ジョブが見つからない");

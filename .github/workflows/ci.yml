@@ -191,6 +191,9 @@ jobs:
   mutation:
     name: mutation (${{ matrix.shard }})
     runs-on: ubuntu-latest
+    # 子が固まったときに既定の 360 分まで待たない。いまの実測は 1 つのシャードで約 5 分（設計正本 §8）。
+    # 変異が増えて 20 分に近づいたら、上げるのではなく matrix の行を足す（#481 のレビュー）
+    timeout-minutes: 20
     strategy:
       # 1 つが落ちても他を止めない。検出されなかった変異を一度にすべて見るため
       fail-fast: false
