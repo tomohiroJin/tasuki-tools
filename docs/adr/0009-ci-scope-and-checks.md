@@ -215,3 +215,11 @@ Sync Impact Report が撤廃済みの旧名（monorepo 統合前の core パッ�
 CI の `audit` ジョブを外した（[ADR-0024](./0024-vulnerability-detection-outside-ci.md)）。現在のジョブは
 `ci` / `quality` / `docs` / `e2e` の 4 本である。`scripts/ci-scope.mjs` の出力も、`audit` だけが読んでいた
 `deps` を消して `code` の 1 つになった。上の本文と追記にある 5 本の構成・所要時間は当時の実測であり、書き換えない。
+
+## 追記（2026-10-31・#481）
+
+変異検査を `quality` から外し、新しい `mutation` ジョブ（matrix で n 本）と集約の `mutation-all` へ移した
+（[ADR-0029](./0029-mutation-shards-in-ci.md)）。**全件を毎回流すことは変えていない**（D1 の「すべて CI で走らせる」のまま）。
+現在のジョブは `ci` / `e2e` / `docs` / `quality` / `mutation`（n 本）/ `mutation-all` である。
+`mutation` の各ジョブも D4 のとおり常に起動し、絞り込みはステップ単位の `if` で行う。
+上の本文と追記にある構成・所要時間は当時の実測であり、書き換えない。

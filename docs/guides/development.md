@@ -908,14 +908,25 @@ CI は変異も E2E も全件を流し続けます。手元で絞った分の漏
 | 段 | 変異検査 | E2E |
 |---|---|---|
 | 実装中（タスクごと） | `--changed`、または `--pkg <触ったパッケージ>` | 触った画面の spec だけ（`cd e2e && pnpm exec playwright test specs/<名前>.spec.ts`） |
-| PR を出す前 | `--changed` | 全件（`pnpm e2e`） |
-| CI | 全件（指定なし） | 全件 |
+| PR を出す前 | `--changed`（足りなければ `--jobs <コアの数>` を足す） | 全件（`pnpm e2e`） |
+| CI | 全件を `--shard k/n` でジョブに分け、各ジョブが `--jobs` で並列に流す | 全件 |
 
 - `--changed` は `origin/main` との差分から、**同じパッケージの中で**関係する変異を選びます（パッケージ間の依存はたどりません）。
   変異検査の機構（`scripts/mutation-check.mjs` とその import）か、リポジトリのルート直下の `.md` 以外のファイル（lockfile・`package.json` など）が差分にあると全件に倒れます。差分には未コミットの変更と未追跡のファイルも含みます。その枝で絞りたいときは `--base <ref>` で基準を変えます
   変異を書き足した枝も機構の変更に当たり全件に倒れます（宣言の表 `scripts/lib/mutation-declarations.mjs` は `mutation-check.mjs` が import するので機構に数えます。#380。既存の宣言の `tests` や `pkg` を書き換えた枝で、その変異を取りこぼさないため）
 - 実行の最後に**所要時間**が出ます。計画の検証の見積もりは、直前の実行のこの行を根拠にします（手引きには秒数を書きません）
 - 知らない指定（`--help` を含む）はエラーで止まります
+
+**CI の変異検査は全件のまま、2 段に分けて並行に流します**（#481・決定は [`docs/adr/0029`](../adr/0029-mutation-shards-in-ci.md)・
+設計正本 [`2026-10-31-ci-wait-design.md`](../superpowers/specs/2026-10-31-ci-wait-design.md)）。
+
+- `--shard k/n` は全件を n 個に分けた k 番目を流します（1 から数える）。n 個を合わせると全件です。分け方は対照の組（`pkg` と `tests` が同じ変異）を割りません。
+  CI は matrix の行の数だけジョブを起こし、番号と数を `strategy.job-index` / `job-total` から渡します（matrix の値は渡さない）
+- `--jobs <数>` は HEAD の写しの作業ツリー（`git worktree`）をその数だけ作り、並列に流します。どの選び方とも組めます。
+  **本体に未コミットの変更があると止まります**（写しに入らないため。宣言の表とパッチも先にコミットする）。依存は `pnpm install --offline` でストアから引くので、本体で `pnpm install` を済ませておきます。
+  作業ツリーは一時ディレクトリに作り、終わると消します。殺されて残ったものは次の実行が消します
+- **変異が増えて CI が遅くなったら、`.github/workflows/ci.yml` の `mutation` ジョブの matrix の行を足します**（スクリプトは変えない）。
+  目安は設計正本 §6。各シャード・各ワーカーの所要時間はログの最後に出ます
 
 **変異を足すときは、宣言を `scripts/lib/mutation-declarations.mjs` の表 `MUTATIONS` に足し、パッチを `scripts/mutations/` に置きます**
 （宣言とパッチは 1 対 1。ID は詰めない・使い回さない）。表は #380 で機構（`scripts/mutation-check.mjs`）から分けました。

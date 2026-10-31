@@ -795,7 +795,7 @@ function refExists(ref) {
  */
 export const RUNNER_COST_SECONDS = Object.freeze({
   vitest: Object.freeze({ control: 3, mutation: 3 }),
-  bun: Object.freeze({ control: 0.3, mutation: 2 }),
+  bun: Object.freeze({ control: 0.6, mutation: 2 }),
   node: Object.freeze({ control: 0.4, mutation: 0.4 }),
 });
 
