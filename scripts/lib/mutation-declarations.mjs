@@ -4137,4 +4137,30 @@ export const MUTATIONS = [
     note:
       "#485 のレビュー。描画も読み込みもされない例文の中の [x](AGENTS.md) で、正本へ向いていない入口が通る。",
   },
+  {
+    id: 634,
+    label: "audit-agent-entries がスキルのリンクの行き先を見ない（手順書の置き場の外・追跡下に無いファイルへのリンクで通る）",
+    patch: "m634-agent-entries-skill-any-link.patch",
+    pkg: "scripts",
+    tests: ["audit-agent-entries.test.mjs"],
+    note:
+      "#489。スキルが開発ガイドや存在しないファイルを指したまま通り、手順書へ向ける薄い入口という形が崩れる。",
+  },
+  {
+    id: 635,
+    label: "audit-agent-entries がスキルの description の長さを測らない",
+    patch: "m635-agent-entries-skill-description-unbounded.patch",
+    pkg: "scripts",
+    tests: ["audit-agent-entries.test.mjs"],
+    note: "#489。本文を薄く保ったまま、手順を description に詰め込む抜け道が開く。",
+  },
+  {
+    id: 636,
+    label: "audit-agent-entries がスキルの本文に frontmatter を含めて数える",
+    patch: "m636-agent-entries-skill-counts-frontmatter.patch",
+    pkg: "scripts",
+    tests: ["audit-agent-entries.test.mjs"],
+    note:
+      "#489。frontmatter の中のリンクで「手順書へ向いている」と数え、薄さの物差しも frontmatter の分だけずれる。",
+  },
 ];

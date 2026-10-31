@@ -14,6 +14,10 @@
  *    入口に規則を書き始めると正本が 2 つになる（憲法 原則 VIII）
  * 3. **宣言していない入口が無い**。ツールが規則として読む置き場（{@link isEntryCandidate}）に
  *    当たる追跡下のファイルは、宣言に載っているか正本そのものでなければならない
+ * 4. **スキル（{@link SKILLS_DIR}）が手順書（{@link PROCEDURES_DIR}）へ向ける薄い入口である**（#489）。
+ *    手順の正本は手順書に置き、スキルは frontmatter（`name`・`description`）と、手順書へのリンクを持つ
+ *    数行の本文だけにする。`SKILL.md` 以外のファイル（スクリプト・参照文書）は置かない。
+ *    見方は入口（2）と同じ。リンクだけを数え、行数と文字数で薄さを測る
  *
  * ## 何を見ていないか — **「足りる」とは言わない**
  *
@@ -21,6 +25,8 @@
  * - **ツールが入口を実際に読み込むかは見ない。** リンクは案内であって読み込みではない。
  *   取り込み（`@AGENTS.md`）を解するツールでは取り込みで書く（`docs/adr/0030` 決定 3）
  * - **AGENTS.md の本文が憲法・ADR と矛盾していないかは見ない。** 見るのは原則の見出しだけ
+ * - **スキルの description が手順書の中身と合っているかは見ない。** 長さだけを測る
+ * - **スキルの置き場は `.claude/skills/` だけ。** 他のツールのスキルの置き場を足したら {@link SKILLS_DIR} の扱いを広げる
  * - **候補の置き場は既知のものだけ。** 新しいツールが別の名前を読むようになったら、
  *   {@link isEntryCandidate} に足す（足し忘れは検知できない。残余として受け入れる）
  *
@@ -139,13 +145,21 @@ export function comparePrinciples(constitution, agents) {
  * **コードブロックと HTML コメントの中は数えない。** 描画もされず読み込まれもしない（#485 のレビュー）。
  */
 export function linksToSource(rel, text) {
+  return linkTargets(rel, text).includes(SOURCE_PATH);
+}
+
+/**
+ * 本文が向けている行き先（リポジトリ直下からのパス）。Markdown のリンクと、行頭の `@パス`（取り込み）。
+ * 行き先はファイルの置き場から解く。コードブロックと HTML コメントの中は数えない。
+ */
+export function linkTargets(rel, text) {
   const dir = path.posix.dirname(rel);
   const visible = stripCodeFences(text).replace(/<!--[\s\S]*?-->/g, "");
   const targets = [
     ...[...visible.matchAll(/\]\(\s*([^)\s#]+)(?:#[^)\s]*)?(?:\s+"[^"]*")?\s*\)/g)].map((m) => m[1]),
     ...[...visible.matchAll(/^\s*@(\S+)\s*$/gm)].map((m) => m[1]),
   ];
-  return targets.some((t) => path.posix.normalize(path.posix.join(dir, t)) === SOURCE_PATH);
+  return targets.map((t) => path.posix.normalize(path.posix.join(dir, t)));
 }
 
 /** 1 つの入口を見る。 */
@@ -154,18 +168,81 @@ export function checkEntry(rel, text) {
   if (!linksToSource(rel, text)) {
     problems.push(`${rel}: ${SOURCE_PATH} へのリンクも取り込み（@AGENTS.md）もありません    ← 規則は書かず、正本へ向けてください`);
   }
+  problems.push(...checkThin(rel, text, `規則は ${SOURCE_PATH} に書いてください（憲法 原則 VIII）`));
+  return problems;
+}
+
+/** 空でない行の数と文字数（前後の空白を除く）が上限の中か。入口とスキルの本文で同じ物差しを使う。 */
+function checkThin(rel, text, hint) {
+  const problems = [];
   const lines = text.split("\n").filter((l) => l.trim() !== "").length;
   if (lines > MAX_ENTRY_LINES) {
-    problems.push(
-      `${rel}: 空でない行が ${lines} 行あります（上限 ${MAX_ENTRY_LINES} 行）    ← 規則は ${SOURCE_PATH} に書いてください（憲法 原則 VIII）`,
-    );
+    problems.push(`${rel}: 空でない行が ${lines} 行あります（上限 ${MAX_ENTRY_LINES} 行）    ← ${hint}`);
   }
   const chars = [...text.trim()].length;
   if (chars > MAX_ENTRY_CHARS) {
-    problems.push(
-      `${rel}: ${chars} 文字あります（上限 ${MAX_ENTRY_CHARS} 文字）    ← 規則は ${SOURCE_PATH} に書いてください（憲法 原則 VIII）`,
-    );
+    problems.push(`${rel}: ${chars} 文字あります（上限 ${MAX_ENTRY_CHARS} 文字）    ← ${hint}`);
   }
+  return problems;
+}
+
+/** スキルの置き場（Claude Code）。配下は `<名前>/SKILL.md` だけを置く。 */
+export const SKILLS_DIR = ".claude/skills/";
+
+/** 手順書の置き場。手順の正本はここで、スキルはここへ向ける（#489）。 */
+export const PROCEDURES_DIR = "docs/guides/procedures/";
+
+/**
+ * スキルの description の文字数の上限。description はツールがスキルを選ぶための一文であり、
+ * 手順を詰め込む場所ではない。
+ */
+export const MAX_SKILL_DESCRIPTION_CHARS = 200;
+
+/** 先頭の `---` で囲まれた frontmatter を `key: value` の行として読む。無ければ null。 */
+function splitFrontmatter(text) {
+  const m = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/.exec(text);
+  if (!m) return null;
+  const fields = new Map();
+  for (const line of m[1].split(/\r?\n/)) {
+    const f = /^([A-Za-z_-]+):\s*(.*?)\s*$/.exec(line);
+    if (f) fields.set(f[1], f[2].replace(/^(["'])(.*)\1$/, "$2"));
+  }
+  return { fields, body: text.slice(m[0].length) };
+}
+
+/**
+ * 1 つのスキルのファイルを見る。
+ *
+ * @param {string} rel - リポジトリ直下からのパス（{@link SKILLS_DIR} の配下）
+ * @param {string} text - ファイルの中身
+ * @param {string[]} procedures - 追跡下の手順書（{@link PROCEDURES_DIR} の配下）
+ */
+export function checkSkill(rel, text, procedures) {
+  const m = new RegExp(`^${SKILLS_DIR.replace(/\./g, "\\.")}([^/]+)/SKILL\\.md$`).exec(rel);
+  if (!m) {
+    return [`${rel}: スキルの置き場に SKILL.md 以外のファイルがあります    ← 手順は ${PROCEDURES_DIR} に書き、スキルは <名前>/SKILL.md だけにしてください`];
+  }
+  const problems = [];
+  const parsed = splitFrontmatter(text);
+  if (!parsed) {
+    problems.push(`${rel}: frontmatter（name・description）がありません`);
+  } else {
+    const name = parsed.fields.get("name");
+    if (name !== m[1]) problems.push(`${rel}: name「${name ?? ""}」がディレクトリ名「${m[1]}」と違います`);
+    const description = parsed.fields.get("description");
+    if (!description) problems.push(`${rel}: description がありません`);
+    else if ([...description].length > MAX_SKILL_DESCRIPTION_CHARS) {
+      problems.push(
+        `${rel}: description が ${[...description].length} 文字あります（上限 ${MAX_SKILL_DESCRIPTION_CHARS} 文字）    ← 手順は ${PROCEDURES_DIR} に書いてください`,
+      );
+    }
+  }
+  const body = parsed ? parsed.body : text;
+  const known = new Set(procedures);
+  if (!linkTargets(rel, body).some((t) => t.startsWith(PROCEDURES_DIR) && known.has(t))) {
+    problems.push(`${rel}: 本文に手順書へのリンクがありません（${PROCEDURES_DIR} の追跡下のファイル）    ← 手順は書かず、手順書へ向けてください`);
+  }
+  problems.push(...checkThin(rel, body, `手順は ${PROCEDURES_DIR} に書いてください（憲法 原則 VIII）`));
   return problems;
 }
 
@@ -184,10 +261,13 @@ function main() {
   const constitution = extractPrinciples(read(CONSTITUTION_PATH));
   const agents = extractAgentsPrinciples(read(SOURCE_PATH));
   const candidates = listTrackedFiles(REPO_ROOT, ENTRY_CANDIDATE_PATTERNS).filter(isEntryCandidate);
+  // git の pathspec の `*` は `/` を跨ぐので、配下のどの階層のファイルも拾う。
+  const skills = listTrackedFiles(REPO_ROOT, [`${SKILLS_DIR}*`]);
+  const procedures = listTrackedFiles(REPO_ROOT, [`${PROCEDURES_DIR}*`]);
 
   // 走査量は成否によらず必ず出す（ADR-0014 決定 6）。
   console.log(
-    `[audit-agent-entries] 走査対象: 入口 ${ENTRY_FILES.length} 件 / 候補 ${candidates.length} 件 / 原則 憲法 ${constitution.length} 本・${SOURCE_PATH} ${agents.length} 本`,
+    `[audit-agent-entries] 走査対象: 入口 ${ENTRY_FILES.length} 件 / 候補 ${candidates.length} 件 / スキル ${skills.length} 件 / 手順書 ${procedures.length} 件 / 原則 憲法 ${constitution.length} 本・${SOURCE_PATH} ${agents.length} 本`,
   );
 
   // 0 件ガード（ADR-0014 決定 8）。候補には正本そのものが入るので 0 件は壊れている。
@@ -196,6 +276,10 @@ function main() {
     { label: "候補", count: candidates.length },
     { label: "憲法の原則", count: constitution.length },
     { label: `${SOURCE_PATH} の原則`, count: agents.length },
+    // スキルと手順書は #489 で置いた。0 件は列挙の取り違え（置き場の改名を含む）とみなす。
+    // スキルを全部やめるなら、この行と SKILLS_DIR の扱いも一緒に外す。
+    { label: "スキル", count: skills.length },
+    { label: "手順書", count: procedures.length },
   ]);
   if (empty.length > 0) {
     console.error(`[audit-agent-entries] 走査対象が 0 件です（${empty.join(" / ")}）。検査が空振りしています`);
@@ -214,14 +298,17 @@ function main() {
   for (const rel of findUndeclaredEntries(candidates, ENTRY_FILES)) {
     problems.push(`${rel}: 宣言されていない入口です    ← 消すか、ENTRY_FILES に足して薄い入口にしてください`);
   }
+  for (const rel of skills) problems.push(...checkSkill(rel, read(rel), procedures));
 
   if (problems.length > 0) {
     console.error(`[audit-agent-entries] AI ツールの入口が正本とずれています（${problems.length} 件）`);
     for (const p of problems) console.error(`  ${p}`);
-    console.error(`  根拠: docs/adr/0030 決定 3 / docs/adr/0002 決定 5 / 憲法 原則 VIII`);
+    console.error(`  根拠: docs/adr/0030 決定 3 / docs/adr/0002 決定 5 / 憲法 原則 VIII / ${PROCEDURES_DIR}README.md`);
     process.exit(1);
   }
-  console.log(`[audit-agent-entries] OK（入口 ${ENTRY_FILES.length} 件が ${SOURCE_PATH} へ向き、原則 ${agents.length} 本が憲法と一致）`);
+  console.log(
+    `[audit-agent-entries] OK（入口 ${ENTRY_FILES.length} 件が ${SOURCE_PATH} へ向き、スキル ${skills.length} 件が手順書へ向き、原則 ${agents.length} 本が憲法と一致）`,
+  );
 }
 
 if (isDirectRun(import.meta.url, process.argv[1])) main();

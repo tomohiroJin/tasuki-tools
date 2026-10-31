@@ -1140,8 +1140,38 @@ describe("0 件ガードと照合の配線: scripts/audit-agent-entries.mjs（#4
     assert.equal(r.status, 0, `対照実行が緑になりません:\n${r.stderr}`);
     assert.match(
       r.stdout,
-      /\[audit-agent-entries\] 走査対象: 入口 \d+ 件 \/ 候補 \d+ 件 \/ 原則 憲法 \d+ 本・AGENTS\.md \d+ 本/,
+      /\[audit-agent-entries\] 走査対象: 入口 \d+ 件 \/ 候補 \d+ 件 \/ スキル \d+ 件 \/ 手順書 \d+ 件 \/ 原則 憲法 \d+ 本・AGENTS\.md \d+ 本/,
     );
+  });
+
+  test("スキルの列挙が空になると非ゼロで終了する（スキルを見なくなる経路。#489）", () => {
+    const needle = "const skills = listTrackedFiles(REPO_ROOT, [`${SKILLS_DIR}*`]);";
+    const mutate = (s) => s.replace(needle, "const skills = [];");
+    const r = runScriptCopy("audit-agent-entries.mjs", mutate);
+    assertBrokenBy("audit-agent-entries.mjs", r.source, needle, "スキルの列挙");
+    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+    assert.match(r.stderr, /走査対象が 0 件です（スキル）/);
+  });
+
+  test("手順書の列挙が空になると非ゼロで終了する（#489）", () => {
+    const needle = "const procedures = listTrackedFiles(REPO_ROOT, [`${PROCEDURES_DIR}*`]);";
+    const mutate = (s) => s.replace(needle, "const procedures = [];");
+    const r = runScriptCopy("audit-agent-entries.mjs", mutate);
+    assertBrokenBy("audit-agent-entries.mjs", r.source, needle, "手順書の列挙");
+    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+    assert.match(r.stderr, /走査対象が 0 件です（手順書）/);
+  });
+
+  test("実リポジトリのスキルを実際に読んで照合する（手順書の一覧を渡し損ねると名指しで落ちる。#489）", () => {
+    // Given: スキルの照合に、追跡下の手順書の代わりに空の一覧を渡す（0 件ガードには掛からない）
+    const needle = "for (const rel of skills) problems.push(...checkSkill(rel, read(rel), procedures));";
+    const mutate = (s) => s.replace(needle, "for (const rel of skills) problems.push(...checkSkill(rel, read(rel), []));");
+    // When
+    const r = runScriptCopy("audit-agent-entries.mjs", mutate);
+    // Then: 実在のスキルが「手順書へのリンクがありません」で名指しされる
+    assertBrokenBy("audit-agent-entries.mjs", r.source, needle, "スキルの照合");
+    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+    assert.match(r.stderr, /\.claude\/skills\/[^/]+\/SKILL\.md: 本文に手順書へのリンクがありません/);
   });
 
   test("AGENTS.md の原則の節を読めなくなると非ゼロで終了する（0 本を「一致した」と読ませない）", () => {

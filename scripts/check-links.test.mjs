@@ -438,15 +438,17 @@ describe("isLiveDoc", () => {
     assert.equal(isLiveDoc("README.md"), true);
     assert.equal(isLiveDoc("docs/adr/0009-ci-scope-and-checks.md"), true);
     assert.equal(isLiveDoc("deploy/README.md"), true);
+    // #489: スキルは手順書へ向ける薄い入口。リンクを辿って手順書へ行けることを検査する
+    assert.equal(isLiveDoc(".claude/skills/live-check/SKILL.md"), true);
   });
 
   test("履歴文書と vendor を弾く", () => {
-    // Given: monorepo 統合前の表記で書かれた当時の記録、および spec-kit の vendor
+    // Given: monorepo 統合前の表記で書かれた当時の記録
+    // （spec-kit の vendor だった .claude/skills/speckit-*/ は #71 で消え、#489 で .claude/skills/ を現役の置き場にした）
     // When / Then
     assert.equal(isLiveDoc("docs/superpowers/plans/2026-08-04-monorepo-s0-s1.md"), false);
     assert.equal(isLiveDoc("docs/poker/specs/001-planning-poker-mvp/tasks.md"), false);
     assert.equal(isLiveDoc("docs/timer/adr/0009-test-conventions.md"), false);
-    assert.equal(isLiveDoc(".claude/skills/speckit-plan/SKILL.md"), false);
   });
 
   test("poker の ADR は現役の規範文書なので LIVE に含む", () => {

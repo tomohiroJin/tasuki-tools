@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-agent-entries.mjs b/scripts/audit-agent-entries.mjs
+index 5622539..5a702b9 100644
+--- a/scripts/audit-agent-entries.mjs
++++ b/scripts/audit-agent-entries.mjs
+@@ -231,7 +231,7 @@ export function checkSkill(rel, text, procedures) {
+     if (name !== m[1]) problems.push(`${rel}: name「${name ?? ""}」がディレクトリ名「${m[1]}」と違います`);
+     const description = parsed.fields.get("description");
+     if (!description) problems.push(`${rel}: description がありません`);
+-    else if ([...description].length > MAX_SKILL_DESCRIPTION_CHARS) {
++    else if (false) {
+       problems.push(
+         `${rel}: description が ${[...description].length} 文字あります（上限 ${MAX_SKILL_DESCRIPTION_CHARS} 文字）    ← 手順は ${PROCEDURES_DIR} に書いてください`,
+       );

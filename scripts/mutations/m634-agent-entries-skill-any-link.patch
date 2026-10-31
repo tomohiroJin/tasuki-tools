@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-agent-entries.mjs b/scripts/audit-agent-entries.mjs
+index 5622539..08b592e 100644
+--- a/scripts/audit-agent-entries.mjs
++++ b/scripts/audit-agent-entries.mjs
+@@ -239,7 +239,7 @@ export function checkSkill(rel, text, procedures) {
+   }
+   const body = parsed ? parsed.body : text;
+   const known = new Set(procedures);
+-  if (!linkTargets(rel, body).some((t) => t.startsWith(PROCEDURES_DIR) && known.has(t))) {
++  if (!linkTargets(rel, body).some((t) => known.size >= 0)) {
+     problems.push(`${rel}: 本文に手順書へのリンクがありません（${PROCEDURES_DIR} の追跡下のファイル）    ← 手順は書かず、手順書へ向けてください`);
+   }
+   problems.push(...checkThin(rel, body, `手順は ${PROCEDURES_DIR} に書いてください（憲法 原則 VIII）`));
