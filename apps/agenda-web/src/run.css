@@ -458,11 +458,10 @@
   outline: none;
 }
 /* 残りの領域: 今までの映す表示の段組み（盤と横の情報・中央寄せ）をここへ移した。
-   高さは画面いっぱい（縮めない）。帯が出ても中身の配置は帯が無いときと同じで、帯の高さだけ下へずれる
-   （縮めると中央寄せの基準が変わり、盤が帯ほど下がらず右上の音の切り替えと重なった） */
+   高さは残りの高さ（中身が多ければ伸びる）。帯が無いときは画面いっぱいで main と同じ配置。
+   帯が出たときは帯（と隅の行）を除いた高さの中で中央に寄せ、画面の下へはみ出さない */
 .projection-body {
   flex: 1 0 auto;
-  min-block-size: 100%;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-content: center;
@@ -484,22 +483,27 @@
   justify-items: center;
 }
 /* 上端の枠。接続の告知の帯（部品の `.ui-banner`）は映す表示（fixed・全面）に覆われるので、映している間は
-   帯をこの枠の先頭に入れて映す表示の中の上端に置く。部品の z-index は上げない（上げると隅の音の切り替えを覆う）。
+   帯をこの枠に入れて映す表示の中の上端に置く。部品の z-index は上げない（上げると隅の音の切り替えを覆う）。
    枠は外枠（縦の flex）の最初の子で、流れの中に全幅で置く。sticky なので縦にスクロールしても画面の上に留まる。
-   盤は別の領域（`.projection-body`）にあるので、帯が何行になっても帯・音の切り替え・盤は重ならない */
+   帯が無いときは高さ 0 */
 .projection-top {
   position: sticky;
   top: 0;
   z-index: 1;
   flex: none;
 }
-/* 音の切り替えの隅。上端の枠の下端から間をあけた右上に浮かべる（流れの外）。帯が無いとき枠の高さは 0 なので
-   main と同じ位置（右上の隅）で、盤の位置も変わらない。帯が出ると枠ごと帯の高さだけ下がり、盤も同じだけ下がる。
-   流れの中に置くと隅の 1 行の高さだけ盤が下がった（320×568 で 30px） */
+/* 音の切り替えの隅。帯が無いときは main と同じく右上の隅に浮かべる（流れの外・スクロールで流れる）。
+   上端の枠（sticky）の中に置くと、スクロールしても上に留まり盤の上に乗った */
 .projection-corner {
   position: absolute;
-  top: calc(100% + var(--space-3));
+  top: var(--space-3);
   right: var(--space-4);
+}
+/* 帯が出ている間は、隅を帯の下の流れの中に置く（右寄せ）。帯・隅・盤が重ならず、隅はスクロールで流れる */
+.projection:has(> .projection-top > .ui-banner) > .projection-corner {
+  position: static;
+  align-self: flex-end;
+  padding: var(--space-3) var(--space-4) 0;
 }
 .projection-side {
   margin: 0;

@@ -315,6 +315,20 @@ test.describe('接続の帯と一言が読める（WCAG AA・#320 E8）', () => 
       const bannerBox = (await boxesOf(banner))[0]!;
       expect(bannerBox.width, '帯が全幅でない').toBeGreaterThanOrEqual(viewport.width - 1);
       expect(bannerBox.y, '帯が上端にない').toBeLessThanOrEqual(1);
+      // 映す画面の大きさ（高さ 800 以上）では、帯が出ても下へはみ出さない（映している画面は誰もスクロールしない）。
+      // 320×568 は帯と隅の行を除くと中身が収まらず、スクロールで見る（帯は上に留まる）
+      if (viewport.height >= 800) {
+        const overflow = await page.locator('.projection').evaluate((el) => el.scrollHeight - el.clientHeight);
+        expect(overflow, '帯が出て映す表示の下の端が画面の外へ出た').toBeLessThanOrEqual(0);
+      }
+      // 隅の操作はスクロールで流れる（上端の枠に留まって盤の上に乗らない）
+      await page.locator('.projection').evaluate((el) => {
+        el.scrollTop = el.scrollHeight;
+      });
+      await expectNoOverlap('繋がらない（下までスクロール）', toggle, dial);
+      await page.locator('.projection').evaluate((el) => {
+        el.scrollTop = 0;
+      });
 
       // 縦にスクロールしても帯は画面の上に留まる（sticky）
       await page.locator('.projection').evaluate((el) => {

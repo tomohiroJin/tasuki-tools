@@ -109,10 +109,8 @@ export function ProjectionView({ view, wallNow, reducedMotion, striking, canOper
   const following = nextStepName(view);
   return (
     <div ref={rootRef} className="projection" tabIndex={-1} onMouseMove={reveal}>
-      <div className="projection-top">
-        {banner}
-        <div className="projection-corner">{soundToggle}</div>
-      </div>
+      <div className="projection-top">{banner}</div>
+      <div className="projection-corner">{soundToggle}</div>
       <div className="projection-body">
         <div className="projection-dial">
           <Dial view={view} wallNow={wallNow} reducedMotion={reducedMotion} striking={striking} size="stage" />

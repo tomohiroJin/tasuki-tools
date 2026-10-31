@@ -71,14 +71,16 @@ describe('映す表示', () => {
     expect(projection!.contains(banner)).toBe(true);
     // 外に二重に出さない
     expect(document.querySelectorAll('.ui-banner')).toHaveLength(1);
-    // 映す表示は「上端の枠（帯→音の切り替え）」と「残りの領域（盤・横の情報）」の 2 段。帯は上端の枠の先頭
+    // 映す表示は「上端の枠（帯）」「音の切り替えの隅」「残りの領域（盤・横の情報）」の順。
+    // 隅は上端の枠（sticky）の外（中に置くとスクロールしても上に留まり、盤の上に乗った）
     const top = banner.parentElement!;
     expect(top).toHaveClass('projection-top');
     expect(top.firstElementChild).toBe(banner);
-    expect(top.querySelector('.projection-corner')).not.toBeNull();
+    expect(top.querySelector('.projection-corner')).toBeNull();
     expect(projection!.children[0]).toBe(top);
-    expect(projection!.children[1]).toHaveClass('projection-body');
-    expect(projection!.children[1]!.querySelector('.projection-dial')).not.toBeNull();
+    expect(projection!.children[1]).toHaveClass('projection-corner');
+    expect(projection!.children[2]).toHaveClass('projection-body');
+    expect(projection!.children[2]!.querySelector('.projection-dial')).not.toBeNull();
     // 上端の枠の中に盤は無い（重ならない構造）
     expect(top.querySelector('.projection-dial')).toBeNull();
   });

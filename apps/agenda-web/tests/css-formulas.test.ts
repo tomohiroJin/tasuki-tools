@@ -70,19 +70,23 @@ describe('映す表示の中の接続の告知の帯', () => {
     expect(body).not.toContain('position: absolute;');
   });
 
-  it('Given 残りの領域 / When 規則を見る / Then 今の中央寄せの grid（盤と横の情報）を持ち、画面いっぱいの高さから縮まない', () => {
+  it('Given 残りの領域 / When 規則を見る / Then 今の中央寄せの grid（盤と横の情報）を持ち、残りの高さを取る（画面いっぱいに固定しない）', () => {
     const body = ruleBody(css, '.projection-body');
     expect(body).toContain('display: grid;');
     expect(body).toContain('flex: 1 0 auto;');
-    expect(body).toContain('min-block-size: 100%;');
+    // 画面いっぱいに固定すると、帯が出たとき帯の高さだけ下へはみ出した（映している画面は誰もスクロールしない）
+    expect(body).not.toContain('min-block-size: 100%;');
     expect(body).toContain('align-content: center;');
   });
 
-  it('Given 音の切り替えの隅 / When 規則を見る / Then 上端の枠の下端から間をあけた右上に浮かべる（流れの外。帯が無いとき盤を下げない）', () => {
+  it('Given 音の切り替えの隅 / When 規則を見る / Then 帯が無いときは main と同じ右上の隅に浮かべ、帯が出ている間は帯の下の流れの中に置く', () => {
     const body = ruleBody(css, '.projection-corner');
     expect(body).toContain('position: absolute;');
-    expect(body).toContain('top: calc(100% + var(--space-3));');
+    expect(body).toContain('top: var(--space-3);');
     expect(body).toContain('right: var(--space-4);');
+    const withBanner = ruleBody(css, '.projection:has(> .projection-top > .ui-banner) > .projection-corner');
+    expect(withBanner).toContain('position: static;');
+    expect(withBanner).toContain('align-self: flex-end;');
   });
 
 });
