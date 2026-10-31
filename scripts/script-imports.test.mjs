@@ -55,6 +55,14 @@ export const ALLOWED_SCRIPT_IMPORTS = [
       "web アプリの範囲（vite.config.ts の実在から導く。ADR-0019 決定 2）の正本は " +
       "audit-web-sync-boundary.mjs に置く。写すと 2 つの検査の範囲がずれうる",
   },
+  {
+    from: "scripts/audit-agent-entries.mjs",
+    to: "scripts/audit-plan-gate.mjs",
+    names: ["CONSTITUTION_PATH", "extractPrinciples", "stripCodeFences"],
+    reason:
+      "憲法の置き場・原則の見出しの読み方・コードフェンスの剥がし方の正本は audit-plan-gate.mjs に置く。" +
+      "写すと、形が変わったときに片方の検査だけが読み方を直すことになる（#483）",
+  },
 ];
 
 /** 取り込みとして読むファイル（テストは除く。テストは自分の検査を取り込む）。 */

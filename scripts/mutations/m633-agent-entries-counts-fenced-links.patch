@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-agent-entries.mjs b/scripts/audit-agent-entries.mjs
+index 1d77234..ae956b2 100644
+--- a/scripts/audit-agent-entries.mjs
++++ b/scripts/audit-agent-entries.mjs
+@@ -140,7 +140,7 @@ export function comparePrinciples(constitution, agents) {
+  */
+ export function linksToSource(rel, text) {
+   const dir = path.posix.dirname(rel);
+-  const visible = stripCodeFences(text).replace(/<!--[\s\S]*?-->/g, "");
++  const visible = (text).replace(/<!--[\s\S]*?-->/g, "");
+   const targets = [
+     ...[...visible.matchAll(/\]\(\s*([^)\s#]+)(?:#[^)\s]*)?(?:\s+"[^"]*")?\s*\)/g)].map((m) => m[1]),
+     ...[...visible.matchAll(/^\s*@(\S+)\s*$/gm)].map((m) => m[1]),

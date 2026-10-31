@@ -182,6 +182,10 @@ jobs:
       # docs ジョブは絞り込まず、pnpm install も要らない（git ls-files とファイル読み取りだけ）。
       - run: node scripts/audit-plan-gate.mjs
 
+      # AI ツールの入口（CLAUDE.md ほか）が正本 AGENTS.md とずれていないか（#483・docs/adr/0030 決定 3）。
+      # 入口も AGENTS.md も *.md なので、plan-gate と同じ理由で quality ジョブへ置かない。
+      - run: node scripts/audit-agent-entries.mjs
+
   # 変異検査。**全件を毎回流す**（PR でも main でも。絞り込まない）。
   # 1 本で直列に流すと 13〜19 分かかり CI 全体の律速だった（#481）。そこで 2 段に分ける
   # （決定は docs/adr/0029・設計正本 docs/superpowers/specs/2026-10-31-ci-wait-design.md）。
