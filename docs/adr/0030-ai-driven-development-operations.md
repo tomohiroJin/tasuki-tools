@@ -122,11 +122,11 @@ DoD の項目をガイドに置いたのと同じ書き分け。`docs/adr/0002` 
 - `GEMINI.md`・`.github/copilot-instructions.md` を `CLAUDE.md` と同じ形の入口として足す
 - `scripts/audit-agent-entries.mjs` を CI の `docs` ジョブに足す（決定 3）。変異 632 がその照合を守る
 - `docs/README.md`・`AGENTS.md` の文書地図にマニフェストを載せる
-- **次の作業は子 ISSUE に分ける**（#483 のメモ。この ADR の方針に沿って進める）:
-  1. E2E のハーネスのポートを固定にせず、外部のもの（Caddy・Playwright のブラウザ）が無いときに分かりやすく止める
-  2. 開発環境の版（Node・pnpm・Bun・Chromium・Caddy）を 1 か所で宣言し、合わないときは検査の前に止める
-  3. 手元で CI と同じ検査を 1 つのコマンドで流す（速い段と全件の段。#481 と合わせて設計する）
+- **次の作業は子 ISSUE に分けた**（#483 のメモ。この ADR の方針に沿って進める）:
+  1. E2E のハーネスのポートを固定にせず、同じ機械の複数のセッションから同時に流せるようにする（[#486](https://github.com/tomohiroJin/tasuki-tools/issues/486)）
+  2. 開発環境の版（Node・pnpm・Bun・Chromium・Caddy）を 1 か所で宣言し、合わないとき・外部のもの（Caddy・Playwright のブラウザ）が無いときは検査の前に止める（[#487](https://github.com/tomohiroJin/tasuki-tools/issues/487)）
+  3. 手元で CI と同じ検査を 1 つのコマンドで流す（速い段と全件の段。#481 と合わせて設計する。[#488](https://github.com/tomohiroJin/tasuki-tools/issues/488)）
   4. 繰り返す手順をリポジトリの中のスキルか手順書にする（敵対的レビュー・実画面での確認・変異の足し方ほか）。
-     `docs/superpowers/` を出力先にしている外部のスキル運用との分担もそこで決める
-  5. AI ツールの設定（権限・フック）で、本番デプロイのコマンドを機械的に止める
-  6. 2 つの違う場所で同じ ISSUE を任せて振り返り、結果をこの ADR・規則・スキルに戻す
+     `docs/superpowers/` を出力先にしている外部のスキル運用との分担もそこで決める（[#489](https://github.com/tomohiroJin/tasuki-tools/issues/489)）
+  5. AI ツールの設定（権限・フック）で、本番デプロイのコマンドを機械的に止める（[#490](https://github.com/tomohiroJin/tasuki-tools/issues/490)）
+  6. 2 つの違う場所で同じ ISSUE を任せて振り返り、結果をこの ADR・規則・スキルに戻す（[#491](https://github.com/tomohiroJin/tasuki-tools/issues/491)）
