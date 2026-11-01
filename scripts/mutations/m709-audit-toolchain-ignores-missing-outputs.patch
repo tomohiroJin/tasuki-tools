@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-toolchain.mjs b/scripts/audit-toolchain.mjs
+index 7b965d4..1315dbc 100644
+--- a/scripts/audit-toolchain.mjs
++++ b/scripts/audit-toolchain.mjs
+@@ -135,7 +135,7 @@ export function checkWorkflow(text, declared) {
+     }
+     // 参照する出力を、toolchain の段が toolchain.json から読んで書いているか。書いていない出力は空になり、
+     // setup-node・setup-bun は空の版で既定（latest）を入れる（#492 のレビュー 5）
+-    if (toolchainIndex >= 0) {
++    if (false) {
+       const referenced = new Set(
+         [...job.lines.map((l) => l.text).join("\n").matchAll(/steps\.toolchain\.outputs\.([A-Za-z0-9_-]+)/g)].map((m) => m[1]),
+       );

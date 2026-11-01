@@ -70,10 +70,11 @@ describe('turbo.json の PLAYWRIGHT_BROWSERS_PATH passThroughEnv', () => {
    * `/opt/playwright-browsers` から使うが、この変数が届かないと Playwright は
    * `~/.cache/ms-playwright` を探して「実行ファイルが無い」で落ちる。
    *
-   * **しかも起動前の検査は素通りする。** `harness/browsers.ts` の
-   * `assertChromiumInstalled` は変数が未設定なら何もしない設計（CI では Playwright が
-   * 自分でブラウザを入れるため、そちらが正しい）。第 1 段はブラウザを 1 つも
+   * **当時は起動前の検査も素通りした。** 旧 `harness/browsers.ts` の
+   * `assertChromiumInstalled` は変数が未設定なら何もしない設計だった。第 1 段はブラウザを 1 つも
    * 起動しなかったのでこの穴は見えず、第 2 段で `@core` を足して初めて落ちた。
+   * #487 で検査は `scripts/check-toolchain.mjs` へ移り、未設定でも既定の置き場を見るようになったが、
+   * 変数が届かなければ Playwright とは違う置き場を見ることに変わりはない。
    */
   const turbo = readTurboJson();
 

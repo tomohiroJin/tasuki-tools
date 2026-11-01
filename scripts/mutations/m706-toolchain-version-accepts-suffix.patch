@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/toolchain.mjs b/scripts/lib/toolchain.mjs
+index 61431fc..ba91dde 100644
+--- a/scripts/lib/toolchain.mjs
++++ b/scripts/lib/toolchain.mjs
+@@ -38,7 +38,7 @@ export const STAGES = Object.freeze({
+  * **プレリリースとビルドの付記を許さない**（#492 のレビュー 1）。`1.4.3-canary.1+x` は 1.4.3 ではなく、
+  * semver では `22.22.2-nightly` は 22.22.2 より低い。付記を落として読むと、「完全一致」が付記つきの版を通す。
+  */
+-const VERSION_RE = /^v?(\d+)\.(\d+)\.(\d+)$/;
++const VERSION_RE = /^v?(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/;
+ const EXACT_RE = /^\d+\.\d+\.\d+$/;
+ 
+ /** `x.y.z`（先頭の `v` だけを許す）を数の組にする。付記つき・読めなければ null。 */

@@ -25,6 +25,9 @@
 const RESERVED_220_229 =
   "**対応表より後に足した変異。** 200〜249 は 2026-10-15 の並列修正（#373・#374・#376・#381・#382）に 10 ずつ割り当てた予約の範囲（#376 は 220〜229）。";
 
+const RESERVED_700_719 =
+  "**対応表より後に足した変異。** 700〜719 は #487（PR #492）に割り当てた予約の範囲。2026-11-01 に並行の PR（#493 は 634〜636 のち 640〜650、#494 は 634〜639）と 2 度重なったため、離れた範囲を取った。";
+
 const RESERVED_250_259 =
   "**対応表より後に足した変異。** 250〜259 は 2026-10-15 の並列修正で #376 に追加で割り当てた予約の範囲（220〜229 が埋まったため）。";
 
@@ -4388,5 +4391,137 @@ export const MUTATIONS = [
       "tests/port-locks.test.ts"
     ],
     "note": "#494 の再レビュー。空白を含む設定パスと SO_REUSEPORT による実行混在の回帰を検出する。"
+  },
+  {
+    id: 700,
+    label: "check-toolchain が Bun・pnpm・Caddy の版を major だけで比べる",
+    patch: "m700-toolchain-exact-compares-major.patch",
+    pkg: "scripts",
+    tests: ["lib/toolchain.test.mjs"],
+    note:
+      RESERVED_700_719 +
+      " " +
+      "#487・docs/adr/0031 決定 1。#493 と番号が重なったため、634 から 640 を経て予約の範囲 700〜719 へ移した。Bun 1.4.4 と宣言 1.4.3 が「合っている」になり、#487 で観測した無関係のテストの赤が戻る。",
+  },
+  {
+    id: 701,
+    label: "check-toolchain が Node の major を見ない（下限以上なら通す）",
+    patch: "m701-toolchain-node-ignores-major.patch",
+    pkg: "scripts",
+    tests: ["lib/toolchain.test.mjs"],
+    note:
+      RESERVED_700_719 +
+      " " +
+      "#487。Node 24 の手元が CI（22.22.2）と違う major のまま検査を始める。",
+  },
+  {
+    id: 702,
+    label: "check-toolchain が Chromium の headless shell の revision を見ない",
+    patch: "m702-toolchain-chromium-skips-headless-shell.patch",
+    pkg: "scripts",
+    tests: ["lib/toolchain.test.mjs"],
+    note:
+      RESERVED_700_719 +
+      " " +
+      "#487。本体だけ入っていると検査は通り、既定のヘッドレスの起動の瞬間に落ちる。",
+  },
+  {
+    id: 703,
+    label: "check-toolchain の e2e の段が Chromium を見ない",
+    patch: "m703-toolchain-e2e-skips-chromium.patch",
+    pkg: "scripts",
+    tests: ["lib/toolchain.test.mjs"],
+    note:
+      RESERVED_700_719 +
+      " " +
+      "#487 の 2。revision の違うブラウザしか無い環境で E2E が始まる。",
+  },
+  {
+    id: 704,
+    label: "audit-toolchain が setup-bun の bun-version を見ない",
+    patch: "m704-audit-toolchain-ignores-setup-bun.patch",
+    pkg: "scripts",
+    tests: ["audit-toolchain.test.mjs"],
+    note:
+      RESERVED_700_719 +
+      " " +
+      "#487・docs/adr/0031 決定 3。CI の Bun が宣言から外れても（別の版を直書きしても）通る。",
+  },
+  {
+    id: 705,
+    label: "pnpm test が版を比べずに turbo を始める",
+    patch: "m705-pnpm-test-skips-toolchain-check.patch",
+    pkg: "scripts",
+    tests: ["check-toolchain.test.mjs"],
+    note:
+      RESERVED_700_719 +
+      " " +
+      "#487・docs/adr/0031 決定 2。ルートの package.json の入口から比較が外れ、版の違う環境でテストが始まる。",
+  },
+  {
+    id: 706,
+    label: "check-toolchain が版の後ろの付記（-canary・+build）を落として読む",
+    patch: "m706-toolchain-version-accepts-suffix.patch",
+    pkg: "scripts",
+    tests: ["lib/toolchain.test.mjs"],
+    note:
+      RESERVED_700_719 +
+      " " +
+      "#492 のレビュー 1。1.4.3-canary.12+deadbeef の Bun が「完全一致」を通る。",
+  },
+  {
+    id: 707,
+    label: "check-toolchain が Playwright の npm_config_ の別名を読まない",
+    patch: "m707-toolchain-browsers-ignores-npm-config.patch",
+    pkg: "scripts",
+    tests: ["lib/toolchain.test.mjs"],
+    note:
+      RESERVED_700_719 +
+      " " +
+      "#492 のレビュー 2。Playwright と違う置き場を見て、入っているブラウザを「無い」、無いブラウザを「ある」と読みうる。",
+  },
+  {
+    id: 708,
+    label: "check-toolchain が browsers.json の別のブラウザ（firefox）の revision を Chromium のものとして読む",
+    patch: "m708-check-toolchain-reads-wrong-browser.patch",
+    pkg: "scripts",
+    tests: ["check-toolchain.test.mjs"],
+    note:
+      RESERVED_700_719 +
+      " " +
+      "#492 のレビュー 3。宣言を読む分岐が別の項目を読んでも、純粋関数のテストは緑のままだった。headless shell は revision が同じ（等価になる）ので、別の revision を持つ firefox を読ませる。",
+  },
+  {
+    id: 709,
+    label: "audit-toolchain が toolchain の段が参照される出力を書いているかを見ない",
+    patch: "m709-audit-toolchain-ignores-missing-outputs.patch",
+    pkg: "scripts",
+    tests: ["audit-toolchain.test.mjs"],
+    note:
+      RESERVED_700_719 +
+      " " +
+      "#492 のレビュー 5。bun を書かない段のまま setup-bun が空の版で latest を入れる。",
+  },
+  {
+    id: 710,
+    label: "turbo の e2e タスクが XDG_CACHE_HOME を渡さない",
+    patch: "m710-turbo-e2e-drops-xdg-cache-home.patch",
+    pkg: "scripts",
+    tests: ["check-toolchain.test.mjs"],
+    note:
+      RESERVED_700_719 +
+      " " +
+      "#492 の Codex レビュー 1。ルートの版の比較は通るのに、turbo の中のハーネスと Playwright が別の置き場を見て止まる。",
+  },
+  {
+    id: 711,
+    label: "check-toolchain が相対パスの置き場を、e2e/ ではなく起動した場所の INIT_CWD から解く",
+    patch: "m711-check-toolchain-relative-from-root.patch",
+    pkg: "scripts",
+    tests: ["check-toolchain.test.mjs"],
+    note:
+      RESERVED_700_719 +
+      " " +
+      "#492 の再レビュー。ルートの検査はルートの下を見て通るのに、ハーネスと Playwright は e2e/ の下を見て止まる。",
   },
 ];

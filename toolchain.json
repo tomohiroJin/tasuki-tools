@@ -1,0 +1,6 @@
+{
+  "//": "開発環境の版の正本（#487・docs/adr/0031）。CI（.github/workflows/ci.yml）・E2E のハーネス・scripts/check-toolchain.mjs はここから読む。写さない。pnpm は package.json の packageManager、Chromium は e2e/package.json の @playwright/test が正本なので、ここには書かない。node は下限（同じ major のそれ以上を許す。CI はこの版で流す）、bun と caddy は完全一致（本番と同じ版。上げるときは deploy/README.md の「Bun を上げる」「Caddy を上げる」）。",
+  "node": "22.22.2",
+  "bun": "1.4.3",
+  "caddy": "2.11.7"
+}

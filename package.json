@@ -4,12 +4,12 @@
   "version": "0.0.1",
   "scripts": {
     "build": "turbo run build",
-    "test": "turbo run test",
+    "test": "node scripts/check-toolchain.mjs test && turbo run test",
     "test:unit": "turbo run test:unit",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "dev": "turbo run dev --continue",
-    "e2e": "turbo run e2e",
+    "e2e": "node scripts/check-toolchain.mjs e2e && turbo run e2e",
     "e2e:prod": "turbo run e2e:prod"
   },
   "devDependencies": {

@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/toolchain.mjs b/scripts/lib/toolchain.mjs
+index d3c0ed6..ffc2a2b 100644
+--- a/scripts/lib/toolchain.mjs
++++ b/scripts/lib/toolchain.mjs
+@@ -159,7 +159,7 @@ const FIX = {
+ export function checkNode(actualText, declared) {
+   const actual = parseVersion(actualText);
+   const min = parseVersion(declared);
+-  if (actual && min && actual[0] === min[0] && compareVersions(actual, min) >= 0) return null;
++  if (actual && min && compareVersions(actual, min) >= 0) return null;
+   return {
+     tool: "node",
+     declared: `${declared} 以上（${min ? min[0] : "?"} 系）`,
