@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/toolchain.mjs b/scripts/lib/toolchain.mjs
+index 61431fc..89b0055 100644
+--- a/scripts/lib/toolchain.mjs
++++ b/scripts/lib/toolchain.mjs
+@@ -133,7 +133,7 @@ export function parseCaddyVersionOutput(text) {
+ export function chromiumBrowsersDir(env, platform, homedir, { coreDir = null, cwd = "/" } = {}) {
+   const name = "PLAYWRIGHT_BROWSERS_PATH";
+   const configured =
+-    env[name] ?? env[`npm_config_${name.toLowerCase()}`] ?? env[`npm_package_config_${name.toLowerCase()}`];
++    env[name];
+   let dir;
+   if (configured === "0") {
+     if (coreDir === null) return null;
