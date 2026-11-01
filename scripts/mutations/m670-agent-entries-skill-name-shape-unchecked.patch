@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-agent-entries.mjs b/scripts/audit-agent-entries.mjs
+index e9009fd..d13d2d2 100644
+--- a/scripts/audit-agent-entries.mjs
++++ b/scripts/audit-agent-entries.mjs
+@@ -256,7 +256,7 @@ export function checkSkill(rel, text, procedures) {
+     return [`${rel}: スキルの置き場に SKILL.md 以外のファイルがあります    ← 手順は ${PROCEDURES_DIR} に書き、スキルは <名前>/SKILL.md だけにしてください`];
+   }
+   const problems = [];
+-  if (!SKILL_NAME.test(m[1])) {
++  if (false) {
+     problems.push(`${rel}: スキルの名前「${m[1]}」は小文字・数字・ハイフンだけで書いてください`);
+   }
+   const parsed = parseFrontmatter(text);

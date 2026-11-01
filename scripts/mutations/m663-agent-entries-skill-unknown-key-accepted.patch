@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-agent-entries.mjs b/scripts/audit-agent-entries.mjs
+index e9009fd..5fecb41 100644
+--- a/scripts/audit-agent-entries.mjs
++++ b/scripts/audit-agent-entries.mjs
+@@ -226,7 +226,7 @@ function parseFrontmatter(text) {
+       return;
+     }
+     const [, key, raw = ""] = f;
+-    if (!SKILL_FRONTMATTER_KEYS.includes(key)) {
++    if (false) {
+       problems.push(`frontmatter に知らないキー「${key}」があります（書けるのは ${SKILL_FRONTMATTER_KEYS.join("・")} だけ）`);
+       return;
+     }
