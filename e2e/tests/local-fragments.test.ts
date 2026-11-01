@@ -11,7 +11,7 @@ it('本番断片の接続先と配信元だけを実行用に差し替え、元�
     expect(local).not.toContain('127.0.0.1:8787');
     expect(local).not.toContain('/var/www/');
     let restored = local.replaceAll('127.0.0.1:23456', '127.0.0.1:8787');
-    for (const {link, dist} of [...replacements].sort((a,b)=>b.dist.length-a.dist.length)) restored = restored.replaceAll(`"${dist}"`, link);
+    for (const {link, dist} of [...replacements].sort((a,b)=>b.dist.length-a.dist.length)) restored = restored.replaceAll(JSON.stringify(dist), link);
     expect(restored).toBe(original);
   }
 });

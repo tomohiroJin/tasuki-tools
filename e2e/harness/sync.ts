@@ -23,11 +23,12 @@
  * 断片で X-Forwarded-For が届かない場合に全シナリオが落ちる。** それが狙いで、
  * 静かに防御が消えるより先に気づける。
  */
-import { type ChildProcess, spawn } from 'node:child_process';
+import { type ChildProcess } from 'node:child_process';
 import { createWriteStream, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { LOG_DIR, PORTS, REPO_ROOT } from './paths';
 import { LOCAL_BASE_URL } from './target';
+import { spawnWithPortLock } from './port-locks';
 import { waitForStartup } from './startup';
 
 interface SyncSpec {
@@ -74,12 +75,11 @@ export async function startSyncServers(): Promise<ChildProcess[]> {
   const readiness: Promise<void>[] = [];
 
   for (const server of SYNC_SERVERS) {
-    const log = createWriteStream(path.join(LOG_DIR, `${server.name}.log`), { flags: 'w' });
-    const proc = spawn('bun', ['run', server.entry], {
+    const proc = spawnWithPortLock(server.port, 'bun', ['run', server.entry], {
       cwd: REPO_ROOT,
       env: syncEnv(process.env, server.port),
-      stdio: ['ignore', 'pipe', 'pipe'],
     });
+    const log = createWriteStream(path.join(LOG_DIR, `${server.name}.log`), { flags: 'w' });
     readiness.push(waitForStartup(proc, new RegExp(`listening port=${server.port}\\b`), 20_000,
       `${server.name}; see ${LOG_DIR}/${server.name}.log`));
     proc.stdout.pipe(log);

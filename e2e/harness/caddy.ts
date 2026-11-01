@@ -1,5 +1,5 @@
 /** 実行ごとの Caddy 設定を生成し、起動・撤去する。本番の断片は変更しない。 */
-import { type ChildProcess, execFileSync, spawn } from 'node:child_process';
+import { type ChildProcess, execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   createWriteStream,
@@ -14,7 +14,6 @@ import {
 } from 'node:fs';
 import path from 'node:path';
 import {
-  CADDY_APPS_DIR,
   CADDY_CACHE_DIR,
   CADDY_ETC_DIR,
   CADDY_VERSION,
@@ -25,8 +24,9 @@ import {
   TEST_RESULTS_DIR,
   WEB_ROOTS,
 } from './paths';
-import { toLocalFragment, toLocalSiteConfig } from './site-config';
+import { caddyfileToken, toLocalFragment, toLocalSiteConfig } from './site-config';
 import { LOCAL_BASE_URL } from './target';
+import { spawnWithPortLock } from './port-locks';
 import { waitForStartup } from './startup';
 
 const CADDY_BINARY = path.join(CADDY_CACHE_DIR, 'caddy');
@@ -89,10 +89,10 @@ export async function ensureCaddyBinary(): Promise<string> {
 }
 
 /** ローカル用のトップ Caddyfile。本番のホスト側と同じく import 1 行だけ。 */
-function writeTopCaddyfile(): string {
-  mkdirSync(TEST_RESULTS_DIR, { recursive: true });
-  const filePath = path.join(TEST_RESULTS_DIR, 'Caddyfile');
-  writeFileSync(filePath, `{\n admin off\n auto_https off\n persist_config off\n}\nimport ${CADDY_ETC_DIR}/site.conf\n`, 'utf8');
+export function writeTopCaddyfile(resultsDir = TEST_RESULTS_DIR): string {
+  mkdirSync(resultsDir, { recursive: true });
+  const filePath = path.join(resultsDir, 'Caddyfile');
+  writeFileSync(filePath, `{\n admin off\n auto_https off\n persist_config off\n}\nimport ${caddyfileToken(path.join(resultsDir, 'config/site.conf'))}\n`, 'utf8');
   return filePath;
 }
 
@@ -101,16 +101,17 @@ function writeTopCaddyfile(): string {
  *
  * コピーの上流ポート・配信元・import とサイトアドレスだけを差し替える。
  */
-export function installCaddyConfig(): void {
-  mkdirSync(CADDY_APPS_DIR, { recursive: true });
+export function installCaddyConfig(configDir = CADDY_ETC_DIR): void {
+  const appsDir = path.join(configDir, 'apps');
+  mkdirSync(appsDir, { recursive: true });
   for (const source of FRAGMENT_SOURCES) {
-    writeFileSync(path.join(CADDY_APPS_DIR, path.basename(source)),
+    writeFileSync(path.join(appsDir, path.basename(source)),
       toLocalFragment(readFileSync(source, 'utf8'), PORTS.sync, WEB_ROOTS));
   }
   const localSiteConf = toLocalSiteConfig(readFileSync(SITE_CONF_SOURCE, 'utf8'), LOCAL_BASE_URL)
-    .replaceAll('/etc/caddy/tasuki/apps', CADDY_APPS_DIR);
-  writeFileSync(path.join(CADDY_ETC_DIR, 'site.conf'), localSiteConf);
-  const installed = readdirSync(CADDY_APPS_DIR).filter(name => name.endsWith('.conf'));
+    .replaceAll('/etc/caddy/tasuki/apps/*.conf', caddyfileToken(path.join(appsDir, '*.conf')));
+  writeFileSync(path.join(configDir, 'site.conf'), localSiteConf);
+  const installed = readdirSync(appsDir).filter(name => name.endsWith('.conf'));
   if (installed.length !== FRAGMENT_SOURCES.length) {
     throw new Error(
       `断片の設置数が合いません（期待 ${FRAGMENT_SOURCES.length} / 実際 ${installed.length}）: ${installed.join(', ')}`,
@@ -124,11 +125,10 @@ export function removeCaddyConfig(): void {
 
 export async function startCaddy(binaryPath: string): Promise<ChildProcess> {
   mkdirSync(LOG_DIR, { recursive: true });
-  const log = createWriteStream(path.join(LOG_DIR, 'caddy.log'), { flags: 'w' });
-  const proc = spawn(binaryPath, ['run', '--config', writeTopCaddyfile(), '--adapter', 'caddyfile'], {
-    stdio: ['ignore', 'pipe', 'pipe'],
+  const proc = spawnWithPortLock(PORTS.caddy, binaryPath, ['run', '--config', writeTopCaddyfile(), '--adapter', 'caddyfile'], {
     env: { ...process.env, XDG_DATA_HOME: path.join(TEST_RESULTS_DIR, 'data'), XDG_CONFIG_HOME: path.join(TEST_RESULTS_DIR, 'xdg-config') },
   });
+  const log = createWriteStream(path.join(LOG_DIR, 'caddy.log'), { flags: 'w' });
   const readiness = waitForStartup(proc, /"msg":"serving initial configuration"/, 15_000,
     `caddy; see ${LOG_DIR}/caddy.log`);
   proc.stdout.pipe(log);

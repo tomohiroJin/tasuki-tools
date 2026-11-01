@@ -68,7 +68,7 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     cleanupFiles();
   };
 
-  // Ctrl-C / kill でも解放する。SIGKILL は捕捉できないため preflight に委ねる。
+  // Ctrl-C / kill でも解放する。SIGKILL のプロセス・ロック残骸は README の手動復旧に従う。
   // **ファイルの後始末を先に、同期で済ませる。** プロセス自体はグループへの
   // シグナルで落ちるので、そちらは best-effort でよい。
   const onSignal = (exitCode: number): void => {

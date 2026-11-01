@@ -37,7 +37,12 @@ export function toLocalFragment(
 ): string {
   let result = source.replaceAll('127.0.0.1:8787', `127.0.0.1:${syncPort}`);
   for (const { link, dist } of [...roots].sort((a, b) => b.link.length - a.link.length)) {
-    result = result.replaceAll(link, `"${dist}"`);
+    result = result.replaceAll(link, caddyfileToken(dist));
   }
   return result;
+}
+
+/** Caddyfile の引用トークン。空白・引用符・バックスラッシュを保つ。 */
+export function caddyfileToken(value: string): string {
+  return JSON.stringify(value);
 }

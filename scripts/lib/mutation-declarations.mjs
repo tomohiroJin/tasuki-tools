@@ -4197,4 +4197,44 @@ export const MUTATIONS = [
     ],
     "note": "#494・#486 のレビュー。対応表より後に追加。実行分離・所有者確認と診断表示の回帰を継続的に検出する。"
   },
+  {
+    "id": 640,
+    "label": "トップの import パスを引用しない",
+    "patch": "m640-e2e-top-import-unquoted.patch",
+    "pkg": "e2e",
+    "tests": [
+      "tests/caddy-imports.test.ts"
+    ],
+    "note": "#494 の再レビュー。空白を含む設定パスと SO_REUSEPORT による実行混在の回帰を検出する。"
+  },
+  {
+    "id": 641,
+    "label": "site.conf の断片 import を引用しない",
+    "patch": "m641-e2e-fragment-import-unquoted.patch",
+    "pkg": "e2e",
+    "tests": [
+      "tests/caddy-imports.test.ts"
+    ],
+    "note": "#494 の再レビュー。空白を含む設定パスと SO_REUSEPORT による実行混在の回帰を検出する。"
+  },
+  {
+    "id": 642,
+    "label": "子の spawn 前のポート排他を取らない",
+    "patch": "m642-e2e-spawn-without-port-lock.patch",
+    "pkg": "e2e",
+    "tests": [
+      "tests/port-locks.test.ts"
+    ],
+    "note": "#494 の再レビュー。空白を含む設定パスと SO_REUSEPORT による実行混在の回帰を検出する。"
+  },
+  {
+    "id": 643,
+    "label": "ロック取得を原子的な排他にしない",
+    "patch": "m643-e2e-port-lock-nonexclusive.patch",
+    "pkg": "e2e",
+    "tests": [
+      "tests/port-locks.test.ts"
+    ],
+    "note": "#494 の再レビュー。空白を含む設定パスと SO_REUSEPORT による実行混在の回帰を検出する。"
+  },
 ];

@@ -113,7 +113,8 @@ function port(name: string, fallback: number): number {
   }
   return Number(raw);
 }
-const automatic = local ? automaticPorts() : [18080, 8787];
+const needsPorts = local && (process.env['TASUKI_E2E_CADDY_PORT'] === undefined || process.env['TASUKI_E2E_SYNC_PORT'] === undefined);
+const automatic = needsPorts ? automaticPorts() : [18080, 8787];
 export const PORTS = {
   caddy: port('TASUKI_E2E_CADDY_PORT', automatic[0]!),
   sync: port('TASUKI_E2E_SYNC_PORT', automatic[1]!),
