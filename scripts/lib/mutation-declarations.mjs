@@ -4572,4 +4572,20 @@ export const MUTATIONS = [
     tests: ["local-check.test.mjs"],
     note: "#488。手元の検査が CI とずれる・事前に止まらない・失敗を成功と報告する経路を守る。",
   },
+  {
+    id: 726,
+    label: "文書とコードの混在した差分でコード検査を省略する",
+    patch: "m726-local-doc-scope-misses-code.patch",
+    pkg: "scripts",
+    tests: ["ci-scope.test.mjs"],
+    note: "#488。共有モジュールへ移した判定と分割が既存の振る舞いを保つことを守る。",
+  },
+  {
+    id: 727,
+    label: "workflow の最初のステップ以外を落とす",
+    patch: "m727-workflow-drops-steps.patch",
+    pkg: "scripts",
+    tests: ["audit-toolchain.test.mjs"],
+    note: "#488。共有モジュールへ移した判定と分割が既存の振る舞いを保つことを守る。",
+  },
 ];

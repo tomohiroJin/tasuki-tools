@@ -1,0 +1,10 @@
+--- a/scripts/lib/workflow.mjs
++++ b/scripts/lib/workflow.mjs
+@@ -40,6 +40,6 @@
+       current = null;
+     }
+   }
+-  return steps.map((s) => ({ line: s.line, text: s.lines.join("\n") }));
++  return steps.slice(0, 1).map((s) => ({ line: s.line, text: s.lines.join("\n") }));
+ }
+ 
