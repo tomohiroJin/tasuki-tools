@@ -419,8 +419,35 @@ describe("checkSkill: スキルは手順書へ向ける薄い入口", () => {
     }
   });
 
+  test("YAML として文字列に読めない値を報告する（記号の列挙ではなく、通す形を決めて判定する。#493 の再々レビュー）", () => {
+    // js-yaml がエラーにするか、文字列でない値（#x は null）に読むもの
+    for (const value of ["- a", "- [a]", "? a", "%TAG x", "@x", "`x`", ",x", "#x", ":x", "説明 # 注釈", "a: b", "]x", "}x", "|x", ">x"]) {
+      const fm = `name: adversarial-review\ndescription: ${value}`;
+      const problems = checkSkill(REL, skill(GOOD_BODY, fm), PROCEDURES);
+      assert.ok(problems.length > 0, `${value} が通った`);
+    }
+  });
+
+  test("引用符の中の同じ引用符は '' と \\\" でだけ許す（#493 の再々レビュー）", () => {
+    for (const value of ['"abc\\"', '"a" b"', "'a' b'", '"a\\nb"']) {
+      const fm = `name: adversarial-review\ndescription: ${value}`;
+      const problems = checkSkill(REL, skill(GOOD_BODY, fm), PROCEDURES);
+      assert.ok(problems.some((p) => /引用符/.test(p)), `${value}: ${problems.join("\n")}`);
+    }
+    for (const value of ["'it''s'", '"a \\"b\\" c"', '"a\\\\b"']) {
+      const fm = `name: adversarial-review\ndescription: ${value}`;
+      assert.deepEqual(checkSkill(REL, skill(GOOD_BODY, fm), PROCEDURES), [], value);
+    }
+  });
+
+  test("引用符の中身で長さを測る（外の引用符と、'' や \\\" のエスケープを数えない）", () => {
+    const body = "あ".repeat(MAX_SKILL_DESCRIPTION_CHARS - 1) + "'";
+    const fm = `name: adversarial-review\ndescription: '${body.replace(/'/g, "''")}'`;
+    assert.deepEqual(checkSkill(REL, skill(GOOD_BODY, fm), PROCEDURES), []);
+  });
+
   test("引用符で閉じた値と、文中に記号を含む値は通る", () => {
-    for (const value of ['"差分を確かめる"', "'差分を確かめる'", "差分を [確かめる] とき", "A & B を確かめる"]) {
+    for (const value of ['"差分を確かめる"', "'差分を確かめる'", "差分を [確かめる] とき", "A & B を確かめる", "abc:", "a#b", "差分（PR#12）を見る"]) {
       const fm = `name: adversarial-review\ndescription: ${value}`;
       assert.deepEqual(checkSkill(REL, skill(GOOD_BODY, fm), PROCEDURES), [], value);
     }

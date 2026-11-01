@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-agent-entries.mjs b/scripts/audit-agent-entries.mjs
+index 9860a7f..1082ec1 100644
+--- a/scripts/audit-agent-entries.mjs
++++ b/scripts/audit-agent-entries.mjs
+@@ -222,7 +222,7 @@ function readScalar(raw) {
+     return m ? m[1].replace(/''/g, "'") : null;
+   }
+   if (raw.startsWith('"')) {
+-    const m = /^"((?:[^"\\]|\\["\\])*)"$/.exec(raw);
++    const m = /^"((?:[^"\\]|\\.)*)"$/.exec(raw);
+     return m ? m[1].replace(/\\(["\\])/g, "$1") : null;
+   }
+   if (YAML_INDICATORS.includes(raw[0]) || /\s#/.test(raw) || /:\s/.test(raw)) return null;

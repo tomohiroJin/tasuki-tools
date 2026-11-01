@@ -1,13 +1,13 @@
 diff --git a/scripts/audit-agent-entries.mjs b/scripts/audit-agent-entries.mjs
-index 29d3c51..c245394 100644
+index 9860a7f..d4cfc8c 100644
 --- a/scripts/audit-agent-entries.mjs
 +++ b/scripts/audit-agent-entries.mjs
-@@ -244,7 +244,7 @@ function parseFrontmatter(text) {
-       problems.push(`frontmatter の「${key}」に YAML の書き方（[ { & * !）は使えません（ただの文字列で書く）`);
-       return;
-     }
--    if (/^["']/.test(raw) && (raw.length < 2 || raw.at(-1) !== raw[0])) {
-+    if (false) {
-       problems.push(`frontmatter の「${key}」の引用符が閉じていません`);
-       return;
-     }
+@@ -218,7 +218,7 @@ const YAML_INDICATORS = "-?:,[]{}#&*!|>'\"%@`";
+ function readScalar(raw) {
+   if (raw === "") return "";
+   if (raw.startsWith("'")) {
+-    const m = /^'((?:[^']|'')*)'$/.exec(raw);
++    const m = /^'(.*)/.exec(raw);
+     return m ? m[1].replace(/''/g, "'") : null;
+   }
+   if (raw.startsWith('"')) {

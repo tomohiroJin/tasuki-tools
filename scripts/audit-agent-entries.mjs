@@ -205,6 +205,30 @@ export const SKILL_FRONTMATTER_KEYS = ["name", "description"];
 /** スキルの名前（ディレクトリ名）の形。小文字・数字・ハイフンだけ。 */
 const SKILL_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
+/** YAML の記号。素の値（引用符で囲まない値）の先頭に来ると、文字列として読まれない。 */
+const YAML_INDICATORS = "-?:,[]{}#&*!|>'\"%@`";
+
+/**
+ * 1 行の値を文字列として読む。YAML が同じ文字列に読むと言い切れる形でなければ null。
+ *
+ * - 素の値: 記号（{@link YAML_INDICATORS}）で始まらず、注釈（` #`）と対（`: `）を含まない
+ * - 一重引用符: 中の `'` は `''` でだけ書ける
+ * - 二重引用符: 中のエスケープは `\"` と `\\` だけ（ほかのエスケープは読み方がツールで割れうるので通さない）
+ */
+function readScalar(raw) {
+  if (raw === "") return "";
+  if (raw.startsWith("'")) {
+    const m = /^'((?:[^']|'')*)'$/.exec(raw);
+    return m ? m[1].replace(/''/g, "'") : null;
+  }
+  if (raw.startsWith('"')) {
+    const m = /^"((?:[^"\\]|\\["\\])*)"$/.exec(raw);
+    return m ? m[1].replace(/\\(["\\])/g, "$1") : null;
+  }
+  if (YAML_INDICATORS.includes(raw[0]) || /\s#/.test(raw) || /:\s/.test(raw)) return null;
+  return raw;
+}
+
 /**
  * 先頭の `---` で囲まれた frontmatter を読む。無ければ null。
  *
@@ -238,17 +262,18 @@ function parseFrontmatter(text) {
       problems.push(`frontmatter の「${key}」にブロックの書き方（> か |）は使えません（1 行で書く）`);
       return;
     }
-    // フロー（[ と {）・アンカー（& と *）・タグ（!）で始まる値は、ツールが文字列として読まない。
-    // 上限は越えられないが、description を読めないスキルが通る（#493 の再レビュー）。
-    if (/^[[{&*!]/.test(raw)) {
-      problems.push(`frontmatter の「${key}」に YAML の書き方（[ { & * !）は使えません（ただの文字列で書く）`);
+    // **通してよい形を決めて判定する**（拒む記号を並べると、並べ漏れがそのまま抜け道になった。#493 の再々レビュー）。
+    // 通すのは、YAML の記号で始まらず注釈（ #）や対（: ）を含まない値と、正しく閉じた引用符の値だけ。
+    const value = readScalar(raw);
+    if (value === null) {
+      problems.push(
+        /^["']/.test(raw)
+          ? `frontmatter の「${key}」の引用符が閉じていません（中の同じ引用符は '' か \\" で書く）`
+          : `frontmatter の「${key}」に YAML の書き方（記号で始まる値・ #・: ）は使えません（ただの文字列で書く）`,
+      );
       return;
     }
-    if (/^["']/.test(raw) && (raw.length < 2 || raw.at(-1) !== raw[0])) {
-      problems.push(`frontmatter の「${key}」の引用符が閉じていません`);
-      return;
-    }
-    fields.set(key, raw.replace(/^(["'])(.*)\1$/, "$2"));
+    fields.set(key, value);
   });
   return { fields, problems, body: text.slice(m[0].length) };
 }

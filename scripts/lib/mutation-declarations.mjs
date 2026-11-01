@@ -4137,7 +4137,7 @@ export const MUTATIONS = [
     note:
       "#485 のレビュー。描画も読み込みもされない例文の中の [x](AGENTS.md) で、正本へ向いていない入口が通る。",
   },
-  // 660〜672 は #489（PR #493）の audit-agent-entries のスキルの判定。#493 の最初の版では 634〜636、次の版では 640〜650 に
+  // 660〜675 は #489（PR #493）の audit-agent-entries のスキルの判定。#493 の最初の版では 634〜636、次の版では 640〜650 に
   // 置いたが、並行していた PR とどちらの範囲でもぶつかったので、merge の前に 660 からへ付け直した（どちらの番号も main には
   // 入っていない）。**並行する PR の範囲はここに書かない**（相手が動くたびに古くなる）。merge の前に宣言どうしを突き合わせる。
   {
@@ -4233,18 +4233,44 @@ export const MUTATIONS = [
   },
   {
     id: 671,
-    label: "audit-agent-entries がスキルの frontmatter の YAML の書き方（フロー・アンカー・タグ）で始まる値を通す",
-    patch: "m671-agent-entries-skill-yaml-syntax-accepted.patch",
+    label: "audit-agent-entries がスキルの frontmatter の、YAML の記号で始まる素の値を通す",
+    patch: "m671-agent-entries-skill-yaml-indicator-accepted.patch",
     pkg: "scripts",
     tests: ["audit-agent-entries.test.mjs"],
-    note: "#493 の再レビュー。description: [Bash, Read] のように、ツールが文字列として読めない description のスキルが通る。",
+    note:
+      "#493 の再レビュー。description: [Bash, Read]・- a・%TAG x のように、ツールが文字列として読めない description のスキルが通る。" +
+      "最初は拒む記号を並べていたが、並べ漏れが再々レビューで見つかったので、通す形を決める判定に改めた（パッチもその形で作り直した）。",
   },
   {
     id: 672,
-    label: "audit-agent-entries がスキルの frontmatter の閉じていない引用符を通す",
+    label: "audit-agent-entries がスキルの frontmatter の、閉じていない一重引用符を通す",
     patch: "m672-agent-entries-skill-unclosed-quote-accepted.patch",
     pkg: "scripts",
     tests: ["audit-agent-entries.test.mjs"],
-    note: "#493 の再レビュー。ツールによっては frontmatter ごと読めないスキルが通る。",
+    note: "#493 の再レビュー。'説明 や 'a' b' のように、ツールによっては frontmatter ごと読めないスキルが通る。",
+  },
+  {
+    id: 673,
+    label: "audit-agent-entries がスキルの frontmatter の二重引用符の中で、どのエスケープも通す",
+    patch: "m673-agent-entries-skill-double-quote-any-escape.patch",
+    pkg: "scripts",
+    tests: ["audit-agent-entries.test.mjs"],
+    note: "#493 の再々レビュー。\\n のように読み方がツールで割れうるエスケープが通り、検査が測った長さと読まれる中身がずれる。",
+  },
+  {
+    id: 674,
+    label: "audit-agent-entries がスキルの frontmatter の、値の途中の注釈（ #）を見ない",
+    patch: "m674-agent-entries-skill-comment-accepted.patch",
+    pkg: "scripts",
+    tests: ["audit-agent-entries.test.mjs"],
+    note: "#493 の再々レビュー。YAML は「説明 # 注釈」を「説明」と読むので、検査が測った値とツールが読む値がずれる。",
+  },
+  {
+    id: 675,
+    label: "audit-agent-entries がスキルの一重引用符の値の長さを、'' のエスケープのまま数える",
+    patch: "m675-agent-entries-skill-quoted-length-counts-escapes.patch",
+    pkg: "scripts",
+    tests: ["audit-agent-entries.test.mjs"],
+    note: "#493 の再々レビュー。読まれる中身が上限の中でも、エスケープの分だけ長く数えて落とす。",
   },
 ];
