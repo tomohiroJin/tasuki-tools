@@ -31,6 +31,9 @@ const RESERVED_700_719 =
 const RESERVED_760_779 =
   "**対応表より後に足した変異。** 760〜779 は #490（PR #498）に割り当てた予約の範囲。720〜725、ついで 740〜749 を取ったが、どちらも並行の PR #497（#488）と重なった（PR #498 のレビュー 4・再レビュー 2）。2026-11-01 時点でどのブランチも使っていない帯へ移した。";
 
+const RESERVED_800_809 =
+  "**対応表より後に足した変異。** 800〜809 は #480 に割り当てた範囲。2026-11-01 時点の最大（771）から離し、並行の枝と重ならない帯を取った。";
+
 const RESERVED_250_259 =
   "**対応表より後に足した変異。** 250〜259 は 2026-10-15 の並列修正で #376 に追加で割り当てた予約の範囲（220〜229 が埋まったため）。";
 
@@ -4772,5 +4775,73 @@ export const MUTATIONS = [
       RESERVED_760_779 +
       " " +
       "PR #498 の再レビュー 3。シェルを走らせない Monitor の使い方のたびに確認を求め、作業を妨げる（#490 の EARS 2）。",
+  },
+  {
+    id: 800,
+    label: "手札の札のボタンを名前の要素へ結ばない（読み上げ名に意味まで入る）",
+    patch: "m800-hand-card-name-includes-meaning.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/hand.test.tsx"],
+    note:
+      RESERVED_800_809 +
+      " " +
+      "#480。読み上げ名が「晴れ絶好調」になり、説明の意味と合わせて意味を 2 度読む（名前を 1 回だけ読む、が崩れる）。",
+  },
+  {
+    id: 801,
+    label: "手札の札の下の名前・意味を CSS（display: none）で隠す",
+    patch: "m801-hand-caption-hidden-by-css.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/hand-caption-css.test.ts"],
+    note:
+      RESERVED_800_809 +
+      " " +
+      "#480（PR #502 のレビュー指摘 1）。札が絵だけに戻り、何を示すかが手札で分からなくなる。読み上げ名・説明は隠した参照先からも作られるので読み上げの試験は緑のまま。" +
+      "実際の見え方は E2E（checkin.spec.ts の その6）も見るが、E2E の spec は変異検査のランナーに載らないので、宣言で守る。",
+  },
+  {
+    id: 802,
+    label: "手札の札の下の名前・意味を要素の属性（hidden）で隠す",
+    patch: "m802-hand-caption-hidden-inline.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/hand.test.tsx"],
+    note:
+      RESERVED_800_809 +
+      " " +
+      "#480（PR #502 のレビュー指摘 1）。レビューが再現した壊し方（添え書きを隠しても手札の試験が 35/35 で通った）の属性版。",
+  },
+  {
+    id: 803,
+    label: "手札の見出しに、いまのやり方ではなく今日の天気の問いを出す",
+    patch: "m803-hand-prompt-fixed-to-weather.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/hand.test.tsx"],
+    note:
+      RESERVED_800_809 +
+      " " +
+      "#480（PR #502 の敵対的レビュー 2）。どの問いへの答えかを手札で誤らせる。天気だけを試していたときは通っていた。",
+  },
+  {
+    id: 804,
+    label: "手札の札のボタンを意味の要素へ結ばない（aria-describedby を外す）",
+    patch: "m804-hand-card-meaning-not-described.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/hand.test.tsx"],
+    note:
+      RESERVED_800_809 +
+      " " +
+      "#480（PR #502 の敵対的レビュー 3）。見た目には意味が出ているのに、読み上げでは札の意味が聞こえない。",
+  },
+  {
+    id: 805,
+    label: "手札の札のボタンの幅を固定の 7rem に戻す（名前の字の大きさから決めない）",
+    patch: "m805-hand-card-width-by-breakpoint.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/hand-caption-css.test.ts"],
+    note:
+      RESERVED_800_809 +
+      " " +
+      "#480（PR #502 の敵対的レビュー 1）。字は画面の幅で流れるので、幅の広い側で 8 字の名前が 1 字だけ次の行に落ちる。" +
+      "実際の見え方は E2E（checkin.spec.ts の その6・639px）も見るが、E2E の spec は変異検査のランナーに載らないので、宣言で守る。",
   },
 ];

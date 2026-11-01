@@ -58,6 +58,87 @@ async function expectPickerGrid(page: Page, columns: number): Promise<void> {
   expect(overflow, '横スクロールが出ない').toBeLessThanOrEqual(0);
 }
 
+/** 全てのやり方（側・題・札の枚数）。手札の添え書きの検査（#480）で順に選ぶ */
+const ALL_METHODS: ReadonlyArray<readonly ['チェックイン' | 'チェックアウト', string, number]> = [
+  ['チェックイン', '今日の天気', 4],
+  ['チェックイン', '元気メーター', 5],
+  ['チェックイン', 'いま頭の何割がここに？', 4],
+  ['チェックイン', 'この打ち合わせで持ち帰りたいもの', 4],
+  ['チェックイン', '今日の役割', 4],
+  ['チェックイン', '期待の大きさ', 5],
+  ['チェックイン', '始まりの気分', 4],
+  ['チェックアウト', 'ROTI（時間に見合ったか）', 5],
+  ['チェックアウト', '持ち帰れたか', 3],
+  ['チェックアウト', '一番よかったこと', 4],
+  ['チェックアウト', '今の気分', 4],
+  ['チェックアウト', '次の打ち合わせは', 4],
+  ['チェックアウト', '終わりの天気', 4],
+  ['チェックアウト', 'わかった度', 5],
+];
+
+/**
+ * #480 の要求幅と、40rem の段の境目の手前・上（639・640）。字の大きさは幅で流れる（`--font-size-sm`）ので、
+ * 段の手前がいちばん窮屈になる（PR #502 の敵対的レビュー 1: 628〜639px で 8 字の名前が割れていた）
+ */
+const HAND_WIDTHS = [320, 390, 639, 640, 768, 1280, 1920] as const;
+
+/**
+ * 手札の札が何を示すかを、絵だけに頼らず読める（#480）。今の幅で、各札の名前と意味が見えていて、札のボタンの中に収まり、
+ * 横に切れず、名前が 1 行で、札どうしが重ならず、ページが横に溢れない。手札の見出しの問いは板の問いと同じ文で見えている。
+ *
+ * 読み上げの参照先は見た目で隠しても名前・説明に使えるので、`toHaveAccessibleName` では見た目の欠けに気づけない（PR #502 のレビュー）。
+ * ここは描かれた箱と計算済みのスタイルで見る。
+ */
+async function expectHandReadable(page: Page, label: string, cards: number): Promise<void> {
+  const result = await page.evaluate(() => {
+    const doc = document.documentElement;
+    const issues: string[] = [];
+    const shown = (el: Element | null): el is HTMLElement => {
+      if (el === null) return false;
+      const r = el.getBoundingClientRect();
+      const cs = getComputedStyle(el);
+      return r.width > 0 && r.height > 0 && cs.visibility === 'visible' && Number(cs.opacity) > 0 && cs.color !== 'rgba(0, 0, 0, 0)';
+    };
+    const buttons = [...document.querySelectorAll<HTMLElement>('.hand .hand-card')];
+    const rects = buttons.map((b) => b.getBoundingClientRect());
+    buttons.forEach((b, i) => {
+      const br = rects[i]!;
+      if (br.left < 0 || br.right > doc.clientWidth) issues.push(`札 ${i} が画面の横に収まらない`);
+      for (const sel of ['.hand-card-name', '.hand-card-meaning']) {
+        const el = b.querySelector(sel);
+        if (!shown(el)) {
+          issues.push(`札 ${i} の ${sel} が見えない`);
+          continue;
+        }
+        const er = el.getBoundingClientRect();
+        if ((el.textContent ?? '').trim() === '') issues.push(`札 ${i} の ${sel} が空`);
+        if (el.scrollWidth > el.clientWidth + 1) issues.push(`札 ${i} の ${sel} が横に切れる`);
+        if (er.left < br.left - 1 || er.right > br.right + 1 || er.top < br.top - 1 || er.bottom > br.bottom + 1) issues.push(`札 ${i} の ${sel} が札のボタンの外に出る`);
+      }
+      const name = b.querySelector('.hand-card-name');
+      if (name !== null) {
+        const range = document.createRange();
+        range.selectNodeContents(name);
+        const lines = new Set([...range.getClientRects()].map((r) => Math.round(r.top))).size;
+        if (lines > 1) issues.push(`札 ${i} の名前が ${lines} 行に折れる`);
+      }
+      for (let j = i + 1; j < rects.length; j++) {
+        const o = rects[j]!;
+        if (br.left < o.right && o.left < br.right && br.top < o.bottom && o.top < br.bottom) issues.push(`札 ${i} と ${j} が重なる`);
+      }
+    });
+    const prompt = document.querySelector('.hand-label-prompt');
+    const question = document.querySelector('.prompt-question')?.textContent ?? null;
+    if (!shown(prompt)) issues.push('手札の見出しの問いが見えない');
+    else if (prompt.textContent !== question) issues.push(`手札の見出しの問い（${prompt.textContent}）が板の問い（${question}）と違う`);
+    else if (prompt.getBoundingClientRect().right > doc.clientWidth) issues.push('手札の見出しの問いが横にはみ出す');
+    return { count: buttons.length, overflow: doc.scrollWidth - doc.clientWidth, issues };
+  });
+  expect(result.count, `${label}: 手札の札の数`).toBe(cards);
+  expect(result.overflow, `${label}: 横溢れ`).toBeLessThanOrEqual(0);
+  expect(result.issues, label).toEqual([]);
+}
+
 /** `checkin` フレームの中身（受け手ごとの見え方）を、`from` 番目以降について受信順に返す。 */
 function checkinViews(log: FrameLog, from = 0): Array<Record<string, unknown>> {
   return parseFrames(log.payloads.slice(from)).flatMap((f) => {
@@ -233,6 +314,21 @@ test.describe('@core 札を伏せて出し、全員の画面で一斉に開く',
     await expect(b.getByRole('group', { name: 'あなたの札' })).toHaveCount(0);
     await expect(b.getByText('見学中です。札は出しません。')).toBeVisible();
     await expect(page.getByText('0 / 1 人が出しました', { exact: true })).toBeVisible();
+
+    // When / Then その6（#480）: 全てのやり方で、手札の札の名前・意味と見出しの問いが、要求幅の全てで読める
+    // （B は見学中なので、A が選び直しても札は出ない。A の手札だけを測る）
+    const viewHand = page.viewportSize() ?? { width: 1280, height: 800 };
+    for (const [side, title, cards] of ALL_METHODS) {
+      await page.setViewportSize(viewHand);
+      await page.getByRole('button', { name: '別のやり方', exact: true }).click();
+      await chooseMethod(page, side, title);
+      await expect(page.locator('.hand .hand-card')).toHaveCount(cards);
+      for (const width of HAND_WIDTHS) {
+        await page.setViewportSize({ width, height: viewHand.height });
+        await expectHandReadable(page, `${title} ${width}px`, cards);
+      }
+    }
+    await page.setViewportSize(viewHand);
 
     // Then 最後: どちらのコンソールにもエラーが出ていない
     expect(consoleWatcher.errors).toEqual([]);

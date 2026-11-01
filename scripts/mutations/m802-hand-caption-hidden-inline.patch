@@ -1,0 +1,25 @@
+# 変異 802: hand-caption-hidden-inline
+#
+# 検出を期待するテスト:
+#   - apps/checkin-web/tests/hand.test.tsx
+#     「Then 各札のボタンの中に、その札の名前と意味が見た目でも出る（#480）」
+#
+# #480（PR #502 のレビュー指摘 1）。手札の札の下の名前・意味を要素の属性（hidden）で隠す。
+# 読み上げ名・説明は隠した参照先からも作られるので、読み上げの試験は緑のまま。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m802-*.patch
+# 復元: git apply -R scripts/mutations/m802-*.patch
+diff --git a/apps/checkin-web/src/components/Hand.tsx b/apps/checkin-web/src/components/Hand.tsx
+index 2846815..913d533 100644
+--- a/apps/checkin-web/src/components/Hand.tsx
++++ b/apps/checkin-web/src/components/Hand.tsx
+@@ -85,7 +85,7 @@ export function Hand({ method, selected, spectating, canOperate, onPlay, onSetSp
+                 </span>
+                 <CardFace method={method} card={card} />
+               </span>
+-              <span className="hand-card-caption">
++              <span className="hand-card-caption" hidden>
+                 <span id={nameId} className="hand-card-name">
+                   {cardCopy?.name ?? card}
+                 </span>

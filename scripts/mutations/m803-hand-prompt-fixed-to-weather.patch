@@ -1,0 +1,25 @@
+# 変異 803: hand-prompt-fixed-to-weather
+#
+# 検出を期待するテスト:
+#   - apps/checkin-web/tests/hand.test.tsx
+#     「Then 手札の上にそのやり方の問いが出て、どの問いへの答えかが手札だけで分かる（#480）」
+#
+# #480（PR #502 の敵対的レビュー 2）。手札の見出しに、いまのやり方ではなく今日の天気の問いを出す。
+# どの問いへの答えかを手札で誤らせる。天気だけを試していたときは 35/35 で通っていた。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m803-*.patch
+# 復元: git apply -R scripts/mutations/m803-*.patch
+diff --git a/apps/checkin-web/src/components/Hand.tsx b/apps/checkin-web/src/components/Hand.tsx
+index 2846815..5632133 100644
+--- a/apps/checkin-web/src/components/Hand.tsx
++++ b/apps/checkin-web/src/components/Hand.tsx
+@@ -61,7 +61,7 @@ export function Hand({ method, selected, spectating, canOperate, onPlay, onSetSp
+     <div className="hand-area">
+       <p className="hand-label">
+         <span className="hand-label-title">{HAND_GROUP_LABEL}</span>
+-        <span className="hand-label-prompt">{copy.prompt}</span>
++        <span className="hand-label-prompt">{METHOD_COPY.weather.prompt}</span>
+       </p>
+       <div className="hand" role="group" aria-label={HAND_GROUP_LABEL}>
+         {METHODS[method].cards.map((card, i) => {

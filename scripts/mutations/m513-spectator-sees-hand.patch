@@ -12,13 +12,13 @@
 #       git apply scripts/mutations/m513-*.patch
 # 復元: git apply -R scripts/mutations/m513-*.patch
 diff --git a/apps/checkin-web/src/components/Hand.tsx b/apps/checkin-web/src/components/Hand.tsx
-index b19b9e38..52060b5e 100644
+index 2846815..4ab3ca1 100644
 --- a/apps/checkin-web/src/components/Hand.tsx
 +++ b/apps/checkin-web/src/components/Hand.tsx
-@@ -41,7 +41,7 @@ export function SpectatorToggle({
- }
- 
+@@ -48,7 +48,7 @@ export function SpectatorToggle({
  export function Hand({ method, selected, spectating, canOperate, onPlay, onSetSpectator }: Props) {
+   // フックは早期の return より前で呼ぶ（見学の切り替えで呼ぶ数が変わらないように）
+   const idBase = useId();
 -  if (spectating) {
 +  if (false) {
      return (

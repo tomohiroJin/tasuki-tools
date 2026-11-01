@@ -24,6 +24,12 @@ describe('やり方ごとの文言の表', () => {
     }
   });
 
+  it.each(METHOD_IDS)('%s: 札の名前は 8 字以内（手札の札の幅は 8 字の名前が 1 行に収まるように決めている・#480）', (method) => {
+    for (const card of Object.values(METHOD_COPY[method].cards)) {
+      expect([...card.name].length, card.name).toBeLessThanOrEqual(8);
+    }
+  });
+
   it('同じやり方の中で札の名前は重ならない（読み上げで区別できる）', () => {
     for (const method of METHOD_IDS) {
       const names = Object.values(METHOD_COPY[method].cards).map((c) => c.name);

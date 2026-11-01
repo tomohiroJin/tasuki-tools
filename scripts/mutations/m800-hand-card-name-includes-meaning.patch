@@ -1,0 +1,24 @@
+# 変異 800: hand-card-name-includes-meaning
+#
+# 検出を期待するテスト:
+#   - apps/checkin-web/tests/hand.test.tsx
+#     「Then 読み上げ名は札の名前ちょうど 1 回で、意味は説明として 1 回だけ結ぶ（#480）」
+#
+# #480。札のボタンを名前の要素へ結ばない。読み上げ名がボタンの中身全部（「晴れ絶好調」）になり、
+# 意味を説明でも読むので二重になる。e2e の handCard（名前ちょうどで引く）も引けなくなる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m800-*.patch
+# 復元: git apply -R scripts/mutations/m800-*.patch
+diff --git a/apps/checkin-web/src/components/Hand.tsx b/apps/checkin-web/src/components/Hand.tsx
+index 2846815..0cf6587 100644
+--- a/apps/checkin-web/src/components/Hand.tsx
++++ b/apps/checkin-web/src/components/Hand.tsx
+@@ -73,7 +73,6 @@ export function Hand({ method, selected, spectating, canOperate, onPlay, onSetSp
+               key={card}
+               type="button"
+               className="hand-card"
+-              aria-labelledby={nameId}
+               aria-describedby={meaningId}
+               aria-pressed={card === selected}
+               disabled={!canOperate}

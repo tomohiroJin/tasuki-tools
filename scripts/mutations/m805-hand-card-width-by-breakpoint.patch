@@ -1,0 +1,26 @@
+# 変異 805: hand-card-width-by-breakpoint
+#
+# 検出を期待するテスト:
+#   - apps/checkin-web/tests/hand-caption-css.test.ts
+#     「Then 幅は名前の字（--font-size-sm）× 8 字から決め、段の切り替えで決めない」
+#
+# #480（PR #502 の敵対的レビュー 1）。札のボタンの幅を固定の 7rem に戻す。
+# 字は画面の幅で流れるので、幅の広い側で 8 字の名前（「持ち帰れなかった」）が 1 字だけ次の行に落ちる。
+# 実際の見え方は E2E（checkin.spec.ts の その6・639px）も見るが、E2E の spec は変異検査のランナーに載らない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m805-*.patch
+# 復元: git apply -R scripts/mutations/m805-*.patch
+diff --git a/apps/checkin-web/src/table.css b/apps/checkin-web/src/table.css
+index 628f89a..03fd728 100644
+--- a/apps/checkin-web/src/table.css
++++ b/apps/checkin-web/src/table.css
+@@ -466,7 +466,7 @@
+    * （段で決めると 40rem の手前で字が幅を追い越し、1 字だけ次の行に落ちた。PR #502 の敵対的レビュー 1）。
+    * 8 字の上限は `tests/method-copy.test.ts` が守る
+    */
+-  inline-size: max(7rem, calc(var(--font-size-sm) * 8 + 0.25rem));
++  inline-size: 7rem;
+   min-inline-size: var(--tap-target);
+   padding: 0;
+   border: 0;

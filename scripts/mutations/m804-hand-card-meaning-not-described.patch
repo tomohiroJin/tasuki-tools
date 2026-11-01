@@ -1,0 +1,24 @@
+# 変異 804: hand-card-meaning-not-described
+#
+# 検出を期待するテスト:
+#   - apps/checkin-web/tests/hand.test.tsx
+#     「Then 読み上げ名は札の名前ちょうど 1 回で、意味は説明として 1 回だけ結ぶ（#480）」
+#
+# #480（PR #502 の敵対的レビュー 3）。札のボタンを意味の要素へ結ばない。
+# 読み上げでは札の意味が聞こえなくなる（見た目には出ているのに）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m804-*.patch
+# 復元: git apply -R scripts/mutations/m804-*.patch
+diff --git a/apps/checkin-web/src/components/Hand.tsx b/apps/checkin-web/src/components/Hand.tsx
+index 2846815..8c3063f 100644
+--- a/apps/checkin-web/src/components/Hand.tsx
++++ b/apps/checkin-web/src/components/Hand.tsx
+@@ -74,7 +74,6 @@ export function Hand({ method, selected, spectating, canOperate, onPlay, onSetSp
+               type="button"
+               className="hand-card"
+               aria-labelledby={nameId}
+-              aria-describedby={meaningId}
+               aria-pressed={card === selected}
+               disabled={!canOperate}
+               onClick={() => onPlay(card)}
