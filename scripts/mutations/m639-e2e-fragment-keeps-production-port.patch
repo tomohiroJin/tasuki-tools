@@ -1,0 +1,11 @@
+--- a/e2e/harness/site-config.ts
++++ b/e2e/harness/site-config.ts
+@@ -35,7 +35,7 @@
+   syncPort: number,
+   roots: readonly { readonly link: string; readonly dist: string }[],
+ ): string {
+-  let result = source.replaceAll('127.0.0.1:8787', `127.0.0.1:${syncPort}`);
++  let result = source;
+   for (const { link, dist } of [...roots].sort((a, b) => b.link.length - a.link.length)) {
+     result = result.replaceAll(link, `"${dist}"`);
+   }

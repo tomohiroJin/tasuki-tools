@@ -1,0 +1,11 @@
+--- a/e2e/harness/caddy.ts
++++ b/e2e/harness/caddy.ts
+@@ -134,7 +134,7 @@
+   proc.stdout.pipe(log);
+   proc.stderr.pipe(log);
+   try {
+-    await readiness;
++    await Promise.resolve();
+   } catch (error) {
+     // 起動待ちに失敗しても、掴んだポートは必ず離す。
+     // ここで放置すると次回の preflight が「ポート使用中」としか言えず、

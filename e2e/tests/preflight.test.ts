@@ -5,16 +5,19 @@
  * 持たないのは、TOCTOU のある自作ロックより OS が保証する bind の排他のほうが
  * 確実だから。
  */
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import net from 'node:net';
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+vi.mock('node:child_process', async (importOriginal) => {
+  const original = await importOriginal<typeof import('node:child_process')>();
+  return { ...original, execFileSync: vi.fn(original.execFileSync) };
+});
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import {
   assertDistsBuilt,
-  assertNoCaddyLeftovers,
   assertPortsFree,
-  assertWebRootsSafe,
   findBusyPorts,
 } from '../harness/preflight';
 
@@ -63,72 +66,16 @@ describe('assertPortsFree', () => {
     // Given
     await occupy(19805);
     // When / Then: 誰が掴んでいるかを調べる手掛かりが出る
-    await expect(assertPortsFree([19805])).rejects.toThrow(/TASUKI_E2E_CADDY_PORT/);
+    vi.mocked(execFileSync).mockReturnValue('LISTEN 0 511 127.0.0.1:19805 0.0.0.0:* users:(("holder",pid=1234,fd=5))');
+    try {
+      await expect(assertPortsFree([19805])).rejects.toThrow(/ポートが使用中です: 19805/);
+      await expect(assertPortsFree([19805])).rejects.toThrow(/TASUKI_E2E_CADDY_PORT/);
+      await expect(assertPortsFree([19805])).rejects.toThrow(/holder.*pid=1234/);
+    } finally { vi.mocked(execFileSync).mockReset(); }
   });
 
   it('Given 空きポート / When 検査する / Then 通る', async () => {
     await expect(assertPortsFree([19806])).resolves.toBeUndefined();
-  });
-});
-
-describe('assertNoCaddyLeftovers', () => {
-  it('Given 指定したディレクトリが存在しない / When 検査する / Then 落ちない', () => {
-    // Given: 一時ディレクトリの中の、まだ作っていないパス
-    const base = makeTmpDir();
-    const etcDir = path.join(base, 'etc-caddy-tasuki');
-    // When / Then
-    expect(() => assertNoCaddyLeftovers(etcDir)).not.toThrow();
-  });
-
-  it('Given 指定したディレクトリが存在する / When 検査する / Then そのパスを含めて落ちる', () => {
-    // Given: 残骸あるいは本物の Caddy 設定を模した実ディレクトリ
-    const base = makeTmpDir();
-    const etcDir = path.join(base, 'etc-caddy-tasuki');
-    mkdirSync(etcDir);
-    // When / Then
-    expect(() => assertNoCaddyLeftovers(etcDir)).toThrow(etcDir);
-  });
-});
-
-describe('assertWebRootsSafe', () => {
-  it('Given link が存在しない / When 検査する / Then 落ちない', () => {
-    // Given
-    const base = makeTmpDir();
-    const link = path.join(base, 'var-www-tasuki');
-    // When / Then
-    expect(() => assertWebRootsSafe([{ link, dist: base }])).not.toThrow();
-  });
-
-  it('Given link が symlink / When 検査する / Then 落ちない（前回の残骸なので張り替えてよい）', () => {
-    // Given: symlink の先には実ディレクトリがある
-    const base = makeTmpDir();
-    const target = path.join(base, 'dist-target');
-    mkdirSync(target);
-    const link = path.join(base, 'var-www-tasuki');
-    symlinkSync(target, link);
-    // When / Then
-    expect(() => assertWebRootsSafe([{ link, dist: base }])).not.toThrow();
-  });
-
-  it('Given link が実体ディレクトリ / When 検査する / Then 落ちる（本物の配信の可能性があるため触らない）', () => {
-    // Given
-    const base = makeTmpDir();
-    const link = path.join(base, 'var-www-tasuki');
-    mkdirSync(link);
-    // When / Then
-    expect(() => assertWebRootsSafe([{ link, dist: base }])).toThrow(/symlink ではなく実体/);
-  });
-
-  it('Given link がリンク先の無い symlink（dangling） / When 検査する / Then 落ちない', () => {
-    // Given: symlink 自体はあるが、リンク先を消してある
-    const base = makeTmpDir();
-    const target = path.join(base, 'gone-target');
-    mkdirSync(target);
-    const link = path.join(base, 'var-www-tasuki');
-    symlinkSync(target, link);
-    rmSync(target, { recursive: true, force: true });
-    // When / Then: existsSync は symlink を辿るため false になり、続行が意図どおり
-    expect(() => assertWebRootsSafe([{ link, dist: base }])).not.toThrow();
   });
 });
 

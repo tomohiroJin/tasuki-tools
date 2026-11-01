@@ -28,7 +28,7 @@ import { createWriteStream, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { LOG_DIR, PORTS, REPO_ROOT } from './paths';
 import { LOCAL_BASE_URL } from './target';
-import { waitForPort } from './wait-for-port';
+import { waitForStartup } from './startup';
 
 interface SyncSpec {
   readonly name: string;
@@ -71,9 +71,7 @@ export function syncEnv(base: NodeJS.ProcessEnv, port: number): NodeJS.ProcessEn
 export async function startSyncServers(): Promise<ChildProcess[]> {
   mkdirSync(LOG_DIR, { recursive: true });
   const procs: ChildProcess[] = [];
-  // spawn の 'error'（主に ENOENT）を Promise の失敗として拾うための集合。
-  // waitForPort の起動待ちと競わせ、どちらか先に決着した方を採用する。
-  const failures: Promise<never>[] = [];
+  const readiness: Promise<void>[] = [];
 
   for (const server of SYNC_SERVERS) {
     const log = createWriteStream(path.join(LOG_DIR, `${server.name}.log`), { flags: 'w' });
@@ -82,27 +80,15 @@ export async function startSyncServers(): Promise<ChildProcess[]> {
       env: syncEnv(process.env, server.port),
       stdio: ['ignore', 'pipe', 'pipe'],
     });
-    // **'error' リスナが無いと、bun が PATH に無いだけで未捕捉例外になり
-    // プロセスが即死する。** globalSetup の try/catch にもシグナルハンドラにも
-    // 入らないため、/etc/caddy/tasuki と symlink が残る。
-    failures.push(
-      new Promise<never>((_, reject) => {
-        proc.once('exit', (code) => reject(new Error(`${server.name} exited during startup (${code}); see ${LOG_DIR}`)));
-        proc.once('error', (cause: Error) => {
-          reject(new Error(`${server.name} の起動に失敗しました: ${cause.message}`, { cause }));
-        });
-      }),
-    );
+    readiness.push(waitForStartup(proc, new RegExp(`listening port=${server.port}\\b`), 20_000,
+      `${server.name}; see ${LOG_DIR}/${server.name}.log`));
     proc.stdout.pipe(log);
     proc.stderr.pipe(log);
     procs.push(proc);
   }
 
   try {
-    await Promise.race([
-      Promise.all(SYNC_SERVERS.map((server) => waitForPort(server.port, 20_000))),
-      ...failures,
-    ]);
+    await Promise.all(readiness);
   } catch (error) {
     // 起動待ちに失敗しても、掴んだポートは必ず離す。
     await stopSyncServers(procs);
@@ -116,7 +102,7 @@ export async function stopSyncServers(procs: readonly ChildProcess[]): Promise<v
     procs.map(
       (proc) =>
         new Promise<void>((resolve) => {
-          if (proc.exitCode !== null || proc.signalCode !== null) return resolve();
+          if (proc.pid === undefined || proc.exitCode !== null || proc.signalCode !== null) return resolve();
           const forceKill = setTimeout(() => proc.kill('SIGKILL'), 5_000);
           proc.once('exit', () => {
             clearTimeout(forceKill);

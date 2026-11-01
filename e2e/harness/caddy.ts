@@ -27,7 +27,7 @@ import {
 } from './paths';
 import { toLocalFragment, toLocalSiteConfig } from './site-config';
 import { LOCAL_BASE_URL } from './target';
-import { waitForPort } from './wait-for-port';
+import { waitForStartup } from './startup';
 
 const CADDY_BINARY = path.join(CADDY_CACHE_DIR, 'caddy');
 const CADDY_RELEASE_URL = `https://github.com/caddyserver/caddy/releases/download/v${CADDY_VERSION}`;
@@ -38,7 +38,7 @@ const CADDY_CHECKSUMS_URL = `${CADDY_RELEASE_URL}/caddy_${CADDY_VERSION}_checksu
 /**
  * 取得した tarball を公式の checksums.txt（sha512）と照合する。
  * 版の文字列だけでは、差し替えられた配布物や途中で切れた取得を見分けられない。
- * 取得した本体は sudo で動かすので、展開する前に止める。
+ * 展開・実行する前に検証する。
  */
 function verifyTarball(tarball: string, checksums: string): void {
   const line = readFileSync(checksums, 'utf8')
@@ -127,21 +127,14 @@ export async function startCaddy(binaryPath: string): Promise<ChildProcess> {
   const log = createWriteStream(path.join(LOG_DIR, 'caddy.log'), { flags: 'w' });
   const proc = spawn(binaryPath, ['run', '--config', writeTopCaddyfile(), '--adapter', 'caddyfile'], {
     stdio: ['ignore', 'pipe', 'pipe'],
+    env: { ...process.env, XDG_DATA_HOME: path.join(TEST_RESULTS_DIR, 'data'), XDG_CONFIG_HOME: path.join(TEST_RESULTS_DIR, 'xdg-config') },
   });
-  // **'error' リスナが無いと、バイナリが見つからない・実行できない等で
-  // 未捕捉例外になりプロセスが即死する。** globalSetup の try/catch にも
-  // シグナルハンドラにも入らないため、/etc/caddy/tasuki と symlink が残る。
-  // waitForPort の起動待ちと競わせ、どちらか先に決着した方を採用する。
-  const failure = new Promise<never>((_, reject) => {
-    proc.once('exit', (code) => reject(new Error(`caddy exited during startup (${code}); see ${LOG_DIR}/caddy.log`)));
-    proc.once('error', (cause: Error) => {
-      reject(new Error(`caddy の起動に失敗しました: ${cause.message}`, { cause }));
-    });
-  });
+  const readiness = waitForStartup(proc, /"msg":"serving initial configuration"/, 15_000,
+    `caddy; see ${LOG_DIR}/caddy.log`);
   proc.stdout.pipe(log);
   proc.stderr.pipe(log);
   try {
-    await Promise.race([waitForPort(PORTS.caddy, 15_000), failure]);
+    await readiness;
   } catch (error) {
     // 起動待ちに失敗しても、掴んだポートは必ず離す。
     // ここで放置すると次回の preflight が「ポート使用中」としか言えず、
@@ -153,7 +146,7 @@ export async function startCaddy(binaryPath: string): Promise<ChildProcess> {
 }
 
 export async function stopCaddy(proc: ChildProcess): Promise<void> {
-  if (proc.exitCode !== null || proc.signalCode !== null) return;
+  if (proc.pid === undefined || proc.exitCode !== null || proc.signalCode !== null) return;
   await new Promise<void>((resolve) => {
     const forceKill = setTimeout(() => proc.kill('SIGKILL'), 5_000);
     proc.once('exit', () => {

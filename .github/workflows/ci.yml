@@ -108,11 +108,6 @@ jobs:
       - run: pnpm install --frozen-lockfile
         if: steps.scope.outputs.code == 'true'
 
-      # Caddy 断片が root * /var/www/... を絶対値で宣言しているため、
-      # 環境側を断片に合わせる。**ubuntu-latest に /var/www は無い。**
-      - run: sudo mkdir -p /var/www
-        if: steps.scope.outputs.code == 'true'
-
       # 版を固定してキャッシュする。「最新」を取ると、ある日突然赤くなる。
       # 版は本番に揃える（#434）。正本は e2e/harness/paths.ts の CADDY_VERSION で、鍵はそこから導く。
       # 鍵に版を直書きすると、paths.ts だけ上げたときに古い鍵が当たり、新しい版が毎回取り直しになる。

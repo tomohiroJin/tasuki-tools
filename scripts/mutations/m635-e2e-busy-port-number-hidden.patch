@@ -1,0 +1,11 @@
+--- a/e2e/harness/preflight.ts
++++ b/e2e/harness/preflight.ts
+@@ -42,7 +42,7 @@
+   const busy = await findBusyPorts(ports);
+   if (busy.length === 0) return;
+   throw new Error(
+-    `ポートが使用中です: ${busy.join(', ')}\n` +
++    `ポートが使用中です: \n` +
+       'TASUKI_E2E_CADDY_PORT と TASUKI_E2E_SYNC_PORT に別の空きポートを指定するか、unset して自動選択してください。\n' +
+       `${describePortHolders(busy)}`,
+   );
