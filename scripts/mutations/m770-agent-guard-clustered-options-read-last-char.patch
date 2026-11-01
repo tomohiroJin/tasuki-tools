@@ -1,0 +1,16 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index 9284749..dfdf755 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -266,10 +266,7 @@ function isAssignment(word) {
+ function takesNextWord(w, argOpts) {
+   if (argOpts.includes(w)) return true;
+   if (!/^-[A-Za-z0-9]{2,}$/.test(w)) return false;
+-  for (let k = 1; k < w.length; k += 1) {
+-    if (argOpts.includes(`-${w[k]}`)) return k === w.length - 1;
+-  }
+-  return false;
++  return argOpts.includes(`-${w.at(-1)}`);
+ }
+ 
+ /**

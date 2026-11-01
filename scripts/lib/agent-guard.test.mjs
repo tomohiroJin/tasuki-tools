@@ -138,6 +138,14 @@ describe("findGuardedCommands: PR #498 のレビューで見つかった取り�
     assert.deepEqual(ids("ionice -c2 -n7 nice -n 5 systemctl restart x"), ["systemctl"]);
   });
 
+  test("値をつなげて書く形（-uroot）は、その語の残りが値で、次の語はコマンドとして読む（再レビュー 1）", () => {
+    assert.deepEqual(ids("sudo -uroot systemctl restart tasuki"), ["systemctl"]);
+    assert.deepEqual(ids("sudo -uubuntu systemctl restart tasuki"), ["systemctl"]);
+    assert.deepEqual(ids("sudo -iuroot systemctl restart tasuki"), ["systemctl"]);
+    assert.deepEqual(ids("sudo -uadmin ./deploy/deploy.sh timer"), ["deploy-script"]);
+    assert.deepEqual(ids("timeout -sKILL 10 systemctl restart x"), ["systemctl"]);
+  });
+
   test("su・runuser・pkexec で権限を変えて走らせても当てる（レビュー 3）", () => {
     assert.deepEqual(ids("su -c 'systemctl restart tasuki'"), ["systemctl"]);
     assert.deepEqual(ids("su root -c 'systemctl restart tasuki'"), ["systemctl"]);
@@ -208,6 +216,12 @@ describe("decideHookOutput: Claude Code の PreToolUse フックの返し方", (
     const out = decideHookOutput(JSON.stringify({ tool_name: "Monitor", tool_input: { command: "systemctl restart tasuki" } }));
     assert.equal(out?.hookSpecificOutput?.permissionDecision, "ask");
     assert.equal(decideHookOutput(JSON.stringify({ tool_name: "Monitor", tool_input: { command: "tail -f log" } })), null);
+  });
+
+  test("Monitor の WebSocket の形（command が無く ws がある）はシェルを走らせないので見ない（再レビュー 3）", () => {
+    assert.equal(decideHookOutput(JSON.stringify({ tool_name: "Monitor", tool_input: { ws: { url: "wss://x" } } })), null);
+    // command も ws も無い Monitor は読めないとして聞く
+    assert.equal(decideHookOutput(JSON.stringify({ tool_name: "Monitor", tool_input: {} }))?.hookSpecificOutput?.permissionDecision, "ask");
   });
 
   test("SHELL_TOOLS は Bash と Monitor を含む", () => {

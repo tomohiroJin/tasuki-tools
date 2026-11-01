@@ -1,5 +1,5 @@
 diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
-index 483ccec..f9a3e17 100644
+index 9284749..1679325 100644
 --- a/scripts/lib/agent-guard.mjs
 +++ b/scripts/lib/agent-guard.mjs
 @@ -67,7 +67,6 @@ const SU_ARG_OPTS = ["-u", "-g", "-G", "-s", "-w", "--user", "--group", "--supp-

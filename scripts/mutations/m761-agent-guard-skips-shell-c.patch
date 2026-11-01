@@ -1,8 +1,8 @@
 diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
-index 483ccec..ee8742c 100644
+index 9284749..5f5e286 100644
 --- a/scripts/lib/agent-guard.mjs
 +++ b/scripts/lib/agent-guard.mjs
-@@ -325,7 +325,7 @@ function analyzeWords(words, depth) {
+@@ -339,7 +339,7 @@ function analyzeWords(words, depth) {
        }
        if (words[k] === "--") k += 1;
        if (k >= words.length) return [];

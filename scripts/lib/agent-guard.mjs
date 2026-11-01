@@ -257,6 +257,22 @@ function isAssignment(word) {
 }
 
 /**
+ * 選択肢の語が、次の語を値として取るか。
+ *
+ * 短い選択肢のまとまりは getopt と同じく**左から 1 文字ずつ読み、最初に値を取る文字が出たところで止める。**
+ * そこが末尾なら次の語が値（`-iu root`）、途中ならその語の残りが値（`-uroot`・`-sKILL`）で、次の語はコマンドである。
+ * 最後の文字だけを見ると `-uroot` の `t` を値を取る選択肢と読み、コマンドを値として飛ばす（PR #498 の再レビュー 1）。
+ */
+function takesNextWord(w, argOpts) {
+  if (argOpts.includes(w)) return true;
+  if (!/^-[A-Za-z0-9]{2,}$/.test(w)) return false;
+  for (let k = 1; k < w.length; k += 1) {
+    if (argOpts.includes(`-${w[k]}`)) return k === w.length - 1;
+  }
+  return false;
+}
+
+/**
  * 選択肢を読み飛ばし、最初の選択肢でない語の位置を返す。
  * `-u root`（値を取る）・`-uroot`・`--user=root`・`--`（ここで終わり）を扱う。
  */
@@ -266,9 +282,7 @@ function skipOptions(words, start, argOpts) {
     const w = words[i];
     if (w === "--") return i + 1;
     if (!w.startsWith("-") || w === "-") return i;
-    // 短い選択肢のまとまり（`-iu root`）は、最後の文字が値を取るなら次の語も値（PR #498 のレビュー 1）
-    const clusteredArg = /^-[A-Za-z0-9]{2,}$/.test(w) && argOpts.includes(`-${w.at(-1)}`);
-    i += argOpts.includes(w) || clusteredArg ? 2 : 1;
+    i += takesNextWord(w, argOpts) ? 2 : 1;
   }
   return i;
 }
@@ -414,6 +428,8 @@ export function decideHookOutput(raw) {
   }
   if (!SHELL_TOOLS.includes(input.tool_name)) return null;
   const command = input.tool_input?.command;
+  // Monitor の WebSocket の形はシェルを走らせない（PR #498 の再レビュー 3）
+  if (input.tool_name === "Monitor" && command === undefined && input.tool_input?.ws !== undefined) return null;
   if (typeof command !== "string") {
     return ask(`${input.tool_name} のコマンドを読めませんでした。念のため人に確かめます。${RULE_REF}`);
   }

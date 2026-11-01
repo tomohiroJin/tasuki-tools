@@ -28,8 +28,8 @@ const RESERVED_220_229 =
 const RESERVED_700_719 =
   "**対応表より後に足した変異。** 700〜719 は #487（PR #492）に割り当てた予約の範囲。2026-11-01 に並行の PR（#493 は 634〜636 のち 640〜650、#494 は 634〜639）と 2 度重なったため、離れた範囲を取った。";
 
-const RESERVED_740_749 =
-  "**対応表より後に足した変異。** 740〜749 は #490（PR #498）に割り当てた予約の範囲。初めは 720〜725 を取ったが、並行の PR #497（#488）の 720〜727 と重なったため、PR #498 のレビュー 4 で振り直した。";
+const RESERVED_760_779 =
+  "**対応表より後に足した変異。** 760〜779 は #490（PR #498）に割り当てた予約の範囲。720〜725、ついで 740〜749 を取ったが、どちらも並行の PR #497（#488）と重なった（PR #498 のレビュー 4・再レビュー 2）。2026-11-01 時点でどのブランチも使っていない帯へ移した。";
 
 const RESERVED_250_259 =
   "**対応表より後に足した変異。** 250〜259 は 2026-10-15 の並列修正で #376 に追加で割り当てた予約の範囲（220〜229 が埋まったため）。";
@@ -4528,113 +4528,135 @@ export const MUTATIONS = [
       "#492 の再レビュー。ルートの検査はルートの下を見て通るのに、ハーネスと Playwright は e2e/ の下を見て止まる。",
   },
   {
-    id: 740,
+    id: 760,
     label: "agent-guard が sudo を包むコマンドとして読まない",
-    patch: "m740-agent-guard-ignores-sudo.patch",
+    patch: "m760-agent-guard-ignores-sudo.patch",
     pkg: "scripts",
     tests: ["lib/agent-guard.test.mjs"],
     note:
-      RESERVED_740_749 +
+      RESERVED_760_779 +
       " " +
       "#490。`sudo systemctl restart …` が人に聞かれずに走る（本番で最も踏みやすい形）。",
   },
   {
-    id: 741,
+    id: 761,
     label: "agent-guard が bash -c の文字列を読み直さない",
-    patch: "m741-agent-guard-skips-shell-c.patch",
+    patch: "m761-agent-guard-skips-shell-c.patch",
     pkg: "scripts",
     tests: ["lib/agent-guard.test.mjs"],
     note:
-      RESERVED_740_749 +
+      RESERVED_760_779 +
       " " +
       "#490。`bash -c 'systemctl restart …'` で包むと素通りする。",
   },
   {
-    id: 742,
+    id: 762,
     label: "agent-guard のフックが読めない入力を通す（ask に倒さない）",
-    patch: "m742-agent-guard-unreadable-input-passes.patch",
+    patch: "m762-agent-guard-unreadable-input-passes.patch",
     pkg: "scripts",
     tests: ["lib/agent-guard.test.mjs"],
     note:
-      RESERVED_740_749 +
+      RESERVED_760_779 +
       " " +
       "#490。ツールの入力の形が変わったとき、黙って全部のコマンドを通す。",
   },
   {
-    id: 743,
+    id: 763,
     label: "audit-agent-guard が deploy/ の宣言の無いスクリプトを見ない",
-    patch: "m743-audit-agent-guard-ignores-undeclared-deploy-script.patch",
+    patch: "m763-audit-agent-guard-ignores-undeclared-deploy-script.patch",
     pkg: "scripts",
     tests: ["audit-agent-guard.test.mjs"],
     note:
-      RESERVED_740_749 +
+      RESERVED_760_779 +
       " " +
       "#490。デプロイの入口を足したのに止める一覧へ足し忘れても CI が緑のまま。",
   },
   {
-    id: 744,
+    id: 764,
     label: ".claude/settings.json のフックの matcher を Bash|Monitor から Edit にする",
-    patch: "m744-claude-settings-hook-matches-edit.patch",
+    patch: "m764-claude-settings-hook-matches-edit.patch",
     pkg: "scripts",
     tests: ["audit-agent-guard.test.mjs"],
     note:
-      RESERVED_740_749 +
+      RESERVED_760_779 +
       " " +
       "#490。設定の配線が外れ、Claude Code が Bash のコマンドで判定を呼ばなくなる。",
   },
   {
-    id: 745,
+    id: 765,
     label: "agent-guard が caddy のどの下位コマンドでも当てる",
-    patch: "m745-agent-guard-caddy-any-subcommand.patch",
+    patch: "m765-agent-guard-caddy-any-subcommand.patch",
     pkg: "scripts",
     tests: ["lib/agent-guard.test.mjs"],
     note:
-      RESERVED_740_749 +
+      RESERVED_760_779 +
       " " +
       "#490。caddy version・validate まで人に聞くようになり、E2E や版の確認の作業を妨げる（#490 の EARS 2）。",
   },
   {
-    id: 746,
+    id: 766,
     label: "agent-guard が短い選択肢のまとまり（sudo -iu root）の値を読み飛ばさない",
-    patch: "m746-agent-guard-clustered-options-ignore-value.patch",
+    patch: "m766-agent-guard-clustered-options-ignore-value.patch",
     pkg: "scripts",
     tests: ["lib/agent-guard.test.mjs"],
     note:
-      RESERVED_740_749 +
+      RESERVED_760_779 +
       " " +
       "PR #498 のレビュー 1。値の root をコマンドの名前と読み、`sudo -iu root systemctl …` が人に聞かれずに走る（実経路で再現した）。",
   },
   {
-    id: 747,
+    id: 767,
     label: "agent-guard が su・runuser の -c の文字列を読み直さない",
-    patch: "m747-agent-guard-su-skips-command-string.patch",
+    patch: "m767-agent-guard-su-skips-command-string.patch",
     pkg: "scripts",
     tests: ["lib/agent-guard.test.mjs"],
     note:
-      RESERVED_740_749 +
+      RESERVED_760_779 +
       " " +
       "PR #498 のレビュー 3。`su -c 'systemctl restart …'` が素通りする。",
   },
   {
-    id: 748,
+    id: 768,
     label: "agent-guard のフックが Bash だけを判定し、Monitor のコマンドを見ない",
-    patch: "m748-agent-guard-judges-bash-only.patch",
+    patch: "m768-agent-guard-judges-bash-only.patch",
     pkg: "scripts",
     tests: ["lib/agent-guard.test.mjs"],
     note:
-      RESERVED_740_749 +
+      RESERVED_760_779 +
       " " +
       "PR #498 のレビュー 2。Claude Code の版が Monitor を Bash のフックへ回さなくなったとき、Monitor 経由で素通りする。",
   },
   {
-    id: 749,
+    id: 769,
     label: "audit-agent-guard が matcher を Bash についてだけ見る",
-    patch: "m749-audit-agent-guard-checks-bash-matcher-only.patch",
+    patch: "m769-audit-agent-guard-checks-bash-matcher-only.patch",
     pkg: "scripts",
     tests: ["audit-agent-guard.test.mjs"],
     note:
-      RESERVED_740_749 +
+      RESERVED_760_779 +
       " " +
       "PR #498 のレビュー 2。settings.json の matcher から Monitor が落ちても CI が緑のまま。",
+  },
+  {
+    id: 770,
+    label: "agent-guard が短い選択肢のまとまりの最後の文字だけを見る（-uroot の t を値を取る選択肢と読む）",
+    patch: "m770-agent-guard-clustered-options-read-last-char.patch",
+    pkg: "scripts",
+    tests: ["lib/agent-guard.test.mjs"],
+    note:
+      RESERVED_760_779 +
+      " " +
+      "PR #498 の再レビュー 1。f23fa9d の読み方そのもの。`sudo -uroot systemctl …` で systemctl を値として飛ばし、人に聞かれずに走る（実経路で再現された）。",
+  },
+  {
+    id: 771,
+    label: "agent-guard のフックが Monitor の WebSocket の形（command 無し）でも人に聞く",
+    patch: "m771-agent-guard-monitor-ws-asks.patch",
+    pkg: "scripts",
+    tests: ["lib/agent-guard.test.mjs"],
+    note:
+      RESERVED_760_779 +
+      " " +
+      "PR #498 の再レビュー 3。シェルを走らせない Monitor の使い方のたびに確認を求め、作業を妨げる（#490 の EARS 2）。",
   },
 ];

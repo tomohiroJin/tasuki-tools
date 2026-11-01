@@ -24,7 +24,7 @@
   ツールごとの設定は**一覧を写さず、判定を呼ぶ入口だけ**を持つ（`docs/adr/0030` 決定 3 と同じ考え方）
 - 一覧（2026-11-01）: `deploy/deploy.sh`・`deploy/setup.sh`・`deploy/firewall/connlimit.sh`（スクリプト）、`systemctl`・`service`（どの下位コマンドでも）、
   `caddy reload`・`caddy stop`。`caddy version`・`validate`・`fmt` は当てない（版の確認と E2E の作業を妨げない）
-- 判定はシェルの部分集合を読む。`sudo`・`su`・`runuser`・`pkexec`・`env`・`timeout` ほかの包むコマンド（短い選択肢のまとまり `sudo -iu root` も）、`bash -c`・`ssh <host> <cmd>`・`eval`・`xargs`・`find -exec`、
+- 判定はシェルの部分集合を読む。`sudo`・`su`・`runuser`・`pkexec`・`env`・`timeout` ほかの包むコマンド（短い選択肢のまとまり `sudo -iu root`・値をつなげた `sudo -uroot` も。getopt と同じく左から読む）、`bash -c`・`ssh <host> <cmd>`・`eval`・`xargs`・`find -exec`、
   区切り（`;`・`&&`・`|`・改行・サブシェル）、コマンド置換、引用符とバックスラッシュで割った綴りを読む。
   `cat deploy/deploy.sh`・`grep systemctl …`・`command -v systemctl` のように**引数に名前が出るだけのもの・場所を調べるだけのものは当てない**
 - **MUST**: 読み切れないとき（入れ子が深すぎる・フックの入力が読めない）は、当てる側（人に聞く側）に倒す
@@ -51,7 +51,7 @@
   ②`settings.json` の PreToolUse に、`SHELL_TOOLS` のどれにも当たる matcher で入口が置かれ、`disableAllHooks` が true でない
   ③宣言したスクリプトが追跡下にあり、`deploy/` の下の実行するスクリプト（`*.sh`。読み込まれる部品の `deploy/lib/` を除く）が**どれも宣言にある**。
   デプロイの入口を足して一覧へ足し忘れる、を捕まえる
-- 判定の読み方は `scripts/lib/agent-guard.test.mjs` が見る。変異 740〜749 が両方を守る（初めの 720〜725 は並行の PR #497 と重なったので振り直した）
+- 判定の読み方は `scripts/lib/agent-guard.test.mjs` が見る。変異 760〜771 が両方を守る（720〜725、ついで 740〜749 を取ったが、どちらも並行の PR #497 と重なったので振り直した）
 
 ### 4. 他のツールは、今は文章だけで守る
 
