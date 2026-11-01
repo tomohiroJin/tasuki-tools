@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { deriveChecks, planChecks, runChecks } from "./local-check.mjs";
 
 const workflow = fs.readFileSync(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
@@ -50,6 +50,18 @@ test("速い段は build・E2E を理由つきで省略し、変異を --changed
   assert.ok(docs.some((c) => c.command === "node scripts/check-links.mjs" && !c.reason));
 });
 
+test("供給網 install は両方の段で CI 専用として省略し、実行しない", () => {
+  for (const mode of ["fast", "full"]) {
+    const plan = planChecks(deriveChecks(workflow), mode, true);
+    const install = plan.find((c) => c.command === "node scripts/install-with-supply-chain-check.mjs");
+    assert.match(install.reason ?? "", /CI.*新規|新規.*CI/);
+    let ran = false;
+    const [result] = runChecks([install], { preflight: () => true, execute: () => { ran = true; return false; } });
+    assert.equal(ran, false);
+    assert.equal(result.status, "skipped");
+  }
+});
+
 test("版チェックに失敗したら検査を 1 本も始めず、全件の省略理由を報告する", () => {
   const calls = [];
   const results = runChecks([{ command: "first" }, { command: "second" }], {
@@ -77,12 +89,16 @@ function fixture(t, { failPreflight = false, failCheck = false } = {}) {
     fs.copyFileSync(new URL(file, import.meta.url), target);
   }
   fs.writeFileSync(path.join(dir, "scripts/check-toolchain.mjs"), `console.log('PREFLIGHT ' + process.argv[2]); process.exit(${failPreflight ? 1 : 0});`);
+  fs.writeFileSync(path.join(dir, "scripts/install-with-supply-chain-check.mjs"), "throw new Error('SUPPLY-INSTALL-RAN');");
   fs.mkdirSync(path.join(dir, ".github/workflows"), { recursive: true });
   fs.writeFileSync(path.join(dir, ".github/workflows/ci.yml"), `jobs:
   ci:
     steps:
       - run: node -e 'console.log("FIRST"); process.exit(${failCheck ? 1 : 0})'
       - run: node -e 'console.log("SECOND")'
+  quality:
+    steps:
+      - run: node scripts/install-with-supply-chain-check.mjs
 `);
   return dir;
 }
@@ -122,4 +138,71 @@ test("CLI の一覧は検査と版チェックを起動せず、間違った引�
     assert.equal(invalid.status, 2);
     assert.match(invalid.stderr, /使い方/);
   }
+});
+
+function gitFixture(t) {
+  const dir = fixture(t);
+  fs.writeFileSync(path.join(dir, ".github/workflows/ci.yml"), `jobs:
+  ci:
+    steps:
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test
+`);
+  fs.writeFileSync(path.join(dir, "note.md"), "original\n");
+  fs.writeFileSync(path.join(dir, "a.ts"), "export const value = 1;\n");
+  const git = (...args) => execFileSync("git", args, { cwd: dir, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+  const commit = () => git("-c", "user.name=Fixture", "-c", "user.email=fixture@example.invalid", "commit", "--no-gpg-sign", "-m", "fixture");
+  git("init"); git("add", "."); commit();
+  git("update-ref", "refs/remotes/origin/main", "HEAD");
+  const check = (code) => {
+    const r = spawnSync(process.execPath, [path.join(dir, "scripts/local-check.mjs"), "fast", "--list"], { encoding: "utf8" });
+    assert.ifError(r.error);
+    assert.equal(r.status, 0, r.stderr);
+    for (const command of ["typecheck", "lint", "test"]) {
+      assert.ok(r.stdout.includes(`[${code ? "予定" : "省略"}] ci: pnpm ${command}`), r.stdout);
+    }
+    return r.stdout;
+  };
+  return { dir, git, commit, check };
+}
+
+test("fast の実 git 差分: 文書だけの未ステージ・ステージ済み・コミット済み・未追跡", (t) => {
+  const f = gitFixture(t);
+  fs.writeFileSync(path.join(f.dir, "note.md"), "edited\n"); f.check(false);
+  f.git("add", "note.md"); f.check(false);
+  f.commit(); f.check(false);
+  fs.writeFileSync(path.join(f.dir, "new.md"), "untracked\n"); f.check(false);
+});
+
+test("fast の実 git 差分: 未追跡のコードを落とさない", (t) => {
+  const f = gitFixture(t);
+  fs.writeFileSync(path.join(f.dir, "note.md"), "edited\n");
+  fs.writeFileSync(path.join(f.dir, "new.ts"), "export {};\n");
+  f.check(true);
+});
+
+test("fast の実 git 差分: コードから文書への改名でも削除側を数える", (t) => {
+  const f = gitFixture(t);
+  f.git("mv", "a.ts", "a.md"); f.check(true);
+  f.commit(); f.check(true);
+});
+
+test("fast の実 git 差分: コードの削除と、基準が無いときは検査を流す", (t) => {
+  const f = gitFixture(t);
+  fs.unlinkSync(path.join(f.dir, "a.ts")); f.check(true);
+  f.git("restore", "a.ts");
+  fs.writeFileSync(path.join(f.dir, "note.md"), "edited\n");
+  f.git("update-ref", "-d", "refs/remotes/origin/main");
+  assert.match(f.check(true), /差分を判定できない/);
+});
+
+test("--list も複数行のコマンドを一行で表示する", (t) => {
+  const dir = fixture(t);
+  fs.writeFileSync(path.join(dir, ".github/workflows/ci.yml"), "jobs:\n  ci:\n    steps:\n      - run: |\n          echo FIRST\n          echo SECOND\n");
+  const r = spawnSync(process.execPath, [path.join(dir, "scripts/local-check.mjs"), "full", "--list"], { encoding: "utf8" });
+  assert.ifError(r.error);
+  assert.equal(r.status, 0, r.stderr);
+  assert.match(r.stdout, /\[予定\] ci: echo FIRST \/ echo SECOND/);
+  assert.equal(r.stdout.trim().split("\n").length, 1);
 });

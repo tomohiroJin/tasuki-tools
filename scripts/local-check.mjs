@@ -67,6 +67,9 @@ export function deriveChecks(workflow) {
     if (["corepack enable", "pnpm install --frozen-lockfile"].includes(command) || /^pnpm --filter @tasuki\/e2e exec playwright install/.test(command)) {
       reason = "CI の導入処理。手元では先に依存・ブラウザを導入する";
     }
+    if (/^node scripts\/install-with-supply-chain-check\.mjs(?:\s|$)/.test(command)) {
+      reason = "新規チェックアウトの CI で install の検証実行を確かめる処理。導入済みの手元では省略する";
+    }
     if (step.job === "mutation-all") reason = "CI の結果集約。手元は最後の一覧と終了コードで集約する";
     if (reason) { checks.push({ job: step.job, command, reason }); continue; }
     const matrix = jobs.find((j) => j.name === step.job).lines.map((l) => l.text).join("\n");
@@ -105,7 +108,7 @@ export function planChecks(checks, mode, code) {
       mutationSeen = true;
       return { job: check.job, command: "node scripts/mutation-check.mjs --changed" };
     }
-    if (check.job === "e2e" || check.command === "pnpm build" || check.command.includes("install-with-supply-chain-check")) {
+    if (check.job === "e2e" || check.command === "pnpm build") {
       return { ...check, reason: "速い段では省略。全件の段で流す" };
     }
     if (!code && /^pnpm (typecheck|lint|test)$/.test(check.command)) return { ...check, reason: "差分は文書のみ" };
@@ -136,7 +139,8 @@ function hasCodeChanges() {
   try {
     const git = (args) => execFileSync("git", args, { cwd: ROOT, encoding: "utf8" });
     const base = git(["merge-base", "origin/main", "HEAD"]).trim();
-    const files = git(["diff", "--name-only", "-z", base]) + git(["ls-files", "--others", "--exclude-standard", "-z"]);
+    // 改名先だけが .md でも、削除されたコードの側を数える。
+    const files = git(["diff", "--name-only", "--no-renames", "-z", base]) + git(["ls-files", "--others", "--exclude-standard", "-z"]);
     return decideScope(files.split("\0").filter(Boolean)).code;
   } catch { console.log("[local-check] 差分を判定できないため、型・lint・単体をすべて流します"); return true; }
 }
@@ -150,7 +154,7 @@ function main() {
     const checks = deriveChecks(fs.readFileSync(path.join(ROOT, ".github/workflows/ci.yml"), "utf8"));
     const plan = planChecks(checks, mode, mode === "full" || hasCodeChanges());
     if (args.includes("--list")) {
-      for (const c of plan) console.log(`[${c.reason ? "省略" : "予定"}] ${c.job}: ${c.command}${c.env ? ` ${JSON.stringify(c.env)}` : ""}${c.reason ? ` — ${c.reason}` : ""}`);
+      for (const c of plan) console.log(`[${c.reason ? "省略" : "予定"}] ${c.job}: ${c.command.replaceAll("\n", " / ")}${c.env ? ` ${JSON.stringify(c.env)}` : ""}${c.reason ? ` — ${c.reason}` : ""}`);
       return;
     }
     let ready = false;
