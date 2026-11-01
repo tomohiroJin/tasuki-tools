@@ -1,0 +1,11 @@
+--- a/e2e/harness/port-locks.ts
++++ b/e2e/harness/port-locks.ts
+@@ -20,7 +20,7 @@
+   try {
+     for (const port of [...new Set(ports)].sort((a, b) => a - b)) {
+       const dir = path.join(root, String(port));
+-      try { mkdirSync(dir); }
++      try { mkdirSync(dir, {recursive: true}); }
+       catch (cause) {
+         let owner = 'PID 不明（取得処理中または残骸）';
+         try { owner = readFileSync(path.join(dir, 'owner.json'), 'utf8'); } catch { /* 作成途中でも排他は有効 */ }

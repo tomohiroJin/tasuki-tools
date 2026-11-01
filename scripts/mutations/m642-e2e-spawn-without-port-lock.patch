@@ -1,0 +1,11 @@
+--- a/e2e/harness/port-locks.ts
++++ b/e2e/harness/port-locks.ts
+@@ -36,7 +36,7 @@
+ 
+ /** SO_REUSEPORT が有効な子でも、同じポートを使う E2E を同時に spawn しない。 */
+ export function spawnWithPortLock(port: number, command: string, args: string[], options: SpawnOptionsWithoutStdio) {
+-  const release = acquirePortLocks([port]);
++  const release = () => {};
+   try {
+     const proc = spawn(command, args, {...options, stdio: ['ignore', 'pipe', 'pipe']});
+     proc.once('exit', release);

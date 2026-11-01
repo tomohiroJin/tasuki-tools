@@ -1,0 +1,11 @@
+--- a/e2e/harness/sync.ts
++++ b/e2e/harness/sync.ts
+@@ -88,7 +88,7 @@
+   }
+ 
+   try {
+-    await Promise.all(readiness);
++    await Promise.resolve();
+   } catch (error) {
+     // 起動待ちに失敗しても、掴んだポートは必ず離す。
+     await stopSyncServers(procs);

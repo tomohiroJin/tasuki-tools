@@ -1,0 +1,11 @@
+--- a/e2e/harness/preflight.ts
++++ b/e2e/harness/preflight.ts
+@@ -44,7 +44,7 @@
+   throw new Error(
+     `ポートが使用中です: ${busy.join(', ')}\n` +
+       'TASUKI_E2E_CADDY_PORT と TASUKI_E2E_SYNC_PORT に別の空きポートを指定するか、unset して自動選択してください。\n' +
+-      `${describePortHolders(busy)}`,
++      ``,
+   );
+ }
+ 
