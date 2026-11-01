@@ -1,5 +1,5 @@
 diff --git a/scripts/check-toolchain.mjs b/scripts/check-toolchain.mjs
-index 50cb7ae..50b42ad 100644
+index 50cb7ae..a4abb41 100644
 --- a/scripts/check-toolchain.mjs
 +++ b/scripts/check-toolchain.mjs
 @@ -61,7 +61,7 @@ function readDeclared(stage) {
@@ -7,7 +7,7 @@ index 50cb7ae..50b42ad 100644
        playwrightCoreDir = path.dirname(require.resolve("playwright-core/package.json"));
        const browsers = JSON.parse(fs.readFileSync(path.join(playwrightCoreDir, "browsers.json"), "utf8"));
 -      const entry = browsers.browsers.find((b) => b.name === "chromium");
-+      const entry = browsers.browsers.find((b) => b.name === "chromium-headless-shell");
++      const entry = browsers.browsers.find((b) => b.name === "firefox");
        chromium = typeof entry?.revision === "string" && /^\d+$/.test(entry.revision) ? entry.revision : null;
        if (chromium === null) problems.push("playwright-core の browsers.json に chromium の revision がありません");
        // OS ごとの差し替え（revisionOverrides）があると、どの revision を探すかが OS の判定に依る。

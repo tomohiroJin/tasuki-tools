@@ -4203,11 +4203,11 @@ export const MUTATIONS = [
   },
   {
     id: 648,
-    label: "check-toolchain が browsers.json の別の項目から Chromium の revision を読む",
+    label: "check-toolchain が browsers.json の別のブラウザ（firefox）の revision を Chromium のものとして読む",
     patch: "m648-check-toolchain-reads-wrong-browser.patch",
     pkg: "scripts",
     tests: ["check-toolchain.test.mjs"],
-    note: "#492 のレビュー 3。宣言を読む分岐が別の項目を読んでも、純粋関数のテストは緑のままだった。",
+    note: "#492 のレビュー 3。宣言を読む分岐が別の項目を読んでも、純粋関数のテストは緑のままだった。headless shell は revision が同じ（等価になる）ので、別の revision を持つ firefox を読ませる。",
   },
   {
     id: 649,
