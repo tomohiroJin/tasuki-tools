@@ -460,8 +460,13 @@
   flex-direction: column;
   align-items: stretch;
   gap: var(--space-2);
-  /* 殻（6.5rem）より少し広く取り、最長 8 字の名前（「持ち帰れなかった」）を 1 行に収める。字は幅で大きくなるので段で広げる */
-  inline-size: 7rem;
+  /*
+   * 殻（6.5rem）より少し広く取り、最長 8 字の名前（「持ち帰れなかった」）を 1 行に収める。
+   * 名前の字（`--font-size-sm`）は画面の幅で流れるので、幅を段で決めず、字の大きさ × 8 字から決める
+   * （段で決めると 40rem の手前で字が幅を追い越し、1 字だけ次の行に落ちた。PR #502 の敵対的レビュー 1）。
+   * 8 字の上限は `tests/method-copy.test.ts` が守る
+   */
+  inline-size: max(7rem, calc(var(--font-size-sm) * 8 + 0.25rem));
   min-inline-size: var(--tap-target);
   padding: 0;
   border: 0;
@@ -521,11 +526,6 @@
   letter-spacing: 0;
 }
 
-@media (width >= 40rem) {
-  .hand-card {
-    inline-size: 7.75rem;
-  }
-}
 
 .hand-card-name {
   color: var(--ivory);

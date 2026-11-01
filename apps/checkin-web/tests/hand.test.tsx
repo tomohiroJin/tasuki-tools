@@ -81,12 +81,18 @@ describe('手札', () => {
     });
   });
 
-  it('Given 天気のやり方 / When 描く / Then 手札の上に問いが出て、どの問いへの答えかが手札だけで分かる（#480）', () => {
-    const { container } = render(<Hand method="weather" selected={null} spectating={false} canOperate onPlay={noop} onSetSpectator={noop} />);
+  it.each(METHOD_IDS)('Given %s / When 描く / Then 手札の上にそのやり方の問いが出て、どの問いへの答えかが手札だけで分かる（#480）', (method) => {
+    const { container } = render(<Hand method={method} selected={null} spectating={false} canOperate onPlay={noop} onSetSpectator={noop} />);
     const label = container.querySelector('.hand-label');
-    expect(label?.textContent).toContain(METHOD_COPY.weather.prompt);
+    // 問いはやり方ごとに違う（終わりの天気も今日の天気と問いが違う）。どれか 1 つの問いを固定で出す実装を落とす
+    expect(container.querySelector('.hand-label-prompt')?.textContent).toBe(METHOD_COPY[method].prompt);
     expect(label?.textContent).toContain('あなたの札');
     expect(container.querySelector('.hand-label-prompt')).toBeVisible();
+  });
+
+  it('対照: 問いはやり方ごとに全て違う（同じ問いが 2 つあると、上の試験は固定の問いを拾えない）', () => {
+    const prompts = METHOD_IDS.map((m) => METHOD_COPY[m].prompt);
+    expect(new Set(prompts).size).toBe(prompts.length);
   });
 
   it('Given 見学中 / When 描く / Then 札の名前・意味の添え書きも出さない（E9）', () => {

@@ -65,6 +65,13 @@ describe('手札の札の名前・意味と見出しの問いを CSS で隠さ�
     }
   });
 
+  it('Given 札のボタン / Then 幅は名前の字（--font-size-sm）× 8 字から決め、段の切り替えで決めない（PR #502 の敵対的レビュー 1）', () => {
+    const own = rules().filter(({ selector }) => selector.split(',').some((part) => /^\.hand-card$/.test(part.trim())));
+    const widths = own.flatMap(({ body }) => [...body.matchAll(/(^|;|\s)inline-size:\s*([^;]+);/g)].map((m) => m[2]!.trim()));
+    // 字は画面の幅で流れるので、固定の幅を段で切り替えると段の手前で字が幅を追い越す（628〜639px で「持ち帰れなかっ / た」）
+    expect(widths).toEqual(['max(7rem, calc(var(--font-size-sm) * 8 + 0.25rem))']);
+  });
+
   it('対照: 検査は添え書きを隠す宣言を拾う（拾えない検査は常に緑になる）', () => {
     const hidden = '.hand-card-caption { display: none; }';
     const m = /([^{}]+)\{([^{}]*)\}/.exec(hidden)!;
