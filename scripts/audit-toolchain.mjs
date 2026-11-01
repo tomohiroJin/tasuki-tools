@@ -11,6 +11,8 @@
  *    `oven-sh/setup-bun` の `bun-version` が `steps.toolchain.outputs.*` を指し、Caddy のキャッシュの鍵も
  *    そこから作る。参照するジョブには、参照より前に `toolchain.json` を読む `id: toolchain` の段がある
  * 3. **宣言の版を写していない。** workflow と `e2e/harness/*.ts` のコメントの外に、宣言の版の文字列が無い
+ *    （workflow は行頭の `#` だけを注記と見る。`run:` の中の ` #` はシェルに渡る）。参照する出力を
+ *    `toolchain` の段が実際に書いている。Bun を setup-bun 以外（`bun.sh/install`・`bun-v…`）で入れていない
  * 4. **`package.json` の `engines.node` が宣言の下限と同じ**（pnpm が警告に使う下限と、
  *    `scripts/check-toolchain.mjs` が止める下限を割らない）
  * 5. **Playwright が完全固定で、`@playwright/test` と `playwright-core` が同じ版**
@@ -85,11 +87,15 @@ export function splitSteps(lines) {
   return steps.map((s) => ({ line: s.line, text: s.lines.join("\n") }));
 }
 
-/** コメントを落とした行（YAML の `#`・TS の `//`・ブロックコメントの行）。 */
-function stripComment(line) {
+/**
+ * 注記を落とした行。行頭の注記（YAML の `#`・TS の `//`・ブロックコメントの行）は常に落とす。
+ * 行末の注記は `inlineComments` のときだけ落とす。**workflow では落とさない**: `run: |` の中の ` #` は
+ * YAML の注記ではなくシェルに渡る文字で、落とすと ` #1.4.3` の位置に版を書けば素通りする（#492 のレビュー 5）。
+ */
+function stripComment(line, inlineComments) {
   const t = line.trim();
   if (t.startsWith("#") || t.startsWith("//") || t.startsWith("*") || t.startsWith("/*")) return "";
-  return line.replace(/\s#.*$/, "").replace(/\s\/\/.*$/, "");
+  return inlineComments ? line.replace(/\s#.*$/, "").replace(/\s\/\/.*$/, "") : line;
 }
 
 function escapeRe(s) {
@@ -97,10 +103,10 @@ function escapeRe(s) {
 }
 
 /** コメントの外に、宣言の版の文字列がそのまま現れる行を返す。 */
-export function findLiteralVersions(text, declared) {
+export function findLiteralVersions(text, declared, { inlineComments = true } = {}) {
   const hits = [];
   text.split("\n").forEach((raw, i) => {
-    const line = stripComment(raw);
+    const line = stripComment(raw, inlineComments);
     for (const [tool, version] of Object.entries(declared)) {
       if (typeof version !== "string") continue;
       if (new RegExp(`(?<![\\d.])${escapeRe(version)}(?!\\d|\\.\\d)`).test(line)) {
@@ -127,6 +133,21 @@ export function checkWorkflow(text, declared) {
     if (toolchainIndex >= 0 && !steps[toolchainIndex].text.includes("toolchain.json")) {
       problems.push(`行 ${steps[toolchainIndex].line}（${job.name}）: id: toolchain の段が toolchain.json を読んでいません`);
     }
+    // 参照する出力を、toolchain の段が toolchain.json から読んで書いているか。書いていない出力は空になり、
+    // setup-node・setup-bun は空の版で既定（latest）を入れる（#492 のレビュー 5）
+    if (toolchainIndex >= 0) {
+      const referenced = new Set(
+        [...job.lines.map((l) => l.text).join("\n").matchAll(/steps\.toolchain\.outputs\.([A-Za-z0-9_-]+)/g)].map((m) => m[1]),
+      );
+      const text = steps[toolchainIndex].text;
+      for (const key of [...referenced].sort()) {
+        if (!text.includes(`.${key} toolchain.json`) || !new RegExp(`(^|[\\s"'])${escapeRe(key)}=`).test(text)) {
+          problems.push(
+            `行 ${steps[toolchainIndex].line}（${job.name}）: id: toolchain の段が ${key} を toolchain.json から読んで書いていません（steps.toolchain.outputs.${key} を使っている）`,
+          );
+        }
+      }
+    }
     steps.forEach((step, i) => {
       if (step.text.includes("steps.toolchain.outputs.")) {
         if (toolchainIndex < 0) {
@@ -147,6 +168,13 @@ export function checkWorkflow(text, declared) {
           problems.push(`行 ${step.line}（${job.name}）: setup-bun の bun-version は ${BUN_REF} にしてください`);
         }
       }
+      // setup-bun を通らずに Bun を入れる段。版を宣言から読まずに入れられる（#492 のレビュー 5）
+      const bypass = step.text
+        .split("\n")
+        .find((l) => !l.trim().startsWith("#") && /bun\.sh\/install|bun-v\d/.test(l));
+      if (bypass !== undefined) {
+        problems.push(`行 ${step.line}（${job.name}）: Bun は setup-bun で入れてください（bun.sh/install・bun-v… で入れると宣言の版を通らない）`);
+      }
       const key = valueOf(step.text, "key");
       if (key !== null && key.startsWith("caddy-")) {
         counts.caddyCache++;
@@ -156,7 +184,7 @@ export function checkWorkflow(text, declared) {
       }
     });
   }
-  for (const hit of findLiteralVersions(text, declared)) {
+  for (const hit of findLiteralVersions(text, declared, { inlineComments: false })) {
     problems.push(`行 ${hit.line}: ${hit.tool} の版 ${hit.version} を写しています（宣言から読んでください）`);
   }
   return { problems, counts };

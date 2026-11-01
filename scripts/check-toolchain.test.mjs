@@ -15,6 +15,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
 
 const SCRIPTS_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SCRIPTS_DIR, "..");
@@ -35,7 +36,7 @@ let counter = 0;
  * 宣言の置き場を一時ファイルへ差し替えた複製を、同じディレクトリに置いて起動する。
  * `overrides` は { toolchain?: object, packageJson?: object }。省いたものは実物を読む。
  */
-function runWith(stage, overrides = {}) {
+function runWith(stage, overrides = {}, extraEnv = {}) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "check-toolchain-"));
   let source = fs.readFileSync(path.join(SCRIPTS_DIR, SCRIPT), "utf8");
   for (const [key, needle] of [
@@ -53,8 +54,9 @@ function runWith(stage, overrides = {}) {
   try {
     const args = stage === undefined ? [copy] : [copy, stage];
     // pnpm から起動されたときの user agent を落とし、`pnpm --version` を確かめる経路を通す
-    const env = { ...process.env };
+    const env = { ...process.env, ...extraEnv };
     delete env["npm_config_user_agent"];
+    for (const [k, v] of Object.entries(extraEnv)) if (v === undefined) delete env[k];
     const r = spawnSync(process.execPath, args, { encoding: "utf8", env, timeout: 60_000 });
     return { status: r.status, stdout: r.stdout ?? "", stderr: r.stderr ?? "" };
   } finally {
@@ -109,6 +111,58 @@ describe("check-toolchain の配線（#487）", () => {
   test("段を指定しない・知らない段は exit 2（綴りの誤りで何も見ずに通さない）", () => {
     assert.equal(runWith(undefined).status, 2);
     assert.equal(runWith("tests").status, 2);
+  });
+});
+
+/**
+ * e2e の段が、**実物の playwright-core** から要求の revision を読んでいるか（#492 のレビュー 3）。
+ * 旧 `e2e/tests/browsers.test.ts` の「revision が数字の文字列」「素の Node で playwright-core を解決できる」に当たる。
+ * 置き場は一時ディレクトリへ向け、環境に入っているブラウザに依らないようにする。
+ */
+describe("check-toolchain の配線: Chromium の revision（#492）", () => {
+  const coreDir = path.dirname(
+    createRequire(path.join(REPO_ROOT, "e2e", "package.json")).resolve("playwright-core/package.json"),
+  );
+  const revision = JSON.parse(fs.readFileSync(path.join(coreDir, "browsers.json"), "utf8")).browsers.find(
+    (b) => b.name === "chromium",
+  ).revision;
+
+  function withBrowsersDir(names, fn) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "check-toolchain-browsers-"));
+    try {
+      for (const n of names) fs.mkdirSync(path.join(dir, n));
+      return fn(dir);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  }
+
+  test("要求の revision は数字の文字列（素の Node で e2e の playwright-core を解決できる）", () => {
+    assert.match(revision, /^\d+$/);
+  });
+
+  test("要求の revision の本体と headless shell があれば、e2e の段は exit 0 で revision を名指しする", () => {
+    const r = withBrowsersDir([`chromium-${revision}`, `chromium_headless_shell-${revision}`], (dir) =>
+      runWith("e2e", {}, { PLAYWRIGHT_BROWSERS_PATH: dir }),
+    );
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stdout, new RegExp(`chromium ${revision}`));
+  });
+
+  test("別の revision しか無ければ非ゼロで終わり、要求の revision を名指しする", () => {
+    const r = withBrowsersDir(["chromium-1", "chromium_headless_shell-1"], (dir) =>
+      runWith("e2e", {}, { PLAYWRIGHT_BROWSERS_PATH: dir }),
+    );
+    assert.equal(r.status, 1, r.stdout);
+    assert.match(r.stderr, new RegExp(`chromium: 宣言 revision ${revision} / 環境 1`));
+  });
+
+  test("PLAYWRIGHT_BROWSERS_PATH=0 でも比べる（playwright-core の中の .local-browsers を見る）", () => {
+    const r = runWith("e2e", {}, { PLAYWRIGHT_BROWSERS_PATH: "0" });
+    // .local-browsers に要求の revision が入っていない限り止まる（このリポジトリは使っていない）
+    if (fs.existsSync(path.join(coreDir, ".local-browsers", `chromium-${revision}`))) return;
+    assert.equal(r.status, 1, r.stdout);
+    assert.match(r.stderr, /\.local-browsers/);
   });
 });
 

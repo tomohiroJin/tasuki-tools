@@ -27,10 +27,15 @@ const DECLARED = Object.freeze({
 });
 
 describe("parseVersion / compareVersions: 版の読み方", () => {
-  test("x.y.z を数の組として読む。先頭の v と後ろの付記は落とす", () => {
+  test("x.y.z を数の組として読む。先頭の v は落とす", () => {
     assert.deepEqual(parseVersion("22.22.2"), [22, 22, 2]);
     assert.deepEqual(parseVersion("v22.23.4"), [22, 23, 4]);
-    assert.deepEqual(parseVersion("1.4.3+abc"), [1, 4, 3]);
+  });
+
+  test("プレリリース・ビルドの付記つきは読まない（落として読むと 1.4.3-canary が 1.4.3 になる。#492 のレビュー 1）", () => {
+    assert.equal(parseVersion("1.4.3+abc"), null);
+    assert.equal(parseVersion("1.4.3-canary.12+deadbeef"), null);
+    assert.equal(parseVersion("v22.22.2-nightly20261031"), null);
   });
 
   test("x.y.z の形でなければ null（勝手に 0 で埋めない）", () => {
@@ -98,6 +103,8 @@ describe("parsePackageManager / parsePnpmUserAgent: pnpm の版の読み方", ()
 
   test("pnpm が起動したときの user agent から版を読む。pnpm でなければ null", () => {
     assert.equal(parsePnpmUserAgent("pnpm/11.28.8 npm/? node/v22.23.4 linux x64"), "11.28.8");
+    // 付記を落とさずに返す（比べる側が完全一致で止める）
+    assert.equal(parsePnpmUserAgent("pnpm/11.28.8-rc.1 npm/? node/v22.23.4 linux x64"), "11.28.8-rc.1");
     assert.equal(parsePnpmUserAgent("npm/10.9.0 node/v22.23.4 linux x64"), null);
     assert.equal(parsePnpmUserAgent(undefined), null);
   });
@@ -107,8 +114,11 @@ describe("parseCaddyVersionOutput: caddy version の出力", () => {
   test("先頭の v つきの版を読む", () => {
     assert.equal(parseCaddyVersionOutput("v2.11.7 h1:abcdef=\n"), "2.11.7");
   });
-  test("読めなければ null", () => {
-    assert.equal(parseCaddyVersionOutput("unknown"), null);
+  test("付記つきは付記ごと返す（比べる側が止める）", () => {
+    assert.equal(parseCaddyVersionOutput("v2.11.7-beta.1 h1:x"), "2.11.7-beta.1");
+  });
+  test("空なら null", () => {
+    assert.equal(parseCaddyVersionOutput(""), null);
   });
 });
 
@@ -123,6 +133,12 @@ describe("checkNode: Node は宣言の版以上・同じ major", () => {
     assert.equal(p?.tool, "node");
     assert.equal(p?.actual, "22.22.0");
     assert.match(p?.fix ?? "", /22\.22\.2/);
+  });
+
+  test("付記つきの版は止め、付記ごと示す（semver では 22.22.2-nightly は 22.22.2 より低い）", () => {
+    const p = checkNode("v22.22.2-nightly20261031", "22.22.2");
+    assert.equal(p?.tool, "node");
+    assert.equal(p?.actual, "22.22.2-nightly20261031");
   });
 
   test("major が違えば止める（新しくても。CI と違う major で試すことになる）", () => {
@@ -142,6 +158,13 @@ describe("checkExact: Bun・pnpm・Caddy は宣言と同じ版だけを通す", 
     assert.match(p?.fix ?? "", /bun-v1\.4\.3/);
   });
 
+  test("付記つきの版を止める（#492 のレビュー 1: カナリア版の Bun が素通りした）", () => {
+    const p = checkExact("bun", "1.4.3-canary.12+deadbeef", "1.4.3");
+    assert.equal(p?.actual, "1.4.3-canary.12+deadbeef");
+    assert.equal(checkExact("pnpm", "11.28.8-rc.1", "11.28.8")?.tool, "pnpm");
+    assert.equal(checkExact("caddy", "2.11.7-beta.1", "2.11.7")?.tool, "caddy");
+  });
+
   test("無いとき（actual が null）は「無い」と言い、入れ方を示す", () => {
     const p = checkExact("bun", null, "1.4.3");
     assert.equal(p?.actual, null);
@@ -153,29 +176,59 @@ describe("checkExact: Bun・pnpm・Caddy は宣言と同じ版だけを通す", 
   });
 });
 
-describe("chromiumBrowsersDir: Playwright がブラウザを探す場所", () => {
+describe("chromiumBrowsersDir: Playwright がブラウザを探す場所（Playwright と同じ規則。#492 のレビュー 2）", () => {
+  const opts = { coreDir: "/repo/node_modules/playwright-core", cwd: "/repo/e2e" };
+
   test("PLAYWRIGHT_BROWSERS_PATH が指定されていればそこ", () => {
-    assert.equal(chromiumBrowsersDir({ PLAYWRIGHT_BROWSERS_PATH: "/opt/pw" }, "linux", "/home/u"), "/opt/pw");
+    assert.equal(chromiumBrowsersDir({ PLAYWRIGHT_BROWSERS_PATH: "/opt/pw" }, "linux", "/home/u", opts), "/opt/pw");
+  });
+
+  test("npm_config_ と npm_package_config_ の別名も読む（Playwright の getFromENV）", () => {
+    assert.equal(chromiumBrowsersDir({ npm_config_playwright_browsers_path: "/npm" }, "linux", "/home/u", opts), "/npm");
+    assert.equal(chromiumBrowsersDir({ npm_package_config_playwright_browsers_path: "/pkg" }, "linux", "/home/u", opts), "/pkg");
+    // 本名が先
+    assert.equal(
+      chromiumBrowsersDir({ PLAYWRIGHT_BROWSERS_PATH: "/a", npm_config_playwright_browsers_path: "/b" }, "linux", "/home/u", opts),
+      "/a",
+    );
+  });
+
+  test("0 は playwright-core の中の .local-browsers（比べずに通さない）", () => {
+    assert.equal(
+      chromiumBrowsersDir({ PLAYWRIGHT_BROWSERS_PATH: "0" }, "linux", "/home/u", opts),
+      path.join(opts.coreDir, ".local-browsers"),
+    );
+    // playwright-core の場所が分からなければ決められない
+    assert.equal(chromiumBrowsersDir({ PLAYWRIGHT_BROWSERS_PATH: "0" }, "linux", "/home/u"), null);
+  });
+
+  test("相対パスは INIT_CWD（無ければ cwd）から解く", () => {
+    assert.equal(chromiumBrowsersDir({ PLAYWRIGHT_BROWSERS_PATH: "pw" }, "linux", "/home/u", opts), path.resolve("/repo/e2e", "pw"));
+    assert.equal(
+      chromiumBrowsersDir({ PLAYWRIGHT_BROWSERS_PATH: "pw", INIT_CWD: "/repo" }, "linux", "/home/u", opts),
+      path.resolve("/repo", "pw"),
+    );
   });
 
   test("Linux の既定は XDG_CACHE_HOME か ~/.cache の下の ms-playwright", () => {
-    assert.equal(chromiumBrowsersDir({}, "linux", "/home/u"), path.join("/home/u", ".cache", "ms-playwright"));
-    assert.equal(
-      chromiumBrowsersDir({ XDG_CACHE_HOME: "/xdg" }, "linux", "/home/u"),
-      path.join("/xdg", "ms-playwright"),
-    );
+    assert.equal(chromiumBrowsersDir({}, "linux", "/home/u", opts), path.join("/home/u", ".cache", "ms-playwright"));
+    assert.equal(chromiumBrowsersDir({ XDG_CACHE_HOME: "/xdg" }, "linux", "/home/u", opts), path.join("/xdg", "ms-playwright"));
   });
 
   test("macOS の既定は ~/Library/Caches/ms-playwright", () => {
     assert.equal(
-      chromiumBrowsersDir({}, "darwin", "/Users/u"),
+      chromiumBrowsersDir({}, "darwin", "/Users/u", opts),
       path.join("/Users/u", "Library", "Caches", "ms-playwright"),
     );
   });
 
-  test("0（node_modules の中へ入れる指定）と、知らない OS は null（比べない。黙って通したことは呼び出し側が言う）", () => {
-    assert.equal(chromiumBrowsersDir({ PLAYWRIGHT_BROWSERS_PATH: "0" }, "linux", "/home/u"), null);
-    assert.equal(chromiumBrowsersDir({}, "aix", "/home/u"), null);
+  test("Windows の既定は LOCALAPPDATA、無ければ ~/AppData/Local の下", () => {
+    assert.equal(chromiumBrowsersDir({ LOCALAPPDATA: "/L" }, "win32", "/U", opts), path.join("/L", "ms-playwright"));
+    assert.equal(chromiumBrowsersDir({}, "win32", "/U", opts), path.join("/U", "AppData", "Local", "ms-playwright"));
+  });
+
+  test("Playwright が対応しない OS は null", () => {
+    assert.equal(chromiumBrowsersDir({}, "aix", "/home/u", opts), null);
   });
 });
 
@@ -249,11 +302,10 @@ describe("evaluateStage: 段ごとに見る道具", () => {
     assert.ok(r.notes.some((n) => n.includes("Caddy 2.11.7")), r.notes.join("\n"));
   });
 
-  test("Chromium の置き場を決められないときは止めずに、比べなかったと伝える", () => {
+  test("Chromium の置き場を決められないときは止める（比べずに通すと、比較を飛ばす指定と同じになる）", () => {
     const actual = { ...ok, chromium: { dir: null, entries: null } };
-    const r = evaluateStage("e2e", DECLARED, actual);
-    assert.deepEqual(r.problems, []);
-    assert.ok(r.notes.some((n) => n.includes("Chromium")));
+    const tools = evaluateStage("e2e", DECLARED, actual).problems.map((p) => p.tool);
+    assert.deepEqual(tools, ["chromium"]);
   });
 
   test("Bun の差は test でも mutation でも止める", () => {

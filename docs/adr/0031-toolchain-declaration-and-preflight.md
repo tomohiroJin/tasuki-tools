@@ -48,8 +48,11 @@ Caddy の版を知る手段は、CI の YAML を読むことだけだった。
   `scripts/check-toolchain.mjs <段>` を通す。合わなければ、**どの道具が・宣言と環境のどの版で・どう揃えるか**を出して
   非ゼロで終わる
 - 段ごとに見る道具: `test`・`mutation` は Node・pnpm・Bun、`e2e` はそれに Chromium と Caddy を足す
-- Chromium は、Playwright が探す置き場（`PLAYWRIGHT_BROWSERS_PATH`、未設定なら OS の既定）に、本体と
-  headless shell の両方の要求 revision があるかを見る。**別の revision へのリンクで回避しない**（違う版のブラウザで試すことになる）
+- Chromium は、Playwright が探す置き場に、本体と headless shell の両方の要求 revision があるかを見る。
+  置き場は **Playwright と同じ規則で解く**（`PLAYWRIGHT_BROWSERS_PATH` と `npm_config_…` の別名・`0` は playwright-core の中・
+  未設定なら OS の既定）。置き場や revision を決められないときは、比べずに通さず止める。
+  **別の revision へのリンクで回避しない**（違う版のブラウザで試すことになる）
+- 「完全一致」は付記も含めて一致すること。`1.4.3-canary.1` や `1.4.3+abc` は 1.4.3 ではない（Node の「以上」も、付記つきの版は止める）
 - Caddy は、まだ取得していないだけなら止めない（ハーネスが宣言の版を取得し、公式の checksums と照合する）。
   **取得できなければ、ハーネスは起動せず、何が無く、どう入れるかを示す**
 - **MUST NOT**: 版の比較を飛ばす指定（環境変数・引数）を置かない。置くと、それを付けたまま検査を弱めることになる

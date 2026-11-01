@@ -34,10 +34,14 @@ export const STAGES = Object.freeze({
   e2e: Object.freeze(["node", "pnpm", "bun", "chromium", "caddy"]),
 });
 
-const VERSION_RE = /^v?(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/;
+/**
+ * **プレリリースとビルドの付記を許さない**（#492 のレビュー 1）。`1.4.3-canary.1+x` は 1.4.3 ではなく、
+ * semver では `22.22.2-nightly` は 22.22.2 より低い。付記を落として読むと、「完全一致」が付記つきの版を通す。
+ */
+const VERSION_RE = /^v?(\d+)\.(\d+)\.(\d+)$/;
 const EXACT_RE = /^\d+\.\d+\.\d+$/;
 
-/** `x.y.z`（先頭の `v`・後ろの付記を許す）を数の組にする。読めなければ null。 */
+/** `x.y.z`（先頭の `v` だけを許す）を数の組にする。付記つき・読めなければ null。 */
 export function parseVersion(text) {
   if (typeof text !== "string") return null;
   const m = VERSION_RE.exec(text.trim());
@@ -102,35 +106,58 @@ export function parsePackageManager(field) {
 /** pnpm がスクリプトを起動したときの `npm_config_user_agent` から pnpm の版を読む。 */
 export function parsePnpmUserAgent(agent) {
   if (typeof agent !== "string") return null;
-  const m = /^pnpm\/(\d+\.\d+\.\d+)\b/.exec(agent);
+  // 版の字句をそのまま返す（付記つきでも落とさない。比べる側が完全一致で見る）
+  const m = /^pnpm\/(\S+)/.exec(agent);
   return m ? m[1] : null;
 }
 
-/** `caddy version` の出力（`v2.11.7 h1:…`）から版を読む。 */
+/** `caddy version` の出力（`v2.11.7 h1:…`）から版の字句を読む（先頭の `v` だけを落とす）。 */
 export function parseCaddyVersionOutput(text) {
-  const v = parseVersion(String(text).trim().split(/\s+/)[0] ?? "");
-  return v ? formatVersion(v) : null;
+  const token = String(text).trim().split(/\s+/)[0] ?? "";
+  return token === "" ? null : token.replace(/^v/, "");
 }
 
 /**
- * Playwright がブラウザを探す場所（Playwright の文書「Managing browser binaries」）。
- * `0`（node_modules の中へ入れる指定）と、知らない OS では null を返す。**null は「比べない」**
- * であって「入っている」ではない。呼び出し側がそう伝える。
+ * Playwright がブラウザを探す場所。**Playwright の解き方をそのまま写す**（playwright-core の
+ * `registryDirectory` と `computeDefaultCacheDirectory`。#492 のレビュー 2）。
+ *
+ * - 変数は `PLAYWRIGHT_BROWSERS_PATH`、無ければ `npm_config_…`・`npm_package_config_…`（Playwright の `getFromENV`）
+ * - `0` は playwright-core の中の `.local-browsers`（`coreDir` が要る）
+ * - 相対パスは `INIT_CWD`（無ければ `cwd`）から解く
+ * - 既定は Linux が `XDG_CACHE_HOME` か `~/.cache`、macOS が `~/Library/Caches`、Windows が `LOCALAPPDATA` か
+ *   `~/AppData/Local` の下の `ms-playwright`
+ *
+ * Playwright 自身が「Unsupported platform」で落ちる OS では null を返す。**null は止める理由**であって、
+ * 比べずに通す理由ではない（{@link evaluateStage}）。
  */
-export function chromiumBrowsersDir(env, platform, homedir) {
-  const configured = env["PLAYWRIGHT_BROWSERS_PATH"];
-  if (configured === "0") return null;
-  if (configured !== undefined && configured !== "") return configured;
-  switch (platform) {
-    case "linux":
-      return path.join(env["XDG_CACHE_HOME"] || path.join(homedir, ".cache"), "ms-playwright");
-    case "darwin":
-      return path.join(homedir, "Library", "Caches", "ms-playwright");
-    case "win32":
-      return env["LOCALAPPDATA"] ? path.join(env["LOCALAPPDATA"], "ms-playwright") : null;
-    default:
-      return null;
+export function chromiumBrowsersDir(env, platform, homedir, { coreDir = null, cwd = "/" } = {}) {
+  const name = "PLAYWRIGHT_BROWSERS_PATH";
+  const configured =
+    env[name] ?? env[`npm_config_${name.toLowerCase()}`] ?? env[`npm_package_config_${name.toLowerCase()}`];
+  let dir;
+  if (configured === "0") {
+    if (coreDir === null) return null;
+    dir = path.join(coreDir, ".local-browsers");
+  } else if (configured) {
+    dir = configured;
+  } else {
+    let cache;
+    switch (platform) {
+      case "linux":
+        cache = env["XDG_CACHE_HOME"] || path.join(homedir, ".cache");
+        break;
+      case "darwin":
+        cache = path.join(homedir, "Library", "Caches");
+        break;
+      case "win32":
+        cache = env["LOCALAPPDATA"] || path.join(homedir, "AppData", "Local");
+        break;
+      default:
+        return null;
+    }
+    dir = path.join(cache, "ms-playwright");
   }
+  return path.isAbsolute(dir) ? dir : path.resolve(env["INIT_CWD"] || cwd, dir);
 }
 
 /**
@@ -163,7 +190,7 @@ export function checkNode(actualText, declared) {
   return {
     tool: "node",
     declared: `${declared} 以上（${min ? min[0] : "?"} 系）`,
-    actual: actual ? formatVersion(actual) : null,
+    actual: actual ? formatVersion(actual) : typeof actualText === "string" ? actualText.replace(/^v/, "") : null,
     fix: FIX.node(declared),
   };
 }
@@ -232,11 +259,17 @@ export function evaluateStage(stage, declared, actual) {
         break;
       case "chromium": {
         const { dir, entries } = actual.chromium;
-        if (dir === null) {
-          notes.push("Chromium の置き場を決められないため、revision を比べていません（PLAYWRIGHT_BROWSERS_PATH=0 か、知らない OS）");
-        } else {
-          problems.push(checkChromium(declared.chromium, dir, entries));
-        }
+        // 置き場を決められないときは止める（比べずに通すと、比較を飛ばす指定と同じになる。ADR-0031 決定 2）
+        problems.push(
+          dir === null
+            ? {
+                tool: "chromium",
+                declared: `revision ${declared.chromium}`,
+                actual: null,
+                fix: "Playwright がブラウザを探す置き場を決められません（Playwright が対応しない OS）。Linux・macOS・Windows で流してください",
+              }
+            : checkChromium(declared.chromium, dir, entries),
+        );
         break;
       }
       case "caddy": {

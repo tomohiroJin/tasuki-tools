@@ -14,7 +14,8 @@
  *
  * - **道具が正しく動くかは見ない。** 見るのは版と、ブラウザの置き場の実在だけ
  * - **Caddy がまだ無いことは止めない。** ハーネスが宣言の版を取りに行く（取れなければハーネスが止まる）
- * - Chromium の置き場を決められないとき（`PLAYWRIGHT_BROWSERS_PATH=0`・知らない OS）は比べず、そう出す
+ * - Chromium の置き場は Playwright と同じ規則で解く（`PLAYWRIGHT_BROWSERS_PATH=0` は playwright-core の中）。
+ *   決められないとき（Playwright が対応しない OS）は止める
  *
  * 設計方針: 判定は `scripts/lib/toolchain.mjs` の純粋関数。ここは環境から値を集める配線だけ。
  */
@@ -52,21 +53,30 @@ function readDeclared(stage) {
   if (pnpm === null) problems.push(`package.json: packageManager が pnpm@x.y.z ではありません（${pkg.packageManager}）`);
 
   let chromium = null;
+  let playwrightCoreDir = null;
   if (STAGES[stage].includes("chromium")) {
     // revision は playwright-core の browsers.json が決める。package.json の exports に
     // browsers.json は無いので、package.json を解決してから隣を読む。
     try {
       const require = createRequire(path.join(REPO_ROOT, "e2e", "package.json"));
-      const dir = path.dirname(require.resolve("playwright-core/package.json"));
-      const browsers = JSON.parse(fs.readFileSync(path.join(dir, "browsers.json"), "utf8"));
-      chromium = browsers.browsers.find((b) => b.name === "chromium")?.revision ?? null;
-      if (chromium === null) problems.push("playwright-core の browsers.json に chromium の項目がありません");
+      playwrightCoreDir = path.dirname(require.resolve("playwright-core/package.json"));
+      const browsers = JSON.parse(fs.readFileSync(path.join(playwrightCoreDir, "browsers.json"), "utf8"));
+      const entry = browsers.browsers.find((b) => b.name === "chromium");
+      chromium = typeof entry?.revision === "string" && /^\d+$/.test(entry.revision) ? entry.revision : null;
+      if (chromium === null) problems.push("playwright-core の browsers.json に chromium の revision がありません");
+      // OS ごとの差し替え（revisionOverrides）があると、どの revision を探すかが OS の判定に依る。
+      // Playwright の判定は写せないので、比べずに通さず止める（chromium にはいま無い。#492 のレビュー 2）
+      if (entry?.revisionOverrides && Object.keys(entry.revisionOverrides).length > 0) {
+        problems.push(
+          `playwright-core の browsers.json の chromium に OS ごとの revision（revisionOverrides: ${Object.keys(entry.revisionOverrides).join(", ")}）があり、探す revision を決められません。scripts/lib/toolchain.mjs を直してください`,
+        );
+      }
     } catch (e) {
       problems.push(`playwright-core を読めません（先に \`pnpm install\` を流してください）: ${e.message}`);
     }
   }
   if (problems.length > 0) return { ok: false, problems };
-  return { ok: true, value: { ...toolchain.value, pnpm, chromium } };
+  return { ok: true, value: { ...toolchain.value, pnpm, chromium }, playwrightCoreDir };
 }
 
 /** コマンドを起動して標準出力を返す。起動できない・非ゼロなら null。 */
@@ -93,7 +103,7 @@ function probeBun(stage) {
 }
 
 /** 環境から値を集める。宣言の Caddy の版はキャッシュの置き場の名前に使う（e2e/harness/paths.ts と同じ）。 */
-function collectActual(stage, declared) {
+function collectActual(stage, declared, playwrightCoreDir) {
   const tools = STAGES[stage];
   const actual = {
     node: process.version,
@@ -105,7 +115,10 @@ function collectActual(stage, declared) {
     caddy: { present: false, version: null, dir: null },
   };
   if (tools.includes("chromium")) {
-    const dir = chromiumBrowsersDir(process.env, process.platform, os.homedir());
+    const dir = chromiumBrowsersDir(process.env, process.platform, os.homedir(), {
+      coreDir: playwrightCoreDir,
+      cwd: process.cwd(),
+    });
     actual.chromium = { dir, entries: dir !== null && fs.existsSync(dir) ? fs.readdirSync(dir) : null };
   }
   if (tools.includes("caddy")) {
@@ -133,7 +146,7 @@ function main() {
     process.exit(1);
   }
 
-  const actual = collectActual(stage, declared.value);
+  const actual = collectActual(stage, declared.value, declared.playwrightCoreDir);
   const { problems, notes } = evaluateStage(stage, declared.value, actual);
   for (const n of notes) console.log(`[check-toolchain] 注: ${n}`);
   if (problems.length > 0) {

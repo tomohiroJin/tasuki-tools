@@ -15,7 +15,9 @@ const TOOLCHAIN_STEP = [
   "      - id: toolchain",
   "        run: |",
   '          node_version="$(jq -er .node toolchain.json)"',
-  '          { echo "node=$node_version"; } >> "$GITHUB_OUTPUT"',
+  '          bun_version="$(jq -er .bun toolchain.json)"',
+  '          caddy_version="$(jq -er .caddy toolchain.json)"',
+  '          { echo "node=$node_version"; echo "bun=$bun_version"; echo "caddy=$caddy_version"; } >> "$GITHUB_OUTPUT"',
 ];
 
 /** 正しい形の workflow（宣言から導いている）。 */
@@ -99,6 +101,28 @@ describe("checkWorkflow: CI は版を宣言から導く", () => {
     assert.ok(r.problems.some((p) => /toolchain\.json/.test(p)), r.problems.join("\n"));
   });
 
+  test("参照する出力を toolchain の段が書いていないと捕まえる（空の版で setup-bun が latest を入れる。#492 のレビュー 5）", () => {
+    const nodeOnly = [
+      "      - id: toolchain",
+      "        run: |",
+      '          node_version="$(jq -er .node toolchain.json)"',
+      '          echo "node=$node_version" >> "$GITHUB_OUTPUT"',
+    ];
+    const r = checkWorkflow(workflow({ toolchain: nodeOnly }), DECLARED);
+    assert.ok(r.problems.some((p) => /bun/.test(p) && /書いていません/.test(p)), r.problems.join("\n"));
+    assert.ok(r.problems.some((p) => /caddy/.test(p) && /書いていません/.test(p)), r.problems.join("\n"));
+    assert.ok(!r.problems.some((p) => /node/.test(p) && /書いていません/.test(p)), r.problems.join("\n"));
+  });
+
+  test("setup-bun を通らずに Bun を入れる段を捕まえる（宣言と違う版を入れられる。#492 のレビュー 5）", () => {
+    const text = workflow().replace(
+      "  docs:",
+      ["      - run: curl -fsSL https://bun.sh/install | bash -s bun-v1.4.4", "  docs:"].join("\n"),
+    );
+    const r = checkWorkflow(text, DECLARED);
+    assert.ok(r.problems.some((p) => /setup-bun/.test(p) && /bun\.sh\/install|bun-v/.test(p)), r.problems.join("\n"));
+  });
+
   test("toolchain の段が参照より後にあると捕まえる", () => {
     const text = workflow({ toolchain: [] }).replace(
       "  docs:",
@@ -124,6 +148,13 @@ describe("findLiteralVersions: 宣言の版をそのまま写していないか"
   test("版の一部として現れるだけなら数えない（11.4.3 や 1.4.30 は 1.4.3 ではない）", () => {
     const text = ["a: 11.4.3", "b: 1.4.30"].join("\n");
     assert.deepEqual(findLiteralVersions(text, DECLARED), []);
+  });
+
+  test("workflow では行末の # を注記として剥がさない（run: の中の # は YAML の注記ではない。#492 のレビュー 5）", () => {
+    const text = ["        run: echo ok #1.4.3", "  # 1.4.3 は行頭の注記なので数えない"].join("\n");
+    assert.deepEqual(findLiteralVersions(text, DECLARED, { inlineComments: false }), [
+      { line: 1, tool: "bun", version: "1.4.3" },
+    ]);
   });
 
   test("TS の行コメントとブロックコメントの中も数えない", () => {
