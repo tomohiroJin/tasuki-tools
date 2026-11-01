@@ -1,0 +1,10 @@
+--- a/scripts/lib/ci-scope.mjs
++++ b/scripts/lib/ci-scope.mjs
+@@ -15,6 +15,6 @@
+   if (!Array.isArray(changedFiles) || changedFiles.length === 0) {
+     return { code: true };
+   }
+-  return { code: changedFiles.some((f) => !f.endsWith(".md")) };
++  return { code: changedFiles.every((f) => !f.endsWith(".md")) };
+ }
+ 

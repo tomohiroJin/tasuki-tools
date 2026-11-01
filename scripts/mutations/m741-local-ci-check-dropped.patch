@@ -1,0 +1,11 @@
+--- a/scripts/local-check.mjs
++++ b/scripts/local-check.mjs
+@@ -81,7 +81,7 @@
+       if (/^\s*env:|^\s*working-directory:|\$\{\{|^\s*matrix:/m.test(step.text) || /^\s*matrix:/m.test(matrix)) {
+         throw new Error(`行 ${step.line}: CI 固有の env・作業場所・式・matrix を再現できません`);
+       }
+-      checks.push({ job: step.job, command });
++      /* CI の検査を一覧から落とす */
+     }
+   }
+   if (parsed === 0 || parsed !== runCount) throw new Error(`workflow の run をすべて読めません（${parsed}/${runCount}）。ブロック形式を使ってください`);
