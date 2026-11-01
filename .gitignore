@@ -50,6 +50,7 @@ Thumbs.db
 # **`!.claude/skills/` で無視を外してはいけない。** 外すと、手元にだけ置いた個人のスキルが未追跡として現れ、
 # 変異検査が起動を拒む（#493 のレビューで再現）。追跡したファイルは無視の対象でも git が追い続ける。
 # 中身は scripts/audit-agent-entries.mjs が見る（追跡下のものだけ）。
+# `.claude/settings.json`（本番デプロイのコマンドで人に聞くフック。#490）も同じく `git add -f` で追跡する。中身は scripts/audit-agent-guard.mjs が見る。
 .claude/
 .serena/
 

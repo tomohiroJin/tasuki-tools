@@ -1,0 +1,12 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index 9284749..1679325 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -67,7 +67,6 @@ const SU_ARG_OPTS = ["-u", "-g", "-G", "-s", "-w", "--user", "--group", "--supp-
+ 
+ /** 引数を 1 つ取る選択肢（`-u root` のように次の語を値にとるもの）を、包むコマンドごとに並べる。 */
+ const WRAPPERS = {
+-  sudo: { argOpts: ["-u", "-g", "-h", "-p", "-C", "-D", "-r", "-t", "-U", "-T", "--user", "--group", "--host", "--prompt", "--chdir"] },
+   doas: { argOpts: ["-u", "-C"] },
+   pkexec: { argOpts: ["--user"] },
+   env: { argOpts: ["-u", "-C", "--unset", "--chdir"], splitOpts: ["-S", "--split-string"] },

@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index 9284749..f15524b 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -267,7 +267,7 @@ function takesNextWord(w, argOpts) {
+   if (argOpts.includes(w)) return true;
+   if (!/^-[A-Za-z0-9]{2,}$/.test(w)) return false;
+   for (let k = 1; k < w.length; k += 1) {
+-    if (argOpts.includes(`-${w[k]}`)) return k === w.length - 1;
++    if (argOpts.includes(`-${w[k]}`)) return false;
+   }
+   return false;
+ }

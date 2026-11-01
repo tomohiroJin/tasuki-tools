@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-agent-guard.mjs b/scripts/audit-agent-guard.mjs
+index 9da3775..741431f 100644
+--- a/scripts/audit-agent-guard.mjs
++++ b/scripts/audit-agent-guard.mjs
+@@ -63,7 +63,7 @@ export function checkClaudeSettings(text) {
+     return ["disableAllHooks が true です。本番デプロイを止めるフックも切れます（docs/adr/0032）"];
+   }
+   const groups = Array.isArray(json?.hooks?.PreToolUse) ? json.hooks.PreToolUse : [];
+-  const unwired = SHELL_TOOLS.filter(
++  const unwired = ["Bash"].filter(
+     (tool) =>
+       !groups.some(
+         (g) =>

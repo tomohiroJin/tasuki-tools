@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index 9284749..b96acfe 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -345,7 +345,7 @@ function analyzeWords(words, depth) {
+     if (name === "su" || name === "runuser") {
+       // -c の文字列は読み直す。runuser -u <user> [--] <cmd> は残りをコマンドとして読む（PR #498 のレビュー 3）
+       const c = words.findIndex((w, k) => k > i && (w === "-c" || w === "--command" || /^-[A-Za-z]*c$/.test(w)));
+-      if (c !== -1 && c + 1 < words.length) return analyzeString(words[c + 1], depth + 1);
++      if (c !== -1 && c + 1 < words.length) return [];
+       const cEq = words.find((w, k) => k > i && w.startsWith("--command="));
+       if (cEq) return analyzeString(cEq.slice("--command=".length), depth + 1);
+       if (name === "runuser" && words.slice(i + 1).some((w) => w === "-u" || w === "--user")) {

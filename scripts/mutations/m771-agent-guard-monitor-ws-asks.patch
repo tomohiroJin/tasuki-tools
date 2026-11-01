@@ -1,0 +1,12 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index 9284749..b73a355 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -429,7 +429,6 @@ export function decideHookOutput(raw) {
+   if (!SHELL_TOOLS.includes(input.tool_name)) return null;
+   const command = input.tool_input?.command;
+   // Monitor の WebSocket の形はシェルを走らせない（PR #498 の再レビュー 3）
+-  if (input.tool_name === "Monitor" && command === undefined && input.tool_input?.ws !== undefined) return null;
+   if (typeof command !== "string") {
+     return ask(`${input.tool_name} のコマンドを読めませんでした。念のため人に確かめます。${RULE_REF}`);
+   }
