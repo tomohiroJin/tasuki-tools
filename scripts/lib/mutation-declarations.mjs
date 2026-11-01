@@ -4787,4 +4787,27 @@ export const MUTATIONS = [
       " " +
       "#480。読み上げ名が「晴れ絶好調」になり、説明の意味と合わせて意味を 2 度読む（名前を 1 回だけ読む、が崩れる）。",
   },
+  {
+    id: 801,
+    label: "手札の札の下の名前・意味を CSS（display: none）で隠す",
+    patch: "m801-hand-caption-hidden-by-css.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/hand-caption-css.test.ts"],
+    note:
+      RESERVED_800_809 +
+      " " +
+      "#480（PR #502 のレビュー指摘 1）。札が絵だけに戻り、何を示すかが手札で分からなくなる。読み上げ名・説明は隠した参照先からも作られるので読み上げの試験は緑のまま。" +
+      "実際の見え方は E2E（checkin.spec.ts の その6）も見るが、E2E の spec は変異検査のランナーに載らないので、宣言で守る。",
+  },
+  {
+    id: 802,
+    label: "手札の札の下の名前・意味を要素の属性（hidden）で隠す",
+    patch: "m802-hand-caption-hidden-inline.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/hand.test.tsx"],
+    note:
+      RESERVED_800_809 +
+      " " +
+      "#480（PR #502 のレビュー指摘 1）。レビューが再現した壊し方（添え書きを隠しても手札の試験が 35/35 で通った）の属性版。",
+  },
 ];

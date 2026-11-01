@@ -1,0 +1,25 @@
+# 変異 801: hand-caption-hidden-by-css
+#
+# 検出を期待するテスト:
+#   - apps/checkin-web/tests/hand-caption-css.test.ts
+#
+# #480（PR #502 のレビュー指摘 1）。手札の札の下の名前・意味を CSS で隠す。
+# 読み上げ名・説明は隠した参照先からも作られるので、読み上げの試験は緑のまま。
+# 実際の見え方は E2E（checkin.spec.ts の その6）も見るが、E2E の spec は変異検査のランナーに載らない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m801-*.patch
+# 復元: git apply -R scripts/mutations/m801-*.patch
+diff --git a/apps/checkin-web/src/table.css b/apps/checkin-web/src/table.css
+index 40edec9..0caabf1 100644
+--- a/apps/checkin-web/src/table.css
++++ b/apps/checkin-web/src/table.css
+@@ -512,7 +512,7 @@
+  * 文節で折り（auto-phrase）、行の長さを揃える（balance）。1 字だけ次の行に落ちる（「沈み気 / 味」）のを避ける
+  */
+ .hand-card-caption {
+-  display: flex;
++  display: none;
+   flex-direction: column;
+   gap: 2px;
+   overflow-wrap: anywhere;
