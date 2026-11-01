@@ -228,39 +228,31 @@ describe("Chromium の置き場を決める変数が turbo の中へ届く（#49
   }
 
   test("相対パスの PLAYWRIGHT_BROWSERS_PATH は、ルートでも e2e/ から解く（ハーネスと Playwright が見る置き場。#492 の再レビュー）", () => {
-    const name = `.toolchain-pw-${process.pid}`;
-    const underE2e = path.join(REPO_ROOT, "e2e", name);
-    const underRoot = path.join(REPO_ROOT, name);
+    // 置き場は e2e/node_modules/ の下（gitignore の対象）に作り、e2e/ から見た相対パスで指す。
+    // ルートから解くと node_modules/ の下の別の（無い）場所になるので、ルートから解く実装なら止まる。
+    // 追跡の外に置くのは、強制終了で残っても mutation-check が作業ツリーの汚れで止まらないようにするため（#492 の再レビュー）。
+    // OS の一時ディレクトリを ../ で指す形は使えない（/ より上は丸められ、ルートから解いても同じ場所になる）
+    const e2eDir = path.join(REPO_ROOT, "e2e");
     const revision = JSON.parse(
       fs.readFileSync(
-        path.join(
-          path.dirname(createRequire(path.join(REPO_ROOT, "e2e", "package.json")).resolve("playwright-core/package.json")),
-          "browsers.json",
-        ),
+        path.join(path.dirname(createRequire(path.join(e2eDir, "package.json")).resolve("playwright-core/package.json")), "browsers.json"),
         "utf8",
       ),
     ).browsers.find((b) => b.name === "chromium").revision;
+    const dir = fs.mkdtempSync(path.join(e2eDir, "node_modules", ".check-toolchain-relative-"));
     try {
-      // Given: ルートの下にだけ要求の revision がある（e2e/ の下には無い）
-      for (const n of [`chromium-${revision}`, `chromium_headless_shell-${revision}`]) {
-        fs.mkdirSync(path.join(underRoot, n), { recursive: true });
-      }
+      for (const n of [`chromium-${revision}`, `chromium_headless_shell-${revision}`]) fs.mkdirSync(path.join(dir, n));
+      const relative = path.relative(e2eDir, dir);
+      // Given: e2e/ から解けば一時ディレクトリ、ルートから解けば別の（無い）場所になる指定
+      assert.ok(!path.isAbsolute(relative), relative);
+      assert.notEqual(path.resolve(REPO_ROOT, relative), dir, "ルートから解いても同じ場所になり、区別できません");
       // When: ルートから、ルートの INIT_CWD のまま流す（pnpm e2e の入口と同じ）
-      const fromRoot = runWith("e2e", {}, { PLAYWRIGHT_BROWSERS_PATH: name, INIT_CWD: REPO_ROOT });
-      // Then: ルートの下を見て通してはならない（ハーネスは e2e/ の下を見て止まる）
-      assert.equal(fromRoot.status, 1, fromRoot.stdout);
-      assert.match(fromRoot.stderr, new RegExp(`e2e[\\\\/]${name.replace(/[.]/g, "\\.")}`));
-
-      // Given: e2e/ の下に置き直す → When / Then: 通る
-      fs.rmSync(underRoot, { recursive: true, force: true });
-      for (const n of [`chromium-${revision}`, `chromium_headless_shell-${revision}`]) {
-        fs.mkdirSync(path.join(underE2e, n), { recursive: true });
-      }
-      const fixed = runWith("e2e", {}, { PLAYWRIGHT_BROWSERS_PATH: name, INIT_CWD: REPO_ROOT });
-      assert.equal(fixed.status, 0, fixed.stderr);
+      const r = runWith("e2e", {}, { PLAYWRIGHT_BROWSERS_PATH: relative, INIT_CWD: REPO_ROOT });
+      // Then: e2e/ から解いた置き場を見て通る
+      assert.equal(r.status, 0, r.stderr);
+      assert.match(r.stdout, new RegExp(`chromium ${revision}`));
     } finally {
-      fs.rmSync(underRoot, { recursive: true, force: true });
-      fs.rmSync(underE2e, { recursive: true, force: true });
+      fs.rmSync(dir, { recursive: true, force: true });
     }
   });
 });
