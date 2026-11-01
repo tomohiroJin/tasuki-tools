@@ -28,6 +28,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 **作業の始めに**
 
 - 依頼の ISSUE・関係する ADR とガイドを読む。作業ブランチを確かめる
+- 繰り返す作業（レビュー・実画面での確認・変異）は、記憶でなく手順書（`docs/guides/procedures/`）に従う
 - 同じブランチ・作業ツリーを別のエージェントが触っていないか確かめる。並行するなら分ける
 
 **人の明示の指示か承認を待つ操作**（基準は `docs/adr/0030` 決定 1。一覧に無くても基準に当たれば聞く）
@@ -65,6 +66,9 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
   なぜそう決まっているか。参照は置き場つき（例: `docs/adr/0002`）
 - ガイド: [`docs/guides/`](docs/guides/) —
   今日どう書くか（DoD・EARS・振り返り・アーキテクチャ・開発手順・セキュリティ・PR の粒度）
+- 手順書: [`docs/guides/procedures/`](docs/guides/procedures/README.md) —
+  繰り返す作業の手順（敵対的レビュー・実画面で確かめる・変異の足し方）。
+  `.claude/skills/` のスキルはここへ向ける薄い入口で、手順を書かない
 - 設計文書: [`docs/superpowers/`](docs/superpowers/) —
   機能ごとの設計経緯（日付つきファイル）
 - 全体像・目的別の入口は [`docs/README.md`](docs/README.md) を参照
@@ -79,7 +83,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 - `node scripts/audit-domain-error-shape.mjs` — ドメインエラー型の形（core のエラー型が文言を持たない）
 - `node scripts/audit-domain-side-effects.mjs` — ドメインの副作用（core が環境から直接値を読まない）
 - `node scripts/check-links.mjs` — リンク検査
-- `node scripts/audit-agent-entries.mjs` — AI ツールの入口（`CLAUDE.md` ほか）が本書とずれていないか
+- `node scripts/audit-agent-entries.mjs` — AI ツールの入口（`CLAUDE.md` ほか）が本書とずれていないか・スキルが手順書へ向く薄い入口か
 - `node scripts/mutation-check.mjs` — 変異検査（全件。手元の実装中は `--changed` / `--pkg <dir>` / `--id <番号,…>` で絞る。`--jobs <数>` で作業ツリーを分けて並列に流せる。CI は `--shard k/n` で分ける。段ごとの使い分けは `docs/guides/development.md`）
 - `bash -c 'set -euo pipefail; targets="$(node scripts/list-scan-targets.mjs script-tests)"; node --test $targets'` — scripts の自己テスト
 

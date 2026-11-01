@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-agent-entries.mjs b/scripts/audit-agent-entries.mjs
+index e9009fd..09d721e 100644
+--- a/scripts/audit-agent-entries.mjs
++++ b/scripts/audit-agent-entries.mjs
+@@ -261,7 +261,7 @@ export function checkSkill(rel, text, procedures) {
+   }
+   const parsed = parseFrontmatter(text);
+   if (!parsed) {
+-    problems.push(`${rel}: frontmatter（name・description）がありません`);
++    // frontmatter が無くても通す
+   } else {
+     problems.push(...parsed.problems.map((p) => `${rel}: ${p}`));
+     const name = parsed.fields.get("name");

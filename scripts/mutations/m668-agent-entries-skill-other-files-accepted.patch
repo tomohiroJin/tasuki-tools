@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-agent-entries.mjs b/scripts/audit-agent-entries.mjs
+index e9009fd..ed49aed 100644
+--- a/scripts/audit-agent-entries.mjs
++++ b/scripts/audit-agent-entries.mjs
+@@ -251,7 +251,7 @@ function parseFrontmatter(text) {
+  * @param {string[]} procedures - 追跡下の手順書（{@link PROCEDURES_DIR} の配下）
+  */
+ export function checkSkill(rel, text, procedures) {
+-  const m = new RegExp(`^${SKILLS_DIR.replace(/\./g, "\\.")}([^/]+)/SKILL\\.md$`).exec(rel);
++  const m = new RegExp(`^${SKILLS_DIR.replace(/\./g, "\\.")}([^/]+)/[^/]+$`).exec(rel);
+   if (!m) {
+     return [`${rel}: スキルの置き場に SKILL.md 以外のファイルがあります    ← 手順は ${PROCEDURES_DIR} に書き、スキルは <名前>/SKILL.md だけにしてください`];
+   }

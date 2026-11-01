@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-agent-entries.mjs b/scripts/audit-agent-entries.mjs
+index e9009fd..8fc8de6 100644
+--- a/scripts/audit-agent-entries.mjs
++++ b/scripts/audit-agent-entries.mjs
+@@ -265,7 +265,7 @@ export function checkSkill(rel, text, procedures) {
+   } else {
+     problems.push(...parsed.problems.map((p) => `${rel}: ${p}`));
+     const name = parsed.fields.get("name");
+-    if (name !== m[1]) problems.push(`${rel}: name「${name ?? ""}」がディレクトリ名「${m[1]}」と違います`);
++    if (false) problems.push(`${rel}: name「${name ?? ""}」がディレクトリ名「${m[1]}」と違います`);
+     const description = parsed.fields.get("description");
+     // ブロックの書き方で読めなかったときは、その問題だけを出す（「無い」と重ねて言わない）。
+     const unreadable = parsed.problems.some((p) => p.includes("「description」"));
