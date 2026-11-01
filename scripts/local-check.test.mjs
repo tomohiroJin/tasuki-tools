@@ -36,6 +36,7 @@ test("読めない YAML・CI 固有の環境を黙って無視しない", () => 
     workflow.replace("      - run: pnpm lint", "      - {run: pnpm lint}"),
     workflow.replace("    runs-on: ubuntu-latest", "    env:\n      EXTRA: true\n    runs-on: ubuntu-latest"),
     workflow.replace('COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"', 'EXTRA: "true"'),
+    workflow.replace("- run: pnpm lint", "- uses: example/validation@v1\n      - run: pnpm lint"),
   ]) assert.throws(() => deriveChecks(changed));
 });
 

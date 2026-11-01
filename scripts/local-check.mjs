@@ -39,6 +39,12 @@ function commandOf(step) {
 
 /** 全 run を拾ったことも照合する。未知の構文を静かに飛ばさない。 */
 export function deriveChecks(workflow) {
+  // uses で検査を追加した場合も、手元の対象から黙って落とさない。
+  const setupActions = new Set(["actions/checkout", "actions/setup-node", "oven-sh/setup-bun", "actions/cache", "actions/upload-artifact"]);
+  for (const line of workflow.split("\n").filter((l) => !/^\s*#/.test(l) && /\buses\s*:/.test(l))) {
+    const action = /^\s*(?:- )?uses: ([\w/-]+)@\S+/.exec(line)?.[1];
+    if (!setupActions.has(action)) throw new Error(`手元で再現できない action です: ${line.trim()}`);
+  }
   if (/^\s*(?:defaults|working-directory|container|services):/m.test(workflow)) {
     throw new Error("workflow の defaults・作業場所・container・services は手元で再現できません");
   }
