@@ -1,13 +1,13 @@
 diff --git a/turbo.json b/turbo.json
-index d44c382..17b04f3 100644
+index a4600f1..4a329b7 100644
 --- a/turbo.json
 +++ b/turbo.json
 @@ -49,7 +49,7 @@
      "e2e": {
        "dependsOn": ["^build"],
        "cache": false,
--      "passThroughEnv": ["TASUKI_E2E_BASE_URL", "PLAYWRIGHT_BROWSERS_PATH", "WAYLAND_DISPLAY", "npm_config_playwright_browsers_path", "npm_package_config_playwright_browsers_path", "XDG_CACHE_HOME", "LOCALAPPDATA", "INIT_CWD"]
-+      "passThroughEnv": ["TASUKI_E2E_BASE_URL", "PLAYWRIGHT_BROWSERS_PATH", "WAYLAND_DISPLAY", "npm_config_playwright_browsers_path", "npm_package_config_playwright_browsers_path", "LOCALAPPDATA", "INIT_CWD"]
+-      "passThroughEnv": ["TASUKI_E2E_BASE_URL", "PLAYWRIGHT_BROWSERS_PATH", "WAYLAND_DISPLAY", "npm_config_playwright_browsers_path", "npm_package_config_playwright_browsers_path", "XDG_CACHE_HOME", "LOCALAPPDATA"]
++      "passThroughEnv": ["TASUKI_E2E_BASE_URL", "PLAYWRIGHT_BROWSERS_PATH", "WAYLAND_DISPLAY", "npm_config_playwright_browsers_path", "npm_package_config_playwright_browsers_path", "LOCALAPPDATA"]
      },
      "e2e:prod": {
        "cache": false,
