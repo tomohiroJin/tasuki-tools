@@ -1,6 +1,6 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { GUARDED_COMMANDS, findGuardedCommands, decideHookOutput } from "./agent-guard.mjs";
+import { GUARDED_COMMANDS, SHELL_TOOLS, findGuardedCommands, decideHookOutput } from "./agent-guard.mjs";
 
 /** 当たった宣言の id を並べる（順序は出現順）。 */
 function ids(command) {
@@ -130,6 +130,35 @@ describe("findGuardedCommands: 包んだ呼び方（事故で踏みやすい形�
   });
 });
 
+describe("findGuardedCommands: PR #498 のレビューで見つかった取りこぼし", () => {
+  test("短い選択肢をまとめた形（-iu root）でも、値を読み飛ばして当てる（レビュー 1）", () => {
+    assert.deepEqual(ids("sudo -iu root systemctl restart x"), ["systemctl"]);
+    assert.deepEqual(ids("sudo -su root systemctl restart x"), ["systemctl"]);
+    assert.deepEqual(ids("sudo -Eu root ./deploy/deploy.sh timer"), ["deploy-script"]);
+    assert.deepEqual(ids("ionice -c2 -n7 nice -n 5 systemctl restart x"), ["systemctl"]);
+  });
+
+  test("su・runuser・pkexec で権限を変えて走らせても当てる（レビュー 3）", () => {
+    assert.deepEqual(ids("su -c 'systemctl restart tasuki'"), ["systemctl"]);
+    assert.deepEqual(ids("su root -c 'systemctl restart tasuki'"), ["systemctl"]);
+    assert.deepEqual(ids("su - root -c './deploy/deploy.sh timer'"), ["deploy-script"]);
+    assert.deepEqual(ids("runuser -u root -- systemctl restart tasuki"), ["systemctl"]);
+    assert.deepEqual(ids("runuser -l root -c 'caddy reload'"), ["caddy-reload"]);
+    assert.deepEqual(ids("pkexec systemctl restart tasuki"), ["systemctl"]);
+    assert.deepEqual(ids("pkexec --user root systemctl restart tasuki"), ["systemctl"]);
+  });
+
+  test("env の --split-string= の形も読み直す（レビュー 3）", () => {
+    assert.deepEqual(ids("env --split-string='systemctl restart x'"), ["systemctl"]);
+  });
+
+  test("command -v / -V は場所を調べるだけなので当てない。command だけなら当てる（レビュー 5）", () => {
+    assert.deepEqual(ids("command -v systemctl"), []);
+    assert.deepEqual(ids("command -V caddy reload"), []);
+    assert.deepEqual(ids("command -p systemctl restart x"), ["systemctl"]);
+  });
+});
+
 describe("findGuardedCommands: 当てないもの（読むだけ・名前を口にするだけ）", () => {
   test("引数として名前が出るだけのコマンドは当てない", () => {
     assert.deepEqual(ids("cat deploy/deploy.sh"), []);
@@ -173,6 +202,17 @@ describe("decideHookOutput: Claude Code の PreToolUse フックの返し方", (
 
   test("Bash で宣言に当たらなければ何も返さない（ほかの許可の仕組みに任せる）", () => {
     assert.equal(decideHookOutput(JSON.stringify({ tool_name: "Bash", tool_input: { command: "pnpm test" } })), null);
+  });
+
+  test("Bash 以外でもシェルのコマンド（tool_input.command）を走らせる道具は同じく判定する（Monitor。レビュー 2）", () => {
+    const out = decideHookOutput(JSON.stringify({ tool_name: "Monitor", tool_input: { command: "systemctl restart tasuki" } }));
+    assert.equal(out?.hookSpecificOutput?.permissionDecision, "ask");
+    assert.equal(decideHookOutput(JSON.stringify({ tool_name: "Monitor", tool_input: { command: "tail -f log" } })), null);
+  });
+
+  test("SHELL_TOOLS は Bash と Monitor を含む", () => {
+    assert.ok(SHELL_TOOLS.includes("Bash"));
+    assert.ok(SHELL_TOOLS.includes("Monitor"));
   });
 
   test("Bash 以外の道具は見ない", () => {

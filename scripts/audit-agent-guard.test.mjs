@@ -2,20 +2,22 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { HOOK_COMMAND, checkClaudeSettings, checkDeclarations } from "./audit-agent-guard.mjs";
 
+const MATCHER = "Bash|Monitor";
+
 function settings(overrides = {}) {
   return JSON.stringify({
-    hooks: { PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: HOOK_COMMAND }] }] },
+    hooks: { PreToolUse: [{ matcher: MATCHER, hooks: [{ type: "command", command: HOOK_COMMAND }] }] },
     ...overrides,
   });
 }
 
 describe("checkClaudeSettings: .claude/settings.json がフックを配線しているか", () => {
-  test("Bash の PreToolUse に入口のスクリプトが配線されていれば問題なし", () => {
+  test("シェルを走らせる道具（Bash・Monitor）の PreToolUse に入口のスクリプトが配線されていれば問題なし", () => {
     assert.deepEqual(checkClaudeSettings(settings()), []);
   });
 
-  test("matcher が Bash を含む正規表現（Bash|Edit）・* でも通る", () => {
-    for (const matcher of ["Bash|Edit", "*", ""]) {
+  test("matcher が Bash と Monitor を含む正規表現（Monitor|Bash|Edit）・* でも通る", () => {
+    for (const matcher of ["Monitor|Bash|Edit", "*", ""]) {
       const text = JSON.stringify({ hooks: { PreToolUse: [{ matcher, hooks: [{ type: "command", command: HOOK_COMMAND }] }] } });
       assert.deepEqual(checkClaudeSettings(text), [], `matcher ${JSON.stringify(matcher)}`);
     }
@@ -30,17 +32,17 @@ describe("checkClaudeSettings: .claude/settings.json がフックを配線して
     assert.equal(checkClaudeSettings(JSON.stringify({ hooks: { PreToolUse: [] } })).length, 1);
   });
 
-  test("matcher が Bash に当たらなければ落とす（Edit だけ・Bashx）", () => {
-    for (const matcher of ["Edit", "Bashx", "Write|Edit"]) {
+  test("matcher がシェルを走らせる道具のどれかに当たらなければ落とす（Bash だけ・Monitor だけ・Edit・Bashx）", () => {
+    for (const matcher of ["Bash", "Monitor", "Edit", "Bashx", "Write|Edit"]) {
       const text = JSON.stringify({ hooks: { PreToolUse: [{ matcher, hooks: [{ type: "command", command: HOOK_COMMAND }] }] } });
       assert.equal(checkClaudeSettings(text).length, 1, `matcher ${matcher}`);
     }
   });
 
   test("コマンドが入口のスクリプトと違えば落とす（別のスクリプト・PostToolUse に置いた）", () => {
-    const other = JSON.stringify({ hooks: { PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: "node scripts/other.mjs" }] }] } });
+    const other = JSON.stringify({ hooks: { PreToolUse: [{ matcher: MATCHER, hooks: [{ type: "command", command: "node scripts/other.mjs" }] }] } });
     assert.equal(checkClaudeSettings(other).length, 1);
-    const post = JSON.stringify({ hooks: { PostToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: HOOK_COMMAND }] }] } });
+    const post = JSON.stringify({ hooks: { PostToolUse: [{ matcher: MATCHER, hooks: [{ type: "command", command: HOOK_COMMAND }] }] } });
     assert.equal(checkClaudeSettings(post).length, 1);
   });
 

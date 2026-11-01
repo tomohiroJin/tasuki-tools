@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index 483ccec..bdc317c 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -412,7 +412,7 @@ export function decideHookOutput(raw) {
+   if (input === null || typeof input !== "object") {
+     return ask(`フックの入力の形が想定と違います。念のため人に確かめます。${RULE_REF}`);
+   }
+-  if (!SHELL_TOOLS.includes(input.tool_name)) return null;
++  if (input.tool_name !== "Bash") return null;
+   const command = input.tool_input?.command;
+   if (typeof command !== "string") {
+     return ask(`${input.tool_name} のコマンドを読めませんでした。念のため人に確かめます。${RULE_REF}`);

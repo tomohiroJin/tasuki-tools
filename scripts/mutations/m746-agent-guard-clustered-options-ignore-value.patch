@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index 483ccec..0b2aa7d 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -268,7 +268,7 @@ function skipOptions(words, start, argOpts) {
+     if (!w.startsWith("-") || w === "-") return i;
+     // 短い選択肢のまとまり（`-iu root`）は、最後の文字が値を取るなら次の語も値（PR #498 のレビュー 1）
+     const clusteredArg = /^-[A-Za-z0-9]{2,}$/.test(w) && argOpts.includes(`-${w.at(-1)}`);
+-    i += argOpts.includes(w) || clusteredArg ? 2 : 1;
++    i += argOpts.includes(w) ? 2 : 1;
+   }
+   return i;
+ }

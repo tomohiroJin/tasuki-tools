@@ -18,6 +18,8 @@
  * - 変数・別名・関数を経た呼び出し（`$CMD restart`・`alias s=systemctl`）。値はシェルを走らせないと分からない
  * - 別の言語からの呼び出し（`python -c "os.system('systemctl …')"`・`node -e …`）
  * - エージェントが書いたスクリプトの中の呼び出し（スクリプトを走らせる行には名前が出ない）
+ * - 標準入力やヒアストリングでシェルへ渡す形（`echo 'systemctl …' | bash`・`bash <<<'…'`）
+ * - 読んでいない包むコマンド（`flock`・`strace`・`script -c`・`nsenter`・`unbuffer` ほか。PR #498 のレビュー 3 で記録のみとした）
  * - 宣言に無いコマンド（`kill`・`rsync` で本番へ直接送るなど）。足すときはここに足す
  *
  * 読み方はシェルの部分集合である（引用符・バックスラッシュ・区切り・コマンド置換・リダイレクト・
@@ -45,6 +47,12 @@ export const GUARDED_COMMANDS = [
   { id: "caddy-reload", program: "caddy", subcommands: ["reload", "stop"], why: "Caddy の設定の入れ替え・停止" },
 ];
 
+/**
+ * シェルのコマンド（`tool_input.command`）を走らせる Claude Code の道具。`.claude/settings.json` の matcher は
+ * これを全部覆う（`scripts/audit-agent-guard.mjs` が見る）。Monitor は PR #498 のレビュー 2 で足した。
+ */
+export const SHELL_TOOLS = ["Bash", "Monitor"];
+
 /** 入れ子（`bash -c`・`ssh`・コマンド置換ほか）をこれより深く読まない。越えたら読めなかったとして当てる。 */
 const MAX_DEPTH = 8;
 
@@ -54,10 +62,14 @@ const UNREADABLE = Object.freeze({ id: "unreadable", why: "コマンドを読み
 /** 起動の位置に来ても、次の語が本当のコマンドになる予約語。 */
 const KEYWORDS = new Set(["if", "then", "else", "elif", "fi", "do", "done", "while", "until", "!", "{", "}", "time", "coproc"]);
 
+/** `su`・`runuser` の値を取る選択肢。`-c` は別に扱う（文字列として読み直す）。 */
+const SU_ARG_OPTS = ["-u", "-g", "-G", "-s", "-w", "--user", "--group", "--supp-group", "--shell", "--whitelist-environment"];
+
 /** 引数を 1 つ取る選択肢（`-u root` のように次の語を値にとるもの）を、包むコマンドごとに並べる。 */
 const WRAPPERS = {
   sudo: { argOpts: ["-u", "-g", "-h", "-p", "-C", "-D", "-r", "-t", "-U", "-T", "--user", "--group", "--host", "--prompt", "--chdir"] },
   doas: { argOpts: ["-u", "-C"] },
+  pkexec: { argOpts: ["--user"] },
   env: { argOpts: ["-u", "-C", "--unset", "--chdir"], splitOpts: ["-S", "--split-string"] },
   nohup: { argOpts: [] },
   command: { argOpts: [] },
@@ -254,7 +266,9 @@ function skipOptions(words, start, argOpts) {
     const w = words[i];
     if (w === "--") return i + 1;
     if (!w.startsWith("-") || w === "-") return i;
-    i += argOpts.includes(w) ? 2 : 1;
+    // 短い選択肢のまとまり（`-iu root`）は、最後の文字が値を取るなら次の語も値（PR #498 のレビュー 1）
+    const clusteredArg = /^-[A-Za-z0-9]{2,}$/.test(w) && argOpts.includes(`-${w.at(-1)}`);
+    i += argOpts.includes(w) || clusteredArg ? 2 : 1;
   }
   return i;
 }
@@ -286,10 +300,14 @@ function analyzeWords(words, depth) {
 
     if (Object.hasOwn(WRAPPERS, name)) {
       const spec = WRAPPERS[name];
-      // env -S は残りを 1 つの文字列として読み直す
-      const split = spec.splitOpts && words.findIndex((w, k) => k > i && spec.splitOpts.includes(w));
-      if (split !== undefined && split !== -1 && split + 1 < words.length) {
-        return analyzeString(words.slice(split + 1).join(" "), depth + 1);
+      // command -v / -V は場所を調べるだけで走らせない（PR #498 のレビュー 5）
+      if (name === "command" && (words[i + 1] === "-v" || words[i + 1] === "-V")) return [];
+      // env -S は残りを 1 つの文字列として読み直す（`--split-string=…` の形も）
+      if (spec.splitOpts) {
+        const eq = words.findIndex((w, k) => k > i && w.startsWith("--split-string="));
+        if (eq !== -1) return analyzeString([words[eq].slice("--split-string=".length), ...words.slice(eq + 1)].join(" "), depth + 1);
+        const split = words.findIndex((w, k) => k > i && spec.splitOpts.includes(w));
+        if (split !== -1 && split + 1 < words.length) return analyzeString(words.slice(split + 1).join(" "), depth + 1);
       }
       i = skipOptions(words, i + 1, spec.argOpts) + (spec.positional ?? 0);
       continue;
@@ -309,6 +327,18 @@ function analyzeWords(words, depth) {
       if (k >= words.length) return [];
       if (inline) return analyzeString(words[k], depth + 1);
       return matchHead(words, k).filter((g) => g.script);
+    }
+    if (name === "su" || name === "runuser") {
+      // -c の文字列は読み直す。runuser -u <user> [--] <cmd> は残りをコマンドとして読む（PR #498 のレビュー 3）
+      const c = words.findIndex((w, k) => k > i && (w === "-c" || w === "--command" || /^-[A-Za-z]*c$/.test(w)));
+      if (c !== -1 && c + 1 < words.length) return analyzeString(words[c + 1], depth + 1);
+      const cEq = words.find((w, k) => k > i && w.startsWith("--command="));
+      if (cEq) return analyzeString(cEq.slice("--command=".length), depth + 1);
+      if (name === "runuser" && words.slice(i + 1).some((w) => w === "-u" || w === "--user")) {
+        i = skipOptions(words, i + 1, SU_ARG_OPTS);
+        continue;
+      }
+      return [];
     }
     if (name === "ssh") {
       const host = skipOptions(words, i + 1, SSH_ARG_OPTS);
@@ -364,9 +394,9 @@ function ask(reason) {
 /**
  * Claude Code の PreToolUse フックの入力（標準入力の JSON）から、返す JSON を決める。
  *
- * - Bash で宣言に当たれば `ask`（人に聞く）。理由に当たったものと規則の置き場を書く
- * - Bash で当たらなければ `null`（何も返さない。ほかの許可の仕組みに任せる）
- * - Bash 以外の道具は `null`
+ * - シェルを走らせる道具（{@link SHELL_TOOLS}）で宣言に当たれば `ask`（人に聞く）。理由に当たったものと規則の置き場を書く
+ * - 当たらなければ `null`（何も返さない。ほかの許可の仕組みに任せる）
+ * - それ以外の道具は `null`
  * - 入力が読めない・`command` が文字列でないときは `ask` に倒す（黙って通さない）
  *
  * @param {string} raw 標準入力の中身
@@ -382,10 +412,10 @@ export function decideHookOutput(raw) {
   if (input === null || typeof input !== "object") {
     return ask(`フックの入力の形が想定と違います。念のため人に確かめます。${RULE_REF}`);
   }
-  if (input.tool_name !== "Bash") return null;
+  if (!SHELL_TOOLS.includes(input.tool_name)) return null;
   const command = input.tool_input?.command;
   if (typeof command !== "string") {
-    return ask(`Bash のコマンドを読めませんでした。念のため人に確かめます。${RULE_REF}`);
+    return ask(`${input.tool_name} のコマンドを読めませんでした。念のため人に確かめます。${RULE_REF}`);
   }
   const hits = findGuardedCommands(command);
   if (hits.length === 0) return null;

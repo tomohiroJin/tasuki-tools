@@ -1,8 +1,8 @@
 diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
-index 4e87672..a1b8b97 100644
+index 483ccec..b08f8f5 100644
 --- a/scripts/lib/agent-guard.mjs
 +++ b/scripts/lib/agent-guard.mjs
-@@ -377,7 +377,7 @@ export function decideHookOutput(raw) {
+@@ -407,7 +407,7 @@ export function decideHookOutput(raw) {
    try {
      input = JSON.parse(raw);
    } catch {

@@ -4,7 +4,7 @@
  *
  * ## 何を見るか
  *
- * 1. **`.claude/settings.json` が追跡下にあり、Bash の PreToolUse フックに入口（{@link HOOK_COMMAND}）を置いている。**
+ * 1. **`.claude/settings.json` が追跡下にあり、シェルを走らせる道具（`SHELL_TOOLS`。Bash・Monitor）の PreToolUse フックに入口（{@link HOOK_COMMAND}）を置いている。**
  *    `disableAllHooks` で全部のフックを切っていない
  * 2. **入口のスクリプトと判定の部品が追跡下にある**
  * 3. **止めるスクリプトの宣言（`scripts/lib/agent-guard.mjs` の `GUARDED_COMMANDS`）と `deploy/` の実体が合う。**
@@ -26,7 +26,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { listTrackedFiles, findEmptyScanDimensions } from "./lib/scan-targets.mjs";
 import { isDirectRun } from "./lib/direct-run.mjs";
-import { GUARDED_COMMANDS } from "./lib/agent-guard.mjs";
+import { GUARDED_COMMANDS, SHELL_TOOLS } from "./lib/agent-guard.mjs";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -36,12 +36,12 @@ export const GUARD_LIB = "scripts/lib/agent-guard.mjs";
 /** settings.json に書くフックのコマンド。`${CLAUDE_PROJECT_DIR}` で、どの作業場所から呼ばれても同じ入口を指す。 */
 export const HOOK_COMMAND = `node "\${CLAUDE_PROJECT_DIR}/${HOOK_SCRIPT}"`;
 
-/** Claude Code の matcher（空・`*`・正規表現）が Bash に当たるか。 */
-function matcherHitsBash(matcher) {
+/** Claude Code の matcher（空・`*`・正規表現）が、その道具の名前に当たるか。 */
+function matcherHits(matcher, tool) {
   if (matcher === undefined || matcher === "" || matcher === "*") return true;
   if (typeof matcher !== "string") return false;
   try {
-    return new RegExp(`^(?:${matcher})$`).test("Bash");
+    return new RegExp(`^(?:${matcher})$`).test(tool);
   } catch {
     return false;
   }
@@ -63,14 +63,19 @@ export function checkClaudeSettings(text) {
     return ["disableAllHooks が true です。本番デプロイを止めるフックも切れます（docs/adr/0032）"];
   }
   const groups = Array.isArray(json?.hooks?.PreToolUse) ? json.hooks.PreToolUse : [];
-  const wired = groups.some(
-    (g) =>
-      matcherHitsBash(g?.matcher) &&
-      Array.isArray(g?.hooks) &&
-      g.hooks.some((h) => h?.type === "command" && h?.command === HOOK_COMMAND),
+  const unwired = SHELL_TOOLS.filter(
+    (tool) =>
+      !groups.some(
+        (g) =>
+          matcherHits(g?.matcher, tool) &&
+          Array.isArray(g?.hooks) &&
+          g.hooks.some((h) => h?.type === "command" && h?.command === HOOK_COMMAND),
+      ),
   );
-  if (!wired) {
-    return [`hooks.PreToolUse に、Bash に当たる matcher で ${JSON.stringify(HOOK_COMMAND)} を置いてください（docs/adr/0032 決定 2）`];
+  if (unwired.length > 0) {
+    return [
+      `hooks.PreToolUse に、${unwired.join("・")} に当たる matcher で ${JSON.stringify(HOOK_COMMAND)} を置いてください（シェルを走らせる道具は ${SHELL_TOOLS.join("・")}。docs/adr/0032 決定 2）`,
+    ];
   }
   return [];
 }

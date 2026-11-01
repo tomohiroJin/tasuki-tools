@@ -1,8 +1,8 @@
 diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
-index 4e87672..c840f59 100644
+index 483ccec..251eea6 100644
 --- a/scripts/lib/agent-guard.mjs
 +++ b/scripts/lib/agent-guard.mjs
-@@ -266,7 +266,7 @@ function matchHead(words, i) {
+@@ -280,7 +280,7 @@ function matchHead(words, i) {
    for (const g of GUARDED_COMMANDS) {
      if (g.script && name === path.posix.basename(g.script)) hits.push(g);
      if (g.program && name === g.program) {

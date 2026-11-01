@@ -1,12 +1,12 @@
 diff --git a/.claude/settings.json b/.claude/settings.json
-index 6125abf..3bfc1d5 100644
+index cb343f4..3bfc1d5 100644
 --- a/.claude/settings.json
 +++ b/.claude/settings.json
 @@ -3,7 +3,7 @@
    "hooks": {
      "PreToolUse": [
        {
--        "matcher": "Bash",
+-        "matcher": "Bash|Monitor",
 +        "matcher": "Edit",
          "hooks": [
            {

@@ -1,8 +1,8 @@
 diff --git a/scripts/audit-agent-guard.mjs b/scripts/audit-agent-guard.mjs
-index 9b93174..e38ed12 100644
+index 9da3775..2c64bfb 100644
 --- a/scripts/audit-agent-guard.mjs
 +++ b/scripts/audit-agent-guard.mjs
-@@ -94,7 +94,7 @@ export function checkDeclarations(declarations, trackedDeployFiles) {
+@@ -99,7 +99,7 @@ export function checkDeclarations(declarations, trackedDeployFiles) {
      if (!tracked.has(script)) problems.push(`宣言したスクリプト ${script} が追跡下にありません（移したなら宣言を直す）`);
    }
    for (const rel of trackedDeployFiles.filter(isDeployEntryScript)) {
