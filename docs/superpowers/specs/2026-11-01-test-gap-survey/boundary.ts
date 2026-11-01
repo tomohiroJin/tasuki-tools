@@ -1,5 +1,5 @@
 // WebSocket の境界に壊れた入力を手で投げる（bun で実行。サーバーは本番と同じ入口を子プロセスで起こす）
-const ROOT = process.argv[2];
+const ROOT = (await import("node:path")).resolve(process.argv[2]);
 const PORT = 18000 + Math.floor(Math.random() * 1000);
 const CANARY = "CANARY7f3aSECRET";
 const proc = Bun.spawn(["bun", "src/server.ts"], {

@@ -1,7 +1,8 @@
 // 変異の密度: 宣言の表とパッチから、パッケージごとの変異数・変異が当たるソースファイルの割合を出す
 import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
-import { join, relative } from "node:path";
-const ROOT = process.argv[2];
+import { join, relative, resolve } from "node:path";
+// 相対パス（`.`）でも動くように絶対パスへ直す（`import()`・`createRequire` は相対パスを受けない）
+const ROOT = resolve(process.argv[2]);
 const { MUTATIONS } = await import(join(ROOT, "scripts/lib/mutation-declarations.mjs"));
 const pkgs = [...readdirSync(join(ROOT, "packages")).map((d) => `packages/${d}`), ...readdirSync(join(ROOT, "apps")).map((d) => `apps/${d}`)];
 const SRC_RE = /\.(ts|tsx|mjs|js|svelte|vue)$/;

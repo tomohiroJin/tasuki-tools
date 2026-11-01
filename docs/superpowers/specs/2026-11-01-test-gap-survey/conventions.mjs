@@ -1,8 +1,9 @@
 // ADR-0006 の規約のうち機械で数えられるものを数える（AST で test/it の本体を見る）
 import { readFileSync, readdirSync, statSync } from "node:fs";
-import { join, relative } from "node:path";
+import { join, relative, resolve } from "node:path";
 import { createRequire } from "node:module";
-const ROOT = process.argv[2];
+// 相対パス（`.`）でも動くように絶対パスへ直す（`import()`・`createRequire` は相対パスを受けない）
+const ROOT = resolve(process.argv[2]);
 const ts = createRequire(join(ROOT, "package.json"))("typescript");
 const files = [];
 (function walk(d) {
@@ -41,9 +42,11 @@ for (const f of files) {
       if (chain && ["it", "test", "describe", "suite"].includes(chain[0])) {
         const mods = chain.slice(1);
         const where = `${rel}:${line(n)}`;
-        if (mods.includes("only")) res.focused.push(where);
-        if (mods.some((m) => ["skip", "skipIf", "fixme", "runIf"].includes(m))) res.skipped.push(`${where} (${chain.join(".")})`);
-        if (mods.includes("todo")) res.todo.push(where);
+        // `it.skipIf(cond)(name, fn)` は外側と内側の 2 つの呼び出しが同じ位置・同じ鎖を持つ。位置で 1 件にまとめる
+        const once = (list, item) => { if (!list.includes(item)) list.push(item); };
+        if (mods.includes("only")) once(res.focused, where);
+        if (mods.some((m) => ["skip", "skipIf", "fixme", "runIf"].includes(m))) once(res.skipped, `${where} (${chain.join(".")})`);
+        if (mods.includes("todo")) once(res.todo, where);
         if (TEST_FNS.has(chain[0]) && !mods.some((m) => ["describe", "beforeEach", "afterEach", "beforeAll", "afterAll", "step", "use", "extend", "setTimeout", "info", "slow", "configure"].includes(m))) {
           const cb = n.arguments.find((a) => ts.isArrowFunction(a) || ts.isFunctionExpression(a));
           if (cb && cb.body) {
