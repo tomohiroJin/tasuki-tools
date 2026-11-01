@@ -4810,4 +4810,38 @@ export const MUTATIONS = [
       " " +
       "#480（PR #502 のレビュー指摘 1）。レビューが再現した壊し方（添え書きを隠しても手札の試験が 35/35 で通った）の属性版。",
   },
+  {
+    id: 803,
+    label: "手札の見出しに、いまのやり方ではなく今日の天気の問いを出す",
+    patch: "m803-hand-prompt-fixed-to-weather.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/hand.test.tsx"],
+    note:
+      RESERVED_800_809 +
+      " " +
+      "#480（PR #502 の敵対的レビュー 2）。どの問いへの答えかを手札で誤らせる。天気だけを試していたときは通っていた。",
+  },
+  {
+    id: 804,
+    label: "手札の札のボタンを意味の要素へ結ばない（aria-describedby を外す）",
+    patch: "m804-hand-card-meaning-not-described.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/hand.test.tsx"],
+    note:
+      RESERVED_800_809 +
+      " " +
+      "#480（PR #502 の敵対的レビュー 3）。見た目には意味が出ているのに、読み上げでは札の意味が聞こえない。",
+  },
+  {
+    id: 805,
+    label: "手札の札のボタンの幅を固定の 7rem に戻す（名前の字の大きさから決めない）",
+    patch: "m805-hand-card-width-by-breakpoint.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/hand-caption-css.test.ts"],
+    note:
+      RESERVED_800_809 +
+      " " +
+      "#480（PR #502 の敵対的レビュー 1）。字は画面の幅で流れるので、幅の広い側で 8 字の名前が 1 字だけ次の行に落ちる。" +
+      "実際の見え方は E2E（checkin.spec.ts の その6・639px）も見るが、E2E の spec は変異検査のランナーに載らないので、宣言で守る。",
+  },
 ];
