@@ -16,6 +16,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
+import { chromiumBrowsersDir, BROWSERS_LOCATION_ENV } from "./lib/toolchain.mjs";
 
 const SCRIPTS_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SCRIPTS_DIR, "..");
@@ -164,6 +165,60 @@ describe("check-toolchain の配線: Chromium の revision（#492）", () => {
     assert.equal(r.status, 1, r.stdout);
     assert.match(r.stderr, /\.local-browsers/);
   });
+});
+
+/**
+ * ルートの検査と、turbo の中から起動したハーネスの検査が、**同じ置き場を見る**か（#492 の Codex レビュー 1）。
+ * turbo は既定で環境変数を絞るので、置き場を決める変数が `passThroughEnv` に無いと、ルートでは通った検査が
+ * ハーネスの中では別の置き場を見て止まる（XDG_CACHE_HOME で実際に起きた）。
+ *
+ * 置き場の解き方が読む変数は、宣言（BROWSERS_LOCATION_ENV）からではなく**実際に読んだキーを記録して**導く。
+ * 解き方に変数を足して宣言を忘れても、ここが赤くなる。
+ */
+describe("Chromium の置き場を決める変数が turbo の中へ届く（#492）", () => {
+  const turbo = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, "turbo.json"), "utf8"));
+
+  /** 解き方が読んだ環境変数のキーを、OS と指定の組を一通り回して集める。 */
+  function readKeys() {
+    const keys = new Set();
+    const env = new Proxy(
+      {},
+      {
+        get(_, key) {
+          if (typeof key === "string") keys.add(key);
+          return undefined;
+        },
+      },
+    );
+    for (const platform of ["linux", "darwin", "win32"]) {
+      chromiumBrowsersDir(env, platform, "/home/u", { coreDir: "/core", cwd: "/repo" });
+    }
+    // 相対パスの指定のときにだけ読む変数（INIT_CWD）も拾う
+    const relative = new Proxy(
+      {},
+      {
+        get(_, key) {
+          if (typeof key === "string") keys.add(key);
+          return key === "PLAYWRIGHT_BROWSERS_PATH" ? "pw" : undefined;
+        },
+      },
+    );
+    chromiumBrowsersDir(relative, "linux", "/home/u", { coreDir: "/core", cwd: "/repo" });
+    return [...keys].sort();
+  }
+
+  test("解き方が読む変数は、すべて宣言（BROWSERS_LOCATION_ENV）にある", () => {
+    const read = readKeys();
+    assert.ok(read.includes("XDG_CACHE_HOME"), `記録できていません: ${read.join(", ")}`);
+    assert.deepEqual(read.filter((k) => !BROWSERS_LOCATION_ENV.includes(k)), []);
+  });
+
+  for (const task of ["e2e", "e2e:prod"]) {
+    test(`turbo の ${task} タスクの passThroughEnv に、解き方が読む変数がすべてある`, () => {
+      const pass = turbo.tasks[task]?.passThroughEnv ?? [];
+      assert.deepEqual(readKeys().filter((k) => !pass.includes(k)), []);
+    });
+  }
 });
 
 describe("入口の配線（#487）", () => {

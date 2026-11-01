@@ -130,6 +130,21 @@ export function parseCaddyVersionOutput(text) {
  * Playwright 自身が「Unsupported platform」で落ちる OS では null を返す。**null は止める理由**であって、
  * 比べずに通す理由ではない（{@link evaluateStage}）。
  */
+/**
+ * {@link chromiumBrowsersDir} が読む環境変数。**turbo の e2e・e2e:prod の `passThroughEnv` にすべて要る**
+ * （turbo は既定で環境変数を絞る。無いと、ルートの検査とハーネスの中の検査・Playwright が別の置き場を見る。
+ * #492 の Codex レビュー 1 で XDG_CACHE_HOME が実際に落ちた）。`scripts/check-toolchain.test.mjs` が、
+ * 解き方が実際に読んだキーと突き合わせる。
+ */
+export const BROWSERS_LOCATION_ENV = Object.freeze([
+  "PLAYWRIGHT_BROWSERS_PATH",
+  "npm_config_playwright_browsers_path",
+  "npm_package_config_playwright_browsers_path",
+  "XDG_CACHE_HOME",
+  "LOCALAPPDATA",
+  "INIT_CWD",
+]);
+
 export function chromiumBrowsersDir(env, platform, homedir, { coreDir = null, cwd = "/" } = {}) {
   const name = "PLAYWRIGHT_BROWSERS_PATH";
   const configured =
