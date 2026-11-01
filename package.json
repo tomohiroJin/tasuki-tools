@@ -3,8 +3,6 @@
   "private": true,
   "version": "0.0.1",
   "scripts": {
-    "check:fast": "node scripts/local-check.mjs fast",
-    "check:full": "node scripts/local-check.mjs full",
     "build": "turbo run build",
     "test": "node scripts/check-toolchain.mjs test && turbo run test",
     "test:unit": "turbo run test:unit",
@@ -12,7 +10,9 @@
     "typecheck": "turbo run typecheck",
     "dev": "turbo run dev --continue",
     "e2e": "node scripts/check-toolchain.mjs e2e && turbo run e2e",
-    "e2e:prod": "turbo run e2e:prod"
+    "e2e:prod": "turbo run e2e:prod",
+    "check:fast": "node scripts/local-check.mjs fast",
+    "check:full": "node scripts/local-check.mjs full"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
