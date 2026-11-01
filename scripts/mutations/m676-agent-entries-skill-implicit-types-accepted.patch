@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-agent-entries.mjs b/scripts/audit-agent-entries.mjs
+index 12dce49..bd45815 100644
+--- a/scripts/audit-agent-entries.mjs
++++ b/scripts/audit-agent-entries.mjs
+@@ -273,7 +273,7 @@ function parseFrontmatter(text) {
+     }
+     // **通してよい形を決めて判定する**（拒む記号を並べると、並べ漏れがそのまま抜け道になった。#493 の再々レビュー）。
+     // 通すのは、YAML の記号で始まらず注釈（ #）や対（: ）を含まない値と、正しく閉じた引用符の値だけ。
+-    if (!/^["']/.test(raw) && IMPLICIT_NON_STRING.test(raw)) {
++    if (false) {
+       problems.push(`frontmatter の「${key}」の値「${raw}」は、YAML では文字列以外（null・真偽値・数値・日付）に読まれます（文字列なら引用符で囲む）`);
+       return;
+     }

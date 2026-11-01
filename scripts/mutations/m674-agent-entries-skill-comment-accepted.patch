@@ -1,13 +1,13 @@
 diff --git a/scripts/audit-agent-entries.mjs b/scripts/audit-agent-entries.mjs
-index 9860a7f..b0a9b39 100644
+index 12dce49..2acd2ee 100644
 --- a/scripts/audit-agent-entries.mjs
 +++ b/scripts/audit-agent-entries.mjs
-@@ -225,7 +225,7 @@ function readScalar(raw) {
+@@ -234,7 +234,7 @@ function readScalar(raw) {
      const m = /^"((?:[^"\\]|\\["\\])*)"$/.exec(raw);
      return m ? m[1].replace(/\\(["\\])/g, "$1") : null;
    }
--  if (YAML_INDICATORS.includes(raw[0]) || /\s#/.test(raw) || /:\s/.test(raw)) return null;
-+  if (YAML_INDICATORS.includes(raw[0]) || /:\s/.test(raw)) return null;
+-  if (YAML_INDICATORS.includes(raw[0]) || /\s#/.test(raw) || /:(?:\s|$)/.test(raw)) return null;
++  if (YAML_INDICATORS.includes(raw[0]) || /:(?:\s|$)/.test(raw)) return null;
    return raw;
  }
  

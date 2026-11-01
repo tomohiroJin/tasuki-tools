@@ -4137,7 +4137,7 @@ export const MUTATIONS = [
     note:
       "#485 のレビュー。描画も読み込みもされない例文の中の [x](AGENTS.md) で、正本へ向いていない入口が通る。",
   },
-  // 660〜675 は #489（PR #493）の audit-agent-entries のスキルの判定。#493 の最初の版では 634〜636、次の版では 640〜650 に
+  // 660〜677 は #489（PR #493）の audit-agent-entries のスキルの判定。#493 の最初の版では 634〜636、次の版では 640〜650 に
   // 置いたが、並行していた PR とどちらの範囲でもぶつかったので、merge の前に 660 からへ付け直した（どちらの番号も main には
   // 入っていない）。**並行する PR の範囲はここに書かない**（相手が動くたびに古くなる）。merge の前に宣言どうしを突き合わせる。
   {
@@ -4272,5 +4272,21 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["audit-agent-entries.test.mjs"],
     note: "#493 の再々レビュー。読まれる中身が上限の中でも、エスケープの分だけ長く数えて落とす。",
+  },
+  {
+    id: 676,
+    label: "audit-agent-entries がスキルの frontmatter の、YAML が文字列以外に読む素の値（null・真偽値・数値・日付）を通す",
+    patch: "m676-agent-entries-skill-implicit-types-accepted.patch",
+    pkg: "scripts",
+    tests: ["audit-agent-entries.test.mjs"],
+    note: "#493 の Codex 再レビュー。description: null が「null の 4 字」として通り、説明の無いスキルが正常と判定される。",
+  },
+  {
+    id: 677,
+    label: "audit-agent-entries がスキルの frontmatter の、末尾の : を見ない",
+    patch: "m677-agent-entries-skill-trailing-colon-accepted.patch",
+    pkg: "scripts",
+    tests: ["audit-agent-entries.test.mjs"],
+    note: "#493 の Codex 再レビューの後の js-yaml との突き合わせ。description: abc: は YAML として読めない（js-yaml はエラー）。",
   },
 ];

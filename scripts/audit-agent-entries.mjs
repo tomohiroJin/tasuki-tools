@@ -209,9 +209,18 @@ const SKILL_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const YAML_INDICATORS = "-?:,[]{}#&*!|>'\"%@`";
 
 /**
+ * 素の値のうち、YAML が文字列以外の型に読み替えるもの（null・真偽値・数値・日付と時刻）。
+ *
+ * YAML 1.2 の core スキーマ（js-yaml の既定）に加え、1.1 の yes/no/on/off も拒む（読み手のツールがどちらの版かは
+ * 分からない）。数字・符号つきの数字・`.` に続く数字で始まる値は、数値か日付になりうるので丸ごと拒む。
+ * 使いたいときは引用符で囲めば文字列になる（#493 の Codex 再レビュー）。
+ */
+const IMPLICIT_NON_STRING = /^(?:~|null|true|false|yes|no|on|off|y|n|[-+]?\.?(?:inf|nan)|[-+]?\.?\d.*)$/i;
+
+/**
  * 1 行の値を文字列として読む。YAML が同じ文字列に読むと言い切れる形でなければ null。
  *
- * - 素の値: 記号（{@link YAML_INDICATORS}）で始まらず、注釈（` #`）と対（`: `）を含まない
+ * - 素の値: 記号（{@link YAML_INDICATORS}）で始まらず、注釈（` #`）と対（`: ` と末尾の `:`）を含まない
  * - 一重引用符: 中の `'` は `''` でだけ書ける
  * - 二重引用符: 中のエスケープは `\"` と `\\` だけ（ほかのエスケープは読み方がツールで割れうるので通さない）
  */
@@ -225,7 +234,7 @@ function readScalar(raw) {
     const m = /^"((?:[^"\\]|\\["\\])*)"$/.exec(raw);
     return m ? m[1].replace(/\\(["\\])/g, "$1") : null;
   }
-  if (YAML_INDICATORS.includes(raw[0]) || /\s#/.test(raw) || /:\s/.test(raw)) return null;
+  if (YAML_INDICATORS.includes(raw[0]) || /\s#/.test(raw) || /:(?:\s|$)/.test(raw)) return null;
   return raw;
 }
 
@@ -264,6 +273,10 @@ function parseFrontmatter(text) {
     }
     // **通してよい形を決めて判定する**（拒む記号を並べると、並べ漏れがそのまま抜け道になった。#493 の再々レビュー）。
     // 通すのは、YAML の記号で始まらず注釈（ #）や対（: ）を含まない値と、正しく閉じた引用符の値だけ。
+    if (!/^["']/.test(raw) && IMPLICIT_NON_STRING.test(raw)) {
+      problems.push(`frontmatter の「${key}」の値「${raw}」は、YAML では文字列以外（null・真偽値・数値・日付）に読まれます（文字列なら引用符で囲む）`);
+      return;
+    }
     const value = readScalar(raw);
     if (value === null) {
       problems.push(

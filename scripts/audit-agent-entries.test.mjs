@@ -421,10 +421,23 @@ describe("checkSkill: スキルは手順書へ向ける薄い入口", () => {
 
   test("YAML として文字列に読めない値を報告する（記号の列挙ではなく、通す形を決めて判定する。#493 の再々レビュー）", () => {
     // js-yaml がエラーにするか、文字列でない値（#x は null）に読むもの
-    for (const value of ["- a", "- [a]", "? a", "%TAG x", "@x", "`x`", ",x", "#x", ":x", "説明 # 注釈", "a: b", "]x", "}x", "|x", ">x"]) {
+    for (const value of ["- a", "- [a]", "? a", "%TAG x", "@x", "`x`", ",x", "#x", ":x", "説明 # 注釈", "a: b", "abc:", "]x", "}x", "|x", ">x"]) {
       const fm = `name: adversarial-review\ndescription: ${value}`;
       const problems = checkSkill(REL, skill(GOOD_BODY, fm), PROCEDURES);
       assert.ok(problems.length > 0, `${value} が通った`);
+    }
+  });
+
+  test("YAML が文字列以外の型に読む素の値を報告する（null・真偽値・数値・日付。#493 の Codex 再レビュー）", () => {
+    for (const value of ["null", "Null", "NULL", "~", "true", "False", "yes", "off", "123", "-1", "+1.5", "0x1F", "1e3", ".inf", "-.Inf", ".NaN", "2026-11-01", "12:30"]) {
+      const fm = `name: adversarial-review\ndescription: ${value}`;
+      const problems = checkSkill(REL, skill(GOOD_BODY, fm), PROCEDURES);
+      assert.ok(problems.some((p) => /文字列以外/.test(p)), `${value}: ${problems.join("\n")}`);
+    }
+    // 引用符で囲めば文字列として通る
+    for (const value of ['"null"', "'123'", '"true"', "'2026-11-01'"]) {
+      const fm = `name: adversarial-review\ndescription: ${value}`;
+      assert.deepEqual(checkSkill(REL, skill(GOOD_BODY, fm), PROCEDURES), [], value);
     }
   });
 
@@ -447,7 +460,7 @@ describe("checkSkill: スキルは手順書へ向ける薄い入口", () => {
   });
 
   test("引用符で閉じた値と、文中に記号を含む値は通る", () => {
-    for (const value of ['"差分を確かめる"', "'差分を確かめる'", "差分を [確かめる] とき", "A & B を確かめる", "abc:", "a#b", "差分（PR#12）を見る"]) {
+    for (const value of ['"差分を確かめる"', "'差分を確かめる'", "差分を [確かめる] とき", "A & B を確かめる", "a:b", "a#b", "差分（PR#12）を見る"]) {
       const fm = `name: adversarial-review\ndescription: ${value}`;
       assert.deepEqual(checkSkill(REL, skill(GOOD_BODY, fm), PROCEDURES), [], value);
     }
