@@ -1,16 +1,16 @@
 /**
  * やり方ごとの文言（#406・設計 §3）。お題・札の名前・凡例の短い意味。
  *
- * 札の**名前**は札の顔に出さない（凡例・山の下・読み上げ `aria-label` にだけ使う）。
+ * 札の**名前**は札の顔に出さない（凡例・手札の札の下・山の下・読み上げに使う。手札の札の下には意味も添える・#480）。
  * 鍵は checkin-core の `METHOD_IDS` と、各やり方の `METHODS[m].cards` に一致させる（`tests/method-copy.test.ts` が守る）。
  * **文言は書体の base 層に収める**（`tests/copy-fits-font-base.test.ts` が守る）。
  */
 import type { CardId, MethodId } from '@tasuki/checkin-core';
 
 export interface CardCopy {
-  /** 凡例・山の下・読み上げに使う札の名前 */
+  /** 凡例・手札の札の下・山の下・読み上げに使う札の名前 */
   readonly name: string;
-  /** 凡例の短い意味 */
+  /** 凡例と手札の札の下に出す短い意味（手札では札のボタンの説明として読む） */
   readonly meaning: string;
 }
 
