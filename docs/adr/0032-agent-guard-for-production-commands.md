@@ -1,6 +1,6 @@
 # ADR-0032: 本番デプロイのコマンドは、AI ツールのフックで人に聞いてから走らせる
 
-- **ステータス**: Proposed（2026-11-01。採択は人が行う。`docs/adr/0030` 決定 1）
+- **ステータス**: Accepted（2026-11-01。利用者が PR tomohiroJin/tasuki-tools#498 で採択。`docs/adr/0030` 決定 1 のとおり人が判断した）
 - **関連**: [#490](https://github.com/tomohiroJin/tasuki-tools/issues/490)（親 [#483](https://github.com/tomohiroJin/tasuki-tools/issues/483)） /
   [ADR-0030](./0030-ai-driven-development-operations.md)（決定 1「人の明示の指示か承認を待つ操作」・決定 2「機械で守れるなら検査として足す」・影響 5） /
   [ADR-0009](./0009-ci-scope-and-checks.md)（検査の配置） /
