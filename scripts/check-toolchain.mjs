@@ -115,9 +115,13 @@ function collectActual(stage, declared, playwrightCoreDir) {
     caddy: { present: false, version: null, dir: null },
   };
   if (tools.includes("chromium")) {
-    const dir = chromiumBrowsersDir(process.env, process.platform, os.homedir(), {
+    // Playwright は e2e パッケージの中で pnpm が起動する。pnpm は INIT_CWD をその cwd で上書きするので、
+    // 相対パスの指定はいつも e2e/ から解かれる。ルートから流しても同じ置き場を見るよう、ここで揃える
+    // （揃えないと、ルートの検査は通るのにハーネスの検査で止まる。#492 の再レビュー）
+    const e2eDir = path.join(REPO_ROOT, "e2e");
+    const dir = chromiumBrowsersDir({ ...process.env, INIT_CWD: e2eDir }, process.platform, os.homedir(), {
       coreDir: playwrightCoreDir,
-      cwd: process.cwd(),
+      cwd: e2eDir,
     });
     actual.chromium = { dir, entries: dir !== null && fs.existsSync(dir) ? fs.readdirSync(dir) : null };
   }

@@ -142,8 +142,15 @@ export const BROWSERS_LOCATION_ENV = Object.freeze([
   "npm_package_config_playwright_browsers_path",
   "XDG_CACHE_HOME",
   "LOCALAPPDATA",
-  "INIT_CWD",
 ]);
+
+/**
+ * {@link chromiumBrowsersDir} が読むが、**turbo へ渡しても効かない**変数。pnpm はスクリプトを起動するたびに
+ * `INIT_CWD` を自分の cwd で上書きするので、turbo の中のハーネスと Playwright は、いつも `e2e/` から
+ * 相対パスを解く（#492 の再レビューで、渡しても使われないと実測）。そこでルートの検査も、`INIT_CWD` を
+ * `e2e/` に置いて解く（`scripts/check-toolchain.mjs`）。`passThroughEnv` には入れない（効くと誤読させる）。
+ */
+export const PNPM_SET_ENV = Object.freeze(["INIT_CWD"]);
 
 export function chromiumBrowsersDir(env, platform, homedir, { coreDir = null, cwd = "/" } = {}) {
   const name = "PLAYWRIGHT_BROWSERS_PATH";
