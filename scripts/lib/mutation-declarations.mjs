@@ -4217,4 +4217,12 @@ export const MUTATIONS = [
     tests: ["audit-toolchain.test.mjs"],
     note: "#492 のレビュー 5。bun を書かない段のまま setup-bun が空の版で latest を入れる。",
   },
+  {
+    id: 650,
+    label: "turbo の e2e タスクが XDG_CACHE_HOME を渡さない",
+    patch: "m650-turbo-e2e-drops-xdg-cache-home.patch",
+    pkg: "scripts",
+    tests: ["check-toolchain.test.mjs"],
+    note: "#492 の Codex レビュー 1。ルートの版の比較は通るのに、turbo の中のハーネスと Playwright が別の置き場を見て止まる。",
+  },
 ];
