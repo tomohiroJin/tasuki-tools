@@ -3,9 +3,9 @@
 # 使い方: bash order.sh <リポジトリのルート> <結果を置くディレクトリ>
 #   先に `node scripts/check-toolchain.mjs test` を通しておく（bun は宣言の版が PATH にあること）。
 set -u
-ROOT=$1
-OUT=$2
-mkdir -p "$OUT"
+# 相対パスでも動くように、どちらも絶対パスへ直してから cd する
+ROOT=$(cd "$1" && pwd) || exit 1
+OUT=$(mkdir -p "$2" && cd "$2" && pwd) || exit 1
 cd "$ROOT" || exit 1
 echo "pkg,mode,seed,rc,sec" > "$OUT/summary.csv"
 for d in packages/* apps/* e2e; do

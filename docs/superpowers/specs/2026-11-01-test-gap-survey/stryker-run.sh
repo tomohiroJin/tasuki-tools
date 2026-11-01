@@ -6,11 +6,11 @@
 #   作業ツリーは `git worktree add --detach <dir> HEAD` → `pnpm install --frozen-lockfile` で作る。
 #   inPlace（作業ツリーを書き換えて戻す）で流すので、手元の作業ツリーでは使わない。
 set -u
-STRYKER=$1
-WT=$2
-OUT=$3
+# 相対パスでも動くように、どれも絶対パスへ直す（下で cd し、設定の plugins にも書くため）
+STRYKER=$(cd "$1" && pwd) || exit 1
+WT=$(cd "$2" && pwd) || exit 1
+OUT=$(mkdir -p "$3" && cd "$3" && pwd) || exit 1
 shift 3
-mkdir -p "$OUT"
 for p in "$@"; do
   d="$WT/packages/$p"
   cat > "$d/stryker.survey.json" <<JSON

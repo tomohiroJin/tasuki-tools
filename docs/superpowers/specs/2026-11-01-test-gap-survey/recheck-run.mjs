@@ -1,7 +1,10 @@
 // 1 つの作業ツリーで、割り当てられた変異を 1 つずつ入れ、core・利用側のテストを流して元へ戻す
 import { readFileSync, writeFileSync, appendFileSync } from "node:fs";
 import { execSync, spawnSync } from "node:child_process";
-const [, , listPath, wt, shard, nShards, outPath, bun] = process.argv;
+import { resolve } from "node:path";
+// 相対パスでも動くように絶対パスへ直す（下で cwd を変えてテストを流すため）
+const [, , listArg, wtArg, shard, nShards, outArg, bun] = process.argv;
+const [listPath, wt, outPath] = [listArg, wtArg, outArg].map((p) => resolve(p));
 const CONSUMERS = { "roulette-core": ["apps/roulette-web"], "agenda-core": ["apps/agenda-web"], "timer-core": ["apps/timer-web"], "poker-core": ["apps/poker-web"], "rate-limit": [] };
 const list = JSON.parse(readFileSync(listPath, "utf8")).filter((_, i) => i % Number(nShards) === Number(shard));
 function apply(m) {
