@@ -10,8 +10,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync, spawnSync } from "node:child_process";
-import { splitJobs, splitSteps } from "./audit-toolchain.mjs";
-import { decideScope } from "./ci-scope.mjs";
+import { splitJobs, splitSteps } from "./lib/workflow.mjs";
+import { decideScope } from "./lib/ci-scope.mjs";
 import { isDirectRun } from "./lib/direct-run.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");

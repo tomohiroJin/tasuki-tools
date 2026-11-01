@@ -71,7 +71,7 @@ test("失敗しても残りを流し、成功・失敗・省略を区別する",
 function fixture(t, { failPreflight = false, failCheck = false } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "local-check-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-  for (const file of ["local-check.mjs", "audit-toolchain.mjs", "ci-scope.mjs", "lib/direct-run.mjs", "lib/toolchain.mjs", "lib/scan-targets.mjs"]) {
+  for (const file of ["local-check.mjs", "audit-toolchain.mjs", "ci-scope.mjs", "lib/direct-run.mjs", "lib/toolchain.mjs", "lib/scan-targets.mjs", "lib/workflow.mjs", "lib/ci-scope.mjs"]) {
     const target = path.join(dir, "scripts", file);
     fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.copyFileSync(new URL(file, import.meta.url), target);
