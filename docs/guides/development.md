@@ -1151,6 +1151,33 @@ shellcheck・自己テスト（`node --test`）の対象は宣言ではなく `g
 
 ## CI
 
+### 手元でまとめて流す（#488）
+
+`pnpm check:fast` が実装中の速い段、`pnpm check:full` が PR 前の全件の段です。
+Node から直接 `node scripts/local-check.mjs fast` / `node scripts/local-check.mjs full` でも起動できます。
+`pnpm check:full --list` のように `--list` を付けると、検査を実行せず予定と省略理由だけを出します。
+
+検査の一覧は `.github/workflows/ci.yml` の `run` から毎回導きます。全件の段は型・lint・単体・build・
+E2E・監査・リンク・scripts の自己テスト・shellcheck・変異を CI と同じ引数で実行します。
+変異は matrix の全シャードを手元では順に実行し、各シャードの `--jobs` は CI のままです。
+CI のジョブの分け方は変えません。途中で失敗しても残りを流し、最後に成功・失敗・省略理由を一覧にして、
+一つでも失敗したら非ゼロで終わります。
+
+速い段では build・E2E・供給網を確かめる install を省略し、変異は `--changed` を一度だけ実行します。
+型・lint・単体は workspace 全体を流します（依存先への影響を取りこぼさないため）。
+`origin/main` の merge-base から作業ツリーまでの差分と未追跡ファイルが文書だけなら、この三つを省略します。
+基準や差分を取れなければ三つとも流します。監査とリンクは常に対象です。
+
+両方とも #487 の版チェックを**全検査より前**に実行します（速い段は `test`、全件は `e2e`）。
+全件の段は Chromium も必要です。先に依存の install・ブラウザの導入を済ませ、変異を流す前には変更を
+コミットしてください。CI の checkout・corepack enable・通常の install・ブラウザ導入・キャッシュ・
+artifact 保存は手元では行いません。CI の結果集約は最後の一覧と終了コードで行います。
+
+追加依存を持たないため、workflow は現在のブロック形式（2 字下げのジョブ、6 字下げのステップ、
+引用しない一行の `run` または `run: |`）だけを読みます。未対応の構文・環境変数・matrix などを見つけたら
+実行前に止めます。CI に検査を足すと全件の一覧にも入り、読めない形に変えると scripts の自己テストが落ちます。
+GitHub Actions 自体を解釈するものではなく、actions の追加や CI 固有の条件の意味までは再現しません。
+
 `.github/workflows/ci.yml` は次のジョブを持ちます。
 
 | ジョブ | 中身 | 走らせる条件 |

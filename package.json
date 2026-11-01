@@ -3,6 +3,8 @@
   "private": true,
   "version": "0.0.1",
   "scripts": {
+    "check:fast": "node scripts/local-check.mjs fast",
+    "check:full": "node scripts/local-check.mjs full",
     "build": "turbo run build",
     "test": "node scripts/check-toolchain.mjs test && turbo run test",
     "test:unit": "turbo run test:unit",
