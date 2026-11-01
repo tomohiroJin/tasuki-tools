@@ -61,6 +61,10 @@ describe('手札', () => {
       expect(button.querySelector('.hand-card-name')?.textContent).toBe(name);
       expect(button.querySelector('.hand-card-meaning')?.textContent).toBe(meaning);
       expect(button.querySelector('.hand-card-caption')?.closest('[aria-hidden="true"]')).toBeNull();
+      // 見た目でも出ていること。読み上げの参照先は隠しても名前・説明に使えるので、上の読み上げの試験では隠れたことに気づけない（PR #502 のレビュー）。
+      // jsdom は table.css を読まないので、ここで拾えるのは要素の属性・style での隠し方。CSS の宣言は hand-caption-css.test.ts、実際の見え方は E2E が見る
+      expect(button.querySelector('.hand-card-name')).toBeVisible();
+      expect(button.querySelector('.hand-card-meaning')).toBeVisible();
     });
   });
 
@@ -82,6 +86,7 @@ describe('手札', () => {
     const label = container.querySelector('.hand-label');
     expect(label?.textContent).toContain(METHOD_COPY.weather.prompt);
     expect(label?.textContent).toContain('あなたの札');
+    expect(container.querySelector('.hand-label-prompt')).toBeVisible();
   });
 
   it('Given 見学中 / When 描く / Then 札の名前・意味の添え書きも出さない（E9）', () => {
