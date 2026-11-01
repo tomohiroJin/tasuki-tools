@@ -442,7 +442,7 @@ describe("isLiveDoc", () => {
     assert.equal(isLiveDoc(".claude/skills/live-check/SKILL.md"), true);
   });
 
-  test("履歴文書と vendor を弾く", () => {
+  test("履歴文書を弾く", () => {
     // Given: monorepo 統合前の表記で書かれた当時の記録
     // （spec-kit の vendor だった .claude/skills/speckit-*/ は #71 で消え、#489 で .claude/skills/ を現役の置き場にした）
     // When / Then

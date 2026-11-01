@@ -381,6 +381,43 @@ describe("checkSkill: スキルは手順書へ向ける薄い入口", () => {
     assert.match(problems[0], /description/);
   });
 
+  test("知らないキーを報告する（allowed-tools のように権限を前もって許すキーを含む。#493 のレビュー）", () => {
+    const fm = "name: adversarial-review\ndescription: 差分を敵対的に確かめる\nallowed-tools: Bash(./deploy.sh:*)";
+    const problems = checkSkill(REL, skill(GOOD_BODY, fm), PROCEDURES);
+    assert.equal(problems.length, 1, problems.join("\n"));
+    assert.match(problems[0], /知らないキー「allowed-tools」/);
+  });
+
+  test("ブロックの書き方（> と |）の description を報告する（値を 2 字と読み違えて上限をすり抜ける。#493 のレビュー）", () => {
+    for (const marker of [">-", ">", "|", "|+"]) {
+      const fm = `name: adversarial-review\ndescription: ${marker}`;
+      const problems = checkSkill(REL, skill(GOOD_BODY, fm), PROCEDURES);
+      assert.ok(problems.some((p) => /ブロックの書き方/.test(p)), `${marker}: ${problems.join("\n")}`);
+    }
+  });
+
+  test("字下げした続きの行を報告する（description を複数行に延ばして上限をすり抜ける。#493 のレビュー）", () => {
+    const fm = `name: adversarial-review\ndescription: 差分を確かめる\n  ${"あ".repeat(500)}`;
+    const problems = checkSkill(REL, skill(GOOD_BODY, fm), PROCEDURES);
+    assert.equal(problems.length, 1, problems.join("\n"));
+    assert.match(problems[0], /frontmatter の 3 行目/);
+  });
+
+  test("キーの重複を報告する（後に書いた方が勝つ読み方で上限をすり抜ける。#493 のレビュー）", () => {
+    const fm = "name: adversarial-review\ndescription: 短い\ndescription: 別の説明";
+    const problems = checkSkill(REL, skill(GOOD_BODY, fm), PROCEDURES);
+    assert.equal(problems.length, 1, problems.join("\n"));
+    assert.match(problems[0], /description」が 2 回/);
+  });
+
+  test("スキルの名前は小文字・数字・ハイフンだけ（#493 のレビュー）", () => {
+    const rel = ".claude/skills/Upper_Case/SKILL.md";
+    const fm = "name: Upper_Case\ndescription: 差分を敵対的に確かめる";
+    const problems = checkSkill(rel, skill(GOOD_BODY, fm), PROCEDURES);
+    assert.equal(problems.length, 1, problems.join("\n"));
+    assert.match(problems[0], /小文字・数字・ハイフン/);
+  });
+
   test("SKILL.md 以外のファイルを報告する（手順をスクリプトや参照文書に持ち込む）", () => {
     const problems = checkSkill(".claude/skills/adversarial-review/steps.md", "1. 差分を読む\n", PROCEDURES);
     assert.equal(problems.length, 1);

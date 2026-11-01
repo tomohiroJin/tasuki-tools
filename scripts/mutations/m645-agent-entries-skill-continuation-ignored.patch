@@ -1,0 +1,16 @@
+diff --git a/scripts/audit-agent-entries.mjs b/scripts/audit-agent-entries.mjs
+index e9009fd..54e2f71 100644
+--- a/scripts/audit-agent-entries.mjs
++++ b/scripts/audit-agent-entries.mjs
+@@ -221,10 +221,7 @@ function parseFrontmatter(text) {
+   m[1].split(/\r?\n/).forEach((line, i) => {
+     if (line.trim() === "") return;
+     const f = /^([A-Za-z0-9_-]+):(?:[ \t]+(.*?))?[ \t]*$/.exec(line);
+-    if (!f) {
+-      problems.push(`frontmatter の ${i + 1} 行目を読めません（1 行に 1 つの key: value だけを書く。続きの行・字下げは使わない）`);
+-      return;
+-    }
++    if (!f) return;
+     const [, key, raw = ""] = f;
+     if (!SKILL_FRONTMATTER_KEYS.includes(key)) {
+       problems.push(`frontmatter に知らないキー「${key}」があります（書けるのは ${SKILL_FRONTMATTER_KEYS.join("・")} だけ）`);

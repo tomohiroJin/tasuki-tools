@@ -17,7 +17,8 @@
  * 4. **スキル（{@link SKILLS_DIR}）が手順書（{@link PROCEDURES_DIR}）へ向ける薄い入口である**（#489）。
  *    手順の正本は手順書に置き、スキルは frontmatter（`name`・`description`）と、手順書へのリンクを持つ
  *    数行の本文だけにする。`SKILL.md` 以外のファイル（スクリプト・参照文書）は置かない。
- *    見方は入口（2）と同じ。リンクだけを数え、行数と文字数で薄さを測る
+ *    見方は入口（2）と同じ。リンクだけを数え、行数と文字数で薄さを測る。frontmatter は 1 行に 1 つの
+ *    `key: value` だけを読み、知らないキー・ブロックの書き方・続きの行・キーの重複を拒む（{@link SKILL_FRONTMATTER_KEYS}）
  *
  * ## 何を見ていないか — **「足りる」とは言わない**
  *
@@ -198,16 +199,48 @@ export const PROCEDURES_DIR = "docs/guides/procedures/";
  */
 export const MAX_SKILL_DESCRIPTION_CHARS = 200;
 
-/** 先頭の `---` で囲まれた frontmatter を `key: value` の行として読む。無ければ null。 */
-function splitFrontmatter(text) {
+/** frontmatter に書いてよいキー。**ここに無いキーは落とす**（`allowed-tools` のように権限を前もって許すキーを入口に置かない）。 */
+export const SKILL_FRONTMATTER_KEYS = ["name", "description"];
+
+/** スキルの名前（ディレクトリ名）の形。小文字・数字・ハイフンだけ。 */
+const SKILL_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+/**
+ * 先頭の `---` で囲まれた frontmatter を読む。無ければ null。
+ *
+ * **1 行に 1 つの `key: value` だけを読み、それ以外の形は問題として返す。** YAML を半端に読むと、
+ * ブロックの書き方（`description: >-` の後に字下げした行）を値「>-」の 2 字と読み、上限の外に
+ * 手順を詰め込めた（#493 のレビュー）。続きの行・ブロックの書き方・キーの重複・知らないキーは、
+ * どれも読み方を広げずに拒む。
+ */
+function parseFrontmatter(text) {
   const m = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/.exec(text);
   if (!m) return null;
   const fields = new Map();
-  for (const line of m[1].split(/\r?\n/)) {
-    const f = /^([A-Za-z_-]+):\s*(.*?)\s*$/.exec(line);
-    if (f) fields.set(f[1], f[2].replace(/^(["'])(.*)\1$/, "$2"));
-  }
-  return { fields, body: text.slice(m[0].length) };
+  const problems = [];
+  m[1].split(/\r?\n/).forEach((line, i) => {
+    if (line.trim() === "") return;
+    const f = /^([A-Za-z0-9_-]+):(?:[ \t]+(.*?))?[ \t]*$/.exec(line);
+    if (!f) {
+      problems.push(`frontmatter の ${i + 1} 行目を読めません（1 行に 1 つの key: value だけを書く。続きの行・字下げは使わない）`);
+      return;
+    }
+    const [, key, raw = ""] = f;
+    if (!SKILL_FRONTMATTER_KEYS.includes(key)) {
+      problems.push(`frontmatter に知らないキー「${key}」があります（書けるのは ${SKILL_FRONTMATTER_KEYS.join("・")} だけ）`);
+      return;
+    }
+    if (fields.has(key)) {
+      problems.push(`frontmatter のキー「${key}」が 2 回以上あります`);
+      return;
+    }
+    if (/^[>|]/.test(raw)) {
+      problems.push(`frontmatter の「${key}」にブロックの書き方（> か |）は使えません（1 行で書く）`);
+      return;
+    }
+    fields.set(key, raw.replace(/^(["'])(.*)\1$/, "$2"));
+  });
+  return { fields, problems, body: text.slice(m[0].length) };
 }
 
 /**
@@ -223,15 +256,22 @@ export function checkSkill(rel, text, procedures) {
     return [`${rel}: スキルの置き場に SKILL.md 以外のファイルがあります    ← 手順は ${PROCEDURES_DIR} に書き、スキルは <名前>/SKILL.md だけにしてください`];
   }
   const problems = [];
-  const parsed = splitFrontmatter(text);
+  if (!SKILL_NAME.test(m[1])) {
+    problems.push(`${rel}: スキルの名前「${m[1]}」は小文字・数字・ハイフンだけで書いてください`);
+  }
+  const parsed = parseFrontmatter(text);
   if (!parsed) {
     problems.push(`${rel}: frontmatter（name・description）がありません`);
   } else {
+    problems.push(...parsed.problems.map((p) => `${rel}: ${p}`));
     const name = parsed.fields.get("name");
     if (name !== m[1]) problems.push(`${rel}: name「${name ?? ""}」がディレクトリ名「${m[1]}」と違います`);
     const description = parsed.fields.get("description");
-    if (!description) problems.push(`${rel}: description がありません`);
-    else if ([...description].length > MAX_SKILL_DESCRIPTION_CHARS) {
+    // ブロックの書き方で読めなかったときは、その問題だけを出す（「無い」と重ねて言わない）。
+    const unreadable = parsed.problems.some((p) => p.includes("「description」"));
+    if (!description) {
+      if (!unreadable) problems.push(`${rel}: description がありません`);
+    } else if ([...description].length > MAX_SKILL_DESCRIPTION_CHARS) {
       problems.push(
         `${rel}: description が ${[...description].length} 文字あります（上限 ${MAX_SKILL_DESCRIPTION_CHARS} 文字）    ← 手順は ${PROCEDURES_DIR} に書いてください`,
       );

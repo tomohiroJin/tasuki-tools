@@ -38,12 +38,14 @@ CI の読み方は [`docs/guides/development.md`](../development.md) の「CI」
 ツールが「スキル」（呼び出すと手順が読み込まれる仕組み）を持つときは、**スキルは手順書へ向ける薄い入口にします。**
 規則の正本を `AGENTS.md` に置き、`CLAUDE.md` ほかを薄い入口にしたのと同じ考え方です（`docs/adr/0030` 決定 3）。
 
-- スキルの置き場は `.claude/skills/<名前>/SKILL.md`（Claude Code）。中身は frontmatter の `name`（ディレクトリ名と同じ）と
-  `description`（いつ使うかの一文）と、**手順書へのリンクを持つ数行の本文だけ**にする
+- スキルの置き場は `.claude/skills/<名前>/SKILL.md`（Claude Code）。名前は小文字・数字・ハイフンだけ。中身は frontmatter の
+  `name`（ディレクトリ名と同じ）と `description`（いつ使うかの一文）と、**手順書へのリンクを持つ数行の本文だけ**にする。
+  frontmatter は 1 行に 1 つの `key: value` で書き、ほかのキー（`allowed-tools` など、権限を前もって許すものを含む）・
+  ブロックの書き方（`>`・`|`）・続きの行は使わない
 - スキルに手順を書かない。`SKILL.md` 以外のファイル（スクリプト・参照文書）も置かない。手順を直すときは手順書を直す
 - スキルを持たないツールは、`AGENTS.md` の文書地図からここへ辿る。**スキルが無くても手順書だけで作業できる**ように書く
 - `scripts/audit-agent-entries.mjs`（CI の `docs` ジョブ）が、スキルが手順書（この置き場の追跡下のファイル）へ向いていること・
-  薄いこと（本文の空でない行の数と文字数・description の文字数）・`SKILL.md` 以外のファイルが無いことを見る。
+  薄いこと（本文の空でない行の数と文字数・description の文字数）・frontmatter が上の形であること・`SKILL.md` 以外のファイルが無いことを見る。
   **上限の中に手順を書けば通る**。検査は歯止めであって証明ではない（`docs/adr/0030` 決定 3 と同じ残余）
 
 ## 外部のスキル運用との分担
@@ -65,6 +67,7 @@ CI の読み方は [`docs/guides/development.md`](../development.md) の「CI」
 
 1. 2 回以上繰り返した手順だけを書く（1 回きりの作業は ISSUE や PR に残せば足りる。憲法 原則 X）
 2. ここに `<内容>.md` を置き、上の一覧に足す。冒頭に「いつ使うか」と拠り所を書く
-3. スキルも置くなら `.claude/skills/<名前>/SKILL.md` を足す（上の「スキルとの関係」）。置かなくてもよい
+3. スキルも置くなら `.claude/skills/<名前>/SKILL.md` を足し、**`git add -f` で追跡する**（上の「スキルとの関係」）。置かなくてもよい。
+   `.claude/` は手元の設定と個人のスキルを追跡外に保つため丸ごと無視しているので、`-f` を付けないと追跡に入らない（`.gitignore` のコメント）
 4. `node scripts/audit-agent-entries.mjs` と `node scripts/check-links.mjs` を流す（新しいファイルは `git add` してから。
    どちらも存在の判定は追跡下だけで行う）

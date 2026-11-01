@@ -1,8 +1,8 @@
 diff --git a/scripts/audit-agent-entries.mjs b/scripts/audit-agent-entries.mjs
-index 5622539..08b592e 100644
+index e9009fd..f65aad4 100644
 --- a/scripts/audit-agent-entries.mjs
 +++ b/scripts/audit-agent-entries.mjs
-@@ -239,7 +239,7 @@ export function checkSkill(rel, text, procedures) {
+@@ -279,7 +279,7 @@ export function checkSkill(rel, text, procedures) {
    }
    const body = parsed ? parsed.body : text;
    const known = new Set(procedures);
