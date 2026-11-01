@@ -8,8 +8,7 @@
  *
  * 正常終了・テスト失敗・SIGINT・SIGTERM では必ず解放する。
  * **SIGKILL では保証できない**（プロセスがハンドラを実行できないため）。
- * そのため preflight が残骸を必ず検出して落とすようにしてある。
- * 「次回起動時に気づける」ことで、この穴を埋めている。
+ * 次の実行は別 UUID を使うため、残骸を検出・一括削除しない。手動復旧は README を参照。
  */
 import type { ChildProcess } from 'node:child_process';
 import { buildWebApps } from './build';
@@ -17,7 +16,6 @@ import { ensureCaddyBinary, installCaddyConfig, removeCaddyConfig, startCaddy, s
 import { runPreflight } from './preflight';
 import { assertToolchain } from './toolchain';
 import { startSyncServers, stopSyncServers } from './sync';
-import { linkWebRoots, unlinkWebRoots } from './www';
 import { resolveTarget } from './target';
 
 export default async function globalSetup(): Promise<() => Promise<void>> {
@@ -53,14 +51,13 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
    *
    * シグナル経路では、プロセスの停止を待つ前にこれを済ませる。待ってから
    * 片付けようとすると、起動途中（Caddy が spawn 済みで listen 前）に信号が来たとき
-   * waitForPort が最大 15 秒粘り、その間に外側の pnpm / turbo が Node ごと
+   * 起動完了待ちが最大 15 秒粘り、その間に外側の pnpm / turbo が Node ごと
    * 落として後始末に到達しないことがありうる。
    */
   const cleanupFiles = (): void => {
     if (filesCleaned) return;
     filesCleaned = true;
     removeCaddyConfig();
-    unlinkWebRoots();
   };
 
   const teardown = async (): Promise<void> => {
@@ -76,7 +73,7 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
     cleanupFiles();
   };
 
-  // Ctrl-C / kill でも解放する。SIGKILL は捕捉できないため preflight に委ねる。
+  // Ctrl-C / kill でも解放する。SIGKILL のプロセス・ロック残骸は README の手動復旧に従う。
   // **ファイルの後始末を先に、同期で済ませる。** プロセス自体はグループへの
   // シグナルで落ちるので、そちらは best-effort でよい。
   const onSignal = (exitCode: number): void => {
@@ -87,7 +84,6 @@ export default async function globalSetup(): Promise<() => Promise<void>> {
   process.once('SIGTERM', () => onSignal(143));
 
   startup = (async () => {
-    linkWebRoots();
     installCaddyConfig();
     syncProcs = await startSyncServers();
     caddyProc = await startCaddy(binary);

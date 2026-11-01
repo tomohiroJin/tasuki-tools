@@ -832,15 +832,16 @@ find node_modules -type f | wc -l       # 桁違いに減っていれば実体�
 ```bash
 pnpm build            # web アプリのビルドが必要（^build として依存）
 pnpm e2e              # ローカル環境に立てて全シナリオを実行
-pnpm e2e --grep @smoke   # @smoke タグのシナリオだけ実行
+pnpm e2e -- --grep @smoke   # @smoke タグのシナリオだけ実行
 ```
 
-**`pnpm dev` と同時には実行できません。** Caddy（`18080`）と同期サーバー（`8787`）を
-実際に起動するため、`pnpm dev` と同じポートを共有します。
-`pnpm dev` を止めてから `pnpm e2e` を実行してください。
+E2E は実行ごとに空きポート・設定・ログの置き場を分けるため、`pnpm dev` や
+別の E2E と同時実行できます。同じ checkout で並行する場合は、実行中にソースや
+`apps/*/dist` を変更・再ビルドしないでください。先に `pnpm build` を単独で済ませ、
+キャッシュが有効な状態で開始します。編集を伴う並行開発は別 checkout を使います。
 
-異常終了（SIGKILL など）で残骸が残った場合は、次回起動時の `preflight` が検出して
-落とすので、その指示に従って手動で撤去します（`sudo rm -rf /etc/caddy/tasuki` 等）。
+SIGKILL ではプロセスが残る場合があります。次回の実行は別 UUID を使うため残骸を
+自動検出・削除しません。共有の `/etc/caddy` や `/var/www` は使いません。
 
 シナリオ・タグの一覧、本番向け実行（`pnpm e2e:prod`）、終了後の確認コマンド、
 異常終了時の詳しい復旧手順は [`e2e/README.md`](../../e2e/README.md) を参照してください

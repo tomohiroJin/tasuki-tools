@@ -1,0 +1,11 @@
+--- a/e2e/harness/caddy.ts
++++ b/e2e/harness/caddy.ts
+@@ -109,7 +109,7 @@
+       toLocalFragment(readFileSync(source, 'utf8'), PORTS.sync, WEB_ROOTS));
+   }
+   const localSiteConf = toLocalSiteConfig(readFileSync(SITE_CONF_SOURCE, 'utf8'), LOCAL_BASE_URL)
+-    .replaceAll('/etc/caddy/tasuki/apps/*.conf', caddyfileToken(path.join(appsDir, '*.conf')));
++    .replaceAll('/etc/caddy/tasuki/apps/*.conf', path.join(appsDir, '*.conf'));
+   writeFileSync(path.join(configDir, 'site.conf'), localSiteConf);
+   const installed = readdirSync(appsDir).filter(name => name.endsWith('.conf'));
+   if (installed.length !== FRAGMENT_SOURCES.length) {

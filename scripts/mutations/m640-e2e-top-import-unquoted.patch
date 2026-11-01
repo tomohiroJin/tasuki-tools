@@ -1,0 +1,11 @@
+--- a/e2e/harness/caddy.ts
++++ b/e2e/harness/caddy.ts
+@@ -92,7 +92,7 @@
+ export function writeTopCaddyfile(resultsDir = TEST_RESULTS_DIR): string {
+   mkdirSync(resultsDir, { recursive: true });
+   const filePath = path.join(resultsDir, 'Caddyfile');
+-  writeFileSync(filePath, `{\n admin off\n auto_https off\n persist_config off\n}\nimport ${caddyfileToken(path.join(resultsDir, 'config/site.conf'))}\n`, 'utf8');
++  writeFileSync(filePath, `{\n admin off\n auto_https off\n persist_config off\n}\nimport ${path.join(resultsDir, 'config/site.conf')}\n`, 'utf8');
+   return filePath;
+ }
+ 
