@@ -1,6 +1,6 @@
 # ADR-0031: 開発環境の版は 1 か所で宣言し、合わないときは検査の前に止める
 
-- **ステータス**: Proposed（2026-10-31。採択は人が判断する。`docs/adr/0030` 決定 1）
+- **ステータス**: Accepted（2026-11-01。利用者が PR tomohiroJin/tasuki-tools#492 で採択。`docs/adr/0030` 決定 1 のとおり人が判断した）
 - **関連**: [#487](https://github.com/tomohiroJin/tasuki-tools/issues/487)（親 [#483](https://github.com/tomohiroJin/tasuki-tools/issues/483)） /
   [ADR-0030](./0030-ai-driven-development-operations.md)（決定 2「どこで開発しても同じ検査が同じ条件で流れる」・影響 2） /
   [ADR-0008](./0008-dependency-supply-chain.md)（依存の固定） /
