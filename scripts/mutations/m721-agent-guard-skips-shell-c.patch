@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index 4e87672..ca591fe 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -307,7 +307,7 @@ function analyzeWords(words, depth) {
+       }
+       if (words[k] === "--") k += 1;
+       if (k >= words.length) return [];
+-      if (inline) return analyzeString(words[k], depth + 1);
++      if (inline) return [];
+       return matchHead(words, k).filter((g) => g.script);
+     }
+     if (name === "ssh") {

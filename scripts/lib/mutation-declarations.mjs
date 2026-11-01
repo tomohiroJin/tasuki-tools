@@ -28,6 +28,9 @@ const RESERVED_220_229 =
 const RESERVED_700_719 =
   "**対応表より後に足した変異。** 700〜719 は #487（PR #492）に割り当てた予約の範囲。2026-11-01 に並行の PR（#493 は 634〜636 のち 640〜650、#494 は 634〜639）と 2 度重なったため、離れた範囲を取った。";
 
+const RESERVED_720_729 =
+  "**対応表より後に足した変異。** 720〜729 は #490 に割り当てた予約の範囲（#487 の 700〜719 の次）。";
+
 const RESERVED_250_259 =
   "**対応表より後に足した変異。** 250〜259 は 2026-10-15 の並列修正で #376 に追加で割り当てた予約の範囲（220〜229 が埋まったため）。";
 
@@ -4523,5 +4526,71 @@ export const MUTATIONS = [
       RESERVED_700_719 +
       " " +
       "#492 の再レビュー。ルートの検査はルートの下を見て通るのに、ハーネスと Playwright は e2e/ の下を見て止まる。",
+  },
+  {
+    id: 720,
+    label: "agent-guard が sudo を包むコマンドとして読まない",
+    patch: "m720-agent-guard-ignores-sudo.patch",
+    pkg: "scripts",
+    tests: ["lib/agent-guard.test.mjs"],
+    note:
+      RESERVED_720_729 +
+      " " +
+      "#490。`sudo systemctl restart …` が人に聞かれずに走る（本番で最も踏みやすい形）。",
+  },
+  {
+    id: 721,
+    label: "agent-guard が bash -c の文字列を読み直さない",
+    patch: "m721-agent-guard-skips-shell-c.patch",
+    pkg: "scripts",
+    tests: ["lib/agent-guard.test.mjs"],
+    note:
+      RESERVED_720_729 +
+      " " +
+      "#490。`bash -c 'systemctl restart …'` で包むと素通りする。",
+  },
+  {
+    id: 722,
+    label: "agent-guard のフックが読めない入力を通す（ask に倒さない）",
+    patch: "m722-agent-guard-unreadable-input-passes.patch",
+    pkg: "scripts",
+    tests: ["lib/agent-guard.test.mjs"],
+    note:
+      RESERVED_720_729 +
+      " " +
+      "#490。ツールの入力の形が変わったとき、黙って全部のコマンドを通す。",
+  },
+  {
+    id: 723,
+    label: "audit-agent-guard が deploy/ の宣言の無いスクリプトを見ない",
+    patch: "m723-audit-agent-guard-ignores-undeclared-deploy-script.patch",
+    pkg: "scripts",
+    tests: ["audit-agent-guard.test.mjs"],
+    note:
+      RESERVED_720_729 +
+      " " +
+      "#490。デプロイの入口を足したのに止める一覧へ足し忘れても CI が緑のまま。",
+  },
+  {
+    id: 724,
+    label: ".claude/settings.json のフックの matcher を Bash から Edit にする",
+    patch: "m724-claude-settings-hook-matches-edit.patch",
+    pkg: "scripts",
+    tests: ["audit-agent-guard.test.mjs"],
+    note:
+      RESERVED_720_729 +
+      " " +
+      "#490。設定の配線が外れ、Claude Code が Bash のコマンドで判定を呼ばなくなる。",
+  },
+  {
+    id: 725,
+    label: "agent-guard が caddy のどの下位コマンドでも当てる",
+    patch: "m725-agent-guard-caddy-any-subcommand.patch",
+    pkg: "scripts",
+    tests: ["lib/agent-guard.test.mjs"],
+    note:
+      RESERVED_720_729 +
+      " " +
+      "#490。caddy version・validate まで人に聞くようになり、E2E や版の確認の作業を妨げる（#490 の EARS 2）。",
   },
 ];

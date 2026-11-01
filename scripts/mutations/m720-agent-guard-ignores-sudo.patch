@@ -1,0 +1,12 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index 4e87672..af3ecbd 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -56,7 +56,6 @@ const KEYWORDS = new Set(["if", "then", "else", "elif", "fi", "do", "done", "whi
+ 
+ /** 引数を 1 つ取る選択肢（`-u root` のように次の語を値にとるもの）を、包むコマンドごとに並べる。 */
+ const WRAPPERS = {
+-  sudo: { argOpts: ["-u", "-g", "-h", "-p", "-C", "-D", "-r", "-t", "-U", "-T", "--user", "--group", "--host", "--prompt", "--chdir"] },
+   doas: { argOpts: ["-u", "-C"] },
+   env: { argOpts: ["-u", "-C", "--unset", "--chdir"], splitOpts: ["-S", "--split-string"] },
+   nohup: { argOpts: [] },

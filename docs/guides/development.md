@@ -867,6 +867,7 @@ node scripts/audit-supply-chain-config.mjs       # pnpm 供給網設定の退化
 node scripts/audit-plan-gate.mjs                 # 実装計画の Constitution Check ゲート（境界日以降の plan が全原則の判定表と逸脱の結論を持つか。憲法 Governance / ADR-0003）
 node scripts/audit-toolchain.mjs                 # 開発環境の版の宣言（toolchain.json ほか）と、それを読む CI・ハーネス・package.json のずれ（ADR-0031 決定 3）
 node scripts/audit-agent-entries.mjs             # AI ツールの入口（CLAUDE.md ほか）が AGENTS.md へ向いて薄いか・AGENTS.md の原則の見出しが憲法と一致するか（ADR-0030 決定 3 / ADR-0002 決定 5）・スキル（.claude/skills/）が手順書へ向く薄い入口か（#489）
+node scripts/audit-agent-guard.mjs               # AI ツールの設定（.claude/settings.json）が本番デプロイのコマンドを止めるフックへ配線されているか・止める一覧と deploy/ の実体（ADR-0032）
 node scripts/mutation-check.mjs                  # 変異検査
 node scripts/check-links.mjs                     # リンク検査
 
