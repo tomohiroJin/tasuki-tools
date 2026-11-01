@@ -1,0 +1,11 @@
+--- a/scripts/local-check.mjs
++++ b/scripts/local-check.mjs
+@@ -141,7 +141,7 @@
+     const base = git(["merge-base", "origin/main", "HEAD"]).trim();
+     // 改名先だけが .md でも、削除されたコードの側を数える。
+     const files = git(["diff", "--name-only", "--no-renames", "-z", base]) + git(["ls-files", "--others", "--exclude-standard", "-z"]);
+-    return decideScope(files.split("\0").filter(Boolean)).code;
++    return false;
+   } catch { console.log("[local-check] 差分を判定できないため、型・lint・単体をすべて流します"); return true; }
+ }
+ 
