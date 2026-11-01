@@ -4261,4 +4261,15 @@ export const MUTATIONS = [
       " " +
       "#492 の Codex レビュー 1。ルートの版の比較は通るのに、turbo の中のハーネスと Playwright が別の置き場を見て止まる。",
   },
+  {
+    id: 711,
+    label: "check-toolchain が相対パスの置き場を、e2e/ ではなく起動した場所の INIT_CWD から解く",
+    patch: "m711-check-toolchain-relative-from-root.patch",
+    pkg: "scripts",
+    tests: ["check-toolchain.test.mjs"],
+    note:
+      RESERVED_700_719 +
+      " " +
+      "#492 の再レビュー。ルートの検査はルートの下を見て通るのに、ハーネスと Playwright は e2e/ の下を見て止まる。",
+  },
 ];
