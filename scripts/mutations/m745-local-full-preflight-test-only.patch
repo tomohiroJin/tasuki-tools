@@ -1,0 +1,11 @@
+--- a/scripts/local-check.mjs
++++ b/scripts/local-check.mjs
+@@ -149,7 +149,7 @@
+     }
+     let ready = false;
+     const results = runChecks(plan, {
+-      preflight: () => { ready = execute({ command: `node scripts/check-toolchain.mjs ${mode === "full" ? "e2e" : "test"}` }); return ready; },
++      preflight: () => { ready = execute({ command: `node scripts/check-toolchain.mjs ${mode === "full" ? "test" : "test"}` }); return ready; },
+       execute,
+     });
+     console.log("\n[local-check] 実行結果（CI の run から導出）");

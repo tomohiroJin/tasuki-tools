@@ -1,0 +1,11 @@
+--- a/scripts/local-check.mjs
++++ b/scripts/local-check.mjs
+@@ -154,7 +154,7 @@
+     const checks = deriveChecks(fs.readFileSync(path.join(ROOT, ".github/workflows/ci.yml"), "utf8"));
+     const plan = planChecks(checks, mode, mode === "full" || hasCodeChanges());
+     if (args.includes("--list")) {
+-      for (const c of plan) console.log(`[${c.reason ? "省略" : "予定"}] ${c.job}: ${c.command.replaceAll("\n", " / ")}${c.env ? ` ${JSON.stringify(c.env)}` : ""}${c.reason ? ` — ${c.reason}` : ""}`);
++      for (const c of plan) console.log(`[${c.reason ? "省略" : "予定"}] ${c.job}: ${c.command}${c.env ? ` ${JSON.stringify(c.env)}` : ""}${c.reason ? ` — ${c.reason}` : ""}`);
+       return;
+     }
+     let ready = false;

@@ -1,0 +1,11 @@
+--- a/scripts/local-check.mjs
++++ b/scripts/local-check.mjs
+@@ -93,7 +93,7 @@
+ export function planChecks(checks, mode, code) {
+   let mutationSeen = false;
+   return checks.map((check) => {
+-    if (mode === "full" || check.reason) return { ...check };
++    if (check.reason) return { ...check };
+     if (check.job === "mutation") {
+       if (mutationSeen) return { ...check, reason: "速い段では --changed を一度だけ流す" };
+       mutationSeen = true;

@@ -1,0 +1,11 @@
+--- a/scripts/local-check.mjs
++++ b/scripts/local-check.mjs
+@@ -76,7 +76,7 @@
+       const entries = [...step.text.matchAll(/^ {10}([\w-]+): (.+)$/gm)].map((m) => [m[1], m[2]]);
+       if (JSON.stringify(Object.fromEntries(entries)) !== JSON.stringify(expected)) throw new Error("mutation の env を再現できません");
+       if (command.includes("${{")) throw new Error("run 内の GitHub 式は env 経由にしてください");
+-      for (let i = 0; i < total; i++) checks.push({ job: step.job, command, env: { SHARD_INDEX: String(i), SHARD_TOTAL: String(total) } });
++      for (let i = 0; i < total - 1; i++) checks.push({ job: step.job, command, env: { SHARD_INDEX: String(i), SHARD_TOTAL: String(total) } });
+     } else {
+       if (/^\s*env:|^\s*working-directory:|\$\{\{|^\s*matrix:/m.test(step.text) || /^\s*matrix:/m.test(matrix)) {
+         throw new Error(`行 ${step.line}: CI 固有の env・作業場所・式・matrix を再現できません`);
