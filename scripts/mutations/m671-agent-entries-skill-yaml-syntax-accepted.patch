@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-agent-entries.mjs b/scripts/audit-agent-entries.mjs
+index 29d3c51..70e7d19 100644
+--- a/scripts/audit-agent-entries.mjs
++++ b/scripts/audit-agent-entries.mjs
+@@ -240,7 +240,7 @@ function parseFrontmatter(text) {
+     }
+     // フロー（[ と {）・アンカー（& と *）・タグ（!）で始まる値は、ツールが文字列として読まない。
+     // 上限は越えられないが、description を読めないスキルが通る（#493 の再レビュー）。
+-    if (/^[[{&*!]/.test(raw)) {
++    if (false) {
+       problems.push(`frontmatter の「${key}」に YAML の書き方（[ { & * !）は使えません（ただの文字列で書く）`);
+       return;
+     }

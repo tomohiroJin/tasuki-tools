@@ -4137,9 +4137,9 @@ export const MUTATIONS = [
     note:
       "#485 のレビュー。描画も読み込みもされない例文の中の [x](AGENTS.md) で、正本へ向いていない入口が通る。",
   },
-  // 660〜670 は #489（PR #493）の audit-agent-entries のスキルの判定。#493 の最初の版では 634〜636、次の版では 640〜650 に
-  // 置いたが、並行していた #492（PR #492）とどちらの範囲でもぶつかったので、merge の前に 660 からへ付け直した
-  // （どちらの番号も main には入っていない。#492 は 634〜650 を使う）。
+  // 660〜672 は #489（PR #493）の audit-agent-entries のスキルの判定。#493 の最初の版では 634〜636、次の版では 640〜650 に
+  // 置いたが、並行していた PR とどちらの範囲でもぶつかったので、merge の前に 660 からへ付け直した（どちらの番号も main には
+  // 入っていない）。**並行する PR の範囲はここに書かない**（相手が動くたびに古くなる）。merge の前に宣言どうしを突き合わせる。
   {
     id: 660,
     label: "audit-agent-entries がスキルのリンクの行き先を見ない（手順書の置き場の外・追跡下に無いファイルへのリンクで通る）",
@@ -4230,5 +4230,21 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["audit-agent-entries.test.mjs"],
     note: "#493 のレビュー。Upper_Case のような、ツールによっては呼び出せない名前のスキルが通る。",
+  },
+  {
+    id: 671,
+    label: "audit-agent-entries がスキルの frontmatter の YAML の書き方（フロー・アンカー・タグ）で始まる値を通す",
+    patch: "m671-agent-entries-skill-yaml-syntax-accepted.patch",
+    pkg: "scripts",
+    tests: ["audit-agent-entries.test.mjs"],
+    note: "#493 の再レビュー。description: [Bash, Read] のように、ツールが文字列として読めない description のスキルが通る。",
+  },
+  {
+    id: 672,
+    label: "audit-agent-entries がスキルの frontmatter の閉じていない引用符を通す",
+    patch: "m672-agent-entries-skill-unclosed-quote-accepted.patch",
+    pkg: "scripts",
+    tests: ["audit-agent-entries.test.mjs"],
+    note: "#493 の再レビュー。ツールによっては frontmatter ごと読めないスキルが通る。",
   },
 ];

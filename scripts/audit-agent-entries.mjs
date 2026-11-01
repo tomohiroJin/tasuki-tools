@@ -238,6 +238,16 @@ function parseFrontmatter(text) {
       problems.push(`frontmatter の「${key}」にブロックの書き方（> か |）は使えません（1 行で書く）`);
       return;
     }
+    // フロー（[ と {）・アンカー（& と *）・タグ（!）で始まる値は、ツールが文字列として読まない。
+    // 上限は越えられないが、description を読めないスキルが通る（#493 の再レビュー）。
+    if (/^[[{&*!]/.test(raw)) {
+      problems.push(`frontmatter の「${key}」に YAML の書き方（[ { & * !）は使えません（ただの文字列で書く）`);
+      return;
+    }
+    if (/^["']/.test(raw) && (raw.length < 2 || raw.at(-1) !== raw[0])) {
+      problems.push(`frontmatter の「${key}」の引用符が閉じていません`);
+      return;
+    }
     fields.set(key, raw.replace(/^(["'])(.*)\1$/, "$2"));
   });
   return { fields, problems, body: text.slice(m[0].length) };

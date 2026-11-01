@@ -403,6 +403,29 @@ describe("checkSkill: スキルは手順書へ向ける薄い入口", () => {
     assert.match(problems[0], /frontmatter の 3 行目/);
   });
 
+  test("YAML の書き方（フロー・アンカー・タグ）で書いた値を報告する（ツールが description として読めない。#493 の再レビュー）", () => {
+    for (const value of ["[Bash, Read]", "{a: b}", "&anchor 説明", "*anchor", "!!str 説明"]) {
+      const fm = `name: adversarial-review\ndescription: ${value}`;
+      const problems = checkSkill(REL, skill(GOOD_BODY, fm), PROCEDURES);
+      assert.ok(problems.some((p) => /YAML の書き方/.test(p)), `${value}: ${problems.join("\n")}`);
+    }
+  });
+
+  test("閉じていない引用符の値を報告する（#493 の再レビュー）", () => {
+    for (const value of ['"説明', "'説明", '"', '"説明\'']) {
+      const fm = `name: adversarial-review\ndescription: ${value}`;
+      const problems = checkSkill(REL, skill(GOOD_BODY, fm), PROCEDURES);
+      assert.ok(problems.some((p) => /引用符が閉じていません/.test(p)), `${value}: ${problems.join("\n")}`);
+    }
+  });
+
+  test("引用符で閉じた値と、文中に記号を含む値は通る", () => {
+    for (const value of ['"差分を確かめる"', "'差分を確かめる'", "差分を [確かめる] とき", "A & B を確かめる"]) {
+      const fm = `name: adversarial-review\ndescription: ${value}`;
+      assert.deepEqual(checkSkill(REL, skill(GOOD_BODY, fm), PROCEDURES), [], value);
+    }
+  });
+
   test("キーの重複を報告する（後に書いた方が勝つ読み方で上限をすり抜ける。#493 のレビュー）", () => {
     const fm = "name: adversarial-review\ndescription: 短い\ndescription: 別の説明";
     const problems = checkSkill(REL, skill(GOOD_BODY, fm), PROCEDURES);
