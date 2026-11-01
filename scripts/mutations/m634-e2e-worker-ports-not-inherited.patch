@@ -1,0 +1,10 @@
+--- a/e2e/harness/paths.ts
++++ b/e2e/harness/paths.ts
+@@ -120,6 +120,5 @@
+ };
+ if (PORTS.caddy === PORTS.sync) throw new Error('E2E ports must be distinct');
+ if (local) {
+-  process.env['TASUKI_E2E_CADDY_PORT'] = String(PORTS.caddy);
+-  process.env['TASUKI_E2E_SYNC_PORT'] = String(PORTS.sync);
++
+ }

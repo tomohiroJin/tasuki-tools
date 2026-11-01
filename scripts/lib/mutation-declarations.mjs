@@ -4137,4 +4137,104 @@ export const MUTATIONS = [
     note:
       "#485 のレビュー。描画も読み込みもされない例文の中の [x](AGENTS.md) で、正本へ向いていない入口が通る。",
   },
+  {
+    "id": 634,
+    "label": "worker へ決定済みポートを渡さない",
+    "patch": "m634-e2e-worker-ports-not-inherited.patch",
+    "pkg": "e2e",
+    "tests": [
+      "tests/run-isolation.test.ts"
+    ],
+    "note": "#494・#486 のレビュー。対応表より後に追加。実行分離・所有者確認と診断表示の回帰を継続的に検出する。"
+  },
+  {
+    "id": 635,
+    "label": "使用中ポート番号をエラーから落とす",
+    "patch": "m635-e2e-busy-port-number-hidden.patch",
+    "pkg": "e2e",
+    "tests": [
+      "tests/preflight.test.ts"
+    ],
+    "note": "#494・#486 のレビュー。対応表より後に追加。実行分離・所有者確認と診断表示の回帰を継続的に検出する。"
+  },
+  {
+    "id": 636,
+    "label": "保持プロセスの診断をエラーから落とす",
+    "patch": "m636-e2e-port-holder-hidden.patch",
+    "pkg": "e2e",
+    "tests": [
+      "tests/preflight.test.ts"
+    ],
+    "note": "#494・#486 のレビュー。対応表より後に追加。実行分離・所有者確認と診断表示の回帰を継続的に検出する。"
+  },
+  {
+    "id": 637,
+    "label": "sync が子自身の bind 完了を待たない",
+    "patch": "m637-e2e-sync-accepts-other-listener.patch",
+    "pkg": "e2e",
+    "tests": [
+      "tests/startup-ownership.test.ts"
+    ],
+    "note": "#494・#486 のレビュー。対応表より後に追加。実行分離・所有者確認と診断表示の回帰を継続的に検出する。"
+  },
+  {
+    "id": 638,
+    "label": "Caddy が子自身の bind 完了を待たない",
+    "patch": "m638-e2e-caddy-accepts-other-listener.patch",
+    "pkg": "e2e",
+    "tests": [
+      "tests/startup-ownership.test.ts"
+    ],
+    "note": "#494・#486 のレビュー。対応表より後に追加。実行分離・所有者確認と診断表示の回帰を継続的に検出する。"
+  },
+  {
+    "id": 639,
+    "label": "E2E の断片コピーに本番ポートを残す",
+    "patch": "m639-e2e-fragment-keeps-production-port.patch",
+    "pkg": "e2e",
+    "tests": [
+      "tests/local-fragments.test.ts"
+    ],
+    "note": "#494・#486 のレビュー。対応表より後に追加。実行分離・所有者確認と診断表示の回帰を継続的に検出する。"
+  },
+  {
+    "id": 640,
+    "label": "トップの import パスを引用しない",
+    "patch": "m640-e2e-top-import-unquoted.patch",
+    "pkg": "e2e",
+    "tests": [
+      "tests/caddy-imports.test.ts"
+    ],
+    "note": "#494 の再レビュー。空白を含む設定パスと SO_REUSEPORT による実行混在の回帰を検出する。"
+  },
+  {
+    "id": 641,
+    "label": "site.conf の断片 import を引用しない",
+    "patch": "m641-e2e-fragment-import-unquoted.patch",
+    "pkg": "e2e",
+    "tests": [
+      "tests/caddy-imports.test.ts"
+    ],
+    "note": "#494 の再レビュー。空白を含む設定パスと SO_REUSEPORT による実行混在の回帰を検出する。"
+  },
+  {
+    "id": 642,
+    "label": "子の spawn 前のポート排他を取らない",
+    "patch": "m642-e2e-spawn-without-port-lock.patch",
+    "pkg": "e2e",
+    "tests": [
+      "tests/port-locks.test.ts"
+    ],
+    "note": "#494 の再レビュー。空白を含む設定パスと SO_REUSEPORT による実行混在の回帰を検出する。"
+  },
+  {
+    "id": 643,
+    "label": "ロック取得を原子的な排他にしない",
+    "patch": "m643-e2e-port-lock-nonexclusive.patch",
+    "pkg": "e2e",
+    "tests": [
+      "tests/port-locks.test.ts"
+    ],
+    "note": "#494 の再レビュー。空白を含む設定パスと SO_REUSEPORT による実行混在の回帰を検出する。"
+  },
 ];
