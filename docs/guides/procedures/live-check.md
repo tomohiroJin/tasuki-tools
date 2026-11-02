@@ -59,7 +59,10 @@ pnpm --filter @tasuki/roulette-web dev > /tmp/tasuki-roulette.log 2>&1 &
 作業ツリーの中に置く必要がある一時 spec・比較のページは、`<名前>.tmp.spec.ts`・`<名前>.tmp.html` のように、
 名前で一時ファイルだと分かるようにします。`git add` は残すファイルを **1 ファイルずつ指定**し、
 ディレクトリ単位では足しません。コミット前に `git diff --cached --name-only` と `git diff --cached` で、
-一時ファイルが混ざっていないか確かめます。終わったら一時ファイルは作業ツリーの外へ移します（手順 6）。
+一時ファイルが混ざっていないか確かめます。これらの名前は `.gitignore` では無視されません。
+置いている間は、未追跡ファイルを含む変更を拒む変異検査（`pnpm check:fast` の変異の段も含む）が起動しません。
+**変異検査の前に**一時ファイルを作業ツリーの外へ移し、`git status --porcelain` が空か確かめます。
+検査後に戻して使った場合も、終わったら作業ツリーの外へ移します（手順 6）。
 
 Playwright は `e2e` パッケージの依存（`@playwright/test`）を使います。ブラウザが無い・版が合わないときは、
 `pnpm --filter @tasuki/e2e exec playwright install chromium` で入れるか、入れられない環境なら「確かめられなかったこと」に書きます（#487）。
