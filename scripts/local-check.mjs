@@ -133,8 +133,11 @@ export function runChecks(plan, { preflight, execute }) {
       const { passed, output = "" } = typeof result === "object" ? result : { passed: result };
       if (passed) return { ...check, status: "passed" };
       const { kind, notStarted } = classifyFailure(output);
-      if (kind === "failed") return { ...check, status: "failed" };
       const where = notStarted.map((b) => `${b.task ?? ""}${b.task ? ": " : ""}${b.files.length} ファイル`).join("・");
+      if (kind === "failed") {
+        // 本物の失敗と一緒に起動しなかったものがあれば、それも書く（流し直す範囲が分かるように）
+        return notStarted.length === 0 ? { ...check, status: "failed" } : { ...check, status: "failed", reason: `ほかにワーカーが起動しなかったもの: ${where}` };
+      }
       return {
         ...check, status: "not-run",
         reason: `テストのワーカーが起動しなかった（${where}）。負荷が下がってから流し直してください（パッケージだけなら pnpm --filter <名前> test）`,

@@ -97,6 +97,8 @@ test("ワーカーが起動しなかっただけの赤は未実行として失�
     },
   });
   assert.deepEqual(results.map((c) => c.status), ["not-run", "failed", "failed"]);
+  assert.match(results[1].reason, /ほかにワーカーが起動しなかったもの: @tasuki\/sync-client#test: 1 ファイル/);
+  assert.equal(results[2].reason, undefined);
   assert.match(results[0].reason, /ワーカーが起動しなかった（@tasuki\/sync-client#test: 1 ファイル）/);
   assert.match(results[0].reason, /流し直して/);
 });
