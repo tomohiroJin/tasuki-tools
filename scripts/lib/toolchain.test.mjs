@@ -15,6 +15,7 @@ import {
   checkExact,
   checkChromium,
   checkFfmpeg,
+  readBrowserRevisions,
   evaluateStage,
   formatProblems,
 } from "./toolchain.mjs";
@@ -285,6 +286,48 @@ describe("checkFfmpeg: 動画の記録に要る ffmpeg の revision が入って
   test("置き場そのものが無いとき（entries が null）も止める", () => {
     const p = checkFfmpeg("1013", "/home/u/.cache/ms-playwright", null);
     assert.deepEqual([p?.tool, p?.actual], ["ffmpeg", null]);
+  });
+});
+
+describe("readBrowserRevisions: playwright-core の browsers.json から要る revision を読む（#509 のレビュー 2・3）", () => {
+  const browsers = (overrides = {}) => ({
+    browsers: [
+      { name: "chromium", revision: "1248", installByDefault: true },
+      { name: "chromium-headless-shell", revision: "1248", installByDefault: true },
+      { name: "firefox", revision: "1500", installByDefault: true },
+      { name: "ffmpeg", revision: "1013", installByDefault: true },
+      ...(overrides.extra ?? []),
+    ].map((b) => ({ ...b, ...(overrides[b.name] ?? {}) })),
+  });
+
+  test("chromium と ffmpeg の revision を名前で読む", () => {
+    assert.deepEqual(readBrowserRevisions(browsers()), { chromium: "1248", ffmpeg: "1013", problems: [] });
+  });
+
+  for (const name of ["chromium", "ffmpeg"]) {
+    test(`${name} の revision が無い・数字でないときは、${name} を名指しして止める`, () => {
+      for (const revision of [undefined, "12a", 1248]) {
+        const r = readBrowserRevisions(browsers({ [name]: { revision } }));
+        assert.equal(r[name], null, String(revision));
+        assert.ok(r.problems.some((p) => p.includes(`${name} の revision がありません`)), r.problems.join("\n"));
+      }
+    });
+
+    test(`${name} に OS ごとの revision（revisionOverrides）があれば、探す revision を決められないとして止める`, () => {
+      const r = readBrowserRevisions(browsers({ [name]: { revisionOverrides: { "mac12": "1100" } } }));
+      assert.equal(r.problems.length, 1, r.problems.join("\n"));
+      assert.match(r.problems[0], new RegExp(`browsers\\.json の ${name} に OS ごとの revision（revisionOverrides: mac12）`));
+    });
+  }
+
+  test("空の revisionOverrides は止めない", () => {
+    assert.deepEqual(readBrowserRevisions(browsers({ ffmpeg: { revisionOverrides: {} } })).problems, []);
+  });
+
+  test("形が違う（browsers が配列でない）ときは、例外を投げずに止める", () => {
+    const r = readBrowserRevisions({});
+    assert.deepEqual([r.chromium, r.ffmpeg], [null, null]);
+    assert.ok(r.problems.length > 0);
   });
 });
 

@@ -39,7 +39,7 @@ claude.ai/code のクラウドのセッションでは、外への通信がプ�
 
 | 道具 | 揃え方 | クラウドのセッションで |
 |---|---|---|
-| Bun | 公式の配布物（GitHub Releases）を `SHASUMS256.txt` と照合し、`~/.bun/bin/bun` を置き換える（下のコマンド。本番と同じ取り方） | 取れる。`bun.sh/install` は 403 |
+| Bun | 公式の配布物（GitHub Releases）を `SHASUMS256.txt` と照合し、`~/.bun/bin/bun` に置く（下のコマンド。本番と同じ取り方） | 取れる。`bun.sh/install` は 403 |
 | Caddy | 何もしない。E2E のハーネスが GitHub Releases から取り、公式の checksums と照合する | 取れる |
 | Chromium・ffmpeg | `pnpm --filter @tasuki/e2e exec playwright install chromium`（Playwright の CDN から取る） | **取れない**。Playwright の CDN が 403 |
 | shellcheck | 版を宣言していない（CI はランナーに入っているものを使う） | コンテナに無い。照合できる取得先が無い |
@@ -56,6 +56,7 @@ base="https://github.com/oven-sh/bun/releases/download/bun-v$v"
 curl -fsSL -o "$d/bun-linux-x64.zip" "$base/bun-linux-x64.zip"
 curl -fsSL -o "$d/SHASUMS256.txt" "$base/SHASUMS256.txt"
 (cd "$d" && grep " bun-linux-x64.zip\$" SHASUMS256.txt | sha256sum -c -)
+mkdir -p "$HOME/.bun/bin"
 unzip -o -j -q "$d/bun-linux-x64.zip" bun-linux-x64/bun -d "$HOME/.bun/bin"
 rm -rf "$d"
 bun --version'

@@ -269,6 +269,33 @@ export function checkChromium(revision, dir, entries) {
   };
 }
 
+const REVISION_RE = /^\d+$/;
+
+/**
+ * playwright-core の `browsers.json`（JSON を読んだ値）から、E2E に要る Chromium と ffmpeg の revision を読む。
+ * **例外を投げず**、読めないものは null にして `problems` に理由を足す（#509 のレビュー 2・3）。
+ *
+ * OS ごとの差し替え（`revisionOverrides`）があると、どの revision を探すかが OS の判定に依る。
+ * Playwright の判定は写せないので、比べずに通さず止める（いまはどちらにも無い。#492 のレビュー 2）。
+ */
+export function readBrowserRevisions(browsersJson) {
+  const list = Array.isArray(browsersJson?.browsers) ? browsersJson.browsers : [];
+  const problems = [];
+  const value = {};
+  for (const name of ["chromium", "ffmpeg"]) {
+    const entry = list.find((b) => b?.name === name);
+    value[name] = typeof entry?.revision === "string" && REVISION_RE.test(entry.revision) ? entry.revision : null;
+    if (value[name] === null) problems.push(`playwright-core の browsers.json に ${name} の revision がありません`);
+    const overrides = entry?.revisionOverrides;
+    if (overrides && typeof overrides === "object" && Object.keys(overrides).length > 0) {
+      problems.push(
+        `playwright-core の browsers.json の ${name} に OS ごとの revision（revisionOverrides: ${Object.keys(overrides).join(", ")}）があり、探す revision を決められません。scripts/lib/toolchain.mjs を直してください`,
+      );
+    }
+  }
+  return { chromium: value.chromium, ffmpeg: value.ffmpeg, problems };
+}
+
 /**
  * 動画の記録に要る ffmpeg の要求 revision が `dir` に入っているか（#509）。`entries` は `dir` の中の名前（無ければ null）。
  */
