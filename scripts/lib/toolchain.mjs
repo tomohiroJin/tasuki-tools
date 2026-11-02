@@ -195,6 +195,13 @@ export function chromiumDirNames(revision) {
   return [`chromium-${revision}`, `chromium_headless_shell-${revision}`];
 }
 
+/**
+ * 公式の取得先（bun.sh・Playwright の CDN）に届かない環境（クラウドのセッションのプロキシ）の案内（#509）。
+ * 取得先ごとに届くかを実測した表と、届かないときの扱いは案内の先に置く（ここに写すと、確かめ直すたびにずれる）。
+ */
+const UNREACHABLE_GUIDE =
+  "取得先に届かない（プロキシが 403 を返す）ときは docs/guides/development.md の「クラウドのセッションで道具を揃える」";
+
 const FIX = {
   node: (declared) =>
     `Node ${declared} 以上の ${declared.split(".")[0]} 系を入れてください（例: \`nvm install ${declared}\` / \`fnm install ${declared}\`）。` +
@@ -204,7 +211,8 @@ const FIX = {
     "別に入れた pnpm が PATH の先にあるなら外してください",
   bun: (declared) =>
     `\`curl -fsSL https://bun.sh/install | bash -s "bun-v${declared}"\` で入れ直してください。` +
-    "宣言は toolchain.json の bun（本番と同じ版。上げるときは deploy/README.md の「Bun を上げる」）",
+    "宣言は toolchain.json の bun（本番と同じ版。上げるときは deploy/README.md の「Bun を上げる」）。" +
+    UNREACHABLE_GUIDE,
   caddy: (declared, dir) =>
     `キャッシュの Caddy が宣言（${declared}）と違います。\`rm -rf ${dir ?? "~/.cache/tasuki-e2e"}\` で消すと、ハーネスが宣言の版を取り直します`,
 };
@@ -256,7 +264,8 @@ export function checkChromium(revision, dir, entries) {
       `${dir} に ${missing.join(" と ")} がありません。` +
       "`pnpm --filter @tasuki/e2e exec playwright install chromium` で入れてください" +
       "（PLAYWRIGHT_BROWSERS_PATH を指定していれば、そこへ入る。書き込めない場所なら、書ける場所を指すか、置き場の持ち主が入れる）。" +
-      "別の revision へのシンボリックリンクで回避しないでください（要求と違う版のブラウザで試すことになる）",
+      "別の revision へのシンボリックリンクで回避しないでください（要求と違う版のブラウザで試すことになる）。" +
+      UNREACHABLE_GUIDE,
   };
 }
 
@@ -277,7 +286,8 @@ export function checkFfmpeg(revision, dir, entries) {
     fix:
       `${dir} に ${name} がありません（Playwright が動画を記録するのに使う）。` +
       "`pnpm --filter @tasuki/e2e exec playwright install chromium` が Chromium と一緒に入れます。" +
-      "別の revision へのシンボリックリンクで回避しないでください（要求と違う版で試すことになる）",
+      "別の revision へのシンボリックリンクで回避しないでください（要求と違う版で試すことになる）。" +
+      UNREACHABLE_GUIDE,
   };
 }
 

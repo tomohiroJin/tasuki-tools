@@ -354,6 +354,24 @@ describe("evaluateStage: 段ごとに見る道具", () => {
   });
 });
 
+describe("揃え方: 公式の取得先に届かない環境（クラウドのセッション）の案内（#509）", () => {
+  const CLOUD_GUIDE = /docs\/guides\/development\.md の「クラウドのセッションで道具を揃える」/;
+
+  test("Bun・Chromium・ffmpeg の揃え方は、届かないときの案内の節を指す", () => {
+    const fixes = {
+      bun: checkExact("bun", "1.4.4", "1.4.3")?.fix,
+      chromium: checkChromium("1248", "/opt/pw", ["chromium-1243"])?.fix,
+      ffmpeg: checkFfmpeg("1013", "/opt/pw", ["ffmpeg-1011"])?.fix,
+    };
+    for (const [tool, fix] of Object.entries(fixes)) assert.match(fix ?? "", CLOUD_GUIDE, tool);
+  });
+
+  test("Node・pnpm の揃え方は指さない（クラウドのコンテナで足りていて、取得先を確かめていない）", () => {
+    assert.doesNotMatch(checkNode("v22.22.0", "22.22.2")?.fix ?? "", CLOUD_GUIDE);
+    assert.doesNotMatch(checkExact("pnpm", "10.0.0", "11.28.8")?.fix ?? "", CLOUD_GUIDE);
+  });
+});
+
 describe("formatProblems: 何が・どの版で・どう揃えるか", () => {
   test("道具・宣言・環境・揃え方を 1 件ずつ並べる", () => {
     const text = formatProblems([checkExact("bun", "1.4.4", "1.4.3"), checkNode("v22.22.0", "22.22.2")]);
