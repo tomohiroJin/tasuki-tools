@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/base-freshness.mjs b/scripts/lib/base-freshness.mjs
+index 23e84f76..806bce45 100644
+--- a/scripts/lib/base-freshness.mjs
++++ b/scripts/lib/base-freshness.mjs
+@@ -43,7 +43,7 @@ export function checkBaseFreshness(base, git) {
+   if (remoteSha === "") {
+     return { state: "unknown", message: `リモート ${remote} に枝 ${branch} が見つからず、基準 ${base} が古いか確かめられませんでした` };
+   }
+-  if (remoteSha === local) return { state: "fresh", message: `基準 ${base} はリモートと同じです（${short(local)}）` };
++  if (remoteSha !== "") return { state: "fresh", message: `基準 ${base} はリモートと同じです（${short(local)}）` };
+   return {
+     state: "stale",
+     message:

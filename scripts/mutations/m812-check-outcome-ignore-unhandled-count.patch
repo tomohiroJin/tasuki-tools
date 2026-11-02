@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/check-outcome.mjs b/scripts/lib/check-outcome.mjs
+index 1ae68e41..117e4891 100644
+--- a/scripts/lib/check-outcome.mjs
++++ b/scripts/lib/check-outcome.mjs
+@@ -47,7 +47,7 @@ function inspectBlock(lines) {
+     if (REAL_FAILURE.some((re) => re.test(line))) real = true;
+   }
+   // 起動の失敗より多い未処理のエラーは、テストが投げた本物のエラーとして扱う
+-  const onlyStartFailures = files.length > 0 && !real && unhandled <= files.length;
++  const onlyStartFailures = files.length > 0 && !real;
+   return { files, onlyStartFailures };
+ }
+ 

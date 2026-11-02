@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/mutation-select.mjs b/scripts/lib/mutation-select.mjs
+index 8c2ea0a9..4623d9a3 100644
+--- a/scripts/lib/mutation-select.mjs
++++ b/scripts/lib/mutation-select.mjs
+@@ -187,7 +187,7 @@ export function mechanismFilesFrom(source, selfRelPath, readSource = null) {
+  */
+ export function narrowingCandidates(mutations, resolved) {
+   if (resolved.kind !== "changed" || resolved.changedFiles === null) return null;
+-  const { selected } = selectByChange(mutations, { ...resolved, mechanismFiles: [], ignoreRootConfigs: true });
++  const { selected } = selectByChange(mutations, { ...resolved, ignoreRootConfigs: true });
+   return selected.map((s) => s.mutation);
+ }
+ 
