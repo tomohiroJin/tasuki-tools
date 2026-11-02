@@ -1016,7 +1016,8 @@ function baseFreshnessLine(base) {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
       timeout: 15_000,
-      env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
+      // ssh のリモートでも鍵のパスフレーズ・ホスト鍵の確認で /dev/tty に尋ねさせない
+      env: { ...process.env, GIT_TERMINAL_PROMPT: "0", GIT_SSH_COMMAND: process.env.GIT_SSH_COMMAND ?? "ssh -o BatchMode=yes" },
     });
   return checkBaseFreshness(base, git)?.message ?? null;
 }
@@ -1064,7 +1065,8 @@ function main() {
 
   // **流し始める前に、件数と見込みを出す**（#508）。全件に倒れたことに、途中で気づいて止めることにしないため。
   // ロックより前に置く: 見込みだけを見る `--plan` は、走っている実行の邪魔をしない
-  for (const line of forecastLines(selector, selection, resolved, jobs, baseFreshnessLine)) {
+  // 表題が全件に倒れた理由を持つ。--plan はこのあと終わるので、ここで出さないと理由が出ない（#508 の /code-review）
+  for (const line of [header, ...forecastLines(selector, selection, resolved, jobs, baseFreshnessLine)]) {
     console.log(`[mutation-check] ${line}`);
   }
   if (planOnly) {

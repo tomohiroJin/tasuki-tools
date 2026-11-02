@@ -351,6 +351,13 @@ describe("全件に倒れる前に知らせる（#508）", () => {
     assert.notEqual(selectMutations(MUTS, resolved).fallbackToAll, null);
     assert.deepEqual(narrowingCandidates(MUTS, resolved).map((m) => m.id), [1, 3]);
     assert.deepEqual(narrowingCandidates(MUTS, changed(["scripts/mutation-check.mjs"])), []);
+    // 機構のファイル自体は pkg 配下の変更に数えない（`scripts` の変異が全部候補になって絞れない・/code-review）
+    const scriptsMut = { id: 5, pkg: "scripts", patch: "m05-s.patch" };
+    const onlyDecl = { ...changed(["scripts/lib/mutation-select.mjs"]), affectedFilesOf: () => ["scripts/other.mjs"] };
+    assert.deepEqual(narrowingCandidates([scriptsMut], onlyDecl), []);
+    assert.deepEqual(narrowingCandidates([scriptsMut], { ...onlyDecl, changedFiles: ["scripts/lib/mutation-select.mjs", "scripts/x.mjs"] }).map((m) => m.id), [5]);
+    // パッチが機構を触る変異は、機構の変更で候補に残る
+    assert.deepEqual(narrowingCandidates([scriptsMut], { ...onlyDecl, affectedFilesOf: () => ["scripts/lib/mutation-select.mjs"] }).map((m) => m.id), [5]);
     assert.equal(narrowingCandidates(MUTS, changed(null)), null);
     assert.equal(narrowingCandidates(MUTS, { kind: "all" }), null);
   });

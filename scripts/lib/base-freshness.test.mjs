@@ -57,7 +57,7 @@ test("確かめられないときは、そう知らせる（古くないとは�
 });
 
 test("リモートの追跡ブランチでない基準は見ない（ネットワークに出ない）", () => {
-  for (const base of ["HEAD", "abc1234", "main", "upstream/main"]) {
+  for (const base of ["HEAD", "abc1234", "main", "upstream/main", "origin/HEAD", "origin/main~3", "origin/main^"]) {
     const { git, calls } = fakeGit();
     assert.equal(checkBaseFreshness(base, git), null, base);
     assert.ok(!calls.some((c) => c.startsWith("ls-remote")), base);

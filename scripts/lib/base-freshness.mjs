@@ -18,8 +18,8 @@ const firstLine = (text) => String(text).trim().split("\n")[0];
  *   リモートの追跡ブランチでない基準（`HEAD`・コミット・手元の枝）は見ないので null
  */
 export function checkBaseFreshness(base, git) {
-  const m = /^([^/\s]+)\/(\S+)$/.exec(base);
-  if (!m) return null;
+  const m = /^([^/\s]+)\/([\w.\/-]+)$/.exec(base);
+  if (!m || m[2] === "HEAD") return null; // origin/HEAD・origin/main~3 などはリモートの枝の名前ではない
   const [, remote, branch] = m;
   let local;
   try {

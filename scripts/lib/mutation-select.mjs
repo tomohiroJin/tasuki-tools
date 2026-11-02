@@ -129,7 +129,7 @@ export function selectMutations(mutations, resolved) {
  * 全パッケージのテストに効く共通設定）が差分にあるとき。
  * 迷ったら多く流す（`scripts/ci-scope.mjs` と同じ fail-open の向き）。
  */
-function selectByChange(mutations, { changedFiles, mechanismFiles, patchDir, affectedFilesOf, ignoreRootConfigs = false }) {
+function selectByChange(mutations, { changedFiles, mechanismFiles, patchDir, affectedFilesOf, ignoreRootConfigs = false, notPkgChanges = [] }) {
   const all = (reason) => ({
     selected: mutations.map((mutation) => ({ mutation, reasons: [reason] })),
     fallbackToAll: reason,
@@ -145,7 +145,7 @@ function selectByChange(mutations, { changedFiles, mechanismFiles, patchDir, aff
   for (const mutation of mutations) {
     const reasons = [];
     // `${pkg}/` で比べる。`apps/a` が `apps/a-x` に前方一致で当たらないように。パッチの置き場は除く
-    if (changedFiles.some((f) => f.startsWith(`${mutation.pkg}/`) && !f.startsWith(`${patchDir}/`))) reasons.push(`pkg 配下の変更（${mutation.pkg}）`);
+    if (changedFiles.some((f) => f.startsWith(`${mutation.pkg}/`) && !f.startsWith(`${patchDir}/`) && !notPkgChanges.includes(f))) reasons.push(`pkg 配下の変更（${mutation.pkg}）`);
     if (affectedFilesOf(mutation).some((f) => changed.has(f))) reasons.push("パッチが触るファイルの変更");
     if (changed.has(`${patchDir}/${mutation.patch}`)) reasons.push("パッチ自体の変更");
     if (reasons.length > 0) selected.push({ mutation, reasons });
@@ -187,7 +187,14 @@ export function mechanismFilesFrom(source, selfRelPath, readSource = null) {
  */
 export function narrowingCandidates(mutations, resolved) {
   if (resolved.kind !== "changed" || resolved.changedFiles === null) return null;
-  const { selected } = selectByChange(mutations, { ...resolved, mechanismFiles: [], ignoreRootConfigs: true });
+  // 機構のファイル（宣言の表を含む）は `scripts/` の下にあるので、pkg 配下の規則に数えると `scripts` の変異が全部選ばれる。
+  // 機構の変更は pkg 配下に数えず、パッチが触るファイル・パッチ自体の規則にだけ効かせる（#508 の /code-review）
+  const { selected } = selectByChange(mutations, {
+    ...resolved,
+    mechanismFiles: [],
+    ignoreRootConfigs: true,
+    notPkgChanges: resolved.mechanismFiles,
+  });
   return selected.map((s) => s.mutation);
 }
 

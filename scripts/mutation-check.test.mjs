@@ -389,6 +389,8 @@ describe("選び方の指定の配線（#387）", () => {
     const r = run("--changed", "--base", "HEAD", "--plan");
     assert.equal(r.status, 0, r.stderr);
     assert.match(r.stdout, /見込み: \d+ 件・約/);
+    // 表題（選び方と、全件に倒れたときの理由）も見込みより先に出る（/code-review）
+    assert.match(r.stdout, /絞り込み実行（--changed・基準 HEAD）[^\n]*\n[^\n]*見込み:/);
     assert.match(r.stdout, /--plan: 見込みだけを出しました。変異は流していません/);
     assert.doesNotMatch(r.stderr, /別の実行（PID/);
     assert.doesNotMatch(r.stdout, /--- 変異 #/);

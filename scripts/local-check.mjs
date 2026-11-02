@@ -172,8 +172,12 @@ function forecastMutations(plan) {
   const output = `${result.stdout ?? ""}${result.stderr ?? ""}`.trimEnd();
   console.log(`[local-check] 変異の見込み（${mutation.command} --plan）`);
   if (output) console.log(output);
-  if (result.error || result.status !== 0) return [`⚠ 変異の見込みを出せませんでした（exit ${result.status}）`];
-  return output.split("\n").filter((l) => l.includes("⚠"));
+  if (result.error || result.status !== 0) {
+    const cause = result.error?.message ?? (result.signal ? `signal ${result.signal}` : `exit ${result.status}`);
+    return [`⚠ 変異の見込みを出せませんでした（${cause}）`];
+  }
+  // 知らせ（⚠）と、それが指す「手元で絞るなら」の行を最後にもう一度出す
+  return output.split("\n").filter((l) => l.includes("⚠") || l.includes("手元で絞るなら"));
 }
 
 function hasCodeChanges() {

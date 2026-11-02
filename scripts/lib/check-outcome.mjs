@@ -41,7 +41,7 @@ function inspectBlock(lines) {
   let real = false;
   for (const line of lines) {
     const start = START_FAILURE.exec(line);
-    if (start) files.push(start[1]);
+    if (start && !files.includes(start[1])) files.push(start[1]);
     const count = UNHANDLED_COUNT.exec(line);
     if (count) unhandled += Number(count[1]);
     if (REAL_FAILURE.some((re) => re.test(line))) real = true;

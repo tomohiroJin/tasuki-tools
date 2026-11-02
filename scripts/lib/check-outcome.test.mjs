@@ -57,6 +57,11 @@ test("起動の失敗より多い未処理のエラーは、本物のエラー�
   assert.equal(classifyFailure(output).kind, "failed");
 });
 
+test("同じファイルの起動の失敗を 2 度数えて、本物の未処理のエラーを隠さない", () => {
+  const twice = [caught("@tasuki/a", 2), start("@tasuki/a", "x.test.ts"), start("@tasuki/a", "x.test.ts")].join("\n");
+  assert.equal(classifyFailure(turbo(twice, "@tasuki/a#test")).kind, "failed");
+});
+
 test("型検査・lint などの起動の失敗を含まない赤は失敗", () => {
   assert.equal(classifyFailure("src/a.ts(1,7): error TS2322: Type 'string' is not assignable").kind, "failed");
   assert.equal(classifyFailure("").kind, "failed");

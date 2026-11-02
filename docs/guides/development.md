@@ -1208,7 +1208,8 @@ shellcheck・自己テスト（`node --test`）の対象は宣言ではなく `g
 
 `pnpm check:fast` が実装中の速い段、`pnpm check:full` が PR 前の全件の段です。
 Node から直接 `node scripts/local-check.mjs fast` / `node scripts/local-check.mjs full` でも起動できます。
-`pnpm check:full --list` のように `--list` を付けると、検査を実行せず予定と省略理由だけを出します。
+`pnpm check:full --list` のように `--list` を付けると、検査を実行せず予定と省略理由だけを出します
+（速い段は変異の見込みも出すので、`mutation-check --changed --plan` の差分の計算と `git ls-remote` だけは走ります）。
 
 検査の一覧は `.github/workflows/ci.yml` の `run` から毎回導きます。全件の段は型・lint・単体・build・
 E2E・監査・リンク・scripts の自己テスト・shellcheck・変異を CI と同じ引数で実行します。

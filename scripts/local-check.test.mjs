@@ -270,7 +270,7 @@ test("速い段は、検査より前に変異の見込みを出し、知らせ�
   fs.writeFileSync(
     path.join(dir, "scripts/mutation-check.mjs"),
     "const a = process.argv.slice(2).join(' ');\n" +
-      "if (a === '--changed --plan') { console.log('[mutation-check] 見込み: 526 件'); console.log('[mutation-check] ⚠ 全件に切り替わりました'); }\n" +
+      "if (a === '--changed --plan') { console.log('[mutation-check] 見込み: 526 件'); console.log('[mutation-check] ⚠ 全件に切り替わりました'); console.log('[mutation-check]   手元で絞るなら: --id 9'); }\n" +
       "else console.log('MUTATION ' + a);\n",
   );
   const listed = spawnSync(process.execPath, [path.join(dir, "scripts/local-check.mjs"), "fast", "--list"], { encoding: "utf8" });
@@ -284,4 +284,5 @@ test("速い段は、検査より前に変異の見込みを出し、知らせ�
   assert.ok(forecast >= 0 && forecast < r.stdout.indexOf("FIRST"), r.stdout);
   assert.match(r.stdout, /^MUTATION --changed$/m);
   assert.ok(r.stdout.lastIndexOf("⚠ 全件に切り替わりました") > r.stdout.indexOf("実行結果"), r.stdout);
+  assert.ok(r.stdout.lastIndexOf("手元で絞るなら: --id 9") > r.stdout.indexOf("実行結果"), r.stdout);
 });
