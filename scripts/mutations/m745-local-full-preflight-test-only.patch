@@ -1,11 +1,13 @@
+diff --git a/scripts/local-check.mjs b/scripts/local-check.mjs
+index 2be50630..eb7ffcc3 100644
 --- a/scripts/local-check.mjs
 +++ b/scripts/local-check.mjs
-@@ -149,7 +149,7 @@
+@@ -198,7 +198,7 @@ function main() {
      }
      let ready = false;
      const results = runChecks(plan, {
--      preflight: () => { ready = execute({ command: `node scripts/check-toolchain.mjs ${mode === "full" ? "e2e" : "test"}` }); return ready; },
-+      preflight: () => { ready = execute({ command: `node scripts/check-toolchain.mjs ${mode === "full" ? "test" : "test"}` }); return ready; },
+-      preflight: () => { ready = execute({ command: `node scripts/check-toolchain.mjs ${mode === "full" ? "e2e" : "test"}` }).passed; return ready; },
++      preflight: () => { ready = execute({ command: `node scripts/check-toolchain.mjs ${mode === "full" ? "test" : "test"}` }).passed; return ready; },
        execute,
      });
      console.log("\n[local-check] 実行結果（CI の run から導出）");
