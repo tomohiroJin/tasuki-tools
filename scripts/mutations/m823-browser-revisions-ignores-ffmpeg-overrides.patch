@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/toolchain.mjs b/scripts/lib/toolchain.mjs
+index df4b7d2..df481ed 100644
+--- a/scripts/lib/toolchain.mjs
++++ b/scripts/lib/toolchain.mjs
+@@ -287,7 +287,7 @@ export function readBrowserRevisions(browsersJson) {
+     value[name] = typeof entry?.revision === "string" && REVISION_RE.test(entry.revision) ? entry.revision : null;
+     if (value[name] === null) problems.push(`playwright-core の browsers.json に ${name} の revision がありません`);
+     const overrides = entry?.revisionOverrides;
+-    if (overrides && typeof overrides === "object" && Object.keys(overrides).length > 0) {
++    if (name === "chromium" && overrides && typeof overrides === "object" && Object.keys(overrides).length > 0) {
+       problems.push(
+         `playwright-core の browsers.json の ${name} に OS ごとの revision（revisionOverrides: ${Object.keys(overrides).join(", ")}）があり、探す revision を決められません。scripts/lib/toolchain.mjs を直してください`,
+       );

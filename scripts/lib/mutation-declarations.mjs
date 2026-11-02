@@ -37,6 +37,9 @@ const RESERVED_800_809 =
 const RESERVED_810_819 =
   "**対応表より後に足した変異。** 810〜819 は #508 に割り当てた範囲（並行の #505・#509 と重ならないよう、利用者が割り当てた）。";
 
+const RESERVED_820_829 =
+  "**対応表より後に足した変異。** 820〜829 は #509 に割り当てた範囲（#505・#508 と並行に進めたため、帯を分けた）。";
+
 const RESERVED_250_259 =
   "**対応表より後に足した変異。** 250〜259 は 2026-10-15 の並列修正で #376 に追加で割り当てた予約の範囲（220〜229 が埋まったため）。";
 
@@ -4494,11 +4497,12 @@ export const MUTATIONS = [
     label: "check-toolchain が browsers.json の別のブラウザ（firefox）の revision を Chromium のものとして読む",
     patch: "m708-check-toolchain-reads-wrong-browser.patch",
     pkg: "scripts",
-    tests: ["check-toolchain.test.mjs"],
+    tests: ["lib/toolchain.test.mjs", "check-toolchain.test.mjs"],
     note:
       RESERVED_700_719 +
       " " +
-      "#492 のレビュー 3。宣言を読む分岐が別の項目を読んでも、純粋関数のテストは緑のままだった。headless shell は revision が同じ（等価になる）ので、別の revision を持つ firefox を読ませる。",
+      "#492 のレビュー 3。宣言を読む分岐が別の項目を読んでも、純粋関数のテストは緑のままだった。headless shell は revision が同じ（等価になる）ので、別の revision を持つ firefox を読ませる。" +
+      "#509 のレビューで読み取りを scripts/lib/toolchain.mjs の readBrowserRevisions へ移し、パッチを作り直した（壊し方は同じ）。",
   },
   {
     id: 709,
@@ -4926,5 +4930,60 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["local-check.test.mjs"],
     note: RESERVED_810_819 + " " + "#508。全件に倒れたことに、変異が流れ始めてから途中で気づく（#491 の罠 5）。",
+  },
+  {
+    id: 820,
+    label: "check-toolchain の e2e の段が ffmpeg を見ない（段の道具から外す）",
+    patch: "m820-toolchain-e2e-skips-ffmpeg.patch",
+    pkg: "scripts",
+    tests: ["lib/toolchain.test.mjs", "check-toolchain.test.mjs"],
+    note:
+      RESERVED_820_829 +
+      " " +
+      "#509。Chromium だけを揃えた環境で OK を出し、画面を開く spec が全件「ffmpeg が無い」で落ちる（クラウドのセッションで実測）。",
+  },
+  {
+    id: 821,
+    label: "check-toolchain が browsers.json の chromium の revision を ffmpeg のものとして読む",
+    patch: "m821-check-toolchain-reads-chromium-as-ffmpeg.patch",
+    pkg: "scripts",
+    tests: ["lib/toolchain.test.mjs", "check-toolchain.test.mjs"],
+    note:
+      RESERVED_820_829 +
+      " " +
+      "#509。宣言を読む分岐が別の項目を読んでも、純粋関数のテストは緑のまま。入っている ffmpeg を「無い」と読んで止まるか、別の revision を探す。",
+  },
+  {
+    id: 822,
+    label: "checkFfmpeg が別の revision の ffmpeg でも通す（名前の頭だけを見る）",
+    patch: "m822-check-ffmpeg-accepts-any-revision.patch",
+    pkg: "scripts",
+    tests: ["lib/toolchain.test.mjs", "check-toolchain.test.mjs"],
+    note:
+      RESERVED_820_829 +
+      " " +
+      "#509。クラウドの /opt/pw-browsers にある ffmpeg-1011 を要求の 1013 と取り違え、Playwright が起動の時に落ちる。",
+  },
+  {
+    id: 823,
+    label: "browsers.json の ffmpeg に OS ごとの revision（revisionOverrides）があっても止めない",
+    patch: "m823-browser-revisions-ignores-ffmpeg-overrides.patch",
+    pkg: "scripts",
+    tests: ["lib/toolchain.test.mjs"],
+    note:
+      RESERVED_820_829 +
+      " " +
+      "#509 のレビュー 2。OS によって探す revision が変わるのに、既定の revision で比べて「ある」「無い」を誤る。",
+  },
+  {
+    id: 824,
+    label: "browsers.json に revision が無いとき、理由を言わずに先へ進む",
+    patch: "m824-browser-revisions-silent-on-missing-revision.patch",
+    pkg: "scripts",
+    tests: ["lib/toolchain.test.mjs"],
+    note:
+      RESERVED_820_829 +
+      " " +
+      "#509 のレビュー 3。止まりはするが「ffmpeg-null が無い」と出て、Playwright の版の側の問題だと分からない。",
   },
 ];

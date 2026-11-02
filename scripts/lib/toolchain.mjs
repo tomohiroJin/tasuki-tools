@@ -12,6 +12,11 @@ import path from "node:path";
  * | Caddy    | `toolchain.json` の `caddy`                | 完全一致                   |
  * | pnpm     | `package.json` の `packageManager`         | 完全一致                   |
  * | Chromium | `e2e/package.json` の `@playwright/test`   | revision の実在（両方の dir）|
+ * | ffmpeg   | `e2e/package.json` の `@playwright/test`   | revision の実在              |
+ *
+ * ffmpeg は Playwright が動画を記録するために使う（`e2e/playwright.config.ts` の `video`）。revision は
+ * Chromium と同じく playwright-core の `browsers.json` が決め、`playwright install chromium` が一緒に入れる。
+ * 見ないと、Chromium だけを揃えた環境で OK を出し、画面を開く spec が全件「ffmpeg が無い」で落ちる（#509）。
  *
  * pnpm と Chromium を `toolchain.json` に書かないのは、**道具自身がそこを読むから**である
  * （corepack は `packageManager` を読み、Chromium の revision は Playwright の版に 1 対 1 で
@@ -31,7 +36,7 @@ export const TOOLCHAIN_KEYS = Object.freeze(["node", "bun", "caddy"]);
 export const STAGES = Object.freeze({
   test: Object.freeze(["node", "pnpm", "bun"]),
   mutation: Object.freeze(["node", "pnpm", "bun"]),
-  e2e: Object.freeze(["node", "pnpm", "bun", "chromium", "caddy"]),
+  e2e: Object.freeze(["node", "pnpm", "bun", "chromium", "ffmpeg", "caddy"]),
 });
 
 /**
@@ -190,6 +195,13 @@ export function chromiumDirNames(revision) {
   return [`chromium-${revision}`, `chromium_headless_shell-${revision}`];
 }
 
+/**
+ * 公式の取得先（bun.sh・Playwright の CDN）に届かない環境（クラウドのセッションのプロキシ）の案内（#509）。
+ * 取得先ごとに届くかを実測した表と、届かないときの扱いは案内の先に置く（ここに写すと、確かめ直すたびにずれる）。
+ */
+const UNREACHABLE_GUIDE =
+  "取得先に届かない（プロキシが 403 を返す）ときは docs/guides/development.md の「クラウドのセッションで道具を揃える」";
+
 const FIX = {
   node: (declared) =>
     `Node ${declared} 以上の ${declared.split(".")[0]} 系を入れてください（例: \`nvm install ${declared}\` / \`fnm install ${declared}\`）。` +
@@ -199,7 +211,8 @@ const FIX = {
     "別に入れた pnpm が PATH の先にあるなら外してください",
   bun: (declared) =>
     `\`curl -fsSL https://bun.sh/install | bash -s "bun-v${declared}"\` で入れ直してください。` +
-    "宣言は toolchain.json の bun（本番と同じ版。上げるときは deploy/README.md の「Bun を上げる」）",
+    "宣言は toolchain.json の bun（本番と同じ版。上げるときは deploy/README.md の「Bun を上げる」）。" +
+    UNREACHABLE_GUIDE,
   caddy: (declared, dir) =>
     `キャッシュの Caddy が宣言（${declared}）と違います。\`rm -rf ${dir ?? "~/.cache/tasuki-e2e"}\` で消すと、ハーネスが宣言の版を取り直します`,
 };
@@ -251,14 +264,64 @@ export function checkChromium(revision, dir, entries) {
       `${dir} に ${missing.join(" と ")} がありません。` +
       "`pnpm --filter @tasuki/e2e exec playwright install chromium` で入れてください" +
       "（PLAYWRIGHT_BROWSERS_PATH を指定していれば、そこへ入る。書き込めない場所なら、書ける場所を指すか、置き場の持ち主が入れる）。" +
-      "別の revision へのシンボリックリンクで回避しないでください（要求と違う版のブラウザで試すことになる）",
+      "別の revision へのシンボリックリンクで回避しないでください（要求と違う版のブラウザで試すことになる）。" +
+      UNREACHABLE_GUIDE,
+  };
+}
+
+const REVISION_RE = /^\d+$/;
+
+/**
+ * playwright-core の `browsers.json`（JSON を読んだ値）から、E2E に要る Chromium と ffmpeg の revision を読む。
+ * **例外を投げず**、読めないものは null にして `problems` に理由を足す（#509 のレビュー 2・3）。
+ *
+ * OS ごとの差し替え（`revisionOverrides`）があると、どの revision を探すかが OS の判定に依る。
+ * Playwright の判定は写せないので、比べずに通さず止める（いまはどちらにも無い。#492 のレビュー 2）。
+ */
+export function readBrowserRevisions(browsersJson) {
+  const list = Array.isArray(browsersJson?.browsers) ? browsersJson.browsers : [];
+  const problems = [];
+  const value = {};
+  for (const name of ["chromium", "ffmpeg"]) {
+    const entry = list.find((b) => b?.name === name);
+    value[name] = typeof entry?.revision === "string" && REVISION_RE.test(entry.revision) ? entry.revision : null;
+    if (value[name] === null) problems.push(`playwright-core の browsers.json に ${name} の revision がありません`);
+    const overrides = entry?.revisionOverrides;
+    if (overrides && typeof overrides === "object" && Object.keys(overrides).length > 0) {
+      problems.push(
+        `playwright-core の browsers.json の ${name} に OS ごとの revision（revisionOverrides: ${Object.keys(overrides).join(", ")}）があり、探す revision を決められません。scripts/lib/toolchain.mjs を直してください`,
+      );
+    }
+  }
+  return { chromium: value.chromium, ffmpeg: value.ffmpeg, problems };
+}
+
+/**
+ * 動画の記録に要る ffmpeg の要求 revision が `dir` に入っているか（#509）。`entries` は `dir` の中の名前（無ければ null）。
+ */
+export function checkFfmpeg(revision, dir, entries) {
+  const name = `ffmpeg-${revision}`;
+  if ((entries ?? []).includes(name)) return null;
+  const others = (entries ?? [])
+    .map((e) => /^ffmpeg-(\d+)$/.exec(e)?.[1])
+    .filter((r) => r !== undefined && r !== revision)
+    .sort();
+  return {
+    tool: "ffmpeg",
+    declared: `revision ${revision}`,
+    actual: others.length > 0 ? others.join(", ") : null,
+    fix:
+      `${dir} に ${name} がありません（Playwright が動画を記録するのに使う）。` +
+      "`pnpm --filter @tasuki/e2e exec playwright install chromium` が Chromium と一緒に入れます。" +
+      "別の revision へのシンボリックリンクで回避しないでください（要求と違う版で試すことになる）。" +
+      UNREACHABLE_GUIDE,
   };
 }
 
 /**
  * 段に要る道具を比べる。`actual` は環境から集めた値:
  * `{ node, pnpm, bun, chromium: { dir, entries }, caddy: { present, version, dir } }`
- * （pnpm・bun は見つからなければ null）。
+ * （pnpm・bun は見つからなければ null）。`chromium` はブラウザの置き場で、ffmpeg も同じ置き場から探す。
  *
  * 返すのは `{ problems, notes }`。problems が 1 件でもあれば検査を始めない。
  * notes は止めないが伝えること（比べられなかったこと・これから取りに行くもの）。
@@ -292,6 +355,12 @@ export function evaluateStage(stage, declared, actual) {
               }
             : checkChromium(declared.chromium, dir, entries),
         );
+        break;
+      }
+      case "ffmpeg": {
+        const { dir, entries } = actual.chromium;
+        // 置き場を決められないときは chromium の側が止める（同じ理由を 2 度出さない）
+        if (dir !== null) problems.push(checkFfmpeg(declared.ffmpeg, dir, entries));
         break;
       }
       case "caddy": {

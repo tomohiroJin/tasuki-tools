@@ -54,6 +54,10 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 - 9p マウント（`/workspaces` など）上で検査が遅いときは、ソースを移さず
   **依存の実体だけ**をコンテナ側へ逃がす（手順は
   [`docs/guides/development.md`](docs/guides/development.md) の「9p 越しで実行するとき」）
+- クラウドのセッション（claude.ai/code）では、プロキシで届かない取得先がある。`check-toolchain` が止めたら、
+  [`docs/guides/development.md`](docs/guides/development.md) の「クラウドのセッションで道具を揃える」に従う。
+  そこにある取得先で揃わない道具（いまは E2E の Chromium と ffmpeg・shellcheck）は、**別の取得先や別の版で代えず**、
+  その検査を CI に任せ、「確かめられなかったこと」に止まった道具と届かなかった取得先を書く（`docs/adr/0033`）
 - 起動した dev サーバーは使い終わったら止める（`ss -tlnp` で確認）
 
 ## 文書地図
@@ -86,7 +90,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 - `node scripts/audit-domain-side-effects.mjs` — ドメインの副作用（core が環境から直接値を読まない）
 - `node scripts/check-links.mjs` — リンク検査
 - `node scripts/audit-agent-entries.mjs` — AI ツールの入口（`CLAUDE.md` ほか）が本書とずれていないか・スキルが手順書へ向く薄い入口か
-- `node scripts/check-toolchain.mjs <test|e2e|mutation>` — 開発環境の版（Node・pnpm・Bun・Chromium・Caddy）が宣言と合うか。`pnpm test`・`pnpm e2e`・変異検査は先にこれを通し、合わなければ始めない（`docs/adr/0031`）
+- `node scripts/check-toolchain.mjs <test|e2e|mutation>` — 開発環境の版（Node・pnpm・Bun・Chromium・ffmpeg・Caddy）が宣言と合うか。`pnpm test`・`pnpm e2e`・変異検査は先にこれを通し、合わなければ始めない（`docs/adr/0031`）
 - `node scripts/audit-toolchain.mjs` — 版の宣言（`toolchain.json` ほか）と、それを読む CI・ハーネスのずれ
 - `node scripts/audit-agent-guard.mjs` — AI ツールの設定（`.claude/settings.json`）が本番デプロイのコマンドを止めるフックへ配線されているか・止める一覧（`scripts/lib/agent-guard.mjs`）と `deploy/` の実体が合うか（`docs/adr/0032`）
 - `node scripts/mutation-check.mjs` — 変異検査（全件。手元の実装中は `--changed` / `--pkg <dir>` / `--id <番号,…>` で絞る。`--jobs <数>` で作業ツリーを分けて並列に流せる。CI は `--shard k/n` で分ける。段ごとの使い分けは `docs/guides/development.md`）

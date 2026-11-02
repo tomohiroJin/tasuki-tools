@@ -33,6 +33,21 @@
 CI の読み方は [`docs/guides/development.md`](../development.md) の「CI」、変異の作り直しは
 [変異の足し方・作り直し方](./mutations.md) にあります。繰り返して形が固まったら足します（憲法 原則 X）。
 
+## 検査の出力をパイプにつなぐとき
+
+検査のコマンドと段の使い分けは [`docs/guides/development.md`](../development.md) の「CI」を参照します。
+手で検査を `tail` や `tee` へつなぐときは、Bash で **`set -o pipefail` を先に設定**します（#505）。
+設定しないと、検査が失敗しても末尾のコマンドが成功すればパイプ全体が成功扱いになり、後ろの `&& git commit` まで進みます。
+
+```bash
+set -o pipefail
+node scripts/check-links.mjs 2>&1 | tail -n 20 && git commit
+```
+
+`pipefail` は途中のコマンドの失敗もパイプ全体の終了コードへ反映します。出力を短くした場合も、失敗時は全ログを確かめます。
+`pnpm check:fast` を直接実行すれば、検査ごとの失敗を集約して非ゼロで終わるため、この設定は要りません。
+`pnpm check:fast` 自体を手でパイプにつなぐ場合は、同じく `pipefail` を設定します。
+
 ## スキルとの関係
 
 ツールが「スキル」（呼び出すと手順が読み込まれる仕組み）を持つときは、**スキルは手順書へ向ける薄い入口にします。**
