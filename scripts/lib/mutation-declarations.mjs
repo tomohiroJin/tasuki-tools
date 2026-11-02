@@ -34,6 +34,9 @@ const RESERVED_760_779 =
 const RESERVED_800_809 =
   "**対応表より後に足した変異。** 800〜809 は #480 に割り当てた範囲。2026-11-01 時点の最大（771）から離し、並行の枝と重ならない帯を取った。";
 
+const RESERVED_820_829 =
+  "**対応表より後に足した変異。** 820〜829 は #509 に割り当てた範囲（#505・#508 と並行に進めたため、帯を分けた）。";
+
 const RESERVED_250_259 =
   "**対応表より後に足した変異。** 250〜259 は 2026-10-15 の並列修正で #376 に追加で割り当てた予約の範囲（220〜229 が埋まったため）。";
 
@@ -4843,5 +4846,38 @@ export const MUTATIONS = [
       " " +
       "#480（PR #502 の敵対的レビュー 1）。字は画面の幅で流れるので、幅の広い側で 8 字の名前が 1 字だけ次の行に落ちる。" +
       "実際の見え方は E2E（checkin.spec.ts の その6・639px）も見るが、E2E の spec は変異検査のランナーに載らないので、宣言で守る。",
+  },
+  {
+    id: 820,
+    label: "check-toolchain の e2e の段が ffmpeg を見ない（段の道具から外す）",
+    patch: "m820-toolchain-e2e-skips-ffmpeg.patch",
+    pkg: "scripts",
+    tests: ["lib/toolchain.test.mjs", "check-toolchain.test.mjs"],
+    note:
+      RESERVED_820_829 +
+      " " +
+      "#509。Chromium だけを揃えた環境で OK を出し、ブラウザを使う spec が全件「ffmpeg が無い」で落ちる（クラウドのセッションで実測）。",
+  },
+  {
+    id: 821,
+    label: "check-toolchain が browsers.json の chromium の revision を ffmpeg のものとして読む",
+    patch: "m821-check-toolchain-reads-chromium-as-ffmpeg.patch",
+    pkg: "scripts",
+    tests: ["check-toolchain.test.mjs"],
+    note:
+      RESERVED_820_829 +
+      " " +
+      "#509。宣言を読む分岐が別の項目を読んでも、純粋関数のテストは緑のまま。入っている ffmpeg を「無い」と読んで止まるか、別の revision を探す。",
+  },
+  {
+    id: 822,
+    label: "checkFfmpeg が別の revision の ffmpeg でも通す（名前の頭だけを見る）",
+    patch: "m822-check-ffmpeg-accepts-any-revision.patch",
+    pkg: "scripts",
+    tests: ["lib/toolchain.test.mjs", "check-toolchain.test.mjs"],
+    note:
+      RESERVED_820_829 +
+      " " +
+      "#509。クラウドの /opt/pw-browsers にある ffmpeg-1011 を要求の 1013 と取り違え、Playwright が起動の時に落ちる。",
   },
 ];
