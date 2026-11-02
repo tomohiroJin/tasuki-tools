@@ -79,6 +79,10 @@ node scripts/mutation-check.mjs --id <ID>
 ```
 
 - 作業ツリーは、宣言の表・パッチ・入口（`DIRTY_CHECK_EXCLUDES`）のほかは綺麗にしておく。それ以外の変更は先にコミットする
+- 別の作業ツリー（`git worktree add`）で流すときは、**別の作業ツリーの `node_modules` を symlink で共有しない。**
+  `.gitignore` の `node_modules/` はディレクトリにしか当たらないので、symlink は未追跡（`?? node_modules`）に見え、
+  `mutation-check` が「未コミットの変更があります」で起動を拒む（#491 の振り返りの罠 7）。
+  その作業ツリーで `pnpm install --frozen-lockfile --offline` を流す。pnpm の store を使うので取得はせず、数秒で済む（#509 で 3 秒）
 - **「検出」なら終わり。** 宣言とパッチを同じコミットに入れる
 - **「未検出」なら、テストが性質を守っていない。** テストを足すか直して（TDD の Red から）、もう一度流す。
   **変異を弱めたり消したりして通さない**（検査を弱める変更。`AGENTS.md`「AI 運用規則」）

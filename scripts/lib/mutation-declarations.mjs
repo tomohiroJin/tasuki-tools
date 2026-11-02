@@ -4856,7 +4856,7 @@ export const MUTATIONS = [
     note:
       RESERVED_820_829 +
       " " +
-      "#509。Chromium だけを揃えた環境で OK を出し、ブラウザを使う spec が全件「ffmpeg が無い」で落ちる（クラウドのセッションで実測）。",
+      "#509。Chromium だけを揃えた環境で OK を出し、画面を開く spec が全件「ffmpeg が無い」で落ちる（クラウドのセッションで実測）。",
   },
   {
     id: 821,

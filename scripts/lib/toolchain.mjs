@@ -16,7 +16,7 @@ import path from "node:path";
  *
  * ffmpeg は Playwright が動画を記録するために使う（`e2e/playwright.config.ts` の `video`）。revision は
  * Chromium と同じく playwright-core の `browsers.json` が決め、`playwright install chromium` が一緒に入れる。
- * 見ないと、Chromium だけを揃えた環境で OK を出し、ブラウザを使う spec が全件「ffmpeg が無い」で落ちる（#509）。
+ * 見ないと、Chromium だけを揃えた環境で OK を出し、画面を開く spec が全件「ffmpeg が無い」で落ちる（#509）。
  *
  * pnpm と Chromium を `toolchain.json` に書かないのは、**道具自身がそこを読むから**である
  * （corepack は `packageManager` を読み、Chromium の revision は Playwright の版に 1 対 1 で

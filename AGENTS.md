@@ -54,6 +54,10 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 - 9p マウント（`/workspaces` など）上で検査が遅いときは、ソースを移さず
   **依存の実体だけ**をコンテナ側へ逃がす（手順は
   [`docs/guides/development.md`](docs/guides/development.md) の「9p 越しで実行するとき」）
+- クラウドのセッション（claude.ai/code）では、プロキシで届かない取得先がある。`check-toolchain` が止めたら、
+  [`docs/guides/development.md`](docs/guides/development.md) の「クラウドのセッションで道具を揃える」に従う。
+  そこにある取得先で揃わない道具（いまは E2E の Chromium と ffmpeg・shellcheck）は、**別の取得先や別の版で代えず**、
+  その検査を CI に任せ、「確かめられなかったこと」に止まった道具と届かなかった取得先を書く（`docs/adr/0033`）
 - 起動した dev サーバーは使い終わったら止める（`ss -tlnp` で確認）
 
 ## 文書地図

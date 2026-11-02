@@ -31,6 +31,50 @@ corepack enable
 pnpm install
 ```
 
+### クラウドのセッションで道具を揃える
+
+claude.ai/code のクラウドのセッションでは、外への通信がプロキシを通り、**届かない取得先があります**
+（プロキシが `CONNECT` に 403 を返す）。何が取れて何が 403 になるかは #509 で実測しました。
+表と、どの取り方を選んだかの理由は [`docs/adr/0033`](../adr/0033-cloud-session-toolchain.md) にあります。
+
+| 道具 | 揃え方 | クラウドのセッションで |
+|---|---|---|
+| Bun | 公式の配布物（GitHub Releases）を `SHASUMS256.txt` と照合し、`~/.bun/bin/bun` を置き換える（下のコマンド。本番と同じ取り方） | 取れる。`bun.sh/install` は 403 |
+| Caddy | 何もしない。E2E のハーネスが GitHub Releases から取り、公式の checksums と照合する | 取れる |
+| Chromium・ffmpeg | `pnpm --filter @tasuki/e2e exec playwright install chromium`（Playwright の CDN から取る） | **取れない**。Playwright の CDN が 403 |
+| shellcheck | 版を宣言していない（CI はランナーに入っているものを使う） | コンテナに無い。照合できる取得先が無い |
+
+コンテナには、宣言と違う版の Bun（`~/.bun/bin/bun`）と、宣言と違う revision のブラウザ（`PLAYWRIGHT_BROWSERS_PATH` の先）が
+入っていることがあります。`check-toolchain` が止めたら、次のとおり揃えます。
+
+```bash
+# Bun（Linux x64）。版は toolchain.json から読む。照合が合わなければ置き換えずに止まる
+bash -c 'set -euo pipefail
+v="$(node -p "require(\"./toolchain.json\").bun")"
+d="$(mktemp -d)"
+base="https://github.com/oven-sh/bun/releases/download/bun-v$v"
+curl -fsSL -o "$d/bun-linux-x64.zip" "$base/bun-linux-x64.zip"
+curl -fsSL -o "$d/SHASUMS256.txt" "$base/SHASUMS256.txt"
+(cd "$d" && grep " bun-linux-x64.zip\$" SHASUMS256.txt | sha256sum -c -)
+unzip -o -j -q "$d/bun-linux-x64.zip" bun-linux-x64/bun -d "$HOME/.bun/bin"
+rm -rf "$d"
+bun --version'
+```
+
+**Chromium と ffmpeg が揃わないときは、E2E を流さず CI に任せます。**
+
+- 報告の「確かめられなかったこと」に、止まった道具と届かなかった取得先を書きます。
+  例: 「E2E: `check-toolchain e2e` が Chromium 1248 と ffmpeg 1013 が無いと止めた。取得先の `cdn.playwright.dev` が 403。CI の E2E に任せた」
+- **別の取得先や別の revision で代えません。** Chrome for Testing の配布物（`storage.googleapis.com`）からは同じ版の Chromium と
+  headless shell が取れますが、動画の記録に要る ffmpeg は Playwright の CDN にしかありません。Chromium だけを置くと、
+  画面を開く spec が全件「ffmpeg が無い」で落ちます（`check-toolchain e2e` もこれを止めます）。
+  別の revision の ffmpeg を置くと、要求と違う版で試すことになります（`docs/adr/0031` 決定 2）
+- 環境の持ち主が、クラウドの環境の設定（Network access の Allowed domains）に `cdn.playwright.dev` を足せば、
+  上の表の `playwright install chromium` がそのまま使えるはずです（足したあとの動きは、まだ確かめていません）
+
+**shellcheck が無いときも、CI に任せます。** `check:fast` の quality が失敗になるので、
+「確かめられなかったこと」に「shellcheck: コンテナに無い。CI に任せた」と書きます。
+
 ## まとめて起動
 
 ```bash
