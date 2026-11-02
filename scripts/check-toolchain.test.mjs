@@ -124,9 +124,9 @@ describe("check-toolchain の配線: Chromium の revision（#492）", () => {
   const coreDir = path.dirname(
     createRequire(path.join(REPO_ROOT, "e2e", "package.json")).resolve("playwright-core/package.json"),
   );
-  const revision = JSON.parse(fs.readFileSync(path.join(coreDir, "browsers.json"), "utf8")).browsers.find(
-    (b) => b.name === "chromium",
-  ).revision;
+  const browsers = JSON.parse(fs.readFileSync(path.join(coreDir, "browsers.json"), "utf8")).browsers;
+  const revision = browsers.find((b) => b.name === "chromium").revision;
+  const ffmpegRevision = browsers.find((b) => b.name === "ffmpeg").revision;
 
   function withBrowsersDir(names, fn) {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "check-toolchain-browsers-"));
@@ -142,12 +142,22 @@ describe("check-toolchain の配線: Chromium の revision（#492）", () => {
     assert.match(revision, /^\d+$/);
   });
 
-  test("要求の revision の本体と headless shell があれば、e2e の段は exit 0 で revision を名指しする", () => {
-    const r = withBrowsersDir([`chromium-${revision}`, `chromium_headless_shell-${revision}`], (dir) =>
-      runWith("e2e", {}, { PLAYWRIGHT_BROWSERS_PATH: dir }),
+  test("要求の revision の本体・headless shell・ffmpeg があれば、e2e の段は exit 0 で revision を名指しする", () => {
+    const r = withBrowsersDir(
+      [`chromium-${revision}`, `chromium_headless_shell-${revision}`, `ffmpeg-${ffmpegRevision}`],
+      (dir) => runWith("e2e", {}, { PLAYWRIGHT_BROWSERS_PATH: dir }),
     );
     assert.equal(r.status, 0, r.stderr);
-    assert.match(r.stdout, new RegExp(`chromium ${revision}`));
+    assert.match(r.stdout, new RegExp(`chromium ${revision} / ffmpeg ${ffmpegRevision}`));
+  });
+
+  test("ffmpeg だけが別の revision なら非ゼロで終わり、ffmpeg の要求の revision を名指しする（#509）", () => {
+    const r = withBrowsersDir([`chromium-${revision}`, `chromium_headless_shell-${revision}`, "ffmpeg-1"], (dir) =>
+      runWith("e2e", {}, { PLAYWRIGHT_BROWSERS_PATH: dir }),
+    );
+    assert.equal(r.status, 1, r.stdout);
+    assert.match(r.stderr, new RegExp(`ffmpeg: 宣言 revision ${ffmpegRevision} / 環境 1`));
+    assert.doesNotMatch(r.stderr, /chromium: 宣言/);
   });
 
   test("別の revision しか無ければ非ゼロで終わり、要求の revision を名指しする", () => {
@@ -233,15 +243,19 @@ describe("Chromium の置き場を決める変数が turbo の中へ届く（#49
     // 追跡の外に置くのは、強制終了で残っても mutation-check が作業ツリーの汚れで止まらないようにするため（#492 の再レビュー）。
     // OS の一時ディレクトリを ../ で指す形は使えない（/ より上は丸められ、ルートから解いても同じ場所になる）
     const e2eDir = path.join(REPO_ROOT, "e2e");
-    const revision = JSON.parse(
+    const browsers = JSON.parse(
       fs.readFileSync(
         path.join(path.dirname(createRequire(path.join(e2eDir, "package.json")).resolve("playwright-core/package.json")), "browsers.json"),
         "utf8",
       ),
-    ).browsers.find((b) => b.name === "chromium").revision;
+    ).browsers;
+    const revision = browsers.find((b) => b.name === "chromium").revision;
+    const ffmpegRevision = browsers.find((b) => b.name === "ffmpeg").revision;
     const dir = fs.mkdtempSync(path.join(e2eDir, "node_modules", ".check-toolchain-relative-"));
     try {
-      for (const n of [`chromium-${revision}`, `chromium_headless_shell-${revision}`]) fs.mkdirSync(path.join(dir, n));
+      for (const n of [`chromium-${revision}`, `chromium_headless_shell-${revision}`, `ffmpeg-${ffmpegRevision}`]) {
+        fs.mkdirSync(path.join(dir, n));
+      }
       const relative = path.relative(e2eDir, dir);
       // Given: e2e/ から解けば一時ディレクトリ、ルートから解けば別の（無い）場所になる指定
       assert.ok(!path.isAbsolute(relative), relative);

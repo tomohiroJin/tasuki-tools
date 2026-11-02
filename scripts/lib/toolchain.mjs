@@ -12,6 +12,11 @@ import path from "node:path";
  * | Caddy    | `toolchain.json` の `caddy`                | 完全一致                   |
  * | pnpm     | `package.json` の `packageManager`         | 完全一致                   |
  * | Chromium | `e2e/package.json` の `@playwright/test`   | revision の実在（両方の dir）|
+ * | ffmpeg   | `e2e/package.json` の `@playwright/test`   | revision の実在              |
+ *
+ * ffmpeg は Playwright が動画を記録するために使う（`e2e/playwright.config.ts` の `video`）。revision は
+ * Chromium と同じく playwright-core の `browsers.json` が決め、`playwright install chromium` が一緒に入れる。
+ * 見ないと、Chromium だけを揃えた環境で OK を出し、ブラウザを使う spec が全件「ffmpeg が無い」で落ちる（#509）。
  *
  * pnpm と Chromium を `toolchain.json` に書かないのは、**道具自身がそこを読むから**である
  * （corepack は `packageManager` を読み、Chromium の revision は Playwright の版に 1 対 1 で
@@ -31,7 +36,7 @@ export const TOOLCHAIN_KEYS = Object.freeze(["node", "bun", "caddy"]);
 export const STAGES = Object.freeze({
   test: Object.freeze(["node", "pnpm", "bun"]),
   mutation: Object.freeze(["node", "pnpm", "bun"]),
-  e2e: Object.freeze(["node", "pnpm", "bun", "chromium", "caddy"]),
+  e2e: Object.freeze(["node", "pnpm", "bun", "chromium", "ffmpeg", "caddy"]),
 });
 
 /**
@@ -256,9 +261,30 @@ export function checkChromium(revision, dir, entries) {
 }
 
 /**
+ * 動画の記録に要る ffmpeg の要求 revision が `dir` に入っているか（#509）。`entries` は `dir` の中の名前（無ければ null）。
+ */
+export function checkFfmpeg(revision, dir, entries) {
+  const name = `ffmpeg-${revision}`;
+  if ((entries ?? []).includes(name)) return null;
+  const others = (entries ?? [])
+    .map((e) => /^ffmpeg-(\d+)$/.exec(e)?.[1])
+    .filter((r) => r !== undefined && r !== revision)
+    .sort();
+  return {
+    tool: "ffmpeg",
+    declared: `revision ${revision}`,
+    actual: others.length > 0 ? others.join(", ") : null,
+    fix:
+      `${dir} に ${name} がありません（Playwright が動画を記録するのに使う）。` +
+      "`pnpm --filter @tasuki/e2e exec playwright install chromium` が Chromium と一緒に入れます。" +
+      "別の revision へのシンボリックリンクで回避しないでください（要求と違う版で試すことになる）",
+  };
+}
+
+/**
  * 段に要る道具を比べる。`actual` は環境から集めた値:
  * `{ node, pnpm, bun, chromium: { dir, entries }, caddy: { present, version, dir } }`
- * （pnpm・bun は見つからなければ null）。
+ * （pnpm・bun は見つからなければ null）。`chromium` はブラウザの置き場で、ffmpeg も同じ置き場から探す。
  *
  * 返すのは `{ problems, notes }`。problems が 1 件でもあれば検査を始めない。
  * notes は止めないが伝えること（比べられなかったこと・これから取りに行くもの）。
@@ -292,6 +318,12 @@ export function evaluateStage(stage, declared, actual) {
               }
             : checkChromium(declared.chromium, dir, entries),
         );
+        break;
+      }
+      case "ffmpeg": {
+        const { dir, entries } = actual.chromium;
+        // 置き場を決められないときは chromium の側が止める（同じ理由を 2 度出さない）
+        if (dir !== null) problems.push(checkFfmpeg(declared.ffmpeg, dir, entries));
         break;
       }
       case "caddy": {

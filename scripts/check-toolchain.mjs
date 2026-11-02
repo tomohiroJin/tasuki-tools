@@ -12,7 +12,7 @@
  *
  * ## 何を見ていないか
  *
- * - **道具が正しく動くかは見ない。** 見るのは版と、ブラウザの置き場の実在だけ
+ * - **道具が正しく動くかは見ない。** 見るのは版と、ブラウザ（と動画の記録に使う ffmpeg）の置き場の実在だけ
  * - **Caddy がまだ無いことは止めない。** ハーネスが宣言の版を取りに行く（取れなければハーネスが止まる）
  * - Chromium の置き場は Playwright と同じ規則で解く（`PLAYWRIGHT_BROWSERS_PATH=0` は playwright-core の中）。
  *   決められないとき（Playwright が対応しない OS）は止める
@@ -40,7 +40,7 @@ import {
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 const SOURCES =
-  "宣言: toolchain.json（Node・Bun・Caddy）/ package.json の packageManager（pnpm）/ e2e/package.json の @playwright/test（Chromium）";
+  "宣言: toolchain.json（Node・Bun・Caddy）/ package.json の packageManager（pnpm）/ e2e/package.json の @playwright/test（Chromium・ffmpeg）";
 
 /** 宣言を集める。読めなければ problems を返す（例外を投げない）。 */
 function readDeclared(stage) {
@@ -53,6 +53,7 @@ function readDeclared(stage) {
   if (pnpm === null) problems.push(`package.json: packageManager が pnpm@x.y.z ではありません（${pkg.packageManager}）`);
 
   let chromium = null;
+  let ffmpeg = null;
   let playwrightCoreDir = null;
   if (STAGES[stage].includes("chromium")) {
     // revision は playwright-core の browsers.json が決める。package.json の exports に
@@ -64,19 +65,28 @@ function readDeclared(stage) {
       const entry = browsers.browsers.find((b) => b.name === "chromium");
       chromium = typeof entry?.revision === "string" && /^\d+$/.test(entry.revision) ? entry.revision : null;
       if (chromium === null) problems.push("playwright-core の browsers.json に chromium の revision がありません");
+      // 動画の記録に要る ffmpeg も、Playwright の版が revision を決める（#509）
+      const ffmpegEntry = browsers.browsers.find((b) => b.name === "ffmpeg");
+      ffmpeg = typeof ffmpegEntry?.revision === "string" && /^\d+$/.test(ffmpegEntry.revision) ? ffmpegEntry.revision : null;
+      if (ffmpeg === null) problems.push("playwright-core の browsers.json に ffmpeg の revision がありません");
       // OS ごとの差し替え（revisionOverrides）があると、どの revision を探すかが OS の判定に依る。
       // Playwright の判定は写せないので、比べずに通さず止める（chromium にはいま無い。#492 のレビュー 2）
-      if (entry?.revisionOverrides && Object.keys(entry.revisionOverrides).length > 0) {
-        problems.push(
-          `playwright-core の browsers.json の chromium に OS ごとの revision（revisionOverrides: ${Object.keys(entry.revisionOverrides).join(", ")}）があり、探す revision を決められません。scripts/lib/toolchain.mjs を直してください`,
-        );
+      for (const [name, e] of [
+        ["chromium", entry],
+        ["ffmpeg", ffmpegEntry],
+      ]) {
+        if (e?.revisionOverrides && Object.keys(e.revisionOverrides).length > 0) {
+          problems.push(
+            `playwright-core の browsers.json の ${name} に OS ごとの revision（revisionOverrides: ${Object.keys(e.revisionOverrides).join(", ")}）があり、探す revision を決められません。scripts/lib/toolchain.mjs を直してください`,
+          );
+        }
       }
     } catch (e) {
       problems.push(`playwright-core を読めません（先に \`pnpm install\` を流してください）: ${e.message}`);
     }
   }
   if (problems.length > 0) return { ok: false, problems };
-  return { ok: true, value: { ...toolchain.value, pnpm, chromium }, playwrightCoreDir };
+  return { ok: true, value: { ...toolchain.value, pnpm, chromium, ffmpeg }, playwrightCoreDir };
 }
 
 /** コマンドを起動して標準出力を返す。起動できない・非ゼロなら null。 */
@@ -163,6 +173,7 @@ function main() {
   const summary = STAGES[stage]
     .map((tool) => {
       if (tool === "chromium") return `chromium ${declared.value.chromium}`;
+      if (tool === "ffmpeg") return `ffmpeg ${declared.value.ffmpeg}`;
       if (tool === "caddy") return `caddy ${actual.caddy.present ? actual.caddy.version : "（未取得）"}`;
       return `${tool} ${tool === "node" ? process.version.slice(1) : actual[tool]}`;
     })

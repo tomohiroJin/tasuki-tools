@@ -14,6 +14,7 @@ import {
   checkNode,
   checkExact,
   checkChromium,
+  checkFfmpeg,
   evaluateStage,
   formatProblems,
 } from "./toolchain.mjs";
@@ -24,6 +25,7 @@ const DECLARED = Object.freeze({
   bun: "1.4.3",
   caddy: "2.11.7",
   chromium: "1248",
+  ffmpeg: "1013",
 });
 
 describe("parseVersion / compareVersions: 版の読み方", () => {
@@ -265,12 +267,33 @@ describe("checkChromium: 要求の revision が入っているか", () => {
   });
 });
 
+describe("checkFfmpeg: 動画の記録に要る ffmpeg の revision が入っているか（#509）", () => {
+  test("要求の revision があれば null", () => {
+    assert.equal(checkFfmpeg("1013", "/opt/pw", ["chromium-1248", "ffmpeg-1013"]), null);
+  });
+
+  test("別の revision しか無いとき、入っている revision を示し、入れ方を示す（#509 で 1011 しか無かった）", () => {
+    const p = checkFfmpeg("1013", "/opt/pw", ["chromium-1248", "chromium_headless_shell-1248", "ffmpeg-1011"]);
+    assert.deepEqual([p?.tool, p?.declared, p?.actual], ["ffmpeg", "revision 1013", "1011"]);
+    // `playwright install chromium` は ffmpeg も入れる（ブラウザごとに ffmpeg を足す）
+    assert.match(p?.fix ?? "", /playwright install chromium/);
+    assert.match(p?.fix ?? "", /ffmpeg-1013/);
+    assert.match(p?.fix ?? "", /\/opt\/pw/);
+    assert.match(p?.fix ?? "", /リンク/);
+  });
+
+  test("置き場そのものが無いとき（entries が null）も止める", () => {
+    const p = checkFfmpeg("1013", "/home/u/.cache/ms-playwright", null);
+    assert.deepEqual([p?.tool, p?.actual], ["ffmpeg", null]);
+  });
+});
+
 describe("evaluateStage: 段ごとに見る道具", () => {
   const ok = {
     node: "v22.23.4",
     pnpm: "11.28.8",
     bun: "1.4.3",
-    chromium: { dir: "/opt/pw", entries: ["chromium-1248", "chromium_headless_shell-1248"] },
+    chromium: { dir: "/opt/pw", entries: ["chromium-1248", "chromium_headless_shell-1248", "ffmpeg-1013"] },
     caddy: { present: true, version: "2.11.7" },
   };
 
@@ -292,7 +315,18 @@ describe("evaluateStage: 段ごとに見る道具", () => {
   test("e2e の段は Chromium と Caddy の版も見る", () => {
     const actual = { ...ok, chromium: { dir: "/opt/pw", entries: [] }, caddy: { present: true, version: "2.0.0" } };
     const tools = evaluateStage("e2e", DECLARED, actual).problems.map((p) => p.tool);
-    assert.deepEqual(tools.sort(), ["caddy", "chromium"]);
+    assert.deepEqual(tools.sort(), ["caddy", "chromium", "ffmpeg"]);
+  });
+
+  test("e2e の段は ffmpeg だけが欠けていても止める（#509: Chromium だけ揃えると OK を出し、全件が動画の記録で落ちた）", () => {
+    const actual = { ...ok, chromium: { dir: "/opt/pw", entries: ["chromium-1248", "chromium_headless_shell-1248", "ffmpeg-1011"] } };
+    const tools = evaluateStage("e2e", DECLARED, actual).problems.map((p) => p.tool);
+    assert.deepEqual(tools, ["ffmpeg"]);
+  });
+
+  test("test・mutation の段は ffmpeg を見ない", () => {
+    const actual = { ...ok, chromium: { dir: "/opt/pw", entries: [] } };
+    for (const stage of ["test", "mutation"]) assert.deepEqual(evaluateStage(stage, DECLARED, actual).problems, [], stage);
   });
 
   test("Caddy がまだ無いだけなら止めない（ハーネスが宣言の版を取りに行く）が、そう伝える", () => {
