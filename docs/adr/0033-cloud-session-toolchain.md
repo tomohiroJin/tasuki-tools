@@ -1,6 +1,6 @@
 # ADR-0033: クラウドのセッションでは公式の取得先だけで道具を揃え、揃わない検査は CI に任せる
 
-- **ステータス**: Proposed（2026-11-02。採択は人が行う。`docs/adr/0030` 決定 1）
+- **ステータス**: Accepted（2026-11-03。利用者が PR tomohiroJin/tasuki-tools#511 で採択。`docs/adr/0030` 決定 1 のとおり人が判断した）
 - **関連**: [#509](https://github.com/tomohiroJin/tasuki-tools/issues/509)（#491 の振り返りの申し送り 7・11） /
   [ADR-0030](./0030-ai-driven-development-operations.md)（決定 2「どこで開発しても同じ検査が同じ条件で流れる」・決定 4 の報告） /
   [ADR-0031](./0031-toolchain-declaration-and-preflight.md)（版の宣言と事前の確認） /
