@@ -1,13 +1,13 @@
-diff --git a/scripts/check-toolchain.mjs b/scripts/check-toolchain.mjs
-index 79f0ad4..878f512 100644
---- a/scripts/check-toolchain.mjs
-+++ b/scripts/check-toolchain.mjs
-@@ -66,7 +66,7 @@ function readDeclared(stage) {
-       chromium = typeof entry?.revision === "string" && /^\d+$/.test(entry.revision) ? entry.revision : null;
-       if (chromium === null) problems.push("playwright-core の browsers.json に chromium の revision がありません");
-       // 動画の記録に要る ffmpeg も、Playwright の版が revision を決める（#509）
--      const ffmpegEntry = browsers.browsers.find((b) => b.name === "ffmpeg");
-+      const ffmpegEntry = browsers.browsers.find((b) => b.name === "chromium");
-       ffmpeg = typeof ffmpegEntry?.revision === "string" && /^\d+$/.test(ffmpegEntry.revision) ? ffmpegEntry.revision : null;
-       if (ffmpeg === null) problems.push("playwright-core の browsers.json に ffmpeg の revision がありません");
-       // OS ごとの差し替え（revisionOverrides）があると、どの revision を探すかが OS の判定に依る。
+diff --git a/scripts/lib/toolchain.mjs b/scripts/lib/toolchain.mjs
+index df4b7d2..c369bcf 100644
+--- a/scripts/lib/toolchain.mjs
++++ b/scripts/lib/toolchain.mjs
+@@ -283,7 +283,7 @@ export function readBrowserRevisions(browsersJson) {
+   const problems = [];
+   const value = {};
+   for (const name of ["chromium", "ffmpeg"]) {
+-    const entry = list.find((b) => b?.name === name);
++    const entry = list.find((b) => b?.name === (name === "ffmpeg" ? "chromium" : name));
+     value[name] = typeof entry?.revision === "string" && REVISION_RE.test(entry.revision) ? entry.revision : null;
+     if (value[name] === null) problems.push(`playwright-core の browsers.json に ${name} の revision がありません`);
+     const overrides = entry?.revisionOverrides;

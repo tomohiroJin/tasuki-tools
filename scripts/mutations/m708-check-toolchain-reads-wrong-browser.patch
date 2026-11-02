@@ -1,13 +1,13 @@
-diff --git a/scripts/check-toolchain.mjs b/scripts/check-toolchain.mjs
-index 79f0ad4..12750bf 100644
---- a/scripts/check-toolchain.mjs
-+++ b/scripts/check-toolchain.mjs
-@@ -62,7 +62,7 @@ function readDeclared(stage) {
-       const require = createRequire(path.join(REPO_ROOT, "e2e", "package.json"));
-       playwrightCoreDir = path.dirname(require.resolve("playwright-core/package.json"));
-       const browsers = JSON.parse(fs.readFileSync(path.join(playwrightCoreDir, "browsers.json"), "utf8"));
--      const entry = browsers.browsers.find((b) => b.name === "chromium");
-+      const entry = browsers.browsers.find((b) => b.name === "firefox");
-       chromium = typeof entry?.revision === "string" && /^\d+$/.test(entry.revision) ? entry.revision : null;
-       if (chromium === null) problems.push("playwright-core の browsers.json に chromium の revision がありません");
-       // 動画の記録に要る ffmpeg も、Playwright の版が revision を決める（#509）
+diff --git a/scripts/lib/toolchain.mjs b/scripts/lib/toolchain.mjs
+index df4b7d2..dbbbbb9 100644
+--- a/scripts/lib/toolchain.mjs
++++ b/scripts/lib/toolchain.mjs
+@@ -283,7 +283,7 @@ export function readBrowserRevisions(browsersJson) {
+   const problems = [];
+   const value = {};
+   for (const name of ["chromium", "ffmpeg"]) {
+-    const entry = list.find((b) => b?.name === name);
++    const entry = list.find((b) => b?.name === (name === "chromium" ? "firefox" : name));
+     value[name] = typeof entry?.revision === "string" && REVISION_RE.test(entry.revision) ? entry.revision : null;
+     if (value[name] === null) problems.push(`playwright-core の browsers.json に ${name} の revision がありません`);
+     const overrides = entry?.revisionOverrides;

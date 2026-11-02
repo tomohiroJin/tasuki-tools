@@ -4494,11 +4494,12 @@ export const MUTATIONS = [
     label: "check-toolchain が browsers.json の別のブラウザ（firefox）の revision を Chromium のものとして読む",
     patch: "m708-check-toolchain-reads-wrong-browser.patch",
     pkg: "scripts",
-    tests: ["check-toolchain.test.mjs"],
+    tests: ["lib/toolchain.test.mjs", "check-toolchain.test.mjs"],
     note:
       RESERVED_700_719 +
       " " +
-      "#492 のレビュー 3。宣言を読む分岐が別の項目を読んでも、純粋関数のテストは緑のままだった。headless shell は revision が同じ（等価になる）ので、別の revision を持つ firefox を読ませる。",
+      "#492 のレビュー 3。宣言を読む分岐が別の項目を読んでも、純粋関数のテストは緑のままだった。headless shell は revision が同じ（等価になる）ので、別の revision を持つ firefox を読ませる。" +
+      "#509 のレビューで読み取りを scripts/lib/toolchain.mjs の readBrowserRevisions へ移し、パッチを作り直した（壊し方は同じ）。",
   },
   {
     id: 709,
@@ -4863,7 +4864,7 @@ export const MUTATIONS = [
     label: "check-toolchain が browsers.json の chromium の revision を ffmpeg のものとして読む",
     patch: "m821-check-toolchain-reads-chromium-as-ffmpeg.patch",
     pkg: "scripts",
-    tests: ["check-toolchain.test.mjs"],
+    tests: ["lib/toolchain.test.mjs", "check-toolchain.test.mjs"],
     note:
       RESERVED_820_829 +
       " " +
@@ -4879,5 +4880,27 @@ export const MUTATIONS = [
       RESERVED_820_829 +
       " " +
       "#509。クラウドの /opt/pw-browsers にある ffmpeg-1011 を要求の 1013 と取り違え、Playwright が起動の時に落ちる。",
+  },
+  {
+    id: 823,
+    label: "browsers.json の ffmpeg に OS ごとの revision（revisionOverrides）があっても止めない",
+    patch: "m823-browser-revisions-ignores-ffmpeg-overrides.patch",
+    pkg: "scripts",
+    tests: ["lib/toolchain.test.mjs"],
+    note:
+      RESERVED_820_829 +
+      " " +
+      "#509 のレビュー 2。OS によって探す revision が変わるのに、既定の revision で比べて「ある」「無い」を誤る。",
+  },
+  {
+    id: 824,
+    label: "browsers.json に revision が無いとき、理由を言わずに先へ進む",
+    patch: "m824-browser-revisions-silent-on-missing-revision.patch",
+    pkg: "scripts",
+    tests: ["lib/toolchain.test.mjs"],
+    note:
+      RESERVED_820_829 +
+      " " +
+      "#509 のレビュー 3。止まりはするが「ffmpeg-null が無い」と出て、Playwright の版の側の問題だと分からない。",
   },
 ];

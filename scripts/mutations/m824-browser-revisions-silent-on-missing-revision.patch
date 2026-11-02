@@ -1,0 +1,12 @@
+diff --git a/scripts/lib/toolchain.mjs b/scripts/lib/toolchain.mjs
+index df4b7d2..944787d 100644
+--- a/scripts/lib/toolchain.mjs
++++ b/scripts/lib/toolchain.mjs
+@@ -285,7 +285,6 @@ export function readBrowserRevisions(browsersJson) {
+   for (const name of ["chromium", "ffmpeg"]) {
+     const entry = list.find((b) => b?.name === name);
+     value[name] = typeof entry?.revision === "string" && REVISION_RE.test(entry.revision) ? entry.revision : null;
+-    if (value[name] === null) problems.push(`playwright-core の browsers.json に ${name} の revision がありません`);
+     const overrides = entry?.revisionOverrides;
+     if (overrides && typeof overrides === "object" && Object.keys(overrides).length > 0) {
+       problems.push(
