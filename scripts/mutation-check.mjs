@@ -1021,6 +1021,22 @@ function baseFreshnessLine(base) {
   return checkBaseFreshness(base, git)?.message ?? null;
 }
 
+/**
+ * 流し始める前に出す行（表題を除く。#508）: 件数と見込み、全件に倒れたときの知らせと絞る候補、基準の新しさ。
+ * `freshnessOf(base)` は基準の新しさの 1 行か null を返す（本番は {@link baseFreshnessLine}。テストは偽物を渡す）。
+ */
+export function forecastLines(selector, selection, resolved, jobs, freshnessOf, mutations = MUTATIONS) {
+  const candidates = selection.fallbackToAll === null ? null : narrowingCandidates(mutations, resolved);
+  const lines = formatForecast(selector, selection, {
+    seconds: estimateSeconds(selection.selected.map((s) => s.mutation), weightOfGroup, jobs),
+    jobs,
+    candidates,
+    candidateSeconds: candidates === null ? null : estimateSeconds(candidates, weightOfGroup, jobs),
+  });
+  const freshness = selector.kind === "changed" ? freshnessOf(selector.base) : null;
+  return freshness === null ? lines : [...lines, freshness];
+}
+
 function main() {
   const full = process.argv.includes("--full");
   const planOnly = process.argv.includes("--plan");
@@ -1048,14 +1064,7 @@ function main() {
 
   // **流し始める前に、件数と見込みを出す**（#508）。全件に倒れたことに、途中で気づいて止めることにしないため。
   // ロックより前に置く: 見込みだけを見る `--plan` は、走っている実行の邪魔をしない
-  const selectedMutations = selection.selected.map((s) => s.mutation);
-  const forecast = formatForecast(selector, selection, {
-    seconds: estimateSeconds(selectedMutations, weightOfGroup, jobs),
-    jobs,
-    candidates: selection.fallbackToAll === null ? null : narrowingCandidates(MUTATIONS, resolved),
-  });
-  const freshness = selector.kind === "changed" ? baseFreshnessLine(selector.base) : null;
-  for (const line of [header, ...forecast, ...(freshness === null ? [] : [freshness])]) {
+  for (const line of forecastLines(selector, selection, resolved, jobs, baseFreshnessLine)) {
     console.log(`[mutation-check] ${line}`);
   }
   if (planOnly) {

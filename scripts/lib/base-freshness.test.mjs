@@ -48,9 +48,12 @@ test("枝の名前に / を含む基準も、最初の / でリモートと枝�
 test("確かめられないときは、そう知らせる（古くないとは言わない）", () => {
   const failed = checkBaseFreshness("origin/main", fakeGit({ lsRemoteFails: true }).git);
   assert.equal(failed.state, "unknown");
-  assert.match(failed.message, /確かめられませんでした.*unable to access/);
+  assert.match(failed.message, /^⚠ 基準 origin\/main がリモートと同じか確かめられませんでした.*unable to access/);
   assert.doesNotMatch(failed.message, /more/);
-  assert.equal(checkBaseFreshness("origin/main", fakeGit({ remote: "" }).git).state, "unknown");
+  const missing = checkBaseFreshness("origin/main", fakeGit({ remote: "" }).git);
+  assert.equal(missing.state, "unknown");
+  assert.match(missing.message, /^⚠ /); // check:fast は ⚠ の行を最後の一覧のあとに出し直す
+  assert.doesNotMatch(checkBaseFreshness("origin/main", fakeGit({ remote: `${LOCAL}\trefs/heads/main\n` }).git).message, /⚠/);
 });
 
 test("リモートの追跡ブランチでない基準は見ない（ネットワークに出ない）", () => {

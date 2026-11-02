@@ -36,12 +36,12 @@ export function checkBaseFreshness(base, git) {
     return {
       state: "unknown",
       message:
-        `基準 ${base} がリモートと同じか確かめられませんでした（git ls-remote ${remote}: ${firstLine(error.message)}）。` +
+        `⚠ 基準 ${base} がリモートと同じか確かめられませんでした（git ls-remote ${remote}: ${firstLine(error.message)}）。` +
         `古いかもしれないときは git fetch ${remote} を流してください`,
     };
   }
   if (remoteSha === "") {
-    return { state: "unknown", message: `リモート ${remote} に枝 ${branch} が見つからず、基準 ${base} が古いか確かめられませんでした` };
+    return { state: "unknown", message: `⚠ リモート ${remote} に枝 ${branch} が見つからず、基準 ${base} が古いか確かめられませんでした` };
   }
   if (remoteSha === local) return { state: "fresh", message: `基準 ${base} はリモートと同じです（${short(local)}）` };
   return {

@@ -18,6 +18,7 @@ import {
   controlKeyOf,
   DIRTY_CHECK_EXCLUDES,
   RUNNER_COST_SECONDS,
+  forecastLines,
   weightOfGroup,
 } from "./mutation-check.mjs";
 import { MUTATIONS } from "./lib/mutation-declarations.mjs";
@@ -939,5 +940,41 @@ describe("CI への配線: 変異検査を分けて流す（#481）", () => {
     assert.match(block, /^\s*if: always\(\)\s*$/m);
     assert.match(block, /^\s*RESULT: \$\{\{ needs\.mutation\.result \}\}\s*$/m);
     assert.match(block, /test "\$RESULT" = success/);
+  });
+});
+
+/**
+ * 流し始める前の行の配線（#508 の敵対的レビュー 1）。部品（基準の新しさ・絞る候補）はそれぞれの単体テストが見るが、
+ * 本体がそれを呼んでいることはここで見る。`--plan` の配線のテストは `--base HEAD` なので、基準の新しさの道を通らない。
+ */
+describe("流し始める前の行（forecastLines・#508）", () => {
+  const muts = [
+    { id: 1, pkg: "scripts", tests: ["a.test.mjs"], patch: "m1.patch" },
+    { id: 2, pkg: "scripts/x", tests: ["b.test.mjs"], patch: "m2.patch" },
+  ];
+  const resolved = {
+    kind: "changed",
+    base: "origin/main",
+    changedFiles: ["scripts/mutation-check.mjs", "scripts/x/y.mjs"],
+    mechanismFiles: ["scripts/mutation-check.mjs"],
+    patchDir: "scripts/mutations",
+    affectedFilesOf: () => [],
+  };
+  const fallback = { selected: muts.map((mutation) => ({ mutation, reasons: [] })), fallbackToAll: "変異検査の機構が変わった" };
+
+  test("--changed が全件に倒れたら、絞る候補と基準の新しさを出す", () => {
+    const asked = [];
+    const lines = forecastLines(resolved, fallback, resolved, 1, (base) => (asked.push(base), "⚠ 基準が古い"), muts);
+    assert.deepEqual(asked, ["origin/main"]);
+    assert.match(lines[0], /^見込み: 2 件/);
+    assert.ok(lines.some((l) => /--id 1,2（/.test(l)), lines.join("\n"));
+    assert.equal(lines.at(-1), "⚠ 基準が古い");
+  });
+
+  test("--changed でなければ基準を見ない", () => {
+    const lines = forecastLines({ kind: "id", ids: [1] }, { ...fallback, fallbackToAll: null }, { kind: "id", ids: [1] }, 1, () => {
+      throw new Error("呼ばれてはならない");
+    }, muts);
+    assert.equal(lines.length, 1);
   });
 });

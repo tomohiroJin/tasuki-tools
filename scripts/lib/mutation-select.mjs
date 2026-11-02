@@ -214,18 +214,22 @@ function formatDuration(seconds) {
  * @param {{ seconds: number, jobs: number, candidates: object[] | null }} info
  * @returns {string[]}
  */
-export function formatForecast(selector, { selected, fallbackToAll }, { seconds, jobs, candidates }) {
+export function formatForecast(selector, { selected, fallbackToAll }, { seconds, jobs, candidates, candidateSeconds = null }) {
   const lines = [
     `見込み: ${selected.length} 件・約 ${formatDuration(seconds)}` +
       `（${jobs > 1 ? `--jobs ${jobs}・` : ""}RUNNER_COST_SECONDS の目安。9p の上や混んだ環境では何倍にもなります）`,
   ];
   if (selector.kind !== "changed" || fallbackToAll === null) return lines;
   // 理由は表題（formatSelectionHeader）が出すので、ここでは繰り返さない
-  lines.push("⚠ --changed が全件に切り替わりました。手元では絞って流し、全件は CI に任せてください。");
+  lines.push(
+    "⚠ --changed が全件に切り替わりました。手元では絞って流し、全件は CI に任せてください" +
+      "（9p の上では 1 件 1〜2 分かかった実測があり（#491）、全件は上の見込みの何倍にもなります）。",
+  );
   if (candidates !== null && candidates.length > 0) {
     lines.push(
       `  手元で絞るなら: node scripts/mutation-check.mjs --id ${candidates.map((m) => m.id).join(",")}` +
-        `（差分のパッケージ・パッチに当たる ${candidates.length} 件。宣言の tests・pkg の書き換えだけの変異は拾いません）`,
+        `（差分のパッケージ・パッチに当たる ${candidates.length} 件` +
+        `${candidateSeconds === null ? "" : `・見込み約 ${formatDuration(candidateSeconds)}`}。宣言の tests・pkg の書き換えだけの変異は拾いません）`,
     );
   } else {
     lines.push("  手元で絞るなら: --id <番号> か --pkg <パッケージ>（差分のパッケージ・パッチに当たる変異はありません）");

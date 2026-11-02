@@ -384,10 +384,12 @@ describe("全件に倒れる前に知らせる（#508）", () => {
       seconds: 1740,
       jobs: 1,
       candidates: [{ id: 810 }, { id: 811 }],
+      candidateSeconds: 20,
     });
     assert.equal(lines.length, 3);
     assert.match(lines[1], /^⚠ --changed が全件に切り替わりました/);
-    assert.match(lines[2], /node scripts\/mutation-check\.mjs --id 810,811（.*2 件/);
+    assert.match(lines[1], /9p の上では 1 件 1〜2 分/);
+    assert.match(lines[2], /node scripts\/mutation-check\.mjs --id 810,811（.*2 件・見込み約 20 秒/);
     const none = formatForecast({ kind: "changed", base: "origin/main" }, sel(526, "x"), { seconds: 1, jobs: 1, candidates: [] });
     assert.match(none[2], /--id <番号> か --pkg <パッケージ>/);
   });
