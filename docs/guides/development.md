@@ -17,13 +17,14 @@
 | pnpm | `package.json` の `packageManager` | 完全一致（`corepack enable` すればその版が使われる） |
 | Bun（同期サーバーの起動とテスト） | `toolchain.json` の `bun` | 完全一致（本番と同じ版） |
 | Chromium（E2E） | `e2e/package.json` の `@playwright/test` | その版が要求する revision が入っていること |
+| ffmpeg（E2E の動画の記録） | `e2e/package.json` の `@playwright/test` | その版が要求する revision が入っていること（`playwright install chromium` が一緒に入れる。`docs/adr/0033` 決定 3） |
 | Caddy（E2E） | `toolchain.json` の `caddy` | 完全一致（ハーネスが取得してキャッシュする） |
 
 **`pnpm test`・`pnpm e2e`・変異検査は、始める前に版を比べ、合わなければ始めません。**
 どの道具がどの版で、どう揃えるかを出して止まります。先に確かめるだけなら次を叩きます。
 
 ```bash
-node scripts/check-toolchain.mjs test   # test・mutation は Node・pnpm・Bun、e2e は Chromium と Caddy も見る
+node scripts/check-toolchain.mjs test   # test・mutation は Node・pnpm・Bun、e2e は Chromium・ffmpeg・Caddy も見る
 ```
 
 ```bash
@@ -46,9 +47,10 @@ claude.ai/code のクラウドのセッションでは、外への通信がプ�
 
 コンテナには、宣言と違う版の Bun（`~/.bun/bin/bun`）と、宣言と違う revision のブラウザ（`PLAYWRIGHT_BROWSERS_PATH` の先）が
 入っていることがあります。`check-toolchain` が止めたら、次のとおり揃えます。
+最後に出る版は入れた実体のものです。別の bun が PATH の先にあると `check-toolchain` は止まり続けるので、`command -v bun` で確かめます。
 
 ```bash
-# Bun（Linux x64）。版は toolchain.json から読む。照合が合わなければ置き換えずに止まる
+# Bun（Linux x64）。リポジトリの直下で流す（版は toolchain.json から読む）。照合が合わなければ置き換えずに止まる
 bash -c 'set -euo pipefail
 v="$(node -p "require(\"./toolchain.json\").bun")"
 d="$(mktemp -d)"
@@ -59,7 +61,7 @@ curl -fsSL -o "$d/SHASUMS256.txt" "$base/SHASUMS256.txt"
 mkdir -p "$HOME/.bun/bin"
 unzip -o -j -q "$d/bun-linux-x64.zip" bun-linux-x64/bun -d "$HOME/.bun/bin"
 rm -rf "$d"
-bun --version'
+"$HOME/.bun/bin/bun" --version'
 ```
 
 **Chromium と ffmpeg が揃わないときは、E2E を流さず CI に任せます。**
