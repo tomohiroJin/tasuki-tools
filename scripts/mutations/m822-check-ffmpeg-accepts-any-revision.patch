@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/toolchain.mjs b/scripts/lib/toolchain.mjs
+index e5f372c..3bc1b49 100644
+--- a/scripts/lib/toolchain.mjs
++++ b/scripts/lib/toolchain.mjs
+@@ -265,7 +265,7 @@ export function checkChromium(revision, dir, entries) {
+  */
+ export function checkFfmpeg(revision, dir, entries) {
+   const name = `ffmpeg-${revision}`;
+-  if ((entries ?? []).includes(name)) return null;
++  if ((entries ?? []).some((e) => e.startsWith("ffmpeg-"))) return null;
+   const others = (entries ?? [])
+     .map((e) => /^ffmpeg-(\d+)$/.exec(e)?.[1])
+     .filter((r) => r !== undefined && r !== revision)

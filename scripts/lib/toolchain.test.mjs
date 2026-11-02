@@ -14,6 +14,8 @@ import {
   checkNode,
   checkExact,
   checkChromium,
+  checkFfmpeg,
+  readBrowserRevisions,
   evaluateStage,
   formatProblems,
 } from "./toolchain.mjs";
@@ -24,6 +26,7 @@ const DECLARED = Object.freeze({
   bun: "1.4.3",
   caddy: "2.11.7",
   chromium: "1248",
+  ffmpeg: "1013",
 });
 
 describe("parseVersion / compareVersions: 版の読み方", () => {
@@ -265,12 +268,75 @@ describe("checkChromium: 要求の revision が入っているか", () => {
   });
 });
 
+describe("checkFfmpeg: 動画の記録に要る ffmpeg の revision が入っているか（#509）", () => {
+  test("要求の revision があれば null", () => {
+    assert.equal(checkFfmpeg("1013", "/opt/pw", ["chromium-1248", "ffmpeg-1013"]), null);
+  });
+
+  test("別の revision しか無いとき、入っている revision を示し、入れ方を示す（#509 で 1011 しか無かった）", () => {
+    const p = checkFfmpeg("1013", "/opt/pw", ["chromium-1248", "chromium_headless_shell-1248", "ffmpeg-1011"]);
+    assert.deepEqual([p?.tool, p?.declared, p?.actual], ["ffmpeg", "revision 1013", "1011"]);
+    // `playwright install chromium` は ffmpeg も入れる（ブラウザごとに ffmpeg を足す）
+    assert.match(p?.fix ?? "", /playwright install chromium/);
+    assert.match(p?.fix ?? "", /ffmpeg-1013/);
+    assert.match(p?.fix ?? "", /\/opt\/pw/);
+    assert.match(p?.fix ?? "", /リンク/);
+  });
+
+  test("置き場そのものが無いとき（entries が null）も止める", () => {
+    const p = checkFfmpeg("1013", "/home/u/.cache/ms-playwright", null);
+    assert.deepEqual([p?.tool, p?.actual], ["ffmpeg", null]);
+  });
+});
+
+describe("readBrowserRevisions: playwright-core の browsers.json から要る revision を読む（#509 のレビュー 2・3）", () => {
+  const browsers = (overrides = {}) => ({
+    browsers: [
+      { name: "chromium", revision: "1248", installByDefault: true },
+      { name: "chromium-headless-shell", revision: "1248", installByDefault: true },
+      { name: "firefox", revision: "1500", installByDefault: true },
+      { name: "ffmpeg", revision: "1013", installByDefault: true },
+      ...(overrides.extra ?? []),
+    ].map((b) => ({ ...b, ...(overrides[b.name] ?? {}) })),
+  });
+
+  test("chromium と ffmpeg の revision を名前で読む", () => {
+    assert.deepEqual(readBrowserRevisions(browsers()), { chromium: "1248", ffmpeg: "1013", problems: [] });
+  });
+
+  for (const name of ["chromium", "ffmpeg"]) {
+    test(`${name} の revision が無い・数字でないときは、${name} を名指しして止める`, () => {
+      for (const revision of [undefined, "12a", 1248]) {
+        const r = readBrowserRevisions(browsers({ [name]: { revision } }));
+        assert.equal(r[name], null, String(revision));
+        assert.ok(r.problems.some((p) => p.includes(`${name} の revision がありません`)), r.problems.join("\n"));
+      }
+    });
+
+    test(`${name} に OS ごとの revision（revisionOverrides）があれば、探す revision を決められないとして止める`, () => {
+      const r = readBrowserRevisions(browsers({ [name]: { revisionOverrides: { "mac12": "1100" } } }));
+      assert.equal(r.problems.length, 1, r.problems.join("\n"));
+      assert.match(r.problems[0], new RegExp(`browsers\\.json の ${name} に OS ごとの revision（revisionOverrides: mac12）`));
+    });
+  }
+
+  test("空の revisionOverrides は止めない", () => {
+    assert.deepEqual(readBrowserRevisions(browsers({ ffmpeg: { revisionOverrides: {} } })).problems, []);
+  });
+
+  test("形が違う（browsers が配列でない）ときは、例外を投げずに止める", () => {
+    const r = readBrowserRevisions({});
+    assert.deepEqual([r.chromium, r.ffmpeg], [null, null]);
+    assert.ok(r.problems.length > 0);
+  });
+});
+
 describe("evaluateStage: 段ごとに見る道具", () => {
   const ok = {
     node: "v22.23.4",
     pnpm: "11.28.8",
     bun: "1.4.3",
-    chromium: { dir: "/opt/pw", entries: ["chromium-1248", "chromium_headless_shell-1248"] },
+    chromium: { dir: "/opt/pw", entries: ["chromium-1248", "chromium_headless_shell-1248", "ffmpeg-1013"] },
     caddy: { present: true, version: "2.11.7" },
   };
 
@@ -292,7 +358,18 @@ describe("evaluateStage: 段ごとに見る道具", () => {
   test("e2e の段は Chromium と Caddy の版も見る", () => {
     const actual = { ...ok, chromium: { dir: "/opt/pw", entries: [] }, caddy: { present: true, version: "2.0.0" } };
     const tools = evaluateStage("e2e", DECLARED, actual).problems.map((p) => p.tool);
-    assert.deepEqual(tools.sort(), ["caddy", "chromium"]);
+    assert.deepEqual(tools.sort(), ["caddy", "chromium", "ffmpeg"]);
+  });
+
+  test("e2e の段は ffmpeg だけが欠けていても止める（#509: Chromium だけ揃えると OK を出し、全件が動画の記録で落ちた）", () => {
+    const actual = { ...ok, chromium: { dir: "/opt/pw", entries: ["chromium-1248", "chromium_headless_shell-1248", "ffmpeg-1011"] } };
+    const tools = evaluateStage("e2e", DECLARED, actual).problems.map((p) => p.tool);
+    assert.deepEqual(tools, ["ffmpeg"]);
+  });
+
+  test("test・mutation の段は ffmpeg を見ない", () => {
+    const actual = { ...ok, chromium: { dir: "/opt/pw", entries: [] } };
+    for (const stage of ["test", "mutation"]) assert.deepEqual(evaluateStage(stage, DECLARED, actual).problems, [], stage);
   });
 
   test("Caddy がまだ無いだけなら止めない（ハーネスが宣言の版を取りに行く）が、そう伝える", () => {
@@ -317,6 +394,24 @@ describe("evaluateStage: 段ごとに見る道具", () => {
 
   test("知らない段は例外にする（綴りの誤りで何も見ずに通さない）", () => {
     assert.throws(() => evaluateStage("tests", DECLARED, ok), /tests/);
+  });
+});
+
+describe("揃え方: 公式の取得先に届かない環境（クラウドのセッション）の案内（#509）", () => {
+  const CLOUD_GUIDE = /docs\/guides\/development\.md の「クラウドのセッションで道具を揃える」/;
+
+  test("Bun・Chromium・ffmpeg の揃え方は、届かないときの案内の節を指す", () => {
+    const fixes = {
+      bun: checkExact("bun", "1.4.4", "1.4.3")?.fix,
+      chromium: checkChromium("1248", "/opt/pw", ["chromium-1243"])?.fix,
+      ffmpeg: checkFfmpeg("1013", "/opt/pw", ["ffmpeg-1011"])?.fix,
+    };
+    for (const [tool, fix] of Object.entries(fixes)) assert.match(fix ?? "", CLOUD_GUIDE, tool);
+  });
+
+  test("Node・pnpm の揃え方は指さない（クラウドのコンテナで足りていて、取得先を確かめていない）", () => {
+    assert.doesNotMatch(checkNode("v22.22.0", "22.22.2")?.fix ?? "", CLOUD_GUIDE);
+    assert.doesNotMatch(checkExact("pnpm", "10.0.0", "11.28.8")?.fix ?? "", CLOUD_GUIDE);
   });
 });
 

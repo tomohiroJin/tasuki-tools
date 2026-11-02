@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/toolchain.mjs b/scripts/lib/toolchain.mjs
+index e5f372c..093497d 100644
+--- a/scripts/lib/toolchain.mjs
++++ b/scripts/lib/toolchain.mjs
+@@ -36,7 +36,7 @@ export const TOOLCHAIN_KEYS = Object.freeze(["node", "bun", "caddy"]);
+ export const STAGES = Object.freeze({
+   test: Object.freeze(["node", "pnpm", "bun"]),
+   mutation: Object.freeze(["node", "pnpm", "bun"]),
+-  e2e: Object.freeze(["node", "pnpm", "bun", "chromium", "ffmpeg", "caddy"]),
++  e2e: Object.freeze(["node", "pnpm", "bun", "chromium", "caddy"]),
+ });
+ 
+ /**

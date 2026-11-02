@@ -1,8 +1,8 @@
 diff --git a/scripts/lib/toolchain.mjs b/scripts/lib/toolchain.mjs
-index d3c0ed6..0ce7594 100644
+index c999743..3d6ec67 100644
 --- a/scripts/lib/toolchain.mjs
 +++ b/scripts/lib/toolchain.mjs
-@@ -138,7 +138,7 @@ export function chromiumBrowsersDir(env, platform, homedir) {
+@@ -192,7 +192,7 @@ export function chromiumBrowsersDir(env, platform, homedir, { coreDir = null, cw
   * 両方が要る（本体だけ入っていても、起動の瞬間に「実行ファイルが無い」で落ちる）。
   */
  export function chromiumDirNames(revision) {
@@ -10,4 +10,4 @@ index d3c0ed6..0ce7594 100644
 +  return [`chromium-${revision}`];
  }
  
- const FIX = {
+ /**
