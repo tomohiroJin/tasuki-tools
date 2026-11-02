@@ -1,5 +1,5 @@
 diff --git a/scripts/lib/base-freshness.mjs b/scripts/lib/base-freshness.mjs
-index 23e84f76..2a3b1c5a 100644
+index bb0afda9..8ddcc7da 100644
 --- a/scripts/lib/base-freshness.mjs
 +++ b/scripts/lib/base-freshness.mjs
 @@ -33,7 +33,7 @@ export function checkBaseFreshness(base, git) {
@@ -10,4 +10,4 @@ index 23e84f76..2a3b1c5a 100644
 +    return null && {
        state: "unknown",
        message:
-         `基準 ${base} がリモートと同じか確かめられませんでした（git ls-remote ${remote}: ${firstLine(error.message)}）。` +
+         `⚠ 基準 ${base} がリモートと同じか確かめられませんでした（git ls-remote ${remote}: ${firstLine(error.message)}）。` +
