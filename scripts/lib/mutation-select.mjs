@@ -1,5 +1,5 @@
 import path from "node:path";
-import { partitionMutations } from "./mutation-partition.mjs";
+import { groupByControl, partitionMutations } from "./mutation-partition.mjs";
 
 /**
  * 変異検査の「選んで流す」指定（#387・設計正本 `docs/superpowers/specs/2026-10-14-test-weight-design.md` §4）。
@@ -18,7 +18,7 @@ import { partitionMutations } from "./mutation-partition.mjs";
 /** 選び方の指定。1 回に 1 つだけ使える。 */
 const SELECTOR_FLAGS = ["--changed", "--id", "--pkg", "--shard"];
 /** 値を取るが選び方ではない指定（`--jobs`・`--test-workers`）。値の解釈は `scripts/lib/mutation-parallel.mjs`。 */
-const KNOWN_FLAGS = new Set(["--full", "--base", "--jobs", "--test-workers", ...SELECTOR_FLAGS]);
+const KNOWN_FLAGS = new Set(["--full", "--plan", "--base", "--jobs", "--test-workers", ...SELECTOR_FLAGS]);
 
 /**
  * 引数（`process.argv.slice(2)`）から選び方を組む。
@@ -34,7 +34,7 @@ export function parseSelector(args) {
     if (!KNOWN_FLAGS.has(arg)) {
       throw new Error(`未知の指定です: ${arg}（使えるのは ${[...KNOWN_FLAGS].join(" / ")}）`);
     }
-    if (arg === "--full") continue;
+    if (arg === "--full" || arg === "--plan") continue;
     if (arg === "--changed") {
       found.push({ kind: "changed" });
       continue;
@@ -129,7 +129,7 @@ export function selectMutations(mutations, resolved) {
  * 全パッケージのテストに効く共通設定）が差分にあるとき。
  * 迷ったら多く流す（`scripts/ci-scope.mjs` と同じ fail-open の向き）。
  */
-function selectByChange(mutations, { changedFiles, mechanismFiles, patchDir, affectedFilesOf }) {
+function selectByChange(mutations, { changedFiles, mechanismFiles, patchDir, affectedFilesOf, ignoreRootConfigs = false }) {
   const all = (reason) => ({
     selected: mutations.map((mutation) => ({ mutation, reasons: [reason] })),
     fallbackToAll: reason,
@@ -138,7 +138,7 @@ function selectByChange(mutations, { changedFiles, mechanismFiles, patchDir, aff
   const changed = new Set(changedFiles);
   const touchedMechanism = mechanismFiles.filter((f) => changed.has(f));
   if (touchedMechanism.length > 0) return all(`変異検査の機構が変わった（${touchedMechanism.join(", ")}）`);
-  const rootConfigs = changedFiles.filter((f) => !f.includes("/") && !f.endsWith(".md"));
+  const rootConfigs = ignoreRootConfigs ? [] : changedFiles.filter((f) => !f.includes("/") && !f.endsWith(".md"));
   if (rootConfigs.length > 0) return all(`ルートの共通設定が変わった（${rootConfigs.join(", ")}）`);
 
   const selected = [];
@@ -178,6 +178,59 @@ export function mechanismFilesFrom(source, selfRelPath, readSource = null) {
   };
   visit(source, selfRelPath);
   return files;
+}
+
+/**
+ * `--changed` が全件に倒れたとき、手元で絞るための候補（#508）。全件に倒す 2 つの条件（機構・ルートの共通設定）を
+ * 外して、同じ規則で選び直す。**宣言の `tests`・`pkg` の書き換えだけの変異は拾わない**（そのために全件へ倒している）。
+ * 拾い漏れは CI の全件が拾う。差分が取れないときは null。
+ */
+export function narrowingCandidates(mutations, resolved) {
+  if (resolved.kind !== "changed" || resolved.changedFiles === null) return null;
+  const { selected } = selectByChange(mutations, { ...resolved, mechanismFiles: [], ignoreRootConfigs: true });
+  return selected.map((s) => s.mutation);
+}
+
+/**
+ * 見込みの時間（秒）。対照の組ごとの重さ（`weightOf`。mutation-check の `RUNNER_COST_SECONDS` の目安）を足し、
+ * `--jobs` のときは作業ツリーの数で割る（作業ツリーの準備の時間は入れない）。**目安であって約束ではない。**
+ */
+export function estimateSeconds(mutations, weightOf, jobs = 1) {
+  if (mutations.length === 0) return 0;
+  const groups = groupByControl(mutations);
+  const total = groups.reduce((sum, group) => sum + weightOf(group), 0);
+  return total / Math.min(jobs, groups.length);
+}
+
+function formatDuration(seconds) {
+  if (seconds < 90) return `${Math.ceil(seconds)} 秒`;
+  return `${Math.round(seconds / 60)} 分`;
+}
+
+/**
+ * 流し始める前に出す見込みの行（#508）。件数と見込みの時間。`--changed` が全件に倒れたときは、
+ * そう倒れた理由と、手元で絞る道（`--id`）を足す。
+ *
+ * @param {{ seconds: number, jobs: number, candidates: object[] | null }} info
+ * @returns {string[]}
+ */
+export function formatForecast(selector, { selected, fallbackToAll }, { seconds, jobs, candidates }) {
+  const lines = [
+    `見込み: ${selected.length} 件・約 ${formatDuration(seconds)}` +
+      `（${jobs > 1 ? `--jobs ${jobs}・` : ""}RUNNER_COST_SECONDS の目安。9p の上や混んだ環境では何倍にもなります）`,
+  ];
+  if (selector.kind !== "changed" || fallbackToAll === null) return lines;
+  // 理由は表題（formatSelectionHeader）が出すので、ここでは繰り返さない
+  lines.push("⚠ --changed が全件に切り替わりました。手元では絞って流し、全件は CI に任せてください。");
+  if (candidates !== null && candidates.length > 0) {
+    lines.push(
+      `  手元で絞るなら: node scripts/mutation-check.mjs --id ${candidates.map((m) => m.id).join(",")}` +
+        `（差分のパッケージ・パッチに当たる ${candidates.length} 件。宣言の tests・pkg の書き換えだけの変異は拾いません）`,
+    );
+  } else {
+    lines.push("  手元で絞るなら: --id <番号> か --pkg <パッケージ>（差分のパッケージ・パッチに当たる変異はありません）");
+  }
+  return lines;
 }
 
 /** 結果の表題。**全件の緑と絞り込みの緑を取り違えない**ために、絞り込みは必ずそう書く。 */

@@ -383,6 +383,16 @@ describe("選び方の指定の配線（#387）", () => {
     assert.doesNotMatch(r.stdout, /該当する変異はありません/);
   });
 
+  test("--plan はロックより前に、件数と見込みを出して変異を流さずに終わる（#508）", () => {
+    // 生きたロックがあっても止まらない（見込みを見るだけで、走っている実行の邪魔をしない）
+    const r = run("--changed", "--base", "HEAD", "--plan");
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stdout, /見込み: \d+ 件・約/);
+    assert.match(r.stdout, /--plan: 見込みだけを出しました。変異は流していません/);
+    assert.doesNotMatch(r.stderr, /別の実行（PID/);
+    assert.doesNotMatch(r.stdout, /--- 変異 #/);
+  });
+
   test("--base の打ち間違いはエラーで止まり、ref の名前を伝える", () => {
     const r = run("--changed", "--base", "no-such-ref-387");
     assert.notEqual(r.status, 0);

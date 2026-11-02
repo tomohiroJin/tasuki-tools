@@ -80,10 +80,31 @@ test("失敗しても残りを流し、成功・失敗・省略を区別する",
   assert.deepEqual(results.map((c) => c.status), ["failed", "passed", "skipped"]);
 });
 
+const WORKER_START_FAILURE = [
+  "@tasuki/sync-client:test: Vitest caught 1 unhandled error during the test run.",
+  "@tasuki/sync-client:test: Error: [vitest-pool]: Failed to start forks worker for test files /repo/packages/sync-client/tests/connection.test.ts.",
+  "@tasuki/sync-client:test: Caused by: Error: [vitest-pool-runner]: Timeout waiting for worker to respond",
+  "Failed:    @tasuki/sync-client#test",
+].join("\n");
+
+test("ワーカーが起動しなかっただけの赤は未実行として失敗と分ける（#508）", () => {
+  const results = runChecks([{ command: "not-started" }, { command: "real" }, { command: "boolean" }], {
+    preflight: () => true,
+    execute: (c) => {
+      if (c.command === "not-started") return { passed: false, output: WORKER_START_FAILURE };
+      if (c.command === "real") return { passed: false, output: `${WORKER_START_FAILURE}\n@tasuki/sync-client:test:  FAIL  tests/a.test.ts > a` };
+      return false;
+    },
+  });
+  assert.deepEqual(results.map((c) => c.status), ["not-run", "failed", "failed"]);
+  assert.match(results[0].reason, /ワーカーが起動しなかった（@tasuki\/sync-client#test: 1 ファイル）/);
+  assert.match(results[0].reason, /流し直して/);
+});
+
 function fixture(t, { failPreflight = false, failCheck = false } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "local-check-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-  for (const file of ["local-check.mjs", "audit-toolchain.mjs", "ci-scope.mjs", "lib/direct-run.mjs", "lib/toolchain.mjs", "lib/scan-targets.mjs", "lib/workflow.mjs", "lib/ci-scope.mjs"]) {
+  for (const file of ["local-check.mjs", "audit-toolchain.mjs", "ci-scope.mjs", "lib/direct-run.mjs", "lib/check-outcome.mjs", "lib/toolchain.mjs", "lib/scan-targets.mjs", "lib/workflow.mjs", "lib/ci-scope.mjs"]) {
     const target = path.join(dir, "scripts", file);
     fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.copyFileSync(new URL(file, import.meta.url), target);
@@ -205,4 +226,60 @@ test("--list も複数行のコマンドを一行で表示する", (t) => {
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.stdout, /\[予定\] ci: echo FIRST \/ echo SECOND/);
   assert.equal(r.stdout.trim().split("\n").length, 1);
+});
+
+test("CLI の実経路: 起動しなかっただけの赤を未実行と出し、非ゼロで終わる（#508）", (t) => {
+  for (const real of [false, true]) {
+    const dir = fixture(t);
+    const output = `${WORKER_START_FAILURE}${real ? "\n@tasuki/sync-client:test:  FAIL  tests/a.test.ts > a" : ""}`;
+    fs.writeFileSync(path.join(dir, "out.txt"), output);
+    fs.writeFileSync(path.join(dir, ".github/workflows/ci.yml"), "jobs:\n  ci:\n    steps:\n      - run: cat out.txt && exit 1\n");
+    const r = spawnSync(process.execPath, [path.join(dir, "scripts/local-check.mjs"), "full"], { encoding: "utf8" });
+    assert.ifError(r.error);
+    assert.equal(r.status, 1, r.stderr);
+    // 出力はその場でも流れる（控えるために隠さない）
+    assert.match(r.stdout, /Failed to start forks worker/);
+    if (real) {
+      assert.match(r.stdout, /\[失敗\] ci: cat out\.txt/);
+      assert.doesNotMatch(r.stdout, /未実行/);
+    } else {
+      assert.match(r.stdout, /\[未実行\] ci: cat out\.txt && exit 1 — テストのワーカーが起動しなかった/);
+      assert.match(r.stdout, /失敗 0 件・未実行 1 件/);
+    }
+  }
+});
+
+test("速い段は、検査より前に変異の見込みを出し、知らせを最後にもう一度出す（#508）", (t) => {
+  const dir = fixture(t);
+  fs.writeFileSync(path.join(dir, ".github/workflows/ci.yml"), `jobs:
+  ci:
+    steps:
+      - run: node -e 'console.log("FIRST")'
+  mutation:
+    strategy:
+      matrix:
+        shard: [1, 2]
+    steps:
+      - run: node scripts/mutation-check.mjs --shard "$((SHARD_INDEX + 1))/$SHARD_TOTAL"
+        env:
+          SHARD_INDEX: \${{ strategy.job-index }}
+          SHARD_TOTAL: \${{ strategy.job-total }}
+`);
+  fs.writeFileSync(
+    path.join(dir, "scripts/mutation-check.mjs"),
+    "const a = process.argv.slice(2).join(' ');\n" +
+      "if (a === '--changed --plan') { console.log('[mutation-check] 見込み: 526 件'); console.log('[mutation-check] ⚠ 全件に切り替わりました'); }\n" +
+      "else console.log('MUTATION ' + a);\n",
+  );
+  const listed = spawnSync(process.execPath, [path.join(dir, "scripts/local-check.mjs"), "fast", "--list"], { encoding: "utf8" });
+  assert.equal(listed.status, 0, listed.stderr);
+  assert.match(listed.stdout, /見込み: 526 件[\s\S]*\[予定\] ci:/);
+  assert.doesNotMatch(listed.stdout, /^MUTATION/m);
+
+  const r = spawnSync(process.execPath, [path.join(dir, "scripts/local-check.mjs"), "fast"], { encoding: "utf8" });
+  assert.equal(r.status, 0, r.stderr);
+  const forecast = r.stdout.indexOf("見込み: 526 件");
+  assert.ok(forecast >= 0 && forecast < r.stdout.indexOf("FIRST"), r.stdout);
+  assert.match(r.stdout, /^MUTATION --changed$/m);
+  assert.ok(r.stdout.lastIndexOf("⚠ 全件に切り替わりました") > r.stdout.indexOf("実行結果"), r.stdout);
 });

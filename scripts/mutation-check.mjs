@@ -18,6 +18,7 @@
  *   node scripts/mutation-check.mjs --pkg apps/roulette-web  pkg の完全一致で選ぶ
  *   node scripts/mutation-check.mjs --shard 2/4         全件を 4 つに分けた 2 つ目（#481。CI のジョブ分け）
  *   node scripts/mutation-check.mjs --jobs 4            作業ツリーを 4 つに分けて並列に流す（#481。どの選び方とも組める）
+ *   node scripts/mutation-check.mjs --changed --plan    流さずに、件数・見込みの時間・基準の新しさだけを出す（#508）
  *   選び方は 1 回に 1 つ。知らない指定はエラー。CI は全件を --shard で分け、各ジョブが --jobs で並列に流す。
  *   選び方の規則は scripts/lib/mutation-select.mjs と設計正本
  *   docs/superpowers/specs/2026-10-14-test-weight-design.md §4。
@@ -79,7 +80,11 @@ import {
   mechanismFilesFrom,
   formatSelectionHeader,
   successMessage,
+  narrowingCandidates,
+  estimateSeconds,
+  formatForecast,
 } from "./lib/mutation-select.mjs";
+import { checkBaseFreshness } from "./lib/base-freshness.mjs";
 import { createControlCache } from "./lib/mutation-control-cache.mjs";
 import {
   parseJobs,
@@ -1000,11 +1005,29 @@ export function controlKeyOf(mutation, full, testWorkers = null) {
   return JSON.stringify([mutation.pkg, buildCommand(runner, mutation, full, testWorkers)]);
 }
 
+/**
+ * `--changed` の基準がリモートと同じかを見る（#508）。ls-remote はネットワークに出るので、時間を区切り、
+ * 資格情報を尋ねさせない。分からなければそう知らせる（止めない）。
+ */
+function baseFreshnessLine(base) {
+  const git = (args) =>
+    execFileSync("git", args, {
+      cwd: REPO_ROOT,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+      timeout: 15_000,
+      env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
+    });
+  return checkBaseFreshness(base, git)?.message ?? null;
+}
+
 function main() {
   const full = process.argv.includes("--full");
+  const planOnly = process.argv.includes("--plan");
 
   // **指定の誤りはロックより前に止める。** 何も触らずに終わらせるため（#387）。
   let selector;
+  let resolved;
   let selection;
   let jobs;
   let testWorkers;
@@ -1015,12 +1038,31 @@ function main() {
     if (selector.kind === "changed" && selector.baseExplicit && !refExists(selector.base)) {
       throw new Error(`--base の ref が見つかりません: ${selector.base}`);
     }
-    selection = selectMutations(MUTATIONS, resolveSelector(selector));
+    resolved = resolveSelector(selector);
+    selection = selectMutations(MUTATIONS, resolved);
   } catch (e) {
     console.error(`[mutation-check] ${e.message}`);
     process.exit(1);
   }
   const header = formatSelectionHeader(selector, selection, MUTATIONS.length);
+
+  // **流し始める前に、件数と見込みを出す**（#508）。全件に倒れたことに、途中で気づいて止めることにしないため。
+  // ロックより前に置く: 見込みだけを見る `--plan` は、走っている実行の邪魔をしない
+  const selectedMutations = selection.selected.map((s) => s.mutation);
+  const forecast = formatForecast(selector, selection, {
+    seconds: estimateSeconds(selectedMutations, weightOfGroup, jobs),
+    jobs,
+    candidates: selection.fallbackToAll === null ? null : narrowingCandidates(MUTATIONS, resolved),
+  });
+  const freshness = selector.kind === "changed" ? baseFreshnessLine(selector.base) : null;
+  for (const line of [header, ...forecast, ...(freshness === null ? [] : [freshness])]) {
+    console.log(`[mutation-check] ${line}`);
+  }
+  if (planOnly) {
+    // 見込みを出しただけ。**変異は 1 件も流していない**（緑の意味を取り違えない）
+    console.log("[mutation-check] --plan: 見込みだけを出しました。変異は流していません。");
+    process.exit(0);
+  }
   // **復元より前にロックを取る。** 復元自体が `git checkout --` を撃つので、
   // 並走している実行の変異をここで消してしまう経路がある。
   acquireLock();
