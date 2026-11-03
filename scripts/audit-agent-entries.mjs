@@ -53,12 +53,15 @@ export const SOURCE_PATH = "AGENTS.md";
 export const ENTRY_FILES = [
   { path: "CLAUDE.md", tool: "Claude Code" },
   { path: "GEMINI.md", tool: "Gemini CLI" },
-  { path: ".github/copilot-instructions.md", tool: "GitHub Copilot" },
 ];
 
 /** どの階層に置いてもツールが読む名前（ファイル名で完全一致）。 */
 const CANDIDATE_BASENAMES = new Set(["AGENTS.md", "AGENTS.override.md", "CLAUDE.md", "CLAUDE.local.md", "GEMINI.md"]);
-/** リポジトリ直下からの置き場で決まるもの（完全一致）。 */
+/**
+ * リポジトリ直下からの置き場で決まるもの（完全一致）。
+ * `.github/copilot-instructions.md` は入口の宣言から外した（利用者が Copilot を使わないと決めた。docs/adr/0030 決定 3 の追記・#507）が、
+ * ツールが規則として読む置き場なので候補には残す。黙って戻されたら「宣言されていない入口」として止まる。
+ */
 const CANDIDATE_PATHS = new Set([".github/copilot-instructions.md", ".cursorrules", ".windsurfrules"]);
 /** 配下のどのファイルもツールが規則として読む置き場（前方一致）。 */
 const CANDIDATE_DIRS = [".claude/rules/", ".cursor/rules/", ".github/instructions/"];

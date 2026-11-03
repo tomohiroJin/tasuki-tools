@@ -58,13 +58,22 @@
 | ツール | 仕組みはあるか（2026-11-01 の調べ） | いまの扱い |
 |---|---|---|
 | Gemini CLI | フック（`BeforeTool`。`run_shell_command` で絞れる。実験的で、有効にする設定が要る）と、シェルのコマンドの前方一致の除外（`tools.exclude` ほか。版でキーの名前が違う） | 文章だけ（`GEMINI.md` → `AGENTS.md`） |
-| GitHub Copilot | Copilot CLI とクラウドのエージェントは `.github/hooks/*.json` の `preToolUse`。VS Code のエージェントのフックはプレビュー | 文章だけ（`.github/copilot-instructions.md` → `AGENTS.md`） |
+| GitHub Copilot | Copilot CLI とクラウドのエージェントは `.github/hooks/*.json` の `preToolUse`。VS Code のエージェントのフックはプレビュー | 文章の入口なし（改定 2026-11-04・#507。改定前は「文章だけ（.github の下の copilot-instructions.md → `AGENTS.md`）」） |
+
+**改定（2026-11-04・#507）**: 上の表の Copilot の「いまの扱い」を、改定前の「文章だけ（.github の下の copilot-instructions.md → `AGENTS.md`）」から
+「文章の入口なし」に直した（`docs/adr/0002` 追記（#258）の改定節つきの本文訂正。表の列は現況を語るため）。利用者が Copilot を
+使わないと決めたので入口を外した（`docs/adr/0030` 決定 3 の改定と追記）。Copilot の面では、いまは文章の入口も置いていない。
+Copilot を使い始めるときは、`AGENTS.md` を読むかとフックが効くかを、その時点の版で確かめてから決める。決定 4 のうち Copilot の分（いまの扱いと、確かめる時）は、ここと下の改定項、`docs/adr/0030` 決定 3 の追記（2026-11-04・#507）で決め直した。Gemini CLI の分は変えていない。
+なお、改定前の文面の引用は、消したファイルの名前のバッククォートだけを外して書いた（表記だけの変更。リンク検査が実在しないパスとして扱わないため。`docs/adr/0030` 決定 3 の改定のなお書きと同じ）。
+Copilot は、いまは文章の入口も無い。決定 4 の見出しと「文章だけで守る理由」の「どちらも」のうち Copilot は、改定前の現況として読む（本文は書き換えない）。
 
 - **文章だけで守る理由**: どちらも、この環境にツールが無く、**実際に呼ばせて止まることを確かめられなかった**（原則 VII）。
   調べたのは公式の文書と検索の要約だけで、Copilot の文書（docs.github.com）にはこの環境から届かなかった。
   確かめていない設定を置くと、「止まる」と思わせたまま止まらない形を作る。置くのは確かめてからにする
 - **MUST**: 置くときは、判定を写さず `scripts/agent-guard-hook.mjs`（か、同じ `scripts/lib/agent-guard.mjs` を呼ぶ入口）へ向け、
   `scripts/audit-agent-guard.mjs` の①②に足す。2 つの場所で同じ ISSUE を任せる試し（[#491](https://github.com/tomohiroJin/tasuki-tools/issues/491)）で確かめる
+  - **改定（2026-11-04・#507）**: Copilot の分の「#491 の試しで確かめる」は、#491 の試しでは確かめられなかったので、
+    「Copilot を使い始めるときに、その時点の版で確かめる」へ移した（上の改定）。Gemini CLI の分は、改定前の文面のまま残す（扱いは別に決める）。
 
 ### 5. コミットの前に速い検査を流すフックは、今は置かない
 
