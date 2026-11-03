@@ -1,5 +1,5 @@
 diff --git a/scripts/local-check.mjs b/scripts/local-check.mjs
-index f5668d5f..0fb6d4e9 100644
+index e3ce14f8..967c153d 100644
 --- a/scripts/local-check.mjs
 +++ b/scripts/local-check.mjs
 @@ -209,7 +209,7 @@ function hasCodeChanges() {
@@ -10,4 +10,4 @@ index f5668d5f..0fb6d4e9 100644
 +  } catch { console.log("[local-check] 差分を判定できないため、型・lint・単体をすべて流します"); return false; }
  }
  
- async function main() {
+ async function run() {
