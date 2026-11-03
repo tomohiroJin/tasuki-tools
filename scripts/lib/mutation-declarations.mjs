@@ -5094,7 +5094,7 @@ export const MUTATIONS = [
     patch: "m862-prior-pr-hook-misses-glued-title.patch",
     pkg: "scripts",
     tests: ["lib/prior-pr-hook.test.mjs"],
-    note: RESERVED_860_869 + " " + "#504 のレビュー 4。-t"feat（#480）" の形でブランチに番号が無いと確認を抜ける。",
+    note: RESERVED_860_869 + " " + "#504 のレビュー 4。-t<値> の形でブランチに番号が無いと確認を抜ける。",
   },
   {
     id: 863,
