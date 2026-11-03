@@ -52,6 +52,15 @@ describe("宣言", () => {
     assert.ok(!ENTRY_FILES.some((e) => e.path === SOURCE_PATH));
   });
 
+  test("Copilot の入口は宣言しない（利用者が使わないと決めた。docs/adr/0030 決定 3 の追記・#507）", () => {
+    assert.ok(!ENTRY_FILES.some((e) => e.path === ".github/copilot-instructions.md"));
+  });
+
+  test("外した Copilot の入口が追跡下に再び現れたら、宣言していない入口として検出する", () => {
+    // Given: 宣言を外しても候補の置き場には残してあるので、黙って戻されたら止まる
+    assert.deepEqual(findUndeclaredEntries([".github/copilot-instructions.md", "CLAUDE.md"], ENTRY_FILES), [".github/copilot-instructions.md"]);
+  });
+
   test("入口の重複が無い", () => {
     const paths = ENTRY_FILES.map((e) => e.path);
     assert.equal(new Set(paths).size, paths.length);
@@ -132,7 +141,7 @@ describe("linksToSource: 入口が正本へ向いているか", () => {
   });
 
   test("下の階層からの ../ を正本と解く", () => {
-    assert.equal(linksToSource(".github/copilot-instructions.md", "[AGENTS.md](../AGENTS.md)"), true);
+    assert.equal(linksToSource("sub/entry.md", "[AGENTS.md](../AGENTS.md)"), true);
   });
 
   test("./ つき・アンカーつきでも解く", () => {
@@ -169,8 +178,8 @@ describe("linksToSource: 入口が正本へ向いているか", () => {
   });
 
   test("階層を解き違えたリンクは向いていない", () => {
-    // Given: .github/ の下から ../ を付けずに書くと .github/AGENTS.md を指す
-    assert.equal(linksToSource(".github/copilot-instructions.md", "[AGENTS.md](AGENTS.md)"), false);
+    // Given: sub/ の下から ../ を付けずに書くと .github/AGENTS.md を指す
+    assert.equal(linksToSource("sub/entry.md", "[AGENTS.md](AGENTS.md)"), false);
   });
 
   test("別の場所の同名ファイルは向いていない", () => {

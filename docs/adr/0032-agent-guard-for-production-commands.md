@@ -60,6 +60,10 @@
 | Gemini CLI | フック（`BeforeTool`。`run_shell_command` で絞れる。実験的で、有効にする設定が要る）と、シェルのコマンドの前方一致の除外（`tools.exclude` ほか。版でキーの名前が違う） | 文章だけ（`GEMINI.md` → `AGENTS.md`） |
 | GitHub Copilot | Copilot CLI とクラウドのエージェントは `.github/hooks/*.json` の `preToolUse`。VS Code のエージェントのフックはプレビュー | 文章だけ（`.github/copilot-instructions.md` → `AGENTS.md`） |
 
+**改定（2026-11-04・#507）**: 上の表の Copilot の「文章だけ」にある入口 `.github/copilot-instructions.md` は、利用者が Copilot を
+使わないと決めたので外した（`docs/adr/0030` 決定 3 の改定と追記）。Copilot の面では、いまは文章の入口も置いていない。
+Copilot を使い始めるときは、`AGENTS.md` を読むかとフックが効くかを、その時点の版で確かめてから決める。決定 4 は変えていない。
+
 - **文章だけで守る理由**: どちらも、この環境にツールが無く、**実際に呼ばせて止まることを確かめられなかった**（原則 VII）。
   調べたのは公式の文書と検索の要約だけで、Copilot の文書（docs.github.com）にはこの環境から届かなかった。
   確かめていない設定を置くと、「止まる」と思わせたまま止まらない形を作る。置くのは確かめてからにする
