@@ -48,6 +48,23 @@ export const GATE_BOUNDARY_DATE = "2026-09-04";
 /** 実装計画の置き場。git の `*` は `/` を跨ぐので、これで配下も含めて列挙される。 */
 export const PLAN_PATTERNS = ["docs/superpowers/plans/*.md"];
 
+/**
+ * 設計文書（spec / plan）に冒頭の宣言を要求し始める日（この日を**含む**）。
+ *
+ * 宣言の正本は `docs/guides/design-doc-revision.md`（#506）。**既存の文書へは遡らない**
+ * （決定当時の記録に手を入れることになるため。ゲートの境界日と同じ考え方）。
+ * 日付を持たない文書は対象外にせず問題として扱う。
+ */
+export const DECLARATION_BOUNDARY_DATE = "2026-11-04";
+
+/** 宣言を探す文書の置き場（設計と実装計画）。 */
+export const DESIGN_DOC_PATTERNS = ["docs/superpowers/specs/*.md", "docs/superpowers/plans/*.md"];
+
+/** 宣言を探す冒頭の行数。どの節から入っても目に入る位置、の意味である。 */
+export const DECLARATION_WINDOW_LINES = 15;
+
+const DECLARATION_GUIDE = "docs/guides/design-doc-revision.md";
+
 /** 憲法の正本。原則の一覧はここから導出する（検査に直書きしない）。 */
 export const CONSTITUTION_PATH = "docs/constitution.md";
 
@@ -236,6 +253,28 @@ export function checkGate(rel, text, principles) {
     .sort((a, b) => a.length - b.length)[0];
 }
 
+/**
+ * 設計文書の冒頭に「書き換えない節」の宣言があるか（#506）。
+ *
+ * **存在だけを見る。** 節が実際に書き換えられたかは見ない（差分の検査を足さない理由は
+ * `docs/guides/design-doc-revision.md` の「機械で守れるか」）。
+ * 宣言は、冒頭 {@link DECLARATION_WINDOW_LINES} 行の**引用行（`>`）**で、「書き換えない」と
+ * ガイドのパスの両方を含むもの。コードフェンスの中身は落とす（様式の引用で満たさせない）。
+ */
+export function checkDeclaration(rel, text) {
+  const head = stripCodeFences(text).split("\n").slice(0, DECLARATION_WINDOW_LINES);
+  const ok = head.some(
+    (line) => /^\s*>/.test(line) && line.includes("書き換えない") && line.includes(DECLARATION_GUIDE),
+  );
+  if (ok) return [];
+  return [
+    {
+      file: rel,
+      message: `冒頭 ${DECLARATION_WINDOW_LINES} 行に「書き換えない節」の宣言がありません    ← ${DECLARATION_GUIDE} の雛形を引用行で置いてください`,
+    },
+  ];
+}
+
 const REPO_ROOT = execFileSync("git", ["rev-parse", "--show-toplevel"], {
   encoding: "utf8",
 }).trim();
@@ -278,12 +317,35 @@ function main() {
     problems.push(...checkGate(rel, fs.readFileSync(path.join(REPO_ROOT, rel), "utf8"), principles));
   }
 
+  // 設計文書の冒頭の宣言（#506）。README は設計文書ではない。
+  const designDocs = listTrackedFiles(REPO_ROOT, DESIGN_DOC_PATTERNS).filter(
+    (rel) => path.basename(rel) !== "README.md",
+  );
+  const declaration = classifyPlans(designDocs, DECLARATION_BOUNDARY_DATE);
+  console.log(
+    `[audit-plan-gate] 走査対象: 設計文書 ${designDocs.length} 件 / 宣言要求 ${declaration.required.length} 件（境界日 ${DECLARATION_BOUNDARY_DATE} 以降）`,
+  );
+  if (designDocs.length === 0) {
+    console.error("[audit-plan-gate] 走査対象が 0 件です（設計文書）。検査が空振りしています");
+    process.exit(1);
+  }
+  // plan の日付なしは上で報告済み。重複させない。
+  for (const rel of declaration.undated.filter((r) => !plans.includes(r))) {
+    problems.push({
+      file: rel,
+      message: `ファイル名が YYYY-MM-DD- で始まっていません    ← 境界日で分類できないため対象外にできません`,
+    });
+  }
+  for (const rel of declaration.required) {
+    problems.push(...checkDeclaration(rel, fs.readFileSync(path.join(REPO_ROOT, rel), "utf8")));
+  }
+
   if (problems.length > 0) {
     console.error(
-      `[audit-plan-gate] Constitution Check ゲートを通っていない実装計画があります（${problems.length} 件）`,
+      `[audit-plan-gate] Constitution Check ゲートか宣言を満たしていない設計文書があります（${problems.length} 件）`,
     );
     for (const p of problems) console.error(`  ${p.file}: ${p.message}`);
-    console.error(`  様式の正本: docs/guides/plan-writing.md`);
+    console.error(`  様式の正本: docs/guides/plan-writing.md（ゲート）/ ${DECLARATION_GUIDE}（冒頭の宣言）`);
     console.error(`  根拠: docs/constitution.md Governance / docs/adr/0003 / docs/adr/0014 決定 6`);
     process.exit(1);
   }

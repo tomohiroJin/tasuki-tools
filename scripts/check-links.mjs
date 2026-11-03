@@ -232,6 +232,7 @@ export const LIVE_DOCS = [
   "GEMINI.md", // #483: AI ツールの入口。AGENTS.md へ向ける薄いファイル。
   "SECURITY.md",
   "docs/README.md",
+  "docs/superpowers/README.md", // #506: 設計文書の置き場の案内。改定のしかたのガイドへ向ける。
   "docs/adr/",
   "docs/guides/",
   "deploy/",

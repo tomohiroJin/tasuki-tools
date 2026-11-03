@@ -560,6 +560,14 @@ describe("findLineRefException", () => {
   });
 });
 
+describe("LIVE_DOCS: 設計文書の置き場の案内（#506）", () => {
+  test("docs/superpowers/README.md は現役の文書として検査する（配下の設計文書は休眠のまま）", () => {
+    // Given / When / Then: 案内がガイドへのリンクやパスを壊したまま緑にならないようにする
+    assert.equal(isLiveDoc("docs/superpowers/README.md"), true);
+    assert.equal(isLiveDoc("docs/superpowers/specs/2026-10-28-checkin-checkout-design.md"), false);
+  });
+});
+
 describe("classifyDocs", () => {
   test("LIVE_DOCS に属する文書は無所属にならない", () => {
     // Given

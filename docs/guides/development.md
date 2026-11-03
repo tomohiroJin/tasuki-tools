@@ -911,7 +911,7 @@ node scripts/audit-public-surface.mjs            # 公開面（エントリが e
 node scripts/audit-ui-components.mjs             # 部品層の写しと規則（ADR-0022 決定 6）
 node scripts/audit-timer-classes.mjs             # timer のクラス名の書き方と定義（ADR-0023）
 node scripts/audit-supply-chain-config.mjs       # pnpm 供給網設定の退化（除外の版指定・死んだ除外行・未知のキーと値。ADR-0008 / ADR-0010）と Renovate の待機期間（ADR-0024）
-node scripts/audit-plan-gate.mjs                 # 実装計画の Constitution Check ゲート（境界日以降の plan が全原則の判定表と逸脱の結論を持つか。憲法 Governance / ADR-0003）
+node scripts/audit-plan-gate.mjs                 # 実装計画の Constitution Check ゲート（境界日以降の plan が全原則の判定表と逸脱の結論を持つか。憲法 Governance / ADR-0003）と、設計文書の冒頭の宣言（境界日以降の spec / plan が「書き換えない節」の引用行を持つか。docs/guides/design-doc-revision.md）
 node scripts/audit-toolchain.mjs                 # 開発環境の版の宣言（toolchain.json ほか）と、それを読む CI・ハーネス・package.json のずれ（ADR-0031 決定 3）
 node scripts/audit-agent-entries.mjs             # AI ツールの入口（CLAUDE.md ほか）が AGENTS.md へ向いて薄いか・AGENTS.md の原則の見出しが憲法と一致するか（ADR-0030 決定 3 / ADR-0002 決定 5）・スキル（.claude/skills/）が手順書へ向く薄い入口か（#489）
 node scripts/audit-agent-guard.mjs               # AI ツールの設定（.claude/settings.json）が本番デプロイのコマンドを止めるフックへ配線されているか・止める一覧と deploy/ の実体（ADR-0032）

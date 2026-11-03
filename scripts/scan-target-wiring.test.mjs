@@ -1084,6 +1084,19 @@ describe("0 件ガードと要求経路の配線: scripts/audit-plan-gate.mjs（
     assert.match(r.stderr, /docs\/superpowers\/plans\/.*Constitution Check の節がありません/);
   });
 
+  test("宣言の境界日を過去へずらすと非ゼロで終了し、宣言の無い設計文書を名指しする（#506・宣言の要求経路が生きている）", () => {
+    // Given: 既存の設計文書がすべて宣言の要求対象になる（現在の要求対象は 0 件なので、動かして見る）
+    const mutate = (s) =>
+      s.replace('export const DECLARATION_BOUNDARY_DATE = "2026-11-04";', 'export const DECLARATION_BOUNDARY_DATE = "2000-01-01";');
+    // When
+    const r = runScriptCopy("audit-plan-gate.mjs", mutate);
+    // Then: まず「壊れたこと自体」を確かめる
+    assert.equal(countOf(r.source, '"2000-01-01"'), 1, "境界日を動かせていません");
+    // Then
+    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+    assert.match(r.stderr, /docs\/superpowers\/specs\/.*「書き換えない節」の宣言がありません/);
+  });
+
   test("plan の列挙が空になると非ゼロで終了する（検査が丸ごと空振りする経路）", () => {
     // Given: 走査対象そのものを失う
     const mutate = (s) =>
