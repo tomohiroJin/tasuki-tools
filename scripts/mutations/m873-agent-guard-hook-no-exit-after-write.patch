@@ -1,0 +1,23 @@
+diff --git a/scripts/agent-guard-hook.mjs b/scripts/agent-guard-hook.mjs
+index 982c0c23..0e71c43b 100644
+--- a/scripts/agent-guard-hook.mjs
++++ b/scripts/agent-guard-hook.mjs
+@@ -62,13 +62,17 @@ async function run() {
+       out = null; // 想定外の失敗でも exit 0 で終わる
+     }
+   }
+-  if (out !== null) process.stdout.write(`${JSON.stringify(out)}\n`);
++  // 書き出したら、残った孫プロセスの管を待たずに終える（Node は管が開いている間は終わらず、フックの時間切れを超えうる）
++  const done = () => {};
++  if (out !== null) process.stdout.write(`${JSON.stringify(out)}\n`, done);
++  else done();
+ }
+ 
+ function main() {
+   // 非同期の本体の失敗は終了コードにして、未処理の棄却で落とさない
+   run().catch(() => {
+     // 想定外の失敗でも exit 0 で終わる（exit 2 は「拒む」になる）
++    process.exit(0);
+   });
+ }
+ 

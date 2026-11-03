@@ -122,7 +122,7 @@ export function runCommand(cmd, args, { cwd, timeoutMs = CHILD_TIMEOUT_MS, maxBy
   return new Promise((resolve, reject) => {
     let child;
     try {
-      child = spawn(cmd, args, { cwd, stdio: ["ignore", "pipe", "pipe"] });
+      child = spawn(cmd, args, { cwd, stdio: ["ignore", "pipe", "pipe"], detached: true }); // 別のプロセスグループにして、孫ごと止められるようにする
     } catch (error) {
       reject(error);
       return;
@@ -137,14 +137,24 @@ export function runCommand(cmd, args, { cwd, timeoutMs = CHILD_TIMEOUT_MS, maxBy
       clearTimeout(timer);
       fn(value);
     };
+    // 直接の子だけでなく孫（gh の下の git・git の下の ssh）も止め、出力の管も閉じる
+    const killAll = () => {
+      try {
+        process.kill(-child.pid, "SIGKILL");
+      } catch {
+        child.kill("SIGKILL");
+      }
+      child.stdout.destroy();
+      child.stderr.destroy();
+    };
     const timer = setTimeout(() => {
-      child.kill("SIGKILL");
+      killAll();
       finish(reject, new Error(`${cmd}: ${timeoutMs / 1000} 秒で打ち切りました（時間切れ）`));
     }, timeoutMs);
     child.stdout.on("data", (chunk) => {
       size += chunk.length;
       if (size > maxBytes) {
-        child.kill("SIGKILL");
+        killAll();
         finish(reject, new Error(`${cmd}: 出力が大きすぎます`));
       } else out.push(chunk);
     });
