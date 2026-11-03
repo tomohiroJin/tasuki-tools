@@ -52,6 +52,9 @@ const RESERVED_870_879 =
 const RESERVED_250_259 =
   "**対応表より後に足した変異。** 250〜259 は 2026-10-15 の並列修正で #376 に追加で割り当てた予約の範囲（220〜229 が埋まったため）。";
 
+const RESERVED_900_909 =
+  "**対応表より後に足した変異。** 900〜909 は #499 に割り当てた範囲。";
+
 const RESERVED_880_889 =
   "**対応表より後に足した変異。** 880〜889 は #506 の宣言の検査に追加で割り当てた範囲（850〜859 を使い切ったため）。";
 
@@ -5296,5 +5299,13 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["lib/prior-work.test.mjs"],
     note: RESERVED_870_879 + " " + "#504 の 7 回目のレビュー。孫が出力の管を握ったまま残り、フックが Claude Code の時間切れを超えて終わらない。終わりを支えるのは、グループごとの SIGKILL と、時間切れのときの管の destroy（ADR-0032 の追記）。",
+  },
+  {
+    id: 900,
+    label: "timer-web の vitest 設定が、vi.fn() の呼び出しの記録をテストごとに消さない（clearMocks を外す）",
+    patch: "m900-timer-web-clear-mocks-removed.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/config/mock-isolation.test.ts"],
+    note: RESERVED_900_909 + " " + "#499。vi.mock の工場の vi.fn() の記録が次のテストへ漏れ、ランダムな順で App.session-lost などが落ちる。このテストは既定の順で 1 本目の記録が 2 本目に残ることを直接見る（変異検査はシャッフル無しで流れるため）。",
   },
 ];
