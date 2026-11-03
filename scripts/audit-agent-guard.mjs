@@ -17,7 +17,8 @@
  * - **Claude Code が実際にフックを走らせるかは見ない。** 実際に呼ばせた確認は #490 の PR に記録した（原則 VII）
  * - **手元の設定（`~/.claude/settings.json`・`.claude/settings.local.json`）は見ない。** 利用者がそこで
  *   `disableAllHooks` にすれば止まらない。それは人の判断で、検査の外に置く
- * - **他のツール（Gemini CLI・Copilot ほか）の設定は見ない。** 文章だけで守る理由は docs/adr/0032 決定 4
+ * - **他のツール（Gemini CLI ほか）の設定は見ない。** Gemini CLI は文章だけで守る（理由は docs/adr/0032 決定 4）。
+ *   Copilot は使わないので入口も無い（docs/adr/0030 決定 3 の追記・#507）
  *
  * 設計方針: 判定は純粋関数、実 I/O と `process.exit` は `main()` の薄い配線だけに置く。追加依存は禁止。
  */

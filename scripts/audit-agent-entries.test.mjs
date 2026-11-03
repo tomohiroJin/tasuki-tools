@@ -52,11 +52,7 @@ describe("宣言", () => {
     assert.ok(!ENTRY_FILES.some((e) => e.path === SOURCE_PATH));
   });
 
-  test("Copilot の入口は宣言しない（利用者が使わないと決めた。docs/adr/0030 決定 3 の追記・#507）", () => {
-    assert.ok(!ENTRY_FILES.some((e) => e.path === ".github/copilot-instructions.md"));
-  });
-
-  test("外した Copilot の入口が追跡下に再び現れたら、宣言していない入口として検出する", () => {
+  test("消した入口のパスは候補の判定を通り、宣言に無いので検出される", () => {
     // Given: 宣言を外しても候補の置き場には残してあるので、黙って戻されたら止まる
     assert.deepEqual(findUndeclaredEntries([".github/copilot-instructions.md", "CLAUDE.md"].filter(isEntryCandidate), ENTRY_FILES), [".github/copilot-instructions.md"]);
   });
