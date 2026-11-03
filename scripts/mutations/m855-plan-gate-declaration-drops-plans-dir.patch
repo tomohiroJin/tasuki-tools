@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-plan-gate.mjs b/scripts/audit-plan-gate.mjs
+index c8440130..066a4e52 100644
+--- a/scripts/audit-plan-gate.mjs
++++ b/scripts/audit-plan-gate.mjs
+@@ -58,7 +58,7 @@ export const PLAN_PATTERNS = ["docs/superpowers/plans/*.md"];
+ export const DECLARATION_BOUNDARY_DATE = "2026-11-04";
+ 
+ /** 宣言を探す文書の置き場（設計と実装計画）。 */
+-export const DESIGN_DOC_PATTERNS = ["docs/superpowers/specs/*.md", "docs/superpowers/plans/*.md"];
++export const DESIGN_DOC_PATTERNS = ["docs/superpowers/specs/*.md"];
+ 
+ /**
+  * 列挙の結果から、宣言を要求する設計文書を選ぶ（#506）。

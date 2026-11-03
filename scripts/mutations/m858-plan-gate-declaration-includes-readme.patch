@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-plan-gate.mjs b/scripts/audit-plan-gate.mjs
+index c8440130..8d6561f2 100644
+--- a/scripts/audit-plan-gate.mjs
++++ b/scripts/audit-plan-gate.mjs
+@@ -70,7 +70,7 @@ export const DESIGN_DOC_PATTERNS = ["docs/superpowers/specs/*.md", "docs/superpo
+ export function listDesignDocs(tracked) {
+   const dirs = DESIGN_DOC_PATTERNS.map((p) => path.posix.dirname(p));
+   return tracked.filter(
+-    (rel) => dirs.includes(path.posix.dirname(rel)) && path.posix.basename(rel) !== "README.md",
++    (rel) => dirs.includes(path.posix.dirname(rel)),
+   );
+ }
+ 
