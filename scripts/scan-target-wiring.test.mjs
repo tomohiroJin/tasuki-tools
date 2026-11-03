@@ -1084,34 +1084,36 @@ describe("0 件ガードと要求経路の配線: scripts/audit-plan-gate.mjs（
     assert.match(r.stderr, /docs\/superpowers\/plans\/.*Constitution Check の節がありません/);
   });
 
-  test("宣言の境界日を過去へずらすと非ゼロで終了し、宣言の無い設計文書を名指しする（#506・宣言の要求経路が生きている）", () => {
-    // Given: 既存の設計文書がすべて宣言の要求対象になる（現在の要求対象は 0 件なので、動かして見る）
+  test("宣言の境界日を過去へずらすと非ゼロで終了し、specs/ と plans/ の宣言の無い設計文書を名指しする（#506・宣言の要求経路が生きている）", () => {
+    // Given: 既存の設計文書がすべて宣言の要求対象になる（現在の要求対象は 0 件なので、動かして見る）。
+    //        specs/ だけ見ていても通るので、plans/ の側の列挙が外れていないかも同じ実行で見る
     const mutate = (s) =>
-      s.replace('export const DECLARATION_BOUNDARY_DATE = "2026-11-04";', 'export const DECLARATION_BOUNDARY_DATE = "2000-01-01";');
+      s.replace('export const DECLARATION_BOUNDARY_DATE = "2026-11-03";', 'export const DECLARATION_BOUNDARY_DATE = "2000-01-01";');
     // When
     const r = runScriptCopy("audit-plan-gate.mjs", mutate);
     // Then: まず「壊れたこと自体」を確かめる
     assert.equal(countOf(r.source, '"2000-01-01"'), 1, "境界日を動かせていません");
     // Then
     assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
-    assert.match(r.stderr, /docs\/superpowers\/specs\/.*「書き換えない節」の宣言がありません/);
+    assert.match(r.stderr, /docs\/superpowers\/specs\/[^\n]*「書き換えない節」の宣言がありません/);
+    assert.match(r.stderr, /docs\/superpowers\/plans\/[^\n]*「書き換えない節」の宣言がありません/);
   });
 
-  test("宣言の境界日を過去へずらすと、plans/ の設計文書も名指しする（#506・plans の側の配線）", () => {
-    // Given: specs/ だけ見ていても通る。plans/ の側の列挙が外れていないかを別に見る
-    const mutate = (s) =>
-      s.replace('export const DECLARATION_BOUNDARY_DATE = "2026-11-04";', 'export const DECLARATION_BOUNDARY_DATE = "2000-01-01";');
+  test("宣言のガイドが実在しないと非ゼロで終了する（ガイドの改名を宣言の側は検査できないので、ここで捕まえる）", () => {
+    // Given: ガイドのパスを実在しない名前へ
+    const from = 'const DECLARATION_GUIDE = "docs/guides/design-doc-revision.md";';
+    const mutate = (s) => s.replace(from, 'const DECLARATION_GUIDE = "docs/guides/no-such-guide.md";');
     // When
     const r = runScriptCopy("audit-plan-gate.mjs", mutate);
     // Then
-    assert.equal(countOf(r.source, '"2000-01-01"'), 1, "境界日を動かせていません");
+    assert.equal(countOf(r.source, "no-such-guide.md"), 1, "ガイドのパスを動かせていません");
     assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
-    assert.match(r.stderr, /docs\/superpowers\/plans\/[^\n]*「書き換えない節」の宣言がありません/);
+    assert.match(r.stderr, /宣言の正本のガイドが実在しません/);
   });
 
   test("設計文書の列挙が空になると非ゼロで終了する（#506・宣言の検査が空振りする経路）", () => {
     // Given
-    const call = "const designDocs = listDesignDocs(listTrackedFiles(REPO_ROOT, DESIGN_DOC_PATTERNS));";
+    const call = "const designDocs = listDesignDocs(tracked);";
     const mutate = (s) => s.replace(call, "const designDocs = [];");
     // When
     const r = runScriptCopy("audit-plan-gate.mjs", mutate);
@@ -1125,7 +1127,7 @@ describe("0 件ガードと要求経路の配線: scripts/audit-plan-gate.mjs（
   test("plan の列挙が空になると非ゼロで終了する（検査が丸ごと空振りする経路）", () => {
     // Given: 走査対象そのものを失う
     const mutate = (s) =>
-      s.replace("const plans = listTrackedFiles(REPO_ROOT, PLAN_PATTERNS);", "const plans = [];");
+      s.replace("const plans = tracked.filter((rel) => rel.startsWith(PLANS_DIR));", "const plans = [];");
     // When
     const r = runScriptCopy("audit-plan-gate.mjs", mutate);
     // Then: まず「壊れたこと自体」を確かめる

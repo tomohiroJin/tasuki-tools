@@ -23,7 +23,8 @@ AI 向けの規則の正本はリポジトリ直下の [`AGENTS.md`](../AGENTS.m
 [`docs/plans/`](./plans/) は SDD（Specification-Driven Development）期の記録であり、
 新規の設計文書の追加先ではありません。**`docs/plans/` も `docs/superpowers/` も追記のみで、
 完了しても移動・改名しません**（規約の正本は
-[`docs/adr/0002`](./adr/0002-document-system-three-layers.md) の追記節。設計文書の改定のしかたは
+[`docs/adr/0002`](./adr/0002-document-system-three-layers.md) の追記節。節の単位では、マージ後の節を書き換えず、
+改定は新しい節に書く（追記（2026-11-03・#506））。手引きは
 [`docs/guides/design-doc-revision.md`](./guides/design-doc-revision.md)）。
 
 ## 目的別の入口

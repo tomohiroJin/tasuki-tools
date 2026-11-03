@@ -12,6 +12,7 @@ import {
   DECLARATION_WINDOW_LINES,
   checkDeclaration,
   listDesignDocs,
+  DECLARATION_GUIDE,
 } from "./audit-plan-gate.mjs";
 
 /** 憲法の原則見出しの写し（形式だけを再現した最小の本文）。 */
@@ -489,5 +490,28 @@ describe("checkDeclaration: 字下げのコードブロック（#506）", () => 
   });
   test("3 字下げまでは引用として通す", () => {
     assert.deepEqual(checkDeclaration(rel, `# 設計\n\n   ${DECLARATION}\n`), []);
+  });
+});
+
+describe("checkDeclaration: 折り返しとリンク（#506）", () => {
+  const rel = "docs/superpowers/specs/2026-12-01-x-design.md";
+
+  test("引用が 2 行に折り返されていても通す（続く引用行は 1 つの塊）", () => {
+    const text = ["# 設計", "", "> マージ後の節は書き換えない。後から分かったことは末尾の補遺に書く", `> （\`${DECLARATION_GUIDE}\`）。`, "", "## 1. 目的"].join("\n");
+    assert.deepEqual(checkDeclaration(rel, text), []);
+  });
+
+  test("空行で分かれた別々の引用は 1 つの塊にしない", () => {
+    const text = ["# 設計", "", "> 節は書き換えない。", "", `> 詳しくは \`${DECLARATION_GUIDE}\`。`].join("\n");
+    assert.equal(checkDeclaration(rel, text).length, 1);
+  });
+
+  test("相対リンクでガイドを指す宣言も通す", () => {
+    const text = "# 設計\n\n> 節は書き換えない（[ガイド](../../guides/design-doc-revision.md)）。\n";
+    assert.deepEqual(checkDeclaration(rel, text), []);
+  });
+
+  test("別のガイド名（末尾が違う）では通さない", () => {
+    assert.equal(checkDeclaration(rel, "# 設計\n\n> 節は書き換えない（`docs/guides/other-design-doc-revision.mdx`）。\n").length, 1);
   });
 });

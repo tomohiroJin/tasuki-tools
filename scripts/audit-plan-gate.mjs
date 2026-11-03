@@ -45,9 +45,6 @@ import { isDirectRun } from "./lib/direct-run.mjs";
  */
 export const GATE_BOUNDARY_DATE = "2026-09-04";
 
-/** 実装計画の置き場。git の `*` は `/` を跨ぐので、これで配下も含めて列挙される。 */
-export const PLAN_PATTERNS = ["docs/superpowers/plans/*.md"];
-
 /**
  * 設計文書（spec / plan）に冒頭の宣言を要求し始める日（この日を**含む**）。
  *
@@ -55,7 +52,7 @@ export const PLAN_PATTERNS = ["docs/superpowers/plans/*.md"];
  * （決定当時の記録に手を入れることになるため。ゲートの境界日と同じ考え方）。
  * 日付を持たない文書は対象外にせず問題として扱う。
  */
-export const DECLARATION_BOUNDARY_DATE = "2026-11-04";
+export const DECLARATION_BOUNDARY_DATE = "2026-11-03";
 
 /** 宣言を探す文書の置き場（設計と実装計画）。 */
 export const DESIGN_DOC_PATTERNS = ["docs/superpowers/specs/*.md", "docs/superpowers/plans/*.md"];
@@ -77,7 +74,14 @@ export function listDesignDocs(tracked) {
 /** 宣言を探す冒頭の行数。どの節から入っても目に入る位置、の意味である。 */
 export const DECLARATION_WINDOW_LINES = 15;
 
-const DECLARATION_GUIDE = "docs/guides/design-doc-revision.md";
+/** 宣言の正本のガイド。メッセージに出す。実在を `main()` が見る（設計文書の置き場はリンク検査の外）。 */
+export const DECLARATION_GUIDE = "docs/guides/design-doc-revision.md";
+
+/** 宣言がガイドを指しているとみなす末尾。バッククォートでも相対リンクでも、この名前で終われば認める。 */
+const DECLARATION_GUIDE_TAIL = "guides/design-doc-revision.md";
+
+/** 実装計画の置き場（ゲートの対象）。 */
+const PLANS_DIR = "docs/superpowers/plans/";
 
 /** 憲法の正本。原則の一覧はここから導出する（検査に直書きしない）。 */
 export const CONSTITUTION_PATH = "docs/constitution.md";
@@ -272,14 +276,26 @@ export function checkGate(rel, text, principles) {
  *
  * **存在だけを見る。** 節が実際に書き換えられたかは見ない（差分の検査を足さない理由は
  * `docs/guides/design-doc-revision.md` の「機械で守れるか」）。
- * 宣言は、冒頭 {@link DECLARATION_WINDOW_LINES} 行の**引用行（`>`。4 字以上の字下げはコードブロックなので除く）**で、「書き換えない」と
- * ガイドのパスの両方を含むもの。コードフェンスの中身は落とす（様式の引用で満たさせない）。
+ * 宣言は、冒頭 {@link DECLARATION_WINDOW_LINES} 行の**引用（`>`。4 字以上の字下げはコードブロックなので除く。続く引用行は 1 つの塊）**で、
+ * 「書き換えない」とガイド（`guides/design-doc-revision.md` で終わるパス。リンクでもバッククォートでも可）の両方を含むもの。コードフェンスの中身は落とす（様式の引用で満たさせない）。
  */
 export function checkDeclaration(rel, text) {
   const head = stripCodeFences(text).split("\n").slice(0, DECLARATION_WINDOW_LINES);
-  const ok = head.some(
-    (line) => /^ {0,3}>/.test(line) && line.includes("書き換えない") && line.includes(DECLARATION_GUIDE),
-  );
+  // 続く引用行は 1 つの塊にする（宣言を折り返しても、「書き換えない」とガイドが別の行に分かれるだけで落とさない）。
+  // 空行や引用でない行で塊は切れる。
+  const blocks = [];
+  let current = null;
+  for (const line of head) {
+    if (/^ {0,3}>/.test(line)) {
+      current = current === null ? [] : current;
+      current.push(line.replace(/^ {0,3}>\s?/, ""));
+    } else if (current !== null) {
+      blocks.push(current.join("\n"));
+      current = null;
+    }
+  }
+  if (current !== null) blocks.push(current.join("\n"));
+  const ok = blocks.some((b) => b.includes("書き換えない") && b.includes(DECLARATION_GUIDE_TAIL));
   if (ok) return [];
   return [
     {
@@ -294,7 +310,9 @@ const REPO_ROOT = execFileSync("git", ["rev-parse", "--show-toplevel"], {
 }).trim();
 
 function main() {
-  const plans = listTrackedFiles(REPO_ROOT, PLAN_PATTERNS);
+  // 設計と実装計画を 1 回で列挙し、振り分ける（ゲートは plans/ だけ、宣言は両方）。
+  const tracked = listTrackedFiles(REPO_ROOT, DESIGN_DOC_PATTERNS);
+  const plans = tracked.filter((rel) => rel.startsWith(PLANS_DIR));
   const principles = extractPrinciples(
     fs.readFileSync(path.join(REPO_ROOT, CONSTITUTION_PATH), "utf8"),
   );
@@ -332,7 +350,7 @@ function main() {
   }
 
   // 設計文書の冒頭の宣言（#506）。README は設計文書ではない。
-  const designDocs = listDesignDocs(listTrackedFiles(REPO_ROOT, DESIGN_DOC_PATTERNS));
+  const designDocs = listDesignDocs(tracked);
   const declaration = classifyPlans(designDocs, DECLARATION_BOUNDARY_DATE);
   console.log(
     `[audit-plan-gate] 走査対象: 設計文書 ${designDocs.length} 件 / 宣言要求 ${declaration.required.length} 件（境界日 ${DECLARATION_BOUNDARY_DATE} 以降）`,
@@ -341,8 +359,15 @@ function main() {
     console.error("[audit-plan-gate] 走査対象が 0 件です（設計文書）。検査が空振りしています");
     process.exit(1);
   }
-  // plan の日付なしは上で報告済み。重複させない。
-  for (const rel of declaration.undated.filter((r) => !plans.includes(r))) {
+  // plan の日付なしは上で報告済み。重複させない（plan 側の分類結果と突き合わせる）。
+  const reportedUndated = new Set(undated);
+  if (!fs.existsSync(path.join(REPO_ROOT, DECLARATION_GUIDE))) {
+    problems.push({
+      file: DECLARATION_GUIDE,
+      message: "宣言の正本のガイドが実在しません    ← 設計文書の置き場はリンク検査の外なので、改名・削除はここで捕まえます",
+    });
+  }
+  for (const rel of declaration.undated.filter((r) => !reportedUndated.has(r))) {
     problems.push({
       file: rel,
       message: `ファイル名が YYYY-MM-DD- で始まっていません    ← 境界日で分類できないため対象外にできません`,
