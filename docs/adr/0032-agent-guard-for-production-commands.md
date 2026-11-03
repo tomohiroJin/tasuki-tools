@@ -76,28 +76,46 @@
 
 #### 追記（2026-11-03・#504）: `gh pr create` の直前に、同じ ISSUE の先行 PR があれば聞く
 
-同じフック（`scripts/agent-guard-hook.mjs`・matcher `Bash|Monitor`）に、本番デプロイの判定の**後**に呼ぶ判定を足す。
-決定 1〜3 は変えない。本番デプロイの判定（`decideHookOutput`）の振る舞いは変えず、`.claude/settings.json` の配線もそのままである。
+同じフック（`scripts/agent-guard-hook.mjs`・matcher `Bash|Monitor`）に、先行 PR の判定を足す。決定 1〜3 は変えない。
+`.claude/settings.json` の配線もそのままである。**本番のガードが主で、先行 PR の確認はそれを遅らせも消しもしない。**
 
-- **MUST**: `gh pr create` の直前に、同じ ISSUE の開いた PR・マージ済みの PR・リモートの枝を引き、あれば `ask`（人に聞く）。
-  番号はブランチ名と `--title` の `#番号` の両方から取る。どこにも無ければ引かずに通す（確かめようがない）。
-  引き方は `scripts/lib/prior-work.mjs` の 1 つで、`pnpm check:fast` の知らせと共有する（`docs/adr/0030` 決定 5 の追記）
-- `gh pr create` の読み方は `scripts/lib/agent-guard.mjs` の既存の字句の読みを使う（`findCommandsMatching`。複合コマンド・
-  `bash -c`・`env`・`gh -R a/b pr create` も当てる）。判定の部品は `scripts/lib/prior-pr-hook.mjs`。
-  入口が読み込むので、部品が追跡下にあるかを `scripts/audit-agent-guard.mjs` が見る
-- **gh が使えなかったとき（引けなかったとき）は `ask` に倒す。** 理由: 決定 2 は「読めないときは当てる側に倒す」とした
-  （入力が読めない → ask）。黙って通すと、確かめていないのに確かめたように見える。聞くコストは小さい。
-  `gh pr create` 自身が gh・認証・ネットワークを要るので、引けない環境ではそもそも作成も通りにくい
-- 本番デプロイの判定と違い、これは**作業の重複を防ぐ歯止め**である。承認すれば進める（`deny` にはしない）。
+- **MUST**: 本番デプロイの判定（`decideHookOutput`）を**最初に**評価する。当たったら、先行 PR の確認（gh と git）は
+  **流さずに**、その `ask` をすぐ返す。コマンドに `gh pr create` も含まれるときは、理由に「先行 PR の確認は省きました」と添える。
+  確認が遅れたり時間切れになったりしても、本番のガードが fail-open にならない（先行 PR の確認を待ってから合成する形は、
+  自動のレビューで fail-open の穴として指摘され、取り下げた）
+- **MUST**: `gh pr create`（別名 `gh pr new`）の直前に、同じ ISSUE の開いた PR・マージ済みの PR・リモートの枝を引き、あれば `ask`。
+  番号は、自分の枝（`--head`・`-H` があればそれ、無ければ作業場所の今の枝）の `<type>/<番号>-…` か `issue-<番号>` と、
+  `--title`（`-t`・`-t<値>`・`--title=<値>` も）の最初の `#番号` の最大 2 つ（同じなら 1 つ）。どこにも無ければ引かずに通す
+  （確かめようがない）。引き方は `scripts/lib/prior-work.mjs` の 1 つで、`pnpm check:fast` の知らせと共有する
+  （`docs/adr/0030` 決定 5 の追記）
+- `gh pr create` の読み方は `scripts/lib/agent-guard.mjs` の字句の読みを使う（`findCommandsMatching`。複合コマンド・`bash -c`・`env`・
+  `gh -R a/b pr create` も当てる）。`args` の照合は、選択肢を除いた**最初の語**から並ぶときだけ当てる
+  （`gh issue list --search 'pr create'` に当てない）。判定の部品は `scripts/lib/prior-pr-hook.mjs`。
+  入口が読み込むので、部品が追跡下にあるかを `scripts/audit-agent-guard.mjs` が見る。入口の配線は
+  `scripts/agent-guard-hook.test.mjs` が入口を実際に起動して守る
+- **上限（壁時計）**: 子プロセス（gh・git）は 1 つ 10 秒で SIGKILL する（標準入力は閉じる）。確認全体は 15 秒で打ち切り、
+  **打ち切ったときは `ask`** （確かめられなかったので聞く）。Claude Code のフックの既定の時間切れ（60 秒）より十分短い。
+  番号 2 つ分と gh・git は並列に引くので、待ちは長い方 1 回分である
+- **gh が使えなかったとき（引けなかったとき）、検索が上限で切れて先行が無いと言い切れないときは `ask` に倒す。** 理由: 決定 2 は
+  「読めないときは当てる側に倒す」とした（入力が読めない → ask）。黙って通すと、確かめていないのに確かめたように見える。
+  `gh pr create` 自身が gh・認証・ネットワークを要するので、引けない環境で聞いても余計な手間はほぼ増えない
+- **`cd` の先は、登録済みの worktree のときだけ使う。** フックは許可の**前**に走るので、コマンドの文字列から取った場所で
+  git・gh を流すと、信用できないディレクトリの `.git/config`（`core.fsmonitor`・`core.sshCommand` など）が人の承認より前に
+  実行される。そこで、コマンドの**先頭**の `cd <dir> &&`（`;`）を読んだときは、`git worktree list --porcelain`（フックの入力の
+  `cwd` で引く）に載った場所と一致するときだけその場所で引く。**一致しなければ、その場所では何も流さずに `ask`**
+  （理由に場所を書く）。登録の一覧を引けないときも同じ。`cd` が途中・`~`/変数/`-`・`git -C`・`pushd` は読まず、入力の `cwd` のままにする
+- **`git` に `-c core.fsmonitor=false -c core.sshCommand=` のような上書きは付けない。** 流す git は `rev-parse --abbrev-ref`・
+  `ls-remote`・`worktree list` で、fsmonitor を使わない。`core.sshCommand` は、利用者が push や ls-remote の認証のために
+  設定していることがあり、空にすると引けずに毎回 `ask` になる。流す場所は入力の `cwd`（Claude Code が信用を確かめた作業場所）と
+  登録済みの worktree だけで、そこの設定は利用者自身が `git push` に使うものである
+- 本番デプロイの判定と違い、先行 PR の確認は**作業の重複を防ぐ歯止め**である。承認すれば進める（`deny` にはしない）。
   知っていて承認することも、フックを切ることも防げない
-- 対象は `gh pr create` と別名の `gh pr new`。題は `--title`・`-t`・`-t<値>`・`--title=<値>` から取る。番号は 1 つに絞る
-  （ブランチ名の `<type>/<番号>-…` か `issue-<番号>` を優先し、無ければ題の最初の `#番号`。`chore/node-26-upgrade` のように
-  ISSUE でない数字は読まない）。引くたびに gh と git の待ち（各 15 秒で打ち切り）が要るので、最悪の待ちを 2 回分に抑える
-- 残余: `gh api …/pulls` のように PR を直接作る経路・別の言語やスクリプトの中の呼び出しは当てない。`--head <別の枝>` を付けても、
-  除く枝は今の枝のままで、別の枝の自分の PR を「他の PR」と挙げることがある（聞くだけで害は小さい）。番号の無い枝名では引かない
-- 入口の配線（本番デプロイの判定の後に先行 PR の判定を呼ぶこと）は、`scripts/agent-guard-hook.test.mjs` が入口を実際に起動して守る
-- 残余と、実測していないこと: Claude Code が実際に `gh pr create` でこのフックを呼ぶことは、標準入力の JSON を渡した確認までで、
-  実際のセッションでは確かめていない（決定 2 の Monitor の確認と同じ書き方）。上限・ISSUE 番号の取り方の限界は `docs/adr/0030` 決定 5 の追記
+- 残余: `gh api …/pulls` のように PR を直接作る経路・別の言語やスクリプトの中の呼び出しは当てない。`--head <別の枝>` の
+  `owner:branch` は branch だけを見る。番号の無い枝名では引かない。登録済みの worktree の `.git/config` が悪意を持つ場合
+  （利用者が自分で登録した場所）は防がない
+- 実測していないこと: Claude Code が実際に `gh pr create` でこのフックを呼ぶことは、標準入力の JSON を渡した確認までで、
+  実際のセッションでは確かめていない（決定 2 の Monitor の確認と同じ書き方）。フックの既定の時間切れが 60 秒であることは、
+  公式の文書の記憶によるもので、この環境では確かめていない
 
 ### 退けた案
 

@@ -2,18 +2,20 @@
  * `gh pr create` の直前に、同じ ISSUE の先行する PR・枝があれば人に聞く判定（#504・`docs/adr/0032` の追記）。
  *
  * Claude Code の PreToolUse フック（`scripts/agent-guard-hook.mjs`）から、本番デプロイの判定
- * （`decideHookOutput`）の後に呼ばれる。デプロイの判定は変えない。引き方は `scripts/lib/prior-work.mjs`（check:fast と共通）。
+ * （`decideHookOutput`）が当たらなかったときだけ呼ばれる（当たれば先行 PR の確認は流さない。fail-open にしないため）。引き方は `scripts/lib/prior-work.mjs`（check:fast と共通）。
  *
  * - 番号はブランチ名（`<type>/<番号>-`・`issue-<番号>`）と `--title`（`-t<値>`・`--title=<値>` も）の最初の `#番号` の最大 2 つ
- *   （同じなら 1 つ）。2 つは並列に引く（待ちは gh と git の各 15 秒の長い方 1 回分）。どこにも無ければ引かずに通す（番号の無い PR は確かめようがない）
- * - 自分の枝は `--head`（`-H`）があればそれ、無ければ作業場所の今の枝。作業場所は、コマンドの先頭の `cd <dir> &&`（`;`）を解釈して直す
- *   （`cd` が途中・`~`/変数/`-`・`git -C` は読まない。ADR-0032 の残余）
+ *   （同じなら 1 つ）。2 つは並列に引く（待ちは gh と git の各 10 秒の上限の長い方 1 回分。全体は 15 秒で打ち切って ask）。どこにも無ければ引かずに通す（番号の無い PR は確かめようがない）
+ * - 自分の枝は `--head`（`-H`）があればそれ、無ければ作業場所の今の枝。作業場所は、コマンドの先頭の `cd <dir> &&`（`;`）を解釈して直す。
+ *   ただし許可の前に git・gh を走らせるので、`cd` の先はこのリポジトリに登録された worktree（`git worktree list`）のときだけ使い、
+ *   違えば何も流さずに `ask`（`cd` が途中・`~`/変数/`-`・`git -C` は読まない。ADR-0032 の残余）
  * - 先行が無くても、検索が上限に当たって切れていれば「無い」と言い切れないので `ask`
  * - 先行があれば `ask`。**引けなかったとき（gh が無い・未認証・ネットワークが無い）も `ask`**。
  *   読めないときは当てる側に倒す `docs/adr/0032` と同じ。`gh pr create` 自身も gh とネットワークを要するので、
  *   引けない環境で聞いても余計な手間はほぼ増えない
  * - 判定は純粋関数。gh と git を呼ぶ `lookup` と `currentBranch` は引数で受け取る
  */
+import fs from "node:fs";
 import path from "node:path";
 import { findCommandsMatching, SHELL_TOOLS } from "./agent-guard.mjs";
 import { describePriorWork, findPriorWork, issueNumberFromBranch, issueNumbersFromTitle, defaultRunners } from "./prior-work.mjs";
@@ -94,25 +96,26 @@ function ask(reason) {
   return { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "ask", permissionDecisionReason: reason } };
 }
 
-/**
- * 本番デプロイの `ask` と先行 PR の `ask` の両方に当たったとき、理由を 1 つの `ask` にまとめる。
- * どちらかが null なら、もう一方をそのまま返す。
- */
-export function mergeAsks(first, second) {
-  if (first === null) return second;
-  if (second === null) return first;
-  const reason = (o) => o.hookSpecificOutput.permissionDecisionReason;
-  return ask(`${reason(first)}\n\n${reason(second)}`);
+/** コマンドが `gh pr create`（`gh pr new`）を含むか。デプロイの `ask` に「先行 PR の確認は省いた」と添えるかの判定に使う。 */
+export function mentionsPrCreate(raw) {
+  try {
+    const input = JSON.parse(raw);
+    const command = input?.tool_input?.command;
+    return SHELL_TOOLS.includes(input?.tool_name) && typeof command === "string" && findCommandsMatching(command, PR_CREATE).length > 0;
+  } catch {
+    return false;
+  }
 }
 
 /**
  * @param {string} raw 標準入力の中身
  * @param {{ cwd: string, currentBranch: (dir: string) => string | Promise<string>,
+ *   registeredWorktrees: (cwd: string) => string[] | Promise<string[]>,
  *   lookup: (q: { numbers: number[], branch: string, dir: string }) =>
  *     { state: string, lines: string[], truncated?: boolean } | Promise<{ state: string, lines: string[], truncated?: boolean }> }} deps
  * @returns {Promise<object | null>} `ask` の出力か、何も返さないなら null
  */
-export async function decidePriorPrOutput(raw, { cwd, currentBranch, lookup }) {
+export async function decidePriorPrOutput(raw, { cwd, currentBranch, registeredWorktrees, lookup }) {
   let input;
   try {
     input = JSON.parse(raw);
@@ -126,6 +129,20 @@ export async function decidePriorPrOutput(raw, { cwd, currentBranch, lookup }) {
   if (hits.length === 0) return null;
 
   const dir = effectiveCwd(command, cwd);
+  // 許可の前に走るので、信用できない場所の git 設定（core.fsmonitor・core.sshCommand）を実行しない。
+  // `cd` の先は、このリポジトリに登録済みの worktree（と本体）のときだけ使う。違えば何も流さずに聞く
+  if (dir !== cwd) {
+    let trusted = false;
+    try {
+      const real = (p) => { try { return fs.realpathSync(p); } catch { return path.resolve(p); } };
+      trusted = (await registeredWorktrees(cwd)).some((w) => real(w) === real(dir));
+    } catch {
+      trusted = false;
+    }
+    if (!trusted) {
+      return ask(`コマンドの先頭の cd の先 ${dir} は、このリポジトリに登録された worktree ではありません。信用できない場所の git 設定を、人の承認の前に実行しないよう、同じ ISSUE の先行 PR の確認は省きました。人の確認が要ります（docs/adr/0032 の追記）。`);
+    }
+  }
   const options = hits.map((h) => parseCreateOptions(h.words));
   let branch;
   try {
@@ -152,6 +169,38 @@ export async function decidePriorPrOutput(raw, { cwd, currentBranch, lookup }) {
   // 切れているときは「無い」と言い切れないので、先行が無くても聞く（引けなかったときと同じ考え方）
   if (result.state === "none" && result.truncated !== true) return null;
   return ask(`${result.lines.join("\n")}\n同じ ISSUE の作業が重なっていないか、人の確認が要ります（AGENTS.md「作業の始めに」・docs/adr/0030 決定 5）。`);
+}
+
+/** 先行 PR の確認全体の壁時計の上限（ミリ秒）。子プロセスの上限（`CHILD_TIMEOUT_MS`）より長く、Claude Code のフックの既定の時間切れ（60 秒）より十分短い。 */
+export const OVERALL_TIMEOUT_MS = 15_000;
+
+/**
+ * {@link decidePriorPrOutput} を全体の上限つきで呼ぶ。上限に当たったら `ask`（確かめられなかったので聞く）。
+ * 上限の中に終わらなくても、フックの呼び出し側が先に本番デプロイの判定を済ませているので、そちらは遅れない。
+ */
+export async function decidePriorPrOutputWithin(raw, deps, limitMs = OVERALL_TIMEOUT_MS) {
+  let timer;
+  const timeout = new Promise((resolve) => {
+    timer = setTimeout(() => resolve("timeout"), limitMs);
+  });
+  try {
+    const result = await Promise.race([decidePriorPrOutput(raw, deps), timeout]);
+    if (result === "timeout") {
+      return ask(`同じ ISSUE の先行 PR の確認が ${limitMs / 1000} 秒の上限に当たり、確かめられませんでした。人の確認が要ります（docs/adr/0032 の追記）。`);
+    }
+    return result;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** 本番の、このリポジトリに登録された worktree の一覧（`git worktree list --porcelain`）。`cwd` で流す。 */
+export function defaultRegisteredWorktrees() {
+  return async (cwd) =>
+    (await defaultRunners(cwd).git(["worktree", "list", "--porcelain"]))
+      .split("\n")
+      .filter((l) => l.startsWith("worktree "))
+      .map((l) => l.slice("worktree ".length));
 }
 
 /** 本番の lookup。番号ごとに並列に引き、知らせの行をまとめる。作業場所は問い合わせの `dir`。 */

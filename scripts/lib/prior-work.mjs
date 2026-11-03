@@ -12,10 +12,7 @@
  * **知らせるだけで止めない。** gh が無い・未認証・ネットワークが無いときは、失敗でなく「未実行」と理由を返す。
  * gh と git は引数で受け取る（`(args) => stdout`。失敗なら投げる）。テストは偽物を渡す。
  */
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
-
-const execFileAsync = promisify(execFile);
+import { spawn } from "node:child_process";
 
 /** PR の検索の上限。これに当たったら切れている可能性がある。 */
 export const SEARCH_LIMIT = 1000;
@@ -114,9 +111,56 @@ export function describePriorWork(r) {
   return { state: r.state, lines, truncated: r.truncated };
 }
 
-/** 本番の gh と git。どちらも `cwd` で実行し、15 秒で打ち切る。Promise を返す（並列に引くため）。 */
+/** 子プロセス 1 つの壁時計の上限（ミリ秒）。超えたら SIGKILL で確実に終わらせ、失敗として扱う。 */
+export const CHILD_TIMEOUT_MS = 10_000;
+
+/**
+ * コマンドを走らせ、標準出力を返す。標準入力は閉じ（`ignore`）、`timeoutMs` で SIGKILL する（SIGTERM を無視する子も終わる）。
+ * 失敗（起動できない・非ゼロ終了・時間切れ・出力が大きすぎる）は投げる。
+ */
+export function runCommand(cmd, args, { cwd, timeoutMs = CHILD_TIMEOUT_MS, maxBytes = 64 * 1024 * 1024 } = {}) {
+  return new Promise((resolve, reject) => {
+    let child;
+    try {
+      child = spawn(cmd, args, { cwd, stdio: ["ignore", "pipe", "pipe"] });
+    } catch (error) {
+      reject(error);
+      return;
+    }
+    const out = [];
+    const err = [];
+    let size = 0;
+    let settled = false;
+    const finish = (fn, value) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      fn(value);
+    };
+    const timer = setTimeout(() => {
+      child.kill("SIGKILL");
+      finish(reject, new Error(`${cmd}: ${timeoutMs / 1000} 秒で打ち切りました（時間切れ）`));
+    }, timeoutMs);
+    child.stdout.on("data", (chunk) => {
+      size += chunk.length;
+      if (size > maxBytes) {
+        child.kill("SIGKILL");
+        finish(reject, new Error(`${cmd}: 出力が大きすぎます`));
+      } else out.push(chunk);
+    });
+    child.stderr.on("data", (chunk) => {
+      if (err.length < 64) err.push(chunk);
+    });
+    child.on("error", (error) => finish(reject, error));
+    child.on("close", (code) => {
+      if (code === 0) finish(resolve, Buffer.concat(out).toString("utf8"));
+      else finish(reject, new Error(`${cmd}: ${firstLine(Buffer.concat(err).toString("utf8")) || `exit ${code}`}`));
+    });
+  });
+}
+
+/** 本番の gh と git。どちらも `cwd` で実行する。Promise を返す（並列に引くため）。上限は {@link CHILD_TIMEOUT_MS}。 */
 export function defaultRunners(cwd) {
-  const run = (cmd) => async (args) =>
-    (await execFileAsync(cmd, args, { cwd, encoding: "utf8", timeout: 15_000, maxBuffer: 64 * 1024 * 1024 })).stdout;
+  const run = (cmd) => (args) => runCommand(cmd, args, { cwd });
   return { gh: run("gh"), git: run("git") };
 }

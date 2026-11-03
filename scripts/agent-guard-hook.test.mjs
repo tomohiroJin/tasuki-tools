@@ -13,12 +13,12 @@ import { spawnSync } from "node:child_process";
 
 const HOOK = new URL("./agent-guard-hook.mjs", import.meta.url).pathname;
 
-function run(t, command, { prs = "[]", branch = "docs/9-x" } = {}) {
+function run(t, command, { prs = "[]", branch = "docs/9-x", ghMarker = null } = {}) {
   const bin = fs.mkdtempSync(path.join(os.tmpdir(), "hook-bin-"));
   t.after(() => fs.rmSync(bin, { recursive: true, force: true }));
   const tool = (name, body) => fs.writeFileSync(path.join(bin, name), `#!${process.execPath}\n${body}\n`, { mode: 0o755 });
-  tool("gh", `process.stdout.write(${JSON.stringify(prs)});`);
-  tool("git", `const a = process.argv.slice(2); if (a[0] === 'rev-parse') process.stdout.write(${JSON.stringify(`${branch}\n`)}); else process.stdout.write('');`);
+  tool("gh", `${ghMarker ? `require("node:fs").writeFileSync(${JSON.stringify(ghMarker)}, "x");` : ""}process.stdout.write(${JSON.stringify(prs)});`);
+  tool("git", `const a = process.argv.slice(2); if (a[0] === 'rev-parse') process.stdout.write(${JSON.stringify(`${branch}\n`)}); else if (a[0] === 'worktree') process.stdout.write('worktree ' + process.cwd() + '\\n'); else process.stdout.write('');`);
   const r = spawnSync(process.execPath, [HOOK], {
     input: JSON.stringify({ tool_name: "Bash", cwd: bin, tool_input: { command } }),
     encoding: "utf8",
@@ -53,9 +53,20 @@ test("入口: --head の枝を自分の枝とし、その PR は先行に数え�
   assert.equal(run(t, "gh pr create", { prs: own, branch: "docs/9-x" })?.hookSpecificOutput.permissionDecision, "ask");
 });
 
-test("入口: 本番デプロイと先行 PR の両方に当たれば、理由を 1 つの ask にまとめる", (t) => {
-  const out = run(t, "bash deploy/deploy.sh && gh pr create", { prs: pr });
+test("入口: 本番デプロイに当たるコマンドでは先行 PR の確認（gh）を流さず、デプロイの ask をすぐ返す", (t) => {
+  const marker = path.join(os.tmpdir(), `hook-gh-called-${process.pid}-${Date.now()}`);
+  t.after(() => fs.rmSync(marker, { force: true }));
+  const out = run(t, "bash deploy/deploy.sh && gh pr create", { prs: pr, ghMarker: marker });
   const reason = out.hookSpecificOutput.permissionDecisionReason;
   assert.match(reason, /本番デプロイ/);
-  assert.match(reason, /PR #501/);
+  assert.match(reason, /先行 PR の確認は省きました/);
+  assert.equal(fs.existsSync(marker), false, "gh が呼ばれた");
+  const plain = run(t, "systemctl restart x", { ghMarker: marker });
+  assert.doesNotMatch(plain.hookSpecificOutput.permissionDecisionReason, /省きました/);
+});
+
+test("入口: cd の先が登録外なら、そこでは何も流さずに ask", (t) => {
+  const out = run(t, "cd /tmp && gh pr create --title 'x（#9）'", { prs: pr });
+  assert.equal(out?.hookSpecificOutput.permissionDecision, "ask");
+  assert.match(out.hookSpecificOutput.permissionDecisionReason, /worktree ではありません/);
 });

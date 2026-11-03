@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { decidePriorPrOutput, extractTitle, parseCreateOptions, effectiveCwd, mergeAsks } from "./prior-pr-hook.mjs";
+import { decidePriorPrOutput, decidePriorPrOutputWithin, extractTitle, parseCreateOptions, effectiveCwd, mentionsPrCreate } from "./prior-pr-hook.mjs";
 import { decideHookOutput } from "./agent-guard.mjs";
 
 /** `scripts/lib/prior-pr-hook.mjs` の自己テスト（#504）。引き方は偽物を渡す。 */
@@ -10,13 +10,16 @@ const found = { state: "found", lines: ["⚠ 同じ ISSUE #504 の他の PR・�
 const none = { state: "none", lines: ["ok"] };
 const notRun = { state: "not-run", lines: ["⚠ 未実行です（理由）"] };
 
-function deps({ branch = "docs/504-x", result = none, cwd = "/repo" } = {}) {
+function deps({ branch = "docs/504-x", result = none, cwd = "/repo", worktrees = ["/repo", "/other/wt"] } = {}) {
   const calls = [];
   const branches = [];
+  const asked = [];
   return {
     calls,
     branches,
+    asked,
     cwd,
+    registeredWorktrees: (dir) => { asked.push(dir); return worktrees; },
     currentBranch: (dir) => { branches.push(dir); return branch; },
     lookup: (a) => { calls.push(a); return result; },
   };
@@ -77,19 +80,57 @@ test("先頭の cd を解釈して作業場所を直す。読めない形は元�
   for (const c of ["gh pr create", "echo hi && cd /x && gh pr create", "cd ~/w && gh pr create", "cd $W && gh pr create", "cd - && gh pr create", "cd && gh pr create"]) {
     assert.equal(effectiveCwd(c, "/a"), "/a", c);
   }
+});
+
+test("cd の先が登録済みの worktree なら、その場所で引く", async () => {
   const d = deps({ result: none });
   await decidePriorPrOutput(input("cd /other/wt && gh pr create"), d);
   assert.deepEqual(d.branches, ["/other/wt"]);
   assert.equal(d.calls[0].dir, "/other/wt");
+  assert.deepEqual(d.asked, ["/repo"]); // 登録の一覧は、フックの入力の cwd で引く
 });
 
-test("mergeAsks: 両方の理由を 1 つの ask にまとめる。片方だけならそのまま", () => {
-  const mk = (r) => ({ hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "ask", permissionDecisionReason: r } });
-  const m = mergeAsks(mk("デプロイ"), mk("先行 PR"));
-  assert.match(m.hookSpecificOutput.permissionDecisionReason, /デプロイ[\s\S]*先行 PR/);
-  assert.equal(mergeAsks(null, mk("a")).hookSpecificOutput.permissionDecisionReason, "a");
-  assert.equal(mergeAsks(mk("b"), null).hookSpecificOutput.permissionDecisionReason, "b");
-  assert.equal(mergeAsks(null, null), null);
+test("cd の先が登録外なら、何も流さずに ask（信用できない場所の git 設定を許可の前に実行しない）", async () => {
+  const d = deps({ result: none });
+  const out = await decidePriorPrOutput(input("cd /tmp/evil && gh pr create"), d);
+  assert.equal(out?.hookSpecificOutput.permissionDecision, "ask");
+  assert.match(out.hookSpecificOutput.permissionDecisionReason, /\/tmp\/evil.*worktree ではありません/);
+  assert.deepEqual(d.branches, []); // git rev-parse を流さない
+  assert.deepEqual(d.calls, []); // 先行 PR の lookup（gh・git ls-remote）を流さない
+});
+
+test("登録の一覧を引けないときも、cd の先では何も流さずに ask", async () => {
+  const d = { ...deps(), registeredWorktrees: () => { throw new Error("git: not a repo"); } };
+  const out = await decidePriorPrOutput(input("cd /other/wt && gh pr create"), d);
+  assert.equal(out?.hookSpecificOutput.permissionDecision, "ask");
+  assert.deepEqual(d.branches, []);
+  assert.deepEqual(d.calls, []);
+});
+
+test("cd の無いコマンドでは、登録の一覧を引かない（入力の cwd は信用する場所）", async () => {
+  const d = deps({ result: none });
+  await decidePriorPrOutput(input("gh pr create"), d);
+  assert.deepEqual(d.asked, []);
+});
+
+test("全体の上限: lookup が終わらなくても、上限の内に ask を返す", async () => {
+  const d = { ...deps(), lookup: () => new Promise(() => {}) };
+  const t0 = Date.now();
+  const out = await decidePriorPrOutputWithin(input("gh pr create"), d, 50);
+  assert.ok(Date.now() - t0 < 2000);
+  assert.equal(out?.hookSpecificOutput.permissionDecision, "ask");
+  assert.match(out.hookSpecificOutput.permissionDecisionReason, /上限/);
+});
+
+test("全体の上限: gh pr create でないコマンドは待たずに null", async () => {
+  const d = { ...deps(), lookup: () => new Promise(() => {}) };
+  assert.equal(await decidePriorPrOutputWithin(input("git status"), d, 50), null);
+});
+
+test("mentionsPrCreate: gh pr create を含むコマンドだけ真", () => {
+  assert.equal(mentionsPrCreate(input("bash deploy/deploy.sh && gh pr create")), true);
+  assert.equal(mentionsPrCreate(input("bash deploy/deploy.sh")), false);
+  assert.equal(mentionsPrCreate("not json"), false);
 });
 
 test("gh pr create 以外で pr create が引数に出ても当てない（位置を固定）", async () => {

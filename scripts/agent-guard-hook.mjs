@@ -14,7 +14,13 @@
 import fs from "node:fs";
 import { isDirectRun } from "./lib/direct-run.mjs";
 import { decideHookOutput } from "./lib/agent-guard.mjs";
-import { decidePriorPrOutput, defaultCurrentBranch, defaultLookup, mergeAsks } from "./lib/prior-pr-hook.mjs";
+import {
+  decidePriorPrOutputWithin,
+  defaultCurrentBranch,
+  defaultLookup,
+  defaultRegisteredWorktrees,
+  mentionsPrCreate,
+} from "./lib/prior-pr-hook.mjs";
 
 /** gh と git を走らせる作業場所。入力の `cwd`（作業ツリー）、なければ CLAUDE_PROJECT_DIR、なければ今の場所。 */
 function workingDirectory(raw) {
@@ -35,14 +41,27 @@ async function main() {
     // 標準入力が無い・閉じている。空として扱い、ask に倒す
   }
   const cwd = workingDirectory(raw);
-  // 本番デプロイと先行 PR の両方に当たったら、理由を 1 つの ask にまとめる（片方の理由が落ちない）
-  let prior = null;
-  try {
-    prior = await decidePriorPrOutput(raw, { cwd, currentBranch: defaultCurrentBranch(), lookup: defaultLookup() });
-  } catch {
-    // 想定外の失敗でも、本番デプロイの判定は出す（常に exit 0）
+  // 本番デプロイの判定を最初に評価する。当たったら先行 PR の確認は流さず、その ask をすぐ返す
+  // （確認が遅れたり時間切れになったりしても、本番のガードが fail-open にならない。docs/adr/0032 の追記）
+  const deploy = decideHookOutput(raw);
+  let out = deploy;
+  if (deploy !== null) {
+    if (mentionsPrCreate(raw)) {
+      const h = deploy.hookSpecificOutput;
+      h.permissionDecisionReason = `${h.permissionDecisionReason}\n（このコマンドには gh pr create も含まれますが、先行 PR の確認は省きました。）`;
+    }
+  } else {
+    try {
+      out = await decidePriorPrOutputWithin(raw, {
+        cwd,
+        currentBranch: defaultCurrentBranch(),
+        registeredWorktrees: defaultRegisteredWorktrees(),
+        lookup: defaultLookup(),
+      });
+    } catch {
+      out = null; // 想定外の失敗でも exit 0 で終わる
+    }
   }
-  const out = mergeAsks(decideHookOutput(raw), prior);
   if (out !== null) process.stdout.write(`${JSON.stringify(out)}\n`);
 }
 

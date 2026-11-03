@@ -6,6 +6,7 @@ import {
   findPriorWork,
   checkPriorWork,
   describePriorWork,
+  runCommand,
   SEARCH_LIMIT,
 } from "./prior-work.mjs";
 
@@ -191,4 +192,21 @@ test("describePriorWork: 先行が無くても切れていれば truncated を�
   const r = describePriorWork(await findPriorWork(4, { ...fakes({ prs: many }), ownBranch: "x" }));
   assert.equal(r.state, "none");
   assert.equal(r.truncated, true);
+});
+
+test("runCommand: 時間切れで SIGKILL し、SIGTERM を無視する子も終わらせる", async () => {
+  const stubborn = 'process.on("SIGTERM", () => {}); setInterval(() => {}, 1000);';
+  const t0 = Date.now();
+  await assert.rejects(runCommand(process.execPath, ["-e", stubborn], { timeoutMs: 100 }), /時間切れ/);
+  assert.ok(Date.now() - t0 < 3000);
+});
+
+test("runCommand: 標準入力は閉じている（読もうとして待たない）", async () => {
+  const out = await runCommand(process.execPath, ["-e", 'process.stdin.on("end", () => console.log("eof")); process.stdin.resume();'], { timeoutMs: 5000 });
+  assert.equal(out.trim(), "eof");
+});
+
+test("runCommand: 非ゼロ終了は stderr の最初の行つきで棄却する。起動できなくても棄却する", async () => {
+  await assert.rejects(runCommand(process.execPath, ["-e", 'console.error("boom" + String.fromCharCode(10) + "more"); process.exit(3)']), /boom/);
+  await assert.rejects(runCommand("/no/such/command-504", []));
 });
