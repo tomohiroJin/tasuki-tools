@@ -74,6 +74,25 @@
 - **速い段（#488・PR #497 の `pnpm check:fast`）が main に入ったら、#491（2 つの場所で試す振り返り）で決め直す**
   （git の pre-commit から速い段を呼ぶか。呼ぶなら全部のツールと人に同じく掛かる）。#488 は PR #497 の merge で閉じるので、決め直す場所は #491 に置く
 
+#### 追記（2026-11-03・#504）: `gh pr create` の直前に、同じ ISSUE の先行 PR があれば聞く
+
+同じフック（`scripts/agent-guard-hook.mjs`・matcher `Bash|Monitor`）に、本番デプロイの判定の**後**に呼ぶ判定を足す。
+決定 1〜3 は変えない。本番デプロイの判定（`decideHookOutput`）の振る舞いは変えず、`.claude/settings.json` の配線もそのままである。
+
+- **MUST**: `gh pr create` の直前に、同じ ISSUE の開いた PR・マージ済みの PR・リモートの枝を引き、あれば `ask`（人に聞く）。
+  番号はブランチ名と `--title` の `#番号` の両方から取る。どこにも無ければ引かずに通す（確かめようがない）。
+  引き方は `scripts/lib/prior-work.mjs` の 1 つで、`pnpm check:fast` の知らせと共有する（`docs/adr/0030` 決定 5 の追記）
+- `gh pr create` の読み方は `scripts/lib/agent-guard.mjs` の既存の字句の読みを使う（`findCommandsMatching`。複合コマンド・
+  `bash -c`・`env`・`gh -R a/b pr create` も当てる）。判定の部品は `scripts/lib/prior-pr-hook.mjs`。
+  入口が読み込むので、部品が追跡下にあるかを `scripts/audit-agent-guard.mjs` が見る
+- **gh が使えなかったとき（引けなかったとき）は `ask` に倒す。** 理由: 決定 2 は「読めないときは当てる側に倒す」とした
+  （入力が読めない → ask）。黙って通すと、確かめていないのに確かめたように見える。聞くコストは小さい。
+  `gh pr create` 自身が gh・認証・ネットワークを要るので、引けない環境ではそもそも作成も通りにくい
+- 本番デプロイの判定と違い、これは**作業の重複を防ぐ歯止め**である。承認すれば進める（`deny` にはしない）。
+  知っていて承認することも、フックを切ることも防げない
+- 残余と、実測していないこと: Claude Code が実際に `gh pr create` でこのフックを呼ぶことは、標準入力の JSON を渡した確認までで、
+  実際のセッションでは確かめていない（決定 2 の Monitor の確認と同じ書き方）。上限・ISSUE 番号の取り方の限界は `docs/adr/0030` 決定 5 の追記
+
 ### 退けた案
 
 | 案 | 退けた理由 |
