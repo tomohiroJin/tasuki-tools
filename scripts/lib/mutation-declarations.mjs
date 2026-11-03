@@ -5088,4 +5088,12 @@ export const MUTATIONS = [
     tests: ["scan-target-wiring.test.mjs"],
     note: RESERVED_880_889 + " " + "#506 のコードレビュー。設計文書の置き場はリンク検査の外なので、ガイドを改名・削除しても宣言は古いパスを指したまま緑になる。",
   },
+  {
+    id: 882,
+    label: "audit-plan-gate の宣言の検査が、ガイドのパスを末尾の一致だけで認める（文書の位置から解決しない）",
+    patch: "m882-plan-gate-declaration-guide-path-by-suffix.patch",
+    pkg: "scripts",
+    tests: ["audit-plan-gate.test.mjs"],
+    note: RESERVED_880_889 + " " + "#506 のレビュー。別の置き場（docs/old-guides/…）や深さを間違えた相対リンクが通り、存在しないガイドを指す宣言が宣言として数えられる。",
+  },
 ];

@@ -1,9 +1,9 @@
 diff --git a/scripts/audit-plan-gate.mjs b/scripts/audit-plan-gate.mjs
-index 26f78a0e..68dc209e 100644
+index f73436f8..66ef3ac7 100644
 --- a/scripts/audit-plan-gate.mjs
 +++ b/scripts/audit-plan-gate.mjs
-@@ -280,7 +280,7 @@ export function checkGate(rel, text, principles) {
-  * 「書き換えない」とガイド（`guides/design-doc-revision.md` で終わるパス。リンクでもバッククォートでも可）の両方を含むもの。コードフェンスの中身は落とす（様式の引用で満たさせない）。
+@@ -297,7 +297,7 @@ export function pointsAtGuide(rel, block) {
+  * 「書き換えない」とガイド（バッククォートのパスでも相対リンクでも可。文書の位置から解決して正本と一致すること）の両方を含むもの。コードフェンスの中身は落とす（様式の引用で満たさせない）。
   */
  export function checkDeclaration(rel, text) {
 -  const head = stripCodeFences(text).split("\n").slice(0, DECLARATION_WINDOW_LINES);
