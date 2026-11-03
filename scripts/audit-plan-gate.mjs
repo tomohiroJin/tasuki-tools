@@ -77,9 +77,6 @@ export const DECLARATION_WINDOW_LINES = 15;
 /** 宣言の正本のガイド。メッセージに出す。実在を `main()` が見る（設計文書の置き場はリンク検査の外）。 */
 export const DECLARATION_GUIDE = "docs/guides/design-doc-revision.md";
 
-/** 宣言がガイドを指しているとみなす末尾。バッククォートでも相対リンクでも、この名前で終われば認める。 */
-const DECLARATION_GUIDE_TAIL = "guides/design-doc-revision.md";
-
 /** 実装計画の置き場（ゲートの対象）。 */
 const PLANS_DIR = "docs/superpowers/plans/";
 
@@ -272,12 +269,32 @@ export function checkGate(rel, text, principles) {
 }
 
 /**
+ * 引用の塊が、宣言の正本のガイドを指しているか。
+ *
+ * パスらしい語（`design-doc-revision.md` で終わり、直後が区切り）を拾い、**文書の位置から解決して**
+ * 正本のパスと一致するかを見る。`./` `../` で始まるものは相対リンクとして文書のあるディレクトリから、
+ * そのほかはリポジトリ直下からのパスとして扱う。`includes` で見ると、別の置き場
+ * （`docs/old-guides/…`）・拡張子の続き（`….md.bak`）・深さを間違えた `../guides/…` が通る。
+ */
+export function pointsAtGuide(rel, block) {
+  const re = /([^\s`()（）\[\]<>"']*design-doc-revision\.md)(?=$|[\s`)）\]>"'。、])/gm;
+  for (const m of block.matchAll(re)) {
+    const token = m[1];
+    const resolved = /^\.{1,2}\//.test(token)
+      ? path.posix.normalize(path.posix.join(path.posix.dirname(rel), token))
+      : path.posix.normalize(token);
+    if (resolved === DECLARATION_GUIDE) return true;
+  }
+  return false;
+}
+
+/**
  * 設計文書の冒頭に「書き換えない節」の宣言があるか（#506）。
  *
  * **存在だけを見る。** 節が実際に書き換えられたかは見ない（差分の検査を足さない理由は
  * `docs/guides/design-doc-revision.md` の「機械で守れるか」）。
  * 宣言は、冒頭 {@link DECLARATION_WINDOW_LINES} 行の**引用（`>`。4 字以上の字下げはコードブロックなので除く。続く引用行は 1 つの塊）**で、
- * 「書き換えない」とガイド（`guides/design-doc-revision.md` で終わるパス。リンクでもバッククォートでも可）の両方を含むもの。コードフェンスの中身は落とす（様式の引用で満たさせない）。
+ * 「書き換えない」とガイド（バッククォートのパスでも相対リンクでも可。文書の位置から解決して正本と一致すること）の両方を含むもの。コードフェンスの中身は落とす（様式の引用で満たさせない）。
  */
 export function checkDeclaration(rel, text) {
   const head = stripCodeFences(text).split("\n").slice(0, DECLARATION_WINDOW_LINES);
@@ -295,7 +312,7 @@ export function checkDeclaration(rel, text) {
     }
   }
   if (current !== null) blocks.push(current.join("\n"));
-  const ok = blocks.some((b) => b.includes("書き換えない") && b.includes(DECLARATION_GUIDE_TAIL));
+  const ok = blocks.some((b) => b.includes("書き換えない") && pointsAtGuide(rel, b));
   if (ok) return [];
   return [
     {

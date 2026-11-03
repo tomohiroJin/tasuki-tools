@@ -13,6 +13,7 @@ import {
   checkDeclaration,
   listDesignDocs,
   DECLARATION_GUIDE,
+  pointsAtGuide,
 } from "./audit-plan-gate.mjs";
 
 /** 憲法の原則見出しの写し（形式だけを再現した最小の本文）。 */
@@ -513,5 +514,35 @@ describe("checkDeclaration: 折り返しとリンク（#506）", () => {
 
   test("別のガイド名（末尾が違う）では通さない", () => {
     assert.equal(checkDeclaration(rel, "# 設計\n\n> 節は書き換えない（`docs/guides/other-design-doc-revision.mdx`）。\n").length, 1);
+  });
+});
+
+describe("checkDeclaration: ガイドの指し方（#506）", () => {
+  const rel = "docs/superpowers/specs/2026-12-01-x-design.md";
+  const quote = (path) => `# 設計\n\n> 節は書き換えない（${path}）。\n`;
+
+  test("別の置き場のパス（docs/old-guides/…）では通さない", () => {
+    assert.equal(checkDeclaration(rel, quote("`docs/old-guides/design-doc-revision.md`")).length, 1);
+  });
+
+  test("拡張子の続き（….md.bak）では通さない", () => {
+    assert.equal(checkDeclaration(rel, quote("`docs/guides/design-doc-revision.md.bak`")).length, 1);
+  });
+
+  test("深さを間違えた相対リンク（../guides/…）では通さない", () => {
+    assert.equal(checkDeclaration(rel, quote("[ガイド](../guides/design-doc-revision.md)")).length, 1);
+  });
+
+  test("文書の位置から解決して正本に一致する相対リンクは通す（plans/ でも同じ深さ）", () => {
+    const plan = "docs/superpowers/plans/2026-12-01-x.md";
+    assert.deepEqual(checkDeclaration(plan, quote("[ガイド](../../guides/design-doc-revision.md)")), []);
+  });
+
+  test("句点の直前のパスも通す", () => {
+    assert.deepEqual(checkDeclaration(rel, "# 設計\n\n> 節は書き換えない。詳細は docs/guides/design-doc-revision.md。\n"), []);
+  });
+
+  test("pointsAtGuide: 行末のパスも拾う", () => {
+    assert.equal(pointsAtGuide(rel, "docs/guides/design-doc-revision.md"), true);
   });
 });
