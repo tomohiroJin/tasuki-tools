@@ -5,15 +5,17 @@
  * 記録を消すのは `clearMocks: true`（vitest.config.ts）。これが外れると、ランダムな順で
  * 「前のテストの呼び出しが残って落ちる」テストが出る（App.session-lost の「やり直す導線がある」）。
  *
- * 2 つのテストは宣言の順に走る前提（既定の順）。1 本目が記録を作り、2 本目がそれの消えていることを見る。
- * ランダムな順では 2 本目が先に走って通る（見逃す）が、変異検査は既定の順で流れるので、設定を外せば落ちる。
+ * このファイルのテストは宣言の順に走る前提。1 本目が記録を作り、2・3 本目がそれの消えていることを見る。
+ * `describe` に `{ shuffle: false }` を付けて順を固定している。付けないと、ランダムな順
+ * （`--sequence.shuffle`）では 2 本目が先に走って通り、`clearMocks` が外れても見逃す。
+ * 順を固定したので、ランダムな順を設定や全件の段に入れても、変異 900 は確実に検出される。
  */
 import { describe, it, expect, vi } from "vitest";
 
 const recorded = vi.fn();
 const withImpl = vi.fn().mockReturnValue("工場の既定");
 
-describe("vi.fn() の記録はテストごとに消える（#499）", () => {
+describe("vi.fn() の記録はテストごとに消える（#499）", { shuffle: false }, () => {
   it("1 本目: 記録を作る", () => {
     recorded("a");
     withImpl();
