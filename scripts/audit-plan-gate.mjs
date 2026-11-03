@@ -60,6 +60,20 @@ export const DECLARATION_BOUNDARY_DATE = "2026-11-04";
 /** 宣言を探す文書の置き場（設計と実装計画）。 */
 export const DESIGN_DOC_PATTERNS = ["docs/superpowers/specs/*.md", "docs/superpowers/plans/*.md"];
 
+/**
+ * 列挙の結果から、宣言を要求する設計文書を選ぶ（#506）。
+ *
+ * git の `*` は `/` を跨ぐので、パターンは日付つきのディレクトリの下の付属ファイル
+ * （例: `specs/2026-11-01-x/notes.md`）も拾う。**付属ファイルは設計文書ではなく、日付も持たない**
+ * （以前から許された置き方）ので、置き場の**直下**だけを選ぶ。README.md も設計文書ではない。
+ */
+export function listDesignDocs(tracked) {
+  const dirs = DESIGN_DOC_PATTERNS.map((p) => path.posix.dirname(p));
+  return tracked.filter(
+    (rel) => dirs.includes(path.posix.dirname(rel)) && path.posix.basename(rel) !== "README.md",
+  );
+}
+
 /** 宣言を探す冒頭の行数。どの節から入っても目に入る位置、の意味である。 */
 export const DECLARATION_WINDOW_LINES = 15;
 
@@ -258,13 +272,13 @@ export function checkGate(rel, text, principles) {
  *
  * **存在だけを見る。** 節が実際に書き換えられたかは見ない（差分の検査を足さない理由は
  * `docs/guides/design-doc-revision.md` の「機械で守れるか」）。
- * 宣言は、冒頭 {@link DECLARATION_WINDOW_LINES} 行の**引用行（`>`）**で、「書き換えない」と
+ * 宣言は、冒頭 {@link DECLARATION_WINDOW_LINES} 行の**引用行（`>`。4 字以上の字下げはコードブロックなので除く）**で、「書き換えない」と
  * ガイドのパスの両方を含むもの。コードフェンスの中身は落とす（様式の引用で満たさせない）。
  */
 export function checkDeclaration(rel, text) {
   const head = stripCodeFences(text).split("\n").slice(0, DECLARATION_WINDOW_LINES);
   const ok = head.some(
-    (line) => /^\s*>/.test(line) && line.includes("書き換えない") && line.includes(DECLARATION_GUIDE),
+    (line) => /^ {0,3}>/.test(line) && line.includes("書き換えない") && line.includes(DECLARATION_GUIDE),
   );
   if (ok) return [];
   return [
@@ -318,9 +332,7 @@ function main() {
   }
 
   // 設計文書の冒頭の宣言（#506）。README は設計文書ではない。
-  const designDocs = listTrackedFiles(REPO_ROOT, DESIGN_DOC_PATTERNS).filter(
-    (rel) => path.basename(rel) !== "README.md",
-  );
+  const designDocs = listDesignDocs(listTrackedFiles(REPO_ROOT, DESIGN_DOC_PATTERNS));
   const declaration = classifyPlans(designDocs, DECLARATION_BOUNDARY_DATE);
   console.log(
     `[audit-plan-gate] 走査対象: 設計文書 ${designDocs.length} 件 / 宣言要求 ${declaration.required.length} 件（境界日 ${DECLARATION_BOUNDARY_DATE} 以降）`,

@@ -11,6 +11,7 @@ import {
   DECLARATION_BOUNDARY_DATE,
   DECLARATION_WINDOW_LINES,
   checkDeclaration,
+  listDesignDocs,
 } from "./audit-plan-gate.mjs";
 
 /** 憲法の原則見出しの写し（形式だけを再現した最小の本文）。 */
@@ -457,5 +458,36 @@ describe("checkDeclaration: 設計文書の冒頭の宣言", () => {
       checkDeclaration(rel, "# 設計\n\n節は書き換えない（docs/guides/design-doc-revision.md）。").length,
       1,
     );
+  });
+});
+
+describe("listDesignDocs: 宣言を探す設計文書の選び方（#506）", () => {
+  test("specs/ と plans/ の直下の *.md を選ぶ", () => {
+    const tracked = ["docs/superpowers/specs/2026-12-01-a.md", "docs/superpowers/plans/2026-12-01-b.md"];
+    assert.deepEqual(listDesignDocs(tracked), tracked);
+  });
+
+  test("README.md は設計文書ではないので除く（specs/ でも plans/ でも）", () => {
+    const tracked = ["docs/superpowers/specs/README.md", "docs/superpowers/plans/README.md"];
+    assert.deepEqual(listDesignDocs(tracked), []);
+  });
+
+  test("日付つきのディレクトリの下の付属ファイルは設計文書にしない（以前から許された置き方）", () => {
+    const tracked = ["docs/superpowers/specs/2026-11-01-x/notes.md", "docs/superpowers/specs/2026-11-01-x/README.md"];
+    assert.deepEqual(listDesignDocs(tracked), []);
+  });
+
+  test("置き場の外は選ばない", () => {
+    assert.deepEqual(listDesignDocs(["docs/guides/a.md", "docs/superpowers/other/2026-12-01-a.md"]), []);
+  });
+});
+
+describe("checkDeclaration: 字下げのコードブロック（#506）", () => {
+  const rel = "docs/superpowers/specs/2026-12-01-x-design.md";
+  test("4 字下げ（コードブロック）の中の引用行では通さない", () => {
+    assert.equal(checkDeclaration(rel, `# 設計\n\n    ${DECLARATION}\n`).length, 1);
+  });
+  test("3 字下げまでは引用として通す", () => {
+    assert.deepEqual(checkDeclaration(rel, `# 設計\n\n   ${DECLARATION}\n`), []);
   });
 });
