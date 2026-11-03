@@ -29,6 +29,7 @@ test("turbo 越しで、起動の失敗だけのタスクは未実行", () => {
   assert.deepEqual(classifyFailure(output), {
     kind: "not-run",
     notStarted: [{ task: "@tasuki/sync-client#test", files: ["/repo/packages/sync-client/tests/connection.test.ts"] }],
+    cutOff: 0,
   });
 });
 
@@ -62,6 +63,22 @@ test("同じファイルの起動の失敗を 2 度数えて、本物の未処�
   assert.equal(classifyFailure(turbo(twice, "@tasuki/a#test")).kind, "failed");
 });
 
+test("turbo が残りのタスクを打ち切ったら、その数を返す（--continue の無い pnpm test・PR #512 の敵対的レビュー 1）", () => {
+  // 敵対的レビューが turbo 2.11.10 で再現した形。本物の失敗のあったタスクは打ち切られ、出力に 1 行も出ない
+  const cut = [
+    "a:test: Vitest caught 1 unhandled error during the test run.",
+    "a:test: Error: [vitest-pool]: Failed to start forks worker for test files /x/a.test.ts.",
+    "a:test: Caused by: Error: [vitest-pool-runner]: Timeout waiting for worker to respond",
+    "",
+    " Tasks:    0 successful, 3 total",
+    "Cached:    0 cached, 3 total",
+    "Failed:    a#test",
+  ].join("\n");
+  assert.deepEqual(classifyFailure(cut), { kind: "not-run", notStarted: [{ task: "a#test", files: ["/x/a.test.ts"] }], cutOff: 2 });
+  // --continue のときは全部が終わるので、打ち切りは 0
+  assert.equal(classifyFailure(cut.replace("0 successful, 3 total", "2 successful, 3 total")).cutOff, 0);
+});
+
 test("型検査・lint などの起動の失敗を含まない赤は失敗", () => {
   assert.equal(classifyFailure("src/a.ts(1,7): error TS2322: Type 'string' is not assignable").kind, "failed");
   assert.equal(classifyFailure("").kind, "failed");
@@ -74,6 +91,6 @@ test("turbo の要約が無い出力（vitest を直に流した）は全体を 
     "Error: [vitest-pool]: Failed to start forks worker for test files /repo/a.test.mjs.",
     " Test Files  no tests",
   ].join("\n");
-  assert.deepEqual(classifyFailure(direct), { kind: "not-run", notStarted: [{ task: null, files: ["/repo/a.test.mjs"] }] });
+  assert.deepEqual(classifyFailure(direct), { kind: "not-run", notStarted: [{ task: null, files: ["/repo/a.test.mjs"] }], cutOff: 0 });
   assert.equal(classifyFailure(`${direct}\n FAIL  b.test.mjs > b`).kind, "failed");
 });

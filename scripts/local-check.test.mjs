@@ -98,9 +98,18 @@ test("ワーカーが起動しなかっただけの赤は未実行として失�
   });
   assert.deepEqual(results.map((c) => c.status), ["not-run", "failed", "failed"]);
   assert.match(results[1].reason, /ほかにワーカーが起動しなかったもの: @tasuki\/sync-client#test: 1 ファイル/);
-  assert.equal(results[2].reason, undefined);
   assert.match(results[0].reason, /ワーカーが起動しなかった（@tasuki\/sync-client#test: 1 ファイル）/);
   assert.match(results[0].reason, /流し直して/);
+  assert.equal(results[2].reason, undefined);
+});
+
+test("turbo が打ち切ったタスクがあれば、パッケージだけでなく同じコマンドの流し直しを求める（PR #512 の敵対的レビュー 1）", () => {
+  const cut = WORKER_START_FAILURE.replace("Failed:", " Tasks:    3 successful, 24 total\nFailed:");
+  const [result] = runChecks([{ command: "pnpm test" }], { preflight: () => true, execute: () => ({ passed: false, output: cut }) });
+  assert.equal(result.status, "not-run");
+  assert.match(result.reason, /turbo が打ち切ったタスクが 20 個/);
+  assert.match(result.reason, /同じコマンド（pnpm test）を流し直して/);
+  assert.doesNotMatch(result.reason, /pnpm --filter/);
 });
 
 function fixture(t, { failPreflight = false, failCheck = false } = {}) {

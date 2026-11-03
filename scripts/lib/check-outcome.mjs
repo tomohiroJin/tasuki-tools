@@ -33,6 +33,8 @@ const REAL_FAILURE = [
 const TURBO_PREFIX = /^(\S+?):([\w:-]+): ?(.*)$/;
 /** turbo の最後の要約の、失敗したタスクの行（`Failed:    @tasuki/a#test, @tasuki/b#test`）。 */
 const TURBO_FAILED = /^\s*Failed:\s+(.+)$/;
+/** turbo の最後の要約の、タスクの数の行（`Tasks:    12 successful, 24 total`。キャッシュから再生したものも successful に入る）。 */
+const TURBO_TASKS = /^\s*Tasks:\s+(\d+) successful, (\d+) total/;
 
 /** 1 つのまとまり（turbo のタスク 1 つ、または出力全体）を見る。 */
 function inspectBlock(lines) {
@@ -58,12 +60,19 @@ function inspectBlock(lines) {
  * - 要約が無ければ（vitest を直に流した等）、出力全体を 1 つのまとまりとして見る
  *
  * @param {string} output - 検査の標準出力と標準エラーをまとめたもの
- * @returns {{ kind: "not-run" | "failed", notStarted: { task: string | null, files: string[] }[] }}
- *   `notStarted` は、起動しなかったファイルを持つまとまり（失敗のときも、見つけたものは返す）
+ * **turbo の打ち切り**: `--continue` の無い turbo（CI の `pnpm test`）は、最初の失敗で残りのタスクを止め、
+ * `Failed:` には止める前に失敗したものしか出さない。打ち切られたタスクに本物の失敗があっても出力に現れない
+ * （#508 の PR の敵対的レビュー 1）。`Tasks:` の成功と失敗の数の和が全体に足りなければ `cutOff` に数える。
+ * 分類は未実行のままでよい（打ち切られたタスクも走っていない）が、流し直す範囲はパッケージではなく全体になる。
+ *
+ * @returns {{ kind: "not-run" | "failed", notStarted: { task: string | null, files: string[] }[], cutOff: number }}
+ *   `notStarted` は、起動しなかったファイルを持つまとまり（失敗のときも、見つけたものは返す）。
+ *   `cutOff` は turbo が打ち切ったタスクの数（要約が無ければ 0）
  */
 export function classifyFailure(output) {
   const lines = output.replace(ANSI, "").split(/\r?\n/);
   const failedLine = lines.map((l) => TURBO_FAILED.exec(l)).find(Boolean);
+  const tasksLine = lines.map((l) => TURBO_TASKS.exec(l)).find(Boolean);
   let blocks;
   if (failedLine) {
     const tasks = failedLine[1].split(",").map((s) => s.trim()).filter(Boolean);
@@ -80,5 +89,7 @@ export function classifyFailure(output) {
   }
   const notStarted = blocks.filter((b) => b.files.length > 0).map(({ task, files }) => ({ task, files }));
   const kind = blocks.length > 0 && blocks.every((b) => b.onlyStartFailures) ? "not-run" : "failed";
-  return { kind, notStarted };
+  const failedCount = failedLine ? blocks.length : 0;
+  const cutOff = tasksLine ? Math.max(0, Number(tasksLine[2]) - Number(tasksLine[1]) - failedCount) : 0;
+  return { kind, notStarted, cutOff };
 }

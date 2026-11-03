@@ -931,7 +931,6 @@ async function runInWorktrees(selected, jobs, full, selector, selection, header)
   // **作る前に片づけを仕掛ける。** 作っている途中で止まっても残さない
   process.on("exit", () => removeWorktrees(dirs));
 
-  console.log(`[mutation-check] ${header}`);
   const perChild = testWorkersPerJob(os.availableParallelism(), plan.length);
   console.log(
     `[mutation-check] 並列: 作業ツリー ${plan.length} 個（--jobs ${jobs}）・テストランナーの並列は子 1 つあたり ${perChild}。` +
@@ -1144,7 +1143,7 @@ function main() {
 
   console.log(`[mutation-check] モード: ${full ? "--full（パッケージ全体）" : "対応表のテストのみ"}`);
   console.log(`[mutation-check] リポジトリルート: ${REPO_ROOT}`);
-  console.log(`[mutation-check] ${header}\n`);
+  console.log("");
   const startedAt = Date.now();
   let controlMs = 0;
   const controls = createControlCache(

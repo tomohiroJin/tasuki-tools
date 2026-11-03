@@ -132,7 +132,7 @@ export function runChecks(plan, { preflight, execute }) {
       const result = execute(check);
       const { passed, output = "" } = typeof result === "object" ? result : { passed: result };
       if (passed) return { ...check, status: "passed" };
-      const { kind, notStarted } = classifyFailure(output);
+      const { kind, notStarted, cutOff } = classifyFailure(output);
       const where = notStarted.map((b) => `${b.task ?? ""}${b.task ? ": " : ""}${b.files.length} ファイル`).join("・");
       if (kind === "failed") {
         // 本物の失敗と一緒に起動しなかったものがあれば、それも書く（流し直す範囲が分かるように）
@@ -140,7 +140,10 @@ export function runChecks(plan, { preflight, execute }) {
       }
       return {
         ...check, status: "not-run",
-        reason: `テストのワーカーが起動しなかった（${where}）。負荷が下がってから流し直してください（パッケージだけなら pnpm --filter <名前> test）`,
+        // 打ち切られたタスクがあれば、その中の本物の失敗は見えていない。パッケージだけを流し直すと見落とす
+        reason: cutOff > 0
+          ? `テストのワーカーが起動しなかった（${where}）。ほかに turbo が打ち切ったタスクが ${cutOff} 個あり、その結果は分かりません。負荷が下がってから、同じコマンド（${check.command.split("\n")[0]}）を流し直してください`
+          : `テストのワーカーが起動しなかった（${where}）。負荷が下がってから流し直してください（パッケージだけなら pnpm --filter <名前> test）`,
       };
     } catch (error) { return { ...check, status: "failed", reason: error.message }; }
   });
