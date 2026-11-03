@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/prior-pr-hook.mjs b/scripts/lib/prior-pr-hook.mjs
+index 53e88a5c..42dcf8c7 100644
+--- a/scripts/lib/prior-pr-hook.mjs
++++ b/scripts/lib/prior-pr-hook.mjs
+@@ -184,7 +184,7 @@ export async function decidePriorPrOutputWithin(raw, deps, limitMs = OVERALL_TIM
+     timer = setTimeout(() => resolve("timeout"), limitMs);
+   });
+   try {
+-    const result = await Promise.race([decidePriorPrOutput(raw, deps), timeout]);
++    const result = await decidePriorPrOutput(raw, deps);
+     if (result === "timeout") {
+       return ask(`同じ ISSUE の先行 PR の確認が ${limitMs / 1000} 秒の上限に当たり、確かめられませんでした。人の確認が要ります（docs/adr/0032 の追記）。`);
+     }

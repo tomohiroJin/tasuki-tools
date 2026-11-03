@@ -46,6 +46,9 @@ const RESERVED_840_849 =
 const RESERVED_860_869 =
   "**対応表より後に足した変異。** 860〜869 は #504 に追加で割り当てた範囲（840〜849 を使い切ったため。850〜859 は #506）。";
 
+const RESERVED_870_879 =
+  "**対応表より後に足した変異。** 870〜879 は #504 に追加で割り当てた範囲（860〜869 を使い切ったため）。";
+
 const RESERVED_250_259 =
   "**対応表より後に足した変異。** 250〜259 は 2026-10-15 の並列修正で #376 に追加で割り当てた予約の範囲（220〜229 が埋まったため）。";
 
@@ -5151,5 +5154,29 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["lib/agent-guard.test.mjs"],
     note: RESERVED_860_869 + " " + "#504 の /code-review（PR #517）。gh issue list --search 'pr create' のたびに先行 PR を引いて聞き、フックが邪魔になって外される。",
+  },
+  {
+    id: 870,
+    label: "cd の先が登録済みの worktree でなくても信用して、そこで git・gh を流す",
+    patch: "m870-prior-pr-hook-unregistered-cd-trusted.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-pr-hook.test.mjs"],
+    note: RESERVED_870_879 + " " + "#504 の自動セキュリティレビュー。信用できない場所の .git/config（core.fsmonitor・core.sshCommand）が、人の承認より前に実行される。",
+  },
+  {
+    id: 871,
+    label: "本番デプロイに当たるコマンドでも、先行 PR の確認（gh・git）を流してから ask を返す",
+    patch: "m871-agent-guard-hook-deploy-also-runs-prior-pr.patch",
+    pkg: "scripts",
+    tests: ["agent-guard-hook.test.mjs"],
+    note: RESERVED_870_879 + " " + "#504 の自動セキュリティレビュー。確認が遅れたり時間切れになったりすると、本番デプロイの ask が出ないまま通る（fail-open）。",
+  },
+  {
+    id: 872,
+    label: "先行 PR の確認に全体の壁時計の上限を付けない",
+    patch: "m872-prior-pr-hook-overall-timeout-removed.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-pr-hook.test.mjs"],
+    note: RESERVED_870_879 + " " + "#504 の自動セキュリティレビュー。引き方が終わらないとフックが時間切れまで待ち、ask が出ない。",
   },
 ];

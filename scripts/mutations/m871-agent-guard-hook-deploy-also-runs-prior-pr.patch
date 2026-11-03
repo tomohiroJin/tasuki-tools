@@ -1,0 +1,13 @@
+diff --git a/scripts/agent-guard-hook.mjs b/scripts/agent-guard-hook.mjs
+index 982c0c23..ac0c05eb 100644
+--- a/scripts/agent-guard-hook.mjs
++++ b/scripts/agent-guard-hook.mjs
+@@ -45,7 +45,7 @@ async function run() {
+   // （確認が遅れたり時間切れになったりしても、本番のガードが fail-open にならない。docs/adr/0032 の追記）
+   const deploy = decideHookOutput(raw);
+   let out = deploy;
+-  if (deploy !== null) {
++  if (false) {
+     if (mentionsPrCreate(raw)) {
+       const h = deploy.hookSpecificOutput;
+       h.permissionDecisionReason = `${h.permissionDecisionReason}\n（このコマンドには gh pr create も含まれますが、先行 PR の確認は省きました。）`;
