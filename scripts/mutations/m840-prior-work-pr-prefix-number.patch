@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/prior-work.mjs b/scripts/lib/prior-work.mjs
+index a422b2bc..20064716 100644
+--- a/scripts/lib/prior-work.mjs
++++ b/scripts/lib/prior-work.mjs
+@@ -60,7 +60,7 @@ export async function findPriorWork(number, { gh, git, ownBranch }) {
+     const listed = JSON.parse(ghResult.value);
+     if (!Array.isArray(listed)) throw new Error("想定と違う出力");
+     total = listed.length;
+-    const exact = new RegExp(`#${number}(?!\\d)`);
++    const exact = new RegExp(`#${number}`);
+     prs = listed.filter((p) => exact.test(`${p.title}\n${p.body ?? ""}`) && p.headRefName !== ownBranch);
+   } catch (error) {
+     errors.push(`gh pr list: ${firstLine(error.message)}`);

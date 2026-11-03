@@ -40,6 +40,15 @@ const RESERVED_810_819 =
 const RESERVED_820_829 =
   "**対応表より後に足した変異。** 820〜829 は #509 に割り当てた範囲（#505・#508 と並行に進めたため、帯を分けた）。";
 
+const RESERVED_840_849 =
+  "**対応表より後に足した変異。** 840〜849 は #504 に割り当てた範囲（並行の作業と重ならないよう、割り当てられた）。";
+
+const RESERVED_860_869 =
+  "**対応表より後に足した変異。** 860〜869 は #504 に追加で割り当てた範囲（840〜849 を使い切ったため。850〜859 は #506）。";
+
+const RESERVED_870_879 =
+  "**対応表より後に足した変異。** 870〜879 は #504 に追加で割り当てた範囲（860〜869 を使い切ったため）。";
+
 const RESERVED_250_259 =
   "**対応表より後に足した変異。** 250〜259 は 2026-10-15 の並列修正で #376 に追加で割り当てた予約の範囲（220〜229 が埋まったため）。";
 
@@ -5095,5 +5104,197 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["audit-plan-gate.test.mjs"],
     note: RESERVED_880_889 + " " + "#506 のレビュー。別の置き場（docs/old-guides/…）や深さを間違えた相対リンクが通り、存在しないガイドを指す宣言が宣言として数えられる。",
+  },
+  {
+    id: 840,
+    label: "先行 PR の探索が、番号が前方一致の別 ISSUE の PR（#5040）も拾う",
+    patch: "m840-prior-work-pr-prefix-number.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-work.test.mjs"],
+    note: RESERVED_840_849 + " " + "#504。別の ISSUE の PR を「同じ ISSUE の先行 PR」と知らせ、無関係な PR で作業が止まる／知らせが信用されなくなる。",
+  },
+  {
+    id: 841,
+    label: "先行する枝の探索が、番号が前方一致の別 ISSUE の枝（5040）も拾う",
+    patch: "m841-prior-work-branch-prefix-number.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-work.test.mjs"],
+    note: RESERVED_840_849 + " " + "#504。別の ISSUE の枝を先行の作業と知らせる。",
+  },
+  {
+    id: 842,
+    label: "先行 PR の探索が、自分の枝の PR を除かない",
+    patch: "m842-prior-work-own-pr-included.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-work.test.mjs"],
+    note: RESERVED_840_849 + " " + "#504。自分の PR を「他の PR」と知らせ続け、知らせが常に出て無視される。",
+  },
+  {
+    id: 843,
+    label: "検索がちょうど上限に当たっても、切れた可能性を知らせない",
+    patch: "m843-prior-work-truncation-undetected.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-work.test.mjs"],
+    note: RESERVED_840_849 + " " + "#504。上限で黙って切れ、先行 PR が無いと読ませる（番号 4 のような小さい番号で起きる）。",
+  },
+  {
+    id: 844,
+    label: "片方の引き方が失敗して何も見つからないとき、「無い」と言う",
+    patch: "m844-prior-work-lookup-failure-reads-none.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-work.test.mjs"],
+    note: RESERVED_840_849 + " " + "#504。gh が使えない環境で、確かめていないのに先行 PR は無いと読ませる。",
+  },
+  {
+    id: 845,
+    label: "gh pr create の直前に先行 PR を引けなかったとき、人に聞かず通す",
+    patch: "m845-prior-pr-hook-lookup-failure-passes.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-pr-hook.test.mjs"],
+    note: RESERVED_840_849 + " " + "#504。docs/adr/0032 は読めないときに聞く側へ倒す。通すと、引けていないのに確認済みに見える。",
+  },
+  {
+    id: 846,
+    label: "gh pr create の番号を --title から取らない",
+    patch: "m846-prior-pr-hook-ignores-title-number.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-pr-hook.test.mjs"],
+    note: RESERVED_840_849 + " " + "#504。ブランチ名に番号が無い枝（main や名前だけの枝）の PR で、先行 PR を確かめない。",
+  },
+  {
+    id: 847,
+    label: "gh pr create の判定が、pr か create のどちらかの語があれば当たる",
+    patch: "m847-agent-guard-args-match-any-word.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-pr-hook.test.mjs"],
+    note: RESERVED_840_849 + " " + "#504。gh pr list・gh issue create のたびに先行 PR を引いて聞き、フックが邪魔になって外される。",
+  },
+  {
+    id: 848,
+    label: "check:fast の先行 PR の知らせを、最後の一覧でもう一度出さない",
+    patch: "m848-local-check-notices-not-repeated.patch",
+    pkg: "scripts",
+    tests: ["local-check.test.mjs"],
+    note: RESERVED_840_849 + " " + "#504。検査の長い出力に最初の知らせが流れて見落とされる（#508 と同じ型）。",
+  },
+  {
+    id: 849,
+    label: "ブランチ名の番号を、語に混ざった数字（fix/504def）からも取る",
+    patch: "m849-prior-work-branch-number-inside-word.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-work.test.mjs"],
+    note: RESERVED_840_849 + " " + "#504。無関係な数字で別の ISSUE の先行 PR を引く。",
+  },
+  {
+    id: 860,
+    label: "入口のフックが、本番デプロイの判定の後に先行 PR の判定を呼ばない",
+    patch: "m860-agent-guard-hook-drops-prior-pr-wiring.patch",
+    pkg: "scripts",
+    tests: ["agent-guard-hook.test.mjs"],
+    note: RESERVED_860_869 + " " + "#504 のレビュー 4。部品のテストは緑のまま、gh pr create の直前に聞かなくなる。",
+  },
+  {
+    id: 861,
+    label: "gh pr new（gh pr create の別名）で先行 PR を確かめない",
+    patch: "m861-prior-pr-hook-misses-gh-pr-new.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-pr-hook.test.mjs"],
+    note: RESERVED_860_869 + " " + "#504 のレビュー 4。別名で先行 PR の確認を抜ける。",
+  },
+  {
+    id: 862,
+    label: "--title / -t の値が 1 語（-t<値>）のとき題を取らない",
+    patch: "m862-prior-pr-hook-misses-glued-title.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-pr-hook.test.mjs"],
+    note: RESERVED_860_869 + " " + "#504 のレビュー 4。-t<値> の形でブランチに番号が無いと確認を抜ける。",
+  },
+  {
+    id: 863,
+    label: "ブランチに番号があると、題の別の番号を引かない",
+    patch: "m863-prior-pr-hook-title-overrides-branch.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-pr-hook.test.mjs"],
+    note: RESERVED_860_869 + " " + "#504 の /code-review（PR #517）。ブランチの番号と違う ISSUE を題に書いた PR で、題の ISSUE の先行 PR を確かめない（最初は 1 つに絞っていたのを、最大 2 つに改めた）。",
+  },
+  {
+    id: 864,
+    label: "日付のブランチ名（docs/2026-11-03-retro）を ISSUE 2026 と読む",
+    patch: "m864-prior-work-branch-date-read-as-number.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-work.test.mjs"],
+    note: RESERVED_860_869 + " " + "#504 のレビュー 4。無関係な PR を先行として挙げる。",
+  },
+  {
+    id: 865,
+    label: "issue-<番号> の形のブランチ名から番号を取らない",
+    patch: "m865-prior-work-misses-issue-prefix.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-work.test.mjs"],
+    note: RESERVED_860_869 + " " + "#504 のレビュー 4。docs/issue-505-… の枝で先行 PR の確認が未実行になる。",
+  },
+  {
+    id: 866,
+    label: "題の取り出しが、値を取る選択肢（-T・-b・-r）まで束ねた頭として読み、その値を題と読む",
+    patch: "m866-prior-pr-hook-title-bundle-too-wide.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-pr-hook.test.mjs"],
+    note: RESERVED_860_869 + " " + "#504 のレビュー 5。-Tmytemplate の値を題と読んで --title まで進まず確認を抜ける、-rteam/#3 の値で無関係な ISSUE を引く。",
+  },
+  {
+    id: 867,
+    label: "先行が無くても検索が上限で切れているとき、フックが人に聞かず通す",
+    patch: "m867-prior-pr-hook-truncated-none-passes.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-pr-hook.test.mjs"],
+    note: RESERVED_860_869 + " " + "#504 の /code-review（PR #517）。小さい番号で上限に当たって先行 PR を取りこぼしても、聞かずに gh pr create が進む。",
+  },
+  {
+    id: 868,
+    label: "gh pr create --head <枝> のとき、自分の枝を --head でなく作業場所の今の枝にする",
+    patch: "m868-prior-pr-hook-ignores-head.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-pr-hook.test.mjs"],
+    note: RESERVED_860_869 + " " + "#504 の /code-review（PR #517）。別の枝の PR を作るとき、その枝の番号を引かず、自分の PR を「他の PR」と挙げる。",
+  },
+  {
+    id: 869,
+    label: "gh pr create の判定が、選択肢を除いた最初の語でなく、引数のどこに並んでいても当たる",
+    patch: "m869-agent-guard-args-not-anchored.patch",
+    pkg: "scripts",
+    tests: ["lib/agent-guard.test.mjs"],
+    note: RESERVED_860_869 + " " + "#504 の /code-review（PR #517）。gh issue list --search 'pr create' のたびに先行 PR を引いて聞き、フックが邪魔になって外される。",
+  },
+  {
+    id: 870,
+    label: "cd の先が登録済みの worktree でなくても信用して、そこで git・gh を流す",
+    patch: "m870-prior-pr-hook-unregistered-cd-trusted.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-pr-hook.test.mjs"],
+    note: RESERVED_870_879 + " " + "#504 の自動セキュリティレビュー。信用できない場所の .git/config（core.fsmonitor・core.sshCommand）が、人の承認より前に実行される。",
+  },
+  {
+    id: 871,
+    label: "本番デプロイに当たるコマンドでも、先行 PR の確認（gh・git）を流してから ask を返す",
+    patch: "m871-agent-guard-hook-deploy-also-runs-prior-pr.patch",
+    pkg: "scripts",
+    tests: ["agent-guard-hook.test.mjs"],
+    note: RESERVED_870_879 + " " + "#504 の自動セキュリティレビュー。確認が遅れたり時間切れになったりすると、本番デプロイの ask が出ないまま通る（fail-open）。",
+  },
+  {
+    id: 872,
+    label: "先行 PR の確認に全体の壁時計の上限を付けない",
+    patch: "m872-prior-pr-hook-overall-timeout-removed.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-pr-hook.test.mjs"],
+    note: RESERVED_870_879 + " " + "#504 の自動セキュリティレビュー。引き方が終わらないとフックが時間切れまで待ち、ask が出ない。",
+  },
+  {
+    id: 873,
+    label: "時間切れで直接の子だけを SIGKILL し、孫（gh の下の git・git の下の ssh）を残す",
+    patch: "m873-prior-work-timeout-kills-only-direct-child.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-work.test.mjs"],
+    note: RESERVED_870_879 + " " + "#504 の 7 回目のレビュー。孫が出力の管を握ったまま残り、フックが Claude Code の時間切れを超えて終わらない。終わりを支えるのは、グループごとの SIGKILL と、時間切れのときの管の destroy（ADR-0032 の追記）。",
   },
 ];

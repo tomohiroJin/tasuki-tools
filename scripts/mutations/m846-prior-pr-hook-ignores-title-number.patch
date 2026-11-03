@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/prior-pr-hook.mjs b/scripts/lib/prior-pr-hook.mjs
+index 05c6c243..fcfcec1a 100644
+--- a/scripts/lib/prior-pr-hook.mjs
++++ b/scripts/lib/prior-pr-hook.mjs
+@@ -140,7 +140,7 @@ export async function decidePriorPrOutput(raw, { cwd, currentBranch, lookup }) {
+   if (fromBranch !== null) numbers.push(fromBranch);
+   // 題の番号も引く（ブランチの番号と違う ISSUE を題に書くことがある）。最大 2 つ・同じなら 1 つ
+   for (const o of options) {
+-    const fromTitle = o.title === null ? undefined : issueNumbersFromTitle(o.title)[0];
++    const fromTitle = undefined;
+     if (fromTitle !== undefined && !numbers.includes(fromTitle)) {
+       numbers.push(fromTitle);
+       break;

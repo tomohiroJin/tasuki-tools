@@ -288,24 +288,31 @@ function skipOptions(words, start, argOpts) {
 }
 
 /** 起動の位置の語が、宣言のどれに当たるか。 */
-function matchHead(words, i) {
+function matchHead(words, i, decls) {
   const name = path.posix.basename(words[i]);
   const hits = [];
-  for (const g of GUARDED_COMMANDS) {
+  for (const g of decls) {
     if (g.script && name === path.posix.basename(g.script)) hits.push(g);
     if (g.program && name === g.program) {
-      if (!g.subcommands) hits.push(g);
-      else {
+      if (!g.subcommands && !g.args) hits.push(g);
+      else if (g.subcommands) {
         const sub = words.slice(i + 1).find((w) => !w.startsWith("-"));
         if (sub !== undefined && g.subcommands.includes(sub)) hits.push(g);
       }
+    }
+    // `args`: 選択肢（`argOpts` は値を取るもの。`gh -R a/b`）を除いた最初の語から並ぶ語（`gh pr create`）。
+    // 位置を固定する（`gh issue list --search pr create` の引数の中の並びには当てない）。
+    // 当たった語を `words` に持たせる（題の取り出しに使う。#504）
+    if (g.program && g.args && name === g.program) {
+      const start = skipOptions(words, i + 1, g.argOpts ?? []);
+      if (g.args.every((a, k) => words[start + k] === a)) hits.push({ ...g, words });
     }
   }
   return hits;
 }
 
 /** 単純なコマンド 1 つ（語の並び）を読む。 */
-function analyzeWords(words, depth) {
+function analyzeWords(words, depth, decls) {
   let i = 0;
   for (;;) {
     while (i < words.length && (isAssignment(words[i]) || KEYWORDS.has(words[i]))) i += 1;
@@ -319,16 +326,16 @@ function analyzeWords(words, depth) {
       // env -S は残りを 1 つの文字列として読み直す（`--split-string=…` の形も）
       if (spec.splitOpts) {
         const eq = words.findIndex((w, k) => k > i && w.startsWith("--split-string="));
-        if (eq !== -1) return analyzeString([words[eq].slice("--split-string=".length), ...words.slice(eq + 1)].join(" "), depth + 1);
+        if (eq !== -1) return analyzeString([words[eq].slice("--split-string=".length), ...words.slice(eq + 1)].join(" "), depth + 1, decls);
         const split = words.findIndex((w, k) => k > i && spec.splitOpts.includes(w));
-        if (split !== -1 && split + 1 < words.length) return analyzeString(words.slice(split + 1).join(" "), depth + 1);
+        if (split !== -1 && split + 1 < words.length) return analyzeString(words.slice(split + 1).join(" "), depth + 1, decls);
       }
       i = skipOptions(words, i + 1, spec.argOpts) + (spec.positional ?? 0);
       continue;
     }
     if (Object.hasOwn(REJOINERS, name)) {
       const next = skipOptions(words, i + 1, REJOINERS[name].argOpts);
-      return analyzeString(words.slice(next).join(" "), depth + 1);
+      return analyzeString(words.slice(next).join(" "), depth + 1, decls);
     }
     if (SHELLS.has(name) || name === "source" || name === ".") {
       let k = i + 1;
@@ -339,15 +346,15 @@ function analyzeWords(words, depth) {
       }
       if (words[k] === "--") k += 1;
       if (k >= words.length) return [];
-      if (inline) return analyzeString(words[k], depth + 1);
-      return matchHead(words, k).filter((g) => g.script);
+      if (inline) return analyzeString(words[k], depth + 1, decls);
+      return matchHead(words, k, decls).filter((g) => g.script);
     }
     if (name === "su" || name === "runuser") {
       // -c の文字列は読み直す。runuser -u <user> [--] <cmd> は残りをコマンドとして読む（PR #498 のレビュー 3）
       const c = words.findIndex((w, k) => k > i && (w === "-c" || w === "--command" || /^-[A-Za-z]*c$/.test(w)));
-      if (c !== -1 && c + 1 < words.length) return analyzeString(words[c + 1], depth + 1);
+      if (c !== -1 && c + 1 < words.length) return analyzeString(words[c + 1], depth + 1, decls);
       const cEq = words.find((w, k) => k > i && w.startsWith("--command="));
-      if (cEq) return analyzeString(cEq.slice("--command=".length), depth + 1);
+      if (cEq) return analyzeString(cEq.slice("--command=".length), depth + 1, decls);
       if (name === "runuser" && words.slice(i + 1).some((w) => w === "-u" || w === "--user")) {
         i = skipOptions(words, i + 1, SU_ARG_OPTS);
         continue;
@@ -357,7 +364,7 @@ function analyzeWords(words, depth) {
     if (name === "ssh") {
       const host = skipOptions(words, i + 1, SSH_ARG_OPTS);
       if (host + 1 >= words.length) return [];
-      return analyzeString(words.slice(host + 1).join(" "), depth + 1);
+      return analyzeString(words.slice(host + 1).join(" "), depth + 1, decls);
     }
     if (name === "find") {
       const hits = [];
@@ -365,23 +372,31 @@ function analyzeWords(words, depth) {
         if (FIND_EXEC.has(w) && k + 1 < words.length) {
           const rest = words.slice(k + 1);
           const end = rest.findIndex((x) => x === ";" || x === "+");
-          hits.push(...analyzeWords(end === -1 ? rest : rest.slice(0, end), depth + 1));
+          hits.push(...analyzeWords(end === -1 ? rest : rest.slice(0, end), depth + 1, decls));
         }
       });
       return hits;
     }
-    return matchHead(words, i);
+    return matchHead(words, i, decls);
   }
 }
 
 /** 文字列を読み、当たった宣言を出現順に返す（重複は除く）。 */
-function analyzeString(src, depth) {
+function analyzeString(src, depth, decls) {
   if (depth > MAX_DEPTH) return [UNREADABLE];
   const { commands, nested } = lex(src);
   const hits = [];
-  for (const words of commands) hits.push(...analyzeWords(words, depth));
-  for (const inner of nested) hits.push(...analyzeString(inner, depth + 1));
-  return [...new Set(hits)];
+  for (const words of commands) hits.push(...analyzeWords(words, depth, decls));
+  for (const inner of nested) hits.push(...analyzeString(inner, depth + 1, decls));
+  // `words` を持つ当たりは呼ぶたびに新しいオブジェクトなので、同じ宣言と同じ語の並びを 1 つにまとめる
+  const seen = new Set();
+  return [...new Set(hits)].filter((h) => {
+    if (h.words === undefined) return true;
+    const key = `${h.id}\0${h.words.join("\0")}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 /**
@@ -390,7 +405,18 @@ function analyzeString(src, depth) {
  * @returns {{ id: string, why: string }[]} 当たった宣言（出現順・重複なし）。当たらなければ空
  */
 export function findGuardedCommands(command) {
-  return analyzeString(command, 0);
+  return analyzeString(command, 0, GUARDED_COMMANDS);
+}
+
+/**
+ * 宣言の一覧を指定して、コマンドの文字列が当てるものを返す（読み方は {@link findGuardedCommands} と同じ）。
+ * 先行 PR の確認のフック（`scripts/lib/prior-pr-hook.mjs`・#504）が、`gh pr create` の宣言を渡して使う。
+ * @param {string} command
+ * @param {readonly object[]} decls
+ * @returns {object[]} 当たった宣言。`args` を持つ宣言は `words`（そのコマンドの語の並び）を足したコピー
+ */
+export function findCommandsMatching(command, decls) {
+  return analyzeString(command, 0, decls);
 }
 
 const RULE_REF = "AGENTS.md「AI 運用規則」の「人の明示の指示か承認を待つ操作」に当たります（docs/adr/0032）。";

@@ -1,0 +1,13 @@
+diff --git a/scripts/agent-guard-hook.mjs b/scripts/agent-guard-hook.mjs
+index 50003a96..d0c66eb4 100644
+--- a/scripts/agent-guard-hook.mjs
++++ b/scripts/agent-guard-hook.mjs
+@@ -52,7 +52,7 @@ async function main() {
+     }
+   } else {
+     try {
+-      out = await decidePriorPrOutputWithin(raw, {
++      out = null && await decidePriorPrOutputWithin(raw, {
+         cwd,
+         currentBranch: defaultCurrentBranch(),
+         registeredWorktrees: defaultRegisteredWorktrees(),

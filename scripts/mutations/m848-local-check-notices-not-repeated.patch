@@ -1,0 +1,13 @@
+diff --git a/scripts/local-check.mjs b/scripts/local-check.mjs
+index f5668d5f..bc459a5b 100644
+--- a/scripts/local-check.mjs
++++ b/scripts/local-check.mjs
+@@ -199,7 +199,7 @@ async function priorWorkNotices() {
+   console.log("[local-check] 同じ ISSUE の先行 PR・枝");
+   for (const line of lines) console.log(line);
+   // 番号の無い枝の案内は ⚠ でないので、最後の一覧では繰り返さない
+-  return lines.filter((l) => l.startsWith("⚠"));
++  return [];
+ }
+ 
+ function hasCodeChanges() {

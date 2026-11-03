@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/prior-pr-hook.mjs b/scripts/lib/prior-pr-hook.mjs
+index 05c6c243..85230691 100644
+--- a/scripts/lib/prior-pr-hook.mjs
++++ b/scripts/lib/prior-pr-hook.mjs
+@@ -150,7 +150,7 @@ export async function decidePriorPrOutput(raw, { cwd, currentBranch, lookup }) {
+ 
+   const result = await lookup({ numbers, branch: own, dir });
+   // 切れているときは「無い」と言い切れないので、先行が無くても聞く（引けなかったときと同じ考え方）
+-  if (result.state === "none" && result.truncated !== true) return null;
++  if (result.state !== "found" && result.truncated !== true) return null;
+   return ask(`${result.lines.join("\n")}\n同じ ISSUE の作業が重なっていないか、人の確認が要ります（AGENTS.md「作業の始めに」・docs/adr/0030 決定 5）。`);
+ }
+ 
