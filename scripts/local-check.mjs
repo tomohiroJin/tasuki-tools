@@ -212,7 +212,7 @@ function hasCodeChanges() {
   } catch { console.log("[local-check] 差分を判定できないため、型・lint・単体をすべて流します"); return true; }
 }
 
-async function main() {
+async function run() {
   const [mode, ...args] = process.argv.slice(2);
   if (!["fast", "full"].includes(mode) || args.some((a) => a !== "--list") || args.length > 1) {
     console.error("使い方: node scripts/local-check.mjs <fast|full> [--list]"); process.exitCode = 2; return;
@@ -240,4 +240,12 @@ async function main() {
   } catch (error) { console.error(`[local-check] ${error.message}`); process.exitCode = 1; }
 }
 
-if (isDirectRun(import.meta.url, process.argv[1])) await main();
+function main() {
+  // 非同期の本体の失敗は終了コードにして、未処理の棄却で落とさない
+  run().catch((error) => {
+    console.error(`${error.message}`);
+    process.exitCode = 1;
+  });
+}
+
+if (isDirectRun(import.meta.url, process.argv[1])) main();

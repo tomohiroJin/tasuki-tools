@@ -33,7 +33,7 @@ function workingDirectory(raw) {
   return process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 }
 
-async function main() {
+async function run() {
   let raw = "";
   try {
     raw = fs.readFileSync(0, "utf8");
@@ -65,4 +65,11 @@ async function main() {
   if (out !== null) process.stdout.write(`${JSON.stringify(out)}\n`);
 }
 
-if (isDirectRun(import.meta.url, process.argv[1])) await main();
+function main() {
+  // 非同期の本体の失敗は終了コードにして、未処理の棄却で落とさない
+  run().catch(() => {
+    // 想定外の失敗でも exit 0 で終わる（exit 2 は「拒む」になる）
+  });
+}
+
+if (isDirectRun(import.meta.url, process.argv[1])) main();
