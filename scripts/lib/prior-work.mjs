@@ -19,9 +19,13 @@ export const SEARCH_LIMIT = 1000;
 
 const firstLine = (text) => String(text).trim().split("\n")[0];
 
-/** ブランチ名の最初の番号（`docs/504-x`・`claude/trial-491-cloud-480` は 491）。語に混ざった数字（`abc504def`）は取らない。 */
+/**
+ * ブランチ名の ISSUE 番号。取る形は 2 つだけ: `<type>/<番号>-…`（`docs/504-x`）と `issue-<番号>`（`docs/issue-505-x`）。
+ * ISSUE でない数字（`chore/node-26-upgrade`・`fix/pnpm-11-5`。日付 `docs/2026-11-03-retro` は `-NN-NN` が続く形を除く）や
+ * 語に混ざった数字は取らず null（未実行）にする。
+ */
 export function issueNumberFromBranch(branch) {
-  const m = /(?:^|[/-])(\d{1,7})(?=[/-]|$)/.exec(String(branch));
+  const m = /^[^/]+\/(\d{1,7})(?=-|$)(?!-\d{2}-\d{2})/.exec(String(branch)) ?? /(?:^|[/-])issue-(\d{1,7})(?!\d)/.exec(String(branch));
   return m ? Number(m[1]) : null;
 }
 

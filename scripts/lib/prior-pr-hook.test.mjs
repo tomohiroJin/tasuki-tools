@@ -40,10 +40,32 @@ test("先行が無ければ何も返さない", () => {
   assert.equal(decidePriorPrOutput(input("gh pr create"), deps({ result: none })), null);
 });
 
-test("番号はブランチ名と --title の両方から取る", () => {
+test("番号は 1 つに絞る（ブランチ優先。題の番号は引かない）", () => {
   const d = deps({ branch: "docs/504-x", result: none });
   decidePriorPrOutput(input("gh pr create --title 'feat: y（#491）'"), d);
-  assert.deepEqual(d.calls[0].numbers, [504, 491]);
+  assert.deepEqual(d.calls[0].numbers, [504]);
+});
+
+test("ISSUE でない数字のブランチ名は番号なしとして扱い、題から取る", () => {
+  const d = deps({ branch: "chore/node-26-upgrade", result: none });
+  decidePriorPrOutput(input("gh pr create --title 'chore: x（#40）'"), d);
+  assert.deepEqual(d.calls[0].numbers, [40]);
+  const e = deps({ branch: "chore/node-26-upgrade" });
+  assert.equal(decidePriorPrOutput(input("gh pr create --title x"), e), null);
+  assert.equal(e.calls.length, 0);
+});
+
+test("gh pr new（create の別名）も当てる", () => {
+  const out = decidePriorPrOutput(input("gh pr new --title x"), deps({ result: found }));
+  assert.equal(out?.hookSpecificOutput.permissionDecision, "ask");
+});
+
+test("-t<値>・-t=…でない 1 語の形・--title=<値> から題を取る", () => {
+  assert.equal(extractTitle(["gh", "pr", "create", "-tfeat（#480）"]), "feat（#480）");
+  assert.equal(extractTitle(["gh", "pr", "create", "--title=feat（#480）"]), "feat（#480）");
+  const d = deps({ branch: "main", result: none });
+  decidePriorPrOutput(input('gh pr create -t"feat（#480）"'), d);
+  assert.deepEqual(d.calls[0].numbers, [480]);
 });
 
 test("ブランチに番号が無くても題の番号で引く", () => {

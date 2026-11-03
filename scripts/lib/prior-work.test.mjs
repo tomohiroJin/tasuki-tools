@@ -27,17 +27,17 @@ function fakes({ prs = [], heads = [], ghFails = false, gitFails = false } = {})
   return { gh, git, calls };
 }
 
-test("ブランチ名から最初の番号を取る", () => {
+test("ブランチ名の番号は <type>/<番号>- と issue-<番号> の 2 つの形だけ", () => {
   assert.equal(issueNumberFromBranch("docs/504-review-and-prior-pr-rules"), 504);
-  assert.equal(issueNumberFromBranch("claude/trial-491-cloud-480"), 491);
-  assert.equal(issueNumberFromBranch("504-foo"), 504);
+  assert.equal(issueNumberFromBranch("feature/508-check-fast-signals"), 508);
+  assert.equal(issueNumberFromBranch("docs/issue-505-procedures"), 505);
+  assert.equal(issueNumberFromBranch("fix/486"), 486);
 });
 
-test("ブランチ名に番号が無ければ null（main・HEAD・語に混ざった数字）", () => {
-  assert.equal(issueNumberFromBranch("main"), null);
-  assert.equal(issueNumberFromBranch("HEAD"), null);
-  assert.equal(issueNumberFromBranch("feature/v2-room"), null);
-  assert.equal(issueNumberFromBranch("fix/abc504def"), null);
+test("ISSUE でない数字・番号の無い名前は null（実際の枝名を含む）", () => {
+  for (const b of ["main", "HEAD", "feature/v2-room", "fix/abc504def", "fix/504def", "chore/node-26-upgrade", "docs/2026-11-03-retro", "fix/pnpm-11-5", "renovate/non-breaking", "claude/trial-491-cloud-480", "504-foo", "claude/cool-ride-c0dfr1"]) {
+    assert.equal(issueNumberFromBranch(b), null, b);
+  }
 });
 
 test("題から #番号 をすべて取る", () => {

@@ -4,7 +4,7 @@
  * Claude Code の PreToolUse フック（`scripts/agent-guard-hook.mjs`）から、本番デプロイの判定
  * （`decideHookOutput`）の後に呼ばれる。デプロイの判定は変えない。引き方は `scripts/lib/prior-work.mjs`（check:fast と共通）。
  *
- * - 番号はブランチ名と `--title` の `#番号` の両方から取る。どこにも無ければ引かずに通す（番号の無い PR は確かめようがない）
+ * - 番号はブランチ名（`<type>/<番号>-`・`issue-<番号>`）を優先し、無ければ `--title`（`-t<値>`・`--title=<値>` も）の最初の `#番号`。1 つに絞る（待ち時間の上限）。どこにも無ければ引かずに通す（番号の無い PR は確かめようがない）
  * - 先行があれば `ask`。**引けなかったとき（gh が無い・未認証・ネットワークが無い）も `ask`**。
  *   読めないときは当てる側に倒す `docs/adr/0032` と同じ。`gh pr create` 自身も gh とネットワークを要するので、
  *   引けない環境で聞いても余計な手間はほぼ増えない
@@ -14,7 +14,7 @@ import { findCommandsMatching, SHELL_TOOLS } from "./agent-guard.mjs";
 import { describePriorWork, findPriorWork, issueNumberFromBranch, issueNumbersFromTitle, defaultRunners } from "./prior-work.mjs";
 
 /** 先行 PR を確かめる対象のコマンド。 */
-export const PR_CREATE = Object.freeze([{ id: "gh-pr-create", program: "gh", args: ["pr", "create"] }]);
+export const PR_CREATE = Object.freeze([{ id: "gh-pr-create", program: "gh", args: ["pr", "create"] }, { id: "gh-pr-create", program: "gh", args: ["pr", "new"] }]);
 
 /** `gh pr create` の語から `--title` / `-t` の値を取る。無ければ null。 */
 export function extractTitle(words) {
@@ -22,6 +22,7 @@ export function extractTitle(words) {
     const w = words[i];
     if (w === "--title" || w === "-t") return words[i + 1] ?? null;
     if (w.startsWith("--title=")) return w.slice("--title=".length);
+    if (/^-[A-Za-z]*t.+/.test(w) && !w.startsWith("--")) return w.slice(w.indexOf("t") + 1); // -t<値>（シェルの上で 1 語）
   }
   return null;
 }
@@ -54,16 +55,16 @@ export function decidePriorPrOutput(raw, { currentBranch, lookup }) {
   } catch {
     branch = "";
   }
-  const numbers = new Set();
-  const fromBranch = issueNumberFromBranch(branch);
-  if (fromBranch !== null) numbers.add(fromBranch);
+  // 番号は 1 つに絞る（ブランチ優先、無ければ題の最初）。引くたびに gh と git の待ちが要り、フックの時間切れに届くため
+  let number = issueNumberFromBranch(branch);
   for (const h of hits) {
+    if (number !== null) break;
     const title = extractTitle(h.words);
-    if (title !== null) for (const n of issueNumbersFromTitle(title)) numbers.add(n);
+    if (title !== null) number = issueNumbersFromTitle(title)[0] ?? null;
   }
-  if (numbers.size === 0) return null;
+  if (number === null) return null;
 
-  const result = lookup({ numbers: [...numbers], branch });
+  const result = lookup({ numbers: [number], branch });
   if (result.state === "none") return null;
   return ask(`${result.lines.join("\n")}\n同じ ISSUE の作業が重なっていないか、人の確認が要ります（AGENTS.md「作業の始めに」・docs/adr/0030 決定 5）。`);
 }
