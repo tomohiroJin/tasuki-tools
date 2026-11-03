@@ -1,9 +1,9 @@
 diff --git a/scripts/audit-plan-gate.mjs b/scripts/audit-plan-gate.mjs
-index c8440130..066a4e52 100644
+index 26f78a0e..4a1579e9 100644
 --- a/scripts/audit-plan-gate.mjs
 +++ b/scripts/audit-plan-gate.mjs
-@@ -58,7 +58,7 @@ export const PLAN_PATTERNS = ["docs/superpowers/plans/*.md"];
- export const DECLARATION_BOUNDARY_DATE = "2026-11-04";
+@@ -55,7 +55,7 @@ export const GATE_BOUNDARY_DATE = "2026-09-04";
+ export const DECLARATION_BOUNDARY_DATE = "2026-11-03";
  
  /** 宣言を探す文書の置き場（設計と実装計画）。 */
 -export const DESIGN_DOC_PATTERNS = ["docs/superpowers/specs/*.md", "docs/superpowers/plans/*.md"];
