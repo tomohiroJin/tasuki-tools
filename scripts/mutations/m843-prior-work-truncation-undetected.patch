@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/prior-work.mjs b/scripts/lib/prior-work.mjs
+index 74e92312..2edb8d0a 100644
+--- a/scripts/lib/prior-work.mjs
++++ b/scripts/lib/prior-work.mjs
+@@ -64,7 +64,7 @@ export function findPriorWork(number, { gh, git, ownBranch }) {
+     errors.push(`git ls-remote: ${firstLine(error.message)}`);
+   }
+   const state = prs.length + branches.length > 0 ? "found" : errors.length > 0 ? "unknown" : "none";
+-  return { state, number, prs, branches, total, truncated: total !== null && total >= SEARCH_LIMIT, errors };
++  return { state, number, prs, branches, total, truncated: total !== null && total > SEARCH_LIMIT, errors };
+ }
+ 
+ const STATE_LABEL = { OPEN: "開いている", MERGED: "マージ済み", CLOSED: "閉じた" };

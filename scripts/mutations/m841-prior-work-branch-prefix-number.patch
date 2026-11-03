@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/prior-work.mjs b/scripts/lib/prior-work.mjs
+index 74e92312..38e30cdf 100644
+--- a/scripts/lib/prior-work.mjs
++++ b/scripts/lib/prior-work.mjs
+@@ -55,7 +55,7 @@ export function findPriorWork(number, { gh, git, ownBranch }) {
+   }
+   let branches = [];
+   try {
+-    const exact = new RegExp(`(?:^|[/-])${number}(?!\\d)`);
++    const exact = new RegExp(`(?:^|[/-])${number}`);
+     branches = git(["ls-remote", "--heads", "origin"])
+       .split("\n")
+       .map((line) => /\trefs\/heads\/(.+)$/.exec(line)?.[1])

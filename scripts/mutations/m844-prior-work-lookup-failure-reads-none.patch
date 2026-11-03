@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/prior-work.mjs b/scripts/lib/prior-work.mjs
+index 74e92312..ea3afe88 100644
+--- a/scripts/lib/prior-work.mjs
++++ b/scripts/lib/prior-work.mjs
+@@ -63,7 +63,7 @@ export function findPriorWork(number, { gh, git, ownBranch }) {
+   } catch (error) {
+     errors.push(`git ls-remote: ${firstLine(error.message)}`);
+   }
+-  const state = prs.length + branches.length > 0 ? "found" : errors.length > 0 ? "unknown" : "none";
++  const state = prs.length + branches.length > 0 ? "found" : errors.length > 1 ? "unknown" : "none";
+   return { state, number, prs, branches, total, truncated: total !== null && total >= SEARCH_LIMIT, errors };
+ }
+ 

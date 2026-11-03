@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/prior-pr-hook.mjs b/scripts/lib/prior-pr-hook.mjs
+index 0425da15..347bd3ee 100644
+--- a/scripts/lib/prior-pr-hook.mjs
++++ b/scripts/lib/prior-pr-hook.mjs
+@@ -59,7 +59,7 @@ export function decidePriorPrOutput(raw, { currentBranch, lookup }) {
+   if (fromBranch !== null) numbers.add(fromBranch);
+   for (const h of hits) {
+     const title = extractTitle(h.words);
+-    if (title !== null) for (const n of issueNumbersFromTitle(title)) numbers.add(n);
++    if (false) for (const n of issueNumbersFromTitle(title)) numbers.add(n);
+   }
+   if (numbers.size === 0) return null;
+ 
