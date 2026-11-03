@@ -5185,6 +5185,6 @@ export const MUTATIONS = [
     patch: "m873-prior-work-timeout-kills-only-direct-child.patch",
     pkg: "scripts",
     tests: ["lib/prior-work.test.mjs"],
-    note: RESERVED_870_879 + " " + "#504 の 7 回目のレビュー。孫が出力の管を握ったまま残り、フックが Claude Code の時間切れを超えて終わらない。process.exit(0) も同じ穴を塞ぐが、二重の防御なので単独の変異では観測できない（ADR-0032 の追記）。",
+    note: RESERVED_870_879 + " " + "#504 の 7 回目のレビュー。孫が出力の管を握ったまま残り、フックが Claude Code の時間切れを超えて終わらない。終わりを支えるのは、グループごとの SIGKILL と、時間切れのときの管の destroy（ADR-0032 の追記）。",
   },
 ];
