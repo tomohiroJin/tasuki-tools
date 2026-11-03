@@ -115,7 +115,7 @@ test("turbo が打ち切ったタスクがあれば、パッケージだけで�
 function fixture(t, { failPreflight = false, failCheck = false } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "local-check-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-  for (const file of ["local-check.mjs", "audit-toolchain.mjs", "ci-scope.mjs", "lib/direct-run.mjs", "lib/check-outcome.mjs", "lib/toolchain.mjs", "lib/scan-targets.mjs", "lib/workflow.mjs", "lib/ci-scope.mjs"]) {
+  for (const file of ["local-check.mjs", "audit-toolchain.mjs", "ci-scope.mjs", "lib/direct-run.mjs", "lib/check-outcome.mjs", "lib/prior-work.mjs", "lib/toolchain.mjs", "lib/scan-targets.mjs", "lib/workflow.mjs", "lib/ci-scope.mjs"]) {
     const target = path.join(dir, "scripts", file);
     fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.copyFileSync(new URL(file, import.meta.url), target);
@@ -294,4 +294,44 @@ test("速い段は、検査より前に変異の見込みを出し、知らせ�
   assert.match(r.stdout, /^MUTATION --changed$/m);
   assert.ok(r.stdout.lastIndexOf("⚠ 全件に切り替わりました") > r.stdout.indexOf("実行結果"), r.stdout);
   assert.ok(r.stdout.lastIndexOf("手元で絞るなら: --id 9") > r.stdout.indexOf("実行結果"), r.stdout);
+});
+
+/** 偽の gh と git を PATH の先頭に置いた環境を返す（ネットワークを叩かない）。 */
+function fakeTools(t, { branch, prs = "[]", heads = "", ghFails = false }) {
+  const bin = fs.mkdtempSync(path.join(os.tmpdir(), "local-check-bin-"));
+  t.after(() => fs.rmSync(bin, { recursive: true, force: true }));
+  const tool = (name, body) => {
+    fs.writeFileSync(path.join(bin, name), `#!${process.execPath}\n${body}\n`, { mode: 0o755 });
+  };
+  tool("gh", ghFails ? "console.error('gh: not logged in'); process.exit(1);" : `process.stdout.write(${JSON.stringify(prs)});`);
+  tool("git", `const a = process.argv.slice(2); if (a[0] === 'rev-parse') process.stdout.write(${JSON.stringify(`${branch}\n`)}); else if (a[0] === 'ls-remote') process.stdout.write(${JSON.stringify(heads)}); else process.exit(1);`);
+  return { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH}` };
+}
+
+const FAST_CI = `jobs:
+  ci:
+    steps:
+      - run: node -e 'console.log("FIRST")'
+`;
+
+test("速い段は、同じ ISSUE の先行 PR・枝を最初に出し、⚠ を最後にもう一度出す（#504）", (t) => {
+  const dir = fixture(t);
+  fs.writeFileSync(path.join(dir, ".github/workflows/ci.yml"), FAST_CI);
+  const prs = JSON.stringify([{ number: 501, title: "docs: 試し（#491）", body: "#504〜", state: "MERGED", headRefName: "x/501" }]);
+  const env = fakeTools(t, { branch: "docs/504-x", prs, heads: "1111\trefs/heads/claude/trial-504-cloud\n" });
+  const r = spawnSync(process.execPath, [path.join(dir, "scripts/local-check.mjs"), "fast"], { encoding: "utf8", env });
+  assert.equal(r.status, 0, r.stdout + r.stderr); // 止めない
+  const first = r.stdout.indexOf("PR #501（マージ済み）");
+  assert.ok(first >= 0 && first < r.stdout.indexOf("FIRST"), r.stdout);
+  assert.ok(r.stdout.lastIndexOf("⚠ 同じ ISSUE #504 の他の PR・枝があります") > r.stdout.indexOf("実行結果"), r.stdout);
+});
+
+test("速い段は、ブランチに番号が無い・gh が使えないときも失敗にせず未実行と出す（#504）", (t) => {
+  for (const [label, opts] of [["番号なし", { branch: "main" }], ["gh 失敗", { branch: "docs/504-x", ghFails: true }]]) {
+    const dir = fixture(t);
+    fs.writeFileSync(path.join(dir, ".github/workflows/ci.yml"), FAST_CI);
+    const r = spawnSync(process.execPath, [path.join(dir, "scripts/local-check.mjs"), "fast"], { encoding: "utf8", env: fakeTools(t, opts) });
+    assert.equal(r.status, 0, `${label}: ${r.stdout}${r.stderr}`);
+    assert.match(r.stdout, /⚠ 同じ ISSUE.*未実行です/, label);
+  }
 });

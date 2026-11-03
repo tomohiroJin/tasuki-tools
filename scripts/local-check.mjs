@@ -15,6 +15,7 @@ import { splitJobs, splitSteps } from "./lib/workflow.mjs";
 import { decideScope } from "./lib/ci-scope.mjs";
 import { isDirectRun } from "./lib/direct-run.mjs";
 import { classifyFailure } from "./lib/check-outcome.mjs";
+import { checkPriorWork, defaultRunners } from "./lib/prior-work.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -183,6 +184,23 @@ function forecastMutations(plan) {
   return output.split("\n").filter((l) => l.includes("⚠") || l.includes("手元で絞るなら"));
 }
 
+/**
+ * 同じ ISSUE の先行する PR・枝の知らせ（#504）。今のブランチ名の番号で引き、最初に出す。
+ * 止めない。引けなかったときは失敗でなく未実行と理由を出す。⚠ の行は最後の一覧でもう一度出す。
+ */
+function priorWorkNotices() {
+  let lines;
+  try {
+    const { gh, git } = defaultRunners(ROOT);
+    lines = checkPriorWork({ branch: git(["rev-parse", "--abbrev-ref", "HEAD"]).trim(), gh, git }).lines;
+  } catch (error) {
+    lines = [`⚠ 同じ ISSUE の先行 PR の確認は未実行です（${String(error.message).trim().split("\n")[0]}）`];
+  }
+  console.log("[local-check] 同じ ISSUE の先行 PR・枝");
+  for (const line of lines) console.log(line);
+  return lines.filter((l) => l.startsWith("⚠"));
+}
+
 function hasCodeChanges() {
   try {
     const git = (args) => execFileSync("git", args, { cwd: ROOT, encoding: "utf8" });
@@ -201,7 +219,7 @@ function main() {
   try {
     const checks = deriveChecks(fs.readFileSync(path.join(ROOT, ".github/workflows/ci.yml"), "utf8"));
     const plan = planChecks(checks, mode, mode === "full" || hasCodeChanges());
-    const notices = mode === "fast" ? forecastMutations(plan) : [];
+    const notices = mode === "fast" && !args.includes("--list") ? [...priorWorkNotices(), ...forecastMutations(plan)] : mode === "fast" ? forecastMutations(plan) : [];
     if (args.includes("--list")) {
       for (const c of plan) console.log(`[${c.reason ? "省略" : "予定"}] ${c.job}: ${c.command.replaceAll("\n", " / ")}${c.env ? ` ${JSON.stringify(c.env)}` : ""}${c.reason ? ` — ${c.reason}` : ""}`);
       return;

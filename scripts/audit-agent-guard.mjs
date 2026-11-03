@@ -6,7 +6,7 @@
  *
  * 1. **`.claude/settings.json` が追跡下にあり、シェルを走らせる道具（`SHELL_TOOLS`。Bash・Monitor）の PreToolUse フックに入口（{@link HOOK_COMMAND}）を置いている。**
  *    `disableAllHooks` で全部のフックを切っていない
- * 2. **入口のスクリプトと判定の部品が追跡下にある**
+ * 2. **入口のスクリプトと判定の部品（先行 PR の確認の部品を含む。入口が読み込むので、欠けると本番デプロイの判定も働かない）が追跡下にある**
  * 3. **止めるスクリプトの宣言（`scripts/lib/agent-guard.mjs` の `GUARDED_COMMANDS`）と `deploy/` の実体が合う。**
  *    宣言したスクリプトが追跡下にあり、`deploy/` の下の実行するスクリプト（`*.sh`。読み込まれる部品の `deploy/lib/` を除く）は
  *    どれも宣言にある。デプロイの入口を足したのに止める一覧へ足し忘れる、を捕まえる
@@ -33,6 +33,8 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..
 export const SETTINGS_PATH = ".claude/settings.json";
 export const HOOK_SCRIPT = "scripts/agent-guard-hook.mjs";
 export const GUARD_LIB = "scripts/lib/agent-guard.mjs";
+/** 入口が読み込む先行 PR の確認の部品（#504）。無いと入口が起動せず、本番デプロイの判定も働かない。 */
+export const PRIOR_PR_LIBS = ["scripts/lib/prior-pr-hook.mjs", "scripts/lib/prior-work.mjs"];
 /** settings.json に書くフックのコマンド。`${CLAUDE_PROJECT_DIR}` で、どの作業場所から呼ばれても同じ入口を指す。 */
 export const HOOK_COMMAND = `node "\${CLAUDE_PROJECT_DIR}/${HOOK_SCRIPT}"`;
 
@@ -108,8 +110,9 @@ export function checkDeclarations(declarations, trackedDeployFiles) {
 
 function main() {
   const problems = [];
-  const tracked = new Set(listTrackedFiles(REPO_ROOT, [SETTINGS_PATH, HOOK_SCRIPT, GUARD_LIB]));
-  for (const rel of [SETTINGS_PATH, HOOK_SCRIPT, GUARD_LIB]) {
+  const REQUIRED_FILES = [SETTINGS_PATH, HOOK_SCRIPT, GUARD_LIB, ...PRIOR_PR_LIBS];
+  const tracked = new Set(listTrackedFiles(REPO_ROOT, REQUIRED_FILES));
+  for (const rel of REQUIRED_FILES) {
     if (!tracked.has(rel)) problems.push(`${rel} が追跡下にありません${rel === SETTINGS_PATH ? "（.claude/ は無視の対象なので git add -f で足す）" : ""}`);
   }
   if (tracked.has(SETTINGS_PATH)) {
