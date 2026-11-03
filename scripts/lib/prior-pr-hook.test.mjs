@@ -46,6 +46,17 @@ test("番号は 1 つに絞る（ブランチ優先。題の番号は引かな�
   assert.deepEqual(d.calls[0].numbers, [504]);
 });
 
+test("題の取り出し: 別の選択肢の値に混ざった t を題と読まず、束ねた -dt の値は次の語から取る", () => {
+  const g = ["gh", "pr", "create"];
+  assert.equal(extractTitle([...g, "-Tmytemplate", "--title", "x（#9）"]), "x（#9）");
+  assert.equal(extractTitle([...g, "-dt", "x（#9）"]), "x（#9）");
+  assert.equal(extractTitle([...g, "-btest #9"]), null);
+  assert.equal(extractTitle([...g, "-rteam/#3"]), null);
+  assert.equal(extractTitle([...g, "-b", "-t x"]), null);
+  assert.equal(extractTitle([...g, "--title", "a", "-t", "b"]), "b");
+  assert.equal(extractTitle([...g, "-ft"]), null);
+});
+
 test("ISSUE でない数字のブランチ名は番号なしとして扱い、題から取る", () => {
   const d = deps({ branch: "chore/node-26-upgrade", result: none });
   decidePriorPrOutput(input("gh pr create --title 'chore: x（#40）'"), d);

@@ -16,15 +16,43 @@ import { describePriorWork, findPriorWork, issueNumberFromBranch, issueNumbersFr
 /** 先行 PR を確かめる対象のコマンド。 */
 export const PR_CREATE = Object.freeze([{ id: "gh-pr-create", program: "gh", args: ["pr", "create"] }, { id: "gh-pr-create", program: "gh", args: ["pr", "new"] }]);
 
-/** `gh pr create` の語から `--title` / `-t` の値を取る。無ければ null。 */
+/** 値を取らない短い選択肢（`gh pr create --help` の -d・-e・-f・-w）。`-dt` のように束ねてよいのはこれだけ。 */
+const BOOLEAN_SHORT = "[defw]";
+/** 値を次の語に取る選択肢。その値を題と読み違えない（`-b "-t x"`）ために飛ばす。 */
+const VALUE_OPTIONS = new Set([
+  "-a", "--assignee", "--attach", "-B", "--base", "-b", "--body", "-F", "--body-file", "-H", "--head", "-l", "--label",
+  "-m", "--milestone", "-p", "--project", "--recover", "-r", "--reviewer", "-T", "--template", "-R", "--repo",
+]);
+
+/**
+ * `gh pr create` の語から `--title` / `-t` の値を取る。無ければ null。複数あれば最後（gh と同じ）。
+ * 取る形: `--title X`・`--title=X`・`-t X`・`-tX`・`-dt X`（値を取らない選択肢との束ね）。
+ * `-Tmytemplate`・`-btest`・`-rteam/#3` のように、別の選択肢の値に t が混ざる形は題と読まない。
+ */
 export function extractTitle(words) {
+  let title = null;
   for (let i = 0; i < words.length; i += 1) {
     const w = words[i];
-    if (w === "--title" || w === "-t") return words[i + 1] ?? null;
-    if (w.startsWith("--title=")) return w.slice("--title=".length);
-    if (/^-[A-Za-z]*t.+/.test(w) && !w.startsWith("--")) return w.slice(w.indexOf("t") + 1); // -t<値>（シェルの上で 1 語）
+    if (w === "--title") {
+      title = words[i + 1] ?? null;
+      i += 1;
+    } else if (w.startsWith("--title=")) {
+      title = w.slice("--title=".length);
+    } else if (VALUE_OPTIONS.has(w)) {
+      i += 1;
+    } else {
+      const m = new RegExp(`^-${BOOLEAN_SHORT}*t(.*)$`).exec(w);
+      if (m) {
+        if (m[1] === "") {
+          title = words[i + 1] ?? null;
+          i += 1;
+        } else {
+          title = m[1];
+        }
+      }
+    }
   }
-  return null;
+  return title;
 }
 
 function ask(reason) {
