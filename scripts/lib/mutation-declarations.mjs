@@ -5181,10 +5181,10 @@ export const MUTATIONS = [
   },
   {
     id: 873,
-    label: "フックが ask を書き出した後に process.exit(0) で終えず、孫プロセスの管が閉じるのを待つ",
-    patch: "m873-agent-guard-hook-no-exit-after-write.patch",
+    label: "時間切れで直接の子だけを SIGKILL し、孫（gh の下の git・git の下の ssh）を残す",
+    patch: "m873-prior-work-timeout-kills-only-direct-child.patch",
     pkg: "scripts",
-    tests: ["agent-guard-hook.test.mjs"],
-    note: RESERVED_870_879 + " " + "#504 の 7 回目のレビュー。gh・git の下の孫が出力の管を握ると、ask を書いた後もフックが 60 秒を超えて終わらず、Claude Code の時間切れで ask が使われない。",
+    tests: ["lib/prior-work.test.mjs"],
+    note: RESERVED_870_879 + " " + "#504 の 7 回目のレビュー。孫が出力の管を握ったまま残り、フックが Claude Code の時間切れを超えて終わらない。process.exit(0) も同じ穴を塞ぐが、二重の防御なので単独の変異では観測できない（ADR-0032 の追記）。",
   },
 ];

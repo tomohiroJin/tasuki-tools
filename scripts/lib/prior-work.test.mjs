@@ -1,5 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import {
   issueNumberFromBranch,
   issueNumbersFromTitle,
@@ -209,4 +212,24 @@ test("runCommand: 標準入力は閉じている（読もうとして待たな�
 test("runCommand: 非ゼロ終了は stderr の最初の行つきで棄却する。起動できなくても棄却する", async () => {
   await assert.rejects(runCommand(process.execPath, ["-e", 'console.error("boom" + String.fromCharCode(10) + "more"); process.exit(3)']), /boom/);
   await assert.rejects(runCommand("/no/such/command-504", []));
+});
+
+test("runCommand: 時間切れでは孫（同じグループ）も SIGKILL で終わらせる", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "run-grandchild-"));
+  const pidFile = path.join(dir, "pid");
+  const script =
+    `const { spawn } = require("node:child_process"); const fs = require("node:fs");` +
+    `const g = spawn("sleep", ["30"], { stdio: "inherit" }); fs.writeFileSync(${JSON.stringify(pidFile)}, String(g.pid));` +
+    `process.on("SIGTERM", () => {}); setInterval(() => {}, 1000);`;
+  try {
+    await assert.rejects(runCommand(process.execPath, ["-e", script], { timeoutMs: 400 }), /時間切れ/);
+    const pid = Number(fs.readFileSync(pidFile, "utf8"));
+    await new Promise((r) => setTimeout(r, 300));
+    let alive = true;
+    try { process.kill(pid, 0); } catch { alive = false; }
+    if (alive) process.kill(pid, "SIGKILL");
+    assert.equal(alive, false, "孫が生き残った");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
