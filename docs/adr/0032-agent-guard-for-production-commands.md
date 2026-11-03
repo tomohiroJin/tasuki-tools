@@ -71,7 +71,7 @@ Copilot を使い始めるときは、`AGENTS.md` を読むかとフックが効
 - **MUST**: 置くときは、判定を写さず `scripts/agent-guard-hook.mjs`（か、同じ `scripts/lib/agent-guard.mjs` を呼ぶ入口）へ向け、
   `scripts/audit-agent-guard.mjs` の①②に足す。2 つの場所で同じ ISSUE を任せる試し（[#491](https://github.com/tomohiroJin/tasuki-tools/issues/491)）で確かめる
   - **改定（2026-11-04・#507）**: Copilot の分の「#491 の試しで確かめる」は、#491 の試しでは確かめられなかったので、
-    「Copilot を使い始めるときに、その時点の版で確かめる」へ移した（上の改定）。Gemini CLI の分は、改定前の文面のまま
+    「Copilot を使い始めるときに、その時点の版で確かめる」へ移した（上の改定）。Gemini CLI の分は、改定前の文面のまま残す（扱いは別に決める）。
 
 ### 5. コミットの前に速い検査を流すフックは、今は置かない
 
