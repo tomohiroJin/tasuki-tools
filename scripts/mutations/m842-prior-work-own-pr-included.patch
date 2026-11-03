@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/prior-work.mjs b/scripts/lib/prior-work.mjs
+index 74e92312..446c30c4 100644
+--- a/scripts/lib/prior-work.mjs
++++ b/scripts/lib/prior-work.mjs
+@@ -49,7 +49,7 @@ export function findPriorWork(number, { gh, git, ownBranch }) {
+     if (!Array.isArray(listed)) throw new Error("想定と違う出力");
+     total = listed.length;
+     const exact = new RegExp(`#${number}(?!\\d)`);
+-    prs = listed.filter((p) => exact.test(`${p.title}\n${p.body ?? ""}`) && p.headRefName !== ownBranch);
++    prs = listed.filter((p) => exact.test(`${p.title}\n${p.body ?? ""}`));
+   } catch (error) {
+     errors.push(`gh pr list: ${firstLine(error.message)}`);
+   }

@@ -1,6 +1,8 @@
+diff --git a/scripts/local-check.mjs b/scripts/local-check.mjs
+index e3ce14f8..967c153d 100644
 --- a/scripts/local-check.mjs
 +++ b/scripts/local-check.mjs
-@@ -142,7 +142,7 @@
+@@ -209,7 +209,7 @@ function hasCodeChanges() {
      // 改名先だけが .md でも、削除されたコードの側を数える。
      const files = git(["diff", "--name-only", "--no-renames", "-z", base]) + git(["ls-files", "--others", "--exclude-standard", "-z"]);
      return decideScope(files.split("\0").filter(Boolean)).code;
@@ -8,4 +10,4 @@
 +  } catch { console.log("[local-check] 差分を判定できないため、型・lint・単体をすべて流します"); return false; }
  }
  
- function main() {
+ async function run() {

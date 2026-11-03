@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index 70ff7e88..d993e7f2 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -305,7 +305,7 @@ function matchHead(words, i, decls) {
+     // 当たった語を `words` に持たせる（題の取り出しに使う。#504）
+     if (g.program && g.args && name === g.program) {
+       const start = skipOptions(words, i + 1, g.argOpts ?? []);
+-      if (g.args.every((a, k) => words[start + k] === a)) hits.push({ ...g, words });
++      if (g.args.some((a, k) => words[start + k] === a)) hits.push({ ...g, words });
+     }
+   }
+   return hits;

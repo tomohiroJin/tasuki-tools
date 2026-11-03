@@ -1,0 +1,17 @@
+diff --git a/scripts/lib/prior-work.mjs b/scripts/lib/prior-work.mjs
+index c238ebca..244e9d24 100644
+--- a/scripts/lib/prior-work.mjs
++++ b/scripts/lib/prior-work.mjs
+@@ -139,11 +139,7 @@ export function runCommand(cmd, args, { cwd, timeoutMs = CHILD_TIMEOUT_MS, maxBy
+     };
+     // 直接の子だけでなく孫（gh の下の git・git の下の ssh）も止め、出力の管も閉じる
+     const killAll = () => {
+-      try {
+-        process.kill(-child.pid, "SIGKILL");
+-      } catch {
+-        child.kill("SIGKILL");
+-      }
++      child.kill("SIGKILL");
+       child.stdout.destroy();
+       child.stderr.destroy();
+     };

@@ -15,6 +15,7 @@ import { splitJobs, splitSteps } from "./lib/workflow.mjs";
 import { decideScope } from "./lib/ci-scope.mjs";
 import { isDirectRun } from "./lib/direct-run.mjs";
 import { classifyFailure } from "./lib/check-outcome.mjs";
+import { checkPriorWork, defaultRunners } from "./lib/prior-work.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -183,6 +184,24 @@ function forecastMutations(plan) {
   return output.split("\n").filter((l) => l.includes("⚠") || l.includes("手元で絞るなら"));
 }
 
+/**
+ * 同じ ISSUE の先行する PR・枝の知らせ（#504）。今のブランチ名の番号で引き、最初に出す。
+ * 止めない。引けなかったときは失敗でなく未実行と理由を出す。⚠ の行は最後の一覧でもう一度出す。
+ */
+async function priorWorkNotices() {
+  let lines;
+  try {
+    const { gh, git } = defaultRunners(ROOT);
+    lines = (await checkPriorWork({ branch: (await git(["rev-parse", "--abbrev-ref", "HEAD"])).trim(), gh, git })).lines;
+  } catch (error) {
+    lines = [`⚠ 同じ ISSUE の先行 PR の確認は未実行です（${String(error.message).trim().split("\n")[0]}）`];
+  }
+  console.log("[local-check] 同じ ISSUE の先行 PR・枝");
+  for (const line of lines) console.log(line);
+  // 番号の無い枝の案内は ⚠ でないので、最後の一覧では繰り返さない
+  return lines.filter((l) => l.startsWith("⚠"));
+}
+
 function hasCodeChanges() {
   try {
     const git = (args) => execFileSync("git", args, { cwd: ROOT, encoding: "utf8" });
@@ -193,7 +212,7 @@ function hasCodeChanges() {
   } catch { console.log("[local-check] 差分を判定できないため、型・lint・単体をすべて流します"); return true; }
 }
 
-function main() {
+async function run() {
   const [mode, ...args] = process.argv.slice(2);
   if (!["fast", "full"].includes(mode) || args.some((a) => a !== "--list") || args.length > 1) {
     console.error("使い方: node scripts/local-check.mjs <fast|full> [--list]"); process.exitCode = 2; return;
@@ -202,6 +221,7 @@ function main() {
     const checks = deriveChecks(fs.readFileSync(path.join(ROOT, ".github/workflows/ci.yml"), "utf8"));
     const plan = planChecks(checks, mode, mode === "full" || hasCodeChanges());
     const notices = mode === "fast" ? forecastMutations(plan) : [];
+    const priorNotices = mode === "fast" && !args.includes("--list") ? await priorWorkNotices() : [];
     if (args.includes("--list")) {
       for (const c of plan) console.log(`[${c.reason ? "省略" : "予定"}] ${c.job}: ${c.command.replaceAll("\n", " / ")}${c.env ? ` ${JSON.stringify(c.env)}` : ""}${c.reason ? ` — ${c.reason}` : ""}`);
       return;
@@ -213,11 +233,19 @@ function main() {
     });
     console.log("\n[local-check] 実行結果（CI の run から導出）");
     for (const c of results) console.log(`[${{ passed: "成功", failed: "失敗", skipped: "省略", "not-run": "未実行" }[c.status]}] ${c.job}: ${c.command.replaceAll("\n", " / ")}${c.env ? ` ${JSON.stringify(c.env)}` : ""}${c.reason ? ` — ${c.reason}` : ""}`);
-    for (const line of notices) console.log(`[local-check] ${line}`);
+    for (const line of [...priorNotices, ...notices]) console.log(`[local-check] ${line}`);
     const count = (status) => results.filter((c) => c.status === status).length;
     if (count("not-run") > 0) console.log(`[local-check] 失敗 ${count("failed")} 件・未実行 ${count("not-run")} 件（未実行はテストの失敗ではなく、走らなかったもの）`);
     process.exitCode = !ready || results.some((c) => c.status === "failed" || c.status === "not-run") ? 1 : 0;
   } catch (error) { console.error(`[local-check] ${error.message}`); process.exitCode = 1; }
+}
+
+function main() {
+  // 非同期の本体の失敗は終了コードにして、未処理の棄却で落とさない
+  run().catch((error) => {
+    console.error(`${error.message}`);
+    process.exitCode = 1;
+  });
 }
 
 if (isDirectRun(import.meta.url, process.argv[1])) main();

@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/prior-pr-hook.mjs b/scripts/lib/prior-pr-hook.mjs
+index cf069a36..168538fa 100644
+--- a/scripts/lib/prior-pr-hook.mjs
++++ b/scripts/lib/prior-pr-hook.mjs
+@@ -47,7 +47,7 @@ export function extractTitle(words) {
+           title = words[i + 1] ?? null;
+           i += 1;
+         } else {
+-          title = m[1];
++          title = null;
+         }
+       }
+     }
