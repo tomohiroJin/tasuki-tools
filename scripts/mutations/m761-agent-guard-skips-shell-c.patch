@@ -1,13 +1,13 @@
 diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
-index 9284749..5f5e286 100644
+index 9321d059..e1b70d7d 100644
 --- a/scripts/lib/agent-guard.mjs
 +++ b/scripts/lib/agent-guard.mjs
-@@ -339,7 +339,7 @@ function analyzeWords(words, depth) {
+@@ -345,7 +345,7 @@ function analyzeWords(words, depth, decls) {
        }
        if (words[k] === "--") k += 1;
        if (k >= words.length) return [];
--      if (inline) return analyzeString(words[k], depth + 1);
+-      if (inline) return analyzeString(words[k], depth + 1, decls);
 +      if (inline) return [];
-       return matchHead(words, k).filter((g) => g.script);
+       return matchHead(words, k, decls).filter((g) => g.script);
      }
      if (name === "su" || name === "runuser") {

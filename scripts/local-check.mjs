@@ -219,7 +219,8 @@ function main() {
   try {
     const checks = deriveChecks(fs.readFileSync(path.join(ROOT, ".github/workflows/ci.yml"), "utf8"));
     const plan = planChecks(checks, mode, mode === "full" || hasCodeChanges());
-    const notices = mode === "fast" && !args.includes("--list") ? [...priorWorkNotices(), ...forecastMutations(plan)] : mode === "fast" ? forecastMutations(plan) : [];
+    const notices = mode === "fast" ? forecastMutations(plan) : [];
+    const priorNotices = mode === "fast" && !args.includes("--list") ? priorWorkNotices() : [];
     if (args.includes("--list")) {
       for (const c of plan) console.log(`[${c.reason ? "省略" : "予定"}] ${c.job}: ${c.command.replaceAll("\n", " / ")}${c.env ? ` ${JSON.stringify(c.env)}` : ""}${c.reason ? ` — ${c.reason}` : ""}`);
       return;
@@ -231,7 +232,7 @@ function main() {
     });
     console.log("\n[local-check] 実行結果（CI の run から導出）");
     for (const c of results) console.log(`[${{ passed: "成功", failed: "失敗", skipped: "省略", "not-run": "未実行" }[c.status]}] ${c.job}: ${c.command.replaceAll("\n", " / ")}${c.env ? ` ${JSON.stringify(c.env)}` : ""}${c.reason ? ` — ${c.reason}` : ""}`);
-    for (const line of notices) console.log(`[local-check] ${line}`);
+    for (const line of [...priorNotices, ...notices]) console.log(`[local-check] ${line}`);
     const count = (status) => results.filter((c) => c.status === status).length;
     if (count("not-run") > 0) console.log(`[local-check] 失敗 ${count("failed")} 件・未実行 ${count("not-run")} 件（未実行はテストの失敗ではなく、走らなかったもの）`);
     process.exitCode = !ready || results.some((c) => c.status === "failed" || c.status === "not-run") ? 1 : 0;
