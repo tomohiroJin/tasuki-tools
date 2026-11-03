@@ -1,13 +1,13 @@
 diff --git a/scripts/local-check.mjs b/scripts/local-check.mjs
-index f60e7a26..27c65ca2 100644
+index f5668d5f..85071924 100644
 --- a/scripts/local-check.mjs
 +++ b/scripts/local-check.mjs
-@@ -219,7 +219,7 @@ function main() {
+@@ -220,7 +220,7 @@ async function main() {
    try {
      const checks = deriveChecks(fs.readFileSync(path.join(ROOT, ".github/workflows/ci.yml"), "utf8"));
      const plan = planChecks(checks, mode, mode === "full" || hasCodeChanges());
 -    const notices = mode === "fast" ? forecastMutations(plan) : [];
 +    const notices = [];
-     const priorNotices = mode === "fast" && !args.includes("--list") ? priorWorkNotices() : [];
+     const priorNotices = mode === "fast" && !args.includes("--list") ? await priorWorkNotices() : [];
      if (args.includes("--list")) {
        for (const c of plan) console.log(`[${c.reason ? "省略" : "予定"}] ${c.job}: ${c.command.replaceAll("\n", " / ")}${c.env ? ` ${JSON.stringify(c.env)}` : ""}${c.reason ? ` — ${c.reason}` : ""}`);

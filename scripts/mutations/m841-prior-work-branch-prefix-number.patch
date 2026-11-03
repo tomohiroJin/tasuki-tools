@@ -1,13 +1,13 @@
 diff --git a/scripts/lib/prior-work.mjs b/scripts/lib/prior-work.mjs
-index 74e92312..38e30cdf 100644
+index a422b2bc..0fa547c5 100644
 --- a/scripts/lib/prior-work.mjs
 +++ b/scripts/lib/prior-work.mjs
-@@ -55,7 +55,7 @@ export function findPriorWork(number, { gh, git, ownBranch }) {
-   }
-   let branches = [];
-   try {
--    const exact = new RegExp(`(?:^|[/-])${number}(?!\\d)`);
-+    const exact = new RegExp(`(?:^|[/-])${number}`);
-     branches = git(["ls-remote", "--heads", "origin"])
+@@ -72,7 +72,7 @@ export async function findPriorWork(number, { gh, git, ownBranch }) {
+     branches = gitResult.value
        .split("\n")
        .map((line) => /\trefs\/heads\/(.+)$/.exec(line)?.[1])
+-      .filter((name) => name !== undefined && name !== ownBranch && issueNumberFromBranch(name) === number);
++      .filter((name) => name !== undefined && name !== ownBranch && name.includes(String(number)));
+   } catch (error) {
+     errors.push(`git ls-remote: ${firstLine(error.message)}`);
+   }

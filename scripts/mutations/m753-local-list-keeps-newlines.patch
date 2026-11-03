@@ -1,10 +1,10 @@
 diff --git a/scripts/local-check.mjs b/scripts/local-check.mjs
-index f60e7a26..5ad0bc54 100644
+index f5668d5f..c168e942 100644
 --- a/scripts/local-check.mjs
 +++ b/scripts/local-check.mjs
-@@ -222,7 +222,7 @@ function main() {
+@@ -223,7 +223,7 @@ async function main() {
      const notices = mode === "fast" ? forecastMutations(plan) : [];
-     const priorNotices = mode === "fast" && !args.includes("--list") ? priorWorkNotices() : [];
+     const priorNotices = mode === "fast" && !args.includes("--list") ? await priorWorkNotices() : [];
      if (args.includes("--list")) {
 -      for (const c of plan) console.log(`[${c.reason ? "省略" : "予定"}] ${c.job}: ${c.command.replaceAll("\n", " / ")}${c.env ? ` ${JSON.stringify(c.env)}` : ""}${c.reason ? ` — ${c.reason}` : ""}`);
 +      for (const c of plan) console.log(`[${c.reason ? "省略" : "予定"}] ${c.job}: ${c.command}${c.env ? ` ${JSON.stringify(c.env)}` : ""}${c.reason ? ` — ${c.reason}` : ""}`);

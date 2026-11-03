@@ -5098,11 +5098,11 @@ export const MUTATIONS = [
   },
   {
     id: 863,
-    label: "題の番号がブランチの番号を上書きする（番号を 1 つに絞らない）",
+    label: "ブランチに番号があると、題の別の番号を引かない",
     patch: "m863-prior-pr-hook-title-overrides-branch.patch",
     pkg: "scripts",
     tests: ["lib/prior-pr-hook.test.mjs"],
-    note: RESERVED_860_869 + " " + "#504 のレビュー 4。ブランチの番号でなく題の別の番号で引き、待ち時間と誤検出が増える。",
+    note: RESERVED_860_869 + " " + "#504 の /code-review（PR #517）。ブランチの番号と違う ISSUE を題に書いた PR で、題の ISSUE の先行 PR を確かめない（最初は 1 つに絞っていたのを、最大 2 つに改めた）。",
   },
   {
     id: 864,
@@ -5127,5 +5127,29 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["lib/prior-pr-hook.test.mjs"],
     note: RESERVED_860_869 + " " + "#504 のレビュー 5。-Tmytemplate の値を題と読んで --title まで進まず確認を抜ける、-rteam/#3 の値で無関係な ISSUE を引く。",
+  },
+  {
+    id: 867,
+    label: "先行が無くても検索が上限で切れているとき、フックが人に聞かず通す",
+    patch: "m867-prior-pr-hook-truncated-none-passes.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-pr-hook.test.mjs"],
+    note: RESERVED_860_869 + " " + "#504 の /code-review（PR #517）。小さい番号で上限に当たって先行 PR を取りこぼしても、聞かずに gh pr create が進む。",
+  },
+  {
+    id: 868,
+    label: "gh pr create --head <枝> のとき、自分の枝を --head でなく作業場所の今の枝にする",
+    patch: "m868-prior-pr-hook-ignores-head.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-pr-hook.test.mjs"],
+    note: RESERVED_860_869 + " " + "#504 の /code-review（PR #517）。別の枝の PR を作るとき、その枝の番号を引かず、自分の PR を「他の PR」と挙げる。",
+  },
+  {
+    id: 869,
+    label: "gh pr create の判定が、選択肢を除いた最初の語でなく、引数のどこに並んでいても当たる",
+    patch: "m869-agent-guard-args-not-anchored.patch",
+    pkg: "scripts",
+    tests: ["lib/agent-guard.test.mjs"],
+    note: RESERVED_860_869 + " " + "#504 の /code-review（PR #517）。gh issue list --search 'pr create' のたびに先行 PR を引いて聞き、フックが邪魔になって外される。",
   },
 ];

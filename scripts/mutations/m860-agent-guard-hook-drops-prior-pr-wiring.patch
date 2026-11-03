@@ -1,12 +1,12 @@
 diff --git a/scripts/agent-guard-hook.mjs b/scripts/agent-guard-hook.mjs
-index 7a44ba06..ca266b55 100644
+index 6a90860f..3c364b7a 100644
 --- a/scripts/agent-guard-hook.mjs
 +++ b/scripts/agent-guard-hook.mjs
-@@ -35,7 +35,7 @@ function main() {
-     // 標準入力が無い・閉じている。空として扱い、ask に倒す
+@@ -42,7 +42,7 @@ async function main() {
+   } catch {
+     // 想定外の失敗でも、本番デプロイの判定は出す（常に exit 0）
    }
-   const cwd = workingDirectory(raw);
--  const out = decideHookOutput(raw) ?? decidePriorPrOutput(raw, { currentBranch: defaultCurrentBranch(cwd), lookup: defaultLookup(cwd) });
+-  const out = mergeAsks(decideHookOutput(raw), prior);
 +  const out = decideHookOutput(raw);
    if (out !== null) process.stdout.write(`${JSON.stringify(out)}\n`);
  }
