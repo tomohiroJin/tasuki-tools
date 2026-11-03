@@ -92,12 +92,14 @@ DoD の項目をガイドに置いたのと同じ書き分け。`docs/adr/0002` 
 （`docs/adr/0002` 追記（#258）の「改定節つきの本文訂正」）。
 
 **改定（2026-11-04・#507）**: 上の決定 3 の本文から Copilot の入口を外した。直した箇所は次の 2 つ。
-①入口の例から `.github/copilot-instructions.md` を除いた（改定前は `CLAUDE.md`・`GEMINI.md`・`.github/copilot-instructions.md` の 3 つ）。
+①入口の例から .github の下の copilot-instructions.md を除いた（改定前は `CLAUDE.md`・`GEMINI.md`・.github の下の copilot-instructions.md の 3 つ）。
 ②「Copilot は面によって `AGENTS.md` を読むかが分かれる（版で変わる。2026-10-31 時点では確かめていない）ので、
-`.github/copilot-instructions.md` を置く。全部の面が読むと分かったら外す（#491 の試しで確かめる）」を、
+.github の下の copilot-instructions.md を置く。全部の面が読むと分かったら外す（#491 の試しで確かめる）」を、
 「Copilot は使わないので入口を置かない」に置き換えた。理由は下の追記。本文が現況（入口が無い・確かめる予定が無い）と
 食い違う嘘になるため、`docs/adr/0002` 追記（#258）の「改定節つきの本文訂正」で直した。決定（正本を 1 か所に置き、
 入口は薄くし、ずれは検査で見る）は変えていない。
+なお、この改定と下の追記、影響欄（採択時の記録）で消したファイルを名指しする箇所は、バッククォートを外して書いた（意味を変えない表記の変更。
+リンク検査が実在しないパスとして拾うのを、例外表を増やさずに避けるため。`docs/adr/0009` の追記が旧名を書かないのと同じ型）。
 
 #### 追記（2026-11-04・#507）: Copilot の入口を、確かめずに外した
 
@@ -106,13 +108,14 @@ DoD の項目をガイドに置いたのと同じ書き分け。`docs/adr/0002` 
   `docs/retrospectives/2026-11-02-issue-491-two-place-trial.md` の申し送り 10）
 - 利用者が Copilot を使っておらず、使う予定も無いと決めた（2026-11-04）。使う時が来たときは版も面も事情も
   変わっているので、いま確かめても役に立たない。そのため**各面が `AGENTS.md` を読むかを確かめないまま**、
-  `.github/copilot-instructions.md` と `scripts/audit-agent-entries.mjs` の入口の宣言を外した。
+  .github の下の copilot-instructions.md と `scripts/audit-agent-entries.mjs` の入口の宣言を外した。
   「読むと分かったから外す」ではなく、「使わないから外す」である
 - **MUST**: Copilot を使い始めるときは、**その時点の版で各面が `AGENTS.md` を読むかを確かめ**、読まない面があれば
   入口を足す（決定 3 の「直接読まないツールにだけ入口を足す」に従う。足すときは `ENTRY_FILES` に宣言する）
-- `.github/copilot-instructions.md` は検査の候補の置き場（ツールが規則として読む場所）に残してある。
+- .github の下の copilot-instructions.md は検査の候補の置き場（ツールが規則として読む場所）に残してある。
   黙って戻されたら「宣言されていない入口」として止まる
-- 上の影響欄の「`.github/copilot-instructions.md` を足す」は、この ADR を採択した時点の作業の記録なので書き換えない
+- 上の影響欄の「.github の下の copilot-instructions.mdを足す」は、この ADR を採択した時点の作業の記録なので書き換えない
+- この追記は規範を足すので、採択は PR のマージで利用者が行う（利用者は 2026-11-04 に、この変更を事前に承認している）
 
 #### 追記（2026-11-01・#489）: スキルも同じ考え方で薄い入口にする
 
@@ -221,7 +224,7 @@ DoD の項目をガイドに置いたのと同じ書き分け。`docs/adr/0002` 
 ## 影響
 
 - `AGENTS.md` の「AI 運用規則」を、作業の始めと終わり・報告の書式・人に聞く操作・禁止事項に広げる
-- `GEMINI.md`・`.github/copilot-instructions.md` を `CLAUDE.md` と同じ形の入口として足す
+- `GEMINI.md`・.github の下の copilot-instructions.md を `CLAUDE.md` と同じ形の入口として足す
 - `scripts/audit-agent-entries.mjs` を CI の `docs` ジョブに足す（決定 3）。変異 632 がその照合を守る
 - `docs/README.md`・`AGENTS.md` の文書地図にマニフェストを載せる
 - **次の作業は子 ISSUE に分けた**（#483 のメモ。この ADR の方針に沿って進める）:

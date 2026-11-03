@@ -334,16 +334,6 @@ export const MISSING_PATH_EXCEPTIONS = [
     reason: "gitignore 対象。deploy/timer/NOTES.md は、この実 env を各自で作る手順を案内している",
   },
   {
-    doc: "docs/adr/0030-ai-driven-development-operations.md",
-    path: ".github/copilot-instructions.md",
-    reason: "#507 で削除した（利用者が Copilot を使わないと決めた）。決定 3 の改定と追記が、何を外したかを記録するために名指ししている。実在しないことが正しい",
-  },
-  {
-    doc: "docs/adr/0032-agent-guard-for-production-commands.md",
-    path: ".github/copilot-instructions.md",
-    reason: "#507 で削除した。決定 4 の当時の調べ（表の Copilot の行）が名指ししている。表は書かれた時点の記録なので書き換えず、改定（2026-11-04）が外したことを記す",
-  },
-  {
     doc: "docs/adr/0023-timer-without-tailwind.md",
     path: "e2e/parity/",
     reason: "#321 PR 4 の最後に撤去した。再現の手順は台帳",

@@ -14,7 +14,7 @@ Tasuki の文書は目的ごとに置き場が分かれています。まずこ�
 まとめた要約です。**規範の正本ではなく、新しい義務を持ちません。** 各項目は憲法か ADR を指し、
 食い違ったら憲法と ADR が正しい（[`docs/adr/0030`](./adr/0030-ai-driven-development-operations.md) 決定 6）。
 AI 向けの規則の正本はリポジトリ直下の [`AGENTS.md`](../AGENTS.md) で、`CLAUDE.md`・`GEMINI.md` は
-そこへ向ける薄い入口です（同 決定 3。Copilot の入口は使わないので置いていません。同 追記（#507））。`.claude/skills/` のスキルも同じ考え方で、
+そこへ向ける薄い入口です（同 決定 3。Copilot は使わないので入口を置いていません。同 追記（#507））。`.claude/skills/` のスキルも同じ考え方で、
 手順書へ向ける薄い入口です（[`docs/guides/procedures/README.md`](./guides/procedures/README.md)）。
 
 **機能ごとの設計文書**は [`docs/superpowers/`](./superpowers/) に日付つきのファイル名（例:

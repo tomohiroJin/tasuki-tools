@@ -58,7 +58,7 @@ describe("宣言", () => {
 
   test("外した Copilot の入口が追跡下に再び現れたら、宣言していない入口として検出する", () => {
     // Given: 宣言を外しても候補の置き場には残してあるので、黙って戻されたら止まる
-    assert.deepEqual(findUndeclaredEntries([".github/copilot-instructions.md", "CLAUDE.md"], ENTRY_FILES), [".github/copilot-instructions.md"]);
+    assert.deepEqual(findUndeclaredEntries([".github/copilot-instructions.md", "CLAUDE.md"].filter(isEntryCandidate), ENTRY_FILES), [".github/copilot-instructions.md"]);
   });
 
   test("入口の重複が無い", () => {
@@ -178,7 +178,7 @@ describe("linksToSource: 入口が正本へ向いているか", () => {
   });
 
   test("階層を解き違えたリンクは向いていない", () => {
-    // Given: sub/ の下から ../ を付けずに書くと .github/AGENTS.md を指す
+    // Given: sub/ の下から ../ を付けずに書くと sub/AGENTS.md を指す
     assert.equal(linksToSource("sub/entry.md", "[AGENTS.md](AGENTS.md)"), false);
   });
 
