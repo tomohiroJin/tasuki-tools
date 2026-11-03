@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/prior-pr-hook.mjs b/scripts/lib/prior-pr-hook.mjs
+index cf069a36..380ae1a2 100644
+--- a/scripts/lib/prior-pr-hook.mjs
++++ b/scripts/lib/prior-pr-hook.mjs
+@@ -17,7 +17,7 @@ import { describePriorWork, findPriorWork, issueNumberFromBranch, issueNumbersFr
+ export const PR_CREATE = Object.freeze([{ id: "gh-pr-create", program: "gh", args: ["pr", "create"] }, { id: "gh-pr-create", program: "gh", args: ["pr", "new"] }]);
+ 
+ /** 値を取らない短い選択肢（`gh pr create --help` の -d・-e・-f・-w）。`-dt` のように束ねてよいのはこれだけ。 */
+-const BOOLEAN_SHORT = "[defw]";
++const BOOLEAN_SHORT = "[A-Za-z]";
+ /** 値を次の語に取る選択肢。その値を題と読み違えない（`-b "-t x"`）ために飛ばす。 */
+ const VALUE_OPTIONS = new Set([
+   "-a", "--assignee", "--attach", "-B", "--base", "-b", "--body", "-F", "--body-file", "-H", "--head", "-l", "--label",

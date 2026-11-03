@@ -5120,4 +5120,12 @@ export const MUTATIONS = [
     tests: ["lib/prior-work.test.mjs"],
     note: RESERVED_860_869 + " " + "#504 のレビュー 4。docs/issue-505-… の枝で先行 PR の確認が未実行になる。",
   },
+  {
+    id: 866,
+    label: "題の取り出しが、値を取る選択肢（-T・-b・-r）まで束ねた頭として読み、その値を題と読む",
+    patch: "m866-prior-pr-hook-title-bundle-too-wide.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-pr-hook.test.mjs"],
+    note: RESERVED_860_869 + " " + "#504 のレビュー 5。-Tmytemplate の値を題と読んで --title まで進まず確認を抜ける、-rteam/#3 の値で無関係な ISSUE を引く。",
+  },
 ];
