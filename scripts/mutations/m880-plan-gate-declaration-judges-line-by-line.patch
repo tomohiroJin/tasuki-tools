@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-plan-gate.mjs b/scripts/audit-plan-gate.mjs
+index 26f78a0e..58a89b86 100644
+--- a/scripts/audit-plan-gate.mjs
++++ b/scripts/audit-plan-gate.mjs
+@@ -295,7 +295,7 @@ export function checkDeclaration(rel, text) {
+     }
+   }
+   if (current !== null) blocks.push(current.join("\n"));
+-  const ok = blocks.some((b) => b.includes("書き換えない") && b.includes(DECLARATION_GUIDE_TAIL));
++  const ok = blocks.flatMap((b) => b.split("\n")).some((b) => b.includes("書き換えない") && b.includes(DECLARATION_GUIDE_TAIL));
+   if (ok) return [];
+   return [
+     {

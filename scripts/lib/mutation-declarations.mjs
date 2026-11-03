@@ -43,6 +43,9 @@ const RESERVED_820_829 =
 const RESERVED_250_259 =
   "**対応表より後に足した変異。** 250〜259 は 2026-10-15 の並列修正で #376 に追加で割り当てた予約の範囲（220〜229 が埋まったため）。";
 
+const RESERVED_880_889 =
+  "**対応表より後に足した変異。** 880〜889 は #506 の宣言の検査に追加で割り当てた範囲（850〜859 を使い切ったため）。";
+
 const RESERVED_850_859 =
   "**対応表より後に足した変異。** 850〜859 は #506 に割り当てた範囲。";
 
@@ -5068,5 +5071,21 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["audit-plan-gate.test.mjs"],
     note: RESERVED_850_859 + " " + "#506 のレビュー。コードブロックに雛形を貼っただけの文書が、宣言したことになる。",
+  },
+  {
+    id: 880,
+    label: "audit-plan-gate の宣言の検査が、続く引用行を塊にせず 1 行ずつ判定する",
+    patch: "m880-plan-gate-declaration-judges-line-by-line.patch",
+    pkg: "scripts",
+    tests: ["audit-plan-gate.test.mjs"],
+    note: RESERVED_880_889 + " " + "#506 のコードレビュー。宣言を折り返すと「書き換えない」とガイドが別の行に分かれて落ち、正しい宣言が赤になる。",
+  },
+  {
+    id: 881,
+    label: "audit-plan-gate が、宣言の正本のガイドの実在を確かめない",
+    patch: "m881-plan-gate-declaration-skips-guide-existence.patch",
+    pkg: "scripts",
+    tests: ["scan-target-wiring.test.mjs"],
+    note: RESERVED_880_889 + " " + "#506 のコードレビュー。設計文書の置き場はリンク検査の外なので、ガイドを改名・削除しても宣言は古いパスを指したまま緑になる。",
   },
 ];
