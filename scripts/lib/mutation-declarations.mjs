@@ -52,6 +52,12 @@ const RESERVED_870_879 =
 const RESERVED_250_259 =
   "**対応表より後に足した変異。** 250〜259 は 2026-10-15 の並列修正で #376 に追加で割り当てた予約の範囲（220〜229 が埋まったため）。";
 
+const RESERVED_880_889 =
+  "**対応表より後に足した変異。** 880〜889 は #506 の宣言の検査に追加で割り当てた範囲（850〜859 を使い切ったため）。";
+
+const RESERVED_850_859 =
+  "**対応表より後に足した変異。** 850〜859 は #506 に割り当てた範囲。";
+
 export const MUTATIONS = [
   {
     id: 1,
@@ -4994,6 +5000,110 @@ export const MUTATIONS = [
       RESERVED_820_829 +
       " " +
       "#509 のレビュー 3。止まりはするが「ffmpeg-null が無い」と出て、Playwright の版の側の問題だと分からない。",
+  },
+  {
+    id: 850,
+    label: "check-links の LIVE_DOCS から docs/superpowers/README.md を外す",
+    patch: "m850-links-live-docs-drops-superpowers-readme.patch",
+    pkg: "scripts",
+    tests: ["check-links.test.mjs"],
+    note: RESERVED_850_859 + " " + "#506。設計文書の案内がリンク検査から外れ、ガイドへのリンクが壊れても緑のままになる。",
+  },
+  {
+    id: 851,
+    label: "audit-plan-gate の宣言の検査が、冒頭の範囲を無視して文書全体から探す",
+    patch: "m851-plan-gate-declaration-ignores-window.patch",
+    pkg: "scripts",
+    tests: ["audit-plan-gate.test.mjs"],
+    note: RESERVED_850_859 + " " + "#506。末尾にだけ宣言がある文書が通り、どの節から入っても決まりに当たるという狙いが外れる。",
+  },
+  {
+    id: 852,
+    label: "audit-plan-gate の宣言の検査が、コードフェンスの中の引用でも満たされたとみなす",
+    patch: "m852-plan-gate-declaration-counts-fenced-quote.patch",
+    pkg: "scripts",
+    tests: ["audit-plan-gate.test.mjs"],
+    note: RESERVED_850_859 + " " + "#506。ガイドの雛形を引用しただけの文書が通り、宣言していないのに宣言したことになる。",
+  },
+  {
+    id: 853,
+    label: "audit-plan-gate が宣言を要求する文書を 1 件も検査しない",
+    patch: "m853-plan-gate-declaration-never-required.patch",
+    pkg: "scripts",
+    tests: ["scan-target-wiring.test.mjs"],
+    note: RESERVED_850_859 + " " + "#506。要求対象は現在 0 件なので、検査が配線ごと外れても CI の色は変わらない。落ちるのは境界日を動かす配線のテストだけ。",
+  },
+  {
+    id: 854,
+    label: "audit-plan-gate の宣言の検査が、ガイドのパスを含むかを見ない",
+    patch: "m854-plan-gate-declaration-ignores-guide-path.patch",
+    pkg: "scripts",
+    tests: ["audit-plan-gate.test.mjs"],
+    note: RESERVED_850_859 + " " + "#506。「書き換えない」と書いてあれば通り、決まりの正本へ辿れない宣言が通る。",
+  },
+  {
+    id: 855,
+    label: "audit-plan-gate の宣言の検査が、plans/ を列挙しない",
+    patch: "m855-plan-gate-declaration-drops-plans-dir.patch",
+    pkg: "scripts",
+    tests: ["scan-target-wiring.test.mjs"],
+    note: RESERVED_850_859 + " " + "#506 のレビュー。実装計画の側で宣言が無くても赤にならず、specs/ だけを見る検査になる。",
+  },
+  {
+    id: 856,
+    label: "audit-plan-gate の設計文書の 0 件ガードを無効にする",
+    patch: "m856-plan-gate-declaration-empty-guard-off.patch",
+    pkg: "scripts",
+    tests: ["scan-target-wiring.test.mjs"],
+    note: RESERVED_850_859 + " " + "#506 のレビュー。列挙が空になっても緑のままで、宣言の検査が空振りしても気づけない。",
+  },
+  {
+    id: 857,
+    label: "audit-plan-gate の宣言の検査が、日付つきディレクトリの下の付属ファイルも設計文書として数える",
+    patch: "m857-plan-gate-declaration-includes-nested-files.patch",
+    pkg: "scripts",
+    tests: ["audit-plan-gate.test.mjs"],
+    note: RESERVED_850_859 + " " + "#506 のレビュー。以前から許された置き方（specs/<日付>-<名前>/notes.md）で、日付の無いファイルとして検査が落ちる。",
+  },
+  {
+    id: 858,
+    label: "audit-plan-gate の宣言の検査が、README.md を設計文書として数える",
+    patch: "m858-plan-gate-declaration-includes-readme.patch",
+    pkg: "scripts",
+    tests: ["audit-plan-gate.test.mjs"],
+    note: RESERVED_850_859 + " " + "#506 のレビュー。置き場の案内 README に宣言を要求し、検査が落ちる。",
+  },
+  {
+    id: 859,
+    label: "audit-plan-gate の宣言の検査が、4 字下げのコードブロックの引用行でも満たされたとみなす",
+    patch: "m859-plan-gate-declaration-accepts-indented-code.patch",
+    pkg: "scripts",
+    tests: ["audit-plan-gate.test.mjs"],
+    note: RESERVED_850_859 + " " + "#506 のレビュー。コードブロックに雛形を貼っただけの文書が、宣言したことになる。",
+  },
+  {
+    id: 880,
+    label: "audit-plan-gate の宣言の検査が、続く引用行を塊にせず 1 行ずつ判定する",
+    patch: "m880-plan-gate-declaration-judges-line-by-line.patch",
+    pkg: "scripts",
+    tests: ["audit-plan-gate.test.mjs"],
+    note: RESERVED_880_889 + " " + "#506 のコードレビュー。宣言を折り返すと「書き換えない」とガイドが別の行に分かれて落ち、正しい宣言が赤になる。",
+  },
+  {
+    id: 881,
+    label: "audit-plan-gate が、宣言の正本のガイドの実在を確かめない",
+    patch: "m881-plan-gate-declaration-skips-guide-existence.patch",
+    pkg: "scripts",
+    tests: ["scan-target-wiring.test.mjs"],
+    note: RESERVED_880_889 + " " + "#506 のコードレビュー。設計文書の置き場はリンク検査の外なので、ガイドを改名・削除しても宣言は古いパスを指したまま緑になる。",
+  },
+  {
+    id: 882,
+    label: "audit-plan-gate の宣言の検査が、ガイドのパスを末尾の一致だけで認める（文書の位置から解決しない）",
+    patch: "m882-plan-gate-declaration-guide-path-by-suffix.patch",
+    pkg: "scripts",
+    tests: ["audit-plan-gate.test.mjs"],
+    note: RESERVED_880_889 + " " + "#506 のレビュー。別の置き場（docs/old-guides/…）や深さを間違えた相対リンクが通り、存在しないガイドを指す宣言が宣言として数えられる。",
   },
   {
     id: 840,

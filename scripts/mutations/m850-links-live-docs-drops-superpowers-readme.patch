@@ -1,0 +1,12 @@
+diff --git a/scripts/check-links.mjs b/scripts/check-links.mjs
+index 4bb93971..111d55f1 100644
+--- a/scripts/check-links.mjs
++++ b/scripts/check-links.mjs
+@@ -232,7 +232,6 @@ export const LIVE_DOCS = [
+   "GEMINI.md", // #483: AI ツールの入口。AGENTS.md へ向ける薄いファイル。
+   "SECURITY.md",
+   "docs/README.md",
+-  "docs/superpowers/README.md", // #506: 設計文書の置き場の案内。改定のしかたのガイドへ向ける。
+   "docs/adr/",
+   "docs/guides/",
+   "deploy/",

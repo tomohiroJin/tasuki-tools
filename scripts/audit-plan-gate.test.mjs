@@ -8,6 +8,12 @@ import {
   findGateSections,
   stripCodeFences,
   checkGate,
+  DECLARATION_BOUNDARY_DATE,
+  DECLARATION_WINDOW_LINES,
+  checkDeclaration,
+  listDesignDocs,
+  DECLARATION_GUIDE,
+  pointsAtGuide,
 } from "./audit-plan-gate.mjs";
 
 /** 憲法の原則見出しの写し（形式だけを再現した最小の本文）。 */
@@ -399,5 +405,144 @@ describe("checkGate: ゲートの中身（設計正本 D3）", () => {
     // Then
     assert.equal(problems.length, 1);
     assert.match(problems[0].message, /\bI\b/);
+  });
+});
+
+/**
+ * 設計文書の冒頭の宣言（#506・`docs/guides/design-doc-revision.md`）。
+ * 存在だけを見る。節が書き換えられたかは見ない（差分の検査は足していない。ガイドに理由がある）。
+ */
+const DECLARATION =
+  "> マージ後の節は書き換えない。後から分かったことは末尾の補遺の節に書き、置き換えた古い節の末尾に改定の印を足す（`docs/guides/design-doc-revision.md`）。";
+
+describe("DECLARATION_BOUNDARY_DATE: 宣言を要求し始める日", () => {
+  test("ISO の日付である", () => {
+    assert.match(DECLARATION_BOUNDARY_DATE, /^\d{4}-\d{2}-\d{2}$/);
+  });
+});
+
+describe("checkDeclaration: 設計文書の冒頭の宣言", () => {
+  const rel = "docs/superpowers/specs/2026-12-01-x-design.md";
+
+  test("冒頭に宣言があれば通る", () => {
+    assert.deepEqual(checkDeclaration(rel, ["# 設計", "", DECLARATION, "", "## 1. 目的"].join("\n")), []);
+  });
+
+  test("宣言が無ければ、ガイドを指して落とす", () => {
+    const problems = checkDeclaration(rel, ["# 設計", "", "## 1. 目的", "本文"].join("\n"));
+    assert.equal(problems.length, 1);
+    assert.equal(problems[0].file, rel);
+    assert.match(problems[0].message, /design-doc-revision\.md/);
+  });
+
+  test("冒頭の範囲より後ろにある宣言は数えない", () => {
+    const filler = Array.from({ length: DECLARATION_WINDOW_LINES }, (_, i) => `行 ${i}`);
+    assert.equal(checkDeclaration(rel, ["# 設計", ...filler, DECLARATION].join("\n")).length, 1);
+  });
+
+  test("冒頭の範囲の最後の行にある宣言は通る", () => {
+    const filler = Array.from({ length: DECLARATION_WINDOW_LINES - 1 }, (_, i) => `行 ${i}`);
+    assert.deepEqual(checkDeclaration(rel, [...filler, DECLARATION].join("\n")), []);
+  });
+
+  test("コードフェンスの中の宣言（様式の引用）では通さない", () => {
+    const text = ["# 設計", "", "```markdown", DECLARATION, "```", "", "## 1. 目的"].join("\n");
+    assert.equal(checkDeclaration(rel, text).length, 1);
+  });
+
+  test("ガイドの名前だけ、または「書き換えない」だけでは通らない", () => {
+    assert.equal(checkDeclaration(rel, "# 設計\n\n> 詳しくは `docs/guides/design-doc-revision.md`。").length, 1);
+    assert.equal(checkDeclaration(rel, "# 設計\n\n> 節は書き換えない。").length, 1);
+  });
+
+  test("引用（>）でない行の言及では通らない", () => {
+    assert.equal(
+      checkDeclaration(rel, "# 設計\n\n節は書き換えない（docs/guides/design-doc-revision.md）。").length,
+      1,
+    );
+  });
+});
+
+describe("listDesignDocs: 宣言を探す設計文書の選び方（#506）", () => {
+  test("specs/ と plans/ の直下の *.md を選ぶ", () => {
+    const tracked = ["docs/superpowers/specs/2026-12-01-a.md", "docs/superpowers/plans/2026-12-01-b.md"];
+    assert.deepEqual(listDesignDocs(tracked), tracked);
+  });
+
+  test("README.md は設計文書ではないので除く（specs/ でも plans/ でも）", () => {
+    const tracked = ["docs/superpowers/specs/README.md", "docs/superpowers/plans/README.md"];
+    assert.deepEqual(listDesignDocs(tracked), []);
+  });
+
+  test("日付つきのディレクトリの下の付属ファイルは設計文書にしない（以前から許された置き方）", () => {
+    const tracked = ["docs/superpowers/specs/2026-11-01-x/notes.md", "docs/superpowers/specs/2026-11-01-x/README.md"];
+    assert.deepEqual(listDesignDocs(tracked), []);
+  });
+
+  test("置き場の外は選ばない", () => {
+    assert.deepEqual(listDesignDocs(["docs/guides/a.md", "docs/superpowers/other/2026-12-01-a.md"]), []);
+  });
+});
+
+describe("checkDeclaration: 字下げのコードブロック（#506）", () => {
+  const rel = "docs/superpowers/specs/2026-12-01-x-design.md";
+  test("4 字下げ（コードブロック）の中の引用行では通さない", () => {
+    assert.equal(checkDeclaration(rel, `# 設計\n\n    ${DECLARATION}\n`).length, 1);
+  });
+  test("3 字下げまでは引用として通す", () => {
+    assert.deepEqual(checkDeclaration(rel, `# 設計\n\n   ${DECLARATION}\n`), []);
+  });
+});
+
+describe("checkDeclaration: 折り返しとリンク（#506）", () => {
+  const rel = "docs/superpowers/specs/2026-12-01-x-design.md";
+
+  test("引用が 2 行に折り返されていても通す（続く引用行は 1 つの塊）", () => {
+    const text = ["# 設計", "", "> マージ後の節は書き換えない。後から分かったことは末尾の補遺に書く", `> （\`${DECLARATION_GUIDE}\`）。`, "", "## 1. 目的"].join("\n");
+    assert.deepEqual(checkDeclaration(rel, text), []);
+  });
+
+  test("空行で分かれた別々の引用は 1 つの塊にしない", () => {
+    const text = ["# 設計", "", "> 節は書き換えない。", "", `> 詳しくは \`${DECLARATION_GUIDE}\`。`].join("\n");
+    assert.equal(checkDeclaration(rel, text).length, 1);
+  });
+
+  test("相対リンクでガイドを指す宣言も通す", () => {
+    const text = "# 設計\n\n> 節は書き換えない（[ガイド](../../guides/design-doc-revision.md)）。\n";
+    assert.deepEqual(checkDeclaration(rel, text), []);
+  });
+
+  test("別のガイド名（末尾が違う）では通さない", () => {
+    assert.equal(checkDeclaration(rel, "# 設計\n\n> 節は書き換えない（`docs/guides/other-design-doc-revision.mdx`）。\n").length, 1);
+  });
+});
+
+describe("checkDeclaration: ガイドの指し方（#506）", () => {
+  const rel = "docs/superpowers/specs/2026-12-01-x-design.md";
+  const quote = (path) => `# 設計\n\n> 節は書き換えない（${path}）。\n`;
+
+  test("別の置き場のパス（docs/old-guides/…）では通さない", () => {
+    assert.equal(checkDeclaration(rel, quote("`docs/old-guides/design-doc-revision.md`")).length, 1);
+  });
+
+  test("拡張子の続き（….md.bak）では通さない", () => {
+    assert.equal(checkDeclaration(rel, quote("`docs/guides/design-doc-revision.md.bak`")).length, 1);
+  });
+
+  test("深さを間違えた相対リンク（../guides/…）では通さない", () => {
+    assert.equal(checkDeclaration(rel, quote("[ガイド](../guides/design-doc-revision.md)")).length, 1);
+  });
+
+  test("文書の位置から解決して正本に一致する相対リンクは通す（plans/ でも同じ深さ）", () => {
+    const plan = "docs/superpowers/plans/2026-12-01-x.md";
+    assert.deepEqual(checkDeclaration(plan, quote("[ガイド](../../guides/design-doc-revision.md)")), []);
+  });
+
+  test("句点の直前のパスも通す", () => {
+    assert.deepEqual(checkDeclaration(rel, "# 設計\n\n> 節は書き換えない。詳細は docs/guides/design-doc-revision.md。\n"), []);
+  });
+
+  test("pointsAtGuide: 行末のパスも拾う", () => {
+    assert.equal(pointsAtGuide(rel, "docs/guides/design-doc-revision.md"), true);
   });
 });

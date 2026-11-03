@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-plan-gate.mjs b/scripts/audit-plan-gate.mjs
+index f73436f8..47963a06 100644
+--- a/scripts/audit-plan-gate.mjs
++++ b/scripts/audit-plan-gate.mjs
+@@ -283,7 +283,7 @@ export function pointsAtGuide(rel, block) {
+     const resolved = /^\.{1,2}\//.test(token)
+       ? path.posix.normalize(path.posix.join(path.posix.dirname(rel), token))
+       : path.posix.normalize(token);
+-    if (resolved === DECLARATION_GUIDE) return true;
++    if (resolved.endsWith("guides/design-doc-revision.md")) return true;
+   }
+   return false;
+ }

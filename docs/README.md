@@ -23,7 +23,9 @@ AI 向けの規則の正本はリポジトリ直下の [`AGENTS.md`](../AGENTS.m
 [`docs/plans/`](./plans/) は SDD（Specification-Driven Development）期の記録であり、
 新規の設計文書の追加先ではありません。**`docs/plans/` も `docs/superpowers/` も追記のみで、
 完了しても移動・改名しません**（規約の正本は
-[`docs/adr/0002`](./adr/0002-document-system-three-layers.md) の追記節）。
+[`docs/adr/0002`](./adr/0002-document-system-three-layers.md) の追記節。節の単位では、マージ後の節を書き換えず、
+改定は新しい節に書く（追記（2026-11-03・#506））。手引きは
+[`docs/guides/design-doc-revision.md`](./guides/design-doc-revision.md)）。
 
 ## 目的別の入口
 
@@ -32,7 +34,7 @@ AI 向けの規則の正本はリポジトリ直下の [`AGENTS.md`](../AGENTS.m
 | 守るべき原則 | [憲法](./constitution.md) |
 | AI と開発するときの価値観・AI への規則 | [マニフェスト](./ai-manifesto.md)・[`AGENTS.md`](../AGENTS.md) |
 | なぜそう決まっているか | [`docs/adr/`](./adr/)（横断）・`docs/<app>/adr/`（例: [`docs/timer/adr/`](./timer/adr/)・[`docs/poker/adr/`](./poker/adr/)、アプリ固有） |
-| 今日どう書くか（DoD・EARS・振り返り・アーキテクチャ・開発手順・セキュリティ・PR の粒度） | [`docs/guides/`](./guides/) |
+| 今日どう書くか（DoD・EARS・振り返り・アーキテクチャ・開発手順・セキュリティ・PR の粒度・設計文書の改定） | [`docs/guides/`](./guides/) |
 | 繰り返す作業の手順（敵対的レビュー・実画面で確かめる・変異の足し方） | [`docs/guides/procedures/`](./guides/procedures/README.md) |
 | 機能の設計経緯 | [`docs/superpowers/specs/`](./superpowers/specs/)・[`docs/superpowers/plans/`](./superpowers/plans/) |
 | 過去の SDD 記録 | [`docs/plans/`](./plans/) |

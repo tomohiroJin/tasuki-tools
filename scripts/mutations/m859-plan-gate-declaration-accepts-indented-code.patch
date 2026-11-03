@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-plan-gate.mjs b/scripts/audit-plan-gate.mjs
+index 26f78a0e..39b6e352 100644
+--- a/scripts/audit-plan-gate.mjs
++++ b/scripts/audit-plan-gate.mjs
+@@ -286,7 +286,7 @@ export function checkDeclaration(rel, text) {
+   const blocks = [];
+   let current = null;
+   for (const line of head) {
+-    if (/^ {0,3}>/.test(line)) {
++    if (/^\s*>/.test(line)) {
+       current = current === null ? [] : current;
+       current.push(line.replace(/^ {0,3}>\s?/, ""));
+     } else if (current !== null) {

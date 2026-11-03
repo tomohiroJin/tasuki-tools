@@ -232,6 +232,7 @@ export const LIVE_DOCS = [
   "GEMINI.md", // #483: AI ツールの入口。AGENTS.md へ向ける薄いファイル。
   "SECURITY.md",
   "docs/README.md",
+  "docs/superpowers/README.md", // #506: 設計文書の置き場の案内。改定のしかたのガイドへ向ける。
   "docs/adr/",
   "docs/guides/",
   "deploy/",
@@ -255,7 +256,9 @@ export const LIVE_DOCS = [
  * 実体側を全分割すれば、エントリを消した瞬間にその配下が無所属になって落ちる。
  */
 export const DORMANT_DOCS = [
-  { prefix: "docs/superpowers/", reason: "設計正本・実装計画。作業中に頻繁に増減する" },
+  // README.md（#506）は LIVE_DOCS が持つので、配下の specs/ と plans/ に分ける（包含させない）。
+  { prefix: "docs/superpowers/specs/", reason: "設計正本。作業中に頻繁に増減する" },
+  { prefix: "docs/superpowers/plans/", reason: "実装計画。作業中に頻繁に増減する" },
   { prefix: "docs/plans/", reason: "旧世代の実装計画。記録として保持する" },
   {
     prefix: "docs/timer/",
