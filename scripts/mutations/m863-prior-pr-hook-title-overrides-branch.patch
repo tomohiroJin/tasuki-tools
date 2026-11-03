@@ -1,0 +1,12 @@
+diff --git a/scripts/lib/prior-pr-hook.mjs b/scripts/lib/prior-pr-hook.mjs
+index d4688265..181ead3b 100644
+--- a/scripts/lib/prior-pr-hook.mjs
++++ b/scripts/lib/prior-pr-hook.mjs
+@@ -58,7 +58,6 @@ export function decidePriorPrOutput(raw, { currentBranch, lookup }) {
+   // 番号は 1 つに絞る（ブランチ優先、無ければ題の最初）。引くたびに gh と git の待ちが要り、フックの時間切れに届くため
+   let number = issueNumberFromBranch(branch);
+   for (const h of hits) {
+-    if (number !== null) break;
+     const title = extractTitle(h.words);
+     if (title !== null) number = issueNumbersFromTitle(title)[0] ?? null;
+   }

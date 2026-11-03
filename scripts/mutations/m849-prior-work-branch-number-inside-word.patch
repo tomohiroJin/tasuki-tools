@@ -1,13 +1,13 @@
 diff --git a/scripts/lib/prior-work.mjs b/scripts/lib/prior-work.mjs
-index 74e92312..d862f7b1 100644
+index 2b9e4bc1..1869a274 100644
 --- a/scripts/lib/prior-work.mjs
 +++ b/scripts/lib/prior-work.mjs
-@@ -21,7 +21,7 @@ const firstLine = (text) => String(text).trim().split("\n")[0];
- 
- /** ブランチ名の最初の番号（`docs/504-x`・`claude/trial-491-cloud-480` は 491）。語に混ざった数字（`abc504def`）は取らない。 */
+@@ -25,7 +25,7 @@ const firstLine = (text) => String(text).trim().split("\n")[0];
+  * 語に混ざった数字は取らず null（未実行）にする。
+  */
  export function issueNumberFromBranch(branch) {
--  const m = /(?:^|[/-])(\d{1,7})(?=[/-]|$)/.exec(String(branch));
-+  const m = /(\d{1,7})/.exec(String(branch));
+-  const m = /^[^/]+\/(\d{1,7})(?=-|$)(?!-\d{2}-\d{2})/.exec(String(branch)) ?? /(?:^|[/-])issue-(\d{1,7})(?!\d)/.exec(String(branch));
++  const m = /^[^/]+\/(\d{1,7})(?!-\d{2}-\d{2})/.exec(String(branch)) ?? /(?:^|[/-])issue-(\d{1,7})(?!\d)/.exec(String(branch));
    return m ? Number(m[1]) : null;
  }
  

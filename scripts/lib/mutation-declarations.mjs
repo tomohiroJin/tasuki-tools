@@ -43,6 +43,9 @@ const RESERVED_820_829 =
 const RESERVED_840_849 =
   "**対応表より後に足した変異。** 840〜849 は #504 に割り当てた範囲（並行の作業と重ならないよう、割り当てられた）。";
 
+const RESERVED_860_869 =
+  "**対応表より後に足した変異。** 860〜869 は #504 に追加で割り当てた範囲（840〜849 を使い切ったため。850〜859 は #506）。";
+
 const RESERVED_250_259 =
   "**対応表より後に足した変異。** 250〜259 は 2026-10-15 の並列修正で #376 に追加で割り当てた予約の範囲（220〜229 が埋まったため）。";
 
@@ -5063,10 +5066,58 @@ export const MUTATIONS = [
   },
   {
     id: 849,
-    label: "ブランチ名の番号を、語に混ざった数字（abc504def）からも取る",
+    label: "ブランチ名の番号を、語に混ざった数字（fix/504def）からも取る",
     patch: "m849-prior-work-branch-number-inside-word.patch",
     pkg: "scripts",
     tests: ["lib/prior-work.test.mjs"],
     note: RESERVED_840_849 + " " + "#504。無関係な数字で別の ISSUE の先行 PR を引く。",
+  },
+  {
+    id: 860,
+    label: "入口のフックが、本番デプロイの判定の後に先行 PR の判定を呼ばない",
+    patch: "m860-agent-guard-hook-drops-prior-pr-wiring.patch",
+    pkg: "scripts",
+    tests: ["agent-guard-hook.test.mjs"],
+    note: RESERVED_860_869 + " " + "#504 のレビュー 4。部品のテストは緑のまま、gh pr create の直前に聞かなくなる。",
+  },
+  {
+    id: 861,
+    label: "gh pr new（gh pr create の別名）で先行 PR を確かめない",
+    patch: "m861-prior-pr-hook-misses-gh-pr-new.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-pr-hook.test.mjs"],
+    note: RESERVED_860_869 + " " + "#504 のレビュー 4。別名で先行 PR の確認を抜ける。",
+  },
+  {
+    id: 862,
+    label: "--title / -t の値が 1 語（-t<値>）のとき題を取らない",
+    patch: "m862-prior-pr-hook-misses-glued-title.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-pr-hook.test.mjs"],
+    note: RESERVED_860_869 + " " + "#504 のレビュー 4。-t"feat（#480）" の形でブランチに番号が無いと確認を抜ける。",
+  },
+  {
+    id: 863,
+    label: "題の番号がブランチの番号を上書きする（番号を 1 つに絞らない）",
+    patch: "m863-prior-pr-hook-title-overrides-branch.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-pr-hook.test.mjs"],
+    note: RESERVED_860_869 + " " + "#504 のレビュー 4。ブランチの番号でなく題の別の番号で引き、待ち時間と誤検出が増える。",
+  },
+  {
+    id: 864,
+    label: "日付のブランチ名（docs/2026-11-03-retro）を ISSUE 2026 と読む",
+    patch: "m864-prior-work-branch-date-read-as-number.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-work.test.mjs"],
+    note: RESERVED_860_869 + " " + "#504 のレビュー 4。無関係な PR を先行として挙げる。",
+  },
+  {
+    id: 865,
+    label: "issue-<番号> の形のブランチ名から番号を取らない",
+    patch: "m865-prior-work-misses-issue-prefix.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-work.test.mjs"],
+    note: RESERVED_860_869 + " " + "#504 のレビュー 4。docs/issue-505-… の枝で先行 PR の確認が未実行になる。",
   },
 ];

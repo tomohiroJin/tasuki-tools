@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/prior-pr-hook.mjs b/scripts/lib/prior-pr-hook.mjs
+index d4688265..7ca6e9e9 100644
+--- a/scripts/lib/prior-pr-hook.mjs
++++ b/scripts/lib/prior-pr-hook.mjs
+@@ -22,7 +22,7 @@ export function extractTitle(words) {
+     const w = words[i];
+     if (w === "--title" || w === "-t") return words[i + 1] ?? null;
+     if (w.startsWith("--title=")) return w.slice("--title=".length);
+-    if (/^-[A-Za-z]*t.+/.test(w) && !w.startsWith("--")) return w.slice(w.indexOf("t") + 1); // -t<値>（シェルの上で 1 語）
++    if (false) return w.slice(w.indexOf("t") + 1); // -t<値>（シェルの上で 1 語）
+   }
+   return null;
+ }
