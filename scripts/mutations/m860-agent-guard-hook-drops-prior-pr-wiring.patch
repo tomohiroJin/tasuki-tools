@@ -1,13 +1,13 @@
 diff --git a/scripts/agent-guard-hook.mjs b/scripts/agent-guard-hook.mjs
-index 6a90860f..3c364b7a 100644
+index 50003a96..d0c66eb4 100644
 --- a/scripts/agent-guard-hook.mjs
 +++ b/scripts/agent-guard-hook.mjs
-@@ -42,7 +42,7 @@ async function main() {
-   } catch {
-     // 想定外の失敗でも、本番デプロイの判定は出す（常に exit 0）
-   }
--  const out = mergeAsks(decideHookOutput(raw), prior);
-+  const out = decideHookOutput(raw);
-   if (out !== null) process.stdout.write(`${JSON.stringify(out)}\n`);
- }
- 
+@@ -52,7 +52,7 @@ async function main() {
+     }
+   } else {
+     try {
+-      out = await decidePriorPrOutputWithin(raw, {
++      out = null && await decidePriorPrOutputWithin(raw, {
+         cwd,
+         currentBranch: defaultCurrentBranch(),
+         registeredWorktrees: defaultRegisteredWorktrees(),
