@@ -300,11 +300,12 @@ function matchHead(words, i, decls) {
         if (sub !== undefined && g.subcommands.includes(sub)) hits.push(g);
       }
     }
-    // `args`: 語が隣り合って並ぶ並び（`gh pr create`。`gh -R a/b pr create` も当てる）。
+    // `args`: 選択肢（`argOpts` は値を取るもの。`gh -R a/b`）を除いた最初の語から並ぶ語（`gh pr create`）。
+    // 位置を固定する（`gh issue list --search pr create` の引数の中の並びには当てない）。
     // 当たった語を `words` に持たせる（題の取り出しに使う。#504）
     if (g.program && g.args && name === g.program) {
-      const rest = words.slice(i + 1);
-      if (rest.some((_, j) => g.args.every((a, k) => rest[j + k] === a))) hits.push({ ...g, words });
+      const start = skipOptions(words, i + 1, g.argOpts ?? []);
+      if (g.args.every((a, k) => words[start + k] === a)) hits.push({ ...g, words });
     }
   }
   return hits;
@@ -387,7 +388,15 @@ function analyzeString(src, depth, decls) {
   const hits = [];
   for (const words of commands) hits.push(...analyzeWords(words, depth, decls));
   for (const inner of nested) hits.push(...analyzeString(inner, depth + 1, decls));
-  return [...new Set(hits)];
+  // `words` を持つ当たりは呼ぶたびに新しいオブジェクトなので、同じ宣言と同じ語の並びを 1 つにまとめる
+  const seen = new Set();
+  return [...new Set(hits)].filter((h) => {
+    if (h.words === undefined) return true;
+    const key = `${h.id}\0${h.words.join("\0")}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 /**

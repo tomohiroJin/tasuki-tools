@@ -14,7 +14,7 @@
 import fs from "node:fs";
 import { isDirectRun } from "./lib/direct-run.mjs";
 import { decideHookOutput } from "./lib/agent-guard.mjs";
-import { decidePriorPrOutput, defaultCurrentBranch, defaultLookup } from "./lib/prior-pr-hook.mjs";
+import { decidePriorPrOutput, defaultCurrentBranch, defaultLookup, mergeAsks } from "./lib/prior-pr-hook.mjs";
 
 /** gh と git を走らせる作業場所。入力の `cwd`（作業ツリー）、なければ CLAUDE_PROJECT_DIR、なければ今の場所。 */
 function workingDirectory(raw) {
@@ -27,7 +27,7 @@ function workingDirectory(raw) {
   return process.env.CLAUDE_PROJECT_DIR ?? process.cwd();
 }
 
-function main() {
+async function main() {
   let raw = "";
   try {
     raw = fs.readFileSync(0, "utf8");
@@ -35,8 +35,15 @@ function main() {
     // 標準入力が無い・閉じている。空として扱い、ask に倒す
   }
   const cwd = workingDirectory(raw);
-  const out = decideHookOutput(raw) ?? decidePriorPrOutput(raw, { currentBranch: defaultCurrentBranch(cwd), lookup: defaultLookup(cwd) });
+  // 本番デプロイと先行 PR の両方に当たったら、理由を 1 つの ask にまとめる（片方の理由が落ちない）
+  let prior = null;
+  try {
+    prior = await decidePriorPrOutput(raw, { cwd, currentBranch: defaultCurrentBranch(), lookup: defaultLookup() });
+  } catch {
+    // 想定外の失敗でも、本番デプロイの判定は出す（常に exit 0）
+  }
+  const out = mergeAsks(decideHookOutput(raw), prior);
   if (out !== null) process.stdout.write(`${JSON.stringify(out)}\n`);
 }
 
-if (isDirectRun(import.meta.url, process.argv[1])) main();
+if (isDirectRun(import.meta.url, process.argv[1])) await main();

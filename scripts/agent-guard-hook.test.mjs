@@ -46,3 +46,16 @@ test("入口: 本番デプロイは従来どおり ask", (t) => {
   assert.equal(out?.hookSpecificOutput.permissionDecision, "ask");
   assert.match(out.hookSpecificOutput.permissionDecisionReason, /本番デプロイ/);
 });
+
+test("入口: --head の枝を自分の枝とし、その PR は先行に数えない", (t) => {
+  const own = JSON.stringify([{ number: 501, title: "docs: 自分（#9）", body: "", state: "OPEN", headRefName: "docs/9-y" }]);
+  assert.equal(run(t, "gh pr create --head docs/9-y", { prs: own, branch: "main" }), null);
+  assert.equal(run(t, "gh pr create", { prs: own, branch: "docs/9-x" })?.hookSpecificOutput.permissionDecision, "ask");
+});
+
+test("入口: 本番デプロイと先行 PR の両方に当たれば、理由を 1 つの ask にまとめる", (t) => {
+  const out = run(t, "bash deploy/deploy.sh && gh pr create", { prs: pr });
+  const reason = out.hookSpecificOutput.permissionDecisionReason;
+  assert.match(reason, /本番デプロイ/);
+  assert.match(reason, /PR #501/);
+});

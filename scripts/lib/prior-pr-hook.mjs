@@ -4,17 +4,25 @@
  * Claude Code の PreToolUse フック（`scripts/agent-guard-hook.mjs`）から、本番デプロイの判定
  * （`decideHookOutput`）の後に呼ばれる。デプロイの判定は変えない。引き方は `scripts/lib/prior-work.mjs`（check:fast と共通）。
  *
- * - 番号はブランチ名（`<type>/<番号>-`・`issue-<番号>`）を優先し、無ければ `--title`（`-t<値>`・`--title=<値>` も）の最初の `#番号`。1 つに絞る（待ち時間の上限）。どこにも無ければ引かずに通す（番号の無い PR は確かめようがない）
+ * - 番号はブランチ名（`<type>/<番号>-`・`issue-<番号>`）と `--title`（`-t<値>`・`--title=<値>` も）の最初の `#番号` の最大 2 つ
+ *   （同じなら 1 つ）。2 つは並列に引く（待ちは gh と git の各 15 秒の長い方 1 回分）。どこにも無ければ引かずに通す（番号の無い PR は確かめようがない）
+ * - 自分の枝は `--head`（`-H`）があればそれ、無ければ作業場所の今の枝。作業場所は、コマンドの先頭の `cd <dir> &&`（`;`）を解釈して直す
+ *   （`cd` が途中・`~`/変数/`-`・`git -C` は読まない。ADR-0032 の残余）
+ * - 先行が無くても、検索が上限に当たって切れていれば「無い」と言い切れないので `ask`
  * - 先行があれば `ask`。**引けなかったとき（gh が無い・未認証・ネットワークが無い）も `ask`**。
  *   読めないときは当てる側に倒す `docs/adr/0032` と同じ。`gh pr create` 自身も gh とネットワークを要するので、
  *   引けない環境で聞いても余計な手間はほぼ増えない
  * - 判定は純粋関数。gh と git を呼ぶ `lookup` と `currentBranch` は引数で受け取る
  */
+import path from "node:path";
 import { findCommandsMatching, SHELL_TOOLS } from "./agent-guard.mjs";
 import { describePriorWork, findPriorWork, issueNumberFromBranch, issueNumbersFromTitle, defaultRunners } from "./prior-work.mjs";
 
 /** 先行 PR を確かめる対象のコマンド。 */
-export const PR_CREATE = Object.freeze([{ id: "gh-pr-create", program: "gh", args: ["pr", "create"] }, { id: "gh-pr-create", program: "gh", args: ["pr", "new"] }]);
+export const PR_CREATE = Object.freeze([
+  { id: "gh-pr-create", program: "gh", args: ["pr", "create"], argOpts: ["-R", "--repo"] },
+  { id: "gh-pr-create", program: "gh", args: ["pr", "new"], argOpts: ["-R", "--repo"] },
+]);
 
 /** 値を取らない短い選択肢（`gh pr create --help` の -d・-e・-f・-w）。`-dt` のように束ねてよいのはこれだけ。 */
 const BOOLEAN_SHORT = "[defw]";
@@ -25,12 +33,16 @@ const VALUE_OPTIONS = new Set([
 ]);
 
 /**
- * `gh pr create` の語から `--title` / `-t` の値を取る。無ければ null。複数あれば最後（gh と同じ）。
- * 取る形: `--title X`・`--title=X`・`-t X`・`-tX`・`-dt X`（値を取らない選択肢との束ね）。
+ * `gh pr create` の語から `--title` / `-t` と `--head` / `-H` の値を取る。無ければ null。複数あれば最後（gh と同じ）。
+ * 題の形: `--title X`・`--title=X`・`-t X`・`-tX`・`-dt X`（値を取らない選択肢との束ね）。
  * `-Tmytemplate`・`-btest`・`-rteam/#3` のように、別の選択肢の値に t が混ざる形は題と読まない。
+ * head は `owner:branch` の形なら branch の部分。
+ * @returns {{ title: string | null, head: string | null }}
  */
-export function extractTitle(words) {
+export function parseCreateOptions(words) {
   let title = null;
+  let head = null;
+  const bare = (v) => (v === null ? null : v.slice(v.lastIndexOf(":") + 1));
   for (let i = 0; i < words.length; i += 1) {
     const w = words[i];
     if (w === "--title") {
@@ -38,6 +50,13 @@ export function extractTitle(words) {
       i += 1;
     } else if (w.startsWith("--title=")) {
       title = w.slice("--title=".length);
+    } else if (w === "--head" || w === "-H") {
+      head = bare(words[i + 1] ?? null);
+      i += 1;
+    } else if (w.startsWith("--head=")) {
+      head = bare(w.slice("--head=".length));
+    } else if (/^-H.+/.test(w)) {
+      head = bare(w.slice(2));
     } else if (VALUE_OPTIONS.has(w)) {
       i += 1;
     } else {
@@ -52,7 +71,23 @@ export function extractTitle(words) {
       }
     }
   }
-  return title;
+  return { title, head };
+}
+
+/** `gh pr create` の語から題を取る（{@link parseCreateOptions}）。 */
+export function extractTitle(words) {
+  return parseCreateOptions(words).title;
+}
+
+/**
+ * コマンドの先頭の `cd <dir> &&`（`;`）を解釈して、gh と git を走らせる作業場所を直す。
+ * 読めない形（`cd` が途中・`~`・変数・`-`・コマンド置換・引数なし）は元の作業場所のまま返す。
+ */
+export function effectiveCwd(command, cwd) {
+  const m = /^\s*cd\s+(?:"([^"$`]*)"|'([^']*)'|([^\s;&|"'`$()<>~-][^\s;&|"'`$()<>]*))\s*(?:&&|;)/.exec(command);
+  const dir = m ? (m[1] ?? m[2] ?? m[3]) : undefined;
+  if (dir === undefined || dir === "") return cwd;
+  return path.resolve(cwd, dir);
 }
 
 function ask(reason) {
@@ -60,11 +95,24 @@ function ask(reason) {
 }
 
 /**
- * @param {string} raw 標準入力の中身
- * @param {{ currentBranch: () => string, lookup: (q: { numbers: number[], branch: string }) => { state: string, lines: string[] } }} deps
- * @returns {object | null} `ask` の出力か、何も返さないなら null
+ * 本番デプロイの `ask` と先行 PR の `ask` の両方に当たったとき、理由を 1 つの `ask` にまとめる。
+ * どちらかが null なら、もう一方をそのまま返す。
  */
-export function decidePriorPrOutput(raw, { currentBranch, lookup }) {
+export function mergeAsks(first, second) {
+  if (first === null) return second;
+  if (second === null) return first;
+  const reason = (o) => o.hookSpecificOutput.permissionDecisionReason;
+  return ask(`${reason(first)}\n\n${reason(second)}`);
+}
+
+/**
+ * @param {string} raw 標準入力の中身
+ * @param {{ cwd: string, currentBranch: (dir: string) => string | Promise<string>,
+ *   lookup: (q: { numbers: number[], branch: string, dir: string }) =>
+ *     { state: string, lines: string[], truncated?: boolean } | Promise<{ state: string, lines: string[], truncated?: boolean }> }} deps
+ * @returns {Promise<object | null>} `ask` の出力か、何も返さないなら null
+ */
+export async function decidePriorPrOutput(raw, { cwd, currentBranch, lookup }) {
   let input;
   try {
     input = JSON.parse(raw);
@@ -77,37 +125,46 @@ export function decidePriorPrOutput(raw, { currentBranch, lookup }) {
   const hits = findCommandsMatching(command, PR_CREATE).filter((h) => h.id === "gh-pr-create");
   if (hits.length === 0) return null;
 
+  const dir = effectiveCwd(command, cwd);
+  const options = hits.map((h) => parseCreateOptions(h.words));
   let branch;
   try {
-    branch = currentBranch();
+    branch = (await currentBranch(dir)) || "";
   } catch {
     branch = "";
   }
-  // 番号は 1 つに絞る（ブランチ優先、無ければ題の最初）。引くたびに gh と git の待ちが要り、フックの時間切れに届くため
-  let number = issueNumberFromBranch(branch);
-  for (const h of hits) {
-    if (number !== null) break;
-    const title = extractTitle(h.words);
-    if (title !== null) number = issueNumbersFromTitle(title)[0] ?? null;
+  // 自分の枝は --head があればそれ（別の枝の PR を作るとき）。無ければ作業場所の今の枝
+  const own = options.map((o) => o.head).filter((h) => h !== null).at(-1) ?? branch;
+  const numbers = [];
+  const fromBranch = issueNumberFromBranch(own);
+  if (fromBranch !== null) numbers.push(fromBranch);
+  // 題の番号も引く（ブランチの番号と違う ISSUE を題に書くことがある）。最大 2 つ・同じなら 1 つ
+  for (const o of options) {
+    const fromTitle = o.title === null ? undefined : issueNumbersFromTitle(o.title)[0];
+    if (fromTitle !== undefined && !numbers.includes(fromTitle)) {
+      numbers.push(fromTitle);
+      break;
+    }
   }
-  if (number === null) return null;
+  if (numbers.length === 0) return null;
 
-  const result = lookup({ numbers: [number], branch });
-  if (result.state === "none") return null;
+  const result = await lookup({ numbers, branch: own, dir });
+  // 切れているときは「無い」と言い切れないので、先行が無くても聞く（引けなかったときと同じ考え方）
+  if (result.state === "none" && result.truncated !== true) return null;
   return ask(`${result.lines.join("\n")}\n同じ ISSUE の作業が重なっていないか、人の確認が要ります（AGENTS.md「作業の始めに」・docs/adr/0030 決定 5）。`);
 }
 
-/** 本番の lookup。番号ごとに引き、知らせの行をまとめる。 */
-export function defaultLookup(cwd) {
-  const { gh, git } = defaultRunners(cwd);
-  return ({ numbers, branch }) => {
-    const parts = numbers.map((n) => describePriorWork(findPriorWork(n, { gh, git, ownBranch: branch })));
+/** 本番の lookup。番号ごとに並列に引き、知らせの行をまとめる。作業場所は問い合わせの `dir`。 */
+export function defaultLookup() {
+  return async ({ numbers, branch, dir }) => {
+    const { gh, git } = defaultRunners(dir);
+    const parts = await Promise.all(numbers.map(async (n) => describePriorWork(await findPriorWork(n, { gh, git, ownBranch: branch }))));
     const state = parts.some((p) => p.state === "found") ? "found" : parts.some((p) => p.state === "not-run") ? "not-run" : "none";
-    return { state, lines: parts.flatMap((p) => p.lines) };
+    return { state, lines: parts.flatMap((p) => p.lines), truncated: parts.some((p) => p.truncated === true) };
   };
 }
 
 /** 本番の現在のブランチ。 */
-export function defaultCurrentBranch(cwd) {
-  return () => defaultRunners(cwd).git(["rev-parse", "--abbrev-ref", "HEAD"]).trim();
+export function defaultCurrentBranch() {
+  return async (dir) => (await defaultRunners(dir).git(["rev-parse", "--abbrev-ref", "HEAD"])).trim();
 }

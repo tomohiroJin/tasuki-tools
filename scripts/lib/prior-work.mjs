@@ -12,7 +12,10 @@
  * **知らせるだけで止めない。** gh が無い・未認証・ネットワークが無いときは、失敗でなく「未実行」と理由を返す。
  * gh と git は引数で受け取る（`(args) => stdout`。失敗なら投げる）。テストは偽物を渡す。
  */
-import { execFileSync } from "node:child_process";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+
+const execFileAsync = promisify(execFile);
 
 /** PR の検索の上限。これに当たったら切れている可能性がある。 */
 export const SEARCH_LIMIT = 1000;
@@ -37,19 +40,24 @@ export function issueNumbersFromTitle(title) {
 
 /**
  * @param {number} number
- * @param {{ gh: (args: string[]) => string, git: (args: string[]) => string, ownBranch: string }} deps
- * @returns {{ state: "found" | "none" | "unknown", number: number, prs: object[], branches: string[],
- *   total: number | null, truncated: boolean, errors: string[] }}
+ * @param {{ gh: (args: string[]) => string | Promise<string>, git: (args: string[]) => string | Promise<string>, ownBranch: string }} deps
+ *   gh と git は文字列か Promise を返す（失敗なら投げる／棄却する）。2 つは並列に引く（待ちを長い方の 1 回分にする）
+ * @returns {Promise<{ state: "found" | "none" | "unknown", number: number, prs: object[], branches: string[],
+ *   total: number | null, truncated: boolean, errors: string[] }>}
  */
-export function findPriorWork(number, { gh, git, ownBranch }) {
+export async function findPriorWork(number, { gh, git, ownBranch }) {
   const errors = [];
+  // body は完全一致の判定（`#番号` が本文だけにある PR）に要るので取る
+  const [ghResult, gitResult] = await Promise.allSettled([
+    (async () => gh(["pr", "list", "--state", "all", "--limit", String(SEARCH_LIMIT), "--search", `#${number} in:title,body`,
+      "--json", "number,title,body,state,headRefName"]))(),
+    (async () => git(["ls-remote", "--heads", "origin"]))(),
+  ]);
   let prs = [];
   let total = null;
   try {
-    const listed = JSON.parse(
-      gh(["pr", "list", "--state", "all", "--limit", String(SEARCH_LIMIT), "--search", `#${number} in:title,body`,
-        "--json", "number,title,body,state,headRefName"]),
-    );
+    if (ghResult.status === "rejected") throw ghResult.reason;
+    const listed = JSON.parse(ghResult.value);
     if (!Array.isArray(listed)) throw new Error("想定と違う出力");
     total = listed.length;
     const exact = new RegExp(`#${number}(?!\\d)`);
@@ -59,11 +67,12 @@ export function findPriorWork(number, { gh, git, ownBranch }) {
   }
   let branches = [];
   try {
-    const exact = new RegExp(`(?:^|[/-])${number}(?!\\d)`);
-    branches = git(["ls-remote", "--heads", "origin"])
+    if (gitResult.status === "rejected") throw gitResult.reason;
+    // 枝の番号の読み方は issueNumberFromBranch と同じ 1 つにする（緩い照合だと node-26 や日付の枝まで当たる）
+    branches = gitResult.value
       .split("\n")
       .map((line) => /\trefs\/heads\/(.+)$/.exec(line)?.[1])
-      .filter((name) => name !== undefined && name !== ownBranch && exact.test(name));
+      .filter((name) => name !== undefined && name !== ownBranch && issueNumberFromBranch(name) === number);
   } catch (error) {
     errors.push(`git ls-remote: ${firstLine(error.message)}`);
   }
@@ -75,14 +84,16 @@ const STATE_LABEL = { OPEN: "開いている", MERGED: "マージ済み", CLOSED
 
 /**
  * ブランチ名から番号を取って引き、知らせの行にする。
- * @returns {{ state: "found" | "none" | "not-run", lines: string[] }}
+ * 番号の無い枝（main・renovate/* ほか）は、確かめるつもりが無いので ⚠ を付けない 1 行の案内にする（`no-number`）。
+ * 確かめるつもりで確かめられなかったとき（gh の失敗ほか）だけ ⚠ の未実行（`not-run`）にする。
+ * @returns {Promise<{ state: "found" | "none" | "not-run" | "no-number", lines: string[] }>}
  */
-export function checkPriorWork({ branch, gh, git }) {
+export async function checkPriorWork({ branch, gh, git }) {
   const number = issueNumberFromBranch(branch);
   if (number === null) {
-    return { state: "not-run", lines: [`⚠ 同じ ISSUE の先行 PR の確認は未実行です（ブランチ名 ${branch} に ISSUE 番号がありません）`] };
+    return { state: "no-number", lines: [`同じ ISSUE の先行 PR の確認は省きました（ブランチ名 ${branch} に ISSUE 番号がありません）`] };
   }
-  return describePriorWork(findPriorWork(number, { gh, git, ownBranch: branch }));
+  return describePriorWork(await findPriorWork(number, { gh, git, ownBranch: branch }));
 }
 
 /** {@link findPriorWork} の結果を知らせの行にする（フックは複数の番号を引くので、ここを共有する）。 */
@@ -100,12 +111,12 @@ export function describePriorWork(r) {
   }
   if (r.errors.length > 0) lines.push(`⚠ 一部を確かめられませんでした（${r.errors.join("・")}）`);
   if (r.truncated) lines.push(`⚠ 検索が上限（${SEARCH_LIMIT} 件）に当たりました。切れている可能性があります`);
-  return { state: r.state, lines };
+  return { state: r.state, lines, truncated: r.truncated };
 }
 
-/** 本番の gh と git。どちらも `cwd` で実行し、15 秒で打ち切る。 */
+/** 本番の gh と git。どちらも `cwd` で実行し、15 秒で打ち切る。Promise を返す（並列に引くため）。 */
 export function defaultRunners(cwd) {
-  const run = (cmd) => (args) =>
-    execFileSync(cmd, args, { cwd, encoding: "utf8", timeout: 15_000, maxBuffer: 64 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"] });
+  const run = (cmd) => async (args) =>
+    (await execFileAsync(cmd, args, { cwd, encoding: "utf8", timeout: 15_000, maxBuffer: 64 * 1024 * 1024 })).stdout;
   return { gh: run("gh"), git: run("git") };
 }

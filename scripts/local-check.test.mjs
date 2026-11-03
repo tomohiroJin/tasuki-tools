@@ -318,7 +318,7 @@ test("速い段は、同じ ISSUE の先行 PR・枝を最初に出し、⚠ を
   const dir = fixture(t);
   fs.writeFileSync(path.join(dir, ".github/workflows/ci.yml"), FAST_CI);
   const prs = JSON.stringify([{ number: 501, title: "docs: 試し（#491）", body: "#504〜", state: "MERGED", headRefName: "x/501" }]);
-  const env = fakeTools(t, { branch: "docs/504-x", prs, heads: "1111\trefs/heads/claude/trial-504-cloud\n" });
+  const env = fakeTools(t, { branch: "docs/504-x", prs, heads: "1111\trefs/heads/docs/504-other\n" });
   const r = spawnSync(process.execPath, [path.join(dir, "scripts/local-check.mjs"), "fast"], { encoding: "utf8", env });
   assert.equal(r.status, 0, r.stdout + r.stderr); // 止めない
   const first = r.stdout.indexOf("PR #501（マージ済み）");
@@ -326,12 +326,19 @@ test("速い段は、同じ ISSUE の先行 PR・枝を最初に出し、⚠ を
   assert.ok(r.stdout.lastIndexOf("⚠ 同じ ISSUE #504 の他の PR・枝があります") > r.stdout.indexOf("実行結果"), r.stdout);
 });
 
-test("速い段は、ブランチに番号が無い・gh が使えないときも失敗にせず未実行と出す（#504）", (t) => {
-  for (const [label, opts] of [["番号なし", { branch: "main" }], ["gh 失敗", { branch: "docs/504-x", ghFails: true }]]) {
-    const dir = fixture(t);
-    fs.writeFileSync(path.join(dir, ".github/workflows/ci.yml"), FAST_CI);
-    const r = spawnSync(process.execPath, [path.join(dir, "scripts/local-check.mjs"), "fast"], { encoding: "utf8", env: fakeTools(t, opts) });
-    assert.equal(r.status, 0, `${label}: ${r.stdout}${r.stderr}`);
-    assert.match(r.stdout, /⚠ 同じ ISSUE.*未実行です/, label);
-  }
+test("速い段は、番号の無い枝では ⚠ なしの案内 1 行で、最後の一覧では繰り返さない（#504）", (t) => {
+  const dir = fixture(t);
+  fs.writeFileSync(path.join(dir, ".github/workflows/ci.yml"), FAST_CI);
+  const r = spawnSync(process.execPath, [path.join(dir, "scripts/local-check.mjs"), "fast"], { encoding: "utf8", env: fakeTools(t, { branch: "renovate/non-breaking" }) });
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.equal(r.stdout.split("先行 PR の確認は省きました").length - 1, 1, r.stdout);
+  assert.doesNotMatch(r.stdout, /⚠ 同じ ISSUE/);
+});
+
+test("速い段は、gh が使えないときは失敗にせず ⚠ の未実行と理由を出し、最後にも繰り返す（#504）", (t) => {
+  const dir = fixture(t);
+  fs.writeFileSync(path.join(dir, ".github/workflows/ci.yml"), FAST_CI);
+  const r = spawnSync(process.execPath, [path.join(dir, "scripts/local-check.mjs"), "fast"], { encoding: "utf8", env: fakeTools(t, { branch: "docs/504-x", ghFails: true }) });
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  assert.ok(r.stdout.lastIndexOf("⚠ 同じ ISSUE #504 の先行 PR の確認は未実行です") > r.stdout.indexOf("実行結果"), r.stdout);
 });

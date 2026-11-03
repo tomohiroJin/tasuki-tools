@@ -1,6 +1,6 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { GUARDED_COMMANDS, SHELL_TOOLS, findGuardedCommands, decideHookOutput } from "./agent-guard.mjs";
+import { GUARDED_COMMANDS, SHELL_TOOLS, findGuardedCommands, findCommandsMatching, decideHookOutput } from "./agent-guard.mjs";
 
 /** 当たった宣言の id を並べる（順序は出現順）。 */
 function ids(command) {
@@ -238,5 +238,28 @@ describe("decideHookOutput: Claude Code の PreToolUse フックの返し方", (
       const out = decideHookOutput(raw);
       assert.equal(out?.hookSpecificOutput?.permissionDecision, "ask", `入力 ${JSON.stringify(raw)}`);
     }
+  });
+});
+
+describe("args の宣言（先行 PR の確認で使う。#504）", () => {
+  const decls = [{ id: "pr-create", program: "gh", args: ["pr", "create"], argOpts: ["-R", "--repo"] }];
+  const match = (c) => findCommandsMatching(c, decls);
+
+  test("選択肢を除いた最初の語から並ぶ gh pr create だけに当たる（引数の中の並びには当てない）", () => {
+    assert.equal(match("gh pr create --title x").length, 1);
+    assert.equal(match("gh -R a/b pr create").length, 1);
+    assert.equal(match("gh --repo a/b pr create").length, 1);
+    for (const c of ["gh issue list --search pr create", "gh issue list --search 'pr create'", "gh search prs pr create", "gh pr list", "gh pr"]) {
+      assert.equal(match(c).length, 0, c);
+    }
+  });
+
+  test("同じコマンドを繰り返しても、語の並びが同じなら 1 つにまとめる。違えば別々に返す", () => {
+    assert.equal(match("gh pr create --title a; gh pr create --title a").length, 1);
+    assert.equal(match("gh pr create --title a; gh pr create --title b").length, 2);
+  });
+
+  test("当たりは語の並び（words）を持つ", () => {
+    assert.deepEqual(match("gh pr create -t x")[0].words, ["gh", "pr", "create", "-t", "x"]);
   });
 });
