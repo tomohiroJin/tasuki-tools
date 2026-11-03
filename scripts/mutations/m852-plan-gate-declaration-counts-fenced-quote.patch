@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-plan-gate.mjs b/scripts/audit-plan-gate.mjs
+index a45e4e16..e7dda9ee 100644
+--- a/scripts/audit-plan-gate.mjs
++++ b/scripts/audit-plan-gate.mjs
+@@ -262,7 +262,7 @@ export function checkGate(rel, text, principles) {
+  * ガイドのパスの両方を含むもの。コードフェンスの中身は落とす（様式の引用で満たさせない）。
+  */
+ export function checkDeclaration(rel, text) {
+-  const head = stripCodeFences(text).split("\n").slice(0, DECLARATION_WINDOW_LINES);
++  const head = text.split("\n").slice(0, DECLARATION_WINDOW_LINES);
+   const ok = head.some(
+     (line) => /^\s*>/.test(line) && line.includes("書き換えない") && line.includes(DECLARATION_GUIDE),
+   );

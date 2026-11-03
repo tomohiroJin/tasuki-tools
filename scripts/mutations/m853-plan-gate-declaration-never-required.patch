@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-plan-gate.mjs b/scripts/audit-plan-gate.mjs
+index a45e4e16..fe5e3802 100644
+--- a/scripts/audit-plan-gate.mjs
++++ b/scripts/audit-plan-gate.mjs
+@@ -336,7 +336,7 @@ function main() {
+       message: `ファイル名が YYYY-MM-DD- で始まっていません    ← 境界日で分類できないため対象外にできません`,
+     });
+   }
+-  for (const rel of declaration.required) {
++  for (const rel of []) {
+     problems.push(...checkDeclaration(rel, fs.readFileSync(path.join(REPO_ROOT, rel), "utf8")));
+   }
+ 
