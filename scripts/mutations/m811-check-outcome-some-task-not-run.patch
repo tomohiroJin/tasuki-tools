@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/check-outcome.mjs b/scripts/lib/check-outcome.mjs
+index 7b10e476..4c6934ac 100644
+--- a/scripts/lib/check-outcome.mjs
++++ b/scripts/lib/check-outcome.mjs
+@@ -88,7 +88,7 @@ export function classifyFailure(output) {
+     blocks = [{ task: null, ...inspectBlock(lines) }];
+   }
+   const notStarted = blocks.filter((b) => b.files.length > 0).map(({ task, files }) => ({ task, files }));
+-  const kind = blocks.length > 0 && blocks.every((b) => b.onlyStartFailures) ? "not-run" : "failed";
++  const kind = blocks.length > 0 && blocks.some((b) => b.onlyStartFailures) ? "not-run" : "failed";
+   const failedCount = failedLine ? blocks.length : 0;
+   const cutOff = tasksLine ? Math.max(0, Number(tasksLine[2]) - Number(tasksLine[1]) - failedCount) : 0;
+   return { kind, notStarted, cutOff };

@@ -1,0 +1,12 @@
+diff --git a/scripts/lib/mutation-select.mjs b/scripts/lib/mutation-select.mjs
+index b85c1e6e..907232a7 100644
+--- a/scripts/lib/mutation-select.mjs
++++ b/scripts/lib/mutation-select.mjs
+@@ -191,7 +191,6 @@ export function narrowingCandidates(mutations, resolved) {
+   // 機構の変更は pkg 配下に数えず、パッチが触るファイル・パッチ自体の規則にだけ効かせる（#508 の /code-review）
+   const { selected } = selectByChange(mutations, {
+     ...resolved,
+-    mechanismFiles: [],
+     ignoreRootConfigs: true,
+     notPkgChanges: resolved.mechanismFiles,
+   });

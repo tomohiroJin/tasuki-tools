@@ -7,12 +7,14 @@
  * 差分が文書だけなら型・lint・単体を省略し、変異の選択は既存の --changed に任せる。
  */
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync, spawnSync } from "node:child_process";
 import { splitJobs, splitSteps } from "./lib/workflow.mjs";
 import { decideScope } from "./lib/ci-scope.mjs";
 import { isDirectRun } from "./lib/direct-run.mjs";
+import { classifyFailure } from "./lib/check-outcome.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -116,23 +118,69 @@ export function planChecks(checks, mode, code) {
   });
 }
 
+/**
+ * 検査を流す。`execute` は真偽か `{ passed, output }` を返す。
+ * 赤の出力が「テストのワーカーが起動しなかった」だけなら、失敗ではなく未実行（`not-run`）と分ける（#508）。
+ * 未実行も緑ではない（終了コードは非ゼロ）。流し直すかどうかを人が決められるように、区別して見せる。
+ */
 export function runChecks(plan, { preflight, execute }) {
   const ready = preflight();
   return plan.map((check) => {
     const reason = check.reason ?? (!ready ? "事前の版チェックが失敗したため開始しない" : null);
     if (reason) return { ...check, status: "skipped", reason };
-    try { return { ...check, status: execute(check) ? "passed" : "failed" }; }
-    catch (error) { return { ...check, status: "failed", reason: error.message }; }
+    try {
+      const result = execute(check);
+      const { passed, output = "" } = typeof result === "object" ? result : { passed: result };
+      if (passed) return { ...check, status: "passed" };
+      const { kind, notStarted, cutOff } = classifyFailure(output);
+      const where = notStarted.map((b) => `${b.task ?? ""}${b.task ? ": " : ""}${b.files.length} ファイル`).join("・");
+      if (kind === "failed") {
+        // 本物の失敗と一緒に起動しなかったものがあれば、それも書く（流し直す範囲が分かるように）
+        return notStarted.length === 0 ? { ...check, status: "failed" } : { ...check, status: "failed", reason: `ほかにワーカーが起動しなかったもの: ${where}` };
+      }
+      return {
+        ...check, status: "not-run",
+        // 打ち切られたタスクがあれば、その中の本物の失敗は見えていない。パッケージだけを流し直すと見落とす
+        reason: cutOff > 0
+          ? `テストのワーカーが起動しなかった（${where}）。ほかに turbo が打ち切ったタスクが ${cutOff} 個あり、その結果は分かりません。負荷が下がってから、同じコマンド（${check.command.split("\n")[0]}）を流し直してください`
+          : `テストのワーカーが起動しなかった（${where}）。負荷が下がってから流し直してください（パッケージだけなら pnpm --filter <名前> test）`,
+      };
+    } catch (error) { return { ...check, status: "failed", reason: error.message }; }
   });
 }
 
+/** 出力をその場で流しつつ、分類のために控える（tee）。 */
 function execute(check) {
   console.log(`\n[local-check] ${check.job ?? "preflight"}: ${check.command}`);
-  const result = spawnSync("bash", ["-e", "-o", "pipefail", "-c", check.command], {
-    cwd: ROOT, stdio: "inherit", env: { ...process.env, COREPACK_ENABLE_DOWNLOAD_PROMPT: "0", ...check.env },
-  });
-  if (result.error) console.error(result.error.message);
-  return !result.error && result.status === 0;
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "local-check-"));
+  const log = path.join(dir, "output.log");
+  try {
+    const result = spawnSync("bash", ["-o", "pipefail", "-c", 'bash -e -o pipefail -c "$1" 2>&1 | tee "$2"', "local-check", check.command, log], {
+      cwd: ROOT, stdio: "inherit", env: { ...process.env, COREPACK_ENABLE_DOWNLOAD_PROMPT: "0", ...check.env },
+    });
+    if (result.error) console.error(result.error.message);
+    const passed = !result.error && result.status === 0;
+    return { passed, output: passed || !fs.existsSync(log) ? "" : fs.readFileSync(log, "utf8") };
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+}
+
+/**
+ * 速い段の変異の見込み（#508）。変異の検査を流す前に、件数・見込みの時間・全件への切り替え・基準の新しさを出す。
+ * 計画の変異のコマンドに `--plan` を足して流す（変異は流さない）。知らせの行（⚠）は最後の一覧でもう一度出す。
+ */
+function forecastMutations(plan) {
+  const mutation = plan.find((c) => c.job === "mutation" && !c.reason);
+  if (!mutation) return [];
+  const result = spawnSync("bash", ["-e", "-o", "pipefail", "-c", `${mutation.command} --plan`], { cwd: ROOT, encoding: "utf8" });
+  const output = `${result.stdout ?? ""}${result.stderr ?? ""}`.trimEnd();
+  console.log(`[local-check] 変異の見込み（${mutation.command} --plan）`);
+  if (output) console.log(output);
+  if (result.error || result.status !== 0) {
+    const cause = result.error?.message ?? (result.signal ? `signal ${result.signal}` : `exit ${result.status}`);
+    return [`⚠ 変異の見込みを出せませんでした（${cause}）`];
+  }
+  // 知らせ（⚠）と、それが指す「手元で絞るなら」の行を最後にもう一度出す
+  return output.split("\n").filter((l) => l.includes("⚠") || l.includes("手元で絞るなら"));
 }
 
 function hasCodeChanges() {
@@ -153,18 +201,22 @@ function main() {
   try {
     const checks = deriveChecks(fs.readFileSync(path.join(ROOT, ".github/workflows/ci.yml"), "utf8"));
     const plan = planChecks(checks, mode, mode === "full" || hasCodeChanges());
+    const notices = mode === "fast" ? forecastMutations(plan) : [];
     if (args.includes("--list")) {
       for (const c of plan) console.log(`[${c.reason ? "省略" : "予定"}] ${c.job}: ${c.command.replaceAll("\n", " / ")}${c.env ? ` ${JSON.stringify(c.env)}` : ""}${c.reason ? ` — ${c.reason}` : ""}`);
       return;
     }
     let ready = false;
     const results = runChecks(plan, {
-      preflight: () => { ready = execute({ command: `node scripts/check-toolchain.mjs ${mode === "full" ? "e2e" : "test"}` }); return ready; },
+      preflight: () => { ready = execute({ command: `node scripts/check-toolchain.mjs ${mode === "full" ? "e2e" : "test"}` }).passed; return ready; },
       execute,
     });
     console.log("\n[local-check] 実行結果（CI の run から導出）");
-    for (const c of results) console.log(`[${{ passed: "成功", failed: "失敗", skipped: "省略" }[c.status]}] ${c.job}: ${c.command.replaceAll("\n", " / ")}${c.env ? ` ${JSON.stringify(c.env)}` : ""}${c.reason ? ` — ${c.reason}` : ""}`);
-    process.exitCode = !ready || results.some((c) => c.status === "failed") ? 1 : 0;
+    for (const c of results) console.log(`[${{ passed: "成功", failed: "失敗", skipped: "省略", "not-run": "未実行" }[c.status]}] ${c.job}: ${c.command.replaceAll("\n", " / ")}${c.env ? ` ${JSON.stringify(c.env)}` : ""}${c.reason ? ` — ${c.reason}` : ""}`);
+    for (const line of notices) console.log(`[local-check] ${line}`);
+    const count = (status) => results.filter((c) => c.status === status).length;
+    if (count("not-run") > 0) console.log(`[local-check] 失敗 ${count("failed")} 件・未実行 ${count("not-run")} 件（未実行はテストの失敗ではなく、走らなかったもの）`);
+    process.exitCode = !ready || results.some((c) => c.status === "failed" || c.status === "not-run") ? 1 : 0;
   } catch (error) { console.error(`[local-check] ${error.message}`); process.exitCode = 1; }
 }
 

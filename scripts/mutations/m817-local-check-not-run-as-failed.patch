@@ -1,0 +1,13 @@
+diff --git a/scripts/local-check.mjs b/scripts/local-check.mjs
+index ff060870..ef891897 100644
+--- a/scripts/local-check.mjs
++++ b/scripts/local-check.mjs
+@@ -134,7 +134,7 @@ export function runChecks(plan, { preflight, execute }) {
+       if (passed) return { ...check, status: "passed" };
+       const { kind, notStarted, cutOff } = classifyFailure(output);
+       const where = notStarted.map((b) => `${b.task ?? ""}${b.task ? ": " : ""}${b.files.length} ファイル`).join("・");
+-      if (kind === "failed") {
++      if (kind !== "") {
+         // 本物の失敗と一緒に起動しなかったものがあれば、それも書く（流し直す範囲が分かるように）
+         return notStarted.length === 0 ? { ...check, status: "failed" } : { ...check, status: "failed", reason: `ほかにワーカーが起動しなかったもの: ${where}` };
+       }

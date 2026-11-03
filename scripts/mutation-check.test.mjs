@@ -18,6 +18,7 @@ import {
   controlKeyOf,
   DIRTY_CHECK_EXCLUDES,
   RUNNER_COST_SECONDS,
+  forecastLines,
   weightOfGroup,
 } from "./mutation-check.mjs";
 import { MUTATIONS } from "./lib/mutation-declarations.mjs";
@@ -381,6 +382,18 @@ describe("選び方の指定の配線（#387）", () => {
     assert.notEqual(r.status, 0);
     assert.match(r.stderr, /別の実行（PID \d+）が走っています/);
     assert.doesNotMatch(r.stdout, /該当する変異はありません/);
+  });
+
+  test("--plan はロックより前に、件数と見込みを出して変異を流さずに終わる（#508）", () => {
+    // 生きたロックがあっても止まらない（見込みを見るだけで、走っている実行の邪魔をしない）
+    const r = run("--changed", "--base", "HEAD", "--plan");
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stdout, /見込み: \d+ 件・約/);
+    // 表題（選び方と、全件に倒れたときの理由）も見込みより先に出る（/code-review）
+    assert.match(r.stdout, /絞り込み実行（--changed・基準 HEAD）[^\n]*\n[^\n]*見込み:/);
+    assert.match(r.stdout, /--plan: 見込みだけを出しました。変異は流していません/);
+    assert.doesNotMatch(r.stderr, /別の実行（PID/);
+    assert.doesNotMatch(r.stdout, /--- 変異 #/);
   });
 
   test("--base の打ち間違いはエラーで止まり、ref の名前を伝える", () => {
@@ -929,5 +942,41 @@ describe("CI への配線: 変異検査を分けて流す（#481）", () => {
     assert.match(block, /^\s*if: always\(\)\s*$/m);
     assert.match(block, /^\s*RESULT: \$\{\{ needs\.mutation\.result \}\}\s*$/m);
     assert.match(block, /test "\$RESULT" = success/);
+  });
+});
+
+/**
+ * 流し始める前の行の配線（#508 の敵対的レビュー 1）。部品（基準の新しさ・絞る候補）はそれぞれの単体テストが見るが、
+ * 本体がそれを呼んでいることはここで見る。`--plan` の配線のテストは `--base HEAD` なので、基準の新しさの道を通らない。
+ */
+describe("流し始める前の行（forecastLines・#508）", () => {
+  const muts = [
+    { id: 1, pkg: "scripts", tests: ["a.test.mjs"], patch: "m1.patch" },
+    { id: 2, pkg: "scripts/x", tests: ["b.test.mjs"], patch: "m2.patch" },
+  ];
+  const resolved = {
+    kind: "changed",
+    base: "origin/main",
+    changedFiles: ["scripts/mutation-check.mjs", "scripts/x/y.mjs"],
+    mechanismFiles: ["scripts/mutation-check.mjs"],
+    patchDir: "scripts/mutations",
+    affectedFilesOf: () => [],
+  };
+  const fallback = { selected: muts.map((mutation) => ({ mutation, reasons: [] })), fallbackToAll: "変異検査の機構が変わった" };
+
+  test("--changed が全件に倒れたら、絞る候補と基準の新しさを出す", () => {
+    const asked = [];
+    const lines = forecastLines(resolved, fallback, resolved, 1, (base) => (asked.push(base), "⚠ 基準が古い"), muts);
+    assert.deepEqual(asked, ["origin/main"]);
+    assert.match(lines[0], /^見込み: 2 件/);
+    assert.ok(lines.some((l) => /--id 1,2（/.test(l)), lines.join("\n"));
+    assert.equal(lines.at(-1), "⚠ 基準が古い");
+  });
+
+  test("--changed でなければ基準を見ない", () => {
+    const lines = forecastLines({ kind: "id", ids: [1] }, { ...fallback, fallbackToAll: null }, { kind: "id", ids: [1] }, 1, () => {
+      throw new Error("呼ばれてはならない");
+    }, muts);
+    assert.equal(lines.length, 1);
   });
 });

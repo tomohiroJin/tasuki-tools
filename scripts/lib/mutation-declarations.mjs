@@ -34,6 +34,9 @@ const RESERVED_760_779 =
 const RESERVED_800_809 =
   "**対応表より後に足した変異。** 800〜809 は #480 に割り当てた範囲。2026-11-01 時点の最大（771）から離し、並行の枝と重ならない帯を取った。";
 
+const RESERVED_810_819 =
+  "**対応表より後に足した変異。** 810〜819 は #508 に割り当てた範囲（並行の #505・#509 と重ならないよう、利用者が割り当てた）。";
+
 const RESERVED_820_829 =
   "**対応表より後に足した変異。** 820〜829 は #509 に割り当てた範囲（#505・#508 と並行に進めたため、帯を分けた）。";
 
@@ -4847,6 +4850,86 @@ export const MUTATIONS = [
       " " +
       "#480（PR #502 の敵対的レビュー 1）。字は画面の幅で流れるので、幅の広い側で 8 字の名前が 1 字だけ次の行に落ちる。" +
       "実際の見え方は E2E（checkin.spec.ts の その6・639px）も見るが、E2E の spec は変異検査のランナーに載らないので、宣言で守る。",
+  },
+  {
+    id: 810,
+    label: "検査の赤の分類が本物の失敗の印（FAIL・×・Tests N failed など）を見ない",
+    patch: "m810-check-outcome-ignore-real-failures.patch",
+    pkg: "scripts",
+    tests: ["lib/check-outcome.test.mjs"],
+    note: RESERVED_810_819 + " " + "#508。テストが落ちた赤を「未実行」と出し、壊したのに負荷のせいだと読ませる。",
+  },
+  {
+    id: 811,
+    label: "turbo の失敗したタスクのうち 1 つでも起動の失敗だけなら、全体を未実行と分類する",
+    patch: "m811-check-outcome-some-task-not-run.patch",
+    pkg: "scripts",
+    tests: ["lib/check-outcome.test.mjs"],
+    note: RESERVED_810_819 + " " + "#508。別のパッケージの本物の失敗が、未実行の陰に隠れる。",
+  },
+  {
+    id: 812,
+    label: "vitest の未処理のエラーの数を見ず、起動の失敗があれば未実行と分類する",
+    patch: "m812-check-outcome-ignore-unhandled-count.patch",
+    pkg: "scripts",
+    tests: ["lib/check-outcome.test.mjs"],
+    note: RESERVED_810_819 + " " + "#508。テストが投げた未処理のエラーが、同じタスクの起動の失敗と一緒に未実行へ化ける。",
+  },
+  {
+    id: 813,
+    label: "--changed の基準がリモートと違っても「同じ」と言う",
+    patch: "m813-base-freshness-stale-reported-fresh.patch",
+    pkg: "scripts",
+    tests: ["lib/base-freshness.test.mjs"],
+    note: RESERVED_810_819 + " " + "#508。古い origin/main のまま取り込み済みの変異まで選び、手元で長く走る（#491 の準備のセッション）。",
+  },
+  {
+    id: 814,
+    label: "リモートに問い合わせられないとき、何も知らせない",
+    patch: "m814-base-freshness-ls-remote-failure-silent.patch",
+    pkg: "scripts",
+    tests: ["lib/base-freshness.test.mjs"],
+    note: RESERVED_810_819 + " " + "#508。確かめていないのに知らせが無く、基準が新しいと読ませる。",
+  },
+  {
+    id: 815,
+    label: "--changed が全件に倒れても、見込みの行に知らせと絞る --id を出さない",
+    patch: "m815-forecast-no-fallback-notice.patch",
+    pkg: "scripts",
+    tests: ["lib/mutation-select.test.mjs"],
+    note: RESERVED_810_819 + " " + "#508。宣言を触った枝の check:fast が、知らせなしに手元で全件（9p で数時間）を流し始める。",
+  },
+  {
+    id: 816,
+    label: "手元で絞る候補を選び直すとき、機構の変更を外さない（全件をそのまま候補にする）",
+    patch: "m816-narrowing-keeps-mechanism.patch",
+    pkg: "scripts",
+    tests: ["lib/mutation-select.test.mjs"],
+    note: RESERVED_810_819 + " " + "#508。絞る道として示す --id が全件になり、絞れない。",
+  },
+  {
+    id: 817,
+    label: "check:fast の結果で、ワーカーが起動しなかっただけの赤も「失敗」と出す",
+    patch: "m817-local-check-not-run-as-failed.patch",
+    pkg: "scripts",
+    tests: ["local-check.test.mjs"],
+    note: RESERVED_810_819 + " " + "#508。走らなかったのに失敗と区別できず、無い不具合を探しに行く（#491 の罠 6）。",
+  },
+  {
+    id: 818,
+    label: "check:fast が未実行の検査を残しても 0 で終わる",
+    patch: "m818-local-check-not-run-exits-zero.patch",
+    pkg: "scripts",
+    tests: ["local-check.test.mjs"],
+    note: RESERVED_810_819 + " " + "#508。走らなかった単体を緑と数える（偽の緑）。",
+  },
+  {
+    id: 819,
+    label: "check:fast の速い段で、変異の見込みを出さない",
+    patch: "m819-local-check-forecast-after-checks.patch",
+    pkg: "scripts",
+    tests: ["local-check.test.mjs"],
+    note: RESERVED_810_819 + " " + "#508。全件に倒れたことに、変異が流れ始めてから途中で気づく（#491 の罠 5）。",
   },
   {
     id: 820,

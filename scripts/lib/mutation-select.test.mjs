@@ -1,6 +1,15 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { parseSelector, selectMutations, mechanismFilesFrom, formatSelectionHeader, successMessage } from "./mutation-select.mjs";
+import {
+  parseSelector,
+  selectMutations,
+  mechanismFilesFrom,
+  formatSelectionHeader,
+  successMessage,
+  narrowingCandidates,
+  estimateSeconds,
+  formatForecast,
+} from "./mutation-select.mjs";
 
 /**
  * `scripts/lib/mutation-select.mjs` の自己テスト（#387）。
@@ -327,5 +336,68 @@ describe("緑の最後の 1 行（successMessage）", () => {
     const msg = successMessage({ kind: "pkg", pkg: "apps/a" }, null, 3);
     assert.match(msg, /選んだ 3 件/);
     assert.doesNotMatch(msg, /全変異/);
+  });
+});
+
+describe("全件に倒れる前に知らせる（#508）", () => {
+  test("--plan は選び方に関わらない（読み飛ばす）", () => {
+    assert.deepEqual(parseSelector(["--changed", "--plan"]), { kind: "changed", base: "origin/main", baseExplicit: false });
+    assert.deepEqual(parseSelector(["--plan"]), { kind: "all" });
+  });
+
+  test("絞る候補は、全件に倒す 2 つの条件を外して同じ規則で選び直したもの", () => {
+    // 機構（宣言の表）とルートの共通設定が変わって全件に倒れても、pkg・パッチに当たる変異は候補に残る
+    const resolved = changed(["scripts/mutation-check.mjs", "package.json", "apps/a/src/x.ts", "scripts/mutations/m03-d.patch"]);
+    assert.notEqual(selectMutations(MUTS, resolved).fallbackToAll, null);
+    assert.deepEqual(narrowingCandidates(MUTS, resolved).map((m) => m.id), [1, 3]);
+    assert.deepEqual(narrowingCandidates(MUTS, changed(["scripts/mutation-check.mjs"])), []);
+    // 機構のファイル自体は pkg 配下の変更に数えない（`scripts` の変異が全部候補になって絞れない・/code-review）
+    const scriptsMut = { id: 5, pkg: "scripts", patch: "m05-s.patch" };
+    const onlyDecl = { ...changed(["scripts/lib/mutation-select.mjs"]), affectedFilesOf: () => ["scripts/other.mjs"] };
+    assert.deepEqual(narrowingCandidates([scriptsMut], onlyDecl), []);
+    assert.deepEqual(narrowingCandidates([scriptsMut], { ...onlyDecl, changedFiles: ["scripts/lib/mutation-select.mjs", "scripts/x.mjs"] }).map((m) => m.id), [5]);
+    // パッチが機構を触る変異は、機構の変更で候補に残る
+    assert.deepEqual(narrowingCandidates([scriptsMut], { ...onlyDecl, affectedFilesOf: () => ["scripts/lib/mutation-select.mjs"] }).map((m) => m.id), [5]);
+    assert.equal(narrowingCandidates(MUTS, changed(null)), null);
+    assert.equal(narrowingCandidates(MUTS, { kind: "all" }), null);
+  });
+
+  test("見込みは対照の組の重さの和で、--jobs のときは組の数を上限に割る", () => {
+    const muts = [
+      { id: 1, pkg: "a", tests: ["t1"] },
+      { id: 2, pkg: "a", tests: ["t1"] },
+      { id: 3, pkg: "b", tests: ["t2"] },
+    ];
+    const weightOf = (g) => 10 * g.mutations.length;
+    assert.equal(estimateSeconds(muts, weightOf), 30);
+    assert.equal(estimateSeconds(muts, weightOf, 2), 15);
+    assert.equal(estimateSeconds(muts, weightOf, 8), 15); // 組は 2 つしかない
+    assert.equal(estimateSeconds([], weightOf, 4), 0);
+  });
+
+  const sel = (n, fallbackToAll = null) => ({ selected: Array.from({ length: n }, (_, i) => ({ mutation: { id: i + 1 } })), fallbackToAll });
+
+  test("見込みの行は件数と時間を出す", () => {
+    assert.deepEqual(formatForecast({ kind: "id", ids: [1] }, sel(1), { seconds: 3.2, jobs: 1, candidates: null }), [
+      "見込み: 1 件・約 4 秒（RUNNER_COST_SECONDS の目安。9p の上や混んだ環境では何倍にもなります）",
+    ]);
+    assert.match(formatForecast({ kind: "all" }, sel(526), { seconds: 1740, jobs: 4, candidates: null })[0], /^見込み: 526 件・約 29 分（--jobs 4・/);
+    // 絞り込みが全件に倒れていなければ、知らせを足さない
+    assert.equal(formatForecast({ kind: "changed", base: "origin/main" }, sel(3), { seconds: 9, jobs: 1, candidates: null }).length, 1);
+  });
+
+  test("--changed が全件に倒れたら、知らせと手元で絞る --id を足す", () => {
+    const lines = formatForecast({ kind: "changed", base: "origin/main" }, sel(526, "変異検査の機構が変わった（x）"), {
+      seconds: 1740,
+      jobs: 1,
+      candidates: [{ id: 810 }, { id: 811 }],
+      candidateSeconds: 20,
+    });
+    assert.equal(lines.length, 3);
+    assert.match(lines[1], /^⚠ --changed が全件に切り替わりました/);
+    assert.match(lines[1], /9p の上では 1 件 1〜2 分/);
+    assert.match(lines[2], /node scripts\/mutation-check\.mjs --id 810,811（.*2 件・見込み約 20 秒/);
+    const none = formatForecast({ kind: "changed", base: "origin/main" }, sel(526, "x"), { seconds: 1, jobs: 1, candidates: [] });
+    assert.match(none[2], /--id <番号> か --pkg <パッケージ>/);
   });
 });

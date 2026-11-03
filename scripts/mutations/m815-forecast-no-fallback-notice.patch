@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/mutation-select.mjs b/scripts/lib/mutation-select.mjs
+index cb75fbf4..d98784c7 100644
+--- a/scripts/lib/mutation-select.mjs
++++ b/scripts/lib/mutation-select.mjs
+@@ -219,7 +219,7 @@ export function formatForecast(selector, { selected, fallbackToAll }, { seconds,
+     `見込み: ${selected.length} 件・約 ${formatDuration(seconds)}` +
+       `（${jobs > 1 ? `--jobs ${jobs}・` : ""}RUNNER_COST_SECONDS の目安。9p の上や混んだ環境では何倍にもなります）`,
+   ];
+-  if (selector.kind !== "changed" || fallbackToAll === null) return lines;
++  if (selector.kind !== "changed" || fallbackToAll !== null) return lines;
+   // 理由は表題（formatSelectionHeader）が出すので、ここでは繰り返さない
+   lines.push(
+     "⚠ --changed が全件に切り替わりました。手元では絞って流し、全件は CI に任せてください" +

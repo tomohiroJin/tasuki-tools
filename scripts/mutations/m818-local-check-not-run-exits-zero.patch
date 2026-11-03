@@ -1,0 +1,13 @@
+diff --git a/scripts/local-check.mjs b/scripts/local-check.mjs
+index 2be50630..91b9dc2b 100644
+--- a/scripts/local-check.mjs
++++ b/scripts/local-check.mjs
+@@ -206,7 +206,7 @@ function main() {
+     for (const line of notices) console.log(`[local-check] ${line}`);
+     const count = (status) => results.filter((c) => c.status === status).length;
+     if (count("not-run") > 0) console.log(`[local-check] 失敗 ${count("failed")} 件・未実行 ${count("not-run")} 件（未実行はテストの失敗ではなく、走らなかったもの）`);
+-    process.exitCode = !ready || results.some((c) => c.status === "failed" || c.status === "not-run") ? 1 : 0;
++    process.exitCode = !ready || results.some((c) => c.status === "failed") ? 1 : 0;
+   } catch (error) { console.error(`[local-check] ${error.message}`); process.exitCode = 1; }
+ }
+ 
