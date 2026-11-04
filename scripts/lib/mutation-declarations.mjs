@@ -55,6 +55,9 @@ const RESERVED_250_259 =
 const RESERVED_900_909 =
   "**対応表より後に足した変異。** 900〜909 は #499 に割り当てた範囲。";
 
+const RESERVED_940_949 =
+  "**対応表より後に足した変異。** 940〜949 は #523 に割り当てた範囲。";
+
 const RESERVED_880_889 =
   "**対応表より後に足した変異。** 880〜889 は #506 の宣言の検査に追加で割り当てた範囲（850〜859 を使い切ったため）。";
 
@@ -5371,6 +5374,70 @@ export const MUTATIONS = [
     pkg: "e2e",
     tests: ["tests/mock-isolation.test.ts"],
     note: RESERVED_900_909 + " " + "#499。vi.mock の工場の vi.fn() の記録が次のテストへ漏れ、ランダムな順で前のテストの呼び出しが残って落ちるテストが出る。このテストは記録をファイルの読み込み時（テストより前）に作り、各テストの前に消えていることを見る。テスト同士の順に頼らないので、ランダムな順でも -t で 1 本だけ流しても検出される。",
+  },
+  {
+    id: 940,
+    label: "SC-040 が .only を見つけない（止める名前の表から only を外す）",
+    patch: "m940-sc040-only-not-detected.patch",
+    pkg: "scripts",
+    tests: ["lib/structure/focused-skipped-tests.test.mjs"],
+    note: RESERVED_940_949 + " " + "#523。`.only` が 1 つ残っても検査が緑のまま、同じファイルの他のテストが黙って流れなくなる。",
+  },
+  {
+    id: 941,
+    label: "SC-040 が、空行で離れたコメントの「理由:」も理由と認める",
+    patch: "m941-sc040-reason-comment-across-blank-lines.patch",
+    pkg: "scripts",
+    tests: ["lib/structure/focused-skipped-tests.test.mjs"],
+    note: RESERVED_940_949 + " " + "#523。`.skip` と無関係な離れたコメントが理由として通り、理由の無い skip が残る。",
+  },
+  {
+    id: 942,
+    label: "SC-040 が、テストを定義する関数以外（agenda.skip・driver.skip など）の .skip も止める",
+    patch: "m942-sc040-any-receiver-skip-flagged.patch",
+    pkg: "scripts",
+    tests: ["lib/structure/focused-skipped-tests.test.mjs"],
+    note: RESERVED_940_949 + " " + "#523。コマンド名・メソッド名の `.skip` で誤検出し、正しいテストが赤くなって検査が信用されなくなる。",
+  },
+  {
+    id: 943,
+    label: "SC-040 が node:test のオプション（{ skip: … }・{ only: true }）を見ない",
+    patch: "m943-sc040-node-test-options-ignored.patch",
+    pkg: "scripts",
+    tests: ["lib/structure/focused-skipped-tests.test.mjs"],
+    note: RESERVED_940_949 + " " + "#523。`node --test` のテストの `only` / `skip` が検査をすり抜ける。",
+  },
+  {
+    id: 944,
+    label: "SC-040 が、中身の無い「理由:」だけのコメントも理由と認める",
+    patch: "m944-sc040-empty-reason-accepted.patch",
+    pkg: "scripts",
+    tests: ["lib/structure/focused-skipped-tests.test.mjs"],
+    note: RESERVED_940_949 + " " + "#523。「理由:」と書くだけで skip が通り、飛ばす理由が記録に残らない。",
+  },
+  {
+    id: 945,
+    label: "audit-structure が SC-040 の違反を見つけても非ゼロで終了しない",
+    patch: "m945-sc040-violation-does-not-exit.patch",
+    pkg: "scripts",
+    tests: ["audit-structure-sc040-wiring.test.mjs"],
+    note: RESERVED_940_949 + " " + "#523。違反を表示するだけで CI が緑になり、`.only` が main に入る。",
+  },
+  {
+    id: 946,
+    label: "SC-040 の走査対象から *.spec.ts（e2e/specs の Playwright）を外す",
+    patch: "m946-sc040-spec-files-not-scanned.patch",
+    pkg: "scripts",
+    tests: ["audit-structure.test.mjs"],
+    note: RESERVED_940_949 + " " + "#523。各パッケージの test ディレクトリの外にある E2E の `.only` が検査をすり抜ける（Playwright の forbidOnly は CI でしか効かない）。",
+  },
+  {
+    id: 948,
+    label: "SC-040 の「名前で分かるテストの一覧が 0 件」のガードを外す",
+    patch: "m948-sc040-zero-named-tests-allowed.patch",
+    pkg: "scripts",
+    tests: ["audit-structure-sc040-wiring.test.mjs"],
+    note: RESERVED_940_949 + " " + "#523。一覧の取得が壊れても、test ディレクトリの分だけで緑になり、E2E・scripts・ui のテストが静かに検査から外れる。",
   },
   {
     id: 947,
