@@ -169,12 +169,13 @@ describe('山札が尽きるとき（G-5・G-6）', () => {
   });
 
   /** 山 D・捨て札 S の取り方。境界（山 = k、山 + 捨て札 = k、その 1 枚前後）を狙う型と、自由な型を混ぜる */
-  type Shape = 'deck-exact' | 'deck-short' | 'pool-exact' | 'pool-short' | 'pool-over' | 'free';
-  const SHAPES: readonly Shape[] = ['deck-exact', 'deck-short', 'pool-exact', 'pool-short', 'pool-over', 'free'];
+  type Shape = 'deck-over' | 'deck-exact' | 'deck-short' | 'pool-exact' | 'pool-short' | 'pool-over' | 'free';
+  const SHAPES: readonly Shape[] = ['deck-over', 'deck-exact', 'deck-short', 'pool-exact', 'pool-short', 'pool-over', 'free'];
   function sizes(shape: Shape, k: number, split: number, freeD: number, freeS: number): { D: number; S: number } {
     // 山に回す枚数。山だけでは足りない 0〜k-1 枚（k = 0 のときは 0）。山 + 捨て札の合計を狙いどおりにする
     const D = k === 0 ? 0 : split % k;
     switch (shape) {
+      case 'deck-over': return { D: k + 1, S: freeS };
       case 'deck-exact': return { D: k, S: freeS };
       case 'deck-short': return { D: Math.max(0, k - 1), S: freeS };
       case 'pool-exact': return { D, S: k - D };
@@ -195,8 +196,12 @@ describe('山札が尽きるとき（G-5・G-6）', () => {
         fc.integer({ min: 0, max: 20 }),
         (k, shape, split, freeD, freeS) => {
           const { D, S } = sizes(shape, k, split, freeD, freeS);
-          // 山 + 捨て札がちょうど足りる境界を踏んだ数を数える（山だけでは足りない D < k の中で D + S = k）
-          if (D < k && D + S === k) tally.set('pool-exact', (tally.get('pool-exact') ?? 0) + 1);
+          // 踏んだ境界を数える（山 D・捨て札 S・捨てる枚数 k）
+          const hit = (name: string) => tally.set(name, (tally.get(name) ?? 0) + 1);
+          if (D === k + 1) hit('deck-over');
+          if (k > 0 && D === k) hit('deck-exact');
+          if (D < k && D + S === k) hit('pool-exact');
+          if (D + S === k - 1) hit('pool-short');
           const game = table(D, S);
           const before = allCards(game);
           const next = exchange(game, Array.from({ length: k }, (_, i) => i));
@@ -216,7 +221,9 @@ describe('山札が尽きるとき（G-5・G-6）', () => {
       ),
       { seed: 522, numRuns: 300 },
     );
-    // 生成器が境界を踏んでいること（踏まなければ性質は 85 行目の両端を守らない）
-    expect(tally.get('pool-exact') ?? 0).toBeGreaterThanOrEqual(20);
+    // 生成器が各境界を 10 回以上踏んでいること（1 回以上では、型から外しても他の型がたまたま踏んで赤くならない。種を固定しているので回数は決まっている）
+    for (const name of ['deck-over', 'deck-exact', 'pool-exact', 'pool-short']) {
+      expect(tally.get(name) ?? 0, `${name} を 10 回以上踏んでいない`).toBeGreaterThanOrEqual(10);
+    }
   });
 });
