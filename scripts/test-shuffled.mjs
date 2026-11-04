@@ -51,7 +51,7 @@ function main() {
   }
   console.log(`\n[shuffle] 種 ${seed}・所要 ${Math.round((Date.now() - started) / 1000)} 秒・失敗 ${failed.length} 件`);
   for (const run of failed) console.log(`[shuffle] 再現（種 ${seed}）: ${reproCommand(run)}`);
-  if (failed.length > 0) console.log("[shuffle] 同じ種で落ちるなら順番依存。種を変えて通るなら、その順のときだけ落ちている（順番依存の疑いが強い）。直し方は ISSUE を切る");
+  if (failed.length > 0) console.log("[shuffle] 上のコマンドは同じ種で同じ順になる。再現したら順番依存。再現しないなら順番ではなく別の不安定さ。見つけた順番依存はこの PR で直さず ISSUE を切る");
   process.exitCode = failed.length > 0 ? 1 : 0;
 }
 
