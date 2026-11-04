@@ -55,6 +55,9 @@ const RESERVED_250_259 =
 const RESERVED_900_909 =
   "**対応表より後に足した変異。** 900〜909 は #499 に割り当てた範囲。";
 
+const RESERVED_950_959 =
+  "**対応表より後に足した変異。** 950〜959 は #524 に割り当てた範囲。";
+
 const RESERVED_880_889 =
   "**対応表より後に足した変異。** 880〜889 は #506 の宣言の検査に追加で割り当てた範囲（850〜859 を使い切ったため）。";
 
@@ -5497,5 +5500,53 @@ export const MUTATIONS = [
     pkg: "packages/roulette-core",
     tests: ["tests/roulette-bounds.test.ts"],
     note: RESERVED_920_924 + " " + "#522。回し始めの時刻が 0 でないと、押して止める回転が回し始めの直後に止まったと見なされ、回転中の拒否と決め方の変更の拒否が効かない。",
+  },
+  {
+    id: 950,
+    label: "ランダムな順の検査が、vitest のパッケージに --sequence.shuffle を足さない（種だけ渡して同じ順で流す）",
+    patch: "m950-shuffled-vitest-drops-shuffle.patch",
+    pkg: "scripts",
+    tests: ["lib/shuffled-tests.test.mjs"],
+    note: RESERVED_950_959 + " " + "#524。vitest のテストが毎回同じ順で流れ、順番依存が入っても全件の段が緑のまま。種をログに出して「ランダムな順で緑」に見えるので、検査があるという安心だけが残る。",
+  },
+  {
+    id: 951,
+    label: "ランダムな順の検査が、bun のパッケージ（同期サーバー）に --randomize を足さない",
+    patch: "m951-shuffled-bun-drops-randomize.patch",
+    pkg: "scripts",
+    tests: ["lib/shuffled-tests.test.mjs"],
+    note: RESERVED_950_959 + " " + "#524。同期サーバーのテストだけが毎回同じ順で流れ、vitest 側が緑でもサーバー側の順番依存を見逃す。",
+  },
+  {
+    id: 952,
+    label: "ランダムな順の検査が、知らないテストランナーのパッケージを落とさず黙って対象外にする",
+    patch: "m952-shuffled-unknown-runner-skipped.patch",
+    pkg: "scripts",
+    tests: ["lib/shuffled-tests.test.mjs"],
+    note: RESERVED_950_959 + " " + "#524。新しいランナーのパッケージが足されても検査の外に出たまま緑になり、ランダムな順で流れていないことに誰も気づかない。",
+  },
+  {
+    id: 953,
+    label: "ランダムな順の検査の再現のコマンドが、順と種の指定を落とす（同じ順にならない）",
+    patch: "m953-shuffled-repro-drops-seed.patch",
+    pkg: "scripts",
+    tests: ["lib/shuffled-tests.test.mjs"],
+    note: RESERVED_950_959 + " " + "#524。落ちた順番依存を手元で再現しようとしても、ログのコマンドは普通の順で流れて緑になり、原因を追えない。",
+  },
+  {
+    id: 954,
+    label: "ランダムな順の検査が、パッケージが落ちても終了コード 0 で終わる",
+    patch: "m954-shuffled-exit-code-always-zero.patch",
+    pkg: "scripts",
+    tests: ["test-shuffled.test.mjs"],
+    note: RESERVED_950_959 + " " + "#524。順番依存のテストが落ちても CI のジョブが緑のままで、検査が何も止めない。",
+  },
+  {
+    id: 955,
+    label: "手元の速い段が、ランダムな順のテストの job を省略せず流す",
+    patch: "m955-local-check-fast-runs-shuffle.patch",
+    pkg: "scripts",
+    tests: ["local-check.test.mjs"],
+    note: RESERVED_950_959 + " " + "#524。全件の段に置いたはずの重い検査（23 パッケージで数分）が pnpm check:fast にも入り、実装中の速さが落ちる。段の置き場が文書とずれる。",
   },
 ];

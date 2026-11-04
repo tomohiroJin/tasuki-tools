@@ -1,0 +1,11 @@
+diff --git a/scripts/lib/shuffled-tests.mjs b/scripts/lib/shuffled-tests.mjs
+index 9327683..92f93b5 100644
+--- a/scripts/lib/shuffled-tests.mjs
++++ b/scripts/lib/shuffled-tests.mjs
+@@ -72,5 +72,5 @@ export function planShuffledRuns(root, seed, dirs = workspacePackageDirs(root))
+ 
+ /** 落ちたときに、同じ種で手元で再現するコマンド（リポジトリのルートから貼れる形）。 */
+ export function reproCommand(run) {
+-  return `cd ${run.dir} && pnpm exec ${run.args.join(" ")}`;
++  return `cd ${run.dir} && pnpm exec ${run.args.slice(0, 2).join(" ")}`;
+ }
