@@ -14,6 +14,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import { listWorkspacePackages } from "./scan-targets.mjs";
 
 /** 種の範囲。vitest・bun とも整数を取る。0 は「種なし」と読まれうるので 1 から。 */
 export const SEED_MAX = 2_147_483_647;
@@ -44,22 +45,12 @@ export function shuffledCommand(testScript, seed) {
   throw new Error(`知らないテストランナーです。ランダムな順の指定を決めて shuffled-tests.mjs に足してください: ${testScript}`);
 }
 
-/** pnpm-workspace.yaml の `packages:` から、package.json を持つパッケージのディレクトリ（root からの相対）を列挙する。 */
+/**
+ * ワークスペースのパッケージのディレクトリ（root からの相対）。列挙は pnpm 自身に任せる
+ * （yaml の手解析は禁止。docs/adr/0014 決定 3。コメント行や書き方の違いで黙って抜けるため）。
+ */
 export function workspacePackageDirs(root) {
-  const yaml = fs.readFileSync(path.join(root, "pnpm-workspace.yaml"), "utf8");
-  const block = /^packages:\n((?:[ \t]+- .*\n?)+)/m.exec(yaml)?.[1];
-  if (!block) throw new Error("pnpm-workspace.yaml の packages が読めません");
-  const dirs = [];
-  for (const line of block.split("\n").filter(Boolean)) {
-    const pattern = /^\s*- ["']?([^"']+?)["']?\s*$/.exec(line)?.[1];
-    if (!pattern) throw new Error(`pnpm-workspace.yaml の packages の行を読めません: ${line}`);
-    const candidates = pattern.endsWith("/*")
-      ? fs.readdirSync(path.join(root, pattern.slice(0, -2)), { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => `${pattern.slice(0, -2)}/${d.name}`)
-      : [pattern];
-    for (const dir of candidates) if (fs.existsSync(path.join(root, dir, "package.json"))) dirs.push(dir);
-  }
-  if (dirs.length === 0) throw new Error("ワークスペースのパッケージが 1 つも見つかりません");
-  return dirs.sort();
+  return listWorkspacePackages(root);
 }
 
 /** 全パッケージの計画。`{ dir, name, args }`（流す）か `{ dir, name, skip }`（対象外）。 */

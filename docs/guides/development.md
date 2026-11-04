@@ -993,13 +993,13 @@ CI は変異も E2E も全件を流し続けます。手元で絞った分の漏
 実装中の速さを守るため。#488 の決まり: 速い段は差分の周りだけ、全件の段は CI の検査をすべて）。
 CI では `ci`・`e2e` と並列の別ジョブなので、`ci` の臨界経路は伸びません（`ci` の後ろに足さない）。
 
-- 中身は `node scripts/test-shuffled.mjs`（部品は `scripts/lib/shuffled-tests.mjs`）。各パッケージの `test` スクリプトに指定を足して 1 つずつ流します:
+- 中身は `node scripts/test-shuffled.mjs --all`（指定が無いと何も流さず使い方を出して終わる。`entry-point-wiring.test.mjs` が引数なしで起動するため、重い検査を無指定で走らせない。単独で起動したときは先に `check-toolchain test` を通し、版が合わなければ始めない）（部品は `scripts/lib/shuffled-tests.mjs`）。各パッケージの `test` スクリプトに指定を足して 1 つずつ流します:
   vitest は `--sequence.shuffle --sequence.seed=<種>`、`apps/tasuki-sync`（bun）は `--randomize --seed=<種>`。
   **`node --test` のパッケージ（`packages/ui`。`scripts/` の自己テストもワークスペースの外で同じ）は対象外**です（Node 22 にランダムな順の指定が無い）。
   知らないランナーが足されたら黙って飛ばさず落ちます（指定を決めて `shuffled-tests.mjs` に足す）
 - **種は毎回変えて、ログの先頭に出します**（`--seed <整数>` で固定もできる）。固定すると 1 通りの順しか見ず、新しく入った順番依存を取りこぼすためです。
   代わりに「落ちたら同じ種で手元で再現できる」ことを守ります: 落ちたパッケージごとに `cd <dir> && pnpm exec vitest run --sequence.shuffle --sequence.seed=<種>` の形の再現コマンドが最後に出ます。
-  パッケージ 1 つだけを流すなら `node scripts/test-shuffled.mjs --pkg <dir> --seed <種>`
+  パッケージ 1 つだけを流すなら `node scripts/test-shuffled.mjs --pkg <dir> --seed <種>`。ワークスペースの列挙は pnpm 自身に任せます（yaml は手で読まない）。合計の行に流した件数と対象外の件数を出し、流したのが 0 件なら緑にしません
 - 落ちたら、まず再現コマンドを流します。再現すれば順番依存、再現しなければ順番ではなく別の不安定さです。
   **見つけた順番依存はその PR で直さず、ISSUE を切ります**（#499 が例）
 - 時間: 手元（他の検査と同居する 4 CPU）で 23 パッケージを順に流して約 5 分（最大は `apps/timer-web` の約 100 秒）。
@@ -1277,7 +1277,7 @@ GitHub Actions 自体を解釈するものではなく、CI 固有の条件の�
 | `quality` | [検査系](#検査系)の全項目 | 同上 |
 | `docs` | リンク検査 | **常時** |
 | `e2e` | E2E | コードに関わる変更 |
-| `shuffle` | ランダムな順のテスト（`node scripts/test-shuffled.mjs`。[下](#ランダムな順のテスト524)） | コードに関わる変更 |
+| `shuffle` | ランダムな順のテスト（`node scripts/test-shuffled.mjs --all`。[下](#ランダムな順のテスト524)） | コードに関わる変更 |
 
 **依存の脆弱性検査（`audit`）のジョブはありません**（#334 で外した。
 [`docs/adr/0024`](../adr/0024-vulnerability-detection-outside-ci.md)）。

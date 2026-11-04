@@ -51,7 +51,7 @@ test("速い段は build・E2E を理由つきで省略し、変異を --changed
 });
 
 test("ランダムな順のテストは全件の段に入り、速い段では理由つきで省略する（#524）", () => {
-  const command = "node scripts/test-shuffled.mjs";
+  const command = "node scripts/test-shuffled.mjs --all";
   const full = planChecks(deriveChecks(workflow), "full", true);
   assert.equal(full.filter((c) => c.command === command && !c.reason).length, 1);
   const fast = planChecks(deriveChecks(workflow), "fast", true);

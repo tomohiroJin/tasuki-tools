@@ -210,7 +210,7 @@ jobs:
       # テストは依存パッケージのビルドを前提にする（turbo の test は ^build に依存）
       - run: pnpm build
         if: steps.scope.outputs.code == 'true'
-      - run: node scripts/test-shuffled.mjs
+      - run: node scripts/test-shuffled.mjs --all
         if: steps.scope.outputs.code == 'true'
 
   # リンク検査。**絞り込まない。**
