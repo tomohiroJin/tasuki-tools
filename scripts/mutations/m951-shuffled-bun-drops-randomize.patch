@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/shuffled-tests.mjs b/scripts/lib/shuffled-tests.mjs
+index 9327683..4e5627d 100644
+--- a/scripts/lib/shuffled-tests.mjs
++++ b/scripts/lib/shuffled-tests.mjs
+@@ -40,7 +40,7 @@ export function shuffledCommand(testScript, seed) {
+   if (words[0] === "node" && words[1] === "--test") return { skip: "node --test は Node 22 にランダムな順の指定が無い" };
+   if (/[&|;<>$`"'()\\*]/.test(testScript)) throw new Error(`test スクリプトにシェルの記法があり、種の指定を足せません: ${testScript}`);
+   if (words[0] === "vitest" && words[1] === "run") return { args: [...words, "--sequence.shuffle", `--sequence.seed=${seed}`] };
+-  if (words[0] === "bun" && words[1] === "test") return { args: [...words, "--randomize", `--seed=${seed}`] };
++  if (words[0] === "bun" && words[1] === "test") return { args: [...words, `--seed=${seed}`] };
+   throw new Error(`知らないテストランナーです。ランダムな順の指定を決めて shuffled-tests.mjs に足してください: ${testScript}`);
+ }
+ 

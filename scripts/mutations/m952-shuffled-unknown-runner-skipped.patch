@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/shuffled-tests.mjs b/scripts/lib/shuffled-tests.mjs
+index e4cabea..a463990 100644
+--- a/scripts/lib/shuffled-tests.mjs
++++ b/scripts/lib/shuffled-tests.mjs
+@@ -42,7 +42,7 @@ export function shuffledCommand(testScript, seed) {
+   if (/[&|;<>$`"'()\\*]/.test(testScript)) throw new Error(`test スクリプトにシェルの記法があり、種の指定を足せません: ${testScript}`);
+   if (words[0] === "vitest" && words[1] === "run") return { args: [...words, "--sequence.shuffle", `--sequence.seed=${seed}`] };
+   if (words[0] === "bun" && words[1] === "test") return { args: [...words, "--randomize", `--seed=${seed}`] };
+-  throw new Error(`知らないテストランナーです。ランダムな順の指定を決めて shuffled-tests.mjs に足してください: ${testScript}`);
++  return { skip: "知らないランナー" };
+ }
+ 
+ /** 計画。`dirs` を省くと全パッケージ（pnpm の列挙。yaml は手で読まない: docs/adr/0014 決定 3）。`{ dir, name, args }`（流す）か `{ dir, name, skip }`（対象外）。 */

@@ -1,0 +1,13 @@
+diff --git a/scripts/local-check.mjs b/scripts/local-check.mjs
+index d3b83f7..4e96d4d 100644
+--- a/scripts/local-check.mjs
++++ b/scripts/local-check.mjs
+@@ -111,7 +111,7 @@ export function planChecks(checks, mode, code) {
+       mutationSeen = true;
+       return { job: check.job, command: "node scripts/mutation-check.mjs --changed" };
+     }
+-    if (check.job === "e2e" || check.job === "shuffle" || check.command === "pnpm build") {
++    if (check.job === "e2e" || check.command === "pnpm build") {
+       return { ...check, reason: "速い段では省略。全件の段で流す" };
+     }
+     if (!code && /^pnpm (typecheck|lint|test)$/.test(check.command)) return { ...check, reason: "差分は文書のみ" };

@@ -16,7 +16,7 @@ test("CI の全検査と matrix の全シャードを同じ引数で導く", () 
   assert.ok(checks.some((c) => c.command.includes("node --test $targets")));
   assert.deepEqual(planChecks(checks, "full", false), checks);
   assert.deepEqual(checks.filter((c) => c.job === "mutation" && !c.reason).map((c) => c.env), [
-    { SHARD_INDEX: "0", SHARD_TOTAL: "2" }, { SHARD_INDEX: "1", SHARD_TOTAL: "2" },
+    { SHARD_INDEX: "0", SHARD_TOTAL: "3" }, { SHARD_INDEX: "1", SHARD_TOTAL: "3" }, { SHARD_INDEX: "2", SHARD_TOTAL: "3" },
   ]);
 });
 
@@ -31,7 +31,7 @@ test("読めない YAML・CI 固有の環境を黙って無視しない", () => 
   for (const changed of [
     workflow.replace("run: pnpm lint", "run: >\n          pnpm lint"),
     workflow.replace("run: pnpm lint", "run: pnpm lint\n        env:\n          EXTRA: true"),
-    workflow.replace("shard: [1, 2]", "shard: [1, 2]\n        platform: [linux, mac]"),
+    workflow.replace("shard: [1, 2, 3]", "shard: [1, 2, 3]\n        platform: [linux, mac]"),
     workflow.replace("run: pnpm lint", "run: echo ${{ secrets.EXAMPLE }}"),
     workflow.replace("      - run: pnpm lint", "      - {run: pnpm lint}"),
     workflow.replace("    runs-on: ubuntu-latest", "    env:\n      EXTRA: true\n    runs-on: ubuntu-latest"),
@@ -48,6 +48,16 @@ test("速い段は build・E2E を理由つきで省略し、変異を --changed
   const docs = planChecks(deriveChecks(workflow), "fast", false);
   assert.ok(docs.find((c) => c.command === "pnpm test").reason);
   assert.ok(docs.some((c) => c.command === "node scripts/check-links.mjs" && !c.reason));
+});
+
+test("ランダムな順のテストは全件の段に入り、速い段では理由つきで省略する（#524）", () => {
+  const command = "node scripts/test-shuffled.mjs --all";
+  const full = planChecks(deriveChecks(workflow), "full", true);
+  assert.equal(full.filter((c) => c.command === command && !c.reason).length, 1);
+  const fast = planChecks(deriveChecks(workflow), "fast", true);
+  assert.match(fast.find((c) => c.command === command).reason, /速い段/);
+  // 速い段で、shuffle ジョブの流す検査が 1 本も残らない（build も省略される）
+  assert.ok(fast.filter((c) => c.job === "shuffle").every((c) => c.reason));
 });
 
 test("供給網 install は両方の段で CI 専用として省略し、実行しない", () => {

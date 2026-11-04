@@ -1,0 +1,11 @@
+diff --git a/scripts/lib/shuffled-tests.mjs b/scripts/lib/shuffled-tests.mjs
+index e4cabea..32632c5 100644
+--- a/scripts/lib/shuffled-tests.mjs
++++ b/scripts/lib/shuffled-tests.mjs
+@@ -58,5 +58,5 @@ export function planShuffledRuns(root, seed, dirs = listWorkspacePackages(root))
+  * `--root` で別のワークスペースを流したときは、その絶対パスから `cd` する。
+  */
+ export function reproCommand(run, root = null) {
+-  return `cd ${root ? path.join(root, run.dir) : run.dir} && pnpm exec ${run.args.join(" ")}`;
++  return `cd ${root ? path.join(root, run.dir) : run.dir} && pnpm exec ${run.args.slice(0, 2).join(" ")}`;
+ }

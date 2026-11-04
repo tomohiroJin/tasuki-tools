@@ -1,0 +1,62 @@
+/**
+ * ランダムな順のテスト検査の部品（#524・#495 の B）。
+ *
+ * テストを毎回同じ順で流すだけでは、前のテストの状態に頼るテスト（順番依存）が入っても気づけない
+ * （#496 の調査で 1 件、#499）。全件の段（CI の `shuffle` ジョブ）で、各パッケージの `test` スクリプトに
+ * ランダムな順の指定を足して流す。
+ *
+ * - vitest: `--sequence.shuffle --sequence.seed=<種>`
+ * - bun test: `--randomize --seed=<種>`
+ * - `node --test`（packages/ui・scripts/）: Node 22 にランダムな順の指定が無いので対象外
+ *
+ * 指定は package.json の `test` から導くので、テストのコマンドを変えたパッケージは追随する。
+ * **知らないランナーは黙って飛ばさず、落とす**（新しいランナーのパッケージが検査の外に出るのを防ぐ）。
+ */
+import fs from "node:fs";
+import path from "node:path";
+import { listWorkspacePackages } from "./scan-targets.mjs";
+
+/** 種の範囲。vitest・bun とも整数を取る。0 は「種なし」と読まれうるので 1 から。 */
+export const SEED_MAX = 2_147_483_647;
+
+export function newSeed(random = Math.random) {
+  return 1 + Math.floor(random() * SEED_MAX);
+}
+
+/** `--seed` で渡された値。整数以外・範囲外は受け付けない（黙って別の種にしない）。 */
+export function parseSeed(value) {
+  if (!/^[1-9]\d{0,9}$/.test(String(value)) || Number(value) > SEED_MAX) {
+    throw new Error(`種は 1〜${SEED_MAX} の整数で指定してください: ${value}`);
+  }
+  return Number(value);
+}
+
+/**
+ * `test` スクリプトから、ランダムな順で流すコマンド（単語の並び）を導く。
+ * 戻り値は `{ args }`（流す）か `{ skip }`（理由つきで対象外）。知らない形は投げる。
+ */
+export function shuffledCommand(testScript, seed) {
+  if (typeof testScript !== "string" || testScript.trim() === "") return { skip: "test スクリプトが無い" };
+  const words = testScript.trim().split(/\s+/);
+  if (words[0] === "node" && words[1] === "--test") return { skip: "node --test は Node 22 にランダムな順の指定が無い" };
+  if (/[&|;<>$`"'()\\*]/.test(testScript)) throw new Error(`test スクリプトにシェルの記法があり、種の指定を足せません: ${testScript}`);
+  if (words[0] === "vitest" && words[1] === "run") return { args: [...words, "--sequence.shuffle", `--sequence.seed=${seed}`] };
+  if (words[0] === "bun" && words[1] === "test") return { args: [...words, "--randomize", `--seed=${seed}`] };
+  throw new Error(`知らないテストランナーです。ランダムな順の指定を決めて shuffled-tests.mjs に足してください: ${testScript}`);
+}
+
+/** 計画。`dirs` を省くと全パッケージ（pnpm の列挙。yaml は手で読まない: docs/adr/0014 決定 3）。`{ dir, name, args }`（流す）か `{ dir, name, skip }`（対象外）。 */
+export function planShuffledRuns(root, seed, dirs = listWorkspacePackages(root)) {
+  return dirs.map((dir) => {
+    const pkg = JSON.parse(fs.readFileSync(path.join(root, dir, "package.json"), "utf8"));
+    return { dir, name: pkg.name ?? dir, ...shuffledCommand(pkg.scripts?.test, seed) };
+  });
+}
+
+/**
+ * 落ちたときに、同じ種で手元で再現するコマンド。`root` を省くとリポジトリのルートから貼れる形（相対）。
+ * `--root` で別のワークスペースを流したときは、その絶対パスから `cd` する。
+ */
+export function reproCommand(run, root = null) {
+  return `cd ${root ? path.join(root, run.dir) : run.dir} && pnpm exec ${run.args.join(" ")}`;
+}

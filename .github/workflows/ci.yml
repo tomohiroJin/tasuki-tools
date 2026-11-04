@@ -165,6 +165,58 @@ jobs:
           path: e2e/test-results/
           retention-days: 7
 
+  # ランダムな順のテスト（#524・#495 の B）。各パッケージの test を --sequence.shuffle（vitest）・
+  # --randomize（bun）つきで流し、前のテストの状態に頼る順番依存を見つける。
+  # 種は毎回変えてログの先頭に出し、落ちたパッケージごとに同じ種で手元で再現するコマンドを出す。
+  # node --test のパッケージ（packages/ui）は Node 22 に指定が無いので対象外。
+  # ci に混ぜると臨界経路が伸びる（23 パッケージで約 3.5 分）ので、E2E と同じく並列の別ジョブにする。
+  # 手元では pnpm check:full に入り、pnpm check:fast には入らない。
+  shuffle:
+    runs-on: ubuntu-latest
+    # ランダムな順では、テストが固まる形がありうる。固まったときに既定の 360 分まで待たない。
+    # 実測は 23 パッケージを順に流して約 3.5〜5 分（混んだ環境で 5 分）、install と build を足して 10 分未満。
+    # 上限（15 分）に近づいたら、上げるのではなく並べ方（パッケージを分ける）を見直す（mutation ジョブと同じ考え方）
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      # 版の正本は toolchain.json（#487・docs/adr/0031）。**このファイルに版を書かない**（scripts/audit-toolchain.mjs が見る）。
+      # setup-node より前なので jq で読む（ubuntu-latest に入っている）。-e で、無いキーを null のまま渡さない。
+      - id: toolchain
+        run: |
+          node_version="$(jq -er .node toolchain.json)"
+          bun_version="$(jq -er .bun toolchain.json)"
+          caddy_version="$(jq -er .caddy toolchain.json)"
+          { echo "node=$node_version"; echo "bun=$bun_version"; echo "caddy=$caddy_version"; } >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ steps.toolchain.outputs.node }}
+
+      - id: scope
+        run: node scripts/ci-scope.mjs
+
+      - run: corepack enable
+        if: steps.scope.outputs.code == 'true'
+
+      # 同期サーバー（apps/tasuki-sync）は bun test で走る。
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        if: steps.scope.outputs.code == 'true'
+        with:
+          # 本番（VPS）と手元の Bun に揃えて固定する（2026-10-22 に 1.4.4 で同期サーバーの試験が 1 件落ちた）。
+          # 版は toolchain.json の bun。上げるときは deploy/README.md の「Bun を上げる」
+          bun-version: ${{ steps.toolchain.outputs.bun }}
+
+      - run: pnpm install --frozen-lockfile
+        if: steps.scope.outputs.code == 'true'
+
+      # テストは依存パッケージのビルドを前提にする（turbo の test は ^build に依存）
+      - run: pnpm build
+        if: steps.scope.outputs.code == 'true'
+      - run: node scripts/test-shuffled.mjs --all
+        if: steps.scope.outputs.code == 'true'
+
   # リンク検査。**絞り込まない。**
   # リンクはコードを変えたときにこそ壊れる（ファイルの移動・削除で
   # 現役文書のバッククォート内パスが宙に浮く）。「文書が変わったときだけ」
@@ -218,6 +270,8 @@ jobs:
     runs-on: ubuntu-latest
     # 子が固まったときに既定の 360 分まで待たない。いまの実測は 1 つのシャードで約 5 分（設計正本 §8）。
     # 変異が増えて 20 分に近づいたら、上げるのではなく matrix の行を足す（#481 のレビュー）
+    # 2026-11-04（#524）: 627 件・2 シャードで、重い自己テスト（scan-target-wiring）を流す変異が 1 つのワーカーに
+    # 寄ったシャードが 20 分を越えた（PR #531 の CI）。上限は変えず、3 つ目の行を足した
     timeout-minutes: 20
     strategy:
       # 1 つが落ちても他を止めない。検出されなかった変異を一度にすべて見るため
@@ -226,7 +280,7 @@ jobs:
         # **表示用の番号。** --shard へ渡す番号と数は matrix の値から取らず、GitHub が数える
         # strategy.job-index / job-total から取る（下のステップ）。matrix の値を渡すと、
         # [1, 2, 4] のような書き間違いで 1 つのシャードが黙って流れなくなる。
-        shard: [1, 2]
+        shard: [1, 2, 3]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
