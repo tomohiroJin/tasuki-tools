@@ -1,0 +1,13 @@
+diff --git a/apps/tasuki-sync/src/adapters/ws/tool-channel.ts b/apps/tasuki-sync/src/adapters/ws/tool-channel.ts
+index 6b88ab6..eb1b80f 100644
+--- a/apps/tasuki-sync/src/adapters/ws/tool-channel.ts
++++ b/apps/tasuki-sync/src/adapters/ws/tool-channel.ts
+@@ -85,7 +85,7 @@ export function createTextChannel<Payload, Frame>(spec: TextChannelSpec<Payload,
+   return {
+     notifiesConnect: true,
+     receive(ws, raw, bytes) {
+-      if (bytes > spec.maxMessageBytes) {
++      if (bytes >= spec.maxMessageBytes) {
+         sendIfOpen(ws, tooLargeText);
+         return;
+       }

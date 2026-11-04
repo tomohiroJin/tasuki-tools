@@ -433,6 +433,54 @@ describe("createTokenBucketLimiter", () => {
     });
   });
 
+  describe("設定の検査はそれぞれ自分の文言で投げる（#521）", () => {
+    // 後段の refillFullMs の検査も同じ入力で投げるので、throw したかどうかだけでは
+    // 手前の検査が働いているかを区別できない。文言（どの設定が悪いか）まで見る。
+    it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])(
+      "refillPerSec=%s は「refillPerSec は有限の正数」と投げる",
+      (refillPerSec) => {
+        expect(() => createTokenBucketLimiter({ capacity: 60, refillPerSec })).toThrow(
+          /refillPerSec は有限の正数にすること/,
+        );
+      },
+    );
+
+    it.each([Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, 0, 0.5])(
+      "capacity=%s は「capacity は 1 以上の有限数」と投げる",
+      (capacity) => {
+        expect(() => createTokenBucketLimiter({ capacity, refillPerSec: 1 })).toThrow(
+          /capacity は 1 以上の有限数にすること/,
+        );
+      },
+    );
+
+    it("小さい正の refillPerSec でも、正常な組なら投げない", () => {
+      expect(() => createTokenBucketLimiter({ capacity: 1, refillPerSec: 1 })).not.toThrow();
+      expect(() => createTokenBucketLimiter({ capacity: 1, refillPerSec: 0.001 })).not.toThrow();
+    });
+  });
+
+  describe("掃除を始める件数の境目（#521: size > sweepThreshold）", () => {
+    it("件数がしきい値ちょうどでは走らず、1 件超えたときに初めて走る", () => {
+      // Given: しきい値 2。全部同じ時刻なので間隔条件（初回は常に満たす）は障害にならない
+      const limiter = createTokenBucketLimiter({ capacity: 2, refillPerSec: 1, sweepThreshold: 2 });
+      // When / Then
+      limiter.consume("a", T0);
+      limiter.consume("b", T0); // 件数 2 = しきい値ちょうど
+      expect(limiter.size()).toBe(2);
+      expect(limiter.sweepRunCount()).toBe(0);
+      limiter.consume("c", T0); // 件数 3 > 2
+      expect(limiter.sweepRunCount()).toBe(1);
+    });
+
+    it("しきい値 0 なら 1 件目の消費から走る（0 件目では走らない）", () => {
+      const limiter = createTokenBucketLimiter({ capacity: 2, refillPerSec: 1, sweepThreshold: 0 });
+      expect(limiter.sweepRunCount()).toBe(0);
+      limiter.consume("a", T0); // 件数 1 > 0
+      expect(limiter.sweepRunCount()).toBe(1);
+    });
+  });
+
   describe("設定の検査（I-1: sweepThreshold）", () => {
     it("sweepThreshold が非有限（Infinity）なら throw する", () => {
       // Given: 非有限な sweepThreshold を渡す呼び出し自体が前提の指定を兼ねる
