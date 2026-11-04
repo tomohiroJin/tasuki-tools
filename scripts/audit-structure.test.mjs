@@ -21,7 +21,10 @@ import {
   measureScanVolume,
   formatScanVolume,
   scanVolumeDimensions,
+  SC040_TEST_FILE_PATTERNS,
+  buildSc040Files,
 } from "./audit-structure.mjs";
+import { listRepoFiles } from "./lib/scan-targets.mjs";
 import {
   sc039aUnreachableBranchInApps,
   stripStringsAndComments,
@@ -1817,5 +1820,37 @@ describe("SC-039④: 公開契約に載っているだけの値（#182）", () =
       // Then
       assert.equal(volume["SC-039 公開契約"], 4);
     });
+  });
+});
+
+describe("SC-040: テストの .only と理由の無い .skip の走査対象（#523）", () => {
+  const REPO = new URL("..", import.meta.url).pathname;
+
+  test("各パッケージの test ディレクトリの外にあるテスト（e2e の spec・scripts と ui の node --test）も走査対象に入る", () => {
+    // Given / When
+    const named = listRepoFiles(REPO, SC040_TEST_FILE_PATTERNS);
+    // Then
+    assert.ok(named.some((f) => /^e2e\/specs\/.+\.spec\.ts$/.test(f)), "e2e/specs の *.spec.ts が入っていません");
+    assert.ok(named.some((f) => /^scripts\/.+\.test\.mjs$/.test(f)), "scripts の *.test.mjs が入っていません");
+    assert.ok(named.some((f) => /^packages\/ui\/tests\/.+\.test\.mjs$/.test(f)), "packages/ui の *.test.mjs が入っていません");
+    assert.ok(named.some((f) => f.endsWith(".test.tsx")), "*.test.tsx が入っていません");
+  });
+
+  test("buildSc040Files は test ディレクトリの全ファイルと名前で分かるファイルの和を返し、重なりは読み直さない", () => {
+    // Given
+    const allTestFiles = new Map([
+      ["a/tests/x.test.ts", "X"],
+      ["a/tests/setup.ts", "S"],
+    ]);
+    const read = [];
+    // When
+    const files = buildSc040Files(allTestFiles, ["a/tests/x.test.ts", "e2e/specs/y.spec.ts"], (rel) => {
+      read.push(rel);
+      return "Y";
+    });
+    // Then
+    assert.deepEqual([...files.keys()].sort(), ["a/tests/setup.ts", "a/tests/x.test.ts", "e2e/specs/y.spec.ts"]);
+    assert.deepEqual(read, ["e2e/specs/y.spec.ts"]);
+    assert.equal(files.get("a/tests/x.test.ts"), "X");
   });
 });

@@ -900,7 +900,7 @@ SIGKILL ではプロセスが残る場合があります。次回の実行は別
 手元で先に確かめたいときは次を叩きます。
 
 ```bash
-node scripts/audit-structure.mjs                 # 構造監査（走査対象のずれ・走査 0 件は合否を持つ。ADR-0009 D2 の例外・ADR-0014 決定 7・決定 8）
+node scripts/audit-structure.mjs                 # 構造監査（走査対象のずれ・走査 0 件・テストの .only と理由の無い .skip（SC-040）は合否を持つ。ADR-0009 D2 の例外・ADR-0014 決定 7・決定 8）
 node scripts/audit-log-hygiene.mjs               # ログ衛生（検査の中身は ADR-0012 D1。走査対象のずれ・走査 0 件が合否を持つ根拠は ADR-0014 決定 7・決定 8）
 node scripts/audit-assembly-wiring.mjs           # 組み立ての集約（同期サーバーのエントリが create-sync-server.ts を経由するか。ADR-0004 決定 4）
 node scripts/audit-domain-error-shape.mjs        # ドメインエラー型の形（core のエラー型が message フィールドを持たないか。ADR-0016 決定 2 項目 3）
@@ -944,6 +944,27 @@ bash -c 'set -euo pipefail; targets="$(node scripts/list-scan-targets.mjs shell)
 `git add` するまでは他のファイルからも自分自身からも解決できず、「参照先が
 ありません」と出ます（`git add` すれば解消します）。決定は
 [`docs/adr/0014`](../adr/0014-scan-target-integrity.md) D4。
+
+**テストの `.only` と理由の無い `.skip` は、構造監査（SC-040）が止めます**（#523。規約は
+[`docs/adr/0006`](../adr/0006-test-conventions.md)、機械で守れる規則は検査にする
+[`docs/adr/0030`](../adr/0030-ai-driven-development-operations.md) 決定 2）。`.only` は 1 つ残ると同じファイルの
+他のテストが黙って流れなくなります（Playwright の `forbidOnly` は CI のときだけ効きます）。SC-040 は測定値ではなく
+規約の門で、違反が 1 件でもあれば指標の表を出さずに非ゼロで終わります。
+
+- 見るのは**テストを定義する関数**（`it` / `test` / `describe` / `suite`）から始まる呼び出しの連なりの名前だけです。
+  vitest・bun・`node:test`・Playwright（`test.describe.only` など）を同じ形で覆います。
+  対象は各パッケージの test ディレクトリの全ファイルと、名前で分かる `*.test.ts(x)` / `*.test.mjs` / `*.spec.ts(x)`
+  （`e2e/specs`・`scripts/`・`packages/ui/tests` を含む）です。構文木で読むので、文字列・コメントの中の `.only` や、
+  `agenda.skip(...)` / `driver.skip` のようにコマンド名・メソッド名として現れるものは見ません
+- `.only` は理由があっても止めます。外してください
+- `.skip` / `.skipIf` / `.runIf` / `.todo` / `.fixme`（`node:test` の `{ skip: … }` / `{ todo: … }` も同じ）は、
+  **直上に空行を挟まず `// 理由: …` のコメント**があれば通します。「理由:」の後ろに文字が要ります。
+  飛ばす条件が何で、飛ばした間は何が守られないかを書いてください（例: `apps/tasuki-sync/test/poker/guards.test.ts` の
+  `it.skipIf(EXTERNAL_IP === undefined)`）
+- 見ないもの: 実行中に飛ばす `ctx.skip()` と、別名で取り込んだ関数（`const t = test; t.only(…)`）。
+  テストの定義の構文では区別できません
+- 見つかったら、`.only` は外し、`.skip` 系は理由を書くか外します。**検査側を緩める（走査対象から外す・例外を足す）のは、
+  人の承認を待つ操作です**（`AGENTS.md`「AI 運用規則」）
 
 **`scripts/audit-supply-chain-config.mjs` の権威は pnpm 自身です。** 設定のキーと値は
 `pnpm config list --json`、除外が指す版の実在は `pnpm why` から取ります
