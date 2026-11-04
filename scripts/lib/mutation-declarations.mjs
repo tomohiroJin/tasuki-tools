@@ -64,6 +64,13 @@ const RESERVED_880_889 =
 const RESERVED_920_924 =
   "**対応表より後に足した変異。** 920〜924 は #522 の roulette-core に割り当てた範囲。";
 
+const RESERVED_925_929 =
+  "**対応表より後に足した変異。** 925〜929 は #522 の agenda-core に割り当てた範囲。";
+const RESERVED_930_934 =
+  "**対応表より後に足した変異。** 930〜934 は #522 の timer-core に割り当てた範囲。";
+const RESERVED_935_939 =
+  "**対応表より後に足した変異。** 935〜939 は #522 の poker-core に割り当てた範囲。";
+
 const RESERVED_850_859 =
   "**対応表より後に足した変異。** 850〜859 は #506 に割り当てた範囲。";
 
@@ -5500,6 +5507,145 @@ export const MUTATIONS = [
     pkg: "packages/roulette-core",
     tests: ["tests/roulette-bounds.test.ts"],
     note: RESERVED_920_924 + " " + "#522。回し始めの時刻が 0 でないと、押して止める回転が回し始めの直後に止まったと見なされ、回転中の拒否と決め方の変更の拒否が効かない。",
+  },
+  // #522 agenda-core の変異を宣言しない形（id 48 の書き方）。**等価なもの（宣言しても殺せない）と、925 と観測が同じもの（重複になる）の 2 つがある。**
+  // - agenda.ts:117 `step === undefined` → `false`: 等価。`deadlineOf` が同じ `currentId` で区切りを探し、
+  //   無ければ `null` を返すので、`deadline === null` が先に効いて `step` は未定義にならない。
+  // - agenda.ts:73 の `i > idx` → `i >= idx`・`i > idx` → `true`: 等価。`i === idx` は前の分岐で済み、
+  //   現在より前の飛ばし済みの区切りは通り過ぎた時点で spentMs がすでに 0。
+  // - agenda.ts:73 の `i < limit` → `i <= limit`: 等価。limit は飛ばしていない次の区切り（終了なら steps.length）で、
+  //   その位置は `x.skipped` が偽になる。
+  // - agenda.ts:73 の `x.skipped` → `true`: 等価。(idx, nextIdx) の区間は定義上すべて飛ばし済み。
+  // - agenda.ts:73 の論理演算の変異（`(i > idx || i < limit) && x.skipped`・`(i > idx && i < limit) || x.skipped`・
+  //   `i > idx && (i < limit || x.skipped)`）: 等価ではないが、観測できる振る舞いが 925 と同じ（現在より前の飛ばし済みは
+  //   すでに 0 なので、書き換わるのは次より後ろの飛ばし済みだけ）。ランダムな操作列 2 万件で 925 と出力の差 0 を確かめたので、
+  //   重複を避けて 925 だけを宣言する（これらも足したテストが殺す）。
+  // - agenda.ts:73 の `settle(nextIdx)` → `settle(nextIdx + 1)`: 等価（nextIdx の位置は飛ばしていない）。
+  //   （ランダムな操作列 10 万件で元と比べて差 0。等価でない `i < limit` → `true` は 3,822 件で差が出る。）
+  {
+    id: 925,
+    label: "next が所要を確定するとき、次に来る区切りより後ろの飛ばし済みの区切りまで spentMs を 0 にする（i < limit の条件を外す）",
+    patch: "m925-agenda-settle-skipped-beyond-next.patch",
+    pkg: "packages/agenda-core",
+    tests: ["tests/agenda-bounds.test.ts"],
+    note: RESERVED_925_929 + " " + "#522。まだ来ていない飛ばし済みの区切りが「所要 0 で通り過ぎた」ことになり、後で飛ばしを戻しても所要が 0 のまま残る。代表は条件を外す形。範囲の条件の論理演算を入れ替えた形も観測が同じなので、これで代表する。",
+  },
+  {
+    id: 926,
+    label: "next が終了へ進むとき、所要の確定の範囲を steps.length - 1 までにする（最後の区切りが飛ばし済みでも 0 にならない）",
+    patch: "m926-agenda-settle-finish-misses-last.patch",
+    pkg: "packages/agenda-core",
+    tests: ["tests/agenda-bounds.test.ts", "tests/agenda.test.ts"],
+    note: RESERVED_925_929 + " " + "#522。残りをすべて飛ばして終えるとき、最後の飛ばし済みの区切りの所要が 0 にならず null のまま残る（範囲の上端）。前からある agenda.test.ts の「残りをすべて飛ばした後」も落ちる。足した性質テストと「最後だけが飛ばし済み」の例は、最後の区切りだけが飛ばし済みの場合でも守る。",
+  },
+  {
+    id: 927,
+    label: "next の所要の確定の範囲を i < idx にする（現在の直後から先の、通り過ぎた飛ばし済みが 0 にならない）",
+    patch: "m927-agenda-settle-before-current.patch",
+    pkg: "packages/agenda-core",
+    tests: ["tests/agenda-bounds.test.ts"],
+    note: RESERVED_925_929 + " " + "#522。通り過ぎた飛ばし済みの区切りが 0 にならず null のまま残る（範囲の向きを逆にして、現在の直後から先を外す）。現在より前の飛ばし済みはすでに 0 なので、書き換わりそのものは観測できない。",
+  },
+  {
+    id: 928,
+    label: "advanceIfDue が、期限を過ぎても「次へ自動」の区切りを進めない（onTimeout の判定を常に真にして早期に返す）",
+    patch: "m928-agenda-advance-if-due-never-advances.patch",
+    pkg: "packages/agenda-core",
+    tests: ["tests/agenda-bounds.test.ts", "tests/agenda.test.ts"],
+    note: RESERVED_925_929 + " " + "#522。agenda.ts:117 の判断を常に「進めない」にする形。期限が来ても自動で次へ移らず、会議が止まったままになる。この形は前からある agenda.test.ts でも落ちる（足したテストで初めて殺されるわけではない）。:117 の判断そのものを壊す形として、既存のテストが守っていることの記録に残す。",
+  },
+  {
+    id: 929,
+    label: "advanceIfDue が、期限ちょうどの「次へ自動」の区切りを進めない（deadline > now を deadline >= now にする）",
+    patch: "m929-agenda-advance-if-due-at-deadline-held.patch",
+    pkg: "packages/agenda-core",
+    tests: ["tests/agenda-bounds.test.ts"],
+    note: RESERVED_925_929 + " " + "#522。期限ちょうどの時刻に呼ばれても次へ移らず、1ms 後まで区切りが残る（期限ちょうどで確定する約束が崩れ、所要が 1 回の呼び出しぶん遅れる）。前からある agenda.test.ts は期限ちょうどを見ないので、足したテスト（期限の -1・0・+1ms を機械に選ばせる性質テストと、期限ちょうどで呼ぶ例）が殺す。",
+  },
+  {
+    id: 930,
+    label: "代理の参加者を足す上限の判定を rotation.length >= MAX_MEMBERS → > にする（上限ちょうどの人数でも足せてしまう）",
+    patch: "m930-timer-core-addproxy-limit-off-by-one.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/bounds.properties.test.ts"],
+    note: RESERVED_930_934 + " " + "#522。上限ちょうど（10 人）の輪にもう 1 人入り、11 人になる。上限の検査を丸ごと外す変異も同じテストが落とす（代表は 1 つずれの形）。",
+  },
+  {
+    id: 931,
+    label: "席の移動で、運転手より前の席を運転手の席ちょうどへ動かす判断を toIndex >= currentIndex → > にする（運転手の位置がずれない）",
+    patch: "m931-timer-core-move-driver-lands-on-seat-forward.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/bounds.properties.test.ts"],
+    note: RESERVED_930_934 + " " + "#522。運転手より前の席を運転手の席へ動かすと、運転手が 1 つ前へずれるのに currentIndex が追わず、別の人の番になる。",
+  },
+  {
+    id: 932,
+    label: "席の移動で、運転手より後ろの席を運転手の席ちょうどへ動かす判断を toIndex <= currentIndex → < にする（運転手の位置がずれない）",
+    patch: "m932-timer-core-move-driver-lands-on-seat-backward.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/bounds.properties.test.ts"],
+    note: RESERVED_930_934 + " " + "#522。運転手より後ろの席を運転手の席へ動かすと、運転手が 1 つ後ろへずれるのに currentIndex が追わず、別の人の番になる。",
+  },
+  {
+    id: 933,
+    label: "周回での休憩の判定を totalSwitches - base.switches → totalSwitches + base.switches にする（基準が 0 でないと狂う）",
+    patch: "m933-timer-core-break-rounds-adds-baseline.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/bounds.properties.test.ts"],
+    note: RESERVED_930_934 + " " + "#522。休憩のあと（基準の交代回数が 0 でない）に、次の休憩が早く来すぎる。",
+  },
+  {
+    id: 934,
+    label: "稼働経過時間の時計のずれを now + clockOffset → now - clockOffset にする（ずれの符号が逆）",
+    patch: "m934-timer-core-elapsed-clock-offset-sign.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/bounds.properties.test.ts"],
+    note: RESERVED_930_934 + " " + "#522。クライアントの時計がずれているとき、稼働時間の表示と休憩の判定がずれの向きと逆に狂う。",
+  },
+  // card-game.ts:77 の範囲の検査（`i >= 0 && i < hand.length`）を壊す 6 件（filter を外す・条件を true・&& を ||・
+  // 下端の検査を true・上端の検査を true・上端を <=）は、**等価変異なので宣言しない**（#522）。結果の `drop` は
+  // `hand.filter((_, i) => drop.has(i))` で位置 0〜4 だけを引くので、範囲外の番号が `drop` に入っても振る舞いが変わらない。
+  // 無作為に生成した入力（fast-check。種 1・20,000 runs。±1e300・2**53・4.999999・±MIN_VALUE・任意の double・1〜10 人の連続したチェンジ）で、元と出力の差は 0 件だった。
+  // 範囲の両端そのもの（`> 0`・`hand.length - 1` 未満）は既存のテストが殺すので、これも代表にしない。
+  {
+    id: 935,
+    label: "山札が足りているときも捨て札を切り直して山に足す（:81 の条件を常に真にする）",
+    patch: "m935-poker-exchange-deck-always-reshuffles-discards.patch",
+    pkg: "packages/poker-core",
+    tests: ["tests/card-game-bounds.test.ts"],
+    note: RESERVED_935_939 + " " + "#522。山の残りに前の人の捨て札が混ざり、捨て札が空になる。既存のテストでは生き残る形（調査の 2.5 の 81 行目の `true`）。",
+  },
+  {
+    id: 936,
+    label: "山札がちょうど足りるときにも捨て札を切り直して山に足す（:81 を <= にする）",
+    patch: "m936-poker-exchange-deck-exact-reshuffles-discards.patch",
+    pkg: "packages/poker-core",
+    tests: ["tests/card-game-bounds.test.ts"],
+    note: RESERVED_935_939 + " " + "#522。山の残りと捨て札の中身が仕様とずれる。既存のテストでは生き残る形（2.5 の 81 行目の `<=`）。",
+  },
+  {
+    id: 937,
+    label: "山札と捨て札を合わせてちょうど足りるときにも、今捨てた札を山へ戻す（:85 を <= にする）",
+    patch: "m937-poker-exchange-pool-exact-reshuffles-thrown.patch",
+    pkg: "packages/poker-core",
+    tests: ["tests/card-game-bounds.test.ts"],
+    note: RESERVED_935_939 + " " + "#522。捨てた札が捨て札に残らず山へ戻る。既存のテストでは生き残る形（2.5 の 85 行目の `<=`）。",
+  },
+  {
+    id: 938,
+    label: "山札が 1 枚足りないときに捨て札を切り直さない（:81 を thrown.length - 1 未満にする）",
+    patch: "m938-poker-exchange-deck-one-short-undefined-card.patch",
+    pkg: "packages/poker-core",
+    tests: ["tests/card-game-bounds.test.ts"],
+    note: RESERVED_935_939 + " " + "#522。山が 1 枚足りないのに捨て札を足さず、手に undefined の札が入る。既存のテストでは生き残る。",
+  },
+  {
+    id: 939,
+    label: "山札と捨て札を合わせて 1 枚足りないときに、今捨てた札を山へ戻さない（:85 を thrown.length - 1 未満にする）",
+    patch: "m939-poker-exchange-pool-one-short-undefined-card.patch",
+    pkg: "packages/poker-core",
+    tests: ["tests/card-game-bounds.test.ts"],
+    note: RESERVED_935_939 + " " + "#522。山と捨て札を合わせて 1 枚足りないのに戻さず、手に undefined の札が入る。既存のテストでは生き残る。",
   },
   {
     id: 950,

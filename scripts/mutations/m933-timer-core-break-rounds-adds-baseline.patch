@@ -1,0 +1,12 @@
+diff --git a/packages/timer-core/src/break-policy.ts b/packages/timer-core/src/break-policy.ts
+index d079972..0ddba7f 100644
+--- a/packages/timer-core/src/break-policy.ts
++++ b/packages/timer-core/src/break-policy.ts
+@@ -65,6 +65,6 @@ export function isBreakDue(agg: Aggregate, policy: BreakPolicy, eligibleSeats: n
+       return agg.clock.accumulatedElapsedMs - base.elapsedMs >= policy.every * MS_PER_MINUTE;
+     case "rounds":
+       if (eligibleSeats <= 1) return false;
+-      return agg.session.totalSwitches - base.switches >= eligibleSeats * policy.every;
++      return agg.session.totalSwitches + base.switches >= eligibleSeats * policy.every;
+   }
+ }
