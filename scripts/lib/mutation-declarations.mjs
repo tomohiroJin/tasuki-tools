@@ -5501,7 +5501,7 @@ export const MUTATIONS = [
     tests: ["tests/roulette-bounds.test.ts"],
     note: RESERVED_920_924 + " " + "#522。回し始めの時刻が 0 でないと、押して止める回転が回し始めの直後に止まったと見なされ、回転中の拒否と決め方の変更の拒否が効かない。",
   },
-  // #522 agenda-core の変異を宣言しない形（id 48 の書き方）。**どれも等価、または既存のテストが殺す。**
+  // #522 agenda-core の変異を宣言しない形（id 48 の書き方）。**どれも等価である。**
   // - agenda.ts:117 `step === undefined` → `false`: 等価。`deadlineOf` が同じ `currentId` で区切りを探し、
   //   無ければ `null` を返すので、`deadline === null` が先に効いて `step` は未定義にならない。
   // - agenda.ts:73 の `i > idx` → `i >= idx`・`i > idx` → `true`: 等価。`i === idx` は前の分岐で済み、
@@ -5509,6 +5509,11 @@ export const MUTATIONS = [
   // - agenda.ts:73 の `i < limit` → `i <= limit`: 等価。limit は飛ばしていない次の区切り（終了なら steps.length）で、
   //   その位置は `x.skipped` が偽になる。
   // - agenda.ts:73 の `x.skipped` → `true`: 等価。(idx, nextIdx) の区間は定義上すべて飛ばし済み。
+  // - agenda.ts:73 の論理演算の変異（`(i > idx || i < limit) && x.skipped`・`(i > idx && i < limit) || x.skipped`・
+  //   `i > idx && (i < limit || x.skipped)`）: 等価ではないが、観測できる振る舞いが 925 と同じ（現在より前の飛ばし済みは
+  //   すでに 0 なので、書き換わるのは次より後ろの飛ばし済みだけ）。ランダムな操作列 2 万件で 925 と出力の差 0 を確かめたので、
+  //   重複を避けて 925 だけを宣言する（これらも足したテストが殺す）。
+  // - agenda.ts:73 の `settle(nextIdx)` → `settle(nextIdx + 1)`: 等価（nextIdx の位置は飛ばしていない）。
   //   （ランダムな操作列 10 万件で元と比べて差 0。等価でない `i < limit` → `true` は 3,822 件で差が出る。）
   {
     id: 925,
@@ -5516,15 +5521,15 @@ export const MUTATIONS = [
     patch: "m925-agenda-settle-skipped-beyond-next.patch",
     pkg: "packages/agenda-core",
     tests: ["tests/agenda-bounds.test.ts"],
-    note: RESERVED_925_929 + " " + "#522。まだ来ていない飛ばし済みの区切りが「所要 0 で通り過ぎた」ことになり、後で飛ばしを戻しても所要が 0 のまま残る。代表は条件を外す形。同じ範囲の条件の論理演算（926）・向き（927）とは別の壊し方。",
+    note: RESERVED_925_929 + " " + "#522。まだ来ていない飛ばし済みの区切りが「所要 0 で通り過ぎた」ことになり、後で飛ばしを戻しても所要が 0 のまま残る。代表は条件を外す形。範囲の条件の論理演算を入れ替えた形も観測が同じなので、これで代表する。",
   },
   {
     id: 926,
-    label: "next の所要の確定の範囲を (i > idx || i < limit) && x.skipped にする（論理積を論理和に）",
-    patch: "m926-agenda-settle-or-instead-of-and.patch",
+    label: "next が終了へ進むとき、所要の確定の範囲を steps.length - 1 までにする（最後の区切りが飛ばし済みでも 0 にならない）",
+    patch: "m926-agenda-settle-finish-misses-last.patch",
     pkg: "packages/agenda-core",
-    tests: ["tests/agenda-bounds.test.ts"],
-    note: RESERVED_925_929 + " " + "#522。現在より前の飛ばし済み・次より後ろの飛ばし済みまで 0 で書き換える。agenda.ts:73 の論理演算（調査 2.5 の注: core のテストを丸ごと流すと落ちる。Stryker の誤り）を、足した性質テストだけでも落ちることで守る。",
+    tests: ["tests/agenda-bounds.test.ts", "tests/agenda.test.ts"],
+    note: RESERVED_925_929 + " " + "#522。残りをすべて飛ばして終えるとき、最後の飛ばし済みの区切りの所要が 0 にならず null のまま残る（範囲の上端）。前からある agenda.test.ts の「残りをすべて飛ばした後」も落ちる。足した性質テストと「最後だけが飛ばし済み」の例は、最後の区切りだけが飛ばし済みの場合でも守る。",
   },
   {
     id: 927,
@@ -5532,14 +5537,14 @@ export const MUTATIONS = [
     patch: "m927-agenda-settle-before-current.patch",
     pkg: "packages/agenda-core",
     tests: ["tests/agenda-bounds.test.ts"],
-    note: RESERVED_925_929 + " " + "#522。通り過ぎた飛ばし済みの区切りが 0 にならず null のまま残り、現在より前の区切りが書き換わる。範囲の下端（現在の直後から）を守る。",
+    note: RESERVED_925_929 + " " + "#522。通り過ぎた飛ばし済みの区切りが 0 にならず null のまま残る（範囲の向きを逆にして、現在の直後から先を外す）。現在より前の飛ばし済みはすでに 0 なので、書き換わりそのものは観測できない。",
   },
   {
     id: 928,
     label: "advanceIfDue が、期限を過ぎても「次へ自動」の区切りを進めない（onTimeout の判定を常に真にして早期に返す）",
     patch: "m928-agenda-advance-if-due-never-advances.patch",
     pkg: "packages/agenda-core",
-    tests: ["tests/agenda-bounds.test.ts"],
+    tests: ["tests/agenda-bounds.test.ts", "tests/agenda.test.ts"],
     note: RESERVED_925_929 + " " + "#522。agenda.ts:117 の判断を常に「進めない」にする形。期限が来ても自動で次へ移らず、会議が止まったままになる。この形は前からある agenda.test.ts でも落ちる（足したテストで初めて殺されるわけではない）。:117 の判断そのものを壊す形として、既存のテストが守っていることの記録に残す。",
   },
   {

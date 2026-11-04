@@ -12,7 +12,7 @@
  */
 import * as fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { INITIAL_AGENDA_STATE, advanceIfDue, next, replaceScenario, setSkipped, start } from "../src/agenda.js";
+import { INITIAL_AGENDA_STATE, advanceIfDue, extend, next, pause, replaceScenario, resume, setSkipped, start } from "../src/agenda.js";
 import type { AgendaState, ScenarioInput } from "../src/types.js";
 
 const must = (r: { isOk(): boolean; _unsafeUnwrap(): AgendaState }): AgendaState => r._unsafeUnwrap();
@@ -32,9 +32,12 @@ describe("next: 所要の確定の範囲（#522）", () => {
         fc.integer({ min: 2, max: 7 }),
         fc.integer({ min: 0, max: 100_000 }),
         fc.array(fc.integer({ min: 0, max: 5000 }), { minLength: 7, maxLength: 7 }),
-        fc.array(fc.array(fc.boolean(), { minLength: 7, maxLength: 7 }), { minLength: 7, maxLength: 7 }),
-        fc.constantFrom("random", "none", "all", "last", "alternate"),
-        (n, t0, gaps, masks, shape) => {
+        // 飛ばし方。端の型に、ランダムな 7×7 の表（random のときだけ作る）を混ぜる
+        fc.oneof(
+          fc.constantFrom("none", "all", "last", "alternate").map((shape) => ({ shape, masks: [] as boolean[][] })),
+          fc.array(fc.array(fc.boolean(), { minLength: 7, maxLength: 7 }), { minLength: 7, maxLength: 7 }).map((masks) => ({ shape: "random", masks })),
+        ),
+        (n, t0, gaps, { shape, masks }) => {
           let s = started(n, t0);
           let now = t0;
           let startedAt = t0;
@@ -96,16 +99,17 @@ describe("next: 所要の確定の範囲（#522）", () => {
     expect(s.phase).toBe("finished");
     expect(spents(s)).toEqual([1000, 2000, 0]);
   });
-  it("終了のとき、現在より前の区切りは書き換えない", () => {
-    let s = must(next(started(3, 0), { stepId: "s-1", now: 500 }));
-    s = must(next(skip(s, 2), { stepId: "s-2", now: 800 }));
+  it("終了のとき、通り過ぎた飛ばし済み（0）と終えた区切りの所要を書き換えない", () => {
+    let s = must(next(skip(started(4, 0), 1), { stepId: "s-1", now: 500 })); // s-2 を飛ばして s-3 へ
+    expect(spents(s)).toEqual([500, 0, null, null]);
+    s = must(next(skip(s, 3), { stepId: "s-3", now: 800 })); // 残りの s-4 を飛ばして終了
     expect(s.phase).toBe("finished");
-    expect(spents(s)).toEqual([500, 300, 0]);
+    expect(spents(s)).toEqual([500, 0, 300, 0]);
   });
 });
 
 describe("advanceIfDue: 期限での自動の遷移（#522）", () => {
-  it("期限の 1ms 前は動かず、期限ちょうど・後は自動で次へ移る。移るのは「次へ自動」の区切りだけ", () => {
+  it("期限の 1ms 前は動かず、期限ちょうど・後は自動で次へ移る。移るのは「次へ自動」の区切りだけ（延長・一時停止を挟んでも）", () => {
     fc.assert(
       fc.property(
         fc.integer({ min: 1, max: 6 }),
@@ -114,16 +118,29 @@ describe("advanceIfDue: 期限での自動の遷移（#522）", () => {
         fc.array(fc.integer({ min: 1, max: 20 }), { minLength: 6, maxLength: 6 }),
         fc.nat(5),
         fc.constantFrom(-1, 0, 1),
-        (n, t0, kinds, secs, pick, offset) => {
-          const s0 = must(start(must(replaceScenario(INITIAL_AGENDA_STATE, input(n, kinds, secs))), t0));
-          // 各区切りの終わりの時刻（累積。区切りは期限ちょうどで次が始まる）
+        // 先頭の区切りへの介入: 延長（分。0 を含む）・一時停止（経過のうちに止める位置と止めていた長さ。止めない場合を含む）
+        fc.constantFrom(0, 0, 1, 2, 5),
+        fc.option(fc.record({ at: fc.nat(), held: fc.integer({ min: 0, max: 30_000 }) }), { nil: undefined }),
+        (n, t0, kinds, secs, pick, offset, extMin, pause_) => {
+          let s0 = must(start(must(replaceScenario(INITIAL_AGENDA_STATE, input(n, kinds, secs))), t0));
+          if (extMin > 0) s0 = must(extend(s0, { stepId: "s-1", minutes: extMin }));
+          let shift = 0; // 一時停止で期限が後ろへずれる長さ
+          if (pause_ !== undefined) {
+            const pausedAt = t0 + (pause_.at % (secs[0]! * 1000));
+            const paused = must(pause(s0, pausedAt));
+            // 止めている間は期限が来ない
+            expect(advanceIfDue(paused, pausedAt + pause_.held + 10_000_000)).toBe(paused);
+            s0 = must(resume(paused, pausedAt + pause_.held));
+            shift = pause_.held;
+          }
+          // 各区切りの終わりの時刻（累積。先頭は延長と止めていた長さぶん遅れ、区切りは期限ちょうどで次が始まる）
           const ends: number[] = [];
-          secs.slice(0, n).reduce((acc, sec) => {
-            ends.push(acc + sec * 1000);
-            return acc + sec * 1000;
-          }, t0);
-          const target = ends[pick % n]!;
-          const now = target + offset;
+          let acc = t0 + shift + extMin * 60_000;
+          for (let i = 0; i < n; i++) {
+            acc += secs[i]! * 1000;
+            ends.push(acc);
+          }
+          const now = ends[pick % n]! + offset;
           // オラクル: 先頭から、「次へ自動」で終わりが now 以前の区切りを数える
           let i = 0;
           while (i < n && kinds[i] === "advance" && ends[i]! <= now) i++;
