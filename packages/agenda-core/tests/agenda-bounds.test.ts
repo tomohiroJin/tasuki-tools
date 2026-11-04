@@ -146,10 +146,10 @@ describe("advanceIfDue: 期限での自動の遷移（#522）", () => {
     );
   });
 
-  it("「次へ自動」の区切りは、期限ちょうどで次へ移り、次の始まりは期限（発火の遅れを持ち込まない）", () => {
+  it.each([0, 7])("「次へ自動」の区切りは、期限の +%ims の呼び出しで次へ移り、次の始まりは期限（発火の遅れを持ち込まない）", (late) => {
     const s0 = must(start(must(replaceScenario(INITIAL_AGENDA_STATE, input(2, ["advance", "wait"], [10, 10]))), 100));
     expect(advanceIfDue(s0, 10_099)).toBe(s0);
-    const s = advanceIfDue(s0, 10_100 + 7);
+    const s = advanceIfDue(s0, 10_100 + late);
     expect(s.currentId).toBe("s-2");
     expect(s.stepStartedAt).toBe(10_100);
     expect(s.steps[0]!.spentMs).toBe(10_000);

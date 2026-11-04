@@ -5501,6 +5501,15 @@ export const MUTATIONS = [
     tests: ["tests/roulette-bounds.test.ts"],
     note: RESERVED_920_924 + " " + "#522。回し始めの時刻が 0 でないと、押して止める回転が回し始めの直後に止まったと見なされ、回転中の拒否と決め方の変更の拒否が効かない。",
   },
+  // #522 agenda-core の変異を宣言しない形（id 48 の書き方）。**どれも等価、または既存のテストが殺す。**
+  // - agenda.ts:117 `step === undefined` → `false`: 等価。`deadlineOf` が同じ `currentId` で区切りを探し、
+  //   無ければ `null` を返すので、`deadline === null` が先に効いて `step` は未定義にならない。
+  // - agenda.ts:73 の `i > idx` → `i >= idx`・`i > idx` → `true`: 等価。`i === idx` は前の分岐で済み、
+  //   現在より前の飛ばし済みの区切りは通り過ぎた時点で spentMs がすでに 0。
+  // - agenda.ts:73 の `i < limit` → `i <= limit`: 等価。limit は飛ばしていない次の区切り（終了なら steps.length）で、
+  //   その位置は `x.skipped` が偽になる。
+  // - agenda.ts:73 の `x.skipped` → `true`: 等価。(idx, nextIdx) の区間は定義上すべて飛ばし済み。
+  //   （ランダムな操作列 10 万件で元と比べて差 0。等価でない `i < limit` → `true` は 3,822 件で差が出る。）
   {
     id: 925,
     label: "next が所要を確定するとき、次に来る区切りより後ろの飛ばし済みの区切りまで spentMs を 0 にする（i < limit の条件を外す）",
@@ -5531,7 +5540,7 @@ export const MUTATIONS = [
     patch: "m928-agenda-advance-if-due-never-advances.patch",
     pkg: "packages/agenda-core",
     tests: ["tests/agenda-bounds.test.ts"],
-    note: RESERVED_925_929 + " " + "#522。agenda.ts:117 の判断を常に「進めない」にする形。期限が来ても自動で次へ移らず、会議が止まったままになる。この形は前からある agenda.test.ts でも落ちる（足したテストで初めて殺されるわけではない）。2.5 の「判断を常に偽にする形」の代表として残す。",
+    note: RESERVED_925_929 + " " + "#522。agenda.ts:117 の判断を常に「進めない」にする形。期限が来ても自動で次へ移らず、会議が止まったままになる。この形は前からある agenda.test.ts でも落ちる（足したテストで初めて殺されるわけではない）。:117 の判断そのものを壊す形として、既存のテストが守っていることの記録に残す。",
   },
   {
     id: 929,
