@@ -58,6 +58,9 @@ const RESERVED_900_909 =
 const RESERVED_880_889 =
   "**対応表より後に足した変異。** 880〜889 は #506 の宣言の検査に追加で割り当てた範囲（850〜859 を使い切ったため）。";
 
+const RESERVED_920_924 =
+  "**対応表より後に足した変異。** 920〜924 は #522 の roulette-core に割り当てた範囲。";
+
 const RESERVED_850_859 =
   "**対応表より後に足した変異。** 850〜859 は #506 に割り当てた範囲。";
 
@@ -5454,5 +5457,45 @@ export const MUTATIONS = [
     pkg: "apps/tasuki-sync",
     tests: ["test/ws-adapter.message.test.ts"],
     note: RESERVED_910_919 + " " + "#521。フレームの上限（テキストの受け口。createTextChannel 経由の全ツール）の代表。上限ちょうど（64KB）のメッセージが MESSAGE_TOO_LARGE で弾かれる。",
+  },
+  {
+    id: 920,
+    label: "順番に回すの輪の人数の上限を >= にして、24 人ちょうどを拒む",
+    patch: "m920-roulette-order-wheel-limit-off-by-one.patch",
+    pkg: "packages/roulette-core",
+    tests: ["tests/roulette-bounds.test.ts"],
+    note: RESERVED_920_924 + " " + "#522。順番に回すで、上限ちょうど（24 人）の輪が ROULETTE_TOO_MANY で回せなくなる。他の決め方の上限（:83・:154）とずれる。",
+  },
+  {
+    id: 921,
+    label: "押して止めるの輪の人数の上限を >= にして、24 人ちょうどを拒む",
+    patch: "m921-roulette-press-wheel-limit-off-by-one.patch",
+    pkg: "packages/roulette-core",
+    tests: ["tests/roulette-bounds.test.ts"],
+    note: RESERVED_920_924 + " " + "#522。押して止めるで、上限ちょうど（24 人）の輪が回せなくなる。",
+  },
+  {
+    id: 922,
+    label: "押して止めるの起点の揺らぎの上端（0.8）ちょうどを INVALID_SETTLE で拒む",
+    patch: "m922-roulette-press-settle-max-exclusive.patch",
+    pkg: "packages/roulette-core",
+    tests: ["tests/roulette-bounds.test.ts"],
+    note: RESERVED_920_924 + " " + "#522。乱数源が上端ちょうどを返すと、押して止める回転が始まらない（下端・他の決め方の両端も同じ形で守る）。",
+  },
+  {
+    id: 923,
+    label: "押した位置の席の中の位置 0 ちょうどを ROULETTE_STOP_INVALID で拒む",
+    patch: "m923-roulette-stop-settle-zero-rejected.patch",
+    pkg: "packages/roulette-core",
+    tests: ["tests/roulette-bounds.test.ts"],
+    note: RESERVED_920_924 + " " + "#522。席の境目ちょうどで押した人の押下が捨てられ、止まらないまま 30 秒の自動停止まで回り続ける。",
+  },
+  {
+    id: 924,
+    label: "押して止める回転の回転中の判定が、経過を now + startedAt で測る",
+    patch: "m924-roulette-press-spinning-elapsed-sign.patch",
+    pkg: "packages/roulette-core",
+    tests: ["tests/roulette-bounds.test.ts"],
+    note: RESERVED_920_924 + " " + "#522。回し始めの時刻が 0 でないと、押して止める回転が回し始めの直後に止まったと見なされ、回転中の拒否と決め方の変更の拒否が効かない。",
   },
 ];
