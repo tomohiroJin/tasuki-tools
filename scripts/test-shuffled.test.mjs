@@ -181,7 +181,53 @@ test("既定の版の確かめが配線されている: spawn だけを差し替
 });
 
 test("入口の配線: 本体のソースの execute の呼び出しは main の 1 回だけで、版の確かめを差し替える引数を渡さない", () => {
-  const source = fs.readFileSync(SCRIPT, "utf8");
+  // コメントの中の execute( で通らないよう、コメントを除いて数える
+  const source = fs.readFileSync(SCRIPT, "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "").replace(/\s\/\/ .*$/gm, "");
   const calls = [...source.matchAll(/(?<!function )\bexecute\([^\n]*/g)].map((m) => m[0]);
   assert.deepEqual(calls, ["execute(process.argv.slice(2));"]);
+});
+
+const REPO_ROOT = path.resolve(path.dirname(SCRIPT), "..");
+
+/** 本体とそれが読むもの（scripts/lib の本体・check-toolchain・宣言）を一時ディレクトリへ写す。 */
+function repoCopy(toolchainJson) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "shuffled-copy-"));
+  fs.mkdirSync(path.join(dir, "scripts/lib"), { recursive: true });
+  for (const file of ["test-shuffled.mjs", "check-toolchain.mjs"]) fs.copyFileSync(path.join(REPO_ROOT, "scripts", file), path.join(dir, "scripts", file));
+  for (const file of fs.readdirSync(path.join(REPO_ROOT, "scripts/lib")).filter((f) => f.endsWith(".mjs") && !f.endsWith(".test.mjs"))) {
+    fs.copyFileSync(path.join(REPO_ROOT, "scripts/lib", file), path.join(dir, "scripts/lib", file));
+  }
+  fs.copyFileSync(path.join(REPO_ROOT, "package.json"), path.join(dir, "package.json"));
+  fs.writeFileSync(path.join(dir, "toolchain.json"), toolchainJson);
+  return dir;
+}
+
+test("本物の起動（main を通る）: 宣言と合わない版では、1 つも流さず『始めません』で終わる。合う宣言では流れる", () => {
+  const real = fs.readFileSync(path.join(REPO_ROOT, "toolchain.json"), "utf8");
+  const bad = JSON.stringify({ ...JSON.parse(real), bun: "9.9.9" });
+  // 流したら印を残すテスト（流れたかどうかを、出力でなく副作用で見る）
+  const marker = fs.mkdtempSync(path.join(os.tmpdir(), "shuffled-marker-"));
+  const probe = `import { test } from "bun:test";\nimport fs from "node:fs";\ntest("ran", () => { fs.writeFileSync(${JSON.stringify(path.join(marker, "ran"))}, "1"); });\n`;
+  const ws = workspace({ fine: probe });
+  const copies = [];
+  try {
+    const launch = (toolchainJson, ...args) => {
+      const copy = repoCopy(toolchainJson);
+      copies.push(copy);
+      return spawnSync("node", [path.join(copy, "scripts/test-shuffled.mjs"), "--root", ws, ...args], { encoding: "utf8" });
+    };
+    // 版が外れている: 止まる。--pkg でも --all でも同じ
+    for (const args of [["--pkg", "pkgs/fine", "--seed", "1"], ["--all", "--seed", "1"]]) {
+      const result = launch(bad, ...args);
+      assert.equal(result.status, 1, result.stdout + result.stderr);
+      assert.match(result.stderr, /始めません/);
+      assert.equal(fs.existsSync(path.join(marker, "ran")), false, "版が合わないのにテストが流れた");
+    }
+    // 対照: 同じ複製の作り方で、合う宣言なら流れる（複製が壊れて止まったのではないこと）
+    const ok = launch(real, "--pkg", "pkgs/fine", "--seed", "1");
+    assert.equal(ok.status, 0, ok.stdout + ok.stderr);
+    assert.equal(fs.existsSync(path.join(marker, "ran")), true);
+  } finally {
+    for (const dir of [...copies, ws, marker]) fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
