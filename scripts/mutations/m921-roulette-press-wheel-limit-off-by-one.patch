@@ -1,0 +1,24 @@
+# 変異 921: roulette-press-wheel-limit-off-by-one
+#
+# 検出を期待するテスト:
+#   - packages/roulette-core/tests/roulette-bounds.test.ts
+#
+# #522（テストの穴: roulette-core の境界値）。押して止めるの輪の人数の上限を >= にして、24 人ちょうどを拒む。
+# 押して止めるで、上限ちょうど（24 人）の輪が回せなくなる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m921-*.patch
+# 復元: git apply -R scripts/mutations/m921-*.patch
+diff --git a/packages/roulette-core/src/roulette.ts b/packages/roulette-core/src/roulette.ts
+index df11a9d..45d6567 100644
+--- a/packages/roulette-core/src/roulette.ts
++++ b/packages/roulette-core/src/roulette.ts
+@@ -151,7 +151,7 @@ function startOrderSpin(state: RouletteState, input: SpinInput): Result<Roulette
+ function startPressSpin(state: RouletteState, input: SpinInput): Result<RouletteState, RouletteError<SpinErrorCode>> {
+   const pool = poolOf(input.members, state, input.conflicts);
+   if (pool.length < 2) return err({ code: "ROULETTE_TOO_FEW" });
+-  if (pool.length > MAX_WHEEL) return err({ code: "ROULETTE_TOO_MANY" });
++  if (pool.length >= MAX_WHEEL) return err({ code: "ROULETTE_TOO_MANY" });
+   const seat = input.randomInt(pool.length);
+   if (!Number.isInteger(seat) || seat < 0 || seat >= pool.length) return err({ code: "INVALID_RANDOM" });
+   const settle = input.randomSettle();
