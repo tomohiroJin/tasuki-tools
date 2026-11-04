@@ -1,0 +1,13 @@
+diff --git a/packages/rate-limit/src/token-bucket.ts b/packages/rate-limit/src/token-bucket.ts
+index db70a0f..3457e95 100644
+--- a/packages/rate-limit/src/token-bucket.ts
++++ b/packages/rate-limit/src/token-bucket.ts
+@@ -266,7 +266,7 @@ export function createTokenBucketLimiter(options: TokenBucketOptions): RateLimit
+       // 件数はしきい値以上のまま残る。すると次の消費でもまた全走査が走り、O(n) が毎回になる。
+       // 前回の掃除からの経過も条件に入れる。基準時刻は 1 回の呼び出しで最大 refillFullMs
+       // しか進まないので、全走査は最悪でも refillFullMs に 1 回に抑えられる（設計正本 D4）。
+-      if (buckets.size > sweepThreshold && t - lastSweepAt >= refillFullMs) sweepAt(t);
++      if (buckets.size >= sweepThreshold && t - lastSweepAt >= refillFullMs) sweepAt(t);
+     },
+     sweep(now) {
+       // now が非有限だと満タン判定・掃除間隔の計算がすべて安全でない側へ倒れる

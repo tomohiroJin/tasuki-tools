@@ -1,0 +1,13 @@
+diff --git a/apps/tasuki-sync/src/adapters/ws/tool-channel.ts b/apps/tasuki-sync/src/adapters/ws/tool-channel.ts
+index 6b88ab6..1edf612 100644
+--- a/apps/tasuki-sync/src/adapters/ws/tool-channel.ts
++++ b/apps/tasuki-sync/src/adapters/ws/tool-channel.ts
+@@ -134,7 +134,7 @@ export function createPokerChannel(handlers: PokerMessageHandlers, maxMessageByt
+       // 表は protocol で引くので poker の接続しか来ない。型を絞るための確かめである。
+       if (!isPokerSocket(ws)) return;
+       try {
+-        if (bytes > maxMessageBytes) {
++        if (bytes >= maxMessageBytes) {
+           // 接続は保つ（切断ではなくエラー応答）。再送で回復できる種類の失敗のため。
+           handlers.sendError(ws, "message-too-large", CONNECTION_ERROR_TEXT.MESSAGE_TOO_LARGE);
+           return;

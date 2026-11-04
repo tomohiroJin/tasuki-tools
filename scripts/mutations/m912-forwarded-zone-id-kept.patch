@@ -1,0 +1,13 @@
+diff --git a/packages/rate-limit/src/client-key.ts b/packages/rate-limit/src/client-key.ts
+index eafd197..bb64160 100644
+--- a/packages/rate-limit/src/client-key.ts
++++ b/packages/rate-limit/src/client-key.ts
+@@ -156,7 +156,7 @@ export function normalizeClientAddress(forwardedFor: string | undefined): string
+   const parts = forwardedFor.split(",");
+   const last = parts[parts.length - 1] ?? "";
+   // 角括弧（`[::1]`）とゾーン ID（`%eth0`）は net.isIP が受け付けないので先に剥がす。
+-  const address = last.trim().replace(/^\[|\]$/g, "").split("%")[0] ?? "";
++  const address = last.trim().replace(/^\[|\]$/g, "");
+   const family = isIP(address);
+   if (family === 4) return `v4:${address}`;
+   if (family === 6) {

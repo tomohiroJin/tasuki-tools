@@ -1,0 +1,13 @@
+diff --git a/packages/rate-limit/src/client-key.ts b/packages/rate-limit/src/client-key.ts
+index eafd197..5d25304 100644
+--- a/packages/rate-limit/src/client-key.ts
++++ b/packages/rate-limit/src/client-key.ts
+@@ -108,7 +108,7 @@ function expandIPv6Groups(address: string): number[] {
+   const headGroups = toGroups(head);
+   const tailGroups = address.includes("::") ? toGroups(tail) : [];
+   const missing = address.includes("::")
+-    ? IPV6_GROUPS - headGroups.length - tailGroups.length
++    ? IPV6_GROUPS + headGroups.length - tailGroups.length
+     : 0;
+   const expanded = [
+     ...headGroups,

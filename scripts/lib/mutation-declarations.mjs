@@ -61,6 +61,9 @@ const RESERVED_880_889 =
 const RESERVED_850_859 =
   "**対応表より後に足した変異。** 850〜859 は #506 に割り当てた範囲。";
 
+const RESERVED_910_919 =
+  "**対応表より後に足した変異。** 910〜919 は #521 に割り当てた範囲。2.5 の行ごと（IPv6 の展開・転送ヘッダーの取り出し・NODE_ENV の引用符・ループバックの判定・設定の検査・掃除の境目・フレームの上限）に代表を 1 件ずつ選んだ。全件は宣言しない。";
+
 export const MUTATIONS = [
   {
     id: 1,
@@ -5371,5 +5374,85 @@ export const MUTATIONS = [
     pkg: "e2e",
     tests: ["tests/mock-isolation.test.ts"],
     note: RESERVED_900_909 + " " + "#499。vi.mock の工場の vi.fn() の記録が次のテストへ漏れ、ランダムな順で前のテストの呼び出しが残って落ちるテストが出る。このテストは記録をファイルの読み込み時（テストより前）に作り、各テストの前に消えていることを見る。テスト同士の順に頼らないので、ランダムな順でも -t で 1 本だけ流しても検出される。",
+  },
+  {
+    id: 910,
+    label: "IPv6 の `::` の展開で、欠けるグループ数を 8 から頭の数を引く代わりに足す（尻が切れる）",
+    patch: "m910-ipv6-expand-missing-plus-head.patch",
+    pkg: "packages/rate-limit",
+    tests: ["tests/client-key.test.ts"],
+    note: RESERVED_910_919 + " " + "#521。IPv6 の `::` の展開（toGroups・expandIPv6Groups）の代表。頭が短く尻の長い射影（0:0::ffff:1.2.3.4）で尻が切れ、射影の IPv4 が v6 の鍵に落ちて、束ねる粒度が変わる。",
+  },
+  {
+    id: 911,
+    label: "転送ヘッダーの角括弧剥がしの先頭の錨 `^` を外す（途中の `[` まで剥がす）",
+    patch: "m911-forwarded-bracket-strip-unanchored.patch",
+    pkg: "packages/rate-limit",
+    tests: ["tests/client-key.test.ts"],
+    note: RESERVED_910_919 + " " + "#521。転送ヘッダーからのアドレスの取り出し（normalizeClientAddress）の代表。不正な値（203.0.113.[7）が IP として通り、鍵になる。",
+  },
+  {
+    id: 912,
+    label: "転送ヘッダーのゾーン ID（`%eth0`）剥がしを無くす",
+    patch: "m912-forwarded-zone-id-kept.patch",
+    pkg: "packages/rate-limit",
+    tests: ["tests/client-key.test.ts"],
+    note: RESERVED_910_919 + " " + "#521。転送ヘッダーからのアドレスの取り出しの代表。ゾーン ID つきの射影（::ffff:203.0.113.7%eth0）の IPv4 部が壊れ、同じクライアントが別の鍵になる。",
+  },
+  {
+    id: 913,
+    label: "ループバック判定の IPv4 の正規表現から先頭の錨 `^` を外す",
+    patch: "m913-loopback-regex-head-anchor-dropped.patch",
+    pkg: "packages/rate-limit",
+    tests: ["tests/server-env.test.ts"],
+    note: RESERVED_910_919 + " " + "#521。ループバックの判定（IPV4_LOOPBACK）の代表。1127.0.0.1 のような外部の値がループバック扱いになり、本番の HOST 検査をすり抜ける。",
+  },
+  {
+    id: 914,
+    label: "ループバック判定の 100〜199 のオクテットの `\\d` を `\\D` にする",
+    patch: "m914-loopback-regex-octet-digit-class.patch",
+    pkg: "packages/rate-limit",
+    tests: ["tests/server-env.test.ts"],
+    note: RESERVED_910_919 + " " + "#521。ループバックの判定のオクテットの範囲の代表。127.x.x.100〜199 が通らなくなり、正当な設定で本番が起動しなくなる（可用性）。",
+  },
+  {
+    id: 915,
+    label: "NODE_ENV の引用符の剥がしを「両側」から「片側でも」にする（&& を || に）",
+    patch: "m915-node-env-one-sided-quote.patch",
+    pkg: "packages/rate-limit",
+    tests: ["tests/server-env.test.ts"],
+    note: RESERVED_910_919 + " " + "#521。NODE_ENV の引用符の正規化（normalizeNodeEnv）の代表。片側だけ引用符のある値の先頭と末尾が黙って削られて既知の値に化け、未知の値を throw で止める防御がすり抜ける。",
+  },
+  {
+    id: 916,
+    label: "poker の受け口の上限の判定を `bytes > max` から `bytes >= max` にする",
+    patch: "m916-poker-frame-limit-inclusive.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/poker/guards.test.ts"],
+    note: RESERVED_910_919 + " " + "#521。フレームの上限（poker の受け口）の代表。上限ちょうどのメッセージが message-too-large で弾かれる。",
+  },
+  {
+    id: 917,
+    label: "refillPerSec の設定の検査を `<= 0` から `< 0` にする（0 を手前の検査で弾かない）",
+    patch: "m917-refill-per-sec-zero-accepted-early.patch",
+    pkg: "packages/rate-limit",
+    tests: ["tests/token-bucket.test.ts"],
+    note: RESERVED_910_919 + " " + "#521。設定の検査（token-bucket.ts の refillPerSec・capacity）の代表。後段の refillFullMs の検査が同じ入力を投げるので throw の有無では見えず、文言（どの設定が悪いか）が別の設定のものにすり替わる。",
+  },
+  {
+    id: 918,
+    label: "掃除を始める件数の境目を `size > sweepThreshold` から `>=` にする",
+    patch: "m918-sweep-threshold-inclusive.patch",
+    pkg: "packages/rate-limit",
+    tests: ["tests/token-bucket.test.ts"],
+    note: RESERVED_910_919 + " " + "#521。掃除を始める境目の代表。しきい値ちょうどの件数で全走査が走り、掃除の頻度が設計（D4）からずれる。",
+  },
+  {
+    id: 919,
+    label: "テキスト受け口（hub・topic・roulette・agenda・checkin・timer）の上限の判定を `bytes > max` から `bytes >= max` にする",
+    patch: "m919-text-frame-limit-inclusive.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/ws-adapter.message.test.ts"],
+    note: RESERVED_910_919 + " " + "#521。フレームの上限（テキストの受け口。createTextChannel 経由の全ツール）の代表。上限ちょうど（64KB）のメッセージが MESSAGE_TOO_LARGE で弾かれる。",
   },
 ];
