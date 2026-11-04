@@ -9,7 +9,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { parseArgs, USAGE, execute, rerunCommand } from "./test-shuffled.mjs";
+import { parseArgs, USAGE, execute, rerunCommand, checkToolchain, toolchainCheckCall } from "./test-shuffled.mjs";
 
 const SCRIPT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "test-shuffled.mjs");
 
@@ -144,4 +144,20 @@ test("最初の行の再現コマンドは、実際に流した指定と種を�
     assert.equal(rerunCommand({ all: true }, 7), "node scripts/test-shuffled.mjs --all --seed 7");
     assert.equal(rerunCommand({ pkg: "apps/x" }, 7), "node scripts/test-shuffled.mjs --pkg apps/x --seed 7");
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("既定の版の確かめは check-toolchain.mjs を段 test で起動し、その終了コードで決まる", () => {
+  const call = toolchainCheckCall();
+  assert.equal(call.command, process.execPath);
+  assert.equal(call.args.length, 2);
+  assert.equal(path.relative(path.dirname(SCRIPT), call.args[0]), "check-toolchain.mjs");
+  assert.equal(call.args[1], "test");
+  const seen = [];
+  const fake = (status) => (command, args) => { seen.push([command, args]); return { status }; };
+  assert.equal(checkToolchain(fake(0)), true);
+  assert.equal(checkToolchain(fake(1)), false);
+  assert.equal(checkToolchain(fake(null)), false);
+  assert.equal(checkToolchain(() => ({ error: new Error("起動できない"), status: null })), false);
+  assert.deepEqual(seen[0], [call.command, call.args]);
+  assert.equal(seen.length, 3);
 });

@@ -39,9 +39,15 @@ export function rerunCommand(options, seed) {
   return `node scripts/test-shuffled.mjs ${options.pkg ? `--pkg ${options.pkg}` : "--all"} --seed ${seed}`;
 }
 
-/** 版の確かめ（docs/adr/0031 決定 2）。常に、このリポジトリの宣言と比べる。飛ばす指定は置かない。 */
-function checkToolchain() {
-  return spawnSync(process.execPath, [path.join(ROOT, "scripts/check-toolchain.mjs"), "test"], { stdio: "inherit" }).status === 0;
+/** 版の確かめを起動するコマンド。常に、このリポジトリの宣言を段 `test` で比べる。 */
+export function toolchainCheckCall() {
+  return { command: process.execPath, args: [path.join(ROOT, "scripts/check-toolchain.mjs"), "test"] };
+}
+
+/** 版の確かめ（docs/adr/0031 決定 2）。終了コードが 0 のときだけ真。飛ばす指定は置かない。`spawn` は自己テスト用の差し替え。 */
+export function checkToolchain(spawn = spawnSync) {
+  const { command, args } = toolchainCheckCall();
+  return spawn(command, args, { stdio: "inherit" }).status === 0;
 }
 
 /** 終了コードを返す。`deps` は自己テストが版の確かめとパッケージの実行を差し替えるためのもの。 */
