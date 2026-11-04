@@ -52,6 +52,9 @@ const RESERVED_870_879 =
 const RESERVED_250_259 =
   "**対応表より後に足した変異。** 250〜259 は 2026-10-15 の並列修正で #376 に追加で割り当てた予約の範囲（220〜229 が埋まったため）。";
 
+const RESERVED_900_909 =
+  "**対応表より後に足した変異。** 900〜909 は #499 に割り当てた範囲。";
+
 const RESERVED_880_889 =
   "**対応表より後に足した変異。** 880〜889 は #506 の宣言の検査に追加で割り当てた範囲（850〜859 を使い切ったため）。";
 
@@ -5296,5 +5299,77 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["lib/prior-work.test.mjs"],
     note: RESERVED_870_879 + " " + "#504 の 7 回目のレビュー。孫が出力の管を握ったまま残り、フックが Claude Code の時間切れを超えて終わらない。終わりを支えるのは、グループごとの SIGKILL と、時間切れのときの管の destroy（ADR-0032 の追記）。",
+  },
+  {
+    id: 900,
+    label: "timer-web の vitest 設定が、vi.fn() の呼び出しの記録をテストごとに消さない（clearMocks を外す）",
+    patch: "m900-timer-web-clear-mocks-removed.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/config/mock-isolation.test.ts"],
+    note: RESERVED_900_909 + " " + "#499。vi.mock の工場の vi.fn() の記録が次のテストへ漏れ、ランダムな順で App.session-lost などが落ちる。このテストは記録をファイルの読み込み時（テストより前）に作り、各テストの前に消えていることを見る。テスト同士の順に頼らないので、ランダムな順でも -t で 1 本だけ流しても検出される。",
+  },
+  {
+    id: 901,
+    label: "roulette-web の vitest 設定が、vi.fn() の呼び出しの記録をテストごとに消さない（clearMocks を外す）",
+    patch: "m901-roulette-web-clear-mocks-removed.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/mock-isolation.test.ts"],
+    note: RESERVED_900_909 + " " + "#499。vi.mock の工場の vi.fn() の記録が次のテストへ漏れ、ランダムな順で前のテストの呼び出しが残って落ちるテストが出る。このテストは記録をファイルの読み込み時（テストより前）に作り、各テストの前に消えていることを見る。テスト同士の順に頼らないので、ランダムな順でも -t で 1 本だけ流しても検出される。",
+  },
+  {
+    id: 902,
+    label: "agenda-web の vitest 設定が、vi.fn() の呼び出しの記録をテストごとに消さない（clearMocks を外す）",
+    patch: "m902-agenda-web-clear-mocks-removed.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/mock-isolation.test.ts"],
+    note: RESERVED_900_909 + " " + "#499。vi.mock の工場の vi.fn() の記録が次のテストへ漏れ、ランダムな順で前のテストの呼び出しが残って落ちるテストが出る。このテストは記録をファイルの読み込み時（テストより前）に作り、各テストの前に消えていることを見る。テスト同士の順に頼らないので、ランダムな順でも -t で 1 本だけ流しても検出される。",
+  },
+  {
+    id: 903,
+    label: "checkin-web の vitest 設定が、vi.fn() の呼び出しの記録をテストごとに消さない（clearMocks を外す）",
+    patch: "m903-checkin-web-clear-mocks-removed.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/mock-isolation.test.ts"],
+    note: RESERVED_900_909 + " " + "#499。vi.mock の工場の vi.fn() の記録が次のテストへ漏れ、ランダムな順で前のテストの呼び出しが残って落ちるテストが出る。このテストは記録をファイルの読み込み時（テストより前）に作り、各テストの前に消えていることを見る。テスト同士の順に頼らないので、ランダムな順でも -t で 1 本だけ流しても検出される。",
+  },
+  {
+    id: 904,
+    label: "poker-web の vitest 設定が、vi.fn() の呼び出しの記録をテストごとに消さない（clearMocks を外す）",
+    patch: "m904-poker-web-clear-mocks-removed.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/mock-isolation.test.ts"],
+    note: RESERVED_900_909 + " " + "#499。vi.mock の工場の vi.fn() の記録が次のテストへ漏れ、ランダムな順で前のテストの呼び出しが残って落ちるテストが出る。このテストは記録をファイルの読み込み時（テストより前）に作り、各テストの前に消えていることを見る。テスト同士の順に頼らないので、ランダムな順でも -t で 1 本だけ流しても検出される。",
+  },
+  {
+    id: 905,
+    label: "topic-web の vitest 設定が、vi.fn() の呼び出しの記録をテストごとに消さない（clearMocks を外す）",
+    patch: "m905-topic-web-clear-mocks-removed.patch",
+    pkg: "apps/topic-web",
+    tests: ["tests/mock-isolation.test.ts"],
+    note: RESERVED_900_909 + " " + "#499。vi.mock の工場の vi.fn() の記録が次のテストへ漏れ、ランダムな順で前のテストの呼び出しが残って落ちるテストが出る。このテストは記録をファイルの読み込み時（テストより前）に作り、各テストの前に消えていることを見る。テスト同士の順に頼らないので、ランダムな順でも -t で 1 本だけ流しても検出される。",
+  },
+  {
+    id: 906,
+    label: "landing の vitest 設定が、vi.fn() の呼び出しの記録をテストごとに消さない（clearMocks を外す）",
+    patch: "m906-landing-clear-mocks-removed.patch",
+    pkg: "apps/landing",
+    tests: ["tests/mock-isolation.test.ts"],
+    note: RESERVED_900_909 + " " + "#499。vi.mock の工場の vi.fn() の記録が次のテストへ漏れ、ランダムな順で前のテストの呼び出しが残って落ちるテストが出る。このテストは記録をファイルの読み込み時（テストより前）に作り、各テストの前に消えていることを見る。テスト同士の順に頼らないので、ランダムな順でも -t で 1 本だけ流しても検出される。",
+  },
+  {
+    id: 907,
+    label: "invite-ui の vitest 設定が、vi.fn() の呼び出しの記録をテストごとに消さない（clearMocks を外す）",
+    patch: "m907-invite-ui-clear-mocks-removed.patch",
+    pkg: "packages/invite-ui",
+    tests: ["tests/mock-isolation.test.ts"],
+    note: RESERVED_900_909 + " " + "#499。vi.mock の工場の vi.fn() の記録が次のテストへ漏れ、ランダムな順で前のテストの呼び出しが残って落ちるテストが出る。このテストは記録をファイルの読み込み時（テストより前）に作り、各テストの前に消えていることを見る。テスト同士の順に頼らないので、ランダムな順でも -t で 1 本だけ流しても検出される。",
+  },
+  {
+    id: 908,
+    label: "e2e の vitest 設定が、vi.fn() の呼び出しの記録をテストごとに消さない（clearMocks を外す）",
+    patch: "m908-e2e-clear-mocks-removed.patch",
+    pkg: "e2e",
+    tests: ["tests/mock-isolation.test.ts"],
+    note: RESERVED_900_909 + " " + "#499。vi.mock の工場の vi.fn() の記録が次のテストへ漏れ、ランダムな順で前のテストの呼び出しが残って落ちるテストが出る。このテストは記録をファイルの読み込み時（テストより前）に作り、各テストの前に消えていることを見る。テスト同士の順に頼らないので、ランダムな順でも -t で 1 本だけ流しても検出される。",
   },
 ];
