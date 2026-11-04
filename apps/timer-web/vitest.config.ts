@@ -20,9 +20,10 @@ export default defineConfig({
   },
   test: {
     globals: true,
-    // vi.fn() の呼び出しの記録を、テストごとに消す（#499）。restoreMocks / restoreAllMocks は vi.spyOn の
-    // 復元だけで vi.fn() の記録を消さないので、vi.mock の工場で作った vi.fn() の記録が次のテストへ漏れる。
-    // 実装（mockResolvedValue ほか）は残す。消すと工場の既定が失われるので mockReset にはしない。
+    // vi.fn() の呼び出しの記録を、テストごとに消す（#499）。restoreMocks は vi.spyOn の復元だけで、
+    // vi.mock の工場で作った vi.fn() の記録は次のテストへ漏れる。mockClear は実装を残すので、工場の既定は残る。
+    // mockReset にしないのは、mockReset が工場で後から付けた mockResolvedValue ほかを落とすため（vi.fn(impl) の impl には戻る）。
+    // 注意: clearMocks は mockXxxOnce の待ち行列を消さない。*Once はそのテストの中で使い切ること。
     clearMocks: true,
     restoreMocks: true,
     environment: "jsdom",

@@ -5306,6 +5306,6 @@ export const MUTATIONS = [
     patch: "m900-timer-web-clear-mocks-removed.patch",
     pkg: "apps/timer-web",
     tests: ["test/config/mock-isolation.test.ts"],
-    note: RESERVED_900_909 + " " + "#499。vi.mock の工場の vi.fn() の記録が次のテストへ漏れ、ランダムな順で App.session-lost などが落ちる。このテストは describe を { shuffle: false } で宣言の順に固定し、1 本目の記録が 2 本目に残ることを直接見る（ランダムな順でも見逃さない）。",
+    note: RESERVED_900_909 + " " + "#499。vi.mock の工場の vi.fn() の記録が次のテストへ漏れ、ランダムな順で App.session-lost などが落ちる。このテストは記録をファイルの読み込み時（テストより前）に作り、各テストの前に消えていることを見る。テスト同士の順に頼らないので、ランダムな順でも -t で 1 本だけ流しても検出される。",
   },
 ];
