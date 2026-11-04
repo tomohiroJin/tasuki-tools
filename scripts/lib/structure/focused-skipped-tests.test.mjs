@@ -222,6 +222,61 @@ describe("テストの定義ではないものは見ない", () => {
   });
 });
 
+describe("理由のコメントの形（行の頭の「理由:」）", () => {
+  test("全角コロンの「理由：」も通す", () => {
+    // Given
+    const src = "// 理由：実機が要る\nit.skip('a', () => {});";
+    // When / Then
+    assert.deepEqual(kinds("a.test.ts", src), []);
+  });
+
+  test("行の途中の「理由:」は理由と認めない", () => {
+    // Given
+    const a = "// この理由: a は別\nit.skip('a', () => {});";
+    const b = "// 外す理由: 未定\nit.skip('a', () => {});";
+    // When / Then
+    assert.deepEqual(kinds("a.test.ts", a), ["no-reason:2"]);
+    assert.deepEqual(kinds("a.test.ts", b), ["no-reason:2"]);
+  });
+
+  test("ブロックコメントの各行頭の * を外して比べる。閉じ記号だけの「理由:」は空とみなす", () => {
+    // Given
+    const ok = "/**\n * 説明\n * 理由: 実機が要る\n */\nit.skip('a', () => {});";
+    const empty = "/* 理由: */\nit.skip('a', () => {});";
+    // When / Then
+    assert.deepEqual(kinds("a.test.ts", ok), []);
+    assert.deepEqual(kinds("a.test.ts", empty), ["no-reason:2"]);
+  });
+});
+
+describe("別の書き方", () => {
+  test("suite（bun・vitest の別名）も見る", () => {
+    // Given
+    const src = "suite.only('a', () => {});\nsuite.skip('b', () => {});";
+    // When / Then
+    assert.deepEqual(kinds("a.test.ts", src), ["only:1", "no-reason:2"]);
+  });
+
+  test("型表明を挟んだ (it as any).only も止める", () => {
+    // Given
+    const src = "(it as any).only('a', () => {});\n(<any>it).skip('b', () => {});";
+    // When / Then
+    assert.deepEqual(kinds("a.test.ts", src), ["only:1", "no-reason:2"]);
+  });
+
+  test("node:test のオプションの引用符つきキー・計算キーも止め、効かない値（undefined・null・false）は通す", () => {
+    // Given
+    const src = [
+      "it('a', { 'skip': true }, () => {});",
+      "it('b', { ['only']: true }, () => {});",
+      "it('c', { skip: undefined }, () => {});",
+      "it('d', { skip: null, todo: false }, () => {});",
+    ].join("\n");
+    // When / Then
+    assert.deepEqual(kinds("a.test.mjs", src), ["no-reason:1", "only:2"]);
+  });
+});
+
 describe("構文の種類", () => {
   test("TSX のファイルも読む", () => {
     // Given

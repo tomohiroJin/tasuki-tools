@@ -104,17 +104,19 @@ const EXT_TS = [".ts", ".tsx"];
 /**
  * SC-040 が読むテストファイルの名前（git の pathspec。`*` は `/` を跨ぐ）。
  *
- * 各パッケージの test ディレクトリ（`allTestFiles`）は .ts / .tsx だけを読むので、そこに入らない
- * ものをここで足す: Playwright の `e2e/specs/*.spec.ts`・`node --test` の `*.test.mjs`
- * （`scripts/` と `packages/ui/tests/`）。`allTestFiles` と和を取るので、重なっても害は無い。
+ * **型はランナー自身の既定に合わせる**（ADR-0014 決定 3「実体の権威はツール自身」）:
+ * vitest は `**\/*.{test,spec}.?(c|m)[jt]s?(x)`、bun test は `*.test.*` / `*_test.*` / `*.spec.*` / `*_spec.*`。
+ * 両方の和を、拡張子 `js jsx ts tsx mjs cjs mts cts` で列挙する。
+ *
+ * 各パッケージの test ディレクトリ（`allTestFiles`）の外にあるもの（`e2e/specs`・`scripts/`・`packages/ui/tests`・
+ * `src` の中の `*_test.ts` など）をここで足す。`allTestFiles` と和を取るので、重なっても害は無い。
  */
-export const SC040_TEST_FILE_PATTERNS = [
-  "*.test.ts",
-  "*.test.tsx",
-  "*.test.mjs",
-  "*.spec.ts",
-  "*.spec.tsx",
-];
+export const SC040_TEST_FILE_PATTERNS = ["test", "spec"].flatMap((kind) =>
+  ["js", "jsx", "ts", "tsx", "mjs", "cjs", "mts", "cts"].flatMap((ext) => [
+    `*.${kind}.${ext}`,
+    `*_${kind}.${ext}`,
+  ]),
+);
 
 /**
  * SC-040 の走査対象を組み立てる（`Map<リポジトリ相対パス, ソース>`）。

@@ -16,9 +16,9 @@
  *   形は `// 理由: …`（`/* 理由: … *\/` も可）。呼び出しを含む文の直前に、空行を挟まず置く。
  * - `node:test` のオプション（`it("…", { skip: "…" })`・`{ todo: true }`・`{ only: true }`）も同じ扱い。
  *
- * 見ないもの（文書に書いてある限界）: テストの文脈（`ctx.skip()`）・別名で取り込んだ関数
- * （`const t = test; t.only(...)`）。前者は実行中に飛ばす書き方で、テスト定義の
- * 構文では区別できない。
+ * 見ないもの（文書に書いてある限界）: テストの文脈（`ctx.skip()`・`t.test.only`）・別名で取り込んだ関数
+ * （`const t = test; t.only(...)`）・変数やスプレッドで渡す `node:test` のオプション。
+ * 実行中に飛ばす書き方や値が静的に決まらないものは、テスト定義の構文では区別できない。
  */
 import ts from "typescript";
 
@@ -31,8 +31,24 @@ export const SKIP_NAMES = ["skip", "skipIf", "runIf", "todo", "fixme"];
 /** 理由があっても止める名前。 */
 export const FOCUS_NAMES = ["only"];
 
-/** 理由のコメントの形。`理由:` の後ろに、空白以外の文字が 1 つ以上要る。 */
-export const REASON_RE = /理由[:：]\s*\S/;
+/**
+ * 理由のコメントの形。**コメントの行の頭**が `理由:`（全角コロンも可）で、後ろに空白以外の文字が 1 つ以上要る。
+ * 行の途中の「理由:」（`// この理由: a は別`・`// 外す理由: 未定`）は理由と認めない。
+ * `//`・`/* *\/`・`/** *\/` と、ブロックコメントの各行頭の `*` は、比べる前に外す。
+ */
+export const REASON_RE = /^理由[:：]\s*\S/;
+
+/** コメントの塊から、記号を外した行の一覧を取る。 */
+function commentLines(text) {
+  return text.split("\n").map((l) =>
+    l.replace(/\*\/\s*$/, "").replace(/^\s*(?:\/\/+|\/\*+|\*+)?\s*/, ""),
+  );
+}
+
+/** 塊のどこかの行が理由の形か。 */
+export function hasReasonComment(text) {
+  return commentLines(text).some((l) => REASON_RE.test(l));
+}
 
 function scriptKindOf(file) {
   if (file.endsWith(".tsx")) return ts.ScriptKind.TSX;
@@ -50,6 +66,9 @@ function chainRoot(expr) {
       ts.isElementAccessExpression(e) ||
       ts.isCallExpression(e) ||
       ts.isNonNullExpression(e) ||
+      ts.isAsExpression(e) ||
+      ts.isTypeAssertionExpression(e) ||
+      ts.isSatisfiesExpression(e) ||
       ts.isParenthesizedExpression(e)
     ) {
       e = e.expression;
@@ -98,6 +117,13 @@ function adjacentCommentText(source, statement) {
   return parts.join("\n");
 }
 
+/** プロパティ名（`skip`・`'skip'`・`['skip']`）。静的に決まらなければ null。 */
+function propertyNameOf(name) {
+  if (ts.isIdentifier(name) || ts.isStringLiteralLike(name)) return name.text;
+  if (ts.isComputedPropertyName(name) && ts.isStringLiteralLike(name.expression)) return name.expression.text;
+  return null;
+}
+
 /** `it("…", { skip: … })` の形のオプション。値が `false` でない `skip` / `todo` / `only` を返す。 */
 function optionFindings(call) {
   const out = [];
@@ -105,10 +131,18 @@ function optionFindings(call) {
     if (!ts.isObjectLiteralExpression(arg)) continue;
     for (const prop of arg.properties) {
       if (!ts.isPropertyAssignment(prop) && !ts.isShorthandPropertyAssignment(prop)) continue;
-      const name = prop.name.getText();
+      const name = propertyNameOf(prop.name);
       if (name !== "skip" && name !== "todo" && name !== "only") continue;
       const value = ts.isPropertyAssignment(prop) ? prop.initializer : null;
-      if (value && value.kind === ts.SyntaxKind.FalseKeyword) continue;
+      // 効かない値（false・undefined・null）は止めない
+      if (
+        value &&
+        (value.kind === ts.SyntaxKind.FalseKeyword ||
+          value.kind === ts.SyntaxKind.NullKeyword ||
+          (ts.isIdentifier(value) && value.text === "undefined"))
+      ) {
+        continue;
+      }
       out.push({ node: prop, name });
     }
   }
@@ -131,7 +165,7 @@ export function findFocusedOrSkippedTests(file, source) {
       found.push({ file, line, kind: "only", text: `.${name}` });
       return;
     }
-    if (!REASON_RE.test(adjacentCommentText(source, statement))) {
+    if (!hasReasonComment(adjacentCommentText(source, statement))) {
       found.push({ file, line, kind: "no-reason", text: `.${name}` });
     }
   };

@@ -1836,6 +1836,24 @@ describe("SC-040: テストの .only と理由の無い .skip の走査対象（
     assert.ok(named.some((f) => f.endsWith(".test.tsx")), "*.test.tsx が入っていません");
   });
 
+  test("型はランナーの既定に合わせる（vitest の .test.js・.test.mts と bun の *_test.ts など）", () => {
+    // Given: 実リポジトリではなく、型だけを git の pathspec と同じ規則（* は / を跨ぐ）で当てる
+    const toRe = (p) => new RegExp("^" + p.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*") + "$");
+    const matches = (f) => SC040_TEST_FILE_PATTERNS.some((p) => toRe(p).test(f));
+    // When / Then
+    for (const f of [
+      "packages/x/test/a.test.js",
+      "packages/x/test/a.test.mts",
+      "packages/x/test/a.spec.cjs",
+      "packages/x/test/a.test.jsx",
+      "apps/y/src/z_test.ts",
+      "apps/y/src/z_spec.tsx",
+    ]) {
+      assert.ok(matches(f), `${f} が型に入っていません`);
+    }
+    assert.ok(!matches("apps/y/src/z.ts"), "テストでないファイルが入っています");
+  });
+
   test("buildSc040Files は test ディレクトリの全ファイルと名前で分かるファイルの和を返し、重なりは読み直さない", () => {
     // Given
     const allTestFiles = new Map([
