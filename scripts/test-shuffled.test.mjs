@@ -34,7 +34,6 @@ function workspace(files) {
   return dir;
 }
 const run = (dir, ...args) => spawnSync("node", [SCRIPT, "--root", dir, ...args], { encoding: "utf8" });
-const launch = (...args) => spawnSync("node", [SCRIPT, ...args], { encoding: "utf8" });
 
 test("順番依存のテストで赤くなり、ログの種とコマンドで同じ失敗を再現できる", () => {
   const dir = workspace({ dependent: ORDER_DEPENDENT, fine: INDEPENDENT });
@@ -85,10 +84,14 @@ test("種を省くと毎回の種を出し、指定が不正なら始めない",
 });
 
 test("指定が無ければ何も流さず、決まった使い方を出して非ゼロで終わる", () => {
-  const result = launch();
-  assert.equal(result.status, 2);
-  assert.equal(result.stdout, "");
-  assert.equal(result.stderr, `${USAGE}\n`);
+  // 小さなワークスペースで確かめる（無指定で流れてしまう退行のとき、リポジトリ全体を流して長引かせない）
+  const dir = workspace({ fine: INDEPENDENT });
+  try {
+    const result = run(dir);
+    assert.equal(result.status, 2);
+    assert.equal(result.stdout, "");
+    assert.equal(result.stderr, `${USAGE}\n`);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
 
 test("流したパッケージが 0 件（全部が対象外）なら緑にしない。対象外の件数も出す", () => {

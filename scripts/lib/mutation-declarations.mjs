@@ -5549,4 +5549,20 @@ export const MUTATIONS = [
     tests: ["local-check.test.mjs"],
     note: RESERVED_950_959 + " " + "#524。全件の段に置いたはずの重い検査（23 パッケージで数分）が pnpm check:fast にも入り、実装中の速さが落ちる。段の置き場が文書とずれる。",
   },
+  {
+    id: 956,
+    label: "ランダムな順の検査が、流したパッケージが 0 件（全部が対象外）でも緑で終わる",
+    patch: "m956-shuffled-zero-runs-is-green.patch",
+    pkg: "scripts",
+    tests: ["test-shuffled.test.mjs"],
+    note: RESERVED_950_959 + " " + "#524のレビュー。テストランナーの判定が全パッケージで対象外に倒れても検査が緑のまま残り、何も流していないことに誰も気づかない。",
+  },
+  {
+    id: 957,
+    label: "ランダムな順の検査が、--all も --pkg も無い起動で使い方を出さず全パッケージを流す",
+    patch: "m957-shuffled-runs-without-selection.patch",
+    pkg: "scripts",
+    tests: ["test-shuffled.test.mjs"],
+    note: RESERVED_950_959 + " " + "#524のレビュー。引数なしで起動する別の自己テスト（entry-point-wiring）が数分の検査を走らせて時間切れになる。無指定で重い検査が走る。",
+  },
 ];

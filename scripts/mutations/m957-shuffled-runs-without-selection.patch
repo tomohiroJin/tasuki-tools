@@ -1,0 +1,13 @@
+diff --git a/scripts/test-shuffled.mjs b/scripts/test-shuffled.mjs
+index 02f8dce..bf60853 100644
+--- a/scripts/test-shuffled.mjs
++++ b/scripts/test-shuffled.mjs
+@@ -37,7 +37,7 @@ export function parseArgs(argv) {
+ function main() {
+   let options;
+   try { options = parseArgs(process.argv.slice(2)); } catch (error) { console.error(error.message); process.exitCode = 2; return; }
+-  if (!options.all && !options.pkg) { console.error(USAGE); process.exitCode = 2; return; }
++  if (false) { console.error(USAGE); process.exitCode = 2; return; }
+   // 版が合わないなら始めない（docs/adr/0031 決定 2）。--root は自己テストが小さなワークスペースを流す経路で、
+   // このリポジトリの開発環境ではなく bun だけを使うので省く。
+   if (!options.rootGiven && spawnSync(process.execPath, [path.join(ROOT, "scripts/check-toolchain.mjs"), "test"], { stdio: "inherit" }).status !== 0) {
