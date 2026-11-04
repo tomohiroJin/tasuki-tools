@@ -5501,7 +5501,7 @@ export const MUTATIONS = [
     tests: ["tests/roulette-bounds.test.ts"],
     note: RESERVED_920_924 + " " + "#522。回し始めの時刻が 0 でないと、押して止める回転が回し始めの直後に止まったと見なされ、回転中の拒否と決め方の変更の拒否が効かない。",
   },
-  // #522 agenda-core の変異を宣言しない形（id 48 の書き方）。**どれも等価である。**
+  // #522 agenda-core の変異を宣言しない形（id 48 の書き方）。**等価なもの（宣言しても殺せない）と、925 と観測が同じもの（重複になる）の 2 つがある。**
   // - agenda.ts:117 `step === undefined` → `false`: 等価。`deadlineOf` が同じ `currentId` で区切りを探し、
   //   無ければ `null` を返すので、`deadline === null` が先に効いて `step` は未定義にならない。
   // - agenda.ts:73 の `i > idx` → `i >= idx`・`i > idx` → `true`: 等価。`i === idx` は前の分岐で済み、
