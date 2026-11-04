@@ -63,6 +63,8 @@ const RESERVED_920_924 =
 
 const RESERVED_930_934 =
   "**対応表より後に足した変異。** 930〜934 は #522 の timer-core に割り当てた範囲。";
+const RESERVED_935_939 =
+  "**対応表より後に足した変異。** 935〜939 は #522 の poker-core に割り当てた範囲。";
 
 const RESERVED_850_859 =
   "**対応表より後に足した変異。** 850〜859 は #506 に割り当てた範囲。";
@@ -5540,5 +5542,50 @@ export const MUTATIONS = [
     pkg: "packages/timer-core",
     tests: ["test/bounds.properties.test.ts"],
     note: RESERVED_930_934 + " " + "#522。クライアントの時計がずれているとき、稼働時間の表示と休憩の判定がずれの向きと逆に狂う。",
+  },
+  // card-game.ts:77 の範囲の検査（`i >= 0 && i < hand.length`）を壊す 6 件（filter を外す・条件を true・&& を ||・
+  // 下端の検査を true・上端の検査を true・上端を <=）は、**等価変異なので宣言しない**（#522）。結果の `drop` は
+  // `hand.filter((_, i) => drop.has(i))` で位置 0〜4 だけを引くので、範囲外の番号が `drop` に入っても振る舞いが変わらない。
+  // 無作為に生成した入力（fast-check。種 1・20,000 runs。±1e300・2**53・4.999999・±MIN_VALUE・任意の double・1〜10 人の連続したチェンジ）で、元と出力の差は 0 件だった。
+  // 範囲の両端そのもの（`> 0`・`hand.length - 1` 未満）は既存のテストが殺すので、これも代表にしない。
+  {
+    id: 935,
+    label: "山札が足りているときも捨て札を切り直して山に足す（:81 の条件を常に真にする）",
+    patch: "m935-poker-exchange-deck-always-reshuffles-discards.patch",
+    pkg: "packages/poker-core",
+    tests: ["tests/card-game-bounds.test.ts"],
+    note: RESERVED_935_939 + " " + "#522。山の残りに前の人の捨て札が混ざり、捨て札が空になる。既存のテストでは生き残る形（調査の 2.5 の 81 行目の `true`）。",
+  },
+  {
+    id: 936,
+    label: "山札がちょうど足りるときにも捨て札を切り直して山に足す（:81 を <= にする）",
+    patch: "m936-poker-exchange-deck-exact-reshuffles-discards.patch",
+    pkg: "packages/poker-core",
+    tests: ["tests/card-game-bounds.test.ts"],
+    note: RESERVED_935_939 + " " + "#522。山の残りと捨て札の中身が仕様とずれる。既存のテストでは生き残る形（2.5 の 81 行目の `<=`）。",
+  },
+  {
+    id: 937,
+    label: "山札と捨て札を合わせてちょうど足りるときにも、今捨てた札を山へ戻す（:85 を <= にする）",
+    patch: "m937-poker-exchange-pool-exact-reshuffles-thrown.patch",
+    pkg: "packages/poker-core",
+    tests: ["tests/card-game-bounds.test.ts"],
+    note: RESERVED_935_939 + " " + "#522。捨てた札が捨て札に残らず山へ戻る。既存のテストでは生き残る形（2.5 の 85 行目の `<=`）。",
+  },
+  {
+    id: 938,
+    label: "山札が 1 枚足りないときに捨て札を切り直さない（:81 を thrown.length - 1 未満にする）",
+    patch: "m938-poker-exchange-deck-one-short-undefined-card.patch",
+    pkg: "packages/poker-core",
+    tests: ["tests/card-game-bounds.test.ts"],
+    note: RESERVED_935_939 + " " + "#522。山が 1 枚足りないのに捨て札を足さず、手に undefined の札が入る。既存のテストでは生き残る。",
+  },
+  {
+    id: 939,
+    label: "山札と捨て札を合わせて 1 枚足りないときに、今捨てた札を山へ戻さない（:85 を thrown.length - 1 未満にする）",
+    patch: "m939-poker-exchange-pool-one-short-undefined-card.patch",
+    pkg: "packages/poker-core",
+    tests: ["tests/card-game-bounds.test.ts"],
+    note: RESERVED_935_939 + " " + "#522。山と捨て札を合わせて 1 枚足りないのに戻さず、手に undefined の札が入る。既存のテストでは生き残る。",
   },
 ];
