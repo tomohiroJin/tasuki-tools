@@ -23,31 +23,41 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const USAGE = "使い方: node scripts/test-shuffled.mjs (--all | --pkg <ディレクトリ>) [--seed <整数>]";
 
 export function parseArgs(argv) {
-  const options = { seed: undefined, pkg: undefined, root: ROOT, all: false, rootGiven: false };
+  const options = { seed: undefined, pkg: undefined, root: ROOT, all: false };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === "--all") options.all = true;
     else if (argv[i] === "--seed" && argv[i + 1] !== undefined) options.seed = parseSeed(argv[++i]);
     else if (argv[i] === "--pkg" && argv[i + 1] !== undefined) options.pkg = argv[++i];
-    else if (argv[i] === "--root" && argv[i + 1] !== undefined) { options.root = path.resolve(argv[++i]); options.rootGiven = true; }
+    else if (argv[i] === "--root" && argv[i + 1] !== undefined) { options.root = path.resolve(argv[++i]); }
     else throw new Error(`知らない指定です: ${argv[i]}\n${USAGE}`);
   }
   return options;
 }
 
-function main() {
+/** 最初の行に出す、同じ種で流し直すコマンド。実際に流した指定（--all / --pkg）を付ける。 */
+export function rerunCommand(options, seed) {
+  return `node scripts/test-shuffled.mjs ${options.pkg ? `--pkg ${options.pkg}` : "--all"} --seed ${seed}`;
+}
+
+/** 版の確かめ（docs/adr/0031 決定 2）。常に、このリポジトリの宣言と比べる。飛ばす指定は置かない。 */
+function checkToolchain() {
+  return spawnSync(process.execPath, [path.join(ROOT, "scripts/check-toolchain.mjs"), "test"], { stdio: "inherit" }).status === 0;
+}
+
+/** 終了コードを返す。`deps` は自己テストが版の確かめとパッケージの実行を差し替えるためのもの。 */
+export function execute(argv, deps = {}) {
+  const check = deps.checkToolchain ?? checkToolchain;
+  const spawn = deps.spawn ?? spawnSync;
   let options;
-  try { options = parseArgs(process.argv.slice(2)); } catch (error) { console.error(error.message); process.exitCode = 2; return; }
-  if (!options.all && !options.pkg) { console.error(USAGE); process.exitCode = 2; return; }
-  // 版が合わないなら始めない（docs/adr/0031 決定 2）。--root は自己テストが小さなワークスペースを流す経路で、
-  // このリポジトリの開発環境ではなく bun だけを使うので省く。
-  if (!options.rootGiven && spawnSync(process.execPath, [path.join(ROOT, "scripts/check-toolchain.mjs"), "test"], { stdio: "inherit" }).status !== 0) {
-    console.error("[shuffle] 開発環境の版が合わないため始めません"); process.exitCode = 1; return;
-  }
+  try { options = parseArgs(argv); } catch (error) { console.error(error.message); return 2; }
+  if (!options.all && !options.pkg) { console.error(USAGE); return 2; }
+  // 版が合わないなら始めない。--root は流す対象のワークスペースを変えるだけで、比べる宣言は変えない
+  if (!check()) { console.error("[shuffle] 開発環境の版が合わないため始めません"); return 1; }
   const seed = options.seed ?? newSeed();
-  console.log(`[shuffle] 種 ${seed}（同じ種で再現: node scripts/test-shuffled.mjs --seed ${seed}${options.pkg ? ` --pkg ${options.pkg}` : ""}）`);
+  console.log(`[shuffle] 種 ${seed}（同じ種で再現: ${rerunCommand(options, seed)}）`);
   let plan;
-  try { plan = planShuffledRuns(options.root, seed); } catch (error) { console.error(`[shuffle] ${error.message}`); process.exitCode = 1; return; }
-  if (options.pkg && !plan.some((r) => r.dir === options.pkg)) { console.error(`[shuffle] パッケージが見つかりません: ${options.pkg}`); process.exitCode = 2; return; }
+  try { plan = planShuffledRuns(options.root, seed); } catch (error) { console.error(`[shuffle] ${error.message}`); return 1; }
+  if (options.pkg && !plan.some((r) => r.dir === options.pkg)) { console.error(`[shuffle] パッケージが見つかりません: ${options.pkg}`); return 2; }
   const selected = plan.filter((r) => !options.pkg || r.dir === options.pkg);
   const skipped = selected.filter((r) => r.skip).length;
   const failed = [];
@@ -58,7 +68,7 @@ function main() {
     console.log(`\n[shuffle] ${run.dir}（${run.name}）: ${run.args.join(" ")}`);
     const t = Date.now();
     ran++;
-    const result = spawnSync("pnpm", ["exec", ...run.args], { cwd: path.join(options.root, run.dir), stdio: "inherit" });
+    const result = spawn("pnpm", ["exec", ...run.args], { cwd: path.join(options.root, run.dir), stdio: "inherit" });
     const passed = !result.error && result.status === 0;
     console.log(`[shuffle] ${passed ? "成功" : "失敗"} ${run.dir}（${Math.round((Date.now() - t) / 1000)} 秒）`);
     if (!passed) failed.push(run);
@@ -68,7 +78,11 @@ function main() {
   if (ran === 0) console.log("[shuffle] 流したパッケージが 0 件です。検査になっていません");
   for (const run of failed) console.log(`[shuffle] 再現（種 ${seed}）: ${reproCommand(run)}`);
   if (failed.length > 0) console.log("[shuffle] 上のコマンドは同じ種で同じ順になる。再現したら順番依存。再現しないなら順番ではなく別の不安定さ。見つけた順番依存はこの PR で直さず ISSUE を切る");
-  process.exitCode = failed.length > 0 || ran === 0 ? 1 : 0;
+  return failed.length > 0 || ran === 0 ? 1 : 0;
+}
+
+function main() {
+  process.exitCode = execute(process.argv.slice(2));
 }
 
 if (isDirectRun(import.meta.url, process.argv[1])) main();

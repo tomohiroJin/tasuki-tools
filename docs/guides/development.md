@@ -993,7 +993,7 @@ CI は変異も E2E も全件を流し続けます。手元で絞った分の漏
 実装中の速さを守るため。#488 の決まり: 速い段は差分の周りだけ、全件の段は CI の検査をすべて）。
 CI では `ci`・`e2e` と並列の別ジョブなので、`ci` の臨界経路は伸びません（`ci` の後ろに足さない）。
 
-- 中身は `node scripts/test-shuffled.mjs --all`（指定が無いと何も流さず使い方を出して終わる。`entry-point-wiring.test.mjs` が引数なしで起動するため、重い検査を無指定で走らせない。単独で起動したときは先に `check-toolchain test` を通し、版が合わなければ始めない）（部品は `scripts/lib/shuffled-tests.mjs`）。各パッケージの `test` スクリプトに指定を足して 1 つずつ流します:
+- 中身は `node scripts/test-shuffled.mjs --all`（指定が無いと何も流さず使い方を出して終わる。`entry-point-wiring.test.mjs` が引数なしで起動するため、重い検査を無指定で走らせない。先に `check-toolchain test` を通し、版が合わなければ始めない。飛ばす指定は無い）（部品は `scripts/lib/shuffled-tests.mjs`）。各パッケージの `test` スクリプトに指定を足して 1 つずつ流します:
   vitest は `--sequence.shuffle --sequence.seed=<種>`、`apps/tasuki-sync`（bun）は `--randomize --seed=<種>`。
   **`node --test` のパッケージ（`packages/ui`。`scripts/` の自己テストもワークスペースの外で同じ）は対象外**です（Node 22 にランダムな順の指定が無い）。
   知らないランナーが足されたら黙って飛ばさず落ちます（指定を決めて `shuffled-tests.mjs` に足す）
@@ -1004,7 +1004,7 @@ CI では `ci`・`e2e` と並列の別ジョブなので、`ci` の臨界経路�
   **見つけた順番依存はその PR で直さず、ISSUE を切ります**（#499 が例）
 - 時間: 手元（他の検査と同居する 4 CPU）で 23 パッケージを順に流して約 5 分（最大は `apps/timer-web` の約 100 秒）。
   負荷の少ない環境では #496 の調査の約 3.5 分が目安です。CI ではこれに install・build の時間が加わりますが、並列の別ジョブなので全体の待ちは変異検査（約 5 分のシャード）と同程度に収まる見込みです
-- 検査自体は `scripts/test-shuffled.test.mjs` が、わざと順番依存にした小さなワークスペースで「赤くなり、ログの種とコマンドで同じ失敗が出る」ことを確かめます。配線の手書きの変異は 950〜955
+- 検査自体は `scripts/test-shuffled.test.mjs` が、わざと順番依存にした小さなワークスペースで「赤くなり、ログの種とコマンドで同じ失敗が出る」ことを確かめます。配線の手書きの変異は 950〜959
 
 **CI の変異検査は全件のまま、2 段に分けて並行に流します**（#481・決定は [`docs/adr/0029`](../adr/0029-mutation-shards-in-ci.md)・
 設計正本 [`2026-10-31-ci-wait-design.md`](../superpowers/specs/2026-10-31-ci-wait-design.md)）。

@@ -9,7 +9,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { parseArgs, USAGE } from "./test-shuffled.mjs";
+import { parseArgs, USAGE, execute, rerunCommand } from "./test-shuffled.mjs";
 
 const SCRIPT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "test-shuffled.mjs");
 
@@ -33,6 +33,7 @@ function workspace(files) {
   }
   return dir;
 }
+const seedLine = (out) => out.split("\n").find((l) => l.startsWith("[shuffle] 種"));
 const run = (dir, ...args) => spawnSync("node", [SCRIPT, "--root", dir, ...args], { encoding: "utf8" });
 
 test("順番依存のテストで赤くなり、ログの種とコマンドで同じ失敗を再現できる", () => {
@@ -68,7 +69,7 @@ test("独立したテストだけなら、どの種でも緑で終わる。種�
   try {
     const result = run(dir, "--all", "--seed", "42");
     assert.equal(result.status, 0, result.stdout + result.stderr);
-    assert.match(result.stdout.split("\n")[0], /種 42/);
+    assert.match(seedLine(result.stdout), /種 42/);
     assert.match(result.stdout, /流した 1 件・対象外 0 件・失敗 0 件/);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
@@ -76,7 +77,7 @@ test("独立したテストだけなら、どの種でも緑で終わる。種�
 test("種を省くと毎回の種を出し、指定が不正なら始めない", () => {
   const dir = workspace({ fine: INDEPENDENT });
   try {
-    assert.match(run(dir, "--all").stdout.split("\n")[0], /^\[shuffle\] 種 \d+/);
+    assert.match(seedLine(run(dir, "--all").stdout), /^\[shuffle\] 種 \d+/);
     assert.equal(run(dir, "--all", "--seed", "0").status, 2);
     assert.equal(run(dir, "--pkg", "pkgs/none").status, 2);
     assert.throws(() => parseArgs(["--unknown"]), /知らない指定/);
@@ -105,5 +106,42 @@ test("流したパッケージが 0 件（全部が対象外）なら緑にし�
     assert.equal(result.status, 1);
     assert.match(result.stdout, /流した 0 件・対象外 1 件・失敗 0 件/);
     assert.match(result.stdout, /0 件です/);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("版が合わないときは、--root を付けても 1 つも流さずに止まる（docs/adr/0031 決定 2）", () => {
+  const dir = workspace({ fine: INDEPENDENT });
+  try {
+    const spawned = [];
+    const spawn = (...call) => { spawned.push(call); return { status: 0 }; };
+    assert.equal(execute(["--all", "--root", dir, "--seed", "1"], { checkToolchain: () => false, spawn }), 1);
+    assert.equal(execute(["--pkg", "pkgs/fine", "--root", dir], { checkToolchain: () => false, spawn }), 1);
+    assert.deepEqual(spawned, []);
+    // 合うときは流す（差し替えは版の確かめだけ。流す配線は生きている）
+    assert.equal(execute(["--all", "--root", dir, "--seed", "1"], { checkToolchain: () => true, spawn }), 0);
+    assert.equal(spawned.length, 1);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("版の確かめを飛ばす指定は無い（--root・環境変数）", () => {
+  assert.throws(() => parseArgs(["--all", "--skip-toolchain"]), /知らない指定/);
+  const source = fs.readFileSync(SCRIPT, "utf8");
+  assert.doesNotMatch(source, /process\.env/);
+});
+
+test("最初の行の再現コマンドは、実際に流した指定と種を含み、そのまま貼れる", () => {
+  const dir = workspace({ fine: INDEPENDENT });
+  try {
+    for (const args of [["--all", "--seed", "42"], ["--pkg", "pkgs/fine", "--seed", "42"]]) {
+      const first = seedLine(run(dir, ...args).stdout);
+      const line = /同じ種で再現: node scripts\/test-shuffled\.mjs (.+)）/.exec(first)?.[1];
+      assert.ok(line, first);
+      const again = parseArgs(line.split(" "));
+      assert.equal(again.seed, 42);
+      assert.ok(again.all || again.pkg, "貼っても使い方を出して終わる");
+      assert.equal(again.pkg, args[0] === "--pkg" ? "pkgs/fine" : undefined);
+    }
+    assert.equal(rerunCommand({ all: true }, 7), "node scripts/test-shuffled.mjs --all --seed 7");
+    assert.equal(rerunCommand({ pkg: "apps/x" }, 7), "node scripts/test-shuffled.mjs --pkg apps/x --seed 7");
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
