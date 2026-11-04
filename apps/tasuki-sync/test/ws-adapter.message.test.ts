@@ -114,7 +114,7 @@ describe("WsAdapter メッセージ経路", () => {
     ws.close();
   });
 
-  it("Given 接続済み / When 64KB ちょうど（65,536 バイト）の本文を送る / Then MESSAGE_TOO_LARGE にはならず通常の解析に進む（#521）", async () => {
+  it("Given 接続済み / When 上限ちょうどの本文を送る / Then MESSAGE_TOO_LARGE にはならず通常の解析に進む（#521）", async () => {
     // Given
     const ws = await connect();
 
@@ -333,7 +333,7 @@ describe("WsAdapter お題（topic）のメッセージ経路", () => {
     ws.close();
   });
 
-  it("Given ?tool=topic の接続 / When 64KB ちょうどの本文を送る / Then MESSAGE_TOO_LARGE にならずお題の層へ届く（#521）", async () => {
+  it("Given ?tool=topic の接続 / When 上限ちょうどの本文を送る / Then MESSAGE_TOO_LARGE にならずお題の層へ届く（#521）", async () => {
     // Given
     const topicCalls: Array<[string, string]> = [];
     adapter = newTestWsAdapter({
@@ -350,8 +350,9 @@ describe("WsAdapter お題（topic）のメッセージ経路", () => {
     const ws = new WebSocket(topicUrl(adapter));
     await waitOpen(ws);
 
-    // When: 3 バイト文字 21,845 個＋1 バイト＝ちょうど上限のバイト数（既定の上限は 64KB。文字数はそれより少ない）。
-    // バイトで測っていれば上限ちょうどで通る。
+    // When: バイト数がちょうど上限になる本文（3 バイト文字と 1 バイト文字の混在）。
+    // このテストが守るのは「上限ちょうどは通る」こと（比較を `>=` にすると赤くなる）。
+    // 文字数との取り違えを捕まえるのは、上限 + 1 バイトの側のテストである。
     const wide = Math.floor(DEFAULT_MAX_MESSAGE_BYTES / 3);
     const exact = "あ".repeat(wide) + "x".repeat(DEFAULT_MAX_MESSAGE_BYTES - wide * 3);
     expect(Buffer.byteLength(exact)).toBe(DEFAULT_MAX_MESSAGE_BYTES);
@@ -364,7 +365,7 @@ describe("WsAdapter お題（topic）のメッセージ経路", () => {
     ws.close();
   });
 
-  it("Given ?tool=topic の接続 / When 64KB ちょうどに 1 バイト足した本文を送る / Then お題の層は呼ばれず MESSAGE_TOO_LARGE を返す（#521）", async () => {
+  it("Given ?tool=topic の接続 / When 上限 + 1 バイトの本文を送る / Then お題の層は呼ばれず MESSAGE_TOO_LARGE を返す（#521）", async () => {
     // Given
     let topicCalled = false;
     adapter = newTestWsAdapter({
@@ -381,7 +382,7 @@ describe("WsAdapter お題（topic）のメッセージ経路", () => {
     const ws = new WebSocket(topicUrl(adapter));
     await waitOpen(ws);
 
-    // When: ちょうど 65,537 バイト
+    // When: 上限 + 1 バイト（3 バイト文字と 1 バイト文字の混在。文字数は上限に満たないので、バイトで測らないと通ってしまう）
     const wide = Math.floor(DEFAULT_MAX_MESSAGE_BYTES / 3);
     const over = "あ".repeat(wide) + "x".repeat(DEFAULT_MAX_MESSAGE_BYTES - wide * 3 + 1);
     expect(Buffer.byteLength(over)).toBe(DEFAULT_MAX_MESSAGE_BYTES + 1);
