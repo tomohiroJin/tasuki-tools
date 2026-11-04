@@ -98,7 +98,7 @@ export function deriveChecks(workflow) {
   }
   if (parsed === 0 || parsed !== runCount) throw new Error(`workflow の run をすべて読めません（${parsed}/${runCount}）。ブロック形式を使ってください`);
   // E2E と変異は最後にする。各ジョブの中の順序とコマンドは保存する。
-  const order = ["ci", "docs", "quality", "e2e", "mutation", "mutation-all"];
+  const order = ["ci", "docs", "quality", "shuffle", "e2e", "mutation", "mutation-all"];
   return checks.sort((a, b) => (order.indexOf(a.job) < 0 ? 0 : order.indexOf(a.job)) - (order.indexOf(b.job) < 0 ? 0 : order.indexOf(b.job)));
 }
 
@@ -111,7 +111,7 @@ export function planChecks(checks, mode, code) {
       mutationSeen = true;
       return { job: check.job, command: "node scripts/mutation-check.mjs --changed" };
     }
-    if (check.job === "e2e" || check.command === "pnpm build") {
+    if (check.job === "e2e" || check.job === "shuffle" || check.command === "pnpm build") {
       return { ...check, reason: "速い段では省略。全件の段で流す" };
     }
     if (!code && /^pnpm (typecheck|lint|test)$/.test(check.command)) return { ...check, reason: "差分は文書のみ" };

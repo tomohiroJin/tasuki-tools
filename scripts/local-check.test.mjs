@@ -50,6 +50,16 @@ test("速い段は build・E2E を理由つきで省略し、変異を --changed
   assert.ok(docs.some((c) => c.command === "node scripts/check-links.mjs" && !c.reason));
 });
 
+test("ランダムな順のテストは全件の段に入り、速い段では理由つきで省略する（#524）", () => {
+  const command = "node scripts/test-shuffled.mjs";
+  const full = planChecks(deriveChecks(workflow), "full", true);
+  assert.equal(full.filter((c) => c.command === command && !c.reason).length, 1);
+  const fast = planChecks(deriveChecks(workflow), "fast", true);
+  assert.match(fast.find((c) => c.command === command).reason, /速い段/);
+  // 速い段で、shuffle ジョブの流す検査が 1 本も残らない（build も省略される）
+  assert.ok(fast.filter((c) => c.job === "shuffle").every((c) => c.reason));
+});
+
 test("供給網 install は両方の段で CI 専用として省略し、実行しない", () => {
   for (const mode of ["fast", "full"]) {
     const plan = planChecks(deriveChecks(workflow), mode, true);
