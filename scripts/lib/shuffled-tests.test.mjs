@@ -5,9 +5,10 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { listWorkspacePackages } from "./scan-targets.mjs";
-import { shuffledCommand, parseSeed, newSeed, SEED_MAX, workspacePackageDirs, planShuffledRuns, reproCommand } from "./shuffled-tests.mjs";
+import { shuffledCommand, parseSeed, newSeed, SEED_MAX, planShuffledRuns, reproCommand } from "./shuffled-tests.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+const REAL_PACKAGE_MANAGER = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf8")).packageManager;
 
 test("vitest と bun の test スクリプトに、ランダムな順と種の指定を足す", () => {
   assert.deepEqual(shuffledCommand("vitest run", 7).args, ["vitest", "run", "--sequence.shuffle", "--sequence.seed=7"]);
@@ -35,7 +36,6 @@ test("実リポジトリの全パッケージが、流すか理由つきで対�
   const listed = listWorkspacePackages(ROOT);
   assert.deepEqual(plan.map((r) => r.dir), listed);
   assert.equal(new Set(plan.map((r) => r.dir)).size, listed.length);
-  assert.deepEqual(workspacePackageDirs(ROOT), listed);
   for (const run of plan) assert.ok(Boolean(run.args) !== Boolean(run.skip), run.dir);
   // 対象外は node --test の packages/ui だけ（scripts/ はワークスペースの外）。ほかが黙って外れたら落とす
   assert.deepEqual(plan.filter((r) => r.skip).map((r) => r.dir), ["packages/ui"]);
@@ -46,6 +46,8 @@ test("実リポジトリの全パッケージが、流すか理由つきで対�
 test("再現のコマンドは、ルートからそのまま貼れて、同じ種を含む", () => {
   const run = planShuffledRuns(ROOT, 123).find((r) => r.dir === "apps/timer-web");
   assert.equal(reproCommand(run), "cd apps/timer-web && pnpm exec vitest run --sequence.shuffle --sequence.seed=123");
+  // --root で別のワークスペースを流したときは、そこへの絶対パスから cd する
+  assert.equal(reproCommand(run, "/work/ws"), "cd /work/ws/apps/timer-web && pnpm exec vitest run --sequence.shuffle --sequence.seed=123");
 });
 
 test("ワークスペースの列挙は yaml のコメント行に左右されない", () => {
@@ -56,7 +58,7 @@ test("ワークスペースの列挙は yaml のコメント行に左右され�
       fs.mkdirSync(path.join(dir, d), { recursive: true });
       fs.writeFileSync(path.join(dir, d, "package.json"), JSON.stringify({ name: d.replace("/", "-"), scripts: { test: "bun test" } }));
     }
-    fs.writeFileSync(path.join(dir, "package.json"), JSON.stringify({ name: "root", private: true }));
-    assert.deepEqual(workspacePackageDirs(dir), ["pkgs/a", "pkgs/b", "single"]);
+    fs.writeFileSync(path.join(dir, "package.json"), JSON.stringify({ name: "root", private: true, packageManager: REAL_PACKAGE_MANAGER }));
+    assert.deepEqual(listWorkspacePackages(dir), ["pkgs/a", "pkgs/b", "single"]);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });

@@ -45,23 +45,18 @@ export function shuffledCommand(testScript, seed) {
   throw new Error(`知らないテストランナーです。ランダムな順の指定を決めて shuffled-tests.mjs に足してください: ${testScript}`);
 }
 
-/**
- * ワークスペースのパッケージのディレクトリ（root からの相対）。列挙は pnpm 自身に任せる
- * （yaml の手解析は禁止。docs/adr/0014 決定 3。コメント行や書き方の違いで黙って抜けるため）。
- */
-export function workspacePackageDirs(root) {
-  return listWorkspacePackages(root);
-}
-
-/** 全パッケージの計画。`{ dir, name, args }`（流す）か `{ dir, name, skip }`（対象外）。 */
-export function planShuffledRuns(root, seed, dirs = workspacePackageDirs(root)) {
+/** 計画。`dirs` を省くと全パッケージ（pnpm の列挙。yaml は手で読まない: docs/adr/0014 決定 3）。`{ dir, name, args }`（流す）か `{ dir, name, skip }`（対象外）。 */
+export function planShuffledRuns(root, seed, dirs = listWorkspacePackages(root)) {
   return dirs.map((dir) => {
     const pkg = JSON.parse(fs.readFileSync(path.join(root, dir, "package.json"), "utf8"));
     return { dir, name: pkg.name ?? dir, ...shuffledCommand(pkg.scripts?.test, seed) };
   });
 }
 
-/** 落ちたときに、同じ種で手元で再現するコマンド（リポジトリのルートから貼れる形）。 */
-export function reproCommand(run) {
-  return `cd ${run.dir} && pnpm exec ${run.args.join(" ")}`;
+/**
+ * 落ちたときに、同じ種で手元で再現するコマンド。`root` を省くとリポジトリのルートから貼れる形（相対）。
+ * `--root` で別のワークスペースを流したときは、その絶対パスから `cd` する。
+ */
+export function reproCommand(run, root = null) {
+  return `cd ${root ? path.join(root, run.dir) : run.dir} && pnpm exec ${run.args.join(" ")}`;
 }

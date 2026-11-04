@@ -12,6 +12,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs, USAGE, execute, rerunCommand, checkToolchain, toolchainCheckCall } from "./test-shuffled.mjs";
 
 const SCRIPT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "test-shuffled.mjs");
+const REAL_PACKAGE_MANAGER = JSON.parse(fs.readFileSync(path.resolve(path.dirname(SCRIPT), "../package.json"), "utf8")).packageManager;
 
 // 前のテストが進めた counter に頼る。宣言の順（1,2,3,4,5）でだけ通る。
 const ORDER_DEPENDENT = `import { test, expect } from "bun:test";
@@ -25,7 +26,7 @@ for (const n of [1, 2, 3, 4, 5]) test("独立 " + n, () => { expect(n).toBeGreat
 function workspace(files) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "shuffled-run-"));
   fs.writeFileSync(path.join(dir, "pnpm-workspace.yaml"), 'packages:\n  - "pkgs/*"\n');
-  fs.writeFileSync(path.join(dir, "package.json"), JSON.stringify({ name: "root", private: true }));
+  fs.writeFileSync(path.join(dir, "package.json"), JSON.stringify({ name: "root", private: true, packageManager: REAL_PACKAGE_MANAGER }));
   for (const [name, source] of Object.entries(files)) {
     fs.mkdirSync(path.join(dir, "pkgs", name), { recursive: true });
     fs.writeFileSync(path.join(dir, "pkgs", name, "package.json"), JSON.stringify({ name, scripts: { test: "bun test" } }));
@@ -50,7 +51,7 @@ test("順番依存のテストで赤くなり、ログの種とコマンドで�
     assert.match(out, new RegExp(`種 ${failing.seed}`));
     assert.match(out, /--randomize/);
     assert.match(out, /失敗 1 件/);
-    assert.match(out, new RegExp(`再現（種 ${failing.seed}）: cd pkgs/dependent && pnpm exec bun test --randomize --seed=${failing.seed}`));
+    assert.match(out, new RegExp(`再現（種 ${failing.seed}）: cd ${path.join(dir, "pkgs/dependent").replaceAll("/", "\\/")} && pnpm exec bun test --randomize --seed=${failing.seed}`));
     assert.doesNotMatch(out, /再現.*pkgs\/fine/);
     // ログに出た再現のコマンドで、同じ種のまま同じ失敗が出る
     const repro = /再現（種 \d+）: (.+)/.exec(out)[1];
@@ -99,7 +100,7 @@ test("流したパッケージが 0 件（全部が対象外）なら緑にし�
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "shuffled-skip-"));
   try {
     fs.writeFileSync(path.join(dir, "pnpm-workspace.yaml"), 'packages:\n  - "pkgs/*"\n');
-    fs.writeFileSync(path.join(dir, "package.json"), JSON.stringify({ name: "root", private: true }));
+    fs.writeFileSync(path.join(dir, "package.json"), JSON.stringify({ name: "root", private: true, packageManager: REAL_PACKAGE_MANAGER }));
     fs.mkdirSync(path.join(dir, "pkgs/n"), { recursive: true });
     fs.writeFileSync(path.join(dir, "pkgs/n/package.json"), JSON.stringify({ name: "n", scripts: { test: "node --test" } }));
     const result = run(dir, "--all");
@@ -230,4 +231,57 @@ test("本物の起動（main を通る）: 宣言と合わない版では、1 �
   } finally {
     for (const dir of [...copies, ws, marker]) fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("--pkg は指定のパッケージだけを計画する。関係の無いパッケージの test スクリプトで止まらない（--all は止まる）", () => {
+  const dir = workspace({ fine: INDEPENDENT });
+  fs.mkdirSync(path.join(dir, "pkgs/odd"));
+  fs.writeFileSync(path.join(dir, "pkgs/odd/package.json"), JSON.stringify({ name: "odd", scripts: { test: "jest" } }));
+  try {
+    const one = run(dir, "--pkg", "pkgs/fine", "--seed", "1");
+    assert.equal(one.status, 0, one.stdout + one.stderr);
+    assert.match(one.stdout, /流した 1 件/);
+    const all = run(dir, "--all", "--seed", "1");
+    assert.equal(all.status, 1);
+    assert.match(all.stderr, /知らないテストランナー/);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("--pkg は ./・末尾の /・絶対パスでも同じパッケージを指し、無いものは見つかりませんで 2", () => {
+  const dir = workspace({ fine: INDEPENDENT });
+  try {
+    for (const spelled of ["./pkgs/fine", "pkgs/fine/", path.join(dir, "pkgs/fine"), "pkgs//fine"]) {
+      const result = run(dir, "--pkg", spelled, "--seed", "1");
+      assert.equal(result.status, 0, `${spelled}: ${result.stdout}${result.stderr}`);
+      assert.match(result.stdout, /流した 1 件/);
+    }
+    for (const missing of ["pkgs/none", "../outside"]) assert.equal(run(dir, "--pkg", missing).status, 2, missing);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("--all と --pkg の両方は使い方の誤り（終了コード 2、何も流さない）", () => {
+  assert.throws(() => parseArgs(["--all", "--pkg", "x"]), /同時に使えません/);
+  const dir = workspace({ fine: INDEPENDENT });
+  try {
+    const result = run(dir, "--all", "--pkg", "pkgs/fine");
+    assert.equal(result.status, 2);
+    assert.doesNotMatch(result.stdout, /流した/);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("--root を使ったとき、最初の行と最後の再現コマンドにも --root（と絶対パスの cd）が付く", () => {
+  const dir = workspace({ dependent: ORDER_DEPENDENT });
+  try {
+    let failing;
+    for (let seed = 1; seed <= 10 && !failing; seed++) {
+      const result = run(dir, "--all", "--seed", String(seed));
+      if (result.status !== 0) failing = { seed, out: result.stdout };
+    }
+    assert.ok(failing);
+    assert.match(seedLine(failing.out), new RegExp(`--all --seed ${failing.seed} --root ${dir.replaceAll("/", "\\/")}`));
+    assert.match(failing.out, new RegExp(`再現（種 ${failing.seed}）: cd ${path.join(dir, "pkgs/dependent").replaceAll("/", "\\/")} && pnpm exec bun test`));
+    // 最初の行のコマンドは、そのまま解析でき、同じ root を指す
+    const again = parseArgs(/同じ種で再現: node scripts\/test-shuffled\.mjs (.+)）/.exec(seedLine(failing.out))[1].split(" "));
+    assert.equal(again.root, dir);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });

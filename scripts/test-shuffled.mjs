@@ -16,6 +16,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 import { isDirectRun } from "./lib/direct-run.mjs";
+import { listWorkspacePackages } from "./lib/scan-targets.mjs";
 import { newSeed, parseSeed, planShuffledRuns, reproCommand } from "./lib/shuffled-tests.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -23,20 +24,22 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 export const USAGE = "使い方: node scripts/test-shuffled.mjs (--all | --pkg <ディレクトリ>) [--seed <整数>]";
 
 export function parseArgs(argv) {
-  const options = { seed: undefined, pkg: undefined, root: ROOT, all: false };
+  const options = { seed: undefined, pkg: undefined, root: ROOT, all: false, rootGiven: false };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === "--all") options.all = true;
     else if (argv[i] === "--seed" && argv[i + 1] !== undefined) options.seed = parseSeed(argv[++i]);
     else if (argv[i] === "--pkg" && argv[i + 1] !== undefined) options.pkg = argv[++i];
-    else if (argv[i] === "--root" && argv[i + 1] !== undefined) { options.root = path.resolve(argv[++i]); }
+    else if (argv[i] === "--root" && argv[i + 1] !== undefined) { options.root = path.resolve(argv[++i]); options.rootGiven = true; }
     else throw new Error(`知らない指定です: ${argv[i]}\n${USAGE}`);
   }
+  if (options.all && options.pkg) throw new Error(`--all と --pkg は同時に使えません\n${USAGE}`);
   return options;
 }
 
 /** 最初の行に出す、同じ種で流し直すコマンド。実際に流した指定（--all / --pkg）を付ける。 */
 export function rerunCommand(options, seed) {
-  return `node scripts/test-shuffled.mjs ${options.pkg ? `--pkg ${options.pkg}` : "--all"} --seed ${seed}`;
+  const root = options.rootGiven ? ` --root ${options.root}` : "";
+  return `node scripts/test-shuffled.mjs ${options.pkg ? `--pkg ${options.pkg}` : "--all"} --seed ${seed}${root}`;
 }
 
 /** 版の確かめを起動するコマンド。常に、このリポジトリの宣言を段 `test` で比べる。 */
@@ -63,9 +66,19 @@ export function execute(argv, deps = {}) {
   const seed = options.seed ?? newSeed();
   console.log(`[shuffle] 種 ${seed}（同じ種で再現: ${rerunCommand(options, seed)}）`);
   let plan;
-  try { plan = planShuffledRuns(options.root, seed); } catch (error) { console.error(`[shuffle] ${error.message}`); return 1; }
-  if (options.pkg && !plan.some((r) => r.dir === options.pkg)) { console.error(`[shuffle] パッケージが見つかりません: ${options.pkg}`); return 2; }
-  const selected = plan.filter((r) => !options.pkg || r.dir === options.pkg);
+  try {
+    const dirs = listWorkspacePackages(options.root);
+    if (options.pkg) {
+      // ./x・x/・絶対パスも同じパッケージとして比べる（--root からの相対に正規化）
+      const wanted = path.relative(options.root, path.resolve(options.root, options.pkg)).split(path.sep).join("/");
+      if (!dirs.includes(wanted)) { console.error(`[shuffle] パッケージが見つかりません: ${options.pkg}`); return 2; }
+      // 絞るときは指定のパッケージだけを計画する（関係の無いパッケージの test スクリプトで止まらない）
+      plan = planShuffledRuns(options.root, seed, [wanted]);
+    } else {
+      plan = planShuffledRuns(options.root, seed, dirs);
+    }
+  } catch (error) { console.error(`[shuffle] ${error.message}`); return 1; }
+  const selected = plan;
   const skipped = selected.filter((r) => r.skip).length;
   const failed = [];
   let ran = 0;
@@ -83,7 +96,7 @@ export function execute(argv, deps = {}) {
   console.log(`\n[shuffle] 種 ${seed}・所要 ${Math.round((Date.now() - started) / 1000)} 秒・流した ${ran} 件・対象外 ${skipped} 件・失敗 ${failed.length} 件`);
   // 1 件も流していない緑は検査が空振りしている（docs/adr/0014 決定 6・8）
   if (ran === 0) console.log("[shuffle] 流したパッケージが 0 件です。検査になっていません");
-  for (const run of failed) console.log(`[shuffle] 再現（種 ${seed}）: ${reproCommand(run)}`);
+  for (const run of failed) console.log(`[shuffle] 再現（種 ${seed}）: ${reproCommand(run, options.rootGiven ? options.root : null)}`);
   if (failed.length > 0) console.log("[shuffle] 上のコマンドは同じ種で同じ順になる。再現したら順番依存。再現しないなら順番ではなく別の不安定さ。見つけた順番依存はこの PR で直さず ISSUE を切る");
   return failed.length > 0 || ran === 0 ? 1 : 0;
 }
