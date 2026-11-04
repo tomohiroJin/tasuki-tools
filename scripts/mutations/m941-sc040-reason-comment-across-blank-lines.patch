@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/structure/focused-skipped-tests.mjs b/scripts/lib/structure/focused-skipped-tests.mjs
+index 4ab030a..a1310d2 100644
+--- a/scripts/lib/structure/focused-skipped-tests.mjs
++++ b/scripts/lib/structure/focused-skipped-tests.mjs
+@@ -91,7 +91,7 @@ function adjacentCommentText(source, statement) {
+   let boundary = statement.getStart();
+   for (let i = ranges.length - 1; i >= 0; i--) {
+     const gap = source.slice(ranges[i].end, boundary);
+-    if ((gap.match(/\n/g) ?? []).length > 1) break;
++    if ((gap.match(/\n/g) ?? []).length > 99) break;
+     parts.unshift(source.slice(ranges[i].pos, ranges[i].end));
+     boundary = ranges[i].pos;
+   }

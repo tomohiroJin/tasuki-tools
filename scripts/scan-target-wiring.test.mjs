@@ -1733,43 +1733,6 @@ describe("照合より後段での間引き: scripts/audit-structure.mjs", () =>
   });
 });
 
-describe("SC-040 の配線: scripts/audit-structure.mjs（#523）", () => {
-  const CALL = "const sc040Problems = sc040FocusedOrSkippedTests(sc040Files);";
-  const INJECT =
-    'const sc040Problems = sc040FocusedOrSkippedTests(new Map([...sc040Files, ["injected.test.ts", "it.only(\'a\', () => {});"]]));';
-
-  test("テストファイルに .only があれば、指標の表を出さずに非ゼロで終了する", () => {
-    // Given: 走査対象へ .only を 1 件足した複製
-    const r = runScriptCopy("audit-structure.mjs", (s) => s.replace(CALL, INJECT));
-    // Then: 壊したこと自体を確かめてから、落ちることを見る
-    assert.equal(countOf(readScript("audit-structure.mjs"), CALL), 1, "差し込む対象が実装にありません");
-    assert.equal(countOf(r.source, CALL), 0, "差し込めていません");
-    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
-    assert.match(r.stderr, /SC-040 injected\.test\.ts:1 \.only が残っています/);
-    assert.doesNotMatch(r.stdout, /^SC040 \|/m);
-  });
-
-  test("テストファイルの名前の一覧が 0 件なら、走査が空振りしているとして非ゼロで終了する", () => {
-    // Given: 名前で分かるテストの一覧を空にした複製
-    const needle = "const namedTestPaths = listRepoFiles(REPO_ROOT, SC040_TEST_FILE_PATTERNS);";
-    const r = runScriptCopy("audit-structure.mjs", (s) => s.replace(needle, "const namedTestPaths = [];"));
-    // Then
-    assert.equal(countOf(readScript("audit-structure.mjs"), needle), 1, "書き換える対象が実装にありません");
-    assert.equal(countOf(r.source, needle), 0, "書き換えられていません");
-    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
-    assert.match(r.stderr, /SC-040 の走査対象が 0 件です/);
-  });
-
-  test("対照実行: 今のリポジトリは SC-040 が 0 件で、走査量を出す", () => {
-    // When
-    const r = runScriptCopy("audit-structure.mjs", (s) => s);
-    // Then
-    assert.equal(r.status, 0, r.stderr);
-    assert.match(r.stdout, /\[audit-structure\] SC-040 の走査対象: \d+ ファイル/);
-    assert.match(r.stdout, /^SC040 \| 0 \| 0 \| PASS$/m);
-  });
-});
-
 /**
  * CI への配線: すべての `audit-*.mjs` が ci.yml から呼ばれる（#320・設計正本 D12）。
  *

@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/structure/focused-skipped-tests.mjs b/scripts/lib/structure/focused-skipped-tests.mjs
+index 4ab030a..cd3abe6 100644
+--- a/scripts/lib/structure/focused-skipped-tests.mjs
++++ b/scripts/lib/structure/focused-skipped-tests.mjs
+@@ -29,7 +29,7 @@ export const TEST_API_ROOTS = ["it", "test", "describe", "suite"];
+ export const SKIP_NAMES = ["skip", "skipIf", "runIf", "todo", "fixme"];
+ 
+ /** 理由があっても止める名前。 */
+-export const FOCUS_NAMES = ["only"];
++export const FOCUS_NAMES = [];
+ 
+ /** 理由のコメントの形。`理由:` の後ろに、空白以外の文字が 1 つ以上要る。 */
+ export const REASON_RE = /理由[:：]\s*\S/;
