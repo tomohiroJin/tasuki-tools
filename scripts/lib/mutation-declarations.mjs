@@ -61,6 +61,9 @@ const RESERVED_880_889 =
 const RESERVED_920_924 =
   "**対応表より後に足した変異。** 920〜924 は #522 の roulette-core に割り当てた範囲。";
 
+const RESERVED_925_929 =
+  "**対応表より後に足した変異。** 925〜929 は #522 の agenda-core に割り当てた範囲。";
+
 const RESERVED_850_859 =
   "**対応表より後に足した変異。** 850〜859 は #506 に割り当てた範囲。";
 
@@ -5497,5 +5500,45 @@ export const MUTATIONS = [
     pkg: "packages/roulette-core",
     tests: ["tests/roulette-bounds.test.ts"],
     note: RESERVED_920_924 + " " + "#522。回し始めの時刻が 0 でないと、押して止める回転が回し始めの直後に止まったと見なされ、回転中の拒否と決め方の変更の拒否が効かない。",
+  },
+  {
+    id: 925,
+    label: "next が所要を確定するとき、次に来る区切りより後ろの飛ばし済みの区切りまで spentMs を 0 にする（i < limit の条件を外す）",
+    patch: "m925-agenda-settle-skipped-beyond-next.patch",
+    pkg: "packages/agenda-core",
+    tests: ["tests/agenda-bounds.test.ts"],
+    note: RESERVED_925_929 + " " + "#522。まだ来ていない飛ばし済みの区切りが「所要 0 で通り過ぎた」ことになり、後で飛ばしを戻しても所要が 0 のまま残る。代表は条件を外す形。同じ範囲の条件の論理演算（926）・向き（927）とは別の壊し方。",
+  },
+  {
+    id: 926,
+    label: "next の所要の確定の範囲を (i > idx || i < limit) && x.skipped にする（論理積を論理和に）",
+    patch: "m926-agenda-settle-or-instead-of-and.patch",
+    pkg: "packages/agenda-core",
+    tests: ["tests/agenda-bounds.test.ts"],
+    note: RESERVED_925_929 + " " + "#522。現在より前の飛ばし済み・次より後ろの飛ばし済みまで 0 で書き換える。agenda.ts:73 の論理演算（調査 2.5 の注: core のテストを丸ごと流すと落ちる。Stryker の誤り）を、足した性質テストだけでも落ちることで守る。",
+  },
+  {
+    id: 927,
+    label: "next の所要の確定の範囲を i < idx にする（現在より後ろでなく前の飛ばし済みを 0 にする）",
+    patch: "m927-agenda-settle-before-current.patch",
+    pkg: "packages/agenda-core",
+    tests: ["tests/agenda-bounds.test.ts"],
+    note: RESERVED_925_929 + " " + "#522。通り過ぎた飛ばし済みの区切りが 0 にならず null のまま残り、現在より前の区切りが書き換わる。範囲の下端（現在の直後から）を守る。",
+  },
+  {
+    id: 928,
+    label: "advanceIfDue が、期限を過ぎても「次へ自動」の区切りを進めない（onTimeout の判定を常に真にして早期に返す）",
+    patch: "m928-agenda-advance-if-due-never-advances.patch",
+    pkg: "packages/agenda-core",
+    tests: ["tests/agenda-bounds.test.ts"],
+    note: RESERVED_925_929 + " " + "#522。agenda.ts:117 の判断を常に「進めない」にする形。期限が来ても自動で次へ移らず、会議が止まったままになる。この形は前からある agenda.test.ts でも落ちる（足したテストで初めて殺されるわけではない）。2.5 の「判断を常に偽にする形」の代表として残す。",
+  },
+  {
+    id: 929,
+    label: "advanceIfDue が、期限ちょうどの「次へ自動」の区切りを進めない（deadline > now を deadline >= now にする）",
+    patch: "m929-agenda-advance-if-due-at-deadline-held.patch",
+    pkg: "packages/agenda-core",
+    tests: ["tests/agenda-bounds.test.ts"],
+    note: RESERVED_925_929 + " " + "#522。期限ちょうどの時刻に呼ばれても次へ移らず、1ms 後まで区切りが残る（期限ちょうどで確定する約束が崩れ、所要が 1 回の呼び出しぶん遅れる）。前からある agenda.test.ts は期限ちょうどを見ないので、期限の -1・0・+1ms を機械に選ばせる足した性質テストだけが殺す。",
   },
 ];
