@@ -1,13 +1,13 @@
 diff --git a/scripts/lib/structure/focused-skipped-tests.mjs b/scripts/lib/structure/focused-skipped-tests.mjs
-index 4ab030a..1542a3c 100644
+index e4c514d..ecb308f 100644
 --- a/scripts/lib/structure/focused-skipped-tests.mjs
 +++ b/scripts/lib/structure/focused-skipped-tests.mjs
-@@ -32,7 +32,7 @@ export const SKIP_NAMES = ["skip", "skipIf", "runIf", "todo", "fixme"];
- export const FOCUS_NAMES = ["only"];
+@@ -36,7 +36,7 @@ export const FOCUS_NAMES = ["only"];
+  * 行の途中の「理由:」（`// この理由: a は別`・`// 外す理由: 未定`）は理由と認めない。
+  * `//`・`/* *\/`・`/** *\/` と、ブロックコメントの各行頭の `*` は、比べる前に外す。
+  */
+-export const REASON_RE = /^理由[:：]\s*\S/;
++export const REASON_RE = /^理由/;
  
- /** 理由のコメントの形。`理由:` の後ろに、空白以外の文字が 1 つ以上要る。 */
--export const REASON_RE = /理由[:：]\s*\S/;
-+export const REASON_RE = /理由/;
- 
- function scriptKindOf(file) {
-   if (file.endsWith(".tsx")) return ts.ScriptKind.TSX;
+ /** コメントの塊から、記号を外した行の一覧を取る。 */
+ function commentLines(text) {

@@ -1,12 +1,13 @@
 diff --git a/scripts/audit-structure.mjs b/scripts/audit-structure.mjs
-index c8f74cc..d726b08 100644
+index 302a902..26b580b 100644
 --- a/scripts/audit-structure.mjs
 +++ b/scripts/audit-structure.mjs
-@@ -112,7 +112,6 @@ export const SC040_TEST_FILE_PATTERNS = [
-   "*.test.ts",
-   "*.test.tsx",
-   "*.test.mjs",
--  "*.spec.ts",
-   "*.spec.tsx",
- ];
- 
+@@ -111,7 +111,7 @@ const EXT_TS = [".ts", ".tsx"];
+  * 各パッケージの test ディレクトリ（`allTestFiles`）の外にあるもの（`e2e/specs`・`scripts/`・`packages/ui/tests`・
+  * `src` の中の `*_test.ts` など）をここで足す。`allTestFiles` と和を取るので、重なっても害は無い。
+  */
+-export const SC040_TEST_FILE_PATTERNS = ["test", "spec"].flatMap((kind) =>
++export const SC040_TEST_FILE_PATTERNS = ["test"].flatMap((kind) =>
+   ["js", "jsx", "ts", "tsx", "mjs", "cjs", "mts", "cts"].flatMap((ext) => [
+     `*.${kind}.${ext}`,
+     `*_${kind}.${ext}`,
