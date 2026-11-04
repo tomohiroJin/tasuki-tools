@@ -1,0 +1,13 @@
+diff --git a/packages/agenda-core/src/agenda.ts b/packages/agenda-core/src/agenda.ts
+index b40803a..22b692e 100644
+--- a/packages/agenda-core/src/agenda.ts
++++ b/packages/agenda-core/src/agenda.ts
+@@ -114,7 +114,7 @@ export function advanceIfDue(s: AgendaState, now: number): AgendaState {
+   for (;;) {
+     const deadline = deadlineOf(cur);
+     const step = cur.steps.find((x) => x.id === cur.currentId);
+-    if (deadline === null || step === undefined || step.onTimeout !== "advance" || deadline > now) return cur;
++    if (deadline === null || step === undefined || true || deadline > now) return cur;
+     cur = advanceStep(cur, deadline);
+   }
+ }

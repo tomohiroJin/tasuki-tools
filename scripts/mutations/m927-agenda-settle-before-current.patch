@@ -1,0 +1,13 @@
+diff --git a/packages/agenda-core/src/agenda.ts b/packages/agenda-core/src/agenda.ts
+index b40803a..66dc0e7 100644
+--- a/packages/agenda-core/src/agenda.ts
++++ b/packages/agenda-core/src/agenda.ts
+@@ -70,7 +70,7 @@ function advanceStep(s: AgendaState, at: number): AgendaState {
+   const nextIdx = s.steps.findIndex((x, i) => i > idx && !x.skipped);
+   // 終えた区切り・通り過ぎた飛ばし済みの区切りの所要を確定する
+   const settle = (limit: number): PlannedStep[] =>
+-    s.steps.map((x, i) => (i === idx ? { ...x, spentMs: spent } : i > idx && i < limit && x.skipped ? { ...x, spentMs: 0 } : x));
++    s.steps.map((x, i) => (i === idx ? { ...x, spentMs: spent } : i < idx && i < limit && x.skipped ? { ...x, spentMs: 0 } : x));
+   if (nextIdx === -1) {
+     return {
+       ...s,
