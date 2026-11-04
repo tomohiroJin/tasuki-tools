@@ -18,8 +18,8 @@ import { foldCase } from "./support/name-conflict.js";
  * 境界の値（#522）。上限・下限ちょうどの値と、開始時刻が 0 でない回転を、性質と例で守る。
  *
  * 期待値は実装の比較式を写さず、仕様の値（輪は 24 席まで・止まる位置は 0.2 以上 0.8 以下・
- * 押して止めるは 30 秒で自動に止まる）を直接書く。種と回数は固定する（ISSUE #522 の共通の節と、
- * timer-core の `properties.test.ts` の書き方に合わせる）。性質テストは境界ちょうどの値と、そのすぐ外の値を
+ * 押して止めるは 30 秒で自動に止まる）を直接書く。種と回数を固定する根拠は ISSUE #522 の
+ * 共通の節。回数の書き方（`numRuns`）は timer-core の `properties.test.ts` に合わせた（そちらは種を固定していない）。性質テストは境界ちょうどの値と、そのすぐ外の値を
  * `fc.constantFrom` で必ず混ぜて生成する（一様な乱数だけでは境界を踏まないため）。
  *
  * @requirements #94 E6（入る人の数）・#401 押して止める P3〜P5（時刻の窓）
@@ -70,36 +70,54 @@ describe("止まる位置（settle）の範囲", () => {
     }
   });
 
-  it("性質: 0.2〜0.8 の値は通り、それより外（境界のすぐ外を含む）は拒む（種と回数を固定）", () => {
+  it("性質: 0.2〜0.8 の値（両端を含む）は、どの決め方でも通る（種と回数を固定）", () => {
     const inside = fc.oneof(fc.constantFrom(0.2, 0.8), fc.double({ min: 0.2, max: 0.8, noNaN: true }));
+    fc.assert(
+      fc.property(fc.constantFrom(...MODES), inside, (mode, settle) => {
+        expect(startSpin(inMode(mode), input({ randomSettle: () => settle })).isOk()).toBe(true);
+      }),
+      { seed: 522, numRuns: 200 },
+    );
+  });
+
+  it("性質: 0.2 未満・0.8 超の値（境界のすぐ外を含む）は、どの決め方でも INVALID_SETTLE（種と回数を固定）", () => {
     const outside = fc.oneof(
       fc.constantFrom(0.1999, 0.8001, 0, 1, Number.NaN),
       fc.double({ min: -10, max: 0.2, maxExcluded: true, noNaN: true }),
       fc.double({ min: 0.8, max: 10, minExcluded: true, noNaN: true }),
     );
     fc.assert(
-      fc.property(fc.constantFrom(...MODES), inside, outside, (mode, ok, ng) => {
-        const accepted = startSpin(inMode(mode), input({ randomSettle: () => ok })).isOk();
-        const rejected = startSpin(inMode(mode), input({ randomSettle: () => ng }));
-        return accepted && rejected.isErr() && rejected.error.code === "INVALID_SETTLE";
+      fc.property(fc.constantFrom(...MODES), outside, (mode, settle) => {
+        expect(startSpin(inMode(mode), input({ randomSettle: () => settle }))._unsafeUnwrapErr()).toEqual({ code: "INVALID_SETTLE" });
       }),
       { seed: 522, numRuns: 200 },
     );
   });
 
-  it("性質: 押した位置の席の中の位置は 0 以上 1 未満を採り、それ以外（0 の手前・1 ちょうど）は拒む（種と回数を固定）", () => {
+  it("性質: 押した位置の席の中の位置は 0 以上 1 未満を採る（種と回数を固定）", () => {
     const s = startSpin(inMode("press"), input())._unsafeUnwrap();
     const inside = fc.oneof(fc.constantFrom(0, 0.9999999999999999), fc.double({ min: 0, max: 1, maxExcluded: true, noNaN: true }));
+    fc.assert(
+      fc.property(inside, (settle) => {
+        const taken = stopPress(s, { seq: 1, index: 0, settle, by: "x", now: 1100 })._unsafeUnwrap();
+        expect(taken).not.toBe(s);
+        expect(taken.lastSpin?.press?.stop?.settle).toBe(settle);
+      }),
+      { seed: 522, numRuns: 200 },
+    );
+  });
+
+  it("性質: 押した位置の席の中の位置が 0 未満・1 以上なら ROULETTE_STOP_INVALID（種と回数を固定）", () => {
+    const s = startSpin(inMode("press"), input())._unsafeUnwrap();
+    // 0 の手前は -Number.MIN_VALUE まで（fast-check は -0 を +0 の直前として生成するが、-0 は 0 以上で採られる）
     const outside = fc.oneof(
       fc.constantFrom(1, 1.0000000000000002, -0.0001, Number.NaN),
-      fc.double({ min: -10, max: 0, maxExcluded: true, noNaN: true }),
+      fc.double({ min: -10, max: -Number.MIN_VALUE, noNaN: true }),
       fc.double({ min: 1, max: 10, noNaN: true }),
     );
     fc.assert(
-      fc.property(inside, outside, (ok, ng) => {
-        const taken = stopPress(s, { seq: 1, index: 0, settle: ok, by: "x", now: 1100 });
-        const refused = stopPress(s, { seq: 1, index: 0, settle: ng, by: "x", now: 1100 });
-        return taken.isOk() && taken.value !== s && refused.isErr() && refused.error.code === "ROULETTE_STOP_INVALID";
+      fc.property(outside, (settle) => {
+        expect(stopPress(s, { seq: 1, index: 0, settle, by: "x", now: 1100 })._unsafeUnwrapErr()).toEqual({ code: "ROULETTE_STOP_INVALID" });
       }),
       { seed: 522, numRuns: 200 },
     );
@@ -139,11 +157,13 @@ describe("回し始めの時刻が 0 でないときの経過（now - startedAt�
     expect(stopped.lastSpin?.press?.stop).toEqual({ index: 2, settle: 0.5, by: "健太", atMs: 1000 });
   });
 
-  it("押して止める: 回し始めから 30 秒を過ぎた押下は何も変えない", () => {
+  it("押して止める: 回し始めから 30 秒ちょうどとそれ以降の押下は何も変えない", () => {
     // Given
     const s = pressSpinningAt(START);
     // When / Then
-    expect(stopPress(s, { seq: 1, index: 2, settle: 0.5, by: "x", now: START + PRESS_AUTO_STOP_MS })._unsafeUnwrap()).toBe(s);
+    for (const after of [0, 1, 10_000]) {
+      expect(stopPress(s, { seq: 1, index: 2, settle: 0.5, by: "x", now: START + PRESS_AUTO_STOP_MS + after })._unsafeUnwrap()).toBe(s);
+    }
   });
 
   it("押して止める: wire の形は 30 秒の手前まで止まりが無く、ちょうどで自動に止まる", () => {
@@ -164,7 +184,8 @@ describe("回し始めの時刻が 0 でないときの経過（now - startedAt�
         const s = pressSpinningAt(startedAt);
         const taken = stopPress(s, { seq: 1, index: 0, settle: 0.5, by: "x", now: startedAt + e })._unsafeUnwrap();
         const ignored = stopPress(s, { seq: 1, index: 0, settle: 0.5, by: "x", now: startedAt + l })._unsafeUnwrap();
-        const spinningEarly = startSpin(s, input({ now: startedAt + e })).isErr();
+        const rejectedEarly = startSpin(s, input({ now: startedAt + e }));
+        const spinningEarly = rejectedEarly.isErr() && rejectedEarly.error.code === "ROULETTE_SPINNING";
         const freeLate = startSpin(s, input({ now: startedAt + l })).isOk();
         const viewEarly = toView(s, startedAt + e).spin?.press?.stop === null;
         const viewLate = toView(s, startedAt + l).spin?.press?.stop?.atMs === PRESS_AUTO_STOP_MS;
