@@ -16,7 +16,7 @@ test("CI の全検査と matrix の全シャードを同じ引数で導く", () 
   assert.ok(checks.some((c) => c.command.includes("node --test $targets")));
   assert.deepEqual(planChecks(checks, "full", false), checks);
   assert.deepEqual(checks.filter((c) => c.job === "mutation" && !c.reason).map((c) => c.env), [
-    { SHARD_INDEX: "0", SHARD_TOTAL: "2" }, { SHARD_INDEX: "1", SHARD_TOTAL: "2" },
+    { SHARD_INDEX: "0", SHARD_TOTAL: "3" }, { SHARD_INDEX: "1", SHARD_TOTAL: "3" }, { SHARD_INDEX: "2", SHARD_TOTAL: "3" },
   ]);
 });
 
@@ -31,7 +31,7 @@ test("読めない YAML・CI 固有の環境を黙って無視しない", () => 
   for (const changed of [
     workflow.replace("run: pnpm lint", "run: >\n          pnpm lint"),
     workflow.replace("run: pnpm lint", "run: pnpm lint\n        env:\n          EXTRA: true"),
-    workflow.replace("shard: [1, 2]", "shard: [1, 2]\n        platform: [linux, mac]"),
+    workflow.replace("shard: [1, 2, 3]", "shard: [1, 2, 3]\n        platform: [linux, mac]"),
     workflow.replace("run: pnpm lint", "run: echo ${{ secrets.EXAMPLE }}"),
     workflow.replace("      - run: pnpm lint", "      - {run: pnpm lint}"),
     workflow.replace("    runs-on: ubuntu-latest", "    env:\n      EXTRA: true\n    runs-on: ubuntu-latest"),
