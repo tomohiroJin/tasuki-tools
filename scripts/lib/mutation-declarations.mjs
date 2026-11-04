@@ -58,6 +58,9 @@ const RESERVED_900_909 =
 const RESERVED_880_889 =
   "**対応表より後に足した変異。** 880〜889 は #506 の宣言の検査に追加で割り当てた範囲（850〜859 を使い切ったため）。";
 
+const RESERVED_935_939 =
+  "**対応表より後に足した変異。** 935〜939 は #522 の poker-core に割り当てた範囲。";
+
 const RESERVED_920_924 =
   "**対応表より後に足した変異。** 920〜924 は #522 の roulette-core に割り当てた範囲。";
 
@@ -5497,5 +5500,45 @@ export const MUTATIONS = [
     pkg: "packages/roulette-core",
     tests: ["tests/roulette-bounds.test.ts"],
     note: RESERVED_920_924 + " " + "#522。回し始めの時刻が 0 でないと、押して止める回転が回し始めの直後に止まったと見なされ、回転中の拒否と決め方の変更の拒否が効かない。",
+  },
+  {
+    id: 935,
+    label: "チェンジの捨て札の番号の下端を > 0 にして、位置 0 の札を捨てられなくする",
+    patch: "m935-poker-exchange-discard-index-zero-ignored.patch",
+    pkg: "packages/poker-core",
+    tests: ["tests/card-game-bounds.test.ts"],
+    note: RESERVED_935_939 + " " + "#522。先頭の札を選んでも替わらず、チェンジの 1 回だけが使われる（上端の最後の位置も別の変異 936 で守る）。",
+  },
+  {
+    id: 936,
+    label: "チェンジの捨て札の番号の上端を手の枚数 - 1 未満にして、最後の位置の札を捨てられなくする",
+    patch: "m936-poker-exchange-discard-index-last-ignored.patch",
+    pkg: "packages/poker-core",
+    tests: ["tests/card-game-bounds.test.ts"],
+    note: RESERVED_935_939 + " " + "#522。最後の札を選んでも替わらず、チェンジの 1 回だけが使われる。",
+  },
+  {
+    id: 937,
+    label: "山札がちょうど足りるときにも捨て札を切り直して山に足す",
+    patch: "m937-poker-exchange-deck-exact-reshuffles-discards.patch",
+    pkg: "packages/poker-core",
+    tests: ["tests/card-game-bounds.test.ts"],
+    note: RESERVED_935_939 + " " + "#522。山の残りと捨て札の中身が仕様とずれ、直前の人の捨て札が山に混ざる。他の人が引く札の順が変わる（:81 の両端）。",
+  },
+  {
+    id: 938,
+    label: "山札と捨て札を合わせてちょうど足りるときにも、今捨てた札を山へ戻す",
+    patch: "m938-poker-exchange-pool-exact-reshuffles-thrown.patch",
+    pkg: "packages/poker-core",
+    tests: ["tests/card-game-bounds.test.ts"],
+    note: RESERVED_935_939 + " " + "#522。捨てた札が捨て札に残らず山へ戻り、次の人が引ける（:85 の両端）。",
+  },
+  {
+    id: 939,
+    label: "山札が 1 枚足りないときに捨て札を切り直さない（:81 を thrown.length - 1 未満にする）",
+    patch: "m939-poker-exchange-deck-one-short-undefined-card.patch",
+    pkg: "packages/poker-core",
+    tests: ["tests/card-game-bounds.test.ts"],
+    note: RESERVED_935_939 + " " + "#522。山が 1 枚足りないのに捨て札を足さず、手に undefined の札が入る。",
   },
 ];

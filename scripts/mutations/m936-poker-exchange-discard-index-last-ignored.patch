@@ -1,0 +1,23 @@
+# 変異 936: poker-exchange-discard-index-last-ignored
+#
+# 検出を期待するテスト:
+#   - packages/poker-core/tests/card-game-bounds.test.ts
+#
+# #522（テストの穴: poker-core の境界値）。チェンジの捨て札の番号の上端を手の枚数 - 1 未満にして、最後の札（位置 4）を捨てられなくする。選んだのに替わらず、チェンジの 1 回だけが使われる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m936-*.patch
+# 復元: git apply -R scripts/mutations/m936-*.patch
+diff --git a/packages/poker-core/src/card-game.ts b/packages/poker-core/src/card-game.ts
+index 2bfe80f..c05f6a6 100644
+--- a/packages/poker-core/src/card-game.ts
++++ b/packages/poker-core/src/card-game.ts
+@@ -74,7 +74,7 @@ export function exchangeCards(
+   if (hand === undefined) return err({ code: 'table-not-player' });
+   if (game.status !== 'exchanging' || game.exchanged.has(playerId)) return err({ code: 'table-exchanged' });
+ 
+-  const drop = new Set(discard.filter((i) => i >= 0 && i < hand.length));
++  const drop = new Set(discard.filter((i) => i >= 0 && i < hand.length - 1));
+   let thrown = hand.filter((_, i) => drop.has(i));
+   let deck = [...game.deck];
+   let discards = [...game.discards];

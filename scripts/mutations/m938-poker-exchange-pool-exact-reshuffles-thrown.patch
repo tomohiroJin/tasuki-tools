@@ -1,0 +1,23 @@
+# 変異 938: poker-exchange-pool-exact-reshuffles-thrown
+#
+# 検出を期待するテスト:
+#   - packages/poker-core/tests/card-game-bounds.test.ts
+#
+# #522（テストの穴: poker-core の境界値）。山札と捨て札を合わせてちょうど足りるときにも、今捨てた札を山へ戻す。捨てた札が捨て札に残らず、次の人が引ける。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m938-*.patch
+# 復元: git apply -R scripts/mutations/m938-*.patch
+diff --git a/packages/poker-core/src/card-game.ts b/packages/poker-core/src/card-game.ts
+index 2bfe80f..d230c58 100644
+--- a/packages/poker-core/src/card-game.ts
++++ b/packages/poker-core/src/card-game.ts
+@@ -82,7 +82,7 @@ export function exchangeCards(
+     deck = [...deck, ...shuffle(discards, randomInt)];
+     discards = [];
+   }
+-  if (deck.length < thrown.length) {
++  if (deck.length <= thrown.length) {
+     deck = [...deck, ...shuffle(thrown, randomInt)];
+     thrown = [];
+   }
