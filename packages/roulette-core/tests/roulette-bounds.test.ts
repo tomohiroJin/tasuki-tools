@@ -18,7 +18,9 @@ import { foldCase } from "./support/name-conflict.js";
  * 境界の値（#522）。上限・下限ちょうどの値と、開始時刻が 0 でない回転を、性質と例で守る。
  *
  * 期待値は実装の比較式を写さず、仕様の値（輪は 24 席まで・止まる位置は 0.2 以上 0.8 以下・
- * 押して止めるは 30 秒で自動に止まる）を直接書く。種と回数は固定する（ADR-0006）。
+ * 押して止めるは 30 秒で自動に止まる）を直接書く。種と回数は固定する（ISSUE #522 の共通の節と、
+ * timer-core の `properties.test.ts` の書き方に合わせる）。性質テストは境界ちょうどの値と、そのすぐ外の値を
+ * `fc.constantFrom` で必ず混ぜて生成する（一様な乱数だけでは境界を踏まないため）。
  *
  * @requirements #94 E6（入る人の数）・#401 押して止める P3〜P5（時刻の窓）
  */
@@ -44,14 +46,15 @@ describe("輪の人数の上限（24 席）", () => {
     expect(startSpin(inMode(mode), input({ members: many(25) }))._unsafeUnwrapErr()).toEqual({ code: "ROULETTE_TOO_MANY" });
   });
 
-  it("性質: 2〜40 人のどの人数でも、24 人までは回せて、それを超えると拒む（種と回数を固定）", () => {
+  it("性質: 決め方と人数の直積で、24 人までは回せて、それを超えると拒む（境界の人数を必ず混ぜる。種と回数を固定）", () => {
+    const people = fc.oneof(fc.constantFrom(2, 23, 24, 25, 26), fc.integer({ min: 2, max: 40 }));
     fc.assert(
-      fc.property(fc.constantFrom(...MODES), fc.integer({ min: 2, max: 40 }), (mode, n) => {
+      fc.property(fc.constantFrom(...MODES), people, (mode, n) => {
         const r = startSpin(inMode(mode), input({ members: many(n) }));
         if (n <= 24) return r.isOk();
         return r.isErr() && r.error.code === "ROULETTE_TOO_MANY";
       }),
-      { seed: 522, numRuns: 120 },
+      { seed: 522, numRuns: 200 },
     );
   });
 });
@@ -67,16 +70,38 @@ describe("止まる位置（settle）の範囲", () => {
     }
   });
 
-  it("性質: 0.2〜0.8 の値は通り、それより外の値は拒む（種と回数を固定）", () => {
-    const inside = fc.double({ min: 0.2, max: 0.8, noNaN: true });
-    const outside = fc.oneof(fc.double({ min: -10, max: 0.1999, noNaN: true }), fc.double({ min: 0.8001, max: 10, noNaN: true }));
+  it("性質: 0.2〜0.8 の値は通り、それより外（境界のすぐ外を含む）は拒む（種と回数を固定）", () => {
+    const inside = fc.oneof(fc.constantFrom(0.2, 0.8), fc.double({ min: 0.2, max: 0.8, noNaN: true }));
+    const outside = fc.oneof(
+      fc.constantFrom(0.1999, 0.8001, 0, 1, Number.NaN),
+      fc.double({ min: -10, max: 0.2, maxExcluded: true, noNaN: true }),
+      fc.double({ min: 0.8, max: 10, minExcluded: true, noNaN: true }),
+    );
     fc.assert(
       fc.property(fc.constantFrom(...MODES), inside, outside, (mode, ok, ng) => {
         const accepted = startSpin(inMode(mode), input({ randomSettle: () => ok })).isOk();
         const rejected = startSpin(inMode(mode), input({ randomSettle: () => ng }));
         return accepted && rejected.isErr() && rejected.error.code === "INVALID_SETTLE";
       }),
-      { seed: 522, numRuns: 100 },
+      { seed: 522, numRuns: 200 },
+    );
+  });
+
+  it("性質: 押した位置の席の中の位置は 0 以上 1 未満を採り、それ以外（0 の手前・1 ちょうど）は拒む（種と回数を固定）", () => {
+    const s = startSpin(inMode("press"), input())._unsafeUnwrap();
+    const inside = fc.oneof(fc.constantFrom(0, 0.9999999999999999), fc.double({ min: 0, max: 1, maxExcluded: true, noNaN: true }));
+    const outside = fc.oneof(
+      fc.constantFrom(1, 1.0000000000000002, -0.0001, Number.NaN),
+      fc.double({ min: -10, max: 0, maxExcluded: true, noNaN: true }),
+      fc.double({ min: 1, max: 10, noNaN: true }),
+    );
+    fc.assert(
+      fc.property(inside, outside, (ok, ng) => {
+        const taken = stopPress(s, { seq: 1, index: 0, settle: ok, by: "x", now: 1100 });
+        const refused = stopPress(s, { seq: 1, index: 0, settle: ng, by: "x", now: 1100 });
+        return taken.isOk() && taken.value !== s && refused.isErr() && refused.error.code === "ROULETTE_STOP_INVALID";
+      }),
+      { seed: 522, numRuns: 200 },
     );
   });
 
@@ -130,20 +155,22 @@ describe("回し始めの時刻が 0 でないときの経過（now - startedAt�
     expect(toView(s, START + PRESS_AUTO_STOP_MS).spin?.press?.stop).toMatchObject({ by: null, atMs: PRESS_AUTO_STOP_MS });
   });
 
-  it("性質: 開始時刻がどの値でも、30 秒の手前の押下は採られ、ちょうど以降は採られない（種と回数を固定）", () => {
+  it("性質: 開始時刻がどの値でも、30 秒の手前は回転中で押下が採られ、ちょうど以降は止まる（境界の時刻を必ず混ぜる。種と回数を固定）", () => {
+    const started = fc.oneof(fc.constantFrom(0, 1), fc.integer({ min: 0, max: 1_000_000_000 }));
+    const early = fc.oneof(fc.constantFrom(0, PRESS_AUTO_STOP_MS - 1), fc.integer({ min: 0, max: PRESS_AUTO_STOP_MS - 1 }));
+    const late = fc.oneof(fc.constantFrom(PRESS_AUTO_STOP_MS, PRESS_AUTO_STOP_MS + 1), fc.integer({ min: PRESS_AUTO_STOP_MS, max: PRESS_AUTO_STOP_MS * 4 }));
     fc.assert(
-      fc.property(
-        fc.integer({ min: 0, max: 1_000_000_000 }),
-        fc.integer({ min: 0, max: PRESS_AUTO_STOP_MS - 1 }),
-        fc.integer({ min: PRESS_AUTO_STOP_MS, max: PRESS_AUTO_STOP_MS * 4 }),
-        (startedAt, early, late) => {
-          const s = pressSpinningAt(startedAt);
-          const taken = stopPress(s, { seq: 1, index: 0, settle: 0.5, by: "x", now: startedAt + early })._unsafeUnwrap();
-          const ignored = stopPress(s, { seq: 1, index: 0, settle: 0.5, by: "x", now: startedAt + late })._unsafeUnwrap();
-          return taken.lastSpin?.press?.stop?.atMs === early && ignored === s;
-        },
-      ),
-      { seed: 522, numRuns: 100 },
+      fc.property(started, early, late, (startedAt, e, l) => {
+        const s = pressSpinningAt(startedAt);
+        const taken = stopPress(s, { seq: 1, index: 0, settle: 0.5, by: "x", now: startedAt + e })._unsafeUnwrap();
+        const ignored = stopPress(s, { seq: 1, index: 0, settle: 0.5, by: "x", now: startedAt + l })._unsafeUnwrap();
+        const spinningEarly = startSpin(s, input({ now: startedAt + e })).isErr();
+        const freeLate = startSpin(s, input({ now: startedAt + l })).isOk();
+        const viewEarly = toView(s, startedAt + e).spin?.press?.stop === null;
+        const viewLate = toView(s, startedAt + l).spin?.press?.stop?.atMs === PRESS_AUTO_STOP_MS;
+        return taken.lastSpin?.press?.stop?.atMs === e && ignored === s && spinningEarly && freeLate && viewEarly && viewLate;
+      }),
+      { seed: 522, numRuns: 200 },
     );
   });
 });
