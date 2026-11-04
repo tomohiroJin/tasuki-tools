@@ -18,7 +18,7 @@
 import { describe, it, expect, afterEach } from "bun:test";
 import { WebSocket } from "ws";
 import { WsAdapter } from "../src/adapters/ws-adapter.js";
-import { newTestWsAdapter, unwiredPokerHandlers } from "./support/test-ws-adapter.js";
+import { DEFAULT_MAX_MESSAGE_BYTES, newTestWsAdapter, unwiredPokerHandlers } from "./support/test-ws-adapter.js";
 import { testLogger, collectingLogger } from "./support/test-logger.js";
 import { parseClientMessage } from "@tasuki/poker-core";
 
@@ -119,24 +119,11 @@ describe("WsAdapter メッセージ経路", () => {
     const ws = await connect();
 
     // When: 上限ちょうど（境界の内側）。JSON ではないので解析で INVALID_JSON になる
-    ws.send("x".repeat(64 * 1024));
+    ws.send("x".repeat(DEFAULT_MAX_MESSAGE_BYTES));
     const msg = await waitMessage(ws);
 
     // Then: 大きさの超過ではなく、中身の不正として返る
     expect(msg).toMatchObject({ type: "error", code: "INVALID_JSON" });
-    ws.close();
-  });
-
-  it("Given 接続済み / When 64KB ちょうどの直後（65,537 バイト）の本文を送る / Then MESSAGE_TOO_LARGE を返す（#521）", async () => {
-    // Given
-    const ws = await connect();
-
-    // When: 1 バイトだけ超える
-    ws.send("x".repeat(64 * 1024 + 1));
-    const msg = await waitMessage(ws);
-
-    // Then
-    expect(msg).toMatchObject({ type: "error", code: "MESSAGE_TOO_LARGE" });
     ws.close();
   });
 
@@ -363,10 +350,11 @@ describe("WsAdapter お題（topic）のメッセージ経路", () => {
     const ws = new WebSocket(topicUrl(adapter));
     await waitOpen(ws);
 
-    // When: 3 バイト文字 21,845 個＋1 バイト＝ちょうど 65,536 バイト（文字数は 21,846）。
+    // When: 3 バイト文字 21,845 個＋1 バイト＝ちょうど上限のバイト数（既定の上限は 64KB。文字数はそれより少ない）。
     // バイトで測っていれば上限ちょうどで通る。
-    const exact = "あ".repeat(21_845) + "x";
-    expect(Buffer.byteLength(exact)).toBe(64 * 1024);
+    const wide = Math.floor(DEFAULT_MAX_MESSAGE_BYTES / 3);
+    const exact = "あ".repeat(wide) + "x".repeat(DEFAULT_MAX_MESSAGE_BYTES - wide * 3);
+    expect(Buffer.byteLength(exact)).toBe(DEFAULT_MAX_MESSAGE_BYTES);
     ws.send(exact);
     await waitFor(() => topicCalls.length > 0);
 
@@ -394,8 +382,9 @@ describe("WsAdapter お題（topic）のメッセージ経路", () => {
     await waitOpen(ws);
 
     // When: ちょうど 65,537 バイト
-    const over = "あ".repeat(21_845) + "xx";
-    expect(Buffer.byteLength(over)).toBe(64 * 1024 + 1);
+    const wide = Math.floor(DEFAULT_MAX_MESSAGE_BYTES / 3);
+    const over = "あ".repeat(wide) + "x".repeat(DEFAULT_MAX_MESSAGE_BYTES - wide * 3 + 1);
+    expect(Buffer.byteLength(over)).toBe(DEFAULT_MAX_MESSAGE_BYTES + 1);
     ws.send(over);
     const msg = await waitMessage(ws);
 

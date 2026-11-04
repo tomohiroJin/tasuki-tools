@@ -198,10 +198,8 @@ describe('メッセージサイズ制限', () => {
     // When: ちょうど 200 バイト（JSON ではない生テキスト）
     client.sendRaw('x'.repeat(200));
 
-    // Then: 大きさの超過ではなく、中身の不正として返る
-    const reply = await client.next();
-    expect(reply).toMatchObject({ type: 'error' });
-    expect((reply as { code: string }).code).not.toBe('message-too-large');
+    // Then: 大きさの超過ではなく、解析の失敗（invalid-message）として返る
+    expect(await client.next()).toMatchObject({ type: 'error', code: 'invalid-message' });
   });
 
   it('上限を 1 バイトだけ超える（201 バイト）メッセージは message-too-large になる（#521）', async () => {
