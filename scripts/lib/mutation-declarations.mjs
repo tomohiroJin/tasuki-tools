@@ -5565,4 +5565,20 @@ export const MUTATIONS = [
     tests: ["test-shuffled.test.mjs"],
     note: RESERVED_950_959 + " " + "#524のレビュー。引数なしで起動する別の自己テスト（entry-point-wiring）が数分の検査を走らせて時間切れになる。無指定で重い検査が走る。",
   },
+  {
+    id: 958,
+    label: "ランダムな順の検査が、版の確かめ（check-toolchain）の結果を見ずに流し始める",
+    patch: "m958-shuffled-toolchain-check-skipped.patch",
+    pkg: "scripts",
+    tests: ["test-shuffled.test.mjs"],
+    note: RESERVED_950_959 + " " + "#524のレビュー。合わない版の Node・Bun でランダムな順のテストを流し、版の違いによる落ち方を順番依存と取り違える（docs/adr/0031 決定 2）。",
+  },
+  {
+    id: 959,
+    label: "ランダムな順の検査の最初の行の再現コマンドが、--all / --pkg を落とす",
+    patch: "m959-shuffled-rerun-command-drops-selection.patch",
+    pkg: "scripts",
+    tests: ["test-shuffled.test.mjs"],
+    note: RESERVED_950_959 + " " + "#524のレビュー。ログの先頭の「同じ種で再現」を貼っても使い方を出して終わり、種で流し直せない。",
+  },
 ];

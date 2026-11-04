@@ -1,0 +1,13 @@
+diff --git a/scripts/test-shuffled.mjs b/scripts/test-shuffled.mjs
+index 4615cc0..53610ce 100644
+--- a/scripts/test-shuffled.mjs
++++ b/scripts/test-shuffled.mjs
+@@ -36,7 +36,7 @@ export function parseArgs(argv) {
+ 
+ /** 最初の行に出す、同じ種で流し直すコマンド。実際に流した指定（--all / --pkg）を付ける。 */
+ export function rerunCommand(options, seed) {
+-  return `node scripts/test-shuffled.mjs ${options.pkg ? `--pkg ${options.pkg}` : "--all"} --seed ${seed}`;
++  return `node scripts/test-shuffled.mjs ${options.pkg ? `--pkg ${options.pkg}` : ""} --seed ${seed}`;
+ }
+ 
+ /** 版の確かめ（docs/adr/0031 決定 2）。常に、このリポジトリの宣言と比べる。飛ばす指定は置かない。 */

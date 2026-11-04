@@ -1,13 +1,13 @@
 diff --git a/scripts/test-shuffled.mjs b/scripts/test-shuffled.mjs
-index 02f8dce..bf60853 100644
+index 4615cc0..4615f4d 100644
 --- a/scripts/test-shuffled.mjs
 +++ b/scripts/test-shuffled.mjs
-@@ -37,7 +37,7 @@ export function parseArgs(argv) {
- function main() {
+@@ -50,7 +50,7 @@ export function execute(argv, deps = {}) {
+   const spawn = deps.spawn ?? spawnSync;
    let options;
-   try { options = parseArgs(process.argv.slice(2)); } catch (error) { console.error(error.message); process.exitCode = 2; return; }
--  if (!options.all && !options.pkg) { console.error(USAGE); process.exitCode = 2; return; }
-+  if (false) { console.error(USAGE); process.exitCode = 2; return; }
-   // 版が合わないなら始めない（docs/adr/0031 決定 2）。--root は自己テストが小さなワークスペースを流す経路で、
-   // このリポジトリの開発環境ではなく bun だけを使うので省く。
-   if (!options.rootGiven && spawnSync(process.execPath, [path.join(ROOT, "scripts/check-toolchain.mjs"), "test"], { stdio: "inherit" }).status !== 0) {
+   try { options = parseArgs(argv); } catch (error) { console.error(error.message); return 2; }
+-  if (!options.all && !options.pkg) { console.error(USAGE); return 2; }
++  if (false) { console.error(USAGE); return 2; }
+   // 版が合わないなら始めない。--root は流す対象のワークスペースを変えるだけで、比べる宣言は変えない
+   if (!check()) { console.error("[shuffle] 開発環境の版が合わないため始めません"); return 1; }
+   const seed = options.seed ?? newSeed();
