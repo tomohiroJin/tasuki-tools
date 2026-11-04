@@ -1,13 +1,13 @@
-# 変異 937: poker-exchange-deck-exact-reshuffles-discards
+# 変異 936: poker-exchange-deck-exact-reshuffles-discards
 #
 # 検出を期待するテスト:
 #   - packages/poker-core/tests/card-game-bounds.test.ts
 #
-# #522（テストの穴: poker-core の境界値）。山札がちょうど足りるときにも捨て札を切り直して山に足す。山の残りの順と捨て札の中身が仕様とずれ、引ける札の順が変わる。
+# #522（テストの穴: poker-core の境界値）。山札がちょうど足りるときにも捨て札を切り直して山に足す（:81 の上端）。山の残りと捨て札の中身が仕様とずれる。
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m937-*.patch
-# 復元: git apply -R scripts/mutations/m937-*.patch
+#       git apply scripts/mutations/m936-*.patch
+# 復元: git apply -R scripts/mutations/m936-*.patch
 diff --git a/packages/poker-core/src/card-game.ts b/packages/poker-core/src/card-game.ts
 index 2bfe80f..071e477 100644
 --- a/packages/poker-core/src/card-game.ts

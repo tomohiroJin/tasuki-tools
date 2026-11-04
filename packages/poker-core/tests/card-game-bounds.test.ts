@@ -168,20 +168,35 @@ describe('山札が尽きるとき（G-5・G-6）', () => {
     expect(next.discards).toEqual(game.hands.get('p')!.slice(0, 3));
   });
 
+  /** 山 D・捨て札 S の取り方。境界（山 = k、山 + 捨て札 = k、その 1 枚前後）を狙う型と、自由な型を混ぜる */
+  type Shape = 'deck-exact' | 'deck-short' | 'pool-exact' | 'pool-short' | 'pool-over' | 'free';
+  const SHAPES: readonly Shape[] = ['deck-exact', 'deck-short', 'pool-exact', 'pool-short', 'pool-over', 'free'];
+  function sizes(shape: Shape, k: number, split: number, freeD: number, freeS: number): { D: number; S: number } {
+    // 山に回す枚数。山だけでは足りない 0〜k-1 枚（k = 0 のときは 0）。山 + 捨て札の合計を狙いどおりにする
+    const D = k === 0 ? 0 : split % k;
+    switch (shape) {
+      case 'deck-exact': return { D: k, S: freeS };
+      case 'deck-short': return { D: Math.max(0, k - 1), S: freeS };
+      case 'pool-exact': return { D, S: k - D };
+      case 'pool-short': return { D: Math.min(D, Math.max(0, k - 1)), S: Math.max(0, k - 1 - Math.min(D, Math.max(0, k - 1))) };
+      case 'pool-over': return { D, S: k - D + 1 };
+      case 'free': return { D: freeD, S: freeS };
+    }
+  }
+
   it('性質: 山と捨て札の枚数と捨てる枚数の境界の前後で、手は 5 枚・札は保たれ・山と捨て札の枚数は仕様どおり（種と回数を固定）', () => {
-    const discardCount = fc.integer({ min: 0, max: HAND_SIZE });
+    const tally = new Map<string, number>();
     fc.assert(
       fc.property(
-        discardCount,
-        fc.integer({ min: -1, max: 1 }),
-        fc.integer({ min: -1, max: 1 }),
-        fc.boolean(),
+        fc.integer({ min: 0, max: HAND_SIZE }),
+        fc.constantFrom(...SHAPES),
+        fc.integer({ min: 0, max: HAND_SIZE }),
         fc.integer({ min: 0, max: 20 }),
         fc.integer({ min: 0, max: 20 }),
-        (k, dOff, sOff, onEdge, randomD, randomS) => {
-          // 境界（山 = k ± 1、山 + 捨て札 = k ± 1）を必ず混ぜ、そうでないときは自由に取る
-          const D = onEdge ? Math.max(0, k + dOff) : randomD;
-          const S = onEdge ? Math.max(0, k - D + sOff) : randomS;
+        (k, shape, split, freeD, freeS) => {
+          const { D, S } = sizes(shape, k, split, freeD, freeS);
+          // 山 + 捨て札がちょうど足りる境界を踏んだ数を数える（山だけでは足りない D < k の中で D + S = k）
+          if (D < k && D + S === k) tally.set('pool-exact', (tally.get('pool-exact') ?? 0) + 1);
           const game = table(D, S);
           const before = allCards(game);
           const next = exchange(game, Array.from({ length: k }, (_, i) => i));
@@ -201,5 +216,7 @@ describe('山札が尽きるとき（G-5・G-6）', () => {
       ),
       { seed: 522, numRuns: 300 },
     );
+    // 生成器が境界を踏んでいること（踏まなければ性質は 85 行目の両端を守らない）
+    expect(tally.get('pool-exact') ?? 0).toBeGreaterThanOrEqual(20);
   });
 });
