@@ -986,6 +986,26 @@ CI は変異も E2E も全件を流し続けます。手元で絞った分の漏
 - 実行の最後に**所要時間**が出ます。計画の検証の見積もりは、直前の実行のこの行を根拠にします（手引きには秒数を書きません）
 - 知らない指定（`--help` を含む）はエラーで止まります
 
+#### ランダムな順のテスト（#524）
+
+テストを毎回同じ順で流すだけでは、前のテストの状態に頼るテスト（順番依存）が入っても気づけません（#496 の調査・#499）。
+**全件の段に置きます**（CI の `shuffle` ジョブ。`pnpm check:full` に入り、`pnpm check:fast` には入りません。
+実装中の速さを守るため。#488 の決まり: 速い段は差分の周りだけ、全件の段は CI の検査をすべて）。
+CI では `ci`・`e2e` と並列の別ジョブなので、`ci` の臨界経路は伸びません（`ci` の後ろに足さない）。
+
+- 中身は `node scripts/test-shuffled.mjs`（部品は `scripts/lib/shuffled-tests.mjs`）。各パッケージの `test` スクリプトに指定を足して 1 つずつ流します:
+  vitest は `--sequence.shuffle --sequence.seed=<種>`、`apps/tasuki-sync`（bun）は `--randomize --seed=<種>`。
+  **`node --test` のパッケージ（`packages/ui`。`scripts/` の自己テストもワークスペースの外で同じ）は対象外**です（Node 22 にランダムな順の指定が無い）。
+  知らないランナーが足されたら黙って飛ばさず落ちます（指定を決めて `shuffled-tests.mjs` に足す）
+- **種は毎回変えて、ログの先頭に出します**（`--seed <整数>` で固定もできる）。固定すると 1 通りの順しか見ず、新しく入った順番依存を取りこぼすためです。
+  代わりに「落ちたら同じ種で手元で再現できる」ことを守ります: 落ちたパッケージごとに `cd <dir> && pnpm exec vitest run --sequence.shuffle --sequence.seed=<種>` の形の再現コマンドが最後に出ます。
+  パッケージ 1 つだけを流すなら `node scripts/test-shuffled.mjs --pkg <dir> --seed <種>`
+- 落ちたら、まず再現コマンドを流します。再現すれば順番依存、再現しなければ順番ではなく別の不安定さです。
+  **見つけた順番依存はその PR で直さず、ISSUE を切ります**（#499 が例）
+- 時間: 手元（他の検査と同居する 4 CPU）で 23 パッケージを順に流して約 5 分（最大は `apps/timer-web` の約 100 秒）。
+  負荷の少ない環境では #496 の調査の約 3.5 分が目安です。CI ではこれに install・build の時間が加わりますが、並列の別ジョブなので全体の待ちは変異検査（約 5 分のシャード）と同程度に収まる見込みです
+- 検査自体は `scripts/test-shuffled.test.mjs` が、わざと順番依存にした小さなワークスペースで「赤くなり、ログの種とコマンドで同じ失敗が出る」ことを確かめます。配線の手書きの変異は 950〜955
+
 **CI の変異検査は全件のまま、2 段に分けて並行に流します**（#481・決定は [`docs/adr/0029`](../adr/0029-mutation-shards-in-ci.md)・
 設計正本 [`2026-10-31-ci-wait-design.md`](../superpowers/specs/2026-10-31-ci-wait-design.md)）。
 
@@ -1212,7 +1232,7 @@ Node から直接 `node scripts/local-check.mjs fast` / `node scripts/local-chec
 （速い段は変異の見込みも出すので、`mutation-check --changed --plan` の差分の計算と `git ls-remote` だけは走ります）。
 
 検査の一覧は `.github/workflows/ci.yml` の `run` から毎回導きます。全件の段は型・lint・単体・build・
-E2E・監査・リンク・scripts の自己テスト・shellcheck・変異を CI と同じ引数で実行します。
+E2E・ランダムな順のテスト・監査・リンク・scripts の自己テスト・shellcheck・変異を CI と同じ引数で実行します。
 変異は matrix の全シャードを手元では順に実行し、各シャードの `--jobs` は CI のままです。
 CI のジョブの分け方は変えません。途中で失敗しても残りを流し、最後に成功・失敗・省略理由を一覧にして、
 一つでも失敗したら非ゼロで終わります。
@@ -1257,6 +1277,7 @@ GitHub Actions 自体を解釈するものではなく、CI 固有の条件の�
 | `quality` | [検査系](#検査系)の全項目 | 同上 |
 | `docs` | リンク検査 | **常時** |
 | `e2e` | E2E | コードに関わる変更 |
+| `shuffle` | ランダムな順のテスト（`node scripts/test-shuffled.mjs`。[下](#ランダムな順のテスト524)） | コードに関わる変更 |
 
 **依存の脆弱性検査（`audit`）のジョブはありません**（#334 で外した。
 [`docs/adr/0024`](../adr/0024-vulnerability-detection-outside-ci.md)）。
