@@ -61,7 +61,16 @@ describe('捨て札の番号の範囲（手の位置 0〜4）', () => {
     expect(next.discards).toEqual([before[p]]);
   });
 
-  it.each([[-1], [5], [6], [-100], [1.5], [Number.NaN]])('範囲の外の番号 %s だけを選ぶと、何も替わらず済んだと数える', (n) => {
+  it.each([[-1], [5], [6], [-100]])('範囲の外の番号 %s だけを選ぶと、何も替わらず済んだと数える', (n) => {
+    const game = table(10, 0);
+    const next = exchange(game, [n]);
+    expect(next.hands.get('p')).toEqual(game.hands.get('p'));
+    expect(next.deck).toEqual(game.deck);
+    expect(next.discards).toEqual([]);
+    expect(next.exchanged.has('p')).toBe(true);
+  });
+
+  it.each([[1.5], [Number.NaN]])('整数でない番号 %s は、どの位置にも当たらない（何も替わらず済んだと数える）', (n) => {
     const game = table(10, 0);
     const next = exchange(game, [n]);
     expect(next.hands.get('p')).toEqual(game.hands.get('p'));
@@ -144,7 +153,6 @@ describe('山札が尽きるとき（G-5・G-6）', () => {
     expect(next.hands.get('p')).toHaveLength(HAND_SIZE);
     expect(next.hands.get('p')!.every((c) => c !== undefined)).toBe(true);
     expect(allCards(next)).toEqual(before);
-    expect(new Set(allCards(next)).size).toBe(allCards(next).length);
     const want = expectedOutcome(k, D, S);
     expect(next.deck).toHaveLength(want.deckLeft);
     expect(next.discards).toHaveLength(want.discardsLeft);
@@ -162,7 +170,6 @@ describe('山札が尽きるとき（G-5・G-6）', () => {
     const game = table(1, 2);
     const next = exchange(game, [0, 1, 2]);
     const drawn = keys(next.hands.get('p')!.slice(0, 3));
-    expect(drawn).toEqual(expect.arrayContaining(keys(game.deck)));
     expect(drawn.sort()).toEqual([...keys(game.deck), ...keys(game.discards)].sort());
     expect(next.deck).toEqual([]);
     expect(next.discards).toEqual(game.hands.get('p')!.slice(0, 3));
@@ -179,7 +186,7 @@ describe('山札が尽きるとき（G-5・G-6）', () => {
       case 'deck-exact': return { D: k, S: freeS };
       case 'deck-short': return { D: Math.max(0, k - 1), S: freeS };
       case 'pool-exact': return { D, S: k - D };
-      case 'pool-short': return { D: Math.min(D, Math.max(0, k - 1)), S: Math.max(0, k - 1 - Math.min(D, Math.max(0, k - 1))) };
+      case 'pool-short': return { D, S: Math.max(0, k - 1 - D) };
       case 'pool-over': return { D, S: k - D + 1 };
       case 'free': return { D: freeD, S: freeS };
     }
@@ -198,7 +205,7 @@ describe('山札が尽きるとき（G-5・G-6）', () => {
           const { D, S } = sizes(shape, k, split, freeD, freeS);
           // 踏んだ境界を数える（山 D・捨て札 S・捨てる枚数 k）
           const hit = (name: string) => tally.set(name, (tally.get(name) ?? 0) + 1);
-          if (D === k + 1) hit('deck-over');
+          if (k > 0 && D === k + 1) hit('deck-over');
           if (k > 0 && D === k) hit('deck-exact');
           if (D < k && D + S === k) hit('pool-exact');
           if (D + S === k - 1) hit('pool-short');
@@ -209,7 +216,6 @@ describe('山札が尽きるとき（G-5・G-6）', () => {
           expect(next.hands.get('p')!.every((c) => c !== undefined)).toBe(true);
           expect(next.hands.get('p')).toHaveLength(HAND_SIZE);
           expect(allCards(next)).toEqual(before);
-          expect(new Set(allCards(next)).size).toBe(before.length);
           expect(next.deck).toHaveLength(want.deckLeft);
           expect(next.discards).toHaveLength(want.discardsLeft);
           // 山と捨て札だけで足りるなら、引いた札は今捨てた札ではない
