@@ -5533,7 +5533,7 @@ export const MUTATIONS = [
   },
   {
     id: 927,
-    label: "next の所要の確定の範囲を i < idx にする（現在より後ろでなく前の飛ばし済みを 0 にする）",
+    label: "next の所要の確定の範囲を i < idx にする（現在の直後から先の、通り過ぎた飛ばし済みが 0 にならない）",
     patch: "m927-agenda-settle-before-current.patch",
     pkg: "packages/agenda-core",
     tests: ["tests/agenda-bounds.test.ts"],
