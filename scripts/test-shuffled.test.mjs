@@ -179,3 +179,9 @@ test("既定の版の確かめが配線されている: spawn だけを差し替
     assert.equal(ok.length, 2);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });
+
+test("入口の配線: 本体のソースの execute の呼び出しは main の 1 回だけで、版の確かめを差し替える引数を渡さない", () => {
+  const source = fs.readFileSync(SCRIPT, "utf8");
+  const calls = [...source.matchAll(/(?<!function )\bexecute\([^\n]*/g)].map((m) => m[0]);
+  assert.deepEqual(calls, ["execute(process.argv.slice(2));"]);
+});

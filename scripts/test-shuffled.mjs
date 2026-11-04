@@ -44,8 +44,8 @@ export function toolchainCheckCall() {
   return { command: process.execPath, args: [path.join(ROOT, "scripts/check-toolchain.mjs"), "test"] };
 }
 
-/** 版の確かめ（docs/adr/0031 決定 2）。終了コードが 0 のときだけ真。飛ばす指定は置かない。`spawn` は自己テスト用の差し替え。 */
-export function checkToolchain(spawn = spawnSync) {
+/** 版の確かめ（docs/adr/0031 決定 2）。終了コードが 0 のときだけ真。飛ばす指定は置かない。`spawn` は必須（`execute` が常に渡す。自己テストが差し替える）。 */
+export function checkToolchain(spawn) {
   const { command, args } = toolchainCheckCall();
   return spawn(command, args, { stdio: "inherit" }).status === 0;
 }
