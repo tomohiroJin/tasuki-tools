@@ -55,6 +55,9 @@ const RESERVED_250_259 =
 const RESERVED_900_909 =
   "**対応表より後に足した変異。** 900〜909 は #499 に割り当てた範囲。";
 
+const RESERVED_930_934 =
+  "**対応表より後に足した変異。** 930〜934 は #522 の timer-core に割り当てた範囲。";
+
 const RESERVED_880_889 =
   "**対応表より後に足した変異。** 880〜889 は #506 の宣言の検査に追加で割り当てた範囲（850〜859 を使い切ったため）。";
 
@@ -5497,5 +5500,45 @@ export const MUTATIONS = [
     pkg: "packages/roulette-core",
     tests: ["tests/roulette-bounds.test.ts"],
     note: RESERVED_920_924 + " " + "#522。回し始めの時刻が 0 でないと、押して止める回転が回し始めの直後に止まったと見なされ、回転中の拒否と決め方の変更の拒否が効かない。",
+  },
+  {
+    id: 930,
+    label: "代理の参加者を足す上限の判定を rotation.length >= MAX_MEMBERS → > にする（上限ちょうどの人数でも足せてしまう）",
+    patch: "m930-timer-core-addproxy-limit-off-by-one.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/bounds.properties.test.ts"],
+    note: RESERVED_930_934 + " " + "#522。上限ちょうど（10 人）の輪にもう 1 人入り、11 人になる。上限の検査を丸ごと外す変異も同じテストが落とす（代表は 1 つずれの形）。",
+  },
+  {
+    id: 931,
+    label: "席の移動で、運転手より前の席を運転手の席ちょうどへ動かす判断を toIndex >= currentIndex → > にする（運転手の位置がずれない）",
+    patch: "m931-timer-core-move-driver-lands-on-seat-forward.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/bounds.properties.test.ts"],
+    note: RESERVED_930_934 + " " + "#522。運転手より前の席を運転手の席へ動かすと、運転手が 1 つ前へずれるのに currentIndex が追わず、別の人の番になる。",
+  },
+  {
+    id: 932,
+    label: "席の移動で、運転手より後ろの席を運転手の席ちょうどへ動かす判断を toIndex <= currentIndex → < にする（運転手の位置がずれない）",
+    patch: "m932-timer-core-move-driver-lands-on-seat-backward.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/bounds.properties.test.ts"],
+    note: RESERVED_930_934 + " " + "#522。運転手より後ろの席を運転手の席へ動かすと、運転手が 1 つ後ろへずれるのに currentIndex が追わず、別の人の番になる。",
+  },
+  {
+    id: 933,
+    label: "周回での休憩の判定を totalSwitches - base.switches → totalSwitches + base.switches にする（基準が 0 でないと狂う）",
+    patch: "m933-timer-core-break-rounds-adds-baseline.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/bounds.properties.test.ts"],
+    note: RESERVED_930_934 + " " + "#522。休憩のあと（基準の交代回数が 0 でない）に、次の休憩が早く来すぎる。",
+  },
+  {
+    id: 934,
+    label: "稼働経過時間の時計のずれを now + clockOffset → now - clockOffset にする（ずれの符号が逆）",
+    patch: "m934-timer-core-elapsed-clock-offset-sign.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/bounds.properties.test.ts"],
+    note: RESERVED_930_934 + " " + "#522。クライアントの時計がずれているとき、稼働時間の表示と休憩の判定がずれの向きと逆に狂う。",
   },
 ];
