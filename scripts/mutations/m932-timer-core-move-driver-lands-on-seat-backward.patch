@@ -1,0 +1,13 @@
+diff --git a/packages/timer-core/src/evolve.ts b/packages/timer-core/src/evolve.ts
+index 3cdb194..7e6aad1 100644
+--- a/packages/timer-core/src/evolve.ts
++++ b/packages/timer-core/src/evolve.ts
+@@ -473,7 +473,7 @@ function evolveMemberMoved(
+     newIndex = toIndex;
+   } else if (fromIndex < agg.session.currentIndex && toIndex >= agg.session.currentIndex) {
+     newIndex--;
+-  } else if (fromIndex > agg.session.currentIndex && toIndex <= agg.session.currentIndex) {
++  } else if (fromIndex > agg.session.currentIndex && toIndex < agg.session.currentIndex) {
+     newIndex++;
+   }
+ 
