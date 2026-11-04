@@ -5548,6 +5548,6 @@ export const MUTATIONS = [
     patch: "m929-agenda-advance-if-due-at-deadline-held.patch",
     pkg: "packages/agenda-core",
     tests: ["tests/agenda-bounds.test.ts"],
-    note: RESERVED_925_929 + " " + "#522。期限ちょうどの時刻に呼ばれても次へ移らず、1ms 後まで区切りが残る（期限ちょうどで確定する約束が崩れ、所要が 1 回の呼び出しぶん遅れる）。前からある agenda.test.ts は期限ちょうどを見ないので、期限の -1・0・+1ms を機械に選ばせる足した性質テストだけが殺す。",
+    note: RESERVED_925_929 + " " + "#522。期限ちょうどの時刻に呼ばれても次へ移らず、1ms 後まで区切りが残る（期限ちょうどで確定する約束が崩れ、所要が 1 回の呼び出しぶん遅れる）。前からある agenda.test.ts は期限ちょうどを見ないので、足したテスト（期限の -1・0・+1ms を機械に選ばせる性質テストと、期限ちょうどで呼ぶ例）が殺す。",
   },
 ];
