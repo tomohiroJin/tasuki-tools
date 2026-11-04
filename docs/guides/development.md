@@ -964,8 +964,9 @@ ADR-0009 D2（構造監査は値を出すだけ）との関係は、利用者の
   後ろに文字があれば通します。`// この理由: …` のように行の途中にあるものは理由と認めません。
   飛ばす条件が何で、飛ばした間は何が守られないかを書いてください（例: `apps/tasuki-sync/test/poker/guards.test.ts` の
   `it.skipIf(EXTERNAL_IP === undefined)`）
-- 見ないもの: 実行中に飛ばす `ctx.skip()`・`node:test` の `t.test.only`・別名で取り込んだ関数
-  （`const t = test; t.only(…)`）・変数やスプレッドで渡す `node:test` のオプション。
+- 見ないもの: 実行中に飛ばす `ctx.skip()`・`node:test` の `t.test.only` と子テストのオプション
+  `t.test('c', { only: true })`・別名で取り込んだ関数（`const t = test; t.only(…)`）・分割代入（`const { only } = it`）・
+  `globalThis.it.only`・組み立てた名前（`it['on'+'ly']`）・変数やスプレッドで渡す `node:test` のオプション。
   テストの定義の構文では区別できません
 - 見つかったら、`.only` は外し、`.skip` 系は理由を書くか外します。**検査側を緩める（走査対象から外す・例外を足す）のは、
   人の承認を待つ操作です**（`AGENTS.md`「AI 運用規則」）

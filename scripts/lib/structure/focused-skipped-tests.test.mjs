@@ -239,6 +239,15 @@ describe("理由のコメントの形（行の頭の「理由:」）", () => {
     assert.deepEqual(kinds("a.test.ts", b), ["no-reason:2"]);
   });
 
+  test("閉じ記号が重なった中身の無い理由（/** 理由: **/・/* 理由: * */）は理由と認めない", () => {
+    // Given
+    const a = "/** 理由: **/\nit.skip('a', () => {});";
+    const b = "/* 理由: * */\nit.skip('a', () => {});";
+    // When / Then
+    assert.deepEqual(kinds("a.test.ts", a), ["no-reason:2"]);
+    assert.deepEqual(kinds("a.test.ts", b), ["no-reason:2"]);
+  });
+
   test("ブロックコメントの各行頭の * を外して比べる。閉じ記号だけの「理由:」は空とみなす", () => {
     // Given
     const ok = "/**\n * 説明\n * 理由: 実機が要る\n */\nit.skip('a', () => {});";
@@ -250,6 +259,13 @@ describe("理由のコメントの形（行の頭の「理由:」）", () => {
 });
 
 describe("別の書き方", () => {
+  test("satisfies を挟んだ (it satisfies typeof it).only も止める", () => {
+    // Given
+    const src = "(it satisfies typeof it).only('a', () => {});";
+    // When / Then
+    assert.deepEqual(kinds("a.test.ts", src), ["only:1"]);
+  });
+
   test("suite（bun・vitest の別名）も見る", () => {
     // Given
     const src = "suite.only('a', () => {});\nsuite.skip('b', () => {});";

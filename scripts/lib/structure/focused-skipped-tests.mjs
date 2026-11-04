@@ -16,8 +16,10 @@
  *   形は `// 理由: …`（`/* 理由: … *\/` も可）。呼び出しを含む文の直前に、空行を挟まず置く。
  * - `node:test` のオプション（`it("…", { skip: "…" })`・`{ todo: true }`・`{ only: true }`）も同じ扱い。
  *
- * 見ないもの（文書に書いてある限界）: テストの文脈（`ctx.skip()`・`t.test.only`）・別名で取り込んだ関数
- * （`const t = test; t.only(...)`）・変数やスプレッドで渡す `node:test` のオプション。
+ * 見ないもの（文書に書いてある限界）: テストの文脈（`ctx.skip()`・`t.test.only`・子テストのオプション
+ * `t.test('c', { only: true })`）・別名で取り込んだ関数（`const t = test; t.only(...)`）・分割代入
+ * （`const { only } = it`）・`globalThis.it.only`・組み立てた名前（`it['on'+'ly']`）・変数やスプレッドで渡す
+ * `node:test` のオプション。
  * 実行中に飛ばす書き方や値が静的に決まらないものは、テスト定義の構文では区別できない。
  */
 import ts from "typescript";
@@ -41,7 +43,7 @@ export const REASON_RE = /^理由[:：]\s*\S/;
 /** コメントの塊から、記号を外した行の一覧を取る。 */
 function commentLines(text) {
   return text.split("\n").map((l) =>
-    l.replace(/\*\/\s*$/, "").replace(/^\s*(?:\/\/+|\/\*+|\*+)?\s*/, ""),
+    l.replace(/[\s*]*\*\/\s*$/, "").replace(/^\s*(?:\/\/+|\/\*+|\*+)?\s*/, ""),
   );
 }
 
