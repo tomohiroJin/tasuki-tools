@@ -161,3 +161,21 @@ test("既定の版の確かめは check-toolchain.mjs を段 test で起動し�
   assert.deepEqual(seen[0], [call.command, call.args]);
   assert.equal(seen.length, 3);
 });
+
+test("既定の版の確かめが配線されている: spawn だけを差し替えて check-toolchain が 1 を返すと、1 つも流さず終了コード 1", () => {
+  const dir = workspace({ fine: INDEPENDENT });
+  try {
+    const calls = [];
+    const spawn = (command, args) => {
+      calls.push(args);
+      return { status: args.some((a) => a.endsWith("check-toolchain.mjs")) ? 1 : 0 };
+    };
+    assert.equal(execute(["--all", "--root", dir, "--seed", "1"], { spawn }), 1);
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0][1], "test");
+    // 通れば、同じ spawn でパッケージも流れる
+    const ok = [];
+    assert.equal(execute(["--all", "--root", dir, "--seed", "1"], { spawn: (c, a) => { ok.push(a); return { status: 0 }; } }), 0);
+    assert.equal(ok.length, 2);
+  } finally { fs.rmSync(dir, { recursive: true, force: true }); }
+});

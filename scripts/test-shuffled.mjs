@@ -52,8 +52,9 @@ export function checkToolchain(spawn = spawnSync) {
 
 /** 終了コードを返す。`deps` は自己テストが版の確かめとパッケージの実行を差し替えるためのもの。 */
 export function execute(argv, deps = {}) {
-  const check = deps.checkToolchain ?? checkToolchain;
   const spawn = deps.spawn ?? spawnSync;
+  // 版の確かめも同じ spawn を通す（自己テストが check-toolchain の呼び出しだけを差し替えられるように）
+  const check = deps.checkToolchain ?? (() => checkToolchain(spawn));
   let options;
   try { options = parseArgs(argv); } catch (error) { console.error(error.message); return 2; }
   if (!options.all && !options.pkg) { console.error(USAGE); return 2; }
