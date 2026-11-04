@@ -5372,4 +5372,20 @@ export const MUTATIONS = [
     tests: ["tests/mock-isolation.test.ts"],
     note: RESERVED_900_909 + " " + "#499。vi.mock の工場の vi.fn() の記録が次のテストへ漏れ、ランダムな順で前のテストの呼び出しが残って落ちるテストが出る。このテストは記録をファイルの読み込み時（テストより前）に作り、各テストの前に消えていることを見る。テスト同士の順に頼らないので、ランダムな順でも -t で 1 本だけ流しても検出される。",
   },
+  {
+    id: 947,
+    label: "SC-040 の走査の型から bun の *_test.* / *_spec.* を外す",
+    patch: "m947-sc040-underscore-test-names-not-scanned.patch",
+    pkg: "scripts",
+    tests: ["audit-structure.test.mjs"],
+    note: RESERVED_940_949 + " " + "#523 のレビュー。`src` の中などにある bun の `*_test.ts` の `.only` が検査をすり抜ける。",
+  },
+  {
+    id: 949,
+    label: "SC-040 が、行の途中の「理由:」（「この理由: …」）も理由と認める",
+    patch: "m949-sc040-reason-anywhere-in-line.patch",
+    pkg: "scripts",
+    tests: ["lib/structure/focused-skipped-tests.test.mjs"],
+    note: RESERVED_940_949 + " " + "#523 のレビュー。無関係なコメントが理由として通り、文書の形より緩くなる。",
+  },
 ];

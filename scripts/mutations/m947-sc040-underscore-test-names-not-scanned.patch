@@ -1,0 +1,12 @@
+diff --git a/scripts/audit-structure.mjs b/scripts/audit-structure.mjs
+index 302a902..582bd67 100644
+--- a/scripts/audit-structure.mjs
++++ b/scripts/audit-structure.mjs
+@@ -114,7 +114,6 @@ const EXT_TS = [".ts", ".tsx"];
+ export const SC040_TEST_FILE_PATTERNS = ["test", "spec"].flatMap((kind) =>
+   ["js", "jsx", "ts", "tsx", "mjs", "cjs", "mts", "cts"].flatMap((ext) => [
+     `*.${kind}.${ext}`,
+-    `*_${kind}.${ext}`,
+   ]),
+ );
+ 
