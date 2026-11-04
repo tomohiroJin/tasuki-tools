@@ -106,7 +106,7 @@ describe("席の移動（member.move）と運転手", () => {
 
         // When
         const decided = decide({ command: "member.move", fromIndex: from, toIndex: to }, before, 5_000);
-        expect(decided.isOk()).toBe(true);
+        expect(decided.isOk()).toBe(true); // 前提（検証の失敗と区別する）
         let after = before;
         for (const event of decided._unsafeUnwrap()) after = evolve(after, event, 5_000);
 
@@ -141,6 +141,7 @@ describe("席の移動（member.move）と運転手", () => {
   ])("例: $name 動かしても運転手は $expectDriver のまま", ({ ids, current, from, to, expectDriver }) => {
     const before = anAggregate().withRotation(...ids).withCurrentDriver(current).running().build();
     const decided = decide({ command: "member.move", fromIndex: from, toIndex: to }, before, 5_000);
+    expect(decided.isOk()).toBe(true); // 前提（検証の失敗と区別する）
     let after = before;
     for (const event of decided._unsafeUnwrap()) after = evolve(after, event, 5_000);
     expect(seatIds(after.session.rotation)[after.session.currentIndex]).toBe(expectDriver);
@@ -176,12 +177,14 @@ describe("休憩までの交代回数（isBreakDue / rounds）", () => {
           // 基準からの交代回数: 閾値の前後ちょうどと 0 を必ず混ぜる
           const useDelta = { below: threshold - 1, exact: threshold, above: threshold + 1, zero: 0, free: anyDelta }[kind];
           const mark: BreakMark = { elapsedMs: 0, switches: baseSwitches };
-          // 知らせた時点の基準（suggest では優先して使われる）。もう一方の基準は別の値にして取り違えを検出する
+          // 知らせた時点の基準。置くかどうかは両方のモードで混ぜる（auto は置いてあっても見ない）。
+          // もう一方の基準は別の値にして、基準の取り違えを検出する
           const other: BreakMark = { elapsedMs: 0, switches: baseSwitches + 3 };
-          const agg =
-            mode === "suggest" && hasSuggested
-              ? aggAt(other.switches + useDelta, { baseline: mark, suggestedAt: other })
-              : aggAt(mark.switches + useDelta, { baseline: mark });
+          const usedBase = mode === "suggest" && hasSuggested ? other : mark;
+          const agg = aggAt(usedBase.switches + useDelta, {
+            baseline: mark,
+            suggestedAt: hasSuggested ? other : null,
+          });
           const due = isBreakDue(agg, { trigger: "rounds", every, mode }, seats);
           expect({ useDelta, threshold, due }).toEqual({ useDelta, threshold, due: useDelta >= threshold });
         },
@@ -221,6 +224,8 @@ describe("稼働経過時間（elapsedMs）の時計のずれ", () => {
         fc.integer({ min: 0, max: 600_000 }),
         fc.oneof(fc.constantFrom(-1, 1, -500, 500), fc.integer({ min: -60_000, max: 60_000 })),
         (accumulated, startedAt, ranFor, offset) => {
+          // 結果が負になる入力（ずれが積み上げと経過を上回る）は、仕様で決まっていないので扱わない
+          fc.pre(accumulated + ranFor + offset >= 0);
           const now = startedAt + ranFor;
           const actual = elapsedMs(clockOf(accumulated, startedAt), now, offset);
           // ずれは「いま」を進める量。区間の長さ ranFor にそのまま足される
