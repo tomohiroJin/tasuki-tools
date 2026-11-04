@@ -1,0 +1,13 @@
+diff --git a/packages/timer-core/src/aggregate.ts b/packages/timer-core/src/aggregate.ts
+index 889b48d..0ca274a 100644
+--- a/packages/timer-core/src/aggregate.ts
++++ b/packages/timer-core/src/aggregate.ts
+@@ -266,7 +266,7 @@ export function elapsedMs(
+   if (!clock.running || clock.runningSince === null) {
+     return clock.accumulatedElapsedMs;
+   }
+-  const adjustedNow = now + clockOffset;
++  const adjustedNow = now - clockOffset;
+   return clock.accumulatedElapsedMs + (adjustedNow - clock.runningSince);
+ }
+ 
