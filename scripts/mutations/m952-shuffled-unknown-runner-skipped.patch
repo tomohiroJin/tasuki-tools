@@ -1,5 +1,5 @@
 diff --git a/scripts/lib/shuffled-tests.mjs b/scripts/lib/shuffled-tests.mjs
-index 0c12aa7..7ef4460 100644
+index e4cabea..a463990 100644
 --- a/scripts/lib/shuffled-tests.mjs
 +++ b/scripts/lib/shuffled-tests.mjs
 @@ -42,7 +42,7 @@ export function shuffledCommand(testScript, seed) {
@@ -10,4 +10,4 @@ index 0c12aa7..7ef4460 100644
 +  return { skip: "知らないランナー" };
  }
  
- /**
+ /** 計画。`dirs` を省くと全パッケージ（pnpm の列挙。yaml は手で読まない: docs/adr/0014 決定 3）。`{ dir, name, args }`（流す）か `{ dir, name, skip }`（対象外）。 */
