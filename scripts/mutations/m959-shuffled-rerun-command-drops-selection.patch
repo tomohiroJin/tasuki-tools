@@ -1,5 +1,5 @@
 diff --git a/scripts/test-shuffled.mjs b/scripts/test-shuffled.mjs
-index 4615cc0..53610ce 100644
+index a7c812d..daf6341 100644
 --- a/scripts/test-shuffled.mjs
 +++ b/scripts/test-shuffled.mjs
 @@ -36,7 +36,7 @@ export function parseArgs(argv) {
@@ -10,4 +10,4 @@ index 4615cc0..53610ce 100644
 +  return `node scripts/test-shuffled.mjs ${options.pkg ? `--pkg ${options.pkg}` : ""} --seed ${seed}`;
  }
  
- /** 版の確かめ（docs/adr/0031 決定 2）。常に、このリポジトリの宣言と比べる。飛ばす指定は置かない。 */
+ /** 版の確かめを起動するコマンド。常に、このリポジトリの宣言を段 `test` で比べる。 */
