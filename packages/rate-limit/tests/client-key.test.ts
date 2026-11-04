@@ -138,6 +138,29 @@ describe("normalizeClientAddress", () => {
     });
   });
 
+  describe("境界の入力（#521: 展開と取り出しの穴）", () => {
+    it("先頭が全ゼロの短い頭（0:0::ffff:1.2.3.4）でも後ろの 3 グループは切れず、射影として v4: に落ちる", () => {
+      // 頭 2 グループ・尻 3 グループ（ffff + 埋め込み IPv4 の 2 グループ）。間の 3 グループが 0 で埋まる
+      expect(normalizeClientAddress("0:0::ffff:1.2.3.4")).toBe("v4:1.2.3.4");
+    });
+
+    it("射影の IPv4 部は各オクテットの 8 ビットすべてを復元する（128 以上・16 以上の値）", () => {
+      expect(normalizeClientAddress("::ffff:1.200.3.4")).toBe("v4:1.200.3.4");
+      expect(normalizeClientAddress("::ffff:203.0.113.250")).toBe("v4:203.0.113.250");
+      expect(normalizeClientAddress("::ffff:255.255.255.255")).toBe("v4:255.255.255.255");
+    });
+
+    it("ゾーン ID つきの射影（::ffff:203.0.113.7%eth0）はゾーンを剥がして v4: に落ちる", () => {
+      expect(normalizeClientAddress("::ffff:203.0.113.7%eth0")).toBe("v4:203.0.113.7");
+    });
+
+    it("角括弧は先頭の [ と末尾の ] だけ剥がす（途中に紛れた括弧は通さず null）", () => {
+      expect(normalizeClientAddress("203.0.113.[7")).toBeNull();
+      expect(normalizeClientAddress("2001:db8::]1")).toBeNull();
+      expect(normalizeClientAddress("[2001:db8::1]")).toBe("v6:2001:db8:0:0");
+    });
+  });
+
   describe("IPv4 と IPv6 は名前空間が混ざらない", () => {
     it("接頭辞で区別される", () => {
       expect(normalizeClientAddress("0.0.0.0")).toBe("v4:0.0.0.0");

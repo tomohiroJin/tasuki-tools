@@ -114,6 +114,32 @@ describe("WsAdapter メッセージ経路", () => {
     ws.close();
   });
 
+  it("Given 接続済み / When 64KB ちょうど（65,536 バイト）の本文を送る / Then MESSAGE_TOO_LARGE にはならず通常の解析に進む（#521）", async () => {
+    // Given
+    const ws = await connect();
+
+    // When: 上限ちょうど（境界の内側）。JSON ではないので解析で INVALID_JSON になる
+    ws.send("x".repeat(64 * 1024));
+    const msg = await waitMessage(ws);
+
+    // Then: 大きさの超過ではなく、中身の不正として返る
+    expect(msg).toMatchObject({ type: "error", code: "INVALID_JSON" });
+    ws.close();
+  });
+
+  it("Given 接続済み / When 64KB ちょうどの直後（65,537 バイト）の本文を送る / Then MESSAGE_TOO_LARGE を返す（#521）", async () => {
+    // Given
+    const ws = await connect();
+
+    // When: 1 バイトだけ超える
+    ws.send("x".repeat(64 * 1024 + 1));
+    const msg = await waitMessage(ws);
+
+    // Then
+    expect(msg).toMatchObject({ type: "error", code: "MESSAGE_TOO_LARGE" });
+    ws.close();
+  });
+
   it("Given 接続済み / When JSON として壊れた本文を送る / Then INVALID_JSON を返す", async () => {
     // Given
     const ws = await connect();
@@ -317,6 +343,65 @@ describe("WsAdapter お題（topic）のメッセージ経路", () => {
     expect(topicCalls).toEqual([["conn-1", "お題のテキスト"]]);
     expect(messageCalled).toBe(false);
     expect(hubCalled).toBe(false);
+    ws.close();
+  });
+
+  it("Given ?tool=topic の接続 / When 64KB ちょうどの本文を送る / Then MESSAGE_TOO_LARGE にならずお題の層へ届く（#521）", async () => {
+    // Given
+    const topicCalls: Array<[string, string]> = [];
+    adapter = newTestWsAdapter({
+      port: 0,
+      host: "127.0.0.1",
+      allowedOrigins: [],
+      timer: { handleMessage: async () => {} },
+      topic: { handleMessage: async (connId, raw) => {
+        topicCalls.push([connId, raw]);
+      } },
+      onDisconnect: () => {},
+      logger: testLogger,
+    });
+    const ws = new WebSocket(topicUrl(adapter));
+    await waitOpen(ws);
+
+    // When: 3 バイト文字 21,845 個＋1 バイト＝ちょうど 65,536 バイト（文字数は 21,846）。
+    // バイトで測っていれば上限ちょうどで通る。
+    const exact = "あ".repeat(21_845) + "x";
+    expect(Buffer.byteLength(exact)).toBe(64 * 1024);
+    ws.send(exact);
+    await waitFor(() => topicCalls.length > 0);
+
+    // Then
+    expect(topicCalls).toHaveLength(1);
+    expect(topicCalls[0]?.[1]).toBe(exact);
+    ws.close();
+  });
+
+  it("Given ?tool=topic の接続 / When 64KB ちょうどに 1 バイト足した本文を送る / Then お題の層は呼ばれず MESSAGE_TOO_LARGE を返す（#521）", async () => {
+    // Given
+    let topicCalled = false;
+    adapter = newTestWsAdapter({
+      port: 0,
+      host: "127.0.0.1",
+      allowedOrigins: [],
+      timer: { handleMessage: async () => {} },
+      topic: { handleMessage: async () => {
+        topicCalled = true;
+      } },
+      onDisconnect: () => {},
+      logger: testLogger,
+    });
+    const ws = new WebSocket(topicUrl(adapter));
+    await waitOpen(ws);
+
+    // When: ちょうど 65,537 バイト
+    const over = "あ".repeat(21_845) + "xx";
+    expect(Buffer.byteLength(over)).toBe(64 * 1024 + 1);
+    ws.send(over);
+    const msg = await waitMessage(ws);
+
+    // Then
+    expect(msg).toMatchObject({ type: "error", code: "MESSAGE_TOO_LARGE" });
+    expect(topicCalled).toBe(false);
     ws.close();
   });
 
