@@ -1,0 +1,23 @@
+# 変異 961: poker-exchange-thrown-not-reshuffled
+#
+# 検出を期待するテスト:
+#   - packages/poker-core/tests/card-game-reshuffle.test.ts
+#
+# #533（テストの穴: poker-core のチェンジの切り直し）。:86 の `shuffle(thrown, randomInt)` を外し、今捨てた札を捨てた順のまま山へ足す。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m961-*.patch
+# 復元: git apply -R scripts/mutations/m961-*.patch
+diff --git a/packages/poker-core/src/card-game.ts b/packages/poker-core/src/card-game.ts
+index 2bfe80f..5d64f68 100644
+--- a/packages/poker-core/src/card-game.ts
++++ b/packages/poker-core/src/card-game.ts
+@@ -83,7 +83,7 @@ export function exchangeCards(
+     discards = [];
+   }
+   if (deck.length < thrown.length) {
+-    deck = [...deck, ...shuffle(thrown, randomInt)];
++    deck = [...deck, ...thrown];
+     thrown = [];
+   }
+   let drawn = 0;

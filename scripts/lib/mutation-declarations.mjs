@@ -64,6 +64,9 @@ const RESERVED_965_969 =
 const RESERVED_980_984 =
   "**対応表より後に足した変異。** 980〜984 は #534 に追加で割り当てた範囲（965〜969 を使い切ったため）。";
 
+const RESERVED_960_964 =
+  "**対応表より後に足した変異。** 960〜964 は #533 に割り当てた範囲。";
+
 const RESERVED_880_889 =
   "**対応表より後に足した変異。** 880〜889 は #506 の宣言の検査に追加で割り当てた範囲（850〜859 を使い切ったため）。";
 
@@ -5788,5 +5791,45 @@ export const MUTATIONS = [
     pkg: "packages/timer-core",
     tests: ["test/bounds.properties.test.ts"],
     note: RESERVED_980_984 + " " + "#534のレビュー。一時離脱中の代理が席を持つのに上限に数えられず、10 席の輪にも足せて 11 席になる。",
+  },
+  {
+    id: 960,
+    label: "チェンジで山が足りないとき、捨て札を切り直さず捨てた順のまま山へ足す（:82 の shuffle を外す）",
+    patch: "m960-poker-exchange-discards-not-reshuffled.patch",
+    pkg: "packages/poker-core",
+    tests: ["tests/card-game-reshuffle.test.ts"],
+    note: RESERVED_960_964 + " " + "#533。直前の人が捨てた札の順で次の人が引くので、引く札が読める。既存のテストは乱数に identity を渡すので生き残る形。",
+  },
+  {
+    id: 961,
+    label: "チェンジで捨て札でも足りないとき、今捨てた札を切り直さず捨てた順のまま山へ足す（:86 の shuffle を外す）",
+    patch: "m961-poker-exchange-thrown-not-reshuffled.patch",
+    pkg: "packages/poker-core",
+    tests: ["tests/card-game-reshuffle.test.ts"],
+    note: RESERVED_960_964 + " " + "#533。今捨てた札が捨てた順で戻り、引く札が読める。既存のテストでは生き残る形。",
+  },
+  {
+    id: 962,
+    label: "捨て札の切り直しが、注入された乱数を捨てて常に 0 を返す乱数を使う（:82）",
+    patch: "m962-poker-exchange-discards-shuffle-ignores-random.patch",
+    pkg: "packages/poker-core",
+    tests: ["tests/card-game-reshuffle.test.ts"],
+    note: RESERVED_960_964 + " " + "#533。乱数の注入が効かず、捨て札が毎回同じ並べ替えで戻る。レビューで、乱数の列が常に 0 のテストでは生き残ると分かり、0 以外を含む列に直した。並べ替えない乱数（`(n) => n - 1`）に替える形も、同じテストで赤くなる（手で確かめた）。",
+  },
+  {
+    id: 963,
+    label: "今捨てた札の切り直しが、注入された乱数を捨てて常に 0 を返す乱数を使う（:86）",
+    patch: "m963-poker-exchange-thrown-shuffle-ignores-random.patch",
+    pkg: "packages/poker-core",
+    tests: ["tests/card-game-reshuffle.test.ts"],
+    note: RESERVED_960_964 + " " + "#533。乱数の注入が効かず、今捨てた札が毎回同じ並べ替えで戻る。0 以外を含む列で赤くなる。並べ替えない乱数（`(n) => n - 1`）に替える形も同じテストで赤くなる（手で確かめた）。",
+  },
+  {
+    id: 964,
+    label: "捨て札の切り直しの結果を逆順にして山へ足す（:82）",
+    patch: "m964-poker-exchange-discards-reshuffle-reversed.patch",
+    pkg: "packages/poker-core",
+    tests: ["tests/card-game-reshuffle.test.ts"],
+    note: RESERVED_960_964 + " " + "#533。乱数のとおりの並びにならず、決まった乱数から並びを求められない。",
   },
 ];

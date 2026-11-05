@@ -1,0 +1,23 @@
+# 変異 960: poker-exchange-discards-not-reshuffled
+#
+# 検出を期待するテスト:
+#   - packages/poker-core/tests/card-game-reshuffle.test.ts
+#
+# #533（テストの穴: poker-core のチェンジの切り直し）。:82 の `shuffle(discards, randomInt)` を外し、捨て札を捨てた順のまま山へ足す。直前の人が捨てた札の順で次の人が引くので、引く札が読める。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m960-*.patch
+# 復元: git apply -R scripts/mutations/m960-*.patch
+diff --git a/packages/poker-core/src/card-game.ts b/packages/poker-core/src/card-game.ts
+index 2bfe80f..b975ebc 100644
+--- a/packages/poker-core/src/card-game.ts
++++ b/packages/poker-core/src/card-game.ts
+@@ -79,7 +79,7 @@ export function exchangeCards(
+   let deck = [...game.deck];
+   let discards = [...game.discards];
+   if (deck.length < thrown.length) {
+-    deck = [...deck, ...shuffle(discards, randomInt)];
++    deck = [...deck, ...discards];
+     discards = [];
+   }
+   if (deck.length < thrown.length) {
