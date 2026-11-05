@@ -1,0 +1,12 @@
+diff --git a/scripts/audit-test-focus.mjs b/scripts/audit-test-focus.mjs
+index 28b2843..75b726f 100644
+--- a/scripts/audit-test-focus.mjs
++++ b/scripts/audit-test-focus.mjs
+@@ -77,7 +77,6 @@ function main() {
+   // 走査量は内訳まで、成否によらず必ず出す（#135 D5・ADR-0014 決定 6）。
+   const volume = [
+     { label: "test ディレクトリのファイル", count: testDirFiles.size },
+-    { label: "名前で分かるテストファイル", count: namedTestPaths.length },
+     { label: "合計", count: files.size },
+   ];
+   console.log(`[audit-test-focus] 走査対象: ${volume.map((v) => `${v.label} ${v.count}`).join(" / ")}`);

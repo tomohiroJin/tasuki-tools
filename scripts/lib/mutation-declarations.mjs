@@ -5733,7 +5733,7 @@ export const MUTATIONS = [
   {
     id: 940,
     label: "audit-test-focus が .only を見つけない（止める名前の表から only を外す）",
-    patch: "m940-sc040-only-not-detected.patch",
+    patch: "m940-test-focus-only-not-detected.patch",
     pkg: "scripts",
     tests: ["lib/focused-skipped-tests.test.mjs"],
     note: RESERVED_940_949 + " " + "#523。`.only` が 1 つ残っても検査が緑のまま、同じファイルの他のテストが黙って流れなくなる。",
@@ -5741,7 +5741,7 @@ export const MUTATIONS = [
   {
     id: 941,
     label: "audit-test-focus が、空行で離れたコメントの「理由:」も理由と認める",
-    patch: "m941-sc040-reason-comment-across-blank-lines.patch",
+    patch: "m941-test-focus-reason-comment-across-blank-lines.patch",
     pkg: "scripts",
     tests: ["lib/focused-skipped-tests.test.mjs"],
     note: RESERVED_940_949 + " " + "#523。`.skip` と無関係な離れたコメントが理由として通り、理由の無い skip が残る。",
@@ -5749,7 +5749,7 @@ export const MUTATIONS = [
   {
     id: 942,
     label: "audit-test-focus が、テストを定義する関数以外（agenda.skip・driver.skip など）の .skip も止める",
-    patch: "m942-sc040-any-receiver-skip-flagged.patch",
+    patch: "m942-test-focus-any-receiver-skip-flagged.patch",
     pkg: "scripts",
     tests: ["lib/focused-skipped-tests.test.mjs"],
     note: RESERVED_940_949 + " " + "#523。コマンド名・メソッド名の `.skip` で誤検出し、正しいテストが赤くなって検査が信用されなくなる。",
@@ -5757,7 +5757,7 @@ export const MUTATIONS = [
   {
     id: 943,
     label: "audit-test-focus が node:test のオプション（{ skip: … }・{ only: true }）を見ない",
-    patch: "m943-sc040-node-test-options-ignored.patch",
+    patch: "m943-test-focus-node-test-options-ignored.patch",
     pkg: "scripts",
     tests: ["lib/focused-skipped-tests.test.mjs"],
     note: RESERVED_940_949 + " " + "#523。`node --test` のテストの `only` / `skip` が検査をすり抜ける。",
@@ -5765,7 +5765,7 @@ export const MUTATIONS = [
   {
     id: 944,
     label: "audit-test-focus が、中身の無い「理由:」だけのコメントも理由と認める",
-    patch: "m944-sc040-empty-reason-accepted.patch",
+    patch: "m944-test-focus-empty-reason-accepted.patch",
     pkg: "scripts",
     tests: ["lib/focused-skipped-tests.test.mjs"],
     note: RESERVED_940_949 + " " + "#523。「理由:」と書くだけで skip が通り、飛ばす理由が記録に残らない。",
@@ -5773,7 +5773,7 @@ export const MUTATIONS = [
   {
     id: 945,
     label: "audit-test-focus が違反を見つけても非ゼロで終了しない",
-    patch: "m945-sc040-violation-does-not-exit.patch",
+    patch: "m945-test-focus-violation-does-not-exit.patch",
     pkg: "scripts",
     tests: ["audit-test-focus.test.mjs"],
     note: RESERVED_940_949 + " " + "#523。違反を表示するだけで CI が緑になり、`.only` が main に入る。",
@@ -5781,7 +5781,7 @@ export const MUTATIONS = [
   {
     id: 946,
     label: "audit-test-focus の走査対象から *.spec.ts（e2e/specs の Playwright）を外す",
-    patch: "m946-sc040-spec-files-not-scanned.patch",
+    patch: "m946-test-focus-spec-files-not-scanned.patch",
     pkg: "scripts",
     tests: ["audit-test-focus.test.mjs"],
     note: RESERVED_940_949 + " " + "#523。各パッケージの test ディレクトリの外にある E2E の `.only` が検査をすり抜ける（Playwright の forbidOnly は CI でしか効かない）。",
@@ -5789,7 +5789,7 @@ export const MUTATIONS = [
   {
     id: 948,
     label: "audit-test-focus の「名前で分かるテストの一覧が 0 件」のガードを外す",
-    patch: "m948-sc040-zero-named-tests-allowed.patch",
+    patch: "m948-test-focus-zero-named-tests-allowed.patch",
     pkg: "scripts",
     tests: ["audit-test-focus.test.mjs"],
     note: RESERVED_940_949 + " " + "#523。一覧の取得が壊れても、test ディレクトリの分だけで緑になり、E2E・scripts・ui のテストが静かに検査から外れる。",
@@ -5797,7 +5797,7 @@ export const MUTATIONS = [
   {
     id: 947,
     label: "audit-test-focus の走査の型から bun の *_test.* / *_spec.* を外す",
-    patch: "m947-sc040-underscore-test-names-not-scanned.patch",
+    patch: "m947-test-focus-underscore-test-names-not-scanned.patch",
     pkg: "scripts",
     tests: ["audit-test-focus.test.mjs"],
     note: RESERVED_940_949 + " " + "#523 のレビュー。`src` の中などにある bun の `*_test.ts` の `.only` が検査をすり抜ける。",
@@ -5805,7 +5805,7 @@ export const MUTATIONS = [
   {
     id: 949,
     label: "audit-test-focus が、行の途中の「理由:」（「この理由: …」）も理由と認める",
-    patch: "m949-sc040-reason-anywhere-in-line.patch",
+    patch: "m949-test-focus-reason-anywhere-in-line.patch",
     pkg: "scripts",
     tests: ["lib/focused-skipped-tests.test.mjs"],
     note: RESERVED_940_949 + " " + "#523 のレビュー。無関係なコメントが理由として通り、文書の形より緩くなる。",
