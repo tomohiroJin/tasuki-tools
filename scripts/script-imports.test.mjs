@@ -48,6 +48,14 @@ export const ALLOWED_SCRIPT_IMPORTS = [
       "scan-target-wiring.test.mjs が複製を書き換えて宣言を壊す検証を届かせるため（#361 計画 §1）",
   },
   {
+    from: "scripts/audit-test-focus.mjs",
+    to: "scripts/audit-structure.mjs",
+    names: ["SCANNED_PACKAGES", "hasScanTarget", "readFilesRecursive"],
+    reason:
+      "各パッケージの test ディレクトリの宣言とその読み方の正本は audit-structure.mjs に置く。" +
+      "写すと、新しいパッケージを足したときに構造監査と .only の検査で走査の範囲がずれうる（#523）",
+  },
+  {
     from: "scripts/audit-ui-components.mjs",
     to: "scripts/audit-web-sync-boundary.mjs",
     names: ["listWebAppDirs"],
