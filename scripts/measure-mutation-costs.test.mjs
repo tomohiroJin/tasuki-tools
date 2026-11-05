@@ -1,4 +1,4 @@
-import { test, describe } from "node:test";
+import { test, describe, after } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
@@ -324,7 +324,7 @@ describe("ランナーの組が無い・全組が表の行のとき（#550 の�
 
 describe("parseBaseline: 基準の重みを明示で渡す", () => {
   test("既定値と表の行から、重さと重い組の印を作る", () => {
-    const w = parseBaseline(JSON.stringify({ defaults: { node: { control: 0.4, mutation: 0.4 } }, rows: [{ pkg: "scripts", tests: ["h.test.mjs"], control: 31, mutation: 28 }] }));
+    const w = parseBaseline(JSON.stringify({ defaults: { vitest: { control: 3, mutation: 3 }, bun: { control: 0.6, mutation: 2 }, node: { control: 0.4, mutation: 0.4 } }, rows: [{ pkg: "scripts", tests: ["h.test.mjs"], control: 31, mutation: 28 }] }));
     const heavy = { key: controlGroupKey({ pkg: "scripts", tests: ["h.test.mjs"] }), pkg: "scripts", tests: ["h.test.mjs"], mutations: [{ runner: "node" }, { runner: "node" }] };
     assert.equal(w.weightOf(heavy), 31 + 2 * 28);
     assert.equal(w.isHeavy(heavy), true);
@@ -334,8 +334,10 @@ describe("parseBaseline: 基準の重みを明示で渡す", () => {
 
   test("形が違えば、どこが違うかを言って落とす", () => {
     assert.throws(() => parseBaseline("{}"), /defaults/);
-    assert.throws(() => parseBaseline(JSON.stringify({ defaults: { node: { control: "x", mutation: 1 } }, rows: [] })), /node/);
-    assert.throws(() => parseBaseline(JSON.stringify({ defaults: {}, rows: [{ pkg: "a" }] })), /rows/);
+    const { bun, ...noBun } = JSON.parse(JSON.stringify({ vitest: { control: 3, mutation: 3 }, bun: { control: 1, mutation: 1 }, node: { control: 1, mutation: 1 } }));
+    assert.throws(() => parseBaseline(JSON.stringify({ defaults: noBun, rows: [] })), /bun/); // ランナーが欠けたら名指しして落とす（後で TypeError にしない）
+    assert.throws(() => parseBaseline(JSON.stringify({ defaults: { vitest: { control: 1, mutation: 1 }, bun: { control: 1, mutation: 1 }, node: { control: "x", mutation: 1 } }, rows: [] })), /node/);
+    assert.throws(() => parseBaseline(JSON.stringify({ defaults: { vitest: { control: 1, mutation: 1 }, bun: { control: 1, mutation: 1 }, node: { control: 1, mutation: 1 } }, rows: [{ pkg: "a" }] })), /rows/);
   });
 });
 
@@ -354,7 +356,7 @@ describe("CLI の配線: 小さなログを子プロセスで流す（#550 の�
     return f;
   });
   const run = (...args) => spawnSync(process.execPath, [SCRIPT, ...args], { encoding: "utf8" });
-  const clean = () => fs.rmSync(dir, { recursive: true, force: true });
+  after(() => fs.rmSync(dir, { recursive: true, force: true }));
 
   test("宣言に無い組の変異は数えず、その件数を知らせる", () => {
     const r = run(...files);
@@ -373,13 +375,12 @@ describe("CLI の配線: 小さなログを子プロセスで流す（#550 の�
 
   test("--simulate は、基準の重みと測り直した案の重みを run ごとに並べる。--baseline の JSON を使う", () => {
     const base = path.join(dir, "baseline.json");
-    fs.writeFileSync(base, JSON.stringify({ defaults: { node: { control: 1, mutation: 1 } }, rows: [] }));
+    fs.writeFileSync(base, JSON.stringify({ defaults: { vitest: { control: 1, mutation: 1 }, bun: { control: 1, mutation: 1 }, node: { control: 1, mutation: 1 } }, rows: [] }));
     const r = run("--simulate", "--shards", "1", "--jobs", "1", "--baseline", base, ...files);
     assert.equal(r.status, 0, r.stderr);
     assert.equal((r.stdout.match(/基準の重み:/g) ?? []).length, 3);
     assert.equal((r.stdout.match(/測り直した案の重み:/g) ?? []).length, 3);
     const bad = run("--simulate", "--baseline", path.join(dir, "nope.json"), ...files);
     assert.notEqual(bad.status, 0);
-    clean();
   });
 });

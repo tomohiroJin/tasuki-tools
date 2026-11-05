@@ -259,6 +259,9 @@ export function parseBaseline(text) {
   const json = JSON.parse(text);
   const num = (v) => typeof v === "number" && Number.isFinite(v) && v > 0;
   if (typeof json?.defaults !== "object" || json.defaults === null) throw new Error("baseline: defaults（ランナーごとの { control, mutation }）がありません");
+  for (const runner of Object.keys(RUNNER_COST_SECONDS)) {
+    if (!(runner in json.defaults)) throw new Error(`baseline: defaults.${runner} がありません（${Object.keys(RUNNER_COST_SECONDS).join("・")} が要ります）`);
+  }
   for (const [runner, d] of Object.entries(json.defaults)) {
     if (!num(d?.control) || !num(d?.mutation)) throw new Error(`baseline: defaults.${runner} は正の数の control と mutation を持つ必要があります`);
   }
