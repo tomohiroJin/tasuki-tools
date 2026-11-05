@@ -1,0 +1,12 @@
+diff --git a/scripts/measure-mutation-costs.mjs b/scripts/measure-mutation-costs.mjs
+--- a/scripts/measure-mutation-costs.mjs
++++ b/scripts/measure-mutation-costs.mjs
+@@ -231,7 +231,7 @@
+ 
+ /** いまの宣言の組（鍵が `declaredKeys`）の変異だけを残す。消した・並びを変えた組の実測は、いまの表にも既定値にも要らない。 */
+ export function onlyDeclared(records, declaredKeys) {
+-  return records.filter((r) => declaredKeys.has(controlGroupKey(r)));
++  return records.filter((r) => !declaredKeys.has(controlGroupKey(r)));
+ }
+ 
+ /** i 番目の run を除いた run の並び（`--leave-one-out` の、案を測る側）。 */

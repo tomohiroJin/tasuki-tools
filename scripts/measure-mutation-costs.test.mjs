@@ -1,6 +1,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { controlGroupKey } from "./lib/mutation-partition.mjs";
+import { HEAVY_RUN_SECONDS } from "./lib/mutation-weights.mjs";
 import {
   parseMutationLog,
   summarizeGroups,
@@ -9,6 +10,10 @@ import {
   proposeTableRows,
   simulateShards,
   proposeWeights,
+  holdOut,
+  onlyDeclared,
+  totalSeconds,
+  HEAVY_TOTAL_SECONDS,
   weightsFrom,
   commandToTests,
 } from "./measure-mutation-costs.mjs";
@@ -136,26 +141,58 @@ describe("median", () => {
 describe("proposeRunnerDefaults / proposeTableRows", () => {
   const group = (runner, count, control, mutation, tests = ["x"]) => ({ pkg: `p-${runner}`, tests, runner, count, control, mutation });
 
-  test("表に載る組（表の行）を除いた組の、ランナーごとの対照・検出の中央値を、0.1 秒単位に丸めて出す", () => {
+  test("既定値は、表の行を除いた組の合計を合わせる平均（対照 = 組ごとの平均・検出 = 検出の合計 ÷ 件数）を 0.1 秒単位に丸めたもの（中央値ではない）", () => {
     const groups = [
       group("node", 1, 0.3, 0.2, ["a"]),
       group("node", 1, 0.5, 0.4, ["b"]),
-      group("node", 1, 0.4, 0.6, ["c"]),
-      group("node", 1, 40, 40, ["heavy"]), // 外れ値。表の行なので中央値に混ぜない
+      group("node", 2, 0.4, 3.1, ["c"]), // 検出の裾。中央値なら 0.4 になるが、合計を合わせる平均は引かれる
+      group("node", 1, 40, 40, ["heavy"]), // 表の行なので混ぜない
     ];
     const d = proposeRunnerDefaults(groups, new Set([`p-node\n${JSON.stringify(["heavy"])}`]));
-    assert.deepEqual(d.node, { control: 0.4, mutation: 0.4 });
+    // 対照: (0.3+0.5+0.4)/3 = 0.4、検出: (0.2+0.4+2*3.1)/4 = 1.7
+    assert.deepEqual(d.node, { control: 0.4, mutation: 1.7 });
   });
 
-  test("載せる目安: 合計が 30 秒以上で、見積もりの半分以下。変異の無い組は元から入力に来ない", () => {
-    const est = () => 1;
-    const heavy = group("node", 2, 5, 14.5); // 34 秒・見積もり 1
+  test("ランナーごとの合計: 既定値で見積もった合計は、丸めの範囲で実測の合計と合う", () => {
+    const groups = [group("bun", 1, 0.1, 0.1, ["a"]), group("bun", 3, 0.2, 5, ["b"]), group("bun", 1, 0.1, 0.2, ["c"])];
+    const d = proposeRunnerDefaults(groups, new Set()).bun;
+    const actual = groups.reduce((s, g) => s + g.control + g.mutation * g.count, 0);
+    const est = groups.reduce((s, g) => s + d.control + d.mutation * g.count, 0);
+    assert.ok(Math.abs(est - actual) / actual < 0.05, `実測 ${actual} に対し見積もり ${est}`);
+  });
+
+  test("載せる目安: 合計が 30 秒以上で、実測が見積もりのちょうど 2 倍以上（境界を含む）。見積もりが 2 倍に届かない組は載せない", () => {
+    const heavy = group("node", 2, 5, 14.5); // 34 秒
+    assert.deepEqual(proposeTableRows([heavy], () => 17), [heavy]); // ちょうど 2 倍
+    assert.deepEqual(proposeTableRows([heavy], () => 17.1), []); // 2 倍に届かない
     const light = group("node", 2, 0.4, 0.3);
-    const justLow = group("node", 2, 5, 10); // 25 秒 < 30
-    const estBig = group("node", 2, 5, 14.5); // 合計 34・見積もり 20 > 17
-    const rows = proposeTableRows([heavy, light, justLow], (g) => (g === estBig ? 20 : est(g)));
-    assert.deepEqual(rows.map((g) => g), [heavy]);
-    assert.deepEqual(proposeTableRows([estBig], () => 20), []);
+    const justLow = group("node", 2, 5, 12); // 29 秒 < 30
+    assert.deepEqual(proposeTableRows([heavy, light, justLow], () => 1), [heavy]);
+  });
+
+  test("自己テストの下限（HEAVY_RUN_SECONDS）に届かない行は案に出さない（そのまま写して赤にならない）", () => {
+    const manyLight = group("node", 40, 1, HEAVY_RUN_SECONDS / 2 - 1.5 - 0.01); // 合計は大きいが 1 回 control+mutation < 下限
+    assert.ok(manyLight.control + manyLight.mutation < HEAVY_RUN_SECONDS);
+    assert.ok(totalSeconds(manyLight) >= HEAVY_TOTAL_SECONDS);
+    assert.deepEqual(proposeTableRows([manyLight], () => 1), []);
+    const atLimit = group("node", 40, 4, HEAVY_RUN_SECONDS - 4);
+    assert.deepEqual(proposeTableRows([atLimit], () => 1), [atLimit]);
+  });
+});
+
+describe("holdOut / onlyDeclared: CLI の取り置きと宣言の絞り込み", () => {
+  test("holdOut: i 番目を除いた run の並び（順は保つ）", () => {
+    const runs = ["a", "b", "c"].map((name) => ({ name, records: [] }));
+    assert.deepEqual(holdOut(runs, 1).map((r) => r.name), ["a", "c"]);
+    assert.deepEqual(holdOut(runs, 0).map((r) => r.name), ["b", "c"]);
+    assert.equal(runs.length, 3);
+  });
+
+  test("onlyDeclared: 宣言の組の鍵に一致する変異だけを残す", () => {
+    const rec = (tests) => ({ id: 1, pkg: "scripts", tests, runner: "node", controlSec: 1, detectSec: 1 });
+    const keys = new Set([controlGroupKey({ pkg: "scripts", tests: ["a.test.mjs"] })]);
+    const kept = onlyDeclared([rec(["a.test.mjs"]), rec(["b.test.mjs"]), rec(["a.test.mjs", "b.test.mjs"])], keys);
+    assert.deepEqual(kept.map((r) => r.tests), [["a.test.mjs"]]);
   });
 });
 

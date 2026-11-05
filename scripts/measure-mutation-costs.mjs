@@ -25,9 +25,8 @@ import { controlGroupKey, groupByControl } from "./lib/mutation-partition.mjs";
 import { selectMutations } from "./lib/mutation-select.mjs";
 import { planWorkers } from "./lib/mutation-parallel.mjs";
 import { isDirectRun } from "./lib/direct-run.mjs";
-import { MEASURED_GROUPS, measuredCostOf } from "./lib/mutation-weights.mjs";
+import { MEASURED_GROUPS, measuredCostOf, RUNNER_COST_SECONDS, HEAVY_RUN_SECONDS } from "./lib/mutation-weights.mjs";
 import { MUTATIONS } from "./lib/mutation-declarations.mjs";
-import { RUNNER_COST_SECONDS } from "./mutation-check.mjs";
 
 /** 載せる目安（`mutation-weights.mjs` の JSDoc と手順書と同じ）: 組の合計がこの秒数以上で、見積もりの半分以下（実測が見積もりの 2 倍以上）。 */
 export const HEAVY_TOTAL_SECONDS = 30;
@@ -134,16 +133,20 @@ export function summarizeGroups(runs) {
 const round1 = (v) => Math.round(v * 10) / 10;
 
 /**
- * ランナーごとの既定値の案: 表の行（`tableKeys`。個別に持つ組）を除いた組の、対照・検出の中央値を 0.1 秒単位に丸めたもの。
- * 平均でなく中央値にするのは、表に載らない程度に重い組や、まれに遅れた組に引かれないため。
+ * ランナーごとの既定値の案: 表の行（`tableKeys`。個別に持つ組）を除いた組の、**合計を合わせる平均**を 0.1 秒単位に丸めたもの。
+ * 対照 = 組ごとの対照の平均、検出 = 検出の合計 ÷ 変異の件数。これで「表に無い組の見積もりの合計 ≒ 実測の合計」になる。
+ * 分け方が均すのはワーカー・シャードごとの**合計**なので、中央値だと裾の長い分布で合計が何倍も過小になる
+ * （bun は実測 185 秒に見積もり 24 秒、node は 138 秒に 56 秒だった。#550 のレビュー）。
  */
 export function proposeRunnerDefaults(groups, tableKeys) {
   const out = {};
   for (const runner of [...new Set(groups.map((g) => g.runner))].sort()) {
     const rest = groups.filter((g) => g.runner === runner && !tableKeys.has(controlGroupKey(g)));
+    const controls = rest.map((g) => g.control).filter(Number.isFinite);
+    const count = rest.reduce((sum, g) => sum + g.count, 0);
     out[runner] = {
-      control: round1(median(rest.map((g) => g.control).filter(Number.isFinite))),
-      mutation: round1(median(rest.map((g) => g.mutation))),
+      control: round1(mean(controls)),
+      mutation: round1(rest.reduce((sum, g) => sum + g.mutation * g.count, 0) / count),
     };
   }
   return out;
@@ -152,9 +155,15 @@ export function proposeRunnerDefaults(groups, tableKeys) {
 /** 組の実測の合計（対照 1 回＋検出 × 件数）。 */
 export const totalSeconds = (g) => g.control + g.mutation * g.count;
 
-/** 表に載せる目安に当たる組（合計が {@link HEAVY_TOTAL_SECONDS} 秒以上で、見積もりの 2 倍以上）。`estimateOf` は組の見積もり（秒）。 */
+/**
+ * 表に載せる目安に当たる組。合計が {@link HEAVY_TOTAL_SECONDS} 秒以上・見積もりの 2 倍以上・対照 1 回＋検出 1 回が
+ * 自己テストの下限（`HEAVY_RUN_SECONDS`。`mutation-weights.test.mjs` が行ごとに見る）以上。`estimateOf` は組の見積もり（秒）。
+ * 下限を道具も知っているので、案をそのまま写して自己テストが赤になることはない。
+ */
 export function proposeTableRows(groups, estimateOf) {
-  return groups.filter((g) => totalSeconds(g) >= HEAVY_TOTAL_SECONDS && estimateOf(g) * 2 <= totalSeconds(g));
+  return groups.filter(
+    (g) => totalSeconds(g) >= HEAVY_TOTAL_SECONDS && estimateOf(g) * 2 <= totalSeconds(g) && g.control + g.mutation >= HEAVY_RUN_SECONDS,
+  );
 }
 
 const roundHalf = (v) => Math.round(v * 2) / 2;
@@ -220,11 +229,21 @@ export function simulateShards(records, { shards, jobs, weightOf, isHeavy }) {
 
 const fmt = (v, digits = 1) => (Number.isFinite(v) ? v.toFixed(digits) : "-");
 
+/** いまの宣言の組（鍵が `declaredKeys`）の変異だけを残す。消した・並びを変えた組の実測は、いまの表にも既定値にも要らない。 */
+export function onlyDeclared(records, declaredKeys) {
+  return records.filter((r) => declaredKeys.has(controlGroupKey(r)));
+}
+
+/** i 番目の run を除いた run の並び（`--leave-one-out` の、案を測る側）。 */
+export function holdOut(runs, i) {
+  return runs.filter((_, j) => j !== i);
+}
+
 function readRuns(args, declaredKeys) {
   let dropped = 0;
   const runs = args.map((arg) => {
     const all = arg.split(",").flatMap((file) => parseMutationLog(fs.readFileSync(file, "utf8")));
-    const records = all.filter((r) => declaredKeys.has(controlGroupKey(r)));
+    const records = onlyDeclared(all, declaredKeys);
     dropped += all.length - records.length;
     return { name: arg.split(",")[0].replace(/^.*\//, "").replace(/-\d+\.log$/, ""), records };
   });
@@ -277,7 +296,7 @@ function main() {
   if (leaveOneOut) {
     // 他の run から測った案で、残した run を分ける（案を測った run そのものでは良く見えすぎるため）。
     for (const [i, run] of runs.entries()) {
-      const others = runs.filter((_, j) => j !== i);
+      const others = holdOut(runs, i);
       const proposal = weightsFrom(proposeWeights(summarizeGroups(others)));
       console.log(`${run.name}: 他の ${others.length} run から測った案で分ける`);
       console.log(spreadLine("いまのコードの重み", simulateShards(run.records, { shards, jobs, ...current })));
@@ -295,8 +314,8 @@ function main() {
     const ratios = rest(runner).map((g) => totalSeconds(g) / (now.control + now.mutation * g.count));
     const sum = (f) => rest(runner).reduce((s, g) => s + f(g), 0);
     console.log(
-      `${runner}: 組 ${rest(runner).length} 個・対照の中央値 ${d.control}（${now.control}）・検出の中央値 ${d.mutation}（${now.mutation}）` +
-        `・組の合計の「実測÷いまの既定値」の中央値 ${fmt(median(ratios), 2)}・実測の合計 ${fmt(sum(totalSeconds), 0)} 秒に対し、いまの既定値の見積もりの合計 ${fmt(sum((g) => now.control + now.mutation * g.count), 0)} 秒`,
+      `${runner}: 組 ${rest(runner).length} 個・対照の平均 ${d.control}（${now.control}）・検出の平均 ${d.mutation}（${now.mutation}）` +
+        `・組の合計の「実測÷いまの既定値」の中央値 ${fmt(median(ratios), 2)}・表に無い組の実測の合計 ${fmt(sum(totalSeconds), 0)} 秒に対し、いまの既定値の見積もりの合計 ${fmt(sum((g) => now.control + now.mutation * g.count), 0)} 秒`,
     );
   }
   console.log("\n## 組ごと（合計の大きい順。比 = 実測の合計 ÷ いまの重さ。● = いまの表の行。run ごと = 対照/検出）");

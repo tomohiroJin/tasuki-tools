@@ -448,9 +448,8 @@ describe("宣言の全件を分けて流す配線（#481）", () => {
     assert.equal(weightOfGroup(vitest), RUNNER_COST_SECONDS.vitest.control + 2 * RUNNER_COST_SECONDS.vitest.mutation);
   });
 
-  test("ランナーごとの既定値の向きは CI の実測と同じ（bun の検出は node 以下・vitest は両方より重い。手元の値に戻さない・#550）", () => {
+  test("ランナーごとの既定値の向きは CI の実測と同じ（vitest は対照も検出も bun・node より重い。手元の値に戻さない・#550）", () => {
     const { bun, node, vitest } = RUNNER_COST_SECONDS;
-    assert.ok(bun.mutation <= node.mutation, `bun ${bun.mutation} 秒 > node ${node.mutation} 秒`);
     assert.ok(vitest.control > node.control && vitest.control > bun.control);
     assert.ok(vitest.mutation > node.mutation && vitest.mutation > bun.mutation);
   });
