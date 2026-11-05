@@ -1,0 +1,12 @@
+diff --git a/scripts/lib/mutation-lock.mjs b/scripts/lib/mutation-lock.mjs
+--- a/scripts/lib/mutation-lock.mjs
++++ b/scripts/lib/mutation-lock.mjs
+@@ -22,7 +22,7 @@
+  * 倒すと、誰も走っていないのに永久に実行できなくなる（消し方を知らない人が詰む）。
+  * 代わりに呼び出し側が警告を出す。
+  */
+-export function lockRefusalReason(rawLockText, isAlive = isProcessAlive) {
++export function lockRefusalReason(rawLockText, isAlive = (pid) => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === "EPERM"; } }) {
+   if (rawLockText === null || rawLockText === undefined) return null;
+   const pid = parsePid(rawLockText); // 読めない pid（0・負・桁あふれ）は壊れたロック
+   if (pid === null) return null;

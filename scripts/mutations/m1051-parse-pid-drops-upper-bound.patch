@@ -1,0 +1,10 @@
+diff --git a/scripts/lib/process-alive.mjs b/scripts/lib/process-alive.mjs
+--- a/scripts/lib/process-alive.mjs
++++ b/scripts/lib/process-alive.mjs
+@@ -77,5 +77,5 @@
+  */
+ export function parsePid(value) {
+   const n = typeof value === "number" ? value : Number.parseInt(String(value ?? "").trim(), 10);
+-  return Number.isSafeInteger(n) && n > 0 && n <= MAX_PID ? n : null;
++  return Number.isSafeInteger(n) && n > 0 ? n : null;
+ }

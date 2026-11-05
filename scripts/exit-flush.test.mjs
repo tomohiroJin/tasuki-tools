@@ -41,11 +41,11 @@ describe("検査スクリプトは process.exit で終わらない（#540）", (
    */
   const READ_WAIT_MAX_MS = 5000;
 
-  /** `audit-plan-gate.mjs` の複製を、親が stderr を**遅れて**読む形で走らせる。stdout は流し続ける。 */
-  function runCopyWithLateStderrReader(mutate) {
-    return withScriptCopy("audit-plan-gate.mjs", mutate, (copyPath, mutated) =>
+  /** 検査スクリプトの複製を、親が stderr を**遅れて**読む形で走らせる。stdout は流し続ける。 */
+  function runCopyWithLateStderrReader(scriptName, mutate, args = []) {
+    return withScriptCopy(scriptName, mutate, (copyPath, mutated) =>
       new Promise((resolve, reject) => {
-        const child = spawn(process.execPath, [copyPath], { stdio: ["ignore", "pipe", "pipe"] });
+        const child = spawn(process.execPath, [copyPath, ...args], { stdio: ["ignore", "pipe", "pipe"] });
         const stderrChunks = [];
         let resumed = false;
         const resumeStderr = () => {
@@ -91,7 +91,7 @@ describe("検査スクリプトは process.exit で終わらない（#540）", (
           '  const problems = Array.from({ length: 20000 }, (_, i) => ({ file: `pad-${i}`, message: "pad" }));\n  for (const rel of undated) {',
         );
     // When
-    const r = await runCopyWithLateStderrReader(mutate);
+    const r = await runCopyWithLateStderrReader("audit-plan-gate.mjs", mutate);
     // Then: まず「壊れたこと自体」を確かめる
     assert.equal(countOf(r.source, "length: 20000"), 1, "一覧をふくらませられていません");
     assert.equal(countOf(r.source, '"2000-01-01"'), 1, "境界日を動かせていません");
@@ -102,13 +102,31 @@ describe("検査スクリプトは process.exit で終わらない（#540）", (
     assert.match(r.stderr, /根拠: docs\/constitution\.md Governance/);
   });
 
+  test("変異検査（mutation-check）も、長い失敗の出力の後に終わるとき、親の読み出しが遅れても末尾まで届いて exit 1 になる（#542）", async () => {
+    // Given: 選び方の誤り（宣言に無い番号）。ロックより前（何も触らない）でエラーを書いて終わる経路。
+    // 番号を 1.5 万件渡し、エラーの書き出しを 3 倍にふくらませる（約 360KB。パイプ代わりのソケットの容量を超える）。
+    // 実際の終わり方（書き出しの後の `exit` / `return`）は書き換えない
+    const ids = Array.from({ length: 15000 }, (_, i) => 100000 + i).join(",");
+    const needle = "console.error(`[mutation-check] ${e.message}`);";
+    const mutate = (s) => s.replace(needle, "console.error(`[mutation-check] ${e.message}`.repeat(3));");
+    // When
+    const r = await runCopyWithLateStderrReader("mutation-check.mjs", mutate, ["--id", ids]);
+    // Then: まず「ふくらませられたこと」を確かめる
+    assert.equal(countOf(readScript("mutation-check.mjs"), needle), 1, "ふくらませる対象が実装にありません");
+    assert.equal(countOf(r.source, needle), 0, "ふくらませられていません");
+    // Then: 終了コードは 1。ふくらませた 3 つ分が最後の番号まで届く
+    assert.equal(r.status, 1, `exit 1 になりません。stderr 末尾:\n${r.stderr.slice(-300)}`);
+    assert.equal(countOf(r.stderr, "宣言に無い変異の番号です"), 3, "3 つ分が届いていません（stderr が途中で切れた）");
+    assert.match(r.stderr, /114999\n$/, "最後の番号まで届いていません（stderr が途中で切れた）");
+  });
+
   /**
    * `process.exit(` を残してよい scripts と、その理由。**理由のない追加は検査を弱める変更**（AGENTS.md）。
    * 実在しない名前・もう `process.exit(` を持たない名前が載っていると落ちる（陳腐化した例外を残さない）。
    */
   const EXIT_ALLOWED = {
-    "mutation-check.mjs":
-      "変異の復元・ロック・シグナルの後始末（`exit` フック）に絡む終わり方で、return に替えると復元が走らない経路がある。#542 で扱う（#540 の範囲外）",
+    "lib/exit-after-flush.mjs":
+      "書き出しが終わるのを待ってから exit する関数そのもの（#542）。mutation-check.mjs のシグナル・uncaughtException のハンドラは、子プロセスとイベントループが生きたまま終わらせる『戻る先の無い』経路で、exitCode を立てて戻れない。待ってから exit するので出力は切れない（自己テストは lib/exit-after-flush.test.mjs）",
   };
 
   /** 守る対象: scripts/ 直下と scripts/lib/ の *.mjs（テストと、このテストが作る複製を除く）。`lib/…` の形で返す。 */

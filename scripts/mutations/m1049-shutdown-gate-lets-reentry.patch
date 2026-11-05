@@ -1,0 +1,11 @@
+diff --git a/scripts/lib/exit-after-flush.mjs b/scripts/lib/exit-after-flush.mjs
+--- a/scripts/lib/exit-after-flush.mjs
++++ b/scripts/lib/exit-after-flush.mjs
+@@ -61,7 +61,6 @@
+   let begun = false;
+   return {
+     begin() {
+-      if (begun) return false;
+       begun = true;
+       return true;
+     },

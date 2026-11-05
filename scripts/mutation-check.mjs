@@ -74,6 +74,9 @@ import {
   hasZeroScanTargets,
 } from "./lib/scan-targets.mjs";
 import { isDirectRun } from "./lib/direct-run.mjs";
+import { lockRefusalReason } from "./lib/mutation-lock.mjs";
+import { restoreVerdict, filesAfterRestore } from "./lib/mutation-restore-verdict.mjs";
+import { exitAfterFlush, createShutdownGate } from "./lib/exit-after-flush.mjs";
 import {
   parseSelector,
   selectMutations,
@@ -92,7 +95,7 @@ import {
   planWorkers,
   workerArgs,
   worktreeDirFor,
-  staleWorktreesFrom,
+  staleWorktreeDirs,
   worktreeLockReason,
   formatWorkerSummary,
   parseTestWorkers,
@@ -102,6 +105,9 @@ import {
   storeDirFor,
 } from "./lib/mutation-parallel.mjs";
 import { MUTATIONS } from "./lib/mutation-declarations.mjs";
+
+// ロックの拒否の判定は lib/mutation-lock.mjs（変異で守れるよう lib に置く。#542）。既存の取り込み口を保つ
+export { lockRefusalReason };
 
 // 既定値の正本は lib/mutation-weights.mjs（測り直しの道具が写さず取り込めるように）。ここからも引ける
 export { RUNNER_COST_SECONDS } from "./lib/mutation-weights.mjs";
@@ -193,49 +199,9 @@ function clearMarker() {
 const LOCK_PATH = path.join(MUTATIONS_DIR, ".lock");
 
 /**
- * その PID のプロセスが生きているか。
- *
- * `process.kill(pid, 0)` はシグナルを送らずに存在だけを確かめる。`EPERM` は
- * 「居るが自分には送れない」なので**生きている**側に数える（別ユーザーの実行を
- * 死んだものと見なして踏み潰さない）。
- */
-export function isPidAlive(pid) {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch (e) {
-    return e.code === "EPERM";
-  }
-}
-
-/**
- * 既存のロックを見て、実行を拒む理由を返す（拒まないなら null）。
- *
- * **判定を純粋関数にしてある**（I/O は呼び出し側）。ロックの有無で分岐する経路は
- * 実際に 2 つ走らせないと再現できず、そのままではテストが書けないため。
- *
- * 壊れたロック（PID として読めない中身）は**無いものとして扱う**。中身が壊れるのは
- * 書き込みの途中で殺された場合が主で、そのとき書き手はもう死んでいる。拒む側へ
- * 倒すと、誰も走っていないのに永久に実行できなくなる（消し方を知らない人が詰む）。
- * 代わりに呼び出し側が警告を出す。
- */
-export function lockRefusalReason(rawLockText, isAlive = isPidAlive) {
-  if (rawLockText === null || rawLockText === undefined) return null;
-  const pid = Number.parseInt(String(rawLockText).trim(), 10);
-  if (!Number.isInteger(pid) || pid <= 0) return null;
-  if (!isAlive(pid)) return null;
-  return (
-    `[mutation-check] 同じ作業ツリーで別の実行（PID ${pid}）が走っています。\n` +
-    "2 つを同時に走らせると、片方の変異をもう片方の復元が消し、**変異が当たったまま**\n" +
-    "残ることがあります。終わるのを待ってから再実行してください。\n\n" +
-    `そのプロセスがもう居ないと分かっている場合だけ、${path.relative(REPO_ROOT, LOCK_PATH)} を消してください。`
-  );
-}
-
-/** ロックを取る。取れなければ理由を出して非 0 で終わる。 */
-/**
- * 開発環境の版を宣言と比べ、合わなければ止める（#487）。判定の正本は `scripts/check-toolchain.mjs`。
+ * 開発環境の版を宣言と比べる（#487）。判定の正本は `scripts/check-toolchain.mjs`。
  * 取り込まずに子プロセスで起動するのは、`pnpm test`・E2E のハーネスと同じ入口を通すため。
+ * @returns {boolean} 合えば true。合わなければ理由を出して false（呼び出し側が `exitCode` を立てて戻る）
  */
 function assertToolchain() {
   const r = spawnSync(process.execPath, [path.join(SCRIPT_DIR, "check-toolchain.mjs"), "mutation"], {
@@ -243,16 +209,21 @@ function assertToolchain() {
   });
   if (r.status !== 0) {
     console.error("[mutation-check] 開発環境の版が宣言と合わないため、変異を流しません（上の出力）");
-    process.exit(1);
+    return false;
   }
+  return true;
 }
 
+/**
+ * ロックを取る。
+ * @returns {boolean} 取れたら true。取れなければ理由を出して false（呼び出し側が `exitCode` を立てて戻る）
+ */
 function acquireLock() {
   const raw = fs.existsSync(LOCK_PATH) ? fs.readFileSync(LOCK_PATH, "utf8") : null;
   const reason = lockRefusalReason(raw);
   if (reason !== null) {
     console.error(reason);
-    process.exit(1);
+    return false;
   }
   if (raw !== null) {
     console.error(
@@ -263,9 +234,10 @@ function acquireLock() {
   // 複製して起動する）。ロックが取れないせいで main() に入れないのは筋が違うので作る。
   fs.mkdirSync(path.dirname(LOCK_PATH), { recursive: true });
   fs.writeFileSync(LOCK_PATH, String(process.pid), "utf8");
-  // **exit で必ず外す。** main() は複数の場所で process.exit するので、
+  // **exit で必ず外す。** main() は複数の場所で終わる（戻る・シグナルの `exitAfterFlush`）ので、
   // 呼び出し箇所ごとに解放を書くと必ずどれかが漏れる。
   process.on("exit", releaseLock);
+  return true;
 }
 
 /** ロックを外す。**自分が書いたものだけ**を消す。 */
@@ -282,9 +254,10 @@ function releaseLock() {
 /**
  * 前回の実行が変異を適用したまま異常終了していないかを調べ、していれば復元する。
  * **未コミット変更の検査より前に呼ぶこと。** そうしないと自分が残した変異で自分が止まる。
+ * @returns {boolean} 戻した（または戻すものが無かった）なら true。戻らなかったら false（致命的。呼び出し側が `exitCode` を立てて戻る）
  */
 function recoverFromCrashedRun() {
-  if (!fs.existsSync(MARKER_PATH)) return;
+  if (!fs.existsSync(MARKER_PATH)) return true;
   const files = fs
     .readFileSync(MARKER_PATH, "utf8")
     .split("\n")
@@ -301,9 +274,9 @@ function recoverFromCrashedRun() {
     logFn: (msg) => console.error(msg),
   });
 
-  // 致命的（戻らなかった）ときだけ非 0 で終了する。マーカーは decideCrashRecovery が
+  // 致命的（戻らなかった）ときだけ偽を返す。マーカーは decideCrashRecovery が
   // 意図的に残しているので、ここで消さない。
-  if (outcome.restored === false) process.exit(1);
+  return outcome.restored !== false;
 }
 
 /** 復元の再試行回数と待機時間。index.lock の競合は一過性という前提で決めた値。 */
@@ -392,7 +365,7 @@ export function formatRestoreFailureMessage(files, attempts) {
  * `clearMarkerFn` を呼ぶ。戻らなければマーカーは**残したまま**致命的な結果を返す。
  * ここで消してしまうと、復元が失敗したときに「変異が製品コードに残っている」
  * という唯一の記録が消え、次回の起動（`recoverFromCrashedRun`）が
- * 復旧を試みなくなる（`process.exit(1)` で人には見えても、状態としては失われる）。
+ * 復旧を試みなくなる（非 0 の終了で人には見えても、状態としては失われる）。
  *
  * @param {string[]} files
  * @param {object} io
@@ -546,16 +519,16 @@ export function decideMutationRestore(
  * （`mutation-check.test.mjs` の「マーカーを消すタイミング」「通常サイクルの復元判定」節）。
  *
  * **この関数自体は単体テストの対象に入っていない。** モジュール内変数
- * （`currentlyAppliedFiles`）と実 `execFileSync`・実 `fs`・`process.exit` に
+ * （`currentlyAppliedFiles`）と実 `execFileSync`・実 `fs` に
  * 直接依存しており、シグナルハンドラ（下）からも呼ばれる副作用の塊のため、
  * 安く注入可能な形にできなかった（`recoverFromCrashedRun` も同じ理由で同様）。
- * ここを直接壊す変更（例: 実引数の組み方や `process.exit` の条件）は、
+ * ここを直接壊す変更（例: 実引数の組み方や戻り値の条件）は、
  * E2E（`tests/e2e` のルーム離脱系）と、CI 上で本検査自身が自分の変異パッチを
  * 実際に適用・復元して回る実行でしか捕まらない。
+ * @returns {boolean} 戻した（または戻すものが無かった）なら true。戻らなかったら false（致命的）
  */
 function restoreCurrentMutation() {
   const files = currentlyAppliedFiles;
-  currentlyAppliedFiles = [];
 
   const outcome = decideMutationRestore(files, {
     checkoutFn: () =>
@@ -568,25 +541,37 @@ function restoreCurrentMutation() {
     maxAttempts: RESTORE_MAX_ATTEMPTS,
   });
 
-  if (outcome.restored === false) process.exit(1);
+  // **戻ったときだけ空にする。** 失敗なら本当の一覧を残し、次の呼び出し（待っていたシグナル・未捕捉の例外）が再試行する
+  currentlyAppliedFiles = filesAfterRestore(files, outcome.restored);
+  return outcome.restored !== false;
 }
 
 /** 並列（`--jobs`）で起こした子。親が止められたら子も止める（子はそれぞれ自分の作業ツリーで復元する）。 */
 const childProcesses = new Set();
 
+/** 終わり始めた印。シグナルのハンドラは最大 10 秒待つので、その間に来た別のシグナル・例外で再入しない（lib/exit-after-flush.mjs）。 */
+const shutdown = createShutdownGate();
+
 // 異常終了（Ctrl-C・kill・未捕捉例外）でも必ず復元する。
+//
+// **順序**: 子を止める → 変異を復元する（同期。戻ったと確かめてマーカーを消す）→ 書き出しが終わるのを待って終わる。
+// ここは「戻る先」が無い（子・イベントループが生きたまま終わらせる）ので、`exitCode` で戻れない。代わりに
+// `exitAfterFlush`（lib/exit-after-flush.mjs）が、先に積んだ書き出しが流れ終わってから終わる（#542。#540 と同じ、パイプで出力が切れる問題）。
+// ロックの解放・作業ツリーの後始末は、終わるときの `exit` フック（acquireLock・runInWorktrees）が行う。
 for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"]) {
   process.on(sig, () => {
+    if (!shutdown.begin()) return;
     for (const child of childProcesses) child.kill("SIGTERM");
-    restoreCurrentMutation();
-    process.exit(130);
+    const restored = restoreCurrentMutation();
+    exitAfterFlush(restoreVerdict(restored, 130).exitCode);
   });
 }
 process.on("uncaughtException", (err) => {
   // eslint-disable-next-line no-console
   console.error("[mutation-check] 捕捉されない例外:", err);
+  if (!shutdown.begin()) return; // すでに終わり始めている（例外は上で記録した）
   restoreCurrentMutation();
-  process.exit(1);
+  exitAfterFlush(1);
 });
 
 function applyMutation(mutation) {
@@ -598,9 +583,6 @@ function applyMutation(mutation) {
   currentlyAppliedFiles = files;
 }
 
-function restoreMutation() {
-  restoreCurrentMutation();
-}
 
 /**
  * 変異が検出を期待するテストファイルが実在するか確かめる。
@@ -609,6 +591,7 @@ function restoreMutation() {
  * exit 1 を返す。runTests は status !== 0 を「検出」とみなすので、**テストが消えると
  * 変異検査は全件「検出」と報告して緑になる**。検査が守るはずの「検査が静かに効かなく
  * なる」を、検査自身が起こしていた（#70 の破壊検証で発覚）。
+ * @returns {boolean} そろっていれば true。ずれていれば一覧を出して false（呼び出し側が `exitCode` を立てて戻る）
  */
 function assertMutationTestsExist() {
   const missing = [];
@@ -618,11 +601,11 @@ function assertMutationTestsExist() {
       if (!fs.existsSync(abs)) missing.push(`変異 #${mutation.id}: ${mutation.pkg}/${rel}`);
     }
   }
-  if (missing.length === 0) return;
+  if (missing.length === 0) return true;
   console.error("検出を期待するテストファイルが見つかりません:");
   for (const m of missing) console.error(`  ${m}`);
   console.error("\n対応表（MUTATIONS）と実ファイルがずれています。どちらかを直してください。");
-  process.exit(1);
+  return false;
 }
 
 /**
@@ -636,20 +619,22 @@ function assertMutationTestsExist() {
  * 下の 0 件ガードは「下限の直書き」の例外（ADR-0014 決定 8 の但し書き）。
  * 0 件（空振り）は「何も検証していない」状態そのものであり、維持コストが
  * 要る閾値ではないため、下限を直書きしない MUST NOT の対象に含めない。
+ * @returns {boolean} 全単射なら true。ずれていれば理由を出して false（呼び出し側が `exitCode` を立てて戻る）
  */
 function assertMutationPatchesBijective() {
   // 0 件（空振り）の判定は共有モジュールへ寄せる（ADR-0014 決定 8。集約は #135 設計正本 D10）。
   if (hasZeroScanTargets(MUTATIONS.length)) {
     console.error("[mutation-check] 変異が 0 件です（検査が空振りします）");
-    process.exit(1);
+    return false;
   }
   const declared = MUTATIONS.map((m) => m.patch);
   const actual = fs.readdirSync(MUTATIONS_DIR).filter((f) => f.endsWith(".patch"));
   const diff = diffTargets(declared, actual);
   if (hasTargetDrift(diff)) {
     console.error(formatTargetDiff("mutation-check", diff, `変異 ${declared.length} 件`));
-    process.exit(1);
+    return false;
   }
+  return true;
 }
 
 /**
@@ -909,7 +894,7 @@ function removeWorktrees(dirs) {
 /** 持ち主の親がもう居ない、変異検査の作業ツリーを消す（SIGKILL で殺された実行の残骸）。 */
 function removeStaleWorktrees() {
   const porcelain = execFileSync("git", ["worktree", "list", "--porcelain"], { cwd: REPO_ROOT, encoding: "utf8" });
-  const stale = staleWorktreesFrom(porcelain, isPidAlive, os.hostname());
+  const stale = staleWorktreeDirs(porcelain, os.hostname());
   if (stale.length === 0) return;
   console.error(`[mutation-check] 前回の並列の実行が残した作業ツリーを消します:\n${stale.map((d) => `  - ${d}`).join("\n")}`);
   removeWorktrees(stale);
@@ -982,10 +967,15 @@ async function runInWorktrees(selected, jobs, full, selector, selection, header)
         dirs[i],
         `[w${i + 1}] `,
       );
-      console.log(`[mutation-check] ワーカー ${i + 1}/${plan.length} が終わりました（${mutations.length} 件・exit ${r.exitCode}）`);
+      if (!shutdown.isBegun()) {
+        console.log(`[mutation-check] ワーカー ${i + 1}/${plan.length} が終わりました（${mutations.length} 件・exit ${r.exitCode}）`);
+      }
       return { index: i + 1, count: mutations.length, exitCode: r.exitCode, ms: Date.now() - t, output: r.output };
     }),
   );
+
+  // シグナルで止められた（子はこちらが止めた）なら、「ワーカーが失敗しました」の要約を出さない。終わりはシグナルのハンドラが進める
+  if (shutdown.isBegun()) return 130;
 
   const { lines, failed } = formatWorkerSummary(results);
   console.log(`\n=== 変異検査 並列の結果（${header}）===`);
@@ -1068,7 +1058,8 @@ function main() {
     selection = selectMutations(MUTATIONS, resolved);
   } catch (e) {
     console.error(`[mutation-check] ${e.message}`);
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
   const header = formatSelectionHeader(selector, selection, MUTATIONS.length);
 
@@ -1081,18 +1072,27 @@ function main() {
   if (planOnly) {
     // 見込みを出しただけ。**変異は 1 件も流していない**（緑の意味を取り違えない）
     console.log("[mutation-check] --plan: 見込みだけを出しました。変異は流していません。");
-    process.exit(0);
+    return;
   }
   // **復元より前にロックを取る。** 復元自体が `git checkout --` を撃つので、
   // 並走している実行の変異をここで消してしまう経路がある。
-  acquireLock();
+  if (!acquireLock()) {
+    process.exitCode = 1;
+    return;
+  }
 
   // 未コミット変更の検査より前に行う。前回の異常終了で残った変異を、
   // その検査に引っかからせるのではなく自分で片付けるため。
-  recoverFromCrashedRun();
+  const recovered = restoreVerdict(recoverFromCrashedRun());
+  if (!recovered.proceed) {
+    process.exitCode = recovered.exitCode;
+    return;
+  }
 
-  assertMutationTestsExist();
-  assertMutationPatchesBijective();
+  if (!assertMutationTestsExist() || !assertMutationPatchesBijective()) {
+    process.exitCode = 1;
+    return;
+  }
 
   const status = gitStatusPorcelain();
   if (status.trim() !== "") {
@@ -1103,7 +1103,8 @@ function main() {
         "git status --porcelain の出力:\n" +
         status,
     );
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   if (selection.selected.length === 0) {
@@ -1111,14 +1112,17 @@ function main() {
     // **ロック・復元・健全性の検査・未コミット変更の検査を通ったあとで終える**（緑が「検査した」を意味するため）。
     // ロックの解放は process.on("exit") が行う
     console.log(`[mutation-check] ${header}。この差分に該当する変異はありません。`);
-    process.exit(0);
+    return;
   }
 
   // **変異を 1 件も当てる前に、開発環境の版を宣言と比べる**（#487・docs/adr/0031）。
   // 環境の Bun の版が違うと、変異と無関係のテストが落ちて「検出した」に数えられるか、対照実行で止まる
   // （#487 で Bun 1.4.4 が ws-adapter.message.test.ts を落とした）。0 件の終了より後に置くのは、
   // 変異を流さない実行（docs だけの枝）に、テストを流すための道具を求めないため
-  assertToolchain();
+  if (!assertToolchain()) {
+    process.exitCode = 1;
+    return;
+  }
 
   if (jobs > 1) {
     // 並列は HEAD の写しで流す。上の検査が除外する置き場（宣言の表・パッチ）の未コミットの変更も、
@@ -1132,7 +1136,8 @@ function main() {
           "git status --porcelain の出力:\n" +
           strict,
       );
-      process.exit(1);
+      process.exitCode = 1;
+      return;
     }
     runInWorktrees(
       selection.selected.map((s) => s.mutation),
@@ -1142,10 +1147,13 @@ function main() {
       selection,
       header,
     ).then(
-      (code) => process.exit(code),
+      // 戻って自然に終わる（書き出しが流れ終わってから Node が終わる。ロック・作業ツリーの後始末は exit フック）
+      (code) => {
+        process.exitCode = code;
+      },
       (err) => {
         console.error("[mutation-check] 並列の実行が例外で止まりました:", err);
-        process.exit(1);
+        process.exitCode = 1;
       },
     );
     return;
@@ -1191,7 +1199,8 @@ function main() {
           "--- 対照実行の出力（末尾） ---\n" +
           control.output.split("\n").slice(-40).join("\n"),
       );
-      process.exit(1);
+      process.exitCode = 1;
+      return;
     }
     console.log(`  対照: ○ 通過${control.reused ? "（使い回し）" : ""}（${control.command}）`);
     console.log(
@@ -1204,12 +1213,19 @@ function main() {
     );
 
     let outcome;
+    let restored = false;
     try {
       applyMutation(mutation);
       const testResult = runTests(mutation, full, testWorkers);
       outcome = { ...mutation, detected: !testResult.passed, exitCode: testResult.exitCode, output: testResult.output };
     } finally {
-      restoreMutation();
+      restored = restoreCurrentMutation();
+    }
+    const verdict = restoreVerdict(restored);
+    if (!verdict.proceed) {
+      // 戻らなかった（致命的。マーカーは残してある）。次の変異は当てない
+      process.exitCode = verdict.exitCode;
+      return;
     }
     console.log(
       `  検出: ${outcome.detected ? "○ 検出された" : "× 検出されなかった"}` +
@@ -1247,11 +1263,11 @@ function main() {
         `${undetected.length} 件の変異が検出されませんでした（# ${undetected.map((r) => r.id).join(", ")}）。\n` +
         "変異を差し替えるか、検出できるテストを先に追加してください（FR-098）。",
     );
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   console.log(`\n[mutation-check] ${successMessage(selector, selection.fallbackToAll, results.length)}`);
-  process.exit(0);
 }
 
 // 直接実行されたときだけ走らせる。自己テスト（mutation-check.test.mjs）は
