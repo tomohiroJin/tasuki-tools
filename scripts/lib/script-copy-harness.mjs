@@ -50,10 +50,11 @@ export function assertBrokenBy(scriptName, mutatedSource, needle, label) {
 }
 
 /**
- * 複製 1 回の実行の上限。最も重い複製（audit-structure の SC-039）でも 1 回 10 秒前後なので、十数倍の余裕を持たせる。
+ * 複製 1 回の実行の上限。最も重い複製（audit-structure の SC-039・後段の間引き）は無負荷で 1 回 10 秒前後、
+ * 4 コアに CPU 負荷 4 本・並列 16 で約 40 秒だった（#544 のレビューで実測）。その 7 倍余りの 300 秒にする。
  * 子が固まったときに、テストランナーの時間切れまで黙って待たない（`entry-point-wiring.test.mjs` の LAUNCH_TIMEOUT_MS と同じ考え）。
  */
-export const COPY_TIMEOUT_MS = 120_000;
+export const COPY_TIMEOUT_MS = 300_000;
 
 /**
  * 複製の接頭辞の重なりを返す。別のファイルの接頭辞で始まる接頭辞があると、
