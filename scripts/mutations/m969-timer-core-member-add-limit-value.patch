@@ -1,0 +1,13 @@
+diff --git a/packages/timer-core/src/decide.ts b/packages/timer-core/src/decide.ts
+index 6f07777..361dada 100644
+--- a/packages/timer-core/src/decide.ts
++++ b/packages/timer-core/src/decide.ts
+@@ -300,7 +300,7 @@ function decideMemberAdd(
+   }
+ 
+   if (agg.session.rotation.length >= MAX_MEMBERS) {
+-    return err({ type: "MemberLimitExceeded", limit: MAX_MEMBERS });
++    return err({ type: "MemberLimitExceeded", limit: MAX_MEMBERS - 1 });
+   }
+ 
+   return ok([{ type: "MemberAdded", participantId: trimmed, now }]);
