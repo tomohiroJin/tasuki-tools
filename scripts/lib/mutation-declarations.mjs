@@ -5946,7 +5946,7 @@ export const MUTATIONS = [
     patch: "m985-plan-gate-failure-path-process-exit.patch",
     pkg: "scripts",
     tests: ["exit-flush.test.mjs"],
-    note: RESERVED_985_994 + " " + "#540。stderr がパイプのとき process.exit は書き出し途中の出力を捨てる。失敗の一覧が途中で切れ、末尾の「様式の正本」が届かない。負荷の下で #853 の対照実行が CI でときどき落ちた形。親が遅れて読む実行で決定的に赤くなる。",
+    note: RESERVED_985_994 + " " + "#540。stderr がパイプのとき process.exit は書き出し途中の出力を捨てる。失敗の一覧が途中で切れ、末尾の「様式の正本」が届かない。負荷の下で 変異 853 の対照実行が CI でときどき落ちた形。親が遅れて読む実行で決定的に赤くなる。",
   },
   {
     id: 986,

@@ -35,6 +35,17 @@ describe("findProcessExitUses: 実コードの process.exit だけを数える",
     const src = 'const g = ".github/workflows/*.yml";\nprocess.exit(1);\nconst k = "*/";\n';
     assert.deepEqual(findProcessExitUses(src).map((u) => u.line), [2]);
   });
+  test("括弧で包んだ (process).exit(1) と (process.exit)(1) も数える", () => {
+    const src = "(process).exit(1);\n(process.exit)(2);\n((process))['exit'](3);\n";
+    assert.deepEqual(findProcessExitUses(src).map((u) => u.line), [1, 2, 3]);
+  });
+  test("import { default as proc } from 'node:process' の proc.exit も数える", () => {
+    const src = 'import { default as proc } from "node:process";\nproc.exit(1);\n';
+    assert.deepEqual(findProcessExitUses(src).map((u) => u.line), [2]);
+  });
+  test("let / var の分割代入も数える", () => {
+    assert.deepEqual(findProcessExitUses("let { exit } = process;\nvar { exit: quit } = process;\n").map((u) => u.line), [1, 2]);
+  });
   test("process でない物の exit は数えない", () => {
     assert.deepEqual(findProcessExitUses("const worker = {}; worker.exit(1); other['exit'](1);"), []);
   });
@@ -61,5 +72,32 @@ describe("findExitCodeWithoutReturn: 非 0 の exitCode の直後は return か�
   test("式の中の三項などで代入する形（process.exitCode = ok ? 0 : 1）は非 0 になりうるので同じに見る", () => {
     const src = "function main() {\n  process.exitCode = ok ? 0 : 1;\n  after();\n}\n";
     assert.deepEqual(findExitCodeWithoutReturn(src).map((u) => u.line), [2]);
+  });
+  test("||= と ??= の代入も同じに見る", () => {
+    const src = "function main() {\n  process.exitCode ||= 1;\n  after();\n}\nfunction g() {\n  process.exitCode ??= 2;\n  after();\n}\n";
+    assert.deepEqual(findExitCodeWithoutReturn(src).map((u) => u.line), [2, 6]);
+  });
+  test("括弧で包んだ (process).exitCode = 1 も同じに見る", () => {
+    assert.deepEqual(findExitCodeWithoutReturn("function main() {\n  (process).exitCode = 1;\n  after();\n}\n").map((u) => u.line), [2]);
+  });
+  test("else if の最後の文は、if 全体が関数の最後なら通る（else if の連なりをたどる）", () => {
+    const src = "function main() {\n  if (a) { x(); } else if (b) { process.exitCode = 1; }\n}\n";
+    assert.deepEqual(findExitCodeWithoutReturn(src), []);
+  });
+  test("else if の最後の文でも、if 全体の後に続きがあれば名指しする", () => {
+    const src = "function main() {\n  if (a) { x(); } else if (b) {\n    process.exitCode = 1;\n  }\n  console.log('OK');\n}\n";
+    assert.deepEqual(findExitCodeWithoutReturn(src).map((u) => u.line), [3]);
+  });
+  test("try / catch の最後の文は、try 全体が関数の最後なら通る", () => {
+    const src = "function main() {\n  try { run(); process.exitCode = 1; } catch (e) { log(e); process.exitCode = 2; }\n}\n";
+    assert.deepEqual(findExitCodeWithoutReturn(src), []);
+  });
+  test("try の後に続きがあれば名指しする", () => {
+    const src = "function main() {\n  try {\n    process.exitCode = 1;\n  } catch (e) { log(e); }\n  console.log('OK');\n}\n";
+    assert.deepEqual(findExitCodeWithoutReturn(src).map((u) => u.line), [3]);
+  });
+  test("ループの中の最後の文は名指しする（次の周回が続く）", () => {
+    const src = "function main() {\n  for (const x of xs) {\n    process.exitCode = 1;\n  }\n}\n";
+    assert.deepEqual(findExitCodeWithoutReturn(src).map((u) => u.line), [3]);
   });
 });

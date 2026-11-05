@@ -10,7 +10,13 @@
  * **なぜ見るか。** stdout / stderr がパイプのとき、`process.exit()` は書き出し途中の出力を捨てる。
  * `process.exitCode = N;` に替えた後に `return;` を書き忘れると、失敗の後も検査が続き、OK の行まで出てしまう。
  *
- * 見ないもの: 別名への代入（`const p = process; p.exit()`）・`globalThis.process.exit`・組み立てた名前。
+ * 見ないもの:
+ * - 別名への代入（`const p = process; p.exit()`）・`globalThis.process.exit`（`let { exit } = globalThis.process` も）・組み立てた名前。
+ * - `exitCode` の立て忘れの検査が見るのは、`main()` の中の `if` / `else if` / `try` / `catch` の連なりまで。
+ *   コールバックの最後（`xs.forEach((x) => { …; process.exitCode = 1; }); console.log("OK");`）は、
+ *   「そのコールバックの最後の文」として通す。`child.on("exit", (c) => { process.exitCode = c; })` のような
+ *   正しい形が多く、呼び出しの先をたどって「その後に続きがあるか」を判定する価値は薄いので、たどらない。
+ * - `&&=` の代入と、右辺が 0 以外かどうかの値の評価（数値リテラルの 0 だけを 0 と見る）。
  */
 import ts from "typescript";
 
@@ -18,6 +24,13 @@ const PROCESS_MODULES = new Set(["process", "node:process"]);
 
 function parse(source) {
   return ts.createSourceFile("x.mjs", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+}
+
+/** 括弧を剥がす（`(process).exit`・`((process))["exit"]`）。 */
+function unparen(node) {
+  let n = node;
+  while (ts.isParenthesizedExpression(n)) n = n.expression;
+  return n;
 }
 
 function lineOf(sf, node) {
@@ -34,6 +47,10 @@ function processAliases(sf) {
     if (!clause) continue;
     if (clause.name) names.add(clause.name.text);
     if (clause.namedBindings && ts.isNamespaceImport(clause.namedBindings)) names.add(clause.namedBindings.name.text);
+    if (clause.namedBindings && ts.isNamedImports(clause.namedBindings)) {
+      // import { default as proc } from "node:process"
+      for (const e of clause.namedBindings.elements) if (e.propertyName?.text === "default") names.add(e.name.text);
+    }
   }
   return names;
 }
@@ -50,7 +67,8 @@ function accessedName(node) {
 
 function isProcessMember(node, aliases, member) {
   if (!(ts.isPropertyAccessExpression(node) || ts.isElementAccessExpression(node))) return false;
-  return ts.isIdentifier(node.expression) && aliases.has(node.expression.text) && accessedName(node) === member;
+  const target = unparen(node.expression);
+  return ts.isIdentifier(target) && aliases.has(target.text) && accessedName(node) === member;
 }
 
 /**
@@ -68,8 +86,8 @@ export function findProcessExitUses(source) {
       ts.isVariableDeclaration(node) &&
       ts.isObjectBindingPattern(node.name) &&
       node.initializer &&
-      ts.isIdentifier(node.initializer) &&
-      aliases.has(node.initializer.text) &&
+      ts.isIdentifier(unparen(node.initializer)) &&
+      aliases.has(unparen(node.initializer).text) &&
       node.name.elements.some((e) => (e.propertyName ?? e.name).text === "exit")
     ) {
       found.push({ line: lineOf(sf, node) });
@@ -88,6 +106,13 @@ export function findProcessExitUses(source) {
   visit(sf);
   return found.sort((a, b) => a.line - b.line);
 }
+
+/** `=`・`||=`・`??=`。 */
+const ASSIGN_KINDS = new Set([
+  ts.SyntaxKind.EqualsToken,
+  ts.SyntaxKind.BarBarEqualsToken,
+  ts.SyntaxKind.QuestionQuestionEqualsToken,
+]);
 
 const FUNCTION_LIKE = (n) =>
   ts.isFunctionDeclaration(n) || ts.isFunctionExpression(n) || ts.isArrowFunction(n) || ts.isMethodDeclaration(n);
@@ -124,7 +149,7 @@ export function findExitCodeWithoutReturn(source) {
     if (
       ts.isExpressionStatement(node) &&
       ts.isBinaryExpression(node.expression) &&
-      node.expression.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+      ASSIGN_KINDS.has(node.expression.operatorToken.kind) &&
       isProcessMember(node.expression.left, aliases, "exitCode") &&
       !(ts.isNumericLiteral(node.expression.right) && Number(node.expression.right.text) === 0)
     ) {
