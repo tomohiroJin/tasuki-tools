@@ -1,5 +1,5 @@
 diff --git a/scripts/lib/process-alive.mjs b/scripts/lib/process-alive.mjs
-index 7aca114..bc4a0f1 100644
+index d59b182..a682f68 100644
 --- a/scripts/lib/process-alive.mjs
 +++ b/scripts/lib/process-alive.mjs
 @@ -24,7 +24,7 @@ export function isProcessAlive(pid, { readState = readProcessState } = {}) {
@@ -8,6 +8,6 @@ index 7aca114..bc4a0f1 100644
  export function parseStatState(stat) {
 -  const close = stat.lastIndexOf(")");
 +  const close = stat.indexOf(")");
+   if (close < 0) return null;
    return stat.slice(close + 2, close + 3).trim() || null;
  }
- 
