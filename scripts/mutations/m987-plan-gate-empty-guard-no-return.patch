@@ -1,0 +1,12 @@
+diff --git a/scripts/audit-plan-gate.mjs b/scripts/audit-plan-gate.mjs
+index 788d280..74ccd62 100644
+--- a/scripts/audit-plan-gate.mjs
++++ b/scripts/audit-plan-gate.mjs
+@@ -376,7 +376,6 @@ function main() {
+   if (designDocs.length === 0) {
+     console.error("[audit-plan-gate] 走査対象が 0 件です（設計文書）。検査が空振りしています");
+     process.exitCode = 1;
+-    return;
+   }
+   // plan の日付なしは上で報告済み。重複させない（plan 側の分類結果と突き合わせる）。
+   const reportedUndated = new Set(undated);

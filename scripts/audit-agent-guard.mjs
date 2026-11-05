@@ -20,7 +20,7 @@
  * - **他のツール（Gemini CLI ほか）の設定は見ない。** Gemini CLI は文章だけで守る（理由は docs/adr/0032 決定 4）。
  *   Copilot は使わないので入口も無い（docs/adr/0030 決定 3 の追記・#507）
  *
- * 設計方針: 判定は純粋関数、実 I/O と `process.exit` は `main()` の薄い配線だけに置く。追加依存は禁止。
+ * 設計方針: 判定は純粋関数、実 I/O と `process.exitCode` は `main()` の薄い配線だけに置く。追加依存は禁止。
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -130,12 +130,14 @@ function main() {
   ]);
   if (empty.length > 0) {
     console.error(`[audit-agent-guard] 走査対象が 0 件です（${empty.join(" / ")}）。検査が空振りしています`);
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
   if (problems.length > 0) {
     console.error("[audit-agent-guard] 本番デプロイを止める仕組みの配線がずれています:");
     for (const p of problems) console.error(`  ${p}`);
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
   console.log("[audit-agent-guard] OK");
 }

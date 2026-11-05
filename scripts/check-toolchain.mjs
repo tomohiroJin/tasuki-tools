@@ -137,14 +137,16 @@ function main() {
   const stage = process.argv[2];
   if (stage === undefined || !Object.hasOwn(STAGES, stage)) {
     console.error(`[check-toolchain] 段を指定してください: node scripts/check-toolchain.mjs <${Object.keys(STAGES).join("|")}>`);
-    process.exit(2);
+    process.exitCode = 2;
+    return;
   }
 
   const declared = readDeclared(stage);
   if (!declared.ok) {
     console.error(`[check-toolchain] 版の宣言を読めません（${declared.problems.length} 件）。${stage} の検査を始めません`);
     for (const p of declared.problems) console.error(`  ${p}`);
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   const actual = collectActual(stage, declared.value, declared.playwrightCoreDir);
@@ -155,7 +157,8 @@ function main() {
     console.error(formatProblems(problems));
     console.error(`  ${SOURCES}`);
     console.error("  根拠: docs/adr/0031");
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
   const summary = STAGES[stage]
     .map((tool) => {

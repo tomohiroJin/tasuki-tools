@@ -93,12 +93,14 @@ function main() {
   const empty = findEmptyScanDimensions(volume);
   if (empty.length > 0) {
     console.error(`[audit-test-focus] 走査対象が 0 件です（検査が空振りします）: ${empty.join(" / ")}`);
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
   const problems = checkFocusedOrSkippedTests(files);
   if (problems.length > 0) {
     for (const p of problems) console.error(`[audit-test-focus] ${p}`);
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
   console.log("[audit-test-focus] OK（.only 0 件・理由の無い skip 0 件）");
 }

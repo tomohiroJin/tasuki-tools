@@ -25,7 +25,7 @@
  * - **原則名を見ない。ローマ数字だけで突き合わせる。** 名前まで一致させると、憲法の
  *   文言修正のたびに過去の plan が赤くなる
  *
- * 設計方針: 判定は純粋関数、実 I/O と `process.exit` は `main()` の薄い配線だけに置く。
+ * 設計方針: 判定は純粋関数、実 I/O と `process.exitCode` は `main()` の薄い配線だけに置く。
  * 追加依存は禁止。
  */
 import fs from "node:fs";
@@ -352,7 +352,8 @@ function main() {
     console.error(
       `[audit-plan-gate] 走査対象が 0 件です（${emptyDimensions.join(" / ")}）。検査が空振りしています`,
     );
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   const problems = [];
@@ -374,7 +375,8 @@ function main() {
   );
   if (designDocs.length === 0) {
     console.error("[audit-plan-gate] 走査対象が 0 件です（設計文書）。検査が空振りしています");
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
   // plan の日付なしは上で報告済み。重複させない（plan 側の分類結果と突き合わせる）。
   const reportedUndated = new Set(undated);
@@ -401,7 +403,8 @@ function main() {
     for (const p of problems) console.error(`  ${p.file}: ${p.message}`);
     console.error(`  様式の正本: docs/guides/plan-writing.md（ゲート）/ ${DECLARATION_GUIDE}（冒頭の宣言）`);
     console.error(`  根拠: docs/constitution.md Governance / docs/adr/0003 / docs/adr/0014 決定 6`);
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   console.log(

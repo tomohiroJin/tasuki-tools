@@ -31,7 +31,7 @@
  * 手元で `node_modules` が温まった状態で走らせると落ちるが、それは
  * 「このインストールでは検証が走らなかった」という**正しい報告**である。
  *
- * 設計方針: 判定は純粋関数、実 I/O と `process.exit` は `main()` の薄い配線だけに置く。
+ * 設計方針: 判定は純粋関数、実 I/O と `process.exitCode` は `main()` の薄い配線だけに置く。
  */
 import { spawn } from "node:child_process";
 import { isDirectRun } from "./lib/direct-run.mjs";

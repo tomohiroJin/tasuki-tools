@@ -54,7 +54,8 @@ function main() {
   const spec = KINDS[kind];
   if (!spec) {
     console.error(`未知の種別です: ${kind}（使えるのは ${Object.keys(KINDS).join(" / ")}）`);
-    process.exit(2);
+    process.exitCode = 2;
+    return;
   }
 
   const all = listTrackedFiles(REPO_ROOT, spec.patterns);
@@ -62,13 +63,15 @@ function main() {
 
   if (problems.length > 0) {
     for (const p of problems) console.error(`[list-scan-targets] ${p}`);
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
   // 0 件（空振り）の判定は共有モジュールへ寄せる（ADR-0014 決定 8。集約は #135 設計正本 D10）。
   // 同型の条件式を各スクリプトへ手書きすると「片側だけ直す」の再発源になる。
   if (hasZeroScanTargets(targets.length)) {
     console.error(`[list-scan-targets] ${kind} の対象が 0 件です（検査が空振りします）`);
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
   console.log(targets.join("\n"));
 }

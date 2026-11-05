@@ -27,7 +27,7 @@
  *   `-e` の無い `jq -r`・`npm install -g bun@…`・`bun upgrade`。歯止めであって証明ではない
  * - devcontainer の定義はリポジトリに無い（2026-10-31）。置いたら、ここで読むものに足す
  *
- * 設計方針: 判定は純粋関数、実 I/O と `process.exit` は `main()` の薄い配線だけに置く。追加依存は禁止。
+ * 設計方針: 判定は純粋関数、実 I/O と `process.exitCode` は `main()` の薄い配線だけに置く。追加依存は禁止。
  */
 import fs from "node:fs";
 import { splitJobs, splitSteps } from "./lib/workflow.mjs";
@@ -189,7 +189,8 @@ function main() {
   if (!toolchain.ok) {
     console.error("[audit-toolchain] toolchain.json を読めません");
     for (const p of toolchain.problems) console.error(`  ${p}`);
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
   const pkg = readJson("package.json");
   const declared = { ...toolchain.value, pnpm: parsePackageManager(pkg.packageManager) };
@@ -223,14 +224,16 @@ function main() {
   ]);
   if (empty.length > 0) {
     console.error(`[audit-toolchain] 走査対象が 0 件です（${empty.join(" / ")}）。検査が空振りしています`);
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   if (problems.length > 0) {
     console.error(`[audit-toolchain] 版の宣言と、それを読む側がずれています（${problems.length} 件）`);
     for (const p of problems) console.error(`  ${p}`);
     console.error("  根拠: docs/adr/0031（版の正本は toolchain.json・packageManager・@playwright/test）");
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
   console.log(`[audit-toolchain] OK（node ${declared.node} / pnpm ${declared.pnpm} / bun ${declared.bun} / caddy ${declared.caddy}）`);
 }

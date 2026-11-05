@@ -36,7 +36,7 @@
  * - `xs.map(({ className }) => …)`。コールバックの最初の引数のオブジェクトの分割代入は、部品の props と形が同じなので許してしまう
  *
  * 依存: postcss・postcss-selector-parser（ADR 0022 決定 7）と typescript（ルートの devDependencies）。
- * 設計方針: 判定は純粋関数、実 I/O と `process.exit` は `main()` の薄い配線だけに置く。
+ * 設計方針: 判定は純粋関数、実 I/O と `process.exitCode` は `main()` の薄い配線だけに置く。
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -395,7 +395,8 @@ function main() {
   if (problems.length > 0) {
     console.error("[audit-timer-classes] NG");
     for (const p of problems) console.error(`  - ${p}`);
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
   console.log("[audit-timer-classes] OK（違反 0 件）");
 }

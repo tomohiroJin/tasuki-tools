@@ -1,13 +1,13 @@
 diff --git a/scripts/audit-plan-gate.mjs b/scripts/audit-plan-gate.mjs
-index c8440130..f7104f6b 100644
+index 788d280..9c6d2ef 100644
 --- a/scripts/audit-plan-gate.mjs
 +++ b/scripts/audit-plan-gate.mjs
-@@ -337,7 +337,7 @@ function main() {
+@@ -373,7 +373,7 @@ function main() {
    console.log(
      `[audit-plan-gate] 走査対象: 設計文書 ${designDocs.length} 件 / 宣言要求 ${declaration.required.length} 件（境界日 ${DECLARATION_BOUNDARY_DATE} 以降）`,
    );
 -  if (designDocs.length === 0) {
 +  if (false) {
      console.error("[audit-plan-gate] 走査対象が 0 件です（設計文書）。検査が空振りしています");
-     process.exit(1);
-   }
+     process.exitCode = 1;
+     return;

@@ -268,7 +268,8 @@ function main() {
   // 空になる経路だけを見ればよい。
   if (hasZeroScanTargets(DOMAIN_ERROR_TARGETS.length)) {
     console.error("[audit-domain-error-shape] 検査する型が 0 件です（検査が空振りします）");
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   const sources = readDeclaredSources(DOMAIN_ERROR_TARGETS);
@@ -281,7 +282,8 @@ function main() {
   if (problems.length > 0) {
     for (const p of problems) console.error(p);
     console.error(`\n${problems.length} 件の問題があります`);
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
   console.log("ドメインエラー型の形 OK");
 }

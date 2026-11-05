@@ -47,7 +47,7 @@
  * そのファイルは #91 PR 3 でお題ごと timer-core から消えた。
  *
  * 設計方針: 判定は純粋関数（{@link findForbiddenCalls}）にし、実ファイル I/O と
- * `process.exit` は `main()` の薄い配線だけに置く。追加依存は禁止のため Node 標準の
+ * `process.exitCode` は `main()` の薄い配線だけに置く。追加依存は禁止のため Node 標準の
  * fs / path のみを使う。
  */
 import fs from "node:fs";
@@ -289,7 +289,8 @@ function main() {
       unexpected: drift.unexpected,
     };
     console.error(formatTargetDiff("audit-domain-side-effects", merged, summary));
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   // 走査量は成否によらず必ず出す（ADR-0014 決定 6）。何を見たかが赤の根拠になる。
@@ -307,7 +308,8 @@ function main() {
     console.error(
       `[audit-domain-side-effects] 走査対象が 0 件です（${emptyDimensions.join(" / ")}）。検査が空振りしています`,
     );
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   const problems = [];
@@ -327,7 +329,8 @@ function main() {
     );
     console.error("  throw は Result で返し、トップレベルの let（モジュールの状態）は呼び出し側に持たせてください（#364）");
     console.error("  根拠: 憲法 原則 IV・VI / docs/adr/0005 / docs/adr/0016 決定 2 項目 4 / docs/timer/adr/0002");
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   console.log("[audit-domain-side-effects] OK（禁止語彙 0 件）");
