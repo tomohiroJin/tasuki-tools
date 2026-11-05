@@ -7,7 +7,7 @@ index 659fba3..7019b9b 100644
        throw e;
      }
 -    if (typeof result?.then === "function") return Promise.resolve(result).finally(cleanup);
-+    if (typeof result?.then === "function") cleanup(); return result;
++    if (typeof result?.then === "function") { cleanup(); return result; }
      cleanup();
      return result;
    }
