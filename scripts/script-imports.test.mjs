@@ -2,10 +2,10 @@
  * スクリプト同士の取り込みを許可表で固定するテスト（#361）。
  *
  * `scripts/` の検査スクリプトは、共有の部品を `scripts/lib/` から取り込む。ところが
- * スクリプトが**別のスクリプトを**取り込む形が 2 件あり、どれが意図した取り込みで、
+ * スクリプトが**別のスクリプトを**取り込む形があり、どれが意図した取り込みで、
  * どれがそうでないかを区別するものが無かった（#361 の計画 §1）。
  *
- * 2 件はどちらも単一の情報源を守るための取り込みである:
+ * 許可表の取り込みはどれも、単一の情報源を守るためのものである。最初の例:
  * 走査の宣言 `SCANNED_PACKAGES` を `lib/` へ移すと、`scan-target-wiring.test.mjs` が
  * `audit-structure.mjs` の複製を書き換えて宣言を壊す検証が届かなくなる。
  * そこで取り込みをなくすのではなく、**許可表に理由つきで載せ、表に無いものを落とす。**
@@ -46,6 +46,14 @@ export const ALLOWED_SCRIPT_IMPORTS = [
     reason:
       "走査の宣言とその述語の正本は audit-structure.mjs に置く。宣言をここに残すのは、" +
       "scan-target-wiring.test.mjs が複製を書き換えて宣言を壊す検証を届かせるため（#361 計画 §1）",
+  },
+  {
+    from: "scripts/audit-test-focus.mjs",
+    to: "scripts/audit-structure.mjs",
+    names: ["SCANNED_PACKAGES", "hasScanTarget", "readFilesRecursive"],
+    reason:
+      "各パッケージの test ディレクトリの宣言とその読み方の正本は audit-structure.mjs に置く。" +
+      "写すと、新しいパッケージを足したときに構造監査と .only の検査で走査の範囲がずれうる（#523）",
   },
   {
     from: "scripts/audit-ui-components.mjs",

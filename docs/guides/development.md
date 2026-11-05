@@ -901,6 +901,7 @@ SIGKILL ではプロセスが残る場合があります。次回の実行は別
 
 ```bash
 node scripts/audit-structure.mjs                 # 構造監査（走査対象のずれ・走査 0 件は合否を持つ。ADR-0009 D2 の例外・ADR-0014 決定 7・決定 8）
+node scripts/audit-test-focus.mjs                # テストの .only と、理由のコメントの無い .skip 系（規約は ADR-0006。下の段落）
 node scripts/audit-log-hygiene.mjs               # ログ衛生（検査の中身は ADR-0012 D1。走査対象のずれ・走査 0 件が合否を持つ根拠は ADR-0014 決定 7・決定 8）
 node scripts/audit-assembly-wiring.mjs           # 組み立ての集約（同期サーバーのエントリが create-sync-server.ts を経由するか。ADR-0004 決定 4）
 node scripts/audit-domain-error-shape.mjs        # ドメインエラー型の形（core のエラー型が message フィールドを持たないか。ADR-0016 決定 2 項目 3）
@@ -944,6 +945,40 @@ bash -c 'set -euo pipefail; targets="$(node scripts/list-scan-targets.mjs shell)
 `git add` するまでは他のファイルからも自分自身からも解決できず、「参照先が
 ありません」と出ます（`git add` すれば解消します）。決定は
 [`docs/adr/0014`](../adr/0014-scan-target-integrity.md) D4。
+
+**テストの `.only` と理由の無い `.skip` は、`scripts/audit-test-focus.mjs` が止めます**（#523。規約は
+[`docs/adr/0006`](../adr/0006-test-conventions.md)、機械で守れる規則は検査にする
+[`docs/adr/0030`](../adr/0030-ai-driven-development-operations.md) 決定 2）。`.only` は 1 つ残ると同じファイルの
+他のテストが黙って流れなくなります（Playwright の `forbidOnly` は CI のときだけ効きます）。この検査は測定値ではなく
+規約の門で、違反が 1 件でもあれば非ゼロで終わり、走査量を毎回出し、走査対象が 0 件なら落ちます。
+**構造監査（`audit-structure.mjs`）の外に置いてあるのは、構造監査が値を出すだけ（測定値は落ちない。
+[`docs/adr/0009`](../adr/0009-ci-scope-and-checks.md) D2）だからです。** 合否を持つ規約の門を足しても D2 を変えずに済みます。
+
+- 見るのは**テストを定義する関数**（`it` / `test` / `describe` / `suite`）から始まる呼び出しの連なりの名前だけです。
+  vitest・bun・`node:test`・Playwright（`test.describe.only` など）を同じ形で覆います。
+  対象は各パッケージの test ディレクトリの全ファイルと、ランナー（vitest・bun test）の既定が拾う名前
+  （`*.test.*` / `*.spec.*` / `*_test.*` / `*_spec.*`、拡張子は `js jsx ts tsx mjs cjs mts cts`。`e2e/specs`・`scripts/`・
+  `packages/ui/tests`・`src` の中も含む）です。構文木で読むので、文字列・コメントの中の `.only` や、
+  `agenda.skip(...)` / `driver.skip` のようにコマンド名・メソッド名として現れるものは見ません
+- `.only` は理由があっても止めます。外してください
+- `.skip` / `.skipIf` / `.runIf` / `.todo` / `.fixme`（bun:test の `.if` / `.todoIf` も）と、`node:test` のテストの
+  オプション `{ skip: … }` / `{ todo: … }`（`{ only: … }` は上のとおり止める）は、
+  **直上に空行を挟まないコメント**（`//`・`/* */`・`/** */`）の**行の頭**が `理由:`（全角コロン `理由：` も可）で、
+  後ろに**文字か数字**があれば通します（`理由: -` のように記号だけの中身は不可）。式の本体を持つアロー関数
+  （`() => it.skip(…)`・括弧で包んだ `() => (it.skip(…))` も）の中の skip は、その式の直上のコメントだけを見ます（外の文の上の理由は届きません）。
+  `node:test` のオプションは、テストの定義の引数のオブジェクトを読みます（名前を省いた `test({ only: true }, fn)` も）。
+  fixture や設定を渡す `extend` / `use` / `configure` の呼び出し（`test.extend({ only: … })` など）は読みません。値が `false`・`null`・`undefined`・`0`・空文字列なら飛ばさないものとして通し、
+  それ以外（変数や式を含む）は飛ばすものとして扱います。`// この理由: …` のように行の途中にあるものは理由と認めません。
+  飛ばす条件が何で、飛ばした間は何が守られないかを書いてください（例: `apps/tasuki-sync/test/poker/guards.test.ts` の
+  `it.skipIf(EXTERNAL_IP === undefined)`）
+- 見ないもの: 実行中に飛ばす `ctx.skip()`・`node:test` の `t.test.only` と子テストのオプション
+  `t.test('c', { only: true })`・別名で取り込んだ関数（`const t = test; t.only(…)`）・分割代入（`const { only } = it`）・
+  `globalThis.it.only`・組み立てた名前（`it['on'+'ly']`）・変数やスプレッドで渡す `node:test` のオプション。
+  テストの定義の構文では区別できません
+- 誤って止めうるもの: 名前で見る型の限界として、同じ名前の別の束縛（`const test = /a/; test.skip`）も
+  テストの定義と区別せず止めます。テストのファイルの中では稀なので、そのときは別の名前にしてください
+- 見つかったら、`.only` は外し、`.skip` 系は理由を書くか外します。**検査側を緩める（走査対象から外す・例外を足す）のは、
+  人の承認を待つ操作です**（`AGENTS.md`「AI 運用規則」）
 
 **`scripts/audit-supply-chain-config.mjs` の権威は pnpm 自身です。** 設定のキーと値は
 `pnpm config list --json`、除外が指す版の実在は `pnpm why` から取ります

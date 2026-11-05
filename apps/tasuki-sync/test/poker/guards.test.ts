@@ -292,6 +292,7 @@ describe('待ち受けアドレス', () => {
     });
   }
 
+  // 理由: 外向きのアドレス（ループバック以外の IPv4）を持たない環境では、到達できないことを確かめられない
   it.skipIf(EXTERNAL_IP === undefined)(
     '既定ではループバックのみで待ち受ける（Caddy を迂回した直接接続を塞ぐ）',
     async () => {
@@ -305,6 +306,7 @@ describe('待ち受けアドレス', () => {
     },
   );
 
+  // 理由: 外向きのアドレス（ループバック以外の IPv4）を持たない環境では、到達できないことを確かめられない
   it.skipIf(EXTERNAL_IP === undefined)('HOST を指定すればその範囲で待ち受ける', async () => {
     // Given: 全インタフェースを明示指定
     server = await startServer({ HOST: '0.0.0.0' });
