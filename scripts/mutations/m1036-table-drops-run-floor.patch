@@ -1,0 +1,12 @@
+diff --git a/scripts/measure-mutation-costs.mjs b/scripts/measure-mutation-costs.mjs
+--- a/scripts/measure-mutation-costs.mjs
++++ b/scripts/measure-mutation-costs.mjs
+@@ -171,7 +171,7 @@
+  */
+ export function proposeTableRows(groups, estimateOf) {
+   return groups.filter(
+-    (g) => totalSeconds(g) >= HEAVY_TOTAL_SECONDS && estimateOf(g) * 2 <= totalSeconds(g) && g.control + g.mutation >= HEAVY_RUN_SECONDS,
++    (g) => totalSeconds(g) >= HEAVY_TOTAL_SECONDS && estimateOf(g) * 2 <= totalSeconds(g),
+   );
+ }
+ 

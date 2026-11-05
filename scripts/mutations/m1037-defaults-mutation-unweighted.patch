@@ -1,0 +1,12 @@
+diff --git a/scripts/measure-mutation-costs.mjs b/scripts/measure-mutation-costs.mjs
+--- a/scripts/measure-mutation-costs.mjs
++++ b/scripts/measure-mutation-costs.mjs
+@@ -155,7 +155,7 @@
+     const count = rest.reduce((sum, g) => sum + g.count, 0);
+     out[runner] = {
+       control: round1(mean(controls)),
+-      mutation: round1(rest.reduce((sum, g) => sum + g.mutation * g.count, 0) / count),
++      mutation: round1(rest.reduce((sum, g) => sum + g.mutation * g.count, 0) / rest.length),
+     };
+   }
+   return out;

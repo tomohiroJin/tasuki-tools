@@ -86,7 +86,7 @@ import {
 } from "./lib/mutation-select.mjs";
 import { checkBaseFreshness } from "./lib/base-freshness.mjs";
 import { createControlCache } from "./lib/mutation-control-cache.mjs";
-import { measuredCostOf } from "./lib/mutation-weights.mjs";
+import { measuredCostOf, RUNNER_COST_SECONDS } from "./lib/mutation-weights.mjs";
 import {
   parseJobs,
   planWorkers,
@@ -102,6 +102,9 @@ import {
   storeDirFor,
 } from "./lib/mutation-parallel.mjs";
 import { MUTATIONS } from "./lib/mutation-declarations.mjs";
+
+// 既定値の正本は lib/mutation-weights.mjs（測り直しの道具が写さず取り込めるように）。ここからも引ける
+export { RUNNER_COST_SECONDS } from "./lib/mutation-weights.mjs";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const WORKSPACE_ROOT = path.resolve(SCRIPT_DIR, ".."); // Tasuki/（ワークスペースのルート）
@@ -819,20 +822,6 @@ function refExists(ref) {
     return false;
   }
 }
-
-/**
- * 対照の組の重さの目安（秒）。分け方（`scripts/lib/mutation-partition.mjs`）が、シャードとワーカーへ
- * 偏りなく配るために使う。値は 2026-10-31 の手元（4 コア）の全件の実測の、ランナーごとの平均
- * （設計正本 `docs/superpowers/specs/2026-10-31-ci-wait-design.md` §2.3）。
- *
- * **値がずれても正しさは崩れない**（偏って遅くなるだけ）。偏りは各シャード・各ワーカーの所要時間に出るので、
- * 最長と最短の差が開いてきたら測り直す。
- */
-export const RUNNER_COST_SECONDS = Object.freeze({
-  vitest: Object.freeze({ control: 3, mutation: 3 }),
-  bun: Object.freeze({ control: 0.6, mutation: 2 }),
-  node: Object.freeze({ control: 0.4, mutation: 0.4 }),
-});
 
 /**
  * 対照の組の重さ。対照 1 回＋変異の件数ぶんの起動を足す。1 回の秒数は、重い組なら実測の表

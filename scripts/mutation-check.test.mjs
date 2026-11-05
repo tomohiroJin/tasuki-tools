@@ -448,6 +448,13 @@ describe("宣言の全件を分けて流す配線（#481）", () => {
     assert.equal(weightOfGroup(vitest), RUNNER_COST_SECONDS.vitest.control + 2 * RUNNER_COST_SECONDS.vitest.mutation);
   });
 
+  test("ランナーごとの既定値は、CI の 5 run から測った値のまま（測り直したら、この期待値も一緒に直す。#550）", () => {
+    assert.deepEqual(
+      JSON.parse(JSON.stringify(RUNNER_COST_SECONDS)),
+      { vitest: { control: 3, mutation: 2.7 }, bun: { control: 0.6, mutation: 1.7 }, node: { control: 1, mutation: 0.6 } },
+    );
+  });
+
   for (const total of [2, 4]) {
     test(`${total} 個のシャードを合わせると宣言の全件になり、重ならない`, () => {
       const ids = [];

@@ -185,29 +185,100 @@ git apply --check scripts/mutations/m<ID>-*.patch
 - 宣言を消した場所に、消した理由と番号をコメントで残す。**番号は詰めない**（`MUTATIONS` の id 2・5・48 のコメントが例）
 - パッチのファイルも消す（宣言とパッチは 1 対 1）
 
-## 重い組の実測の表（#546）
+## 重い組の実測の表（#546・#550。ランナーごとの既定値も同じ手順）
 
-変異をシャード（`--shard`）・ワーカー（`--jobs`）へ分けるときの重さは、既定ではランナーごとの固定値
-（`mutation-check.mjs` の `RUNNER_COST_SECONDS`。node は 1 回 0.4 秒）です。実際は組（`pkg` と `tests` の並びが同じ変異の束。
-対照実行を使い回す単位）によって 1 回 0.2 秒から 60 秒まで開くので、**重い組だけ**を
-`scripts/lib/mutation-weights.mjs` の `MEASURED_GROUPS`（行は `pkg`・`tests`・`control`・`mutation`。鍵は対照の組の鍵 `controlGroupKey` と同じで、表の下で作る）に実測で載せ、
-`weightOfGroup` がそれを優先し、`isHeavyGroup` がそれを重い組の印にします。表に無い組は既定値のままです（軽い組まで持つと、テストを足すたびに腐るため）。
+変異をシャード（`--shard`）・ワーカー（`--jobs`）へ分けるときの重さは、2 つの値で決まります。どちらも **CI の実測の秒数**に合わせて持ちます
+（手元の値で決めない。2026-11-05 の測り直しでは、手元の値の見積もりは、bun は組ごとの実測 ÷ 見積もりの中央値が 0.12（約 8 倍の過大）でも合計はほぼ合い、node は合計が約 0.6 倍の過小だった）。
+
+- **ランナーごとの既定値**（`scripts/lib/mutation-weights.mjs` の `RUNNER_COST_SECONDS`。対照 1 回と検出 1 回の秒数。vitest 3/2.7・bun 0.6/1.7・node 1/0.6）。
+  表に無い組はこれで見積もります
+- **重い組の表**（`scripts/lib/mutation-weights.mjs` の `MEASURED_GROUPS`。行は `pkg`・`tests`・`control`・`mutation`。鍵は対照の組の鍵 `controlGroupKey` と同じで、表の下で作る）。
+  組（`pkg` と `tests` の並びが同じ変異の束。対照実行を使い回す単位）によって 1 回 0.1 秒から 60 秒まで開くので、**重い組だけ**を実測で載せます。
+  `weightOfGroup` が表を優先し、`isHeavyGroup` が表の行を重い組の印にします（軽い組まで持つと、テストを足すたびに腐るため）
 
 分け方（`scripts/lib/mutation-partition.mjs`）は、**表に載った組**を重い印として、置き場を問わず
 重い順に「いま最も軽い分け前」へ入れ（LPT）、残りの軽い組を置き場ごとに散らします（見積もりだけが大きい組は印にしません。
 実測では軽いことがあるため）。散らすときは、重い組で埋まった分け前に
 少なく配ります（重い組の分け前にも軽い組が 1/n ずつ入ると、最も長い分け前が短くならない）。
 
-- **載せる目安**: 変異のある組で、組の合計（対照 1 回＋検出 1 回 × 件数）が約 30 秒以上、かつ既定値の見積もりの半分以下。
-  重いテストファイルを指す変異を足した・足すときは、載っているかを見る（`--plan` の見込みと、CI の所要時間を比べる）。
-  **変異の無い組は載せない**（原則 X）。重いテストを指す変異を足すときに、その run の CI のログで測って足す
-  （例: `scripts/wiring-audit-structure-sc039.test.mjs`・`wiring-audit-structure-late-filter.test.mjs` は各約 60 秒と #544 で測られているが、
-  いま指す変異が無いので載せていない）
-- **測り方**: main の CI の `mutation (k)` の job のログを取り（`gh api repos/<owner>/<repo>/actions/jobs/<job id>/logs`）、
-  同じワーカーの `--- 変異 #n` の行 → `対照:` の行 → `検出:` の行の時刻の差から、対照（`使い回し` でないもの）と検出の秒数を組ごとに出す。
-  1 回では揺れる（2026-11-05 の 2 つの run の差は、audit-test-focus の対照や lib/toolchain の対照で 36%、markdown の performance で 21%）ので、離れた 2 つの run の平均を取る
-- **古くなったとき**: 値がずれても正しさは崩れず、分け前が偏って遅くなるだけ。CI の `mutation (k)` の所要時間の差が開いたら測り直す。
-  組の `tests` を書き換えると鍵が合わなくなり、既定値へ戻る。`scripts/lib/mutation-weights.test.mjs` が
+### 測り方（既定値も表も、同じ手順）
+
+1. **run を選ぶ。** main の CI の run を、離れた 2 つ以上（できれば 5 つほど。同じ組でも run ごとに最大 2 倍揺れる）。`mutation (1)〜(3)` が全部あるもの
+   （文書だけの変更の run は変異を流さない）。`gh api "repos/<owner>/<repo>/actions/runs?branch=main&event=push"` で一覧できる
+2. **ログを取る。** run ごとに `mutation (k)` の job の id を引き、ログを保存する。
+   ```bash
+   gh api repos/<owner>/<repo>/actions/runs/<run>/jobs --jq '.jobs[] | select(.name | test("^mutation \\(")) | "\(.id) \(.name)"'
+   gh api repos/<owner>/<repo>/actions/jobs/<job id>/logs > <run>-<k>.log
+   ```
+3. **数える。** 1 つの run のログ 3 つを `,` でつなぎ、run ごとに引数に並べる。
+   ```bash
+   node scripts/measure-mutation-costs.mjs a-1.log,a-2.log,a-3.log b-1.log,b-2.log,b-3.log
+   ```
+   `scripts/measure-mutation-costs.mjs` は、ワーカー（`[w番号]`）ごとに `--- 変異 #n` の行 → `対照:` の行 → `検出:` の行の時刻の差から、
+   対照（`使い回し` でないもの。「変異」の行から「対照:」の行まで）と検出（「対照:」の行から「検出:」の行まで）の秒数を組ごとに数え、
+   run をまたいで平均する。出すもの: ランナーごとの実測と、いまの既定値との差（実測 ÷ 見積もり）・組ごとの実測と、いまの重さとの比（run ごとの値も並ぶ）・
+   **案**（既定値と表の行）。**いまの宣言に無い組**（消した・並びを変えた組）は数えない。テストは `scripts/measure-mutation-costs.test.mjs`
+4. **既定値は「合計を合わせる平均」で決める。** 表の行を除いた組について、ランナーごとに、対照 = 組ごとの対照の平均・検出 = 検出の合計 ÷ 変異の件数（0.1 秒単位）。
+   中央値にしないのは、分け方が均すのがワーカー・シャードごとの**合計**で、分布の裾が長い（少数の組が桁違いに重い）ため。中央値だと表に無い組の合計が
+   何倍も過小になる（bun は実測 185 秒に 24 秒・node は 138 秒に 56 秒）。直した値は 188 秒・132 秒・vitest 1516 秒に 1499 秒で合う。
+   **直した後は、ランナーごとの「表に無い組の実測の合計と見積もりの合計」が合うこと**を出力で確かめ、JSDoc（`RUNNER_COST_SECONDS`）に前後を書く
+5. **表の行は「載せる目安」で決める。** 変異のある組で、組の合計（対照 1 回＋検出 1 回 × 件数）が約 30 秒以上、かつ**実測が既定値の見積もりの 2 倍以上**、かつ対照 1 回＋検出 1 回が `HEAVY_RUN_SECONDS`（7 秒。自己テストが行ごとに見る下限）以上。道具もこの下限を知っているので、案をそのまま写せる。
+   値は run の平均を半秒単位に丸める。目安に当たらなくなった行は消す。**変異の無い組は載せない**（原則 X）。
+   重いテストを指す変異を足すときに、その run の CI のログで測って足す（例: `scripts/wiring-audit-structure-sc039.test.mjs` は約 60 秒と #544 で測られているが、いま指す変異が無いので載せていない）。
+   案は、表の行と既定値が互いに依るので、変わらなくなるまで繰り返した結果が出る
+6. **効果を確かめてから直す。** `--simulate` は、各 run の変異の集合を `--shard k/3`・`--jobs 4` で分けたときの各ワーカーの実測の秒数
+   （シャードの最長・ワーカー全体の最長と最短・差）を、**基準の重み**と**測り直した案の重み**で並べる（`--shards`・`--jobs` で形を変えられる）。
+   案を測った run そのものでは良く見えすぎるので、`--leave-one-out`（他の run から測った案で残した run を分ける）も見る。
+   「基準」は既定ではいまのコードの重みで、直した後は直す前の値を再現できないので、`--baseline <json>` で明示できる（下の「直す前」の JSON）。
+   run ごとの揺れが大きく（同じ組が 2 倍違う）、割れない大きな組（test-shuffled は 1 組で約 4 分）が最長を決めるので、
+   差は run ごとに数十秒動く。**「縮む」と言い切らず、run ごとの数字と、悪化した run を書く。** 2026-11-05 の 5 run（最長/差、秒）:
+
+   | run（commit） | 直す前 | 案（同じ run） | 他の 4 run の案 |
+   |---|---|---|---|
+   | 42040543527（f48d2f9） | 285/127 | 276/108 | 272/100 |
+   | 42038371106（e802805） | 333/193 | 306/149 | 306/151 |
+   | 42027659444（f94c52b） | 257/119 | 226/74 | 224/79 |
+   | 41981719850（4cdca8c） | 217/66 | 214/62 | **245/96（悪化）** |
+   | 41969924963（632d784） | 318/164 | 293/111 | 293/136 |
+
+   「直す前」の列は `--simulate --baseline`、「他の 4 run の案」の列は `--leave-one-out --baseline` に、次の JSON（2026-11-05 の f48d2f9 の既定値と表の 9 行）を渡すと再現できる。
+   リポジトリには置かない（二度と変わらない記録で、置くと表と一緒に保守する対象が増える。原則 X）。形は `parseBaseline`（`scripts/measure-mutation-costs.mjs`）。
+
+   ```json
+   {
+     "defaults": {
+       "vitest": { "control": 3, "mutation": 3 },
+       "bun": { "control": 0.6, "mutation": 2 },
+       "node": { "control": 0.4, "mutation": 0.4 }
+     },
+     "rows": [
+       { "pkg": "scripts", "tests": ["test-shuffled.test.mjs"], "control": 31, "mutation": 28 },
+       { "pkg": "scripts", "tests": ["audit-test-focus.test.mjs"], "control": 13.5, "mutation": 12.5 },
+       { "pkg": "scripts", "tests": ["local-check.test.mjs"], "control": 4.5, "mutation": 3 },
+       { "pkg": "scripts", "tests": ["lib/toolchain.test.mjs", "check-toolchain.test.mjs"], "control": 6, "mutation": 6 },
+       { "pkg": "apps/agenda-web", "tests": ["tests/scenario-draft.test.ts", "tests/scenario-builder.test.tsx"], "control": 17, "mutation": 15.5 },
+       { "pkg": "apps/agenda-web", "tests": ["tests/agenda-room.test.tsx"], "control": 8, "mutation": 8.5 },
+       { "pkg": "apps/timer-web", "tests": ["test/ui/App.room-header.test.tsx"], "control": 7.5, "mutation": 7 },
+       { "pkg": "apps/tasuki-sync", "tests": ["test/ws-adapter-tool-query.test.ts", "test/live-ws.checkin.test.ts"], "control": 2, "mutation": 30 },
+       { "pkg": "packages/markdown", "tests": ["tests/performance.test.ts"], "control": 1, "mutation": 29 }
+     ]
+   }
+   ```
+
+   同じ run では 5 つとも最長・差が縮む。他の 4 run の案で分けると、4cdca8c は最長も差も伸びる（直す前がたまたま均等に当たった run）。他の 4 run の案での 5 run の合計は、最長 1409→1341 秒、差 669→562 秒
+7. **粒度を細かくするかは、この出力で決める。** ランナーだけでは説明できない組（組ごとの「比」が毎回同じ向きに 2 倍以上ずれる）が、
+   置き場・テストファイルの種類で束にできるか。2026-11-05 の 5 run の測り直しでは、vitest の `apps/*-web`（jsdom）は `packages/*` の約 2 倍・複数ファイルの組はファイル数に近い倍率・
+   bun の `live-ws.*` と node の「プロセスを起こすテスト」は桁違いに重かった。今の既定値（ランナーだけ）の組ごとの誤差は、対数の絶対値の中央値で 0.61（組ごとの実測 ÷ 既定値の中央値は bun 0.13・node 0.37・vitest 0.91。合計を合わせた分、典型的な軽い組は重く数える）。細かく分ければ 0.3 前後まで縮む（試算）が、
+   `--simulate` の最長と最短の差は縮まなかった（揺れの範囲）ので、ランナーのまま、重い組は表に載せる形にした（規則の保守を増やさない。原則 X）。
+   条件が変わって束にした方が差が縮むと出たら、`weightOfGroup` に規則を足し、`mutation-check.test.mjs` に造作で見る試験を足す
+8. **直す。** 既定値も表も `scripts/lib/mutation-weights.mjs`（判断の理由と値の出どころの run も、その JSDoc に書き直す）。
+   自己テスト（`scripts/lib/mutation-weights.test.mjs`・`scripts/mutation-check.test.mjs`）の手書きの期待値も直す
+
+### 古くなったとき
+
+- 値がずれても正しさは崩れず、分け前が偏って遅くなるだけ。CI の `mutation (k)` の所要時間の差が開いたら測り直す
+- 組の `tests` を書き換えると鍵が合わなくなり、既定値へ戻る。`scripts/lib/mutation-weights.test.mjs` が
   「表の行がすべて宣言の組の鍵と一致する」ことを見て赤にするので、表の行を新しい鍵へ直す。テストファイルを消したり改名したりしたときも同じ。
   軽くなって載せる目安を下回った行は消す
-- 表の値・行を足す・直す変更は、見積もりを直すだけで検査は弱めない。行を消すときも、重いテストを指す変異が増えていないかを見てから
+- 表の値・行や既定値を足す・直す変更は、見積もりを直すだけで検査は弱めない。行を消すときも、重いテストを指す変異が増えていないかを見てから
+- 直した後は、マージ後の main の CI の `mutation (k)` の所要時間（最長と最短）を確かめる

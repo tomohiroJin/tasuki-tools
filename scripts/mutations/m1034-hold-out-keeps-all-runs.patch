@@ -1,0 +1,12 @@
+diff --git a/scripts/measure-mutation-costs.mjs b/scripts/measure-mutation-costs.mjs
+--- a/scripts/measure-mutation-costs.mjs
++++ b/scripts/measure-mutation-costs.mjs
+@@ -247,7 +247,7 @@
+ 
+ /** i 番目の run を除いた run の並び（`--leave-one-out` の、案を測る側）。 */
+ export function holdOut(runs, i) {
+-  return runs.filter((_, j) => j !== i);
++  return runs.filter(() => true);
+ }
+ 
+ /**

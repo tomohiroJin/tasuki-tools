@@ -107,6 +107,9 @@ const RESERVED_1010_1019 =
 const RESERVED_1020_1029 =
   "**対応表より後に足した変異。** 1020〜1029 は #547 に割り当てた範囲。";
 
+const RESERVED_1030_1039 =
+  "**対応表より後に足した変異。** 1030〜1039 は #550 に割り当てた範囲。";
+
 export const MUTATIONS = [
   {
     id: 1,
@@ -6132,5 +6135,85 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["script-copy-harness.test.mjs"],
     note: RESERVED_1020_1029 + " " + "#547。check-toolchain.test.mjs が渡す環境（npm_config_user_agent の除去ほか）が効かず、pnpm の版を確かめる経路を通らなくなる。",
+  },
+  {
+    id: 1030,
+    label: "CI のログの検出の秒数を「対照:」の行でなく「変異」の行から数える（対照の秒数が検出に二重に入る）",
+    patch: "m1030-detect-counted-from-mutation-line.patch",
+    pkg: "scripts",
+    tests: ["measure-mutation-costs.test.mjs"],
+    note: RESERVED_1030_1039 + " " + "#550。測り直しの道具が検出の秒数を対照ぶん多く数え、ランナーごとの既定値と表の値が重い側へずれる。",
+  },
+  {
+    id: 1031,
+    label: "CI のログの使い回しの対照を、対照の秒数として数える（0 秒に近い値が平均に入る）",
+    patch: "m1031-reused-control-counted.patch",
+    pkg: "scripts",
+    tests: ["measure-mutation-costs.test.mjs"],
+    note: RESERVED_1030_1039 + " " + "#550。測り直しの道具が対照の秒数を軽く数え、既定値と表の対照が軽い側へずれる。",
+  },
+  {
+    id: 1032,
+    label: "表に載せる目安が、見積もりの 2 倍以上でなく 1 倍以上になる（既定値で足りる組まで案に出る）",
+    patch: "m1032-table-threshold-loosened.patch",
+    pkg: "scripts",
+    tests: ["measure-mutation-costs.test.mjs"],
+    note: RESERVED_1030_1039 + " " + "#550。測り直しの道具が、既定値で足りる組まで表の案に出し、表が腐りやすくなる（原則 X）。",
+  },
+  {
+    id: 1033,
+    label: "測り直した案の重みが、全組を重い組として数える（重い組の印が意味を失う）",
+    patch: "m1033-weights-everything-heavy.patch",
+    pkg: "scripts",
+    tests: ["measure-mutation-costs.test.mjs"],
+    note: RESERVED_1030_1039 + " " + "#550。案の効果の模擬が、本番の分け方（表の行だけを重い組として先に配る）と別の形になり、模擬の差が当てにならなくなる。",
+  },
+  {
+    id: 1034,
+    label: "`--leave-one-out` の取り置きが、残す run を除かず全 run を返す（案を測った run そのもので分ける）",
+    patch: "m1034-hold-out-keeps-all-runs.patch",
+    pkg: "scripts",
+    tests: ["measure-mutation-costs.test.mjs"],
+    note: RESERVED_1030_1039 + " " + "#550。取り置きの検証が、案を測った run そのものを分けて、良く見えすぎる（他の run への効きを確かめられない）。",
+  },
+  {
+    id: 1035,
+    label: "宣言の組の絞り込みが、宣言にある組を落とし、無い組を残す",
+    patch: "m1035-only-declared-inverted.patch",
+    pkg: "scripts",
+    tests: ["measure-mutation-costs.test.mjs"],
+    note: RESERVED_1030_1039 + " " + "#550。消した・並びを変えた組の実測が案に混ざり、いまの表にも既定値にも効かない値で見積もりがずれる。",
+  },
+  {
+    id: 1036,
+    label: "表に載せる目安から、自己テストの下限（対照 1 回＋検出 1 回が `HEAVY_RUN_SECONDS` 以上）の条件を外す",
+    patch: "m1036-table-drops-run-floor.patch",
+    pkg: "scripts",
+    tests: ["measure-mutation-costs.test.mjs"],
+    note: RESERVED_1030_1039 + " " + "#550。案をそのまま写すと表の自己テストが赤になる（件数の多い軽い組が案に出る）。",
+  },
+  {
+    id: 1037,
+    label: "ランナーごとの既定値の検出が、件数で重みを付けずに組ごとの平均になる（合計が合わない）",
+    patch: "m1037-defaults-mutation-unweighted.patch",
+    pkg: "scripts",
+    tests: ["measure-mutation-costs.test.mjs"],
+    note: RESERVED_1030_1039 + " " + "#550。表に無い組の見積もりの合計が実測とずれ、ランナーの混ざり方の違うワーカーが偏る。",
+  },
+  {
+    id: 1038,
+    label: "`--leave-one-out` の CLI が、残した run を除かずに案を測る（取り置きの配線が外れる）",
+    patch: "m1038-cli-leave-one-out-keeps-all-runs.patch",
+    pkg: "scripts",
+    tests: ["measure-mutation-costs.test.mjs"],
+    note: RESERVED_1030_1039 + " " + "#550。CLI の取り置きの検証が、案を測った run そのものを分けて良く見えすぎる。",
+  },
+  {
+    id: 1039,
+    label: "CLI がログを読むとき、宣言に無い組の変異を除かない（絞り込みの配線が外れる）",
+    patch: "m1039-cli-reads-undeclared-groups.patch",
+    pkg: "scripts",
+    tests: ["measure-mutation-costs.test.mjs"],
+    note: RESERVED_1030_1039 + " " + "#550。消した・並びを変えた組の実測が案に混ざり、いまの表にも既定値にも効かない値で見積もりがずれる。",
   },
 ];
