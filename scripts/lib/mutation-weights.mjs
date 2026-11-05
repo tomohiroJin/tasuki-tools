@@ -3,7 +3,7 @@ import { controlGroupKey } from "./mutation-partition.mjs";
 /**
  * 重い対照の組の、実測の所要時間の表（#546）。分け方（`scripts/lib/mutation-partition.mjs`）が使う重さの上書き。
  *
- * **なぜ表が要るか。** 重さの既定値はランナーごとの固定値（`RUNNER_COST_SECONDS`。node は 0.4 秒）で、
+ * **なぜ表が要るか。** 重さの既定値はランナーごとの固定値（`RUNNER_COST_SECONDS`。node は 0.2＋0.3 秒）で、
  * 組ごとの違いを知らない。実際は、テストの組によって対照 1 回・検出 1 回が 0.2 秒から 60 秒まで開く。
  * 重い組を指す変異が増えても既定値では軽く数えるので、同じシャード・ワーカーに寄り、そこだけが長くなる
  * （#544 では `scan-target-wiring.test.mjs`（約 4 分）を指す 4 件が寄り、1 つのシャードが 18 分になった）。
@@ -17,11 +17,11 @@ import { controlGroupKey } from "./mutation-partition.mjs";
  * 代わりに、組の並びが変わると表から外れて既定値へ戻る（古くなる側に倒れる。表を直す手順は
  * `docs/guides/procedures/mutations.md` の「重い組の実測の表」）。
  *
- * **値の出どころ。** main の CI の 2 つの run（42027659444 と 41981719850。いずれも mutation (1)〜(3)、4 ワーカー並列）のログから、
+ * **値の出どころ。** main の CI の 5 つの run（42040543527・42038371106・42027659444・41981719850・41969924963。いずれも mutation (1)〜(3)、4 ワーカー並列）のログから、
  * 変異ごとの「`--- 変異 #n` の行 → `対照:` の行 → `検出:` の行」の時刻の差を組ごとに平均し（対照の使い回しは数えない）、
- * 2 つの run の平均を半秒単位に丸めた。run どうしの差（1 回あたり）は、最大 36%（audit-test-focus の対照は 15.4 秒と 11.3 秒、
- * lib/toolchain＋check-toolchain の対照は 7.1 秒と 5.2 秒）。markdown の performance は 21%（26.0 秒と 31.5 秒）、
- * test-shuffled の対照は 19%（33.4 秒と 27.9 秒）。ほかは 10% 台以内。
+ * 5 つの run の平均を半秒単位に丸めた（`scripts/measure-mutation-costs.mjs`。#550）。run どうしの差（1 回あたり）は大きい組で 2 倍近く
+ * （test-shuffled の対照は 27.9〜56.7 秒、audit-test-focus は 8.9〜18.4 秒、markdown の performance の検出は 26.0〜81.5 秒）。
+ * #547 の後の run は 2 つだけで、audit-test-focus の「軽くなった」は確かめられなかった（対照/検出の平均は #547 の前の 3 run で 12.7/11.6 秒、後の 2 run で 13.7/10.5 秒。run の揺れの範囲）。
  * **原則 X により、変異の無い組は載せない。** 入れる変異ができたら、その run のログで測って足す
  * （`docs/guides/procedures/mutations.md` の「重い組の実測の表」）。
  *
@@ -31,7 +31,7 @@ import { controlGroupKey } from "./mutation-partition.mjs";
  * **値がずれても正しさは崩れない**（偏って遅くなるだけ）。CI の所要時間が偏ってきたら測り直す。
  */
 
-/** 表に載せる組の、対照 1 回＋検出 1 回の最低の秒数（いちばん重い既定値 vitest の 3＋3 を超える）。自己テストが見る。 */
+/** 表に載せる組の、対照 1 回＋検出 1 回の最低の秒数（いちばん重い既定値 vitest の 2.6＋2.6 を超える）。自己テストが見る。 */
 export const HEAVY_RUN_SECONDS = 7;
 
 /**
@@ -39,15 +39,16 @@ export const HEAVY_RUN_SECONDS = 7;
  * `control` は対照 1 回、`mutation` は検出 1 回。
  */
 export const MEASURED_GROUPS = Object.freeze([
-  Object.freeze({ pkg: "scripts", tests: Object.freeze(["test-shuffled.test.mjs"]), control: 31, mutation: 28 }),
-  Object.freeze({ pkg: "scripts", tests: Object.freeze(["audit-test-focus.test.mjs"]), control: 13.5, mutation: 12.5 }),
-  Object.freeze({ pkg: "scripts", tests: Object.freeze(["local-check.test.mjs"]), control: 4.5, mutation: 3 }),
-  Object.freeze({ pkg: "scripts", tests: Object.freeze(["lib/toolchain.test.mjs", "check-toolchain.test.mjs"]), control: 6, mutation: 6 }),
-  Object.freeze({ pkg: "apps/agenda-web", tests: Object.freeze(["tests/scenario-draft.test.ts", "tests/scenario-builder.test.tsx"]), control: 17, mutation: 15.5 }),
-  Object.freeze({ pkg: "apps/agenda-web", tests: Object.freeze(["tests/agenda-room.test.tsx"]), control: 8, mutation: 8.5 }),
-  Object.freeze({ pkg: "apps/timer-web", tests: Object.freeze(["test/ui/App.room-header.test.tsx"]), control: 7.5, mutation: 7 }),
-  Object.freeze({ pkg: "apps/tasuki-sync", tests: Object.freeze(["test/ws-adapter-tool-query.test.ts", "test/live-ws.checkin.test.ts"]), control: 2, mutation: 30 }),
-  Object.freeze({ pkg: "packages/markdown", tests: Object.freeze(["tests/performance.test.ts"]), control: 1, mutation: 29 }),
+  Object.freeze({ pkg: "scripts", tests: Object.freeze(["test-shuffled.test.mjs"]), control: 43.5, mutation: 39.5 }),
+  Object.freeze({ pkg: "scripts", tests: Object.freeze(["audit-test-focus.test.mjs"]), control: 13, mutation: 11 }),
+  Object.freeze({ pkg: "scripts", tests: Object.freeze(["local-check.test.mjs"]), control: 4, mutation: 3 }),
+  Object.freeze({ pkg: "scripts", tests: Object.freeze(["lib/toolchain.test.mjs", "check-toolchain.test.mjs"]), control: 8, mutation: 8.5 }),
+  Object.freeze({ pkg: "scripts", tests: Object.freeze(["check-toolchain.test.mjs"]), control: 9.5, mutation: 8.5 }),
+  Object.freeze({ pkg: "apps/agenda-web", tests: Object.freeze(["tests/scenario-draft.test.ts", "tests/scenario-builder.test.tsx"]), control: 16, mutation: 15.5 }),
+  Object.freeze({ pkg: "apps/agenda-web", tests: Object.freeze(["tests/agenda-room.test.tsx"]), control: 8, mutation: 8 }),
+  Object.freeze({ pkg: "apps/timer-web", tests: Object.freeze(["test/ui/App.room-header.test.tsx"]), control: 7, mutation: 6.5 }),
+  Object.freeze({ pkg: "apps/tasuki-sync", tests: Object.freeze(["test/ws-adapter-tool-query.test.ts", "test/live-ws.checkin.test.ts"]), control: 2, mutation: 30.5 }),
+  Object.freeze({ pkg: "packages/markdown", tests: Object.freeze(["tests/performance.test.ts"]), control: 1.5, mutation: 53 }),
 ]);
 
 /** 組の鍵（{@link controlGroupKey}）→ 秒数。 */

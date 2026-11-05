@@ -1,0 +1,12 @@
+diff --git a/scripts/measure-mutation-costs.mjs b/scripts/measure-mutation-costs.mjs
+--- a/scripts/measure-mutation-costs.mjs
++++ b/scripts/measure-mutation-costs.mjs
+@@ -154,7 +154,7 @@
+ 
+ /** 表に載せる目安に当たる組（合計が {@link HEAVY_TOTAL_SECONDS} 秒以上で、見積もりの 2 倍以上）。`estimateOf` は組の見積もり（秒）。 */
+ export function proposeTableRows(groups, estimateOf) {
+-  return groups.filter((g) => totalSeconds(g) >= HEAVY_TOTAL_SECONDS && estimateOf(g) * 2 <= totalSeconds(g));
++  return groups.filter((g) => totalSeconds(g) >= HEAVY_TOTAL_SECONDS && estimateOf(g) <= totalSeconds(g));
+ }
+ 
+ const roundHalf = (v) => Math.round(v * 2) / 2;

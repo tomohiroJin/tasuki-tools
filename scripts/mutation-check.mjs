@@ -822,16 +822,29 @@ function refExists(ref) {
 
 /**
  * 対照の組の重さの目安（秒）。分け方（`scripts/lib/mutation-partition.mjs`）が、シャードとワーカーへ
- * 偏りなく配るために使う。値は 2026-10-31 の手元（4 コア）の全件の実測の、ランナーごとの平均
- * （設計正本 `docs/superpowers/specs/2026-10-31-ci-wait-design.md` §2.3）。
+ * 偏りなく配るために使う。値は **CI の実測**（main の CI の 5 つの run、`mutation (1)〜(3)`、`--jobs 4`）の、
+ * ランナーごとの対照・検出の**中央値**（組ごとの値の中央値。実測の表 `mutation-weights.mjs` に載せた組は除く）。
+ * 測り方は `docs/guides/procedures/mutations.md` の「重い組の実測の表」、道具は `scripts/measure-mutation-costs.mjs`。
+ *
+ * **なぜ中央値か。** 分布の裾が長い（bun の `live-ws.*` や node の `scripts` のうち、プロセスを起こすテストは何十倍も重い）。
+ * 平均だと少数の重い組に引かれて、大多数の軽い組を重く数える。重い組は表で個別に持つので、既定値は大多数の組に合わせる。
+ * 他の run から測った値で残した run を分ける検証（`--leave-one-out`）でも、平均より中央値の方が最長のワーカーが短かった。
+ * 直す前の値（2026-10-31 の手元・4 コアの平均。vitest 3/3・bun 0.6/2・node 0.4/0.4）は、CI の実測の組ごとの合計に対し、
+ * 実測 ÷ 見積もりの中央値が bun 0.12（見積もりが約 8 倍）・node 0.64・vitest 0.86 だった（#550）。
+ *
+ * **粒度はランナーのまま**（置き場やテストファイルの種類では分けない）。vitest の `apps/*-web`（jsdom）は `packages/*` の約 2 倍、
+ * 複数ファイルの組はファイル数に近い倍率、bun の `live-ws.*` や node の「プロセスを起こすテスト」は桁違いに重く、
+ * ランナーだけでは毎回同じ向きにずれる組はある。だが、分けても組ごとの誤差の中央値（対数）が 0.48 から 0.3 前後に縮むだけで、
+ * 模擬した最長と最短のワーカーの差は縮まなかった（run ごとの揺れの範囲）。差の大半は、割れない大きな組（test-shuffled は 1 組で約 4 分）と
+ * 同じ組の run ごとの揺れ（2 倍）から来る。ずれの大きい組は、表（合計 30 秒以上の目安）で個別に持てば足りる（原則 X）。
  *
  * **値がずれても正しさは崩れない**（偏って遅くなるだけ）。偏りは各シャード・各ワーカーの所要時間に出るので、
  * 最長と最短の差が開いてきたら測り直す。
  */
 export const RUNNER_COST_SECONDS = Object.freeze({
-  vitest: Object.freeze({ control: 3, mutation: 3 }),
-  bun: Object.freeze({ control: 0.6, mutation: 2 }),
-  node: Object.freeze({ control: 0.4, mutation: 0.4 }),
+  vitest: Object.freeze({ control: 2.6, mutation: 2.6 }),
+  bun: Object.freeze({ control: 0.1, mutation: 0.2 }),
+  node: Object.freeze({ control: 0.2, mutation: 0.3 }),
 });
 
 /**

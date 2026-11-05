@@ -1,0 +1,12 @@
+diff --git a/scripts/measure-mutation-costs.mjs b/scripts/measure-mutation-costs.mjs
+--- a/scripts/measure-mutation-costs.mjs
++++ b/scripts/measure-mutation-costs.mjs
+@@ -80,7 +80,7 @@
+         pkg: cur.pkg,
+         tests: cur.tests,
+         runner: cur.runner,
+-        controlSec: cur.reused ? null : cur.controlAt - cur.start,
++        controlSec: cur.controlAt - cur.start,
+         detectSec: at - cur.controlAt,
+       });
+       open.delete(worker);

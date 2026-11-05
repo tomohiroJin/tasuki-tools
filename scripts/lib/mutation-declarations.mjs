@@ -107,6 +107,9 @@ const RESERVED_1010_1019 =
 const RESERVED_1020_1029 =
   "**対応表より後に足した変異。** 1020〜1029 は #547 に割り当てた範囲。";
 
+const RESERVED_1030_1039 =
+  "**対応表より後に足した変異。** 1030〜1039 は #550 に割り当てた範囲。";
+
 export const MUTATIONS = [
   {
     id: 1,
@@ -6132,5 +6135,37 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["script-copy-harness.test.mjs"],
     note: RESERVED_1020_1029 + " " + "#547。check-toolchain.test.mjs が渡す環境（npm_config_user_agent の除去ほか）が効かず、pnpm の版を確かめる経路を通らなくなる。",
+  },
+  {
+    id: 1030,
+    label: "CI のログの検出の秒数を「対照:」の行でなく「変異」の行から数える（対照の秒数が検出に二重に入る）",
+    patch: "m1030-detect-counted-from-mutation-line.patch",
+    pkg: "scripts",
+    tests: ["measure-mutation-costs.test.mjs"],
+    note: RESERVED_1030_1039 + " " + "#550。測り直しの道具が検出の秒数を対照ぶん多く数え、ランナーごとの既定値と表の値が重い側へずれる。",
+  },
+  {
+    id: 1031,
+    label: "CI のログの使い回しの対照を、対照の秒数として数える（0 秒に近い値が平均に入る）",
+    patch: "m1031-reused-control-counted.patch",
+    pkg: "scripts",
+    tests: ["measure-mutation-costs.test.mjs"],
+    note: RESERVED_1030_1039 + " " + "#550。測り直しの道具が対照の秒数を軽く数え、既定値と表の対照が軽い側へずれる。",
+  },
+  {
+    id: 1032,
+    label: "表に載せる目安が、見積もりの 2 倍以上でなく 1 倍以上になる（既定値で足りる組まで案に出る）",
+    patch: "m1032-table-threshold-loosened.patch",
+    pkg: "scripts",
+    tests: ["measure-mutation-costs.test.mjs"],
+    note: RESERVED_1030_1039 + " " + "#550。測り直しの道具が、既定値で足りる組まで表の案に出し、表が腐りやすくなる（原則 X）。",
+  },
+  {
+    id: 1033,
+    label: "測り直した案の重みが、全組を重い組として数える（重い組の印が意味を失う）",
+    patch: "m1033-weights-everything-heavy.patch",
+    pkg: "scripts",
+    tests: ["measure-mutation-costs.test.mjs"],
+    note: RESERVED_1030_1039 + " " + "#550。案の効果の模擬が、本番の分け方（表の行だけを重い組として先に配る）と別の形になり、模擬の差が当てにならなくなる。",
   },
 ];

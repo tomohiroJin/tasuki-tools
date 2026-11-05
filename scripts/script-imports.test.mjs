@@ -48,6 +48,14 @@ export const ALLOWED_SCRIPT_IMPORTS = [
       "wiring-audit-structure*.test.mjs が複製を書き換えて宣言を壊す検証を届かせるため（#361 計画 §1）",
   },
   {
+    from: "scripts/measure-mutation-costs.mjs",
+    to: "scripts/mutation-check.mjs",
+    names: ["RUNNER_COST_SECONDS"],
+    reason:
+      "ランナーごとの既定値の正本は mutation-check.mjs に置く。測り直しの道具が「いまのコードの重み」を写すと、" +
+      "既定値を直したときに、効果の模擬（--simulate）の「いま」が本番の分け方とずれる（#550）",
+  },
+  {
     from: "scripts/audit-test-focus.mjs",
     to: "scripts/audit-structure.mjs",
     names: ["SCANNED_PACKAGES", "hasScanTarget", "readFilesRecursive"],

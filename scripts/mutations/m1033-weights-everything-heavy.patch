@@ -1,0 +1,12 @@
+diff --git a/scripts/measure-mutation-costs.mjs b/scripts/measure-mutation-costs.mjs
+--- a/scripts/measure-mutation-costs.mjs
++++ b/scripts/measure-mutation-costs.mjs
+@@ -187,7 +187,7 @@
+   const costOf = (group) => table.get(group.key) ?? defaults[group.mutations[0].runner];
+   return {
+     weightOf: (group) => costOf(group).control + costOf(group).mutation * group.mutations.length,
+-    isHeavy: (group) => table.has(group.key),
++    isHeavy: () => true,
+   };
+ }
+ 

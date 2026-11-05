@@ -66,6 +66,16 @@ describe("MEASURED_GROUPS: 表そのものの形", () => {
     }
   });
 
+  test("載せる目安の下限は、どの既定値の対照 1 回＋検出 1 回よりも重い（既定値で足りる軽い組を表に載せない・#550）", () => {
+    for (const [runner, cost] of Object.entries(RUNNER_COST_SECONDS)) {
+      assert.ok(cost.control + cost.mutation < HEAVY_RUN_SECONDS, `${runner}: ${cost.control + cost.mutation} 秒は目安の下限 ${HEAVY_RUN_SECONDS} 秒以上`);
+    }
+  });
+
+  test("check-toolchain.test.mjs 単独の組は表にある（#547 の後に合計約 32 秒になり、目安に当たった・#550）", () => {
+    assert.notEqual(measuredCostOf({ pkg: "scripts", tests: ["check-toolchain.test.mjs"] }), null);
+  });
+
   test("鍵のテストファイルが実在する（消した・改名したファイルの行を残さない）", () => {
     for (const row of MEASURED_GROUPS) {
       for (const file of row.tests) {
@@ -112,7 +122,7 @@ describe("重い組の見積もりと分け方（#546）", () => {
 
   test("表にある組は実測の秒数で数え、表に無い組は今までのランナーごとの既定値", () => {
     const heavy = { pkg: "scripts", tests: ["test-shuffled.test.mjs"], mutations: [{}, {}] };
-    assert.equal(weightOfGroup(heavy), 31 + 2 * 28); // 手で書いた期待値（表の行）
+    assert.equal(weightOfGroup(heavy), 43.5 + 2 * 39.5); // 手で書いた期待値（表の行。#550 で CI の 5 run から測り直した値）
     const light = { pkg: "scripts", tests: ["no-such-heavy.test.mjs"], mutations: [{}, {}] };
     assert.equal(weightOfGroup(light), RUNNER_COST_SECONDS.node.control + 2 * RUNNER_COST_SECONDS.node.mutation);
   });
