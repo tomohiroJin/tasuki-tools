@@ -27,6 +27,7 @@ import {
   MAX_MEMBERS,
   rotationEntryId,
   type Aggregate,
+  type RotationEntry,
   type BreakMark,
   type ServerClock,
 } from "../src/aggregate.js";
@@ -39,7 +40,7 @@ const RUN = { seed: 522, numRuns: 300 } as const;
 
 describe("参加者の上限（participant.addProxy）", () => {
   /** 席が n 人いる集約（IDは P0〜P(n-1)） */
-  function withSeats(n: number): Aggregate {
+  function ringOf(n: number): Aggregate {
     return anAggregate()
       .withRotation(...Array.from({ length: n }, (_, k) => `P${k}`))
       .build();
@@ -49,12 +50,12 @@ describe("参加者の上限（participant.addProxy）", () => {
     decide({ command: "participant.addProxy", displayName: "新人", participantId: "NEW" }, agg, 1_000);
 
   it("上限の 1 つ手前（MAX_MEMBERS - 1 人）の輪には足せる", () => {
-    const result = addProxy(withSeats(MAX_MEMBERS - 1));
+    const result = addProxy(ringOf(MAX_MEMBERS - 1));
     expect(result.isOk()).toBe(true);
   });
 
   it("上限ちょうど（MAX_MEMBERS 人）の輪には足せず、MemberLimitExceeded になる", () => {
-    const result = addProxy(withSeats(MAX_MEMBERS));
+    const result = addProxy(ringOf(MAX_MEMBERS));
     expect(result.isErr()).toBe(true);
     expect(result._unsafeUnwrapErr()).toEqual({ type: "MemberLimitExceeded", limit: MAX_MEMBERS });
   });
@@ -64,7 +65,7 @@ describe("参加者の上限（participant.addProxy）", () => {
       fc.property(
         fc.oneof(fc.constantFrom(1, MAX_MEMBERS - 1, MAX_MEMBERS), fc.integer({ min: 1, max: MAX_MEMBERS })),
         (n) => {
-          const result = addProxy(withSeats(n));
+          const result = addProxy(ringOf(n));
           const outcome = result.isOk() ? "accepted" : result._unsafeUnwrapErr().type;
           const expected = n < MAX_MEMBERS ? "accepted" : "MemberLimitExceeded";
           expect({ n, outcome }).toEqual({ n, outcome: expected });
@@ -77,7 +78,7 @@ describe("参加者の上限（participant.addProxy）", () => {
 
 describe("参加者の上限（member.add）", () => {
   /** 席が n 人いる集約（IDは P0〜P(n-1)） */
-  function withSeats(n: number): Aggregate {
+  function ringOf(n: number): Aggregate {
     return anAggregate()
       .withRotation(...Array.from({ length: n }, (_, k) => `P${k}`))
       .build();
@@ -86,14 +87,61 @@ describe("参加者の上限（member.add）", () => {
   const addMember = (agg: Aggregate) => decide({ command: "member.add", participantId: "NEW" }, agg, 1_000);
 
   it("上限の 1 つ手前（MAX_MEMBERS - 1 人）の輪には足せる", () => {
-    const result = addMember(withSeats(MAX_MEMBERS - 1));
+    const result = addMember(ringOf(MAX_MEMBERS - 1));
     expect(result.isOk()).toBe(true);
   });
 
   it("上限ちょうど（MAX_MEMBERS 人）の輪には足せず、MemberLimitExceeded になる", () => {
-    const result = addMember(withSeats(MAX_MEMBERS));
+    const result = addMember(ringOf(MAX_MEMBERS));
     expect(result.isErr()).toBe(true);
     expect(result._unsafeUnwrapErr()).toEqual({ type: "MemberLimitExceeded", limit: MAX_MEMBERS });
+  });
+
+  /** 代理 p 人と member の席（合わせて n 人）の輪。代理は後ろに並べる */
+  function mixedRing(n: number, proxies: number): Aggregate {
+    const seats: RotationEntry[] = Array.from({ length: n }, (_, k) =>
+      k < n - proxies
+        ? { kind: "member", participantId: `P${k}`, eligible: true }
+        : { kind: "proxy", id: `X${k}`, label: `代理${k}`, eligible: true },
+    );
+    return anAggregate()
+      .withSeats(...seats)
+      .build();
+  }
+
+  it("代理の席も上限に数える: member 9 人＋代理 1 人（10 席）の輪には足せず、MemberLimitExceeded になる", () => {
+    const result = addMember(mixedRing(MAX_MEMBERS, 1));
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr()).toEqual({ type: "MemberLimitExceeded", limit: MAX_MEMBERS });
+  });
+
+  it("代理の席も上限に数える: 代理を混ぜた輪でも、足せるのは席が上限に満たないときだけ（代理の数と上限ちょうどを必ず混ぜる）", () => {
+    fc.assert(
+      fc.property(
+        fc.oneof(fc.constantFrom(MAX_MEMBERS - 1, MAX_MEMBERS), fc.integer({ min: 1, max: MAX_MEMBERS })),
+        fc.oneof(fc.constantFrom(0, 1, MAX_MEMBERS - 1), fc.integer({ min: 0, max: MAX_MEMBERS - 1 })),
+        (n, rawProxies) => {
+          const proxies = Math.min(rawProxies, n);
+          const result = addMember(mixedRing(n, proxies));
+          const outcome = result.isOk() ? "accepted" : result._unsafeUnwrapErr().type;
+          const expected = n < MAX_MEMBERS ? "accepted" : "MemberLimitExceeded";
+          expect({ n, proxies, outcome }).toEqual({ n, proxies, outcome: expected });
+        },
+      ),
+      RUN,
+    );
+  });
+
+  it("満員の輪に既にいる member の ID を足すと、上限ではなく DuplicateName が返る（送り直しの吸収が先）", () => {
+    const result = decide({ command: "member.add", participantId: "P0" }, ringOf(MAX_MEMBERS), 1_000);
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr()).toEqual({ type: "DuplicateName", name: "P0" });
+  });
+
+  it("満員の輪に既にいる代理の ID を足しても、DuplicateName が返る", () => {
+    const result = decide({ command: "member.add", participantId: "X9" }, mixedRing(MAX_MEMBERS, 1), 1_000);
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr()).toEqual({ type: "DuplicateName", name: "X9" });
   });
 
   it("人数ごとに、足せるのは上限に満たないときだけで、断るときは MemberLimitExceeded（上限ちょうどを必ず混ぜる）", () => {
@@ -101,7 +149,7 @@ describe("参加者の上限（member.add）", () => {
       fc.property(
         fc.oneof(fc.constantFrom(1, MAX_MEMBERS - 1, MAX_MEMBERS), fc.integer({ min: 1, max: MAX_MEMBERS })),
         (n) => {
-          const result = addMember(withSeats(n));
+          const result = addMember(ringOf(n));
           const outcome = result.isOk() ? "accepted" : result._unsafeUnwrapErr().type;
           const expected = n < MAX_MEMBERS ? "accepted" : "MemberLimitExceeded";
           expect({ n, outcome }).toEqual({ n, outcome: expected });
