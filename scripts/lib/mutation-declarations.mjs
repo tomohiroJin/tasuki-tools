@@ -5762,4 +5762,12 @@ export const MUTATIONS = [
     tests: ["test/bounds.properties.test.ts"],
     note: RESERVED_965_969 + " " + "#534。メンバー追加の上限が 1 人多く、11 人まで足せる。",
   },
+  {
+    id: 969,
+    label: "メンバー追加が上限で断るときのエラーの limit を MAX_MEMBERS → MAX_MEMBERS - 1 にする（種類は同じで上限の値だけが狂う）",
+    patch: "m969-timer-core-member-add-limit-value.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/bounds.properties.test.ts"],
+    note: RESERVED_965_969 + " " + "#534のレビュー。上限で断られたときに画面へ伝わる上限の人数が実際とずれる（エラーの種類だけを見るテストでは気づけない）。",
+  },
 ];
