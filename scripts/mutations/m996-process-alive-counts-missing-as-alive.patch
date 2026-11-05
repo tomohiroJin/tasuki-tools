@@ -1,8 +1,8 @@
 diff --git a/scripts/lib/process-alive.mjs b/scripts/lib/process-alive.mjs
-index 9def584..f3c4e4d 100644
+index ae3a4d9..af876e6 100644
 --- a/scripts/lib/process-alive.mjs
 +++ b/scripts/lib/process-alive.mjs
-@@ -16,7 +16,7 @@ export function isProcessAlive(pid) {
+@@ -18,7 +18,7 @@ export function isProcessAlive(pid, { readState = readProcessState } = {}) {
    try {
      process.kill(pid, 0);
    } catch (e) {
@@ -10,4 +10,4 @@ index 9def584..f3c4e4d 100644
 +    if (false) return false; // ESRCH: 存在しない。EPERM は存在するので続ける
    }
    const state = readState(pid);
-   return state === null ? true : state !== "Z";
+   return state === null ? true : state !== "Z" && state !== "X";

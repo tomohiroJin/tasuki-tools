@@ -6009,4 +6009,12 @@ export const MUTATIONS = [
     tests: ["lib/process-alive.test.mjs"],
     note: RESERVED_995_999 + " " + "#525 のレビュー。comm に ')' を含むプロセスの状態を取り違え、ゾンビを生きている（またはその逆）と読む。",
   },
+  {
+    id: 999,
+    label: "/proc があるのに stat が ENOENT（回収されて消えた）のとき、死んだと読まず ps へ落とす",
+    patch: "m999-process-alive-enoent-falls-through-to-ps.patch",
+    pkg: "scripts",
+    tests: ["lib/process-alive.test.mjs"],
+    note: RESERVED_995_999 + " " + "#525 の /code-review。kill 0 の後に回収された孫を、ps も見つけられず null → 生きていると読み、孫のテストが誤って落ちる。",
+  },
 ];
