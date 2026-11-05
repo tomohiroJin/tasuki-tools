@@ -5939,7 +5939,7 @@ export const MUTATIONS = [
   },
   {
     id: 985,
-    label: "audit-plan-gate が、設計文書の問題を一覧で書いた直後に process.exitCode を立てず process.exit(1) で終わる",
+    label: "audit-plan-gate が、設計文書の問題を一覧で書いた直後に process.exitCode を立てず process.exit(1) 相当の書き方（添字で呼び、静的な走査をすり抜ける）で終わる",
     patch: "m985-plan-gate-failure-path-process-exit.patch",
     pkg: "scripts",
     tests: ["scan-target-wiring.test.mjs"],

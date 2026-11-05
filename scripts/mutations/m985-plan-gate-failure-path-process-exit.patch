@@ -1,5 +1,5 @@
 diff --git a/scripts/audit-plan-gate.mjs b/scripts/audit-plan-gate.mjs
-index 788d280..8c6d557 100644
+index 788d280..485569f 100644
 --- a/scripts/audit-plan-gate.mjs
 +++ b/scripts/audit-plan-gate.mjs
 @@ -403,8 +403,7 @@ function main() {
@@ -8,7 +8,7 @@ index 788d280..8c6d557 100644
      console.error(`  根拠: docs/constitution.md Governance / docs/adr/0003 / docs/adr/0014 決定 6`);
 -    process.exitCode = 1;
 -    return;
-+    process.exit(1);
++    process["exit"](1);
    }
  
    console.log(

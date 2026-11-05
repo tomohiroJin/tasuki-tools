@@ -1842,26 +1842,44 @@ describe("検査スクリプトは process.exit で終わらない（#540）", (
     assert.match(r.stderr, /根拠: docs\/constitution\.md Governance/);
   });
 
-  test("scripts/ の検査（audit-*.mjs・check-toolchain.mjs・list-scan-targets.mjs）は、コードに process.exit( を持たない", () => {
-    // Given: 導出（新しい audit-*.mjs も自動で対象になる）。コメントは除く（方針の説明に process.exit と書くため）
-    const targets = fs
+  /**
+   * `process.exit(` を残してよい scripts と、その理由。**理由のない追加は検査を弱める変更**（AGENTS.md）。
+   * 実在しない名前・もう `process.exit(` を持たない名前が載っていると落ちる（陳腐化した例外を残さない）。
+   */
+  const EXIT_ALLOWED = {
+    "mutation-check.mjs":
+      "変異の復元・ロック・シグナルの後始末（`exit` フック）に絡む終わり方で、return に替えると復元が走らない経路がある。別 ISSUE で扱う（#540 の範囲外）",
+  };
+
+  const scriptsUnderGuard = () =>
+    fs
       .readdirSync(SCRIPTS_DIR)
-      .filter(
-        (n) =>
-          ((n.startsWith("audit-") && n.endsWith(".mjs")) || n === "check-toolchain.mjs" || n === "list-scan-targets.mjs") &&
-          !n.endsWith(".test.mjs"),
-      )
+      .filter((n) => n.endsWith(".mjs") && !n.endsWith(".test.mjs") && !n.startsWith(COPY_PREFIX))
       .sort();
-    assert.ok(targets.length >= 18, `対象が少なすぎます（導出が外れている）: ${targets.length} 件`);
-    const stripComments = (src) => src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  const stripComments = (src) => src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  const hasProcessExit = (n) => /\bprocess\.exit\s*\(/.test(stripComments(readScript(n)));
+
+  test("scripts/ 直下の *.mjs（テストを除く）は、例外表に理由のあるものを除き、コードに process.exit( を持たない", () => {
+    // Given: 導出（新しいスクリプトも自動で対象になる）。コメントは除く（方針の説明に process.exit と書くため）
+    const targets = scriptsUnderGuard();
+    assert.ok(targets.length >= 20, `対象が少なすぎます（導出が外れている）: ${targets.length} 件`);
     // When
-    const offenders = targets.filter((n) => /\bprocess\.exit\s*\(/.test(stripComments(readScript(n))));
+    const offenders = targets.filter((n) => !(n in EXIT_ALLOWED) && hasProcessExit(n));
     // Then
     assert.deepEqual(
       offenders,
       [],
       "process.exit( で終わっています。stderr がパイプのとき、書き出し途中の出力を捨てます。" +
-        "`process.exitCode = N; return;` に替えてください（#540）",
+        "`process.exitCode = N; return;` に替えてください（#540）。残す必要があるなら EXIT_ALLOWED へ理由つきで載せる",
     );
+  });
+
+  test("process.exit( の例外表は、実在し、いまも process.exit( を持つスクリプトだけを載せ、理由が空でない", () => {
+    const targets = new Set(scriptsUnderGuard());
+    for (const [name, reason] of Object.entries(EXIT_ALLOWED)) {
+      assert.ok(targets.has(name), `${name} が scripts/ に実在しません（例外表を直す）`);
+      assert.ok(reason.trim().length > 0, `${name} の理由が空です`);
+      assert.ok(hasProcessExit(name), `${name} はもう process.exit( を持ちません（例外表から外す）`);
+    }
   });
 });

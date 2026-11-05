@@ -8,7 +8,7 @@ import { execFileSync } from "node:child_process";
  * 各検査は走査対象を**宣言**し、実行時に**実体**を列挙して全単射で照合する。
  * 「宣言にあるが実在しない」「実在するが宣言に無い」のどちらでも落とす。
  *
- * 判定は純粋関数、I/O と process.exit は呼び出し側に置く
+ * 判定は純粋関数、I/O と終了コード（process.exitCode）は呼び出し側に置く
  * （scripts/audit-log-hygiene.mjs の設計方針に合わせた）。追加依存は禁止。
  */
 
@@ -42,7 +42,7 @@ export function diffTargets(declared, actual) {
  * 他のパッケージ分で走査量は非ゼロのままであり、空振りとして検知できない。実測では
  * 9 パッケージのうち 1 つの `src` を失っても「120 → 118 ファイル」と減るだけで緑だった。
  *
- * 落とすのは呼び出し側（`process.exit` は呼ばない）。返り値は名指しできる形で、
+ * 落とすのは呼び出し側（終了コードは立てない）。返り値は名指しできる形で、
  * 重複を除いて整列する（E1「実在しない宣言を名指しする」）。
  */
 export function findMissingPaths(repoRoot, relPaths) {

@@ -782,7 +782,7 @@ export function formatSc039FileDrift(diff, scanSummary) {
  * 到達性を計算できないため外れる。外れた分の走査量は他パッケージ分で
  * 非ゼロのままなので、0 件ガードにも全単射照合にも掛からない（#158 と同型）。
  *
- * 落とすのは呼び出し側（`process.exitCode` は呼ばない）。
+ * 落とすのは呼び出し側。ここでは終了コードを立てない。
  */
 export function findSrcWithoutEntry(declarations) {
   return declarations
