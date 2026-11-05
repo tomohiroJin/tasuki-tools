@@ -107,6 +107,9 @@ const RESERVED_1010_1019 =
 const RESERVED_1020_1029 =
   "**対応表より後に足した変異。** 1020〜1029 は #547 に割り当てた範囲。";
 
+const RESERVED_1070_1079 =
+  "**対応表より後に足した変異。** 1070〜1079 は #554 に割り当てた範囲（1010〜1019 は #546・1060〜1069 は #553 が使用済みのため、重ならない帯を取った）。";
+
 const RESERVED_1030_1039 =
   "**対応表より後に足した変異。** 1030〜1039 は #550 に割り当てた範囲。";
 
@@ -6215,5 +6218,61 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["measure-mutation-costs.test.mjs"],
     note: RESERVED_1030_1039 + " " + "#550。消した・並びを変えた組の実測が案に混ざり、いまの表にも既定値にも効かない値で見積もりがずれる。",
+  },
+  {
+    id: 1070,
+    label: "下端の帯（.ui-actions--dock）の地を不透明な felt-950 から透ける暗幕（felt-scrim）に戻す",
+    patch: "m1070-dock-background-translucent.patch",
+    pkg: "packages/ui",
+    tests: ["tests/dock-and-narrow-header.test.mjs"],
+    note: RESERVED_1070_1079 + " " + "#554。帯の地が暗幕（α 0.92）に戻り、後ろの中身の字が帯の字に透けて重なって読めない。",
+  },
+  {
+    id: 1071,
+    label: "下端の帯の 2 列の格子の指定（grid-template-columns）を消す",
+    patch: "m1071-dock-grid-columns-removed.patch",
+    pkg: "packages/ui",
+    tests: ["tests/dock-and-narrow-header.test.mjs"],
+    note: RESERVED_1070_1079 + " " + "#554。40rem 未満の帯が 1 列に積まれ、3 つの操作が 3 段になって 320×568 で画面の 3 割を覆い、結果の数字や手札が初期表示で隠れる。",
+  },
+  {
+    id: 1072,
+    label: "下端の帯の奇数の最後の子（主）が全幅の段を取る規則を外す",
+    patch: "m1072-dock-last-primary-not-full-width.patch",
+    pkg: "packages/ui",
+    tests: ["tests/dock-and-narrow-header.test.mjs"],
+    note: RESERVED_1070_1079 + " " + "#554。奇数の最後の主が半分の幅になり、押しやすい主の操作が小さくなる（3 つなら 3 段にもなる）。",
+  },
+  {
+    id: 1073,
+    label: "40rem 未満の戻るの、下線の字の横の余白を打ち消す指定を消す",
+    patch: "m1073-back-indent-not-cancelled.patch",
+    pkg: "packages/ui",
+    tests: ["tests/dock-and-narrow-header.test.mjs"],
+    note: RESERVED_1070_1079 + " " + "#554。単独の行に落ちた「選択画面へ戻る」が 9px 字下げになり、題・「仲間を招く」と左端が揃わない。",
+  },
+  {
+    id: 1074,
+    label: "招待の URL の 1 行に収める指定（white-space: nowrap）を通常の折り返しに戻す",
+    patch: "m1074-invite-url-wraps.patch",
+    pkg: "packages/ui",
+    tests: ["tests/dock-and-narrow-header.test.mjs"],
+    note: RESERVED_1070_1079 + " " + "#554。招待の URL が 2 行に折れ、隣のボタンと縦が揃わず、見出しが高くなる。",
+  },
+  {
+    id: 1075,
+    label: "agenda の手元の帯（.run-controls）の地を、上へ透明に溶けるグラデーションに戻す",
+    patch: "m1075-run-controls-gradient-restored.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/run-controls-opaque.test.ts"],
+    note: RESERVED_1070_1079 + " " + "#554。agenda の手元の帯の上が透明に溶け、帯の「このステップに」が後ろの進行表の字と重なって読めない。",
+  },
+  {
+    id: 1076,
+    label: "下端の帯のボタンの左右の余白を --space-2 から --space-5 に広げる",
+    patch: "m1076-dock-button-padding-restored.patch",
+    pkg: "packages/ui",
+    tests: ["tests/dock-and-narrow-header.test.mjs"],
+    note: RESERVED_1070_1079 + " " + "#554。320px の帯の 1 列（約 138px）でボタンの字（「次のアイテムへ」）が 2 行に折れ、帯が高くなる。",
   },
 ];

@@ -1,0 +1,24 @@
+# 変異 1076: dock-button-padding-restored
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/dock-and-narrow-header.test.mjs
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外）
+#
+# #554。320px の帯の 1 列（約 138px）でボタンの字（「次のアイテムへ」）が 2 行に折れ、帯が高くなる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1076-*.patch
+# 復元: git apply -R scripts/mutations/m1076-*.patch
+diff --git a/packages/ui/src/components/actions.css b/packages/ui/src/components/actions.css
+index 380a4482..da316f4a 100644
+--- a/packages/ui/src/components/actions.css
++++ b/packages/ui/src/components/actions.css
+@@ -68,7 +68,7 @@
+   /* 2 列の 1 つは (320 − 2×16 − 12) ÷ 2 = 138px。ボタンの左右の余白（`--lg` で 20px）を詰めないと「次のアイテムへ」が 2 行に折れる */
+   .ui-actions--dock > .ui-button {
+     min-width: 0;
+-    padding-inline: var(--space-2);
++    padding-inline: var(--space-5);
+   }
+ 
+   /* 選択欄（poker の「ポイント（任意）」）は操作ではなく入力なので、1 列の幅に押し込まず 1 段を使う。続く 2 つの操作は横に並べる */

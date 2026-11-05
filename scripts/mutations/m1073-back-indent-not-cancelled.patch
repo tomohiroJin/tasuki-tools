@@ -1,0 +1,23 @@
+# 変異 1073: back-indent-not-cancelled
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/dock-and-narrow-header.test.mjs
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外）
+#
+# #554。単独の行に落ちた「選択画面へ戻る」が 9px 字下げになり、題・「仲間を招く」と左端が揃わない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1073-*.patch
+# 復元: git apply -R scripts/mutations/m1073-*.patch
+diff --git a/packages/ui/src/components/room-header.css b/packages/ui/src/components/room-header.css
+index 2f6eea9d..e7effb4f 100644
+--- a/packages/ui/src/components/room-header.css
++++ b/packages/ui/src/components/room-header.css
+@@ -191,7 +191,6 @@
+ 
+   .ui-room-header:not(.ui-room-header--compact) .ui-page-header-back {
+     order: 1;
+-    margin-inline-start: calc(-1 * (var(--space-2) + 1px));
+   }
+ 
+   .ui-room-header:not(.ui-room-header--compact) .ui-room-header-title > :not(h1) {

@@ -1,0 +1,24 @@
+# 変異 1072: dock-last-primary-not-full-width
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/dock-and-narrow-header.test.mjs
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外）
+#
+# #554。奇数の最後の主が半分の幅になり、押しやすい主の操作が小さくなる（3 つなら 3 段にもなる）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1072-*.patch
+# 復元: git apply -R scripts/mutations/m1072-*.patch
+diff --git a/packages/ui/src/components/actions.css b/packages/ui/src/components/actions.css
+index 380a4482..98316593 100644
+--- a/packages/ui/src/components/actions.css
++++ b/packages/ui/src/components/actions.css
+@@ -62,7 +62,7 @@
+   }
+ 
+   .ui-actions--dock > :last-child:nth-child(odd) {
+-    grid-column: 1 / -1;
++    grid-column: auto;
+   }
+ 
+   /* 2 列の 1 つは (320 − 2×16 − 12) ÷ 2 = 138px。ボタンの左右の余白（`--lg` で 20px）を詰めないと「次のアイテムへ」が 2 行に折れる */
