@@ -132,35 +132,39 @@ describe("参加者の上限（member.add）", () => {
     );
   });
 
-  /** 席が n 人で、先頭から away 人が一時離脱（eligible: false）の輪。離脱の人も席は持つ */
-  function ringWithAway(n: number, away: number): Aggregate {
-    const seats: RotationEntry[] = Array.from({ length: n }, (_, k) => ({
-      kind: "member",
-      participantId: `P${k}`,
-      eligible: k >= away,
-    }));
+  /** 席が n 人で、先頭から away 人が一時離脱（eligible: false）の輪。離脱の人も席は持つ。離脱する席の種類（member か代理）は awayKind で選ぶ */
+  function ringWithAway(n: number, away: number, awayKind: "member" | "proxy" = "member"): Aggregate {
+    const seats: RotationEntry[] = Array.from({ length: n }, (_, k) =>
+      k < away && awayKind === "proxy"
+        ? { kind: "proxy", id: `X${k}`, label: `代理${k}`, eligible: false }
+        : { kind: "member", participantId: `P${k}`, eligible: k >= away },
+    );
     return anAggregate()
       .withSeats(...seats)
       .build();
   }
 
-  it("一時離脱の席も上限に数える: 10 席のうち 1 人が離脱中の輪には足せず、MemberLimitExceeded になる", () => {
-    const result = addMember(ringWithAway(MAX_MEMBERS, 1));
-    expect(result.isErr()).toBe(true);
-    expect(result._unsafeUnwrapErr()).toEqual({ type: "MemberLimitExceeded", limit: MAX_MEMBERS });
-  });
+  it.each(["member", "proxy"] as const)(
+    "一時離脱の席も上限に数える: 10 席のうち 1 席（%s）が離脱中の輪には足せず、MemberLimitExceeded になる",
+    (awayKind) => {
+      const result = addMember(ringWithAway(MAX_MEMBERS, 1, awayKind));
+      expect(result.isErr()).toBe(true);
+      expect(result._unsafeUnwrapErr()).toEqual({ type: "MemberLimitExceeded", limit: MAX_MEMBERS });
+    },
+  );
 
-  it("一時離脱の席も上限に数える: 離脱中の人を混ぜた輪でも、足せるのは席が上限に満たないときだけ（離脱の数と上限ちょうどを必ず混ぜる）", () => {
+  it("一時離脱の席も上限に数える: 離脱中の席（member・代理）を混ぜた輪でも、足せるのは席が上限に満たないときだけ（離脱の数と上限ちょうどを必ず混ぜる）", () => {
     fc.assert(
       fc.property(
         fc.oneof(fc.constantFrom(MAX_MEMBERS - 1, MAX_MEMBERS), fc.integer({ min: 1, max: MAX_MEMBERS })),
         fc.oneof(fc.constantFrom(0, 1, MAX_MEMBERS - 1), fc.integer({ min: 0, max: MAX_MEMBERS - 1 })),
-        (n, rawAway) => {
+        fc.constantFrom("member", "proxy") as fc.Arbitrary<"member" | "proxy">,
+        (n, rawAway, awayKind) => {
           const away = Math.min(rawAway, n);
-          const result = addMember(ringWithAway(n, away));
+          const result = addMember(ringWithAway(n, away, awayKind));
           const outcome = result.isOk() ? "accepted" : result._unsafeUnwrapErr().type;
           const expected = n < MAX_MEMBERS ? "accepted" : "MemberLimitExceeded";
-          expect({ n, away, outcome }).toEqual({ n, away, outcome: expected });
+          expect({ n, away, awayKind, outcome }).toEqual({ n, away, awayKind, outcome: expected });
         },
       ),
       RUN,
