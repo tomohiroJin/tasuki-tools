@@ -5748,19 +5748,19 @@ export const MUTATIONS = [
   },
   {
     id: 962,
-    label: "捨て札の切り直しが、注入された乱数でなく固定の乱数（並べ替えない）を使う（:82）",
+    label: "捨て札の切り直しが、注入された乱数を捨てて常に 0 を返す乱数を使う（:82）",
     patch: "m962-poker-exchange-discards-shuffle-ignores-random.patch",
     pkg: "packages/poker-core",
     tests: ["tests/card-game-reshuffle.test.ts"],
-    note: RESERVED_960_964 + " " + "#533。乱数の注入が効かず、捨て札が毎回同じ順で戻る。恒等の乱数のテストでは区別できない。",
+    note: RESERVED_960_964 + " " + "#533。乱数の注入が効かず、捨て札が毎回同じ並べ替えで戻る。レビューで、乱数の列が常に 0 のテストでは生き残ると分かり、0 以外を含む列に直した。並べ替えない乱数（`(n) => n - 1`）に替える形も、同じテストで赤くなる（手で確かめた）。",
   },
   {
     id: 963,
-    label: "今捨てた札の切り直しが、注入された乱数でなく固定の乱数（並べ替えない）を使う（:86）",
+    label: "今捨てた札の切り直しが、注入された乱数を捨てて常に 0 を返す乱数を使う（:86）",
     patch: "m963-poker-exchange-thrown-shuffle-ignores-random.patch",
     pkg: "packages/poker-core",
     tests: ["tests/card-game-reshuffle.test.ts"],
-    note: RESERVED_960_964 + " " + "#533。乱数の注入が効かず、今捨てた札が毎回同じ順で戻る。恒等の乱数のテストでは区別できない。",
+    note: RESERVED_960_964 + " " + "#533。乱数の注入が効かず、今捨てた札が毎回同じ並べ替えで戻る。0 以外を含む列で赤くなる。並べ替えない乱数（`(n) => n - 1`）に替える形も同じテストで赤くなる（手で確かめた）。",
   },
   {
     id: 964,

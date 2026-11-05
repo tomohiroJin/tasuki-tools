@@ -3,13 +3,13 @@
 # 検出を期待するテスト:
 #   - packages/poker-core/tests/card-game-reshuffle.test.ts
 #
-# #533（テストの穴: poker-core のチェンジの切り直し）。:82 の切り直しが、注入された乱数でなく固定の乱数（並べ替えない）を使う。乱数の注入が効かず、同じ捨て札が毎回同じ順で戻る。
+# #533（テストの穴: poker-core のチェンジの切り直し）。:82 の切り直しが、注入された乱数を捨てて常に 0 を返す乱数を使う。乱数の注入が効かず、捨て札が毎回同じ並べ替えで戻る。
 #
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m962-*.patch
 # 復元: git apply -R scripts/mutations/m962-*.patch
 diff --git a/packages/poker-core/src/card-game.ts b/packages/poker-core/src/card-game.ts
-index 2bfe80f..be86393 100644
+index 2bfe80f..a490b87 100644
 --- a/packages/poker-core/src/card-game.ts
 +++ b/packages/poker-core/src/card-game.ts
 @@ -79,7 +79,7 @@ export function exchangeCards(
@@ -17,7 +17,7 @@ index 2bfe80f..be86393 100644
    let discards = [...game.discards];
    if (deck.length < thrown.length) {
 -    deck = [...deck, ...shuffle(discards, randomInt)];
-+    deck = [...deck, ...shuffle(discards, (n) => n - 1)];
++    deck = [...deck, ...shuffle(discards, () => 0)];
      discards = [];
    }
    if (deck.length < thrown.length) {
