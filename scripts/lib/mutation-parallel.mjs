@@ -216,7 +216,10 @@ export function staleWorktreesFrom(porcelain, isAlive, host) {
  * EPERM（別ユーザー）・読めないときは生きている側に数える（`isProcessAlive` の決め）。
  */
 export function staleWorktreeDirs(porcelain, host, isAlive = isProcessAlive) {
-  return staleWorktreesFrom(porcelain, isAlive, host);
+  // ロックの理由の pid が正の整数でない（pid=0・桁あふれ）ものは『読めないロック』。isProcessAlive は投げるので呼ばず、
+  // 生きている側（拾わない）に数える（kill(0, 0) が生きていると読んだ今までの扱いに合わせる。--jobs を落とさない）
+  const readable = (pid) => Number.isSafeInteger(pid) && pid > 0 && pid <= 2 ** 31 - 1;
+  return staleWorktreesFrom(porcelain, (pid) => !readable(pid) || isAlive(pid), host);
 }
 
 /**

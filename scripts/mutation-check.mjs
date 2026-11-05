@@ -75,6 +75,7 @@ import {
 } from "./lib/scan-targets.mjs";
 import { isDirectRun } from "./lib/direct-run.mjs";
 import { lockRefusalReason } from "./lib/mutation-lock.mjs";
+import { restoreVerdict } from "./lib/mutation-restore-verdict.mjs";
 import { exitAfterFlush } from "./lib/exit-after-flush.mjs";
 import {
   parseSelector,
@@ -557,7 +558,7 @@ for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"]) {
   process.on(sig, () => {
     for (const child of childProcesses) child.kill("SIGTERM");
     const restored = restoreCurrentMutation();
-    exitAfterFlush(restored ? 130 : 1);
+    exitAfterFlush(restoreVerdict(restored, 130).exitCode);
   });
 }
 process.on("uncaughtException", (err) => {
@@ -1074,8 +1075,9 @@ function main() {
 
   // 未コミット変更の検査より前に行う。前回の異常終了で残った変異を、
   // その検査に引っかからせるのではなく自分で片付けるため。
-  if (!recoverFromCrashedRun()) {
-    process.exitCode = 1;
+  const recovered = restoreVerdict(recoverFromCrashedRun());
+  if (!recovered.proceed) {
+    process.exitCode = recovered.exitCode;
     return;
   }
 
@@ -1211,9 +1213,10 @@ function main() {
     } finally {
       restored = restoreMutation();
     }
-    if (!restored) {
+    const verdict = restoreVerdict(restored);
+    if (!verdict.proceed) {
       // 戻らなかった（致命的。マーカーは残してある）。次の変異は当てない
-      process.exitCode = 1;
+      process.exitCode = verdict.exitCode;
       return;
     }
     console.log(
