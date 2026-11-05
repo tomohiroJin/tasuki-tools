@@ -168,6 +168,44 @@
     white-space: nowrap;
     border-width: 0;
   }
+
+  /* 通常の見た目の狭い幅は、見出しの行・戻る・道具のボタン・「仲間を招く」を 1 つの折り返す行に並べ直す（#554・#479 の #11・#13）。
+     題は 1 行ぶんの全幅に置き、続けて「戻る・道具のボタン」、最後に「仲間を招く」と招待の欄。以前は 4 段（題・道具のボタン・戻る・仲間を招く）に積まれ、
+     poker の 320px で約 230px あった。DOM の順（題・道具のボタン・戻る・仲間を招く）は変えず、`order` で戻るを道具のボタンの前に出す。
+     戻るは下線の字の横の余白（`.ui-button--quiet` の `padding-inline` ＋ 枠 1px）を打ち消し、行の先頭で字の左端を題に揃える。押せる高さ 44px は保つ。 */
+  .ui-room-header:not(.ui-room-header--compact) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-4);
+  }
+
+  .ui-room-header:not(.ui-room-header--compact) .ui-page-header,
+  .ui-room-header:not(.ui-room-header--compact) .ui-room-header-title {
+    display: contents;
+  }
+
+  .ui-room-header:not(.ui-room-header--compact) .ui-room-header-title > h1 {
+    flex: 1 1 100%;
+  }
+
+  .ui-room-header:not(.ui-room-header--compact) .ui-page-header-back {
+    order: 1;
+    margin-inline-start: calc(-1 * (var(--space-2) + 1px));
+  }
+
+  .ui-room-header:not(.ui-room-header--compact) .ui-room-header-title > :not(h1) {
+    order: 2;
+  }
+
+  .ui-room-header:not(.ui-room-header--compact) .ui-room-header-share-toggle {
+    order: 3;
+  }
+
+  .ui-room-header:not(.ui-room-header--compact) .ui-room-header-share {
+    order: 4;
+    flex-basis: 100%;
+  }
 }
 
 /* `.ui-room-header .ui-room-header-share-toggle`（(0,2,0)）にするのは、`.ui-button` の `display: inline-flex`（後に読み込まれる・

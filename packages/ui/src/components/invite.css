@@ -16,7 +16,8 @@
 }
 
 /* URL は桁を揃えたいものなので等幅に置き、点線の枠で「写し取るもの」と分かるようにする。
-   区切りの無い長い URL でも画面の幅を超えないよう、どこででも折り返す。 */
+   **1 行に収める**（#554・#479 の #5）。2 行に折れると隣のボタンと縦が揃わず、見出しが無駄に高くなる。
+   収まらない分は省略（`text-overflow: ellipsis`）し、全文は 1 回押して選ぶ・コピーのボタン・読み上げ（字そのものは切らない）で渡す。 */
 .ui-invite-url {
   box-sizing: border-box;
   padding: var(--space-2) var(--space-3);
@@ -24,7 +25,12 @@
   border-radius: var(--radius-md);
   color: var(--ivory-dim);
   font-family: var(--font-mono);
-  word-break: break-all;
+  /* 行の中で縮められるように min-width を 0 に、折り返す flex の行でも自分の行の幅を超えないよう max-inline-size を 100% にする */
+  min-width: 0;
+  max-inline-size: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   /* 1 回押すと URL 全体が選ばれる。クリップボードが使えない端末（非セキュアオリジン）で、手で選んでコピーする唯一の道（#76 F-1）。
      timer の旧 InvitePanel が持っていた性質を、5 つのアプリの共通の部品へ移した（#447 段 2） */
   user-select: all;
