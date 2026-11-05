@@ -21,7 +21,7 @@ import { TEST_FOCUS_FILE_PATTERNS, buildTestFocusFiles } from "./audit-test-focu
 
 const SCRIPTS_DIR = path.dirname(fileURLToPath(import.meta.url));
 const SCRIPT = "audit-test-focus.mjs";
-const COPY_PREFIX = ".sc040-wiring-";
+const COPY_PREFIX = ".test-focus-wiring-";
 
 let copyCounter = 0;
 
@@ -113,7 +113,7 @@ describe("配線: scripts/audit-test-focus.mjs", () => {
     const r = runScriptCopy((s) => s);
     // Then: 複製して走らせる仕組み自体は緑になれる（これが無いと下の赤が「複製の失敗」でも通る）
     assert.equal(r.status, 0, r.stderr);
-    assert.match(r.stdout, /\[audit-test-focus\] 走査対象: \d+ ファイル/);
+    assert.match(r.stdout, /\[audit-test-focus\] 走査対象: test ディレクトリのファイル \d+ \/ 名前で分かるテストファイル \d+ \/ 合計 \d+/);
     assert.match(r.stdout, /\[audit-test-focus\] OK/);
   });
 
@@ -143,6 +143,16 @@ describe("配線: scripts/audit-test-focus.mjs", () => {
     // Then
     assertRewritten(r.source, needle, "一覧の空化");
     assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
-    assert.match(r.stderr, /走査対象が 0 件です/);
+    assert.match(r.stderr, /走査対象が 0 件です.*名前で分かるテストファイル/);
+  });
+
+  test("test ディレクトリから読む分が 0 件なら、合計が非ゼロでも非ゼロで終了する", () => {
+    // Given: test ディレクトリの読み込みを空にした複製（名前で分かる分だけで合計は 0 にならない）
+    const needle = "const testDirFiles = readTestDirFiles();";
+    const r = runScriptCopy((s) => s.replace(needle, "const testDirFiles = new Map();"));
+    // Then
+    assertRewritten(r.source, needle, "test ディレクトリの空化");
+    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+    assert.match(r.stderr, /走査対象が 0 件です.*test ディレクトリのファイル/);
   });
 });

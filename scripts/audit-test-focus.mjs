@@ -24,7 +24,7 @@ import { fileURLToPath } from "node:url";
 import { SCANNED_PACKAGES, hasScanTarget, readFilesRecursive } from "./audit-structure.mjs";
 import { checkFocusedOrSkippedTests } from "./lib/focused-skipped-tests.mjs";
 import { isDirectRun } from "./lib/direct-run.mjs";
-import { hasZeroScanTargets, listRepoFiles } from "./lib/scan-targets.mjs";
+import { findEmptyScanDimensions, listRepoFiles } from "./lib/scan-targets.mjs";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -69,14 +69,22 @@ function readTestDirFiles() {
 }
 
 function main() {
+  const testDirFiles = readTestDirFiles();
   const namedTestPaths = listRepoFiles(REPO_ROOT, TEST_FOCUS_FILE_PATTERNS);
-  const files = buildTestFocusFiles(readTestDirFiles(), namedTestPaths, (rel) =>
+  const files = buildTestFocusFiles(testDirFiles, namedTestPaths, (rel) =>
     fs.readFileSync(path.join(REPO_ROOT, rel), "utf8"),
   );
-  // 走査量は成否によらず必ず出す（#135 D5）。0 件なら検査が空振りしている。
-  console.log(`[audit-test-focus] 走査対象: ${files.size} ファイル（名前で分かるもの ${namedTestPaths.length}）`);
-  if (hasZeroScanTargets(files.size) || hasZeroScanTargets(namedTestPaths.length)) {
-    console.error("[audit-test-focus] 走査対象が 0 件です（検査が空振りします）");
+  // 走査量は内訳まで、成否によらず必ず出す（#135 D5・ADR-0014 決定 6）。
+  const volume = [
+    { label: "test ディレクトリのファイル", count: testDirFiles.size },
+    { label: "名前で分かるテストファイル", count: namedTestPaths.length },
+    { label: "合計", count: files.size },
+  ];
+  console.log(`[audit-test-focus] 走査対象: ${volume.map((v) => `${v.label} ${v.count}`).join(" / ")}`);
+  // どの内訳も 0 件でないことを見る（ADR-0014 決定 8）。合計だけを見ると、片方が空になっても気づけない。
+  const empty = findEmptyScanDimensions(volume);
+  if (empty.length > 0) {
+    console.error(`[audit-test-focus] 走査対象が 0 件です（検査が空振りします）: ${empty.join(" / ")}`);
     process.exit(1);
   }
   const problems = checkFocusedOrSkippedTests(files);
