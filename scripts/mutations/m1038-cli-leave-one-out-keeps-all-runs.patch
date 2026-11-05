@@ -1,0 +1,12 @@
+diff --git a/scripts/measure-mutation-costs.mjs b/scripts/measure-mutation-costs.mjs
+--- a/scripts/measure-mutation-costs.mjs
++++ b/scripts/measure-mutation-costs.mjs
+@@ -341,7 +341,7 @@
+   if (leaveOneOut) {
+     // 他の run から測った案で、残した run を分ける（案を測った run そのものでは良く見えすぎるため）。
+     for (const [i, run] of runs.entries()) {
+-      const others = holdOut(runs, i);
++      const others = runs;
+       const proposal = weightsFrom(proposeWeights(summarizeGroups(others)));
+       console.log(`${run.name}: 他の ${others.length} run から測った案で分ける`);
+       console.log(spreadLine("基準の重み", simulateShards(run.records, { shards, jobs, ...current })));

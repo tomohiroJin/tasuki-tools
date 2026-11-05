@@ -6200,4 +6200,20 @@ export const MUTATIONS = [
     tests: ["measure-mutation-costs.test.mjs"],
     note: RESERVED_1030_1039 + " " + "#550。表に無い組の見積もりの合計が実測とずれ、ランナーの混ざり方の違うワーカーが偏る。",
   },
+  {
+    id: 1038,
+    label: "`--leave-one-out` の CLI が、残した run を除かずに案を測る（取り置きの配線が外れる）",
+    patch: "m1038-cli-leave-one-out-keeps-all-runs.patch",
+    pkg: "scripts",
+    tests: ["measure-mutation-costs.test.mjs"],
+    note: RESERVED_1030_1039 + " " + "#550。CLI の取り置きの検証が、案を測った run そのものを分けて良く見えすぎる。",
+  },
+  {
+    id: 1039,
+    label: "CLI がログを読むとき、宣言に無い組の変異を除かない（絞り込みの配線が外れる）",
+    patch: "m1039-cli-reads-undeclared-groups.patch",
+    pkg: "scripts",
+    tests: ["measure-mutation-costs.test.mjs"],
+    note: RESERVED_1030_1039 + " " + "#550。消した・並びを変えた組の実測が案に混ざり、いまの表にも既定値にも効かない値で見積もりがずれる。",
+  },
 ];

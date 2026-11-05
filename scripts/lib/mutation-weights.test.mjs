@@ -72,7 +72,7 @@ describe("MEASURED_GROUPS: 表そのものの形", () => {
     }
   });
 
-  test("check-toolchain.test.mjs 単独の組は表にある（#547 の後に合計約 32 秒になり、目安に当たった・#550）", () => {
+  test("check-toolchain.test.mjs 単独の組は表にある（#547 の後に合計約 35 秒（9.5＋8.5×3）になり、目安に当たった・#550）", () => {
     assert.notEqual(measuredCostOf({ pkg: "scripts", tests: ["check-toolchain.test.mjs"] }), null);
   });
 

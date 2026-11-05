@@ -1,5 +1,11 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { MUTATIONS } from "./lib/mutation-declarations.mjs";
 import { controlGroupKey } from "./lib/mutation-partition.mjs";
 import { HEAVY_RUN_SECONDS } from "./lib/mutation-weights.mjs";
 import {
@@ -11,6 +17,7 @@ import {
   simulateShards,
   proposeWeights,
   holdOut,
+  parseBaseline,
   onlyDeclared,
   totalSeconds,
   HEAVY_TOTAL_SECONDS,
@@ -250,5 +257,129 @@ describe("proposeWeights / weightsFrom: 既定値と表の行をまとめて案�
     const light = group(controlGroupKey({ pkg: "a", tests: ["l1"] }), "node", 2);
     assert.ok(Math.abs(w.weightOf(light) - (0.3 + 2 * 0.3)) < 1e-9);
     assert.equal(w.isHeavy(light), false);
+  });
+});
+
+describe("commandToTests: ランナーの語の位置から後ろを取る（#550 のレビュー）", () => {
+  test("ランナーの前に空白を含むパスがあっても、テストの鍵がずれない", () => {
+    assert.deepEqual(commandToTests("/opt/my tools/npx vitest run --maxWorkers=1 a.test.ts b.test.ts", "vitest"), ["a.test.ts", "b.test.ts"]);
+    assert.deepEqual(commandToTests("/opt/my tools/node --test --test-concurrency=1 x.test.mjs", "node"), ["x.test.mjs"]);
+    assert.deepEqual(commandToTests("/opt/my tools/bun test t.test.ts", "bun"), ["t.test.ts"]);
+  });
+});
+
+describe("parseMutationLog: mutation-check 自身の状態行の形だけを数える（#550 のレビュー）", () => {
+  test("字下げの違う行・検出されなかった変異の生の出力にある「対照:」「検出:」は数えない", () => {
+    const log = [
+      line(0, "w1", "--- 変異 #1: a ---"),
+      line(1, "w1", `  対照: ○ 通過（${nodeCmd("a.test.mjs", "scripts")}）`),
+      line(1.5, "w1", "    検出: ○ これはテストの出力の字下げ違い（数えない）"),
+      line(1.6, "w1", "      対照: ○ 通過（node --test x.test.mjs（cwd: scripts, runner: node））"),
+      line(2, "w1", "  検出: ○ 検出された（exit code 1）"),
+      line(2.5, "w1", "  検出: ○ 検出された（開いた変異が無いので数えない）"),
+    ].join("\n");
+    const records = parseMutationLog(log);
+    assert.equal(records.length, 1);
+    assert.deepEqual(records[0].tests, ["a.test.mjs"]);
+    assert.ok(Math.abs(records[0].detectSec - 1) < 1e-6);
+  });
+
+  test("検出されなかった（×）変異も、mutation-check の形なら数える", () => {
+    const log = [line(0, "", "--- 変異 #1: a ---"), line(1, "", `  対照: ○ 通過（${bunCmd("t.test.ts", "apps/s")}）`), line(2, "", "  × 検出されなかった")].join("\n");
+    assert.equal(parseMutationLog(log).length, 0);
+    const ok = [line(0, "", "--- 変異 #1: a ---"), line(1, "", `  対照: ○ 通過（${bunCmd("t.test.ts", "apps/s")}）`), line(2, "", "  検出: × 検出されなかった")].join("\n");
+    assert.equal(parseMutationLog(ok).length, 1);
+  });
+});
+
+describe("ランナーの組が無い・全組が表の行のとき（#550 のレビュー）", () => {
+  const g = (pkg, runner, count, control, mutation, tests = ["x"]) => ({ key: controlGroupKey({ pkg, tests }), pkg, tests, runner, count, control, mutation });
+
+  test("表の行を除くと組が無いランナーは、既定値の案に出さない（NaN・undefined を出さない）", () => {
+    const groups = [g("a", "node", 1, 0.2, 0.2), g("b", "bun", 3, 20, 20, ["heavy"])];
+    const d = proposeRunnerDefaults(groups, new Set([controlGroupKey({ pkg: "b", tests: ["heavy"] })]));
+    assert.deepEqual(Object.keys(d), ["node"]);
+  });
+
+  test("proposeWeights: 組が 1 つだけのランナー（その組が表の行になりうる）があっても、案は有限の値だけで、行の出入りを繰り返さない", () => {
+    const groups = [g("a", "node", 1, 0.2, 0.2), g("a", "node", 1, 0.3, 0.3, ["y"]), g("b", "bun", 2, 20, 20, ["only"]), g("c", "vitest", 1, 3, 3, ["v"])];
+    const first = proposeWeights(groups);
+    for (const d of Object.values(first.defaults)) assert.ok(Number.isFinite(d.control) && Number.isFinite(d.mutation), JSON.stringify(first.defaults));
+    assert.deepEqual(proposeWeights(groups), first);
+  });
+
+  test("weightsFrom: 案に無いランナーは、渡した前の値（既定は RUNNER_COST_SECONDS）で数える", () => {
+    const w = weightsFrom({ defaults: {}, rows: [] }, { bun: { control: 1, mutation: 2 } });
+    const group = { key: "k", pkg: "p", tests: [], mutations: [{ runner: "bun" }, { runner: "bun" }] };
+    assert.equal(w.weightOf(group), 1 + 2 * 2);
+  });
+
+  test("取り置いた run にだけあるランナーがあっても、案を測る側に組が無いだけで落ちない", () => {
+    const only = [{ name: "a", records: [{ id: 1, pkg: "scripts", tests: ["a.test.mjs"], runner: "node", controlSec: 1, detectSec: 1 }] }];
+    const w = weightsFrom(proposeWeights(summarizeGroups(only)));
+    const bunGroup = { key: "k", pkg: "p", tests: [], mutations: [{ runner: "bun" }] };
+    assert.ok(Number.isFinite(w.weightOf(bunGroup)) && w.weightOf(bunGroup) > 0);
+  });
+});
+
+describe("parseBaseline: 基準の重みを明示で渡す", () => {
+  test("既定値と表の行から、重さと重い組の印を作る", () => {
+    const w = parseBaseline(JSON.stringify({ defaults: { node: { control: 0.4, mutation: 0.4 } }, rows: [{ pkg: "scripts", tests: ["h.test.mjs"], control: 31, mutation: 28 }] }));
+    const heavy = { key: controlGroupKey({ pkg: "scripts", tests: ["h.test.mjs"] }), pkg: "scripts", tests: ["h.test.mjs"], mutations: [{ runner: "node" }, { runner: "node" }] };
+    assert.equal(w.weightOf(heavy), 31 + 2 * 28);
+    assert.equal(w.isHeavy(heavy), true);
+    const light = { key: "x", pkg: "scripts", tests: [], mutations: [{ runner: "node" }] };
+    assert.ok(Math.abs(w.weightOf(light) - 0.8) < 1e-9);
+  });
+
+  test("形が違えば、どこが違うかを言って落とす", () => {
+    assert.throws(() => parseBaseline("{}"), /defaults/);
+    assert.throws(() => parseBaseline(JSON.stringify({ defaults: { node: { control: "x", mutation: 1 } }, rows: [] })), /node/);
+    assert.throws(() => parseBaseline(JSON.stringify({ defaults: {}, rows: [{ pkg: "a" }] })), /rows/);
+  });
+});
+
+describe("CLI の配線: 小さなログを子プロセスで流す（#550 のレビュー）", () => {
+  const SCRIPT = path.join(path.dirname(fileURLToPath(import.meta.url)), "measure-mutation-costs.mjs");
+  const declared = MUTATIONS.find((m) => m.pkg === "scripts" && m.tests.length === 1);
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "measure-cli-"));
+  const logOf = (extraUndeclared) => {
+    const rows = [line(0, "w1", "--- 変異 #1: a ---"), line(1, "w1", `  対照: ○ 通過（${nodeCmd(declared.tests[0], "scripts")}）`), line(3, "w1", "  検出: ○ 検出された（exit code 1）")];
+    if (extraUndeclared) rows.push(line(4, "w1", "--- 変異 #2: b ---"), line(5, "w1", `  対照: ○ 通過（${nodeCmd("zz-undeclared.test.mjs", "scripts")}）`), line(6, "w1", "  検出: ○ 検出された（exit code 1）"));
+    return rows.join("\n");
+  };
+  const files = ["a", "b", "c"].map((n, i) => {
+    const f = path.join(dir, `${n}.log`);
+    fs.writeFileSync(f, logOf(i === 0));
+    return f;
+  });
+  const run = (...args) => spawnSync(process.execPath, [SCRIPT, ...args], { encoding: "utf8" });
+  const clean = () => fs.rmSync(dir, { recursive: true, force: true });
+
+  test("宣言に無い組の変異は数えず、その件数を知らせる", () => {
+    const r = run(...files);
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stdout, /いまの宣言に無い組の変異 1 件は数えない/);
+    assert.doesNotMatch(r.stdout, /zz-undeclared/);
+    assert.match(r.stdout, new RegExp(declared.tests[0].replace(/[.]/g, "\\.")));
+  });
+
+  test("--leave-one-out は、残した run 以外（run の数 − 1）から測った案で分ける", () => {
+    const r = run("--leave-one-out", "--shards", "1", "--jobs", "1", ...files);
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal((r.stdout.match(/他の 2 run から測った案で分ける/g) ?? []).length, 3);
+    assert.doesNotMatch(r.stdout, /他の 3 run/);
+  });
+
+  test("--simulate は、基準の重みと測り直した案の重みを run ごとに並べる。--baseline の JSON を使う", () => {
+    const base = path.join(dir, "baseline.json");
+    fs.writeFileSync(base, JSON.stringify({ defaults: { node: { control: 1, mutation: 1 } }, rows: [] }));
+    const r = run("--simulate", "--shards", "1", "--jobs", "1", "--baseline", base, ...files);
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal((r.stdout.match(/基準の重み:/g) ?? []).length, 3);
+    assert.equal((r.stdout.match(/測り直した案の重み:/g) ?? []).length, 3);
+    const bad = run("--simulate", "--baseline", path.join(dir, "nope.json"), ...files);
+    assert.notEqual(bad.status, 0);
+    clean();
   });
 });

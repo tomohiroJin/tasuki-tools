@@ -1,0 +1,12 @@
+diff --git a/scripts/measure-mutation-costs.mjs b/scripts/measure-mutation-costs.mjs
+--- a/scripts/measure-mutation-costs.mjs
++++ b/scripts/measure-mutation-costs.mjs
+@@ -275,7 +275,7 @@
+   let dropped = 0;
+   const runs = args.map((arg) => {
+     const all = arg.split(",").flatMap((file) => parseMutationLog(fs.readFileSync(file, "utf8")));
+-    const records = onlyDeclared(all, declaredKeys);
++    const records = all;
+     dropped += all.length - records.length;
+     return { name: arg.split(",")[0].replace(/^.*\//, "").replace(/-\d+\.log$/, ""), records };
+   });

@@ -87,9 +87,6 @@ import {
 import { checkBaseFreshness } from "./lib/base-freshness.mjs";
 import { createControlCache } from "./lib/mutation-control-cache.mjs";
 import { measuredCostOf, RUNNER_COST_SECONDS } from "./lib/mutation-weights.mjs";
-
-// 既定値の正本は lib/mutation-weights.mjs（測り直しの道具が写さず取り込めるように）。ここからも引ける
-export { RUNNER_COST_SECONDS };
 import {
   parseJobs,
   planWorkers,
@@ -105,6 +102,9 @@ import {
   storeDirFor,
 } from "./lib/mutation-parallel.mjs";
 import { MUTATIONS } from "./lib/mutation-declarations.mjs";
+
+// 既定値の正本は lib/mutation-weights.mjs（測り直しの道具が写さず取り込めるように）。ここからも引ける
+export { RUNNER_COST_SECONDS } from "./lib/mutation-weights.mjs";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const WORKSPACE_ROOT = path.resolve(SCRIPT_DIR, ".."); // Tasuki/（ワークスペースのルート）

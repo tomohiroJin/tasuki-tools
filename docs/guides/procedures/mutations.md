@@ -188,7 +188,7 @@ git apply --check scripts/mutations/m<ID>-*.patch
 ## 重い組の実測の表（#546・#550。ランナーごとの既定値も同じ手順）
 
 変異をシャード（`--shard`）・ワーカー（`--jobs`）へ分けるときの重さは、2 つの値で決まります。どちらも **CI の実測の秒数**に合わせて持ちます
-（手元の値で決めない。手元の 4 コアと CI では、ランナーによって約 8 倍ずれた）。
+（手元の値で決めない。2026-11-05 の測り直しでは、手元の値の見積もりは、bun は組ごとの実測 ÷ 見積もりの中央値が 0.12（約 8 倍の過大）でも合計はほぼ合い、node は合計が約 0.6 倍の過小だった）。
 
 - **ランナーごとの既定値**（`scripts/lib/mutation-weights.mjs` の `RUNNER_COST_SECONDS`。対照 1 回と検出 1 回の秒数。vitest 3/2.7・bun 0.6/1.7・node 1/0.6）。
   表に無い組はこれで見積もります
@@ -229,6 +229,7 @@ git apply --check scripts/mutations/m<ID>-*.patch
 6. **効果を確かめてから直す。** `--simulate` は、各 run の変異の集合を `--shard k/3`・`--jobs 4` で分けたときの各ワーカーの実測の秒数
    （シャードの最長・ワーカー全体の最長と最短・差）を、**いまのコードの重み**と**測り直した案の重み**で並べる（`--shards`・`--jobs` で形を変えられる）。
    案を測った run そのものでは良く見えすぎるので、`--leave-one-out`（他の run から測った案で残した run を分ける）も見る。
+   「基準」は既定ではいまのコードの重みで、直した後は直す前の値を再現できないので、`--baseline <json>` で明示できる（下の「直す前」の JSON）。
    run ごとの揺れが大きく（同じ組が 2 倍違う）、割れない大きな組（test-shuffled は 1 組で約 4 分）が最長を決めるので、
    差は run ごとに数十秒動く。**「縮む」と言い切らず、run ごとの数字と、悪化した run を書く。** 2026-11-05 の 5 run（最長/差、秒）:
 
@@ -239,6 +240,30 @@ git apply --check scripts/mutations/m<ID>-*.patch
    | 42027659444（f94c52b） | 257/119 | 226/74 | 224/79 |
    | 41981719850（4cdca8c） | 217/66 | 214/62 | **245/96（悪化）** |
    | 41969924963（632d784） | 318/164 | 293/111 | 293/136 |
+
+   「直す前」の列は `--simulate --baseline`、「他の 4 run の案」の列は `--leave-one-out --baseline` に、次の JSON（2026-11-05 の f48d2f9 の既定値と表の 9 行）を渡すと再現できる。
+   リポジトリには置かない（二度と変わらない記録で、置くと表と一緒に保守する対象が増える。原則 X）。形は `parseBaseline`（`scripts/measure-mutation-costs.mjs`）。
+
+   ```json
+   {
+     "defaults": {
+       "vitest": { "control": 3, "mutation": 3 },
+       "bun": { "control": 0.6, "mutation": 2 },
+       "node": { "control": 0.4, "mutation": 0.4 }
+     },
+     "rows": [
+       { "pkg": "scripts", "tests": ["test-shuffled.test.mjs"], "control": 31, "mutation": 28 },
+       { "pkg": "scripts", "tests": ["audit-test-focus.test.mjs"], "control": 13.5, "mutation": 12.5 },
+       { "pkg": "scripts", "tests": ["local-check.test.mjs"], "control": 4.5, "mutation": 3 },
+       { "pkg": "scripts", "tests": ["lib/toolchain.test.mjs", "check-toolchain.test.mjs"], "control": 6, "mutation": 6 },
+       { "pkg": "apps/agenda-web", "tests": ["tests/scenario-draft.test.ts", "tests/scenario-builder.test.tsx"], "control": 17, "mutation": 15.5 },
+       { "pkg": "apps/agenda-web", "tests": ["tests/agenda-room.test.tsx"], "control": 8, "mutation": 8.5 },
+       { "pkg": "apps/timer-web", "tests": ["test/ui/App.room-header.test.tsx"], "control": 7.5, "mutation": 7 },
+       { "pkg": "apps/tasuki-sync", "tests": ["test/ws-adapter-tool-query.test.ts", "test/live-ws.checkin.test.ts"], "control": 2, "mutation": 30 },
+       { "pkg": "packages/markdown", "tests": ["tests/performance.test.ts"], "control": 1, "mutation": 29 }
+     ]
+   }
+   ```
 
    同じ run では 5 つとも最長・差が縮む。他の 4 run の案で分けると、4cdca8c は最長も差も伸びる（直す前がたまたま均等に当たった run）。他の 4 run の案での 5 run の合計は、最長 1409→1341 秒、差 669→562 秒
 7. **粒度を細かくするかは、この出力で決める。** ランナーだけでは説明できない組（組ごとの「比」が毎回同じ向きに 2 倍以上ずれる）が、

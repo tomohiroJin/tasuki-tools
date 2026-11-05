@@ -17,7 +17,8 @@
  *   run のログ = 1 つの run の `mutation (k)` の job のログのファイルを `,` でつないだもの（例: a-1.log,a-2.log,a-3.log）。
  *   離れた 2 つ以上の run を渡す。何も付けなければ、ランナーごと・組ごとの実測と、いまの既定値・表との差を出す。
  *   --simulate は、各 run の変異の集合を --shard k/n・--jobs m で分けたときの各ワーカーの実測の秒数（最長と最短）を、
- *   いまのコードの重み（既定値と表）と、測り直した案の重みで並べて出す。--leave-one-out は、案を残した run 以外から測って分ける。
+ *   基準の重み（既定は、いまのコードの既定値と表。`--baseline <json>` で明示。形は `parseBaseline`）と、測り直した案の重みで並べて出す。
+ *   --leave-one-out は、案を残した run 以外から測って分ける。
  *   いまの宣言に無い組（消えた・並びが変わった組）の変異は数えない。
  */
 import fs from "node:fs";
@@ -31,18 +32,25 @@ import { MUTATIONS } from "./lib/mutation-declarations.mjs";
 /** 載せる目安（`mutation-weights.mjs` の JSDoc と手順書と同じ）: 組の合計がこの秒数以上で、見積もりの半分以下（実測が見積もりの 2 倍以上）。 */
 export const HEAVY_TOTAL_SECONDS = 30;
 
-const PREFIX_TOKENS = { vitest: 3, bun: 2, node: 2 }; // npx vitest run / bun test / node --test
+/** ランナーの語（`npx vitest run`・`bun test`・`node --test`）。コマンドは、この語の後ろにフラグ、続けてテストの並び。 */
+const RUNNER_WORDS = { vitest: /\bvitest run\b/, bun: /\bbun test\b/, node: /\bnode --test\b/ };
 
-/** 対照のコマンド（`runTests` が出す文字列の、cwd の前まで）から、テストの並びを戻す。フラグ（`--` で始まるもの）は除く。 */
+/**
+ * 対照のコマンド（`runTests` が出す文字列の、cwd の前まで）から、テストの並びを戻す。
+ * ランナーの語の位置から後ろを取る（語の前に空白を含むパスがあっても鍵がずれない）。続くフラグ（`--` で始まるもの）は除く。
+ */
 export function commandToTests(command, runner) {
-  const skip = PREFIX_TOKENS[runner] ?? 0;
-  return command.split(/\s+/).filter(Boolean).slice(skip).filter((token) => !token.startsWith("--"));
+  const word = RUNNER_WORDS[runner]?.exec(command);
+  const rest = word ? command.slice(word.index + word[0].length) : command;
+  const tokens = rest.split(/\s+/).filter(Boolean);
+  while (tokens.length > 0 && tokens[0].startsWith("--")) tokens.shift();
+  return tokens;
 }
 
 const LINE = /^\uFEFF?(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d)\.(\d+)Z (?:\[(w\d+)\] )?(.*)$/;
 const MUTATION = /^--- 変異 #(\d+):/;
-const CONTROL = /^\s*対照: ○ 通過(（使い回し）)?（(.+)（cwd: ([^,]+), runner: (\w+)））\s*$/;
-const DETECT = /^\s*検出:/;
+const CONTROL = /^ {2}対照: ○ 通過(（使い回し）)?（(.+)（cwd: ([^,]+), runner: (\w+)））$/;
+const DETECT = /^ {2}検出: [○×]/;
 
 /**
  * ログのテキストから、変異ごとの { id, pkg, tests, runner, controlSec（使い回しは null）, detectSec } を読む。
@@ -62,7 +70,7 @@ export function parseMutationLog(text) {
       open.set(worker, { id: Number(hit[1]), start: at });
     } else if ((hit = CONTROL.exec(body))) {
       const cur = open.get(worker);
-      if (!cur) continue;
+      if (!cur || cur.controlAt !== undefined) continue;
       const runner = hit[4];
       Object.assign(cur, {
         controlAt: at,
@@ -142,6 +150,7 @@ export function proposeRunnerDefaults(groups, tableKeys) {
   const out = {};
   for (const runner of [...new Set(groups.map((g) => g.runner))].sort()) {
     const rest = groups.filter((g) => g.runner === runner && !tableKeys.has(controlGroupKey(g)));
+    if (rest.length === 0) continue; // 表の行を除くと組が無いランナーは案に出さない（呼び出し側が前の値へ倒す）
     const controls = rest.map((g) => g.control).filter(Number.isFinite);
     const count = rest.reduce((sum, g) => sum + g.count, 0);
     out[runner] = {
@@ -177,7 +186,8 @@ export function proposeWeights(groups) {
   let keys = new Set();
   let defaults = proposeRunnerDefaults(groups, keys);
   for (let i = 0; i < 10; i++) {
-    const rows = proposeTableRows(groups, (g) => defaults[g.runner].control + defaults[g.runner].mutation * g.count);
+    const cost = (g) => defaults[g.runner] ?? RUNNER_COST_SECONDS[g.runner];
+    const rows = proposeTableRows(groups, (g) => cost(g).control + cost(g).mutation * g.count);
     const next = new Set(rows.map(controlGroupKey));
     const same = next.size === keys.size && [...next].every((k) => keys.has(k));
     keys = next;
@@ -191,9 +201,10 @@ export function proposeWeights(groups) {
 }
 
 /** 案（{@link proposeWeights} の返り値）を、分け方へ渡す重さと印の関数にする。`weightOf` の引数は `groupByControl` の組（変異に `runner` を持たせる）。 */
-export function weightsFrom({ defaults, rows }) {
+export function weightsFrom({ defaults, rows }, fallback = RUNNER_COST_SECONDS) {
   const table = new Map(rows.map((r) => [controlGroupKey(r), r]));
-  const costOf = (group) => table.get(group.key) ?? defaults[group.mutations[0].runner];
+  // 案に無いランナー（表の行を除くと組が無かった・取り置いた run にしか無かった）は、前の値（既定はいまのコードの既定値）で数える
+  const costOf = (group) => table.get(group.key) ?? defaults[group.mutations[0].runner] ?? fallback[group.mutations[0].runner];
   return {
     weightOf: (group) => costOf(group).control + costOf(group).mutation * group.mutations.length,
     isHeavy: (group) => table.has(group.key),
@@ -239,6 +250,27 @@ export function holdOut(runs, i) {
   return runs.filter((_, j) => j !== i);
 }
 
+/**
+ * 基準の重みの JSON（`{ "defaults": { "<runner>": { "control": n, "mutation": n }, … }, "rows": [{ "pkg", "tests", "control", "mutation" }, …] }`）から、
+ * 重さと印の関数を作る。`--simulate`・`--leave-one-out` の「基準」を、いまのコードでなく明示で渡すために使う
+ * （直す前の値を、直した後も再現できる。手順書の効果の表）。形が違えば、どこが違うかを言って落とす。
+ */
+export function parseBaseline(text) {
+  const json = JSON.parse(text);
+  const num = (v) => typeof v === "number" && Number.isFinite(v) && v > 0;
+  if (typeof json?.defaults !== "object" || json.defaults === null) throw new Error("baseline: defaults（ランナーごとの { control, mutation }）がありません");
+  for (const [runner, d] of Object.entries(json.defaults)) {
+    if (!num(d?.control) || !num(d?.mutation)) throw new Error(`baseline: defaults.${runner} は正の数の control と mutation を持つ必要があります`);
+  }
+  if (!Array.isArray(json.rows)) throw new Error("baseline: rows（表の行の配列）がありません");
+  json.rows.forEach((r, i) => {
+    if (typeof r?.pkg !== "string" || !Array.isArray(r?.tests) || !num(r?.control) || !num(r?.mutation)) {
+      throw new Error(`baseline: rows[${i}] は pkg・tests・正の数の control と mutation を持つ必要があります`);
+    }
+  });
+  return weightsFrom({ defaults: json.defaults, rows: json.rows }, {});
+}
+
 function readRuns(args, declaredKeys) {
   let dropped = 0;
   const runs = args.map((arg) => {
@@ -254,18 +286,20 @@ function main() {
   const argv = process.argv.slice(2);
   let simulate = false;
   let leaveOneOut = false;
+  let baselinePath = null;
   let shards = 3;
   let jobs = 4;
   const files = [];
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === "--simulate") simulate = true;
     else if (argv[i] === "--leave-one-out") leaveOneOut = true;
+    else if (argv[i] === "--baseline") baselinePath = argv[++i];
     else if (argv[i] === "--shards") shards = Number(argv[++i]);
     else if (argv[i] === "--jobs") jobs = Number(argv[++i]);
     else files.push(argv[i]);
   }
   if (files.length === 0) {
-    console.error("使い方: node scripts/measure-mutation-costs.mjs [--simulate | --leave-one-out] [--shards 3] [--jobs 4] <a-1.log,a-2.log,a-3.log> [<run のログ> …]");
+    console.error("使い方: node scripts/measure-mutation-costs.mjs [--simulate | --leave-one-out] [--baseline 基準.json] [--shards 3] [--jobs 4] <a-1.log,a-2.log,a-3.log> [<run のログ> …]");
     process.exitCode = 1;
     return;
   }
@@ -273,13 +307,24 @@ function main() {
   console.log(`run ${runs.length} 個: ${runs.map((r) => `${r.name}（${r.records.length} 件）`).join("・")}`);
   if (dropped > 0) console.log(`（いまの宣言に無い組の変異 ${dropped} 件は数えない）`);
 
-  const current = {
+  let baseline;
+  if (baselinePath !== null) {
+    try {
+      baseline = parseBaseline(fs.readFileSync(baselinePath, "utf8"));
+    } catch (error) {
+      console.error(`[measure-mutation-costs] --baseline を読めません: ${error.message}`);
+      process.exitCode = 1;
+      return;
+    }
+  }
+  const current = baseline ?? {
     weightOf: (group) => {
       const cost = measuredCostOf(group) ?? RUNNER_COST_SECONDS[group.mutations[0].runner];
       return cost.control + cost.mutation * group.mutations.length;
     },
     isHeavy: (group) => measuredCostOf(group) !== null,
   };
+  // 基準 = --baseline の重み。無ければ、いまのコードの重み（既定値と表）
   const spreadLine = (label, r) =>
     `  ${label}: シャードの最長 ${r.shards.map((s) => fmt(s.max, 0)).join("/")} 秒・ワーカー全体で最長 ${fmt(r.max, 0)} 秒・最短 ${fmt(r.min, 0)} 秒・差 ${fmt(r.spread, 0)} 秒`;
 
@@ -287,7 +332,7 @@ function main() {
     const proposal = weightsFrom(proposeWeights(summarizeGroups(runs)));
     for (const run of runs) {
       console.log(`${run.name}: --shard k/${shards}・--jobs ${jobs} の実測の秒数`);
-      console.log(spreadLine("いまのコードの重み", simulateShards(run.records, { shards, jobs, ...current })));
+      console.log(spreadLine("基準の重み", simulateShards(run.records, { shards, jobs, ...current })));
       console.log(spreadLine("測り直した案の重み", simulateShards(run.records, { shards, jobs, ...proposal })));
     }
     return;
@@ -299,7 +344,7 @@ function main() {
       const others = holdOut(runs, i);
       const proposal = weightsFrom(proposeWeights(summarizeGroups(others)));
       console.log(`${run.name}: 他の ${others.length} run から測った案で分ける`);
-      console.log(spreadLine("いまのコードの重み", simulateShards(run.records, { shards, jobs, ...current })));
+      console.log(spreadLine("基準の重み", simulateShards(run.records, { shards, jobs, ...current })));
       console.log(spreadLine("他の run の案の重み", simulateShards(run.records, { shards, jobs, ...proposal })));
     }
     return;

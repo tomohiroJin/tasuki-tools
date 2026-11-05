@@ -448,11 +448,11 @@ describe("宣言の全件を分けて流す配線（#481）", () => {
     assert.equal(weightOfGroup(vitest), RUNNER_COST_SECONDS.vitest.control + 2 * RUNNER_COST_SECONDS.vitest.mutation);
   });
 
-  test("ランナーごとの既定値は旧値（手元の値 vitest 3/3・bun 0.6/2・node 0.4/0.4）でなく、vitest は他より重い・node の対照は旧値より重い（#550）", () => {
-    const { bun, node, vitest } = RUNNER_COST_SECONDS;
-    assert.ok(node.control > 0.4 && bun.mutation < 2 && vitest.mutation < 3, "旧値に戻っている");
-    assert.ok(vitest.control > node.control && vitest.control > bun.control);
-    assert.ok(vitest.mutation > node.mutation && vitest.mutation > bun.mutation);
+  test("ランナーごとの既定値は、CI の 5 run から測った値のまま（測り直したら、この期待値も一緒に直す。#550）", () => {
+    assert.deepEqual(
+      JSON.parse(JSON.stringify(RUNNER_COST_SECONDS)),
+      { vitest: { control: 3, mutation: 2.7 }, bun: { control: 0.6, mutation: 1.7 }, node: { control: 1, mutation: 0.6 } },
+    );
   });
 
   for (const total of [2, 4]) {
