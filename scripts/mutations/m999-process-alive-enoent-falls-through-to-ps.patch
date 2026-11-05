@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/process-alive.mjs b/scripts/lib/process-alive.mjs
+index ae3a4d9..10c9048 100644
+--- a/scripts/lib/process-alive.mjs
++++ b/scripts/lib/process-alive.mjs
+@@ -46,7 +46,7 @@ export function readProcessState(pid, io = {}) {
+   try {
+     return parseStatState(readFile(`/proc/${pid}/stat`));
+   } catch (e) {
+-    if (e?.code === "ENOENT" && procExists()) return "X";
++    if (false) return "X";
+   }
+   try {
+     const out = ps(pid).trim();
