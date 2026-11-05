@@ -97,6 +97,8 @@ import {
   parseTestWorkers,
   testWorkersPerJob,
   createLinePrefixer,
+  installArgs,
+  storePathFrom,
 } from "./lib/mutation-parallel.mjs";
 import { MUTATIONS } from "./lib/mutation-declarations.mjs";
 
@@ -947,10 +949,10 @@ async function runInWorktrees(selected, jobs, full, selector, selection, header)
       stdio: "inherit",
     });
   }
-  // 依存の実体は pnpm のストアから引く（ネットワークに出ない）。本体で pnpm install を済ませてあることが前提
-  const installs = await Promise.all(
-    dirs.map((dir) => runChild("pnpm", ["install", "--frozen-lockfile", "--offline", "--reporter=append-only"], dir)),
-  );
+  // 依存の実体は本体の pnpm のストアから引く（ネットワークに出ない）。本体で pnpm install を済ませてあることが前提。
+  // **ストアは名指しで渡す**（#535）: 一時ディレクトリがストアと別のファイルシステムでも、pnpm が写しに倒れて入れられる
+  const storeDir = storePathFrom(execFileSync("pnpm", ["store", "path"], { cwd: REPO_ROOT, encoding: "utf8" }));
+  const installs = await Promise.all(dirs.map((dir) => runChild("pnpm", installArgs(storeDir), dir)));
   const failedInstall = installs.findIndex((r) => r.exitCode !== 0);
   if (failedInstall !== -1) {
     console.error(

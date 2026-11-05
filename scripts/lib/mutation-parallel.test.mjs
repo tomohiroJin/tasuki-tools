@@ -12,6 +12,8 @@ import {
   parseTestWorkers,
   testWorkersPerJob,
   createLinePrefixer,
+  installArgs,
+  storePathFrom,
 } from "./mutation-parallel.mjs";
 
 /**
@@ -210,5 +212,33 @@ describe("formatWorkerSummary: ワーカーごとの結果", () => {
   test("終了コードが取れない（シグナルで止まった）ワーカーも失敗に数える", () => {
     const { failed } = formatWorkerSummary([{ index: 1, count: 3, exitCode: null, ms: 1000 }]);
     assert.deepEqual(failed, [1]);
+  });
+});
+
+describe("installArgs / storePathFrom: 作業ツリーへの依存の入れ方（#535）", () => {
+  // 一時ディレクトリが本体のストアと別のファイルシステムだと、--store-dir が無い pnpm は空のストアに切り替え、
+  // --offline のせいで取得もできずに落ちる（CI の /tmp・手元の TMPDIR=/dev/shm）
+  test("本体のストアを --store-dir で渡す（別のファイルシステムでも写しに倒れて入れられる）", () => {
+    const args = installArgs("/home/runner/.local/share/pnpm/store/v11");
+    const i = args.indexOf("--store-dir");
+    assert.notEqual(i, -1);
+    assert.equal(args[i + 1], "/home/runner/.local/share/pnpm/store/v11");
+  });
+
+  test("lockfile を固定し、ネットワークに出ない（--frozen-lockfile・--offline）", () => {
+    const args = installArgs("/s");
+    assert.equal(args[0], "install");
+    assert.ok(args.includes("--frozen-lockfile"));
+    assert.ok(args.includes("--offline"));
+  });
+
+  test("pnpm store path の出力は、前後の空白と改行を落として絶対パスで受ける", () => {
+    assert.equal(storePathFrom("/root/.local/share/pnpm/store/v11\n"), "/root/.local/share/pnpm/store/v11");
+  });
+
+  test("空・相対パスの出力は受けない（作業ツリーの中で別のストアを指さない）", () => {
+    assert.throws(() => storePathFrom(""), /絶対パス/);
+    assert.throws(() => storePathFrom("\n"), /絶対パス/);
+    assert.throws(() => storePathFrom("store/v11"), /絶対パス/);
   });
 });
