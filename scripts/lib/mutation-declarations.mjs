@@ -5762,4 +5762,12 @@ export const MUTATIONS = [
     tests: ["lib/mutation-parallel.test.mjs"],
     note: RESERVED_970_979 + " " + "#535。改行つきのパスが --store-dir に渡り、存在しないストアを指して依存が入らない。",
   },
+  {
+    id: 974,
+    label: "本体のストアの場所を、本体でなく呼び出し元の cwd で引く",
+    patch: "m974-store-path-wrong-cwd.patch",
+    pkg: "scripts",
+    tests: ["lib/mutation-parallel.test.mjs"],
+    note: RESERVED_970_979 + " " + "#535 のレビュー。作業ツリーの中で pnpm store path を引くと、その作業ツリーのファイルシステムのストアを指し、別のファイルシステムでは元の失敗（--offline で依存を入れられない）に戻る。",
+  },
 ];

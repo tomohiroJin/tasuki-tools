@@ -14,6 +14,7 @@ import {
   createLinePrefixer,
   installArgs,
   storePathFrom,
+  storeDirFor,
 } from "./mutation-parallel.mjs";
 
 /**
@@ -240,5 +241,22 @@ describe("installArgs / storePathFrom: 作業ツリーへの依存の入れ方�
     assert.throws(() => storePathFrom(""), /絶対パス/);
     assert.throws(() => storePathFrom("\n"), /絶対パス/);
     assert.throws(() => storePathFrom("store/v11"), /絶対パス/);
+  });
+});
+
+describe("storeDirFor: 本体のストアを、本体の cwd で引く（#535）", () => {
+  // 作業ツリーの中で引くと、その作業ツリーのファイルシステムのストアを指し、別のファイルシステムでは元の失敗に戻る
+  test("pnpm store path を、渡された本体の作業ツリーを cwd にして呼ぶ", () => {
+    const calls = [];
+    const execFile = (cmd, args, opts) => {
+      calls.push({ cmd, args, cwd: opts.cwd });
+      return "/main/.pnpm-store/v11\n";
+    };
+    assert.equal(storeDirFor(execFile, "/main/repo"), "/main/.pnpm-store/v11");
+    assert.deepEqual(calls, [{ cmd: "pnpm", args: ["store", "path"], cwd: "/main/repo" }]);
+  });
+
+  test("絶対パスでない出力は投げる", () => {
+    assert.throws(() => storeDirFor(() => "warn\n", "/main/repo"), /絶対パス/);
   });
 });

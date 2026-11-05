@@ -146,6 +146,15 @@ export function storePathFrom(output) {
 }
 
 /**
+ * 本体のストアの場所を引く。**本体の作業ツリー（`repoRoot`）を cwd にして `pnpm store path` を呼ぶ。**
+ * 作業ツリーの中で引くと、その作業ツリーのファイルシステムのストア（例 `/dev/shm/.pnpm-store/v11`）を指し、
+ * 別のファイルシステムでは `--store-dir` を渡す意味が無くなる（#535）。`execFile` は注入する（`execFileSync` と同じ形）。
+ */
+export function storeDirFor(execFile, repoRoot) {
+  return storePathFrom(execFile("pnpm", ["store", "path"], { cwd: repoRoot, encoding: "utf8" }));
+}
+
+/**
  * 作業ツリーのロックの理由（`git worktree add --lock --reason …`）。持ち主の PID とホスト名を書く。
  *
  * **ロックつきで作る理由**（#481 のレビュー）: `git worktree prune` は、ロックされた作業ツリーの登録を消さない。
