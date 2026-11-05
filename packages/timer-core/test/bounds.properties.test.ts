@@ -132,6 +132,41 @@ describe("参加者の上限（member.add）", () => {
     );
   });
 
+  /** 席が n 人で、先頭から away 人が一時離脱（eligible: false）の輪。離脱の人も席は持つ */
+  function ringWithAway(n: number, away: number): Aggregate {
+    const seats: RotationEntry[] = Array.from({ length: n }, (_, k) => ({
+      kind: "member",
+      participantId: `P${k}`,
+      eligible: k >= away,
+    }));
+    return anAggregate()
+      .withSeats(...seats)
+      .build();
+  }
+
+  it("一時離脱の席も上限に数える: 10 席のうち 1 人が離脱中の輪には足せず、MemberLimitExceeded になる", () => {
+    const result = addMember(ringWithAway(MAX_MEMBERS, 1));
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr()).toEqual({ type: "MemberLimitExceeded", limit: MAX_MEMBERS });
+  });
+
+  it("一時離脱の席も上限に数える: 離脱中の人を混ぜた輪でも、足せるのは席が上限に満たないときだけ（離脱の数と上限ちょうどを必ず混ぜる）", () => {
+    fc.assert(
+      fc.property(
+        fc.oneof(fc.constantFrom(MAX_MEMBERS - 1, MAX_MEMBERS), fc.integer({ min: 1, max: MAX_MEMBERS })),
+        fc.oneof(fc.constantFrom(0, 1, MAX_MEMBERS - 1), fc.integer({ min: 0, max: MAX_MEMBERS - 1 })),
+        (n, rawAway) => {
+          const away = Math.min(rawAway, n);
+          const result = addMember(ringWithAway(n, away));
+          const outcome = result.isOk() ? "accepted" : result._unsafeUnwrapErr().type;
+          const expected = n < MAX_MEMBERS ? "accepted" : "MemberLimitExceeded";
+          expect({ n, away, outcome }).toEqual({ n, away, outcome: expected });
+        },
+      ),
+      RUN,
+    );
+  });
+
   it("満員の輪に既にいる member の ID を足すと、上限ではなく DuplicateName が返る（送り直しの吸収が先）", () => {
     const result = decide({ command: "member.add", participantId: "P0" }, ringOf(MAX_MEMBERS), 1_000);
     expect(result.isErr()).toBe(true);

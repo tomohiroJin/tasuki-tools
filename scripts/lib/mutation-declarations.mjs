@@ -61,6 +61,9 @@ const RESERVED_950_959 =
 const RESERVED_965_969 =
   "**対応表より後に足した変異。** 965〜969 は #534 に割り当てた範囲。";
 
+const RESERVED_980_984 =
+  "**対応表より後に足した変異。** 980〜984 は #534 に追加で割り当てた範囲（965〜969 を使い切ったため）。";
+
 const RESERVED_880_889 =
   "**対応表より後に足した変異。** 880〜889 は #506 の宣言の検査に追加で割り当てた範囲（850〜859 を使い切ったため）。";
 
@@ -5736,7 +5739,7 @@ export const MUTATIONS = [
     patch: "m965-timer-core-member-add-limit-gt.patch",
     pkg: "packages/timer-core",
     tests: ["test/bounds.properties.test.ts"],
-    note: RESERVED_965_969 + " " + "#534。メンバー追加（member.add）の 1 つずれ。上限（10 人）の輪にさらに足せて 11 人になる。",
+    note: RESERVED_965_969 + " " + "#534。メンバー追加（member.add）の 1 つずれ。上限（10 人）の輪にさらに足せて 11 人になる。上限の検査を丸ごと外す・`>= MAX + 1` は、席が MAX を超えない不変条件（test/properties.test.ts:129）の下で同じ振る舞いなので宣言しない（代表は 1 つずれの形）。",
   },
   {
     id: 966,
@@ -5769,5 +5772,13 @@ export const MUTATIONS = [
     pkg: "packages/timer-core",
     tests: ["test/bounds.properties.test.ts"],
     note: RESERVED_965_969 + " " + "#534のレビュー。上限で断られたときに画面へ伝わる上限の人数が実際とずれる（エラーの種類だけを見るテストでは気づけない）。",
+  },
+  {
+    id: 980,
+    label: "メンバー追加の上限の数え方を、席の数 → 一時離脱でない席（eligible）だけにする（離脱中の人がいる満員の輪にも足せる）",
+    patch: "m980-timer-core-member-add-limit-counts-eligible-only.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/bounds.properties.test.ts"],
+    note: RESERVED_980_984 + " " + "#534のレビュー。一時離脱中の人が席を持つのに上限に数えられず、10 席の輪にも足せて 11 席になる。",
   },
 ];
