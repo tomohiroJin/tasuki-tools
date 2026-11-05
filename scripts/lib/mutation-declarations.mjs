@@ -5817,6 +5817,22 @@ export const MUTATIONS = [
     note: RESERVED_970_979 + " " + "#535 のレビュー。作業ツリーの中で pnpm store path を引くと、その作業ツリーのファイルシステムのストアを指し、別のファイルシステムでは元の失敗（--offline で依存を入れられない）に戻る。",
   },
   {
+    id: 975,
+    label: "本体のストアの場所の取り出しが、複数行の出力を受ける",
+    patch: "m975-store-path-accepts-multiline.patch",
+    pkg: "scripts",
+    tests: ["lib/mutation-parallel.test.mjs"],
+    note: RESERVED_970_979 + " " + "#535 のレビュー。先頭だけ絶対パスで後ろに警告が混ざった出力が通り、改行つきのパスが --store-dir に渡って依存が入らない。",
+  },
+  {
+    id: 976,
+    label: "本体のストアの場所を引けなかったときの文言から、本体のパスを落とす",
+    patch: "m976-store-error-drops-repo-root.patch",
+    pkg: "scripts",
+    tests: ["lib/mutation-parallel.test.mjs"],
+    note: RESERVED_970_979 + " " + "#535 のレビュー。どの作業ツリーで pnpm store path が失敗したか分からず、何を直せばよいか辿れない。",
+  },
+  {
     id: 980,
     label: "メンバー追加の上限の数え方を、席の数 → 一時離脱でない席（eligible）だけにする（離脱中の人がいる満員の輪にも足せる）",
     patch: "m980-timer-core-member-add-limit-counts-eligible-only.patch",
