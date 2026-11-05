@@ -1,0 +1,12 @@
+diff --git a/scripts/lib/script-copy-harness.mjs b/scripts/lib/script-copy-harness.mjs
+index 8cb370c..c292f69 100644
+--- a/scripts/lib/script-copy-harness.mjs
++++ b/scripts/lib/script-copy-harness.mjs
+@@ -125,6 +125,7 @@ export function createScriptCopyHarness(copyPrefix, { timeoutMs = COPY_TIMEOUT_M
+     try {
+       const result = run(copyPath, mutated);
+       if (typeof result?.then === "function") {
++        cleanup();
+         return Promise.resolve(result).then(
+           (v) => {
+             cleanup();

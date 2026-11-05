@@ -1,8 +1,8 @@
 diff --git a/scripts/lib/script-copy-harness.mjs b/scripts/lib/script-copy-harness.mjs
-index 7a5d501..0f7769e 100644
+index 8cb370c..c4a7255 100644
 --- a/scripts/lib/script-copy-harness.mjs
 +++ b/scripts/lib/script-copy-harness.mjs
-@@ -60,7 +60,7 @@ export function findPrefixOverlaps(declared) {
+@@ -67,7 +67,7 @@ export function findPrefixOverlaps(declared) {
    const overlaps = [];
    for (const a of declared) {
      for (const b of declared) {

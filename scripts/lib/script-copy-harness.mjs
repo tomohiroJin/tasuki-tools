@@ -1,7 +1,7 @@
 /**
  * 検査スクリプトの**書き換えた複製**を作って子プロセスで走らせる補助（#135・#544）。
  *
- * `wiring-*.test.mjs` と `scan-target-wiring.test.mjs` が共有する。もとは 1 ファイルの
+ * scripts の複製を作るテストが共有する（使い手は `scripts/script-copy-harness.test.mjs` の走査が導出する）。もとは 1 ファイルの
  * `scan-target-wiring.test.mjs` に在ったが、約 3.5 分かかるので検査スクリプトごとのファイルへ分けた
  * （変異の `tests` を関係するファイルだけにし、変異検査のシャードの偏りを小さくするため）。
  * 分けると同時に走るファイルが増えるので、**複製の接頭辞はファイルごとに分ける**。
@@ -95,7 +95,9 @@ export function createScriptCopyHarness(copyPrefix, { timeoutMs = COPY_TIMEOUT_M
   }
 
   /**
-   * 検査スクリプトの複製を `scripts/` 直下へ置き、子プロセスで実行する。
+   * 複製を `scripts/` 直下へ置き、`run(複製の道, 書き換え後の本文)` を呼び、終わったら（落ちても）複製を消す。
+   * `run` が Promise を返すなら、その決着の後に消す。子の起動を自前で書く必要のあるテスト
+   * （`exit-flush.test.mjs` の遅れて stderr を読む起動）が、置く・消すを共通にするための口（#547）。
    *
    * **同じディレクトリへ置くことが必須。** 各スクリプトは `__dirname/..` を
    * リポジトリルートとみなすため、別の場所へ複製すると走査先が変わってしまう。
@@ -104,22 +106,63 @@ export function createScriptCopyHarness(copyPrefix, { timeoutMs = COPY_TIMEOUT_M
    *
    * @param {string} scriptName 複製元のファイル名
    * @param {(source: string) => string} mutate 書き換え。恒等関数なら対照実行になる
+   * @param {(copyPath: string, source: string) => unknown} run
    */
-  function runScriptCopy(scriptName, mutate) {
-    const original = readScript(scriptName);
-    const mutated = mutate(original);
+  function withScriptCopy(scriptName, mutate, run) {
+    const mutated = mutate(readScript(scriptName));
     const copyPath = path.join(SCRIPTS_DIR, `${copyPrefix}${process.pid}-${copyCounter++}-${scriptName}`);
     fs.writeFileSync(copyPath, mutated);
-    try {
-      const r = spawnSync(process.execPath, [copyPath], { encoding: "utf8", timeout: timeoutMs });
-      if (r.error?.code === "ETIMEDOUT") {
-        throw new Error(`複製の実行が ${timeoutMs}ms で時間切れになりました（${scriptName}）。子が固まっていないか確かめてください`);
+    const cleanup = () => fs.rmSync(copyPath, { force: true });
+    // 実行か後始末の途中で落ちたときは元のエラーを投げる。後始末の失敗は `cleanupFailure` に残す
+    const failWith = (e) => {
+      try {
+        cleanup();
+      } catch (ce) {
+        if (e !== null && typeof e === "object") e.cleanupFailure = ce;
       }
-      return { status: r.status, stdout: r.stdout ?? "", stderr: r.stderr ?? "", source: mutated };
-    } finally {
-      fs.rmSync(copyPath, { force: true });
+      throw e;
+    };
+    try {
+      const result = run(copyPath, mutated);
+      if (typeof result?.then === "function") {
+        return Promise.resolve(result).then(
+          (v) => {
+            cleanup();
+            return v;
+          },
+          (e) => failWith(e),
+        );
+      }
+      cleanup();
+      return result;
+    } catch (e) {
+      return failWith(e);
     }
   }
 
-  return { runScriptCopy };
+  /**
+   * 検査スクリプトの複製を `scripts/` 直下へ置き、子プロセスで実行する。
+   *
+   * @param {string} scriptName 複製元のファイル名
+   * @param {(source: string) => string} mutate 書き換え。恒等関数なら対照実行になる
+   * @param {{ args?: string[], env?: Record<string, string | undefined> }} [options]
+   *   `args` は複製の後ろに渡す引数。`env` は親の環境へ重ねる値で、`undefined` の変数は子へ渡さない（#547）
+   */
+  function runScriptCopy(scriptName, mutate, { args = [], env } = {}) {
+    return withScriptCopy(scriptName, mutate, (copyPath, mutated) => {
+      // 値が undefined の変数は spawnSync が子へ渡さない（親の値を打ち消せる）
+      const childEnv = { ...process.env, ...env };
+      const r = spawnSync(process.execPath, [copyPath, ...args], { encoding: "utf8", timeout: timeoutMs, env: childEnv });
+      if (r.error?.code === "ETIMEDOUT") {
+        const tail = (t) => (t ?? "").slice(-2000);
+        throw new Error(
+          `複製の実行が ${timeoutMs}ms で時間切れになりました（${scriptName}）。子が固まっていないか確かめてください\n` +
+            `stdout 末尾:\n${tail(r.stdout)}\nstderr 末尾:\n${tail(r.stderr)}`,
+        );
+      }
+      return { status: r.status, stdout: r.stdout ?? "", stderr: r.stderr ?? "", source: mutated };
+    });
+  }
+
+  return { runScriptCopy, withScriptCopy };
 }
