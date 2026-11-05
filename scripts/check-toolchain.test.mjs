@@ -31,27 +31,28 @@ const PACKAGE_READ = 'path.join(REPO_ROOT, "package.json")';
 function runWith(stage, overrides = {}, extraEnv = {}) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "check-toolchain-"));
   try {
+    // 上書きの内容は先に一時ファイルへ書き、複製の中ではその道に差し替えるだけにする
+    const replacements = [];
+    for (const [key, needle] of [
+      ["toolchain", TOOLCHAIN_READ],
+      ["packageJson", PACKAGE_READ],
+    ]) {
+      if (overrides[key] === undefined) continue;
+      const file = path.join(tmp, `${key}.json`);
+      fs.writeFileSync(file, JSON.stringify(overrides[key]));
+      replacements.push([needle, JSON.stringify(file)]);
+    }
     // pnpm から起動されたときの user agent を落とし、`pnpm --version` を確かめる経路を通す
     const env = { ...extraEnv, npm_config_user_agent: undefined };
-    const r = runScriptCopy(
+    return runScriptCopy(
       SCRIPT,
-      (original) => {
-        let source = original;
-        for (const [key, needle] of [
-          ["toolchain", TOOLCHAIN_READ],
-          ["packageJson", PACKAGE_READ],
-        ]) {
-          if (overrides[key] === undefined) continue;
-          assert.equal(countOf(source, needle), 1, `差し替える読み取り（${needle}）が実装に 1 か所ありません`);
-          const file = path.join(tmp, `${key}.json`);
-          fs.writeFileSync(file, JSON.stringify(overrides[key]));
-          source = source.replace(needle, JSON.stringify(file));
-        }
-        return source;
-      },
+      (source) =>
+        replacements.reduce((src, [needle, to]) => {
+          assert.equal(countOf(src, needle), 1, `差し替える読み取り（${needle}）が実装に 1 か所ありません`);
+          return src.replace(needle, to);
+        }, source),
       { args: stage === undefined ? [] : [stage], env },
     );
-    return { status: r.status, stdout: r.stdout, stderr: r.stderr };
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }

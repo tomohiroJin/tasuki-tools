@@ -1,13 +1,13 @@
 diff --git a/scripts/lib/script-copy-harness.mjs b/scripts/lib/script-copy-harness.mjs
-index 7f174be..93c48bb 100644
+index 8cb370c..f9c888a 100644
 --- a/scripts/lib/script-copy-harness.mjs
 +++ b/scripts/lib/script-copy-harness.mjs
-@@ -137,7 +137,7 @@ export function createScriptCopyHarness(copyPrefix, { timeoutMs = COPY_TIMEOUT_M
+@@ -152,7 +152,7 @@ export function createScriptCopyHarness(copyPrefix, { timeoutMs = COPY_TIMEOUT_M
      return withScriptCopy(scriptName, mutate, (copyPath, mutated) => {
        // 値が undefined の変数は spawnSync が子へ渡さない（親の値を打ち消せる）
        const childEnv = { ...process.env, ...env };
 -      const r = spawnSync(process.execPath, [copyPath, ...args], { encoding: "utf8", timeout: timeoutMs, env: childEnv });
 +      const r = spawnSync(process.execPath, [copyPath], { encoding: "utf8", timeout: timeoutMs, env: childEnv });
        if (r.error?.code === "ETIMEDOUT") {
-         throw new Error(`複製の実行が ${timeoutMs}ms で時間切れになりました（${scriptName}）。子が固まっていないか確かめてください`);
-       }
+         const tail = (t) => (t ?? "").slice(-2000);
+         throw new Error(

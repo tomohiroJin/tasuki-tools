@@ -20,13 +20,7 @@ import { listRepoFiles } from "./lib/scan-targets.mjs";
 import { TEST_FOCUS_FILE_PATTERNS, buildTestFocusFiles, readTestDirFiles } from "./audit-test-focus.mjs";
 
 const SCRIPT = "audit-test-focus.mjs";
-const { runScriptCopy: runCopy } = createScriptCopyHarness(".test-focus-wiring-");
-
-/** 書き換えた複製を走らせる（複製の置き方・掃除・時間制限は `lib/script-copy-harness.mjs`）。 */
-const runScriptCopy = (mutate) => runCopy(SCRIPT, mutate);
-
-/** 書き換える対象が実装に 1 つだけあり、書き換え後に消えていること（no-op の書き換えで偽の緑にしない）。 */
-const assertRewritten = (source, needle, label) => assertBrokenBy(SCRIPT, source, needle, label);
+const { runScriptCopy } = createScriptCopyHarness(".test-focus-wiring-");
 
 describe("走査対象の型と組み立て（#523）", () => {
   const REPO = path.resolve(SCRIPTS_DIR, "..");
@@ -107,7 +101,7 @@ describe("配線: scripts/audit-test-focus.mjs", () => {
 
   test("対照実行: 今のリポジトリは違反が 0 件で、走査量を出す", () => {
     // Given / When: 書き換えない複製
-    const r = runScriptCopy((s) => s);
+    const r = runScriptCopy(SCRIPT, (s) => s);
     // Then: 複製して走らせる仕組み自体は緑になれる（これが無いと下の赤が「複製の失敗」でも通る）
     assert.equal(r.status, 0, r.stderr);
     assert.match(r.stdout, /\[audit-test-focus\] 走査対象: test ディレクトリのファイル \d+ \/ 名前で分かるテストファイル \d+ \/ 合計 \d+/);
@@ -116,9 +110,9 @@ describe("配線: scripts/audit-test-focus.mjs", () => {
 
   test("テストファイルに .only があれば、OK を出さずに非ゼロで終了する", () => {
     // Given: 走査対象へ .only を 1 件足した複製
-    const r = runScriptCopy((s) => s.replace(CALL, INJECT("it.only('a', () => {});")));
+    const r = runScriptCopy(SCRIPT, (s) => s.replace(CALL, INJECT("it.only('a', () => {});")));
     // Then
-    assertRewritten(r.source, CALL, "差し込み");
+    assertBrokenBy(SCRIPT, r.source, CALL, "差し込み");
     assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
     assert.match(r.stderr, /injected\.test\.ts:1 \.only が残っています/);
     assert.doesNotMatch(r.stdout, /\[audit-test-focus\] OK/);
@@ -126,9 +120,9 @@ describe("配線: scripts/audit-test-focus.mjs", () => {
 
   test("理由の無い .skip があれば非ゼロで終了する", () => {
     // Given: 走査対象へ理由の無い .skip を 1 件足した複製
-    const r = runScriptCopy((s) => s.replace(CALL, INJECT("it.skip('a', () => {});")));
+    const r = runScriptCopy(SCRIPT, (s) => s.replace(CALL, INJECT("it.skip('a', () => {});")));
     // Then
-    assertRewritten(r.source, CALL, "差し込み");
+    assertBrokenBy(SCRIPT, r.source, CALL, "差し込み");
     assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
     assert.match(r.stderr, /injected\.test\.ts:1 \.skip に理由がありません/);
   });
@@ -136,9 +130,9 @@ describe("配線: scripts/audit-test-focus.mjs", () => {
   test("テストファイルの名前の一覧が 0 件なら、走査が空振りしているとして非ゼロで終了する", () => {
     // Given: 名前で分かるテストの一覧を空にした複製
     const needle = "const listed = listRepoFiles(REPO_ROOT, TEST_FOCUS_FILE_PATTERNS);";
-    const r = runScriptCopy((s) => s.replace(needle, "const listed = [];"));
+    const r = runScriptCopy(SCRIPT, (s) => s.replace(needle, "const listed = [];"));
     // Then
-    assertRewritten(r.source, needle, "一覧の空化");
+    assertBrokenBy(SCRIPT, r.source, needle, "一覧の空化");
     assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
     assert.match(r.stderr, /走査対象が 0 件です.*名前で分かるテストファイル/);
   });
@@ -146,12 +140,12 @@ describe("配線: scripts/audit-test-focus.mjs", () => {
   test("git が返しても作業ツリーに無いファイルは読まず、数えない（ENOENT で落ちない）", () => {
     // Given: 一覧に実在しないテストファイルを 1 件足した複製（作業ツリーで消して未ステージの状態）
     const needle = "const listed = listRepoFiles(REPO_ROOT, TEST_FOCUS_FILE_PATTERNS);";
-    const control = runScriptCopy((s) => s);
-    const r = runScriptCopy((s) =>
+    const control = runScriptCopy(SCRIPT, (s) => s);
+    const r = runScriptCopy(SCRIPT, (s) =>
       s.replace(needle, 'const listed = [...listRepoFiles(REPO_ROOT, TEST_FOCUS_FILE_PATTERNS), "scripts/zz-gone.test.mjs"];'),
     );
     // Then: 落ちず、走査量も対照実行と同じ
-    assertRewritten(r.source, needle, "一覧の書き換え");
+    assertBrokenBy(SCRIPT, r.source, needle, "一覧の書き換え");
     assert.equal(r.status, 0, r.stderr);
     const volumeOf = (out) => out.match(/走査対象: .*/)?.[0];
     assert.equal(volumeOf(r.stdout), volumeOf(control.stdout));
@@ -160,9 +154,9 @@ describe("配線: scripts/audit-test-focus.mjs", () => {
   test("test ディレクトリから読む分が 0 件なら、合計が非ゼロでも非ゼロで終了する", () => {
     // Given: test ディレクトリの読み込みを空にした複製（名前で分かる分だけで合計は 0 にならない）
     const needle = "const testDirFiles = readTestDirFiles();";
-    const r = runScriptCopy((s) => s.replace(needle, "const testDirFiles = new Map();"));
+    const r = runScriptCopy(SCRIPT, (s) => s.replace(needle, "const testDirFiles = new Map();"));
     // Then
-    assertRewritten(r.source, needle, "test ディレクトリの空化");
+    assertBrokenBy(SCRIPT, r.source, needle, "test ディレクトリの空化");
     assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
     assert.match(r.stderr, /走査対象が 0 件です.*test ディレクトリのファイル/);
   });

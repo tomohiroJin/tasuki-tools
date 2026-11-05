@@ -1,8 +1,8 @@
 diff --git a/scripts/lib/script-copy-harness.mjs b/scripts/lib/script-copy-harness.mjs
-index 7a5d501..653cba3 100644
+index 8cb370c..4dc0eab 100644
 --- a/scripts/lib/script-copy-harness.mjs
 +++ b/scripts/lib/script-copy-harness.mjs
-@@ -83,7 +83,7 @@ export function createScriptCopyHarness(copyPrefix) {
+@@ -91,7 +91,7 @@ export function createScriptCopyHarness(copyPrefix, { timeoutMs = COPY_TIMEOUT_M
    let copyCounter = 0;
  
    for (const name of fs.readdirSync(SCRIPTS_DIR)) {

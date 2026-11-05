@@ -182,6 +182,48 @@ describe("createScriptCopyHarness", () => {
     assert.deepEqual(left(), []);
   });
 
+  test("then の取り出しが投げても、実行が投げたときの後始末が失敗しても、複製を消し、元のエラーを投げる（#547）", () => {
+    const { withScriptCopy } = createScriptCopyHarness(".harness-selftest-g-");
+    const left = () => fs.readdirSync(SCRIPTS_DIR).filter((n) => n.startsWith(".harness-selftest-g-"));
+    // then の getter が投げる
+    assert.throws(
+      () =>
+        withScriptCopy("check-links.mjs", (s) => s, () => ({
+          get then() {
+            throw new Error("getter-boom");
+          },
+        })),
+      /getter-boom/,
+    );
+    assert.deepEqual(left(), []);
+    // 後始末が失敗する（複製を中身のあるディレクトリに差し替える。force だけの rmSync は落ちる）
+    let dir;
+    try {
+      assert.throws(
+        () =>
+          withScriptCopy("check-links.mjs", (s) => s, (copyPath) => {
+            dir = copyPath;
+            fs.rmSync(copyPath);
+            fs.mkdirSync(copyPath);
+            fs.writeFileSync(path.join(copyPath, "x"), "");
+            throw new Error("original");
+          }),
+        (e) => e.message === "original" && e.cleanupFailure instanceof Error,
+      );
+    } finally {
+      if (dir) fs.rmSync(dir, { recursive: true, force: true });
+    }
+    assert.deepEqual(left(), []);
+  });
+
+  test("時間切れの Error に、それまでの stdout・stderr の末尾を含める（#547）", () => {
+    const { runScriptCopy } = createScriptCopyHarness(".harness-selftest-h-", { timeoutMs: 1500 });
+    assert.throws(
+      () => runScriptCopy("check-links.mjs", () => "console.log('partial-out'); console.error('partial-err'); setTimeout(() => {}, 20000);"),
+      /時間切れ[\s\S]*partial-out[\s\S]*partial-err/,
+    );
+  });
+
   test("複製の実行が時間切れになったら、時間切れと分かる文言で落とす", () => {
     const { runScriptCopy } = createScriptCopyHarness(".harness-selftest-d-", { timeoutMs: 300 });
     assert.throws(() => runScriptCopy("check-links.mjs", () => "setTimeout(() => {}, 5000);"), /時間切れ/);

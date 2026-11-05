@@ -1,7 +1,7 @@
 /**
  * 検査スクリプトの**書き換えた複製**を作って子プロセスで走らせる補助（#135・#544）。
  *
- * scripts の複製を作るテスト（`wiring-*.test.mjs`・`scan-target-wiring.test.mjs`・`audit-test-focus.test.mjs`・`check-toolchain.test.mjs`・`exit-flush.test.mjs`）が共有する。もとは 1 ファイルの
+ * scripts の複製を作るテストが共有する（使い手は `scripts/script-copy-harness.test.mjs` の走査が導出する）。もとは 1 ファイルの
  * `scan-target-wiring.test.mjs` に在ったが、約 3.5 分かかるので検査スクリプトごとのファイルへ分けた
  * （変異の `tests` を関係するファイルだけにし、変異検査のシャードの偏りを小さくするため）。
  * 分けると同時に走るファイルが増えるので、**複製の接頭辞はファイルごとに分ける**。
@@ -113,16 +113,31 @@ export function createScriptCopyHarness(copyPrefix, { timeoutMs = COPY_TIMEOUT_M
     const copyPath = path.join(SCRIPTS_DIR, `${copyPrefix}${process.pid}-${copyCounter++}-${scriptName}`);
     fs.writeFileSync(copyPath, mutated);
     const cleanup = () => fs.rmSync(copyPath, { force: true });
-    let result;
-    try {
-      result = run(copyPath, mutated);
-    } catch (e) {
-      cleanup();
+    // 実行か後始末の途中で落ちたときは元のエラーを投げる。後始末の失敗は `cleanupFailure` に残す
+    const failWith = (e) => {
+      try {
+        cleanup();
+      } catch (ce) {
+        if (e !== null && typeof e === "object") e.cleanupFailure = ce;
+      }
       throw e;
+    };
+    try {
+      const result = run(copyPath, mutated);
+      if (typeof result?.then === "function") {
+        return Promise.resolve(result).then(
+          (v) => {
+            cleanup();
+            return v;
+          },
+          (e) => failWith(e),
+        );
+      }
+      cleanup();
+      return result;
+    } catch (e) {
+      return failWith(e);
     }
-    if (typeof result?.then === "function") return Promise.resolve(result).finally(cleanup);
-    cleanup();
-    return result;
   }
 
   /**
@@ -139,7 +154,11 @@ export function createScriptCopyHarness(copyPrefix, { timeoutMs = COPY_TIMEOUT_M
       const childEnv = { ...process.env, ...env };
       const r = spawnSync(process.execPath, [copyPath, ...args], { encoding: "utf8", timeout: timeoutMs, env: childEnv });
       if (r.error?.code === "ETIMEDOUT") {
-        throw new Error(`複製の実行が ${timeoutMs}ms で時間切れになりました（${scriptName}）。子が固まっていないか確かめてください`);
+        const tail = (t) => (t ?? "").slice(-2000);
+        throw new Error(
+          `複製の実行が ${timeoutMs}ms で時間切れになりました（${scriptName}）。子が固まっていないか確かめてください\n` +
+            `stdout 末尾:\n${tail(r.stdout)}\nstderr 末尾:\n${tail(r.stderr)}`,
+        );
       }
       return { status: r.status, stdout: r.stdout ?? "", stderr: r.stderr ?? "", source: mutated };
     });

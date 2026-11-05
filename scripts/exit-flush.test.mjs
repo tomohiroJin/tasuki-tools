@@ -65,16 +65,16 @@ describe("検査スクリプトは process.exit で終わらない（#540）", (
           child.kill("SIGKILL");
           reject(new Error(`子が ${READ_WAIT_MAX_MS + 10000} ミリ秒で終わりませんでした（stderr を読み始めた後も止まっている）`));
         }, READ_WAIT_MAX_MS + 10000);
-        const cleanup = () => {
+        const clearTimers = () => {
           clearTimeout(wait);
           clearTimeout(guard);
         };
         child.on("close", (status) => {
-          cleanup();
+          clearTimers();
           resolve({ status, stderr: Buffer.concat(stderrChunks).toString("utf8"), source: mutated });
         });
         child.on("error", (e) => {
-          cleanup();
+          clearTimers();
           reject(e);
         });
       }),
