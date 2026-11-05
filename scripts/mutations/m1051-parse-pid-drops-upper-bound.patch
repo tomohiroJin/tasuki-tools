@@ -1,12 +1,10 @@
 diff --git a/scripts/lib/process-alive.mjs b/scripts/lib/process-alive.mjs
 --- a/scripts/lib/process-alive.mjs
 +++ b/scripts/lib/process-alive.mjs
-@@ -36,7 +36,7 @@
+@@ -77,5 +77,5 @@
   */
  export function parsePid(value) {
    const n = typeof value === "number" ? value : Number.parseInt(String(value ?? "").trim(), 10);
 -  return Number.isSafeInteger(n) && n > 0 && n <= MAX_PID ? n : null;
 +  return Number.isSafeInteger(n) && n > 0 ? n : null;
  }
- 
- /** `/proc/<pid>/stat` の文字列から状態の 1 字を取る。形は "pid (comm) S ..."。comm に ")" や空白が入りうるので、最後の ")" の後ろを読む。読めなければ null。 */
