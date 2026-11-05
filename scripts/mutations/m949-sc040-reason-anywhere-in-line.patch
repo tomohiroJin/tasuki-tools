@@ -1,8 +1,8 @@
-diff --git a/scripts/lib/structure/focused-skipped-tests.mjs b/scripts/lib/structure/focused-skipped-tests.mjs
-index e4c514d..65dbc0d 100644
---- a/scripts/lib/structure/focused-skipped-tests.mjs
-+++ b/scripts/lib/structure/focused-skipped-tests.mjs
-@@ -36,7 +36,7 @@ export const FOCUS_NAMES = ["only"];
+diff --git a/scripts/lib/focused-skipped-tests.mjs b/scripts/lib/focused-skipped-tests.mjs
+index fc956b5..03f0486 100644
+--- a/scripts/lib/focused-skipped-tests.mjs
++++ b/scripts/lib/focused-skipped-tests.mjs
+@@ -38,7 +38,7 @@ export const FOCUS_NAMES = ["only"];
   * 行の途中の「理由:」（`// この理由: a は別`・`// 外す理由: 未定`）は理由と認めない。
   * `//`・`/* *\/`・`/** *\/` と、ブロックコメントの各行頭の `*` は、比べる前に外す。
   */

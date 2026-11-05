@@ -1,8 +1,8 @@
-diff --git a/scripts/lib/structure/focused-skipped-tests.mjs b/scripts/lib/structure/focused-skipped-tests.mjs
-index 4ab030a..f1884d1 100644
---- a/scripts/lib/structure/focused-skipped-tests.mjs
-+++ b/scripts/lib/structure/focused-skipped-tests.mjs
-@@ -140,7 +140,7 @@ export function findFocusedOrSkippedTests(file, source) {
+diff --git a/scripts/lib/focused-skipped-tests.mjs b/scripts/lib/focused-skipped-tests.mjs
+index fc956b5..7005d1d 100644
+--- a/scripts/lib/focused-skipped-tests.mjs
++++ b/scripts/lib/focused-skipped-tests.mjs
+@@ -176,7 +176,7 @@ export function findFocusedOrSkippedTests(file, source) {
      const name = accessedName(node);
      if (name !== null && (FOCUS_NAMES.includes(name) || SKIP_NAMES.includes(name))) {
        const root = chainRoot(node.expression);

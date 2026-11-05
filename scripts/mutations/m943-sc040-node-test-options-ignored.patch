@@ -1,8 +1,8 @@
-diff --git a/scripts/lib/structure/focused-skipped-tests.mjs b/scripts/lib/structure/focused-skipped-tests.mjs
-index 4ab030a..7df92c8 100644
---- a/scripts/lib/structure/focused-skipped-tests.mjs
-+++ b/scripts/lib/structure/focused-skipped-tests.mjs
-@@ -145,7 +145,7 @@ export function findFocusedOrSkippedTests(file, source) {
+diff --git a/scripts/lib/focused-skipped-tests.mjs b/scripts/lib/focused-skipped-tests.mjs
+index fc956b5..a95c916 100644
+--- a/scripts/lib/focused-skipped-tests.mjs
++++ b/scripts/lib/focused-skipped-tests.mjs
+@@ -181,7 +181,7 @@ export function findFocusedOrSkippedTests(file, source) {
      if (ts.isCallExpression(node)) {
        const root = chainRoot(node.expression);
        if (root !== null && TEST_API_ROOTS.includes(root)) {

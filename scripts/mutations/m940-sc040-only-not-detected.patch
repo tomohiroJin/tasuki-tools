@@ -1,8 +1,8 @@
-diff --git a/scripts/lib/structure/focused-skipped-tests.mjs b/scripts/lib/structure/focused-skipped-tests.mjs
-index e4c514d..9202036 100644
---- a/scripts/lib/structure/focused-skipped-tests.mjs
-+++ b/scripts/lib/structure/focused-skipped-tests.mjs
-@@ -29,7 +29,7 @@ export const TEST_API_ROOTS = ["it", "test", "describe", "suite"];
+diff --git a/scripts/lib/focused-skipped-tests.mjs b/scripts/lib/focused-skipped-tests.mjs
+index fc956b5..e43e401 100644
+--- a/scripts/lib/focused-skipped-tests.mjs
++++ b/scripts/lib/focused-skipped-tests.mjs
+@@ -31,7 +31,7 @@ export const TEST_API_ROOTS = ["it", "test", "describe", "suite"];
  export const SKIP_NAMES = ["skip", "skipIf", "runIf", "todo", "fixme"];
  
  /** 理由があっても止める名前。 */

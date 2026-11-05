@@ -1,8 +1,8 @@
-diff --git a/scripts/lib/structure/focused-skipped-tests.mjs b/scripts/lib/structure/focused-skipped-tests.mjs
-index 4ab030a..a1310d2 100644
---- a/scripts/lib/structure/focused-skipped-tests.mjs
-+++ b/scripts/lib/structure/focused-skipped-tests.mjs
-@@ -91,7 +91,7 @@ function adjacentCommentText(source, statement) {
+diff --git a/scripts/lib/focused-skipped-tests.mjs b/scripts/lib/focused-skipped-tests.mjs
+index fc956b5..de93e87 100644
+--- a/scripts/lib/focused-skipped-tests.mjs
++++ b/scripts/lib/focused-skipped-tests.mjs
+@@ -112,7 +112,7 @@ function adjacentCommentText(source, statement) {
    let boundary = statement.getStart();
    for (let i = ranges.length - 1; i >= 0; i--) {
      const gap = source.slice(ranges[i].end, boundary);

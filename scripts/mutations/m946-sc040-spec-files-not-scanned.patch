@@ -1,13 +1,13 @@
-diff --git a/scripts/audit-structure.mjs b/scripts/audit-structure.mjs
-index 302a902..26b580b 100644
---- a/scripts/audit-structure.mjs
-+++ b/scripts/audit-structure.mjs
-@@ -111,7 +111,7 @@ const EXT_TS = [".ts", ".tsx"];
-  * 各パッケージの test ディレクトリ（`allTestFiles`）の外にあるもの（`e2e/specs`・`scripts/`・`packages/ui/tests`・
-  * `src` の中の `*_test.ts` など）をここで足す。`allTestFiles` と和を取るので、重なっても害は無い。
+diff --git a/scripts/audit-test-focus.mjs b/scripts/audit-test-focus.mjs
+index eecc914..bb77c90 100644
+--- a/scripts/audit-test-focus.mjs
++++ b/scripts/audit-test-focus.mjs
+@@ -38,7 +38,7 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..
+  * 各パッケージの test ディレクトリの外にあるもの（`e2e/specs`・`scripts/`・`packages/ui/tests`・
+  * `src` の中の `*_test.ts` など）をここで足す。test ディレクトリの全ファイルと和を取るので、重なっても害は無い。
   */
--export const SC040_TEST_FILE_PATTERNS = ["test", "spec"].flatMap((kind) =>
-+export const SC040_TEST_FILE_PATTERNS = ["test"].flatMap((kind) =>
+-export const TEST_FOCUS_FILE_PATTERNS = ["test", "spec"].flatMap((kind) =>
++export const TEST_FOCUS_FILE_PATTERNS = ["test"].flatMap((kind) =>
    ["js", "jsx", "ts", "tsx", "mjs", "cjs", "mts", "cts"].flatMap((ext) => [
      `*.${kind}.${ext}`,
      `*_${kind}.${ext}`,

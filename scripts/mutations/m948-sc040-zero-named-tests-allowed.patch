@@ -1,13 +1,13 @@
-diff --git a/scripts/audit-structure.mjs b/scripts/audit-structure.mjs
-index c8f74cc..1016535 100644
---- a/scripts/audit-structure.mjs
-+++ b/scripts/audit-structure.mjs
-@@ -1385,7 +1385,7 @@ function main() {
+diff --git a/scripts/audit-test-focus.mjs b/scripts/audit-test-focus.mjs
+index eecc914..40dc42a 100644
+--- a/scripts/audit-test-focus.mjs
++++ b/scripts/audit-test-focus.mjs
+@@ -75,7 +75,7 @@ function main() {
    );
    // 走査量は成否によらず必ず出す（#135 D5）。0 件なら検査が空振りしている。
-   console.log(`[audit-structure] SC-040 の走査対象: ${sc040Files.size} ファイル`);
--  if (hasZeroScanTargets(sc040Files.size) || hasZeroScanTargets(namedTestPaths.length)) {
-+  if (hasZeroScanTargets(sc040Files.size)) {
-     console.error("[audit-structure] SC-040 の走査対象が 0 件です（検査が空振りします）");
+   console.log(`[audit-test-focus] 走査対象: ${files.size} ファイル（名前で分かるもの ${namedTestPaths.length}）`);
+-  if (hasZeroScanTargets(files.size) || hasZeroScanTargets(namedTestPaths.length)) {
++  if (hasZeroScanTargets(files.size)) {
+     console.error("[audit-test-focus] 走査対象が 0 件です（検査が空振りします）");
      process.exit(1);
    }
