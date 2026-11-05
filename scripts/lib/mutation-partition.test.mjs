@@ -111,7 +111,7 @@ describe("partitionMutations: n 個に分ける", () => {
   test("渡した重さを使う（重さを無視して件数で配らない）", () => {
     // 件数では組 A（3 件）が最も重いが、重さの関数では組 C を最も重くする。
     // C が 1 つ目に入ると、残りの 3 組は 1 つ目（100）より軽い 2 つ目へ寄る。ただし apps/a の 2 組は
-    // 置き場の中で散らすので、A_OTHER だけは 1 つ目へ入る
+    // 置き場の中で散らすので、A_OTHER だけは 1 つ目へ入る。（重さが大きくても「重い組」の印（isHeavy）が無ければ、先には配らない）
     const heavyC = (g) => (g.pkg === "apps/c" ? 100 : 1);
     const parts = partitionMutations(MUTS, 2, heavyC);
     assert.deepEqual(parts.map(idsOf), [
@@ -141,6 +141,61 @@ describe("partitionMutations: n 個に分ける", () => {
     const z = { id: 3, pkg: "p", tests: ["z"] };
     const weight = (g) => (g.tests[0] === "z" ? 2 : 1);
     assert.deepEqual(partitionMutations([x, y, z], 2, weight).map(idsOf), [[3], [1, 2]]);
+  });
+
+  describe("重い組は重さで均す（#546）", () => {
+    // 重い 1 組（100）と、軽い 30 組（各 8。2 つの置き場に 15 組ずつ。重い組の置き場より重いので、軽い組が先に配られる）。
+    // 置き場ごとに均すだけだと、軽い組が 4 つの分け前に 1/4 ずつ入り、重い組の分け前が 100 + 60 になる。重さで均せば、重い組の分け前は 100 のまま
+    const heavy = { id: 1, pkg: "scripts", tests: ["heavy"] };
+    const lights = Array.from({ length: 30 }, (_, i) => ({ id: 10 + i, pkg: i % 2 ? "apps/x" : "packages/y", tests: [`l${String(i).padStart(2, "0")}`] }));
+    // 重い組の印（weightOf.isHeavy。本番は実測の表の行）は、heavy で始まる名前の組
+    const withHeavy = (fn) => Object.assign(fn, { isHeavy: (g) => g.tests[0].startsWith("heavy") });
+    const weight = withHeavy((g) => (g.tests[0].startsWith("heavy") ? 100 : 8));
+    const loadsOf = (parts) => parts.map((part) => groupByControl(part).reduce((sum, g) => sum + weight(g), 0));
+
+    test("重い組の分け前に軽い組を足さず、最も長い分け前が重い組 1 つぶんに収まる", () => {
+      const loads = loadsOf(partitionMutations([heavy, ...lights], 4, weight));
+      assert.equal(Math.max(...loads), 100, `分け前の重さ: ${loads}`);
+    });
+
+    test("重い組が 2 つなら別の分け前へ入れる", () => {
+      const heavy2 = { id: 2, pkg: "scripts", tests: ["heavy2"] };
+      const w = weight;
+      const parts = partitionMutations([heavy, heavy2, ...lights], 4, w);
+      const withHeavy = parts.map((part) => part.filter((m) => m.tests[0].startsWith("heavy")).length);
+      assert.deepEqual(withHeavy.sort(), [0, 0, 1, 1]);
+    });
+
+    test("重い組があっても、合わせると全件で重ならず、空の分け前も作らない", () => {
+      for (const n of [2, 3, 4, 5]) {
+        const parts = partitionMutations([heavy, ...lights], n, weight);
+        assert.deepEqual(parts.flat().map((m) => m.id).sort((a, b) => a - b), [heavy, ...lights].map((m) => m.id).sort((a, b) => a - b));
+        assert.ok(parts.every((part) => part.length > 0), `n=${n}`);
+      }
+    });
+
+    test("重い組があっても、置き場ごとに散らす性質は残る（軽い組どうしは置き場ごとに分け前へ散る）", () => {
+      const parts = partitionMutations([heavy, ...lights], 4, weight);
+      const light = parts.filter((part) => !part.includes(heavy));
+      for (const pkg of ["apps/x", "packages/y"]) {
+        const counts = light.map((part) => part.filter((m) => m.pkg === pkg).length);
+        assert.ok(Math.max(...counts) - Math.min(...counts) <= 1, `${pkg}: ${counts}`);
+      }
+    });
+  
+    test("重い組の印が無い組は、重さが大きくても先に配らない（印は実測の表の行に限る。見積もりだけの重さは当てにしない）", () => {
+      const plain = (g) => (g.tests[0] === "heavy" ? 100 : 8);
+      const loads = loadsOf(partitionMutations([heavy, ...lights], 4, plain));
+      assert.ok(Math.max(...loads) > 100, `分け前の重さ: ${loads}`);
+    });
+
+    test("重い組どうしは重い順に配る（鍵の順に配ると偏る）", () => {
+      // 重さ 80・40・40。重い順なら 80 | 40+40 で揃う。鍵の順（a・b・c）に配ると 40+80 | 40 に偏る
+      const mk = (id, name) => ({ id, pkg: "p", tests: [name] });
+      const w = withHeavy((g) => (g.tests[0] === "heavyC" ? 80 : 40));
+      const parts = partitionMutations([mk(1, "heavyA"), mk(2, "heavyB"), mk(3, "heavyC")], 2, w);
+      assert.deepEqual(parts.map(idsOf), [[3], [1, 2]]);
+    });
   });
 
   test("組の数より多くは分けられない（空の分け前を作らない）", () => {

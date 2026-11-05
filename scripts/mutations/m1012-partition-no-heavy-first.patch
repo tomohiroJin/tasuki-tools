@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/mutation-partition.mjs b/scripts/lib/mutation-partition.mjs
+index 175fcd2..4a59ccb 100644
+--- a/scripts/lib/mutation-partition.mjs
++++ b/scripts/lib/mutation-partition.mjs
+@@ -92,7 +92,7 @@ export function partitionMutations(mutations, n, weightOf) {
+     if (!Number.isFinite(entry.weight) || entry.weight <= 0) {
+       throw new Error(`組の重さは正の有限の数です: ${entry.weight}（${entry.group.pkg}）`);
+     }
+-    if (isHeavy(entry.group)) {
++    if (false) {
+       heavy.push(entry);
+       continue;
+     }

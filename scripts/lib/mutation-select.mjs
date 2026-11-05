@@ -199,14 +199,20 @@ export function narrowingCandidates(mutations, resolved) {
 }
 
 /**
- * 見込みの時間（秒）。対照の組ごとの重さ（`weightOf`。mutation-check の `RUNNER_COST_SECONDS` の目安）を足し、
- * `--jobs` のときは作業ツリーの数で割る（作業ツリーの準備の時間は入れない）。**目安であって約束ではない。**
+ * 見込みの時間（秒）。対照の組ごとの重さ（`weightOf`。mutation-check の `RUNNER_COST_SECONDS` の目安と、
+ * 重い組の実測の表）を足し、`--jobs` のときは作業ツリーに分けた最も長いものの重さ（作業ツリーの準備の時間は入れない）。**目安であって約束ではない。**
  */
 export function estimateSeconds(mutations, weightOf, jobs = 1) {
   if (mutations.length === 0) return 0;
   const groups = groupByControl(mutations);
-  const total = groups.reduce((sum, group) => sum + weightOf(group), 0);
-  return total / Math.min(jobs, groups.length);
+  const workers = Math.min(jobs, groups.length);
+  if (workers === 1) return groups.reduce((sum, group) => sum + weightOf(group), 0);
+  // 実際の分け方（planWorkers と同じ partitionMutations）で分け、最も長いワーカーの重さを返す（#546）。
+  // 和を割ると、重い組を持つワーカーが全体の足を引くのを見落とす
+  const loads = partitionMutations(mutations, workers, weightOf).map((part) =>
+    groupByControl(part).reduce((sum, group) => sum + weightOf(group), 0),
+  );
+  return Math.max(...loads);
 }
 
 function formatDuration(seconds) {
@@ -224,7 +230,7 @@ function formatDuration(seconds) {
 export function formatForecast(selector, { selected, fallbackToAll }, { seconds, jobs, candidates, candidateSeconds = null }) {
   const lines = [
     `見込み: ${selected.length} 件・約 ${formatDuration(seconds)}` +
-      `（${jobs > 1 ? `--jobs ${jobs}・` : ""}RUNNER_COST_SECONDS の目安。9p の上や混んだ環境では何倍にもなります）`,
+      `（${jobs > 1 ? `--jobs ${jobs}・` : ""}RUNNER_COST_SECONDS の目安と、重い組の実測の表 mutation-weights.mjs。9p の上や混んだ環境では何倍にもなります）`,
   ];
   if (selector.kind !== "changed" || fallbackToAll === null) return lines;
   // 理由は表題（formatSelectionHeader）が出すので、ここでは繰り返さない

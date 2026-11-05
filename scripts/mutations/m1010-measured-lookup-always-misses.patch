@@ -1,0 +1,11 @@
+diff --git a/scripts/lib/mutation-weights.mjs b/scripts/lib/mutation-weights.mjs
+index abbddfb..966ffa8 100644
+--- a/scripts/lib/mutation-weights.mjs
++++ b/scripts/lib/mutation-weights.mjs
+@@ -46,5 +46,5 @@ export function groupKeyOf(group) {
+ 
+ /** 表にある組の実測の秒数。無ければ null（呼び出し側が、ランナーごとの既定値へ倒す）。 */
+ export function measuredCostOf(group) {
+-  return MEASURED_GROUP_SECONDS[groupKeyOf(group)] ?? null;
++  return null;
+ }

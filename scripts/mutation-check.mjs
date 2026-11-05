@@ -86,6 +86,7 @@ import {
 } from "./lib/mutation-select.mjs";
 import { checkBaseFreshness } from "./lib/base-freshness.mjs";
 import { createControlCache } from "./lib/mutation-control-cache.mjs";
+import { measuredCostOf } from "./lib/mutation-weights.mjs";
 import {
   parseJobs,
   planWorkers,
@@ -833,11 +834,20 @@ export const RUNNER_COST_SECONDS = Object.freeze({
   node: Object.freeze({ control: 0.4, mutation: 0.4 }),
 });
 
-/** 対照の組の重さ。対照 1 回＋変異の件数ぶんの起動を、ランナーごとの目安で足す。 */
+/**
+ * 対照の組の重さ。対照 1 回＋変異の件数ぶんの起動を足す。1 回の秒数は、重い組なら実測の表
+ * （`scripts/lib/mutation-weights.mjs`。#546）、それ以外はランナーごとの目安。
+ */
 export function weightOfGroup(group) {
-  const cost = RUNNER_COST_SECONDS[detectRunner(path.join(WORKSPACE_ROOT, group.pkg))];
+  const cost = measuredCostOf(group) ?? RUNNER_COST_SECONDS[detectRunner(path.join(WORKSPACE_ROOT, group.pkg))];
   return cost.control + cost.mutation * group.mutations.length;
 }
+
+/**
+ * 分け方（partitionMutations）へ渡す「重い組」の印。実測の表の行に限る（#546）。
+ * 見積もりだけが大きい組は、実測では軽いことがある（既定値は手元の測定で、環境が違う）ので、重い組として先には配らない。
+ */
+weightOfGroup.isHeavy = (group) => measuredCostOf(group) !== null;
 
 /**
  * parseSelector の結果に、`--changed` のときだけ選び方の材料を足す。

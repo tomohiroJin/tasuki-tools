@@ -101,6 +101,9 @@ const RESERVED_985_994 =
 const RESERVED_1000_1009 =
   "**対応表より後に足した変異。** 1000〜1009 は #544 に割り当てた範囲。";
 
+const RESERVED_1010_1019 =
+  "**対応表より後に足した変異。** 1010〜1019 は #546 に割り当てた範囲。";
+
 export const MUTATIONS = [
   {
     id: 1,
@@ -6062,5 +6065,45 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["script-copy-harness.test.mjs"],
     note: RESERVED_1000_1009 + " " + "#544。同時に走る別のファイルの複製（や scripts/ の隠しファイル）を消し、走行中のテストが落ちる。",
+  },
+  {
+    id: 1010,
+    label: "実測の表の引きが、表にある組も常に「表に無い」を返す（重さがランナーごとの固定値に戻る）",
+    patch: "m1010-measured-lookup-always-misses.patch",
+    pkg: "scripts",
+    tests: ["lib/mutation-weights.test.mjs"],
+    note: RESERVED_1010_1019 + " " + "#546。重い組（約 1 分の検査スクリプトのテストなど）も 0.4 秒として数えられ、それを指す変異が同じシャード・ワーカーに寄って、そこだけが時間切れに近づく（#544 では 1 つのシャードが 18 分になった）。",
+  },
+  {
+    id: 1011,
+    label: "実測の表の鍵が、組の最初のテストファイルだけで決まる（組の並びを見ない）",
+    patch: "m1011-group-key-uses-first-test-only.patch",
+    pkg: "scripts",
+    tests: ["lib/mutation-weights.test.mjs"],
+    note: RESERVED_1010_1019 + " " + "#546。重いファイルを含む別の組（軽いファイルを足した組など）まで重い組として数えられ、分け前が逆に偏る。",
+  },
+  {
+    id: 1012,
+    label: "分け方が重い組を先に重さで均さず、全部を置き場ごとの散らしだけで配る",
+    patch: "m1012-partition-no-heavy-first.patch",
+    pkg: "scripts",
+    tests: ["lib/mutation-partition.test.mjs"],
+    note: RESERVED_1010_1019 + " " + "#546。重い組の分け前にも軽い組が 1/n ずつ足され、最も長いシャード・ワーカーが短くならない。",
+  },
+  {
+    id: 1013,
+    label: "軽い組の配り方が、重い組で埋まった分け前の空きを見ず、どの分け前にも同じ量を配る",
+    patch: "m1013-partition-ignores-room.patch",
+    pkg: "scripts",
+    tests: ["lib/mutation-partition.test.mjs"],
+    note: RESERVED_1010_1019 + " " + "#546。重い組を持つ分け前に軽い組が余分に載り、そこだけが長くなる。",
+  },
+  {
+    id: 1014,
+    label: "分け方が重い組を重い順でなく鍵の順に配る",
+    patch: "m1014-partition-heavy-in-key-order.patch",
+    pkg: "scripts",
+    tests: ["lib/mutation-partition.test.mjs"],
+    note: RESERVED_1010_1019 + " " + "#546。重い組が鍵の順に配られ、重い組どうしが同じ分け前に寄って最も長い分け前が伸びる。",
   },
 ];

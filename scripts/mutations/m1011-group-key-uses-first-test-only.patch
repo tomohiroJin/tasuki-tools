@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/mutation-weights.mjs b/scripts/lib/mutation-weights.mjs
+index abbddfb..cfef2bf 100644
+--- a/scripts/lib/mutation-weights.mjs
++++ b/scripts/lib/mutation-weights.mjs
+@@ -41,7 +41,7 @@ export const MEASURED_GROUP_SECONDS = Object.freeze({
+ 
+ /** 対照の組（`pkg`・`tests` を持つもの）の表の鍵。 */
+ export function groupKeyOf(group) {
+-  return `${group.pkg} :: ${group.tests.join(" ")}`;
++  return `${group.pkg} :: ${group.tests[0]}`;
+ }
+ 
+ /** 表にある組の実測の秒数。無ければ null（呼び出し側が、ランナーごとの既定値へ倒す）。 */
