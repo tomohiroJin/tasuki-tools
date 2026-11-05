@@ -1848,7 +1848,7 @@ describe("検査スクリプトは process.exit で終わらない（#540）", (
    */
   const EXIT_ALLOWED = {
     "mutation-check.mjs":
-      "変異の復元・ロック・シグナルの後始末（`exit` フック）に絡む終わり方で、return に替えると復元が走らない経路がある。別 ISSUE で扱う（#540 の範囲外）",
+      "変異の復元・ロック・シグナルの後始末（`exit` フック）に絡む終わり方で、return に替えると復元が走らない経路がある。#542 で扱う（#540 の範囲外）",
   };
 
   const scriptsUnderGuard = () =>
