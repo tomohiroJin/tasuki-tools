@@ -2,9 +2,9 @@
  * `scripts/audit-dependency-direction.mjs` の単体テスト。
  *
  * 判定は純粋関数（{@link findViolations}）に寄せてあるので、ファイルシステムを
- * 触らずに合成した観測結果で見る。**実リポジトリでの配線**（宣言と実体の全単射・
- * 走査量の出力）は `scan-target-wiring.test.mjs` と `entry-point-wiring.test.mjs` が
- * 導出で拾う。
+ * 触らずに合成した観測結果で見る。**実リポジトリでの配線**（宣言と 0 件ガード）は
+ * `wiring-audit-dependency-direction.test.mjs` が、走査量の出力と CI への配線は `scan-target-wiring.test.mjs` と
+ * `entry-point-wiring.test.mjs` が導出で拾う。
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";

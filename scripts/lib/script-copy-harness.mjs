@@ -50,6 +50,25 @@ export function assertBrokenBy(scriptName, mutatedSource, needle, label) {
 }
 
 /**
+ * 複製の接頭辞の重なりを返す。別のファイルの接頭辞で始まる接頭辞があると、
+ * 片方の起動時の掃除が他方の複製を消す。
+ *
+ * @param {{ file: string, prefix: string }[]} declared ファイルごとに宣言された接頭辞
+ * @returns {string[]} 重なりの説明（空なら重なりなし）
+ */
+export function findPrefixOverlaps(declared) {
+  const overlaps = [];
+  for (const a of declared) {
+    for (const b of declared) {
+      if (a !== b && a.prefix.startsWith(b.prefix)) {
+        overlaps.push(`${a.file} の ${a.prefix} が ${b.file} の ${b.prefix} で始まる`);
+      }
+    }
+  }
+  return overlaps;
+}
+
+/**
  * 複製の接頭辞で縛った補助一式を返す。呼ぶと、前回の異常終了で残った**同じ接頭辞の**複製を掃除する。
  *
  * 複製は `finally` で消しているが、SIGKILL 等で落ちると残る。残ると

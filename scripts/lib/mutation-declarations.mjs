@@ -98,6 +98,9 @@ const RESERVED_910_919 =
 const RESERVED_985_994 =
   "**対応表より後に足した変異。** 985〜994 は #540 に割り当てた範囲。";
 
+const RESERVED_1000_1009 =
+  "**対応表より後に足した変異。** 1000〜1009 は #544 に割り当てた範囲。";
+
 export const MUTATIONS = [
   {
     id: 1,
@@ -6043,5 +6046,21 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["lib/process-alive.test.mjs"],
     note: RESERVED_995_999 + " " + "#525 の /code-review。kill 0 の後に回収された孫を、ps も見つけられず null → 生きていると読み、孫のテストが誤って落ちる。",
+  },
+  {
+    id: 1000,
+    label: "複製の接頭辞の重なりの判定が、重なりを常に見逃す",
+    patch: "m1000-copy-harness-overlap-never-reported.patch",
+    pkg: "scripts",
+    tests: ["script-copy-harness.test.mjs"],
+    note: RESERVED_1000_1009 + " " + "#544。接頭辞が別のファイルの接頭辞の前方一致になっても気づけず、並列に走るテストの複製が互いの掃除で消えて、原因の分かりにくい失敗になる。",
+  },
+  {
+    id: 1001,
+    label: "複製の起動時の掃除が、自分の接頭辞より広く（`.` で始まる名前すべて）消す",
+    patch: "m1001-copy-harness-cleanup-removes-any-dot-file.patch",
+    pkg: "scripts",
+    tests: ["script-copy-harness.test.mjs"],
+    note: RESERVED_1000_1009 + " " + "#544。同時に走る別のファイルの複製（や scripts/ の隠しファイル）を消し、走行中のテストが落ちる。",
   },
 ];

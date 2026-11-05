@@ -9,7 +9,7 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { SCRIPTS_DIR, createScriptCopyHarness } from "./lib/script-copy-harness.mjs";
+import { SCRIPTS_DIR, createScriptCopyHarness, findPrefixOverlaps } from "./lib/script-copy-harness.mjs";
 
 const SELF = "script-copy-harness.test.mjs";
 
@@ -37,19 +37,16 @@ describe("複製の接頭辞はファイルごとに分かれている", () => {
   });
 
   test("どの接頭辞も、別のファイルの接頭辞と前方一致しない", () => {
-    const clashes = [];
-    for (const a of found) {
-      for (const b of found) {
-        if (a !== b && a.prefix.startsWith(b.prefix)) {
-          clashes.push(`${a.file} の ${a.prefix} が ${b.file} の ${b.prefix} で始まる`);
-        }
-      }
-    }
-    assert.deepEqual(clashes, []);
+    assert.deepEqual(findPrefixOverlaps(found), []);
   });
 });
 
 describe("createScriptCopyHarness", () => {
+  test("重なりの判定は、前方一致する接頭辞の組を名指しで返す（判定自身の空振り検出）", () => {
+    assert.deepEqual(findPrefixOverlaps([{ file: "a", prefix: ".x-" }, { file: "b", prefix: ".y-" }]), []);
+    assert.equal(findPrefixOverlaps([{ file: "a", prefix: ".x-" }, { file: "b", prefix: ".x-y-" }]).length, 1);
+  });
+
   test("起動時の掃除は自分の接頭辞の残骸だけを消し、別の接頭辞のものは消さない", () => {
     // Given: 自分の接頭辞と、別の接頭辞の残骸
     const mine = path.join(SCRIPTS_DIR, ".harness-selftest-a-leftover.mjs");
