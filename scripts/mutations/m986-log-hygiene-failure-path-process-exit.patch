@@ -1,0 +1,14 @@
+diff --git a/scripts/audit-log-hygiene.mjs b/scripts/audit-log-hygiene.mjs
+index c0e1a84..199b36f 100644
+--- a/scripts/audit-log-hygiene.mjs
++++ b/scripts/audit-log-hygiene.mjs
+@@ -547,8 +547,7 @@ function main() {
+       );
+     }
+     console.error(`\n${problems.length} 件の問題があります`);
+-    process.exitCode = 1;
+-    return;
++    process.exit(1);
+   }
+   console.log("ログ衛生 OK");
+ }

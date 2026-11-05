@@ -92,6 +92,9 @@ const RESERVED_850_859 =
 const RESERVED_910_919 =
   "**対応表より後に足した変異。** 910〜919 は #521 に割り当てた範囲。2.5 の行ごと（IPv6 の展開・転送ヘッダーの取り出し・NODE_ENV の引用符・ループバックの判定・設定の検査・掃除の境目・フレームの上限）に代表を 1 件ずつ選んだ。全件は宣言しない。";
 
+const RESERVED_985_994 =
+  "**対応表より後に足した変異。** 985〜994 は #540 に割り当てた範囲。";
+
 export const MUTATIONS = [
   {
     id: 1,
@@ -5933,6 +5936,22 @@ export const MUTATIONS = [
     pkg: "packages/timer-core",
     tests: ["test/bounds.properties.test.ts"],
     note: RESERVED_980_984 + " " + "#534のレビュー。一時離脱中の代理が席を持つのに上限に数えられず、10 席の輪にも足せて 11 席になる。",
+  },
+  {
+    id: 985,
+    label: "audit-plan-gate が、設計文書の問題を一覧で書いた直後に process.exitCode を立てず process.exit(1) で終わる",
+    patch: "m985-plan-gate-failure-path-process-exit.patch",
+    pkg: "scripts",
+    tests: ["scan-target-wiring.test.mjs"],
+    note: RESERVED_985_994 + " " + "#540。stderr がパイプのとき process.exit は書き出し途中の出力を捨てる。失敗の一覧が途中で切れ、末尾の「様式の正本」が届かない。負荷の下で #853 の対照実行が CI でときどき落ちた形。親が遅れて読む実行で決定的に赤くなる。",
+  },
+  {
+    id: 986,
+    label: "audit-log-hygiene が、問題の一覧を書いた直後に process.exitCode を立てず process.exit(1) で終わる",
+    patch: "m986-log-hygiene-failure-path-process-exit.patch",
+    pkg: "scripts",
+    tests: ["scan-target-wiring.test.mjs"],
+    note: RESERVED_985_994 + " " + "#540。audit-plan-gate 以外の検査へ process.exit が戻る形（導出の検査が拾う）。長い一覧が負荷の下で切れる。",
   },
   {
     id: 960,
