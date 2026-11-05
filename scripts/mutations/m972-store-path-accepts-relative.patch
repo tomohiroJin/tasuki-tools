@@ -1,11 +1,11 @@
 diff --git a/scripts/lib/mutation-parallel.mjs b/scripts/lib/mutation-parallel.mjs
-index 4228cc9..ac4fecc 100644
+index cadfa39..3917533 100644
 --- a/scripts/lib/mutation-parallel.mjs
 +++ b/scripts/lib/mutation-parallel.mjs
-@@ -139,7 +139,7 @@ export function installArgs(storeDir) {
-  */
- export function storePathFrom(output) {
-   const storeDir = String(output).trim();
+@@ -144,7 +144,7 @@ export function storePathFrom(output) {
+   if (/[\r\n]/.test(storeDir)) {
+     throw new Error(`pnpm store path の出力が複数行です: ${JSON.stringify(storeDir)}`);
+   }
 -  if (!path.isAbsolute(storeDir)) {
 +  if (storeDir === undefined) {
      throw new Error(`pnpm store path の出力が絶対パスではありません: ${JSON.stringify(storeDir)}`);
