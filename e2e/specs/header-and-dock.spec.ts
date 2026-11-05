@@ -18,14 +18,11 @@ import { chooseMethod, handCard, joinCheckinTool, openCheckinTool } from '../sup
 import { chooseCard, createRoom as createPokerRoom, joinRoom as joinPokerRoom, turnRecordingOn } from '../support/poker';
 import { createRoom as createTimerRoom } from '../support/timer';
 
-/** 見出しの全体の高さの上限（px）。poker の 320px で、題・戻る＋記録する・仲間を招くの 3 段（実測 約 150px）に収める。以前は 4 段で約 230px。 */
-const HEADER_MAX_HEIGHT = 170;
+/** 見出しの全体の高さの上限（px）。poker の 320px で、題・戻る＋記録する・仲間を招くの 3 段（実測 124px）に収める。以前は 4 段で約 230px。 */
+const HEADER_MAX_HEIGHT = 140;
 
 /** 40rem 未満の帯の操作の段数の上限。 */
 const DOCK_MAX_ROWS = 2;
-
-/** 帯のボタンの高さの上限。`--lg` で 48px 前後。字が 2 行に折れると 70px 前後になる。 */
-const DOCK_MAX_BUTTON_HEIGHT = 56;
 
 /** 帯の上端の内側の余白の下限（`--space-2`）。 */
 const DOCK_MIN_PADDING_TOP = 8;
@@ -78,8 +75,10 @@ interface DockFacts {
   rows: number;
   height: number;
   paddingTop: number;
-  /** 帯の中のボタンの最大の高さ。字が 2 行に折れると 44px を大きく超える。 */
-  maxButtonHeight: number;
+  /** 帯の中のボタンの字の行数の最大（字が折れていれば 2 以上）。 */
+  maxTextLines: number;
+  /** 操作（ボタン）が奇数で選択欄が無いとき、最後の主の幅 ÷ 帯の内側の幅。それ以外は null。 */
+  lastPrimaryRatio: number | null;
   alpha: number;
   backgroundImage: string;
   position: string;
@@ -90,20 +89,38 @@ async function dockFacts(dock: Locator): Promise<DockFacts> {
   return dock.evaluate((el) => {
     const cs = getComputedStyle(el);
     const tops: number[] = [];
-    let maxButtonHeight = 0;
+    let maxTextLines = 0;
+    const buttons: Element[] = [];
     for (const child of Array.from(el.querySelectorAll('button, select, a'))) {
       const r = child.getBoundingClientRect();
       if (r.width === 0 || r.height === 0) continue;
-      if (child.tagName === 'BUTTON') maxButtonHeight = Math.max(maxButtonHeight, r.height);
+      if (child.tagName === 'BUTTON') {
+        buttons.push(child);
+        // 字の行数: 字のノードの矩形の縦の位置の種類（アイコンの svg は数えない）
+        const lineTops: number[] = [];
+        const walker = document.createTreeWalker(child, NodeFilter.SHOW_TEXT);
+        for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+          if ((n.textContent ?? '').trim() === '') continue;
+          const range = document.createRange();
+          range.selectNodeContents(n);
+          for (const lr of Array.from(range.getClientRects())) {
+            if (!lineTops.some((t) => Math.abs(t - lr.top) < lr.height / 2)) lineTops.push(lr.top);
+          }
+        }
+        maxTextLines = Math.max(maxTextLines, lineTops.length);
+      }
       if (!tops.some((t) => Math.abs(t - r.top) < r.height / 2)) tops.push(r.top);
     }
     const match = /rgba?\(([^)]+)\)/.exec(cs.backgroundColor);
     const parts = match ? match[1]!.split(/[,/ ]+/).filter(Boolean) : [];
+    const inner = el.getBoundingClientRect().width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const last = buttons.at(-1)?.getBoundingClientRect();
     return {
+      lastPrimaryRatio: buttons.length % 2 === 1 && el.querySelector('select') === null && last !== undefined ? last.width / inner : null,
       rows: tops.length,
       height: el.getBoundingClientRect().height,
       paddingTop: parseFloat(cs.paddingTop),
-      maxButtonHeight,
+      maxTextLines,
       alpha: parts.length >= 4 ? parseFloat(parts[3]!) : match ? 1 : 0,
       backgroundImage: cs.backgroundImage,
       position: cs.position,
@@ -112,12 +129,15 @@ async function dockFacts(dock: Locator): Promise<DockFacts> {
 }
 
 /** 40rem・64rem 未満の帯が約束（不透明・上の余白・段数）を守る。 */
-async function expectDockContract(dock: Locator, label: string, maxRows = DOCK_MAX_ROWS): Promise<void> {
+async function expectDockContract(dock: Locator, label: string, wholeWidthPrimary = true, maxRows = DOCK_MAX_ROWS): Promise<void> {
   const f = await dockFacts(dock);
   expect(f.alpha, `${label}: 帯の地が不透明でない（α=${f.alpha}）。字の後ろに中身が透ける`).toBe(1);
   expect(f.backgroundImage, `${label}: 帯の地に透明へ溶けるグラデーションがある`).toBe('none');
   expect(f.paddingTop, `${label}: 帯の上端の内側の余白が ${DOCK_MIN_PADDING_TOP}px 未満`).toBeGreaterThanOrEqual(DOCK_MIN_PADDING_TOP);
-  expect(f.maxButtonHeight, `${label}: 帯のボタンの字が折れている（高さ ${f.maxButtonHeight}px）`).toBeLessThanOrEqual(DOCK_MAX_BUTTON_HEIGHT);
+  expect(f.maxTextLines, `${label}: 帯のボタンの字が ${f.maxTextLines} 行に折れている`).toBeLessThanOrEqual(1);
+  if (f.lastPrimaryRatio !== null && wholeWidthPrimary) {
+    expect(f.lastPrimaryRatio, `${label}: 奇数の最後の主が全幅の段でない（帯の内側の幅の ${f.lastPrimaryRatio}）`).toBeGreaterThanOrEqual(0.95);
+  }
   expect(f.rows, `${label}: 帯の操作が ${f.rows} 段（${maxRows} 段まで）`).toBeLessThanOrEqual(maxRows);
 }
 
@@ -207,7 +227,7 @@ test.describe('agenda の進行中の帯', () => {
     const dock = page.locator('.run-controls');
     for (const width of [390, 768]) {
       await page.setViewportSize({ width, height: 800 });
-      await expectDockContract(dock, `agenda 進行中（${width}）`);
+      await expectDockContract(dock, `agenda 進行中（${width}）`, false);
       // 実経路: 帯の見出し「このステップに」の字の点を、最前面で受けているのは帯の中の要素（後ろの進行表の字ではない）
       const front = await page.locator('.run-extend-label').evaluate((el) => {
         const r = el.getBoundingClientRect();
