@@ -64,6 +64,9 @@ const RESERVED_965_969 =
 const RESERVED_980_984 =
   "**対応表より後に足した変異。** 980〜984 は #534 に追加で割り当てた範囲（965〜969 を使い切ったため）。";
 
+const RESERVED_995_999 =
+  "**対応表より後に足した変異。** 995〜999 は #525 に割り当てた範囲。";
+
 const RESERVED_960_964 =
   "**対応表より後に足した変異。** 960〜964 は #533 に割り当てた範囲。";
 
@@ -5973,5 +5976,21 @@ export const MUTATIONS = [
     pkg: "packages/poker-core",
     tests: ["tests/card-game-reshuffle.test.ts"],
     note: RESERVED_960_964 + " " + "#533。乱数のとおりの並びにならず、決まった乱数から並びを求められない。",
+  },
+  {
+    id: 995,
+    label: "孫の生死の判定が、ゾンビ（状態 Z）を生きていると数える",
+    patch: "m995-process-alive-counts-zombie-as-alive.patch",
+    pkg: "scripts",
+    tests: ["lib/process-alive.test.mjs", "lib/prior-work.test.mjs"],
+    note: RESERVED_995_999 + " " + "#525。PID 1 が孤児を回収しないクラウドのコンテナで、SIGKILL で死んだ孫を「生き残った」と読み、孫を止める性質（変異 873）のテストが毎回落ちる。",
+  },
+  {
+    id: 996,
+    label: "孫の生死の判定が、存在しないプロセス（ESRCH）を生きていると数える",
+    patch: "m996-process-alive-counts-missing-as-alive.patch",
+    pkg: "scripts",
+    tests: ["lib/process-alive.test.mjs"],
+    note: RESERVED_995_999 + " " + "#525。判定が常に「生きている」になり、孫が本当に死んだ場合も生き残りと読む（逆に、変異 873 のテストが何を見ても赤い）。",
   },
 ];
