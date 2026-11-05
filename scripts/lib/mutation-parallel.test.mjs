@@ -242,6 +242,10 @@ describe("installArgs / storePathFrom: 作業ツリーへの依存の入れ方�
     assert.throws(() => storePathFrom("\n"), /絶対パス/);
     assert.throws(() => storePathFrom("store/v11"), /絶対パス/);
   });
+
+  test("複数行の出力は受けない（先頭だけ絶対パスで、後ろに警告が混ざった出力を通さない）", () => {
+    assert.throws(() => storePathFrom("/root/.pnpm-store/v11\n WARN Update available"), /複数行/);
+  });
 });
 
 describe("storeDirFor: 本体のストアを、本体の cwd で引く（#535）", () => {
@@ -249,14 +253,29 @@ describe("storeDirFor: 本体のストアを、本体の cwd で引く（#535）
   test("pnpm store path を、渡された本体の作業ツリーを cwd にして呼ぶ", () => {
     const calls = [];
     const execFile = (cmd, args, opts) => {
-      calls.push({ cmd, args, cwd: opts.cwd });
+      calls.push({ cmd, args, opts });
       return "/main/.pnpm-store/v11\n";
     };
     assert.equal(storeDirFor(execFile, "/main/repo"), "/main/.pnpm-store/v11");
-    assert.deepEqual(calls, [{ cmd: "pnpm", args: ["store", "path"], cwd: "/main/repo" }]);
+    assert.deepEqual(calls, [
+      { cmd: "pnpm", args: ["store", "path"], opts: { cwd: "/main/repo", encoding: "utf8" } },
+    ]);
   });
 
   test("絶対パスでない出力は投げる", () => {
     assert.throws(() => storeDirFor(() => "warn\n", "/main/repo"), /絶対パス/);
+  });
+
+  test("pnpm が失敗したら、何をすべきかが分かる文言で投げる（本体のパスと pnpm install を含む）", () => {
+    const execFile = () => {
+      throw new Error("spawn pnpm ENOENT");
+    };
+    assert.throws(() => storeDirFor(execFile, "/main/repo"), (e) => {
+      assert.match(e.message, /pnpm store path/);
+      assert.match(e.message, /\/main\/repo/);
+      assert.match(e.message, /pnpm install/);
+      assert.match(e.message, /ENOENT/);
+      return true;
+    });
   });
 });

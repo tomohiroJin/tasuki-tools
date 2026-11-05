@@ -139,6 +139,11 @@ export function installArgs(storeDir) {
  */
 export function storePathFrom(output) {
   const storeDir = String(output).trim();
+  // 改行が残る（複数行の）出力は投げる。`isAbsolute` は先頭しか見ないので、後ろに警告（`WARN Update available` など）が
+  // 混ざった出力を通してしまう。最後の行を拾う案は、どの行がパスか決め打ちになるので採らない（受けないほうが安全）
+  if (/[\r\n]/.test(storeDir)) {
+    throw new Error(`pnpm store path の出力が複数行です: ${JSON.stringify(storeDir)}`);
+  }
   if (!path.isAbsolute(storeDir)) {
     throw new Error(`pnpm store path の出力が絶対パスではありません: ${JSON.stringify(storeDir)}`);
   }
@@ -151,7 +156,17 @@ export function storePathFrom(output) {
  * 別のファイルシステムでは `--store-dir` を渡す意味が無くなる（#535）。`execFile` は注入する（`execFileSync` と同じ形）。
  */
 export function storeDirFor(execFile, repoRoot) {
-  return storePathFrom(execFile("pnpm", ["store", "path"], { cwd: repoRoot, encoding: "utf8" }));
+  let output;
+  try {
+    output = execFile("pnpm", ["store", "path"], { cwd: repoRoot, encoding: "utf8" });
+  } catch (e) {
+    throw new Error(
+      `本体の pnpm のストアの場所を引けませんでした（${repoRoot} で pnpm store path）。` +
+        `pnpm が使えるか確かめ、本体で pnpm install を済ませてから再実行してください: ${e instanceof Error ? e.message : e}`,
+      { cause: e },
+    );
+  }
+  return storePathFrom(output);
 }
 
 /**

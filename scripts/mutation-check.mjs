@@ -929,6 +929,14 @@ function removeStaleWorktrees() {
 async function runInWorktrees(selected, jobs, full, selector, selection, header) {
   const plan = planWorkers(selected, jobs, weightOfGroup);
   removeStaleWorktrees();
+  // **作業ツリーを作る前に**ストアを引く（#535）。失敗したら、作った後に残骸を作らず、何をすべきかが分かる文言で止める
+  let storeDir;
+  try {
+    storeDir = storeDirFor(execFileSync, REPO_ROOT);
+  } catch (e) {
+    console.error(`[mutation-check] ${e instanceof Error ? e.message : e}`);
+    return 1;
+  }
   const dirs = plan.map((_, i) => worktreeDirFor(os.tmpdir(), process.pid, i + 1));
   // **作る前に片づけを仕掛ける。** 作っている途中で止まっても残さない
   process.on("exit", () => removeWorktrees(dirs));
@@ -951,12 +959,11 @@ async function runInWorktrees(selected, jobs, full, selector, selection, header)
   }
   // 依存の実体は本体の pnpm のストアから引く（ネットワークに出ない）。本体で pnpm install を済ませてあることが前提。
   // **ストアは名指しで渡す**（#535）: 一時ディレクトリがストアと別のファイルシステムでも、pnpm が写しに倒れて入れられる
-  const storeDir = storeDirFor(execFileSync, REPO_ROOT);
   const installs = await Promise.all(dirs.map((dir) => runChild("pnpm", installArgs(storeDir), dir)));
   const failedInstall = installs.findIndex((r) => r.exitCode !== 0);
   if (failedInstall !== -1) {
     console.error(
-      `[mutation-check] 作業ツリー ${dirs[failedInstall]} に依存を入れられませんでした（pnpm install --offline）。\n` +
+      `[mutation-check] 作業ツリー ${dirs[failedInstall]} に依存を入れられませんでした（pnpm install --offline --store-dir ${storeDir}）。\n` +
         "本体で pnpm install を済ませてから再実行してください。\n\n--- 出力（末尾） ---\n" +
         installs[failedInstall].output.split("\n").slice(-40).join("\n"),
     );
