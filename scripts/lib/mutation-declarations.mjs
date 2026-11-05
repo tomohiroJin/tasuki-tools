@@ -58,6 +58,12 @@ const RESERVED_900_909 =
 const RESERVED_950_959 =
   "**対応表より後に足した変異。** 950〜959 は #524 に割り当てた範囲。";
 
+const RESERVED_965_969 =
+  "**対応表より後に足した変異。** 965〜969 は #534 に割り当てた範囲。";
+
+const RESERVED_980_984 =
+  "**対応表より後に足した変異。** 980〜984 は #534 に追加で割り当てた範囲（965〜969 を使い切ったため）。";
+
 const RESERVED_960_964 =
   "**対応表より後に足した変異。** 960〜964 は #533 に割り当てた範囲。";
 
@@ -5729,6 +5735,62 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["test-shuffled.test.mjs"],
     note: RESERVED_950_959 + " " + "#524のレビュー。ログの先頭の「同じ種で再現」を貼っても使い方を出して終わり、種で流し直せない。",
+  },
+  {
+    id: 965,
+    label: "メンバー追加の上限の検査を rotation.length >= MAX_MEMBERS → > にする（上限ちょうどの 10 人の輪にも足せて 11 人になる）",
+    patch: "m965-timer-core-member-add-limit-gt.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/bounds.properties.test.ts"],
+    note: RESERVED_965_969 + " " + "#534。メンバー追加（member.add）の 1 つずれ。上限（10 人）の輪にさらに足せて 11 人になる。上限の検査を丸ごと外す・`>= MAX + 1` は、席が MAX を超えない不変条件（test/properties.test.ts:129）の下で同じ振る舞いなので宣言しない（代表は 1 つずれの形）。",
+  },
+  {
+    id: 966,
+    label: "メンバー追加の上限の検査を >= MAX_MEMBERS → >= MAX_MEMBERS - 1 にする（上限の 1 つ手前の 9 人の輪に足せない）",
+    patch: "m966-timer-core-member-add-limit-minus-one.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/bounds.properties.test.ts"],
+    note: RESERVED_965_969 + " " + "#534。メンバー追加の上限が 1 人少なく、9 人の輪に足せない。既存の「10人超過はエラー」では生き残る形。",
+  },
+  {
+    id: 967,
+    label: "メンバー追加の上限の数え方を、席の数 → member の席だけ（代理を数えない）にする（代理を混ぜた満員の輪にも足せる）",
+    patch: "m967-timer-core-member-add-limit-counts-members-only.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/bounds.properties.test.ts"],
+    note: RESERVED_965_969 + " " + "#534のレビュー。代理の席が上限に数えられず、member 9 人＋代理 1 人の輪にも足せて 11 席になる。",
+  },
+  {
+    id: 968,
+    label: "メンバー追加で、上限の判定を重複（DuplicateName）の判定より先に行う（満員の輪に既にいる ID の送り直しが上限の誤りになる）",
+    patch: "m968-timer-core-member-add-limit-before-duplicate.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/bounds.properties.test.ts"],
+    note: RESERVED_965_969 + " " + "#534のレビュー。満員の輪で送り直し（既にいる ID）が重複の誤りでなく上限の誤りになり、再送の吸収の合図が変わる。",
+  },
+  {
+    id: 969,
+    label: "メンバー追加が上限で断るときのエラーの limit を MAX_MEMBERS → MAX_MEMBERS - 1 にする（種類は同じで上限の値だけが狂う）",
+    patch: "m969-timer-core-member-add-limit-value.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/bounds.properties.test.ts"],
+    note: RESERVED_965_969 + " " + "#534のレビュー。上限で断られたときに画面へ伝わる上限の人数が実際とずれる（エラーの種類だけを見るテストでは気づけない）。",
+  },
+  {
+    id: 980,
+    label: "メンバー追加の上限の数え方を、席の数 → 一時離脱でない席（eligible）だけにする（離脱中の人がいる満員の輪にも足せる）",
+    patch: "m980-timer-core-member-add-limit-counts-eligible-only.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/bounds.properties.test.ts"],
+    note: RESERVED_980_984 + " " + "#534のレビュー。一時離脱中の人が席を持つのに上限に数えられず、10 席の輪にも足せて 11 席になる。",
+  },
+  {
+    id: 981,
+    label: "メンバー追加の上限の数え方を、席の数 → member の席と一時離脱でない席だけにする（離脱中の代理の席を数えず、満員の輪にも足せる）",
+    patch: "m981-timer-core-member-add-limit-skips-away-proxy.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/bounds.properties.test.ts"],
+    note: RESERVED_980_984 + " " + "#534のレビュー。一時離脱中の代理が席を持つのに上限に数えられず、10 席の輪にも足せて 11 席になる。",
   },
   {
     id: 960,
