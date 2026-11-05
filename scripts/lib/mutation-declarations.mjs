@@ -101,6 +101,9 @@ const RESERVED_985_994 =
 const RESERVED_1000_1009 =
   "**対応表より後に足した変異。** 1000〜1009 は #544 に割り当てた範囲。";
 
+const RESERVED_1020_1029 =
+  "**対応表より後に足した変異。** 1020〜1029 は #547 に割り当てた範囲。";
+
 export const MUTATIONS = [
   {
     id: 1,
@@ -6062,5 +6065,21 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["script-copy-harness.test.mjs"],
     note: RESERVED_1000_1009 + " " + "#544。同時に走る別のファイルの複製（や scripts/ の隠しファイル）を消し、走行中のテストが落ちる。",
+  },
+  {
+    id: 1020,
+    label: "複製の実行が、渡された引数（`args`）を子へ渡さない",
+    patch: "m1020-copy-harness-drops-args.patch",
+    pkg: "scripts",
+    tests: ["script-copy-harness.test.mjs"],
+    note: RESERVED_1020_1029 + " " + "#547。check-toolchain.test.mjs の段（test / e2e / mutation）が子へ届かず、段ごとの配線の確認が全部「段なし」の経路に変わる。",
+  },
+  {
+    id: 1021,
+    label: "複製を使う非同期の処理（`withScriptCopy`）が、処理の決着を待たずに複製を消す",
+    patch: "m1021-copy-harness-removes-copy-before-async-settles.patch",
+    pkg: "scripts",
+    tests: ["script-copy-harness.test.mjs"],
+    note: RESERVED_1020_1029 + " " + "#547。exit-flush.test.mjs の子が起動する前に複製が消え、子が見つからずに落ちる（またはテストが原因の分かりにくい失敗になる）。",
   },
 ];

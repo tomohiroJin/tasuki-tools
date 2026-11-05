@@ -3,34 +3,18 @@
  *
  * `scan-target-wiring.test.mjs`(当時 1 回 約 3.5 分。その後 #544 で `wiring-*.test.mjs` へ分けた)から分けた。変異 985・986・987 の tests がこのファイルだけで済み、
  * 変異ごとの対照実行・検出の実行が短くなる(CI の変異シャードの時間切れを避ける)。
- * 複製は `wiring-*.test.mjs` の接頭辞(`.wiring-…-`)と分ける(互いの掃除で消し合わない)。
+ * 複製の置き方・掃除は `lib/script-copy-harness.mjs`(#547)。接頭辞は `wiring-*.test.mjs` の接頭辞(`.wiring-…-`)と分ける(互いの掃除で消し合わない)。
+ * 子の起動だけは自前(親が stderr を遅れて読む)で、harness の `withScriptCopy` に載せる。
  */
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
-import { fileURLToPath } from "node:url";
+import { SCRIPTS_DIR, createScriptCopyHarness, countOf, readScript } from "./lib/script-copy-harness.mjs";
 import { findProcessExitUses, findExitCodeWithoutReturn } from "./lib/process-exit-scan.mjs";
 
-const SCRIPTS_DIR = path.dirname(fileURLToPath(import.meta.url));
-const COPY_PREFIX = ".exit-flush-";
-
-let copyCounter = 0;
-
-/** 前回の異常終了で残った複製を、接頭辞で限定して掃除する(残ると変異検査の clean 判定が赤になる)。 */
-for (const name of fs.readdirSync(SCRIPTS_DIR)) {
-  if (name.startsWith(COPY_PREFIX)) fs.rmSync(path.join(SCRIPTS_DIR, name), { force: true });
-}
-
-function readScript(scriptName) {
-  return fs.readFileSync(path.join(SCRIPTS_DIR, scriptName), "utf8");
-}
-
-/** 部分文字列の出現回数(「壊れたこと自体」を先に確かめるために使う)。 */
-function countOf(source, needle) {
-  return source.split(needle).length - 1;
-}
+const { withScriptCopy } = createScriptCopyHarness(".exit-flush-");
 
 /**
  * 検査スクリプトは `process.exit` で終わらず、`process.exitCode` を立てて `main()` から戻る（#540）。
@@ -59,45 +43,42 @@ describe("検査スクリプトは process.exit で終わらない（#540）", (
 
   /** `audit-plan-gate.mjs` の複製を、親が stderr を**遅れて**読む形で走らせる。stdout は流し続ける。 */
   function runCopyWithLateStderrReader(mutate) {
-    const original = readScript("audit-plan-gate.mjs");
-    const mutated = mutate(original);
-    const copyPath = path.join(SCRIPTS_DIR, `${COPY_PREFIX}${process.pid}-${copyCounter++}-audit-plan-gate.mjs`);
-    fs.writeFileSync(copyPath, mutated);
-    return new Promise((resolve, reject) => {
-      const child = spawn(process.execPath, [copyPath], { stdio: ["ignore", "pipe", "pipe"] });
-      const stderrChunks = [];
-      let resumed = false;
-      const resumeStderr = () => {
-        if (resumed) return;
-        resumed = true;
-        child.stderr.resume();
-      };
-      child.stderr.pause();
-      child.stderr.on("data", (d) => stderrChunks.push(d));
-      child.stdout.resume();
-      const wait = setTimeout(resumeStderr, READ_WAIT_MAX_MS);
-      child.on("exit", () => {
-        clearTimeout(wait);
-        resumeStderr();
-      });
-      const guard = setTimeout(() => {
-        child.kill("SIGKILL");
-        reject(new Error(`子が ${READ_WAIT_MAX_MS + 10000} ミリ秒で終わりませんでした（stderr を読み始めた後も止まっている）`));
-      }, READ_WAIT_MAX_MS + 10000);
-      const cleanup = () => {
-        clearTimeout(wait);
-        clearTimeout(guard);
-        fs.rmSync(copyPath, { force: true });
-      };
-      child.on("close", (status) => {
-        cleanup();
-        resolve({ status, stderr: Buffer.concat(stderrChunks).toString("utf8"), source: mutated });
-      });
-      child.on("error", (e) => {
-        cleanup();
-        reject(e);
-      });
-    });
+    return withScriptCopy("audit-plan-gate.mjs", mutate, (copyPath, mutated) =>
+      new Promise((resolve, reject) => {
+        const child = spawn(process.execPath, [copyPath], { stdio: ["ignore", "pipe", "pipe"] });
+        const stderrChunks = [];
+        let resumed = false;
+        const resumeStderr = () => {
+          if (resumed) return;
+          resumed = true;
+          child.stderr.resume();
+        };
+        child.stderr.pause();
+        child.stderr.on("data", (d) => stderrChunks.push(d));
+        child.stdout.resume();
+        const wait = setTimeout(resumeStderr, READ_WAIT_MAX_MS);
+        child.on("exit", () => {
+          clearTimeout(wait);
+          resumeStderr();
+        });
+        const guard = setTimeout(() => {
+          child.kill("SIGKILL");
+          reject(new Error(`子が ${READ_WAIT_MAX_MS + 10000} ミリ秒で終わりませんでした（stderr を読み始めた後も止まっている）`));
+        }, READ_WAIT_MAX_MS + 10000);
+        const cleanup = () => {
+          clearTimeout(wait);
+          clearTimeout(guard);
+        };
+        child.on("close", (status) => {
+          cleanup();
+          resolve({ status, stderr: Buffer.concat(stderrChunks).toString("utf8"), source: mutated });
+        });
+        child.on("error", (e) => {
+          cleanup();
+          reject(e);
+        });
+      }),
+    );
   }
 
   test("失敗の一覧がパイプの容量を超えても、親の読み出しが遅れても、末尾まで届いて exit 1 になる（audit-plan-gate）", async () => {

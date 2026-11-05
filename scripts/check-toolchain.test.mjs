@@ -13,25 +13,16 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
+import { REPO_ROOT, createScriptCopyHarness, countOf } from "./lib/script-copy-harness.mjs";
 import { chromiumBrowsersDir, BROWSERS_LOCATION_ENV, PNPM_SET_ENV } from "./lib/toolchain.mjs";
 
-const SCRIPTS_DIR = path.dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = path.resolve(SCRIPTS_DIR, "..");
 const SCRIPT = "check-toolchain.mjs";
-const COPY_PREFIX = ".toolchain-";
+// pnpm / bun の版を確かめる子を起こすので、既定（300 秒）でなく従来の 60 秒にする
+const { runScriptCopy } = createScriptCopyHarness(".toolchain-", { timeoutMs: 60_000 });
 
 const TOOLCHAIN_READ = 'path.join(REPO_ROOT, "toolchain.json")';
 const PACKAGE_READ = 'path.join(REPO_ROOT, "package.json")';
-
-/** 前回の異常終了で残った複製を掃除する（変異検査の「作業ツリーが clean」を赤くしないため）。 */
-for (const name of fs.readdirSync(SCRIPTS_DIR)) {
-  if (name.startsWith(COPY_PREFIX)) fs.rmSync(path.join(SCRIPTS_DIR, name), { force: true });
-}
-
-let counter = 0;
 
 /**
  * 宣言の置き場を一時ファイルへ差し替えた複製を、同じディレクトリに置いて起動する。
@@ -39,29 +30,29 @@ let counter = 0;
  */
 function runWith(stage, overrides = {}, extraEnv = {}) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "check-toolchain-"));
-  let source = fs.readFileSync(path.join(SCRIPTS_DIR, SCRIPT), "utf8");
-  for (const [key, needle] of [
-    ["toolchain", TOOLCHAIN_READ],
-    ["packageJson", PACKAGE_READ],
-  ]) {
-    if (overrides[key] === undefined) continue;
-    assert.equal(source.split(needle).length - 1, 1, `差し替える読み取り（${needle}）が実装に 1 か所ありません`);
-    const file = path.join(tmp, `${key}.json`);
-    fs.writeFileSync(file, JSON.stringify(overrides[key]));
-    source = source.replace(needle, JSON.stringify(file));
-  }
-  const copy = path.join(SCRIPTS_DIR, `${COPY_PREFIX}${process.pid}-${counter++}-${SCRIPT}`);
-  fs.writeFileSync(copy, source);
   try {
-    const args = stage === undefined ? [copy] : [copy, stage];
     // pnpm から起動されたときの user agent を落とし、`pnpm --version` を確かめる経路を通す
-    const env = { ...process.env, ...extraEnv };
-    delete env["npm_config_user_agent"];
-    for (const [k, v] of Object.entries(extraEnv)) if (v === undefined) delete env[k];
-    const r = spawnSync(process.execPath, args, { encoding: "utf8", env, timeout: 60_000 });
-    return { status: r.status, stdout: r.stdout ?? "", stderr: r.stderr ?? "" };
+    const env = { ...extraEnv, npm_config_user_agent: undefined };
+    const r = runScriptCopy(
+      SCRIPT,
+      (original) => {
+        let source = original;
+        for (const [key, needle] of [
+          ["toolchain", TOOLCHAIN_READ],
+          ["packageJson", PACKAGE_READ],
+        ]) {
+          if (overrides[key] === undefined) continue;
+          assert.equal(countOf(source, needle), 1, `差し替える読み取り（${needle}）が実装に 1 か所ありません`);
+          const file = path.join(tmp, `${key}.json`);
+          fs.writeFileSync(file, JSON.stringify(overrides[key]));
+          source = source.replace(needle, JSON.stringify(file));
+        }
+        return source;
+      },
+      { args: stage === undefined ? [] : [stage], env },
+    );
+    return { status: r.status, stdout: r.stdout, stderr: r.stderr };
   } finally {
-    fs.rmSync(copy, { force: true });
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 }

@@ -95,7 +95,9 @@ export function createScriptCopyHarness(copyPrefix, { timeoutMs = COPY_TIMEOUT_M
   }
 
   /**
-   * 検査スクリプトの複製を `scripts/` 直下へ置き、子プロセスで実行する。
+   * 複製を `scripts/` 直下へ置き、`run(複製の道, 書き換え後の本文)` を呼び、終わったら（落ちても）複製を消す。
+   * `run` が Promise を返すなら、その決着の後に消す。子の起動を自前で書く必要のあるテスト
+   * （`exit-flush.test.mjs` の遅れて stderr を読む起動）が、置く・消すを共通にするための口（#547）。
    *
    * **同じディレクトリへ置くことが必須。** 各スクリプトは `__dirname/..` を
    * リポジトリルートとみなすため、別の場所へ複製すると走査先が変わってしまう。
@@ -104,22 +106,44 @@ export function createScriptCopyHarness(copyPrefix, { timeoutMs = COPY_TIMEOUT_M
    *
    * @param {string} scriptName 複製元のファイル名
    * @param {(source: string) => string} mutate 書き換え。恒等関数なら対照実行になる
+   * @param {(copyPath: string, source: string) => unknown} run
    */
-  function runScriptCopy(scriptName, mutate) {
-    const original = readScript(scriptName);
-    const mutated = mutate(original);
+  function withScriptCopy(scriptName, mutate, run) {
+    const mutated = mutate(readScript(scriptName));
     const copyPath = path.join(SCRIPTS_DIR, `${copyPrefix}${process.pid}-${copyCounter++}-${scriptName}`);
     fs.writeFileSync(copyPath, mutated);
+    const cleanup = () => fs.rmSync(copyPath, { force: true });
+    let result;
     try {
-      const r = spawnSync(process.execPath, [copyPath], { encoding: "utf8", timeout: timeoutMs });
+      result = run(copyPath, mutated);
+    } catch (e) {
+      cleanup();
+      throw e;
+    }
+    if (typeof result?.then === "function") return result.finally(cleanup);
+    cleanup();
+    return result;
+  }
+
+  /**
+   * 検査スクリプトの複製を `scripts/` 直下へ置き、子プロセスで実行する。
+   *
+   * @param {string} scriptName 複製元のファイル名
+   * @param {(source: string) => string} mutate 書き換え。恒等関数なら対照実行になる
+   * @param {{ args?: string[], env?: Record<string, string | undefined> }} [options]
+   *   `args` は複製の後ろに渡す引数。`env` は親の環境へ重ねる値で、`undefined` の変数は子へ渡さない（#547）
+   */
+  function runScriptCopy(scriptName, mutate, { args = [], env } = {}) {
+    return withScriptCopy(scriptName, mutate, (copyPath, mutated) => {
+      // 値が undefined の変数は spawnSync が子へ渡さない（親の値を打ち消せる）
+      const childEnv = { ...process.env, ...env };
+      const r = spawnSync(process.execPath, [copyPath, ...args], { encoding: "utf8", timeout: timeoutMs, env: childEnv });
       if (r.error?.code === "ETIMEDOUT") {
         throw new Error(`複製の実行が ${timeoutMs}ms で時間切れになりました（${scriptName}）。子が固まっていないか確かめてください`);
       }
       return { status: r.status, stdout: r.stdout ?? "", stderr: r.stderr ?? "", source: mutated };
-    } finally {
-      fs.rmSync(copyPath, { force: true });
-    }
+    });
   }
 
-  return { runScriptCopy };
+  return { runScriptCopy, withScriptCopy };
 }

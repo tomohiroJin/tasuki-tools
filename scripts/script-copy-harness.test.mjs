@@ -124,6 +124,55 @@ describe("createScriptCopyHarness", () => {
     );
   });
 
+  test("引数と環境を複製へ渡せる。環境に undefined を入れると、その変数は子へ渡らない（#547）", () => {
+    const { runScriptCopy } = createScriptCopyHarness(".harness-selftest-e-");
+    const body = () => "console.log(JSON.stringify({ argv: process.argv.slice(2), a: process.env.HARNESS_A ?? null, b: process.env.HARNESS_B ?? null }));";
+    const prev = process.env.HARNESS_B;
+    process.env.HARNESS_B = "inherited";
+    try {
+      const r = runScriptCopy("check-links.mjs", body, { args: ["x", "y"], env: { HARNESS_A: "1", HARNESS_B: undefined } });
+      assert.deepEqual(JSON.parse(r.stdout), { argv: ["x", "y"], a: "1", b: null });
+      const plain = runScriptCopy("check-links.mjs", body);
+      assert.deepEqual(JSON.parse(plain.stdout), { argv: [], a: null, b: "inherited" });
+    } finally {
+      if (prev === undefined) delete process.env.HARNESS_B;
+      else process.env.HARNESS_B = prev;
+    }
+  });
+
+  test("withScriptCopy は複製の道を渡し、同期でも非同期でも、終わったら（落ちても）複製を消す（#547）", async () => {
+    const { withScriptCopy } = createScriptCopyHarness(".harness-selftest-f-");
+    const left = () => fs.readdirSync(SCRIPTS_DIR).filter((n) => n.startsWith(".harness-selftest-f-"));
+    let seen;
+    const sync = withScriptCopy("check-links.mjs", () => "x", (copyPath, source) => {
+      seen = { exists: fs.existsSync(copyPath), source };
+      return "sync-result";
+    });
+    assert.equal(sync, "sync-result");
+    assert.deepEqual(seen, { exists: true, source: "x" });
+    assert.deepEqual(left(), []);
+
+    let during;
+    const asyncResult = await withScriptCopy("check-links.mjs", (s) => s, async (copyPath) => {
+      await new Promise((r) => setTimeout(r, 50));
+      during = fs.existsSync(copyPath);
+      return "async-result";
+    });
+    assert.equal(asyncResult, "async-result");
+    assert.equal(during, true, "非同期の終わる前に複製を消しています");
+    assert.deepEqual(left(), []);
+
+    await assert.rejects(
+      withScriptCopy("check-links.mjs", (s) => s, async () => {
+        throw new Error("boom");
+      }),
+      /boom/,
+    );
+    assert.deepEqual(left(), []);
+    assert.throws(() => withScriptCopy("check-links.mjs", (s) => s, () => { throw new Error("sync-boom"); }), /sync-boom/);
+    assert.deepEqual(left(), []);
+  });
+
   test("複製の実行が時間切れになったら、時間切れと分かる文言で落とす", () => {
     const { runScriptCopy } = createScriptCopyHarness(".harness-selftest-d-", { timeoutMs: 300 });
     assert.throws(() => runScriptCopy("check-links.mjs", () => "setTimeout(() => {}, 5000);"), /時間切れ/);
