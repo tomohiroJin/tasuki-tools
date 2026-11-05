@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/process-alive.mjs b/scripts/lib/process-alive.mjs
+index ae3a4d9..c05a8ce 100644
+--- a/scripts/lib/process-alive.mjs
++++ b/scripts/lib/process-alive.mjs
+@@ -21,7 +21,7 @@ export function isProcessAlive(pid, { readState = readProcessState } = {}) {
+     if (e?.code !== "EPERM") return false; // ESRCH: 存在しない。EPERM は存在するので続ける
+   }
+   const state = readState(pid);
+-  return state === null ? true : state !== "Z" && state !== "X";
++  return state === null ? false : state !== "Z" && state !== "X";
+ }
+ 
+ /** `/proc/<pid>/stat` の文字列から状態の 1 字を取る。形は "pid (comm) S ..."。comm に ")" や空白が入りうるので、最後の ")" の後ろを読む。読めなければ null。 */

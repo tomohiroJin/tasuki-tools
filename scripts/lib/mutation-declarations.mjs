@@ -64,6 +64,9 @@ const RESERVED_965_969 =
 const RESERVED_980_984 =
   "**対応表より後に足した変異。** 980〜984 は #534 に追加で割り当てた範囲（965〜969 を使い切ったため）。";
 
+const RESERVED_995_999 =
+  "**対応表より後に足した変異。** 995〜999 は #525 に割り当てた範囲。";
+
 const RESERVED_960_964 =
   "**対応表より後に足した変異。** 960〜964 は #533 に割り当てた範囲。";
 
@@ -5992,5 +5995,45 @@ export const MUTATIONS = [
     pkg: "packages/poker-core",
     tests: ["tests/card-game-reshuffle.test.ts"],
     note: RESERVED_960_964 + " " + "#533。乱数のとおりの並びにならず、決まった乱数から並びを求められない。",
+  },
+  {
+    id: 995,
+    label: "孫の生死の判定が、ゾンビ（状態 Z）を生きていると数える",
+    patch: "m995-process-alive-counts-zombie-as-alive.patch",
+    pkg: "scripts",
+    tests: ["lib/process-alive.test.mjs", "lib/prior-work.test.mjs"],
+    note: RESERVED_995_999 + " " + "#525。PID 1 が孤児を回収しないクラウドのコンテナで、SIGKILL で死んだ孫を「生き残った」と読み、孫を止める性質（変異 873）のテストが毎回落ちる。",
+  },
+  {
+    id: 996,
+    label: "孫の生死の判定が、存在しないプロセス（ESRCH）を生きていると数える",
+    patch: "m996-process-alive-counts-missing-as-alive.patch",
+    pkg: "scripts",
+    tests: ["lib/process-alive.test.mjs"],
+    note: RESERVED_995_999 + " " + "#525。存在しないプロセスも「生きている」と読むので、死んで回収された孫を生き残りと誤読する（孫を止める性質のテスト（変異 873）が、本当は止まっていても赤くなる）。検出は process-alive.test.mjs の「存在しない」テスト。",
+  },
+  {
+    id: 997,
+    label: "状態を読めない（null）ときを、生きていると数えず死んだと数える",
+    patch: "m997-process-alive-counts-unreadable-as-dead.patch",
+    pkg: "scripts",
+    tests: ["lib/process-alive.test.mjs"],
+    note: RESERVED_995_999 + " " + "#525 のレビュー。/proc も ps も読めない環境で、本当に生き残った孫を死んだと読んで見逃す（生き残りの検査が通ってしまう）。",
+  },
+  {
+    id: 998,
+    label: "stat の状態を、最後でなく最初の ')' の後ろから読む",
+    patch: "m998-process-alive-stat-reads-first-paren.patch",
+    pkg: "scripts",
+    tests: ["lib/process-alive.test.mjs"],
+    note: RESERVED_995_999 + " " + "#525 のレビュー。comm に ')' を含むプロセスの状態を取り違え、ゾンビを生きている（またはその逆）と読む。",
+  },
+  {
+    id: 999,
+    label: "/proc があるのに stat が ENOENT（回収されて消えた）のとき、死んだと読まず ps へ落とす",
+    patch: "m999-process-alive-enoent-falls-through-to-ps.patch",
+    pkg: "scripts",
+    tests: ["lib/process-alive.test.mjs"],
+    note: RESERVED_995_999 + " " + "#525 の /code-review。kill 0 の後に回収された孫を、ps も見つけられず null → 生きていると読み、孫のテストが誤って落ちる。",
   },
 ];
