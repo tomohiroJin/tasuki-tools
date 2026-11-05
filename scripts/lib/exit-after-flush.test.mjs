@@ -2,7 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { exitAfterFlush } from "./exit-after-flush.mjs";
+import { Writable } from "node:stream";
+import { exitAfterFlush, createShutdownGate } from "./exit-after-flush.mjs";
 
 const SELF = fileURLToPath(new URL("./exit-after-flush.mjs", import.meta.url));
 
@@ -74,4 +75,34 @@ test("exitAfterFlush: パイプの容量を超える出力を書いた直後で�
   assert.equal(status, 3);
   assert.ok(text.endsWith("END-MARK\n"), `末尾が届いていません（${text.length} 文字で切れた）`);
   assert.equal(text.length, 400000 + "\nEND-MARK\n".length);
+});
+
+test("createShutdownGate: 最初の begin だけが true で、再入したハンドラは何もしない（isBegun は始めた後 true）", () => {
+  const gate = createShutdownGate();
+  assert.equal(gate.isBegun(), false);
+  assert.equal(gate.begin(), true);
+  assert.equal(gate.begin(), false);
+  assert.equal(gate.begin(), false);
+  assert.equal(gate.isBegun(), true);
+  assert.equal(createShutdownGate().begin(), true, "ゲートごとに独立");
+});
+
+test("exitAfterFlush: 読み手が消えた（'error' を出す）ストリームでも、未捕捉の例外にならず『書き終わった』として先へ進む", async () => {
+  const broken = new Writable({
+    write(_chunk, _enc, cb) {
+      cb(new Error("EPIPE"));
+    },
+  });
+  const exits = [];
+  const uncaught = [];
+  const onUncaught = (e) => uncaught.push(e);
+  process.on("uncaughtException", onUncaught);
+  try {
+    exitAfterFlush(130, { streams: [broken], exit: (c) => exits.push(c) });
+    await new Promise((r) => setTimeout(r, 50));
+  } finally {
+    process.off("uncaughtException", onUncaught);
+  }
+  assert.deepEqual(uncaught, [], "'error' が未捕捉の例外になった");
+  assert.deepEqual(exits, [130]);
 });

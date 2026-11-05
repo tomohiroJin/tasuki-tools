@@ -75,8 +75,8 @@ import {
 } from "./lib/scan-targets.mjs";
 import { isDirectRun } from "./lib/direct-run.mjs";
 import { lockRefusalReason } from "./lib/mutation-lock.mjs";
-import { restoreVerdict } from "./lib/mutation-restore-verdict.mjs";
-import { exitAfterFlush } from "./lib/exit-after-flush.mjs";
+import { restoreVerdict, filesAfterRestore } from "./lib/mutation-restore-verdict.mjs";
+import { exitAfterFlush, createShutdownGate } from "./lib/exit-after-flush.mjs";
 import {
   parseSelector,
   selectMutations,
@@ -529,7 +529,6 @@ export function decideMutationRestore(
  */
 function restoreCurrentMutation() {
   const files = currentlyAppliedFiles;
-  currentlyAppliedFiles = [];
 
   const outcome = decideMutationRestore(files, {
     checkoutFn: () =>
@@ -542,11 +541,16 @@ function restoreCurrentMutation() {
     maxAttempts: RESTORE_MAX_ATTEMPTS,
   });
 
+  // **戻ったときだけ空にする。** 失敗なら本当の一覧を残し、次の呼び出し（待っていたシグナル・未捕捉の例外）が再試行する
+  currentlyAppliedFiles = filesAfterRestore(files, outcome.restored);
   return outcome.restored !== false;
 }
 
 /** 並列（`--jobs`）で起こした子。親が止められたら子も止める（子はそれぞれ自分の作業ツリーで復元する）。 */
 const childProcesses = new Set();
+
+/** 終わり始めた印。シグナルのハンドラは最大 10 秒待つので、その間に来た別のシグナル・例外で再入しない（lib/exit-after-flush.mjs）。 */
+const shutdown = createShutdownGate();
 
 // 異常終了（Ctrl-C・kill・未捕捉例外）でも必ず復元する。
 //
@@ -556,6 +560,7 @@ const childProcesses = new Set();
 // ロックの解放・作業ツリーの後始末は、終わるときの `exit` フック（acquireLock・runInWorktrees）が行う。
 for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"]) {
   process.on(sig, () => {
+    if (!shutdown.begin()) return;
     for (const child of childProcesses) child.kill("SIGTERM");
     const restored = restoreCurrentMutation();
     exitAfterFlush(restoreVerdict(restored, 130).exitCode);
@@ -564,6 +569,7 @@ for (const sig of ["SIGINT", "SIGTERM", "SIGHUP"]) {
 process.on("uncaughtException", (err) => {
   // eslint-disable-next-line no-console
   console.error("[mutation-check] 捕捉されない例外:", err);
+  if (!shutdown.begin()) return; // すでに終わり始めている（例外は上で記録した）
   restoreCurrentMutation();
   exitAfterFlush(1);
 });
@@ -577,9 +583,6 @@ function applyMutation(mutation) {
   currentlyAppliedFiles = files;
 }
 
-function restoreMutation() {
-  return restoreCurrentMutation();
-}
 
 /**
  * 変異が検出を期待するテストファイルが実在するか確かめる。
@@ -964,10 +967,15 @@ async function runInWorktrees(selected, jobs, full, selector, selection, header)
         dirs[i],
         `[w${i + 1}] `,
       );
-      console.log(`[mutation-check] ワーカー ${i + 1}/${plan.length} が終わりました（${mutations.length} 件・exit ${r.exitCode}）`);
+      if (!shutdown.isBegun()) {
+        console.log(`[mutation-check] ワーカー ${i + 1}/${plan.length} が終わりました（${mutations.length} 件・exit ${r.exitCode}）`);
+      }
       return { index: i + 1, count: mutations.length, exitCode: r.exitCode, ms: Date.now() - t, output: r.output };
     }),
   );
+
+  // シグナルで止められた（子はこちらが止めた）なら、「ワーカーが失敗しました」の要約を出さない。終わりはシグナルのハンドラが進める
+  if (shutdown.isBegun()) return 130;
 
   const { lines, failed } = formatWorkerSummary(results);
   console.log(`\n=== 変異検査 並列の結果（${header}）===`);
@@ -1211,7 +1219,7 @@ function main() {
       const testResult = runTests(mutation, full, testWorkers);
       outcome = { ...mutation, detected: !testResult.passed, exitCode: testResult.exitCode, output: testResult.output };
     } finally {
-      restored = restoreMutation();
+      restored = restoreCurrentMutation();
     }
     const verdict = restoreVerdict(restored);
     if (!verdict.proceed) {

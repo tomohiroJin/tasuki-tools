@@ -80,12 +80,13 @@ describe("変異検査の生死の判定は、ゾンビを生きているとし�
     });
   });
 
-  test("ロックの理由の pid が正の整数でない（pid=0 など）作業ツリーは、投げずに『読めないロック』として拾わない（既定の判定）", () => {
+  test("pid が正の整数でない（pid=0・桁あふれ）ものは、ロックの拒否も作業ツリーの掃除も『死んだ』と同じに扱い、投げない", () => {
     const host = os.hostname();
-    for (const bad of ["0", "00", "99999999999999999999"]) {
+    for (const bad of ["0", "00", "4294967296", "99999999999999999999"]) {
+      assert.equal(lockRefusalReason(bad), null, `ロック ${bad} を拒んでいる`);
       const porcelain =
         `worktree /tmp/tasuki-mutation-1-1\nHEAD abc\ndetached\nlocked tasuki-mutation pid=${bad} host=${host}\n`;
-      assert.deepEqual(staleWorktreeDirs(porcelain, host), [], `pid=${bad} を古いものとして拾っている`);
+      assert.deepEqual(staleWorktreeDirs(porcelain, host), ["/tmp/tasuki-mutation-1-1"], `pid=${bad} を古いものとして拾わない`);
     }
   });
 });

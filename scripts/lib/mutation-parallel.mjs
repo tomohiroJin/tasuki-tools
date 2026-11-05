@@ -1,6 +1,6 @@
 import path from "node:path";
 import { groupByControl, partitionMutations } from "./mutation-partition.mjs";
-import { isProcessAlive } from "./process-alive.mjs";
+import { isProcessAlive, parsePid } from "./process-alive.mjs";
 
 /**
  * 1 つのジョブの中で、変異を並列に流す（`--jobs m`。#481・設計正本
@@ -216,10 +216,10 @@ export function staleWorktreesFrom(porcelain, isAlive, host) {
  * EPERM（別ユーザー）・読めないときは生きている側に数える（`isProcessAlive` の決め）。
  */
 export function staleWorktreeDirs(porcelain, host, isAlive = isProcessAlive) {
-  // ロックの理由の pid が正の整数でない（pid=0・桁あふれ）ものは『読めないロック』。isProcessAlive は投げるので呼ばず、
-  // 生きている側（拾わない）に数える（kill(0, 0) が生きていると読んだ今までの扱いに合わせる。--jobs を落とさない）
-  const readable = (pid) => Number.isSafeInteger(pid) && pid > 0 && pid <= 2 ** 31 - 1;
-  return staleWorktreesFrom(porcelain, (pid) => !readable(pid) || isAlive(pid), host);
+  // 読めない pid（0・桁あふれ）は死んだ側に数える。isProcessAlive は不正な pid に投げるので渡さない（--jobs を落とさない）。
+  // ロックの拒否（lockRefusalReason）と同じ parsePid を通す。旧 isPidAlive も桁あふれの pid は死んだと読んだ。
+  // この作業ツリーはこちらが tasuki-mutation の理由つきで作ったもの。読めない理由のものは持ち主が分からず、残しても掃除されない
+  return staleWorktreesFrom(porcelain, (pid) => parsePid(pid) !== null && isAlive(pid), host);
 }
 
 /**

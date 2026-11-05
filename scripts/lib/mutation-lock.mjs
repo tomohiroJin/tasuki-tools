@@ -1,4 +1,4 @@
-import { isProcessAlive } from "./process-alive.mjs";
+import { isProcessAlive, parsePid } from "./process-alive.mjs";
 
 /** ロックの置き場（リポジトリからの相対）。拒む理由の文言に出す。 */
 const LOCK_LABEL = "scripts/mutations/.lock";
@@ -24,8 +24,8 @@ const LOCK_LABEL = "scripts/mutations/.lock";
  */
 export function lockRefusalReason(rawLockText, isAlive = isProcessAlive) {
   if (rawLockText === null || rawLockText === undefined) return null;
-  const pid = Number.parseInt(String(rawLockText).trim(), 10);
-  if (!Number.isInteger(pid) || pid <= 0) return null;
+  const pid = parsePid(rawLockText); // 読めない pid（0・負・桁あふれ）は壊れたロック
+  if (pid === null) return null;
   if (!isAlive(pid)) return null;
   return (
     `[mutation-check] 同じ作業ツリーで別の実行（PID ${pid}）が走っています。\n` +

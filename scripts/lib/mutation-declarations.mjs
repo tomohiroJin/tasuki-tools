@@ -113,6 +113,9 @@ const RESERVED_1030_1039 =
 const RESERVED_1040_1049 =
   "**対応表より後に足した変異。** 1040〜1049 は #542 に割り当てた範囲。";
 
+const RESERVED_1050_1059 =
+  "**対応表より後に足した変異。** 1050〜1059 は #542 の続き（/code-review の指摘）に割り当てた範囲。";
+
 export const MUTATIONS = [
   {
     id: 1,
@@ -6282,5 +6285,37 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["mutation-check-liveness.test.mjs"],
     note: RESERVED_1040_1049 + " " + "#542 のレビュー。ロックの理由に pid=0 があると isProcessAlive が TypeError を投げ、--jobs の掃除で変異検査が落ちる。",
+  },
+  {
+    id: 1048,
+    label: "復元の後に、成否を見ずに適用中のファイルの一覧を空にする（失敗の後も空）",
+    patch: "m1048-restore-clears-applied-files-before-knowing.patch",
+    pkg: "scripts",
+    tests: ["lib/mutation-restore-verdict.test.mjs", "mutation-check-restore-failure.test.mjs"],
+    note: RESERVED_1040_1049 + " " + "#542 の /code-review。復元に失敗した後に待っていたシグナル・未捕捉の例外が空の一覧を復元の検証へ渡し、マーカー .applied が消えて、戻っていないファイルの唯一の記録が失われる。",
+  },
+  {
+    id: 1049,
+    label: "終わり始めた印が再入を止めない（begin が毎回 true）",
+    patch: "m1049-shutdown-gate-lets-reentry.patch",
+    pkg: "scripts",
+    tests: ["lib/exit-after-flush.test.mjs"],
+    note: RESERVED_1040_1049 + " " + "#542 の /code-review。最大 10 秒待つシグナルのハンドラに別のシグナル・例外が再入し、子を再び止め、復元をやり直し、別の終了コードで競う。",
+  },
+  {
+    id: 1050,
+    label: "exitAfterFlush が、読み手の消えた stdout / stderr の error を捕まえない",
+    patch: "m1050-exit-after-flush-ignores-stream-error.patch",
+    pkg: "scripts",
+    tests: ["lib/exit-after-flush.test.mjs"],
+    note: RESERVED_1050_1059 + " " + "#542 の /code-review。SIGHUP や | head で読み手が消えると error が未捕捉の例外になり、中断の終わり方が uncaughtException に入る。",
+  },
+  {
+    id: 1051,
+    label: "pid の読み方が上限（2**31-1）を見ない",
+    patch: "m1051-parse-pid-drops-upper-bound.patch",
+    pkg: "scripts",
+    tests: ["lib/process-alive.test.mjs", "mutation-check-liveness.test.mjs"],
+    note: RESERVED_1050_1059 + " " + "#542 の /code-review。ロックの拒否と作業ツリーの掃除の pid の境界が割れる、または範囲外の pid が生死の判定に渡る。",
   },
 ];

@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { isProcessAlive, parseStatState, readProcessState, isOwnProc } from "./process-alive.mjs";
+import { isProcessAlive, parseStatState, readProcessState, isOwnProc, parsePid } from "./process-alive.mjs";
 
 /** `scripts/lib/process-alive.mjs` の自己テスト（#525）。実プロセスで、生きている・ゾンビ・存在しない、を見る。 */
 
@@ -138,4 +138,14 @@ test("isOwnProc: /proc/self が自分の PID を指すときだけ true（別の
   assert.equal(isOwnProc({ readlink: () => "999999", pid: process.pid }), false);
   assert.equal(isOwnProc({ readlink: () => { throw enoent(); }, pid: process.pid }), false);
   assert.equal(isOwnProc(), true, "既定はこのテスト自身の /proc");
+});
+
+test("parsePid: 正の整数で 2**31-1 以下だけを pid として読み、それ以外は null（生死の判定へ渡さない）", () => {
+  assert.equal(parsePid("4242"), 4242);
+  assert.equal(parsePid(" 4242\n"), 4242);
+  assert.equal(parsePid(4242), 4242);
+  assert.equal(parsePid(String(2 ** 31 - 1)), 2 ** 31 - 1);
+  for (const bad of ["", "   ", "abc", "-1", "0", "00", 0, -5, 1.5, NaN, null, undefined, String(2 ** 31), "99999999999999999999", 2 ** 31]) {
+    assert.equal(parsePid(bad), null, `pid として読めてしまう: ${String(bad)}`);
+  }
 });

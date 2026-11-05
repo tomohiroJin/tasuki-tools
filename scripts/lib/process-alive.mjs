@@ -24,6 +24,21 @@ export function isProcessAlive(pid, { readState = readProcessState } = {}) {
   return state === null ? true : state !== "Z" && state !== "X";
 }
 
+/** pid として受け入れる上限（Linux の pid_max の最大。これを超える値は割り当たらない）。 */
+export const MAX_PID = 2 ** 31 - 1;
+
+/**
+ * ロックの中身・作業ツリーのロックの理由など、外から読んだ値を pid にする。**正の整数で `MAX_PID` 以下**だけを返し、それ以外は null。
+ *
+ * **null は『読めない』= 死んだ側に数える**（`isProcessAlive` を呼ばない。あちらは不正な pid に投げる）。呼び手が 3 か所で別々の境界を
+ * 持つと、同じ入力でロックの拒否と作業ツリーの掃除の判定が割れる（#542）。旧 `isPidAlive` も桁あふれの pid は死んだ（ESRCH）と読んだ。
+ * 文字列は `parseInt` で読む（末尾の改行・空白を許す）。
+ */
+export function parsePid(value) {
+  const n = typeof value === "number" ? value : Number.parseInt(String(value ?? "").trim(), 10);
+  return Number.isSafeInteger(n) && n > 0 && n <= MAX_PID ? n : null;
+}
+
 /** `/proc/<pid>/stat` の文字列から状態の 1 字を取る。形は "pid (comm) S ..."。comm に ")" や空白が入りうるので、最後の ")" の後ろを読む。読めなければ null。 */
 export function parseStatState(stat) {
   const close = stat.lastIndexOf(")");

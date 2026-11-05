@@ -14,3 +14,18 @@
 export function restoreVerdict(restored, successCode = 0) {
   return restored === false ? { proceed: false, exitCode: 1 } : { proceed: true, exitCode: successCode };
 }
+
+/**
+ * 復元の後に、まだ適用中として覚えておくファイルの一覧。**戻ったときだけ空にする。**
+ *
+ * 成否を知る前に空にすると、失敗の後の 2 回目の呼び出し（待っていたシグナル・未捕捉の例外）が空の一覧を復元の検証へ渡し、
+ * 「戻すものが無い」としてマーカー（`.applied`）を消す。戻っていないファイルの唯一の記録が失われる。
+ * 失敗なら本当の一覧を残し、次の呼び出しが再試行する（#542）。
+ *
+ * @param {string[]} files 復元を試みたファイル
+ * @param {boolean | null} restored 戻した（true）・戻すものが無かった（null）・戻らなかった（false）
+ * @returns {string[]}
+ */
+export function filesAfterRestore(files, restored) {
+  return restored === false ? files : [];
+}
