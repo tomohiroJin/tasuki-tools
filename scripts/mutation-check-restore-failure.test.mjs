@@ -31,7 +31,10 @@ function makeSandbox(patchKind) {
   const entry = fs.readFileSync(path.join(SCRIPTS_DIR, "mutation-check.mjs"), "utf8");
   assert.equal(entry.split("if (!assertToolchain()) {").length - 1, 1, "外す対象（版の検査）が入口にありません");
   // もう 1 つ: main() の後もイベントループを少し生かす。シグナルのハンドラは unref されていて、ループに他の仕事が無いと、
-  // main() が戻った時点で待っていたシグナルを拾わずに終わる。本番では書き出しの待ち・並列の子がループを生かしているので、それを模す
+  // main() が戻った時点で待っていたシグナルを拾わずに終わる。本番の逐次の経路ではそのとおり捨てられ（#542 のレビューで実測）、
+  // 待っていたシグナルのハンドラは走らない。ここでは、それが走った場合（最悪の場合）でも 1 が隠れず .applied が残ることを
+  // 確かめるために、わざとループを生かす。本番でこの後始末の重なりに届くのは、uncaughtException の側（下のテストは
+  // この模擬に頼らない）と、終わり始めた後に重なったシグナル（createShutdownGate が止める）
   const tail = "if (isDirectRun(import.meta.url, process.argv[1])) main();";
   assert.equal(entry.split(tail).length - 1, 1, "入口の最後の行が見つかりません");
   fs.writeFileSync(
