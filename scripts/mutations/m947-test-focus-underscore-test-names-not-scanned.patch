@@ -1,10 +1,10 @@
 diff --git a/scripts/audit-test-focus.mjs b/scripts/audit-test-focus.mjs
-index eecc914..1f5fbec 100644
+index ba0bb26..3a6fc24 100644
 --- a/scripts/audit-test-focus.mjs
 +++ b/scripts/audit-test-focus.mjs
-@@ -41,7 +41,6 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..
+@@ -43,7 +43,6 @@ export const TEST_FOCUS_EXTENSIONS = ["js", "jsx", "ts", "tsx", "mjs", "cjs", "m
  export const TEST_FOCUS_FILE_PATTERNS = ["test", "spec"].flatMap((kind) =>
-   ["js", "jsx", "ts", "tsx", "mjs", "cjs", "mts", "cts"].flatMap((ext) => [
+   TEST_FOCUS_EXTENSIONS.flatMap((ext) => [
      `*.${kind}.${ext}`,
 -    `*_${kind}.${ext}`,
    ]),

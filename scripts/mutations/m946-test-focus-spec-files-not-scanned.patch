@@ -1,13 +1,13 @@
 diff --git a/scripts/audit-test-focus.mjs b/scripts/audit-test-focus.mjs
-index eecc914..bb77c90 100644
+index ba0bb26..2d1a901 100644
 --- a/scripts/audit-test-focus.mjs
 +++ b/scripts/audit-test-focus.mjs
-@@ -38,7 +38,7 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..
-  * 各パッケージの test ディレクトリの外にあるもの（`e2e/specs`・`scripts/`・`packages/ui/tests`・
-  * `src` の中の `*_test.ts` など）をここで足す。test ディレクトリの全ファイルと和を取るので、重なっても害は無い。
+@@ -40,7 +40,7 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..
   */
+ export const TEST_FOCUS_EXTENSIONS = ["js", "jsx", "ts", "tsx", "mjs", "cjs", "mts", "cts"];
+ 
 -export const TEST_FOCUS_FILE_PATTERNS = ["test", "spec"].flatMap((kind) =>
 +export const TEST_FOCUS_FILE_PATTERNS = ["test"].flatMap((kind) =>
-   ["js", "jsx", "ts", "tsx", "mjs", "cjs", "mts", "cts"].flatMap((ext) => [
+   TEST_FOCUS_EXTENSIONS.flatMap((ext) => [
      `*.${kind}.${ext}`,
      `*_${kind}.${ext}`,
