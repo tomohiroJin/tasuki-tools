@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { isProcessAlive, parseStatState, readProcessState } from "./process-alive.mjs";
+import { isProcessAlive, parseStatState, readProcessState, isOwnProc } from "./process-alive.mjs";
 
 /** `scripts/lib/process-alive.mjs` の自己テスト（#525）。実プロセスで、生きている・ゾンビ・存在しない、を見る。 */
 
@@ -119,4 +119,23 @@ test("readProcessState: /proc が無ければ ps で読む。ps が読めなけ�
 
 test("readProcessState: /proc の stat が読めればその状態", () => {
   assert.equal(readProcessState(123, { procExists: () => true, readFile: () => "123 (x) S 1" }), "S");
+});
+
+test("readProcessState: ENOENT 以外の読み取りの失敗は X と読まず ps に落ちる", () => {
+  const eacces = () => Object.assign(new Error("EACCES"), { code: "EACCES" });
+  let psCalled = false;
+  const state = readProcessState(123, {
+    procExists: () => true,
+    readFile: () => { throw eacces(); },
+    ps: () => { psCalled = true; return "S\n"; },
+  });
+  assert.equal(state, "S");
+  assert.equal(psCalled, true);
+});
+
+test("isOwnProc: /proc/self が自分の PID を指すときだけ true（別の PID 名前空間の /proc は false）", () => {
+  assert.equal(isOwnProc({ readlink: () => String(process.pid), pid: process.pid }), true);
+  assert.equal(isOwnProc({ readlink: () => "999999", pid: process.pid }), false);
+  assert.equal(isOwnProc({ readlink: () => { throw enoent(); }, pid: process.pid }), false);
+  assert.equal(isOwnProc(), true, "既定はこのテスト自身の /proc");
 });
