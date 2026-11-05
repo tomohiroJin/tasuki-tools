@@ -1,8 +1,8 @@
 /**
- * SC-040: テストの `.only` と、理由の無い `.skip` / `.skipIf` / `.runIf` / `.todo` / `.fixme`（#523）。
+ * テストの `.only` と、理由の無い `.skip` / `.skipIf` / `.runIf` / `.todo` / `.fixme`（#523）。
  *
  * 判定だけを持つ純粋関数。走査の対象（どのファイルを読むか）と終了コードは
- * `scripts/audit-structure.mjs` の `main()` が持つ。
+ * `scripts/audit-test-focus.mjs` の `main()` が持つ。
  *
  * **文字列ではなく TypeScript の構文木で見る。** 文字列やコメントの中の `.only`、
  * `agenda.skip(...)` や `driver.skip` のようにコマンド名・メソッド名として現れるものは
@@ -191,18 +191,18 @@ export function findFocusedOrSkippedTests(file, source) {
 }
 
 /**
- * SC-040 の問題一覧（純粋）。問題が無ければ空配列。
+ * 問題の一覧（純粋）。問題が無ければ空配列。
  *
  * @param testFiles `Map<リポジトリ相対パス, ソース>`
  */
-export function sc040FocusedOrSkippedTests(testFiles) {
+export function checkFocusedOrSkippedTests(testFiles) {
   const problems = [];
   for (const [file, source] of [...testFiles].sort(([a], [b]) => (a < b ? -1 : 1))) {
     for (const f of findFocusedOrSkippedTests(file, source)) {
       problems.push(
         f.kind === "only"
-          ? `SC-040 ${f.file}:${f.line} ${f.text} が残っています（1 つ残ると同じファイルの他のテストが黙って流れなくなります。外してください）`
-          : `SC-040 ${f.file}:${f.line} ${f.text} に理由がありません（直上に空行を挟まず「// 理由: …」を書くか、外してください）`,
+          ? `${f.file}:${f.line} ${f.text} が残っています（1 つ残ると同じファイルの他のテストが黙って流れなくなります。外してください）`
+          : `${f.file}:${f.line} ${f.text} に理由がありません（直上に空行を挟まず「// 理由: …」を書くか、外してください）`,
       );
     }
   }

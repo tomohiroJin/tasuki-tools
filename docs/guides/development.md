@@ -900,7 +900,8 @@ SIGKILL ではプロセスが残る場合があります。次回の実行は別
 手元で先に確かめたいときは次を叩きます。
 
 ```bash
-node scripts/audit-structure.mjs                 # 構造監査（走査対象のずれ・走査 0 件は合否を持つ。ADR-0009 D2 の例外・ADR-0014 決定 7・決定 8。テストの .only と理由の無い .skip（SC-040）も exit 1 にする。下の段落）
+node scripts/audit-structure.mjs                 # 構造監査（走査対象のずれ・走査 0 件は合否を持つ。ADR-0009 D2 の例外・ADR-0014 決定 7・決定 8）
+node scripts/audit-test-focus.mjs                # テストの .only と、理由のコメントの無い .skip 系（規約は ADR-0006。下の段落）
 node scripts/audit-log-hygiene.mjs               # ログ衛生（検査の中身は ADR-0012 D1。走査対象のずれ・走査 0 件が合否を持つ根拠は ADR-0014 決定 7・決定 8）
 node scripts/audit-assembly-wiring.mjs           # 組み立ての集約（同期サーバーのエントリが create-sync-server.ts を経由するか。ADR-0004 決定 4）
 node scripts/audit-domain-error-shape.mjs        # ドメインエラー型の形（core のエラー型が message フィールドを持たないか。ADR-0016 決定 2 項目 3）
@@ -945,12 +946,13 @@ bash -c 'set -euo pipefail; targets="$(node scripts/list-scan-targets.mjs shell)
 ありません」と出ます（`git add` すれば解消します）。決定は
 [`docs/adr/0014`](../adr/0014-scan-target-integrity.md) D4。
 
-**テストの `.only` と理由の無い `.skip` は、構造監査（SC-040）が止めます**（#523。規約は
+**テストの `.only` と理由の無い `.skip` は、`scripts/audit-test-focus.mjs` が止めます**（#523。規約は
 [`docs/adr/0006`](../adr/0006-test-conventions.md)、機械で守れる規則は検査にする
 [`docs/adr/0030`](../adr/0030-ai-driven-development-operations.md) 決定 2）。`.only` は 1 つ残ると同じファイルの
-他のテストが黙って流れなくなります（Playwright の `forbidOnly` は CI のときだけ効きます）。SC-040 は測定値ではなく
-規約の門で、違反が 1 件でもあれば指標の表を出さずに非ゼロで終わります。
-ADR-0009 D2（構造監査は値を出すだけ）との関係は、利用者の判断待ちです（この検査を別のスクリプトへ移すか、ADR に追記するか）。
+他のテストが黙って流れなくなります（Playwright の `forbidOnly` は CI のときだけ効きます）。この検査は測定値ではなく
+規約の門で、違反が 1 件でもあれば非ゼロで終わり、走査量を毎回出し、走査対象が 0 件なら落ちます。
+**構造監査（`audit-structure.mjs`）の外に置いてあるのは、構造監査が値を出すだけ（測定値は落ちない。
+[`docs/adr/0009`](../adr/0009-ci-scope-and-checks.md) D2）だからです。** 合否を持つ規約の門を足しても D2 を変えずに済みます。
 
 - 見るのは**テストを定義する関数**（`it` / `test` / `describe` / `suite`）から始まる呼び出しの連なりの名前だけです。
   vitest・bun・`node:test`・Playwright（`test.describe.only` など）を同じ形で覆います。

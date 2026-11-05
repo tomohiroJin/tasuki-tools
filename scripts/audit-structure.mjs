@@ -27,8 +27,6 @@ import {
   formatTargetDiff,
   findEmptyScanDimensions,
   findMissingPaths,
-  hasZeroScanTargets,
-  listRepoFiles,
 } from "./lib/scan-targets.mjs";
 import { isDirectRun } from "./lib/direct-run.mjs";
 import {
@@ -51,7 +49,6 @@ import {
 import {
   sc035MessageDefinitions,
 } from "./lib/structure/message-definitions.mjs";
-import { sc040FocusedOrSkippedTests } from "./lib/structure/focused-skipped-tests.mjs";
 import {
   SC039A_SCOPE,
   extractPublicDeclarations,
@@ -100,33 +97,6 @@ const __dirname = path.dirname(__filename);
 const REPO_ROOT = path.resolve(__dirname, "..");
 
 const EXT_TS = [".ts", ".tsx"];
-
-/**
- * SC-040 が読むテストファイルの名前（git の pathspec。`*` は `/` を跨ぐ）。
- *
- * **型はランナー自身の既定に合わせる**（ADR-0014 決定 3「実体の権威はツール自身」）:
- * vitest は `**\/*.{test,spec}.?(c|m)[jt]s?(x)`、bun test は `*.test.*` / `*_test.*` / `*.spec.*` / `*_spec.*`。
- * 両方の和を、拡張子 `js jsx ts tsx mjs cjs mts cts` で列挙する。
- *
- * 各パッケージの test ディレクトリ（`allTestFiles`）の外にあるもの（`e2e/specs`・`scripts/`・`packages/ui/tests`・
- * `src` の中の `*_test.ts` など）をここで足す。`allTestFiles` と和を取るので、重なっても害は無い。
- */
-export const SC040_TEST_FILE_PATTERNS = ["test", "spec"].flatMap((kind) =>
-  ["js", "jsx", "ts", "tsx", "mjs", "cjs", "mts", "cts"].flatMap((ext) => [
-    `*.${kind}.${ext}`,
-    `*_${kind}.${ext}`,
-  ]),
-);
-
-/**
- * SC-040 の走査対象を組み立てる（`Map<リポジトリ相対パス, ソース>`）。
- * 各パッケージの test ディレクトリの全ファイルと、名前でテストと分かるファイルの和。
- */
-export function buildSc040Files(allTestFiles, namedTestPaths, readFile) {
-  const files = new Map(allTestFiles);
-  for (const rel of namedTestPaths) if (!files.has(rel)) files.set(rel, readFile(rel));
-  return files;
-}
 
 /**
  * 走査するパッケージ。**src と test は独立に宣言する。**
@@ -1379,26 +1349,7 @@ function main() {
     process.exit(1);
   }
 
-  // SC-040: テストの `.only` と理由の無い `.skip` 系（#523）。**これは測定値ではなく規約の門**
-  // （`.only` が 1 つ残ると同じファイルの他のテストが黙って流れなくなる）。見つかれば指標の表を出さずに落とす。
-  const namedTestPaths = listRepoFiles(REPO_ROOT, SC040_TEST_FILE_PATTERNS);
-  const sc040Files = buildSc040Files(allTestFiles, namedTestPaths, (rel) =>
-    fs.readFileSync(path.join(REPO_ROOT, rel), "utf8"),
-  );
-  // 走査量は成否によらず必ず出す（#135 D5）。0 件なら検査が空振りしている。
-  console.log(`[audit-structure] SC-040 の走査対象: ${sc040Files.size} ファイル`);
-  if (hasZeroScanTargets(sc040Files.size) || hasZeroScanTargets(namedTestPaths.length)) {
-    console.error("[audit-structure] SC-040 の走査対象が 0 件です（検査が空振りします）");
-    process.exit(1);
-  }
-  const sc040Problems = sc040FocusedOrSkippedTests(sc040Files);
-  if (sc040Problems.length > 0) {
-    for (const p of sc040Problems) console.error(`[audit-structure] ${p}`);
-    process.exit(1);
-  }
-
   const { results, measured } = runAudit(loaded, sc039Sources, allTestFiles);
-  results.sc040 = { value: sc040Problems.length, target: 0 };
 
   // **指標が測った対象が、照合した対象と同じかを見る**（#198・ADR-0014 決定 9）。
   // 照合・0 件ガード・例外表の健全性・走査量の表示はすべて指標より手前で終わるため、

@@ -1,5 +1,5 @@
 /**
- * SC-040（テストの `.only` と理由の無い `.skip`）の自己テスト（#523）
+ * テストの `.only` と理由の無い `.skip`）の自己テスト（#523）
  *
  * 既知の入力（インライン文字列）に対する判定を固定する。実リポジトリはスキャンしない。
  */
@@ -7,7 +7,7 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import {
   findFocusedOrSkippedTests,
-  sc040FocusedOrSkippedTests,
+  checkFocusedOrSkippedTests,
 } from "./focused-skipped-tests.mjs";
 
 const kinds = (file, src) => findFocusedOrSkippedTests(file, src).map((f) => `${f.kind}:${f.line}`);
@@ -309,7 +309,7 @@ describe("構文の種類", () => {
   });
 });
 
-describe("sc040FocusedOrSkippedTests", () => {
+describe("checkFocusedOrSkippedTests", () => {
   test("違反を「ファイル:行」つきの文として返し、無ければ空配列", () => {
     // Given
     const files = new Map([
@@ -317,11 +317,11 @@ describe("sc040FocusedOrSkippedTests", () => {
       ["a/bad.test.ts", "\nit.only('a', () => {});\nit.skip('b', () => {});"],
     ]);
     // When
-    const problems = sc040FocusedOrSkippedTests(files);
+    const problems = checkFocusedOrSkippedTests(files);
     // Then
     assert.equal(problems.length, 2);
-    assert.match(problems[0], /^SC-040 a\/bad\.test\.ts:2 \.only が残っています/);
-    assert.match(problems[1], /^SC-040 a\/bad\.test\.ts:3 \.skip に理由がありません/);
-    assert.deepEqual(sc040FocusedOrSkippedTests(new Map([["b/ok.test.ts", "it('a', () => {});"]])), []);
+    assert.match(problems[0], /^a\/bad\.test\.ts:2 \.only が残っています/);
+    assert.match(problems[1], /^a\/bad\.test\.ts:3 \.skip に理由がありません/);
+    assert.deepEqual(checkFocusedOrSkippedTests(new Map([["b/ok.test.ts", "it('a', () => {});"]])), []);
   });
 });

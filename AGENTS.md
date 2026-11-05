@@ -89,6 +89,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 - `pnpm test` — 全パッケージのテスト
 - `pnpm e2e` — E2E テスト
 - `node scripts/audit-structure.mjs` — 構造監査
+- `node scripts/audit-test-focus.mjs` — テストの `.only` と、理由のコメントの無い `.skip` / `.skipIf` / `.todo` / `.fixme` を止める（違反があれば exit 1）
 - `node scripts/audit-log-hygiene.mjs` — ログ衛生
 - `node scripts/audit-assembly-wiring.mjs` — 組み立ての集約（同期サーバー）
 - `node scripts/audit-domain-error-shape.mjs` — ドメインエラー型の形（core のエラー型が文言を持たない）
