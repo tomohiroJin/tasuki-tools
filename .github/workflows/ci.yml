@@ -390,6 +390,11 @@ jobs:
       - run: node scripts/audit-structure.mjs
         if: steps.scope.outputs.code == 'true'
 
+      # テストの .only と理由の無い .skip を止める（規約は docs/adr/0006・#523）。構造監査（上）は値を出すだけ
+      # （ADR 0009 D2）なので、規約の門であるこの検査は別のスクリプトにして、違反があれば赤くする。
+      - run: node scripts/audit-test-focus.mjs
+        if: steps.scope.outputs.code == 'true'
+
       # ログ衛生。資格情報・個人に紐づく情報がログ経路へ流れないことを見る（ADR 0012 D1）。
       - run: node scripts/audit-log-hygiene.mjs
         if: steps.scope.outputs.code == 'true'
