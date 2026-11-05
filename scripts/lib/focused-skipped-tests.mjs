@@ -150,14 +150,11 @@ function isInertOptionValue(v) {
 
 /**
  * `it("…", { skip: … })` の形のオプション。値が飛ばさない値でない `skip` / `todo` / `only` を返す。
- * **見るのはテストを定義する呼び出しだけ**: 第 1 引数が名前（オブジェクトでない）ものに限る。
- * `test.extend({ only: … })`・`test.use({ skip: … })` のように第 1 引数がオブジェクトのものは、
- * fixture や設定の名前であってテストのオプションではない。
+ * **見るのは第 2 引数以降だけ**（第 1 引数はテストの名前）。`test.extend({ only: … })`・`test.use({ skip: … })` の
+ * ように第 1 引数がオブジェクトのものは、fixture や設定の名前であってテストのオプションではないので読まない。
  */
 function optionFindings(call) {
   const out = [];
-  const first = call.arguments[0];
-  if (!first || ts.isObjectLiteralExpression(first)) return out;
   for (const arg of call.arguments.slice(1)) {
     if (!ts.isObjectLiteralExpression(arg)) continue;
     for (const prop of arg.properties) {
