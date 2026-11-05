@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/mutation-parallel.mjs b/scripts/lib/mutation-parallel.mjs
+index 4228cc9..cd97c28 100644
+--- a/scripts/lib/mutation-parallel.mjs
++++ b/scripts/lib/mutation-parallel.mjs
+@@ -130,7 +130,7 @@ export function worktreeDirFor(tmpRoot, pid, index) {
+  * `--offline` は残す（ネットワークに出ない。ストアに無ければ落ちて、本体の `pnpm install` を促す）。
+  */
+ export function installArgs(storeDir) {
+-  return ["install", "--frozen-lockfile", "--offline", "--reporter=append-only", "--store-dir", storeDir];
++  return ["install", "--frozen-lockfile", "--reporter=append-only", "--store-dir", storeDir];
+ }
+ 
+ /**

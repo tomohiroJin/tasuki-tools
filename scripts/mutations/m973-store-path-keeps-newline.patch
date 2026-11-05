@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/mutation-parallel.mjs b/scripts/lib/mutation-parallel.mjs
+index 4228cc9..78a2977 100644
+--- a/scripts/lib/mutation-parallel.mjs
++++ b/scripts/lib/mutation-parallel.mjs
+@@ -138,7 +138,7 @@ export function installArgs(storeDir) {
+  * 相対のまま作業ツリーの中で解くと、本体とは別のストアを指してしまうため。
+  */
+ export function storePathFrom(output) {
+-  const storeDir = String(output).trim();
++  const storeDir = String(output);
+   if (!path.isAbsolute(storeDir)) {
+     throw new Error(`pnpm store path の出力が絶対パスではありません: ${JSON.stringify(storeDir)}`);
+   }

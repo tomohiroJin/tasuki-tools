@@ -58,6 +58,9 @@ const RESERVED_900_909 =
 const RESERVED_950_959 =
   "**対応表より後に足した変異。** 950〜959 は #524 に割り当てた範囲。";
 
+const RESERVED_970_979 =
+  "**対応表より後に足した変異。** 970〜979 は #535 に割り当てた範囲。";
+
 const RESERVED_880_889 =
   "**対応表より後に足した変異。** 880〜889 は #506 の宣言の検査に追加で割り当てた範囲（850〜859 を使い切ったため）。";
 
@@ -5726,5 +5729,37 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["test-shuffled.test.mjs"],
     note: RESERVED_950_959 + " " + "#524のレビュー。ログの先頭の「同じ種で再現」を貼っても使い方を出して終わり、種で流し直せない。",
+  },
+  {
+    id: 970,
+    label: "並列の作業ツリーへの依存の入れ方が、本体のストアを --store-dir で渡さない",
+    patch: "m970-install-drops-store-dir.patch",
+    pkg: "scripts",
+    tests: ["lib/mutation-parallel.test.mjs"],
+    note: RESERVED_970_979 + " " + "#535。一時ディレクトリが別のファイルシステム（CI の /tmp・TMPDIR=/dev/shm）だと pnpm が空のストアに切り替え、--offline で依存を入れられずに変異検査のシャードが落ちる。",
+  },
+  {
+    id: 971,
+    label: "並列の作業ツリーへの依存の入れ方が、--offline を落とす",
+    patch: "m971-install-drops-offline.patch",
+    pkg: "scripts",
+    tests: ["lib/mutation-parallel.test.mjs"],
+    note: RESERVED_970_979 + " " + "#535。ストアに無い依存を黙ってネットワークから取りに行き、CI で本体の pnpm install 漏れに気づけず、取得の揺れで落ちる。",
+  },
+  {
+    id: 972,
+    label: "本体のストアの場所の取り出しが、絶対パスでない出力を受ける",
+    patch: "m972-store-path-accepts-relative.patch",
+    pkg: "scripts",
+    tests: ["lib/mutation-parallel.test.mjs"],
+    note: RESERVED_970_979 + " " + "#535。空や警告まじりの出力が相対パスのストアとして作業ツリーの中で解かれ、本体とは別の空のストアを指して依存が入らない。",
+  },
+  {
+    id: 973,
+    label: "本体のストアの場所の取り出しが、出力の末尾の改行を落とさない",
+    patch: "m973-store-path-keeps-newline.patch",
+    pkg: "scripts",
+    tests: ["lib/mutation-parallel.test.mjs"],
+    note: RESERVED_970_979 + " " + "#535。改行つきのパスが --store-dir に渡り、存在しないストアを指して依存が入らない。",
   },
 ];
