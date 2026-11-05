@@ -98,6 +98,9 @@ const RESERVED_910_919 =
 const RESERVED_985_994 =
   "**対応表より後に足した変異。** 985〜994 は #540 に割り当てた範囲。";
 
+const RESERVED_1000_1009 =
+  "**対応表より後に足した変異。** 1000〜1009 は #544 に割り当てた範囲。";
+
 export const MUTATIONS = [
   {
     id: 1,
@@ -5070,7 +5073,7 @@ export const MUTATIONS = [
     label: "audit-plan-gate が宣言を要求する文書を 1 件も検査しない",
     patch: "m853-plan-gate-declaration-never-required.patch",
     pkg: "scripts",
-    tests: ["scan-target-wiring.test.mjs"],
+    tests: ["wiring-audit-plan-gate.test.mjs"],
     note: RESERVED_850_859 + " " + "#506。要求対象は現在 0 件なので、検査が配線ごと外れても CI の色は変わらない。落ちるのは境界日を動かす配線のテストだけ。",
   },
   {
@@ -5086,7 +5089,7 @@ export const MUTATIONS = [
     label: "audit-plan-gate の宣言の検査が、plans/ を列挙しない",
     patch: "m855-plan-gate-declaration-drops-plans-dir.patch",
     pkg: "scripts",
-    tests: ["scan-target-wiring.test.mjs"],
+    tests: ["wiring-audit-plan-gate.test.mjs"],
     note: RESERVED_850_859 + " " + "#506 のレビュー。実装計画の側で宣言が無くても赤にならず、specs/ だけを見る検査になる。",
   },
   {
@@ -5094,7 +5097,7 @@ export const MUTATIONS = [
     label: "audit-plan-gate の設計文書の 0 件ガードを無効にする",
     patch: "m856-plan-gate-declaration-empty-guard-off.patch",
     pkg: "scripts",
-    tests: ["scan-target-wiring.test.mjs"],
+    tests: ["wiring-audit-plan-gate.test.mjs"],
     note: RESERVED_850_859 + " " + "#506 のレビュー。列挙が空になっても緑のままで、宣言の検査が空振りしても気づけない。",
   },
   {
@@ -5134,7 +5137,7 @@ export const MUTATIONS = [
     label: "audit-plan-gate が、宣言の正本のガイドの実在を確かめない",
     patch: "m881-plan-gate-declaration-skips-guide-existence.patch",
     pkg: "scripts",
-    tests: ["scan-target-wiring.test.mjs"],
+    tests: ["wiring-audit-plan-gate.test.mjs"],
     note: RESERVED_880_889 + " " + "#506 のコードレビュー。設計文書の置き場はリンク検査の外なので、ガイドを改名・削除しても宣言は古いパスを指したまま緑になる。",
   },
   {
@@ -6043,5 +6046,21 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["lib/process-alive.test.mjs"],
     note: RESERVED_995_999 + " " + "#525 の /code-review。kill 0 の後に回収された孫を、ps も見つけられず null → 生きていると読み、孫のテストが誤って落ちる。",
+  },
+  {
+    id: 1000,
+    label: "複製の接頭辞の重なりの判定が、重なりを常に見逃す",
+    patch: "m1000-copy-harness-overlap-never-reported.patch",
+    pkg: "scripts",
+    tests: ["script-copy-harness.test.mjs"],
+    note: RESERVED_1000_1009 + " " + "#544。接頭辞が別のファイルの接頭辞の前方一致になっても気づけず、並列に走るテストの複製が互いの掃除で消えて、原因の分かりにくい失敗になる。",
+  },
+  {
+    id: 1001,
+    label: "複製の起動時の掃除が、自分の接頭辞より広く（`.` で始まる名前すべて）消す",
+    patch: "m1001-copy-harness-cleanup-removes-any-dot-file.patch",
+    pkg: "scripts",
+    tests: ["script-copy-harness.test.mjs"],
+    note: RESERVED_1000_1009 + " " + "#544。同時に走る別のファイルの複製（や scripts/ の隠しファイル）を消し、走行中のテストが落ちる。",
   },
 ];

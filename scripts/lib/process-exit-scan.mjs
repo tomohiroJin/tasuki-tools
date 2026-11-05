@@ -1,7 +1,7 @@
 /**
  * `process.exit` の使用と、`process.exitCode` の立て忘れ（`return` の書き忘れ）を構文木で見る（#540）。
  *
- * 判定だけを持つ純粋関数。どのファイルを読むかは `scripts/scan-target-wiring.test.mjs` が持つ。
+ * 判定だけを持つ純粋関数。どのファイルを読むかは `scripts/exit-flush.test.mjs` が持つ。
  *
  * **なぜ文字列ではなく構文木か。** 文字列探しは、文字列・正規表現の中の `/*`（`".github/workflows/*.yml"`）を
  * コメントの始まりと誤読して実コードを読み飛ばし、行末コメントや文字列の中の `process.exit(` を誤検出する。
