@@ -335,6 +335,24 @@ describe("レビューで見つかった形（#537）", () => {
     assert.deepEqual(kinds("a.test.mjs", live), ["no-reason:1", "no-reason:2", "no-reason:3"]);
   });
 
+  test("名前を省いた node:test の test({ only: true }, fn)・describe({ skip: true }, fn) も止める", () => {
+    // Given
+    const src = "test({ only: true }, () => {});\ndescribe({ skip: true }, () => {});\nit({ skip: false }, () => {});";
+    // When / Then
+    assert.deepEqual(kinds("a.test.mjs", src), ["only:1", "no-reason:2"]);
+  });
+
+  test("式の本体が括弧で包まれたアロー関数の中の skip は、括弧の中の直上の理由で通る", () => {
+    // Given
+    const ok = "describe('d', () => (\n  // 理由: a\n  it.skip('x')\n));";
+    const nested = "describe('d', () => ((\n  // 理由: a\n  it.skip('x')\n)));";
+    const outer = "// 理由: a\ndescribe('d', () => (\n  it.skip('x')\n));";
+    // When / Then
+    assert.deepEqual(kinds("a.test.ts", ok), []);
+    assert.deepEqual(kinds("a.test.ts", nested), []);
+    assert.deepEqual(kinds("a.test.ts", outer), ["no-reason:3"]);
+  });
+
   test("テストの定義ではない呼び出し（test.extend・test.use）のオブジェクトの only / skip は読まない", () => {
     // Given
     const src = "const t = test.extend({ only: 1 });\ntest.use({ skip: true });\ntest.describe.configure({ mode: 'serial' });";

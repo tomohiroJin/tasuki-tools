@@ -100,6 +100,13 @@ function accessedName(node) {
   return null;
 }
 
+/** 式の本体を持つアロー関数の本体か（括弧で包まれていてもよい: `() => (it.skip(…))`）。 */
+function isArrowExpressionBody(n) {
+  let c = n;
+  while (c.parent && ts.isParenthesizedExpression(c.parent)) c = c.parent;
+  return c.parent !== undefined && ts.isArrowFunction(c.parent) && c.parent.body === c;
+}
+
 /**
  * 属する文（その親が文の並びを持つ最初の祖先）。
  * **式の本体を持つアロー関数（`() => it.skip(…)`）はそこで止める。** 越えて外の文まで上がると、
@@ -107,7 +114,7 @@ function accessedName(node) {
  */
 function enclosingStatement(node) {
   let n = node;
-  while (n.parent && !(ts.isArrowFunction(n.parent) && n.parent.body === n) && !ts.isSourceFile(n.parent) && !ts.isBlock(n.parent) && !ts.isModuleBlock(n.parent) && !ts.isCaseClause(n.parent) && !ts.isDefaultClause(n.parent)) {
+  while (n.parent && !isArrowExpressionBody(n) && !ts.isSourceFile(n.parent) && !ts.isBlock(n.parent) && !ts.isModuleBlock(n.parent) && !ts.isCaseClause(n.parent) && !ts.isDefaultClause(n.parent)) {
     n = n.parent;
   }
   return n;
@@ -150,12 +157,18 @@ function isInertOptionValue(v) {
 
 /**
  * `it("…", { skip: … })` の形のオプション。値が飛ばさない値でない `skip` / `todo` / `only` を返す。
- * **見るのは第 2 引数以降だけ**（第 1 引数はテストの名前）。`test.extend({ only: … })`・`test.use({ skip: … })` の
- * ように第 1 引数がオブジェクトのものは、fixture や設定の名前であってテストのオプションではないので読まない。
+ * `test.extend({ only: … })`・`test.use({ skip: … })`・`test.describe.configure({ … })` の第 1 引数は
+ * fixture や設定の名前であってテストのオプションではないので読まない。それ以外の呼び出しは、名前を省いた形
+ * （`test({ only: true }, fn)`）も含めて、オブジェクトの引数をすべて読む。
  */
 function optionFindings(call) {
   const out = [];
-  for (const arg of call.arguments.slice(1)) {
+  // 第 1 引数はテストの名前。ただし名前を省いた形（`test({ only: true }, fn)`）もあるので、全部を読む。
+  // 読まないのは、fixture や設定を渡す `extend` / `use` / `configure` の呼び出しだけ。
+  const callee = call.expression;
+  const last = ts.isPropertyAccessExpression(callee) ? callee.name.text : ts.isIdentifier(callee) ? callee.text : null;
+  const args = ["extend", "use", "configure"].includes(last) ? call.arguments.slice(1) : call.arguments;
+  for (const arg of args) {
     if (!ts.isObjectLiteralExpression(arg)) continue;
     for (const prop of arg.properties) {
       if (!ts.isPropertyAssignment(prop) && !ts.isShorthandPropertyAssignment(prop)) continue;
