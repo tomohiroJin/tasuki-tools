@@ -13,11 +13,12 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { listRepoFiles } from "./lib/scan-targets.mjs";
-import { TEST_FOCUS_FILE_PATTERNS, buildTestFocusFiles } from "./audit-test-focus.mjs";
+import { TEST_FOCUS_FILE_PATTERNS, buildTestFocusFiles, readTestDirFiles } from "./audit-test-focus.mjs";
 
 const SCRIPTS_DIR = path.dirname(fileURLToPath(import.meta.url));
 const SCRIPT = "audit-test-focus.mjs";
@@ -84,6 +85,28 @@ describe("走査対象の型と組み立て（#523）", () => {
     assert.ok(!matches("apps/y/src/z.ts"), "テストでないファイルが入っています");
   });
 
+  test("test ディレクトリの中の .mjs・.mts などの補助ファイルも読む", () => {
+    // Given: test ディレクトリに補助ファイルを置いた一時のリポジトリ
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "test-focus-"));
+    try {
+      fs.mkdirSync(path.join(root, "pkg/tests/support"), { recursive: true });
+      for (const f of ["a.test.ts", "support/h.mjs", "support/h.mts", "support/h.cjs", "support/readme.md"]) {
+        fs.writeFileSync(path.join(root, "pkg/tests", f), "x");
+      }
+      // When
+      const files = readTestDirFiles(root, [{ pkg: "pkg", src: null, test: "tests", entry: null }]);
+      // Then: 走査の型の拡張子は読み、それ以外（.md）は読まない
+      assert.deepEqual([...files.keys()].sort(), [
+        "pkg/tests/a.test.ts",
+        "pkg/tests/support/h.cjs",
+        "pkg/tests/support/h.mjs",
+        "pkg/tests/support/h.mts",
+      ]);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   test("buildTestFocusFiles は test ディレクトリの全ファイルと名前で分かるファイルの和を返し、重なりは読み直さない", () => {
     // Given
     const testDirFiles = new Map([
@@ -138,12 +161,26 @@ describe("配線: scripts/audit-test-focus.mjs", () => {
 
   test("テストファイルの名前の一覧が 0 件なら、走査が空振りしているとして非ゼロで終了する", () => {
     // Given: 名前で分かるテストの一覧を空にした複製
-    const needle = "const namedTestPaths = listRepoFiles(REPO_ROOT, TEST_FOCUS_FILE_PATTERNS);";
-    const r = runScriptCopy((s) => s.replace(needle, "const namedTestPaths = [];"));
+    const needle = "const listed = listRepoFiles(REPO_ROOT, TEST_FOCUS_FILE_PATTERNS);";
+    const r = runScriptCopy((s) => s.replace(needle, "const listed = [];"));
     // Then
     assertRewritten(r.source, needle, "一覧の空化");
     assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
     assert.match(r.stderr, /走査対象が 0 件です.*名前で分かるテストファイル/);
+  });
+
+  test("git が返しても作業ツリーに無いファイルは読まず、数えない（ENOENT で落ちない）", () => {
+    // Given: 一覧に実在しないテストファイルを 1 件足した複製（作業ツリーで消して未ステージの状態）
+    const needle = "const listed = listRepoFiles(REPO_ROOT, TEST_FOCUS_FILE_PATTERNS);";
+    const control = runScriptCopy((s) => s);
+    const r = runScriptCopy((s) =>
+      s.replace(needle, 'const listed = [...listRepoFiles(REPO_ROOT, TEST_FOCUS_FILE_PATTERNS), "scripts/zz-gone.test.mjs"];'),
+    );
+    // Then: 落ちず、走査量も対照実行と同じ
+    assertRewritten(r.source, needle, "一覧の書き換え");
+    assert.equal(r.status, 0, r.stderr);
+    const volumeOf = (out) => out.match(/走査対象: .*/)?.[0];
+    assert.equal(volumeOf(r.stdout), volumeOf(control.stdout));
   });
 
   test("test ディレクトリから読む分が 0 件なら、合計が非ゼロでも非ゼロで終了する", () => {

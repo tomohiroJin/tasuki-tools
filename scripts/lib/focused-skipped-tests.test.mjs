@@ -293,6 +293,56 @@ describe("別の書き方", () => {
   });
 });
 
+describe("レビューで見つかった形（#537）", () => {
+  test("記号だけの理由（// 理由: -・理由: ...）は理由と認めない。文字か数字があれば通す", () => {
+    // Given
+    const dash = "// 理由: -\nit.skip('a', () => {});";
+    const dots = "/* 理由：... */\nit.skip('a', () => {});";
+    const digit = "// 理由: #525\nit.skip('a', () => {});";
+    // When / Then
+    assert.deepEqual(kinds("a.test.ts", dash), ["no-reason:2"]);
+    assert.deepEqual(kinds("a.test.ts", dots), ["no-reason:2"]);
+    assert.deepEqual(kinds("a.test.ts", digit), []);
+  });
+
+  test("bun:test の test.if / describe.if / test.todoIf も理由を求める", () => {
+    // Given
+    const src = "test.if(c)('a', () => {});\ndescribe.if(c)('b', () => {});\ntest.todoIf(c)('c', () => {});";
+    // When / Then
+    assert.deepEqual(kinds("a.test.ts", src), ["no-reason:1", "no-reason:2", "no-reason:3"]);
+  });
+
+  test("式の本体を持つアロー関数の中の skip は、その式の上の理由で通る", () => {
+    // Given
+    const src = "describe('x', () =>\n  // 理由: y\n  it.skip('a'));";
+    // When / Then
+    assert.deepEqual(kinds("a.test.ts", src), []);
+  });
+
+  test("外の文の上の理由は、式の本体を持つアロー関数の中の skip の理由にならない", () => {
+    // Given
+    const src = "// 理由: y\ndescribe('x', () =>\n  it.skip('a'));";
+    // When / Then
+    assert.deepEqual(kinds("a.test.ts", src), ["no-reason:3"]);
+  });
+
+  test("node:test のオプションの飛ばさない値（false・null・undefined・0・空文字列）は通し、それ以外は止める", () => {
+    // Given
+    const inert = "it('a', { skip: 0 }, () => {});\nit('b', { skip: '' }, () => {});\nit('c', { todo: null }, () => {});";
+    const live = "it('d', { skip: 'x' }, () => {});\nit('e', { skip: cond }, () => {});\nit('f', { skip: 1 }, () => {});";
+    // When / Then
+    assert.deepEqual(kinds("a.test.mjs", inert), []);
+    assert.deepEqual(kinds("a.test.mjs", live), ["no-reason:1", "no-reason:2", "no-reason:3"]);
+  });
+
+  test("テストの定義ではない呼び出し（test.extend・test.use）のオブジェクトの only / skip は読まない", () => {
+    // Given
+    const src = "const t = test.extend({ only: 1 });\ntest.use({ skip: true });\ntest.describe.configure({ mode: 'serial' });";
+    // When / Then
+    assert.deepEqual(kinds("a.spec.ts", src), []);
+  });
+});
+
 describe("構文の種類", () => {
   test("TSX のファイルも読む", () => {
     // Given

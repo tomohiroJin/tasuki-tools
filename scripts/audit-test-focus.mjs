@@ -38,8 +38,10 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..
  * 各パッケージの test ディレクトリの外にあるもの（`e2e/specs`・`scripts/`・`packages/ui/tests`・
  * `src` の中の `*_test.ts` など）をここで足す。test ディレクトリの全ファイルと和を取るので、重なっても害は無い。
  */
+export const TEST_FOCUS_EXTENSIONS = ["js", "jsx", "ts", "tsx", "mjs", "cjs", "mts", "cts"];
+
 export const TEST_FOCUS_FILE_PATTERNS = ["test", "spec"].flatMap((kind) =>
-  ["js", "jsx", "ts", "tsx", "mjs", "cjs", "mts", "cts"].flatMap((ext) => [
+  TEST_FOCUS_EXTENSIONS.flatMap((ext) => [
     `*.${kind}.${ext}`,
     `*_${kind}.${ext}`,
   ]),
@@ -55,13 +57,17 @@ export function buildTestFocusFiles(testDirFiles, namedTestPaths, readFile) {
   return files;
 }
 
-/** 構造監査が宣言する各パッケージの test ディレクトリの全ファイル（キーはリポジトリ相対パス）。 */
-function readTestDirFiles() {
+/**
+ * 構造監査が宣言する各パッケージの test ディレクトリの全ファイル（キーはリポジトリ相対パス）。
+ * 読む拡張子は走査の型（{@link TEST_FOCUS_EXTENSIONS}）と同じ。補助ファイル（`.mjs`・`.mts` など）も、
+ * `describe.only` を定義して取り込まれうる。
+ */
+export function readTestDirFiles(repoRoot = REPO_ROOT, packages = SCANNED_PACKAGES) {
   const files = new Map();
-  for (const d of SCANNED_PACKAGES) {
+  for (const d of packages) {
     if (!hasScanTarget(d.test)) continue;
     const dir = `${d.pkg}/${d.test}`;
-    for (const [k, v] of readFilesRecursive(path.join(REPO_ROOT, dir), [".ts", ".tsx"])) {
+    for (const [k, v] of readFilesRecursive(path.join(repoRoot, dir), TEST_FOCUS_EXTENSIONS.map((e) => `.${e}`))) {
       files.set(`${dir}/${k}`, v);
     }
   }
@@ -70,7 +76,9 @@ function readTestDirFiles() {
 
 function main() {
   const testDirFiles = readTestDirFiles();
-  const namedTestPaths = listRepoFiles(REPO_ROOT, TEST_FOCUS_FILE_PATTERNS);
+  // `git ls-files` は、作業ツリーで消して未ステージのファイルも返す。実在しないものは読まず、数えない。
+  const listed = listRepoFiles(REPO_ROOT, TEST_FOCUS_FILE_PATTERNS);
+  const namedTestPaths = listed.filter((rel) => fs.existsSync(path.join(REPO_ROOT, rel)));
   const files = buildTestFocusFiles(testDirFiles, namedTestPaths, (rel) =>
     fs.readFileSync(path.join(REPO_ROOT, rel), "utf8"),
   );

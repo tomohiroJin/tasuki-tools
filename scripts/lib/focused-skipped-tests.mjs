@@ -16,6 +16,9 @@
  *   形は `// 理由: …`（`/* 理由: … *\/` も可）。呼び出しを含む文の直前に、空行を挟まず置く。
  * - `node:test` のオプション（`it("…", { skip: "…" })`・`{ todo: true }`・`{ only: true }`）も同じ扱い。
  *
+ * 名前で見る型の限界: 同じ名前の別の束縛（`const test = /a/; test.skip`）も、テストの定義と区別せず止める
+ * （テストのファイルの中では稀）。
+ *
  * 見ないもの（文書に書いてある限界）: テストの文脈（`ctx.skip()`・`t.test.only`・子テストのオプション
  * `t.test('c', { only: true })`）・別名で取り込んだ関数（`const t = test; t.only(...)`）・分割代入
  * （`const { only } = it`）・`globalThis.it.only`・組み立てた名前（`it['on'+'ly']`）・変数やスプレッドで渡す
@@ -27,18 +30,22 @@ import ts from "typescript";
 /** テストを定義する関数の名前。連なりの根（最も左の識別子）がこれのときだけ見る。 */
 export const TEST_API_ROOTS = ["it", "test", "describe", "suite"];
 
-/** 理由のコメントを要する名前。 */
-export const SKIP_NAMES = ["skip", "skipIf", "runIf", "todo", "fixme"];
+/**
+ * 理由のコメントを要する名前。飛ばす・条件で走らせる・予定だけ置く書き方すべて。
+ * `if` / `todoIf` は bun:test の条件つき（`test.if(cond)(…)`・`test.todoIf(cond)(…)`）。
+ */
+export const SKIP_NAMES = ["skip", "skipIf", "runIf", "todo", "fixme", "if", "todoIf"];
 
 /** 理由があっても止める名前。 */
 export const FOCUS_NAMES = ["only"];
 
 /**
- * 理由のコメントの形。**コメントの行の頭**が `理由:`（全角コロンも可）で、後ろに空白以外の文字が 1 つ以上要る。
+ * 理由のコメントの形。**コメントの行の頭**が `理由:`（全角コロンも可）で、後ろに**文字か数字**（`\p{L}`・`\p{N}`）が
+ * 1 つ以上要る。`理由: -`・`理由: ...` のような記号だけの中身は理由と認めない。
  * 行の途中の「理由:」（`// この理由: a は別`・`// 外す理由: 未定`）は理由と認めない。
  * `//`・`/* *\/`・`/** *\/` と、ブロックコメントの各行頭の `*` は、比べる前に外す。
  */
-export const REASON_RE = /^理由[:：]\s*\S/;
+export const REASON_RE = /^理由[:：].*[\p{L}\p{N}]/u;
 
 /** コメントの塊から、記号を外した行の一覧を取る。 */
 function commentLines(text) {
@@ -93,10 +100,14 @@ function accessedName(node) {
   return null;
 }
 
-/** 属する文（その親が文の並びを持つ最初の祖先）。 */
+/**
+ * 属する文（その親が文の並びを持つ最初の祖先）。
+ * **式の本体を持つアロー関数（`() => it.skip(…)`）はそこで止める。** 越えて外の文まで上がると、
+ * 外の文の上の理由が中の skip の理由として通り、中の式の上の理由は見えなくなる。
+ */
 function enclosingStatement(node) {
   let n = node;
-  while (n.parent && !ts.isSourceFile(n.parent) && !ts.isBlock(n.parent) && !ts.isModuleBlock(n.parent) && !ts.isCaseClause(n.parent) && !ts.isDefaultClause(n.parent)) {
+  while (n.parent && !(ts.isArrowFunction(n.parent) && n.parent.body === n) && !ts.isSourceFile(n.parent) && !ts.isBlock(n.parent) && !ts.isModuleBlock(n.parent) && !ts.isCaseClause(n.parent) && !ts.isDefaultClause(n.parent)) {
     n = n.parent;
   }
   return n;
@@ -126,25 +137,35 @@ function propertyNameOf(name) {
   return null;
 }
 
-/** `it("…", { skip: … })` の形のオプション。値が `false` でない `skip` / `todo` / `only` を返す。 */
+/** 飛ばさない値（`false`・`null`・`undefined`・`0`・空文字列）。それ以外（変数や式を含む）は飛ばす側に倒す。 */
+function isInertOptionValue(v) {
+  return (
+    v.kind === ts.SyntaxKind.FalseKeyword ||
+    v.kind === ts.SyntaxKind.NullKeyword ||
+    (ts.isIdentifier(v) && v.text === "undefined") ||
+    (ts.isNumericLiteral(v) && Number(v.text) === 0) ||
+    (ts.isStringLiteralLike(v) && v.text === "")
+  );
+}
+
+/**
+ * `it("…", { skip: … })` の形のオプション。値が飛ばさない値でない `skip` / `todo` / `only` を返す。
+ * **見るのはテストを定義する呼び出しだけ**: 第 1 引数が名前（オブジェクトでない）ものに限る。
+ * `test.extend({ only: … })`・`test.use({ skip: … })` のように第 1 引数がオブジェクトのものは、
+ * fixture や設定の名前であってテストのオプションではない。
+ */
 function optionFindings(call) {
   const out = [];
-  for (const arg of call.arguments) {
+  const first = call.arguments[0];
+  if (!first || ts.isObjectLiteralExpression(first)) return out;
+  for (const arg of call.arguments.slice(1)) {
     if (!ts.isObjectLiteralExpression(arg)) continue;
     for (const prop of arg.properties) {
       if (!ts.isPropertyAssignment(prop) && !ts.isShorthandPropertyAssignment(prop)) continue;
       const name = propertyNameOf(prop.name);
       if (name !== "skip" && name !== "todo" && name !== "only") continue;
       const value = ts.isPropertyAssignment(prop) ? prop.initializer : null;
-      // 効かない値（false・undefined・null）は止めない
-      if (
-        value &&
-        (value.kind === ts.SyntaxKind.FalseKeyword ||
-          value.kind === ts.SyntaxKind.NullKeyword ||
-          (ts.isIdentifier(value) && value.text === "undefined"))
-      ) {
-        continue;
-      }
+      if (value && isInertOptionValue(value)) continue;
       out.push({ node: prop, name });
     }
   }

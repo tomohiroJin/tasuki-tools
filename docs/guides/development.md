@@ -961,15 +961,22 @@ bash -c 'set -euo pipefail; targets="$(node scripts/list-scan-targets.mjs shell)
   `packages/ui/tests`・`src` の中も含む）です。構文木で読むので、文字列・コメントの中の `.only` や、
   `agenda.skip(...)` / `driver.skip` のようにコマンド名・メソッド名として現れるものは見ません
 - `.only` は理由があっても止めます。外してください
-- `.skip` / `.skipIf` / `.runIf` / `.todo` / `.fixme`（`node:test` の `{ skip: … }` / `{ todo: … }` も同じ）は、
+- `.skip` / `.skipIf` / `.runIf` / `.todo` / `.fixme`（bun:test の `.if` / `.todoIf` も）と、`node:test` のテストの
+  オプション `{ skip: … }` / `{ todo: … }`（`{ only: … }` は上のとおり止める）は、
   **直上に空行を挟まないコメント**（`//`・`/* */`・`/** */`）の**行の頭**が `理由:`（全角コロン `理由：` も可）で、
-  後ろに文字があれば通します。`// この理由: …` のように行の途中にあるものは理由と認めません。
+  後ろに**文字か数字**があれば通します（`理由: -` のように記号だけの中身は不可）。式の本体を持つアロー関数
+  （`() => it.skip(…)`）の中の skip は、その式の直上のコメントだけを見ます（外の文の上の理由は届きません）。
+  `node:test` のオプションは、第 1 引数が名前のテストの定義だけを見ます（`test.extend({ only: … })` や
+  `test.use({ … })` は読みません）。値が `false`・`null`・`undefined`・`0`・空文字列なら飛ばさないものとして通し、
+  それ以外（変数や式を含む）は飛ばすものとして扱います。`// この理由: …` のように行の途中にあるものは理由と認めません。
   飛ばす条件が何で、飛ばした間は何が守られないかを書いてください（例: `apps/tasuki-sync/test/poker/guards.test.ts` の
   `it.skipIf(EXTERNAL_IP === undefined)`）
 - 見ないもの: 実行中に飛ばす `ctx.skip()`・`node:test` の `t.test.only` と子テストのオプション
   `t.test('c', { only: true })`・別名で取り込んだ関数（`const t = test; t.only(…)`）・分割代入（`const { only } = it`）・
   `globalThis.it.only`・組み立てた名前（`it['on'+'ly']`）・変数やスプレッドで渡す `node:test` のオプション。
   テストの定義の構文では区別できません
+- 誤って止めうるもの: 名前で見る型の限界として、同じ名前の別の束縛（`const test = /a/; test.skip`）も
+  テストの定義と区別せず止めます。テストのファイルの中では稀なので、そのときは別の名前にしてください
 - 見つかったら、`.only` は外し、`.skip` 系は理由を書くか外します。**検査側を緩める（走査対象から外す・例外を足す）のは、
   人の承認を待つ操作です**（`AGENTS.md`「AI 運用規則」）
 
