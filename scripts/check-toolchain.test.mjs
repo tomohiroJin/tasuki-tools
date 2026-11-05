@@ -18,7 +18,7 @@ import { REPO_ROOT, createScriptCopyHarness, countOf } from "./lib/script-copy-h
 import { chromiumBrowsersDir, BROWSERS_LOCATION_ENV, PNPM_SET_ENV } from "./lib/toolchain.mjs";
 
 const SCRIPT = "check-toolchain.mjs";
-// pnpm / bun の版を確かめる子を起こすので、既定（300 秒）でなく従来の 60 秒にする
+// 時間制限は、手書きだった頃の値（60 秒）を保つ（既定は 300 秒）
 const { runScriptCopy } = createScriptCopyHarness(".toolchain-", { timeoutMs: 60_000 });
 
 const TOOLCHAIN_READ = 'path.join(REPO_ROOT, "toolchain.json")';

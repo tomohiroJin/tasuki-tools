@@ -171,6 +171,15 @@ describe("createScriptCopyHarness", () => {
     assert.deepEqual(left(), []);
     assert.throws(() => withScriptCopy("check-links.mjs", (s) => s, () => { throw new Error("sync-boom"); }), /sync-boom/);
     assert.deepEqual(left(), []);
+
+    // then だけを持つ値（finally を持たない）でも、決着の後に消す
+    const thenOnly = await withScriptCopy("check-links.mjs", (s) => s, (copyPath) => ({
+      then(resolve) {
+        setTimeout(() => resolve(fs.existsSync(copyPath)), 50);
+      },
+    }));
+    assert.equal(thenOnly, true, "決着の前に複製を消しています");
+    assert.deepEqual(left(), []);
   });
 
   test("複製の実行が時間切れになったら、時間切れと分かる文言で落とす", () => {

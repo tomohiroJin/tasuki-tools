@@ -1,7 +1,7 @@
 /**
  * 検査スクリプトの**書き換えた複製**を作って子プロセスで走らせる補助（#135・#544）。
  *
- * `wiring-*.test.mjs` と `scan-target-wiring.test.mjs` が共有する。もとは 1 ファイルの
+ * scripts の複製を作るテスト（`wiring-*.test.mjs`・`scan-target-wiring.test.mjs`・`audit-test-focus.test.mjs`・`check-toolchain.test.mjs`・`exit-flush.test.mjs`）が共有する。もとは 1 ファイルの
  * `scan-target-wiring.test.mjs` に在ったが、約 3.5 分かかるので検査スクリプトごとのファイルへ分けた
  * （変異の `tests` を関係するファイルだけにし、変異検査のシャードの偏りを小さくするため）。
  * 分けると同時に走るファイルが増えるので、**複製の接頭辞はファイルごとに分ける**。
@@ -120,7 +120,7 @@ export function createScriptCopyHarness(copyPrefix, { timeoutMs = COPY_TIMEOUT_M
       cleanup();
       throw e;
     }
-    if (typeof result?.then === "function") return result.finally(cleanup);
+    if (typeof result?.then === "function") return Promise.resolve(result).finally(cleanup);
     cleanup();
     return result;
   }

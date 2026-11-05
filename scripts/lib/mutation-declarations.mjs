@@ -6082,4 +6082,12 @@ export const MUTATIONS = [
     tests: ["script-copy-harness.test.mjs"],
     note: RESERVED_1020_1029 + " " + "#547。exit-flush.test.mjs の子が起動する前に複製が消え、子が見つからずに落ちる（またはテストが原因の分かりにくい失敗になる）。",
   },
+  {
+    id: 1022,
+    label: "複製の実行が、渡された環境（`env`）を親の環境の下に重ねる（親の値が勝ち、`undefined` で打ち消せない）",
+    patch: "m1022-copy-harness-env-parent-overrides-given.patch",
+    pkg: "scripts",
+    tests: ["script-copy-harness.test.mjs"],
+    note: RESERVED_1020_1029 + " " + "#547。check-toolchain.test.mjs が渡す環境（npm_config_user_agent の除去ほか）が効かず、pnpm の版を確かめる経路を通らなくなる。",
+  },
 ];
