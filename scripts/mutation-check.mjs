@@ -74,7 +74,7 @@ import {
   hasZeroScanTargets,
 } from "./lib/scan-targets.mjs";
 import { isDirectRun } from "./lib/direct-run.mjs";
-import { isProcessAlive } from "./lib/process-alive.mjs";
+import { lockRefusalReason } from "./lib/mutation-lock.mjs";
 import { exitAfterFlush } from "./lib/exit-after-flush.mjs";
 import {
   parseSelector,
@@ -94,7 +94,7 @@ import {
   planWorkers,
   workerArgs,
   worktreeDirFor,
-  staleWorktreesFrom,
+  staleWorktreeDirs,
   worktreeLockReason,
   formatWorkerSummary,
   parseTestWorkers,
@@ -104,6 +104,9 @@ import {
   storeDirFor,
 } from "./lib/mutation-parallel.mjs";
 import { MUTATIONS } from "./lib/mutation-declarations.mjs";
+
+// ロックの拒否の判定は lib/mutation-lock.mjs（変異で守れるよう lib に置く。#542）。既存の取り込み口を保つ
+export { lockRefusalReason };
 
 // 既定値の正本は lib/mutation-weights.mjs（測り直しの道具が写さず取り込めるように）。ここからも引ける
 export { RUNNER_COST_SECONDS } from "./lib/mutation-weights.mjs";
@@ -193,42 +196,6 @@ function clearMarker() {
  * 2 つが同時に走って互いの復元を潰し合う経路（ヘッダの docstring）を塞げない。
  */
 const LOCK_PATH = path.join(MUTATIONS_DIR, ".lock");
-
-/**
- * 古い作業ツリーの掃除が使う、持ち主の生死の判定つきの拾い方。
- *
- * **生死の判定は 1 本。** ロックの拒否（{@link lockRefusalReason}）もここも、`lib/process-alive.mjs` の `isProcessAlive` を通す
- * （#542）。`kill(pid, 0)` だけだとゾンビを生きていると読む。クラウドのコンテナは PID 1 が孤児を回収しないので、
- * 中断された `--jobs` の子がゾンビで残り、ロックが永久に拒み、古い作業ツリーが掃除されなくなる。
- * EPERM（別ユーザーの実行）は生きている側、読めないときも生きている側に数える（`isProcessAlive` の決め）。
- */
-export function staleWorktreeDirs(porcelain, host, isAlive = isProcessAlive) {
-  return staleWorktreesFrom(porcelain, isAlive, host);
-}
-
-/**
- * 既存のロックを見て、実行を拒む理由を返す（拒まないなら null）。
- *
- * **判定を純粋関数にしてある**（I/O は呼び出し側）。ロックの有無で分岐する経路は
- * 実際に 2 つ走らせないと再現できず、そのままではテストが書けないため。
- *
- * 壊れたロック（PID として読めない中身）は**無いものとして扱う**。中身が壊れるのは
- * 書き込みの途中で殺された場合が主で、そのとき書き手はもう死んでいる。拒む側へ
- * 倒すと、誰も走っていないのに永久に実行できなくなる（消し方を知らない人が詰む）。
- * 代わりに呼び出し側が警告を出す。
- */
-export function lockRefusalReason(rawLockText, isAlive = isProcessAlive) {
-  if (rawLockText === null || rawLockText === undefined) return null;
-  const pid = Number.parseInt(String(rawLockText).trim(), 10);
-  if (!Number.isInteger(pid) || pid <= 0) return null;
-  if (!isAlive(pid)) return null;
-  return (
-    `[mutation-check] 同じ作業ツリーで別の実行（PID ${pid}）が走っています。\n` +
-    "2 つを同時に走らせると、片方の変異をもう片方の復元が消し、**変異が当たったまま**\n" +
-    "残ることがあります。終わるのを待ってから再実行してください。\n\n" +
-    `そのプロセスがもう居ないと分かっている場合だけ、${path.relative(REPO_ROOT, LOCK_PATH)} を消してください。`
-  );
-}
 
 /**
  * 開発環境の版を宣言と比べる（#487）。判定の正本は `scripts/check-toolchain.mjs`。

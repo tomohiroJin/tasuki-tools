@@ -10,7 +10,8 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import os from "node:os";
-import { lockRefusalReason, staleWorktreeDirs } from "./mutation-check.mjs";
+import { lockRefusalReason } from "./lib/mutation-lock.mjs";
+import { staleWorktreeDirs } from "./lib/mutation-parallel.mjs";
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 

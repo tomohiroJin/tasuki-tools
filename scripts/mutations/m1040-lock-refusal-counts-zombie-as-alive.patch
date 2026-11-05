@@ -1,7 +1,7 @@
-diff --git a/scripts/mutation-check.mjs b/scripts/mutation-check.mjs
---- a/scripts/mutation-check.mjs
-+++ b/scripts/mutation-check.mjs
-@@ -217,7 +217,7 @@
+diff --git a/scripts/lib/mutation-lock.mjs b/scripts/lib/mutation-lock.mjs
+--- a/scripts/lib/mutation-lock.mjs
++++ b/scripts/lib/mutation-lock.mjs
+@@ -19,7 +19,7 @@
   * 倒すと、誰も走っていないのに永久に実行できなくなる（消し方を知らない人が詰む）。
   * 代わりに呼び出し側が警告を出す。
   */
