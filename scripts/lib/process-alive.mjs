@@ -25,6 +25,7 @@ export function isProcessAlive(pid, { readState = readProcessState } = {}) {
 /** `/proc/<pid>/stat` の文字列から状態の 1 字を取る。形は "pid (comm) S ..."。comm に ")" や空白が入りうるので、最後の ")" の後ろを読む。読めなければ null。 */
 export function parseStatState(stat) {
   const close = stat.lastIndexOf(")");
+  if (close < 0) return null;
   return stat.slice(close + 2, close + 3).trim() || null;
 }
 

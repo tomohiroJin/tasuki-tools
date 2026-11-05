@@ -35,11 +35,17 @@ test("isProcessAlive: ゾンビ（死んだが親が回収していない）は 
     `process.kill(process.pid, "SIGSTOP");`;
   const parent = spawn(process.execPath, ["-e", parentScript], { stdio: ["ignore", "pipe", "inherit"] });
   try {
+    // PID が届かないときも自分で reject し、finally（SIGCONT・SIGKILL）を必ず走らせる
     const pid = await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error("子の PID が 5 秒以内に届かない")), 5000);
+      timer.unref();
       let buf = "";
       parent.stdout.on("data", (d) => {
         buf += d;
-        if (buf.includes("\n")) resolve(Number(buf.trim()));
+        if (buf.includes("\n")) {
+          clearTimeout(timer);
+          resolve(Number(buf.trim()));
+        }
       });
       parent.on("error", reject);
       parent.on("exit", () => reject(new Error("子の PID を出す前に親が終わった")));
@@ -71,4 +77,5 @@ test("parseStatState: comm に ')' や空白が入っても最後の ')' の後�
 test("parseStatState: 状態が読めない文字列は null", () => {
   assert.equal(parseStatState(""), null);
   assert.equal(parseStatState("123 (x)"), null);
+  assert.equal(parseStatState("123 garbage"), null); // ')' が無い
 });
