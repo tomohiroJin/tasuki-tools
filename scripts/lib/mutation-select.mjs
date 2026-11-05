@@ -1,5 +1,5 @@
 import path from "node:path";
-import { groupByControl, partitionMutations } from "./mutation-partition.mjs";
+import { groupByControl, partitionMutations, distribute } from "./mutation-partition.mjs";
 
 /**
  * 変異検査の「選んで流す」指定（#387・設計正本 `docs/superpowers/specs/2026-10-14-test-weight-design.md` §4）。
@@ -106,7 +106,7 @@ export function selectMutations(mutations, resolved) {
     case "changed":
       return selectByChange(mutations, resolved);
     case "shard": {
-      const part = partitionMutations(mutations, resolved.total, resolved.weightOf)[resolved.index - 1];
+      const part = partitionMutations(mutations, resolved.total, resolved.weightOf, resolved.isHeavy)[resolved.index - 1];
       return { selected: pick(part, [`--shard ${resolved.index}/${resolved.total}`]), fallbackToAll: null };
     }
     default:
@@ -199,14 +199,15 @@ export function narrowingCandidates(mutations, resolved) {
 }
 
 /**
- * 見込みの時間（秒）。対照の組ごとの重さ（`weightOf`。mutation-check の `RUNNER_COST_SECONDS` の目安）を足し、
- * `--jobs` のときは作業ツリーの数で割る（作業ツリーの準備の時間は入れない）。**目安であって約束ではない。**
+ * 見込みの時間（秒）。対照の組ごとの重さ（`weightOf`。mutation-check の `RUNNER_COST_SECONDS` の目安と、
+ * 重い組の実測の表）を足し、`--jobs` のときは作業ツリーに分けた最も長いものの重さ（作業ツリーの準備の時間は入れない）。**目安であって約束ではない。**
  */
-export function estimateSeconds(mutations, weightOf, jobs = 1) {
+export function estimateSeconds(mutations, weightOf, jobs, isHeavy) {
   if (mutations.length === 0) return 0;
-  const groups = groupByControl(mutations);
-  const total = groups.reduce((sum, group) => sum + weightOf(group), 0);
-  return total / Math.min(jobs, groups.length);
+  // 実際の分け方（planWorkers と同じ distribute）で分け、最も長いワーカーの重さを返す（#546）。
+  // 和を割ると、重い組を持つワーカーが全体の足を引くのを見落とす
+  const workers = Math.min(jobs, groupByControl(mutations).length);
+  return Math.max(...distribute(mutations, workers, weightOf, isHeavy).loads);
 }
 
 function formatDuration(seconds) {
@@ -224,7 +225,7 @@ function formatDuration(seconds) {
 export function formatForecast(selector, { selected, fallbackToAll }, { seconds, jobs, candidates, candidateSeconds = null }) {
   const lines = [
     `見込み: ${selected.length} 件・約 ${formatDuration(seconds)}` +
-      `（${jobs > 1 ? `--jobs ${jobs}・` : ""}RUNNER_COST_SECONDS の目安。9p の上や混んだ環境では何倍にもなります）`,
+      `（${jobs > 1 ? `--jobs ${jobs}・` : ""}RUNNER_COST_SECONDS の目安と、重い組の実測の表 mutation-weights.mjs。9p の上や混んだ環境では何倍にもなります）`,
   ];
   if (selector.kind !== "changed" || fallbackToAll === null) return lines;
   // 理由は表題（formatSelectionHeader）が出すので、ここでは繰り返さない

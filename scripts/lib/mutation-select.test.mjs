@@ -225,7 +225,7 @@ describe("selectMutations: --id / --pkg / 全件", () => {
 
 describe("selectMutations: --shard", () => {
   // 4 つの変異はどれも別の対照の組（pkg が違う）。重さは起動の回数（対照 1 回＋件数）
-  const shard = (index, total) => ({ kind: "shard", index, total, weightOf: (g) => 1 + g.mutations.length });
+  const shard = (index, total) => ({ kind: "shard", index, total, weightOf: (g) => 1 + g.mutations.length, isHeavy: () => false });
 
   test("n 個のシャードを合わせると全件で、重ならない", () => {
     const parts = [1, 2, 3].map((k) => ids(selectMutations(MUTS, shard(k, 3))));
@@ -362,24 +362,25 @@ describe("全件に倒れる前に知らせる（#508）", () => {
     assert.equal(narrowingCandidates(MUTS, { kind: "all" }), null);
   });
 
-  test("見込みは対照の組の重さの和で、--jobs のときは組の数を上限に割る", () => {
+  test("見込みは対照の組の重さの和で、--jobs のときは分けた最も長いワーカーの重さ（和を割らない。#546）", () => {
     const muts = [
       { id: 1, pkg: "a", tests: ["t1"] },
       { id: 2, pkg: "a", tests: ["t1"] },
       { id: 3, pkg: "b", tests: ["t2"] },
     ];
     const weightOf = (g) => 10 * g.mutations.length;
-    assert.equal(estimateSeconds(muts, weightOf), 30);
-    assert.equal(estimateSeconds(muts, weightOf, 2), 15);
-    assert.equal(estimateSeconds(muts, weightOf, 8), 15); // 組は 2 つしかない
-    assert.equal(estimateSeconds([], weightOf, 4), 0);
+    const none = () => false;
+    assert.equal(estimateSeconds(muts, weightOf, 1, none), 30);
+    assert.equal(estimateSeconds(muts, weightOf, 2, none), 20); // 重さ 20 の組と 10 の組。長い方のワーカー
+    assert.equal(estimateSeconds(muts, weightOf, 8, none), 20); // 組は 2 つしかない
+    assert.equal(estimateSeconds([], weightOf, 4, none), 0);
   });
 
   const sel = (n, fallbackToAll = null) => ({ selected: Array.from({ length: n }, (_, i) => ({ mutation: { id: i + 1 } })), fallbackToAll });
 
   test("見込みの行は件数と時間を出す", () => {
     assert.deepEqual(formatForecast({ kind: "id", ids: [1] }, sel(1), { seconds: 3.2, jobs: 1, candidates: null }), [
-      "見込み: 1 件・約 4 秒（RUNNER_COST_SECONDS の目安。9p の上や混んだ環境では何倍にもなります）",
+      "見込み: 1 件・約 4 秒（RUNNER_COST_SECONDS の目安と、重い組の実測の表 mutation-weights.mjs。9p の上や混んだ環境では何倍にもなります）",
     ]);
     assert.match(formatForecast({ kind: "all" }, sel(526), { seconds: 1740, jobs: 4, candidates: null })[0], /^見込み: 526 件・約 29 分（--jobs 4・/);
     // 絞り込みが全件に倒れていなければ、知らせを足さない

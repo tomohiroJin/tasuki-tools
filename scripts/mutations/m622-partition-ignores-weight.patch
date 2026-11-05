@@ -1,13 +1,13 @@
 diff --git a/scripts/lib/mutation-partition.mjs b/scripts/lib/mutation-partition.mjs
-index c07a5e9..920c1b9 100644
+index 7f8ee66..125c40a 100644
 --- a/scripts/lib/mutation-partition.mjs
 +++ b/scripts/lib/mutation-partition.mjs
-@@ -80,7 +80,7 @@ export function partitionMutations(mutations, n, weightOf) {
-   const loads = Array.from({ length: n }, () => 0);
-   const assigned = Array.from({ length: n }, () => new Set());
-   for (const { groups: pkgGroups } of pkgOrder) {
+@@ -150,7 +150,7 @@ export function distribute(mutations, n, weightOf, isHeavy) {
+   let remainingLight = pkgOrder.reduce((sum, entry) => sum + entry.total, 0);
+   for (const { total, groups: pkgGroups } of pkgOrder) {
+     const pkgLoads = Array.from({ length: n }, () => 0);
 -    pkgGroups.sort((a, b) => b.weight - a.weight || byName(a.group.key, b.group.key));
 +    pkgGroups.sort((a, b) => byName(a.group.key, b.group.key));
-     const pkgLoads = Array.from({ length: n }, () => 0);
-     for (const { group, weight } of pkgGroups) {
-       let target = 0;
+     // 重い組があるときだけ、その時点の空きに比例して置き場を配る（前の置き場の端数のずれを次で直す）。空きは、残りの軽い組を
+     // 軽い分け前から水を張るように入れたときの水面（fillRoom）との差。空きの合計が残りの軽い組の合計に等しいので、
+     // 重い組が平均を超えていても、軽い組が分け前を水面より上に押し上げない。

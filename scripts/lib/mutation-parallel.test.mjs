@@ -53,13 +53,13 @@ const launches = (g) => 1 + g.mutations.length;
 describe("planWorkers: ワーカーへの割り当て", () => {
   test("ワーカーの数は、対照の組の数を超えない（空のワーカーを作らない）", () => {
     const muts = [M(1, "a"), M(2, "a"), M(3, "b")];
-    const plan = planWorkers(muts, 4, launches);
+    const plan = planWorkers(muts, 4, launches, () => false);
     assert.equal(plan.length, 2);
   });
 
   test("合わせると選んだ全件で、重ならない", () => {
     const muts = [M(1, "a"), M(2, "b"), M(3, "c"), M(4, "a"), M(5, "d")];
-    const plan = planWorkers(muts, 3, launches);
+    const plan = planWorkers(muts, 3, launches, () => false);
     assert.equal(plan.length, 3);
     assert.deepEqual(
       plan
@@ -71,7 +71,7 @@ describe("planWorkers: ワーカーへの割り当て", () => {
   });
 
   test("選んだ変異が 0 件なら、ワーカーも 0", () => {
-    assert.deepEqual(planWorkers([], 4, launches), []);
+    assert.deepEqual(planWorkers([], 4, launches, () => false), []);
   });
 });
 

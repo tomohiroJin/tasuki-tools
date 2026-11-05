@@ -86,6 +86,7 @@ import {
 } from "./lib/mutation-select.mjs";
 import { checkBaseFreshness } from "./lib/base-freshness.mjs";
 import { createControlCache } from "./lib/mutation-control-cache.mjs";
+import { measuredCostOf } from "./lib/mutation-weights.mjs";
 import {
   parseJobs,
   planWorkers,
@@ -833,10 +834,21 @@ export const RUNNER_COST_SECONDS = Object.freeze({
   node: Object.freeze({ control: 0.4, mutation: 0.4 }),
 });
 
-/** 対照の組の重さ。対照 1 回＋変異の件数ぶんの起動を、ランナーごとの目安で足す。 */
+/**
+ * 対照の組の重さ。対照 1 回＋変異の件数ぶんの起動を足す。1 回の秒数は、重い組なら実測の表
+ * （`scripts/lib/mutation-weights.mjs`。#546）、それ以外はランナーごとの目安。
+ */
 export function weightOfGroup(group) {
-  const cost = RUNNER_COST_SECONDS[detectRunner(path.join(WORKSPACE_ROOT, group.pkg))];
+  const cost = measuredCostOf(group) ?? RUNNER_COST_SECONDS[detectRunner(path.join(WORKSPACE_ROOT, group.pkg))];
   return cost.control + cost.mutation * group.mutations.length;
+}
+
+/**
+ * 分け方（partitionMutations）へ渡す「重い組」の印。実測の表の行に限る（#546）。
+ * 見積もりだけが大きい組は、実測では軽いことがある（既定値は手元の測定で、環境が違う）ので、重い組として先には配らない。
+ */
+export function isHeavyGroup(group) {
+  return measuredCostOf(group) !== null;
 }
 
 /**
@@ -845,7 +857,7 @@ export function weightOfGroup(group) {
  * 差分（リポジトリ基準）を比べられないので、差分を null にして全件に倒す。
  */
 function resolveSelector(selector) {
-  if (selector.kind === "shard") return { ...selector, weightOf: weightOfGroup };
+  if (selector.kind === "shard") return { ...selector, weightOf: weightOfGroup, isHeavy: isHeavyGroup };
   if (selector.kind !== "changed") return selector;
   const self = fileURLToPath(import.meta.url);
   return {
@@ -927,7 +939,7 @@ function removeStaleWorktrees() {
  * @returns {Promise<number>} 終了コード
  */
 async function runInWorktrees(selected, jobs, full, selector, selection, header) {
-  const plan = planWorkers(selected, jobs, weightOfGroup);
+  const plan = planWorkers(selected, jobs, weightOfGroup, isHeavyGroup);
   removeStaleWorktrees();
   // **作業ツリーを作る前に**ストアを引く（#535）。失敗したら、作った後に残骸を作らず、何をすべきかが分かる文言で止める
   let storeDir;
@@ -1037,10 +1049,10 @@ function baseFreshnessLine(base) {
 export function forecastLines(selector, selection, resolved, jobs, freshnessOf, mutations = MUTATIONS) {
   const candidates = selection.fallbackToAll === null ? null : narrowingCandidates(mutations, resolved);
   const lines = formatForecast(selector, selection, {
-    seconds: estimateSeconds(selection.selected.map((s) => s.mutation), weightOfGroup, jobs),
+    seconds: estimateSeconds(selection.selected.map((s) => s.mutation), weightOfGroup, jobs, isHeavyGroup),
     jobs,
     candidates,
-    candidateSeconds: candidates === null ? null : estimateSeconds(candidates, weightOfGroup, jobs),
+    candidateSeconds: candidates === null ? null : estimateSeconds(candidates, weightOfGroup, jobs, isHeavyGroup),
   });
   const freshness = selector.kind === "changed" ? freshnessOf(selector.base) : null;
   return freshness === null ? lines : [...lines, freshness];

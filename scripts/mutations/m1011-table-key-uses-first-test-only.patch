@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/mutation-weights.mjs b/scripts/lib/mutation-weights.mjs
+index 9622d98..50a3cf0 100644
+--- a/scripts/lib/mutation-weights.mjs
++++ b/scripts/lib/mutation-weights.mjs
+@@ -51,7 +51,7 @@ export const MEASURED_GROUPS = Object.freeze([
+ ]);
+ 
+ /** 組の鍵（{@link controlGroupKey}）→ 秒数。 */
+-const BY_KEY = new Map(MEASURED_GROUPS.map((row) => [controlGroupKey(row), Object.freeze({ control: row.control, mutation: row.mutation })]));
++const BY_KEY = new Map(MEASURED_GROUPS.map((row) => [controlGroupKey({ pkg: row.pkg, tests: row.tests.slice(0, 1) }), Object.freeze({ control: row.control, mutation: row.mutation })]));
+ 
+ /** 表にある組の実測の秒数。無ければ null（呼び出し側が、ランナーごとの既定値へ倒す）。 */
+ export function measuredCostOf(group) {

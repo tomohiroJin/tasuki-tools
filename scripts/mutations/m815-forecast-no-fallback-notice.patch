@@ -1,10 +1,10 @@
 diff --git a/scripts/lib/mutation-select.mjs b/scripts/lib/mutation-select.mjs
-index cb75fbf4..d98784c7 100644
+index 5d7e409..54681ff 100644
 --- a/scripts/lib/mutation-select.mjs
 +++ b/scripts/lib/mutation-select.mjs
-@@ -219,7 +219,7 @@ export function formatForecast(selector, { selected, fallbackToAll }, { seconds,
+@@ -232,7 +232,7 @@ export function formatForecast(selector, { selected, fallbackToAll }, { seconds,
      `見込み: ${selected.length} 件・約 ${formatDuration(seconds)}` +
-       `（${jobs > 1 ? `--jobs ${jobs}・` : ""}RUNNER_COST_SECONDS の目安。9p の上や混んだ環境では何倍にもなります）`,
+       `（${jobs > 1 ? `--jobs ${jobs}・` : ""}RUNNER_COST_SECONDS の目安と、重い組の実測の表 mutation-weights.mjs。9p の上や混んだ環境では何倍にもなります）`,
    ];
 -  if (selector.kind !== "changed" || fallbackToAll === null) return lines;
 +  if (selector.kind !== "changed" || fallbackToAll !== null) return lines;
