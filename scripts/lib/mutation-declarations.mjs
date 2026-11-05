@@ -5070,7 +5070,7 @@ export const MUTATIONS = [
     label: "audit-plan-gate が宣言を要求する文書を 1 件も検査しない",
     patch: "m853-plan-gate-declaration-never-required.patch",
     pkg: "scripts",
-    tests: ["scan-target-wiring.test.mjs"],
+    tests: ["wiring-audit-plan-gate.test.mjs"],
     note: RESERVED_850_859 + " " + "#506。要求対象は現在 0 件なので、検査が配線ごと外れても CI の色は変わらない。落ちるのは境界日を動かす配線のテストだけ。",
   },
   {
@@ -5086,7 +5086,7 @@ export const MUTATIONS = [
     label: "audit-plan-gate の宣言の検査が、plans/ を列挙しない",
     patch: "m855-plan-gate-declaration-drops-plans-dir.patch",
     pkg: "scripts",
-    tests: ["scan-target-wiring.test.mjs"],
+    tests: ["wiring-audit-plan-gate.test.mjs"],
     note: RESERVED_850_859 + " " + "#506 のレビュー。実装計画の側で宣言が無くても赤にならず、specs/ だけを見る検査になる。",
   },
   {
@@ -5094,7 +5094,7 @@ export const MUTATIONS = [
     label: "audit-plan-gate の設計文書の 0 件ガードを無効にする",
     patch: "m856-plan-gate-declaration-empty-guard-off.patch",
     pkg: "scripts",
-    tests: ["scan-target-wiring.test.mjs"],
+    tests: ["wiring-audit-plan-gate.test.mjs"],
     note: RESERVED_850_859 + " " + "#506 のレビュー。列挙が空になっても緑のままで、宣言の検査が空振りしても気づけない。",
   },
   {
@@ -5134,7 +5134,7 @@ export const MUTATIONS = [
     label: "audit-plan-gate が、宣言の正本のガイドの実在を確かめない",
     patch: "m881-plan-gate-declaration-skips-guide-existence.patch",
     pkg: "scripts",
-    tests: ["scan-target-wiring.test.mjs"],
+    tests: ["wiring-audit-plan-gate.test.mjs"],
     note: RESERVED_880_889 + " " + "#506 のコードレビュー。設計文書の置き場はリンク検査の外なので、ガイドを改名・削除しても宣言は古いパスを指したまま緑になる。",
   },
   {

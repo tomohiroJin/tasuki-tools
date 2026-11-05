@@ -10,7 +10,7 @@
  * 同じ結果になることを見る。対象は列挙せず `scripts/` の実体から導出するので、
  * 新しく足したスクリプトが古い書き方を持ち込めば落ちる。
  *
- * 手段は `scan-target-wiring.test.mjs` に合わせる（追加依存は禁止、
+ * 手段は `wiring-*.test.mjs`(補助は `lib/script-copy-harness.mjs`)に合わせる（追加依存は禁止、
  * 書き換えた複製を子プロセスで走らせる）。
  */
 import { test, describe } from "node:test";

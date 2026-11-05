@@ -412,7 +412,7 @@ function main() {
     }
   }
 
-  // 検査 1: 許可リスト。main が判定の呼び出しを持つことは scan-target-wiring.test.mjs の
+  // 検査 1: 許可リスト。main が判定の呼び出しを持つことは wiring-audit-web-sync-boundary.test.mjs の
   // 配線テストで見る（#167 レビュー C1）。
   const importerProblems = WEB_APPS.flatMap((app) =>
     findDisallowedImporters(filesByApp.get(app.app), app).map(

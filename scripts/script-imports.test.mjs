@@ -6,7 +6,7 @@
  * どれがそうでないかを区別するものが無かった（#361 の計画 §1）。
  *
  * 許可表の取り込みはどれも、単一の情報源を守るためのものである。最初の例:
- * 走査の宣言 `SCANNED_PACKAGES` を `lib/` へ移すと、`scan-target-wiring.test.mjs` が
+ * 走査の宣言 `SCANNED_PACKAGES` を `lib/` へ移すと、`wiring-audit-structure*.test.mjs` が
  * `audit-structure.mjs` の複製を書き換えて宣言を壊す検証が届かなくなる。
  * そこで取り込みをなくすのではなく、**許可表に理由つきで載せ、表に無いものを落とす。**
  * 決まりを文書ではなくコードで守らせる（設計正本 §2）。
@@ -45,7 +45,7 @@ export const ALLOWED_SCRIPT_IMPORTS = [
     names: ["SCANNED_PACKAGES", "entriesOf", "hasScanTarget"],
     reason:
       "走査の宣言とその述語の正本は audit-structure.mjs に置く。宣言をここに残すのは、" +
-      "scan-target-wiring.test.mjs が複製を書き換えて宣言を壊す検証を届かせるため（#361 計画 §1）",
+      "wiring-audit-structure*.test.mjs が複製を書き換えて宣言を壊す検証を届かせるため（#361 計画 §1）",
   },
   {
     from: "scripts/audit-test-focus.mjs",

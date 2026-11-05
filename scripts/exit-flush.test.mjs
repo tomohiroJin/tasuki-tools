@@ -1,9 +1,9 @@
 /**
  * 検査スクリプトが `process.exit` で終わらないことのテスト(#540)。
  *
- * `scan-target-wiring.test.mjs`(1 回 約 3.5 分)から分けた。変異 985・986・987 の tests がこのファイルだけで済み、
+ * `scan-target-wiring.test.mjs`(当時 1 回 約 3.5 分。その後 #544 で `wiring-*.test.mjs` へ分けた)から分けた。変異 985・986・987 の tests がこのファイルだけで済み、
  * 変異ごとの対照実行・検出の実行が短くなる(CI の変異シャードの時間切れを避ける)。
- * 複製は `scan-target-wiring.test.mjs` の `.wiring-` と接頭辞を分ける(互いの掃除で消し合わない)。
+ * 複製は `wiring-*.test.mjs` の接頭辞(`.wiring-…-`)と分ける(互いの掃除で消し合わない)。
  */
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";

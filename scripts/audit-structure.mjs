@@ -12,7 +12,7 @@
  *
  * **各 sc0XX 関数（判定）は `scripts/lib/structure/` にある**（#361 で移した）。このファイルが持つのは
  * 走査の宣言・宣言と実体の照合・組み立て（`runAudit` / `main`）だけである。宣言をここに残すのは、
- * `scan-target-wiring.test.mjs` がこのファイルの複製を書き換えて宣言を壊す検証を届かせるため。
+ * `wiring-audit-structure*.test.mjs` がこのファイルの複製を書き換えて宣言を壊す検証を届かせるため。
  *
  * 追加依存は禁止のため、Node 標準の fs / path のみを使う。
  */

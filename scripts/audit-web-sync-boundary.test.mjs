@@ -75,10 +75,10 @@ test("宣言から導出するパスは、アプリ本体と 3 種の宣言を r
 test("declaredPathsOf の出力に timer/poker 双方の宣言パスが含まれている（findMissingPaths への入力の形を見る）", () => {
   // ここで見ているのは「渡す入力の形」だけであり、findMissingPaths を実際に
   // 呼んでいるかどうか（main() への配線）はこのテストの範囲外である。
-  // 自前で existsSync を書くと scan-target-wiring.test.mjs が見ている配線から
+  // 自前で existsSync を書くと wiring-audit-web-sync-boundary.test.mjs が見ている配線から
   // 外れる（#158 と同型）という注意はここでも成り立つが、**main() が
   // findMissingPaths を実際に呼び、その結果を報告しているかは
-  // scripts/scan-target-wiring.test.mjs の「実在確認の配線」describe が見る**
+  // scripts/wiring-audit-web-sync-boundary.test.mjs の「実在確認の配線」describe が見る**
   // （2026-08-19 レビュー C2。このテストの名前がかつて配線の検証を約束していたが
   // 実際には検証していなかったため改名した）。
   const paths = WEB_APPS.flatMap(declaredPathsOf);
