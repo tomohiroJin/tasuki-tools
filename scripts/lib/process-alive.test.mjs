@@ -23,6 +23,8 @@ test("isProcessAlive: 終わって回収された（存在しない）プロセ�
   c.kill("SIGKILL");
   await closed; // 親（このテスト）が wait 済み
   assert.equal(isProcessAlive(c.pid), false);
+  // 状態の読みに頼らず、kill 0 の ESRCH だけで死んだと数える（読みが "S" を返しても false）
+  assert.equal(isProcessAlive(c.pid, { readState: () => "S" }), false);
 });
 
 test("isProcessAlive: ゾンビ（死んだが親が回収していない）は false", { timeout: 10000 }, async () => {
