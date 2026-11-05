@@ -16,6 +16,8 @@
 @import './room-header.css';
 @import './markdown.css';
 @import './layout.css';
+@import './stack.css';
+@import './section-head.css';
 @import './reader.css';
 @import './drawer.css';
 @import './button.css';

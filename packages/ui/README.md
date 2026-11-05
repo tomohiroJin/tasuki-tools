@@ -44,6 +44,8 @@ src/
 | `.ui-button` | ボタンの形をする `<button>`・`<a>`。既定が主（金の地）。`--secondary`（金の枠）・`--quiet`（下線の字）で役割を、`--sm`・`--lg` で大きさを変える。選び方は下の「画面を組む」 | なし |
 | `.ui-actions` | 操作の並び。40rem 以上は右寄せの横並び、未満は縦に積む。左へ離すものは `.ui-actions-start` に入れる。`--dock` は 40rem 未満で下端に留まる帯 | なし |
 | `.ui-md` | Markdown の根。各要素に `.ui-md-h`・`.ui-md-p`・`.ui-md-ul`・`.ui-md-ol`・`.ui-md-quote`・`.ui-md-code`・`.ui-md-pre`・`.ui-md-link` を当てる。タスクリストの項目は `.ui-md-task`・`.ui-md-task-label`・`.ui-md-check`・`.ui-md-task-text`（#315）。暗い面ではつまみ `--ui-md-edge`（コード・引用の枠）・`--ui-md-link`（リンクの字）・`--ui-md-check`（チェックボックスの色）を面が宣言する | `--ui-md-edge`・`--ui-md-link`・`--ui-md-check` |
+| `.ui-stack` | 縦に積む並び（`<section>`・`<div>`）。直下の子の間を `--space-3` の `gap` で持ち、子の縦の外側の余白を 0 にする（余白の持ち主の約束・ADR 0034） | なし |
+| `.ui-section-head` | 区画の見出しと操作を 1 行に並べる行。flex・折り返し可・縦は中央・両端寄せ・間 `--space-3`。直下の子の縦の余白は 0。狭い幅で操作が下の行へ落ちても見出しと左端が揃う。見出し自身の字の大きさ・色は画面が持つ | なし |
 | `.ui-page` | 画面の器（`<main>`）。最大幅・中央寄せ・外の余白を持つ。`--prose`（`40rem`）・既定（`72rem`）・`--wide`（`96rem`）の 3 段 | なし |
 | `.ui-workspace` | 操作の面と脇を並べる段組みの根。`.ui-workspace-main`（操作の面）・`.ui-workspace-side`（脇）を子に置く。`--side-end`・`--reader` で脇の側と幅を変える。使い方は下の「画面を組む」 | なし |
 | `.ui-reader` | 読む面。象牙の札に見出し（固定）と本文 `.ui-reader-body`（64rem 以上だけ・札の中でスクロール）を載せる。64rem 未満は本文の代わりに 3 行の写し `.ui-reader-preview`（`inert`）を見せ、`.ui-reader-more`（続きを読む）で `.ui-drawer` を開く | なし |
@@ -158,6 +160,25 @@ src/
 - `--reader` は `--wide` の器で使う。比で分けるので、主は 64rem の画面で約 `30rem` まで縮む（`32rem` は保たれない）
 - どの画面がどの器・区画を使っているかは `git grep -n "ui-page\|ui-workspace" apps` で引ける
 
+### 余白の持ち主（#553・ADR 0034）
+
+**縦に並ぶブロックの間は、親が `gap` で持つ。子は外側の縦の余白（`margin-block`）を持たない。**
+親が部品なら部品が、画面の容器なら画面のクラスが持つ。間を変えたいときは親の `gap` を変え、子に `margin` を足さない
+（子が持つと、置き場所によって他の規則と詳細度で競り、間が消える。Markdown の段落が 0 になっていた原因）。
+
+| 場面 | 間 |
+|---|---|
+| ブロックの中の要素どうし（段落どうし、見出しと件数） | `--space-2` |
+| 区画の中のブロックどうし（見出しの行 → 一覧、一覧 → 操作） | `--space-3`（`.ui-stack` の既定） |
+| 区画どうし | `--space-5`（`.ui-workspace` の区画の間は既存の `--space-6`） |
+
+- **見出しの行 → 一覧**: 区画を `.ui-stack` にし、見出しと操作の行は `.ui-section-head` にする。
+  見出しと操作を別々の flex で書かない（画面ごとに間と折り返しが違ってしまう）
+- **操作は、効く見出しの行の中に置く**（見出しの下の行や、離れた帯に単独で置かない）
+- 例外: `-webkit-line-clamp` で行数を切る面（`.ui-reader-preview` の中）は中身を通常の流れに保つ必要があり、
+  Markdown の根（`.ui-md`）だけが兄弟セレクタの `margin-top` で間を持つ
+- 崩れは**要素の矩形を測る E2E**（`e2e/specs/spacing.spec.ts`）で捕まえる。スクリーンショットの比較は入れない（ADR 0034 決定 4）
+
 ### 読む面（`.ui-reader`）とシート（`.ui-drawer`）
 
 長さの決まらない文章（お題の説明など）を、操作の面を押し出さずに見せる部品。
@@ -244,6 +265,7 @@ src/
    - 参加用の URL は `.ui-invite` / `.ui-invite-url`
    - 長い文章は `.ui-reader`（3 行の写しと本文は別の要素。写しは `inert`）
    - Markdown は `.ui-md-*`。暗い面に置くときは面がつまみ `--ui-md-edge`・`--ui-md-link`・`--ui-md-check` を宣言する
+   - 縦に積む並びは `.ui-stack`、区画の見出しと操作の行は `.ui-section-head`（間は親が `gap` で持つ。「余白の持ち主」）
 5. **文字は役割の段で書く。** 見出しは h1〜h3、添え書きは xs（「文字の段」）。直値は検査が落とす
 6. **320px と 1280px で確かめる。** 横に溢れない・押せる操作が 44px 以上で重ならない・主の操作が見える
 7. **検査を流す。** `node scripts/audit-ui-components.mjs`・`pnpm --filter @tasuki/ui test`・E2E の `buttons.spec.ts`（`expectScreenAcrossWidths` が 320・768・1280・1920 で全ての操作の大きさと重なりを測る。新しい場面は呼び出しを足す）
