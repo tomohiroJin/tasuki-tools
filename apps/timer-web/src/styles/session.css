@@ -181,7 +181,13 @@
 @media (width < 40rem) {
   .session-driver-card > .session-actions {
     margin-inline: -1.5rem;
-    padding-inline: var(--space-5);
+    padding-inline: var(--space-4);
+  }
+
+  /* 帯は 2 列の格子（部品の約束）。320px では 1 列が約 122px で、アイコン付きの「時間リセット」が 2 行に折れる（#554・#19）。
+     帯の左右の余白を 1 段詰め、ボタンの左右の余白も詰めて 1 行に収める */
+  .session-driver-card > .session-actions > .ui-button {
+    padding-inline: var(--space-1);
   }
 }
 

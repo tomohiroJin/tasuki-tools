@@ -156,7 +156,8 @@
 }
 
 /* ── 主の操作の帯 ─────────────────────────────────────── */
-/* 手元では画面の下に固定する。地はフェルトの暗幕で、上へ向かって溶かす */
+/* 手元では画面の下に固定する。地は不透明なフェルト（帯の約束・`packages/ui/README.md`）。
+   以前は上へ向かって透明に溶かしていたが、帯の字「このステップに」の後ろに進行表の字が透けて重なった（#554・#2） */
 .run-controls {
   position: fixed;
   inset-inline: 0;
@@ -165,7 +166,8 @@
   display: grid;
   gap: var(--space-3);
   padding: var(--space-4) clamp(var(--space-4), 4vw, var(--space-6)) calc(var(--space-4) + env(safe-area-inset-bottom));
-  background: linear-gradient(to top, var(--felt-950) 72%, transparent);
+  background: var(--felt-950);
+  border-top: 1px solid var(--line-strong);
 }
 @media (width >= 64rem) {
   .run-controls {
@@ -174,6 +176,7 @@
     justify-self: center;
     padding: 0;
     background: none;
+    border-top: 0;
   }
 }
 /* 延長の群。狭い幅（〜40rem）では見出し「このステップに」を 1 行目に置き、3 つのボタンを 2 行目で等分する

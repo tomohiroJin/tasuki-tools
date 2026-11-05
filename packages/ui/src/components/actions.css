@@ -38,16 +38,45 @@
 /* 狭い幅でだけ画面の下端に留まる帯。`position: fixed` でなく `sticky` にしたのは、帯の高さが画面ごとに違い
    （縦積みの段数）、fixed では「帯の高さぶんの余白」を部品が知れないため。sticky は流れの中に居るので
    帯は中身を隠さず、器の下の余白（.ui-page の padding）の手前で止まる。並びは留めたい範囲の最後の子に置くこと（その範囲の中でだけ留まる）。
-   器の左右の余白（最小 1rem）まで帯を広げ、iOS の画面下のバーに重ならないよう下に safe-area を足す。 */
+   器の左右の余白（最小 1rem）まで帯を広げ、iOS の画面下のバーに重ならないよう下に safe-area を足す。
+
+   **帯の約束**（#554・#479 の #2・#12・#19・#29。`packages/ui/README.md` の「帯の約束」と同じ）
+   - 帯の字の後ろの地は不透明（`--felt-950`）。透明へ溶かす（グラデーション・α < 1 の地）と、後ろの中身の字が帯の字に重なって読める。
+     溶かしたいなら帯の外側の上の縁だけ（字の行より上）に置く。
+   - 帯の上端に内側の余白（`--space-3`・下限 `--space-2`）を置く。
+   - 40rem 未満の操作は 2 段まで。2 列の格子に置き、奇数の最後の子（主）は全幅の 1 段にする（3 つなら「副 副 / 主」、2 つなら横に並ぶ）。
+     4 つ以上は副の操作を帯の外へ出す。段が増えると 320×568 で帯が画面の 3 割を覆い、手札や結果の数字が初期表示で隠れる。
+   - 帯が覆う中身は、最下部までスクロールすると帯の上に出る（帯は流れの中に居るので、中身の下の余白は部品が持つ必要がない）。 */
 @media (width < 40rem) {
   .ui-actions--dock {
     position: sticky;
     bottom: 0;
     z-index: 1;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     /* 器（.ui-page）の padding-inline と同じ式。固定の 1rem だと 400〜640px で帯が器の余白に届かない */
     margin-inline: calc(clamp(var(--space-4), 4vw, calc(var(--space-6) * 1.5)) * -1);
     padding: var(--space-3) clamp(var(--space-4), 4vw, calc(var(--space-6) * 1.5)) calc(var(--space-3) + env(safe-area-inset-bottom));
     border-top: 1px solid var(--line-strong);
-    background: var(--felt-scrim);
+    background: var(--felt-950);
+  }
+
+  .ui-actions--dock > :last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  /* 2 列の 1 つは (320 − 2×16 − 12) ÷ 2 = 138px。ボタンの左右の余白（`--lg` で 20px）を詰めないと「次のアイテムへ」が 2 行に折れる */
+  .ui-actions--dock > .ui-button {
+    min-width: 0;
+    padding-inline: var(--space-2);
+  }
+
+  /* 選択欄（poker の「ポイント（任意）」）は操作ではなく入力なので、1 列の幅に押し込まず 1 段を使う。続く 2 つの操作は横に並べる */
+  .ui-actions--dock > select {
+    grid-column: 1 / -1;
+  }
+
+  .ui-actions--dock:has(> select) > :last-child:nth-child(odd) {
+    grid-column: auto;
   }
 }
