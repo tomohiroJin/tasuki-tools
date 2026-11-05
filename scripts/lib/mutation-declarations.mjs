@@ -5991,6 +5991,22 @@ export const MUTATIONS = [
     patch: "m996-process-alive-counts-missing-as-alive.patch",
     pkg: "scripts",
     tests: ["lib/process-alive.test.mjs"],
-    note: RESERVED_995_999 + " " + "#525。判定が常に「生きている」になり、孫が本当に死んだ場合も生き残りと読む（逆に、変異 873 のテストが何を見ても赤い）。",
+    note: RESERVED_995_999 + " " + "#525。存在しないプロセスも「生きている」と読むので、死んで回収された孫を生き残りと誤読する（孫を止める性質のテスト（変異 873）が、本当は止まっていても赤くなる）。検出は process-alive.test.mjs の「存在しない」テスト。",
+  },
+  {
+    id: 997,
+    label: "状態を読めない（null）ときを、生きていると数えず死んだと数える",
+    patch: "m997-process-alive-counts-unreadable-as-dead.patch",
+    pkg: "scripts",
+    tests: ["lib/process-alive.test.mjs"],
+    note: RESERVED_995_999 + " " + "#525 のレビュー。/proc も ps も読めない環境で、本当に生き残った孫を死んだと読んで見逃す（生き残りの検査が通ってしまう）。",
+  },
+  {
+    id: 998,
+    label: "stat の状態を、最後でなく最初の ')' の後ろから読む",
+    patch: "m998-process-alive-stat-reads-first-paren.patch",
+    pkg: "scripts",
+    tests: ["lib/process-alive.test.mjs"],
+    note: RESERVED_995_999 + " " + "#525 のレビュー。comm に ')' を含むプロセスの状態を取り違え、ゾンビを生きている（またはその逆）と読む。",
   },
 ];

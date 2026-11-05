@@ -225,6 +225,8 @@ test("runCommand: 時間切れでは孫（同じグループ）も SIGKILL で�
   try {
     await assert.rejects(runCommand(process.execPath, ["-e", script], { timeoutMs: 400 }), /時間切れ/);
     const pid = Number(fs.readFileSync(pidFile, "utf8"));
+    // 空だと Number("")=0 となり、process.kill(0, …) がランナーのグループを殺しうる。先に確かめる
+    assert.ok(Number.isInteger(pid) && pid > 0, `孫の PID が正の整数でない: ${pid}`);
     await new Promise((r) => setTimeout(r, 300));
     // ゾンビ（死んだが PID 1 が回収しない。クラウドのコンテナ）は死んだものとして数える（#525）
     const alive = isProcessAlive(pid);

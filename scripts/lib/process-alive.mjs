@@ -12,7 +12,7 @@ import { execFileSync } from "node:child_process";
  * に落とす（どちらも先頭の字が `Z` ならゾンビ）。どちらでも読めなければ、存在の確認（kill 0）だけに頼って
  * 「生きている」と数える。読めないときに死んだと見ると、本当に生き残った孫を見逃すため。
  */
-export function isProcessAlive(pid) {
+export function isProcessAlive(pid, { readState = readProcessState } = {}) {
   try {
     process.kill(pid, 0);
   } catch (e) {
@@ -22,11 +22,15 @@ export function isProcessAlive(pid) {
   return state === null ? true : state !== "Z";
 }
 
-function readState(pid) {
+/** `/proc/<pid>/stat` の文字列から状態の 1 字を取る。形は "pid (comm) S ..."。comm に ")" や空白が入りうるので、最後の ")" の後ろを読む。読めなければ null。 */
+export function parseStatState(stat) {
+  const close = stat.lastIndexOf(")");
+  return stat.slice(close + 2, close + 3).trim() || null;
+}
+
+function readProcessState(pid) {
   try {
-    const stat = fs.readFileSync(`/proc/${pid}/stat`, "utf8");
-    // 形は "pid (comm) S ..."。comm に ")" や空白が入りうるので、最後の ")" の後ろを読む
-    return stat.slice(stat.lastIndexOf(")") + 2, stat.lastIndexOf(")") + 3) || null;
+    return parseStatState(fs.readFileSync(`/proc/${pid}/stat`, "utf8"));
   } catch {
     // /proc が無い、または読めない
   }
