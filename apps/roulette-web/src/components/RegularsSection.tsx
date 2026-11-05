@@ -211,8 +211,8 @@ export function RegularsSection({ locked, people, onInsert }: Props) {
   const editing = mode.kind === 'form' && mode.id !== null ? groups.find((g) => g.id === mode.id) : undefined;
 
   return (
-    <section className="roulette-regulars" aria-labelledby={headingId}>
-      <div className="roulette-regulars-head">
+    <section className="roulette-regulars ui-stack" aria-labelledby={headingId}>
+      <div className="roulette-regulars-head ui-section-head">
         <h3 id={headingId}>{REGULARS_HEADING}</h3>
         <span className="roulette-regulars-where">{REGULARS_WHERE}</span>
       </div>

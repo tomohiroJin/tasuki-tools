@@ -207,17 +207,6 @@
   margin-top: 0;
 }
 
-.room-participants-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-4);
-}
-
-.room-participants-head h2 {
-  margin: 0;
-}
-
 .participants {
   list-style: none;
   padding: 0;
@@ -562,15 +551,7 @@
   border-block-start: 1px solid var(--card-inline);
 }
 
-/* 見出しの行: 左にアイテム名、右にポイント（一番強い） */
-.estimate-group-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  margin-block-end: var(--space-2);
-}
-
+/* 見出しの行（`.ui-section-head`）: 左にアイテム名、右にポイント（一番強い）。束の中の間は `.ui-stack` が持つ */
 .estimate-group-item {
   min-width: 0;
   overflow-wrap: anywhere;

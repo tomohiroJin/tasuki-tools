@@ -76,7 +76,7 @@ export function SectionHeader({
   right?: React.ReactNode;
 }) {
   return (
-    <div className="section-header">
+    <div className="section-header ui-section-head">
       <div className="section-header-lead">
         <Icon className="section-header-icon" />
         <h2 className="section-header-title">{title}</h2>

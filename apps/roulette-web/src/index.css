@@ -612,22 +612,11 @@
 }
 /* いつものメンツ（#458）。端末だけの物なので、ルームの一覧と罫で分ける（.roulette-foot と同じ罫） */
 .roulette-regulars {
-  display: grid;
-  /* 列の最小幅を 0 にする。名前は nowrap なので、既定の auto だと長い組名の幅まで区画ごと広がり、320px で横に溢れる */
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-3);
   padding-top: var(--space-4);
   border-top: 1px solid var(--line);
 }
-.roulette-regulars-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-.roulette-regulars-head h3 {
-  margin: 0;
-}
+/* 見出しの行は `.ui-section-head`、区画の中の間は `.ui-stack` が持つ（ADR 0034）。
+   縦に積む flex の子は横幅が器で決まるので、名前の長さで区画ごと広がらない（grid の列の最小幅を 0 にしていた理由） */
 .roulette-regulars-where,
 .roulette-regulars-count {
   margin: 0;
