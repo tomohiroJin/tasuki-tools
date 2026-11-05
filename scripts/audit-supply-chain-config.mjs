@@ -36,7 +36,7 @@
  * - **設定が効いているかは見ない。** 「検証が実際に走ったか」（経路⑫）は別の検査
  *   （`scripts/install-with-supply-chain-check.mjs`）が CI の実インストールで見る。
  *
- * 設計方針: 判定は純粋関数、実 I/O と `process.exit` は `main()` の薄い配線だけに置く
+ * 設計方針: 判定は純粋関数、実 I/O と `process.exitCode` は `main()` の薄い配線だけに置く
  * （`scripts/audit-domain-side-effects.mjs` と同じ）。追加依存は禁止。
  */
 import fs from "node:fs";
@@ -507,7 +507,8 @@ function main() {
     console.error(
       `[audit-supply-chain-config] 走査対象が 0 件です（${emptyDimensions.join(" / ")}）。検査が空振りしています`,
     );
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   const problems = [
@@ -545,7 +546,8 @@ function main() {
     for (const p of problems) console.error(`  ${p.key}: ${p.message}`);
     console.error("  設定の置き場は pnpm-workspace.yaml の 1 箇所のみです（docs/adr/0008）");
     console.error("  根拠: docs/adr/0008 / docs/adr/0010 / docs/adr/0014 決定 1 / docs/adr/0024（renovate.json）");
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   console.log(`[audit-supply-chain-config] OK（${summary}）`);

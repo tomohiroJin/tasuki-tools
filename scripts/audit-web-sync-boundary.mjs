@@ -98,7 +98,7 @@
  * `audit-domain-side-effects.mjs` と同じ向きである。代償として、許可されていない
  * ファイルのコメントに `sync/client` や `new WebSocket(` と書けない（言い換える）。
  *
- * 設計方針: 判定は純粋関数にし、実ファイル I/O と `process.exit` は `main()` の
+ * 設計方針: 判定は純粋関数にし、実ファイル I/O と `process.exitCode` は `main()` の
  * 薄い配線だけに置く。追加依存は禁止のため Node 標準と `scripts/lib/scan-targets.mjs` のみを使う。
  */
 import fs from "node:fs";
@@ -460,7 +460,8 @@ function main() {
   if (problems.length > 0) {
     console.error("[audit-web-sync-boundary] NG");
     for (const p of problems) console.error(`  - ${p}`);
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
   console.log("[audit-web-sync-boundary] OK（違反 0 件）");
 }

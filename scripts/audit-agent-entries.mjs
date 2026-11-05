@@ -31,7 +31,7 @@
  * - **候補の置き場は既知のものだけ。** 新しいツールが別の名前を読むようになったら、
  *   {@link isEntryCandidate} に足す（足し忘れは検知できない。残余として受け入れる）
  *
- * 設計方針: 判定は純粋関数、実 I/O と `process.exit` は `main()` の薄い配線だけに置く。
+ * 設計方針: 判定は純粋関数、実 I/O と `process.exitCode` は `main()` の薄い配線だけに置く。
  * 追加依存は禁止。
  */
 import fs from "node:fs";
@@ -374,7 +374,8 @@ function main() {
   ]);
   if (empty.length > 0) {
     console.error(`[audit-agent-entries] 走査対象が 0 件です（${empty.join(" / ")}）。検査が空振りしています`);
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   const problems = comparePrinciples(constitution, agents).map((p) => `${SOURCE_PATH}: ${p}`);
@@ -395,7 +396,8 @@ function main() {
     console.error(`[audit-agent-entries] AI ツールの入口が正本とずれています（${problems.length} 件）`);
     for (const p of problems) console.error(`  ${p}`);
     console.error(`  根拠: docs/adr/0030 決定 3 / docs/adr/0002 決定 5 / 憲法 原則 VIII / ${PROCEDURES_DIR}README.md`);
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
   console.log(
     `[audit-agent-entries] OK（入口 ${ENTRY_FILES.length} 件が ${SOURCE_PATH} へ向き、スキル ${skills.length} 件が手順書へ向き、原則 ${agents.length} 本が憲法と一致）`,

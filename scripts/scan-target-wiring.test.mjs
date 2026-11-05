@@ -13,7 +13,7 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { listTrackedFiles, listWorkspacePackages } from "./lib/scan-targets.mjs";
 
@@ -1756,4 +1756,112 @@ describe("CI への配線: すべての audit-*.mjs が ci.yml から呼ばれ�
       assert.match(ci, new RegExp(`^\\s*- run: node scripts/${escaped}\\s*$`, "m"), `${name} が ci.yml から呼ばれていない`);
     });
   }
+});
+
+/**
+ * 検査スクリプトは `process.exit` で終わらず、`process.exitCode` を立てて `main()` から戻る（#540）。
+ *
+ * **なぜか。** stderr / stdout が**パイプ**のとき（CI・`spawnSync`・`execFileSync` はすべてこの形）、
+ * Node の書き出しは OS のパイプが満杯だと非同期に回る（EAGAIN で libuv のキューへ積む）。
+ * `process.exit()` はそのキューを捨てるので、読み手が遅れると出力が途中で切れる。実測では、約 55KB の
+ * 失敗の一覧が負荷の下で約 15KB で切れ、CI で #853 の対照実行が落ちた。`process.exitCode` を立てて戻れば、
+ * イベントループが書き出しを終えてから Node が自然に終わる。終了コードと出力の中身は変わらない。
+ *
+ * 下の 1 つ目は**負荷に頼らず**切れ方を決定的に再現する。親は子の stderr を読まずに待ち、
+ * 子が失敗の一覧を書いて終わる処理に入ってから読み始める。パイプの容量（Linux の既定 64KB）を超える量を
+ * 書かせるので、`process.exit` で終わる実装は必ず切れる。2 つ目は同じ形が他の検査へ戻らないことを
+ * 導出で見る（個別の検査ごとに大量出力のテストを書かない。出力の形は各検査の単体テストが見ている）。
+ */
+describe("検査スクリプトは process.exit で終わらない（#540）", () => {
+  /** 親が子の stderr を読み始めるまで待つ時間。子が書き終えて（終えようとして）終わる処理に入るのに十分な長さ。 */
+  const READ_DELAY_MS = 400;
+
+  /**
+   * `audit-plan-gate.mjs` の複製を、親が stderr を**遅れて**読む形で走らせる。
+   * stdout は流し続ける。「設計文書」の走査量の行（stderr の一覧を書く直前に出る）を見てから遅らせる。
+   */
+  function runCopyWithLateStderrReader(mutate) {
+    const original = readScript("audit-plan-gate.mjs");
+    const mutated = mutate(original);
+    const copyPath = path.join(SCRIPTS_DIR, `${COPY_PREFIX}${process.pid}-${copyCounter++}-audit-plan-gate.mjs`);
+    fs.writeFileSync(copyPath, mutated);
+    return new Promise((resolve, reject) => {
+      const child = spawn(process.execPath, [copyPath], { stdio: ["ignore", "pipe", "pipe"] });
+      const stderrChunks = [];
+      let stdout = "";
+      let resumed = false;
+      const resumeStderr = () => {
+        if (resumed) return;
+        resumed = true;
+        child.stderr.resume();
+      };
+      child.stderr.pause();
+      child.stderr.on("data", (d) => stderrChunks.push(d));
+      child.stdout.setEncoding("utf8");
+      child.stdout.on("data", (d) => {
+        stdout += d;
+        if (stdout.includes("走査対象: 設計文書")) setTimeout(resumeStderr, READ_DELAY_MS);
+      });
+      // 子が先に終わった（切れた）場合も、溜まった分を読み切って結果を返す。
+      child.on("exit", () => setTimeout(resumeStderr, READ_DELAY_MS));
+      const guard = setTimeout(() => {
+        child.kill("SIGKILL");
+        reject(new Error("子が 15 秒で終わりませんでした"));
+      }, 15000);
+      child.on("close", (status) => {
+        clearTimeout(guard);
+        fs.rmSync(copyPath, { force: true });
+        resolve({ status, stderr: Buffer.concat(stderrChunks).toString("utf8"), source: mutated });
+      });
+      child.on("error", (e) => {
+        clearTimeout(guard);
+        fs.rmSync(copyPath, { force: true });
+        reject(e);
+      });
+    });
+  }
+
+  test("失敗の一覧がパイプの容量を超えても、親の読み出しが遅れても、末尾まで届いて exit 1 になる（audit-plan-gate）", async () => {
+    // Given: 宣言の境界日を過去へ（#506 の要求経路）＋ 一覧を 2 万件ふくらませる（約 280KB。パイプの 64KB を超える）
+    const mutate = (s) =>
+      s
+        .replace('export const DECLARATION_BOUNDARY_DATE = "2026-11-03";', 'export const DECLARATION_BOUNDARY_DATE = "2000-01-01";')
+        .replace(
+          "  const problems = [];\n  for (const rel of undated) {",
+          '  const problems = Array.from({ length: 20000 }, (_, i) => ({ file: `pad-${i}`, message: "pad" }));\n  for (const rel of undated) {',
+        );
+    // When
+    const r = await runCopyWithLateStderrReader(mutate);
+    // Then: まず「壊れたこと自体」を確かめる
+    assert.equal(countOf(r.source, "length: 20000"), 1, "一覧をふくらませられていません");
+    assert.equal(countOf(r.source, '"2000-01-01"'), 1, "境界日を動かせていません");
+    // Then: 終了コードは変わらず 1。出力は先頭から末尾（様式の正本・根拠）まで届く
+    assert.equal(r.status, 1, `exit 1 になりません。stderr 末尾:\n${r.stderr.slice(-300)}`);
+    assert.match(r.stderr, /pad-19999: pad/, "一覧の最後の行まで届いていません（stderr が途中で切れた）");
+    assert.match(r.stderr, /様式の正本: docs\/guides\/plan-writing\.md/, "末尾の「様式の正本」が届いていません");
+    assert.match(r.stderr, /根拠: docs\/constitution\.md Governance/);
+  });
+
+  test("scripts/ の検査（audit-*.mjs・check-toolchain.mjs・list-scan-targets.mjs）は、コードに process.exit( を持たない", () => {
+    // Given: 導出（新しい audit-*.mjs も自動で対象になる）。コメントは除く（方針の説明に process.exit と書くため）
+    const targets = fs
+      .readdirSync(SCRIPTS_DIR)
+      .filter(
+        (n) =>
+          ((n.startsWith("audit-") && n.endsWith(".mjs")) || n === "check-toolchain.mjs" || n === "list-scan-targets.mjs") &&
+          !n.endsWith(".test.mjs"),
+      )
+      .sort();
+    assert.ok(targets.length >= 18, `対象が少なすぎます（導出が外れている）: ${targets.length} 件`);
+    const stripComments = (src) => src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+    // When
+    const offenders = targets.filter((n) => /\bprocess\.exit\s*\(/.test(stripComments(readScript(n))));
+    // Then
+    assert.deepEqual(
+      offenders,
+      [],
+      "process.exit( で終わっています。stderr がパイプのとき、書き出し途中の出力を捨てます。" +
+        "`process.exitCode = N; return;` に替えてください（#540）",
+    );
+  });
 });

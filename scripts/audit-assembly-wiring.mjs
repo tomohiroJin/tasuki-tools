@@ -228,7 +228,8 @@ function main() {
   // ここは宣言そのものが空になる経路だけを見ればよい。
   if (hasZeroScanTargets(ASSEMBLY_TARGETS.length)) {
     console.error("[audit-assembly-wiring] 検査する組が 0 件です（検査が空振りします）");
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   const sources = readDeclaredSources(ASSEMBLY_TARGETS);
@@ -241,7 +242,8 @@ function main() {
   if (problems.length > 0) {
     for (const p of problems) console.error(p);
     console.error(`\n${problems.length} 件の問題があります`);
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
   console.log("組み立ての集約 OK");
 }

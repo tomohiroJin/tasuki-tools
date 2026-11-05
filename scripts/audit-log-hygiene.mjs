@@ -452,7 +452,8 @@ function main() {
       unexpected: drift.unexpected,
     };
     console.error(formatTargetDiff("audit-log-hygiene", merged, summary));
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   // 走査量は成否によらず必ず出す（#135 D5・ADR-0014 決定 6）。
@@ -486,7 +487,8 @@ function main() {
     console.error(
       `[audit-log-hygiene] 走査対象が 0 件です（検査が空振りします）: ${emptyDimensions.join(" / ")}`,
     );
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   const problems = [];
@@ -545,7 +547,8 @@ function main() {
       );
     }
     console.error(`\n${problems.length} 件の問題があります`);
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
   console.log("ログ衛生 OK");
 }

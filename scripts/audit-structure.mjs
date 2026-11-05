@@ -782,7 +782,7 @@ export function formatSc039FileDrift(diff, scanSummary) {
  * 到達性を計算できないため外れる。外れた分の走査量は他パッケージ分で
  * 非ゼロのままなので、0 件ガードにも全単射照合にも掛からない（#158 と同型）。
  *
- * 落とすのは呼び出し側（`process.exit` は呼ばない）。
+ * 落とすのは呼び出し側（`process.exitCode` は呼ばない）。
  */
 export function findSrcWithoutEntry(declarations) {
   return declarations
@@ -1000,7 +1000,7 @@ export function scanVolumeOf(loaded, packageSrcFiles, productSources, allTestFil
  * 0 件ガードも例外表の健全性も、指標より手前で終わっている。走査量の表示も
  * 手前なので数字にすら痕跡が残らない（#196 の時点で実測。出力がバイト単位で同一）。
  *
- * 判定は純粋関数、I/O と `process.exit` は呼び出し側に置く。
+ * 判定は純粋関数、I/O と `process.exitCode` は呼び出し側に置く。
  * `measured` にキーが欠けていれば `undefined` との比較でずれとして出る（不足側へ倒す）。
  */
 export function findScanVolumeDrift(scanned, measured) {
@@ -1136,7 +1136,8 @@ function main() {
     console.error("[audit-structure] 走査対象の宣言が不正です（null か非空の文字列のみ）");
     for (const d of invalidDeclarations) console.error(`  ${d}`);
     console.error(`  現在の走査対象: ${summary}`);
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   // src を持つのにエントリを持たない宣言を落とす（#180）。
@@ -1149,7 +1150,8 @@ function main() {
     );
     for (const pkg of srcWithoutEntry) console.error(`  ${pkg}`);
     console.error(`  現在の走査対象: ${summary}`);
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   // 走査量のどの内訳も 0 件でないことを見る（ADR-0014 決定 8）。
@@ -1166,7 +1168,8 @@ function main() {
       `[audit-structure] 走査対象が 0 件です（検査が空振りします）: ${emptyDimensions.join(" / ")}`,
     );
     console.error(`  現在の走査対象: ${summary}`);
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   const packages = listWorkspacePackages(REPO_ROOT);
@@ -1203,7 +1206,8 @@ function main() {
       unexpected: drift.unexpected,
     };
     console.error(formatTargetDiff("audit-structure", merged, summary));
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   // 派生集合の組み立てはここ 1 か所だけ（ADR-0014 決定 9）。`runAudit()` へは
@@ -1250,7 +1254,8 @@ function main() {
     console.error(
       formatTargetDiff("audit-structure/SC-039", merged, formatSc039ScanVolume(sc039Sources)),
     );
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   // **照合はファイル単位でも行う**（#180 の敵対的レビュー）。上のパッケージ単位の
@@ -1291,7 +1296,8 @@ function main() {
       ].sort(),
     };
     console.error(formatSc039FileDrift(merged, formatSc039ScanVolume(sc039Sources)));
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   // 走査量のどの内訳も 0 件でないことを見る（ADR-0014 決定 8）。
@@ -1301,7 +1307,8 @@ function main() {
     console.error(
       `[audit-structure] SC-039 の走査対象が 0 件です（検査が空振りします）: ${emptySc039Dimensions.join(" / ")}`,
     );
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   // 例外表の健全性（走査対象のずれと同じ扱いで合否を持つ）。
@@ -1318,7 +1325,8 @@ function main() {
   );
   if (staleExceptions.length > 0) {
     for (const p of staleExceptions) console.error(`[audit-structure] ${p}`);
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   // SC-032 の例外表も同じ扱いで見る。**指標を出す前に**見る。
@@ -1335,7 +1343,8 @@ function main() {
   );
   if (staleSc029Exceptions.length > 0) {
     for (const p of staleSc029Exceptions) console.error(`[audit-structure] ${p}`);
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   const staleTestExceptions = findStaleTestExceptions(SC032_EXCEPTIONS, allTestFiles);
@@ -1346,7 +1355,8 @@ function main() {
   );
   if (staleTestExceptions.length > 0) {
     for (const p of staleTestExceptions) console.error(`[audit-structure] ${p}`);
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   const { results, measured } = runAudit(loaded, sc039Sources, allTestFiles);
@@ -1367,7 +1377,8 @@ function main() {
       .map(([label, n]) => `${label} ${n}`)
       .join("、");
     console.error(`  照合したときの走査対象: ${scanned}`);
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   console.log(`[audit-structure] 走査対象: ${summary}`);

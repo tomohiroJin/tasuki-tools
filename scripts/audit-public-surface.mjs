@@ -226,7 +226,8 @@ function main() {
   // 走査対象が 0 件なら赤（ADR-0014 決定 8）。宣言を空にして緑にする経路を塞ぐ。
   if (hasZeroScanTargets(sources.size)) {
     console.error("[audit-public-surface] 走査するエントリが 0 件です（検査が空振りします）");
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   // 走査量は成否によらず必ず出す（#135 D5）。
@@ -236,7 +237,8 @@ function main() {
   if (problems.length > 0) {
     for (const p of problems) console.error(p);
     console.error(`\n${problems.length} 件の問題があります`);
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
   console.log("公開面 OK（export * は 0 件）");
 }

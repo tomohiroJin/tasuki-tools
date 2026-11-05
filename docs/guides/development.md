@@ -1104,6 +1104,13 @@ if (isDirectRun(import.meta.url, process.argv[1])) main();
 **git から導出して**、実際に symlink 経由で起動し直接起動と同じ結果になることを
 確かめます。新しく足したスクリプトが古い書き方を持ち込めば、そこで落ちます。
 
+**失敗で終わるときは `process.exit(1)` ではなく `process.exitCode = 1; return;` を使ってください**（#540）。
+stdout / stderr がパイプ（CI・子プロセスとして呼ぶテスト）だと、Node の書き出しはパイプが満杯のとき
+非同期のキューに回ります。`process.exit()` はそのキューを捨てるので、失敗の一覧のような長い出力が
+負荷の下で途中で切れます（#853 の対照実行が CI でときどき落ちた原因）。`exitCode` を立てて戻れば、
+書き出しを終えてから終わります。終了コードと出力は変わりません。`scripts/scan-target-wiring.test.mjs` が、
+大量出力を遅い読み手に読ませる実行と、`audit-*.mjs` ほかの導出で見ます。
+
 ### 新しいパッケージを足すと検査が赤くなる
 
 構造監査（`scripts/audit-structure.mjs`）とログ衛生（`scripts/audit-log-hygiene.mjs`）は、

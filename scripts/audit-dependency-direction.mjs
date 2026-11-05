@@ -262,7 +262,7 @@ export const EXCLUDED_PACKAGES = [];
  * 「宣言の値の妥当性（空文字列・書き忘れ）も検査する」を MUST としており、
  * **件数のガードでは 1 行の書き忘れを検知できない**（表の長さは変わらないため）。
  *
- * 判定は純粋関数にして、I/O と `process.exit` は呼び出し側に置く。
+ * 判定は純粋関数にして、I/O と `process.exitCode` は呼び出し側に置く。
  */
 export function findInvalidExclusions(entries) {
   return entries
@@ -383,7 +383,8 @@ function main() {
 
   if (hasTargetDrift(drift)) {
     console.error(formatTargetDiff("audit-dependency-direction", drift, summary));
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   // 走査量は成否によらず必ず出す（ADR-0014 決定 6）。
@@ -400,7 +401,8 @@ function main() {
     console.error(
       `[audit-dependency-direction] 走査対象が 0 件です（検査が空振りします）: ${emptyDimensions.join(" / ")}`,
     );
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   // 走査量の**内訳**（パッケージごとの件数）も 0 件でないことを見る
@@ -417,7 +419,8 @@ function main() {
     console.error(
       `[audit-dependency-direction] 除外に理由がありません（なぜ 0 件でよいのかを書く）: ${invalidExclusions.join(" / ")}`,
     );
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   const excludedNames = EXCLUDED_PACKAGES.map((e) => e.pkg);
@@ -429,7 +432,8 @@ function main() {
     console.error(
       `[audit-dependency-direction] 除外の宛先が実在しません（改名・移設したなら除外表を直す）: ${missingExclusions.join(" / ")}`,
     );
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   // 除外の行は「いま 0 件である」という主張なので、主張が偽になったら落とす。
@@ -438,7 +442,8 @@ function main() {
     console.error(
       `[audit-dependency-direction] 除外が陳腐化しています（走査対象を持つので除外は不要）: ${staleExclusions.join(" / ")}`,
     );
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   const emptyPackages = findEmptyScanDimensions(
@@ -451,7 +456,8 @@ function main() {
       `[audit-dependency-direction] 走査対象が 0 件のパッケージがあります（そのパッケージ分だけ検査が空振りします）: ${emptyPackages.join(" / ")}` +
         "\n  ← 走査対象を失ったなら直す。0 件が正しいなら EXCLUDED_PACKAGES へ理由つきで載せる",
     );
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   const observed = Object.fromEntries(
@@ -473,7 +479,7 @@ function main() {
           : `  ${v.pkg} → ${v.dep}（${v.via}）`,
     );
   }
-  process.exit(1);
+  process.exitCode = 1;
 }
 
 if (isDirectRun(import.meta.url, process.argv[1])) main();

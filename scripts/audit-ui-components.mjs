@@ -51,7 +51,7 @@
  * - {@link findDeadParts} は `.ts`（`.tsx` ではない）の定数に書いた部品名を使用として数えない。
  *   実際は使われていても死んでいると誤報しうる（安全側 —— 見逃すより過検出を選ぶ）
  *
- * 設計方針: 判定は純粋関数、実 I/O と `process.exit` は `main()` の薄い配線だけに置く。
+ * 設計方針: 判定は純粋関数、実 I/O と `process.exitCode` は `main()` の薄い配線だけに置く。
  * **依存は postcss と postcss-selector-parser だけ**（ADR 0022 決定 7。scripts の「追加依存は禁止」の例外）。
  */
 import fs from "node:fs";
@@ -817,7 +817,8 @@ function main() {
   if (problems.length > 0) {
     console.error("[audit-ui-components] NG");
     for (const p of problems) console.error(`  - ${p}`);
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
   console.log("[audit-ui-components] OK（違反 0 件）");
 }
