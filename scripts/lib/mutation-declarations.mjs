@@ -5942,7 +5942,7 @@ export const MUTATIONS = [
   },
   {
     id: 985,
-    label: "audit-plan-gate が、設計文書の問題を一覧で書いた直後に process.exitCode を立てず process.exit(1) 相当の書き方（添字で呼び、静的な走査をすり抜ける）で終わる",
+    label: "audit-plan-gate が、設計文書の問題を一覧で書いた直後に process.exitCode を立てず globalThis.process.exit(1) で終わる（構文木の走査は見ない書き方。動的なテストだけが拾う）",
     patch: "m985-plan-gate-failure-path-process-exit.patch",
     pkg: "scripts",
     tests: ["scan-target-wiring.test.mjs"],
@@ -5955,6 +5955,14 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["scan-target-wiring.test.mjs"],
     note: RESERVED_985_994 + " " + "#540。audit-plan-gate 以外の検査へ process.exit が戻る形（導出の検査が拾う）。長い一覧が負荷の下で切れる。",
+  },
+  {
+    id: 987,
+    label: "audit-plan-gate が、設計文書の 0 件ガードで process.exitCode を立てた後に return せず、検査を続ける",
+    patch: "m987-plan-gate-empty-guard-no-return.patch",
+    pkg: "scripts",
+    tests: ["scan-target-wiring.test.mjs"],
+    note: RESERVED_985_994 + " " + "#540。立てた後も後続の検査が走り、失敗の経路で OK の行や別の一覧まで出る。構文木の検査（exitCode の直後は return か関数の最後）が拾う。",
   },
   {
     id: 960,
