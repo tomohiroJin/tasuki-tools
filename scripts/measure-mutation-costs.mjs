@@ -3,7 +3,7 @@
  * CI のログから、変異検査の対照の組ごとの実測の秒数を数える道具（#550）。
  *
  * 分け方（`scripts/lib/mutation-partition.mjs`）の重さは 2 つの値で決まる。
- * ランナーごとの既定値（`mutation-check.mjs` の `RUNNER_COST_SECONDS`）と、重い組の実測の表
+ * ランナーごとの既定値（`scripts/lib/mutation-weights.mjs` の `RUNNER_COST_SECONDS`）と、重い組の実測の表
  * （`scripts/lib/mutation-weights.mjs` の `MEASURED_GROUPS`）。どちらも CI の秒数に合わせて持つので、測り直す道具を置く。
  * 手順は `docs/guides/procedures/mutations.md` の「重い組の実測の表」。
  *

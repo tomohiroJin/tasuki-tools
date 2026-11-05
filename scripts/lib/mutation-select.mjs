@@ -199,7 +199,7 @@ export function narrowingCandidates(mutations, resolved) {
 }
 
 /**
- * 見込みの時間（秒）。対照の組ごとの重さ（`weightOf`。mutation-check の `RUNNER_COST_SECONDS` の目安と、
+ * 見込みの時間（秒）。対照の組ごとの重さ（`weightOf`。`lib/mutation-weights.mjs` の `RUNNER_COST_SECONDS` の目安と、
  * 重い組の実測の表）を足し、`--jobs` のときは作業ツリーに分けた最も長いものの重さ（作業ツリーの準備の時間は入れない）。**目安であって約束ではない。**
  */
 export function estimateSeconds(mutations, weightOf, jobs, isHeavy) {

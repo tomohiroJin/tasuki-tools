@@ -190,7 +190,7 @@ git apply --check scripts/mutations/m<ID>-*.patch
 変異をシャード（`--shard`）・ワーカー（`--jobs`）へ分けるときの重さは、2 つの値で決まります。どちらも **CI の実測の秒数**に合わせて持ちます
 （手元の値で決めない。手元の 4 コアと CI では、ランナーによって約 8 倍ずれた）。
 
-- **ランナーごとの既定値**（`mutation-check.mjs` の `RUNNER_COST_SECONDS`。対照 1 回と検出 1 回の秒数。vitest 3/2.7・bun 0.6/1.7・node 1/0.6）。
+- **ランナーごとの既定値**（`scripts/lib/mutation-weights.mjs` の `RUNNER_COST_SECONDS`。対照 1 回と検出 1 回の秒数。vitest 3/2.7・bun 0.6/1.7・node 1/0.6）。
   表に無い組はこれで見積もります
 - **重い組の表**（`scripts/lib/mutation-weights.mjs` の `MEASURED_GROUPS`。行は `pkg`・`tests`・`control`・`mutation`。鍵は対照の組の鍵 `controlGroupKey` と同じで、表の下で作る）。
   組（`pkg` と `tests` の並びが同じ変異の束。対照実行を使い回す単位）によって 1 回 0.1 秒から 60 秒まで開くので、**重い組だけ**を実測で載せます。
@@ -243,10 +243,10 @@ git apply --check scripts/mutations/m<ID>-*.patch
    同じ run では 5 つとも最長・差が縮む。他の 4 run の案で分けると、4cdca8c は最長も差も伸びる（直す前がたまたま均等に当たった run）。他の 4 run の案での 5 run の合計は、最長 1409→1341 秒、差 669→562 秒
 7. **粒度を細かくするかは、この出力で決める。** ランナーだけでは説明できない組（組ごとの「比」が毎回同じ向きに 2 倍以上ずれる）が、
    置き場・テストファイルの種類で束にできるか。2026-11-05 の 5 run の測り直しでは、vitest の `apps/*-web`（jsdom）は `packages/*` の約 2 倍・複数ファイルの組はファイル数に近い倍率・
-   bun の `live-ws.*` と node の「プロセスを起こすテスト」は桁違いに重かった。細かく分けると組ごとの誤差は縮む（対数の中央値 0.48 → 0.3 前後）が、
+   bun の `live-ws.*` と node の「プロセスを起こすテスト」は桁違いに重かった。今の既定値（ランナーだけ）の組ごとの誤差は、対数の絶対値の中央値で 0.61（組ごとの実測 ÷ 既定値の中央値は bun 0.13・node 0.37・vitest 0.91。合計を合わせた分、典型的な軽い組は重く数える）。細かく分ければ 0.3 前後まで縮む（試算）が、
    `--simulate` の最長と最短の差は縮まなかった（揺れの範囲）ので、ランナーのまま、重い組は表に載せる形にした（規則の保守を増やさない。原則 X）。
    条件が変わって束にした方が差が縮むと出たら、`weightOfGroup` に規則を足し、`mutation-check.test.mjs` に造作で見る試験を足す
-8. **直す。** 既定値は `mutation-check.mjs`、表は `mutation-weights.mjs`（判断の理由と値の出どころの run も、その JSDoc に書き直す）。
+8. **直す。** 既定値も表も `scripts/lib/mutation-weights.mjs`（判断の理由と値の出どころの run も、その JSDoc に書き直す）。
    自己テスト（`scripts/lib/mutation-weights.test.mjs`・`scripts/mutation-check.test.mjs`）の手書きの期待値も直す
 
 ### 古くなったとき
