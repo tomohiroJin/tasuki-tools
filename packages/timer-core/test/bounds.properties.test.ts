@@ -3,7 +3,7 @@
  *
  * 自動の変異の調査（docs/superpowers/specs/2026-11-01-test-gap-survey.md 2.5）で、製品のテストでも
  * 生き残った境界・既定値の演算を、timer-core 自身のテストで守る。
- *   - 参加者の上限（decide.ts の participant.addProxy）
+ *   - 参加者の上限（decide.ts の participant.addProxy・member.add）
  *   - 席の移動で運転手の位置を追う判断（evolve.ts の MemberMoved）
  *   - 休憩までの交代回数（break-policy.ts の rounds）
  *   - 時計のずれの符号（aggregate.ts の elapsedMs）
@@ -65,6 +65,43 @@ describe("参加者の上限（participant.addProxy）", () => {
         fc.oneof(fc.constantFrom(1, MAX_MEMBERS - 1, MAX_MEMBERS), fc.integer({ min: 1, max: MAX_MEMBERS })),
         (n) => {
           const result = addProxy(withSeats(n));
+          const outcome = result.isOk() ? "accepted" : result._unsafeUnwrapErr().type;
+          const expected = n < MAX_MEMBERS ? "accepted" : "MemberLimitExceeded";
+          expect({ n, outcome }).toEqual({ n, outcome: expected });
+        },
+      ),
+      RUN,
+    );
+  });
+});
+
+describe("参加者の上限（member.add）", () => {
+  /** 席が n 人いる集約（IDは P0〜P(n-1)） */
+  function withSeats(n: number): Aggregate {
+    return anAggregate()
+      .withRotation(...Array.from({ length: n }, (_, k) => `P${k}`))
+      .build();
+  }
+
+  const addMember = (agg: Aggregate) => decide({ command: "member.add", participantId: "NEW" }, agg, 1_000);
+
+  it("上限の 1 つ手前（MAX_MEMBERS - 1 人）の輪には足せる", () => {
+    const result = addMember(withSeats(MAX_MEMBERS - 1));
+    expect(result.isOk()).toBe(true);
+  });
+
+  it("上限ちょうど（MAX_MEMBERS 人）の輪には足せず、MemberLimitExceeded になる", () => {
+    const result = addMember(withSeats(MAX_MEMBERS));
+    expect(result.isErr()).toBe(true);
+    expect(result._unsafeUnwrapErr()).toEqual({ type: "MemberLimitExceeded", limit: MAX_MEMBERS });
+  });
+
+  it("人数ごとに、足せるのは上限に満たないときだけで、断るときは MemberLimitExceeded（上限ちょうどを必ず混ぜる）", () => {
+    fc.assert(
+      fc.property(
+        fc.oneof(fc.constantFrom(1, MAX_MEMBERS - 1, MAX_MEMBERS), fc.integer({ min: 1, max: MAX_MEMBERS })),
+        (n) => {
+          const result = addMember(withSeats(n));
           const outcome = result.isOk() ? "accepted" : result._unsafeUnwrapErr().type;
           const expected = n < MAX_MEMBERS ? "accepted" : "MemberLimitExceeded";
           expect({ n, outcome }).toEqual({ n, outcome: expected });

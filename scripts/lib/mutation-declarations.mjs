@@ -58,6 +58,9 @@ const RESERVED_900_909 =
 const RESERVED_950_959 =
   "**対応表より後に足した変異。** 950〜959 は #524 に割り当てた範囲。";
 
+const RESERVED_965_969 =
+  "**対応表より後に足した変異。** 965〜969 は #534 に割り当てた範囲。";
+
 const RESERVED_880_889 =
   "**対応表より後に足した変異。** 880〜889 は #506 の宣言の検査に追加で割り当てた範囲（850〜859 を使い切ったため）。";
 
@@ -5726,5 +5729,37 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["test-shuffled.test.mjs"],
     note: RESERVED_950_959 + " " + "#524のレビュー。ログの先頭の「同じ種で再現」を貼っても使い方を出して終わり、種で流し直せない。",
+  },
+  {
+    id: 965,
+    label: "メンバー追加の上限の検査を rotation.length >= MAX_MEMBERS → > にする（上限ちょうどの 10 人の輪にも足せて 11 人になる）",
+    patch: "m965-timer-core-member-add-limit-gt.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/bounds.properties.test.ts"],
+    note: RESERVED_965_969 + " " + "#534。メンバー追加（member.add）の 1 つずれ。上限（10 人）の輪にさらに足せて 11 人になる。",
+  },
+  {
+    id: 966,
+    label: "メンバー追加の上限の検査を >= MAX_MEMBERS → >= MAX_MEMBERS - 1 にする（上限の 1 つ手前の 9 人の輪に足せない）",
+    patch: "m966-timer-core-member-add-limit-minus-one.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/bounds.properties.test.ts"],
+    note: RESERVED_965_969 + " " + "#534。メンバー追加の上限が 1 人少なく、9 人の輪に足せない。既存の「10人超過はエラー」では生き残る形。",
+  },
+  {
+    id: 967,
+    label: "メンバー追加の上限の検査を外す（条件を && false にする）",
+    patch: "m967-timer-core-member-add-limit-check-off.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/bounds.properties.test.ts"],
+    note: RESERVED_965_969 + " " + "#534。メンバー追加の上限の検査が無くなり、10 人を超えて足せる。",
+  },
+  {
+    id: 968,
+    label: "メンバー追加の上限の検査を >= MAX_MEMBERS → >= MAX_MEMBERS + 1 にする（上限の値のずれ。10 人の輪にも足せる）",
+    patch: "m968-timer-core-member-add-limit-plus-one.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/bounds.properties.test.ts"],
+    note: RESERVED_965_969 + " " + "#534。メンバー追加の上限が 1 人多く、11 人まで足せる。",
   },
 ];
