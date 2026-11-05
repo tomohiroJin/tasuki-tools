@@ -1108,7 +1108,7 @@ if (isDirectRun(import.meta.url, process.argv[1])) main();
 stdout / stderr がパイプ（CI・子プロセスとして呼ぶテスト）だと、Node の書き出しはパイプが満杯のとき
 非同期のキューに回ります。`process.exit()` はそのキューを捨てるので、失敗の一覧のような長い出力が
 負荷の下で途中で切れます（変異 853 の対照実行が CI でときどき落ちた原因）。`exitCode` を立てて戻れば、
-書き出しを終えてから終わります。終了コードと出力は変わりません。`scripts/scan-target-wiring.test.mjs` が、
+書き出しを終えてから終わります。終了コードと出力は変わりません。`scripts/exit-flush.test.mjs` が、
 大量出力を遅い読み手に読ませる実行と、`scripts/` 直下と `scripts/lib/` の `*.mjs`（テストを除く）を
 構文木（`scripts/lib/process-exit-scan.mjs`）で見る導出で守ります。構文木では `process.exit`・`process["exit"]`・
 `const { exit } = process` の使用と、`process.exitCode = N;` の後の `return` の書き忘れも拾います。

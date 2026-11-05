@@ -5945,7 +5945,7 @@ export const MUTATIONS = [
     label: "audit-plan-gate が、設計文書の問題を一覧で書いた直後に process.exitCode を立てず globalThis.process.exit(1) で終わる（構文木の走査は見ない書き方。動的なテストだけが拾う）",
     patch: "m985-plan-gate-failure-path-process-exit.patch",
     pkg: "scripts",
-    tests: ["scan-target-wiring.test.mjs"],
+    tests: ["exit-flush.test.mjs"],
     note: RESERVED_985_994 + " " + "#540。stderr がパイプのとき process.exit は書き出し途中の出力を捨てる。失敗の一覧が途中で切れ、末尾の「様式の正本」が届かない。負荷の下で #853 の対照実行が CI でときどき落ちた形。親が遅れて読む実行で決定的に赤くなる。",
   },
   {
@@ -5953,7 +5953,7 @@ export const MUTATIONS = [
     label: "audit-log-hygiene が、問題の一覧を書いた直後に process.exitCode を立てず process.exit(1) で終わる",
     patch: "m986-log-hygiene-failure-path-process-exit.patch",
     pkg: "scripts",
-    tests: ["scan-target-wiring.test.mjs"],
+    tests: ["exit-flush.test.mjs"],
     note: RESERVED_985_994 + " " + "#540。audit-plan-gate 以外の検査へ process.exit が戻る形（導出の検査が拾う）。長い一覧が負荷の下で切れる。",
   },
   {
@@ -5961,7 +5961,7 @@ export const MUTATIONS = [
     label: "audit-plan-gate が、設計文書の 0 件ガードで process.exitCode を立てた後に return せず、検査を続ける",
     patch: "m987-plan-gate-empty-guard-no-return.patch",
     pkg: "scripts",
-    tests: ["scan-target-wiring.test.mjs"],
+    tests: ["exit-flush.test.mjs"],
     note: RESERVED_985_994 + " " + "#540。立てた後も後続の検査が走り、失敗の経路で OK の行や別の一覧まで出る。構文木の検査（exitCode の直後は return か関数の最後）が拾う。",
   },
   {
