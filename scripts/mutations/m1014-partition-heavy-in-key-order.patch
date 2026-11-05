@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/mutation-partition.mjs b/scripts/lib/mutation-partition.mjs
+index 7f8ee66..18f902d 100644
+--- a/scripts/lib/mutation-partition.mjs
++++ b/scripts/lib/mutation-partition.mjs
+@@ -138,7 +138,7 @@ export function distribute(mutations, n, weightOf, isHeavy) {
+     pkgEntry.total += entry.weight;
+     pkgEntry.groups.push(entry);
+   }
+-  heavy.sort((x, y) => y.weight - x.weight || byName(x.group.key, y.group.key));
++  heavy.sort((x, y) => byName(x.group.key, y.group.key));
+   for (const { group, weight } of heavy) {
+     let target = 0;
+     for (let i = 1; i < n; i++) if (loads[i] < loads[target]) target = i;

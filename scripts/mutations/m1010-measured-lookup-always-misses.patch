@@ -1,0 +1,11 @@
+diff --git a/scripts/lib/mutation-weights.mjs b/scripts/lib/mutation-weights.mjs
+index 9622d98..2441e66 100644
+--- a/scripts/lib/mutation-weights.mjs
++++ b/scripts/lib/mutation-weights.mjs
+@@ -55,5 +55,5 @@ const BY_KEY = new Map(MEASURED_GROUPS.map((row) => [controlGroupKey(row), Objec
+ 
+ /** 表にある組の実測の秒数。無ければ null（呼び出し側が、ランナーごとの既定値へ倒す）。 */
+ export function measuredCostOf(group) {
+-  return BY_KEY.get(controlGroupKey(group)) ?? null;
++  return null;
+ }

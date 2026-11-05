@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/mutation-partition.mjs b/scripts/lib/mutation-partition.mjs
+index 7f8ee66..b7398bb 100644
+--- a/scripts/lib/mutation-partition.mjs
++++ b/scripts/lib/mutation-partition.mjs
+@@ -129,7 +129,7 @@ export function distribute(mutations, n, weightOf, isHeavy) {
+       throw new Error(`組の重さは正の有限の数です: ${entry.weight}（${entry.group.pkg}）`);
+     }
+     totalWeight += entry.weight;
+-    if (isHeavy(entry.group)) {
++    if (false) {
+       heavy.push(entry);
+       continue;
+     }

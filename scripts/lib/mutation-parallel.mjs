@@ -42,10 +42,10 @@ export function parseJobs(args) {
  *
  * @returns {object[][]} ワーカーごとの変異（宣言の順）。選んだ変異が 0 件なら空の配列
  */
-export function planWorkers(mutations, jobs, weightOf) {
+export function planWorkers(mutations, jobs, weightOf, isHeavy) {
   if (mutations.length === 0) return [];
   const workers = Math.min(jobs, groupByControl(mutations).length);
-  return partitionMutations(mutations, workers, weightOf);
+  return partitionMutations(mutations, workers, weightOf, isHeavy);
 }
 
 /**

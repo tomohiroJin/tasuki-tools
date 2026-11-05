@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/mutation-partition.mjs b/scripts/lib/mutation-partition.mjs
+index 7f8ee66..4078ed8 100644
+--- a/scripts/lib/mutation-partition.mjs
++++ b/scripts/lib/mutation-partition.mjs
+@@ -157,7 +157,7 @@ export function distribute(mutations, n, weightOf, isHeavy) {
+     // 重い組が無いときは、今までの「その置き場の中で最も軽い分け前」を、浮動小数点の比較も含めてそのまま使う
+     const room = fillRoom(loads, remainingLight);
+     const roomSum = room.reduce((p, q) => p + q, 0);
+-    const share = roomSum > 0 ? room.map((r) => r / roomSum) : room.map(() => 1 / n);
++    const share = room.map(() => 1 / n);
+     for (const { group, weight } of pkgGroups) {
+       let target = 0;
+       for (let i = 1; i < n; i++) {

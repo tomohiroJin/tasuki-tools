@@ -20,6 +20,7 @@ import {
   RUNNER_COST_SECONDS,
   forecastLines,
   weightOfGroup,
+  isHeavyGroup,
 } from "./mutation-check.mjs";
 import { MUTATIONS } from "./lib/mutation-declarations.mjs";
 import { mechanismFilesFrom, selectMutations } from "./lib/mutation-select.mjs";
@@ -451,7 +452,7 @@ describe("宣言の全件を分けて流す配線（#481）", () => {
     test(`${total} 個のシャードを合わせると宣言の全件になり、重ならない`, () => {
       const ids = [];
       for (let index = 1; index <= total; index++) {
-        const { selected } = selectMutations(MUTATIONS, { kind: "shard", index, total, weightOf: weightOfGroup });
+        const { selected } = selectMutations(MUTATIONS, { kind: "shard", index, total, weightOf: weightOfGroup, isHeavy: isHeavyGroup });
         assert.ok(selected.length > 0, `シャード ${index}/${total} が空`);
         ids.push(...selected.map((s) => s.mutation.id));
       }
