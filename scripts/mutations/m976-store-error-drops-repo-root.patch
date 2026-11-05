@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/mutation-parallel.mjs b/scripts/lib/mutation-parallel.mjs
+index cadfa39..3cd4170 100644
+--- a/scripts/lib/mutation-parallel.mjs
++++ b/scripts/lib/mutation-parallel.mjs
+@@ -161,7 +161,7 @@ export function storeDirFor(execFile, repoRoot) {
+     output = execFile("pnpm", ["store", "path"], { cwd: repoRoot, encoding: "utf8" });
+   } catch (e) {
+     throw new Error(
+-      `本体の pnpm のストアの場所を引けませんでした（${repoRoot} で pnpm store path）。` +
++      `本体の pnpm のストアの場所を引けませんでした（pnpm store path）。` +
+         `pnpm が使えるか確かめ、本体で pnpm install を済ませてから再実行してください: ${e instanceof Error ? e.message : e}`,
+       { cause: e },
+     );

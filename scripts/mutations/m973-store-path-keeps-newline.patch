@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/mutation-parallel.mjs b/scripts/lib/mutation-parallel.mjs
+index cadfa39..5c9b14d 100644
+--- a/scripts/lib/mutation-parallel.mjs
++++ b/scripts/lib/mutation-parallel.mjs
+@@ -138,7 +138,7 @@ export function installArgs(storeDir) {
+  * 相対のまま作業ツリーの中で解くと、本体とは別のストアを指してしまうため。
+  */
+ export function storePathFrom(output) {
+-  const storeDir = String(output).trim();
++  const storeDir = String(output);
+   // 改行が残る（複数行の）出力は投げる。`isAbsolute` は先頭しか見ないので、後ろに警告（`WARN Update available` など）が
+   // 混ざった出力を通してしまう。最後の行を拾う案は、どの行がパスか決め打ちになるので採らない（受けないほうが安全）
+   if (/[\r\n]/.test(storeDir)) {

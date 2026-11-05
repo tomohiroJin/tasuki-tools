@@ -82,7 +82,7 @@ node scripts/mutation-check.mjs --id <ID>
 - 別の作業ツリー（`git worktree add`）で流すときは、**別の作業ツリーの `node_modules` を symlink で共有しない。**
   `.gitignore` の `node_modules/` はディレクトリにしか当たらないので、symlink は未追跡（`?? node_modules`）に見え、
   `mutation-check` が「未コミットの変更があります」で起動を拒む（#491 の振り返りの罠 7）。
-  その作業ツリーで `pnpm install --frozen-lockfile --offline` を流す。元の作業ツリーで install 済みなら pnpm の store を使うので取得はせず、数秒で済む（#509 で 3 秒）。
+  その作業ツリーで `pnpm install --frozen-lockfile --offline --store-dir "$(pnpm -C <元の作業ツリー> store path)"` を流す（別のファイルシステムの一時ディレクトリでも本体のストアを使うため。#535）。**ストアの場所は元の（本体の）作業ツリーで引く。** 新しい作業ツリーの中で `pnpm store path` を展開すると、そこのファイルシステムのストアを指して元の失敗に戻る。その作業ツリーで後から pnpm を流すときも、同じ `--store-dir` を渡す（渡さないと `ERR_PNPM_UNEXPECTED_STORE` になる）。元の作業ツリーで install 済みなら pnpm の store を使うので取得はせず、数秒で済む（#509 で 3 秒）。
   store に無いと言われたら（`ERR_PNPM_NO_OFFLINE_TARBALL`）、`--offline` を外して流す
 - **「検出」なら終わり。** 宣言とパッチを同じコミットに入れる
 - **「未検出」なら、テストが性質を守っていない。** テストを足すか直して（TDD の Red から）、もう一度流す。

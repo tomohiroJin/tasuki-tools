@@ -12,6 +12,9 @@ import {
   parseTestWorkers,
   testWorkersPerJob,
   createLinePrefixer,
+  installArgs,
+  storePathFrom,
+  storeDirFor,
 } from "./mutation-parallel.mjs";
 
 /**
@@ -210,5 +213,69 @@ describe("formatWorkerSummary: ワーカーごとの結果", () => {
   test("終了コードが取れない（シグナルで止まった）ワーカーも失敗に数える", () => {
     const { failed } = formatWorkerSummary([{ index: 1, count: 3, exitCode: null, ms: 1000 }]);
     assert.deepEqual(failed, [1]);
+  });
+});
+
+describe("installArgs / storePathFrom: 作業ツリーへの依存の入れ方（#535）", () => {
+  // 一時ディレクトリが本体のストアと別のファイルシステムだと、--store-dir が無い pnpm は空のストアに切り替え、
+  // --offline のせいで取得もできずに落ちる（CI の /tmp・手元の TMPDIR=/dev/shm）
+  test("本体のストアを --store-dir で渡す（別のファイルシステムでも写しに倒れて入れられる）", () => {
+    const args = installArgs("/home/runner/.local/share/pnpm/store/v11");
+    const i = args.indexOf("--store-dir");
+    assert.notEqual(i, -1);
+    assert.equal(args[i + 1], "/home/runner/.local/share/pnpm/store/v11");
+  });
+
+  test("lockfile を固定し、ネットワークに出ない（--frozen-lockfile・--offline）", () => {
+    const args = installArgs("/s");
+    assert.equal(args[0], "install");
+    assert.ok(args.includes("--frozen-lockfile"));
+    assert.ok(args.includes("--offline"));
+  });
+
+  test("pnpm store path の出力は、前後の空白と改行を落として絶対パスで受ける", () => {
+    assert.equal(storePathFrom("/root/.local/share/pnpm/store/v11\n"), "/root/.local/share/pnpm/store/v11");
+  });
+
+  test("空・相対パスの出力は受けない（作業ツリーの中で別のストアを指さない）", () => {
+    assert.throws(() => storePathFrom(""), /絶対パス/);
+    assert.throws(() => storePathFrom("\n"), /絶対パス/);
+    assert.throws(() => storePathFrom("store/v11"), /絶対パス/);
+  });
+
+  test("複数行の出力は受けない（先頭だけ絶対パスで、後ろに警告が混ざった出力を通さない）", () => {
+    assert.throws(() => storePathFrom("/root/.pnpm-store/v11\n WARN Update available"), /複数行/);
+  });
+});
+
+describe("storeDirFor: 本体のストアを、本体の cwd で引く（#535）", () => {
+  // 作業ツリーの中で引くと、その作業ツリーのファイルシステムのストアを指し、別のファイルシステムでは元の失敗に戻る
+  test("pnpm store path を、渡された本体の作業ツリーを cwd にして呼ぶ", () => {
+    const calls = [];
+    const execFile = (cmd, args, opts) => {
+      calls.push({ cmd, args, opts });
+      return "/main/.pnpm-store/v11\n";
+    };
+    assert.equal(storeDirFor(execFile, "/main/repo"), "/main/.pnpm-store/v11");
+    assert.deepEqual(calls, [
+      { cmd: "pnpm", args: ["store", "path"], opts: { cwd: "/main/repo", encoding: "utf8" } },
+    ]);
+  });
+
+  test("絶対パスでない出力は投げる", () => {
+    assert.throws(() => storeDirFor(() => "warn\n", "/main/repo"), /絶対パス/);
+  });
+
+  test("pnpm が失敗したら、何をすべきかが分かる文言で投げる（本体のパスと pnpm install を含む）", () => {
+    const execFile = () => {
+      throw new Error("spawn pnpm ENOENT");
+    };
+    assert.throws(() => storeDirFor(execFile, "/main/repo"), (e) => {
+      assert.match(e.message, /pnpm store path/);
+      assert.match(e.message, /\/main\/repo/);
+      assert.match(e.message, /pnpm install/);
+      assert.match(e.message, /ENOENT/);
+      return true;
+    });
   });
 });

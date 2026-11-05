@@ -121,6 +121,55 @@ export function worktreeDirFor(tmpRoot, pid, index) {
 }
 
 /**
+ * 作業ツリーに依存を入れる `pnpm install` の引数（#535）。**本体のストアを `--store-dir` で必ず渡す。**
+ *
+ * **なぜ渡すか**: 作業ツリーは一時ディレクトリ（`os.tmpdir()`）に作る。そこが本体のストアと別のファイルシステム
+ * （CI のランナーの `/tmp`・手元の `TMPDIR=/dev/shm`）だと、pnpm は「ハードリンクできない」と見て、空のストアに
+ * 切り替える。`--offline` なので取得もできず、依存を入れられずに落ちる。`--store-dir` で本体のストアを名指しすると、
+ * pnpm はハードリンクできなければ写しに倒れ、ストアの実体を使って入れられる（同じファイルシステムなら従来どおりリンク）。
+ * `--offline` は残す（ネットワークに出ない。ストアに無ければ落ちて、本体の `pnpm install` を促す）。
+ */
+export function installArgs(storeDir) {
+  return ["install", "--frozen-lockfile", "--offline", "--reporter=append-only", "--store-dir", storeDir];
+}
+
+/**
+ * `pnpm store path` の出力から本体のストアの場所を取る。絶対パスでなければ（空・警告の混入など）投げる。
+ * 相対のまま作業ツリーの中で解くと、本体とは別のストアを指してしまうため。
+ */
+export function storePathFrom(output) {
+  const storeDir = String(output).trim();
+  // 改行が残る（複数行の）出力は投げる。`isAbsolute` は先頭しか見ないので、後ろに警告（`WARN Update available` など）が
+  // 混ざった出力を通してしまう。最後の行を拾う案は、どの行がパスか決め打ちになるので採らない（受けないほうが安全）
+  if (/[\r\n]/.test(storeDir)) {
+    throw new Error(`pnpm store path の出力が複数行です: ${JSON.stringify(storeDir)}`);
+  }
+  if (!path.isAbsolute(storeDir)) {
+    throw new Error(`pnpm store path の出力が絶対パスではありません: ${JSON.stringify(storeDir)}`);
+  }
+  return storeDir;
+}
+
+/**
+ * 本体のストアの場所を引く。**本体の作業ツリー（`repoRoot`）を cwd にして `pnpm store path` を呼ぶ。**
+ * 作業ツリーの中で引くと、その作業ツリーのファイルシステムのストア（例 `/dev/shm/.pnpm-store/v11`）を指し、
+ * 別のファイルシステムでは `--store-dir` を渡す意味が無くなる（#535）。`execFile` は注入する（`execFileSync` と同じ形）。
+ */
+export function storeDirFor(execFile, repoRoot) {
+  let output;
+  try {
+    output = execFile("pnpm", ["store", "path"], { cwd: repoRoot, encoding: "utf8" });
+  } catch (e) {
+    throw new Error(
+      `本体の pnpm のストアの場所を引けませんでした（${repoRoot} で pnpm store path）。` +
+        `pnpm が使えるか確かめ、本体で pnpm install を済ませてから再実行してください: ${e instanceof Error ? e.message : e}`,
+      { cause: e },
+    );
+  }
+  return storePathFrom(output);
+}
+
+/**
  * 作業ツリーのロックの理由（`git worktree add --lock --reason …`）。持ち主の PID とホスト名を書く。
  *
  * **ロックつきで作る理由**（#481 のレビュー）: `git worktree prune` は、ロックされた作業ツリーの登録を消さない。

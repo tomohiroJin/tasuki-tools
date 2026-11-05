@@ -67,6 +67,9 @@ const RESERVED_980_984 =
 const RESERVED_960_964 =
   "**対応表より後に足した変異。** 960〜964 は #533 に割り当てた範囲。";
 
+const RESERVED_970_979 =
+  "**対応表より後に足した変異。** 970〜979 は #535 に割り当てた範囲。";
+
 const RESERVED_880_889 =
   "**対応表より後に足した変異。** 880〜889 は #506 の宣言の検査に追加で割り当てた範囲（850〜859 を使い切ったため）。";
 
@@ -5858,6 +5861,62 @@ export const MUTATIONS = [
     pkg: "packages/timer-core",
     tests: ["test/bounds.properties.test.ts"],
     note: RESERVED_965_969 + " " + "#534のレビュー。上限で断られたときに画面へ伝わる上限の人数が実際とずれる（エラーの種類だけを見るテストでは気づけない）。",
+  },
+  {
+    id: 970,
+    label: "並列の作業ツリーへの依存の入れ方が、本体のストアを --store-dir で渡さない",
+    patch: "m970-install-drops-store-dir.patch",
+    pkg: "scripts",
+    tests: ["lib/mutation-parallel.test.mjs"],
+    note: RESERVED_970_979 + " " + "#535。一時ディレクトリが別のファイルシステム（CI の /tmp・TMPDIR=/dev/shm）だと pnpm が空のストアに切り替え、--offline で依存を入れられずに変異検査のシャードが落ちる。",
+  },
+  {
+    id: 971,
+    label: "並列の作業ツリーへの依存の入れ方が、--offline を落とす",
+    patch: "m971-install-drops-offline.patch",
+    pkg: "scripts",
+    tests: ["lib/mutation-parallel.test.mjs"],
+    note: RESERVED_970_979 + " " + "#535。ストアに無い依存を黙ってネットワークから取りに行き、CI で本体の pnpm install 漏れに気づけず、取得の揺れで落ちる。",
+  },
+  {
+    id: 972,
+    label: "本体のストアの場所の取り出しが、絶対パスでない出力を受ける",
+    patch: "m972-store-path-accepts-relative.patch",
+    pkg: "scripts",
+    tests: ["lib/mutation-parallel.test.mjs"],
+    note: RESERVED_970_979 + " " + "#535。空や警告まじりの出力が相対パスのストアとして作業ツリーの中で解かれ、本体とは別の空のストアを指して依存が入らない。",
+  },
+  {
+    id: 973,
+    label: "本体のストアの場所の取り出しが、出力の末尾の改行を落とさない",
+    patch: "m973-store-path-keeps-newline.patch",
+    pkg: "scripts",
+    tests: ["lib/mutation-parallel.test.mjs"],
+    note: RESERVED_970_979 + " " + "#535。改行つきのパスが --store-dir に渡り、存在しないストアを指して依存が入らない。",
+  },
+  {
+    id: 974,
+    label: "本体のストアの場所を、本体でなく呼び出し元の cwd で引く",
+    patch: "m974-store-path-wrong-cwd.patch",
+    pkg: "scripts",
+    tests: ["lib/mutation-parallel.test.mjs"],
+    note: RESERVED_970_979 + " " + "#535 のレビュー。作業ツリーの中で pnpm store path を引くと、その作業ツリーのファイルシステムのストアを指し、別のファイルシステムでは元の失敗（--offline で依存を入れられない）に戻る。",
+  },
+  {
+    id: 975,
+    label: "本体のストアの場所の取り出しが、複数行の出力を受ける",
+    patch: "m975-store-path-accepts-multiline.patch",
+    pkg: "scripts",
+    tests: ["lib/mutation-parallel.test.mjs"],
+    note: RESERVED_970_979 + " " + "#535 のレビュー。先頭だけ絶対パスで後ろに警告が混ざった出力が通り、改行つきのパスが --store-dir に渡って依存が入らない。",
+  },
+  {
+    id: 976,
+    label: "本体のストアの場所を引けなかったときの文言から、本体のパスを落とす",
+    patch: "m976-store-error-drops-repo-root.patch",
+    pkg: "scripts",
+    tests: ["lib/mutation-parallel.test.mjs"],
+    note: RESERVED_970_979 + " " + "#535 のレビュー。どの作業ツリーで pnpm store path が失敗したか分からず、何を直せばよいか辿れない。",
   },
   {
     id: 980,

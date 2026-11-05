@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/mutation-parallel.mjs b/scripts/lib/mutation-parallel.mjs
+index cadfa39..de51fa6 100644
+--- a/scripts/lib/mutation-parallel.mjs
++++ b/scripts/lib/mutation-parallel.mjs
+@@ -158,7 +158,7 @@ export function storePathFrom(output) {
+ export function storeDirFor(execFile, repoRoot) {
+   let output;
+   try {
+-    output = execFile("pnpm", ["store", "path"], { cwd: repoRoot, encoding: "utf8" });
++    output = execFile("pnpm", ["store", "path"], { cwd: process.cwd(), encoding: "utf8" });
+   } catch (e) {
+     throw new Error(
+       `本体の pnpm のストアの場所を引けませんでした（${repoRoot} で pnpm store path）。` +
