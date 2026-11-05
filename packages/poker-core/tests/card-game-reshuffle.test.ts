@@ -79,14 +79,14 @@ describe('チェンジの切り直し（G-5）', () => {
     expect(keys(next.discards)).toEqual([]);
   });
 
-  it('Given 山が空で捨て札が 4 枚（QS KS AS 2H） / When 2 枚チェンジ、乱数の列 [3, 1, 0] / Then 切った並び（AS QS KS 2H）の上から引き、残りが山', () => {
-    // 最後の回（i=1）の乱数が 0 のとき、先頭と入れ替わる（i=3,j=3 は変わらず → i=2,j=1: [QS AS KS 2H] → i=1,j=0: [AS QS KS 2H]）
+  it('Given 山が空で捨て札が 4 枚（QS KS AS 2H） / When 2 枚チェンジ、乱数の列 [1, 0, 0] / Then 切った並び（2H AS QS KS）の上から引き、残りが山', () => {
+    // 各回の値を [3, 1, 1] のテストと変える（i=3,j=1: [QS 2H AS KS] → i=2,j=0: [AS 2H QS KS] → i=1,j=0: [2H AS QS KS]）
     const game = table([], [10, 11, 12, 13]);
-    const rng = scripted([3, 1, 0]);
+    const rng = scripted([1, 0, 0]);
     const next = exchangeCards(game, 'p', [0, 1], rng.randomInt)._unsafeUnwrap();
     expect(rng.used()).toBe(3);
-    expect(keys(next.hands.get('p')!)).toEqual(['14S', '12S', '4S', '5S', '6S']);
-    expect(keys(next.deck)).toEqual(['13S', '2H']);
+    expect(keys(next.hands.get('p')!)).toEqual(['2H', '14S', '4S', '5S', '6S']);
+    expect(keys(next.deck)).toEqual(['12S', '13S']);
     expect(keys(next.discards)).toEqual(['2S', '3S']);
   });
 
