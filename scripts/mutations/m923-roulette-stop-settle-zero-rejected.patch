@@ -1,0 +1,24 @@
+# 変異 923: roulette-stop-settle-zero-rejected
+#
+# 検出を期待するテスト:
+#   - packages/roulette-core/tests/roulette-bounds.test.ts
+#
+# #522（テストの穴: roulette-core の境界値）。押した位置の席の中の位置 0 ちょうどを ROULETTE_STOP_INVALID で拒む。
+# 席の境目ちょうどで押した人の押下が捨てられ、止まらないまま 30 秒の自動停止まで回り続ける。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m923-*.patch
+# 復元: git apply -R scripts/mutations/m923-*.patch
+diff --git a/packages/roulette-core/src/roulette.ts b/packages/roulette-core/src/roulette.ts
+index df11a9d..baaed9f 100644
+--- a/packages/roulette-core/src/roulette.ts
++++ b/packages/roulette-core/src/roulette.ts
+@@ -200,7 +200,7 @@ export function stopPress(state: RouletteState, input: StopInput): Result<Roulet
+   if (pressStopOf(spin, input.now - spin.startedAt) !== null) return ok(state);
+   const { index, settle } = input;
+   if (!Number.isInteger(index) || index < 0 || index >= spin.wheel.length) return err({ code: "ROULETTE_STOP_INVALID" });
+-  if (!(settle >= 0 && settle < 1)) return err({ code: "ROULETTE_STOP_INVALID" });
++  if (!(settle > 0 && settle < 1)) return err({ code: "ROULETTE_STOP_INVALID" });
+   return ok({ ...state, lastSpin: withStop({ ...spin, press: spin.press }, { index, settle, by: input.by, atMs: input.now - spin.startedAt }) });
+ }
+ 

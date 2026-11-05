@@ -190,6 +190,30 @@ describe('メッセージサイズ制限', () => {
     expect(await client.next()).toMatchObject({ type: 'error', code: 'message-too-large' });
   });
 
+  it('上限ちょうど（200 バイト）のメッセージは message-too-large にならず、通常の解析に進む（#521）', async () => {
+    // Given: 上限 200 バイト
+    server = await startServer({ MAX_MESSAGE_BYTES: '200' });
+    const client = await ws(server.port);
+
+    // When: ちょうど 200 バイト（JSON ではない生テキスト）
+    client.sendRaw('x'.repeat(200));
+
+    // Then: 大きさの超過ではなく、解析の失敗（invalid-message）として返る
+    expect(await client.next()).toMatchObject({ type: 'error', code: 'invalid-message' });
+  });
+
+  it('上限を 1 バイトだけ超える（201 バイト）メッセージは message-too-large になる（#521）', async () => {
+    // Given: 上限 200 バイト（フレーム上限は 400 バイトなので切断にはならない）
+    server = await startServer({ MAX_MESSAGE_BYTES: '200' });
+    const client = await ws(server.port);
+
+    // When
+    client.sendRaw('x'.repeat(201));
+
+    // Then
+    expect(await client.next()).toMatchObject({ type: 'error', code: 'message-too-large' });
+  });
+
   it('フレーム上限を超えるものはプロトコル層で切断される（返答の余地が無い帯域）', async () => {
     // Given: メッセージ上限 200 バイト → フレーム上限は 2 倍の 400 バイト
     server = await startServer({ MAX_MESSAGE_BYTES: '200' });

@@ -1,0 +1,23 @@
+# 変異 935: poker-exchange-deck-always-reshuffles-discards
+#
+# 検出を期待するテスト:
+#   - packages/poker-core/tests/card-game-bounds.test.ts
+#
+# #522（テストの穴: poker-core の境界値）。山札が足りているときも、捨て札を切り直して山の後ろへ足す（:81 の条件を常に真にする）。山の残りに前の人の捨て札が混ざり、捨て札の山が空になる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m935-*.patch
+# 復元: git apply -R scripts/mutations/m935-*.patch
+diff --git a/packages/poker-core/src/card-game.ts b/packages/poker-core/src/card-game.ts
+index 2bfe80f..401f43d 100644
+--- a/packages/poker-core/src/card-game.ts
++++ b/packages/poker-core/src/card-game.ts
+@@ -78,7 +78,7 @@ export function exchangeCards(
+   let thrown = hand.filter((_, i) => drop.has(i));
+   let deck = [...game.deck];
+   let discards = [...game.discards];
+-  if (deck.length < thrown.length) {
++  if (true) {
+     deck = [...deck, ...shuffle(discards, randomInt)];
+     discards = [];
+   }

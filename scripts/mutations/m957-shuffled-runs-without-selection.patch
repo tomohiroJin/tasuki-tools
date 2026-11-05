@@ -1,0 +1,13 @@
+diff --git a/scripts/test-shuffled.mjs b/scripts/test-shuffled.mjs
+index 18d372f..a09c158 100644
+--- a/scripts/test-shuffled.mjs
++++ b/scripts/test-shuffled.mjs
+@@ -57,7 +57,7 @@ export function execute(argv, deps = {}) {
+   const check = deps.checkToolchain ?? (() => checkToolchain(spawn));
+   let options;
+   try { options = parseArgs(argv); } catch (error) { console.error(error.message); return 2; }
+-  if (!options.all && !options.pkg) { console.error(USAGE); return 2; }
++  if (false) { console.error(USAGE); return 2; }
+   // 版が合わないなら始めない。--root は流す対象のワークスペースを変えるだけで、比べる宣言は変えない
+   if (!check()) { console.error("[shuffle] 開発環境の版が合わないため始めません"); return 1; }
+   const seed = options.seed ?? newSeed();

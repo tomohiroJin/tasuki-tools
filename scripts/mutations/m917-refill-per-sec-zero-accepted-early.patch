@@ -1,0 +1,13 @@
+diff --git a/packages/rate-limit/src/token-bucket.ts b/packages/rate-limit/src/token-bucket.ts
+index db70a0f..b423e12 100644
+--- a/packages/rate-limit/src/token-bucket.ts
++++ b/packages/rate-limit/src/token-bucket.ts
+@@ -107,7 +107,7 @@ export function createTokenBucketLimiter(options: TokenBucketOptions): RateLimit
+   if (!Number.isFinite(capacity) || capacity < 1) {
+     throw new Error(`createTokenBucketLimiter: capacity は 1 以上の有限数にすること（渡された値: ${capacity}）`);
+   }
+-  if (!Number.isFinite(refillPerSec) || refillPerSec <= 0) {
++  if (!Number.isFinite(refillPerSec) || refillPerSec < 0) {
+     throw new Error(
+       `createTokenBucketLimiter: refillPerSec は有限の正数にすること（渡された値: ${refillPerSec}）`,
+     );

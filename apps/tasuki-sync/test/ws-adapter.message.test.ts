@@ -18,7 +18,7 @@
 import { describe, it, expect, afterEach } from "bun:test";
 import { WebSocket } from "ws";
 import { WsAdapter } from "../src/adapters/ws-adapter.js";
-import { newTestWsAdapter, unwiredPokerHandlers } from "./support/test-ws-adapter.js";
+import { DEFAULT_MAX_MESSAGE_BYTES, newTestWsAdapter, unwiredPokerHandlers } from "./support/test-ws-adapter.js";
 import { testLogger, collectingLogger } from "./support/test-logger.js";
 import { parseClientMessage } from "@tasuki/poker-core";
 
@@ -111,6 +111,19 @@ describe("WsAdapter メッセージ経路", () => {
     // Then
     expect(msg).toMatchObject({ type: "error", code: "MESSAGE_TOO_LARGE" });
     expect(ws.readyState).toBe(WebSocket.OPEN); // 切らずに返す
+    ws.close();
+  });
+
+  it("Given 接続済み / When 上限ちょうどの本文を送る / Then MESSAGE_TOO_LARGE にはならず通常の解析に進む（#521）", async () => {
+    // Given
+    const ws = await connect();
+
+    // When: 上限ちょうど（境界の内側）。JSON ではないので解析で INVALID_JSON になる
+    ws.send("x".repeat(DEFAULT_MAX_MESSAGE_BYTES));
+    const msg = await waitMessage(ws);
+
+    // Then: 大きさの超過ではなく、中身の不正として返る
+    expect(msg).toMatchObject({ type: "error", code: "INVALID_JSON" });
     ws.close();
   });
 
@@ -317,6 +330,68 @@ describe("WsAdapter お題（topic）のメッセージ経路", () => {
     expect(topicCalls).toEqual([["conn-1", "お題のテキスト"]]);
     expect(messageCalled).toBe(false);
     expect(hubCalled).toBe(false);
+    ws.close();
+  });
+
+  it("Given ?tool=topic の接続 / When 上限ちょうどの本文を送る / Then MESSAGE_TOO_LARGE にならずお題の層へ届く（#521）", async () => {
+    // Given
+    const topicCalls: Array<[string, string]> = [];
+    adapter = newTestWsAdapter({
+      port: 0,
+      host: "127.0.0.1",
+      allowedOrigins: [],
+      timer: { handleMessage: async () => {} },
+      topic: { handleMessage: async (connId, raw) => {
+        topicCalls.push([connId, raw]);
+      } },
+      onDisconnect: () => {},
+      logger: testLogger,
+    });
+    const ws = new WebSocket(topicUrl(adapter));
+    await waitOpen(ws);
+
+    // When: バイト数がちょうど上限になる本文（3 バイト文字と 1 バイト文字の混在）。
+    // このテストが守るのは「上限ちょうどは通る」こと（比較を `>=` にすると赤くなる）。
+    // 文字数との取り違えを捕まえるのは、上限 + 1 バイトの側のテストである。
+    const wide = Math.floor(DEFAULT_MAX_MESSAGE_BYTES / 3);
+    const exact = "あ".repeat(wide) + "x".repeat(DEFAULT_MAX_MESSAGE_BYTES - wide * 3);
+    expect(Buffer.byteLength(exact)).toBe(DEFAULT_MAX_MESSAGE_BYTES);
+    ws.send(exact);
+    await waitFor(() => topicCalls.length > 0);
+
+    // Then
+    expect(topicCalls).toHaveLength(1);
+    expect(topicCalls[0]?.[1]).toBe(exact);
+    ws.close();
+  });
+
+  it("Given ?tool=topic の接続 / When 上限 + 1 バイトの本文を送る / Then お題の層は呼ばれず MESSAGE_TOO_LARGE を返す（#521）", async () => {
+    // Given
+    let topicCalled = false;
+    adapter = newTestWsAdapter({
+      port: 0,
+      host: "127.0.0.1",
+      allowedOrigins: [],
+      timer: { handleMessage: async () => {} },
+      topic: { handleMessage: async () => {
+        topicCalled = true;
+      } },
+      onDisconnect: () => {},
+      logger: testLogger,
+    });
+    const ws = new WebSocket(topicUrl(adapter));
+    await waitOpen(ws);
+
+    // When: 上限 + 1 バイト（3 バイト文字と 1 バイト文字の混在。文字数は上限に満たないので、バイトで測らないと通ってしまう）
+    const wide = Math.floor(DEFAULT_MAX_MESSAGE_BYTES / 3);
+    const over = "あ".repeat(wide) + "x".repeat(DEFAULT_MAX_MESSAGE_BYTES - wide * 3 + 1);
+    expect(Buffer.byteLength(over)).toBe(DEFAULT_MAX_MESSAGE_BYTES + 1);
+    ws.send(over);
+    const msg = await waitMessage(ws);
+
+    // Then
+    expect(msg).toMatchObject({ type: "error", code: "MESSAGE_TOO_LARGE" });
+    expect(topicCalled).toBe(false);
     ws.close();
   });
 

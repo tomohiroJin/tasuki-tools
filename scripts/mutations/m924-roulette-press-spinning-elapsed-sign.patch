@@ -1,0 +1,24 @@
+# 変異 924: roulette-press-spinning-elapsed-sign
+#
+# 検出を期待するテスト:
+#   - packages/roulette-core/tests/roulette-bounds.test.ts
+#
+# #522（テストの穴: roulette-core の境界値）。押して止める回転の回転中の判定が、経過を now + startedAt で測る。
+# 回し始めの時刻が 0 でないと、押して止める回転が回し始めの直後に止まったと見なされ、回転中の拒否と決め方の変更の拒否が効かない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m924-*.patch
+# 復元: git apply -R scripts/mutations/m924-*.patch
+diff --git a/packages/roulette-core/src/roulette.ts b/packages/roulette-core/src/roulette.ts
+index df11a9d..104d07f 100644
+--- a/packages/roulette-core/src/roulette.ts
++++ b/packages/roulette-core/src/roulette.ts
+@@ -49,7 +49,7 @@ type SpinErrorCode =
+ function isSpinning(state: RouletteState, now: number): boolean {
+   const spin = state.lastSpin;
+   if (spin === null) return false;
+-  if (spin.press !== undefined) return pressStopOf(spin, now - spin.startedAt) === null;
++  if (spin.press !== undefined) return pressStopOf(spin, now + spin.startedAt) === null;
+   return now - spin.startedAt < spinDurationMs(spin.picks.length, spin.stopStyle);
+ }
+ 

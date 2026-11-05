@@ -35,7 +35,7 @@ import type { TimerCommandReceiver } from "../../src/application/timer-command-r
 import type { Command } from "@tasuki/timer-core";
 
 /** `config.ts` の既定と同じ値。ここを動かすと接続層のテストが本番とずれる。 */
-const DEFAULT_MAX_MESSAGE_BYTES = 64 * 1024;
+export const DEFAULT_MAX_MESSAGE_BYTES = 64 * 1024;
 /** `config.ts` の `FRAME_BYTES_MULTIPLIER`（= 2）と同じ関係を保つ。 */
 const DEFAULT_MAX_FRAME_BYTES = DEFAULT_MAX_MESSAGE_BYTES * 2;
 

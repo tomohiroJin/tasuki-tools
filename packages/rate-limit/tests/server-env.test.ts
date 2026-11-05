@@ -41,6 +41,21 @@ describe("isLoopbackHost", () => {
     expect(isLoopbackHost("  Localhost  ")).toBe(true);
     expect(isLoopbackHost("127.0.0.1\n")).toBe(true);
   });
+
+  // #521: 正規表現の錨とオクテットの範囲（各範囲の端と、その隣の外れ）
+  it.each(["127.0.0.0", "127.0.0.9", "127.0.0.10", "127.0.0.99", "127.100.150.199", "127.0.0.200", "127.0.0.249", "127.0.0.250", "127.0.0.255"])(
+    "%s は 127.0.0.0/8 の範囲内なのでループバック扱い",
+    (host) => {
+      expect(isLoopbackHost(host)).toBe(true);
+    },
+  );
+
+  it.each(["1127.0.0.1", "0127.0.0.1", "a127.0.0.1", "127.0.0.1.5", "127.0.0.1a", "127.0.0", "127.0.0.1.1.1", "127.00.0.1", "127.01.0.1", "127.0.0.256", "127.0.0.300", "127.0.0.1000"])(
+    "%s は範囲外・不正な形なのでループバック扱いにしない",
+    (host) => {
+      expect(isLoopbackHost(host)).toBe(false);
+    },
+  );
 });
 
 describe("isProductionEnv", () => {
@@ -56,6 +71,39 @@ describe("isProductionEnv", () => {
       expect(isProductionEnv({ NODE_ENV: nodeEnv })).toBe(true);
     },
   );
+
+  // #521: 引用符を外す正規化（具体の入力と結果）
+  it.each(['"production"', "'production'", ' "production" ', '  \'production\'  ', '"PRODUCTION"', '" production "', "' production '"])(
+    "対の引用符つき（%s）でも本番として判定される",
+    (nodeEnv) => {
+      expect(isProductionEnv({ NODE_ENV: nodeEnv })).toBe(true);
+    },
+  );
+
+  it.each(['"development"', "'test'", '""', "''", '" "'])(
+    "引用符つきの本番以外・空（%s）は throw せず本番ではない",
+    (nodeEnv) => {
+      expect(isProductionEnv({ NODE_ENV: nodeEnv })).toBe(false);
+    },
+  );
+
+  it.each(['"', "'", '"production', 'production"', "'production", "production'", '"production\'', '"productionx', 'xproduction"', "'productionx", "xproduction'"])(
+    "対になっていない引用符（%s）は剥がさず、未知の値として throw する",
+    (nodeEnv) => {
+      expect(() => isProductionEnv({ NODE_ENV: nodeEnv })).toThrow(/NODE_ENV の値が未知です/);
+    },
+  );
+
+  it("引用符を 2 重に囲んだ値（\"\"production\"\"）は 1 組だけ剥がして未知の値として throw する", () => {
+    expect(() => isProductionEnv({ NODE_ENV: '""production""' })).toThrow(/NODE_ENV の値が未知です/);
+  });
+
+  it("ゼロ幅スペース（U+200B）・BOM（U+FEFF）は値の中や引用符の内側にあっても取り除く", () => {
+    expect(isProductionEnv({ NODE_ENV: "prod\u200Buction" })).toBe(true);
+    expect(isProductionEnv({ NODE_ENV: "\uFEFFproduction" })).toBe(true);
+    expect(isProductionEnv({ NODE_ENV: '"\u200Bproduction\u200B"' })).toBe(true);
+    expect(isProductionEnv({ NODE_ENV: "\u200B" })).toBe(false);
+  });
 
   it("未設定・空文字は本番ではない", () => {
     expect(isProductionEnv({})).toBe(false);

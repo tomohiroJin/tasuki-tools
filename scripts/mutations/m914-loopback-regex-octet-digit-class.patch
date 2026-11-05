@@ -1,0 +1,13 @@
+diff --git a/packages/rate-limit/src/server-env.ts b/packages/rate-limit/src/server-env.ts
+index 08ce604..0b01cc4 100644
+--- a/packages/rate-limit/src/server-env.ts
++++ b/packages/rate-limit/src/server-env.ts
+@@ -28,7 +28,7 @@ const LOOPBACK_HOSTS = new Set(["localhost", "::1", "[::1]"]);
+  * ループバック扱いで通ってしまい、「許可リストは正確な値だけを通す」という
+  * 上の方針と矛盾する。先行ゼロ（`127.01.0.1`）も曖昧なので通さない。
+  */
+-const IPV4_LOOPBACK = /^127(?:\.(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/;
++const IPV4_LOOPBACK = /^127(?:\.(?:25[0-5]|2[0-4]\d|1\D\D|[1-9]?\d)){3}$/;
+ 
+ /**
+  * `HOST=localhost` はこの許可リストを通すが、**Bun の実 bind では `::1` にしか

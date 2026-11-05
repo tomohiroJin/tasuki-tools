@@ -1,0 +1,13 @@
+diff --git a/packages/rate-limit/src/server-env.ts b/packages/rate-limit/src/server-env.ts
+index 08ce604..1de5218 100644
+--- a/packages/rate-limit/src/server-env.ts
++++ b/packages/rate-limit/src/server-env.ts
+@@ -74,7 +74,7 @@ function normalizeNodeEnv(raw: string): string {
+   const trimmedOnce = withoutFormatChars.trim();
+   const isQuoted =
+     trimmedOnce.length >= 2 &&
+-    ((trimmedOnce.startsWith('"') && trimmedOnce.endsWith('"')) ||
++    ((trimmedOnce.startsWith('"') || trimmedOnce.endsWith('"')) ||
+       (trimmedOnce.startsWith("'") && trimmedOnce.endsWith("'")));
+   const unquoted = isQuoted ? trimmedOnce.slice(1, -1) : trimmedOnce;
+   return unquoted.trim().toLowerCase();
