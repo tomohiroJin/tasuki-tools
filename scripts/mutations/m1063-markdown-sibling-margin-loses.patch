@@ -1,0 +1,13 @@
+diff --git a/packages/ui/src/components/markdown.css b/packages/ui/src/components/markdown.css
+index 81bb6b66..9b478cdd 100644
+--- a/packages/ui/src/components/markdown.css
++++ b/packages/ui/src/components/markdown.css
+@@ -17,7 +17,7 @@
+    （#553 一覧 #3）ので、クラスを重ねて（0,2,0）子の `margin: 0` に勝たせる。
+    `white-space: pre-wrap` は Markdown 自身の段落・改行の扱い（空行区切り・行内の改行）と二重になり、
+    連続する空行が段落の間隔と別に隙間を作るので使わない。 */
+-.ui-md.ui-md > * + * {
++.ui-md > * + * {
+   margin-top: var(--space-2);
+ }
+ 

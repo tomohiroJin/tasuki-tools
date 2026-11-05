@@ -1,0 +1,13 @@
+diff --git a/apps/poker-web/src/pages/RoomPage.tsx b/apps/poker-web/src/pages/RoomPage.tsx
+index 216e48f4..f6057582 100644
+--- a/apps/poker-web/src/pages/RoomPage.tsx
++++ b/apps/poker-web/src/pages/RoomPage.tsx
+@@ -179,7 +179,7 @@ export function RoomPage({ roomId, sync }: Props) {
+         </div>
+         )}
+         <div className="ui-workspace-main room-main">
+-          <section className="ui-stack">
++          <section>
+             <div className="ui-section-head">
+               <h2 id={PARTICIPANTS_HEADING_ID} tabIndex={-1}>{participantsHeading(snapshot.participants.length, spectatorCount)}</h2>
+               {/* 自分の切り替え。投票中も開票後も出す（#419・設計 §5.2） */}

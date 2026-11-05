@@ -110,6 +110,9 @@ const RESERVED_1020_1029 =
 const RESERVED_1030_1039 =
   "**対応表より後に足した変異。** 1030〜1039 は #550 に割り当てた範囲。";
 
+const RESERVED_1060_1069 =
+  "**対応表より後に足した変異。** 1060〜1069 は #553 に割り当てた範囲（Issue の 1000〜1009 は #544 が先に使ったため、空いている帯へ移した）。";
+
 export const MUTATIONS = [
   {
     id: 1,
@@ -6215,5 +6218,77 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["measure-mutation-costs.test.mjs"],
     note: RESERVED_1030_1039 + " " + "#550。消した・並びを変えた組の実測が案に混ざり、いまの表にも既定値にも効かない値で見積もりがずれる。",
+  },
+  {
+    id: 1060,
+    label: "`.ui-stack` から縦の間（gap）を消す",
+    patch: "m1060-stack-without-gap.patch",
+    pkg: "packages/ui",
+    tests: ["tests/spacing-owner.test.mjs"],
+    note: RESERVED_1060_1069 + " " + "#553。縦に積む並びの間が 0 になり、見出しの行と一覧が接して重なって見える（poker の参加者の欄の再発）。",
+  },
+  {
+    id: 1061,
+    label: "`.ui-stack` の直下の子の縦の外側の余白を 0 にする規則を消す",
+    patch: "m1061-stack-children-keep-margin.patch",
+    pkg: "packages/ui",
+    tests: ["tests/spacing-owner.test.mjs"],
+    note: RESERVED_1060_1069 + " " + "#553。要素層の h2 などの margin が gap に足され、並びの間が画面ごとにずれる。",
+  },
+  {
+    id: 1062,
+    label: "`.ui-section-head` から折り返し（flex-wrap）を消す",
+    patch: "m1062-section-head-no-wrap.patch",
+    pkg: "packages/ui",
+    tests: ["tests/spacing-owner.test.mjs"],
+    note: RESERVED_1060_1069 + " " + "#553。狭い幅で見出しと操作が縮み合い、「プレビューに戻る」が 2 行・見出しが 1 字ずつ縦に折れる。",
+  },
+  {
+    id: 1063,
+    label: "Markdown のブロックの間の規則を元の詳細度（`.ui-md > * + *`）に戻す",
+    patch: "m1063-markdown-sibling-margin-loses.patch",
+    pkg: "packages/ui",
+    tests: ["tests/spacing-owner.test.mjs"],
+    note: RESERVED_1060_1069 + " " + "#553。後に書かれた `.ui-md-p { margin: 0 }` に負けて、段落の間が 0 に戻り、行の折り返しと区別できない（一覧 #3 の再発）。",
+  },
+  {
+    id: 1064,
+    label: "poker の参加者の区画から `.ui-stack` を外す",
+    patch: "m1064-poker-participants-not-stack.patch",
+    pkg: "packages/ui",
+    tests: ["tests/spacing-owner.test.mjs"],
+    note: RESERVED_1060_1069 + " " + "#553。見出しの行と札の並びの間が 0px に戻る（一覧 #1 の再発）。",
+  },
+  {
+    id: 1065,
+    label: "poker の参加者の見出しの行から `.ui-section-head` を外す",
+    patch: "m1065-poker-participants-head-not-part.patch",
+    pkg: "packages/ui",
+    tests: ["tests/spacing-owner.test.mjs"],
+    note: RESERVED_1060_1069 + " " + "#553。見出しの行の並び（折り返し・間）を画面が写しで持つ形に戻り、画面ごとにずれる。",
+  },
+  {
+    id: 1066,
+    label: "timer の `SectionHeader` から `.ui-section-head` を外す",
+    patch: "m1066-timer-section-header-not-part.patch",
+    pkg: "packages/ui",
+    tests: ["tests/spacing-owner.test.mjs"],
+    note: RESERVED_1060_1069 + " " + "#553。timer の見出しの行の横の間が 3px に戻る（一覧 #33 の再発）。",
+  },
+  {
+    id: 1067,
+    label: "timer の名簿の「ランダム」を見出しの行の外へ出す",
+    patch: "m1067-timer-shuffle-outside-header.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/RosterPanel.shuffle-in-header.test.tsx"],
+    note: RESERVED_1060_1069 + " " + "#553。「ランダム」がどの一覧に効く操作か読めない位置（見出しの外）に戻る（一覧 #6 の再発）。",
+  },
+  {
+    id: 1068,
+    label: "roulette のいつものメンツの区画から `.ui-stack` を外す",
+    patch: "m1068-roulette-regulars-not-stack.patch",
+    pkg: "packages/ui",
+    tests: ["tests/spacing-owner.test.mjs"],
+    note: RESERVED_1060_1069 + " " + "#553。区画の中の縦の間を誰も持たなくなり、見出しの行と一覧が接する。",
   },
 ];
