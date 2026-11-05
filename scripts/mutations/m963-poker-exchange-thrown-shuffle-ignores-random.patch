@@ -1,0 +1,23 @@
+# 変異 963: poker-exchange-thrown-shuffle-ignores-random
+#
+# 検出を期待するテスト:
+#   - packages/poker-core/tests/card-game-reshuffle.test.ts
+#
+# #533（テストの穴: poker-core のチェンジの切り直し）。:86 の切り直しが、注入された乱数でなく固定の乱数（並べ替えない）を使う。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m963-*.patch
+# 復元: git apply -R scripts/mutations/m963-*.patch
+diff --git a/packages/poker-core/src/card-game.ts b/packages/poker-core/src/card-game.ts
+index 2bfe80f..2468b42 100644
+--- a/packages/poker-core/src/card-game.ts
++++ b/packages/poker-core/src/card-game.ts
+@@ -83,7 +83,7 @@ export function exchangeCards(
+     discards = [];
+   }
+   if (deck.length < thrown.length) {
+-    deck = [...deck, ...shuffle(thrown, randomInt)];
++    deck = [...deck, ...shuffle(thrown, (n) => n - 1)];
+     thrown = [];
+   }
+   let drawn = 0;

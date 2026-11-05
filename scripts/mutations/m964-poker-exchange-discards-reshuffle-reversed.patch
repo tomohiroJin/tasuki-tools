@@ -1,0 +1,23 @@
+# 変異 964: poker-exchange-discards-reshuffle-reversed
+#
+# 検出を期待するテスト:
+#   - packages/poker-core/tests/card-game-reshuffle.test.ts
+#
+# #533（テストの穴: poker-core のチェンジの切り直し）。:82 の切り直しの結果を逆順にして山へ足す。乱数のとおりの並びにならない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m964-*.patch
+# 復元: git apply -R scripts/mutations/m964-*.patch
+diff --git a/packages/poker-core/src/card-game.ts b/packages/poker-core/src/card-game.ts
+index 2bfe80f..c70406e 100644
+--- a/packages/poker-core/src/card-game.ts
++++ b/packages/poker-core/src/card-game.ts
+@@ -79,7 +79,7 @@ export function exchangeCards(
+   let deck = [...game.deck];
+   let discards = [...game.discards];
+   if (deck.length < thrown.length) {
+-    deck = [...deck, ...shuffle(discards, randomInt)];
++    deck = [...deck, ...shuffle(discards, randomInt).reverse()];
+     discards = [];
+   }
+   if (deck.length < thrown.length) {
