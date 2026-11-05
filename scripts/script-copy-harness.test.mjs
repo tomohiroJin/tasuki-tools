@@ -13,20 +13,45 @@ import { SCRIPTS_DIR, createScriptCopyHarness, findPrefixOverlaps } from "./lib/
 
 const SELF = "script-copy-harness.test.mjs";
 
-/** scripts/ 直下のテストが宣言している複製の接頭辞を、ファイルごとに集める（導出）。 */
+/**
+ * 1 つのテストのソースから、複製の接頭辞の宣言を拾う。
+ * `declarations` は宣言の数（`createScriptCopyHarness(` の呼び出し・`const COPY_PREFIX =`）、
+ * `prefixes` は引数が**文字列の literal**（引用の種類を問わない）だった宣言から拾えた接頭辞。
+ * 2 つが食い違えば、変数・式・補間つきのテンプレートで渡されていて、重なりの検査が見えていない。
+ */
+export function scanPrefixDeclarations(source) {
+  const declarations = [...source.matchAll(/createScriptCopyHarness\(|const COPY_PREFIX\s*=/g)].length;
+  const prefixes = [
+    ...[...source.matchAll(/createScriptCopyHarness\(\s*(["'`])([^"'`$\\\n]+)\1\s*[,)]/g)].map((m) => m[2]),
+    ...[...source.matchAll(/const COPY_PREFIX\s*=\s*(["'`])([^"'`$\\\n]+)\1/g)].map((m) => m[2]),
+  ];
+  return { declarations, prefixes };
+}
+
+/** scripts/ 配下（lib を含む）のテストを再帰で集める。 */
+function listTestFiles(dir) {
+  return fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+    const full = path.join(dir, e.name);
+    if (e.isDirectory()) return e.name === "node_modules" ? [] : listTestFiles(full);
+    return e.name.endsWith(".test.mjs") && e.name !== SELF ? [full] : [];
+  });
+}
+
+/** scripts/ 配下のテストが宣言している複製の接頭辞を、ファイルごとに集める（導出）。 */
 function collectPrefixes() {
   const found = [];
-  for (const name of fs.readdirSync(SCRIPTS_DIR).filter((n) => n.endsWith(".test.mjs") && n !== SELF)) {
-    const source = fs.readFileSync(path.join(SCRIPTS_DIR, name), "utf8");
-    for (const m of source.matchAll(/createScriptCopyHarness\("([^"]+)"\)|const COPY_PREFIX = "([^"]+)"/g)) {
-      found.push({ file: name, prefix: m[1] ?? m[2] });
-    }
+  const unreadable = [];
+  for (const full of listTestFiles(SCRIPTS_DIR)) {
+    const file = path.relative(SCRIPTS_DIR, full);
+    const { declarations, prefixes } = scanPrefixDeclarations(fs.readFileSync(full, "utf8"));
+    for (const prefix of prefixes) found.push({ file, prefix });
+    if (declarations !== prefixes.length) unreadable.push(`${file}: 宣言 ${declarations} 件のうち literal で読めたのは ${prefixes.length} 件`);
   }
-  return found;
+  return { found, unreadable };
 }
 
 describe("複製の接頭辞はファイルごとに分かれている", () => {
-  const found = collectPrefixes();
+  const { found, unreadable } = collectPrefixes();
 
   test("接頭辞を宣言しているテストが 0 件でない（この導出自身の空振り検出）", () => {
     assert.ok(found.length > 0, "接頭辞が 1 件も見つかりません");
@@ -36,12 +61,35 @@ describe("複製の接頭辞はファイルごとに分かれている", () => {
     );
   });
 
+  test("接頭辞はすべて文字列の literal で渡されている（変数・補間つきのテンプレートは重なりの検査から漏れる）", () => {
+    assert.deepEqual(unreadable, []);
+  });
+
+  test("scripts/ 配下（lib の下も）のテストを見る", () => {
+    assert.ok(listTestFiles(SCRIPTS_DIR).some((f) => path.dirname(f) !== SCRIPTS_DIR), "サブディレクトリのテストを見ていません");
+  });
+
+  test("接頭辞の拾い方: 二重引用・単引用・バッククォートの literal は拾い、変数・補間つきは拾わない", () => {
+    const ok = (src) => scanPrefixDeclarations(src);
+    assert.deepEqual(ok('createScriptCopyHarness(".a-")'), { declarations: 1, prefixes: [".a-"] });
+    assert.deepEqual(ok("createScriptCopyHarness('.a-')"), { declarations: 1, prefixes: [".a-"] });
+    assert.deepEqual(ok("createScriptCopyHarness(`.a-`)"), { declarations: 1, prefixes: [".a-"] });
+    assert.deepEqual(ok('const COPY_PREFIX = ".a-";'), { declarations: 1, prefixes: [".a-"] });
+    assert.notEqual(ok("createScriptCopyHarness(PREFIX)").declarations, ok("createScriptCopyHarness(PREFIX)").prefixes.length);
+    assert.notEqual(ok("createScriptCopyHarness(`.a-${x}-`)").declarations, ok("createScriptCopyHarness(`.a-${x}-`)").prefixes.length);
+    assert.notEqual(ok("const COPY_PREFIX = PREFIX;").declarations, ok("const COPY_PREFIX = PREFIX;").prefixes.length);
+  });
+
   test("どの接頭辞も、別のファイルの接頭辞と前方一致しない", () => {
     assert.deepEqual(findPrefixOverlaps(found), []);
   });
 });
 
 describe("createScriptCopyHarness", () => {
+  // このテストが scripts/ に置く残骸は、すべてこの接頭辞の下に置く。SIGKILL で finally が走らなくても、
+  // 次の起動のこの掃除が消す（残ると変異検査の「作業ツリーが clean」の前提を壊す）。
+  createScriptCopyHarness(".harness-selftest-");
+
   test("重なりの判定は、前方一致する接頭辞の組を名指しで返す（判定自身の空振り検出）", () => {
     assert.deepEqual(findPrefixOverlaps([{ file: "a", prefix: ".x-" }, { file: "b", prefix: ".y-" }]), []);
     assert.equal(findPrefixOverlaps([{ file: "a", prefix: ".x-" }, { file: "b", prefix: ".x-y-" }]).length, 1);
@@ -72,6 +120,15 @@ describe("createScriptCopyHarness", () => {
     assert.equal(r.stdout.trim(), "copied");
     assert.deepEqual(
       fs.readdirSync(SCRIPTS_DIR).filter((n) => n.startsWith(".harness-selftest-c-")),
+      [],
+    );
+  });
+
+  test("複製の実行が時間切れになったら、時間切れと分かる文言で落とす", () => {
+    const { runScriptCopy } = createScriptCopyHarness(".harness-selftest-d-", { timeoutMs: 300 });
+    assert.throws(() => runScriptCopy("check-links.mjs", () => "setTimeout(() => {}, 5000);"), /時間切れ/);
+    assert.deepEqual(
+      fs.readdirSync(SCRIPTS_DIR).filter((n) => n.startsWith(".harness-selftest-d-")),
       [],
     );
   });

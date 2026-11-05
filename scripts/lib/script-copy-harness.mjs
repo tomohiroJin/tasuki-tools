@@ -50,6 +50,12 @@ export function assertBrokenBy(scriptName, mutatedSource, needle, label) {
 }
 
 /**
+ * 複製 1 回の実行の上限。最も重い複製（audit-structure の SC-039）でも 1 回 10 秒前後なので、十数倍の余裕を持たせる。
+ * 子が固まったときに、テストランナーの時間切れまで黙って待たない（`entry-point-wiring.test.mjs` の LAUNCH_TIMEOUT_MS と同じ考え）。
+ */
+export const COPY_TIMEOUT_MS = 120_000;
+
+/**
  * 複製の接頭辞の重なりを返す。別のファイルの接頭辞で始まる接頭辞があると、
  * 片方の起動時の掃除が他方の複製を消す。
  *
@@ -76,9 +82,10 @@ export function findPrefixOverlaps(declared) {
  * 原因の分かりにくい失敗になる。**自分が汚した可能性のあるものだけ**を、
  * 接頭辞で限定して消す（広い範囲の削除はしない）。
  *
- * @param {string} copyPrefix 例 `.wiring-plan-gate-`。`.` で始まり `-` で終わり、他のファイルの接頭辞と前方一致しない
+ * @param {string} copyPrefix 例 `.wiring-plangate-`。`.` で始まり `-` で終わり、他のファイルの接頭辞と前方一致しない
+ * @param {{ timeoutMs?: number }} [options] 複製 1 回の実行の上限（既定 {@link COPY_TIMEOUT_MS}）。超えたら時間切れとして落とす
  */
-export function createScriptCopyHarness(copyPrefix) {
+export function createScriptCopyHarness(copyPrefix, { timeoutMs = COPY_TIMEOUT_MS } = {}) {
   assert.match(copyPrefix, /^\.[a-z0-9-]+-$/, `複製の接頭辞の形が不正です: ${copyPrefix}`);
   let copyCounter = 0;
 
@@ -103,7 +110,10 @@ export function createScriptCopyHarness(copyPrefix) {
     const copyPath = path.join(SCRIPTS_DIR, `${copyPrefix}${process.pid}-${copyCounter++}-${scriptName}`);
     fs.writeFileSync(copyPath, mutated);
     try {
-      const r = spawnSync(process.execPath, [copyPath], { encoding: "utf8" });
+      const r = spawnSync(process.execPath, [copyPath], { encoding: "utf8", timeout: timeoutMs });
+      if (r.error?.code === "ETIMEDOUT") {
+        throw new Error(`複製の実行が ${timeoutMs}ms で時間切れになりました（${scriptName}）。子が固まっていないか確かめてください`);
+      }
       return { status: r.status, stdout: r.stdout ?? "", stderr: r.stderr ?? "", source: mutated };
     } finally {
       fs.rmSync(copyPath, { force: true });

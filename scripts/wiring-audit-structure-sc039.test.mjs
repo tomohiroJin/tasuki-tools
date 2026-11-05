@@ -1,10 +1,7 @@
 /**
  * audit-structure.mjs の SC-039 の走査範囲の配線（#180）を見るテスト（#135・ADR-0014 決定 8）。
  *
- * `scan-target-wiring.test.mjs`（1 回 約 3.5 分）を検査スクリプトごとに分けた 1 つ（#544）。
- * 変異の `tests` を関係するファイルだけにして、変異ごとの対照実行・検出の実行を短くし、
- * 変異検査のシャードの偏りを小さくする。手段・理由は `lib/script-copy-harness.mjs` と元のファイルの先頭に同じ。
- * 複製の接頭辞は `.wiring-sc039-`（他のファイルと重ならない。`script-copy-harness.test.mjs` が見る）。
+ * `scan-target-wiring.test.mjs` を検査スクリプトごとに分けた 1 つ（#544。経緯と補助は `lib/script-copy-harness.mjs`）。
  */
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
