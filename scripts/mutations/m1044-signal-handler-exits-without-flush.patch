@@ -1,0 +1,12 @@
+diff --git a/scripts/mutation-check.mjs b/scripts/mutation-check.mjs
+--- a/scripts/mutation-check.mjs
++++ b/scripts/mutation-check.mjs
+@@ -590,7 +590,7 @@
+   process.on(sig, () => {
+     for (const child of childProcesses) child.kill("SIGTERM");
+     const restored = restoreCurrentMutation();
+-    exitAfterFlush(restored ? 130 : 1);
++    process.exit(restored ? 130 : 1);
+   });
+ }
+ process.on("uncaughtException", (err) => {

@@ -1,0 +1,12 @@
+diff --git a/scripts/lib/exit-after-flush.mjs b/scripts/lib/exit-after-flush.mjs
+--- a/scripts/lib/exit-after-flush.mjs
++++ b/scripts/lib/exit-after-flush.mjs
+@@ -37,7 +37,7 @@
+       if (pending === 0) finish();
+     };
+     try {
+-      stream.write("", done); // 書き出しが失敗しても（EPIPE など）通知は来る。待ち続けない
++      stream.write("", () => {}); done(); // 書き出しが失敗しても（EPIPE など）通知は来る。待ち続けない
+     } catch {
+       done();
+     }

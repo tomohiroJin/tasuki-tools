@@ -110,6 +110,9 @@ const RESERVED_1020_1029 =
 const RESERVED_1030_1039 =
   "**対応表より後に足した変異。** 1030〜1039 は #550 に割り当てた範囲。";
 
+const RESERVED_1040_1049 =
+  "**対応表より後に足した変異。** 1040〜1049 は #542 に割り当てた範囲。";
+
 export const MUTATIONS = [
   {
     id: 1,
@@ -6215,5 +6218,45 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["measure-mutation-costs.test.mjs"],
     note: RESERVED_1030_1039 + " " + "#550。消した・並びを変えた組の実測が案に混ざり、いまの表にも既定値にも効かない値で見積もりがずれる。",
+  },
+  {
+    id: 1040,
+    label: "変異検査のロックの拒否が、既定の生死の判定に kill 0 だけを使う（ゾンビを生きていると数える）",
+    patch: "m1040-lock-refusal-counts-zombie-as-alive.patch",
+    pkg: "scripts",
+    tests: ["mutation-check-liveness.test.mjs"],
+    note: RESERVED_1040_1049 + " " + "#542。PID 1 が孤児を回収しないクラウドのコンテナで、中断された実行のゾンビの PID が書かれたロックが永久に「別の実行が動いている」と読まれ、変異検査を始められない。",
+  },
+  {
+    id: 1041,
+    label: "古い作業ツリーの掃除が、既定の生死の判定に kill 0 だけを使う（持ち主がゾンビでも生きていると数える）",
+    patch: "m1041-stale-worktree-counts-zombie-as-alive.patch",
+    pkg: "scripts",
+    tests: ["mutation-check-liveness.test.mjs"],
+    note: RESERVED_1040_1049 + " " + "#542。中断された --jobs の親がゾンビで残ると、その作業ツリーが古いものとして拾われず、git worktree list に溜まり続ける。",
+  },
+  {
+    id: 1042,
+    label: "exitAfterFlush が、書き出しの完了を待たずに終わる",
+    patch: "m1042-exit-after-flush-skips-the-wait.patch",
+    pkg: "scripts",
+    tests: ["lib/exit-after-flush.test.mjs"],
+    note: RESERVED_1040_1049 + " " + "#542。シグナル・uncaughtException の後の終わり方が、パイプへの書き出しを捨てて出力（復元のログ・致命的な警告）を切る。",
+  },
+  {
+    id: 1043,
+    label: "変異検査の選び方の誤りの終わり方が、exitCode ＋ return から process.exit(1) に戻る",
+    patch: "m1043-selector-error-exits-with-process-exit.patch",
+    pkg: "scripts",
+    tests: ["exit-flush.test.mjs"],
+    note: RESERVED_1040_1049 + " " + "#542。長いエラーの出力が、パイプの読み手が遅れると途中で切れる。変異検査の終わり方が process.exit に戻る形（CI の約 20 か所の終わり方の代表）。",
+  },
+  {
+    id: 1044,
+    label: "変異検査のシグナルの処理が、exitAfterFlush でなく process.exit で終わる",
+    patch: "m1044-signal-handler-exits-without-flush.patch",
+    pkg: "scripts",
+    tests: ["exit-flush.test.mjs"],
+    note: RESERVED_1040_1049 + " " + "#542。中断時の復元のログ・致命的な警告がパイプで切れる。process.exit は例外表に載せた exitAfterFlush の中だけに置く決まりを破る形。",
   },
 ];

@@ -1,0 +1,12 @@
+diff --git a/scripts/mutation-check.mjs b/scripts/mutation-check.mjs
+--- a/scripts/mutation-check.mjs
++++ b/scripts/mutation-check.mjs
+@@ -202,7 +202,7 @@
+  * 中断された `--jobs` の子がゾンビで残り、ロックが永久に拒み、古い作業ツリーが掃除されなくなる。
+  * EPERM（別ユーザーの実行）は生きている側、読めないときも生きている側に数える（`isProcessAlive` の決め）。
+  */
+-export function staleWorktreeDirs(porcelain, host, isAlive = isProcessAlive) {
++export function staleWorktreeDirs(porcelain, host, isAlive = (pid) => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === "EPERM"; } }) {
+   return staleWorktreesFrom(porcelain, isAlive, host);
+ }
+ 
