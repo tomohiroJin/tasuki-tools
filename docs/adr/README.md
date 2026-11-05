@@ -60,3 +60,4 @@ Michael Nygard 形式（背景 / 決定 / 影響 / ステータス）に従い�
 | [0031](./0031-toolchain-declaration-and-preflight.md) | 開発環境の版は 1 か所で宣言し、合わないときは検査の前に止める | Accepted |
 | [0032](./0032-agent-guard-for-production-commands.md) | 本番デプロイのコマンドは、AI ツールのフックで人に聞いてから走らせる | Accepted |
 | [0033](./0033-cloud-session-toolchain.md) | クラウドのセッションでは公式の取得先だけで道具を揃え、揃わない検査は CI に任せる | Accepted |
+| [0034](./0034-spacing-owner-and-stack-components.md) | 縦に並ぶブロックの間は親が持ち、並びの部品を部品層に足す | Proposed |
