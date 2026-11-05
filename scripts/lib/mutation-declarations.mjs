@@ -104,6 +104,9 @@ const RESERVED_1000_1009 =
 const RESERVED_1010_1019 =
   "**対応表より後に足した変異。** 1010〜1019 は #546 に割り当てた範囲。";
 
+const RESERVED_1020_1029 =
+  "**対応表より後に足した変異。** 1020〜1029 は #547 に割り当てた範囲。";
+
 export const MUTATIONS = [
   {
     id: 1,
@@ -6105,5 +6108,29 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["lib/mutation-partition.test.mjs"],
     note: RESERVED_1010_1019 + " " + "#546。重い組が鍵の順に配られ、重い組どうしが同じ分け前に寄って最も長い分け前が伸びる。",
+  },
+  {
+    id: 1020,
+    label: "複製の実行が、渡された引数（`args`）を子へ渡さない",
+    patch: "m1020-copy-harness-drops-args.patch",
+    pkg: "scripts",
+    tests: ["script-copy-harness.test.mjs"],
+    note: RESERVED_1020_1029 + " " + "#547。check-toolchain.test.mjs の段（test / e2e / mutation）が子へ届かず、段ごとの配線の確認が全部「段なし」の経路に変わる。",
+  },
+  {
+    id: 1021,
+    label: "複製を使う非同期の処理（`withScriptCopy`）が、処理の決着を待たずに複製を消す",
+    patch: "m1021-copy-harness-removes-copy-before-async-settles.patch",
+    pkg: "scripts",
+    tests: ["script-copy-harness.test.mjs"],
+    note: RESERVED_1020_1029 + " " + "#547。exit-flush.test.mjs の子が起動する前に複製が消え、子が見つからずに落ちる（またはテストが原因の分かりにくい失敗になる）。",
+  },
+  {
+    id: 1022,
+    label: "複製の実行が、渡された環境（`env`）を親の環境の下に重ねる（親の値が勝ち、`undefined` で打ち消せない）",
+    patch: "m1022-copy-harness-env-parent-overrides-given.patch",
+    pkg: "scripts",
+    tests: ["script-copy-harness.test.mjs"],
+    note: RESERVED_1020_1029 + " " + "#547。check-toolchain.test.mjs が渡す環境（npm_config_user_agent の除去ほか）が効かず、pnpm の版を確かめる経路を通らなくなる。",
   },
 ];
