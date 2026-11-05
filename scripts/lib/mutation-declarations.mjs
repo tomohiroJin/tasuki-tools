@@ -5781,4 +5781,12 @@ export const MUTATIONS = [
     tests: ["test/bounds.properties.test.ts"],
     note: RESERVED_980_984 + " " + "#534のレビュー。一時離脱中の人が席を持つのに上限に数えられず、10 席の輪にも足せて 11 席になる。",
   },
+  {
+    id: 981,
+    label: "メンバー追加の上限の数え方を、席の数 → member の席と一時離脱でない席だけにする（離脱中の代理の席を数えず、満員の輪にも足せる）",
+    patch: "m981-timer-core-member-add-limit-skips-away-proxy.patch",
+    pkg: "packages/timer-core",
+    tests: ["test/bounds.properties.test.ts"],
+    note: RESERVED_980_984 + " " + "#534のレビュー。一時離脱中の代理が席を持つのに上限に数えられず、10 席の輪にも足せて 11 席になる。",
+  },
 ];

@@ -1,0 +1,13 @@
+diff --git a/packages/timer-core/src/decide.ts b/packages/timer-core/src/decide.ts
+index 6f07777..84f3fbc 100644
+--- a/packages/timer-core/src/decide.ts
++++ b/packages/timer-core/src/decide.ts
+@@ -299,7 +299,7 @@ function decideMemberAdd(
+     return err({ type: "DuplicateName", name: trimmed });
+   }
+ 
+-  if (agg.session.rotation.length >= MAX_MEMBERS) {
++  if (agg.session.rotation.filter((e) => e.kind === "member" || e.eligible).length >= MAX_MEMBERS) {
+     return err({ type: "MemberLimitExceeded", limit: MAX_MEMBERS });
+   }
+ 
