@@ -26,6 +26,8 @@ import {
 
 const REM = 16;
 const MAIN_MIN = 32 * REM;
+/** Markdown の段落どうしの間（`--space-2`）。3 行で切る面の高さの上限に、3 行の中にある段落の間のぶんを足す。 */
+const PARAGRAPH_GAP = 8;
 
 interface Box { x: number; y: number; width: number; height: number }
 
@@ -599,12 +601,12 @@ test.describe('poker のルームは広い画面で読む面と操作の面を�
     const main = await boxOf(page, '.ui-workspace-main');
     expect(side.y + side.height).toBeLessThanOrEqual(main.y);
     expect(main.x).toBeCloseTo(side.x, 0);
-    // 本文は 3 行で切れる（行の高さ × 3.5 まで）。続きは「続きを読む」のシート（invite-sheet-md.spec.ts が見る）
+    // 本文は 3 行で切れる（行の高さ × 3.5 に、3 行の間にある段落の間 2 つ（`--space-2` = 8px・#553）を足した高さまで）。続きは「続きを読む」のシート（invite-sheet-md.spec.ts が見る）
     const { height, lineHeight } = await page.locator('.ui-reader-preview').evaluate((el) => ({
       height: el.getBoundingClientRect().height,
       lineHeight: parseFloat(getComputedStyle(el).lineHeight),
     }));
-    expect(height).toBeLessThanOrEqual(lineHeight * 3.5);
+    expect(height).toBeLessThanOrEqual(lineHeight * 3.5 + 2 * PARAGRAPH_GAP);
   });
 });
 
@@ -834,7 +836,8 @@ test.describe('timer は 1 つのルームでロビー・セッション・お�
       line: parseFloat(getComputedStyle(el).lineHeight),
       scroll: el.scrollHeight,
     }));
-    expect(clamp.client).toBeLessThanOrEqual(clamp.line * 3 + 1);
+    // 3 行が 1 行ずつの段落なら、段落の間（`--space-2` = 8px）が 2 つ入る（#553）。4 行目は 1 行の高さぶん超えるので、これでも見分けられる
+    expect(clamp.client).toBeLessThanOrEqual(clamp.line * 3 + 2 * PARAGRAPH_GAP + 1);
     expect(clamp.scroll).toBeGreaterThan(clamp.client);
     const narrowTimer = await boxOf(page, '[role="timer"]');
     // 下端の帯（.ui-actions--dock）の裏に隠れないこと（画面の高さではなく帯の上端と比べる）
