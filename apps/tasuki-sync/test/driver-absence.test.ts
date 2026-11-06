@@ -210,6 +210,98 @@ describe("PresenceManager: ドライバー不在の自動繰上", () => {
 });
 
 /**
+ * 猶予の中で複数のクライアントの操作が重なる並び（#566）。
+ *
+ * 単独の切断では見えず、**猶予の中に別の人の切断・操作が入ったときだけ**壊れ方が見える
+ * （Stryker の生き残り: `presence.ts` の `handleDisconnect` と `scheduleDriverAbsence`）。
+ * いまのコードは正しい。ここは守るテストである。
+ *
+ * @requirements v2.2 R2-1
+ */
+describe("PresenceManager: ドライバー不在の猶予中に他の人の操作が重なる", () => {
+  let store: InMemoryRoomStore;
+  let timers: InMemoryTimerStore;
+  let onDriverAbsence: ReturnType<typeof jest.fn>;
+  let pm: PresenceManager;
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    store = new InMemoryRoomStore();
+    timers = new InMemoryTimerStore();
+    onDriverAbsence = jest.fn();
+    pm = new PresenceManager({
+      store,
+      timers,
+      broadcaster: new SpyBroadcaster(),
+      hub: spyHub(),
+      clock: new FakeClock(1000000),
+      onDriverAbsence,
+    });
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  /** timer の状態を書き換える（別のクライアントがタイマーを操作した結果を作る）。 */
+  function updateTimer(code: string, change: (state: NonNullable<ReturnType<typeof timers.get>>) => void): void {
+    const state = timers.get(code)!;
+    change(state);
+    timers.put(state);
+  }
+
+  it("ドライバーの切断の猶予中に別の人が切断しても、ドライバーの繰り上げは失われない", () => {
+    // Given: 現ドライバーが切断し、猶予タイマーが張られている
+    const room = makeRunningRoom("DOVL1");
+    putRoomView(store, timers, room, CONNS);
+    pm.handleDisconnect("d-conn");
+
+    // When: 猶予の半分で、ドライバーでない人も切断する（タイマーを張り替えてはならない）
+    jest.advanceTimersByTime(DRIVER_ABSENCE_GRACE_MS / 2);
+    pm.handleDisconnect("o-conn");
+    jest.advanceTimersByTime(DRIVER_ABSENCE_GRACE_MS / 2);
+
+    // Then: ドライバーの切断から数えた猶予で、ちょうど 1 回発火する
+    expect(onDriverAbsence).toHaveBeenCalledTimes(1);
+    expect(onDriverAbsence).toHaveBeenCalledWith(room.code);
+  });
+
+  it("猶予中に別の人がタイマーを止めたら、繰り上げない", () => {
+    // Given
+    const room = makeRunningRoom("DOVL2");
+    putRoomView(store, timers, room, CONNS);
+    pm.handleDisconnect("d-conn");
+
+    // When: 猶予中に別の人がタイマーを止める（clock.running=false）
+    jest.advanceTimersByTime(DRIVER_ABSENCE_GRACE_MS / 2);
+    updateTimer(room.code, (state) => {
+      state.clock = { ...state.clock, running: false };
+    });
+    jest.advanceTimersByTime(DRIVER_ABSENCE_GRACE_MS);
+
+    // Then
+    expect(onDriverAbsence).not.toHaveBeenCalled();
+  });
+
+  it("猶予中に別の人が手動でドライバーを進めたら、重ねて発火しない", () => {
+    // Given
+    const room = makeRunningRoom("DOVL3");
+    putRoomView(store, timers, room, CONNS);
+    pm.handleDisconnect("d-conn");
+
+    // When: 猶予中に別の人が手動で次の人へ進める（現ドライバーは Other になる）
+    jest.advanceTimersByTime(DRIVER_ABSENCE_GRACE_MS / 2);
+    updateTimer(room.code, (state) => {
+      state.session = { ...state.session, currentIndex: 1 };
+    });
+    jest.advanceTimersByTime(DRIVER_ABSENCE_GRACE_MS);
+
+    // Then: 古い切断のタイマーが、新しいドライバーを繰り上げてしまわない
+    expect(onDriverAbsence).not.toHaveBeenCalled();
+  });
+});
+
+/**
  * 切断そのものの副作用（プレゼンス更新と snapshot 配信）。
  *
  * 元は `handoff-host.test.ts`（ホスト不在の自動委譲）に同居していたが、
