@@ -1,0 +1,13 @@
+diff --git a/apps/tasuki-sync/src/application/presence.ts b/apps/tasuki-sync/src/application/presence.ts
+index e981138..116b912 100644
+--- a/apps/tasuki-sync/src/application/presence.ts
++++ b/apps/tasuki-sync/src/application/presence.ts
+@@ -155,7 +155,7 @@ export class PresenceManager {
+       const state = this.timers.get(roomCode);
+       if (!room || !state || !state.clock.running) return;
+       const current = state.session.rotation[state.session.currentIndex];
+-      if (current === undefined || rotationEntryId(current) !== driverParticipantId) return;
++      if (current === undefined) return;
+       const driver = findParticipant(room, driverParticipantId);
+       // **戻ってきた判定も timer の在席で行う**（D21）。ここを presence で見ると、
+       // 選択画面のタブだけを開いた人がドライバーのまま居座れる。
