@@ -72,10 +72,13 @@ test('Given Markdown の根 / When ブロックの間の規則を読む / Then �
   assert.ok(classCount(m[1]) > classCount('.ui-md-p'), `ブロックの間の規則 ${m[1]} は .ui-md-p の margin: 0 に詳細度で勝たない`);
 });
 
+/** `className="…"` のうち、クラスの並びの中に `marker` が**完全一致**で入っている最初のもの（`estimate-group` が `estimate-group-head` に当たらない）。 */
 const classNameOf = (src, marker) => {
-  const m = new RegExp(`className="([^"]*\\b${marker}\\b[^"]*)"`).exec(src);
-  assert.notEqual(m, null, `${marker} を持つ要素が無い`);
-  return m[1].split(/\s+/);
+  for (const m of src.matchAll(/className="([^"]*)"/g)) {
+    const tokens = m[1].split(/\s+/);
+    if (tokens.includes(marker)) return tokens;
+  }
+  assert.fail(`${marker} を持つ要素が無い`);
 };
 
 test('Given poker のルーム / When 参加者の欄を探す / Then 区画は ui-stack・見出しの行は ui-section-head で、画面は並びの写しを持たない（一覧 #1）', () => {
@@ -85,8 +88,52 @@ test('Given poker のルーム / When 参加者の欄を探す / Then 区画は 
   const before = src.slice(0, at);
   const section = before.slice(before.lastIndexOf('<section'));
   assert.match(section, /^<section className="ui-stack">/);
-  assert.match(section, /<div className="ui-section-head">/);
-  assert.doesNotMatch(read('apps/poker-web/src/index.css'), /room-participants-head/);
+  assert.match(section, /<div className="room-participants-head ui-section-head">/);
+  // 画面が持つのは「見出しの隣に置く」寄せだけ。並び（flex・折り返し・間）の写しは持たない
+  const body = ruleBody(read('apps/poker-web/src/index.css'), '.room-participants-head');
+  assert.notEqual(body, null);
+  assert.match(body, /justify-content:\s*flex-start;/);
+  assert.doesNotMatch(body, /display:|flex-wrap:|gap:/);
+});
+
+test('Given poker の束の見出しの行 / When 規則を読む / Then 折り返しを止め、名前の列が縮む（左に名前・右にポイント）', () => {
+  const css = read('apps/poker-web/src/index.css');
+  assert.match(ruleBody(css, '.estimate-group-head') ?? '', /flex-wrap:\s*nowrap;/);
+  assert.match(ruleBody(css, '.estimate-group-item') ?? '', /min-width:\s*0;/);
+});
+
+test('Given roulette の見出しの行 / When 規則を読む / Then 見出しと小さな字を基準線で揃える', () => {
+  assert.match(ruleBody(read('apps/roulette-web/src/index.css'), '.roulette-regulars-head') ?? '', /align-items:\s*baseline;/);
+});
+
+test('Given timer の「ランダム」 / When ロビーと名簿の使い方を探す / Then どちらも ShuffleButton を使い、ボタンの写しを持たない', () => {
+  assert.match(read('apps/timer-web/src/ui/Lobby.tsx'), /<ShuffleButton\b/);
+  assert.match(read('apps/timer-web/src/ui/components/RosterPanel.tsx'), /<ShuffleButton\b/);
+  for (const f of ['apps/timer-web/src/ui/Lobby.tsx', 'apps/timer-web/src/ui/components/RosterPanel.tsx', 'apps/timer-web/src/ui/Session.tsx']) {
+    assert.doesNotMatch(read(f), /aria-label="ドライバー順をランダムに並べ替える"/, `${f} にボタンの写しがある`);
+  }
+  // 名簿はセッションの画面のクラスに寄りかからない
+  assert.doesNotMatch(read('apps/timer-web/src/ui/components/RosterPanel.tsx'), /session-shuffle-label|session-action-icon/);
+});
+
+/** 規則の本体の宣言を「プロパティ: 値」の集合にする。 */
+const declsOf = (body) => new Set([...body.matchAll(/([a-z-]+):\s*([^;]+);/g)].map((m) => `${m[1]}:${m[2].trim()}`));
+
+test('Given roulette の空の知らせ / When :empty の宣言を読む / Then 部品 .ui-visually-hidden の宣言を全部含む（部品の写しであることを固定する）', () => {
+  const hidden = declsOf(ruleBody(read('packages/ui/src/components/visually-hidden.css'), '.ui-visually-hidden'));
+  const copy = declsOf(ruleBody(read('apps/roulette-web/src/index.css'), '.roulette-regulars-notice:empty'));
+  assert.ok(hidden.size >= 8);
+  for (const d of hidden) assert.ok(copy.has(d), `:empty の規則に ${d} が無い（部品の宣言と食い違う）`);
+});
+
+test('Given roulette の空の知らせ / When 規則と JSX を読む / Then 読み上げの木から外す書き方（display: none・visibility: hidden・hidden・aria-hidden）が無い', () => {
+  const css = read('apps/roulette-web/src/index.css');
+  for (const sel of ['.roulette-regulars-notice', '.roulette-regulars-notice:empty']) {
+    assert.doesNotMatch(ruleBody(css, sel) ?? '', /display:\s*none|visibility:\s*hidden/);
+  }
+  const tag = /<p className="roulette-regulars-notice[^>]*>/.exec(read('apps/roulette-web/src/components/RegularsSection.tsx'));
+  assert.notEqual(tag, null);
+  assert.doesNotMatch(tag[0], /\bhidden\b|aria-hidden/);
 });
 
 test('Given poker の見積もりの記録 / When 束の見出しの行を探す / Then ui-section-head', () => {

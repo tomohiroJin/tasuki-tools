@@ -9,7 +9,7 @@
  */
 import type { Page } from '@playwright/test';
 import { expect, test } from '../fixtures/test';
-import { createRoom as createPokerRoom } from '../support/poker';
+import { chooseCard, createRoom as createPokerRoom } from '../support/poker';
 import { openRouletteTool } from '../support/roulette';
 import { createRoom as createTimerRoom, joinAsDriver } from '../support/timer';
 import { joinTopicTool, setTopic } from '../support/topic';
@@ -55,23 +55,25 @@ async function paragraphGaps(page: Page): Promise<number[]> {
 }
 
 /**
- * 見出し（`headingText` を含む h2）を持つ見出しの行（`.ui-section-head`）の中に、`actionLabel` の操作があり、
- * 次のどちらかであることを測る（#553・ADR 0035）。
+ * 見出し（テキストが `headingText` に完全一致する h2）を持つ見出しの行（`.ui-section-head`）を先に決め、その行の中で
+ * `actionLabel` の操作を探して、次のどちらかであることを測る（#553・ADR 0035）。
  *   ① 見出しと同じ行に収まる（操作の上端が見出しを持つ要素の下端より上）
  *   ② 折り返したときは、操作の上端と見出しの下端の間が `--space-2`（8px）±1px で、操作の左端が見出しの左端に揃う（右へ寄せない）
  * 「行の中にあるか」だけでは、操作が見出しから離れて右寄せで下の行に落ちても緑になる。
+ * 行を先に決めるので、行の外に同じ名前の操作があっても拾わない（操作が行の外へ出たら「行の中に無い」で赤になる）。
  * 「見出しを持つ要素」は、行の直下の子のうち h2 を含むもの（timer はアイコンと h2 を包む `.section-header-lead`）。
  * 操作は `aria-label` か可視の文字で探し、位置は行の直下の子（操作が塊に入っていれば塊）で測る。
  */
 async function expectActionsBelongToHeading(page: Page, headingText: string, actionLabel: string, label: string): Promise<void> {
   const m = await page.evaluate(
     ({ headingText, actionLabel }) => {
-      const heading = [...document.querySelectorAll('h2')].find((h) => (h.textContent ?? '').includes(headingText));
+      const heading = [...document.querySelectorAll('h2')].find((h) => (h.textContent ?? '').trim() === headingText);
       const row = heading?.closest('.ui-section-head');
-      const action = [...document.querySelectorAll('button')].find(
+      if (heading === undefined || row === null || row === undefined) return { found: 'heading' as const };
+      const action = [...row.querySelectorAll('button')].find(
         (b) => b.getAttribute('aria-label') === actionLabel || (b.textContent ?? '').trim() === actionLabel,
       );
-      if (heading === undefined || row === null || row === undefined || action === undefined) return null;
+      if (action === undefined) return { found: 'action' as const };
       const headBox = [...row.children].find((c) => c.contains(heading)) ?? heading;
       const h = headBox.getBoundingClientRect();
       // 操作が塊（`.roster-panel-head-actions`）に入っているときは、塊の最初のボタンの位置で測る。塊の箱は行の幅いっぱいに広げて
@@ -79,15 +81,15 @@ async function expectActionsBelongToHeading(page: Page, headingText: string, act
       const group = [...row.children].find((c) => c.contains(action)) ?? action;
       const first = group.matches('button') ? group : (group.querySelector('button') ?? group);
       const a = { top: group.getBoundingClientRect().top, left: first.getBoundingClientRect().left };
-      return { contained: row.contains(action), sameLine: a.top < h.bottom - 0.5, below: a.top - h.bottom, leftDelta: a.left - h.left };
+      return { found: 'ok' as const, sameLine: a.top < h.bottom - 0.5, below: a.top - h.bottom, leftDelta: a.left - h.left };
     },
     { headingText, actionLabel },
   );
-  expect(m, `${label}: 見出し「${headingText}」と操作「${actionLabel}」が描かれている`).not.toBeNull();
-  expect(m!.contained, `${label}: 「${actionLabel}」は見出しの行の中`).toBe(true);
-  if (!m!.sameLine) {
-    expect(Math.abs(m!.below - SPACE_2), `${label}: 折り返した「${actionLabel}」と見出しの間は 8px`).toBeLessThanOrEqual(1);
-    expect(Math.abs(m!.leftDelta), `${label}: 折り返した「${actionLabel}」の左端は見出しの左端に揃う`).toBeLessThanOrEqual(1);
+  expect(m.found, `${label}: 見出し「${headingText}」の行の中に操作「${actionLabel}」がある（'heading' は見出しの行が無い・'action' は行の中に操作が無い）`).toBe('ok');
+  if (m.found !== 'ok') return;
+  if (!m.sameLine) {
+    expect(Math.abs(m.below - SPACE_2), `${label}: 折り返した「${actionLabel}」と見出しの間は 8px`).toBeLessThanOrEqual(1);
+    expect(Math.abs(m.leftDelta), `${label}: 折り返した「${actionLabel}」の左端は見出しの左端に揃う`).toBeLessThanOrEqual(1);
   }
 }
 
@@ -100,6 +102,47 @@ test.describe('縦に並ぶブロックの間は親が持つ', () => {
       await page.setViewportSize({ width, height: 900 });
       const gap = await gapBelowHeadingRow(page, '参加者', '.participants');
       expect(gap, `幅 ${String(width)}: 見出しの行と札の並びの間`).toBeGreaterThanOrEqual(SPACE_3);
+      // 「見学する」は見出しの隣に置く（見出しから操作の面の反対の端まで飛ばさない）。同じ行なら横の間は 24px 以内、
+      // 下の行へ落ちたら左端が見出しに揃う
+      const next = await page.evaluate(() => {
+        const heading = [...document.querySelectorAll('h2')].find((h) => (h.textContent ?? '').startsWith('参加者'));
+        const row = heading?.closest('.ui-section-head');
+        const button = row?.querySelector('button');
+        if (heading === undefined || button === null || button === undefined) return null;
+        const h = heading.getBoundingClientRect();
+        const b = button.getBoundingClientRect();
+        return { sameLine: b.top < h.bottom - 0.5, gap: b.left - h.right, leftDelta: b.left - h.left };
+      });
+      expect(next, `幅 ${String(width)}: 見出しの行に「見学する」がある`).not.toBeNull();
+      if (next!.sameLine) expect(next!.gap, `幅 ${String(width)}: 見出しと「見学する」の横の間`).toBeLessThanOrEqual(2 * SPACE_3);
+      else expect(Math.abs(next!.leftDelta), `幅 ${String(width)}: 折り返した「見学する」の左端は見出しの左端に揃う`).toBeLessThanOrEqual(1);
+    }
+  });
+
+  test('Given poker の記録に空白の無い 40 字の項目名の束 / When 脇（1280）と 320 で開く / Then ポイントの選択は名前と同じ行の右に残り、名前の列が縮む（#553 レビュー）', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await createPokerRoom(page, 'spacing-log');
+    await page.getByRole('button', { name: '記録する' }).click();
+    await page.locator('.estimate-item-title').first().click();
+    await page.locator('.estimate-item-input').fill('T'.repeat(40));
+    await page.keyboard.press('Enter');
+    await chooseCard(page, '5');
+    await page.getByRole('button', { name: '次のアイテムへ' }).click();
+    // 閉じた束（名前つき）と、いま開いている束の 2 つ
+    await expect(page.locator('.estimate-group')).toHaveCount(2);
+    for (const width of [320, 1280] as const) {
+      await page.setViewportSize({ width, height: 900 });
+      const m = await page.evaluate(() => {
+        const head = [...document.querySelectorAll('.estimate-group-head')].find((e) => e.getClientRects().length > 0 && (e.textContent ?? '').includes('TTTT'));
+        const name = head?.querySelector('.estimate-group-item');
+        const points = head?.querySelector('select');
+        if (head === undefined || name === null || name === undefined || points === null || points === undefined) return null;
+        const n = name.getBoundingClientRect();
+        const p = points.getBoundingClientRect();
+        return { sameLine: p.top < n.bottom - 0.5, rightOfName: p.left >= n.right - 1, inside: p.right <= head.getBoundingClientRect().right + 1 };
+      });
+      expect(m, `幅 ${String(width)}: 束の見出しの行が描かれている`).not.toBeNull();
+      expect(m, `幅 ${String(width)}: 名前の右（同じ行）にポイントがあり、行からはみ出さない`).toEqual({ sameLine: true, rightOfName: true, inside: true });
     }
   });
 
@@ -131,7 +174,7 @@ test.describe('縦に並ぶブロックの間は親が持つ', () => {
     // ロビー（見出しは「参加者 (n人)」）
     for (const width of [320, 1280] as const) {
       await page.setViewportSize({ width, height: 900 });
-      await expectActionsBelongToHeading(page, '参加者 (', 'ドライバー順をランダムに並べ替える', `ロビー 幅 ${String(width)}`);
+      await expectActionsBelongToHeading(page, '参加者 (2人)', 'ドライバー順をランダムに並べ替える', `ロビー 幅 ${String(width)}`);
     }
     await page.getByRole('button', { name: 'セッションを開始' }).click();
     await expect(page.getByRole('timer')).toBeVisible();
@@ -167,6 +210,28 @@ test.describe('縦に並ぶブロックの間は親が持つ', () => {
           noticeStatus: notice.getAttribute('role'),
         };
       });
+      // 空の知らせは読み上げの木に 1 つ残る（`getByRole` は `visibility: hidden`・`hidden`・`aria-hidden` で木から外れたものを数えない）
+      await expect(page.locator('.roulette-regulars').getByRole('status'), `幅 ${String(width)}: 空の知らせ（role=status）が読み上げの木に残る`).toHaveCount(1);
+      // 見出し（h3）と「この端末だけ」は字の基準線で揃える（字の大きさが違うので、中央揃えだと基準線がずれる）。
+      // 各要素の末尾に幅も高さも 0 の inline-block を置くと、その下端が最後の行の基準線になる
+      const base = await page.evaluate(() => {
+        const h = document.querySelector('.roulette-regulars-head h3');
+        const w = document.querySelector('.roulette-regulars-where');
+        if (!h || !w) return null;
+        const probe = (el: Element): number => {
+          const span = document.createElement('span');
+          span.style.cssText = 'display:inline-block;width:0;height:0';
+          el.append(span);
+          const y = span.getBoundingClientRect().bottom;
+          span.remove();
+          return y;
+        };
+        const hb = h.getBoundingClientRect();
+        const wb = w.getBoundingClientRect();
+        return { sameLine: wb.top < hb.bottom - 0.5, delta: probe(h) - probe(w) };
+      });
+      expect(base, `幅 ${String(width)}: 見出しと「この端末だけ」が描かれている`).not.toBeNull();
+      if (base!.sameLine) expect(Math.abs(base!.delta), `幅 ${String(width)}: 見出しと「この端末だけ」の基準線`).toBeLessThanOrEqual(1);
       expect(m, `幅 ${String(width)}: いつものメンツの区画が描かれている`).not.toBeNull();
       expect(m!.noticeEmpty, '知らせは空').toBe(true);
       expect(m!.noticeDisplay, '空の知らせを display: none にしない（ライブリージョンを木に残す）').not.toBe('none');
