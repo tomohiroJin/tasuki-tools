@@ -1,0 +1,13 @@
+diff --git a/apps/timer-web/src/ui/components/RosterPanel.tsx b/apps/timer-web/src/ui/components/RosterPanel.tsx
+index 0a8a78b0..b3e79c01 100644
+--- a/apps/timer-web/src/ui/components/RosterPanel.tsx
++++ b/apps/timer-web/src/ui/components/RosterPanel.tsx
+@@ -447,7 +447,7 @@ export function RosterPanel({
+   };
+ 
+   return (
+-    <div className="panel-stack">
++    <div>
+       {/* 退出の確認。対象者の名前と、招待から再参加できることを明示する（FR-075）。
+           共有ルームでは他の参加者の画面にも反映されることを添える（FR-076）。 */}
+       {pendingRemoval && onRemove && (

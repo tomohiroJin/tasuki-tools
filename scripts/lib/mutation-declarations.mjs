@@ -146,6 +146,9 @@ const RESERVED_1040_1049 =
 const RESERVED_1050_1059 =
   "**対応表より後に足した変異。** 1050〜1059 は #542 の続き（/code-review の指摘）に割り当てた範囲。";
 
+const RESERVED_1230_1239 =
+  "**対応表より後に足した変異。** 1230〜1239 は #556 に追加で割り当てた範囲。";
+
 const RESERVED_1110_1119 =
   "**対応表より後に足した変異。** 1110〜1119 は #556 に割り当てた範囲。";
 
@@ -7756,5 +7759,29 @@ export const MUTATIONS = [
     pkg: "packages/ui",
     tests: ["tests/rows-alignment.test.mjs"],
     note: RESERVED_1110_1119 + " " + "#556。2 段目の接続状態と通知の左右の揃えがばらばらになる（一覧 #14 の再発）。",
+  },
+  {
+    id: 1230,
+    label: "timer の見出しの行に margin-bottom を持たせる",
+    patch: "m1230-timer-section-header-margin.patch",
+    pkg: "packages/ui",
+    tests: ["tests/rows-alignment.test.mjs"],
+    note: RESERVED_1230_1239 + " " + "#556。見出しの下の間を子が持つ形に戻る（ADR 0035 決定 1 の例外の再発）。",
+  },
+  {
+    id: 1231,
+    label: "timer のパスフレーズのパネルの根から `panel-stack` を外す",
+    patch: "m1231-passphrase-root-not-stack.patch",
+    pkg: "packages/ui",
+    tests: ["tests/rows-alignment.test.mjs"],
+    note: RESERVED_1230_1239 + " " + "#556。見出しの下の間を誰も持たなくなり、見出しと中身が接する。",
+  },
+  {
+    id: 1232,
+    label: "timer の名簿の根から `panel-stack` を外す",
+    patch: "m1232-roster-root-not-stack.patch",
+    pkg: "packages/ui",
+    tests: ["tests/rows-alignment.test.mjs"],
+    note: RESERVED_1230_1239 + " " + "#556。見出しの下の間を誰も持たなくなり、見出しと一覧が接する。",
   },
 ];
