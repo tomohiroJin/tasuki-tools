@@ -107,6 +107,9 @@ const RESERVED_1010_1019 =
 const RESERVED_1020_1029 =
   "**対応表より後に足した変異。** 1020〜1029 は #547 に割り当てた範囲。";
 
+const RESERVED_1260_1269 =
+  "**対応表より後に足した変異。** 1260〜1269 は #554 に追加で割り当てた範囲（1240〜1249 の 3 回目のレビュー分で足りなくなった場合に備える）。";
+
 const RESERVED_1240_1249 =
   "**対応表より後に足した変異。** 1240〜1249 は #554 に追加で割り当てた範囲（1220〜1229 を使い切る前に、2 回目のレビューの指摘で足した）。";
 
@@ -6468,11 +6471,11 @@ export const MUTATIONS = [
   },
   {
     id: 1223,
-    label: "40rem 未満の戻るの、下線の字の横の余白を打ち消す指定を消す",
+    label: "戻るの、下線の字の横の余白を打ち消す指定（幅によらない規則）を消す",
     patch: "m1223-back-indent-not-cancelled.patch",
     pkg: "packages/ui",
     tests: ["tests/dock-and-narrow-header.test.mjs"],
-    note: RESERVED_1220_1229 + " " + "#554。単独の行に落ちた「選択画面へ戻る」が 9px 字下げになり、題・「仲間を招く」と左端が揃わない。",
+    note: RESERVED_1220_1229 + " " + "#554。単独の行に落ちた「選択画面へ戻る」が 9px 字下げになり、題・「仲間を招く」と左端が揃わない。1247 と同じアサーションで捕まる（宣言だけを消す形。重複する宣言を消すのは検査を弱める変更なので残す）。",
   },
   {
     id: 1224,
@@ -6500,7 +6503,7 @@ export const MUTATIONS = [
   },
   {
     id: 1227,
-    label: "40rem 未満の通常の見出しで、戻るに order を足して目の順だけを変える",
+    label: "通常の見出しの戻るに order を足して目の順だけを変える（40rem 未満の折り返しで Tab の順が食い違う）",
     patch: "m1227-narrow-back-order-first.patch",
     pkg: "packages/ui",
     tests: ["tests/dock-and-narrow-header.test.mjs"],
@@ -6572,11 +6575,11 @@ export const MUTATIONS = [
   },
   {
     id: 1246,
-    label: "招待の URL の span から全文の title を外す",
-    patch: "m1246-invite-url-title-removed.patch",
-    pkg: "packages/ui",
-    tests: ["tests/dock-and-narrow-header.test.mjs"],
-    note: RESERVED_1240_1249 + " " + "#554 のレビュー。省略された URL の末尾を、クリップボードの使えない端末で目で確かめる手段が無くなる。",
+    label: "招待の URL の span に title を付ける",
+    patch: "m1246-invite-url-title-added.patch",
+    pkg: "packages/invite-ui",
+    tests: ["tests/room-header.test.tsx"],
+    note: RESERVED_1240_1249 + " " + "#554 のレビュー。URL の span に title を付けると、触る端末ではツールチップが出ず、読み上げで URL が二重になる。",
   },
   {
     id: 1247,
@@ -6585,5 +6588,29 @@ export const MUTATIONS = [
     pkg: "packages/ui",
     tests: ["tests/dock-and-narrow-header.test.mjs"],
     note: RESERVED_1240_1249 + " " + "#554 のレビュー。戻るが単独の行に落ちる幅（40rem 未満と 640〜668px のお題つきの poker）で、字が 9px 字下がって題と左端が揃わない。",
+  },
+  {
+    id: 1248,
+    label: "帯の中の [hidden] の子を描かない規則を消す",
+    patch: "m1248-dock-hidden-child-rendered.patch",
+    pkg: "packages/ui",
+    tests: ["tests/dock-and-narrow-header.test.mjs"],
+    note: RESERVED_1240_1249 + " " + "#554 のレビュー。数えない hidden の子が .ui-button の display に勝たれて描かれ、段が増える（A, B, C(hidden), D が 3 段）。",
+  },
+  {
+    id: 1249,
+    label: "agenda の帯が fixed の幅で、Tab の送り先の余白（scroll-padding-block-end）を外す",
+    patch: "m1249-run-scroll-padding-removed.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/run-controls-opaque.test.ts"],
+    note: RESERVED_1240_1249 + " " + "#554 のレビュー。64rem 未満で進行表の「スキップ」に Tab で行くと、不透明な帯の後ろに隠れる（WCAG 2.4.11）。",
+  },
+  {
+    id: 1260,
+    label: "agenda の帯の高さの変数 --run-controls-height を実測（約 161px）より低い 8rem にする",
+    patch: "m1260-run-controls-height-too-small.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/run-controls-opaque.test.ts"],
+    note: RESERVED_1260_1269 + " " + "#554 のレビュー。帯の下の余白が実測の帯（約 161px）より低く、最下部で最後の行が不透明な帯に隠れる。",
   },
 ];

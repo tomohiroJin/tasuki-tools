@@ -1,0 +1,25 @@
+# 変異 1248: dock-hidden-child-rendered
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/dock-and-narrow-header.test.mjs
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外）
+#
+# #554 のレビュー。数えない hidden の子が .ui-button の display に勝たれて描かれ、段が増える（A, B, C(hidden), D が 3 段）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1248-*.patch
+# 復元: git apply -R scripts/mutations/m1248-*.patch
+diff --git a/packages/ui/src/components/actions.css b/packages/ui/src/components/actions.css
+--- a/packages/ui/src/components/actions.css
++++ b/packages/ui/src/components/actions.css
+@@ -69,10 +69,6 @@
+ 
+   /* 数えないもの（`hidden`）は描かない。`.ui-button { display: inline-flex }` が UA の `[hidden] { display: none }` に勝つので、書かないと
+      「数えない」と決めた子が描かれて段が増える。帯の子を隠すときは `hidden` 属性か `.ui-visually-hidden` を使う（クラスや @media の `display: none` は数え方が知らない） */
+-  .ui-actions--dock > [hidden] {
+-    display: none;
+-  }
+-
+   /* 2 列の 1 つは (320 − 2×16 − 12) ÷ 2 = 138px。ボタンの左右の余白（`--lg` は 1.8rem ＝ 28.8px）を詰めないと「次のアイテムへ」が 2 行に折れる */
+   .ui-actions--dock > .ui-button {
+     min-width: 0;

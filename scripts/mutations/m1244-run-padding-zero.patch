@@ -12,10 +12,10 @@
 diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
 --- a/apps/agenda-web/src/run.css
 +++ b/apps/agenda-web/src/run.css
-@@ -18,7 +18,7 @@
-   /* 帯（`.run-controls`・固定）の高さ（上の線 1px ＋ 余白と 2 段で約 159px）に、iPhone のホームバーの高さ（`env(safe-area-inset-bottom)`・
-      帯も同じだけ下の余白を足している）を足す。足りないと、最下部で最後の行や「最初から」が不透明な帯に隠れる（#554） */
-   --run-controls-height: 10rem;
+@@ -27,7 +27,7 @@
+   /* 帯（`.run-controls`・固定）の高さの上限。実測は 320〜1023px で 161.4〜161.8px（上の線 1px ＋ 余白と 2 段）。実測より大きく丸め、
+      E2E（`header-and-dock.spec.ts`）が帯の実際の高さがこの値以下であることを測る（ずれたら赤）。下の余白に、iPhone のホームバーの高さ
+      （`env(safe-area-inset-bottom)`・帯も同じだけ下の余白を足している）を足す。足りないと、最下部で最後の行や「最初から」が不透明な帯に隠れる（#554） */
 -  padding-bottom: calc(var(--run-controls-height) + env(safe-area-inset-bottom));
 +  padding-bottom: 0;
  }

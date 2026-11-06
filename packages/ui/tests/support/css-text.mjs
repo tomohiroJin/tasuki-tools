@@ -43,14 +43,18 @@ export function outsideMedia(css) {
   return plain;
 }
 
-/** コメントを落とした CSS から、`selector { body }` の組を拾う（入れ子の無いブロックの中身に使う）。 */
+/** 選択子の空白（改行・字下げ・連続した空白・カンマの前後）を 1 つに正規化する。字の並べ方（整形）が変わっても比べられるように。 */
+export const normalizeSelector = (selector) => selector.trim().replace(/\s*,\s*/g, ', ').replace(/\s+/g, ' ');
+
+/** コメントを落とした CSS から、`selector { body }` の組を拾う（入れ子の無いブロックの中身に使う）。選択子は空白を正規化して返す。 */
 export function rules(css) {
-  return [...stripComments(css).matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({ selector: m[1].trim(), body: m[2] }));
+  return [...stripComments(css).matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({ selector: normalizeSelector(m[1]), body: m[2] }));
 }
 
 /** 選択子が `selector` の規則がちょうど 1 つあることを確かめて、その本体を返す。 */
 export function only(list, selector) {
-  const found = list.filter((r) => r.selector === selector);
-  assert.equal(found.length, 1, `\`${selector}\` の規則がちょうど 1 つではない（${found.length} 件）`);
+  const want = normalizeSelector(selector);
+  const found = list.filter((r) => r.selector === want);
+  assert.equal(found.length, 1, `\`${want}\` の規則がちょうど 1 つではない（${found.length} 件）`);
   return found[0].body;
 }

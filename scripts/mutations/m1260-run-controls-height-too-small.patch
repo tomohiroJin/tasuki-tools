@@ -1,0 +1,23 @@
+# 変異 1260: run-controls-height-too-small
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/run-controls-opaque.test.ts
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外）
+#
+# #554 のレビュー。帯の下の余白が実測の帯（約 161px）より低く、最下部で最後の行が不透明な帯に隠れる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1260-*.patch
+# 復元: git apply -R scripts/mutations/m1260-*.patch
+diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
+--- a/apps/agenda-web/src/run.css
++++ b/apps/agenda-web/src/run.css
+@@ -9,7 +9,7 @@
+    40rem 未満の reset.css の 6rem と、40〜64rem の「無し」を上書きする。変数は `html` に置き、`.run` の下の余白と同じ値を引く */
+ @media (width < 64rem) {
+   html:has(.run-controls) {
+-    --run-controls-height: 10.5rem;
++    --run-controls-height: 8rem;
+     scroll-padding-block-end: calc(var(--run-controls-height) + env(safe-area-inset-bottom));
+   }
+ }

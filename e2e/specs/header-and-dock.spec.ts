@@ -129,7 +129,8 @@ async function expectHeaderTabOrderFollowsSight(page: Page, label: string, minSt
 /** 40rem 未満で「仲間を招く」を開いた後（招待の欄が増えた後）でも、見出しの全部の Tab の順が見た目の順であることを見る。閉じて戻す。 */
 async function expectTabOrderWithShareOpen(page: Page, label: string): Promise<void> {
   const toggle = page.getByRole('button', { name: '仲間を招く' });
-  if (!(await toggle.isVisible())) return;
+  // 40rem 未満で見えなければ失敗（黙って戻らない）。呼び出し側は 40rem 未満の幅でだけ呼ぶ
+  await expect(toggle, `${label}: 「仲間を招く」が見えない`).toBeVisible();
   await toggle.click();
   await expect(page.getByRole('button', { name: '招待リンクをコピー' })).toBeVisible();
   await expectHeaderTabOrderFollowsSight(page, `${label}・招待を開いた`, 4);
@@ -145,6 +146,9 @@ interface DockFacts {
   maxTextLines: number;
   /** 操作（ボタン）が奇数で選択欄が無いとき、最後の主の幅 ÷ 帯の内側の幅。それ以外は null。 */
   lastPrimaryRatio: number | null;
+  /** 選択欄があるとき、先頭にあるか・続く操作の数（約束は「先頭に置く・続く操作は 2 つまで」）。 */
+  selectFirst: boolean;
+  selectThenOthers: number;
   alpha: number;
   backgroundImage: string;
   position: string;
@@ -157,7 +161,15 @@ async function dockFacts(dock: Locator): Promise<DockFacts> {
     const tops: number[] = [];
     let maxTextLines = 0;
     const buttons: Element[] = [];
-    for (const child of Array.from(el.querySelectorAll('button, select, a'))) {
+    // 部品の帯（.ui-actions--dock）は、CSS の数え方と同じ直下の子だけ（hidden・.ui-visually-hidden・.ui-actions-start の包みを除く）。倣う画面の帯は群の中のボタンを数える
+    const direct = el.classList.contains('ui-actions--dock');
+    const candidates = direct
+      ? Array.from(el.querySelectorAll(':scope > :not([hidden]):not(.ui-visually-hidden):not(.ui-actions-start)'))
+      : Array.from(el.querySelectorAll('button, select, a'));
+    const kids = candidates.filter((c) => ['BUTTON', 'SELECT', 'A'].includes(c.tagName));
+    const selectFirst = kids.every((c, i) => c.tagName !== 'SELECT' || i === 0);
+    const selectThenOthers = kids.some((c) => c.tagName === 'SELECT') ? kids.length - 1 : 0;
+    for (const child of kids) {
       const r = child.getBoundingClientRect();
       if (r.width === 0 || r.height === 0) continue;
       if (child.tagName === 'BUTTON') {
@@ -182,6 +194,8 @@ async function dockFacts(dock: Locator): Promise<DockFacts> {
     const inner = el.getBoundingClientRect().width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
     const last = buttons.at(-1)?.getBoundingClientRect();
     return {
+      selectFirst,
+      selectThenOthers,
       lastPrimaryRatio: buttons.length % 2 === 1 && el.querySelector('select') === null && last !== undefined ? last.width / inner : null,
       rows: tops.length,
       height: el.getBoundingClientRect().height,
@@ -200,6 +214,8 @@ async function expectDockContract(dock: Locator, label: string, wholeWidthPrimar
   expect(f.alpha, `${label}: 帯の地が不透明でない（α=${f.alpha}）。字の後ろに中身が透ける`).toBe(1);
   expect(f.backgroundImage, `${label}: 帯の地に透明へ溶けるグラデーションがある`).toBe('none');
   expect(f.paddingTop, `${label}: 帯の上端の内側の余白が ${DOCK_MIN_PADDING_TOP}px 未満`).toBeGreaterThanOrEqual(DOCK_MIN_PADDING_TOP);
+  expect(f.selectFirst, `${label}: 選択欄が帯の先頭にない（約束は先頭に置く）`).toBe(true);
+  expect(f.selectThenOthers, `${label}: 選択欄の後ろの操作が ${f.selectThenOthers} 個（選択欄があれば 2 つまで）`).toBeLessThanOrEqual(2);
   expect(f.maxTextLines, `${label}: 帯のボタンの字が ${f.maxTextLines} 行に折れている`).toBeLessThanOrEqual(1);
   if (f.lastPrimaryRatio !== null && wholeWidthPrimary) {
     expect(f.lastPrimaryRatio, `${label}: 奇数の最後の主が全幅の段でない（帯の内側の幅の ${f.lastPrimaryRatio}）`).toBeGreaterThanOrEqual(0.95);
@@ -262,6 +278,17 @@ test.describe('poker のルームの見出しと帯', () => {
     await turnRecordingOn(page);
     await chooseCard(page, '8');
     await expect(page.getByRole('button', { name: '再投票' })).toBeVisible();
+    // 数えない子（hidden）は描かれない: .ui-button の display が UA の [hidden] に勝つと、描かれて段が増える
+    const hiddenDisplay = await dock.evaluate((el) => {
+      const probe = document.createElement('button');
+      probe.className = 'ui-button';
+      probe.hidden = true;
+      el.append(probe);
+      const display = getComputedStyle(probe).display;
+      probe.remove();
+      return display;
+    });
+    expect(hiddenDisplay, 'hidden の子が帯の中で描かれる（数えない子は描かない）').toBe('none');
     for (const width of [320, 390]) {
       await page.setViewportSize({ width, height: 800 });
       await expectDockContract(dock, `poker 公開後（${width}）`);
@@ -311,6 +338,40 @@ test.describe('agenda の進行中の帯', () => {
       await page.setViewportSize({ width, height: 800 });
       await expectBackAlignedWithTitle(page, `agenda 戻る（${width}）`);
     }
+    // 帯の実際の高さは、下の余白の変数（--run-controls-height）以下（値がずれたら赤）。帯が fixed の幅（64rem 未満）の全部で測る
+    for (const width of [320, 390, 639, 768, 1023]) {
+      await page.setViewportSize({ width, height: 800 });
+      const m = await page.evaluate(() => {
+        const bar = document.querySelector('.run-controls')!.getBoundingClientRect().height;
+        const probe = document.createElement('div');
+        probe.style.height = getComputedStyle(document.documentElement).getPropertyValue('--run-controls-height').trim();
+        document.body.append(probe);
+        const limit = probe.getBoundingClientRect().height;
+        probe.remove();
+        return { bar, limit };
+      });
+      expect(m.bar, `agenda 帯の高さ（${width}）が --run-controls-height（${m.limit}px）を超える`).toBeLessThanOrEqual(m.limit);
+      expect(m.limit, `agenda --run-controls-height（${width}）が読めない`).toBeGreaterThan(0);
+    }
+    // 進行表の最後の「スキップ」に Tab で行っても、不透明な帯の後ろに隠れない（WCAG 2.4.11）。40rem 未満・40〜64rem の両方で測る
+    for (const width of [390, 768]) {
+      await page.setViewportSize({ width, height: 700 });
+      const skips = page.locator('.step-list-skip');
+      const count = await skips.count();
+      expect(count, '進行表に「スキップ」が無い').toBeGreaterThan(0);
+      // すでにフォーカスがある要素への focus() は送らないので、先に外す
+      await page.evaluate(() => {
+        (document.activeElement as HTMLElement | null)?.blur();
+        window.scrollTo(0, 0);
+      });
+      await skips.nth(count - 1).focus();
+      // 送りはなめらかなスクロール（scroll-behavior）で時間がかかることがあるので、終わるまで待つ（時間では待たない）
+      await expect.poll(async () => page.evaluate(() => {
+        const f = document.activeElement!.getBoundingClientRect();
+        const bar = document.querySelector('.run-controls')!.getBoundingClientRect();
+        return f.bottom - bar.top;
+      }), { message: `agenda 最後の「スキップ」（${width}）が帯の後ろに隠れる（scroll-padding が帯の高さに足りない）` }).toBeLessThanOrEqual(0.5);
+    }
     for (const width of [320, 639, 768, 1280]) {
       await page.setViewportSize({ width, height: 800 });
       await expectHeaderTabOrderFollowsSight(page, `agenda 見出しの Tab（${width}）`);
@@ -332,7 +393,14 @@ test.describe('Check-in Cards の開いた後', () => {
     await handCard(page, '晴れ').click();
     await page.getByRole('button', { name: '待たずに開く', exact: true }).click();
     await expect(page.getByRole('button', { name: 'もう一回', exact: true })).toBeVisible();
-    await page.waitForTimeout(800);
+    // 開いた直後の演出が終わるのを、帯と席の矩形が 2 回続けて同じになるまで待つ（時間では待たない）
+    let previous = '';
+    await expect.poll(async () => {
+      const now = await page.evaluate(() => ['.seat-row', '.round-dock'].map((s) => JSON.stringify(document.querySelector(s)?.getBoundingClientRect())).join('|'));
+      const same = now === previous;
+      previous = now;
+      return same;
+    }, { message: '開いた後の帯と席の矩形が落ち着かない' }).toBe(true);
     for (const width of [768, 1024, 1280]) {
       await page.setViewportSize({ width, height: 900 });
       await expectInviteUrlOneLine(page, `checkin URL（${width}）`);
@@ -367,7 +435,7 @@ test.describe('見出しの Tab の順は見た目の順', () => {
     for (const width of [320, 390, 639, 768, 1280]) {
       await page.setViewportSize({ width, height: 900 });
       await expectHeaderTabOrderFollowsSight(page, `poker 見出しの Tab（お題なし・${width}）`);
-      await expectTabOrderWithShareOpen(page, `poker 見出しの Tab（お題なし・${width}）`);
+      if (width < 640) await expectTabOrderWithShareOpen(page, `poker 見出しの Tab（お題なし・${width}）`);
     }
     const topic = await openPeer('tab-topic');
     await joinTopicTool(topic.page, url, 'tab-t');
@@ -377,7 +445,7 @@ test.describe('見出しの Tab の順は見た目の順', () => {
     for (const width of [320, 390, 639, 640, 660, 668, 768, 1280]) {
       await page.setViewportSize({ width, height: 900 });
       await expectHeaderTabOrderFollowsSight(page, `poker 見出しの Tab（お題あり・${width}）`);
-      await expectTabOrderWithShareOpen(page, `poker 見出しの Tab（お題あり・${width}）`);
+      if (width < 640) await expectTabOrderWithShareOpen(page, `poker 見出しの Tab（お題あり・${width}）`);
       await expectBackAlignedWithTitle(page, `poker 戻る（お題あり・${width}）`);
     }
   });

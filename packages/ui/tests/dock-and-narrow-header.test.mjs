@@ -55,9 +55,17 @@ test('Given 40rem 未満の帯 / When ボタンの余白を読む / Then 320px �
   assert.match(body, /min-width:\s*0;/);
 });
 
+test('Given 40rem 未満の帯 / When [hidden] の規則を読む / Then 数えない子は描かない（.ui-button の display が UA の [hidden] に勝つため）', () => {
+  assert.match(only(dockRules(), '.ui-actions--dock > [hidden]'), /display:\s*none;/);
+});
+
+test('Given 選択欄の約束 / When 規則を読む / Then 選択欄は 1 段（位置の約束は README と E2E の dockFacts が守る）', () => {
+  assert.match(readFileSync(resolve(COMPONENTS, '../../README.md'), 'utf8'), /選択欄（`<select>`）は\*\*先頭に置き\*\*、1 段を使う。\*\*選択欄があれば、続く操作は 2 つまで\*\*/);
+});
+
 test('Given 40rem 未満の帯 / When 選択欄と控えの包みの規則を読む / Then 位置によらず 1 段を使い、:has で奇数の数え方を上書きしない', () => {
   const list = dockRules();
-  assert.match(only(list, '.ui-actions--dock > select,\n  .ui-actions--dock > .ui-actions-start'), /grid-column:\s*1\s*\/\s*-1;/);
+  assert.match(only(list, '.ui-actions--dock > select, .ui-actions--dock > .ui-actions-start'), /grid-column:\s*1\s*\/\s*-1;/);
   assert.ok(!list.some((r) => r.selector.includes(':has(')), '帯の規則が :has で子の並びを上書きしている');
 });
 
@@ -65,17 +73,12 @@ test('Given 40rem 未満の帯 / When 上の線を読む / Then 線は --dock-ed
   assert.match(only(dockRules(), '.ui-actions--dock'), /border-top:\s*1px solid var\(--dock-edge\);/);
 });
 
-test('Given 招待の URL を描く部品 / When RoomHeader の字を読む / Then URL の span に title で全文を持たせる（省略された末尾を目で確かめる）', () => {
-  const tsx = readFileSync(resolve(COMPONENTS, '../../../invite-ui/src/RoomHeader.tsx'), 'utf8');
-  assert.match(tsx, /className="ui-invite-url" title=\{inviteUrl\}/);
-});
-
 test('Given 40rem 未満の通常の見出し / When 並びを読む / Then 折り返す flex に並べ直し、題は全幅の 1 段（4 段に積まない）', () => {
   const list = headerRules();
   const body = only(list, NOT_COMPACT);
   assert.match(body, /display:\s*flex;/);
   assert.match(body, /flex-wrap:\s*wrap;/);
-  assert.match(only(list, `${NOT_COMPACT} .ui-page-header,\n  ${NOT_COMPACT} .ui-room-header-title`), /display:\s*contents;/);
+  assert.match(only(list, `${NOT_COMPACT} .ui-page-header, ${NOT_COMPACT} .ui-room-header-title`), /display:\s*contents;/);
   assert.match(only(list, `${NOT_COMPACT} .ui-room-header-title > h1`), /flex:\s*1 1 100%;/);
 });
 

@@ -36,9 +36,12 @@ describe('手元の操作の帯', () => {
 
   it('Given 帯の下の余白 / When 式を見る / Then 帯の高さの変数 ＋ env(safe-area-inset-bottom)（帯も同じ safe-area を足している）', () => {
     expect(bodyWith('.run-controls', 'position: fixed')).toMatch(/calc\(var\(--space-4\) \+ env\(safe-area-inset-bottom\)\)/);
-    const run = bodyWith('.run', '--run-controls-height');
-    expect(run).toMatch(/--run-controls-height:\s*10rem;/);
+    const run = bodyWith('.run', 'padding-bottom: calc(');
     expect(run).toMatch(/padding-bottom:\s*calc\(var\(--run-controls-height\) \+ env\(safe-area-inset-bottom\)\);/);
+    // 変数は html に 1 か所。Tab の送り先の余白（scroll-padding）も同じ値で、64rem 未満だけ（帯が fixed の幅）
+    const root = bodyWith('html:has(.run-controls)', '--run-controls-height');
+    expect(root).toMatch(/--run-controls-height:\s*10\.5rem;/);
+    expect(root).toMatch(/scroll-padding-block-end:\s*calc\(var\(--run-controls-height\) \+ env\(safe-area-inset-bottom\)\);/);
   });
 });
 
