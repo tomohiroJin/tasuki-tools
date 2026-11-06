@@ -18,7 +18,8 @@ permissions:
 env:
   COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
 
-# 同じ ref で 2 本重ねて流すと、同じ runner の資源を奪い合って揺れを増やす。後から起こした方は待たせ、打ち切らない。
+# 同じ ref で重ねて流すと、同じ資源を奪い合って揺れを増やす。待つのは 1 本までで、3 本目を起こすと待っていた方が取り消される
+  # （cancel-in-progress: false は走っている実行を打ち切らない）。
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
@@ -28,9 +29,10 @@ jobs:
     runs-on: ubuntu-latest
     # 上限 = 準備と後片付け 15 分 + 回数 × 6 分。ci.yml の e2e は 1 回で約 4.5 分（準備を除く pnpm e2e は 2026-11-05 の
     # main の 3 回で 4〜4.6 分）。繰り返しは並列に流れるので、回数に比例するとみなすのは上限としては安全側。
-    # 回数は choice（最大 20 で 135 分）に絞ってあり、固まったときに既定の 360 分まで待たない。
+    # GitHub Actions の式は算術を持たないので、回数ごとの上限を表で引く（回数 × 6 + 15。選べる回数がすべて表にあることは
+    # scripts/e2e-repeat-workflow.test.mjs が見る）。最大 20 回で 135 分で、固まったときに既定の 360 分まで待たない。
     # 実測が上限の半分に収まらない・超えそうなら、上げる前に回数か並べ方を見直す。
-    timeout-minutes: ${{ fromJSON(inputs.repeat) * 6 + 15 }}
+    timeout-minutes: ${{ fromJSON('{"3":33,"5":45,"10":75,"20":135}')[inputs.repeat] }}
     steps:
       # ここから `pnpm build` までは ci.yml の e2e ジョブと同じ準備。**写しなので、ずれたら
       # scripts/e2e-repeat-workflow.test.mjs が落ちる**（ci.yml の `scope` の段と、それを見る `if:` だけが違う。
@@ -82,6 +84,7 @@ jobs:
 
       # ここから先がこのワークフロー固有。
       # - `--retries=0`: CI（CI=true）の設定は再試行 1 回。再試行で隠れる揺れを数えるために 0 にする。
+      # - `--trace=retain-on-failure`: 設定の trace は on-first-retry で、retries 0 では作られない。揺れの原因を追うために落ちた回の trace を残す。
       # - `--max-failures` は付けない: 落ちても最後まで流す。
       # - reporter は設定の list・html のうち html を json に替える（--reporter は設定を丸ごと置き換える）。
       #   JSON の出力先は環境変数で渡す（turbo.json の e2e の passThroughEnv に宣言がある）。
@@ -92,7 +95,7 @@ jobs:
           PLAYWRIGHT_JSON_OUTPUT_NAME: ${{ runner.temp }}/e2e-repeat/results.json
         run: |
           mkdir -p "$RUNNER_TEMP/e2e-repeat"
-          pnpm e2e -- --repeat-each="$REPEAT" --retries=0 --reporter=list,json
+          pnpm e2e -- --repeat-each="$REPEAT" --retries=0 --trace=retain-on-failure --reporter=list,json
 
       # 落ちても、E2E の段が赤でも要約を出す。結果が読めないときはこの段が赤になる（空の要約で緑にしない）。
       - name: 集計（job summary）

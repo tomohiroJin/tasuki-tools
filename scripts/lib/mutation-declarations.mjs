@@ -116,6 +116,9 @@ const RESERVED_1040_1049 =
 const RESERVED_1050_1059 =
   "**対応表より後に足した変異。** 1050〜1059 は #542 の続き（/code-review の指摘）に割り当てた範囲。";
 
+const RESERVED_1060_1069 =
+  "**対応表より後に足した変異。** 1060〜1069 は #562（E2E の繰り返し実行の集計と、ci.yml との写しの比較）に割り当てた範囲。";
+
 export const MUTATIONS = [
   {
     id: 1,
@@ -6317,5 +6320,53 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["lib/process-alive.test.mjs", "mutation-check-liveness.test.mjs"],
     note: RESERVED_1050_1059 + " " + "#542 の /code-review。ロックの拒否と作業ツリーの掃除の pid の境界が割れる、または範囲外の pid が生死の判定に渡る。",
+  },
+  {
+    id: 1060,
+    label: "E2E 繰り返しの集計が、1 回の実行の最後でなく最初の結果を数える",
+    patch: "m1060-summarize-counts-first-result.patch",
+    pkg: "scripts",
+    tests: ["summarize-e2e-repeat.test.mjs"],
+    note: RESERVED_1060_1069 + " " + "#562 のレビュー。再試行つきで流したとき、失敗して再試行で通った回を失敗に数え、繰り返しの数と成功・失敗の数が食い違う。",
+  },
+  {
+    id: 1061,
+    label: "E2E 繰り返しの集計が、結果の無いテストを成功に数える",
+    patch: "m1061-summarize-counts-empty-as-pass.patch",
+    pkg: "scripts",
+    tests: ["summarize-e2e-repeat.test.mjs"],
+    note: RESERVED_1060_1069 + " " + "#562 のレビュー。実行されなかったテストが成功の回数を水増しし、揺れの測定が実際より安定して見える。",
+  },
+  {
+    id: 1062,
+    label: "E2E 繰り返しの集計が、reporter の errors が 1 件だけのとき要約に出さない",
+    patch: "m1062-summarize-hides-single-error.patch",
+    pkg: "scripts",
+    tests: ["summarize-e2e-repeat.test.mjs"],
+    note: RESERVED_1060_1069 + " " + "#562 のレビュー。globalSetup の失敗（errors に 1 件・suites が空）の原因が要約に出ず、「1 件のテストもありません」だけが残る。",
+  },
+  {
+    id: 1063,
+    label: "turbo の e2e タスクが PLAYWRIGHT_JSON_OUTPUT_NAME を渡さない",
+    patch: "m1063-turbo-e2e-drops-json-output-name.patch",
+    pkg: "scripts",
+    tests: ["e2e-repeat-workflow.test.mjs"],
+    note: RESERVED_1060_1069 + " " + "#562 のレビュー。strict モードで JSON の出力先が届かず、繰り返し実行の結果のファイルが残らない（集計が「結果が無い」で止まる）。",
+  },
+  {
+    id: 1064,
+    label: "ワークフローの写しの比較が、steps.scope の除去を写しの側にもかける",
+    patch: "m1064-workflow-compare-strips-scope-both-sides.patch",
+    pkg: "scripts",
+    tests: ["e2e-repeat-workflow.test.mjs"],
+    note: RESERVED_1060_1069 + " " + "#562 のレビュー。e2e-repeat.yml に steps.scope を見る if が残っても一致と見なされ、本番では Chromium の導入が飛ばされる。",
+  },
+  {
+    id: 1065,
+    label: "ワークフローの写しの比較が、build から pnpm e2e の間の段を見ない",
+    patch: "m1065-workflow-compare-ignores-steps-after-build.patch",
+    pkg: "scripts",
+    tests: ["e2e-repeat-workflow.test.mjs"],
+    note: RESERVED_1060_1069 + " " + "#562 のレビュー。ci.yml の e2e が build と pnpm e2e の間に段を足しても、写しのずれが黙って通る。",
   },
 ];

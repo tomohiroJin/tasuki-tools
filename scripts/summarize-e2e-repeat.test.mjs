@@ -111,6 +111,46 @@ describe("classifyFailures・formatMarkdown・formatFailureList", () => {
   });
 });
 
+// globalSetup が落ちたときの実際の形（suites が空・errors に 1 件）を写した最小の fixture
+const SETUP_FAILED = {
+  suites: [],
+  errors: [{ message: "Error: 開発環境の版が宣言と合いません（上の [check-toolchain] の出力）。\n    at assertToolchain (x.ts:24:9)", stack: "…" }],
+  stats: { duration: 211 },
+};
+
+describe("reporter の errors（globalSetup の失敗など）", () => {
+  test("errors の先頭行を集める。無ければ空", () => {
+    assert.deepEqual(summarize(SETUP_FAILED).errors, ["Error: 開発環境の版が宣言と合いません（上の [check-toolchain] の出力）。"]);
+    assert.deepEqual(summarize(report()).errors, []);
+  });
+
+  test("テストが通っていても errors があれば要約に出す", () => {
+    const md = formatMarkdown(summarize({ ...report(), errors: SETUP_FAILED.errors }));
+    assert.match(md, /reporter のエラー: 1 件/);
+    assert.match(md, /開発環境の版が宣言と合いません/);
+    assert.doesNotMatch(formatMarkdown(summarize(report())), /reporter のエラー/);
+  });
+
+  test("配線: テストが 0 件で errors があるとき、中身を要約に出して終了コード 1。通っていて errors があるときは 0", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "summarize-e2e-repeat-errors-"));
+    try {
+      const failed = path.join(dir, "gs.json");
+      const mixed = path.join(dir, "mixed.json");
+      fs.writeFileSync(failed, JSON.stringify(SETUP_FAILED));
+      fs.writeFileSync(mixed, JSON.stringify({ ...report(), errors: SETUP_FAILED.errors }));
+      const a = spawnSync(process.execPath, [SCRIPT, failed], { encoding: "utf8" });
+      assert.equal(a.status, 1);
+      assert.match(a.stdout, /開発環境の版が宣言と合いません/);
+      assert.match(a.stderr, /1 件のテストもありません/);
+      const b = spawnSync(process.execPath, [SCRIPT, mixed], { encoding: "utf8" });
+      assert.equal(b.status, 0, b.stderr);
+      assert.match(b.stdout, /reporter のエラー: 1 件/);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("parseArgs", () => {
   test("入力と --failures-out を読む。足りない・余るときは投げる", () => {
     assert.deepEqual(parseArgs(["r.json", "--failures-out", "f.txt"]), { input: "r.json", failuresOut: "f.txt" });

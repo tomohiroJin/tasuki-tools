@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/workflow-compare.mjs b/scripts/lib/workflow-compare.mjs
+index 7914385..d3d7813 100644
+--- a/scripts/lib/workflow-compare.mjs
++++ b/scripts/lib/workflow-compare.mjs
+@@ -45,7 +45,7 @@ export function splitE2eSteps(workflow, jobName, { stripScope }) {
+       .slice(0, build + 1)
+       .filter((s) => !/^\s*- id: scope\s*$/m.test(code(s)))
+       .map(norm),
+-    between: steps.slice(build + 1, e2e).map(norm),
++    between: [],
+   };
+ }
+ 

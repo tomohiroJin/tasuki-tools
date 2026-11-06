@@ -908,9 +908,9 @@ gh run list --workflow e2e-repeat.yml --limit 1               # 起こした実�
 ```
 
 中身は `ci.yml` の `e2e` ジョブと同じ準備（action の固定・Chromium と Caddy の取得とキャッシュ・`pnpm build`）のあと、
-`pnpm e2e -- --repeat-each=<回数> --retries=0 --reporter=list,json` を流します。再試行（CI の設定では 1 回）で揺れが隠れないよう 0 にし、
-`--max-failures` は付けずに最後まで流します。`ci.yml` との写しがずれたら `scripts/e2e-repeat-workflow.test.mjs` が落ちます。
-所要時間の上限（`timeout-minutes`）は「15 分 + 回数 × 6 分」です（`ci.yml` の E2E は 1 回で約 4.5 分）。
+`pnpm e2e -- --repeat-each=<回数> --retries=0 --trace=retain-on-failure --reporter=list,json` を流します。再試行（CI の設定では 1 回）で揺れが隠れないよう 0 にし、
+`--max-failures` は付けずに最後まで流します。落ちた回の trace を残すため `--trace=retain-on-failure` を付けます（設定の既定は retries 0 では trace を作りません）。`ci.yml` との写しがずれたら `scripts/e2e-repeat-workflow.test.mjs` が落ちます。
+所要時間の上限（`timeout-minutes`）は「15 分 + 回数 × 6 分」を、回数ごとの表で引きます（式に算術が無いため）（`ci.yml` の E2E は 1 回で約 4.5 分）。
 
 **結果の読み方**:
 

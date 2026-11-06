@@ -1,0 +1,13 @@
+diff --git a/scripts/summarize-e2e-repeat.mjs b/scripts/summarize-e2e-repeat.mjs
+index ccd773d..5e33381 100644
+--- a/scripts/summarize-e2e-repeat.mjs
++++ b/scripts/summarize-e2e-repeat.mjs
+@@ -52,7 +52,7 @@ export function summarize(report) {
+     const key = project ? `${id} [${project}]` : id;
+     const row = byId.get(key) ?? { id: key, pass: 0, fail: 0, skip: 0 };
+     if (results.length > 0) row[classify(results[results.length - 1].status)]++;
+-    else row.skip++;
++    else row.pass++;
+     byId.set(key, row);
+   }
+   const tests = [...byId.values()].sort(

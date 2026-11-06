@@ -41,7 +41,7 @@ function* walkSpecs(suites, path = []) {
 
 /**
  * JSON reporter の出力を集計する。
- * @returns {{ tests: Array<{ id: string, pass: number, fail: number, skip: number }>, totals: { tests: number, runs: number, pass: number, fail: number, skip: number }, durationMs: number | null }}
+ * @returns {{ errors: string[], tests: Array<{ id: string, pass: number, fail: number, skip: number }>, totals: { tests: number, runs: number, pass: number, fail: number, skip: number }, durationMs: number | null }}
  */
 export function summarize(report) {
   if (report === null || typeof report !== "object" || !Array.isArray(report.suites)) {
@@ -66,7 +66,11 @@ export function summarize(report) {
   }
   totals.runs = totals.pass + totals.fail + totals.skip;
   const durationMs = typeof report.stats?.duration === "number" ? report.stats.duration : null;
-  return { tests, totals, durationMs };
+  // globalSetup の失敗などは suites ではなく errors に出る（suites が空になる）。先頭行だけを集める。
+  const errors = (Array.isArray(report.errors) ? report.errors : [])
+    .map((e) => String(e?.message ?? "").split("\n")[0].trim())
+    .map((m) => m || "（メッセージなし）");
+  return { tests, totals, durationMs, errors };
 }
 
 /** 落ちたテストを「いつも落ちる」「揺れた」に分ける。 */
@@ -89,9 +93,14 @@ function formatDuration(ms) {
 
 /** job summary 用の Markdown。 */
 export function formatMarkdown(summary) {
-  const { tests, totals, durationMs } = summary;
+  const { tests, totals, durationMs, errors } = summary;
   const { always, flaky } = classifyFailures(tests);
   const out = ["## E2E の繰り返し実行の結果", ""];
+  if (errors.length > 0) {
+    out.push(`**reporter のエラー: ${errors.length} 件**（globalSetup の失敗など。テストの結果とは別に出る）`, "");
+    for (const m of errors) out.push(`- ${escapeCell(m)}`);
+    out.push("");
+  }
   out.push(
     `- テスト ${totals.tests} 件・実行 ${totals.runs} 回（成功 ${totals.pass} / 失敗 ${totals.fail} / 飛ばし ${totals.skip}）`,
   );
@@ -137,8 +146,12 @@ function main() {
   try {
     const { input, failuresOut } = parseArgs(process.argv.slice(2));
     const summary = summarize(JSON.parse(fs.readFileSync(input, "utf8")));
-    if (summary.totals.runs === 0) throw new Error("結果に 1 件のテストもありません（reporter の出力が空）");
     if (failuresOut !== null) fs.writeFileSync(failuresOut, formatFailureList(summary.tests));
+    if (summary.totals.runs === 0) {
+      // 空の要約で緑にしない。errors があれば、原因として要約に出してから止める
+      if (summary.errors.length > 0) process.stdout.write(formatMarkdown(summary));
+      throw new Error("結果に 1 件のテストもありません（reporter の出力が空）");
+    }
     process.stdout.write(formatMarkdown(summary));
   } catch (e) {
     console.error(`[summarize-e2e-repeat] ${e instanceof Error ? e.message : String(e)}`);

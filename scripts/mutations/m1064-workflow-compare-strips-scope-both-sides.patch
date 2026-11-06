@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/workflow-compare.mjs b/scripts/lib/workflow-compare.mjs
+index 7914385..d660cae 100644
+--- a/scripts/lib/workflow-compare.mjs
++++ b/scripts/lib/workflow-compare.mjs
+@@ -16,7 +16,7 @@ export function normalizeStep(text, { stripScope = false } = {}) {
+   return text
+     .split("\n")
+     .filter((l) => !/^\s*#/.test(l) && l.trim() !== "")
+-    .map((l) => (stripScope ? l.replace(SCOPE_AND, "$1").replace(SCOPE_ONLY, "") : l))
++    .map((l) => (true ? l.replace(SCOPE_AND, "$1").replace(SCOPE_ONLY, "") : l))
+     .filter((l) => l !== "")
+     .join("\n");
+ }

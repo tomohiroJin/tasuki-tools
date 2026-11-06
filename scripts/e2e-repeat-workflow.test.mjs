@@ -16,44 +16,20 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { splitJobs, splitSteps } from "./lib/workflow.mjs";
 import { deriveChecks } from "./local-check.mjs";
+import { splitE2eSteps, jobLevelKeys } from "./lib/workflow-compare.mjs";
 
 const read = (rel) => fs.readFileSync(new URL(`../${rel}`, import.meta.url), "utf8");
 const CI = read(".github/workflows/ci.yml");
 const REPEAT = read(".github/workflows/e2e-repeat.yml");
 
-/** コメント行を外し、`scope` の段と、それを見る `if:` の条件を外す。 */
-export function normalizeStep(text) {
-  return text
-    .split("\n")
-    .filter((l) => !/^\s*#/.test(l) && l.trim() !== "")
-    .map((l) =>
-      l
-        .replace(/^(\s*if: )steps\.scope\.outputs\.code == 'true' && /, "$1")
-        .replace(/^\s*if: steps\.scope\.outputs\.code == 'true'\s*$/, ""),
-    )
-    .filter((l) => l !== "")
-    .join("\n");
-}
-
-/** ジョブの準備の段（`pnpm build` まで）。`scope` の段は外す。 */
-export function prepSteps(workflow, jobName) {
-  const job = splitJobs(workflow).find((j) => j.name === jobName);
-  assert.ok(job, `${jobName} ジョブがありません`);
-  const steps = splitSteps(job.lines).map((s) => s.text);
-  const end = steps.findIndex((s) => /^\s*- run: pnpm build\s*$/m.test(s.split("\n").filter((l) => !/^\s*#/.test(l)).join("\n")));
-  assert.ok(end >= 0, `${jobName} に pnpm build の段がありません`);
-  return steps
-    .slice(0, end + 1)
-    .filter((s) => !/^\s*- id: scope\s*$/m.test(s.split("\n").filter((l) => !/^\s*#/.test(l)).join("\n")))
-    .map(normalizeStep);
-}
+const ciSteps = () => splitE2eSteps(CI, "e2e", { stripScope: true });
+const repeatSteps = (text = REPEAT) => splitE2eSteps(text, "e2e-repeat", { stripScope: false });
 
 describe("準備の段が ci.yml の e2e ジョブと同じ", () => {
   test("checkout・toolchain・setup-node・corepack・setup-bun・install・Caddy・Playwright・build が同じ", () => {
-    const ci = prepSteps(CI, "e2e");
-    const repeat = prepSteps(REPEAT, "e2e-repeat");
-    assert.ok(ci.length >= 10, `ci.yml の準備の段が少なすぎます（${ci.length}）。読み違いの疑い`);
-    assert.deepEqual(repeat, ci);
+    const ci = ciSteps();
+    assert.ok(ci.prep.length >= 10, `ci.yml の準備の段が少なすぎます（${ci.prep.length}）。読み違いの疑い`);
+    assert.deepEqual(repeatSteps().prep, ci.prep);
   });
 
   test("ずれたら捕まえる: action の固定・Chromium の取得・Playwright の版の読み方を変えた写しは同じと見なさない", () => {
@@ -64,8 +40,38 @@ describe("準備の段が ci.yml の e2e ジョブと同じ", () => {
       ["key: playwright-${{ steps.playwright-version.outputs.version }}-chromium", "key: playwright-chromium"],
     ]) {
       assert.ok(REPEAT.includes(from), `前提: 写しに ${from} があること`);
-      assert.notDeepEqual(prepSteps(REPEAT.replace(from, to), "e2e-repeat"), prepSteps(CI, "e2e"), from);
+      assert.notDeepEqual(repeatSteps(REPEAT.replace(from, to)).prep, ciSteps().prep, from);
     }
+  });
+
+  test("写しの側に steps.scope が残ったら不一致（本番では Chromium の導入が飛ばされる形）。正規化は ci.yml 側だけ", () => {
+    assert.ok(!/steps\.scope/.test(REPEAT.split("\n").filter((l) => !/^\s*#/.test(l)).join("\n")), "e2e-repeat.yml が steps.scope を見ている");
+    const leaked = REPEAT.replace(
+      "if: steps.playwright-cache.outputs.cache-hit != 'true'",
+      "if: steps.scope.outputs.code == 'true' && steps.playwright-cache.outputs.cache-hit != 'true'",
+    );
+    assert.notEqual(leaked, REPEAT, "前提: 置き換えが当たること");
+    assert.notDeepEqual(repeatSteps(leaked).prep, ciSteps().prep);
+  });
+
+  test("build から pnpm e2e までの間に段が無い。ci.yml が間に段を足したら、ここも直す（黙って通さない）", () => {
+    assert.deepEqual(ciSteps().between, [], "ci.yml の build と pnpm e2e の間に段が増えた。e2e-repeat.yml へも写してください");
+    assert.deepEqual(repeatSteps().between, []);
+    const withExtra = CI.replace("      - run: pnpm e2e\n", "      - run: node scripts/extra-e2e-setup.mjs\n        if: steps.scope.outputs.code == 'true'\n      - run: pnpm e2e\n");
+    assert.notEqual(withExtra, CI, "前提: 置き換えが当たること");
+    assert.equal(splitE2eSteps(withExtra, "e2e", { stripScope: true }).between.length, 1);
+  });
+
+  test("ジョブ直下の設定（env・container・services など）を足していない。runs-on と、workflow 直下の env が同じ", () => {
+    assert.deepEqual(jobLevelKeys(CI, "e2e"), ["runs-on", "steps"], "ci.yml の e2e ジョブに設定が増えた。写しへの影響を見てください");
+    const allowed = ["runs-on", "timeout-minutes", "steps"];
+    assert.deepEqual(jobLevelKeys(REPEAT, "e2e-repeat"), allowed);
+    const line = (text, re) => re.exec(text)?.[0];
+    assert.equal(line(REPEAT, /^ {4}runs-on: .+$/m), line(CI, /^ {4}runs-on: .+$/m));
+    assert.equal(line(REPEAT, /^env:\n {2}COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"$/m), line(CI, /^env:\n {2}COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"$/m));
+    assert.ok(line(CI, /^env:\n {2}COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"$/m));
+    // env を足した ci.yml は検出できる
+    assert.notDeepEqual(jobLevelKeys(CI.replace("  e2e:\n    runs-on: ubuntu-latest\n", "  e2e:\n    runs-on: ubuntu-latest\n    env:\n      X: 1\n"), "e2e"), ["runs-on", "steps"]);
   });
 });
 
@@ -82,11 +88,18 @@ describe("手動の測定用に留まる", () => {
     assert.match(head, /^permissions:\n {2}contents: read\n/m);
   });
 
-  test("回数は選択式で上限があり、timeout-minutes を回数から決める", () => {
-    const options = /options: \[([^\]]*)\]/.exec(head)?.[1].split(",").map((s) => Number(s.trim().replaceAll('"', "")));
-    assert.ok(options && options.length > 0 && options.every(Number.isInteger));
-    assert.match(REPEAT, /timeout-minutes: \$\{\{ fromJSON\(inputs\.repeat\) \* \d+ \+ \d+ \}\}/);
-    assert.ok(Math.max(...options) * 6 + 15 <= 360, "上限が GitHub の最大（360 分）を超える");
+  test("回数は選択式で、選べる値がすべて timeout-minutes の対応表にあり、上限に収まる（式は算術を持たないので表で引く）", () => {
+    const options = /options: \[([^\]]*)\]/.exec(head)?.[1].split(",").map((s) => s.trim().replaceAll('"', ""));
+    assert.ok(options && options.length > 0 && options.every((o) => /^\d+$/.test(o)));
+    const m = /timeout-minutes: \$\{\{ fromJSON\('(\{[^']*\})'\)\[inputs\.repeat\] \}\}/.exec(REPEAT);
+    assert.ok(m, "timeout-minutes は fromJSON('{…}')[inputs.repeat] の対応表で引いてください");
+    const table = JSON.parse(m[1]);
+    assert.deepEqual(Object.keys(table).sort(), [...options].sort(), "選べる回数と表の鍵が一致しません");
+    for (const n of options) {
+      assert.ok(table[n] >= Number(n) * 6 + 15, `${n} 回の上限 ${table[n]} 分が 回数 × 6 + 15 に足りない`);
+      assert.ok(table[n] <= 360, `${n} 回の上限が GitHub の最大（360 分）を超える`);
+    }
+    assert.doesNotMatch(REPEAT, /timeout-minutes:.*[*+]/, "式に算術は書けません");
   });
 });
 
@@ -94,7 +107,7 @@ describe("測るための引数と結果の残し方", () => {
   const code = REPEAT.split("\n").filter((l) => !/^\s*#/.test(l)).join("\n");
 
   test("--repeat-each は入力から・--retries=0・JSON reporter。--max-failures は付けない", () => {
-    assert.match(code, /pnpm e2e -- --repeat-each="\$REPEAT" --retries=0 --reporter=list,json/);
+    assert.match(code, /pnpm e2e -- --repeat-each="\$REPEAT" --retries=0 --trace=retain-on-failure --reporter=list,json/);
     assert.match(code, /REPEAT: \$\{\{ inputs\.repeat \}\}/);
     assert.doesNotMatch(code, /max-failures/);
     assert.doesNotMatch(code, /run:.*\$\{\{ inputs\./);
