@@ -149,7 +149,8 @@ test('Given roulette のいつものメンツ / When 区画と見出しの行を
 });
 
 test('Given timer の見出しの行 / When SectionHeader と共有メモを探す / Then どちらも ui-section-head', () => {
-  assert.ok(classNameOf(read('apps/timer-web/src/ui/primitives.tsx'), 'section-header').includes('ui-section-head'));
+  // className は beside の有無で選ぶ式なので、2 つの文字列のどちらにも ui-section-head があることを見る
+  assert.equal([...read('apps/timer-web/src/ui/primitives.tsx').matchAll(/"section-header[^"]*ui-section-head"/g)].length, 2);
   assert.ok(classNameOf(read('apps/timer-web/src/ui/components/SharedMemo.tsx'), 'shared-memo-header').includes('ui-section-head'));
 });
 
@@ -176,4 +177,18 @@ test('Given roulette の空の知らせ / When :empty の規則を読む / Then 
   assert.doesNotMatch(body, /margin[^:]*:\s*calc\(\s*-/);
   assert.doesNotMatch(body, /display:\s*none/);
   assert.match(body, /position:\s*absolute;/);
+});
+
+test('Given timer の名簿の見出しの行 / When SectionHeader の使い方と規則を読む / Then ロビーと名簿は beside で操作を見出しの隣へ寄せる（行の反対の端へ離さない）', () => {
+  assert.match(read('apps/timer-web/src/ui/Lobby.tsx'), /<SectionHeader\s[^>]*\bbeside\b/);
+  assert.match(read('apps/timer-web/src/ui/components/RosterPanel.tsx'), /<SectionHeader\s[^>]*\bbeside\b/);
+  assert.match(read('apps/timer-web/src/ui/primitives.tsx'), /section-header--beside/);
+  assert.match(ruleBody(read('apps/timer-web/src/styles/primitives.css'), '.section-header--beside') ?? '', /justify-content:\s*flex-start;/);
+});
+
+test('Given poker の束のポイントの選択 / When 規則を読む / Then 名前の列を主にするため選択欄を行の 45% までに縮め、字は 16px の下限を割らない', () => {
+  const body = ruleBody(read('apps/poker-web/src/index.css'), '.estimate-log .estimate-group-points') ?? '';
+  assert.match(body, /max-inline-size:\s*45%;/);
+  assert.match(body, /min-width:\s*0;/);
+  assert.doesNotMatch(body, /font-size:\s*[0-9.]+(px|rem)/);
 });

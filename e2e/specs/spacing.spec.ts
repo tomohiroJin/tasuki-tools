@@ -57,14 +57,14 @@ async function paragraphGaps(page: Page): Promise<number[]> {
 /**
  * 見出し（テキストが `headingText` に完全一致する h2）を持つ見出しの行（`.ui-section-head`）を先に決め、その行の中で
  * `actionLabel` の操作を探して、次のどちらかであることを測る（#553・ADR 0035）。
- *   ① 見出しと同じ行に収まる（操作の上端が見出しを持つ要素の下端より上）
+ *   ① 見出しと同じ行に収まる（操作の上端が見出しを持つ要素の下端より上）。`maxGap` を渡したときは、見出しとの横の間の上限も測る
  *   ② 折り返したときは、操作の上端と見出しの下端の間が `--space-2`（8px）±1px で、操作の左端が見出しの左端に揃う（右へ寄せない）
  * 「行の中にあるか」だけでは、操作が見出しから離れて右寄せで下の行に落ちても緑になる。
  * 行を先に決めるので、行の外に同じ名前の操作があっても拾わない（操作が行の外へ出たら「行の中に無い」で赤になる）。
  * 「見出しを持つ要素」は、行の直下の子のうち h2 を含むもの（timer はアイコンと h2 を包む `.section-header-lead`）。
  * 操作は `aria-label` か可視の文字で探し、位置は行の直下の子（操作が塊に入っていれば塊）で測る。
  */
-async function expectActionsBelongToHeading(page: Page, headingText: string, actionLabel: string, label: string): Promise<void> {
+async function expectActionsBelongToHeading(page: Page, headingText: string, actionLabel: string, label: string, maxGap?: number): Promise<void> {
   const m = await page.evaluate(
     ({ headingText, actionLabel }) => {
       const heading = [...document.querySelectorAll('h2')].find((h) => (h.textContent ?? '').trim() === headingText);
@@ -81,12 +81,14 @@ async function expectActionsBelongToHeading(page: Page, headingText: string, act
       const group = [...row.children].find((c) => c.contains(action)) ?? action;
       const first = group.matches('button') ? group : (group.querySelector('button') ?? group);
       const a = { top: group.getBoundingClientRect().top, left: first.getBoundingClientRect().left };
-      return { found: 'ok' as const, sameLine: a.top < h.bottom - 0.5, below: a.top - h.bottom, leftDelta: a.left - h.left };
+      return { found: 'ok' as const, sameLine: a.top < h.bottom - 0.5, below: a.top - h.bottom, leftDelta: a.left - h.left, gap: a.left - h.right };
     },
     { headingText, actionLabel },
   );
   expect(m.found, `${label}: 見出し「${headingText}」の行の中に操作「${actionLabel}」がある（'heading' は見出しの行が無い・'action' は行の中に操作が無い）`).toBe('ok');
   if (m.found !== 'ok') return;
+  // 同じ行なら、操作は見出しの隣にある（見出しから行の反対の端まで離れない）。上限は poker の参加者の欄と同じ 24px
+  if (m.sameLine && maxGap !== undefined) expect(m.gap, `${label}: 見出しと「${actionLabel}」の横の間（上限 ${String(maxGap)}px）`).toBeLessThanOrEqual(maxGap);
   if (!m.sameLine) {
     expect(Math.abs(m.below - SPACE_2), `${label}: 折り返した「${actionLabel}」と見出しの間は 8px`).toBeLessThanOrEqual(1);
     expect(Math.abs(m.leftDelta), `${label}: 折り返した「${actionLabel}」の左端は見出しの左端に揃う`).toBeLessThanOrEqual(1);
@@ -139,10 +141,13 @@ test.describe('縦に並ぶブロックの間は親が持つ', () => {
         if (head === undefined || name === null || name === undefined || points === null || points === undefined) return null;
         const n = name.getBoundingClientRect();
         const p = points.getBoundingClientRect();
-        return { sameLine: p.top < n.bottom - 0.5, rightOfName: p.left >= n.right - 1, inside: p.right <= head.getBoundingClientRect().right + 1 };
+        return { sameLine: p.top < n.bottom - 0.5, rightOfName: p.left >= n.right - 1, inside: p.right <= head.getBoundingClientRect().right + 1, nameIsMain: n.width >= p.width, fontPx: parseFloat(getComputedStyle(points).fontSize) };
       });
       expect(m, `幅 ${String(width)}: 束の見出しの行が描かれている`).not.toBeNull();
-      expect(m, `幅 ${String(width)}: 名前の右（同じ行）にポイントがあり、行からはみ出さない`).toEqual({ sameLine: true, rightOfName: true, inside: true });
+      expect(m, `幅 ${String(width)}: 名前の右（同じ行）にポイントがあり、行からはみ出さない`).toMatchObject({ sameLine: true, rightOfName: true, inside: true });
+      // 名前の列を主にする（名前の列が選択欄より狭いと、長い名前が何行にも折れる）。選択欄の字は 16px の下限を割らない
+      expect(m!.nameIsMain, `幅 ${String(width)}: 名前の列は選択欄より広い`).toBe(true);
+      expect(m!.fontPx, `幅 ${String(width)}: 選択欄の字は 16px 以上`).toBeGreaterThanOrEqual(16);
     }
   });
 
@@ -172,21 +177,28 @@ test.describe('縦に並ぶブロックの間は親が持つ', () => {
     await joinAsDriver(guest.page, code, 'ゲスト');
     await expect(page.getByRole('listitem').filter({ hasText: 'ゲスト' })).toBeVisible();
     // ロビー（見出しは「参加者 (n人)」）
-    for (const width of [320, 1280] as const) {
+    for (const width of [320, 768, 1280] as const) {
       await page.setViewportSize({ width, height: 900 });
-      await expectActionsBelongToHeading(page, '参加者 (2人)', 'ドライバー順をランダムに並べ替える', `ロビー 幅 ${String(width)}`);
+      await expectActionsBelongToHeading(page, '参加者 (2人)', 'ドライバー順をランダムに並べ替える', `ロビー 幅 ${String(width)}`, 2 * SPACE_3);
     }
     await page.getByRole('button', { name: 'セッションを開始' }).click();
     await expect(page.getByRole('timer')).toBeVisible();
     for (const width of [320, 390, 1280] as const) {
       await page.setViewportSize({ width, height: 900 });
-      await expectActionsBelongToHeading(page, '参加者', 'ドライバー順をランダムに並べ替える', `セッション 幅 ${String(width)}`);
-      await expectActionsBelongToHeading(page, '参加者', '代理参加者を追加', `セッション 幅 ${String(width)}`);
+      await expectActionsBelongToHeading(page, '参加者', 'ドライバー順をランダムに並べ替える', `セッション 幅 ${String(width)}`, 2 * SPACE_3);
+      await expectActionsBelongToHeading(page, '参加者', '代理参加者を追加', `セッション 幅 ${String(width)}`, 2 * SPACE_3);
     }
     // 共有メモの「編集」も同じ約束（脇が 22rem の 1280 と、320）
     for (const width of [320, 1280] as const) {
       await page.setViewportSize({ width, height: 900 });
       await expectActionsBelongToHeading(page, '共有メモ', '編集', `共有メモ 幅 ${String(width)}`);
+    }
+    // ルームのタブの名簿（広い幅ほど離れやすい。1024 では行が 577px あった）
+    await page.getByRole('tab', { name: 'ルーム' }).click();
+    for (const width of [390, 768, 1024, 1280] as const) {
+      await page.setViewportSize({ width, height: 900 });
+      await expectActionsBelongToHeading(page, '参加者', 'ドライバー順をランダムに並べ替える', `ルームのタブ 幅 ${String(width)}`, 2 * SPACE_3);
+      await expectActionsBelongToHeading(page, '参加者', '代理参加者を追加', `ルームのタブ 幅 ${String(width)}`, 2 * SPACE_3);
     }
   });
 
