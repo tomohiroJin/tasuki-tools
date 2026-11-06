@@ -1,0 +1,17 @@
+diff --git a/apps/roulette-web/src/index.css b/apps/roulette-web/src/index.css
+index 0fc3a54c..d663903b 100644
+--- a/apps/roulette-web/src/index.css
++++ b/apps/roulette-web/src/index.css
+@@ -766,11 +766,7 @@
+   overflow-wrap: anywhere;
+ }
+ .roulette-regulars-notice:empty {
+-  position: absolute;
+-  width: 1px;
+-  height: 1px;
+-  overflow: hidden;
+-  clip-path: inset(50%);
++  display: none;
+ }
+ .roulette-foot {
+   display: flex;

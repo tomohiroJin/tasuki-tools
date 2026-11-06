@@ -119,6 +119,9 @@ const RESERVED_1050_1059 =
 const RESERVED_1060_1069 =
   "**対応表より後に足した変異。** 1060〜1069 は #553 に割り当てた範囲（Issue の 1000〜1009 は #544 が先に使ったため、空いている帯へ移した）。";
 
+const RESERVED_1080_1089 =
+  "**対応表より後に足した変異。** 1080〜1089 は #553 に追加で割り当てた範囲（1060〜1069 を使い切ったため。敵対的レビューの指摘で足した）。";
+
 export const MUTATIONS = [
   {
     id: 1,
@@ -6392,5 +6395,37 @@ export const MUTATIONS = [
     pkg: "packages/ui",
     tests: ["tests/spacing-owner.test.mjs"],
     note: RESERVED_1060_1069 + " " + "#553。区画の中の縦の間を誰も持たなくなり、見出しの行と一覧が接する。",
+  },
+  {
+    id: 1069,
+    label: "timer の見出しの行の操作の塊を右寄せ（flex-end）に戻す",
+    patch: "m1069-timer-head-actions-right-aligned.patch",
+    pkg: "packages/ui",
+    tests: ["tests/spacing-owner.test.mjs"],
+    note: RESERVED_1060_1069 + " " + "#553。折り返したときに操作が見出しから離れて右寄せで下の行に落ち、どの見出しに効くか読めない（レビュー指摘）。",
+  },
+  {
+    id: 1080,
+    label: "roulette の空の知らせを display: none にする",
+    patch: "m1080-roulette-empty-notice-display-none.patch",
+    pkg: "packages/ui",
+    tests: ["tests/spacing-owner.test.mjs"],
+    note: RESERVED_1080_1089 + " " + "#553。role=status のライブリージョンが読み上げの木から外れ、あとから入る知らせが届かないことがある。",
+  },
+  {
+    id: 1081,
+    label: "roulette の空の知らせに負の余白を戻す（子が親の gap を打ち消す）",
+    patch: "m1081-roulette-empty-notice-negative-margin.patch",
+    pkg: "packages/ui",
+    tests: ["tests/spacing-owner.test.mjs"],
+    note: RESERVED_1080_1089 + " " + "#553。子が外側の余白を持たない約束（ADR-0035 決定 1）が文章だけに戻り、親の gap を子が打ち消す形が再発する。",
+  },
+  {
+    id: 1082,
+    label: ".ui-section-head の折り返した行の間を --space-2 から --space-1 にする",
+    patch: "m1082-section-head-row-gap-changed.patch",
+    pkg: "packages/ui",
+    tests: ["tests/spacing-owner.test.mjs"],
+    note: RESERVED_1080_1089 + " " + "#553。折り返した操作と見出しの間が ADR・README の値（8px）とずれ、E2E の 8px の判定も崩れる。",
   },
 ];

@@ -74,8 +74,11 @@ async function expectActionsBelongToHeading(page: Page, headingText: string, act
       if (heading === undefined || row === null || row === undefined || action === undefined) return null;
       const headBox = [...row.children].find((c) => c.contains(heading)) ?? heading;
       const h = headBox.getBoundingClientRect();
-      // 操作が塊（`.roster-panel-head-actions`）に入っているときは、塊の位置で測る（塊の中の 2 つ目の操作は塊の左端より右にある）
-      const a = ([...row.children].find((c) => c.contains(action)) ?? action).getBoundingClientRect();
+      // 操作が塊（`.roster-panel-head-actions`）に入っているときは、塊の最初のボタンの位置で測る。塊の箱は行の幅いっぱいに広げて
+      // 右寄せにもできる（箱の左端は揃うのに、ボタンは右に寄る）ので、見える端は箱でなくボタンで測る
+      const group = [...row.children].find((c) => c.contains(action)) ?? action;
+      const first = group.matches('button') ? group : (group.querySelector('button') ?? group);
+      const a = { top: group.getBoundingClientRect().top, left: first.getBoundingClientRect().left };
       return { contained: row.contains(action), sameLine: a.top < h.bottom - 0.5, below: a.top - h.bottom, leftDelta: a.left - h.left };
     },
     { headingText, actionLabel },
