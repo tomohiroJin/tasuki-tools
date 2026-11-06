@@ -760,7 +760,8 @@
   margin: 0;
 }
 /* 知らせは常に置く（読み上げの対象を最初から持つ）。空のあいだは流れから外して、親（`.ui-stack`）の gap を取らせない。
-   子が負の余白で親の gap を打ち消さない（ADR 0035 決定 1）。
+   子が負の余白で親の gap を打ち消さない（ADR 0035 決定 1）。下の `margin: -1px` は `.ui-visually-hidden` の宣言の写しで、
+   絶対配置（流れの外）なので親の gap にも兄弟の間にも効かない（負の余白で gap を打ち消す書き方とは別物）。
    `display: none`・`visibility: hidden`・`hidden`・`aria-hidden` にしない: `role="status"` のライブリージョンが読み上げの木から外れ、
    あとから入る知らせが届かない。木に残す作りは、部品 `.ui-visually-hidden`（`packages/ui` の `visually-hidden.css`）の宣言と同じ。
    **この規則は `.ui-visually-hidden` の宣言の写し**。部品のクラスを静的に当てると、中身が入ったあとも知らせが見えなくなる
