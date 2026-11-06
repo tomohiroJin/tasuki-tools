@@ -114,6 +114,13 @@
   justify-self: start;
 }
 
+/* 戻るは下線の字（`.ui-button--quiet`）の横の余白（`padding-inline` ＋ 枠 1px）ぶん、字が左へ 9px 字下がる。行の先頭に落ちたとき（40rem 未満の折り返しと、
+   お題と記録があって題の行が埋まる 640〜668px 前後。#554・#479 の #13）に字の左端が題と揃うよう、幅によらず打ち消す。行の右端に置かれるときは、右寄せなので見た目が変わらない。
+   詰めた見た目の `margin-inline-start: auto`（下）に勝たないよう、それより前に書く。 */
+.ui-room-header .ui-page-header-back {
+  margin-inline-start: calc(-1 * (var(--space-2) + 1px));
+}
+
 /* 詰めた見た目: 題・戻るリンク・「仲間を招く」を 1 つの行に並べ（40rem 未満は題を目に出さないので 1 行・下の @media）、招待の欄は開いたとき次の行に全幅で出す。
    `.ui-page-header` は `display: contents` で外し、題と戻るリンクを直接の子にする。通常の見た目の規則より強い連鎖で書く。幅によらず開くまでたたむ（@media の外）。 */
 .ui-room-header.ui-room-header--compact {
@@ -172,8 +179,7 @@
   /* 通常の見た目の狭い幅は、見出しの行・道具のボタン・戻る・「仲間を招く」を 1 つの折り返す行に並べ直す（#554・#479 の #11・#13）。
      題は 1 行ぶんの全幅に置き、道具のボタン・戻る・「仲間を招く」は**DOM の順のまま**折り返して詰める（以前は 4 段・poker の 320px で約 230px）。
      `order` で目の順だけを変えない: Tab と読み上げの順が見た目と食い違う（WCAG 2.4.3・1.3.2）。
-     戻るは下線の字の横の余白（`.ui-button--quiet` の `padding-inline` ＋ 枠 1px）を打ち消す。行の先頭に落ちたときは字の左端が題に揃い、
-     道具のボタンの後ろに並ぶときも、ボタンとの字の間は gap のまま保たれる。押せる高さ 44px は保つ。 */
+     戻るの字下げの打ち消しは幅によらず効かせる（下の `.ui-room-header .ui-page-header-back`）。押せる高さ 44px は保つ。 */
   .ui-room-header:not(.ui-room-header--compact) {
     display: flex;
     flex-wrap: wrap;
@@ -188,10 +194,6 @@
 
   .ui-room-header:not(.ui-room-header--compact) .ui-room-header-title > h1 {
     flex: 1 1 100%;
-  }
-
-  .ui-room-header:not(.ui-room-header--compact) .ui-page-header-back {
-    margin-inline-start: calc(-1 * (var(--space-2) + 1px));
   }
 
   .ui-room-header:not(.ui-room-header--compact) .ui-room-header-share {

@@ -1,7 +1,7 @@
 /* ============================================================
    操作の並び（#316 PR 2・設計正本 D6）
    主は常に最後。40rem 以上は横に並べて右寄せ（折り返しても右から詰める）、
-   40rem 未満は幅いっぱいに縦へ積む（主が最下段＝親指に最も近い）。
+   40rem 未満は幅いっぱいに縦へ積む（主が最下段＝親指に最も近い）。ただし `--dock`（下端に留まる帯）は 2 列の格子に置く（下の「帯の約束」）。
    控え（--quiet など）は .ui-actions-start に入れて左端へ離す。
    gap は 12px（--sm の当たりの拡張 5px×2 が隣に重ならない。10px 以上）。
    ============================================================ */
@@ -44,8 +44,10 @@
    - 帯の字の後ろの地は不透明（`--felt-950`）。透明へ溶かす（グラデーション・α < 1 の地）と、後ろの中身の字が帯の字に重なって読める。
      溶かしたいなら帯の外側の上の縁だけ（字の行より上）に置く。
    - 帯の上端に内側の余白（`--space-3`・下限 `--space-2`）を置く。
-   - 40rem 未満の操作は 2 段まで（4 つまで）。2 列の格子に置き、奇数の最後の子（主）は全幅の 1 段にする（3 つなら「副 副 / 主」、2 つなら横に並ぶ）。
-     4 つなら 2×2 で、主は最後（右下）の半分の幅になる。5 つ以上は副の操作を帯の外へ出す。段が増えると 320×568 で帯が画面の 3 割を覆い、手札や結果の数字が初期表示で隠れる。
+   - 40rem 未満の操作は 2 段まで（4 つまで）。2 列の格子に置き、**目に見える操作**（`hidden`・`.ui-visually-hidden`・選択欄・`.ui-actions-start` の包みを除く）の
+     奇数の最後（主）は全幅の 1 段にする（3 つなら「副 副 / 主」、2 つなら横に並ぶ）。4 つなら 2×2 で、主は最後（右下）の半分の幅になる。
+     5 つ以上は副の操作を帯の外へ出す。段が増えると 320×568 で帯が画面の 3 割を覆い、手札や結果の数字が初期表示で隠れる。
+     選択欄は位置によらず 1 段を使う。数え方の `:nth-child(… of S)` は Chromium 111・Safari 9 以上で効く。
    - 帯が覆う中身は、最下部までスクロールすると帯の上に出る（帯は流れの中に居るので、中身の下の余白は部品が持つ必要がない）。 */
 @media (width < 40rem) {
   .ui-actions--dock {
@@ -57,26 +59,23 @@
     /* 器（.ui-page）の padding-inline と同じ式。固定の 1rem だと 400〜640px で帯が器の余白に届かない */
     margin-inline: calc(clamp(var(--space-4), 4vw, calc(var(--space-6) * 1.5)) * -1);
     padding: var(--space-3) clamp(var(--space-4), 4vw, calc(var(--space-6) * 1.5)) calc(var(--space-3) + env(safe-area-inset-bottom));
-    border-top: 1px solid var(--line-strong);
-    background: var(--felt-950);
+    border-top: 1px solid var(--dock-edge);
+    background: var(--dock-ground);
   }
 
-  .ui-actions--dock > :last-child:nth-child(odd) {
+  .ui-actions--dock > :nth-child(odd of :not([hidden], .ui-visually-hidden, select, .ui-actions-start)):nth-last-child(1 of :not([hidden], .ui-visually-hidden)) {
     grid-column: 1 / -1;
   }
 
-  /* 2 列の 1 つは (320 − 2×16 − 12) ÷ 2 = 138px。ボタンの左右の余白（`--lg` で 20px）を詰めないと「次のアイテムへ」が 2 行に折れる */
+  /* 2 列の 1 つは (320 − 2×16 − 12) ÷ 2 = 138px。ボタンの左右の余白（`--lg` は 1.8rem ＝ 28.8px）を詰めないと「次のアイテムへ」が 2 行に折れる */
   .ui-actions--dock > .ui-button {
     min-width: 0;
     padding-inline: var(--space-2);
   }
 
-  /* 選択欄（poker の「ポイント（任意）」）は操作ではなく入力なので、1 列の幅に押し込まず 1 段を使う。続く 2 つの操作は横に並べる */
-  .ui-actions--dock > select {
+  /* 選択欄（poker の「ポイント（任意）」）と控えの包みは、操作を数える対象から外し、位置によらず 1 段を使う。 */
+  .ui-actions--dock > select,
+  .ui-actions--dock > .ui-actions-start {
     grid-column: 1 / -1;
-  }
-
-  .ui-actions--dock:has(> select) > :last-child:nth-child(odd) {
-    grid-column: auto;
   }
 }
