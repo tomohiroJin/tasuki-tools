@@ -578,7 +578,13 @@
 
 /* ポイントは選択そのものが見出しの強い値。値を別に重ねない。大きな書体・太字で、記録の中で一番強く */
 .estimate-log .estimate-group-points {
-  flex: none;
+  /* 名前の列を主にする（320px では選択欄が名前の列より広く、名前が 9 行になった）。選択欄は行の 45% までに縮め、字は 16px のまま */
+  flex: 0 1 auto;
+  min-width: 0;
+  max-inline-size: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   width: auto;
   padding: var(--space-1) var(--space-3);
   font-family: var(--font-display);
