@@ -336,15 +336,43 @@ test.describe('poker のルームは広い画面で読む面と操作の面を�
     await expect(log).toBeVisible();
     await expect(log.getByRole('heading', { name: '見積もりの記録' })).toBeVisible();
     await expect(log.getByText('開票すると、ここに残ります')).toBeVisible();
-    // 操作の面は脇の右の列。中央に寄せない（46rem に絞らず、列の幅いっぱい）
-    const side = await boxOf(page, '.ui-workspace-side');
-    const main = await boxOf(page, '.ui-workspace-main');
-    expect(side.x + side.width).toBeLessThanOrEqual(main.x);
-    expect(side.y).toBeCloseTo(main.y, 0);
+    // 記録を入れると列が 0 → 0.75fr に広がり、操作の面の max-width が 46rem → 100% へ滑る（0.32 秒・#427）。
+    // 滑る間は操作の面が 46rem 以下に絞られて列の中で中央に寄る（margin-inline: auto）ので、右端は器の内側の右端より内にある。
+    // 落ち着く前に読むと右端がずれる（#569）。まず滑りが終わるのを待つ。
+    await settleWorkspace(page);
+    // 操作の面は脇の右の列。中央に寄せない（46rem に絞らず、列の幅いっぱい）。
+    // 3 つの箱を同じ瞬間に読む（別々に読むと、間に再配置が挟まる）。描かれていない（矩形 0）と比べが空振りするので投げる。
+    const readColumns = (): Promise<{ sideRight: number; sideY: number; mainX: number; mainY: number; mainWidth: number; innerRight: number }> =>
+      page.evaluate(() => {
+        const side = document.querySelector('.ui-workspace-side')?.getBoundingClientRect();
+        const main = document.querySelector('.ui-workspace-main')?.getBoundingClientRect();
+        const pageEl = document.querySelector('main.ui-page');
+        if (side === undefined || main === undefined || pageEl === null) throw new Error('脇か操作の面か器が無い（判定が空振りする）');
+        const box = pageEl.getBoundingClientRect();
+        if (side.width === 0 || main.width === 0 || box.width === 0) throw new Error('脇か操作の面か器が描かれていない（判定が空振りする）');
+        return {
+          sideRight: side.right,
+          sideY: side.y,
+          mainX: main.x,
+          mainY: main.y,
+          mainWidth: main.width,
+          innerRight: box.right - parseFloat(getComputedStyle(pageEl).paddingRight),
+        };
+      });
     //   （1280 の列は脇 0.75fr・操作の面 1fr で約 41rem。かつての 46rem の中央寄せはもう無い）
-    expect(main.width).toBeGreaterThanOrEqual(MAIN_MIN);
-    const inner = await pageBox(page);
-    expect(Math.abs(main.x + main.width - inner.innerRight), '操作の面の右端が器の内側の右端に揃う').toBeLessThanOrEqual(2);
+    await expect
+      .poll(async () => {
+        const c = await readColumns();
+        return Math.abs(c.mainX + c.mainWidth - c.innerRight);
+      }, { message: '操作の面の右端が器の内側の右端に揃う' })
+      .toBeLessThanOrEqual(2);
+    // 落ち着いた後にもう一度、同じ瞬間の値で読む（一度通ってから動く場合を逃さない）
+    await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+    const cols = await readColumns();
+    expect(cols.sideRight).toBeLessThanOrEqual(cols.mainX);
+    expect(cols.sideY).toBeCloseTo(cols.mainY, 0);
+    expect(cols.mainWidth).toBeGreaterThanOrEqual(MAIN_MIN);
+    expect(Math.abs(cols.mainX + cols.mainWidth - cols.innerRight), '操作の面の右端が器の内側の右端に揃う').toBeLessThanOrEqual(2);
     // 足の記録は 64rem 以上では描かれない
     await expect(page.locator('.room-log--foot')).toBeHidden();
     // 手札は列の幅を使って 1 段に並ぶ
