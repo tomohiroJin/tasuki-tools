@@ -6623,7 +6623,7 @@ export const MUTATIONS = [
   },
   {
     id: 1252,
-    label: "poker の束のポイントの選択から `max-inline-size: 45%` を外す",
+    label: "poker の束のポイントの選択を縮まない（flex: none・上限なし）に戻す",
     patch: "m1252-poker-points-select-not-capped.patch",
     pkg: "packages/ui",
     tests: ["tests/spacing-owner.test.mjs"],
