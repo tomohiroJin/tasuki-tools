@@ -466,6 +466,7 @@ export function RosterPanel({
       <SectionHeader
         icon={Users}
         title="参加者"
+        beside
         right={
           <div className="roster-panel-head-actions">
             {onShuffle && <ShuffleButton onClick={onShuffle} />}

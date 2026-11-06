@@ -167,6 +167,7 @@ export function Lobby({
           <SectionHeader
             icon={Users}
             title={`参加者 (${room.participants.length}人)`}
+            beside
             right={
               /* ドライバー順をランダムに（v2.3 #1）。2人以上で意味を持つ。 */
               onShuffle && room.session.rotation.length > 1 ? (

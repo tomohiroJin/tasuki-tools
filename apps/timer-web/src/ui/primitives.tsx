@@ -70,13 +70,16 @@ export function SectionHeader({
   icon: Icon,
   title,
   right,
+  beside = false,
 }: {
   icon: LucideIcon;
   title: string;
   right?: React.ReactNode;
+  /** 操作を行の反対の端へ離さず、見出しの隣に寄せる（名簿の見出しの行・#553）。折り返したら見出しの下に左端そろいで落ちる */
+  beside?: boolean;
 }) {
   return (
-    <div className="section-header ui-section-head">
+    <div className={beside ? "section-header section-header--beside ui-section-head" : "section-header ui-section-head"}>
       <div className="section-header-lead">
         <Icon className="section-header-icon" />
         <h2 className="section-header-title">{title}</h2>
