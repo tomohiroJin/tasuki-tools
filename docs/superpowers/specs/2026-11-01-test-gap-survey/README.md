@@ -17,6 +17,9 @@
 | `order.sh` | 3 | `bash order.sh <ルート> <結果の置き場>` | 1,271 秒 |
 | `conventions.mjs` | 4 | `node conventions.mjs <ルート> > conventions.json` | 1.4 秒 |
 | `boundary.ts` | 5 | `bun boundary.ts <ルート> > boundary.json`（本番と同じ入口を子プロセスで起こして壊れた入力を投げる。終わると止める） | 91 秒 |
+| `stryker-sync.sh` | 8.3（#562） | `bash stryker-sync.sh <Stryker の置き場> <使い捨ての作業ツリー> <結果の置き場> <名前> <ファイル,…>`（tasuki-sync の一部へ command runner の `bun test` で流す） | 11〜81 分/組（2026-11-06。8.3） |
+| `stryker-sync-survivors.json` | 8.3（#562） | 8.3 の生き残り 105 件の一覧（ファイル・行・変異の種類・元の行・置き換え）。測り直したときの突き合わせに使う | — |
+| `axe-trial.spec.ts` | 8.2（#562） | 使い捨てのブランチの `e2e/specs/` へ置き、`e2e-repeat.yml` に axe-core を入れる段を足して起こす（ファイルの冒頭を参照） | axe.run は 1 画面 43〜237 ms |
 
 `conventions.mjs` は呼び出しの形だけで `it` / `test` を見分けるので、`it` という名前の変数を拾うことがある（4.2 の 20 件目）。
 `it.skipIf(cond)(name, fn)` は外側と内側の 2 つの呼び出しが同じ位置になるので、`skipped` は位置で 1 件にまとめている（まとめる前は 4 件と出ていた。正しいのは 2 件）。
