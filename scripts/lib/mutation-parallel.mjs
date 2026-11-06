@@ -1,5 +1,6 @@
 import path from "node:path";
 import { groupByControl, partitionMutations } from "./mutation-partition.mjs";
+import { isProcessAlive, parsePid } from "./process-alive.mjs";
 
 /**
  * 1 つのジョブの中で、変異を並列に流す（`--jobs m`。#481・設計正本
@@ -204,6 +205,21 @@ export function staleWorktreesFrom(porcelain, isAlive, host) {
     if (lock && lock[2] === host && !isAlive(Number(lock[1]))) stale.push(dir);
   }
   return stale;
+}
+
+/**
+ * {@link staleWorktreesFrom} に、生死の判定の既定（`lib/process-alive.mjs` の `isProcessAlive`）を付けたもの。掃除はこちらを使う（#542）。
+ *
+ * **生死の判定は 1 本。** ロックの拒否（`lib/mutation-lock.mjs`）もここも `isProcessAlive` を通す。`kill(pid, 0)` だけだと
+ * ゾンビ（死んだが親が wait していない）を生きていると読む。クラウドのコンテナは PID 1 が孤児を回収しないので、
+ * 中断された `--jobs` の親がゾンビで残り、その作業ツリーが古いものとして拾われず、`git worktree list` に溜まり続ける。
+ * EPERM（別ユーザー）・読めないときは生きている側に数える（`isProcessAlive` の決め）。
+ */
+export function staleWorktreeDirs(porcelain, host, isAlive = isProcessAlive) {
+  // 読めない pid（0・桁あふれ）は死んだ側に数える。isProcessAlive は不正な pid に投げるので渡さない（--jobs を落とさない）。
+  // ロックの拒否（lockRefusalReason）と同じ parsePid を通す。旧 isPidAlive も桁あふれの pid は死んだと読んだ。
+  // この作業ツリーはこちらが tasuki-mutation の理由つきで作ったもの。読めない理由のものは持ち主が分からず、残しても掃除されない
+  return staleWorktreesFrom(porcelain, (pid) => parsePid(pid) !== null && isAlive(pid), host);
 }
 
 /**

@@ -1,0 +1,10 @@
+diff --git a/scripts/lib/mutation-restore-verdict.mjs b/scripts/lib/mutation-restore-verdict.mjs
+--- a/scripts/lib/mutation-restore-verdict.mjs
++++ b/scripts/lib/mutation-restore-verdict.mjs
+@@ -27,5 +27,5 @@
+  * @returns {string[]}
+  */
+ export function filesAfterRestore(files, restored) {
+-  return restored === false ? files : [];
++  return [];
+ }

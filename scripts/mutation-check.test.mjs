@@ -8,7 +8,6 @@ import { fileURLToPath } from "node:url";
 import {
   detectRunner,
   buildCommand,
-  isPidAlive,
   lockRefusalReason,
   restoreWithRetry,
   formatRestoreFailureMessage,
@@ -550,13 +549,6 @@ describe("同時実行のロック", () => {
     }
   });
 
-  test("isPidAlive は自分自身を生きていると判定し、あり得ない PID を死んでいると判定する", () => {
-    // Given / When / Then: 自分は必ず生きている
-    assert.equal(isPidAlive(process.pid), true);
-    // Linux の PID 上限（/proc/sys/kernel/pid_max の既定は 4194304）を超える値は割り当たらない
-    assert.equal(isPidAlive(2 ** 31 - 1), false);
-  });
-
   test("配線: 生きているロックがあると main は何も実行せずに非 0 で終わる", () => {
     // Given: 自分自身（確実に生きている）の PID を書いたロック
     const lockPath = path.join(WORKSPACE_ROOT, "scripts/mutations/.lock");
@@ -699,7 +691,7 @@ describe("復元の再試行と検証", () => {
  * `git checkout --` が例外を投げなければ「復元しました。」と report するだけだった
  * （検証も再試行も無い）。しかもマーカー（`.applied`）を復元の**前**に消していたため、
  * 復元が失敗しても次回の起動は「前回は異常終了した」という記録を失っていた
- * （`process.exit(1)` で人には見えても、状態としては失われる）。
+ * （非 0 の終了で人には見えても、状態としては失われる）。
  *
  * ここでは両方を見る。git のロック競合そのものは再現しない —— 見たいのは
  * 「復元コマンドが成功を返したのにファイルが戻っていない」状況での振る舞いと、
@@ -859,7 +851,7 @@ describe("マーカーを消すタイミング（verifyRestoreAndClearMarker を
 /**
  * `restoreCurrentMutation`（通常サイクルの復元）の判定部分を直接検証する
  * （修正ラウンド 3 / #290）。`restoreCurrentMutation` 自身は module-level 変数
- * （`currentlyAppliedFiles`）と実 I/O（`execFileSync`・`process.exit`）に直接
+ * （`currentlyAppliedFiles`）と実 I/O（`execFileSync`・`exitAfterFlush`）に直接
  * 依存しており安く注入できないため対象にしていない（この節の直後のコメント、
  * および `mutation-check.mjs` 側の `restoreCurrentMutation` 直前のコメントを参照）。
  * ここで検証するのは、その配線が委ねる判定ロジック（`decideMutationRestore`）である。

@@ -1,0 +1,12 @@
+diff --git a/scripts/lib/exit-after-flush.mjs b/scripts/lib/exit-after-flush.mjs
+--- a/scripts/lib/exit-after-flush.mjs
++++ b/scripts/lib/exit-after-flush.mjs
+@@ -18,7 +18,7 @@
+  */
+ export function exitAfterFlush(
+   code,
+-  { streams = [process.stdout, process.stderr], exit = (c) => process.exit(c), timeoutMs = 10_000 } = {},
++  { streams = [process.stdout], exit = (c) => process.exit(c), timeoutMs = 10_000 } = {},
+ ) {
+   let pending = streams.length;
+   let exited = false;

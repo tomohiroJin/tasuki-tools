@@ -1112,8 +1112,10 @@ stdout / stderr がパイプ（CI・子プロセスとして呼ぶテスト）�
 大量出力を遅い読み手に読ませる実行と、`scripts/` 直下と `scripts/lib/` の `*.mjs`（テストを除く）を
 構文木（`scripts/lib/process-exit-scan.mjs`）で見る導出で守ります。構文木では `process.exit`・`process["exit"]`・
 `const { exit } = process` の使用と、`process.exitCode = N;` の後の `return` の書き忘れも拾います。
-例外は同テストの `EXIT_ALLOWED` に理由つきで載せます。`mutation-check.mjs` は変異の復元・ロック・シグナルの
-後始末に絡む終わり方なので、#542 で扱うまで外しています。
+例外は同テストの `EXIT_ALLOWED` に理由つきで載せます。`mutation-check.mjs` は #542 で `exitCode` ＋ `return` に替えました
+（ロックの解放・作業ツリーの後始末は `exit` フックが、変異の復元は終わる前に行います）。戻る先の無いシグナル・
+`uncaughtException` のハンドラだけは、`scripts/lib/exit-after-flush.mjs` の `exitAfterFlush`（書き出しが終わるのを待ってから
+`exit`）で終わります。この関数だけが `EXIT_ALLOWED` に載っています。
 
 ### 新しいパッケージを足すと検査が赤くなる
 
