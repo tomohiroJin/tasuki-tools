@@ -1,0 +1,11 @@
+diff --git a/apps/poker-web/src/index.css b/apps/poker-web/src/index.css
+--- a/apps/poker-web/src/index.css
++++ b/apps/poker-web/src/index.css
+@@ -561,7 +561,6 @@
+    部品は折り返す（操作が下の行へ落ちる）が、この行は「左に名前・右にポイント」を保ち、長い名前の側（`.estimate-group-item`・
+    `min-width: 0`）が縮んで折り返す。縮む側を決める修飾は、使う画面が 1 つなので部品に足さず、画面が折り返しを止める（ADR 0035 決定 3） */
+ .estimate-group-head {
+-  flex-wrap: nowrap;
+ }
+ 
+ .estimate-group-item {

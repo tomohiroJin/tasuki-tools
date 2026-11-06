@@ -1,30 +1,17 @@
 diff --git a/apps/timer-web/src/ui/components/RosterPanel.tsx b/apps/timer-web/src/ui/components/RosterPanel.tsx
-index 3ce39f8b..5f5abdc6 100644
 --- a/apps/timer-web/src/ui/components/RosterPanel.tsx
 +++ b/apps/timer-web/src/ui/components/RosterPanel.tsx
-@@ -462,12 +462,7 @@ export function RosterPanel({
+@@ -463,12 +463,12 @@
            onCancel={() => setPendingRemovalId(null)}
          />
        )}
--      <SectionHeader
--        icon={Users}
--        title="参加者"
--        right={
--          <div className="roster-panel-head-actions">
--            {onShuffle && (
-+      {onShuffle && (
-               <button
-                 type="button"
-                 onClick={onShuffle}
-@@ -479,6 +474,11 @@ export function RosterPanel({
-                 </span>
-               </button>
-             )}
-+      <SectionHeader
-+        icon={Users}
-+        title="参加者"
-+        right={
-+          <div className="roster-panel-head-actions">
++      {onShuffle && <ShuffleButton onClick={onShuffle} />}
+       <SectionHeader
+         icon={Users}
+         title="参加者"
+         right={
+           <div className="roster-panel-head-actions">
+-            {onShuffle && <ShuffleButton onClick={onShuffle} />}
              <button
                type="button"
                onClick={() => {

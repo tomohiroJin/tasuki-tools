@@ -1,0 +1,12 @@
+diff --git a/apps/roulette-web/src/components/RegularsSection.tsx b/apps/roulette-web/src/components/RegularsSection.tsx
+--- a/apps/roulette-web/src/components/RegularsSection.tsx
++++ b/apps/roulette-web/src/components/RegularsSection.tsx
+@@ -249,7 +249,7 @@
+           )}
+         </>
+       ) : null}
+-      <p className="roulette-regulars-notice ui-note" role="status">
++      <p className="roulette-regulars-notice ui-note" role="status" aria-hidden="true">
+         {notice}
+       </p>
+       {mode.kind === 'list' ? (
