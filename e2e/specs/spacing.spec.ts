@@ -121,7 +121,7 @@ test.describe('縦に並ぶブロックの間は親が持つ', () => {
     }
   });
 
-  test('Given poker の記録に空白の無い 40 字の項目名の束 / When 脇（1280）と 320 で開く / Then ポイントの選択は名前と同じ行の右に残り、名前の列が縮む（#553 レビュー）', async ({ page }) => {
+  test('Given poker の記録に空白の無い 40 字の項目名の束 / When 脇（1280）と 320 で開く / Then 選択欄の字は切れず、名前の列が主で、狭いと選択欄は名前の下の行の右端に落ちる（#553 レビュー）', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await createPokerRoom(page, 'spacing-log');
     await page.getByRole('button', { name: '記録する' }).click();
@@ -132,7 +132,7 @@ test.describe('縦に並ぶブロックの間は親が持つ', () => {
     await page.getByRole('button', { name: '次のアイテムへ' }).click();
     // 閉じた束（名前つき）と、いま開いている束の 2 つ
     await expect(page.locator('.estimate-group')).toHaveCount(2);
-    for (const width of [320, 1280] as const) {
+    for (const width of [320, 390, 768, 1280] as const) {
       await page.setViewportSize({ width, height: 900 });
       // 幅を替えた直後は、束の見出しが描き直される。見えるまで待ってから測る（待たずに測ると見つからないことがある）
       await expect(page.locator('.estimate-group-head:visible', { hasText: 'TTTT' }).first(), `幅 ${String(width)}: 束の見出しの行が見える`).toBeVisible();
@@ -143,13 +143,26 @@ test.describe('縦に並ぶブロックの間は親が持つ', () => {
         if (head === undefined || name === null || name === undefined || points === null || points === undefined) return null;
         const n = name.getBoundingClientRect();
         const p = points.getBoundingClientRect();
-        return { sameLine: p.top < n.bottom - 0.5, rightOfName: p.left >= n.right - 1, inside: p.right <= head.getBoundingClientRect().right + 1, nameIsMain: n.width >= p.width, fontPx: parseFloat(getComputedStyle(points).fontSize) };
+        const h = head.getBoundingClientRect();
+        const lineHeight = parseFloat(getComputedStyle(name).lineHeight) || 24;
+        return {
+          sameLine: p.top < n.bottom - 0.5,
+          nameWiderOrDropped: p.top >= n.bottom - 0.5 || n.width > p.width,
+          rightEdgeGap: h.right - p.right,
+          clipped: points.scrollWidth > points.clientWidth + 1,
+          nameLines: Math.round(n.height / lineHeight),
+          inside: p.right <= h.right + 1 && p.left >= h.left - 1,
+        };
       });
       expect(m, `幅 ${String(width)}: 束の見出しの行が描かれている`).not.toBeNull();
-      expect(m, `幅 ${String(width)}: 名前の右（同じ行）にポイントがあり、行からはみ出さない`).toMatchObject({ sameLine: true, rightOfName: true, inside: true });
-      // 名前の列を主にする（名前の列が選択欄より狭いと、長い名前が何行にも折れる）。選択欄の字は 16px の下限を割らない
-      expect(m!.nameIsMain, `幅 ${String(width)}: 名前の列は選択欄より広い`).toBe(true);
-      expect(m!.fontPx, `幅 ${String(width)}: 選択欄の字は 16px 以上`).toBeGreaterThanOrEqual(16);
+      // ① 選択欄の字が切れていない（選んだ選択肢の字が欄の中身に収まる）
+      expect(m!.clipped, `幅 ${String(width)}: 選択欄の字が切れていない`).toBe(false);
+      expect(m!.inside, `幅 ${String(width)}: 選択欄は行の中に収まる`).toBe(true);
+      // ② 同じ行なら名前の列が選択欄より広い。選択欄が次の行へ落ちたなら、選択欄の右端は行の右端に揃う（左端には落とさない）
+      expect(m!.nameWiderOrDropped, `幅 ${String(width)}: 同じ行なら名前の列が選択欄より広い`).toBe(true);
+      if (!m!.sameLine) expect(Math.abs(m!.rightEdgeGap), `幅 ${String(width)}: 落ちた選択欄の右端は行の右端に揃う`).toBeLessThanOrEqual(1);
+      // ③ 名前は 4 行以下（9 行に戻らない）
+      expect(m!.nameLines, `幅 ${String(width)}: 名前の行数`).toBeLessThanOrEqual(4);
     }
   });
 

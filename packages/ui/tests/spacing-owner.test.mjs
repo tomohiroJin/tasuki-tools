@@ -96,10 +96,10 @@ test('Given poker のルーム / When 参加者の欄を探す / Then 区画は 
   assert.doesNotMatch(body, /display:|flex-wrap:|gap:/);
 });
 
-test('Given poker の束の見出しの行 / When 規則を読む / Then 折り返しを止め、名前の列が縮む（左に名前・右にポイント）', () => {
+test('Given poker の束の見出しの行 / When 規則を読む / Then 折り返してよく、名前の列が 12rem を基準に主になる（左に名前・右にポイント）', () => {
   const css = read('apps/poker-web/src/index.css');
-  assert.match(ruleBody(css, '.estimate-group-head') ?? '', /flex-wrap:\s*nowrap;/);
-  assert.match(ruleBody(css, '.estimate-group-item') ?? '', /min-width:\s*0;/);
+  assert.match(ruleBody(css, '.estimate-group-head') ?? '', /flex-wrap:\s*wrap;/);
+  assert.match(css, /\.estimate-group-head > \.estimate-group-item \{[^}]*flex:\s*1 1 12rem;[^}]*min-width:\s*0;/);
 });
 
 test('Given roulette の見出しの行 / When 規則を読む / Then 見出しと小さな字を基準線で揃える', () => {
@@ -186,9 +186,12 @@ test('Given timer の名簿の見出しの行 / When SectionHeader の使い方�
   assert.match(ruleBody(read('apps/timer-web/src/styles/primitives.css'), '.section-header--beside') ?? '', /justify-content:\s*flex-start;/);
 });
 
-test('Given poker の束のポイントの選択 / When 規則を読む / Then 名前の列を主にするため選択欄を行の 45% までに縮め、字は 16px の下限を割らない', () => {
-  const body = ruleBody(read('apps/poker-web/src/index.css'), '.estimate-log .estimate-group-points') ?? '';
-  assert.match(body, /max-inline-size:\s*45%;/);
-  assert.match(body, /min-width:\s*0;/);
-  assert.doesNotMatch(body, /font-size:\s*[0-9.]+(px|rem)/);
+test('Given poker の束のポイントの選択 / When 規則を読む / Then 字を切らず・縮めず右端へ寄せ、行は折り返してよく、名前の列が主（12rem）', () => {
+  const css = read('apps/poker-web/src/index.css');
+  const points = ruleBody(css, '.estimate-log .estimate-group-points') ?? '';
+  assert.match(points, /flex:\s*0 0 auto;/);
+  assert.match(points, /margin-inline-start:\s*auto;/);
+  assert.doesNotMatch(points, /overflow:\s*hidden|text-overflow|max-inline-size/);
+  assert.doesNotMatch(points, /font-size:\s*[0-9.]+(px|rem)/);
+  assert.match(ruleBody(css, '.estimate-group-head') ?? '', /flex-wrap:\s*wrap;/);
 });
