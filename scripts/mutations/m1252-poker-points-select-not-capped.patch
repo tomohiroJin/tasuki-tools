@@ -1,14 +1,13 @@
 diff --git a/apps/poker-web/src/index.css b/apps/poker-web/src/index.css
 --- a/apps/poker-web/src/index.css
 +++ b/apps/poker-web/src/index.css
-@@ -579,9 +579,7 @@
+@@ -586,8 +586,7 @@
  /* ポイントは選択そのものが見出しの強い値。値を別に重ねない。大きな書体・太字で、記録の中で一番強く */
  .estimate-log .estimate-group-points {
-   /* 名前の列を主にする（320px では選択欄が名前の列より広く、名前が 9 行になった）。選択欄は行の 45% までに縮め、字は 16px のまま */
--  flex: 0 1 auto;
--  min-width: 0;
--  max-inline-size: 45%;
+   /* 右端へ寄せる（折り返して下の行に落ちたときも右端）。字は切らない・縮めない */
+-  flex: 0 0 auto;
+-  margin-inline-start: auto;
 +  flex: none;
-   overflow: hidden;
-   text-overflow: ellipsis;
-   white-space: nowrap;
+   width: auto;
+   padding: var(--space-1) var(--space-3);
+   font-family: var(--font-display);
