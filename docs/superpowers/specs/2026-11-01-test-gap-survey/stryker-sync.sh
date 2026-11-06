@@ -8,7 +8,7 @@ stryker_dir="$(cd "$1" && pwd)"; tree="$(cd "$2" && pwd)"; mkdir -p "$3"; out="$
 IFS=, read -ra files <<< "$5"
 mutate="$(printf '"%s",' "${files[@]}")"; mutate="[${mutate%,}]"
 conf="$tree/apps/tasuki-sync/stryker.$name.json"
-trap 'rm -rf "$conf" "$tree/apps/tasuki-sync/.stryker-tmp"' EXIT
+trap 'rm -f "$conf"' EXIT
 cat > "$conf" <<JSON
 {
   "testRunner": "command",
@@ -26,3 +26,5 @@ cat > "$conf" <<JSON
 JSON
 cd "$tree/apps/tasuki-sync"
 ( time node "$stryker_dir/node_modules/@stryker-mutator/core/bin/stryker.js" run "stryker.$name.json" ) > "$out/$name.log" 2>&1
+# 成功したときだけ inPlace の控えを片付ける。途中で落ちたら控えが残るので、写しは捨てて作り直す
+rm -rf .stryker-tmp

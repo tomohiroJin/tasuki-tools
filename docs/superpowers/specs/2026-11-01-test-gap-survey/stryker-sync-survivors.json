@@ -6,6 +6,9 @@
     {
       "file": "apps/tasuki-sync/src/adapters/ws/heartbeat.ts",
       "line": 44,
+      "column": 23,
+      "endLine": 44,
+      "endColumn": 87,
       "mutator": "MethodExpression",
       "original": "this.intervalMs = Math.max(1, options.intervalMs ?? DEFAULT_HEARTBEAT_INTERVAL_MS);",
       "replacement": "Math.min(1, options.intervalMs ?? DEFAULT_HEARTBEAT_INTERVAL_MS)"
@@ -13,6 +16,9 @@
     {
       "file": "apps/tasuki-sync/src/adapters/ws/heartbeat.ts",
       "line": 49,
+      "column": 31,
+      "endLine": 51,
+      "endColumn": 4,
       "mutator": "BlockStatement",
       "original": "track(connId: string): void {",
       "replacement": "{}"
@@ -20,6 +26,9 @@
     {
       "file": "apps/tasuki-sync/src/adapters/ws/heartbeat.ts",
       "line": 59,
+      "column": 32,
+      "endLine": 61,
+      "endColumn": 4,
       "mutator": "BlockStatement",
       "original": "forget(connId: string): void {",
       "replacement": "{}"
@@ -27,6 +36,9 @@
     {
       "file": "apps/tasuki-sync/src/adapters/ws/heartbeat.ts",
       "line": 76,
+      "column": 5,
+      "endLine": 76,
+      "endColumn": 25,
       "mutator": "OptionalChaining",
       "original": "this.timer.unref?.();",
       "replacement": "this.timer.unref()"
@@ -34,6 +46,9 @@
     {
       "file": "apps/tasuki-sync/src/adapters/ws/heartbeat.ts",
       "line": 80,
+      "column": 9,
+      "endLine": 80,
+      "endColumn": 28,
       "mutator": "ConditionalExpression",
       "original": "if (this.timer !== null) {",
       "replacement": "true"
@@ -41,6 +56,9 @@
     {
       "file": "apps/tasuki-sync/src/application/apply-room-level-event.ts",
       "line": 105,
+      "column": 5,
+      "endLine": 105,
+      "endColumn": 24,
       "mutator": "ConditionalExpression",
       "original": "e.kind === \"member\"",
       "replacement": "true"
@@ -48,6 +66,9 @@
     {
       "file": "apps/tasuki-sync/src/application/apply-room-level-event.ts",
       "line": 107,
+      "column": 10,
+      "endLine": 107,
+      "endColumn": 32,
       "mutator": "ConditionalExpression",
       "original": ": (e.id === participantId ? { ...e, eligible } : e),",
       "replacement": "true"
@@ -55,6 +76,9 @@
     {
       "file": "apps/tasuki-sync/src/application/apply-room-level-event.ts",
       "line": 107,
+      "column": 10,
+      "endLine": 107,
+      "endColumn": 32,
       "mutator": "ConditionalExpression",
       "original": ": (e.id === participantId ? { ...e, eligible } : e),",
       "replacement": "false"
@@ -62,6 +86,9 @@
     {
       "file": "apps/tasuki-sync/src/application/apply-room-level-event.ts",
       "line": 107,
+      "column": 10,
+      "endLine": 107,
+      "endColumn": 32,
       "mutator": "EqualityOperator",
       "original": ": (e.id === participantId ? { ...e, eligible } : e),",
       "replacement": "e.id !== participantId"
@@ -69,6 +96,9 @@
     {
       "file": "apps/tasuki-sync/src/application/apply-room-level-event.ts",
       "line": 107,
+      "column": 35,
+      "endLine": 107,
+      "endColumn": 53,
       "mutator": "ObjectLiteral",
       "original": ": (e.id === participantId ? { ...e, eligible } : e),",
       "replacement": "{}"
@@ -76,6 +106,9 @@
     {
       "file": "apps/tasuki-sync/src/application/apply-room-level-event.ts",
       "line": 130,
+      "column": 5,
+      "endLine": 134,
+      "endColumn": 37,
       "mutator": "ConditionalExpression",
       "original": "case \"SessionReset\":",
       "replacement": "case \"SessionReset\":"
@@ -83,6 +116,9 @@
     {
       "file": "apps/tasuki-sync/src/application/apply-room-level-event.ts",
       "line": 130,
+      "column": 10,
+      "endLine": 130,
+      "endColumn": 24,
       "mutator": "StringLiteral",
       "original": "case \"SessionReset\":",
       "replacement": "\"\""
@@ -90,6 +126,9 @@
     {
       "file": "apps/tasuki-sync/src/application/apply-room-level-event.ts",
       "line": 168,
+      "column": 19,
+      "endLine": 168,
+      "endColumn": 23,
       "mutator": "BooleanLiteral",
       "original": "eligible: true,",
       "replacement": "false"
@@ -97,6 +136,9 @@
     {
       "file": "apps/tasuki-sync/src/application/apply-room-level-event.ts",
       "line": 192,
+      "column": 9,
+      "endLine": 192,
+      "endColumn": 59,
       "mutator": "ConditionalExpression",
       "original": "e.kind === \"proxy\" && e.id === event.participantId",
       "replacement": "true"
@@ -104,6 +146,9 @@
     {
       "file": "apps/tasuki-sync/src/application/apply-room-level-event.ts",
       "line": 192,
+      "column": 9,
+      "endLine": 192,
+      "endColumn": 59,
       "mutator": "ConditionalExpression",
       "original": "e.kind === \"proxy\" && e.id === event.participantId",
       "replacement": "false"
@@ -111,6 +156,9 @@
     {
       "file": "apps/tasuki-sync/src/application/apply-room-level-event.ts",
       "line": 192,
+      "column": 9,
+      "endLine": 192,
+      "endColumn": 59,
       "mutator": "LogicalOperator",
       "original": "e.kind === \"proxy\" && e.id === event.participantId",
       "replacement": "e.kind === \"proxy\" || e.id === event.participantId"
@@ -118,6 +166,9 @@
     {
       "file": "apps/tasuki-sync/src/application/apply-room-level-event.ts",
       "line": 192,
+      "column": 9,
+      "endLine": 192,
+      "endColumn": 27,
       "mutator": "ConditionalExpression",
       "original": "e.kind === \"proxy\" && e.id === event.participantId",
       "replacement": "true"
@@ -125,6 +176,9 @@
     {
       "file": "apps/tasuki-sync/src/application/apply-room-level-event.ts",
       "line": 192,
+      "column": 9,
+      "endLine": 192,
+      "endColumn": 27,
       "mutator": "EqualityOperator",
       "original": "e.kind === \"proxy\" && e.id === event.participantId",
       "replacement": "e.kind !== \"proxy\""
@@ -132,6 +186,9 @@
     {
       "file": "apps/tasuki-sync/src/application/apply-room-level-event.ts",
       "line": 192,
+      "column": 20,
+      "endLine": 192,
+      "endColumn": 27,
       "mutator": "StringLiteral",
       "original": "e.kind === \"proxy\" && e.id === event.participantId",
       "replacement": "\"\""
@@ -139,6 +196,9 @@
     {
       "file": "apps/tasuki-sync/src/application/apply-room-level-event.ts",
       "line": 192,
+      "column": 31,
+      "endLine": 192,
+      "endColumn": 59,
       "mutator": "ConditionalExpression",
       "original": "e.kind === \"proxy\" && e.id === event.participantId",
       "replacement": "true"
@@ -146,6 +206,9 @@
     {
       "file": "apps/tasuki-sync/src/application/apply-room-level-event.ts",
       "line": 192,
+      "column": 31,
+      "endLine": 192,
+      "endColumn": 59,
       "mutator": "EqualityOperator",
       "original": "e.kind === \"proxy\" && e.id === event.participantId",
       "replacement": "e.id !== event.participantId"
@@ -153,6 +216,9 @@
     {
       "file": "apps/tasuki-sync/src/application/apply-room-level-event.ts",
       "line": 193,
+      "column": 13,
+      "endLine": 193,
+      "endColumn": 47,
       "mutator": "ObjectLiteral",
       "original": "? { ...e, label: event.displayName }",
       "replacement": "{}"
@@ -160,6 +226,9 @@
     {
       "file": "apps/tasuki-sync/src/application/command-handlers/participant-remove.ts",
       "line": 88,
+      "column": 7,
+      "endLine": 88,
+      "endColumn": 35,
       "mutator": "ConditionalExpression",
       "original": "if (typeof targetId !== \"string\") {",
       "replacement": "false"
@@ -167,6 +236,9 @@
     {
       "file": "apps/tasuki-sync/src/application/command-handlers/participant-remove.ts",
       "line": 88,
+      "column": 37,
+      "endLine": 91,
+      "endColumn": 4,
       "mutator": "BlockStatement",
       "original": "if (typeof targetId !== \"string\") {",
       "replacement": "{}"
@@ -174,6 +246,9 @@
     {
       "file": "apps/tasuki-sync/src/application/command-handlers/participant-remove.ts",
       "line": 89,
+      "column": 23,
+      "endLine": 89,
+      "endColumn": 32,
       "mutator": "StringLiteral",
       "original": "sendError(connId, \"INVALID\", \"不正な対象は外せません\");",
       "replacement": "\"\""
@@ -181,6 +256,9 @@
     {
       "file": "apps/tasuki-sync/src/application/command-handlers/participant-remove.ts",
       "line": 89,
+      "column": 34,
+      "endLine": 89,
+      "endColumn": 47,
       "mutator": "StringLiteral",
       "original": "sendError(connId, \"INVALID\", \"不正な対象は外せません\");",
       "replacement": "\"\""
@@ -188,6 +266,9 @@
     {
       "file": "apps/tasuki-sync/src/application/command-handlers/participant-remove.ts",
       "line": 90,
+      "column": 16,
+      "endLine": 90,
+      "endColumn": 25,
       "mutator": "StringLiteral",
       "original": "return err(\"INVALID\");",
       "replacement": "\"\""
@@ -195,6 +276,9 @@
     {
       "file": "apps/tasuki-sync/src/application/command-handlers/participant-remove.ts",
       "line": 95,
+      "column": 7,
+      "endLine": 95,
+      "endColumn": 14,
       "mutator": "ConditionalExpression",
       "original": "if (!target) {",
       "replacement": "false"
@@ -202,6 +286,9 @@
     {
       "file": "apps/tasuki-sync/src/application/command-handlers/participant-remove.ts",
       "line": 95,
+      "column": 16,
+      "endLine": 98,
+      "endColumn": 4,
       "mutator": "BlockStatement",
       "original": "if (!target) {",
       "replacement": "{}"
@@ -209,6 +296,9 @@
     {
       "file": "apps/tasuki-sync/src/application/command-handlers/participant-remove.ts",
       "line": 96,
+      "column": 64,
+      "endLine": 96,
+      "endColumn": 87,
       "mutator": "StringLiteral",
       "original": "sendError(connId, \"PARTICIPANT_NOT_FOUND\", errorMessageFor(\"PARTICIPANT_NOT_FOUND\"));",
       "replacement": "\"\""
@@ -216,6 +306,9 @@
     {
       "file": "apps/tasuki-sync/src/application/command-handlers/participant-remove.ts",
       "line": 97,
+      "column": 16,
+      "endLine": 97,
+      "endColumn": 39,
       "mutator": "StringLiteral",
       "original": "return err(\"PARTICIPANT_NOT_FOUND\");",
       "replacement": "\"\""
@@ -223,6 +316,9 @@
     {
       "file": "apps/tasuki-sync/src/application/command-handlers/participant-remove.ts",
       "line": 117,
+      "column": 9,
+      "endLine": 117,
+      "endColumn": 36,
       "mutator": "ConditionalExpression",
       "original": "if (target.connIds.length === 0) return;",
       "replacement": "false"
@@ -230,6 +326,9 @@
     {
       "file": "apps/tasuki-sync/src/application/command-handlers/participant-remove.ts",
       "line": 129,
+      "column": 7,
+      "endLine": 129,
+      "endColumn": 22,
       "mutator": "ConditionalExpression",
       "original": "if (planned.isErr()) {",
       "replacement": "false"
@@ -237,6 +336,9 @@
     {
       "file": "apps/tasuki-sync/src/application/command-handlers/participant-remove.ts",
       "line": 129,
+      "column": 24,
+      "endLine": 134,
+      "endColumn": 4,
       "mutator": "BlockStatement",
       "original": "if (planned.isErr()) {",
       "replacement": "{}"
@@ -244,6 +346,9 @@
     {
       "file": "apps/tasuki-sync/src/application/command-handlers/participant-remove.ts",
       "line": 131,
+      "column": 29,
+      "endLine": 131,
+      "endColumn": 56,
       "mutator": "ConditionalExpression",
       "original": "const code: ErrorCode = typeof failure === \"string\" ? failure : failure.decide;",
       "replacement": "true"
@@ -251,6 +356,9 @@
     {
       "file": "apps/tasuki-sync/src/application/command-handlers/participant-remove.ts",
       "line": 131,
+      "column": 29,
+      "endLine": 131,
+      "endColumn": 56,
       "mutator": "ConditionalExpression",
       "original": "const code: ErrorCode = typeof failure === \"string\" ? failure : failure.decide;",
       "replacement": "false"
@@ -258,6 +366,9 @@
     {
       "file": "apps/tasuki-sync/src/application/command-handlers/participant-remove.ts",
       "line": 131,
+      "column": 29,
+      "endLine": 131,
+      "endColumn": 56,
       "mutator": "EqualityOperator",
       "original": "const code: ErrorCode = typeof failure === \"string\" ? failure : failure.decide;",
       "replacement": "typeof failure !== \"string\""
@@ -265,6 +376,9 @@
     {
       "file": "apps/tasuki-sync/src/application/command-handlers/participant-remove.ts",
       "line": 131,
+      "column": 48,
+      "endLine": 131,
+      "endColumn": 56,
       "mutator": "StringLiteral",
       "original": "const code: ErrorCode = typeof failure === \"string\" ? failure : failure.decide;",
       "replacement": "\"\""
@@ -272,6 +386,9 @@
     {
       "file": "apps/tasuki-sync/src/application/join-room.ts",
       "line": 139,
+      "column": 5,
+      "endLine": 139,
+      "endColumn": 30,
       "mutator": "ConditionalExpression",
       "original": "input.tool === TOOL_TIMER && existingTimer === undefined",
       "replacement": "true"
@@ -279,6 +396,9 @@
     {
       "file": "apps/tasuki-sync/src/application/join-room.ts",
       "line": 146,
+      "column": 32,
+      "endLine": 146,
+      "endColumn": 63,
       "mutator": "ConditionalExpression",
       "original": "if (resumed !== undefined && input.resumeToken !== undefined) {",
       "replacement": "true"
@@ -286,6 +406,9 @@
     {
       "file": "apps/tasuki-sync/src/application/join-room.ts",
       "line": 148,
+      "column": 13,
+      "endLine": 148,
+      "endColumn": 22,
       "mutator": "StringLiteral",
       "original": "kind: \"resumed\",",
       "replacement": "\"\""
@@ -293,6 +416,9 @@
     {
       "file": "apps/tasuki-sync/src/application/pick-promotion-target.ts",
       "line": 39,
+      "column": 34,
+      "endLine": 39,
+      "endColumn": 48,
       "mutator": "ConditionalExpression",
       "original": "if (byPresence !== 0) return byPresence < 0 ? p : best;",
       "replacement": "true"
@@ -300,6 +426,9 @@
     {
       "file": "apps/tasuki-sync/src/application/pick-promotion-target.ts",
       "line": 39,
+      "column": 34,
+      "endLine": 39,
+      "endColumn": 48,
       "mutator": "EqualityOperator",
       "original": "if (byPresence !== 0) return byPresence < 0 ? p : best;",
       "replacement": "byPresence <= 0"
@@ -307,6 +436,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 90,
+      "column": 36,
+      "endLine": 104,
+      "endColumn": 4,
       "mutator": "BlockStatement",
       "original": "handlePing(connId: string): void {",
       "replacement": "{}"
@@ -314,6 +446,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 92,
+      "column": 9,
+      "endLine": 92,
+      "endColumn": 14,
       "mutator": "ConditionalExpression",
       "original": "if (!room) return;",
       "replacement": "true"
@@ -321,6 +456,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 94,
+      "column": 9,
+      "endLine": 94,
+      "endColumn": 15,
       "mutator": "BooleanLiteral",
       "original": "if (!timer) return;",
       "replacement": "timer"
@@ -328,6 +466,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 94,
+      "column": 9,
+      "endLine": 94,
+      "endColumn": 15,
       "mutator": "ConditionalExpression",
       "original": "if (!timer) return;",
       "replacement": "true"
@@ -335,6 +476,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 94,
+      "column": 9,
+      "endLine": 94,
+      "endColumn": 15,
       "mutator": "ConditionalExpression",
       "original": "if (!timer) return;",
       "replacement": "false"
@@ -342,6 +486,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 97,
+      "column": 9,
+      "endLine": 97,
+      "endColumn": 21,
       "mutator": "BooleanLiteral",
       "original": "if (!participant) return;",
       "replacement": "participant"
@@ -349,6 +496,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 97,
+      "column": 9,
+      "endLine": 97,
+      "endColumn": 21,
       "mutator": "ConditionalExpression",
       "original": "if (!participant) return;",
       "replacement": "true"
@@ -356,6 +506,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 97,
+      "column": 9,
+      "endLine": 97,
+      "endColumn": 21,
       "mutator": "ConditionalExpression",
       "original": "if (!participant) return;",
       "replacement": "false"
@@ -363,6 +516,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 101,
+      "column": 9,
+      "endLine": 101,
+      "endColumn": 77,
       "mutator": "ConditionalExpression",
       "original": "if (current !== undefined && rotationEntryId(current) === participant.id) {",
       "replacement": "true"
@@ -370,6 +526,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 101,
+      "column": 9,
+      "endLine": 101,
+      "endColumn": 77,
       "mutator": "ConditionalExpression",
       "original": "if (current !== undefined && rotationEntryId(current) === participant.id) {",
       "replacement": "false"
@@ -377,6 +536,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 101,
+      "column": 9,
+      "endLine": 101,
+      "endColumn": 77,
       "mutator": "LogicalOperator",
       "original": "if (current !== undefined && rotationEntryId(current) === participant.id) {",
       "replacement": "current !== undefined || rotationEntryId(current) === participant.id"
@@ -384,6 +546,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 101,
+      "column": 9,
+      "endLine": 101,
+      "endColumn": 30,
       "mutator": "ConditionalExpression",
       "original": "if (current !== undefined && rotationEntryId(current) === participant.id) {",
       "replacement": "true"
@@ -391,6 +556,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 101,
+      "column": 9,
+      "endLine": 101,
+      "endColumn": 30,
       "mutator": "EqualityOperator",
       "original": "if (current !== undefined && rotationEntryId(current) === participant.id) {",
       "replacement": "current === undefined"
@@ -398,6 +566,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 101,
+      "column": 34,
+      "endLine": 101,
+      "endColumn": 77,
       "mutator": "ConditionalExpression",
       "original": "if (current !== undefined && rotationEntryId(current) === participant.id) {",
       "replacement": "true"
@@ -405,6 +576,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 101,
+      "column": 34,
+      "endLine": 101,
+      "endColumn": 77,
       "mutator": "EqualityOperator",
       "original": "if (current !== undefined && rotationEntryId(current) === participant.id) {",
       "replacement": "rotationEntryId(current) !== participant.id"
@@ -412,6 +586,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 101,
+      "column": 79,
+      "endLine": 103,
+      "endColumn": 6,
       "mutator": "BlockStatement",
       "original": "if (current !== undefined && rotationEntryId(current) === participant.id) {",
       "replacement": "{}"
@@ -419,6 +596,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 115,
+      "column": 9,
+      "endLine": 115,
+      "endColumn": 14,
       "mutator": "ConditionalExpression",
       "original": "if (!room) return;",
       "replacement": "false"
@@ -426,6 +606,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 117,
+      "column": 9,
+      "endLine": 117,
+      "endColumn": 21,
       "mutator": "ConditionalExpression",
       "original": "if (!participant) return;",
       "replacement": "false"
@@ -433,6 +616,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 130,
+      "column": 9,
+      "endLine": 130,
+      "endColumn": 15,
       "mutator": "ConditionalExpression",
       "original": "if (!timer) return;",
       "replacement": "false"
@@ -440,6 +626,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 137,
+      "column": 7,
+      "endLine": 137,
+      "endColumn": 75,
       "mutator": "ConditionalExpression",
       "original": "current !== undefined && rotationEntryId(current) === participant.id;",
       "replacement": "true"
@@ -447,6 +636,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 137,
+      "column": 7,
+      "endLine": 137,
+      "endColumn": 75,
       "mutator": "LogicalOperator",
       "original": "current !== undefined && rotationEntryId(current) === participant.id;",
       "replacement": "current !== undefined || rotationEntryId(current) === participant.id"
@@ -454,6 +646,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 137,
+      "column": 7,
+      "endLine": 137,
+      "endColumn": 28,
       "mutator": "ConditionalExpression",
       "original": "current !== undefined && rotationEntryId(current) === participant.id;",
       "replacement": "true"
@@ -461,6 +656,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 137,
+      "column": 32,
+      "endLine": 137,
+      "endColumn": 75,
       "mutator": "ConditionalExpression",
       "original": "current !== undefined && rotationEntryId(current) === participant.id;",
       "replacement": "true"
@@ -468,6 +666,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 138,
+      "column": 32,
+      "endLine": 138,
+      "endColumn": 85,
       "mutator": "ConditionalExpression",
       "original": "const stillWatchingTimer = after !== undefined && isPresentIn(after, TOOL_TIMER);",
       "replacement": "false"
@@ -475,6 +676,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 138,
+      "column": 32,
+      "endLine": 138,
+      "endColumn": 51,
       "mutator": "ConditionalExpression",
       "original": "const stillWatchingTimer = after !== undefined && isPresentIn(after, TOOL_TIMER);",
       "replacement": "true"
@@ -482,6 +686,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 138,
+      "column": 32,
+      "endLine": 138,
+      "endColumn": 51,
       "mutator": "EqualityOperator",
       "original": "const stillWatchingTimer = after !== undefined && isPresentIn(after, TOOL_TIMER);",
       "replacement": "after === undefined"
@@ -489,6 +696,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 139,
+      "column": 9,
+      "endLine": 139,
+      "endColumn": 70,
       "mutator": "ConditionalExpression",
       "original": "if (timer.clock.running && isCurrentDriver && !stillWatchingTimer) {",
       "replacement": "true"
@@ -496,6 +706,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 139,
+      "column": 9,
+      "endLine": 139,
+      "endColumn": 70,
       "mutator": "LogicalOperator",
       "original": "if (timer.clock.running && isCurrentDriver && !stillWatchingTimer) {",
       "replacement": "timer.clock.running && isCurrentDriver || !stillWatchingTimer"
@@ -503,6 +716,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 139,
+      "column": 9,
+      "endLine": 139,
+      "endColumn": 47,
       "mutator": "ConditionalExpression",
       "original": "if (timer.clock.running && isCurrentDriver && !stillWatchingTimer) {",
       "replacement": "true"
@@ -510,6 +726,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 139,
+      "column": 9,
+      "endLine": 139,
+      "endColumn": 47,
       "mutator": "LogicalOperator",
       "original": "if (timer.clock.running && isCurrentDriver && !stillWatchingTimer) {",
       "replacement": "timer.clock.running || isCurrentDriver"
@@ -517,6 +736,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 156,
+      "column": 11,
+      "endLine": 156,
+      "endColumn": 50,
       "mutator": "ConditionalExpression",
       "original": "if (!room || !state || !state.clock.running) return;",
       "replacement": "false"
@@ -524,6 +746,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 156,
+      "column": 11,
+      "endLine": 156,
+      "endColumn": 50,
       "mutator": "LogicalOperator",
       "original": "if (!room || !state || !state.clock.running) return;",
       "replacement": "(!room || !state) && !state.clock.running"
@@ -531,6 +756,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 156,
+      "column": 11,
+      "endLine": 156,
+      "endColumn": 26,
       "mutator": "ConditionalExpression",
       "original": "if (!room || !state || !state.clock.running) return;",
       "replacement": "false"
@@ -538,6 +766,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 156,
+      "column": 11,
+      "endLine": 156,
+      "endColumn": 26,
       "mutator": "LogicalOperator",
       "original": "if (!room || !state || !state.clock.running) return;",
       "replacement": "!room && !state"
@@ -545,6 +776,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 158,
+      "column": 11,
+      "endLine": 158,
+      "endColumn": 84,
       "mutator": "ConditionalExpression",
       "original": "if (current === undefined || rotationEntryId(current) !== driverParticipantId) return;",
       "replacement": "false"
@@ -552,6 +786,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 158,
+      "column": 11,
+      "endLine": 158,
+      "endColumn": 84,
       "mutator": "LogicalOperator",
       "original": "if (current === undefined || rotationEntryId(current) !== driverParticipantId) return;",
       "replacement": "current === undefined && rotationEntryId(current) !== driverParticipantId"
@@ -559,6 +796,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 158,
+      "column": 11,
+      "endLine": 158,
+      "endColumn": 32,
       "mutator": "ConditionalExpression",
       "original": "if (current === undefined || rotationEntryId(current) !== driverParticipantId) return;",
       "replacement": "false"
@@ -566,6 +806,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 158,
+      "column": 36,
+      "endLine": 158,
+      "endColumn": 84,
       "mutator": "ConditionalExpression",
       "original": "if (current === undefined || rotationEntryId(current) !== driverParticipantId) return;",
       "replacement": "false"
@@ -573,6 +816,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 162,
+      "column": 11,
+      "endLine": 162,
+      "endColumn": 31,
       "mutator": "ConditionalExpression",
       "original": "if (driver === undefined || isPresentIn(driver, TOOL_TIMER)) return;",
       "replacement": "false"
@@ -580,6 +826,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 163,
+      "column": 7,
+      "endLine": 163,
+      "endColumn": 39,
       "mutator": "OptionalChaining",
       "original": "this.onDriverAbsence?.(roomCode);",
       "replacement": "this.onDriverAbsence(roomCode)"
@@ -587,6 +836,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 168,
+      "column": 59,
+      "endLine": 174,
+      "endColumn": 4,
       "mutator": "BlockStatement",
       "original": "private clearDriverAbsenceTimer(roomCode: string): void {",
       "replacement": "{}"
@@ -594,6 +846,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 170,
+      "column": 9,
+      "endLine": 170,
+      "endColumn": 28,
       "mutator": "ConditionalExpression",
       "original": "if (timer !== undefined) {",
       "replacement": "true"
@@ -601,6 +856,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 170,
+      "column": 9,
+      "endLine": 170,
+      "endColumn": 28,
       "mutator": "ConditionalExpression",
       "original": "if (timer !== undefined) {",
       "replacement": "false"
@@ -608,6 +866,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 170,
+      "column": 9,
+      "endLine": 170,
+      "endColumn": 28,
       "mutator": "EqualityOperator",
       "original": "if (timer !== undefined) {",
       "replacement": "timer === undefined"
@@ -615,6 +876,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 170,
+      "column": 30,
+      "endLine": 173,
+      "endColumn": 6,
       "mutator": "BlockStatement",
       "original": "if (timer !== undefined) {",
       "replacement": "{}"
@@ -622,6 +886,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 177,
+      "column": 43,
+      "endLine": 179,
+      "endColumn": 4,
       "mutator": "BlockStatement",
       "original": "clearRoomTimers(roomCode: string): void {",
       "replacement": "{}"
@@ -629,6 +896,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 182,
+      "column": 26,
+      "endLine": 186,
+      "endColumn": 4,
       "mutator": "BlockStatement",
       "original": "clearAllTimers(): void {",
       "replacement": "{}"
@@ -636,6 +906,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 183,
+      "column": 28,
+      "endLine": 183,
+      "endColumn": 64,
       "mutator": "ArrayDeclaration",
       "original": "for (const roomCode of [...this.driverAbsenceTimers.keys()]) {",
       "replacement": "[]"
@@ -643,6 +916,9 @@
     {
       "file": "apps/tasuki-sync/src/application/presence.ts",
       "line": 183,
+      "column": 66,
+      "endLine": 185,
+      "endColumn": 6,
       "mutator": "BlockStatement",
       "original": "for (const roomCode of [...this.driverAbsenceTimers.keys()]) {",
       "replacement": "{}"
@@ -650,6 +926,9 @@
     {
       "file": "apps/tasuki-sync/src/application/room-entry.ts",
       "line": 55,
+      "column": 7,
+      "endLine": 55,
+      "endColumn": 32,
       "mutator": "ConditionalExpression",
       "original": "if (resumeToken === undefined) return undefined;",
       "replacement": "false"
@@ -657,6 +936,9 @@
     {
       "file": "apps/tasuki-sync/src/application/room-entry.ts",
       "line": 57,
+      "column": 34,
+      "endLine": 57,
+      "endColumn": 61,
       "mutator": "ConditionalExpression",
       "original": "if (tokenData === undefined || tokenData.roomCode !== code) return undefined;",
       "replacement": "false"
@@ -664,6 +946,9 @@
     {
       "file": "apps/tasuki-sync/src/application/room-reclaimer.ts",
       "line": 65,
+      "column": 48,
+      "endLine": 67,
+      "endColumn": 6,
       "mutator": "BlockStatement",
       "original": "for (const code of this.emptySince.keys()) {",
       "replacement": "{}"
@@ -671,6 +956,9 @@
     {
       "file": "apps/tasuki-sync/src/application/room-reclaimer.ts",
       "line": 66,
+      "column": 11,
+      "endLine": 66,
+      "endColumn": 31,
       "mutator": "ConditionalExpression",
       "original": "if (!liveCodes.has(code)) this.emptySince.delete(code);",
       "replacement": "false"
@@ -678,6 +966,9 @@
     {
       "file": "apps/tasuki-sync/src/application/room-reclaimer.ts",
       "line": 72,
+      "column": 9,
+      "endLine": 72,
+      "endColumn": 31,
       "mutator": "ConditionalExpression",
       "original": "if (this.interval !== null) return;",
       "replacement": "false"
@@ -685,6 +976,9 @@
     {
       "file": "apps/tasuki-sync/src/application/room-reclaimer.ts",
       "line": 76,
+      "column": 16,
+      "endLine": 81,
+      "endColumn": 4,
       "mutator": "BlockStatement",
       "original": "stop(): void {",
       "replacement": "{}"
@@ -692,6 +986,9 @@
     {
       "file": "apps/tasuki-sync/src/application/room-reclaimer.ts",
       "line": 77,
+      "column": 9,
+      "endLine": 77,
+      "endColumn": 31,
       "mutator": "ConditionalExpression",
       "original": "if (this.interval !== null) {",
       "replacement": "true"
@@ -699,6 +996,9 @@
     {
       "file": "apps/tasuki-sync/src/application/room-reclaimer.ts",
       "line": 77,
+      "column": 9,
+      "endLine": 77,
+      "endColumn": 31,
       "mutator": "ConditionalExpression",
       "original": "if (this.interval !== null) {",
       "replacement": "false"
@@ -706,6 +1006,9 @@
     {
       "file": "apps/tasuki-sync/src/application/room-reclaimer.ts",
       "line": 77,
+      "column": 9,
+      "endLine": 77,
+      "endColumn": 31,
       "mutator": "EqualityOperator",
       "original": "if (this.interval !== null) {",
       "replacement": "this.interval === null"
@@ -713,6 +1016,9 @@
     {
       "file": "apps/tasuki-sync/src/application/room-reclaimer.ts",
       "line": 77,
+      "column": 33,
+      "endLine": 80,
+      "endColumn": 6,
       "mutator": "BlockStatement",
       "original": "if (this.interval !== null) {",
       "replacement": "{}"
@@ -720,6 +1026,9 @@
     {
       "file": "apps/tasuki-sync/src/application/timer-seat-broadcast.ts",
       "line": 34,
+      "column": 28,
+      "endLine": 34,
+      "endColumn": 55,
       "mutator": "ArrowFunction",
       "original": "room.session.seats.map((s) => [s.id, s.skipReason]),",
       "replacement": "() => undefined"
@@ -727,6 +1036,9 @@
     {
       "file": "apps/tasuki-sync/src/application/timer-seat-broadcast.ts",
       "line": 34,
+      "column": 35,
+      "endLine": 34,
+      "endColumn": 55,
       "mutator": "ArrayDeclaration",
       "original": "room.session.seats.map((s) => [s.id, s.skipReason]),",
       "replacement": "[]"
@@ -734,6 +1046,9 @@
     {
       "file": "apps/tasuki-sync/src/application/timer-seat-broadcast.ts",
       "line": 52,
+      "column": 7,
+      "endLine": 52,
+      "endColumn": 27,
       "mutator": "ConditionalExpression",
       "original": "if (before !== undefined && seatView(buildTimerSnapshotRoom(before, timer)) === seatView(next)) return;",
       "replacement": "true"

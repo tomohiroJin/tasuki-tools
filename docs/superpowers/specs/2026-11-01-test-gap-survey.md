@@ -482,7 +482,7 @@ bun の command runner は当たり、プラグインの絶対パスは command 
 | 単体の穴（1 クライアントで殺せる） | 58 | presence の早期 return・タイマーの解除（17）、room-reclaimer の掃除・二重起動（8）、heartbeat（2）、pick-promotion-target の同点の分岐（2）、timer-seat-broadcast の配りすぎ（1）、apply-room-level-event の代理の席（15）、participant-remove のエラー返し（13） |
 | 等価・二重の網・文言だけ | 32 | `handlePing` の本体（発火時の確認が二重の網）16 件ほか |
 
-生き残りの一覧（105 件）は [`stryker-sync-survivors.json`](./2026-11-01-test-gap-survey/stryker-sync-survivors.json) に残した。`presence.ts` の 137・139 行の生き残りは 8 件で、うち 7 件が上の区分、残る 1 件（137 行の `current !== undefined` を常に真にするもの）は等価の区分。156 行は 4 件のうち 2 件が上の区分・2 件（`&&` にするもの）が単体の穴、158 行は 4 件のうち 3 件が上の区分・1 件（`current === undefined` を変えるもの）が単体の穴。
+生き残りの一覧（105 件）は [`stryker-sync-survivors.json`](./2026-11-01-test-gap-survey/stryker-sync-survivors.json) に残した（区分は入れていない。行と列で上の説明と突き合わせる）。`presence.ts` の 137・139 行の生き残りは 8 件で、うち 7 件が上の区分、残る 1 件（137 行の `current !== undefined` を常に真にするもの）は等価の区分。156 行は 4 件のうち 2 件（条件全体を偽にするもの・`(!room || !state) && !state.clock.running` にするもの）が上の区分、2 件（`!room || !state` を偽にするもの・`!room && !state` にするもの）が単体の穴（どちらも別のレビューで 1 件ずつ当て直して確かめた）、158 行は 4 件のうち 3 件が上の区分・1 件（`current === undefined` を変えるもの）が単体の穴。
 
 12 件は、使い捨ての写しで「ドライバーの切断の猶予中に別の人が切断しても繰り上げが失われない」「猶予中に別の人がタイマーを止めたら繰り上げない」
 「猶予中に別の人が手動で交代したら重ねて発火しない」の 3 つの並びを足すと落ちた（テストはリポジトリに入れていない）。分け方のうち、当て直しで
