@@ -41,7 +41,7 @@
 CSS だけでは「縦に並ぶブロックの子が外側の余白を持っているか」を決められないからである。
 そこで**結果（隣り合うブロックの間と重なり）を E2E で測る**。`e2e/specs/spacing.spec.ts` が、この ADR で直した画面
 （poker の参加者の欄・読む面の段落・timer の参加者と共有メモの見出しの行）を測る。主な画面と幅への展開は #557。
-部品の CSS の契約（`.ui-stack` が `gap` を持つ等）と画面への配線は `packages/ui/tests/spacing-owner.test.mjs` が字面で固定し、変異（1060〜1069・1080〜1089）で壊して確かめる。
+部品の CSS の契約（`.ui-stack` が `gap` を持つ等）と画面への配線は `packages/ui/tests/spacing-owner.test.mjs` が字面で固定し、変異（1200〜1209・1210〜1219）で壊して確かめる。
 
 **例外（移行の途中・取り除く ISSUE は [#556](https://github.com/tomohiroJin/tasuki-tools/issues/556)）**: timer の
 `.section-header`（`apps/timer-web/src/styles/primitives.css`）と `.shared-memo-header`（`shared-memo.css`）は、見出しの行の下の間を
