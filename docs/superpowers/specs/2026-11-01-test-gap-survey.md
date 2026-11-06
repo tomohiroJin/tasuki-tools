@@ -362,6 +362,8 @@ roulette・agenda・checkin）へ手で壊れた入力を投げた。各入力�
 | ADR-0006 の規約の検査 | **一部採る**: `.only` と理由の無い `.skip` だけ | 4.3 | 速い段 |
 | カバレッジの下限 | 現状のまま | 親 ISSUE の表は「3 パッケージ」とあるが、実際は core の 6 パッケージ（timer・room・topic・roulette・agenda・checkin）に `lines`・`branches` の下限がある。数字の訂正だけ | — |
 
+保留の 2 行は 2026-11-06 に決め直した（8.4。この表は #496 の時点のまま残す）。
+
 ### 6.2 実装の子 ISSUE の案
 
 並びは着手の順の提案。B・D・F は #488（速い段・全件の段）の後がよい（#488 は tomohiroJin/tasuki-tools#497 でマージ済み。もう着手できる）。
@@ -390,6 +392,108 @@ roulette・agenda・checkin）へ手で壊れた入力を投げた。各入力�
 - **tasuki-sync 全体への自動の変異**: 境界の 3 ファイルに絞った（2.2）。apps の web にもかけていない
 - **2.5 で拾わなかった生き残りが、製品のテストで殺されるか**: 2.5 の 100 件だけを製品のテストでも流した。スキーマ（58 件）・文字列と表（158 件）ほかは core のテストだけの数字のまま（2.3 の注意）
 - **ランダムな順の種は 3 つだけ**: 26 本の同じ形のファイルは、別の種で落ちうる（3.2）
+
+## 8. 追記（2026-11-06・#562）: 保留の 2 つを決め直す
+
+0〜7 節は #496 の時点の記録として書き換えない。6.1 で **保留** にした 2 つ（複数のクライアントの状態遷移テスト・axe）と、
+7 節で測れなかった E2E の `--repeat-each` を、[#562](https://github.com/tomohiroJin/tasuki-tools/issues/562) で測り直した結果をここに足す。
+**この追記でもテスト・検査・依存を足していない**（Stryker・axe-core はどちらも作業ツリーの外に入れた）。
+
+### 8.1 E2E の `--repeat-each`（7 節の測り直し）
+
+手動起動のワークフロー `.github/workflows/e2e-repeat.yml`（[#564](https://github.com/tomohiroJin/tasuki-tools/pull/564)。CI の合否には入れない）で、
+`pnpm e2e -- --repeat-each=<N> --retries=0 --trace=retain-on-failure --reporter=list,json` を流した（ubuntu-latest・Playwright 1.64.1・215 件）。
+
+| 実行 | ref | N | 結果 | 所要（E2E の段） |
+|---|---|---|---|---|
+| [42156406830](https://github.com/tomohiroJin/tasuki-tools/actions/runs/42156406830) | main `1a45d40` | 5 | 1075 passed・落ち 0 | 26.4 分 |
+| [42160141611](https://github.com/tomohiroJin/tasuki-tools/actions/runs/42160141611) | main `1a45d40` | 10 | 2149 passed・**1 failed** | 51.6 分 |
+| [42160383067](https://github.com/tomohiroJin/tasuki-tools/actions/runs/42160383067) | 試しのブランチ（8.2） | 3 | 645 passed（ほかは 8.2 の試しの spec の 3 failed） | 16.8 分 |
+| [42163125346](https://github.com/tomohiroJin/tasuki-tools/actions/runs/42163125346) | 試しのブランチ（8.2） | 3 | 648 passed・落ち 0 | 16.0 分 |
+
+- 落ちたのは `e2e/specs/layout.spec.ts:842`（幅 390 でタイマーの下端が下端の帯の上端より下に出る。710.8 > 663）の 1 回だけ。同じテストは残りの 9 回と、ほかの実行の 11 回で通った。
+  実行の最初の周（通し番号 55）で落ちたので、ルームの枠（`E2E_MAX_ROOMS`）ではない → [#565](https://github.com/tomohiroJin/tasuki-tools/issues/565)
+- 揺れは 10 回あたり 1 件（2150 回中 1 回）。CI の e2e（1 回・再試行あり）の合否を変えるほどではないが、#565 で直す
+
+### 8.2 アクセシビリティ（axe）: **採らない**（今は）
+
+**流したもの**: 使い捨てのブランチ（`trial/562-axe`、マージしない）で、`e2e-repeat.yml` に axe-core 4.10.2 を作業ツリーの外へ入れる段を足し、
+[`axe-trial.spec.ts`](./2026-11-01-test-gap-survey/axe-trial.spec.ts) を足して `repeat=3` で起こした。既存の E2E と同じ入り方で 1 ルームを作り、8 画面に
+`axe.run(document, { runOnly: ['wcag2a','wcag2aa','wcag21a','wcag21aa'] })` をかけた。1 回目はアプリの CSP（`script-src 'self'`）が
+`addScriptTag` を止めたので、この spec だけ `bypassCSP: true` にした（axe の WCAG の規則は CSP を見ない）。
+
+**結果**（3 回とも同じ）:
+
+| 画面 | 違反の規則 | 違反の要素 | incomplete（人が見る候補） | axe.run の所要（ms、3 回） |
+|---|---|---|---|---|
+| 玄関（ルームを作る前） | 0 | 0 | 1 | 66 / 43 / 82 |
+| 玄関（ツールを選ぶ） | 0 | 0 | 1 | 134 / 70 / 150 |
+| timer | 0 | 0 | 2 | 156 / 136 / 237 |
+| poker | 0 | 0 | 1 | 52 / 77 / 58 |
+| お題 | 0 | 0 | 1 | 120 / 49 / 56 |
+| roulette | 0 | 0 | 1 | 54 / 60 / 75 |
+| agenda | 0 | 0 | 1 | 48 / 55 / 91 |
+| checkin | 0 | 0 | 1 | 106 / 72 / 76 |
+
+**判断**: 採らない。8 画面すべてで WCAG 2.1 A・AA の違反が 0 件で、axe が拾う穴が今は無い。既存の E2E がすでに文字のコントラスト（AA の比を測る）・
+フォーカスの輪郭・Tab の順・横のはみ出しを画面ごとに測っていて、axe の規則の多くと重なる。依存に足すには ADR が要り（原則 II）、
+アプリの CSP を試験の文脈で外す前提も増える。それに見合う穴が見つからなかった（原則 X）。
+
+**決め直す条件**: 新しいツール・画面を足すとき（8 画面と同じ形で 1 回流し直す。spec と段は上に残した）、またはアクセシビリティの不具合が
+既存の E2E をすり抜けて見つかったとき。incomplete（色のコントラストを背景から決められない要素など）は人が見る候補で、違反ではない。
+
+### 8.3 複数のクライアントの状態遷移テスト: **採る**（tasuki-sync の単体の段・presence から）
+
+**流したもの**: #561（自動の変異の定期の調査。[ADR-0034](https://github.com/tomohiroJin/tasuki-tools/pull/563) は Proposed）の前に、Stryker 9.6.1 を作業ツリーの外に入れ、
+command runner（`bun test --timeout 15000 --bail`・`coverageAnalysis: off`・`inPlace`）で [`stryker-sync.sh`](./2026-11-01-test-gap-survey/stryker-sync.sh) を
+使い捨ての写し 3 本で並べて流した（main `1a45d40`・bun 1.4.3・tasuki-sync の全テスト 1266 件で 1 回約 41 秒）。2.1 の躓きのうち inPlace と
+bun の command runner は当たり、プラグインの絶対パスは command runner なので要らなかった。
+
+対象は `apps/tasuki-sync` のうち presence・再接続・同時の操作に関わる 10 ファイル（2.2 の境界の 3 ファイルとは重ならない。在席の状態そのものは
+`packages/room-core` にあり、#522 の性質テストと 2.3 の対象に入っている）:
+
+| 組（所要） | ファイル | 件数 | killed | survived |
+|---|---|---|---|---|
+| 在席・回収（80 分 56 秒） | `application/presence.ts` | 83 | 34 | 49 |
+| | `application/room-reclaimer.ts` | 40 | 32 | 8 |
+| | `adapters/ws/heartbeat.ts` | 24 | 19 | 5 |
+| | `application/pick-promotion-target.ts` | 26 | 24 | 2 |
+| 参加・復帰（11 分 37 秒） | `application/join-room.ts` | 43 | 40 | 3 |
+| | `application/room-entry.ts` | 22 | 20 | 2 |
+| | `application/save-roster.ts` | 5 | 5 | 0 |
+| | `application/timer-seat-broadcast.ts` | 20 | 17 | 3 |
+| 同時の操作・退出（35 分 4 秒） | `application/apply-room-level-event.ts` | 79 | 62 | 17 |
+| | `application/command-handlers/participant-remove.ts` | 42 | 26 | 16 |
+| 計 | | 384 | 279 | 105 |
+
+（timeout・no coverage・error は 0。3 本を並べた負荷で killed の一部が偽の落ちの恐れはあるが、生き残りは増えない）
+
+**生き残り 105 件の分け方**:
+
+| 区分 | 件数 | 中身 |
+|---|---|---|
+| 複数のクライアントの並びでだけ見える（当て直しで確かめた） | 12 | すべて `presence.ts`。137・139 行（`handleDisconnect` の「現ドライバーか」「タイマーを張る」）7 件: 緩むと、ドライバーでない人の切断が保留中のドライバー不在タイマーを上書きして消す（2 人の切断が猶予の中で重なったときだけ）。156 行（発火時の「稼働中か」）2 件・158 行（「現ドライバーが同一か」）3 件: 猶予中の別の人の停止・交代で重ねて発火する |
+| 同じ区分の候補（未検証） | 3 | `join-room.ts:139`（timer の状態があるルームへの参加で初期状態を作り直す）・`timer-seat-broadcast.ts:34`（同じ人の複数接続の出入りで理由だけ変わる差分の取りこぼし）2 件 |
+| 単体の穴（1 クライアントで殺せる） | 58 | presence の早期 return・タイマーの解除（17）、room-reclaimer の掃除・二重起動（8）、heartbeat（2）、pick-promotion-target の同点の分岐（2）、timer-seat-broadcast の配りすぎ（1）、apply-room-level-event の代理の席（15）、participant-remove のエラー返し（13） |
+| 等価・二重の網・文言だけ | 32 | `handlePing` の本体（発火時の確認が二重の網）16 件ほか |
+
+12 件は、使い捨ての写しで「ドライバーの切断の猶予中に別の人が切断しても繰り上げが失われない」「猶予中に別の人がタイマーを止めたら繰り上げない」
+「猶予中に別の人が手動で交代したら重ねて発火しない」の 3 つの並びを足すと落ちた（テストはリポジトリに入れていない）。分け方のうち、当て直しで
+確かめたのはこの 12 件だけで、残りはコードを読んだ判断。
+
+**判断**: 採る。#562 の条件（presence・再接続に生き残りが残るか）に当たり、既存の統合テストは 2 人目の切断を流さない。置き場は **tasuki-sync の単体の段**
+（bun test・フェイクタイマー。速い段）で、E2E の複数ブラウザの並びではない（単体の段で殺せるため）。まず決まった 3 つの並び、次に参加・退出・切断・
+再接続・タイマーの操作をランダムな並びで流す性質テストを足すか決める → [#566](https://github.com/tomohiroJin/tasuki-tools/issues/566)
+
+単体の穴 58 件と等価の 32 件は #566 の範囲外で、#561 の初回の調査（ADR-0034 の決定 3 の対象を広げるかも含めて）で扱う。
+
+### 8.4 6.1 の表の保留の行の決め直し
+
+| 候補（#495） | 6.1 の判断 | 決め直した判断（2026-11-06） | 根拠 | 子 ISSUE |
+|---|---|---|---|---|
+| 複数のクライアントの状態遷移テスト | 保留 | **採る**。tasuki-sync の presence から、単体の段に | 8.3 | [#566](https://github.com/tomohiroJin/tasuki-tools/issues/566) |
+| アクセシビリティ（axe） | 保留 | **採らない**（今は） | 8.2 | — |
+| （7 節）E2E の `--repeat-each` | 測れなかった | 測った。揺れ 1 件 | 8.1 | [#565](https://github.com/tomohiroJin/tasuki-tools/issues/565) |
 
 ## 付録 A. 変異が 1 つも無いソースファイル
 
