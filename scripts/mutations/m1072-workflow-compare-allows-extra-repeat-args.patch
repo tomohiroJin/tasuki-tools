@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/workflow-compare.mjs b/scripts/lib/workflow-compare.mjs
+index 5c0708a..cdb0654 100644
+--- a/scripts/lib/workflow-compare.mjs
++++ b/scripts/lib/workflow-compare.mjs
+@@ -123,7 +123,7 @@ export function compareE2eStep(ciWorkflow, repeatWorkflow) {
+   const problems = [];
+   if (!/^pnpm e2e(\s|$)/.test(rp.command)) problems.push("写しの run が pnpm e2e で始まりません");
+   // repeat 用の 4 つを外した写しの引数が、ci.yml の引数と等しいこと（写しだけの --grep・--project も見逃さない）
+-  if (JSON.stringify(ci.args) !== JSON.stringify(rp.args)) {
++  if (!ci.args.every((a) => rp.args.includes(a))) {
+     problems.push(`pnpm e2e の引数が違います（ci.yml: ${JSON.stringify(ci.args)} / 写し（repeat 用を除く）: ${JSON.stringify(rp.args)}）`);
+   }
+   // run の中の pnpm e2e 以外の行: ci.yml 側は無いこと（あれば写しへの影響を見る）、写し側は既知の mkdir だけ

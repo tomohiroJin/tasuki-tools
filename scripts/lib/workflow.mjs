@@ -43,3 +43,16 @@ export function splitSteps(lines) {
   return steps.map((s) => ({ line: s.line, text: s.lines.join("\n") }));
 }
 
+
+/** コメント行（行頭の `#`）を外す。`dropBlank` なら空行も外す。`run:` の中の ` #` はシェルに渡るので触らない。 */
+export function stripComments(text, { dropBlank = false } = {}) {
+  return text
+    .split("\n")
+    .filter((l) => !/^\s*#/.test(l) && !(dropBlank && l.trim() === ""))
+    .join("\n");
+}
+
+/** workflow 直下の `env:` の塊（インデントした行）をそのまま返す。無ければ undefined。 */
+export function topLevelEnvBlock(workflow) {
+  return /^env:\n((?:[ \t].*\n|\n)*)/m.exec(workflow)?.[1];
+}
