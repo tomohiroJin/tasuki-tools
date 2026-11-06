@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/workflow-compare.mjs b/scripts/lib/workflow-compare.mjs
+index 5c0708a..25b2492 100644
+--- a/scripts/lib/workflow-compare.mjs
++++ b/scripts/lib/workflow-compare.mjs
+@@ -15,7 +15,7 @@ const SCOPE_ONLY = /^\s*if: steps\.scope\.outputs\.code == 'true'\s*$/;
+ export function normalizeStep(text, { stripScope = false } = {}) {
+   return stripComments(text, { dropBlank: true })
+     .split("\n")
+-    .map((l) => (stripScope ? l.replace(SCOPE_AND, "$1").replace(SCOPE_ONLY, "") : l))
++    .map((l) => (true ? l.replace(SCOPE_AND, "$1").replace(SCOPE_ONLY, "") : l))
+     .filter((l) => l !== "")
+     .join("\n");
+ }
