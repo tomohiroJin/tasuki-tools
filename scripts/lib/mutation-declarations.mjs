@@ -176,6 +176,9 @@ const RESERVED_1340_1349 =
 const RESERVED_1370_1379 =
   "**対応表より後に足した変異。** 1370〜1379 は #553 に追加で割り当てた範囲（1340〜1349 を使い切ったため。13 回目の指摘で足した）。";
 
+const RESERVED_1100_1109 =
+  "**対応表より後に足した変異。** 1100〜1109 は #555 に割り当てた範囲。";
+
 export const MUTATIONS = [
   {
     id: 1,
@@ -7673,5 +7676,69 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["audit-dependency-direction.test.mjs"],
     note: RESERVED_1360_1369 + " " + "#554 のレビュー。読む先が末尾に / の付かない形に畳まれ、再輸出の経由を見逃す。",
+  },
+  {
+    id: 1100,
+    label: "poker の席の並びを grid の auto-fill から flex の折り返しに戻す",
+    patch: "m1100-poker-seats-not-grid.patch",
+    pkg: "packages/ui",
+    tests: ["tests/card-rows.test.mjs"],
+    note: RESERVED_1100_1109 + " " + "#555。固定幅の席が左から詰まり、行の右に端数の空きが残る（一覧 #9 の再発）。",
+  },
+  {
+    id: 1101,
+    label: "poker の席の名前の省略を 3 行から 6 行にする",
+    patch: "m1101-poker-name-no-clamp-3.patch",
+    pkg: "packages/ui",
+    tests: ["tests/card-rows.test.mjs"],
+    note: RESERVED_1100_1109 + " " + "#555。28 字の名前が 6 行に折れて席が伸びる（一覧 #4 の再発）。",
+  },
+  {
+    id: 1102,
+    label: "poker のお題も記録も無いときの操作の面を 46rem の中央寄せに戻す",
+    patch: "m1102-poker-main-centered-again.patch",
+    pkg: "packages/ui",
+    tests: ["tests/card-rows.test.mjs"],
+    note: RESERVED_1100_1109 + " " + "#555。お題の無い画面で本体だけが細い列に寄り、見出しと左右の端が揃わない（一覧 #8 の再発）。",
+  },
+  {
+    id: 1103,
+    label: "landing の 40rem 未満の道具の札に縦長の比（5 / 7）を戻す",
+    patch: "m1103-landing-card-keeps-ratio.patch",
+    pkg: "packages/ui",
+    tests: ["tests/card-rows.test.mjs"],
+    note: RESERVED_1100_1109 + " " + "#555。札が 1 枚約 330px の縦長に戻り、6 枚で約 2000px になる（一覧 #21 の再発）。",
+  },
+  {
+    id: 1104,
+    label: "checkin の手札の並びを grid から flex の折り返しに戻す",
+    patch: "m1104-checkin-hand-not-grid.patch",
+    pkg: "packages/ui",
+    tests: ["tests/card-rows.test.mjs"],
+    note: RESERVED_1100_1109 + " " + "#555。390px で手札の右に約 1/3 の空きが残る（一覧 #27 の再発）。",
+  },
+  {
+    id: 1105,
+    label: "checkin のやり方の説明の折り方（auto-phrase・balance）を外す",
+    patch: "m1105-checkin-prompt-default-wrap.patch",
+    pkg: "packages/ui",
+    tests: ["tests/card-rows.test.mjs"],
+    note: RESERVED_1100_1109 + " " + "#555。説明の最後の 1〜2 字だけが 2 行目へ落ちる（一覧 #30 の再発）。",
+  },
+  {
+    id: 1106,
+    label: "poker の席の並びの `align-items: start` を `stretch` にする",
+    patch: "m1106-poker-seats-stretch.patch",
+    pkg: "packages/ui",
+    tests: ["tests/card-rows.test.mjs"],
+    note: RESERVED_1100_1109 + " " + "#555。長い名前の席が同じ行の席を同じ高さに引き伸ばし、中が空く（一覧 #4 の再発）。",
+  },
+  {
+    id: 1107,
+    label: "checkin の 40rem 未満の人数の行を中央寄せから左寄せに戻す",
+    patch: "m1107-checkin-seat-count-left.patch",
+    pkg: "packages/ui",
+    tests: ["tests/card-rows.test.mjs"],
+    note: RESERVED_1100_1109 + " " + "#555。「2 / 6 人が出しました」が席の並びの中央と揃わない（一覧 #28 の再発）。",
   },
 ];

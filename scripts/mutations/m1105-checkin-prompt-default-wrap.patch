@@ -1,0 +1,13 @@
+diff --git a/apps/checkin-web/src/table.css b/apps/checkin-web/src/table.css
+index 1ba8e6b1..8624f797 100644
+--- a/apps/checkin-web/src/table.css
++++ b/apps/checkin-web/src/table.css
+@@ -216,8 +216,6 @@
+ .method-prompt {
+   /* 文節で折り、行の長さを揃える。最後の 1〜2 字だけが 2 行目へ落ちない（#555 一覧 #30） */
+   overflow-wrap: anywhere;
+-  word-break: auto-phrase;
+-  text-wrap: balance;
+   color: var(--ivory-dim);
+   font-size: var(--font-size-xs);
+   font-weight: 400;

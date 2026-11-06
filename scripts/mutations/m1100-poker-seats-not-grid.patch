@@ -1,0 +1,15 @@
+diff --git a/apps/poker-web/src/index.css b/apps/poker-web/src/index.css
+index b753b5cc..720bf990 100644
+--- a/apps/poker-web/src/index.css
++++ b/apps/poker-web/src/index.css
+@@ -204,8 +204,8 @@
+   margin: 0;
+   /* 席は行の幅を等分して並べる（右に端数の空きを残さず、行の右端が見出し・手札と揃う・#555 一覧 #9）。
+      席の最小幅は 6.5rem。名前が長い席が同じ行の席を引き伸ばさないよう、行の中では上に揃える（`align-items: start`・一覧 #4）。 */
+-  display: grid;
+-  grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
++  display: flex;
++  flex-wrap: wrap;
+   align-items: start;
+   gap: 0.45rem;
+ }

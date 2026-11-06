@@ -1,0 +1,13 @@
+diff --git a/apps/poker-web/src/index.css b/apps/poker-web/src/index.css
+index b753b5cc..2974ff0f 100644
+--- a/apps/poker-web/src/index.css
++++ b/apps/poker-web/src/index.css
+@@ -206,7 +206,7 @@
+      席の最小幅は 6.5rem。名前が長い席が同じ行の席を引き伸ばさないよう、行の中では上に揃える（`align-items: start`・一覧 #4）。 */
+   display: grid;
+   grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
+-  align-items: start;
++  align-items: stretch;
+   gap: 0.45rem;
+ }
+ 
