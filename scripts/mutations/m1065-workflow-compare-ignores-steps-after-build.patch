@@ -1,5 +1,5 @@
 diff --git a/scripts/lib/workflow-compare.mjs b/scripts/lib/workflow-compare.mjs
-index 6fe0b3c..50aeb28 100644
+index 5c0708a..24ad05e 100644
 --- a/scripts/lib/workflow-compare.mjs
 +++ b/scripts/lib/workflow-compare.mjs
 @@ -45,7 +45,7 @@ export function splitE2eSteps(workflow, jobName, { stripScope }) {
