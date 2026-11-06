@@ -558,10 +558,17 @@
 }
 
 /* 見出しの行（`.ui-section-head`）: 左にアイテム名、右にポイント（一番強い）。束の中の間は `.ui-stack` が持つ。
-   部品は折り返す（操作が下の行へ落ちる）が、この行は「左に名前・右にポイント」を保ち、長い名前の側（`.estimate-group-item`・
-   `min-width: 0`）が縮んで折り返す。縮む側を決める修飾は、使う画面が 1 つなので部品に足さず、画面が折り返しを止める（ADR 0035 決定 3） */
+   名前の列を主にする: 名前は `flex: 1 1 12rem`（12rem を取れないほど狭いときだけ折り返す）、選択欄は `margin-inline-start: auto` で右端へ寄せる。
+   広い幅は「左に名前・右にポイント」の 1 行、狭い幅は選択欄が名前の下の行の**右端**に落ちる（左端には落とさない）。
+   選択欄の字は切らない（選択した選択肢が読めなくなるため）。寄せ方は使う画面が 1 つなので部品に修飾を足さず、画面が上書きする（ADR 0035 決定 3） */
 .estimate-group-head {
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
+}
+
+.estimate-group-head > .estimate-item--inline,
+.estimate-group-head > .estimate-group-item {
+  flex: 1 1 12rem;
+  min-width: 0;
 }
 
 .estimate-group-item {
@@ -578,13 +585,9 @@
 
 /* ポイントは選択そのものが見出しの強い値。値を別に重ねない。大きな書体・太字で、記録の中で一番強く */
 .estimate-log .estimate-group-points {
-  /* 名前の列を主にする（320px では選択欄が名前の列より広く、名前が 9 行になった）。選択欄は行の 45% までに縮め、字は 16px のまま */
-  flex: 0 1 auto;
-  min-width: 0;
-  max-inline-size: 45%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  /* 右端へ寄せる（折り返して下の行に落ちたときも右端）。字は切らない・縮めない */
+  flex: 0 0 auto;
+  margin-inline-start: auto;
   width: auto;
   padding: var(--space-1) var(--space-3);
   font-family: var(--font-display);
