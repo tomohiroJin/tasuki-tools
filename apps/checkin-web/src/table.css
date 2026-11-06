@@ -214,6 +214,10 @@
 }
 
 .method-prompt {
+  /* 文節で折り、行の長さを揃える。最後の 1〜2 字だけが 2 行目へ落ちない（#555 一覧 #30） */
+  overflow-wrap: anywhere;
+  word-break: auto-phrase;
+  text-wrap: balance;
   color: var(--ivory-dim);
   font-size: var(--font-size-xs);
   font-weight: 400;
@@ -349,9 +353,10 @@
 }
 
 .seat-list {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
+  /* 席は行の幅を等分して並べる（右に端数の空きを残さない。poker の席と同じ型・#555 一覧 #9・#28） */
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
+  align-items: start;
   gap: var(--space-4);
   margin: 0;
   padding: 0;
@@ -363,7 +368,6 @@
   flex-direction: column;
   align-items: center;
   gap: var(--space-2);
-  inline-size: 6.5rem;
   min-inline-size: 0;
   text-align: center;
   color: var(--ivory-dim);
@@ -416,6 +420,14 @@
   font-size: var(--font-size-sm);
 }
 
+/* 席が行の幅を等分して全幅に並ぶ幅（40rem 未満）では、人数の行も中央に置いて席と揃える（#555 一覧 #28） */
+@media (width < 40rem) {
+  .seat-count {
+    justify-content: center;
+    text-align: center;
+  }
+}
+
 /* ---------- 手札 ---------- */
 .hand-area,
 .hand-spectating {
@@ -445,8 +457,13 @@
 }
 
 .hand {
-  display: flex;
-  flex-wrap: wrap;
+  /* 札は行の幅を等分して並べる。固定幅を左から詰めると、390px で 2 枚の右に約 1/3 の空きが残った（#555 一覧 #27）。
+     最小幅は札の幅（下の `.hand-card`）と同じ式 */
+  --hand-card-min: max(7rem, calc(var(--font-size-sm) * 8 + 0.25rem));
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--hand-card-min), 1fr));
+  align-items: start;
+  align-self: stretch; /* 親（`.hand-area`）は `align-items: flex-start`。幅を縮めると 1 列になる */
   gap: var(--space-4);
   padding-block-start: var(--space-4); /* 選んだ札が浮いても上に切れない */
 }
@@ -461,12 +478,12 @@
   align-items: stretch;
   gap: var(--space-2);
   /*
-   * 殻（6.5rem）より少し広く取り、最長 8 字の名前（「持ち帰れなかった」）を 1 行に収める。
+   * 札の幅は列の最小幅（`.hand` の `--hand-card-min`）が決める。殻（6.5rem）より少し広く取り、最長 8 字の名前（「持ち帰れなかった」）を 1 行に収める。
    * 名前の字（`--font-size-sm`）は画面の幅で流れるので、幅を段で決めず、字の大きさ × 8 字から決める
    * （段で決めると 40rem の手前で字が幅を追い越し、1 字だけ次の行に落ちた。PR #502 の敵対的レビュー 1）。
    * 8 字の上限は `tests/method-copy.test.ts` が守る
    */
-  inline-size: max(7rem, calc(var(--font-size-sm) * 8 + 0.25rem));
+  inline-size: auto;
   min-inline-size: var(--tap-target);
   padding: 0;
   border: 0;
