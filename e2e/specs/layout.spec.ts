@@ -52,23 +52,36 @@ async function pageBox(
   });
 }
 
-/**
- * 幅を変えた直後は、React の状態から決まる大きさ（timer の円形計器）が古いまま 1 フレーム以上残ることがある。
- * 「最終的に溢れない」を待つ。溢れたままなら expect の既定の時間のあと落ちる。
- */
 async function expectNoHorizontalOverflow(page: Page): Promise<void> {
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+}
+
+/**
+ * timer のセッションで幅を変えた直後用。「最終的に溢れない」を待つ。溢れたままなら expect の既定の時間のあと落ちる。
+ * 円形計器の大きさは React の状態（useViewportWidth の resize）で決まる。390→320 は 64rem をまたがず resize だけなので、
+ * 古い幅の大きさが 1 フレーム描かれて一瞬溢れうる（推論。実機未確認）。JS で大きさの決まらない画面は即時に読む上の関数を使う。
+ */
+async function expectNoHorizontalOverflowSettled(page: Page): Promise<void> {
   await expect
     .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), { message: '横に溢れている' })
     .toBe(true);
 }
 
-/** 下端の帯の上端 − タイマーの下端（0 以上なら帯の裏に隠れない）。2 つの箱を同じ瞬間に読む。 */
+/**
+ * 下端の帯の上端 − タイマーの下端（0 以上なら帯の裏に隠れない）。2 つの箱を同じ瞬間に読む。
+ * 描かれていない（display: none で矩形が全部 0）ときは、0 以上に見えて通ってしまうので投げる。
+ */
 async function dockClearance(page: Page): Promise<number> {
   return page.evaluate(() => {
     const timer = document.querySelector('[role="timer"]');
     const dock = document.querySelector('.ui-actions--dock');
-    if (timer === null || dock === null) throw new Error('タイマーか下端の帯が描かれていない（判定が空振りする）');
-    return dock.getBoundingClientRect().top - timer.getBoundingClientRect().bottom;
+    if (timer === null || dock === null) throw new Error('タイマーか下端の帯が無い（判定が空振りする）');
+    const t = timer.getBoundingClientRect();
+    const d = dock.getBoundingClientRect();
+    if (t.width === 0 || t.height === 0 || d.width === 0 || d.height === 0) {
+      throw new Error('タイマーか下端の帯が描かれていない（判定が空振りする）');
+    }
+    return d.top - t.bottom;
   });
 }
 
@@ -853,13 +866,20 @@ test.describe('timer は 1 つのルームでロビー・セッション・お�
     expect(clamp.client).toBeLessThanOrEqual(clamp.line * 3 + 1);
     expect(clamp.scroll).toBeGreaterThan(clamp.client);
     // 下端の帯（.ui-actions--dock）の裏に隠れないこと（画面の高さではなく帯の上端と比べる）。
-    // 円形計器の大きさは React の状態（useIsWide・useViewportWidth）から決まり、setViewportSize の解決より後の
-    // 描画で縮む。直後に 1 回だけ読むと、広い幅の大きさのまま（約 48px 下）を測ることがある（#565）。
-    // 待ち時間で隠さず、「最終的に帯の裏に隠れない」まで待つ（隠れたままなら expect の既定の時間で落ちる）。
-    await expect
-      .poll(() => dockClearance(page), { message: 'タイマーの下端が下端の帯の裏に隠れている（帯の上端 − タイマーの下端）' })
-      .toBeGreaterThanOrEqual(0);
-    await expectNoHorizontalOverflow(page);
+    // 円形計器の大きさは React の状態（useIsWide・useViewportWidth）から決まる（Session.tsx の orbitSizes）。
+    // 画面に古い大きさが描かれる瞬間があるとは考えていない: react-dom 19.3.1 では resize は Continuous、
+    // matchMedia の change は Discrete（同期）で、getHighestPriorityLanes が両方をまとめて流すので、
+    // 64rem をまたぐ 1280→390 では両方の更新が描画の前に反映される。見えるのは、Playwright が描画の前に
+    // 強制レイアウトで読んだときだけ。isWide=true・vw=1280 のまま読むと orbit が 460 になって中心が 76px 下がり、
+    // 余白 +28 が −48 になって実測（710.8 > 663）と合う（片方だけ古いと 16px で合わない）。よってアプリの不具合ではなく読む時点の問題。
+    // 待ち時間で隠さず、「最終的に帯の裏に隠れない」まで待つ。隠れたままなら expect の既定の時間で落ちる。
+    await expect(page.getByRole('timer')).toBeVisible();
+    const clearanceMessage = 'タイマーの下端が下端の帯の裏に隠れている（帯の上端 − タイマーの下端）';
+    await expect.poll(() => dockClearance(page), { message: clearanceMessage }).toBeGreaterThanOrEqual(0);
+    // poll は最初の合格で止まる。2 フレーム待って普通の expect でもう 1 回読み、落ち着いた後も保たれることを見る
+    await page.evaluate(() => new Promise<void>((done) => { requestAnimationFrame(() => { requestAnimationFrame(() => { done(); }); }); }));
+    expect(await dockClearance(page), clearanceMessage).toBeGreaterThanOrEqual(0);
+    await expectNoHorizontalOverflowSettled(page);
 
     // 切った本文の中のリンクには Tab が止まらず、「続きを読む」とシートの中のリンクには止まる（#316 PR 4）
     await expectNarrowTabSkipsPreviewLink(page, card);
@@ -876,7 +896,7 @@ test.describe('timer は 1 つのルームでロビー・セッション・お�
 
     // 幅 320 でセッションも横に溢れない
     await page.setViewportSize({ width: 320, height: 640 });
-    await expectNoHorizontalOverflow(page);
+    await expectNoHorizontalOverflowSettled(page);
 
     // 最後にまとめ。完成にすると戻れないので末尾に置く。まとめは完了のあと幅を変えても出続けるので、同じルームで 4 つの幅を測る（#352）
     await page.setViewportSize({ width: 1920, height: 1080 });
