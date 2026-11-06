@@ -218,6 +218,7 @@ describe("PresenceManager: ドライバー不在の自動繰上", () => {
  *
  * @requirements v2.2 R2-1
  */
+// 猶予の経過で繰り上げが張られて発火すること自体は、上の describe が守る。ここでは猶予中に他の人の操作が重なったときだけを見る（#566）
 describe("PresenceManager: ドライバー不在の猶予中に他の人の操作が重なる", () => {
   let store: InMemoryRoomStore;
   let timers: InMemoryTimerStore;

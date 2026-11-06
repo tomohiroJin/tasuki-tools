@@ -6449,7 +6449,7 @@ export const MUTATIONS = [
   },
   {
     id: 1081,
-    label: "handleDisconnect の不在タイマーの条件が、稼働中・現ドライバーの両方を満たさなくても張る（&& を || に）",
+    label: "handleDisconnect が、タイマーから居なくなった人の切断なら、稼働中か・現ドライバーかを問わず不在タイマーを張る（running && isCurrentDriver を || でつなぐ）",
     patch: "m1081-presence-disconnect-schedules-when-not-watching.patch",
     pkg: "apps/tasuki-sync",
     tests: ["test/driver-absence.test.ts"],
