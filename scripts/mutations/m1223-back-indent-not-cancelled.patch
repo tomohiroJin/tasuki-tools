@@ -12,11 +12,11 @@
 diff --git a/packages/ui/src/components/room-header.css b/packages/ui/src/components/room-header.css
 --- a/packages/ui/src/components/room-header.css
 +++ b/packages/ui/src/components/room-header.css
-@@ -191,7 +191,6 @@
-   }
+@@ -118,7 +118,6 @@
+    お題と記録があって題の行が埋まる 640〜668px 前後。#554・#479 の #13）に字の左端が題と揃うよう、幅によらず打ち消す。行の右端に置かれるときは、右寄せなので見た目が変わらない。
+    詰めた見た目の `margin-inline-start: auto`（下）に勝たないよう、それより前に書く。 */
+ .ui-room-header .ui-page-header-back {
+-  margin-inline-start: calc(-1 * (var(--space-2) + 1px));
+ }
  
-   .ui-room-header:not(.ui-room-header--compact) .ui-page-header-back {
--    margin-inline-start: calc(-1 * (var(--space-2) + 1px));
-   }
- 
-   .ui-room-header:not(.ui-room-header--compact) .ui-room-header-share {
+ /* 詰めた見た目: 題・戻るリンク・「仲間を招く」を 1 つの行に並べ（40rem 未満は題を目に出さないので 1 行・下の @media）、招待の欄は開いたとき次の行に全幅で出す。

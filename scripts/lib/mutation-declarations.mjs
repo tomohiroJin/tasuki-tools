@@ -107,6 +107,9 @@ const RESERVED_1010_1019 =
 const RESERVED_1020_1029 =
   "**対応表より後に足した変異。** 1020〜1029 は #547 に割り当てた範囲。";
 
+const RESERVED_1240_1249 =
+  "**対応表より後に足した変異。** 1240〜1249 は #554 に追加で割り当てた範囲（1220〜1229 を使い切る前に、2 回目のレビューの指摘で足した）。";
+
 const RESERVED_1220_1229 =
   "**対応表より後に足した変異。** 1220〜1229 は #554 に割り当てた範囲（Issue の 1010〜1019 は #546 が、のちに取った 1070〜1079 は #562（PR #564）が先に main へ入れたため、離れた帯へ移した）。";
 
@@ -6489,7 +6492,7 @@ export const MUTATIONS = [
   },
   {
     id: 1226,
-    label: "下端の帯のボタンの左右の余白を --space-2 から --space-5 に広げる",
+    label: "下端の帯のボタンの左右の余白の詰め（--space-2）を、元の --lg の余白（1.8rem）に戻す",
     patch: "m1226-dock-button-padding-restored.patch",
     pkg: "packages/ui",
     tests: ["tests/dock-and-narrow-header.test.mjs"],
@@ -6518,5 +6521,69 @@ export const MUTATIONS = [
     pkg: "apps/timer-web",
     tests: ["test/session-actions-fit.test.ts"],
     note: RESERVED_1220_1229 + " " + "#554。320px で timer の帯の「時間リセット」が 2 行に折れ、帯が高くなる。",
+  },
+  {
+    id: 1240,
+    label: "下端の帯の主の全幅の規則を、目に見える操作だけを数える形から、全部の子を数える :last-child:nth-child(odd) に戻す",
+    patch: "m1240-dock-counts-hidden-children.patch",
+    pkg: "packages/ui",
+    tests: ["tests/dock-and-narrow-header.test.mjs"],
+    note: RESERVED_1240_1249 + " " + "#554 のレビュー。帯の主の全幅の規則が、見えない子や選択欄・控えの包みまで数え、数がずれて主が半分の幅になる。",
+  },
+  {
+    id: 1241,
+    label: "下端の帯の選択欄が 1 段を使う規則を外す",
+    patch: "m1241-dock-select-full-width-removed.patch",
+    pkg: "packages/ui",
+    tests: ["tests/dock-and-narrow-header.test.mjs"],
+    note: RESERVED_1240_1249 + " " + "#554 のレビュー。選択欄が 1 列の幅（約 138px）に押し込まれ、字が切れる。",
+  },
+  {
+    id: 1242,
+    label: "帯の地のトークン --dock-ground を不透明な felt-950 から透ける暗幕に戻す",
+    patch: "m1242-dock-ground-translucent.patch",
+    pkg: "packages/ui",
+    tests: ["tests/dock-and-narrow-header.test.mjs"],
+    note: RESERVED_1240_1249 + " " + "#554 のレビュー。帯の地（部品も agenda も同じトークン）が暗幕に戻り、後ろの字が帯の字に透けて重なる。",
+  },
+  {
+    id: 1243,
+    label: "agenda の手元の下の余白から env(safe-area-inset-bottom) を外す",
+    patch: "m1243-run-padding-without-safe-area.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/run-controls-opaque.test.ts"],
+    note: RESERVED_1240_1249 + " " + "#554 のレビュー。iPhone のホームバーの高さが足りず、最下部で最後の行や「最初から」が不透明な帯に隠れる。",
+  },
+  {
+    id: 1244,
+    label: "agenda の手元の下の余白を 0 にする",
+    patch: "m1244-run-padding-zero.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/run-controls-opaque.test.ts"],
+    note: RESERVED_1240_1249 + " " + "#554 のレビュー。最下部で進行表の最後の行が不透明な帯に隠れる。",
+  },
+  {
+    id: 1245,
+    label: "映す表示の操作帯（.projection-strip）の地を、透明へ溶けるグラデーションに戻す",
+    patch: "m1245-projection-strip-gradient-restored.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/run-controls-opaque.test.ts"],
+    note: RESERVED_1240_1249 + " " + "#554 のレビュー。映す表示の操作帯の地が透明へ溶け、ボタンの字の後ろに映す大きな字が透けて重なる。",
+  },
+  {
+    id: 1246,
+    label: "招待の URL の span から全文の title を外す",
+    patch: "m1246-invite-url-title-removed.patch",
+    pkg: "packages/ui",
+    tests: ["tests/dock-and-narrow-header.test.mjs"],
+    note: RESERVED_1240_1249 + " " + "#554 のレビュー。省略された URL の末尾を、クリップボードの使えない端末で目で確かめる手段が無くなる。",
+  },
+  {
+    id: 1247,
+    label: "戻るの字下げの打ち消し（幅によらない規則）を消す",
+    patch: "m1247-back-indent-rule-removed-all-widths.patch",
+    pkg: "packages/ui",
+    tests: ["tests/dock-and-narrow-header.test.mjs"],
+    note: RESERVED_1240_1249 + " " + "#554 のレビュー。戻るが単独の行に落ちる幅（40rem 未満と 640〜668px のお題つきの poker）で、字が 9px 字下がって題と左端が揃わない。",
   },
 ];

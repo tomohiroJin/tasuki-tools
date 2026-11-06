@@ -10,15 +10,14 @@
 #       git apply scripts/mutations/m1225-*.patch
 # 復元: git apply -R scripts/mutations/m1225-*.patch
 diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
-index cc5dfd4a..e4e51c13 100644
 --- a/apps/agenda-web/src/run.css
 +++ b/apps/agenda-web/src/run.css
-@@ -166,7 +166,7 @@
+@@ -169,7 +169,7 @@
    display: grid;
    gap: var(--space-3);
    padding: var(--space-4) clamp(var(--space-4), 4vw, var(--space-6)) calc(var(--space-4) + env(safe-area-inset-bottom));
--  background: var(--felt-950);
+-  background: var(--dock-ground);
 +  background: linear-gradient(to top, var(--felt-950) 72%, transparent);
-   border-top: 1px solid var(--line-strong);
+   border-top: 1px solid var(--dock-edge);
  }
  @media (width >= 64rem) {

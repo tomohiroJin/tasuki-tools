@@ -91,7 +91,15 @@ async function expectBackAlignedWithTitle(page: Page, label: string): Promise<vo
  */
 async function expectHeaderTabOrderFollowsSight(page: Page, label: string, minStops = 2): Promise<void> {
   await page.evaluate(() => window.scrollTo(0, 0));
-  await page.locator('body').focus();
+  // Chromium の「次に Tab が進む起点」は body.focus() では戻らない。見出しの直前に tabindex=-1 の一時の要素を置いてフォーカスし、そこから辿る
+  await page.evaluate(() => {
+    const header = document.querySelector('.ui-room-header')!;
+    const start = document.createElement('span');
+    start.id = '__tab-start';
+    start.tabIndex = -1;
+    header.before(start);
+    start.focus();
+  });
   const stops: Array<{ name: string; top: number; left: number; height: number }> = [];
   for (let i = 0; i < 30; i += 1) {
     await page.keyboard.press('Tab');
@@ -107,6 +115,7 @@ async function expectHeaderTabOrderFollowsSight(page: Page, label: string, minSt
     }
     stops.push(stop);
   }
+  await page.evaluate(() => document.getElementById('__tab-start')?.remove());
   expect(stops.length, `${label}: 見出しの中で Tab が止まる所が ${stops.length} 個`).toBeGreaterThanOrEqual(minStops);
   for (let i = 1; i < stops.length; i += 1) {
     const a = stops[i - 1]!;
@@ -115,6 +124,17 @@ async function expectHeaderTabOrderFollowsSight(page: Page, label: string, minSt
     const ok = sameRow ? b.left > a.left : b.top > a.top;
     expect(ok, `${label}: Tab が「${a.name}」(${Math.round(a.left)},${Math.round(a.top)}) → 「${b.name}」(${Math.round(b.left)},${Math.round(b.top)}) と見た目の順に進まない`).toBe(true);
   }
+}
+
+/** 40rem 未満で「仲間を招く」を開いた後（招待の欄が増えた後）でも、見出しの全部の Tab の順が見た目の順であることを見る。閉じて戻す。 */
+async function expectTabOrderWithShareOpen(page: Page, label: string): Promise<void> {
+  const toggle = page.getByRole('button', { name: '仲間を招く' });
+  if (!(await toggle.isVisible())) return;
+  await toggle.click();
+  await expect(page.getByRole('button', { name: '招待リンクをコピー' })).toBeVisible();
+  await expectHeaderTabOrderFollowsSight(page, `${label}・招待を開いた`, 4);
+  await toggle.click();
+  await expect(page.getByRole('button', { name: '招待リンクをコピー' })).toBeHidden();
 }
 
 interface DockFacts {
@@ -192,13 +212,14 @@ async function expectContentClearOfDock(page: Page, dock: Locator, label: string
   await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
   const m = await dock.evaluate((el) => {
     const parent = el.parentElement!;
+    const fixed = getComputedStyle(el).position === 'fixed';
     let contentBottom = -Infinity;
     let who = '';
     for (const other of Array.from(parent.querySelectorAll('*'))) {
       if (el.contains(other) || other === el) continue;
       if (['absolute', 'fixed'].includes(getComputedStyle(other).position)) continue;
-      // 帯より後ろの中身（timer の休憩の注記など）は帯の下に置かれるので、覆われない
-      if (!(other.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING)) continue;
+      // sticky の帯（流れの中にある）は、帯より後ろの DOM（timer の休憩の注記など）を覆わない。fixed の帯（agenda）は流れの外なので、後ろの DOM（進行表）も覆う
+      if (fixed ? false : !(other.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING)) continue;
       const o = other.getBoundingClientRect();
       if (o.width > 0 && o.height > 0 && o.bottom > contentBottom) {
         contentBottom = o.bottom;
@@ -346,14 +367,17 @@ test.describe('見出しの Tab の順は見た目の順', () => {
     for (const width of [320, 390, 639, 768, 1280]) {
       await page.setViewportSize({ width, height: 900 });
       await expectHeaderTabOrderFollowsSight(page, `poker 見出しの Tab（お題なし・${width}）`);
+      await expectTabOrderWithShareOpen(page, `poker 見出しの Tab（お題なし・${width}）`);
     }
     const topic = await openPeer('tab-topic');
     await joinTopicTool(topic.page, url, 'tab-t');
     await setTopic(topic.page, 'FizzBuzz', '3 のときは Fizz を出す');
     await expect(page.getByRole('button', { name: /お題を(隠す|見る)/ })).toBeVisible();
-    for (const width of [320, 390, 639, 768, 1280]) {
+    // 640・660・668 は 40rem 以上でも、お題と記録で題の行が埋まり、戻るが単独の行に落ちる幅（main からあった崩れ・#13 と同じ形）
+    for (const width of [320, 390, 639, 640, 660, 668, 768, 1280]) {
       await page.setViewportSize({ width, height: 900 });
       await expectHeaderTabOrderFollowsSight(page, `poker 見出しの Tab（お題あり・${width}）`);
+      await expectTabOrderWithShareOpen(page, `poker 見出しの Tab（お題あり・${width}）`);
       await expectBackAlignedWithTitle(page, `poker 戻る（お題あり・${width}）`);
     }
   });
@@ -381,5 +405,30 @@ test.describe('timer の休憩つきのセッションの帯', () => {
       expect(order.primaryIsLast, `timer 休憩つき（${width}）: 主（最後の子）が帯の最後（右下）にない`).toBe(true);
       await expectContentClearOfDock(page, dock, `timer 休憩つき（${width}）`);
     }
+  });
+});
+
+test.describe('agenda の映す表示の帯', () => {
+  test('Given 映す表示で操作帯を出した / When 帯の地を測る / Then 不透明で、帯の字の点を帯が受ける', async ({ page }) => {
+    test.setTimeout(120_000);
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await openAgendaTool(page, 'header-projection');
+    await loadSampleAndStart(page);
+    await page.getByRole('button', { name: '映す表示', exact: true }).click();
+    const exit = page.getByRole('button', { name: '手元の表示に戻る', exact: true });
+    await expect(exit).toBeAttached();
+    await exit.focus();
+    const strip = page.locator('.projection-strip');
+    await expect(strip).toHaveCSS('opacity', '1');
+    const f = await dockFacts(strip);
+    expect(f.alpha, `映す表示の帯の地が不透明でない（α=${f.alpha}）。字の後ろに大きな字が透ける`).toBe(1);
+    expect(f.backgroundImage, '映す表示の帯の地に透明へ溶けるグラデーションがある').toBe('none');
+    // 実経路: 帯のボタンの字の点を、最前面で受けているのは帯の中の要素
+    const front = await exit.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      const hit = document.elementsFromPoint(r.left + r.width / 2, r.top + r.height / 2)[0];
+      return hit?.closest('.projection-strip') !== null && hit !== undefined;
+    });
+    expect(front, '映す表示の帯のボタンの点を、帯より前の要素が受けている').toBe(true);
   });
 });

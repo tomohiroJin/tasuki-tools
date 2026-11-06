@@ -10,48 +10,24 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { mediaBlock, only, outsideMedia, rules } from './support/css-text.mjs';
 
 const COMPONENTS = resolve(dirname(fileURLToPath(import.meta.url)), '../src/components');
 const read = (name) => readFileSync(resolve(COMPONENTS, name), 'utf8');
-const stripComments = (css) => css.replace(/\/\*[\s\S]*?\*\//g, '');
-
-/** `head` で始まる @media の中身（波括弧の対応で切り出す）。同じ頭が 2 つあれば読み分けられないので赤にする。 */
-function mediaBlock(css, head) {
-  const plain = stripComments(css);
-  const at = plain.indexOf(head);
-  assert.notEqual(at, -1, `${head} が無い`);
-  assert.equal(plain.indexOf(head, at + 1), -1, `${head} が 2 つ以上ある。この検査では読み分けられない`);
-  const open = plain.indexOf('{', at);
-  let depth = 0;
-  for (let i = open; i < plain.length; i += 1) {
-    if (plain[i] === '{') depth += 1;
-    if (plain[i] === '}') {
-      depth -= 1;
-      if (depth === 0) return plain.slice(open + 1, i);
-    }
-  }
-  throw new Error(`${head} が閉じていない`);
-}
-
-function rules(css) {
-  return [...stripComments(css).matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({ selector: m[1].trim(), body: m[2] }));
-}
-
-/** 選択子が `selector` の規則がちょうど 1 つあることを確かめて返す。 */
-function only(list, selector) {
-  const found = list.filter((r) => r.selector === selector);
-  assert.equal(found.length, 1, `\`${selector}\` の規則がちょうど 1 つではない（${found.length} 件）`);
-  return found[0].body;
-}
-
 const dockRules = () => rules(mediaBlock(read('actions.css'), '@media (width < 40rem)'));
 const headerRules = () => rules(mediaBlock(read('room-header.css'), '@media (width < 40rem)'));
 const NOT_COMPACT = '.ui-room-header:not(.ui-room-header--compact)';
 
 test('Given 40rem 未満の帯 / When 地を読む / Then 不透明な色のトークンで、グラデーション・透明・暗幕（α < 1）ではない', () => {
   const body = only(dockRules(), '.ui-actions--dock');
-  assert.match(body, /background:\s*var\(--felt-950\);/);
+  assert.match(body, /background:\s*var\(--dock-ground\);/);
   assert.doesNotMatch(body, /gradient|transparent|rgba|scrim/);
+});
+
+test('Given トークン層 / When 帯の地と線の値を読む / Then --dock-ground は不透明な felt-950、--dock-edge は line-strong（部品も倣う画面の帯も同じ値を引く）', () => {
+  const css = readFileSync(resolve(COMPONENTS, '../tokens/palette.css'), 'utf8');
+  assert.match(css, /--dock-ground:\s*var\(--felt-950\);/);
+  assert.match(css, /--dock-edge:\s*var\(--line-strong\);/);
 });
 
 test('Given 40rem 未満の帯 / When 上端の余白を読む / Then 上の内側の余白は --space-3（下限 --space-2）', () => {
@@ -59,12 +35,18 @@ test('Given 40rem 未満の帯 / When 上端の余白を読む / Then 上の内�
   assert.match(body, /padding:\s*var\(--space-3\) /);
 });
 
-test('Given 40rem 未満の帯 / When 並びを読む / Then 2 列の格子で、奇数の最後の子（主）は全幅の 1 段になる（操作は 2 段まで）', () => {
+const VISIBLE = ':not([hidden], .ui-visually-hidden)';
+const COUNTED = ':not([hidden], .ui-visually-hidden, select, .ui-actions-start)';
+
+test('Given 40rem 未満の帯 / When 並びを読む / Then 2 列の格子で、目に見える操作の奇数の最後（主）だけが全幅の 1 段になる（操作は 2 段まで）', () => {
   const list = dockRules();
   const body = only(list, '.ui-actions--dock');
   assert.match(body, /display:\s*grid;/);
   assert.match(body, /grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/);
-  assert.match(only(list, '.ui-actions--dock > :last-child:nth-child(odd)'), /grid-column:\s*1\s*\/\s*-1;/);
+  // 数えるのは目に見える操作だけ（hidden・読み上げ専用・選択欄・控えの包みは数えない）。全部の子を数える :last-child:nth-child(odd) に戻さない
+  const full = only(list, `.ui-actions--dock > :nth-child(odd of ${COUNTED}):nth-last-child(1 of ${VISIBLE})`);
+  assert.match(full, /grid-column:\s*1\s*\/\s*-1;/);
+  assert.ok(!list.some((r) => /:last-child:nth-child\(odd\)/.test(r.selector)), '全部の子を数える :last-child:nth-child(odd) が残っている');
 });
 
 test('Given 40rem 未満の帯 / When ボタンの余白を読む / Then 320px の 1 列（約 138px）に収まるよう左右の余白を詰める', () => {
@@ -73,10 +55,19 @@ test('Given 40rem 未満の帯 / When ボタンの余白を読む / Then 320px �
   assert.match(body, /min-width:\s*0;/);
 });
 
-test('Given 40rem 未満の帯 / When 選択欄の規則を読む / Then 選択欄は 1 段を使い、続く 2 つの操作は横に並ぶ', () => {
+test('Given 40rem 未満の帯 / When 選択欄と控えの包みの規則を読む / Then 位置によらず 1 段を使い、:has で奇数の数え方を上書きしない', () => {
   const list = dockRules();
-  assert.match(only(list, '.ui-actions--dock > select'), /grid-column:\s*1\s*\/\s*-1;/);
-  assert.match(only(list, '.ui-actions--dock:has(> select) > :last-child:nth-child(odd)'), /grid-column:\s*auto;/);
+  assert.match(only(list, '.ui-actions--dock > select,\n  .ui-actions--dock > .ui-actions-start'), /grid-column:\s*1\s*\/\s*-1;/);
+  assert.ok(!list.some((r) => r.selector.includes(':has(')), '帯の規則が :has で子の並びを上書きしている');
+});
+
+test('Given 40rem 未満の帯 / When 上の線を読む / Then 線は --dock-edge から引く', () => {
+  assert.match(only(dockRules(), '.ui-actions--dock'), /border-top:\s*1px solid var\(--dock-edge\);/);
+});
+
+test('Given 招待の URL を描く部品 / When RoomHeader の字を読む / Then URL の span に title で全文を持たせる（省略された末尾を目で確かめる）', () => {
+  const tsx = readFileSync(resolve(COMPONENTS, '../../../invite-ui/src/RoomHeader.tsx'), 'utf8');
+  assert.match(tsx, /className="ui-invite-url" title=\{inviteUrl\}/);
 });
 
 test('Given 40rem 未満の通常の見出し / When 並びを読む / Then 折り返す flex に並べ直し、題は全幅の 1 段（4 段に積まない）', () => {
@@ -88,10 +79,16 @@ test('Given 40rem 未満の通常の見出し / When 並びを読む / Then 折�
   assert.match(only(list, `${NOT_COMPACT} .ui-room-header-title > h1`), /flex:\s*1 1 100%;/);
 });
 
-test('Given 40rem 未満の通常の見出し / When 戻るの規則を読む / Then 下線の字の横の余白（--space-2 と枠 1px）を打ち消して題に左端を揃え、order は持たない', () => {
-  const body = only(headerRules(), `${NOT_COMPACT} .ui-page-header-back`);
+test('Given 幅によらない規則 / When 戻るの規則を読む / Then 下線の字の横の余白（--space-2 と枠 1px）を打ち消して題に左端を揃え、詰めた見た目の auto より前にある', () => {
+  const plain = readFileSync(resolve(COMPONENTS, 'room-header.css'), 'utf8');
+  const list = rules(outsideMedia(plain));
+  const body = only(list, '.ui-room-header .ui-page-header-back');
   assert.match(body, /margin-inline-start:\s*calc\(-1 \* \(var\(--space-2\) \+ 1px\)\);/);
   assert.doesNotMatch(body, /order:/);
+  const at = list.findIndex((r) => r.selector === '.ui-room-header .ui-page-header-back');
+  const compact = list.findIndex((r) => r.selector === '.ui-room-header--compact .ui-page-header-back');
+  assert.ok(compact > at, '詰めた見た目の戻る（margin-inline-start: auto）が打ち消しより先にあり、打ち消しが勝ってしまう');
+  assert.ok(!rules(mediaBlock(plain, '@media (width < 40rem)')).some((r) => r.selector.includes('.ui-page-header-back')), '40rem 未満の中に戻るの規則が残っている（幅によらず効かせる）');
 });
 
 test('Given 40rem 未満の @media / When 見出しの規則を読む / Then order で目の順だけを変えない（Tab・読み上げの順が見た目と食い違う。WCAG 2.4.3・1.3.2）', () => {

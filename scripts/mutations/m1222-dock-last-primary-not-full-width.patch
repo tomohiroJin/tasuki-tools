@@ -10,15 +10,14 @@
 #       git apply scripts/mutations/m1222-*.patch
 # 復元: git apply -R scripts/mutations/m1222-*.patch
 diff --git a/packages/ui/src/components/actions.css b/packages/ui/src/components/actions.css
-index 380a4482..98316593 100644
 --- a/packages/ui/src/components/actions.css
 +++ b/packages/ui/src/components/actions.css
-@@ -62,7 +62,7 @@
+@@ -64,7 +64,7 @@
    }
  
-   .ui-actions--dock > :last-child:nth-child(odd) {
+   .ui-actions--dock > :nth-child(odd of :not([hidden], .ui-visually-hidden, select, .ui-actions-start)):nth-last-child(1 of :not([hidden], .ui-visually-hidden)) {
 -    grid-column: 1 / -1;
 +    grid-column: auto;
    }
  
-   /* 2 列の 1 つは (320 − 2×16 − 12) ÷ 2 = 138px。ボタンの左右の余白（`--lg` で 20px）を詰めないと「次のアイテムへ」が 2 行に折れる */
+   /* 2 列の 1 つは (320 − 2×16 − 12) ÷ 2 = 138px。ボタンの左右の余白（`--lg` は 1.8rem ＝ 28.8px）を詰めないと「次のアイテムへ」が 2 行に折れる */

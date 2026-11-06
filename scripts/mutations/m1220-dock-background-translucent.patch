@@ -10,15 +10,14 @@
 #       git apply scripts/mutations/m1220-*.patch
 # 復元: git apply -R scripts/mutations/m1220-*.patch
 diff --git a/packages/ui/src/components/actions.css b/packages/ui/src/components/actions.css
-index 380a4482..3c8212fa 100644
 --- a/packages/ui/src/components/actions.css
 +++ b/packages/ui/src/components/actions.css
-@@ -58,7 +58,7 @@
+@@ -60,7 +60,7 @@
      margin-inline: calc(clamp(var(--space-4), 4vw, calc(var(--space-6) * 1.5)) * -1);
      padding: var(--space-3) clamp(var(--space-4), 4vw, calc(var(--space-6) * 1.5)) calc(var(--space-3) + env(safe-area-inset-bottom));
-     border-top: 1px solid var(--line-strong);
--    background: var(--felt-950);
+     border-top: 1px solid var(--dock-edge);
+-    background: var(--dock-ground);
 +    background: var(--felt-scrim);
    }
  
-   .ui-actions--dock > :last-child:nth-child(odd) {
+   .ui-actions--dock > :nth-child(odd of :not([hidden], .ui-visually-hidden, select, .ui-actions-start)):nth-last-child(1 of :not([hidden], .ui-visually-hidden)) {

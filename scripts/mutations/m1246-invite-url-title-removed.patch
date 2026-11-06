@@ -1,0 +1,23 @@
+# 変異 1246: invite-url-title-removed
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/dock-and-narrow-header.test.mjs
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外）
+#
+# #554 のレビュー。省略された URL の末尾を、クリップボードの使えない端末で目で確かめる手段が無くなる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1246-*.patch
+# 復元: git apply -R scripts/mutations/m1246-*.patch
+diff --git a/packages/invite-ui/src/RoomHeader.tsx b/packages/invite-ui/src/RoomHeader.tsx
+--- a/packages/invite-ui/src/RoomHeader.tsx
++++ b/packages/invite-ui/src/RoomHeader.tsx
+@@ -135,7 +135,7 @@
+           <div className="ui-invite">
+             {/* 狭い幅では末尾が「…」に省略される。非セキュアオリジンなどクリップボードが使えない端末でも目で全文を確かめられるよう、全文を title に持たせる。
+                 省略を先頭側にする（`direction: rtl`）のは、読み上げと選択の順を変えるので採らない。ルームの見分けは隣の「ルーム XXXXXX」が担う。 */}
+-            <span className="ui-invite-url" title={inviteUrl}>{inviteUrl}</span>
++            <span className="ui-invite-url">{inviteUrl}</span>
+             {/* ボタンと浮かぶ QR を包む。外側を押したかの判定と、QR を浮かべる位置の基準にする。 */}
+             <div ref={qrAnchorRef} className="ui-room-header-qr-anchor" onKeyDown={closeQrOnEscape} onBlur={closeQrOnFocusLeave}>
+               <button
