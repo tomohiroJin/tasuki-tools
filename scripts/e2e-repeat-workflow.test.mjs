@@ -16,7 +16,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { splitJobs, splitSteps } from "./lib/workflow.mjs";
 import { deriveChecks } from "./local-check.mjs";
-import { splitE2eSteps, jobLevelKeys } from "./lib/workflow-compare.mjs";
+import { splitE2eSteps, jobLevelKeys, topLevelEnv } from "./lib/workflow-compare.mjs";
 
 const read = (rel) => fs.readFileSync(new URL(`../${rel}`, import.meta.url), "utf8");
 const CI = read(".github/workflows/ci.yml");
@@ -54,12 +54,20 @@ describe("準備の段が ci.yml の e2e ジョブと同じ", () => {
     assert.notDeepEqual(repeatSteps(leaked).prep, ciSteps().prep);
   });
 
-  test("build から pnpm e2e までの間に段が無い。ci.yml が間に段を足したら、ここも直す（黙って通さない）", () => {
-    assert.deepEqual(ciSteps().between, [], "ci.yml の build と pnpm e2e の間に段が増えた。e2e-repeat.yml へも写してください");
-    assert.deepEqual(repeatSteps().between, []);
-    const withExtra = CI.replace("      - run: pnpm e2e\n", "      - run: node scripts/extra-e2e-setup.mjs\n        if: steps.scope.outputs.code == 'true'\n      - run: pnpm e2e\n");
-    assert.notEqual(withExtra, CI, "前提: 置き換えが当たること");
-    assert.equal(splitE2eSteps(withExtra, "e2e", { stripScope: true }).between.length, 1);
+  test("build から pnpm e2e までの間の段が ci.yml と同じ。ci.yml が段を足したら、写すまで赤のまま", () => {
+    assert.deepEqual(repeatSteps().between, ciSteps().between);
+    const extra = "      - run: node scripts/extra-e2e-setup.mjs\n";
+    const insert = (text, before, ifLine) => text.replace(before, `${extra}${ifLine}${before}`);
+    const ci2 = insert(CI, "      - run: pnpm e2e\n", "        if: steps.scope.outputs.code == 'true'\n");
+    assert.notEqual(ci2, CI, "前提: 置き換えが当たること");
+    const ciExtra = splitE2eSteps(ci2, "e2e", { stripScope: true }).between;
+    assert.equal(ciExtra.length, 1);
+    // 写さなければ赤（ci.yml だけが段を足した）
+    assert.notDeepEqual(repeatSteps().between, ciExtra);
+    // 同じ段を写せば緑
+    const repeat2 = insert(REPEAT, "      - name: E2E を繰り返し流す\n", "");
+    assert.notEqual(repeat2, REPEAT, "前提: 置き換えが当たること");
+    assert.deepEqual(repeatSteps(repeat2).between, ciExtra);
   });
 
   test("ジョブ直下の設定（env・container・services など）を足していない。runs-on と、workflow 直下の env が同じ", () => {
@@ -68,8 +76,10 @@ describe("準備の段が ci.yml の e2e ジョブと同じ", () => {
     assert.deepEqual(jobLevelKeys(REPEAT, "e2e-repeat"), allowed);
     const line = (text, re) => re.exec(text)?.[0];
     assert.equal(line(REPEAT, /^ {4}runs-on: .+$/m), line(CI, /^ {4}runs-on: .+$/m));
-    assert.equal(line(REPEAT, /^env:\n {2}COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"$/m), line(CI, /^env:\n {2}COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"$/m));
-    assert.ok(line(CI, /^env:\n {2}COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"$/m));
+    // workflow 直下の env は塊ごと比べる（2 行目の変数を足しても見逃さない）
+    assert.ok(topLevelEnv(CI).includes("COREPACK_ENABLE_DOWNLOAD_PROMPT"), "前提: ci.yml に workflow 直下の env があること");
+    assert.equal(topLevelEnv(REPEAT), topLevelEnv(CI));
+    assert.notEqual(topLevelEnv(CI.replace('COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"\n', 'COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"\n  EXTRA_FLAG: "1"\n')), topLevelEnv(REPEAT));
     // env を足した ci.yml は検出できる
     assert.notDeepEqual(jobLevelKeys(CI.replace("  e2e:\n    runs-on: ubuntu-latest\n", "  e2e:\n    runs-on: ubuntu-latest\n    env:\n      X: 1\n"), "e2e"), ["runs-on", "steps"]);
   });

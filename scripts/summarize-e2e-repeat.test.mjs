@@ -131,6 +131,12 @@ describe("reporter の errors（globalSetup の失敗など）", () => {
     assert.doesNotMatch(formatMarkdown(summarize(report())), /reporter のエラー/);
   });
 
+  test("実行 0 回のときは、空の表と「落ちたテストはありませんでした」を出さない", () => {
+    const md = formatMarkdown(summarize(SETUP_FAILED));
+    assert.match(md, /開発環境の版が宣言と合いません/);
+    assert.doesNotMatch(md, /落ちたテストはありませんでした|全テストの成功／失敗の回数/);
+  });
+
   test("配線: テストが 0 件で errors があるとき、中身を要約に出して終了コード 1。通っていて errors があるときは 0", () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "summarize-e2e-repeat-errors-"));
     try {

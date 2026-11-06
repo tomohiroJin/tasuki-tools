@@ -101,6 +101,8 @@ export function formatMarkdown(summary) {
     for (const m of errors) out.push(`- ${escapeCell(m)}`);
     out.push("");
   }
+  // 実行 0 回（globalSetup の失敗など）は、原因の errors だけを出す。空の表で「落ちたテストはありません」と読ませない
+  if (totals.runs === 0) return out.join("\n") + "\n";
   out.push(
     `- テスト ${totals.tests} 件・実行 ${totals.runs} 回（成功 ${totals.pass} / 失敗 ${totals.fail} / 飛ばし ${totals.skip}）`,
   );

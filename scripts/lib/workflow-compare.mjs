@@ -55,3 +55,12 @@ export function jobLevelKeys(workflow, jobName) {
     .lines.map((l) => /^ {4}([A-Za-z0-9_-]+):/.exec(l.text)?.[1])
     .filter(Boolean);
 }
+
+/** workflow 直下の `env:` の塊（コメントと空行を除く）。無ければ空文字。 */
+export function topLevelEnv(workflow) {
+  const block = /^env:\n((?:[ \t].*\n|\n)*)/m.exec(workflow)?.[1] ?? "";
+  return block
+    .split("\n")
+    .filter((l) => !/^\s*#/.test(l) && l.trim() !== "")
+    .join("\n");
+}
