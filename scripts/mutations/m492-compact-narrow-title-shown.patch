@@ -10,14 +10,13 @@
 #       git apply scripts/mutations/m492-*.patch
 # 復元: git apply -R scripts/mutations/m492-*.patch
 diff --git a/packages/ui/src/components/room-header.css b/packages/ui/src/components/room-header.css
-index 4f90cde2..d6fa6d5d 100644
+index 2f6eea9d..adde15c7 100644
 --- a/packages/ui/src/components/room-header.css
 +++ b/packages/ui/src/components/room-header.css
-@@ -103,21 +103,6 @@
-   .ui-room-header-share:not([data-open='true']) {
+@@ -154,21 +154,6 @@
      display: none;
    }
--
+ 
 -  /* 詰めた見た目の狭い幅では、道具名を目に出さず読み上げにだけ残し、戻るリンクと「仲間を招く」を 1 行に収める。
 -     道具名を出したままだと 2 行（約 90px）になり、390×844 の timer のセッションで計器が下端の帯に潜った（#447 段 2）。
 -     宣言は部品の `.ui-visually-hidden` と同じ。空になった題の箱は伸びて、戻るリンクと「仲間を招く」を右へ寄せる。 */
@@ -32,6 +31,7 @@ index 4f90cde2..d6fa6d5d 100644
 -    white-space: nowrap;
 -    border-width: 0;
 -  }
- }
- 
- /* `.ui-room-header .ui-room-header-share-toggle`（(0,2,0)）にするのは、`.ui-button` の `display: inline-flex`（後に読み込まれる・
+-
+   /* 通常の見た目の狭い幅は、見出しの行・戻る・道具のボタン・「仲間を招く」を 1 つの折り返す行に並べ直す（#554・#479 の #11・#13）。
+      題は 1 行ぶんの全幅に置き、続けて「戻る・道具のボタン」、最後に「仲間を招く」と招待の欄。以前は 4 段（題・道具のボタン・戻る・仲間を招く）に積まれ、
+      poker の 320px で約 230px あった。DOM の順（題・道具のボタン・戻る・仲間を招く）は変えず、`order` で戻るを道具のボタンの前に出す。
