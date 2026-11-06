@@ -1,0 +1,13 @@
+diff --git a/apps/tasuki-sync/src/application/presence.ts b/apps/tasuki-sync/src/application/presence.ts
+index e981138..ccde932 100644
+--- a/apps/tasuki-sync/src/application/presence.ts
++++ b/apps/tasuki-sync/src/application/presence.ts
+@@ -153,7 +153,7 @@ export class PresenceManager {
+       this.driverAbsenceTimers.delete(roomCode);
+       const room = this.store.get(roomCode);
+       const state = this.timers.get(roomCode);
+-      if (!room || !state || !state.clock.running) return;
++      if (!room || !state) return;
+       const current = state.session.rotation[state.session.currentIndex];
+       if (current === undefined || rotationEntryId(current) !== driverParticipantId) return;
+       const driver = findParticipant(room, driverParticipantId);
