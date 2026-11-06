@@ -207,6 +207,12 @@
   margin-top: 0;
 }
 
+/* 「見学する」は見出しの隣に置く（部品 `.ui-section-head` の両端寄せだと、広い幅で操作の面の反対の端まで離れる）。
+   隣へ置く修飾は、使う画面が poker だけなので部品に足さない（ADR 0035 決定 3）。折り返したら、部品どおり見出しの下に左端そろいで落ちる */
+.room-participants-head {
+  justify-content: flex-start;
+}
+
 .participants {
   list-style: none;
   padding: 0;
@@ -551,7 +557,13 @@
   border-block-start: 1px solid var(--card-inline);
 }
 
-/* 見出しの行（`.ui-section-head`）: 左にアイテム名、右にポイント（一番強い）。束の中の間は `.ui-stack` が持つ */
+/* 見出しの行（`.ui-section-head`）: 左にアイテム名、右にポイント（一番強い）。束の中の間は `.ui-stack` が持つ。
+   部品は折り返す（操作が下の行へ落ちる）が、この行は「左に名前・右にポイント」を保ち、長い名前の側（`.estimate-group-item`・
+   `min-width: 0`）が縮んで折り返す。縮む側を決める修飾は、使う画面が 1 つなので部品に足さず、画面が折り返しを止める（ADR 0035 決定 3） */
+.estimate-group-head {
+  flex-wrap: nowrap;
+}
+
 .estimate-group-item {
   min-width: 0;
   overflow-wrap: anywhere;

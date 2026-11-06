@@ -180,7 +180,7 @@ export function RoomPage({ roomId, sync }: Props) {
         )}
         <div className="ui-workspace-main room-main">
           <section className="ui-stack">
-            <div className="ui-section-head">
+            <div className="room-participants-head ui-section-head">
               <h2 id={PARTICIPANTS_HEADING_ID} tabIndex={-1}>{participantsHeading(snapshot.participants.length, spectatorCount)}</h2>
               {/* 自分の切り替え。投票中も開票後も出す（#419・設計 §5.2） */}
               <button
