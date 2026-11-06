@@ -39,15 +39,18 @@
   }
 }
 
-/* 縦の間を親（Card）が持つ形（Card の className `meter-panel-stack`・ADR 0034 決定 1・#553 の申し送り）。見出しの行・一覧・補足の間は `gap`。
+/* 縦の間を親が持つ形（ADR 0035 決定 1・#553 の申し送り・#556）。Card は className `meter-panel-stack`、パネルの根（Card の中の div）は `panel-stack`。
+ * 見出しの行・一覧・補足の間は `gap`（既定 `--space-4`。違う間は `--panel-stack-gap` で親が決める）。
  * 四隅のティックは絶対配置なので並びに入らない。子は縦の外側の余白を持たない（要素層の `margin` も 0 にして `gap` に足さない） */
-.meter-panel-stack {
+.meter-panel-stack,
+.panel-stack {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--panel-stack-gap, var(--space-4));
 }
 
-.meter-panel-stack > * {
+.meter-panel-stack > *,
+.panel-stack > * {
   margin-block: 0;
 }
 
@@ -98,14 +101,9 @@
 
 /* カード見出し。 */
 /* 並び（flex・折り返し・横の間）は部品 `.ui-section-head` が持つ（ADR 0035。以前は横の間が 3px だった・#553 一覧 #33）。
-   下の間は、親が `gap` で持つ（`meter-panel-stack`・#556）。`stack` でない親（各パネルの根）の中の見出しは、
-   その親が次の子との間を持つまで、この見出しが持つ（`.meter-panel-stack` の外だけに効く） */
+   下の間は、親が `gap` で持つ（`meter-panel-stack`・`panel-stack`・ADR 0035 決定 1・#556）。この見出しは縦の余白を持たない。 */
 .section-header {
-  margin-bottom: var(--space-4);
-}
-
-.meter-panel-stack > .section-header {
-  margin-bottom: 0;
+  margin-block: 0;
 }
 
 .section-header-lead {

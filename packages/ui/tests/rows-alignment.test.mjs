@@ -73,10 +73,22 @@ test('Given 画面の CSS / When order を探す / Then 無い（目の順と DO
   assert.doesNotMatch(css, /^\s*order:/m);
 });
 
-test('Given timer の Card の縦の間 / When 規則と配線を読む / Then 親が gap で持ち、共有メモ・参加者の見出しは margin を持たない（ADR 0034 決定 1）', () => {
+test('Given timer の Card の縦の間 / When 規則と配線を読む / Then 親が gap で持ち、共有メモ・参加者の見出しは margin を持たない（ADR 0035 決定 1）', () => {
   const css = read('apps/timer-web/src/styles/primitives.css');
-  assert.match(ruleBody(css, '.meter-panel-stack'), /gap:\s*var\(--space-4\);/);
-  assert.match(ruleBody(css, '.meter-panel-stack > .section-header'), /margin-bottom:\s*0;/);
+  assert.match(css, /\.meter-panel-stack,\n\.panel-stack \{[^}]*gap:\s*var\(--panel-stack-gap, var\(--space-4\)\);/);
   assert.match(read('apps/timer-web/src/ui/components/SharedMemo.tsx'), /<Card className=\{updated \? "meter-panel-stack /);
   assert.match(read('apps/timer-web/src/ui/Lobby.tsx'), /<Card className="meter-panel-stack">/);
+});
+
+test('Given timer の見出しの行 / When CSS と配線を読む / Then margin-bottom を持たず、各パネルの根が gap で間を持つ（ADR 0035 決定 1・#556）', () => {
+  const prim = read('apps/timer-web/src/styles/primitives.css');
+  assert.doesNotMatch(ruleBody(prim, '.section-header'), /margin-bottom/);
+  assert.doesNotMatch(read('apps/timer-web/src/styles/shared-memo.css'), /margin-bottom/);
+  assert.match(prim, /\.panel-stack \{[^}]*gap:\s*var\(--panel-stack-gap, var\(--space-4\)\);/);
+  assert.match(read('apps/timer-web/src/ui/components/PassphrasePanel.tsx'), /<div className="panel-stack">/);
+  assert.match(read('apps/timer-web/src/ui/components/RosterPanel.tsx'), /<div className="panel-stack">/);
+  assert.match(read('apps/timer-web/src/ui/History.tsx'), /<Card className="meter-panel-stack">/);
+  assert.match(read('apps/timer-web/src/ui/Lobby.tsx'), /交代通知/);
+  assert.equal((read('apps/timer-web/src/ui/Lobby.tsx').match(/<Card className="meter-panel-stack">/g) ?? []).length, 2);
+  assert.match(read('apps/timer-web/src/ui/components/SessionConfigPanel.tsx'), /<div className="panel-stack">\s*<SectionHeader/);
 });

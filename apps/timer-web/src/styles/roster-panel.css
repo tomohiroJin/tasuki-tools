@@ -75,7 +75,7 @@
 
 /* 代理追加フォーム */
 .roster-panel-proxy-form {
-  margin-bottom: var(--space-3);
+  margin: 0;
 }
 
 .roster-panel-proxy-row {
@@ -97,8 +97,7 @@
 
 /* セクションの見出し（ドライバー・見学） */
 .roster-panel-heading {
-  margin-top: var(--space-2);
-  margin-bottom: var(--space-1);
+  margin: 0;
   font-size: var(--font-size-xs);
   line-height: 1.35;
   font-weight: 600;
@@ -107,9 +106,16 @@
   letter-spacing: 0.025em;
 }
 
-/* 「見学」の見出しは上の余白が広い（比較に描かれない）。上の規則より後に置く */
-.roster-panel-heading-watchers {
-  margin-top: var(--space-3);
+/* 見出しと一覧の組。間は `gap`（見出しの margin は持たない・ADR 0035 決定 1）。組どうしの間は `.roster-panel-body` の gap */
+.roster-panel-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* 本体の中（代理追加・ドライバー・見学）の間は 12px */
+.roster-panel-body {
+  --panel-stack-gap: var(--space-3);
 }
 
 /* 参加者の一覧。内側ではスクロールしない（#316 PR 3・B2: 脇の中でページと別にスクロールすると、画面の端で二重に動く） */

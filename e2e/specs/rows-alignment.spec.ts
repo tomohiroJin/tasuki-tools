@@ -130,4 +130,21 @@ test.describe('一覧の行は名前の長さや自分かどうかで並びを�
       expect(box!.x + box!.width, `幅 ${String(width)}: 通知は帯の右端寄り`).toBeGreaterThan(last.left);
     }
   });
+
+  test('Given timer のロビーのカード / When 2 つの幅で開く / Then 見出しの行の下端から中身の上端までの間は 16px（親の gap が持ち、以前の margin-bottom と同じ見た目・#556）', async ({ page, openPeer }) => {
+    const code = await createTimerRoom(page, 'ホスト');
+    const guest = await openPeer('rows-gap');
+    await joinAsDriver(guest.page, code, 'ゲスト');
+    await joinSelf(page);
+    await expect(page.locator('.lobby-participant')).toHaveCount(2);
+    for (const width of [320, 1280] as const) {
+      await page.setViewportSize({ width, height: 900 });
+      const gaps = await page.evaluate(() => [...document.querySelectorAll('.section-header')].filter((h) => h.getClientRects().length > 0).map((h) => {
+        const next = h.nextElementSibling!;
+        return { title: (h.querySelector('h2')?.textContent ?? '').trim(), gap: next.getBoundingClientRect().top - h.getBoundingClientRect().bottom };
+      }));
+      expect(gaps.length, `幅 ${String(width)}: 見出しの行`).toBeGreaterThanOrEqual(4);
+      for (const g of gaps) expect(Math.abs(g.gap - 16), `幅 ${String(width)}: 「${g.title}」の下の間`).toBeLessThanOrEqual(1);
+    }
+  });
 });

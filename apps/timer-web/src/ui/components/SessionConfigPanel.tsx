@@ -22,8 +22,9 @@ export function SessionConfigPanel({ config, eligibleSeats, onChange }: SessionC
   const assertiveSwitch = config.assertiveSwitch === true;
 
   return (
-    // 先頭の SectionHeader は自分の margin-bottom（1rem）を持つので、子の間の 1.25rem は交代間隔のブロックにだけ効く。
+    // 縦の間は親が gap で持つ（ADR 0035 決定 1）。見出し → 交代間隔は 1rem（内側の組）、組 → 詳細設定は 1.25rem（根）。
     <div className="session-config-panel">
+      <div className="panel-stack">
       <SectionHeader icon={Settings2} title="セッション設定" />
       <div>
         <p className="instrument-label session-config-label">交代間隔</p>
@@ -48,6 +49,7 @@ export function SessionConfigPanel({ config, eligibleSeats, onChange }: SessionC
           })}
         </div>
         <p className="session-config-hint">推奨は 5〜10 分。短いほど集中と学習が高まります。</p>
+      </div>
       </div>
 
       {/* 詳細設定（オプション 2 点と休憩の条件）。最初は折りたたみ。 */}

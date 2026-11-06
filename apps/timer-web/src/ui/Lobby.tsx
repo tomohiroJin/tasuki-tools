@@ -146,7 +146,7 @@ export function Lobby({
           />
         </Card>
         {/* 通知設定カード。セッション開始前に音通知を整えておける。 */}
-        <Card>
+        <Card className="meter-panel-stack">
           <SectionHeader icon={Bell} title="交代通知" />
           <NotifySettingsPanel
             prefs={notifyPrefs}
