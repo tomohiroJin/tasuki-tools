@@ -134,6 +134,8 @@ test.describe('縦に並ぶブロックの間は親が持つ', () => {
     await expect(page.locator('.estimate-group')).toHaveCount(2);
     for (const width of [320, 1280] as const) {
       await page.setViewportSize({ width, height: 900 });
+      // 幅を替えた直後は、束の見出しが描き直される。見えるまで待ってから測る（待たずに測ると見つからないことがある）
+      await expect(page.locator('.estimate-group-head:visible', { hasText: 'TTTT' }).first(), `幅 ${String(width)}: 束の見出しの行が見える`).toBeVisible();
       const m = await page.evaluate(() => {
         const head = [...document.querySelectorAll('.estimate-group-head')].find((e) => e.getClientRects().length > 0 && (e.textContent ?? '').includes('TTTT'));
         const name = head?.querySelector('.estimate-group-item');
