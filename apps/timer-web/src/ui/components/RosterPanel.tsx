@@ -335,7 +335,7 @@ export function RosterPanel({
               <span className="ui-visually-hidden">{presenceLabel(p.presence)}</span>
               {/* 名前: text-base font-medium で情報階層の最上位に。
                   同名が並ぶときは識別子を添える（目で見ても行を区別できるように）。 */}
-              <span className="roster-panel-name">
+              <span className="roster-panel-name" title={label}>
                 {label}
               </span>
               {p.isPlaceholder && (

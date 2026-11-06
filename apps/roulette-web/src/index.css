@@ -531,12 +531,12 @@
   gap: var(--space-1);
 }
 /* 1 行 = [チェック][名前][印][名前を消す]。行の地は沈んだ敷き。
-   **名前を先に読ませる**: 名前（ラベル）は中身の幅より縮まず、印と「名前を消す」の塊が入らない幅では塊ごと
-   次の行の右へ回る（2026-10-13 の 320 の撮影で、2 つの印に幅を取られ「山田」が「山…」に切れた）。
-   名前は行の幅を超えるときだけ … で切る */
+   **操作は行の右端に固定の列**: 名前は行の中で縮む列（min-width: 0）に置き、2 行まで折り返して残りは … で切る
+   （全文は読み上げと `title` に残る）。印と「名前を消す」の塊は縮まず、名前が長くても段を変えない（#556 一覧 #20。
+   以前は名前が中身の幅より縮まず、長い名前の行だけ塊が次の行へ落ちて行の高さが倍になった）。
+   2026-10-13 の 320 の撮影では、2 つの印に幅を取られ「山田」が「山…」に切れた。2 行まで折り返すので 1 字だけが残ることは減る */
 .roulette-row {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   column-gap: var(--space-2);
   min-height: 44px;
@@ -549,9 +549,8 @@
   flex-direction: row;
   align-items: center;
   gap: var(--space-3);
-  flex: 1 0 auto;
+  flex: 1 1 0;
   min-width: 0;
-  max-width: 100%;
   min-height: 44px;
   color: var(--ivory);
   font-size: var(--font-size-sm);
@@ -565,9 +564,11 @@
 }
 .roulette-name {
   min-width: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 .roulette-row--out .roulette-name {
   color: var(--ivory-faint);
@@ -592,6 +593,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  flex: none;
   margin-inline-start: auto;
   min-height: 44px;
 }
@@ -789,4 +791,9 @@
    timer の詰めた見出し（`.app-room-header-compact`）と margin が相殺して、詰めた間隔が space-5 に戻るため（#472 レビュー）。 */
 .ui-room-header {
   margin-block-end: var(--space-5);
+}
+
+/* 名前の追加の案内文。最後の 1〜2 字だけが 2 行目に落ちないよう、行の長さを均す（#556 一覧 #32） */
+.roulette-add > label {
+  text-wrap: balance;
 }

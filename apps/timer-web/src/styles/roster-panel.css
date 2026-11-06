@@ -173,9 +173,14 @@
 
 /* 名前 */
 .roster-panel-name {
-  /* 名前は残りの幅を取る。区切りのない長い名前は自分の段へ回り、その中で折れて札に収まる（アイコンの操作は次の段の右端） */
-  flex: 1 1 auto;
+  /* 名前は残りの幅を取る。基準の幅を名前の長さによらず一定（8rem）にして、短い名前の行も長い名前の行も同じ段に並ぶ。
+   * 長い名前は 2 行まで折り返して残りは … で切る（全文は `title`・#556 一覧 #15。以前は区切りのない長い名前が自分の段へ回り 4 段になった） */
+  flex: 1 1 8rem;
   min-width: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
   font-size: var(--font-size-base);
   line-height: 1.5;
   font-weight: 500;

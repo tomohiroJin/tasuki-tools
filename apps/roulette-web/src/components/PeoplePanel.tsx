@@ -80,7 +80,7 @@ function Row({
           aria-describedby={hasMark ? markId : undefined}
           onChange={(event) => onInclude(row.id, event.target.checked)}
         />
-        <span className="roulette-name">
+        <span className="roulette-name" title={row.name}>
           {row.name}
           {row.isSelf ? SELF_SUFFIX : ''}
         </span>
