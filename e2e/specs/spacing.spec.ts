@@ -84,7 +84,7 @@ test.describe('縦に並ぶブロックの間は親が持つ', () => {
     }
   });
 
-  test('Given timer のセッション（2 人） / When 開く / Then 「ランダム」は「参加者」の見出しの行の中にある（#553 一覧 #6）', async ({ page, openPeer }) => {
+  test('Given timer のセッション（2 人） / When 開く / Then 「ランダム」は「参加者」の見出しの行の中に、「編集」は「共有メモ」の見出しと同じ行にある（#553 一覧 #6・#18）', async ({ page, openPeer }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     const code = await createTimerRoom(page, 'spacing-timer');
     const guest = await openPeer('spacing-timer-guest');
@@ -105,6 +105,20 @@ test.describe('縦に並ぶブロックの間は親が持つ', () => {
       });
       expect(inside, `幅 ${String(width)}: 「参加者」の見出しと「ランダム」が描かれている`).not.toBeNull();
       expect(inside, `幅 ${String(width)}: 「ランダム」は見出しの行の中`).toEqual({ contained: true, top: true, bottom: true });
+      // 共有メモの「編集」も見出しの行の中にあり、見出しと同じ行（下の行へ落ちていない）に並ぶ（一覧 #18）。脇が 22rem の幅（1280）で測る
+      if (width === 1280) {
+        const memo = await page.evaluate(() => {
+          const heading = [...document.querySelectorAll('h2')].find((h) => (h.textContent ?? '').includes('共有メモ'));
+          const row = heading?.closest('.ui-section-head');
+          const edit = [...document.querySelectorAll('button')].find((b) => (b.textContent ?? '').trim() === '編集');
+          if (heading === undefined || row === null || row === undefined || edit === undefined) return null;
+          const h = heading.getBoundingClientRect();
+          const e = edit.getBoundingClientRect();
+          return { contained: row.contains(edit), sameLine: e.top < h.bottom };
+        });
+        expect(memo, '共有メモの見出しと「編集」が描かれている').not.toBeNull();
+        expect(memo, '「編集」は見出しの行の中で、見出しと同じ行').toEqual({ contained: true, sameLine: true });
+      }
     }
   });
 });

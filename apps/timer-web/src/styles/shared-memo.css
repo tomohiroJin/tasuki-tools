@@ -22,8 +22,13 @@
 /* 題と「Markdown」の小さな印を並べる（印は h2 の外に置き、見出しの名前に混ぜない） */
 .shared-memo-lead {
   display: flex;
+  /* 22rem の脇では、題と印と切替ボタンが 1 行に入らない。印を題の下へ折り返し、ボタンは見出しの行の右に残す（#553 一覧 #18）。
+     基準の幅（8rem）が小さいので、行が足りなくなったときだけボタンが次の行へ落ちる */
+  flex: 1 1 8rem;
+  flex-wrap: wrap;
+  min-width: 0;
   align-items: center;
-  gap: var(--space-2);
+  gap: 0 var(--space-2);
 }
 
 .shared-memo-title {
