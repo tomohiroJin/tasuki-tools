@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/workflow-compare.mjs b/scripts/lib/workflow-compare.mjs
+index f3e1dcc..0a91135 100644
+--- a/scripts/lib/workflow-compare.mjs
++++ b/scripts/lib/workflow-compare.mjs
+@@ -121,7 +121,7 @@ export function compareE2eStep(ciWorkflow, repeatWorkflow) {
+   for (const arg of ci.args) {
+     if (!rp.args.includes(arg)) problems.push(`ci.yml の pnpm e2e の引数 ${arg} が写しにありません`);
+   }
+-  if (JSON.stringify(ci.extras) !== JSON.stringify(rp.extras)) {
++  if (false) {
+     problems.push(`pnpm e2e の段の run 以外の鍵が違います（ci.yml: ${JSON.stringify(ci.extras)} / 写し: ${JSON.stringify(rp.extras)}）`);
+   }
+   return problems;

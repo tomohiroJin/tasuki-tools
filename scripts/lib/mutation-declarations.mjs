@@ -119,6 +119,9 @@ const RESERVED_1050_1059 =
 const RESERVED_1060_1069 =
   "**対応表より後に足した変異。** 1060〜1069 は #562（E2E の繰り返し実行の集計と、ci.yml との写しの比較）に割り当てた範囲。";
 
+const RESERVED_1070_1079 =
+  "**対応表より後に足した変異。** 1070〜1079 は #562 の続き（敵対的レビューの指摘）に割り当てた範囲。";
+
 export const MUTATIONS = [
   {
     id: 1,
@@ -6392,5 +6395,29 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["summarize-e2e-repeat.test.mjs"],
     note: RESERVED_1060_1069 + " " + "#562 の /code-review。全回で落ちたのではないテストが、安定して壊れているものに混ざる。",
+  },
+  {
+    id: 1069,
+    label: "ワークフローの写しの比較が、pnpm e2e の段の run 以外の鍵（env など）を見ない",
+    patch: "m1069-workflow-compare-ignores-e2e-step-keys.patch",
+    pkg: "scripts",
+    tests: ["e2e-repeat-workflow.test.mjs"],
+    note: RESERVED_1060_1069 + " " + "#562 の敵対的レビュー。ci.yml が e2e の段に env を足しても写しのずれが黙って通る。",
+  },
+  {
+    id: 1070,
+    label: "ワークフローの写しの比較が、pnpm e2e の引数を見ない",
+    patch: "m1070-workflow-compare-ignores-e2e-args.patch",
+    pkg: "scripts",
+    tests: ["e2e-repeat-workflow.test.mjs"],
+    note: RESERVED_1070_1079 + " " + "#562 の敵対的レビュー。ci.yml が pnpm e2e の引数を変えても写しのずれが黙って通る。",
+  },
+  {
+    id: 1071,
+    label: "E2E 繰り返しの集計が、reporter の errors の ANSI 色符号を外さない",
+    patch: "m1071-summarize-keeps-ansi-in-errors.patch",
+    pkg: "scripts",
+    tests: ["summarize-e2e-repeat.test.mjs"],
+    note: RESERVED_1070_1079 + " " + "#562 の敵対的レビュー。要約に色の制御文字が混ざる。",
   },
 ];

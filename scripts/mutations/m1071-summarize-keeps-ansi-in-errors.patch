@@ -1,0 +1,13 @@
+diff --git a/scripts/summarize-e2e-repeat.mjs b/scripts/summarize-e2e-repeat.mjs
+index 4de56be..5a1d48a 100644
+--- a/scripts/summarize-e2e-repeat.mjs
++++ b/scripts/summarize-e2e-repeat.mjs
+@@ -103,7 +103,7 @@ export function summarize(report) {
+   const durationMs = typeof report.stats?.duration === "number" ? report.stats.duration : null;
+   // globalSetup の失敗などは suites ではなく errors に出る（suites が空になる）。先頭行だけを集める。
+   const errors = (Array.isArray(report.errors) ? report.errors : [])
+-    .map((e) => String(e?.message ?? "").replace(ANSI, "").split("\n")[0].trim())
++    .map((e) => String(e?.message ?? "").split("\n")[0].trim())
+     .map((m) => m || "（メッセージなし）");
+   return { tests, totals, durationMs, errors };
+ }

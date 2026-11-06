@@ -50,7 +50,7 @@ describe("summarize", () => {
   test("テストごとに、繰り返しの 1 回ごとの結果を数える（入れ子の見出しはつなぐ）", () => {
     const { tests, totals } = summarize(report());
     const by = Object.fromEntries(tests.map((t) => [t.id, t]));
-    assert.deepEqual(by["poker.spec.ts › 安定 [chromium]"], { id: "poker.spec.ts › 安定 [chromium]", pass: 3, fail: 0, skip: 0, interrupted: 0, notRun: 0 });
+    assert.deepEqual(by["poker.spec.ts › 安定 [chromium]"], { id: "poker.spec.ts › 安定 [chromium]", pass: 3, fail: 0, skip: 0, interrupted: 0, notRun: 0, failedAtMs: [] });
     assert.equal(by["poker.spec.ts › ルーム › 揺れる [chromium]"].pass, 1);
     assert.equal(by["poker.spec.ts › ルーム › 揺れる [chromium]"].fail, 2);
     assert.equal(by["poker.spec.ts › ルーム › いつも落ちる [chromium]"].fail, 3);
@@ -162,7 +162,7 @@ describe("classifyFailures・formatMarkdown・formatFailureList", () => {
 
   test("要約に件数・所要時間・落ちたテストの表を出す", () => {
     const md = formatMarkdown(summarize(report()));
-    assert.match(md, /テスト 3 件・実行 9 回（成功 4 \/ 失敗 5 \/ 飛ばし 0）/);
+    assert.match(md, /テスト 3 件・実行 9 回（成功 4 \/ 失敗 5 \/ 飛ばし 0 \/ 止められた 0 \/ 未実行 0）/);
     assert.match(md, /2 分 5 秒/);
     assert.match(md, /揺れた（成功も失敗もあった）: 1 件 \/ いつも落ちた: 1 件/);
     assert.match(md, /\| poker\.spec\.ts › ルーム › 揺れる \[chromium\] \| 1 \| 2 \| 揺れた \|/);
@@ -229,6 +229,33 @@ describe("reporter の errors（globalSetup の失敗など）", () => {
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
+  });
+});
+
+describe("要約の細部（/code-review の指摘）", () => {
+  test("reporter の errors の ANSI 色符号を外す（実際の形）", () => {
+    const r = { suites: [], errors: [{ message: "\u001b[31mTimed out waiting 4s for the test suite to run\u001b[39m" }] };
+    assert.deepEqual(summarize(r).errors, ["Timed out waiting 4s for the test suite to run"]);
+  });
+
+  test("1 行目の括弧の中の回数を足すと実行の回数になる（止められた・未実行も出す）", () => {
+    const md = formatMarkdown(summarize(one(withStatus("expected", ["passed"]), withStatus("unexpected", ["failed"]), withStatus("skipped", ["interrupted"]), { projectName: "chromium", results: [] })));
+    assert.match(md, /実行 4 回（成功 1 \/ 失敗 1 \/ 飛ばし 0 \/ 止められた 1 \/ 未実行 1）/);
+  });
+
+  test("落ちた回が、実行の開始から何分のところだったかを出す（枠・資源に当たる後半の偏りを見る）", () => {
+    const at = (min, status) => ({ projectName: "chromium", status: status === "failed" ? "unexpected" : "expected", expectedStatus: "passed", results: [{ status, startTime: new Date(Date.parse("2026-11-06T02:00:00.000Z") + min * 60000).toISOString() }] });
+    const r = { ...one(at(1, "passed"), at(3, "failed"), at(41.5, "failed")), stats: { startTime: "2026-11-06T02:00:00.000Z", duration: 2_700_000 } };
+    const s = summarize(r);
+    assert.deepEqual(s.tests[0].failedAtMs, [180000, 2490000]);
+    assert.match(formatFailureList(s.tests), /開始から 3\.0 分, 41\.5 分/);
+    assert.match(formatMarkdown(s), /\| 3\.0 分, 41\.5 分 \|/);
+  });
+
+  test("開始時刻が読めなければ、時点は出さない（落ちた一覧は壊れない）", () => {
+    const s = summarize(one(withStatus("unexpected", ["failed"]), withStatus("expected", ["passed"])));
+    assert.deepEqual(s.tests[0].failedAtMs, []);
+    assert.doesNotMatch(formatFailureList(s.tests), /開始から/);
   });
 });
 

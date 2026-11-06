@@ -18,7 +18,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { splitJobs, splitSteps, stripComments } from "./lib/workflow.mjs";
 import { deriveChecks } from "./local-check.mjs";
-import { splitE2eSteps, jobLevelKeys, topLevelEnv } from "./lib/workflow-compare.mjs";
+import { splitE2eSteps, jobLevelKeys, topLevelEnv, compareE2eStep } from "./lib/workflow-compare.mjs";
 
 const read = (rel) => fs.readFileSync(new URL(`../${rel}`, import.meta.url), "utf8");
 const CI = read(".github/workflows/ci.yml");
@@ -76,6 +76,27 @@ describe("準備の段が ci.yml の e2e ジョブと同じ", () => {
     const repeat2 = insert(REPEAT, "      - name: E2E を繰り返し流す\n", "");
     assert.notEqual(repeat2, REPEAT, "前提: 置き換えが当たること");
     assert.deepEqual(repeatSteps(repeat2).between, ciExtra);
+  });
+
+  test("pnpm e2e の段: ci.yml の引数と run 以外の鍵（env など）が写しにある。repeat 用の引数・env だけが違う", () => {
+    assert.deepEqual(compareE2eStep(CI, REPEAT), []);
+    // ci.yml が引数を変えたら、写しにも入れるまで赤
+    const ciArgs = CI.replace("      - run: pnpm e2e\n", "      - run: pnpm e2e -- --workers=4\n");
+    assert.notEqual(ciArgs, CI, "前提: 置き換えが当たること");
+    assert.ok(compareE2eStep(ciArgs, REPEAT).length > 0, "ci.yml の引数の変更が見逃された");
+    const repeatArgs = REPEAT.replace('--repeat-each="$REPEAT"', '--repeat-each="$REPEAT" --workers=4');
+    assert.deepEqual(compareE2eStep(ciArgs, repeatArgs), []);
+    // ci.yml が e2e の段に env を足したら、写しにも入れるまで赤
+    const ciEnv = CI.replace("      - run: pnpm e2e\n", "      - run: pnpm e2e\n        env:\n          TASUKI_FLAG: \"1\"\n");
+    assert.notEqual(ciEnv, CI, "前提: 置き換えが当たること");
+    assert.ok(compareE2eStep(ciEnv, REPEAT).length > 0, "ci.yml の env の追加が見逃された");
+    const repeatEnv = REPEAT.replace("          REPEAT: ${{ inputs.repeat }}\n", "          REPEAT: ${{ inputs.repeat }}\n          TASUKI_FLAG: \"1\"\n");
+    assert.notEqual(repeatEnv, REPEAT);
+    assert.deepEqual(compareE2eStep(ciEnv, repeatEnv), []);
+    // 写しが勝手に env を足してもずれ（repeat 用の 2 つ以外）
+    assert.ok(compareE2eStep(CI, repeatEnv).length > 0, "写しだけの env の追加が見逃された");
+    // pnpm e2e でなくなったら赤
+    assert.ok(compareE2eStep(CI, REPEAT.replace("          pnpm e2e -- --repeat-each", "          pnpm e2e:prod -- --repeat-each")).length > 0);
   });
 
   test("ジョブ直下の設定（env・container・services など）を足していない。runs-on と、workflow 直下の env が同じ", () => {

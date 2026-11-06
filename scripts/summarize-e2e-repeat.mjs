@@ -17,9 +17,11 @@
 import fs from "node:fs";
 import { isDirectRun } from "./lib/direct-run.mjs";
 
+// reporter の errors には色の符号が入る（\u001b[31m … \u001b[39m）
+const ANSI = new RegExp("\\u001b\\[[0-9;]*m", "g");
 const FAILED = new Set(["failed", "timedOut"]);
 
-/** Playwright の結果の状態を、数える区分へ寄せる（status が無い古い形のときの代わり）。 */
+/** 1 つの結果の状態（result.status）を区分へ寄せる。classifyRun が使う。 */
 export function classify(status) {
   if (status === "passed") return "pass";
   if (status === "interrupted") return "interrupted";
@@ -39,7 +41,8 @@ export function classifyRun(test) {
   const results = test.results ?? [];
   if (results.length === 0) return "notRun";
   const last = results[results.length - 1].status;
-  if (last === "interrupted") return "interrupted";
+  const kind = classify(last);
+  if (kind === "interrupted") return "interrupted";
   switch (test.status) {
     case "expected":
     case "flaky":
@@ -49,10 +52,8 @@ export function classifyRun(test) {
     case "skipped":
       return "skip";
   }
-  if (last === "skipped") return "skip";
-  const expected = test.expectedStatus ?? "passed";
-  if (last === expected) return "pass";
-  return FAILED.has(last) || last === "passed" ? "fail" : "skip";
+  if (kind === "skip") return "skip";
+  return last === (test.expectedStatus ?? "passed") ? "pass" : "fail";
 }
 
 /** suites を再帰でたどり、spec ごとに { id, results } を渡す。 */
@@ -71,17 +72,22 @@ function* walkSpecs(suites, path = []) {
 
 /**
  * JSON reporter の出力を集計する。
- * @returns {{ errors: string[], tests: Array<{ id: string, pass: number, fail: number, skip: number, interrupted: number, notRun: number }>, totals: { tests: number, runs: number, executed: number, pass: number, fail: number, skip: number, interrupted: number, notRun: number }, durationMs: number | null }}
+ * @returns {{ errors: string[], tests: Array<{ id: string, pass: number, fail: number, skip: number, interrupted: number, notRun: number, failedAtMs: number[] }>, totals: { tests: number, runs: number, executed: number, pass: number, fail: number, skip: number, interrupted: number, notRun: number }, durationMs: number | null }}
  */
 export function summarize(report) {
   if (report === null || typeof report !== "object" || !Array.isArray(report.suites)) {
     throw new Error("Playwright の JSON reporter の出力ではありません（suites がありません）");
   }
   const byId = new Map();
+  const startMs = Date.parse(report.stats?.startTime);
   for (const { id, project, test } of walkSpecs(report.suites)) {
     const key = project ? `${id} [${project}]` : id;
-    const row = byId.get(key) ?? { id: key, pass: 0, fail: 0, skip: 0, interrupted: 0, notRun: 0 };
-    row[classifyRun(test)]++;
+    const row = byId.get(key) ?? { id: key, pass: 0, fail: 0, skip: 0, interrupted: 0, notRun: 0, failedAtMs: [] };
+    const kind = classifyRun(test);
+    row[kind]++;
+    // 落ちた回が実行の開始から何ミリ秒のところだったか。JSON に周の番号（repeatEachIndex）は無いので、時刻で見る
+    const offset = Date.parse(test.results?.[test.results.length - 1]?.startTime) - startMs;
+    if (kind === "fail" && Number.isFinite(offset)) row.failedAtMs.push(offset);
     byId.set(key, row);
   }
   const tests = [...byId.values()].sort(
@@ -97,7 +103,7 @@ export function summarize(report) {
   const durationMs = typeof report.stats?.duration === "number" ? report.stats.duration : null;
   // globalSetup の失敗などは suites ではなく errors に出る（suites が空になる）。先頭行だけを集める。
   const errors = (Array.isArray(report.errors) ? report.errors : [])
-    .map((e) => String(e?.message ?? "").split("\n")[0].trim())
+    .map((e) => String(e?.message ?? "").replace(ANSI, "").split("\n")[0].trim())
     .map((m) => m || "（メッセージなし）");
   return { tests, totals, durationMs, errors };
 }
@@ -116,6 +122,11 @@ export function classifyFailures(tests) {
     flaky: failing.filter((t) => t.pass > 0),
     partial: failing.filter((t) => t.pass === 0 && t.fail !== total(t)),
   };
+}
+
+/** 落ちた時点（開始から何分）。読めなければ空文字。 */
+function formatFailedAt(t) {
+  return t.failedAtMs.map((ms) => `${(ms / 60000).toFixed(1)} 分`).join(", ");
 }
 
 function escapeCell(text) {
@@ -152,7 +163,7 @@ export function formatMarkdown(summary) {
   }
   if (totals.executed === 0) return out.join("\n") + "\n";
   out.push(
-    `- テスト ${totals.tests} 件・実行 ${totals.runs} 回（成功 ${totals.pass} / 失敗 ${totals.fail} / 飛ばし ${totals.skip}）`,
+    `- テスト ${totals.tests} 件・実行 ${totals.runs} 回（成功 ${totals.pass} / 失敗 ${totals.fail} / 飛ばし ${totals.skip} / 止められた ${totals.interrupted} / 未実行 ${totals.notRun}）`,
   );
   if (durationMs !== null) out.push(`- 所要時間（Playwright の計測）: ${formatDuration(durationMs)}`);
   out.push(`- 揺れた（成功も失敗もあった）: ${flaky.length} 件 / いつも落ちた: ${always.length} 件 / 一部だけ落ちた（他は飛ばし・未実行）: ${partial.length} 件`, "");
@@ -160,10 +171,10 @@ export function formatMarkdown(summary) {
   if (failing.length === 0) {
     out.push(warnings.length > 0 ? "落ちた回はありませんでした（上の警告を見てください）。" : "落ちたテストはありませんでした。", "");
   } else {
-    out.push("| テスト | 成功 | 失敗 | 区分 |", "|---|---:|---:|---|");
+    out.push("| テスト | 成功 | 失敗 | 区分 | 落ちた時点（開始から） |", "|---|---:|---:|---|---|");
     for (const t of failing) {
       const kind = flaky.includes(t) ? "揺れた" : always.includes(t) ? "いつも落ちた" : "一部だけ落ちた";
-      out.push(`| ${escapeCell(t.id)} | ${t.pass} | ${t.fail} | ${kind} |`);
+      out.push(`| ${escapeCell(t.id)} | ${t.pass} | ${t.fail} | ${kind} | ${formatFailedAt(t)} |`);
     }
     out.push("");
   }
@@ -177,7 +188,7 @@ export function formatMarkdown(summary) {
 export function formatFailureList(tests) {
   return tests
     .filter((t) => t.fail > 0)
-    .map((t) => `${t.id}\t成功 ${t.pass}\t失敗 ${t.fail}`)
+    .map((t) => `${t.id}\t成功 ${t.pass}\t失敗 ${t.fail}` + (t.failedAtMs.length > 0 ? `\t開始から ${formatFailedAt(t)}` : ""))
     .join("\n")
     .concat(tests.some((t) => t.fail > 0) ? "\n" : "");
 }

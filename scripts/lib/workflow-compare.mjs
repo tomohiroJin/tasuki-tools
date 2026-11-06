@@ -60,3 +60,69 @@ export function jobLevelKeys(workflow, jobName) {
 export function topLevelEnv(workflow) {
   return stripComments(topLevelEnvBlock(workflow) ?? "", { dropBlank: true });
 }
+
+/** repeat 用の引数。ci.yml の `pnpm e2e` の引数と比べるときに写しの側から外す。 */
+const REPEAT_ONLY_ARG = /^--(repeat-each|retries|trace|reporter)(=|$)/;
+/** repeat 用の env。写しの側にだけある。 */
+const REPEAT_ONLY_ENV = /^(REPEAT|PLAYWRIGHT_JSON_OUTPUT_NAME):/;
+
+/** `pnpm e2e` の段を、{ args: `pnpm e2e` の引数, extras: run と name 以外の鍵の行 } に分ける。 */
+export function e2eStepShape(stepText, { repeatSide }) {
+  const lines = normalizeStep(stepText, { stripScope: !repeatSide }).split("\n");
+  const indentOf = (l) => /^\s*/.exec(l)[0].length;
+  const commands = [];
+  const extras = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const m = /^(\s*(?:- )?)run:\s*(.*)$/.exec(line);
+    if (m) {
+      if (/^[|>][+-]?$/.test(m[2])) {
+        const base = indentOf(m[1].replace("- ", "  "));
+        while (i + 1 < lines.length && indentOf(lines[i + 1]) > base) commands.push(lines[++i].trim());
+      } else {
+        commands.push(m[2].trim());
+      }
+      continue;
+    }
+    const entry = line.replace(/^\s*- /, "  ");
+    if (/^\s*name:/.test(entry)) continue;
+    if (repeatSide && REPEAT_ONLY_ENV.test(entry.trim())) continue;
+    extras.push({ indent: indentOf(entry), text: entry.trim() });
+  }
+  // 空になった `env:` の見出しを落とす
+  const kept = extras.filter((e, i) => !(e.text === "env:" && !(extras[i + 1] && extras[i + 1].indent > e.indent)));
+  const command = commands.find((c) => /^pnpm e2e(\s|$)/.test(c)) ?? "";
+  const tokens = command.split(/\s+/).filter(Boolean).slice(2).filter((t) => t !== "--");
+  return { command, args: repeatSide ? tokens.filter((t) => !REPEAT_ONLY_ARG.test(t)) : tokens, extras: kept.map((e) => e.text) };
+}
+
+/**
+ * ci.yml の e2e ジョブの `pnpm e2e` の段と、e2e-repeat.yml の段を比べ、ずれを文で返す（空なら一致）。
+ * - コマンドは `pnpm e2e` であること。
+ * - ci.yml の引数は、写しの引数（repeat 用の --repeat-each・--retries・--trace・--reporter を除く）に全部あること。
+ * - run と name 以外の鍵（env など）は、写しの側だけの REPEAT・PLAYWRIGHT_JSON_OUTPUT_NAME を除いて同じこと。
+ */
+export function compareE2eStep(ciWorkflow, repeatWorkflow) {
+  const stepOf = (wf, job) => {
+    const steps = splitSteps(jobOf(wf, job).lines).map((s) => s.text);
+    const i = steps.findIndex((s) => /^\s*- run: pnpm e2e( .*)?$/m.test(code(s)) || /pnpm e2e --/.test(code(s)));
+    if (i < 0) throw new Error(`${job} に pnpm e2e の段がありません`);
+    return steps[i];
+  };
+  const ci = e2eStepShape(stepOf(ciWorkflow, "e2e"), { repeatSide: false });
+  let rp;
+  try {
+    rp = e2eStepShape(stepOf(repeatWorkflow, "e2e-repeat"), { repeatSide: true });
+  } catch (e) {
+    return [e.message];
+  }
+  const problems = [];
+  if (!/^pnpm e2e(\s|$)/.test(rp.command)) problems.push("写しの run が pnpm e2e で始まりません");
+  for (const arg of ci.args) {
+    if (!rp.args.includes(arg)) problems.push(`ci.yml の pnpm e2e の引数 ${arg} が写しにありません`);
+  }
+  if (JSON.stringify(ci.extras) !== JSON.stringify(rp.extras)) {
+    problems.push(`pnpm e2e の段の run 以外の鍵が違います（ci.yml: ${JSON.stringify(ci.extras)} / 写し: ${JSON.stringify(rp.extras)}）`);
+  }
+  return problems;
+}
