@@ -243,11 +243,11 @@
   flex: 1 1 0%;
 }
 
-/* 見出しの行（`.ui-section-head`）の右に並べる操作（ランダム・代理追加）。狭い幅では折り返し、右へ寄せる（#553 一覧 #6） */
+/* 見出しの行（`.ui-section-head`）の右に並べる操作（ランダム・代理追加）を 1 つの塊にする（#553 一覧 #6）。
+   塊は内容の幅のまま。1 行に収まらない幅（22rem の脇）では、見出しの下へ落ちて左端が見出しに揃う
+   （右へ寄せない。操作が見出しに属して読める）。 */
 .roster-panel-head-actions {
   display: flex;
-  flex: 1 1 auto;
   flex-wrap: wrap;
-  justify-content: flex-end;
   gap: var(--space-2);
 }

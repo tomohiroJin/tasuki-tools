@@ -1,15 +1,16 @@
 /**
- * 縦に並ぶブロックの間（余白の持ち主・#553・ADR 0034）。
+ * 縦に並ぶブロックの間（余白の持ち主・#553・ADR 0035）。
  *
  * **タグを付けない（`local` 専用）。** 本番のルーム枠を消費して確かめる種類のものではない。
  *
- * 見るのは要素の矩形どうしの間だけ（スクリーンショットの比較は入れない。ADR 0034 決定 4）。
+ * 見るのは要素の矩形どうしの間だけ（スクリーンショットの比較は入れない。ADR 0035 決定 4）。
  * 間は「上の要素の下端から下の要素の上端まで」の px で、`--space-3`（12px）・`--space-2`（8px）を下限にする。
  * 全画面への展開は #557。
  */
 import type { Page } from '@playwright/test';
 import { expect, test } from '../fixtures/test';
 import { createRoom as createPokerRoom } from '../support/poker';
+import { openRouletteTool } from '../support/roulette';
 import { createRoom as createTimerRoom, joinAsDriver } from '../support/timer';
 import { joinTopicTool, setTopic } from '../support/topic';
 
@@ -53,6 +54,40 @@ async function paragraphGaps(page: Page): Promise<number[]> {
   });
 }
 
+/**
+ * 見出し（`headingText` を含む h2）を持つ見出しの行（`.ui-section-head`）の中に、`actionLabel` の操作があり、
+ * 次のどちらかであることを測る（#553・ADR 0035）。
+ *   ① 見出しと同じ行に収まる（操作の上端が見出しを持つ要素の下端より上）
+ *   ② 折り返したときは、操作の上端と見出しの下端の間が `--space-2`（8px）±1px で、操作の左端が見出しの左端に揃う（右へ寄せない）
+ * 「行の中にあるか」だけでは、操作が見出しから離れて右寄せで下の行に落ちても緑になる。
+ * 「見出しを持つ要素」は、行の直下の子のうち h2 を含むもの（timer はアイコンと h2 を包む `.section-header-lead`）。
+ * 操作は `aria-label` か可視の文字で探し、位置は行の直下の子（操作が塊に入っていれば塊）で測る。
+ */
+async function expectActionsBelongToHeading(page: Page, headingText: string, actionLabel: string, label: string): Promise<void> {
+  const m = await page.evaluate(
+    ({ headingText, actionLabel }) => {
+      const heading = [...document.querySelectorAll('h2')].find((h) => (h.textContent ?? '').includes(headingText));
+      const row = heading?.closest('.ui-section-head');
+      const action = [...document.querySelectorAll('button')].find(
+        (b) => b.getAttribute('aria-label') === actionLabel || (b.textContent ?? '').trim() === actionLabel,
+      );
+      if (heading === undefined || row === null || row === undefined || action === undefined) return null;
+      const headBox = [...row.children].find((c) => c.contains(heading)) ?? heading;
+      const h = headBox.getBoundingClientRect();
+      // 操作が塊（`.roster-panel-head-actions`）に入っているときは、塊の位置で測る（塊の中の 2 つ目の操作は塊の左端より右にある）
+      const a = ([...row.children].find((c) => c.contains(action)) ?? action).getBoundingClientRect();
+      return { contained: row.contains(action), sameLine: a.top < h.bottom - 0.5, below: a.top - h.bottom, leftDelta: a.left - h.left };
+    },
+    { headingText, actionLabel },
+  );
+  expect(m, `${label}: 見出し「${headingText}」と操作「${actionLabel}」が描かれている`).not.toBeNull();
+  expect(m!.contained, `${label}: 「${actionLabel}」は見出しの行の中`).toBe(true);
+  if (!m!.sameLine) {
+    expect(Math.abs(m!.below - SPACE_2), `${label}: 折り返した「${actionLabel}」と見出しの間は 8px`).toBeLessThanOrEqual(1);
+    expect(Math.abs(m!.leftDelta), `${label}: 折り返した「${actionLabel}」の左端は見出しの左端に揃う`).toBeLessThanOrEqual(1);
+  }
+}
+
 test.describe('縦に並ぶブロックの間は親が持つ', () => {
   test('Given poker のルーム / When 5 つの幅で開く / Then 「参加者」の見出しの行の下端と札の並びの上端の間は 12px 以上（#553 一覧 #1）', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
@@ -84,41 +119,57 @@ test.describe('縦に並ぶブロックの間は親が持つ', () => {
     }
   });
 
-  test('Given timer のセッション（2 人） / When 開く / Then 「ランダム」は「参加者」の見出しの行の中に、「編集」は「共有メモ」の見出しと同じ行にある（#553 一覧 #6・#18）', async ({ page, openPeer }) => {
+  test('Given timer のロビーとセッション（2 人） / When 320・390・1280 で開く / Then 「ランダム」は「参加者」の見出しの行の中で、見出しと同じ行か、見出しの下 8px・左端そろいに置かれる（#553 一覧 #6・#33）', async ({ page, openPeer }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     const code = await createTimerRoom(page, 'spacing-timer');
     const guest = await openPeer('spacing-timer-guest');
     await joinAsDriver(guest.page, code, 'ゲスト');
     await expect(page.getByRole('listitem').filter({ hasText: 'ゲスト' })).toBeVisible();
+    // ロビー（見出しは「参加者 (n人)」）
+    for (const width of [320, 1280] as const) {
+      await page.setViewportSize({ width, height: 900 });
+      await expectActionsBelongToHeading(page, '参加者 (', 'ドライバー順をランダムに並べ替える', `ロビー 幅 ${String(width)}`);
+    }
     await page.getByRole('button', { name: 'セッションを開始' }).click();
     await expect(page.getByRole('timer')).toBeVisible();
-    for (const width of [1280, 390] as const) {
+    for (const width of [320, 390, 1280] as const) {
       await page.setViewportSize({ width, height: 900 });
-      const inside = await page.evaluate(() => {
-        const heading = [...document.querySelectorAll('h2')].find((h) => (h.textContent ?? '').trim() === '参加者');
-        const row = heading?.parentElement?.parentElement;
-        const shuffle = [...document.querySelectorAll('button')].find((b) => b.getAttribute('aria-label') === 'ドライバー順をランダムに並べ替える');
-        if (heading === undefined || row === null || row === undefined || shuffle === undefined) return null;
-        const r = row.getBoundingClientRect();
-        const s = shuffle.getBoundingClientRect();
-        return { contained: row.contains(shuffle), top: s.top >= r.top - 0.5, bottom: s.bottom <= r.bottom + 0.5 };
+      await expectActionsBelongToHeading(page, '参加者', 'ドライバー順をランダムに並べ替える', `セッション 幅 ${String(width)}`);
+      await expectActionsBelongToHeading(page, '参加者', '代理参加者を追加', `セッション 幅 ${String(width)}`);
+    }
+    // 共有メモの「編集」も同じ約束（脇が 22rem の 1280 と、320）
+    for (const width of [320, 1280] as const) {
+      await page.setViewportSize({ width, height: 900 });
+      await expectActionsBelongToHeading(page, '共有メモ', '編集', `共有メモ 幅 ${String(width)}`);
+    }
+  });
+
+  test('Given roulette のいつものメンツ（組なし） / When 開く / Then 見出しの行・一覧・操作の間は 12px で、空の知らせは gap を取らず、読み上げの対象（表示される要素）として残る（#553）', async ({ page }) => {
+    await openRouletteTool(page, 'spacing-roulette');
+    for (const width of [320, 1280] as const) {
+      await page.setViewportSize({ width, height: 900 });
+      const m = await page.evaluate(() => {
+        const sec = document.querySelector('.roulette-regulars');
+        const head = sec?.querySelector('.roulette-regulars-head');
+        const empty = sec?.querySelector('.roulette-regulars-empty');
+        const notice = sec?.querySelector('.roulette-regulars-notice');
+        const tools = sec?.querySelector('.roulette-regulars-tools');
+        if (!sec || !head || !empty || !notice || !tools) return null;
+        const r = (e: Element) => e.getBoundingClientRect();
+        return {
+          headToEmpty: r(empty).top - r(head).bottom,
+          emptyToTools: r(tools).top - r(empty).bottom,
+          noticeEmpty: (notice.textContent ?? '') === '',
+          noticeDisplay: getComputedStyle(notice).display,
+          noticeStatus: notice.getAttribute('role'),
+        };
       });
-      expect(inside, `幅 ${String(width)}: 「参加者」の見出しと「ランダム」が描かれている`).not.toBeNull();
-      expect(inside, `幅 ${String(width)}: 「ランダム」は見出しの行の中`).toEqual({ contained: true, top: true, bottom: true });
-      // 共有メモの「編集」も見出しの行の中にあり、見出しと同じ行（下の行へ落ちていない）に並ぶ（一覧 #18）。脇が 22rem の幅（1280）で測る
-      if (width === 1280) {
-        const memo = await page.evaluate(() => {
-          const heading = [...document.querySelectorAll('h2')].find((h) => (h.textContent ?? '').includes('共有メモ'));
-          const row = heading?.closest('.ui-section-head');
-          const edit = [...document.querySelectorAll('button')].find((b) => (b.textContent ?? '').trim() === '編集');
-          if (heading === undefined || row === null || row === undefined || edit === undefined) return null;
-          const h = heading.getBoundingClientRect();
-          const e = edit.getBoundingClientRect();
-          return { contained: row.contains(edit), sameLine: e.top < h.bottom };
-        });
-        expect(memo, '共有メモの見出しと「編集」が描かれている').not.toBeNull();
-        expect(memo, '「編集」は見出しの行の中で、見出しと同じ行').toEqual({ contained: true, sameLine: true });
-      }
+      expect(m, `幅 ${String(width)}: いつものメンツの区画が描かれている`).not.toBeNull();
+      expect(m!.noticeEmpty, '知らせは空').toBe(true);
+      expect(m!.noticeDisplay, '空の知らせを display: none にしない（ライブリージョンを木に残す）').not.toBe('none');
+      expect(m!.noticeStatus).toBe('status');
+      expect(Math.abs(m!.headToEmpty - SPACE_3), `幅 ${String(width)}: 見出しの行 → 一覧の間`).toBeLessThanOrEqual(1);
+      expect(Math.abs(m!.emptyToTools - SPACE_3), `幅 ${String(width)}: 一覧 → 操作の間（空の知らせの gap を取らない）`).toBeLessThanOrEqual(1);
     }
   });
 });

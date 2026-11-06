@@ -1,5 +1,5 @@
 /**
- * 余白の持ち主の約束（#553・ADR 0034）の契約。
+ * 余白の持ち主の約束（#553・ADR 0035）の契約。
  *
  * 見た目の合否は E2E（`e2e/specs/spacing.spec.ts`）が矩形で測る。ここは、その前提になる**部品の CSS と、
  * 画面が部品を当てていること**を字面で固定する（変異検査が走らせられるのは node:test と vitest だけなので、
@@ -109,4 +109,24 @@ test('Given timer の見出しの行 / When SectionHeader と共有メモを探�
 test('Given agenda の保存した流れ / When 区画を探す / Then ui-stack で、画面は縦の並びの写し（display: grid の gap）を持たない', () => {
   assert.ok(classNameOf(read('apps/agenda-web/src/components/SavedScenarioList.tsx'), 'builder-saved').includes('ui-stack'));
   assert.equal(ruleBody(read('apps/agenda-web/src/builder.css'), '.builder-saved'), null);
+});
+
+test('Given timer の見出しの行の操作の塊 / When 規則を読む / Then 右へ寄せない（折り返したとき見出しの下に左端そろいで置く）', () => {
+  const body = ruleBody(read('apps/timer-web/src/styles/roster-panel.css'), '.roster-panel-head-actions');
+  assert.notEqual(body, null);
+  assert.doesNotMatch(body, /justify-content:\s*(flex-end|end|right)/);
+  assert.doesNotMatch(body, /flex:\s*1/);
+});
+
+test('Given .ui-section-head / When 間を読む / Then 折り返した行の間は --space-2・横の間は --space-3（ADR-0035 と README の値）', () => {
+  const body = ruleBody(read('packages/ui/src/components/section-head.css'), '.ui-section-head');
+  assert.match(body, /gap:\s*var\(--space-2\) var\(--space-3\);/);
+});
+
+test('Given roulette の空の知らせ / When :empty の規則を読む / Then 子が負の余白で親の gap を打ち消さず、display: none にもしない（ライブリージョンを木に残す）', () => {
+  const body = ruleBody(read('apps/roulette-web/src/index.css'), '.roulette-regulars-notice:empty');
+  assert.notEqual(body, null);
+  assert.doesNotMatch(body, /margin[^:]*:\s*calc\(\s*-/);
+  assert.doesNotMatch(body, /display:\s*none/);
+  assert.match(body, /position:\s*absolute;/);
 });
