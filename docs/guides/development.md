@@ -894,6 +894,35 @@ SIGKILL ではプロセスが残る場合があります。次回の実行は別
 異常終了時の詳しい復旧手順は [`e2e/README.md`](../../e2e/README.md) を参照してください
 （詳細の正本はそちらです。ここでは二重管理しません）。
 
+### E2E の不安定さを測る（手動起動）
+
+`.github/workflows/e2e-repeat.yml`（#562）は、E2E の各テストを繰り返し流して、揺れるテストを数えるための**手動起動だけ**のワークフローです。
+`push`・`pull_request` では走らず、CI の合否・PR の検査・`pnpm check:full` には入りません（手元の全件の段は `ci.yml` からだけ導く）。
+Chromium が取れない環境（クラウドのセッションなど）でも、CI の runner で流せます（`docs/adr/0033`）。
+
+**起こし方**（GitHub の Actions タブ → `E2E repeat` → Run workflow。または `gh`）:
+
+```bash
+gh workflow run e2e-repeat.yml --ref <ブランチ> -f repeat=5   # repeat は 3・5・10・20 から選ぶ（既定 5）
+gh run list --workflow e2e-repeat.yml --limit 1               # 起こした実行の確認
+```
+
+中身は `ci.yml` の `e2e` ジョブと同じ準備（action の固定・Chromium と Caddy の取得とキャッシュ・`pnpm build`）のあと、
+`pnpm e2e -- --repeat-each=<回数> --retries=0 --reporter=list,json` を流します。再試行（CI の設定では 1 回）で揺れが隠れないよう 0 にし、
+`--max-failures` は付けずに最後まで流します。`ci.yml` との写しがずれたら `scripts/e2e-repeat-workflow.test.mjs` が落ちます。
+所要時間の上限（`timeout-minutes`）は「15 分 + 回数 × 6 分」です（`ci.yml` の E2E は 1 回で約 4.5 分）。
+
+**結果の読み方**:
+
+- 実行画面の **Summary**（`scripts/summarize-e2e-repeat.mjs` が書く）に、テストごとの成功・失敗の回数が出ます。
+  「揺れた」は成功も失敗もあったテスト、「いつも落ちた」は繰り返しのすべてで落ちたテスト（揺れではなく、その環境の失敗）です。
+  後者が多いときは、揺れの測定の前に、その失敗の原因を見ます。
+- artifact `e2e-repeat-results`（14 日）に、reporter の生の出力 `results.json`・落ちたテストの一覧 `failures.txt`・失敗時の成果物（e2e の test-results の下: ログ・trace・動画）が入ります。
+- 結果の JSON が無い・壊れているときは集計の段が赤になります（空の要約で緑にはしません）。
+- 見つけた不安定なテストは ISSUE に起こします（このワークフローでは直しません）。記録には、流したコマンド・回数・所要時間（Summary の「所要時間」と実行画面の時間）を残します。
+
+手元で集計だけを確かめるときは `node scripts/summarize-e2e-repeat.mjs <results.json> [--failures-out <path>]` です。
+
 ## 検査系
 
 **すべて CI の `quality` / `docs` ジョブで自動実行されます**（[`docs/adr/0009`](../adr/0009-ci-scope-and-checks.md) D1）。

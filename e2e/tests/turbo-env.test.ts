@@ -114,3 +114,14 @@ describe('turbo.json の WAYLAND_DISPLAY passThroughEnv', () => {
     });
   }
 });
+
+describe('turbo.json の PLAYWRIGHT_JSON_OUTPUT_NAME passThroughEnv', () => {
+  /**
+   * 同じ壊れ方の再来を止める（#562）。手動起動の E2E 繰り返し実行（`.github/workflows/e2e-repeat.yml`）は、
+   * JSON reporter の出力先をこの変数で渡す。turbo の strict モードでは passThroughEnv に無いと届かず、
+   * JSON が結果のファイルにならない（集計が「結果が無い」で止まる）。
+   */
+  it('Given turbo.json / When e2e タスクを見る / Then PLAYWRIGHT_JSON_OUTPUT_NAME が passThroughEnv に含まれる', () => {
+    expect(readTurboJson().tasks['e2e']?.passThroughEnv ?? []).toContain('PLAYWRIGHT_JSON_OUTPUT_NAME');
+  });
+});
