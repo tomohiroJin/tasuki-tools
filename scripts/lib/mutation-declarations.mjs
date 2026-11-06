@@ -116,6 +116,12 @@ const RESERVED_1040_1049 =
 const RESERVED_1050_1059 =
   "**対応表より後に足した変異。** 1050〜1059 は #542 の続き（/code-review の指摘）に割り当てた範囲。";
 
+const RESERVED_1060_1069 =
+  "**対応表より後に足した変異。** 1060〜1069 は #562（E2E の繰り返し実行の集計と、ci.yml との写しの比較）に割り当てた範囲。";
+
+const RESERVED_1070_1079 =
+  "**対応表より後に足した変異。** 1070〜1079 は #562 の続き（敵対的レビューの指摘）に割り当てた範囲。";
+
 export const MUTATIONS = [
   {
     id: 1,
@@ -6317,5 +6323,117 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["lib/process-alive.test.mjs", "mutation-check-liveness.test.mjs"],
     note: RESERVED_1050_1059 + " " + "#542 の /code-review。ロックの拒否と作業ツリーの掃除の pid の境界が割れる、または範囲外の pid が生死の判定に渡る。",
+  },
+  {
+    id: 1060,
+    label: "E2E 繰り返しの集計が、1 回の実行の最後でなく最初の結果を数える",
+    patch: "m1060-summarize-counts-first-result.patch",
+    pkg: "scripts",
+    tests: ["summarize-e2e-repeat.test.mjs"],
+    note: RESERVED_1060_1069 + " " + "#562 のレビュー。再試行つきで流したとき、失敗して再試行で通った回を失敗に数え、繰り返しの数と成功・失敗の数が食い違う。",
+  },
+  {
+    id: 1061,
+    label: "E2E 繰り返しの集計が、結果の無い回を成功に数える",
+    patch: "m1061-summarize-counts-no-result-as-pass.patch",
+    pkg: "scripts",
+    tests: ["summarize-e2e-repeat.test.mjs"],
+    note: RESERVED_1060_1069 + " " + "#562 のレビュー。実行されなかったテストが成功の回数を水増しし、揺れの測定が実際より安定して見える。",
+  },
+  {
+    id: 1062,
+    label: "E2E 繰り返しの集計が、reporter の errors が 1 件だけのとき要約に出さない",
+    patch: "m1062-summarize-hides-single-error.patch",
+    pkg: "scripts",
+    tests: ["summarize-e2e-repeat.test.mjs"],
+    note: RESERVED_1060_1069 + " " + "#562 のレビュー。globalSetup の失敗（errors に 1 件・suites が空）の原因が要約に出ず、「1 件のテストもありません」だけが残る。",
+  },
+  {
+    id: 1063,
+    label: "turbo の e2e タスクが PLAYWRIGHT_JSON_OUTPUT_NAME を渡さない",
+    patch: "m1063-turbo-e2e-drops-json-output-name.patch",
+    pkg: "e2e",
+    tests: ["tests/turbo-env.test.ts"],
+    note: RESERVED_1060_1069 + " " + "#562 のレビュー。strict モードで JSON の出力先が届かず、繰り返し実行の結果のファイルが残らない（集計が「結果が無い」で止まる）。",
+  },
+  {
+    id: 1064,
+    label: "ワークフローの写しの比較が、steps.scope の除去を写しの側にもかける",
+    patch: "m1064-workflow-compare-strips-scope-both-sides.patch",
+    pkg: "scripts",
+    tests: ["e2e-repeat-workflow.test.mjs"],
+    note: RESERVED_1060_1069 + " " + "#562 のレビュー。e2e-repeat.yml に steps.scope を見る if が残っても一致と見なされ、本番では Chromium の導入が飛ばされる。",
+  },
+  {
+    id: 1065,
+    label: "ワークフローの写しの比較が、build から pnpm e2e の間の段を見ない",
+    patch: "m1065-workflow-compare-ignores-steps-after-build.patch",
+    pkg: "scripts",
+    tests: ["e2e-repeat-workflow.test.mjs"],
+    note: RESERVED_1060_1069 + " " + "#562 のレビュー。ci.yml の e2e が build と pnpm e2e の間に段を足しても、写しのずれが黙って通る。",
+  },
+  {
+    id: 1066,
+    label: "ワークフローの写しの比較が、scope の段を写しの側からも外す",
+    patch: "m1066-workflow-compare-drops-scope-step-both-sides.patch",
+    pkg: "scripts",
+    tests: ["e2e-repeat-workflow.test.mjs"],
+    note: RESERVED_1060_1069 + " " + "#562 の /code-review。e2e-repeat.yml に scope の段を足しても比較で見えない。",
+  },
+  {
+    id: 1067,
+    label: "E2E 繰り返しの集計が、止められた（interrupted）回を失敗に数える",
+    patch: "m1067-summarize-counts-interrupted-as-fail.patch",
+    pkg: "scripts",
+    tests: ["summarize-e2e-repeat.test.mjs"],
+    note: RESERVED_1060_1069 + " " + "#562 の /code-review。止められた回が「揺れた」を水増しする。",
+  },
+  {
+    id: 1068,
+    label: "E2E 繰り返しの集計が、1 回落ちて残りが飛ばし・未実行のテストを「いつも落ちた」に数える",
+    patch: "m1068-summarize-always-failed-ignores-skipped.patch",
+    pkg: "scripts",
+    tests: ["summarize-e2e-repeat.test.mjs"],
+    note: RESERVED_1060_1069 + " " + "#562 の /code-review。全回で落ちたのではないテストが、安定して壊れているものに混ざる。",
+  },
+  {
+    id: 1069,
+    label: "ワークフローの写しの比較が、pnpm e2e の段の run 以外の鍵（env など）を見ない",
+    patch: "m1069-workflow-compare-ignores-e2e-step-keys.patch",
+    pkg: "scripts",
+    tests: ["e2e-repeat-workflow.test.mjs"],
+    note: RESERVED_1060_1069 + " " + "#562 の敵対的レビュー。ci.yml が e2e の段に env を足しても写しのずれが黙って通る。",
+  },
+  {
+    id: 1070,
+    label: "ワークフローの写しの比較が、pnpm e2e の引数を比べない",
+    patch: "m1070-workflow-compare-ignores-e2e-args.patch",
+    pkg: "scripts",
+    tests: ["e2e-repeat-workflow.test.mjs"],
+    note: RESERVED_1070_1079 + " " + "#562 の敵対的レビュー。ci.yml が pnpm e2e の引数を変えても写しのずれが黙って通る。",
+  },
+  {
+    id: 1071,
+    label: "E2E 繰り返しの集計が、reporter の errors の ANSI 色符号を外さない",
+    patch: "m1071-summarize-keeps-ansi-in-errors.patch",
+    pkg: "scripts",
+    tests: ["summarize-e2e-repeat.test.mjs"],
+    note: RESERVED_1070_1079 + " " + "#562 の敵対的レビュー。要約に色の制御文字が混ざる。",
+  },
+  {
+    id: 1072,
+    label: "ワークフローの写しの比較が、写しだけが足した pnpm e2e の引数（--grep など）を許す",
+    patch: "m1072-workflow-compare-allows-extra-repeat-args.patch",
+    pkg: "scripts",
+    tests: ["e2e-repeat-workflow.test.mjs"],
+    note: RESERVED_1070_1079 + " " + "#562 の敵対的レビュー（3 回目）。写しだけの --grep @smoke で測る範囲が縮んでも一致と見なされる。",
+  },
+  {
+    id: 1073,
+    label: "ワークフローの写しの比較が、ci.yml の e2e の段の run にある pnpm e2e 以外の行を見ない",
+    patch: "m1073-workflow-compare-ignores-ci-extra-run-lines.patch",
+    pkg: "scripts",
+    tests: ["e2e-repeat-workflow.test.mjs"],
+    note: RESERVED_1070_1079 + " " + "#562 の敵対的レビュー（3 回目）。ci.yml が run に export などを足しても写しのずれが黙って通る。",
   },
 ];
