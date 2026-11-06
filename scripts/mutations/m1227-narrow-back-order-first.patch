@@ -1,22 +1,22 @@
-# 変異 1073: back-indent-not-cancelled
+# 変異 1227: narrow-back-order-first
 #
 # 検出を期待するテスト:
 #   - packages/ui/tests/dock-and-narrow-header.test.mjs
 #   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外）
 #
-# #554。単独の行に落ちた「選択画面へ戻る」が 9px 字下げになり、題・「仲間を招く」と左端が揃わない。
+# #554 のレビュー。40rem 未満で戻るを order で道具のボタンの前に出し、Tab と読み上げの順が見た目と食い違う（右から左へ戻る）。
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m1073-*.patch
-# 復元: git apply -R scripts/mutations/m1073-*.patch
+#       git apply scripts/mutations/m1227-*.patch
+# 復元: git apply -R scripts/mutations/m1227-*.patch
 diff --git a/packages/ui/src/components/room-header.css b/packages/ui/src/components/room-header.css
 --- a/packages/ui/src/components/room-header.css
 +++ b/packages/ui/src/components/room-header.css
-@@ -191,7 +191,6 @@
+@@ -191,6 +191,7 @@
    }
  
    .ui-room-header:not(.ui-room-header--compact) .ui-page-header-back {
--    margin-inline-start: calc(-1 * (var(--space-2) + 1px));
++    order: -1;
+     margin-inline-start: calc(-1 * (var(--space-2) + 1px));
    }
  
-   .ui-room-header:not(.ui-room-header--compact) .ui-room-header-share {

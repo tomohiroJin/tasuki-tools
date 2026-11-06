@@ -1,4 +1,4 @@
-# 変異 1074: invite-url-wraps
+# 変異 1224: invite-url-wraps
 #
 # 検出を期待するテスト:
 #   - packages/ui/tests/dock-and-narrow-header.test.mjs
@@ -7,8 +7,8 @@
 # #554。招待の URL が 2 行に折れ、隣のボタンと縦が揃わず、見出しが高くなる。
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m1074-*.patch
-# 復元: git apply -R scripts/mutations/m1074-*.patch
+#       git apply scripts/mutations/m1224-*.patch
+# 復元: git apply -R scripts/mutations/m1224-*.patch
 diff --git a/packages/ui/src/components/invite.css b/packages/ui/src/components/invite.css
 index 45fe5cc2..da0f59f2 100644
 --- a/packages/ui/src/components/invite.css

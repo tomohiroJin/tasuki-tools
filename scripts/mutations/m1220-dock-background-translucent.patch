@@ -1,4 +1,4 @@
-# 変異 1070: dock-background-translucent
+# 変異 1220: dock-background-translucent
 #
 # 検出を期待するテスト:
 #   - packages/ui/tests/dock-and-narrow-header.test.mjs
@@ -7,8 +7,8 @@
 # #554。帯の地が暗幕（α 0.92）に戻り、後ろの中身の字が帯の字に透けて重なって読めない。
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m1070-*.patch
-# 復元: git apply -R scripts/mutations/m1070-*.patch
+#       git apply scripts/mutations/m1220-*.patch
+# 復元: git apply -R scripts/mutations/m1220-*.patch
 diff --git a/packages/ui/src/components/actions.css b/packages/ui/src/components/actions.css
 index 380a4482..3c8212fa 100644
 --- a/packages/ui/src/components/actions.css

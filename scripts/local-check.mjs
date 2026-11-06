@@ -11,7 +11,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { execFileSync, spawnSync } from "node:child_process";
-import { splitJobs, splitSteps } from "./lib/workflow.mjs";
+import { splitJobs, splitSteps, topLevelEnvBlock } from "./lib/workflow.mjs";
 import { decideScope } from "./lib/ci-scope.mjs";
 import { isDirectRun } from "./lib/direct-run.mjs";
 import { classifyFailure } from "./lib/check-outcome.mjs";
@@ -52,7 +52,7 @@ export function deriveChecks(workflow) {
     throw new Error("workflow の defaults・作業場所・container・services は手元で再現できません");
   }
   // ジョブや workflow の env を無視すると、同じコマンドでも検査条件が変わる。
-  const topEnv = /^env:\n((?:[ \t].*\n|\n)*)/m.exec(workflow)?.[1];
+  const topEnv = topLevelEnvBlock(workflow);
   if (topEnv && topEnv.trim() !== 'COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"') throw new Error("workflow の env を再現できません");
   if (/^ {4}env:/m.test(workflow)) throw new Error("ジョブの env を再現できません");
   const jobs = splitJobs(workflow);

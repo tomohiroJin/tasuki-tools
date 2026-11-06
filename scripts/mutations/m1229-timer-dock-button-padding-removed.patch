@@ -1,4 +1,4 @@
-# 変異 1079: timer-dock-button-padding-removed
+# 変異 1229: timer-dock-button-padding-removed
 #
 # 検出を期待するテスト:
 #   - apps/timer-web/test/session-actions-fit.test.ts
@@ -7,8 +7,8 @@
 # #554。320px で timer の帯の「時間リセット」が 2 行に折れ、帯が高くなる。
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m1079-*.patch
-# 復元: git apply -R scripts/mutations/m1079-*.patch
+#       git apply scripts/mutations/m1229-*.patch
+# 復元: git apply -R scripts/mutations/m1229-*.patch
 diff --git a/apps/timer-web/src/styles/session.css b/apps/timer-web/src/styles/session.css
 --- a/apps/timer-web/src/styles/session.css
 +++ b/apps/timer-web/src/styles/session.css

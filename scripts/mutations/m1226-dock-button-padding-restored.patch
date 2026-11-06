@@ -1,4 +1,4 @@
-# 変異 1076: dock-button-padding-restored
+# 変異 1226: dock-button-padding-restored
 #
 # 検出を期待するテスト:
 #   - packages/ui/tests/dock-and-narrow-header.test.mjs
@@ -7,8 +7,8 @@
 # #554。320px の帯の 1 列（約 138px）でボタンの字（「次のアイテムへ」）が 2 行に折れ、帯が高くなる。
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m1076-*.patch
-# 復元: git apply -R scripts/mutations/m1076-*.patch
+#       git apply scripts/mutations/m1226-*.patch
+# 復元: git apply -R scripts/mutations/m1226-*.patch
 diff --git a/packages/ui/src/components/actions.css b/packages/ui/src/components/actions.css
 index 380a4482..da316f4a 100644
 --- a/packages/ui/src/components/actions.css

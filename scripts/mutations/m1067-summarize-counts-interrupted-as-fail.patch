@@ -1,0 +1,13 @@
+diff --git a/scripts/summarize-e2e-repeat.mjs b/scripts/summarize-e2e-repeat.mjs
+index f8d07fa..7cbfd11 100644
+--- a/scripts/summarize-e2e-repeat.mjs
++++ b/scripts/summarize-e2e-repeat.mjs
+@@ -42,7 +42,7 @@ export function classifyRun(test) {
+   if (results.length === 0) return "notRun";
+   const last = results[results.length - 1].status;
+   const kind = classify(last);
+-  if (kind === "interrupted") return "interrupted";
++  if (kind === "interrupted") return "fail";
+   switch (test.status) {
+     case "expected":
+     case "flaky":

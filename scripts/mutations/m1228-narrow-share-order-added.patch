@@ -1,4 +1,4 @@
-# 変異 1078: narrow-share-order-added
+# 変異 1228: narrow-share-order-added
 #
 # 検出を期待するテスト:
 #   - packages/ui/tests/dock-and-narrow-header.test.mjs
@@ -7,8 +7,8 @@
 # #554 のレビュー。40rem 未満で招待の欄に order を足し、DOM の順と目の順が食い違う余地ができる。
 #
 # 適用: リポジトリルートから
-#       git apply scripts/mutations/m1078-*.patch
-# 復元: git apply -R scripts/mutations/m1078-*.patch
+#       git apply scripts/mutations/m1228-*.patch
+# 復元: git apply -R scripts/mutations/m1228-*.patch
 diff --git a/packages/ui/src/components/room-header.css b/packages/ui/src/components/room-header.css
 --- a/packages/ui/src/components/room-header.css
 +++ b/packages/ui/src/components/room-header.css
