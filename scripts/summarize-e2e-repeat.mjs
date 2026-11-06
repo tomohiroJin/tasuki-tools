@@ -85,11 +85,14 @@ export function summarize(report) {
     const row = byId.get(key) ?? { id: key, pass: 0, fail: 0, skip: 0, interrupted: 0, notRun: 0, failedAtMs: [] };
     const kind = classifyRun(test);
     row[kind]++;
-    // 落ちた回が実行の開始から何ミリ秒のところだったか。JSON に周の番号（repeatEachIndex）は無いので、時刻で見る
-    const offset = Date.parse(test.results?.[test.results.length - 1]?.startTime) - startMs;
+    // 落ちた回が終わったのが実行の開始から何ミリ秒のところだったか（時刻順に並べる）。JSON に周の番号（repeatEachIndex）は無いので、時刻で見る
+    // 終わった時刻（開始 + 所要時間）。タイムアウトの回は所要時間が最大 1 分近くあり、開始だけだと早く出る
+    const last = test.results?.[test.results.length - 1];
+    const offset = Date.parse(last?.startTime) + (Number.isFinite(last?.duration) ? last.duration : 0) - startMs;
     if (kind === "fail" && Number.isFinite(offset)) row.failedAtMs.push(offset);
     byId.set(key, row);
   }
+  for (const row of byId.values()) row.failedAtMs.sort((a, b) => a - b);
   const tests = [...byId.values()].sort(
     (a, b) => b.fail - a.fail || a.pass - b.pass || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
   );

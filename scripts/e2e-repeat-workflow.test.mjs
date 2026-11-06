@@ -95,8 +95,25 @@ describe("準備の段が ci.yml の e2e ジョブと同じ", () => {
     assert.deepEqual(compareE2eStep(ciEnv, repeatEnv), []);
     // 写しが勝手に env を足してもずれ（repeat 用の 2 つ以外）
     assert.ok(compareE2eStep(CI, repeatEnv).length > 0, "写しだけの env の追加が見逃された");
+    // 写しだけが引数を足したら赤（--grep で測る範囲が縮む・--project で変わる）
+    for (const extra of ["--grep @smoke", "--project=x"]) {
+      const widened = REPEAT.replace('--repeat-each="$REPEAT"', `--repeat-each="$REPEAT" ${extra}`);
+      assert.notEqual(widened, REPEAT);
+      assert.ok(compareE2eStep(CI, widened).length > 0, `写しだけの ${extra} が見逃された`);
+    }
     // pnpm e2e でなくなったら赤
     assert.ok(compareE2eStep(CI, REPEAT.replace("          pnpm e2e -- --repeat-each", "          pnpm e2e:prod -- --repeat-each")).length > 0);
+  });
+
+  test("pnpm e2e の段の run に、ほかの行を足したら赤（ci.yml 側は不可・写し側は既知の mkdir だけ可）", () => {
+    // 複数行の run にして、ci.yml に export を足す
+    const ciExport = CI.replace("      - run: pnpm e2e\n", "      - run: |\n          export TASUKI_X=1\n          pnpm e2e\n");
+    assert.notEqual(ciExport, CI, "前提: 置き換えが当たること");
+    assert.ok(compareE2eStep(ciExport, REPEAT).length > 0, "ci.yml の run の export が見逃された");
+    // 写しに export を足す（mkdir 以外の行）
+    const repeatExport = REPEAT.replace('          mkdir -p "$GITHUB_WORKSPACE/e2e-repeat-results"\n', '          mkdir -p "$GITHUB_WORKSPACE/e2e-repeat-results"\n          export TASUKI_X=1\n');
+    assert.notEqual(repeatExport, REPEAT, "前提: 置き換えが当たること");
+    assert.ok(compareE2eStep(CI, repeatExport).length > 0, "写しの run の export が見逃された");
   });
 
   test("ジョブ直下の設定（env・container・services など）を足していない。runs-on と、workflow 直下の env が同じ", () => {
@@ -146,7 +163,7 @@ describe("測るための引数と結果の残し方", () => {
   const code = stripComments(REPEAT);
 
   test("--repeat-each は入力から・--retries=0・JSON reporter。--max-failures は付けない", () => {
-    assert.match(code, /pnpm e2e -- --repeat-each="\$REPEAT" --retries=0 --trace=retain-on-failure --reporter=list,json/);
+    assert.match(code, /pnpm e2e -- --repeat-each="\$REPEAT" --retries=0 --trace=retain-on-failure --reporter=list,json$/m);
     assert.match(code, /REPEAT: \$\{\{ inputs\.repeat \}\}/);
     assert.doesNotMatch(code, /max-failures/);
     assert.doesNotMatch(code, /run:.*\$\{\{ inputs\./);

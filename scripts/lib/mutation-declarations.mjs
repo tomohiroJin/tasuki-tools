@@ -6406,7 +6406,7 @@ export const MUTATIONS = [
   },
   {
     id: 1070,
-    label: "ワークフローの写しの比較が、pnpm e2e の引数を見ない",
+    label: "ワークフローの写しの比較が、pnpm e2e の引数を比べない",
     patch: "m1070-workflow-compare-ignores-e2e-args.patch",
     pkg: "scripts",
     tests: ["e2e-repeat-workflow.test.mjs"],
@@ -6419,5 +6419,21 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["summarize-e2e-repeat.test.mjs"],
     note: RESERVED_1070_1079 + " " + "#562 の敵対的レビュー。要約に色の制御文字が混ざる。",
+  },
+  {
+    id: 1072,
+    label: "ワークフローの写しの比較が、写しだけが足した pnpm e2e の引数（--grep など）を許す",
+    patch: "m1072-workflow-compare-allows-extra-repeat-args.patch",
+    pkg: "scripts",
+    tests: ["e2e-repeat-workflow.test.mjs"],
+    note: RESERVED_1070_1079 + " " + "#562 の敵対的レビュー（3 回目）。写しだけの --grep @smoke で測る範囲が縮んでも一致と見なされる。",
+  },
+  {
+    id: 1073,
+    label: "ワークフローの写しの比較が、ci.yml の e2e の段の run にある pnpm e2e 以外の行を見ない",
+    patch: "m1073-workflow-compare-ignores-ci-extra-run-lines.patch",
+    pkg: "scripts",
+    tests: ["e2e-repeat-workflow.test.mjs"],
+    note: RESERVED_1070_1079 + " " + "#562 の敵対的レビュー（3 回目）。ci.yml が run に export などを足しても写しのずれが黙って通る。",
   },
 ];

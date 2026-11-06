@@ -243,13 +243,13 @@ describe("要約の細部（/code-review の指摘）", () => {
     assert.match(md, /実行 4 回（成功 1 \/ 失敗 1 \/ 飛ばし 0 \/ 止められた 1 \/ 未実行 1）/);
   });
 
-  test("落ちた回が、実行の開始から何分のところだったかを出す（枠・資源に当たる後半の偏りを見る）", () => {
-    const at = (min, status) => ({ projectName: "chromium", status: status === "failed" ? "unexpected" : "expected", expectedStatus: "passed", results: [{ status, startTime: new Date(Date.parse("2026-11-06T02:00:00.000Z") + min * 60000).toISOString() }] });
-    const r = { ...one(at(1, "passed"), at(3, "failed"), at(41.5, "failed")), stats: { startTime: "2026-11-06T02:00:00.000Z", duration: 2_700_000 } };
+  test("落ちた回が、実行の開始から何分のところ（終わった時刻 = 開始 + 所要時間）だったかを、時刻順に出す（枠・資源に当たる後半の偏りを見る）", () => {
+    const at = (min, status) => ({ projectName: "chromium", status: status === "failed" ? "unexpected" : "expected", expectedStatus: "passed", results: [{ status, duration: 60000, startTime: new Date(Date.parse("2026-11-06T02:00:00.000Z") + min * 60000).toISOString() }] });
+    const r = { ...one(at(1, "passed"), at(41.5, "failed"), at(3, "failed")), stats: { startTime: "2026-11-06T02:00:00.000Z", duration: 2_700_000 } };
     const s = summarize(r);
-    assert.deepEqual(s.tests[0].failedAtMs, [180000, 2490000]);
-    assert.match(formatFailureList(s.tests), /開始から 3\.0 分, 41\.5 分/);
-    assert.match(formatMarkdown(s), /\| 3\.0 分, 41\.5 分 \|/);
+    assert.deepEqual(s.tests[0].failedAtMs, [240000, 2550000]);
+    assert.match(formatFailureList(s.tests), /開始から 4\.0 分, 42\.5 分/);
+    assert.match(formatMarkdown(s), /\| 4\.0 分, 42\.5 分 \|/);
   });
 
   test("開始時刻が読めなければ、時点は出さない（落ちた一覧は壊れない）", () => {

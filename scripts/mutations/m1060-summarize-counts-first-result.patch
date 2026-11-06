@@ -1,5 +1,5 @@
 diff --git a/scripts/summarize-e2e-repeat.mjs b/scripts/summarize-e2e-repeat.mjs
-index 4de56be..aff4d78 100644
+index f8d07fa..55954e7 100644
 --- a/scripts/summarize-e2e-repeat.mjs
 +++ b/scripts/summarize-e2e-repeat.mjs
 @@ -40,7 +40,7 @@ export function classify(status) {
