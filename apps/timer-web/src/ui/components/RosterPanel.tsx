@@ -547,7 +547,7 @@ export function RosterPanel({
       {/* 見学セクション（rotation 外）: 元の相対順 */}
       {watchers.length > 0 && (
         <div className="roster-panel-section">
-          <p className="roster-panel-heading roster-panel-heading-watchers">見学</p>
+          <p className="roster-panel-heading">見学</p>
           <ul
             aria-label="見学一覧"
             className="roster-panel-list"
