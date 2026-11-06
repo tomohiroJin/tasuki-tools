@@ -1,0 +1,13 @@
+diff --git a/apps/timer-web/src/styles/roster-panel.css b/apps/timer-web/src/styles/roster-panel.css
+index ddff2c39..874519e2 100644
+--- a/apps/timer-web/src/styles/roster-panel.css
++++ b/apps/timer-web/src/styles/roster-panel.css
+@@ -175,7 +175,7 @@
+ .roster-panel-name {
+   /* 名前は残りの幅を取る。基準の幅を名前の長さによらず一定（8rem）にして、短い名前の行も長い名前の行も同じ段に並ぶ。
+    * 長い名前は 2 行まで折り返して残りは … で切る（全文は `title`・#556 一覧 #15。以前は区切りのない長い名前が自分の段へ回り 4 段になった） */
+-  flex: 1 1 8rem;
++  flex: 1 1 auto;
+   min-width: 0;
+   display: -webkit-box;
+   -webkit-box-orient: vertical;

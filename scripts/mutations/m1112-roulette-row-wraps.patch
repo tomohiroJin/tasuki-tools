@@ -1,0 +1,12 @@
+diff --git a/apps/roulette-web/src/index.css b/apps/roulette-web/src/index.css
+index bf225916..8d2ae748 100644
+--- a/apps/roulette-web/src/index.css
++++ b/apps/roulette-web/src/index.css
+@@ -537,6 +537,7 @@
+    2026-10-13 の 320 の撮影では、2 つの印に幅を取られ「山田」が「山…」に切れた。2 行まで折り返すので 1 字だけが残ることは減る */
+ .roulette-row {
+   display: flex;
++  flex-wrap: wrap;
+   align-items: center;
+   column-gap: var(--space-2);
+   min-height: 44px;

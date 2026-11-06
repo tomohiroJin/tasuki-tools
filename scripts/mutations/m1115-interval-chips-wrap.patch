@@ -1,0 +1,13 @@
+diff --git a/apps/timer-web/src/styles/session-config-panel.css b/apps/timer-web/src/styles/session-config-panel.css
+index c119f336..3db24229 100644
+--- a/apps/timer-web/src/styles/session-config-panel.css
++++ b/apps/timer-web/src/styles/session-config-panel.css
+@@ -15,7 +15,7 @@
+ .session-config-intervals {
+   /* 選択肢は何個でも 1 行に等分して並べる。320 でも「15分」だけが 2 行目に落ちない（#556 一覧 #17。以前は折り返して 3 + 2） */
+   display: grid;
+-  grid-auto-flow: column;
++  grid-auto-flow: row;
+   grid-auto-columns: minmax(0, 1fr);
+   /* 5 個 × 44px + 4 つの間（4px）が 320 の内側の幅（248px）に収まる */
+   gap: var(--space-1);

@@ -146,6 +146,9 @@ const RESERVED_1040_1049 =
 const RESERVED_1050_1059 =
   "**対応表より後に足した変異。** 1050〜1059 は #542 の続き（/code-review の指摘）に割り当てた範囲。";
 
+const RESERVED_1110_1119 =
+  "**対応表より後に足した変異。** 1110〜1119 は #556 に割り当てた範囲。";
+
 const RESERVED_1060_1069 =
   "**対応表より後に足した変異。** 1060〜1069 は #562（E2E の繰り返し実行の集計と、ci.yml との写しの比較）に割り当てた範囲。";
 
@@ -7673,5 +7676,69 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["audit-dependency-direction.test.mjs"],
     note: RESERVED_1360_1369 + " " + "#554 のレビュー。読む先が末尾に / の付かない形に畳まれ、再輸出の経由を見逃す。",
+  },
+  {
+    id: 1110,
+    label: "timer の名簿の名前の基準の幅を一定にしない",
+    patch: "m1110-roster-name-basis-auto.patch",
+    pkg: "packages/ui",
+    tests: ["tests/rows-alignment.test.mjs"],
+    note: RESERVED_1110_1119 + " " + "#556。 長い名前の行だけ名前が自分の段へ回り 4 段になる（一覧 #15 の再発）。",
+  },
+  {
+    id: 1111,
+    label: "timer のロビーの操作を行の幅いっぱいの段に置かない",
+    patch: "m1111-lobby-actions-not-own-line.patch",
+    pkg: "packages/ui",
+    tests: ["tests/rows-alignment.test.mjs"],
+    note: RESERVED_1110_1119 + " " + "#556。 自分の行だけ操作が 3 段・矢印が左寄せになる（一覧 #7 の再発）。",
+  },
+  {
+    id: 1112,
+    label: "roulette の入る人の行を折り返し可にする",
+    patch: "m1112-roulette-row-wraps.patch",
+    pkg: "packages/ui",
+    tests: ["tests/rows-alignment.test.mjs"],
+    note: RESERVED_1110_1119 + " " + "#556。 長い名前の行だけ「名前を消す」が 2 段目に落ちて行の高さが倍になる（一覧 #20 の再発）。",
+  },
+  {
+    id: 1113,
+    label: "agenda の「上へ」「下へ」の最小幅を外す",
+    patch: "m1113-builder-tools-narrow.patch",
+    pkg: "packages/ui",
+    tests: ["tests/rows-alignment.test.mjs"],
+    note: RESERVED_1110_1119 + " " + "#556。 当たりが 43×44 に戻る（一覧 #23 の再発）。",
+  },
+  {
+    id: 1114,
+    label: "agenda の 2 段目を行の全幅から始める",
+    patch: "m1114-builder-controls-full-width.patch",
+    pkg: "packages/ui",
+    tests: ["tests/rows-alignment.test.mjs"],
+    note: RESERVED_1110_1119 + " " + "#556。 2 段目が名前の欄と揃わなくなる（一覧 #24 の再発）。",
+  },
+  {
+    id: 1115,
+    label: "timer の交代間隔を折り返す並びに戻す",
+    patch: "m1115-interval-chips-wrap.patch",
+    pkg: "packages/ui",
+    tests: ["tests/rows-alignment.test.mjs"],
+    note: RESERVED_1110_1119 + " " + "#556。 「15分」だけが 2 行目に落ちる（一覧 #17 の再発）。",
+  },
+  {
+    id: 1116,
+    label: "timer の共有メモの Card から `meter-panel-stack` を外す",
+    patch: "m1116-shared-memo-card-not-stack.patch",
+    pkg: "packages/ui",
+    tests: ["tests/rows-alignment.test.mjs"],
+    note: RESERVED_1110_1119 + " " + "#556。 見出しの行と本文の間を誰も持たなくなる（ADR 0034 決定 1 の再発）。",
+  },
+  {
+    id: 1117,
+    label: "timer の状態の帯の順の指定を外す",
+    patch: "m1117-status-strip-no-order.patch",
+    pkg: "packages/ui",
+    tests: ["tests/rows-alignment.test.mjs"],
+    note: RESERVED_1110_1119 + " " + "#556。 「通知」だけが 2 段目に落ちる並びに戻る（一覧 #14 の再発）。",
   },
 ];

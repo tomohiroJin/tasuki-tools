@@ -1,0 +1,13 @@
+diff --git a/apps/timer-web/src/ui/components/SharedMemo.tsx b/apps/timer-web/src/ui/components/SharedMemo.tsx
+index 1a5e7206..c8c60c01 100644
+--- a/apps/timer-web/src/ui/components/SharedMemo.tsx
++++ b/apps/timer-web/src/ui/components/SharedMemo.tsx
+@@ -72,7 +72,7 @@ export function SharedMemo({ note, onCommit }: SharedMemoProps) {
+   );
+ 
+   return (
+-    <Card className={updated ? "meter-panel-stack shared-memo-card meter-panel-highlight" : "meter-panel-stack shared-memo-card"}>
++    <Card className={updated ? "shared-memo-card meter-panel-highlight" : "shared-memo-card"}>
+       {updateAnnouncement}
+       <div className="shared-memo-header ui-section-head">
+         <div className="shared-memo-lead">
