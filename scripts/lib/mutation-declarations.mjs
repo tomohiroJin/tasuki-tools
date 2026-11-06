@@ -128,6 +128,9 @@ const RESERVED_1200_1209 =
 const RESERVED_1210_1219 =
   "**対応表より後に足した変異。** 1210〜1219 は #553 に追加で割り当てた範囲（1200〜1209 の続き。1080〜1089 から移した）。";
 
+const RESERVED_1250_1259 =
+  "**対応表より後に足した変異。** 1250〜1259 は #553 に追加で割り当てた範囲（1213〜1219 を使い切ったため。3 回目の敵対的レビューの指摘で足した）。";
+
 export const MUTATIONS = [
   {
     id: 1,
@@ -6601,5 +6604,29 @@ export const MUTATIONS = [
     pkg: "packages/ui",
     tests: ["tests/spacing-owner.test.mjs"],
     note: RESERVED_1210_1219 + " " + "#553。部品の宣言の写しが一部だけになり、部品を直したときに食い違う（レビュー指摘）。",
+  },
+  {
+    id: 1250,
+    label: "timer の `.section-header--beside` から `justify-content: flex-start` を外す",
+    patch: "m1250-timer-section-header-not-beside.patch",
+    pkg: "packages/ui",
+    tests: ["tests/spacing-owner.test.mjs"],
+    note: RESERVED_1250_1259 + " " + "#553。広い幅（ロビー 768・ルームのタブ 1024）で「ランダム」が見出しから行の反対の端まで 400〜580px 離れる。",
+  },
+  {
+    id: 1251,
+    label: "timer の名簿の見出しの行から `beside` を外す",
+    patch: "m1251-timer-roster-not-beside.patch",
+    pkg: "packages/ui",
+    tests: ["tests/spacing-owner.test.mjs"],
+    note: RESERVED_1250_1259 + " " + "#553。名簿の見出しの行が部品の両端寄せに戻り、操作が見出しから離れる。",
+  },
+  {
+    id: 1252,
+    label: "poker の束のポイントの選択から `max-inline-size: 45%` を外す",
+    patch: "m1252-poker-points-select-not-capped.patch",
+    pkg: "packages/ui",
+    tests: ["tests/spacing-owner.test.mjs"],
+    note: RESERVED_1250_1259 + " " + "#553。320px で選択欄が名前の列より広くなり、長い項目名が 9 行に折れる。",
   },
 ];

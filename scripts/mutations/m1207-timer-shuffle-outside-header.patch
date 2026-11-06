@@ -1,7 +1,7 @@
 diff --git a/apps/timer-web/src/ui/components/RosterPanel.tsx b/apps/timer-web/src/ui/components/RosterPanel.tsx
 --- a/apps/timer-web/src/ui/components/RosterPanel.tsx
 +++ b/apps/timer-web/src/ui/components/RosterPanel.tsx
-@@ -463,12 +463,12 @@
+@@ -463,13 +463,13 @@
            onCancel={() => setPendingRemovalId(null)}
          />
        )}
@@ -9,6 +9,7 @@ diff --git a/apps/timer-web/src/ui/components/RosterPanel.tsx b/apps/timer-web/s
        <SectionHeader
          icon={Users}
          title="参加者"
+         beside
          right={
            <div className="roster-panel-head-actions">
 -            {onShuffle && <ShuffleButton onClick={onShuffle} />}

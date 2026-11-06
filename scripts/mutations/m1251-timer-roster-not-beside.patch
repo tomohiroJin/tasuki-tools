@@ -1,0 +1,11 @@
+diff --git a/apps/timer-web/src/ui/components/RosterPanel.tsx b/apps/timer-web/src/ui/components/RosterPanel.tsx
+--- a/apps/timer-web/src/ui/components/RosterPanel.tsx
++++ b/apps/timer-web/src/ui/components/RosterPanel.tsx
+@@ -466,7 +466,6 @@
+       <SectionHeader
+         icon={Users}
+         title="参加者"
+-        beside
+         right={
+           <div className="roster-panel-head-actions">
+             {onShuffle && <ShuffleButton onClick={onShuffle} />}

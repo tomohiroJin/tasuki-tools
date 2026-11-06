@@ -1,8 +1,8 @@
 diff --git a/apps/timer-web/src/ui/components/RosterPanel.tsx b/apps/timer-web/src/ui/components/RosterPanel.tsx
 --- a/apps/timer-web/src/ui/components/RosterPanel.tsx
 +++ b/apps/timer-web/src/ui/components/RosterPanel.tsx
-@@ -468,7 +468,7 @@
-         title="参加者"
+@@ -469,7 +469,7 @@
+         beside
          right={
            <div className="roster-panel-head-actions">
 -            {onShuffle && <ShuffleButton onClick={onShuffle} />}

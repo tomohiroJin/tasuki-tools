@@ -1,13 +1,12 @@
 diff --git a/apps/timer-web/src/ui/primitives.tsx b/apps/timer-web/src/ui/primitives.tsx
-index 001dd332..0d05070a 100644
 --- a/apps/timer-web/src/ui/primitives.tsx
 +++ b/apps/timer-web/src/ui/primitives.tsx
-@@ -76,7 +76,7 @@ export function SectionHeader({
-   right?: React.ReactNode;
+@@ -79,7 +79,7 @@
+   beside?: boolean;
  }) {
    return (
--    <div className="section-header ui-section-head">
-+    <div className="section-header">
+-    <div className={beside ? "section-header section-header--beside ui-section-head" : "section-header ui-section-head"}>
++    <div className={beside ? "section-header section-header--beside" : "section-header"}>
        <div className="section-header-lead">
          <Icon className="section-header-icon" />
          <h2 className="section-header-title">{title}</h2>
