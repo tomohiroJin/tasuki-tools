@@ -88,17 +88,14 @@ test('Given 40rem 未満の通常の見出し / When 並びを読む / Then 折�
   assert.match(only(list, `${NOT_COMPACT} .ui-room-header-title > h1`), /flex:\s*1 1 100%;/);
 });
 
-test('Given 40rem 未満の通常の見出し / When 戻るの規則を読む / Then 先頭の列に出し、下線の字の横の余白（--space-2 と枠 1px）を打ち消して題に左端を揃える', () => {
+test('Given 40rem 未満の通常の見出し / When 戻るの規則を読む / Then 下線の字の横の余白（--space-2 と枠 1px）を打ち消して題に左端を揃え、order は持たない', () => {
   const body = only(headerRules(), `${NOT_COMPACT} .ui-page-header-back`);
-  assert.match(body, /order:\s*1;/);
   assert.match(body, /margin-inline-start:\s*calc\(-1 \* \(var\(--space-2\) \+ 1px\)\);/);
+  assert.doesNotMatch(body, /order:/);
 });
 
-test('Given 40rem 未満の通常の見出し / When 道具のボタンの規則を読む / Then 戻るの後ろ（order 2）、「仲間を招く」と招待の欄はその後ろ', () => {
-  const list = headerRules();
-  assert.match(only(list, `${NOT_COMPACT} .ui-room-header-title > :not(h1)`), /order:\s*2;/);
-  assert.match(only(list, `${NOT_COMPACT} .ui-room-header-share-toggle`), /order:\s*3;/);
-  assert.match(only(list, `${NOT_COMPACT} .ui-room-header-share`), /order:\s*4;/);
+test('Given 40rem 未満の @media / When 見出しの規則を読む / Then order で目の順だけを変えない（Tab・読み上げの順が見た目と食い違う。WCAG 2.4.3・1.3.2）', () => {
+  assert.doesNotMatch(mediaBlock(read('room-header.css'), '@media (width < 40rem)'), /\border\s*:/);
 });
 
 test('Given 招待の URL / When 字の規則を読む / Then 1 行に収め、収まらない分は省略する（2 行に折れない）', () => {

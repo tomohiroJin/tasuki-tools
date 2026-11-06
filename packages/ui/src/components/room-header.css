@@ -169,10 +169,11 @@
     border-width: 0;
   }
 
-  /* 通常の見た目の狭い幅は、見出しの行・戻る・道具のボタン・「仲間を招く」を 1 つの折り返す行に並べ直す（#554・#479 の #11・#13）。
-     題は 1 行ぶんの全幅に置き、続けて「戻る・道具のボタン」、最後に「仲間を招く」と招待の欄。以前は 4 段（題・道具のボタン・戻る・仲間を招く）に積まれ、
-     poker の 320px で約 230px あった。DOM の順（題・道具のボタン・戻る・仲間を招く）は変えず、`order` で戻るを道具のボタンの前に出す。
-     戻るは下線の字の横の余白（`.ui-button--quiet` の `padding-inline` ＋ 枠 1px）を打ち消し、行の先頭で字の左端を題に揃える。押せる高さ 44px は保つ。 */
+  /* 通常の見た目の狭い幅は、見出しの行・道具のボタン・戻る・「仲間を招く」を 1 つの折り返す行に並べ直す（#554・#479 の #11・#13）。
+     題は 1 行ぶんの全幅に置き、道具のボタン・戻る・「仲間を招く」は**DOM の順のまま**折り返して詰める（以前は 4 段・poker の 320px で約 230px）。
+     `order` で目の順だけを変えない: Tab と読み上げの順が見た目と食い違う（WCAG 2.4.3・1.3.2）。
+     戻るは下線の字の横の余白（`.ui-button--quiet` の `padding-inline` ＋ 枠 1px）を打ち消す。行の先頭に落ちたときは字の左端が題に揃い、
+     道具のボタンの後ろに並ぶときも、ボタンとの字の間は gap のまま保たれる。押せる高さ 44px は保つ。 */
   .ui-room-header:not(.ui-room-header--compact) {
     display: flex;
     flex-wrap: wrap;
@@ -190,20 +191,10 @@
   }
 
   .ui-room-header:not(.ui-room-header--compact) .ui-page-header-back {
-    order: 1;
     margin-inline-start: calc(-1 * (var(--space-2) + 1px));
   }
 
-  .ui-room-header:not(.ui-room-header--compact) .ui-room-header-title > :not(h1) {
-    order: 2;
-  }
-
-  .ui-room-header:not(.ui-room-header--compact) .ui-room-header-share-toggle {
-    order: 3;
-  }
-
   .ui-room-header:not(.ui-room-header--compact) .ui-room-header-share {
-    order: 4;
     flex-basis: 100%;
   }
 }
