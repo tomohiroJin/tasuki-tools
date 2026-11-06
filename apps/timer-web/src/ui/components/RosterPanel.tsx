@@ -12,7 +12,7 @@
  */
 
 import React, { useState, useEffect, useId, useReducer } from "react";
-import { Users, ChevronUp, ChevronDown, X, Shuffle } from "lucide-react";
+import { Users, ChevronUp, ChevronDown, X } from "lucide-react";
 import type { Participant, Seat } from "@tasuki/timer-core";
 import { MAX_DISPLAY_NAME, participantLabel } from "@tasuki/room-core";
 import { SectionHeader } from "../primitives.js";
@@ -33,6 +33,7 @@ import {
 } from "../name-request.js";
 import { splitRoster } from "../roster-order.js";
 import { MiniButton } from "./MiniButton.js";
+import { ShuffleButton } from "./ShuffleButton.js";
 
 interface RosterPanelProps {
   participants: Participant[];
@@ -467,18 +468,7 @@ export function RosterPanel({
         title="参加者"
         right={
           <div className="roster-panel-head-actions">
-            {onShuffle && (
-              <button
-                type="button"
-                onClick={onShuffle}
-                aria-label="ドライバー順をランダムに並べ替える"
-                className="ui-button ui-button--secondary ui-button--sm"
-              >
-                <span className="session-shuffle-label">
-                  <Shuffle className="session-action-icon" aria-hidden="true" /> ランダム
-                </span>
-              </button>
-            )}
+            {onShuffle && <ShuffleButton onClick={onShuffle} />}
             <button
               type="button"
               onClick={() => {

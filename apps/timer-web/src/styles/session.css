@@ -201,15 +201,9 @@
   height: 1.25rem;
 }
 
-/* ランダム（ドライバー順の並べ替え）の帯とボタン。「ルーム」タブの同じ帯・ボタンは比較に描かれない（Q5） */
+/* 「ルームから抜ける」を置く帯（ルームのタブの名簿の上）。右へ寄せる */
 .session-toolbar {
   margin-bottom: var(--space-3);
   display: flex;
   justify-content: flex-end;
-}
-
-.session-shuffle-label {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
 }
