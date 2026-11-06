@@ -52,8 +52,24 @@ async function pageBox(
   });
 }
 
+/**
+ * 幅を変えた直後は、React の状態から決まる大きさ（timer の円形計器）が古いまま 1 フレーム以上残ることがある。
+ * 「最終的に溢れない」を待つ。溢れたままなら expect の既定の時間のあと落ちる。
+ */
 async function expectNoHorizontalOverflow(page: Page): Promise<void> {
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await expect
+    .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), { message: '横に溢れている' })
+    .toBe(true);
+}
+
+/** 下端の帯の上端 − タイマーの下端（0 以上なら帯の裏に隠れない）。2 つの箱を同じ瞬間に読む。 */
+async function dockClearance(page: Page): Promise<number> {
+  return page.evaluate(() => {
+    const timer = document.querySelector('[role="timer"]');
+    const dock = document.querySelector('.ui-actions--dock');
+    if (timer === null || dock === null) throw new Error('タイマーか下端の帯が描かれていない（判定が空振りする）');
+    return dock.getBoundingClientRect().top - timer.getBoundingClientRect().bottom;
+  });
 }
 
 /**
@@ -836,10 +852,13 @@ test.describe('timer は 1 つのルームでロビー・セッション・お�
     }));
     expect(clamp.client).toBeLessThanOrEqual(clamp.line * 3 + 1);
     expect(clamp.scroll).toBeGreaterThan(clamp.client);
-    const narrowTimer = await boxOf(page, '[role="timer"]');
-    // 下端の帯（.ui-actions--dock）の裏に隠れないこと（画面の高さではなく帯の上端と比べる）
-    const dockBox = await boxOf(page, '.ui-actions--dock');
-    expect(narrowTimer.y + narrowTimer.height).toBeLessThanOrEqual(dockBox.y);
+    // 下端の帯（.ui-actions--dock）の裏に隠れないこと（画面の高さではなく帯の上端と比べる）。
+    // 円形計器の大きさは React の状態（useIsWide・useViewportWidth）から決まり、setViewportSize の解決より後の
+    // 描画で縮む。直後に 1 回だけ読むと、広い幅の大きさのまま（約 48px 下）を測ることがある（#565）。
+    // 待ち時間で隠さず、「最終的に帯の裏に隠れない」まで待つ（隠れたままなら expect の既定の時間で落ちる）。
+    await expect
+      .poll(() => dockClearance(page), { message: 'タイマーの下端が下端の帯の裏に隠れている（帯の上端 − タイマーの下端）' })
+      .toBeGreaterThanOrEqual(0);
     await expectNoHorizontalOverflow(page);
 
     // 切った本文の中のリンクには Tab が止まらず、「続きを読む」とシートの中のリンクには止まる（#316 PR 4）
