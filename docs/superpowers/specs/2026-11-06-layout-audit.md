@@ -84,15 +84,23 @@
 
 ### #553 で扱ったもの（2026-11-06）
 
-表の本体は書き換えない。決定は [ADR 0034](../../adr/0034-spacing-owner-and-stack-components.md)（Proposed）。
+表の本体は書き換えない。決定は [ADR 0035](../../adr/0035-spacing-owner-and-stack-components.md)（Proposed）。
 
 | # | 直し方 | 確かめ方 |
 |---|---|---|
 | 1 | poker の参加者の区画を `.ui-stack`、見出しの行を `.ui-section-head` にした。画面の `.room-participants-head` は消した。見出しの行と札の並びの間は `--space-3`（12px） | `e2e/specs/spacing.spec.ts`（320・390・768・1280・1920 で 12px 以上）。変異 1060・1064・1065 |
-| 3 | `.ui-md > * + *` を `.ui-md.ui-md > * + *` にして、子の `.ui-md-p { margin: 0 }` に詳細度で勝たせた。`gap` の flex にすると 64rem 未満の 3 行の写し（`-webkit-line-clamp`）が行数で切れなくなる（実測）ので、ADR 0034 決定 1 の例外にした | `spacing.spec.ts`（段落の間 8px 以上）。3 行で切る検査（`layout.spec.ts`）は上限へ段落の間 2 つぶんを足した。変異 1063 |
+| 3 | `.ui-md > * + *` を `.ui-md.ui-md > * + *` にして、子の `.ui-md-p { margin: 0 }` に詳細度で勝たせた。`gap` の flex にすると 64rem 未満の 3 行の写し（`-webkit-line-clamp`）が行数で切れなくなる（実測）ので、ADR 0035 決定 1 の例外にした | `spacing.spec.ts`（段落の間 8px 以上）。3 行で切る検査（`layout.spec.ts`）は上限へ段落の間 2 つぶんを足した。変異 1063 |
 | 6 | 「ランダム」を `RosterPanel` の見出しの行（「代理追加」の隣）へ移した。セッション・ルームのタブの両方 | `spacing.spec.ts`（見出しの行の中にある）。`RosterPanel.shuffle-in-header.test.tsx`。変異 1067 |
 | 18 | 共有メモの見出しの行を `.ui-section-head` にし、題と印のまとまりが縮んで「編集」が見出しの右に残るようにした（以前は 22rem の脇で下の行へ落ちた） | `spacing.spec.ts`（1280 で「編集」が見出しと同じ行）。直す前の CSS に戻すと赤になることを確認 |
 | 33 | timer の `SectionHeader` を `.ui-section-head` にした（横の間 `--space-3`） | 変異 1066 |
 
 同じ部品へ寄せたもの: poker の見積もりの記録の束（`.ui-stack`・`.ui-section-head`）、roulette のいつものメンツ（`.ui-stack`・`.ui-section-head`）、agenda の保存した流れ（`.ui-stack`）。
 当てなかったもの: timer の `Card` の中の縦の並び（`SectionHeader` の `margin-bottom` と共有メモの見出しの `margin-bottom` を移行の途中の例外として残した。親が `gap` を持つ形への移行は #556）、他の `ui-panel` の中の並び（画面ごとの grid / flex が既に `gap` を持っている）。
+
+#### #553 のレビューで変えたこと（2026-11-06）
+
+- ADR の番号を 0034 から 0035 へ振り直した（別の PR が 0034 を使うため）。
+- ADR 0035 決定 1 に、検査（E2E で結果を測る理由）・置き換える箇所（ADR 0022 決定 4）・例外（timer の `.section-header` と `.shared-memo-header` の `margin-bottom`・#556 で取り除く）を書いた。ADR 0022 決定 4 の末尾に「現行の正本」の 1 行を足した。
+- README の「画面が持つのは配置」「パネルは面だけ」に並びの部品の例外を書き足し、`.ui-section-head` の間（横 `--space-3`・折り返した行 `--space-2`）を ADR と README に揃えた。
+- roulette の `.roulette-regulars-notice:empty` の負の余白（親の gap を子が打ち消していた）をやめ、隠し文字と同じ作り（絶対配置・1px・切り抜き）にした。`display: none` はライブリージョン（`role="status"`）が読み上げの木から外れて、あとから入る知らせが届かないことがあるので使わなかった。
+- #6 の続き: timer の参加者の見出しの行は、64rem 以上の脇（294px）で見出しと「ランダム」「代理追加」が 2 行に割れ、操作が右寄せで離れて見えた。操作の塊の右寄せを外し、折り返したときは見出しの下 8px・左端そろいに置くようにした。E2E は「同じ行」か「見出しの下 8px・左端そろい」のどちらかを測る（ロビー・セッション・共有メモ）。
