@@ -342,6 +342,7 @@ test.describe('poker のルームは広い画面で読む面と操作の面を�
     await settleWorkspace(page);
     // 操作の面は脇の右の列。中央に寄せない（46rem に絞らず、列の幅いっぱい）。
     // 3 つの箱を同じ瞬間に読む（別々に読むと、間に再配置が挟まる）。描かれていない（矩形 0）と比べが空振りするので投げる。
+    // poll の中で投げると繰り返さずにすぐ落ちる（Playwright の仕様）。矩形 0 は待って直るものではないので、それで正しい。
     const readColumns = (): Promise<{ sideRight: number; sideY: number; mainX: number; mainY: number; mainWidth: number; innerRight: number }> =>
       page.evaluate(() => {
         const side = document.querySelector('.ui-workspace-side')?.getBoundingClientRect();
@@ -359,7 +360,8 @@ test.describe('poker のルームは広い画面で読む面と操作の面を�
           innerRight: box.right - parseFloat(getComputedStyle(pageEl).paddingRight),
         };
       });
-    //   （1280 の列は脇 0.75fr・操作の面 1fr で約 41rem。かつての 46rem の中央寄せはもう無い）
+    //   （1280 の列は脇 0.75fr・操作の面 1fr で約 41rem。46rem より狭いので、ここでは 46rem の規則が残っていても右端は揃って見える。
+    //   46rem に絞らないことは、下で 1920 に広げて見る）
     await expect
       .poll(async () => {
         const c = await readColumns();
@@ -379,6 +381,19 @@ test.describe('poker のルームは広い画面で読む面と操作の面を�
     const tops = await page.locator('.card-hand .card').evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().top)));
     expect(tops.length).toBe(10);
     expect(new Set(tops).size).toBe(1);
+    // 1920 では 2 列目が約 805px で 46rem（736px）より広い。記録を入れても max-width: 46rem が残る退行は、ここで右端が約 34px ずれて見える。
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    await settleWorkspace(page);
+    await expect
+      .poll(async () => {
+        const c = await readColumns();
+        return Math.abs(c.mainX + c.mainWidth - c.innerRight);
+      }, { message: '1920 でも操作の面の右端が器の内側の右端に揃う（46rem に絞らない）' })
+      .toBeLessThanOrEqual(2);
+    await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+    const wide = await readColumns();
+    expect(wide.mainWidth, '1920 の操作の面は 46rem より広い').toBeGreaterThan(46 * REM);
+    expect(Math.abs(wide.mainX + wide.mainWidth - wide.innerRight), '1920 でも操作の面の右端が器の内側の右端に揃う').toBeLessThanOrEqual(2);
   });
 
   test('Given 幅 1280・高さ 800・お題あり・記録する・6 束 / When ルームを開く / Then お題の札と記録の札は左端がそろい、記録のスクロールバーは札の右端に寄り、お題は札の外へはみ出さない（#427）', async ({ page, openPeer }) => {
