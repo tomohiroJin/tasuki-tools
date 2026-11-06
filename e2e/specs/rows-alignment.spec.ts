@@ -100,4 +100,34 @@ test.describe('一覧の行は名前の長さや自分かどうかで並びを�
       expect(Math.round(long.tailRight), `幅 ${String(width)}: 末尾の操作の右端`).toBe(Math.round(short.tailRight));
     }
   });
+
+  test('Given timer のロビーの状態の帯 / When 4 つの幅で開く / Then 帯の中の目の順（行ごとに左から右）が DOM の順（読み上げ・Tab の順）と同じ（#556 一覧 #14・WCAG 1.3.2・2.4.3）', async ({ page }) => {
+    await createTimerRoom(page, 'ホスト');
+    await expect(page.getByRole('status', { name: 'ステータス情報' })).toBeVisible();
+    for (const width of [320, 390, 768, 1280] as const) {
+      await page.setViewportSize({ width, height: 900 });
+      const items = await page.evaluate(() => {
+        const strip = document.querySelector('[aria-label="ステータス情報"]')!;
+        return [...strip.children].map((c) => {
+          const r = c.getBoundingClientRect();
+          return { text: (c.textContent ?? '').trim().slice(0, 12), top: r.top, left: r.left, height: r.height };
+        });
+      });
+      expect(items.length, `幅 ${String(width)}: 帯の項目`).toBeGreaterThanOrEqual(4);
+      // 目の順: 上端が行の高さの半分以内なら同じ行として左から右。DOM の順と一致する
+      const visual = [...items.keys()].sort((a, b) => {
+        const A = items[a]!, B = items[b]!;
+        return Math.abs(A.top - B.top) < A.height / 2 ? A.left - B.left : A.top - B.top;
+      });
+      expect(visual, `幅 ${String(width)}: 目の順 ${visual.map((i) => items[i]!.text).join(' / ')}`).toEqual([...items.keys()]);
+      // 押せるもの（通知）は Tab で届き、帯の最後に目でも並ぶ
+      await page.locator('body').click({ position: { x: 1, y: 1 } });
+      const notify = page.getByRole('button', { name: '通知設定' });
+      await notify.focus();
+      const box = await notify.boundingBox();
+      const last = items[items.length - 1]!;
+      expect(box!.y, `幅 ${String(width)}: 通知は最後の項目の行にある`).toBeGreaterThanOrEqual(last.top - last.height);
+      expect(box!.x + box!.width, `幅 ${String(width)}: 通知は帯の右端寄り`).toBeGreaterThan(last.left);
+    }
+  });
 });

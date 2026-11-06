@@ -62,9 +62,15 @@ test('Given timer の交代間隔 / When 規則を読む / Then 選択肢は 1 �
   assert.match(body, /grid-auto-flow:\s*column;/);
 });
 
-test('Given timer の状態の帯 / When 規則を読む / Then 40rem 未満は 2 段に決めて組む（一覧 #14）', () => {
+test('Given timer の状態の帯 / When 規則を読む / Then 40rem 未満は DOM の順のまま 2 列の grid で 2 段に組み、右の列は右寄せ（一覧 #14）', () => {
   const css = read('apps/timer-web/src/styles/status-strip.css');
-  assert.match(css, /@media \(width < 40rem\) \{[^@]*order:\s*1;/);
+  assert.match(css, /@media \(width < 40rem\) \{\s*\.status-strip \{\s*display:\s*grid;\s*grid-template-columns:\s*auto minmax\(0, 1fr\);/);
+  assert.match(css, /\.status-strip > :nth-child\(even\) \{\s*justify-self:\s*end;/);
+});
+
+test('Given 画面の CSS / When order を探す / Then 無い（目の順と DOM の順（Tab・読み上げ）をずらさない・WCAG 1.3.2・2.4.3）', () => {
+  const css = read('apps/timer-web/src/styles/status-strip.css');
+  assert.doesNotMatch(css, /^\s*order:/m);
 });
 
 test('Given timer の Card の縦の間 / When 規則と配線を読む / Then 親が gap で持ち、共有メモ・参加者の見出しは margin を持たない（ADR 0034 決定 1）', () => {
