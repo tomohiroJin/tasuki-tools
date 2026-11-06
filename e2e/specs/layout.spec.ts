@@ -513,17 +513,16 @@ test.describe('poker のルームは広い画面で読む面と操作の面を�
     expect(await look(), '押した状態が押さない状態と同じ見た目').not.toBe(off);
   });
 
-  test('Given 幅 1280・記録しない・お題を隠した / When ルームを開く / Then 左に空の列を残さず、操作の面は 46rem で中央に寄る（#427）', async ({ page, openPeer }) => {
+  test('Given 幅 1280・記録しない・お題を隠した / When ルームを開く / Then 左に空の列を残さず、操作の面は器の内側いっぱいに広がる（#427・#555 一覧 #8）', async ({ page, openPeer }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await openPokerWithTopic(page, openPeer);
     await page.getByRole('button', { name: 'お題を隠す' }).click();
     await expect(page.getByRole('button', { name: 'お題を見る' })).toBeVisible();
-    await expect.poll(async () => Math.round((await boxOf(page, '.ui-workspace-main')).width), '操作の面が 46rem に落ち着かない').toBe(46 * REM);
-    const main = await boxOf(page, '.ui-workspace-main');
     const inner = await pageBox(page);
-    const left = main.x - (inner.innerRight - inner.inner);
-    const right = inner.innerRight - (main.x + main.width);
-    expect(Math.abs(left - right), '操作の面が中央に寄っていない').toBeLessThanOrEqual(2);
+    await expect.poll(async () => Math.round((await boxOf(page, '.ui-workspace-main')).width), '操作の面が器の内側の幅に落ち着かない').toBe(Math.round(inner.inner));
+    const main = await boxOf(page, '.ui-workspace-main');
+    expect(Math.abs(main.x - (inner.innerRight - inner.inner)), '操作の面の左端が器の内側の左端に揃う').toBeLessThanOrEqual(2);
+    expect(Math.abs(main.x + main.width - inner.innerRight), '操作の面の右端が器の内側の右端に揃う').toBeLessThanOrEqual(2);
   });
 
   test('Given 幅 1280・記録しない・お題あり / When 「お題を隠す」を押す / Then 隠した直後から閉じ切るまで、閉じかけの札は操作の面（手札）に重ならない（#427・v4.1.0 の規則）', async ({ page, openPeer }) => {
@@ -543,21 +542,19 @@ test.describe('poker のルームは広い画面で読む面と操作の面を�
     expect(await overlap(), '隠した直後に、閉じかけの札が操作の面に重なっている').toBeLessThanOrEqual(1);
     await page.waitForTimeout(400);
     expect(await overlap(), '0.4 秒後に、閉じかけの札が操作の面に重なっている').toBeLessThanOrEqual(1);
-    // 閉じ切った後は札の包みの幅が 0 に向かい（列は 2 本のまま）、操作の面は 46rem で中央に落ち着く
+    // 閉じ切った後は札の包みの幅が 0 に向かい（列は 2 本のまま）、操作の面は器の内側いっぱいに落ち着く（#555）
     expect((await boxOf(page, '.room-topic-side')).width, '閉じた札の包みの幅が 0 にならない').toBeLessThanOrEqual(1);
-    expect(Math.round((await boxOf(page, '.ui-workspace-main')).width)).toBe(46 * REM);
+    expect(Math.round((await boxOf(page, '.ui-workspace-main')).width)).toBe(Math.round((await pageBox(page)).inner));
   });
 
-  test('Given 幅 1280・記録しない・お題が無い / When ルームを開く / Then 脇も空の列も無く、操作の面は 46rem で中央に寄る（#427）', async ({ page }) => {
+  test('Given 幅 1280・記録しない・お題が無い / When ルームを開く / Then 脇も空の列も無く、操作の面は器の内側いっぱいに広がる（#427・#555 一覧 #8）', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await createPokerRoom(page, 'layout-no-side');
     expect(await page.locator('.room-side').count(), '脇が描かれている').toBe(0);
     const main = await boxOf(page, '.ui-workspace-main');
     const inner = await pageBox(page);
-    expect(main.width, '操作の面は 46rem').toBeCloseTo(46 * REM, 0);
-    const left = main.x - (inner.innerRight - inner.inner);
-    const right = inner.innerRight - (main.x + main.width);
-    expect(Math.abs(left - right), '操作の面が中央に寄っていない').toBeLessThanOrEqual(2);
+    expect(main.width, '操作の面は器の内側の幅').toBeCloseTo(inner.inner, 0);
+    expect(Math.abs(main.x - (inner.innerRight - inner.inner)), '操作の面の左端が器の内側の左端に揃う').toBeLessThanOrEqual(2);
   });
 
   test('Given 幅 1280・お題を開いている / When ルームを開く / Then 「お題を隠す」は見出しと同じ行で、h1 の右隣にある', async ({ page, openPeer }) => {

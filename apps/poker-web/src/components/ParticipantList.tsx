@@ -100,6 +100,7 @@ export function ParticipantList({ participants, you, votes, onRemove, offline = 
           // 見学者は札を持たない。ただし開票後に票が残っているときは、集計に入った札を隠さない
           const showCard = holdsSeatCard(p, votes);
           const order = showCard ? seatOrder++ : 0;
+          const label = participantLabel(p.name, p.id, everyone);
           return (
             <li key={p.id} className={p.connected ? '' : 'disconnected'}>
               {showCard ? (
@@ -111,7 +112,7 @@ export function ParticipantList({ participants, you, votes, onRemove, offline = 
                 </span>
               )}
               <span className="name">
-                {participantLabel(p.name, p.id, everyone)}
+                <span className="name-text" title={label}>{label}</span>
                 {p.id === you && <span className="you-mark">（あなた）</span>}
               </span>
               {/* 開票後の票が札として残る見学者は、札のあとに印を出す（札を持たない席は上の枠の中） */}

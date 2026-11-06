@@ -33,8 +33,8 @@
   display: grid;
   gap: var(--space-5);
   /* 手札の並びは、脇の有無ではなく操作の面の幅で決める（#348 D9）ので、操作の面をコンテナにする。
-     幅は段組みの列が決める。列はいつも 2 本で、記録の札が無く、開いたお題の札も無いとき（記録しない・お題が無いか隠した）だけは
-     脇の列が幅 0 になり、64rem 以上の下の規則が約 46rem で中央に寄せる（#427・v4.1.0 の #348 D7〜D9）。それ以外は脇の列があり、中央寄せは要らない。 */
+     幅は段組みの列が決める。列はいつも 2 本で、記録の札が無く、開いたお題の札も無いときは脇の列が幅 0 になり、
+     操作の面が器の内側いっぱいに広がる（かつては約 46rem で中央に寄せていた。見出しと端が揃わないので #555 で外した）。 */
   width: 100%;
   max-width: 100%;
   container: room-main / inline-size;
@@ -143,18 +143,9 @@
     max-height: calc(100dvh - 14rem);
   }
 
-  /* 記録の札が無く、開いたお題の札も無いときは、操作の面を約 46rem で中央に寄せる（v4.1.0 と同じ）。
-     `max-width` を移り変わらせ、`margin-inline: auto` が毎フレーム中央に寄せ直すので、お題の出し入れで操作の面が跳ばず滑る。
-     64rem 未満では脇が縦に積まれ、閉じると即座に消える（`display: none`）ので、ここで移り変わらせると
-     「脇が消える → 操作の面が遅れて狭まる」の 2 段の動きになる。だから 64rem 以上だけ。 */
-  .room-main {
-    margin-inline: auto;
-    transition: max-width 0.32s cubic-bezier(0.2, 0.8, 0.2, 1);
-  }
-
-  .room .ui-workspace--reader:not(:has(.room-log--side)):not(:has(.room-topic-side[data-state='open'])) > .room-main {
-    max-width: 46rem;
-  }
+  /* 記録の札が無く、開いたお題の札も無いときも、操作の面は列の幅いっぱいに広げる（かつては約 46rem で中央に寄せていた）。
+     中央に寄せると、本体だけが細い列に寄って見出し・招待の行と左右の端が揃わなかった（#555 一覧 #8・1280 で左端が 224px ずれた）。
+     席の札・手札は行の幅で折り返すので、広い幅でも崩れない。 */
 
   .room-topic-side[data-state='open'] {
     flex: 0 1 auto;
@@ -211,9 +202,11 @@
   list-style: none;
   padding: 0;
   margin: 0;
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
+  /* 席は行の幅を等分して並べる（右に端数の空きを残さず、行の右端が見出し・手札と揃う・#555 一覧 #9）。
+     席の最小幅は 6.5rem。名前が長い席が同じ行の席を引き伸ばさないよう、行の中では上に揃える（`align-items: start`・一覧 #4）。 */
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
+  align-items: start;
   gap: 0.45rem;
 }
 
@@ -224,7 +217,6 @@
   text-align: center;
   gap: 0.4rem;
   box-sizing: border-box;
-  width: 6.5rem;
   min-width: 0;
   padding: 0.55rem 0.4rem;
   background: var(--felt-sink);
@@ -253,6 +245,16 @@
   min-width: 0;
   max-width: 100%;
   overflow-wrap: anywhere;
+}
+
+/* 名前の字は 3 行まで。超える分は省略し、全文は `title` と読み上げの名前に残す（一覧 #4: 28 字で 6 行になり札が 275px に伸びた）。
+   「（あなた）」の印は省略の外（`.you-mark` は `.name-text` の兄弟）なので切れない。 */
+.participants .name-text {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
 }
 
 .you-mark {
