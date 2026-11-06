@@ -463,4 +463,36 @@
   .hub-tools {
     padding: 0;
   }
+  /* 道具の札は 1 列の横長（絵が左・名前と一行説明が右）にして、下の欄と左右の端を揃える（#555 一覧 #21）。
+     縦長の札を 1 列に積むと 1 枚約 330px で 6 枚約 2000px になり、参加者・「仲間を招く」が 4 画面ぶん下へ遠のいた。
+     2 列にすると 320px で札が約 130px しか取れず、一行説明が入らない（上の 64rem 未満の注）ので、横長にして高さだけ縮める。
+     札の傾けは 64rem 以上の意匠で、ここでは元から無い。 */
+  .hub-tools .hand {
+    align-items: stretch;
+    gap: var(--space-3);
+  }
+  .hub-tools .hand li {
+    flex: none;
+    max-width: none;
+    width: 100%;
+  }
+  .hub-tools .tool-card {
+    width: 100%;
+    aspect-ratio: auto;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    align-items: center;
+    justify-items: start;
+    column-gap: var(--space-4);
+    row-gap: var(--space-1);
+    padding: var(--space-4) var(--space-4) var(--space-4) var(--space-6);
+    text-align: start;
+  }
+  .hub-tools .tool-mark {
+    grid-row: 1 / span 2;
+  }
+  .hub-tools .tool-name,
+  .hub-tools .tool-summary {
+    grid-column: 2;
+  }
 }
