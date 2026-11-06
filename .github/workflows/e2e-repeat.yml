@@ -92,17 +92,17 @@ jobs:
       - name: E2E を繰り返し流す
         env:
           REPEAT: ${{ inputs.repeat }}
-          PLAYWRIGHT_JSON_OUTPUT_NAME: ${{ runner.temp }}/e2e-repeat/results.json
+          PLAYWRIGHT_JSON_OUTPUT_NAME: ${{ github.workspace }}/e2e-repeat-results/results.json
         run: |
-          mkdir -p "$RUNNER_TEMP/e2e-repeat"
+          mkdir -p "$GITHUB_WORKSPACE/e2e-repeat-results"
           pnpm e2e -- --repeat-each="$REPEAT" --retries=0 --trace=retain-on-failure --reporter=list,json
 
       # 落ちても、E2E の段が赤でも要約を出す。結果が読めないときはこの段が赤になる（空の要約で緑にしない）。
       - name: 集計（job summary）
         if: always()
         env:
-          RESULTS: ${{ runner.temp }}/e2e-repeat/results.json
-          FAILURES: ${{ runner.temp }}/e2e-repeat/failures.txt
+          RESULTS: ${{ github.workspace }}/e2e-repeat-results/results.json
+          FAILURES: ${{ github.workspace }}/e2e-repeat-results/failures.txt
         run: node scripts/summarize-e2e-repeat.mjs "$RESULTS" --failures-out "$FAILURES" >> "$GITHUB_STEP_SUMMARY"
 
       # 結果の JSON・落ちたテストの一覧・失敗時の成果物（Caddy と 2 つの sync のログ・trace・動画）。
@@ -112,7 +112,7 @@ jobs:
         with:
           name: e2e-repeat-results
           path: |
-            ${{ runner.temp }}/e2e-repeat/
+            e2e-repeat-results/
             e2e/test-results/
           if-no-files-found: warn
           retention-days: 14

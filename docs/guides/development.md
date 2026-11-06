@@ -909,15 +909,16 @@ gh run list --workflow e2e-repeat.yml --limit 1               # 起こした実�
 
 中身は `ci.yml` の `e2e` ジョブと同じ準備（action の固定・Chromium と Caddy の取得とキャッシュ・`pnpm build`）のあと、
 `pnpm e2e -- --repeat-each=<回数> --retries=0 --trace=retain-on-failure --reporter=list,json` を流します。再試行（CI の設定では 1 回）で揺れが隠れないよう 0 にし、
-`--max-failures` は付けずに最後まで流します。落ちた回の trace を残すため `--trace=retain-on-failure` を付けます（設定の既定は retries 0 では trace を作りません）。`ci.yml` との写しがずれたら `scripts/e2e-repeat-workflow.test.mjs` が落ちます。
+`--max-failures` は付けずに最後まで流します。落ちた回の trace を残すため `--trace=retain-on-failure` を付けます（設定の既定は retries 0 では trace を作りません）。`ci.yml` との写しがずれたら `scripts/e2e-repeat-workflow.test.mjs` が落ちます（準備を composite action に寄せなかったのは、`pnpm check:full` が `ci.yml` の段からコマンドを導いており、寄せるとその前提が崩れて変更が `ci.yml` 全体に広がるためです）。
 所要時間の上限（`timeout-minutes`）は「15 分 + 回数 × 6 分」を、回数ごとの表で引きます（式に算術が無いため）（`ci.yml` の E2E は 1 回で約 4.5 分）。
 
 **結果の読み方**:
 
-- 実行画面の **Summary**（`scripts/summarize-e2e-repeat.mjs` が書く）に、テストごとの成功・失敗の回数が出ます。
-  「揺れた」は成功も失敗もあったテスト、「いつも落ちた」は繰り返しのすべてで落ちたテスト（揺れではなく、その環境の失敗）です。
-  後者が多いときは、揺れの測定の前に、その失敗の原因を見ます。
-- artifact `e2e-repeat-results`（14 日）に、reporter の生の出力 `results.json`・落ちたテストの一覧 `failures.txt`・失敗時の成果物（e2e の test-results の下: ログ・trace・動画）が入ります。
+- 実行画面の **Summary**（`scripts/summarize-e2e-repeat.mjs` が書く）に、テストごとの成功・失敗の回数が出ます。数え方は Playwright の判定（`test.fail()` の期待どおりの失敗は成功）です。
+  「揺れた」は成功も失敗もあったテスト、「いつも落ちた」は繰り返しのすべての回で落ちたテスト（揺れではなく、その環境の失敗）、「一部だけ落ちた」は落ちた回はあるが残りが飛ばし・止められた回・未実行で判断できないテストです。
+  止められた回（interrupted）と結果の無い回（読み込み後に止まった実行）は、失敗にも揺れにも数えず、警告として別に出ます。実行された回が 0 のときは測定になっておらず、集計の段が赤になります。
+  「いつも落ちた」が多いときは、揺れの測定の前に、その失敗の原因を見ます。
+- artifact `e2e-repeat-results`（14 日）に、作業ツリーの直下の `e2e-repeat-results/`（reporter の生の出力 `results.json`・落ちたテストの一覧 `failures.txt`）と、失敗時の成果物（e2e の test-results の下。ログ・trace・動画）が、この並びで入ります。
 - 結果の JSON が無い・壊れているときは集計の段が赤になります（空の要約で緑にはしません）。
 - 見つけた不安定なテストは ISSUE に起こします（このワークフローでは直しません）。記録には、流したコマンド・回数・所要時間（Summary の「所要時間」と実行画面の時間）を残します。
 

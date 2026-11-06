@@ -6,6 +6,8 @@
  *    ci.yml の `scope` の段とそれを見る `if:` だけが違う（手動のジョブは常に全部流す）ので、比べる前に外す。
  *    原則 X: 複製を減らす composite action・reusable workflow は、ci.yml の 5 ジョブが同じ準備を既に写している
  *    （ci.yml の中の写しはこのテストの対象ではない）ところへ 1 つ足すだけでは実需が足りないので採らない。
+ *    もう 1 つの理由: scripts/local-check.mjs（pnpm check:full）は ci.yml の段からコマンドを導いている。e2e の準備を
+ *    composite action へ寄せると、その導き方の前提（run の段が ci.yml に並ぶ）が崩れ、変更が ci.yml 全体へ広がる。
  *    ずれの検知はこのテストで足りる。ジョブが 3 つ以上で同じ手直しを繰り返すようになったら再検討する。
  * 2. **手動の測定用に留まる**: workflow_dispatch だけで、push・pull_request で走らない。権限は read。
  * 3. **測るための引数**: `--repeat-each`・`--retries=0`・JSON reporter。`--max-failures` は付けない。
@@ -14,7 +16,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { splitJobs, splitSteps } from "./lib/workflow.mjs";
+import { splitJobs, splitSteps, stripComments } from "./lib/workflow.mjs";
 import { deriveChecks } from "./local-check.mjs";
 import { splitE2eSteps, jobLevelKeys, topLevelEnv } from "./lib/workflow-compare.mjs";
 
@@ -45,13 +47,19 @@ describe("準備の段が ci.yml の e2e ジョブと同じ", () => {
   });
 
   test("写しの側に steps.scope が残ったら不一致（本番では Chromium の導入が飛ばされる形）。正規化は ci.yml 側だけ", () => {
-    assert.ok(!/steps\.scope/.test(REPEAT.split("\n").filter((l) => !/^\s*#/.test(l)).join("\n")), "e2e-repeat.yml が steps.scope を見ている");
+    assert.ok(!/steps\.scope/.test(stripComments(REPEAT)), "e2e-repeat.yml が steps.scope を見ている");
     const leaked = REPEAT.replace(
       "if: steps.playwright-cache.outputs.cache-hit != 'true'",
       "if: steps.scope.outputs.code == 'true' && steps.playwright-cache.outputs.cache-hit != 'true'",
     );
     assert.notEqual(leaked, REPEAT, "前提: 置き換えが当たること");
     assert.notDeepEqual(repeatSteps(leaked).prep, ciSteps().prep);
+  });
+
+  test("写しに scope の段を足したら不一致（scope の段を外すのも ci.yml 側だけ）", () => {
+    const withScope = REPEAT.replace("      - run: corepack enable\n", "      - id: scope\n        run: node scripts/ci-scope.mjs\n      - run: corepack enable\n");
+    assert.notEqual(withScope, REPEAT, "前提: 置き換えが当たること");
+    assert.notDeepEqual(repeatSteps(withScope).prep, ciSteps().prep);
   });
 
   test("build から pnpm e2e までの間の段が ci.yml と同じ。ci.yml が段を足したら、写すまで赤のまま", () => {
@@ -114,7 +122,7 @@ describe("手動の測定用に留まる", () => {
 });
 
 describe("測るための引数と結果の残し方", () => {
-  const code = REPEAT.split("\n").filter((l) => !/^\s*#/.test(l)).join("\n");
+  const code = stripComments(REPEAT);
 
   test("--repeat-each は入力から・--retries=0・JSON reporter。--max-failures は付けない", () => {
     assert.match(code, /pnpm e2e -- --repeat-each="\$REPEAT" --retries=0 --trace=retain-on-failure --reporter=list,json/);
@@ -134,10 +142,20 @@ describe("測るための引数と結果の残し方", () => {
     assert.equal(/RESULTS: (.+)/.exec(code)?.[1], out);
   });
 
-  test("JSON の出力先の環境変数が turbo.json の e2e の passThroughEnv にある（strict モードで届く）", () => {
-    const turbo = JSON.parse(read("turbo.json"));
-    assert.ok(turbo.tasks.e2e.passThroughEnv.includes("PLAYWRIGHT_JSON_OUTPUT_NAME"));
+  test("結果の置き場は作業ツリーの中の 1 つのディレクトリで、upload の path はその外を混ぜない（artifact の根を揃える）", () => {
+    const out = /PLAYWRIGHT_JSON_OUTPUT_NAME: (.+)/.exec(code)[1];
+    const dir = /^\$\{\{ github\.workspace \}\}\/([\w-]+)\/results\.json$/.exec(out)?.[1];
+    assert.ok(dir, `出力先は \${{ github.workspace }}/<ディレクトリ>/results.json にしてください（実際: ${out}）`);
+    assert.equal(/FAILURES: (.+)/.exec(code)?.[1], `\${{ github.workspace }}/${dir}/failures.txt`);
+    assert.match(code, new RegExp(`mkdir -p "\\$GITHUB_WORKSPACE/${dir}"`));
+    const upload = splitSteps(splitJobs(REPEAT)[0].lines).map((s) => s.text).find((s) => s.includes("actions/upload-artifact@"));
+    const paths = /path: \|\n((?: {12}.+\n?)+)/.exec(upload)?.[1].split("\n").map((l) => l.trim()).filter(Boolean);
+    assert.deepEqual(paths, [`${dir}/`, "e2e/test-results/"]);
+    assert.doesNotMatch(code, /runner\.temp|RUNNER_TEMP/);
   });
+
+  // JSON の出力先の環境変数が turbo.json の e2e の passThroughEnv にあること（strict モードで届く）は、
+  // e2e/tests/turbo-env.test.ts の 1 か所で見る（変異 1063 のテストもそちら。ここでは二重に持たない）。
 });
 
 describe("local-check が拾わない", () => {

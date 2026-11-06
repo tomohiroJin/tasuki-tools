@@ -10,19 +10,49 @@
  *   テストが落ちたこと自体は終了コードにしない（それは `pnpm e2e` の段が赤になって示す）。
  *
  * 数え方: テスト（ファイル・見出しの並び・プロジェクト）と、`--repeat-each` の 1 回ごとの結果を対応づける。
- * 再試行（retries）があっても 1 回の実行につき**最後の結果**だけを数える。繰り返しの数と成功・失敗の数が
- * 食い違わないようにするため（このワークフローは `--retries=0` で流す）。
+ * 1 回の区分は Playwright の判定（test.status・expectedStatus）による（`classifyRun`）。結果の無い回（notRun）と
+ * 止められた回（interrupted）は成功にも失敗にも数えず、警告として別に出す。実行された回（成功＋失敗）が 0 なら終了コード 1。
+ * 再試行（retries）があっても最後の結果だけを見る（このワークフローは `--retries=0` で流す）。
  */
 import fs from "node:fs";
 import { isDirectRun } from "./lib/direct-run.mjs";
 
-const FAILED = new Set(["failed", "timedOut", "interrupted"]);
+const FAILED = new Set(["failed", "timedOut"]);
 
-/** Playwright の結果の状態を、数える区分へ寄せる。 */
+/** Playwright の結果の状態を、数える区分へ寄せる（status が無い古い形のときの代わり）。 */
 export function classify(status) {
   if (status === "passed") return "pass";
+  if (status === "interrupted") return "interrupted";
   if (FAILED.has(status)) return "fail";
   return "skip";
+}
+
+/**
+ * repeat-each の 1 回（JSON reporter の tests[] の 1 件）を、数える区分へ寄せる。
+ * - 結果が無い（読み込み後に止まった実行）: notRun。
+ * - 最後の結果が interrupted: interrupted（失敗に数えない。止められた回が「揺れた」を水増ししない）。
+ * - test.status（expected / unexpected / flaky / skipped）があればそれを使う。`test.fail()` の期待どおりの失敗は expected = 成功。
+ * - 無い古い形は、最後の結果を expectedStatus（既定 passed）と比べる。
+ * 再試行があっても最後の結果だけを見る。
+ */
+export function classifyRun(test) {
+  const results = test.results ?? [];
+  if (results.length === 0) return "notRun";
+  const last = results[results.length - 1].status;
+  if (last === "interrupted") return "interrupted";
+  switch (test.status) {
+    case "expected":
+    case "flaky":
+      return "pass";
+    case "unexpected":
+      return "fail";
+    case "skipped":
+      return "skip";
+  }
+  if (last === "skipped") return "skip";
+  const expected = test.expectedStatus ?? "passed";
+  if (last === expected) return "pass";
+  return FAILED.has(last) || last === "passed" ? "fail" : "skip";
 }
 
 /** suites を再帰でたどり、spec ごとに { id, results } を渡す。 */
@@ -32,7 +62,7 @@ function* walkSpecs(suites, path = []) {
     const here = suite.title ? [...path, suite.title] : path;
     for (const spec of suite.specs ?? []) {
       for (const test of spec.tests ?? []) {
-        yield { id: [...here, spec.title].join(" › "), project: test.projectName ?? "", results: test.results ?? [] };
+        yield { id: [...here, spec.title].join(" › "), project: test.projectName ?? "", test };
       }
     }
     yield* walkSpecs(suite.suites, here);
@@ -41,30 +71,29 @@ function* walkSpecs(suites, path = []) {
 
 /**
  * JSON reporter の出力を集計する。
- * @returns {{ errors: string[], tests: Array<{ id: string, pass: number, fail: number, skip: number }>, totals: { tests: number, runs: number, pass: number, fail: number, skip: number }, durationMs: number | null }}
+ * @returns {{ errors: string[], tests: Array<{ id: string, pass: number, fail: number, skip: number, interrupted: number, notRun: number }>, totals: { tests: number, runs: number, executed: number, pass: number, fail: number, skip: number, interrupted: number, notRun: number }, durationMs: number | null }}
  */
 export function summarize(report) {
   if (report === null || typeof report !== "object" || !Array.isArray(report.suites)) {
     throw new Error("Playwright の JSON reporter の出力ではありません（suites がありません）");
   }
   const byId = new Map();
-  for (const { id, project, results } of walkSpecs(report.suites)) {
+  for (const { id, project, test } of walkSpecs(report.suites)) {
     const key = project ? `${id} [${project}]` : id;
-    const row = byId.get(key) ?? { id: key, pass: 0, fail: 0, skip: 0 };
-    if (results.length > 0) row[classify(results[results.length - 1].status)]++;
-    else row.skip++;
+    const row = byId.get(key) ?? { id: key, pass: 0, fail: 0, skip: 0, interrupted: 0, notRun: 0 };
+    row[classifyRun(test)]++;
     byId.set(key, row);
   }
   const tests = [...byId.values()].sort(
     (a, b) => b.fail - a.fail || a.pass - b.pass || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
   );
-  const totals = { tests: tests.length, runs: 0, pass: 0, fail: 0, skip: 0 };
+  const totals = { tests: tests.length, runs: 0, executed: 0, pass: 0, fail: 0, skip: 0, interrupted: 0, notRun: 0 };
   for (const t of tests) {
-    totals.pass += t.pass;
-    totals.fail += t.fail;
-    totals.skip += t.skip;
+    for (const k of ["pass", "fail", "skip", "interrupted", "notRun"]) totals[k] += t[k];
   }
-  totals.runs = totals.pass + totals.fail + totals.skip;
+  totals.runs = totals.pass + totals.fail + totals.skip + totals.interrupted + totals.notRun;
+  // 実行された回 = 成功か失敗が出た回。飛ばし・止められた回・結果の無い回は入れない
+  totals.executed = totals.pass + totals.fail;
   const durationMs = typeof report.stats?.duration === "number" ? report.stats.duration : null;
   // globalSetup の失敗などは suites ではなく errors に出る（suites が空になる）。先頭行だけを集める。
   const errors = (Array.isArray(report.errors) ? report.errors : [])
@@ -73,12 +102,19 @@ export function summarize(report) {
   return { tests, totals, durationMs, errors };
 }
 
-/** 落ちたテストを「いつも落ちる」「揺れた」に分ける。 */
+/**
+ * 落ちたテストを分ける。
+ * - always: 繰り返しのすべての回で落ちた（fail が回数と等しい）。
+ * - flaky: 成功も失敗もあった（揺れた）。
+ * - partial: 落ちた回はあるが、成功は無く、残りは飛ばし・止められた回・未実行（判断できない）。
+ */
 export function classifyFailures(tests) {
   const failing = tests.filter((t) => t.fail > 0);
+  const total = (t) => t.pass + t.fail + t.skip + t.interrupted + t.notRun;
   return {
-    always: failing.filter((t) => t.pass === 0),
+    always: failing.filter((t) => t.fail === total(t)),
     flaky: failing.filter((t) => t.pass > 0),
+    partial: failing.filter((t) => t.pass === 0 && t.fail !== total(t)),
   };
 }
 
@@ -94,30 +130,45 @@ function formatDuration(ms) {
 /** job summary 用の Markdown。 */
 export function formatMarkdown(summary) {
   const { tests, totals, durationMs, errors } = summary;
-  const { always, flaky } = classifyFailures(tests);
+  const { always, flaky, partial } = classifyFailures(tests);
   const out = ["## E2E の繰り返し実行の結果", ""];
   if (errors.length > 0) {
     out.push(`**reporter のエラー: ${errors.length} 件**（globalSetup の失敗など。テストの結果とは別に出る）`, "");
     for (const m of errors) out.push(`- ${escapeCell(m)}`);
     out.push("");
   }
-  // 実行 0 回（globalSetup の失敗など）は、原因の errors だけを出す。空の表で「落ちたテストはありません」と読ませない
-  if (totals.runs === 0) return out.join("\n") + "\n";
+  // 結果の無い回・止められた回は、成功にも失敗にも数えない。あれば警告として必ず出す
+  const warnings = [];
+  if (totals.notRun > 0) warnings.push(`実行されなかった回: ${totals.notRun}（結果が無い。読み込み後に止まった実行など）`);
+  if (totals.interrupted > 0) warnings.push(`止められた回: ${totals.interrupted}（失敗にも揺れにも数えない）`);
+  if (totals.executed === 0) {
+    // 実行された回が 0（globalSetup の失敗・全件が未実行など）は、空の表で「落ちたテストはありません」と読ませない
+    out.push("**実行された回が 0 回です。** 測定になっていません。", "");
+  }
+  if (warnings.length > 0) {
+    out.push("**警告**", "");
+    for (const w of warnings) out.push(`- ${w}`);
+    out.push("");
+  }
+  if (totals.executed === 0) return out.join("\n") + "\n";
   out.push(
     `- テスト ${totals.tests} 件・実行 ${totals.runs} 回（成功 ${totals.pass} / 失敗 ${totals.fail} / 飛ばし ${totals.skip}）`,
   );
   if (durationMs !== null) out.push(`- 所要時間（Playwright の計測）: ${formatDuration(durationMs)}`);
-  out.push(`- 揺れた（成功も失敗もあった）: ${flaky.length} 件 / いつも落ちた: ${always.length} 件`, "");
-  const failing = [...flaky, ...always];
+  out.push(`- 揺れた（成功も失敗もあった）: ${flaky.length} 件 / いつも落ちた: ${always.length} 件 / 一部だけ落ちた（他は飛ばし・未実行）: ${partial.length} 件`, "");
+  const failing = [...flaky, ...partial, ...always];
   if (failing.length === 0) {
-    out.push("落ちたテストはありませんでした。", "");
+    out.push(warnings.length > 0 ? "落ちた回はありませんでした（上の警告を見てください）。" : "落ちたテストはありませんでした。", "");
   } else {
     out.push("| テスト | 成功 | 失敗 | 区分 |", "|---|---:|---:|---|");
-    for (const t of failing) out.push(`| ${escapeCell(t.id)} | ${t.pass} | ${t.fail} | ${t.pass > 0 ? "揺れた" : "いつも落ちた"} |`);
+    for (const t of failing) {
+      const kind = flaky.includes(t) ? "揺れた" : always.includes(t) ? "いつも落ちた" : "一部だけ落ちた";
+      out.push(`| ${escapeCell(t.id)} | ${t.pass} | ${t.fail} | ${kind} |`);
+    }
     out.push("");
   }
-  out.push("<details><summary>全テストの成功／失敗の回数</summary>", "", "| テスト | 成功 | 失敗 | 飛ばし |", "|---|---:|---:|---:|");
-  for (const t of tests) out.push(`| ${escapeCell(t.id)} | ${t.pass} | ${t.fail} | ${t.skip} |`);
+  out.push("<details><summary>全テストの成功／失敗の回数</summary>", "", "| テスト | 成功 | 失敗 | 飛ばし | 止められた | 未実行 |", "|---|---:|---:|---:|---:|---:|");
+  for (const t of tests) out.push(`| ${escapeCell(t.id)} | ${t.pass} | ${t.fail} | ${t.skip} | ${t.interrupted} | ${t.notRun} |`);
   out.push("", "</details>", "");
   return out.join("\n");
 }
@@ -149,10 +200,14 @@ function main() {
     const { input, failuresOut } = parseArgs(process.argv.slice(2));
     const summary = summarize(JSON.parse(fs.readFileSync(input, "utf8")));
     if (failuresOut !== null) fs.writeFileSync(failuresOut, formatFailureList(summary.tests));
-    if (summary.totals.runs === 0) {
-      // 空の要約で緑にしない。errors があれば、原因として要約に出してから止める
-      if (summary.errors.length > 0) process.stdout.write(formatMarkdown(summary));
-      throw new Error("結果に 1 件のテストもありません（reporter の出力が空）");
+    if (summary.totals.executed === 0) {
+      // 空の要約で緑にしない。原因（errors）・未実行があれば要約に出してから止める
+      if (summary.errors.length > 0 || summary.totals.tests > 0) process.stdout.write(formatMarkdown(summary));
+      throw new Error(
+        summary.totals.tests === 0
+          ? "結果に 1 件のテストもありません（reporter の出力が空）"
+          : "実行された回が 0 回です（全件が結果なし・飛ばし・止められた回）",
+      );
     }
     process.stdout.write(formatMarkdown(summary));
   } catch (e) {

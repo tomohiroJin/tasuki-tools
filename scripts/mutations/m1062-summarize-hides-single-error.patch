@@ -1,10 +1,10 @@
 diff --git a/scripts/summarize-e2e-repeat.mjs b/scripts/summarize-e2e-repeat.mjs
-index ccd773d..198903b 100644
+index 54ad829..ebc6331 100644
 --- a/scripts/summarize-e2e-repeat.mjs
 +++ b/scripts/summarize-e2e-repeat.mjs
-@@ -96,7 +96,7 @@ export function formatMarkdown(summary) {
+@@ -131,7 +131,7 @@ export function formatMarkdown(summary) {
    const { tests, totals, durationMs, errors } = summary;
-   const { always, flaky } = classifyFailures(tests);
+   const { always, flaky, partial } = classifyFailures(tests);
    const out = ["## E2E の繰り返し実行の結果", ""];
 -  if (errors.length > 0) {
 +  if (errors.length > 1) {

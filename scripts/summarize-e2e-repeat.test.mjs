@@ -40,7 +40,8 @@ function report() {
 describe("classify", () => {
   test("成功・失敗・飛ばしに寄せる", () => {
     assert.equal(classify("passed"), "pass");
-    for (const s of ["failed", "timedOut", "interrupted"]) assert.equal(classify(s), "fail");
+    for (const s of ["failed", "timedOut"]) assert.equal(classify(s), "fail");
+    assert.equal(classify("interrupted"), "interrupted");
     assert.equal(classify("skipped"), "skip");
   });
 });
@@ -49,11 +50,11 @@ describe("summarize", () => {
   test("テストごとに、繰り返しの 1 回ごとの結果を数える（入れ子の見出しはつなぐ）", () => {
     const { tests, totals } = summarize(report());
     const by = Object.fromEntries(tests.map((t) => [t.id, t]));
-    assert.deepEqual(by["poker.spec.ts › 安定 [chromium]"], { id: "poker.spec.ts › 安定 [chromium]", pass: 3, fail: 0, skip: 0 });
+    assert.deepEqual(by["poker.spec.ts › 安定 [chromium]"], { id: "poker.spec.ts › 安定 [chromium]", pass: 3, fail: 0, skip: 0, interrupted: 0, notRun: 0 });
     assert.equal(by["poker.spec.ts › ルーム › 揺れる [chromium]"].pass, 1);
     assert.equal(by["poker.spec.ts › ルーム › 揺れる [chromium]"].fail, 2);
     assert.equal(by["poker.spec.ts › ルーム › いつも落ちる [chromium]"].fail, 3);
-    assert.deepEqual(totals, { tests: 3, runs: 9, pass: 4, fail: 5, skip: 0 });
+    assert.deepEqual(totals, { tests: 3, runs: 9, executed: 9, pass: 4, fail: 5, skip: 0, interrupted: 0, notRun: 0 });
   });
 
   test("落ちたものが先に並ぶ（失敗の多い順）", () => {
@@ -63,18 +64,92 @@ describe("summarize", () => {
 
   test("再試行があっても 1 回の実行につき最後の結果だけを数える", () => {
     const r = { suites: [{ title: "a.spec.ts", specs: [{ title: "t", tests: [testOf(["failed", "passed"])] }] }] };
-    assert.deepEqual(summarize(r).totals, { tests: 1, runs: 1, pass: 1, fail: 0, skip: 0 });
+    assert.deepEqual(summarize(r).totals, { tests: 1, runs: 1, executed: 1, pass: 1, fail: 0, skip: 0, interrupted: 0, notRun: 0 });
   });
 
-  test("結果の無いテストは飛ばしに数える。所要時間が無ければ null", () => {
+  test("結果の無いテストは「実行されなかった」に数え、実行された回に入れない。所要時間が無ければ null", () => {
     const r = { suites: [{ title: "a.spec.ts", specs: [{ title: "t", tests: [{ projectName: "chromium", results: [] }] }] }] };
     const s = summarize(r);
-    assert.equal(s.totals.skip, 1);
+    assert.equal(s.totals.notRun, 1);
+    assert.equal(s.totals.executed, 0);
+    assert.equal(s.totals.skip, 0);
     assert.equal(s.durationMs, null);
   });
 
   test("JSON reporter の形でなければ投げる", () => {
     for (const bad of [null, {}, [], "x", { suites: {} }]) assert.throws(() => summarize(bad), /JSON reporter/);
+  });
+});
+
+// Playwright の test.status / expectedStatus を使う形（test.fail() の期待どおりの失敗は失敗に数えない）
+const withStatus = (status, results, expectedStatus = "passed") => ({ projectName: "chromium", status, expectedStatus, results: results.map((r) => result(r)) });
+const one = (...tests) => ({ suites: [{ title: "a.spec.ts", specs: [{ title: "t", tests }] }] });
+
+describe("Playwright の status で数える・interrupted と未実行を分ける（/code-review の指摘）", () => {
+  test("test.fail() の期待どおりの失敗は成功に数える。期待に反する成功（unexpected）は失敗", () => {
+    assert.deepEqual(summarize(one(withStatus("expected", ["failed"], "failed"))).totals.pass, 1);
+    assert.equal(summarize(one(withStatus("unexpected", ["passed"], "failed"))).totals.fail, 1);
+    assert.equal(summarize(one(withStatus("unexpected", ["timedOut"]))).totals.fail, 1);
+  });
+
+  test("status が無い古い形でも、最後の結果と expectedStatus で数える", () => {
+    assert.equal(summarize(one({ projectName: "c", expectedStatus: "failed", results: [result("failed")] })).totals.pass, 1);
+  });
+
+  test("interrupted は失敗に数えず、揺れの判定に入れない", () => {
+    const s = summarize(one(withStatus("skipped", ["interrupted"]), withStatus("expected", ["passed"])));
+    assert.equal(s.totals.interrupted, 1);
+    assert.equal(s.totals.fail, 0);
+    assert.deepEqual(classifyFailures(s.tests), { always: [], flaky: [], partial: [] });
+  });
+
+  test("test.skip() は飛ばし。結果の無い回は実行されなかった", () => {
+    const s = summarize(one(withStatus("skipped", ["skipped"]), { projectName: "chromium", results: [] }));
+    assert.equal(s.totals.skip, 1);
+    assert.equal(s.totals.notRun, 1);
+    assert.equal(s.totals.executed, 0);
+  });
+
+  test("「いつも落ちた」は全回で落ちたものだけ。5 回中 1 回落ちて残りが飛ばし・未実行なら別の区分", () => {
+    const five = one(
+      withStatus("unexpected", ["failed"]),
+      withStatus("skipped", ["interrupted"]),
+      withStatus("skipped", ["skipped"]),
+      { projectName: "chromium", results: [] },
+      { projectName: "chromium", results: [] },
+    );
+    const c = classifyFailures(summarize(five).tests);
+    assert.equal(c.always.length, 0);
+    assert.equal(c.flaky.length, 0);
+    assert.equal(c.partial.length, 1);
+    const all = classifyFailures(summarize(one(withStatus("unexpected", ["failed"]), withStatus("unexpected", ["failed"]))).tests);
+    assert.equal(all.always.length, 1);
+  });
+
+  test("全 spec が結果なしでも、実行された回が 0 なら空の表で「落ちたテストはありません」と言わず、未実行を要約に出す", () => {
+    const md = formatMarkdown(summarize(one({ projectName: "chromium", results: [] }, { projectName: "chromium", results: [] })));
+    assert.match(md, /実行された回が 0 回/);
+    assert.match(md, /実行されなかった回: 2/);
+    assert.doesNotMatch(md, /落ちたテストはありませんでした/);
+  });
+
+  test("実行された回があっても、未実行・止められた回があれば警告を出す", () => {
+    const md = formatMarkdown(summarize(one(withStatus("expected", ["passed"]), withStatus("skipped", ["interrupted"]), { projectName: "chromium", results: [] })));
+    assert.match(md, /止められた回: 1/);
+    assert.match(md, /実行されなかった回: 1/);
+  });
+
+  test("配線: 全 spec が結果なしなら要約を出して終了コード 1", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "summarize-e2e-repeat-norun-"));
+    try {
+      const input = path.join(dir, "r.json");
+      fs.writeFileSync(input, JSON.stringify(one({ projectName: "chromium", results: [] })));
+      const r = spawnSync(process.execPath, [SCRIPT, input], { encoding: "utf8" });
+      assert.equal(r.status, 1);
+      assert.match(r.stdout, /実行された回が 0 回/);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 

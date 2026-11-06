@@ -2,7 +2,7 @@
  * ワークフロー同士の「写し」を比べる補助（#562）。`scripts/e2e-repeat-workflow.test.mjs` が使う。
  * ci.yml の e2e ジョブの準備の段を、手動起動の e2e-repeat.yml が写している。ずれを見つけるための部品。
  */
-import { splitJobs, splitSteps } from "./workflow.mjs";
+import { splitJobs, splitSteps, stripComments, topLevelEnvBlock } from "./workflow.mjs";
 
 const SCOPE_AND = /^(\s*if: )steps\.scope\.outputs\.code == 'true' && /;
 const SCOPE_ONLY = /^\s*if: steps\.scope\.outputs\.code == 'true'\s*$/;
@@ -13,15 +13,14 @@ const SCOPE_ONLY = /^\s*if: steps\.scope\.outputs\.code == 'true'\s*$/;
  * 外さないので不一致になる（本番では Chromium の導入が飛ばされる形を止める）。
  */
 export function normalizeStep(text, { stripScope = false } = {}) {
-  return text
+  return stripComments(text, { dropBlank: true })
     .split("\n")
-    .filter((l) => !/^\s*#/.test(l) && l.trim() !== "")
     .map((l) => (stripScope ? l.replace(SCOPE_AND, "$1").replace(SCOPE_ONLY, "") : l))
     .filter((l) => l !== "")
     .join("\n");
 }
 
-const code = (text) => text.split("\n").filter((l) => !/^\s*#/.test(l)).join("\n");
+const code = (text) => stripComments(text);
 
 function jobOf(workflow, jobName) {
   const job = splitJobs(workflow).find((j) => j.name === jobName);
@@ -41,9 +40,10 @@ export function splitE2eSteps(workflow, jobName, { stripScope }) {
   if (e2e < 0) throw new Error(`${jobName} に pnpm e2e の段がありません`);
   const norm = (s) => normalizeStep(s, { stripScope });
   return {
+    // scope の段を外すのは ci.yml 側（stripScope）だけ。写しに scope の段があれば残り、不一致になる
     prep: steps
       .slice(0, build + 1)
-      .filter((s) => !/^\s*- id: scope\s*$/m.test(code(s)))
+      .filter((s) => !(stripScope && /^\s*- id: scope\s*$/m.test(code(s))))
       .map(norm),
     between: steps.slice(build + 1, e2e).map(norm),
   };
@@ -58,9 +58,5 @@ export function jobLevelKeys(workflow, jobName) {
 
 /** workflow 直下の `env:` の塊（コメントと空行を除く）。無ければ空文字。 */
 export function topLevelEnv(workflow) {
-  const block = /^env:\n((?:[ \t].*\n|\n)*)/m.exec(workflow)?.[1] ?? "";
-  return block
-    .split("\n")
-    .filter((l) => !/^\s*#/.test(l) && l.trim() !== "")
-    .join("\n");
+  return stripComments(topLevelEnvBlock(workflow) ?? "", { dropBlank: true });
 }

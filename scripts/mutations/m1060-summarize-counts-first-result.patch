@@ -1,13 +1,13 @@
 diff --git a/scripts/summarize-e2e-repeat.mjs b/scripts/summarize-e2e-repeat.mjs
-index ccd773d..704814b 100644
+index 54ad829..6e5077a 100644
 --- a/scripts/summarize-e2e-repeat.mjs
 +++ b/scripts/summarize-e2e-repeat.mjs
-@@ -51,7 +51,7 @@ export function summarize(report) {
-   for (const { id, project, results } of walkSpecs(report.suites)) {
-     const key = project ? `${id} [${project}]` : id;
-     const row = byId.get(key) ?? { id: key, pass: 0, fail: 0, skip: 0 };
--    if (results.length > 0) row[classify(results[results.length - 1].status)]++;
-+    if (results.length > 0) row[classify(results[0].status)]++;
-     else row.skip++;
-     byId.set(key, row);
-   }
+@@ -37,7 +37,7 @@ export function classify(status) {
+ export function classifyRun(test) {
+   const results = test.results ?? [];
+   if (results.length === 0) return "notRun";
+-  const last = results[results.length - 1].status;
++  const last = results[0].status;
+   if (last === "interrupted") return "interrupted";
+   switch (test.status) {
+     case "expected":
