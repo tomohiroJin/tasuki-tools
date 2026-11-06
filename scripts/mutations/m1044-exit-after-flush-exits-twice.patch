@@ -1,0 +1,11 @@
+diff --git a/scripts/lib/exit-after-flush.mjs b/scripts/lib/exit-after-flush.mjs
+--- a/scripts/lib/exit-after-flush.mjs
++++ b/scripts/lib/exit-after-flush.mjs
+@@ -24,7 +24,6 @@
+   let exited = false;
+   let timer;
+   const finish = () => {
+-    if (exited) return;
+     exited = true;
+     clearTimeout(timer);
+     exit(code);

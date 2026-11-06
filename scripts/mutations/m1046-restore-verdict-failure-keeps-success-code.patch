@@ -1,0 +1,10 @@
+diff --git a/scripts/lib/mutation-restore-verdict.mjs b/scripts/lib/mutation-restore-verdict.mjs
+--- a/scripts/lib/mutation-restore-verdict.mjs
++++ b/scripts/lib/mutation-restore-verdict.mjs
+@@ -12,5 +12,5 @@
+  * @returns {{ proceed: boolean, exitCode: number }}
+  */
+ export function restoreVerdict(restored, successCode = 0) {
+-  return restored === false ? { proceed: false, exitCode: 1 } : { proceed: true, exitCode: successCode };
++  return restored === false ? { proceed: false, exitCode: successCode } : { proceed: true, exitCode: successCode };
+ }

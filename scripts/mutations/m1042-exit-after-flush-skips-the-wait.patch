@@ -1,0 +1,12 @@
+diff --git a/scripts/lib/exit-after-flush.mjs b/scripts/lib/exit-after-flush.mjs
+--- a/scripts/lib/exit-after-flush.mjs
++++ b/scripts/lib/exit-after-flush.mjs
+@@ -43,7 +43,7 @@
+     // エラーは『書き終わった』と同じに扱って先へ進む。書き込みの完了通知の後に 'error' が来ることがあるので、外さない（このあと exit する）
+     stream.on?.("error", done);
+     try {
+-      stream.write("", done); // 書き出しが失敗しても（EPIPE など）通知は来る。待ち続けない
++      stream.write("", () => {}); done(); // 書き出しが失敗しても（EPIPE など）通知は来る。待ち続けない
+     } catch {
+       done();
+     }

@@ -1,0 +1,12 @@
+diff --git a/scripts/lib/mutation-parallel.mjs b/scripts/lib/mutation-parallel.mjs
+--- a/scripts/lib/mutation-parallel.mjs
++++ b/scripts/lib/mutation-parallel.mjs
+@@ -215,7 +215,7 @@
+  * 中断された `--jobs` の親がゾンビで残り、その作業ツリーが古いものとして拾われず、`git worktree list` に溜まり続ける。
+  * EPERM（別ユーザー）・読めないときは生きている側に数える（`isProcessAlive` の決め）。
+  */
+-export function staleWorktreeDirs(porcelain, host, isAlive = isProcessAlive) {
++export function staleWorktreeDirs(porcelain, host, isAlive = (pid) => { try { process.kill(pid, 0); return true; } catch (e) { return e.code === "EPERM"; } }) {
+   // 読めない pid（0・桁あふれ）は死んだ側に数える。isProcessAlive は不正な pid に投げるので渡さない（--jobs を落とさない）。
+   // ロックの拒否（lockRefusalReason）と同じ parsePid を通す。旧 isPidAlive も桁あふれの pid は死んだと読んだ。
+   // この作業ツリーはこちらが tasuki-mutation の理由つきで作ったもの。読めない理由のものは持ち主が分からず、残しても掃除されない

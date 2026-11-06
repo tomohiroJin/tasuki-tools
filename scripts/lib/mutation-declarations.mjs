@@ -110,6 +110,12 @@ const RESERVED_1020_1029 =
 const RESERVED_1030_1039 =
   "**対応表より後に足した変異。** 1030〜1039 は #550 に割り当てた範囲。";
 
+const RESERVED_1040_1049 =
+  "**対応表より後に足した変異。** 1040〜1049 は #542 に割り当てた範囲。";
+
+const RESERVED_1050_1059 =
+  "**対応表より後に足した変異。** 1050〜1059 は #542 の続き（/code-review の指摘）に割り当てた範囲。";
+
 const RESERVED_1060_1069 =
   "**対応表より後に足した変異。** 1060〜1069 は #553 に割り当てた範囲（Issue の 1000〜1009 は #544 が先に使ったため、空いている帯へ移した）。";
 
@@ -6218,6 +6224,102 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["measure-mutation-costs.test.mjs"],
     note: RESERVED_1030_1039 + " " + "#550。消した・並びを変えた組の実測が案に混ざり、いまの表にも既定値にも効かない値で見積もりがずれる。",
+  },
+  {
+    id: 1040,
+    label: "変異検査のロックの拒否が、既定の生死の判定に kill 0 だけを使う（ゾンビを生きていると数える）",
+    patch: "m1040-lock-refusal-counts-zombie-as-alive.patch",
+    pkg: "scripts",
+    tests: ["mutation-check-liveness.test.mjs"],
+    note: RESERVED_1040_1049 + " " + "#542。PID 1 が孤児を回収しないクラウドのコンテナで、中断された実行のゾンビの PID が書かれたロックが永久に「別の実行が動いている」と読まれ、変異検査を始められない。",
+  },
+  {
+    id: 1041,
+    label: "古い作業ツリーの掃除が、既定の生死の判定に kill 0 だけを使う（持ち主がゾンビでも生きていると数える）",
+    patch: "m1041-stale-worktree-counts-zombie-as-alive.patch",
+    pkg: "scripts",
+    tests: ["mutation-check-liveness.test.mjs"],
+    note: RESERVED_1040_1049 + " " + "#542。中断された --jobs の親がゾンビで残ると、その作業ツリーが古いものとして拾われず、git worktree list に溜まり続ける。",
+  },
+  {
+    id: 1042,
+    label: "exitAfterFlush が、書き出しの完了を待たずに終わる",
+    patch: "m1042-exit-after-flush-skips-the-wait.patch",
+    pkg: "scripts",
+    tests: ["lib/exit-after-flush.test.mjs"],
+    note: RESERVED_1040_1049 + " " + "#542。シグナル・uncaughtException の後の終わり方が、パイプへの書き出しを捨てて出力（復元のログ・致命的な警告）を切る。",
+  },
+  {
+    id: 1043,
+    label: "exitAfterFlush の既定が、stderr の書き出しを待たず stdout だけを待つ",
+    patch: "m1043-exit-after-flush-waits-only-stdout.patch",
+    pkg: "scripts",
+    tests: ["lib/exit-after-flush.test.mjs"],
+    note: RESERVED_1040_1049 + " " + "#542。シグナル・uncaughtException の後の終わり方で、stderr に書いた復元のログ・致命的な警告が、パイプの読み手が遅れると途中で切れる。",
+  },
+  {
+    id: 1044,
+    label: "exitAfterFlush が、時間切れの後に書き出しの通知が来ると、exit を 2 回呼ぶ（二重の呼び出しを止める印を外す）",
+    patch: "m1044-exit-after-flush-exits-twice.patch",
+    pkg: "scripts",
+    tests: ["lib/exit-after-flush.test.mjs"],
+    note: RESERVED_1040_1049 + " " + "#542。exit を差し替えた呼び出し（自己テスト）で、時間切れの終わりと遅れて来た通知の両方から exit が呼ばれる。本物の process.exit は同期で終わるので本番では起きず、この印が効くのは exit を差し替えたときだけ（呼び出し側が 1 回だけ終わると仮定できる契約を守る）。",
+  },
+  {
+    id: 1045,
+    label: "復元に失敗した後の判定が、進まず止まる代わりに次へ進む",
+    patch: "m1045-restore-verdict-proceeds-after-failure.patch",
+    pkg: "scripts",
+    tests: ["lib/mutation-restore-verdict.test.mjs"],
+    note: RESERVED_1040_1049 + " " + "#542 のレビュー。復元に失敗した後も次の変異を当て、writeMarker が .applied を上書きして、戻っていないファイルの唯一の記録が消える。",
+  },
+  {
+    id: 1046,
+    label: "復元に失敗したときの終了コードが、1 でなく成功側の値（シグナルなら 130）になる",
+    patch: "m1046-restore-verdict-failure-keeps-success-code.patch",
+    pkg: "scripts",
+    tests: ["lib/mutation-restore-verdict.test.mjs"],
+    note: RESERVED_1040_1049 + " " + "#542 のレビュー。復元に失敗した中断が、復元できたときと同じ終了コードで終わり、呼び出し側が致命的な失敗に気づけない。",
+  },
+  {
+    id: 1047,
+    label: "古い作業ツリーの掃除が、読めないロックの pid（0・桁あふれ）を生死の判定へ渡す",
+    patch: "m1047-stale-worktree-passes-unreadable-pid.patch",
+    pkg: "scripts",
+    tests: ["mutation-check-liveness.test.mjs"],
+    note: RESERVED_1040_1049 + " " + "#542 のレビュー。ロックの理由に pid=0 があると isProcessAlive が TypeError を投げ、--jobs の掃除で変異検査が落ちる。",
+  },
+  {
+    id: 1048,
+    label: "復元の後に、成否を見ずに適用中のファイルの一覧を空にする（失敗の後も空）",
+    patch: "m1048-restore-clears-applied-files-before-knowing.patch",
+    pkg: "scripts",
+    tests: ["lib/mutation-restore-verdict.test.mjs", "mutation-check-restore-failure.test.mjs"],
+    note: RESERVED_1040_1049 + " " + "#542 の /code-review。復元に失敗した後に待っていたシグナル・未捕捉の例外が空の一覧を復元の検証へ渡し、マーカー .applied が消えて、戻っていないファイルの唯一の記録が失われる。",
+  },
+  {
+    id: 1049,
+    label: "終わり始めた印が再入を止めない（begin が毎回 true）",
+    patch: "m1049-shutdown-gate-lets-reentry.patch",
+    pkg: "scripts",
+    tests: ["lib/exit-after-flush.test.mjs"],
+    note: RESERVED_1040_1049 + " " + "#542 の /code-review。最大 10 秒待つシグナルのハンドラに別のシグナル・例外が再入し、子を再び止め、復元をやり直し、別の終了コードで競う。",
+  },
+  {
+    id: 1050,
+    label: "exitAfterFlush が、読み手の消えた stdout / stderr の error を捕まえない",
+    patch: "m1050-exit-after-flush-ignores-stream-error.patch",
+    pkg: "scripts",
+    tests: ["lib/exit-after-flush.test.mjs"],
+    note: RESERVED_1050_1059 + " " + "#542 の /code-review。SIGHUP や | head で読み手が消えると error が未捕捉の例外になり、中断の終わり方が uncaughtException に入る。",
+  },
+  {
+    id: 1051,
+    label: "pid の読み方が上限（2**31-1）を見ない",
+    patch: "m1051-parse-pid-drops-upper-bound.patch",
+    pkg: "scripts",
+    tests: ["lib/process-alive.test.mjs", "mutation-check-liveness.test.mjs"],
+    note: RESERVED_1050_1059 + " " + "#542 の /code-review。ロックの拒否と作業ツリーの掃除の pid の境界が割れる、または範囲外の pid が生死の判定に渡る。",
   },
   {
     id: 1060,

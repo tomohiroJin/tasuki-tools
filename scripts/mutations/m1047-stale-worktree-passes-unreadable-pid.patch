@@ -1,0 +1,12 @@
+diff --git a/scripts/lib/mutation-parallel.mjs b/scripts/lib/mutation-parallel.mjs
+--- a/scripts/lib/mutation-parallel.mjs
++++ b/scripts/lib/mutation-parallel.mjs
+@@ -219,7 +219,7 @@
+   // 読めない pid（0・桁あふれ）は死んだ側に数える。isProcessAlive は不正な pid に投げるので渡さない（--jobs を落とさない）。
+   // ロックの拒否（lockRefusalReason）と同じ parsePid を通す。旧 isPidAlive も桁あふれの pid は死んだと読んだ。
+   // この作業ツリーはこちらが tasuki-mutation の理由つきで作ったもの。読めない理由のものは持ち主が分からず、残しても掃除されない
+-  return staleWorktreesFrom(porcelain, (pid) => parsePid(pid) !== null && isAlive(pid), host);
++  return staleWorktreesFrom(porcelain, (pid) => isAlive(pid), host);
+ }
+ 
+ /**
