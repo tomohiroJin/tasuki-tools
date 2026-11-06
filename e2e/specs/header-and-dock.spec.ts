@@ -355,14 +355,19 @@ test.describe('agenda の進行中の帯', () => {
     }
     // 進行表の最後の「スキップ」に Tab で行っても、不透明な帯の後ろに隠れない（WCAG 2.4.11）。40rem 未満・40〜64rem の両方で測る
     for (const width of [390, 768]) {
-      await page.setViewportSize({ width, height: 700 });
+      // 低い画面にして、フォーカスした行が画面の下端に送られる（scroll-padding が無ければ帯の後ろに入る）状況を作る
+      await page.setViewportSize({ width, height: 400 });
       const skips = page.locator('.step-list-skip');
       const count = await skips.count();
       expect(count, '進行表に「スキップ」が無い').toBeGreaterThan(0);
       // すでにフォーカスがある要素への focus() は送らないので、先に外す
+      // 最後の「スキップ」が画面の下端のすぐ内側（帯の後ろ）に見えている状態から Tab で着く。ブラウザはフォーカスで、見えている要素は送らない。
+      // scroll-padding が帯の高さを持っていれば、その位置は「見えていない」とされて帯の上へ送られる
       await page.evaluate(() => {
         (document.activeElement as HTMLElement | null)?.blur();
-        window.scrollTo(0, 0);
+        const last = Array.from(document.querySelectorAll('.step-list-skip')).at(-1)!;
+        last.scrollIntoView({ block: 'end' });
+        window.scrollBy(0, -8);
       });
       await skips.nth(count - 1).focus();
       // 送りはなめらかなスクロール（scroll-behavior）で時間がかかることがあるので、終わるまで待つ（時間では待たない）
