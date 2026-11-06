@@ -17,6 +17,7 @@ import { joinAgendaTool, loadSampleAndStart, openAgendaTool } from '../support/a
 import { chooseMethod, handCard, joinCheckinTool, openCheckinTool } from '../support/checkin';
 import { chooseCard, createRoom as createPokerRoom, joinRoom as joinPokerRoom, turnRecordingOn } from '../support/poker';
 import { createRoom as createTimerRoom } from '../support/timer';
+import { joinTopicTool, setTopic } from '../support/topic';
 
 /** 見出しの全体の高さの上限（px）。poker の 320px で、題・戻る＋記録する・仲間を招くの 3 段（実測 124px）に収める。以前は 4 段で約 230px。 */
 const HEADER_MAX_HEIGHT = 140;
@@ -55,20 +56,65 @@ async function expectInviteUrlOneLine(page: Page, label: string): Promise<void> 
   if (m.sameRow) expect(m.centerGap, `${label}: URL の箱が隣のボタンと縦の中心で揃わない`).toBeLessThanOrEqual(2);
 }
 
-/** 戻る導線の字の左端が、題の字の左端と揃う（40rem 未満・どちらも先頭の列にあるとき）。 */
+/**
+ * 戻る導線の字の左端が、題の字の左端と揃う（40rem 未満・戻るが行の先頭に落ちたとき）。
+ * 戻るが道具のボタンと同じ行に並ぶときは、先頭ではないので揃えを求めず、ボタンの右端との字の間が 12px 以上あることを見る。
+ */
 async function expectBackAlignedWithTitle(page: Page, label: string): Promise<void> {
   const m = await page.evaluate(() => {
     const h1 = document.querySelector('.ui-room-header h1');
     const back = document.querySelector('.ui-room-header .ui-page-header-back');
+    if (!h1 || !back) return null;
     const ink = (el: Element): DOMRect => {
       const range = document.createRange();
       range.selectNodeContents(el);
       return range.getBoundingClientRect();
     };
-    return h1 && back ? { title: ink(h1).left, back: ink(back).left } : null;
+    const b = back.getBoundingClientRect();
+    const peers = Array.from(document.querySelectorAll('.ui-room-header button, .ui-room-header a'))
+      .filter((e) => e !== back && getComputedStyle(e).display !== 'none')
+      .map((e) => e.getBoundingClientRect())
+      .filter((r) => r.width > 0 && Math.abs(r.top + r.height / 2 - (b.top + b.height / 2)) < 10 && r.left < b.left);
+    return { title: ink(h1).left, back: ink(back).left, previousRight: peers.length === 0 ? null : Math.max(...peers.map((r) => r.right)) };
   });
   expect(m, `${label}: 題か戻るが描かれていない`).not.toBeNull();
-  expect(Math.abs(m!.back - m!.title), `${label}: 戻るの字の左端（${m!.back}）が題（${m!.title}）と揃わない`).toBeLessThanOrEqual(1);
+  if (m!.previousRight === null) {
+    expect(Math.abs(m!.back - m!.title), `${label}: 戻るの字の左端（${m!.back}）が題（${m!.title}）と揃わない`).toBeLessThanOrEqual(1);
+  } else {
+    expect(m!.back - m!.previousRight, `${label}: 戻るの字が左のボタンに近すぎる`).toBeGreaterThanOrEqual(12);
+  }
+}
+
+/**
+ * 見出しの中を Tab で順に辿り、フォーカスした要素の矩形が目の順（上端の行ごとに上から、行の中は左から右）に並ぶ。
+ * `order` で目の順だけを変えると、Tab・読み上げの順が見た目と食い違う（WCAG 2.4.3・1.3.2）。
+ */
+async function expectHeaderTabOrderFollowsSight(page: Page, label: string, minStops = 2): Promise<void> {
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.locator('body').focus();
+  const stops: Array<{ name: string; top: number; left: number; height: number }> = [];
+  for (let i = 0; i < 30; i += 1) {
+    await page.keyboard.press('Tab');
+    const stop = await page.evaluate(() => {
+      const el = document.activeElement;
+      if (!el || !el.closest('.ui-room-header')) return null;
+      const r = el.getBoundingClientRect();
+      return { name: (el.textContent ?? '').trim().slice(0, 20), top: r.top, left: r.left, height: r.height };
+    });
+    if (stop === null) {
+      if (stops.length > 0) break;
+      continue;
+    }
+    stops.push(stop);
+  }
+  expect(stops.length, `${label}: 見出しの中で Tab が止まる所が ${stops.length} 個`).toBeGreaterThanOrEqual(minStops);
+  for (let i = 1; i < stops.length; i += 1) {
+    const a = stops[i - 1]!;
+    const b = stops[i]!;
+    const sameRow = Math.abs(a.top + a.height / 2 - (b.top + b.height / 2)) < Math.min(a.height, b.height) / 2;
+    const ok = sameRow ? b.left > a.left : b.top > a.top;
+    expect(ok, `${label}: Tab が「${a.name}」(${Math.round(a.left)},${Math.round(a.top)}) → 「${b.name}」(${Math.round(b.left)},${Math.round(b.top)}) と見た目の順に進まない`).toBe(true);
+  }
 }
 
 interface DockFacts {
@@ -151,6 +197,8 @@ async function expectContentClearOfDock(page: Page, dock: Locator, label: string
     for (const other of Array.from(parent.querySelectorAll('*'))) {
       if (el.contains(other) || other === el) continue;
       if (['absolute', 'fixed'].includes(getComputedStyle(other).position)) continue;
+      // 帯より後ろの中身（timer の休憩の注記など）は帯の下に置かれるので、覆われない
+      if (!(other.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING)) continue;
       const o = other.getBoundingClientRect();
       if (o.width > 0 && o.height > 0 && o.bottom > contentBottom) {
         contentBottom = o.bottom;
@@ -242,6 +290,10 @@ test.describe('agenda の進行中の帯', () => {
       await page.setViewportSize({ width, height: 800 });
       await expectBackAlignedWithTitle(page, `agenda 戻る（${width}）`);
     }
+    for (const width of [320, 639, 768, 1280]) {
+      await page.setViewportSize({ width, height: 800 });
+      await expectHeaderTabOrderFollowsSight(page, `agenda 見出しの Tab（${width}）`);
+    }
   });
 });
 
@@ -282,6 +334,52 @@ test.describe('Check-in Cards の開いた後', () => {
     for (const width of [320, 390]) {
       await page.setViewportSize({ width, height: 800 });
       await expectBackAlignedWithTitle(page, `checkin 戻る（${width}）`);
+    }
+  });
+});
+
+test.describe('見出しの Tab の順は見た目の順', () => {
+  test('Given poker のルーム（お題なし・あり） / When 320・390・639・768・1280 で見出しを Tab で辿る / Then 矩形が上から下・行の中は左から右に並ぶ', async ({ page, openPeer }) => {
+    test.setTimeout(120_000);
+    await page.setViewportSize({ width: 768, height: 900 });
+    const url = await createPokerRoom(page, 'tab-host');
+    for (const width of [320, 390, 639, 768, 1280]) {
+      await page.setViewportSize({ width, height: 900 });
+      await expectHeaderTabOrderFollowsSight(page, `poker 見出しの Tab（お題なし・${width}）`);
+    }
+    const topic = await openPeer('tab-topic');
+    await joinTopicTool(topic.page, url, 'tab-t');
+    await setTopic(topic.page, 'FizzBuzz', '3 のときは Fizz を出す');
+    await expect(page.getByRole('button', { name: /お題を(隠す|見る)/ })).toBeVisible();
+    for (const width of [320, 390, 639, 768, 1280]) {
+      await page.setViewportSize({ width, height: 900 });
+      await expectHeaderTabOrderFollowsSight(page, `poker 見出しの Tab（お題あり・${width}）`);
+      await expectBackAlignedWithTitle(page, `poker 戻る（お題あり・${width}）`);
+    }
+  });
+});
+
+test.describe('timer の休憩つきのセッションの帯', () => {
+  test('Given 休憩の条件を経過時間にしたセッション / When 320・390 で帯を見る / Then 操作は 4 つで 2 段まで、主は最後で、字は折れず、不透明で、最下部で盤が隠れない', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 800 });
+    await createTimerRoom(page, 'header-timer-break');
+    await page.locator('summary', { hasText: '詳細設定' }).click();
+    await page.getByRole('group', { name: '休憩の条件' }).getByRole('button', { name: '経過時間' }).click();
+    await page.getByRole('button', { name: 'セッションを開始' }).click();
+    await expect(page.getByRole('timer')).toBeVisible();
+    const dock = page.locator('.session-actions');
+    await expect(dock.getByRole('button', { name: /休憩する/ })).toBeVisible();
+    for (const width of [320, 390]) {
+      await page.setViewportSize({ width, height: 800 });
+      expect(await dock.locator('button').count(), `timer 休憩つき（${width}）: 帯の操作が 4 つでない`).toBe(4);
+      await expectDockContract(dock, `timer 休憩つき（${width}）`, false);
+      const order = await dock.locator('button').evaluateAll((els) => {
+        const rects = els.map((e) => e.getBoundingClientRect());
+        const last = rects[rects.length - 1]!;
+        return { primaryIsLast: rects.every((r) => r.top < last.top + 1 && (r.top < last.top - 1 || r.left <= last.left)) };
+      });
+      expect(order.primaryIsLast, `timer 休憩つき（${width}）: 主（最後の子）が帯の最後（右下）にない`).toBe(true);
+      await expectContentClearOfDock(page, dock, `timer 休憩つき（${width}）`);
     }
   });
 });

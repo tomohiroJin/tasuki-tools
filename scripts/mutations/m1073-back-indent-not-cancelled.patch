@@ -10,14 +10,13 @@
 #       git apply scripts/mutations/m1073-*.patch
 # 復元: git apply -R scripts/mutations/m1073-*.patch
 diff --git a/packages/ui/src/components/room-header.css b/packages/ui/src/components/room-header.css
-index 2f6eea9d..e7effb4f 100644
 --- a/packages/ui/src/components/room-header.css
 +++ b/packages/ui/src/components/room-header.css
 @@ -191,7 +191,6 @@
+   }
  
    .ui-room-header:not(.ui-room-header--compact) .ui-page-header-back {
-     order: 1;
 -    margin-inline-start: calc(-1 * (var(--space-2) + 1px));
    }
  
-   .ui-room-header:not(.ui-room-header--compact) .ui-room-header-title > :not(h1) {
+   .ui-room-header:not(.ui-room-header--compact) .ui-room-header-share {

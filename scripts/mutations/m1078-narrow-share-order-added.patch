@@ -1,0 +1,22 @@
+# 変異 1078: narrow-share-order-added
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/dock-and-narrow-header.test.mjs
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外）
+#
+# #554 のレビュー。40rem 未満で招待の欄に order を足し、DOM の順と目の順が食い違う余地ができる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1078-*.patch
+# 復元: git apply -R scripts/mutations/m1078-*.patch
+diff --git a/packages/ui/src/components/room-header.css b/packages/ui/src/components/room-header.css
+--- a/packages/ui/src/components/room-header.css
++++ b/packages/ui/src/components/room-header.css
+@@ -195,6 +195,7 @@
+   }
+ 
+   .ui-room-header:not(.ui-room-header--compact) .ui-room-header-share {
++    order: 4;
+     flex-basis: 100%;
+   }
+ }

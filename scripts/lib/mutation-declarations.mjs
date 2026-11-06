@@ -6377,4 +6377,28 @@ export const MUTATIONS = [
     tests: ["tests/dock-and-narrow-header.test.mjs"],
     note: RESERVED_1070_1079 + " " + "#554。320px の帯の 1 列（約 138px）でボタンの字（「次のアイテムへ」）が 2 行に折れ、帯が高くなる。",
   },
+  {
+    id: 1077,
+    label: "40rem 未満の通常の見出しで、戻るに order を足して目の順だけを変える",
+    patch: "m1077-narrow-back-order-first.patch",
+    pkg: "packages/ui",
+    tests: ["tests/dock-and-narrow-header.test.mjs"],
+    note: RESERVED_1070_1079 + " " + "#554 のレビュー。40rem 未満で戻るを order で道具のボタンの前に出し、Tab と読み上げの順が見た目と食い違う（右から左へ戻る）。",
+  },
+  {
+    id: 1078,
+    label: "40rem 未満の通常の見出しで、招待の欄に order を足す",
+    patch: "m1078-narrow-share-order-added.patch",
+    pkg: "packages/ui",
+    tests: ["tests/dock-and-narrow-header.test.mjs"],
+    note: RESERVED_1070_1079 + " " + "#554 のレビュー。40rem 未満で招待の欄に order を足し、DOM の順と目の順が食い違う余地ができる。",
+  },
+  {
+    id: 1079,
+    label: "timer のセッションの帯のボタンの左右の余白を詰める指定を消す",
+    patch: "m1079-timer-dock-button-padding-removed.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/session-actions-fit.test.ts"],
+    note: RESERVED_1070_1079 + " " + "#554。320px で timer の帯の「時間リセット」が 2 行に折れ、帯が高くなる。",
+  },
 ];
