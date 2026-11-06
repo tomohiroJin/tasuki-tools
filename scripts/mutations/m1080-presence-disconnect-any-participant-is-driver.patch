@@ -1,0 +1,13 @@
+diff --git a/apps/tasuki-sync/src/application/presence.ts b/apps/tasuki-sync/src/application/presence.ts
+index e981138..dc533e8 100644
+--- a/apps/tasuki-sync/src/application/presence.ts
++++ b/apps/tasuki-sync/src/application/presence.ts
+@@ -134,7 +134,7 @@ export class PresenceManager {
+     // 在席していなければ「居ない」である。
+     const current = timer.session.rotation[timer.session.currentIndex];
+     const isCurrentDriver =
+-      current !== undefined && rotationEntryId(current) === participant.id;
++      current !== undefined && true;
+     const stillWatchingTimer = after !== undefined && isPresentIn(after, TOOL_TIMER);
+     if (timer.clock.running && isCurrentDriver && !stillWatchingTimer) {
+       this.scheduleDriverAbsence(updated.code, participant.id);
