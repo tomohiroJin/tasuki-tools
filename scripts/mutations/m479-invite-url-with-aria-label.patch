@@ -10,15 +10,14 @@
 #       git apply scripts/mutations/m479-*.patch
 # 復元: git apply -R scripts/mutations/m479-*.patch
 diff --git a/packages/invite-ui/src/RoomHeader.tsx b/packages/invite-ui/src/RoomHeader.tsx
-index f16c5bce..4308fcc5 100644
 --- a/packages/invite-ui/src/RoomHeader.tsx
 +++ b/packages/invite-ui/src/RoomHeader.tsx
-@@ -100,7 +100,7 @@ export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras }
-             <span className="ui-room-header-code-value">{roomCode}</span>
-           </p>
+@@ -135,7 +135,7 @@
            <div className="ui-invite">
--            <span className="ui-invite-url">{inviteUrl}</span>
-+            <span className="ui-invite-url" aria-label={inviteUrl}>{inviteUrl}</span>
+             {/* 狭い幅では末尾が「…」に省略される。非セキュアオリジンなどクリップボードが使えない端末でも目で全文を確かめられるよう、全文を title に持たせる。
+                 省略を先頭側にする（`direction: rtl`）のは、読み上げと選択の順を変えるので採らない。ルームの見分けは隣の「ルーム XXXXXX」が担う。 */}
+-            <span className="ui-invite-url" title={inviteUrl}>{inviteUrl}</span>
++            <span className="ui-invite-url" title={inviteUrl} aria-label={inviteUrl}>{inviteUrl}</span>
              {/* ボタンと浮かぶ QR を包む。外側を押したかの判定と、QR を浮かべる位置の基準にする。 */}
              <div ref={qrAnchorRef} className="ui-room-header-qr-anchor" onKeyDown={closeQrOnEscape} onBlur={closeQrOnFocusLeave}>
                <button
