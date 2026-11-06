@@ -133,9 +133,9 @@ export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras, 
             <span className="ui-room-header-code-value">{roomCode}</span>
           </p>
           <div className="ui-invite">
-            {/* 狭い幅では末尾が「…」に省略される。非セキュアオリジンなどクリップボードが使えない端末でも目で全文を確かめられるよう、全文を title に持たせる。
-                省略を先頭側にする（`direction: rtl`）のは、読み上げと選択の順を変えるので採らない。ルームの見分けは隣の「ルーム XXXXXX」が担う。 */}
-            <span className="ui-invite-url" title={inviteUrl}>{inviteUrl}</span>
+            {/* 狭い幅では末尾が「…」に省略される。全文は 1 回押して選ぶ・コピー・読み上げ（字そのもの）で渡す。`title`・`aria-label` は付けない
+                （触る端末ではツールチップが出ず、読み上げで URL が二重になる）。ルームを見分けるのは隣の「ルーム XXXXXX」と QR。 */}
+            <span className="ui-invite-url">{inviteUrl}</span>
             {/* ボタンと浮かぶ QR を包む。外側を押したかの判定と、QR を浮かべる位置の基準にする。 */}
             <div ref={qrAnchorRef} className="ui-room-header-qr-anchor" onKeyDown={closeQrOnEscape} onBlur={closeQrOnFocusLeave}>
               <button
