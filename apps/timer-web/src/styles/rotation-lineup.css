@@ -88,10 +88,13 @@
 }
 
 .rotation-lineup-when {
+  /* 「→ 次」が「→」と「次」に割れて 2 行にならない（#556 一覧 #16） */
+  white-space: nowrap;
   color: var(--bone-subtle);
 }
 
 .rotation-lineup-when-current {
+  white-space: nowrap; /* 「→ 次」が割れない（#556 一覧 #16） */
   font-weight: 600;
   color: var(--signal);
 }

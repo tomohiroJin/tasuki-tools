@@ -29,6 +29,32 @@
   }
 }
 
+/* 40rem 未満は 2 段に決めて組む（#556 一覧 #14）。1 段目＝フェーズと接続状態、2 段目＝自分の名前と通知。
+ * 自然に折り返すと「通知」だけが 2 段目に落ち、320 では「接続中」も落ちて左右の揃えがばらばらになった。
+ * 名前は残りの幅を取って省略し、1 段目に入りきらないときだけ 2 段目へ回る（基準の幅 8rem） */
+@media (width < 40rem) {
+  .status-strip > :nth-child(3) {
+    order: 1;
+  }
+
+  .status-strip > :nth-child(2) {
+    order: 2;
+    flex: 1 1 8rem;
+    min-width: 0;
+  }
+
+  .status-strip > :nth-child(4) {
+    order: 3;
+  }
+
+  .status-strip-name {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
 .status-strip-group {
   display: flex;
   align-items: center;

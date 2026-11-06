@@ -82,9 +82,15 @@
 .run-title {
   margin: 0;
   min-width: 0;
-  color: var(--ivory-dim);
-  font-size: var(--font-size-sm);
+  /* 何の会かが読める名前。操作より先に目に入る大きさ・濃さにする（以前は小さな薄い字・#556 一覧 #25）。
+     狭い幅では操作の前の行で幅いっぱいを取り、操作は次の行へ回る */
+  flex: 1 1 12rem;
+  color: var(--ivory);
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  line-height: 1.35;
   overflow-wrap: anywhere;
+  text-wrap: balance;
 }
 .run-bar-actions {
   display: flex;

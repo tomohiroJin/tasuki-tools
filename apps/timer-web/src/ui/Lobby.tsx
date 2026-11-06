@@ -163,7 +163,7 @@ export function Lobby({
         {/* いまのお題（#91）。timer は読むだけで、変えるのはお題ツールの仕事（spec T4）。 */}
         {topic && <TopicCard topic={topic} />}
         {/* 参加者一覧 */}
-        <Card>
+        <Card className="meter-panel-stack">
           <SectionHeader
             icon={Users}
             title={`参加者 (${room.participants.length}人)`}
