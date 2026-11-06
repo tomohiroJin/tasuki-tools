@@ -1,8 +1,8 @@
 diff --git a/scripts/summarize-e2e-repeat.mjs b/scripts/summarize-e2e-repeat.mjs
-index 54ad829..dbec087 100644
+index 4de56be..bee6bc7 100644
 --- a/scripts/summarize-e2e-repeat.mjs
 +++ b/scripts/summarize-e2e-repeat.mjs
-@@ -111,7 +111,7 @@ export function classifyFailures(tests) {
+@@ -118,7 +118,7 @@ export function classifyFailures(tests) {
    const failing = tests.filter((t) => t.fail > 0);
    const total = (t) => t.pass + t.fail + t.skip + t.interrupted + t.notRun;
    return {
