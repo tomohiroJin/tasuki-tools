@@ -8,6 +8,7 @@ stryker_dir="$(cd "$1" && pwd)"; tree="$(cd "$2" && pwd)"; mkdir -p "$3"; out="$
 IFS=, read -ra files <<< "$5"
 mutate="$(printf '"%s",' "${files[@]}")"; mutate="[${mutate%,}]"
 conf="$tree/apps/tasuki-sync/stryker.$name.json"
+trap 'rm -rf "$conf" "$tree/apps/tasuki-sync/.stryker-tmp"' EXIT
 cat > "$conf" <<JSON
 {
   "testRunner": "command",
@@ -24,5 +25,4 @@ cat > "$conf" <<JSON
 }
 JSON
 cd "$tree/apps/tasuki-sync"
-trap 'rm -f "$conf"' EXIT
 ( time node "$stryker_dir/node_modules/@stryker-mutator/core/bin/stryker.js" run "stryker.$name.json" ) > "$out/$name.log" 2>&1

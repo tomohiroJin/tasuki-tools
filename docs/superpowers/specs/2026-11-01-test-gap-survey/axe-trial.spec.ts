@@ -56,6 +56,7 @@ async function measure(page: Page, screen: string): Promise<void> {
 }
 
 test.describe('axe の試し（測るだけ・違反で落とさない）', () => {
+  // 理由: AXE_CORE_PATH は試しのワークフロー（axe-core を入れる段を足したもの）だけが渡す。ほかの実行では測れない
   test.skip(AXE_PATH === undefined, 'AXE_CORE_PATH が無い');
   // アプリの CSP（script-src 'self'）が addScriptTag の inline を止めるので、この試しの文脈だけ外す。
   // 測る対象は DOM とスタイルで、CSP は axe の WCAG 規則の判定に入らない。

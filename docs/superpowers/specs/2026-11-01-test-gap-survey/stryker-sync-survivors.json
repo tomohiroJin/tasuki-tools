@@ -1,0 +1,742 @@
+{
+  "measuredAt": "2026-11-06",
+  "commit": "1a45d40",
+  "stryker": "9.6.1",
+  "survived": [
+    {
+      "file": "apps/tasuki-sync/src/adapters/ws/heartbeat.ts",
+      "line": 44,
+      "mutator": "MethodExpression",
+      "original": "this.intervalMs = Math.max(1, options.intervalMs ?? DEFAULT_HEARTBEAT_INTERVAL_MS);",
+      "replacement": "Math.min(1, options.intervalMs ?? DEFAULT_HEARTBEAT_INTERVAL_MS)"
+    },
+    {
+      "file": "apps/tasuki-sync/src/adapters/ws/heartbeat.ts",
+      "line": 49,
+      "mutator": "BlockStatement",
+      "original": "track(connId: string): void {",
+      "replacement": "{}"
+    },
+    {
+      "file": "apps/tasuki-sync/src/adapters/ws/heartbeat.ts",
+      "line": 59,
+      "mutator": "BlockStatement",
+      "original": "forget(connId: string): void {",
+      "replacement": "{}"
+    },
+    {
+      "file": "apps/tasuki-sync/src/adapters/ws/heartbeat.ts",
+      "line": 76,
+      "mutator": "OptionalChaining",
+      "original": "this.timer.unref?.();",
+      "replacement": "this.timer.unref()"
+    },
+    {
+      "file": "apps/tasuki-sync/src/adapters/ws/heartbeat.ts",
+      "line": 80,
+      "mutator": "ConditionalExpression",
+      "original": "if (this.timer !== null) {",
+      "replacement": "true"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/apply-room-level-event.ts",
+      "line": 105,
+      "mutator": "ConditionalExpression",
+      "original": "e.kind === \"member\"",
+      "replacement": "true"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/apply-room-level-event.ts",
+      "line": 107,
+      "mutator": "ConditionalExpression",
+      "original": ": (e.id === participantId ? { ...e, eligible } : e),",
+      "replacement": "true"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/apply-room-level-event.ts",
+      "line": 107,
+      "mutator": "ConditionalExpression",
+      "original": ": (e.id === participantId ? { ...e, eligible } : e),",
+      "replacement": "false"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/apply-room-level-event.ts",
+      "line": 107,
+      "mutator": "EqualityOperator",
+      "original": ": (e.id === participantId ? { ...e, eligible } : e),",
+      "replacement": "e.id !== participantId"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/apply-room-level-event.ts",
+      "line": 107,
+      "mutator": "ObjectLiteral",
+      "original": ": (e.id === participantId ? { ...e, eligible } : e),",
+      "replacement": "{}"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/apply-room-level-event.ts",
+      "line": 130,
+      "mutator": "ConditionalExpression",
+      "original": "case \"SessionReset\":",
+      "replacement": "case \"SessionReset\":"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/apply-room-level-event.ts",
+      "line": 130,
+      "mutator": "StringLiteral",
+      "original": "case \"SessionReset\":",
+      "replacement": "\"\""
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/apply-room-level-event.ts",
+      "line": 168,
+      "mutator": "BooleanLiteral",
+      "original": "eligible: true,",
+      "replacement": "false"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/apply-room-level-event.ts",
+      "line": 192,
+      "mutator": "ConditionalExpression",
+      "original": "e.kind === \"proxy\" && e.id === event.participantId",
+      "replacement": "true"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/apply-room-level-event.ts",
+      "line": 192,
+      "mutator": "ConditionalExpression",
+      "original": "e.kind === \"proxy\" && e.id === event.participantId",
+      "replacement": "false"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/apply-room-level-event.ts",
+      "line": 192,
+      "mutator": "LogicalOperator",
+      "original": "e.kind === \"proxy\" && e.id === event.participantId",
+      "replacement": "e.kind === \"proxy\" || e.id === event.participantId"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/apply-room-level-event.ts",
+      "line": 192,
+      "mutator": "ConditionalExpression",
+      "original": "e.kind === \"proxy\" && e.id === event.participantId",
+      "replacement": "true"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/apply-room-level-event.ts",
+      "line": 192,
+      "mutator": "EqualityOperator",
+      "original": "e.kind === \"proxy\" && e.id === event.participantId",
+      "replacement": "e.kind !== \"proxy\""
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/apply-room-level-event.ts",
+      "line": 192,
+      "mutator": "StringLiteral",
+      "original": "e.kind === \"proxy\" && e.id === event.participantId",
+      "replacement": "\"\""
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/apply-room-level-event.ts",
+      "line": 192,
+      "mutator": "ConditionalExpression",
+      "original": "e.kind === \"proxy\" && e.id === event.participantId",
+      "replacement": "true"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/apply-room-level-event.ts",
+      "line": 192,
+      "mutator": "EqualityOperator",
+      "original": "e.kind === \"proxy\" && e.id === event.participantId",
+      "replacement": "e.id !== event.participantId"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/apply-room-level-event.ts",
+      "line": 193,
+      "mutator": "ObjectLiteral",
+      "original": "? { ...e, label: event.displayName }",
+      "replacement": "{}"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/command-handlers/participant-remove.ts",
+      "line": 88,
+      "mutator": "ConditionalExpression",
+      "original": "if (typeof targetId !== \"string\") {",
+      "replacement": "false"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/command-handlers/participant-remove.ts",
+      "line": 88,
+      "mutator": "BlockStatement",
+      "original": "if (typeof targetId !== \"string\") {",
+      "replacement": "{}"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/command-handlers/participant-remove.ts",
+      "line": 89,
+      "mutator": "StringLiteral",
+      "original": "sendError(connId, \"INVALID\", \"不正な対象は外せません\");",
+      "replacement": "\"\""
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/command-handlers/participant-remove.ts",
+      "line": 89,
+      "mutator": "StringLiteral",
+      "original": "sendError(connId, \"INVALID\", \"不正な対象は外せません\");",
+      "replacement": "\"\""
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/command-handlers/participant-remove.ts",
+      "line": 90,
+      "mutator": "StringLiteral",
+      "original": "return err(\"INVALID\");",
+      "replacement": "\"\""
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/command-handlers/participant-remove.ts",
+      "line": 95,
+      "mutator": "ConditionalExpression",
+      "original": "if (!target) {",
+      "replacement": "false"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/command-handlers/participant-remove.ts",
+      "line": 95,
+      "mutator": "BlockStatement",
+      "original": "if (!target) {",
+      "replacement": "{}"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/command-handlers/participant-remove.ts",
+      "line": 96,
+      "mutator": "StringLiteral",
+      "original": "sendError(connId, \"PARTICIPANT_NOT_FOUND\", errorMessageFor(\"PARTICIPANT_NOT_FOUND\"));",
+      "replacement": "\"\""
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/command-handlers/participant-remove.ts",
+      "line": 97,
+      "mutator": "StringLiteral",
+      "original": "return err(\"PARTICIPANT_NOT_FOUND\");",
+      "replacement": "\"\""
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/command-handlers/participant-remove.ts",
+      "line": 117,
+      "mutator": "ConditionalExpression",
+      "original": "if (target.connIds.length === 0) return;",
+      "replacement": "false"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/command-handlers/participant-remove.ts",
+      "line": 129,
+      "mutator": "ConditionalExpression",
+      "original": "if (planned.isErr()) {",
+      "replacement": "false"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/command-handlers/participant-remove.ts",
+      "line": 129,
+      "mutator": "BlockStatement",
+      "original": "if (planned.isErr()) {",
+      "replacement": "{}"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/command-handlers/participant-remove.ts",
+      "line": 131,
+      "mutator": "ConditionalExpression",
+      "original": "const code: ErrorCode = typeof failure === \"string\" ? failure : failure.decide;",
+      "replacement": "true"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/command-handlers/participant-remove.ts",
+      "line": 131,
+      "mutator": "ConditionalExpression",
+      "original": "const code: ErrorCode = typeof failure === \"string\" ? failure : failure.decide;",
+      "replacement": "false"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/command-handlers/participant-remove.ts",
+      "line": 131,
+      "mutator": "EqualityOperator",
+      "original": "const code: ErrorCode = typeof failure === \"string\" ? failure : failure.decide;",
+      "replacement": "typeof failure !== \"string\""
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/command-handlers/participant-remove.ts",
+      "line": 131,
+      "mutator": "StringLiteral",
+      "original": "const code: ErrorCode = typeof failure === \"string\" ? failure : failure.decide;",
+      "replacement": "\"\""
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/join-room.ts",
+      "line": 139,
+      "mutator": "ConditionalExpression",
+      "original": "input.tool === TOOL_TIMER && existingTimer === undefined",
+      "replacement": "true"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/join-room.ts",
+      "line": 146,
+      "mutator": "ConditionalExpression",
+      "original": "if (resumed !== undefined && input.resumeToken !== undefined) {",
+      "replacement": "true"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/join-room.ts",
+      "line": 148,
+      "mutator": "StringLiteral",
+      "original": "kind: \"resumed\",",
+      "replacement": "\"\""
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/pick-promotion-target.ts",
+      "line": 39,
+      "mutator": "ConditionalExpression",
+      "original": "if (byPresence !== 0) return byPresence < 0 ? p : best;",
+      "replacement": "true"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/pick-promotion-target.ts",
+      "line": 39,
+      "mutator": "EqualityOperator",
+      "original": "if (byPresence !== 0) return byPresence < 0 ? p : best;",
+      "replacement": "byPresence <= 0"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 90,
+      "mutator": "BlockStatement",
+      "original": "handlePing(connId: string): void {",
+      "replacement": "{}"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 92,
+      "mutator": "ConditionalExpression",
+      "original": "if (!room) return;",
+      "replacement": "true"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 94,
+      "mutator": "BooleanLiteral",
+      "original": "if (!timer) return;",
+      "replacement": "timer"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 94,
+      "mutator": "ConditionalExpression",
+      "original": "if (!timer) return;",
+      "replacement": "true"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 94,
+      "mutator": "ConditionalExpression",
+      "original": "if (!timer) return;",
+      "replacement": "false"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 97,
+      "mutator": "BooleanLiteral",
+      "original": "if (!participant) return;",
+      "replacement": "participant"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 97,
+      "mutator": "ConditionalExpression",
+      "original": "if (!participant) return;",
+      "replacement": "true"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 97,
+      "mutator": "ConditionalExpression",
+      "original": "if (!participant) return;",
+      "replacement": "false"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 101,
+      "mutator": "ConditionalExpression",
+      "original": "if (current !== undefined && rotationEntryId(current) === participant.id) {",
+      "replacement": "true"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 101,
+      "mutator": "ConditionalExpression",
+      "original": "if (current !== undefined && rotationEntryId(current) === participant.id) {",
+      "replacement": "false"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 101,
+      "mutator": "LogicalOperator",
+      "original": "if (current !== undefined && rotationEntryId(current) === participant.id) {",
+      "replacement": "current !== undefined || rotationEntryId(current) === participant.id"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 101,
+      "mutator": "ConditionalExpression",
+      "original": "if (current !== undefined && rotationEntryId(current) === participant.id) {",
+      "replacement": "true"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 101,
+      "mutator": "EqualityOperator",
+      "original": "if (current !== undefined && rotationEntryId(current) === participant.id) {",
+      "replacement": "current === undefined"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 101,
+      "mutator": "ConditionalExpression",
+      "original": "if (current !== undefined && rotationEntryId(current) === participant.id) {",
+      "replacement": "true"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 101,
+      "mutator": "EqualityOperator",
+      "original": "if (current !== undefined && rotationEntryId(current) === participant.id) {",
+      "replacement": "rotationEntryId(current) !== participant.id"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 101,
+      "mutator": "BlockStatement",
+      "original": "if (current !== undefined && rotationEntryId(current) === participant.id) {",
+      "replacement": "{}"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 115,
+      "mutator": "ConditionalExpression",
+      "original": "if (!room) return;",
+      "replacement": "false"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 117,
+      "mutator": "ConditionalExpression",
+      "original": "if (!participant) return;",
+      "replacement": "false"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 130,
+      "mutator": "ConditionalExpression",
+      "original": "if (!timer) return;",
+      "replacement": "false"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 137,
+      "mutator": "ConditionalExpression",
+      "original": "current !== undefined && rotationEntryId(current) === participant.id;",
+      "replacement": "true"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 137,
+      "mutator": "LogicalOperator",
+      "original": "current !== undefined && rotationEntryId(current) === participant.id;",
+      "replacement": "current !== undefined || rotationEntryId(current) === participant.id"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 137,
+      "mutator": "ConditionalExpression",
+      "original": "current !== undefined && rotationEntryId(current) === participant.id;",
+      "replacement": "true"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 137,
+      "mutator": "ConditionalExpression",
+      "original": "current !== undefined && rotationEntryId(current) === participant.id;",
+      "replacement": "true"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 138,
+      "mutator": "ConditionalExpression",
+      "original": "const stillWatchingTimer = after !== undefined && isPresentIn(after, TOOL_TIMER);",
+      "replacement": "false"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 138,
+      "mutator": "ConditionalExpression",
+      "original": "const stillWatchingTimer = after !== undefined && isPresentIn(after, TOOL_TIMER);",
+      "replacement": "true"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 138,
+      "mutator": "EqualityOperator",
+      "original": "const stillWatchingTimer = after !== undefined && isPresentIn(after, TOOL_TIMER);",
+      "replacement": "after === undefined"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 139,
+      "mutator": "ConditionalExpression",
+      "original": "if (timer.clock.running && isCurrentDriver && !stillWatchingTimer) {",
+      "replacement": "true"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 139,
+      "mutator": "LogicalOperator",
+      "original": "if (timer.clock.running && isCurrentDriver && !stillWatchingTimer) {",
+      "replacement": "timer.clock.running && isCurrentDriver || !stillWatchingTimer"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 139,
+      "mutator": "ConditionalExpression",
+      "original": "if (timer.clock.running && isCurrentDriver && !stillWatchingTimer) {",
+      "replacement": "true"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 139,
+      "mutator": "LogicalOperator",
+      "original": "if (timer.clock.running && isCurrentDriver && !stillWatchingTimer) {",
+      "replacement": "timer.clock.running || isCurrentDriver"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 156,
+      "mutator": "ConditionalExpression",
+      "original": "if (!room || !state || !state.clock.running) return;",
+      "replacement": "false"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 156,
+      "mutator": "LogicalOperator",
+      "original": "if (!room || !state || !state.clock.running) return;",
+      "replacement": "(!room || !state) && !state.clock.running"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 156,
+      "mutator": "ConditionalExpression",
+      "original": "if (!room || !state || !state.clock.running) return;",
+      "replacement": "false"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 156,
+      "mutator": "LogicalOperator",
+      "original": "if (!room || !state || !state.clock.running) return;",
+      "replacement": "!room && !state"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 158,
+      "mutator": "ConditionalExpression",
+      "original": "if (current === undefined || rotationEntryId(current) !== driverParticipantId) return;",
+      "replacement": "false"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 158,
+      "mutator": "LogicalOperator",
+      "original": "if (current === undefined || rotationEntryId(current) !== driverParticipantId) return;",
+      "replacement": "current === undefined && rotationEntryId(current) !== driverParticipantId"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 158,
+      "mutator": "ConditionalExpression",
+      "original": "if (current === undefined || rotationEntryId(current) !== driverParticipantId) return;",
+      "replacement": "false"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 158,
+      "mutator": "ConditionalExpression",
+      "original": "if (current === undefined || rotationEntryId(current) !== driverParticipantId) return;",
+      "replacement": "false"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 162,
+      "mutator": "ConditionalExpression",
+      "original": "if (driver === undefined || isPresentIn(driver, TOOL_TIMER)) return;",
+      "replacement": "false"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 163,
+      "mutator": "OptionalChaining",
+      "original": "this.onDriverAbsence?.(roomCode);",
+      "replacement": "this.onDriverAbsence(roomCode)"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 168,
+      "mutator": "BlockStatement",
+      "original": "private clearDriverAbsenceTimer(roomCode: string): void {",
+      "replacement": "{}"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 170,
+      "mutator": "ConditionalExpression",
+      "original": "if (timer !== undefined) {",
+      "replacement": "true"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 170,
+      "mutator": "ConditionalExpression",
+      "original": "if (timer !== undefined) {",
+      "replacement": "false"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 170,
+      "mutator": "EqualityOperator",
+      "original": "if (timer !== undefined) {",
+      "replacement": "timer === undefined"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 170,
+      "mutator": "BlockStatement",
+      "original": "if (timer !== undefined) {",
+      "replacement": "{}"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 177,
+      "mutator": "BlockStatement",
+      "original": "clearRoomTimers(roomCode: string): void {",
+      "replacement": "{}"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 182,
+      "mutator": "BlockStatement",
+      "original": "clearAllTimers(): void {",
+      "replacement": "{}"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 183,
+      "mutator": "ArrayDeclaration",
+      "original": "for (const roomCode of [...this.driverAbsenceTimers.keys()]) {",
+      "replacement": "[]"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/presence.ts",
+      "line": 183,
+      "mutator": "BlockStatement",
+      "original": "for (const roomCode of [...this.driverAbsenceTimers.keys()]) {",
+      "replacement": "{}"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/room-entry.ts",
+      "line": 55,
+      "mutator": "ConditionalExpression",
+      "original": "if (resumeToken === undefined) return undefined;",
+      "replacement": "false"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/room-entry.ts",
+      "line": 57,
+      "mutator": "ConditionalExpression",
+      "original": "if (tokenData === undefined || tokenData.roomCode !== code) return undefined;",
+      "replacement": "false"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/room-reclaimer.ts",
+      "line": 65,
+      "mutator": "BlockStatement",
+      "original": "for (const code of this.emptySince.keys()) {",
+      "replacement": "{}"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/room-reclaimer.ts",
+      "line": 66,
+      "mutator": "ConditionalExpression",
+      "original": "if (!liveCodes.has(code)) this.emptySince.delete(code);",
+      "replacement": "false"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/room-reclaimer.ts",
+      "line": 72,
+      "mutator": "ConditionalExpression",
+      "original": "if (this.interval !== null) return;",
+      "replacement": "false"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/room-reclaimer.ts",
+      "line": 76,
+      "mutator": "BlockStatement",
+      "original": "stop(): void {",
+      "replacement": "{}"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/room-reclaimer.ts",
+      "line": 77,
+      "mutator": "ConditionalExpression",
+      "original": "if (this.interval !== null) {",
+      "replacement": "true"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/room-reclaimer.ts",
+      "line": 77,
+      "mutator": "ConditionalExpression",
+      "original": "if (this.interval !== null) {",
+      "replacement": "false"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/room-reclaimer.ts",
+      "line": 77,
+      "mutator": "EqualityOperator",
+      "original": "if (this.interval !== null) {",
+      "replacement": "this.interval === null"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/room-reclaimer.ts",
+      "line": 77,
+      "mutator": "BlockStatement",
+      "original": "if (this.interval !== null) {",
+      "replacement": "{}"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/timer-seat-broadcast.ts",
+      "line": 34,
+      "mutator": "ArrowFunction",
+      "original": "room.session.seats.map((s) => [s.id, s.skipReason]),",
+      "replacement": "() => undefined"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/timer-seat-broadcast.ts",
+      "line": 34,
+      "mutator": "ArrayDeclaration",
+      "original": "room.session.seats.map((s) => [s.id, s.skipReason]),",
+      "replacement": "[]"
+    },
+    {
+      "file": "apps/tasuki-sync/src/application/timer-seat-broadcast.ts",
+      "line": 52,
+      "mutator": "ConditionalExpression",
+      "original": "if (before !== undefined && seatView(buildTimerSnapshotRoom(before, timer)) === seatView(next)) return;",
+      "replacement": "true"
+    }
+  ]
+}
