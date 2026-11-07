@@ -44,7 +44,7 @@ src/
 | `.ui-button` | ボタンの形をする `<button>`・`<a>`。既定が主（金の地）。`--secondary`（金の枠）・`--quiet`（下線の字）で役割を、`--sm`・`--lg` で大きさを変える。選び方は下の「画面を組む」 | なし |
 | `.ui-actions` | 操作の並び。40rem 以上は右寄せの横並び、未満は縦に積む。左へ離すものは `.ui-actions-start` に入れる。`--dock` は 40rem 未満で下端に留まる帯 | なし |
 | `.ui-md` | Markdown の根。各要素に `.ui-md-h`・`.ui-md-p`・`.ui-md-ul`・`.ui-md-ol`・`.ui-md-quote`・`.ui-md-code`・`.ui-md-pre`・`.ui-md-link` を当てる。タスクリストの項目は `.ui-md-task`・`.ui-md-task-label`・`.ui-md-check`・`.ui-md-task-text`（#315）。暗い面ではつまみ `--ui-md-edge`（コード・引用の枠）・`--ui-md-link`（リンクの字）・`--ui-md-check`（チェックボックスの色）を面が宣言する | `--ui-md-edge`・`--ui-md-link`・`--ui-md-check` |
-| `.ui-stack` | 縦に積む並び（`<section>`・`<div>`）。直下の子の間を `--space-3` の `gap` で持ち、子の縦の外側の余白を 0 にする（余白の持ち主の約束・ADR 0035）。`--tight` で間を `--space-2`（ブロックの中の要素どうし）にする | なし |
+| `.ui-stack` | 縦に積む並び（`<section>`・`<div>`・`<ul>`・`<li>` など、子を縦に並べる要素）。直下の子の間を `--space-3` の `gap` で持ち、子の縦の外側の余白を 0 にする（余白の持ち主の約束・ADR 0035）。`--tight` で間を `--space-2`（ブロックの中の要素どうし）にする | なし |
 | `.ui-section-head` | 区画の見出しと操作を 1 行に並べる行。flex・折り返し可・縦は中央・両端寄せ。横の間 `--space-3`・折り返した行の間 `--space-2`。折り返した操作は見出しの下に左端を揃えて置く。`--beside` で操作を行の反対の端へ離さず見出しの隣へ寄せる。直下の子の縦の余白は 0。狭い幅で操作が下の行へ落ちても見出しと左端が揃う。見出し自身の字の大きさ・色は画面が持つ | なし |
 | `.ui-page` | 画面の器（`<main>`）。最大幅・中央寄せ・外の余白を持つ。`--prose`（`40rem`）・既定（`72rem`）・`--wide`（`96rem`）の 3 段 | なし |
 | `.ui-workspace` | 操作の面と脇を並べる段組みの根。`.ui-workspace-main`（操作の面）・`.ui-workspace-side`（脇）を子に置く。`--side-end`・`--reader` で脇の側と幅を変える。使い方は下の「画面を組む」 | なし |

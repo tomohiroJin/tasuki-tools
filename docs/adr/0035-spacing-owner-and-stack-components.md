@@ -40,8 +40,8 @@
 **検査（ADR-0030 決定 2）**: この規則は、静的な検査（CSS の字面）では守れない。どの要素がどの親の子かは JSX の側にあり、
 CSS だけでは「縦に並ぶブロックの子が外側の余白を持っているか」を決められないからである。
 そこで**結果（隣り合うブロックの間と重なり）を E2E で測る**。`e2e/specs/spacing.spec.ts` が、この ADR で直した画面
-（poker の参加者の欄・読む面の段落・timer の参加者と共有メモの見出しの行）を測る。主な画面と幅への展開は #557。
-部品の CSS の契約（`.ui-stack` が `gap` を持つ等）と画面への配線は `packages/ui/tests/spacing-owner.test.mjs` が字面で固定し、変異（1200〜1209・1210〜1219）で壊して確かめる。
+（poker の参加者の欄・記録の束・読む面の段落、timer の参加者と共有メモの見出しの行、roulette のいつものメンツ、agenda の保存した流れ）を測る。主な画面と幅への展開は #557。
+部品の CSS の契約（`.ui-stack` が `gap` を持つ等）は `packages/ui/tests/spacing-owner.test.mjs` が字面で固定する（アプリのソースの文字列は固定せず、画面が部品を当てていることは各アプリの vitest が描いた結果から確かめる）。これらは、変異検査の宣言の中の #553 の項目（`git grep -n "#553" scripts/lib/mutation-declarations.mjs`）で壊して確かめる。
 
 **例外（移行の途中・取り除く作業は [#556](https://github.com/tomohiroJin/tasuki-tools/issues/556) のやること）**: timer の
 `.section-header`（`apps/timer-web/src/styles/primitives.css`）と `.shared-memo-header`（`shared-memo.css`）は、見出しの行の下の間を
@@ -74,8 +74,10 @@ ADR-0022 決定 2（2 画面以上が使うものを部品にする）に沿っ�
 **部品の振る舞いと、画面の上書き**: 部品が持つのは既定の並び（折り返し・両端寄せ）と、2 画面以上が使う修飾（`--beside`・`--tight`）だけである。
 使う画面が 1 つの寄せ方は、修飾を足さず**画面のクラスが上書きする**（ADR-0022 決定 2: 2 画面以上が使うものだけを部品にする）。
 実装時には、poker の参加者の欄（見出しの隣へ寄せる）と timer の名簿が別々に上書きしていたので、`--beside` に上げた（別の画面が同じ寄せ方を必要としたら修飾へ上げる、の適用）。
-いま画面が上書きしているのは、poker の記録の束の見出しの行の名前の列（`.estimate-group-head > .estimate-group-item` が `flex: 1 1 auto; min-width: 0`。
-名前が 1 行に収まるときは同じ行の右にポイントが並び、収まらない長い名前のときだけポイントが名前の下の行の右端に落ちる）だけである。
+使う画面が 1 つの寄せ方は、画面が上書きするのが原則である。例（実装時点）: poker の記録の束の名前の列（`.estimate-group-head > .estimate-group-item` の `flex: 1 1 auto; min-width: 0`。
+名前が 1 行に収まるときは同じ行の右にポイントが並び、収まらない長い名前のときだけポイントが名前の下の行の右端に落ちる）と選択欄の右端寄せ（`.estimate-group-points` の `margin-inline-start: auto`）、
+roulette のいつものメンツの見出しの基準線揃え（`.roulette-regulars-head { align-items: baseline }`）、timer の共有メモの見出しの縮み方（`.shared-memo-lead`）。
+2 画面以上が同じ寄せ方を必要としたら、そのときに修飾へ上げる（`--beside`・`--tight` がその例）。
 
 使わない修飾は足さない（`--loose` は使う画面が無いので足していない）。どのアプリも使わない部品は `audit-ui-components` が死んだ部品として落とす。
 
