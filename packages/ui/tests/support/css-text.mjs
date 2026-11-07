@@ -33,12 +33,22 @@ export function mediaBlock(css, head) {
   return plain.slice(start, end);
 }
 
-/** コメントと @media の塊を除いた残り。@media の外に置いた規則を読むのに使う。 */
+/** 条件つきの塊（@media・@container・@supports・@starting-style・@layer）。この中の規則は「条件によらない」とは言えない。 */
+const CONDITIONAL_AT_RULE = /@(media|container|supports|starting-style|layer)\b/;
+
+/** コメントと、条件つきの塊（@media・@container・@supports・@starting-style・@layer）を除いた残り。条件によらず効く規則を読むのに使う。 */
 export function outsideMedia(css) {
   let plain = stripComments(css);
-  for (let at = plain.indexOf('@media'); at !== -1; at = plain.indexOf('@media')) {
-    const [, end] = blockRange(plain, plain.indexOf('{', at));
-    plain = plain.slice(0, at) + plain.slice(end + 1);
+  for (let m = CONDITIONAL_AT_RULE.exec(plain); m !== null; m = CONDITIONAL_AT_RULE.exec(plain)) {
+    const open = plain.indexOf('{', m.index);
+    const semi = plain.indexOf(';', m.index);
+    // `@layer a, b;` のような塊を持たない宣言は、塊ごとでなくその 1 文だけを落とす
+    if (semi !== -1 && (open === -1 || semi < open)) {
+      plain = plain.slice(0, m.index) + plain.slice(semi + 1);
+      continue;
+    }
+    const [, end] = blockRange(plain, open);
+    plain = plain.slice(0, m.index) + plain.slice(end + 1);
   }
   return plain;
 }

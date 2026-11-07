@@ -11,6 +11,8 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
+// CSS を字で読む関数は `packages/ui/tests/support/css-text.mjs` と同じ働きの写し。共有しない理由: アプリのテストが別パッケージの tests を
+// 相対パスで取り込むのは `audit-dependency-direction` が止め（パッケージの外を相対パスで取り込まない）、型の無い .mjs は typecheck も通らない。
 const css = readFileSync(path.resolve(__dirname, '../src/run.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
 
 /** 選択子が `selector` で、`must` を含む規則の本体（ちょうど 1 つ）。 */
@@ -38,10 +40,11 @@ describe('手元の操作の帯', () => {
     expect(bodyWith('.run-controls', 'position: fixed')).toMatch(/calc\(var\(--space-4\) \+ env\(safe-area-inset-bottom\)\)/);
     const run = bodyWith('.run', 'padding-bottom: calc(');
     expect(run).toMatch(/padding-bottom:\s*calc\(var\(--run-controls-height\) \+ env\(safe-area-inset-bottom\)\);/);
-    // 変数は html に 1 か所。Tab の送り先の余白（scroll-padding）も同じ値で、64rem 未満だけ（帯が fixed の幅）
-    const root = bodyWith('html:has(.run-controls)', '--run-controls-height');
-    expect(root).toMatch(/--run-controls-height:\s*10\.5rem;/);
+    // 変数は :root に無条件で 1 か所。Tab の送り先の余白（scroll-padding）は 64rem 未満だけ（帯が fixed の幅）で、:has は宣言を置く条件だけに使う
+    expect(bodyWith(':root', '--run-controls-height')).toMatch(/--run-controls-height:\s*10\.5rem;/);
+    const root = bodyWith('html:has(.run-controls)', 'scroll-padding-block-end');
     expect(root).toMatch(/scroll-padding-block-end:\s*calc\(var\(--run-controls-height\) \+ env\(safe-area-inset-bottom\)\);/);
+    expect(root).not.toMatch(/--run-controls-height\s*:/);
   });
 });
 

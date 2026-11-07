@@ -2,6 +2,7 @@
  * セッションの下端の帯の寸法の宣言（#554・#479 の #19。帯の約束は `packages/ui/README.md`）。
  * jsdom は寸法を測れないので、書いてある宣言そのものを見る。実際の見え方（320px で字が折れない・2 段まで）は
  * `e2e/specs/header-and-dock.spec.ts` が見る。
+ * CSS を読む処理は `packages/ui/tests/support/css-text.mjs` の写し（アプリのテストが別パッケージの tests を相対パスで取り込むのは `audit-dependency-direction` が止める）。
  * @requirements #554 timer の帯の「時間リセット」が 320px で 2 行に折れていた
  */
 import { readFileSync } from 'node:fs';
@@ -15,7 +16,13 @@ const body = (selector: string): string => {
   return found[0]?.[2] ?? '';
 };
 
+const base = readFileSync(path.resolve(__dirname, '../src/styles/base.css'), 'utf8');
+
 describe('timer のセッションの帯', () => {
+  it('Given timer の逃がし余白 / When base.css を読む / Then Tab の送り先の余白は 2 段の帯の最大の高さ ＋ ホームバー（reset.css と同じ式）', () => {
+    expect(base).toMatch(/scroll-padding-block-end:\s*calc\(var\(--dock-max-height\) \+ env\(safe-area-inset-bottom\)\);/);
+  });
+
   it('Given 40rem 未満の帯 / When 左右の余白を見る / Then 帯もボタンも余白を 1 段詰めて、1 列（約 122px）に字が収まる', () => {
     expect(body('.session-driver-card > .session-actions')).toMatch(/padding-inline:\s*var\(--space-4\);/);
     expect(body('.session-driver-card > .session-actions > *')).toMatch(/padding-inline:\s*var\(--space-1\);/);

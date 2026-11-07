@@ -35,16 +35,15 @@ test('Given 40rem 未満の帯 / When 上端の余白を読む / Then 上の内�
   assert.match(body, /padding:\s*var\(--space-3\) /);
 });
 
-const VISIBLE = ':not([hidden], .ui-visually-hidden)';
 const COUNTED = ':not([hidden], .ui-visually-hidden, select, .ui-actions-start)';
 
-test('Given 40rem 未満の帯 / When 並びを読む / Then 2 列の格子で、目に見える操作の奇数の最後（主）だけが全幅の 1 段になる（操作は 2 段まで）', () => {
+test('Given 40rem 未満の帯 / When 並びを読む / Then 2 列の格子で、目に見える操作の奇数の最後（主）だけが全幅の 1 段になる（数える集合と最後を決める集合は同じ・操作は 2 段まで）', () => {
   const list = dockRules();
   const body = only(list, '.ui-actions--dock');
   assert.match(body, /display:\s*grid;/);
   assert.match(body, /grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/);
   // 数えるのは目に見える操作だけ（hidden・読み上げ専用・選択欄・控えの包みは数えない）。全部の子を数える :last-child:nth-child(odd) に戻さない
-  const full = only(list, `.ui-actions--dock > :nth-child(odd of ${COUNTED}):nth-last-child(1 of ${VISIBLE})`);
+  const full = only(list, `.ui-actions--dock > :nth-child(odd of ${COUNTED}):nth-last-child(1 of ${COUNTED})`);
   assert.match(full, /grid-column:\s*1\s*\/\s*-1;/);
   assert.ok(!list.some((r) => /:last-child:nth-child\(odd\)/.test(r.selector)), '全部の子を数える :last-child:nth-child(odd) が残っている');
 });
@@ -55,11 +54,34 @@ test('Given 40rem 未満の帯 / When ボタンの余白を読む / Then 320px �
   assert.match(body, /min-width:\s*0;/);
 });
 
-test('Given 40rem 未満の帯 / When [hidden] の規則を読む / Then 数えない子は描かない（.ui-button の display が UA の [hidden] に勝つため）', () => {
-  assert.match(only(dockRules(), '.ui-actions--dock > [hidden]'), /display:\s*none;/);
+test('Given 帯の [hidden] の規則 / When @media・@container などの外を読む / Then 数えない子を描かない規則が幅によらずある（README は幅によらないと読める）', () => {
+  const plain = readFileSync(resolve(COMPONENTS, 'actions.css'), 'utf8');
+  assert.match(only(rules(outsideMedia(plain)), '.ui-actions--dock > [hidden]'), /display:\s*none;/);
+  assert.ok(!rules(mediaBlock(plain, '@media (width < 40rem)')).some((r) => r.selector === '.ui-actions--dock > [hidden]'), '40rem 未満の @media の中にも [hidden] の規則が残っている');
 });
 
-test('Given 選択欄の約束 / When 規則を読む / Then 選択欄は 1 段（位置の約束は README と E2E の dockFacts が守る）', () => {
+test('Given 条件つきの塊 / When outsideMedia を通す / Then @media・@container・@supports・@starting-style・@layer の中の規則は条件によらない側に出さない', () => {
+  const css = [
+    '.a { x: 1; }',
+    '@media (width < 40rem) { .m { x: 1; } }',
+    '@container c (width < 44rem) { .c { x: 1; } }',
+    '@supports (display: grid) { .s { x: 1; } }',
+    '@starting-style { .t { x: 1; } }',
+    '@layer base { .l { x: 1; } }',
+    '@layer a, b;',
+    '.z { x: 1; }',
+  ].join('\n');
+  assert.deepEqual(rules(outsideMedia(css)).map((r) => r.selector), ['.a', '.z']);
+});
+
+test('Given 帯の逃がし余白 / When reset.css とトークンを読む / Then Tab の送り先の余白は 2 段の帯の最大の高さ（--dock-max-height）＋ ホームバーで、6rem ではない', () => {
+  const reset = readFileSync(resolve(COMPONENTS, '../elements/reset.css'), 'utf8');
+  assert.match(only(rules(mediaBlock(reset, '@media (width < 40rem)')), 'html'), /scroll-padding-block-end:\s*calc\(var\(--dock-max-height\) \+ env\(safe-area-inset-bottom\)\);/);
+  const tokens = readFileSync(resolve(COMPONENTS, '../tokens/palette.css'), 'utf8');
+  assert.match(tokens, /--dock-max-height:\s*9\.5rem;/);
+});
+
+test('Given 選択欄の約束の文章 / When README を読む / Then 「先頭に置く・続く操作は 2 つまで」と書いてある（文言だけ。実画面で守られていることは E2E の dockFacts が測る）', () => {
   assert.match(readFileSync(resolve(COMPONENTS, '../../README.md'), 'utf8'), /選択欄（`<select>`）は\*\*先頭に置き\*\*、1 段を使う。\*\*選択欄があれば、続く操作は 2 つまで\*\*/);
 });
 

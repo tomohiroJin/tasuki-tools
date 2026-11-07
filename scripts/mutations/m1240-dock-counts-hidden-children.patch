@@ -12,11 +12,11 @@
 diff --git a/packages/ui/src/components/actions.css b/packages/ui/src/components/actions.css
 --- a/packages/ui/src/components/actions.css
 +++ b/packages/ui/src/components/actions.css
-@@ -63,7 +63,7 @@
+@@ -69,7 +69,7 @@
      background: var(--dock-ground);
    }
  
--  .ui-actions--dock > :nth-child(odd of :not([hidden], .ui-visually-hidden, select, .ui-actions-start)):nth-last-child(1 of :not([hidden], .ui-visually-hidden)) {
+-  .ui-actions--dock > :nth-child(odd of :not([hidden], .ui-visually-hidden, select, .ui-actions-start)):nth-last-child(1 of :not([hidden], .ui-visually-hidden, select, .ui-actions-start)) {
 +  .ui-actions--dock > :last-child:nth-child(odd) {
      grid-column: 1 / -1;
    }

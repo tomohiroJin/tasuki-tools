@@ -12,12 +12,12 @@
 diff --git a/packages/ui/src/components/actions.css b/packages/ui/src/components/actions.css
 --- a/packages/ui/src/components/actions.css
 +++ b/packages/ui/src/components/actions.css
-@@ -64,7 +64,7 @@
+@@ -70,7 +70,7 @@
    }
  
-   .ui-actions--dock > :nth-child(odd of :not([hidden], .ui-visually-hidden, select, .ui-actions-start)):nth-last-child(1 of :not([hidden], .ui-visually-hidden)) {
+   .ui-actions--dock > :nth-child(odd of :not([hidden], .ui-visually-hidden, select, .ui-actions-start)):nth-last-child(1 of :not([hidden], .ui-visually-hidden, select, .ui-actions-start)) {
 -    grid-column: 1 / -1;
 +    grid-column: auto;
    }
  
-   /* 数えないもの（`hidden`）は描かない。`.ui-button { display: inline-flex }` が UA の `[hidden] { display: none }` に勝つので、書かないと
+   /* 2 列の 1 つは (320 − 2×16 − 12) ÷ 2 = 138px。ボタンの左右の余白（`--lg` は 1.8rem ＝ 28.8px）を詰めないと「次のアイテムへ」が 2 行に折れる */

@@ -1,10 +1,13 @@
 # 変異 1260: run-controls-height-too-small
 #
 # 検出を期待するテスト:
-#   - apps/agenda-web/tests/run-controls-opaque.test.ts
-#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外）
+#   - apps/agenda-web/tests/run-controls-opaque.test.ts（変数の値 10.5rem を読む）
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外。当てると「agenda 帯の高さ（320）が --run-controls-height（128px）を超える」で赤）
 #
-# #554 のレビュー。帯の下の余白が実測の帯（約 161px）より低く、最下部で最後の行が不透明な帯に隠れる。
+# #554 のレビュー。帯の高さの変数（実測の帯は 161〜162px）を 8rem（128px）に縮める。下端の中身を隠すだけの変異ではなく、変数が 2 か所を同時に縮める:
+# （1）`.run` の下の余白が 128px になり、帯（約 161px）より 33px 低いので、最下部で最後の行の下 33px が不透明な帯に隠れる。
+# （2）64rem 未満の `scroll-padding-block-end` も 128px になり、Tab で送った先（進行表の「スキップ」など）が帯の上へ出きらず、33px ぶん帯の後ろに残る（WCAG 2.4.11）。
+# 帯の実際の高さが変数を超えることを、E2E が 320・390・639・768・1023px で測る。
 #
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m1260-*.patch
@@ -13,11 +16,11 @@ diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
 --- a/apps/agenda-web/src/run.css
 +++ b/apps/agenda-web/src/run.css
 @@ -9,7 +9,7 @@
-    40rem 未満の reset.css の 6rem と、40〜64rem の「無し」を上書きする。変数は `html` に置き、`.run` の下の余白と同じ値を引く */
- @media (width < 64rem) {
-   html:has(.run-controls) {
--    --run-controls-height: 10.5rem;
-+    --run-controls-height: 8rem;
-     scroll-padding-block-end: calc(var(--run-controls-height) + env(safe-area-inset-bottom));
-   }
+    実測より大きく丸めた手書きの値で、E2E（`header-and-dock.spec.ts`）が帯の実際の高さがこの値以下であることを測る（ずれたら赤）。文字を拡大したときの折り返しは測っていない。
+    `.run` の下の余白と、Tab の送り先の余白（下の `scroll-padding-block-end`）が同じ値を引く */
+ :root {
+-  --run-controls-height: 10.5rem;
++  --run-controls-height: 8rem;
  }
+ 
+ /* 帯が `fixed` の幅（64rem 未満）は、Tab で辿った先が帯の後ろに隠れない（WCAG 2.4.11）よう、フォーカスで送るときの下の余白を帯の高さに揃える。

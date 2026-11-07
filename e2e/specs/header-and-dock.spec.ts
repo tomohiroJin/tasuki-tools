@@ -138,6 +138,78 @@ async function expectTabOrderWithShareOpen(page: Page, label: string): Promise<v
   await expect(page.getByRole('button', { name: '招待リンクをコピー' })).toBeHidden();
 }
 
+/**
+ * 数える集合（hidden・.ui-visually-hidden・select・.ui-actions-start を除く）と最後を決める集合が同じであること。
+ * 帯の実物に無い並び（[副, 副, 主, 控えの包み] と [主, 選択欄]・[副, 主, 選択欄]・[副, 主, hidden, 主]）を一時の帯に作り、数えた奇数の最後が全幅になるか・偶数なら半分かを測る。
+ */
+async function expectLastCountedButtonFullWidth(page: Page, label: string): Promise<void> {
+  const cases = await page.evaluate(() => {
+    const build = (kinds: string[]): { counted: number; ratios: number[]; inner: number } => {
+      const dock = document.createElement('div');
+      dock.className = 'ui-actions ui-actions--dock';
+      for (const k of kinds) {
+        let el: HTMLElement;
+        if (k === 'select') el = document.createElement('select');
+        else if (k === 'start') {
+          el = document.createElement('div');
+          el.className = 'ui-actions-start';
+          el.innerHTML = '<button type="button" class="ui-button ui-button--quiet">控え</button>';
+        } else {
+          el = document.createElement('button');
+          el.type = 'button';
+          el.className = 'ui-button ui-button--secondary';
+          el.textContent = k === 'hidden' ? '隠す' : '操作';
+          if (k === 'hidden') el.hidden = true;
+        }
+        dock.append(el);
+      }
+      (document.querySelector('main') ?? document.body).append(dock);
+      const cs = getComputedStyle(dock);
+      const inner = dock.getBoundingClientRect().width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+      const counted = Array.from(dock.children).filter((c) => c.tagName === 'BUTTON' && !(c as HTMLElement).hidden);
+      const ratios = counted.map((c) => c.getBoundingClientRect().width / inner);
+      dock.remove();
+      return { counted: counted.length, ratios, inner };
+    };
+    return {
+      startLast: build(['btn', 'btn', 'btn', 'start']),
+      selectLast: build(['btn', 'select']),
+      selectMid: build(['btn', 'select', 'btn', 'btn']),
+      hiddenMid: build(['btn', 'btn', 'hidden', 'btn']),
+      evenWithStart: build(['btn', 'btn', 'start']),
+    };
+  });
+  const lastFull = (c: { ratios: number[] }): number => c.ratios.at(-1)!;
+  expect(lastFull(cases.startLast), `${label}: [操作, 操作, 操作, 控えの包み] の奇数の最後の操作が全幅でない`).toBeGreaterThanOrEqual(0.95);
+  expect(lastFull(cases.selectLast), `${label}: [操作, 選択欄] の最後の操作が全幅でない`).toBeGreaterThanOrEqual(0.95);
+  expect(lastFull(cases.selectMid), `${label}: [操作, 選択欄, 操作, 操作] の奇数の最後の操作が全幅でない`).toBeGreaterThanOrEqual(0.95);
+  expect(lastFull(cases.hiddenMid), `${label}: [操作, 操作, hidden, 操作] の奇数の最後の操作が全幅でない`).toBeGreaterThanOrEqual(0.95);
+  expect(lastFull(cases.evenWithStart), `${label}: 偶数（2 つ）の最後が全幅になっている（半分のはず）`).toBeLessThan(0.7);
+}
+
+/**
+ * 帯のすぐ上の操作へ Tab で移ったとき、その操作が帯に隠れない（WCAG 2.4.11）。帯より前の DOM の最後のフォーカスできる要素を、画面の下端のすぐ内側（帯の後ろ）に
+ * 見えている状態から Tab の送りで着ける（見えている要素はブラウザが送らないので、scroll-padding が帯の高さを持っていなければ帯の後ろに残る）。
+ */
+async function expectNothingJustAboveDockHidden(page: Page, dock: Locator, label: string): Promise<void> {
+  await page.evaluate((sel) => {
+    const el = document.querySelector(sel)!;
+    const all = Array.from(document.querySelectorAll<HTMLElement>('button, a[href], select, input, textarea, [tabindex]:not([tabindex="-1"])'))
+      .filter((e) => !el.contains(e) && (e.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0 && e.getBoundingClientRect().height > 0 && !e.closest('[inert]'));
+    const target = all.at(-1)!;
+    target.id = '__above-dock';
+    (document.activeElement as HTMLElement | null)?.blur();
+    target.scrollIntoView({ block: 'end' });
+    window.scrollBy(0, -4);
+  }, await dock.evaluate((el) => (el.id ? `#${el.id}` : (el.className.includes('session-actions') ? '.session-actions' : '.room-main > .ui-actions--dock'))));
+  await page.locator('#__above-dock').focus();
+  await expect.poll(async () => page.evaluate((sel) => {
+    const f = document.getElementById('__above-dock')!.getBoundingClientRect();
+    return f.bottom - document.querySelector(sel)!.getBoundingClientRect().top;
+  }, '.room-main > .ui-actions--dock'), { message: `${label}: 帯のすぐ上の操作が帯の後ろに隠れる（scroll-padding が帯の高さに足りない）` }).toBeLessThanOrEqual(0.5);
+  await page.evaluate(() => document.getElementById('__above-dock')?.removeAttribute('id'));
+}
+
 interface DockFacts {
   rows: number;
   height: number;
@@ -148,6 +220,7 @@ interface DockFacts {
   lastPrimaryRatio: number | null;
   /** 選択欄があるとき、先頭にあるか・続く操作の数（約束は「先頭に置く・続く操作は 2 つまで」）。 */
   selectFirst: boolean;
+  hasSelect: boolean;
   selectThenOthers: number;
   alpha: number;
   backgroundImage: string;
@@ -160,12 +233,12 @@ async function dockFacts(dock: Locator): Promise<DockFacts> {
     const cs = getComputedStyle(el);
     const tops: number[] = [];
     let maxTextLines = 0;
-    const buttons: Element[] = [];
     // 部品の帯（.ui-actions--dock）は、CSS の数え方と同じ直下の子だけ（hidden・.ui-visually-hidden・.ui-actions-start の包みを除く）。倣う画面の帯は群の中のボタンを数える
     const direct = el.classList.contains('ui-actions--dock');
     const candidates = direct
       ? Array.from(el.querySelectorAll(':scope > :not([hidden]):not(.ui-visually-hidden):not(.ui-actions-start)'))
       : Array.from(el.querySelectorAll('button, select, a'));
+    const counted = direct ? candidates.filter((c) => c.tagName !== 'SELECT') : [];
     const kids = candidates.filter((c) => ['BUTTON', 'SELECT', 'A'].includes(c.tagName));
     const selectFirst = kids.every((c, i) => c.tagName !== 'SELECT' || i === 0);
     const selectThenOthers = kids.some((c) => c.tagName === 'SELECT') ? kids.length - 1 : 0;
@@ -173,7 +246,6 @@ async function dockFacts(dock: Locator): Promise<DockFacts> {
       const r = child.getBoundingClientRect();
       if (r.width === 0 || r.height === 0) continue;
       if (child.tagName === 'BUTTON') {
-        buttons.push(child);
         // 字の行数: 字のノードの矩形の縦の位置の種類（アイコンの svg は数えない）
         const lineTops: number[] = [];
         const walker = document.createTreeWalker(child, NodeFilter.SHOW_TEXT);
@@ -192,11 +264,12 @@ async function dockFacts(dock: Locator): Promise<DockFacts> {
     const match = /rgba?\(([^)]+)\)/.exec(cs.backgroundColor);
     const parts = match ? match[1]!.split(/[,/ ]+/).filter(Boolean) : [];
     const inner = el.getBoundingClientRect().width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
-    const last = buttons.at(-1)?.getBoundingClientRect();
     return {
       selectFirst,
       selectThenOthers,
-      lastPrimaryRatio: buttons.length % 2 === 1 && el.querySelector('select') === null && last !== undefined ? last.width / inner : null,
+      // 部品の帯は CSS と同じ集合（hidden・.ui-visually-hidden・select・.ui-actions-start を除く直下の子）の奇数の最後を測る。倣う画面の帯は測らない
+      lastPrimaryRatio: direct && counted.length % 2 === 1 ? (counted.at(-1)!.getBoundingClientRect().width / inner) : null,
+      hasSelect: kids.some((c) => c.tagName === 'SELECT'),
       rows: tops.length,
       height: el.getBoundingClientRect().height,
       paddingTop: parseFloat(cs.paddingTop),
@@ -289,10 +362,14 @@ test.describe('poker のルームの見出しと帯', () => {
       return display;
     });
     expect(hiddenDisplay, 'hidden の子が帯の中で描かれる（数えない子は描かない）').toBe('none');
+    // 選択欄が実物にあり（空の検査にしない）、先頭にある
+    expect((await dockFacts(dock)).hasSelect, 'poker 公開後の帯に選択欄が無い（選択欄の約束の測りが空振りする）').toBe(true);
     for (const width of [320, 390]) {
       await page.setViewportSize({ width, height: 800 });
+      await expectLastCountedButtonFullWidth(page, `一時の帯（${width}）`);
       await expectDockContract(dock, `poker 公開後（${width}）`);
       await expectContentClearOfDock(page, dock, `poker 公開後（${width}）`);
+      if (width === 320) await expectNothingJustAboveDockHidden(page, dock, `poker 公開後（${width}）`);
     }
   });
 });

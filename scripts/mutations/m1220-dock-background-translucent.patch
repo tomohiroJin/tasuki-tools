@@ -12,7 +12,7 @@
 diff --git a/packages/ui/src/components/actions.css b/packages/ui/src/components/actions.css
 --- a/packages/ui/src/components/actions.css
 +++ b/packages/ui/src/components/actions.css
-@@ -60,7 +60,7 @@
+@@ -66,7 +66,7 @@
      margin-inline: calc(clamp(var(--space-4), 4vw, calc(var(--space-6) * 1.5)) * -1);
      padding: var(--space-3) clamp(var(--space-4), 4vw, calc(var(--space-6) * 1.5)) calc(var(--space-3) + env(safe-area-inset-bottom));
      border-top: 1px solid var(--dock-edge);
@@ -20,4 +20,4 @@ diff --git a/packages/ui/src/components/actions.css b/packages/ui/src/components
 +    background: var(--felt-scrim);
    }
  
-   .ui-actions--dock > :nth-child(odd of :not([hidden], .ui-visually-hidden, select, .ui-actions-start)):nth-last-child(1 of :not([hidden], .ui-visually-hidden)) {
+   .ui-actions--dock > :nth-child(odd of :not([hidden], .ui-visually-hidden, select, .ui-actions-start)):nth-last-child(1 of :not([hidden], .ui-visually-hidden, select, .ui-actions-start)) {

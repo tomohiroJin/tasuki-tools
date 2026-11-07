@@ -19,5 +19,5 @@ diff --git a/packages/ui/src/tokens/palette.css b/packages/ui/src/tokens/palette
 -  --dock-ground: var(--felt-950);
 +  --dock-ground: var(--felt-scrim);
    --dock-edge: var(--line-strong);
- 
-   /* --- 語彙に畳めない色（#320 PR 5・設計正本 D10 の 3） -------------------
+   /* 下端の帯（2 段）の最大の高さ。Tab で送った先が帯の後ろに隠れない余白（`scroll-padding-block-end`）に使う（WCAG 2.4.11）。
+    * 実測（既定の文字の大きさ）: poker の公開後（選択欄 1 段 ＋ 操作 1 段）142.2px・timer の休憩つき（2×2）125px・poker の投票中（1 段）約 80px。

@@ -1,0 +1,23 @@
+# 変異 1263: dock-last-set-includes-start
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/dock-and-narrow-header.test.mjs
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外）
+#
+# #554 のレビュー。数える集合と最後を決める集合が食い違い、[操作, 操作, 操作, 控えの包み] や [操作, 選択欄] で奇数の最後の操作が全幅にならない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1263-*.patch
+# 復元: git apply -R scripts/mutations/m1263-*.patch
+diff --git a/packages/ui/src/components/actions.css b/packages/ui/src/components/actions.css
+--- a/packages/ui/src/components/actions.css
++++ b/packages/ui/src/components/actions.css
+@@ -69,7 +69,7 @@
+     background: var(--dock-ground);
+   }
+ 
+-  .ui-actions--dock > :nth-child(odd of :not([hidden], .ui-visually-hidden, select, .ui-actions-start)):nth-last-child(1 of :not([hidden], .ui-visually-hidden, select, .ui-actions-start)) {
++  .ui-actions--dock > :nth-child(odd of :not([hidden], .ui-visually-hidden, select, .ui-actions-start)):nth-last-child(1 of :not([hidden], .ui-visually-hidden)) {
+     grid-column: 1 / -1;
+   }
+ 
