@@ -161,9 +161,6 @@ export function Session({
   const rotation = rotationMembers(room.session.seats, room.participants);
   // 現ドライバー・次・ナビは呼び名（同名が並ぶときは識別子つき）で出す。
   // 素の表示名だと同名2名がどちらも「Bob」になり「次は誰か」が判別できない。
-  const rotationLen = room.session.rotation.length;
-  // 「ランダム」は 2 人以上で意味を持つ。名簿（セッション・ルームの両タブ）へは 1 度だけ導いて渡す（#553）
-  const rosterShuffle = onShuffle && rotationLen > 1 ? onShuffle : undefined;
   const currentDriverId = room.session.rotation[room.session.currentIndex] ?? "";
   const {
     current: currentDriverName,
@@ -413,7 +410,7 @@ export function Session({
             ボタンは RosterPanel の見出しの行（代理追加の隣）に出す（#553 一覧 #6）。 */}
         <RosterPanel
           participants={room.participants}
-          onShuffle={rosterShuffle}
+          onShuffle={onShuffle}
           seats={room.session.seats}
           currentDriverId={currentDriverId}
           myParticipantId={participantId}
@@ -481,7 +478,7 @@ export function Session({
                   )}
                   <RosterPanel
                     participants={room.participants}
-                    onShuffle={rosterShuffle}
+                    onShuffle={onShuffle}
                     seats={room.session.seats}
                     currentDriverId={currentDriverId}
                     myParticipantId={participantId}

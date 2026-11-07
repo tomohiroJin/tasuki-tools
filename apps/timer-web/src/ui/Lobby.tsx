@@ -93,8 +93,6 @@ export function Lobby({
   // オブジェクトを capture したままだと、確認中に対象が改名しても旧名を出し続け、
   // 対象が退出しても居ないままのダイアログが残る。
   const [pendingRemovalId, setPendingRemovalId] = useState<string | null>(null);
-  // 「ランダム」は 2 人以上で意味を持つ。Session の名簿と同じ導き方にそろえる（#553）
-  const rosterShuffle = onShuffle && room.session.rotation.length > 1 ? onShuffle : undefined;
   const pendingRemoval = pendingRemovalId
     ? room.participants.find((p) => p.participantId === pendingRemovalId) ?? null
     : null;
@@ -172,7 +170,7 @@ export function Lobby({
             beside
             right={
               /* ドライバー順をランダムに（v2.3 #1）。2人以上で意味を持つ。 */
-              rosterShuffle ? <ShuffleButton onClick={rosterShuffle} /> : undefined
+              <ShuffleButton onClick={onShuffle} rotationLength={room.session.rotation.length} />
             }
           />
           <ul className="lobby-participants">

@@ -32,11 +32,13 @@ const baseProps = {
 
 describe("RosterPanel の「ランダム」の置き場", () => {
   it("Given onShuffle を渡す / When 描く / Then 「ランダム」は「参加者」の見出しの行（.ui-section-head）の中にある", () => {
-    render(<RosterPanel {...baseProps} onShuffle={noop} />);
+    render(<RosterPanel {...baseProps} rotation={["p1", "p2"]} onShuffle={noop} />);
     const shuffle = screen.getByRole("button", { name: "ドライバー順をランダムに並べ替える" });
     const head = shuffle.closest(".ui-section-head");
     expect(head).not.toBeNull();
     expect(head?.querySelector("h2")?.textContent).toBe("参加者");
+    // ロビーと同じ ShuffleButton（ボタンの写しでない）
+    expect(shuffle.querySelector(".shuffle-button-label")).not.toBeNull();
   });
 
   it("Given onShuffle を渡さない / When 描く / Then 「ランダム」は出ない", () => {
@@ -45,7 +47,7 @@ describe("RosterPanel の「ランダム」の置き場", () => {
   });
 
   it("Given 見出しの行 / When 描く / Then 「代理追加」も同じ行の中にある", () => {
-    render(<RosterPanel {...baseProps} onShuffle={noop} />);
+    render(<RosterPanel {...baseProps} rotation={["p1", "p2"]} onShuffle={noop} />);
     const head = screen.getByRole("button", { name: "代理参加者を追加" }).closest(".ui-section-head");
     expect(head).not.toBeNull();
   });

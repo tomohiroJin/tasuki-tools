@@ -68,7 +68,7 @@ interface RosterPanelProps {
   /** 輪の席（`session.seats`・#276 D2）。呼び名の同名判定プールに使う（敵対的レビュー #276 指摘1）。
    *  未指定なら `participants` のみで判定する（ソロ等 seats を持たないコンシューマ向け）。 */
   seats?: readonly Seat[] | undefined;
-  /** ドライバー順をランダムに並べ替える（v2.3 #1）。2 人以上で意味を持つので、呼び出し側が出せるときだけ渡す。
+  /** ドライバー順をランダムに並べ替える（v2.3 #1）。2 人以上のときだけ出す（`rotation` の長さで `ShuffleButton` が決める）。
    *  見出しの行の「代理追加」の隣に出す（どの一覧に効く操作かが見出しで読める・#553 一覧 #6）。 */
   onShuffle?: (() => void) | undefined;
 }
@@ -469,7 +469,7 @@ export function RosterPanel({
         beside
         right={
           <div className="roster-panel-head-actions">
-            {onShuffle && <ShuffleButton onClick={onShuffle} />}
+            <ShuffleButton onClick={onShuffle} rotationLength={rotation?.length ?? 0} />
             <button
               type="button"
               onClick={() => {

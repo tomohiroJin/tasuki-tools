@@ -5,7 +5,9 @@
  */
 import { Shuffle } from "lucide-react";
 
-export function ShuffleButton({ onClick }: { onClick: () => void }) {
+export function ShuffleButton({ onClick, rotationLength }: { onClick: (() => void) | undefined; rotationLength: number }) {
+  // 2 人以上で意味を持つ。出す条件はここ 1 か所に置く（ロビーと名簿が同じ規則を写さない）
+  if (onClick === undefined || rotationLength < 2) return null;
   return (
     <button
       type="button"
