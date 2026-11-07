@@ -92,7 +92,7 @@
 | 3 | `.ui-md > * + *` の規則を、子のリセット（`.ui-md-p { margin: 0 }` ほか）より後ろへ移して後勝ちにした（クラスを重ねる回避はしない）。`gap` の flex にすると 64rem 未満の 3 行の写し（`-webkit-line-clamp`）が行数で切れなくなる（実測）ので、ADR 0035 決定 1 の例外にした | `spacing.spec.ts`（段落の間 8px ±1）。3 行で切る検査（`layout.spec.ts`）は、字の行数の数え上げに加えて箱の高さの上限（行の高さ × 3.5（timer は × 3 ＋ 1）に、トークン `--space-2` の値 8px の 2 つぶんを足した値）を戻した（弱めない）。変異 1203 |
 | 6 | 「ランダム」を `RosterPanel` の見出しの行（「代理追加」の隣）へ移した。セッション・ルームのタブの両方 | `spacing.spec.ts`（見出しの行の中にある）。`RosterPanel.shuffle-in-header.test.tsx`。変異 1207 |
 | 18 | 共有メモの見出しの行を `.ui-section-head` にし、題と印のまとまりが縮んで「編集」が見出しの右に残るようにした（以前は 22rem の脇で下の行へ落ちた） | `spacing.spec.ts`（1280・1920 で「編集」が見出しと同じ行が必須）。`.shared-memo-lead` を main の形に戻す変異 1273 で、E2E が赤になることを確認（5 回目のレビューで、1 回目は 1280 の判定が緩く、戻しても緑だったことを直した） |
-| 33 | timer の `SectionHeader` を `.ui-section-head` にした（横の間 `--space-3`） | 変異 1206 |
+| 33 | timer の `SectionHeader` を `.ui-section-head` にした（横の間 `--space-3`） | `spacing.spec.ts`（同じ行のときの横の間を 11〜24px の両側で測る。上限だけだと `.section-header { column-gap: 3px }` を足しても緑だった）。変異 1206・1284 |
 
 同じ部品へ寄せたもの: poker の見積もりの記録の束（`.ui-stack`・`.ui-section-head`）、roulette のいつものメンツ（`.ui-stack`・`.ui-section-head`）、agenda の保存した流れ（`.ui-stack`）。
 当てなかったもの: timer の `Card` の中の縦の並び（`SectionHeader` の `margin-bottom` と共有メモの見出しの `margin-bottom` を移行の途中の例外として残した。親が `gap` を持つ形への移行は #556）、他の `ui-panel` の中の並び（画面ごとの grid / flex が既に `gap` を持っている）。
@@ -147,3 +147,12 @@
 - アプリのソースの文字列を固定していた契約テストは、各アプリの vitest（描いた結果）へ移し、変異は移った先の試験で検出されるように作り直した。roulette の空の知らせは、JSX が空のあいだだけ部品 `ui-visually-hidden` を足す形にし、`:empty` の写しと同期の試験を消した。
 - Markdown の段落の間は、クラスを重ねる回避（`.ui-md.ui-md`）をやめ、規則を子のリセットより後ろへ移した。
 - agenda の保存した流れに 40 字の名前を保存しても、320〜1280 で横に溢れない E2E を足した（main では溢れていた。変異 1275）。
+
+#### #553 の 8 回目の指摘で変えたこと（2026-11-08）
+
+- 開いた束の「見積もり中」は、長い名前で次の行の左端へ落ちたので、点数の選択欄と同じく右端へ寄せた（変異 1285）。
+- 編集中の入力は 1 行の高さ（`--tap-target`）で包みの上端にそろえた。見えない複製が折れても伸びない（変異 1286）。複製は `.estimate-item-title` のクラスを持たない（変異 1287）。
+- `stack.css` と `section-head.css` を部品層の最後に読むようにし、リセットが後に読む部品の margin にも必ず勝つ形にした（変異 1283）。
+- 部品のテスト（`packages/ui`）がアプリを読んでいた契約を、各アプリの vitest（`spacing-css.test.ts`）へ移した。部品の CSS の契約だけを `packages/ui` に残した。`packages/ui/package.json` に postcss を足した。
+- 変異 1213 を、名前の列が縮まない方向（`min-width: 12rem`）の、E2E で赤になる形に作り直した。
+- 同じ行のときの見出しと操作の横の間を、下限（`--space-3` に対して −1px）も測る（変異 1284）。
