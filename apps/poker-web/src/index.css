@@ -509,6 +509,13 @@
   font-weight: 400;
 }
 
+/* 名前を変える入力は、固有の幅（size=20・約 180px）を持ち込まない。持ち込むと名前の列の基準幅が広がり、選択欄が次の行へ落ちる
+   （ボタンのときと同じ行に残す・切り替えで行が跳ばない）。基準の幅を 0 にし、伸びる分（flex-grow）で名前の列の中いっぱいに取る */
+.estimate-item--inline .estimate-item-input {
+  inline-size: 0;
+  min-inline-size: 0;
+}
+
 .estimate-item--inline .estimate-item-title {
   border-color: transparent;
   text-decoration: underline;
@@ -560,7 +567,6 @@
 }
 
 .estimate-group-item {
-  min-width: 0;
   overflow-wrap: anywhere;
   font-weight: 600;
 }

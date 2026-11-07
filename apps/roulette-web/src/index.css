@@ -759,30 +759,13 @@
 .roulette-regulars-confirm p {
   margin: 0;
 }
-/* 知らせは常に置く（読み上げの対象を最初から持つ）。空のあいだは流れから外して、親（`.ui-stack`）の gap を取らせない。
-   子が負の余白で親の gap を打ち消さない（ADR 0035 決定 1）。下の `margin: -1px` は `.ui-visually-hidden` の宣言の写しで、
-   絶対配置（流れの外）なので親の gap にも兄弟の間にも効かない（負の余白で gap を打ち消す書き方とは別物）。
-   `display: none`・`visibility: hidden`・`hidden`・`aria-hidden` にしない: `role="status"` のライブリージョンが読み上げの木から外れ、
-   あとから入る知らせが届かない。木に残す作りは、部品 `.ui-visually-hidden`（`packages/ui` の `visually-hidden.css`）の宣言と同じ。
-   **この規則は `.ui-visually-hidden` の宣言の写し**。部品のクラスを静的に当てると、中身が入ったあとも知らせが見えなくなる
-   （当てるのは「空のとき」だけにしたい）ので、`:empty` のときだけ同じ値を当てる。値は部品と同じ全部を写し、
-   `packages/ui/tests/spacing-owner.test.mjs` が部品の宣言と同じであることを見る。 */
+/* 知らせは常に置く（読み上げの対象を最初から持つ）。空のあいだは JSX が部品 `ui-visually-hidden` を足して流れから外す（`RegularsSection.tsx`）。
+   子が負の余白で親の gap を打ち消さない（ADR 0035 決定 1）。 */
 .roulette-regulars-notice {
   margin: 0;
   font-size: var(--font-size-sm);
   /* 入らなかった人の名前（#469 D5）は区切りの無い長い名前でも折る（320px で横に溢れた） */
   overflow-wrap: anywhere;
-}
-.roulette-regulars-notice:empty {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-  border-width: 0;
 }
 .roulette-foot {
   display: flex;
