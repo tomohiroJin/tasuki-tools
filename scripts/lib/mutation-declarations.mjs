@@ -137,6 +137,9 @@ const RESERVED_1250_1259 =
 const RESERVED_1270_1279 =
   "**対応表より後に足した変異。** 1270〜1279 は #553 に追加で割り当てた範囲（1250〜1259 を使い切ったため。4 回目の敵対的レビューと /code-review の指摘で足した）。";
 
+const RESERVED_1280_1289 =
+  "**対応表より後に足した変異。** 1280〜1289 は #553 に追加で割り当てた範囲（1270〜1279 を使い切ったため。7 回目の指摘で足した）。";
+
 export const MUTATIONS = [
   {
     id: 1,
@@ -6802,5 +6805,37 @@ export const MUTATIONS = [
     pkg: "packages/ui",
     tests: ["tests/spacing-owner.test.mjs"],
     note: RESERVED_1270_1279 + " " + "#553。リセットが要素層の h2 の margin に負けて、gap に margin が足され、間が開きすぎる。",
+  },
+  {
+    id: 1280,
+    label: "poker の閉じた束の名前の入力に、幅 0 の規則（前の形の名残）を後ろへ戻す（絶対配置の幅 100% を上書きして 18px に潰す）",
+    patch: "m1280-poker-estimate-input-width-zero-leftover.patch",
+    pkg: "packages/ui",
+    tests: ["tests/spacing-owner.test.mjs"],
+    note: RESERVED_1280_1289 + " " + "#553。名前の変更中の入力が 18px に潰れて打てない。E2E の `spacing.spec.ts`（入力の幅が包みと 1px 以内・5rem 以上）でも赤になる。",
+  },
+  {
+    id: 1281,
+    label: "poker の見えない複製ボタンから `aria-hidden` を外す",
+    patch: "m1281-poker-sizer-not-aria-hidden.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/estimate-item-field.test.tsx"],
+    note: RESERVED_1280_1289 + " " + "#553。編集中に読み上げが同じ名前のボタンを二重に読む。",
+  },
+  {
+    id: 1282,
+    label: "poker の見えない複製ボタンから `tabIndex=-1`・`disabled` を外す",
+    patch: "m1282-poker-sizer-tabbable.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/estimate-item-field.test.tsx"],
+    note: RESERVED_1280_1289 + " " + "#553。見えない複製に Tab が止まる（見えない所へフォーカスが行く）。",
+  },
+  {
+    id: 1283,
+    label: "部品 `.ui-banner` に縦の margin を足す（`.ui-stack` の直下で gap に足される）",
+    patch: "m1283-ui-banner-vertical-margin-after-stack.patch",
+    pkg: "packages/ui",
+    tests: ["tests/spacing-owner.test.mjs"],
+    note: RESERVED_1280_1289 + " " + "#553。stack より後に読む部品が縦の margin を持つと、`.ui-stack` の直下で間が開きすぎる。",
   },
 ];
