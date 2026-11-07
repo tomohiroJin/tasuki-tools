@@ -301,7 +301,13 @@ async function expectDockContract(dock: Locator, label: string, wholeWidthPrimar
   expect(f.rows, `${label}: 帯の操作が ${f.rows} 段（${maxRows} 段まで）`).toBeLessThanOrEqual(maxRows);
 }
 
-/** 最下部までスクロールしたとき、帯の外の中身の最下端が帯の上端より上にある（覆われた中身が最後まで見える）。 */
+/**
+ * 最下部までスクロールしたとき、帯の前の中身の最下端が帯の上端より上にある（覆われた中身が最後まで見える）。
+ * **何を測っているか**: 矩形だけで測る（計算値に頼らない）。fixed の帯（agenda）は流れの外なので、帯より後ろの DOM も含めた全部の中身の下端を見る。
+ * sticky の帯（poker・timer）は流れの中にあり、最下部では帯が流れの終わりに来るので、帯の直前までの中身（帯より前の DOM）の下端が帯の上端以下であることを見る。
+ * 帯に負の margin-block-start や transform を足すと、帯が前の中身に重なって赤になる（変異 1291）。
+ * **何を測っていないか**: sticky の帯が流れの外へ出る欠陥（position の変更）は、`buttons.spec.ts` の「帯が下端に留まる」が見る。
+ */
 async function expectContentClearOfDock(page: Page, dock: Locator, label: string): Promise<void> {
   await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
   const m = await dock.evaluate((el) => {
@@ -312,8 +318,9 @@ async function expectContentClearOfDock(page: Page, dock: Locator, label: string
     for (const other of Array.from(parent.querySelectorAll('*'))) {
       if (el.contains(other) || other === el) continue;
       if (['absolute', 'fixed'].includes(getComputedStyle(other).position)) continue;
-      // sticky の帯（流れの中にある）は、帯より後ろの DOM（timer の休憩の注記など）を覆わない。fixed の帯（agenda）は流れの外なので、後ろの DOM（進行表）も覆う
-      if (fixed ? false : !(other.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING)) continue;
+      // sticky の帯は、帯より後ろの DOM（timer の休憩の注記など）を覆わない。帯より前の DOM は、帯の祖先でも子孫でもないものだけ見る
+      if (!fixed && !(other.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING)) continue;
+      if (other.contains(el)) continue;
       const o = other.getBoundingClientRect();
       if (o.width > 0 && o.height > 0 && o.bottom > contentBottom) {
         contentBottom = o.bottom;
@@ -322,13 +329,12 @@ async function expectContentClearOfDock(page: Page, dock: Locator, label: string
     }
     return { top: el.getBoundingClientRect().top, contentBottom, who };
   });
-  expect(m.contentBottom, `${label}: 最下部で中身（${m.who}）が帯に隠れる`).toBeLessThanOrEqual(m.top + 0.5);
+  expect(m.contentBottom, `${label}: 最下部で中身（${m.who}）が帯に隠れる（帯の上端 ${m.top}）`).toBeLessThanOrEqual(m.top + 0.5);
 }
 
 test.describe('poker のルームの見出しと帯', () => {
   test('Given poker のルーム / When 320・390・640・768・900 で見る / Then URL は 1 行で、戻るは題と揃い、見出しは 3 段、公開後の帯は不透明で 2 段まで、最下部で中身が帯に隠れない', async ({ page, openPeer }) => {
     test.setTimeout(120_000);
-    await page.setViewportSize({ width: 768, height: 900 });
     // 帯の無い画面（玄関）の Tab の送り先の余白は旧い 6rem（96px）のまま。帯のある画面だけが --dock-max-height（152px）に広がる
     await page.setViewportSize({ width: 390, height: 800 });
     await page.goto('/');
@@ -612,6 +618,18 @@ test.describe('agenda の映す表示の帯', () => {
       return hit?.closest('.projection-strip') !== null && hit !== undefined;
     });
     expect(front, '映す表示の帯のボタンの点を、帯より前の要素が受けている').toBe(true);
+    // 帯が出ても盤が跳ねない（余白は帯の有無によらず常に取る）
+    for (const [width, height] of [[1280, 800], [390, 800], [768, 1024]] as const) {
+      await page.setViewportSize({ width, height });
+      await page.mouse.move(0, 0);
+      await page.locator('.projection-body').focus().catch(() => undefined);
+      await (await page.evaluateHandle(() => (document.activeElement as HTMLElement | null)?.blur())).dispose();
+      await strip.evaluate((el) => el.classList.remove('is-shown'));
+      const y0 = await page.locator('.projection-dial').evaluate((el) => el.getBoundingClientRect().top);
+      await strip.evaluate((el) => el.classList.add('is-shown'));
+      const y1 = await page.locator('.projection-dial').evaluate((el) => el.getBoundingClientRect().top);
+      expect(Math.abs(y1 - y0), `映す表示（${width}×${height}）: 帯が出ると盤が ${y1 - y0}px 動く`).toBeLessThanOrEqual(1);
+    }
     // 帯が出ている間、下端の中身（「予定の終わり」など）が帯と重ならない。縦長・背の低い・狭い画面で、最下部までスクロールして測る。帯の高さは変数以下
     for (const [width, height] of [[390, 800], [320, 568], [800, 400]] as const) {
       await page.setViewportSize({ width, height });
@@ -636,6 +654,31 @@ test.describe('agenda の映す表示の帯', () => {
       });
       expect(m.strip, `映す表示の帯の高さ（${width}×${height}）が --projection-strip-height（${m.limit}px）を超える`).toBeLessThanOrEqual(m.limit);
       expect(m.bottom, `映す表示（${width}×${height}）: 最下部で中身（${m.who}）が帯（上端 ${m.stripTop}）に隠れる`).toBeLessThanOrEqual(m.stripTop + 0.5);
+    }
+  });
+});
+
+test.describe('長い招待の URL', () => {
+  test('Given 70 字以上の URL（日本語のルーム名） / When 320・639・640・768・1280 で見る / Then URL の箱が欄の内に収まり、ページが横に溢れない', async ({ page }) => {
+    test.setTimeout(120_000);
+    await page.setViewportSize({ width: 768, height: 900 });
+    await createPokerRoom(page, 'long-url');
+    for (const width of [320, 639, 640, 768, 1280]) {
+      await page.setViewportSize({ width, height: 900 });
+      const toggle = page.getByRole('button', { name: '仲間を招く' });
+      if (await toggle.isVisible()) {
+        if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
+      }
+      const m = await page.evaluate(() => {
+        const url = document.querySelector('.ui-room-header-invite .ui-invite-url') as HTMLElement;
+        url.textContent = `http://127.0.0.1:38557/?room=${'ながいなまえのへや'.repeat(8)}`;
+        const share = document.querySelector('.ui-room-header-share')!.getBoundingClientRect();
+        const r = url.getBoundingClientRect();
+        return { right: r.right, shareRight: share.right, len: url.textContent!.length, scrollW: document.documentElement.scrollWidth, innerW: innerWidth };
+      });
+      expect(m.len, '長い URL（70 字以上）になっていない').toBeGreaterThanOrEqual(70);
+      expect(m.right, `長い URL（${width}）の箱が欄（右端 ${m.shareRight}）の外へ出る`).toBeLessThanOrEqual(m.shareRight + 0.5);
+      expect(m.scrollW, `長い URL（${width}）でページが横に溢れる`).toBeLessThanOrEqual(m.innerW);
     }
   });
 });

@@ -589,7 +589,7 @@ test.describe('timer の各画面（ロビー・セッション・確認・ま�
     // 40rem 以上は流れの中
     await page.setViewportSize({ width: 1280, height: 900 });
     expect((await measureDock(dock)).position, '40rem 以上で帯が流れの中に戻っていない').toBe('static');
-    expect(await page.evaluate(() => getComputedStyle(document.documentElement).scrollPaddingBottom), '1280: scroll-padding は 40rem 以上に掛けない').not.toBe('152px');
+    expect(await page.evaluate(() => getComputedStyle(document.documentElement).scrollPaddingBottom), '1280: scroll-padding は 40rem 以上に掛けない（6rem の既定が @media の外へ漏れない）').toBe('auto');
 
     // セッション（390・高い画面）: 計器の帯の主（一時停止）と終える区画の「完成!」が見えてから測る
     await page.setViewportSize({ width: 390, height: 800 });

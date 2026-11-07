@@ -1,0 +1,23 @@
+# 変異 1290: projection-padding-only-when-shown
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/run-controls-opaque.test.ts
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外。帯が出るたびに盤が動いて赤）
+#
+# #554 のレビュー。映す表示の下の余白が帯の出ている間だけになり、帯が出るたびに盤が 80px 上下に跳ねる（1280・1920・390）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1290-*.patch
+# 復元: git apply -R scripts/mutations/m1290-*.patch
+diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
+--- a/apps/agenda-web/src/run.css
++++ b/apps/agenda-web/src/run.css
+@@ -575,7 +575,7 @@
+ :root {
+   --projection-strip-height: 10rem;
+ }
+-.projection-body {
++.projection:has(> .projection-strip.is-shown, > .projection-strip:focus-within) > .projection-body {
+   padding-block-end: calc(var(--space-6) + var(--projection-strip-height) + env(safe-area-inset-bottom));
+ }
+ 

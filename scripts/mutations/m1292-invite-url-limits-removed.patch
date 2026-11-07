@@ -1,0 +1,23 @@
+# 変異 1292: invite-url-limits-removed
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/dock-and-narrow-header.test.mjs
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外。長い URL が欄の外へ出て赤）
+#
+# #554 のレビュー。URL の上限と下限を外すと、grid の項目（justify-self: start）では効かず、長い URL が 30〜44rem の欄で画面の外へ出る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1292-*.patch
+# 復元: git apply -R scripts/mutations/m1292-*.patch
+diff --git a/packages/ui/src/components/invite.css b/packages/ui/src/components/invite.css
+--- a/packages/ui/src/components/invite.css
++++ b/packages/ui/src/components/invite.css
+@@ -27,8 +27,6 @@
+   font-family: var(--font-mono);
+   /* 欄の幅で止める。`overflow: hidden` の flex 項目なら下限は 0 になるが、grid の項目（`.ui-room-header-invite` の中は `justify-self: start`）には効かず、
+      長い URL（日本語のルーム名がそのまま入りうる）が 30〜44rem の欄で画面の外へ出る（74 字で 639・640px に clientWidth 649px）。上限と下限を両方持つ（#554） */
+-  min-inline-size: 0;
+-  max-inline-size: 100%;
+   overflow: hidden;
+   text-overflow: ellipsis;
+   white-space: nowrap;

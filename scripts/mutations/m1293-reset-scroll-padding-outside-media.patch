@@ -1,0 +1,23 @@
+# 変異 1293: reset-scroll-padding-outside-media
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/dock-and-narrow-header.test.mjs
+#   - e2e/specs/buttons.spec.ts（実際の見え方。変異検査の外。1280 の scroll-padding が auto でなく赤）
+#
+# #554 のレビュー。帯の逃がし余白が 40rem 以上にも掛かる（6rem の既定が @media の外へ漏れる）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1293-*.patch
+# 復元: git apply -R scripts/mutations/m1293-*.patch
+diff --git a/packages/ui/src/elements/reset.css b/packages/ui/src/elements/reset.css
+--- a/packages/ui/src/elements/reset.css
++++ b/packages/ui/src/elements/reset.css
+@@ -19,7 +19,7 @@
+ /* 40rem 未満では操作の並び（`.ui-actions--dock`）が画面の下端に留まる。Tab で辿った先が帯の下に隠れないよう、フォーカスで送るときの下の余白を取る（WCAG 2.4.11）。
+    既定は旧い 6rem。帯のある画面だけ、2 段の帯の最大の高さ（`--dock-max-height`・実測の根拠はトークンの側）＋ ホームバーに広げる（帯の無い画面にまで 152px の余白を掛けない）。
+    部品層（components/）は要素（html）を飾れない（`audit-ui-components`）ので、どちらもここに置く。timer は要素層を読まないので、同じ式を base.css に持つ */
+-@media (width < 40rem) {
++@media (width >= 0rem) {
+   html {
+     scroll-padding-block-end: 6rem;
+   }

@@ -12,8 +12,8 @@
 diff --git a/packages/ui/src/components/invite.css b/packages/ui/src/components/invite.css
 --- a/packages/ui/src/components/invite.css
 +++ b/packages/ui/src/components/invite.css
-@@ -28,7 +28,7 @@
-   /* `overflow: hidden` の flex 項目は min-width の自動の下限が 0 になるので、`min-width: 0`・`max-inline-size: 100%` は要らない（外して 320・390・639px の実物と、300px の折り返す flex の一時の箱で幅が変わらないことを確かめた・#554） */
+@@ -31,7 +31,7 @@
+   max-inline-size: 100%;
    overflow: hidden;
    text-overflow: ellipsis;
 -  white-space: nowrap;

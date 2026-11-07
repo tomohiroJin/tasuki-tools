@@ -107,6 +107,9 @@ const RESERVED_1010_1019 =
 const RESERVED_1020_1029 =
   "**対応表より後に足した変異。** 1020〜1029 は #547 に割り当てた範囲。";
 
+const RESERVED_1290_1299 =
+  "**対応表より後に足した変異。** 1290〜1299 は #554 に追加で割り当てた範囲（1260〜1269 を使い切ったため）。";
+
 const RESERVED_1260_1269 =
   "**対応表より後に足した変異。** 1260〜1269 は #554 に追加で割り当てた範囲（1240〜1249 の 3 回目のレビュー分で足りなくなった場合に備える）。";
 
@@ -6719,5 +6722,45 @@ export const MUTATIONS = [
     pkg: "apps/agenda-web",
     tests: ["tests/run-controls-opaque.test.ts"],
     note: RESERVED_1260_1269 + " " + "#554 のレビュー。下の余白が帯より低く、狭い幅で下端の中身が帯に隠れる。E2E は帯の実際の高さが変数を超えて赤。",
+  },
+  {
+    id: 1290,
+    label: "映す表示の中身の下の余白を、帯が出ている間だけ取る形に戻す（帯が出るたびに盤が跳ねる）",
+    patch: "m1290-projection-padding-only-when-shown.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/run-controls-opaque.test.ts"],
+    note: RESERVED_1290_1299 + " " + "#554 のレビュー。帯が出るたびに盤が 80px 上下に跳ねる。E2E は帯を出す前後の盤の y の差が 1px 以内であることで赤になる。",
+  },
+  {
+    id: 1291,
+    label: "下端の帯に負の margin-block-start を足す（帯が前の中身に重なる）",
+    patch: "m1291-dock-negative-margin.patch",
+    pkg: "packages/ui",
+    tests: ["tests/dock-and-narrow-header.test.mjs"],
+    note: RESERVED_1290_1299 + " " + "#554 のレビュー。帯が前の中身に重なる。E2E の最下部の測り（矩形）が拾い、単体は帯の規則に負の margin・transform・top が無いことで拾う。",
+  },
+  {
+    id: 1292,
+    label: "招待の URL の min-inline-size・max-inline-size を外す",
+    patch: "m1292-invite-url-limits-removed.patch",
+    pkg: "packages/ui",
+    tests: ["tests/dock-and-narrow-header.test.mjs"],
+    note: RESERVED_1290_1299 + " " + "#554 のレビュー。長い URL が 30〜44rem の欄で画面の外へ出る。E2E は長い URL の箱が欄の内に収まることで赤になる。",
+  },
+  {
+    id: 1293,
+    label: "要素層の逃がし余白の @media を全幅にする（6rem の既定が 40rem 以上へ漏れる）",
+    patch: "m1293-reset-scroll-padding-outside-media.patch",
+    pkg: "packages/ui",
+    tests: ["tests/dock-and-narrow-header.test.mjs"],
+    note: RESERVED_1290_1299 + " " + "#554 のレビュー。帯の逃がし余白が 40rem 以上にも掛かる。E2E は 1280 の scroll-padding が auto であることで赤になる。",
+  },
+  {
+    id: 1294,
+    label: "製品コード（agenda の main.tsx）が試験用の入口 @tasuki/ui/test-support を読む",
+    patch: "m1294-product-code-reads-test-support.patch",
+    pkg: "packages/ui",
+    tests: ["tests/dock-and-narrow-header.test.mjs"],
+    note: RESERVED_1290_1299 + " " + "#554 のレビュー。製品コードが試験用の入口を読む。",
   },
 ];
