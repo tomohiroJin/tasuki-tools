@@ -25,7 +25,10 @@
   border-radius: var(--radius-md);
   color: var(--ivory-dim);
   font-family: var(--font-mono);
-  /* `overflow: hidden` の flex 項目は min-width の自動の下限が 0 になるので、`min-width: 0`・`max-inline-size: 100%` は要らない（外して 320・390・639px の実物と、300px の折り返す flex の一時の箱で幅が変わらないことを確かめた・#554） */
+  /* 欄の幅で止める。`overflow: hidden` の flex 項目なら下限は 0 になるが、grid の項目（`.ui-room-header-invite` の中は `justify-self: start`）には効かず、
+     長い URL（日本語のルーム名がそのまま入りうる）が 30〜44rem の欄で画面の外へ出る（74 字で 639・640px に clientWidth 649px）。上限と下限を両方持つ（#554） */
+  min-inline-size: 0;
+  max-inline-size: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

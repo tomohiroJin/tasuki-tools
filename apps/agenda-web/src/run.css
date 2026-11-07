@@ -568,13 +568,14 @@
   color: var(--ivory-dim);
 }
 
-/* 操作帯（`.projection-strip`・fixed・不透明）が出ている間は、帯の高さの分を中身の下に取る（下端の情報が帯に隠れない）。
+/* 操作帯（`.projection-strip`・fixed・不透明）の高さの分を、帯の有無によらず中身の下に常に取る（下端の情報が帯に隠れない）。
+   帯が出ている間だけ取ると、帯が出るたびに盤が上下に跳ねた（1280・1920・390 で 80px）ので、出ていない間も場所を空けておく。
    帯の高さの上限は実測（既定の文字の大きさ）で 320px の 149.4px・390px の 101.6px・768px 以上は 69px。実測より大きく丸めた手書きの値で、
    E2E（`header-and-dock.spec.ts`）が帯の実際の高さがこの値以下であることを測る。文字を拡大したときの折り返しは測っていない */
 :root {
   --projection-strip-height: 10rem;
 }
-.projection:has(> .projection-strip.is-shown, > .projection-strip:focus-within) > .projection-body {
+.projection-body {
   padding-block-end: calc(var(--space-6) + var(--projection-strip-height) + env(safe-area-inset-bottom));
 }
 
