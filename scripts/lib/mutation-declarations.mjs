@@ -6574,7 +6574,7 @@ export const MUTATIONS = [
     patch: "m1241-dock-select-full-width-removed.patch",
     pkg: "packages/ui",
     tests: ["tests/dock-and-narrow-header.test.mjs"],
-    note: RESERVED_1240_1249 + " " + "#554 のレビュー。選択欄が 1 列の幅（約 138px）に押し込まれ、帯が 3 段（約 190px）になる。E2E は帯が --dock-max-height を超え、帯のすぐ上の操作が帯に隠れて赤になる（選択欄の字が切れていないことを測る検査は、このままでは緑のままで、字の切れは段数の約束側で拾う）。",
+    note: RESERVED_1240_1249 + " " + "#554 のレビュー。選択欄が 1 列の幅（約 138px）に押し込まれ、選んだ字（約 128px）が選択欄の中の幅（約 104px）に収まらず切れる。E2E は選択欄の字の自然な幅 ≤ 選択欄の中の幅を測る検査（320px の poker の公開後）で赤になる。",
   },
   {
     id: 1242,

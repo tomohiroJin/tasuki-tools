@@ -4,7 +4,7 @@
 #   - packages/ui/tests/dock-and-narrow-header.test.mjs
 #   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外）
 #
-# #554 のレビュー。選択欄が 1 列の幅（約 138px）に押し込まれ、字が切れる。
+# #554 のレビュー。選択欄が 1 列の幅（約 138px）に押し込まれ、選んだ字（約 128px）が選択欄の中の幅（約 104px）に収まらず切れる。E2E の選択欄の字の測りで赤になる。
 #
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m1241-*.patch
