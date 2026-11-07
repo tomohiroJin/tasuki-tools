@@ -68,6 +68,8 @@ async function paragraphGaps(page: Page): Promise<number[]> {
 interface BelongOptions {
   /** 同じ行のときの、見出しとの横の間の上限（px） */
   maxGap?: number;
+  /** 同じ行のときの、見出しとの横の間の下限（px。`--space-3`＝12px に対して ±1 で、詰まりすぎ（3px など）を捕まえる） */
+  minGap?: number;
   /** 折り返さず、必ず見出しと同じ行にあること（広い幅の共有メモの「編集」など） */
   sameLine?: boolean;
   /** 見出しを前方一致で引く（「参加者（3人）」のように人数が付く見出し）。既定は完全一致 */
@@ -75,7 +77,7 @@ interface BelongOptions {
 }
 
 async function expectActionsBelongToHeading(page: Page, headingText: string, actionLabel: string, label: string, opts: BelongOptions = {}): Promise<void> {
-  const { maxGap, sameLine: mustSameLine, prefix = false } = opts;
+  const { maxGap, minGap, sameLine: mustSameLine, prefix = false } = opts;
   const m = await page.evaluate(
     ({ headingText, actionLabel, prefix }) => {
       const heading = [...document.querySelectorAll('h2')].find((h) => (prefix ? (h.textContent ?? '').trim().startsWith(headingText) : (h.textContent ?? '').trim() === headingText));
@@ -100,6 +102,7 @@ async function expectActionsBelongToHeading(page: Page, headingText: string, act
   if (m.found !== 'ok') return;
   // 同じ行なら、操作は見出しの隣にある（見出しから行の反対の端まで離れない）。上限は poker の参加者の欄と同じ 24px
   if (mustSameLine === true) expect(m.sameLine, `${label}: 「${actionLabel}」は見出しと同じ行（折り返さない）`).toBe(true);
+  if (m.sameLine && minGap !== undefined) expect(m.gap, `${label}: 見出しと「${actionLabel}」の横の間（下限 ${String(minGap)}px）`).toBeGreaterThanOrEqual(minGap);
   if (m.sameLine && maxGap !== undefined) expect(m.gap, `${label}: 見出しと「${actionLabel}」の横の間（上限 ${String(maxGap)}px）`).toBeLessThanOrEqual(maxGap);
   if (!m.sameLine) {
     expect(Math.abs(m.below - SPACE_2), `${label}: 折り返した「${actionLabel}」と見出しの間は 8px`).toBeLessThanOrEqual(1);
@@ -208,7 +211,8 @@ test.describe('縦に並ぶブロックの間は親が持つ', () => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await createPokerRoom(page, 'spacing-rename');
     await page.getByRole('button', { name: '記録する' }).click();
-    const names = { short: 'A', long: 'T'.repeat(40) } as const;
+    // 長い名前は幅の広い字（W）で、320 では見えない複製が 3 行以上に折れる（入力が伸びないことを測るため）
+    const names = { short: 'A', long: 'W'.repeat(40) } as const;
     for (const name of Object.values(names)) {
       await page.locator('.estimate-item:not(.estimate-item--inline) .estimate-item-title').first().click();
       await page.locator('.estimate-item:not(.estimate-item--inline) .estimate-item-input').fill(name);
@@ -219,8 +223,8 @@ test.describe('縦に並ぶブロックの間は親が持つ', () => {
     const row = async (key: string): Promise<{ sameLine: boolean; top: number; left: number } | null> =>
       page.evaluate((key) => {
         const head = [...document.querySelectorAll('.estimate-group-head')].find(
-          (e) => e.getClientRects().length > 0 && (e.querySelector('.estimate-item-title:not(.estimate-item-sizer), .estimate-item-input') as HTMLElement | null) !== null
-            && ((e.querySelector('.estimate-item-title:not(.estimate-item-sizer)') as HTMLElement | null)?.textContent === key || (e.querySelector('.estimate-item-input') as HTMLInputElement | null)?.value === key),
+          (e) => e.getClientRects().length > 0 && (e.querySelector('.estimate-item-title, .estimate-item-input') as HTMLElement | null) !== null
+            && ((e.querySelector('.estimate-item-title') as HTMLElement | null)?.textContent === key || (e.querySelector('.estimate-item-input') as HTMLInputElement | null)?.value === key),
         );
         const name = head?.querySelector('.estimate-group-item');
         const points = head?.querySelector('select');
@@ -232,7 +236,7 @@ test.describe('縦に並ぶブロックの間は親が持つ', () => {
     for (const width of [320, 390, 1280] as const) {
       await page.setViewportSize({ width, height: 900 });
       for (const [kind, name] of Object.entries(names)) {
-        const title = page.locator('.estimate-group-head:visible .estimate-item--inline .estimate-item-title:not(.estimate-item-sizer)', { hasText: name }).first();
+        const title = page.locator('.estimate-group-head:visible .estimate-item--inline .estimate-item-title', { hasText: name }).first();
         await expect(title, `幅 ${String(width)}・${kind}: 名前のボタンが見える`).toBeVisible();
         const before = await row(name);
         expect(before, `幅 ${String(width)}・${kind}: 閉じた束の見出しの行がある`).not.toBeNull();
@@ -247,6 +251,11 @@ test.describe('縦に並ぶブロックの間は親が持つ', () => {
         const w0 = await box();
         expect(Math.abs(w0.input - w0.wrap), `幅 ${String(width)}・${kind}: 入力の幅が包みの幅と 1px 以内でそろう`).toBeLessThanOrEqual(1);
         expect(w0.input, `幅 ${String(width)}・${kind}: 入力の幅が 5rem 以上`).toBeGreaterThanOrEqual(80);
+        // 入力は 1 行の高さ（押せる大きさ以上・48px 以下）で、包みの上端にそろう（見えない複製が何行に折れても伸びない）
+        const hb = await input.evaluate((el) => ({ h: el.getBoundingClientRect().height, dTop: el.getBoundingClientRect().top - (el.closest('.estimate-item--inline') as HTMLElement).getBoundingClientRect().top }));
+        expect(hb.h, `幅 ${String(width)}・${kind}: 入力の高さは 1 行（44〜48px）`).toBeGreaterThanOrEqual(44);
+        expect(hb.h, `幅 ${String(width)}・${kind}: 入力の高さは 1 行（44〜48px）`).toBeLessThanOrEqual(48);
+        expect(Math.abs(hb.dTop), `幅 ${String(width)}・${kind}: 入力は包みの上端にそろう`).toBeLessThanOrEqual(1);
         // 打って名前を 40 字に伸ばしても、入力の幅も選択欄の行も変わらない（字は入力の中で送られる）
         await input.fill('Z'.repeat(40));
         const w1 = await box();
@@ -261,6 +270,30 @@ test.describe('縦に並ぶブロックの間は親が持つ', () => {
         expect(Math.abs(after!.left - before!.left), `幅 ${String(width)}・${kind}: 選択欄の横の位置が変わらない`).toBeLessThanOrEqual(1);
         await page.keyboard.press('Escape');
       }
+    }
+  });
+
+  test('Given poker の記録の開いた束（40 字の名前） / When 320〜1280 で開く / Then 「見積もり中」は名前と同じ行か、下の行の右端にある（左端へ落ちない）（#553）', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await createPokerRoom(page, 'spacing-open');
+    await page.getByRole('button', { name: '記録する' }).click();
+    await page.locator('.estimate-item:not(.estimate-item--inline) .estimate-item-title').first().click();
+    await page.locator('.estimate-item:not(.estimate-item--inline) .estimate-item-input').fill('T'.repeat(40));
+    await page.keyboard.press('Enter');
+    // 票を出して開票すると、開いた束（名前は 40 字）ができる（次のアイテムへ進むまで開いている）
+    await chooseCard(page, '5');
+    for (const width of [320, 390, 768, 1280] as const) {
+      await page.setViewportSize({ width, height: 900 });
+      await expect(page.locator('.estimate-group-head:visible .estimate-group-open').first(), `幅 ${String(width)}: 開いた束の「見積もり中」が見える`).toBeVisible();
+      const m = await page.evaluate(() => {
+        const open = [...document.querySelectorAll('.estimate-group-open')].find((e) => e.getClientRects().length > 0)!;
+        const head = open.closest('.estimate-group-head')!;
+        const name = head.querySelector('.estimate-group-item')!;
+        const o = open.getBoundingClientRect();
+        const n = name.getBoundingClientRect();
+        return { sameLine: o.top < n.bottom - 0.5, rightGap: head.getBoundingClientRect().right - o.right };
+      });
+      if (!m.sameLine) expect(Math.abs(m.rightGap), `幅 ${String(width)}: 落ちた「見積もり中」の右端は行の右端に揃う`).toBeLessThanOrEqual(1);
     }
   });
 
@@ -336,14 +369,14 @@ test.describe('縦に並ぶブロックの間は親が持つ', () => {
     // ロビー（見出しは「参加者 (n人)」）
     for (const width of [320, 768, 1280] as const) {
       await page.setViewportSize({ width, height: 900 });
-      await expectActionsBelongToHeading(page, '参加者 (2人)', 'ドライバー順をランダムに並べ替える', `ロビー 幅 ${String(width)}`, { maxGap: 2 * SPACE_3 });
+      await expectActionsBelongToHeading(page, '参加者 (2人)', 'ドライバー順をランダムに並べ替える', `ロビー 幅 ${String(width)}`, { maxGap: 2 * SPACE_3, minGap: SPACE_3 - 1 });
     }
     await page.getByRole('button', { name: 'セッションを開始' }).click();
     await expect(page.getByRole('timer')).toBeVisible();
     for (const width of [320, 390, 1280] as const) {
       await page.setViewportSize({ width, height: 900 });
-      await expectActionsBelongToHeading(page, '参加者', 'ドライバー順をランダムに並べ替える', `セッション 幅 ${String(width)}`, { maxGap: 2 * SPACE_3 });
-      await expectActionsBelongToHeading(page, '参加者', '代理参加者を追加', `セッション 幅 ${String(width)}`, { maxGap: 2 * SPACE_3 });
+      await expectActionsBelongToHeading(page, '参加者', 'ドライバー順をランダムに並べ替える', `セッション 幅 ${String(width)}`, { maxGap: 2 * SPACE_3, minGap: SPACE_3 - 1 });
+      await expectActionsBelongToHeading(page, '参加者', '代理参加者を追加', `セッション 幅 ${String(width)}`, { maxGap: 2 * SPACE_3, minGap: SPACE_3 - 1 });
     }
     // 「ランダム」のアイコンは 1rem（16px）。以前の `session-action-icon` と同じ大きさで、名簿の見出しの行の字（--font-size-sm 前後）と釣り合う
     const icon = await page.locator('button[aria-label="ドライバー順をランダムに並べ替える"] svg').first().evaluate((el) => ({ w: el.getBoundingClientRect().width, h: el.getBoundingClientRect().height }));
@@ -357,8 +390,8 @@ test.describe('縦に並ぶブロックの間は親が持つ', () => {
     await page.getByRole('tab', { name: 'ルーム' }).click();
     for (const width of [390, 768, 1024, 1280] as const) {
       await page.setViewportSize({ width, height: 900 });
-      await expectActionsBelongToHeading(page, '参加者', 'ドライバー順をランダムに並べ替える', `ルームのタブ 幅 ${String(width)}`, { maxGap: 2 * SPACE_3 });
-      await expectActionsBelongToHeading(page, '参加者', '代理参加者を追加', `ルームのタブ 幅 ${String(width)}`, { maxGap: 2 * SPACE_3 });
+      await expectActionsBelongToHeading(page, '参加者', 'ドライバー順をランダムに並べ替える', `ルームのタブ 幅 ${String(width)}`, { maxGap: 2 * SPACE_3, minGap: SPACE_3 - 1 });
+      await expectActionsBelongToHeading(page, '参加者', '代理参加者を追加', `ルームのタブ 幅 ${String(width)}`, { maxGap: 2 * SPACE_3, minGap: SPACE_3 - 1 });
     }
   });
 
