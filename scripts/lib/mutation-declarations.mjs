@@ -129,7 +129,7 @@ const RESERVED_1200_1209 =
   "**対応表より後に足した変異。** 1200〜1209 は #553 に割り当てた範囲（Issue の 1000〜1009 は #544 が、のちに取った 1060〜1069 は #562（PR #564）が先に main へ入れたため、離れた帯へ移した）。";
 
 const RESERVED_1210_1219 =
-  "**対応表より後に足した変異。** 1210〜1219 は #553 に追加で割り当てた範囲（1200〜1209 の続き。1080〜1089 から移した）。";
+  "**対応表より後に足した変異。** 1210〜1219 は #553 に追加で割り当てた範囲（1200〜1209 の続き。もとは #553 が 1080〜1089 として足した変異（1080〜1082）を、同じ帯を #566 が main で先に使ったため、この範囲へ振り直した）。";
 
 const RESERVED_1250_1259 =
   "**対応表より後に足した変異。** 1250〜1259 は #553 に追加で割り当てた範囲（1213〜1219 を使い切ったため。3 回目の敵対的レビューの指摘で足した）。";
@@ -6742,7 +6742,7 @@ export const MUTATIONS = [
   {
     id: 1272,
     label: "timer の `index.css` から `shuffle-button.css` の読み込みを外す",
-    patch: "m1272-shuffle-button-css-back-in-roster.patch",
+    patch: "m1272-timer-shuffle-button-css-import-removed.patch",
     pkg: "packages/ui",
     tests: ["tests/spacing-owner.test.mjs"],
     note: RESERVED_1270_1279 + " " + "#553。「ランダム」のボタンの中の並び（アイコンと字）が当たらなくなる。",
@@ -6761,7 +6761,7 @@ export const MUTATIONS = [
     patch: "m1273-timer-shared-memo-lead-no-shrink.patch",
     pkg: "packages/ui",
     tests: ["tests/spacing-owner.test.mjs"],
-    note: RESERVED_1250_1259 + " " + "#553。22rem の脇（1280 以上）で「編集」が見出しの下の行へ落ちる（一覧 #18 の再発）。E2E の `spacing.spec.ts`（1280・1920 で同じ行が必須）でも赤になる。",
+    note: RESERVED_1270_1279 + " " + "#553。22rem の脇（1280 以上）で「編集」が見出しの下の行へ落ちる（一覧 #18 の再発）。E2E の `spacing.spec.ts`（1280・1920 で同じ行が必須）でも赤になる。",
   },
   {
     id: 1274,
@@ -6781,10 +6781,26 @@ export const MUTATIONS = [
   },
   {
     id: 1277,
-    label: "poker の閉じた束の名前の入力から基準幅 0 の規則を外す（入力の固有幅が名前の列の基準になる）",
-    patch: "m1277-poker-estimate-input-intrinsic-width.patch",
+    label: "poker の閉じた束の名前の入力を編集中に場所を取る見えない複製（`.estimate-item-sizer`）を流れから外す（長い名前で、入力に替えると選択欄が同じ行へ跳ぶ）",
+    patch: "m1277-poker-estimate-sizer-not-in-flow.patch",
     pkg: "packages/ui",
     tests: ["tests/spacing-owner.test.mjs"],
-    note: RESERVED_1270_1279 + " " + "#553。名前の変更を始めると、選択欄が次の行へ落ちる（切り替えで行が跳ぶ）。E2E の `spacing.spec.ts` でも赤になる。",
+    note: RESERVED_1270_1279 + " " + "#553。名前の変更を始めると選択欄の行が跳ぶ（短い名前は次の行へ落ち、長い名前は同じ行へ上がる）。E2E の `spacing.spec.ts` でも赤になる。",
+  },
+  {
+    id: 1278,
+    label: "Markdown の段落の間を 4rem にする（広げても箱の上限が一緒に広がらないことを確かめる）",
+    patch: "m1278-markdown-paragraph-gap-4rem.patch",
+    pkg: "packages/ui",
+    tests: ["tests/spacing-owner.test.mjs"],
+    note: RESERVED_1270_1279 + " " + "#553。段落の間が 64px に広がる。E2E の `spacing.spec.ts`（8px ±1）と `layout.spec.ts`（3 行の箱の上限）の両方でも赤になる。",
+  },
+  {
+    id: 1279,
+    label: "`.ui-stack > *` のリセットを `:where(.ui-stack) > *`（詳細度 0）にする",
+    patch: "m1279-stack-reset-where-zero-specificity.patch",
+    pkg: "packages/ui",
+    tests: ["tests/spacing-owner.test.mjs"],
+    note: RESERVED_1270_1279 + " " + "#553。リセットが要素層の h2 の margin に負けて、gap に margin が足され、間が開きすぎる。",
   },
 ];

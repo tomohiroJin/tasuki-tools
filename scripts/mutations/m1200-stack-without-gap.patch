@@ -1,5 +1,4 @@
 diff --git a/packages/ui/src/components/stack.css b/packages/ui/src/components/stack.css
-index 6b65dc40..04aab020 100644
 --- a/packages/ui/src/components/stack.css
 +++ b/packages/ui/src/components/stack.css
 @@ -8,7 +8,6 @@
@@ -9,4 +8,4 @@ index 6b65dc40..04aab020 100644
 -  gap: var(--space-3);
  }
  
- /* 直下の子の縦の外側の余白を 0 にする。要素層の `h2` の `margin-top` などが `gap` に足されて間が開きすぎるのを防ぐ。 */
+ /* 直下の子の縦の外側の余白を 0 にする。要素層の `h2` の `margin-top` などが `gap` に足されて間が開きすぎるのを防ぐ。
