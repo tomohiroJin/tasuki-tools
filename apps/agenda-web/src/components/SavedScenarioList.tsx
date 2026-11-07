@@ -80,7 +80,7 @@ export function SavedScenarioList({ scenario, suggestedName, onPick }: Props) {
 
   const sorted = [...items].sort((a, b) => b.savedAt - a.savedAt);
   return (
-    <section className="ui-panel builder-saved ui-stack" aria-labelledby={headingId}>
+    <section className="ui-panel ui-stack" aria-labelledby={headingId}>
       <h2 id={headingId}>{SAVED_HEADING}</h2>
       {sorted.length > 0 && (
         <ul className="builder-saved-list ui-stack ui-stack--tight" aria-labelledby={headingId}>
