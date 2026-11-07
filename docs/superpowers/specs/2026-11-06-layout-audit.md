@@ -89,7 +89,7 @@
 | # | 直し方 | 確かめ方 |
 |---|---|---|
 | 1 | poker の参加者の区画を `.ui-stack`、見出しの行を `.ui-section-head` にした。画面の `.room-participants-head` は消した。見出しの行と札の並びの間は `--space-3`（12px） | `e2e/specs/spacing.spec.ts`（320・390・768・1280・1920 で 12px 以上）。変異 1200・1204・1205 |
-| 3 | `.ui-md > * + *` を `.ui-md.ui-md > * + *` にして、子の `.ui-md-p { margin: 0 }` に詳細度で勝たせた。`gap` の flex にすると 64rem 未満の 3 行の写し（`-webkit-line-clamp`）が行数で切れなくなる（実測）ので、ADR 0035 決定 1 の例外にした | `spacing.spec.ts`（段落の間 8px 以上）。3 行で切る検査（`layout.spec.ts`）は、字の行数の数え上げに加えて箱の高さの上限（行の高さ × 3.5（timer は × 3 ＋ 1）に、実測した段落の間 2 つぶんを足した値）を戻した（弱めない）。変異 1203 |
+| 3 | `.ui-md > * + *` の規則を、子のリセット（`.ui-md-p { margin: 0 }` ほか）より後ろへ移して後勝ちにした（クラスを重ねる回避はしない）。`gap` の flex にすると 64rem 未満の 3 行の写し（`-webkit-line-clamp`）が行数で切れなくなる（実測）ので、ADR 0035 決定 1 の例外にした | `spacing.spec.ts`（段落の間 8px ±1）。3 行で切る検査（`layout.spec.ts`）は、字の行数の数え上げに加えて箱の高さの上限（行の高さ × 3.5（timer は × 3 ＋ 1）に、トークン `--space-2` の値 8px の 2 つぶんを足した値）を戻した（弱めない）。変異 1203 |
 | 6 | 「ランダム」を `RosterPanel` の見出しの行（「代理追加」の隣）へ移した。セッション・ルームのタブの両方 | `spacing.spec.ts`（見出しの行の中にある）。`RosterPanel.shuffle-in-header.test.tsx`。変異 1207 |
 | 18 | 共有メモの見出しの行を `.ui-section-head` にし、題と印のまとまりが縮んで「編集」が見出しの右に残るようにした（以前は 22rem の脇で下の行へ落ちた） | `spacing.spec.ts`（1280・1920 で「編集」が見出しと同じ行が必須）。`.shared-memo-lead` を main の形に戻す変異 1273 で、E2E が赤になることを確認（5 回目のレビューで、1 回目は 1280 の判定が緩く、戻しても緑だったことを直した） |
 | 33 | timer の `SectionHeader` を `.ui-section-head` にした（横の間 `--space-3`） | 変異 1206 |
