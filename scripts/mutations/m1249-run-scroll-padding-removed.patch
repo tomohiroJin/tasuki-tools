@@ -1,0 +1,22 @@
+# 変異 1249: run-scroll-padding-removed
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/run-controls-opaque.test.ts
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外）
+#
+# #554 のレビュー。64rem 未満で進行表の「スキップ」に Tab で行くと、不透明な帯の後ろに隠れる（WCAG 2.4.11）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1249-*.patch
+# 復元: git apply -R scripts/mutations/m1249-*.patch
+diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
+--- a/apps/agenda-web/src/run.css
++++ b/apps/agenda-web/src/run.css
+@@ -16,7 +16,6 @@
+    40rem 未満の reset.css の `--dock-max-height` と、40〜64rem の「無し」を上書きする。`:has` は宣言を置く条件だけに使う */
+ @media (width < 64rem) {
+   html:has(.run-controls) {
+-    scroll-padding-block-end: calc(var(--run-controls-height) + env(safe-area-inset-bottom));
+   }
+ }
+ 

@@ -1,0 +1,22 @@
+# 変異 1241: dock-select-full-width-removed
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/dock-and-narrow-header.test.mjs
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外）
+#
+# #554 のレビュー。選択欄が 1 列の幅（約 138px）に押し込まれ、選んだ字（約 128px）が選択欄の中の幅（約 104px）に収まらず切れる。E2E の選択欄の字の測りで赤になる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1241-*.patch
+# 復元: git apply -R scripts/mutations/m1241-*.patch
+diff --git a/packages/ui/src/components/actions.css b/packages/ui/src/components/actions.css
+--- a/packages/ui/src/components/actions.css
++++ b/packages/ui/src/components/actions.css
+@@ -74,7 +74,6 @@
+   }
+ 
+   /* 選択欄（poker の「ポイント（任意）」）と控えの包みは、操作を数える対象から外し、位置によらず 1 段を使う。 */
+-  .ui-actions--dock > select,
+   .ui-actions--dock > .ui-actions-start {
+     grid-column: 1 / -1;
+   }

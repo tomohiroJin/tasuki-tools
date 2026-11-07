@@ -11,7 +11,8 @@
     "./base.css": "./src/elements/reset.css",
     "./controls.css": "./src/elements/controls.css",
     "./card.css": "./src/elements/card.css",
-    "./components.css": "./src/components/index.css"
+    "./components.css": "./src/components/index.css",
+    "./test-support/css-text.mjs": "./tests/support/css-text.mjs"
   },
   "scripts": {
     "lint": "stylelint \"src/**/*.css\"",

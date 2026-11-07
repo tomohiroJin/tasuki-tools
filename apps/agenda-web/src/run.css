@@ -5,6 +5,21 @@
    ============================================================ */
 
 /* ── 段組み ─────────────────────────────────────────────── */
+/* 帯（`.run-controls`）の高さの上限。実測（既定の文字の大きさ）は 320〜639px で 161.39〜162.22px、640〜1023px で 133px（上の線 1px ＋ 余白と 2 段）。
+   実測より大きく丸めた手書きの値で、E2E（`header-and-dock.spec.ts`）が帯の実際の高さがこの値以下であることを測る（ずれたら赤）。文字を拡大したときの折り返しは測っていない。
+   `.run` の下の余白と、Tab の送り先の余白（下の `scroll-padding-block-end`）が同じ値を引く */
+:root {
+  --run-controls-height: 10.5rem;
+}
+
+/* 帯が `fixed` の幅（64rem 未満）は、Tab で辿った先が帯の後ろに隠れない（WCAG 2.4.11）よう、フォーカスで送るときの下の余白を帯の高さに揃える。
+   40rem 未満の reset.css の `--dock-max-height` と、40〜64rem の「無し」を上書きする。`:has` は宣言を置く条件だけに使う */
+@media (width < 64rem) {
+  html:has(.run-controls) {
+    scroll-padding-block-end: calc(var(--run-controls-height) + env(safe-area-inset-bottom));
+  }
+}
+
 /* 手元（〜64rem）: 盤 → 進行表 → 「最初から」を積み、主の操作の帯は画面の下に固定する。
    帯の高さぶん下を空けて、最後の行が帯の下に隠れないようにする */
 .run {
@@ -15,7 +30,9 @@
     'dial'
     'aside';
   gap: var(--space-4);
-  padding-bottom: 9.5rem;
+  /* 帯（`.run-controls`・固定）の高さ（上の `--run-controls-height`）に、iPhone のホームバーの高さ
+     （`env(safe-area-inset-bottom)`・帯も同じだけ下の余白を足している）を足す。足りないと、最下部で最後の行や「最初から」が不透明な帯に隠れる（#554） */
+  padding-bottom: calc(var(--run-controls-height) + env(safe-area-inset-bottom));
 }
 .run--finished {
   padding-bottom: 0;
@@ -156,7 +173,8 @@
 }
 
 /* ── 主の操作の帯 ─────────────────────────────────────── */
-/* 手元では画面の下に固定する。地はフェルトの暗幕で、上へ向かって溶かす */
+/* 手元では画面の下に固定する。地は不透明なフェルト（帯の約束・`packages/ui/README.md`）。
+   以前は上へ向かって透明に溶かしていたが、帯の字「このステップに」の後ろに進行表の字が透けて重なった（#554・#2） */
 .run-controls {
   position: fixed;
   inset-inline: 0;
@@ -165,7 +183,8 @@
   display: grid;
   gap: var(--space-3);
   padding: var(--space-4) clamp(var(--space-4), 4vw, var(--space-6)) calc(var(--space-4) + env(safe-area-inset-bottom));
-  background: linear-gradient(to top, var(--felt-950) 72%, transparent);
+  background: var(--dock-ground);
+  border-top: 1px solid var(--dock-edge);
 }
 @media (width >= 64rem) {
   .run-controls {
@@ -174,6 +193,7 @@
     justify-self: center;
     padding: 0;
     background: none;
+    border-top: 0;
   }
 }
 /* 延長の群。狭い幅（〜40rem）では見出し「このステップに」を 1 行目に置き、3 つのボタンを 2 行目で等分する
@@ -548,6 +568,16 @@
   color: var(--ivory-dim);
 }
 
+/* 操作帯（`.projection-strip`・fixed・不透明）が出ている間は、帯の高さの分を中身の下に取る（下端の情報が帯に隠れない）。
+   帯の高さの上限は実測（既定の文字の大きさ）で 320px の 149.4px・390px の 101.6px・768px 以上は 69px。実測より大きく丸めた手書きの値で、
+   E2E（`header-and-dock.spec.ts`）が帯の実際の高さがこの値以下であることを測る。文字を拡大したときの折り返しは測っていない */
+:root {
+  --projection-strip-height: 10rem;
+}
+.projection:has(> .projection-strip.is-shown, > .projection-strip:focus-within) > .projection-body {
+  padding-block-end: calc(var(--space-6) + var(--projection-strip-height) + env(safe-area-inset-bottom));
+}
+
 /* マウスを動かしたときだけ出す薄い操作帯。キーボードで入ったときも出す */
 .projection-strip {
   position: fixed;
@@ -559,7 +589,9 @@
   justify-content: center;
   gap: var(--space-3);
   padding: var(--space-4);
-  background: linear-gradient(to top, var(--felt-scrim), transparent);
+  /* 地は不透明（帯の約束）。以前は上へ透明に溶かしていて、ボタンの字の後ろに映す大きな字が透けて重なった（#554）。見えない間は opacity: 0 で消える */
+  background: var(--dock-ground);
+  border-top: 1px solid var(--dock-edge);
   opacity: 0;
   /* 見えない間は押させない（透明なボタンを誤って押さない） */
   pointer-events: none;

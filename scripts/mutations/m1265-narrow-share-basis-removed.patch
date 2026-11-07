@@ -1,0 +1,22 @@
+# 変異 1265: narrow-share-basis-removed
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/dock-and-narrow-header.test.mjs
+#   - e2e/specs/panels-headers.spec.ts（実際の見え方。変異検査の外）
+#
+# #554 のレビュー。40rem 未満で開いた招待の欄が行いっぱい（flex-basis: 100%）でなくなり、「仲間を招く」と同じ行に並んで欄が潰れる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1265-*.patch
+# 復元: git apply -R scripts/mutations/m1265-*.patch
+diff --git a/packages/ui/src/components/room-header.css b/packages/ui/src/components/room-header.css
+--- a/packages/ui/src/components/room-header.css
++++ b/packages/ui/src/components/room-header.css
+@@ -196,7 +196,6 @@
+   }
+ 
+   .ui-room-header:not(.ui-room-header--compact) .ui-room-header-share {
+-    flex-basis: 100%;
+   }
+ }
+ 

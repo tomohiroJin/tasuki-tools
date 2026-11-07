@@ -1,0 +1,23 @@
+# 変異 1244: run-padding-zero
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/run-controls-opaque.test.ts
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外）
+#
+# #554 のレビュー。最下部で進行表の最後の行が不透明な帯に隠れる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1244-*.patch
+# 復元: git apply -R scripts/mutations/m1244-*.patch
+diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
+--- a/apps/agenda-web/src/run.css
++++ b/apps/agenda-web/src/run.css
+@@ -32,7 +32,7 @@
+   gap: var(--space-4);
+   /* 帯（`.run-controls`・固定）の高さ（上の `--run-controls-height`）に、iPhone のホームバーの高さ
+      （`env(safe-area-inset-bottom)`・帯も同じだけ下の余白を足している）を足す。足りないと、最下部で最後の行や「最初から」が不透明な帯に隠れる（#554） */
+-  padding-bottom: calc(var(--run-controls-height) + env(safe-area-inset-bottom));
++  padding-bottom: 0;
+ }
+ .run--finished {
+   padding-bottom: 0;

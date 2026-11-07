@@ -16,6 +16,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { mediaBlock, outsideMedia, rules } from './support/css-text.mjs';
 
 const COMPONENTS = resolve(dirname(fileURLToPath(import.meta.url)), '../src/components');
 const read = (name) => readFileSync(resolve(COMPONENTS, name), 'utf8');
@@ -31,32 +32,6 @@ const COMPACT_SHOW_SELECTOR = '.ui-room-header.ui-room-header--compact .ui-room-
 
 /** 狭い幅でたたむ規則の選択子。許可リストの外の形なので、字の完全一致で見る。 */
 const NARROW_FOLD_SELECTOR = ".ui-room-header-share:not([data-open='true'])";
-
-/** コメントを落とす。 */
-const stripComments = (css) => css.replace(/\/\*[\s\S]*?\*\//g, '');
-
-/** `head` で始まる @media の中身（波括弧の対応で切り出す）。同じ頭の @media が 2 つあれば読み分けられないので赤にする。 */
-function mediaBlock(css, head) {
-  const plain = stripComments(css);
-  const at = plain.indexOf(head);
-  assert.notEqual(at, -1, `${head} が無い`);
-  assert.equal(plain.indexOf(head, at + 1), -1, `${head} が 2 つ以上ある。この検査では読み分けられない。検査を書き直す`);
-  const open = plain.indexOf('{', at);
-  let depth = 0;
-  for (let i = open; i < plain.length; i += 1) {
-    if (plain[i] === '{') depth += 1;
-    if (plain[i] === '}') {
-      depth -= 1;
-      if (depth === 0) return plain.slice(open + 1, i);
-    }
-  }
-  throw new Error(`${head} が閉じていない`);
-}
-
-/** コメントを落とした CSS から、`selector { body }` の組を拾う（入れ子の無いブロックの中身に使う）。 */
-function rules(css) {
-  return [...stripComments(css).matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({ selector: m[1].trim(), body: m[2] }));
-}
 
 /** 組だけの選択子の組の数。許可リストの外の形は読まずに赤にする。 */
 function classCount(selector) {
@@ -124,26 +99,6 @@ const COMPACT_FOLD_SELECTOR = ".ui-room-header--compact .ui-room-header-share:no
 
 /** 詰めた見た目の狭い幅で、道具名を目に出さず読み上げにだけ残す規則の選択子。 */
 const COMPACT_NARROW_TITLE_SELECTOR = '.ui-room-header--compact .ui-room-header-title > h1';
-
-/** コメントを落とし、@media の塊（波括弧の対応で切り出す）を除いた残り。@media の外に置いた規則を読むのに使う。 */
-function outsideMedia(css) {
-  let plain = stripComments(css);
-  for (let at = plain.indexOf('@media'); at !== -1; at = plain.indexOf('@media')) {
-    const open = plain.indexOf('{', at);
-    let depth = 0;
-    let end = -1;
-    for (let i = open; i < plain.length && end === -1; i += 1) {
-      if (plain[i] === '{') depth += 1;
-      if (plain[i] === '}') {
-        depth -= 1;
-        if (depth === 0) end = i;
-      }
-    }
-    assert.notEqual(end, -1, '@media が閉じていない');
-    plain = plain.slice(0, at) + plain.slice(end + 1);
-  }
-  return plain;
-}
 
 test('Given @media の外 / When 詰めた見た目の招待の欄の規則を読む / Then 幅によらず開いていない間を display: none にする規則がちょうど 1 つある', () => {
   // 広い幅の詰めた見た目は「仲間を招く」を出すので、欄をたたむ規則が @media の外に無いと、開く前から欄が出て見出しが高くなる

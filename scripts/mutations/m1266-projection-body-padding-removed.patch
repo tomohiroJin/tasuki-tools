@@ -1,0 +1,23 @@
+# 変異 1266: projection-body-padding-removed
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/run-controls-opaque.test.ts
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外。映す表示の最下部の中身が帯に隠れて赤）
+#
+# #554 のレビュー。映す表示の操作帯（fixed・不透明）が出ている間の中身の下の余白が消え、下端の情報（「予定の終わり」など）が帯に隠れる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1266-*.patch
+# 復元: git apply -R scripts/mutations/m1266-*.patch
+diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
+--- a/apps/agenda-web/src/run.css
++++ b/apps/agenda-web/src/run.css
+@@ -575,7 +575,7 @@
+   --projection-strip-height: 10rem;
+ }
+ .projection:has(> .projection-strip.is-shown, > .projection-strip:focus-within) > .projection-body {
+-  padding-block-end: calc(var(--space-6) + var(--projection-strip-height) + env(safe-area-inset-bottom));
++  padding-block-end: var(--space-6);
+ }
+ 
+ /* マウスを動かしたときだけ出す薄い操作帯。キーボードで入ったときも出す */

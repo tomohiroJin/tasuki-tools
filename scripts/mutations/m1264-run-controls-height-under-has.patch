@@ -1,0 +1,29 @@
+# 変異 1264: run-controls-height-under-has
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/run-controls-opaque.test.ts
+#
+# #554 のレビュー。帯の高さの変数が 64rem 未満の `html:has(.run-controls)` の中へ戻り、64rem 以上では未定義になる（`.run` の下の余白が無効になる）。無条件の :root に置く約束を破る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1264-*.patch
+# 復元: git apply -R scripts/mutations/m1264-*.patch
+diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
+--- a/apps/agenda-web/src/run.css
++++ b/apps/agenda-web/src/run.css
+@@ -8,14 +8,11 @@
+ /* 帯（`.run-controls`）の高さの上限。実測（既定の文字の大きさ）は 320〜639px で 161.39〜162.22px、640〜1023px で 133px（上の線 1px ＋ 余白と 2 段）。
+    実測より大きく丸めた手書きの値で、E2E（`header-and-dock.spec.ts`）が帯の実際の高さがこの値以下であることを測る（ずれたら赤）。文字を拡大したときの折り返しは測っていない。
+    `.run` の下の余白と、Tab の送り先の余白（下の `scroll-padding-block-end`）が同じ値を引く */
+-:root {
+-  --run-controls-height: 10.5rem;
+-}
+-
+ /* 帯が `fixed` の幅（64rem 未満）は、Tab で辿った先が帯の後ろに隠れない（WCAG 2.4.11）よう、フォーカスで送るときの下の余白を帯の高さに揃える。
+    40rem 未満の reset.css の `--dock-max-height` と、40〜64rem の「無し」を上書きする。`:has` は宣言を置く条件だけに使う */
+ @media (width < 64rem) {
+   html:has(.run-controls) {
++    --run-controls-height: 10.5rem;
+     scroll-padding-block-end: calc(var(--run-controls-height) + env(safe-area-inset-bottom));
+   }
+ }

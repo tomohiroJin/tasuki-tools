@@ -1,0 +1,23 @@
+# 変異 1220: dock-background-translucent
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/dock-and-narrow-header.test.mjs
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外）
+#
+# #554。帯の地が暗幕（α 0.92）に戻り、後ろの中身の字が帯の字に透けて重なって読めない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1220-*.patch
+# 復元: git apply -R scripts/mutations/m1220-*.patch
+diff --git a/packages/ui/src/components/actions.css b/packages/ui/src/components/actions.css
+--- a/packages/ui/src/components/actions.css
++++ b/packages/ui/src/components/actions.css
+@@ -66,7 +66,7 @@
+     margin-inline: calc(clamp(var(--space-4), 4vw, calc(var(--space-6) * 1.5)) * -1);
+     padding: var(--space-3) clamp(var(--space-4), 4vw, calc(var(--space-6) * 1.5)) calc(var(--space-3) + env(safe-area-inset-bottom));
+     border-top: 1px solid var(--dock-edge);
+-    background: var(--dock-ground);
++    background: var(--felt-scrim);
+   }
+ 
+   .ui-actions--dock > :nth-child(odd of :not([hidden], .ui-visually-hidden, select, .ui-actions-start)):nth-last-child(1 of :not([hidden], .ui-visually-hidden, select, .ui-actions-start)) {

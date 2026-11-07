@@ -10,13 +10,12 @@
 #       git apply scripts/mutations/m479-*.patch
 # 復元: git apply -R scripts/mutations/m479-*.patch
 diff --git a/packages/invite-ui/src/RoomHeader.tsx b/packages/invite-ui/src/RoomHeader.tsx
-index f16c5bce..4308fcc5 100644
 --- a/packages/invite-ui/src/RoomHeader.tsx
 +++ b/packages/invite-ui/src/RoomHeader.tsx
-@@ -100,7 +100,7 @@ export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras }
-             <span className="ui-room-header-code-value">{roomCode}</span>
-           </p>
+@@ -135,7 +135,7 @@
            <div className="ui-invite">
+             {/* 狭い幅では末尾が「…」に省略される。全文は 1 回押して選ぶ・コピー・読み上げ（字そのもの）で渡す。`title`・`aria-label` は付けない
+                 （触る端末ではツールチップが出ず、読み上げで URL が二重になる）。ルームを見分けるのは隣の「ルーム XXXXXX」と QR。 */}
 -            <span className="ui-invite-url">{inviteUrl}</span>
 +            <span className="ui-invite-url" aria-label={inviteUrl}>{inviteUrl}</span>
              {/* ボタンと浮かぶ QR を包む。外側を押したかの判定と、QR を浮かべる位置の基準にする。 */}

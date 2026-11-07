@@ -1,0 +1,23 @@
+# 変異 1246: invite-url-title-added
+#
+# 検出を期待するテスト:
+#   - packages/invite-ui/tests/room-header.test.tsx
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外）
+#
+# #554 のレビュー。URL の span に title を付けると、触る端末ではツールチップが出ず、読み上げで URL が二重になる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1246-*.patch
+# 復元: git apply -R scripts/mutations/m1246-*.patch
+diff --git a/packages/invite-ui/src/RoomHeader.tsx b/packages/invite-ui/src/RoomHeader.tsx
+--- a/packages/invite-ui/src/RoomHeader.tsx
++++ b/packages/invite-ui/src/RoomHeader.tsx
+@@ -135,7 +135,7 @@
+           <div className="ui-invite">
+             {/* 狭い幅では末尾が「…」に省略される。全文は 1 回押して選ぶ・コピー・読み上げ（字そのもの）で渡す。`title`・`aria-label` は付けない
+                 （触る端末ではツールチップが出ず、読み上げで URL が二重になる）。ルームを見分けるのは隣の「ルーム XXXXXX」と QR。 */}
+-            <span className="ui-invite-url">{inviteUrl}</span>
++            <span className="ui-invite-url" title={inviteUrl}>{inviteUrl}</span>
+             {/* ボタンと浮かぶ QR を包む。外側を押したかの判定と、QR を浮かべる位置の基準にする。 */}
+             <div ref={qrAnchorRef} className="ui-room-header-qr-anchor" onKeyDown={closeQrOnEscape} onBlur={closeQrOnFocusLeave}>
+               <button

@@ -1,0 +1,23 @@
+# 変異 1242: dock-ground-translucent
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/dock-and-narrow-header.test.mjs
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外）
+#
+# #554 のレビュー。帯の地（部品も agenda も同じトークン）が暗幕に戻り、後ろの字が帯の字に透けて重なる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1242-*.patch
+# 復元: git apply -R scripts/mutations/m1242-*.patch
+diff --git a/packages/ui/src/tokens/palette.css b/packages/ui/src/tokens/palette.css
+--- a/packages/ui/src/tokens/palette.css
++++ b/packages/ui/src/tokens/palette.css
+@@ -101,7 +101,7 @@
+   --felt-shade: rgba(7, 31, 24, 0.7); /* 背後を残す幕（ダイアログの下敷き） */
+   /* 下端に留まる帯の約束の値（#554・`packages/ui/README.md` の「帯の約束」）。部品の帯（`.ui-actions--dock`）と、倣う画面の帯（agenda の
+    * `.run-controls`・`.projection-strip`）が同じ地と上の線を 1 か所から引く。地は不透明（字の後ろに中身を透かさない） */
+-  --dock-ground: var(--felt-950);
++  --dock-ground: var(--felt-scrim);
+   --dock-edge: var(--line-strong);
+   /* 下端の帯（2 段）の最大の高さ。Tab で送った先が帯の後ろに隠れない余白（`scroll-padding-block-end`）に使う（WCAG 2.4.11）。
+    * 実測（既定の文字の大きさ）: poker の公開後（選択欄 1 段 ＋ 操作 1 段）142.2px・timer の休憩つき（2×2）125px・poker の投票中（1 段）約 80px。
