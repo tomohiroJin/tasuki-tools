@@ -496,7 +496,7 @@
 /* 束の見出しの中の名前（`size="inline"`・#427）。記録の中で一番強く見せるのは添えたポイント（#93 §4.4）なので、
    枠を透かし、字は普通の太さにして、押せることは下線で示す（押せる大きさは部品が保つ）。
    **名前の列の基準幅を決めるのは `.estimate-group-head > .estimate-group-item`（下）だけ**。この包みは、そのなかで名前のボタンの大きさを持つ。
-   編集中もボタンと同じ大きさの場所を取る: 見えない複製（`.estimate-item-sizer`）が流れに残って場所を取り、入力は包みいっぱいに重ねる。
+   編集中もボタンと同じ大きさの場所を取る: 見えない複製（`.estimate-item-sizer`）が流れに残って場所を取り、入力は包みの上端に重ねる。
    入力の固有の幅（size=20・約 180px）を持ち込むと名前の列の基準幅が変わり、選択欄の行が跳ぶ。入力の幅は 0 にしない（0 にすると、
    重ねた入力の幅 100% が潰れて 18px になり、長い名前では逆向きに跳ぶ）。 */
 .estimate-item--inline {
@@ -519,16 +519,31 @@
   text-underline-offset: 0.2em;
 }
 
+/* ボタンと同じ大きさの場所だけを取る見えない複製（`<span>`。`.estimate-item-title` のクラスは持たず、ボタンの部品 `ui-button` で同じ寸法にする） */
 .estimate-item--inline .estimate-item-sizer {
   visibility: hidden;
   pointer-events: none;
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+  max-width: 100%;
+  justify-content: flex-start;
+  text-align: start;
+  border-color: transparent;
+  font-family: inherit;
+  font-size: inherit; /* scale-exempt: 束の見出しの字と同じ大きさを継ぐ */
+  font-weight: 400;
+  padding-inline: var(--space-2);
+  overflow-wrap: anywhere;
 }
 
+/* 入力は 1 行の高さ（押せる大きさ）で、包みの上端にそろえる（複製が何行に折れても、入力は伸びない） */
 .estimate-item--inline .estimate-item-input {
   position: absolute;
-  inset: 0;
+  inset-block-start: 0;
+  inset-inline: 0;
   inline-size: 100%;
-  block-size: 100%;
+  block-size: var(--tap-target);
   min-inline-size: 0;
 }
 
@@ -583,6 +598,7 @@
 
 .estimate-group-open {
   flex: none;
+  margin-inline-start: auto; /* ポイントの選択欄と同じく右端へ寄せる（長い名前で次の行へ落ちても右端） */
   font-size: var(--font-size-sm);
   color: var(--coal-soft);
 }

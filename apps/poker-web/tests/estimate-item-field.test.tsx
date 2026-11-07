@@ -128,18 +128,20 @@ describe('EstimateItemField', () => {
       const { container } = render(<EstimateItemField item="A" onCommit={vi.fn()} disabled={false} size="inline" />);
       fireEvent.click(screen.getByRole('button'));
       expect(screen.queryAllByRole('button')).toHaveLength(0);
-      const sizer = container.querySelector('.estimate-item-sizer') as HTMLButtonElement;
+      const sizer = container.querySelector('.estimate-item-sizer') as HTMLElement;
       expect(sizer).not.toBeNull();
       expect(sizer.getAttribute('aria-hidden')).toBe('true');
       expect(sizer.textContent).toBe('A');
     });
 
-    it('Given 編集中 / When 複製を調べる / Then Tab の行き先にならない（tabIndex=-1・disabled）', () => {
+    it('Given 編集中 / When 複製を調べる / Then Tab の行き先にならず（tabIndex=-1・disabled）、.estimate-item-title のクラスを持たない', () => {
       const { container } = render(<EstimateItemField item="A" onCommit={vi.fn()} disabled={false} size="inline" />);
       fireEvent.click(screen.getByRole('button'));
-      const sizer = container.querySelector('.estimate-item-sizer') as HTMLButtonElement;
+      const sizer = container.querySelector('.estimate-item-sizer') as HTMLElement;
       expect(sizer.tabIndex).toBe(-1);
-      expect(sizer.disabled).toBe(true);
+      expect((sizer as HTMLButtonElement).disabled).toBe(true);
+      expect(sizer.classList.contains('estimate-item-title')).toBe(false);
+      expect(container.querySelectorAll('.estimate-item-title')).toHaveLength(0);
     });
 
     it('Given 通常（title）の欄 / When 編集する / Then 複製は無い', () => {
