@@ -31,7 +31,7 @@ const MAIN_MIN = 32 * REM;
  * 3 行の写し（`.ui-reader-preview`）で、見えている字の行の数と、字の行の総数。
  * 高さの上限で見ると、段落の間（`--space-2`）の大きさで上限を動かさないといけず、間を変えるたびに検査を緩めることになる。
  * 行の数なら間の大きさに依らない。字の矩形（`Range.getClientRects()`）の上端を行ごとに束ね、
- * 写しの箱の中（下端が箱の下端以内）にある行だけを「見えている」と数える。切られた行も矩形は残るので、総数は見えている数より多くなる。
+ * 写しの箱に少しでも掛かっている行（上端が箱の下端より上）を「見えている」と数える。切られた行も矩形は残るので、総数は見えている数より多くなる。
  */
 async function previewLines(page: Page, selector: string): Promise<{ visible: number; total: number }> {
   return page.locator(selector).first().evaluate((el) => {
@@ -52,7 +52,8 @@ async function previewLines(page: Page, selector: string): Promise<{ visible: nu
       if (last !== undefined && r.top - last.top < (last.bottom - last.top) / 2) last.bottom = Math.max(last.bottom, r.bottom);
       else rows.push({ ...r });
     }
-    return { visible: rows.filter((r) => r.top >= box.top - 1 && r.bottom <= box.bottom + 1).length, total: rows.length };
+    // 見えている行: 上端が箱の中にある行（半分だけ覗いている行も数える。下端まで収まる行だけを数えると、4 行目が半分見えていても見逃す）
+    return { visible: rows.filter((r) => r.top < box.bottom - 0.5 && r.bottom > box.top + 0.5).length, total: rows.length };
   });
 }
 

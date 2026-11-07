@@ -88,18 +88,23 @@ test('Given poker のルーム / When 参加者の欄を探す / Then 区画は 
   const before = src.slice(0, at);
   const section = before.slice(before.lastIndexOf('<section'));
   assert.match(section, /^<section className="ui-stack">/);
-  assert.match(section, /<div className="room-participants-head ui-section-head">/);
-  // 画面が持つのは「見出しの隣に置く」寄せだけ。並び（flex・折り返し・間）の写しは持たない
-  const body = ruleBody(read('apps/poker-web/src/index.css'), '.room-participants-head');
-  assert.notEqual(body, null);
-  assert.match(body, /justify-content:\s*flex-start;/);
-  assert.doesNotMatch(body, /display:|flex-wrap:|gap:/);
+  // 見出しの隣へ寄せるのは部品の修飾（画面の上書きは持たない）
+  assert.match(section, /<div className="ui-section-head ui-section-head--beside">/);
+  assert.doesNotMatch(read('apps/poker-web/src/index.css'), /room-participants-head/);
 });
 
-test('Given poker の束の見出しの行 / When 規則を読む / Then 折り返してよく、名前の列が 12rem を基準に主になる（左に名前・右にポイント）', () => {
+test('Given poker の束の見出しの行 / When 規則を読む / Then 名前の列は flex: 1 1 auto・min-width: 0（基準幅を持たず、収まる名前は同じ行）で、折り返しは部品に任せる', () => {
   const css = read('apps/poker-web/src/index.css');
-  assert.match(ruleBody(css, '.estimate-group-head') ?? '', /flex-wrap:\s*wrap;/);
-  assert.match(css, /\.estimate-group-head > \.estimate-group-item \{[^}]*flex:\s*1 1 12rem;[^}]*min-width:\s*0;/);
+  assert.match(css, /\.estimate-group-head > \.estimate-group-item \{[^}]*flex:\s*1 1 auto;[^}]*min-width:\s*0;/);
+  assert.doesNotMatch(css, /estimate-group-head > \.estimate-group-item \{[^}]*flex:\s*1 1 [0-9]/);
+  // 折り返し（部品の宣言の写し）と、どこにも当たらない子の規則は画面に持たない
+  assert.equal(ruleBody(css, '.estimate-group-head'), null);
+  assert.doesNotMatch(css, /\.estimate-group-head > \.estimate-item--inline/);
+});
+
+test('Given 部品 .ui-section-head--beside と .ui-stack--tight / When 規則を読む / Then 寄せと間の値を持つ', () => {
+  assert.match(ruleBody(read('packages/ui/src/components/section-head.css'), '.ui-section-head--beside') ?? '', /justify-content:\s*flex-start;/);
+  assert.match(ruleBody(read('packages/ui/src/components/stack.css'), '.ui-stack--tight') ?? '', /gap:\s*var\(--space-2\);/);
 });
 
 test('Given roulette の見出しの行 / When 規則を読む / Then 見出しと小さな字を基準線で揃える', () => {
@@ -139,7 +144,7 @@ test('Given roulette の空の知らせ / When 規則と JSX を読む / Then �
 test('Given poker の見積もりの記録 / When 束の見出しの行を探す / Then ui-section-head', () => {
   const src = read('apps/poker-web/src/components/EstimateLog.tsx');
   assert.ok(classNameOf(src, 'estimate-group-head').includes('ui-section-head'));
-  assert.ok(classNameOf(src, 'estimate-group').includes('ui-stack'));
+  assert.ok(classNameOf(src, 'estimate-group').includes('ui-stack--tight'));
 });
 
 test('Given roulette のいつものメンツ / When 区画と見出しの行を探す / Then ui-stack と ui-section-head', () => {
@@ -150,7 +155,7 @@ test('Given roulette のいつものメンツ / When 区画と見出しの行を
 
 test('Given timer の見出しの行 / When SectionHeader と共有メモを探す / Then どちらも ui-section-head', () => {
   // className は beside の有無で選ぶ式なので、2 つの文字列のどちらにも ui-section-head があることを見る
-  assert.equal([...read('apps/timer-web/src/ui/primitives.tsx').matchAll(/"section-header[^"]*ui-section-head"/g)].length, 2);
+  assert.equal([...read('apps/timer-web/src/ui/primitives.tsx').matchAll(/"section-header ui-section-head[^"]*"/g)].length, 2);
   assert.ok(classNameOf(read('apps/timer-web/src/ui/components/SharedMemo.tsx'), 'shared-memo-header').includes('ui-section-head'));
 });
 
@@ -182,16 +187,31 @@ test('Given roulette の空の知らせ / When :empty の規則を読む / Then 
 test('Given timer の名簿の見出しの行 / When SectionHeader の使い方と規則を読む / Then ロビーと名簿は beside で操作を見出しの隣へ寄せる（行の反対の端へ離さない）', () => {
   assert.match(read('apps/timer-web/src/ui/Lobby.tsx'), /<SectionHeader\s[^>]*\bbeside\b/);
   assert.match(read('apps/timer-web/src/ui/components/RosterPanel.tsx'), /<SectionHeader\s[^>]*\bbeside\b/);
-  assert.match(read('apps/timer-web/src/ui/primitives.tsx'), /section-header--beside/);
-  assert.match(ruleBody(read('apps/timer-web/src/styles/primitives.css'), '.section-header--beside') ?? '', /justify-content:\s*flex-start;/);
+  assert.match(read('apps/timer-web/src/ui/primitives.tsx'), /ui-section-head ui-section-head--beside/);
+  // 画面の上書きは持たない（部品の修飾を当てる）
+  assert.doesNotMatch(read('apps/timer-web/src/styles/primitives.css'), /section-header--beside/);
 });
 
-test('Given poker の束のポイントの選択 / When 規則を読む / Then 字を切らず・縮めず右端へ寄せ、行は折り返してよく、名前の列が主（12rem）', () => {
+test('Given poker の束のポイントの選択 / When 規則を読む / Then 字を切らず・縮めず右端へ寄せ、行は折り返してよく、名前の列が主', () => {
   const css = read('apps/poker-web/src/index.css');
   const points = ruleBody(css, '.estimate-log .estimate-group-points') ?? '';
   assert.match(points, /flex:\s*0 0 auto;/);
   assert.match(points, /margin-inline-start:\s*auto;/);
   assert.doesNotMatch(points, /overflow:\s*hidden|text-overflow|max-inline-size/);
   assert.doesNotMatch(points, /font-size:\s*[0-9.]+(px|rem)/);
-  assert.match(ruleBody(css, '.estimate-group-head') ?? '', /flex-wrap:\s*wrap;/);
+});
+
+test('Given agenda の保存した流れの一覧 / When ul を探す / Then ui-stack--tight（2 画面目の使い手）で、画面は縦の並びの写しを持たない', () => {
+  assert.ok(classNameOf(read('apps/agenda-web/src/components/SavedScenarioList.tsx'), 'builder-saved-list').includes('ui-stack--tight'));
+  assert.doesNotMatch(ruleBody(read('apps/agenda-web/src/builder.css'), '.builder-saved-list') ?? '', /display:|gap:/);
+});
+
+test('Given timer の「ランダム」の導き方 / When Session と Lobby を読む / Then 2 つの名簿へ 1 度だけ導いた値を渡し、ShuffleButton のスタイルは shuffle-button.css が持つ', () => {
+  const session = read('apps/timer-web/src/ui/Session.tsx');
+  assert.equal([...session.matchAll(/onShuffle && rotationLen > 1 \? onShuffle : undefined/g)].length, 1);
+  assert.equal([...session.matchAll(/onShuffle=\{rosterShuffle\}/g)].length, 2);
+  assert.match(read('apps/timer-web/src/ui/Lobby.tsx'), /rosterShuffle \? <ShuffleButton/);
+  assert.match(read('apps/timer-web/src/styles/shuffle-button.css'), /\.shuffle-button-label[\s\S]*\.shuffle-button-icon/);
+  assert.match(read('apps/timer-web/src/index.css'), /@import '\.\/styles\/shuffle-button\.css';/);
+  assert.doesNotMatch(read('apps/timer-web/src/styles/roster-panel.css'), /shuffle-button/);
 });

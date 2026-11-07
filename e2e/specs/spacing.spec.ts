@@ -121,48 +121,86 @@ test.describe('縦に並ぶブロックの間は親が持つ', () => {
     }
   });
 
-  test('Given poker の記録に空白の無い 40 字の項目名の束 / When 脇（1280）と 320 で開く / Then 選択欄の字は切れず、名前の列が主で、狭いと選択欄は名前の下の行の右端に落ちる（#553 レビュー）', async ({ page }) => {
+  test('Given poker の記録に 40 字の名前の束（ポイントなし）と「A」の束（13） / When 320〜1920 で開く / Then 選択欄の字は切れず、1 行に収まる名前は同じ行・収まらない名前は選択欄が下の行の右端、束の見出しと回の記録の間は 8px（#553 レビュー）', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await createPokerRoom(page, 'spacing-log');
     await page.getByRole('button', { name: '記録する' }).click();
-    await page.locator('.estimate-item-title').first().click();
-    await page.locator('.estimate-item-input').fill('T'.repeat(40));
-    await page.keyboard.press('Enter');
-    await chooseCard(page, '5');
-    await page.getByRole('button', { name: '次のアイテムへ' }).click();
-    // 閉じた束（名前つき）と、いま開いている束の 2 つ
-    await expect(page.locator('.estimate-group')).toHaveCount(2);
-    for (const width of [320, 390, 768, 1280] as const) {
+    for (const name of ['T'.repeat(40), 'A']) {
+      // いま開いている束の名前の欄（閉じた束の中の名前は `.estimate-item--inline`）
+      await page.locator('.estimate-item:not(.estimate-item--inline) .estimate-item-title').first().click();
+      await page.locator('.estimate-item:not(.estimate-item--inline) .estimate-item-input').fill(name);
+      await page.keyboard.press('Enter');
+      await chooseCard(page, '5');
+      await page.getByRole('button', { name: '次のアイテムへ' }).click();
+    }
+    // 閉じた束が 2 つ（見えているのは脇の記録。足の記録は幅によって隠れる）
+    await expect(page.locator('.estimate-group:visible')).toHaveCount(2);
+    // 「A」の束にポイント 13 を付ける（字の幅の違う選択肢で、切れを測る）
+    await page.locator('.estimate-group:visible', { hasText: 'アイテム名を変えるA' }).locator('select').first().selectOption('13');
+    for (const width of [320, 390, 768, 1024, 1280, 1920] as const) {
       await page.setViewportSize({ width, height: 900 });
-      // 幅を替えた直後は、束の見出しが描き直される。見えるまで待ってから測る（待たずに測ると見つからないことがある）
       await expect(page.locator('.estimate-group-head:visible', { hasText: 'TTTT' }).first(), `幅 ${String(width)}: 束の見出しの行が見える`).toBeVisible();
-      const m = await page.evaluate(() => {
-        const head = [...document.querySelectorAll('.estimate-group-head')].find((e) => e.getClientRects().length > 0 && (e.textContent ?? '').includes('TTTT'));
-        const name = head?.querySelector('.estimate-group-item');
-        const points = head?.querySelector('select');
-        if (head === undefined || name === null || name === undefined || points === null || points === undefined) return null;
-        const n = name.getBoundingClientRect();
-        const p = points.getBoundingClientRect();
-        const h = head.getBoundingClientRect();
-        const lineHeight = parseFloat(getComputedStyle(name).lineHeight) || 24;
-        return {
-          sameLine: p.top < n.bottom - 0.5,
-          nameWiderOrDropped: p.top >= n.bottom - 0.5 || n.width > p.width,
-          rightEdgeGap: h.right - p.right,
-          clipped: points.scrollWidth > points.clientWidth + 1,
-          nameLines: Math.round(n.height / lineHeight),
-          inside: p.right <= h.right + 1 && p.left >= h.left - 1,
-        };
-      });
-      expect(m, `幅 ${String(width)}: 束の見出しの行が描かれている`).not.toBeNull();
-      // ① 選択欄の字が切れていない（選んだ選択肢の字が欄の中身に収まる）
-      expect(m!.clipped, `幅 ${String(width)}: 選択欄の字が切れていない`).toBe(false);
-      expect(m!.inside, `幅 ${String(width)}: 選択欄は行の中に収まる`).toBe(true);
-      // ② 同じ行なら名前の列が選択欄より広い。選択欄が次の行へ落ちたなら、選択欄の右端は行の右端に揃う（左端には落とさない）
-      expect(m!.nameWiderOrDropped, `幅 ${String(width)}: 同じ行なら名前の列が選択欄より広い`).toBe(true);
-      if (!m!.sameLine) expect(Math.abs(m!.rightEdgeGap), `幅 ${String(width)}: 落ちた選択欄の右端は行の右端に揃う`).toBeLessThanOrEqual(1);
-      // ③ 名前は 4 行以下（9 行に戻らない）
-      expect(m!.nameLines, `幅 ${String(width)}: 名前の行数`).toBeLessThanOrEqual(4);
+      for (const key of ['TTTT', 'A'] as const) {
+        const m = await page.evaluate((key) => {
+          const head = [...document.querySelectorAll('.estimate-group-head')].find(
+            (e) => e.getClientRects().length > 0 && (key === 'A' ? e.querySelector('input,button')?.textContent === 'A' || (e.textContent ?? '').trim().startsWith('A') : (e.textContent ?? '').includes(key)),
+          );
+          const name = head?.querySelector('.estimate-group-item');
+          const points = head?.querySelector('select');
+          if (head === undefined || name === null || name === undefined || points === null || points === undefined) return null;
+          const n = name.getBoundingClientRect();
+          const p = points.getBoundingClientRect();
+          const h = head.getBoundingClientRect();
+          // 選択欄の自然な幅（字・左右の padding・枠・矢印を含む）: 同じ規則の複製を、制約なし（flex: none・上限なし・幅は内容）で置いて測る
+          const probe = points.cloneNode(true) as HTMLSelectElement;
+          probe.value = (points as HTMLSelectElement).value; // 複製は選択が引き継がれない
+          probe.style.cssText = 'position:absolute;visibility:hidden;flex:none;max-inline-size:none;inline-size:max-content;min-width:0;margin:0;';
+          points.parentElement!.append(probe);
+          const natural = probe.getBoundingClientRect().width;
+          probe.remove();
+          // 名前の行数: 名前の字（テキスト）の矩形の上端を数える（ボタンの箱・padding を数えない）
+          const tops = new Set<number>();
+          const walker = document.createTreeWalker(name, NodeFilter.SHOW_TEXT);
+          for (let t = walker.nextNode(); t !== null; t = walker.nextNode()) {
+            if ((t.textContent ?? '').trim() === '') continue;
+            const range = document.createRange();
+            range.selectNodeContents(t);
+            for (const r of Array.from(range.getClientRects())) if (r.width > 0 && r.height > 0) tops.add(Math.round(r.top / 4));
+          }
+          const next = head.nextElementSibling?.getBoundingClientRect();
+          return {
+            sameLine: p.top < n.bottom - 0.5,
+            topDelta: p.top - n.top,
+            nameLines: tops.size,
+            rightEdgeGap: h.right - p.right,
+            selectWidth: p.width,
+            natural,
+            inside: p.right <= h.right + 1 && p.left >= h.left - 1,
+            below: next === undefined ? null : next.top - h.bottom,
+            value: (points as HTMLSelectElement).selectedOptions[0]?.textContent ?? '',
+          };
+        }, key);
+        const label = `幅 ${String(width)}・${key === 'A' ? '「A」の束（13）' : '40 字の束（ポイントなし）'}`;
+        expect(m, `${label}: 束の見出しの行が描かれている`).not.toBeNull();
+        // ① 選択欄の字が切れていない: 選択欄の幅が、選んだ選択肢の字・padding・枠・矢印を足した自然な幅以上
+        expect(m!.selectWidth, `${label}: 選択欄（${m!.value}）の幅が自然な幅（${m!.natural.toFixed(1)}px）以上`).toBeGreaterThanOrEqual(m!.natural - 1);
+        expect(m!.inside, `${label}: 選択欄は行の中に収まる`).toBe(true);
+        if (key === 'A') {
+          // ② 1 行に収まる短い名前は、どの幅でも同じ行（選択欄の上端が名前の上端と揃う）
+          expect(m!.sameLine, `${label}: 短い名前は選択欄と同じ行`).toBe(true);
+          expect(Math.abs(m!.topDelta), `${label}: 選択欄の上端が名前の上端と揃う`).toBeLessThanOrEqual(8);
+        } else if (m!.sameLine) {
+          // 収まる幅では同じ行（名前は 1 行）
+          expect(m!.nameLines, `${label}: 同じ行のときは名前が 1 行`).toBe(1);
+        } else {
+          // 収まらない幅では、選択欄が名前の下の行の右端に落ちる（左端には落とさない）
+          expect(Math.abs(m!.rightEdgeGap), `${label}: 落ちた選択欄の右端は行の右端に揃う`).toBeLessThanOrEqual(1);
+        }
+        // ③ 名前は 4 行以下（9 行に戻らない）
+        expect(m!.nameLines, `${label}: 名前の行数`).toBeLessThanOrEqual(4);
+        // ④ 束の見出しの行と、回の記録の間は --space-2（8px）
+        if (m!.below !== null) expect(Math.abs(m!.below - SPACE_2), `${label}: 見出しの行と回の記録の間`).toBeLessThanOrEqual(1);
+      }
     }
   });
 
