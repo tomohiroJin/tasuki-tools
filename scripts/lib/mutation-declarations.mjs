@@ -6593,7 +6593,7 @@ export const MUTATIONS = [
     patch: "m1213-poker-estimate-name-min-width-removed.patch",
     pkg: "packages/ui",
     tests: ["tests/spacing-owner.test.mjs"],
-    note: RESERVED_1210_1219 + " " + "#553。長い名前が flex の最小幅（内容の幅）を下回れず、選択欄が行の外へ押し出される。E2E でも赤（`spacing.spec.ts`）は確かめていない（字面の契約でだけ捕まる場合がある）。",
+    note: RESERVED_1210_1219 + " " + "#553。長い名前が flex の最小幅（内容の幅）を下回れず、選択欄が行の外へ押し出される。字面の契約でだけ捕まる（E2E では等価: 名前の字の幅が基準幅に届かないので、min-width: 0 が無くても縮み方が変わらない）。",
   },
   {
     id: 1214,
