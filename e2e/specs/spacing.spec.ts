@@ -204,39 +204,49 @@ test.describe('縦に並ぶブロックの間は親が持つ', () => {
     }
   });
 
-  test('Given poker の記録の閉じた束（短い名前「A」） / When 名前の変更を始める（ボタンが入力に替わる） / Then 選択欄の行は変わらない（切り替えで行が跳ばない）（#553 レビュー）', async ({ page }) => {
+  test('Given poker の記録の閉じた束（短い名前「A」と 40 字の名前） / When 名前の変更を始める（ボタンが入力に替わる） / Then 選択欄の行は変わらない（切り替えで行が跳ばない）（#553 レビュー）', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await createPokerRoom(page, 'spacing-rename');
     await page.getByRole('button', { name: '記録する' }).click();
-    await page.locator('.estimate-item:not(.estimate-item--inline) .estimate-item-title').first().click();
-    await page.locator('.estimate-item:not(.estimate-item--inline) .estimate-item-input').fill('A');
-    await page.keyboard.press('Enter');
-    await chooseCard(page, '5');
-    await page.getByRole('button', { name: '次のアイテムへ' }).click();
-    const row = async (): Promise<{ sameLine: boolean; top: number } | null> =>
-      page.evaluate(() => {
-        const head = [...document.querySelectorAll('.estimate-group-head')].find((e) => e.getClientRects().length > 0 && e.querySelector('.estimate-item--inline') !== null);
+    const names = { short: 'A', long: 'T'.repeat(40) } as const;
+    for (const name of Object.values(names)) {
+      await page.locator('.estimate-item:not(.estimate-item--inline) .estimate-item-title').first().click();
+      await page.locator('.estimate-item:not(.estimate-item--inline) .estimate-item-input').fill(name);
+      await page.keyboard.press('Enter');
+      await chooseCard(page, '5');
+      await page.getByRole('button', { name: '次のアイテムへ' }).click();
+    }
+    const row = async (key: string): Promise<{ sameLine: boolean; top: number; left: number } | null> =>
+      page.evaluate((key) => {
+        const head = [...document.querySelectorAll('.estimate-group-head')].find(
+          (e) => e.getClientRects().length > 0 && (e.querySelector('.estimate-item-title:not(.estimate-item-sizer), .estimate-item-input') as HTMLElement | null) !== null
+            && ((e.querySelector('.estimate-item-title:not(.estimate-item-sizer)') as HTMLElement | null)?.textContent === key || (e.querySelector('.estimate-item-input') as HTMLInputElement | null)?.value === key),
+        );
         const name = head?.querySelector('.estimate-group-item');
         const points = head?.querySelector('select');
         if (!head || !name || !points) return null;
         const n = name.getBoundingClientRect();
         const p = points.getBoundingClientRect();
-        return { sameLine: p.top < n.bottom - 0.5, top: Math.round(p.top - head.getBoundingClientRect().top) };
-      });
+        return { sameLine: p.top < n.bottom - 0.5, top: Math.round(p.top - head.getBoundingClientRect().top), left: Math.round(p.left) };
+      }, key);
     for (const width of [320, 390, 1280] as const) {
       await page.setViewportSize({ width, height: 900 });
-      await expect(page.locator('.estimate-group-head:visible .estimate-item--inline .estimate-item-title').first(), `幅 ${String(width)}: 名前のボタンが見える`).toBeVisible();
-      const before = await row();
-      expect(before, `幅 ${String(width)}: 閉じた束の見出しの行がある`).not.toBeNull();
-      expect(before!.sameLine, `幅 ${String(width)}: 変更の前は選択欄が名前と同じ行`).toBe(true);
-      await page.locator('.estimate-group-head:visible .estimate-item--inline .estimate-item-title').first().click();
-      await expect(page.locator('.estimate-group-head:visible .estimate-item--inline .estimate-item-input').first(), `幅 ${String(width)}: 入力に替わった`).toBeVisible();
-      const after = await row();
-      expect(after, `幅 ${String(width)}: 変更中も見出しの行がある`).not.toBeNull();
-      expect(after!.sameLine, `幅 ${String(width)}: 変更中も選択欄は名前と同じ行`).toBe(true);
-      // 行が同じ: 選択欄の上端は、前の行の高さ（入力はボタンより数 px 高い）の範囲に収まる。次の行へ落ちるなら 1 行ぶん（24px 以上）下がる
-      expect(Math.abs(after!.top - before!.top), `幅 ${String(width)}: 選択欄の位置（行）が変わらない`).toBeLessThan(12);
-      await page.keyboard.press('Escape');
+      for (const [kind, name] of Object.entries(names)) {
+        const title = page.locator('.estimate-group-head:visible .estimate-item--inline .estimate-item-title:not(.estimate-item-sizer)', { hasText: name }).first();
+        await expect(title, `幅 ${String(width)}・${kind}: 名前のボタンが見える`).toBeVisible();
+        const before = await row(name);
+        expect(before, `幅 ${String(width)}・${kind}: 閉じた束の見出しの行がある`).not.toBeNull();
+        await title.click();
+        const input = page.locator('.estimate-group-head:visible .estimate-item--inline .estimate-item-input').first();
+        await expect(input, `幅 ${String(width)}・${kind}: 入力に替わった`).toBeVisible();
+        const after = await row(name);
+        expect(after, `幅 ${String(width)}・${kind}: 変更中も見出しの行がある`).not.toBeNull();
+        // 行が同じ（短い名前は同じ行のまま・長い名前は下の行のまま）。選択欄の位置も同じ（ボタンと入力で名前の列の幅が同じ）
+        expect(after!.sameLine, `幅 ${String(width)}・${kind}: 変更の前後で選択欄の行（同じ行か下の行か）が変わらない`).toBe(before!.sameLine);
+        expect(Math.abs(after!.top - before!.top), `幅 ${String(width)}・${kind}: 選択欄の縦の位置が変わらない`).toBeLessThan(12);
+        expect(Math.abs(after!.left - before!.left), `幅 ${String(width)}・${kind}: 選択欄の横の位置が変わらない`).toBeLessThanOrEqual(1);
+        await page.keyboard.press('Escape');
+      }
     }
   });
 
@@ -263,7 +273,7 @@ test.describe('縦に並ぶブロックの間は親が持つ', () => {
     }
   });
 
-  test('Given poker の読む面に段落が 3 つ / When 5 つの幅で開く / Then 段落どうしの間は 8px 以上（#553 一覧 #3）', async ({ page, openPeer }) => {
+  test('Given poker の読む面に段落が 3 つ / When 5 つの幅で開く / Then 段落どうしの間は 8px（±1。広げても緑にしない）（#553 一覧 #3）', async ({ page, openPeer }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     const url = await createPokerRoom(page, 'spacing-b');
     const topic = await (openPeer as OpenPeer)('spacing-topic');
@@ -277,7 +287,7 @@ test.describe('縦に並ぶブロックの間は親が持つ', () => {
       const gaps = await paragraphGaps(page);
       expect(gaps.length, `幅 ${String(width)}: 段落の間を測れた`).toBeGreaterThanOrEqual(1);
       for (const gap of gaps) {
-        expect(gap, `幅 ${String(width)}: 段落どうしの間`).toBeGreaterThanOrEqual(SPACE_2);
+        expect(Math.abs(gap - SPACE_2), `幅 ${String(width)}: 段落どうしの間（${gap.toFixed(1)}px）は --space-2（8px）±1`).toBeLessThanOrEqual(1);
       }
     }
   });

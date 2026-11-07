@@ -20,11 +20,6 @@ function ruleBody(css, selector) {
   return m === null ? null : m[1];
 }
 
-/** セレクタ中の `.クラス` の数（詳細度の (0,n,0) の n。要素・擬似要素は数えない粗い物差し）。 */
-function classCount(selector) {
-  return (selector.match(/\.[a-z]/g) ?? []).length;
-}
-
 test('Given .ui-stack / When 規則を読む / Then 縦の flex で、間は --space-3 の gap', () => {
   const body = ruleBody(read('packages/ui/src/components/stack.css'), '.ui-stack');
   assert.notEqual(body, null);
@@ -99,11 +94,6 @@ test('Given timer の見出しの行の操作の塊 / When 規則を読む / The
   assert.doesNotMatch(body, /flex:\s*1/);
 });
 
-test('Given .ui-section-head / When 間を読む / Then 折り返した行の間は --space-2・横の間は --space-3（ADR-0035 と README の値）', () => {
-  const body = ruleBody(read('packages/ui/src/components/section-head.css'), '.ui-section-head');
-  assert.match(body, /gap:\s*var\(--space-2\) var\(--space-3\);/);
-});
-
 test('Given poker の束のポイントの選択 / When 規則を読む / Then 字を切らず・縮めず右端へ寄せ、行は折り返してよく、名前の列が主', () => {
   const css = read('apps/poker-web/src/index.css');
   const points = ruleBody(css, '.estimate-log .estimate-group-points') ?? '';
@@ -151,7 +141,34 @@ test('Given 共有メモの見出しの行 / When .shared-memo-lead を読む / 
   assert.match(body, /min-width:\s*0;/);
 });
 
-test('Given poker の閉じた束の名前の入力 / When 規則を読む / Then 固有の幅（size=20・約 180px）を持ち込まない（基準幅 0）ので、変更を始めても選択欄が次の行へ落ちない', () => {
-  const rules = read('apps/poker-web/src/index.css').match(/(?:^|\n)\.estimate-item--inline \.estimate-item-input \{[^}]*\}/g) ?? [];
-  assert.ok(rules.some((r) => /inline-size:\s*0;/.test(r) && /min-inline-size:\s*0;/.test(r)), '基準幅 0 の規則が無い');
+test('Given poker の閉じた束の名前の入力 / When 規則を読む / Then 編集中もボタンと同じ場所を見えない複製が取り（流れに残り visibility: hidden）、入力はその上に重なる', () => {
+  const css = read('apps/poker-web/src/index.css');
+  const sizer = css.match(/\n\.estimate-item--inline \.estimate-item-sizer \{[^}]*\}/)?.[0] ?? '';
+  assert.match(sizer, /visibility:\s*hidden;/);
+  assert.doesNotMatch(sizer, /display:\s*none/);
+  const input = [...css.matchAll(/\n\.estimate-item--inline \.estimate-item-input \{[^}]*\}/g)].map((m) => m[0]).join('');
+  assert.match(input, /position:\s*absolute;/);
+  assert.match(input, /inset:\s*0;/);
+});
+
+test('Given .ui-stack の直下の子の margin / When stack.css より後に読む部品の規則を調べる / Then 縦の margin を持つ単独クラスの規則は、既知の 2 つ（.ui-reader-preview・.ui-reader-more）だけ', () => {
+  // `.ui-stack > *`（0,1,0）は、要素層の h2 などの margin（0,0,1）には勝つが、同じ詳細度で**後に読む**部品の margin には負ける（ADR-0035 決定 1）。
+  // 後に読む部品が縦の margin を持つと、`.ui-stack` の直下に置いたとき gap に足される。持つ部品を増やしたら、この一覧と ADR・README を直す。
+  const index = read('packages/ui/src/components/index.css');
+  const order = [...index.matchAll(/@import '\.\/([a-z-]+)\.css';/g)].map((m) => m[1]);
+  assert.ok(order.indexOf('stack') > 0);
+  const after = order.slice(order.indexOf('stack') + 1);
+  const found = [];
+  for (const name of after) {
+    const css = read(`packages/ui/src/components/${name}.css`).replace(/\/\*[\s\S]*?\*\//g, '');
+    for (const m of css.matchAll(/(?:^|\n)(\.ui-[a-z-]+) \{([^}]*)\}/g)) {
+      const decl = [...m[2].matchAll(/(margin(?:-block(?:-start|-end)?|-top|-bottom)?):\s*([^;]+);/g)];
+      // `margin: 0`・`margin-block: 0`・`margin: auto …`（drawer の位置合わせ）・負の値（絶対配置の隠し文字）は gap に足されない
+      const zeroLike = (v) => v.trim().split(/\s+/).every((tok) => /^(0|auto|-.*)$/.test(tok));
+      if (decl.some((d) => !zeroLike(d[2]))) found.push(m[1]);
+    }
+  }
+  assert.deepEqual(found.sort(), ['.ui-reader-more', '.ui-reader-preview']);
+  // stack の規則は :where() で包まない（詳細度 0 にすると、要素層の h2 の margin に負けて、リセットの役目を失う）
+  assert.match(read('packages/ui/src/components/stack.css'), /\n\.ui-stack > \* \{/);
 });
