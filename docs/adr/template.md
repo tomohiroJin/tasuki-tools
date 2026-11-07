@@ -1,6 +1,6 @@
 # ADR-NNNN: <タイトル>
 
-- **ステータス**: Proposed | Accepted | Superseded by NNNN（YYYY-MM-DD）
+- **ステータス**: Proposed | Accepted | Superseded by NNNN | Rejected（YYYY-MM-DD。Rejected は `docs/adr/0002` の追記（2026-11-07）。「却下の理由」の節を足す）
 - **関連**: <Issue / PR / 関連 ADR>
 
 ## 背景
