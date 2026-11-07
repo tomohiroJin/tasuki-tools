@@ -1,11 +1,12 @@
-diff --git a/apps/timer-web/src/styles/primitives.css b/apps/timer-web/src/styles/primitives.css
---- a/apps/timer-web/src/styles/primitives.css
-+++ b/apps/timer-web/src/styles/primitives.css
-@@ -94,7 +94,6 @@
- /* 名簿の見出しの行は、操作（ランダム・代理追加）を見出しの隣に寄せる。部品の両端寄せだと、広い幅（ルームのタブ 1024px・
-    ロビー 768px）で見出しから行の反対の端まで 400〜580px 離れる（poker の参加者の欄と同じ扱い・#553）。 */
- .section-header--beside {
--  justify-content: flex-start;
- }
- 
- .section-header-lead {
+diff --git a/apps/timer-web/src/ui/primitives.tsx b/apps/timer-web/src/ui/primitives.tsx
+--- a/apps/timer-web/src/ui/primitives.tsx
++++ b/apps/timer-web/src/ui/primitives.tsx
+@@ -79,7 +79,7 @@
+   beside?: boolean;
+ }) {
+   return (
+-    <div className={beside ? "section-header ui-section-head ui-section-head--beside" : "section-header ui-section-head"}>
++    <div className={beside ? "section-header ui-section-head" : "section-header ui-section-head"}>
+       <div className="section-header-lead">
+         <Icon className="section-header-icon" />
+         <h2 className="section-header-title">{title}</h2>

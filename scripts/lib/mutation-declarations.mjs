@@ -134,6 +134,9 @@ const RESERVED_1210_1219 =
 const RESERVED_1250_1259 =
   "**対応表より後に足した変異。** 1250〜1259 は #553 に追加で割り当てた範囲（1213〜1219 を使い切ったため。3 回目の敵対的レビューの指摘で足した）。";
 
+const RESERVED_1270_1279 =
+  "**対応表より後に足した変異。** 1270〜1279 は #553 に追加で割り当てた範囲（1250〜1259 を使い切ったため。4 回目の敵対的レビューと /code-review の指摘で足した）。";
+
 export const MUTATIONS = [
   {
     id: 1,
@@ -6522,11 +6525,11 @@ export const MUTATIONS = [
   },
   {
     id: 1205,
-    label: "poker の参加者の見出しの行から `.ui-section-head` を外す",
+    label: "poker の参加者の見出しの行から `.ui-section-head` と `--beside` を外す",
     patch: "m1205-poker-participants-head-not-part.patch",
     pkg: "packages/ui",
     tests: ["tests/spacing-owner.test.mjs"],
-    note: RESERVED_1200_1209 + " " + "#553。見出しの行の並び（折り返し・間）を画面が写しで持つ形に戻り、画面ごとにずれる。",
+    note: RESERVED_1200_1209 + " " + "#553。見出しの行の並び（折り返し・間・寄せ）の部品が当たらなくなる。",
   },
   {
     id: 1206,
@@ -6586,19 +6589,19 @@ export const MUTATIONS = [
   },
   {
     id: 1213,
-    label: "poker の束の名前の列から min-width: 0 を外す（長い名前が列を押し広げ、選択欄を行の外へ押し出す）",
-    patch: "m1213-poker-estimate-head-wraps.patch",
+    label: "poker の束の名前の列から `min-width: 0` を両方の規則から外す（長い名前が列を押し広げ、選択欄を行の外へ押し出す）",
+    patch: "m1213-poker-estimate-name-min-width-removed.patch",
     pkg: "packages/ui",
     tests: ["tests/spacing-owner.test.mjs"],
-    note: RESERVED_1210_1219 + " " + "#553。長い項目名で、ポイントの選択が名前の下の行の左端に落ち、「左に名前・右にポイント」が崩れる（レビュー指摘）。",
+    note: RESERVED_1210_1219 + " " + "#553。長い名前が flex の最小幅（内容の幅）を下回れず、選択欄が行の外へ押し出される。E2E でも赤（`spacing.spec.ts`）は確かめていない（字面の契約でだけ捕まる場合がある）。",
   },
   {
     id: 1214,
-    label: "poker の参加者の見出しの行から「見出しの隣へ寄せる」（justify-content: flex-start）を外す",
-    patch: "m1214-poker-participants-head-space-between.patch",
+    label: "部品 `.ui-section-head--beside` の `justify-content: flex-start` の宣言を空にする",
+    patch: "m1214-section-head-beside-declaration-removed.patch",
     pkg: "packages/ui",
     tests: ["tests/spacing-owner.test.mjs"],
-    note: RESERVED_1210_1219 + " " + "#553。「見学する」が広い幅で見出しから操作の面の反対の端まで離れる（レビュー指摘）。",
+    note: RESERVED_1210_1219 + " " + "#553。修飾を当てた画面（poker の参加者・timer の名簿）が両端寄せに戻り、広い幅で「見学する」「ランダム」が見出しから反対の端へ離れる。",
   },
   {
     id: 1215,
@@ -6642,7 +6645,7 @@ export const MUTATIONS = [
   },
   {
     id: 1250,
-    label: "timer の `.section-header--beside` から `justify-content: flex-start` を外す",
+    label: "timer の `SectionHeader` から `--beside` の修飾を外す",
     patch: "m1250-timer-section-header-not-beside.patch",
     pkg: "packages/ui",
     tests: ["tests/spacing-owner.test.mjs"],
@@ -6658,11 +6661,11 @@ export const MUTATIONS = [
   },
   {
     id: 1252,
-    label: "poker の束のポイントの選択を右端へ寄せない形（flex: none・寄せなし）に戻す",
-    patch: "m1252-poker-points-select-not-capped.patch",
+    label: "poker の束のポイントの選択に `max-inline-size: 3rem` を足す（字が切れる）",
+    patch: "m1252-poker-points-select-width-capped.patch",
     pkg: "packages/ui",
     tests: ["tests/spacing-owner.test.mjs"],
-    note: RESERVED_1250_1259 + " " + "#553。320px で選択欄が名前の列より広くなり、長い項目名が 9 行に折れる。",
+    note: RESERVED_1250_1259 + " " + "#553。選択した選択肢の字が切れて読めなくなる。",
   },
   {
     id: 1253,
@@ -6686,14 +6689,62 @@ export const MUTATIONS = [
     patch: "m1255-poker-estimate-head-nowrap.patch",
     pkg: "packages/ui",
     tests: ["tests/spacing-owner.test.mjs"],
-    note: RESERVED_1250_1259 + " " + "#553。狭い幅で、名前の列か選択欄が縮み、選択欄の字が切れるか名前が何行にも折れる。",
+    note: RESERVED_1250_1259 + " " + "#553。狭い幅で名前の列か選択欄が縮み、選択欄の字が切れるか、名前が何行にも折れる。",
   },
   {
     id: 1256,
-    label: "poker の束の名前の列から flex: 1 1 12rem の基準を外す",
-    patch: "m1256-poker-estimate-name-column-not-main.patch",
+    label: "poker の束の名前の列を `flex: 1 1 100%` にする（収まる名前でも選択欄が下の行へ落ちる）",
+    patch: "m1256-poker-estimate-name-column-full-width.patch",
     pkg: "packages/ui",
     tests: ["tests/spacing-owner.test.mjs"],
-    note: RESERVED_1250_1259 + " " + "#553。名前の列が主でなくなり、320px で名前が選択欄より狭くなる。",
+    note: RESERVED_1250_1259 + " " + "#553。名前が 1 行に収まるときも選択欄が名前の下の行に落ち、同じ記録の中で 1 行の束と 2 行の束が混ざる。",
+  },
+  {
+    id: 1257,
+    label: "`.ui-stack--tight` の間を `--space-3` にする",
+    patch: "m1257-stack-tight-gap-space-3.patch",
+    pkg: "packages/ui",
+    tests: ["tests/spacing-owner.test.mjs"],
+    note: RESERVED_1250_1259 + " " + "#553。束の見出しの行と回の記録の間が 8px から 12px に広がる（ADR 0035 決定 2 の表と食い違う）。",
+  },
+  {
+    id: 1258,
+    label: "poker の束（`li.estimate-group`）から `.ui-stack--tight` を外す",
+    patch: "m1258-poker-estimate-group-not-tight.patch",
+    pkg: "packages/ui",
+    tests: ["tests/spacing-owner.test.mjs"],
+    note: RESERVED_1250_1259 + " " + "#553。束の見出しの行と回の記録の間が 12px に広がる。",
+  },
+  {
+    id: 1259,
+    label: "poker の参加者の見出しの行から `--beside` を外す",
+    patch: "m1259-poker-participants-head-not-beside.patch",
+    pkg: "packages/ui",
+    tests: ["tests/spacing-owner.test.mjs"],
+    note: RESERVED_1250_1259 + " " + "#553。広い幅で「見学する」が見出しから操作の面の反対の端まで飛ぶ。",
+  },
+  {
+    id: 1270,
+    label: "`.ui-reader-preview` の縦の余白を margin から padding に戻す（4 行目の上端が覗く）",
+    patch: "m1270-reader-preview-vertical-padding.patch",
+    pkg: "packages/ui",
+    tests: ["tests/spacing-owner.test.mjs"],
+    note: RESERVED_1270_1279 + " " + "#553。3 行の写しの padding の帯に 4 行目の上端が半分覗く（`reader.css` の注釈が名指ししている崩れ）。",
+  },
+  {
+    id: 1271,
+    label: "timer の Session で「ランダム」の導き方を名簿ごとに書き直す（写しが 2 か所に戻る）",
+    patch: "m1271-timer-shuffle-derived-twice.patch",
+    pkg: "packages/ui",
+    tests: ["tests/spacing-owner.test.mjs"],
+    note: RESERVED_1270_1279 + " " + "#553。導き方の条件が 2 か所に写され、片方だけ直って 2 つの名簿で出る条件がずれる。",
+  },
+  {
+    id: 1272,
+    label: "timer の `index.css` から `shuffle-button.css` の読み込みを外す",
+    patch: "m1272-shuffle-button-css-back-in-roster.patch",
+    pkg: "packages/ui",
+    tests: ["tests/spacing-owner.test.mjs"],
+    note: RESERVED_1270_1279 + " " + "#553。「ランダム」のボタンの中の並び（アイコンと字）が当たらなくなる。",
   },
 ];

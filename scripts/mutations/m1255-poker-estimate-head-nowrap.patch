@@ -1,12 +1,14 @@
 diff --git a/apps/poker-web/src/index.css b/apps/poker-web/src/index.css
 --- a/apps/poker-web/src/index.css
 +++ b/apps/poker-web/src/index.css
-@@ -562,7 +562,7 @@
-    広い幅は「左に名前・右にポイント」の 1 行、狭い幅は選択欄が名前の下の行の**右端**に落ちる（左端には落とさない）。
-    選択欄の字は切らない（選択した選択肢が読めなくなるため）。寄せ方は使う画面が 1 つなので部品に修飾を足さず、画面が上書きする（ADR 0035 決定 3） */
- .estimate-group-head {
--  flex-wrap: wrap;
+@@ -554,6 +554,10 @@
+ /* 見出しの行（`.ui-section-head`・部品が折り返す）: 左にアイテム名、右にポイント（一番強い）。束の中の間は `.ui-stack--tight` が持つ。
+    名前の列は `flex: 1 1 auto; min-width: 0`: 名前が 1 行に収まるときは同じ行の右にポイントが並び、収まらない長い名前のときだけ
+    ポイントが名前の下の行の右端に落ちる（左端には落とさない）。選択欄の字は切らない（選んだ選択肢が読めなくなるため） */
++.estimate-group-head {
 +  flex-wrap: nowrap;
- }
- 
- .estimate-group-head > .estimate-item--inline,
++}
++
+ .estimate-group-head > .estimate-group-item {
+   flex: 1 1 auto;
+   min-width: 0;
