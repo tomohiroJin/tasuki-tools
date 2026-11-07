@@ -241,6 +241,20 @@ test.describe('縦に並ぶブロックの間は親が持つ', () => {
         await expect(input, `幅 ${String(width)}・${kind}: 入力に替わった`).toBeVisible();
         const after = await row(name);
         expect(after, `幅 ${String(width)}・${kind}: 変更中も見出しの行がある`).not.toBeNull();
+        // 入力は包み（名前の列）いっぱいに広がる: 幅が包みと 1px 以内でそろい、320 でも 5rem（80px）以上ある（18px に潰れない）。短い名前は選択欄と同じ行に残すので、320 の包みは 85px ほどで、8rem（128px）は取れない（実測）
+        const box = async (): Promise<{ input: number; wrap: number }> =>
+          input.evaluate((el) => ({ input: el.getBoundingClientRect().width, wrap: (el.closest('.estimate-item--inline') as HTMLElement).getBoundingClientRect().width }));
+        const w0 = await box();
+        expect(Math.abs(w0.input - w0.wrap), `幅 ${String(width)}・${kind}: 入力の幅が包みの幅と 1px 以内でそろう`).toBeLessThanOrEqual(1);
+        expect(w0.input, `幅 ${String(width)}・${kind}: 入力の幅が 5rem 以上`).toBeGreaterThanOrEqual(80);
+        // 打って名前を 40 字に伸ばしても、入力の幅も選択欄の行も変わらない（字は入力の中で送られる）
+        await input.fill('Z'.repeat(40));
+        const w1 = await box();
+        expect(Math.abs(w1.input - w0.input), `幅 ${String(width)}・${kind}: 40 字を打っても入力の幅が変わらない`).toBeLessThanOrEqual(1);
+        const typed = await row('Z'.repeat(40));
+        expect(typed, `幅 ${String(width)}・${kind}: 打った後も見出しの行がある`).not.toBeNull();
+        expect(typed!.sameLine, `幅 ${String(width)}・${kind}: 40 字を打っても選択欄の行が変わらない`).toBe(before!.sameLine);
+        expect(Math.abs(typed!.top - before!.top), `幅 ${String(width)}・${kind}: 40 字を打っても選択欄の縦の位置が変わらない`).toBeLessThan(12);
         // 行が同じ（短い名前は同じ行のまま・長い名前は下の行のまま）。選択欄の位置も同じ（ボタンと入力で名前の列の幅が同じ）
         expect(after!.sameLine, `幅 ${String(width)}・${kind}: 変更の前後で選択欄の行（同じ行か下の行か）が変わらない`).toBe(before!.sameLine);
         expect(Math.abs(after!.top - before!.top), `幅 ${String(width)}・${kind}: 選択欄の縦の位置が変わらない`).toBeLessThan(12);
@@ -270,6 +284,27 @@ test.describe('縦に並ぶブロックの間は親が持つ', () => {
       });
       expect(m.scrollWidth, `幅 ${String(width)}: ページが横に溢れない`).toBeLessThanOrEqual(m.innerWidth);
       expect(m.rowRight, `幅 ${String(width)}: 保存済みの行は一覧の幅に収まる`).toBeLessThanOrEqual(m.listRight + 1);
+    }
+  });
+
+  test('Given roulette のいつものメンツに最大の長さ（40 字）の組を画面から保存 / When 320〜1280 で開く / Then 横に溢れない（区画は .ui-stack の縦の flex で、最小幅 0 の手当てが要らない）（#553）', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 900 });
+    await openRouletteTool(page, 'spacing-regulars');
+    await page.getByRole('button', { name: '新しく作る' }).click();
+    await page.getByLabel('メンツの名前').fill('W'.repeat(40));
+    await page.getByLabel('ほかの名前（1 行に 1 人）').fill('さとう\nすずき');
+    await page.getByRole('button', { name: 'この端末に保存' }).click();
+    await expect(page.locator('.roulette-regulars-name').first()).toBeVisible();
+    for (const width of [320, 390, 1280] as const) {
+      await page.setViewportSize({ width, height: 900 });
+      await expect(page.locator('.roulette-regulars-name').first(), `幅 ${String(width)}: 組が見える`).toBeVisible();
+      const m = await page.evaluate(() => {
+        const sec = document.querySelector('.roulette-regulars')!.getBoundingClientRect();
+        const row = document.querySelector('.roulette-regulars-row')!.getBoundingClientRect();
+        return { scrollWidth: document.documentElement.scrollWidth, innerWidth, rowRight: row.right, secRight: sec.right };
+      });
+      expect(m.scrollWidth, `幅 ${String(width)}: ページが横に溢れない`).toBeLessThanOrEqual(m.innerWidth);
+      expect(m.rowRight, `幅 ${String(width)}: 組の行は区画の幅に収まる`).toBeLessThanOrEqual(m.secRight + 1);
     }
   });
 
@@ -310,6 +345,9 @@ test.describe('縦に並ぶブロックの間は親が持つ', () => {
       await expectActionsBelongToHeading(page, '参加者', 'ドライバー順をランダムに並べ替える', `セッション 幅 ${String(width)}`, { maxGap: 2 * SPACE_3 });
       await expectActionsBelongToHeading(page, '参加者', '代理参加者を追加', `セッション 幅 ${String(width)}`, { maxGap: 2 * SPACE_3 });
     }
+    // 「ランダム」のアイコンは 1rem（16px）。以前の `session-action-icon` と同じ大きさで、名簿の見出しの行の字（--font-size-sm 前後）と釣り合う
+    const icon = await page.locator('button[aria-label="ドライバー順をランダムに並べ替える"] svg').first().evaluate((el) => ({ w: el.getBoundingClientRect().width, h: el.getBoundingClientRect().height }));
+    expect(icon, '「ランダム」のアイコンは 16px 角').toEqual({ w: 16, h: 16 });
     // 共有メモの「編集」も同じ約束。脇が 22rem の 1280 以上は、折り返さず見出しと同じ行にあること（`.shared-memo-lead` が縮む）
     for (const width of [320, 1280, 1920] as const) {
       await page.setViewportSize({ width, height: 900 });

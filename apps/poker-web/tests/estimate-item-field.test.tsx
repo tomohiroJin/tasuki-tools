@@ -122,4 +122,30 @@ describe('EstimateItemField', () => {
     rerender(<EstimateItemField item="" onCommit={vi.fn()} disabled />);
     expect(screen.getByRole<HTMLInputElement>('textbox').disabled).toBe(true);
   });
+
+  describe('束の見出しの名前（inline）の見えない複製（#553）', () => {
+    it('Given 編集中 / When ボタンを数える / Then 複製は読み上げの木に入らず（aria-hidden）、getAllByRole(button) に出ない', () => {
+      const { container } = render(<EstimateItemField item="A" onCommit={vi.fn()} disabled={false} size="inline" />);
+      fireEvent.click(screen.getByRole('button'));
+      expect(screen.queryAllByRole('button')).toHaveLength(0);
+      const sizer = container.querySelector('.estimate-item-sizer') as HTMLButtonElement;
+      expect(sizer).not.toBeNull();
+      expect(sizer.getAttribute('aria-hidden')).toBe('true');
+      expect(sizer.textContent).toBe('A');
+    });
+
+    it('Given 編集中 / When 複製を調べる / Then Tab の行き先にならない（tabIndex=-1・disabled）', () => {
+      const { container } = render(<EstimateItemField item="A" onCommit={vi.fn()} disabled={false} size="inline" />);
+      fireEvent.click(screen.getByRole('button'));
+      const sizer = container.querySelector('.estimate-item-sizer') as HTMLButtonElement;
+      expect(sizer.tabIndex).toBe(-1);
+      expect(sizer.disabled).toBe(true);
+    });
+
+    it('Given 通常（title）の欄 / When 編集する / Then 複製は無い', () => {
+      const { container } = render(<EstimateItemField item="A" onCommit={vi.fn()} disabled={false} />);
+      fireEvent.click(screen.getByRole('button'));
+      expect(container.querySelector('.estimate-item-sizer')).toBeNull();
+    });
+  });
 });
