@@ -192,6 +192,9 @@ async function expectLastCountedButtonFullWidth(page: Page, label: string): Prom
  * 見えている状態から Tab の送りで着ける（見えている要素はブラウザが送らないので、scroll-padding が帯の高さを持っていなければ帯の後ろに残る）。
  */
 async function expectNothingJustAboveDockHidden(page: Page, dock: Locator, label: string): Promise<void> {
+  // 低い画面にして、帯のすぐ上の操作が画面の下端の帯の範囲に入るまでスクロールできるようにする（終わったら戻す）
+  const original = page.viewportSize()!;
+  await page.setViewportSize({ width: original.width, height: 420 });
   await page.evaluate((sel) => {
     const el = document.querySelector(sel)!;
     const all = Array.from(document.querySelectorAll<HTMLElement>('button, a[href], select, input, textarea, [tabindex]:not([tabindex="-1"])'))
@@ -199,8 +202,9 @@ async function expectNothingJustAboveDockHidden(page: Page, dock: Locator, label
     const target = all.at(-1)!;
     target.id = '__above-dock';
     (document.activeElement as HTMLElement | null)?.blur();
-    target.scrollIntoView({ block: 'end' });
-    window.scrollBy(0, -4);
+    // 帯の高さの範囲のうち、6rem（旧い余白）では「見えている」とされ、帯の高さの余白なら「見えていない」とされる位置（下端から 120px）に置く
+    target.scrollIntoView({ block: 'nearest' });
+    window.scrollBy(0, target.getBoundingClientRect().bottom - (innerHeight - 120));
   }, await dock.evaluate((el) => (el.id ? `#${el.id}` : (el.className.includes('session-actions') ? '.session-actions' : '.room-main > .ui-actions--dock'))));
   await page.locator('#__above-dock').focus();
   await expect.poll(async () => page.evaluate((sel) => {
@@ -208,6 +212,7 @@ async function expectNothingJustAboveDockHidden(page: Page, dock: Locator, label
     return f.bottom - document.querySelector(sel)!.getBoundingClientRect().top;
   }, '.room-main > .ui-actions--dock'), { message: `${label}: 帯のすぐ上の操作が帯の後ろに隠れる（scroll-padding が帯の高さに足りない）` }).toBeLessThanOrEqual(0.5);
   await page.evaluate(() => document.getElementById('__above-dock')?.removeAttribute('id'));
+  await page.setViewportSize(original);
 }
 
 interface DockFacts {
