@@ -13,6 +13,7 @@ import { chooseCard, createRoom as createPokerRoom } from '../support/poker';
 import { openRouletteTool } from '../support/roulette';
 import { createRoom as createTimerRoom, joinAsDriver } from '../support/timer';
 import { joinTopicTool, setTopic } from '../support/topic';
+import { openAgendaTool } from '../support/agenda';
 
 const WIDTHS = [320, 390, 768, 1280, 1920] as const;
 /** `--space-3`（0.75rem）。区画の中のブロックどうしの間の最低限。 */
@@ -64,10 +65,20 @@ async function paragraphGaps(page: Page): Promise<number[]> {
  * 「見出しを持つ要素」は、行の直下の子のうち h2 を含むもの（timer はアイコンと h2 を包む `.section-header-lead`）。
  * 操作は `aria-label` か可視の文字で探し、位置は行の直下の子（操作が塊に入っていれば塊）で測る。
  */
-async function expectActionsBelongToHeading(page: Page, headingText: string, actionLabel: string, label: string, maxGap?: number): Promise<void> {
+interface BelongOptions {
+  /** 同じ行のときの、見出しとの横の間の上限（px） */
+  maxGap?: number;
+  /** 折り返さず、必ず見出しと同じ行にあること（広い幅の共有メモの「編集」など） */
+  sameLine?: boolean;
+  /** 見出しを前方一致で引く（「参加者（3人）」のように人数が付く見出し）。既定は完全一致 */
+  prefix?: boolean;
+}
+
+async function expectActionsBelongToHeading(page: Page, headingText: string, actionLabel: string, label: string, opts: BelongOptions = {}): Promise<void> {
+  const { maxGap, sameLine: mustSameLine, prefix = false } = opts;
   const m = await page.evaluate(
-    ({ headingText, actionLabel }) => {
-      const heading = [...document.querySelectorAll('h2')].find((h) => (h.textContent ?? '').trim() === headingText);
+    ({ headingText, actionLabel, prefix }) => {
+      const heading = [...document.querySelectorAll('h2')].find((h) => (prefix ? (h.textContent ?? '').trim().startsWith(headingText) : (h.textContent ?? '').trim() === headingText));
       const row = heading?.closest('.ui-section-head');
       if (heading === undefined || row === null || row === undefined) return { found: 'heading' as const };
       const action = [...row.querySelectorAll('button')].find(
@@ -83,11 +94,12 @@ async function expectActionsBelongToHeading(page: Page, headingText: string, act
       const a = { top: group.getBoundingClientRect().top, left: first.getBoundingClientRect().left };
       return { found: 'ok' as const, sameLine: a.top < h.bottom - 0.5, below: a.top - h.bottom, leftDelta: a.left - h.left, gap: a.left - h.right };
     },
-    { headingText, actionLabel },
+    { headingText, actionLabel, prefix },
   );
   expect(m.found, `${label}: 見出し「${headingText}」の行の中に操作「${actionLabel}」がある（'heading' は見出しの行が無い・'action' は行の中に操作が無い）`).toBe('ok');
   if (m.found !== 'ok') return;
   // 同じ行なら、操作は見出しの隣にある（見出しから行の反対の端まで離れない）。上限は poker の参加者の欄と同じ 24px
+  if (mustSameLine === true) expect(m.sameLine, `${label}: 「${actionLabel}」は見出しと同じ行（折り返さない）`).toBe(true);
   if (m.sameLine && maxGap !== undefined) expect(m.gap, `${label}: 見出しと「${actionLabel}」の横の間（上限 ${String(maxGap)}px）`).toBeLessThanOrEqual(maxGap);
   if (!m.sameLine) {
     expect(Math.abs(m.below - SPACE_2), `${label}: 折り返した「${actionLabel}」と見出しの間は 8px`).toBeLessThanOrEqual(1);
@@ -104,20 +116,8 @@ test.describe('縦に並ぶブロックの間は親が持つ', () => {
       await page.setViewportSize({ width, height: 900 });
       const gap = await gapBelowHeadingRow(page, '参加者', '.participants');
       expect(gap, `幅 ${String(width)}: 見出しの行と札の並びの間`).toBeGreaterThanOrEqual(SPACE_3);
-      // 「見学する」は見出しの隣に置く（見出しから操作の面の反対の端まで飛ばさない）。同じ行なら横の間は 24px 以内、
-      // 下の行へ落ちたら左端が見出しに揃う
-      const next = await page.evaluate(() => {
-        const heading = [...document.querySelectorAll('h2')].find((h) => (h.textContent ?? '').startsWith('参加者'));
-        const row = heading?.closest('.ui-section-head');
-        const button = row?.querySelector('button');
-        if (heading === undefined || button === null || button === undefined) return null;
-        const h = heading.getBoundingClientRect();
-        const b = button.getBoundingClientRect();
-        return { sameLine: b.top < h.bottom - 0.5, gap: b.left - h.right, leftDelta: b.left - h.left };
-      });
-      expect(next, `幅 ${String(width)}: 見出しの行に「見学する」がある`).not.toBeNull();
-      if (next!.sameLine) expect(next!.gap, `幅 ${String(width)}: 見出しと「見学する」の横の間`).toBeLessThanOrEqual(2 * SPACE_3);
-      else expect(Math.abs(next!.leftDelta), `幅 ${String(width)}: 折り返した「見学する」の左端は見出しの左端に揃う`).toBeLessThanOrEqual(1);
+      // 「見学する」は見出しの隣に置く（見出しから操作の面の反対の端まで飛ばさない）。同じ行なら横の間は 24px 以内、下の行へ落ちたら見出しの下 8px・左端そろい
+      await expectActionsBelongToHeading(page, '参加者', '見学する', `poker 幅 ${String(width)}`, { maxGap: 2 * SPACE_3, prefix: true });
     }
   });
 
@@ -204,6 +204,65 @@ test.describe('縦に並ぶブロックの間は親が持つ', () => {
     }
   });
 
+  test('Given poker の記録の閉じた束（短い名前「A」） / When 名前の変更を始める（ボタンが入力に替わる） / Then 選択欄の行は変わらない（切り替えで行が跳ばない）（#553 レビュー）', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await createPokerRoom(page, 'spacing-rename');
+    await page.getByRole('button', { name: '記録する' }).click();
+    await page.locator('.estimate-item:not(.estimate-item--inline) .estimate-item-title').first().click();
+    await page.locator('.estimate-item:not(.estimate-item--inline) .estimate-item-input').fill('A');
+    await page.keyboard.press('Enter');
+    await chooseCard(page, '5');
+    await page.getByRole('button', { name: '次のアイテムへ' }).click();
+    const row = async (): Promise<{ sameLine: boolean; top: number } | null> =>
+      page.evaluate(() => {
+        const head = [...document.querySelectorAll('.estimate-group-head')].find((e) => e.getClientRects().length > 0 && e.querySelector('.estimate-item--inline') !== null);
+        const name = head?.querySelector('.estimate-group-item');
+        const points = head?.querySelector('select');
+        if (!head || !name || !points) return null;
+        const n = name.getBoundingClientRect();
+        const p = points.getBoundingClientRect();
+        return { sameLine: p.top < n.bottom - 0.5, top: Math.round(p.top - head.getBoundingClientRect().top) };
+      });
+    for (const width of [320, 390, 1280] as const) {
+      await page.setViewportSize({ width, height: 900 });
+      await expect(page.locator('.estimate-group-head:visible .estimate-item--inline .estimate-item-title').first(), `幅 ${String(width)}: 名前のボタンが見える`).toBeVisible();
+      const before = await row();
+      expect(before, `幅 ${String(width)}: 閉じた束の見出しの行がある`).not.toBeNull();
+      expect(before!.sameLine, `幅 ${String(width)}: 変更の前は選択欄が名前と同じ行`).toBe(true);
+      await page.locator('.estimate-group-head:visible .estimate-item--inline .estimate-item-title').first().click();
+      await expect(page.locator('.estimate-group-head:visible .estimate-item--inline .estimate-item-input').first(), `幅 ${String(width)}: 入力に替わった`).toBeVisible();
+      const after = await row();
+      expect(after, `幅 ${String(width)}: 変更中も見出しの行がある`).not.toBeNull();
+      expect(after!.sameLine, `幅 ${String(width)}: 変更中も選択欄は名前と同じ行`).toBe(true);
+      // 行が同じ: 選択欄の上端は、前の行の高さ（入力はボタンより数 px 高い）の範囲に収まる。次の行へ落ちるなら 1 行ぶん（24px 以上）下がる
+      expect(Math.abs(after!.top - before!.top), `幅 ${String(width)}: 選択欄の位置（行）が変わらない`).toBeLessThan(12);
+      await page.keyboard.press('Escape');
+    }
+  });
+
+  test('Given agenda の保存した流れに空白の無い 40 字の名前 / When 320〜1280 で開く / Then 横に溢れない（一覧は .ui-stack--tight で、名前の列が縮む）（#553）', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await openAgendaTool(page, 'spacing-agenda');
+    await page.getByRole('button', { name: 'サンプルから選ぶ', exact: true }).click();
+    await page.getByRole('button', { name: /サンプル：KPT のふりかえり/ }).click();
+    await page.getByLabel('保存する名前').fill('W'.repeat(40));
+    await page.getByRole('button', { name: 'この端末に保存' }).click();
+    const list = page.getByRole('list', { name: '保存済み' });
+    await expect(list.getByRole('listitem')).toHaveCount(1);
+    for (const width of [320, 390, 1024, 1280] as const) {
+      await page.setViewportSize({ width, height: 900 });
+      await expect(list.getByRole('listitem').first(), `幅 ${String(width)}: 保存済みの行が見える`).toBeVisible();
+      const m = await page.evaluate(() => {
+        const ul = document.querySelector('.builder-saved-list')!;
+        const row = ul.querySelector('li')!.getBoundingClientRect();
+        const box = ul.getBoundingClientRect();
+        return { scrollWidth: document.documentElement.scrollWidth, innerWidth, rowRight: row.right, listRight: box.right };
+      });
+      expect(m.scrollWidth, `幅 ${String(width)}: ページが横に溢れない`).toBeLessThanOrEqual(m.innerWidth);
+      expect(m.rowRight, `幅 ${String(width)}: 保存済みの行は一覧の幅に収まる`).toBeLessThanOrEqual(m.listRight + 1);
+    }
+  });
+
   test('Given poker の読む面に段落が 3 つ / When 5 つの幅で開く / Then 段落どうしの間は 8px 以上（#553 一覧 #3）', async ({ page, openPeer }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     const url = await createPokerRoom(page, 'spacing-b');
@@ -232,26 +291,26 @@ test.describe('縦に並ぶブロックの間は親が持つ', () => {
     // ロビー（見出しは「参加者 (n人)」）
     for (const width of [320, 768, 1280] as const) {
       await page.setViewportSize({ width, height: 900 });
-      await expectActionsBelongToHeading(page, '参加者 (2人)', 'ドライバー順をランダムに並べ替える', `ロビー 幅 ${String(width)}`, 2 * SPACE_3);
+      await expectActionsBelongToHeading(page, '参加者 (2人)', 'ドライバー順をランダムに並べ替える', `ロビー 幅 ${String(width)}`, { maxGap: 2 * SPACE_3 });
     }
     await page.getByRole('button', { name: 'セッションを開始' }).click();
     await expect(page.getByRole('timer')).toBeVisible();
     for (const width of [320, 390, 1280] as const) {
       await page.setViewportSize({ width, height: 900 });
-      await expectActionsBelongToHeading(page, '参加者', 'ドライバー順をランダムに並べ替える', `セッション 幅 ${String(width)}`, 2 * SPACE_3);
-      await expectActionsBelongToHeading(page, '参加者', '代理参加者を追加', `セッション 幅 ${String(width)}`, 2 * SPACE_3);
+      await expectActionsBelongToHeading(page, '参加者', 'ドライバー順をランダムに並べ替える', `セッション 幅 ${String(width)}`, { maxGap: 2 * SPACE_3 });
+      await expectActionsBelongToHeading(page, '参加者', '代理参加者を追加', `セッション 幅 ${String(width)}`, { maxGap: 2 * SPACE_3 });
     }
-    // 共有メモの「編集」も同じ約束（脇が 22rem の 1280 と、320）
-    for (const width of [320, 1280] as const) {
+    // 共有メモの「編集」も同じ約束。脇が 22rem の 1280 以上は、折り返さず見出しと同じ行にあること（`.shared-memo-lead` が縮む）
+    for (const width of [320, 1280, 1920] as const) {
       await page.setViewportSize({ width, height: 900 });
-      await expectActionsBelongToHeading(page, '共有メモ', '編集', `共有メモ 幅 ${String(width)}`);
+      await expectActionsBelongToHeading(page, '共有メモ', '編集', `共有メモ 幅 ${String(width)}`, { sameLine: width >= 1280 });
     }
     // ルームのタブの名簿（広い幅ほど離れやすい。1024 では行が 577px あった）
     await page.getByRole('tab', { name: 'ルーム' }).click();
     for (const width of [390, 768, 1024, 1280] as const) {
       await page.setViewportSize({ width, height: 900 });
-      await expectActionsBelongToHeading(page, '参加者', 'ドライバー順をランダムに並べ替える', `ルームのタブ 幅 ${String(width)}`, 2 * SPACE_3);
-      await expectActionsBelongToHeading(page, '参加者', '代理参加者を追加', `ルームのタブ 幅 ${String(width)}`, 2 * SPACE_3);
+      await expectActionsBelongToHeading(page, '参加者', 'ドライバー順をランダムに並べ替える', `ルームのタブ 幅 ${String(width)}`, { maxGap: 2 * SPACE_3 });
+      await expectActionsBelongToHeading(page, '参加者', '代理参加者を追加', `ルームのタブ 幅 ${String(width)}`, { maxGap: 2 * SPACE_3 });
     }
   });
 
