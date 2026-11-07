@@ -350,9 +350,9 @@ function listPackageSources(pkg) {
   );
 }
 
-/** 実体を観測する。 */
-function observe(pkg, files) {
-  const manifestPath = path.join(REPO_ROOT, pkg, "package.json");
+/** 実体を観測する（`root` は走査の起点。既定はリポジトリ。自己テストは一時のディレクトリを渡す）。 */
+export function observe(pkg, files, root = REPO_ROOT) {
+  const manifestPath = path.join(root, pkg, "package.json");
   const manifest = [];
   if (fs.existsSync(manifestPath)) {
     const json = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
@@ -366,14 +366,17 @@ function observe(pkg, files) {
   const escapes = [];
   const testSupport = [];
   for (const rel of files) {
-    const text = fs.readFileSync(path.join(REPO_ROOT, rel), "utf8");
-    if (rel.startsWith(`${pkg}/src/`) && TEST_SUPPORT_SPECIFIER.test(text)) testSupport.push(rel);
+    const text = fs.readFileSync(path.join(root, rel), "utf8");
+    const inSrc = rel.startsWith(`${pkg}/src/`);
+    if (inSrc && TEST_SUPPORT_SPECIFIER.test(text)) testSupport.push(rel);
     for (const m of text.matchAll(TASUKI_SPECIFIER)) imports.push(m[1]);
     for (const m of text.matchAll(RELATIVE_SPECIFIER)) {
       // 解決先はリポジトリ相対で持つ。パッケージの接頭辞から外れたら越境。
       // `path.posix` で畳むのは、走査対象のパスが常に `/` 区切りだから。
       const target = path.posix.normalize(path.posix.join(path.posix.dirname(rel), m[1]));
       if (!target.startsWith(`${pkg}/`)) escapes.push(`${rel} → ${m[1]}`);
+      // 製品コード（src）から、同じパッケージの tests・test を相対パスで読むのも試験用の入口と同じ（越境でも @tasuki/ でもないので、ここで拾う）
+      if (inSrc && /(^|\/)tests?\//.test(target.slice(pkg.length))) testSupport.push(`${rel} → ${m[1]}`);
     }
   }
   return { manifest, imports, escapes, testSupport };
