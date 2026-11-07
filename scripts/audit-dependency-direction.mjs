@@ -275,6 +275,12 @@ export function findInvalidExclusions(entries) {
 const TASUKI_SPECIFIER = /["'](@tasuki\/[a-z0-9-]+)/g;
 
 /**
+ * 試験用の入口（`@tasuki/ui/test-support`）の指定子。CSS を字で読む試験が共有するためだけに公開しているので、製品コード（`<pkg>/src`）から読まない（#554）。
+ * 相対パスで packages/ui/tests を読むことは、決定 4（パッケージの外への相対パス）が止める。
+ */
+const TEST_SUPPORT_SPECIFIER = /["']@tasuki\/ui\/test-support/;
+
+/**
  * 相対パスの指定子を拾う。
  *
  * `from "..."` と `import("...")` の両方を見る。`export ... from "..."` も
@@ -291,7 +297,7 @@ const RELATIVE_SPECIFIER = /(?:from|import)\s*\(?\s*["'](\.[^"']*)["']/g;
  */
 export function findViolations(observed) {
   const violations = [];
-  for (const [pkg, { manifest, imports, escapes = [] }] of Object.entries(observed)) {
+  for (const [pkg, { manifest, imports, escapes = [], testSupport = [] }] of Object.entries(observed)) {
     const allowed = ALLOWED[pkg];
     if (allowed === undefined) {
       violations.push({ pkg, dep: null, via: "declaration" });
@@ -308,6 +314,10 @@ export function findViolations(observed) {
     // 表に載っている依存先であっても、パッケージ名で参照しなければ 2 と 3 が空振りする。
     for (const dep of new Set(escapes)) {
       violations.push({ pkg, dep, via: "相対パス" });
+    }
+    // 製品コード（src）が試験用の入口を読むのは、依存先が表にあるかどうかによらず違反。
+    for (const dep of new Set(testSupport)) {
+      violations.push({ pkg, dep, via: "試験用の入口" });
     }
   }
   return violations;
@@ -354,8 +364,10 @@ function observe(pkg, files) {
   }
   const imports = [];
   const escapes = [];
+  const testSupport = [];
   for (const rel of files) {
     const text = fs.readFileSync(path.join(REPO_ROOT, rel), "utf8");
+    if (rel.startsWith(`${pkg}/src/`) && TEST_SUPPORT_SPECIFIER.test(text)) testSupport.push(rel);
     for (const m of text.matchAll(TASUKI_SPECIFIER)) imports.push(m[1]);
     for (const m of text.matchAll(RELATIVE_SPECIFIER)) {
       // 解決先はリポジトリ相対で持つ。パッケージの接頭辞から外れたら越境。
@@ -364,7 +376,7 @@ function observe(pkg, files) {
       if (!target.startsWith(`${pkg}/`)) escapes.push(`${rel} → ${m[1]}`);
     }
   }
-  return { manifest, imports, escapes };
+  return { manifest, imports, escapes, testSupport };
 }
 
 function main() {
@@ -476,6 +488,8 @@ function main() {
         ? `  ${v.pkg}: 許可表に宣言がありません`
         : v.via === "相対パス"
           ? `  ${v.pkg}: パッケージの外を相対パスで取り込んでいます ${v.dep}`
+          : v.via === "試験用の入口"
+            ? `  ${v.pkg}: 製品コードが試験用の入口 @tasuki/ui/test-support を読んでいます ${v.dep}`
           : `  ${v.pkg} → ${v.dep}（${v.via}）`,
     );
   }

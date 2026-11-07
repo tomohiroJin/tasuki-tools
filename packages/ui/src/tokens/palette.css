@@ -103,10 +103,6 @@
    * `.run-controls`・`.projection-strip`）が同じ地と上の線を 1 か所から引く。地は不透明（字の後ろに中身を透かさない） */
   --dock-ground: var(--felt-950);
   --dock-edge: var(--line-strong);
-  /* 下端の帯（2 段）の最大の高さ。Tab で送った先が帯の後ろに隠れない余白（`scroll-padding-block-end`）に使う（WCAG 2.4.11）。
-   * 実測（既定の文字の大きさ）: poker の公開後（選択欄 1 段 ＋ 操作 1 段）142.2px・timer の休憩つき（2×2）125px・poker の投票中（1 段）約 80px。
-   * 最大の 142.2px に iPhone のホームバー（`env(safe-area-inset-bottom)`）を足して使うので、丸めて 9.5rem（152px）。文字を拡大したときの折り返しは測っていない */
-  --dock-max-height: 9.5rem;
 
   /* --- 語彙に畳めない色（#320 PR 5・設計正本 D10 の 3） -------------------
    * 画面の CSS に直書きされていた色のうち、上の語彙（tint / veil / edge など）に相当が無いものを、
