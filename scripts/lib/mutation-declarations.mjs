@@ -6765,8 +6765,8 @@ export const MUTATIONS = [
   },
   {
     id: 1274,
-    label: "`.ui-reader-preview` の下に余白（padding-bottom）を足して箱を伸ばす（行数は 3 のまま）",
-    patch: "m1274-reader-preview-box-stretched.patch",
+    label: "`.ui-reader-preview` に `min-height: 12rem` を足して箱を伸ばす（字の行数は 3 のまま）",
+    patch: "m1274-reader-preview-box-min-height.patch",
     pkg: "packages/ui",
     tests: ["tests/spacing-owner.test.mjs"],
     note: RESERVED_1270_1279 + " " + "#553。3 行の写しの箱が伸びても行数の数え上げだけでは緑になる。箱の高さの上限（`layout.spec.ts`）で赤になる。",

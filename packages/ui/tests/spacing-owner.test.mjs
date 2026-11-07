@@ -117,6 +117,8 @@ test('Given 3 行の写し .ui-reader-preview / When 縦の余白を読む / The
   const body = ruleBody(read('packages/ui/src/components/reader.css'), '.ui-reader-preview') ?? '';
   assert.match(body, /margin-block:\s*var\(--space-4\);/);
   assert.match(body, /padding:\s*0 var\(--space-5\);/);
+  // 箱を縦に伸ばさない（3 行の高さに収める）
+  assert.doesNotMatch(body, /min-height|height:|padding-(block|bottom)/);
 });
 
 // アプリのソースの文字列（className の式・JSX の書き方）はここでは固定しない。画面が部品を当てていること・条件の振る舞いは、

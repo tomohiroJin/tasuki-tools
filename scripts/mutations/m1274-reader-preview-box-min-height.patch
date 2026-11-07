@@ -1,12 +1,11 @@
 diff --git a/packages/ui/src/components/reader.css b/packages/ui/src/components/reader.css
 --- a/packages/ui/src/components/reader.css
 +++ b/packages/ui/src/components/reader.css
-@@ -23,7 +23,7 @@
- .ui-reader-preview {
+@@ -24,6 +24,7 @@
    box-sizing: border-box;
    margin-block: var(--space-4);
--  padding: 0 var(--space-5);
-+  padding: 0 var(--space-5) var(--space-6);
+   padding: 0 var(--space-5);
++  min-height: 12rem;
    overflow-wrap: anywhere;
    display: -webkit-box;
    -webkit-box-orient: vertical;
