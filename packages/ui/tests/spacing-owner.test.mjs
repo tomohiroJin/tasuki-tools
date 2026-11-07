@@ -215,3 +215,9 @@ test('Given timer の「ランダム」の導き方 / When Session と Lobby を
   assert.match(read('apps/timer-web/src/index.css'), /@import '\.\/styles\/shuffle-button\.css';/);
   assert.doesNotMatch(read('apps/timer-web/src/styles/roster-panel.css'), /shuffle-button/);
 });
+
+test('Given 3 行の写し .ui-reader-preview / When 縦の余白を読む / Then margin で取り、縦の padding を持たない（padding の帯に 4 行目の上端が覗く）', () => {
+  const body = ruleBody(read('packages/ui/src/components/reader.css'), '.ui-reader-preview') ?? '';
+  assert.match(body, /margin-block:\s*var\(--space-4\);/);
+  assert.match(body, /padding:\s*0 var\(--space-5\);/);
+});
