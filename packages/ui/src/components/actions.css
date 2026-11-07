@@ -49,6 +49,12 @@
      5 つ以上は副の操作を帯の外へ出す。段が増えると 320×568 で帯が画面の 3 割を覆い、手札や結果の数字が初期表示で隠れる。
      選択欄は先頭に置き、1 段を使う。選択欄があれば、続く操作は 2 つまで（3 つ以上は 3 段になる）。数え方の `:nth-child(… of S)` は Chromium 111・Safari 9 以上で効く。
    - 帯が覆う中身は、最下部までスクロールすると帯の上に出る（帯は流れの中に居るので、中身の下の余白は部品が持つ必要がない）。 */
+/* 数えないもの（`hidden`）は描かない（幅によらない）。`.ui-button { display: inline-flex }` が UA の `[hidden] { display: none }` に勝つので、書かないと
+   「数えない」と決めた子が描かれて段が増える。帯の子を隠すときは `hidden` 属性か `.ui-visually-hidden` を使う（クラスや @media の `display: none` は数え方が知らない） */
+.ui-actions--dock > [hidden] {
+  display: none;
+}
+
 @media (width < 40rem) {
   .ui-actions--dock {
     position: sticky;
@@ -63,14 +69,8 @@
     background: var(--dock-ground);
   }
 
-  .ui-actions--dock > :nth-child(odd of :not([hidden], .ui-visually-hidden, select, .ui-actions-start)):nth-last-child(1 of :not([hidden], .ui-visually-hidden)) {
+  .ui-actions--dock > :nth-child(odd of :not([hidden], .ui-visually-hidden, select, .ui-actions-start)):nth-last-child(1 of :not([hidden], .ui-visually-hidden, select, .ui-actions-start)) {
     grid-column: 1 / -1;
-  }
-
-  /* 数えないもの（`hidden`）は描かない。`.ui-button { display: inline-flex }` が UA の `[hidden] { display: none }` に勝つので、書かないと
-     「数えない」と決めた子が描かれて段が増える。帯の子を隠すときは `hidden` 属性か `.ui-visually-hidden` を使う（クラスや @media の `display: none` は数え方が知らない） */
-  .ui-actions--dock > [hidden] {
-    display: none;
   }
 
   /* 2 列の 1 つは (320 − 2×16 − 12) ÷ 2 = 138px。ボタンの左右の余白（`--lg` は 1.8rem ＝ 28.8px）を詰めないと「次のアイテムへ」が 2 行に折れる */

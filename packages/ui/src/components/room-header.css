@@ -65,7 +65,6 @@
   .ui-room-header-invite .ui-invite-url {
     grid-column: 1 / -1;
     justify-self: start;
-    max-inline-size: 100%;
   }
 }
 

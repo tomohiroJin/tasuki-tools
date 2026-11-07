@@ -5,11 +5,17 @@
    ============================================================ */
 
 /* ── 段組み ─────────────────────────────────────────────── */
+/* 帯（`.run-controls`）の高さの上限。実測（既定の文字の大きさ）は 320〜639px で 161.39〜162.22px、640〜1023px で 133px（上の線 1px ＋ 余白と 2 段）。
+   実測より大きく丸めた手書きの値で、E2E（`header-and-dock.spec.ts`）が帯の実際の高さがこの値以下であることを測る（ずれたら赤）。文字を拡大したときの折り返しは測っていない。
+   `.run` の下の余白と、Tab の送り先の余白（下の `scroll-padding-block-end`）が同じ値を引く */
+:root {
+  --run-controls-height: 10.5rem;
+}
+
 /* 帯が `fixed` の幅（64rem 未満）は、Tab で辿った先が帯の後ろに隠れない（WCAG 2.4.11）よう、フォーカスで送るときの下の余白を帯の高さに揃える。
-   40rem 未満の reset.css の 6rem と、40〜64rem の「無し」を上書きする。変数は `html` に置き、`.run` の下の余白と同じ値を引く */
+   40rem 未満の reset.css の `--dock-max-height` と、40〜64rem の「無し」を上書きする。`:has` は宣言を置く条件だけに使う */
 @media (width < 64rem) {
   html:has(.run-controls) {
-    --run-controls-height: 10.5rem;
     scroll-padding-block-end: calc(var(--run-controls-height) + env(safe-area-inset-bottom));
   }
 }
@@ -24,8 +30,7 @@
     'dial'
     'aside';
   gap: var(--space-4);
-  /* 帯（`.run-controls`・固定）の高さの上限。実測は 320〜1023px で 161.4〜161.8px（上の線 1px ＋ 余白と 2 段）。実測より大きく丸め、
-     E2E（`header-and-dock.spec.ts`）が帯の実際の高さがこの値以下であることを測る（ずれたら赤）。下の余白に、iPhone のホームバーの高さ
+  /* 帯（`.run-controls`・固定）の高さ（上の `--run-controls-height`）に、iPhone のホームバーの高さ
      （`env(safe-area-inset-bottom)`・帯も同じだけ下の余白を足している）を足す。足りないと、最下部で最後の行や「最初から」が不透明な帯に隠れる（#554） */
   padding-bottom: calc(var(--run-controls-height) + env(safe-area-inset-bottom));
 }

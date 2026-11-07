@@ -16,11 +16,12 @@ html {
   accent-color: var(--gold);
 }
 
-/* 40rem 未満では操作の並び（`.ui-actions--dock`・高さ約 5rem）が画面の下端に留まる。Tab で辿った先が帯の下に
-   隠れないよう、フォーカスで送るときの下の余白を帯の高さぶん取る（WCAG 2.4.11）。部品層は要素を飾れないのでここに置く */
+/* 40rem 未満では操作の並び（`.ui-actions--dock`・2 段で最大 142px）が画面の下端に留まる。Tab で辿った先が帯の下に
+   隠れないよう、フォーカスで送るときの下の余白を 2 段の帯の最大の高さ（`--dock-max-height`・実測の根拠はトークンの側）＋ ホームバーぶん取る（WCAG 2.4.11）。
+   部品層は要素を飾れないのでここに置く */
 @media (width < 40rem) {
   html {
-    scroll-padding-block-end: 6rem;
+    scroll-padding-block-end: calc(var(--dock-max-height) + env(safe-area-inset-bottom));
   }
 }
 
