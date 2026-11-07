@@ -6711,8 +6711,8 @@ export const MUTATIONS = [
     id: 1258,
     label: "poker の束（`li.estimate-group`）から `.ui-stack--tight` を外す",
     patch: "m1258-poker-estimate-group-not-tight.patch",
-    pkg: "packages/ui",
-    tests: ["tests/spacing-owner.test.mjs"],
+    pkg: "apps/poker-web",
+    tests: ["tests/estimate-log.test.tsx"],
     note: RESERVED_1250_1259 + " " + "#553。束の見出しの行と回の記録の間が 12px に広がる。",
   },
   {
