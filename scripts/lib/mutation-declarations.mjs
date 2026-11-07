@@ -6832,8 +6832,8 @@ export const MUTATIONS = [
   },
   {
     id: 1283,
-    label: "部品 `.ui-banner` に縦の margin を足す（`.ui-stack` の直下で gap に足される）",
-    patch: "m1283-ui-banner-vertical-margin-after-stack.patch",
+    label: "部品 `.ui-button`（stack より後に読む部品）に縦の margin を足す（`.ui-stack` の直下で gap に足される）",
+    patch: "m1283-ui-button-vertical-margin-after-stack.patch",
     pkg: "packages/ui",
     tests: ["tests/spacing-owner.test.mjs"],
     note: RESERVED_1280_1289 + " " + "#553。stack より後に読む部品が縦の margin を持つと、`.ui-stack` の直下で間が開きすぎる。",

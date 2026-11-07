@@ -1,0 +1,11 @@
+diff --git a/packages/ui/src/components/button.css b/packages/ui/src/components/button.css
+--- a/packages/ui/src/components/button.css
++++ b/packages/ui/src/components/button.css
+@@ -12,6 +12,7 @@
+    ============================================================ */
+ 
+ .ui-button {
++  margin-top: var(--space-2);
+   box-sizing: border-box;
+   display: inline-flex;
+   align-items: center;
