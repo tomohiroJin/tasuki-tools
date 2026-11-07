@@ -33,7 +33,7 @@
 - 縦に並ぶブロックの間は**親が `gap` で持つ**。親が部品なら部品が、画面の容器なら画面のクラスが持つ。
 - 子は外側の縦の余白（`margin-block`・`margin-top`・`margin-bottom`）を**持たない**。
 - 余白を足したいときは親の `gap` を変える。子へ足さない。
-- **勝ち負けの決まり**: `.ui-stack > *` と `.ui-section-head > *` のリセットは詳細度 (0,1,0) で、要素層の margin（`h2` など・(0,0,1)）には勝つが、同じ詳細度で**後に読む部品**の margin には負ける。縦の margin を持つ部品（いまは `.ui-reader-preview`・`.ui-reader-more`）を `.ui-stack` の直下に置かない。`:where()` で詳細度を 0 にしないのは、要素層に負けてリセットの役目を失うため。持つ部品の一覧は `packages/ui/tests/spacing-owner.test.mjs` が固定する。
+- **勝ち負けの決まり**: `.ui-stack > *` と `.ui-section-head > *` のリセットは詳細度 (0,1,0) で、要素層の margin（`h2` など・(0,0,1)）には勝つが、同じ詳細度で**後に読む部品**の margin には負ける。縦の margin を持つ部品（いまは `.ui-reader-preview`・`.ui-reader-more`・64rem 以上の `.ui-reader-body`）を `.ui-stack` の直下に置かない。`:where()` で詳細度を 0 にしないのは、要素層に負けてリセットの役目を失うため。持つ部品の一覧は `packages/ui/tests/spacing-owner.test.mjs` が固定する。
 - **例外（行数で切る面）**: `-webkit-line-clamp` で行数を切る面（`.ui-reader-preview` の中の Markdown）は、
   中身が通常の流れ（block）でないと切れない（flex の `gap` に替えると 3 行で切れず全文が出ることを実測した）。
   この面の中は、親（`.ui-md`）が兄弟セレクタの `margin-top` で間を持つ。子の `margin: 0`（同じ詳細度）に勝つよう、この規則を子のリセットより**後ろに書く**（後勝ち。クラスを重ねて詳細度を上げる回避はしない）。
