@@ -12,12 +12,12 @@
 diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
 --- a/apps/agenda-web/src/run.css
 +++ b/apps/agenda-web/src/run.css
-@@ -576,7 +576,7 @@
-   --projection-strip-height: 10rem;
+@@ -578,7 +578,7 @@
  }
- .projection-body {
--  padding-block-end: calc(var(--space-6) + var(--projection-strip-height) + env(safe-area-inset-bottom));
-+  padding-block-end: var(--space-6);
+ @media (width < 64rem) {
+   .projection-body {
+-    padding-block-end: calc(var(--space-6) + var(--projection-strip-height) + env(safe-area-inset-bottom));
++    padding-block-end: var(--space-6);
+   }
  }
  
- /* マウスを動かしたときだけ出す薄い操作帯。キーボードで入ったときも出す */

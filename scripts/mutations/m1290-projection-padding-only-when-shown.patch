@@ -12,12 +12,12 @@
 diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
 --- a/apps/agenda-web/src/run.css
 +++ b/apps/agenda-web/src/run.css
-@@ -575,7 +575,7 @@
- :root {
+@@ -577,7 +577,7 @@
    --projection-strip-height: 10rem;
  }
--.projection-body {
-+.projection:has(> .projection-strip.is-shown, > .projection-strip:focus-within) > .projection-body {
-   padding-block-end: calc(var(--space-6) + var(--projection-strip-height) + env(safe-area-inset-bottom));
+ @media (width < 64rem) {
+-  .projection-body {
++  .projection:has(> .projection-strip.is-shown, > .projection-strip:focus-within) > .projection-body {
+     padding-block-end: calc(var(--space-6) + var(--projection-strip-height) + env(safe-area-inset-bottom));
+   }
  }
- 

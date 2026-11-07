@@ -1,0 +1,23 @@
+# 変異 1295: projection-padding-all-widths
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/run-controls-opaque.test.ts
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外。1280×720 で縦のスクロールが出て赤）
+#
+# #554 のレビュー。映す表示の下の余白が 64rem 以上にも掛かり、盤が約 80px 上に寄り、1280×720 で縦のスクロールが出る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1295-*.patch
+# 復元: git apply -R scripts/mutations/m1295-*.patch
+diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
+--- a/apps/agenda-web/src/run.css
++++ b/apps/agenda-web/src/run.css
+@@ -576,7 +576,7 @@
+ :root {
+   --projection-strip-height: 10rem;
+ }
+-@media (width < 64rem) {
++@media (width >= 0rem) {
+   .projection-body {
+     padding-block-end: calc(var(--space-6) + var(--projection-strip-height) + env(safe-area-inset-bottom));
+   }

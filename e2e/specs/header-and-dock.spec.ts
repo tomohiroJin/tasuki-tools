@@ -398,6 +398,17 @@ test.describe('poker のルームの見出しと帯', () => {
       return display;
     });
     expect(hiddenDisplay, 'hidden の子が帯の中で描かれる（数えない子は描かない）').toBe('none');
+    // 帯でない .ui-actions の中の hidden のボタンも描かない（.ui-button の display が UA の [hidden] に勝たない）
+    const plainHidden = await page.evaluate(() => {
+      const box = document.createElement('div');
+      box.className = 'ui-actions';
+      box.innerHTML = '<button type="button" class="ui-button" hidden>隠す</button>';
+      document.body.append(box);
+      const display = getComputedStyle(box.firstElementChild!).display;
+      box.remove();
+      return display;
+    });
+    expect(plainHidden, '帯でない .ui-actions の中の hidden のボタンが描かれる').toBe('none');
     // 選択欄が実物にあり（空の検査にしない）、先頭にある
     expect((await dockFacts(dock)).hasSelect, 'poker 公開後の帯に選択欄が無い（選択欄の約束の測りが空振りする）').toBe(true);
     for (const width of [320, 390]) {
@@ -620,8 +631,19 @@ test.describe('agenda の映す表示の帯', () => {
       return hit?.closest('.projection-strip') !== null && hit !== undefined;
     });
     expect(front, '映す表示の帯のボタンの点を、帯より前の要素が受けている').toBe(true);
-    // 帯が出ても盤が跳ねない（余白は帯の有無によらず常に取る）
-    for (const [width, height] of [[1280, 800], [390, 800], [768, 1024]] as const) {
+    // 広い画面（64rem 以上）は帯が中身に重ならないので余白を取らない: 縦のスクロールが無く、盤は画面の中央にある（main と同じ位置。1920×1080 で 540・1280×720 で 360）
+    for (const [width, height] of [[1280, 720], [1920, 1080]] as const) {
+      await page.setViewportSize({ width, height });
+      const m = await page.evaluate(() => {
+        const root = document.querySelector('.projection')!;
+        const dial = document.querySelector('.projection-dial')!.getBoundingClientRect();
+        return { scrollH: root.scrollHeight, clientH: root.clientHeight, center: dial.top + dial.height / 2, half: innerHeight / 2 };
+      });
+      expect(m.scrollH, `映す表示（${width}×${height}）: 縦のスクロールが出る（scrollHeight ${m.scrollH} > ${m.clientH}）`).toBeLessThanOrEqual(m.clientH);
+      expect(Math.abs(m.center - m.half), `映す表示（${width}×${height}）: 盤の中心（${m.center}）が画面の中央（${m.half}）からずれる`).toBeLessThanOrEqual(2);
+    }
+    // 狭い幅（64rem 未満）は、帯が出ても盤が跳ねない（余白は帯の有無によらず常に取る）
+    for (const [width, height] of [[390, 800], [768, 1024]] as const) {
       await page.setViewportSize({ width, height });
       await page.mouse.move(0, 0);
       await page.locator('.projection-body').focus().catch(() => undefined);

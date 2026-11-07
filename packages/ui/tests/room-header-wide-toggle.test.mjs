@@ -52,7 +52,8 @@ function wideHideRule() {
 }
 
 function buttonDisplayRule() {
-  const found = rules(read('button.css')).filter((r) => /(?:^|[;{\s])display\s*:/.test(r.body));
+  // `.ui-button[hidden] { display: none }`（hidden を描かない規則）は比べる相手ではない
+  const found = rules(read('button.css')).filter((r) => /(?:^|[;{\s])display\s*:/.test(r.body) && !r.selector.includes('[hidden]'));
   assert.equal(found.length, 1, `button.css で display を宣言する規則がちょうど 1 つではない（${found.length} 件）。比べる相手を見直す`);
   assert.equal(found[0].selector, '.ui-button', 'button.css で display を宣言する規則が `.ui-button` ではない。比べる相手を見直す');
   assert.match(found[0].body, /display:\s*inline-flex/);

@@ -138,3 +138,19 @@ test("実際の除外表は理由の要件を満たす（表そのものの健�
   // 表が空のあいだは自明に通るが、行が足された瞬間から効く
   assert.deepEqual(findInvalidExclusions(EXCLUDED_PACKAGES), []);
 });
+
+test("製品コード（src）が試験用の入口を読むと、依存先が表にあるかどうかによらず違反（#554）", () => {
+  const violations = findViolations({
+    "apps/agenda-web": { manifest: [], imports: [], escapes: [], testSupport: ["apps/agenda-web/src/main.tsx"] },
+  });
+  assert.deepEqual(violations, [
+    { pkg: "apps/agenda-web", dep: "apps/agenda-web/src/main.tsx", via: "試験用の入口" },
+  ]);
+});
+
+test("試験用の入口を読む試験（src の外）は観測に載らないので通る（#554）", () => {
+  const violations = findViolations({
+    "apps/agenda-web": { manifest: ["@tasuki/ui"], imports: ["@tasuki/ui"], escapes: [], testSupport: [] },
+  });
+  assert.deepEqual(violations, []);
+});

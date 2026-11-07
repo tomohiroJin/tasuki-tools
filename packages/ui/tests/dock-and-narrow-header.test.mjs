@@ -7,7 +7,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { mediaBlock, only, outsideMedia, rules } from './support/css-text.mjs';
@@ -79,7 +79,7 @@ test('Given 帯の逃がし余白 / When reset.css・トークンを読む / The
   const narrow = rules(mediaBlock(reset, '@media (width < 40rem)'));
   assert.match(only(narrow, 'html'), /scroll-padding-block-end:\s*6rem;/);
   assert.match(only(narrow, 'html:has(.ui-actions--dock)'), /scroll-padding-block-end:\s*calc\(var\(--dock-max-height\) \+ env\(safe-area-inset-bottom\)\);/);
-  const tokens = readFileSync(resolve(COMPONENTS, '../tokens/palette.css'), 'utf8');
+  const tokens = readFileSync(resolve(COMPONENTS, '../tokens/shape.css'), 'utf8');
   assert.match(tokens, /--dock-max-height:\s*9\.5rem;/);
 });
 
@@ -142,36 +142,7 @@ test('Given 招待の URL / When 字の規則を読む / Then 1 行に収め、�
   assert.match(body, /max-inline-size:\s*100%;/);
 });
 
-/** `dir` の下の製品コード（.ts・.tsx・.js・.jsx・.mjs・.css）を集める。node_modules・dist・tests は入れない。 */
-function sourcesUnder(dir) {
-  const found = [];
-  for (const name of readdirSync(dir)) {
-    if (['node_modules', 'dist', 'tests', 'test'].includes(name)) continue;
-    const full = resolve(dir, name);
-    if (statSync(full).isDirectory()) found.push(...sourcesUnder(full));
-    else if (/\.(tsx?|jsx?|mjs|css)$/.test(name)) found.push(full);
-  }
-  return found;
-}
-
-// 監査（依存の向き）が自分自身の取り込みと誤るので、入口の名前は連結で作る
-const ENTRY = ['@tasuki', 'ui', 'test-support'].join('/');
-
-test('Given 試験用の入口 test-support / When 製品コード（apps/*/src・packages/*/src）を走査する / Then 1 件も読んでいない', () => {
-  const root = resolve(COMPONENTS, '../../../..');
-  const roots = [];
-  for (const group of ['apps', 'packages']) {
-    for (const name of readdirSync(resolve(root, group))) {
-      try {
-        if (statSync(resolve(root, group, name, 'src')).isDirectory()) roots.push(resolve(root, group, name, 'src'));
-      } catch {
-        // src の無いパッケージは対象外
-      }
-    }
-  }
-  assert.ok(roots.length >= 10, `走査する src が少なすぎる（${roots.length} 件）。走査が空振りしている`);
-  const files = roots.flatMap((r) => sourcesUnder(r));
-  assert.ok(files.length > 100, `走査したファイルが少なすぎる（${files.length} 件）`);
-  const offenders = files.filter((f) => readFileSync(f, 'utf8').includes(ENTRY));
-  assert.deepEqual(offenders, [], '製品コードが試験用の入口（test-support）を読んでいる');
+test('Given ボタンの部品 / When button.css を読む / Then hidden の .ui-button は描かない（display: inline-flex が UA の [hidden] に勝つ欠陥を、帯の外でも塞ぐ）', () => {
+  const body = only(rules(readFileSync(resolve(COMPONENTS, 'button.css'), 'utf8')), '.ui-button[hidden]');
+  assert.match(body, /display:\s*none;/);
 });
