@@ -509,6 +509,26 @@
   font-weight: 400;
 }
 
+/* 束の見出しの名前は、編集中もボタンと同じ大きさの場所を取る（見えない複製 `.estimate-item-sizer` が場所を取り、入力はその上に重ねる）。
+   入力の固有の幅（size=20・約 180px）を持ち込むと名前の列の基準幅が変わり、選択欄の行が跳ぶ。0 にすると逆向きに跳ぶ（長い名前で、
+   ボタンのときは選択欄が下の行へ落ちるのに、入力では同じ行へ上がる）。短い名前も長い名前も、ボタンと入力で同じ行に保つ。 */
+.estimate-item--inline {
+  position: relative;
+}
+
+.estimate-item--inline .estimate-item-sizer {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.estimate-item--inline .estimate-item-input {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  min-inline-size: 0;
+}
+
 /* 名前を変える入力は、固有の幅（size=20・約 180px）を持ち込まない。持ち込むと名前の列の基準幅が広がり、選択欄が次の行へ落ちる
    （ボタンのときと同じ行に残す・切り替えで行が跳ばない）。基準の幅を 0 にし、伸びる分（flex-grow）で名前の列の中いっぱいに取る */
 .estimate-item--inline .estimate-item-input {
