@@ -122,10 +122,15 @@ body {
 }
 
 /* 画面の下端の帯（`.ui-actions--dock`・40rem 未満）の逃がし余白。
- * timer は要素層（`reset.css`）を読まないので、同じ式（2 段の帯の最大の高さ `--dock-max-height` ＋ ホームバー）をここに書く。
- * 帯は計器のカードの中でだけ留まる。2×2 の休憩つきで約 125px あり、Tab で辿った先が帯の後ろに隠れないよう取る（#554・WCAG 2.4.11） */
+ * timer は要素層（`reset.css`）を読まないので、要素層と同じ既定（6rem）をここに書き、帯のある画面（セッション。帯は `.session-actions`。部品の `.ui-` のクラスは timer の CSS で名指しできない）だけ、要素層（`reset.css`）と同じ式
+ * （2 段の帯の最大の高さ `--dock-max-height` ＋ ホームバー）に広げる。帯は計器のカードの中でだけ留まる。2×2 の休憩つきで約 125px あり、
+ * Tab で辿った先が帯の後ろに隠れないよう取る（#554・WCAG 2.4.11）。ロビーなど帯の無い画面には 152px を掛けない */
 @media (width < 40rem) {
   html {
+    scroll-padding-block-end: 6rem;
+  }
+
+  html:has(.session-actions) {
     scroll-padding-block-end: calc(var(--dock-max-height) + env(safe-area-inset-bottom));
   }
 }

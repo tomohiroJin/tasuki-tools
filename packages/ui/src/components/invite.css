@@ -25,9 +25,7 @@
   border-radius: var(--radius-md);
   color: var(--ivory-dim);
   font-family: var(--font-mono);
-  /* 行の中で縮められるように min-width を 0 に、折り返す flex の行でも自分の行の幅を超えないよう max-inline-size を 100% にする */
-  min-width: 0;
-  max-inline-size: 100%;
+  /* `overflow: hidden` の flex 項目は min-width の自動の下限が 0 になるので、`min-width: 0`・`max-inline-size: 100%` は要らない（外して 320・390・639px の実物と、300px の折り返す flex の一時の箱で幅が変わらないことを確かめた・#554） */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

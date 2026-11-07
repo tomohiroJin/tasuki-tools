@@ -16,11 +16,15 @@ html {
   accent-color: var(--gold);
 }
 
-/* 40rem 未満では操作の並び（`.ui-actions--dock`・2 段で最大 142px）が画面の下端に留まる。Tab で辿った先が帯の下に
-   隠れないよう、フォーカスで送るときの下の余白を 2 段の帯の最大の高さ（`--dock-max-height`・実測の根拠はトークンの側）＋ ホームバーぶん取る（WCAG 2.4.11）。
-   部品層は要素を飾れないのでここに置く */
+/* 40rem 未満では操作の並び（`.ui-actions--dock`）が画面の下端に留まる。Tab で辿った先が帯の下に隠れないよう、フォーカスで送るときの下の余白を取る（WCAG 2.4.11）。
+   既定は旧い 6rem。帯のある画面だけ、2 段の帯の最大の高さ（`--dock-max-height`・実測の根拠はトークンの側）＋ ホームバーに広げる（帯の無い画面にまで 152px の余白を掛けない）。
+   部品層（components/）は要素（html）を飾れない（`audit-ui-components`）ので、どちらもここに置く。timer は要素層を読まないので、同じ式を base.css に持つ */
 @media (width < 40rem) {
   html {
+    scroll-padding-block-end: 6rem;
+  }
+
+  html:has(.ui-actions--dock) {
     scroll-padding-block-end: calc(var(--dock-max-height) + env(safe-area-inset-bottom));
   }
 }
