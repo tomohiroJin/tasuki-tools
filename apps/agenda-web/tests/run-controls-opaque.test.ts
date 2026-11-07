@@ -50,9 +50,9 @@ describe('映す表示の帯', () => {
     expect(body).not.toMatch(/gradient|transparent|rgba|scrim/);
   });
 
-  it('Given 映す表示の帯が出ている間 / When 中身の下の余白を見る / Then 帯の高さの変数（10rem）＋ ホームバーぶんを取る（下端の情報が帯に隠れない）', () => {
+  it('Given 映す表示 / When 中身の下の余白を見る / Then 帯の有無によらず、帯の高さの変数（10rem）＋ ホームバーぶんを常に取る（出るたびに盤が跳ねない・下端の情報が帯に隠れない）', () => {
     expect(bodyWith(':root', '--projection-strip-height')).toMatch(/--projection-strip-height:\s*10rem;/);
-    const body = bodyWith('.projection:has(> .projection-strip.is-shown, > .projection-strip:focus-within) > .projection-body', 'padding-block-end');
+    const body = bodyWith('.projection-body', 'padding-block-end: calc');
     expect(body).toMatch(/padding-block-end:\s*calc\(var\(--space-6\) \+ var\(--projection-strip-height\) \+ env\(safe-area-inset-bottom\)\);/);
   });
 });
