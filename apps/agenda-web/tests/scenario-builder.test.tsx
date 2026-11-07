@@ -240,6 +240,15 @@ describe('組む画面', () => {
     expect(scenario.steps[2]?.durationSec).toBe(120);
   });
 
+  it('Given 保存済みが 1 件 / When 一覧を見る / Then 区画は .ui-stack・一覧は .ui-stack--tight（間は部品が持つ）（#553）', () => {
+    joinedRoom(idleAgenda('Retro', [['Check', 5], ['Talk', 10]]));
+    fireEvent.click(screen.getByRole('button', { name: 'この端末に保存' }));
+    const list = screen.getByRole('list', { name: '保存済み' });
+    expect(list.classList.contains('ui-stack')).toBe(true);
+    expect(list.classList.contains('ui-stack--tight')).toBe(true);
+    expect(list.closest('section')!.classList.contains('ui-stack')).toBe(true);
+  });
+
   it('Given 下書き / When この端末に保存して一覧から選ぶ / Then 名前・合計・ステップ数が 1 行に出て、選ぶと下書きに入る', () => {
     joinedRoom(idleAgenda('Retro', [['Check', 5], ['Talk', 10]]));
     fireEvent.click(screen.getByRole('button', { name: 'この端末に保存' }));

@@ -69,6 +69,14 @@ export function EstimateItemField({ item, onCommit, disabled, label = ESTIMATE_I
           {item === '' ? ESTIMATE_UNNAMED : item}
         </button>
       ) : (
+        <>
+        {/* 束の見出しの中（inline）では、名前のボタンと同じ大きさの場所を、編集中も取り続ける（見えない複製・読み上げと Tab から外す）。
+            入力はその上に重ねる。入力の固有の幅に引かれて名前の列の基準幅が変わり、選択欄の行が跳ぶのを防ぐ（短い名前も長い名前も） */}
+        {size === 'inline' && (
+          <button type="button" className="ui-button ui-button--secondary estimate-item-title estimate-item-sizer" aria-hidden="true" tabIndex={-1} disabled>
+            {startRef.current === '' ? ESTIMATE_UNNAMED : startRef.current}
+          </button>
+        )}
         <input
           type="text"
           className="ui-input estimate-item-input"
@@ -96,6 +104,7 @@ export function EstimateItemField({ item, onCommit, disabled, label = ESTIMATE_I
             }
           }}
         />
+        </>
       )}
     </div>
   );

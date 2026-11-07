@@ -1,0 +1,21 @@
+diff --git a/packages/ui/src/components/markdown.css b/packages/ui/src/components/markdown.css
+--- a/packages/ui/src/components/markdown.css
++++ b/packages/ui/src/components/markdown.css
+@@ -10,6 +10,10 @@
+      --ui-md-link  リンクの字の色。既定は字の色を継ぐ（下線で区別する）
+      --ui-md-check タスクリストのチェックボックスの色（#315）。既定 --coal は象牙の上でしか読めない */
+ 
++.ui-md > * + * {
++  margin-top: var(--space-2);
++}
++
+ .ui-md-h {
+   margin: 0;
+   font-weight: 700;
+@@ -145,6 +149,3 @@
+    中身が通常の流れ（block）でないと行数で切れない（根を flex にすると 3 行で切れず全文が出る）。
+    `white-space: pre-wrap` は Markdown 自身の段落・改行の扱い（空行区切り・行内の改行）と二重になり、
+    連続する空行が段落の間隔と別に隙間を作るので使わない。 */
+-.ui-md > * + * {
+-  margin-top: var(--space-2);
+-}

@@ -71,8 +71,8 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
             </span>
             <ol className="estimate-groups">
               {shown.map((group) => (
-                <li key={group.id} className="estimate-group" data-group={group.id}>
-                  <div className="estimate-group-head">
+                <li key={group.id} className="estimate-group ui-stack ui-stack--tight" data-group={group.id}>
+                  <div className="estimate-group-head ui-section-head">
                     {group.open ? (
                       <>
                         <span id={itemIdOf(group.id)} className="estimate-group-item">{group.item === '' ? ESTIMATE_UNNAMED : group.item}</span>

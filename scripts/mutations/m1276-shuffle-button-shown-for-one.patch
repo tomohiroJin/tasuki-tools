@@ -1,0 +1,12 @@
+diff --git a/apps/timer-web/src/ui/components/ShuffleButton.tsx b/apps/timer-web/src/ui/components/ShuffleButton.tsx
+--- a/apps/timer-web/src/ui/components/ShuffleButton.tsx
++++ b/apps/timer-web/src/ui/components/ShuffleButton.tsx
+@@ -7,7 +7,7 @@
+ 
+ export function ShuffleButton({ onClick, rotationLength }: { onClick: (() => void) | undefined; rotationLength: number }) {
+   // 2 人以上で意味を持つ。出す条件はここ 1 か所に置く（ロビーと名簿が同じ規則を写さない）
+-  if (onClick === undefined || rotationLength < 2) return null;
++  if (onClick === undefined || rotationLength < 1) return null;
+   return (
+     <button
+       type="button"

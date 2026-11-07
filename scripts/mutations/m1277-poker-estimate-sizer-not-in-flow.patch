@@ -1,0 +1,11 @@
+diff --git a/apps/poker-web/src/index.css b/apps/poker-web/src/index.css
+--- a/apps/poker-web/src/index.css
++++ b/apps/poker-web/src/index.css
+@@ -517,6 +517,7 @@
+ }
+ 
+ .estimate-item--inline .estimate-item-sizer {
++  display: none;
+   visibility: hidden;
+   pointer-events: none;
+ }

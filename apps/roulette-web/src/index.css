@@ -612,22 +612,15 @@
 }
 /* いつものメンツ（#458）。端末だけの物なので、ルームの一覧と罫で分ける（.roulette-foot と同じ罫） */
 .roulette-regulars {
-  display: grid;
-  /* 列の最小幅を 0 にする。名前は nowrap なので、既定の auto だと長い組名の幅まで区画ごと広がり、320px で横に溢れる */
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-3);
   padding-top: var(--space-4);
   border-top: 1px solid var(--line);
 }
+/* 見出し（h3）と小さな「この端末だけ」は、字の大きさが違うので基準線で揃える（部品の既定は中央揃え） */
 .roulette-regulars-head {
-  display: flex;
   align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3);
 }
-.roulette-regulars-head h3 {
-  margin: 0;
-}
+/* 見出しの行は `.ui-section-head`、区画の中の間は `.ui-stack` が持つ（ADR 0035）。
+   縦に積む flex の子は横幅が器で決まるので、名前の長さで区画ごと広がらない（grid の列の最小幅を 0 にしていた理由） */
 .roulette-regulars-where,
 .roulette-regulars-count {
   margin: 0;
@@ -766,15 +759,13 @@
 .roulette-regulars-confirm p {
   margin: 0;
 }
-/* 知らせは常に置く（読み上げの対象を最初から持つ）。空のあいだは段の間隔も詰めて、高さを 0 に見せる */
+/* 知らせは常に置く（読み上げの対象を最初から持つ）。空のあいだは JSX が部品 `ui-visually-hidden` を足して流れから外す（`RegularsSection.tsx`）。
+   子が負の余白で親の gap を打ち消さない（ADR 0035 決定 1）。 */
 .roulette-regulars-notice {
   margin: 0;
   font-size: var(--font-size-sm);
   /* 入らなかった人の名前（#469 D5）は区切りの無い長い名前でも折る（320px で横に溢れた） */
   overflow-wrap: anywhere;
-}
-.roulette-regulars-notice:empty {
-  margin-block-start: calc(-1 * var(--space-3));
 }
 .roulette-foot {
   display: flex;

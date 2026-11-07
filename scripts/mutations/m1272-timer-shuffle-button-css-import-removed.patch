@@ -1,0 +1,10 @@
+diff --git a/apps/timer-web/src/index.css b/apps/timer-web/src/index.css
+--- a/apps/timer-web/src/index.css
++++ b/apps/timer-web/src/index.css
+@@ -44,6 +44,5 @@
+ @import './styles/shared-memo.css';
+ @import './styles/end-session-zone.css';
+ @import './styles/roster-panel.css';
+-@import './styles/shuffle-button.css';
+ @import './styles/session.css';
+ @import './styles/app.css';
