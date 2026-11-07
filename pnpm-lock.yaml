@@ -803,6 +803,9 @@ importers:
 
   packages/ui:
     devDependencies:
+      postcss:
+        specifier: ^8.5.25
+        version: 8.5.32
       stylelint:
         specifier: ^17.15.0
         version: 17.16.0(supports-color@10.2.2)(typescript@6.0.3)
