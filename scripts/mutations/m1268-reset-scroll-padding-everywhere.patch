@@ -1,0 +1,23 @@
+# 変異 1268: reset-scroll-padding-everywhere
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/dock-and-narrow-header.test.mjs
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外。帯の無い玄関で 96px でなく 152px になって赤）
+#
+# #554 のレビュー。要素層の Tab の送り先の余白が、帯の無い画面にまで 152px 掛かる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1268-*.patch
+# 復元: git apply -R scripts/mutations/m1268-*.patch
+diff --git a/packages/ui/src/elements/reset.css b/packages/ui/src/elements/reset.css
+--- a/packages/ui/src/elements/reset.css
++++ b/packages/ui/src/elements/reset.css
+@@ -21,7 +21,7 @@
+    部品層（components/）は要素（html）を飾れない（`audit-ui-components`）ので、どちらもここに置く。timer は要素層を読まないので、同じ式を base.css に持つ */
+ @media (width < 40rem) {
+   html {
+-    scroll-padding-block-end: 6rem;
++    scroll-padding-block-end: calc(var(--dock-max-height) + env(safe-area-inset-bottom));
+   }
+ 
+   html:has(.ui-actions--dock) {

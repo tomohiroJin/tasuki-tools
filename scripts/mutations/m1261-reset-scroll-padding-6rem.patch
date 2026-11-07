@@ -2,9 +2,9 @@
 #
 # 検出を期待するテスト:
 #   - packages/ui/tests/dock-and-narrow-header.test.mjs
-#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外）
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外。320px の poker の公開後で帯のすぐ上の操作が帯に隠れて赤）
 #
-# #554 のレビュー。Tab の送り先の余白が 6rem（96px）に戻り、2 段の帯（最大 142px）のすぐ上の操作へ Tab で移ると、帯の後ろに残る（WCAG 2.4.11）。
+# #554 のレビュー。帯のある画面の Tab の送り先の余白が 6rem（96px）に戻り、2 段の帯（最大 142px）のすぐ上の操作へ Tab で移ると帯の後ろに残る（WCAG 2.4.11）。
 #
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m1261-*.patch
@@ -12,10 +12,10 @@
 diff --git a/packages/ui/src/elements/reset.css b/packages/ui/src/elements/reset.css
 --- a/packages/ui/src/elements/reset.css
 +++ b/packages/ui/src/elements/reset.css
-@@ -21,7 +21,7 @@
-    部品層は要素を飾れないのでここに置く */
- @media (width < 40rem) {
-   html {
+@@ -25,7 +25,7 @@
+   }
+ 
+   html:has(.ui-actions--dock) {
 -    scroll-padding-block-end: calc(var(--dock-max-height) + env(safe-area-inset-bottom));
 +    scroll-padding-block-end: 6rem;
    }

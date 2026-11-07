@@ -191,7 +191,7 @@ async function expectLastCountedButtonFullWidth(page: Page, label: string): Prom
  * 帯のすぐ上の操作へ Tab で移ったとき、その操作が帯に隠れない（WCAG 2.4.11）。帯より前の DOM の最後のフォーカスできる要素を、画面の下端のすぐ内側（帯の後ろ）に
  * 見えている状態から Tab の送りで着ける（見えている要素はブラウザが送らないので、scroll-padding が帯の高さを持っていなければ帯の後ろに残る）。
  */
-async function expectNothingJustAboveDockHidden(page: Page, dock: Locator, label: string): Promise<void> {
+async function expectNothingJustAboveDockHidden(page: Page, dockSelector: string, label: string): Promise<void> {
   // 低い画面にして、帯のすぐ上の操作が画面の下端の帯の範囲に入るまでスクロールできるようにする（終わったら戻す）
   const original = page.viewportSize()!;
   await page.setViewportSize({ width: original.width, height: 420 });
@@ -205,12 +205,12 @@ async function expectNothingJustAboveDockHidden(page: Page, dock: Locator, label
     // 帯の高さの範囲のうち、6rem（旧い余白）では「見えている」とされ、帯の高さの余白なら「見えていない」とされる位置（下端から 120px）に置く
     target.scrollIntoView({ block: 'nearest' });
     window.scrollBy(0, target.getBoundingClientRect().bottom - (innerHeight - 120));
-  }, await dock.evaluate((el) => (el.id ? `#${el.id}` : (el.className.includes('session-actions') ? '.session-actions' : '.room-main > .ui-actions--dock'))));
+  }, dockSelector);
   await page.locator('#__above-dock').focus();
   await expect.poll(async () => page.evaluate((sel) => {
     const f = document.getElementById('__above-dock')!.getBoundingClientRect();
     return f.bottom - document.querySelector(sel)!.getBoundingClientRect().top;
-  }, '.room-main > .ui-actions--dock'), { message: `${label}: 帯のすぐ上の操作が帯の後ろに隠れる（scroll-padding が帯の高さに足りない）` }).toBeLessThanOrEqual(0.5);
+  }, dockSelector), { message: `${label}: 帯のすぐ上の操作が帯の後ろに隠れる（scroll-padding が帯の高さに足りない）` }).toBeLessThanOrEqual(0.5);
   await page.evaluate(() => document.getElementById('__above-dock')?.removeAttribute('id'));
   await page.setViewportSize(original);
 }
@@ -329,10 +329,18 @@ test.describe('poker のルームの見出しと帯', () => {
   test('Given poker のルーム / When 320・390・640・768・900 で見る / Then URL は 1 行で、戻るは題と揃い、見出しは 3 段、公開後の帯は不透明で 2 段まで、最下部で中身が帯に隠れない', async ({ page, openPeer }) => {
     test.setTimeout(120_000);
     await page.setViewportSize({ width: 768, height: 900 });
+    // 帯の無い画面（玄関）の Tab の送り先の余白は旧い 6rem（96px）のまま。帯のある画面だけが --dock-max-height（152px）に広がる
+    await page.setViewportSize({ width: 390, height: 800 });
+    await page.goto('/');
+    await expect(page.getByRole('button', { name: 'ルームを作る' })).toBeVisible();
+    expect(await page.evaluate(() => getComputedStyle(document.documentElement).scrollPaddingBottom), '帯の無い画面（玄関）の scroll-padding-block-end が 6rem でない').toBe('96px');
+    await page.setViewportSize({ width: 768, height: 900 });
     const url = await createPokerRoom(page, 'header-host');
     for (const width of [640, 768, 900]) {
       await page.setViewportSize({ width, height: 900 });
       await expectInviteUrlOneLine(page, `poker URL（${width}）`);
+      // URL に title・aria-label を付けない（触る端末ではツールチップが出ず、読み上げで URL が二重になる）
+      expect(await page.locator('.ui-invite-url').first().evaluate((el) => [el.hasAttribute('title'), el.hasAttribute('aria-label')]), `poker URL（${width}）に title か aria-label がある`).toEqual([false, false]);
       await expectNoHorizontalOverflow(page, `poker（${width}）`);
     }
     for (const width of [320, 390]) {
@@ -356,6 +364,21 @@ test.describe('poker のルームの見出しと帯', () => {
     await turnRecordingOn(page);
     await chooseCard(page, '8');
     await expect(page.getByRole('button', { name: '再投票' })).toBeVisible();
+    expect(await page.evaluate(() => getComputedStyle(document.documentElement).scrollPaddingBottom), 'poker（帯あり）の scroll-padding-block-end が --dock-max-height でない').toBe('152px');
+    // 選択欄の選んだ字が切れていない（字の自然な幅 ≤ 選択欄の中の幅 − 矢印のぶん）。1 列（約 138px）に押し込むと切れる
+    for (const width of [320, 390]) {
+      await page.setViewportSize({ width, height: 800 });
+      const fit = await dock.locator('select').evaluate((sel: HTMLSelectElement) => {
+        const cs = getComputedStyle(sel);
+        const ctx = document.createElement('canvas').getContext('2d')!;
+        ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+        const text = sel.selectedOptions[0]?.textContent ?? '';
+        const inner = sel.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+        return { text: ctx.measureText(text).width + (Number.parseFloat(cs.letterSpacing) || 0) * text.length, inner };
+      });
+      // 矢印（約 24px）のぶんを引く
+      expect(fit.text, `poker 公開後（${width}）: 選択欄の字（${fit.text}px）が選択欄の中の幅（${fit.inner}px − 矢印）に収まらない`).toBeLessThanOrEqual(fit.inner - 24);
+    }
     // 数えない子（hidden）は描かれない: .ui-button の display が UA の [hidden] に勝つと、描かれて段が増える
     const hiddenDisplay = await dock.evaluate((el) => {
       const probe = document.createElement('button');
@@ -374,7 +397,7 @@ test.describe('poker のルームの見出しと帯', () => {
       await expectLastCountedButtonFullWidth(page, `一時の帯（${width}）`);
       await expectDockContract(dock, `poker 公開後（${width}）`);
       await expectContentClearOfDock(page, dock, `poker 公開後（${width}）`);
-      if (width === 320) await expectNothingJustAboveDockHidden(page, dock, `poker 公開後（${width}）`);
+      if (width === 320) await expectNothingJustAboveDockHidden(page, '.room-main > .ui-actions--dock', `poker 公開後（${width}）`);
     }
   });
 });
@@ -383,8 +406,12 @@ test.describe('timer のセッションの帯', () => {
   test('Given timer のセッション / When 320・390 で見る / Then 帯は不透明で 2 段まで、最下部で盤の下が帯に隠れない', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 800 });
     await createTimerRoom(page, 'header-timer');
+    // 帯の無い画面（ロビー）は旧い 6rem（96px）のまま。帯のあるセッションだけ --dock-max-height（152px）に広がる
+    await expect(page.getByRole('button', { name: 'セッションを開始' })).toBeVisible();
+    expect(await page.evaluate(() => getComputedStyle(document.documentElement).scrollPaddingBottom), 'timer ロビー（帯なし）の scroll-padding-block-end が 6rem でない').toBe('96px');
     await page.getByRole('button', { name: 'セッションを開始' }).click();
     await expect(page.getByRole('timer')).toBeVisible();
+    expect(await page.evaluate(() => getComputedStyle(document.documentElement).scrollPaddingBottom), 'timer セッション（帯あり）の scroll-padding-block-end が --dock-max-height でない').toBe('152px');
     const dock = page.locator('.session-actions');
     for (const width of [320, 390]) {
       await page.setViewportSize({ width, height: 800 });
@@ -564,7 +591,7 @@ test.describe('timer の休憩つきのセッションの帯', () => {
 });
 
 test.describe('agenda の映す表示の帯', () => {
-  test('Given 映す表示で操作帯を出した / When 帯の地を測る / Then 不透明で、帯の字の点を帯が受ける', async ({ page }) => {
+  test('Given 映す表示で操作帯を出した / When 帯の地と下の余白を測る / Then 不透明で、帯の字の点を帯が受け、最下部の中身が帯と重ならない', async ({ page }) => {
     test.setTimeout(120_000);
     await page.setViewportSize({ width: 1280, height: 800 });
     await openAgendaTool(page, 'header-projection');
@@ -585,5 +612,30 @@ test.describe('agenda の映す表示の帯', () => {
       return hit?.closest('.projection-strip') !== null && hit !== undefined;
     });
     expect(front, '映す表示の帯のボタンの点を、帯より前の要素が受けている').toBe(true);
+    // 帯が出ている間、下端の中身（「予定の終わり」など）が帯と重ならない。縦長・背の低い・狭い画面で、最下部までスクロールして測る。帯の高さは変数以下
+    for (const [width, height] of [[390, 800], [320, 568], [800, 400]] as const) {
+      await page.setViewportSize({ width, height });
+      await exit.focus();
+      await expect(strip).toHaveCSS('opacity', '1');
+      const m = await page.evaluate(() => {
+        const root = document.querySelector('.projection')!;
+        root.scrollTo(0, root.scrollHeight);
+        const stripBox = document.querySelector('.projection-strip')!.getBoundingClientRect();
+        const probe = document.createElement('div');
+        probe.style.height = getComputedStyle(document.documentElement).getPropertyValue('--projection-strip-height').trim();
+        document.body.append(probe);
+        const limit = probe.getBoundingClientRect().height;
+        probe.remove();
+        let bottom = -Infinity;
+        let who = '';
+        for (const el of Array.from(document.querySelectorAll('.projection-body *'))) {
+          const r = el.getBoundingClientRect();
+          if (r.width > 0 && r.height > 0 && r.bottom > bottom) { bottom = r.bottom; who = `${el.tagName.toLowerCase()}.${(el as HTMLElement).className}`; }
+        }
+        return { strip: stripBox.height, stripTop: stripBox.top, limit, bottom, who };
+      });
+      expect(m.strip, `映す表示の帯の高さ（${width}×${height}）が --projection-strip-height（${m.limit}px）を超える`).toBeLessThanOrEqual(m.limit);
+      expect(m.bottom, `映す表示（${width}×${height}）: 最下部で中身（${m.who}）が帯（上端 ${m.stripTop}）に隠れる`).toBeLessThanOrEqual(m.stripTop + 0.5);
+    }
   });
 });

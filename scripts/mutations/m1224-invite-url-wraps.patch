@@ -10,11 +10,10 @@
 #       git apply scripts/mutations/m1224-*.patch
 # 復元: git apply -R scripts/mutations/m1224-*.patch
 diff --git a/packages/ui/src/components/invite.css b/packages/ui/src/components/invite.css
-index 45fe5cc2..da0f59f2 100644
 --- a/packages/ui/src/components/invite.css
 +++ b/packages/ui/src/components/invite.css
-@@ -30,7 +30,7 @@
-   max-inline-size: 100%;
+@@ -28,7 +28,7 @@
+   /* `overflow: hidden` の flex 項目は min-width の自動の下限が 0 になるので、`min-width: 0`・`max-inline-size: 100%` は要らない（外して 320・390・639px の実物と、300px の折り返す flex の一時の箱で幅が変わらないことを確かめた・#554） */
    overflow: hidden;
    text-overflow: ellipsis;
 -  white-space: nowrap;

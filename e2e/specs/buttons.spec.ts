@@ -575,10 +575,10 @@ test.describe('timer の各画面（ロビー・セッション・確認・ま�
     expect(clip.chips.length, '交代順の札に 30 字の名前が無い').toBe(1);
     for (const right of [...clip.next, ...clip.chips]) expect(right, `390: 長い名前がカードの縁（${clip.inner}）で切れる`).toBeLessThanOrEqual(clip.inner + 0.5);
 
-    // timer は要素層（`reset.css`）を読まないので、帯の逃がし余白（`scroll-padding-block-end`）は timer の `base.css` が持つ。
-    // 帯は計器のカードの中で留まり、カードには帯より上に隠れうる操作対象が無いので、Tab の行き先が帯の下に潜る場面はこの配置では作れない（下の一歩ごとの検査は予防）。
-    // 余白そのものは値で固定する（要素層と同じ 2 段の帯の最大の高さ 9.5rem ＝ 152px・40rem 未満だけ。#554。safe-area はテストの端末では 0）。
-    expect(await page.evaluate(() => getComputedStyle(document.documentElement).scrollPaddingBottom), '390: scroll-padding-block-end が 9.5rem でない').toBe('152px');
+    // timer は要素層（`reset.css`）を読まないので、帯の逃がし余白（`scroll-padding-block-end`）は timer の `base.css` が持つ。帯のある画面（このセッション）では
+    // 2 段の帯の最大の高さ 9.5rem ＝ 152px（`--dock-max-height`・safe-area はテストの端末では 0）。帯の無い画面（ロビー）は 6rem のまま（header-and-dock.spec.ts が測る）。
+    // 40rem 未満だけ（#554）。
+    expect(await page.evaluate(() => getComputedStyle(document.documentElement).scrollPaddingBottom), '390: 帯のあるセッションの scroll-padding-block-end が 9.5rem でない').toBe('152px');
 
     // Tab は「完成!」まで帯に隠れない。
     // 先に通知のヒントを閉じる（#447 段 2）。共通の見出しの分だけ計器のカードが下がり、ヒントが出たままの 390×460 では

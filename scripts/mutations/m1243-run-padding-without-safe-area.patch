@@ -2,7 +2,8 @@
 #
 # 検出を期待するテスト:
 #   - apps/agenda-web/tests/run-controls-opaque.test.ts
-#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外）
+#
+# E2E では env(safe-area-inset-bottom) が 0 なので緑のまま（node:test だけが拾う）。
 #
 # #554 のレビュー。iPhone のホームバーの高さが足りず、最下部で最後の行や「最初から」が不透明な帯に隠れる。
 #

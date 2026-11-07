@@ -74,11 +74,17 @@ test('Given 条件つきの塊 / When outsideMedia を通す / Then @media・@co
   assert.deepEqual(rules(outsideMedia(css)).map((r) => r.selector), ['.a', '.z']);
 });
 
-test('Given 帯の逃がし余白 / When reset.css とトークンを読む / Then Tab の送り先の余白は 2 段の帯の最大の高さ（--dock-max-height）＋ ホームバーで、6rem ではない', () => {
+test('Given 帯の逃がし余白 / When reset.css・トークンを読む / Then 要素層は旧い 6rem、帯のある画面だけ 2 段の帯の最大の高さ（--dock-max-height）＋ ホームバー', () => {
   const reset = readFileSync(resolve(COMPONENTS, '../elements/reset.css'), 'utf8');
-  assert.match(only(rules(mediaBlock(reset, '@media (width < 40rem)')), 'html'), /scroll-padding-block-end:\s*calc\(var\(--dock-max-height\) \+ env\(safe-area-inset-bottom\)\);/);
+  const narrow = rules(mediaBlock(reset, '@media (width < 40rem)'));
+  assert.match(only(narrow, 'html'), /scroll-padding-block-end:\s*6rem;/);
+  assert.match(only(narrow, 'html:has(.ui-actions--dock)'), /scroll-padding-block-end:\s*calc\(var\(--dock-max-height\) \+ env\(safe-area-inset-bottom\)\);/);
   const tokens = readFileSync(resolve(COMPONENTS, '../tokens/palette.css'), 'utf8');
   assert.match(tokens, /--dock-max-height:\s*9\.5rem;/);
+});
+
+test('Given 40rem 未満の通常の見出し / When 招待の欄の規則を読む / Then 招待の欄は行いっぱい（flex-basis: 100%）で、道具のボタンと並ばない', () => {
+  assert.match(only(headerRules(), `${NOT_COMPACT} .ui-room-header-share`), /flex-basis:\s*100%;/);
 });
 
 test('Given 選択欄の約束の文章 / When README を読む / Then 「先頭に置く・続く操作は 2 つまで」と書いてある（文言だけ。実画面で守られていることは E2E の dockFacts が測る）', () => {
@@ -88,7 +94,7 @@ test('Given 選択欄の約束の文章 / When README を読む / Then 「先頭
 test('Given 40rem 未満の帯 / When 選択欄と控えの包みの規則を読む / Then 位置によらず 1 段を使い、:has で奇数の数え方を上書きしない', () => {
   const list = dockRules();
   assert.match(only(list, '.ui-actions--dock > select, .ui-actions--dock > .ui-actions-start'), /grid-column:\s*1\s*\/\s*-1;/);
-  assert.ok(!list.some((r) => r.selector.includes(':has(')), '帯の規則が :has で子の並びを上書きしている');
+  assert.ok(!list.some((r) => r.selector.includes(':has(>')), '帯の規則が :has で子の並びを上書きしている');
 });
 
 test('Given 40rem 未満の帯 / When 上の線を読む / Then 線は --dock-edge から引く', () => {

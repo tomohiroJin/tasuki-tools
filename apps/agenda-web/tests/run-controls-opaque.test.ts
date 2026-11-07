@@ -1,25 +1,20 @@
 /**
  * 手元の操作の帯と映す表示の帯の地は不透明で、帯の下の余白は帯の高さ ＋ ホームバーの高さ（#554・#479 の #2。帯の約束は `packages/ui/README.md`）。
  * jsdom は描かないので、書いてある宣言そのものを見る。実際の見え方（字の点を帯が受ける・不透明・最下部で隠れない）は E2E の
- * `e2e/specs/header-and-dock.spec.ts` が見る。
- *
- * CSS を読む小さな関数は `packages/ui/tests/support/css-text.mjs` と同じ働きだが、アプリのテストから部品の tests を import しない
- * （型の無い .mjs で typecheck が通らず、部品の内側の置き場に依存するため）。ここは規則を 1 つ引くだけなので写しを持つ。
+ * `e2e/specs/header-and-dock.spec.ts` が見る。CSS を読む関数は部品の試験と共有する（`@tasuki/ui/test-support/css-text.mjs`。
+ * 依存の向きの監査は相対パスの越境だけを止めるので、パッケージ名の取り込みなら通る）。
  * @requirements #554 帯の字の後ろに中身が透けて重なり、最下部で最後の行が帯に隠れた
  */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { rules } from '@tasuki/ui/test-support/css-text.mjs';
 
-// CSS を字で読む関数は `packages/ui/tests/support/css-text.mjs` と同じ働きの写し。共有しない理由: アプリのテストが別パッケージの tests を
-// 相対パスで取り込むのは `audit-dependency-direction` が止め（パッケージの外を相対パスで取り込まない）、型の無い .mjs は typecheck も通らない。
-const css = readFileSync(path.resolve(__dirname, '../src/run.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+const css = readFileSync(path.resolve(__dirname, '../src/run.css'), 'utf8');
 
 /** 選択子が `selector` で、`must` を含む規則の本体（ちょうど 1 つ）。 */
 const bodyWith = (selector: string, must: string): string => {
-  const bodies = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
-    .filter((m) => (m[1] ?? '').trim() === selector && (m[2] ?? '').includes(must))
-    .map((m) => m[2] ?? '');
+  const bodies = rules(css).filter((r) => r.selector === selector && r.body.includes(must)).map((r) => r.body);
   expect(bodies).toHaveLength(1);
   return bodies[0] ?? '';
 };
@@ -53,5 +48,11 @@ describe('映す表示の帯', () => {
     const body = bodyWith('.projection-strip', 'position: fixed');
     expect(body).toMatch(/background:\s*var\(--dock-ground\);/);
     expect(body).not.toMatch(/gradient|transparent|rgba|scrim/);
+  });
+
+  it('Given 映す表示の帯が出ている間 / When 中身の下の余白を見る / Then 帯の高さの変数（10rem）＋ ホームバーぶんを取る（下端の情報が帯に隠れない）', () => {
+    expect(bodyWith(':root', '--projection-strip-height')).toMatch(/--projection-strip-height:\s*10rem;/);
+    const body = bodyWith('.projection:has(> .projection-strip.is-shown, > .projection-strip:focus-within) > .projection-body', 'padding-block-end');
+    expect(body).toMatch(/padding-block-end:\s*calc\(var\(--space-6\) \+ var\(--projection-strip-height\) \+ env\(safe-area-inset-bottom\)\);/);
   });
 });

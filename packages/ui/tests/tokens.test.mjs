@@ -35,7 +35,7 @@ test('トークン層が、他のパッケージから参照される変数を�
     '--jade-lift', '--jade-tint', '--jade-veil', '--jade-edge', '--on-jade',
     '--rose-lift', '--rose-tint', '--rose-veil', '--rose-edge', '--on-rose',
     '--rose-pale', '--rose-glow',
-    '--felt-lift', '--felt-scrim', '--felt-shade', '--ivory-inset', '--dock-ground', '--dock-edge',
+    '--felt-lift', '--felt-scrim', '--felt-shade', '--ivory-inset', '--dock-ground', '--dock-edge', '--dock-max-height',
     '--font-display', '--font-body', '--font-mono',
     '--card-radius', '--shadow-card', '--shadow-popover',
   ];
