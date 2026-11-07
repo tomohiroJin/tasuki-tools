@@ -42,4 +42,8 @@ describe('余白の持ち主の約束（画面の CSS）', () => {
   it('Given 画面の CSS / When 並びの写しを探す / Then 部品の修飾 --beside を画面が上書きする規則を持たない', () => {
     expect(read('src/styles/primitives.css')).not.toMatch(/section-header--beside/);
   });
+
+  it('Given timer の見出しの行 / When .section-header の規則を読む / Then 横の間（gap・column-gap）を画面が持たない（部品 .ui-section-head の --space-3 に任せる。3px に詰まった・一覧 #33）', () => {
+    expect(ruleBody(read('src/styles/primitives.css'), '.section-header') ?? '').not.toMatch(/gap\s*:/);
+  });
 });
