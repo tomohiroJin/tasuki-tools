@@ -131,6 +131,9 @@ const RESERVED_1060_1069 =
 const RESERVED_1070_1079 =
   "**対応表より後に足した変異。** 1070〜1079 は #562 の続き（敵対的レビューの指摘）に割り当てた範囲。";
 
+const RESERVED_1080_1089 =
+  "**対応表より後に足した変異。** 1080〜1089 は #566（presence の切断の重なり・猶予中の操作）に割り当てた範囲。";
+
 export const MUTATIONS = [
   {
     id: 1,
@@ -6444,6 +6447,38 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["e2e-repeat-workflow.test.mjs"],
     note: RESERVED_1070_1079 + " " + "#562 の敵対的レビュー（3 回目）。ci.yml が run に export などを足しても写しのずれが黙って通る。",
+  },
+  {
+    id: 1080,
+    label: "handleDisconnect が、ドライバーでない人の切断も「現ドライバーの切断」と見なす",
+    patch: "m1080-presence-disconnect-any-participant-is-driver.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/driver-absence.test.ts"],
+    note: RESERVED_1080_1089 + " " + "#566。ドライバーの切断の猶予中に別の人が切断すると、保留中のドライバー不在タイマーが別の人のものに張り替わり、繰り上げが失われる。",
+  },
+  {
+    id: 1081,
+    label: "handleDisconnect が、タイマーから居なくなった人の切断なら、稼働中か・現ドライバーかを問わず不在タイマーを張る（running && isCurrentDriver を || でつなぐ）",
+    patch: "m1081-presence-disconnect-schedules-when-not-watching.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/driver-absence.test.ts"],
+    note: RESERVED_1080_1089 + " " + "#566。ドライバーでない人の切断が、保留中のドライバー不在タイマーを上書きして消す。",
+  },
+  {
+    id: 1082,
+    label: "ドライバー不在の発火時に、セッションが稼働中かを見ない",
+    patch: "m1082-presence-absence-fires-when-clock-stopped.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/driver-absence.test.ts"],
+    note: RESERVED_1080_1089 + " " + "#566。猶予中に別の人がタイマーを止めても、止まったセッションで繰り上げが発火する。",
+  },
+  {
+    id: 1083,
+    label: "ドライバー不在の発火時に、現ドライバーが同一人物かを見ない",
+    patch: "m1083-presence-absence-fires-after-driver-changed.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/driver-absence.test.ts"],
+    note: RESERVED_1080_1089 + " " + "#566。猶予中に別の人が手動でドライバーを進めても、古い切断のタイマーが新しいドライバーを重ねて繰り上げる。",
   },
   {
     id: 1220,
