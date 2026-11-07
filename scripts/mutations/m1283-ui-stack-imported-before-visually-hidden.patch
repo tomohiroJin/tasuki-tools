@@ -1,0 +1,14 @@
+diff --git a/packages/ui/src/components/index.css b/packages/ui/src/components/index.css
+--- a/packages/ui/src/components/index.css
++++ b/packages/ui/src/components/index.css
+@@ -20,9 +20,9 @@
+ @import './drawer.css';
+ @import './button.css';
+ @import './actions.css';
++@import './stack.css';
+ @import './visually-hidden.css';
+ 
+ /* 縦に並べる部品の規則は、部品層の**最後**に読む（#553・ADR 0035）。`.ui-stack > *`・`.ui-section-head > *` の margin のリセットは
+    詳細度 (0,1,0) なので、同じ詳細度の部品の margin には**後に読んだほうが勝つ**。最後に読めば、どの部品の margin にも必ず勝つ。 */
+ @import './section-head.css';
+-@import './stack.css';

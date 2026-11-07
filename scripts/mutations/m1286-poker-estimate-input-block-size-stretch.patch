@@ -1,0 +1,12 @@
+diff --git a/apps/poker-web/src/index.css b/apps/poker-web/src/index.css
+--- a/apps/poker-web/src/index.css
++++ b/apps/poker-web/src/index.css
+@@ -543,7 +543,7 @@
+   inset-block-start: 0;
+   inset-inline: 0;
+   inline-size: 100%;
+-  block-size: var(--tap-target);
++  block-size: 100%;
+   min-inline-size: 0;
+ }
+ 

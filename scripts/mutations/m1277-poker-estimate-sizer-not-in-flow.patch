@@ -1,11 +1,11 @@
 diff --git a/apps/poker-web/src/index.css b/apps/poker-web/src/index.css
 --- a/apps/poker-web/src/index.css
 +++ b/apps/poker-web/src/index.css
-@@ -517,6 +517,7 @@
- }
+@@ -521,6 +521,7 @@
  
+ /* ボタンと同じ大きさの場所だけを取る見えない複製（`<span>`。`.estimate-item-title` のクラスは持たず、ボタンの部品 `ui-button` で同じ寸法にする） */
  .estimate-item--inline .estimate-item-sizer {
 +  display: none;
    visibility: hidden;
    pointer-events: none;
- }
+   flex: 1 1 auto;
