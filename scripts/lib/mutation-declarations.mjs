@@ -6753,7 +6753,7 @@ export const MUTATIONS = [
     patch: "m1293-reset-scroll-padding-outside-media.patch",
     pkg: "packages/ui",
     tests: ["tests/dock-and-narrow-header.test.mjs"],
-    note: RESERVED_1290_1299 + " " + "#554 のレビュー。帯の逃がし余白が 40rem 以上にも掛かる。E2E は 1280 の scroll-padding が auto であることで赤になる。",
+    note: RESERVED_1290_1299 + " " + "#554 のレビュー。帯の逃がし余白が 40rem 以上にも掛かる。E2E は poker の 640〜900px で scroll-padding が auto であることで赤になる（timer は要素層を読まないので buttons.spec.ts の 1280 は timer の base.css を見る）。",
   },
   {
     id: 1294,

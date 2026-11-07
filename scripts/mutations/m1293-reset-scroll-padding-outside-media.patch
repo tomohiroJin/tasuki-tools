@@ -2,7 +2,7 @@
 #
 # 検出を期待するテスト:
 #   - packages/ui/tests/dock-and-narrow-header.test.mjs
-#   - e2e/specs/buttons.spec.ts（実際の見え方。変異検査の外。1280 の scroll-padding が auto でなく赤）
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外。poker の 640〜900px で scroll-padding が auto でなく赤）
 #
 # #554 のレビュー。帯の逃がし余白が 40rem 以上にも掛かる（6rem の既定が @media の外へ漏れる）。
 #

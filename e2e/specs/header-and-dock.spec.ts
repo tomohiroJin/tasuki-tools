@@ -345,6 +345,8 @@ test.describe('poker のルームの見出しと帯', () => {
     for (const width of [640, 768, 900]) {
       await page.setViewportSize({ width, height: 900 });
       await expectInviteUrlOneLine(page, `poker URL（${width}）`);
+      // 40rem 以上は Tab の送り先の余白を掛けない（要素層の 6rem の既定が @media の外へ漏れない）
+      expect(await page.evaluate(() => getComputedStyle(document.documentElement).scrollPaddingBottom), `poker（${width}）: 40rem 以上に scroll-padding-block-end が掛かっている`).toBe('auto');
       // URL に title・aria-label を付けない（触る端末ではツールチップが出ず、読み上げで URL が二重になる）
       expect(await page.locator('.ui-invite-url').first().evaluate((el) => [el.hasAttribute('title'), el.hasAttribute('aria-label')]), `poker URL（${width}）に title か aria-label がある`).toEqual([false, false]);
       await expectNoHorizontalOverflow(page, `poker（${width}）`);
