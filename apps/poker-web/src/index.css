@@ -207,12 +207,6 @@
   margin-top: 0;
 }
 
-/* 「見学する」は見出しの隣に置く（部品 `.ui-section-head` の両端寄せだと、広い幅で操作の面の反対の端まで離れる）。
-   隣へ置く修飾は、使う画面が poker だけなので部品に足さない（ADR 0035 決定 3）。折り返したら、部品どおり見出しの下に左端そろいで落ちる */
-.room-participants-head {
-  justify-content: flex-start;
-}
-
 .participants {
   list-style: none;
   padding: 0;
@@ -557,17 +551,11 @@
   border-block-start: 1px solid var(--card-inline);
 }
 
-/* 見出しの行（`.ui-section-head`）: 左にアイテム名、右にポイント（一番強い）。束の中の間は `.ui-stack` が持つ。
-   名前の列を主にする: 名前は `flex: 1 1 12rem`（12rem を取れないほど狭いときだけ折り返す）、選択欄は `margin-inline-start: auto` で右端へ寄せる。
-   広い幅は「左に名前・右にポイント」の 1 行、狭い幅は選択欄が名前の下の行の**右端**に落ちる（左端には落とさない）。
-   選択欄の字は切らない（選択した選択肢が読めなくなるため）。寄せ方は使う画面が 1 つなので部品に修飾を足さず、画面が上書きする（ADR 0035 決定 3） */
-.estimate-group-head {
-  flex-wrap: wrap;
-}
-
-.estimate-group-head > .estimate-item--inline,
+/* 見出しの行（`.ui-section-head`・部品が折り返す）: 左にアイテム名、右にポイント（一番強い）。束の中の間は `.ui-stack--tight` が持つ。
+   名前の列は `flex: 1 1 auto; min-width: 0`: 名前が 1 行に収まるときは同じ行の右にポイントが並び、収まらない長い名前のときだけ
+   ポイントが名前の下の行の右端に落ちる（左端には落とさない）。選択欄の字は切らない（選んだ選択肢が読めなくなるため） */
 .estimate-group-head > .estimate-group-item {
-  flex: 1 1 12rem;
+  flex: 1 1 auto;
   min-width: 0;
 }
 

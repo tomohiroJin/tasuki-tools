@@ -20,3 +20,9 @@
 .ui-section-head > * {
   margin-block: 0;
 }
+
+/* 操作を行の反対の端へ離さず、見出しの隣に寄せる（`--beside`）。広い幅でも見出しの隣に操作が並ぶ（poker の参加者の欄・timer の名簿）。
+   折り返したら、部品の既定どおり見出しの下に左端そろいで落ちる。 */
+.ui-section-head--beside {
+  justify-content: flex-start;
+}

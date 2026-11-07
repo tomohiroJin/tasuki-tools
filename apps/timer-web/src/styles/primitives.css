@@ -91,12 +91,6 @@
   margin-bottom: var(--space-4);
 }
 
-/* 名簿の見出しの行は、操作（ランダム・代理追加）を見出しの隣に寄せる。部品の両端寄せだと、広い幅（ルームのタブ 1024px・
-   ロビー 768px）で見出しから行の反対の端まで 400〜580px 離れる（poker の参加者の欄と同じ扱い・#553）。 */
-.section-header--beside {
-  justify-content: flex-start;
-}
-
 .section-header-lead {
   display: flex;
   align-items: center;

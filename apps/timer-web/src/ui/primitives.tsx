@@ -79,7 +79,7 @@ export function SectionHeader({
   beside?: boolean;
 }) {
   return (
-    <div className={beside ? "section-header section-header--beside ui-section-head" : "section-header ui-section-head"}>
+    <div className={beside ? "section-header ui-section-head ui-section-head--beside" : "section-header ui-section-head"}>
       <div className="section-header-lead">
         <Icon className="section-header-icon" />
         <h2 className="section-header-title">{title}</h2>

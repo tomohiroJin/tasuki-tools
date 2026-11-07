@@ -83,7 +83,7 @@ export function SavedScenarioList({ scenario, suggestedName, onPick }: Props) {
     <section className="ui-panel builder-saved ui-stack" aria-labelledby={headingId}>
       <h2 id={headingId}>{SAVED_HEADING}</h2>
       {sorted.length > 0 && (
-        <ul className="builder-saved-list" aria-labelledby={headingId}>
+        <ul className="builder-saved-list ui-stack ui-stack--tight" aria-labelledby={headingId}>
           {sorted.map((item) => (
             <li key={item.name} className="builder-saved-row">
               <button type="button" className="builder-saved-pick" onClick={() => onPick(item.scenario)}>

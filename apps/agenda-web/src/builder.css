@@ -231,9 +231,8 @@
 
 /* ── 保存済み ────────────────────────────────────────────── */
 /* 区画の中の間は `.ui-stack` が持つ（ADR 0035） */
+/* 一覧の項目どうしの間は `.ui-stack--tight` が持つ（ADR 0035） */
 .builder-saved-list {
-  display: grid;
-  gap: var(--space-2);
   margin: 0;
   padding: 0;
   list-style: none;
