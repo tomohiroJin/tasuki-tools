@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { mediaBlock, only, outsideMedia, rules } from './support/css-text.mjs';
+import { mediaBlock, mediaBlocks, only, outsideMedia, rules } from './support/css-text.mjs';
 
 const COMPONENTS = resolve(dirname(fileURLToPath(import.meta.url)), '../src/components');
 const read = (name) => readFileSync(resolve(COMPONENTS, name), 'utf8');
@@ -60,7 +60,7 @@ test('Given 帯の [hidden] の規則 / When @media・@container などの外を
   assert.ok(!rules(mediaBlock(plain, '@media (width < 40rem)')).some((r) => r.selector === '.ui-actions--dock > [hidden]'), '40rem 未満の @media の中にも [hidden] の規則が残っている');
 });
 
-test('Given 条件つきの塊 / When outsideMedia を通す / Then @media・@container・@supports・@starting-style・@layer の中の規則は条件によらない側に出さない', () => {
+test('Given 条件つきの at 規則 / When outsideMedia を通す / Then @media・@container・@supports・@starting-style の中の規則は外へ出さず、@layer の中の規則は外側として数える', () => {
   const css = [
     '.a { x: 1; }',
     '@media (width < 40rem) { .m { x: 1; } }',
@@ -71,7 +71,14 @@ test('Given 条件つきの塊 / When outsideMedia を通す / Then @media・@co
     '@layer a, b;',
     '.z { x: 1; }',
   ].join('\n');
-  assert.deepEqual(rules(outsideMedia(css)).map((r) => r.selector), ['.a', '.z']);
+  assert.deepEqual(rules(outsideMedia(css)).map((r) => r.selector), ['.a', '.l', '.z']);
+});
+
+test('Given 同じ頭の @media が複数ある CSS / When mediaBlocks を通す / Then 全部をつないで返し、無ければ赤、閉じ括弧が欠けていれば throw する', () => {
+  const css = '@media (width < 64rem) { .a { x: 1; } }\n.b { x: 1; }\n@media (width < 64rem) { .c { x: 1; } }';
+  assert.deepEqual(rules(mediaBlocks(css, '@media (width < 64rem)')).map((r) => r.selector), ['.a', '.c']);
+  assert.throws(() => mediaBlocks(css, '@media (width >= 0rem)'));
+  assert.throws(() => mediaBlocks('@media (width < 64rem) { .a { x: 1; }', '@media (width < 64rem)'), /閉じていない/);
 });
 
 test('Given 帯の逃がし余白 / When reset.css・トークンを読む / Then 要素層は旧い 6rem、帯のある画面だけ 2 段の帯の最大の高さ（--dock-max-height）＋ ホームバー', () => {
@@ -115,15 +122,13 @@ test('Given 40rem 未満の通常の見出し / When 並びを読む / Then 折�
   assert.match(only(list, `${NOT_COMPACT} .ui-room-header-title > h1`), /flex:\s*1 1 100%;/);
 });
 
-test('Given 幅によらない規則 / When 戻るの規則を読む / Then 下線の字の横の余白（--space-2 と枠 1px）を打ち消して題に左端を揃え、詰めた見た目の auto より前にある', () => {
+test('Given 幅によらない規則 / When 戻るの規則を読む / Then 左の余白と枠を持たず（負の margin で打ち消さない）、40rem 未満の中に残らない', () => {
   const plain = readFileSync(resolve(COMPONENTS, 'room-header.css'), 'utf8');
-  const list = rules(outsideMedia(plain));
-  const body = only(list, '.ui-room-header .ui-page-header-back');
-  assert.match(body, /margin-inline-start:\s*calc\(-1 \* \(var\(--space-2\) \+ 1px\)\);/);
-  assert.doesNotMatch(body, /order:/);
-  const at = list.findIndex((r) => r.selector === '.ui-room-header .ui-page-header-back');
-  const compact = list.findIndex((r) => r.selector === '.ui-room-header--compact .ui-page-header-back');
-  assert.ok(compact > at, '詰めた見た目の戻る（margin-inline-start: auto）が打ち消しより先にあり、打ち消しが勝ってしまう');
+  const body = only(rules(outsideMedia(plain)), '.ui-room-header .ui-page-header-back');
+  // 下線の字の横の余白（--space-2）と枠 1px を持たなければ、字の左端が箱の左端に来る。負の margin だと、道具のボタンの右隣で間が 3px まで縮む
+  assert.match(body, /padding-inline-start:\s*0;/);
+  assert.match(body, /border-inline-start-width:\s*0;/);
+  assert.doesNotMatch(body, /margin|order:/);
   assert.ok(!rules(mediaBlock(plain, '@media (width < 40rem)')).some((r) => r.selector.includes('.ui-page-header-back')), '40rem 未満の中に戻るの規則が残っている（幅によらず効かせる）');
 });
 

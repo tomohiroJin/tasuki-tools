@@ -8,49 +8,9 @@
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { rules } from '@tasuki/ui/test-support/css-text.mjs';
+import { mediaBlocks, outsideMedia, rules } from '@tasuki/ui/test-support/css-text.mjs';
 
-const css = readFileSync(path.resolve(__dirname, '../src/run.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
-
-/** `head` で始まる @media の中身を全部つなぐ（同じ頭の @media が複数あってよい。波括弧の対応で切り出す）。 */
-const mediaBlock = (source: string, head: string): string => {
-  let joined = '';
-  let from = 0;
-  for (let at = source.indexOf(head, from); at !== -1; at = source.indexOf(head, from)) {
-    const open = source.indexOf('{', at);
-    let depth = 0;
-    let end = -1;
-    for (let i = open; i < source.length && end === -1; i += 1) {
-      if (source[i] === '{') depth += 1;
-      if (source[i] === '}') {
-        depth -= 1;
-        if (depth === 0) end = i;
-      }
-    }
-    joined += source.slice(open + 1, end);
-    from = end + 1;
-  }
-  expect(joined).not.toBe('');
-  return joined;
-};
-
-/** @media の塊を除いた残り（波括弧の対応で切る）。 */
-const outsideMedia = (source: string): string => {
-  let plain = source;
-  for (let at = plain.indexOf('@media'); at !== -1; at = plain.indexOf('@media')) {
-    let depth = 0;
-    let end = -1;
-    for (let i = plain.indexOf('{', at); i < plain.length && end === -1; i += 1) {
-      if (plain[i] === '{') depth += 1;
-      if (plain[i] === '}') {
-        depth -= 1;
-        if (depth === 0) end = i;
-      }
-    }
-    plain = plain.slice(0, at) + plain.slice(end + 1);
-  }
-  return plain;
-};
+const css = readFileSync(path.resolve(__dirname, '../src/run.css'), 'utf8');
 
 /** 選択子が `selector` で、`must` を含む規則の本体（ちょうど 1 つ）。`source` を渡すとその範囲だけを読む。 */
 const bodyWith = (selector: string, must: string, source: string = css): string => {
@@ -78,7 +38,7 @@ describe('手元の操作の帯', () => {
     // 変数は :root に無条件で 1 か所。Tab の送り先の余白（scroll-padding）は 64rem 未満だけ（帯が fixed の幅）で、:has は宣言を置く条件だけに使う
     expect(bodyWith(':root', '--run-controls-height', outsideMedia(css))).toMatch(/--run-controls-height:\s*10\.5rem;/);
     // Tab の送り先の余白は 64rem 未満の @media の中だけ（64rem 以上は帯が流れの中なので掛けない）
-    const narrow = mediaBlock(css, '@media (width < 64rem)');
+    const narrow = mediaBlocks(css, '@media (width < 64rem)');
     expect(outsideMedia(css)).not.toContain('scroll-padding-block-end');
     const root = bodyWith('html:has(.run-controls)', 'scroll-padding-block-end', narrow);
     expect(root).toMatch(/scroll-padding-block-end:\s*calc\(var\(--run-controls-height\) \+ env\(safe-area-inset-bottom\)\);/);
@@ -95,9 +55,11 @@ describe('映す表示の帯', () => {
 
   it('Given 映す表示 / When 中身の下の余白を見る / Then 帯の有無によらず、帯の高さの変数（10rem）＋ ホームバーぶんを常に取る（出るたびに盤が跳ねない・下端の情報が帯に隠れない）', () => {
     expect(bodyWith(':root', '--projection-strip-height', outsideMedia(css))).toMatch(/--projection-strip-height:\s*10rem;/);
+    // 40rem 以上は帯が 1 行（実測 69px）なので、段ごとに 5rem（横向きのスマートフォンやタブレットで取りすぎない）
+    expect(bodyWith(':root', '--projection-strip-height', mediaBlocks(css, '@media (width >= 40rem)'))).toMatch(/--projection-strip-height:\s*5rem;/);
     // 余白は 64rem 未満の @media の中だけ（64rem 以上は帯が中身に重ならないので取らない。取ると盤が約 80px 上に寄る）
     expect(outsideMedia(css)).not.toMatch(/\.projection-body\s*\{[^}]*padding-block-end/);
-    const body = bodyWith('.projection-body', 'padding-block-end: calc', mediaBlock(css, '@media (width < 64rem)'));
+    const body = bodyWith('.projection-body', 'padding-block-end: calc', mediaBlocks(css, '@media (width < 64rem)'));
     expect(body).toMatch(/padding-block-end:\s*calc\(var\(--space-6\) \+ var\(--projection-strip-height\) \+ env\(safe-area-inset-bottom\)\);/);
   });
 });

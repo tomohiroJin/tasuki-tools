@@ -154,3 +154,55 @@ test("試験用の入口を読む試験（src の外）は観測に載らない�
   });
   assert.deepEqual(violations, []);
 });
+
+// `observe`（実際にファイルを読んで集める側）を、一時のディレクトリに作ったパッケージの形で通す（#554）。
+// 判定の関数（findViolations）だけを見る上の試験では、集める側の条件（src だけを見る・相対パスで tests を読む）を消しても緑のままになる。
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { observe } from "./audit-dependency-direction.mjs";
+
+function withTempPackage(files, run) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "audit-dep-dir-"));
+  try {
+    for (const [rel, text] of Object.entries(files)) {
+      fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
+      fs.writeFileSync(path.join(root, rel), text);
+    }
+    return run(root);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
+
+const ENTRY_IMPORT = `import "${["@tasuki", "ui", "test-support"].join("/")}/css-text.mjs";\n`;
+
+test("observe: src の取り込みは試験用の入口として拾い、tests の取り込みは拾わない", () => {
+  withTempPackage(
+    {
+      "packages/x/package.json": "{}",
+      "packages/x/src/a.ts": ENTRY_IMPORT,
+      "packages/x/tests/b.ts": ENTRY_IMPORT,
+    },
+    (root) => {
+      const seen = observe("packages/x", ["packages/x/src/a.ts", "packages/x/tests/b.ts"], root);
+      assert.deepEqual(seen.testSupport, ["packages/x/src/a.ts"]);
+    },
+  );
+});
+
+test("observe: src から同じパッケージの tests を相対パスで読むのも拾い、src どうしの相対パスは拾わない", () => {
+  withTempPackage(
+    {
+      "packages/ui/package.json": "{}",
+      "packages/ui/src/x.mjs": `import "../tests/support/css-text.mjs";\n`,
+      "packages/ui/src/y.mjs": `import "./z.mjs";\n`,
+      "packages/ui/src/z.mjs": "export {};\n",
+    },
+    (root) => {
+      const seen = observe("packages/ui", ["packages/ui/src/x.mjs", "packages/ui/src/y.mjs", "packages/ui/src/z.mjs"], root);
+      assert.deepEqual(seen.testSupport, ["packages/ui/src/x.mjs → ../tests/support/css-text.mjs"]);
+      assert.deepEqual(seen.escapes, []);
+    },
+  );
+});

@@ -1,0 +1,25 @@
+# 変異 1304: projection-strip-height-wide-removed
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/run-controls-opaque.test.ts
+#
+# #554 のレビュー。40rem 以上の帯の高さの変数の段が無くなり、横向きのスマートフォンやタブレットで余白を取りすぎる（E2E の測りは緑のまま。見える害は余白の取りすぎで、単体が段の有無を読む）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1304-*.patch
+# 復元: git apply -R scripts/mutations/m1304-*.patch
+diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
+--- a/apps/agenda-web/src/run.css
++++ b/apps/agenda-web/src/run.css
+@@ -577,11 +577,6 @@
+   --projection-strip-height: 10rem;
+ }
+ /* 40rem 以上は帯が 1 行（実測 69px）に収まるので、段ごとに持つ（横向きのスマートフォン 844×390 やタブレットで取りすぎない） */
+-@media (width >= 40rem) {
+-  :root {
+-    --projection-strip-height: 5rem;
+-  }
+-}
+ @media (width < 64rem) {
+   .projection-body {
+     padding-block-end: calc(var(--space-6) + var(--projection-strip-height) + env(safe-area-inset-bottom));

@@ -575,11 +575,21 @@ test.describe('見出しの Tab の順は見た目の順', () => {
     await setTopic(topic.page, 'FizzBuzz', '3 のときは Fizz を出す');
     await expect(page.getByRole('button', { name: /お題を(隠す|見る)/ })).toBeVisible();
     // 640・660・668 は 40rem 以上でも、お題と記録で題の行が埋まり、戻るが単独の行に落ちる幅（main からあった崩れ・#13 と同じ形）
-    for (const width of [320, 390, 639, 640, 660, 668, 768, 1280]) {
+    for (const width of [320, 390, 639, 640, 660, 662, 668, 680, 700, 768, 900, 1024, 1280]) {
       await page.setViewportSize({ width, height: 900 });
       await expectHeaderTabOrderFollowsSight(page, `poker 見出しの Tab（お題あり・${width}）`);
       if (width < 640) await expectTabOrderWithShareOpen(page, `poker 見出しの Tab（お題あり・${width}）`);
       await expectBackAlignedWithTitle(page, `poker 戻る（お題あり・${width}）`);
+      // 戻るが道具のボタンの右隣に並ぶ幅（662〜700px 前後）でも、左の隣の操作との間が 8px 以上ある（負の margin の打ち消しだと 3px まで縮んだ）
+      const gap = await page.evaluate(() => {
+        const back = document.querySelector('.ui-page-header-back')!.getBoundingClientRect();
+        const peers = Array.from(document.querySelectorAll('.ui-room-header button, .ui-room-header a'))
+          .filter((e) => !e.classList.contains('ui-page-header-back') && getComputedStyle(e).display !== 'none')
+          .map((e) => e.getBoundingClientRect())
+          .filter((r) => r.width > 0 && Math.abs(r.top + r.height / 2 - (back.top + back.height / 2)) < 10 && r.right <= back.left + 12);
+        return peers.length === 0 ? null : back.left - Math.max(...peers.map((r) => r.right));
+      });
+      if (gap !== null) expect(gap, `poker 戻る（お題あり・${width}）: 左の隣の操作との間が ${gap}px（8px 以上のはず）`).toBeGreaterThanOrEqual(8);
     }
   });
 });
@@ -643,7 +653,7 @@ test.describe('agenda の映す表示の帯', () => {
       expect(Math.abs(m.center - m.half), `映す表示（${width}×${height}）: 盤の中心（${m.center}）が画面の中央（${m.half}）からずれる`).toBeLessThanOrEqual(2);
     }
     // 狭い幅（64rem 未満）は、帯が出ても盤が跳ねない（余白は帯の有無によらず常に取る）
-    for (const [width, height] of [[390, 800], [768, 1024]] as const) {
+    for (const [width, height] of [[390, 800], [768, 1024], [844, 390], [1000, 700]] as const) {
       await page.setViewportSize({ width, height });
       await page.mouse.move(0, 0);
       await page.locator('.projection-body').focus().catch(() => undefined);
@@ -655,7 +665,7 @@ test.describe('agenda の映す表示の帯', () => {
       expect(Math.abs(y1 - y0), `映す表示（${width}×${height}）: 帯が出ると盤が ${y1 - y0}px 動く`).toBeLessThanOrEqual(1);
     }
     // 帯が出ている間、下端の中身（「予定の終わり」など）が帯と重ならない。縦長・背の低い・狭い画面で、最下部までスクロールして測る。帯の高さは変数以下
-    for (const [width, height] of [[390, 800], [320, 568], [800, 400]] as const) {
+    for (const [width, height] of [[390, 800], [320, 568], [800, 400], [844, 390], [1000, 700]] as const) {
       await page.setViewportSize({ width, height });
       await exit.focus();
       await expect(strip).toHaveCSS('opacity', '1');

@@ -1,0 +1,22 @@
+# 変異 1299: audit-collect-src-only-removed
+#
+# 検出を期待するテスト:
+#   - scripts/audit-dependency-direction.test.mjs（observe を一時のパッケージで通す）
+#
+# #554 のレビュー。監査の集める側が src だけでなく tests の取り込みまで違反にし、試験が @tasuki/ui/test-support を読めなくなる（自己テストの observe の試験が拾う）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1299-*.patch
+# 復元: git apply -R scripts/mutations/m1299-*.patch
+diff --git a/scripts/audit-dependency-direction.mjs b/scripts/audit-dependency-direction.mjs
+--- a/scripts/audit-dependency-direction.mjs
++++ b/scripts/audit-dependency-direction.mjs
+@@ -368,7 +368,7 @@
+   for (const rel of files) {
+     const text = fs.readFileSync(path.join(root, rel), "utf8");
+     const inSrc = rel.startsWith(`${pkg}/src/`);
+-    if (inSrc && TEST_SUPPORT_SPECIFIER.test(text)) testSupport.push(rel);
++    if (TEST_SUPPORT_SPECIFIER.test(text)) testSupport.push(rel);
+     for (const m of text.matchAll(TASUKI_SPECIFIER)) imports.push(m[1]);
+     for (const m of text.matchAll(RELATIVE_SPECIFIER)) {
+       // 解決先はリポジトリ相対で持つ。パッケージの接頭辞から外れたら越境。

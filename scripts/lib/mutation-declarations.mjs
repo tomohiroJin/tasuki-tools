@@ -107,6 +107,9 @@ const RESERVED_1010_1019 =
 const RESERVED_1020_1029 =
   "**対応表より後に足した変異。** 1020〜1029 は #547 に割り当てた範囲。";
 
+const RESERVED_1300_1309 =
+  "**対応表より後に足した変異。** 1300〜1309 は #554 に追加で割り当てた範囲（1290〜1299 を使い切ったため）。";
+
 const RESERVED_1290_1299 =
   "**対応表より後に足した変異。** 1290〜1299 は #554 に追加で割り当てた範囲（1260〜1269 を使い切ったため）。";
 
@@ -6509,11 +6512,11 @@ export const MUTATIONS = [
   },
   {
     id: 1223,
-    label: "戻るの字下げを打ち消す規則を、詰めた見た目の margin-inline-start: auto より後ろへ移す（順序の欠陥）",
-    patch: "m1223-back-indent-rule-after-compact.patch",
+    label: "戻るの字下げを、左の余白と枠を持たない形から負の margin での打ち消しに戻す（道具のボタンの右隣で間が縮む）",
+    patch: "m1223-back-indent-negative-margin.patch",
     pkg: "packages/ui",
     tests: ["tests/dock-and-narrow-header.test.mjs"],
-    note: RESERVED_1220_1229 + " " + "#554。打ち消しの規則を詰めた見た目の戻る（auto）より後ろへ移すと、同じ詳細度で後ろの打ち消しが勝ち、timer のセッション（詰めた見た目）の戻るが右端に寄らず左へ詰まる。規則の本体は残るので通常の見出しの E2E は緑のまま。宣言を消す 1247 とは別の、順序の欠陥の型。",
+    note: RESERVED_1220_1229 + " " + "#554。戻るが道具のボタンの右隣に並ぶ幅（662〜700px 前後）で、負の margin（-9px）が flex の gap から引かれ、ボタンとの間が 3.8px まで縮む。E2E は poker の 662px で左の隣の操作との間が 8px 以上あることで赤になる。",
   },
   {
     id: 1224,
@@ -6794,5 +6797,53 @@ export const MUTATIONS = [
     pkg: "packages/ui",
     tests: ["tests/tokens.test.mjs"],
     note: RESERVED_1290_1299 + " " + "#554 のレビュー。Tab の送り先の余白が無効になる。",
+  },
+  {
+    id: 1299,
+    label: "依存の監査の集める側から、src だけを見る条件を外す（tests の取り込みまで違反にする）",
+    patch: "m1299-audit-collect-src-only-removed.patch",
+    pkg: "scripts",
+    tests: ["audit-dependency-direction.test.mjs"],
+    note: RESERVED_1290_1299 + " " + "#554 のレビュー。tests の取り込みまで違反になる。observe を一時のパッケージで通す自己テストが拾う。",
+  },
+  {
+    id: 1300,
+    label: "依存の監査の集める側が、試験用の入口の取り込みを 1 件も拾わない",
+    patch: "m1300-audit-collect-never-flags.patch",
+    pkg: "scripts",
+    tests: ["audit-dependency-direction.test.mjs"],
+    note: RESERVED_1300_1309 + " " + "#554 のレビュー。src の取り込みを拾わない。判定の関数だけを見る試験は緑のまま、observe の自己テストが拾う。",
+  },
+  {
+    id: 1301,
+    label: "依存の監査から、src から同じパッケージの tests を相対パスで読む取り込みの判定を外す",
+    patch: "m1301-audit-relative-tests-check-removed.patch",
+    pkg: "scripts",
+    tests: ["audit-dependency-direction.test.mjs"],
+    note: RESERVED_1300_1309 + " " + "#554 のレビュー。相対パスで tests を読む取り込みを見逃す。",
+  },
+  {
+    id: 1302,
+    label: "映す表示の帯の高さの変数（40rem 以上の段）を実測より低い 2rem にする",
+    patch: "m1302-projection-strip-height-wide-too-small.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/run-controls-opaque.test.ts"],
+    note: RESERVED_1300_1309 + " " + "#554 のレビュー。余白が足りず中身が帯に隠れる。E2E は 844×390 で帯の実高が変数を超えて赤。",
+  },
+  {
+    id: 1303,
+    label: "共有の outsideMedia が @layer の塊まで外す",
+    patch: "m1303-css-text-layer-dropped.patch",
+    pkg: "packages/ui",
+    tests: ["tests/dock-and-narrow-header.test.mjs"],
+    note: RESERVED_1300_1309 + " " + "#554 のレビュー。@layer の中の規則を外側として数えなくなる。",
+  },
+  {
+    id: 1304,
+    label: "映す表示の帯の高さの変数の 40rem 以上の段を消す",
+    patch: "m1304-projection-strip-height-wide-removed.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/run-controls-opaque.test.ts"],
+    note: RESERVED_1300_1309 + " " + "#554 のレビュー。段が無くなり、40rem 以上でも 10rem の余白を取りすぎる。E2E の測り（帯の実高 ≤ 変数・重ならない）は緑のままで、単体が段の有無を読む。",
   },
 ];

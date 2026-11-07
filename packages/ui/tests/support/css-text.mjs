@@ -33,22 +33,45 @@ export function mediaBlock(css, head) {
   return plain.slice(start, end);
 }
 
-/** 条件つきの塊（@media・@container・@supports・@starting-style・@layer）。この中の規則は「条件によらない」とは言えない。 */
-const CONDITIONAL_AT_RULE = /@(media|container|supports|starting-style|layer)\b/;
+/** 同じ頭の @media の中身を全部つないで返す（同じ頭が複数あってよい）。1 つも無ければ赤。閉じ括弧が欠けていれば throw する。 */
+export function mediaBlocks(css, head) {
+  const plain = stripComments(css);
+  let joined = '';
+  let found = 0;
+  for (let at = plain.indexOf(head); at !== -1; at = plain.indexOf(head, at + 1)) {
+    const [start, end] = blockRange(plain, plain.indexOf('{', at));
+    joined += `${plain.slice(start, end)}\n`;
+    found += 1;
+  }
+  assert.notEqual(found, 0, `${head} が無い`);
+  return joined;
+}
 
-/** コメントと、条件つきの塊（@media・@container・@supports・@starting-style・@layer）を除いた残り。条件によらず効く規則を読むのに使う。 */
+/** 条件つきの at 規則（@media・@container・@supports・@starting-style）。この中の規則は「条件によらない」とは言えない。 */
+const CONDITIONAL_AT_RULE = /@(media|container|supports|starting-style)\b/;
+
+/** `@layer` の塊（または `@layer a, b;`）。層は条件ではない（中の規則は条件によらず効く）。 */
+const LAYER_AT_RULE = /@layer\b/;
+
+/**
+ * コメントと、条件つきの at 規則の塊（@media・@container・@supports・@starting-style）を除いた残り。条件によらず効く規則を読むのに使う。
+ * `@layer` は条件ではないので、塊は外さず中身を外側として数える（`@layer a, b;` の宣言だけの文は落とす）。
+ */
 export function outsideMedia(css) {
   let plain = stripComments(css);
   for (let m = CONDITIONAL_AT_RULE.exec(plain); m !== null; m = CONDITIONAL_AT_RULE.exec(plain)) {
+    const [, end] = blockRange(plain, plain.indexOf('{', m.index));
+    plain = plain.slice(0, m.index) + plain.slice(end + 1);
+  }
+  for (let m = LAYER_AT_RULE.exec(plain); m !== null; m = LAYER_AT_RULE.exec(plain)) {
     const open = plain.indexOf('{', m.index);
     const semi = plain.indexOf(';', m.index);
-    // `@layer a, b;` のような塊を持たない宣言は、塊ごとでなくその 1 文だけを落とす
     if (semi !== -1 && (open === -1 || semi < open)) {
       plain = plain.slice(0, m.index) + plain.slice(semi + 1);
       continue;
     }
-    const [, end] = blockRange(plain, open);
-    plain = plain.slice(0, m.index) + plain.slice(end + 1);
+    const [start, end] = blockRange(plain, open);
+    plain = plain.slice(0, m.index) + plain.slice(start, end) + plain.slice(end + 1);
   }
   return plain;
 }
