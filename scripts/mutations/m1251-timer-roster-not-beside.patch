@@ -8,4 +8,4 @@ diff --git a/apps/timer-web/src/ui/components/RosterPanel.tsx b/apps/timer-web/s
 -        beside
          right={
            <div className="roster-panel-head-actions">
-             {onShuffle && <ShuffleButton onClick={onShuffle} />}
+             <ShuffleButton onClick={onShuffle} rotationLength={rotation?.length ?? 0} />
