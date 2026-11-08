@@ -56,7 +56,7 @@ src/
 
 - 読み込み: poker-web / landing / topic-web / roulette-web / agenda-web / checkin-web は `@import '@tasuki/ui';` に含まれます。timer-web は `src/index.css` で
   `@tasuki/ui/tokens.css` の次・画面の CSS の前に `@import '@tasuki/ui/components.css';` を置きます
-- 画面が持つのは配置（幅の割り付け・並び・外側の余白）と画面固有の上書きです。**縦に並ぶブロックの間と、見出しと操作の行の並びを部品（`.ui-stack`・`.ui-section-head`）に持たせる提案が ADR-0035（Proposed）にあります**（下の「余白の持ち主」。採択までは ADR-0022 決定 4 が正本で、この 2 部品は提案の実装です）。**配置もクラスで書きます**
+- 画面が持つのは配置（幅の割り付け・並び・外側の余白）と画面固有の上書きです。**縦に並ぶブロックの間と、見出しと操作の行の並びは部品（`.ui-stack`・`.ui-section-head`）が持ちます**（ADR-0035。下の「余白の持ち主」）。**配置もクラスで書きます**
   （画面の CSS で `select` / `input` / `textarea` / `option` の型を含むセレクタを書くと、検査が落とします）
 - つまみは画面の `:root` か容器で宣言します。**欄の地を変える画面は、ホバーの地も変えます**（同じ色だと選択の目印が消えます）
 - 部品の入力欄の字の大きさは上書きしません（16px の下限）。**部品（`.ui-input` / `.ui-select`）を名指しして字の大きさを書くと検査が落とします。
@@ -162,7 +162,7 @@ src/
 
 ### 余白の持ち主（#553・ADR 0035）
 
-> **ADR 0035（Proposed）の提案です。採択までは ADR 0022 決定 4 が正本です。** 以下は提案の内容と、その実装（`.ui-stack`・`.ui-section-head`）の使い方で、採択されるまで規範として断定しません。
+> 決定は ADR 0035（Accepted・2026-11-09）。以下はその約束と、実装（`.ui-stack`・`.ui-section-head`）の使い方です。
 
 **縦に並ぶブロックの間は、親が `gap` で持つ。子は外側の縦の余白（`margin-block`）を持たない。**
 親が部品なら部品が、画面の容器なら画面のクラスが持つ。間を変えたいときは親の `gap` を変え、子に `margin` を足さない
@@ -269,7 +269,7 @@ src/
    - 参加用の URL は `.ui-invite` / `.ui-invite-url`
    - 長い文章は `.ui-reader`（3 行の写しと本文は別の要素。写しは `inert`）
    - Markdown は `.ui-md-*`。暗い面に置くときは面がつまみ `--ui-md-edge`・`--ui-md-link`・`--ui-md-check` を宣言する
-   - （ADR 0035（Proposed）の提案。採択までは ADR 0022 決定 4 が正本）縦に積む並びは `.ui-stack`、区画の見出しと操作の行は `.ui-section-head`（間は親が `gap` で持つ。「余白の持ち主」）
+   - （ADR 0035）縦に積む並びは `.ui-stack`、区画の見出しと操作の行は `.ui-section-head`（間は親が `gap` で持つ。「余白の持ち主」）
 5. **文字は役割の段で書く。** 見出しは h1〜h3、添え書きは xs（「文字の段」）。直値は検査が落とす
 6. **320px と 1280px で確かめる。** 横に溢れない・押せる操作が 44px 以上で重ならない・主の操作が見える
 7. **検査を流す。** `node scripts/audit-ui-components.mjs`・`pnpm --filter @tasuki/ui test`・E2E の `buttons.spec.ts`（`expectScreenAcrossWidths` が 320・768・1280・1920 で全ての操作の大きさと重なりを測る。新しい場面は呼び出しを足す）

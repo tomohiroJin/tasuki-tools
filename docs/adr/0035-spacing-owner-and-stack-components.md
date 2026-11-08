@@ -1,12 +1,12 @@
 # ADR-0035: 縦に並ぶブロックの間は親が持ち、並びの部品を部品層に足す
 
-- **ステータス**: Proposed
+- **ステータス**: Accepted（2026-11-09。利用者が PR tomohiroJin/tasuki-tools#560 で採択。`docs/adr/0030` 決定 1 のとおり人が判断した）
 - **関連**: [#479](https://github.com/tomohiroJin/tasuki-tools/issues/479)・
   [#553](https://github.com/tomohiroJin/tasuki-tools/issues/553)・
   [洗い出しの一覧](../superpowers/specs/2026-11-06-layout-audit.md)・
   [進め方](../superpowers/plans/2026-11-06-layout-breakage.md)・
   [ADR-0022](./0022-ui-components-layer.md)（部品層）・[ADR-0025](./0025-responsive-layout.md)（幅の段・器・段組み）。
-  ADR-0022 の決定 4 の一部を置き換える（採択後）。0022・0025 の本文は書き換えない
+  ADR-0022 の決定 4 の一部を置き換える。0022・0025 の本文は書き換えない
 
 ## 背景
 
@@ -25,7 +25,7 @@
 
 ## 決定
 
-**置き換える箇所（採択後）**: [ADR-0022](./0022-ui-components-layer.md) 決定 4「画面は配置を持ち、配置もクラスで書く」のうち、
+**置き換える箇所**: [ADR-0022](./0022-ui-components-layer.md) 決定 4「画面は配置を持ち、配置もクラスで書く」のうち、
 **縦に並ぶブロックの間と、見出しと操作の行の並びは、部品が持てる**。ADR-0022 の本文は書き換えない（末尾の追記の節から、この ADR を指す）。決定 4 の残りはそのまま有効。
 
 ### 1. 縦に並ぶブロックの間は、親が `gap` で持つ
