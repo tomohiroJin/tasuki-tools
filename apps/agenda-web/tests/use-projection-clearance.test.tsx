@@ -15,7 +15,7 @@ function Probe({ shown }: { shown: boolean }) {
   return (
     <div ref={root} data-testid="root">
       <div ref={body}><div data-testid="content" /></div>
-      <div ref={strip} />
+      <div ref={strip} data-testid="strip" />
     </div>
   );
 }
@@ -102,16 +102,16 @@ describe('useProjectionClearance', () => {
     expect(observed).toContain(getByTestId('content').parentElement);
   });
 
-  it('Given 帯 / When 描く / Then 帯のフォーカスの移動（focusin・focusout）で測り直す（Tab で帯へ入ると帯は :focus-within で見える）', () => {
+  it('Given 帯 / When 帯の中でフォーカスが動く / Then 測り直しを予約する（Tab で帯へ入ると帯は :focus-within で見える）', () => {
     stubGeometry({ contentBottom: 520, scrollHeight: 568, stripHeight: 149 });
-    const added: string[] = [];
-    const original = HTMLElement.prototype.addEventListener;
-    vi.spyOn(HTMLElement.prototype, 'addEventListener').mockImplementation(function (this: HTMLElement, type: string, ...rest: unknown[]) {
-      added.push(type);
-      return (original as (...args: unknown[]) => void).call(this, type, ...rest);
-    } as typeof HTMLElement.prototype.addEventListener);
-    render(<Probe shown />);
-    expect(added).toContain('focusin');
-    expect(added).toContain('focusout');
+    const frames: number[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: () => void) => { frames.push(1); cb(); return 1; });
+    const { getByTestId } = render(<Probe shown={false} />);
+    expect(frames).toHaveLength(0);
+    getByTestId('strip').dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+    expect(frames).toHaveLength(1);
+    getByTestId('strip').dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
+    expect(frames).toHaveLength(2);
   });
+});
 });
