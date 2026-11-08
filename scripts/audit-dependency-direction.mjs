@@ -357,9 +357,47 @@ function listPackageSources(pkg) {
   );
 }
 
-/** 行コメント・ブロックコメントを空白に置き換える（注釈の中の名前で偽の陽性を出さない）。 */
+/**
+ * 行コメント・ブロックコメントを空白に置き換える（注釈の中の名前で偽の陽性を出さない）。
+ * 文字列・テンプレート文字列の中では注釈の開始と見なさない（`'tests/**\/*.ts'` のような glob の中の `/*` から次の `*\/` までを消して、間の取り込みを見逃さない）。
+ * 文字列の中身はそのまま残す（取り込みの指定子を探すため）。
+ */
 function stripJsComments(text) {
-  return text.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/(^|[^:\\"'`])\/\/[^\n]*/g, "$1");
+  let out = "";
+  let i = 0;
+  while (i < text.length) {
+    const c = text[i];
+    const next = text[i + 1];
+    if (c === "/" && next === "/") {
+      while (i < text.length && text[i] !== "\n") i += 1;
+    } else if (c === "/" && next === "*") {
+      const end = text.indexOf("*/", i + 2);
+      out += " ";
+      i = end === -1 ? text.length : end + 2;
+    } else if (c === '"' || c === "'" || c === "`") {
+      const quote = c;
+      out += c;
+      i += 1;
+      while (i < text.length && text[i] !== quote) {
+        if (text[i] === "\\") {
+          out += text[i];
+          i += 1;
+        }
+        if (i < text.length) {
+          out += text[i];
+          i += 1;
+        }
+      }
+      if (i < text.length) {
+        out += text[i];
+        i += 1;
+      }
+    } else {
+      out += c;
+      i += 1;
+    }
+  }
+  return out;
 }
 
 /** 実体を観測する（`root` は走査の起点。既定はリポジトリ。自己テストは一時のディレクトリを渡す）。 */
@@ -391,7 +429,7 @@ export function observe(pkg, files, root = REPO_ROOT) {
       // `new URL(…, import.meta.url)` は取り込みでなくファイルの読み取りにも使う（試験がリポジトリの根を読む）ので、越境には数えず、tests・test への参照だけ見る
       if (m[1] !== undefined && !target.startsWith(`${pkg}/`)) escapes.push(`${rel} → ${spec}`);
       // 製品コード（src）から、同じパッケージの tests・test を相対パスで読むのも試験用の入口と同じ（越境でも @tasuki/ でもないので、ここで拾う）
-      if (isProductFile && /(^|\/)tests?\//.test(target.slice(pkg.length))) testSupport.push(`${rel} → ${spec}`);
+      if (isProductFile && (target.startsWith(`${pkg}/tests/`) || target.startsWith(`${pkg}/test/`))) testSupport.push(`${rel} → ${spec}`);
     }
   }
   return { manifest, imports, escapes, testSupport };

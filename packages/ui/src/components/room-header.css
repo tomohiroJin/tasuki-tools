@@ -31,50 +31,42 @@
   margin: 0;
 }
 
-/* 招待の行は、欄の実際の幅で 3 通りに組む（コンテナクエリ・#447 段 2）。
-   広い（54rem 以上）: 1 行に「ルームコード｜URL｜QR｜コピー」。URL は中身の幅まで（空の枠を伸ばさない）。URL（等幅で約 350px）とコードとボタンの合計が欄に収まる幅から広い組みにし（44rem では 768px で URL が 2 行に折れた）、それ未満は URL を自分の行に置く。URL は省略せず、長ければどこでも折り返して全部見せる。
-   中くらい（30〜54rem）: ルームコード → URL → QR とコピー（中身の幅で左に寄せる）。
-   狭い（30rem 未満・スマートフォン）: ボタンを同じ幅で 2 等分して並べる。
-   折り返す flex のままだと、URL が縮む前にボタンが次の行へ落ち、「コピー」だけが 1 つ取り残された（利用者の指摘）。
-   幅の境目は画面の幅ではなく欄の幅で見る（通常の見た目と詰めた見た目で欄の幅が違うため）。 */
+/* 招待の行は、固定の境目を置かず、中身の幅で折り返す（#554）。
+   「ルームコード・URL・QR・コピー」を 1 つの折り返す行に並べ（`.ui-invite` は `display: contents` で外し、4 つを同じ行の項目にする）、
+   URL は 1 行に収まる幅（max-content）を基準にする。全部が 1 行に収まるときは 1 行、収まらなければ後ろの項目から次の行へ落ち、
+   URL が自分の行にも収まらないときだけ、URL の中で折り返して全部見せる（省略しない。クリップボードが使えない端末では目で読むしかない）。
+   container query で固定の値（44rem・54rem）を置くと、URL の長さ（本番は約 39 字で約 819px 要る）に依って、863〜939px で見出しが 1 段から 3 段になった。
+   狭い（30rem 未満・スマートフォン）だけ、ルームコードと URL を行いっぱいにし、QR とコピーを同じ幅で 2 等分して並べる。
+   折り返す flex のままだと、URL が縮む前にボタンが次の行へ落ち、「コピー」だけが 1 つ取り残された（利用者の指摘）ので、狭い幅は 2 等分にする。 */
 .ui-room-header-invite {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.ui-room-header-invite > .ui-invite {
+  display: contents;
+}
+
+/* QR とコピーは 1 つの項目にまとめ、折り返すときも同じ行に並べる */
+.ui-room-header-invite-actions {
+  display: flex;
   align-items: center;
   gap: var(--space-3);
 }
 
-.ui-room-header-invite > .ui-invite {
-  display: grid;
-  grid-template-columns: minmax(0, max-content) auto auto;
-  justify-content: start;
-  align-items: center;
-}
-
-@container ui-room-header-share (width < 54rem) {
-  .ui-room-header-invite {
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-2);
-  }
-
-  .ui-room-header-invite > .ui-invite {
-    grid-template-columns: auto auto;
-  }
-
-  /* URL は 2 つのボタンの上に置く */
-  .ui-room-header-invite .ui-invite-url {
-    grid-column: 1 / -1;
-    justify-self: start;
-  }
-}
-
 @container ui-room-header-share (width < 30rem) {
-  .ui-room-header-invite > .ui-invite {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .ui-room-header-invite > .ui-room-header-code,
+  .ui-room-header-invite .ui-invite-url {
+    flex: 1 1 100%;
   }
 
-  .ui-room-header-invite .ui-invite-url {
-    justify-self: stretch;
+  /* QR とコピーは同じ幅の 2 列（ボタンは列の幅いっぱい） */
+  .ui-room-header-invite-actions {
+    flex: 1 1 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   /* ボタンは列の幅いっぱいに揃える。320px でも「招待リンクをコピー」が 1 行に収まるよう、左右の余白を 1 段詰める */

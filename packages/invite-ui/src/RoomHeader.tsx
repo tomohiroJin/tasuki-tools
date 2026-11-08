@@ -133,9 +133,11 @@ export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras, 
             <span className="ui-room-header-code-value">{roomCode}</span>
           </p>
           <div className="ui-invite">
-            {/* 狭い幅では末尾が「…」に省略される。全文は 1 回押して選ぶ・コピー・読み上げ（字そのもの）で渡す。`title`・`aria-label` は付けない
-                （触る端末ではツールチップが出ず、読み上げで URL が二重になる）。ルームを見分けるのは隣の「ルーム XXXXXX」と QR。 */}
+            {/* 省略しない。長ければどこでも折り返して全部見せる（クリップボードが使えない端末では目で読むしかない）。`title`・`aria-label` は付けない
+                （触る端末ではツールチップが出ず、読み上げで URL が二重になる）。 */}
             <span className="ui-invite-url">{inviteUrl}</span>
+            {/* QR とコピーを 1 つにまとめる（折り返すとき、2 つのボタンが別の行に分かれない）。 */}
+            <div className="ui-room-header-invite-actions">
             {/* ボタンと浮かぶ QR を包む。外側を押したかの判定と、QR を浮かべる位置の基準にする。 */}
             <div ref={qrAnchorRef} className="ui-room-header-qr-anchor" onKeyDown={closeQrOnEscape} onBlur={closeQrOnFocusLeave}>
               <button
@@ -164,6 +166,7 @@ export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras, 
             >
               {copyLabel}
             </button>
+            </div>
           </div>
         </div>
       </div>

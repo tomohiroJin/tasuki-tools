@@ -22,5 +22,6 @@ ADR-0025 決定 5 は「操作の並びは `.ui-actions` で組み、狭い幅�
 ## 影響
 
 - 部品の帯（`.ui-actions--dock`）を使う画面（poker・topic・roulette・timer）は、並びのクラスを変えずに 2 段に収まる。agenda の手元の帯・映す表示の帯・checkin の `.round-dock` は部品の帯を使わない（agenda の 2 つは地と線のトークンだけを共有する。checkin は独自の帯のまま）
-- 帯の高さの上限は、手で写した値（agenda の `--run-controls-height`・`--projection-strip-height`・`--dock-max-height`）を E2E が測る。文字を拡大したときの折り返しは測っていない
+- 帯の高さは、画面側が実際の高さを測って CSS 変数へ書く（agenda の手元の帯・映す表示の帯は ResizeObserver）。CSS の値は JS が動く前の既定値。部品の帯の逃がし余白（`--dock-max-height`）は実測（poker と timer）から決めた値で、文字の拡大は agenda の帯だけ E2E で測っている
+- 招待の URL は省略せず、折り返して全部見せる（クリップボードが使えない端末では目で読むしかない）。招待の行は固定の境目を置かず、中身の幅で折り返す
 - この ADR を採択するときは、ADR-0025 決定 5 の帯の部分をこの ADR が置き換える旨を、ADR-0025 の追記に反映する。採択は人が行う（`docs/adr/0030` 決定 1）

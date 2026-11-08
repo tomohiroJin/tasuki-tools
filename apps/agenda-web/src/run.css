@@ -7,16 +7,18 @@
 /* ── 段組み ─────────────────────────────────────────────── */
 /* 帯（`.run-controls`）の高さ。実際の高さは `use-measured-block-size`（ResizeObserver）が測って `<html>` の style へ書く（文字を大きくしたときも帯の下に最後の行が隠れない）。
    ここの値は JS が動く前の既定値で、既定の文字の大きさの実測（320〜639px で 161.39〜162.22px、640〜1023px で 133px）より大きく丸めた手書きの値。
-   `.run` の下の余白と、Tab の送り先の余白（下の `scroll-padding-block-end`）が同じ値を引く */
+   `.run` の下の余白と、Tab の送り先の余白（下の `scroll-padding-block-end`）が同じ値を引く。測った値（border-box）は帯の下の余白の `env(safe-area-inset-bottom)` を含むので、
+   既定値の方にホームバーを含め、使う側では足さない（足すと二重になる） */
 :root {
-  --run-controls-height: 10.5rem;
+  /* 既定値にホームバーの高さを含める（測った値は border-box で、帯の下の余白の `env(safe-area-inset-bottom)` をすでに含むので、使う側では足さない） */
+  --run-controls-height: calc(10.5rem + env(safe-area-inset-bottom));
 }
 
 /* 帯が `fixed` の幅（64rem 未満）は、Tab で辿った先が帯の後ろに隠れない（WCAG 2.4.11）よう、フォーカスで送るときの下の余白を帯の高さに揃える。
    agenda には部品の帯（`.ui-actions--dock`）が無いので、要素層（reset.css）の `html:has(.ui-actions--dock)` は効かない。ここで `html:has(.run-controls)` に同じ式を置く。`:has` は宣言を置く条件だけに使う */
 @media (width < 64rem) {
   html:has(.run-controls) {
-    scroll-padding-block-end: calc(var(--run-controls-height) + env(safe-area-inset-bottom));
+    scroll-padding-block-end: var(--run-controls-height);
   }
 }
 
@@ -30,9 +32,8 @@
     'dial'
     'aside';
   gap: var(--space-4);
-  /* 帯（`.run-controls`・固定）の高さ（上の `--run-controls-height`）に、iPhone のホームバーの高さ
-     （`env(safe-area-inset-bottom)`・帯も同じだけ下の余白を足している）を足す。足りないと、最下部で最後の行や「最初から」が不透明な帯に隠れる（#554） */
-  padding-bottom: calc(var(--run-controls-height) + env(safe-area-inset-bottom));
+  /* 帯（`.run-controls`・固定）の高さ（上の `--run-controls-height`。ホームバーの高さを含む）を下の余白に取る。足りないと、最下部で最後の行や「最初から」が不透明な帯に隠れる（#554） */
+  padding-bottom: var(--run-controls-height);
 }
 .run--finished {
   padding-bottom: 0;

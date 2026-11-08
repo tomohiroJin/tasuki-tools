@@ -13,7 +13,8 @@ export function useMeasuredBlockSize(ref: RefObject<HTMLElement | null>, variabl
     if (element === null || typeof ResizeObserver === 'undefined') return;
     const root = document.documentElement;
     const apply = (): void => {
-      root.style.setProperty(variable, `${element.getBoundingClientRect().height}px`);
+      // 切り上げて 1px の余裕を持たせる（小数の高さを丸めて 1px 重なるのを避ける）
+      root.style.setProperty(variable, `${Math.ceil(element.getBoundingClientRect().height)}px`);
     };
     apply();
     const observer = new ResizeObserver(apply);
