@@ -347,7 +347,8 @@ test.describe('poker のルームの見出しと帯', () => {
     const url = await createPokerRoom(page, 'header-host');
     for (const width of [640, 768, 900]) {
       await page.setViewportSize({ width, height: 900 });
-      await expectInviteUrlOneLine(page, `poker URL（${width}）`);
+      // URL が 1 行に収まるのは、コード・URL・ボタンが 1 行に並ぶ広さ（864px 以上）から。それより狭い幅は、見出しを高くしないため URL が行の中で折り返す（main と同じ 2 行）
+      if (width >= 864) await expectInviteUrlOneLine(page, `poker URL（${width}）`);
       // 40rem 以上は Tab の送り先の余白を掛けない（要素層の 6rem の既定が @media の外へ漏れない）
       expect(await page.evaluate(() => getComputedStyle(document.documentElement).scrollPaddingBottom), `poker（${width}）: 40rem 以上に scroll-padding-block-end が掛かっている`).toBe('auto');
       // URL に title・aria-label を付けない（触る端末ではツールチップが出ず、読み上げで URL が二重になる）
@@ -575,7 +576,7 @@ test.describe('Check-in Cards の開いた後', () => {
     }, { message: '開いた後の帯と席の矩形が落ち着かない' }).toBe(true);
     for (const width of [768, 1024, 1280]) {
       await page.setViewportSize({ width, height: 900 });
-      await expectInviteUrlOneLine(page, `checkin URL（${width}）`);
+      if (width >= 864) await expectInviteUrlOneLine(page, `checkin URL（${width}）`);
       const m = await page.locator('.round-dock').evaluate((dock) => {
         const top = dock.getBoundingClientRect().top;
         let bottom = -Infinity;
