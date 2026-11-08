@@ -228,7 +228,7 @@ test("observe: 注釈の中に試験用の入口の名前を書いただけで�
   withTempPackage(
     {
       "apps/z/package.json": "{}",
-      "apps/z/src/doc.ts": "// " + entry + "/css-text.mjs を読む試験がある\n/* " + entry + "/x */\nexport const a = 1;\n",
+      "apps/z/src/doc.ts": "// import \"" + entry + "/css-text.mjs\" は試験だけが読む\n/* from \"" + entry + "/x\" */\nexport const a = 1;\n",
       "apps/z/src/lazy.ts": "const m = await import(`" + entry + "/${name}.mjs`);\n",
       "apps/z/src/req.cjs": "const m = require(\"" + entry + "/css-text.mjs\");\n",
       "apps/z/src/reexport.ts": "export * from \"" + entry + "/css-text.mjs\";\n",

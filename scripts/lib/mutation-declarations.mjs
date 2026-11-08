@@ -6915,7 +6915,7 @@ export const MUTATIONS = [
   },
   {
     id: 1313,
-    label: "共有の mediaBlocks が、頭と { の間の壊れた書き方を throw しない",
+    label: "共有の mediaBlocks が、頭と { の間の条件でないもの（別の規則の始まり）を throw しない",
     patch: "m1313-css-text-broken-media-no-throw.patch",
     pkg: "packages/ui",
     tests: ["tests/dock-and-narrow-header.test.mjs"],

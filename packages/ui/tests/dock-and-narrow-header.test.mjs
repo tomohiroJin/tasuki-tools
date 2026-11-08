@@ -82,6 +82,8 @@ test('Given 同じ頭の @media が複数ある CSS / When mediaBlocks を通す
   // 長い条件の @media は同じ頭として拾わない
   const mixed = '@media (width < 64rem) { .a { x: 1; } }\n@media (width < 64rem) and (height < 30rem) { .long { x: 1; } }';
   assert.deepEqual(rules(mediaBlocks(mixed, '@media (width < 64rem)')).map((r) => r.selector), ['.a']);
+  // outsideMedia も、{ の無い @media（壊れた CSS）は throw する（blockRange）
+  assert.throws(() => outsideMedia('.a { x: 1; }\n@media (width < 64rem)'), /波括弧が開かない/);
   // { が見つからない（壊れた CSS）は throw する
   assert.throws(() => mediaBlocks('@media (width < 64rem)', '@media (width < 64rem)'), /{ が無い/);
   // 頭の直後から { までの間に ; や別の規則がある壊れた書き方は throw する

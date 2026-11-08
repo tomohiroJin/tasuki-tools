@@ -11,11 +11,12 @@
 diff --git a/packages/ui/tests/support/css-text.mjs b/packages/ui/tests/support/css-text.mjs
 --- a/packages/ui/tests/support/css-text.mjs
 +++ b/packages/ui/tests/support/css-text.mjs
-@@ -47,7 +47,6 @@
-     if (open === -1) throw new Error(`${head} の後ろに { が無い（壊れた CSS）`);
-     const rest = plain.slice(at + head.length, open);
-     // 頭と { の間に ; や } や別の規則の始まりがあれば、規則の塊を持たない壊れた書き方なので throw する
--    if (/[;}]|@/.test(rest)) throw new Error(`${head} と { の間に ; か } か別の規則がある（壊れた CSS）`);
-     if (rest.trim() === '') {
+@@ -52,8 +52,6 @@
        // 頭そのもの
      } else if (/^(and|or|not|only)\b|^,/.test(rest.trim())) {
+       continue; // 長い条件の @media（`and (...)`・`, (...)`）は別の頭
+-    } else {
+-      throw new Error(`${head} と { の間に条件でないものがある（壊れた CSS）`);
+     }
+     const [start, end] = blockRange(plain, open);
+     joined += `${plain.slice(start, end)}\n`;
