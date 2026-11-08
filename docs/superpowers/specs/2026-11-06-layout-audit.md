@@ -250,7 +250,6 @@
 - `e2e/specs/layout.spec.ts` の 3 行の写しの高さの上限に +16px（段落の間 2 つ分）を足したこと（11 回目の節の「人の承認を待つ」）は、利用者が承認した
 - 全件の E2E で揺れる `timer-break.spec.ts:43`・`buttons.spec.ts:457`（main でも落ちる）は、#574 にした
 
-
 ### #556 で扱ったもの（2026-11-06）
 
 表の本体は書き換えない。長い名前の行の作り方（決定）: **名前は行の中で縮む列（`min-width: 0`）に置いて 2 行まで折り返し、残りは省略する（全文は `title` と読み上げに残る）。操作は行の右端に固定の列で置き、名前が長くても段を変えない。自分の行も他の行と同じ並び（矢印は右寄せ）にする。** timer の名簿・roulette の入る人で揃えた。
@@ -271,3 +270,5 @@
 | 32 | 直した | 案内文に `text-wrap: balance`。1〜2 字だけが 2 行目に落ちない | 撮影（390） |
 
 **#553 の申し送り**: timer の `Card` の中の縦の並びを、親が `gap` で持つ形（`meter-panel-stack`）へ移した。移したのは共有メモの Card（変異 1116）と、ロビーの参加者の Card。`.section-header` の `margin-bottom` は `.meter-panel-stack` の中では 0 にした。**追加の作業（取り除いた）**: 上で「移していない」と書いていた 5 つの Card（通知設定・セッション設定・パスフレーズ・名簿・履歴）も親の `gap` に寄せた。通知設定・履歴の Card は `meter-panel-stack`、パスフレーズ・名簿・セッション設定はパネルの根を `panel-stack`（同じ `gap` の規則。違う間は `--panel-stack-gap`）にした。名簿の中の見出し（ドライバー・見学）と代理追加の間は、`.roster-panel-section` と `.roster-panel-body`（`--space-3`）で `margin` なしに同じ値で持つ。セッション設定の見出し → 交代間隔（16px）と組 → 詳細設定（20px）の二段の間も `gap` で持つ。これで `.section-header` と `.shared-memo-header` の `margin-bottom` は timer から無くなった（`git grep -n "margin-bottom" apps/timer-web/src/styles/primitives.css apps/timer-web/src/styles/shared-memo.css` は 0 件）。**残る例外は無い**ので ADR への追記は足していない。見た目の間は変えていない: 各 Card の見出しの下端から中身の上端までの間を前後で測り（ロビー 4 枚・セッションの名簿・ルームタブの 2 枚・履歴の計 8 か所を 320・1280 で）、すべて 16px のまま。名簿の中は、代理追加の形の下 16 → 12 → 4px（前後で同じ）。`rows-alignment.spec.ts` が 320・1280 で 16px±1 を守る。変異 1230〜1232。
+
+**ADR 0035 の例外の改定（2026-11-09・#556）**: 上の「当てなかったもの」の `SectionHeader` と共有メモの見出しの `margin-bottom`（移行の途中の例外）は、#556 で取り除いた。ADR 0035 決定 1 の例外の節の末尾に改定の印を足した（本文は変えていない）。

@@ -7734,7 +7734,7 @@ export const MUTATIONS = [
     patch: "m1116-shared-memo-card-not-stack.patch",
     pkg: "packages/ui",
     tests: ["tests/rows-alignment.test.mjs"],
-    note: RESERVED_1110_1119 + " " + "#556。 見出しの行と本文の間を誰も持たなくなる（ADR 0034 決定 1 の再発）。",
+    note: RESERVED_1110_1119 + " " + "#556。 見出しの行と本文の間を誰も持たなくなる（ADR 0035 決定 1 の再発）。",
   },
   {
     id: 1117,

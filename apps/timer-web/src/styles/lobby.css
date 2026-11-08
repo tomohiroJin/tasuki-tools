@@ -159,6 +159,6 @@
 }
 
 .lobby-empty-hint {
-  /* 一覧との間は親の `<Card stack>` の `gap` が持つ（ADR 0034 決定 1・#556） */
+  /* 一覧との間は親の `<Card stack>` の `gap` が持つ（ADR 0035 決定 1・#556） */
   margin: 0;
 }
