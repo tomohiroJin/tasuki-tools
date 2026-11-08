@@ -11,15 +11,15 @@
 diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
 --- a/apps/agenda-web/src/run.css
 +++ b/apps/agenda-web/src/run.css
-@@ -577,11 +577,6 @@
+@@ -579,11 +579,6 @@
+ :root {
    --projection-strip-height: 10rem;
  }
- /* 40rem 以上は帯が 1 行（実測 69px）に収まるので、段ごとに持つ（横向きのスマートフォン 844×390 やタブレットで取りすぎない） */
 -@media (width >= 40rem) {
 -  :root {
--    --projection-strip-height: 5rem;
+-    --projection-strip-height: 4.4rem;
 -  }
 -}
- @media (width < 64rem) {
-   .projection-body {
+ @media (width < 40rem), (width >= 40rem) and (width < 64rem) and (height < 48rem) {
+   .projection:has(> .projection-strip.is-shown, > .projection-strip:focus-within) > .projection-body {
      padding-block-end: calc(var(--space-6) + var(--projection-strip-height) + env(safe-area-inset-bottom));

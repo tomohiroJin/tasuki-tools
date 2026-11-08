@@ -1,0 +1,22 @@
+# 変異 1305: audit-backtick-specifier-dropped
+#
+# 検出を期待するテスト:
+#   - scripts/audit-dependency-direction.test.mjs
+#
+# #554 のレビュー。バッククォートの動的 import の取り込みを監査が見逃す。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1305-*.patch
+# 復元: git apply -R scripts/mutations/m1305-*.patch
+diff --git a/scripts/audit-dependency-direction.mjs b/scripts/audit-dependency-direction.mjs
+--- a/scripts/audit-dependency-direction.mjs
++++ b/scripts/audit-dependency-direction.mjs
+@@ -278,7 +278,7 @@
+  * 試験用の入口（`@tasuki/ui/test-support`）の指定子。CSS を字で読む試験が共有するためだけに公開しているので、製品コード（`<pkg>/src`）から読まない（#554）。
+  * 相対パスで packages/ui/tests を読むことは、決定 4（パッケージの外への相対パス）が止める。
+  */
+-const TEST_SUPPORT_SPECIFIER = /["'`]@tasuki\/ui\/test-support/;
++const TEST_SUPPORT_SPECIFIER = /["']@tasuki\/ui\/test-support/;
+ 
+ /**
+  * 相対パスの指定子を拾う。

@@ -53,13 +53,17 @@ describe('映す表示の帯', () => {
     expect(body).not.toMatch(/gradient|transparent|rgba|scrim/);
   });
 
-  it('Given 映す表示 / When 中身の下の余白を見る / Then 帯の有無によらず、帯の高さの変数（10rem）＋ ホームバーぶんを常に取る（出るたびに盤が跳ねない・下端の情報が帯に隠れない）', () => {
+  it('Given 映す表示 / When 中身の下の余白を見る / Then 40rem 未満は帯が出ている間だけ、40rem 以上 64rem 未満は常に、帯の高さの変数＋ホームバーぶんを取り、64rem 以上は取らない', () => {
     expect(bodyWith(':root', '--projection-strip-height', outsideMedia(css))).toMatch(/--projection-strip-height:\s*10rem;/);
-    // 40rem 以上は帯が 1 行（実測 69px）なので、段ごとに 5rem（横向きのスマートフォンやタブレットで取りすぎない）
-    expect(bodyWith(':root', '--projection-strip-height', mediaBlocks(css, '@media (width >= 40rem)'))).toMatch(/--projection-strip-height:\s*5rem;/);
-    // 余白は 64rem 未満の @media の中だけ（64rem 以上は帯が中身に重ならないので取らない。取ると盤が約 80px 上に寄る）
+    // 40rem 以上は帯が 1 行（実測 69px）なので、段ごとに 4.4rem（横向きのスマートフォンやタブレットで取りすぎない）
+    expect(bodyWith(':root', '--projection-strip-height', mediaBlocks(css, '@media (width >= 40rem)'))).toMatch(/--projection-strip-height:\s*4\.4rem;/);
+    // 余白は @media の外には無い（64rem 以上は帯が中身に重ならないので取らない。取ると盤が約 80px 上に寄る）
     expect(outsideMedia(css)).not.toMatch(/\.projection-body\s*\{[^}]*padding-block-end/);
-    const body = bodyWith('.projection-body', 'padding-block-end: calc', mediaBlocks(css, '@media (width < 64rem)'));
-    expect(body).toMatch(/padding-block-end:\s*calc\(var\(--space-6\) \+ var\(--projection-strip-height\) \+ env\(safe-area-inset-bottom\)\);/);
+    const pad = /padding-block-end:\s*calc\(var\(--space-6\) \+ var\(--projection-strip-height\) \+ env\(safe-area-inset-bottom\)\);/;
+    // 40rem 未満と、40rem 以上 64rem 未満で高さが 48rem 未満（背の低い横向き）: 帯が出ている間だけ（常に取ると、もともとスクロールが出る画面でさらに伸び、#471 の既存の検査も赤になる）
+    const shown = '.projection:has(> .projection-strip.is-shown, > .projection-strip:focus-within) > .projection-body';
+    expect(bodyWith(shown, 'padding-block-end', mediaBlocks(css, '@media (width < 40rem), (width >= 40rem) and (width < 64rem) and (height < 48rem)'))).toMatch(pad);
+    // 40rem 以上 64rem 未満で高さが 48rem 以上: 常に（通常の下の余白 --space-6 は足さず置き換える。足すと 768×1024 で縦のスクロールが出る）
+    expect(bodyWith('.projection-body', 'padding-block-end', mediaBlocks(css, '@media (width >= 40rem) and (width < 64rem) and (height >= 48rem)'))).toMatch(/padding-block-end:\s*calc\(var\(--projection-strip-height\) \+ env\(safe-area-inset-bottom\)\);/);
   });
 });

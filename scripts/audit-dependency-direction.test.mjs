@@ -206,3 +206,19 @@ test("observe: src から同じパッケージの tests を相対パスで読む
     },
   );
 });
+
+test("observe: バッククォートの指定子と、vite.config.ts などの設定ファイル（src の外）も試験用の入口として拾う", () => {
+  const entry = ["@tasuki", "ui", "test-support"].join("/");
+  withTempPackage(
+    {
+      "apps/y/package.json": "{}",
+      "apps/y/src/lazy.ts": "const m = await import(`" + entry + "/css-text.mjs`);\n",
+      "apps/y/vite.config.ts": ENTRY_IMPORT,
+      "apps/y/test/ok.ts": ENTRY_IMPORT,
+    },
+    (root) => {
+      const seen = observe("apps/y", ["apps/y/src/lazy.ts", "apps/y/vite.config.ts", "apps/y/test/ok.ts"], root);
+      assert.deepEqual(seen.testSupport, ["apps/y/src/lazy.ts", "apps/y/vite.config.ts"]);
+    },
+  );
+});

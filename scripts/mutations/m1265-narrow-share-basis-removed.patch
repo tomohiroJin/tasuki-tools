@@ -12,11 +12,11 @@
 diff --git a/packages/ui/src/components/room-header.css b/packages/ui/src/components/room-header.css
 --- a/packages/ui/src/components/room-header.css
 +++ b/packages/ui/src/components/room-header.css
-@@ -196,7 +196,6 @@
+@@ -189,7 +189,6 @@
    }
  
    .ui-room-header:not(.ui-room-header--compact) .ui-room-header-share {
 -    flex-basis: 100%;
    }
- }
  
+   /* 戻るは下線の字（`.ui-button--quiet`）の横の余白（`padding-inline` ＋ 枠 1px）ぶん、字が左へ 9px 字下がる。40rem 未満では戻るが行の先頭に落ちるので（#554・#479 の #13）、

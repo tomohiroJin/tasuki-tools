@@ -1,0 +1,24 @@
+# 変異 1307: css-text-media-head-prefix
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/dock-and-narrow-header.test.mjs
+#
+# #554 のレビュー。mediaBlocks が頭を前方一致で探し、長い条件の @media を同じ頭として拾う。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1307-*.patch
+# 復元: git apply -R scripts/mutations/m1307-*.patch
+diff --git a/packages/ui/tests/support/css-text.mjs b/packages/ui/tests/support/css-text.mjs
+--- a/packages/ui/tests/support/css-text.mjs
++++ b/packages/ui/tests/support/css-text.mjs
+@@ -41,10 +41,6 @@
+   let found = 0;
+   for (let at = plain.indexOf(head); at !== -1; at = plain.indexOf(head, at + 1)) {
+     // 頭のすぐ後ろが空白か `{` のときだけ一致とする（`@media (width < 64rem) and (...)` のような長い条件の @media を拾わない）
+-    const next = plain[at + head.length];
+-    if (next !== undefined && next !== '{' && !/\s/.test(next)) continue;
+-    const rest = plain.slice(at + head.length, plain.indexOf('{', at));
+-    if (rest.trim() !== '') continue;
+     const [start, end] = blockRange(plain, plain.indexOf('{', at));
+     joined += `${plain.slice(start, end)}\n`;
+     found += 1;

@@ -1,0 +1,22 @@
+# 変異 1306: audit-collect-src-only
+#
+# 検出を期待するテスト:
+#   - scripts/audit-dependency-direction.test.mjs
+#
+# #554 のレビュー。監査の走査が src だけに戻り、vite.config.ts などの設定ファイルの取り込みを見逃す。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1306-*.patch
+# 復元: git apply -R scripts/mutations/m1306-*.patch
+diff --git a/scripts/audit-dependency-direction.mjs b/scripts/audit-dependency-direction.mjs
+--- a/scripts/audit-dependency-direction.mjs
++++ b/scripts/audit-dependency-direction.mjs
+@@ -368,7 +368,7 @@
+   for (const rel of files) {
+     const text = fs.readFileSync(path.join(root, rel), "utf8");
+     // 製品コード = パッケージの中の tests・test 以外の全ファイル（src だけでなく、vite.config.ts などの設定ファイルも含める）
+-    const inSrc = !(rel.startsWith(`${pkg}/tests/`) || rel.startsWith(`${pkg}/test/`));
++    const inSrc = rel.startsWith(`${pkg}/src/`);
+     if (inSrc && TEST_SUPPORT_SPECIFIER.test(text)) testSupport.push(rel);
+     for (const m of text.matchAll(TASUKI_SPECIFIER)) imports.push(m[1]);
+     for (const m of text.matchAll(RELATIVE_SPECIFIER)) {

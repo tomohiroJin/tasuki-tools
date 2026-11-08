@@ -11,10 +11,10 @@
 diff --git a/scripts/audit-dependency-direction.mjs b/scripts/audit-dependency-direction.mjs
 --- a/scripts/audit-dependency-direction.mjs
 +++ b/scripts/audit-dependency-direction.mjs
-@@ -368,7 +368,7 @@
-   for (const rel of files) {
+@@ -369,7 +369,7 @@
      const text = fs.readFileSync(path.join(root, rel), "utf8");
-     const inSrc = rel.startsWith(`${pkg}/src/`);
+     // 製品コード = パッケージの中の tests・test 以外の全ファイル（src だけでなく、vite.config.ts などの設定ファイルも含める）
+     const inSrc = !(rel.startsWith(`${pkg}/tests/`) || rel.startsWith(`${pkg}/test/`));
 -    if (inSrc && TEST_SUPPORT_SPECIFIER.test(text)) testSupport.push(rel);
 +    if (TEST_SUPPORT_SPECIFIER.test(text)) testSupport.push(rel);
      for (const m of text.matchAll(TASUKI_SPECIFIER)) imports.push(m[1]);

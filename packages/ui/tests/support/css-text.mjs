@@ -12,6 +12,7 @@ export const stripComments = (css) => css.replace(/\/\*[\s\S]*?\*\//g, '');
 
 /** 波括弧の対応で、`open` の `{` から始まるブロックの中身の範囲 [start, end) を返す。 */
 function blockRange(plain, open) {
+  if (open === -1) throw new Error('波括弧が開かない（{ が見つからない）');
   let depth = 0;
   for (let i = open; i < plain.length; i += 1) {
     if (plain[i] === '{') depth += 1;
@@ -39,6 +40,11 @@ export function mediaBlocks(css, head) {
   let joined = '';
   let found = 0;
   for (let at = plain.indexOf(head); at !== -1; at = plain.indexOf(head, at + 1)) {
+    // 頭のすぐ後ろが空白か `{` のときだけ一致とする（`@media (width < 64rem) and (...)` のような長い条件の @media を拾わない）
+    const next = plain[at + head.length];
+    if (next !== undefined && next !== '{' && !/\s/.test(next)) continue;
+    const rest = plain.slice(at + head.length, plain.indexOf('{', at));
+    if (rest.trim() !== '') continue;
     const [start, end] = blockRange(plain, plain.indexOf('{', at));
     joined += `${plain.slice(start, end)}\n`;
     found += 1;

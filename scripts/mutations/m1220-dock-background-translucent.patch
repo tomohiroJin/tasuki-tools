@@ -20,4 +20,4 @@ diff --git a/packages/ui/src/components/actions.css b/packages/ui/src/components
 +    background: var(--felt-scrim);
    }
  
-   .ui-actions--dock > :nth-child(odd of :not([hidden], .ui-visually-hidden, select, .ui-actions-start)):nth-last-child(1 of :not([hidden], .ui-visually-hidden, select, .ui-actions-start)) {
+   /* 数え方の擬似クラスは :where() で包み、詳細度を (0,1,0) に抑える（部品層の約束は (0,2,0) まで。画面の `.roulette-controls .ui-button` などの上書きが勝つ） */

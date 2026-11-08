@@ -12,12 +12,12 @@
 diff --git a/packages/ui/src/components/actions.css b/packages/ui/src/components/actions.css
 --- a/packages/ui/src/components/actions.css
 +++ b/packages/ui/src/components/actions.css
-@@ -69,7 +69,7 @@
-     background: var(--dock-ground);
+@@ -70,7 +70,7 @@
    }
  
--  .ui-actions--dock > :nth-child(odd of :not([hidden], .ui-visually-hidden, select, .ui-actions-start)):nth-last-child(1 of :not([hidden], .ui-visually-hidden, select, .ui-actions-start)) {
-+  .ui-actions--dock > :nth-child(odd of :not([hidden], .ui-visually-hidden, select, .ui-actions-start)):nth-last-child(1 of :not([hidden], .ui-visually-hidden)) {
+   /* 数え方の擬似クラスは :where() で包み、詳細度を (0,1,0) に抑える（部品層の約束は (0,2,0) まで。画面の `.roulette-controls .ui-button` などの上書きが勝つ） */
+-  .ui-actions--dock > :where(:nth-child(odd of :not([hidden], .ui-visually-hidden, select, .ui-actions-start)):nth-last-child(1 of :not([hidden], .ui-visually-hidden, select, .ui-actions-start))) {
++  .ui-actions--dock > :where(:nth-child(odd of :not([hidden], .ui-visually-hidden, select, .ui-actions-start)):nth-last-child(1 of :not([hidden], .ui-visually-hidden))) {
      grid-column: 1 / -1;
    }
  

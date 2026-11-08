@@ -12,12 +12,12 @@
 diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
 --- a/apps/agenda-web/src/run.css
 +++ b/apps/agenda-web/src/run.css
-@@ -574,7 +574,7 @@
-    帯の高さの上限は実測（既定の文字の大きさ）で 320px の 149.4px・390px の 101.6px・40rem 以上は 69px。実測より大きく丸めた段ごとの手書きの値（40rem 未満 10rem・以上 5rem）で、
+@@ -577,7 +577,7 @@
+    帯の高さの上限は実測（既定の文字の大きさ）で 320px の 149.4px・390px の 101.6px・40rem 以上は 69px。実測より大きく丸めた段ごとの手書きの値（40rem 未満 10rem・以上 4.4rem。実測 69px にほぼ合わせる。5rem だと 768×1024 で帯を出さなくても縦のスクロールが出た）で、
     E2E（`header-and-dock.spec.ts`）が帯の実際の高さがこの値以下であることを測る。文字を拡大したときの折り返しは測っていない */
  :root {
 -  --projection-strip-height: 10rem;
 +  --projection-strip-height: 4rem;
  }
- /* 40rem 以上は帯が 1 行（実測 69px）に収まるので、段ごとに持つ（横向きのスマートフォン 844×390 やタブレットで取りすぎない） */
  @media (width >= 40rem) {
+   :root {

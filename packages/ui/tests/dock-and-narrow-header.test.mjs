@@ -43,7 +43,7 @@ test('Given 40rem 未満の帯 / When 並びを読む / Then 2 列の格子で�
   assert.match(body, /display:\s*grid;/);
   assert.match(body, /grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/);
   // 数えるのは目に見える操作だけ（hidden・読み上げ専用・選択欄・控えの包みは数えない）。全部の子を数える :last-child:nth-child(odd) に戻さない
-  const full = only(list, `.ui-actions--dock > :nth-child(odd of ${COUNTED}):nth-last-child(1 of ${COUNTED})`);
+  const full = only(list, `.ui-actions--dock > :where(:nth-child(odd of ${COUNTED}):nth-last-child(1 of ${COUNTED}))`);
   assert.match(full, /grid-column:\s*1\s*\/\s*-1;/);
   assert.ok(!list.some((r) => /:last-child:nth-child\(odd\)/.test(r.selector)), '全部の子を数える :last-child:nth-child(odd) が残っている');
 });
@@ -79,6 +79,11 @@ test('Given 同じ頭の @media が複数ある CSS / When mediaBlocks を通す
   assert.deepEqual(rules(mediaBlocks(css, '@media (width < 64rem)')).map((r) => r.selector), ['.a', '.c']);
   assert.throws(() => mediaBlocks(css, '@media (width >= 0rem)'));
   assert.throws(() => mediaBlocks('@media (width < 64rem) { .a { x: 1; }', '@media (width < 64rem)'), /閉じていない/);
+  // 長い条件の @media は同じ頭として拾わない
+  const mixed = '@media (width < 64rem) { .a { x: 1; } }\n@media (width < 64rem) and (height < 30rem) { .long { x: 1; } }';
+  assert.deepEqual(rules(mediaBlocks(mixed, '@media (width < 64rem)')).map((r) => r.selector), ['.a']);
+  // { が見つからない（壊れた CSS）は throw する
+  assert.throws(() => mediaBlocks('@media (width < 64rem)', '@media (width < 64rem)'), /波括弧が開かない/);
 });
 
 test('Given 帯の逃がし余白 / When reset.css・トークンを読む / Then 要素層は旧い 6rem、帯のある画面だけ 2 段の帯の最大の高さ（--dock-max-height）＋ ホームバー', () => {
@@ -122,14 +127,16 @@ test('Given 40rem 未満の通常の見出し / When 並びを読む / Then 折�
   assert.match(only(list, `${NOT_COMPACT} .ui-room-header-title > h1`), /flex:\s*1 1 100%;/);
 });
 
-test('Given 幅によらない規則 / When 戻るの規則を読む / Then 左の余白と枠を持たず（負の margin で打ち消さない）、40rem 未満の中に残らない', () => {
+test('Given 40rem 未満の通常の見出し / When 戻るの規則を読む / Then 左の余白と枠を持たず、40rem 以上と詰めた見た目は元の余白（左右対称）のまま', () => {
   const plain = readFileSync(resolve(COMPONENTS, 'room-header.css'), 'utf8');
-  const body = only(rules(outsideMedia(plain)), '.ui-room-header .ui-page-header-back');
-  // 下線の字の横の余白（--space-2）と枠 1px を持たなければ、字の左端が箱の左端に来る。負の margin だと、道具のボタンの右隣で間が 3px まで縮む
+  const body = only(headerRules(), `${NOT_COMPACT} .ui-page-header-back`);
   assert.match(body, /padding-inline-start:\s*0;/);
   assert.match(body, /border-inline-start-width:\s*0;/);
   assert.doesNotMatch(body, /margin|order:/);
-  assert.ok(!rules(mediaBlock(plain, '@media (width < 40rem)')).some((r) => r.selector.includes('.ui-page-header-back')), '40rem 未満の中に戻るの規則が残っている（幅によらず効かせる）');
+  // @media の外（幅によらない側）には、戻るの左の余白・枠・margin を変える規則を置かない（詰めた見た目の `margin-inline-start: auto` だけ）
+  const outside = rules(outsideMedia(plain)).filter((r) => r.selector.includes('.ui-page-header-back'));
+  assert.deepEqual(outside.map((r) => r.selector), ['.ui-room-header--compact .ui-page-header-back']);
+  assert.doesNotMatch(outside[0].body, /padding|border/);
 });
 
 test('Given 40rem 未満の @media / When 見出しの規則を読む / Then order で目の順だけを変えない（Tab・読み上げの順が見た目と食い違う。WCAG 2.4.3・1.3.2）', () => {
