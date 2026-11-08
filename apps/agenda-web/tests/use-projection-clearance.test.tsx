@@ -106,11 +106,44 @@ describe('useProjectionClearance', () => {
     stubGeometry({ contentBottom: 520, scrollHeight: 568, stripHeight: 149 });
     const frames: number[] = [];
     vi.stubGlobal('requestAnimationFrame', (cb: () => void) => { frames.push(1); cb(); return 1; });
+    vi.stubGlobal('cancelAnimationFrame', () => undefined);
     const { getByTestId } = render(<Probe shown={false} />);
     expect(frames).toHaveLength(0);
     getByTestId('strip').dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
     expect(frames).toHaveLength(1);
     getByTestId('strip').dispatchEvent(new FocusEvent('focusout', { bubbles: true }));
     expect(frames).toHaveLength(2);
+  });
+
+  it('Given 帯を素早く出し入れする / When 隠れたとき / Then 変数は 0 に戻り、observer を作り直さない（shown は ref で読む）', () => {
+    stubGeometry({ contentBottom: 520, scrollHeight: 568, stripHeight: 149 });
+    let created = 0;
+    vi.stubGlobal('ResizeObserver', class { constructor() { created += 1; } observe() {} disconnect() {} });
+    const view = render(<Probe shown />);
+    const root = view.getByTestId('root');
+    expect(parseFloat(root.style.getPropertyValue('--projection-clearance'))).toBeGreaterThan(0);
+    for (let i = 0; i < 5; i += 1) {
+      view.rerender(<Probe shown={false} />);
+      view.rerender(<Probe shown />);
+    }
+    view.rerender(<Probe shown={false} />);
+    expect(root.style.getPropertyValue('--projection-clearance')).toBe('0px');
+    expect(root.style.getPropertyValue('--projection-body-pin')).toBe('');
+    expect(created).toBe(1);
+  });
+
+  it('Given フォーカスで測り直しを予約した / When 止める（アンマウント）前に予約が走る前 / Then 予約を取り消し、古い測定は書き戻さない', () => {
+    stubGeometry({ contentBottom: 520, scrollHeight: 568, stripHeight: 149 });
+    const pending = new Map<number, () => void>();
+    let id = 0;
+    const cancelled: number[] = [];
+    vi.stubGlobal('requestAnimationFrame', (cb: () => void) => { id += 1; pending.set(id, cb); return id; });
+    vi.stubGlobal('cancelAnimationFrame', (n: number) => { cancelled.push(n); pending.delete(n); });
+    const view = render(<Probe shown={false} />);
+    view.getByTestId('strip').dispatchEvent(new FocusEvent('focusin', { bubbles: true }));
+    expect(pending.size).toBe(1);
+    view.unmount();
+    expect(cancelled).toHaveLength(1);
+    expect(pending.size).toBe(0);
   });
 });

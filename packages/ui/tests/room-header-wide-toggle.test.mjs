@@ -52,15 +52,7 @@ function wideHideRule() {
 }
 
 function buttonDisplayRule() {
-  // display を宣言する規則のうち、比べる相手ではないものを許可の一覧に限って除く（`[hidden]` を含む選択子をまとめて除かない）。
-  // 許可するのは「選択子がちょうど `.ui-button[hidden]` で、本文が `display: none` だけ」の規則 1 つ。一覧の規則が実在することも確かめる
-  const ALLOWED_NOT_COMPARED = [{ selector: '.ui-button[hidden]', body: 'display: none;' }];
-  const all = rules(read('button.css')).filter((r) => /(?:^|[;{\s])display\s*:/.test(r.body));
-  for (const allowed of ALLOWED_NOT_COMPARED) {
-    const hit = all.filter((r) => r.selector === allowed.selector && r.body.trim() === allowed.body);
-    assert.equal(hit.length, 1, `許可した規則 \`${allowed.selector}\` が button.css にちょうど 1 つ無い（${hit.length} 件）`);
-  }
-  const found = all.filter((r) => !ALLOWED_NOT_COMPARED.some((a) => a.selector === r.selector && a.body === r.body.trim()));
+  const found = rules(read('button.css')).filter((r) => /(?:^|[;{\s])display\s*:/.test(r.body));
   assert.equal(found.length, 1, `button.css で display を宣言する規則がちょうど 1 つではない（${found.length} 件）。比べる相手を見直す`);
   assert.equal(found[0].selector, '.ui-button', 'button.css で display を宣言する規則が `.ui-button` ではない。比べる相手を見直す');
   assert.match(found[0].body, /display:\s*inline-flex/);

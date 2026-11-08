@@ -163,8 +163,8 @@ test('Given 招待の URL / When 字の規則を読む / Then 省略せず、ど
   assert.match(body, /max-inline-size:\s*100%;/);
 });
 
-test('Given ボタンの部品 / When button.css を読む / Then hidden の .ui-button は描かない（display: inline-flex が UA の [hidden] に勝つ欠陥を、帯の外でも塞ぐ）', () => {
-  const body = only(rules(readFileSync(resolve(COMPONENTS, 'button.css'), 'utf8')), '.ui-button[hidden]');
+test('Given ボタンの部品 / When actions.css を読む / Then hidden の .ui-button は描かない（button.css の display の規則は 1 つのまま）（display: inline-flex が UA の [hidden] に勝つ欠陥を、帯の外でも塞ぐ）', () => {
+  const body = only(rules(outsideMedia(readFileSync(resolve(COMPONENTS, 'actions.css'), 'utf8'))), '.ui-button[hidden]');
   assert.match(body, /display:\s*none;/);
 });
 

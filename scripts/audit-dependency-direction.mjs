@@ -392,12 +392,39 @@ function stripJsComments(text) {
         out += text[i];
         i += 1;
       }
+    } else if (c === "/" && startsRegexLiteral(out)) {
+      // 正規表現リテラル（`/[/*]/`・`/'/` など）は字句として読み、中の `/*`・引用符を注釈・文字列の開始と見なさない
+      out += c;
+      i += 1;
+      let inClass = false;
+      while (i < text.length && text[i] !== "\n") {
+        const d = text[i];
+        out += d;
+        i += 1;
+        if (d === "\\") {
+          if (i < text.length) {
+            out += text[i];
+            i += 1;
+          }
+        } else if (d === "[") inClass = true;
+        else if (d === "]") inClass = false;
+        else if (d === "/" && !inClass) break;
+      }
     } else {
       out += c;
       i += 1;
     }
   }
   return out;
+}
+
+/** 直前の意味のある字が `( , = : [ ! & | ? { } ;` か行頭、または return・typeof などのキーワードのとき、`/` は正規表現の始まり。 */
+function startsRegexLiteral(before) {
+  const trimmed = before.replace(/\s+$/, "");
+  if (trimmed === "") return true;
+  const last = trimmed[trimmed.length - 1];
+  if ("(,=:[!&|?{};".includes(last)) return true;
+  return /(?:^|[^\w$.])(?:return|typeof|case|in|of|delete|void|throw|new|else|do|yield|await)$/.test(trimmed);
 }
 
 /** 実体を観測する（`root` は走査の起点。既定はリポジトリ。自己テストは一時のディレクトリを渡す）。 */
@@ -417,8 +444,9 @@ export function observe(pkg, files, root = REPO_ROOT) {
   const testSupport = [];
   for (const rel of files) {
     const text = fs.readFileSync(path.join(root, rel), "utf8");
-    // 製品コード = パッケージの中の tests・test 以外の全ファイル（src だけでなく、vite.config.ts などの設定ファイルも含める）
-    const isProductFile = !(rel.startsWith(`${pkg}/tests/`) || rel.startsWith(`${pkg}/test/`));
+    // 製品コード = パッケージの中の tests・test 以外の全ファイル（src だけでなく、vite.config.ts などの設定ファイルも含める）。e2e パッケージは除く
+    // e2e パッケージは全体が試験の側（e2e/specs・e2e/support が共有の解析器を読んでよい）
+    const isProductFile = pkg !== "e2e" && !(rel.startsWith(`${pkg}/tests/`) || rel.startsWith(`${pkg}/test/`));
     if (isProductFile && TEST_SUPPORT_SPECIFIER.test(stripJsComments(text))) testSupport.push(rel);
     for (const m of text.matchAll(TASUKI_SPECIFIER)) imports.push(m[1]);
     for (const m of text.matchAll(RELATIVE_SPECIFIER)) {

@@ -455,7 +455,7 @@ describe('ルーム画面の共通の見出し', () => {
     expect(extra.parentElement).toBe(heading.parentElement);
   });
 
-  it('Given URL の欄 / When 描く / Then title を持たない（触る端末ではツールチップが出ず、読み上げで URL が二重になる。省略された末尾はコピー・全選択・読み上げで渡す）', () => {
+  it('Given URL の欄 / When 描く / Then title を持たない（触る端末ではツールチップが出ず、読み上げで URL が二重になる。URL は省略せず折り返して全部見せ、全選択・コピー・読み上げの字そのもので渡す）', () => {
     // Given / When
     const { container } = renderHeader();
 

@@ -1,4 +1,4 @@
-import { useLayoutEffect, type RefObject } from 'react';
+import { useLayoutEffect, useRef, type RefObject } from 'react';
 
 /** CSS（`run.css`）が `--projection-clearance` を使う幅。これ以外の幅では余白を取らない（何もせず 0 に戻す）。 */
 const CLEARANCE_QUERY = '(width < 40rem), (width >= 40rem) and (width < 64rem) and (height < 48rem)';
@@ -18,6 +18,14 @@ export function useProjectionClearance(
   stripRef: RefObject<HTMLElement | null>,
   shown: boolean,
 ): void {
+  // `shown` は ref で読む（出し入れのたびに observer・focus・matchMedia を作り直さない）。変わったら apply だけを呼び直す
+  const shownRef = useRef(shown);
+  const applyRef = useRef<(() => void) | null>(null);
+  useLayoutEffect(() => {
+    shownRef.current = shown;
+    applyRef.current?.();
+  }, [shown]);
+
   useLayoutEffect(() => {
     const root = rootRef.current;
     const body = bodyRef.current;
@@ -42,7 +50,7 @@ export function useProjectionClearance(
 
     const apply = (): void => {
       reset();
-      if (!shown && !strip.matches(':focus-within')) return;
+      if (!shownRef.current && !strip.matches(':focus-within')) return;
       const stripHeight = Math.ceil(strip.getBoundingClientRect().height);
       // 余白なしの body の高さ（中央寄せの基準）を固定してから、余白を足す
       const pinned = body.getBoundingClientRect().height;
@@ -61,8 +69,17 @@ export function useProjectionClearance(
     let observing: ResizeObserver | null = null;
     let mutations: MutationObserver | null = null;
     let first = true;
+    let frame: number | null = null;
+    const cancelFrame = (): void => {
+      if (frame !== null) cancelAnimationFrame(frame);
+      frame = null;
+    };
     const onFocusChange = (): void => {
-      requestAnimationFrame(apply);
+      cancelFrame();
+      frame = requestAnimationFrame(() => {
+        frame = null;
+        apply();
+      });
     };
     const start = (): void => {
       first = true;
@@ -90,9 +107,12 @@ export function useProjectionClearance(
       strip.addEventListener('focusout', onFocusChange);
       observing = observer;
       mutations = mo;
+      applyRef.current = apply;
       apply();
     };
     const stop = (): void => {
+      cancelFrame();
+      applyRef.current = null;
       observing?.disconnect();
       mutations?.disconnect();
       observing = null;
@@ -115,5 +135,5 @@ export function useProjectionClearance(
       media.removeEventListener('change', sync);
       stop();
     };
-  }, [rootRef, bodyRef, stripRef, shown]);
+  }, [rootRef, bodyRef, stripRef]);
 }
