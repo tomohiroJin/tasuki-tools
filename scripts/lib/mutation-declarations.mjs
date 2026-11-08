@@ -6965,6 +6965,22 @@ export const MUTATIONS = [
     note: RESERVED_1310_1319 + " " + "#554 のレビュー。require で tests を読む取り込みを見逃す。",
   },
   {
+    id: 1319,
+    label: "映す表示の余白の hook が、帯のフォーカスの移動で測り直さない",
+    patch: "m1319-projection-clearance-focus-listeners-dropped.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/use-projection-clearance.test.tsx"],
+    note: RESERVED_1310_1319 + " " + "#554 のレビュー。Tab で帯へ入ると帯は見える（:focus-within）のに余白が 0 のままで、最下部で中身が帯に隠れる。E2E は Tab だけで帯へ入ったときの最下部で赤。",
+  },
+  {
+    id: 1320,
+    label: "映す表示の余白の hook が、中身（body とその子）の大きさの変化を見ない",
+    patch: "m1320-projection-clearance-content-not-observed.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/use-projection-clearance.test.tsx"],
+    note: RESERVED_1310_1319 + " " + "#554 のレビュー。帯が出ている間に中身が伸びても測り直さず、最下部で隠れる。E2E は帯が出ている間に中身が伸びたときの最下部で赤。",
+  },
+  {
     id: 1321,
     label: "agenda の帯の下の余白に、測った高さへさらにホームバーの高さを足す（二重になる）",
     patch: "m1321-run-controls-safe-area-doubled.patch",
