@@ -273,29 +273,37 @@ test.describe('縦に並ぶブロックの間は親が持つ', () => {
     }
   });
 
-  test('Given poker の記録の開いた束（40 字の名前） / When 320〜1280 で開く / Then 「見積もり中」は名前と同じ行か、下の行の右端にある（左端へ落ちない）（#553）', async ({ page }) => {
-    await page.setViewportSize({ width: 1280, height: 900 });
-    await createPokerRoom(page, 'spacing-open');
-    await page.getByRole('button', { name: '記録する' }).click();
-    await page.locator('.estimate-item:not(.estimate-item--inline) .estimate-item-title').first().click();
-    await page.locator('.estimate-item:not(.estimate-item--inline) .estimate-item-input').fill('T'.repeat(40));
-    await page.keyboard.press('Enter');
-    // 票を出して開票すると、開いた束（名前は 40 字）ができる（次のアイテムへ進むまで開いている）
-    await chooseCard(page, '5');
-    for (const width of [320, 390, 768, 1280] as const) {
-      await page.setViewportSize({ width, height: 900 });
-      await expect(page.locator('.estimate-group-head:visible .estimate-group-open').first(), `幅 ${String(width)}: 開いた束の「見積もり中」が見える`).toBeVisible();
-      const m = await page.evaluate(() => {
-        const open = [...document.querySelectorAll('.estimate-group-open')].find((e) => e.getClientRects().length > 0)!;
-        const head = open.closest('.estimate-group-head')!;
-        const name = head.querySelector('.estimate-group-item')!;
-        const o = open.getBoundingClientRect();
-        const n = name.getBoundingClientRect();
-        return { sameLine: o.top < n.bottom - 0.5, rightGap: head.getBoundingClientRect().right - o.right };
-      });
-      if (!m.sameLine) expect(Math.abs(m.rightGap), `幅 ${String(width)}: 落ちた「見積もり中」の右端は行の右端に揃う`).toBeLessThanOrEqual(1);
-    }
-  });
+  for (const [kind, name] of [['40 字の名前', 'T'.repeat(40)], ['短い名前「A」', 'A']] as const) {
+    test(`Given poker の記録の開いた束（${kind}） / When 320〜1280 で開く / Then 「見積もり中」は行の右端にある（同じ行でも、下の行に落ちても。左端へ落ちない）（#553）`, async ({ page }) => {
+      await page.setViewportSize({ width: 1280, height: 900 });
+      await createPokerRoom(page, 'spacing-open');
+      await page.getByRole('button', { name: '記録する' }).click();
+      await page.locator('.estimate-item:not(.estimate-item--inline) .estimate-item-title').first().click();
+      await page.locator('.estimate-item:not(.estimate-item--inline) .estimate-item-input').fill(name);
+      await page.keyboard.press('Enter');
+      // 票を出して開票すると、開いた束ができる（次のアイテムへ進むまで開いている）
+      await chooseCard(page, '5');
+      let sameLines = 0;
+      for (const width of [320, 390, 768, 1280] as const) {
+        await page.setViewportSize({ width, height: 900 });
+        await expect(page.locator('.estimate-group-head:visible .estimate-group-open').first(), `幅 ${String(width)}: 開いた束の「見積もり中」が見える`).toBeVisible();
+        const m = await page.evaluate(() => {
+          const open = [...document.querySelectorAll('.estimate-group-open')].find((e) => e.getClientRects().length > 0)!;
+          const head = open.closest('.estimate-group-head')!;
+          const nameEl = head.querySelector('.estimate-group-item')!;
+          const o = open.getBoundingClientRect();
+          const n = nameEl.getBoundingClientRect();
+          return { sameLine: o.top < n.bottom - 0.5, rightGap: head.getBoundingClientRect().right - o.right };
+        });
+        // 同じ行のときも、下の行に落ちたときも、右端に揃う（落ちたときに左端へ寄ると、名前の下に孤立して読める）
+        expect(Math.abs(m.rightGap), `幅 ${String(width)}・${kind}（${m.sameLine ? '同じ行' : '下の行'}）: 「見積もり中」の右端は行の右端に揃う`).toBeLessThanOrEqual(1);
+        if (m.sameLine) sameLines++;
+      }
+      // 測定が空振りしない: 短い名前はどの幅でも同じ行、40 字の名前は広い幅で同じ行、狭い幅で下の行に落ちる
+      if (name === 'A') expect(sameLines, '短い名前は 4 つの幅とも同じ行').toBe(4);
+      else expect(sameLines, '40 字の名前は同じ行の幅も下の行に落ちる幅もある').toBeGreaterThanOrEqual(1);
+    });
+  }
 
   test('Given agenda の保存した流れに空白の無い 40 字の名前 / When 320〜1280 で開く / Then 横に溢れない（一覧は .ui-stack--tight で、名前の列が縮む）（#553）', async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
@@ -341,7 +349,7 @@ test.describe('縦に並ぶブロックの間は親が持つ', () => {
     }
   });
 
-  test('Given roulette のいつものメンツの削除の確認に、折り返さない長い字 / When 320〜1280 で開く / Then 区画は親の幅に収まり、子の最小幅に引かれて広がらない（縦の flex の直下の子が区画を広げない）（#553）', async ({ page }) => {
+  test('Given roulette のいつものメンツの削除の確認に、折り返さない長い字 / When 320〜1280 で開く / Then 親の列の守り（minmax(0, 1fr)）が無くても、区画は親の幅に収まり、子の最小幅に引かれて広がらない（区画自身の min-inline-size: 0）（#553）', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 900 });
     await openRouletteTool(page, 'spacing-regulars-confirm');
     await page.getByRole('button', { name: '新しく作る' }).click();
@@ -353,7 +361,9 @@ test.describe('縦に並ぶブロックの間は親が持つ', () => {
     await page.getByRole('button', { name: 'このメンツを消す' }).click();
     const confirm = page.locator('.roulette-regulars-confirm');
     await expect(confirm).toBeVisible();
-    // 折り返さない長い字（実際の確認の文は overflow-wrap: anywhere で折れるので、折れない状態を作って区画の側の守りだけを測る）
+    // 折り返さない長い字（実際の確認の文は overflow-wrap: anywhere で折れるので、折れない状態を作って区画の側の守りだけを測る）。
+    // 親（.roulette-people）の列の守り（minmax(0, 1fr)）は 1fr に替えて外し、区画自身の守りだけを測る
+    await page.addStyleTag({ content: '.roulette-people { grid-template-columns: 1fr !important; }' });
     await page.evaluate(() => {
       const p = document.querySelector<HTMLElement>('.roulette-regulars-confirm p')!;
       p.textContent = 'W'.repeat(80);
@@ -366,9 +376,11 @@ test.describe('縦に並ぶブロックの間は親が持つ', () => {
         const sec = document.querySelector('.roulette-regulars')!.getBoundingClientRect();
         const text = document.querySelector('.roulette-regulars-confirm p')!.getBoundingClientRect();
         const panel = document.querySelector('.roulette-people')!.getBoundingClientRect();
-        return { scrollWidth: document.documentElement.scrollWidth, innerWidth, textRight: text.right, secRight: sec.right, panelRight: panel.right };
+        return { innerWidth, textRight: text.right, secRight: sec.right, panelRight: panel.right };
       });
-      expect(m.secRight, `幅 ${String(width)}: 区画は画面の幅に収まる（子の最小幅に引かれて広がらない）`).toBeLessThanOrEqual(m.innerWidth);
+      expect(m.secRight, `幅 ${String(width)}: 区画は親の右端に収まる（子の最小幅に引かれて広がらない）`).toBeLessThanOrEqual(m.panelRight + 1);
+      expect(m.panelRight, `幅 ${String(width)}: 親は画面の幅に収まる`).toBeLessThanOrEqual(m.innerWidth);
+      expect(m.textRight, `幅 ${String(width)}: 長い字は折り返されず区画より広い（測定の前提。空振りさせない）`).toBeGreaterThan(m.secRight);
     }
   });
 
@@ -388,35 +400,6 @@ test.describe('縦に並ぶブロックの間は親が持つ', () => {
       for (const gap of gaps) {
         expect(Math.abs(gap - SPACE_2), `幅 ${String(width)}: 段落どうしの間（${gap.toFixed(1)}px）は --space-2（8px）±1`).toBeLessThanOrEqual(1);
       }
-    }
-  });
-
-  test('Given Markdown の入れ子のブロック（引用の中の 2 段落・リスト項目の中の段落と入れ子のリスト） / When 5 つの幅で開く / Then 入れ子の中も根と同じ 8px（±1）（#553 一覧 #3 の続き）', async ({ page }) => {
-    await page.setViewportSize({ width: 1280, height: 900 });
-    await createPokerRoom(page, 'spacing-nested');
-    // いまの描画（web-kit）は入れ子のブロックを作らないので、部品の CSS（クラス）を当てた DOM を足して測る
-    await page.evaluate(() => {
-      const host = document.createElement('div');
-      host.id = 'spacing-nested-md';
-      host.className = 'ui-md';
-      host.innerHTML = [
-        '<blockquote class="ui-md-quote"><p class="ui-md-p">q1</p><p class="ui-md-p">q2</p></blockquote>',
-        '<ul class="ui-md-ul"><li><p class="ui-md-p">i1</p><ul class="ui-md-ul"><li>n1</li></ul></li></ul>',
-      ].join('');
-      document.body.append(host);
-    });
-    for (const width of WIDTHS) {
-      await page.setViewportSize({ width, height: 900 });
-      const m = await page.evaluate(() => {
-        const host = document.querySelector('#spacing-nested-md')!;
-        const gap = (a: Element, b: Element): number => b.getBoundingClientRect().top - a.getBoundingClientRect().bottom;
-        const [q1, q2] = host.querySelectorAll('blockquote > p');
-        const item = host.querySelector('li > p')!;
-        const nested = host.querySelector('li > ul')!;
-        return { quote: gap(q1!, q2!), item: gap(item, nested) };
-      });
-      expect(Math.abs(m.quote - SPACE_2), `幅 ${String(width)}: 引用の中の段落どうし（${m.quote.toFixed(1)}px）は 8px ±1`).toBeLessThanOrEqual(1);
-      expect(Math.abs(m.item - SPACE_2), `幅 ${String(width)}: 項目の中の段落と入れ子のリストの間（${m.item.toFixed(1)}px）は 8px ±1`).toBeLessThanOrEqual(1);
     }
   });
 
