@@ -1,12 +1,12 @@
 diff --git a/apps/timer-web/src/styles/lobby.css b/apps/timer-web/src/styles/lobby.css
-index 70b7d5f7..156ea859 100644
+index a8aed93a..1a485361 100644
 --- a/apps/timer-web/src/styles/lobby.css
 +++ b/apps/timer-web/src/styles/lobby.css
-@@ -100,7 +100,6 @@
+@@ -89,6 +89,7 @@
  .lobby-participant-actions {
    display: flex;
    min-width: 0; /* 行より広い操作は、次の行へ折り返したうえで行の幅へ縮める（溢れない） */
--  flex: 1 1 100%; /* 名前の行の次の段に、いつも行の幅いっぱいで置く（自分の行も他の行も同じ並び・#556 一覧 #7） */
++  flex: 1 1 100%;
    flex-wrap: wrap;
    justify-content: flex-end; /* 折り返した段も右端へ寄せる（以前は自分の行の矢印だけ左寄せ） */
    align-items: center;

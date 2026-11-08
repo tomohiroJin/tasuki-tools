@@ -1,0 +1,13 @@
+diff --git a/apps/roulette-web/src/index.css b/apps/roulette-web/src/index.css
+index 79a616b9..68300906 100644
+--- a/apps/roulette-web/src/index.css
++++ b/apps/roulette-web/src/index.css
+@@ -552,7 +552,7 @@
+   align-items: center;
+   gap: var(--space-3);
+   flex: 1 1 0;
+-  min-width: min(7rem, 100%); /* 行より狭い幅（文字 200% の 320）では行の幅まで */
++  min-width: 0; /* 行より狭い幅（文字 200% の 320）では行の幅まで */
+   min-height: 44px;
+   color: var(--ivory);
+   font-size: var(--font-size-sm);

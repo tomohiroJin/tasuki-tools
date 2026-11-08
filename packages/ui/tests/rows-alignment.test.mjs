@@ -142,3 +142,8 @@ test('Given timer の見出しの行 / When CSS と配線を読む / Then margin
   assert.equal((read('apps/timer-web/src/ui/Lobby.tsx').match(/<Card className="meter-panel-stack">/g) ?? []).length, 2);
   assert.match(read('apps/timer-web/src/ui/components/SessionConfigPanel.tsx'), /<div className="panel-stack">\s*<SectionHeader/);
 });
+
+test('Given agenda の進行中の会の名前 / When 規則を読む / Then 太さは 500（自己ホスト書体の 700 は base 層しか無く、利用者が入れる字が別の書体になる・E6）', () => {
+  const body = ruleBody(read('apps/agenda-web/src/run.css'), '.run-title');
+  assert.match(body, /font-weight:\s*500;/);
+});

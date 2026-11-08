@@ -1,13 +1,13 @@
 diff --git a/apps/timer-web/src/styles/status-strip.css b/apps/timer-web/src/styles/status-strip.css
-index 8f1a4839..1c22fa2f 100644
+index 37c1550f..2dde6306 100644
 --- a/apps/timer-web/src/styles/status-strip.css
 +++ b/apps/timer-web/src/styles/status-strip.css
-@@ -36,7 +36,7 @@
-  * 右の列は右寄せ。名前は長ければ省略する */
+@@ -37,7 +37,7 @@
+  * 防ぐ。字は折り返して全文を残す（名前を … で切ると全文が読めない）。右の列は右寄せ */
  @media (width < 40rem) {
    .status-strip {
 -    display: grid;
 +    display: flex;
-     grid-template-columns: auto minmax(0, 1fr);
+     grid-template-columns: repeat(2, minmax(0, 1fr));
    }
  
