@@ -8,7 +8,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import postcss from 'postcss';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../../../', import.meta.url));
@@ -68,6 +67,16 @@ test('Given Markdown の根 / When ブロックの間の規則を読む / Then �
     assert.ok(i >= 0 && i < at, `${sel} のリセットより後ろに置く`);
   }
   assert.doesNotMatch(css, /\.ui-md\.ui-md/);
+});
+test('Given Markdown の入れ子のブロック / When 間の規則を読む / Then 引用とリストの項目の中も --space-2 で、子のリセットより後ろに置かれる（根と同じ後勝ち・詳細度は上げない）', () => {
+  const css = read('packages/ui/src/components/markdown.css');
+  const sel = '.ui-md-quote > * + *,\n.ui-md-ul > * > * + *,\n.ui-md-ol > * > * + *';
+  assert.match(ruleBody(css, sel) ?? '', /margin-top:\s*var\(--space-2\);/, '入れ子のブロックの間の規則が無い');
+  const at = css.indexOf(sel + ' {');
+  for (const reset of ['.ui-md-p', '.ui-md-ul,\n.ui-md-ol', '.ui-md-quote']) {
+    const i = css.indexOf(reset + ' {');
+    assert.ok(i >= 0 && i < at, `${reset} のリセットより後ろに置く`);
+  }
 });
 
 test('Given 部品 .ui-section-head--beside と .ui-stack--tight / When 規則を読む / Then 寄せと間の値を持つ', () => {
