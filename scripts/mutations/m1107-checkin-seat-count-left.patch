@@ -1,13 +1,13 @@
 diff --git a/apps/checkin-web/src/table.css b/apps/checkin-web/src/table.css
-index 1ba8e6b1..d3c122b9 100644
+index 05c1d9ae..572e497e 100644
 --- a/apps/checkin-web/src/table.css
 +++ b/apps/checkin-web/src/table.css
-@@ -423,7 +423,7 @@
- /* 席が行の幅を等分して全幅に並ぶ幅（40rem 未満）では、人数の行も中央に置いて席と揃える（#555 一覧 #28） */
- @media (width < 40rem) {
-   .seat-count {
--    justify-content: center;
-+    justify-content: flex-start;
-     text-align: center;
-   }
+@@ -421,8 +421,6 @@
+   margin: 0;
+   /* 席の並びは中央に置かれる（`.seat-list`）ので、人数の行も中央に置いて席と揃える（#555 一覧 #28）。
+      人数が少なくても、席の並びの中心と人数の字の中心が一致する */
+-  justify-content: center;
+-  text-align: center;
+   color: var(--ivory-faint);
+   font-size: var(--font-size-sm);
  }

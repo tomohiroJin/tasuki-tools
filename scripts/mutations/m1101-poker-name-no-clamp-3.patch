@@ -1,8 +1,8 @@
 diff --git a/apps/poker-web/src/index.css b/apps/poker-web/src/index.css
-index b753b5cc..d341f97e 100644
+index c4c3943b..d3e9f14d 100644
 --- a/apps/poker-web/src/index.css
 +++ b/apps/poker-web/src/index.css
-@@ -253,8 +253,8 @@
+@@ -258,8 +258,8 @@
    display: -webkit-box;
    overflow: hidden;
    -webkit-box-orient: vertical;
@@ -12,4 +12,4 @@ index b753b5cc..d341f97e 100644
 +  line-clamp: 6;
  }
  
- .you-mark {
+ .participants .name-text[role='button'] {

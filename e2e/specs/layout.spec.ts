@@ -376,11 +376,11 @@ test.describe('poker のルームは広い画面で読む面と操作の面を�
     await expect(log).toBeVisible();
     await expect(log.getByRole('heading', { name: '見積もりの記録' })).toBeVisible();
     await expect(log.getByText('開票すると、ここに残ります')).toBeVisible();
-    // 記録を入れると列が 0 → 0.75fr に広がり、操作の面の max-width が 46rem → 100% へ滑る（0.32 秒・#427）。
-    // 滑る間は操作の面が 46rem 以下に絞られて列の中で中央に寄る（margin-inline: auto）ので、右端は器の内側の右端より内にある。
-    // 落ち着く前に読むと右端がずれる（#569）。まず滑りが終わるのを待つ。
+    // 記録を入れると脇の列が 0 → 0.75fr に広がり、操作の面の列が縮む（0.32 秒・#427）。
+    // 滑る間は列の幅が動いているので、右端を落ち着く前に読むとずれる（#569）。まず滑りが終わるのを待つ。
+    // （かつては操作の面の max-width が 46rem → 100% へも滑り、中央に寄っていた。#555 で 46rem の中央寄せを外した）
     await settleWorkspace(page);
-    // 操作の面は脇の右の列。中央に寄せない（46rem に絞らず、列の幅いっぱい）。
+    // 操作の面は脇の右の列。中央に寄せない（細い幅に絞らず、列の幅いっぱい）。
     // 3 つの箱を同じ瞬間に読む（別々に読むと、間に再配置が挟まる）。描かれていない（矩形 0）と比べが空振りするので投げる。
     // poll の中で投げると繰り返さずにすぐ落ちる（Playwright の仕様）。矩形 0 は待って直るものではないので、それで正しい。
     const readColumns = (): Promise<{ sideRight: number; sideY: number; mainX: number; mainY: number; mainWidth: number; innerRight: number }> =>
@@ -400,7 +400,7 @@ test.describe('poker のルームは広い画面で読む面と操作の面を�
           innerRight: box.right - parseFloat(getComputedStyle(pageEl).paddingRight),
         };
       });
-    //   （1280 の列は脇 0.75fr・操作の面 1fr で約 41rem。46rem より狭いので、ここでは 46rem の規則が残っていても右端は揃って見える。
+    //   （1280 の列は脇 0.75fr・操作の面 1fr で約 41rem。46rem より狭いので、ここでは 46rem の規則が（かつてあった形で）残っていても右端は揃って見える。
     //   46rem に絞らないことは、下で 1920 に広げて見る）
     await expect
       .poll(async () => {
@@ -421,7 +421,7 @@ test.describe('poker のルームは広い画面で読む面と操作の面を�
     const tops = await page.locator('.card-hand .card').evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().top)));
     expect(tops.length).toBe(10);
     expect(new Set(tops).size).toBe(1);
-    // 1920 では 2 列目が約 805px で 46rem（736px）より広い。記録を入れても max-width: 46rem が残る退行は、ここで右端が約 34px ずれて見える。
+    // 1920 では 2 列目が約 805px で 46rem（736px）より広い。記録を入れても 46rem に絞る規則が残る退行は、ここで右端が約 34px ずれて見える。
     await page.setViewportSize({ width: 1920, height: 1080 });
     await settleWorkspace(page);
     await expect

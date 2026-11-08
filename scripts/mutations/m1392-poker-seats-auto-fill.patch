@@ -1,0 +1,14 @@
+diff --git a/apps/poker-web/src/index.css b/apps/poker-web/src/index.css
+index c4c3943b..8c4a40f7 100644
+--- a/apps/poker-web/src/index.css
++++ b/apps/poker-web/src/index.css
+@@ -207,8 +207,7 @@
+      行が埋まる人数では、列が 10rem に届くまで引き伸ばして右端が揃う。
+      名前が長い席が同じ行の席を引き伸ばさないよう、行の中では上に揃える（`align-items: start`・一覧 #4）。 */
+   display: grid;
+-  grid-template-columns: repeat(auto-fit, minmax(6.5rem, 10rem));
+-  justify-content: center;
++  grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
+   align-items: start;
+   gap: 0.45rem;
+ }

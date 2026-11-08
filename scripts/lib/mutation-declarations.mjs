@@ -179,6 +179,9 @@ const RESERVED_1370_1379 =
 const RESERVED_1100_1109 =
   "**対応表より後に足した変異。** 1100〜1109 は #555 に割り当てた範囲。";
 
+const RESERVED_1390_1399 =
+  "**対応表より後に足した変異。** 1390〜1399 は #555 に追加で割り当てた範囲（1100〜1109 を使い切ったため。PR #575 の指摘で足した。#556 は 1380〜1389 を使う）。";
+
 export const MUTATIONS = [
   {
     id: 1,
@@ -7719,7 +7722,7 @@ export const MUTATIONS = [
   },
   {
     id: 1105,
-    label: "checkin のやり方の説明の折り方（auto-phrase・balance）を外す",
+    label: "checkin のやり方の説明の `text-wrap: balance` を外す",
     patch: "m1105-checkin-prompt-default-wrap.patch",
     pkg: "packages/ui",
     tests: ["tests/card-rows.test.mjs"],
@@ -7735,10 +7738,90 @@ export const MUTATIONS = [
   },
   {
     id: 1107,
-    label: "checkin の 40rem 未満の人数の行を中央寄せから左寄せに戻す",
+    label: "checkin の人数の行を中央寄せから左寄せに戻す",
     patch: "m1107-checkin-seat-count-left.patch",
     pkg: "packages/ui",
     tests: ["tests/card-rows.test.mjs"],
-    note: RESERVED_1100_1109 + " " + "#555。「2 / 6 人が出しました」が席の並びの中央と揃わない（一覧 #28 の再発）。",
+    note: RESERVED_1100_1109 + " " + "#555。「2 / 6 人が出しました」が席の並びの中央と揃わない（一覧 #28 の再発）。席の並びは常に中央なので、人数の行も常に中央。",
+  },
+  {
+    id: 1108,
+    label: "landing の札の幅が狭いとき絵を上に回す @container をやめる",
+    patch: "m1108-landing-card-stays-row-when-narrow.patch",
+    pkg: "packages/ui",
+    tests: ["tests/card-rows.test.mjs"],
+    note: RESERVED_1100_1109 + " " + "#555。文字 200%・320px で名前の列が 36px、名前が 10 行に折れる（PR #575 の指摘 D1 の再発）。",
+  },
+  {
+    id: 1109,
+    label: "poker の手札を中央に置く指定を外す",
+    patch: "m1109-poker-hand-left-again.patch",
+    pkg: "packages/ui",
+    tests: ["tests/card-rows.test.mjs"],
+    note: RESERVED_1100_1109 + " " + "#555。1920px で手札が左の 1/3 に寄り、右が約 1150px 空く（PR #575 の指摘 D3 の再発）。",
+  },
+  {
+    id: 1390,
+    label: "checkin の手札の札の最小幅 --hand-card-min を素の 7rem に戻す",
+    patch: "m1390-checkin-hand-card-min-plain.patch",
+    pkg: "packages/ui",
+    tests: ["tests/card-rows.test.mjs"],
+    note: RESERVED_1390_1399 + " " + "#555。最長 8 字の名前（「持ち帰れなかった」）が、字が大きいときに 1 行に収まらない（#502 の敵対的レビュー 1 の再発。D7）。",
+  },
+  {
+    id: 1391,
+    label: "checkin のやり方の説明に word-break: auto-phrase を足す",
+    patch: "m1391-checkin-prompt-auto-phrase.patch",
+    pkg: "packages/ui",
+    tests: ["tests/card-rows.test.mjs"],
+    note: RESERVED_1390_1399 + " " + "#555。320・640 で「…持ち帰りたいです／か？」と最後の行が 2 字になる（D8）。",
+  },
+  {
+    id: 1392,
+    label: "poker の席の並びを auto-fit の 6.5rem〜10rem から auto-fill の 1fr に戻す",
+    patch: "m1392-poker-seats-auto-fill.patch",
+    pkg: "packages/ui",
+    tests: ["tests/card-rows.test.mjs"],
+    note: RESERVED_1390_1399 + " " + "#555。人数が少ないと右の端数が空く（390px で 2 人のとき右 1/3・D2）。",
+  },
+  {
+    id: 1393,
+    label: "checkin の席の並びを auto-fit の 6.5rem〜10rem から auto-fill の 1fr に戻す",
+    patch: "m1393-checkin-seats-auto-fill.patch",
+    pkg: "packages/ui",
+    tests: ["tests/card-rows.test.mjs"],
+    note: RESERVED_1390_1399 + " " + "#555。人数が少ないと右の端数が空き、人数の行の中央と席の並びの中央がずれる（D2）。",
+  },
+  {
+    id: 1394,
+    label: "poker の開いた名前の overflow を hidden に戻す",
+    patch: "m1394-poker-name-expanded-stays-clipped.patch",
+    pkg: "packages/ui",
+    tests: ["tests/card-rows.test.mjs"],
+    note: RESERVED_1390_1399 + " " + "#555。押しても名前の全文が出ない（タッチ・キーボードで全文を読めない・D4）。",
+  },
+  {
+    id: 1395,
+    label: "checkin の手札の align-items を stretch から start に戻す",
+    patch: "m1395-checkin-hand-align-start.patch",
+    pkg: "packages/ui",
+    tests: ["tests/card-rows.test.mjs"],
+    note: RESERVED_1390_1399 + " " + "#555。同じ行の札のボタンの高さが揃わない（D5）。",
+  },
+  {
+    id: 1396,
+    label: "poker の席の並びの justify-content: center を外す",
+    patch: "m1396-poker-seats-not-centered.patch",
+    pkg: "packages/ui",
+    tests: ["tests/card-rows.test.mjs"],
+    note: RESERVED_1390_1399 + " " + "#555。人数が列の数より少ないとき席が左に寄り、右が空く（D2）。",
+  },
+  {
+    id: 1397,
+    label: "poker の席の名前に title を付ける",
+    patch: "m1397-poker-name-title-again.patch",
+    pkg: "packages/ui",
+    tests: ["tests/card-rows.test.mjs"],
+    note: RESERVED_1390_1399 + " " + "#555。名前を読み上げが二度読む（名前と説明・D4）。",
   },
 ];

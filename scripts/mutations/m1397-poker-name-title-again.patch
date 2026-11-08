@@ -1,0 +1,13 @@
+diff --git a/apps/poker-web/src/components/ParticipantList.tsx b/apps/poker-web/src/components/ParticipantList.tsx
+index 2a18d593..621679b8 100644
+--- a/apps/poker-web/src/components/ParticipantList.tsx
++++ b/apps/poker-web/src/components/ParticipantList.tsx
+@@ -159,7 +159,7 @@ export function ParticipantList({ participants, you, votes, onRemove, offline =
+                 </span>
+               )}
+               <span className="name">
+-                <SeatName label={label} />
++                <span title={label}><SeatName label={label} /></span>
+                 {p.id === you && <span className="you-mark">（あなた）</span>}
+               </span>
+               {/* 開票後の票が札として残る見学者は、札のあとに印を出す（札を持たない席は上の枠の中） */}

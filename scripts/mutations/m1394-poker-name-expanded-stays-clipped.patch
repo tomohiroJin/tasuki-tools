@@ -1,0 +1,13 @@
+diff --git a/apps/poker-web/src/index.css b/apps/poker-web/src/index.css
+index c4c3943b..3c120f84 100644
+--- a/apps/poker-web/src/index.css
++++ b/apps/poker-web/src/index.css
+@@ -268,7 +268,7 @@
+ 
+ .participants .name-text[data-expanded] {
+   display: block;
+-  overflow: visible;
++  overflow: hidden;
+   -webkit-line-clamp: unset;
+   line-clamp: none;
+ }
