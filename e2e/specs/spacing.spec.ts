@@ -320,7 +320,7 @@ test.describe('縦に並ぶブロックの間は親が持つ', () => {
     }
   });
 
-  test('Given roulette のいつものメンツに最大の長さ（40 字）の組を画面から保存 / When 320〜1280 で開く / Then 横に溢れない（区画は .ui-stack の縦の flex で、最小幅 0 の手当てが要らない）（#553）', async ({ page }) => {
+  test('Given roulette のいつものメンツに最大の長さ（40 字）の組を画面から保存 / When 320〜1280 で開く / Then 横に溢れない（区画は .ui-stack の縦の flex で、直下の子の最小幅を 0 にして守る）（#553）', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 900 });
     await openRouletteTool(page, 'spacing-regulars');
     await page.getByRole('button', { name: '新しく作る' }).click();
@@ -341,6 +341,37 @@ test.describe('縦に並ぶブロックの間は親が持つ', () => {
     }
   });
 
+  test('Given roulette のいつものメンツの削除の確認に、折り返さない長い字 / When 320〜1280 で開く / Then 区画は親の幅に収まり、子の最小幅に引かれて広がらない（縦の flex の直下の子が区画を広げない）（#553）', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 900 });
+    await openRouletteTool(page, 'spacing-regulars-confirm');
+    await page.getByRole('button', { name: '新しく作る' }).click();
+    await page.getByLabel('メンツの名前').fill('W'.repeat(40));
+    await page.getByLabel('ほかの名前（1 行に 1 人）').fill('さとう\nすずき');
+    await page.getByRole('button', { name: 'この端末に保存' }).click();
+    await expect(page.locator('.roulette-regulars-name').first()).toBeVisible();
+    await page.getByRole('button', { name: /直す/ }).first().click();
+    await page.getByRole('button', { name: 'このメンツを消す' }).click();
+    const confirm = page.locator('.roulette-regulars-confirm');
+    await expect(confirm).toBeVisible();
+    // 折り返さない長い字（実際の確認の文は overflow-wrap: anywhere で折れるので、折れない状態を作って区画の側の守りだけを測る）
+    await page.evaluate(() => {
+      const p = document.querySelector<HTMLElement>('.roulette-regulars-confirm p')!;
+      p.textContent = 'W'.repeat(80);
+      p.style.whiteSpace = 'nowrap';
+      p.style.overflowWrap = 'normal';
+    });
+    for (const width of [320, 390, 1280] as const) {
+      await page.setViewportSize({ width, height: 900 });
+      const m = await page.evaluate(() => {
+        const sec = document.querySelector('.roulette-regulars')!.getBoundingClientRect();
+        const text = document.querySelector('.roulette-regulars-confirm p')!.getBoundingClientRect();
+        const panel = document.querySelector('.roulette-people')!.getBoundingClientRect();
+        return { scrollWidth: document.documentElement.scrollWidth, innerWidth, textRight: text.right, secRight: sec.right, panelRight: panel.right };
+      });
+      expect(m.secRight, `幅 ${String(width)}: 区画は画面の幅に収まる（子の最小幅に引かれて広がらない）`).toBeLessThanOrEqual(m.innerWidth);
+    }
+  });
+
   test('Given poker の読む面に段落が 3 つ / When 5 つの幅で開く / Then 段落どうしの間は 8px（±1。広げても緑にしない）（#553 一覧 #3）', async ({ page, openPeer }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     const url = await createPokerRoom(page, 'spacing-b');
@@ -357,6 +388,35 @@ test.describe('縦に並ぶブロックの間は親が持つ', () => {
       for (const gap of gaps) {
         expect(Math.abs(gap - SPACE_2), `幅 ${String(width)}: 段落どうしの間（${gap.toFixed(1)}px）は --space-2（8px）±1`).toBeLessThanOrEqual(1);
       }
+    }
+  });
+
+  test('Given Markdown の入れ子のブロック（引用の中の 2 段落・リスト項目の中の段落と入れ子のリスト） / When 5 つの幅で開く / Then 入れ子の中も根と同じ 8px（±1）（#553 一覧 #3 の続き）', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await createPokerRoom(page, 'spacing-nested');
+    // いまの描画（web-kit）は入れ子のブロックを作らないので、部品の CSS（クラス）を当てた DOM を足して測る
+    await page.evaluate(() => {
+      const host = document.createElement('div');
+      host.id = 'spacing-nested-md';
+      host.className = 'ui-md';
+      host.innerHTML = [
+        '<blockquote class="ui-md-quote"><p class="ui-md-p">q1</p><p class="ui-md-p">q2</p></blockquote>',
+        '<ul class="ui-md-ul"><li><p class="ui-md-p">i1</p><ul class="ui-md-ul"><li>n1</li></ul></li></ul>',
+      ].join('');
+      document.body.append(host);
+    });
+    for (const width of WIDTHS) {
+      await page.setViewportSize({ width, height: 900 });
+      const m = await page.evaluate(() => {
+        const host = document.querySelector('#spacing-nested-md')!;
+        const gap = (a: Element, b: Element): number => b.getBoundingClientRect().top - a.getBoundingClientRect().bottom;
+        const [q1, q2] = host.querySelectorAll('blockquote > p');
+        const item = host.querySelector('li > p')!;
+        const nested = host.querySelector('li > ul')!;
+        return { quote: gap(q1!, q2!), item: gap(item, nested) };
+      });
+      expect(Math.abs(m.quote - SPACE_2), `幅 ${String(width)}: 引用の中の段落どうし（${m.quote.toFixed(1)}px）は 8px ±1`).toBeLessThanOrEqual(1);
+      expect(Math.abs(m.item - SPACE_2), `幅 ${String(width)}: 項目の中の段落と入れ子のリストの間（${m.item.toFixed(1)}px）は 8px ±1`).toBeLessThanOrEqual(1);
     }
   });
 
