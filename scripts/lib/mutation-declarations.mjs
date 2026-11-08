@@ -7833,7 +7833,7 @@ export const MUTATIONS = [
     patch: "m1238-rotation-lineup-name-no-min.patch",
     pkg: "packages/ui",
     tests: ["tests/rows-alignment.test.mjs"],
-    note: RESERVED_1230_1239 + " " + "#556 のレビュー（F1）。文字 200% で名前が 0px に潰れ、隣の字と重なる。",
+    note: RESERVED_1230_1239 + " " + "#556 のレビュー（F1）。名前の最小の幅が無くなる。札の flex-wrap が入った今の形では 320・390・1280 の E2E では等価で、検出は契約テスト（rows-alignment.test.mjs）の字面だけ。",
   },
   {
     id: 1239,
@@ -7849,7 +7849,7 @@ export const MUTATIONS = [
     patch: "m1380-roulette-button-nowrap.patch",
     pkg: "packages/ui",
     tests: ["tests/rows-alignment.test.mjs"],
-    note: RESERVED_1380_1389 + " " + "#556 のレビュー（F2）。文字 200% の 320 で「名前を消す」が行の左を越える。",
+    note: RESERVED_1380_1389 + " " + "#556 のレビュー（F2）。行のボタンが折り返せなくなる。いまは `min-width: var(--tap-target)` が行に収めているので E2E では等価で、検出は契約テストの字面だけ。",
   },
   {
     id: 1381,
