@@ -6803,7 +6803,7 @@ export const MUTATIONS = [
   },
   {
     id: 1279,
-    label: "`.ui-stack > *` のリセットを `:where(.ui-stack) > *`（詳細度 0）にする",
+    label: "`.ui-stack` のリセットを `:where(.ui-stack) > …`（詳細度 0）にする",
     patch: "m1279-stack-reset-where-zero-specificity.patch",
     pkg: "packages/ui",
     tests: ["tests/spacing-owner.test.mjs"],
@@ -6952,5 +6952,21 @@ export const MUTATIONS = [
     pkg: "packages/ui",
     tests: ["tests/spacing-owner.test.mjs"],
     note: RESERVED_1340_1349 + " " + "#553。`.ui-stack` の直下の読み上げ専用の要素の `margin: -1px` が 0 になり、形が崩れる（11 回目の指摘）。",
+  },
+  {
+    id: 1348,
+    label: "`.ui-stack` のリセットを `> *`（`<dialog>` を外さない）に戻す",
+    patch: "m1348-ui-stack-reset-includes-dialog.patch",
+    pkg: "packages/ui",
+    tests: ["tests/spacing-owner.test.mjs"],
+    note: RESERVED_1340_1349 + " " + "#553。`.ui-stack` の直下の `<dialog>` の UA の中央寄せ（`margin: auto`）がリセットに消される。E2E の `spacing.spec.ts`（`.removal-confirm` の margin を外しても中央に出る）でも赤になる（12 回目の指摘）。",
+  },
+  {
+    id: 1349,
+    label: "`.ui-reader-preview` に `min-block-size: 12rem`（論理寸法）を足して箱を伸ばす",
+    patch: "m1349-ui-reader-preview-min-block-size.patch",
+    pkg: "packages/ui",
+    tests: ["tests/spacing-owner.test.mjs"],
+    note: RESERVED_1340_1349 + " " + "#553。3 行の写しの箱が伸びる。以前の契約の正規表現は論理プロパティ（`min-block-size`・`block-size`・`padding-block-end`）を見ていなかった。宣言の名前を取り出して判定する形で赤になる（12 回目の指摘）。",
   },
 ];

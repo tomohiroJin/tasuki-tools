@@ -1,11 +1,11 @@
 diff --git a/packages/ui/src/components/stack.css b/packages/ui/src/components/stack.css
 --- a/packages/ui/src/components/stack.css
 +++ b/packages/ui/src/components/stack.css
-@@ -16,9 +16,6 @@
-    勝つのは要素層と、先に読む同じ詳細度の部品の margin。負けるのは、詳細度の高い部品の規則と、後に読む画面の CSS の (0,1,0) の規則。
+@@ -17,9 +17,6 @@
     だから画面は、`.ui-stack` の直下の子に縦の margin を付けない（間は親の `gap` を変える）。
-    `:where()` で詳細度を 0 にはしない（要素層に負けて役目を失う）。 */
--.ui-stack > * {
+    `:where()` でリセット全体の詳細度を 0 にはしない（要素層に負けて役目を失う）。`:where(:not(dialog))` は詳細度 0 なので、詳細度は `.ui-stack` の (0,1,0) のまま。
+    `<dialog>` は外す: UA の `dialog { margin: auto }`（中央寄せ）をリセットが消してしまうため。 */
+-.ui-stack > :where(:not(dialog)) {
 -  margin-block: 0;
 -}
  

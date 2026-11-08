@@ -74,7 +74,7 @@ test('Given .ui-stack / When 規則を読む / Then 縦の flex で、間は --s
 });
 
 test('Given .ui-stack / When 直下の子の規則を読む / Then 縦の外側の余白を 0 にする（要素層の h2 の margin が gap に足されない）', () => {
-  const body = bodyOf(read('packages/ui/src/components/stack.css'), '.ui-stack > *');
+  const body = bodyOf(read('packages/ui/src/components/stack.css'), '.ui-stack > :where(:not(dialog))');
   assert.match(body, /margin-block:\s*0;/);
 });
 
@@ -115,13 +115,27 @@ test('Given 部品 .ui-section-head--beside と .ui-stack--tight / When 規則�
   assert.match(bodyOf(read('packages/ui/src/components/stack.css'), '.ui-stack--tight'), /gap:\s*var\(--space-2\);/);
 });
 
+/** 宣言の名前を正確に取り出し、箱を縦に伸ばすもの（高さ・最小の高さ・論理寸法・縦の padding）の名前を返す（`line-height`・`max-height` は伸ばさないので含めない）。 */
+function stretchingDeclarations(body) {
+  const names = [...body.matchAll(/(?:^|[;{\s])([a-z-]+)\s*:/g)].map((m) => m[1]);
+  const stretch = new Set(['height', 'min-height', 'block-size', 'min-block-size', 'padding-block', 'padding-block-start', 'padding-block-end', 'padding-top', 'padding-bottom']);
+  return names.filter((n) => stretch.has(n));
+}
+
+test('Given 箱を伸ばす宣言の判定 / When 宣言を渡す / Then 論理寸法も拾い、line-height と max-height は拾わない', () => {
+  assert.deepEqual(stretchingDeclarations('min-block-size: 12rem;'), ['min-block-size']);
+  assert.deepEqual(stretchingDeclarations('margin: 0; padding-block-end: 1px;'), ['padding-block-end']);
+  assert.deepEqual(stretchingDeclarations('height: 3rem; min-height: 1px; block-size: 2px;'), ['height', 'min-height', 'block-size']);
+  assert.deepEqual(stretchingDeclarations('line-height: 1.5; max-height: 4rem; max-block-size: 4rem;'), []);
+});
+
 test('Given 3 行の写し .ui-reader-preview / When 縦の余白を読む / Then margin で取り、縦の padding を持たない（padding の帯に 4 行目の上端が覗く）', () => {
   const reader = read('packages/ui/src/components/reader.css');
   const body = bodyOf(reader, '.ui-reader-preview');
   assert.match(body, /margin-block:\s*var\(--space-4\);/);
   assert.match(body, /padding:\s*0 var\(--space-5\);/);
   // 箱を縦に伸ばさない（3 行の高さに収める）。@media の中の規則も含めて、すべての規則に対して判定する
-  for (const b of rulesOf(reader, '.ui-reader-preview')) assert.doesNotMatch(b, /min-height|height:|padding-(block|bottom)/);
+  for (const b of rulesOf(reader, '.ui-reader-preview')) assert.deepEqual(stretchingDeclarations(b), [], '箱を縦に伸ばす宣言がある');
 });
 
 test('Given 部品層の読み込み順 / When components/index.css を読む / Then section-head と stack が最後（stack が最後）で、リセットがどの部品の margin にも勝つ', () => {
@@ -131,7 +145,7 @@ test('Given 部品層の読み込み順 / When components/index.css を読む / 
   const order = [...index.matchAll(/@import '\.\/([a-z-]+)\.css';/g)].map((m) => m[1]);
   assert.deepEqual(order.slice(-3), ['section-head', 'stack', 'visually-hidden'], `部品の最後は section-head → stack → visually-hidden（いまは ${order.slice(-4).join(' → ')}）`);
   // stack の規則は :where() で包まない（詳細度 0 にすると、要素層の h2 の margin に負けて、リセットの役目を失う）
-  assert.ok(rulesOf(read('packages/ui/src/components/stack.css'), '.ui-stack > *').length >= 1, '`.ui-stack > *`（:where() で包まない）の規則が無い');
+  assert.ok(rulesOf(read('packages/ui/src/components/stack.css'), '.ui-stack > :where(:not(dialog))').length >= 1, '`.ui-stack > :where(:not(dialog))`（`.ui-stack` 自体は :where() で包まない）の規則が無い');
 });
 
 test('Given .ui-stack の直下の読み上げ専用の要素 / When 読み込み順とリセットを読む / Then .ui-visually-hidden はリセットと同じ詳細度で後に読まれ、margin: -1px が勝つ', () => {
