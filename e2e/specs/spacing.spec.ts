@@ -9,7 +9,7 @@
  */
 import type { Page } from '@playwright/test';
 import { expect, test } from '../fixtures/test';
-import { chooseCard, createRoom as createPokerRoom } from '../support/poker';
+import { chooseCard, createRoom as createPokerRoom, joinRoom as joinPokerRoom, participantRow } from '../support/poker';
 import { openRouletteTool } from '../support/roulette';
 import { createRoom as createTimerRoom, joinAsDriver } from '../support/timer';
 import { joinTopicTool, setTopic } from '../support/topic';
@@ -384,6 +384,35 @@ test.describe('縦に並ぶブロックの間は親が持つ', () => {
       expect(m.panelRight, `幅 ${String(width)}: 親は画面の幅に収まる`).toBeLessThanOrEqual(m.innerWidth);
       expect(m.textRight, `幅 ${String(width)}: 長い字は折り返されず区画より広い（測定の前提。空振りさせない）`).toBeGreaterThan(m.secRight);
     }
+  });
+
+  test('Given poker の参加者の区画（.ui-stack）の直下の確認の <dialog> / When 画面の margin: auto を外して開く / Then それでも画面の中央に出る（リセットが UA の中央寄せを消さない）（#553）', async ({ page, openPeer }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const url = await createPokerRoom(page, 'spacing-dlg');
+    const ghost = await openPeer('spacing-dlg-ghost');
+    await joinPokerRoom(ghost.page, url, 'sp-g');
+    await expect(page.getByRole('heading', { name: '参加者（2人）' })).toBeVisible();
+    await ghost.page.context().close();
+    const row = participantRow(page, 'sp-g');
+    await expect(row.getByText('切断中')).toBeVisible();
+    // 画面の `.removal-confirm` の margin を（アプリの CSS から）外す。残るのは UA の `dialog { margin: auto }` と、部品のリセットだけ
+    await page.evaluate(() => {
+      for (const sheet of Array.from(document.styleSheets)) {
+        for (const rule of Array.from(sheet.cssRules)) {
+          if (rule instanceof CSSStyleRule && rule.selectorText === '.removal-confirm') rule.style.removeProperty('margin');
+        }
+      }
+    });
+    await row.getByRole('button', { name: '退出させる' }).click();
+    const dialog = page.getByRole('dialog', { name: 'sp-g さんを退出させますか？' });
+    await expect(dialog).toBeVisible();
+    const m = await dialog.evaluate((el) => {
+      const r = el.getBoundingClientRect();
+      return { left: r.left, right: innerWidth - r.right, top: r.top, bottom: innerHeight - r.bottom, margin: getComputedStyle(el).marginTop };
+    });
+    expect(Math.abs(m.left - m.right), '左右の余白が等しい（横の中央）').toBeLessThanOrEqual(1);
+    expect(Math.abs(m.top - m.bottom), '上下の余白が等しい（縦の中央）').toBeLessThanOrEqual(1);
+    expect(m.margin, '<dialog> の margin は UA の auto（リセットの 0 に消されない）').not.toBe('0px');
   });
 
   test('Given poker の読む面に段落が 3 つ / When 5 つの幅で開く / Then 段落どうしの間は 8px（±1。広げても緑にしない）（#553 一覧 #3）', async ({ page, openPeer }) => {
