@@ -63,7 +63,7 @@ async function paragraphGaps(page: Page): Promise<number[]> {
  * 「行の中にあるか」だけでは、操作が見出しから離れて右寄せで下の行に落ちても緑になる。
  * 行を先に決めるので、行の外に同じ名前の操作があっても拾わない（操作が行の外へ出たら「行の中に無い」で赤になる）。
  * 「見出しを持つ要素」は、行の直下の子のうち h2 を含むもの（timer はアイコンと h2 を包む `.section-header-lead`）。
- * 操作は `aria-label` か可視の文字で探し、位置は行の直下の子（操作が塊に入っていれば塊）で測る。
+ * 操作は `aria-label` か可視の文字で探す。縦の位置は指定した操作そのもので、横の位置は行の直下の子（操作が塊に入っていれば塊の最初のボタン）で測る。
  */
 interface BelongOptions {
   /** 同じ行のときの、見出しとの横の間の上限（px） */
@@ -93,7 +93,9 @@ async function expectActionsBelongToHeading(page: Page, headingText: string, act
       // 右寄せにもできる（箱の左端は揃うのに、ボタンは右に寄る）ので、見える端は箱でなくボタンで測る
       const group = [...row.children].find((c) => c.contains(action)) ?? action;
       const first = group.matches('button') ? group : (group.querySelector('button') ?? group);
-      const a = { top: group.getBoundingClientRect().top, left: first.getBoundingClientRect().left };
+      // 縦の位置（同じ行か・下の行か・見出しとの縦の間）は、**指定した操作そのもの**の上端で測る（塊の最初のボタンで代用しない）。
+      // 横の位置（左端・見出しとの横の間）は、塊の最初のボタンで測る（塊の先頭が見出しの隣に来る約束のため）
+      const a = { top: action.getBoundingClientRect().top, left: first.getBoundingClientRect().left };
       return { found: 'ok' as const, sameLine: a.top < h.bottom - 0.5, below: a.top - h.bottom, leftDelta: a.left - h.left, gap: a.left - h.right };
     },
     { headingText, actionLabel, prefix },
@@ -328,7 +330,7 @@ test.describe('縦に並ぶブロックの間は親が持つ', () => {
     }
   });
 
-  test('Given roulette のいつものメンツに最大の長さ（40 字）の組を画面から保存 / When 320〜1280 で開く / Then 横に溢れない（区画は .ui-stack の縦の flex で、直下の子の最小幅を 0 にして守る）（#553）', async ({ page }) => {
+  test('Given roulette のいつものメンツに最大の長さ（40 字）の組を画面から保存 / When 320〜1280 で開く / Then 横に溢れない（区画は .ui-stack の縦の flex。長さの上限の組名でも区画自身が広がらない）（#553）', async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 900 });
     await openRouletteTool(page, 'spacing-regulars');
     await page.getByRole('button', { name: '新しく作る' }).click();

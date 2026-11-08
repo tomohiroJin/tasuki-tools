@@ -80,14 +80,14 @@ describe('余白の持ち主の約束（画面の CSS）', () => {
       expect(body).not.toMatch(/flex:\s*1/);
     }
   });
-  
-  
+
+
   it('Given timer の「ランダム」のスタイル / When CSS を読む / Then 中の並びの写し（shuffle-button-*）を持たず、セッションの操作ボタンの session-action-label・session-action-icon を使う（間は 8px の 1 か所）', () => {
     for (const file of ['src/index.css', 'src/styles/roster-panel.css', 'src/styles/session.css']) expect(read(file)).not.toMatch(/shuffle-button/);
     expect(foundBody(rulesOf(read('src/styles/session.css'), '.session-action-label'), '.session-action-label')).toMatch(/gap:\s*var\(--space-2\);/);
   });
-  
-  
+
+
   it('Given 共有メモの見出しの行 / When .shared-memo-lead を読む / Then 縮められ（flex: 1 1 8rem・折り返し可）、「編集」が見出しの行の右に残る（一覧 #18）', () => {
     const body = foundBody(rulesOf(read('src/styles/shared-memo.css'), '.shared-memo-lead'), '.shared-memo-lead');
     expect(body).toMatch(/flex:\s*1 1 8rem;/);

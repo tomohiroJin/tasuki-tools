@@ -6775,7 +6775,7 @@ export const MUTATIONS = [
     patch: "m1274-reader-preview-box-min-height.patch",
     pkg: "packages/ui",
     tests: ["tests/spacing-owner.test.mjs"],
-    note: RESERVED_1270_1279 + " " + "#553。3 行の写しの箱が伸びても行数の数え上げだけでは緑になる。箱の高さの上限（`layout.spec.ts`）で赤になる。",
+    note: RESERVED_1270_1279 + " " + "#553。3 行の写しの箱が伸びて、4 行目以降の字が覗く。検出は契約テスト（`.ui-reader-preview` が高さの宣言を持たない）。E2E の `layout.spec.ts` では、先に字の行の数え上げ（見えている行は 3 以下）で赤になる（実測。箱の高さの上限はその次の判定）。",
   },
   {
     id: 1275,
@@ -6835,11 +6835,11 @@ export const MUTATIONS = [
   },
   {
     id: 1283,
-    label: "`.ui-stack` の読み込みを部品層の最後から外す（visually-hidden の前へ）",
+    label: "`.ui-stack` の読み込みを部品層の最後から外す（reader の直後へ。後に読む部品の margin に負ける）",
     patch: "m1283-ui-stack-imported-before-visually-hidden.patch",
     pkg: "packages/ui",
     tests: ["tests/spacing-owner.test.mjs"],
-    note: RESERVED_1280_1289 + " " + "#553。stack のリセットが、後に読む部品の margin に負ける。",
+    note: RESERVED_1280_1289 + " " + "#553。stack のリセットが、後に読む部品の margin に負ける（パッチ名は最初の形の名残。11 回目に visually-hidden を最後にしたため、reader の直後へ移す形に作り直した）。",
   },
   {
     id: 1284,
@@ -6936,5 +6936,21 @@ export const MUTATIONS = [
     pkg: "apps/poker-web",
     tests: ["tests/spacing-css.test.ts"],
     note: RESERVED_1340_1349 + " " + "#553。複製が名前のボタンの寸法の宣言と別になり、ボタン側を変えると複製がずれる（編集中に選択欄の行が跳ぶ）。",
+  },
+  {
+    id: 1346,
+    label: "poker の見えない複製だけの規則に `padding-inline: 0; width: 3rem` を足す（寸法の写しが共有の規則の外に戻る）",
+    patch: "m1346-poker-sizer-own-rule-copies-dimensions.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/spacing-css.test.ts"],
+    note: RESERVED_1340_1349 + " " + "#553。複製だけの規則が寸法を持つと、名前のボタンを変えても複製がずれる。以前の契約は規則を本文の中身（padding-inline・flex:）で除いたので、この足しが判定から外れて緑だった（11 回目の指摘）。セレクタで共有の規則を除く形で赤になる。",
+  },
+  {
+    id: 1347,
+    label: "`.ui-visually-hidden` の読み込みを `.ui-stack` より前へ移す（リセットの `margin-block: 0` が `margin: -1px` に勝つ）",
+    patch: "m1347-ui-visually-hidden-imported-before-stack.patch",
+    pkg: "packages/ui",
+    tests: ["tests/spacing-owner.test.mjs"],
+    note: RESERVED_1340_1349 + " " + "#553。`.ui-stack` の直下の読み上げ専用の要素の `margin: -1px` が 0 になり、形が崩れる（11 回目の指摘）。",
   },
 ];
