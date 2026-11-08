@@ -7157,4 +7157,12 @@ export const MUTATIONS = [
     tests: ["tests/use-projection-clearance.test.tsx"],
     note: RESERVED_1360_1369 + " " + "#554 のレビュー。帯が中身に重ならなくても余白を足し、無用のスクロールが出る。単体（768×1024 の寸法を差し替えた試験）と E2E（768×1024）が拾う。",
   },
+  {
+    id: 1364,
+    label: "依存の向きの監査が、製品コードが tests・test のディレクトリそのもの（\"../tests\"）を読む取り込みを拾わない",
+    patch: "m1364-audit-relative-tests-dir-itself-removed.patch",
+    pkg: "scripts",
+    tests: ["audit-dependency-direction.test.mjs"],
+    note: RESERVED_1360_1369 + " " + "#554 のレビュー。読む先が末尾に / の付かない形に畳まれ、再輸出の経由を見逃す。",
+  },
 ];

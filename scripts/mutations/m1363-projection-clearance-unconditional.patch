@@ -1,7 +1,8 @@
 # 変異 1363: projection-clearance-unconditional
 #
 # 検出を期待するテスト:
-#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外。768×1024 で帯が出ると盤が跳ねて赤）
+#   - apps/agenda-web/tests/use-projection-clearance.test.tsx（768×1024 の寸法を差し替えた試験）
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外。768×1024 で帯が出ると縦のスクロールが現れて赤）
 #
 # #554 のレビュー。帯が出ているとき、帯の高さを無条件に余白へ足す（帯が中身に重ならなくても。縦に長い 40〜64rem の画面だけ）。帯の出し入れで盤が動く。
 #

@@ -383,7 +383,7 @@ export function observe(pkg, files, root = REPO_ROOT) {
       const target = path.posix.normalize(path.posix.join(path.posix.dirname(rel), m[1]));
       if (!target.startsWith(`${pkg}/`)) escapes.push(`${rel} → ${m[1]}`);
       // 製品コードが同じパッケージの tests・test を相対パスで読むと、そこが試験専用のパッケージを再輸出して素通りする
-      if (!isTestSide && (target.startsWith(`${pkg}/tests/`) || target.startsWith(`${pkg}/test/`))) testOnlyInProduct.push(`${rel} → ${m[1]}`);
+      if (!isTestSide && (target.startsWith(`${pkg}/tests/`) || target.startsWith(`${pkg}/test/`) || target === `${pkg}/tests` || target === `${pkg}/test`)) testOnlyInProduct.push(`${rel} → ${m[1]}`);
     }
   }
   return { manifest, imports, escapes, testOnlyInProduct };
