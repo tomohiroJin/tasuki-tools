@@ -519,7 +519,7 @@
   text-underline-offset: 0.2em;
 }
 
-/* ボタンと同じ大きさの場所だけを取る見えない複製（`<span>`。`.estimate-item-title` のクラスは持たず、ボタンの部品 `ui-button` で同じ寸法にする） */
+/* ボタンと同じ大きさの場所だけを取る見えない複製（`<button … aria-hidden tabIndex=-1 disabled>`。`.estimate-item-title` のクラスは持たず、ボタンの部品 `ui-button` で同じ寸法にする） */
 .estimate-item--inline .estimate-item-sizer {
   visibility: hidden;
   pointer-events: none;
