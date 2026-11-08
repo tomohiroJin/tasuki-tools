@@ -22,6 +22,10 @@ describe('余白の持ち主の約束（画面の CSS）', () => {
   });
   
   
+  it('Given roulette のいつものメンツの区画（縦の flex） / When 規則を読む / Then 直下の子の最小幅を 0 にして、子が区画を広げない', () => {
+    expect(ruleBody(read('src/index.css'), '.roulette-regulars > *') ?? '').toMatch(/min-inline-size:\s*0;/);
+  });
+
   it('Given roulette の空の知らせの CSS / When 規則を読む / Then 負の余白・読み上げの木から外す書き方が無く、:empty の写しも持たない（部品 ui-visually-hidden を JSX が足す）', () => {
     const css = read('src/index.css');
     expect(css).not.toMatch(/roulette-regulars-notice:empty/);
