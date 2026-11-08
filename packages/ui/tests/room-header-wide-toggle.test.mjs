@@ -16,7 +16,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { mediaBlock, outsideMedia, rules } from './support/css-text.mjs';
+import { mediaBlock, outsideMedia, rules } from '@tasuki/test-css';
 
 const COMPONENTS = resolve(dirname(fileURLToPath(import.meta.url)), '../src/components');
 const read = (name) => readFileSync(resolve(COMPONENTS, name), 'utf8');

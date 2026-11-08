@@ -1,14 +1,13 @@
 /**
  * 手元の操作の帯と映す表示の帯の地は不透明で、帯の下の余白は帯の高さ ＋ ホームバーの高さ（#554・#479 の #2。帯の約束は `packages/ui/README.md`）。
  * jsdom は描かないので、書いてある宣言そのものを見る。実際の見え方（字の点を帯が受ける・不透明・最下部で隠れない）は E2E の
- * `e2e/specs/header-and-dock.spec.ts` が見る。CSS を読む関数は部品の試験と共有する（`@tasuki/ui/test-support/css-text.mjs`。
- * パッケージ名の取り込みなので、依存の向きの監査は止めない。製品コードが読まないことは同じ監査が見る）。
+ * `e2e/specs/header-and-dock.spec.ts` が見る。CSS を読む関数は部品の試験と共有する（`@tasuki/test-css`。試験の側だけが読める私的なパッケージで、製品コードが読まないことは依存の向きの監査が見る）。
  * @requirements #554 帯の字の後ろに中身が透けて重なり、最下部で最後の行が帯に隠れた
  */
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { mediaBlocks, outsideMedia, rules } from '@tasuki/ui/test-support/css-text.mjs';
+import { mediaBlocks, outsideMedia, rules } from '@tasuki/test-css';
 
 const css = readFileSync(path.resolve(__dirname, '../src/run.css'), 'utf8');
 
@@ -50,6 +49,10 @@ describe('手元の操作の帯', () => {
 });
 
 describe('映す表示の帯', () => {
+  it('Given 映す表示の外枠 / When スクロールの溝を見る / Then 溝を常に取る（帯の出し入れでスクロールバーが出入りして盤の幅が変わらない）', () => {
+    expect(bodyWith('.projection', 'position: fixed')).toMatch(/scrollbar-gutter:\s*stable;/);
+  });
+
   it('Given 映す表示の操作帯 / When 地を見る / Then 不透明で、透明へ溶かすグラデーションを使わない（後ろの大きな字がボタンの字に重なる）', () => {
     const body = bodyWith('.projection-strip', 'position: fixed');
     expect(body).toMatch(/background:\s*var\(--dock-ground\);/);

@@ -8,9 +8,9 @@
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m1308-*.patch
 # 復元: git apply -R scripts/mutations/m1308-*.patch
-diff --git a/packages/ui/tests/support/css-text.mjs b/packages/ui/tests/support/css-text.mjs
---- a/packages/ui/tests/support/css-text.mjs
-+++ b/packages/ui/tests/support/css-text.mjs
+diff --git a/packages/test-css/src/css-text.mjs b/packages/test-css/src/css-text.mjs
+--- a/packages/test-css/src/css-text.mjs
++++ b/packages/test-css/src/css-text.mjs
 @@ -12,7 +12,6 @@
  
  /** 波括弧の対応で、`open` の `{` から始まるブロックの中身の範囲 [start, end) を返す。 */

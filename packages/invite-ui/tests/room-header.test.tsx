@@ -424,7 +424,11 @@ describe('ルーム画面の共通の見出し', () => {
 
     // Then
     // ボタンの字は変えず、結果は浮かぶ知らせと読み上げの知らせで出す
-    expect((await screen.findAllByText('コピーできません（URL を選択してください）')).length).toBeGreaterThan(0);
+    await waitFor(() => expect(document.querySelector('.ui-room-header-copy-note')?.textContent).toBe('コピーできません（URL を選択してください）'));
+    // 見える知らせ（浮かぶ・読み上げからは隠す）と、読み上げの知らせ（aria-live）は別の要素。どちらかが消えると赤にする
+    expect(document.querySelector('.ui-room-header-copy-note')?.getAttribute('aria-hidden')).toBe('true');
+    expect(document.querySelector('.ui-room-header-copy-live')?.textContent).toBe('コピーできません（URL を選択してください）');
+    expect(document.querySelector('.ui-room-header-copy-live')?.getAttribute('aria-live')).toBe('polite');
     expect(screen.getByRole('button', { name: '招待リンクをコピー' })).toBeTruthy();
     expect(screen.getByText(INVITE_URL)).toBeTruthy();
   });
@@ -438,7 +442,11 @@ describe('ルーム画面の共通の見出し', () => {
     fireEvent.click(screen.getByRole('button', { name: '招待リンクをコピー' }));
 
     // Then
-    expect((await screen.findAllByText('コピーしました')).length).toBeGreaterThan(0);
+    await waitFor(() => expect(document.querySelector('.ui-room-header-copy-note')?.textContent).toBe('コピーしました'));
+    // 見える知らせ（浮かぶ・読み上げからは隠す）と、読み上げの知らせ（aria-live）は別の要素。どちらかが消えると赤にする
+    expect(document.querySelector('.ui-room-header-copy-note')?.getAttribute('aria-hidden')).toBe('true');
+    expect(document.querySelector('.ui-room-header-copy-live')?.textContent).toBe('コピーしました');
+    expect(document.querySelector('.ui-room-header-copy-live')?.getAttribute('aria-live')).toBe('polite');
     expect(screen.getByRole('button', { name: '招待リンクをコピー' })).toBeTruthy();
   });
 

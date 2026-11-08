@@ -9,15 +9,14 @@
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m1337-*.patch
 # 復元: git apply -R scripts/mutations/m1337-*.patch
-diff --git a/packages/invite-ui/src/RoomHeader.tsx b/packages/invite-ui/src/RoomHeader.tsx
 --- a/packages/invite-ui/src/RoomHeader.tsx
 +++ b/packages/invite-ui/src/RoomHeader.tsx
 @@ -162,7 +162,7 @@
-               className="ui-button ui-button--secondary ui-button--sm"
-               onClick={() => { void copy.copy(); }}
-             >
--              {ROOM_HEADER_TEXT.copy}
-+              {copyNote === '' ? ROOM_HEADER_TEXT.copy : copyNote}
-             </button>
-             {/* 見える字（浮かぶ。流れに入れないので見出しの高さを変えない）。読み上げは下の知らせが読む。 */}
-             {copyNote !== '' && <p className="ui-note ui-room-header-copy-note" aria-hidden="true">{copyNote}</p>}
+                 className="ui-button ui-button--secondary ui-button--sm"
+                 onClick={() => { void copy.copy(); }}
+               >
+-                {ROOM_HEADER_TEXT.copy}
++                {copyNote === '' ? ROOM_HEADER_TEXT.copy : copyNote}
+               </button>
+               {/* 見える字（浮かぶ。流れに入れないので見出しの高さを変えない）。読み上げは下の知らせが読む。 */}
+               {copyNote !== '' && <p className="ui-note ui-room-header-copy-note" aria-hidden="true">{copyNote}</p>}

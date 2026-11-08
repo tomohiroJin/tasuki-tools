@@ -1,0 +1,12 @@
+{
+  "name": "@tasuki/test-css",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/css-text.d.mts",
+      "default": "./src/css-text.mjs"
+    }
+  }
+}

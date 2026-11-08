@@ -3,7 +3,7 @@
  *
  * **タグを付けない（`local` 専用）。** 本番のルーム枠を消費して確かめる種類のものではない。
  *
- * 見出し（`RoomHeader`）: 招待の URL は省略せず、折り返して全部見せる。1 行に収まるのは、コード・URL・ボタンが 1 行に並ぶ広さ（864px 以上）から。
+ * 見出し（`RoomHeader`）: 招待の URL は省略せず、折り返して全部見せる。1 行に収まるかは URL の長さによる（この E2E の 35 字の URL ではコード・URL・ボタンが 1 行に並ぶ 864px 以上。本番に近い 39 字で 934px 前後、ASCII 90 字で 1374px 前後、日本語 74 字は 1440px でも収まらない）。
  * それより狭い幅（#5 の 768px 前後など）は、見出しを main 以下の高さに保つため URL が行の中で折り返す（main と同じ 2 行）。URL の箱がボタンと同じ行なら縦の中心は揃う。
  * 40rem 未満で単独の行に落ちた「選択画面へ戻る」は左端が題と揃い、poker の 320px で見出しが 4 段に積まれない。コピーの結果の表示で見出しの高さが変わらない。
  * 帯（`.ui-actions--dock` とその仲間）: 帯の字の後ろの地は不透明（透明へ溶かさない）・帯の上端に内側の余白がある・
@@ -19,7 +19,8 @@ import { chooseMethod, handCard, joinCheckinTool, openCheckinTool } from '../sup
 import { chooseCard, createRoom as createPokerRoom, joinRoom as joinPokerRoom, turnRecordingOn } from '../support/poker';
 import { createRoom as createTimerRoom } from '../support/timer';
 import { openRouletteTool } from '../support/roulette';
-import { MAIN_HEADER_HEIGHT, MAIN_HEADER_HEIGHT_FINE } from '../support/main-header-heights';
+import { HEADER_URLS, MIN_URL_CHARS_PER_LINE, measureHeader } from '../support/header-rows';
+import { MAIN_HEADER_ROWS, MAIN_HEADER_ROWS_FINE, MAIN_HEADER_ROWS_LARGE_FONT } from '../support/main-header-rows';
 import { joinTopicTool, openTopicTool, setTopic } from '../support/topic';
 
 /** 見出しの全体の高さの上限（px）。poker の 320px で、題・戻る＋記録する・仲間を招くの 3 段（実測 124px）に収める。以前は 4 段で約 230px。 */
@@ -37,7 +38,7 @@ async function expectNoHorizontalOverflow(page: Page, label: string): Promise<vo
 
 /**
  * 招待の URL の箱が、隣のボタンと同じ行なら縦の中心が揃い、画面の外へ出ない（幅によらない）。`oneLine` を true にすると、1 行ぶんの高さであることも見る
- * （1 行に収まるのは 864px 以上。それより狭い幅は見出しを高くしないため行の中で折り返してよい）。
+ * （この E2E の短い URL が 1 行に収まるのは 864px 以上。URL が長ければもっと広い幅が要る。それより狭い幅は見出しを高くしないため行の中で折り返してよい）。
  */
 async function expectInviteUrlOneLine(page: Page, label: string, oneLine = true): Promise<void> {
   const m = await page.locator('.ui-room-header-invite .ui-invite-url').first().evaluate((el) => {
@@ -60,23 +61,6 @@ async function expectInviteUrlOneLine(page: Page, label: string, oneLine = true)
   if (oneLine) expect(m.height, `${label}: URL の箱が 1 行に収まらない（${m.height}px）`).toBeLessThanOrEqual(m.oneLine + 1);
   expect(m.right, `${label}: URL の箱が画面の外へ出る`).toBeLessThanOrEqual(m.viewport + 0.5);
   if (m.sameRow) expect(m.centerGap, `${label}: URL の箱が隣のボタンと縦の中心で揃わない`).toBeLessThanOrEqual(2);
-}
-
-/**
- * 見出しの高さを、招待の URL を差し替えて測る。URL の字は React が持つ文字のノードなので、外から書き換えた値が再描画で戻っていないことを、
- * 描画が落ち着いてから（2 フレーム後）確かめる。戻っていたら書き直して、同じ値のまま測る。
- */
-async function headerHeightWithUrl(page: Page, url: string | null): Promise<number> {
-  const set = (u: string | null): Promise<void> => page.evaluate((x) => {
-    if (x !== null) (document.querySelector('.ui-room-header-invite .ui-invite-url') as HTMLElement).textContent = x;
-  }, u);
-  await set(url);
-  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
-  if (url !== null) {
-    const same = await page.evaluate((x) => (document.querySelector('.ui-room-header-invite .ui-invite-url') as HTMLElement).textContent === x, url);
-    if (!same) await set(url);
-  }
-  return page.evaluate(() => document.querySelector('.ui-room-header')!.getBoundingClientRect().height);
 }
 
 /**
@@ -357,7 +341,7 @@ async function expectContentClearOfDock(page: Page, dock: Locator, label: string
 }
 
 test.describe('poker のルームの見出しと帯', () => {
-  test('Given poker のルーム / When 320・390・640・768・900 で見る / Then URL は 864px 以上で 1 行（それより狭い幅は折り返してよい）・ボタンと同じ行なら縦が揃い、戻るは題と揃い、見出しは 3 段、公開後の帯は不透明で 2 段まで、最下部で中身が帯に隠れない', async ({ page, openPeer }) => {
+  test('Given poker のルーム / When 320・390・640・768・900 で見る / Then この E2E の URL は 864px 以上で 1 行（それより狭い幅は折り返してよい）・ボタンと同じ行なら縦が揃い、戻るは題と揃い、見出しは 3 段、公開後の帯は不透明で 2 段まで、最下部で中身が帯に隠れない', async ({ page, openPeer }) => {
     test.setTimeout(120_000);
     // 帯の無い画面（玄関）の Tab の送り先の余白は旧い 6rem（96px）のまま。帯のある画面だけが --dock-max-height（152px）に広がる
     await page.setViewportSize({ width: 390, height: 800 });
@@ -368,7 +352,7 @@ test.describe('poker のルームの見出しと帯', () => {
     const url = await createPokerRoom(page, 'header-host');
     for (const width of [640, 768, 900]) {
       await page.setViewportSize({ width, height: 900 });
-      // URL が 1 行に収まるのは、コード・URL・ボタンが 1 行に並ぶ広さ（864px 以上）から。それより狭い幅は、見出しを高くしないため URL が行の中で折り返す（main と同じ 2 行）
+      // この E2E の URL（35 字）が 1 行に収まるのは、コード・URL・ボタンが 1 行に並ぶ広さ（864px 以上）から。URL が長ければもっと広い幅が要る。それより狭い幅は、見出しを高くしないため URL が行の中で折り返す（main と同じ 2 行）
       await expectInviteUrlOneLine(page, `poker URL（${width}）`, width >= 864);
       // 40rem 以上は Tab の送り先の余白を掛けない（要素層の 6rem の既定が @media の外へ漏れない）
       expect(await page.evaluate(() => getComputedStyle(document.documentElement).scrollPaddingBottom), `poker（${width}）: 40rem 以上に scroll-padding-block-end が掛かっている`).toBe('auto');
@@ -574,7 +558,7 @@ test.describe('agenda の進行中の帯', () => {
 });
 
 test.describe('Check-in Cards の開いた後', () => {
-  test('Given 開いた後 / When 768・1024・1280 で見る / Then 帯は席に重ならず、URL は 864px 以上で 1 行', async ({ page, openPeer }) => {
+  test('Given 開いた後 / When 768・1024・1280 で見る / Then 帯は席に重ならず、この E2E の URL は 864px 以上で 1 行', async ({ page, openPeer }) => {
     test.setTimeout(120_000);
     await page.setViewportSize({ width: 1280, height: 900 });
     const url = await openCheckinTool(page, 'header-checkin');
@@ -883,15 +867,26 @@ test.describe('agenda の映す表示: キーボードで帯を出す・中身�
   }
 });
 
-const HEADER_URLS: Record<string, string | null> = {
-  actual: null,
-  prod39: 'https://tasuki.example.jp/poker/?room=AB12CD',
-  ascii90: `https://tasuki.example.jp/poker/?room=${'abcdefghij'.repeat(5)}`,
-  jp74: `http://127.0.0.1:38557/?room=${'ながいなまえのへや'.repeat(8)}`,
-};
+/** 招待の行を開く（40rem 未満は「仲間を招く」でたたまれている）。 */
+async function openInviteRow(page: Page): Promise<void> {
+  const toggle = page.getByRole('button', { name: '仲間を招く' });
+  if ((await toggle.isVisible()) && (await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
+}
 
-test.describe('見出しの高さは main 以下（固定の境目で段が増えず、URL が自分の行へ落ちて 3 段にならない）', () => {
-  test('Given 6 アプリのルーム・4 種の URL / When 320〜1440 で招待の行を開いて見出しを測る / Then どの幅でも main の高さ以下', async ({ page }) => {
+/**
+ * 見出しが main より悪くならない。物差しは px でなく段数（`support/header-rows.ts`）: 段数が main 以下、かつ URL の 1 行が 16 字以上（`chars` を false にすると段数だけ）。
+ * `basis` を渡すと、URL の基準の幅（flex-basis）をその px にして測る（基準が崖から離れていることを見る）。
+ */
+async function expectHeaderNotWorse(page: Page, label: string, url: string | null, mainRows: number, chars = true, basis: number | null = null): Promise<void> {
+  if (basis !== null) await page.evaluate((px) => { (document.querySelector('.ui-room-header-invite .ui-invite-url') as HTMLElement).style.flexBasis = `${px}px`; }, basis);
+  const m = await measureHeader(page, url);
+  if (basis !== null) await page.evaluate(() => { (document.querySelector('.ui-room-header-invite .ui-invite-url') as HTMLElement).style.flexBasis = ''; });
+  expect(m.rows, `${label}: 見出しの段数が main（${mainRows} 段）より多い（${m.rows} 段・高さ ${Math.round(m.height)}px）`).toBeLessThanOrEqual(mainRows);
+  if (chars) expect(m.urlChars, `${label}: URL の 1 行が ${MIN_URL_CHARS_PER_LINE} 字に満たない（${m.urlChars.toFixed(1)} 字・${m.urlLines} 行）`).toBeGreaterThanOrEqual(MIN_URL_CHARS_PER_LINE);
+}
+
+test.describe('見出しの段数は main 以下（固定の境目で段が増えず、URL が自分の行へ落ちて 1 段増えず、細い欄で何行にも折れない）', () => {
+  test('Given 6 アプリのルーム・4 種の URL / When 320〜1440 で招待の行を開いて見出しを測る / Then どの幅でも段数が main 以下で URL の 1 行が 16 字以上。文字 200% でも段数が main 以下', async ({ page }) => {
     test.setTimeout(600_000);
     await page.setViewportSize({ width: 1280, height: 900 });
     const openers: Array<[string, () => Promise<unknown>]> = [
@@ -905,15 +900,22 @@ test.describe('見出しの高さは main 以下（固定の境目で段が増�
     for (const [app, open] of openers) {
       await open();
       for (const [urlName, url] of Object.entries(HEADER_URLS)) {
-        for (const [widthText, mainHeight] of Object.entries(MAIN_HEADER_HEIGHT[app]![urlName]!)) {
-          const width = Number(widthText);
-          await page.setViewportSize({ width, height: 900 });
-          const toggle = page.getByRole('button', { name: '仲間を招く' });
-          if ((await toggle.isVisible()) && (await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
-          const height = await headerHeightWithUrl(page, url);
-          expect(height, `${app}・${urlName}（${width}）: 見出しが main（${mainHeight}px）より高い`).toBeLessThanOrEqual(mainHeight + 1);
+        for (const [widthText, mainRows] of Object.entries(MAIN_HEADER_ROWS[app]![urlName]!)) {
+          await page.setViewportSize({ width: Number(widthText), height: 900 });
+          await openInviteRow(page);
+          await expectHeaderNotWorse(page, `${app}・${urlName}（${widthText}）`, url, mainRows);
         }
       }
+      // 文字 200%（題 / 戻る / 仲間を招く が 3 段になって main より高くならない。URL の字数は main も満たさないので段数だけ）
+      await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
+      for (const [urlName, byWidth] of Object.entries(MAIN_HEADER_ROWS_LARGE_FONT[app]!)) {
+        for (const [widthText, mainRows] of Object.entries(byWidth)) {
+          await page.setViewportSize({ width: Number(widthText), height: 900 });
+          await openInviteRow(page);
+          await expectHeaderNotWorse(page, `${app}・${urlName}・文字 200%（${widthText}）`, HEADER_URLS[urlName]!, mainRows, false);
+        }
+      }
+      await page.evaluate(() => { document.documentElement.style.fontSize = ''; });
     }
   });
 });
@@ -951,19 +953,27 @@ test.describe('agenda の映す表示: 広い画面で文字を 200% にして�
   });
 });
 
-test.describe('見出しの高さは main 以下（640〜900px を 4px 刻みで）', () => {
-  test('Given poker のルーム・4 種の URL / When 640〜900px を 4px 刻みで測る / Then どの幅でも main の高さ以下（URL が行の中で長く折れて高くなる点が無い）', async ({ page }) => {
+test.describe('見出しの段数は main 以下（640〜900px を 4px 刻みで。URL の基準を ±0.25rem 動かしても）', () => {
+  test('Given poker のルーム・4 種の URL / When 640〜900px を 4px 刻みで測る / Then どの幅でも段数が main 以下で URL の 1 行が 16 字以上。基準を ±0.25rem 動かしても同じ（崖から離れている）', async ({ page }) => {
     test.setTimeout(300_000);
     await page.setViewportSize({ width: 768, height: 900 });
     await createPokerRoom(page, 'hdr-fine');
+    await openInviteRow(page);
+    const basisPx = await page.evaluate(() => parseFloat(getComputedStyle(document.querySelector('.ui-room-header-invite .ui-invite-url')!).flexBasis));
+    expect(basisPx, 'URL の基準の幅（flex-basis）が px で読めない').toBeGreaterThan(0);
     for (const [urlName, url] of Object.entries(HEADER_URLS)) {
-      for (const [widthText, mainHeight] of Object.entries(MAIN_HEADER_HEIGHT_FINE[urlName]!)) {
-        const width = Number(widthText);
-        await page.setViewportSize({ width, height: 900 });
-        const toggle = page.getByRole('button', { name: '仲間を招く' });
-        if ((await toggle.isVisible()) && (await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
-        const height = await headerHeightWithUrl(page, url);
-        expect(height, `poker・${urlName}（${width}）: 見出しが main（${mainHeight}px）より高い`).toBeLessThanOrEqual(mainHeight + 1);
+      let n = 0;
+      for (const [widthText, mainRows] of Object.entries(MAIN_HEADER_ROWS_FINE[urlName]!)) {
+        await page.setViewportSize({ width: Number(widthText), height: 900 });
+        await openInviteRow(page);
+        const label = `poker・${urlName}（${widthText}）`;
+        await expectHeaderNotWorse(page, label, url, mainRows);
+        // 基準を ±0.25rem（4px）動かしても段数と字数が変わらない: 8px 刻みの点で見る
+        if (n % 2 === 0) {
+          await expectHeaderNotWorse(page, `${label}・基準 -0.25rem`, url, mainRows, true, basisPx - 4);
+          await expectHeaderNotWorse(page, `${label}・基準 +0.25rem`, url, mainRows, true, basisPx + 4);
+        }
+        n += 1;
       }
     }
   });
@@ -980,22 +990,45 @@ test.describe('コピーの結果の表示で見出しの高さが変わらな�
       if ((await toggle.isVisible()) && (await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
       const header = page.locator('.ui-room-header').first();
       const before = await header.evaluate((e) => e.getBoundingClientRect().height);
+      // 押す・知らせが出る・ボタンの字と見出しの高さを読む、までを 1 回の evaluate で行う。
+      // 知らせは 2 秒で消えるので、Playwright の待ちを挟むと消えた後（元の字・元の高さ）を読んで偽の緑になる（m1337・m1353 が赤にならなかった）。
+      const press = (): Promise<{ note: string; label: string; height: number; covers: boolean }> =>
+        page.evaluate(async () => {
+          const button = [...document.querySelectorAll<HTMLButtonElement>('.ui-room-header-invite-actions button')].find((b) => (b.textContent ?? '').includes('コピー') && !(b.textContent ?? '').includes('QR'))!;
+          button.click();
+          const start = performance.now();
+          let note = '';
+          while (note === '' && performance.now() - start < 1500) {
+            await new Promise((resolve) => requestAnimationFrame(() => resolve(null)));
+            note = document.querySelector('.ui-room-header-copy-note')?.textContent ?? '';
+          }
+          // 知らせは下の操作（poker の「見学する」・topic のタブ）を 2 秒覆う。点を受けると押せなくなるので、知らせの中心の点を受けるのが知らせ自身でないことを見る。
+          const el = document.querySelector('.ui-room-header-copy-note');
+          const rect = el?.getBoundingClientRect();
+          const hit = rect ? document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2) : null;
+          return { note, label: button.textContent ?? '', height: document.querySelector('.ui-room-header')!.getBoundingClientRect().height, covers: el !== null && hit !== null && el.contains(hit) };
+        });
       // 失敗: クリップボードが拒み、従来のコピーも失敗する
       await page.evaluate(() => {
         Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: () => Promise.reject(new Error('denied')) } });
         document.execCommand = () => false;
       });
-      await page.getByRole('button', { name: '招待リンクをコピー' }).click();
-      await expect(page.locator('.ui-room-header-copy-note')).toContainText('コピーできません');
-      await expect(page.getByRole('button', { name: '招待リンクをコピー' }), `${width}: ボタンの字が変わった`).toBeVisible();
-      expect(await header.evaluate((e) => e.getBoundingClientRect().height), `コピー失敗の表示で見出しの高さが変わる（${width}）`).toBeCloseTo(before, 0);
+      const failed = await press();
+      expect(failed.note, `${width}: 失敗の知らせが出ない`).toContain('コピーできません');
+      expect(failed.label, `${width}: コピー失敗でボタンの字が変わった`).toBe('招待リンクをコピー');
+      expect(failed.covers, `${width}: 知らせが下の操作の点を受けて押せなくする`).toBe(false);
+      expect(failed.height, `コピー失敗の表示で見出しの高さが変わる（${width}）`).toBeCloseTo(before, 0);
+      await expect(page.locator('.ui-room-header-copy-note')).toHaveCount(0, { timeout: 5000 });
       // 成功
       await page.evaluate(() => {
         Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: () => Promise.resolve() } });
       });
-      await page.getByRole('button', { name: '招待リンクをコピー' }).click();
-      await expect(page.locator('.ui-room-header-copy-note')).toContainText('コピーしました');
-      expect(await header.evaluate((e) => e.getBoundingClientRect().height), `コピー成功の表示で見出しの高さが変わる（${width}）`).toBeCloseTo(before, 0);
+      const done = await press();
+      expect(done.note, `${width}: 成功の知らせが出ない`).toContain('コピーしました');
+      expect(done.label, `${width}: コピー成功でボタンの字が変わった`).toBe('招待リンクをコピー');
+      expect(done.covers, `${width}: 知らせが下の操作の点を受けて押せなくする`).toBe(false);
+      expect(done.height, `コピー成功の表示で見出しの高さが変わる（${width}）`).toBeCloseTo(before, 0);
+      await expect(page.locator('.ui-room-header-copy-note')).toHaveCount(0, { timeout: 5000 });
     }
   });
 });
@@ -1039,8 +1072,12 @@ test.describe('agenda の映す表示: 帯が消えても盤が跳ねない', ()
       await page.evaluate(() => { const r = document.querySelector('.projection')!; r.scrollTo(0, r.scrollHeight); });
       const dialTop = (): Promise<number> => page.locator('.projection-dial').evaluate((el) => el.getBoundingClientRect().top);
       const before = await dialTop();
+      // クラシックなスクロールバー（Linux の Chromium など）の環境では、帯の出し入れでスクロールバーが出入りして盤の幅が 15px 変わった（scrollbar-gutter: stable で一定にする）
+      const clientWidth = (): Promise<number> => page.locator('.projection').evaluate((el) => el.clientWidth);
+      const widthShown = await clientWidth();
       await expect(strip).not.toHaveClass(/is-shown/, { timeout: 8000 });
       await page.waitForTimeout(200);
+      expect(await clientWidth(), `映す表示（${width}×${height}）: 帯が消えると盤の幅が変わる（スクロールバーの出入り）`).toBe(widthShown);
       expect(Math.abs((await dialTop()) - before), `映す表示（${width}×${height}）: 帯が消えると盤が動く`).toBeLessThanOrEqual(1);
       // 上へ送ると、残していた余白が畳まれる
       await page.evaluate(() => { document.querySelector('.projection')!.scrollTo(0, 0); });

@@ -107,6 +107,9 @@ const RESERVED_1010_1019 =
 const RESERVED_1020_1029 =
   "**対応表より後に足した変異。** 1020〜1029 は #547 に割り当てた範囲。";
 
+const RESERVED_1360_1369 =
+  "**対応表より後に足した変異。** 1360〜1369 は #554 に追加で割り当てた範囲（1350〜1359 を使い切ったため。1340〜1349 は #553 の予約を避けた）。";
+
 const RESERVED_1350_1359 =
   "**対応表より後に足した変異。** 1350〜1359 は #554 に追加で割り当てた範囲（1330〜1339 を使い切ったため。1340〜1349 は #553 の予約を避けた）。";
 
@@ -6772,11 +6775,11 @@ export const MUTATIONS = [
   },
   {
     id: 1294,
-    label: "依存の向きの監査から、製品コードが試験用の入口を読む違反の判定を外す",
-    patch: "m1294-audit-test-support-rule-removed.patch",
+    label: "依存の向きの監査から、試験専用のパッケージを製品コードが読む違反の判定を外す",
+    patch: "m1294-audit-test-only-check-removed.patch",
     pkg: "scripts",
     tests: ["audit-dependency-direction.test.mjs"],
-    note: RESERVED_1290_1299 + " " + "#554 のレビュー。製品コード（src）による @tasuki/ui/test-support の取り込みを監査が見逃す。検査を packages/ui の単体試験から監査へ移した先で、同じ欠陥を自己テストが拾う。",
+    note: RESERVED_1290_1299 + " " + "#554 のレビュー。製品コード（src・設定ファイル）による @tasuki/test-css の取り込みを監査が見逃す。自己テストが拾う。",
   },
   {
     id: 1295,
@@ -6811,30 +6814,6 @@ export const MUTATIONS = [
     note: RESERVED_1290_1299 + " " + "#554 のレビュー。Tab の送り先の余白が無効になる。",
   },
   {
-    id: 1299,
-    label: "依存の監査の集める側から、src だけを見る条件を外す（tests の取り込みまで違反にする）",
-    patch: "m1299-audit-collect-src-only-removed.patch",
-    pkg: "scripts",
-    tests: ["audit-dependency-direction.test.mjs"],
-    note: RESERVED_1290_1299 + " " + "#554 のレビュー。tests の取り込みまで違反になる。observe を一時のパッケージで通す自己テストが拾う。",
-  },
-  {
-    id: 1300,
-    label: "依存の監査の集める側が、試験用の入口の取り込みを 1 件も拾わない",
-    patch: "m1300-audit-collect-never-flags.patch",
-    pkg: "scripts",
-    tests: ["audit-dependency-direction.test.mjs"],
-    note: RESERVED_1300_1309 + " " + "#554 のレビュー。src の取り込みを拾わない。判定の関数だけを見る試験は緑のまま、observe の自己テストが拾う。",
-  },
-  {
-    id: 1301,
-    label: "依存の監査から、src から同じパッケージの tests を相対パスで読む取り込みの判定を外す",
-    patch: "m1301-audit-relative-tests-check-removed.patch",
-    pkg: "scripts",
-    tests: ["audit-dependency-direction.test.mjs"],
-    note: RESERVED_1300_1309 + " " + "#554 のレビュー。相対パスで tests を読む取り込みを見逃す。",
-  },
-  {
     id: 1302,
     label: "映す表示の帯の高さの変数（40rem 以上の段）を実測より低い 2rem にする",
     patch: "m1302-projection-strip-height-wide-too-small.patch",
@@ -6857,22 +6836,6 @@ export const MUTATIONS = [
     pkg: "apps/agenda-web",
     tests: ["tests/run-controls-opaque.test.ts"],
     note: RESERVED_1300_1309 + " " + "#554 のレビュー。段が無くなり、40rem 以上でも 10rem の余白を取りすぎる。E2E の測り（帯の実高 ≤ 変数・重ならない）は緑のままで、単体が段の有無を読む。",
-  },
-  {
-    id: 1305,
-    label: "依存の監査の試験用の入口の判定から、バッククォートの指定子を外す",
-    patch: "m1305-audit-backtick-specifier-dropped.patch",
-    pkg: "scripts",
-    tests: ["audit-dependency-direction.test.mjs"],
-    note: RESERVED_1300_1309 + " " + "#554 のレビュー。バッククォートの動的 import を見逃す。",
-  },
-  {
-    id: 1306,
-    label: "依存の監査の走査を src だけに戻す（設定ファイルを見逃す）",
-    patch: "m1306-audit-collect-src-only.patch",
-    pkg: "scripts",
-    tests: ["audit-dependency-direction.test.mjs"],
-    note: RESERVED_1300_1309 + " " + "#554 のレビュー。vite.config.ts などの設定ファイルの取り込みを見逃す。",
   },
   {
     id: 1307,
@@ -6915,14 +6878,6 @@ export const MUTATIONS = [
     note: RESERVED_1310_1319 + " " + "#554 のレビュー。URL の末尾が隠れ、全文を読めない。E2E は長い URL が省略されて赤。",
   },
   {
-    id: 1312,
-    label: "依存の監査が、注釈を外さずに試験用の入口を探す",
-    patch: "m1312-audit-comment-strip-removed.patch",
-    pkg: "scripts",
-    tests: ["audit-dependency-direction.test.mjs"],
-    note: RESERVED_1310_1319 + " " + "#554 のレビュー。注釈の中に名前を書いただけで止まる偽の陽性。",
-  },
-  {
     id: 1313,
     label: "共有の mediaBlocks が、頭と { の間の条件でないもの（別の規則の始まり）を throw しない",
     patch: "m1313-css-text-broken-media-no-throw.patch",
@@ -6953,22 +6908,6 @@ export const MUTATIONS = [
     pkg: "apps/agenda-web",
     tests: ["tests/use-projection-clearance.test.tsx"],
     note: RESERVED_1310_1319 + " " + "#554 のレビュー。余白を足すと中央寄せがやり直されて盤が跳ねる。E2E は 320×568 で盤の y が動いて赤。",
-  },
-  {
-    id: 1317,
-    label: "依存の監査の相対パスの拾い上げから、new URL(…, import.meta.url) の形を外す",
-    patch: "m1317-audit-url-form-dropped.patch",
-    pkg: "scripts",
-    tests: ["audit-dependency-direction.test.mjs"],
-    note: RESERVED_1310_1319 + " " + "#554 のレビュー。new URL で tests を読む取り込みを見逃す。",
-  },
-  {
-    id: 1318,
-    label: "依存の監査の相対パスの拾い上げから、require() の形を外す",
-    patch: "m1318-audit-require-form-dropped.patch",
-    pkg: "scripts",
-    tests: ["audit-dependency-direction.test.mjs"],
-    note: RESERVED_1310_1319 + " " + "#554 のレビュー。require で tests を読む取り込みを見逃す。",
   },
   {
     id: 1319,
@@ -7003,28 +6942,12 @@ export const MUTATIONS = [
     note: RESERVED_1320_1329 + " " + "#554 のレビュー。帯が中身に重ならなくても余白を足し、盤が動く。単体は広い画面で 0 のままであることを確かめる。",
   },
   {
-    id: 1323,
-    label: "依存の監査の相対パス判定を、src の中の test/ フォルダにも当てる",
-    patch: "m1323-audit-test-folder-anywhere.patch",
-    pkg: "scripts",
-    tests: ["audit-dependency-direction.test.mjs"],
-    note: RESERVED_1320_1329 + " " + "#554 のレビュー。src/routes/test/x.ts を読む取り込みを誤検知する。",
-  },
-  {
     id: 1324,
     label: "共有の mediaBlock が、同じ頭の @media の個数を確かめない",
     patch: "m1324-css-text-media-block-prefix.patch",
     pkg: "packages/ui",
     tests: ["tests/dock-and-narrow-header.test.mjs"],
     note: RESERVED_1320_1329 + " " + "#554 のレビュー。同じ頭が複数あっても赤にならない。",
-  },
-  {
-    id: 1325,
-    label: "依存の監査の注釈除去が、文字列の中の /* を注釈の開始と見なす",
-    patch: "m1325-audit-strip-comments-naive.patch",
-    pkg: "scripts",
-    tests: ["audit-dependency-direction.test.mjs"],
-    note: RESERVED_1320_1329 + " " + "#554 のレビュー。glob の文字列の後ろの取り込みを見逃す。",
   },
   {
     id: 1326,
@@ -7043,20 +6966,12 @@ export const MUTATIONS = [
     note: RESERVED_1320_1329 + " " + "#554 のレビュー。observer・focus・matchMedia を毎回作り直し、古い shown を持つ closure が残る。",
   },
   {
-    id: 1328,
-    label: "依存の監査の注釈除去が、正規表現リテラルを字句として読まない",
-    patch: "m1328-audit-regex-literal-not-lexed.patch",
-    pkg: "scripts",
-    tests: ["audit-dependency-direction.test.mjs"],
-    note: RESERVED_1320_1329 + " " + "#554 のレビュー。/[/*]/ や /'/ の後ろの取り込みを見逃す。",
-  },
-  {
     id: 1329,
     label: "依存の監査が、e2e パッケージを製品コードとして扱う",
     patch: "m1329-audit-e2e-treated-as-product.patch",
     pkg: "scripts",
     tests: ["audit-dependency-direction.test.mjs"],
-    note: RESERVED_1320_1329 + " " + "#554 のレビュー。E2E から共有の解析器を読むと誤って止まる。",
+    note: RESERVED_1320_1329 + " " + "#554 のレビュー。E2E から試験専用のパッケージを読むと誤って止まる。",
   },
   {
     id: 1330,
@@ -7073,14 +6988,6 @@ export const MUTATIONS = [
     pkg: "apps/agenda-web",
     tests: ["tests/use-projection-clearance.test.tsx"],
     note: RESERVED_1330_1339 + " " + "#554 のレビュー。測った直後から最初の通知までの間に伸びた中身の変化を取りこぼし、帯が隠れたままになる。",
-  },
-  {
-    id: 1332,
-    label: "依存の監査が、文字列の中の取り込みの形（from '…'）でも止まる",
-    patch: "m1332-audit-string-content-flagged.patch",
-    pkg: "scripts",
-    tests: ["audit-dependency-direction.test.mjs"],
-    note: RESERVED_1330_1339 + " " + "#554 のレビュー。文字列の中に名前を書いただけで止まる偽の陽性。",
   },
   {
     id: 1333,
@@ -7169,5 +7076,69 @@ export const MUTATIONS = [
     pkg: "packages/ui",
     tests: ["tests/dock-and-narrow-header.test.mjs"],
     note: RESERVED_1350_1359 + " " + "#554 のレビュー。知らせが出ると見出しの高さが変わる。E2E はコピー失敗の前後の高さで赤。",
+  },
+  {
+    id: 1354,
+    label: "依存の向きの監査の「試験専用」の一覧を空にする",
+    patch: "m1354-audit-test-only-list-emptied.patch",
+    pkg: "scripts",
+    tests: ["audit-dependency-direction.test.mjs"],
+    note: RESERVED_1350_1359 + " " + "#554 のレビュー。試験専用のパッケージの名前が一覧から落ちると、製品コードからの取り込みが違反にならない。",
+  },
+  {
+    id: 1355,
+    label: "帯の hidden の規則が until-found にも当たる",
+    patch: "m1355-dock-hidden-rule-matches-until-found.patch",
+    pkg: "packages/ui",
+    tests: ["tests/dock-and-narrow-header.test.mjs"],
+    note: RESERVED_1350_1359 + " " + "#554 のレビュー。ページ内検索で現れる動きを壊す。",
+  },
+  {
+    id: 1356,
+    label: "通常の見出しの題を 100% にして自分の行へ追い出す",
+    patch: "m1356-header-title-flex-100.patch",
+    pkg: "packages/ui",
+    tests: ["tests/dock-and-narrow-header.test.mjs"],
+    note: RESERVED_1350_1359 + " " + "#554 のレビュー。文字 200% の 416〜504px で 3 段になり main より高くなる。E2E は段数でも赤。",
+  },
+  {
+    id: 1357,
+    label: "コピーの知らせが点を受ける（pointer-events を外す）",
+    patch: "m1357-copy-note-captures-pointer.patch",
+    pkg: "packages/ui",
+    tests: ["tests/dock-and-narrow-header.test.mjs"],
+    note: RESERVED_1350_1359 + " " + "#554 のレビュー。知らせが下の操作（見学する・タブ）を 2 秒押せなくする。",
+  },
+  {
+    id: 1358,
+    label: "映す表示の外枠の scrollbar-gutter を外す",
+    patch: "m1358-projection-scrollbar-gutter-removed.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/run-controls-opaque.test.ts"],
+    note: RESERVED_1350_1359 + " " + "#554 のレビュー。帯の出し入れでスクロールバーが出入りして盤の幅が 15px 変わる。E2E も赤。",
+  },
+  {
+    id: 1359,
+    label: "コピーの結果の読み上げの知らせ（aria-live）を消す",
+    patch: "m1359-copy-live-region-removed.patch",
+    pkg: "packages/invite-ui",
+    tests: ["tests/room-header.test.tsx"],
+    note: RESERVED_1350_1359 + " " + "#554 のレビュー。見える知らせだけが残り、読み上げ利用者に結果が伝わらない。",
+  },
+  {
+    id: 1360,
+    label: "コピーの見える知らせを読み上げから隠さない",
+    patch: "m1360-copy-note-not-aria-hidden.patch",
+    pkg: "packages/invite-ui",
+    tests: ["tests/room-header.test.tsx"],
+    note: RESERVED_1360_1369 + " " + "#554 のレビュー。見える知らせが読み上げの知らせと二重に読まれる。",
+  },
+  {
+    id: 1361,
+    label: "URL の基準を崖の向こう（17rem）にする",
+    patch: "m1361-invite-url-basis-17rem.patch",
+    pkg: "packages/ui",
+    tests: ["tests/dock-and-narrow-header.test.mjs"],
+    note: RESERVED_1360_1369 + " " + "#554 のレビュー。本番相当の URL が自分の行へ落ちて 1 段増える。E2E は段数で赤。",
   },
 ];

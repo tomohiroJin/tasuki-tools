@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { mediaBlock, mediaBlocks, only, outsideMedia, rules } from './support/css-text.mjs';
+import { mediaBlock, mediaBlocks, only, outsideMedia, rules } from '@tasuki/test-css';
 
 const COMPONENTS = resolve(dirname(fileURLToPath(import.meta.url)), '../src/components');
 const read = (name) => readFileSync(resolve(COMPONENTS, name), 'utf8');
@@ -56,8 +56,8 @@ test('Given 40rem 未満の帯 / When ボタンの余白を読む / Then 320px �
 
 test('Given 帯の [hidden] の規則 / When @media・@container などの外を読む / Then 数えない子を描かない規則が幅によらずある（README は幅によらないと読める）', () => {
   const plain = readFileSync(resolve(COMPONENTS, 'actions.css'), 'utf8');
-  assert.match(only(rules(outsideMedia(plain)), '.ui-actions--dock > [hidden]'), /display:\s*none;/);
-  assert.ok(!rules(mediaBlock(plain, '@media (width < 40rem)')).some((r) => r.selector === '.ui-actions--dock > [hidden]'), '40rem 未満の @media の中にも [hidden] の規則が残っている');
+  assert.match(only(rules(outsideMedia(plain)), ".ui-actions--dock > [hidden]:where(:not([hidden='until-found']))"), /display:\s*none;/);
+  assert.ok(!rules(mediaBlock(plain, '@media (width < 40rem)')).some((r) => r.selector === ".ui-actions--dock > [hidden]:where(:not([hidden='until-found']))"), '40rem 未満の @media の中にも [hidden] の規則が残っている');
 });
 
 test('Given 条件つきの at 規則 / When outsideMedia を通す / Then @media・@container・@supports・@starting-style の中の規則は外へ出さず、@layer の中の規則は外側として数える', () => {
@@ -127,13 +127,14 @@ test('Given 40rem 未満の帯 / When 上の線を読む / Then 線は --dock-ed
   assert.match(only(dockRules(), '.ui-actions--dock'), /border-top:\s*1px solid var\(--dock-edge\);/);
 });
 
-test('Given 40rem 未満の通常の見出し / When 並びを読む / Then 折り返す flex に並べ直し、題は全幅の 1 段（4 段に積まない）', () => {
+test('Given 40rem 未満の通常の見出し / When 並びを読む / Then 折り返す flex に並べ直し、題は自分の行を取らない（文字 200% の 416〜504px で 3 段にならない）', () => {
   const list = headerRules();
   const body = only(list, NOT_COMPACT);
   assert.match(body, /display:\s*flex;/);
   assert.match(body, /flex-wrap:\s*wrap;/);
   assert.match(only(list, `${NOT_COMPACT} .ui-page-header, ${NOT_COMPACT} .ui-room-header-title`), /display:\s*contents;/);
-  assert.match(only(list, `${NOT_COMPACT} .ui-room-header-title > h1`), /flex:\s*1 1 100%;/);
+  // 題の幅を 100% にすると、題 / 戻る / 仲間を招く の 3 段になり、main より高くなる（#554）。題には flex の規則を置かない
+  assert.deepEqual(list.filter((r) => r.selector.includes('.ui-room-header-title > h1') && /flex/.test(r.body) && r.selector.includes(NOT_COMPACT)), []);
 });
 
 test('Given 40rem 未満の通常の見出し / When 戻るの規則を読む / Then 左の余白と枠を持たず、40rem 以上と詰めた見た目は元の余白（左右対称）のまま', () => {
@@ -156,7 +157,6 @@ test('Given 招待の URL / When 字の規則を読む / Then 省略せず、ど
   const body = only(rules(read('invite.css')), '.ui-invite-url');
   // 末尾を「…」で隠さない（クリップボードが使えない端末では目で読むしかない）
   assert.doesNotMatch(body, /text-overflow|white-space:\s*nowrap|overflow:\s*hidden/);
-  assert.match(body, /overflow-wrap:\s*anywhere;/);
   assert.match(body, /word-break:\s*break-all;/);
   // 長い URL が欄の外へ出ないよう、上限（行の幅）と下限（0）を持つ（最小限読める幅は room-header.css の flex-basis が持つ）
   assert.match(body, /min-inline-size:\s*0;/);
@@ -176,7 +176,7 @@ test('Given 招待の行 / When 規則を読む / Then 固定の境目（contain
   assert.match(invite, /flex-wrap:\s*wrap;/);
   assert.match(only(rules(css), '.ui-room-header-invite > .ui-invite'), /display:\s*contents;/);
   // URL は最小限読める幅を基準にして行の余りへ伸びる（広い幅で URL が自分の行へ落ちて 3 段にならない）
-  assert.match(only(rules(css), '.ui-room-header-invite .ui-invite-url'), /flex:\s*1 1 var\(--ui-invite-url-basis, 16\.55rem\);/);
+  assert.match(only(rules(css), '.ui-room-header-invite .ui-invite-url'), /flex:\s*1 1 15\.5rem;/);
   // 伸びるのは中身の幅（max-content）まで（短い URL の枠が行の余りいっぱいの空の枠にならない）
   assert.match(only(rules(css), '.ui-room-header-invite .ui-invite-url'), /max-inline-size:\s*max-content;/);
   assert.match(read('room-header.css'), /30rem 未満[^\n]*段数を決める境目ではなく/);
@@ -185,5 +185,7 @@ test('Given 招待の行 / When 規則を読む / Then 固定の境目（contain
 test('Given コピーの結果の知らせ / When 規則を読む / Then 浮かべる（absolute）。流れに入れない（入れると見出しの高さが変わる）', () => {
   const body = only(rules(read('room-header.css')), '.ui-room-header-copy-note');
   assert.match(body, /position:\s*absolute;/);
+  // 下の操作（poker の「見学する」・topic のタブ）を 2 秒覆うので、点を受けない
+  assert.match(body, /pointer-events:\s*none;/);
   assert.ok(rules(read('room-header.css')).some((r) => r.selector === '.ui-room-header-invite-actions' && /position:\s*relative;/.test(r.body)), '知らせの位置の基準（position: relative）が無い');
 });

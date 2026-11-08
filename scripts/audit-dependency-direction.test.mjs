@@ -8,7 +8,12 @@
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import {
+  observe,
+  TEST_ONLY,
   findViolations,
   findInvalidExclusions,
   ALLOWED,
@@ -139,225 +144,58 @@ test("実際の除外表は理由の要件を満たす（表そのものの健�
   assert.deepEqual(findInvalidExclusions(EXCLUDED_PACKAGES), []);
 });
 
-test("製品コード（src）が試験用の入口を読むと、依存先が表にあるかどうかによらず違反（#554）", () => {
-  const violations = findViolations({
-    "apps/agenda-web": { manifest: [], imports: [], escapes: [], testSupport: ["apps/agenda-web/src/main.tsx"] },
-  });
-  assert.deepEqual(violations, [
-    { pkg: "apps/agenda-web", dep: "apps/agenda-web/src/main.tsx", via: "試験用の入口" },
-  ]);
-});
-
-test("試験用の入口を読む試験（src の外）は観測に載らないので通る（#554）", () => {
-  const violations = findViolations({
-    "apps/agenda-web": { manifest: ["@tasuki/ui"], imports: ["@tasuki/ui"], escapes: [], testSupport: [] },
-  });
-  assert.deepEqual(violations, []);
-});
-
-// `observe`（実際にファイルを読んで集める側）を、一時のディレクトリに作ったパッケージの形で通す（#554）。
-// 判定の関数（findViolations）だけを見る上の試験では、集める側の条件（src だけを見る・相対パスで tests を読む）を消しても緑のままになる。
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
-import { observe } from "./audit-dependency-direction.mjs";
-
-function withTempPackage(files, run) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), "audit-dep-dir-"));
+/** 一時のディレクトリに 1 パッケージ分のファイルを置き、観測した結果を返す。 */
+function observeTemp(pkg, files) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "dd-"));
   try {
+    fs.mkdirSync(path.join(root, pkg), { recursive: true });
+    fs.writeFileSync(path.join(root, pkg, "package.json"), "{}");
     for (const [rel, text] of Object.entries(files)) {
       fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
       fs.writeFileSync(path.join(root, rel), text);
     }
-    return run(root);
+    return observe(pkg, Object.keys(files), root);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
 }
 
-const ENTRY_IMPORT = `import "${["@tasuki", "ui", "test-support"].join("/")}/css-text.mjs";\n`;
+test("試験専用のパッケージは、試験の側（tests・test・e2e）から読むと通る（#554）", () => {
+  assert.deepEqual(TEST_ONLY, ["@tasuki/test-css"]);
+  const line = `import { rules } from "@tasuki/test-css";\n`;
+  for (const [pkg, rel] of [
+    ["apps/timer-web", "apps/timer-web/test/a.test.ts"],
+    ["apps/agenda-web", "apps/agenda-web/tests/a.test.ts"],
+    ["e2e", "e2e/specs/a.spec.ts"],
+  ]) {
+    const seen = observeTemp(pkg, { [rel]: line });
+    assert.deepEqual(seen.testOnlyInProduct, [], rel);
+  }
+  assert.deepEqual(findViolations({ "apps/timer-web": observeTemp("apps/timer-web", { "apps/timer-web/test/a.test.ts": line }) }), []);
+});
 
-test("observe: src の取り込みは試験用の入口として拾い、tests の取り込みは拾わない", () => {
-  withTempPackage(
-    {
-      "packages/x/package.json": "{}",
-      "packages/x/src/a.ts": ENTRY_IMPORT,
-      "packages/x/tests/b.ts": ENTRY_IMPORT,
-    },
-    (root) => {
-      const seen = observe("packages/x", ["packages/x/src/a.ts", "packages/x/tests/b.ts"], root);
-      assert.deepEqual(seen.testSupport, ["packages/x/src/a.ts"]);
-    },
+test("試験専用のパッケージを製品コード（src・設定ファイル）から読むと、表にあっても違反（#554）", () => {
+  const line = `import { rules } from "@tasuki/test-css";\n`;
+  const seen = observeTemp("apps/timer-web", {
+    "apps/timer-web/src/a.ts": line,
+    "apps/timer-web/vite.config.ts": line,
+    "apps/timer-web/test/ok.test.ts": line,
+  });
+  assert.deepEqual(seen.testOnlyInProduct, [
+    "apps/timer-web/src/a.ts → @tasuki/test-css",
+    "apps/timer-web/vite.config.ts → @tasuki/test-css",
+  ]);
+  assert.equal(ALLOWED["apps/timer-web"].includes("@tasuki/test-css"), true);
+  const violations = findViolations({ "apps/timer-web": seen });
+  assert.deepEqual(
+    violations.map((v) => v.via),
+    ["試験専用", "試験専用"],
   );
 });
 
-test("observe: src から同じパッケージの tests を相対パスで読むのも拾い、src どうしの相対パスは拾わない", () => {
-  withTempPackage(
-    {
-      "packages/ui/package.json": "{}",
-      "packages/ui/src/x.mjs": `import "../tests/support/css-text.mjs";\n`,
-      "packages/ui/src/y.mjs": `import "./z.mjs";\n`,
-      "packages/ui/src/z.mjs": "export {};\n",
-    },
-    (root) => {
-      const seen = observe("packages/ui", ["packages/ui/src/x.mjs", "packages/ui/src/y.mjs", "packages/ui/src/z.mjs"], root);
-      assert.deepEqual(seen.testSupport, ["packages/ui/src/x.mjs → ../tests/support/css-text.mjs"]);
-      assert.deepEqual(seen.escapes, []);
-    },
-  );
-});
-
-test("observe: バッククォートの指定子と、vite.config.ts などの設定ファイル（src の外）も試験用の入口として拾う", () => {
-  const entry = ["@tasuki", "ui", "test-support"].join("/");
-  withTempPackage(
-    {
-      "apps/y/package.json": "{}",
-      "apps/y/src/lazy.ts": "const m = await import(`" + entry + "/css-text.mjs`);\n",
-      "apps/y/vite.config.ts": ENTRY_IMPORT,
-      "apps/y/test/ok.ts": ENTRY_IMPORT,
-    },
-    (root) => {
-      const seen = observe("apps/y", ["apps/y/src/lazy.ts", "apps/y/vite.config.ts", "apps/y/test/ok.ts"], root);
-      assert.deepEqual(seen.testSupport, ["apps/y/src/lazy.ts", "apps/y/vite.config.ts"]);
-    },
-  );
-});
-
-test("observe: 注釈の中に試験用の入口の名前を書いただけでは止めず、テンプレート文字列の import() は止める（#554）", () => {
-  const entry = ["@tasuki", "ui", "test-support"].join("/");
-  withTempPackage(
-    {
-      "apps/z/package.json": "{}",
-      "apps/z/src/doc.ts": "// import \"" + entry + "/css-text.mjs\" は試験だけが読む\n/* from \"" + entry + "/x\" */\nexport const a = 1;\n",
-      "apps/z/src/lazy.ts": "const m = await import(`" + entry + "/${name}.mjs`);\n",
-      "apps/z/src/req.cjs": "const m = require(\"" + entry + "/css-text.mjs\");\n",
-      "apps/z/src/reexport.ts": "export * from \"" + entry + "/css-text.mjs\";\n",
-    },
-    (root) => {
-      const files = ["apps/z/src/doc.ts", "apps/z/src/lazy.ts", "apps/z/src/req.cjs", "apps/z/src/reexport.ts"];
-      const seen = observe("apps/z", files, root);
-      assert.deepEqual(seen.testSupport, ["apps/z/src/lazy.ts", "apps/z/src/req.cjs", "apps/z/src/reexport.ts"]);
-    },
-  );
-});
-
-test("observe: require() と new URL(…, import.meta.url) の相対パスで tests・パッケージの外へ出る取り込みも拾い、src の中の相対パスは拾わない（#554）", () => {
-  withTempPackage(
-    {
-      "packages/q/package.json": "{}",
-      "packages/q/src/a.cjs": "const m = require(\"../tests/support/x.cjs\");\n",
-      "packages/q/src/b.mjs": "const u = new URL(\"../tests/support/x.mjs\", import.meta.url);\n",
-      "packages/q/src/c.cjs": "const m = require(\"../../other/src/y.cjs\");\n",
-      "packages/q/src/d.mjs": "const u = new URL(\"./e.json\", import.meta.url);\n",
-      "packages/q/src/e.json": "{}",
-    },
-    (root) => {
-      const files = ["packages/q/src/a.cjs", "packages/q/src/b.mjs", "packages/q/src/c.cjs", "packages/q/src/d.mjs"];
-      const seen = observe("packages/q", files, root);
-      assert.deepEqual(seen.testSupport, ["packages/q/src/a.cjs → ../tests/support/x.cjs", "packages/q/src/b.mjs → ../tests/support/x.mjs"]);
-      assert.deepEqual(seen.escapes, ["packages/q/src/c.cjs → ../../other/src/y.cjs"]);
-    },
-  );
-});
-
-test("observe: glob の文字列の中の /* で注釈を始めず、その後ろの試験用の入口の取り込みを止める（#554）", () => {
-  const entry = ["@tasuki", "ui", "test-support"].join("/");
-  withTempPackage(
-    {
-      "apps/g/package.json": "{}",
-      "apps/g/src/glob.ts": "const g = 'tests/**/*.ts';\nconst h = 'x/*.ts';\nconst m = await import(\"" + entry + "/css-text.mjs\"); /* 閉じ */\n",
-    },
-    (root) => {
-      const seen = observe("apps/g", ["apps/g/src/glob.ts"], root);
-      assert.deepEqual(seen.testSupport, ["apps/g/src/glob.ts"]);
-    },
-  );
-});
-
-test("observe: src の中の test/ フォルダを相対パスで読んでも通り、パッケージ直下の tests/ は止める（#554）", () => {
-  withTempPackage(
-    {
-      "apps/h/package.json": "{}",
-      "apps/h/src/routes/test/x.ts": "export {};\n",
-      "apps/h/src/routes/a.ts": "import \"./test/x\";\n",
-      "apps/h/src/b.ts": "import \"../tests/y\";\n",
-    },
-    (root) => {
-      const seen = observe("apps/h", ["apps/h/src/routes/a.ts", "apps/h/src/b.ts"], root);
-      assert.deepEqual(seen.testSupport, ["apps/h/src/b.ts → ../tests/y"]);
-    },
-  );
-});
-
-test("observe: 正規表現リテラル（/[/*]/・/'/）の後ろにある試験用の入口の取り込みも止める（#554）", () => {
-  const entry = ["@tasuki", "ui", "test-support"].join("/");
-  withTempPackage(
-    {
-      "apps/r/package.json": "{}",
-      "apps/r/src/a.ts": "const re = /[/*]/;\nconst m = await import(\"" + entry + "/css-text.mjs\");\n",
-      "apps/r/src/b.ts": "const q = /'/.test(s);\nconst m = await import(\"" + entry + "/css-text.mjs\");\n",
-      "apps/r/src/c.ts": "const d = a / b; // " + entry + "/x を読む\n",
-    },
-    (root) => {
-      const seen = observe("apps/r", ["apps/r/src/a.ts", "apps/r/src/b.ts", "apps/r/src/c.ts"], root);
-      assert.deepEqual(seen.testSupport, ["apps/r/src/a.ts", "apps/r/src/b.ts"]);
-    },
-  );
-});
-
-test("observe: e2e パッケージ（e2e/specs・e2e/support）は全体が試験の側なので、共有の解析器を読んでも止めない（#554）", () => {
-  const entry = ["@tasuki", "ui", "test-support"].join("/");
-  withTempPackage(
-    {
-      "e2e/package.json": "{}",
-      "e2e/specs/a.spec.ts": ENTRY_IMPORT,
-      "e2e/support/b.ts": "import \"" + entry + "/css-text.mjs\";\n",
-    },
-    (root) => {
-      const seen = observe("e2e", ["e2e/specs/a.spec.ts", "e2e/support/b.ts"], root);
-      assert.deepEqual(seen.testSupport, []);
-    },
-  );
-});
-
-test("observe: 字句の例。正規表現リテラルの直後の import は止める。文字列の中に指定子の形で書いたものも止める（賢い字句を持たず、偽の緑でなく偽の陽性の側に倒す）（#554）", () => {
-  const entry = ["@tasuki", "ui", "test-support"].join("/");
-  withTempPackage(
-    {
-      "apps/l/package.json": "{}",
-      // (a) URL を含む正規表現リテラルの後ろの import()
-      "apps/l/src/a.ts": "const re = /https?:\\/\\//; import(\"" + entry + "/css-text.mjs\");\n",
-      // (b) /^\\/*/ の後に import、その後ろに /* x */
-      "apps/l/src/b.ts": "const r = /^\\/*/;\nimport \"" + entry + "/css-text.mjs\";\n/* x */\n",
-      // (c) /'/ の後に '/*'、import、'*/'
-      "apps/l/src/c.ts": "const q = /'/;\nconst a = '/*';\nimport \"" + entry + "/css-text.mjs\";\nconst b = '*/';\n",
-      // (d) 文字列の中に指定子の形で書いただけ。止める（文字列を読み分けようとすると、読み分けの穴から取り込みを見逃すので、偽の陽性の側に倒す）
-      "apps/l/src/d.ts": "const s = \"from '" + entry + "/x'\";\n",
-    },
-    (root) => {
-      const files = ["apps/l/src/a.ts", "apps/l/src/b.ts", "apps/l/src/c.ts", "apps/l/src/d.ts"];
-      const seen = observe("apps/l", files, root);
-      assert.deepEqual(seen.testSupport, ["apps/l/src/a.ts", "apps/l/src/b.ts", "apps/l/src/c.ts", "apps/l/src/d.ts"]);
-    },
-  );
-});
-
-test("observe: require.resolve・import.meta.resolve も指定子の位置として止め、JSX の地の文の Don't や ` の入った文字列の後ろの取り込みも見逃さない（#554）", () => {
-  const entry = ["@tasuki", "ui", "test-support"].join("/");
-  withTempPackage(
-    {
-      "apps/j/package.json": "{}",
-      "apps/j/src/a.cjs": "const p = require.resolve(\"" + entry + "/css-text.mjs\");\n",
-      "apps/j/src/b.mjs": "const p = import.meta.resolve(\"" + entry + "/css-text.mjs\");\n",
-      "apps/j/src/c.tsx": "export const A = () => <p>Don't</p>;\nimport \"" + entry + "/css-text.mjs\";\n",
-      "apps/j/src/d.ts": "const t = `a ${'`'} b`;\nimport \"" + entry + "/css-text.mjs\";\n",
-      "apps/j/src/e.ts": "if (ok) /re/.test(s);\nimport \"" + entry + "/css-text.mjs\";\n",
-      "apps/j/src/f.ts": "// " + entry + "/x の注記\n",
-    },
-    (root) => {
-      const files = ["a.cjs", "b.mjs", "c.tsx", "d.ts", "e.ts", "f.ts"].map((f) => "apps/j/src/" + f);
-      const seen = observe("apps/j", files, root);
-      assert.deepEqual(seen.testSupport, ["apps/j/src/a.cjs", "apps/j/src/b.mjs", "apps/j/src/c.tsx", "apps/j/src/d.ts", "apps/j/src/e.ts"]);
-    },
-  );
+test("試験専用のパッケージを許可表に載せていないパッケージは、試験から読んでも違反（#554）", () => {
+  const seen = observeTemp("apps/topic-web", { "apps/topic-web/test/a.test.ts": `import "@tasuki/test-css";\n` });
+  assert.deepEqual(findViolations({ "apps/topic-web": seen }), [
+    { pkg: "apps/topic-web", dep: "@tasuki/test-css", via: "import" },
+  ]);
 });

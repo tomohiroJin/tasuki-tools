@@ -9,13 +9,14 @@
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m492-*.patch
 # 復元: git apply -R scripts/mutations/m492-*.patch
-diff --git a/packages/ui/src/components/room-header.css b/packages/ui/src/components/room-header.css
 --- a/packages/ui/src/components/room-header.css
 +++ b/packages/ui/src/components/room-header.css
-@@ -153,21 +153,6 @@
+@@ -171,21 +171,6 @@
+ @media (width < 40rem) {
+   .ui-room-header-share:not([data-open='true']) {
      display: none;
-   }
- 
+-  }
+-
 -  /* 詰めた見た目の狭い幅では、道具名を目に出さず読み上げにだけ残し、戻るリンクと「仲間を招く」を 1 行に収める。
 -     道具名を出したままだと 2 行（約 90px）になり、390×844 の timer のセッションで計器が下端の帯に潜った（#447 段 2）。
 -     宣言は部品の `.ui-visually-hidden` と同じ。空になった題の箱は伸びて、戻るリンクと「仲間を招く」を右へ寄せる。 */
@@ -29,8 +30,6 @@ diff --git a/packages/ui/src/components/room-header.css b/packages/ui/src/compon
 -    clip-path: inset(50%);
 -    white-space: nowrap;
 -    border-width: 0;
--  }
--
+   }
+ 
    /* 通常の見た目（`:not(.ui-room-header--compact)`）の 40rem 未満は、見出しの行・道具のボタン・戻る・「仲間を招く」を 1 つの折り返す行に並べ直す（#554・#479 の #11・#13）。
-      題は 1 行ぶんの全幅に置き、道具のボタン・戻る・「仲間を招く」は**DOM の順のまま**折り返して詰める（以前は 4 段・poker の 320px で約 230px）。
-      `order` で目の順だけを変えない: Tab と読み上げの順が見た目と食い違う（WCAG 2.4.3・1.3.2）。

@@ -15,7 +15,7 @@ diff --git a/packages/ui/src/components/room-header.css b/packages/ui/src/compon
 @@ -52,8 +52,6 @@
  
  .ui-room-header-invite .ui-invite-url {
-   flex: 1 1 var(--ui-invite-url-basis, 16.55rem);
+   flex: 1 1 15.5rem;
 -  /* 伸びるのは中身の幅まで（短い URL の破線の枠が、行の余りいっぱいの空の枠にならない）。縮むときだけ折り返す */
 -  max-inline-size: max-content;
  }

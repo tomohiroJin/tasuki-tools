@@ -9,14 +9,12 @@
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m1311-*.patch
 # 復元: git apply -R scripts/mutations/m1311-*.patch
-diff --git a/packages/ui/src/components/invite.css b/packages/ui/src/components/invite.css
 --- a/packages/ui/src/components/invite.css
 +++ b/packages/ui/src/components/invite.css
-@@ -29,8 +29,9 @@
+@@ -29,7 +29,9 @@
       欄より長いときは、上限（max-inline-size）と下限（min-inline-size: 0）で欄の幅まで縮み、区切りの無い長い URL でもどこでも折り返して全部見せる（#554） */
    min-inline-size: 0;
    max-inline-size: 100%;
--  overflow-wrap: anywhere;
 -  word-break: break-all;
 +  overflow: hidden;
 +  text-overflow: ellipsis;

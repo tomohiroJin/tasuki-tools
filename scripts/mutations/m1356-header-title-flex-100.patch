@@ -1,0 +1,23 @@
+# 変異 1356: header-title-flex-100
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/dock-and-narrow-header.test.mjs
+#
+# #554 のレビュー。題を 100% にして自分の行へ追い出す。文字 200% の 416〜504px で 3 段になり、main より 64px 高くなる。E2E は段数でも赤。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1356-*.patch
+# 復元: git apply -R scripts/mutations/m1356-*.patch
+--- a/packages/ui/src/components/room-header.css
++++ b/packages/ui/src/components/room-header.css
+@@ -203,6 +203,10 @@
+   .ui-room-header:not(.ui-room-header--compact) .ui-page-header,
+   .ui-room-header:not(.ui-room-header--compact) .ui-room-header-title {
+     display: contents;
++  }
++
++  .ui-room-header:not(.ui-room-header--compact) .ui-room-header-title > h1 {
++    flex: 1 1 100%;
+   }
+ 
+   .ui-room-header:not(.ui-room-header--compact) .ui-room-header-share {

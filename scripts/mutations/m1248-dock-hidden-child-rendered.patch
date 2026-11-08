@@ -9,14 +9,13 @@
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m1248-*.patch
 # 復元: git apply -R scripts/mutations/m1248-*.patch
-diff --git a/packages/ui/src/components/actions.css b/packages/ui/src/components/actions.css
 --- a/packages/ui/src/components/actions.css
 +++ b/packages/ui/src/components/actions.css
 @@ -51,10 +51,6 @@
     - 帯が覆う中身は、最下部までスクロールすると帯の上に出る（帯は流れの中に居るので、中身の下の余白は部品が持つ必要がない）。 */
  /* 数えないもの（`hidden`）は描かない（幅によらない）。`.ui-button { display: inline-flex }` が UA の `[hidden] { display: none }` に勝つので、書かないと
-    「数えない」と決めた子が描かれて段が増える。帯の子を隠すときは `hidden` 属性か `.ui-visually-hidden` を使う（クラスや @media の `display: none` は数え方が知らない） */
--.ui-actions--dock > [hidden] {
+    「数えない」と決めた子が描かれて段が増える。`hidden="until-found"`（ページ内検索で現れる）は描く（`.ui-button` の規則と同じ）。帯の子を隠すときは `hidden` 属性か `.ui-visually-hidden` を使う（クラスや @media の `display: none` は数え方が知らない） */
+-.ui-actions--dock > [hidden]:where(:not([hidden='until-found'])) {
 -  display: none;
 -}
 -

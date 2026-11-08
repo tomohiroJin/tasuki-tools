@@ -9,12 +9,11 @@
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m1224-*.patch
 # 復元: git apply -R scripts/mutations/m1224-*.patch
-diff --git a/packages/ui/src/components/invite.css b/packages/ui/src/components/invite.css
 --- a/packages/ui/src/components/invite.css
 +++ b/packages/ui/src/components/invite.css
-@@ -31,6 +31,7 @@
+@@ -30,6 +30,7 @@
+   min-inline-size: 0;
    max-inline-size: 100%;
-   overflow-wrap: anywhere;
    word-break: break-all;
 +  white-space: nowrap;
    /* 1 回押すと URL 全体が選ばれる。クリップボードが使えない端末（非セキュアオリジン）で、手で選んでコピーする唯一の道（#76 F-1）。

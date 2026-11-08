@@ -9,7 +9,6 @@
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m1292-*.patch
 # 復元: git apply -R scripts/mutations/m1292-*.patch
-diff --git a/packages/ui/src/components/invite.css b/packages/ui/src/components/invite.css
 --- a/packages/ui/src/components/invite.css
 +++ b/packages/ui/src/components/invite.css
 @@ -27,8 +27,6 @@
@@ -18,6 +17,6 @@ diff --git a/packages/ui/src/components/invite.css b/packages/ui/src/components/
       欄より長いときは、上限（max-inline-size）と下限（min-inline-size: 0）で欄の幅まで縮み、区切りの無い長い URL でもどこでも折り返して全部見せる（#554） */
 -  min-inline-size: 0;
 -  max-inline-size: 100%;
-   overflow-wrap: anywhere;
    word-break: break-all;
    /* 1 回押すと URL 全体が選ばれる。クリップボードが使えない端末（非セキュアオリジン）で、手で選んでコピーする唯一の道（#76 F-1）。
+      timer の旧 InvitePanel が持っていた性質を、5 つのアプリの共通の部品へ移した（#447 段 2） */
