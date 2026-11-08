@@ -143,6 +143,9 @@ const RESERVED_1280_1289 =
 const RESERVED_1340_1349 =
   "**対応表より後に足した変異。** 1340〜1349 は #553 に追加で割り当てた範囲（1280〜1289 を使い切ったため。10 回目の指摘で足した。#554 は 1290〜1339 と 1350 番台を使う）。";
 
+const RESERVED_1370_1379 =
+  "**対応表より後に足した変異。** 1370〜1379 は #553 に追加で割り当てた範囲（1340〜1349 を使い切ったため。13 回目の指摘で足した）。";
+
 export const MUTATIONS = [
   {
     id: 1,
@@ -6968,5 +6971,13 @@ export const MUTATIONS = [
     pkg: "packages/ui",
     tests: ["tests/spacing-owner.test.mjs"],
     note: RESERVED_1340_1349 + " " + "#553。3 行の写しの箱が伸びる。以前の契約の正規表現は論理プロパティ（`min-block-size`・`block-size`・`padding-block-end`）を見ていなかった。宣言の名前を取り出して判定する形で赤になる（12 回目の指摘）。",
+  },
+  {
+    id: 1370,
+    label: "`.ui-reader-preview` に 40rem 未満の `@media` の中で縦のある `padding`（一括指定）を足す",
+    patch: "m1370-ui-reader-preview-media-vertical-padding.patch",
+    pkg: "packages/ui",
+    tests: ["tests/spacing-owner.test.mjs"],
+    note: RESERVED_1370_1379 + " " + "#553。3 行の写しの箱が縦の padding で伸びて、4 行目の上端が覗く。以前の契約は `padding` の一括指定を見ず緑だった（13 回目の指摘）。宣言の値の上下を見る形で赤になる。",
   },
 ];

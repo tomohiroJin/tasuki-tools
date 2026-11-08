@@ -396,13 +396,19 @@ test.describe('縦に並ぶブロックの間は親が持つ', () => {
     const row = participantRow(page, 'sp-g');
     await expect(row.getByText('切断中')).toBeVisible();
     // 画面の `.removal-confirm` の margin を（アプリの CSS から）外す。残るのは UA の `dialog { margin: auto }` と、部品のリセットだけ
-    await page.evaluate(() => {
+    const removed = await page.evaluate(() => {
+      let count = 0;
       for (const sheet of Array.from(document.styleSheets)) {
         for (const rule of Array.from(sheet.cssRules)) {
-          if (rule instanceof CSSStyleRule && rule.selectorText === '.removal-confirm') rule.style.removeProperty('margin');
+          if (rule instanceof CSSStyleRule && rule.selectorText === '.removal-confirm' && rule.style.getPropertyValue('margin') !== '') {
+            rule.style.removeProperty('margin');
+            count++;
+          }
         }
       }
+      return count;
     });
+    expect(removed, '外した `.removal-confirm` の margin の規則が 1 つ以上ある（外せないまま通らない）').toBeGreaterThanOrEqual(1);
     await row.getByRole('button', { name: '退出させる' }).click();
     const dialog = page.getByRole('dialog', { name: 'sp-g さんを退出させますか？' });
     await expect(dialog).toBeVisible();
