@@ -82,6 +82,10 @@ test('Given 同じ頭の @media が複数ある CSS / When mediaBlocks を通す
   // 長い条件の @media は同じ頭として拾わない
   const mixed = '@media (width < 64rem) { .a { x: 1; } }\n@media (width < 64rem) and (height < 30rem) { .long { x: 1; } }';
   assert.deepEqual(rules(mediaBlocks(mixed, '@media (width < 64rem)')).map((r) => r.selector), ['.a']);
+  // 複合条件の @media を持つ CSS でも、mediaBlock（1 つだけ）は頭を同じに読む（長い条件を同じ頭と見なして 2 個と数えない）
+  const compound = '@media (width < 64rem) { .a { x: 1; } }\n@media (width < 64rem) and (height < 30rem) { .long { x: 1; } }';
+  assert.deepEqual(rules(mediaBlock(compound, '@media (width < 64rem)')).map((r) => r.selector), ['.a']);
+  assert.throws(() => mediaBlock('@media (width < 64rem) { .a { x: 1; } }\n@media (width < 64rem) { .b { x: 1; } }', '@media (width < 64rem)'), /2 個ある/);
   // outsideMedia も、{ の無い @media（壊れた CSS）は throw する（blockRange）
   assert.throws(() => outsideMedia('.a { x: 1; }\n@media (width < 64rem)'), /波括弧が開かない/);
   // { が見つからない（壊れた CSS）は throw する
@@ -164,7 +168,11 @@ test('Given ボタンの部品 / When button.css を読む / Then hidden の .ui
   assert.match(body, /display:\s*none;/);
 });
 
-test('Given 招待の行 / When コンテナクエリを読む / Then 広い組みの境目は 54rem（URL・コード・ボタンが 1 行に収まる幅。44rem では 768px で URL が 2 行に折れた）', () => {
-  assert.match(read('room-header.css'), /@container ui-room-header-share \(width < 54rem\) \{/);
-  assert.doesNotMatch(read('room-header.css'), /@container ui-room-header-share \(width < 44rem\)/);
+test('Given 招待の行 / When 規則を読む / Then 固定の境目（container query の 44rem・54rem）を置かず、中身の幅で折り返す（URL の長さに依って見出しが 1 段から 3 段になるのを避ける）', () => {
+  const css = read('room-header.css');
+  assert.doesNotMatch(css, /@container ui-room-header-share \(width < (44|54)rem\)/);
+  const invite = only(rules(css), '.ui-room-header-invite');
+  assert.match(invite, /display:\s*flex;/);
+  assert.match(invite, /flex-wrap:\s*wrap;/);
+  assert.match(only(rules(css), '.ui-room-header-invite > .ui-invite'), /display:\s*contents;/);
 });

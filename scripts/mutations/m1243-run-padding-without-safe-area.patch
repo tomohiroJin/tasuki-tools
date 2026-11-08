@@ -5,7 +5,7 @@
 #
 # E2E では env(safe-area-inset-bottom) が 0 なので緑のまま（検出役は agenda の vitest の単体）。
 #
-# #554 のレビュー。iPhone のホームバーの高さが足りず、最下部で最後の行や「最初から」が不透明な帯に隠れる。
+# #554 のレビュー。既定値（JS が動く前・測れない環境）からホームバーの高さが抜け、iPhone で最下部の最後の行や「最初から」が不透明な帯に隠れる。
 #
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m1243-*.patch
@@ -13,12 +13,12 @@
 diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
 --- a/apps/agenda-web/src/run.css
 +++ b/apps/agenda-web/src/run.css
-@@ -32,7 +32,7 @@
-   gap: var(--space-4);
-   /* 帯（`.run-controls`・固定）の高さ（上の `--run-controls-height`）に、iPhone のホームバーの高さ
-      （`env(safe-area-inset-bottom)`・帯も同じだけ下の余白を足している）を足す。足りないと、最下部で最後の行や「最初から」が不透明な帯に隠れる（#554） */
--  padding-bottom: calc(var(--run-controls-height) + env(safe-area-inset-bottom));
-+  padding-bottom: var(--run-controls-height);
+@@ -11,7 +11,7 @@
+    既定値の方にホームバーを含め、使う側では足さない（足すと二重になる） */
+ :root {
+   /* 既定値にホームバーの高さを含める（測った値は border-box で、帯の下の余白の `env(safe-area-inset-bottom)` をすでに含むので、使う側では足さない） */
+-  --run-controls-height: calc(10.5rem + env(safe-area-inset-bottom));
++  --run-controls-height: 10.5rem;
  }
- .run--finished {
-   padding-bottom: 0;
+ 
+ /* 帯が `fixed` の幅（64rem 未満）は、Tab で辿った先が帯の後ろに隠れない（WCAG 2.4.11）よう、フォーカスで送るときの下の余白を帯の高さに揃える。

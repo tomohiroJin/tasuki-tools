@@ -259,3 +259,32 @@ test("observe: require() と new URL(…, import.meta.url) の相対パスで te
     },
   );
 });
+
+test("observe: glob の文字列の中の /* で注釈を始めず、その後ろの試験用の入口の取り込みを止める（#554）", () => {
+  const entry = ["@tasuki", "ui", "test-support"].join("/");
+  withTempPackage(
+    {
+      "apps/g/package.json": "{}",
+      "apps/g/src/glob.ts": "const g = 'tests/**/*.ts';\nconst m = await import(\"" + entry + "/css-text.mjs\"); /* 閉じ */\nconst h = 'x/*.ts';\n",
+    },
+    (root) => {
+      const seen = observe("apps/g", ["apps/g/src/glob.ts"], root);
+      assert.deepEqual(seen.testSupport, ["apps/g/src/glob.ts"]);
+    },
+  );
+});
+
+test("observe: src の中の test/ フォルダを相対パスで読んでも通り、パッケージ直下の tests/ は止める（#554）", () => {
+  withTempPackage(
+    {
+      "apps/h/package.json": "{}",
+      "apps/h/src/routes/test/x.ts": "export {};\n",
+      "apps/h/src/routes/a.ts": "import \"./test/x\";\n",
+      "apps/h/src/b.ts": "import \"../tests/y\";\n",
+    },
+    (root) => {
+      const seen = observe("apps/h", ["apps/h/src/routes/a.ts", "apps/h/src/b.ts"], root);
+      assert.deepEqual(seen.testSupport, ["apps/h/src/b.ts → ../tests/y"]);
+    },
+  );
+});

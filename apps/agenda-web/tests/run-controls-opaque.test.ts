@@ -31,17 +31,20 @@ describe('手元の操作の帯', () => {
     expect(bodyWith('.run-controls', 'position: fixed')).toMatch(/padding:\s*var\(--space-4\) /);
   });
 
-  it('Given 帯の下の余白 / When 式を見る / Then 帯の高さの変数 ＋ env(safe-area-inset-bottom)（帯も同じ safe-area を足している）', () => {
+  it('Given 帯の下の余白 / When 式を見る / Then 帯の下の余白は測った帯の高さの変数だけ（border-box で、帯の safe-area を含む。使う側では足さない）', () => {
     expect(bodyWith('.run-controls', 'position: fixed')).toMatch(/calc\(var\(--space-4\) \+ env\(safe-area-inset-bottom\)\)/);
-    const run = bodyWith('.run', 'padding-bottom: calc(');
-    expect(run).toMatch(/padding-bottom:\s*calc\(var\(--run-controls-height\) \+ env\(safe-area-inset-bottom\)\);/);
+    const run = bodyWith('.run', 'padding-bottom: var(--run-controls-height)');
+    expect(run).toMatch(/padding-bottom:\s*var\(--run-controls-height\);/);
+    expect(run).not.toMatch(/safe-area/); // 測った値（border-box）がホームバーを含むので足さない（二重にしない）
     // 変数は :root に無条件で 1 か所。Tab の送り先の余白（scroll-padding）は 64rem 未満だけ（帯が fixed の幅）で、:has は宣言を置く条件だけに使う
-    expect(bodyWith(':root', '--run-controls-height', outsideMedia(css))).toMatch(/--run-controls-height:\s*10\.5rem;/);
+    // 既定値にホームバーの高さを含める（測った値は border-box で含むので、使う側では足さない）
+    expect(bodyWith(':root', '--run-controls-height', outsideMedia(css))).toMatch(/--run-controls-height:\s*calc\(10\.5rem \+ env\(safe-area-inset-bottom\)\);/);
     // Tab の送り先の余白は 64rem 未満の @media の中だけ（64rem 以上は帯が流れの中なので掛けない）
     const narrow = mediaBlocks(css, '@media (width < 64rem)');
     expect(outsideMedia(css)).not.toContain('scroll-padding-block-end');
     const root = bodyWith('html:has(.run-controls)', 'scroll-padding-block-end', narrow);
-    expect(root).toMatch(/scroll-padding-block-end:\s*calc\(var\(--run-controls-height\) \+ env\(safe-area-inset-bottom\)\);/);
+    expect(root).toMatch(/scroll-padding-block-end:\s*var\(--run-controls-height\);/);
+    expect(root).not.toMatch(/safe-area/);
     expect(root).not.toMatch(/--run-controls-height\s*:/);
   });
 });

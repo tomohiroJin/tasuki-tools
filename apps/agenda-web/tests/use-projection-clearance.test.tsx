@@ -20,8 +20,15 @@ function Probe({ shown }: { shown: boolean }) {
   );
 }
 
+let listeners: Array<() => void> = [];
+let matches = true;
+
 function stubGeometry({ contentBottom, scrollHeight, stripHeight }: { contentBottom: number; scrollHeight: number; stripHeight: number }) {
   vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
+  vi.stubGlobal('MutationObserver', class { observe() {} disconnect() {} });
+  listeners = [];
+  matches = true;
+  vi.stubGlobal('matchMedia', () => ({ get matches() { return matches; }, addEventListener: (_: string, cb: () => void) => { listeners.push(cb); }, removeEventListener: () => undefined }));
   vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
     if (this.dataset.testid === 'content') return { height: 10, bottom: contentBottom, top: 0 } as DOMRect;
     if (this.dataset.testid === 'root') return { height: scrollHeight, bottom: scrollHeight, top: 0 } as DOMRect;
@@ -63,5 +70,25 @@ describe('useProjectionClearance', () => {
     stubGeometry({ contentBottom: 520, scrollHeight: 568, stripHeight: 149 });
     const { getByTestId } = render(<Probe shown={false} />);
     expect(getByTestId('root').style.getPropertyValue('--projection-clearance')).toBe('0px');
+  });
+
+  it('Given CSS が変数を使わない幅（広い画面） / When 描く / Then 測らず、余白の変数を書かない', () => {
+    stubGeometry({ contentBottom: 520, scrollHeight: 568, stripHeight: 149 });
+    matches = false;
+    const { getByTestId } = render(<Probe shown />);
+    expect(getByTestId('root').style.getPropertyValue('--projection-clearance')).toBe('');
+  });
+
+  it('Given 狭い幅で余白を取っている / When 幅が広い側へ変わる / Then 変数を消して止め、狭い側へ戻れば測り直す', () => {
+    stubGeometry({ contentBottom: 520, scrollHeight: 568, stripHeight: 149 });
+    const { getByTestId } = render(<Probe shown />);
+    const root = getByTestId('root');
+    expect(parseFloat(root.style.getPropertyValue('--projection-clearance'))).toBeGreaterThan(0);
+    matches = false;
+    for (const cb of listeners) cb();
+    expect(root.style.getPropertyValue('--projection-clearance')).toBe('');
+    matches = true;
+    for (const cb of listeners) cb();
+    expect(parseFloat(root.style.getPropertyValue('--projection-clearance'))).toBeGreaterThan(0);
   });
 });

@@ -1,0 +1,23 @@
+# 変異 1319: projection-clearance-focus-listeners-dropped
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/use-projection-clearance.test.tsx
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外。Tab だけで帯へ入ったとき最下部で中身が帯に隠れて赤）
+#
+# #554 のレビュー。フォーカスの移動で測り直さず、Tab で帯へ入ると帯は見えるのに余白が 0 のままで中身が隠れる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1319-*.patch
+# 復元: git apply -R scripts/mutations/m1319-*.patch
+diff --git a/apps/agenda-web/src/hooks/use-projection-clearance.ts b/apps/agenda-web/src/hooks/use-projection-clearance.ts
+--- a/apps/agenda-web/src/hooks/use-projection-clearance.ts
++++ b/apps/agenda-web/src/hooks/use-projection-clearance.ts
+@@ -86,8 +86,6 @@
+       });
+       mo.observe(body, { childList: true });
+       // 帯が出ているかの判定は CSS の :focus-within にも依る（Tab で帯へ入ると shown の状態は変わらないのに帯が見える）。フォーカスが動くたびに測り直す
+-      strip.addEventListener('focusin', onFocusChange);
+-      strip.addEventListener('focusout', onFocusChange);
+       observing = observer;
+       mutations = mo;
+       apply();

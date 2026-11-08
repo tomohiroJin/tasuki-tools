@@ -12,11 +12,11 @@
 diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
 --- a/apps/agenda-web/src/run.css
 +++ b/apps/agenda-web/src/run.css
-@@ -32,7 +32,7 @@
+@@ -33,7 +33,7 @@
+     'aside';
    gap: var(--space-4);
-   /* 帯（`.run-controls`・固定）の高さ（上の `--run-controls-height`）に、iPhone のホームバーの高さ
-      （`env(safe-area-inset-bottom)`・帯も同じだけ下の余白を足している）を足す。足りないと、最下部で最後の行や「最初から」が不透明な帯に隠れる（#554） */
--  padding-bottom: calc(var(--run-controls-height) + env(safe-area-inset-bottom));
+   /* 帯（`.run-controls`・固定）の高さ（上の `--run-controls-height`。ホームバーの高さを含む）を下の余白に取る。足りないと、最下部で最後の行や「最初から」が不透明な帯に隠れる（#554） */
+-  padding-bottom: var(--run-controls-height);
 +  padding-bottom: 0;
  }
  .run--finished {

@@ -16,6 +16,7 @@ function Probe() {
 describe('useMeasuredBlockSize', () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
     document.documentElement.style.removeProperty('--probe-height');
   });
 
@@ -31,7 +32,6 @@ describe('useMeasuredBlockSize', () => {
     expect(document.documentElement.style.getPropertyValue('--probe-height')).toBe('380px');
     view.unmount();
     expect(document.documentElement.style.getPropertyValue('--probe-height')).toBe('');
-    vi.restoreAllMocks();
   });
 
   it('Given ResizeObserver が無い環境 / When 描く / Then 何も書かず、CSS の既定値に任せる', () => {

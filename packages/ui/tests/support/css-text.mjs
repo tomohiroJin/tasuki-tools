@@ -24,16 +24,6 @@ function blockRange(plain, open) {
   throw new Error('波括弧が閉じていない');
 }
 
-/** `head` で始まる @media の中身。同じ頭が 2 つあれば読み分けられないので赤にする。 */
-export function mediaBlock(css, head) {
-  const plain = stripComments(css);
-  const at = plain.indexOf(head);
-  assert.notEqual(at, -1, `${head} が無い`);
-  assert.equal(plain.indexOf(head, at + 1), -1, `${head} が 2 つ以上ある。この検査では読み分けられない`);
-  const [start, end] = blockRange(plain, plain.indexOf('{', at));
-  return plain.slice(start, end);
-}
-
 /** 同じ頭の @media の中身を全部つないで返す（同じ頭が複数あってよい）。1 つも無ければ赤。閉じ括弧が欠けていれば throw する。 */
 export function mediaBlocks(css, head) {
   const plain = stripComments(css);
@@ -106,4 +96,15 @@ export function only(list, selector) {
   const found = list.filter((r) => r.selector === want);
   assert.equal(found.length, 1, `\`${want}\` の規則がちょうど 1 つではない（${found.length} 件）`);
   return found[0].body;
+}
+
+/**
+ * `head` の @media の中身を 1 つだけ返す。同じ頭が複数あれば赤にする（読み分けられない）。頭の解釈は `mediaBlocks` と同じ
+ * （長い条件の `@media (width < 64rem) and (...)` を同じ頭として拾わない）。
+ */
+export function mediaBlock(css, head) {
+  const plain = stripComments(css);
+  const count = [...plain.matchAll(new RegExp(`${head.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=\\s*\\{)`, 'g'))].length;
+  assert.equal(count, 1, `${head} が ${count} 個ある（1 個だけのはず。この検査では読み分けられない）`);
+  return mediaBlocks(css, head);
 }

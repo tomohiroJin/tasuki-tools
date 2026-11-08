@@ -1,0 +1,22 @@
+# 変異 1325: audit-strip-comments-naive
+#
+# 検出を期待するテスト:
+#   - scripts/audit-dependency-direction.test.mjs
+#
+# #554 のレビュー。文字列の中の /* を注釈の開始と見なし、glob の文字列の後ろにある取り込みを見逃す。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1325-*.patch
+# 復元: git apply -R scripts/mutations/m1325-*.patch
+diff --git a/scripts/audit-dependency-direction.mjs b/scripts/audit-dependency-direction.mjs
+--- a/scripts/audit-dependency-direction.mjs
++++ b/scripts/audit-dependency-direction.mjs
+@@ -374,7 +374,7 @@
+       const end = text.indexOf("*/", i + 2);
+       out += " ";
+       i = end === -1 ? text.length : end + 2;
+-    } else if (c === '"' || c === "'" || c === "`") {
++    } else if (false) {
+       const quote = c;
+       out += c;
+       i += 1;

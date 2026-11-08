@@ -12,11 +12,11 @@
 diff --git a/apps/agenda-web/src/hooks/use-projection-clearance.ts b/apps/agenda-web/src/hooks/use-projection-clearance.ts
 --- a/apps/agenda-web/src/hooks/use-projection-clearance.ts
 +++ b/apps/agenda-web/src/hooks/use-projection-clearance.ts
-@@ -43,7 +43,6 @@
-           const need = stripHeight - spaceBelowContent();
-           if (need <= 0.5) break;
-           clearance += need;
--          root.style.setProperty('--projection-body-pin', `${pinned}px`);
-           root.style.setProperty('--projection-clearance', `${clearance}px`);
-         }
+@@ -51,7 +51,6 @@
+         const need = stripHeight - spaceBelowContent();
+         if (need <= 0.5) break;
+         clearance += Math.ceil(need);
+-        root.style.setProperty('--projection-body-pin', `${pinned}px`);
+         root.style.setProperty('--projection-clearance', `${clearance}px`);
        }
+     };

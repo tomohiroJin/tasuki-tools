@@ -11,12 +11,12 @@
 diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
 --- a/apps/agenda-web/src/run.css
 +++ b/apps/agenda-web/src/run.css
-@@ -14,7 +14,7 @@
+@@ -16,7 +16,7 @@
  
  /* 帯が `fixed` の幅（64rem 未満）は、Tab で辿った先が帯の後ろに隠れない（WCAG 2.4.11）よう、フォーカスで送るときの下の余白を帯の高さに揃える。
     agenda には部品の帯（`.ui-actions--dock`）が無いので、要素層（reset.css）の `html:has(.ui-actions--dock)` は効かない。ここで `html:has(.run-controls)` に同じ式を置く。`:has` は宣言を置く条件だけに使う */
 -@media (width < 64rem) {
 +@media (width >= 0rem) {
    html:has(.run-controls) {
-     scroll-padding-block-end: calc(var(--run-controls-height) + env(safe-area-inset-bottom));
+     scroll-padding-block-end: var(--run-controls-height);
    }

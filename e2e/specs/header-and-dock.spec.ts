@@ -17,7 +17,8 @@ import { joinAgendaTool, loadSampleAndStart, openAgendaTool } from '../support/a
 import { chooseMethod, handCard, joinCheckinTool, openCheckinTool } from '../support/checkin';
 import { chooseCard, createRoom as createPokerRoom, joinRoom as joinPokerRoom, turnRecordingOn } from '../support/poker';
 import { createRoom as createTimerRoom } from '../support/timer';
-import { joinTopicTool, setTopic } from '../support/topic';
+import { openRouletteTool } from '../support/roulette';
+import { joinTopicTool, openTopicTool, setTopic } from '../support/topic';
 
 /** 見出しの全体の高さの上限（px）。poker の 320px で、題・戻る＋記録する・仲間を招くの 3 段（実測 124px）に収める。以前は 4 段で約 230px。 */
 const HEADER_MAX_HEIGHT = 140;
@@ -488,8 +489,9 @@ test.describe('agenda の進行中の帯', () => {
         return limit > 0 && bar <= limit + 0.01;
       }), { message: `agenda 帯の高さ（${width}）が --run-controls-height を超える` }).toBe(true);
     }
-    // 文字を 200% にする（390 幅）: 帯が高くなっても、帯の高さは測って変数へ書かれ、最下部で最後の行・「最初から」が帯に隠れない
-    await page.setViewportSize({ width: 390, height: 800 });
+    // 文字を 200% にする（390×844・320×568。小数の高さを切り上げて、最下部で 1px 重ならない）: 帯が高くなっても、帯の高さは測って変数へ書かれ、最下部で最後の行・「最初から」が帯に隠れない
+    for (const [fw, fh] of [[390, 844], [320, 568]] as const) {
+    await page.setViewportSize({ width: fw, height: fh });
     await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
     await expect.poll(async () => page.evaluate(() => {
       const bar = document.querySelector('.run-controls')!.getBoundingClientRect().height;
@@ -500,8 +502,9 @@ test.describe('agenda の進行中の帯', () => {
       probe.remove();
       return limit > 0 && bar <= limit + 0.01;
     }), { message: 'agenda 文字 200%: 帯の高さが --run-controls-height（測った値）を超える' }).toBe(true);
-    await expectContentClearOfDock(page, dock, 'agenda 文字 200%（390）');
+    await expectContentClearOfDock(page, dock, `agenda 文字 200%（${fw}×${fh}）`);
     await page.evaluate(() => { document.documentElement.style.fontSize = ''; window.scrollTo(0, 0); });
+    }
     // 文字の大きさを変えても rem で線形に伸びるだけで、手書きの既定値（10.5rem）でも足りてしまう。帯が既定値より高くなる状況（端末の文字設定・長い翻訳・操作の追加など）は、
     // 帯に高い子を足して作る。測った値が変数に書かれなければ、既定値が帯の高さより低くなって赤になる
     await page.evaluate(() => { const extra = document.createElement('div'); extra.id = '__tall'; extra.style.height = '12rem'; document.querySelector('.run-controls')!.append(extra); });
@@ -750,6 +753,16 @@ test.describe('agenda の映す表示の帯', () => {
       await page.setViewportSize({ width, height });
       await exit.focus();
       await expect(strip).toHaveCSS('opacity', '1');
+      // 帯の高さは ResizeObserver が測って変数へ書く（幅を変えた直後は書き換わる前なので、揃うまで待つ）
+      await expect.poll(async () => page.evaluate(() => {
+        const bar = document.querySelector('.projection-strip')!.getBoundingClientRect().height;
+        const probe = document.createElement('div');
+        probe.style.height = getComputedStyle(document.documentElement).getPropertyValue('--projection-strip-height').trim();
+        document.body.append(probe);
+        const limit = probe.getBoundingClientRect().height;
+        probe.remove();
+        return bar <= limit + 0.01;
+      })).toBe(true);
       const m = await page.evaluate(() => {
         const root = document.querySelector('.projection')!;
         root.scrollTo(0, root.scrollHeight);
@@ -798,6 +811,91 @@ test.describe('長い招待の URL', () => {
       // 全文が見える（省略しない・箱の中で横に切れない。クリップボードが使えない端末では目で読むしかない）
       expect(m.ellipsis, `長い URL（${width}）が省略される設定になっている`).toBe(false);
       expect(m.urlScrollW, `長い URL（${width}）が箱の中で切れている（scrollWidth ${m.urlScrollW} > clientWidth ${m.urlClientW}）`).toBeLessThanOrEqual(m.urlClientW + 1);
+    }
+  });
+});
+
+test.describe('agenda の映す表示: キーボードで帯を出す・中身が伸びる', () => {
+  /** 最下部まで送り、中身（body の子）の下端と帯の上端の差（正なら重なる）を返す。 */
+  const overlapAtBottom = async (page: Page): Promise<number> =>
+    page.evaluate(() => {
+      const root = document.querySelector('.projection')!;
+      root.scrollTo(0, root.scrollHeight);
+      const strip = document.querySelector('.projection-strip')!.getBoundingClientRect();
+      let bottom = -Infinity;
+      for (const child of Array.from(document.querySelectorAll('.projection-body > *'))) {
+        const r = child.getBoundingClientRect();
+        if (r.height > 0) bottom = Math.max(bottom, r.bottom);
+      }
+      return bottom - strip.top;
+    });
+
+  for (const [width, height] of [[320, 568], [568, 320]] as const) {
+    test(`Given 映す表示（${width}×${height}・マウスに触れない） / When Tab だけで帯へ入る / Then 帯が見える間、最下部まで送ると中身が帯に隠れない。帯が出ている間に中身が伸びても同じ`, async ({ page }) => {
+      test.setTimeout(120_000);
+      await page.setViewportSize({ width, height });
+      await openAgendaTool(page, 'header-projection-kbd');
+      await loadSampleAndStart(page);
+      // 映す表示へはキーボードで入る（マウスを動かすと帯が reveal されて、フォーカスの経路を測れなくなる）
+      await page.getByRole('button', { name: '映す表示', exact: true }).focus();
+      await page.keyboard.press('Enter');
+      await expect(page.locator('.projection')).toBeVisible();
+      const strip = page.locator('.projection-strip');
+      await expect(strip).not.toHaveClass(/is-shown/, { timeout: 8000 });
+      // Tab だけで帯の中へ入る（帯は :focus-within で見える。shown の状態は変わらない）
+      for (let i = 0; i < 12; i += 1) {
+        await page.keyboard.press('Tab');
+        if (await page.evaluate(() => document.activeElement?.closest('.projection-strip') !== null)) break;
+      }
+      expect(await page.evaluate(() => document.activeElement?.closest('.projection-strip') !== null), 'Tab で帯へ入れない').toBe(true);
+      await expect(strip).toHaveCSS('opacity', '1');
+      await expect.poll(async () => overlapAtBottom(page), { message: `映す表示（${width}×${height}）: Tab で帯へ入ったとき、最下部で中身が帯に隠れる` }).toBeLessThanOrEqual(0.5);
+      // 帯が出ている間に中身が伸びる（長い名前）: 測り直して、やはり隠れない
+      await page.evaluate(() => {
+        const next = document.querySelector('.projection-next') ?? document.querySelector('.projection-side dd');
+        if (next) next.textContent = 'ながいなまえのつぎのすてっぷがここにはいりますよろしくおねがいします'.repeat(3);
+      });
+      await expect.poll(async () => overlapAtBottom(page), { message: `映す表示（${width}×${height}）: 帯が出ている間に中身が伸びたとき、最下部で中身が帯に隠れる` }).toBeLessThanOrEqual(0.5);
+    });
+  }
+});
+
+/**
+ * main（#554 の前）の見出しの高さ（px）。6 アプリ × 幅。招待の行を「仲間を招く」で開いた状態で測った実測値。
+ * 768・800px は main で URL が 2 行に折れた幅（#5 の欠陥）なので、比べない。ここで測るのは、固定の境目で見出しが main より高くならないこと（863〜939px で 1 段が 3 段になった）。
+ */
+const MAIN_HEADER_HEIGHT: Record<string, Record<number, number>> = {
+  poker: { 320: 331, 390: 265, 640: 175, 700: 175, 864: 95, 900: 95, 1024: 95, 1280: 97 },
+  topic: { 320: 239, 390: 217, 640: 175, 700: 175, 864: 95, 900: 95, 1024: 95, 1280: 97 },
+  agenda: { 320: 239, 390: 217, 640: 175, 700: 175, 864: 95, 900: 95, 1024: 95, 1280: 97 },
+  checkin: { 320: 307, 390: 257, 640: 175, 700: 175, 864: 95, 900: 95, 1024: 95, 1280: 97 },
+  roulette: { 320: 279, 390: 217, 640: 175, 700: 175, 864: 95, 900: 95, 1024: 95, 1280: 97 },
+  timer: { 320: 279, 390: 217, 640: 175, 700: 175, 864: 95, 900: 95, 1024: 95, 1280: 97 },
+};
+
+test.describe('見出しの高さは main 以下（固定の境目で段が増えない）', () => {
+  test('Given 6 アプリのルーム / When 320〜1280 で招待の行を開いて見出しを測る / Then どの幅でも main の高さ以下', async ({ page }) => {
+    test.setTimeout(300_000);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const openers: Array<[string, () => Promise<unknown>]> = [
+      ['poker', () => createPokerRoom(page, 'hdr-poker')],
+      ['topic', () => openTopicTool(page, 'hdr-topic')],
+      ['agenda', () => openAgendaTool(page, 'hdr-agenda')],
+      ['checkin', () => openCheckinTool(page, 'hdr-checkin')],
+      ['roulette', () => openRouletteTool(page, 'hdr-roulette')],
+      ['timer', () => createTimerRoom(page, 'hdr-timer')],
+    ];
+    for (const [app, open] of openers) {
+      await open();
+      for (const [widthText, mainHeight] of Object.entries(MAIN_HEADER_HEIGHT[app]!)) {
+        const width = Number(widthText);
+        await page.setViewportSize({ width, height: 900 });
+        const toggle = page.getByRole('button', { name: '仲間を招く' });
+        if ((await toggle.isVisible()) && (await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
+        await expect.poll(async () => page.locator('.ui-room-header').first().evaluate((e) => e.getBoundingClientRect().height), {
+          message: `${app}（${width}）: 見出しが main（${mainHeight}px）より高い`,
+        }).toBeLessThanOrEqual(mainHeight + 1);
+      }
     }
   });
 });

@@ -1,0 +1,22 @@
+# 変異 1323: audit-test-folder-anywhere
+#
+# 検出を期待するテスト:
+#   - scripts/audit-dependency-direction.test.mjs
+#
+# #554 のレビュー。src の中の test/ フォルダ（src/routes/test/x.ts）を読む取り込みまで試験用の入口として誤検知する。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1323-*.patch
+# 復元: git apply -R scripts/mutations/m1323-*.patch
+diff --git a/scripts/audit-dependency-direction.mjs b/scripts/audit-dependency-direction.mjs
+--- a/scripts/audit-dependency-direction.mjs
++++ b/scripts/audit-dependency-direction.mjs
+@@ -429,7 +429,7 @@
+       // `new URL(…, import.meta.url)` は取り込みでなくファイルの読み取りにも使う（試験がリポジトリの根を読む）ので、越境には数えず、tests・test への参照だけ見る
+       if (m[1] !== undefined && !target.startsWith(`${pkg}/`)) escapes.push(`${rel} → ${spec}`);
+       // 製品コード（src）から、同じパッケージの tests・test を相対パスで読むのも試験用の入口と同じ（越境でも @tasuki/ でもないので、ここで拾う）
+-      if (isProductFile && (target.startsWith(`${pkg}/tests/`) || target.startsWith(`${pkg}/test/`))) testSupport.push(`${rel} → ${spec}`);
++      if (isProductFile && /(^|\/)tests?\//.test(target.slice(pkg.length))) testSupport.push(`${rel} → ${spec}`);
+     }
+   }
+   return { manifest, imports, escapes, testSupport };

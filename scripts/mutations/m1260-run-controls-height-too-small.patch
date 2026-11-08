@@ -15,11 +15,11 @@
 diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
 --- a/apps/agenda-web/src/run.css
 +++ b/apps/agenda-web/src/run.css
-@@ -9,7 +9,7 @@
-    ここの値は JS が動く前の既定値で、既定の文字の大きさの実測（320〜639px で 161.39〜162.22px、640〜1023px で 133px）より大きく丸めた手書きの値。
-    `.run` の下の余白と、Tab の送り先の余白（下の `scroll-padding-block-end`）が同じ値を引く */
+@@ -11,7 +11,7 @@
+    既定値の方にホームバーを含め、使う側では足さない（足すと二重になる） */
  :root {
--  --run-controls-height: 10.5rem;
+   /* 既定値にホームバーの高さを含める（測った値は border-box で、帯の下の余白の `env(safe-area-inset-bottom)` をすでに含むので、使う側では足さない） */
+-  --run-controls-height: calc(10.5rem + env(safe-area-inset-bottom));
 +  --run-controls-height: 8rem;
  }
  

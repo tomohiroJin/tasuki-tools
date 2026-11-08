@@ -107,6 +107,9 @@ const RESERVED_1010_1019 =
 const RESERVED_1020_1029 =
   "**対応表より後に足した変異。** 1020〜1029 は #547 に割り当てた範囲。";
 
+const RESERVED_1320_1329 =
+  "**対応表より後に足した変異。** 1320〜1329 は #554 に追加で割り当てた範囲（1310〜1319 を使い切る前に、11 回目の指摘で足した。main の宣言は 1083・#553 の枝は 1200〜1289 で重ならない）。";
+
 const RESERVED_1310_1319 =
   "**対応表より後に足した変異。** 1310〜1319 は #554 に追加で割り当てた範囲（1300〜1309 を使い切ったため。main の宣言は 1083 までで重ならないことを確かめた）。";
 
@@ -6595,11 +6598,11 @@ export const MUTATIONS = [
   },
   {
     id: 1243,
-    label: "agenda の手元の下の余白から env(safe-area-inset-bottom) を外す",
+    label: "agenda の帯の高さの既定値（--run-controls-height）から、ホームバーの高さを外す",
     patch: "m1243-run-padding-without-safe-area.patch",
     pkg: "apps/agenda-web",
     tests: ["tests/run-controls-opaque.test.ts"],
-    note: RESERVED_1240_1249 + " " + "#554 のレビュー。iPhone のホームバーの高さが足りず、最下部で最後の行や「最初から」が不透明な帯に隠れる。E2E では env(safe-area-inset-bottom) が 0 なので緑のまま（検出役は agenda の vitest の単体）。",
+    note: RESERVED_1240_1249 + " " + "#554 のレビュー。既定値（測れない環境・JS が動く前）からホームバーの高さが抜け、iPhone で最下部の最後の行や「最初から」が不透明な帯に隠れる。E2E では env(safe-area-inset-bottom) が 0 なので緑のまま（検出役は agenda の vitest の単体）。",
   },
   {
     id: 1244,
@@ -6923,11 +6926,11 @@ export const MUTATIONS = [
   },
   {
     id: 1314,
-    label: "招待の行の広い組みの境目を 54rem から 44rem に戻す",
-    patch: "m1314-wide-invite-breakpoint-44rem.patch",
+    label: "招待の行に固定の境目（container query の 54rem）を置く（URL を自分の行にし、864〜939px で見出しが 3 段になる）",
+    patch: "m1314-invite-fixed-container-breakpoint-54rem.patch",
     pkg: "packages/ui",
     tests: ["tests/dock-and-narrow-header.test.mjs"],
-    note: RESERVED_1310_1319 + " " + "#554 のレビュー。768px で URL が 2 行に折れる。E2E で赤。",
+    note: RESERVED_1310_1319 + " " + "#554 のレビュー。固定の境目を置くと、864〜939px で見出しが 1 段から 3 段になる。E2E は 6 アプリ × 幅で見出しの高さが main 以下であることで赤になる。",
   },
   {
     id: 1315,
@@ -6960,5 +6963,45 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["audit-dependency-direction.test.mjs"],
     note: RESERVED_1310_1319 + " " + "#554 のレビュー。require で tests を読む取り込みを見逃す。",
+  },
+  {
+    id: 1321,
+    label: "agenda の帯の下の余白に、測った高さへさらにホームバーの高さを足す（二重になる）",
+    patch: "m1321-run-controls-safe-area-doubled.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/run-controls-opaque.test.ts"],
+    note: RESERVED_1320_1329 + " " + "#554 のレビュー。測った帯の高さ（border-box）がホームバーを含むのに使う側でも足し、iPhone で二重になる。E2E では safe-area が 0 で緑のまま。",
+  },
+  {
+    id: 1322,
+    label: "映す表示の余白の hook から、CSS が変数を使う幅への絞り込み（matchMedia）を外す",
+    patch: "m1322-projection-clearance-media-gate-dropped.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/use-projection-clearance.test.tsx"],
+    note: RESERVED_1320_1329 + " " + "#554 のレビュー。広い画面でも測って余白の変数を書く。",
+  },
+  {
+    id: 1323,
+    label: "依存の監査の相対パス判定を、src の中の test/ フォルダにも当てる",
+    patch: "m1323-audit-test-folder-anywhere.patch",
+    pkg: "scripts",
+    tests: ["audit-dependency-direction.test.mjs"],
+    note: RESERVED_1320_1329 + " " + "#554 のレビュー。src/routes/test/x.ts を読む取り込みを誤検知する。",
+  },
+  {
+    id: 1324,
+    label: "共有の mediaBlock が、同じ頭の @media の個数を確かめない",
+    patch: "m1324-css-text-media-block-prefix.patch",
+    pkg: "packages/ui",
+    tests: ["tests/dock-and-narrow-header.test.mjs"],
+    note: RESERVED_1320_1329 + " " + "#554 のレビュー。同じ頭が複数あっても赤にならない。",
+  },
+  {
+    id: 1325,
+    label: "依存の監査の注釈除去が、文字列の中の /* を注釈の開始と見なす",
+    patch: "m1325-audit-strip-comments-naive.patch",
+    pkg: "scripts",
+    tests: ["audit-dependency-direction.test.mjs"],
+    note: RESERVED_1320_1329 + " " + "#554 のレビュー。glob の文字列の後ろの取り込みを見逃す。",
   },
 ];
