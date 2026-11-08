@@ -214,9 +214,9 @@
 }
 
 .method-prompt {
-  /* 文節で折り、行の長さを揃える。最後の 1〜2 字だけが 2 行目へ落ちない（#555 一覧 #30） */
+  /* 行の長さを揃える。最後の 1〜2 字だけが 2 行目へ落ちない（#555 一覧 #30）。
+     `word-break: auto-phrase`（文節で折る）は足さない。320・640 で「…持ち帰りたいです／か？」と最後の行が 2 字になった */
   overflow-wrap: anywhere;
-  word-break: auto-phrase;
   text-wrap: balance;
   color: var(--ivory-dim);
   font-size: var(--font-size-xs);
@@ -353,9 +353,12 @@
 }
 
 .seat-list {
-  /* 席は行の幅を等分して並べる（右に端数の空きを残さない。poker の席と同じ型・#555 一覧 #9・#28） */
+  /* 席は行の幅を等分して並べる。poker の席と同じ型（#555 一覧 #9・#28）。
+     `auto-fit` で空の列を畳み、列の幅は 6.5rem 以上・10rem 以下にする。人数が列の数より少ないとき、席が全幅に引き伸ばされず、
+     余りは並びの両側へ均等に出る（`justify-content: center`）。行が埋まる人数では、列が 10rem に届くまで引き伸ばして右端が揃う。 */
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(6.5rem, 10rem));
+  justify-content: center;
   align-items: start;
   gap: var(--space-4);
   margin: 0;
@@ -416,17 +419,14 @@
   flex-wrap: wrap;
   gap: var(--space-1) var(--space-4);
   margin: 0;
+  /* 席の並びは中央に置かれる（`.seat-list`）ので、人数の行も中央に置いて席と揃える（#555 一覧 #28）。
+     人数が少なくても、席の並びの中心と人数の字の中心が一致する */
+  justify-content: center;
+  text-align: center;
   color: var(--ivory-faint);
   font-size: var(--font-size-sm);
 }
 
-/* 席が行の幅を等分して全幅に並ぶ幅（40rem 未満）では、人数の行も中央に置いて席と揃える（#555 一覧 #28） */
-@media (width < 40rem) {
-  .seat-count {
-    justify-content: center;
-    text-align: center;
-  }
-}
 
 /* ---------- 手札 ---------- */
 .hand-area,
@@ -462,7 +462,7 @@
   --hand-card-min: max(7rem, calc(var(--font-size-sm) * 8 + 0.25rem));
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(var(--hand-card-min), 1fr));
-  align-items: start;
+  align-items: stretch; /* 同じ行の札のボタンは高さを揃える（添え書きの行数が違っても） */
   align-self: stretch; /* 親（`.hand-area`）は `align-items: flex-start`。幅を縮めると 1 列になる */
   gap: var(--space-4);
   padding-block-start: var(--space-4); /* 選んだ札が浮いても上に切れない */

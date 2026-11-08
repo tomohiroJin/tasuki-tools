@@ -1,6 +1,6 @@
 // 参加者一覧（入退室・投票状態をリアルタイム表示。FR-004）
 // 投票済みは「伏せたカード」で表現し、公開で同じ札がその場でめくれて表の値を見せる（#348）
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent } from 'react';
 import { participantLabel } from '@tasuki/room-core';
 import type { Card, ParticipantView } from '@tasuki/poker-core';
 import { cardLabel } from './CardHand';
@@ -38,6 +38,53 @@ function SeatCard({ hasVoted, vote, order }: { hasVoted: boolean; vote: Card | u
         <span className="seat-card-back" />
         <span className="seat-card-face">{vote ? cardLabel(vote) : ''}</span>
       </span>
+    </span>
+  );
+}
+
+/**
+ * 席の名前。3 行で省略される（CSS の `line-clamp`）ときだけ、押して全文に開ける（#555 PR 575 の指摘）。
+ * 省略されているかは描いた寸法で見る（`scrollHeight > clientHeight`）。省略されていない名前は、ただの文字のまま（タブ停止にしない）。
+ * 全文は省略されていても DOM にあるので、読み上げは名前を一度で読む（`title` は付けない）。
+ */
+function SeatName({ label }: { label: string }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const [clipped, setClipped] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (el === null || typeof ResizeObserver === 'undefined') return undefined;
+    // 開いている間は測らない（開くと scrollHeight = clientHeight になり、閉じる手段が消える）。観測の最初の通知で測る
+    const observer = new ResizeObserver(() => {
+      if (el.hasAttribute('data-expanded')) return;
+      setClipped(el.scrollHeight > el.clientHeight + 1);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [label]);
+  const interactive = clipped || expanded;
+  const toggle = () => setExpanded((v) => !v);
+  return (
+    <span
+      ref={ref}
+      className="name-text"
+      data-expanded={expanded ? '' : undefined}
+      {...(interactive
+        ? {
+            role: 'button',
+            tabIndex: 0,
+            'aria-expanded': expanded,
+            onClick: toggle,
+            onKeyDown: (e: KeyboardEvent) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                toggle();
+              }
+            },
+          }
+        : {})}
+    >
+      {label}
     </span>
   );
 }
@@ -112,7 +159,7 @@ export function ParticipantList({ participants, you, votes, onRemove, offline = 
                 </span>
               )}
               <span className="name">
-                <span className="name-text" title={label}>{label}</span>
+                <SeatName label={label} />
                 {p.id === you && <span className="you-mark">（あなた）</span>}
               </span>
               {/* 開票後の票が札として残る見学者は、札のあとに印を出す（札を持たない席は上の枠の中） */}

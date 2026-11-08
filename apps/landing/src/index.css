@@ -475,6 +475,9 @@
     flex: none;
     max-width: none;
     width: 100%;
+    /* 札の幅（rem で測る）で、横長のままか、絵を上に回すかを決める（下の `@container`）。文字を大きくすると rem が伸び、
+       絵・余白・列の間が一緒に倍になって、名前の列が 36px まで細くなった（文字 200%・320px・#555 PR 575 の指摘） */
+    container-type: inline-size;
   }
   .hub-tools .tool-card {
     width: 100%;
@@ -494,5 +497,22 @@
   .hub-tools .tool-name,
   .hub-tools .tool-summary {
     grid-column: 2;
+  }
+}
+
+/* 札（上の `@media (width < 40rem)` の `.hub-tools .hand li` が容器）の幅が 16rem に満たないとき（文字を大きくした 320px など）は、絵を上に回して文字の列に札の全幅を渡す。
+   16rem は、絵（3.6rem）・左右の余白・列の間を引いても、名前の列が 8rem 以上残る幅 */
+@container (width < 16rem) {
+  .hub-tools .tool-card {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto;
+    padding: var(--space-4);
+  }
+  .hub-tools .tool-mark {
+    grid-row: auto;
+  }
+  .hub-tools .tool-name,
+  .hub-tools .tool-summary {
+    grid-column: 1;
   }
 }

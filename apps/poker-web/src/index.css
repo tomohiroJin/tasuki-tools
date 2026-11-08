@@ -202,10 +202,13 @@
   list-style: none;
   padding: 0;
   margin: 0;
-  /* 席は行の幅を等分して並べる（右に端数の空きを残さず、行の右端が見出し・手札と揃う・#555 一覧 #9）。
-     席の最小幅は 6.5rem。名前が長い席が同じ行の席を引き伸ばさないよう、行の中では上に揃える（`align-items: start`・一覧 #4）。 */
+  /* 席は行の幅を等分して並べる（#555 一覧 #9）。`auto-fit` で空の列を畳み、列の幅は 6.5rem 以上・10rem 以下にする。
+     人数が列の数より少ないとき、席が全幅に引き伸ばされず、余りは並びの両側へ均等に出る（`justify-content: center`）。
+     行が埋まる人数では、列が 10rem に届くまで引き伸ばして右端が揃う。
+     名前が長い席が同じ行の席を引き伸ばさないよう、行の中では上に揃える（`align-items: start`・一覧 #4）。 */
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(6.5rem, 10rem));
+  justify-content: center;
   align-items: start;
   gap: 0.45rem;
 }
@@ -247,7 +250,9 @@
   overflow-wrap: anywhere;
 }
 
-/* 名前の字は 3 行まで。超える分は省略し、全文は `title` と読み上げの名前に残す（一覧 #4: 28 字で 6 行になり札が 275px に伸びた）。
+/* 名前の字は 3 行まで。超える分は省略する（一覧 #4: 28 字で 6 行になり札が 275px に伸びた）。
+   全文は DOM に残るので読み上げは一度で全文を読む（`title` は付けない。名前と説明で二度読まれる）。
+   タッチ・キーボードでは、省略されている名前を押す（Enter・Space）と全文に開く（`data-expanded`・`SeatName`）。
    「（あなた）」の印は省略の外（`.you-mark` は `.name-text` の兄弟）なので切れない。 */
 .participants .name-text {
   display: -webkit-box;
@@ -255,6 +260,17 @@
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
   line-clamp: 3;
+}
+
+.participants .name-text[role='button'] {
+  cursor: pointer;
+}
+
+.participants .name-text[data-expanded] {
+  display: block;
+  overflow: visible;
+  -webkit-line-clamp: unset;
+  line-clamp: none;
 }
 
 .you-mark {
@@ -352,6 +368,9 @@
 .card-hand {
   display: flex;
   flex-wrap: wrap;
+  /* 操作の面が手札より広い画面（1920px で約 1800px 幅）では中央に置く。左に寄ると右が約 1150px 空く（#555 PR 575 の指摘）。
+     手札の幅ぴったりのときは動かない */
+  justify-content: center;
   gap: 0.55rem;
   perspective: 800px;
 }
@@ -363,6 +382,7 @@
   .card-hand {
     display: grid;
     grid-template-columns: repeat(5, max-content);
+    justify-content: center;
   }
 }
 
@@ -739,7 +759,7 @@
 
 /* 切断中の席の薄めは子へ掛ける（li 自身は opacity 1 のまま）。li 自身を薄めると「退出させる」まで薄くなる。
    切断中の席は札・名前・印を薄めるが、「退出させる」は薄めない（押せるものが薄いと押しにくい）。
-   席の幅（6.5rem）で字が割れないよう折り返さず、左右の余白を詰める。 */
+   席の最小幅（6.5rem）で字が割れないよう折り返さず（幅は 6.5rem〜10rem・上の `.participants`）、左右の余白を詰める。 */
 .participants li.disconnected {
   opacity: 1;
 }
