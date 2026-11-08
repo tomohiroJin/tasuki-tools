@@ -1,7 +1,7 @@
 # ADR-0036: 下端に留める帯は 40rem 未満で 2 列の格子に並べる
 
-- **ステータス**: Proposed
-- **関連**: #554（親 #479）・[ADR-0025](./0025-responsive-layout.md)（決定 5・採択されたら、帯の部分をこの ADR が置き換える）・[ADR-0022](./0022-ui-components-layer.md)（部品層）・`packages/ui/README.md` の「帯の約束」
+- **ステータス**: Accepted（2026-11-09。利用者が PR tomohiroJin/tasuki-tools#559 で採択。`docs/adr/0030` 決定 1 のとおり人が判断した）
+- **関連**: #554（親 #479）・[ADR-0025](./0025-responsive-layout.md)（決定 5 の帯の部分をこの ADR が置き換える）・[ADR-0022](./0022-ui-components-layer.md)（部品層）・`packages/ui/README.md` の「帯の約束」
 
 ## 背景
 
