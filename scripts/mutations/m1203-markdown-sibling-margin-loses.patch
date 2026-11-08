@@ -12,13 +12,10 @@ diff --git a/packages/ui/src/components/markdown.css b/packages/ui/src/component
  .ui-md-h {
    margin: 0;
    font-weight: 700;
-@@ -145,9 +149,6 @@
+@@ -145,6 +149,3 @@
     中身が通常の流れ（block）でないと行数で切れない（根を flex にすると 3 行で切れず全文が出る）。
     `white-space: pre-wrap` は Markdown 自身の段落・改行の扱い（空行区切り・行内の改行）と二重になり、
     連続する空行が段落の間隔と別に隙間を作るので使わない。 */
 -.ui-md > * + * {
 -  margin-top: var(--space-2);
 -}
- 
- /* 入れ子のブロック（引用の中・リストの項目の中）も、根と同じ間 `--space-2` にする。同じく**子のリセットより後ろ**に書く後勝ち（詳細度は根の規則と同じ (0,1,0)。
-    `*` は詳細度に数えないので、`.ui-md-ul > * > * + *` は「リストの項目の直下で、先頭でない子」を指して (0,1,0) のまま）。
