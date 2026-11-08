@@ -292,3 +292,26 @@
 | 契約テストが字面であること | 記録 | 契約テスト（`rows-alignment.test.mjs`）は CSS の字面を見る。見た目の合否は E2E が拾う（この節の確かめ方が E2E の検査） | 扱い: 記録 |
 
 **ADR への追記**: 「ADR への追記は足していない」と読める記述は、実態と合わない。ADR 0035 には、決定 1 の例外の節の末尾に改定の印の 1 行を足した（本文は書き換えていない）。これ以外の ADR は触っていない。
+
+#### #556 の最後のレビューでの改定（2026-11-09）
+
+上の表と「レビューでの改定」の該当行を置き換える（本文は書き換えない）。
+
+| 指摘 | 扱い | 直し方 | 確かめ方 |
+|---|---|---|---|
+| F1 交代順の札（#16） | 直した | 名前に `min-width: 2em`、長い文言（「あと2人・約10分後」）は `nowrap` をやめ `overflow-wrap: anywhere`、札は `flex-wrap: wrap` で入らない字を札の中の次の行へ回す。「▶ 今」「⟶ 次」だけが `nowrap`（`.rotation-lineup-when-short`・`-when-current`）で、1 倍の字では割れない | `rows-alignment.spec.ts`（文字 100%・200% × 320・390・1280 で、名前 28px 以上・字の重なり 0・札の外へのはみ出し 0。1 倍で「今」「次」が割れない）。変異 1238・1239 |
+| F2 roulette のはみ出し | 直した | 左右どちらのはみ出しも測る。原因は部品 `.ui-button` の `min-width: 6rem`（文字 200% で 192px）。行のボタンは `min-width: var(--tap-target)`・`flex: 0 1 auto`・`white-space: normal` で行に収める | 同上（`rows-alignment.spec.ts` の E3。名前・印・ボタンが行の左右の外へ出ない）。変異 1380 |
+| F3 長い名前 | **折り返して全文を見せる形に決めた**（省略をやめた） | 名簿（`.roster-panel-name`）と roulette（`.roulette-name`）の `-webkit-line-clamp`・`overflow: hidden` を外した。タップで開閉する案は、#555 の SeatName と形を揃える作業を別に持つので採らなかった。**一覧 #15・#20 の「長い名前の行の高さが短い名前の行と 1 行ぶんしか違わない」は、名前の行数ぶん高くなる形に変わった**（main も全文が見えていた）。操作の右端が揃うこと、短い名前の行どうしの高さが揃うこと、名前が切れていないことは E2E で守る。1024 以上の脇の 141px の省略も同じ | `rows-alignment.spec.ts`（名前の `scrollHeight` が `clientHeight` を超えない）。変異 1381・1382 |
+| F4 `.meter-panel-stack`・`.panel-stack` | 直した | 写しをやめ、部品 `.ui-stack` を一緒に当てる（`ui-stack meter-panel-stack`・`ui-stack panel-stack`）。リセットは部品の `> :where(:not(dialog))` で、`.ui-visually-hidden` は部品層で後に読まれるので `margin: -1px` に負けない。timer の CSS は間（`gap`）だけを決める | 契約テスト（timer の規則が `display`・`margin`・子のリセットを持たない／読み込み順）。変異 1383 |
+| F5 SharedMemo の契約 | 直した | 三項の真と偽の両方が `ui-stack`・`meter-panel-stack` を持つことを見る | 変異 1384・1116 |
+| F6 見出しから中身までの間 | 直した | セッションの名簿・共有メモ（8px）・ルームのタブ・履歴を、320・1024・1280 でブラウザで測る。E5 の題名どおり 1024 も回す | `rows-alignment.spec.ts`。変異 1231・1232 |
+| 間の既定（`--space-4`）と ADR 0035 決定 2（`--space-3`） | **コードを正とした** | timer の Card・パネルの間は main の `margin-bottom`（16px）を保つため `--space-4`。決定 2 の `--space-3` は部品 `.ui-stack` の既定の話で、timer はそれを `gap` の上書きで 16px にしている（見た目を変えないため）。共有メモは `--space-2`、名簿の本体は `--space-3` を、`--panel-stack-gap` で親が決める | — |
+| セッション設定の根の `gap: 1.25rem` | 直した | 直書きをやめ、根を `ui-stack panel-stack` にして既定の `--space-4`（16px）にした。**見た目が main の 20px から 4px 詰まる**（トークンに 20px が無い） | 目視（ロビー） |
+
+記録だけ（扱い: 記録）:
+- 状態の帯の `:nth-child(even)` が子の並び（4 つ・偶数番が右の列）に頼っている。子を足すと崩れる。
+- topic の `min-height: 3.25rem` は隣の `.ui-select` の高さの写し。
+- E2E のサンプル読み込みの手順（サンプルから選ぶ → KPT）が `buttons.spec.ts`・`rows-alignment.spec.ts` ほか 3 か所に写されている。
+- 文字 200% の 320 には、main と同じ壊れが残る（roulette 160px・timer 51px・agenda の「分」24px・ロビーの「列から外れる」）。
+- ロビーの交代間隔は文字 200% の 1024 で 28px（main より小さい）。
+
