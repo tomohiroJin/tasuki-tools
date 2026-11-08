@@ -140,6 +140,9 @@ const RESERVED_1270_1279 =
 const RESERVED_1280_1289 =
   "**対応表より後に足した変異。** 1280〜1289 は #553 に追加で割り当てた範囲（1270〜1279 を使い切ったため。7 回目の指摘で足した）。";
 
+const RESERVED_1340_1349 =
+  "**対応表より後に足した変異。** 1340〜1349 は #553 に追加で割り当てた範囲（1280〜1289 を使い切ったため。10 回目の指摘で足した。#554 は 1290〜1339 と 1350 番台を使う）。";
+
 export const MUTATIONS = [
   {
     id: 1,
@@ -6744,11 +6747,11 @@ export const MUTATIONS = [
   },
   {
     id: 1272,
-    label: "timer の `index.css` から `shuffle-button.css` の読み込みを外す",
-    patch: "m1272-timer-shuffle-button-css-import-removed.patch",
+    label: "timer の `ShuffleButton` のアイコンから `session-action-icon` のクラスを外す",
+    patch: "m1272-timer-shuffle-button-icon-class-removed.patch",
     pkg: "apps/timer-web",
-    tests: ["test/ui/spacing-css.test.ts"],
-    note: RESERVED_1270_1279 + " " + "#553。「ランダム」のボタンの中の並び（アイコンと字）が当たらなくなる。",
+    tests: ["test/ui/section-head-parts.test.tsx"],
+    note: RESERVED_1270_1279 + " " + "#553。「ランダム」のアイコンの大きさ（1rem）が当たらなくなる（セッションの操作ボタンと同じクラスを使う形に 9 回目で寄せたあとの作り直し）。E2E の `spacing.spec.ts`（アイコンは 16px 角）でも赤になる。",
   },
   {
     id: 1276,
@@ -6852,7 +6855,7 @@ export const MUTATIONS = [
     patch: "m1285-poker-estimate-open-not-right-aligned.patch",
     pkg: "apps/poker-web",
     tests: ["tests/spacing-css.test.ts"],
-    note: RESERVED_1280_1289 + " " + "#553。長い名前で「見積もり中」が次の行の左端へ落ちる。E2E の `spacing.spec.ts`（開いた束・40 字）でも赤になる。",
+    note: RESERVED_1280_1289 + " " + "#553。長い名前で「見積もり中」が次の行の左端へ落ちる。E2E の `spacing.spec.ts`（開いた束・40 字・狭い幅で下の行に落ちたとき右端に揃う）でも赤になる。同じ行のときは名前の列が伸びて行を埋めるので、この規則の有無で位置は変わらない（同じ行の幅では等価。同じ行でも右端に揃うことは測っている）。",
   },
   {
     id: 1286,
@@ -6872,18 +6875,66 @@ export const MUTATIONS = [
   },
   {
     id: 1288,
-    label: "Markdown の入れ子のブロック（引用・リストの項目の中）の間の規則を外す",
-    patch: "m1288-md-nested-block-gap-removed.patch",
+    label: "Markdown の根のブロックの間の規則 `.ui-md > * + *` を、段落どうしだけ（`.ui-md-p + .ui-md-p`）に狭める",
+    patch: "m1288-md-gap-rule-paragraphs-only.patch",
     pkg: "packages/ui",
     tests: ["tests/spacing-owner.test.mjs"],
-    note: RESERVED_1280_1289 + " " + "#553。引用の中の段落どうし・リストの項目の中の段落と入れ子のブロックの間が 0 に戻る。E2E の `spacing.spec.ts`（入れ子のブロックの間 8px）でも赤になる。",
+    note: RESERVED_1280_1289 + " " + "#553。見出し・リスト・引用・コードと隣のブロックの間が 0 に戻る（段落どうしの間だけが残る）。",
   },
   {
     id: 1289,
-    label: "roulette のいつものメンツの区画の直下の子の `min-inline-size: 0` を外す",
-    patch: "m1289-roulette-regulars-children-min-inline-size-removed.patch",
+    label: "roulette のいつものメンツの区画自身の `min-inline-size: 0` を外す",
+    patch: "m1289-roulette-regulars-min-inline-size-removed.patch",
     pkg: "apps/roulette-web",
     tests: ["tests/spacing-css.test.ts"],
-    note: RESERVED_1280_1289 + " " + "#553。縦の flex の直下の子の最小幅が区画を引っ張りうる形に戻る（grid の `minmax(0, 1fr)` の代わりの守りが消える）。いまの置き場（`.roulette-people` の grid の列は最小幅 0）では E2E の `spacing.spec.ts` は緑のままで、字面の契約でだけ捕まる。",
+    note: RESERVED_1280_1289 + " " + "#553。親の列の守り（`.roulette-people` の `minmax(0, 1fr)`）が無い置き場では、折り返さない長い字を持つ子に区画が引かれて広がる。E2E の `spacing.spec.ts`（親の列を `1fr` に替えて外し、区画が親の右端に収まること）でも赤になる。",
+  },
+  {
+    id: 1340,
+    label: "poker の `.estimate-group-head` に `@media` の中で `flex-wrap: nowrap` を書き戻す（部品の折り返しを止める）",
+    patch: "m1340-poker-media-group-head-nowrap.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/spacing-css.test.ts"],
+    note: RESERVED_1340_1349 + " " + "#553。行頭に書かれていない規則（`@media` の中・字下げ）を拾い損ねた `ruleBody` では、`toBe(null)` が空振りして緑だった。すべての規則を集める形で赤になる。",
+  },
+  {
+    id: 1341,
+    label: "agenda の `.builder-saved-list` に `@media` の中で `display: grid` と `gap` を書き戻す（長い名前で横に溢れる）",
+    patch: "m1341-agenda-media-saved-list-grid.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/spacing-css.test.ts"],
+    note: RESERVED_1340_1349 + " " + "#553。縦の並びの写しが `@media` の中に戻る。すべての規則を集める形で赤になる。",
+  },
+  {
+    id: 1342,
+    label: "roulette の `.roulette-regulars-notice` に `@media` の中で `display: none` を書く（ライブリージョンが読み上げの木から外れる）",
+    patch: "m1342-roulette-media-notice-display-none.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/spacing-css.test.ts"],
+    note: RESERVED_1340_1349 + " " + "#553。あとから入る知らせが読み上げに届かなくなる書き方が `@media` の中に戻る。すべての規則を集める形で赤になる。",
+  },
+  {
+    id: 1343,
+    label: "timer の `.section-header` に `@media` の中で `column-gap: 3px` を書き戻す（一覧 #33 の再発）",
+    patch: "m1343-timer-media-section-header-gap.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/spacing-css.test.ts"],
+    note: RESERVED_1340_1349 + " " + "#553。見出しの行の横の間が、ある幅で 3px に詰まる。すべての規則を集める形で赤になる。",
+  },
+  {
+    id: 1344,
+    label: "`.ui-reader-preview` に 64rem 未満の `@media` の中で `min-height: 12rem` を足す（3 行の写しの箱が伸びる）",
+    patch: "m1344-ui-media-reader-preview-min-height.patch",
+    pkg: "packages/ui",
+    tests: ["tests/spacing-owner.test.mjs"],
+    note: RESERVED_1340_1349 + " " + "#553。3 行の写しの箱が縦に伸びる。`@media` の中の規則も含めて判定する契約で赤になる（E2E の `layout.spec.ts` の箱の上限でも赤になる）。",
+  },
+  {
+    id: 1345,
+    label: "poker の見えない複製を、名前のボタンと寸法を共有する規則（`.estimate-item--inline .estimate-item-title, … .estimate-item-sizer`）から外す",
+    patch: "m1345-poker-sizer-not-in-shared-dimension-rule.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/spacing-css.test.ts"],
+    note: RESERVED_1340_1349 + " " + "#553。複製が名前のボタンの寸法の宣言と別になり、ボタン側を変えると複製がずれる（編集中に選択欄の行が跳ぶ）。",
   },
 ];

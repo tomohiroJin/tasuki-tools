@@ -1,0 +1,16 @@
+diff --git a/apps/timer-web/src/styles/primitives.css b/apps/timer-web/src/styles/primitives.css
+--- a/apps/timer-web/src/styles/primitives.css
++++ b/apps/timer-web/src/styles/primitives.css
+@@ -91,6 +91,12 @@
+   margin-bottom: var(--space-4);
+ }
+ 
++@media (min-width: 40rem) {
++  .section-header {
++    column-gap: 3px;
++  }
++}
++
+ .section-header-lead {
+   display: flex;
+   align-items: center;

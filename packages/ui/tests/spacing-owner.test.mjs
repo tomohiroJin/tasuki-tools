@@ -13,30 +13,73 @@ import { fileURLToPath } from 'node:url';
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 const read = (p) => readFileSync(root + p, 'utf8');
 
-/** `selector { … }` の本体（宣言の文字列）。セレクタは行頭から `{` までの完全一致。無ければ null。 */
-function ruleBody(css, selector) {
-  const escaped = selector.replace(/[.*+?^${}()|[\]\\>]/g, '\\$&');
-  const m = new RegExp(`^${escaped} \\{([^}]*)\\}`, 'm').exec(css);
-  return m === null ? null : m[1];
+/** `,` で区切る（`:is(a, b)` の括弧の中の `,` では区切らない）。 */
+function splitSelectors(prelude) {
+  const out = [];
+  let depth = 0;
+  let from = 0;
+  for (let i = 0; i < prelude.length; i++) {
+    const c = prelude[i];
+    if (c === '(') depth++;
+    else if (c === ')') depth--;
+    else if (c === ',' && depth === 0) {
+      out.push(prelude.slice(from, i));
+      from = i + 1;
+    }
+  }
+  out.push(prelude.slice(from));
+  return out.map((x) => x.replace(/\s+/g, ' ').trim());
+}
+
+/** 規則（宣言ブロックを持つもの）を、`@media` などの入れ子の中・字下げした規則・`,` でつないだセレクタも含めてすべて集める。 */
+function collectRules(css) {
+  const src = css.replace(/\/\*[\s\S]*?\*\//g, '');
+  const rules = [];
+  const stack = [];
+  let last = 0;
+  for (let i = 0; i < src.length; i++) {
+    const c = src[i];
+    if (c === '{') {
+      stack.push({ prelude: src.slice(last, i).trim(), start: i + 1 });
+      last = i + 1;
+    } else if (c === '}') {
+      const top = stack.pop();
+      if (top !== undefined && !top.prelude.startsWith('@')) rules.push({ selectors: splitSelectors(top.prelude), body: src.slice(top.start, i) });
+      last = i + 1;
+    } else if (c === ';') {
+      last = i + 1;
+    }
+  }
+  return rules;
+}
+
+/** セレクタの並びに `selector` を（完全一致で）含む規則の本体を、すべて返す。無ければ空。 */
+function rulesOf(css, selector) {
+  const want = selector.replace(/\s+/g, ' ').trim();
+  return collectRules(css).filter((r) => r.selectors.includes(want)).map((r) => r.body);
+}
+
+/** 肯定の検査用: 規則が 1 つ以上見つかることを確かめてから、本体をつないで返す（見つからないまま緑にならない）。 */
+function bodyOf(css, selector) {
+  const bodies = rulesOf(css, selector);
+  assert.ok(bodies.length >= 1, `${selector} の規則が見つからない（判定が空振りする）`);
+  return bodies.join('\n');
 }
 
 test('Given .ui-stack / When 規則を読む / Then 縦の flex で、間は --space-3 の gap', () => {
-  const body = ruleBody(read('packages/ui/src/components/stack.css'), '.ui-stack');
-  assert.notEqual(body, null);
+  const body = bodyOf(read('packages/ui/src/components/stack.css'), '.ui-stack');
   assert.match(body, /display:\s*flex;/);
   assert.match(body, /flex-direction:\s*column;/);
   assert.match(body, /gap:\s*var\(--space-3\);/);
 });
 
 test('Given .ui-stack / When 直下の子の規則を読む / Then 縦の外側の余白を 0 にする（要素層の h2 の margin が gap に足されない）', () => {
-  const body = ruleBody(read('packages/ui/src/components/stack.css'), '.ui-stack > *');
-  assert.notEqual(body, null);
+  const body = bodyOf(read('packages/ui/src/components/stack.css'), '.ui-stack > *');
   assert.match(body, /margin-block:\s*0;/);
 });
 
 test('Given .ui-section-head / When 規則を読む / Then 折り返し可・縦は中央・両端寄せ・間は --space-3', () => {
-  const body = ruleBody(read('packages/ui/src/components/section-head.css'), '.ui-section-head');
-  assert.notEqual(body, null);
+  const body = bodyOf(read('packages/ui/src/components/section-head.css'), '.ui-section-head');
   assert.match(body, /display:\s*flex;/);
   assert.match(body, /flex-wrap:\s*wrap;/);
   assert.match(body, /align-items:\s*center;/);
@@ -45,8 +88,7 @@ test('Given .ui-section-head / When 規則を読む / Then 折り返し可・縦
 });
 
 test('Given .ui-section-head / When 直下の子の規則を読む / Then 縦の外側の余白を 0 にする', () => {
-  const body = ruleBody(read('packages/ui/src/components/section-head.css'), '.ui-section-head > *');
-  assert.notEqual(body, null);
+  const body = bodyOf(read('packages/ui/src/components/section-head.css'), '.ui-section-head > *');
   assert.match(body, /margin-block:\s*0;/);
 });
 
@@ -60,7 +102,7 @@ test('Given Markdown の根 / When ブロックの間の規則を読む / Then �
   const css = read('packages/ui/src/components/markdown.css');
   const at = css.indexOf('.ui-md > * + * {');
   assert.ok(at > 0, 'ブロックの間の規則が無い');
-  assert.match(ruleBody(css, '.ui-md > * + *') ?? '', /margin-top:\s*var\(--space-2\);/);
+  assert.match(bodyOf(css, '.ui-md > * + *'), /margin-top:\s*var\(--space-2\);/);
   // 同じ詳細度の子のリセットより後ろ（後勝ち）。クラスを重ねて詳細度を上げる書き方はしない
   for (const sel of ['.ui-md-p', '.ui-md-ul,\n.ui-md-ol', '.ui-md-quote', '.ui-md-pre', '.ui-md-h']) {
     const i = css.indexOf(sel + ' {');
@@ -68,28 +110,18 @@ test('Given Markdown の根 / When ブロックの間の規則を読む / Then �
   }
   assert.doesNotMatch(css, /\.ui-md\.ui-md/);
 });
-test('Given Markdown の入れ子のブロック / When 間の規則を読む / Then 引用とリストの項目の中も --space-2 で、子のリセットより後ろに置かれる（根と同じ後勝ち・詳細度は上げない）', () => {
-  const css = read('packages/ui/src/components/markdown.css');
-  const sel = '.ui-md-quote > * + *,\n.ui-md-ul > * > * + *,\n.ui-md-ol > * > * + *';
-  assert.match(ruleBody(css, sel) ?? '', /margin-top:\s*var\(--space-2\);/, '入れ子のブロックの間の規則が無い');
-  const at = css.indexOf(sel + ' {');
-  for (const reset of ['.ui-md-p', '.ui-md-ul,\n.ui-md-ol', '.ui-md-quote']) {
-    const i = css.indexOf(reset + ' {');
-    assert.ok(i >= 0 && i < at, `${reset} のリセットより後ろに置く`);
-  }
-});
-
 test('Given 部品 .ui-section-head--beside と .ui-stack--tight / When 規則を読む / Then 寄せと間の値を持つ', () => {
-  assert.match(ruleBody(read('packages/ui/src/components/section-head.css'), '.ui-section-head--beside') ?? '', /justify-content:\s*flex-start;/);
-  assert.match(ruleBody(read('packages/ui/src/components/stack.css'), '.ui-stack--tight') ?? '', /gap:\s*var\(--space-2\);/);
+  assert.match(bodyOf(read('packages/ui/src/components/section-head.css'), '.ui-section-head--beside'), /justify-content:\s*flex-start;/);
+  assert.match(bodyOf(read('packages/ui/src/components/stack.css'), '.ui-stack--tight'), /gap:\s*var\(--space-2\);/);
 });
 
 test('Given 3 行の写し .ui-reader-preview / When 縦の余白を読む / Then margin で取り、縦の padding を持たない（padding の帯に 4 行目の上端が覗く）', () => {
-  const body = ruleBody(read('packages/ui/src/components/reader.css'), '.ui-reader-preview') ?? '';
+  const reader = read('packages/ui/src/components/reader.css');
+  const body = bodyOf(reader, '.ui-reader-preview');
   assert.match(body, /margin-block:\s*var\(--space-4\);/);
   assert.match(body, /padding:\s*0 var\(--space-5\);/);
-  // 箱を縦に伸ばさない（3 行の高さに収める）
-  assert.doesNotMatch(body, /min-height|height:|padding-(block|bottom)/);
+  // 箱を縦に伸ばさない（3 行の高さに収める）。@media の中の規則も含めて、すべての規則に対して判定する
+  for (const b of rulesOf(reader, '.ui-reader-preview')) assert.doesNotMatch(b, /min-height|height:|padding-(block|bottom)/);
 });
 
 test('Given 部品層の読み込み順 / When components/index.css を読む / Then section-head と stack が最後（stack が最後）で、リセットがどの部品の margin にも勝つ', () => {
@@ -99,5 +131,5 @@ test('Given 部品層の読み込み順 / When components/index.css を読む / 
   const order = [...index.matchAll(/@import '\.\/([a-z-]+)\.css';/g)].map((m) => m[1]);
   assert.deepEqual(order.slice(-2), ['section-head', 'stack'], `部品の最後は section-head → stack（いまは ${order.slice(-3).join(' → ')}）`);
   // stack の規則は :where() で包まない（詳細度 0 にすると、要素層の h2 の margin に負けて、リセットの役目を失う）
-  assert.match(read('packages/ui/src/components/stack.css'), /\n\.ui-stack > \* \{/);
+  assert.ok(rulesOf(read('packages/ui/src/components/stack.css'), '.ui-stack > *').length >= 1, '`.ui-stack > *`（:where() で包まない）の規則が無い');
 });

@@ -1,0 +1,16 @@
+diff --git a/packages/ui/src/components/reader.css b/packages/ui/src/components/reader.css
+--- a/packages/ui/src/components/reader.css
++++ b/packages/ui/src/components/reader.css
+@@ -41,6 +41,12 @@
+   margin: 0 var(--space-5) var(--space-4);
+ }
+ 
++@media (width < 64rem) {
++  .ui-reader-preview {
++    min-height: 12rem;
++  }
++}
++
+ @media (width >= 64rem) {
+   /* 画面の高さから 14rem を引く。上の見出しと招待の行（器の上の余白を含め約 9.5rem）と、器の下の余白（4rem）の両方を引く。
+      下の余白を引かないと、読む面だけで ページ＝画面＋約 3.5rem になり、どの高さの画面でもページのスクロールバーが出続ける
