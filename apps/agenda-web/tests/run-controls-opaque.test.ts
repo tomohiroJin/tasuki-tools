@@ -2,7 +2,7 @@
  * 手元の操作の帯と映す表示の帯の地は不透明で、帯の下の余白は帯の高さ ＋ ホームバーの高さ（#554・#479 の #2。帯の約束は `packages/ui/README.md`）。
  * jsdom は描かないので、書いてある宣言そのものを見る。実際の見え方（字の点を帯が受ける・不透明・最下部で隠れない）は E2E の
  * `e2e/specs/header-and-dock.spec.ts` が見る。CSS を読む関数は部品の試験と共有する（`@tasuki/ui/test-support/css-text.mjs`。
- * 依存の向きの監査は相対パスの越境だけを止めるので、パッケージ名の取り込みなら通る）。
+ * パッケージ名の取り込みなので、依存の向きの監査は止めない。製品コードが読まないことは同じ監査が見る）。
  * @requirements #554 帯の字の後ろに中身が透けて重なり、最下部で最後の行が帯に隠れた
  */
 import { readFileSync } from 'node:fs';
@@ -57,9 +57,9 @@ describe('映す表示の帯', () => {
   });
 
   it('Given 映す表示 / When 中身の下の余白を見る / Then 40rem 未満と背の低い横向きは隠れる量だけ（盤を動かさず margin で）、40rem 以上 64rem 未満の高さ 48rem 以上は常に帯の高さぶんを取り、64rem 以上は取らない', () => {
-    expect(bodyWith(':root', '--projection-strip-height', outsideMedia(css))).toMatch(/--projection-strip-height:\s*10rem;/);
+    expect(bodyWith(':root', '--projection-strip-height', outsideMedia(css))).toMatch(/--projection-strip-height:\s*calc\(10rem \+ env\(safe-area-inset-bottom\)\);/);
     // 40rem 以上は帯が 1 行（実測 69px）なので、段ごとに 4.4rem（横向きのスマートフォンやタブレットで取りすぎない）
-    expect(bodyWith(':root', '--projection-strip-height', mediaBlocks(css, '@media (width >= 40rem)'))).toMatch(/--projection-strip-height:\s*4\.4rem;/);
+    expect(bodyWith(':root', '--projection-strip-height', mediaBlocks(css, '@media (width >= 40rem)'))).toMatch(/--projection-strip-height:\s*calc\(4\.4rem \+ env\(safe-area-inset-bottom\)\);/);
     // 余白は @media の外には無い（64rem 以上は帯が中身に重ならないので取らない。取ると盤が約 80px 上に寄る）
     expect(outsideMedia(css)).not.toMatch(/\.projection-body\s*\{[^}]*padding-block-end/); // 固定の余白は @media の中（40rem 以上 64rem 未満で高さ 48rem 以上）だけ
     // 40rem 未満と、40rem 以上 64rem 未満で高さが 48rem 未満（背の低い横向き）: 帯が出ている間に隠れる量だけ（use-projection-clearance が測る。無条件に足すと盤が跳ね、常に取ると #471 の既存の検査が赤になる）
@@ -69,6 +69,10 @@ describe('映す表示の帯', () => {
     expect(base).toMatch(/min-block-size:\s*var\(--projection-body-pin, 0px\);/);
     expect(base).not.toMatch(/padding/);
     // 40rem 以上 64rem 未満で高さが 48rem 以上: 常に（通常の下の余白 --space-6 は足さず置き換える。足すと 768×1024 で縦のスクロールが出る）
-    expect(bodyWith('.projection-body', 'padding-block-end', mediaBlocks(css, '@media (width >= 40rem) and (width < 64rem) and (height >= 48rem)'))).toMatch(/padding-block-end:\s*calc\(var\(--projection-strip-height\) \+ env\(safe-area-inset-bottom\)\);/);
+    expect(bodyWith('.projection-body', 'padding-block-end', mediaBlocks(css, '@media (width >= 40rem) and (width < 64rem) and (height >= 48rem)'))).toMatch(/padding-block-end:\s*var\(--projection-strip-height\);/);
+  });
+
+  it('Given 映す表示の操作帯 / When 下の余白を見る / Then ホームバーの高さを足す（測った高さは border-box で含むので、使う側では足さない）', () => {
+    expect(bodyWith('.projection-strip', 'position: fixed')).toMatch(/padding:\s*var\(--space-4\) var\(--space-4\) calc\(var\(--space-4\) \+ env\(safe-area-inset-bottom\)\);/);
   });
 });

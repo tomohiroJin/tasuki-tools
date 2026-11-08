@@ -2,7 +2,7 @@
  * セッションの下端の帯の寸法の宣言（#554・#479 の #19。帯の約束は `packages/ui/README.md`）。
  * jsdom は寸法を測れないので、書いてある宣言そのものを見る。実際の見え方（320px で字が折れない・2 段まで）は
  * `e2e/specs/header-and-dock.spec.ts` が見る。
- * CSS を読む関数は部品の試験と共有する（`@tasuki/ui/test-support/css-text.mjs`。依存の向きの監査は相対パスの越境だけを止める）。
+ * CSS を読む関数は部品の試験と共有する（`@tasuki/ui/test-support/css-text.mjs`。パッケージ名の取り込みなので、依存の向きの監査は止めない。製品コードが読まないことは同じ監査が見る）。
  * @requirements #554 timer の帯の「時間リセット」が 320px で 2 行に折れていた
  */
 import { readFileSync } from 'node:fs';

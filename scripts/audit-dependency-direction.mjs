@@ -280,11 +280,11 @@ const TASUKI_SPECIFIER = /["'](@tasuki\/[a-z0-9-]+)/g;
  */
 const TEST_SUPPORT_NAME = "@tasuki/ui/test-support";
 /**
- * 指定子の位置だけで一致させる（注釈や文字列の中に名前を書いただけでは止めない）:
- * `import ... from "…"`・`export ... from "…"`・`import("…")`（テンプレート文字列を含む）・`require("…")`・`import "…"`。
+ * 指定子の位置だけで一致させる（注釈の中に名前を書いただけでは止めない。文字列の中に指定子の形で書いたものは止める）:
+ * `import ... from "…"`・`export ... from "…"`・`import("…")`（テンプレート文字列を含む）・`require("…")`・`require.resolve("…")`・`import.meta.resolve("…")`・`import "…"`。
  */
 const TEST_SUPPORT_SPECIFIER = new RegExp(
-  "(?:\\bfrom\\s*|\\bimport\\s*\\(?\\s*|\\brequire\\s*\\(\\s*)[\"'`]" + TEST_SUPPORT_NAME.replace(/[/]/g, "\\/"),
+  "(?:\\bfrom\\s*|\\bimport\\s*\\(?\\s*|\\brequire\\s*\\(\\s*|\\brequire\\s*\\.\\s*resolve\\s*\\(\\s*|\\bimport\\s*\\.\\s*meta\\s*\\.\\s*resolve\\s*\\(\\s*)[\"'`]" + TEST_SUPPORT_NAME.replace(/[/]/g, "\\/"),
 );
 
 /**
@@ -293,7 +293,7 @@ const TEST_SUPPORT_SPECIFIER = new RegExp(
  * `from "..."` と `import("...")` の両方を見る。`export ... from "..."` も
  * `from` を持つので同じ式で拾える。
  */
-const RELATIVE_SPECIFIER = /(?:from|import|require)\s*\(?\s*["'](\.[^"']*)["']|new\s+URL\s*\(\s*["'](\.[^"']*)["']/g;
+const RELATIVE_SPECIFIER = /(?:from|import(?:\s*\.\s*meta\s*\.\s*resolve)?|require(?:\s*\.\s*resolve)?)\s*\(?\s*["'`](\.[^"'`]*)["'`]|new\s+URL\s*\(\s*["'`](\.[^"'`]*)["'`]/g;
 
 /**
  * パッケージごとの `{ manifest, imports }` から違反を返す。
@@ -358,9 +358,11 @@ function listPackageSources(pkg) {
 }
 
 /**
- * 行コメント・ブロックコメントを空白に置き換える（注釈の中の名前で偽の陽性を出さない）。
- * 文字列・テンプレート文字列の中では注釈の開始と見なさない（`'tests/**\/*.ts'` のような glob の中の `/*` から次の `*\/` までを消して、間の取り込みを見逃さない）。
- * 文字列の中身は、指定子の位置（`from`・`import`・`import(`・`require(` の直後）だけ残し（取り込みの指定子を探すため）、それ以外は空白にする（文字列の中に取り込みの形を書いただけで止めない）。
+ * 注釈（行コメント・ブロックコメント）だけを空白に置き換える（注釈の中の名前で偽の陽性を出さない）。
+ * **賢い字句を持たない。** 文字列・テンプレート文字列・正規表現リテラル・JSX の地の文を読み分けようとすると、読み分けの穴（`Don't`・`` `a ${'`'} b` ``・`)` の後ろの正規表現…）から
+ * 取り込みを見逃す（偽の緑）。そこで、文字列の中身は一切変えず（文字列の中に指定子の形で書いたものも違反として止める。偽の陽性の側に倒す）、
+ * 注釈の開始は「行頭か空白の直後の `//` と `/*` だけ」と見なす（`https://`・`'tests/**\/*.ts'`・`/[/*]/` の中の `/*` は開始にならない）。
+ * 空白の直後に書かれた文字列の中の `/*` を注釈と見なして外しすぎる余地は残る（その場合は取り込みの形の前後が消えるだけで、指定子は文字列の外にあるので通常は残る）。
  */
 function stripJsComments(text) {
   let out = "";
@@ -368,66 +370,20 @@ function stripJsComments(text) {
   while (i < text.length) {
     const c = text[i];
     const next = text[i + 1];
-    if (c === "/" && next === "/") {
+    const before = i === 0 ? "\n" : text[i - 1];
+    const atCommentStart = /\s/.test(before);
+    if (c === "/" && next === "/" && atCommentStart) {
       while (i < text.length && text[i] !== "\n") i += 1;
-    } else if (c === "/" && next === "*") {
+    } else if (c === "/" && next === "*" && atCommentStart) {
       const end = text.indexOf("*/", i + 2);
       out += " ";
       i = end === -1 ? text.length : end + 2;
-    } else if (c === '"' || c === "'" || c === "`") {
-      const quote = c;
-      // 指定子の位置（from・import・import(・require( の直後）の文字列だけ中身を残す。それ以外の文字列の中身は空白にする
-      // （文字列の中に取り込みの形を書いただけで止めない）
-      const keep = /(?:\bfrom|\bimport|\bimport\s*\(|\brequire\s*\()\s*$/.test(out);
-      out += c;
-      i += 1;
-      while (i < text.length && text[i] !== quote) {
-        if (text[i] === "\\") {
-          out += keep ? text[i] : " ";
-          i += 1;
-        }
-        if (i < text.length) {
-          out += keep ? text[i] : " ";
-          i += 1;
-        }
-      }
-      if (i < text.length) {
-        out += text[i];
-        i += 1;
-      }
-    } else if (c === "/" && startsRegexLiteral(out)) {
-      // 正規表現リテラル（`/[/*]/`・`/'/` など）は字句として読み、中の `/*`・引用符を注釈・文字列の開始と見なさない
-      out += c;
-      i += 1;
-      let inClass = false;
-      while (i < text.length && text[i] !== "\n") {
-        const d = text[i];
-        out += d;
-        i += 1;
-        if (d === "\\") {
-          if (i < text.length) {
-            out += text[i];
-            i += 1;
-          }
-        } else if (d === "[") inClass = true;
-        else if (d === "]") inClass = false;
-        else if (d === "/" && !inClass) break;
-      }
     } else {
       out += c;
       i += 1;
     }
   }
   return out;
-}
-
-/** 直前の意味のある字が `( , = : [ ! & | ? { } ;` か行頭、または return・typeof などのキーワードのとき、`/` は正規表現の始まり。 */
-function startsRegexLiteral(before) {
-  const trimmed = before.replace(/\s+$/, "");
-  if (trimmed === "") return true;
-  const last = trimmed[trimmed.length - 1];
-  if ("(,=:[!&|?{};".includes(last)) return true;
-  return /(?:^|[^\w$.])(?:return|typeof|case|in|of|delete|void|throw|new|else|do|yield|await)$/.test(trimmed);
 }
 
 /** 実体を観測する（`root` は走査の起点。既定はリポジトリ。自己テストは一時のディレクトリを渡す）。 */

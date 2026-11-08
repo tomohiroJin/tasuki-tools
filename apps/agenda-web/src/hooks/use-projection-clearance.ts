@@ -15,7 +15,7 @@ export function useProjectionClearance(
   stripRef: RefObject<HTMLElement | null>,
   shown: boolean,
 ): void {
-  // `shown` は ref で読む（出し入れのたびに observer・focus・matchMedia を作り直さない）。変わったら apply だけを呼び直す
+  // `shown` は ref で読む（出し入れのたびに observer・focus を作り直さない）。変わったら apply だけを呼び直す
   const shownRef = useRef(shown);
   const applyRef = useRef<(() => void) | null>(null);
   useLayoutEffect(() => {
@@ -45,20 +45,37 @@ export function useProjectionClearance(
       return root.scrollHeight - bottomInScroll;
     };
 
+    // いま書いている余白。帯が消えるときに、送った先（余白の中）にいる間は余白を残して盤を動かさない（下の hold）
+    let held = 0;
+    const inHeldClearance = (): boolean => held > 0 && root.scrollTop > root.scrollHeight - held - root.clientHeight + 0.5;
+
     const apply = (): void => {
+      const visible = shownRef.current || strip.matches(':focus-within');
+      if (!visible && inHeldClearance()) return; // 帯が消えても、余白の中まで送っている間は余白を残す（消すと scrollTop が詰められて盤が跳ねる）。上へ送ったら scroll で畳む
+      const top = root.scrollTop;
       reset();
-      if (!shownRef.current && !strip.matches(':focus-within')) return;
-      const stripHeight = Math.ceil(strip.getBoundingClientRect().height);
-      // 余白なしの body の高さ（中央寄せの基準）を固定してから、余白を足す
-      const pinned = body.getBoundingClientRect().height;
-      let clearance = 0;
-      for (let i = 0; i < 4; i += 1) {
-        const need = stripHeight - spaceBelowContent();
-        if (need <= 0.5) break;
-        clearance += Math.ceil(need);
-        root.style.setProperty('--projection-body-pin', `${pinned}px`);
-        root.style.setProperty('--projection-clearance', `${clearance}px`);
+      held = 0;
+      if (visible) {
+        const stripHeight = Math.ceil(strip.getBoundingClientRect().height);
+        // 余白なしの body の高さ（中央寄せの基準）を固定してから、余白を足す
+        const pinned = body.getBoundingClientRect().height;
+        let clearance = 0;
+        for (let i = 0; i < 4; i += 1) {
+          const need = stripHeight - spaceBelowContent();
+          if (need <= 0.5) break;
+          clearance += Math.ceil(need);
+          root.style.setProperty('--projection-body-pin', `${pinned}px`);
+          root.style.setProperty('--projection-clearance', `${clearance}px`);
+        }
+        held = clearance;
       }
+      // 測るための一時の 0 で詰められた scrollTop を戻す（最下部まで送っていた位置を保つ）
+      if (root.scrollTop !== top) root.scrollTop = top;
+    };
+
+    // 残した余白は、利用者が余白の外まで上へ送ったら畳む
+    const onScroll = (): void => {
+      if (held > 0 && !(shownRef.current || strip.matches(':focus-within')) && !inHeldClearance()) apply();
     };
 
     // 見るもの: 外枠・帯・中身（body とその子の盤）。中身の高さが帯の出ている間に変わっても（長い名前・項目が消える・上端の告知）測り直す。
@@ -79,9 +96,23 @@ export function useProjectionClearance(
     const start = (): void => {
       // 最初の通知も飛ばさない（apply から最初の通知までの間の変化を取りこぼさない。apply は冪等）
       const observer = new ResizeObserver(() => apply());
+      // 見ている子を覚え、取り除かれた子は unobserve する（12 時間の会で増減が続いても、外れた要素を観測し続けてリークしない）
+      const watched = new Set<Element>();
       const watchContent = (): void => {
         observer.observe(body);
-        for (const child of Array.from(body.children)) observer.observe(child);
+        const current = new Set(Array.from(body.children));
+        for (const child of watched) {
+          if (!current.has(child)) {
+            observer.unobserve(child);
+            watched.delete(child);
+          }
+        }
+        for (const child of current) {
+          if (!watched.has(child)) {
+            observer.observe(child);
+            watched.add(child);
+          }
+        }
       };
       observer.observe(root);
       observer.observe(strip);
@@ -94,6 +125,7 @@ export function useProjectionClearance(
       // 帯が出ているかの判定は CSS の :focus-within にも依る（Tab で帯へ入ると shown の状態は変わらないのに帯が見える）。フォーカスが動くたびに測り直す
       strip.addEventListener('focusin', onFocusChange);
       strip.addEventListener('focusout', onFocusChange);
+      root.addEventListener('scroll', onScroll, { passive: true });
       observing = observer;
       mutations = mo;
       applyRef.current = apply;
@@ -108,6 +140,8 @@ export function useProjectionClearance(
       mutations = null;
       strip.removeEventListener('focusin', onFocusChange);
       strip.removeEventListener('focusout', onFocusChange);
+      root.removeEventListener('scroll', onScroll);
+      held = 0;
       root.style.removeProperty('--projection-clearance');
       root.style.removeProperty('--projection-body-pin');
     };

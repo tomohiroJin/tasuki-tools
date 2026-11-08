@@ -158,13 +158,13 @@ test('Given 招待の URL / When 字の規則を読む / Then 省略せず、ど
   assert.doesNotMatch(body, /text-overflow|white-space:\s*nowrap|overflow:\s*hidden/);
   assert.match(body, /overflow-wrap:\s*anywhere;/);
   assert.match(body, /word-break:\s*break-all;/);
-  // 長い URL が grid の項目（justify-self: start）として欄の外へ出ないよう、上限と下限を持つ
+  // 長い URL が欄の外へ出ないよう、上限（行の幅）と下限（0）を持つ（最小限読める幅は room-header.css の flex-basis が持つ）
   assert.match(body, /min-inline-size:\s*0;/);
   assert.match(body, /max-inline-size:\s*100%;/);
 });
 
-test('Given ボタンの部品 / When actions.css を読む / Then hidden の .ui-button は描かない（button.css の display の規則は 1 つのまま）（display: inline-flex が UA の [hidden] に勝つ欠陥を、帯の外でも塞ぐ）', () => {
-  const body = only(rules(outsideMedia(readFileSync(resolve(COMPONENTS, 'actions.css'), 'utf8'))), '.ui-button[hidden]');
+test('Given ボタンの部品 / When actions.css を読む / Then hidden の .ui-button は描かない（hidden=until-found は除く。ページ内検索で現れる動きを壊さない）（button.css の display の規則は 1 つのまま）（display: inline-flex が UA の [hidden] に勝つ欠陥を、帯の外でも塞ぐ）', () => {
+  const body = only(rules(outsideMedia(readFileSync(resolve(COMPONENTS, 'actions.css'), 'utf8'))), ".ui-button[hidden]:where(:not([hidden='until-found']))");
   assert.match(body, /display:\s*none;/);
 });
 
@@ -176,5 +176,14 @@ test('Given 招待の行 / When 規則を読む / Then 固定の境目（contain
   assert.match(invite, /flex-wrap:\s*wrap;/);
   assert.match(only(rules(css), '.ui-room-header-invite > .ui-invite'), /display:\s*contents;/);
   // URL は最小限読める幅を基準にして行の余りへ伸びる（広い幅で URL が自分の行へ落ちて 3 段にならない）
-  assert.match(only(rules(css), '.ui-room-header-invite .ui-invite-url'), /flex:\s*1 1 var\(--ui-invite-url-basis, 14rem\);/);
+  assert.match(only(rules(css), '.ui-room-header-invite .ui-invite-url'), /flex:\s*1 1 var\(--ui-invite-url-basis, 16\.55rem\);/);
+  // 伸びるのは中身の幅（max-content）まで（短い URL の枠が行の余りいっぱいの空の枠にならない）
+  assert.match(only(rules(css), '.ui-room-header-invite .ui-invite-url'), /max-inline-size:\s*max-content;/);
+  assert.match(read('room-header.css'), /30rem 未満[^\n]*段数を決める境目ではなく/);
+});
+
+test('Given コピーの結果の知らせ / When 規則を読む / Then 浮かべる（absolute）。流れに入れない（入れると見出しの高さが変わる）', () => {
+  const body = only(rules(read('room-header.css')), '.ui-room-header-copy-note');
+  assert.match(body, /position:\s*absolute;/);
+  assert.ok(rules(read('room-header.css')).some((r) => r.selector === '.ui-room-header-invite-actions' && /position:\s*relative;/.test(r.body)), '知らせの位置の基準（position: relative）が無い');
 });

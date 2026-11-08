@@ -12,16 +12,19 @@ export function useMeasuredBlockSize(ref: RefObject<HTMLElement | null>, variabl
     const element = ref.current;
     if (element === null || typeof ResizeObserver === 'undefined') return;
     const root = document.documentElement;
+    let written = '';
     const apply = (): void => {
       // 切り上げて 1px の余裕を持たせる（小数の高さを丸めて 1px 重なるのを避ける）
-      root.style.setProperty(variable, `${Math.ceil(element.getBoundingClientRect().height)}px`);
+      written = `${Math.ceil(element.getBoundingClientRect().height)}px`;
+      root.style.setProperty(variable, written);
     };
     apply();
     const observer = new ResizeObserver(apply);
     observer.observe(element);
     return () => {
       observer.disconnect();
-      root.style.removeProperty(variable);
+      // 自分が最後に書いた値のときだけ消す（2 つのインスタンスが重なったとき、片方が生きた値を消さない）
+      if (root.style.getPropertyValue(variable) === written) root.style.removeProperty(variable);
     };
   }, [ref, variable]);
 }

@@ -113,7 +113,7 @@ describe('RoomPage のヘッダ', () => {
 
     await waitFor(() => expect(writeText).toHaveBeenCalledWith('https://example.test/?room=ABCD1234'));
     // `writeText` の呼び出しは同期に済む。表示は解決後の再描画なので、DOM は待って取る。
-    expect(await screen.findByRole('button', { name: 'コピーしました' })).toBeDefined();
+    expect((await screen.findAllByText('コピーしました')).length).toBeGreaterThan(0);
   });
 
   it('Given clipboard と従来コピーが使えない / When コピーを選ぶ / Then 手動選択を案内し URL を残す', async () => {
@@ -125,7 +125,7 @@ describe('RoomPage のヘッダ', () => {
     // When: 招待リンクをコピーする。
     fireEvent.click(screen.getByRole('button', { name: '招待リンクをコピー' }));
 
-    await waitFor(() => expect(screen.getByRole('button', { name: 'コピーできません（URL を選択してください）' })).toBeDefined());
+    await waitFor(() => expect(screen.getAllByText('コピーできません（URL を選択してください）').length).toBeGreaterThan(0));
     expect(screen.getByText('https://example.test/?room=ABCD1234')).toBeDefined();
   });
 

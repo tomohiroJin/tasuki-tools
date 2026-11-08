@@ -577,11 +577,12 @@
    - 64rem 以上: 帯が中身に重ならない（盤は帯の上の中央にある）ので、何も取らない（固定で取ると盤が約 80px 上に寄り、1280×720 で縦のスクロールが出た）。文字を 200% にして重なるときだけ、上の測った量を取る
    帯の高さは `use-measured-block-size` が測って書く。ここの値は JS が動く前の既定値で、実測（既定の文字の大きさ）は 320px の 149.4px・390px の 101.6px・40rem 以上は 69px。 */
 :root {
-  --projection-strip-height: 10rem;
+  /* 既定値にホームバーの高さを含める（測った値は border-box で帯の下の余白の safe-area を含むので、使う側では足さない） */
+  --projection-strip-height: calc(10rem + env(safe-area-inset-bottom));
 }
 @media (width >= 40rem) {
   :root {
-    --projection-strip-height: 4.4rem;
+    --projection-strip-height: calc(4.4rem + env(safe-area-inset-bottom));
   }
 }
 .projection-body {
@@ -593,7 +594,7 @@
 @media (width >= 40rem) and (width < 64rem) and (height >= 48rem) {
   .projection-body {
     /* 通常の下の余白（--space-6）は足さず、帯の高さ（実測 69px < 4.4rem）に置き換える。足すと 768×1024 で帯を出さなくても縦のスクロールが出た（1065 > 1024） */
-    padding-block-end: calc(var(--projection-strip-height) + env(safe-area-inset-bottom));
+    padding-block-end: var(--projection-strip-height);
   }
 }
 
@@ -607,7 +608,8 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-3);
-  padding: var(--space-4);
+  /* 下の余白に、iPhone のホームバーの高さを足す（測る hook は border-box を読むので、高さに含まれる。使う側では足さない） */
+  padding: var(--space-4) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom));
   /* 地は不透明（帯の約束）。以前は上へ透明に溶かしていて、ボタンの字の後ろに映す大きな字が透けて重なった（#554）。見えない間は opacity: 0 で消える */
   background: var(--dock-ground);
   border-top: 1px solid var(--dock-edge);

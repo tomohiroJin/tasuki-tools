@@ -423,11 +423,13 @@ describe('ルーム画面の共通の見出し', () => {
     fireEvent.click(screen.getByRole('button', { name: '招待リンクをコピー' }));
 
     // Then
-    expect(await screen.findByRole('button', { name: 'コピーできません（URL を選択してください）' })).toBeTruthy();
+    // ボタンの字は変えず、結果は浮かぶ知らせと読み上げの知らせで出す
+    expect((await screen.findAllByText('コピーできません（URL を選択してください）')).length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: '招待リンクをコピー' })).toBeTruthy();
     expect(screen.getByText(INVITE_URL)).toBeTruthy();
   });
 
-  it('Given クリップボードが使える / When コピーを押す / Then ボタンがコピーしましたになる', async () => {
+  it('Given クリップボードが使える / When コピーを押す / Then コピーしましたの知らせが出る（ボタンの字は変えない）', async () => {
     // Given
     vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } });
     renderHeader();
@@ -436,7 +438,8 @@ describe('ルーム画面の共通の見出し', () => {
     fireEvent.click(screen.getByRole('button', { name: '招待リンクをコピー' }));
 
     // Then
-    expect(await screen.findByRole('button', { name: 'コピーしました' })).toBeTruthy();
+    expect((await screen.findAllByText('コピーしました')).length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: '招待リンクをコピー' })).toBeTruthy();
   });
 
   it('Given 道具に固有のボタン / When titleExtras に渡す / Then 見出しの隣に置かれ、戻るリンクは行の 2 つ目の子のまま', () => {

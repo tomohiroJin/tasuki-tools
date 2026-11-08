@@ -3,7 +3,7 @@
  * @requirements #554 手で写した高さに頼ると、文字を大きくしたとき帯の下に最後の行が隠れる
  */
 import { render } from '@testing-library/react';
-import { useRef } from 'react';
+import { useRef, type RefObject } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useMeasuredBlockSize } from '../src/hooks/use-measured-block-size';
 
@@ -38,5 +38,31 @@ describe('useMeasuredBlockSize', () => {
     vi.stubGlobal('ResizeObserver', undefined);
     render(<Probe />);
     expect(document.documentElement.style.getPropertyValue('--probe-height')).toBe('');
+  });
+
+  it('Given 2 つのインスタンスが同じ変数に書く / When 先のものが外れる / Then 後のものが書いた生きた値を消さない', () => {
+    vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+      return { height: this.dataset.h === 'b' ? 200 : 120 } as DOMRect;
+    });
+    function Two({ showA }: { showA: boolean }) {
+      const a = useRef<HTMLDivElement>(null);
+      const b = useRef<HTMLDivElement>(null);
+      return (
+        <>
+          {showA && <Inner refEl={a} h="a" />}
+          <Inner refEl={b} h="b" />
+        </>
+      );
+    }
+    function Inner({ refEl, h }: { refEl: RefObject<HTMLDivElement | null>; h: string }) {
+      useMeasuredBlockSize(refEl, '--probe-height');
+      return <div ref={refEl} data-h={h} />;
+    }
+    const view = render(<Two showA />);
+    expect(document.documentElement.style.getPropertyValue('--probe-height')).toBe('200px');
+    view.rerender(<Two showA={false} />);
+    // A は 120px を書いたが、いまの値は B の 200px。A が外れても消さない
+    expect(document.documentElement.style.getPropertyValue('--probe-height')).toBe('200px');
   });
 });

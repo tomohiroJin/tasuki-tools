@@ -146,4 +146,39 @@ describe('useProjectionClearance', () => {
     expect(cancelled).toHaveLength(1);
     expect(pending.size).toBe(0);
   });
+
+  it('Given 中身の子が取り除かれる / When 子の増減の通知が来る / Then 外れた子を unobserve する（観測し続けてリークしない）', () => {
+    stubGeometry({ contentBottom: 300, scrollHeight: 720, stripHeight: 69 });
+    const unobserved: Element[] = [];
+    let mutate: () => void = () => undefined;
+    vi.stubGlobal('ResizeObserver', class { observe() {} unobserve(el: Element) { unobserved.push(el); } disconnect() {} });
+    vi.stubGlobal('MutationObserver', class { constructor(cb: () => void) { mutate = cb; } observe() {} disconnect() {} });
+    const { getByTestId } = render(<Probe shown />);
+    const content = getByTestId('content');
+    const extra = document.createElement('div');
+    content.parentElement!.append(extra);
+    mutate(); // extra を観測に加える
+    extra.remove();
+    mutate(); // extra が外れた
+    expect(unobserved).toContain(extra);
+    expect(unobserved).not.toContain(content);
+  });
+
+  it('Given 余白の中まで送ったまま帯が消える / When 帯が消え、上へ送る / Then 消えた時点では余白を残し（盤を動かさない）、余白の外まで上へ送ったら畳む', () => {
+    stubGeometry({ contentBottom: 520, scrollHeight: 568, stripHeight: 149 });
+    Object.defineProperty(HTMLElement.prototype, 'clientHeight', { configurable: true, get: () => 568 });
+    const view = render(<Probe shown />);
+    const root = view.getByTestId('root');
+    const clearance = parseFloat(root.style.getPropertyValue('--projection-clearance'));
+    expect(clearance).toBeGreaterThan(90);
+    let top = 568 + clearance - 568; // 最下部（余白の中）まで送っている
+    Object.defineProperty(root, 'scrollTop', { configurable: true, get: () => top, set: (v: number) => { top = v; } });
+    view.rerender(<Probe shown={false} />);
+    // 帯が消えても、余白の中まで送っている間は余白を残す（消すと scrollTop が詰められて盤が跳ねる）
+    expect(root.style.getPropertyValue('--projection-clearance')).toBe(`${clearance}px`);
+    top = 0; // 上へ送った
+    root.dispatchEvent(new Event('scroll'));
+    expect(root.style.getPropertyValue('--projection-clearance')).toBe('0px');
+    Reflect.deleteProperty(HTMLElement.prototype, 'clientHeight');
+  });
 });

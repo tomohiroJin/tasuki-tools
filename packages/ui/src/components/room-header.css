@@ -33,11 +33,11 @@
 
 /* 招待の行は、固定の境目を置かず、中身の幅で折り返す（#554）。
    「ルームコード・URL・QR・コピー」を 1 つの折り返す行に並べる（`.ui-invite` は `display: contents` で外し、項目を同じ行に並べる）。
-   URL は「最小限読める幅」（`--ui-invite-url-basis`）を基準にして、行の余りへ伸びる（flex-grow）。広い幅では URL が行の中で縮んで中で折り返し、
+   URL は「最小限読める幅」（`--ui-invite-url-basis`・16.55rem）を基準にして、行の余りへ伸びる（flex-grow）。伸びるのは中身の幅（max-content）まで。基準は、4 種の URL × 640〜900px を 1px 刻みで測って、見出しが main 以下になる値（16.5〜16.55rem の狭い窓）に決めた。それより小さいと日本語の長い URL が行の中で 6 行に折れて高くなり、大きいと本番相当の URL が自分の行へ落ちて 3 段になる。広い幅では URL が行の中で縮んで中で折り返し、
    コード・URL・ボタンが 1 行に収まる（見出しが 3 段にならない）。最小限の幅も取れないほど狭いときだけ、URL が自分の行に落ちる。
    URL は省略しない（クリップボードが使えない端末では目で読むしかない）。長ければどこでも折り返して全部見せる。
    container query で固定の値（44rem・54rem）を置くと、URL の長さに依って見出しが 1 段から 3 段になった。
-   狭い（30rem 未満・スマートフォン）だけ、ルームコードと URL を行いっぱいにし、QR とコピーを同じ幅で 2 等分して並べる。
+   狭い（30rem 未満・スマートフォン）の container query は、招待の行の段数を決める境目ではなく、狭い欄での積み方（見出しの高さに関わる折り返しの境目は置かない）の切り替え: ルームコードと URL を行いっぱいにし、QR とコピーを同じ幅で 2 等分して並べる。
    折り返す flex のままだと、URL が縮む前にボタンが次の行へ落ち、「コピー」だけが 1 つ取り残された（利用者の指摘）ので、狭い幅は 2 等分にする。 */
 .ui-room-header-invite {
   display: flex;
@@ -51,20 +51,41 @@
 }
 
 .ui-room-header-invite .ui-invite-url {
-  flex: 1 1 var(--ui-invite-url-basis, 14rem);
+  flex: 1 1 var(--ui-invite-url-basis, 16.55rem);
+  /* 伸びるのは中身の幅まで（短い URL の破線の枠が、行の余りいっぱいの空の枠にならない）。縮むときだけ折り返す */
+  max-inline-size: max-content;
 }
 
-/* QR とコピーは 1 つの項目にまとめ、折り返すときも同じ行に並べる */
+/* QR とコピーは 1 つの項目にまとめ、折り返すときも同じ行に並べる。コピーの結果の知らせ（`.ui-room-header-copy-note`）の位置の基準にもなる */
 .ui-room-header-invite-actions {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--space-3);
+}
+
+/* コピーの結果（コピーしました・コピーできません）は、ボタンの字を変えずに、ボタンの下へ浮かべて出す（流れに入れない）。
+   字が変わってボタンの幅が変わると、折り返しで見出しの段数が変わった（768〜904px で 44px・押すたびに上下した）。 */
+.ui-room-header-copy-note {
+  position: absolute;
+  inset-block-start: calc(100% + var(--space-1));
+  inset-inline-end: 0;
+  z-index: 5;
+  box-sizing: border-box;
+  margin: 0;
+  max-inline-size: min(20rem, 100vw - 2 * var(--space-4));
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--gold-edge);
+  border-radius: var(--radius-md);
+  background: var(--felt-900);
+  box-shadow: var(--shadow-popover);
 }
 
 @container ui-room-header-share (width < 30rem) {
   .ui-room-header-invite > .ui-room-header-code,
   .ui-room-header-invite .ui-invite-url {
     flex: 1 1 100%;
+    max-inline-size: 100%;
   }
 
   /* QR とコピーは同じ幅の 2 列（ボタンは列の幅いっぱい） */
