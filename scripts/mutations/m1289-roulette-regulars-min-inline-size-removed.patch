@@ -1,0 +1,13 @@
+diff --git a/apps/roulette-web/src/index.css b/apps/roulette-web/src/index.css
+--- a/apps/roulette-web/src/index.css
++++ b/apps/roulette-web/src/index.css
+@@ -618,9 +618,6 @@
+ /* 区画自身の最小幅を 0 にする。区画は親（`.roulette-people`）の grid の項目で、項目の最小幅は既定で中身の最小幅（auto）になる。
+    折り返さない長い字を持つ子（組の名前・確認の文）があると、親の列の守り（`minmax(0, 1fr)`）が無くても区画が広がらないよう、区画の側でも守る。
+    `.roulette-regulars > *` に置いても効かない（区画は縦の flex で、交差軸の子の auto の最小幅は最初から 0。実測した）。 */
+-.roulette-regulars {
+-  min-inline-size: 0;
+-}
+ /* 見出し（h3）と小さな「この端末だけ」は、字の大きさが違うので基準線で揃える（部品の既定は中央揃え） */
+ .roulette-regulars-head {
+   align-items: baseline;
