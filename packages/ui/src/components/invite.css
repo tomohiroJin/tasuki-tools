@@ -29,7 +29,6 @@
      欄より長いときは、上限（max-inline-size）と下限（min-inline-size: 0）で欄の幅まで縮み、区切りの無い長い URL でもどこでも折り返して全部見せる（#554） */
   min-inline-size: 0;
   max-inline-size: 100%;
-  overflow-wrap: anywhere;
   word-break: break-all;
   /* 1 回押すと URL 全体が選ばれる。クリップボードが使えない端末（非セキュアオリジン）で、手で選んでコピーする唯一の道（#76 F-1）。
      timer の旧 InvitePanel が持っていた性質を、5 つのアプリの共通の部品へ移した（#447 段 2） */

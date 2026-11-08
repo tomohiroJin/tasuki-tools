@@ -156,17 +156,17 @@ export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras, 
                 {/* 読み上げの知らせ。隠れた欄の中だと読み上げの木に入らないので、欄の外に常に置き、字だけを差し替える。
                     role="status" にしないのは、各画面が自分の知らせを status として持つため（1 画面に status が 2 つ並ぶ）。 */}
                 <p className="ui-visually-hidden ui-room-header-qr-live" aria-live="polite">{qrStatus}</p>
-            </div>
-            <button
-              type="button"
-              className="ui-button ui-button--secondary ui-button--sm"
-              onClick={() => { void copy.copy(); }}
-            >
-              {ROOM_HEADER_TEXT.copy}
-            </button>
-            {/* 見える字（浮かぶ。流れに入れないので見出しの高さを変えない）。読み上げは下の知らせが読む。 */}
-            {copyNote !== '' && <p className="ui-note ui-room-header-copy-note" aria-hidden="true">{copyNote}</p>}
-            <p className="ui-visually-hidden ui-room-header-copy-live" aria-live="polite">{copyNote}</p>
+              </div>
+              <button
+                type="button"
+                className="ui-button ui-button--secondary ui-button--sm"
+                onClick={() => { void copy.copy(); }}
+              >
+                {ROOM_HEADER_TEXT.copy}
+              </button>
+              {/* 見える字（浮かぶ。流れに入れないので見出しの高さを変えない）。読み上げは下の知らせが読む。 */}
+              {copyNote !== '' && <p className="ui-note ui-room-header-copy-note" aria-hidden="true">{copyNote}</p>}
+              <p className="ui-visually-hidden ui-room-header-copy-live" aria-live="polite">{copyNote}</p>
             </div>
           </div>
         </div>

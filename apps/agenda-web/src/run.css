@@ -475,6 +475,8 @@
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  /* 帯の出し入れで中身の高さが変わり、クラシックなスクロールバーが出入りして盤の幅が 15px 変わる。溝を常に取って幅を一定にする */
+  scrollbar-gutter: stable;
   background: radial-gradient(ellipse at 38% 45%, var(--felt-800), var(--felt-950) 70%);
   outline: none;
 }
