@@ -1,0 +1,26 @@
+# 変異 1311: invite-url-ellipsis-restored
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/dock-and-narrow-header.test.mjs
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外。長い URL が省略されて赤）
+#
+# #554 のレビュー。URL の末尾が「…」で隠れ、クリップボードが使えない端末で全文を読めない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1311-*.patch
+# 復元: git apply -R scripts/mutations/m1311-*.patch
+diff --git a/packages/ui/src/components/invite.css b/packages/ui/src/components/invite.css
+--- a/packages/ui/src/components/invite.css
++++ b/packages/ui/src/components/invite.css
+@@ -29,8 +29,9 @@
+      30〜54rem の欄で画面の外へ出た（74 字で 639・640px に clientWidth 649px）。上限と下限を持ち、区切りの無い長い URL でもどこでも折り返して全部見せる */
+   min-inline-size: 0;
+   max-inline-size: 100%;
+-  overflow-wrap: anywhere;
+-  word-break: break-all;
++  overflow: hidden;
++  text-overflow: ellipsis;
++  white-space: nowrap;
+   /* 1 回押すと URL 全体が選ばれる。クリップボードが使えない端末（非セキュアオリジン）で、手で選んでコピーする唯一の道（#76 F-1）。
+      timer の旧 InvitePanel が持っていた性質を、5 つのアプリの共通の部品へ移した（#447 段 2） */
+   user-select: all;

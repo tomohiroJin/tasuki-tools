@@ -107,6 +107,9 @@ const RESERVED_1010_1019 =
 const RESERVED_1020_1029 =
   "**対応表より後に足した変異。** 1020〜1029 は #547 に割り当てた範囲。";
 
+const RESERVED_1310_1319 =
+  "**対応表より後に足した変異。** 1310〜1319 は #554 に追加で割り当てた範囲（1300〜1309 を使い切ったため。main の宣言は 1083 までで重ならないことを確かめた）。";
+
 const RESERVED_1300_1309 =
   "**対応表より後に足した変異。** 1300〜1309 は #554 に追加で割り当てた範囲（1290〜1299 を使い切ったため）。";
 
@@ -6520,11 +6523,11 @@ export const MUTATIONS = [
   },
   {
     id: 1224,
-    label: "招待の URL の 1 行に収める指定（white-space: nowrap）を通常の折り返しに戻す",
+    label: "招待の URL に white-space: nowrap を足す（折り返さず欄の外へ出る）",
     patch: "m1224-invite-url-wraps.patch",
     pkg: "packages/ui",
     tests: ["tests/dock-and-narrow-header.test.mjs"],
-    note: RESERVED_1220_1229 + " " + "#554。招待の URL が 2 行に折れ、隣のボタンと縦が揃わず、見出しが高くなる。",
+    note: RESERVED_1220_1229 + " " + "#554。招待の URL に nowrap を足すと、折り返さず長い URL が欄の外へ出る（単体は規則を読み、E2E は長い URL が欄の内に収まることを測る）。",
   },
   {
     id: 1225,
@@ -6748,7 +6751,7 @@ export const MUTATIONS = [
     patch: "m1292-invite-url-limits-removed.patch",
     pkg: "packages/ui",
     tests: ["tests/dock-and-narrow-header.test.mjs"],
-    note: RESERVED_1290_1299 + " " + "#554 のレビュー。長い URL が 30〜44rem の欄で画面の外へ出る。E2E は長い URL の箱が欄の内に収まることで赤になる。",
+    note: RESERVED_1290_1299 + " " + "#554 のレビュー。長い URL が 30〜54rem の欄で画面の外へ出る。E2E は長い URL の箱が欄の内に収まることで赤になる。",
   },
   {
     id: 1293,
@@ -6885,5 +6888,45 @@ export const MUTATIONS = [
     pkg: "packages/ui",
     tests: ["tests/dock-and-narrow-header.test.mjs"],
     note: RESERVED_1300_1309 + " " + "#554 のレビュー。timer の戻るのフォーカスの輪と押せる範囲が左だけ詰まる。",
+  },
+  {
+    id: 1310,
+    label: "agenda の帯の高さを測る hook が、測った値を変数へ書かない",
+    patch: "m1310-measured-block-size-not-written.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/use-measured-block-size.test.tsx"],
+    note: RESERVED_1310_1319 + " " + "#554 のレビュー。文字を大きくしたとき帯の下に最後の行が隠れる。E2E は文字 200% で帯が既定の値を超えて赤。",
+  },
+  {
+    id: 1311,
+    label: "招待の URL を、折り返しから省略（nowrap・ellipsis）に戻す",
+    patch: "m1311-invite-url-ellipsis-restored.patch",
+    pkg: "packages/ui",
+    tests: ["tests/dock-and-narrow-header.test.mjs"],
+    note: RESERVED_1310_1319 + " " + "#554 のレビュー。URL の末尾が隠れ、全文を読めない。E2E は長い URL が省略されて赤。",
+  },
+  {
+    id: 1312,
+    label: "依存の監査が、注釈を外さずに試験用の入口を探す",
+    patch: "m1312-audit-comment-strip-removed.patch",
+    pkg: "scripts",
+    tests: ["audit-dependency-direction.test.mjs"],
+    note: RESERVED_1310_1319 + " " + "#554 のレビュー。注釈の中に名前を書いただけで止まる偽の陽性。",
+  },
+  {
+    id: 1313,
+    label: "共有の mediaBlocks が、頭と { の間の壊れた書き方を throw しない",
+    patch: "m1313-css-text-broken-media-no-throw.patch",
+    pkg: "packages/ui",
+    tests: ["tests/dock-and-narrow-header.test.mjs"],
+    note: RESERVED_1310_1319 + " " + "#554 のレビュー。壊れた CSS を読んで恒真になる。",
+  },
+  {
+    id: 1314,
+    label: "招待の行の広い組みの境目を 54rem から 44rem に戻す",
+    patch: "m1314-wide-invite-breakpoint-44rem.patch",
+    pkg: "packages/ui",
+    tests: ["tests/dock-and-narrow-header.test.mjs"],
+    note: RESERVED_1310_1319 + " " + "#554 のレビュー。768px で URL が 2 行に折れる。E2E で赤。",
   },
 ];

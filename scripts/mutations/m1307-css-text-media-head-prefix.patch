@@ -11,14 +11,20 @@
 diff --git a/packages/ui/tests/support/css-text.mjs b/packages/ui/tests/support/css-text.mjs
 --- a/packages/ui/tests/support/css-text.mjs
 +++ b/packages/ui/tests/support/css-text.mjs
-@@ -41,10 +41,6 @@
-   let found = 0;
+@@ -42,7 +42,6 @@
    for (let at = plain.indexOf(head); at !== -1; at = plain.indexOf(head, at + 1)) {
      // 頭のすぐ後ろが空白か `{` のときだけ一致とする（`@media (width < 64rem) and (...)` のような長い条件の @media を拾わない）
--    const next = plain[at + head.length];
--    if (next !== undefined && next !== '{' && !/\s/.test(next)) continue;
--    const rest = plain.slice(at + head.length, plain.indexOf('{', at));
--    if (rest.trim() !== '') continue;
-     const [start, end] = blockRange(plain, plain.indexOf('{', at));
-     joined += `${plain.slice(start, end)}\n`;
-     found += 1;
+     const next = plain[at + head.length];
+-    if (next !== undefined && next !== '{' && next !== ';' && next !== '}' && !/\s/.test(next)) continue;
+     const open = plain.indexOf('{', at);
+     if (open === -1) throw new Error(`${head} の後ろに { が無い（壊れた CSS）`);
+     const rest = plain.slice(at + head.length, open);
+@@ -51,7 +50,7 @@
+     if (rest.trim() === '') {
+       // 頭そのもの
+     } else if (/^(and|or|not|only)\b|^,/.test(rest.trim())) {
+-      continue; // 長い条件の @media（`and (...)`・`, (...)`）は別の頭
++      // 長い条件の @media も同じ頭として拾う
+     } else {
+       throw new Error(`${head} と { の間に条件でないものがある（壊れた CSS）`);
+     }

@@ -1,0 +1,22 @@
+# 変異 1310: measured-block-size-not-written
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/use-measured-block-size.test.tsx
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外。文字 200% で帯が既定の値を超えて赤）
+#
+# #554 のレビュー。帯の高さを測った値が変数に書かれず、文字を大きくしたとき帯の下に最後の行が隠れる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1310-*.patch
+# 復元: git apply -R scripts/mutations/m1310-*.patch
+diff --git a/apps/agenda-web/src/hooks/use-measured-block-size.ts b/apps/agenda-web/src/hooks/use-measured-block-size.ts
+--- a/apps/agenda-web/src/hooks/use-measured-block-size.ts
++++ b/apps/agenda-web/src/hooks/use-measured-block-size.ts
+@@ -13,7 +13,6 @@
+     if (element === null || typeof ResizeObserver === 'undefined') return;
+     const root = document.documentElement;
+     const apply = (): void => {
+-      root.style.setProperty(variable, `${element.getBoundingClientRect().height}px`);
+     };
+     apply();
+     const observer = new ResizeObserver(apply);

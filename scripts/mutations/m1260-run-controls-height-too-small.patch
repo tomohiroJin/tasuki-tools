@@ -16,7 +16,7 @@ diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
 --- a/apps/agenda-web/src/run.css
 +++ b/apps/agenda-web/src/run.css
 @@ -9,7 +9,7 @@
-    実測より大きく丸めた手書きの値で、E2E（`header-and-dock.spec.ts`）が帯の実際の高さがこの値以下であることを測る（ずれたら赤）。文字を拡大したときの折り返しは測っていない。
+    ここの値は JS が動く前の既定値で、既定の文字の大きさの実測（320〜639px で 161.39〜162.22px、640〜1023px で 133px）より大きく丸めた手書きの値。
     `.run` の下の余白と、Tab の送り先の余白（下の `scroll-padding-block-end`）が同じ値を引く */
  :root {
 -  --run-controls-height: 10.5rem;

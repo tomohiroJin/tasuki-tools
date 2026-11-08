@@ -12,12 +12,11 @@
 diff --git a/packages/ui/src/components/invite.css b/packages/ui/src/components/invite.css
 --- a/packages/ui/src/components/invite.css
 +++ b/packages/ui/src/components/invite.css
-@@ -31,7 +31,7 @@
+@@ -31,6 +31,7 @@
    max-inline-size: 100%;
-   overflow: hidden;
-   text-overflow: ellipsis;
--  white-space: nowrap;
-+  white-space: normal;
+   overflow-wrap: anywhere;
+   word-break: break-all;
++  white-space: nowrap;
    /* 1 回押すと URL 全体が選ばれる。クリップボードが使えない端末（非セキュアオリジン）で、手で選んでコピーする唯一の道（#76 F-1）。
       timer の旧 InvitePanel が持っていた性質を、5 つのアプリの共通の部品へ移した（#447 段 2） */
    user-select: all;

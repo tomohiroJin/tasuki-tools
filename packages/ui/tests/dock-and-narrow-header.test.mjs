@@ -83,7 +83,10 @@ test('Given 同じ頭の @media が複数ある CSS / When mediaBlocks を通す
   const mixed = '@media (width < 64rem) { .a { x: 1; } }\n@media (width < 64rem) and (height < 30rem) { .long { x: 1; } }';
   assert.deepEqual(rules(mediaBlocks(mixed, '@media (width < 64rem)')).map((r) => r.selector), ['.a']);
   // { が見つからない（壊れた CSS）は throw する
-  assert.throws(() => mediaBlocks('@media (width < 64rem)', '@media (width < 64rem)'), /波括弧が開かない/);
+  assert.throws(() => mediaBlocks('@media (width < 64rem)', '@media (width < 64rem)'), /{ が無い/);
+  // 頭の直後から { までの間に ; や別の規則がある壊れた書き方は throw する
+  assert.throws(() => mediaBlocks('@media (width < 64rem)\n.a { x: 1; }', '@media (width < 64rem)'), /壊れた CSS/);
+  assert.throws(() => mediaBlocks('@media (width < 64rem); .a { x: 1; }', '@media (width < 64rem)'), /壊れた CSS/);
 });
 
 test('Given 帯の逃がし余白 / When reset.css・トークンを読む / Then 要素層は旧い 6rem、帯のある画面だけ 2 段の帯の最大の高さ（--dock-max-height）＋ ホームバー', () => {
@@ -143,12 +146,12 @@ test('Given 40rem 未満の @media / When 見出しの規則を読む / Then ord
   assert.doesNotMatch(mediaBlock(read('room-header.css'), '@media (width < 40rem)'), /\border\s*:/);
 });
 
-test('Given 招待の URL / When 字の規則を読む / Then 1 行に収め、収まらない分は省略する（2 行に折れない）', () => {
+test('Given 招待の URL / When 字の規則を読む / Then 省略せず、どこでも折り返して全部見せ、欄の幅で止める', () => {
   const body = only(rules(read('invite.css')), '.ui-invite-url');
-  assert.match(body, /white-space:\s*nowrap;/);
-  assert.match(body, /text-overflow:\s*ellipsis;/);
-  assert.match(body, /overflow:\s*hidden;/);
-  assert.doesNotMatch(body, /word-break/);
+  // 末尾を「…」で隠さない（クリップボードが使えない端末では目で読むしかない）
+  assert.doesNotMatch(body, /text-overflow|white-space:\s*nowrap|overflow:\s*hidden/);
+  assert.match(body, /overflow-wrap:\s*anywhere;/);
+  assert.match(body, /word-break:\s*break-all;/);
   // 長い URL が grid の項目（justify-self: start）として欄の外へ出ないよう、上限と下限を持つ
   assert.match(body, /min-inline-size:\s*0;/);
   assert.match(body, /max-inline-size:\s*100%;/);
@@ -157,4 +160,9 @@ test('Given 招待の URL / When 字の規則を読む / Then 1 行に収め、�
 test('Given ボタンの部品 / When button.css を読む / Then hidden の .ui-button は描かない（display: inline-flex が UA の [hidden] に勝つ欠陥を、帯の外でも塞ぐ）', () => {
   const body = only(rules(readFileSync(resolve(COMPONENTS, 'button.css'), 'utf8')), '.ui-button[hidden]');
   assert.match(body, /display:\s*none;/);
+});
+
+test('Given 招待の行 / When コンテナクエリを読む / Then 広い組みの境目は 54rem（URL・コード・ボタンが 1 行に収まる幅。44rem では 768px で URL が 2 行に折れた）', () => {
+  assert.match(read('room-header.css'), /@container ui-room-header-share \(width < 54rem\) \{/);
+  assert.doesNotMatch(read('room-header.css'), /@container ui-room-header-share \(width < 44rem\)/);
 });

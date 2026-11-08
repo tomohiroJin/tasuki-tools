@@ -470,18 +470,31 @@ test.describe('agenda の進行中の帯', () => {
     // 帯の実際の高さは、下の余白の変数（--run-controls-height）以下（値がずれたら赤）。帯が fixed の幅（64rem 未満）の全部で測る
     for (const width of [320, 390, 639, 768, 1023]) {
       await page.setViewportSize({ width, height: 800 });
-      const m = await page.evaluate(() => {
+      // 帯の高さは ResizeObserver が測って変数へ書く（幅を変えた直後は書き換わる前なので、揃うまで待つ）
+      await expect.poll(async () => page.evaluate(() => {
         const bar = document.querySelector('.run-controls')!.getBoundingClientRect().height;
         const probe = document.createElement('div');
         probe.style.height = getComputedStyle(document.documentElement).getPropertyValue('--run-controls-height').trim();
         document.body.append(probe);
         const limit = probe.getBoundingClientRect().height;
         probe.remove();
-        return { bar, limit };
-      });
-      expect(m.bar, `agenda 帯の高さ（${width}）が --run-controls-height（${m.limit}px）を超える`).toBeLessThanOrEqual(m.limit);
-      expect(m.limit, `agenda --run-controls-height（${width}）が読めない`).toBeGreaterThan(0);
+        return limit > 0 && bar <= limit + 0.01;
+      }), { message: `agenda 帯の高さ（${width}）が --run-controls-height を超える` }).toBe(true);
     }
+    // 文字を 200% にする（390 幅）: 帯が高くなっても、帯の高さは測って変数へ書かれ、最下部で最後の行・「最初から」が帯に隠れない
+    await page.setViewportSize({ width: 390, height: 800 });
+    await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
+    await expect.poll(async () => page.evaluate(() => {
+      const bar = document.querySelector('.run-controls')!.getBoundingClientRect().height;
+      const probe = document.createElement('div');
+      probe.style.height = getComputedStyle(document.documentElement).getPropertyValue('--run-controls-height').trim();
+      document.body.append(probe);
+      const limit = probe.getBoundingClientRect().height;
+      probe.remove();
+      return limit > 0 && bar <= limit + 0.01;
+    }), { message: 'agenda 文字 200%: 帯の高さが --run-controls-height（測った値）を超える' }).toBe(true);
+    await expectContentClearOfDock(page, dock, 'agenda 文字 200%（390）');
+    await page.evaluate(() => { document.documentElement.style.fontSize = ''; window.scrollTo(0, 0); });
     // 進行表の最後の「スキップ」に Tab で行っても、不透明な帯の後ろに隠れない（WCAG 2.4.11）。40rem 未満・40〜64rem の両方で測る
     for (const width of [390, 768]) {
       // 低い画面にして、フォーカスした行が画面の下端に送られる（scroll-padding が無ければ帯の後ろに入る）状況を作る
@@ -736,11 +749,15 @@ test.describe('長い招待の URL', () => {
         url.textContent = `http://127.0.0.1:38557/?room=${'ながいなまえのへや'.repeat(8)}`;
         const share = document.querySelector('.ui-room-header-share')!.getBoundingClientRect();
         const r = url.getBoundingClientRect();
-        return { right: r.right, shareRight: share.right, len: url.textContent!.length, scrollW: document.documentElement.scrollWidth, innerW: innerWidth };
+        const cs = getComputedStyle(url);
+        return { right: r.right, shareRight: share.right, len: url.textContent!.length, scrollW: document.documentElement.scrollWidth, innerW: innerWidth, urlScrollW: url.scrollWidth, urlClientW: url.clientWidth, ellipsis: cs.textOverflow === 'ellipsis' || cs.whiteSpace === 'nowrap' };
       });
       expect(m.len, '長い URL（70 字以上）になっていない').toBeGreaterThanOrEqual(70);
       expect(m.right, `長い URL（${width}）の箱が欄（右端 ${m.shareRight}）の外へ出る`).toBeLessThanOrEqual(m.shareRight + 0.5);
       expect(m.scrollW, `長い URL（${width}）でページが横に溢れる`).toBeLessThanOrEqual(m.innerW);
+      // 全文が見える（省略しない・箱の中で横に切れない。クリップボードが使えない端末では目で読むしかない）
+      expect(m.ellipsis, `長い URL（${width}）が省略される設定になっている`).toBe(false);
+      expect(m.urlScrollW, `長い URL（${width}）が箱の中で切れている（scrollWidth ${m.urlScrollW} > clientWidth ${m.urlClientW}）`).toBeLessThanOrEqual(m.urlClientW + 1);
     }
   });
 });

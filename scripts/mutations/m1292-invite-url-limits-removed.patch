@@ -14,10 +14,10 @@ diff --git a/packages/ui/src/components/invite.css b/packages/ui/src/components/
 +++ b/packages/ui/src/components/invite.css
 @@ -27,8 +27,6 @@
    font-family: var(--font-mono);
-   /* 欄の幅で止める。`overflow: hidden` の flex 項目なら下限は 0 になるが、grid の項目（`.ui-room-header-invite` の中は `justify-self: start`）には効かず、
-      長い URL（日本語のルーム名がそのまま入りうる）が 30〜44rem の欄で画面の外へ出る（74 字で 639・640px に clientWidth 649px）。上限と下限を両方持つ（#554） */
+   /* 欄の幅で止める。grid の項目（`.ui-room-header-invite` の中は `justify-self: start`）は中身の長さまで伸びて、長い URL（日本語のルーム名がそのまま入りうる）が
+      30〜54rem の欄で画面の外へ出た（74 字で 639・640px に clientWidth 649px）。上限と下限を持ち、区切りの無い長い URL でもどこでも折り返して全部見せる */
 -  min-inline-size: 0;
 -  max-inline-size: 100%;
-   overflow: hidden;
-   text-overflow: ellipsis;
-   white-space: nowrap;
+   overflow-wrap: anywhere;
+   word-break: break-all;
+   /* 1 回押すと URL 全体が選ばれる。クリップボードが使えない端末（非セキュアオリジン）で、手で選んでコピーする唯一の道（#76 F-1）。

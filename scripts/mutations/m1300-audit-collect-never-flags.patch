@@ -11,12 +11,12 @@
 diff --git a/scripts/audit-dependency-direction.mjs b/scripts/audit-dependency-direction.mjs
 --- a/scripts/audit-dependency-direction.mjs
 +++ b/scripts/audit-dependency-direction.mjs
-@@ -369,7 +369,7 @@
+@@ -381,7 +381,7 @@
      const text = fs.readFileSync(path.join(root, rel), "utf8");
      // 製品コード = パッケージの中の tests・test 以外の全ファイル（src だけでなく、vite.config.ts などの設定ファイルも含める）
-     const inSrc = !(rel.startsWith(`${pkg}/tests/`) || rel.startsWith(`${pkg}/test/`));
--    if (inSrc && TEST_SUPPORT_SPECIFIER.test(text)) testSupport.push(rel);
-+    if (false && TEST_SUPPORT_SPECIFIER.test(text)) testSupport.push(rel);
+     const isProductFile = !(rel.startsWith(`${pkg}/tests/`) || rel.startsWith(`${pkg}/test/`));
+-    if (isProductFile && TEST_SUPPORT_SPECIFIER.test(stripJsComments(text))) testSupport.push(rel);
++    if (false && TEST_SUPPORT_SPECIFIER.test(stripJsComments(text))) testSupport.push(rel);
      for (const m of text.matchAll(TASUKI_SPECIFIER)) imports.push(m[1]);
      for (const m of text.matchAll(RELATIVE_SPECIFIER)) {
        // 解決先はリポジトリ相対で持つ。パッケージの接頭辞から外れたら越境。

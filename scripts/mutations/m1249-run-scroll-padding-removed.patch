@@ -13,7 +13,7 @@ diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
 --- a/apps/agenda-web/src/run.css
 +++ b/apps/agenda-web/src/run.css
 @@ -16,7 +16,6 @@
-    40rem 未満の reset.css の `--dock-max-height` と、40〜64rem の「無し」を上書きする。`:has` は宣言を置く条件だけに使う */
+    agenda には部品の帯（`.ui-actions--dock`）が無いので、要素層（reset.css）の `html:has(.ui-actions--dock)` は効かない。ここで `html:has(.run-controls)` に同じ式を置く。`:has` は宣言を置く条件だけに使う */
  @media (width < 64rem) {
    html:has(.run-controls) {
 -    scroll-padding-block-end: calc(var(--run-controls-height) + env(safe-area-inset-bottom));

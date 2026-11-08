@@ -42,10 +42,20 @@ export function mediaBlocks(css, head) {
   for (let at = plain.indexOf(head); at !== -1; at = plain.indexOf(head, at + 1)) {
     // 頭のすぐ後ろが空白か `{` のときだけ一致とする（`@media (width < 64rem) and (...)` のような長い条件の @media を拾わない）
     const next = plain[at + head.length];
-    if (next !== undefined && next !== '{' && !/\s/.test(next)) continue;
-    const rest = plain.slice(at + head.length, plain.indexOf('{', at));
-    if (rest.trim() !== '') continue;
-    const [start, end] = blockRange(plain, plain.indexOf('{', at));
+    if (next !== undefined && next !== '{' && next !== ';' && next !== '}' && !/\s/.test(next)) continue;
+    const open = plain.indexOf('{', at);
+    if (open === -1) throw new Error(`${head} の後ろに { が無い（壊れた CSS）`);
+    const rest = plain.slice(at + head.length, open);
+    // 頭と { の間に ; や } や別の規則の始まりがあれば、規則の塊を持たない壊れた書き方なので throw する
+    if (/[;}]|@/.test(rest)) throw new Error(`${head} と { の間に ; か } か別の規則がある（壊れた CSS）`);
+    if (rest.trim() === '') {
+      // 頭そのもの
+    } else if (/^(and|or|not|only)\b|^,/.test(rest.trim())) {
+      continue; // 長い条件の @media（`and (...)`・`, (...)`）は別の頭
+    } else {
+      throw new Error(`${head} と { の間に条件でないものがある（壊れた CSS）`);
+    }
+    const [start, end] = blockRange(plain, open);
     joined += `${plain.slice(start, end)}\n`;
     found += 1;
   }
