@@ -114,4 +114,3 @@ describe('useProjectionClearance', () => {
     expect(frames).toHaveLength(2);
   });
 });
-});
