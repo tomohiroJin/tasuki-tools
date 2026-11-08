@@ -1,0 +1,23 @@
+# 変異 1267: timer-scroll-padding-everywhere
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/session-actions-fit.test.ts
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外。timer のロビー（帯なし）で 96px でなく 152px になって赤）
+#
+# #554 のレビュー。timer の Tab の送り先の余白が、帯の無い画面（ロビー）にまで 152px 掛かる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1267-*.patch
+# 復元: git apply -R scripts/mutations/m1267-*.patch
+diff --git a/apps/timer-web/src/styles/base.css b/apps/timer-web/src/styles/base.css
+--- a/apps/timer-web/src/styles/base.css
++++ b/apps/timer-web/src/styles/base.css
+@@ -127,7 +127,7 @@
+  * Tab で辿った先が帯の後ろに隠れないよう取る（#554・WCAG 2.4.11）。ロビーなど帯の無い画面には 152px を掛けない */
+ @media (width < 40rem) {
+   html {
+-    scroll-padding-block-end: 6rem;
++    scroll-padding-block-end: calc(var(--dock-max-height) + env(safe-area-inset-bottom));
+   }
+ 
+   html:has(.session-actions) {

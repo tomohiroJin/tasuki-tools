@@ -1,0 +1,23 @@
+# 変異 1221: dock-grid-columns-removed
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/dock-and-narrow-header.test.mjs
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外）
+#
+# #554。40rem 未満の帯が 1 列に積まれ、3 つの操作が 3 段になって 320×568 で画面の 3 割を覆い、結果の数字や手札が初期表示で隠れる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1221-*.patch
+# 復元: git apply -R scripts/mutations/m1221-*.patch
+diff --git a/packages/ui/src/components/actions.css b/packages/ui/src/components/actions.css
+index 380a4482..9c604f63 100644
+--- a/packages/ui/src/components/actions.css
++++ b/packages/ui/src/components/actions.css
+@@ -53,7 +53,6 @@
+     bottom: 0;
+     z-index: 1;
+     display: grid;
+-    grid-template-columns: repeat(2, minmax(0, 1fr));
+     /* 器（.ui-page）の padding-inline と同じ式。固定の 1rem だと 400〜640px で帯が器の余白に届かない */
+     margin-inline: calc(clamp(var(--space-4), 4vw, calc(var(--space-6) * 1.5)) * -1);
+     padding: var(--space-3) clamp(var(--space-4), 4vw, calc(var(--space-6) * 1.5)) calc(var(--space-3) + env(safe-area-inset-bottom));

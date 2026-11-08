@@ -1,0 +1,23 @@
+# 変異 1333: invite-url-basis-max-content
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/dock-and-narrow-header.test.mjs
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外。広い幅で URL が自分の行へ落ち、見出しが main より高くなって赤）
+#
+# #554 のレビュー。URL の基準を max-content に戻すと、広い幅で URL が自分の行へ落ちて 3 段になり、見出しが main より高くなる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1333-*.patch
+# 復元: git apply -R scripts/mutations/m1333-*.patch
+diff --git a/packages/ui/src/components/room-header.css b/packages/ui/src/components/room-header.css
+--- a/packages/ui/src/components/room-header.css
++++ b/packages/ui/src/components/room-header.css
+@@ -51,7 +51,7 @@
+ }
+ 
+ .ui-room-header-invite .ui-invite-url {
+-  flex: 1 1 15.5rem;
++  flex: 0 1 auto;
+   /* 伸びるのは中身の幅まで（短い URL の破線の枠が、行の余りいっぱいの空の枠にならない）。縮むときだけ折り返す */
+   max-inline-size: max-content;
+ }

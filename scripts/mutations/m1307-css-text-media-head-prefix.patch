@@ -1,0 +1,30 @@
+# 変異 1307: css-text-media-head-prefix
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/dock-and-narrow-header.test.mjs
+#
+# #554 のレビュー。mediaBlocks が頭を前方一致で探し、長い条件の @media を同じ頭として拾う。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1307-*.patch
+# 復元: git apply -R scripts/mutations/m1307-*.patch
+diff --git a/packages/test-css/src/css-text.mjs b/packages/test-css/src/css-text.mjs
+--- a/packages/test-css/src/css-text.mjs
++++ b/packages/test-css/src/css-text.mjs
+@@ -42,7 +42,6 @@
+   for (let at = plain.indexOf(head); at !== -1; at = plain.indexOf(head, at + 1)) {
+     // 頭のすぐ後ろが空白か `{` のときだけ一致とする（`@media (width < 64rem) and (...)` のような長い条件の @media を拾わない）
+     const next = plain[at + head.length];
+-    if (next !== undefined && next !== '{' && next !== ';' && next !== '}' && !/\s/.test(next)) continue;
+     const open = plain.indexOf('{', at);
+     if (open === -1) throw new Error(`${head} の後ろに { が無い（壊れた CSS）`);
+     const rest = plain.slice(at + head.length, open);
+@@ -51,7 +50,7 @@
+     if (rest.trim() === '') {
+       // 頭そのもの
+     } else if (/^(and|or|not|only)\b|^,/.test(rest.trim())) {
+-      continue; // 長い条件の @media（`and (...)`・`, (...)`）は別の頭
++      // 長い条件の @media も同じ頭として拾う
+     } else {
+       throw new Error(`${head} と { の間に条件でないものがある（壊れた CSS）`);
+     }

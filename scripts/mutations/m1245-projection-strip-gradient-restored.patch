@@ -1,0 +1,24 @@
+# 変異 1245: projection-strip-gradient-restored
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/run-controls-opaque.test.ts
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外）
+#
+# #554 のレビュー。映す表示の操作帯の地が透明へ溶け、ボタンの字の後ろに映す大きな字が透けて重なる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1245-*.patch
+# 復元: git apply -R scripts/mutations/m1245-*.patch
+diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
+--- a/apps/agenda-web/src/run.css
++++ b/apps/agenda-web/src/run.css
+@@ -611,8 +611,7 @@
+   /* 下の余白に、iPhone のホームバーの高さを足す（測る hook は border-box を読むので、高さに含まれる。使う側では足さない） */
+   padding: var(--space-4) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom));
+   /* 地は不透明（帯の約束）。以前は上へ透明に溶かしていて、ボタンの字の後ろに映す大きな字が透けて重なった（#554）。見えない間は opacity: 0 で消える */
+-  background: var(--dock-ground);
+-  border-top: 1px solid var(--dock-edge);
++  background: linear-gradient(to top, var(--felt-scrim), transparent);
+   opacity: 0;
+   /* 見えない間は押させない（透明なボタンを誤って押さない） */
+   pointer-events: none;

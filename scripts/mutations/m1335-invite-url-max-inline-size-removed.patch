@@ -1,0 +1,23 @@
+# 変異 1335: invite-url-max-inline-size-removed
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/dock-and-narrow-header.test.mjs
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外。広い画面で URL の枠が中身より広がって赤）
+#
+# #554 のレビュー。URL の枠が行の余りいっぱいに伸び、短い URL でも何百 px の空の枠になる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1335-*.patch
+# 復元: git apply -R scripts/mutations/m1335-*.patch
+diff --git a/packages/ui/src/components/room-header.css b/packages/ui/src/components/room-header.css
+--- a/packages/ui/src/components/room-header.css
++++ b/packages/ui/src/components/room-header.css
+@@ -52,8 +52,6 @@
+ 
+ .ui-room-header-invite .ui-invite-url {
+   flex: 1 1 15.5rem;
+-  /* 伸びるのは中身の幅まで（短い URL の破線の枠が、行の余りいっぱいの空の枠にならない）。縮むときだけ折り返す */
+-  max-inline-size: max-content;
+ }
+ 
+ /* QR とコピーは 1 つの項目にまとめ、折り返すときも同じ行に並べる。コピーの結果の知らせ（`.ui-room-header-copy-note`）の位置の基準にもなる */

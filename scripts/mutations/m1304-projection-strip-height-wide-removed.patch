@@ -1,0 +1,25 @@
+# 変異 1304: projection-strip-height-wide-removed
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/run-controls-opaque.test.ts
+#
+# #554 のレビュー。40rem 以上の帯の高さの変数の段が無くなり、横向きのスマートフォンやタブレットで余白を取りすぎる（E2E の測りは緑のまま。見える害は余白の取りすぎで、単体が段の有無を読む）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1304-*.patch
+# 復元: git apply -R scripts/mutations/m1304-*.patch
+diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
+--- a/apps/agenda-web/src/run.css
++++ b/apps/agenda-web/src/run.css
+@@ -580,11 +580,6 @@
+   /* 既定値にホームバーの高さを含める（測った値は border-box で帯の下の余白の safe-area を含むので、使う側では足さない） */
+   --projection-strip-height: calc(10rem + env(safe-area-inset-bottom));
+ }
+-@media (width >= 40rem) {
+-  :root {
+-    --projection-strip-height: calc(4.4rem + env(safe-area-inset-bottom));
+-  }
+-}
+ .projection-body {
+   /* 帯が中身に実際に重なる量だけ（`use-projection-clearance` が測って `--projection-clearance` へ書く。重ならなければ 0）。幅の条件は置かない
+      （広い画面でも文字を 200% にすると帯が中身を覆う）。余白は body の外の margin で足し、body の高さは帯が出る前のまま固定する（`--projection-body-pin`）ので、盤の中央寄せがやり直されない */

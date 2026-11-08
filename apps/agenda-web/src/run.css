@@ -5,6 +5,23 @@
    ============================================================ */
 
 /* ── 段組み ─────────────────────────────────────────────── */
+/* 帯（`.run-controls`）の高さ。実際の高さは `use-measured-block-size`（ResizeObserver）が測って `<html>` の style へ書く（文字を大きくしたときも帯の下に最後の行が隠れない）。
+   ここの値は JS が動く前の既定値で、既定の文字の大きさの実測（320〜639px で 161.39〜162.22px、640〜1023px で 133px）より大きく丸めた手書きの値。
+   `.run` の下の余白と、Tab の送り先の余白（下の `scroll-padding-block-end`）が同じ値を引く。測った値（border-box）は帯の下の余白の `env(safe-area-inset-bottom)` を含むので、
+   既定値の方にホームバーを含め、使う側では足さない（足すと二重になる） */
+:root {
+  /* 既定値にホームバーの高さを含める（測った値は border-box で、帯の下の余白の `env(safe-area-inset-bottom)` をすでに含むので、使う側では足さない） */
+  --run-controls-height: calc(10.5rem + env(safe-area-inset-bottom));
+}
+
+/* 帯が `fixed` の幅（64rem 未満）は、Tab で辿った先が帯の後ろに隠れない（WCAG 2.4.11）よう、フォーカスで送るときの下の余白を帯の高さに揃える。
+   agenda には部品の帯（`.ui-actions--dock`）が無いので、要素層（reset.css）の `html:has(.ui-actions--dock)` は効かない。ここで `html:has(.run-controls)` に同じ式を置く。`:has` は宣言を置く条件だけに使う */
+@media (width < 64rem) {
+  html:has(.run-controls) {
+    scroll-padding-block-end: var(--run-controls-height);
+  }
+}
+
 /* 手元（〜64rem）: 盤 → 進行表 → 「最初から」を積み、主の操作の帯は画面の下に固定する。
    帯の高さぶん下を空けて、最後の行が帯の下に隠れないようにする */
 .run {
@@ -15,7 +32,8 @@
     'dial'
     'aside';
   gap: var(--space-4);
-  padding-bottom: 9.5rem;
+  /* 帯（`.run-controls`・固定）の高さ（上の `--run-controls-height`。ホームバーの高さを含む）を下の余白に取る。足りないと、最下部で最後の行や「最初から」が不透明な帯に隠れる（#554） */
+  padding-bottom: var(--run-controls-height);
 }
 .run--finished {
   padding-bottom: 0;
@@ -156,7 +174,8 @@
 }
 
 /* ── 主の操作の帯 ─────────────────────────────────────── */
-/* 手元では画面の下に固定する。地はフェルトの暗幕で、上へ向かって溶かす */
+/* 手元では画面の下に固定する。地は不透明なフェルト（帯の約束・`packages/ui/README.md`）。
+   以前は上へ向かって透明に溶かしていたが、帯の字「このステップに」の後ろに進行表の字が透けて重なった（#554・#2） */
 .run-controls {
   position: fixed;
   inset-inline: 0;
@@ -165,7 +184,8 @@
   display: grid;
   gap: var(--space-3);
   padding: var(--space-4) clamp(var(--space-4), 4vw, var(--space-6)) calc(var(--space-4) + env(safe-area-inset-bottom));
-  background: linear-gradient(to top, var(--felt-950) 72%, transparent);
+  background: var(--dock-ground);
+  border-top: 1px solid var(--dock-edge);
 }
 @media (width >= 64rem) {
   .run-controls {
@@ -174,6 +194,7 @@
     justify-self: center;
     padding: 0;
     background: none;
+    border-top: 0;
   }
 }
 /* 延長の群。狭い幅（〜40rem）では見出し「このステップに」を 1 行目に置き、3 つのボタンを 2 行目で等分する
@@ -454,6 +475,8 @@
   display: flex;
   flex-direction: column;
   overflow-y: auto;
+  /* 帯の出し入れで中身の高さが変わり、クラシックなスクロールバーが出入りして盤の幅が 15px 変わる。溝を常に取って幅を一定にする */
+  scrollbar-gutter: stable;
   background: radial-gradient(ellipse at 38% 45%, var(--felt-800), var(--felt-950) 70%);
   outline: none;
 }
@@ -548,6 +571,35 @@
   color: var(--ivory-dim);
 }
 
+/* 操作帯（`.projection-strip`・fixed・不透明）に中身の下端が隠れないよう、中身の下に余白を取る。
+   - どの幅でも: 帯が出ている間に、帯が実際に中身へ重なる量だけ取る
+     （`use-projection-clearance` が測る。中身の下端がもともと帯より上にあれば 0 で、帯の出し入れで盤が動かない。無条件に帯の高さを足すと、390×844 で盤が 80px 跳ねた）。
+     常に取る形にすると、帯を出す前から縦のスクロールが出て #471 の既存の検査が赤になる
+   - 40rem 以上 64rem 未満で高さが 48rem 以上: 帯が 1 行（実測 69px）なので、4.4rem を常に取る（帯が出ても盤が跳ねない。768×1024 で縦のスクロールが出ない）
+   - 64rem 以上: 帯が中身に重ならない（盤は帯の上の中央にある）ので、何も取らない（固定で取ると盤が約 80px 上に寄り、1280×720 で縦のスクロールが出た）。文字を 200% にして重なるときだけ、上の測った量を取る
+   帯の高さは `use-measured-block-size` が測って書く。ここの値は JS が動く前の既定値で、実測（既定の文字の大きさ）は 320px の 149.4px・390px の 101.6px・40rem 以上は 69px。 */
+:root {
+  /* 既定値にホームバーの高さを含める（測った値は border-box で帯の下の余白の safe-area を含むので、使う側では足さない） */
+  --projection-strip-height: calc(10rem + env(safe-area-inset-bottom));
+}
+@media (width >= 40rem) {
+  :root {
+    --projection-strip-height: calc(4.4rem + env(safe-area-inset-bottom));
+  }
+}
+.projection-body {
+  /* 帯が中身に実際に重なる量だけ（`use-projection-clearance` が測って `--projection-clearance` へ書く。重ならなければ 0）。幅の条件は置かない
+     （広い画面でも文字を 200% にすると帯が中身を覆う）。余白は body の外の margin で足し、body の高さは帯が出る前のまま固定する（`--projection-body-pin`）ので、盤の中央寄せがやり直されない */
+  margin-block-end: var(--projection-clearance, 0px);
+  min-block-size: var(--projection-body-pin, 0px);
+}
+@media (width >= 40rem) and (width < 64rem) and (height >= 48rem) {
+  .projection-body {
+    /* 通常の下の余白（--space-6）は足さず、帯の高さ（実測 69px < 4.4rem）に置き換える。足すと 768×1024 で帯を出さなくても縦のスクロールが出た（1065 > 1024） */
+    padding-block-end: var(--projection-strip-height);
+  }
+}
+
 /* マウスを動かしたときだけ出す薄い操作帯。キーボードで入ったときも出す */
 .projection-strip {
   position: fixed;
@@ -558,8 +610,11 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-3);
-  padding: var(--space-4);
-  background: linear-gradient(to top, var(--felt-scrim), transparent);
+  /* 下の余白に、iPhone のホームバーの高さを足す（測る hook は border-box を読むので、高さに含まれる。使う側では足さない） */
+  padding: var(--space-4) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom));
+  /* 地は不透明（帯の約束）。以前は上へ透明に溶かしていて、ボタンの字の後ろに映す大きな字が透けて重なった（#554）。見えない間は opacity: 0 で消える */
+  background: var(--dock-ground);
+  border-top: 1px solid var(--dock-edge);
   opacity: 0;
   /* 見えない間は押させない（透明なボタンを誤って押さない） */
   pointer-events: none;

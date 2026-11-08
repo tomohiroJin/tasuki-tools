@@ -1,0 +1,21 @@
+# 変異 1294: audit-test-only-check-removed
+#
+# 検出を期待するテスト:
+#   - scripts/audit-dependency-direction.test.mjs
+#
+# #554 のレビュー。製品コードによる試験専用パッケージの取り込みを拾わない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1294-*.patch
+# 復元: git apply -R scripts/mutations/m1294-*.patch
+--- a/scripts/audit-dependency-direction.mjs
++++ b/scripts/audit-dependency-direction.mjs
+@@ -375,7 +375,7 @@
+     const isTestSide = pkg === "e2e" || rel.startsWith(`${pkg}/tests/`) || rel.startsWith(`${pkg}/test/`);
+     for (const m of text.matchAll(TASUKI_SPECIFIER)) {
+       imports.push(m[1]);
+-      if (!isTestSide && TEST_ONLY.includes(m[1])) testOnlyInProduct.push(`${rel} → ${m[1]}`);
++      if (false && TEST_ONLY.includes(m[1])) testOnlyInProduct.push(`${rel} → ${m[1]}`);
+     }
+     for (const m of text.matchAll(RELATIVE_SPECIFIER)) {
+       // 解決先はリポジトリ相対で持つ。パッケージの接頭辞から外れたら越境。

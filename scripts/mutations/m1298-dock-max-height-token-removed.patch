@@ -1,0 +1,21 @@
+# 変異 1298: dock-max-height-token-removed
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/tokens.test.mjs
+#
+# #554 のレビュー。帯の最大の高さのトークンが無くなり、Tab の送り先の余白が無効になる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1298-*.patch
+# 復元: git apply -R scripts/mutations/m1298-*.patch
+diff --git a/packages/ui/src/tokens/shape.css b/packages/ui/src/tokens/shape.css
+--- a/packages/ui/src/tokens/shape.css
++++ b/packages/ui/src/tokens/shape.css
+@@ -24,7 +24,6 @@
+   /* 下端の帯（2 段）の最大の高さ。Tab で送った先が帯の後ろに隠れない余白（`scroll-padding-block-end`）に使う（WCAG 2.4.11）。
+    * 実測（既定の文字の大きさ）: poker の公開後（選択欄 1 段 ＋ 操作 1 段）142.2px・timer の休憩つき（2×2）125px・poker の投票中（1 段）約 80px。
+    * 最大の 142.2px に iPhone のホームバー（`env(safe-area-inset-bottom)`）を足して使うので、丸めて 9.5rem（152px）。文字を拡大したときの折り返しは測っていない */
+-  --dock-max-height: 9.5rem;
+ 
+   /* 影。夜の卓に載るため黒基調で固定する（配色の切替は行わない） */
+   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35), 0 6px 16px rgba(0, 0, 0, 0.35);

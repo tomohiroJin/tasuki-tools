@@ -1,0 +1,21 @@
+# 変異 1308: css-text-block-range-no-throw
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/dock-and-narrow-header.test.mjs
+#
+# #554 のレビュー。{ が見つからない壊れた CSS を読んでも throw せず、空を読んで恒真になる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1308-*.patch
+# 復元: git apply -R scripts/mutations/m1308-*.patch
+diff --git a/packages/test-css/src/css-text.mjs b/packages/test-css/src/css-text.mjs
+--- a/packages/test-css/src/css-text.mjs
++++ b/packages/test-css/src/css-text.mjs
+@@ -12,7 +12,6 @@
+ 
+ /** 波括弧の対応で、`open` の `{` から始まるブロックの中身の範囲 [start, end) を返す。 */
+ function blockRange(plain, open) {
+-  if (open === -1) throw new Error('波括弧が開かない（{ が見つからない）');
+   let depth = 0;
+   for (let i = open; i < plain.length; i += 1) {
+     if (plain[i] === '{') depth += 1;

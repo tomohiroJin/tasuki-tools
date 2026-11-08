@@ -1,0 +1,23 @@
+# 変異 1302: projection-strip-height-wide-too-small
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/run-controls-opaque.test.ts
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外。844×390 で帯の実高が変数を超えて赤）
+#
+# #554 のレビュー。40rem 以上の帯の高さの変数が実測（69px）より低く、余白が足りず中身が帯に隠れる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1302-*.patch
+# 復元: git apply -R scripts/mutations/m1302-*.patch
+diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
+--- a/apps/agenda-web/src/run.css
++++ b/apps/agenda-web/src/run.css
+@@ -582,7 +582,7 @@
+ }
+ @media (width >= 40rem) {
+   :root {
+-    --projection-strip-height: calc(4.4rem + env(safe-area-inset-bottom));
++    --projection-strip-height: 2rem;
+   }
+ }
+ .projection-body {

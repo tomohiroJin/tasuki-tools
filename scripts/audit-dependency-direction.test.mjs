@@ -8,7 +8,12 @@
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import {
+  observe,
+  TEST_ONLY,
   findViolations,
   findInvalidExclusions,
   ALLOWED,
@@ -137,4 +142,78 @@ test("pkg の指定も無い行は、名前の代わりに何が足りないか�
 test("実際の除外表は理由の要件を満たす（表そのものの健全性）", () => {
   // 表が空のあいだは自明に通るが、行が足された瞬間から効く
   assert.deepEqual(findInvalidExclusions(EXCLUDED_PACKAGES), []);
+});
+
+/** 一時のディレクトリに 1 パッケージ分のファイルを置き、観測した結果を返す。 */
+function observeTemp(pkg, files) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "dd-"));
+  try {
+    fs.mkdirSync(path.join(root, pkg), { recursive: true });
+    fs.writeFileSync(path.join(root, pkg, "package.json"), "{}");
+    for (const [rel, text] of Object.entries(files)) {
+      fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
+      fs.writeFileSync(path.join(root, rel), text);
+    }
+    return observe(pkg, Object.keys(files), root);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
+
+test("試験専用のパッケージは、試験の側（tests・test・e2e）から読むと通る（#554）", () => {
+  assert.deepEqual(TEST_ONLY, ["@tasuki/test-css"]);
+  const line = `import { rules } from "@tasuki/test-css";\n`;
+  for (const [pkg, rel] of [
+    ["apps/timer-web", "apps/timer-web/test/a.test.ts"],
+    ["apps/agenda-web", "apps/agenda-web/tests/a.test.ts"],
+    ["e2e", "e2e/specs/a.spec.ts"],
+  ]) {
+    const seen = observeTemp(pkg, { [rel]: line });
+    assert.deepEqual(seen.testOnlyInProduct, [], rel);
+  }
+  assert.deepEqual(findViolations({ "apps/timer-web": observeTemp("apps/timer-web", { "apps/timer-web/test/a.test.ts": line }) }), []);
+});
+
+test("試験専用のパッケージを製品コード（src・設定ファイル）から読むと、表にあっても違反（#554）", () => {
+  const line = `import { rules } from "@tasuki/test-css";\n`;
+  const seen = observeTemp("apps/timer-web", {
+    "apps/timer-web/src/a.ts": line,
+    "apps/timer-web/vite.config.ts": line,
+    "apps/timer-web/test/ok.test.ts": line,
+  });
+  assert.deepEqual(seen.testOnlyInProduct, [
+    "apps/timer-web/src/a.ts → @tasuki/test-css",
+    "apps/timer-web/vite.config.ts → @tasuki/test-css",
+  ]);
+  assert.equal(ALLOWED["apps/timer-web"].includes("@tasuki/test-css"), true);
+  const violations = findViolations({ "apps/timer-web": seen });
+  assert.deepEqual(
+    violations.map((v) => v.via),
+    ["試験専用", "試験専用"],
+  );
+});
+
+test("試験専用のパッケージを許可表に載せていないパッケージは、試験から読んでも違反（#554）", () => {
+  const seen = observeTemp("apps/topic-web", { "apps/topic-web/test/a.test.ts": `import "@tasuki/test-css";\n` });
+  assert.deepEqual(findViolations({ "apps/topic-web": seen }), [
+    { pkg: "apps/topic-web", dep: "@tasuki/test-css", via: "import" },
+  ]);
+});
+
+test("製品コードが同じパッケージの tests・test を相対パスで読むと違反（再輸出で試験専用のパッケージを素通りさせない・#554）", () => {
+  const seen = observeTemp("apps/agenda-web", {
+    "apps/agenda-web/src/leak.ts": `export * from "../tests/support/css";\n`,
+    "apps/agenda-web/src/leak2.ts": `import { x } from "../test/support/css";\n`,
+    "apps/agenda-web/src/leak3.ts": `import x from "../tests";\n`,
+    "apps/agenda-web/src/leak4.ts": `import y from "../test";\n`,
+    "apps/agenda-web/tests/support/css.ts": `export * from "@tasuki/test-css";\n`,
+    "apps/agenda-web/tests/a.test.ts": `import { x } from "./support/css";\n`,
+  });
+  assert.deepEqual(seen.testOnlyInProduct, [
+    "apps/agenda-web/src/leak.ts → ../tests/support/css",
+    "apps/agenda-web/src/leak2.ts → ../test/support/css",
+    "apps/agenda-web/src/leak3.ts → ../tests",
+    "apps/agenda-web/src/leak4.ts → ../test",
+  ]);
+  assert.deepEqual(findViolations({ "apps/agenda-web": seen }).map((v) => v.via), ["試験専用", "試験専用", "試験専用", "試験専用"]);
 });

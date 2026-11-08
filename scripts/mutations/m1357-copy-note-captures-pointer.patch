@@ -1,0 +1,20 @@
+# 変異 1357: copy-note-captures-pointer
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/dock-and-narrow-header.test.mjs
+#
+# #554 のレビュー。コピーの知らせが点を受け、下の操作（見学する・タブ）を 2 秒押せなくする。E2E も赤。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1357-*.patch
+# 復元: git apply -R scripts/mutations/m1357-*.patch
+--- a/packages/ui/src/components/room-header.css
++++ b/packages/ui/src/components/room-header.css
+@@ -72,7 +72,6 @@
+   inset-inline-end: 0;
+   z-index: 5;
+   /* 見るだけの知らせ。下の操作（poker の「見学する」・topic のタブ）を 2 秒覆うので、点を受けず、押すのを邪魔しない。 */
+-  pointer-events: none;
+   box-sizing: border-box;
+   margin: 0;
+   max-inline-size: min(20rem, 100vw - 2 * var(--space-4));

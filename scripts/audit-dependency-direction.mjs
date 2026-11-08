@@ -110,7 +110,9 @@ export const ALLOWED = {
   "packages/poker-core": ["@tasuki/protocol"], // 既存。境界のパースを protocol に一本化
   "packages/protocol": [],
   "packages/rate-limit": [],
-  "packages/ui": [],
+  // 試験専用の私的なパッケージ（CSS を字で読む小さな解析器・#554）。@tasuki/* に依存しない。読めるのは {@link TEST_ONLY} の側だけ。
+  "packages/test-css": [],
+  "packages/ui": ["@tasuki/test-css"], // devDependency（tests/ だけが読む）
   "packages/invite-ui": [], // ADR-0020: ブラウザ操作のみ。ドメイン・同期への依存なし。
   // #369: web の同期フックが共有する React の部品（`./sync`）。同期クライアントの上に載り、ドメインには依存しない。
   // #371: 読む面の部品（`./reader`）。Markdown の描画は `@tasuki/markdown` の解析の上に載る（docs/adr/0021 の追記）。
@@ -144,6 +146,7 @@ export const ALLOWED = {
     "@tasuki/dev-hub-redirect",
     "@tasuki/room-core",
     "@tasuki/sync-client",
+    "@tasuki/test-css",
     "@tasuki/timer-core",
     "@tasuki/topic-core",
     "@tasuki/ui",
@@ -201,6 +204,7 @@ export const ALLOWED = {
     "@tasuki/protocol",
     "@tasuki/room-core",
     "@tasuki/sync-client",
+    "@tasuki/test-css",
     "@tasuki/topic-core",
     "@tasuki/ui",
     "@tasuki/web-kit",
@@ -271,6 +275,13 @@ export function findInvalidExclusions(entries) {
     .sort();
 }
 
+/**
+ * 試験の側からだけ読める私的なパッケージ（#554）。読んでよいのは、読む側のパッケージの `tests/`・`test/` の下と e2e パッケージだけ。
+ * 製品コード（それ以外の全ファイル。設定ファイルを含む）から読むと、依存先が {@link ALLOWED} にあっても違反。
+ * 字句の解析は持たない。指定子の拾い方は他の `@tasuki/*` と同じ（{@link TASUKI_SPECIFIER}）。
+ */
+export const TEST_ONLY = ["@tasuki/test-css"];
+
 /** `@tasuki/*` の import 指定子を 1 行から拾う。 */
 const TASUKI_SPECIFIER = /["'](@tasuki\/[a-z0-9-]+)/g;
 
@@ -291,7 +302,7 @@ const RELATIVE_SPECIFIER = /(?:from|import)\s*\(?\s*["'](\.[^"']*)["']/g;
  */
 export function findViolations(observed) {
   const violations = [];
-  for (const [pkg, { manifest, imports, escapes = [] }] of Object.entries(observed)) {
+  for (const [pkg, { manifest, imports, escapes = [], testOnlyInProduct = [] }] of Object.entries(observed)) {
     const allowed = ALLOWED[pkg];
     if (allowed === undefined) {
       violations.push({ pkg, dep: null, via: "declaration" });
@@ -308,6 +319,10 @@ export function findViolations(observed) {
     // 表に載っている依存先であっても、パッケージ名で参照しなければ 2 と 3 が空振りする。
     for (const dep of new Set(escapes)) {
       violations.push({ pkg, dep, via: "相対パス" });
+    }
+    // 試験専用のパッケージを製品コードが読むのは、依存先が表にあるかどうかによらず違反。
+    for (const dep of new Set(testOnlyInProduct)) {
+      violations.push({ pkg, dep, via: "試験専用" });
     }
   }
   return violations;
@@ -340,9 +355,9 @@ function listPackageSources(pkg) {
   );
 }
 
-/** 実体を観測する。 */
-function observe(pkg, files) {
-  const manifestPath = path.join(REPO_ROOT, pkg, "package.json");
+/** 実体を観測する（`root` は走査の起点。既定はリポジトリ。自己テストは一時のディレクトリを渡す）。 */
+export function observe(pkg, files, root = REPO_ROOT) {
+  const manifestPath = path.join(root, pkg, "package.json");
   const manifest = [];
   if (fs.existsSync(manifestPath)) {
     const json = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
@@ -354,17 +369,24 @@ function observe(pkg, files) {
   }
   const imports = [];
   const escapes = [];
+  const testOnlyInProduct = [];
   for (const rel of files) {
-    const text = fs.readFileSync(path.join(REPO_ROOT, rel), "utf8");
-    for (const m of text.matchAll(TASUKI_SPECIFIER)) imports.push(m[1]);
+    const text = fs.readFileSync(path.join(root, rel), "utf8");
+    const isTestSide = pkg === "e2e" || rel.startsWith(`${pkg}/tests/`) || rel.startsWith(`${pkg}/test/`);
+    for (const m of text.matchAll(TASUKI_SPECIFIER)) {
+      imports.push(m[1]);
+      if (!isTestSide && TEST_ONLY.includes(m[1])) testOnlyInProduct.push(`${rel} → ${m[1]}`);
+    }
     for (const m of text.matchAll(RELATIVE_SPECIFIER)) {
       // 解決先はリポジトリ相対で持つ。パッケージの接頭辞から外れたら越境。
       // `path.posix` で畳むのは、走査対象のパスが常に `/` 区切りだから。
       const target = path.posix.normalize(path.posix.join(path.posix.dirname(rel), m[1]));
       if (!target.startsWith(`${pkg}/`)) escapes.push(`${rel} → ${m[1]}`);
+      // 製品コードが同じパッケージの tests・test を相対パスで読むと、そこが試験専用のパッケージを再輸出して素通りする
+      if (!isTestSide && (target.startsWith(`${pkg}/tests/`) || target.startsWith(`${pkg}/test/`) || target === `${pkg}/tests` || target === `${pkg}/test`)) testOnlyInProduct.push(`${rel} → ${m[1]}`);
     }
   }
-  return { manifest, imports, escapes };
+  return { manifest, imports, escapes, testOnlyInProduct };
 }
 
 function main() {
@@ -476,6 +498,8 @@ function main() {
         ? `  ${v.pkg}: 許可表に宣言がありません`
         : v.via === "相対パス"
           ? `  ${v.pkg}: パッケージの外を相対パスで取り込んでいます ${v.dep}`
+          : v.via === "試験専用"
+            ? `  ${v.pkg}: 製品コードが試験専用のパッケージを読んでいます ${v.dep}`
           : `  ${v.pkg} → ${v.dep}（${v.via}）`,
     );
   }

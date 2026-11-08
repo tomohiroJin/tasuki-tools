@@ -1,0 +1,28 @@
+# 変異 1247: back-indent-rule-removed-all-widths
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/dock-and-narrow-header.test.mjs
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外）
+#
+# #554 のレビュー。戻るが単独の行に落ちる幅（40rem 未満と 640〜668px のお題つきの poker）で、字が 9px 字下がって題と左端が揃わない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1247-*.patch
+# 復元: git apply -R scripts/mutations/m1247-*.patch
+diff --git a/packages/ui/src/components/room-header.css b/packages/ui/src/components/room-header.css
+--- a/packages/ui/src/components/room-header.css
++++ b/packages/ui/src/components/room-header.css
+@@ -195,12 +195,7 @@
+   /* 戻るは下線の字（`.ui-button--quiet`）の横の余白（`padding-inline` ＋ 枠 1px）ぶん、字が左へ 9px 字下がる。40rem 未満では戻るが行の先頭に落ちるので（#554・#479 の #13）、
+      左の余白と枠を持たず、字の左端を題に揃える（負の margin で打ち消すと、道具のボタンの右隣に並ぶ幅で間が縮んだ）。
+      40rem 以上と詰めた見た目（timer）は元の余白のまま（左右対称。フォーカスの輪も押せる範囲も左だけ詰まらない）。
+-     640〜667px で戻るが折り返して行の先頭に来るときは、字下げが 9px 残る（許す） */
+-  .ui-room-header:not(.ui-room-header--compact) .ui-page-header-back {
+-    padding-inline-start: 0;
+-    border-inline-start-width: 0;
+-  }
+-}
++     640〜667px で戻るが折り返して行の先頭に来るときは、字下げが 9px 残る（許す） */}
+ 
+ /* `.ui-room-header .ui-room-header-share-toggle`（(0,2,0)）にするのは、`.ui-button` の `display: inline-flex`（後に読み込まれる・
+    同じ詳細度）に勝って 40rem 以上で隠すため */

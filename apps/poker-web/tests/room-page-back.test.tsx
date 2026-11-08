@@ -113,7 +113,11 @@ describe('RoomPage のヘッダ', () => {
 
     await waitFor(() => expect(writeText).toHaveBeenCalledWith('https://example.test/?room=ABCD1234'));
     // `writeText` の呼び出しは同期に済む。表示は解決後の再描画なので、DOM は待って取る。
-    expect(await screen.findByRole('button', { name: 'コピーしました' })).toBeDefined();
+    await waitFor(() => expect(document.querySelector('.ui-room-header-copy-note')?.textContent).toBe('コピーしました'));
+    // 見える知らせ（浮かぶ・読み上げからは隠す）と、読み上げの知らせ（aria-live）は別の要素。どちらかが消えると赤にする
+    expect(document.querySelector('.ui-room-header-copy-note')?.getAttribute('aria-hidden')).toBe('true');
+    expect(document.querySelector('.ui-room-header-copy-live')?.textContent).toBe('コピーしました');
+    expect(document.querySelector('.ui-room-header-copy-live')?.getAttribute('aria-live')).toBe('polite');
   });
 
   it('Given clipboard と従来コピーが使えない / When コピーを選ぶ / Then 手動選択を案内し URL を残す', async () => {
@@ -125,7 +129,11 @@ describe('RoomPage のヘッダ', () => {
     // When: 招待リンクをコピーする。
     fireEvent.click(screen.getByRole('button', { name: '招待リンクをコピー' }));
 
-    await waitFor(() => expect(screen.getByRole('button', { name: 'コピーできません（URL を選択してください）' })).toBeDefined());
+    await waitFor(() => expect(document.querySelector('.ui-room-header-copy-note')?.textContent).toBe('コピーできません（URL を選択してください）'));
+    // 見える知らせ（浮かぶ・読み上げからは隠す）と、読み上げの知らせ（aria-live）は別の要素。どちらかが消えると赤にする
+    expect(document.querySelector('.ui-room-header-copy-note')?.getAttribute('aria-hidden')).toBe('true');
+    expect(document.querySelector('.ui-room-header-copy-live')?.textContent).toBe('コピーできません（URL を選択してください）');
+    expect(document.querySelector('.ui-room-header-copy-live')?.getAttribute('aria-live')).toBe('polite');
     expect(screen.getByText('https://example.test/?room=ABCD1234')).toBeDefined();
   });
 

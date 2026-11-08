@@ -1,0 +1,24 @@
+# 変異 1330: button-hidden-rule-in-button-css
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/room-header-wide-toggle.test.mjs
+#
+# #554 のレビュー。hidden のボタンの規則を button.css に置くと、「button.css で display を宣言する規則はちょうど 1 つ」という既存の検査が赤になる（除外を足さずに済む置き場は actions.css）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1330-*.patch
+# 復元: git apply -R scripts/mutations/m1330-*.patch
+diff --git a/packages/ui/src/components/button.css b/packages/ui/src/components/button.css
+--- a/packages/ui/src/components/button.css
++++ b/packages/ui/src/components/button.css
+@@ -35,6 +35,10 @@
+   transition: transform 0.12s, box-shadow 0.12s, filter 0.2s;
+ }
+ 
++.ui-button[hidden] {
++  display: none;
++}
++
+ .ui-button:where(:hover:not(:disabled)) {
+   filter: brightness(1.06);
+ }

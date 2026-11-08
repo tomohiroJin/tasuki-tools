@@ -1,0 +1,22 @@
+# 変異 1321: run-controls-safe-area-doubled
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/run-controls-opaque.test.ts
+#
+# #554 のレビュー。測った帯の高さ（border-box）が帯の下の余白のホームバーを含むのに、使う側でも足し、iPhone でホームバーの分が二重になる（E2E では safe-area が 0 なので緑で、単体が式を読んで拾う）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1321-*.patch
+# 復元: git apply -R scripts/mutations/m1321-*.patch
+diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
+--- a/apps/agenda-web/src/run.css
++++ b/apps/agenda-web/src/run.css
+@@ -33,7 +33,7 @@
+     'aside';
+   gap: var(--space-4);
+   /* 帯（`.run-controls`・固定）の高さ（上の `--run-controls-height`。ホームバーの高さを含む）を下の余白に取る。足りないと、最下部で最後の行や「最初から」が不透明な帯に隠れる（#554） */
+-  padding-bottom: var(--run-controls-height);
++  padding-bottom: calc(var(--run-controls-height) + env(safe-area-inset-bottom));
+ }
+ .run--finished {
+   padding-bottom: 0;

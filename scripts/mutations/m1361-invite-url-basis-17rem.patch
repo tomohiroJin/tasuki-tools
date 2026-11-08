@@ -1,0 +1,21 @@
+# 変異 1361: invite-url-basis-17rem
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/dock-and-narrow-header.test.mjs
+#
+# #554 のレビュー。URL の基準が崖の向こう（16.75rem 以上）に入り、本番相当の URL が自分の行へ落ちて 1 段増える。E2E は段数で赤。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1361-*.patch
+# 復元: git apply -R scripts/mutations/m1361-*.patch
+--- a/packages/ui/src/components/room-header.css
++++ b/packages/ui/src/components/room-header.css
+@@ -51,7 +51,7 @@
+ }
+ 
+ .ui-room-header-invite .ui-invite-url {
+-  flex: 1 1 15.5rem;
++  flex: 1 1 17rem;
+   /* 伸びるのは中身の幅まで（短い URL の破線の枠が、行の余りいっぱいの空の枠にならない）。縮むときだけ折り返す */
+   max-inline-size: max-content;
+ }

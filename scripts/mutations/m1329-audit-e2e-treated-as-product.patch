@@ -1,0 +1,21 @@
+# 変異 1329: audit-e2e-treated-as-product
+#
+# 検出を期待するテスト:
+#   - scripts/audit-dependency-direction.test.mjs
+#
+# #554 のレビュー。e2e パッケージを試験の側として扱わず、E2E から試験専用のパッケージを読むと誤って止まる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1329-*.patch
+# 復元: git apply -R scripts/mutations/m1329-*.patch
+--- a/scripts/audit-dependency-direction.mjs
++++ b/scripts/audit-dependency-direction.mjs
+@@ -372,7 +372,7 @@
+   const testOnlyInProduct = [];
+   for (const rel of files) {
+     const text = fs.readFileSync(path.join(root, rel), "utf8");
+-    const isTestSide = pkg === "e2e" || rel.startsWith(`${pkg}/tests/`) || rel.startsWith(`${pkg}/test/`);
++    const isTestSide = rel.startsWith(`${pkg}/tests/`) || rel.startsWith(`${pkg}/test/`);
+     for (const m of text.matchAll(TASUKI_SPECIFIER)) {
+       imports.push(m[1]);
+       if (!isTestSide && TEST_ONLY.includes(m[1])) testOnlyInProduct.push(`${rel} → ${m[1]}`);

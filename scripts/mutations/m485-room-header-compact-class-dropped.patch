@@ -10,11 +10,10 @@
 #       git apply scripts/mutations/m485-*.patch
 # 復元: git apply -R scripts/mutations/m485-*.patch
 diff --git a/packages/invite-ui/src/RoomHeader.tsx b/packages/invite-ui/src/RoomHeader.tsx
-index 3771f02d..159b5014 100644
 --- a/packages/invite-ui/src/RoomHeader.tsx
 +++ b/packages/invite-ui/src/RoomHeader.tsx
-@@ -104,7 +104,7 @@ export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras,
-       : ROOM_HEADER_TEXT.copy;
+@@ -102,7 +102,7 @@
+   const copyNote = copy.state === 'done' ? ROOM_HEADER_TEXT.copied : copy.state === 'failed' ? ROOM_HEADER_TEXT.copyFailed : '';
  
    return (
 -    <header className={compact ? 'ui-room-header ui-room-header--compact' : 'ui-room-header'}>

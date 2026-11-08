@@ -1,0 +1,34 @@
+# 変異 1262: dock-hidden-rule-inside-media
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/dock-and-narrow-header.test.mjs
+#
+# #554 のレビュー。[hidden] を描かない規則が 40rem 未満の @media の中に入り、40rem 以上で hidden の子が描かれる（README は幅によらないと読める）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1262-*.patch
+# 復元: git apply -R scripts/mutations/m1262-*.patch
+--- a/packages/ui/src/components/actions.css
++++ b/packages/ui/src/components/actions.css
+@@ -51,10 +51,6 @@
+    - 帯が覆う中身は、最下部までスクロールすると帯の上に出る（帯は流れの中に居るので、中身の下の余白は部品が持つ必要がない）。 */
+ /* 数えないもの（`hidden`）は描かない（幅によらない）。`.ui-button { display: inline-flex }` が UA の `[hidden] { display: none }` に勝つので、書かないと
+    「数えない」と決めた子が描かれて段が増える。`hidden="until-found"`（ページ内検索で現れる）は描く（`.ui-button` の規則と同じ）。帯の子を隠すときは `hidden` 属性か `.ui-visually-hidden` を使う（クラスや @media の `display: none` は数え方が知らない） */
+-.ui-actions--dock > [hidden]:where(:not([hidden='until-found'])) {
+-  display: none;
+-}
+-
+ /* `.ui-button { display: inline-flex }`（button.css）が UA の `[hidden] { display: none }` に勝つので、`hidden` のボタンが描かれてしまう（部品全体の欠陥）。
+    帯の中だけでなく、どの `.ui-button` でも `hidden` なら描かない。button.css に置かない（button.css の `display` を宣言する規則は `.ui-button` の 1 つだけ、という既存の検査を保つ）。
+    `hidden="until-found"`（ページ内検索で現れる）は描く（`:where(:not(…))` で詳細度は (0,2,0) のまま。button.css の `.ui-button`（0,1,0）に読み込み順によらず勝つ） */
+@@ -63,6 +59,10 @@
+ }
+ 
+ @media (width < 40rem) {
++  .ui-actions--dock > [hidden]:where(:not([hidden='until-found'])) {
++    display: none;
++  }
++
+   .ui-actions--dock {
+     position: sticky;
+     bottom: 0;

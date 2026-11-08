@@ -1,0 +1,22 @@
+# 変異 1303: css-text-layer-dropped
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/dock-and-narrow-header.test.mjs
+#
+# #554 のレビュー。共有の outsideMedia が @layer の塊まで外し、条件によらず効く @layer の中の規則を「外側」として数えなくなる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1303-*.patch
+# 復元: git apply -R scripts/mutations/m1303-*.patch
+diff --git a/packages/test-css/src/css-text.mjs b/packages/test-css/src/css-text.mjs
+--- a/packages/test-css/src/css-text.mjs
++++ b/packages/test-css/src/css-text.mjs
+@@ -71,7 +71,7 @@
+       continue;
+     }
+     const [start, end] = blockRange(plain, open);
+-    plain = plain.slice(0, m.index) + plain.slice(start, end) + plain.slice(end + 1);
++    plain = plain.slice(0, m.index) + plain.slice(end + 1);
+   }
+   return plain;
+ }
