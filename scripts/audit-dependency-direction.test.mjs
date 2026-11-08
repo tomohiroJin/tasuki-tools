@@ -265,7 +265,7 @@ test("observe: glob の文字列の中の /* で注釈を始めず、その後�
   withTempPackage(
     {
       "apps/g/package.json": "{}",
-      "apps/g/src/glob.ts": "const g = 'tests/**/*.ts';\nconst m = await import(\"" + entry + "/css-text.mjs\"); /* 閉じ */\nconst h = 'x/*.ts';\n",
+      "apps/g/src/glob.ts": "const g = 'tests/**/*.ts';\nconst h = 'x/*.ts';\nconst m = await import(\"" + entry + "/css-text.mjs\"); /* 閉じ */\n",
     },
     (root) => {
       const seen = observe("apps/g", ["apps/g/src/glob.ts"], root);
