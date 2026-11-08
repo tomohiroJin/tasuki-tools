@@ -38,7 +38,7 @@ describe("RosterPanel の「ランダム」の置き場", () => {
     expect(head).not.toBeNull();
     expect(head?.querySelector("h2")?.textContent).toBe("参加者");
     // ロビーと同じ ShuffleButton（ボタンの写しでない）
-    expect(shuffle.querySelector(".shuffle-button-label")).not.toBeNull();
+    expect(shuffle.querySelector(".session-action-label")).not.toBeNull();
   });
 
   it("Given onShuffle を渡さない / When 描く / Then 「ランダム」は出ない", () => {

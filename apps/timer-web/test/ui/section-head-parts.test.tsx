@@ -68,10 +68,11 @@ describe("名簿とロビーの参加者の見出しの行", () => {
 });
 
 describe("ShuffleButton", () => {
-  it("Given 2 人 / When 描く / Then ボタンの中の並びは shuffle-button-label・shuffle-button-icon（shuffle-button.css が持つクラス）", () => {
+  it("Given 2 人 / When 描く / Then ボタンの中の並びは session-action-label・session-action-icon（セッションの操作ボタンと同じクラス。写しを持たない）", () => {
     const { container } = render(<ShuffleButton onClick={noop} rotationLength={2} />);
-    expect(container.querySelector(".shuffle-button-label")).not.toBeNull();
-    expect(container.querySelector(".shuffle-button-icon")).not.toBeNull();
+    expect(container.querySelector(".session-action-label")).not.toBeNull();
+    expect(container.querySelector(".session-action-icon")).not.toBeNull();
+    expect(container.querySelector("[class*='shuffle-button-']")).toBeNull();
   });
 
   it("Given 1 人・または onClick が無い / When 描く / Then 何も描かない", () => {
