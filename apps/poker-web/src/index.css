@@ -478,6 +478,7 @@
 
 /* 題は大きく。ボタンのときも入力のときも同じ幅に収める（切り替えで行が跳ばない） */
 .estimate-item-title,
+.estimate-item-sizer,
 .estimate-item-input {
   flex: 1 1 14rem;
   min-width: 0;
@@ -488,7 +489,8 @@
   overflow-wrap: anywhere;
 }
 
-.estimate-item-title {
+.estimate-item-title,
+.estimate-item-sizer {
   justify-content: flex-start;
   text-align: start;
 }
@@ -505,6 +507,7 @@
 }
 
 .estimate-item--inline .estimate-item-title,
+.estimate-item--inline .estimate-item-sizer,
 .estimate-item--inline .estimate-item-input {
   padding-inline: var(--space-2);
   font-family: inherit;
@@ -512,29 +515,23 @@
   font-weight: 400;
 }
 
-.estimate-item--inline .estimate-item-title {
+.estimate-item--inline .estimate-item-title,
+.estimate-item--inline .estimate-item-sizer {
   flex: 1 1 auto;
   border-color: transparent;
+}
+
+.estimate-item--inline .estimate-item-title {
   text-decoration: underline;
   text-underline-offset: 0.2em;
 }
 
-/* ボタンと同じ大きさの場所だけを取る見えない複製（`<button … aria-hidden tabIndex=-1 disabled>`。`.estimate-item-title` のクラスは持たず、ボタンの部品 `ui-button` で同じ寸法にする） */
+/* ボタンと同じ大きさの場所だけを取る見えない複製（`<button … aria-hidden tabIndex=-1 disabled>`。`.estimate-item-title` のクラスは持たず、ボタンの部品 `ui-button` で同じ寸法にする）。
+   寸法の宣言（幅・折り返し・字・余白・枠）は名前のボタンと**同じ規則に並べて**持つ（上の 3 つの規則の `.estimate-item-sizer`）。ボタン側を変えても複製がずれない。
+   ここに足すのは、見えなくして触れさせないことだけ */
 .estimate-item--inline .estimate-item-sizer {
   visibility: hidden;
   pointer-events: none;
-  flex: 1 1 auto;
-  min-width: 0;
-  width: auto;
-  max-width: 100%;
-  justify-content: flex-start;
-  text-align: start;
-  border-color: transparent;
-  font-family: inherit;
-  font-size: inherit; /* scale-exempt: 束の見出しの字と同じ大きさを継ぐ */
-  font-weight: 400;
-  padding-inline: var(--space-2);
-  overflow-wrap: anywhere;
 }
 
 /* 入力は 1 行の高さ（押せる大きさ）で、包みの上端にそろえる（複製が何行に折れても、入力は伸びない） */
