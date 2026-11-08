@@ -1,12 +1,12 @@
 diff --git a/apps/timer-web/src/ui/components/PassphrasePanel.tsx b/apps/timer-web/src/ui/components/PassphrasePanel.tsx
-index 7d851726..521be0a8 100644
+index 65b8c616..521be0a8 100644
 --- a/apps/timer-web/src/ui/components/PassphrasePanel.tsx
 +++ b/apps/timer-web/src/ui/components/PassphrasePanel.tsx
 @@ -24,7 +24,7 @@ export function PassphrasePanel({ protectedNow, onSet }: PassphrasePanelProps) {
      setValue("");
    };
    return (
--    <div className="panel-stack">
+-    <div className="ui-stack panel-stack">
 +    <div>
        <SectionHeader icon={Lock} title="パスフレーズ" />
        {protectedNow ? (
