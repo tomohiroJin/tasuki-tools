@@ -152,6 +152,9 @@ const RESERVED_1230_1239 =
 const RESERVED_1110_1119 =
   "**対応表より後に足した変異。** 1110〜1119 は #556 に割り当てた範囲。";
 
+const RESERVED_1380_1389 =
+  "**対応表より後に足した変異。** 1380〜1389 は #556 のレビュー（最後の指摘）に割り当てた範囲。";
+
 const RESERVED_1060_1069 =
   "**対応表より後に足した変異。** 1060〜1069 は #562（E2E の繰り返し実行の集計と、ci.yml との写しの比較）に割り当てた範囲。";
 
@@ -7823,5 +7826,61 @@ export const MUTATIONS = [
     pkg: "packages/ui",
     tests: ["tests/rows-alignment.test.mjs"],
     note: RESERVED_1230_1239 + " " + "#556 のレビュー。自己ホスト書体の 700 は base 層しか無く、利用者が入れる字（「議」など）が別の書体で描かれる（E6）。",
+  },
+  {
+    id: 1238,
+    label: "timer の交代順の札の名前から最小の幅を外す",
+    patch: "m1238-rotation-lineup-name-no-min.patch",
+    pkg: "packages/ui",
+    tests: ["tests/rows-alignment.test.mjs"],
+    note: RESERVED_1230_1239 + " " + "#556 のレビュー（F1）。文字 200% で名前が 0px に潰れ、隣の字と重なる。",
+  },
+  {
+    id: 1239,
+    label: "timer の交代順の札の長い文言に nowrap を付ける",
+    patch: "m1239-rotation-lineup-when-nowrap.patch",
+    pkg: "packages/ui",
+    tests: ["tests/rows-alignment.test.mjs"],
+    note: RESERVED_1230_1239 + " " + "#556 のレビュー（F1）。「約10分後」が札を越える。",
+  },
+  {
+    id: 1380,
+    label: "roulette の行のボタンの字を折り返さない",
+    patch: "m1380-roulette-button-nowrap.patch",
+    pkg: "packages/ui",
+    tests: ["tests/rows-alignment.test.mjs"],
+    note: RESERVED_1380_1389 + " " + "#556 のレビュー（F2）。文字 200% の 320 で「名前を消す」が行の左を越える。",
+  },
+  {
+    id: 1381,
+    label: "timer の名簿の名前を 2 行で切って省略する",
+    patch: "m1381-roster-name-line-clamp.patch",
+    pkg: "packages/ui",
+    tests: ["tests/rows-alignment.test.mjs"],
+    note: RESERVED_1380_1389 + " " + "#556 のレビュー（F3）。長い名前の全文がタッチで読めない。",
+  },
+  {
+    id: 1382,
+    label: "roulette の名前を 2 行で切って省略する",
+    patch: "m1382-roulette-name-line-clamp.patch",
+    pkg: "packages/ui",
+    tests: ["tests/rows-alignment.test.mjs"],
+    note: RESERVED_1380_1389 + " " + "#556 のレビュー（F3）。長い名前の全文がタッチで読めない。",
+  },
+  {
+    id: 1383,
+    label: "timer の縦の並びに子のリセットを自前で書く",
+    patch: "m1383-panel-stack-own-reset.patch",
+    pkg: "packages/ui",
+    tests: ["tests/rows-alignment.test.mjs"],
+    note: RESERVED_1380_1389 + " " + "#556 のレビュー（F4）。読み上げ専用の要素（margin: -1px）の形が崩れる。",
+  },
+  {
+    id: 1384,
+    label: "timer の共有メモの偽の側から ui-stack を外す",
+    patch: "m1384-shared-memo-false-side-no-stack.patch",
+    pkg: "packages/ui",
+    tests: ["tests/rows-alignment.test.mjs"],
+    note: RESERVED_1380_1389 + " " + "#556 のレビュー（F5）。更新が無いときに見出しの下の間と読み上げの要素の守りが外れる。",
   },
 ];
