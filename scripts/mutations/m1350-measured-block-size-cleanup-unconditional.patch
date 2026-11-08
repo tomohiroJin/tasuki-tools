@@ -1,0 +1,22 @@
+# 変異 1350: measured-block-size-cleanup-unconditional
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/use-measured-block-size.test.tsx
+#
+# #554 のレビュー。後片付けで変数を無条件に消し、2 つのインスタンスが重なると片方が生きた値を消す。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1350-*.patch
+# 復元: git apply -R scripts/mutations/m1350-*.patch
+diff --git a/apps/agenda-web/src/hooks/use-measured-block-size.ts b/apps/agenda-web/src/hooks/use-measured-block-size.ts
+--- a/apps/agenda-web/src/hooks/use-measured-block-size.ts
++++ b/apps/agenda-web/src/hooks/use-measured-block-size.ts
+@@ -24,7 +24,7 @@
+     return () => {
+       observer.disconnect();
+       // 自分が最後に書いた値のときだけ消す（2 つのインスタンスが重なったとき、片方が生きた値を消さない）
+-      if (root.style.getPropertyValue(variable) === written) root.style.removeProperty(variable);
++      root.style.removeProperty(variable);
+     };
+   }, [ref, variable]);
+ }

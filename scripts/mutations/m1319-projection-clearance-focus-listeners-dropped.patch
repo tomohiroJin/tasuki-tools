@@ -12,12 +12,12 @@
 diff --git a/apps/agenda-web/src/hooks/use-projection-clearance.ts b/apps/agenda-web/src/hooks/use-projection-clearance.ts
 --- a/apps/agenda-web/src/hooks/use-projection-clearance.ts
 +++ b/apps/agenda-web/src/hooks/use-projection-clearance.ts
-@@ -103,8 +103,6 @@
+@@ -123,8 +123,6 @@
        });
        mo.observe(body, { childList: true });
        // 帯が出ているかの判定は CSS の :focus-within にも依る（Tab で帯へ入ると shown の状態は変わらないのに帯が見える）。フォーカスが動くたびに測り直す
 -      strip.addEventListener('focusin', onFocusChange);
 -      strip.addEventListener('focusout', onFocusChange);
+       root.addEventListener('scroll', onScroll, { passive: true });
        observing = observer;
        mutations = mo;
-       applyRef.current = apply;

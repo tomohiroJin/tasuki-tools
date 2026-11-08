@@ -1,0 +1,23 @@
+# 変異 1337: copy-label-changes
+#
+# 検出を期待するテスト:
+#   - packages/invite-ui/tests/room-header.test.tsx
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外。ボタンの字が変わり、見出しの高さが変わって赤）
+#
+# #554 のレビュー。コピーの結果でボタンの字が変わり、幅が変わって見出しの段数が変わる（768〜904px で 44px 上下する）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1337-*.patch
+# 復元: git apply -R scripts/mutations/m1337-*.patch
+diff --git a/packages/invite-ui/src/RoomHeader.tsx b/packages/invite-ui/src/RoomHeader.tsx
+--- a/packages/invite-ui/src/RoomHeader.tsx
++++ b/packages/invite-ui/src/RoomHeader.tsx
+@@ -162,7 +162,7 @@
+               className="ui-button ui-button--secondary ui-button--sm"
+               onClick={() => { void copy.copy(); }}
+             >
+-              {ROOM_HEADER_TEXT.copy}
++              {copyNote === '' ? ROOM_HEADER_TEXT.copy : copyNote}
+             </button>
+             {/* 見える字（浮かぶ。流れに入れないので見出しの高さを変えない）。読み上げは下の知らせが読む。 */}
+             {copyNote !== '' && <p className="ui-note ui-room-header-copy-note" aria-hidden="true">{copyNote}</p>}

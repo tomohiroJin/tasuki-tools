@@ -107,6 +107,9 @@ const RESERVED_1010_1019 =
 const RESERVED_1020_1029 =
   "**対応表より後に足した変異。** 1020〜1029 は #547 に割り当てた範囲。";
 
+const RESERVED_1350_1359 =
+  "**対応表より後に足した変異。** 1350〜1359 は #554 に追加で割り当てた範囲（1330〜1339 を使い切ったため。1340〜1349 は #553 の予約を避けた）。";
+
 const RESERVED_1330_1339 =
   "**対応表より後に足した変異。** 1330〜1339 は #554 に追加で割り当てた範囲（1320〜1329 を使い切ったため。main の宣言は 1083・#553 の枝は 1200〜1289 で重ならない）。";
 
@@ -7094,5 +7097,77 @@ export const MUTATIONS = [
     pkg: "apps/agenda-web",
     tests: ["tests/run-controls-opaque.test.ts"],
     note: RESERVED_1330_1339 + " " + "#554 のレビュー。広い画面で文字を 200% にすると不透明な帯が中身を覆い、送っても出せない（WCAG 1.4.4）。E2E は 1280×720・文字 200% で赤。",
+  },
+  {
+    id: 1335,
+    label: "招待の URL の max-inline-size: max-content を外す（枠が行の余りいっぱいに伸びる）",
+    patch: "m1335-invite-url-max-inline-size-removed.patch",
+    pkg: "packages/ui",
+    tests: ["tests/dock-and-narrow-header.test.mjs"],
+    note: RESERVED_1330_1339 + " " + "#554 のレビュー。短い URL でも何百 px の空の枠になる。E2E は枠が中身の幅以下であることで赤。",
+  },
+  {
+    id: 1336,
+    label: "招待の URL の基準の幅を 14rem に戻す",
+    patch: "m1336-invite-url-basis-14rem.patch",
+    pkg: "packages/ui",
+    tests: ["tests/dock-and-narrow-header.test.mjs"],
+    note: RESERVED_1330_1339 + " " + "#554 のレビュー。日本語の長い URL が行の中で 6 行に折れ、見出しが main より高くなる。E2E は 640〜900px を 4px 刻みで測る表で赤。",
+  },
+  {
+    id: 1337,
+    label: "コピーの結果でボタンの字を変える（main の形に戻す）",
+    patch: "m1337-copy-label-changes.patch",
+    pkg: "packages/invite-ui",
+    tests: ["tests/room-header.test.tsx"],
+    note: RESERVED_1330_1339 + " " + "#554 のレビュー。ボタンの幅が変わり、折り返しで見出しの段数が変わる。E2E はコピー失敗の前後で見出しの高さが変わって赤。",
+  },
+  {
+    id: 1338,
+    label: "映す表示の余白の hook が、帯が消えるとき余白を残さない",
+    patch: "m1338-projection-clearance-hold-removed.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/use-projection-clearance.test.tsx"],
+    note: RESERVED_1330_1339 + " " + "#554 のレビュー。帯が消えると scrollTop が詰められて盤が跳ねる。E2E（320×568・568×320）が拾い、単体は拾わない。",
+  },
+  {
+    id: 1339,
+    label: "映す表示の余白の hook が、取り除かれた子を unobserve しない",
+    patch: "m1339-projection-clearance-unobserve-removed.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/use-projection-clearance.test.tsx"],
+    note: RESERVED_1330_1339 + " " + "#554 のレビュー。12 時間の会で、外れた要素を観測し続けてリークする。",
+  },
+  {
+    id: 1350,
+    label: "帯の高さを測る hook の後片付けが、変数を無条件に消す",
+    patch: "m1350-measured-block-size-cleanup-unconditional.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/use-measured-block-size.test.tsx"],
+    note: RESERVED_1350_1359 + " " + "#554 のレビュー。2 つのインスタンスが重なると片方が生きた値を消す。",
+  },
+  {
+    id: 1351,
+    label: "hidden のボタンの規則が hidden=until-found にも当たる",
+    patch: "m1351-button-hidden-rule-matches-until-found.patch",
+    pkg: "packages/ui",
+    tests: ["tests/dock-and-narrow-header.test.mjs"],
+    note: RESERVED_1350_1359 + " " + "#554 のレビュー。ページ内検索で現れる動きを壊す。",
+  },
+  {
+    id: 1352,
+    label: "映す表示の帯の padding からホームバーの高さを外す",
+    patch: "m1352-projection-strip-safe-area-padding-removed.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/run-controls-opaque.test.ts"],
+    note: RESERVED_1350_1359 + " " + "#554 のレビュー。iPhone でボタンがホームバーに重なる。E2E では safe-area が 0 で緑のまま。",
+  },
+  {
+    id: 1353,
+    label: "コピーの結果の知らせを浮かべず流れに入れる",
+    patch: "m1353-copy-note-in-flow.patch",
+    pkg: "packages/ui",
+    tests: ["tests/dock-and-narrow-header.test.mjs"],
+    note: RESERVED_1350_1359 + " " + "#554 のレビュー。知らせが出ると見出しの高さが変わる。E2E はコピー失敗の前後の高さで赤。",
   },
 ];

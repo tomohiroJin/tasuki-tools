@@ -15,8 +15,8 @@ diff --git a/scripts/audit-dependency-direction.mjs b/scripts/audit-dependency-d
   * `from "..."` と `import("...")` の両方を見る。`export ... from "..."` も
   * `from` を持つので同じ式で拾える。
   */
--const RELATIVE_SPECIFIER = /(?:from|import|require)\s*\(?\s*["'](\.[^"']*)["']|new\s+URL\s*\(\s*["'](\.[^"']*)["']/g;
-+const RELATIVE_SPECIFIER = /(?:from|import)\s*\(?\s*["'](\.[^"']*)["']|new\s+URL\s*\(\s*["'](\.[^"']*)["']/g;
+-const RELATIVE_SPECIFIER = /(?:from|import(?:\s*\.\s*meta\s*\.\s*resolve)?|require(?:\s*\.\s*resolve)?)\s*\(?\s*["'`](\.[^"'`]*)["'`]|new\s+URL\s*\(\s*["'`](\.[^"'`]*)["'`]/g;
++const RELATIVE_SPECIFIER = /(?:from|import(?:\s*\.\s*meta\s*\.\s*resolve)?)\s*\(?\s*["'`](\.[^"'`]*)["'`]|new\s+URL\s*\(\s*["'`](\.[^"'`]*)["'`]/g;
  
  /**
   * パッケージごとの `{ manifest, imports }` から違反を返す。

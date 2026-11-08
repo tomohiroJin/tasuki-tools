@@ -11,13 +11,13 @@
 diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
 --- a/apps/agenda-web/src/run.css
 +++ b/apps/agenda-web/src/run.css
-@@ -579,11 +579,6 @@
- :root {
-   --projection-strip-height: 10rem;
+@@ -580,11 +580,6 @@
+   /* 既定値にホームバーの高さを含める（測った値は border-box で帯の下の余白の safe-area を含むので、使う側では足さない） */
+   --projection-strip-height: calc(10rem + env(safe-area-inset-bottom));
  }
 -@media (width >= 40rem) {
 -  :root {
--    --projection-strip-height: 4.4rem;
+-    --projection-strip-height: calc(4.4rem + env(safe-area-inset-bottom));
 -  }
 -}
  .projection-body {

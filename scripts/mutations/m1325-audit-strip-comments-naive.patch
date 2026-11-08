@@ -11,12 +11,12 @@
 diff --git a/scripts/audit-dependency-direction.mjs b/scripts/audit-dependency-direction.mjs
 --- a/scripts/audit-dependency-direction.mjs
 +++ b/scripts/audit-dependency-direction.mjs
-@@ -374,7 +374,7 @@
-       const end = text.indexOf("*/", i + 2);
-       out += " ";
-       i = end === -1 ? text.length : end + 2;
--    } else if (c === '"' || c === "'" || c === "`") {
-+    } else if (false) {
-       const quote = c;
-       // 指定子の位置（from・import・import(・require( の直後）の文字列だけ中身を残す。それ以外の文字列の中身は空白にする
-       // （文字列の中に取り込みの形を書いただけで止めない）
+@@ -371,7 +371,7 @@
+     const c = text[i];
+     const next = text[i + 1];
+     const before = i === 0 ? "\n" : text[i - 1];
+-    const atCommentStart = /\s/.test(before);
++    const atCommentStart = true;
+     if (c === "/" && next === "/" && atCommentStart) {
+       while (i < text.length && text[i] !== "\n") i += 1;
+     } else if (c === "/" && next === "*" && atCommentStart) {

@@ -12,8 +12,8 @@
 diff --git a/packages/ui/src/components/room-header.css b/packages/ui/src/components/room-header.css
 --- a/packages/ui/src/components/room-header.css
 +++ b/packages/ui/src/components/room-header.css
-@@ -61,6 +61,12 @@
-   gap: var(--space-3);
+@@ -81,6 +81,12 @@
+   box-shadow: var(--shadow-popover);
  }
  
 +@container ui-room-header-share (width < 54rem) {

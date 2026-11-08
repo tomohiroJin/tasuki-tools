@@ -12,11 +12,11 @@
 diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
 --- a/apps/agenda-web/src/run.css
 +++ b/apps/agenda-web/src/run.css
-@@ -577,7 +577,7 @@
-    - 64rem 以上: 帯が中身に重ならない（盤は帯の上の中央にある）ので、何も取らない（固定で取ると盤が約 80px 上に寄り、1280×720 で縦のスクロールが出た）。文字を 200% にして重なるときだけ、上の測った量を取る
+@@ -578,7 +578,7 @@
     帯の高さは `use-measured-block-size` が測って書く。ここの値は JS が動く前の既定値で、実測（既定の文字の大きさ）は 320px の 149.4px・390px の 101.6px・40rem 以上は 69px。 */
  :root {
--  --projection-strip-height: 10rem;
+   /* 既定値にホームバーの高さを含める（測った値は border-box で帯の下の余白の safe-area を含むので、使う側では足さない） */
+-  --projection-strip-height: calc(10rem + env(safe-area-inset-bottom));
 +  --projection-strip-height: 4rem;
  }
  @media (width >= 40rem) {

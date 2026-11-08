@@ -12,11 +12,11 @@
 diff --git a/apps/agenda-web/src/hooks/use-measured-block-size.ts b/apps/agenda-web/src/hooks/use-measured-block-size.ts
 --- a/apps/agenda-web/src/hooks/use-measured-block-size.ts
 +++ b/apps/agenda-web/src/hooks/use-measured-block-size.ts
-@@ -14,7 +14,6 @@
-     const root = document.documentElement;
+@@ -16,7 +16,6 @@
      const apply = (): void => {
        // 切り上げて 1px の余裕を持たせる（小数の高さを丸めて 1px 重なるのを避ける）
--      root.style.setProperty(variable, `${Math.ceil(element.getBoundingClientRect().height)}px`);
+       written = `${Math.ceil(element.getBoundingClientRect().height)}px`;
+-      root.style.setProperty(variable, written);
      };
      apply();
      const observer = new ResizeObserver(apply);

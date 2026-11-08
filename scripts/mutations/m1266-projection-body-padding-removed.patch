@@ -12,11 +12,11 @@
 diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
 --- a/apps/agenda-web/src/run.css
 +++ b/apps/agenda-web/src/run.css
-@@ -592,7 +592,7 @@
+@@ -594,7 +594,7 @@
  @media (width >= 40rem) and (width < 64rem) and (height >= 48rem) {
    .projection-body {
      /* 通常の下の余白（--space-6）は足さず、帯の高さ（実測 69px < 4.4rem）に置き換える。足すと 768×1024 で帯を出さなくても縦のスクロールが出た（1065 > 1024） */
--    padding-block-end: calc(var(--projection-strip-height) + env(safe-area-inset-bottom));
+-    padding-block-end: var(--projection-strip-height);
 +    padding-block-end: var(--space-6);
    }
  }

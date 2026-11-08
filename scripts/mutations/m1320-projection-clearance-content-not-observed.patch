@@ -12,12 +12,20 @@
 diff --git a/apps/agenda-web/src/hooks/use-projection-clearance.ts b/apps/agenda-web/src/hooks/use-projection-clearance.ts
 --- a/apps/agenda-web/src/hooks/use-projection-clearance.ts
 +++ b/apps/agenda-web/src/hooks/use-projection-clearance.ts
-@@ -80,8 +80,6 @@
-       // 最初の通知も飛ばさない（apply から最初の通知までの間の変化を取りこぼさない。apply は冪等）
-       const observer = new ResizeObserver(() => apply());
+@@ -99,7 +99,7 @@
+       // 見ている子を覚え、取り除かれた子は unobserve する（12 時間の会で増減が続いても、外れた要素を観測し続けてリークしない）
+       const watched = new Set<Element>();
        const watchContent = (): void => {
 -        observer.observe(body);
--        for (const child of Array.from(body.children)) observer.observe(child);
-       };
-       observer.observe(root);
-       observer.observe(strip);
++        // (not observed)
+         const current = new Set(Array.from(body.children));
+         for (const child of watched) {
+           if (!current.has(child)) {
+@@ -109,7 +109,6 @@
+         }
+         for (const child of current) {
+           if (!watched.has(child)) {
+-            observer.observe(child);
+             watched.add(child);
+           }
+         }

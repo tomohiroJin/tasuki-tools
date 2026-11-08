@@ -1,0 +1,22 @@
+# 変異 1353: copy-note-in-flow
+#
+# 検出を期待するテスト:
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外。コピーの結果の知らせが流れに入り、見出しの高さが変わって赤）
+#
+# #554 のレビュー。コピーの結果の知らせが流れに入り、見出しの高さが変わる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1353-*.patch
+# 復元: git apply -R scripts/mutations/m1353-*.patch
+diff --git a/packages/ui/src/components/room-header.css b/packages/ui/src/components/room-header.css
+--- a/packages/ui/src/components/room-header.css
++++ b/packages/ui/src/components/room-header.css
+@@ -67,7 +67,7 @@
+ /* コピーの結果（コピーしました・コピーできません）は、ボタンの字を変えずに、ボタンの下へ浮かべて出す（流れに入れない）。
+    字が変わってボタンの幅が変わると、折り返しで見出しの段数が変わった（768〜904px で 44px・押すたびに上下した）。 */
+ .ui-room-header-copy-note {
+-  position: absolute;
++  position: static;
+   inset-block-start: calc(100% + var(--space-1));
+   inset-inline-end: 0;
+   z-index: 5;

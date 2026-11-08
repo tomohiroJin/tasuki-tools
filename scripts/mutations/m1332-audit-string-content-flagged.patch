@@ -11,12 +11,12 @@
 diff --git a/scripts/audit-dependency-direction.mjs b/scripts/audit-dependency-direction.mjs
 --- a/scripts/audit-dependency-direction.mjs
 +++ b/scripts/audit-dependency-direction.mjs
-@@ -378,7 +378,7 @@
-       const quote = c;
-       // 指定子の位置（from・import・import(・require( の直後）の文字列だけ中身を残す。それ以外の文字列の中身は空白にする
-       // （文字列の中に取り込みの形を書いただけで止めない）
--      const keep = /(?:\bfrom|\bimport|\bimport\s*\(|\brequire\s*\()\s*$/.test(out);
-+      const keep = true;
-       out += c;
-       i += 1;
-       while (i < text.length && text[i] !== quote) {
+@@ -284,7 +284,7 @@
+  * `import ... from "…"`・`export ... from "…"`・`import("…")`（テンプレート文字列を含む）・`require("…")`・`require.resolve("…")`・`import.meta.resolve("…")`・`import "…"`。
+  */
+ const TEST_SUPPORT_SPECIFIER = new RegExp(
+-  "(?:\\bfrom\\s*|\\bimport\\s*\\(?\\s*|\\brequire\\s*\\(\\s*|\\brequire\\s*\\.\\s*resolve\\s*\\(\\s*|\\bimport\\s*\\.\\s*meta\\s*\\.\\s*resolve\\s*\\(\\s*)[\"'`]" + TEST_SUPPORT_NAME.replace(/[/]/g, "\\/"),
++  "(?:\\bfrom\\s*|\\bimport\\s*\\(?\\s*|\\brequire\\s*\\(\\s*|\\brequire\\s*\\.\\s*resolve\\s*\\(\\s*[\"'`]" + TEST_SUPPORT_NAME.replace(/[/]/g, "\\/"),
+ );
+ 
+ /**

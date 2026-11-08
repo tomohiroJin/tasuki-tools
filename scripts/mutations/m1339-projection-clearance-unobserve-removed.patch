@@ -1,0 +1,21 @@
+# 変異 1339: projection-clearance-unobserve-removed
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/use-projection-clearance.test.tsx
+#
+# #554 のレビュー。取り除かれた子を unobserve せず、12 時間の会で観測し続けてリークする。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1339-*.patch
+# 復元: git apply -R scripts/mutations/m1339-*.patch
+diff --git a/apps/agenda-web/src/hooks/use-projection-clearance.ts b/apps/agenda-web/src/hooks/use-projection-clearance.ts
+--- a/apps/agenda-web/src/hooks/use-projection-clearance.ts
++++ b/apps/agenda-web/src/hooks/use-projection-clearance.ts
+@@ -103,7 +103,6 @@
+         const current = new Set(Array.from(body.children));
+         for (const child of watched) {
+           if (!current.has(child)) {
+-            observer.unobserve(child);
+             watched.delete(child);
+           }
+         }

@@ -12,7 +12,7 @@
 diff --git a/packages/invite-ui/src/RoomHeader.tsx b/packages/invite-ui/src/RoomHeader.tsx
 --- a/packages/invite-ui/src/RoomHeader.tsx
 +++ b/packages/invite-ui/src/RoomHeader.tsx
-@@ -135,7 +135,7 @@
+@@ -133,7 +133,7 @@
            <div className="ui-invite">
              {/* 省略しない。長ければどこでも折り返して全部見せる（クリップボードが使えない端末では目で読むしかない）。`title`・`aria-label` は付けない
                  （触る端末ではツールチップが出ず、読み上げで URL が二重になる）。 */}
@@ -20,4 +20,4 @@ diff --git a/packages/invite-ui/src/RoomHeader.tsx b/packages/invite-ui/src/Room
 +            <span className="ui-invite-url" title={inviteUrl}>{inviteUrl}</span>
              {/* QR とコピーを 1 つにまとめる（折り返すとき、2 つのボタンが別の行に分かれない）。 */}
              <div className="ui-room-header-invite-actions">
-             {/* ボタンと浮かぶ QR を包む。外側を押したかの判定と、QR を浮かべる位置の基準にする。 */}
+               {/* ボタンと浮かぶ QR を包む。外側を押したかの判定と、QR を浮かべる位置の基準にする。 */}

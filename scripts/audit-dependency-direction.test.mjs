@@ -320,7 +320,7 @@ test("observe: e2e パッケージ（e2e/specs・e2e/support）は全体が試�
   );
 });
 
-test("observe: 字句の例（正規表現リテラルの直後の import・文字列の中の名前）で止める／止めない（#554）", () => {
+test("observe: 字句の例。正規表現リテラルの直後の import は止める。文字列の中に指定子の形で書いたものも止める（賢い字句を持たず、偽の緑でなく偽の陽性の側に倒す）（#554）", () => {
   const entry = ["@tasuki", "ui", "test-support"].join("/");
   withTempPackage(
     {
@@ -331,13 +331,33 @@ test("observe: 字句の例（正規表現リテラルの直後の import・文�
       "apps/l/src/b.ts": "const r = /^\\/*/;\nimport \"" + entry + "/css-text.mjs\";\n/* x */\n",
       // (c) /'/ の後に '/*'、import、'*/'
       "apps/l/src/c.ts": "const q = /'/;\nconst a = '/*';\nimport \"" + entry + "/css-text.mjs\";\nconst b = '*/';\n",
-      // (d) 文字列の中に名前を書いただけ（コードの注記と同じ扱いで止めない）
+      // (d) 文字列の中に指定子の形で書いただけ。止める（文字列を読み分けようとすると、読み分けの穴から取り込みを見逃すので、偽の陽性の側に倒す）
       "apps/l/src/d.ts": "const s = \"from '" + entry + "/x'\";\n",
     },
     (root) => {
       const files = ["apps/l/src/a.ts", "apps/l/src/b.ts", "apps/l/src/c.ts", "apps/l/src/d.ts"];
       const seen = observe("apps/l", files, root);
-      assert.deepEqual(seen.testSupport, ["apps/l/src/a.ts", "apps/l/src/b.ts", "apps/l/src/c.ts"]);
+      assert.deepEqual(seen.testSupport, ["apps/l/src/a.ts", "apps/l/src/b.ts", "apps/l/src/c.ts", "apps/l/src/d.ts"]);
+    },
+  );
+});
+
+test("observe: require.resolve・import.meta.resolve も指定子の位置として止め、JSX の地の文の Don't や ` の入った文字列の後ろの取り込みも見逃さない（#554）", () => {
+  const entry = ["@tasuki", "ui", "test-support"].join("/");
+  withTempPackage(
+    {
+      "apps/j/package.json": "{}",
+      "apps/j/src/a.cjs": "const p = require.resolve(\"" + entry + "/css-text.mjs\");\n",
+      "apps/j/src/b.mjs": "const p = import.meta.resolve(\"" + entry + "/css-text.mjs\");\n",
+      "apps/j/src/c.tsx": "export const A = () => <p>Don't</p>;\nimport \"" + entry + "/css-text.mjs\";\n",
+      "apps/j/src/d.ts": "const t = `a ${'`'} b`;\nimport \"" + entry + "/css-text.mjs\";\n",
+      "apps/j/src/e.ts": "if (ok) /re/.test(s);\nimport \"" + entry + "/css-text.mjs\";\n",
+      "apps/j/src/f.ts": "// " + entry + "/x の注記\n",
+    },
+    (root) => {
+      const files = ["a.cjs", "b.mjs", "c.tsx", "d.ts", "e.ts", "f.ts"].map((f) => "apps/j/src/" + f);
+      const seen = observe("apps/j", files, root);
+      assert.deepEqual(seen.testSupport, ["apps/j/src/a.cjs", "apps/j/src/b.mjs", "apps/j/src/c.tsx", "apps/j/src/d.ts", "apps/j/src/e.ts"]);
     },
   );
 });

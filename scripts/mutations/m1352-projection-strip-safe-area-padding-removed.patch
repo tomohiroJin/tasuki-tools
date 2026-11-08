@@ -1,0 +1,22 @@
+# 変異 1352: projection-strip-safe-area-padding-removed
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/run-controls-opaque.test.ts
+#
+# #554 のレビュー。映す表示の帯の下の余白にホームバーの高さが無く、iPhone でボタンがホームバーに重なる（E2E では safe-area が 0 で緑）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1352-*.patch
+# 復元: git apply -R scripts/mutations/m1352-*.patch
+diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
+--- a/apps/agenda-web/src/run.css
++++ b/apps/agenda-web/src/run.css
+@@ -609,7 +609,7 @@
+   justify-content: center;
+   gap: var(--space-3);
+   /* 下の余白に、iPhone のホームバーの高さを足す（測る hook は border-box を読むので、高さに含まれる。使う側では足さない） */
+-  padding: var(--space-4) var(--space-4) calc(var(--space-4) + env(safe-area-inset-bottom));
++  padding: var(--space-4);
+   /* 地は不透明（帯の約束）。以前は上へ透明に溶かしていて、ボタンの字の後ろに映す大きな字が透けて重なった（#554）。見えない間は opacity: 0 で消える */
+   background: var(--dock-ground);
+   border-top: 1px solid var(--dock-edge);

@@ -16,8 +16,8 @@ diff --git a/packages/ui/src/components/room-header.css b/packages/ui/src/compon
  }
  
  .ui-room-header-invite .ui-invite-url {
--  flex: 1 1 var(--ui-invite-url-basis, 14rem);
+-  flex: 1 1 var(--ui-invite-url-basis, 16.55rem);
 +  flex: 0 1 auto;
+   /* 伸びるのは中身の幅まで（短い URL の破線の枠が、行の余りいっぱいの空の枠にならない）。縮むときだけ折り返す */
+   max-inline-size: max-content;
  }
- 
- /* QR とコピーは 1 つの項目にまとめ、折り返すときも同じ行に並べる */

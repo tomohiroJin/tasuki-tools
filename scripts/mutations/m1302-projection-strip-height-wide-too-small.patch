@@ -12,11 +12,11 @@
 diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
 --- a/apps/agenda-web/src/run.css
 +++ b/apps/agenda-web/src/run.css
-@@ -581,7 +581,7 @@
+@@ -582,7 +582,7 @@
  }
  @media (width >= 40rem) {
    :root {
--    --projection-strip-height: 4.4rem;
+-    --projection-strip-height: calc(4.4rem + env(safe-area-inset-bottom));
 +    --projection-strip-height: 2rem;
    }
  }

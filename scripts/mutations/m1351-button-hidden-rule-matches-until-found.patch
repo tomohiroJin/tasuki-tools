@@ -1,0 +1,22 @@
+# 変異 1351: button-hidden-rule-matches-until-found
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/dock-and-narrow-header.test.mjs
+#
+# #554 のレビュー。hidden=until-found にも当たり、ページ内検索で現れる動きを壊す。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1351-*.patch
+# 復元: git apply -R scripts/mutations/m1351-*.patch
+diff --git a/packages/ui/src/components/actions.css b/packages/ui/src/components/actions.css
+--- a/packages/ui/src/components/actions.css
++++ b/packages/ui/src/components/actions.css
+@@ -58,7 +58,7 @@
+ /* `.ui-button { display: inline-flex }`（button.css）が UA の `[hidden] { display: none }` に勝つので、`hidden` のボタンが描かれてしまう（部品全体の欠陥）。
+    帯の中だけでなく、どの `.ui-button` でも `hidden` なら描かない。button.css に置かない（button.css の `display` を宣言する規則は `.ui-button` の 1 つだけ、という既存の検査を保つ）。
+    `hidden="until-found"`（ページ内検索で現れる）は描く（`:where(:not(…))` で詳細度は (0,2,0) のまま。button.css の `.ui-button`（0,1,0）に読み込み順によらず勝つ） */
+-.ui-button[hidden]:where(:not([hidden='until-found'])) {
++.ui-button[hidden] {
+   display: none;
+ }
+ 
