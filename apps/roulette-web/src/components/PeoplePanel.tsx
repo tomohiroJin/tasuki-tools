@@ -31,7 +31,7 @@ interface Props {
 }
 
 /**
- * 脇の「ルーレットに入る人」。チェック = 入れる。行は [チェック][名前][印][名前を消す]（狭いと印と消すが次の行へ）。
+ * 脇の「ルーレットに入る人」。チェック = 入れる。行は [チェック][名前][印][名前を消す]（名前の読める幅を残し、入らない幅では印と消すが次の行の右へ）。
  * **人だけを置く**（#401 順番に回す T9）。選ぶ人数・順番の進み具合は「決め方」の面（`ModePanel`）が持つ。
  */
 export function PeoplePanel({ people, locked, onInclude, onRemoveGuest, onAddGuest, regulars }: Props) {
@@ -86,7 +86,7 @@ function Row({
         </span>
       </label>
       {(hasMark || row.removable) && (
-        // 印と「名前を消す」は名前の後ろの一塊。名前が収まらない幅では塊ごと次の行へ回る（名前を先に読ませる）
+        // 印と「名前を消す」は名前の後ろの一塊。名前の読める幅（`min-width: 7rem`）を残せない幅では塊ごと次の行の右へ回る（名前を先に読ませる）
         <span className="roulette-row-tail">
           {hasMark && (
             <span id={markId} className={`roulette-chip${row.mark === 'away' ? ' roulette-chip--away' : ''}`}>

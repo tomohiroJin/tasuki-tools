@@ -87,7 +87,9 @@
   flex: 1 1 12rem;
   color: var(--ivory);
   font-size: var(--font-size-lg);
-  font-weight: 700;
+  /* 太さは 500。自己ホスト書体の 700 は base 層しか無く、base 層に無い字（利用者が入れる会の名前の「議」など）が別の書体で描かれる。
+     目立たせるのは大きさと色で行う */
+  font-weight: 500;
   line-height: 1.35;
   overflow-wrap: anywhere;
   text-wrap: balance;

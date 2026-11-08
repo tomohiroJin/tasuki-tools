@@ -531,12 +531,14 @@
   gap: var(--space-1);
 }
 /* 1 行 = [チェック][名前][印][名前を消す]。行の地は沈んだ敷き。
-   **操作は行の右端に固定の列**: 名前は行の中で縮む列（min-width: 0）に置き、2 行まで折り返して残りは … で切る
-   （全文は読み上げと `title` に残る）。印と「名前を消す」の塊は縮まず、名前が長くても段を変えない（#556 一覧 #20。
-   以前は名前が中身の幅より縮まず、長い名前の行だけ塊が次の行へ落ちて行の高さが倍になった）。
-   2026-10-13 の 320 の撮影では、2 つの印に幅を取られ「山田」が「山…」に切れた。2 行まで折り返すので 1 字だけが残ることは減る */
+   **名前に読める幅を残す**: 名前（ラベル）は行の中で縮む列（`flex: 1 1 0`）だが、`min-width: 7rem` より細くならない。
+   印と「名前を消す」の塊（縮まない）が入る幅なら行の右端に固定の列で置き、名前が長くても段を変えない（#556 一覧 #20）。
+   塊が入らない幅（文字 200% の 320・390 など）では塊ごと次の行の右へ回る（名前が 0px に潰れて行がはみ出した）。
+   名前は 2 行まで折り返して残りは … で切る（全文は読み上げと `title` に残る）。
+   2026-10-13 の 320 の撮影では、2 つの印に幅を取られ「山田」が「山…」に切れた */
 .roulette-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   column-gap: var(--space-2);
   min-height: 44px;
@@ -550,7 +552,7 @@
   align-items: center;
   gap: var(--space-3);
   flex: 1 1 0;
-  min-width: 0;
+  min-width: min(7rem, 100%); /* 行より狭い幅（文字 200% の 320）では行の幅まで */
   min-height: 44px;
   color: var(--ivory);
   font-size: var(--font-size-sm);
@@ -594,6 +596,9 @@
   align-items: center;
   gap: var(--space-2);
   flex: none;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: 100%;
   margin-inline-start: auto;
   min-height: 44px;
 }
