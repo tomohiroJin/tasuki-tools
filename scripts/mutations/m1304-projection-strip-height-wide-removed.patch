@@ -11,7 +11,7 @@
 diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
 --- a/apps/agenda-web/src/run.css
 +++ b/apps/agenda-web/src/run.css
-@@ -578,11 +578,6 @@
+@@ -579,11 +579,6 @@
  :root {
    --projection-strip-height: 10rem;
  }
@@ -20,6 +20,6 @@ diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
 -    --projection-strip-height: 4.4rem;
 -  }
 -}
- @media (width < 40rem), (width >= 40rem) and (width < 64rem) and (height < 48rem) {
-   .projection-body {
-     /* 帯が出ている間に、実際に隠れる量だけ（`use-projection-clearance` が測って `--projection-clearance` へ書く。隠れないときは 0）。
+ .projection-body {
+   /* 帯が中身に実際に重なる量だけ（`use-projection-clearance` が測って `--projection-clearance` へ書く。重ならなければ 0）。幅の条件は置かない
+      （広い画面でも文字を 200% にすると帯が中身を覆う）。余白は body の外の margin で足し、body の高さは帯が出る前のまま固定する（`--projection-body-pin`）ので、盤の中央寄せがやり直されない */

@@ -18,5 +18,5 @@ diff --git a/scripts/audit-dependency-direction.mjs b/scripts/audit-dependency-d
 -    } else if (c === '"' || c === "'" || c === "`") {
 +    } else if (false) {
        const quote = c;
-       out += c;
-       i += 1;
+       // 指定子の位置（from・import・import(・require( の直後）の文字列だけ中身を残す。それ以外の文字列の中身は空白にする
+       // （文字列の中に取り込みの形を書いただけで止めない）

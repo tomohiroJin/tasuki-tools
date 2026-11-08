@@ -18,6 +18,7 @@ import { chooseMethod, handCard, joinCheckinTool, openCheckinTool } from '../sup
 import { chooseCard, createRoom as createPokerRoom, joinRoom as joinPokerRoom, turnRecordingOn } from '../support/poker';
 import { createRoom as createTimerRoom } from '../support/timer';
 import { openRouletteTool } from '../support/roulette';
+import { MAIN_HEADER_HEIGHT } from '../support/main-header-heights';
 import { joinTopicTool, openTopicTool, setTopic } from '../support/topic';
 
 /** 見出しの全体の高さの上限（px）。poker の 320px で、題・戻る＋記録する・仲間を招くの 3 段（実測 124px）に収める。以前は 4 段で約 230px。 */
@@ -860,22 +861,16 @@ test.describe('agenda の映す表示: キーボードで帯を出す・中身�
   }
 });
 
-/**
- * main（#554 の前）の見出しの高さ（px）。6 アプリ × 幅。招待の行を「仲間を招く」で開いた状態で測った実測値。
- * 768・800px は main で URL が 2 行に折れた幅（#5 の欠陥）なので、比べない。ここで測るのは、固定の境目で見出しが main より高くならないこと（863〜939px で 1 段が 3 段になった）。
- */
-const MAIN_HEADER_HEIGHT: Record<string, Record<number, number>> = {
-  poker: { 320: 331, 390: 265, 640: 175, 700: 175, 864: 95, 900: 95, 1024: 95, 1280: 97 },
-  topic: { 320: 239, 390: 217, 640: 175, 700: 175, 864: 95, 900: 95, 1024: 95, 1280: 97 },
-  agenda: { 320: 239, 390: 217, 640: 175, 700: 175, 864: 95, 900: 95, 1024: 95, 1280: 97 },
-  checkin: { 320: 307, 390: 257, 640: 175, 700: 175, 864: 95, 900: 95, 1024: 95, 1280: 97 },
-  roulette: { 320: 279, 390: 217, 640: 175, 700: 175, 864: 95, 900: 95, 1024: 95, 1280: 97 },
-  timer: { 320: 279, 390: 217, 640: 175, 700: 175, 864: 95, 900: 95, 1024: 95, 1280: 97 },
+const HEADER_URLS: Record<string, string | null> = {
+  actual: null,
+  prod39: 'https://tasuki.example.jp/poker/?room=AB12CD',
+  ascii90: `https://tasuki.example.jp/poker/?room=${'abcdefghij'.repeat(5)}`,
+  jp74: `http://127.0.0.1:38557/?room=${'ながいなまえのへや'.repeat(8)}`,
 };
 
-test.describe('見出しの高さは main 以下（固定の境目で段が増えない）', () => {
-  test('Given 6 アプリのルーム / When 320〜1280 で招待の行を開いて見出しを測る / Then どの幅でも main の高さ以下', async ({ page }) => {
-    test.setTimeout(300_000);
+test.describe('見出しの高さは main 以下（固定の境目で段が増えず、URL が自分の行へ落ちて 3 段にならない）', () => {
+  test('Given 6 アプリのルーム・4 種の URL / When 320〜1440 で招待の行を開いて見出しを測る / Then どの幅でも main の高さ以下', async ({ page }) => {
+    test.setTimeout(600_000);
     await page.setViewportSize({ width: 1280, height: 900 });
     const openers: Array<[string, () => Promise<unknown>]> = [
       ['poker', () => createPokerRoom(page, 'hdr-poker')],
@@ -887,15 +882,53 @@ test.describe('見出しの高さは main 以下（固定の境目で段が増�
     ];
     for (const [app, open] of openers) {
       await open();
-      for (const [widthText, mainHeight] of Object.entries(MAIN_HEADER_HEIGHT[app]!)) {
-        const width = Number(widthText);
-        await page.setViewportSize({ width, height: 900 });
-        const toggle = page.getByRole('button', { name: '仲間を招く' });
-        if ((await toggle.isVisible()) && (await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
-        await expect.poll(async () => page.locator('.ui-room-header').first().evaluate((e) => e.getBoundingClientRect().height), {
-          message: `${app}（${width}）: 見出しが main（${mainHeight}px）より高い`,
-        }).toBeLessThanOrEqual(mainHeight + 1);
+      for (const [urlName, url] of Object.entries(HEADER_URLS)) {
+        for (const [widthText, mainHeight] of Object.entries(MAIN_HEADER_HEIGHT[app]![urlName]!)) {
+          const width = Number(widthText);
+          await page.setViewportSize({ width, height: 900 });
+          const toggle = page.getByRole('button', { name: '仲間を招く' });
+          if ((await toggle.isVisible()) && (await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
+          const height = await page.evaluate((u) => {
+            const el = document.querySelector('.ui-room-header-invite .ui-invite-url') as HTMLElement;
+            if (u !== null) el.textContent = u;
+            return document.querySelector('.ui-room-header')!.getBoundingClientRect().height;
+          }, url);
+          expect(height, `${app}・${urlName}（${width}）: 見出しが main（${mainHeight}px）より高い`).toBeLessThanOrEqual(mainHeight + 1);
+        }
       }
     }
+  });
+});
+
+test.describe('agenda の映す表示: 広い画面で文字を 200% にしても帯が中身を覆わない', () => {
+  test('Given 映す表示（1280×720・文字 200%） / When 帯を出して最下部まで送る / Then 中身が帯に隠れない。帯が重ならない通常の文字の大きさでは何も足さない', async ({ page }) => {
+    test.setTimeout(120_000);
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await openAgendaTool(page, 'header-projection-wide');
+    await loadSampleAndStart(page);
+    await page.getByRole('button', { name: '映す表示', exact: true }).click();
+    await expect(page.locator('.projection')).toBeVisible();
+    const strip = page.locator('.projection-strip');
+    // 通常の文字の大きさ: 帯が中身に重ならないので、余白を足さず、盤が動かない
+    await page.mouse.move(10, 10);
+    await page.mouse.move(14, 14);
+    await expect(strip).toHaveClass(/is-shown/);
+    await expect.poll(async () => page.evaluate(() => getComputedStyle(document.querySelector('.projection')!).getPropertyValue('--projection-clearance').trim())).toBe('0px');
+    // 文字 200%: 帯が中身を覆うので、重なる量だけ余白を取り、最下部まで送ると中身が帯の上に出る
+    await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
+    await page.mouse.move(400, 300);
+    await page.mouse.move(404, 304);
+    await expect(strip).toHaveClass(/is-shown/);
+    await expect.poll(async () => page.evaluate(() => {
+      const root = document.querySelector('.projection')!;
+      root.scrollTo(0, root.scrollHeight);
+      const stripTop = document.querySelector('.projection-strip')!.getBoundingClientRect().top;
+      let bottom = -Infinity;
+      for (const child of Array.from(document.querySelectorAll('.projection-body > *'))) {
+        const r = child.getBoundingClientRect();
+        if (r.height > 0) bottom = Math.max(bottom, r.bottom);
+      }
+      return bottom - stripTop;
+    }), { message: '映す表示（1280×720・文字 200%）: 最下部で中身が帯に隠れる' }).toBeLessThanOrEqual(0.5);
   });
 });

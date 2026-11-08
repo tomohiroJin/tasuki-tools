@@ -319,3 +319,25 @@ test("observe: e2e パッケージ（e2e/specs・e2e/support）は全体が試�
     },
   );
 });
+
+test("observe: 字句の例（正規表現リテラルの直後の import・文字列の中の名前）で止める／止めない（#554）", () => {
+  const entry = ["@tasuki", "ui", "test-support"].join("/");
+  withTempPackage(
+    {
+      "apps/l/package.json": "{}",
+      // (a) URL を含む正規表現リテラルの後ろの import()
+      "apps/l/src/a.ts": "const re = /https?:\\/\\//; import(\"" + entry + "/css-text.mjs\");\n",
+      // (b) /^\\/*/ の後に import、その後ろに /* x */
+      "apps/l/src/b.ts": "const r = /^\\/*/;\nimport \"" + entry + "/css-text.mjs\";\n/* x */\n",
+      // (c) /'/ の後に '/*'、import、'*/'
+      "apps/l/src/c.ts": "const q = /'/;\nconst a = '/*';\nimport \"" + entry + "/css-text.mjs\";\nconst b = '*/';\n",
+      // (d) 文字列の中に名前を書いただけ（コードの注記と同じ扱いで止めない）
+      "apps/l/src/d.ts": "const s = \"from '" + entry + "/x'\";\n",
+    },
+    (root) => {
+      const files = ["apps/l/src/a.ts", "apps/l/src/b.ts", "apps/l/src/c.ts", "apps/l/src/d.ts"];
+      const seen = observe("apps/l", files, root);
+      assert.deepEqual(seen.testSupport, ["apps/l/src/a.ts", "apps/l/src/b.ts", "apps/l/src/c.ts"]);
+    },
+  );
+});

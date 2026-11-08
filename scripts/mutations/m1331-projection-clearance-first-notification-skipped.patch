@@ -1,0 +1,29 @@
+# 変異 1331: projection-clearance-first-notification-skipped
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/use-projection-clearance.test.tsx
+#
+# #554 のレビュー。最初の ResizeObserver の通知を飛ばし、測った直後から最初の通知までの間に伸びた中身の変化を取りこぼす（帯が隠れたまま）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1331-*.patch
+# 復元: git apply -R scripts/mutations/m1331-*.patch
+diff --git a/apps/agenda-web/src/hooks/use-projection-clearance.ts b/apps/agenda-web/src/hooks/use-projection-clearance.ts
+--- a/apps/agenda-web/src/hooks/use-projection-clearance.ts
++++ b/apps/agenda-web/src/hooks/use-projection-clearance.ts
+@@ -78,7 +78,14 @@
+     };
+     const start = (): void => {
+       // 最初の通知も飛ばさない（apply から最初の通知までの間の変化を取りこぼさない。apply は冪等）
+-      const observer = new ResizeObserver(() => apply());
++      let first = true;
++      const observer = new ResizeObserver(() => {
++        if (first) {
++          first = false;
++          return;
++        }
++        apply();
++      });
+       const watchContent = (): void => {
+         observer.observe(body);
+         for (const child of Array.from(body.children)) observer.observe(child);

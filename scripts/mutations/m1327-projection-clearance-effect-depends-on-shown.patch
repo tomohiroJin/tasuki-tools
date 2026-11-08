@@ -11,8 +11,8 @@
 diff --git a/apps/agenda-web/src/hooks/use-projection-clearance.ts b/apps/agenda-web/src/hooks/use-projection-clearance.ts
 --- a/apps/agenda-web/src/hooks/use-projection-clearance.ts
 +++ b/apps/agenda-web/src/hooks/use-projection-clearance.ts
-@@ -135,5 +135,5 @@
-       media.removeEventListener('change', sync);
+@@ -116,5 +116,5 @@
+     return () => {
        stop();
      };
 -  }, [rootRef, bodyRef, stripRef]);

@@ -13,12 +13,12 @@ diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
 --- a/apps/agenda-web/src/run.css
 +++ b/apps/agenda-web/src/run.css
 @@ -587,8 +587,7 @@
-   .projection-body {
-     /* 帯が出ている間に、実際に隠れる量だけ（`use-projection-clearance` が測って `--projection-clearance` へ書く。隠れないときは 0）。
-        余白は body の外の margin で足し、body の高さは帯が出る前のまま固定する（`--projection-body-pin`）ので、盤の中央寄せがやり直されない */
--    margin-block-end: var(--projection-clearance, 0px);
--    min-block-size: var(--projection-body-pin, 0px);
-+    padding-block-end: calc(var(--space-6) + var(--projection-clearance, 0px));
-   }
+ .projection-body {
+   /* 帯が中身に実際に重なる量だけ（`use-projection-clearance` が測って `--projection-clearance` へ書く。重ならなければ 0）。幅の条件は置かない
+      （広い画面でも文字を 200% にすると帯が中身を覆う）。余白は body の外の margin で足し、body の高さは帯が出る前のまま固定する（`--projection-body-pin`）ので、盤の中央寄せがやり直されない */
+-  margin-block-end: var(--projection-clearance, 0px);
+-  min-block-size: var(--projection-body-pin, 0px);
++  padding-block-end: calc(var(--space-6) + var(--projection-clearance, 0px));
  }
  @media (width >= 40rem) and (width < 64rem) and (height >= 48rem) {
+   .projection-body {
