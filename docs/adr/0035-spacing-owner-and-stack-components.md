@@ -33,7 +33,7 @@
 - 縦に並ぶブロックの間は**親が `gap` で持つ**。親が部品なら部品が、画面の容器なら画面のクラスが持つ。
 - 子は外側の縦の余白（`margin-block`・`margin-top`・`margin-bottom`）を**持たない**。
 - 余白を足したいときは親の `gap` を変える。子へ足さない。
-- **勝ち負けの決まり**: `.ui-stack > *` と `.ui-section-head > *` のリセットは詳細度 (0,1,0) で、要素層の margin（`h2` など・(0,0,1)）には勝つ。同じ詳細度の部品の margin には、**後に読むほうが勝つ**ので、この 2 つの部品を部品層の最後（`components/index.css` の末尾）で読む。こうすると、縦の margin を持つ部品（いまは `.ui-reader-preview`・`.ui-reader-more`・64rem 以上の `.ui-reader-body`）を `.ui-stack` の直下に置いても、リセットが必ず勝って gap に足されない。`:where()` で詳細度を 0 にしないのは、要素層に負けてリセットの役目を失うため。読み込み順は `packages/ui/tests/spacing-owner.test.mjs` が固定する。
+- **勝ち負けの決まり**: `.ui-stack > *` と `.ui-section-head > *` のリセットは詳細度 (0,1,0) で、要素層の margin（`h2` など・(0,0,1)）には勝つ。同じ詳細度の部品の margin には、**後に読むほうが勝つ**ので、この 2 つの部品を部品層の最後（`components/index.css` の末尾）で読む。こうすると、縦の margin を持つ部品（いまは `.ui-reader-preview`・`.ui-reader-more`・64rem 以上の `.ui-reader-body`）を `.ui-stack` の直下に置いても、リセットが勝って gap に足されない。**勝つのは**要素層の margin と、先に読む同じ詳細度 (0,1,0) の部品の margin。**負けるのは**、詳細度の高い部品の規則と、後に読む画面の CSS の (0,1,0) の規則である（リセットは (0,1,0) で、画面の CSS は部品層より後に読む）。そのため**画面の側で、`.ui-stack`・`.ui-section-head` の直下の子に縦の margin を付けない**（間を変えたいときは親の `gap` を変える）。`:where()` で詳細度を 0 にしないのは、要素層に負けてリセットの役目を失うため。読み込み順は `packages/ui/tests/spacing-owner.test.mjs` が固定する。
 - **例外（行数で切る面）**: `-webkit-line-clamp` で行数を切る面（`.ui-reader-preview` の中の Markdown）は、
   中身が通常の流れ（block）でないと切れない（flex の `gap` に替えると 3 行で切れず全文が出ることを実測した）。
   この面の中は、親（`.ui-md`）が兄弟セレクタの `margin-top` で間を持つ。子の `margin: 0`（同じ詳細度）に勝つよう、この規則を子のリセットより**後ろに書く**（後勝ち。クラスを重ねて詳細度を上げる回避はしない）。
@@ -42,7 +42,10 @@
 CSS だけでは「縦に並ぶブロックの子が外側の余白を持っているか」を決められないからである。
 そこで**結果（隣り合うブロックの間と重なり）を E2E で測る**。`e2e/specs/spacing.spec.ts` が、この ADR で直した画面
 （poker の参加者の欄・記録の束・読む面の段落、timer の参加者と共有メモの見出しの行、roulette のいつものメンツ、agenda の保存した流れ）を測る。主な画面と幅への展開は #557。
-部品の CSS の契約（`.ui-stack` が `gap` を持つ等）は `packages/ui/tests/spacing-owner.test.mjs` が字面で固定する（アプリのソースの文字列は固定せず、画面が部品を当てていることは各アプリの vitest が描いた結果から確かめる）。これらは、変異検査の宣言の中の #553 の項目（`git grep -n "#553" scripts/lib/mutation-declarations.mjs`）で壊して確かめる。
+検査は 3 層に分かれる。
+- **描いた結果で確かめるもの**: 画面が部品を当てていること・読み上げと Tab の扱いは、各アプリの vitest が描いた結果から確かめる（poker の `estimate-item-field.test.tsx`＝見えない複製が `aria-hidden`・`tabIndex=-1`・`disabled` を持ち `.estimate-item-title` のクラスを持たない、timer の `RosterPanel.shuffle-in-header.test.tsx`・`section-head-parts.test.tsx`、roulette の `regulars-section.test.tsx` ほか）と、E2E（矩形の測定）。
+- **部品の CSS の字面**: `.ui-stack` が `gap` を持つ・読み込み順などの部品の契約は `packages/ui/tests/spacing-owner.test.mjs` が CSS の字面で固定する。
+- **アプリの CSS・JSX の字面**: 各アプリの `spacing-css.test.ts`（poker・agenda・roulette は `tests/`、timer は `test/ui/`）が、**自分のアプリの CSS の規則の本体を正規表現で固定する**（例: poker の名前の列が `flex: 1 1 auto; min-width: 0`、roulette の見出しの基準線揃え）。agenda だけは JSX（`SavedScenarioList.tsx`）の `className` の字面も読み、使われないクラスが戻らないことを固定する。字面の固定は E2E では等価になる変異（例: 1213）や、E2E が走らない単体の段階で壊れを捕まえるためで、結果の正しさの根拠は前者の描いた結果と E2E である。これらは、変異検査の宣言の中の #553 の項目（`git grep -n "#553" scripts/lib/mutation-declarations.mjs`）で壊して確かめる。
 
 **例外（移行の途中・取り除く作業は [#556](https://github.com/tomohiroJin/tasuki-tools/issues/556) のやること）**: timer の
 `.section-header`（`apps/timer-web/src/styles/primitives.css`）と `.shared-memo-header`（`shared-memo.css`）は、見出しの行の下の間を
@@ -69,12 +72,12 @@ ADR-0022 決定 2（2 画面以上が使うものを部品にする）に沿っ�
 - **`.ui-section-head`**: 区画の見出しと操作を 1 行に並べる行。flex・折り返し可・縦は中央・両端寄せ。横の間 `--space-3`・折り返した行の間 `--space-2`（実装は `gap: var(--space-2) var(--space-3)`）。
   中の見出しの `margin` は 0。狭い幅で操作が下の行へ落ちたときは、見出しの下に `--space-2` の間で置き、左端を見出しに揃える
   （右へ寄せない。操作が見出しに属して読める）。操作が複数あるときは、画面が 1 つの塊（flex・折り返し可）にして渡し、塊の寄せは行の先頭（左）に保つ。
-  修飾 `.ui-section-head--beside`（`justify-content: flex-start`）は、操作を行の反対の端へ離さず見出しの隣に寄せる（poker の参加者の欄・timer の名簿の 2 画面が使う）。
+  修飾 `.ui-section-head--beside`（`justify-content: flex-start`）は、操作を行の反対の端へ離さず見出しの隣に寄せる（使うのは 3 か所: poker の参加者の欄（`RoomPage`）、timer の名簿（`RosterPanel`・セッションとルームのタブ）、timer のロビーの参加者の見出し（`Lobby`）。アプリでは poker と timer の 2 つ）。
   見出し自身の字の大きさ・色は画面が持つ（timer は要素層を読まないので見出しの字は timer が持つ）。
 
 **部品の振る舞いと、画面の上書き**: 部品が持つのは既定の並び（折り返し・両端寄せ）と、2 画面以上が使う修飾（`--beside`・`--tight`）だけである。
 使う画面が 1 つの寄せ方は、修飾を足さず**画面のクラスが上書きする**（ADR-0022 決定 2: 2 画面以上が使うものだけを部品にする）。
-実装時には、poker の参加者の欄（見出しの隣へ寄せる）と timer の名簿が別々に上書きしていたので、`--beside` に上げた（別の画面が同じ寄せ方を必要としたら修飾へ上げる、の適用）。
+実装時には、poker の参加者の欄（見出しの隣へ寄せる）と timer の名簿（のちにロビーの参加者の見出しも）が別々に上書きしていたので、`--beside` に上げた（別の画面が同じ寄せ方を必要としたら修飾へ上げる、の適用）。
 使う画面が 1 つの寄せ方は、画面が上書きするのが原則である。例（実装時点）: poker の記録の束の名前の列（`.estimate-group-head > .estimate-group-item` の `flex: 1 1 auto; min-width: 0`。
 名前が 1 行に収まるときは同じ行の右にポイントが並び、収まらない長い名前のときだけポイントが名前の下の行の右端に落ちる）と選択欄の右端寄せ（`.estimate-group-points` の `margin-inline-start: auto`）、
 roulette のいつものメンツの見出しの基準線揃え（`.roulette-regulars-head { align-items: baseline }`）、timer の共有メモの見出しの縮み方（`.shared-memo-lead`）。
