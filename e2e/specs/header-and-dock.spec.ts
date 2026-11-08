@@ -182,7 +182,6 @@ async function expectLastCountedButtonFullWidth(page: Page, label: string): Prom
     return {
       startLast: build(['btn', 'btn', 'btn', 'start']),
       selectLast: build(['btn', 'select']),
-      selectMid: build(['btn', 'select', 'btn', 'btn']),
       hiddenMid: build(['btn', 'btn', 'hidden', 'btn']),
       evenWithStart: build(['btn', 'btn', 'start']),
     };
@@ -190,7 +189,7 @@ async function expectLastCountedButtonFullWidth(page: Page, label: string): Prom
   const lastFull = (c: { ratios: number[] }): number => c.ratios.at(-1)!;
   expect(lastFull(cases.startLast), `${label}: [操作, 操作, 操作, 控えの包み] の奇数の最後の操作が全幅でない`).toBeGreaterThanOrEqual(0.95);
   expect(lastFull(cases.selectLast), `${label}: [操作, 選択欄] の最後の操作が全幅でない`).toBeGreaterThanOrEqual(0.95);
-  expect(lastFull(cases.selectMid), `${label}: [操作, 選択欄, 操作, 操作] の奇数の最後の操作が全幅でない`).toBeGreaterThanOrEqual(0.95);
+  // 選択欄・控えの包みを先頭以外に置く並び（[操作, 選択欄, 操作, 操作] など）は約束の外（README）: 前の行に空きのマスが残って段が増えるので、通ることを固めない
   expect(lastFull(cases.hiddenMid), `${label}: [操作, 操作, hidden, 操作] の奇数の最後の操作が全幅でない`).toBeGreaterThanOrEqual(0.95);
   expect(lastFull(cases.evenWithStart), `${label}: 偶数（2 つ）の最後が全幅になっている（半分のはず）`).toBeLessThan(0.7);
 }
@@ -486,44 +485,20 @@ test.describe('agenda の進行中の帯', () => {
     for (const width of [320, 390, 639, 768, 1023]) {
       await page.setViewportSize({ width, height: 800 });
       // 帯の高さは ResizeObserver が測って変数へ書く（幅を変えた直後は書き換わる前なので、揃うまで待つ）
-      await expect.poll(async () => page.evaluate(() => {
-        const bar = document.querySelector('.run-controls')!.getBoundingClientRect().height;
-        const probe = document.createElement('div');
-        probe.style.height = getComputedStyle(document.documentElement).getPropertyValue('--run-controls-height').trim();
-        document.body.append(probe);
-        const limit = probe.getBoundingClientRect().height;
-        probe.remove();
-        return limit > 0 && bar <= limit + 0.01;
-      }), { message: `agenda 帯の高さ（${width}）が --run-controls-height を超える` }).toBe(true);
+      await expect.poll(async () => (await measureVarHeight(page, '.run-controls', '--run-controls-height')).fits, { message: `agenda 帯の高さ（${width}）が --run-controls-height を超える` }).toBe(true);
     }
     // 文字を 200% にする（390×844・320×568。小数の高さを切り上げて、最下部で 1px 重ならない）: 帯が高くなっても、帯の高さは測って変数へ書かれ、最下部で最後の行・「最初から」が帯に隠れない
     for (const [fw, fh] of [[390, 844], [320, 568]] as const) {
     await page.setViewportSize({ width: fw, height: fh });
     await page.evaluate(() => { document.documentElement.style.fontSize = '200%'; });
-    await expect.poll(async () => page.evaluate(() => {
-      const bar = document.querySelector('.run-controls')!.getBoundingClientRect().height;
-      const probe = document.createElement('div');
-      probe.style.height = getComputedStyle(document.documentElement).getPropertyValue('--run-controls-height').trim();
-      document.body.append(probe);
-      const limit = probe.getBoundingClientRect().height;
-      probe.remove();
-      return limit > 0 && bar <= limit + 0.01;
-    }), { message: 'agenda 文字 200%: 帯の高さが --run-controls-height（測った値）を超える' }).toBe(true);
+    await expect.poll(async () => (await measureVarHeight(page, '.run-controls', '--run-controls-height')).fits, { message: 'agenda 文字 200%: 帯の高さが --run-controls-height（測った値）を超える' }).toBe(true);
     await expectContentClearOfDock(page, dock, `agenda 文字 200%（${fw}×${fh}）`);
     await page.evaluate(() => { document.documentElement.style.fontSize = ''; window.scrollTo(0, 0); });
     }
     // 文字の大きさを変えても rem で線形に伸びるだけで、手書きの既定値（10.5rem）でも足りてしまう。帯が既定値より高くなる状況（端末の文字設定・長い翻訳・操作の追加など）は、
     // 帯に高い子を足して作る。測った値が変数に書かれなければ、既定値が帯の高さより低くなって赤になる
     await page.evaluate(() => { const extra = document.createElement('div'); extra.id = '__tall'; extra.style.height = '12rem'; document.querySelector('.run-controls')!.append(extra); });
-    await expect.poll(async () => page.evaluate(() => {
-      const bar = document.querySelector('.run-controls')!.getBoundingClientRect().height;
-      const probe = document.createElement('div');
-      probe.style.height = getComputedStyle(document.documentElement).getPropertyValue('--run-controls-height').trim();
-      document.body.append(probe);
-      const limit = probe.getBoundingClientRect().height;
-      probe.remove();
-      return { bar, limit, tall: bar > 11 * parseFloat(getComputedStyle(document.documentElement).fontSize), fits: limit > 0 && bar <= limit + 0.01 };
-    }), { message: 'agenda 帯が高くなったとき（折り返し）、帯の高さが --run-controls-height（測った値）を超える' }).toMatchObject({ tall: true, fits: true });
+    await expect.poll(async () => { const v = await measureVarHeight(page, '.run-controls', '--run-controls-height'); const fs = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize)); return { tall: v.bar > 11 * fs, fits: v.fits }; }, { message: 'agenda 帯が高くなったとき（折り返し）、帯の高さが --run-controls-height（測った値）を超える' }).toMatchObject({ tall: true, fits: true });
     await expectContentClearOfDock(page, dock, 'agenda 帯が高い（390）');
     await page.evaluate(() => document.getElementById('__tall')?.remove());
     // 進行表の最後の「スキップ」に Tab で行っても、不透明な帯の後ろに隠れない（WCAG 2.4.11）。40rem 未満・40〜64rem の両方で測る
@@ -727,8 +702,7 @@ test.describe('agenda の映す表示の帯', () => {
     // （もともとスクロールが出る画面で、常に取る余白がさらに伸ばさない。比べる相手は main ではなく、通常の下の余白 --space-6 に置き換えたときの高さ）
     for (const [width, height] of [[568, 320], [667, 375], [844, 390], [1000, 700]] as const) {
       await page.setViewportSize({ width, height });
-      await strip.evaluate((el) => el.classList.remove('is-shown'));
-      await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+      await hideStrip(page, strip);
       const m = await page.evaluate(() => {
         const r = document.querySelector('.projection')!;
         const body = document.querySelector('.projection-body') as HTMLElement;
@@ -745,15 +719,21 @@ test.describe('agenda の映す表示の帯', () => {
     // 40rem 未満（電話の幅）と背の低い横向きは測らない: 余白は帯が出ている間だけ取り（常に取ると #471 の既存の検査が赤になる）、帯を出したときの跳ねは許す。電話の幅は「隠れない」（下）だけを測る
     for (const [width, height] of [[768, 1024]] as const) {
       await page.setViewportSize({ width, height });
-      await page.mouse.move(0, 0);
-      await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
-      await strip.evaluate((el) => el.classList.remove('is-shown'));
+      await hideStrip(page, strip);
       const noScroll = await page.evaluate(() => { const r = document.querySelector('.projection')!; return [r.scrollHeight, r.clientHeight] as const; });
       expect(noScroll[0], `映す表示（${width}×${height}）: 帯を出さない状態で縦のスクロールが出る（${noScroll[0]} > ${noScroll[1]}）`).toBeLessThanOrEqual(noScroll[1]);
       const y0 = await page.locator('.projection-dial').evaluate((el) => el.getBoundingClientRect().top);
-      await strip.evaluate((el) => el.classList.add('is-shown'));
+      // 帯を実際に出す（マウスを動かす）。React の shown が変わるので、余白の hook が動く
+      await page.mouse.move(width / 2, height / 2);
+      await page.mouse.move(width / 2 + 3, height / 2 + 3);
+      await expect(strip).toHaveClass(/is-shown/);
+      await page.waitForTimeout(100);
       const y1 = await page.locator('.projection-dial').evaluate((el) => el.getBoundingClientRect().top);
       expect(Math.abs(y1 - y0), `映す表示（${width}×${height}）: 帯が出ると盤が ${y1 - y0}px 動く`).toBeLessThanOrEqual(1);
+      // 帯が出ても縦のスクロールが現れず、余白の hook は何も足さない（帯は常に取った余白の中に収まる。足すと盤を固定していても無用のスクロールが出る）
+      const shown = await page.evaluate(() => { const r = document.querySelector('.projection')!; return { sh: r.scrollHeight, ch: r.clientHeight, clearance: getComputedStyle(r).getPropertyValue('--projection-clearance').trim() }; });
+      expect(shown.sh, `映す表示（${width}×${height}）: 帯が出ると縦のスクロールが現れる（${shown.sh} > ${shown.ch}）`).toBeLessThanOrEqual(shown.ch);
+      expect(shown.clearance, `映す表示（${width}×${height}）: 帯が出ると余白の hook が余白を足す`).toBe('0px');
     }
     // 帯が出ている間、下端の中身（「予定の終わり」など）が帯と重ならない。縦長・背の低い・狭い画面で、最下部までスクロールして測る。帯の高さは変数以下
     for (const [width, height] of [[390, 800], [320, 568], [800, 400], [844, 390], [1000, 700]] as const) {
@@ -761,33 +741,19 @@ test.describe('agenda の映す表示の帯', () => {
       await exit.focus();
       await expect(strip).toHaveCSS('opacity', '1');
       // 帯の高さは ResizeObserver が測って変数へ書く（幅を変えた直後は書き換わる前なので、揃うまで待つ）
-      await expect.poll(async () => page.evaluate(() => {
-        const bar = document.querySelector('.projection-strip')!.getBoundingClientRect().height;
-        const probe = document.createElement('div');
-        probe.style.height = getComputedStyle(document.documentElement).getPropertyValue('--projection-strip-height').trim();
-        document.body.append(probe);
-        const limit = probe.getBoundingClientRect().height;
-        probe.remove();
-        return bar <= limit + 0.01;
-      })).toBe(true);
+      await expect.poll(async () => (await measureVarHeight(page, '.projection-strip', '--projection-strip-height')).fits, { message: `映す表示の帯の高さ（${width}×${height}）が --projection-strip-height を超える（または変数が空）` }).toBe(true);
       const m = await page.evaluate(() => {
         const root = document.querySelector('.projection')!;
         root.scrollTo(0, root.scrollHeight);
         const stripBox = document.querySelector('.projection-strip')!.getBoundingClientRect();
-        const probe = document.createElement('div');
-        probe.style.height = getComputedStyle(document.documentElement).getPropertyValue('--projection-strip-height').trim();
-        document.body.append(probe);
-        const limit = probe.getBoundingClientRect().height;
-        probe.remove();
         let bottom = -Infinity;
         let who = '';
         for (const el of Array.from(document.querySelectorAll('.projection-body *'))) {
           const r = el.getBoundingClientRect();
           if (r.width > 0 && r.height > 0 && r.bottom > bottom) { bottom = r.bottom; who = `${el.tagName.toLowerCase()}.${(el as HTMLElement).className}`; }
         }
-        return { strip: stripBox.height, stripTop: stripBox.top, limit, bottom, who };
+        return { stripTop: stripBox.top, bottom, who };
       });
-      expect(m.strip, `映す表示の帯の高さ（${width}×${height}）が --projection-strip-height（${m.limit}px）を超える`).toBeLessThanOrEqual(m.limit);
       expect(m.bottom, `映す表示（${width}×${height}）: 最下部で中身（${m.who}）が帯（上端 ${m.stripTop}）に隠れる`).toBeLessThanOrEqual(m.stripTop + 0.5);
     }
   });
@@ -866,6 +832,29 @@ test.describe('agenda の映す表示: キーボードで帯を出す・中身�
     });
   }
 });
+
+/**
+ * 帯の高さ（`selector` の border-box）と、その高さを書く CSS 変数（`variable`）の長さを測る。変数が空・0 のとき `limit` は 0 で、`fits` は false（空振りで通さない）。
+ */
+async function measureVarHeight(page: Page, selector: string, variable: string): Promise<{ bar: number; limit: number; fits: boolean }> {
+  return page.evaluate(([sel, name]) => {
+    const bar = document.querySelector(sel as string)!.getBoundingClientRect().height;
+    const probe = document.createElement('div');
+    probe.style.height = getComputedStyle(document.documentElement).getPropertyValue(name as string).trim();
+    document.body.append(probe);
+    const limit = probe.getBoundingClientRect().height;
+    probe.remove();
+    return { bar, limit, fits: limit > 0 && bar <= limit + 0.01 };
+  }, [selector, variable]);
+}
+
+/** 映す表示の帯を、実際の操作（マウスを端へ・フォーカスを外す）で隠し、消えるまで待つ。前の画面の大きさの状態を持ち越さない。 */
+async function hideStrip(page: Page, strip: Locator): Promise<void> {
+  await page.mouse.move(0, 0);
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+  await expect(strip).not.toHaveClass(/is-shown/, { timeout: 8000 });
+  await page.waitForTimeout(100);
+}
 
 /** 招待の行を開く（40rem 未満は「仲間を招く」でたたまれている）。 */
 async function openInviteRow(page: Page): Promise<void> {

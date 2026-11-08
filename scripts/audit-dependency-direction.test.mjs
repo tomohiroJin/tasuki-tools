@@ -199,3 +199,17 @@ test("試験専用のパッケージを許可表に載せていないパッケ�
     { pkg: "apps/topic-web", dep: "@tasuki/test-css", via: "import" },
   ]);
 });
+
+test("製品コードが同じパッケージの tests・test を相対パスで読むと違反（再輸出で試験専用のパッケージを素通りさせない・#554）", () => {
+  const seen = observeTemp("apps/agenda-web", {
+    "apps/agenda-web/src/leak.ts": `export * from "../tests/support/css";\n`,
+    "apps/agenda-web/src/leak2.ts": `import { x } from "../test/support/css";\n`,
+    "apps/agenda-web/tests/support/css.ts": `export * from "@tasuki/test-css";\n`,
+    "apps/agenda-web/tests/a.test.ts": `import { x } from "./support/css";\n`,
+  });
+  assert.deepEqual(seen.testOnlyInProduct, [
+    "apps/agenda-web/src/leak.ts → ../tests/support/css",
+    "apps/agenda-web/src/leak2.ts → ../test/support/css",
+  ]);
+  assert.deepEqual(findViolations({ "apps/agenda-web": seen }).map((v) => v.via), ["試験専用", "試験専用"]);
+});

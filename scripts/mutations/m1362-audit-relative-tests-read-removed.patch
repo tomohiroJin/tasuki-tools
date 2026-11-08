@@ -1,0 +1,21 @@
+# 変異 1362: audit-relative-tests-read-removed
+#
+# 検出を期待するテスト:
+#   - scripts/audit-dependency-direction.test.mjs
+#
+# #554 のレビュー。製品コードが同じパッケージの tests・test を相対パスで読む取り込みを拾わず、再輸出で試験専用のパッケージが素通りする。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1362-*.patch
+# 復元: git apply -R scripts/mutations/m1362-*.patch
+--- a/scripts/audit-dependency-direction.mjs
++++ b/scripts/audit-dependency-direction.mjs
+@@ -383,7 +383,7 @@
+       const target = path.posix.normalize(path.posix.join(path.posix.dirname(rel), m[1]));
+       if (!target.startsWith(`${pkg}/`)) escapes.push(`${rel} → ${m[1]}`);
+       // 製品コードが同じパッケージの tests・test を相対パスで読むと、そこが試験専用のパッケージを再輸出して素通りする
+-      if (!isTestSide && (target.startsWith(`${pkg}/tests/`) || target.startsWith(`${pkg}/test/`))) testOnlyInProduct.push(`${rel} → ${m[1]}`);
++      if (false) testOnlyInProduct.push(`${rel} → ${m[1]}`);
+     }
+   }
+   return { manifest, imports, escapes, testOnlyInProduct };

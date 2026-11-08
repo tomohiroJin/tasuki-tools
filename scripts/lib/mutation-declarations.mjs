@@ -7141,4 +7141,20 @@ export const MUTATIONS = [
     tests: ["tests/dock-and-narrow-header.test.mjs"],
     note: RESERVED_1360_1369 + " " + "#554 のレビュー。本番相当の URL が自分の行へ落ちて 1 段増える。E2E は段数で赤。",
   },
+  {
+    id: 1362,
+    label: "依存の向きの監査から、製品コードが同じパッケージの tests・test を相対パスで読む違反の判定を外す",
+    patch: "m1362-audit-relative-tests-read-removed.patch",
+    pkg: "scripts",
+    tests: ["audit-dependency-direction.test.mjs"],
+    note: RESERVED_1360_1369 + " " + "#554 のレビュー。製品コードが自分の tests を相対パスで読み、そこが試験専用のパッケージを再輸出すると、監査が緑のまま素通りする。",
+  },
+  {
+    id: 1363,
+    label: "映す表示の余白の hook が、帯が出ているとき帯の高さを無条件に余白へ足す（縦に長い 40〜64rem の画面）",
+    patch: "m1363-projection-clearance-unconditional.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/use-projection-clearance.test.tsx"],
+    note: RESERVED_1360_1369 + " " + "#554 のレビュー。帯が中身に重ならなくても余白を足し、無用のスクロールが出る。E2E（768×1024）が拾い、単体は拾わない。",
+  },
 ];
