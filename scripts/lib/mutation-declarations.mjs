@@ -6596,7 +6596,7 @@ export const MUTATIONS = [
     patch: "m1213-poker-estimate-name-min-width-12rem.patch",
     pkg: "apps/poker-web",
     tests: ["tests/spacing-css.test.ts"],
-    note: RESERVED_1210_1219 + " " + "#553。名前の列が 12rem より縮まず、320px で選択欄が行からはみ出す。E2E の `spacing.spec.ts`（選択欄が行の中に収まる）でも赤になる。",
+    note: RESERVED_1210_1219 + " " + "#553。名前の列が 12rem より縮まず、320px の「A」の束（13）で短い名前が選択欄と同じ行に収まらず、選択欄が下の行へ落ちる。E2E の `spacing.spec.ts` の「幅 320・『A』の束（13）: 短い名前は選択欄と同じ行」の判定で赤になる。",
   },
   {
     id: 1214,
@@ -6869,5 +6869,21 @@ export const MUTATIONS = [
     pkg: "apps/poker-web",
     tests: ["tests/estimate-item-field.test.tsx"],
     note: RESERVED_1280_1289 + " " + "#553。`.estimate-item-title` を名指しする既存のセレクタが、編集中に複製に当たる。",
+  },
+  {
+    id: 1288,
+    label: "Markdown の入れ子のブロック（引用・リストの項目の中）の間の規則を外す",
+    patch: "m1288-md-nested-block-gap-removed.patch",
+    pkg: "packages/ui",
+    tests: ["tests/spacing-owner.test.mjs"],
+    note: RESERVED_1280_1289 + " " + "#553。引用の中の段落どうし・リストの項目の中の段落と入れ子のブロックの間が 0 に戻る。E2E の `spacing.spec.ts`（入れ子のブロックの間 8px）でも赤になる。",
+  },
+  {
+    id: 1289,
+    label: "roulette のいつものメンツの区画の直下の子の `min-inline-size: 0` を外す",
+    patch: "m1289-roulette-regulars-children-min-inline-size-removed.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/spacing-css.test.ts"],
+    note: RESERVED_1280_1289 + " " + "#553。縦の flex の直下の子の最小幅が区画を引っ張りうる形に戻る（grid の `minmax(0, 1fr)` の代わりの守りが消える）。いまの置き場（`.roulette-people` の grid の列は最小幅 0）では E2E の `spacing.spec.ts` は緑のままで、字面の契約でだけ捕まる。",
   },
 ];
