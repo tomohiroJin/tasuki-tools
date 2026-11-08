@@ -78,7 +78,7 @@ async function expectBackAlignedWithTitle(page: Page, label: string): Promise<vo
       return range.getBoundingClientRect();
     };
     const b = back.getBoundingClientRect();
-    const peers = Array.from(document.querySelectorAll('.ui-room-header button, .ui-room-header a'))
+    const peers = Array.from(document.querySelectorAll('.ui-room-header button, .ui-room-header a, .ui-room-header h1'))
       .filter((e) => e !== back && getComputedStyle(e).display !== 'none')
       .map((e) => e.getBoundingClientRect())
       .filter((r) => r.width > 0 && Math.abs(r.top + r.height / 2 - (b.top + b.height / 2)) < 10 && r.left < b.left);
@@ -1055,6 +1055,23 @@ test.describe('招待の URL の枠は中身の幅まで', () => {
   });
 });
 
+test.describe('agenda の映す表示: スクロールバーの溝を常に取る', () => {
+  test('Given 中身が収まる映す表示（1280×800） / When 外枠の溝を測る / Then スクロールバーが無くても溝を取り、帯の出し入れで盤の幅が変わらない', async ({ page }) => {
+    test.setTimeout(120_000);
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await openAgendaTool(page, 'header-projection-gutter');
+    await loadSampleAndStart(page);
+    await page.getByRole('button', { name: '映す表示', exact: true }).click();
+    await expect(page.locator('.projection')).toBeVisible();
+    // 既定のヘッドレスはスクロールバーを隠す（幅 0）。幅を持つ従来のスクロールバーにして、溝（scrollbar-gutter: stable）の有無が幅に出るようにする。
+    // 帯の出し入れでスクロールバーが出入りすると、盤の幅が 15px 変わった（クラシックなスクロールバーの環境）
+    await page.addStyleTag({ content: '.projection::-webkit-scrollbar { width: 15px; }' });
+    const m = await page.locator('.projection').evaluate((el) => ({ gutter: el.offsetWidth - el.clientWidth, overflows: el.scrollHeight > el.clientHeight }));
+    expect(m.overflows, 'この大きさでは中身が収まる前提（収まらないなら溝の有無を測れない）').toBe(false);
+    expect(m.gutter, '外枠が溝を取っていない（scrollbar-gutter: stable）').toBe(15);
+  });
+});
+
 test.describe('agenda の映す表示: 帯が消えても盤が跳ねない', () => {
   for (const [width, height] of [[320, 568], [568, 320]] as const) {
     test(`Given 映す表示（${width}×${height}）で帯を出して最下部まで送った / When 帯が消える / Then 盤の位置は 1px 以内で変わらない。上へ送ると余白が畳まれる`, async ({ page }) => {
@@ -1072,12 +1089,8 @@ test.describe('agenda の映す表示: 帯が消えても盤が跳ねない', ()
       await page.evaluate(() => { const r = document.querySelector('.projection')!; r.scrollTo(0, r.scrollHeight); });
       const dialTop = (): Promise<number> => page.locator('.projection-dial').evaluate((el) => el.getBoundingClientRect().top);
       const before = await dialTop();
-      // クラシックなスクロールバー（Linux の Chromium など）の環境では、帯の出し入れでスクロールバーが出入りして盤の幅が 15px 変わった（scrollbar-gutter: stable で一定にする）
-      const clientWidth = (): Promise<number> => page.locator('.projection').evaluate((el) => el.clientWidth);
-      const widthShown = await clientWidth();
       await expect(strip).not.toHaveClass(/is-shown/, { timeout: 8000 });
       await page.waitForTimeout(200);
-      expect(await clientWidth(), `映す表示（${width}×${height}）: 帯が消えると盤の幅が変わる（スクロールバーの出入り）`).toBe(widthShown);
       expect(Math.abs((await dialTop()) - before), `映す表示（${width}×${height}）: 帯が消えると盤が動く`).toBeLessThanOrEqual(1);
       // 上へ送ると、残していた余白が畳まれる
       await page.evaluate(() => { document.querySelector('.projection')!.scrollTo(0, 0); });

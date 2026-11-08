@@ -313,7 +313,9 @@ test.describe('接続の帯と一言が読める（WCAG AA・#320 E8）', () => 
       expect(await onTop(toggle), '帯が音の切り替えを覆っている').toBe(true);
       await expectNoOverlap('繋がらない', banner, toggle, dial, side);
       const bannerBox = (await boxesOf(banner))[0]!;
-      expect(bannerBox.width, '帯が全幅でない').toBeGreaterThanOrEqual(viewport.width - 1);
+      // 全幅 = 映す表示の外枠の中身の幅（クラシックなスクロールバーの環境では、溝（scrollbar-gutter: stable）のぶん画面の幅より狭い）
+      const rootWidth = await page.locator('.projection').evaluate((el) => el.clientWidth);
+      expect(bannerBox.width, '帯が全幅でない').toBeGreaterThanOrEqual(rootWidth - 1);
       expect(bannerBox.y, '帯が上端にない').toBeLessThanOrEqual(1);
       // 映す画面の大きさ（高さ 800 以上）では、帯が出ても下へはみ出さない（映している画面は誰もスクロールしない）。
       // 320×568 は帯と隅の行を除くと中身が収まらず、スクロールで見る（帯は上に留まる）
