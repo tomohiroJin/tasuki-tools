@@ -129,7 +129,18 @@ test('Given 部品層の読み込み順 / When components/index.css を読む / 
   // 最後に読めば、縦の margin を持つ部品（`.ui-reader-preview`・`.ui-reader-more`・`.ui-reader-body` など）を直下に置いても gap に足されない。
   const index = read('packages/ui/src/components/index.css');
   const order = [...index.matchAll(/@import '\.\/([a-z-]+)\.css';/g)].map((m) => m[1]);
-  assert.deepEqual(order.slice(-2), ['section-head', 'stack'], `部品の最後は section-head → stack（いまは ${order.slice(-3).join(' → ')}）`);
+  assert.deepEqual(order.slice(-3), ['section-head', 'stack', 'visually-hidden'], `部品の最後は section-head → stack → visually-hidden（いまは ${order.slice(-4).join(' → ')}）`);
   // stack の規則は :where() で包まない（詳細度 0 にすると、要素層の h2 の margin に負けて、リセットの役目を失う）
   assert.ok(rulesOf(read('packages/ui/src/components/stack.css'), '.ui-stack > *').length >= 1, '`.ui-stack > *`（:where() で包まない）の規則が無い');
+});
+
+test('Given .ui-stack の直下の読み上げ専用の要素 / When 読み込み順とリセットを読む / Then .ui-visually-hidden はリセットと同じ詳細度で後に読まれ、margin: -1px が勝つ', () => {
+  const hidden = bodyOf(read('packages/ui/src/components/visually-hidden.css'), '.ui-visually-hidden');
+  assert.match(hidden, /margin:\s*-1px;/);
+  const index = read('packages/ui/src/components/index.css');
+  const order = [...index.matchAll(/@import '\.\/([a-z-]+)\.css';/g)].map((m) => m[1]);
+  const at = (name) => order.indexOf(name);
+  assert.ok(at('visually-hidden') > at('stack') && at('visually-hidden') > at('section-head'), 'visually-hidden を stack と section-head より後に読む');
+  // 詳細度を上げる回避はしない（同じ (0,1,0) の後勝ち）
+  assert.equal(rulesOf(read('packages/ui/src/components/stack.css'), '.ui-stack > :not(.ui-visually-hidden)').length, 0);
 });

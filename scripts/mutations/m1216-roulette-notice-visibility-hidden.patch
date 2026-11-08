@@ -1,10 +1,10 @@
 diff --git a/apps/roulette-web/src/index.css b/apps/roulette-web/src/index.css
 --- a/apps/roulette-web/src/index.css
 +++ b/apps/roulette-web/src/index.css
-@@ -763,6 +763,7 @@
+@@ -766,6 +766,7 @@
+ /* 知らせは常に置く（読み上げの対象を最初から持つ）。空のあいだは JSX が部品 `ui-visually-hidden` を足して流れから外す（`RegularsSection.tsx`）。
     子が負の余白で親の gap を打ち消さない（ADR 0035 決定 1）。 */
  .roulette-regulars-notice {
-   margin: 0;
 +  visibility: hidden;
    font-size: var(--font-size-sm);
    /* 入らなかった人の名前（#469 D5）は区切りの無い長い名前でも折る（320px で横に溢れた） */
