@@ -1,9 +1,9 @@
 diff --git a/packages/ui/src/components/stack.css b/packages/ui/src/components/stack.css
 --- a/packages/ui/src/components/stack.css
 +++ b/packages/ui/src/components/stack.css
-@@ -14,7 +14,7 @@
- /* 直下の子の縦の外側の余白を 0 にする。要素層の `h2` の `margin-top` などが `gap` に足されて間が開きすぎるのを防ぐ。
-    詳細度は (0,1,0)。要素層の margin（0,0,1）には勝つ。同じ詳細度の部品の margin には、後に読むほうが勝つので、この部品は部品層の最後（`index.css` の末尾）で読む。
+@@ -16,7 +16,7 @@
+    勝つのは要素層と、先に読む同じ詳細度の部品の margin。負けるのは、詳細度の高い部品の規則と、後に読む画面の CSS の (0,1,0) の規則。
+    だから画面は、`.ui-stack` の直下の子に縦の margin を付けない（間は親の `gap` を変える）。
     `:where()` で詳細度を 0 にはしない（要素層に負けて役目を失う）。 */
 -.ui-stack > * {
 +:where(.ui-stack) > * {
