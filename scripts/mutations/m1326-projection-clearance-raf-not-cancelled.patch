@@ -1,0 +1,21 @@
+# 変異 1326: projection-clearance-raf-not-cancelled
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/use-projection-clearance.test.tsx
+#
+# #554 のレビュー。focusin・focusout で予約した測り直しを止めるとき取り消さず、アンマウントや張り直しのあとに古い測定が走って変数を書き戻す。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1326-*.patch
+# 復元: git apply -R scripts/mutations/m1326-*.patch
+diff --git a/apps/agenda-web/src/hooks/use-projection-clearance.ts b/apps/agenda-web/src/hooks/use-projection-clearance.ts
+--- a/apps/agenda-web/src/hooks/use-projection-clearance.ts
++++ b/apps/agenda-web/src/hooks/use-projection-clearance.ts
+@@ -71,7 +71,6 @@
+     let first = true;
+     let frame: number | null = null;
+     const cancelFrame = (): void => {
+-      if (frame !== null) cancelAnimationFrame(frame);
+       frame = null;
+     };
+     const onFocusChange = (): void => {

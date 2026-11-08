@@ -11,11 +11,11 @@
 diff --git a/scripts/audit-dependency-direction.mjs b/scripts/audit-dependency-direction.mjs
 --- a/scripts/audit-dependency-direction.mjs
 +++ b/scripts/audit-dependency-direction.mjs
-@@ -380,7 +380,7 @@
-   for (const rel of files) {
+@@ -446,7 +446,7 @@
      const text = fs.readFileSync(path.join(root, rel), "utf8");
-     // 製品コード = パッケージの中の tests・test 以外の全ファイル（src だけでなく、vite.config.ts などの設定ファイルも含める）
--    const isProductFile = !(rel.startsWith(`${pkg}/tests/`) || rel.startsWith(`${pkg}/test/`));
+     // 製品コード = パッケージの中の tests・test 以外の全ファイル（src だけでなく、vite.config.ts などの設定ファイルも含める）。e2e パッケージは除く
+     // e2e パッケージは全体が試験の側（e2e/specs・e2e/support が共有の解析器を読んでよい）
+-    const isProductFile = pkg !== "e2e" && !(rel.startsWith(`${pkg}/tests/`) || rel.startsWith(`${pkg}/test/`));
 +    const isProductFile = rel.startsWith(`${pkg}/src/`);
      if (isProductFile && TEST_SUPPORT_SPECIFIER.test(stripJsComments(text))) testSupport.push(rel);
      for (const m of text.matchAll(TASUKI_SPECIFIER)) imports.push(m[1]);

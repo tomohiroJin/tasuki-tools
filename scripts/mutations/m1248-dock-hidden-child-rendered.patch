@@ -20,6 +20,6 @@ diff --git a/packages/ui/src/components/actions.css b/packages/ui/src/components
 -  display: none;
 -}
 -
- @media (width < 40rem) {
-   .ui-actions--dock {
-     position: sticky;
+ /* `.ui-button { display: inline-flex }`（button.css）が UA の `[hidden] { display: none }` に勝つので、`hidden` のボタンが描かれてしまう（部品全体の欠陥）。
+    帯の中だけでなく、どの `.ui-button` でも `hidden` なら描かない。button.css に置かない（button.css の `display` を宣言する規則は `.ui-button` の 1 つだけ、という既存の検査を保つ）。
+    詳細度は (0,2,0) で、button.css の `.ui-button`（0,1,0）に読み込み順によらず勝つ */

@@ -288,3 +288,34 @@ test("observe: src の中の test/ フォルダを相対パスで読んでも通
     },
   );
 });
+
+test("observe: 正規表現リテラル（/[/*]/・/'/）の後ろにある試験用の入口の取り込みも止める（#554）", () => {
+  const entry = ["@tasuki", "ui", "test-support"].join("/");
+  withTempPackage(
+    {
+      "apps/r/package.json": "{}",
+      "apps/r/src/a.ts": "const re = /[/*]/;\nconst m = await import(\"" + entry + "/css-text.mjs\");\n",
+      "apps/r/src/b.ts": "const q = /'/.test(s);\nconst m = await import(\"" + entry + "/css-text.mjs\");\n",
+      "apps/r/src/c.ts": "const d = a / b; // " + entry + "/x を読む\n",
+    },
+    (root) => {
+      const seen = observe("apps/r", ["apps/r/src/a.ts", "apps/r/src/b.ts", "apps/r/src/c.ts"], root);
+      assert.deepEqual(seen.testSupport, ["apps/r/src/a.ts", "apps/r/src/b.ts"]);
+    },
+  );
+});
+
+test("observe: e2e パッケージ（e2e/specs・e2e/support）は全体が試験の側なので、共有の解析器を読んでも止めない（#554）", () => {
+  const entry = ["@tasuki", "ui", "test-support"].join("/");
+  withTempPackage(
+    {
+      "e2e/package.json": "{}",
+      "e2e/specs/a.spec.ts": ENTRY_IMPORT,
+      "e2e/support/b.ts": "import \"" + entry + "/css-text.mjs\";\n",
+    },
+    (root) => {
+      const seen = observe("e2e", ["e2e/specs/a.spec.ts", "e2e/support/b.ts"], root);
+      assert.deepEqual(seen.testSupport, []);
+    },
+  );
+});

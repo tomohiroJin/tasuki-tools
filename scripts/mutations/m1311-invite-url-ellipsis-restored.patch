@@ -13,7 +13,7 @@ diff --git a/packages/ui/src/components/invite.css b/packages/ui/src/components/
 --- a/packages/ui/src/components/invite.css
 +++ b/packages/ui/src/components/invite.css
 @@ -29,8 +29,9 @@
-      30〜54rem の欄で画面の外へ出た（74 字で 639・640px に clientWidth 649px）。上限と下限を持ち、区切りの無い長い URL でもどこでも折り返して全部見せる */
+      欄より長いときは、上限（max-inline-size）と下限（min-inline-size: 0）で欄の幅まで縮み、区切りの無い長い URL でもどこでも折り返して全部見せる（#554） */
    min-inline-size: 0;
    max-inline-size: 100%;
 -  overflow-wrap: anywhere;

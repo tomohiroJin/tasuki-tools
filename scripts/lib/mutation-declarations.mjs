@@ -107,6 +107,9 @@ const RESERVED_1010_1019 =
 const RESERVED_1020_1029 =
   "**対応表より後に足した変異。** 1020〜1029 は #547 に割り当てた範囲。";
 
+const RESERVED_1330_1339 =
+  "**対応表より後に足した変異。** 1330〜1339 は #554 に追加で割り当てた範囲（1320〜1329 を使い切ったため。main の宣言は 1083・#553 の枝は 1200〜1289 で重ならない）。";
+
 const RESERVED_1320_1329 =
   "**対応表より後に足した変異。** 1320〜1329 は #554 に追加で割り当てた範囲（1310〜1319 を使い切る前に、11 回目の指摘で足した。main の宣言は 1083・#553 の枝は 1200〜1289 で重ならない）。";
 
@@ -7019,5 +7022,45 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["audit-dependency-direction.test.mjs"],
     note: RESERVED_1320_1329 + " " + "#554 のレビュー。glob の文字列の後ろの取り込みを見逃す。",
+  },
+  {
+    id: 1326,
+    label: "映す表示の余白の hook が、予約した測り直し（requestAnimationFrame）を止めるとき取り消さない",
+    patch: "m1326-projection-clearance-raf-not-cancelled.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/use-projection-clearance.test.tsx"],
+    note: RESERVED_1320_1329 + " " + "#554 のレビュー。アンマウントや張り直しのあとに古い測定が走って変数を書き戻す。",
+  },
+  {
+    id: 1327,
+    label: "映す表示の余白の hook の effect が shown に依存する（帯の出し入れのたびに observer を作り直す）",
+    patch: "m1327-projection-clearance-effect-depends-on-shown.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/use-projection-clearance.test.tsx"],
+    note: RESERVED_1320_1329 + " " + "#554 のレビュー。observer・focus・matchMedia を毎回作り直し、古い shown を持つ closure が残る。",
+  },
+  {
+    id: 1328,
+    label: "依存の監査の注釈除去が、正規表現リテラルを字句として読まない",
+    patch: "m1328-audit-regex-literal-not-lexed.patch",
+    pkg: "scripts",
+    tests: ["audit-dependency-direction.test.mjs"],
+    note: RESERVED_1320_1329 + " " + "#554 のレビュー。/[/*]/ や /'/ の後ろの取り込みを見逃す。",
+  },
+  {
+    id: 1329,
+    label: "依存の監査が、e2e パッケージを製品コードとして扱う",
+    patch: "m1329-audit-e2e-treated-as-product.patch",
+    pkg: "scripts",
+    tests: ["audit-dependency-direction.test.mjs"],
+    note: RESERVED_1320_1329 + " " + "#554 のレビュー。E2E から共有の解析器を読むと誤って止まる。",
+  },
+  {
+    id: 1330,
+    label: "hidden のボタンを描かない規則を button.css に置く",
+    patch: "m1330-button-hidden-rule-in-button-css.patch",
+    pkg: "packages/ui",
+    tests: ["tests/room-header-wide-toggle.test.mjs"],
+    note: RESERVED_1330_1339 + " " + "#554 のレビュー。button.css で display を宣言する規則が 2 つになり、既存の検査が赤になる（除外を足さずに済む置き場は actions.css）。",
   },
 ];

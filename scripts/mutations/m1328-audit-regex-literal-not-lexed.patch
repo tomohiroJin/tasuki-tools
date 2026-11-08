@@ -1,0 +1,22 @@
+# 変異 1328: audit-regex-literal-not-lexed
+#
+# 検出を期待するテスト:
+#   - scripts/audit-dependency-direction.test.mjs
+#
+# #554 のレビュー。正規表現リテラル（/[/*]/・/'/）を字句として読まず、中の /* や引用符を注釈・文字列の開始と見なして、後ろの取り込みを見逃す。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1328-*.patch
+# 復元: git apply -R scripts/mutations/m1328-*.patch
+diff --git a/scripts/audit-dependency-direction.mjs b/scripts/audit-dependency-direction.mjs
+--- a/scripts/audit-dependency-direction.mjs
++++ b/scripts/audit-dependency-direction.mjs
+@@ -392,7 +392,7 @@
+         out += text[i];
+         i += 1;
+       }
+-    } else if (c === "/" && startsRegexLiteral(out)) {
++    } else if (false) {
+       // 正規表現リテラル（`/[/*]/`・`/'/` など）は字句として読み、中の `/*`・引用符を注釈・文字列の開始と見なさない
+       out += c;
+       i += 1;

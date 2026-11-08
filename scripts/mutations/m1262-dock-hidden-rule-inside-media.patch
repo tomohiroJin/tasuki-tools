@@ -11,7 +11,7 @@
 diff --git a/packages/ui/src/components/actions.css b/packages/ui/src/components/actions.css
 --- a/packages/ui/src/components/actions.css
 +++ b/packages/ui/src/components/actions.css
-@@ -51,11 +51,11 @@
+@@ -51,10 +51,6 @@
     - 帯が覆う中身は、最下部までスクロールすると帯の上に出る（帯は流れの中に居るので、中身の下の余白は部品が持つ必要がない）。 */
  /* 数えないもの（`hidden`）は描かない（幅によらない）。`.ui-button { display: inline-flex }` が UA の `[hidden] { display: none }` に勝つので、書かないと
     「数えない」と決めた子が描かれて段が増える。帯の子を隠すときは `hidden` 属性か `.ui-visually-hidden` を使う（クラスや @media の `display: none` は数え方が知らない） */
@@ -19,6 +19,12 @@ diff --git a/packages/ui/src/components/actions.css b/packages/ui/src/components
 -  display: none;
 -}
 -
+ /* `.ui-button { display: inline-flex }`（button.css）が UA の `[hidden] { display: none }` に勝つので、`hidden` のボタンが描かれてしまう（部品全体の欠陥）。
+    帯の中だけでなく、どの `.ui-button` でも `hidden` なら描かない。button.css に置かない（button.css の `display` を宣言する規則は `.ui-button` の 1 つだけ、という既存の検査を保つ）。
+    詳細度は (0,2,0) で、button.css の `.ui-button`（0,1,0）に読み込み順によらず勝つ */
+@@ -63,6 +59,10 @@
+ }
+ 
  @media (width < 40rem) {
 +  .ui-actions--dock > [hidden] {
 +    display: none;
