@@ -230,3 +230,16 @@
   - 変異 1288（根のブロックの間の規則を段落どうしだけに狭める）は、字面の契約でしか捕まらない。
   - 編集中の入力の下に空白が残ること（9 回目の記録と同じ）。
   - 3 行の写しの箱の高さの上限に、段落の間 2 つぶん（+16px）を足したこと。これは main の検査（`行の高さ × 3.5` ほか）を緩める変更である。**人の承認を待つ**（AGENTS.md の「検査を弱める変更」）。承認が得られなければ、上限を main の値に戻し、段落の間を行数の数え上げだけで見る。
+
+#### #553 の 12 回目の指摘で変えたこと（2026-11-08）
+
+- `.ui-stack` のリセットを `.ui-stack > :where(:not(dialog))` にした。以前の `.ui-stack > *` は、直下の `<dialog>` の UA の中央寄せ（`margin: auto`）を消した（poker の `RemovalConfirm` が中央に出ていたのは、画面の `.removal-confirm { margin: auto }` が後から勝っていたため）。`:where()` は詳細度 0 なので、詳細度は (0,1,0) のまま。E2E は `.removal-confirm` の margin をアプリの CSS から外しても、確認の `<dialog>` が画面の中央に出ることを測る。変異 1348（`> *` に戻す）。変異 1201・1279 のパッチは新しいセレクタに合わせて作り直した。
+- `.ui-reader-preview` の箱を伸ばさない契約を、宣言の名前を取り出して判定する形にした。以前の正規表現は論理プロパティ（`min-block-size`・`block-size`・`padding-block-end`）を見ず、逆に `line-height:`・`max-height:` に誤って一致した。判定の自己テストで、`min-block-size` と `padding-block-end` は拾い、`line-height`・`max-height` は拾わないことを確かめる。変異 1349（`min-block-size`）。
+- 部品層の「最後」のコメント（`index.css`・ADR 0035 決定 1）を、`visually-hidden` を除く最後、と直した。
+- 扱い: 記録（直さない）
+  - E2E（`spacing.spec.ts`）が、幅を変えた直後に測っていること。移り変わり（アニメーション）が終わるまで待たない箇所がある。揺れが出たら `expect.poll` で待つ形にする。
+  - timer の `.section-header`・`.shared-memo-header` の `margin-bottom` の例外（10 回目の節と ADR 0035 決定 1 に記録済み。#556）。
+  - `ruleBody` 相当の補助が 5 か所に複製されていること（9 回目の節に記録済み）。共有は #554 の `@tasuki/ui/test-support/css-text.mjs` が main に入ってから寄せる。そのとき、正規表現でなく postcss で規則を集める案がある。
+  - timer の `ShuffleButton` が `session.css` のクラスに頼っていること（11 回目の節に記録済み）。
+  - 見えない複製の作り。いまは名前のボタンと同じ寸法を宣言で写している。`visibility: hidden` で元のボタンを残し、入力を重ねる案がある（寸法の写しが要らなくなる）。編集中も元のボタンの読み上げと Tab を止める手当てが要るので、採らなかった。
+  - 禁止の一覧の穴。契約の「持たない宣言」の一覧は、一括指定（`flex`・`padding`・`margin` の短縮形）と論理寸法の書き方を網羅しない。1 つの宣言の名前で判定する箇所（`.ui-reader-preview`）は直したが、ほかの一覧は直していない。
