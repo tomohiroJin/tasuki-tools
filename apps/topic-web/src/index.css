@@ -367,9 +367,10 @@
   }
 }
 
-/* 「定型から選ぶ」などの操作は、隣の選択（`.ui-select`・52px）と同じ高さにして、縦の中心を揃える
+/* 「定型から選ぶ」「解錠する」などの操作は、隣の選択・入力欄（`.ui-select`・`.ui-input`・52px）と同じ高さにして、縦の中心を揃える
    （下端を揃えるだけでは、44px のボタンの中心が 4px 上へずれる・#556 一覧 #31）。 */
-.topic-make .topic-make-row .ui-actions .ui-button {
+.topic-make .topic-make-row .ui-actions .ui-button,
+.topic-make .topic-unlock-row .ui-button {
   min-height: 3.25rem; /* scale-exempt: 隣の `.ui-select` の高さ（余白 12px×2 + 行 + 枠）に合わせる */
 }
 
