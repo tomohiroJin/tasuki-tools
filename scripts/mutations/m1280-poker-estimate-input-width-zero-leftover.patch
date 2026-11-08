@@ -1,0 +1,15 @@
+diff --git a/apps/poker-web/src/index.css b/apps/poker-web/src/index.css
+--- a/apps/poker-web/src/index.css
++++ b/apps/poker-web/src/index.css
+@@ -532,6 +532,11 @@
+   min-inline-size: 0;
+ }
+ 
++.estimate-item--inline .estimate-item-input {
++  inline-size: 0;
++  min-inline-size: 0;
++}
++
+ /* ---------- 見積もりの記録（#93・spec §4.4。お題と同じ読む面の札の上） ---------- */
+ 
+ .estimate-log {

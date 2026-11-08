@@ -26,6 +26,46 @@ import {
 
 const REM = 16;
 const MAIN_MIN = 32 * REM;
+/** Markdown の段落どうしの間（トークン `--space-2` の値）。実装の値を測って上限に足さず、トークンの値の定数にする（間を広げると、箱の上限が一緒に広がって緑になるため）。 */
+const PARAGRAPH_GAP = 8;
+/** 3 行の写しの箱に入る段落の間の数の上限。見せる行数（clamp 3）から決める固定の数: 3 行が別々の 3 つの段落に分かれても、間は 2 つ。箱の大きさから数えない（箱が伸びると上限も緩んでしまうため）。 */
+const PREVIEW_MAX_GAPS = 2;
+
+/**
+ * 3 行の写し（`.ui-reader-preview`）で、見えている字の行の数と、字の行の総数。
+ * 高さの上限で見ると、段落の間（`--space-2`）の大きさで上限を動かさないといけず、間を変えるたびに検査を緩めることになる。
+ * 行の数なら間の大きさに依らない。字の矩形（`Range.getClientRects()`）の上端を行ごとに束ね、
+ * 写しの箱に少しでも掛かっている行（上端が箱の下端より上）を「見えている」と数える。切られた行も矩形は残るので、総数は見えている数より多くなる。
+ */
+async function previewLines(page: Page, selector: string): Promise<{ visible: number; total: number; height: number; lineHeight: number }> {
+  return page.locator(selector).first().evaluate((el) => {
+    const box = el.getBoundingClientRect();
+    const rects: Array<{ top: number; bottom: number }> = [];
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    for (let n = walker.nextNode(); n !== null; n = walker.nextNode()) {
+      if ((n.textContent ?? '').trim() === '') continue;
+      const range = document.createRange();
+      range.selectNodeContents(n);
+      for (const r of Array.from(range.getClientRects())) if (r.width > 0 && r.height > 0) rects.push({ top: r.top, bottom: r.bottom });
+    }
+    rects.sort((a, b) => a.top - b.top);
+    const rows: Array<{ top: number; bottom: number }> = [];
+    for (const r of rects) {
+      const last = rows[rows.length - 1];
+      // 同じ行の矩形は上端がほぼ同じ（行の高さの半分より近い）。別の行は 1 行の高さ以上離れる
+      if (last !== undefined && r.top - last.top < (last.bottom - last.top) / 2) last.bottom = Math.max(last.bottom, r.bottom);
+      else rows.push({ ...r });
+    }
+    // 見えている行: 上端が箱の中にある行（半分だけ覗いている行も数える。下端まで収まる行だけを数えると、4 行目が半分見えていても見逃す）
+    // 箱の高さ・行の高さ（高さの上限は、行数の数え上げと別に見る）
+    return {
+      visible: rows.filter((r) => r.top < box.bottom - 0.5 && r.bottom > box.top + 0.5).length,
+      total: rows.length,
+      height: box.height,
+      lineHeight: parseFloat(getComputedStyle(el).lineHeight),
+    };
+  });
+}
 
 interface Box { x: number; y: number; width: number; height: number }
 
@@ -671,12 +711,14 @@ test.describe('poker のルームは広い画面で読む面と操作の面を�
     const main = await boxOf(page, '.ui-workspace-main');
     expect(side.y + side.height).toBeLessThanOrEqual(main.y);
     expect(main.x).toBeCloseTo(side.x, 0);
-    // 本文は 3 行で切れる（行の高さ × 3.5 まで）。続きは「続きを読む」のシート（invite-sheet-md.spec.ts が見る）
-    const { height, lineHeight } = await page.locator('.ui-reader-preview').evaluate((el) => ({
-      height: el.getBoundingClientRect().height,
-      lineHeight: parseFloat(getComputedStyle(el).lineHeight),
-    }));
-    expect(height).toBeLessThanOrEqual(lineHeight * 3.5);
+    // 本文は 3 行で切れる（字の行を数える。続きは「続きを読む」のシート（invite-sheet-md.spec.ts が見る））。見えている行は 3 以下で、切られた行がある
+    const lines = await previewLines(page, '.ui-reader-preview');
+    expect(lines.visible, '写しで見えている字の行（3 行まで）').toBeLessThanOrEqual(3);
+    expect(lines.visible, '写しは字を見せている').toBeGreaterThanOrEqual(1);
+    expect(lines.total, '切られた行がある（全文が見えていない）').toBeGreaterThan(lines.visible);
+    // 箱の高さの上限（元の検査を弱めない）: 3 行の高さ × 3.5 に、見せる行数から決めた固定の数の段落の間（トークン `--space-2` の値 8px × 2）を足した値まで。
+    // 行数の数え上げだけでは、箱が伸びても（行数は 3 のまま）緑になる。
+    expect(lines.height, '写しの箱の高さ（行の高さ × 3.5 ＋ 段落の間 × 2 まで）').toBeLessThanOrEqual(lines.lineHeight * 3.5 + PREVIEW_MAX_GAPS * PARAGRAPH_GAP);
   });
 });
 
@@ -901,13 +943,12 @@ test.describe('timer は 1 つのルームでロビー・セッション・お�
     // When 幅 390
     await page.setViewportSize({ width: 390, height: 844 });
     // Then 札は 3 行で切れ、タイマーは最初の画面に収まる
-    const clamp = await page.locator('.ui-reader-preview').first().evaluate((el) => ({
-      client: el.clientHeight,
-      line: parseFloat(getComputedStyle(el).lineHeight),
-      scroll: el.scrollHeight,
-    }));
-    expect(clamp.client).toBeLessThanOrEqual(clamp.line * 3 + 1);
-    expect(clamp.scroll).toBeGreaterThan(clamp.client);
+    const clamp = await previewLines(page, '.ui-reader-preview');
+    expect(clamp.visible, '写しで見えている字の行（3 行まで）').toBeLessThanOrEqual(3);
+    expect(clamp.visible, '写しは字を見せている').toBeGreaterThanOrEqual(1);
+    expect(clamp.total, '切られた行がある（全文が見えていない）').toBeGreaterThan(clamp.visible);
+    // 箱の高さの上限（元の検査 `行の高さ × 3 + 1` を弱めない）: 3 行に、段落の間 2 つぶん（見せる行数から決めた固定の数 × トークン `--space-2` の値 8px）を足した値まで
+    expect(clamp.height, '写しの箱の高さ（行の高さ × 3 ＋ 段落の間 × 2 ＋ 1 まで）').toBeLessThanOrEqual(clamp.lineHeight * 3 + PREVIEW_MAX_GAPS * PARAGRAPH_GAP + 1);
     // 下端の帯（.ui-actions--dock）の裏に隠れないこと（画面の高さではなく帯の上端と比べる）。
     // 円形計器の大きさは React の状態（useIsWide・useViewportWidth）から決まる（Session.tsx の orbitSizes）。
     // 画面に古い大きさが描かれる瞬間があるとは考えていない: react-dom 19.3.1 では resize は Continuous、

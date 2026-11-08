@@ -33,6 +33,7 @@ import {
 } from "../name-request.js";
 import { splitRoster } from "../roster-order.js";
 import { MiniButton } from "./MiniButton.js";
+import { ShuffleButton } from "./ShuffleButton.js";
 
 interface RosterPanelProps {
   participants: Participant[];
@@ -67,6 +68,9 @@ interface RosterPanelProps {
   /** 輪の席（`session.seats`・#276 D2）。呼び名の同名判定プールに使う（敵対的レビュー #276 指摘1）。
    *  未指定なら `participants` のみで判定する（ソロ等 seats を持たないコンシューマ向け）。 */
   seats?: readonly Seat[] | undefined;
+  /** ドライバー順をランダムに並べ替える（v2.3 #1）。2 人以上のときだけ出す（`rotation` の長さで `ShuffleButton` が決める）。
+   *  見出しの行の「代理追加」の隣に出す（どの一覧に効く操作かが見出しで読める・#553 一覧 #6）。 */
+  onShuffle?: (() => void) | undefined;
 }
 
 export function RosterPanel({
@@ -84,6 +88,7 @@ export function RosterPanel({
   onMove,
   onAssignDriver,
   seats,
+  onShuffle,
 }: RosterPanelProps) {
   // 呼び名の同名判定プール（`participant-label.ts` に1つだけ置く規則の呼び出し口）。
   // `participants` だけだと、輪に席は残るが timer 画面には居ない離席者を取りこぼし、
@@ -461,22 +466,26 @@ export function RosterPanel({
       <SectionHeader
         icon={Users}
         title="参加者"
+        beside
         right={
-          <button
-            type="button"
-            onClick={() => {
-              // 開閉で理由は持ち越さない。閉じて開き直した先に前回の赤が残っていると、
-              // いま打っている名前について言っているように読める（#291）。
-              // 自分で閉じたなら、届くのを待っていた代理も待たない
-              // （待ったままだと、あとで同名が現れた拍子に勝手に開閉する）。
-              dispatchProxy({ type: "reset" });
-              setShowProxyInput((v) => !v);
-            }}
-            aria-label="代理参加者を追加"
-            className="ui-button ui-button--secondary ui-button--sm"
-          >
-            代理追加
-          </button>
+          <div className="roster-panel-head-actions">
+            <ShuffleButton onClick={onShuffle} rotationLength={rotation?.length ?? 0} />
+            <button
+              type="button"
+              onClick={() => {
+                // 開閉で理由は持ち越さない。閉じて開き直した先に前回の赤が残っていると、
+                // いま打っている名前について言っているように読める（#291）。
+                // 自分で閉じたなら、届くのを待っていた代理も待たない
+                // （待ったままだと、あとで同名が現れた拍子に勝手に開閉する）。
+                dispatchProxy({ type: "reset" });
+                setShowProxyInput((v) => !v);
+              }}
+              aria-label="代理参加者を追加"
+              className="ui-button ui-button--secondary ui-button--sm"
+            >
+              代理追加
+            </button>
+          </div>
         }
       />
 

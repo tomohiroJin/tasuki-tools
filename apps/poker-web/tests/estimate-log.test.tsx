@@ -205,4 +205,12 @@ describe('閉じた束の名前の付け直し（#427・設計 E）', () => {
     expect(head.textContent).not.toContain('//');
     expect(head.textContent).not.toContain('見出しの強い値');
   });
+
+  it('Given 閉じた束 / When 描く / Then 束は .ui-stack--tight（見出しの行と回の記録の間は --space-2）で、見出しの行は .ui-section-head', () => {
+    const { container } = render(<EstimateLog groups={[group(1)]} onSetPoints={noop} onRenameGroup={vi.fn()} disabled={false} />);
+    const item = container.querySelector('.estimate-group') as HTMLElement;
+    expect(item.classList.contains('ui-stack')).toBe(true);
+    expect(item.classList.contains('ui-stack--tight')).toBe(true);
+    expect(item.querySelector('.estimate-group-head')!.classList.contains('ui-section-head')).toBe(true);
+  });
 });

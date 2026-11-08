@@ -1,0 +1,13 @@
+diff --git a/apps/poker-web/src/index.css b/apps/poker-web/src/index.css
+--- a/apps/poker-web/src/index.css
++++ b/apps/poker-web/src/index.css
+@@ -515,8 +515,7 @@
+   font-weight: 400;
+ }
+ 
+-.estimate-item--inline .estimate-item-title,
+-.estimate-item--inline .estimate-item-sizer {
++.estimate-item--inline .estimate-item-title {
+   flex: 1 1 auto;
+   border-color: transparent;
+ }

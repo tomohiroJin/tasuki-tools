@@ -5,7 +5,7 @@
  */
 
 import React, { useState } from "react";
-import { Users, Play, UserPlus, UserMinus, ChevronUp, ChevronDown, X, Shuffle, Bell } from "lucide-react";
+import { Users, Play, UserPlus, UserMinus, ChevronUp, ChevronDown, X, Bell } from "lucide-react";
 import type { Room } from "@tasuki/timer-core";
 import type { Topic } from "@tasuki/topic-core";
 import { Card, SectionHeader } from "./primitives.js";
@@ -19,6 +19,7 @@ import { labelPool } from "./participant-label.js";
 import { PresenceDot } from "./components/PresenceDot.js";
 import { presenceLabel } from "./presence.js";
 import { RemovalConfirmDialog } from "./components/RemovalConfirmDialog.js";
+import { ShuffleButton } from "./components/ShuffleButton.js";
 import { useNotifyPreferences } from "./use-notify-preferences.js";
 import { saveNotifyPreferences } from "../prefs/local-prefs.js";
 import { requestPermissionIfEnabling } from "../platform/notify.js";
@@ -166,13 +167,10 @@ export function Lobby({
           <SectionHeader
             icon={Users}
             title={`参加者 (${room.participants.length}人)`}
+            beside
             right={
               /* ドライバー順をランダムに（v2.3 #1）。2人以上で意味を持つ。 */
-              onShuffle && room.session.rotation.length > 1 ? (
-                <button type="button" onClick={onShuffle} aria-label="ドライバー順をランダムに並べ替える" className="ui-button ui-button--secondary ui-button--sm">
-                  <span className="lobby-shuffle-label"><Shuffle className="lobby-shuffle-icon" aria-hidden="true" /> ランダム</span>
-                </button>
-              ) : undefined
+              <ShuffleButton onClick={onShuffle} rotationLength={room.session.rotation.length} />
             }
           />
           <ul className="lobby-participants">

@@ -27,8 +27,9 @@ export function EstimateItemField({ item, onCommit, disabled, label = ESTIMATE_I
   const [draft, setDraft] = useState<string | null>(null);
   // Escape で畳んだあとにアンマウントの blur が確定として働かないための印
   const cancelledRef = useRef(false);
-  // 編集を始めた瞬間の値。他の人が名前を変えても、打たずに閉じたとき古い値で上書きしないための基準
-  const startRef = useRef('');
+  // 編集を始めた瞬間の値。他の人が名前を変えても、打たずに閉じたとき古い値で上書きしないための基準。
+  // 見えない複製の文字列として描画中にも読むので、ref ではなく state に持つ（描画中に ref を読まない）
+  const [start, setStart] = useState('');
   const buttonRef = useRef<HTMLButtonElement>(null);
   // Enter / Escape で閉じたあとだけ題のボタンへフォーカスを戻す（blur で閉じたときは奪わない）
   const returnFocusRef = useRef(false);
@@ -44,7 +45,7 @@ export function EstimateItemField({ item, onCommit, disabled, label = ESTIMATE_I
     if (cancelledRef.current) return;
     if (draft !== null) {
       const next = draft.trim();
-      if (next !== startRef.current.trim()) onCommit(next);
+      if (next !== start.trim()) onCommit(next);
     }
     setDraft(null);
   }
@@ -62,13 +63,21 @@ export function EstimateItemField({ item, onCommit, disabled, label = ESTIMATE_I
           disabled={disabled}
           onClick={() => {
             cancelledRef.current = false;
-            startRef.current = item;
+            setStart(item);
             setDraft(item);
           }}
         >
           {item === '' ? ESTIMATE_UNNAMED : item}
         </button>
       ) : (
+        <>
+        {/* 束の見出しの中（inline）では、名前のボタンと同じ大きさの場所を、編集中も取り続ける（見えない複製。`.estimate-item-title` のクラスは持たない。読み上げと Tab から外す）。
+            入力はその上に重ねる。入力の固有の幅に引かれて名前の列の基準幅が変わり、選択欄の行が跳ぶのを防ぐ（短い名前も長い名前も） */}
+        {size === 'inline' && (
+          <button type="button" className="ui-button ui-button--secondary estimate-item-sizer" aria-hidden="true" tabIndex={-1} disabled>
+            {start === '' ? ESTIMATE_UNNAMED : start}
+          </button>
+        )}
         <input
           type="text"
           className="ui-input estimate-item-input"
@@ -96,6 +105,7 @@ export function EstimateItemField({ item, onCommit, disabled, label = ESTIMATE_I
             }
           }}
         />
+        </>
       )}
     </div>
   );

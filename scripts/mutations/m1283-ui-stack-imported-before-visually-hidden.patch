@@ -1,0 +1,19 @@
+diff --git a/packages/ui/src/components/index.css b/packages/ui/src/components/index.css
+--- a/packages/ui/src/components/index.css
++++ b/packages/ui/src/components/index.css
+@@ -17,6 +17,7 @@
+ @import './markdown.css';
+ @import './layout.css';
+ @import './reader.css';
++@import './stack.css';
+ @import './drawer.css';
+ @import './button.css';
+ @import './actions.css';
+@@ -24,7 +25,6 @@
+ /* 縦に並べる部品の規則（`section-head`・`stack`）は、`visually-hidden` を除く部品層の**最後**に読む（#553・ADR 0035）。`.ui-stack > :where(:not(dialog))`・`.ui-section-head > *` の margin のリセットは
+    詳細度 (0,1,0) なので、同じ詳細度の部品の margin には**後に読んだほうが勝つ**。ここで読めば、先に読む同じ詳細度の部品の margin（(0,1,0)）には勝つ。詳細度の高い部品の規則と、後に読む画面の CSS の (0,1,0) には負けるので、画面は `.ui-stack` の直下の子に縦の margin を付けない。 */
+ @import './section-head.css';
+-@import './stack.css';
+ 
+ /* `.ui-visually-hidden`（`margin: -1px`）だけは、そのリセットより後に読む: `.ui-stack` の直下に置いた読み上げ専用の要素が、リセットの `margin-block: 0` に負けて形が崩れないようにする（同じ詳細度 (0,1,0) なので後勝ち）。 */
+ @import './visually-hidden.css';
