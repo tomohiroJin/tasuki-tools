@@ -1,0 +1,13 @@
+diff --git a/packages/ui/src/components/reader.css b/packages/ui/src/components/reader.css
+--- a/packages/ui/src/components/reader.css
++++ b/packages/ui/src/components/reader.css
+@@ -22,8 +22,7 @@
+    全文と、その中のリンクはシート（.ui-drawer）が持つ。縦の余白は padding でなく margin で取る（padding の帯に 4 行目の上端が覗くため） */
+ .ui-reader-preview {
+   box-sizing: border-box;
+-  margin-block: var(--space-4);
+-  padding: 0 var(--space-5);
++  padding: var(--space-4) var(--space-5);
+   overflow-wrap: anywhere;
+   display: -webkit-box;
+   -webkit-box-orient: vertical;

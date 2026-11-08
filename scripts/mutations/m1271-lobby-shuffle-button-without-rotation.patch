@@ -1,0 +1,12 @@
+diff --git a/apps/timer-web/src/ui/Lobby.tsx b/apps/timer-web/src/ui/Lobby.tsx
+--- a/apps/timer-web/src/ui/Lobby.tsx
++++ b/apps/timer-web/src/ui/Lobby.tsx
+@@ -170,7 +170,7 @@
+             beside
+             right={
+               /* ドライバー順をランダムに（v2.3 #1）。2人以上で意味を持つ。 */
+-              <ShuffleButton onClick={onShuffle} rotationLength={room.session.rotation.length} />
++              <ShuffleButton onClick={onShuffle} rotationLength={0} />
+             }
+           />
+           <ul className="lobby-participants">

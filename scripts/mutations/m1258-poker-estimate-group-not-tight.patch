@@ -1,0 +1,12 @@
+diff --git a/apps/poker-web/src/components/EstimateLog.tsx b/apps/poker-web/src/components/EstimateLog.tsx
+--- a/apps/poker-web/src/components/EstimateLog.tsx
++++ b/apps/poker-web/src/components/EstimateLog.tsx
+@@ -71,7 +71,7 @@
+             </span>
+             <ol className="estimate-groups">
+               {shown.map((group) => (
+-                <li key={group.id} className="estimate-group ui-stack ui-stack--tight" data-group={group.id}>
++                <li key={group.id} className="estimate-group ui-stack" data-group={group.id}>
+                   <div className="estimate-group-head ui-section-head">
+                     {group.open ? (
+                       <>

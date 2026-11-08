@@ -1,0 +1,11 @@
+diff --git a/apps/timer-web/src/styles/primitives.css b/apps/timer-web/src/styles/primitives.css
+--- a/apps/timer-web/src/styles/primitives.css
++++ b/apps/timer-web/src/styles/primitives.css
+@@ -88,6 +88,7 @@
+ /* 並び（flex・折り返し・横の間）は部品 `.ui-section-head` が持つ（ADR 0035。以前は横の間が 3px だった・#553 一覧 #33）。
+    下の間は、親の Card が縦の `gap` を持つ形へ移るまで、この見出しが持つ（移行の途中の例外）。 */
+ .section-header {
++  column-gap: 3px;
+   margin-bottom: var(--space-4);
+ }
+ 

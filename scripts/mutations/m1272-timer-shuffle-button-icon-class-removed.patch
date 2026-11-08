@@ -1,0 +1,12 @@
+diff --git a/apps/timer-web/src/ui/components/ShuffleButton.tsx b/apps/timer-web/src/ui/components/ShuffleButton.tsx
+--- a/apps/timer-web/src/ui/components/ShuffleButton.tsx
++++ b/apps/timer-web/src/ui/components/ShuffleButton.tsx
+@@ -17,7 +17,7 @@
+       className="ui-button ui-button--secondary ui-button--sm"
+     >
+       <span className="session-action-label">
+-        <Shuffle className="session-action-icon" aria-hidden="true" /> ランダム
++        <Shuffle aria-hidden="true" /> ランダム
+       </span>
+     </button>
+   );

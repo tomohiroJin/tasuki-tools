@@ -1,0 +1,11 @@
+diff --git a/apps/roulette-web/src/index.css b/apps/roulette-web/src/index.css
+--- a/apps/roulette-web/src/index.css
++++ b/apps/roulette-web/src/index.css
+@@ -615,7 +615,6 @@
+    折り返さない長い字を持つ子（組の名前・確認の文）があると、親の列の守り（`minmax(0, 1fr)`）が無くても区画が広がらないよう、区画の側でも守る。
+    `.roulette-regulars > *` に置いても効かない（区画は縦の flex で、交差軸の子の auto の最小幅は最初から 0。実測した）。 */
+ .roulette-regulars {
+-  min-inline-size: 0;
+   padding-top: var(--space-4);
+   border-top: 1px solid var(--line);
+ }

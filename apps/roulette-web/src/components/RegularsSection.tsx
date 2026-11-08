@@ -211,8 +211,8 @@ export function RegularsSection({ locked, people, onInsert }: Props) {
   const editing = mode.kind === 'form' && mode.id !== null ? groups.find((g) => g.id === mode.id) : undefined;
 
   return (
-    <section className="roulette-regulars" aria-labelledby={headingId}>
-      <div className="roulette-regulars-head">
+    <section className="roulette-regulars ui-stack" aria-labelledby={headingId}>
+      <div className="roulette-regulars-head ui-section-head">
         <h3 id={headingId}>{REGULARS_HEADING}</h3>
         <span className="roulette-regulars-where">{REGULARS_WHERE}</span>
       </div>
@@ -249,7 +249,9 @@ export function RegularsSection({ locked, people, onInsert }: Props) {
           )}
         </>
       ) : null}
-      <p className="roulette-regulars-notice ui-note" role="status">
+      {/* 知らせは常に置く（ライブリージョンを木に残す）。空のあいだだけ部品 `ui-visually-hidden` を足し、流れから外して親（`.ui-stack`）の gap を取らせない。
+          `display: none`・`visibility: hidden`・`hidden`・`aria-hidden` にしない（読み上げの木から外れ、あとから入る知らせが届かない） */}
+      <p className={`roulette-regulars-notice ui-note${notice === '' ? ' ui-visually-hidden' : ''}`} role="status">
         {notice}
       </p>
       {mode.kind === 'list' ? (

@@ -1,0 +1,12 @@
+diff --git a/packages/ui/src/components/section-head.css b/packages/ui/src/components/section-head.css
+index e9d6a769..c160153d 100644
+--- a/packages/ui/src/components/section-head.css
++++ b/packages/ui/src/components/section-head.css
+@@ -10,7 +10,6 @@
+   box-sizing: border-box;
+   display: flex;
+   /* 狭い幅で操作が下の行へ落ちても、見出しと左端が揃う（`space-between` は 1 行のときだけ両端へ離す） */
+-  flex-wrap: wrap;
+   align-items: center;
+   justify-content: space-between;
+   gap: var(--space-2) var(--space-3);
