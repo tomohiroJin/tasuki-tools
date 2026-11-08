@@ -1066,7 +1066,7 @@ test.describe('agenda の映す表示: スクロールバーの溝を常に取�
     // 既定のヘッドレスはスクロールバーを隠す（幅 0）。幅を持つ従来のスクロールバーにして、溝（scrollbar-gutter: stable）の有無が幅に出るようにする。
     // 帯の出し入れでスクロールバーが出入りすると、盤の幅が 15px 変わった（クラシックなスクロールバーの環境）
     await page.addStyleTag({ content: '.projection::-webkit-scrollbar { width: 15px; }' });
-    const m = await page.locator('.projection').evaluate((el) => ({ gutter: el.offsetWidth - el.clientWidth, overflows: el.scrollHeight > el.clientHeight }));
+    const m = await page.locator('.projection').evaluate((el) => ({ gutter: (el as HTMLElement).offsetWidth - el.clientWidth, overflows: el.scrollHeight > el.clientHeight }));
     expect(m.overflows, 'この大きさでは中身が収まる前提（収まらないなら溝の有無を測れない）').toBe(false);
     expect(m.gutter, '外枠が溝を取っていない（scrollbar-gutter: stable）').toBe(15);
   });
