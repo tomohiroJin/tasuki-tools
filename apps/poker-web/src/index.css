@@ -538,7 +538,7 @@
 .estimate-item--inline .estimate-item-input {
   position: absolute;
   inset-block-start: 0;
-  inset-inline: 0;
+  inset-inline-start: 0;
   inline-size: 100%;
   block-size: var(--tap-target);
   min-inline-size: 0;

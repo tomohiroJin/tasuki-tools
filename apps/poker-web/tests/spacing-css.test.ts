@@ -106,7 +106,7 @@ describe('余白の持ち主の約束（画面の CSS）', () => {
     expect(widthRules).toHaveLength(1);
     const input = foundBody(inputs, '編集中の入力');
     expect(input).toMatch(/position:\s*absolute;/);
-    expect(input).toMatch(/inset-inline:\s*0;/);
+    expect(input).toMatch(/inset-inline-start:\s*0;/);
     expect(input).toMatch(/block-size:\s*var\(--tap-target\);/);
     expect(widthRules[0]).toMatch(/inline-size:\s*100%;/);
     for (const b of rulesMatching(css, /estimate-item-input/)) expect(b).not.toMatch(/(^|[\s;{])inline-size:\s*0;/);
@@ -125,7 +125,9 @@ describe('余白の持ち主の約束（画面の CSS）', () => {
     expect(inlineShared).toMatch(/flex:\s*1 1 auto;/);
     expect(inlineShared).toMatch(/border-color:\s*transparent;/);
     // 複製だけの規則は、見えなくして触れさせないことだけ（寸法の写しを持たない）
-    const own = rulesOf(css, '.estimate-item--inline .estimate-item-sizer').filter((b) => !/padding-inline/.test(b) && !/flex:/.test(b));
+    // 共有の規則かどうかは、本文ではなくセレクタで決める（タイトル側のセレクタを含む規則が共有の規則）
+    const own = collectRules(css).filter((r) => r.selectors.some((x) => x.includes('estimate-item-sizer')) && !r.selectors.some((x) => x.includes('estimate-item-title') || x.includes('estimate-item-input'))).map((r) => r.body);
+    foundBody(own, '複製だけの規則');
     for (const b of own) expect(b).not.toMatch(/\b(width|max-width|min-width|padding-inline|font-size|font-family|overflow-wrap|text-align)\s*:/);
   });
 
