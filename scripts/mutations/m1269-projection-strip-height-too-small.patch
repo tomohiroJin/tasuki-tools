@@ -12,9 +12,9 @@
 diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
 --- a/apps/agenda-web/src/run.css
 +++ b/apps/agenda-web/src/run.css
-@@ -577,7 +577,7 @@
-    帯の高さは `use-measured-block-size` が測って書く。ここの値は JS が動く前の既定値で、実測（既定の文字の大きさ）は 320px の 149.4px・390px の 101.6px・40rem 以上は 69px。実測より大きく丸めた段ごとの手書きの値（40rem 未満 10rem・以上 4.4rem。実測 69px にほぼ合わせる。5rem だと 768×1024 で帯を出さなくても縦のスクロールが出た）で、
-    E2E（`header-and-dock.spec.ts`）が帯の実際の高さがこの値以下であることを測る。文字を拡大したときの折り返しは測っていない */
+@@ -576,7 +576,7 @@
+    - 64rem 以上: 帯が中身に重ならない（盤は帯の上の中央にある）ので、取らない（取ると盤が約 80px 上に寄り、1280×720 で縦のスクロールが出た）
+    帯の高さは `use-measured-block-size` が測って書く。ここの値は JS が動く前の既定値で、実測（既定の文字の大きさ）は 320px の 149.4px・390px の 101.6px・40rem 以上は 69px。 */
  :root {
 -  --projection-strip-height: 10rem;
 +  --projection-strip-height: 4rem;

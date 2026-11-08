@@ -1,0 +1,22 @@
+# 変異 1315: projection-clearance-never-added
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/use-projection-clearance.test.tsx
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外。帯に隠れる中身が最下部でも帯に隠れて赤）
+#
+# #554 のレビュー。帯に隠れる量の余白を取らず、320×568 などで中身の下端が不透明な帯に隠れる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1315-*.patch
+# 復元: git apply -R scripts/mutations/m1315-*.patch
+diff --git a/apps/agenda-web/src/hooks/use-projection-clearance.ts b/apps/agenda-web/src/hooks/use-projection-clearance.ts
+--- a/apps/agenda-web/src/hooks/use-projection-clearance.ts
++++ b/apps/agenda-web/src/hooks/use-projection-clearance.ts
+@@ -42,7 +42,6 @@
+         for (let i = 0; i < 4; i += 1) {
+           const need = stripHeight - spaceBelowContent();
+           if (need <= 0.5) break;
+-          clearance += need;
+           root.style.setProperty('--projection-body-pin', `${pinned}px`);
+           root.style.setProperty('--projection-clearance', `${clearance}px`);
+         }

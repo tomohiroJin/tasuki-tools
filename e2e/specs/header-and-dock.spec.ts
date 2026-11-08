@@ -433,6 +433,13 @@ test.describe('timer のセッションの帯', () => {
     await expect(page.getByRole('timer')).toBeVisible();
     expect(await page.evaluate(() => getComputedStyle(document.documentElement).scrollPaddingBottom), 'timer セッション（帯あり）の scroll-padding-block-end が --dock-max-height でない').toBe('152px');
     const dock = page.locator('.session-actions');
+    // 詰めた見た目（timer のセッション中）の戻るは、左右の padding・枠が等しい（左だけ詰めると、フォーカスの輪も押せる範囲も左だけ減る）
+    for (const width of [320, 390, 768, 1280]) {
+      await page.setViewportSize({ width, height: 800 });
+      const back = await page.locator('.ui-room-header--compact .ui-page-header-back').evaluate((el) => { const cs = getComputedStyle(el); return [cs.paddingLeft, cs.paddingRight, cs.borderLeftWidth, cs.borderRightWidth]; });
+      expect(back[0], `timer 詰めた見た目の戻る（${width}）: 左右の padding が違う（${back[0]} / ${back[1]}）`).toBe(back[1]);
+      expect(back[2], `timer 詰めた見た目の戻る（${width}）: 左右の枠が違う（${back[2]} / ${back[3]}）`).toBe(back[3]);
+    }
     for (const width of [320, 390]) {
       await page.setViewportSize({ width, height: 800 });
       await expectDockContract(dock, `timer セッション（${width}）`);
@@ -495,6 +502,20 @@ test.describe('agenda の進行中の帯', () => {
     }), { message: 'agenda 文字 200%: 帯の高さが --run-controls-height（測った値）を超える' }).toBe(true);
     await expectContentClearOfDock(page, dock, 'agenda 文字 200%（390）');
     await page.evaluate(() => { document.documentElement.style.fontSize = ''; window.scrollTo(0, 0); });
+    // 文字の大きさを変えても rem で線形に伸びるだけで、手書きの既定値（10.5rem）でも足りてしまう。帯が既定値より高くなる状況（端末の文字設定・長い翻訳・操作の追加など）は、
+    // 帯に高い子を足して作る。測った値が変数に書かれなければ、既定値が帯の高さより低くなって赤になる
+    await page.evaluate(() => { const extra = document.createElement('div'); extra.id = '__tall'; extra.style.height = '12rem'; document.querySelector('.run-controls')!.append(extra); });
+    await expect.poll(async () => page.evaluate(() => {
+      const bar = document.querySelector('.run-controls')!.getBoundingClientRect().height;
+      const probe = document.createElement('div');
+      probe.style.height = getComputedStyle(document.documentElement).getPropertyValue('--run-controls-height').trim();
+      document.body.append(probe);
+      const limit = probe.getBoundingClientRect().height;
+      probe.remove();
+      return { bar, limit, tall: bar > 11 * parseFloat(getComputedStyle(document.documentElement).fontSize), fits: limit > 0 && bar <= limit + 0.01 };
+    }), { message: 'agenda 帯が高くなったとき（折り返し）、帯の高さが --run-controls-height（測った値）を超える' }).toMatchObject({ tall: true, fits: true });
+    await expectContentClearOfDock(page, dock, 'agenda 帯が高い（390）');
+    await page.evaluate(() => document.getElementById('__tall')?.remove());
     // 進行表の最後の「スキップ」に Tab で行っても、不透明な帯の後ろに隠れない（WCAG 2.4.11）。40rem 未満・40〜64rem の両方で測る
     for (const width of [390, 768]) {
       // 低い画面にして、フォーカスした行が画面の下端に送られる（scroll-padding が無ければ帯の後ろに入る）状況を作る
@@ -673,8 +694,27 @@ test.describe('agenda の映す表示の帯', () => {
       expect(m.scrollH, `映す表示（${width}×${height}）: 縦のスクロールが出る（scrollHeight ${m.scrollH} > ${m.clientH}）`).toBeLessThanOrEqual(m.clientH);
       expect(Math.abs(m.center - m.half), `映す表示（${width}×${height}）: 盤の中心（${m.center}）が画面の中央（${m.half}）からずれる`).toBeLessThanOrEqual(2);
     }
-    // 背の低い横向き（568×320・667×375・844×390・1000×700）: 帯を出さない状態で、縦のスクロールが main（下の余白が通常の --space-6）より伸びない
-    // （もともとスクロールが出る画面で、常に取る余白がさらに伸ばさない。帯が出ている間だけ取る形）
+    // 40rem 未満（390×844・320×568）: 帯の出し入れで盤が跳ねない（余白は帯に実際に隠れる量だけ取るので、隠れないときは 0）。帯を消しているときは縦のスクロールが出ない（#471 の既存の測り）。
+    // 最下部まで送ると中身が帯の上に出る（下の「隠れない」の測り）
+    for (const [width, height] of [[390, 844], [320, 568]] as const) {
+      await page.setViewportSize({ width, height });
+      await page.mouse.move(0, 0);
+      await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+      // 帯は React の状態（shown・3 秒で消える）と focus-within で決まる。実際に消えるまで待つ
+      await expect(strip).not.toHaveClass(/is-shown/, { timeout: 8000 });
+      await page.waitForTimeout(100);
+      const hidden = await page.evaluate(() => { const r = document.querySelector('.projection')!; return { sh: r.scrollHeight, ch: r.clientHeight, y: document.querySelector('.projection-dial')!.getBoundingClientRect().top }; });
+      expect(hidden.sh, `映す表示（${width}×${height}）: 帯を消しているときに縦のスクロールが出る（${hidden.sh} > ${hidden.ch}）`).toBeLessThanOrEqual(hidden.ch);
+      // 帯を実際に出す（マウスを動かす）
+      await page.mouse.move(width / 2, height / 2);
+      await page.mouse.move(width / 2 + 3, height / 2 + 3);
+      await expect(strip).toHaveClass(/is-shown/);
+      await page.waitForTimeout(100);
+      const shownY = await page.locator('.projection-dial').evaluate((el) => el.getBoundingClientRect().top);
+      expect(Math.abs(shownY - hidden.y), `映す表示（${width}×${height}）: 帯が出ると盤が ${shownY - hidden.y}px 動く`).toBeLessThanOrEqual(1);
+    }
+    // 背の低い横向き（568×320・667×375・844×390・1000×700）: 帯を出さない状態で、縦のスクロールが 通常の下の余白（--space-6）のときより伸びない
+    // （もともとスクロールが出る画面で、常に取る余白がさらに伸ばさない。比べる相手は main ではなく、通常の下の余白 --space-6 に置き換えたときの高さ）
     for (const [width, height] of [[568, 320], [667, 375], [844, 390], [1000, 700]] as const) {
       await page.setViewportSize({ width, height });
       await strip.evaluate((el) => el.classList.remove('is-shown'));
@@ -689,7 +729,7 @@ test.describe('agenda の映す表示の帯', () => {
         body.style.paddingBlockEnd = saved;
         return { ours, main };
       });
-      expect(m.ours, `映す表示（${width}×${height}）: 帯を出さない状態で縦のスクロールが main（${m.main}）より伸びる（${m.ours}）`).toBeLessThanOrEqual(m.main);
+      expect(m.ours, `映す表示（${width}×${height}）: 帯を出さない状態で縦のスクロールが通常の余白（${m.main}）より伸びる（${m.ours}）`).toBeLessThanOrEqual(m.main);
     }
     // 40rem 以上 64rem 未満で高さが 48rem 以上（768×1024）: 帯が出ても盤が跳ねず、帯を出さない状態で縦のスクロールが出ない（余白は帯の有無によらず常に取る）。
     // 40rem 未満（電話の幅）と背の低い横向きは測らない: 余白は帯が出ている間だけ取り（常に取ると #471 の既存の検査が赤になる）、帯を出したときの跳ねは許す。電話の幅は「隠れない」（下）だけを測る

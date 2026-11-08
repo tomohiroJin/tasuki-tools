@@ -240,3 +240,22 @@ test("observe: 注釈の中に試験用の入口の名前を書いただけで�
     },
   );
 });
+
+test("observe: require() と new URL(…, import.meta.url) の相対パスで tests・パッケージの外へ出る取り込みも拾い、src の中の相対パスは拾わない（#554）", () => {
+  withTempPackage(
+    {
+      "packages/q/package.json": "{}",
+      "packages/q/src/a.cjs": "const m = require(\"../tests/support/x.cjs\");\n",
+      "packages/q/src/b.mjs": "const u = new URL(\"../tests/support/x.mjs\", import.meta.url);\n",
+      "packages/q/src/c.cjs": "const m = require(\"../../other/src/y.cjs\");\n",
+      "packages/q/src/d.mjs": "const u = new URL(\"./e.json\", import.meta.url);\n",
+      "packages/q/src/e.json": "{}",
+    },
+    (root) => {
+      const files = ["packages/q/src/a.cjs", "packages/q/src/b.mjs", "packages/q/src/c.cjs", "packages/q/src/d.mjs"];
+      const seen = observe("packages/q", files, root);
+      assert.deepEqual(seen.testSupport, ["packages/q/src/a.cjs → ../tests/support/x.cjs", "packages/q/src/b.mjs → ../tests/support/x.mjs"]);
+      assert.deepEqual(seen.escapes, ["packages/q/src/c.cjs → ../../other/src/y.cjs"]);
+    },
+  );
+});

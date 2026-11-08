@@ -11,11 +11,11 @@
 diff --git a/scripts/audit-dependency-direction.mjs b/scripts/audit-dependency-direction.mjs
 --- a/scripts/audit-dependency-direction.mjs
 +++ b/scripts/audit-dependency-direction.mjs
-@@ -389,7 +389,6 @@
-       const target = path.posix.normalize(path.posix.join(path.posix.dirname(rel), m[1]));
-       if (!target.startsWith(`${pkg}/`)) escapes.push(`${rel} → ${m[1]}`);
+@@ -391,7 +391,6 @@
+       // `new URL(…, import.meta.url)` は取り込みでなくファイルの読み取りにも使う（試験がリポジトリの根を読む）ので、越境には数えず、tests・test への参照だけ見る
+       if (m[1] !== undefined && !target.startsWith(`${pkg}/`)) escapes.push(`${rel} → ${spec}`);
        // 製品コード（src）から、同じパッケージの tests・test を相対パスで読むのも試験用の入口と同じ（越境でも @tasuki/ でもないので、ここで拾う）
--      if (isProductFile && /(^|\/)tests?\//.test(target.slice(pkg.length))) testSupport.push(`${rel} → ${m[1]}`);
+-      if (isProductFile && /(^|\/)tests?\//.test(target.slice(pkg.length))) testSupport.push(`${rel} → ${spec}`);
      }
    }
    return { manifest, imports, escapes, testSupport };

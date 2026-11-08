@@ -11,7 +11,7 @@
 diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
 --- a/apps/agenda-web/src/run.css
 +++ b/apps/agenda-web/src/run.css
-@@ -579,11 +579,6 @@
+@@ -578,11 +578,6 @@
  :root {
    --projection-strip-height: 10rem;
  }
@@ -21,5 +21,5 @@ diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
 -  }
 -}
  @media (width < 40rem), (width >= 40rem) and (width < 64rem) and (height < 48rem) {
-   .projection:has(> .projection-strip.is-shown, > .projection-strip:focus-within) > .projection-body {
-     padding-block-end: calc(var(--space-6) + var(--projection-strip-height) + env(safe-area-inset-bottom));
+   .projection-body {
+     /* 帯が出ている間に、実際に隠れる量だけ（`use-projection-clearance` が測って `--projection-clearance` へ書く。隠れないときは 0）。
