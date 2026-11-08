@@ -175,4 +175,6 @@ test('Given 招待の行 / When 規則を読む / Then 固定の境目（contain
   assert.match(invite, /display:\s*flex;/);
   assert.match(invite, /flex-wrap:\s*wrap;/);
   assert.match(only(rules(css), '.ui-room-header-invite > .ui-invite'), /display:\s*contents;/);
+  // URL は最小限読める幅を基準にして行の余りへ伸びる（広い幅で URL が自分の行へ落ちて 3 段にならない）
+  assert.match(only(rules(css), '.ui-room-header-invite .ui-invite-url'), /flex:\s*1 1 var\(--ui-invite-url-basis, 14rem\);/);
 });

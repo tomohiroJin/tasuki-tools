@@ -570,11 +570,11 @@
 }
 
 /* 操作帯（`.projection-strip`・fixed・不透明）に中身の下端が隠れないよう、中身の下に余白を取る。
-   - 40rem 未満（電話の幅）と、40rem 以上 64rem 未満で高さが 48rem 未満（背の低い横向き）: 帯が出ている間に、実際に隠れる量だけ取る
+   - どの幅でも: 帯が出ている間に、帯が実際に中身へ重なる量だけ取る
      （`use-projection-clearance` が測る。中身の下端がもともと帯より上にあれば 0 で、帯の出し入れで盤が動かない。無条件に帯の高さを足すと、390×844 で盤が 80px 跳ねた）。
      常に取る形にすると、帯を出す前から縦のスクロールが出て #471 の既存の検査が赤になる
    - 40rem 以上 64rem 未満で高さが 48rem 以上: 帯が 1 行（実測 69px）なので、4.4rem を常に取る（帯が出ても盤が跳ねない。768×1024 で縦のスクロールが出ない）
-   - 64rem 以上: 帯が中身に重ならない（盤は帯の上の中央にある）ので、取らない（取ると盤が約 80px 上に寄り、1280×720 で縦のスクロールが出た）
+   - 64rem 以上: 帯が中身に重ならない（盤は帯の上の中央にある）ので、何も取らない（固定で取ると盤が約 80px 上に寄り、1280×720 で縦のスクロールが出た）。文字を 200% にして重なるときだけ、上の測った量を取る
    帯の高さは `use-measured-block-size` が測って書く。ここの値は JS が動く前の既定値で、実測（既定の文字の大きさ）は 320px の 149.4px・390px の 101.6px・40rem 以上は 69px。 */
 :root {
   --projection-strip-height: 10rem;
@@ -584,13 +584,11 @@
     --projection-strip-height: 4.4rem;
   }
 }
-@media (width < 40rem), (width >= 40rem) and (width < 64rem) and (height < 48rem) {
-  .projection-body {
-    /* 帯が出ている間に、実際に隠れる量だけ（`use-projection-clearance` が測って `--projection-clearance` へ書く。隠れないときは 0）。
-       余白は body の外の margin で足し、body の高さは帯が出る前のまま固定する（`--projection-body-pin`）ので、盤の中央寄せがやり直されない */
-    margin-block-end: var(--projection-clearance, 0px);
-    min-block-size: var(--projection-body-pin, 0px);
-  }
+.projection-body {
+  /* 帯が中身に実際に重なる量だけ（`use-projection-clearance` が測って `--projection-clearance` へ書く。重ならなければ 0）。幅の条件は置かない
+     （広い画面でも文字を 200% にすると帯が中身を覆う）。余白は body の外の margin で足し、body の高さは帯が出る前のまま固定する（`--projection-body-pin`）ので、盤の中央寄せがやり直されない */
+  margin-block-end: var(--projection-clearance, 0px);
+  min-block-size: var(--projection-body-pin, 0px);
 }
 @media (width >= 40rem) and (width < 64rem) and (height >= 48rem) {
   .projection-body {

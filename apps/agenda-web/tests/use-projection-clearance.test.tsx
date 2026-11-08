@@ -21,16 +21,10 @@ function Probe({ shown }: { shown: boolean }) {
 }
 
 let observed: Element[] = [];
-let listeners: Array<() => void> = [];
-let matches = true;
-
 function stubGeometry({ contentBottom, scrollHeight, stripHeight }: { contentBottom: number; scrollHeight: number; stripHeight: number }) {
   observed = [];
   vi.stubGlobal('ResizeObserver', class { observe(el: Element) { observed.push(el); } disconnect() {} });
   vi.stubGlobal('MutationObserver', class { observe() {} disconnect() {} });
-  listeners = [];
-  matches = true;
-  vi.stubGlobal('matchMedia', () => ({ get matches() { return matches; }, addEventListener: (_: string, cb: () => void) => { listeners.push(cb); }, removeEventListener: () => undefined }));
   vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
     if (this.dataset.testid === 'content') return { height: 10, bottom: contentBottom, top: 0 } as DOMRect;
     if (this.dataset.testid === 'root') return { height: scrollHeight, bottom: scrollHeight, top: 0 } as DOMRect;
@@ -74,24 +68,30 @@ describe('useProjectionClearance', () => {
     expect(getByTestId('root').style.getPropertyValue('--projection-clearance')).toBe('0px');
   });
 
-  it('Given CSS が変数を使わない幅（広い画面） / When 描く / Then 測らず、余白の変数を書かない', () => {
-    stubGeometry({ contentBottom: 520, scrollHeight: 568, stripHeight: 149 });
-    matches = false;
+  it('Given 帯が中身に重ならない（広い画面） / When 帯を出す / Then 余白は 0 のまま（何も足さない）', () => {
+    stubGeometry({ contentBottom: 300, scrollHeight: 720, stripHeight: 69 });
     const { getByTestId } = render(<Probe shown />);
-    expect(getByTestId('root').style.getPropertyValue('--projection-clearance')).toBe('');
+    expect(getByTestId('root').style.getPropertyValue('--projection-clearance')).toBe('0px');
   });
 
-  it('Given 狭い幅で余白を取っている / When 幅が広い側へ変わる / Then 変数を消して止め、狭い側へ戻れば測り直す', () => {
-    stubGeometry({ contentBottom: 520, scrollHeight: 568, stripHeight: 149 });
+  it('Given 広い画面でも帯が中身に重なる（文字 200%） / When 帯を出す / Then 重なる量だけ余白を取る', () => {
+    stubGeometry({ contentBottom: 700, scrollHeight: 720, stripHeight: 138 });
+    const { getByTestId } = render(<Probe shown />);
+    expect(parseFloat(getByTestId('root').style.getPropertyValue('--projection-clearance'))).toBeGreaterThan(100);
+  });
+
+  it('Given 最初の通知までの間に中身が伸びる / When 最初の ResizeObserver の通知が来る / Then その通知でも測り直す（取りこぼさない）', () => {
+    stubGeometry({ contentBottom: 300, scrollHeight: 568, stripHeight: 149 });
+    let notify: () => void = () => undefined;
+    vi.stubGlobal('ResizeObserver', class { constructor(cb: () => void) { notify = cb; } observe() {} disconnect() {} });
     const { getByTestId } = render(<Probe shown />);
     const root = getByTestId('root');
-    expect(parseFloat(root.style.getPropertyValue('--projection-clearance'))).toBeGreaterThan(0);
-    matches = false;
-    for (const cb of listeners) cb();
-    expect(root.style.getPropertyValue('--projection-clearance')).toBe('');
-    matches = true;
-    for (const cb of listeners) cb();
-    expect(parseFloat(root.style.getPropertyValue('--projection-clearance'))).toBeGreaterThan(0);
+    expect(root.style.getPropertyValue('--projection-clearance')).toBe('0px');
+    // observe の直後〜最初の通知の間に、中身が伸びて帯に重なる
+    stubGeometry({ contentBottom: 520, scrollHeight: 568, stripHeight: 149 });
+    vi.stubGlobal('ResizeObserver', class { constructor(cb: () => void) { notify = cb; } observe() {} disconnect() {} });
+    notify();
+    expect(parseFloat(root.style.getPropertyValue('--projection-clearance'))).toBeGreaterThan(90);
   });
 
   it('Given 帯が出ている / When 描く / Then 外枠・帯・中身（body とその子）の大きさを見る（帯が出ている間に中身が伸びても測り直す）', () => {

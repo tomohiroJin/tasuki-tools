@@ -61,12 +61,13 @@ describe('映す表示の帯', () => {
     // 40rem 以上は帯が 1 行（実測 69px）なので、段ごとに 4.4rem（横向きのスマートフォンやタブレットで取りすぎない）
     expect(bodyWith(':root', '--projection-strip-height', mediaBlocks(css, '@media (width >= 40rem)'))).toMatch(/--projection-strip-height:\s*4\.4rem;/);
     // 余白は @media の外には無い（64rem 以上は帯が中身に重ならないので取らない。取ると盤が約 80px 上に寄る）
-    expect(outsideMedia(css)).not.toMatch(/\.projection-body\s*\{[^}]*padding-block-end/);
+    expect(outsideMedia(css)).not.toMatch(/\.projection-body\s*\{[^}]*padding-block-end/); // 固定の余白は @media の中（40rem 以上 64rem 未満で高さ 48rem 以上）だけ
     // 40rem 未満と、40rem 以上 64rem 未満で高さが 48rem 未満（背の低い横向き）: 帯が出ている間に隠れる量だけ（use-projection-clearance が測る。無条件に足すと盤が跳ね、常に取ると #471 の既存の検査が赤になる）
-    const narrowRule = bodyWith('.projection-body', 'margin-block-end', mediaBlocks(css, '@media (width < 40rem), (width >= 40rem) and (width < 64rem) and (height < 48rem)'));
-    expect(narrowRule).toMatch(/margin-block-end:\s*var\(--projection-clearance, 0px\);/);
-    expect(narrowRule).toMatch(/min-block-size:\s*var\(--projection-body-pin, 0px\);/);
-    expect(narrowRule).not.toMatch(/padding/);
+    // どの幅でも: 帯が中身に実際に重なる量だけ margin で足し、body の高さを固定する（幅の条件は置かない。文字 200% の広い画面でも帯が中身を覆う）
+    const base = bodyWith('.projection-body', 'margin-block-end', outsideMedia(css));
+    expect(base).toMatch(/margin-block-end:\s*var\(--projection-clearance, 0px\);/);
+    expect(base).toMatch(/min-block-size:\s*var\(--projection-body-pin, 0px\);/);
+    expect(base).not.toMatch(/padding/);
     // 40rem 以上 64rem 未満で高さが 48rem 以上: 常に（通常の下の余白 --space-6 は足さず置き換える。足すと 768×1024 で縦のスクロールが出る）
     expect(bodyWith('.projection-body', 'padding-block-end', mediaBlocks(css, '@media (width >= 40rem) and (width < 64rem) and (height >= 48rem)'))).toMatch(/padding-block-end:\s*calc\(var\(--projection-strip-height\) \+ env\(safe-area-inset-bottom\)\);/);
   });

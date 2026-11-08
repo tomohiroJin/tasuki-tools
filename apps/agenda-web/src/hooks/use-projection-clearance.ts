@@ -1,8 +1,5 @@
 import { useLayoutEffect, useRef, type RefObject } from 'react';
 
-/** CSS（`run.css`）が `--projection-clearance` を使う幅。これ以外の幅では余白を取らない（何もせず 0 に戻す）。 */
-const CLEARANCE_QUERY = '(width < 40rem), (width >= 40rem) and (width < 64rem) and (height < 48rem)';
-
 /**
  * 映す表示の操作帯（fixed・不透明）に、中身の下端が隠れる量だけ、中身の下に余白（`--projection-clearance`・body の margin）を取る（#554）。
  *
@@ -10,7 +7,7 @@ const CLEARANCE_QUERY = '(width < 40rem), (width >= 40rem) and (width < 64rem) a
  * （390×844 で 80px）。実際に隠れる量（帯の高さ − 中身の下の空き）だけを取れば、隠れないときは 0 で動かない。
  * 隠れるときも盤は動かさない: body の高さを帯の出る前の高さに固定し（`--projection-body-pin`）、余白は body の外の margin で足す（padding だと中央寄せがやり直される）。
  * 帯が出ている（`shown`）か、フォーカスが帯の中にある（CSS の `:focus-within` で帯が見える）間だけ。フォーカスの移動・中身の大きさの変化でも測り直す。
- * CSS が変数を使う幅（`CLEARANCE_QUERY`）でだけ動く。それ以外の幅では 0 に戻して何もしない。ResizeObserver・matchMedia が無い環境（jsdom）では何もしない。
+ * 幅の条件は置かない（重なりが 0 なら何も足さないので、帯が中身に重ならない広い画面では動かない。文字を 200% にして重なる広い画面では足す）。ResizeObserver が無い環境（jsdom）では何もしない。
  */
 export function useProjectionClearance(
   rootRef: RefObject<HTMLElement | null>,
@@ -31,7 +28,7 @@ export function useProjectionClearance(
     const body = bodyRef.current;
     const strip = stripRef.current;
     if (root === null || body === null || strip === null) return;
-    if (typeof ResizeObserver === 'undefined' || typeof window.matchMedia !== 'function') return;
+    if (typeof ResizeObserver === 'undefined') return;
 
     const reset = (): void => {
       root.style.setProperty('--projection-clearance', '0px');
@@ -65,10 +62,8 @@ export function useProjectionClearance(
     };
 
     // 見るもの: 外枠・帯・中身（body とその子の盤）。中身の高さが帯の出ている間に変わっても（長い名前・項目が消える・上端の告知）測り直す。
-    // 最初の通知（observe 直後に 1 回来る）は測ったばかりなので飛ばす
     let observing: ResizeObserver | null = null;
     let mutations: MutationObserver | null = null;
-    let first = true;
     let frame: number | null = null;
     const cancelFrame = (): void => {
       if (frame !== null) cancelAnimationFrame(frame);
@@ -82,14 +77,8 @@ export function useProjectionClearance(
       });
     };
     const start = (): void => {
-      first = true;
-      const observer = new ResizeObserver(() => {
-        if (first) {
-          first = false;
-          return;
-        }
-        apply();
-      });
+      // 最初の通知も飛ばさない（apply から最初の通知までの間の変化を取りこぼさない。apply は冪等）
+      const observer = new ResizeObserver(() => apply());
       const watchContent = (): void => {
         observer.observe(body);
         for (const child of Array.from(body.children)) observer.observe(child);
@@ -123,16 +112,8 @@ export function useProjectionClearance(
       root.style.removeProperty('--projection-body-pin');
     };
 
-    // 幅（と高さ）が CSS の使う範囲に入ったら動き、出たら 0 に戻して止める
-    const media = window.matchMedia(CLEARANCE_QUERY);
-    const sync = (): void => {
-      stop();
-      if (media.matches) start();
-    };
-    sync();
-    media.addEventListener('change', sync);
+    start();
     return () => {
-      media.removeEventListener('change', sync);
       stop();
     };
   }, [rootRef, bodyRef, stripRef]);

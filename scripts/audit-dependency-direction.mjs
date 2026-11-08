@@ -360,7 +360,7 @@ function listPackageSources(pkg) {
 /**
  * 行コメント・ブロックコメントを空白に置き換える（注釈の中の名前で偽の陽性を出さない）。
  * 文字列・テンプレート文字列の中では注釈の開始と見なさない（`'tests/**\/*.ts'` のような glob の中の `/*` から次の `*\/` までを消して、間の取り込みを見逃さない）。
- * 文字列の中身はそのまま残す（取り込みの指定子を探すため）。
+ * 文字列の中身は、指定子の位置（`from`・`import`・`import(`・`require(` の直後）だけ残し（取り込みの指定子を探すため）、それ以外は空白にする（文字列の中に取り込みの形を書いただけで止めない）。
  */
 function stripJsComments(text) {
   let out = "";
@@ -376,15 +376,18 @@ function stripJsComments(text) {
       i = end === -1 ? text.length : end + 2;
     } else if (c === '"' || c === "'" || c === "`") {
       const quote = c;
+      // 指定子の位置（from・import・import(・require( の直後）の文字列だけ中身を残す。それ以外の文字列の中身は空白にする
+      // （文字列の中に取り込みの形を書いただけで止めない）
+      const keep = /(?:\bfrom|\bimport|\bimport\s*\(|\brequire\s*\()\s*$/.test(out);
       out += c;
       i += 1;
       while (i < text.length && text[i] !== quote) {
         if (text[i] === "\\") {
-          out += text[i];
+          out += keep ? text[i] : " ";
           i += 1;
         }
         if (i < text.length) {
-          out += text[i];
+          out += keep ? text[i] : " ";
           i += 1;
         }
       }
