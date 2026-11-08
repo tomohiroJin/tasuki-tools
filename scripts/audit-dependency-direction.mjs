@@ -293,7 +293,7 @@ const TEST_SUPPORT_SPECIFIER = new RegExp(
  * `from "..."` と `import("...")` の両方を見る。`export ... from "..."` も
  * `from` を持つので同じ式で拾える。
  */
-const RELATIVE_SPECIFIER = /(?:from|import)\s*\(?\s*["'](\.[^"']*)["']/g;
+const RELATIVE_SPECIFIER = /(?:from|import|require)\s*\(?\s*["'](\.[^"']*)["']|new\s+URL\s*\(\s*["'](\.[^"']*)["']/g;
 
 /**
  * パッケージごとの `{ manifest, imports }` から違反を返す。
@@ -384,12 +384,14 @@ export function observe(pkg, files, root = REPO_ROOT) {
     if (isProductFile && TEST_SUPPORT_SPECIFIER.test(stripJsComments(text))) testSupport.push(rel);
     for (const m of text.matchAll(TASUKI_SPECIFIER)) imports.push(m[1]);
     for (const m of text.matchAll(RELATIVE_SPECIFIER)) {
+      const spec = m[1] ?? m[2];
       // 解決先はリポジトリ相対で持つ。パッケージの接頭辞から外れたら越境。
       // `path.posix` で畳むのは、走査対象のパスが常に `/` 区切りだから。
-      const target = path.posix.normalize(path.posix.join(path.posix.dirname(rel), m[1]));
-      if (!target.startsWith(`${pkg}/`)) escapes.push(`${rel} → ${m[1]}`);
+      const target = path.posix.normalize(path.posix.join(path.posix.dirname(rel), spec));
+      // `new URL(…, import.meta.url)` は取り込みでなくファイルの読み取りにも使う（試験がリポジトリの根を読む）ので、越境には数えず、tests・test への参照だけ見る
+      if (m[1] !== undefined && !target.startsWith(`${pkg}/`)) escapes.push(`${rel} → ${spec}`);
       // 製品コード（src）から、同じパッケージの tests・test を相対パスで読むのも試験用の入口と同じ（越境でも @tasuki/ でもないので、ここで拾う）
-      if (isProductFile && /(^|\/)tests?\//.test(target.slice(pkg.length))) testSupport.push(`${rel} → ${m[1]}`);
+      if (isProductFile && /(^|\/)tests?\//.test(target.slice(pkg.length))) testSupport.push(`${rel} → ${spec}`);
     }
   }
   return { manifest, imports, escapes, testSupport };
