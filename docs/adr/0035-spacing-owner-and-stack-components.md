@@ -45,11 +45,15 @@ CSS だけでは「縦に並ぶブロックの子が外側の余白を持って�
 検査は 3 層に分かれる。
 - **描いた結果で確かめるもの**: 画面が部品を当てていること・読み上げと Tab の扱いは、各アプリの vitest が描いた結果から確かめる（poker の `estimate-item-field.test.tsx`＝見えない複製が `aria-hidden`・`tabIndex=-1`・`disabled` を持ち `.estimate-item-title` のクラスを持たない、timer の `RosterPanel.shuffle-in-header.test.tsx`・`section-head-parts.test.tsx`、roulette の `regulars-section.test.tsx` ほか）と、E2E（矩形の測定）。
 - **部品の CSS の字面**: `.ui-stack` が `gap` を持つ・読み込み順などの部品の契約は `packages/ui/tests/spacing-owner.test.mjs` が CSS の字面で固定する。
-- **アプリの CSS・JSX の字面**: 各アプリの `spacing-css.test.ts`（poker・agenda・roulette は `tests/`、timer は `test/ui/`）が、**自分のアプリの CSS の規則の本体を正規表現で固定する**（例: poker の名前の列が `flex: 1 1 auto; min-width: 0`、roulette の見出しの基準線揃え）。agenda だけは JSX（`SavedScenarioList.tsx`）の `className` の字面も読み、使われないクラスが戻らないことを固定する。字面の固定は E2E では等価になる変異（例: 1213）や、E2E が走らない単体の段階で壊れを捕まえるためで、結果の正しさの根拠は前者の描いた結果と E2E である。これらは、変異検査の宣言の中の #553 の項目（`git grep -n "#553" scripts/lib/mutation-declarations.mjs`）で壊して確かめる。
+- **アプリの CSS・JSX の字面**: 各アプリの `spacing-css.test.ts`（poker・agenda・roulette は `tests/`、timer は `test/ui/`）が、**自分のアプリの CSS の規則の本体を正規表現で固定する**（例: poker の名前の列が `flex: 1 1 auto; min-width: 0`、roulette の見出しの基準線揃え）。agenda だけは JSX（`SavedScenarioList.tsx`）の `className` の字面も読み、使われないクラスが戻らないことを固定する。字面の固定は、E2E が走らない単体の段階で壊れを捕まえるためで（E2E でも赤になる変異が多い）、結果の正しさの根拠は前者の描いた結果と E2E である。これらは、変異検査の宣言の中の #553 の項目（`git grep -n "#553" scripts/lib/mutation-declarations.mjs`）で壊して確かめる。
 
 **例外（移行の途中・取り除く作業は [#556](https://github.com/tomohiroJin/tasuki-tools/issues/556) のやること）**: timer の
 `.section-header`（`apps/timer-web/src/styles/primitives.css`）と `.shared-memo-header`（`shared-memo.css`）は、見出しの行の下の間を
-自分の `margin-bottom` で持つ。timer の `Card` が縦の `gap` を持つ形へまだ移っていないため。#556 で `Card` 側の `gap` へ移し、この 2 つの `margin-bottom` を取り除く。
+自分の `margin-bottom` で持つ。ADR 決定 1（子は外側の縦の余白を持たない）と食い違う、意図した例外である。
+- **場所**: `.section-header`（`SectionHeader`・`primitives.tsx`。5 ファイルで使う）と `.shared-memo-header`（`SharedMemo.tsx`）の下の間（`margin-bottom`）。
+- **理由**: 親にあたる `Card`（`meter-panel`）が縦の `gap` を持つ形へまだ移っていない。`Card` は 7 ファイル・18 か所で使われ、中身の並び（余白のユーティリティ・個別の margin）が場所ごとに違う。
+  `Card` を `.ui-stack` にすると、これらすべての中身の間が変わり、見た目が変わる。この PR（#553）の範囲（見出しの行と区画の並びを直す）を超えるので、移さなかった。
+- **取り除く作業**: #556 で `Card` 側の `gap` へ移し、この 2 つの `margin-bottom` を取り除く。
 新しい画面はこの例外に倣わない。
 
 ### 2. 間の段（トークン）
