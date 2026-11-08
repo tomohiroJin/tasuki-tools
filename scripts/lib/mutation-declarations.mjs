@@ -6970,7 +6970,7 @@ export const MUTATIONS = [
     patch: "m1349-ui-reader-preview-min-block-size.patch",
     pkg: "packages/ui",
     tests: ["tests/spacing-owner.test.mjs"],
-    note: RESERVED_1340_1349 + " " + "#553。3 行の写しの箱が伸びる。以前の契約の正規表現は論理プロパティ（`min-block-size`・`block-size`・`padding-block-end`）を見ていなかった。宣言の名前を取り出して判定する形で赤になる（12 回目の指摘）。",
+    note: RESERVED_1340_1349 + " " + "#553。3 行の写しの箱が伸びる。以前の契約の正規表現は論理プロパティ（`min-block-size`・`block-size`・`padding-block-end`）を見ていなかった。宣言の名前を許可リスト（名前→値）と比べる形で赤になる（12・14 回目の指摘）。",
   },
   {
     id: 1370,
@@ -6978,6 +6978,6 @@ export const MUTATIONS = [
     patch: "m1370-ui-reader-preview-media-vertical-padding.patch",
     pkg: "packages/ui",
     tests: ["tests/spacing-owner.test.mjs"],
-    note: RESERVED_1370_1379 + " " + "#553。3 行の写しの箱が縦の padding で伸びて、4 行目の上端が覗く。以前の契約は `padding` の一括指定を見ず緑だった（13 回目の指摘）。宣言の値の上下を見る形で赤になる。",
+    note: RESERVED_1370_1379 + " " + "#553。3 行の写しの箱が縦の padding で伸びて、4 行目の上端が覗く。以前の契約は `padding` の一括指定を見ず緑だった（13 回目の指摘）。許可リスト（名前→値）に無い値として赤になる（14 回目の指摘で、禁止の一覧から許可リストに替えた）。",
   },
 ];

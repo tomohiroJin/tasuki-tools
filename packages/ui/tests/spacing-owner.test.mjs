@@ -115,85 +115,59 @@ test('Given 部品 .ui-section-head--beside と .ui-stack--tight / When 規則�
   assert.match(bodyOf(read('packages/ui/src/components/stack.css'), '.ui-stack--tight'), /gap:\s*var\(--space-2\);/);
 });
 
-/** 値を空白で分ける（`calc(1px + 2px)` のように括弧の中の空白では分けない）。 */
-function splitValues(value) {
-  const out = [];
-  let depth = 0;
-  let cur = '';
-  for (const c of value.trim()) {
-    if (c === '(') depth++;
-    if (c === ')') depth--;
-    if (/\s/.test(c) && depth === 0) {
-      if (cur !== '') out.push(cur);
-      cur = '';
-    } else cur += c;
-  }
-  if (cur !== '') out.push(cur);
-  return out;
-}
-
-const isZero = (v) => /^0(\.0+)?([a-z%]*)$/i.test(v) || v === 'none' || v === 'initial';
-
 /** 本体の宣言を、注釈を外し、名前を小文字にそろえて順に返す。 */
 function declarationsOf(body) {
   const src = body.replace(/\/\*[\s\S]*?\*\//g, '');
   return [...src.matchAll(/(?:^|[;{\s])([a-zA-Z-]+)\s*:\s*([^;}]*)/g)].map((m) => ({ name: m[1].toLowerCase(), value: m[2].trim() }));
 }
 
-/** 箱を縦に伸ばす宣言の名前を返す（高さ・最小の高さ・論理寸法・縦の padding（一括指定は上下にあたる値）・縦の border の幅）。`line-height`・`max-height` は伸ばさないので含めない。 */
-function stretchingDeclarations(body) {
-  const found = [];
-  for (const { name, value } of declarationsOf(body)) {
-    const v = splitValues(value);
-    if (['height', 'min-height', 'block-size', 'min-block-size'].includes(name)) found.push(name);
-    else if (name === 'padding') {
-      const top = v[0];
-      const bottom = v.length >= 3 ? v[2] : v[0];
-      if (!isZero(top ?? '0') || !isZero(bottom ?? '0')) found.push(name);
-    } else if (name === 'padding-block') {
-      if (v.some((x) => !isZero(x))) found.push(name);
-    } else if (['padding-top', 'padding-bottom', 'padding-block-start', 'padding-block-end'].includes(name)) {
-      if (!isZero(value)) found.push(name);
-    } else if (/^border-(block|top|bottom)(-start|-end)?(-width)?$/.test(name)) {
-      if (!isZero(v[0] ?? '0') && !(v.length > 1 && v.includes('none'))) found.push(name);
-    }
-  }
-  return found;
+/**
+ * 3 行の写し `.ui-reader-preview` に書いてよい宣言（名前 → 許される値）。**いま実際に書かれているものだけ**。
+ * 箱を伸ばす宣言を「禁止の一覧」で拾うと、一覧に無い書き方（`border`・`aspect-ratio`・`inset-block` など）が漏れ続けるので、許可リストにする。
+ * 一覧に無い名前、一覧にある名前の別の値は、どれも赤にする（足すときは、箱が伸びないことを確かめてここへ足す）。
+ */
+const PREVIEW_ALLOWED = {
+  'box-sizing': ['border-box'],
+  'margin-block': ['var(--space-4)'],
+  padding: ['0 var(--space-5)'],
+  'overflow-wrap': ['anywhere'],
+  display: ['-webkit-box', 'none'],
+  '-webkit-box-orient': ['vertical'],
+  '-webkit-line-clamp': ['3'],
+  overflow: ['hidden'],
+};
+
+/** 許可リストに無い宣言（名前が無い・値が違う）を `名前: 値` で返す。名前は注釈を外して小文字にそろえて比べる。 */
+function disallowedDeclarations(body, allowed = PREVIEW_ALLOWED) {
+  return declarationsOf(body)
+    .filter(({ name, value }) => !(name in allowed) || !allowed[name].includes(value.replace(/\s+/g, ' ')))
+    .map(({ name, value }) => `${name}: ${value}`);
 }
 
-/** 最後に勝つ宣言の値（同じ名前が複数あれば後ろ）。 */
-function lastValue(body, name) {
-  const all = declarationsOf(body).filter((d) => d.name === name);
-  return all.length === 0 ? null : all[all.length - 1].value;
-}
-
-test('Given 箱を伸ばす宣言の判定 / When 宣言を渡す / Then 論理寸法・padding の一括指定・縦の border も拾い、line-height と max-height は拾わない', () => {
-  assert.deepEqual(stretchingDeclarations('min-block-size: 12rem;'), ['min-block-size']);
-  assert.deepEqual(stretchingDeclarations('margin: 0; padding-block-end: 1px;'), ['padding-block-end']);
-  assert.deepEqual(stretchingDeclarations('height: 3rem; min-height: 1px; block-size: 2px;'), ['height', 'min-height', 'block-size']);
-  assert.deepEqual(stretchingDeclarations('line-height: 1.5; max-height: 4rem; max-block-size: 4rem;'), []);
-  // (a) 本体の規則の後ろに、縦に値のある padding を重ねる
-  assert.deepEqual(stretchingDeclarations('padding: 0 var(--space-5); padding: var(--space-3) var(--space-5);'), ['padding']);
-  // 左右だけの padding は伸ばさない
-  assert.deepEqual(stretchingDeclarations('padding: 0 var(--space-5); padding-inline: 1px; PADDING: 0 1px 0 2px;'), []);
-  assert.deepEqual(stretchingDeclarations('Padding-Block: 0 4px;'), ['padding-block']);
-  assert.deepEqual(stretchingDeclarations('padding: 0 1px 2px;'), ['padding']);
-  assert.deepEqual(stretchingDeclarations('/* padding: 9px; */ border-top: 1px solid red; border-block: 0; border-bottom-width: 2px;'), ['border-top', 'border-bottom-width']);
-});
-
-test('Given @media の中の .ui-reader-preview の規則 / When 集めて判定する / Then 本体の後ろに足した縦の padding も赤になる（(b) の形）', () => {
+test('Given 許可リストの判定 / When 宣言を渡す / Then 今の CSS は緑で、足した宣言・変えた値は赤になる', () => {
+  const now = '\n  box-sizing: border-box;\n  margin-block: var(--space-4);\n  padding: 0 var(--space-5);\n  overflow-wrap: anywhere;\n  display: -webkit-box;\n  -webkit-box-orient: vertical;\n  -webkit-line-clamp: 3;\n  overflow: hidden;\n';
+  assert.deepEqual(disallowedDeclarations(now), []);
+  assert.deepEqual(disallowedDeclarations('display: none;'), []);
+  assert.deepEqual(disallowedDeclarations(now + 'border: 2px solid;'), ['border: 2px solid']);
+  assert.deepEqual(disallowedDeclarations(now + 'border-width: 2px;'), ['border-width: 2px']);
+  assert.deepEqual(disallowedDeclarations(now + 'aspect-ratio: 1;'), ['aspect-ratio: 1']);
+  assert.deepEqual(disallowedDeclarations(now + 'inset-block: 0;'), ['inset-block: 0']);
+  assert.deepEqual(disallowedDeclarations(now + 'MIN-BLOCK-SIZE: 12rem; /* line-height: 1; */'), ['min-block-size: 12rem']);
+  // 許可リストの値を変えると赤
+  assert.deepEqual(disallowedDeclarations(now.replace('0 var(--space-5)', 'var(--space-3) var(--space-5)')), ['padding: var(--space-3) var(--space-5)']);
+  assert.deepEqual(disallowedDeclarations(now.replace('-webkit-line-clamp: 3', '-webkit-line-clamp: 4')), ['-webkit-line-clamp: 4']);
+  // @media の中の規則も、集めたすべての規則に対して判定する
   const css = '.ui-reader-preview { padding: 0 var(--space-5); }\n@media (width < 40rem) { .ui-reader-preview { padding: var(--space-3) var(--space-5); } }';
-  const stretched = rulesOf(css, '.ui-reader-preview').flatMap(stretchingDeclarations);
-  assert.deepEqual(stretched, ['padding']);
+  assert.deepEqual(rulesOf(css, '.ui-reader-preview').flatMap((b) => disallowedDeclarations(b)), ['padding: var(--space-3) var(--space-5)']);
 });
 
 test('Given 3 行の写し .ui-reader-preview / When 縦の余白を読む / Then margin で取り、縦の padding を持たない（padding の帯に 4 行目の上端が覗く）', () => {
   const reader = read('packages/ui/src/components/reader.css');
   const body = bodyOf(reader, '.ui-reader-preview');
   assert.match(body, /margin-block:\s*var\(--space-4\);/);
-  assert.equal(lastValue(body, 'padding'), '0 var(--space-5)', '最後に勝つ padding は縦が 0');
   // 箱を縦に伸ばさない（3 行の高さに収める）。@media の中の規則も含めて、すべての規則に対して判定する
-  for (const b of rulesOf(reader, '.ui-reader-preview')) assert.deepEqual(stretchingDeclarations(b), [], '箱を縦に伸ばす宣言がある');
+  // 許可リストに無い宣言・別の値は赤（`@media` の中の規則も含めて、集めたすべての規則に対して判定する）
+  for (const b of rulesOf(reader, '.ui-reader-preview')) assert.deepEqual(disallowedDeclarations(b), [], '許可リストに無い宣言がある');
 });
 
 test('Given 部品層の読み込み順 / When components/index.css を読む / Then section-head と stack が最後（stack が最後）で、リセットがどの部品の margin にも勝つ', () => {
