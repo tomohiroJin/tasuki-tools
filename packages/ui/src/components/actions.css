@@ -40,7 +40,7 @@
    帯は中身を隠さず、器の下の余白（.ui-page の padding）の手前で止まる。並びは留めたい範囲の最後の子に置くこと（その範囲の中でだけ留まる）。
    器の左右の余白（最小 1rem）まで帯を広げ、iOS の画面下のバーに重ならないよう下に safe-area を足す。
 
-   **帯の約束**（#554・#479 の #2・#12・#19・#29。`packages/ui/README.md` の「帯の約束」と同じ）
+   **帯の約束**（#554・#479 の #2・#12・#19・#29。`packages/ui/README.md` の「帯の約束」と同じ。**ADR-0036（Proposed）で提案中の形**で、採択されるまでは ADR-0025 決定 5 が正本。採択は人の判断）
    - 帯の字の後ろの地は不透明（`--felt-950`）。透明へ溶かす（グラデーション・α < 1 の地）と、後ろの中身の字が帯の字に重なって読める。
      溶かしたいなら帯の外側の上の縁だけ（字の行より上）に置く。
    - 帯の上端に内側の余白（`--space-3`・下限 `--space-2`）を置く。
@@ -69,7 +69,8 @@
     background: var(--dock-ground);
   }
 
-  .ui-actions--dock > :nth-child(odd of :not([hidden], .ui-visually-hidden, select, .ui-actions-start)):nth-last-child(1 of :not([hidden], .ui-visually-hidden, select, .ui-actions-start)) {
+  /* 数え方の擬似クラスは :where() で包み、詳細度を (0,1,0) に抑える（部品層の約束は (0,2,0) まで。画面の `.roulette-controls .ui-button` などの上書きが勝つ） */
+  .ui-actions--dock > :where(:nth-child(odd of :not([hidden], .ui-visually-hidden, select, .ui-actions-start)):nth-last-child(1 of :not([hidden], .ui-visually-hidden, select, .ui-actions-start))) {
     grid-column: 1 / -1;
   }
 

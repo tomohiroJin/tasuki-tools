@@ -568,23 +568,31 @@
   color: var(--ivory-dim);
 }
 
-/* 操作帯（`.projection-strip`・fixed・不透明）の高さの分を、狭い幅（64rem 未満）では帯の有無によらず中身の下に常に取る（下端の情報が帯に隠れない）。
-   帯が出ている間だけ取ると、帯が出るたびに盤が上下に跳ねた（390 で 80px）ので、出ていない間も場所を空けておく。
-   64rem 以上は帯が中身に重ならない（盤は帯の上の中央にある）ので、余白は取らない（取ると盤が約 80px 上に寄り、1280×720 で縦のスクロールが出た）。
-   帯の高さの上限は実測（既定の文字の大きさ）で 320px の 149.4px・390px の 101.6px・40rem 以上は 69px。実測より大きく丸めた段ごとの手書きの値（40rem 未満 10rem・以上 5rem）で、
+/* 操作帯（`.projection-strip`・fixed・不透明）の高さの分を、中身の下に取る（帯を出したとき下端の情報が帯に隠れない）。
+   - 40rem 未満（電話の幅。映す表示の主な使い方ではない）: 帯が出ている間だけ取る（main と同じ）。常に取ると、帯を出す前から縦のスクロールが出て、
+     盤が音の切り替えと重なった（320×568・390×844。#471 の既存の検査）。帯を出したときの盤の跳ねは許す
+   - 40rem 以上 64rem 未満で高さが 48rem 以上: 帯が 1 行（実測 69px）なので、4.4rem を常に取る（帯が出ても盤が跳ねない。768×1024 で縦のスクロールが出ない）
+   - 40rem 以上 64rem 未満で高さが 48rem 未満（背の低い横向き 667×375・844×390・1000×700）: 帯が出ている間だけ取る。常に取ると、もともとスクロールが出る画面でさらに約 40px 伸びる
+   - 64rem 以上: 帯が中身に重ならない（盤は帯の上の中央にある）ので、取らない（取ると盤が約 80px 上に寄り、1280×720 で縦のスクロールが出た）
+   帯の高さの上限は実測（既定の文字の大きさ）で 320px の 149.4px・390px の 101.6px・40rem 以上は 69px。実測より大きく丸めた段ごとの手書きの値（40rem 未満 10rem・以上 4.4rem。実測 69px にほぼ合わせる。5rem だと 768×1024 で帯を出さなくても縦のスクロールが出た）で、
    E2E（`header-and-dock.spec.ts`）が帯の実際の高さがこの値以下であることを測る。文字を拡大したときの折り返しは測っていない */
 :root {
   --projection-strip-height: 10rem;
 }
-/* 40rem 以上は帯が 1 行（実測 69px）に収まるので、段ごとに持つ（横向きのスマートフォン 844×390 やタブレットで取りすぎない） */
 @media (width >= 40rem) {
   :root {
-    --projection-strip-height: 5rem;
+    --projection-strip-height: 4.4rem;
   }
 }
-@media (width < 64rem) {
-  .projection-body {
+@media (width < 40rem), (width >= 40rem) and (width < 64rem) and (height < 48rem) {
+  .projection:has(> .projection-strip.is-shown, > .projection-strip:focus-within) > .projection-body {
     padding-block-end: calc(var(--space-6) + var(--projection-strip-height) + env(safe-area-inset-bottom));
+  }
+}
+@media (width >= 40rem) and (width < 64rem) and (height >= 48rem) {
+  .projection-body {
+    /* 通常の下の余白（--space-6）は足さず、帯の高さ（実測 69px < 4.4rem）に置き換える。足すと 768×1024 で帯を出さなくても縦のスクロールが出た（1065 > 1024） */
+    padding-block-end: calc(var(--projection-strip-height) + env(safe-area-inset-bottom));
   }
 }
 
