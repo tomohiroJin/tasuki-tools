@@ -68,6 +68,19 @@ describe('useProjectionClearance', () => {
     expect(getByTestId('root').style.getPropertyValue('--projection-clearance')).toBe('0px');
   });
 
+  it('Given 縦に長い中くらいの幅（768×1024）で帯が中身に重ならない / When 帯を出す / Then 余白は 0 のまま（画面の大きさによらず何も足さない）', () => {
+    stubGeometry({ contentBottom: 300, scrollHeight: 1024, stripHeight: 69 });
+    Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => 768 });
+    Object.defineProperty(HTMLElement.prototype, 'clientHeight', { configurable: true, get: () => 1024 });
+    try {
+      const { getByTestId } = render(<Probe shown />);
+      expect(getByTestId('root').style.getPropertyValue('--projection-clearance')).toBe('0px');
+    } finally {
+      Reflect.deleteProperty(HTMLElement.prototype, 'clientWidth');
+      Reflect.deleteProperty(HTMLElement.prototype, 'clientHeight');
+    }
+  });
+
   it('Given 帯が中身に重ならない（広い画面） / When 帯を出す / Then 余白は 0 のまま（何も足さない）', () => {
     stubGeometry({ contentBottom: 300, scrollHeight: 720, stripHeight: 69 });
     const { getByTestId } = render(<Probe shown />);

@@ -7155,6 +7155,6 @@ export const MUTATIONS = [
     patch: "m1363-projection-clearance-unconditional.patch",
     pkg: "apps/agenda-web",
     tests: ["tests/use-projection-clearance.test.tsx"],
-    note: RESERVED_1360_1369 + " " + "#554 のレビュー。帯が中身に重ならなくても余白を足し、無用のスクロールが出る。E2E（768×1024）が拾い、単体は拾わない。",
+    note: RESERVED_1360_1369 + " " + "#554 のレビュー。帯が中身に重ならなくても余白を足し、無用のスクロールが出る。単体（768×1024 の寸法を差し替えた試験）と E2E（768×1024）が拾う。",
   },
 ];
