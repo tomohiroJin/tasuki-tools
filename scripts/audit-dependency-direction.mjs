@@ -275,10 +275,17 @@ export function findInvalidExclusions(entries) {
 const TASUKI_SPECIFIER = /["'](@tasuki\/[a-z0-9-]+)/g;
 
 /**
- * 試験用の入口（`@tasuki/ui/test-support`）の指定子。CSS を字で読む試験が共有するためだけに公開しているので、製品コード（`<pkg>/src`）から読まない（#554）。
+ * 試験用の入口（`@tasuki/ui/test-support`）の指定子。CSS を字で読む試験が共有するためだけに公開しているので、製品コード（パッケージの中の `tests/`・`test/` 以外の全ファイル。設定ファイルを含む）から読まない（#554）。
  * 相対パスで packages/ui/tests を読むことは、決定 4（パッケージの外への相対パス）が止める。
  */
-const TEST_SUPPORT_SPECIFIER = /["'`]@tasuki\/ui\/test-support/;
+const TEST_SUPPORT_NAME = "@tasuki/ui/test-support";
+/**
+ * 指定子の位置だけで一致させる（注釈や文字列の中に名前を書いただけでは止めない）:
+ * `import ... from "…"`・`export ... from "…"`・`import("…")`（テンプレート文字列を含む）・`require("…")`・`import "…"`。
+ */
+const TEST_SUPPORT_SPECIFIER = new RegExp(
+  "(?:\\bfrom\\s*|\\bimport\\s*\\(?\\s*|\\brequire\\s*\\(\\s*)[\"'`]" + TEST_SUPPORT_NAME.replace(/[/]/g, "\\/"),
+);
 
 /**
  * 相対パスの指定子を拾う。
@@ -350,6 +357,11 @@ function listPackageSources(pkg) {
   );
 }
 
+/** 行コメント・ブロックコメントを空白に置き換える（注釈の中の名前で偽の陽性を出さない）。 */
+function stripJsComments(text) {
+  return text.replace(/\/\*[\s\S]*?\*\//g, " ").replace(/(^|[^:\\"'`])\/\/[^\n]*/g, "$1");
+}
+
 /** 実体を観測する（`root` は走査の起点。既定はリポジトリ。自己テストは一時のディレクトリを渡す）。 */
 export function observe(pkg, files, root = REPO_ROOT) {
   const manifestPath = path.join(root, pkg, "package.json");
@@ -368,8 +380,8 @@ export function observe(pkg, files, root = REPO_ROOT) {
   for (const rel of files) {
     const text = fs.readFileSync(path.join(root, rel), "utf8");
     // 製品コード = パッケージの中の tests・test 以外の全ファイル（src だけでなく、vite.config.ts などの設定ファイルも含める）
-    const inSrc = !(rel.startsWith(`${pkg}/tests/`) || rel.startsWith(`${pkg}/test/`));
-    if (inSrc && TEST_SUPPORT_SPECIFIER.test(text)) testSupport.push(rel);
+    const isProductFile = !(rel.startsWith(`${pkg}/tests/`) || rel.startsWith(`${pkg}/test/`));
+    if (isProductFile && TEST_SUPPORT_SPECIFIER.test(stripJsComments(text))) testSupport.push(rel);
     for (const m of text.matchAll(TASUKI_SPECIFIER)) imports.push(m[1]);
     for (const m of text.matchAll(RELATIVE_SPECIFIER)) {
       // 解決先はリポジトリ相対で持つ。パッケージの接頭辞から外れたら越境。
@@ -377,7 +389,7 @@ export function observe(pkg, files, root = REPO_ROOT) {
       const target = path.posix.normalize(path.posix.join(path.posix.dirname(rel), m[1]));
       if (!target.startsWith(`${pkg}/`)) escapes.push(`${rel} → ${m[1]}`);
       // 製品コード（src）から、同じパッケージの tests・test を相対パスで読むのも試験用の入口と同じ（越境でも @tasuki/ でもないので、ここで拾う）
-      if (inSrc && /(^|\/)tests?\//.test(target.slice(pkg.length))) testSupport.push(`${rel} → ${m[1]}`);
+      if (isProductFile && /(^|\/)tests?\//.test(target.slice(pkg.length))) testSupport.push(`${rel} → ${m[1]}`);
     }
   }
   return { manifest, imports, escapes, testSupport };
