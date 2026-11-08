@@ -30,15 +30,19 @@ test('Given roulette の入る人の行 / When 規則を読む / Then 名前の�
   assert.match(ruleBody(css, '.roulette-row-tail'), /flex:\s*none;/);
 });
 
-test('Given roulette の名前 / When 規則を読む / Then 2 行まで折り返して残りは省略する', () => {
+test('Given roulette の名前 / When 規則を読む / Then 省略せず折り返して全文を見せる（`title` はタッチで読めない・F3）', () => {
   const body = ruleBody(read('apps/roulette-web/src/index.css'), '.roulette-name');
-  assert.match(body, /-webkit-line-clamp:\s*2;/);
+  assert.doesNotMatch(body, /-webkit-line-clamp/);
+  assert.doesNotMatch(body, /text-overflow/);
+  assert.doesNotMatch(body, /overflow:\s*hidden/);
+  assert.match(body, /overflow-wrap:\s*anywhere;/);
 });
 
-test('Given timer の名簿の名前 / When 規則を読む / Then 基準の幅が一定（5rem・収まる幅で短い名前の行が 2 段にならない）で、2 行まで折り返して残りは省略する（一覧 #15）', () => {
+test('Given timer の名簿の名前 / When 規則を読む / Then 基準の幅が一定（5rem・収まる幅で短い名前の行が 2 段にならない）で、省略せず折り返して全文を見せる（一覧 #15・F3）', () => {
   const body = ruleBody(read('apps/timer-web/src/styles/roster-panel.css'), '.roster-panel-name');
   assert.match(body, /flex:\s*1 1 5rem;/);
-  assert.match(body, /-webkit-line-clamp:\s*2;/);
+  assert.doesNotMatch(body, /-webkit-line-clamp/);
+  assert.doesNotMatch(body, /overflow:\s*hidden/);
 });
 
 test('Given timer のロビーの操作 / When 規則を読む / Then 行の幅いっぱいの段に固定せず（収まる幅では名前と同じ段）、折り返した段は右寄せ（一覧 #7・E5）', () => {
@@ -86,8 +90,15 @@ test('Given 画面の CSS / When order を探す / Then 無い（目の順と DO
 test('Given timer の Card の縦の間 / When 規則と配線を読む / Then 親が gap で持ち、共有メモ・参加者の見出しは margin を持たない（ADR 0035 決定 1）', () => {
   const css = read('apps/timer-web/src/styles/primitives.css');
   assert.match(css, /\.meter-panel-stack,\n\.panel-stack \{[^}]*gap:\s*var\(--panel-stack-gap, var\(--space-4\)\);/);
-  assert.match(read('apps/timer-web/src/ui/components/SharedMemo.tsx'), /<Card className=\{updated \? "meter-panel-stack /);
-  assert.match(read('apps/timer-web/src/ui/Lobby.tsx'), /<Card className="meter-panel-stack">/);
+  // 真と偽の両方の側が、部品 `ui-stack` と `meter-panel-stack` を持つ（偽の側から外しても緑にならない・F5）
+  const memo = read('apps/timer-web/src/ui/components/SharedMemo.tsx');
+  const cond = /<Card className=\{updated \? "([^"]*)" : "([^"]*)"\}>/.exec(memo);
+  assert.notEqual(cond, null, 'SharedMemo の Card の className が updated の三項でなくなった');
+  for (const side of [cond[1], cond[2]]) {
+    assert.match(side, /(^| )ui-stack( |$)/);
+    assert.match(side, /(^| )meter-panel-stack( |$)/);
+  }
+  assert.match(read('apps/timer-web/src/ui/Lobby.tsx'), /<Card className="ui-stack meter-panel-stack">/);
 });
 
 /** 規則の本体から、縦の余白（上下）を 0 以外にしている宣言を返す。`margin`・`margin-block`・`margin-block-end`・`margin-bottom`（と上側）を読む。 */
@@ -135,15 +146,51 @@ test('Given timer の見出しの行 / When 規則を集める / Then どの書�
 test('Given timer の見出しの行 / When CSS と配線を読む / Then margin-bottom を持たず、各パネルの根が gap で間を持つ（ADR 0035 決定 1・#556）', () => {
   const prim = read('apps/timer-web/src/styles/primitives.css');
   assert.match(prim, /\.panel-stack \{[^}]*gap:\s*var\(--panel-stack-gap, var\(--space-4\)\);/);
-  assert.match(read('apps/timer-web/src/ui/components/PassphrasePanel.tsx'), /<div className="panel-stack">/);
-  assert.match(read('apps/timer-web/src/ui/components/RosterPanel.tsx'), /<div className="panel-stack">/);
-  assert.match(read('apps/timer-web/src/ui/History.tsx'), /<Card className="meter-panel-stack">/);
+  assert.match(read('apps/timer-web/src/ui/components/PassphrasePanel.tsx'), /<div className="ui-stack panel-stack">/);
+  assert.match(read('apps/timer-web/src/ui/components/RosterPanel.tsx'), /<div className="ui-stack panel-stack">/);
+  assert.match(read('apps/timer-web/src/ui/History.tsx'), /<Card className="ui-stack meter-panel-stack">/);
   assert.match(read('apps/timer-web/src/ui/Lobby.tsx'), /交代通知/);
-  assert.equal((read('apps/timer-web/src/ui/Lobby.tsx').match(/<Card className="meter-panel-stack">/g) ?? []).length, 2);
-  assert.match(read('apps/timer-web/src/ui/components/SessionConfigPanel.tsx'), /<div className="panel-stack">\s*<SectionHeader/);
+  assert.equal((read('apps/timer-web/src/ui/Lobby.tsx').match(/<Card className="ui-stack meter-panel-stack">/g) ?? []).length, 2);
+  assert.match(read('apps/timer-web/src/ui/components/SessionConfigPanel.tsx'), /<div className="ui-stack panel-stack">\s*<SectionHeader/);
 });
 
 test('Given agenda の進行中の会の名前 / When 規則を読む / Then 太さは 500（自己ホスト書体の 700 は base 層しか無く、利用者が入れる字が別の書体になる・E6）', () => {
   const body = ruleBody(read('apps/agenda-web/src/run.css'), '.run-title');
   assert.match(body, /font-weight:\s*500;/);
+});
+
+test('Given timer の縦の並び / When 規則を集める / Then 並びとリセットは部品 ui-stack が持ち、timer は間だけを決める（写しを持たない・リセットを自前で書かない・F4）', () => {
+  const css = read('apps/timer-web/src/styles/primitives.css');
+  const mine = rules(css).filter((r) => r.selector.split(', ').some((x) => /^\.(meter-panel-stack|panel-stack)\b/.test(x)));
+  assert.ok(mine.length >= 1);
+  for (const r of mine) {
+    assert.doesNotMatch(r.body, /display:/, `${r.selector} が並びを自前で書いている`);
+    assert.doesNotMatch(r.body, /flex-direction/);
+    assert.doesNotMatch(r.selector, />/, `${r.selector} が子のリセットを自前で書いている（\`.ui-visually-hidden\` の margin に勝ってしまう）`);
+    assert.doesNotMatch(r.body, /margin/);
+  }
+  assert.match(read('packages/ui/src/components/stack.css'), /\.ui-stack > :where\(:not\(dialog\)\) \{/);
+});
+
+test('Given timer の SharedMemo / When 配線を読む / Then 読み上げ専用の要素（ui-visually-hidden）の部品は ui-stack より後に読まれ、リセットの margin に負けない（F4）', () => {
+  const index = read('packages/ui/src/components/index.css');
+  assert.ok(index.indexOf("@import './stack.css';") < index.indexOf("@import './visually-hidden.css';"));
+  assert.match(read('apps/timer-web/src/ui/components/SharedMemo.tsx'), /className="ui-visually-hidden"/);
+});
+
+test('Given timer の交代順の札 / When 規則を読む / Then 名前に最小の幅があり、長い文言は折り返せ、短い文言だけが割れない（一覧 #16・F1）', () => {
+  const css = read('apps/timer-web/src/styles/rotation-lineup.css');
+  assert.match(ruleBody(css, '.rotation-lineup-name'), /min-width:\s*2em;/);
+  assert.doesNotMatch(ruleBody(css, '.rotation-lineup-when'), /white-space:\s*nowrap/);
+  const short = rules(css).find((r) => r.selector === '.rotation-lineup-when-short, .rotation-lineup-when-current');
+  assert.ok(short, '短い文言の規則が無い');
+  assert.match(short.body, /white-space:\s*nowrap;/);
+  assert.match(ruleBody(css, '.rotation-lineup-row'), /flex-wrap:\s*wrap;/);
+});
+
+test('Given roulette の行のボタン / When 規則を読む / Then 行に収まらない幅では字を折り返して縮み、最小の幅は部品の 6rem でなく 44px（F2）', () => {
+  const body = ruleBody(read('apps/roulette-web/src/index.css'), '.roulette-row .ui-button');
+  assert.match(body, /flex:\s*0 1 auto;/);
+  assert.match(body, /min-width:\s*var\(--tap-target\);/);
+  assert.match(body, /white-space:\s*normal;/);
 });

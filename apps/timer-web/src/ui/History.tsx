@@ -76,7 +76,7 @@ export function History({ onBack }: HistoryProps) {
 
   return (
     <div className="history">
-      <Card className="meter-panel-stack">
+      <Card className="ui-stack meter-panel-stack">
         <SectionHeader
           icon={HistoryIcon}
           title="完了記録の履歴"

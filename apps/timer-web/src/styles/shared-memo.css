@@ -11,7 +11,7 @@
 /* 見出しの行と本文の間は親の `<Card stack>` の `gap` が持つ（ADR 0035 決定 1・#556）。この行は縦の余白を持たない。
    並び（flex・折り返し・縦の中央・両端寄せ・間）は部品 `.ui-section-head` が持つ（#553 一覧 #18）。 */
 .shared-memo-card {
-  gap: var(--space-2);
+  --panel-stack-gap: var(--space-2);
 }
 
 .shared-memo-header {

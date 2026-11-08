@@ -23,8 +23,8 @@ export function SessionConfigPanel({ config, eligibleSeats, onChange }: SessionC
 
   return (
     // 縦の間は親が gap で持つ（ADR 0035 決定 1）。見出し → 交代間隔は 1rem（内側の組）、組 → 詳細設定は 1.25rem（根）。
-    <div className="session-config-panel">
-      <div className="panel-stack">
+    <div className="ui-stack panel-stack">
+      <div className="ui-stack panel-stack">
       <SectionHeader icon={Settings2} title="セッション設定" />
       <div>
         <p className="instrument-label session-config-label">交代間隔</p>

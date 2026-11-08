@@ -448,7 +448,7 @@ export function RosterPanel({
   };
 
   return (
-    <div className="panel-stack">
+    <div className="ui-stack panel-stack">
       {/* 退出の確認。対象者の名前と、招待から再参加できることを明示する（FR-075）。
           共有ルームでは他の参加者の画面にも反映されることを添える（FR-076）。 */}
       {pendingRemoval && onRemove && (
@@ -490,7 +490,7 @@ export function RosterPanel({
       />
 
       {/* 見出しの下の本体。見出しの行との間は根の gap、本体の中の間（代理追加・ドライバー・見学）は gap（ADR 0035 決定 1・#556） */}
-      <div className="panel-stack roster-panel-body">
+      <div className="ui-stack panel-stack roster-panel-body">
       {/* 代理追加フォーム。受け付けられなかった理由は**この中**に出す（#291）。 */}
       {showProxyInput && (
         <div className="roster-panel-proxy-form">

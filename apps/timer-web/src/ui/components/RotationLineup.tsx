@@ -94,7 +94,7 @@ export function RotationLineup({ rotation, currentIndex, nextIndex, intervalSeco
             )}
             {/* いつ番が来るか。飛ばされる席には回ってこないので、現ドライバー以外は予告しない。 */}
             {(m.skipReason === null || m.isCurrent) && (
-              <span className={m.isCurrent ? "rotation-lineup-when-current" : "rotation-lineup-when"}>
+              <span className={m.isCurrent ? "rotation-lineup-when-current" : m.isNext ? "rotation-lineup-when rotation-lineup-when-short" : "rotation-lineup-when"}>
                 {whenLabel(m)}
               </span>
             )}

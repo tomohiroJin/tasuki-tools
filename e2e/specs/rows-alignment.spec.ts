@@ -84,7 +84,10 @@ test.describe('一覧の行は名前の長さや自分かどうかで並びを�
       expect(rows.length, `幅 ${String(width)}: 行`).toBe(3);
       const long = rows.find((r) => r.name.includes('ながい'))!;
       const short = rows.find((r) => r.name.includes('さとう'))!;
-      expect(long.height - short.height, `幅 ${String(width)}: 長い名前の行が高くなる量（名前 1 行ぶん以内）`).toBeLessThanOrEqual(30);
+      // 名前は省略せず折り返す（F3）ので、高さは名前の行数で増える。名前が切れていない（全文が見える）ことと、操作の右端が揃うことを見る
+      expect(long.height, `幅 ${String(width)}: 長い名前の行は短い名前の行より低くならない`).toBeGreaterThanOrEqual(short.height);
+      const clipped = await page.evaluate(() => [...document.querySelectorAll('[aria-label="ドライバー一覧"] .roster-panel-name')].filter((n) => n.getClientRects().length > 0).filter((n) => n.scrollHeight > n.clientHeight + 1).length);
+      expect(clipped, `幅 ${String(width)}: 名前が切れている（全文が見えない）`).toBe(0);
       expect(Math.round(long.tailRight), `幅 ${String(width)}: 操作の右端`).toBe(Math.round(short.tailRight));
     }
   });
@@ -97,10 +100,14 @@ test.describe('一覧の行は名前の長さや自分かどうかで並びを�
       const rows = await measureRows(page, '.roulette-row', '.roulette-row-tail button');
       expect(rows.length, `幅 ${String(width)}: 行`).toBeGreaterThanOrEqual(4);
       const heights = rows.map((r) => Math.round(r.height));
-      expect(Math.max(...heights) - Math.min(...heights), `幅 ${String(width)}: 行の高さ ${heights.join(',')}`).toBeLessThanOrEqual(24);
+      // 長い名前は全文を折り返す（F3）。短い名前の行どうしは同じ高さ
+      const shortHeights = rows.filter((r) => !r.name.includes('ながい')).map((r) => Math.round(r.height));
+      expect(Math.max(...shortHeights) - Math.min(...shortHeights), `幅 ${String(width)}: 短い名前の行の高さ ${heights.join(',')}`).toBeLessThanOrEqual(24);
       const long = rows.find((r) => r.name.includes('ながい'))!;
       const short = rows.find((r) => r.name.includes('さとう'))!;
-      expect(long.height - short.height, `幅 ${String(width)}: 長い名前の行の高さ`).toBeLessThanOrEqual(24);
+      expect(long.height, `幅 ${String(width)}: 長い名前の行は短い名前の行より低くならない`).toBeGreaterThanOrEqual(short.height);
+      const clipped = await page.evaluate(() => [...document.querySelectorAll('.roulette-name')].filter((n) => n.getClientRects().length > 0).filter((n) => n.scrollHeight > n.clientHeight + 1).length);
+      expect(clipped, `幅 ${String(width)}: 名前が切れている（全文が見えない）`).toBe(0);
       expect(Math.round(long.tailRight), `幅 ${String(width)}: 末尾の操作の右端`).toBe(Math.round(short.tailRight));
     }
   });
@@ -232,12 +239,12 @@ test.describe('一覧の行は名前の長さや自分かどうかで並びを�
         const m = await page.evaluate(() => ({
           overflow: Math.max(0, ...[...document.querySelectorAll('.roulette-row')].filter((r) => r.getClientRects().length > 0).map((r) => r.scrollWidth - r.clientWidth)),
           names: [...document.querySelectorAll('.roulette-row .roulette-name')].filter((n) => n.getClientRects().length > 0 && (n.textContent ?? '').includes('ながい')).map((n) => n.getBoundingClientRect().width),
-          outside: [...document.querySelectorAll('.roulette-row')].filter((r) => r.getClientRects().length > 0).filter((r) => [...r.querySelectorAll('button, .roulette-chip')].some((c) => c.getBoundingClientRect().right > r.getBoundingClientRect().right + 1)).length,
+          outside: [...document.querySelectorAll('.roulette-row')].filter((r) => r.getClientRects().length > 0).filter((r) => { const rr = r.getBoundingClientRect(); return [...r.querySelectorAll('button, .roulette-chip, .roulette-name')].some((c) => { const b = c.getBoundingClientRect(); return b.right > rr.right + 1 || b.left < rr.left - 1; }); }).length,
         }));
         const where = `幅 ${String(width)}・文字 ${scale}`;
         expect(m.names.length, `${where}: 長い名前の行`).toBe(1);
         expect(Math.min(...m.names), `${where}: 名前の幅の最小`).toBeGreaterThanOrEqual(minName);
-        expect(m.outside, `${where}: 行の外へはみ出した操作`).toBe(0);
+        expect(m.outside, `${where}: 行の外（左右どちらでも）へはみ出した操作・名前`).toBe(0);
         expect(m.overflow, `${where}: 行の中身の横の溢れ`).toBeLessThanOrEqual(1);
       }
     }
@@ -277,7 +284,7 @@ test.describe('一覧の行は名前の長さや自分かどうかで並びを�
     }
     await joinSelf(page);
     await expect(page.locator('.lobby-participant-badge-driver')).toHaveCount(3);
-    for (const width of [1280] as const) {
+    for (const width of [1024, 1280] as const) {
       await page.setViewportSize({ width, height: 900 });
       const lobby = await page.evaluate(() => [...document.querySelectorAll('.lobby-participant')].filter((r) => r.getClientRects().length > 0).map((r) => {
         const rr = r.getBoundingClientRect();
@@ -299,7 +306,85 @@ test.describe('一覧の行は名前の長さや自分かどうかで並びを�
       const long = rows.find((r) => r.text.includes('ながい'))!;
       // 短い名前の行は 1 段（名前 1 行 + 余白）。2 段になると 127px 前後まで伸びる（8rem の基準のとき 98 → 127px）
       expect(short.h, `幅 ${String(width)}: 短い名前の行の高さ`).toBeLessThanOrEqual(104);
-      expect(long.h - short.h, `幅 ${String(width)}: 長い名前の行との差`).toBeLessThanOrEqual(30);
+      expect(long.h, `幅 ${String(width)}: 長い名前の行は短い名前の行より低くならない（全文を折り返す）`).toBeGreaterThanOrEqual(short.h);
     }
+  });
+
+  test('Given timer のセッションの交代順（文字 200%・長い名前を含む） / When 320・390・1280 で開く / Then 名前に読める幅が残り、札の中で重ならず、札が列の外へはみ出さない（#556 のレビュー F1）', async ({ page, openPeer }) => {
+    const code = await createTimerRoom(page, 'ホスト');
+    for (const [i, n] of ['ながいなまえのさんかしゃでございます', 'さとう', 'すずき'].entries()) {
+      const p = await openPeer(`rows-lineup-${String(i)}`);
+      await joinAsDriver(p.page, code, n);
+    }
+    await joinSelf(page);
+    await expect(page.locator('.lobby-participant-badge-driver')).toHaveCount(4);
+    await page.getByRole('button', { name: 'セッションを開始' }).click();
+    await expect(page.locator('.rotation-lineup-row').first()).toBeVisible();
+    for (const scale of ['100%', '200%'] as const) {
+      await page.evaluate((v) => { document.documentElement.style.fontSize = v; }, scale);
+      for (const width of [320, 390, 1280] as const) {
+        await page.setViewportSize({ width, height: 900 });
+        const m = await page.evaluate(() => {
+          const list = document.querySelector('.rotation-lineup-list')!.getBoundingClientRect();
+          return [...document.querySelectorAll('.rotation-lineup-row')].filter((r) => r.getClientRects().length > 0).map((r) => {
+            const rr = r.getBoundingClientRect();
+            const kids = [...r.children].map((c) => { const b = c.getBoundingClientRect(); return { cls: c.className, l: b.left, r: b.right, t: b.top, b: b.bottom, w: b.width }; });
+            const name = kids.find((k) => String(k.cls).includes('rotation-lineup-name'))!;
+            const overlaps = kids.some((a, i) => kids.slice(i + 1).some((b) => Math.min(a.r, b.r) - Math.max(a.l, b.l) > 1 && Math.min(a.b, b.b) - Math.max(a.t, b.t) > 1));
+            const outsideRow = kids.some((k) => k.r > rr.right + 1 || k.l < rr.left - 1);
+            const whenShort = [...r.querySelectorAll('.rotation-lineup-when-short, .rotation-lineup-when-current')].some((e) => { const rg = document.createRange(); rg.selectNodeContents(e); return new Set([...rg.getClientRects()].map((q) => Math.round(q.top))).size > 1; });
+            return { nameW: name.w, overlaps, outsideRow, outsideList: rr.right > list.right + 1 || rr.left < list.left - 1, whenShort };
+          });
+        });
+        const where = `幅 ${String(width)}・文字 ${scale}`;
+        expect(m.length, `${where}: 札`).toBeGreaterThanOrEqual(4);
+        for (const r of m) {
+          expect(r.nameW, `${where}: 名前の幅`).toBeGreaterThanOrEqual(scale === '200%' ? 28 : 28);
+          expect(r.overlaps, `${where}: 札の中の字が重なった`).toBe(false);
+          expect(r.outsideRow, `${where}: 札の外へはみ出した字`).toBe(false);
+          expect(r.outsideList, `${where}: 札が列の外へはみ出した`).toBe(false);
+        }
+        // 1 倍の字では「▶ 今」「⟶ 次」が割れない（#16）
+        if (scale === '100%') expect(m.some((r) => r.whenShort), `${where}: 「今」「次」が 2 行に割れた`).toBe(false);
+      }
+    }
+  });
+
+  test('Given timer の見出しの行を持つ画面（セッションの名簿とルームのタブ・共有メモ・履歴） / When 320・1024・1280 で開く / Then 見出しの行から中身までは 16px（共有メモは 8px）（#556 のレビュー F6）', async ({ page, openPeer }) => {
+    const code = await createTimerRoom(page, 'ホスト');
+    const guest = await openPeer('rows-gap-all');
+    await joinAsDriver(guest.page, code, 'ゲスト');
+    await joinSelf(page);
+    await expect(page.locator('.lobby-participant')).toHaveCount(2);
+    await page.getByRole('button', { name: 'セッションを開始' }).click();
+    await expect(driverRoster(page)).toBeVisible();
+    const measure = (sel: string) => page.evaluate((sel) => [...document.querySelectorAll(sel)].filter((h) => h.getClientRects().length > 0).map((h) => {
+      const next = h.nextElementSibling!;
+      return { title: (h.textContent ?? '').trim().slice(0, 12), gap: next.getBoundingClientRect().top - h.getBoundingClientRect().bottom };
+    }), sel);
+    const check = async (where: string, headers: number, memo: boolean) => {
+      for (const width of [320, 1024, 1280] as const) {
+        await page.setViewportSize({ width, height: 900 });
+        const gaps = await measure('.section-header');
+        expect(gaps.length, `${where} 幅 ${String(width)}: 見出しの行`).toBeGreaterThanOrEqual(headers);
+        for (const g of gaps) expect(Math.abs(g.gap - 16), `${where} 幅 ${String(width)}: 「${g.title}」の下の間`).toBeLessThanOrEqual(1);
+        if (memo) {
+          const memos = await measure('.shared-memo-header');
+          expect(memos.length, `${where} 幅 ${String(width)}: 共有メモの見出し`).toBeGreaterThanOrEqual(1);
+          for (const g of memos) expect(Math.abs(g.gap - 8), `${where} 幅 ${String(width)}: 共有メモの見出しの下の間`).toBeLessThanOrEqual(1);
+        }
+      }
+    };
+    await check('セッション（名簿・共有メモ）', 1, true);
+    const roomTab = page.getByRole('tab', { name: 'ルーム' });
+    if (await roomTab.isVisible()) {
+      await roomTab.click();
+      await check('ルームのタブ', 1, false);
+    }
+    // 履歴（玄関から「記録を見る」）
+    await page.goto('/');
+    await page.getByRole('link', { name: '記録を見る' }).click();
+    await expect(page.getByRole('heading', { name: '完了記録の履歴' })).toBeVisible();
+    await check('履歴', 1, false);
   });
 });

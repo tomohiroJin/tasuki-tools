@@ -1,17 +1,8 @@
 /* ロビーのセッション設定パネル（`SessionConfigPanel.tsx`・#321）。Tailwind のユーティリティの写し。
  * 値は基準（`ba9249d`）の計算済みスタイルと比較で確かめる（設計正本 D2）。
  * 写さなかった宣言（除去検査で dead）: 見出し行・トグルの `text-[var(--bone)]`（親から継ぐので不要）、チェックボックスの `accent-color`。
- * 縦の間は根が `gap` で持つ（見出し → 交代間隔の 1rem は内側の `.panel-stack`、組 → 詳細設定の 1.25rem はここ・ADR 0035 決定 1・#556）。 */
+ * 縦の間は根が `gap` で持つ（見出し → 交代間隔の 1rem は内側の `.panel-stack`、組 → 詳細設定は根の `ui-stack panel-stack` の既定の間（`--space-4`。main の 1.25rem から 4px 詰めた・F・補遺）・ADR 0035 決定 1・#556）。 */
 
-.session-config-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-}
-
-.session-config-panel > * {
-  margin-block: 0;
-}
 
 .session-config-label {
   margin-bottom: var(--space-2);
