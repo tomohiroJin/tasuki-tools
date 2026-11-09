@@ -8127,11 +8127,11 @@ export const MUTATIONS = [
   },
   {
     id: 1124,
-    label: "重なりと間の検査が、段落（p・2 行以上）どうしの間を測らない",
+    label: "2 行以上の段落（p）どうしの間の下限を 8px でなく 4px にする（1 行の文章と同じにする）",
     patch: "m1124-paragraph-gap-not-measured.patch",
     pkg: "e2e",
     tests: ["tests/block-gaps.test.ts"],
-    note: RESERVED_1120_1129 + " " + "#557。段落の間が行間と区別できない 3.2px に詰まっても緑になる（一覧 #3 の再発を見逃す）。",
+    note: RESERVED_1120_1129 + " " + "#557。2 行以上の段落の間が 4〜7px でも緑になる（行間と区別しにくい段落の間を、文章の間の下限 8px で測らない）。",
   },
   {
     id: 1125,
