@@ -8451,4 +8451,12 @@ export const MUTATIONS = [
     tests: ["tests/block-gaps.test.ts"],
     note: RESERVED_1420_1429 + " " + "#557 のレビュー。translate だけの区画（agenda の盤の読み取り）の子孫が判定から外れる。",
   },
+  {
+    id: 1435,
+    label: "上端の帯の下端を描画後に測り、休憩の最初の描画で覆いの見出しを隠す",
+    patch: "m1435-top-band-after-paint.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/use-top-band-height.test.tsx"],
+    note: "#574。通常の effect では初回の描画前に --top-band-height が空のままで、320px の長い名前の休憩の知らせが見出しを覆う。",
+  },
 ];

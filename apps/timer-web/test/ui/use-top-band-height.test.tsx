@@ -4,7 +4,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render } from "@testing-library/react";
-import React, { useRef } from "react";
+import React, { useLayoutEffect, useRef } from "react";
 import { useTopBandHeight } from "../../src/ui/use-top-band-height.js";
 
 const VAR = "--top-band-height";
@@ -77,6 +77,20 @@ describe("useTopBandHeight", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+  });
+
+  it("休憩が有効になった最初の描画より前に、帯の下端を反映する（#574）", () => {
+    const beforePaint: string[] = [];
+    function PaintProbe({ enabled }: { enabled: boolean }) {
+      const ref = useRef<HTMLDivElement>(null);
+      useTopBandHeight(ref, enabled);
+      useLayoutEffect(() => { beforePaint.push(read()); }, [enabled]);
+      return <div ref={ref} />;
+    }
+    const { rerender } = render(<PaintProbe enabled={false} />);
+    bottom = 200;
+    rerender(<PaintProbe enabled />);
+    expect(beforePaint).toEqual(["", "200px"]);
   });
 
   it("帯の下端が変わると --top-band-height が変わる", () => {

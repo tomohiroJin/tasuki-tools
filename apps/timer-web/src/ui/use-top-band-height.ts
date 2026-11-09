@@ -15,13 +15,14 @@
  * ResizeObserver の通知はもともと描画の前に 1 回なので、そのまま書く。
  */
 
-import { useEffect } from "react";
+import { useLayoutEffect } from "react";
 import type { RefObject } from "react";
 
 const VAR = "--top-band-height";
 
 export function useTopBandHeight(ref: RefObject<HTMLElement | null>, enabled: boolean): void {
-  useEffect(() => {
+  // 覆いの最初の描画に間に合わせる。通常の effect では帯が見出しを一瞬覆う（#574）。
+  useLayoutEffect(() => {
     if (!enabled) return;
     const el = ref.current;
     if (el === null) return;

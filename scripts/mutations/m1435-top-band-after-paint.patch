@@ -1,0 +1,19 @@
+--- a/apps/timer-web/src/ui/use-top-band-height.ts
++++ b/apps/timer-web/src/ui/use-top-band-height.ts
+@@ -15,14 +15,14 @@
+  * ResizeObserver の通知はもともと描画の前に 1 回なので、そのまま書く。
+  */
+ 
+-import { useLayoutEffect } from "react";
++import { useEffect } from "react";
+ import type { RefObject } from "react";
+ 
+ const VAR = "--top-band-height";
+ 
+ export function useTopBandHeight(ref: RefObject<HTMLElement | null>, enabled: boolean): void {
+   // 覆いの最初の描画に間に合わせる。通常の effect では帯が見出しを一瞬覆う（#574）。
+-  useLayoutEffect(() => {
++  useEffect(() => {
+     if (!enabled) return;
+     const el = ref.current;
+     if (el === null) return;
