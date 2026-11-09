@@ -146,7 +146,7 @@ export function Lobby({
           />
         </Card>
         {/* 通知設定カード。セッション開始前に音通知を整えておける。 */}
-        <Card>
+        <Card className="ui-stack meter-panel-stack">
           <SectionHeader icon={Bell} title="交代通知" />
           <NotifySettingsPanel
             prefs={notifyPrefs}
@@ -163,7 +163,7 @@ export function Lobby({
         {/* いまのお題（#91）。timer は読むだけで、変えるのはお題ツールの仕事（spec T4）。 */}
         {topic && <TopicCard topic={topic} />}
         {/* 参加者一覧 */}
-        <Card>
+        <Card className="ui-stack meter-panel-stack">
           <SectionHeader
             icon={Users}
             title={`参加者 (${room.participants.length}人)`}

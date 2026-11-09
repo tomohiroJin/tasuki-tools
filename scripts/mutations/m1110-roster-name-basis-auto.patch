@@ -1,0 +1,13 @@
+diff --git a/apps/timer-web/src/styles/roster-panel.css b/apps/timer-web/src/styles/roster-panel.css
+index fb654836..be344b2d 100644
+--- a/apps/timer-web/src/styles/roster-panel.css
++++ b/apps/timer-web/src/styles/roster-panel.css
+@@ -182,7 +182,7 @@
+   /* 名前は残りの幅を取る。基準の幅は名前の長さによらず一定（5rem）にして、短い名前の行も長い名前の行も同じ段に並ぶ。
+    * 基準が大きいと、収まる幅（1024 以上の脇）でも短い名前の行が 2 段になる（8rem で 98 → 127px・#556 のレビュー）。
+    * 長い名前は省略せず折り返して全文を見せる（`title` はタッチで読めない・#556 のレビュー F3。main も全文が見えていた。一覧 #15 の「4 段」は基準の幅を一定にして直した） */
+-  flex: 1 1 5rem;
++  flex: 1 1 auto;
+   min-width: 0;
+   font-size: var(--font-size-base);
+   line-height: 1.5;

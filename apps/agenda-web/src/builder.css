@@ -112,6 +112,7 @@
 }
 /* 1 行 = [番号][名前] の上段と、[分][時間切れ][上へ・下へ・消す] の下段 */
 .builder-row {
+  container: builder-row / inline-size;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
@@ -134,11 +135,20 @@
   font-variant-numeric: tabular-nums lining-nums;
 }
 .builder-row-controls {
+  /* 狭い幅（と文字を大きくした幅）では行の全幅から始める。2 列目から始めると、320・文字 200% で「＋」や「分」が行をはみ出す
+     （#556 のレビュー。main と同じ）。広い幅では次の規則が名前の欄の左端（2 列目）へ揃える（一覧 #24） */
   grid-column: 1 / -1;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-3);
+}
+/* 行の幅が操作の並びの幅（文字の大きさに比例）に対して十分広いときだけ 2 列目へ揃える。
+   `@media` の `rem` は文字を大きくしても広がらない（初期値基準）ので、行の箱の `em` で測る容器クエリにする（文字 200% の 1024・1280 で「＋」が行を越えた） */
+@container builder-row (min-width: 44em) {
+  .builder-row-controls {
+    grid-column: 2;
+  }
 }
 .builder-minutes {
   display: flex;
@@ -183,6 +193,10 @@
   background: var(--gold-tint);
   box-shadow: inset 0 0 0 1px var(--gold-deep);
   color: var(--gold-bright);
+}
+/* 「上へ」「下へ」は幅 43px（字が短い）で当たりが 44 に届かなかった。幅を 44px にそろえる（部品の `::before` は縦にだけ広げる・#556 一覧 #23） */
+.builder-row-tools .ui-button {
+  min-width: var(--tap-target);
 }
 .builder-row-tools {
   display: flex;

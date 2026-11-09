@@ -1,0 +1,14 @@
+diff --git a/apps/timer-web/src/styles/rotation-lineup.css b/apps/timer-web/src/styles/rotation-lineup.css
+index 09887cec..756b2208 100644
+--- a/apps/timer-web/src/styles/rotation-lineup.css
++++ b/apps/timer-web/src/styles/rotation-lineup.css
+@@ -93,8 +93,7 @@
+ .rotation-lineup-when {
+   /* 長い文言（「あと2人・約10分後」）は札に収まらなければ折り返す。字は縮められる（0 にはならない: 名前に最小の幅がある）。
+      文字 200% で nowrap にすると名前が 0px に潰れて札を越えた（#556 のレビュー F1） */
+-  min-width: 0;
+-  overflow-wrap: anywhere;
++  white-space: nowrap;
+   color: var(--bone-subtle);
+ }
+ 

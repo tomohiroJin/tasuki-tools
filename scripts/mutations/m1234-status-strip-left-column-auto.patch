@@ -1,0 +1,13 @@
+diff --git a/apps/timer-web/src/styles/status-strip.css b/apps/timer-web/src/styles/status-strip.css
+index 37c1550f..d61859e7 100644
+--- a/apps/timer-web/src/styles/status-strip.css
++++ b/apps/timer-web/src/styles/status-strip.css
+@@ -38,7 +38,7 @@
+ @media (width < 40rem) {
+   .status-strip {
+     display: grid;
+-    grid-template-columns: repeat(2, minmax(0, 1fr));
++    grid-template-columns: auto minmax(0, 1fr);
+   }
+ 
+   .status-strip > * {

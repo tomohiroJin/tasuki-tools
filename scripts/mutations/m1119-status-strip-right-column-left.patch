@@ -1,0 +1,13 @@
+diff --git a/apps/timer-web/src/styles/status-strip.css b/apps/timer-web/src/styles/status-strip.css
+index 37c1550f..d73ca1cf 100644
+--- a/apps/timer-web/src/styles/status-strip.css
++++ b/apps/timer-web/src/styles/status-strip.css
+@@ -47,7 +47,7 @@
+   }
+ 
+   .status-strip > :nth-child(even) {
+-    justify-self: end;
++    justify-self: start;
+     max-width: 100%;
+     text-align: end;
+   }

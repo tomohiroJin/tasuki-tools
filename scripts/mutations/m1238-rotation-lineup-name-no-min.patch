@@ -1,0 +1,13 @@
+diff --git a/apps/timer-web/src/styles/rotation-lineup.css b/apps/timer-web/src/styles/rotation-lineup.css
+index 09887cec..9de1bb58 100644
+--- a/apps/timer-web/src/styles/rotation-lineup.css
++++ b/apps/timer-web/src/styles/rotation-lineup.css
+@@ -77,7 +77,7 @@
+ .rotation-lineup-name {
+   /* 区切りのない長い名前は札の中で折れる */
+   /* 読める最小の幅（2 字ぶん）を残す。文字 200% でも 0px にならない（#556 のレビュー F1） */
+-  min-width: 2em;
++  min-width: 0;
+   overflow-wrap: anywhere;
+   font-weight: 500;
+ }

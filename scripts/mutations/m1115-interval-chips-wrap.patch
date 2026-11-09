@@ -1,0 +1,13 @@
+diff --git a/apps/timer-web/src/styles/session-config-panel.css b/apps/timer-web/src/styles/session-config-panel.css
+index 9cb5eb6d..512afc3a 100644
+--- a/apps/timer-web/src/styles/session-config-panel.css
++++ b/apps/timer-web/src/styles/session-config-panel.css
+@@ -21,7 +21,7 @@
+   /* 選択肢は折り返せる並びで、1 個ずつ広がって行を埋める。1 倍の字の 320 でも 5 個が 1 行に収まる（#556 一覧 #17。以前は 3 + 2）。
+      文字 200% では入りきらない個数だけが次の行へ回り、字が隣に重ならない（等分の 1 行は 25px に潰れた） */
+   display: flex;
+-  flex-wrap: wrap;
++  flex-wrap: nowrap;
+   gap: var(--space-1);
+ }
+ 

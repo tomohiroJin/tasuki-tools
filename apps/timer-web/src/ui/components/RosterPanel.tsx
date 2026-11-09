@@ -335,7 +335,7 @@ export function RosterPanel({
               <span className="ui-visually-hidden">{presenceLabel(p.presence)}</span>
               {/* 名前: text-base font-medium で情報階層の最上位に。
                   同名が並ぶときは識別子を添える（目で見ても行を区別できるように）。 */}
-              <span className="roster-panel-name">
+              <span className="roster-panel-name" title={label}>
                 {label}
               </span>
               {p.isPlaceholder && (
@@ -448,7 +448,7 @@ export function RosterPanel({
   };
 
   return (
-    <div>
+    <div className="ui-stack panel-stack">
       {/* 退出の確認。対象者の名前と、招待から再参加できることを明示する（FR-075）。
           共有ルームでは他の参加者の画面にも反映されることを添える（FR-076）。 */}
       {pendingRemoval && onRemove && (
@@ -489,6 +489,8 @@ export function RosterPanel({
         }
       />
 
+      {/* 見出しの下の本体。見出しの行との間は根の gap、本体の中の間（代理追加・ドライバー・見学）は gap（ADR 0035 決定 1・#556） */}
+      <div className="ui-stack panel-stack roster-panel-body">
       {/* 代理追加フォーム。受け付けられなかった理由は**この中**に出す（#291）。 */}
       {showProxyInput && (
         <div className="roster-panel-proxy-form">
@@ -531,7 +533,7 @@ export function RosterPanel({
 
       {/* ドライバーセクション（rotation 内）: 現ドライバー → rotation 順 */}
       {drivers.length > 0 && (
-        <>
+        <div className="roster-panel-section">
           <p className="roster-panel-heading">ドライバー</p>
           <ul
             aria-label="ドライバー一覧"
@@ -539,21 +541,22 @@ export function RosterPanel({
           >
             {drivers.map(renderRow)}
           </ul>
-        </>
+        </div>
       )}
 
       {/* 見学セクション（rotation 外）: 元の相対順 */}
       {watchers.length > 0 && (
-        <>
-          <p className="roster-panel-heading roster-panel-heading-watchers">見学</p>
+        <div className="roster-panel-section">
+          <p className="roster-panel-heading">見学</p>
           <ul
             aria-label="見学一覧"
             className="roster-panel-list"
           >
             {watchers.map(renderRow)}
           </ul>
-        </>
+        </div>
       )}
+      </div>
     </div>
   );
 }

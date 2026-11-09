@@ -1,8 +1,9 @@
 diff --git a/apps/timer-web/src/styles/primitives.css b/apps/timer-web/src/styles/primitives.css
+index e19f8360..5a0afa05 100644
 --- a/apps/timer-web/src/styles/primitives.css
 +++ b/apps/timer-web/src/styles/primitives.css
-@@ -91,6 +91,12 @@
-   margin-bottom: var(--space-4);
+@@ -106,6 +106,12 @@
+   margin-block: 0;
  }
  
 +@media (min-width: 40rem) {
