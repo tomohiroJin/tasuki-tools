@@ -1,0 +1,13 @@
+diff --git a/apps/timer-web/src/styles/shared-memo.css b/apps/timer-web/src/styles/shared-memo.css
+index 032e1172..9a0f899b 100644
+--- a/apps/timer-web/src/styles/shared-memo.css
++++ b/apps/timer-web/src/styles/shared-memo.css
+@@ -33,7 +33,7 @@
+   min-width: 0;
+   align-items: center;
+   /* 印が題の下へ折り返したとき、題の字と詰まらないよう行の間を `--space-1` にする（`e2e/specs/block-gaps.spec.ts` が 3px の詰まりを見つけた・#557） */
+-  gap: var(--space-1) var(--space-2);
++  gap: 0 var(--space-2);
+ }
+ 
+ .shared-memo-title {

@@ -1,0 +1,13 @@
+diff --git a/e2e/support/block-gaps.ts b/e2e/support/block-gaps.ts
+index 24559140..2eb84f13 100644
+--- a/e2e/support/block-gaps.ts
++++ b/e2e/support/block-gaps.ts
+@@ -105,7 +105,7 @@ export function classifyTextOnly(raw: readonly RawBlockNode[]): BlockNode[] {
+   for (let i = raw.length - 1; i >= 0; i -= 1) {
+     const n = raw[i]!;
+     const kids = children.get(n.id) ?? [];
+-    const allowed = TEXT_BLOCK_TAGS.has(n.tag) || TEXT_INLINE_TAGS.has(n.tag);
++    const allowed = true;
+     const kidsOk = kids.every((k) => textOnly.get(k.id) === true);
+     const divOk = n.tag !== 'div' || kids.every((k) => TEXT_INLINE_TAGS.has(k.tag));
+     textOnly.set(n.id, allowed && !n.paints && kidsOk && divOk);

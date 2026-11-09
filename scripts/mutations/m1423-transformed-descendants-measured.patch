@@ -1,0 +1,13 @@
+diff --git a/e2e/support/block-gaps.ts b/e2e/support/block-gaps.ts
+index 24559140..d81a84e1 100644
+--- a/e2e/support/block-gaps.ts
++++ b/e2e/support/block-gaps.ts
+@@ -202,7 +202,7 @@ export function findBlockProblems(nodes: readonly BlockNode[], minGap: number =
+   };
+   const byParent = new Map<number, BlockNode[]>();
+   for (const n of nodes) {
+-    if (SKIP_RULES.some((r) => r.test(n)) || underTransform(n)) continue;
++    if (SKIP_RULES.some((r) => r.test(n)) ) continue;
+     const list = byParent.get(n.parent) ?? [];
+     list.push(n);
+     byParent.set(n.parent, list);

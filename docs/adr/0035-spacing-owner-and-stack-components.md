@@ -106,6 +106,8 @@ roulette のいつものメンツの見出しの基準線揃え（`.roulette-reg
 新しい画面は、縦に並ぶブロックの間を `.ui-stack` か画面の容器の `gap` で持ち、見出し＋操作の行に `.ui-section-head` を使う。
 この作法を Definition of Done に入れるのは [#557](https://github.com/tomohiroJin/tasuki-tools/issues/557) で行う。
 
+> 改定: 入れた（2026-11-09・#557）。[`docs/guides/definition-of-done.md`](../guides/definition-of-done.md) の「新しい画面・部品を足すときの作法」。主な画面と幅への展開は `e2e/specs/block-gaps.spec.ts`。
+
 ## 影響
 
 - `packages/ui/src/components/` に `stack.css` と `section-head.css` が増え、`packages/ui/README.md` の部品の表と

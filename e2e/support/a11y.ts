@@ -440,7 +440,7 @@ export async function expectTouchTargets(page: Page, label: string, minTargets: 
  * （#402: 閉じた「詳細設定」の中の休憩の選択肢の `transition: all` が、幅を変えたときの font-size で走り、60 秒で落ちた・実測）。
  * 描かれていない要素には当たりが無いので、待たなくても測りは誤らない
  */
-async function settleFiniteAnimations(page: Page): Promise<void> {
+export async function settleFiniteAnimations(page: Page): Promise<void> {
   await page.evaluate(() => Promise.all(document.getAnimations()
     // 止まっている演出の `finished` は解けないので、走っているものだけを待つ
     .filter((a) => a.playState === 'running' && a.effect?.getComputedTiming().endTime !== Infinity)

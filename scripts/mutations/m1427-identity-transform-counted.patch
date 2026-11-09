@@ -1,0 +1,14 @@
+diff --git a/e2e/support/block-gaps.ts b/e2e/support/block-gaps.ts
+index 25f636f2..1158ceeb 100644
+--- a/e2e/support/block-gaps.ts
++++ b/e2e/support/block-gaps.ts
+@@ -107,8 +107,7 @@ export function classifyTransform(css: RawBlockNode['css']): { moved: boolean; d
+     const nums = /^matrix(3d)?\((.*)\)$/.exec(css.transform);
+     const v = nums === null ? [] : (nums[2] ?? '').split(',').map((x) => Number.parseFloat(x));
+     if (nums === null || nums[1] !== undefined) distorted = true;
+-    else if (v[0] !== 1 || v[1] !== 0 || v[2] !== 0 || v[3] !== 1) distorted = true;
+-    else if (v[4] !== 0 || v[5] !== 0) moved = true;
++    else distorted = true;
+   }
+   if (css.translate !== 'none' && css.translate.split(' ').some((x) => Number.parseFloat(x) !== 0)) moved = true;
+   if (css.rotate !== 'none' && Number.parseFloat(css.rotate) !== 0) distorted = true;

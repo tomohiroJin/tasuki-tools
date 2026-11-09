@@ -1,0 +1,13 @@
+diff --git a/e2e/support/block-gaps.ts b/e2e/support/block-gaps.ts
+index 24559140..bf4659cd 100644
+--- a/e2e/support/block-gaps.ts
++++ b/e2e/support/block-gaps.ts
+@@ -278,7 +278,7 @@ function spacingOf(upper: BlockNode, lower: BlockNode, minGap: number, captionGa
+   if (upper.textOnly || lower.textOnly) {
+     // 字の端から測った間と、箱の間の大きいほう。箱の余白（padding）が字を離す所と、行の高さより字の枠が広い所（箱の間のほうが広い）の両方を、詰まりとは読まない
+     const ink = (lower.textOnly ? lower.ink.top : lower.visTop) - (upper.textOnly ? upper.ink.bottom : upper.visBottom);
+-    return { gap: Math.max(box, ink), floor: captionGap };
++    return { gap: box, floor: captionGap };
+   }
+   return { gap: box, floor: upper.tag === 'li' && lower.tag === 'li' ? captionGap : minGap };
+ }

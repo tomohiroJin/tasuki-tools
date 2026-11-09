@@ -1,0 +1,13 @@
+diff --git a/apps/timer-web/src/styles/lobby.css b/apps/timer-web/src/styles/lobby.css
+index 2fd08837..a8aed93a 100644
+--- a/apps/timer-web/src/styles/lobby.css
++++ b/apps/timer-web/src/styles/lobby.css
+@@ -37,7 +37,7 @@
+   flex-wrap: wrap;
+   align-items: center;
+   column-gap: var(--space-2);
+-  row-gap: var(--space-2);
++  row-gap: 0.375rem;
+   border-radius: var(--radius-md);
+   border-width: 1px;
+   border-color: var(--hairline);

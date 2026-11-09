@@ -1,0 +1,13 @@
+diff --git a/e2e/support/block-gaps.ts b/e2e/support/block-gaps.ts
+index 24559140..4e19377f 100644
+--- a/e2e/support/block-gaps.ts
++++ b/e2e/support/block-gaps.ts
+@@ -24,7 +24,7 @@ import { settleFiniteAnimations } from './a11y';
+  * ブロックの間の下限（px）。`--space-2`（0.5rem）。ADR 0035 決定 2 の表で、ブロックの中の要素どうしの最低限
+  * （区画の中のブロックどうしは `--space-3`＝12px、区画どうしは `--space-5`）。2 つの箱（字だけでない）が縦に積まれたときの下限。
+  */
+-export const MIN_BLOCK_GAP = 8;
++export const MIN_BLOCK_GAP = 4;
+ /**
+  * 片方が字の行（見出し・ラベル・キャプション・値）のときの縦の間の下限（px）。`--space-1`（0.25rem）。
+  * ラベルと直下の欄・見出しと直下の一覧・札と下の名前は、1 つの組として詰めて置く（4〜6px）。0 や 1〜3px は詰めすぎ（一覧 #1 は 0、#3 は 3.2px）。

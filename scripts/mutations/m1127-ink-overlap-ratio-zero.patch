@@ -1,0 +1,13 @@
+diff --git a/e2e/support/block-gaps.ts b/e2e/support/block-gaps.ts
+index 24559140..ee917102 100644
+--- a/e2e/support/block-gaps.ts
++++ b/e2e/support/block-gaps.ts
+@@ -235,7 +235,7 @@ export function findBlockProblems(nodes: readonly BlockNode[], minGap: number =
+ }
+ 
+ /** 字の矩形どうしの食い込みのうち、字の高さ・幅のこの割合以下は、行の高さ（字の入る枠は字より広い）の余白で、字は接していない。 */
+-const INK_OVERLAP_RATIO = 0.25;
++const INK_OVERLAP_RATIO = 0;
+ 
+ /** 2 つの子の重なり。重ならなければ null。字だけの 2 つは、描かれた字の矩形で、字の高さ・幅の {@link INK_OVERLAP_RATIO} を超える食い込みだけを重なりと読む。 */
+ function overlapOf(a: BlockNode, b: BlockNode): { dx: number; dy: number } | null {

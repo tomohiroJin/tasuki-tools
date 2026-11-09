@@ -1,0 +1,13 @@
+diff --git a/e2e/support/block-gaps.ts b/e2e/support/block-gaps.ts
+index 24559140..6d482703 100644
+--- a/e2e/support/block-gaps.ts
++++ b/e2e/support/block-gaps.ts
+@@ -143,7 +143,7 @@ export const SKIP_RULES: readonly SkipRule[] = [
+   {
+     name: '変形した部品',
+     reason: '傾けた札の扇・手札の浮き上がり・盤の針は、`transform` で意図して重ねる。矩形（`getBoundingClientRect`）は変形を含むので、意図した重なりがそのまま「重なる」と出る。変形した部品は隣り合う判定に入れない',
+-    test: (n) => n.transformed,
++    test: () => false,
+   },
+   {
+     name: '字を切る面',

@@ -93,6 +93,8 @@ describe('余白の持ち主の約束（画面の CSS）', () => {
     expect(body).toMatch(/flex:\s*1 1 8rem;/);
     expect(body).toMatch(/flex-wrap:\s*wrap;/);
     expect(body).toMatch(/min-width:\s*0;/);
+    // 印が題の下へ折り返したとき、行の間が 0 だと題の字と詰まる（#557 の重なりと間の検査が見つけた）
+    expect(body).toMatch(/gap:\s*var\(--space-1\) var\(--space-2\);/);
   });
 
   it('Given 画面の CSS / When 並びの写しを探す / Then 部品の修飾 --beside を画面が上書きする規則を持たない', () => {
@@ -103,5 +105,10 @@ describe('余白の持ち主の約束（画面の CSS）', () => {
     const css = read('src/styles/primitives.css');
     foundBody(rulesOf(css, '.section-header'), '.section-header');
     for (const body of rulesMatching(css, /(^|[\s>+~])\.section-header$/)) expect(body).not.toMatch(/gap\s*:/);
+  });
+
+  it('Given timer のロビーの参加者の行（折り返し可） / When .lobby-participant を読む / Then 折り返した段の間を --space-2 で持つ。名前の段と操作の段が 6px に詰まらない（#557 のレビューで block-gaps が見つけた）', () => {
+    const body = foundBody(rulesOf(read('src/styles/lobby.css'), '.lobby-participant'), '.lobby-participant');
+    expect(body).toMatch(/row-gap:\s*var\(--space-2\);/);
   });
 });

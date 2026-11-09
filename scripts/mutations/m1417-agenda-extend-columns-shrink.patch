@@ -1,0 +1,13 @@
+diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
+index f03e11bd..bcceaf06 100644
+--- a/apps/agenda-web/src/run.css
++++ b/apps/agenda-web/src/run.css
+@@ -225,7 +225,7 @@
+   font-size: var(--font-size-xs);
+   white-space: nowrap;
+ }
+-@container run-controls (min-width: 20em) {
++@media (width >= 40rem) {
+   .run-extend {
+     grid-template-columns: auto repeat(3, minmax(0, 1fr));
+   }

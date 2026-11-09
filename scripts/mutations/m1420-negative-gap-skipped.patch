@@ -1,0 +1,13 @@
+diff --git a/e2e/support/block-gaps.ts b/e2e/support/block-gaps.ts
+index 24559140..5adab3df 100644
+--- a/e2e/support/block-gaps.ts
++++ b/e2e/support/block-gaps.ts
+@@ -223,7 +223,7 @@ export function findBlockProblems(nodes: readonly BlockNode[], minGap: number =
+         const [upper, lower] = a.top <= b.top ? [a, b] : [b, a];
+         const spacing = spacingOf(upper, lower, minGap, captionGap);
+         // 負の間（箱が食い込む。重なりの許容の内や、字の矩形が離れている組）も下限と比べる。重なりとして報告済みの組は上で飛ばしている
+-        if (spacing === null || spacing.gap >= spacing.floor - OVERLAP_TOLERANCE) continue;
++        if (spacing === null || spacing.gap < 0 || spacing.gap >= spacing.floor - OVERLAP_TOLERANCE) continue;
+         problems.push({
+           kind: 'gap',
+           message: `間が ${spacing.gap.toFixed(1)}px（下限 ${String(spacing.floor)}px）: ${upper.path} の下に ${lower.path}`,

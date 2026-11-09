@@ -88,4 +88,10 @@ describe('余白の持ち主の約束（画面の CSS）', () => {
     foundBody(bodies, '.roulette-regulars-notice');
     for (const body of bodies) expect(body).not.toMatch(/display:\s*none|visibility:\s*hidden|margin[^:]*:\s*calc\(\s*-/);
   });
+
+  it('Given roulette の入る人の行（折り返し可） / When 規則を読む / Then 行の間と列の間を --space-2 で持つ。名前と「名前を消す」が次の行へ回っても 2 段が詰まらない（文字 200% の 320・390・#557）', () => {
+    const css = read('src/index.css');
+    const body = foundBody(rulesOf(css, '.roulette-row'), '.roulette-row');
+    expect(body).toMatch(/(^|[\s;])gap:\s*var\(--space-2\);/);
+  });
 });
