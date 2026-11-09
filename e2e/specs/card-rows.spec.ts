@@ -29,8 +29,6 @@ async function settle(page: Page): Promise<void> {
   });
 }
 
-/** 席の最小幅（6.5rem）。1 行の席の数はこれで数える（main の固定幅の折り返しと同じ数）。 */
-const SEAT_MIN_REM = 6.5;
 /** 席の最大の幅（10rem）。これを超えて引き伸ばされない（席が 1 枚で全幅、などにならない）。 */
 const SEAT_MAX_REM = 10;
 /** 席の並びを測る幅。 */
@@ -39,7 +37,7 @@ const SEAT_WIDTHS = [320, 390, 768, 1280, 1920];
 interface SeatRowMetrics {
   /** 1 行目の席の数 */
   firstRowCount: number;
-  /** main（固定幅 6.5rem の折り返し）が 1 行目に並べる席の数。人数で頭打ち */
+  /** main（固定幅 6.5rem の折り返し。1 行の席の数は 6.5rem で数える）が 1 行目に並べる席の数。人数で頭打ち */
   expectedCount: number;
   /** 親の内側の左端から 1 行目の左端まで・1 行目の右端から親の内側の右端まで */
   leftGap: number;
