@@ -44,15 +44,14 @@ const LANDING = read('apps/landing/src/index.css');
 const CHECKIN = read('apps/checkin-web/src/table.css');
 const SEAT_COLUMNS = 'repeat(auto-fill, minmax(6.5rem, 1fr))';
 
-test('Given poker の席の並び / When 規則を読む / Then 列は 6.5rem の下限で数え（main と同じ数）、幅を人数までに絞って中央に置き、行の中は上に揃う（#9・#4）', () => {
+test('Given poker の席の並び / When 規則を読む / Then 列は 6.5rem の下限で数え（main と同じ数）、幅を人数で絞らず、行の中は上に揃う（#9・#4）', () => {
   const d = ruleDecls(rules(outsideMedia(POKER)), '.participants');
   assert.equal(d.get('display'), 'grid');
   assert.equal(d.get('grid-template-columns'), SEAT_COLUMNS);
-  assert.equal(d.get('max-width'), 'calc(var(--seat-count, 1000) * (6.5rem + 0.45rem))');
-  assert.equal(d.get('margin-inline'), 'auto');
-  assert.equal(d.get('width'), '100%');
   assert.equal(d.get('align-items'), 'start');
-  assert.match(read('apps/poker-web/src/components/ParticipantList.tsx'), /'--seat-count': ordered\.length/);
+  // 列が中身の幅で決まる `.room-main` の中で幅を人数で絞ると、列の数がいつも人数になり、3 人以上で席が 1 行に並んでルーム全体が横にはみ出す
+  for (const name of ['max-width', 'max-inline-size', 'width', 'inline-size', 'margin-inline']) assert.equal(d.has(name), false, `.participants: ${name} を持たない`);
+  assert.doesNotMatch(read('apps/poker-web/src/components/ParticipantList.tsx'), /--seat-count/);
 });
 
 test('Given poker の席 / When 規則を読む / Then 幅を固定しない（固定すると右に端数の空きが残る・#9）', () => {

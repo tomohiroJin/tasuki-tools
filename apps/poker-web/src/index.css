@@ -201,17 +201,15 @@
 .participants {
   list-style: none;
   padding: 0;
-  margin-block: 0;
+  margin: 0;
   /* 席は行の幅を等分して並べる（#555 一覧 #9）。列の数は席の最小幅（6.5rem）で数える（`auto-fill`）ので、
      1 行の席の数は、固定幅で折り返していた main と変わらない。
-     人数が列の数より少ないとき右が空かないよう、並び自体の幅を「人数 × (席の最小幅 + 間)」までに絞って中央に置く
-     （`--seat-count` は `ParticipantList` が渡す。この幅だと列の数はちょうど人数で、席は伸びすぎない）。
+     人数が少なく 1 行目が埋まらないときは右に空きが残る（main も同じ。記録のみ）。
+     幅を人数で絞る（`max-width`）と、列が中身の幅で決まる `.room-main` の中では、列の数がいつも人数になり、
+     3 人以上で席が 1 行に並び続けてルーム全体が横にはみ出した（390px・6 人で 302px）ので、絞らない。
      名前が長い席が同じ行の席を引き伸ばさないよう、行の中では上に揃える（`align-items: start`・一覧 #4）。 */
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
-  max-width: calc(var(--seat-count, 1000) * (6.5rem + 0.45rem));
-  width: 100%;
-  margin-inline: auto;
   align-items: start;
   gap: 0.45rem;
 }

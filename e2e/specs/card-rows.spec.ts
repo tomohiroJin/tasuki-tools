@@ -37,26 +37,32 @@ const SEAT_WIDTHS = [320, 390, 768, 1280, 1920];
 interface SeatRowMetrics {
   /** 1 行目の席の数 */
   firstRowCount: number;
-  /** main（固定幅 6.5rem の折り返し。1 行の席の数は 6.5rem で数える）が 1 行目に並べる席の数。人数で頭打ち */
+  /** main（固定幅 6.5rem の折り返し）が 1 行目に並べる席の数。**器の外枠**（`main.ui-page` の内側）の幅から数え、人数で頭打ち */
   expectedCount: number;
-  /** 親の内側の左端から 1 行目の左端まで・1 行目の右端から親の内側の右端まで */
+  /** 器の外枠の内側の左端から 1 行目の左端まで・1 行目の右端から器の外枠の内側の右端まで */
   leftGap: number;
   rightGap: number;
   maxSeatWidth: number;
   rem: number;
+  /** ページ全体が横にはみ出した量（0 以下ならはみ出していない） */
+  pageOverflow: number;
 }
 
-/** 席の並びの矩形から、1 行目の席の数・左右の空き・席の幅を測る（poker・checkin 共通）。長さは rem から計算する（文字を大きくしても赤にならない）。 */
+/**
+ * 席の並びの矩形から、1 行目の席の数・左右の空き・席の幅・横のはみ出しを測る（poker・checkin 共通）。
+ * 「入る数」は、席の並びの親（中身の幅に合わせて一緒に広がる）でなく、画面で決まる器の外枠（`main.ui-page`）から計算する
+ * （親の内側で測ると、はみ出して広がった親を基準に「入る」と数えて通ってしまう）。長さは rem から計算する（文字を大きくしても赤にならない）。
+ */
 async function seatRowMetrics(page: Page, listSelector: string): Promise<SeatRowMetrics> {
   return page.locator(listSelector).evaluate((ul) => {
     const lis = [...ul.querySelectorAll(':scope > li')].map((li) => li.getBoundingClientRect());
-    const parent = ul.parentElement;
-    if (lis.length === 0 || parent === null) throw new Error('席が描かれていない（判定が空振りする）');
+    const outer = document.querySelector('main.ui-page');
+    if (lis.length === 0 || outer === null) throw new Error('席か器の外枠が描かれていない（判定が空振りする）');
     const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
-    const box = parent.getBoundingClientRect();
-    const ps = getComputedStyle(parent);
-    const innerLeft = box.left + parseFloat(ps.paddingLeft);
-    const innerRight = box.right - parseFloat(ps.paddingRight);
+    const box = outer.getBoundingClientRect();
+    const os = getComputedStyle(outer);
+    const innerLeft = box.left + parseFloat(os.paddingLeft);
+    const innerRight = box.right - parseFloat(os.paddingRight);
     const gap = parseFloat(getComputedStyle(ul).columnGap);
     const top = lis[0]!.top;
     const row = lis.filter((r) => Math.abs(r.top - top) < 1);
@@ -68,17 +74,20 @@ async function seatRowMetrics(page: Page, listSelector: string): Promise<SeatRow
       rightGap: innerRight - Math.max(...row.map((r) => r.right)),
       maxSeatWidth: Math.max(...lis.map((r) => r.width)),
       rem,
+      pageOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
     };
   });
 }
 
 /**
  * 席の並びの合否（常に判定する。条件で飛ばさない）:
- * 1 行目の席の数が main と同じ（入る数まで並ぶ）・左右の空きが等しい（中央）・席が 10rem を超えて伸びない。
+ * 横にはみ出さない・1 行目の席の数が main と同じ（その幅で入る数。人数で頭打ち）・席が 10rem を超えて伸びない。
+ * `centered`（checkin のみ）: 1 行目の左右の空きが等しい。poker は人数が少なく 1 行目が埋まらないとき右に空きが残る（main も同じ。記録のみ）。
  */
-function expectSeatRow(m: SeatRowMetrics, where: string): void {
-  expect(m.firstRowCount, `${where}: 1 行目の席の数（その幅で入る数。main と同じ）`).toBeGreaterThanOrEqual(m.expectedCount);
-  expect(Math.abs(m.leftGap - m.rightGap), `${where}: 1 行目は親の中央（左 ${String(m.leftGap)}・右 ${String(m.rightGap)}）`).toBeLessThanOrEqual(2);
+function expectSeatRow(m: SeatRowMetrics, where: string, centered: boolean): void {
+  expect(m.pageOverflow, `${where}: ページが横にはみ出さない`).toBeLessThanOrEqual(0);
+  expect(m.firstRowCount, `${where}: 1 行目の席の数（その幅で入る数。main と同じ）`).toBe(m.expectedCount);
+  if (centered) expect(Math.abs(m.leftGap - m.rightGap), `${where}: 1 行目は中央（左 ${String(m.leftGap)}・右 ${String(m.rightGap)}）`).toBeLessThanOrEqual(2);
   expect(m.maxSeatWidth, `${where}: 席は 10rem を超えて引き伸ばされない`).toBeLessThanOrEqual(SEAT_MAX_REM * m.rem + 1);
 }
 
@@ -149,7 +158,7 @@ test.describe('poker の席の札の並び', () => {
     await expect(long).toHaveAttribute('aria-expanded', 'true');
   });
 
-  test('Given 1・2・3・6・12・20 人 / When 幅 320〜1920 で開く / Then 1 行目の席の数は main と同じで、左右の空きが等しく、席は 10rem まで（右の空きが出ない・#9）', async ({ page, openPeer }) => {
+  test('Given 1・2・3・6・12・20 人 / When 幅 320〜1920 で開く / Then ページが横にはみ出さず、1 行目の席の数は main と同じで、席は 10rem まで（#9）', async ({ page, openPeer }) => {
     test.setTimeout(480_000);
     await page.setViewportSize({ width: 390, height: 900 });
     const url = await createPokerRoom(page, 'ホスト');
@@ -164,7 +173,7 @@ test.describe('poker の席の札の並び', () => {
       for (const width of SEAT_WIDTHS) {
         await page.setViewportSize({ width, height: 900 });
         await settle(page);
-        expectSeatRow(await seatRowMetrics(page, '.participants'), `${String(target)} 人・幅 ${String(width)}`);
+        expectSeatRow(await seatRowMetrics(page, '.participants'), `poker・${String(target)} 人・幅 ${String(width)}`, false);
       }
     }
   });
@@ -321,7 +330,7 @@ test.describe('checkin の札の並びと行', () => {
         await page.setViewportSize({ width, height: 900 });
         await settle(page);
         const where = `${String(target)} 人・幅 ${String(width)}`;
-        expectSeatRow(await seatRowMetrics(page, '.seat-list'), where);
+        expectSeatRow(await seatRowMetrics(page, '.seat-list'), `checkin・${where}`, true);
         const c = await page.evaluate(() => {
           const list = document.querySelector('.seat-list')?.getBoundingClientRect();
           const count = document.querySelector('.seat-count > span');

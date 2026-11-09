@@ -95,7 +95,7 @@ export function ParticipantList({ participants, you, votes, onRemove, offline = 
   let seatOrder = 0;
   return (
     <>
-      <ul className="participants" style={{ '--seat-count': ordered.length } as CSSProperties}>
+      <ul className="participants">
         {ordered.map((p) => {
           const vote = votes?.get(p.id);
           // 見学者は札を持たない。ただし開票後に票が残っているときは、集計に入った札を隠さない
