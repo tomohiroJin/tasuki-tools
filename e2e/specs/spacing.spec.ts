@@ -5,7 +5,7 @@
  *
  * 見るのは要素の矩形どうしの間だけ（スクリーンショットの比較は入れない。ADR 0035 決定 4）。
  * 間は「上の要素の下端から下の要素の上端まで」の px で、`--space-3`（12px）・`--space-2`（8px）を下限にする。
- * 全画面への展開は #557。
+ * 全画面への展開は `block-gaps.spec.ts`（#557）。
  */
 import type { Page } from '@playwright/test';
 import { expect, test } from '../fixtures/test';
