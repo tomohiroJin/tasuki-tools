@@ -1,0 +1,13 @@
+diff --git a/e2e/support/block-gaps.ts b/e2e/support/block-gaps.ts
+index 81e9ca74..54595fd1 100644
+--- a/e2e/support/block-gaps.ts
++++ b/e2e/support/block-gaps.ts
+@@ -106,7 +106,7 @@ export const SKIP_RULES: readonly SkipRule[] = [
+   {
+     name: '字を切る面',
+     reason: '`text-overflow: ellipsis` と `-webkit-line-clamp` は、切られて見えない字の分まで箱に入る。測ると見えない部分が隣に重なる',
+-    test: (n) => n.truncates,
++    test: () => false,
+   },
+   {
+     name: '線・点',

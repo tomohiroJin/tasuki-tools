@@ -1,5 +1,5 @@
 diff --git a/apps/roulette-web/src/index.css b/apps/roulette-web/src/index.css
-index 79a616b9..0dcdb872 100644
+index cc7fb615..7c00dae4 100644
 --- a/apps/roulette-web/src/index.css
 +++ b/apps/roulette-web/src/index.css
 @@ -538,7 +538,6 @@
@@ -8,5 +8,5 @@ index 79a616b9..0dcdb872 100644
    display: flex;
 -  flex-wrap: wrap;
    align-items: center;
-   column-gap: var(--space-2);
-   min-height: 44px;
+   /* 名前と「名前を消す」の塊が入らない幅（文字 200% の 320・390）では塊が次の行へ回る。行の間を空けて、2 段が 1 つの塊に見えないようにする（#557） */
+   gap: var(--space-2);

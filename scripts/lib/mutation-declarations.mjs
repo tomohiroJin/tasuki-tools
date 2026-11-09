@@ -194,6 +194,12 @@ const RESERVED_1390_1399 =
 const RESERVED_1400_1409 =
   "**対応表より後に足した変異。** 1400〜1409 は #555 に追加で割り当てた範囲（1390〜1399 を使い切ったため。PR #575 の最後のレビューの指摘で足した）。";
 
+const RESERVED_1120_1129 =
+  "**対応表より後に足した変異。** 1120〜1129 は #557 に割り当てた範囲。";
+
+const RESERVED_1410_1419 =
+  "**対応表より後に足した変異。** 1410〜1419 は #557 に追加で割り当てた範囲（1120〜1129 を使い切ったため。除く規則ごとの変異と、検査が見つけた CSS の直しの変異）。";
+
 export const MUTATIONS = [
   {
     id: 1,
@@ -8083,5 +8089,149 @@ export const MUTATIONS = [
     pkg: "packages/web-kit",
     tests: ["tests/clamped-name.test.tsx"],
     note: RESERVED_1400_1409 + " " + "#555。開いたまま別の名前になる（G4）。",
+  },
+  {
+    id: 1120,
+    label: "重なりと間の検査で、箱どうしの縦の間の下限（MIN_BLOCK_GAP）を 8px から 4px に緩める",
+    patch: "m1120-block-gap-floor-lowered.patch",
+    pkg: "e2e",
+    tests: ["tests/block-gaps.test.ts"],
+    note: RESERVED_1120_1129 + " " + "#557。箱どうしの 4〜7px の詰まりが緑になる（余白の持ち主の約束の下限が効かない）。E2E の `block-gaps.spec.ts` は、この判定を呼ぶ。",
+  },
+  {
+    id: 1121,
+    label: "重なりの判定が縦の食い込みを見ない（横の食い込みだけで重なりと読む）",
+    patch: "m1121-overlap-ignores-vertical-extent.patch",
+    pkg: "e2e",
+    tests: ["tests/block-gaps.test.ts"],
+    note: RESERVED_1120_1129 + " " + "#557。縦に積んだだけの箱が「重なる」と出て、間の不足と区別がつかなくなる（赤の種類が変わり、横に並んだ箱の偽陽性も出る）。",
+  },
+  {
+    id: 1122,
+    label: "重なりと間の検査が、position: fixed の帯を除かない（sticky だけ除く）",
+    patch: "m1122-fixed-band-not-skipped.patch",
+    pkg: "e2e",
+    tests: ["tests/block-gaps.test.ts"],
+    note: RESERVED_1120_1129 + " " + "#557。下端に貼りつく帯がスクロールの位置で中身に乗るのを「重なる」と読み、検査が全画面で偽の赤になる。",
+  },
+  {
+    id: 1123,
+    label: "重なりと間の検査が、変形した部品（傾けた札・浮き上がり）を除かない",
+    patch: "m1123-transformed-not-skipped.patch",
+    pkg: "e2e",
+    tests: ["tests/block-gaps.test.ts"],
+    note: RESERVED_1120_1129 + " " + "#557。意図して重ねた札の扇や手札の浮き上がりが「重なる」と出て、検査が全画面で偽の赤になる。",
+  },
+  {
+    id: 1124,
+    label: "重なりと間の検査が、段落（p・2 行以上）どうしの間を測らない",
+    patch: "m1124-paragraph-gap-not-measured.patch",
+    pkg: "e2e",
+    tests: ["tests/block-gaps.test.ts"],
+    note: RESERVED_1120_1129 + " " + "#557。段落の間が行間と区別できない 3.2px に詰まっても緑になる（一覧 #3 の再発を見逃す）。",
+  },
+  {
+    id: 1125,
+    label: "重なりと間の検査が、字を切る面（省略・行数の上限）を除かない",
+    patch: "m1125-truncated-not-skipped.patch",
+    pkg: "e2e",
+    tests: ["tests/block-gaps.test.ts"],
+    note: RESERVED_1120_1129 + " " + "#557。切られて見えない字の分まで箱に入り、隣と「重なる」と出る偽の赤が全画面で出る。",
+  },
+  {
+    id: 1126,
+    label: "重なりと間の検査が、罫線の有無に関わらずすべての組の間を測らない（線で区切った行の規則を常に真にする）",
+    patch: "m1126-ruled-rows-always-skipped.patch",
+    pkg: "e2e",
+    tests: ["tests/block-gaps.test.ts"],
+    note: RESERVED_1120_1129 + " " + "#557。罫線のない箱どうしの間 0 まで緑になり、検査が何も測らなくなる。",
+  },
+  {
+    id: 1127,
+    label: "字だけの 2 つの重なりの許容（字の高さ・幅の 1/4）を 0 にする",
+    patch: "m1127-ink-overlap-ratio-zero.patch",
+    pkg: "e2e",
+    tests: ["tests/block-gaps.test.ts"],
+    note: RESERVED_1120_1129 + " " + "#557。行の高さより字の枠が広いだけの食い込み（字は接していない）を「重なる」と読み、盤の時間と差の行などで偽の赤が出る。",
+  },
+  {
+    id: 1128,
+    label: "一覧の行（li）どうしの縦の間の下限を、箱どうしの 8px にする（行を 4px で詰める作りを許さない）",
+    patch: "m1128-list-rows-use-block-floor.patch",
+    pkg: "e2e",
+    tests: ["tests/block-gaps.test.ts"],
+    note: RESERVED_1120_1129 + " " + "#557。roulette の入る人の行（4px で詰めた一覧）が全画面で偽の赤になる。",
+  },
+  {
+    id: 1129,
+    label: "字と箱の組の間を、箱の間だけで測る（字の端から測った間を使わない）",
+    patch: "m1129-caption-gap-box-only.patch",
+    pkg: "e2e",
+    tests: ["tests/block-gaps.test.ts"],
+    note: RESERVED_1120_1129 + " " + "#557。見出しの箱の余白（padding）が字を離している所（topic の題と本文）が、間 0 として偽の赤になる。",
+  },
+  {
+    id: 1410,
+    label: "重なりと間の検査が、折り返した inline の字（行をまたぐ外接の矩形）を除かない",
+    patch: "m1410-inline-text-not-skipped.patch",
+    pkg: "e2e",
+    tests: ["tests/block-gaps.test.ts"],
+    note: RESERVED_1410_1419 + " " + "#557。通知の見出しの「OFF」と「/ 音: …」など、折り返した inline の字が互いに重なると出る偽の赤が出る。",
+  },
+  {
+    id: 1411,
+    label: "重なりと間の検査が、タブの帯（role=tablist）と下の面の間 0 を除かない",
+    patch: "m1411-tablist-not-skipped.patch",
+    pkg: "e2e",
+    tests: ["tests/block-gaps.test.ts"],
+    note: RESERVED_1410_1419 + " " + "#557。接して 1 つの塊に見せるタブの帯と面（topic の読む面）が、間 0 として偽の赤になる。",
+  },
+  {
+    id: 1412,
+    label: "重なりと間の検査が、表の行（display: table*）の間 0 を除かない",
+    patch: "m1412-table-rows-not-skipped.patch",
+    pkg: "e2e",
+    tests: ["tests/block-gaps.test.ts"],
+    note: RESERVED_1410_1419 + " " + "#557。線で区切った表（終了後の表）の行が、間 0 として偽の赤になる。",
+  },
+  {
+    id: 1413,
+    label: "重なりと間の検査が、流れの外（position: absolute）の部品を除かない",
+    patch: "m1413-absolute-not-skipped.patch",
+    pkg: "e2e",
+    tests: ["tests/block-gaps.test.ts"],
+    note: RESERVED_1410_1419 + " " + "#557。QR の浮かぶカード・バッジ・盤の針など意図した重ねが「重なる」と出て、検査が偽の赤になる。",
+  },
+  {
+    id: 1414,
+    label: "重なりと間の検査が、高さか幅が 2px 未満の線を除かない",
+    patch: "m1414-thin-lines-not-skipped.patch",
+    pkg: "e2e",
+    tests: ["tests/block-gaps.test.ts"],
+    note: RESERVED_1410_1419 + " " + "#557。区切り線が隣の箱と間 0 で接して偽の赤になる。",
+  },
+  {
+    id: 1415,
+    label: "timer の共有メモの見出しの印が題の下へ折り返したとき、行の間を 0 に戻す",
+    patch: "m1415-shared-memo-lead-row-gap-zero.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/spacing-css.test.ts"],
+    note: RESERVED_1410_1419 + " " + "#557。印（Markdown）が題の字と 3px で詰まる（重なりと間の E2E が見つけた崩れの再発）。",
+  },
+  {
+    id: 1416,
+    label: "roulette の入る人の行の間を、列の間だけにする（行の間を 0 に戻す）",
+    patch: "m1416-roulette-row-no-row-gap.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/spacing-css.test.ts"],
+    note: RESERVED_1410_1419 + " " + "#557。文字 200% の 320・390 で名前と「名前を消す」が次の行へ回ったとき、2 段が 0px で接する（重なりと間の E2E が見つけた崩れの再発）。",
+  },
+  {
+    id: 1417,
+    label: "agenda の延長の群（+1 / +3 / +5 分）の列を、中身の幅まで縮められる形（minmax(0, 1fr)）に戻す",
+    patch: "m1417-agenda-extend-columns-shrink.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/spacing-css.test.ts"],
+    note: RESERVED_1410_1419 + " " + "#557。文字 200% の 1280 で「+1 分」「+3 分」「+5 分」のボタンが隣と 17〜18px 重なる（重なりと間の E2E が見つけた崩れの再発）。",
   },
 ];

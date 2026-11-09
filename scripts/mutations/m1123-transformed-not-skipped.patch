@@ -1,0 +1,13 @@
+diff --git a/e2e/support/block-gaps.ts b/e2e/support/block-gaps.ts
+index 81e9ca74..54a226b9 100644
+--- a/e2e/support/block-gaps.ts
++++ b/e2e/support/block-gaps.ts
+@@ -101,7 +101,7 @@ export const SKIP_RULES: readonly SkipRule[] = [
+   {
+     name: '変形した部品',
+     reason: '傾けた札の扇・手札の浮き上がり・盤の針は、`transform` で意図して重ねる。箱は変形の前の位置で返るので、重なりも間も意味を持たない',
+-    test: (n) => n.transformed,
++    test: () => false,
+   },
+   {
+     name: '字を切る面',

@@ -1,0 +1,13 @@
+diff --git a/e2e/support/block-gaps.ts b/e2e/support/block-gaps.ts
+index 81e9ca74..4c384ace 100644
+--- a/e2e/support/block-gaps.ts
++++ b/e2e/support/block-gaps.ts
+@@ -192,7 +192,7 @@ function overlapOf(a: BlockNode, b: BlockNode): { dx: number; dy: number } | nul
+   const rb = textPair ? b.ink : b;
+   const dx = Math.min(ra.right, rb.right) - Math.max(ra.left, rb.left);
+   const dy = Math.min(ra.bottom, rb.bottom) - Math.max(ra.top, rb.top);
+-  if (dx <= OVERLAP_TOLERANCE || dy <= OVERLAP_TOLERANCE) return null;
++  if (dx <= OVERLAP_TOLERANCE) return null;
+   if (textPair) {
+     const w = Math.min(ra.right - ra.left, rb.right - rb.left);
+     const h = Math.min(ra.bottom - ra.top, rb.bottom - rb.top);
