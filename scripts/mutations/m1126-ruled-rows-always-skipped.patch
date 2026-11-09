@@ -1,8 +1,8 @@
 diff --git a/e2e/support/block-gaps.ts b/e2e/support/block-gaps.ts
-index 81e9ca74..096c65ce 100644
+index 24559140..ede64cfd 100644
 --- a/e2e/support/block-gaps.ts
 +++ b/e2e/support/block-gaps.ts
-@@ -130,7 +130,7 @@ export const SPACING_SKIP_RULES: readonly { readonly name: string; readonly reas
+@@ -175,7 +175,7 @@ export const SPACING_SKIP_RULES: readonly { readonly name: string; readonly reas
    {
      name: '線で区切った行',
      reason: '左右の枠が無く、上下だけに罫線がある行（agenda の進行表）は、線で区切る一覧で間 0 が正しい。四方を枠で囲んだ札は含めない（札どうしは間が要る）',

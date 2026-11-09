@@ -1,8 +1,8 @@
 diff --git a/e2e/support/block-gaps.ts b/e2e/support/block-gaps.ts
-index 81e9ca74..0520e41c 100644
+index 24559140..c5b4b183 100644
 --- a/e2e/support/block-gaps.ts
 +++ b/e2e/support/block-gaps.ts
-@@ -111,7 +111,7 @@ export const SKIP_RULES: readonly SkipRule[] = [
+@@ -153,7 +153,7 @@ export const SKIP_RULES: readonly SkipRule[] = [
    {
      name: '線・点',
      reason: '高さか幅が 2px 未満の箱（区切り線・アイコンの点）は、ブロックではなく飾り。隣との間は線の太さで決まる',

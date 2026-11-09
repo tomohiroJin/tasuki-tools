@@ -1,8 +1,8 @@
 diff --git a/e2e/support/block-gaps.ts b/e2e/support/block-gaps.ts
-index 81e9ca74..3f92a62a 100644
+index 24559140..62cc5739 100644
 --- a/e2e/support/block-gaps.ts
 +++ b/e2e/support/block-gaps.ts
-@@ -91,7 +91,7 @@ export const SKIP_RULES: readonly SkipRule[] = [
+@@ -133,7 +133,7 @@ export const SKIP_RULES: readonly SkipRule[] = [
    {
      name: '行の中の字',
      reason: '`display: inline` の箱は、折り返すと各行の断片を囲む大きな矩形（行をまたぐ外接）になり、隣の `inline` や次の行の字と重なって見える。字の行どうしの重なりは、字だけの 2 つの判定が描かれた字の矩形で見る',

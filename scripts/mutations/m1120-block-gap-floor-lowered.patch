@@ -1,8 +1,8 @@
 diff --git a/e2e/support/block-gaps.ts b/e2e/support/block-gaps.ts
-index 81e9ca74..585d1d86 100644
+index 24559140..4e19377f 100644
 --- a/e2e/support/block-gaps.ts
 +++ b/e2e/support/block-gaps.ts
-@@ -23,7 +23,7 @@ import { expect, type Page } from '@playwright/test';
+@@ -24,7 +24,7 @@ import { settleFiniteAnimations } from './a11y';
   * ブロックの間の下限（px）。`--space-2`（0.5rem）。ADR 0035 決定 2 の表で、ブロックの中の要素どうしの最低限
   * （区画の中のブロックどうしは `--space-3`＝12px、区画どうしは `--space-5`）。2 つの箱（字だけでない）が縦に積まれたときの下限。
   */

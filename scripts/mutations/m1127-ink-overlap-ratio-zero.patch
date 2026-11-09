@@ -1,8 +1,8 @@
 diff --git a/e2e/support/block-gaps.ts b/e2e/support/block-gaps.ts
-index 81e9ca74..73c167c6 100644
+index 24559140..ee917102 100644
 --- a/e2e/support/block-gaps.ts
 +++ b/e2e/support/block-gaps.ts
-@@ -183,7 +183,7 @@ export function findBlockProblems(nodes: readonly BlockNode[], minGap: number =
+@@ -235,7 +235,7 @@ export function findBlockProblems(nodes: readonly BlockNode[], minGap: number =
  }
  
  /** 字の矩形どうしの食い込みのうち、字の高さ・幅のこの割合以下は、行の高さ（字の入る枠は字より広い）の余白で、字は接していない。 */

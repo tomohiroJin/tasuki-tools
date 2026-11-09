@@ -1,13 +1,13 @@
 diff --git a/e2e/support/block-gaps.ts b/e2e/support/block-gaps.ts
-index 81e9ca74..69384b57 100644
+index 24559140..b0e4050d 100644
 --- a/e2e/support/block-gaps.ts
 +++ b/e2e/support/block-gaps.ts
-@@ -213,7 +213,7 @@ function spacingOf(upper: BlockNode, lower: BlockNode, minGap: number, captionGa
-   if (SPACING_SKIP_RULES.some((r) => r.test(upper, lower))) return null;
-   const box = lower.top - upper.bottom;
-   if (upper.textOnly && lower.textOnly) {
--    return upper.tag === 'p' && lower.tag === 'p' && upper.lines >= 2 && lower.lines >= 2 ? { gap: box, floor: minGap } : null;
-+    return null;
+@@ -273,7 +273,7 @@ function spacingOf(upper: BlockNode, lower: BlockNode, minGap: number, captionGa
+     // 文章のブロック（p・h1〜h6・li）どうしだけ測る。名前 → 意味・値 → ラベル・盤の時間 → 差（span・div・dt・dd の字の組）は、行の高さの中に余白を持つ
+     // 詰めた組で、一覧 #3 の型（段落の間が行間と区別できない）ではない。字そのものの食い込みは重なりの判定が見る
+     if (!PROSE_TAGS.has(upper.tag) || !PROSE_TAGS.has(lower.tag)) return null;
+-    return { gap: box, floor: upper.tag === 'p' && lower.tag === 'p' && upper.lines >= 2 && lower.lines >= 2 ? minGap : captionGap };
++    return { gap: box, floor: upper.tag === 'p' && lower.tag === 'p' && upper.lines >= 2 && lower.lines >= 2 ? captionGap : captionGap };
    }
    if (upper.textOnly || lower.textOnly) {
      // 字の端から測った間と、箱の間の大きいほう。箱の余白（padding）が字を離す所と、行の高さより字の枠が広い所（箱の間のほうが広い）の両方を、詰まりとは読まない

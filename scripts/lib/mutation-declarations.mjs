@@ -197,6 +197,9 @@ const RESERVED_1400_1409 =
 const RESERVED_1120_1129 =
   "**対応表より後に足した変異。** 1120〜1129 は #557 に割り当てた範囲。";
 
+const RESERVED_1420_1429 =
+  "**対応表より後に足した変異。** 1420〜1429 は #557 に追加で割り当てた範囲（1120〜1129・1410〜1419 を使い切ったため。PR #580 のレビューの指摘で足した）。";
+
 const RESERVED_1410_1419 =
   "**対応表より後に足した変異。** 1410〜1419 は #557 に追加で割り当てた範囲（1120〜1129 を使い切ったため。除く規則ごとの変異と、検査が見つけた CSS の直しの変異）。";
 
@@ -8228,10 +8231,82 @@ export const MUTATIONS = [
   },
   {
     id: 1417,
-    label: "agenda の延長の群（+1 / +3 / +5 分）の列を、中身の幅まで縮められる形（minmax(0, 1fr)）に戻す",
+    label: "agenda の延長の群の 4 列を、帯の幅（容器クエリ）でなく画面の幅（@media (width >= 40rem)）で切り替える形に戻す",
     patch: "m1417-agenda-extend-columns-shrink.patch",
     pkg: "apps/agenda-web",
     tests: ["tests/spacing-css.test.ts"],
     note: RESERVED_1410_1419 + " " + "#557。文字 200% の 1280 で「+1 分」「+3 分」「+5 分」のボタンが隣と 17〜18px 重なる（重なりと間の E2E が見つけた崩れの再発）。",
+ },
+  {
+    id: 1418,
+    label: "字だけの判定が、要素の種類の許可リストを見ない（button・a・input・img も字だけにする）",
+    patch: "m1418-text-only-ignores-tag.patch",
+    pkg: "e2e",
+    tests: ["tests/block-gaps.test.ts"],
+    note: RESERVED_1410_1419 + " " + "#557 のレビュー。ボタンどうしの間 0・ラベルと入力の間 0・見出しに重なるボタンが「字の行」として素通りする（poker の手札・landing の欄・見出しの行）。",
+  },
+  {
+    id: 1419,
+    label: "字だけの判定が、自分で背景・枠・影を塗るかを見ない",
+    patch: "m1419-text-only-ignores-paint.patch",
+    pkg: "e2e",
+    tests: ["tests/block-gaps.test.ts"],
+    note: RESERVED_1410_1419 + " " + "#557 のレビュー。塗った札・チップ（span・p）が字の行として扱われ、間の下限が 8px から 4px に緩む。",
+  },
+  {
+    id: 1420,
+    label: "負の間（箱が食い込む）を下限と比べず飛ばす",
+    patch: "m1420-negative-gap-skipped.patch",
+    pkg: "e2e",
+    tests: ["tests/block-gaps.test.ts"],
+    note: RESERVED_1420_1429 + " " + "#557 のレビュー。重なりの許容（0.5px）以下の接触や、字の矩形が離れている食い込みが、重なりにも間の不足にも出ない。",
+  },
+  {
+    id: 1421,
+    label: "1 行の文章（p・h*・li）どうしの間を測らない（2 行以上の段落どうしだけ測る）",
+    patch: "m1421-one-line-prose-not-measured.patch",
+    pkg: "e2e",
+    tests: ["tests/block-gaps.test.ts"],
+    note: RESERVED_1420_1429 + " " + "#557 のレビュー。短い段落どうし・見出しと 1 行の段落が間 0 で並んでも素通りする（一覧 #3 の型が短い段落で再発する）。",
+  },
+  {
+    id: 1422,
+    label: "親より狭い sticky（読む面の脇の欄）も貼りつく帯として除く",
+    patch: "m1422-sticky-all-skipped.patch",
+    pkg: "e2e",
+    tests: ["tests/block-gaps.test.ts"],
+    note: RESERVED_1420_1429 + " " + "#557 のレビュー。topic・poker の読む面の脇の欄が主の欄に重なっても素通りする。",
+  },
+  {
+    id: 1423,
+    label: "変形した部品の子孫を除かない",
+    patch: "m1423-transformed-descendants-measured.patch",
+    pkg: "e2e",
+    tests: ["tests/block-gaps.test.ts"],
+    note: RESERVED_1420_1429 + " " + "#557 のレビュー。3D で回した札の中身（ルーレットの札の見出しと名前）が、射影された矩形で間が足りないと出る偽の赤になる。",
+  },
+  {
+    id: 1424,
+    label: "塗らない入れ物の padding を間に数えない",
+    patch: "m1424-transparent-padding-not-counted.patch",
+    pkg: "e2e",
+    tests: ["tests/block-gaps.test.ts"],
+    note: RESERVED_1420_1429 + " " + "#557 のレビュー。padding で中身と離している見出しの下の入れ物（topic の読む面）が、間 0 として偽の赤になる。",
+  },
+  {
+    id: 1425,
+    label: "div の字だけの判定が、子が inline の字だけかを見ない（入れ物の div も字の行にする）",
+    patch: "m1425-div-allows-block-children.patch",
+    pkg: "e2e",
+    tests: ["tests/block-gaps.test.ts"],
+    note: RESERVED_1420_1429 + " " + "#557 のレビュー。字を含む入れ物の div（手札の 2 段・欄）が字の行になり、間の下限が緩む。",
+  },
+  {
+    id: 1426,
+    label: "timer のロビーの参加者の行の折り返しの間を 0.375rem（6px）に戻す",
+    patch: "m1426-lobby-participant-row-gap-6px.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/spacing-css.test.ts"],
+    note: RESERVED_1420_1429 + " " + "#557 のレビュー。名前の段と操作の段が 6px に詰まる（ボタンの当たりは 44px だが、見た目では 2 段が接する。重なりと間の E2E が見つけた）。",
   },
 ];

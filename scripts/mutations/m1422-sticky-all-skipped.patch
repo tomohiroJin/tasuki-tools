@@ -1,0 +1,13 @@
+diff --git a/e2e/support/block-gaps.ts b/e2e/support/block-gaps.ts
+index 24559140..96db9f1c 100644
+--- a/e2e/support/block-gaps.ts
++++ b/e2e/support/block-gaps.ts
+@@ -128,7 +128,7 @@ export const SKIP_RULES: readonly SkipRule[] = [
+   {
+     name: '貼りつく帯',
+     reason: '`position: fixed` と、親の幅いっぱいの `position: sticky`（下端・上端の操作の帯）は、スクロールの位置で他の中身の上に乗るのが仕様。帯が中身を隠さないことは `header-and-dock.spec.ts` が最下部で測る（ADR 0036）。**親より狭い sticky（読む面の脇の欄など）は帯ではない**ので除かない（測るのはページの先頭に戻した状態で、兄弟と重ならない）',
+-    test: (n) => n.position === 'fixed' || (n.position === 'sticky' && n.right - n.left >= n.parentWidth - STICKY_BAND_SLACK),
++    test: (n) => n.position === 'fixed' || n.position === 'sticky',
+   },
+   {
+     name: '行の中の字',
