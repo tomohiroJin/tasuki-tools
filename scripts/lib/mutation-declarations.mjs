@@ -197,6 +197,9 @@ const RESERVED_1400_1409 =
 const RESERVED_1130_1139 =
   "**対応表より後に足した変異。** 1130〜1139 は #558 に割り当てた範囲。";
 
+const RESERVED_1430_1439 =
+  "**対応表より後に足した変異。** 1430〜1439 は #558 に追加で割り当てた範囲（1130〜1139 を使い切ったため。PR #579 のレビューの指摘で足した）。";
+
 export const MUTATIONS = [
   {
     id: 1,
@@ -8166,5 +8169,37 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["audit-ui-components.test.mjs"],
     note: RESERVED_1130_1139 + " " + "#558 のレビュー。class=\"x\" class=\"ui-x\" の後ろの値（ブラウザは取らない）で、並べていない部品が載っていることになる。",
+  },
+  {
+    id: 1430,
+    label: "見本の走査が、閉じタグで積みから戻らない",
+    patch: "m1430-gallery-close-tag-not-popped.patch",
+    pkg: "scripts",
+    tests: ["audit-ui-components.test.mjs"],
+    note: RESERVED_1430_1439 + " " + "#558 のレビュー。描かれない状態が、閉じた後ろの兄弟へ残る。",
+  },
+  {
+    id: 1431,
+    label: "見本の走査が、文書の終わりに閉じていない要素を違反にしない",
+    patch: "m1431-gallery-unclosed-at-end-allowed.patch",
+    pkg: "scripts",
+    tests: ["audit-ui-components.test.mjs"],
+    note: RESERVED_1430_1439 + " " + "#558 のレビュー。閉じ忘れたまま、ブラウザと違う入れ子を許す。",
+  },
+  {
+    id: 1432,
+    label: "見本の走査が、生の要素（textarea）も積みに載せる",
+    patch: "m1432-gallery-raw-element-pushed.patch",
+    pkg: "scripts",
+    tests: ["audit-ui-components.test.mjs"],
+    note: RESERVED_1430_1439 + " " + "#558 のレビュー。textarea の後ろの要素が、積みから戻らず違反か偽の状態になる。",
+  },
+  {
+    id: 1433,
+    label: "見本の走査が、閉じタグと積みの一番上の食い違いを違反にしない",
+    patch: "m1433-gallery-close-mismatch-allowed.patch",
+    pkg: "scripts",
+    tests: ["audit-ui-components.test.mjs"],
+    note: RESERVED_1430_1439 + " " + "#558 のレビュー。終了タグの省略で、描かれる要素を描かれないと数える（偽の赤・偽の緑）。",
   },
 ];

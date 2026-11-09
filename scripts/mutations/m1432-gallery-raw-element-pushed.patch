@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-ui-components.mjs b/scripts/audit-ui-components.mjs
+index c0e6022f..b9c4957d 100644
+--- a/scripts/audit-ui-components.mjs
++++ b/scripts/audit-ui-components.mjs
+@@ -872,7 +872,7 @@ export function scanGallery(html) {
+         /(?:^|;)[\t\n\f\r ]*display[\t\n\f\r ]*:[\t\n\f\r ]*none\b/i.test(style);
+       for (const a of tagAttrs) attrs.push({ ...a, rendered: !hidden });
+       // 生の要素（textarea）は、閉じタグごと読み飛ばして消費するので、積まない
+-      if (!GALLERY_VOID_ELEMENTS.has(name) && !GALLERY_RAW_ELEMENTS.has(name)) stack.push({ name, hidden, closedDetails: name === "details" && !has("open") });
++      if (!GALLERY_VOID_ELEMENTS.has(name)) stack.push({ name, hidden, closedDetails: name === "details" && !has("open") });
+       if (name === "head") inHead = true;
+       if (name === "code") codeDepth++;
+     }

@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-ui-components.mjs b/scripts/audit-ui-components.mjs
+index c0e6022f..a885647d 100644
+--- a/scripts/audit-ui-components.mjs
++++ b/scripts/audit-ui-components.mjs
+@@ -788,7 +788,7 @@ export function scanGallery(html) {
+       if (name === "head") inHead = false;
+       // 閉じタグは、積みの一番上と合っていなければ違反（終了タグの省略も違反。ブラウザの組み直しは真似しない）。
+       if (GALLERY_VOID_ELEMENTS.has(name)) violations.push(`</${name}> は閉じタグを持たない要素です`);
+-      else if (stack.length === 0 || stack[stack.length - 1].name !== name) {
++      else if (stack.length === 0 || false) {
+         violations.push(`</${name}> が、開いている要素（${stack.length === 0 ? "なし" : `<${stack[stack.length - 1].name}>`}）と合っていません（終了タグを省かず、入れ子を揃える）`);
+       } else stack.pop();
+       i = lt + close[0].length;
