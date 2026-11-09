@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-ui-components.mjs b/scripts/audit-ui-components.mjs
+index a6085063..272cb334 100644
+--- a/scripts/audit-ui-components.mjs
++++ b/scripts/audit-ui-components.mjs
+@@ -718,7 +718,7 @@ export const GALLERY_EXEMPT = new Map();
+ 
+ /** HTML のコメントと、`<script>`・`<style>` の中身を消す（そこに書いた名前は「見本に並べた」ことにしない）。 */
+ function stripHtmlNonMarkup(html) {
+-  return html.replace(/<!--[\s\S]*?-->/g, " ").replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, " ");
++  return html.replace(/<!--[\s\S]*?-->/g, " ");
+ }
+ 
+ /**

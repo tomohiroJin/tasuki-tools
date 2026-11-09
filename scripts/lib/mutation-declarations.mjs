@@ -8143,4 +8143,20 @@ export const MUTATIONS = [
     tests: ["audit-ui-components.test.mjs"],
     note: RESERVED_1130_1139 + " " + "#558 のレビュー。見本の枠が部品の値を上書きしても気づけない。",
   },
+  {
+    id: 1137,
+    label: "見本の検査が、属性名が class で終わるもの（data-class）も class 属性として数える",
+    patch: "m1137-gallery-class-attr-name-suffix.patch",
+    pkg: "scripts",
+    tests: ["audit-ui-components.test.mjs"],
+    note: RESERVED_1130_1139 + " " + "#558 のレビュー。data-class=\"ui-x\" を書いただけで、並べていない部品が載っていることになる。",
+  },
+  {
+    id: 1138,
+    label: "見本の検査が、script と style の中身も走査する",
+    patch: "m1138-gallery-script-body-counted.patch",
+    pkg: "scripts",
+    tests: ["audit-ui-components.test.mjs"],
+    note: RESERVED_1130_1139 + " " + "#558 のレビュー。script の中の文字列に書いた class=\"ui-x\" で、並べていない部品が載っていることになる。",
+  },
 ];

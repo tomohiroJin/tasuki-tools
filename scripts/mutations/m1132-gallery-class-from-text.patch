@@ -1,10 +1,10 @@
 diff --git a/scripts/audit-ui-components.mjs b/scripts/audit-ui-components.mjs
-index bef63eb1..3e27bc9b 100644
+index a6085063..1398849a 100644
 --- a/scripts/audit-ui-components.mjs
 +++ b/scripts/audit-ui-components.mjs
-@@ -727,6 +727,7 @@ export function galleryClassNames(html) {
-   for (const m of stripHtmlComments(html).matchAll(/(?<![\w-])class\s*=\s*(?:"([^"]*)"|'([^']*)')/gi)) {
-     for (const c of (m[1] ?? m[2]).split(/\s+/)) if (c !== "") out.add(c);
+@@ -741,6 +741,7 @@ export function galleryClassNames(html) {
+   for (const a of galleryAttributes(html)) {
+     if (a.name === "class") for (const c of a.value.split(/\s+/)) if (c !== "") out.add(c);
    }
 +  for (const m of html.matchAll(/ui-[a-z0-9-]+/g)) out.add(m[0]);
    return out;

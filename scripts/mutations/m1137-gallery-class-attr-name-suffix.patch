@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-ui-components.mjs b/scripts/audit-ui-components.mjs
+index a6085063..d3b64c1b 100644
+--- a/scripts/audit-ui-components.mjs
++++ b/scripts/audit-ui-components.mjs
+@@ -739,7 +739,7 @@ export function galleryAttributes(html) {
+ export function galleryClassNames(html) {
+   const out = new Set();
+   for (const a of galleryAttributes(html)) {
+-    if (a.name === "class") for (const c of a.value.split(/\s+/)) if (c !== "") out.add(c);
++    if (a.name.endsWith("class")) for (const c of a.value.split(/\s+/)) if (c !== "") out.add(c);
+   }
+   return out;
+ }
