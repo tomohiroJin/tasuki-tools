@@ -6,6 +6,8 @@
  * 一覧の後ろ側・`@media` の中を、それぞれ 1 件ずつ固定する。
  */
 import fs from "node:fs";
+import os from "node:os";
+import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, test } from "node:test";
@@ -18,6 +20,8 @@ import {
   definedPartClasses,
   findGalleryGaps,
   galleryClassNames,
+  galleryCssUiSelectors,
+  galleryTokenNames,
   galleryStyleValues,
   findDeadParts,
   findRawColors,
@@ -721,6 +725,35 @@ describe("見本の網羅（#558）", () => {
     assert.deepEqual([...galleryClassNames(html)].sort(), ["g-x", "ui-button", "ui-button--sm", "ui-note"]);
   });
 
+  test("HTML のコメントの中と data-class= のクラスは数えない", () => {
+    assert.equal(galleryClassNames(`<!-- <p class="ui-panel"> --><i data-class="ui-note"></i><i xclass="ui-md"></i>`).size, 0);
+  });
+
+  test("トークンは <code> の本文と style の var(--…) だけを数える。コメント・title・説明文・部品の修飾は数えない", () => {
+    const h = `<!-- --a --><p title="--b">説明に --c と書く</p><i class="ui-button--danger"></i><code>.ui-button--danger</code><code>--d</code><i style="color: var(--e)"></i><code>--f-x</code>`;
+    assert.deepEqual([...galleryTokenNames(h)].sort(), ["--d", "--e", "--f-x"]);
+    const gaps = findGalleryGaps({ html: h, parts: new Set(), tokens: new Set(["--danger", "--a", "--b", "--c", "--d", "--f"]) });
+    assert.deepEqual(gaps.missingTokens, ["--a", "--b", "--c", "--danger", "--f"]);
+  });
+
+  test("見本の枠の CSS が .ui- のセレクタを持てば拾う", () => {
+    assert.deepEqual(galleryCssUiSelectors(`.g-a { color: red } .g-a .ui-page { padding: 0 } @media (width >= 40rem) { .ui-x { top: 0 } }`), [".g-a .ui-page", ".ui-x"]);
+    assert.deepEqual(galleryCssUiSelectors(`.g-a { margin: 0 }`), []);
+  });
+
+  test("CLI は、漏れのある見本で exit 1 と [見本] を出す（配線）", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gallery-"));
+    const file = path.join(dir, "gallery.html");
+    fs.writeFileSync(file, `<p class="ui-button"></p><code>--gold</code>`);
+    const r = spawnSync(process.execPath, [path.join(REPO_ROOT, "scripts/audit-ui-components.mjs"), file], { encoding: "utf8" });
+    assert.equal(r.status, 1);
+    assert.match(r.stderr, /\[見本\] \.ui-panel が/);
+    assert.match(r.stderr, /\[見本\] --felt-950 が/);
+    fs.writeFileSync(file, `<p class="ui-button"></p><i style="color: #fff"></i>`);
+    assert.match(spawnSync(process.execPath, [path.join(REPO_ROOT, "scripts/audit-ui-components.mjs"), file], { encoding: "utf8" }).stderr, /生の色/);
+    fs.rmSync(dir, { recursive: true });
+  });
+
   test("本文に書いた語はクラスとして数えない", () => {
     assert.equal(galleryClassNames(`<p>ui-panel</p>`).size, 0);
   });
@@ -754,10 +787,10 @@ describe("見本の網羅（#558）", () => {
   test("実物の見本は、部品層の全クラスとトークン層の全トークンを載せている", () => {
     const read = (rel) => fs.readFileSync(path.join(REPO_ROOT, rel), "utf8");
     const parts = new Set(
-      fs.readdirSync(path.join(REPO_ROOT, "packages/ui/src/components")).flatMap((f) => [...definedPartClasses(read(`packages/ui/src/components/${f}`))]),
+      fs.readdirSync(path.join(REPO_ROOT, "packages/ui/src/components")).filter((f) => f.endsWith(".css")).flatMap((f) => [...definedPartClasses(read(`packages/ui/src/components/${f}`))]),
     );
     const tokens = new Set(
-      fs.readdirSync(path.join(REPO_ROOT, "packages/ui/src/tokens")).flatMap((f) => [...declaredTokens(read(`packages/ui/src/tokens/${f}`))]),
+      fs.readdirSync(path.join(REPO_ROOT, "packages/ui/src/tokens")).filter((f) => f.endsWith(".css")).flatMap((f) => [...declaredTokens(read(`packages/ui/src/tokens/${f}`))]),
     );
     assert.ok(parts.size > 0 && tokens.size > 0);
     const gaps = findGalleryGaps({ html: read("packages/ui/gallery.html"), parts, tokens });

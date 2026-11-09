@@ -707,6 +707,8 @@ export function withSharedEntryUsage(usageByApp, importedByApp, usageByPart) {
 
 /** 見本の HTML（#558）。ビルド無しで開く静的な HTML。 */
 export const GALLERY_FILE = "packages/ui/gallery.html";
+/** 見本の枠の CSS。 */
+export const GALLERY_CSS_FILE = "packages/ui/gallery.css";
 
 /**
  * 見本に載せなくてよいものの除外（名前 → 理由）。**最小に保つ**（足すときは、載せられない理由を書く）。
@@ -714,12 +716,41 @@ export const GALLERY_FILE = "packages/ui/gallery.html";
  */
 export const GALLERY_EXEMPT = new Map();
 
-/** 見本の class 属性に現れるクラス名。 */
+/** HTML のコメントを消す（コメントに書いた名前は「見本に並べた」ことにしない）。 */
+function stripHtmlComments(html) {
+  return html.replace(/<!--[\s\S]*?-->/g, " ");
+}
+
+/** 見本の class 属性に現れるクラス名。`data-class=` など属性名の一部は拾わない。 */
 export function galleryClassNames(html) {
   const out = new Set();
-  for (const m of html.matchAll(/\bclass\s*=\s*(?:"([^"]*)"|'([^']*)')/gi)) {
+  for (const m of stripHtmlComments(html).matchAll(/(?<![\w-])class\s*=\s*(?:"([^"]*)"|'([^']*)')/gi)) {
     for (const c of (m[1] ?? m[2]).split(/\s+/)) if (c !== "") out.add(c);
   }
+  return out;
+}
+
+const TOKEN_NAME = /(?<![\w-])--[a-z0-9]+(?:-[a-z0-9]+)*(?![\w-])/gi;
+
+/**
+ * 見本に並べたトークンの名前。**数える場所は 2 つだけ**: `<code>` の本文（名前の札）と、style 属性の `var(--…)`（実際に使った所）。
+ * コメント・`title` 属性・説明文・部品の修飾（`ui-button--danger` の `--danger`）は数えない。
+ */
+export function galleryTokenNames(html) {
+  const h = stripHtmlComments(html);
+  const out = new Set();
+  for (const m of h.matchAll(/<code\b[^>]*>([^<]*)<\/code>/gi)) for (const t of m[1].matchAll(TOKEN_NAME)) out.add(t[0]);
+  for (const v of galleryStyleValues(h)) for (const m of v.matchAll(/var\(\s*(--[a-z0-9-]+)/gi)) out.add(m[1]);
+  return out;
+}
+
+/** 見本の枠の CSS（`gallery.css`）に書いた `.ui-` のクラスのセレクタ。枠は `g-` のクラスだけで書く約束。 */
+export function galleryCssUiSelectors(css) {
+  const out = [];
+  postcss.parse(css).walkRules((rule) => {
+    if (inKeyframes(rule)) return;
+    for (const sel of rule.selectors) if ([...classesOf(sel)].some((c) => c.startsWith("ui-"))) out.push(sel);
+  });
   return out;
 }
 
@@ -732,16 +763,15 @@ export function declaredTokens(css) {
 
 /** 見本の style 属性の値（生の色の検査に使う）。 */
 export function galleryStyleValues(html) {
-  return [...html.matchAll(/\bstyle\s*=\s*(?:"([^"]*)"|'([^']*)')/gi)].map((m) => m[1] ?? m[2]);
+  return [...stripHtmlComments(html).matchAll(/(?<![\w-])style\s*=\s*(?:"([^"]*)"|'([^']*)')/gi)].map((m) => m[1] ?? m[2]);
 }
 
 /** 見本に載っていない部品のクラスとトークン、見本の生の色（#558）。 */
 export function findGalleryGaps({ html, parts, tokens, exempt = GALLERY_EXEMPT }) {
   const classes = galleryClassNames(html);
   const missingParts = [...parts].filter((c) => !classes.has(c) && !exempt.has(c)).sort();
-  const missingTokens = [...tokens]
-    .filter((t) => !exempt.has(t) && !new RegExp(`${t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w-])`).test(html))
-    .sort();
+  const placed = galleryTokenNames(html);
+  const missingTokens = [...tokens].filter((t) => !placed.has(t) && !exempt.has(t)).sort();
   const rawColors = galleryStyleValues(html).flatMap((v) => findRawColors(v));
   return { missingParts, missingTokens, rawColors };
 }
@@ -856,7 +886,8 @@ function main() {
   }
 
   // 見本の網羅（#558）。
-  const galleryAbs = path.join(REPO_ROOT, GALLERY_FILE);
+  // 引数で見本の HTML を差し替えられる（自己テストが、漏れのある見本で CLI の配線を確かめる）。
+  const galleryAbs = process.argv[2] ? path.resolve(process.argv[2]) : path.join(REPO_ROOT, GALLERY_FILE);
   if (!fs.existsSync(galleryAbs)) {
     problems.push(`[見本] ${GALLERY_FILE} が見つかりません    ← 部品とトークンを並べる見本を置く（#558）`);
   } else {
@@ -868,6 +899,13 @@ function main() {
     const gaps = findGalleryGaps({ html: fs.readFileSync(galleryAbs, "utf8"), parts: defined, tokens });
     for (const c of gaps.missingParts) problems.push(`[見本] .${c} が ${GALLERY_FILE} に載っていません    ← 見本に並べる（通常・修飾・状態）`);
     for (const t of gaps.missingTokens) problems.push(`[見本] ${t} が ${GALLERY_FILE} に載っていません    ← 見本に並べる`);
+    const galleryCssAbs = path.join(REPO_ROOT, GALLERY_CSS_FILE);
+    if (!fs.existsSync(galleryCssAbs)) problems.push(`[見本] ${GALLERY_CSS_FILE} が見つかりません`);
+    else {
+      for (const sel of galleryCssUiSelectors(fs.readFileSync(galleryCssAbs, "utf8"))) {
+        problems.push(`[見本] ${GALLERY_CSS_FILE} が .ui- のセレクタを持っています: ${sel}    ← 枠は g- のクラスだけで書く（部品の値を見本が上書きしない）`);
+      }
+    }
     for (const r of gaps.rawColors) problems.push(`[見本] ${GALLERY_FILE} の style 属性に生の色があります: ${r}    ← var(--…) にする`);
   }
 
