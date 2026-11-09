@@ -1,13 +1,13 @@
 diff --git a/scripts/audit-ui-components.mjs b/scripts/audit-ui-components.mjs
-index a6085063..272cb334 100644
+index 4d965894..d5929d00 100644
 --- a/scripts/audit-ui-components.mjs
 +++ b/scripts/audit-ui-components.mjs
-@@ -718,7 +718,7 @@ export const GALLERY_EXEMPT = new Map();
+@@ -726,7 +726,7 @@ export const GALLERY_EXEMPT = new Map();
+  * - コメント（`<!-- … -->`）と `<!doctype html>` 以外の `<!` と `<?`
+  * - 属性値の中の `<`、タグを閉じていない `<`、`<` の直後が英字・`/`・`!`・`?` のどれでもない書き方
+  */
+-export const GALLERY_FORBIDDEN_ELEMENTS = new Set(["template", "noscript", "xmp", "iframe", "script", "style", "object", "embed", "title"]);
++export const GALLERY_FORBIDDEN_ELEMENTS = new Set(["template", "noscript", "xmp", "iframe", "style", "object", "embed", "title"]);
+ /** 中身を読み飛ばす禁止の要素（中身は別の言語で、タグとして数えない）。 */
+ const GALLERY_RAW_ELEMENTS = new Set(["template", "textarea", "noscript", "xmp", "iframe", "script", "style", "title"]);
  
- /** HTML のコメントと、`<script>`・`<style>` の中身を消す（そこに書いた名前は「見本に並べた」ことにしない）。 */
- function stripHtmlNonMarkup(html) {
--  return html.replace(/<!--[\s\S]*?-->/g, " ").replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, " ");
-+  return html.replace(/<!--[\s\S]*?-->/g, " ");
- }
- 
- /**

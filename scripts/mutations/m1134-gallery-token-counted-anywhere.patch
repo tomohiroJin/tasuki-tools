@@ -1,13 +1,13 @@
 diff --git a/scripts/audit-ui-components.mjs b/scripts/audit-ui-components.mjs
-index bef63eb1..d09ec2ad 100644
+index 4d965894..3a9971de 100644
 --- a/scripts/audit-ui-components.mjs
 +++ b/scripts/audit-ui-components.mjs
-@@ -771,7 +771,7 @@ export function findGalleryGaps({ html, parts, tokens, exempt = GALLERY_EXEMPT }
-   const classes = galleryClassNames(html);
-   const missingParts = [...parts].filter((c) => !classes.has(c) && !exempt.has(c)).sort();
-   const placed = galleryTokenNames(html);
--  const missingTokens = [...tokens].filter((t) => !placed.has(t) && !exempt.has(t)).sort();
-+  const missingTokens = [...tokens].filter((t) => !html.includes(t) && !exempt.has(t)).sort();
-   const rawColors = galleryStyleValues(html).flatMap((v) => findRawColors(v));
-   return { missingParts, missingTokens, rawColors };
+@@ -890,7 +890,7 @@ const TOKEN_NAME = /(?<![\w-])--[a-z0-9]+(?:-[a-z0-9]+)*(?![\w-])/gi;
+ export function galleryTokenNames(html) {
+   const { codeTexts } = scanGallery(html);
+   const out = new Set();
+-  for (const t of codeTexts) for (const m of t.matchAll(TOKEN_NAME)) out.add(m[0]);
++  for (const m of html.matchAll(TOKEN_NAME)) out.add(m[0]);
+   for (const v of galleryStyleValues(html)) for (const m of v.matchAll(/var\(\s*(--[a-z0-9-]+)/gi)) out.add(m[1]);
+   return out;
  }

@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-ui-components.mjs b/scripts/audit-ui-components.mjs
+index 4d965894..1d8b9e21 100644
+--- a/scripts/audit-ui-components.mjs
++++ b/scripts/audit-ui-components.mjs
+@@ -833,7 +833,7 @@ export function scanGallery(html) {
+         }
+         if (value.includes("<")) violations.push(`<${name} ${attrName}> の属性値に < があります`);
+       }
+-      if (seen.has(attrName)) violations.push(`<${name}> で同じ属性 ${attrName} を 2 回書いています（ブラウザは先の 1 つしか取りません）`);
++      if (false) violations.push(`<${name}> で同じ属性 ${attrName} を 2 回書いています（ブラウザは先の 1 つしか取りません）`);
+       else {
+         seen.add(attrName);
+         tagAttrs.push({ name: attrName, value });

@@ -8121,7 +8121,7 @@ export const MUTATIONS = [
   },
   {
     id: 1134,
-    label: "見本の検査が、トークン名を本文のどこに書いても載っているとみなす（<code> と var() だけを数えない）",
+    label: "見本の検査が、トークン名を本文のどこに書いても載っているとみなす（<code> の本文と var() だけを数えない）",
     patch: "m1134-gallery-token-counted-anywhere.patch",
     pkg: "scripts",
     tests: ["audit-ui-components.test.mjs"],
@@ -8153,10 +8153,18 @@ export const MUTATIONS = [
   },
   {
     id: 1138,
-    label: "見本の検査が、script と style の中身も走査する",
+    label: "見本の許可リストが script を禁じない",
     patch: "m1138-gallery-script-body-counted.patch",
     pkg: "scripts",
     tests: ["audit-ui-components.test.mjs"],
-    note: RESERVED_1130_1139 + " " + "#558 のレビュー。script の中の文字列に書いた class=\"ui-x\" で、並べていない部品が載っていることになる。",
+    note: RESERVED_1130_1139 + " " + "#558 のレビュー。script の中に書いた文字列で、並べていない部品が載っていることになる（許可リストの外）。",
+  },
+  {
+    id: 1139,
+    label: "見本の許可リストが、同じ属性の 2 回書きを違反にしない",
+    patch: "m1139-gallery-duplicate-attr-allowed.patch",
+    pkg: "scripts",
+    tests: ["audit-ui-components.test.mjs"],
+    note: RESERVED_1130_1139 + " " + "#558 のレビュー。class=\"x\" class=\"ui-x\" の後ろの値（ブラウザは取らない）で、並べていない部品が載っていることになる。",
   },
 ];
