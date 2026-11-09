@@ -121,8 +121,15 @@
   color: var(--coal);
 }
 
-.g-reader-head {
+/* 札の上の見出し。実物（poker の .topic h2・timer の .timer-topic-heading）と同じく、字は札の字の色・余白は 0。
+   要素層の h2 は象牙の字なので、札の上では上書きが要る（上書きしないと 1.13:1 で読めない）。余白は頭の容器が持つ。 */
+.g-reader-top {
   margin: var(--space-4) var(--space-5) 0;
+}
+
+.g-reader-head {
+  margin: 0;
+  color: var(--coal-soft);
 }
 
 /* トークンの見本 */

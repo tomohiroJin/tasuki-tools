@@ -716,29 +716,166 @@ export const GALLERY_CSS_FILE = "packages/ui/gallery.css";
  */
 export const GALLERY_EXEMPT = new Map();
 
-/** HTML のコメントと、`<script>`・`<style>` の中身を消す（そこに書いた名前は「見本に並べた」ことにしない）。 */
-function stripHtmlNonMarkup(html) {
-  return html.replace(/<!--[\s\S]*?-->/g, " ").replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, " ");
-}
+/**
+ * 見本（`gallery.html`）で使ってよい書き方は、この検査が決める（許可リスト）。**外れたら `[見本]` の違反**にする。
+ * 走査は「小さな言語」だけを相手にする。取り除くものを足していく作りにはしない（同じ型の穴が 3 回出たため）。
+ *
+ * 禁じるもの（`<textarea>` は複数行の欄（`.ui-input`）を見せるために許すが、**中身は空**に限る）:
+ * - 画面に描かれない中身を持つ要素（{@link GALLERY_FORBIDDEN_ELEMENTS}）。`<title>` は `<head>` の中の 1 つだけ許す
+ * - 同じタグの中で同じ属性を 2 回書くこと（ブラウザは先の 1 つしか取らない）
+ * - コメント（`<!-- … -->`）と `<!doctype html>` 以外の `<!` と `<?`
+ * - 属性値の中の `<`、タグを閉じていない `<`、`<` の直後が英字・`/`・`!`・`?` のどれでもない書き方
+ */
+export const GALLERY_FORBIDDEN_ELEMENTS = new Set(["template", "noscript", "xmp", "iframe", "script", "style", "object", "embed", "title"]);
+/** 中身を読み飛ばす禁止の要素（中身は別の言語で、タグとして数えない）。 */
+const GALLERY_RAW_ELEMENTS = new Set(["template", "textarea", "noscript", "xmp", "iframe", "script", "style", "title"]);
 
 /**
- * 見本の実際のタグ（`<` に英字が続く開始タグ）の属性を、名前と値の組で返す。文章の中の `class="…"`
- * （`&lt;div class="x"&gt;` や `title='class="x"'` の値）は、タグの属性ではないので返らない。
+ * 見本を 1 回だけ走査して、属性（名前と値）・`<code>` の本文（タグの外の文字列だけ）・違反を返す。
+ * 禁止の要素の中身は数えない（違反として落ちるが、数えもしない）。
  */
-export function galleryAttributes(html) {
-  const out = [];
-  for (const tag of stripHtmlNonMarkup(html).matchAll(/<[a-zA-Z][^\s/>]*((?:"[^"]*"|'[^']*'|[^'">])*)>/g)) {
-    for (const m of tag[1].matchAll(/([^\s"'=<>/]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+)))?/g)) {
-      out.push({ name: m[1].toLowerCase(), value: m[2] ?? m[3] ?? m[4] ?? "" });
+export function scanGallery(html) {
+  const attrs = [];
+  const codeTexts = [];
+  const violations = [];
+  let codeDepth = 0;
+  let inHead = false;
+  let titles = 0;
+  let text = "";
+  const flushText = () => {
+    if (codeDepth > 0 && text !== "") codeTexts.push(text);
+    text = "";
+  };
+  let i = 0;
+  const n = html.length;
+  while (i < n) {
+    const lt = html.indexOf("<", i);
+    if (lt === -1) {
+      text += html.slice(i);
+      break;
+    }
+    text += html.slice(i, lt);
+    flushText();
+    const rest = html.slice(lt);
+    if (rest.startsWith("<!--")) {
+      const end = html.indexOf("-->", lt + 4);
+      if (end === -1) {
+        violations.push("閉じていないコメントです（`<!--` に `-->` が無い）");
+        break;
+      }
+      i = end + 3;
+      continue;
+    }
+    if (/^<!doctype html>/i.test(rest)) {
+      i = lt + "<!doctype html>".length;
+      continue;
+    }
+    if (/^<[!?]/.test(rest)) {
+      violations.push(`コメントと <!doctype html> 以外の <! と <? は使えません: ${rest.slice(0, 20).replace(/\s+/g, " ")}`);
+      const end = html.indexOf(">", lt);
+      i = end === -1 ? n : end + 1;
+      continue;
+    }
+    const close = /^<\/([a-zA-Z][^\s/>]*)\s*>/.exec(rest);
+    if (close) {
+      const name = close[1].toLowerCase();
+      if (name === "code" && codeDepth > 0) codeDepth--;
+      if (name === "head") inHead = false;
+      i = lt + close[0].length;
+      continue;
+    }
+    const open = /^<([a-zA-Z][^\s/>]*)/.exec(rest);
+    if (!open) {
+      violations.push(`<code>&lt;</code> でない < が書かれています（直後が英字・/・!・? のどれでもない）: ${rest.slice(0, 12).replace(/\s+/g, " ")}`);
+      i = lt + 1;
+      continue;
+    }
+    const name = open[1].toLowerCase();
+    let j = lt + open[0].length;
+    const seen = new Set();
+    const tagAttrs = [];
+    let closed = false;
+    while (j < n) {
+      while (j < n && /[\s/]/.test(html[j])) j++;
+      if (html[j] === ">") {
+        closed = true;
+        j++;
+        break;
+      }
+      const nm = /^[^\s"'=<>/]+/.exec(html.slice(j));
+      if (!nm) {
+        violations.push(`<${name}> の属性の書き方が不正です: ${html.slice(j, j + 12).replace(/\s+/g, " ")}`);
+        j++;
+        continue;
+      }
+      j += nm[0].length;
+      const attrName = nm[0].toLowerCase();
+      let value = "";
+      let k = j;
+      while (k < n && /\s/.test(html[k])) k++;
+      if (html[k] === "=") {
+        k++;
+        while (k < n && /\s/.test(html[k])) k++;
+        const q = html[k];
+        if (q === '"' || q === "'") {
+          const end = html.indexOf(q, k + 1);
+          if (end === -1) {
+            violations.push(`<${name}> の属性値の引用符が閉じていません`);
+            j = n;
+            break;
+          }
+          value = html.slice(k + 1, end);
+          j = end + 1;
+        } else {
+          const um = /^[^\s>]*/.exec(html.slice(k));
+          value = um[0];
+          j = k + value.length;
+        }
+        if (value.includes("<")) violations.push(`<${name} ${attrName}> の属性値に < があります`);
+      }
+      if (seen.has(attrName)) violations.push(`<${name}> で同じ属性 ${attrName} を 2 回書いています（ブラウザは先の 1 つしか取りません）`);
+      else {
+        seen.add(attrName);
+        tagAttrs.push({ name: attrName, value });
+      }
+    }
+    if (!closed) violations.push(`<${name} が閉じていません`);
+    i = j;
+    if (GALLERY_FORBIDDEN_ELEMENTS.has(name)) {
+      let ok = false;
+      if (name === "title") {
+        titles++;
+        ok = inHead && titles === 1;
+      }
+      if (!ok) violations.push(`<${name}> は見本で使えません（画面に描かれない中身を持つ。見本は小さな書き方だけにする）`);
+    } else {
+      attrs.push(...tagAttrs);
+      if (name === "head") inHead = true;
+      if (name === "code") codeDepth++;
+    }
+    if (GALLERY_RAW_ELEMENTS.has(name)) {
+      const m = new RegExp(`</${name}\\s*>`, "i").exec(html.slice(i));
+      if (!m) {
+        violations.push(`<${name}> の閉じタグがありません`);
+        break;
+      }
+      if (name === "textarea" && m.index !== 0) violations.push("<textarea> の中身は空にします（中身は画面の文字で、別の言語）");
+      i += m.index + m[0].length;
     }
   }
-  return out;
+  flushText();
+  return { attrs, codeTexts, violations };
+}
+
+/** 見本の違反（使ってよい書き方の外れ）。 */
+export function galleryViolations(html) {
+  return scanGallery(html).violations;
 }
 
 /** 見本の class 属性に現れるクラス名（属性名がちょうど `class` のものだけ。`data-class` は数えない）。 */
 export function galleryClassNames(html) {
   const out = new Set();
-  for (const a of galleryAttributes(html)) {
+  for (const a of scanGallery(html).attrs) {
     if (a.name === "class") for (const c of a.value.split(/\s+/)) if (c !== "") out.add(c);
   }
   return out;
@@ -751,9 +888,9 @@ const TOKEN_NAME = /(?<![\w-])--[a-z0-9]+(?:-[a-z0-9]+)*(?![\w-])/gi;
  * コメント・`title` 属性・説明文・部品の修飾（`ui-button--danger` の `--danger`）は数えない。
  */
 export function galleryTokenNames(html) {
-  const h = stripHtmlNonMarkup(html);
+  const { codeTexts } = scanGallery(html);
   const out = new Set();
-  for (const m of h.matchAll(/<code\b[^>]*>([^<]*)<\/code>/gi)) for (const t of m[1].matchAll(TOKEN_NAME)) out.add(t[0]);
+  for (const t of codeTexts) for (const m of t.matchAll(TOKEN_NAME)) out.add(m[0]);
   for (const v of galleryStyleValues(html)) for (const m of v.matchAll(/var\(\s*(--[a-z0-9-]+)/gi)) out.add(m[1]);
   return out;
 }
@@ -777,7 +914,7 @@ export function declaredTokens(css) {
 
 /** 見本の style 属性の値（生の色の検査に使う）。 */
 export function galleryStyleValues(html) {
-  return galleryAttributes(html).filter((a) => a.name === "style").map((a) => a.value);
+  return scanGallery(html).attrs.filter((a) => a.name === "style").map((a) => a.value);
 }
 
 /** 見本に載っていない部品のクラスとトークン、見本の生の色（#558）。 */
@@ -787,7 +924,7 @@ export function findGalleryGaps({ html, parts, tokens, exempt = GALLERY_EXEMPT }
   const placed = galleryTokenNames(html);
   const missingTokens = [...tokens].filter((t) => !placed.has(t) && !exempt.has(t)).sort();
   const rawColors = galleryStyleValues(html).flatMap((v) => findRawColors(v));
-  return { missingParts, missingTokens, rawColors };
+  return { missingParts, missingTokens, rawColors, violations: galleryViolations(html) };
 }
 
 /** 2 つ以上のアプリが使っていない部品のクラス（ADR 0022 決定 2・#280 の死んだ CSS の経緯）。 */
@@ -920,6 +1057,7 @@ function main() {
         problems.push(`[見本] ${GALLERY_CSS_FILE} が .ui- のセレクタを持っています: ${sel}    ← 枠は g- のクラスだけで書く（部品の値を見本が上書きしない）`);
       }
     }
+    for (const v of gaps.violations) problems.push(`[見本] ${GALLERY_FILE} が使ってよい書き方の外です: ${v}`);
     for (const r of gaps.rawColors) problems.push(`[見本] ${GALLERY_FILE} の style 属性に生の色があります: ${r}    ← var(--…) にする`);
   }
 
