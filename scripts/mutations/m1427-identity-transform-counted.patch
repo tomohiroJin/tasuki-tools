@@ -1,0 +1,14 @@
+diff --git a/e2e/support/block-gaps.ts b/e2e/support/block-gaps.ts
+index f88dd1f0..f7c73d81 100644
+--- a/e2e/support/block-gaps.ts
++++ b/e2e/support/block-gaps.ts
+@@ -389,7 +389,8 @@ export async function collectBlocks(page: Page, scope: string): Promise<BlockNod
+         if (cs.translate !== 'none' && cs.translate.split(' ').some((v) => parseFloat(v) !== 0)) moved = true;
+         if (cs.rotate !== 'none' && parseFloat(cs.rotate) !== 0) distorted = true;
+         if (cs.scale !== 'none' && cs.scale.split(' ').some((v) => parseFloat(v) !== 1)) distorted = true;
+-        const transformed = moved || distorted;
++        const transformed = moved || distorted || cs.transform !== 'none';
++        distorted = distorted || cs.transform !== 'none';
+         const truncates = cs.textOverflow === 'ellipsis' || (cs.getPropertyValue('-webkit-line-clamp') !== 'none' && cs.getPropertyValue('-webkit-line-clamp') !== '');
+         const ink = wantsInk(child) ? inkOf(child) : null;
+         const sn = snippet(child);
