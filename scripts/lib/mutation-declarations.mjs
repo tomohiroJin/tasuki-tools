@@ -8022,11 +8022,11 @@ export const MUTATIONS = [
   },
   {
     id: 1396,
-    label: "poker の席の並びの幅を人数までに絞る max-width を外す",
-    patch: "m1396-poker-seats-no-cap.patch",
+    label: "poker の席の並びに人数相当の max-width と中央寄せを足す",
+    patch: "m1396-poker-seats-capped-by-count.patch",
     pkg: "packages/ui",
     tests: ["tests/card-rows.test.mjs"],
-    note: RESERVED_1390_1399 + " " + "#555。人数が列の数より少ないとき席が全幅に伸びて、右の端数が空く（390px・2 人で右 1/3・D2）。",
+    note: RESERVED_1390_1399 + " " + "#555。列が中身の幅で決まる .room-main の中で、3 人以上でも席が 1 行に並び続けて、ルーム全体が横にはみ出す（390px・6 人で 302px）。",
   },
   {
     id: 1397,
@@ -8054,11 +8054,11 @@ export const MUTATIONS = [
   },
   {
     id: 1400,
-    label: "poker の席の並びへ --seat-count を渡さない（常に 1000）",
-    patch: "m1400-poker-seat-count-not-passed.patch",
+    label: "poker の席の並びへ --seat-count を渡す",
+    patch: "m1400-poker-seat-count-passed-again.patch",
     pkg: "packages/ui",
     tests: ["tests/card-rows.test.mjs"],
-    note: RESERVED_1400_1409 + " " + "#555。幅が絞られず、人数が少ないと右が空く（D2）。",
+    note: RESERVED_1400_1409 + " " + "#555。席の並びの幅を人数で絞る足場が戻り、横にはみ出す形に戻りやすくなる（契約で禁止）。",
   },
   {
     id: 1401,

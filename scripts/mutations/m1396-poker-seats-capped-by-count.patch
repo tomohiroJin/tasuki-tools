@@ -1,0 +1,13 @@
+diff --git a/apps/poker-web/src/index.css b/apps/poker-web/src/index.css
+index e18fa5b0..3c287a2c 100644
+--- a/apps/poker-web/src/index.css
++++ b/apps/poker-web/src/index.css
+@@ -211,6 +211,8 @@
+   display: grid;
+   grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
+   align-items: start;
++  max-width: calc(6 * (6.5rem + 0.45rem));
++  margin-inline: auto;
+   gap: 0.45rem;
+ }
+ 

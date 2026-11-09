@@ -1,13 +1,13 @@
 diff --git a/apps/poker-web/src/components/ParticipantList.tsx b/apps/poker-web/src/components/ParticipantList.tsx
-index 11bd8bd4..6190990e 100644
+index e4c6128c..11bd8bd4 100644
 --- a/apps/poker-web/src/components/ParticipantList.tsx
 +++ b/apps/poker-web/src/components/ParticipantList.tsx
 @@ -95,7 +95,7 @@ export function ParticipantList({ participants, you, votes, onRemove, offline =
    let seatOrder = 0;
    return (
      <>
--      <ul className="participants" style={{ '--seat-count': ordered.length } as CSSProperties}>
-+      <ul className="participants" style={{ '--seat-count': 1000 } as CSSProperties}>
+-      <ul className="participants">
++      <ul className="participants" style={{ '--seat-count': ordered.length } as CSSProperties}>
          {ordered.map((p) => {
            const vote = votes?.get(p.id);
            // 見学者は札を持たない。ただし開票後に票が残っているときは、集計に入った札を隠さない
