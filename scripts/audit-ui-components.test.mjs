@@ -14,7 +14,11 @@ import {
   checkComponentCss,
   checkScreenCss,
   classifyStyleFiles,
+  declaredTokens,
   definedPartClasses,
+  findGalleryGaps,
+  galleryClassNames,
+  galleryStyleValues,
   findDeadParts,
   findRawColors,
   legacyPageClassUses,
@@ -707,5 +711,56 @@ describe("checkComponentCss: トークンと同じ値の直書き（#372）", ()
   test("部品の @keyframes の段の中も見る", () => {
     const msgs = checkComponentCss("packages/ui/src/components/x.css", "@keyframes ui-x { to { margin: 0.5rem; } }").map((p) => p.message);
     assert.equal(msgs.filter((m) => /トークンと同じ値/.test(m)).length, 1);
+  });
+});
+
+describe("見本の網羅（#558）", () => {
+  const html = `<p class="g-x ui-button  ui-button--sm"><i style="background: var(--gold-bright)"></i><code>--gold-bright</code></p><span CLASS='ui-note'></span>`;
+
+  test("class 属性のクラス名を集める（二重引用符・単一引用符・大文字の属性名・連続する空白）", () => {
+    assert.deepEqual([...galleryClassNames(html)].sort(), ["g-x", "ui-button", "ui-button--sm", "ui-note"]);
+  });
+
+  test("本文に書いた語はクラスとして数えない", () => {
+    assert.equal(galleryClassNames(`<p>ui-panel</p>`).size, 0);
+  });
+
+  test("トークン層の宣言から名前を導く（@supports の中の再宣言も 1 件）", () => {
+    const css = `:root { --a: 1; --b: var(--a); } @supports (color: red) { :root { --a: 2; } }`;
+    assert.deepEqual([...declaredTokens(css)].sort(), ["--a", "--b"]);
+  });
+
+  test("載っていない部品（修飾を含む）とトークンを返す。名前の前方一致は載っているとみなさない", () => {
+    const gaps = findGalleryGaps({
+      html,
+      parts: new Set(["ui-button", "ui-button--sm", "ui-button--lg", "ui-panel"]),
+      tokens: new Set(["--gold-bright", "--gold", "--gold-bright-x"]),
+    });
+    assert.deepEqual(gaps.missingParts, ["ui-button--lg", "ui-panel"]);
+    assert.deepEqual(gaps.missingTokens, ["--gold", "--gold-bright-x"]);
+    assert.deepEqual(gaps.rawColors, []);
+  });
+
+  test("除外は理由つきの表で外す", () => {
+    const gaps = findGalleryGaps({ html: "", parts: new Set(["ui-x"]), tokens: new Set(["--y"]), exempt: new Map([["ui-x", "理由"], ["--y", "理由"]]) });
+    assert.deepEqual([gaps.missingParts, gaps.missingTokens], [[], []]);
+  });
+
+  test("style 属性の生の色を落とす", () => {
+    assert.deepEqual(galleryStyleValues(`<i style="color: #fff"></i>`), ["color: #fff"]);
+    assert.deepEqual(findGalleryGaps({ html: `<i style="color: #fff"></i>`, parts: new Set(), tokens: new Set() }).rawColors, ["#fff"]);
+  });
+
+  test("実物の見本は、部品層の全クラスとトークン層の全トークンを載せている", () => {
+    const read = (rel) => fs.readFileSync(path.join(REPO_ROOT, rel), "utf8");
+    const parts = new Set(
+      fs.readdirSync(path.join(REPO_ROOT, "packages/ui/src/components")).flatMap((f) => [...definedPartClasses(read(`packages/ui/src/components/${f}`))]),
+    );
+    const tokens = new Set(
+      fs.readdirSync(path.join(REPO_ROOT, "packages/ui/src/tokens")).flatMap((f) => [...declaredTokens(read(`packages/ui/src/tokens/${f}`))]),
+    );
+    assert.ok(parts.size > 0 && tokens.size > 0);
+    const gaps = findGalleryGaps({ html: read("packages/ui/gallery.html"), parts, tokens });
+    assert.deepEqual(gaps, { missingParts: [], missingTokens: [], rawColors: [] });
   });
 });

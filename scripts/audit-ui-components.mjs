@@ -20,6 +20,10 @@
  *      （`../elements/index.css` のような他層への `@import` は落とす）・`@media` の幅の境目は段だけ。**申告では外せない**
  *   3. **死んだ部品**: 部品の CSS に定義した `.ui-*` を、2 つ以上のアプリの `src` 配下の `.tsx` が使う
  *   4. **要素層の `.page`**: 各アプリの TSX の `className` に裸の `page` を書いたら落とす
+ *   5. **見本の網羅**（#558）: `packages/ui/gallery.html` の class 属性に、部品の CSS に定義した `.ui-*`
+ *      （修飾 `--x` を含む全部）が現れるか。トークン層に宣言した `--*` の名前が本文に現れるか。見本の style 属性に
+ *      生の色が無いか。名前の列挙は持たず、CSS から導く（足した部品・トークンを見本に載せ忘れたら落ちる）。
+ *      見本に載せないものの除外は {@link GALLERY_EXEMPT} に理由つきで置く（今は空）
  *
  * ## 何を見ていないか —— 「足りる」とは言わない
  *
@@ -701,6 +705,47 @@ export function withSharedEntryUsage(usageByApp, importedByApp, usageByPart) {
   return merged;
 }
 
+/** 見本の HTML（#558）。ビルド無しで開く静的な HTML。 */
+export const GALLERY_FILE = "packages/ui/gallery.html";
+
+/**
+ * 見本に載せなくてよいものの除外（名前 → 理由）。**最小に保つ**（足すときは、載せられない理由を書く）。
+ * 今は 0 件: 部品もトークンも、静的な HTML で見せられている。
+ */
+export const GALLERY_EXEMPT = new Map();
+
+/** 見本の class 属性に現れるクラス名。 */
+export function galleryClassNames(html) {
+  const out = new Set();
+  for (const m of html.matchAll(/\bclass\s*=\s*(?:"([^"]*)"|'([^']*)')/gi)) {
+    for (const c of (m[1] ?? m[2]).split(/\s+/)) if (c !== "") out.add(c);
+  }
+  return out;
+}
+
+/** トークン層の CSS が宣言したカスタムプロパティ（`--` で始まる名前）。 */
+export function declaredTokens(css) {
+  const out = new Set();
+  postcss.parse(css).walkDecls(/^--/, (d) => out.add(d.prop));
+  return out;
+}
+
+/** 見本の style 属性の値（生の色の検査に使う）。 */
+export function galleryStyleValues(html) {
+  return [...html.matchAll(/\bstyle\s*=\s*(?:"([^"]*)"|'([^']*)')/gi)].map((m) => m[1] ?? m[2]);
+}
+
+/** 見本に載っていない部品のクラスとトークン、見本の生の色（#558）。 */
+export function findGalleryGaps({ html, parts, tokens, exempt = GALLERY_EXEMPT }) {
+  const classes = galleryClassNames(html);
+  const missingParts = [...parts].filter((c) => !classes.has(c) && !exempt.has(c)).sort();
+  const missingTokens = [...tokens]
+    .filter((t) => !exempt.has(t) && !new RegExp(`${t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w-])`).test(html))
+    .sort();
+  const rawColors = galleryStyleValues(html).flatMap((v) => findRawColors(v));
+  return { missingParts, missingTokens, rawColors };
+}
+
 /** 2 つ以上のアプリが使っていない部品のクラス（ADR 0022 決定 2・#280 の死んだ CSS の経緯）。 */
 export function findDeadParts(defined, usageByApp) {
   const users = (c) => [...usageByApp.values()].filter((s) => s.has(c)).length;
@@ -808,6 +853,22 @@ function main() {
   }
   for (const c of findDeadParts(defined, withSharedEntryUsage(usageByApp, importedByApp, usageByPart))) {
     problems.push(`[死んだ部品] .${c} を使うアプリが 2 つ未満です    ← 2 画面以上に当てるか、部品層から消す（ADR 0022 決定 2）`);
+  }
+
+  // 見本の網羅（#558）。
+  const galleryAbs = path.join(REPO_ROOT, GALLERY_FILE);
+  if (!fs.existsSync(galleryAbs)) {
+    problems.push(`[見本] ${GALLERY_FILE} が見つかりません    ← 部品とトークンを並べる見本を置く（#558）`);
+  } else {
+    const tokenCss = readExisting(listRepoFiles(REPO_ROOT, [`${TOKENS_DIR}*.css`]), problems);
+    volume.push({ label: "トークンの CSS", count: tokenCss.length });
+    const tokens = new Set(tokenCss.flatMap((f) => [...declaredTokens(f.text)]));
+    volume.push({ label: "トークン", count: tokens.size });
+    volume.push({ label: "部品のクラス", count: defined.size });
+    const gaps = findGalleryGaps({ html: fs.readFileSync(galleryAbs, "utf8"), parts: defined, tokens });
+    for (const c of gaps.missingParts) problems.push(`[見本] .${c} が ${GALLERY_FILE} に載っていません    ← 見本に並べる（通常・修飾・状態）`);
+    for (const t of gaps.missingTokens) problems.push(`[見本] ${t} が ${GALLERY_FILE} に載っていません    ← 見本に並べる`);
+    for (const r of gaps.rawColors) problems.push(`[見本] ${GALLERY_FILE} の style 属性に生の色があります: ${r}    ← var(--…) にする`);
   }
 
   console.log(`[audit-ui-components] 走査対象: ${volume.map((v) => `${v.label} ${v.count} 件`).join(" / ")}`);

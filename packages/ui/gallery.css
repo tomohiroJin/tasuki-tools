@@ -1,0 +1,199 @@
+/* ============================================================
+   見本の枠（#558）。`gallery.html` だけが読む。部品もトークンも足さず、見本を並べる枠線と並びだけを持つ。
+   `g-` で始まるクラスだけを書く（部品層の `.ui-*` を定義しない）。値はトークンで書く。
+   `scripts/audit-ui-components.mjs` の「画面の CSS」の規則（生の色・トークンと同じ値の直書き・幅の境目）が、
+   この枠にも当たる。
+   ============================================================ */
+
+.g-page {
+  box-sizing: border-box;
+  max-width: 90rem;
+  margin-inline: auto;
+  padding: var(--space-5) var(--space-4) var(--space-6);
+}
+
+.g-top,
+.g-section {
+  margin-block-end: var(--space-6);
+}
+
+.g-lede {
+  color: var(--ivory-dim);
+  max-width: 48rem;
+}
+
+.g-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+}
+
+.g-note {
+  color: var(--ivory-dim);
+  font-size: var(--font-size-sm);
+}
+
+.g-h2,
+.g-h3 {
+  margin-block: var(--space-5) var(--space-2);
+  font-family: var(--font-body);
+  font-size: var(--font-size-base);
+  color: var(--gold-bright);
+}
+
+.g-h3 {
+  font-size: var(--font-size-sm);
+  color: var(--ivory-dim);
+}
+
+.g-demo {
+  box-sizing: border-box;
+  min-width: 0;
+  margin-block-end: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--ivory-inset);
+}
+
+.g-demo > .g-h2:first-child {
+  margin-block-start: 0;
+}
+
+.g-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.g-cell {
+  min-width: 10rem;
+}
+
+.g-outline {
+  padding: var(--space-3);
+  border: 1px dashed var(--line-strong);
+}
+
+.g-frame {
+  position: relative;
+  box-sizing: border-box;
+  max-height: 14rem;
+  overflow: auto;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  padding-inline: var(--space-4);
+}
+
+.g-frame--short {
+  max-height: 8rem;
+  margin-block-end: var(--space-3);
+}
+
+.g-frame--drawer {
+  height: 14rem;
+}
+
+.g-fill {
+  margin-block: var(--space-4);
+}
+
+.g-card {
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(160deg, var(--card-sheen), var(--card-shade));
+  color: var(--coal);
+}
+
+.g-reader-head {
+  margin: var(--space-4) var(--space-5) 0;
+}
+
+/* トークンの見本 */
+.g-swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: var(--space-2) var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.g-swatch {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.g-swatch code {
+  overflow-wrap: anywhere;
+  font-size: var(--font-size-xs);
+}
+
+.g-chip {
+  flex: none;
+  width: var(--space-6);
+  height: var(--space-6);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-sm);
+}
+
+.g-rulers,
+.g-type {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.g-rulers li,
+.g-type li {
+  display: grid;
+  grid-template-columns: 9rem minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.g-type li > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.g-lines {
+  max-width: 14rem;
+}
+
+.g-bar {
+  max-width: 100%;
+  display: block;
+  height: var(--space-3);
+  background: var(--gold);
+}
+
+.g-boxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5) var(--space-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.g-boxes li {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+  min-width: 0;
+  font-size: var(--font-size-xs);
+}
+
+.g-box {
+  display: block;
+  width: 5rem;
+  height: 3rem;
+  background: var(--felt-700);
+  border: 1px solid var(--line);
+}
