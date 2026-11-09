@@ -11,12 +11,13 @@
 #       git apply scripts/mutations/m517-*.patch
 # 復元: git apply -R scripts/mutations/m517-*.patch
 diff --git a/apps/checkin-web/src/components/SeatRow.tsx b/apps/checkin-web/src/components/SeatRow.tsx
+index 792fffb4..d8a66f5e 100644
 --- a/apps/checkin-web/src/components/SeatRow.tsx
 +++ b/apps/checkin-web/src/components/SeatRow.tsx
-@@ -18,9 +18,13 @@
+@@ -20,9 +20,13 @@ export function SeatRow({ seats, selfId, progress, spectatorCount }: Props) {
    return (
      <div className="seat-row">
-       <ul className="seat-list" aria-label={SEATS_LABEL}>
+       <ul className="seat-list" aria-label={SEATS_LABEL} style={{ '--seat-count': seats.length } as CSSProperties}>
 -        {seats.map((seat) => (
 +        {seats.map((seat, i) => (
            <li key={seat.id} className={`seat${seat.id === selfId ? ' seat--me' : ''}`}>
@@ -26,9 +27,9 @@ diff --git a/apps/checkin-web/src/components/SeatRow.tsx b/apps/checkin-web/src/
 +              style={{ '--d': `${i * 90}ms` } as React.CSSProperties}
 +              aria-hidden="true"
 +            />
-             <span className="seat-name" title={seat.name}>
-               {seat.name}
-             </span>
+             <ClampedName className="seat-name" label={seat.name} />
+             {/* 印は名前の外に置く（名前が 2 行で省略されても「（あなた）」が切れない） */}
+             {seat.id === selfId && <span className="seat-you">{YOU_MARK}</span>}
 diff --git a/apps/checkin-web/src/screens/CheckinRoom.tsx b/apps/checkin-web/src/screens/CheckinRoom.tsx
 --- a/apps/checkin-web/src/screens/CheckinRoom.tsx
 +++ b/apps/checkin-web/src/screens/CheckinRoom.tsx
