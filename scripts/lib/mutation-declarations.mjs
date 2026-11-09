@@ -8202,4 +8202,12 @@ export const MUTATIONS = [
     tests: ["audit-ui-components.test.mjs"],
     note: RESERVED_1430_1439 + " " + "#558 のレビュー。終了タグの省略で、描かれる要素を描かれないと数える（偽の赤・偽の緑）。",
   },
+  {
+    id: 1434,
+    label: "見本の走査が、svg の自己閉じ要素（<path />）も開いた要素として積む",
+    patch: "m1434-gallery-svg-self-closed-pushed.patch",
+    pkg: "scripts",
+    tests: ["audit-ui-components.test.mjs"],
+    note: RESERVED_1430_1439 + " " + "#558 のレビュー。svg のアイコンを持つ部品の見本が、閉じタグの食い違いの違反で落ちる。",
+  },
 ];
