@@ -899,7 +899,7 @@ function main() {
     const gaps = findGalleryGaps({ html: fs.readFileSync(galleryAbs, "utf8"), parts: defined, tokens });
     for (const c of gaps.missingParts) problems.push(`[見本] .${c} が ${GALLERY_FILE} に載っていません    ← 見本に並べる（通常・修飾・状態）`);
     for (const t of gaps.missingTokens) problems.push(`[見本] ${t} が ${GALLERY_FILE} に載っていません    ← 見本に並べる`);
-    const galleryCssAbs = path.join(REPO_ROOT, GALLERY_CSS_FILE);
+    const galleryCssAbs = process.argv[3] ? path.resolve(process.argv[3]) : path.join(REPO_ROOT, GALLERY_CSS_FILE);
     if (!fs.existsSync(galleryCssAbs)) problems.push(`[見本] ${GALLERY_CSS_FILE} が見つかりません`);
     else {
       for (const sel of galleryCssUiSelectors(fs.readFileSync(galleryCssAbs, "utf8"))) {

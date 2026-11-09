@@ -751,6 +751,9 @@ describe("見本の網羅（#558）", () => {
     assert.match(r.stderr, /\[見本\] --felt-950 が/);
     fs.writeFileSync(file, `<p class="ui-button"></p><i style="color: #fff"></i>`);
     assert.match(spawnSync(process.execPath, [path.join(REPO_ROOT, "scripts/audit-ui-components.mjs"), file], { encoding: "utf8" }).stderr, /生の色/);
+    const css = path.join(dir, "gallery.css");
+    fs.writeFileSync(css, `.g-a .ui-page { padding: 0 }`);
+    assert.match(spawnSync(process.execPath, [path.join(REPO_ROOT, "scripts/audit-ui-components.mjs"), file, css], { encoding: "utf8" }).stderr, /\.ui- のセレクタ/);
     fs.rmSync(dir, { recursive: true });
   });
 
