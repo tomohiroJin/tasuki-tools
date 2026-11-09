@@ -67,7 +67,7 @@ test.describe('timer の休憩は全員の画面で時計を止め、元の残�
     // 両画面の確認に掛かった時間を、休憩中に消費した時間として数えない（#574）。
     await startBreak.evaluate((button) => {
       const readings: BreakReadings = { before: null, after: null };
-      (window as ObservedWindow).__breakReadings = readings;
+      (window as unknown as ObservedWindow).__breakReadings = readings;
       button.addEventListener('click', () => {
         readings.before = document.querySelector('[role="timer"]')?.getAttribute('aria-label') ?? null;
         let hidden = false;
@@ -102,7 +102,7 @@ test.describe('timer の休憩は全員の画面で時計を止め、元の残�
       await expect(target.getByRole('timer'), `${label}の画面`).toBeVisible();
     }
     await page.waitForTimeout(1200);
-    const { before, after } = await page.evaluate(() => (window as ObservedWindow).__breakReadings);
+    const { before, after } = await page.evaluate(() => (window as unknown as ObservedWindow).__breakReadings);
     // 元の下限は変えない。クリック時と再開の最初の描画の秒の境目は 1 秒まで。
     // 止まっていなければ 3 秒以上減るので、この判定は赤になる
     expect(secondsOf(after) - secondsOf(before)).toBeGreaterThanOrEqual(-1);
