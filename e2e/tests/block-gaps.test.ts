@@ -8,7 +8,11 @@
  *     その隣の子まで測らなくならない（規則を広げすぎると、検査が黙って何も測らなくなる）
  */
 import { describe, expect, it } from 'vitest';
-import { findBlockProblems, MIN_BLOCK_GAP, MIN_CAPTION_GAP, type BlockNode } from '../support/block-gaps';
+import { findBlockProblems, type BlockNode } from '../support/block-gaps';
+
+/** ADR 0035 決定 2 の値（`--space-2` ＝ 0.5rem ＝ 8px・`--space-1` ＝ 4px）。**定数を import せず値を直書きする**（下限の定数を緩める変異に、テストが一緒に動いて緑になるのを防ぐ） */
+const SPACE_2 = 8;
+const SPACE_1 = 4;
 
 let nextId = 0;
 
@@ -39,12 +43,12 @@ describe('隣り合うブロックの重なりと間', () => {
   });
 
   it('Given 縦に積んだ 2 つの箱の間がちょうど下限 / When 判定する / Then 出ない', () => {
-    expect(findBlockProblems([box(0, 0, 0, 300, 40), box(0, 0, 40 + MIN_BLOCK_GAP, 300, 40)])).toEqual([]);
+    expect(findBlockProblems([box(0, 0, 0, 300, 40), box(0, 0, 40 + SPACE_2, 300, 40)])).toEqual([]);
   });
 
   it('Given 2 つの箱の間が下限より 1px 短い / When 判定する / Then 出る（境の 1 つずれ）', () => {
     // 下限の許容は 0.5px（丸め）なので、1px 短ければ出る
-    const problems = findBlockProblems([box(0, 0, 0, 300, 40), box(0, 0, 40 + MIN_BLOCK_GAP - 1, 300, 40)]);
+    const problems = findBlockProblems([box(0, 0, 0, 300, 40), box(0, 0, 40 + SPACE_2 - 1, 300, 40)]);
     expect(problems.map((p) => p.kind)).toEqual(['gap']);
   });
 
@@ -136,14 +140,14 @@ describe('隣り合うブロックの重なりと間', () => {
     it('Given 段落（p・2 行以上）どうしの間が 3.2px / When 判定する / Then 間の不足として出る（一覧 #3 の型）', () => {
       const p = (top: number) => text(0, 0, top, 300, 40, 2, { tag: 'p' });
       expect(findBlockProblems([p(0), p(43.2)]).map((x) => x.kind)).toEqual(['gap']);
-      expect(findBlockProblems([p(0), p(40 + MIN_BLOCK_GAP)])).toEqual([]);
+      expect(findBlockProblems([p(0), p(40 + SPACE_2)])).toEqual([]);
     });
 
     it('Given 字と箱が詰まる / When 判定する / Then 字の端か箱の間の大きいほうが下限（4px）を下回れば出る', () => {
       // 見出し（字）の下に箱が 0px で続く
       expect(findBlockProblems([text(0, 0, 0, 100, 20, 1), box(0, 0, 20, 300, 40)]).map((x) => x.kind)).toEqual(['gap']);
       // 下限ちょうどは出ない
-      expect(findBlockProblems([text(0, 0, 0, 100, 20, 1), box(0, 0, 20 + MIN_CAPTION_GAP, 300, 40)])).toEqual([]);
+      expect(findBlockProblems([text(0, 0, 0, 100, 20, 1), box(0, 0, 20 + SPACE_1, 300, 40)])).toEqual([]);
       // 箱の間は 0 でも、字の枠の余白（padding）で字の端が 6px 離れていれば出ない
       expect(findBlockProblems([text(0, 0, 0, 100, 20, 1, {}, 6), box(0, 0, 20, 300, 40)])).toEqual([]);
     });
