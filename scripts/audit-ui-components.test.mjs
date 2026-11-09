@@ -812,6 +812,7 @@ describe("見本の網羅（#558）", () => {
       `<ul><li hidden>a<li class="ui-x">b</ul>`,
       `<div><i></div>`,
       `<div></i></div>`,
+      `<div><i></div></i>`,
       `<div>`,
       `</div>`,
       `<br></br>`,
