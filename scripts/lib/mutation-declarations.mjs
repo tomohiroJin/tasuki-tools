@@ -8105,19 +8105,19 @@ export const MUTATIONS = [
   },
   {
     id: 1132,
-    label: "見本の検査が、本文に書いた語を部品のクラスとして数える（class 属性だけを見ない）",
+    label: "見本の検査が、class の区切りに ASCII 以外の空白（U+3000・NBSP）も使う（ブラウザは区切りにしない）",
     patch: "m1132-gallery-class-from-text.patch",
     pkg: "scripts",
     tests: ["audit-ui-components.test.mjs"],
-    note: RESERVED_1130_1139 + " " + "#558。説明文に部品名を書いただけで、見本に並べていない部品が載っていることになる。",
+    note: RESERVED_1130_1139 + " " + "#558 のレビュー。全角スペースでつないだ class は実物では 1 つの名前なのに、載っていることになる。",
   },
   {
     id: 1133,
-    label: "見本の HTML から部品（ui-drawer-body）の見本が消える",
+    label: "見本の検査が、描かれない状態（hidden・open の無い dialog など）の要素の class も載っているとみなす",
     patch: "m1133-gallery-drops-drawer-body.patch",
     pkg: "scripts",
     tests: ["audit-ui-components.test.mjs"],
-    note: RESERVED_1130_1139 + " " + "#558。見本に載っていない部品が出て、新しい機能が選べない。",
+    note: RESERVED_1130_1139 + " " + "#558 のレビュー。描かれない要素にだけ残った部品が、載っていることになる。",
   },
   {
     id: 1134,

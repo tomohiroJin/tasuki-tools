@@ -1,13 +1,13 @@
-diff --git a/packages/ui/gallery.html b/packages/ui/gallery.html
-index 0ee1dee3..fcab5e73 100644
---- a/packages/ui/gallery.html
-+++ b/packages/ui/gallery.html
-@@ -375,7 +375,7 @@
-       <div class="g-frame g-frame--drawer">
-         <dialog class="ui-drawer" open>
-           <div class="ui-drawer-head"><h3>お題の説明</h3><button class="ui-button ui-button--quiet ui-button--sm" type="button">閉じる</button></div>
--          <div class="ui-drawer-body">シートの本文。スクロールする。</div>
-+          <div class="x">シートの本文。スクロールする。</div>
-         </dialog>
-       </div>
-     </div>
+diff --git a/scripts/audit-ui-components.mjs b/scripts/audit-ui-components.mjs
+index 53186af6..212e8ace 100644
+--- a/scripts/audit-ui-components.mjs
++++ b/scripts/audit-ui-components.mjs
+@@ -896,7 +896,7 @@ export function galleryClassNames(html) {
+   const out = new Set();
+   for (const a of scanGallery(html).attrs) {
+     // 描かれない状態（hidden・open の無い dialog / details・display:none）の要素とその子孫は、載っているとは数えない。
+-    if (a.rendered && a.name === "class") for (const c of a.value.split(/[\t\n\f\r ]+/)) if (c !== "") out.add(c);
++    if (a.name === "class") for (const c of a.value.split(/[\t\n\f\r ]+/)) if (c !== "") out.add(c);
+   }
+   return out;
+ }

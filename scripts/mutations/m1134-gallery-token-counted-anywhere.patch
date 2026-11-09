@@ -1,13 +1,13 @@
 diff --git a/scripts/audit-ui-components.mjs b/scripts/audit-ui-components.mjs
-index 4d965894..3a9971de 100644
+index 53186af6..be85b9fd 100644
 --- a/scripts/audit-ui-components.mjs
 +++ b/scripts/audit-ui-components.mjs
-@@ -890,7 +890,7 @@ const TOKEN_NAME = /(?<![\w-])--[a-z0-9]+(?:-[a-z0-9]+)*(?![\w-])/gi;
+@@ -910,7 +910,7 @@ const TOKEN_NAME = /(?<![\w-])--[a-z0-9]+(?:-[a-z0-9]+)*(?![\w-])/gi;
  export function galleryTokenNames(html) {
    const { codeTexts } = scanGallery(html);
    const out = new Set();
 -  for (const t of codeTexts) for (const m of t.matchAll(TOKEN_NAME)) out.add(m[0]);
 +  for (const m of html.matchAll(TOKEN_NAME)) out.add(m[0]);
-   for (const v of galleryStyleValues(html)) for (const m of v.matchAll(/var\(\s*(--[a-z0-9-]+)/gi)) out.add(m[1]);
+   for (const v of scanGallery(html).attrs.filter((a) => a.rendered && a.name === "style").map((a) => a.value)) for (const m of v.matchAll(/var\(\s*(--[a-z0-9-]+)/gi)) out.add(m[1]);
    return out;
  }

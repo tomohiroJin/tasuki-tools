@@ -1,11 +1,11 @@
 diff --git a/scripts/audit-ui-components.mjs b/scripts/audit-ui-components.mjs
-index 4d965894..d5929d00 100644
+index 53186af6..f5118323 100644
 --- a/scripts/audit-ui-components.mjs
 +++ b/scripts/audit-ui-components.mjs
-@@ -726,7 +726,7 @@ export const GALLERY_EXEMPT = new Map();
-  * - コメント（`<!-- … -->`）と `<!doctype html>` 以外の `<!` と `<?`
-  * - 属性値の中の `<`、タグを閉じていない `<`、`<` の直後が英字・`/`・`!`・`?` のどれでもない書き方
+@@ -728,7 +728,7 @@ export const GALLERY_EXEMPT = new Map();
   */
+ /** 閉じタグを持たない要素（開きタグだけで、積みに載せない）。 */
+ const GALLERY_VOID_ELEMENTS = new Set(["area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr"]);
 -export const GALLERY_FORBIDDEN_ELEMENTS = new Set(["template", "noscript", "xmp", "iframe", "script", "style", "object", "embed", "title"]);
 +export const GALLERY_FORBIDDEN_ELEMENTS = new Set(["template", "noscript", "xmp", "iframe", "style", "object", "embed", "title"]);
  /** 中身を読み飛ばす禁止の要素（中身は別の言語で、タグとして数えない）。 */
