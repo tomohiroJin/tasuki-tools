@@ -134,7 +134,8 @@ test.describe('主な画面は隣り合うブロックが重ならず、縦の�
     await openTopicTool(page, 'block-topic');
     await expect(page.getByLabel('タイトル')).toBeVisible();
     await expectBlocksSeparated(page, 'topic（お題なし）');
-    const body = Array.from({ length: 8 }, (_, i) => `段落 ${String(i + 1)}。お題の説明をここに書きます。折り返しても段落の間と行間が区別できることを確かめるための文です。`).join('\n\n');
+    // 長い段落（折り返す）と 1 行の短い段落を交互に並べる。1 行の段落どうしの間も測る
+    const body = Array.from({ length: 8 }, (_, i) => (i % 2 === 0 ? `段落 ${String(i + 1)}。お題の説明をここに書きます。折り返しても段落の間と行間が区別できることを確かめるための文です。` : `短い段落 ${String(i + 1)}。`)).join('\n\n');
     await setTopic(page, 'ふりかえりのお題', body);
     await expectBlocksSeparated(page, 'topic（お題あり）');
   });
