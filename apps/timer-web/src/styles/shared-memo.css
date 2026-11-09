@@ -32,7 +32,8 @@
   flex-wrap: wrap;
   min-width: 0;
   align-items: center;
-  gap: 0 var(--space-2);
+  /* 印が題の下へ折り返したとき、題の字と詰まらないよう行の間を `--space-1` にする（`e2e/specs/block-gaps.spec.ts` が 3px の詰まりを見つけた・#557） */
+  gap: var(--space-1) var(--space-2);
 }
 
 .shared-memo-title {

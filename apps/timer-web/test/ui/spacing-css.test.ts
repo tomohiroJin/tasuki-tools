@@ -93,6 +93,8 @@ describe('余白の持ち主の約束（画面の CSS）', () => {
     expect(body).toMatch(/flex:\s*1 1 8rem;/);
     expect(body).toMatch(/flex-wrap:\s*wrap;/);
     expect(body).toMatch(/min-width:\s*0;/);
+    // 印が題の下へ折り返したとき、行の間が 0 だと題の字と詰まる（#557 の重なりと間の検査が見つけた）
+    expect(body).toMatch(/gap:\s*var\(--space-1\) var\(--space-2\);/);
   });
 
   it('Given 画面の CSS / When 並びの写しを探す / Then 部品の修飾 --beside を画面が上書きする規則を持たない', () => {

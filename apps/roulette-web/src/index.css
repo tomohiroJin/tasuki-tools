@@ -540,7 +540,8 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  column-gap: var(--space-2);
+  /* 名前と「名前を消す」の塊が入らない幅（文字 200% の 320・390）では塊が次の行へ回る。行の間を空けて、2 段が 1 つの塊に見えないようにする（#557） */
+  gap: var(--space-2);
   min-height: 44px;
   padding: 0 var(--space-2) 0 var(--space-3);
   border-radius: var(--radius-md);

@@ -82,4 +82,10 @@ describe('余白の持ち主の約束（画面の CSS）', () => {
     for (const b of listBodies) expect(b).not.toMatch(/display:|gap:/);
     expect(read('src/components/SavedScenarioList.tsx')).not.toMatch(/className="[^"]*\bbuilder-saved\b(?!-)[^"]*"/);
   });
+
+  it('Given agenda の進行中の延長の群（40rem 以上） / When 規則を読む / Then 3 つのボタンの列は中身の幅（min-content）まで縮まず、文字 200% でも「+1 分」「+3 分」「+5 分」が重ならない（#557）', () => {
+    const css = read('src/run.css');
+    const bodies = rulesOf(css, '.run-extend').filter((b) => /grid-template-columns:\s*auto /.test(b));
+    expect(foundBody(bodies, '.run-extend（auto を含む列）')).toMatch(/grid-template-columns:\s*auto repeat\(3, minmax\(min-content, 1fr\)\);/);
+  });
 });

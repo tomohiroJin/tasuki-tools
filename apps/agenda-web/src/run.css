@@ -221,7 +221,7 @@
 }
 @media (width >= 40rem) {
   .run-extend {
-    grid-template-columns: auto repeat(3, minmax(0, 1fr));
+    grid-template-columns: auto repeat(3, minmax(min-content, 1fr));
   }
   .run-extend-label {
     grid-column: auto;
