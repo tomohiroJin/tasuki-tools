@@ -263,6 +263,13 @@ describe('隣り合うブロックの重なりと間', () => {
       expect(findBlockProblems([p(0), p(40 + SPACE_2)])).toEqual([]);
     });
 
+    it('Given 2 行以上の段落（p）どうしの間が 6px / When 判定する / Then 8px 未満として出る。1 行の段落どうしの 6px は出ない（下限が違う）', () => {
+      const multi = (top: number) => text(0, 0, top, 300, 40, 2, { tag: 'p' });
+      expect(findBlockProblems([multi(0), multi(40 + 6)]).map((x) => x.kind)).toEqual(['gap']);
+      const one = (top: number) => text(0, 0, top, 300, 24, 1, { tag: 'p' });
+      expect(findBlockProblems([one(0), one(24 + 6)])).toEqual([]);
+    });
+
     it('Given 字と箱が詰まる / When 判定する / Then 字の端か箱の間の大きいほうが下限（4px）を下回れば出る', () => {
       // 見出し（字）の下に箱が 0px で続く
       expect(findBlockProblems([text(0, 0, 0, 100, 20, 1), box(0, 0, 20, 300, 40)]).map((x) => x.kind)).toEqual(['gap']);
