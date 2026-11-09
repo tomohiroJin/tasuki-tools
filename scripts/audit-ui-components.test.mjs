@@ -789,7 +789,7 @@ describe("見本の網羅（#558）", () => {
   test("描かれない状態の要素とその子孫の class・トークンは数えない（違反にはしない）", () => {
     const hiddenCases = {
       "hidden 属性": `<div hidden><i class="ui-x"></i></div>`,
-      "hidden の子孫（閉じ忘れの p と void の後ろ）": `<div hidden><p><br><img src="a"><i class="ui-x"></i></div>`,
+      "hidden の子孫（void の後ろ）": `<div hidden><p><br><img src="a"><i class="ui-x"></i></p></div>`,
       "open の無い dialog": `<dialog class="ui-x"><i class="ui-y"></i></dialog>`,
       "open の無い details の中身": `<details><summary>s</summary><i class="ui-x"></i></details>`,
       "display:none": `<div style="color: var(--a); display:none"><i class="ui-x"></i></div>`,
@@ -804,6 +804,25 @@ describe("見本の網羅（#558）", () => {
     // 閉じた後ろは描かれる（積みが戻る）
     assert.equal(galleryClassNames(`<div hidden><i></i></div><i class="ui-x"></i>`).has("ui-x"), true);
     assert.deepEqual([...galleryTokenNames(`<div hidden><code>--a</code></div><code>--b</code>`)], ["--b"]);
+  });
+
+  test("閉じタグの食い違い・終了タグの省略・閉じ忘れは違反（ブラウザの組み直しは真似しない）", () => {
+    for (const h of [
+      `<ul><li>a<ul hidden><li>b</li></li><li><i class="ui-x">x</i></li></ul>`,
+      `<ul><li hidden>a<li class="ui-x">b</ul>`,
+      `<div><i></div>`,
+      `<div></i></div>`,
+      `<div>`,
+      `</div>`,
+      `<br></br>`,
+    ]) assert.ok(galleryViolations(h).length > 0, h);
+    assert.deepEqual(galleryViolations(`<ul><li>a<ul hidden><li>b</li></ul></li><li><i class="ui-x">x</i></li></ul><br><input>`), []);
+  });
+
+  test("生の要素（textarea）は積まない: 閉じた後ろの兄弟は数える", () => {
+    const h = `<div><textarea hidden></textarea><i class="ui-x"></i></div>`;
+    assert.deepEqual(galleryViolations(h), []);
+    assert.equal(galleryClassNames(h).has("ui-x"), true);
   });
 
   test("HTML のコメントの中と data-class= のクラスは数えない", () => {

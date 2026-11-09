@@ -786,8 +786,11 @@ export function scanGallery(html) {
       const name = close[1].toLowerCase();
       if (name === "code" && codeDepth > 0) codeDepth--;
       if (name === "head") inHead = false;
-      const at = stack.map((e) => e.name).lastIndexOf(name);
-      if (at !== -1) stack.length = at;
+      // 閉じタグは、積みの一番上と合っていなければ違反（終了タグの省略も違反。ブラウザの組み直しは真似しない）。
+      if (GALLERY_VOID_ELEMENTS.has(name)) violations.push(`</${name}> は閉じタグを持たない要素です`);
+      else if (stack.length === 0 || stack[stack.length - 1].name !== name) {
+        violations.push(`</${name}> が、開いている要素（${stack.length === 0 ? "なし" : `<${stack[stack.length - 1].name}>`}）と合っていません（終了タグを省かず、入れ子を揃える）`);
+      } else stack.pop();
       i = lt + close[0].length;
       continue;
     }
@@ -868,7 +871,8 @@ export function scanGallery(html) {
         (name === "dialog" && !has("open")) ||
         /(?:^|;)[\t\n\f\r ]*display[\t\n\f\r ]*:[\t\n\f\r ]*none\b/i.test(style);
       for (const a of tagAttrs) attrs.push({ ...a, rendered: !hidden });
-      if (!GALLERY_VOID_ELEMENTS.has(name)) stack.push({ name, hidden, closedDetails: name === "details" && !has("open") });
+      // 生の要素（textarea）は、閉じタグごと読み飛ばして消費するので、積まない
+      if (!GALLERY_VOID_ELEMENTS.has(name) && !GALLERY_RAW_ELEMENTS.has(name)) stack.push({ name, hidden, closedDetails: name === "details" && !has("open") });
       if (name === "head") inHead = true;
       if (name === "code") codeDepth++;
     }
@@ -883,6 +887,7 @@ export function scanGallery(html) {
     }
   }
   flushText();
+  if (stack.length > 0) violations.push(`閉じていない要素があります: ${stack.map((e) => `<${e.name}>`).join(" ")}`);
   return { attrs, codeTexts, violations };
 }
 
