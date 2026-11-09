@@ -194,6 +194,9 @@ const RESERVED_1390_1399 =
 const RESERVED_1400_1409 =
   "**対応表より後に足した変異。** 1400〜1409 は #555 に追加で割り当てた範囲（1390〜1399 を使い切ったため。PR #575 の最後のレビューの指摘で足した）。";
 
+const RESERVED_1130_1139 =
+  "**対応表より後に足した変異。** 1130〜1139 は #558 に割り当てた範囲。";
+
 export const MUTATIONS = [
   {
     id: 1,
@@ -8083,5 +8086,37 @@ export const MUTATIONS = [
     pkg: "packages/web-kit",
     tests: ["tests/clamped-name.test.tsx"],
     note: RESERVED_1400_1409 + " " + "#555。開いたまま別の名前になる（G4）。",
+  },
+  {
+    id: 1130,
+    label: "見本の検査が、載っていない部品のクラスを落とさない",
+    patch: "m1130-gallery-parts-gap-ignored.patch",
+    pkg: "scripts",
+    tests: ["audit-ui-components.test.mjs"],
+    note: RESERVED_1130_1139 + " " + "#558。部品を足しても見本に載せ忘れたまま検査が緑になる。",
+  },
+  {
+    id: 1131,
+    label: "見本の検査が、トークン名の前方一致（--gold が --gold-bright に当たる）を載っているとみなす",
+    patch: "m1131-gallery-token-prefix-match.patch",
+    pkg: "scripts",
+    tests: ["audit-ui-components.test.mjs"],
+    note: RESERVED_1130_1139 + " " + "#558。別のトークンの名前の一部として現れるだけで、載せていないトークンが載っていることになる。",
+  },
+  {
+    id: 1132,
+    label: "見本の検査が、本文に書いた語を部品のクラスとして数える（class 属性だけを見ない）",
+    patch: "m1132-gallery-class-from-text.patch",
+    pkg: "scripts",
+    tests: ["audit-ui-components.test.mjs"],
+    note: RESERVED_1130_1139 + " " + "#558。説明文に部品名を書いただけで、見本に並べていない部品が載っていることになる。",
+  },
+  {
+    id: 1133,
+    label: "見本の HTML から部品（ui-drawer-body）の見本が消える",
+    patch: "m1133-gallery-drops-drawer-body.patch",
+    pkg: "scripts",
+    tests: ["audit-ui-components.test.mjs"],
+    note: RESERVED_1130_1139 + " " + "#558。見本に載っていない部品が出て、新しい機能が選べない。",
   },
 ];
