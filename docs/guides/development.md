@@ -943,7 +943,7 @@ node scripts/audit-domain-side-effects.mjs       # ドメインの副作用（co
 node scripts/audit-web-sync-boundary.mjs         # web 層の同期境界（画面が同期クライアントを直接 import しないか。ADR-0015 MUST 2）
 node scripts/audit-dependency-direction.mjs      # 依存の向き（パッケージ間の依存が許可表の内側か。憲法 原則 VI・ADR-0017 決定 4）
 node scripts/audit-public-surface.mjs            # 公開面（エントリが export * を使っていないか。ADR-0016 決定 2 項目 2）
-node scripts/audit-ui-components.mjs             # 部品層の写しと規則（ADR-0022 決定 6）
+node scripts/audit-ui-components.mjs             # 部品層の写しと規則・見本 packages/ui/gallery.html の網羅（ADR-0022 決定 6・#558）
 node scripts/audit-timer-classes.mjs             # timer のクラス名の書き方と定義（ADR-0023）
 node scripts/audit-supply-chain-config.mjs       # pnpm 供給網設定の退化（除外の版指定・死んだ除外行・未知のキーと値。ADR-0008 / ADR-0010）と Renovate の待機期間（ADR-0024）
 node scripts/audit-plan-gate.mjs                 # 実装計画の Constitution Check ゲート（境界日以降の plan が全原則の判定表と逸脱の結論を持つか。憲法 Governance / ADR-0003）と、設計文書の冒頭の宣言（境界日以降の spec / plan が「書き換えない節」の引用行を持つか。docs/guides/design-doc-revision.md）

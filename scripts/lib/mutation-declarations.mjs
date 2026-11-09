@@ -194,6 +194,12 @@ const RESERVED_1390_1399 =
 const RESERVED_1400_1409 =
   "**対応表より後に足した変異。** 1400〜1409 は #555 に追加で割り当てた範囲（1390〜1399 を使い切ったため。PR #575 の最後のレビューの指摘で足した）。";
 
+const RESERVED_1130_1139 =
+  "**対応表より後に足した変異。** 1130〜1139 は #558 に割り当てた範囲。";
+
+const RESERVED_1430_1439 =
+  "**対応表より後に足した変異。** 1430〜1439 は #558 に追加で割り当てた範囲（1130〜1139 を使い切ったため。PR #579 のレビューの指摘で足した）。";
+
 export const MUTATIONS = [
   {
     id: 1,
@@ -8083,5 +8089,125 @@ export const MUTATIONS = [
     pkg: "packages/web-kit",
     tests: ["tests/clamped-name.test.tsx"],
     note: RESERVED_1400_1409 + " " + "#555。開いたまま別の名前になる（G4）。",
+  },
+  {
+    id: 1130,
+    label: "見本の検査が、載っていない部品のクラスを落とさない",
+    patch: "m1130-gallery-parts-gap-ignored.patch",
+    pkg: "scripts",
+    tests: ["audit-ui-components.test.mjs"],
+    note: RESERVED_1130_1139 + " " + "#558。部品を足しても見本に載せ忘れたまま検査が緑になる。",
+  },
+  {
+    id: 1131,
+    label: "見本の検査が、トークン名の前の境界を見ない（部品の修飾 ui-button--danger の --danger を載っているとみなす）",
+    patch: "m1131-gallery-token-prefix-match.patch",
+    pkg: "scripts",
+    tests: ["audit-ui-components.test.mjs"],
+    note: RESERVED_1130_1139 + " " + "#558。部品の修飾に同じ綴りがあるだけで、載せていないトークンが載っていることになる。",
+  },
+  {
+    id: 1132,
+    label: "見本の検査が、class の区切りに ASCII 以外の空白（U+3000・NBSP）も使う（ブラウザは区切りにしない）",
+    patch: "m1132-gallery-class-from-text.patch",
+    pkg: "scripts",
+    tests: ["audit-ui-components.test.mjs"],
+    note: RESERVED_1130_1139 + " " + "#558 のレビュー。全角スペースでつないだ class は実物では 1 つの名前なのに、載っていることになる。",
+  },
+  {
+    id: 1133,
+    label: "見本の検査が、描かれない状態（hidden・open の無い dialog など）の要素の class も載っているとみなす",
+    patch: "m1133-gallery-drops-drawer-body.patch",
+    pkg: "scripts",
+    tests: ["audit-ui-components.test.mjs"],
+    note: RESERVED_1130_1139 + " " + "#558 のレビュー。描かれない要素にだけ残った部品が、載っていることになる。",
+  },
+  {
+    id: 1134,
+    label: "見本の検査が、トークン名を本文のどこに書いても載っているとみなす（<code> の本文と var() だけを数えない）",
+    patch: "m1134-gallery-token-counted-anywhere.patch",
+    pkg: "scripts",
+    tests: ["audit-ui-components.test.mjs"],
+    note: RESERVED_1130_1139 + " " + "#558 のレビュー。コメントや説明文に名前を書いただけで、並べていないトークンが載っていることになる。",
+  },
+  {
+    id: 1135,
+    label: "見本の検査の CLI が、載っていないトークンを問題に積まない",
+    patch: "m1135-gallery-cli-ignores-missing-tokens.patch",
+    pkg: "scripts",
+    tests: ["audit-ui-components.test.mjs"],
+    note: RESERVED_1130_1139 + " " + "#558 のレビュー。関数は正しくても配線が外れ、トークンの載せ忘れで CI が緑になる。",
+  },
+  {
+    id: 1136,
+    label: "見本の検査が、gallery.css の .ui- のセレクタを見ない",
+    patch: "m1136-gallery-css-ui-selector-ignored.patch",
+    pkg: "scripts",
+    tests: ["audit-ui-components.test.mjs"],
+    note: RESERVED_1130_1139 + " " + "#558 のレビュー。見本の枠が部品の値を上書きしても気づけない。",
+  },
+  {
+    id: 1137,
+    label: "見本の検査が、属性名が class で終わるもの（data-class）も class 属性として数える",
+    patch: "m1137-gallery-class-attr-name-suffix.patch",
+    pkg: "scripts",
+    tests: ["audit-ui-components.test.mjs"],
+    note: RESERVED_1130_1139 + " " + "#558 のレビュー。data-class=\"ui-x\" を書いただけで、並べていない部品が載っていることになる。",
+  },
+  {
+    id: 1138,
+    label: "見本の許可リストが script を禁じない",
+    patch: "m1138-gallery-script-body-counted.patch",
+    pkg: "scripts",
+    tests: ["audit-ui-components.test.mjs"],
+    note: RESERVED_1130_1139 + " " + "#558 のレビュー。script の中に書いた文字列で、並べていない部品が載っていることになる（許可リストの外）。",
+  },
+  {
+    id: 1139,
+    label: "見本の許可リストが、同じ属性の 2 回書きを違反にしない",
+    patch: "m1139-gallery-duplicate-attr-allowed.patch",
+    pkg: "scripts",
+    tests: ["audit-ui-components.test.mjs"],
+    note: RESERVED_1130_1139 + " " + "#558 のレビュー。class=\"x\" class=\"ui-x\" の後ろの値（ブラウザは取らない）で、並べていない部品が載っていることになる。",
+  },
+  {
+    id: 1430,
+    label: "見本の走査が、閉じタグで積みから戻らない",
+    patch: "m1430-gallery-close-tag-not-popped.patch",
+    pkg: "scripts",
+    tests: ["audit-ui-components.test.mjs"],
+    note: RESERVED_1430_1439 + " " + "#558 のレビュー。描かれない状態が、閉じた後ろの兄弟へ残る。",
+  },
+  {
+    id: 1431,
+    label: "見本の走査が、文書の終わりに閉じていない要素を違反にしない",
+    patch: "m1431-gallery-unclosed-at-end-allowed.patch",
+    pkg: "scripts",
+    tests: ["audit-ui-components.test.mjs"],
+    note: RESERVED_1430_1439 + " " + "#558 のレビュー。閉じ忘れたまま、ブラウザと違う入れ子を許す。",
+  },
+  {
+    id: 1432,
+    label: "見本の走査が、生の要素（textarea）も積みに載せる",
+    patch: "m1432-gallery-raw-element-pushed.patch",
+    pkg: "scripts",
+    tests: ["audit-ui-components.test.mjs"],
+    note: RESERVED_1430_1439 + " " + "#558 のレビュー。textarea の後ろの要素が、積みから戻らず違反か偽の状態になる。",
+  },
+  {
+    id: 1433,
+    label: "見本の走査が、閉じタグと積みの一番上の食い違いを違反にしない",
+    patch: "m1433-gallery-close-mismatch-allowed.patch",
+    pkg: "scripts",
+    tests: ["audit-ui-components.test.mjs"],
+    note: RESERVED_1430_1439 + " " + "#558 のレビュー。終了タグの省略で、描かれる要素を描かれないと数える（偽の赤・偽の緑）。",
+  },
+  {
+    id: 1434,
+    label: "見本の走査が、svg の自己閉じ要素（<path />）も開いた要素として積む",
+    patch: "m1434-gallery-svg-self-closed-pushed.patch",
+    pkg: "scripts",
+    tests: ["audit-ui-components.test.mjs"],
+    note: RESERVED_1430_1439 + " " + "#558 のレビュー。svg のアイコンを持つ部品の見本が、閉じタグの食い違いの違反で落ちる。",
   },
 ];

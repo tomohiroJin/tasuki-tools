@@ -6,6 +6,8 @@
  * 一覧の後ろ側・`@media` の中を、それぞれ 1 件ずつ固定する。
  */
 import fs from "node:fs";
+import os from "node:os";
+import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, test } from "node:test";
@@ -14,7 +16,14 @@ import {
   checkComponentCss,
   checkScreenCss,
   classifyStyleFiles,
+  declaredTokens,
   definedPartClasses,
+  findGalleryGaps,
+  galleryClassNames,
+  galleryCssUiSelectors,
+  galleryViolations,
+  galleryTokenNames,
+  galleryStyleValues,
   findDeadParts,
   findRawColors,
   legacyPageClassUses,
@@ -707,5 +716,197 @@ describe("checkComponentCss: トークンと同じ値の直書き（#372）", ()
   test("部品の @keyframes の段の中も見る", () => {
     const msgs = checkComponentCss("packages/ui/src/components/x.css", "@keyframes ui-x { to { margin: 0.5rem; } }").map((p) => p.message);
     assert.equal(msgs.filter((m) => /トークンと同じ値/.test(m)).length, 1);
+  });
+});
+
+describe("見本の網羅（#558）", () => {
+  const html = `<p class="g-x ui-button  ui-button--sm"><i style="background: var(--gold-bright)"></i><code>--gold-bright</code></p><span CLASS='ui-note'></span>`;
+
+  test("class 属性のクラス名を集める（二重引用符・単一引用符・大文字の属性名・連続する空白）", () => {
+    assert.deepEqual([...galleryClassNames(html)].sort(), ["g-x", "ui-button", "ui-button--sm", "ui-note"]);
+  });
+
+  test("タグの class 属性だけを数える（文章・title の値・script・style・data-class は数えない）", () => {
+    for (const h of [
+      `<p class="g-note">本文は <code>&lt;div class="ui-x"&gt;</code> に入れる</p>`,
+      `<i title='a class="ui-x"'></i>`,
+      `<script>const s = '<i class="ui-x"></i>'; const t = 'class="ui-x"';</script>`,
+      `<style>.a::after { content: 'class="ui-x"' }</style>`,
+      `<i data-class="ui-x"></i>`,
+    ]) assert.equal(galleryClassNames(h).has("ui-x"), false, h);
+    assert.deepEqual([...galleryClassNames(`<i CLASS=ui-x data-a='1'></i><i class='ui-y'></i>`)].sort(), ["ui-x", "ui-y"]);
+  });
+
+  test("使ってよい書き方の外は違反（許可リスト）", () => {
+    const bad = {
+      template: `<template><i class="ui-x"></i><code>--tok</code></template>`,
+      "textarea の中身": `<textarea><i class="ui-x"></i></textarea>`,
+      noscript: `<noscript><i class="ui-x"></i></noscript>`,
+      xmp: `<xmp><i class="ui-x"></i></xmp>`,
+      iframe: `<iframe srcdoc="x"></iframe>`,
+      script: `<script>1</script>`,
+      style: `<style>a{}</style>`,
+      object: `<object data="x"></object>`,
+      embed: `<embed src="x">`,
+      "head の外の title": `<body><title>x</title></body>`,
+      "title が 2 つ": `<head><title>a</title><title>b</title></head>`,
+      属性の重複: `<i class="x" class="ui-x"></i>`,
+      "属性の重複（大文字）": `<i class="x" CLASS="ui-x"></i>`,
+      "<! の壊れたコメント": `<! <i class="ui-x"></i>`,
+      "<? の宣言": `<?php echo 1 ?>`,
+      "doctype 以外の <!": `<!DOCTYPE svg><!ELEMENT a>`,
+      "属性値の <": `<i title="<code>--tok</code>"></i>`,
+      "閉じていないコメント": `<!-- <i class="ui-x"></i>`,
+      "閉じていないタグ": `<i class="ui-x"`,
+      "直後が不正な <": `a < b`,
+    };
+    for (const [label, h] of Object.entries(bad)) assert.ok(galleryViolations(h).length > 0, label);
+  });
+
+  test("許可リストの内側（head の title 1 つ・空の textarea・コメント・doctype）は違反にならない", () => {
+    assert.deepEqual(
+      galleryViolations(`<!doctype html><html><head><title>見本</title><!-- <i class="ui-x"> --></head><body><textarea class="ui-input" rows="2"></textarea><p>a &lt; b</p><code>--a</code></body></html>`),
+      [],
+    );
+  });
+
+  test("禁止の要素・値の中の <code> は数えない", () => {
+    const h = `<template><i class="ui-x"></i><code>--tok</code></template><i title="a" class="g-a" class="ui-y"></i><i title="<code>--t2</code>"></i>`;
+    assert.deepEqual([...galleryClassNames(h)], ["g-a"]);
+    assert.deepEqual([...galleryTokenNames(h)], []);
+  });
+
+  test("ASCII 以外の空白は区切りにしない（class の中の U+3000・U+00A0 は 1 つの名前で、タグの中は違反）", () => {
+    for (const sp of ["\u3000", "\u00a0"]) {
+      const h = `<i class="ui-a${sp}ui-b"></i>`;
+      assert.deepEqual([...galleryClassNames(h)], [`ui-a${sp}ui-b`]);
+      assert.ok(galleryViolations(h).length > 0, JSON.stringify(sp));
+    }
+    assert.ok(galleryViolations(`<div\u3000class="ui-a"></div>`).length > 0);
+    assert.deepEqual([...galleryClassNames(`<i class="ui-a\tui-b\nui-c"></i>`)], ["ui-a", "ui-b", "ui-c"]);
+  });
+
+  test("描かれない状態の要素とその子孫の class・トークンは数えない（違反にはしない）", () => {
+    const hiddenCases = {
+      "hidden 属性": `<div hidden><i class="ui-x"></i></div>`,
+      "hidden の子孫（void の後ろ）": `<div hidden><p><br><img src="a"><i class="ui-x"></i></p></div>`,
+      "open の無い dialog": `<dialog class="ui-x"><i class="ui-y"></i></dialog>`,
+      "open の無い details の中身": `<details><summary>s</summary><i class="ui-x"></i></details>`,
+      "display:none": `<div style="color: var(--a); display:none"><i class="ui-x"></i></div>`,
+    };
+    for (const [label, h] of Object.entries(hiddenCases)) {
+      assert.equal(galleryClassNames(h).has("ui-x"), false, label);
+      assert.deepEqual(galleryViolations(h), [], label);
+    }
+    assert.equal(galleryClassNames(`<dialog class="ui-x" open></dialog>`).has("ui-x"), true);
+    assert.equal(galleryClassNames(`<details open><i class="ui-x"></i></details>`).has("ui-x"), true);
+    assert.equal(galleryClassNames(`<details><summary class="ui-x"><b class="ui-y"></b></summary></details>`).size, 2);
+    // 閉じた後ろは描かれる（積みが戻る）
+    assert.equal(galleryClassNames(`<div hidden><i></i></div><i class="ui-x"></i>`).has("ui-x"), true);
+    assert.deepEqual([...galleryTokenNames(`<div hidden><code>--a</code></div><code>--b</code>`)], ["--b"]);
+  });
+
+  test("閉じタグの食い違い・終了タグの省略・閉じ忘れは違反（ブラウザの組み直しは真似しない）", () => {
+    for (const h of [
+      `<ul><li>a<ul hidden><li>b</li></li><li><i class="ui-x">x</i></li></ul>`,
+      `<ul><li hidden>a<li class="ui-x">b</ul>`,
+      `<div><i></div>`,
+      `<div></i></div>`,
+      `<div><i></div></i>`,
+      `<div>`,
+      `</div>`,
+      `<br></br>`,
+    ]) assert.ok(galleryViolations(h).length > 0, h);
+    assert.deepEqual(galleryViolations(`<ul><li>a<ul hidden><li>b</li></ul></li><li><i class="ui-x">x</i></li></ul><br><input>`), []);
+  });
+
+  test("svg の中の自己閉じ要素（<path />）は積まない（違反 0 件で、外側の class は数える）", () => {
+    const h = `<button class="ui-a" type="button"><svg viewBox="0 0 16 16"><path d="M0 0h16v16H0z"/><circle r="1" /></svg>x</button><svg class="g-b"/>`;
+    assert.deepEqual(galleryViolations(h), []);
+    assert.equal(galleryClassNames(h).has("ui-a"), true);
+    assert.equal(galleryClassNames(h).has("g-b"), true);
+    assert.equal(galleryClassNames(`<svg hidden><path class="ui-x"/></svg><i class="ui-y"></i>`).has("ui-x"), false);
+    assert.ok(galleryViolations(`<div/>`).length > 0, "HTML の要素の /> は閉じない");
+  });
+
+  test("生の要素（textarea）は積まない: 閉じた後ろの兄弟は数える", () => {
+    const h = `<div><textarea hidden></textarea><i class="ui-x"></i></div>`;
+    assert.deepEqual(galleryViolations(h), []);
+    assert.equal(galleryClassNames(h).has("ui-x"), true);
+  });
+
+  test("HTML のコメントの中と data-class= のクラスは数えない", () => {
+    assert.equal(galleryClassNames(`<!-- <p class="ui-panel"> --><i data-class="ui-note"></i><i xclass="ui-md"></i>`).size, 0);
+  });
+
+  test("トークンは <code> の本文と style の var(--…) だけを数える。コメント・title・説明文・部品の修飾は数えない", () => {
+    const h = `<!-- --a --><p title="--b">説明に --c と書く</p><i class="ui-button--danger"></i><code>.ui-button--danger</code><code>--d</code><i style="color: var(--e)"></i><code>--f-x</code>`;
+    assert.deepEqual([...galleryTokenNames(h)].sort(), ["--d", "--e", "--f-x"]);
+    const gaps = findGalleryGaps({ html: h, parts: new Set(), tokens: new Set(["--danger", "--a", "--b", "--c", "--d", "--f"]) });
+    assert.deepEqual(gaps.missingTokens, ["--a", "--b", "--c", "--danger", "--f"]);
+  });
+
+  test("見本の枠の CSS が .ui- のセレクタを持てば拾う", () => {
+    assert.deepEqual(galleryCssUiSelectors(`.g-a { color: red } .g-a .ui-page { padding: 0 } @media (width >= 40rem) { .ui-x { top: 0 } }`), [".g-a .ui-page", ".ui-x"]);
+    assert.deepEqual(galleryCssUiSelectors(`.g-a { margin: 0 }`), []);
+  });
+
+  test("CLI は、漏れのある見本で exit 1 と [見本] を出す（配線）", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gallery-"));
+    const file = path.join(dir, "gallery.html");
+    fs.writeFileSync(file, `<p class="ui-button"></p><code>--gold</code>`);
+    const r = spawnSync(process.execPath, [path.join(REPO_ROOT, "scripts/audit-ui-components.mjs"), file], { encoding: "utf8" });
+    assert.equal(r.status, 1);
+    assert.match(r.stderr, /\[見本\] \.ui-panel が/);
+    assert.match(r.stderr, /\[見本\] --felt-950 が/);
+    fs.writeFileSync(file, `<p class="ui-button"></p><i style="color: #fff"></i>`);
+    assert.match(spawnSync(process.execPath, [path.join(REPO_ROOT, "scripts/audit-ui-components.mjs"), file], { encoding: "utf8" }).stderr, /生の色/);
+    const css = path.join(dir, "gallery.css");
+    fs.writeFileSync(css, `.g-a .ui-page { padding: 0 }`);
+    assert.match(spawnSync(process.execPath, [path.join(REPO_ROOT, "scripts/audit-ui-components.mjs"), file, css], { encoding: "utf8" }).stderr, /\.ui- のセレクタ/);
+    fs.rmSync(dir, { recursive: true });
+  });
+
+  test("本文に書いた語はクラスとして数えない", () => {
+    assert.equal(galleryClassNames(`<p>ui-panel</p>`).size, 0);
+  });
+
+  test("トークン層の宣言から名前を導く（@supports の中の再宣言も 1 件）", () => {
+    const css = `:root { --a: 1; --b: var(--a); } @supports (color: red) { :root { --a: 2; } }`;
+    assert.deepEqual([...declaredTokens(css)].sort(), ["--a", "--b"]);
+  });
+
+  test("載っていない部品（修飾を含む）とトークンを返す。名前の前方一致は載っているとみなさない", () => {
+    const gaps = findGalleryGaps({
+      html,
+      parts: new Set(["ui-button", "ui-button--sm", "ui-button--lg", "ui-panel"]),
+      tokens: new Set(["--gold-bright", "--gold", "--gold-bright-x"]),
+    });
+    assert.deepEqual(gaps.missingParts, ["ui-button--lg", "ui-panel"]);
+    assert.deepEqual(gaps.missingTokens, ["--gold", "--gold-bright-x"]);
+    assert.deepEqual(gaps.rawColors, []);
+  });
+
+  test("除外は理由つきの表で外す", () => {
+    const gaps = findGalleryGaps({ html: "", parts: new Set(["ui-x"]), tokens: new Set(["--y"]), exempt: new Map([["ui-x", "理由"], ["--y", "理由"]]) });
+    assert.deepEqual([gaps.missingParts, gaps.missingTokens], [[], []]);
+  });
+
+  test("style 属性の生の色を落とす", () => {
+    assert.deepEqual(galleryStyleValues(`<i style="color: #fff"></i>`), ["color: #fff"]);
+    assert.deepEqual(findGalleryGaps({ html: `<i style="color: #fff"></i>`, parts: new Set(), tokens: new Set() }).rawColors, ["#fff"]);
+  });
+
+  test("実物の見本は、部品層の全クラスとトークン層の全トークンを載せている", () => {
+    const read = (rel) => fs.readFileSync(path.join(REPO_ROOT, rel), "utf8");
+    const parts = new Set(
+      fs.readdirSync(path.join(REPO_ROOT, "packages/ui/src/components")).filter((f) => f.endsWith(".css")).flatMap((f) => [...definedPartClasses(read(`packages/ui/src/components/${f}`))]),
+    );
+    const tokens = new Set(
+      fs.readdirSync(path.join(REPO_ROOT, "packages/ui/src/tokens")).filter((f) => f.endsWith(".css")).flatMap((f) => [...declaredTokens(read(`packages/ui/src/tokens/${f}`))]),
+    );
+    assert.ok(parts.size > 0 && tokens.size > 0);
+    const gaps = findGalleryGaps({ html: read("packages/ui/gallery.html"), parts, tokens });
+    assert.deepEqual(gaps, { missingParts: [], missingTokens: [], rawColors: [], violations: [] });
   });
 });
