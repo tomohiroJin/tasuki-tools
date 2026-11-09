@@ -1,0 +1,13 @@
+diff --git a/apps/checkin-web/src/table.css b/apps/checkin-web/src/table.css
+index 05c1d9ae..047cc843 100644
+--- a/apps/checkin-web/src/table.css
++++ b/apps/checkin-web/src/table.css
+@@ -462,7 +462,7 @@
+   --hand-card-min: max(7rem, calc(var(--font-size-sm) * 8 + 0.25rem));
+   display: grid;
+   grid-template-columns: repeat(auto-fill, minmax(var(--hand-card-min), 1fr));
+-  align-items: stretch; /* 同じ行の札のボタンは高さを揃える（添え書きの行数が違っても） */
++  align-items: start; /* 同じ行の札のボタンは高さを揃える（添え書きの行数が違っても） */
+   align-self: stretch; /* 親（`.hand-area`）は `align-items: flex-start`。幅を縮めると 1 列になる */
+   gap: var(--space-4);
+   padding-block-start: var(--space-4); /* 選んだ札が浮いても上に切れない */

@@ -1,0 +1,16 @@
+diff --git a/packages/ui/src/components/index.css b/packages/ui/src/components/index.css
+--- a/packages/ui/src/components/index.css
++++ b/packages/ui/src/components/index.css
+@@ -7,6 +7,7 @@
+    ============================================================ */
+ 
+ @import './field.css';
++@import './visually-hidden.css';
+ @import './banner.css';
+ @import './note.css';
+ @import './loading-note.css';
+@@ -27,4 +28,3 @@
+ @import './stack.css';
+ 
+ /* `.ui-visually-hidden`（`margin: -1px`）だけは、そのリセットより後に読む: `.ui-stack` の直下に置いた読み上げ専用の要素が、リセットの `margin-block: 0` に負けて形が崩れないようにする（同じ詳細度 (0,1,0) なので後勝ち）。 */
+-@import './visually-hidden.css';

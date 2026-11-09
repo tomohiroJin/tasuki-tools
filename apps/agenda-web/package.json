@@ -26,6 +26,7 @@
   },
   "devDependencies": {
     "@tasuki/dev-hub-redirect": "workspace:*",
+    "@tasuki/test-css": "workspace:*",
     "@testing-library/jest-dom": "^7.0.0",
     "@testing-library/react": "^16.1.0",
     "@types/node": "^26.1.2",

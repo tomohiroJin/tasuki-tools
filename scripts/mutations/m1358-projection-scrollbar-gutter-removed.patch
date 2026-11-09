@@ -1,0 +1,20 @@
+# 変異 1358: projection-scrollbar-gutter-removed
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/run-controls-opaque.test.ts
+#
+# #554 のレビュー。映す表示の外枠が溝を取らず、帯の出し入れでスクロールバーが出入りして盤の幅が 15px 変わる。E2E も赤。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1358-*.patch
+# 復元: git apply -R scripts/mutations/m1358-*.patch
+--- a/apps/agenda-web/src/run.css
++++ b/apps/agenda-web/src/run.css
+@@ -476,7 +476,6 @@
+   flex-direction: column;
+   overflow-y: auto;
+   /* 帯の出し入れで中身の高さが変わり、クラシックなスクロールバーが出入りして盤の幅が 15px 変わる。溝を常に取って幅を一定にする */
+-  scrollbar-gutter: stable;
+   background: radial-gradient(ellipse at 38% 45%, var(--felt-800), var(--felt-950) 70%);
+   outline: none;
+ }

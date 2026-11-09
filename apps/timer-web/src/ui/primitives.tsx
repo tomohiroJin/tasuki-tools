@@ -47,7 +47,7 @@ function CornerTicks() {
   );
 }
 
-/** 計器パネル。ヘアライン枠＋四隅ティック＋上端の僅かな立ち上がり（盤面のベゼル）。 */
+/** 計器パネル（縦の間を親が持つときは className に `meter-panel-stack` を渡す・ADR 0035 決定 1）。ヘアライン枠＋四隅ティック＋上端の僅かな立ち上がり（盤面のベゼル）。 */
 export function Card({
   children,
   className = "",
@@ -70,13 +70,16 @@ export function SectionHeader({
   icon: Icon,
   title,
   right,
+  beside = false,
 }: {
   icon: LucideIcon;
   title: string;
   right?: React.ReactNode;
+  /** 操作を行の反対の端へ離さず、見出しの隣に寄せる（名簿の見出しの行・#553）。折り返したら見出しの下に左端そろいで落ちる */
+  beside?: boolean;
 }) {
   return (
-    <div className="section-header">
+    <div className={beside ? "section-header ui-section-head ui-section-head--beside" : "section-header ui-section-head"}>
       <div className="section-header-lead">
         <Icon className="section-header-icon" />
         <h2 className="section-header-title">{title}</h2>

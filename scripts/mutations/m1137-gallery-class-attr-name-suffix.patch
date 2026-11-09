@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-ui-components.mjs b/scripts/audit-ui-components.mjs
+index 53186af6..f8257f8e 100644
+--- a/scripts/audit-ui-components.mjs
++++ b/scripts/audit-ui-components.mjs
+@@ -896,7 +896,7 @@ export function galleryClassNames(html) {
+   const out = new Set();
+   for (const a of scanGallery(html).attrs) {
+     // 描かれない状態（hidden・open の無い dialog / details・display:none）の要素とその子孫は、載っているとは数えない。
+-    if (a.rendered && a.name === "class") for (const c of a.value.split(/[\t\n\f\r ]+/)) if (c !== "") out.add(c);
++    if (a.rendered && a.name.endsWith("class")) for (const c of a.value.split(/[\t\n\f\r ]+/)) if (c !== "") out.add(c);
+   }
+   return out;
+ }

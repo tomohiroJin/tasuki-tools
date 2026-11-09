@@ -1,0 +1,12 @@
+diff --git a/apps/timer-web/src/styles/primitives.css b/apps/timer-web/src/styles/primitives.css
+index e19f8360..c26c7b86 100644
+--- a/apps/timer-web/src/styles/primitives.css
++++ b/apps/timer-web/src/styles/primitives.css
+@@ -104,6 +104,7 @@
+    下の間は、親が `gap` で持つ（`meter-panel-stack`・`panel-stack`・ADR 0035 決定 1・#556）。この見出しは縦の余白を持たない。 */
+ .section-header {
+   margin-block: 0;
++  column-gap: 3px;
+ }
+ 
+ .section-header-lead {

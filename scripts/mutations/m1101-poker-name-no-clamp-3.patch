@@ -1,0 +1,15 @@
+diff --git a/apps/poker-web/src/index.css b/apps/poker-web/src/index.css
+index c4c3943b..d3e9f14d 100644
+--- a/apps/poker-web/src/index.css
++++ b/apps/poker-web/src/index.css
+@@ -258,8 +258,8 @@
+   display: -webkit-box;
+   overflow: hidden;
+   -webkit-box-orient: vertical;
+-  -webkit-line-clamp: 3;
+-  line-clamp: 3;
++  -webkit-line-clamp: 6;
++  line-clamp: 6;
+ }
+ 
+ .participants .name-text[role='button'] {

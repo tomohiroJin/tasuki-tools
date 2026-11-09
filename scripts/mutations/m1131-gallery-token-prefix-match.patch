@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-ui-components.mjs b/scripts/audit-ui-components.mjs
+index bef63eb1..9d5ccdc8 100644
+--- a/scripts/audit-ui-components.mjs
++++ b/scripts/audit-ui-components.mjs
+@@ -730,7 +730,7 @@ export function galleryClassNames(html) {
+   return out;
+ }
+ 
+-const TOKEN_NAME = /(?<![\w-])--[a-z0-9]+(?:-[a-z0-9]+)*(?![\w-])/gi;
++const TOKEN_NAME = /--[a-z0-9]+(?:-[a-z0-9]+)*(?![\w-])/gi;
+ 
+ /**
+  * 見本に並べたトークンの名前。**数える場所は 2 つだけ**: `<code>` の本文（名前の札）と、style 属性の `var(--…)`（実際に使った所）。

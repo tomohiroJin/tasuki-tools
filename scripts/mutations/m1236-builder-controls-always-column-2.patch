@@ -1,0 +1,13 @@
+diff --git a/apps/agenda-web/src/builder.css b/apps/agenda-web/src/builder.css
+index 6a6e02ae..b2de3683 100644
+--- a/apps/agenda-web/src/builder.css
++++ b/apps/agenda-web/src/builder.css
+@@ -137,7 +137,7 @@
+ .builder-row-controls {
+   /* 狭い幅（と文字を大きくした幅）では行の全幅から始める。2 列目から始めると、320・文字 200% で「＋」や「分」が行をはみ出す
+      （#556 のレビュー。main と同じ）。広い幅では次の規則が名前の欄の左端（2 列目）へ揃える（一覧 #24） */
+-  grid-column: 1 / -1;
++  grid-column: 2;
+   display: flex;
+   flex-wrap: wrap;
+   align-items: center;

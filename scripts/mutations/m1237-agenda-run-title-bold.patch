@@ -1,0 +1,13 @@
+diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
+index c58ab3b3..369df4d5 100644
+--- a/apps/agenda-web/src/run.css
++++ b/apps/agenda-web/src/run.css
+@@ -89,7 +89,7 @@
+   font-size: var(--font-size-lg);
+   /* 太さは 500。自己ホスト書体の 700 は base 層しか無く、base 層に無い字（利用者が入れる会の名前の「議」など）が別の書体で描かれる。
+      目立たせるのは大きさと色で行う */
+-  font-weight: 500;
++  font-weight: 700;
+   line-height: 1.35;
+   overflow-wrap: anywhere;
+   text-wrap: balance;

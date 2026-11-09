@@ -1,0 +1,12 @@
+diff --git a/apps/timer-web/src/ui/components/RosterPanel.tsx b/apps/timer-web/src/ui/components/RosterPanel.tsx
+--- a/apps/timer-web/src/ui/components/RosterPanel.tsx
++++ b/apps/timer-web/src/ui/components/RosterPanel.tsx
+@@ -469,7 +469,7 @@
+         beside
+         right={
+           <div className="roster-panel-head-actions">
+-            <ShuffleButton onClick={onShuffle} rotationLength={rotation?.length ?? 0} />
++            {onShuffle && <button type="button" onClick={onShuffle} aria-label="ドライバー順をランダムに並べ替える" className="ui-button ui-button--secondary ui-button--sm">ランダム</button>}
+             <button
+               type="button"
+               onClick={() => {

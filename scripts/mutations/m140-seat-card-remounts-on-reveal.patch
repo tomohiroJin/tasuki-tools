@@ -7,12 +7,12 @@
 # #348・設計正本 D1 / D2 / D6。
 #
 diff --git a/apps/poker-web/src/components/ParticipantList.tsx b/apps/poker-web/src/components/ParticipantList.tsx
-index 4cfc9d85..62715b77 100644
+index 4ced42db..89bedb00 100644
 --- a/apps/poker-web/src/components/ParticipantList.tsx
 +++ b/apps/poker-web/src/components/ParticipantList.tsx
-@@ -95,7 +95,7 @@ export function ParticipantList({ participants, you, votes, onRemove, offline =
-           const showCard = holdsSeatCard(p, votes);
+@@ -102,7 +102,7 @@ export function ParticipantList({ participants, you, votes, onRemove, offline =
            const order = showCard ? seatOrder++ : 0;
+           const label = participantLabel(p.name, p.id, everyone);
            return (
 -            <li key={p.id} className={p.connected ? '' : 'disconnected'}>
 +            <li key={`${p.id}:${votes === null ? 'v' : 'r'}`} className={p.connected ? '' : 'disconnected'}>

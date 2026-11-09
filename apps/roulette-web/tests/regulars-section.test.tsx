@@ -65,6 +65,37 @@ describe('0 組のとき', () => {
   });
 });
 
+describe('区画の部品（#553・ADR 0035）', () => {
+  it('Given 描く / Then 区画は .ui-stack、見出しの行は .ui-section-head で、見出しと「この端末だけ」がその行の中にある', () => {
+    setup();
+    const heading = screen.getByRole('heading', { name: 'いつものメンツ' });
+    const row = heading.closest('.ui-section-head');
+    expect(row).not.toBeNull();
+    expect(row!.contains(screen.getByText('この端末だけ'))).toBe(true);
+    expect(row!.parentElement!.classList.contains('ui-stack')).toBe(true);
+  });
+});
+
+describe('知らせ（ライブリージョン）', () => {
+  it('Given 知らせが空 / When 描く / Then role=status は読み上げの木に 1 つ残り、部品 ui-visually-hidden で流れから外れる（親の gap を取らない）', () => {
+    setup();
+    expect(screen.getAllByRole('status')).toHaveLength(1);
+    expect(status()).toHaveClass('ui-visually-hidden');
+    expect(status()).not.toHaveAttribute('aria-hidden');
+    expect(status()).not.toHaveAttribute('hidden');
+  });
+
+  it('Given 知らせが入った / When 保存 / Then ui-visually-hidden が外れ、目に見える', () => {
+    setup();
+    fireEvent.click(btn('新しく作る'));
+    type('メンツの名前', '朝会');
+    type('ほかの名前（1 行に 1 人）', 'さとう');
+    fireEvent.click(btn('この端末に保存'));
+    expect(status().textContent).not.toBe('');
+    expect(status()).not.toHaveClass('ui-visually-hidden');
+  });
+});
+
 describe('作る', () => {
   it('Given 新しく作るを押す / Then 名前の欄にフォーカスが移る', () => {
     setup();

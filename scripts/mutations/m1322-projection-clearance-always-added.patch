@@ -1,0 +1,22 @@
+# 変異 1322: projection-clearance-always-added
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/use-projection-clearance.test.tsx
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外。重ならない広い画面でも余白を足して盤が動く）
+#
+# #554 のレビュー。帯が中身に重ならなくても余白を足す（重なりが 0 なら何もしない、が崩れる）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1322-*.patch
+# 復元: git apply -R scripts/mutations/m1322-*.patch
+diff --git a/apps/agenda-web/src/hooks/use-projection-clearance.ts b/apps/agenda-web/src/hooks/use-projection-clearance.ts
+--- a/apps/agenda-web/src/hooks/use-projection-clearance.ts
++++ b/apps/agenda-web/src/hooks/use-projection-clearance.ts
+@@ -62,7 +62,6 @@
+         let clearance = 0;
+         for (let i = 0; i < 4; i += 1) {
+           const need = stripHeight - spaceBelowContent();
+-          if (need <= 0.5) break;
+           clearance += Math.ceil(need);
+           root.style.setProperty('--projection-body-pin', `${pinned}px`);
+           root.style.setProperty('--projection-clearance', `${clearance}px`);

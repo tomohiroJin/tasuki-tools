@@ -367,6 +367,13 @@
   }
 }
 
+/* 「定型から選ぶ」「解錠する」などの操作は、隣の選択・入力欄（`.ui-select`・`.ui-input`・52px）と同じ高さにして、縦の中心を揃える
+   （下端を揃えるだけでは、44px のボタンの中心が 4px 上へずれる・#556 一覧 #31）。 */
+.topic-make .topic-make-row .ui-actions .ui-button,
+.topic-make .topic-unlock-row .ui-button {
+  min-height: 3.25rem; /* scale-exempt: 隣の `.ui-select` の高さ（余白 12px×2 + 行 + 枠）に合わせる */
+}
+
 /* 作るは 2 行（#316）。1 行目に 言語・難易度・定型から選ぶ、2 行目に 合言葉・解錠する。
    読む面を右に置くと主の区画は 1280px で約 573px になり、`@container make` の 44rem に届かず縦に積んでいた。
    容器クエリの境目は変えず、64rem 以上では並びをここで決める（容器クエリの規則と同じ詳細度で、後に書いてあるので勝つ）。 */

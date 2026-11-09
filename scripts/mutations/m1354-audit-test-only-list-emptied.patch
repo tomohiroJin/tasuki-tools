@@ -1,0 +1,21 @@
+# 変異 1354: audit-test-only-list-emptied
+#
+# 検出を期待するテスト:
+#   - scripts/audit-dependency-direction.test.mjs
+#
+# #554 のレビュー。試験専用の一覧が空になり、製品コードの取り込みが違反にならない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1354-*.patch
+# 復元: git apply -R scripts/mutations/m1354-*.patch
+--- a/scripts/audit-dependency-direction.mjs
++++ b/scripts/audit-dependency-direction.mjs
+@@ -280,7 +280,7 @@
+  * 製品コード（それ以外の全ファイル。設定ファイルを含む）から読むと、依存先が {@link ALLOWED} にあっても違反。
+  * 字句の解析は持たない。指定子の拾い方は他の `@tasuki/*` と同じ（{@link TASUKI_SPECIFIER}）。
+  */
+-export const TEST_ONLY = ["@tasuki/test-css"];
++export const TEST_ONLY = [];
+ 
+ /** `@tasuki/*` の import 指定子を 1 行から拾う。 */
+ const TASUKI_SPECIFIER = /["'](@tasuki\/[a-z0-9-]+)/g;

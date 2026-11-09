@@ -23,6 +23,8 @@
 
 .rotation-lineup-row {
   display: flex;
+  /* 入らない幅（文字 200% の 320）では、札の中で次の行へ回す（はみ出さない・F1）。普通の幅は 1 行 */
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.375rem;
   /* 長い名前の札は列の幅で折れる（名前の min-width: 0 と対） */
@@ -74,7 +76,8 @@
 
 .rotation-lineup-name {
   /* 区切りのない長い名前は札の中で折れる */
-  min-width: 0;
+  /* 読める最小の幅（2 字ぶん）を残す。文字 200% でも 0px にならない（#556 のレビュー F1） */
+  min-width: 2em;
   overflow-wrap: anywhere;
   font-weight: 500;
 }
@@ -88,7 +91,17 @@
 }
 
 .rotation-lineup-when {
+  /* 長い文言（「あと2人・約10分後」）は札に収まらなければ折り返す。字は縮められる（0 にはならない: 名前に最小の幅がある）。
+     文字 200% で nowrap にすると名前が 0px に潰れて札を越えた（#556 のレビュー F1） */
+  min-width: 0;
+  overflow-wrap: anywhere;
   color: var(--bone-subtle);
+}
+
+/* 短い文言（「▶ 今」「⟶ 次」）は記号と字が割れて 2 行にならない（#556 一覧 #16）。収まる幅で守る */
+.rotation-lineup-when-short,
+.rotation-lineup-when-current {
+  white-space: nowrap;
 }
 
 .rotation-lineup-when-current {

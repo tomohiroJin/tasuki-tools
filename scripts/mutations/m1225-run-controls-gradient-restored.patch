@@ -1,0 +1,23 @@
+# 変異 1225: run-controls-gradient-restored
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/run-controls-opaque.test.ts
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外）
+#
+# #554。agenda の手元の帯の上が透明に溶け、帯の「このステップに」が後ろの進行表の字と重なって読めない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1225-*.patch
+# 復元: git apply -R scripts/mutations/m1225-*.patch
+diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
+--- a/apps/agenda-web/src/run.css
++++ b/apps/agenda-web/src/run.css
+@@ -169,7 +169,7 @@
+   display: grid;
+   gap: var(--space-3);
+   padding: var(--space-4) clamp(var(--space-4), 4vw, var(--space-6)) calc(var(--space-4) + env(safe-area-inset-bottom));
+-  background: var(--dock-ground);
++  background: linear-gradient(to top, var(--felt-950) 72%, transparent);
+   border-top: 1px solid var(--dock-edge);
+ }
+ @media (width >= 64rem) {

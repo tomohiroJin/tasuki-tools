@@ -37,8 +37,8 @@ test("実リポジトリの全パッケージが、流すか理由つきで対�
   assert.deepEqual(plan.map((r) => r.dir), listed);
   assert.equal(new Set(plan.map((r) => r.dir)).size, listed.length);
   for (const run of plan) assert.ok(Boolean(run.args) !== Boolean(run.skip), run.dir);
-  // 対象外は node --test の packages/ui だけ（scripts/ はワークスペースの外）。ほかが黙って外れたら落とす
-  assert.deepEqual(plan.filter((r) => r.skip).map((r) => r.dir), ["packages/ui"]);
+  // 対象外は node --test の packages/ui と、test スクリプトを持たない試験専用の packages/test-css だけ（scripts/ はワークスペースの外）。ほかが黙って外れたら落とす
+  assert.deepEqual(plan.filter((r) => r.skip).map((r) => r.dir), ["packages/test-css", "packages/ui"]);
   assert.ok(plan.find((r) => r.dir === "apps/tasuki-sync").args.includes("--randomize"));
   assert.ok(plan.find((r) => r.dir === "apps/timer-web").args.includes("--sequence.shuffle"));
 });

@@ -1,0 +1,12 @@
+diff --git a/apps/roulette-web/src/components/RegularsSection.tsx b/apps/roulette-web/src/components/RegularsSection.tsx
+--- a/apps/roulette-web/src/components/RegularsSection.tsx
++++ b/apps/roulette-web/src/components/RegularsSection.tsx
+@@ -251,7 +251,7 @@
+       ) : null}
+       {/* 知らせは常に置く（ライブリージョンを木に残す）。空のあいだだけ部品 `ui-visually-hidden` を足し、流れから外して親（`.ui-stack`）の gap を取らせない。
+           `display: none`・`visibility: hidden`・`hidden`・`aria-hidden` にしない（読み上げの木から外れ、あとから入る知らせが届かない） */}
+-      <p className={`roulette-regulars-notice ui-note${notice === '' ? ' ui-visually-hidden' : ''}`} role="status">
++      <p className={`roulette-regulars-notice ui-note`} role="status">
+         {notice}
+       </p>
+       {mode.kind === 'list' ? (

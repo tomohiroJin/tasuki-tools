@@ -1,0 +1,20 @@
+# 変異 1359: copy-live-region-removed
+#
+# 検出を期待するテスト:
+#   - packages/invite-ui/tests/room-header.test.tsx
+#
+# #554 のレビュー。コピーの結果の読み上げの知らせ（aria-live）が消え、読み上げ利用者に結果が伝わらない。見える知らせだけが残るので、字の一致だけでは拾えない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1359-*.patch
+# 復元: git apply -R scripts/mutations/m1359-*.patch
+--- a/packages/invite-ui/src/RoomHeader.tsx
++++ b/packages/invite-ui/src/RoomHeader.tsx
+@@ -166,7 +166,6 @@
+               </button>
+               {/* 見える字（浮かぶ。流れに入れないので見出しの高さを変えない）。読み上げは下の知らせが読む。 */}
+               {copyNote !== '' && <p className="ui-note ui-room-header-copy-note" aria-hidden="true">{copyNote}</p>}
+-              <p className="ui-visually-hidden ui-room-header-copy-live" aria-live="polite">{copyNote}</p>
+             </div>
+           </div>
+         </div>

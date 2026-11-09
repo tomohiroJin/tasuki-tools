@@ -1,0 +1,22 @@
+# 変異 1296: run-scroll-padding-all-widths
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/run-controls-opaque.test.ts
+#
+# #554 のレビュー。agenda の Tab の送り先の余白が 64rem 以上（帯が流れの中の幅）にも掛かる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1296-*.patch
+# 復元: git apply -R scripts/mutations/m1296-*.patch
+diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
+--- a/apps/agenda-web/src/run.css
++++ b/apps/agenda-web/src/run.css
+@@ -16,7 +16,7 @@
+ 
+ /* 帯が `fixed` の幅（64rem 未満）は、Tab で辿った先が帯の後ろに隠れない（WCAG 2.4.11）よう、フォーカスで送るときの下の余白を帯の高さに揃える。
+    agenda には部品の帯（`.ui-actions--dock`）が無いので、要素層（reset.css）の `html:has(.ui-actions--dock)` は効かない。ここで `html:has(.run-controls)` に同じ式を置く。`:has` は宣言を置く条件だけに使う */
+-@media (width < 64rem) {
++@media (width >= 0rem) {
+   html:has(.run-controls) {
+     scroll-padding-block-end: var(--run-controls-height);
+   }

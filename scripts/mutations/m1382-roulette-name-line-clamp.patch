@@ -1,0 +1,15 @@
+diff --git a/apps/roulette-web/src/index.css b/apps/roulette-web/src/index.css
+index 86992e57..4638951b 100644
+--- a/apps/roulette-web/src/index.css
++++ b/apps/roulette-web/src/index.css
+@@ -567,6 +567,10 @@
+ .roulette-name {
+   /* 省略せず折り返して全文を見せる（`title` はタッチで読めない・#556 のレビュー F3） */
+   min-width: 0;
++  display: -webkit-box;
++  -webkit-box-orient: vertical;
++  -webkit-line-clamp: 2;
++  overflow: hidden;
+   overflow-wrap: anywhere;
+ }
+ .roulette-row--out .roulette-name {

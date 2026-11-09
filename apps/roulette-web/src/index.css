@@ -531,14 +531,17 @@
   gap: var(--space-1);
 }
 /* 1 行 = [チェック][名前][印][名前を消す]。行の地は沈んだ敷き。
-   **名前を先に読ませる**: 名前（ラベル）は中身の幅より縮まず、印と「名前を消す」の塊が入らない幅では塊ごと
-   次の行の右へ回る（2026-10-13 の 320 の撮影で、2 つの印に幅を取られ「山田」が「山…」に切れた）。
-   名前は行の幅を超えるときだけ … で切る */
+   **名前に読める幅を残す**: 名前（ラベル）は行の中で縮む列（`flex: 1 1 0`）だが、`min-width: 7rem` より細くならない。
+   印と「名前を消す」の塊（縮まない）が入る幅なら行の右端に固定の列で置き、名前が長くても段を変えない（#556 一覧 #20）。
+   塊が入らない幅（文字 200% の 320・390 など）では塊ごと次の行の右へ回る（名前が 0px に潰れて行がはみ出した）。
+   名前は省略せず折り返して全文を見せる。
+   2026-10-13 の 320 の撮影では、2 つの印に幅を取られ「山田」が「山…」に切れた */
 .roulette-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  column-gap: var(--space-2);
+  /* 名前と「名前を消す」の塊が入らない幅（文字 200% の 320・390）では塊が次の行へ回る。行の間を空けて、2 段が 1 つの塊に見えないようにする（#557） */
+  gap: var(--space-2);
   min-height: 44px;
   padding: 0 var(--space-2) 0 var(--space-3);
   border-radius: var(--radius-md);
@@ -549,9 +552,8 @@
   flex-direction: row;
   align-items: center;
   gap: var(--space-3);
-  flex: 1 0 auto;
-  min-width: 0;
-  max-width: 100%;
+  flex: 1 1 0;
+  min-width: min(7rem, 100%); /* 行より狭い幅（文字 200% の 320）では行の幅まで */
   min-height: 44px;
   color: var(--ivory);
   font-size: var(--font-size-sm);
@@ -564,10 +566,9 @@
   flex: none;
 }
 .roulette-name {
+  /* 省略せず折り返して全文を見せる（`title` はタッチで読めない・#556 のレビュー F3） */
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 .roulette-row--out .roulette-name {
   color: var(--ivory-faint);
@@ -592,11 +593,19 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  flex: none;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: 100%;
   margin-inline-start: auto;
   min-height: 44px;
 }
 .roulette-row .ui-button {
-  flex: none;
+  /* 行の幅より広いボタン（文字 200% の 320 で「名前を消す」が 193px）は、字を折り返して行に収める（F2）。普通の幅では 1 行のまま */
+  flex: 0 1 auto;
+  min-width: var(--tap-target); /* 部品の 6rem は文字 200% で 192px になり、行に入らない */
+  max-width: 100%;
+  white-space: normal;
 }
 .roulette-add {
   display: grid;
@@ -610,24 +619,21 @@
   flex: 1;
   min-width: 0;
 }
-/* いつものメンツ（#458）。端末だけの物なので、ルームの一覧と罫で分ける（.roulette-foot と同じ罫） */
+/* いつものメンツ（#458）。端末だけの物なので、ルームの一覧と罫で分ける（.roulette-foot と同じ罫）。
+   区画自身の最小幅を 0 にする。区画は親（`.roulette-people`）の grid の項目で、項目の最小幅は既定で中身の最小幅（auto）になる。
+   折り返さない長い字を持つ子（組の名前・確認の文）があると、親の列の守り（`minmax(0, 1fr)`）が無くても区画が広がらないよう、区画の側でも守る。
+   `.roulette-regulars > *` に置いても効かない（区画は縦の flex で、交差軸の子の auto の最小幅は最初から 0。実測した）。 */
 .roulette-regulars {
-  display: grid;
-  /* 列の最小幅を 0 にする。名前は nowrap なので、既定の auto だと長い組名の幅まで区画ごと広がり、320px で横に溢れる */
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-3);
+  min-inline-size: 0;
   padding-top: var(--space-4);
   border-top: 1px solid var(--line);
 }
+/* 見出し（h3）と小さな「この端末だけ」は、字の大きさが違うので基準線で揃える（部品の既定は中央揃え） */
 .roulette-regulars-head {
-  display: flex;
   align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3);
 }
-.roulette-regulars-head h3 {
-  margin: 0;
-}
+/* 見出しの行は `.ui-section-head`、区画の中の間は `.ui-stack` が持つ（ADR 0035）。
+   縦に積む flex の子は横幅が器で決まるので、名前の長さで区画ごと広がらない（grid の列の最小幅を 0 にしていた理由） */
 .roulette-regulars-where,
 .roulette-regulars-count {
   margin: 0;
@@ -766,15 +772,12 @@
 .roulette-regulars-confirm p {
   margin: 0;
 }
-/* 知らせは常に置く（読み上げの対象を最初から持つ）。空のあいだは段の間隔も詰めて、高さを 0 に見せる */
+/* 知らせは常に置く（読み上げの対象を最初から持つ）。空のあいだは JSX が部品 `ui-visually-hidden` を足して流れから外す（`RegularsSection.tsx`）。
+   子が負の余白で親の gap を打ち消さない（ADR 0035 決定 1）。 */
 .roulette-regulars-notice {
-  margin: 0;
   font-size: var(--font-size-sm);
   /* 入らなかった人の名前（#469 D5）は区切りの無い長い名前でも折る（320px で横に溢れた） */
   overflow-wrap: anywhere;
-}
-.roulette-regulars-notice:empty {
-  margin-block-start: calc(-1 * var(--space-3));
 }
 .roulette-foot {
   display: flex;
@@ -795,4 +798,9 @@
    timer の詰めた見出し（`.app-room-header-compact`）と margin が相殺して、詰めた間隔が space-5 に戻るため（#472 レビュー）。 */
 .ui-room-header {
   margin-block-end: var(--space-5);
+}
+
+/* 名前の追加の案内文。最後の 1〜2 字だけが 2 行目に落ちないよう、行の長さを均す（#556 一覧 #32） */
+.roulette-add > label {
+  text-wrap: balance;
 }

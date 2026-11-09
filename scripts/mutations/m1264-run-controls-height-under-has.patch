@@ -1,0 +1,30 @@
+# 変異 1264: run-controls-height-under-has
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/run-controls-opaque.test.ts
+#
+# #554 のレビュー。帯の高さの変数が 64rem 未満の `html:has(.run-controls)` の中へ戻り、64rem 以上では未定義になる（`.run` の下の余白が無効になる）。無条件の :root に置く約束を破る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1264-*.patch
+# 復元: git apply -R scripts/mutations/m1264-*.patch
+diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
+--- a/apps/agenda-web/src/run.css
++++ b/apps/agenda-web/src/run.css
+@@ -9,15 +9,11 @@
+    ここの値は JS が動く前の既定値で、既定の文字の大きさの実測（320〜639px で 161.39〜162.22px、640〜1023px で 133px）より大きく丸めた手書きの値。
+    `.run` の下の余白と、Tab の送り先の余白（下の `scroll-padding-block-end`）が同じ値を引く。測った値（border-box）は帯の下の余白の `env(safe-area-inset-bottom)` を含むので、
+    既定値の方にホームバーを含め、使う側では足さない（足すと二重になる） */
+-:root {
+-  /* 既定値にホームバーの高さを含める（測った値は border-box で、帯の下の余白の `env(safe-area-inset-bottom)` をすでに含むので、使う側では足さない） */
+-  --run-controls-height: calc(10.5rem + env(safe-area-inset-bottom));
+-}
+-
+ /* 帯が `fixed` の幅（64rem 未満）は、Tab で辿った先が帯の後ろに隠れない（WCAG 2.4.11）よう、フォーカスで送るときの下の余白を帯の高さに揃える。
+    agenda には部品の帯（`.ui-actions--dock`）が無いので、要素層（reset.css）の `html:has(.ui-actions--dock)` は効かない。ここで `html:has(.run-controls)` に同じ式を置く。`:has` は宣言を置く条件だけに使う */
+ @media (width < 64rem) {
+   html:has(.run-controls) {
++    --run-controls-height: calc(10.5rem + env(safe-area-inset-bottom));
+     scroll-padding-block-end: var(--run-controls-height);
+   }
+ }

@@ -1,0 +1,21 @@
+# 変異 1360: copy-note-not-aria-hidden
+#
+# 検出を期待するテスト:
+#   - packages/invite-ui/tests/room-header.test.tsx
+#
+# #554 のレビュー。見える知らせが読み上げからも隠れず、読み上げの知らせと二重に読まれる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1360-*.patch
+# 復元: git apply -R scripts/mutations/m1360-*.patch
+--- a/packages/invite-ui/src/RoomHeader.tsx
++++ b/packages/invite-ui/src/RoomHeader.tsx
+@@ -165,7 +165,7 @@
+                 {ROOM_HEADER_TEXT.copy}
+               </button>
+               {/* 見える字（浮かぶ。流れに入れないので見出しの高さを変えない）。読み上げは下の知らせが読む。 */}
+-              {copyNote !== '' && <p className="ui-note ui-room-header-copy-note" aria-hidden="true">{copyNote}</p>}
++              {copyNote !== '' && <p className="ui-note ui-room-header-copy-note">{copyNote}</p>}
+               <p className="ui-visually-hidden ui-room-header-copy-live" aria-live="polite">{copyNote}</p>
+             </div>
+           </div>

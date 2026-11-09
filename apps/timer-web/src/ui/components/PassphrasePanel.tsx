@@ -24,7 +24,7 @@ export function PassphrasePanel({ protectedNow, onSet }: PassphrasePanelProps) {
     setValue("");
   };
   return (
-    <div>
+    <div className="ui-stack panel-stack">
       <SectionHeader icon={Lock} title="パスフレーズ" />
       {protectedNow ? (
         <div className="passphrase-panel-active">

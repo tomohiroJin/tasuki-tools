@@ -1,0 +1,28 @@
+# 変異 1297: button-hidden-rule-removed
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/dock-and-narrow-header.test.mjs
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外。帯でない .ui-actions の hidden のボタンが描かれて赤）
+#
+# #554 のレビュー。.ui-button の display: inline-flex が UA の [hidden] に勝ち、hidden のボタンが描かれる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1297-*.patch
+# 復元: git apply -R scripts/mutations/m1297-*.patch
+diff --git a/packages/ui/src/components/actions.css b/packages/ui/src/components/actions.css
+--- a/packages/ui/src/components/actions.css
++++ b/packages/ui/src/components/actions.css
+@@ -55,13 +55,6 @@
+   display: none;
+ }
+ 
+-/* `.ui-button { display: inline-flex }`（button.css）が UA の `[hidden] { display: none }` に勝つので、`hidden` のボタンが描かれてしまう（部品全体の欠陥）。
+-   帯の中だけでなく、どの `.ui-button` でも `hidden` なら描かない。button.css に置かない（button.css の `display` を宣言する規則は `.ui-button` の 1 つだけ、という既存の検査を保つ）。
+-   `hidden="until-found"`（ページ内検索で現れる）は描く（`:where(:not(…))` で詳細度は (0,2,0) のまま。button.css の `.ui-button`（0,1,0）に読み込み順によらず勝つ） */
+-.ui-button[hidden]:where(:not([hidden='until-found'])) {
+-  display: none;
+-}
+-
+ @media (width < 40rem) {
+   .ui-actions--dock {
+     position: sticky;

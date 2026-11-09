@@ -1,0 +1,21 @@
+# 変異 1355: dock-hidden-rule-matches-until-found
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/dock-and-narrow-header.test.mjs
+#
+# #554 のレビュー。帯の `hidden` の規則が until-found にも当たり、ページ内検索で現れる動きを壊す。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1355-*.patch
+# 復元: git apply -R scripts/mutations/m1355-*.patch
+--- a/packages/ui/src/components/actions.css
++++ b/packages/ui/src/components/actions.css
+@@ -51,7 +51,7 @@
+    - 帯が覆う中身は、最下部までスクロールすると帯の上に出る（帯は流れの中に居るので、中身の下の余白は部品が持つ必要がない）。 */
+ /* 数えないもの（`hidden`）は描かない（幅によらない）。`.ui-button { display: inline-flex }` が UA の `[hidden] { display: none }` に勝つので、書かないと
+    「数えない」と決めた子が描かれて段が増える。`hidden="until-found"`（ページ内検索で現れる）は描く（`.ui-button` の規則と同じ）。帯の子を隠すときは `hidden` 属性か `.ui-visually-hidden` を使う（クラスや @media の `display: none` は数え方が知らない） */
+-.ui-actions--dock > [hidden]:where(:not([hidden='until-found'])) {
++.ui-actions--dock > [hidden] {
+   display: none;
+ }
+ 

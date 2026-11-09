@@ -1,0 +1,22 @@
+diff --git a/e2e/support/block-gaps.ts b/e2e/support/block-gaps.ts
+index 24559140..a58925f6 100644
+--- a/e2e/support/block-gaps.ts
++++ b/e2e/support/block-gaps.ts
+@@ -268,7 +268,7 @@ const PROSE_TAGS: ReadonlySet<string> = new Set(['p', 'h1', 'h2', 'h3', 'h4', 'h
+  */
+ function spacingOf(upper: BlockNode, lower: BlockNode, minGap: number, captionGap: number): { gap: number; floor: number } | null {
+   if (SPACING_SKIP_RULES.some((r) => r.test(upper, lower))) return null;
+-  const box = lower.visTop - upper.visBottom;
++  const box = lower.top - upper.bottom;
+   if (upper.textOnly && lower.textOnly) {
+     // 文章のブロック（p・h1〜h6・li）どうしだけ測る。名前 → 意味・値 → ラベル・盤の時間 → 差（span・div・dt・dd の字の組）は、行の高さの中に余白を持つ
+     // 詰めた組で、一覧 #3 の型（段落の間が行間と区別できない）ではない。字そのものの食い込みは重なりの判定が見る
+@@ -277,7 +277,7 @@ function spacingOf(upper: BlockNode, lower: BlockNode, minGap: number, captionGa
+   }
+   if (upper.textOnly || lower.textOnly) {
+     // 字の端から測った間と、箱の間の大きいほう。箱の余白（padding）が字を離す所と、行の高さより字の枠が広い所（箱の間のほうが広い）の両方を、詰まりとは読まない
+-    const ink = (lower.textOnly ? lower.ink.top : lower.visTop) - (upper.textOnly ? upper.ink.bottom : upper.visBottom);
++    const ink = (lower.textOnly ? lower.ink.top : lower.top) - (upper.textOnly ? upper.ink.bottom : upper.bottom);
+     return { gap: Math.max(box, ink), floor: captionGap };
+   }
+   return { gap: box, floor: upper.tag === 'li' && lower.tag === 'li' ? captionGap : minGap };

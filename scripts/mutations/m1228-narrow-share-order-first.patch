@@ -1,0 +1,22 @@
+# 変異 1228: narrow-share-order-first
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/dock-and-narrow-header.test.mjs（40rem 未満の @media に order を持たない）
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外。招待を開いた後の Tab の順が見た目と食い違って赤）
+#
+# #554 のレビュー。40rem 未満で招待の欄に order: -1 を足し、見た目では見出しの上に出るのに Tab の順は DOM のまま最後になる（WCAG 2.4.3・1.3.2）。欄はもともと DOM の最後の子なので、order: 4 は等価で、見た目の順が変わる -1 に作り直した。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1228-*.patch
+# 復元: git apply -R scripts/mutations/m1228-*.patch
+diff --git a/packages/ui/src/components/room-header.css b/packages/ui/src/components/room-header.css
+--- a/packages/ui/src/components/room-header.css
++++ b/packages/ui/src/components/room-header.css
+@@ -189,6 +189,7 @@
+   }
+ 
+   .ui-room-header:not(.ui-room-header--compact) .ui-room-header-share {
++    order: -1;
+     flex-basis: 100%;
+   }
+ 

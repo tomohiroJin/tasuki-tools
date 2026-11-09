@@ -72,9 +72,9 @@ export function SharedMemo({ note, onCommit }: SharedMemoProps) {
   );
 
   return (
-    <Card className={updated ? "meter-panel-highlight" : ""}>
+    <Card className={updated ? "ui-stack meter-panel-stack shared-memo-card meter-panel-highlight" : "ui-stack meter-panel-stack shared-memo-card"}>
       {updateAnnouncement}
-      <div className="shared-memo-header">
+      <div className="shared-memo-header ui-section-head">
         <div className="shared-memo-lead">
           <h2 className="shared-memo-title">
             <ArrowRight className="shared-memo-icon" aria-hidden="true" />

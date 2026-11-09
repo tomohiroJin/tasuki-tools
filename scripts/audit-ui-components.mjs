@@ -20,6 +20,10 @@
  *      （`../elements/index.css` のような他層への `@import` は落とす）・`@media` の幅の境目は段だけ。**申告では外せない**
  *   3. **死んだ部品**: 部品の CSS に定義した `.ui-*` を、2 つ以上のアプリの `src` 配下の `.tsx` が使う
  *   4. **要素層の `.page`**: 各アプリの TSX の `className` に裸の `page` を書いたら落とす
+ *   5. **見本の網羅**（#558）: `packages/ui/gallery.html` の class 属性に、部品の CSS に定義した `.ui-*`
+ *      （修飾 `--x` を含む全部）が現れるか。トークン層に宣言した `--*` の名前が本文に現れるか。見本の style 属性に
+ *      生の色が無いか。名前の列挙は持たず、CSS から導く（足した部品・トークンを見本に載せ忘れたら落ちる）。
+ *      見本に載せないものの除外は {@link GALLERY_EXEMPT} に理由つきで置く（今は空）
  *
  * ## 何を見ていないか —— 「足りる」とは言わない
  *
@@ -701,6 +705,257 @@ export function withSharedEntryUsage(usageByApp, importedByApp, usageByPart) {
   return merged;
 }
 
+/** 見本の HTML（#558）。ビルド無しで開く静的な HTML。 */
+export const GALLERY_FILE = "packages/ui/gallery.html";
+/** 見本の枠の CSS。 */
+export const GALLERY_CSS_FILE = "packages/ui/gallery.css";
+
+/**
+ * 見本に載せなくてよいものの除外（名前 → 理由）。**最小に保つ**（足すときは、載せられない理由を書く）。
+ * 今は 0 件: 部品もトークンも、静的な HTML で見せられている。
+ */
+export const GALLERY_EXEMPT = new Map();
+
+/**
+ * 見本（`gallery.html`）で使ってよい書き方は、この検査が決める（許可リスト）。**外れたら `[見本]` の違反**にする。
+ * 走査は「小さな言語」だけを相手にする。取り除くものを足していく作りにはしない（同じ型の穴が 3 回出たため）。
+ *
+ * 禁じるもの（`<textarea>` は複数行の欄（`.ui-input`）を見せるために許すが、**中身は空**に限る）:
+ * - 画面に描かれない中身を持つ要素（{@link GALLERY_FORBIDDEN_ELEMENTS}）。`<title>` は `<head>` の中の 1 つだけ許す
+ * - 同じタグの中で同じ属性を 2 回書くこと（ブラウザは先の 1 つしか取らない）
+ * - コメント（`<!-- … -->`）と `<!doctype html>` 以外の `<!` と `<?`
+ * - 属性値の中の `<`、タグを閉じていない `<`、`<` の直後が英字・`/`・`!`・`?` のどれでもない書き方
+ */
+/** 閉じタグを持たない要素（開きタグだけで、積みに載せない）。 */
+const GALLERY_VOID_ELEMENTS = new Set(["area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr"]);
+export const GALLERY_FORBIDDEN_ELEMENTS = new Set(["template", "noscript", "xmp", "iframe", "script", "style", "object", "embed", "title"]);
+/** 中身を読み飛ばす禁止の要素（中身は別の言語で、タグとして数えない）。 */
+const GALLERY_RAW_ELEMENTS = new Set(["template", "textarea", "noscript", "xmp", "iframe", "script", "style", "title"]);
+
+/**
+ * 見本を 1 回だけ走査して、属性（名前と値）・`<code>` の本文（タグの外の文字列だけ）・違反を返す。
+ * 禁止の要素の中身は数えない（違反として落ちるが、数えもしない）。
+ */
+export function scanGallery(html) {
+  const attrs = [];
+  const codeTexts = [];
+  const violations = [];
+  let codeDepth = 0;
+  let inHead = false;
+  let titles = 0;
+  let text = "";
+  /** 開いているタグの積み（描かれない状態かどうかを子孫へ伝える）。 */
+  const stack = [];
+  const hiddenNow = () => stack.length > 0 && stack[stack.length - 1].hidden;
+  const flushText = () => {
+    if (codeDepth > 0 && text !== "" && !hiddenNow()) codeTexts.push(text);
+    text = "";
+  };
+  let i = 0;
+  const n = html.length;
+  while (i < n) {
+    const lt = html.indexOf("<", i);
+    if (lt === -1) {
+      text += html.slice(i);
+      break;
+    }
+    text += html.slice(i, lt);
+    flushText();
+    const rest = html.slice(lt);
+    if (rest.startsWith("<!--")) {
+      const end = html.indexOf("-->", lt + 4);
+      if (end === -1) {
+        violations.push("閉じていないコメントです（`<!--` に `-->` が無い）");
+        break;
+      }
+      i = end + 3;
+      continue;
+    }
+    if (/^<!doctype html>/i.test(rest)) {
+      i = lt + "<!doctype html>".length;
+      continue;
+    }
+    if (/^<[!?]/.test(rest)) {
+      violations.push(`コメントと <!doctype html> 以外の <! と <? は使えません: ${rest.slice(0, 20).replace(/\s+/g, " ")}`);
+      const end = html.indexOf(">", lt);
+      i = end === -1 ? n : end + 1;
+      continue;
+    }
+    const close = /^<\/([a-zA-Z][^\t\n\f\r />]*)[\t\n\f\r ]*>/.exec(rest);
+    if (close) {
+      const name = close[1].toLowerCase();
+      if (name === "code" && codeDepth > 0) codeDepth--;
+      if (name === "head") inHead = false;
+      // 閉じタグは、積みの一番上と合っていなければ違反（終了タグの省略も違反。ブラウザの組み直しは真似しない）。
+      if (GALLERY_VOID_ELEMENTS.has(name)) violations.push(`</${name}> は閉じタグを持たない要素です`);
+      else if (stack.length === 0 || stack[stack.length - 1].name !== name) {
+        violations.push(`</${name}> が、開いている要素（${stack.length === 0 ? "なし" : `<${stack[stack.length - 1].name}>`}）と合っていません（終了タグを省かず、入れ子を揃える）`);
+      } else stack.pop();
+      i = lt + close[0].length;
+      continue;
+    }
+    const open = /^<([a-zA-Z][^\t\n\f\r />]*)/.exec(rest);
+    if (!open) {
+      violations.push(`<code>&lt;</code> でない < が書かれています（直後が英字・/・!・? のどれでもない）: ${rest.slice(0, 12).replace(/\s+/g, " ")}`);
+      i = lt + 1;
+      continue;
+    }
+    const name = open[1].toLowerCase();
+    let j = lt + open[0].length;
+    const seen = new Set();
+    const tagAttrs = [];
+    let closed = false;
+    let selfClosing = false;
+    while (j < n) {
+      while (j < n && /[\t\n\f\r /]/.test(html[j])) j++;
+      if (html[j] === ">") {
+        closed = true;
+        selfClosing = html[j - 1] === "/";
+        j++;
+        break;
+      }
+      const nm = /^[^\t\n\f\r "'=<>/]+/.exec(html.slice(j));
+      if (!nm) {
+        violations.push(`<${name}> の属性の書き方が不正です: ${html.slice(j, j + 12).replace(/\s+/g, " ")}`);
+        j++;
+        continue;
+      }
+      j += nm[0].length;
+      const attrName = nm[0].toLowerCase();
+      let value = "";
+      let k = j;
+      while (k < n && /[\t\n\f\r ]/.test(html[k])) k++;
+      if (html[k] === "=") {
+        k++;
+        while (k < n && /[\t\n\f\r ]/.test(html[k])) k++;
+        const q = html[k];
+        if (q === '"' || q === "'") {
+          const end = html.indexOf(q, k + 1);
+          if (end === -1) {
+            violations.push(`<${name}> の属性値の引用符が閉じていません`);
+            j = n;
+            break;
+          }
+          value = html.slice(k + 1, end);
+          j = end + 1;
+        } else {
+          const um = /^[^\t\n\f\r >]*/.exec(html.slice(k));
+          value = um[0];
+          j = k + value.length;
+        }
+        if (value.includes("<")) violations.push(`<${name} ${attrName}> の属性値に < があります`);
+      }
+      if (seen.has(attrName)) violations.push(`<${name}> で同じ属性 ${attrName} を 2 回書いています（ブラウザは先の 1 つしか取りません）`);
+      else {
+        seen.add(attrName);
+        tagAttrs.push({ name: attrName, value });
+      }
+    }
+    if (!closed) violations.push(`<${name} が閉じていません`);
+    // ブラウザが区切りとして扱うのは ASCII の空白だけ。全角スペース・NBSP などはタグの中に置かせない。
+    if (/[^\S\t\n\f\r ]/.test(html.slice(lt, j))) violations.push(`<${name}> の中に ASCII 以外の空白があります（ブラウザは区切りとして扱わない）`);
+    i = j;
+    if (GALLERY_FORBIDDEN_ELEMENTS.has(name)) {
+      let ok = false;
+      if (name === "title") {
+        titles++;
+        ok = inHead && titles === 1;
+      }
+      if (!ok) violations.push(`<${name}> は見本で使えません（画面に描かれない中身を持つ。見本は小さな書き方だけにする）`);
+    } else {
+      const parent = stack[stack.length - 1];
+      const has = (a) => tagAttrs.some((t) => t.name === a);
+      const style = tagAttrs.find((t) => t.name === "style")?.value ?? "";
+      const hidden =
+        (parent?.hidden ?? false) ||
+        (parent?.closedDetails === true && name !== "summary") ||
+        has("hidden") ||
+        (name === "dialog" && !has("open")) ||
+        /(?:^|;)[\t\n\f\r ]*display[\t\n\f\r ]*:[\t\n\f\r ]*none\b/i.test(style);
+      for (const a of tagAttrs) attrs.push({ ...a, rendered: !hidden });
+      // 生の要素（textarea）は、閉じタグごと読み飛ばして消費するので、積まない
+      // 外来要素（svg とその子孫）の自己閉じ `/>` は、HTML でも閉じたものとして扱われる（積まない）。HTML の要素の `/>` は無視される
+      const foreignSelfClosed = selfClosing && (name === "svg" || stack.some((e) => e.name === "svg"));
+      if (!foreignSelfClosed && !GALLERY_VOID_ELEMENTS.has(name) && !GALLERY_RAW_ELEMENTS.has(name)) stack.push({ name, hidden, closedDetails: name === "details" && !has("open") });
+      if (name === "head") inHead = true;
+      if (name === "code") codeDepth++;
+    }
+    if (GALLERY_RAW_ELEMENTS.has(name)) {
+      const m = new RegExp(`</${name}[\\t\\n\\f\\r ]*>`, "i").exec(html.slice(i));
+      if (!m) {
+        violations.push(`<${name}> の閉じタグがありません`);
+        break;
+      }
+      if (name === "textarea" && m.index !== 0) violations.push("<textarea> の中身は空にします（中身は画面の文字で、別の言語）");
+      i += m.index + m[0].length;
+    }
+  }
+  flushText();
+  if (stack.length > 0) violations.push(`閉じていない要素があります: ${stack.map((e) => `<${e.name}>`).join(" ")}`);
+  return { attrs, codeTexts, violations };
+}
+
+/** 見本の違反（使ってよい書き方の外れ）。 */
+export function galleryViolations(html) {
+  return scanGallery(html).violations;
+}
+
+/** 見本の class 属性に現れるクラス名（属性名がちょうど `class` のものだけ。`data-class` は数えない）。 */
+export function galleryClassNames(html) {
+  const out = new Set();
+  for (const a of scanGallery(html).attrs) {
+    // 描かれない状態（hidden・open の無い dialog / details・display:none）の要素とその子孫は、載っているとは数えない。
+    if (a.rendered && a.name === "class") for (const c of a.value.split(/[\t\n\f\r ]+/)) if (c !== "") out.add(c);
+  }
+  return out;
+}
+
+const TOKEN_NAME = /(?<![\w-])--[a-z0-9]+(?:-[a-z0-9]+)*(?![\w-])/gi;
+
+/**
+ * 見本に並べたトークンの名前。**数える場所は 2 つだけ**: `<code>` の本文（名前の札）と、style 属性の `var(--…)`（実際に使った所）。
+ * コメント・`title` 属性・説明文・部品の修飾（`ui-button--danger` の `--danger`）は数えない。
+ */
+export function galleryTokenNames(html) {
+  const { codeTexts } = scanGallery(html);
+  const out = new Set();
+  for (const t of codeTexts) for (const m of t.matchAll(TOKEN_NAME)) out.add(m[0]);
+  for (const v of scanGallery(html).attrs.filter((a) => a.rendered && a.name === "style").map((a) => a.value)) for (const m of v.matchAll(/var\(\s*(--[a-z0-9-]+)/gi)) out.add(m[1]);
+  return out;
+}
+
+/** 見本の枠の CSS（`gallery.css`）に書いた `.ui-` のクラスのセレクタ。枠は `g-` のクラスだけで書く約束。 */
+export function galleryCssUiSelectors(css) {
+  const out = [];
+  postcss.parse(css).walkRules((rule) => {
+    if (inKeyframes(rule)) return;
+    for (const sel of rule.selectors) if ([...classesOf(sel)].some((c) => c.startsWith("ui-"))) out.push(sel);
+  });
+  return out;
+}
+
+/** トークン層の CSS が宣言したカスタムプロパティ（`--` で始まる名前）。 */
+export function declaredTokens(css) {
+  const out = new Set();
+  postcss.parse(css).walkDecls(/^--/, (d) => out.add(d.prop));
+  return out;
+}
+
+/** 見本の style 属性の値（生の色の検査に使う）。 */
+export function galleryStyleValues(html) {
+  return scanGallery(html).attrs.filter((a) => a.name === "style").map((a) => a.value);
+}
+
+/** 見本に載っていない部品のクラスとトークン、見本の生の色（#558）。 */
+export function findGalleryGaps({ html, parts, tokens, exempt = GALLERY_EXEMPT }) {
+  const classes = galleryClassNames(html);
+  const missingParts = [...parts].filter((c) => !classes.has(c) && !exempt.has(c)).sort();
+  const placed = galleryTokenNames(html);
+  const missingTokens = [...tokens].filter((t) => !placed.has(t) && !exempt.has(t)).sort();
+  const rawColors = galleryStyleValues(html).flatMap((v) => findRawColors(v));
+  return { missingParts, missingTokens, rawColors, violations: galleryViolations(html) };
+}
+
 /** 2 つ以上のアプリが使っていない部品のクラス（ADR 0022 決定 2・#280 の死んだ CSS の経緯）。 */
 export function findDeadParts(defined, usageByApp) {
   const users = (c) => [...usageByApp.values()].filter((s) => s.has(c)).length;
@@ -808,6 +1063,31 @@ function main() {
   }
   for (const c of findDeadParts(defined, withSharedEntryUsage(usageByApp, importedByApp, usageByPart))) {
     problems.push(`[死んだ部品] .${c} を使うアプリが 2 つ未満です    ← 2 画面以上に当てるか、部品層から消す（ADR 0022 決定 2）`);
+  }
+
+  // 見本の網羅（#558）。
+  // 引数で見本の HTML を差し替えられる（自己テストが、漏れのある見本で CLI の配線を確かめる）。
+  const galleryAbs = process.argv[2] ? path.resolve(process.argv[2]) : path.join(REPO_ROOT, GALLERY_FILE);
+  if (!fs.existsSync(galleryAbs)) {
+    problems.push(`[見本] ${GALLERY_FILE} が見つかりません    ← 部品とトークンを並べる見本を置く（#558）`);
+  } else {
+    const tokenCss = readExisting(listRepoFiles(REPO_ROOT, [`${TOKENS_DIR}*.css`]), problems);
+    volume.push({ label: "トークンの CSS", count: tokenCss.length });
+    const tokens = new Set(tokenCss.flatMap((f) => [...declaredTokens(f.text)]));
+    volume.push({ label: "トークン", count: tokens.size });
+    volume.push({ label: "部品のクラス", count: defined.size });
+    const gaps = findGalleryGaps({ html: fs.readFileSync(galleryAbs, "utf8"), parts: defined, tokens });
+    for (const c of gaps.missingParts) problems.push(`[見本] .${c} が ${GALLERY_FILE} に載っていません    ← 見本に並べる（通常・修飾・状態）`);
+    for (const t of gaps.missingTokens) problems.push(`[見本] ${t} が ${GALLERY_FILE} に載っていません    ← 見本に並べる`);
+    const galleryCssAbs = process.argv[3] ? path.resolve(process.argv[3]) : path.join(REPO_ROOT, GALLERY_CSS_FILE);
+    if (!fs.existsSync(galleryCssAbs)) problems.push(`[見本] ${GALLERY_CSS_FILE} が見つかりません`);
+    else {
+      for (const sel of galleryCssUiSelectors(fs.readFileSync(galleryCssAbs, "utf8"))) {
+        problems.push(`[見本] ${GALLERY_CSS_FILE} が .ui- のセレクタを持っています: ${sel}    ← 枠は g- のクラスだけで書く（部品の値を見本が上書きしない）`);
+      }
+    }
+    for (const v of gaps.violations) problems.push(`[見本] ${GALLERY_FILE} が使ってよい書き方の外です: ${v}`);
+    for (const r of gaps.rawColors) problems.push(`[見本] ${GALLERY_FILE} の style 属性に生の色があります: ${r}    ← var(--…) にする`);
   }
 
   console.log(`[audit-ui-components] 走査対象: ${volume.map((v) => `${v.label} ${v.count} 件`).join(" / ")}`);

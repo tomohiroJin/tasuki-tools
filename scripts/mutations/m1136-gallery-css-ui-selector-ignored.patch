@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-ui-components.mjs b/scripts/audit-ui-components.mjs
+index 3a3e0523..9383ea4d 100644
+--- a/scripts/audit-ui-components.mjs
++++ b/scripts/audit-ui-components.mjs
+@@ -902,7 +902,7 @@ function main() {
+     const galleryCssAbs = process.argv[3] ? path.resolve(process.argv[3]) : path.join(REPO_ROOT, GALLERY_CSS_FILE);
+     if (!fs.existsSync(galleryCssAbs)) problems.push(`[見本] ${GALLERY_CSS_FILE} が見つかりません`);
+     else {
+-      for (const sel of galleryCssUiSelectors(fs.readFileSync(galleryCssAbs, "utf8"))) {
++      for (const sel of []) {
+         problems.push(`[見本] ${GALLERY_CSS_FILE} が .ui- のセレクタを持っています: ${sel}    ← 枠は g- のクラスだけで書く（部品の値を見本が上書きしない）`);
+       }
+     }

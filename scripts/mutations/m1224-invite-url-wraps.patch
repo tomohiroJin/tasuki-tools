@@ -1,0 +1,21 @@
+# 変異 1224: invite-url-wraps
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/dock-and-narrow-header.test.mjs
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外）
+#
+# #554。招待の URL が 2 行に折れ、隣のボタンと縦が揃わず、見出しが高くなる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1224-*.patch
+# 復元: git apply -R scripts/mutations/m1224-*.patch
+--- a/packages/ui/src/components/invite.css
++++ b/packages/ui/src/components/invite.css
+@@ -30,6 +30,7 @@
+   min-inline-size: 0;
+   max-inline-size: 100%;
+   word-break: break-all;
++  white-space: nowrap;
+   /* 1 回押すと URL 全体が選ばれる。クリップボードが使えない端末（非セキュアオリジン）で、手で選んでコピーする唯一の道（#76 F-1）。
+      timer の旧 InvitePanel が持っていた性質を、5 つのアプリの共通の部品へ移した（#447 段 2） */
+   user-select: all;

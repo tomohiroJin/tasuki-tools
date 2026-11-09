@@ -1,0 +1,16 @@
+diff --git a/apps/poker-web/src/index.css b/apps/poker-web/src/index.css
+--- a/apps/poker-web/src/index.css
++++ b/apps/poker-web/src/index.css
+@@ -580,6 +580,12 @@
+   border-block-start: 1px solid var(--card-inline);
+ }
+ 
++@media (min-width: 40rem) {
++  .estimate-group-head {
++    flex-wrap: nowrap;
++  }
++}
++
+ /* 見出しの行（`.ui-section-head`・部品が折り返す）: 左にアイテム名、右にポイント（一番強い）。束の中の間は `.ui-stack--tight` が持つ。
+    名前の列は `flex: 1 1 auto; min-width: 0`: 名前が 1 行に収まるときは同じ行の右にポイントが並び、収まらない長い名前のときだけ
+    ポイントが名前の下の行の右端に落ちる（左端には落とさない）。選択欄の字は切らない（選んだ選択肢が読めなくなるため） */

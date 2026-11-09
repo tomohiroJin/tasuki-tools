@@ -1,0 +1,13 @@
+diff --git a/e2e/support/block-gaps.ts b/e2e/support/block-gaps.ts
+index 24559140..a29e6bb6 100644
+--- a/e2e/support/block-gaps.ts
++++ b/e2e/support/block-gaps.ts
+@@ -272,7 +272,7 @@ function spacingOf(upper: BlockNode, lower: BlockNode, minGap: number, captionGa
+   if (upper.textOnly && lower.textOnly) {
+     // 文章のブロック（p・h1〜h6・li）どうしだけ測る。名前 → 意味・値 → ラベル・盤の時間 → 差（span・div・dt・dd の字の組）は、行の高さの中に余白を持つ
+     // 詰めた組で、一覧 #3 の型（段落の間が行間と区別できない）ではない。字そのものの食い込みは重なりの判定が見る
+-    if (!PROSE_TAGS.has(upper.tag) || !PROSE_TAGS.has(lower.tag)) return null;
++    if (!(upper.tag === 'p' && lower.tag === 'p' && upper.lines >= 2 && lower.lines >= 2)) return null;
+     return { gap: box, floor: upper.tag === 'p' && lower.tag === 'p' && upper.lines >= 2 && lower.lines >= 2 ? minGap : captionGap };
+   }
+   if (upper.textOnly || lower.textOnly) {

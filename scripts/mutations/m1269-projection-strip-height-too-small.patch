@@ -1,0 +1,23 @@
+# 変異 1269: projection-strip-height-too-small
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/run-controls-opaque.test.ts
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外。帯の実際の高さが変数を超えて赤）
+#
+# #554 のレビュー。映す表示の帯の高さの変数が実測（320px で 149px）より低く、下の余白が足りず、狭い幅で下端の中身が帯に隠れる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1269-*.patch
+# 復元: git apply -R scripts/mutations/m1269-*.patch
+diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
+--- a/apps/agenda-web/src/run.css
++++ b/apps/agenda-web/src/run.css
+@@ -578,7 +578,7 @@
+    帯の高さは `use-measured-block-size` が測って書く。ここの値は JS が動く前の既定値で、実測（既定の文字の大きさ）は 320px の 149.4px・390px の 101.6px・40rem 以上は 69px。 */
+ :root {
+   /* 既定値にホームバーの高さを含める（測った値は border-box で帯の下の余白の safe-area を含むので、使う側では足さない） */
+-  --projection-strip-height: calc(10rem + env(safe-area-inset-bottom));
++  --projection-strip-height: 4rem;
+ }
+ @media (width >= 40rem) {
+   :root {

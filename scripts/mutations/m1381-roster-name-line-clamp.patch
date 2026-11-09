@@ -1,0 +1,15 @@
+diff --git a/apps/timer-web/src/styles/roster-panel.css b/apps/timer-web/src/styles/roster-panel.css
+index fb654836..86e84f09 100644
+--- a/apps/timer-web/src/styles/roster-panel.css
++++ b/apps/timer-web/src/styles/roster-panel.css
+@@ -184,6 +184,10 @@
+    * 長い名前は省略せず折り返して全文を見せる（`title` はタッチで読めない・#556 のレビュー F3。main も全文が見えていた。一覧 #15 の「4 段」は基準の幅を一定にして直した） */
+   flex: 1 1 5rem;
+   min-width: 0;
++  display: -webkit-box;
++  -webkit-box-orient: vertical;
++  -webkit-line-clamp: 2;
++  overflow: hidden;
+   font-size: var(--font-size-base);
+   line-height: 1.5;
+   font-weight: 500;

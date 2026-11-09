@@ -4,6 +4,8 @@
  *
  * 「次へ」と延長は**押した瞬間のいまのステップの ID** を載せる（spec §4.6。古い画面の押下はサーバーが捨てる）。
  */
+import { useRef } from 'react';
+import { useMeasuredBlockSize } from '../hooks/use-measured-block-size';
 import { EXTEND_MINUTES, type AgendaView, type ExtendMinutes } from '@tasuki/agenda-core';
 import { EXTEND_LABEL, NEXT_BUTTON, PAUSE_BUTTON, RESUME_BUTTON, extendButton } from '../copy';
 
@@ -20,8 +22,11 @@ export function RunControls({ view, canOperate, onNext, onPause, onResume, onExt
   const currentId = view.currentId;
   const disabled = !canOperate || currentId === null;
   const paused = view.phase === 'paused';
+  // 帯の実際の高さを測って `--run-controls-height` へ入れる（run.css の既定値は JS が動く前のもの）
+  const barRef = useRef<HTMLDivElement>(null);
+  useMeasuredBlockSize(barRef, '--run-controls-height');
   return (
-    <div className="run-controls">
+    <div ref={barRef} className="run-controls">
       <div className="run-extend" role="group" aria-label={EXTEND_LABEL}>
         <span className="run-extend-label" aria-hidden="true">
           {EXTEND_LABEL}

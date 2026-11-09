@@ -1,0 +1,22 @@
+# 変異 1313: css-text-broken-media-no-throw
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/dock-and-narrow-header.test.mjs
+#
+# #554 のレビュー。頭と { の間に ; や別の規則がある壊れた CSS を読んでも throw しない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1313-*.patch
+# 復元: git apply -R scripts/mutations/m1313-*.patch
+diff --git a/packages/test-css/src/css-text.mjs b/packages/test-css/src/css-text.mjs
+--- a/packages/test-css/src/css-text.mjs
++++ b/packages/test-css/src/css-text.mjs
+@@ -52,8 +52,6 @@
+       // 頭そのもの
+     } else if (/^(and|or|not|only)\b|^,/.test(rest.trim())) {
+       continue; // 長い条件の @media（`and (...)`・`, (...)`）は別の頭
+-    } else {
+-      throw new Error(`${head} と { の間に条件でないものがある（壊れた CSS）`);
+     }
+     const [start, end] = blockRange(plain, open);
+     joined += `${plain.slice(start, end)}\n`;

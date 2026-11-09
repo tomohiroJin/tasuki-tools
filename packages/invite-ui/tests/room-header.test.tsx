@@ -423,11 +423,17 @@ describe('ルーム画面の共通の見出し', () => {
     fireEvent.click(screen.getByRole('button', { name: '招待リンクをコピー' }));
 
     // Then
-    expect(await screen.findByRole('button', { name: 'コピーできません（URL を選択してください）' })).toBeTruthy();
+    // ボタンの字は変えず、結果は浮かぶ知らせと読み上げの知らせで出す
+    await waitFor(() => expect(document.querySelector('.ui-room-header-copy-note')?.textContent).toBe('コピーできません（URL を選択してください）'));
+    // 見える知らせ（浮かぶ・読み上げからは隠す）と、読み上げの知らせ（aria-live）は別の要素。どちらかが消えると赤にする
+    expect(document.querySelector('.ui-room-header-copy-note')?.getAttribute('aria-hidden')).toBe('true');
+    expect(document.querySelector('.ui-room-header-copy-live')?.textContent).toBe('コピーできません（URL を選択してください）');
+    expect(document.querySelector('.ui-room-header-copy-live')?.getAttribute('aria-live')).toBe('polite');
+    expect(screen.getByRole('button', { name: '招待リンクをコピー' })).toBeTruthy();
     expect(screen.getByText(INVITE_URL)).toBeTruthy();
   });
 
-  it('Given クリップボードが使える / When コピーを押す / Then ボタンがコピーしましたになる', async () => {
+  it('Given クリップボードが使える / When コピーを押す / Then コピーしましたの知らせが出る（ボタンの字は変えない）', async () => {
     // Given
     vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn().mockResolvedValue(undefined) } });
     renderHeader();
@@ -436,7 +442,12 @@ describe('ルーム画面の共通の見出し', () => {
     fireEvent.click(screen.getByRole('button', { name: '招待リンクをコピー' }));
 
     // Then
-    expect(await screen.findByRole('button', { name: 'コピーしました' })).toBeTruthy();
+    await waitFor(() => expect(document.querySelector('.ui-room-header-copy-note')?.textContent).toBe('コピーしました'));
+    // 見える知らせ（浮かぶ・読み上げからは隠す）と、読み上げの知らせ（aria-live）は別の要素。どちらかが消えると赤にする
+    expect(document.querySelector('.ui-room-header-copy-note')?.getAttribute('aria-hidden')).toBe('true');
+    expect(document.querySelector('.ui-room-header-copy-live')?.textContent).toBe('コピーしました');
+    expect(document.querySelector('.ui-room-header-copy-live')?.getAttribute('aria-live')).toBe('polite');
+    expect(screen.getByRole('button', { name: '招待リンクをコピー' })).toBeTruthy();
   });
 
   it('Given 道具に固有のボタン / When titleExtras に渡す / Then 見出しの隣に置かれ、戻るリンクは行の 2 つ目の子のまま', () => {
@@ -453,6 +464,14 @@ describe('ルーム画面の共通の見出し', () => {
     const heading = screen.getByRole('heading', { level: 1 });
     const extra = screen.getByRole('button', { name: 'お題を隠す' });
     expect(extra.parentElement).toBe(heading.parentElement);
+  });
+
+  it('Given URL の欄 / When 描く / Then title を持たない（触る端末ではツールチップが出ず、読み上げで URL が二重になる。URL は省略せず折り返して全部見せ、全選択・コピー・読み上げの字そのもので渡す）', () => {
+    // Given / When
+    const { container } = renderHeader();
+
+    // Then
+    expect(container.querySelector('.ui-invite-url')!.hasAttribute('title')).toBe(false);
   });
 
   it('Given URL の欄 / When 描く / Then aria-label を持たない', () => {

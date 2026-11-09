@@ -1,0 +1,13 @@
+diff --git a/e2e/support/block-gaps.ts b/e2e/support/block-gaps.ts
+index 24559140..42ff7085 100644
+--- a/e2e/support/block-gaps.ts
++++ b/e2e/support/block-gaps.ts
+@@ -280,7 +280,7 @@ function spacingOf(upper: BlockNode, lower: BlockNode, minGap: number, captionGa
+     const ink = (lower.textOnly ? lower.ink.top : lower.visTop) - (upper.textOnly ? upper.ink.bottom : upper.visBottom);
+     return { gap: Math.max(box, ink), floor: captionGap };
+   }
+-  return { gap: box, floor: upper.tag === 'li' && lower.tag === 'li' ? captionGap : minGap };
++  return { gap: box, floor: minGap };
+ }
+ 
+ /**

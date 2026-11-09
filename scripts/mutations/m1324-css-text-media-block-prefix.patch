@@ -1,0 +1,20 @@
+# 変異 1324: css-text-media-block-prefix
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/dock-and-narrow-header.test.mjs
+#
+# #554 のレビュー。同じ頭の @media が複数あっても mediaBlock が読み分けられないのに赤にしない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1324-*.patch
+# 復元: git apply -R scripts/mutations/m1324-*.patch
+diff --git a/packages/test-css/src/css-text.mjs b/packages/test-css/src/css-text.mjs
+--- a/packages/test-css/src/css-text.mjs
++++ b/packages/test-css/src/css-text.mjs
+@@ -105,6 +105,5 @@
+ export function mediaBlock(css, head) {
+   const plain = stripComments(css);
+   const count = [...plain.matchAll(new RegExp(`${head.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?=\\s*\\{)`, 'g'))].length;
+-  assert.equal(count, 1, `${head} が ${count} 個ある（1 個だけのはず。この検査では読み分けられない）`);
+   return mediaBlocks(css, head);
+ }

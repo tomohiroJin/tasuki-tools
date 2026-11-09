@@ -1,0 +1,29 @@
+# 変異 1334: projection-clearance-wide-media-gate
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/run-controls-opaque.test.ts
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外。1280×720・文字 200% で帯が中身を覆って赤）
+#
+# #554 のレビュー。余白の規則を 64rem 未満の幅の条件に戻し、広い画面で文字を 200% にしたとき不透明な帯が中身を覆い、送っても出せない（WCAG 1.4.4）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1334-*.patch
+# 復元: git apply -R scripts/mutations/m1334-*.patch
+diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
+--- a/apps/agenda-web/src/run.css
++++ b/apps/agenda-web/src/run.css
+@@ -587,8 +587,12 @@
+ .projection-body {
+   /* 帯が中身に実際に重なる量だけ（`use-projection-clearance` が測って `--projection-clearance` へ書く。重ならなければ 0）。幅の条件は置かない
+      （広い画面でも文字を 200% にすると帯が中身を覆う）。余白は body の外の margin で足し、body の高さは帯が出る前のまま固定する（`--projection-body-pin`）ので、盤の中央寄せがやり直されない */
+-  margin-block-end: var(--projection-clearance, 0px);
+-  min-block-size: var(--projection-body-pin, 0px);
++}
++@media (width < 64rem) {
++  .projection-body {
++    margin-block-end: var(--projection-clearance, 0px);
++    min-block-size: var(--projection-body-pin, 0px);
++  }
+ }
+ @media (width >= 40rem) and (width < 64rem) and (height >= 48rem) {
+   .projection-body {

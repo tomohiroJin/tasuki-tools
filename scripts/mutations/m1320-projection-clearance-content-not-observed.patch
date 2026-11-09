@@ -1,0 +1,31 @@
+# 変異 1320: projection-clearance-content-not-observed
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/use-projection-clearance.test.tsx
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外。帯が出ている間に中身が伸びたとき最下部で隠れて赤）
+#
+# #554 のレビュー。中身（body とその子）の大きさの変化を見ず、帯が出ている間に中身が伸びても測り直さない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1320-*.patch
+# 復元: git apply -R scripts/mutations/m1320-*.patch
+diff --git a/apps/agenda-web/src/hooks/use-projection-clearance.ts b/apps/agenda-web/src/hooks/use-projection-clearance.ts
+--- a/apps/agenda-web/src/hooks/use-projection-clearance.ts
++++ b/apps/agenda-web/src/hooks/use-projection-clearance.ts
+@@ -99,7 +99,7 @@
+       // 見ている子を覚え、取り除かれた子は unobserve する（12 時間の会で増減が続いても、外れた要素を観測し続けてリークしない）
+       const watched = new Set<Element>();
+       const watchContent = (): void => {
+-        observer.observe(body);
++        // (not observed)
+         const current = new Set(Array.from(body.children));
+         for (const child of watched) {
+           if (!current.has(child)) {
+@@ -109,7 +109,6 @@
+         }
+         for (const child of current) {
+           if (!watched.has(child)) {
+-            observer.observe(child);
+             watched.add(child);
+           }
+         }

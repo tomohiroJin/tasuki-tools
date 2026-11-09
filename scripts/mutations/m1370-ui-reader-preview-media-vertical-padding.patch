@@ -1,0 +1,13 @@
+diff --git a/packages/ui/src/components/reader.css b/packages/ui/src/components/reader.css
+--- a/packages/ui/src/components/reader.css
++++ b/packages/ui/src/components/reader.css
+@@ -72,3 +72,9 @@
+     display: none;
+   }
+ }
++
++@media (width < 40rem) {
++  .ui-reader-preview {
++    padding: var(--space-3) var(--space-5);
++  }
++}

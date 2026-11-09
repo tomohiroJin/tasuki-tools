@@ -1,0 +1,13 @@
+diff --git a/e2e/support/block-gaps.ts b/e2e/support/block-gaps.ts
+index 24559140..03c63a91 100644
+--- a/e2e/support/block-gaps.ts
++++ b/e2e/support/block-gaps.ts
+@@ -170,7 +170,7 @@ export const SPACING_SKIP_RULES: readonly { readonly name: string; readonly reas
+   {
+     name: '表の行',
+     reason: '`display: table*` の行・セルは線で区切る。間 0 が正しい',
+-    test: (a, b) => TABLE_DISPLAY.test(a.display) || TABLE_DISPLAY.test(b.display),
++    test: () => false,
+   },
+   {
+     name: '線で区切った行',

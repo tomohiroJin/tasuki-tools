@@ -1,0 +1,22 @@
+# 変異 1291: dock-negative-margin
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/dock-and-narrow-header.test.mjs（帯の規則に負の margin・transform・top が無いことを読む）
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外。帯が前の中身に重なって赤）
+#
+# #554 のレビュー。帯に負の margin-block-start を足すと、帯が前の中身に重なる。E2E は矩形で測る最下部の測りで、単体は帯の規則を読んで拾う。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1291-*.patch
+# 復元: git apply -R scripts/mutations/m1291-*.patch
+diff --git a/packages/ui/src/components/actions.css b/packages/ui/src/components/actions.css
+--- a/packages/ui/src/components/actions.css
++++ b/packages/ui/src/components/actions.css
+@@ -60,6 +60,7 @@
+     position: sticky;
+     bottom: 0;
+     z-index: 1;
++    margin-block-start: -3rem;
+     display: grid;
+     grid-template-columns: repeat(2, minmax(0, 1fr));
+     /* 器（.ui-page）の padding-inline と同じ式。固定の 1rem だと 400〜640px で帯が器の余白に届かない */

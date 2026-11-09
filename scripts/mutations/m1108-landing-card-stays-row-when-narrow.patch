@@ -1,0 +1,13 @@
+diff --git a/apps/landing/src/index.css b/apps/landing/src/index.css
+index 2b5fd4f6..f8e1a703 100644
+--- a/apps/landing/src/index.css
++++ b/apps/landing/src/index.css
+@@ -502,7 +502,7 @@
+ 
+ /* 札（上の `@media (width < 40rem)` の `.hub-tools .hand li` が容器）の幅が 16rem に満たないとき（文字を大きくした 320px など）は、絵を上に回して文字の列に札の全幅を渡す。
+    16rem は、絵（3.6rem）・左右の余白・列の間を引いても、名前の列が 8rem 以上残る幅 */
+-@container (width < 16rem) {
++@container (width < 1rem) {
+   .hub-tools .tool-card {
+     grid-template-columns: minmax(0, 1fr);
+     grid-template-rows: auto;

@@ -1,0 +1,23 @@
+# 変異 1266: projection-body-padding-removed
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/run-controls-opaque.test.ts
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外。映す表示の最下部の中身が帯に隠れて赤）
+#
+# #554 のレビュー。映す表示の操作帯（fixed・不透明）が出ている間の中身の下の余白が消え、下端の情報（「予定の終わり」など）が帯に隠れる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1266-*.patch
+# 復元: git apply -R scripts/mutations/m1266-*.patch
+diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
+--- a/apps/agenda-web/src/run.css
++++ b/apps/agenda-web/src/run.css
+@@ -594,7 +594,7 @@
+ @media (width >= 40rem) and (width < 64rem) and (height >= 48rem) {
+   .projection-body {
+     /* 通常の下の余白（--space-6）は足さず、帯の高さ（実測 69px < 4.4rem）に置き換える。足すと 768×1024 で帯を出さなくても縦のスクロールが出た（1065 > 1024） */
+-    padding-block-end: var(--projection-strip-height);
++    padding-block-end: var(--space-6);
+   }
+ }
+ 

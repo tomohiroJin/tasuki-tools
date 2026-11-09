@@ -74,6 +74,17 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 
+describe('RoomPage の参加者の欄の部品（#553・ADR 0035）', () => {
+  it('Given 描く / Then 区画は .ui-stack、見出しの行は .ui-section-head--beside で、「見学する」はその行の中にある', () => {
+    render(<RoomPage roomId={ROOM_ID} sync={makeSync(state(false, false))} />);
+    const button = screen.getByRole('button', { name: '見学する' });
+    const row = button.closest('.ui-section-head');
+    expect(row).not.toBeNull();
+    expect(row!.classList.contains('ui-section-head--beside')).toBe(true);
+    expect(row!.parentElement!.classList.contains('ui-stack')).toBe(true);
+  });
+});
+
 describe('RoomPage の見学の切り替え', () => {
   it('Given 自分が投票者 / When 描く / Then 「見学する」があり、押すと setSpectator(true)', () => {
     render(<RoomPage roomId={ROOM_ID} sync={makeSync(state(false, false))} />);

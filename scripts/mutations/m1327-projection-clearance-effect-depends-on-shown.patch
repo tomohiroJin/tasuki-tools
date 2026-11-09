@@ -1,0 +1,20 @@
+# 変異 1327: projection-clearance-effect-depends-on-shown
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/use-projection-clearance.test.tsx
+#
+# #554 のレビュー。帯の出し入れのたびに observer・focus・matchMedia を全部作り直す（shown を ref で読まない）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1327-*.patch
+# 復元: git apply -R scripts/mutations/m1327-*.patch
+diff --git a/apps/agenda-web/src/hooks/use-projection-clearance.ts b/apps/agenda-web/src/hooks/use-projection-clearance.ts
+--- a/apps/agenda-web/src/hooks/use-projection-clearance.ts
++++ b/apps/agenda-web/src/hooks/use-projection-clearance.ts
+@@ -116,5 +116,5 @@
+     return () => {
+       stop();
+     };
+-  }, [rootRef, bodyRef, stripRef]);
++  }, [rootRef, bodyRef, stripRef, shown]);
+ }

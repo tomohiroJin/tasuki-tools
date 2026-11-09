@@ -1,0 +1,13 @@
+diff --git a/e2e/support/block-gaps.ts b/e2e/support/block-gaps.ts
+index 24559140..8a08e0d7 100644
+--- a/e2e/support/block-gaps.ts
++++ b/e2e/support/block-gaps.ts
+@@ -185,7 +185,7 @@ export const SPACING_SKIP_RULES: readonly { readonly name: string; readonly reas
+   {
+     name: 'タブの帯と面',
+     reason: '`role="tablist"` の帯は、下の面（`tabpanel`）に接して 1 つの塊に見える作り。間を空けると切り離される',
+-    test: (a) => a.role === 'tablist',
++    test: () => false,
+   },
+ ];
+ 

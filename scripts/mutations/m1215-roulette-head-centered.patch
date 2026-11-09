@@ -1,0 +1,12 @@
+diff --git a/apps/roulette-web/src/index.css b/apps/roulette-web/src/index.css
+--- a/apps/roulette-web/src/index.css
++++ b/apps/roulette-web/src/index.css
+@@ -617,7 +617,7 @@
+ }
+ /* 見出し（h3）と小さな「この端末だけ」は、字の大きさが違うので基準線で揃える（部品の既定は中央揃え） */
+ .roulette-regulars-head {
+-  align-items: baseline;
++  align-items: center;
+ }
+ /* 見出しの行は `.ui-section-head`、区画の中の間は `.ui-stack` が持つ（ADR 0035）。
+    縦に積む flex の子は横幅が器で決まるので、名前の長さで区画ごと広がらない（grid の列の最小幅を 0 にしていた理由） */

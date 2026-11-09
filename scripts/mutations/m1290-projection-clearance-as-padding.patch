@@ -1,0 +1,24 @@
+# 変異 1290: projection-clearance-as-padding
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/run-controls-opaque.test.ts
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外。320×568 で帯が出ると盤が約 17px 動いて赤）
+#
+# #554 のレビュー。余白を body の外の margin から padding に戻すと、中央寄せがやり直されて、帯が出るたびに盤が跳ねる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1290-*.patch
+# 復元: git apply -R scripts/mutations/m1290-*.patch
+diff --git a/apps/agenda-web/src/run.css b/apps/agenda-web/src/run.css
+--- a/apps/agenda-web/src/run.css
++++ b/apps/agenda-web/src/run.css
+@@ -587,8 +587,7 @@
+ .projection-body {
+   /* 帯が中身に実際に重なる量だけ（`use-projection-clearance` が測って `--projection-clearance` へ書く。重ならなければ 0）。幅の条件は置かない
+      （広い画面でも文字を 200% にすると帯が中身を覆う）。余白は body の外の margin で足し、body の高さは帯が出る前のまま固定する（`--projection-body-pin`）ので、盤の中央寄せがやり直されない */
+-  margin-block-end: var(--projection-clearance, 0px);
+-  min-block-size: var(--projection-body-pin, 0px);
++  padding-block-end: calc(var(--space-6) + var(--projection-clearance, 0px));
+ }
+ @media (width >= 40rem) and (width < 64rem) and (height >= 48rem) {
+   .projection-body {

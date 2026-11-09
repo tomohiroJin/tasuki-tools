@@ -1,0 +1,22 @@
+# 変異 1338: projection-clearance-hold-removed
+#
+# 検出を期待するテスト:
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外。帯が消えると余白が消えて盤が跳ねて赤）
+#
+# #554 のレビュー。帯が消えたとき余白を残さず、scrollTop が詰められて盤が跳ねる（320×568 で 101px）。単体では拾わない（E2E だけが拾う）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1338-*.patch
+# 復元: git apply -R scripts/mutations/m1338-*.patch
+diff --git a/apps/agenda-web/src/hooks/use-projection-clearance.ts b/apps/agenda-web/src/hooks/use-projection-clearance.ts
+--- a/apps/agenda-web/src/hooks/use-projection-clearance.ts
++++ b/apps/agenda-web/src/hooks/use-projection-clearance.ts
+@@ -47,7 +47,7 @@
+ 
+     // いま書いている余白。帯が消えるときに、送った先（余白の中）にいる間は余白を残して盤を動かさない（下の hold）
+     let held = 0;
+-    const inHeldClearance = (): boolean => held > 0 && root.scrollTop > root.scrollHeight - held - root.clientHeight + 0.5;
++    const inHeldClearance = (): boolean => false;
+ 
+     const apply = (): void => {
+       const visible = shownRef.current || strip.matches(':focus-within');

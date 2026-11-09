@@ -1,0 +1,23 @@
+# 変異 1240: dock-counts-hidden-children
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/dock-and-narrow-header.test.mjs
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外）
+#
+# #554 のレビュー。帯の主の全幅の規則が、見えない子や選択欄・控えの包みまで数え、数がずれて主が半分の幅になる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1240-*.patch
+# 復元: git apply -R scripts/mutations/m1240-*.patch
+diff --git a/packages/ui/src/components/actions.css b/packages/ui/src/components/actions.css
+--- a/packages/ui/src/components/actions.css
++++ b/packages/ui/src/components/actions.css
+@@ -70,7 +70,7 @@
+   }
+ 
+   /* 数え方の擬似クラスは :where() で包み、詳細度を (0,1,0) に抑える（部品層の約束は (0,2,0) まで。画面の `.roulette-controls .ui-button` などの上書きが勝つ） */
+-  .ui-actions--dock > :where(:nth-child(odd of :not([hidden], .ui-visually-hidden, select, .ui-actions-start)):nth-last-child(1 of :not([hidden], .ui-visually-hidden, select, .ui-actions-start))) {
++  .ui-actions--dock > :last-child:nth-child(odd) {
+     grid-column: 1 / -1;
+   }
+ 

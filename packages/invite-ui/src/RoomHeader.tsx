@@ -97,11 +97,9 @@ export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras, 
 
   const qrStatus = open && !qr.dataUrl ? (qr.failed ? ROOM_HEADER_TEXT.qrFailed : ROOM_HEADER_TEXT.qrPreparing) : '';
 
-  const copyLabel = copy.state === 'done'
-    ? ROOM_HEADER_TEXT.copied
-    : copy.state === 'failed'
-      ? ROOM_HEADER_TEXT.copyFailed
-      : ROOM_HEADER_TEXT.copy;
+  // コピーの結果は、ボタンの字を変えずに浮かぶ知らせで出す（字が変わるとボタンの幅が変わり、折り返しで見出しの段数が変わって、押すたびに見出しが上下した）。
+  // ボタンの名前はいつも「招待リンクをコピー」。結果は読み上げの知らせ（aria-live）が読み、見える字は浮かぶ知らせ（読み上げからは隠す）が出す。
+  const copyNote = copy.state === 'done' ? ROOM_HEADER_TEXT.copied : copy.state === 'failed' ? ROOM_HEADER_TEXT.copyFailed : '';
 
   return (
     <header className={compact ? 'ui-room-header ui-room-header--compact' : 'ui-room-header'}>
@@ -133,35 +131,43 @@ export function RoomHeader({ title, backHref, roomCode, inviteUrl, titleExtras, 
             <span className="ui-room-header-code-value">{roomCode}</span>
           </p>
           <div className="ui-invite">
+            {/* 省略しない。長ければどこでも折り返して全部見せる（クリップボードが使えない端末では目で読むしかない）。`title`・`aria-label` は付けない
+                （触る端末ではツールチップが出ず、読み上げで URL が二重になる）。 */}
             <span className="ui-invite-url">{inviteUrl}</span>
-            {/* ボタンと浮かぶ QR を包む。外側を押したかの判定と、QR を浮かべる位置の基準にする。 */}
-            <div ref={qrAnchorRef} className="ui-room-header-qr-anchor" onKeyDown={closeQrOnEscape} onBlur={closeQrOnFocusLeave}>
+            {/* QR とコピーを 1 つにまとめる（折り返すとき、2 つのボタンが別の行に分かれない）。 */}
+            <div className="ui-room-header-invite-actions">
+              {/* ボタンと浮かぶ QR を包む。外側を押したかの判定と、QR を浮かべる位置の基準にする。 */}
+              <div ref={qrAnchorRef} className="ui-room-header-qr-anchor" onKeyDown={closeQrOnEscape} onBlur={closeQrOnFocusLeave}>
+                <button
+                  ref={qrToggleRef}
+                  type="button"
+                  className="ui-button ui-button--secondary ui-button--sm"
+                  aria-expanded={open}
+                  aria-controls={qrId}
+                  onClick={() => setOpen((value) => !value)}
+                >
+                  {open ? ROOM_HEADER_TEXT.qrHide : ROOM_HEADER_TEXT.qrShow}
+                </button>
+                <div ref={qrCardRef} id={qrId} hidden={!open} className="ui-room-header-qr">
+                  {qr.dataUrl && <img src={qr.dataUrl} width="200" height="200" alt={ROOM_HEADER_TEXT.qrAlt} />}
+                  {/* 見える字。読み上げは下の知らせが読むので、二重に読ませない。 */}
+                  {!qr.dataUrl && <p className="ui-note ui-room-header-qr-status" aria-hidden="true">{qrStatus}</p>}
+                </div>
+                {/* 読み上げの知らせ。隠れた欄の中だと読み上げの木に入らないので、欄の外に常に置き、字だけを差し替える。
+                    role="status" にしないのは、各画面が自分の知らせを status として持つため（1 画面に status が 2 つ並ぶ）。 */}
+                <p className="ui-visually-hidden ui-room-header-qr-live" aria-live="polite">{qrStatus}</p>
+              </div>
               <button
-                ref={qrToggleRef}
                 type="button"
                 className="ui-button ui-button--secondary ui-button--sm"
-                aria-expanded={open}
-                aria-controls={qrId}
-                onClick={() => setOpen((value) => !value)}
+                onClick={() => { void copy.copy(); }}
               >
-                {open ? ROOM_HEADER_TEXT.qrHide : ROOM_HEADER_TEXT.qrShow}
+                {ROOM_HEADER_TEXT.copy}
               </button>
-              <div ref={qrCardRef} id={qrId} hidden={!open} className="ui-room-header-qr">
-                {qr.dataUrl && <img src={qr.dataUrl} width="200" height="200" alt={ROOM_HEADER_TEXT.qrAlt} />}
-                {/* 見える字。読み上げは下の知らせが読むので、二重に読ませない。 */}
-                {!qr.dataUrl && <p className="ui-note ui-room-header-qr-status" aria-hidden="true">{qrStatus}</p>}
-              </div>
-              {/* 読み上げの知らせ。隠れた欄の中だと読み上げの木に入らないので、欄の外に常に置き、字だけを差し替える。
-                  role="status" にしないのは、各画面が自分の知らせを status として持つため（1 画面に status が 2 つ並ぶ）。 */}
-              <p className="ui-visually-hidden ui-room-header-qr-live" aria-live="polite">{qrStatus}</p>
+              {/* 見える字（浮かぶ。流れに入れないので見出しの高さを変えない）。読み上げは下の知らせが読む。 */}
+              {copyNote !== '' && <p className="ui-note ui-room-header-copy-note" aria-hidden="true">{copyNote}</p>}
+              <p className="ui-visually-hidden ui-room-header-copy-live" aria-live="polite">{copyNote}</p>
             </div>
-            <button
-              type="button"
-              className="ui-button ui-button--secondary ui-button--sm"
-              onClick={() => { void copy.copy(); }}
-            >
-              {copyLabel}
-            </button>
           </div>
         </div>
       </div>

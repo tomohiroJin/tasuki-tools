@@ -8,16 +8,14 @@
  * 切替ボタンの `segClass(true)` の枝（呼び出しが無く描かれない）。
  * 編集中のテキストエリアは比較に描かれない（#321 PR 3 の Q5）。除去検査に行が無いので写す側へ倒した。 */
 
+/* 見出しの行と本文の間は親の `<Card stack>` の `gap` が持つ（ADR 0035 決定 1・#556）。この行は縦の余白を持たない。
+   並び（flex・折り返し・縦の中央・両端寄せ・間）は部品 `.ui-section-head` が持つ（#553 一覧 #18）。 */
+.shared-memo-card {
+  --panel-stack-gap: var(--space-2);
+}
+
 .shared-memo-header {
-  margin-bottom: var(--space-2);
-  display: flex;
-  /* 題と切替ボタンが 1 行に入らない幅（22rem の脇・320）では、ボタンを次の段へ回す。
-     折り返さないと両方が縮み、「プレビューに戻る」が 2 行・「共有メモ」が 1 字ずつ縦に折れた（#316 PR 4・実測） */
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  column-gap: var(--space-2);
-  row-gap: var(--space-2);
+  margin-block: 0;
 }
 
 /* 切替ボタン（部品の副・--sm）の字は折らない。部品層ではなく、この見出し行でだけ止める */
@@ -28,8 +26,14 @@
 /* 題と「Markdown」の小さな印を並べる（印は h2 の外に置き、見出しの名前に混ぜない） */
 .shared-memo-lead {
   display: flex;
+  /* 22rem の脇では、題と印と切替ボタンが 1 行に入らない。印を題の下へ折り返し、ボタンは見出しの行の右に残す（#553 一覧 #18）。
+     基準の幅（8rem）が小さいので、行が足りなくなったときだけボタンが次の行へ落ちる */
+  flex: 1 1 8rem;
+  flex-wrap: wrap;
+  min-width: 0;
   align-items: center;
-  gap: var(--space-2);
+  /* 印が題の下へ折り返したとき、題の字と詰まらないよう行の間を `--space-1` にする（`e2e/specs/block-gaps.spec.ts` が 3px の詰まりを見つけた・#557） */
+  gap: var(--space-1) var(--space-2);
 }
 
 .shared-memo-title {

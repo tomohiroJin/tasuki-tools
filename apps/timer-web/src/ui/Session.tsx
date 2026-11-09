@@ -5,7 +5,7 @@
 
 import React, { useMemo, useState } from "react";
 import {
-  Crown, ArrowRight, Play, Pause, SkipForward, Shuffle, TimerReset,
+  Crown, ArrowRight, Play, Pause, SkipForward, TimerReset,
 } from "lucide-react";
 import { secondsLeft, elapsedMs } from "@tasuki/timer-core/aggregate";
 import type { Room } from "@tasuki/timer-core";
@@ -161,7 +161,6 @@ export function Session({
   const rotation = rotationMembers(room.session.seats, room.participants);
   // 現ドライバー・次・ナビは呼び名（同名が並ぶときは識別子つき）で出す。
   // 素の表示名だと同名2名がどちらも「Bob」になり「次は誰か」が判別できない。
-  const rotationLen = room.session.rotation.length;
   const currentDriverId = room.session.rotation[room.session.currentIndex] ?? "";
   const {
     current: currentDriverName,
@@ -407,17 +406,11 @@ export function Session({
             onLeaveRoom={onRemoveParticipant}
           />
         )}
-        {/* セッション中でもロスターからドライバー順をランダム化できる（v2.3 #1）。
-            2人以上で意味を持つ。RosterPanel 内の上/下並べ替え（onMove）と対で配置。 */}
-        {onShuffle && rotationLen > 1 && (
-          <div className="session-toolbar">
-            <button type="button" onClick={onShuffle} aria-label="ドライバー順をランダムに並べ替える" className="ui-button ui-button--secondary ui-button--sm">
-              <span className="session-shuffle-label"><Shuffle className="session-action-icon" aria-hidden="true" /> ランダム</span>
-            </button>
-          </div>
-        )}
+        {/* セッション中でもロスターからドライバー順をランダム化できる（v2.3 #1）。2人以上で意味を持つ。
+            ボタンは RosterPanel の見出しの行（代理追加の隣）に出す（#553 一覧 #6）。 */}
         <RosterPanel
           participants={room.participants}
+          onShuffle={onShuffle}
           seats={room.session.seats}
           currentDriverId={currentDriverId}
           myParticipantId={participantId}
@@ -483,16 +476,9 @@ export function Session({
                       </button>
                     </div>
                   )}
-                  {/* ルームタブでもランダム化できる（v2.3 #1・セッションタブと同等）。 */}
-                  {onShuffle && rotationLen > 1 && (
-                    <div className="session-toolbar">
-                      <button type="button" onClick={onShuffle} aria-label="ドライバー順をランダムに並べ替える" className="ui-button ui-button--secondary ui-button--sm">
-                        <span className="session-shuffle-label"><Shuffle className="session-action-icon" aria-hidden="true" /> ランダム</span>
-                      </button>
-                    </div>
-                  )}
                   <RosterPanel
                     participants={room.participants}
+                    onShuffle={onShuffle}
                     seats={room.session.seats}
                     currentDriverId={currentDriverId}
                     myParticipantId={participantId}

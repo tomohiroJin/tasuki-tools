@@ -39,6 +39,17 @@
   }
 }
 
+/* 縦の間を親が持つ形（ADR 0035 決定 1・#553 の申し送り・#556）。Card は className `ui-stack meter-panel-stack`、パネルの根（Card の中の div）は `ui-stack panel-stack`。
+ * 見出しの行・一覧・補足の間は `gap`（既定 `--space-4`。違う間は `--panel-stack-gap` で親が決める）。
+ * 四隅のティックは絶対配置なので並びに入らない。子は縦の外側の余白を持たない（要素層の `margin` も 0 にして `gap` に足さない） */
+.meter-panel-stack,
+.panel-stack {
+  /* 並び（flex・縦）と子の縦の余白のリセットは部品 `.ui-stack` が持つ。必ず `ui-stack` と一緒に当てる。
+   * リセットは `> :where(:not(dialog))` で `<dialog>` を壊さず、`.ui-visually-hidden`（`margin: -1px`）は後に読むので負けない（ADR 0035 決定 1 の守り・F4）。
+   * ここは間だけを決める: 既定は `--space-4`（main の `margin-bottom` と同じ見た目。部品の既定 `--space-3` と違う理由は補遺）。違う間は `--panel-stack-gap` で親が決める */
+  gap: var(--panel-stack-gap, var(--space-4));
+}
+
 /* 更新を知らせる細い輪（`SharedMemo`）。Tailwind の `ring-1` は影を合成するので、輪＋パネルの影の順に書く。 */
 .meter-panel-highlight {
   box-shadow:
@@ -85,11 +96,10 @@
 }
 
 /* カード見出し。 */
+/* 並び（flex・折り返し・横の間）は部品 `.ui-section-head` が持つ（ADR 0035。以前は横の間が 3px だった・#553 一覧 #33）。
+   下の間は、親が `gap` で持つ（`meter-panel-stack`・`panel-stack`・ADR 0035 決定 1・#556）。この見出しは縦の余白を持たない。 */
 .section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--space-4);
+  margin-block: 0;
 }
 
 .section-header-lead {

@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-ui-components.mjs b/scripts/audit-ui-components.mjs
+index 8e60d25f..4b8ce59b 100644
+--- a/scripts/audit-ui-components.mjs
++++ b/scripts/audit-ui-components.mjs
+@@ -876,7 +876,7 @@ export function scanGallery(html) {
+       // 生の要素（textarea）は、閉じタグごと読み飛ばして消費するので、積まない
+       // 外来要素（svg とその子孫）の自己閉じ `/>` は、HTML でも閉じたものとして扱われる（積まない）。HTML の要素の `/>` は無視される
+       const foreignSelfClosed = selfClosing && (name === "svg" || stack.some((e) => e.name === "svg"));
+-      if (!foreignSelfClosed && !GALLERY_VOID_ELEMENTS.has(name) && !GALLERY_RAW_ELEMENTS.has(name)) stack.push({ name, hidden, closedDetails: name === "details" && !has("open") });
++      if (!foreignSelfClosed && !GALLERY_VOID_ELEMENTS.has(name)) stack.push({ name, hidden, closedDetails: name === "details" && !has("open") });
+       if (name === "head") inHead = true;
+       if (name === "code") codeDepth++;
+     }

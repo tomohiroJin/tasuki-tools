@@ -1,0 +1,15 @@
+diff --git a/apps/poker-web/src/index.css b/apps/poker-web/src/index.css
+index b753b5cc..e95a5845 100644
+--- a/apps/poker-web/src/index.css
++++ b/apps/poker-web/src/index.css
+@@ -146,6 +146,10 @@
+   /* 記録の札が無く、開いたお題の札も無いときも、操作の面は列の幅いっぱいに広げる（かつては約 46rem で中央に寄せていた）。
+      中央に寄せると、本体だけが細い列に寄って見出し・招待の行と左右の端が揃わなかった（#555 一覧 #8・1280 で左端が 224px ずれた）。
+      席の札・手札は行の幅で折り返すので、広い幅でも崩れない。 */
++  .room .ui-workspace--reader:not(:has(.room-log--side)):not(:has(.room-topic-side[data-state='open'])) > .room-main {
++    margin-inline: auto;
++    max-width: 46rem;
++  }
+ 
+   .room-topic-side[data-state='open'] {
+     flex: 0 1 auto;

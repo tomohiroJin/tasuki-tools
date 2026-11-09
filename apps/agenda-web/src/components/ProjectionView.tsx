@@ -8,6 +8,8 @@
  */
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { AgendaView } from '@tasuki/agenda-core';
+import { useMeasuredBlockSize } from '../hooks/use-measured-block-size';
+import { useProjectionClearance } from '../hooks/use-projection-clearance';
 import { driftShort, driftTone, nextStepName, projectedEndClock } from '../agenda-view';
 import {
   DRIFT_LABEL,
@@ -56,7 +58,13 @@ function useStrip(): { shown: boolean; reveal: () => void } {
 
 export function ProjectionView({ view, wallNow, reducedMotion, striking, canOperate, onNext, onPause, onResume, onExit, soundToggle, banner }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
+  // 操作帯の実際の高さを測って `--projection-strip-height` へ入れる（出ていない間も場所を空ける形なので、帯は常に描かれていて測れる）
+  const stripRef = useRef<HTMLDivElement>(null);
+  useMeasuredBlockSize(stripRef, '--projection-strip-height');
+  const bodyRef = useRef<HTMLDivElement>(null);
   const { shown, reveal } = useStrip();
+  // 帯に中身の下端が隠れる量だけ、帯が出ている間の余白を取る（隠れないときは 0 で、帯の出し入れで盤が動かない）
+  useProjectionClearance(rootRef, bodyRef, stripRef, shown);
   const paused = view.phase === 'paused';
   const active = view.phase === 'running' || paused;
 
@@ -111,7 +119,7 @@ export function ProjectionView({ view, wallNow, reducedMotion, striking, canOper
     <div ref={rootRef} className="projection" tabIndex={-1} onMouseMove={reveal}>
       <div className="projection-top">{banner}</div>
       <div className="projection-corner">{soundToggle}</div>
-      <div className="projection-body">
+      <div ref={bodyRef} className="projection-body">
         <div className="projection-dial">
           <Dial view={view} wallNow={wallNow} reducedMotion={reducedMotion} striking={striking} size="stage" />
         </div>
@@ -138,7 +146,7 @@ export function ProjectionView({ view, wallNow, reducedMotion, striking, canOper
           </dl>
         )}
       </div>
-      <div className={shown ? 'projection-strip is-shown' : 'projection-strip'}>
+      <div ref={stripRef} className={shown ? 'projection-strip is-shown' : 'projection-strip'}>
         {active && (
           <>
             <button type="button" className="ui-button ui-button--secondary ui-button--sm" disabled={!canOperate} onClick={thenRefocus(paused ? onResume : onPause)}>

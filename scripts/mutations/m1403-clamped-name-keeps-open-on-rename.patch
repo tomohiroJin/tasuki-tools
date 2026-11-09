@@ -1,0 +1,11 @@
+diff --git a/packages/web-kit/src/room/clamped-name.tsx b/packages/web-kit/src/room/clamped-name.tsx
+index 07f24da8..0a1121b7 100644
+--- a/packages/web-kit/src/room/clamped-name.tsx
++++ b/packages/web-kit/src/room/clamped-name.tsx
+@@ -119,5 +119,5 @@ function ClampedNameInner({ label, className }: Props) {
+ 
+ export function ClampedName({ label, className }: Props) {
+   // 名前が変わったら状態を作り直す（開いたまま別の名前になるのを防ぐ）
+-  return <ClampedNameInner key={label} label={label} className={className} />;
++  return <ClampedNameInner label={label} className={className} />;
+ }

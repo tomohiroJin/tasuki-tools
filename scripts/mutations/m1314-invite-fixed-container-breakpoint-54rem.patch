@@ -1,0 +1,27 @@
+# 変異 1314: invite-fixed-container-breakpoint-54rem
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/dock-and-narrow-header.test.mjs
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外。863〜939px で見出しが main より高くなって赤）
+#
+# #554 のレビュー。招待の行に固定の境目（container query の 54rem）を置くと、URL を自分の行に置くため、864〜939px で見出しが 1 段から 3 段になる。中身の幅で折り返す形が正。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1314-*.patch
+# 復元: git apply -R scripts/mutations/m1314-*.patch
+diff --git a/packages/ui/src/components/room-header.css b/packages/ui/src/components/room-header.css
+--- a/packages/ui/src/components/room-header.css
++++ b/packages/ui/src/components/room-header.css
+@@ -81,6 +81,12 @@
+   box-shadow: var(--shadow-popover);
+ }
+ 
++@container ui-room-header-share (width < 54rem) {
++  .ui-room-header-invite .ui-invite-url {
++    flex: 1 1 100%;
++  }
++}
++
+ @container ui-room-header-share (width < 30rem) {
+   .ui-room-header-invite > .ui-room-header-code,
+   .ui-room-header-invite .ui-invite-url {

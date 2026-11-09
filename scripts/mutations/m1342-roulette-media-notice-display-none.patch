@@ -1,0 +1,15 @@
+diff --git a/apps/roulette-web/src/index.css b/apps/roulette-web/src/index.css
+--- a/apps/roulette-web/src/index.css
++++ b/apps/roulette-web/src/index.css
+@@ -773,6 +773,11 @@
+   /* 入らなかった人の名前（#469 D5）は区切りの無い長い名前でも折る（320px で横に溢れた） */
+   overflow-wrap: anywhere;
+ }
++@media (min-width: 40rem) {
++  .roulette-regulars-notice {
++    display: none;
++  }
++}
+ .roulette-foot {
+   display: flex;
+   flex-wrap: wrap;

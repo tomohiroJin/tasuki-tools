@@ -18,7 +18,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { expect, test } from '../fixtures/test';
 import { expectFieldsAtLeast16px, expectFocusVisibleOnTab, expectReadable, expectScreenAcrossWidths, expectTouchTargets, scanContrast } from '../support/a11y';
-import { loadSampleAndStart, openAgendaFromHub } from '../support/agenda';
+import { openAgendaFromHub } from '../support/agenda';
 import { chooseMethod, handCard, joinCheckinTool, openCheckinTool } from '../support/checkin';
 import { chooseCard, turnRecordingOn } from '../support/poker';
 import { addRouletteGuest, expectCardNameNotCovered, openRouletteFromHub, openRouletteTool, spinButton } from '../support/roulette';
@@ -306,7 +306,17 @@ test.describe('お題ツールのボタンは部品で、押せる大きさが�
     await expect(page.getByRole('button', { name: 'サンプルから選ぶ', exact: true })).toBeVisible();
     await expectScreenAcrossWidths(page, '進行タイマー（組む）', AGENDA_BUILD_TARGETS);
 
-    await loadSampleAndStart(page);
+    //   ステップがある組む画面（サンプルを下書きへ読み込んだ状態）。「上へ」「下へ」が 43×44 だった（#556 一覧 #23）。
+    //   空の組む画面だけでは、行の中のボタンを 1 つも測らない
+    await page.getByRole('button', { name: 'サンプルから選ぶ', exact: true }).click();
+    await page.getByRole('button', { name: /サンプル：KPT のふりかえり/ }).click();
+    await expect(page.locator('.builder-row').first()).toBeVisible();
+    await expectScreenAcrossWidths(page, '進行タイマー（組む・ステップあり）', AGENDA_BUILD_WITH_STEPS_TARGETS);
+    await page.getByRole('button', { name: 'ルームに読み込む', exact: true }).click();
+    const startButton = page.getByRole('button', { name: '開始', exact: true });
+    await expect(startButton).toBeEnabled();
+    await startButton.click();
+    await expect(page.getByRole('button', { name: '次へ', exact: true })).toBeVisible();
     await expect(page.locator('.dial-name')).toHaveText('K を出す');
     //   進行中の画面は、狭い幅で操作の帯を下端に固定する。帯の下に隠れた操作（「最初から」）は、スクロールして届く位置で押す。
     //   開始を押した本人の画面はページの先頭へ戻る（#455）ので、下端まで送ってから測る（それまでは組む画面の下端の位置のまま来ていた）
@@ -356,6 +366,8 @@ test.describe('お題ツールのボタンは部品で、押せる大きさが�
 
 /** 進行タイマーの組む画面（空のとき）で測る操作の数の下限（サンプルから選ぶ・ステップを追加・戻るリンクなど。実測前の控えめな値） */
 const AGENDA_BUILD_TARGETS = 3;
+/** ステップのある組む画面で測る操作の数の下限（5 ステップ × 上へ・下へ・消す・−・＋・時間切れの 2 択に、上の 3 つが加わる。控えめな値） */
+const AGENDA_BUILD_WITH_STEPS_TARGETS = 20;
 /** 進行タイマーの進行中の画面で測る操作の数の下限（延長 3・一時停止・次へ・映す表示・スキップなど。実測前の控えめな値） */
 const AGENDA_RUN_TARGETS = 8;
 
@@ -575,10 +587,10 @@ test.describe('timer の各画面（ロビー・セッション・確認・ま�
     expect(clip.chips.length, '交代順の札に 30 字の名前が無い').toBe(1);
     for (const right of [...clip.next, ...clip.chips]) expect(right, `390: 長い名前がカードの縁（${clip.inner}）で切れる`).toBeLessThanOrEqual(clip.inner + 0.5);
 
-    // timer は要素層（`reset.css`）を読まないので、帯の逃がし余白（`scroll-padding-block-end`）は timer の `base.css` が持つ。
-    // 帯は計器のカードの中で留まり、カードには帯より上に隠れうる操作対象が無いので、Tab の行き先が帯の下に潜る場面はこの配置では作れない（下の一歩ごとの検査は予防）。
-    // 余白そのものは値で固定する（要素層と同じ 6rem・40rem 未満だけ）。
-    expect(await page.evaluate(() => getComputedStyle(document.documentElement).scrollPaddingBottom), '390: scroll-padding-block-end が 6rem でない').toBe('96px');
+    // timer は要素層（`reset.css`）を読まないので、帯の逃がし余白（`scroll-padding-block-end`）は timer の `base.css` が持つ。帯のある画面（このセッション）では
+    // 2 段の帯の最大の高さ 9.5rem ＝ 152px（`--dock-max-height`・safe-area はテストの端末では 0）。帯の無い画面（ロビー）は 6rem のまま（header-and-dock.spec.ts が測る）。
+    // 40rem 未満だけ（#554）。
+    expect(await page.evaluate(() => getComputedStyle(document.documentElement).scrollPaddingBottom), '390: 帯のあるセッションの scroll-padding-block-end が 9.5rem でない').toBe('152px');
 
     // Tab は「完成!」まで帯に隠れない。
     // 先に通知のヒントを閉じる（#447 段 2）。共通の見出しの分だけ計器のカードが下がり、ヒントが出たままの 390×460 では
@@ -589,7 +601,7 @@ test.describe('timer の各画面（ロビー・セッション・確認・ま�
     // 40rem 以上は流れの中
     await page.setViewportSize({ width: 1280, height: 900 });
     expect((await measureDock(dock)).position, '40rem 以上で帯が流れの中に戻っていない').toBe('static');
-    expect(await page.evaluate(() => getComputedStyle(document.documentElement).scrollPaddingBottom), '1280: scroll-padding は 40rem 以上に掛けない').not.toBe('96px');
+    expect(await page.evaluate(() => getComputedStyle(document.documentElement).scrollPaddingBottom), '1280: scroll-padding は 40rem 以上に掛けない（6rem の既定が @media の外へ漏れない）').toBe('auto');
 
     // セッション（390・高い画面）: 計器の帯の主（一時停止）と終える区画の「完成!」が見えてから測る
     await page.setViewportSize({ width: 390, height: 800 });

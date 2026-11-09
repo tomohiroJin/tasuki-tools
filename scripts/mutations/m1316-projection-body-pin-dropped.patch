@@ -1,0 +1,22 @@
+# 変異 1316: projection-body-pin-dropped
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/use-projection-clearance.test.tsx
+#   - e2e/specs/header-and-dock.spec.ts（実際の見え方。変異検査の外。320×568 で帯が出ると盤が動いて赤）
+#
+# #554 のレビュー。body の高さを固定しないと、余白を足したとき中央寄せがやり直されて盤が跳ねる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1316-*.patch
+# 復元: git apply -R scripts/mutations/m1316-*.patch
+diff --git a/apps/agenda-web/src/hooks/use-projection-clearance.ts b/apps/agenda-web/src/hooks/use-projection-clearance.ts
+--- a/apps/agenda-web/src/hooks/use-projection-clearance.ts
++++ b/apps/agenda-web/src/hooks/use-projection-clearance.ts
+@@ -64,7 +64,6 @@
+           const need = stripHeight - spaceBelowContent();
+           if (need <= 0.5) break;
+           clearance += Math.ceil(need);
+-          root.style.setProperty('--projection-body-pin', `${pinned}px`);
+           root.style.setProperty('--projection-clearance', `${clearance}px`);
+         }
+         held = clearance;

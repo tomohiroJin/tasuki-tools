@@ -1,0 +1,21 @@
+# 変異 1309: back-padding-rule-on-compact
+#
+# 検出を期待するテスト:
+#   - packages/ui/tests/dock-and-narrow-header.test.mjs
+#
+# #554 のレビュー。詰めた見た目（timer）の戻るも左の余白を失い、フォーカスの輪と押せる範囲が左だけ詰まる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1309-*.patch
+# 復元: git apply -R scripts/mutations/m1309-*.patch
+diff --git a/packages/ui/src/components/room-header.css b/packages/ui/src/components/room-header.css
+--- a/packages/ui/src/components/room-header.css
++++ b/packages/ui/src/components/room-header.css
+@@ -138,6 +138,7 @@
+ 
+ .ui-room-header--compact .ui-page-header-back {
+   margin-inline-start: auto;
++  padding-inline-start: 0;
+ }
+ 
+ .ui-room-header--compact .ui-room-header-share {

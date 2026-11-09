@@ -1,0 +1,12 @@
+diff --git a/apps/roulette-web/src/index.css b/apps/roulette-web/src/index.css
+index cc7fb615..7c00dae4 100644
+--- a/apps/roulette-web/src/index.css
++++ b/apps/roulette-web/src/index.css
+@@ -538,7 +538,6 @@
+    2026-10-13 の 320 の撮影では、2 つの印に幅を取られ「山田」が「山…」に切れた */
+ .roulette-row {
+   display: flex;
+-  flex-wrap: wrap;
+   align-items: center;
+   /* 名前と「名前を消す」の塊が入らない幅（文字 200% の 320・390）では塊が次の行へ回る。行の間を空けて、2 段が 1 つの塊に見えないようにする（#557） */
+   gap: var(--space-2);

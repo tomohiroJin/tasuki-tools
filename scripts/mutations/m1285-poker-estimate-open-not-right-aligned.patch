@@ -1,0 +1,12 @@
+diff --git a/apps/poker-web/src/index.css b/apps/poker-web/src/index.css
+--- a/apps/poker-web/src/index.css
++++ b/apps/poker-web/src/index.css
+@@ -598,7 +598,7 @@
+ 
+ .estimate-group-open {
+   flex: none;
+-  margin-inline-start: auto; /* ポイントの選択欄と同じく右端へ寄せる（長い名前で次の行へ落ちても右端） */
++  /* ポイントの選択欄と同じく右端へ寄せる（長い名前で次の行へ落ちても右端） */
+   font-size: var(--font-size-sm);
+   color: var(--coal-soft);
+ }

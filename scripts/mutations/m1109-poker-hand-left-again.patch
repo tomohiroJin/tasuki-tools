@@ -1,0 +1,12 @@
+diff --git a/apps/poker-web/src/index.css b/apps/poker-web/src/index.css
+index c4c3943b..c1025554 100644
+--- a/apps/poker-web/src/index.css
++++ b/apps/poker-web/src/index.css
+@@ -370,7 +370,6 @@
+   flex-wrap: wrap;
+   /* 操作の面が手札より広い画面（1920px で約 1800px 幅）では中央に置く。左に寄ると右が約 1150px 空く（#555 PR 575 の指摘）。
+      手札の幅ぴったりのときは動かない */
+-  justify-content: center;
+   gap: 0.55rem;
+   perspective: 800px;
+ }

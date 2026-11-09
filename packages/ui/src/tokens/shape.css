@@ -21,6 +21,11 @@
   /* 押せる大きさ（#372）。44px 相当の当たりの最小。見た目を小さくするときは当たりを ::before で広げる */
   --tap-target: 2.75rem;
 
+  /* 下端の帯（2 段）の最大の高さ。Tab で送った先が帯の後ろに隠れない余白（`scroll-padding-block-end`）に使う（WCAG 2.4.11）。
+   * 実測（既定の文字の大きさ）: poker の公開後（選択欄 1 段 ＋ 操作 1 段）142.2px・timer の休憩つき（2×2）125px・poker の投票中（1 段）約 80px。
+   * 最大の 142.2px に iPhone のホームバー（`env(safe-area-inset-bottom)`）を足して使うので、丸めて 9.5rem（152px）。文字を拡大したときの折り返しは測っていない */
+  --dock-max-height: 9.5rem;
+
   /* 影。夜の卓に載るため黒基調で固定する（配色の切替は行わない） */
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35), 0 6px 16px rgba(0, 0, 0, 0.35);
   --shadow-popover: 0 10px 15px rgba(0, 0, 0, 0.45);

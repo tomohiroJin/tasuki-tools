@@ -1,0 +1,13 @@
+diff --git a/e2e/support/block-gaps.ts b/e2e/support/block-gaps.ts
+index 24559140..e471da22 100644
+--- a/e2e/support/block-gaps.ts
++++ b/e2e/support/block-gaps.ts
+@@ -138,7 +138,7 @@ export const SKIP_RULES: readonly SkipRule[] = [
+   {
+     name: '流れの外の部品',
+     reason: '`position: absolute` は親の流れに入らない（QR の浮かぶカード・バッジ・盤の針・ポップオーバー）。重なりは意図したもの。隣り合う、という関係が無い',
+-    test: (n) => n.position === 'absolute',
++    test: () => false,
+   },
+   {
+     name: '変形した部品',

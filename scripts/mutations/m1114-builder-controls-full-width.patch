@@ -1,0 +1,13 @@
+diff --git a/apps/agenda-web/src/builder.css b/apps/agenda-web/src/builder.css
+index 6a6e02ae..d816fcb5 100644
+--- a/apps/agenda-web/src/builder.css
++++ b/apps/agenda-web/src/builder.css
+@@ -147,7 +147,7 @@
+    `@media` の `rem` は文字を大きくしても広がらない（初期値基準）ので、行の箱の `em` で測る容器クエリにする（文字 200% の 1024・1280 で「＋」が行を越えた） */
+ @container builder-row (min-width: 44em) {
+   .builder-row-controls {
+-    grid-column: 2;
++    grid-column: 1 / -1;
+   }
+ }
+ .builder-minutes {
