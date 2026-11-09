@@ -18,7 +18,7 @@
   <link rel="stylesheet" href="./gallery.css">
 </head>
 <body>
-<main class="g-page">
+<div class="g-page" id="main">
   <header class="g-top">
     <h1>@tasuki/ui 見本</h1>
     <p class="g-lede">部品層（<code>.ui-*</code>）とトークン（色・余白・文字の段・角丸・影）の一覧。新しい画面や機能は、ここから選んで当てる（<a href="./README.md">README</a>）。ブラウザの幅を変えると、40rem・64rem の境目で並びが変わる部品も見える。</p>
@@ -38,7 +38,7 @@
     <p class="g-note">変数の名前をそのまま載せている。値は <code>src/tokens/</code> が正本（ここへ写さない）。</p>
 
     <h3 class="g-h2">色</h3>
-      <h3 class="g-h3">卓のフェルト（濃い順）と面</h3>
+      <h4 class="g-h3">卓のフェルト（濃い順）と面</h4>
       <ul class="g-swatches">
         <li class="g-swatch"><span class="g-chip" style="background: var(--felt-950)"></span><code>--felt-950</code></li>
         <li class="g-swatch"><span class="g-chip" style="background: var(--felt-900)"></span><code>--felt-900</code></li>
@@ -54,12 +54,12 @@
         <li class="g-swatch"><span class="g-chip" style="background: var(--felt-vignette)"></span><code>--felt-vignette</code></li>
         <li class="g-swatch"><span class="g-chip" style="background: var(--felt-vignette-deep)"></span><code>--felt-vignette-deep</code></li>
       </ul>
-      <h3 class="g-h3">罫</h3>
+      <h4 class="g-h3">罫</h4>
       <ul class="g-swatches">
         <li class="g-swatch"><span class="g-chip" style="background: var(--line)"></span><code>--line</code></li>
         <li class="g-swatch"><span class="g-chip" style="background: var(--line-strong)"></span><code>--line-strong</code></li>
       </ul>
-      <h3 class="g-h3">文字（象牙）と札の上の文字</h3>
+      <h4 class="g-h3">文字（象牙）と札の上の文字</h4>
       <ul class="g-swatches">
         <li class="g-swatch"><span class="g-chip" style="background: var(--ivory)"></span><code>--ivory</code></li>
         <li class="g-swatch"><span class="g-chip" style="background: var(--ivory-dim)"></span><code>--ivory-dim</code></li>
@@ -68,7 +68,7 @@
         <li class="g-swatch"><span class="g-chip" style="background: var(--coal-soft)"></span><code>--coal-soft</code></li>
         <li class="g-swatch"><span class="g-chip" style="background: var(--ivory-inset)"></span><code>--ivory-inset</code></li>
       </ul>
-      <h3 class="g-h3">真鍮（gold）とその派生</h3>
+      <h4 class="g-h3">真鍮（gold）とその派生</h4>
       <ul class="g-swatches">
         <li class="g-swatch"><span class="g-chip" style="background: var(--gold)"></span><code>--gold</code></li>
         <li class="g-swatch"><span class="g-chip" style="background: var(--gold-bright)"></span><code>--gold-bright</code></li>
@@ -80,7 +80,7 @@
         <li class="g-swatch"><span class="g-chip" style="background: var(--on-gold)"></span><code>--on-gold</code></li>
         <li class="g-swatch"><span class="g-chip" style="background: var(--gold-glow)"></span><code>--gold-glow</code></li>
       </ul>
-      <h3 class="g-h3">翡翠（jade）とその派生</h3>
+      <h4 class="g-h3">翡翠（jade）とその派生</h4>
       <ul class="g-swatches">
         <li class="g-swatch"><span class="g-chip" style="background: var(--jade)"></span><code>--jade</code></li>
         <li class="g-swatch"><span class="g-chip" style="background: var(--jade-lift)"></span><code>--jade-lift</code></li>
@@ -90,7 +90,7 @@
         <li class="g-swatch"><span class="g-chip" style="background: var(--on-jade)"></span><code>--on-jade</code></li>
         <li class="g-swatch"><span class="g-chip" style="background: var(--jade-pale)"></span><code>--jade-pale</code></li>
       </ul>
-      <h3 class="g-h3">薔薇（rose）とその派生</h3>
+      <h4 class="g-h3">薔薇（rose）とその派生</h4>
       <ul class="g-swatches">
         <li class="g-swatch"><span class="g-chip" style="background: var(--rose)"></span><code>--rose</code></li>
         <li class="g-swatch"><span class="g-chip" style="background: var(--rose-bright)"></span><code>--rose-bright</code></li>
@@ -102,7 +102,7 @@
         <li class="g-swatch"><span class="g-chip" style="background: var(--rose-pale)"></span><code>--rose-pale</code></li>
         <li class="g-swatch"><span class="g-chip" style="background: var(--rose-glow)"></span><code>--rose-glow</code></li>
       </ul>
-      <h3 class="g-h3">札（card）・絵札・スート</h3>
+      <h4 class="g-h3">札（card）・絵札・スート</h4>
       <ul class="g-swatches">
         <li class="g-swatch"><span class="g-chip" style="background: var(--card-edge)"></span><code>--card-edge</code></li>
         <li class="g-swatch"><span class="g-chip" style="background: var(--card-sheen)"></span><code>--card-sheen</code></li>
@@ -114,13 +114,13 @@
         <li class="g-swatch"><span class="g-chip" style="background: var(--court-skin)"></span><code>--court-skin</code></li>
         <li class="g-swatch"><span class="g-chip" style="background: var(--court-hair)"></span><code>--court-hair</code></li>
       </ul>
-      <h3 class="g-h3">在室状況</h3>
+      <h4 class="g-h3">在室状況</h4>
       <ul class="g-swatches">
         <li class="g-swatch"><span class="g-chip" style="background: var(--presence-online)"></span><code>--presence-online</code></li>
         <li class="g-swatch"><span class="g-chip" style="background: var(--presence-idle)"></span><code>--presence-idle</code></li>
         <li class="g-swatch"><span class="g-chip" style="background: var(--presence-offline)"></span><code>--presence-offline</code></li>
       </ul>
-      <h3 class="g-h3">補助の色（目盛り）</h3>
+      <h4 class="g-h3">補助の色（目盛り）</h4>
       <ul class="g-swatches">
         <li class="g-swatch"><span class="g-chip" style="background: var(--pewter)"></span><code>--pewter</code></li>
       </ul>
@@ -258,10 +258,10 @@
     <h2>面と並び</h2>
     <div class="g-demo">
       <h3 class="g-h2"><code>.ui-panel</code>（見出しを持つまとまりの面）</h3>
-      <section class="ui-panel"><h3>パネルの見出し</h3><p>パネルの中身。地・枠・角丸・内側の余白を部品が持つ。</p></section>
+      <section class="ui-panel"><h4>パネルの見出し</h4><p>パネルの中身。地・枠・角丸・内側の余白を部品が持つ。</p></section>
       <h3 class="g-h2"><code>.ui-section-head</code>（見出しと操作の行。--beside は操作を見出しの隣へ寄せる）</h3>
-      <div class="ui-section-head"><h3>区画の見出し</h3><button class="ui-button ui-button--secondary ui-button--sm" type="button">操作</button></div>
-      <div class="ui-section-head ui-section-head--beside"><h3>隣へ寄せる見出し</h3><button class="ui-button ui-button--secondary ui-button--sm" type="button">操作</button></div>
+      <div class="ui-section-head"><h4>区画の見出し</h4><button class="ui-button ui-button--secondary ui-button--sm" type="button">操作</button></div>
+      <div class="ui-section-head ui-section-head--beside"><h4>隣へ寄せる見出し</h4><button class="ui-button ui-button--secondary ui-button--sm" type="button">操作</button></div>
       <h3 class="g-h2"><code>.ui-stack</code>（縦に積む。--tight は間を詰める）</h3>
       <div class="g-row">
         <div class="ui-stack g-cell"><p>通常 1</p><p>通常 2</p><p>通常 3</p></div>
@@ -270,23 +270,23 @@
     </div>
     <div class="g-demo">
       <h3 class="g-h2"><code>.ui-page</code>（器の 3 段。最大幅 40rem・72rem・96rem。ここでは枠の中に置く）</h3>
-      <div class="g-frame g-frame--short"><main class="ui-page ui-page--prose g-outline">読む・入力する画面（--prose）</main></div>
-      <div class="g-frame g-frame--short"><main class="ui-page g-outline">選ぶ・一覧する画面（既定）</main></div>
-      <div class="g-frame g-frame--short"><main class="ui-page ui-page--wide g-outline">道具の部屋（--wide）</main></div>
+      <div class="g-frame g-frame--short"><div class="g-box-frame"><div class="ui-page ui-page--prose">読む・入力する画面（--prose）</div></div></div>
+      <div class="g-frame g-frame--short"><div class="g-box-frame"><div class="ui-page">選ぶ・一覧する画面（既定）</div></div></div>
+      <div class="g-frame g-frame--short"><div class="g-box-frame"><div class="ui-page ui-page--wide">道具の部屋（--wide）</div></div></div>
     </div>
     <div class="g-demo">
       <h3 class="g-h2"><code>.ui-workspace</code>（64rem 以上で脇と並ぶ。--side-end で脇を右へ、--reader で脇を読む面の比に）</h3>
       <div class="ui-workspace">
-        <div class="ui-workspace-main g-outline">操作の面（-main）</div>
-        <aside class="ui-workspace-side g-outline">脇（-side）</aside>
+        <div class="ui-workspace-main"><div class="g-outline">操作の面（-main）</div></div>
+        <aside class="ui-workspace-side"><div class="g-outline">脇（-side）</div></aside>
       </div>
       <div class="ui-workspace ui-workspace--side-end">
-        <div class="ui-workspace-main g-outline">操作の面</div>
-        <aside class="ui-workspace-side g-outline">脇は右（--side-end）</aside>
+        <div class="ui-workspace-main"><div class="g-outline">操作の面</div></div>
+        <aside class="ui-workspace-side"><div class="g-outline">脇は右（--side-end）</div></aside>
       </div>
       <div class="ui-workspace ui-workspace--reader">
-        <div class="ui-workspace-main g-outline">操作の面</div>
-        <aside class="ui-workspace-side g-outline">脇は読む面の比（--reader）</aside>
+        <div class="ui-workspace-main"><div class="g-outline">操作の面</div></div>
+        <aside class="ui-workspace-side"><div class="g-outline">脇は読む面の比（--reader）</div></aside>
       </div>
     </div>
   </section>
@@ -295,11 +295,11 @@
     <h2>見出しと招待</h2>
     <div class="g-demo">
       <h3 class="g-h2"><code>.ui-page-header</code>（見出しと戻る導線を 1 行の両端に）</h3>
-      <div class="ui-page-header"><h2>画面の見出し</h2><a class="ui-page-header-back ui-button ui-button--quiet" href="#parts-header">戻る</a></div>
+      <div class="ui-page-header"><h4>画面の見出し</h4><a class="ui-page-header-back ui-button ui-button--quiet" href="#parts-header">戻る</a></div>
       <h3 class="g-h2"><code>.ui-invite</code>（参加用 URL とコピー）</h3>
       <div class="ui-invite"><span class="ui-invite-url">https://example.invalid/room/ABCD-1234</span><button class="ui-button ui-button--secondary ui-button--sm" type="button">コピー</button></div>
-      <h3 class="g-h2"><code>.ui-room-header</code>（ルーム画面の見出し。通常は招待の欄が開いた形で載せる）</h3>
-      <header class="ui-room-header">
+      <h3 class="g-h2"><code>.ui-room-header</code>（ルーム画面の見出し。通常は招待の欄が開いた形で載せる。QR のカードは浮かぶので、下に余白を取る）</h3>
+      <div class="g-float"><header class="ui-room-header">
         <div class="ui-page-header">
           <div class="ui-room-header-title"><h1>進行タイマー</h1></div>
           <a class="ui-page-header-back ui-button ui-button--quiet" href="#parts-header">戻る</a>
@@ -316,12 +316,39 @@
                   <div class="ui-room-header-qr"><p class="ui-note ui-room-header-qr-status">QR を作っています</p></div>
                 </div>
                 <button class="ui-button ui-button--secondary ui-button--sm" type="button">コピー</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header></div>
+    </div>
+    <div class="g-demo">
+      <h3 class="g-h2"><code>.ui-room-header-copy-note</code>（コピーしたときの知らせ。QR のカードは閉じている）</h3>
+      <div class="g-float g-float--short"><header class="ui-room-header">
+        <div class="ui-page-header">
+          <div class="ui-room-header-title"><h1>進行タイマー</h1></div>
+          <a class="ui-page-header-back ui-button ui-button--quiet" href="#parts-header">戻る</a>
+        </div>
+        <button class="ui-button ui-button--secondary ui-button--sm ui-room-header-share-toggle" type="button" aria-expanded="true">仲間を招く</button>
+        <div class="ui-room-header-share" data-open="true">
+          <div class="ui-room-header-invite">
+            <p class="ui-room-header-code"><span class="ui-room-header-code-label">ルーム</span> <span class="ui-room-header-code-value">ABCD-1234</span></p>
+            <div class="ui-invite">
+              <span class="ui-invite-url">https://example.invalid/room/ABCD-1234</span>
+              <div class="ui-room-header-invite-actions">
+                <div class="ui-room-header-qr-anchor">
+                  <button class="ui-button ui-button--secondary ui-button--sm" type="button">QR</button>
+                  <div class="ui-room-header-qr" hidden></div>
+                </div>
+                <button class="ui-button ui-button--secondary ui-button--sm" type="button">コピー</button>
                 <p class="ui-note ui-room-header-copy-note">コピーしました</p>
               </div>
             </div>
           </div>
         </div>
-      </header>
+      </header></div>
+    </div>
+    <div class="g-demo">
       <h3 class="g-h2"><code>.ui-room-header--compact</code>（詰めた形）</h3>
       <header class="ui-room-header ui-room-header--compact">
         <div class="ui-page-header">
@@ -338,7 +365,7 @@
     <div class="g-demo">
       <h3 class="g-h2"><code>.ui-reader</code>（象牙の札。64rem 未満は 3 行の写し＋続きを読む、以上は本文）</h3>
       <div class="ui-reader">
-        <h3 class="g-reader-head">お題の説明</h3>
+        <h4 class="g-reader-head">お題の説明</h4>
         <p class="ui-reader-preview" inert>64rem 未満で見せる 3 行の写し。長い文章はここで 3 行に切られ、続きは下のボタンから開くシートに出る。長い文章の見本の文。長い文章の見本の文。長い文章の見本の文。長い文章の見本の文。長い文章の見本の文。長い文章の見本の文。</p>
         <button class="ui-button ui-button--secondary ui-button--sm ui-reader-more" type="button">続きを読む</button>
         <div class="ui-reader-body">64rem 以上で見せる本文。札の中でスクロールする。</div>
@@ -346,7 +373,7 @@
       <h3 class="g-h2"><code>.ui-drawer</code>（下からのシート。<code>&lt;dialog open&gt;</code> で静的に見せる）</h3>
       <div class="g-frame g-frame--drawer">
         <dialog class="ui-drawer" open>
-          <div class="ui-drawer-head"><h3>お題の説明</h3><button class="ui-button ui-button--quiet ui-button--sm" type="button">閉じる</button></div>
+          <div class="ui-drawer-head"><h4>お題の説明</h4><button class="ui-button ui-button--quiet ui-button--sm" type="button">閉じる</button></div>
           <div class="ui-drawer-body">シートの本文。スクロールする。</div>
         </dialog>
       </div>
@@ -369,6 +396,6 @@
       </div>
     </div>
   </section>
-</main>
+</div>
 </body>
 </html>

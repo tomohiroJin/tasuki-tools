@@ -71,6 +71,20 @@
   min-width: 10rem;
 }
 
+.g-box-frame {
+  padding: var(--space-2);
+  border: 1px dashed var(--line-strong);
+}
+
+/* 浮かぶ QR のカードとコピーの知らせの分を、下に取る（次の見本を覆わない） */
+.g-float {
+  padding-block-end: 16rem;
+}
+
+.g-float--short {
+  padding-block-end: var(--space-6);
+}
+
 .g-outline {
   padding: var(--space-3);
   border: 1px dashed var(--line-strong);
@@ -83,7 +97,8 @@
   overflow: auto;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-md);
-  padding-inline: var(--space-4);
+  /* 帯（.ui-actions--dock）は器の左右の余白ぶん外へ広がる。枠の余白を同じ式にして、帯が枠からはみ出さないようにする */
+  padding-inline: clamp(var(--space-4), 4vw, calc(var(--space-6) * 1.5));
 }
 
 .g-frame--short {
