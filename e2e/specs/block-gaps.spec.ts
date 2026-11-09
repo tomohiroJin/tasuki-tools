@@ -10,7 +10,7 @@
  * `support/block-gaps.ts`。要素の矩形だけを見る（スクリーンショットの比較は入れない。ADR 0035 決定 4）。
  *
  * 画面を足したら、ここに 1 つ足す（`docs/guides/definition-of-done.md` の「新しい画面・部品の作法」）。
- * 文字 200% は、画面ごとに 1 つずつ別の test で測る（下の「文字 200%」）。
+ * 文字 200% も、同じ状態で続けて測る（下の `expectBlocksSeparated` が 1 倍と 200% の両方を呼ぶ）。
  */
 import type { Page } from '@playwright/test';
 import { expect, test } from '../fixtures/test';
