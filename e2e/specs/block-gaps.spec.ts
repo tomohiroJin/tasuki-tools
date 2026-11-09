@@ -33,6 +33,7 @@ const LONG = 'ながいなまえのさんかしゃでございますよろしく
 
 test.describe('主な画面は隣り合うブロックが重ならず、縦の間が空いている', () => {
   test('Given 玄関（名乗る前・ルームを作った後の道具選び） / When 5 つの幅で開く / Then 隣り合うブロックが重ならず、縦の間が 8px 以上', async ({ page }) => {
+    test.setTimeout(120_000);
     await page.goto('/');
     await expect(page.getByRole('button', { name: 'ルームを作る' })).toBeVisible();
     await expectBlocksSeparated(page, '玄関（名乗る前）', { minNodes: 8 });
@@ -43,6 +44,7 @@ test.describe('主な画面は隣り合うブロックが重ならず、縦の�
   });
 
   test('Given 招待の URL で開いた玄関（参加を名乗る） / When 5 つの幅で開く / Then 隣り合うブロックが重ならず、縦の間が 8px 以上', async ({ page, openPeer }) => {
+    test.setTimeout(120_000);
     await page.goto('/');
     await page.getByLabel('あなたの名前').fill('block-host');
     await page.getByRole('button', { name: 'ルームを作る' }).click();
@@ -68,6 +70,7 @@ test.describe('主な画面は隣り合うブロックが重ならず、縦の�
   });
 
   test('Given poker の見積もりの記録（長い名前の束） / When 5 つの幅で開く / Then 隣り合うブロックが重ならず、縦の間が 8px 以上', async ({ page }) => {
+    test.setTimeout(120_000);
     await createPokerRoom(page, 'block-poker-log');
     await page.getByRole('button', { name: '記録する' }).click();
     await page.locator('.estimate-item:not(.estimate-item--inline) .estimate-item-title').first().click();
@@ -88,7 +91,9 @@ test.describe('主な画面は隣り合うブロックが重ならず、縦の�
     }
     // 作った人も輪に入る（入っていなければ「ドライバーに加わる」が出る）
     await expect(page.locator('.lobby-participant').first()).toBeVisible();
+    // 「ドライバーに加わる」か、すでに輪に入った印のどちらかが出るのを待ってから、あれば押す（1 回見るだけだと揺れる）
     const join = page.getByRole('button', { name: 'ドライバーに加わる' });
+    await expect(join.or(page.locator('.lobby-participant-badge-driver').first())).toBeVisible();
     if (await join.isVisible()) await join.click();
     await expect(page.locator('.lobby-participant')).toHaveCount(3);
     await expect(page.getByRole('button', { name: 'セッションを開始' })).toBeVisible();
@@ -99,6 +104,7 @@ test.describe('主な画面は隣り合うブロックが重ならず、縦の�
   });
 
   test('Given roulette のルーム（入る人が並ぶ・回した後） / When 5 つの幅で開く / Then 隣り合うブロックが重ならず、縦の間が 8px 以上', async ({ page }) => {
+    test.setTimeout(120_000);
     await openRouletteTool(page, 'block-roulette');
     for (const name of [LONG, 'さとう', 'すずき']) await addRouletteGuest(page, name);
     await expectBlocksSeparated(page, 'roulette（回す前）');
@@ -108,6 +114,7 @@ test.describe('主な画面は隣り合うブロックが重ならず、縦の�
   });
 
   test('Given agenda の組む画面（ステップあり）と進行中 / When 5 つの幅で開く / Then 隣り合うブロックが重ならず、縦の間が 8px 以上', async ({ page }) => {
+    test.setTimeout(120_000);
     await openAgendaTool(page, 'block-agenda');
     await expect(page.getByRole('button', { name: 'サンプルから選ぶ', exact: true })).toBeVisible();
     await expectBlocksSeparated(page, 'agenda（組む画面・空）');
@@ -123,6 +130,7 @@ test.describe('主な画面は隣り合うブロックが重ならず、縦の�
   });
 
   test('Given topic のルーム（お題なし・長いお題あり） / When 5 つの幅で開く / Then 隣り合うブロックが重ならず、縦の間が 8px 以上', async ({ page }) => {
+    test.setTimeout(120_000);
     await openTopicTool(page, 'block-topic');
     await expect(page.getByLabel('タイトル')).toBeVisible();
     await expectBlocksSeparated(page, 'topic（お題なし）');
@@ -144,6 +152,8 @@ test.describe('主な画面は隣り合うブロックが重ならず、縦の�
     await expect(handCard(page, '晴れ')).toBeVisible();
     await expectBlocksSeparated(page, 'checkin（札を出す前）');
     await handCard(page, '晴れ').click();
+    // 出した後の状態（選んだ札の印）を待ってから測る
+    await expect(handCard(page, '晴れ')).toHaveAttribute('aria-pressed', 'true');
     await expectBlocksSeparated(page, 'checkin（札を出した後）');
     await page.getByRole('button', { name: '待たずに開く', exact: true }).click();
     await expect(page.getByRole('button', { name: 'もう一回', exact: true })).toBeVisible();

@@ -18,6 +18,7 @@
  * 要素の名前（クラス）では除かず、**性質（位置・表示・変形・字だけか）で除く**。クラス名を並べると、新しい画面が黙って測られなくなる。
  */
 import { expect, type Page } from '@playwright/test';
+import { settleFiniteAnimations } from './a11y';
 
 /**
  * ブロックの間の下限（px）。`--space-2`（0.5rem）。ADR 0035 決定 2 の表で、ブロックの中の要素どうしの最低限
@@ -51,7 +52,10 @@ export interface BlockNode {
   readonly transformed: boolean;
   /** 字を切る面（`text-overflow: ellipsis` か `-webkit-line-clamp`）。字の矩形が見えている範囲より広い */
   readonly truncates: boolean;
-  /** 中が字だけ（子孫に、自分の箱を持つ要素・操作・画像が無い）。見出し・ラベル・キャプション・値・段落 */
+  /**
+   * 字だけ（見出し・ラベル・キャプション・値・段落）。**許可リストで決める**（{@link classifyTextOnly}）: 要素自身が字の要素の許可リストに入り、
+   * 自分も子孫も背景・枠・影を塗らず、押せるもの・入力欄・置き換え要素（button・a・input・img・svg など）を持たない。
+   */
   readonly textOnly: boolean;
   /** 描かれた字の行数（字だけの要素。字が無ければ 0）。1 行なら「字の行」、2 行以上は段落 */
   readonly lines: number;
@@ -59,6 +63,14 @@ export interface BlockNode {
   readonly ink: { readonly left: number; readonly top: number; readonly right: number; readonly bottom: number };
   /** 要素の種類（`label`・`li` など。小文字） */
   readonly tag: string;
+  /**
+   * 目に見える上端・下端（px）。背景・枠・影を塗る箱は箱の端そのもの。**塗らない入れ物は、中身の端**（上は padding と枠の内側・下も同じ）。
+   * 塗らない入れ物の padding は、見た目では空き（中身が始まるまでの間）になるので、間に数える。
+   */
+  readonly visTop: number;
+  readonly visBottom: number;
+  /** 親の箱の幅（px）。貼りつく帯（親の幅いっぱい）と、貼りつく脇の欄（親より狭い）を分ける */
+  readonly parentWidth: number;
   /** `role` 属性（`tablist` など） */
   readonly role: string;
   /** 左右の枠が無く、上か下にだけ罫線がある（線で区切った行）。枠で囲んだ札（四方の枠）は含まない */
@@ -69,6 +81,36 @@ export interface BlockNode {
 export interface BlockProblem {
   readonly kind: 'overlap' | 'gap';
   readonly message: string;
+}
+
+/** ブラウザから集めた生の要素。`textOnly` はまだ決めていない（{@link classifyTextOnly} が決める）。`paints` は自分が背景・枠・影を塗る。 */
+export type RawBlockNode = Omit<BlockNode, 'textOnly'> & { readonly paints: boolean };
+
+/** 字を入れるブロックの要素（許可リスト）。`div` は中が inline の字だけのときに限る（下の {@link classifyTextOnly}）。 */
+export const TEXT_BLOCK_TAGS: ReadonlySet<string> = new Set(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'label', 'li', 'dt', 'dd', 'figcaption', 'blockquote', 'pre', 'div']);
+/** 字を入れる inline の要素（許可リスト）。 */
+export const TEXT_INLINE_TAGS: ReadonlySet<string> = new Set(['span', 'strong', 'em', 'small', 'time', 'b', 'i', 'code', 'mark', 'abbr', 'sub', 'sup', 'q', 'cite']);
+
+/**
+ * 字だけの要素に印を付ける。**許可リストの判定**（逆の「箱でないものを除く」にしない: 新しい要素・部品が黙って字だけに入らない）。
+ *   - 要素自身が {@link TEXT_BLOCK_TAGS} か {@link TEXT_INLINE_TAGS} に入る（button・a・input・textarea・select・img・svg・summary などは入らない）
+ *   - 自分が背景・枠・影を塗らない（`paints`）
+ *   - 子（集めた要素）がすべて字だけ。`div` は子がすべて inline の字のときだけ（入れ物の div は字の行ではない）
+ * 親が子より先に並ぶ順（集めた順）なので、後ろから 1 回走査すれば子が先に決まる。O(n)。
+ */
+export function classifyTextOnly(raw: readonly RawBlockNode[]): BlockNode[] {
+  const children = new Map<number, RawBlockNode[]>();
+  for (const n of raw) children.set(n.parent, [...(children.get(n.parent) ?? []), n]);
+  const textOnly = new Map<number, boolean>();
+  for (let i = raw.length - 1; i >= 0; i -= 1) {
+    const n = raw[i]!;
+    const kids = children.get(n.id) ?? [];
+    const allowed = TEXT_BLOCK_TAGS.has(n.tag) || TEXT_INLINE_TAGS.has(n.tag);
+    const kidsOk = kids.every((k) => textOnly.get(k.id) === true);
+    const divOk = n.tag !== 'div' || kids.every((k) => TEXT_INLINE_TAGS.has(k.tag));
+    textOnly.set(n.id, allowed && !n.paints && kidsOk && divOk);
+  }
+  return raw.map((n) => ({ ...n, textOnly: textOnly.get(n.id) === true }));
 }
 
 /** 除く規則 1 つ。`reason` は理由。`test` が真なら、その子は隣り合う判定に入れない。 */
@@ -85,8 +127,8 @@ interface SkipRule {
 export const SKIP_RULES: readonly SkipRule[] = [
   {
     name: '貼りつく帯',
-    reason: '`position: fixed / sticky` の帯（下端の操作の帯・上の見出しの帯）は、スクロールの位置で他の中身の上に乗るのが仕様。帯が中身を隠さないことは `header-and-dock.spec.ts` が最下部で測る（ADR 0036）',
-    test: (n) => n.position === 'fixed' || n.position === 'sticky',
+    reason: '`position: fixed` と、親の幅いっぱいの `position: sticky`（下端・上端の操作の帯）は、スクロールの位置で他の中身の上に乗るのが仕様。帯が中身を隠さないことは `header-and-dock.spec.ts` が最下部で測る（ADR 0036）。**親より狭い sticky（読む面の脇の欄など）は帯ではない**ので除かない（測るのはページの先頭に戻した状態で、兄弟と重ならない）',
+    test: (n) => n.position === 'fixed' || (n.position === 'sticky' && n.right - n.left >= n.parentWidth - STICKY_BAND_SLACK),
   },
   {
     name: '行の中の字',
@@ -100,7 +142,7 @@ export const SKIP_RULES: readonly SkipRule[] = [
   },
   {
     name: '変形した部品',
-    reason: '傾けた札の扇・手札の浮き上がり・盤の針は、`transform` で意図して重ねる。箱は変形の前の位置で返るので、重なりも間も意味を持たない',
+    reason: '傾けた札の扇・手札の浮き上がり・盤の針は、`transform` で意図して重ねる。矩形（`getBoundingClientRect`）は変形を含むので、意図した重なりがそのまま「重なる」と出る。変形した部品は隣り合う判定に入れない',
     test: (n) => n.transformed,
   },
   {
@@ -114,6 +156,9 @@ export const SKIP_RULES: readonly SkipRule[] = [
     test: (n) => n.right - n.left < 2 || n.bottom - n.top < 2,
   },
 ];
+
+/** 親の幅いっぱいとみなす余裕（px）。親の padding・枠・スクロールバーで 1〜2px ずれる。 */
+const STICKY_BAND_SLACK = 2;
 
 /** 表を作る表示。行どうしは線で区切る表で、間 0 が正しい（agenda の終了後の表）。 */
 const TABLE_DISPLAY = /^(table|inline-table)/;
@@ -149,9 +194,15 @@ export const SPACING_SKIP_RULES: readonly { readonly name: string; readonly reas
  * `minGap` は縦の間の下限（既定 {@link MIN_BLOCK_GAP}）。
  */
 export function findBlockProblems(nodes: readonly BlockNode[], minGap: number = MIN_BLOCK_GAP, captionGap: number = MIN_CAPTION_GAP): BlockProblem[] {
+  // 変形した部品の子孫は、親の変形（傾き・3D の回転・拡大）で矩形が射影され、箱の間も重なりも意味を持たない
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const underTransform = (n: BlockNode): boolean => {
+    for (let p = byId.get(n.parent); p !== undefined; p = byId.get(p.parent)) if (p.transformed) return true;
+    return false;
+  };
   const byParent = new Map<number, BlockNode[]>();
   for (const n of nodes) {
-    if (SKIP_RULES.some((r) => r.test(n))) continue;
+    if (SKIP_RULES.some((r) => r.test(n)) || underTransform(n)) continue;
     const list = byParent.get(n.parent) ?? [];
     list.push(n);
     byParent.set(n.parent, list);
@@ -171,7 +222,8 @@ export function findBlockProblems(nodes: readonly BlockNode[], minGap: number = 
         if (Math.min(a.right, b.right) - Math.max(a.left, b.left) <= 1) continue;
         const [upper, lower] = a.top <= b.top ? [a, b] : [b, a];
         const spacing = spacingOf(upper, lower, minGap, captionGap);
-        if (spacing === null || spacing.gap < 0 || spacing.gap >= spacing.floor - OVERLAP_TOLERANCE) continue;
+        // 負の間（箱が食い込む。重なりの許容の内や、字の矩形が離れている組）も下限と比べる。重なりとして報告済みの組は上で飛ばしている
+        if (spacing === null || spacing.gap >= spacing.floor - OVERLAP_TOLERANCE) continue;
         problems.push({
           kind: 'gap',
           message: `間が ${spacing.gap.toFixed(1)}px（下限 ${String(spacing.floor)}px）: ${upper.path} の下に ${lower.path}`,
@@ -201,60 +253,78 @@ function overlapOf(a: BlockNode, b: BlockNode): { dx: number; dy: number } | nul
   return { dx, dy };
 }
 
+/** 文章のブロック。字だけの組のうち、1 行でも間を測るもの（見出し・段落・一覧の項目）。 */
+const PROSE_TAGS: ReadonlySet<string> = new Set(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'li']);
+
 /**
  * 縦に積まれた上下の子の、縦の間と下限。測らない組は null。
  *   - 両方が段落（`p` で 2 行以上）: 箱の間、下限 `minGap`（段落の間が行間と区別できなくなった一覧 #3 の再発を捕まえる）
- *   - 両方が字だけで、上の段落の組でない: 測らない（「字の行どうし」。名前 → 意味・見出し → 説明は行の高さの中に余白がある）
+ *   - 両方が文章のブロック（`p`・`h1`〜`h6`・`li`）: 1 行でも箱の間、下限 `captionGap`（見出しと 1 行の段落・短い段落どうしが間 0 で並ぶ退行を捕まえる）
+ *   - 両方が字だけで、どちらかが文章のブロックでない（名前 → 意味・値 → ラベル）: 測らない
  *   - 片方が字だけ: 字の端から測った間と箱の間の大きいほう、下限 `captionGap`（ラベル・見出し・キャプションは直下の中身と詰めて置く）
  *   - 一覧の行（`li`）どうし: 箱の間、下限 `captionGap`（行を 4px で詰めて並べる作り）
  *   - 上のどれでもない 2 つの箱: 箱の間、下限 `minGap`
+ * 負の間（食い込み）も返す。呼び出し側が下限と比べる。
  */
 function spacingOf(upper: BlockNode, lower: BlockNode, minGap: number, captionGap: number): { gap: number; floor: number } | null {
   if (SPACING_SKIP_RULES.some((r) => r.test(upper, lower))) return null;
-  const box = lower.top - upper.bottom;
+  const box = lower.visTop - upper.visBottom;
   if (upper.textOnly && lower.textOnly) {
-    return upper.tag === 'p' && lower.tag === 'p' && upper.lines >= 2 && lower.lines >= 2 ? { gap: box, floor: minGap } : null;
+    // 文章のブロック（p・h1〜h6・li）どうしだけ測る。名前 → 意味・値 → ラベル・盤の時間 → 差（span・div・dt・dd の字の組）は、行の高さの中に余白を持つ
+    // 詰めた組で、一覧 #3 の型（段落の間が行間と区別できない）ではない。字そのものの食い込みは重なりの判定が見る
+    if (!PROSE_TAGS.has(upper.tag) || !PROSE_TAGS.has(lower.tag)) return null;
+    return { gap: box, floor: upper.tag === 'p' && lower.tag === 'p' && upper.lines >= 2 && lower.lines >= 2 ? minGap : captionGap };
   }
   if (upper.textOnly || lower.textOnly) {
     // 字の端から測った間と、箱の間の大きいほう。箱の余白（padding）が字を離す所と、行の高さより字の枠が広い所（箱の間のほうが広い）の両方を、詰まりとは読まない
-    const ink = (lower.textOnly ? lower.ink.top : lower.top) - (upper.textOnly ? upper.ink.bottom : upper.bottom);
+    const ink = (lower.textOnly ? lower.ink.top : lower.visTop) - (upper.textOnly ? upper.ink.bottom : upper.visBottom);
     return { gap: Math.max(box, ink), floor: captionGap };
   }
   return { gap: box, floor: upper.tag === 'li' && lower.tag === 'li' ? captionGap : minGap };
 }
 
 /**
- * ページの中で、見えている要素の箱と性質を木のまま集める。判定はしない（{@link findBlockProblems} がする）。
+ * ページの中で、見えている要素の箱と性質を木のまま集め、字だけの印を付けて返す。判定はしない（{@link findBlockProblems} がする）。
  *
- * 子を持たない要素・見えない要素（`checkVisibility` が偽・読み上げ専用に潰した箱・`inert` の中）は集めない。
- * 親が見えない要素の子も集めない（`display: none` の中）。
+ * 見えない要素（`display: none`・`visibility: hidden`・`checkVisibility` が偽・読み上げ専用に潰した箱・`inert` の中）は集めない。
+ * 親が見えない要素の子も集めない。`display: contents` の要素は、子を祖父母の子として数える。
+ * 字だけの印は {@link classifyTextOnly}（許可リスト）。ページの中では「字の矩形」の計算だけをする。
  */
 export async function collectBlocks(page: Page, scope: string): Promise<BlockNode[]> {
-  return page.evaluate((scope) => {
+  const textBlock = [...TEXT_BLOCK_TAGS];
+  const textInline = [...TEXT_INLINE_TAGS];
+  const raw = await page.evaluate(({ scope, textBlock, textInline }) => {
     const out: {
       id: number; parent: number; path: string; left: number; top: number; right: number; bottom: number;
-      position: string; display: string; transformed: boolean; truncates: boolean; textOnly: boolean;
+      position: string; display: string; transformed: boolean; truncates: boolean; paints: boolean; parentWidth: number; visTop: number; visBottom: number;
       lines: number; ink: { left: number; top: number; right: number; bottom: number }; tag: string; role: string; ruledTop: boolean; ruledBottom: boolean;
     }[] = [];
     const root = document.querySelector(scope);
     if (root === null) throw new Error(`測る範囲 ${scope} が無い（判定が空振りする）`);
+    const blockTags = new Set(textBlock);
+    const inlineTags = new Set(textInline);
     const label = (el: Element): string => `${el.tagName.toLowerCase()}${el.classList.length > 0 ? `.${[...el.classList].slice(0, 2).join('.')}` : ''}`;
-    const text = (el: Element): string => (el.getAttribute('aria-label') ?? el.textContent ?? '').trim().replace(/\s+/g, ' ').slice(0, 14);
-    // 自分の箱を持つ要素: 操作・入力・画像・描画面、または背景・枠・影がある
-    const BOXED_TAGS = new Set(['BUTTON', 'INPUT', 'SELECT', 'TEXTAREA', 'IMG', 'SVG', 'CANVAS', 'VIDEO', 'A', 'SUMMARY', 'DIALOG']);
+    // 名前の見本: aria-label か、最初の字から 14 字まで（子孫の字を全部つなぐと、深い木で O(n²) になる）
+    const snippet = (el: Element): string => {
+      const aria = el.getAttribute('aria-label');
+      if (aria !== null) return aria.trim().slice(0, 14);
+      let got = '';
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      for (let n = walker.nextNode(); n !== null && got.length < 14; n = walker.nextNode()) got += (n.textContent ?? '').replace(/\s+/g, ' ');
+      return got.trim().slice(0, 14);
+    };
+    // 自分が背景・枠・影を塗る
     const paintsBox = (cs: CSSStyleDeclaration): boolean =>
       (cs.backgroundColor !== 'rgba(0, 0, 0, 0)' && cs.backgroundColor !== 'transparent')
       || cs.backgroundImage !== 'none'
-      || ['Top', 'Right', 'Bottom', 'Left'].some((side) => parseFloat(cs.getPropertyValue(`border-${side.toLowerCase()}-width`)) > 0 && cs.getPropertyValue(`border-${side.toLowerCase()}-style`) !== 'none')
+      || ['top', 'right', 'bottom', 'left'].some((side) => parseFloat(cs.getPropertyValue(`border-${side}-width`)) > 0 && cs.getPropertyValue(`border-${side}-style`) !== 'none')
       || cs.boxShadow !== 'none';
-    const isTextOnly = (el: Element): boolean => {
-      for (const child of Array.from(el.children)) {
-        const cs = getComputedStyle(child);
-        if (cs.display === 'none') continue;
-        if (BOXED_TAGS.has(child.tagName.toUpperCase()) || paintsBox(cs)) return false;
-        if (!isTextOnly(child)) return false;
-      }
-      return true;
+    // 字の矩形を計算する要素: 字のブロック・inline の許可リスト。`div` は子がすべて inline の字のものだけ（入れ物の div の全部の字を数えない）
+    const wantsInk = (el: Element): boolean => {
+      const tag = el.tagName.toLowerCase();
+      if (inlineTags.has(tag)) return true;
+      if (!blockTags.has(tag)) return false;
+      return tag !== 'div' || Array.from(el.children).every((c) => inlineTags.has(c.tagName.toLowerCase()));
     };
     // 描かれた字の矩形の外接と行数（字が無ければ null）。行は上端の近さで束ねる（和文と欧文の数 px の差を吸う）
     const inkOf = (el: Element): { left: number; top: number; right: number; bottom: number; lines: number } | null => {
@@ -291,11 +361,11 @@ export async function collectBlocks(page: Page, scope: string): Promise<BlockNod
       && !(parseFloat(cs.borderLeftWidth) > 0 && cs.borderLeftStyle !== 'none')
       && !(parseFloat(cs.borderRightWidth) > 0 && cs.borderRightStyle !== 'none');
     let nextId = 0;
-    const walk = (el: Element, parentId: number): void => {
+    const walk = (el: Element, parentId: number, parentWidth: number): void => {
       for (const child of Array.from(el.children)) {
         if (['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE', 'LINK', 'META', 'BR', 'WBR'].includes(child.tagName.toUpperCase())) continue;
         const cs = getComputedStyle(child);
-        if (cs.display === 'contents') { walk(child, parentId); continue; }
+        if (cs.display === 'contents') { walk(child, parentId, parentWidth); continue; }
         if (cs.display === 'none' || cs.visibility === 'hidden') continue;
         if (!child.checkVisibility() || child.closest('[inert]') !== null) continue;
         const r = child.getBoundingClientRect();
@@ -305,36 +375,32 @@ export async function collectBlocks(page: Page, scope: string): Promise<BlockNod
         const id = nextId++;
         const transformed = cs.transform !== 'none' || cs.translate !== 'none' || !['none', '0deg'].includes(cs.rotate) || !['none', '1'].includes(cs.scale);
         const truncates = cs.textOverflow === 'ellipsis' || (cs.getPropertyValue('-webkit-line-clamp') !== 'none' && cs.getPropertyValue('-webkit-line-clamp') !== '');
-        const textOnly = isTextOnly(child);
-        const ink = textOnly ? inkOf(child) : null;
+        const ink = wantsInk(child) ? inkOf(child) : null;
+        const sn = snippet(child);
+        const paints = paintsBox(cs);
+        const inset = (side: 'top' | 'bottom'): number => parseFloat(cs.getPropertyValue(`padding-${side}`)) + parseFloat(cs.getPropertyValue(`border-${side}-width`));
         out.push({
-          id, parent: parentId, path: `${label(child)}${text(child) === '' ? '' : `「${text(child)}」`}`,
+          id, parent: parentId, path: `${label(child)}${sn === '' ? '' : `「${sn}」`}`,
           left: r.left, top: r.top, right: r.right, bottom: r.bottom,
-          position: cs.position, display: cs.display, transformed, truncates, textOnly,
+          position: cs.position, display: cs.display, transformed, truncates, paints, parentWidth,
+          visTop: paints ? r.top : r.top + inset('top'), visBottom: paints ? r.bottom : r.bottom - inset('bottom'),
           lines: ink?.lines ?? 0,
           ink: ink === null ? { left: r.left, top: r.top, right: r.right, bottom: r.bottom } : { left: ink.left, top: ink.top, right: ink.right, bottom: ink.bottom },
           tag: child.tagName.toLowerCase(), role: child.getAttribute('role') ?? '',
           ruledTop: ruled(cs, 'top'), ruledBottom: ruled(cs, 'bottom'),
         });
         // 絵（svg）の中の図形は部品ではない（描かれた形どうしの重なりは絵の中身）。絵そのものを 1 つの箱として数える
-        if (child.namespaceURI !== 'http://www.w3.org/2000/svg') walk(child, id);
+        if (child.namespaceURI !== 'http://www.w3.org/2000/svg') walk(child, id, r.width);
       }
     };
-    walk(root, -1);
+    walk(root, -1, root.getBoundingClientRect().width);
     return out;
-  }, scope);
+  }, { scope, textBlock, textInline });
+  return classifyTextOnly(raw);
 }
 
-/** 終わりのある演出が終わるのを待つ（途中の箱は縮んでいたり動いていたりして、間と重なりを誤る）。描かれていない部分木の演出は待たない。 */
-export async function settleAnimations(page: Page): Promise<void> {
-  await page.evaluate(() => Promise.all(document.getAnimations()
-    .filter((a) => a.playState === 'running' && a.effect?.getComputedTiming().endTime !== Infinity)
-    .filter((a) => {
-      const target = a.effect instanceof KeyframeEffect ? a.effect.target : null;
-      return target === null || target.checkVisibility();
-    })
-    .map((a) => a.finished.catch(() => undefined))));
-}
+/** 終わりのある演出が終わるのを待つ（途中の箱は縮んでいたり動いていたりして、間と重なりを誤る）。`a11y.ts` の {@link settleFiniteAnimations} と同じもの。 */
+export const settleAnimations = settleFiniteAnimations;
 
 export interface BlockScanOptions {
   /** 測る幅。既定は {@link BLOCK_WIDTHS} */
