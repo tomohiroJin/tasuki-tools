@@ -726,6 +726,8 @@ export const GALLERY_EXEMPT = new Map();
  * - コメント（`<!-- … -->`）と `<!doctype html>` 以外の `<!` と `<?`
  * - 属性値の中の `<`、タグを閉じていない `<`、`<` の直後が英字・`/`・`!`・`?` のどれでもない書き方
  */
+/** 閉じタグを持たない要素（開きタグだけで、積みに載せない）。 */
+const GALLERY_VOID_ELEMENTS = new Set(["area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "track", "wbr"]);
 export const GALLERY_FORBIDDEN_ELEMENTS = new Set(["template", "noscript", "xmp", "iframe", "script", "style", "object", "embed", "title"]);
 /** 中身を読み飛ばす禁止の要素（中身は別の言語で、タグとして数えない）。 */
 const GALLERY_RAW_ELEMENTS = new Set(["template", "textarea", "noscript", "xmp", "iframe", "script", "style", "title"]);
@@ -742,8 +744,11 @@ export function scanGallery(html) {
   let inHead = false;
   let titles = 0;
   let text = "";
+  /** 開いているタグの積み（描かれない状態かどうかを子孫へ伝える）。 */
+  const stack = [];
+  const hiddenNow = () => stack.length > 0 && stack[stack.length - 1].hidden;
   const flushText = () => {
-    if (codeDepth > 0 && text !== "") codeTexts.push(text);
+    if (codeDepth > 0 && text !== "" && !hiddenNow()) codeTexts.push(text);
     text = "";
   };
   let i = 0;
@@ -776,15 +781,17 @@ export function scanGallery(html) {
       i = end === -1 ? n : end + 1;
       continue;
     }
-    const close = /^<\/([a-zA-Z][^\s/>]*)\s*>/.exec(rest);
+    const close = /^<\/([a-zA-Z][^\t\n\f\r />]*)[\t\n\f\r ]*>/.exec(rest);
     if (close) {
       const name = close[1].toLowerCase();
       if (name === "code" && codeDepth > 0) codeDepth--;
       if (name === "head") inHead = false;
+      const at = stack.map((e) => e.name).lastIndexOf(name);
+      if (at !== -1) stack.length = at;
       i = lt + close[0].length;
       continue;
     }
-    const open = /^<([a-zA-Z][^\s/>]*)/.exec(rest);
+    const open = /^<([a-zA-Z][^\t\n\f\r />]*)/.exec(rest);
     if (!open) {
       violations.push(`<code>&lt;</code> でない < が書かれています（直後が英字・/・!・? のどれでもない）: ${rest.slice(0, 12).replace(/\s+/g, " ")}`);
       i = lt + 1;
@@ -796,13 +803,13 @@ export function scanGallery(html) {
     const tagAttrs = [];
     let closed = false;
     while (j < n) {
-      while (j < n && /[\s/]/.test(html[j])) j++;
+      while (j < n && /[\t\n\f\r /]/.test(html[j])) j++;
       if (html[j] === ">") {
         closed = true;
         j++;
         break;
       }
-      const nm = /^[^\s"'=<>/]+/.exec(html.slice(j));
+      const nm = /^[^\t\n\f\r "'=<>/]+/.exec(html.slice(j));
       if (!nm) {
         violations.push(`<${name}> の属性の書き方が不正です: ${html.slice(j, j + 12).replace(/\s+/g, " ")}`);
         j++;
@@ -812,10 +819,10 @@ export function scanGallery(html) {
       const attrName = nm[0].toLowerCase();
       let value = "";
       let k = j;
-      while (k < n && /\s/.test(html[k])) k++;
+      while (k < n && /[\t\n\f\r ]/.test(html[k])) k++;
       if (html[k] === "=") {
         k++;
-        while (k < n && /\s/.test(html[k])) k++;
+        while (k < n && /[\t\n\f\r ]/.test(html[k])) k++;
         const q = html[k];
         if (q === '"' || q === "'") {
           const end = html.indexOf(q, k + 1);
@@ -827,7 +834,7 @@ export function scanGallery(html) {
           value = html.slice(k + 1, end);
           j = end + 1;
         } else {
-          const um = /^[^\s>]*/.exec(html.slice(k));
+          const um = /^[^\t\n\f\r >]*/.exec(html.slice(k));
           value = um[0];
           j = k + value.length;
         }
@@ -840,6 +847,8 @@ export function scanGallery(html) {
       }
     }
     if (!closed) violations.push(`<${name} が閉じていません`);
+    // ブラウザが区切りとして扱うのは ASCII の空白だけ。全角スペース・NBSP などはタグの中に置かせない。
+    if (/[^\S\t\n\f\r ]/.test(html.slice(lt, j))) violations.push(`<${name}> の中に ASCII 以外の空白があります（ブラウザは区切りとして扱わない）`);
     i = j;
     if (GALLERY_FORBIDDEN_ELEMENTS.has(name)) {
       let ok = false;
@@ -849,12 +858,22 @@ export function scanGallery(html) {
       }
       if (!ok) violations.push(`<${name}> は見本で使えません（画面に描かれない中身を持つ。見本は小さな書き方だけにする）`);
     } else {
-      attrs.push(...tagAttrs);
+      const parent = stack[stack.length - 1];
+      const has = (a) => tagAttrs.some((t) => t.name === a);
+      const style = tagAttrs.find((t) => t.name === "style")?.value ?? "";
+      const hidden =
+        (parent?.hidden ?? false) ||
+        (parent?.closedDetails === true && name !== "summary") ||
+        has("hidden") ||
+        (name === "dialog" && !has("open")) ||
+        /(?:^|;)[\t\n\f\r ]*display[\t\n\f\r ]*:[\t\n\f\r ]*none\b/i.test(style);
+      for (const a of tagAttrs) attrs.push({ ...a, rendered: !hidden });
+      if (!GALLERY_VOID_ELEMENTS.has(name)) stack.push({ name, hidden, closedDetails: name === "details" && !has("open") });
       if (name === "head") inHead = true;
       if (name === "code") codeDepth++;
     }
     if (GALLERY_RAW_ELEMENTS.has(name)) {
-      const m = new RegExp(`</${name}\\s*>`, "i").exec(html.slice(i));
+      const m = new RegExp(`</${name}[\\t\\n\\f\\r ]*>`, "i").exec(html.slice(i));
       if (!m) {
         violations.push(`<${name}> の閉じタグがありません`);
         break;
@@ -876,7 +895,8 @@ export function galleryViolations(html) {
 export function galleryClassNames(html) {
   const out = new Set();
   for (const a of scanGallery(html).attrs) {
-    if (a.name === "class") for (const c of a.value.split(/\s+/)) if (c !== "") out.add(c);
+    // 描かれない状態（hidden・open の無い dialog / details・display:none）の要素とその子孫は、載っているとは数えない。
+    if (a.rendered && a.name === "class") for (const c of a.value.split(/[\t\n\f\r ]+/)) if (c !== "") out.add(c);
   }
   return out;
 }
@@ -891,7 +911,7 @@ export function galleryTokenNames(html) {
   const { codeTexts } = scanGallery(html);
   const out = new Set();
   for (const t of codeTexts) for (const m of t.matchAll(TOKEN_NAME)) out.add(m[0]);
-  for (const v of galleryStyleValues(html)) for (const m of v.matchAll(/var\(\s*(--[a-z0-9-]+)/gi)) out.add(m[1]);
+  for (const v of scanGallery(html).attrs.filter((a) => a.rendered && a.name === "style").map((a) => a.value)) for (const m of v.matchAll(/var\(\s*(--[a-z0-9-]+)/gi)) out.add(m[1]);
   return out;
 }
 

@@ -776,6 +776,36 @@ describe("見本の網羅（#558）", () => {
     assert.deepEqual([...galleryTokenNames(h)], []);
   });
 
+  test("ASCII 以外の空白は区切りにしない（class の中の U+3000・U+00A0 は 1 つの名前で、タグの中は違反）", () => {
+    for (const sp of ["\u3000", "\u00a0"]) {
+      const h = `<i class="ui-a${sp}ui-b"></i>`;
+      assert.deepEqual([...galleryClassNames(h)], [`ui-a${sp}ui-b`]);
+      assert.ok(galleryViolations(h).length > 0, JSON.stringify(sp));
+    }
+    assert.ok(galleryViolations(`<div\u3000class="ui-a"></div>`).length > 0);
+    assert.deepEqual([...galleryClassNames(`<i class="ui-a\tui-b\nui-c"></i>`)], ["ui-a", "ui-b", "ui-c"]);
+  });
+
+  test("描かれない状態の要素とその子孫の class・トークンは数えない（違反にはしない）", () => {
+    const hiddenCases = {
+      "hidden 属性": `<div hidden><i class="ui-x"></i></div>`,
+      "hidden の子孫（閉じ忘れの p と void の後ろ）": `<div hidden><p><br><img src="a"><i class="ui-x"></i></div>`,
+      "open の無い dialog": `<dialog class="ui-x"><i class="ui-y"></i></dialog>`,
+      "open の無い details の中身": `<details><summary>s</summary><i class="ui-x"></i></details>`,
+      "display:none": `<div style="color: var(--a); display:none"><i class="ui-x"></i></div>`,
+    };
+    for (const [label, h] of Object.entries(hiddenCases)) {
+      assert.equal(galleryClassNames(h).has("ui-x"), false, label);
+      assert.deepEqual(galleryViolations(h), [], label);
+    }
+    assert.equal(galleryClassNames(`<dialog class="ui-x" open></dialog>`).has("ui-x"), true);
+    assert.equal(galleryClassNames(`<details open><i class="ui-x"></i></details>`).has("ui-x"), true);
+    assert.equal(galleryClassNames(`<details><summary class="ui-x"><b class="ui-y"></b></summary></details>`).size, 2);
+    // 閉じた後ろは描かれる（積みが戻る）
+    assert.equal(galleryClassNames(`<div hidden><i></i></div><i class="ui-x"></i>`).has("ui-x"), true);
+    assert.deepEqual([...galleryTokenNames(`<div hidden><code>--a</code></div><code>--b</code>`)], ["--b"]);
+  });
+
   test("HTML のコメントの中と data-class= のクラスは数えない", () => {
     assert.equal(galleryClassNames(`<!-- <p class="ui-panel"> --><i data-class="ui-note"></i><i xclass="ui-md"></i>`).size, 0);
   });
