@@ -75,7 +75,7 @@
 
 /* 代理追加フォーム */
 .roster-panel-proxy-form {
-  margin-bottom: var(--space-3);
+  margin: 0;
 }
 
 .roster-panel-proxy-row {
@@ -97,8 +97,7 @@
 
 /* セクションの見出し（ドライバー・見学） */
 .roster-panel-heading {
-  margin-top: var(--space-2);
-  margin-bottom: var(--space-1);
+  margin: 0;
   font-size: var(--font-size-xs);
   line-height: 1.35;
   font-weight: 600;
@@ -107,9 +106,16 @@
   letter-spacing: 0.025em;
 }
 
-/* 「見学」の見出しは上の余白が広い（比較に描かれない）。上の規則より後に置く */
-.roster-panel-heading-watchers {
-  margin-top: var(--space-3);
+/* 見出しと一覧の組。間は `gap`（見出しの margin は持たない・ADR 0035 決定 1）。組どうしの間は `.roster-panel-body` の gap */
+.roster-panel-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* 本体の中（代理追加・ドライバー・見学）の間は 12px */
+.roster-panel-body {
+  --panel-stack-gap: var(--space-3);
 }
 
 /* 参加者の一覧。内側ではスクロールしない（#316 PR 3・B2: 脇の中でページと別にスクロールすると、画面の端で二重に動く） */
@@ -173,8 +179,10 @@
 
 /* 名前 */
 .roster-panel-name {
-  /* 名前は残りの幅を取る。区切りのない長い名前は自分の段へ回り、その中で折れて札に収まる（アイコンの操作は次の段の右端） */
-  flex: 1 1 auto;
+  /* 名前は残りの幅を取る。基準の幅は名前の長さによらず一定（5rem）にして、短い名前の行も長い名前の行も同じ段に並ぶ。
+   * 基準が大きいと、収まる幅（1024 以上の脇）でも短い名前の行が 2 段になる（8rem で 98 → 127px・#556 のレビュー）。
+   * 長い名前は省略せず折り返して全文を見せる（`title` はタッチで読めない・#556 のレビュー F3。main も全文が見えていた。一覧 #15 の「4 段」は基準の幅を一定にして直した） */
+  flex: 1 1 5rem;
   min-width: 0;
   font-size: var(--font-size-base);
   line-height: 1.5;

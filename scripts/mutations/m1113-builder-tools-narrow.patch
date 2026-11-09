@@ -1,0 +1,12 @@
+diff --git a/apps/agenda-web/src/builder.css b/apps/agenda-web/src/builder.css
+index a5f40ee7..904a54c9 100644
+--- a/apps/agenda-web/src/builder.css
++++ b/apps/agenda-web/src/builder.css
+@@ -187,7 +187,6 @@
+ }
+ /* 「上へ」「下へ」は幅 43px（字が短い）で当たりが 44 に届かなかった。幅を 44px にそろえる（部品の `::before` は縦にだけ広げる・#556 一覧 #23） */
+ .builder-row-tools .ui-button {
+-  min-width: var(--tap-target);
+ }
+ .builder-row-tools {
+   display: flex;

@@ -1,0 +1,13 @@
+diff --git a/apps/roulette-web/src/index.css b/apps/roulette-web/src/index.css
+index 86992e57..1ec69f53 100644
+--- a/apps/roulette-web/src/index.css
++++ b/apps/roulette-web/src/index.css
+@@ -604,7 +604,7 @@
+   flex: 0 1 auto;
+   min-width: var(--tap-target); /* 部品の 6rem は文字 200% で 192px になり、行に入らない */
+   max-width: 100%;
+-  white-space: normal;
++  white-space: nowrap;
+ }
+ .roulette-add {
+   display: grid;

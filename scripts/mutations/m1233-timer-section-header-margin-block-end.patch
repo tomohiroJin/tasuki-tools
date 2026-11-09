@@ -1,0 +1,13 @@
+diff --git a/apps/timer-web/src/styles/primitives.css b/apps/timer-web/src/styles/primitives.css
+index e19f8360..020b2b9c 100644
+--- a/apps/timer-web/src/styles/primitives.css
++++ b/apps/timer-web/src/styles/primitives.css
+@@ -103,7 +103,7 @@
+ /* 並び（flex・折り返し・横の間）は部品 `.ui-section-head` が持つ（ADR 0035。以前は横の間が 3px だった・#553 一覧 #33）。
+    下の間は、親が `gap` で持つ（`meter-panel-stack`・`panel-stack`・ADR 0035 決定 1・#556）。この見出しは縦の余白を持たない。 */
+ .section-header {
+-  margin-block: 0;
++  margin-block: 0 var(--space-4);
+ }
+ 
+ .section-header-lead {

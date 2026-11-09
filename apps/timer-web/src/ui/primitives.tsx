@@ -47,7 +47,7 @@ function CornerTicks() {
   );
 }
 
-/** 計器パネル。ヘアライン枠＋四隅ティック＋上端の僅かな立ち上がり（盤面のベゼル）。 */
+/** 計器パネル（縦の間を親が持つときは className に `meter-panel-stack` を渡す・ADR 0035 決定 1）。ヘアライン枠＋四隅ティック＋上端の僅かな立ち上がり（盤面のベゼル）。 */
 export function Card({
   children,
   className = "",

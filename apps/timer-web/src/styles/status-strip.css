@@ -29,6 +29,34 @@
   }
 }
 
+/* 40rem 未満は 2 段に決めて組む（#556 一覧 #14）。DOM の順のまま 2 列の grid に流す:
+ * 1 段目 = フェーズ・ルームコード | 自分の名前、2 段目 = 接続状態 | 通知。
+ * 自然に折り返すと「通知」だけが 2 段目に落ち、320 では「接続中」も落ちて左右の揃えがばらばらになった。
+ * `order` で並べ替えると目の順と DOM の順（Tab・読み上げ）がずれる（WCAG 1.3.2・2.4.3）ので使わない。
+ * 列は等分（`minmax(0, 1fr)` の 2 本）。左の列が中身の幅まで広がって右の列が 0 に潰れる（文字 200%・長い接続状態の文言）ことを
+ * 防ぐ。字は折り返して全文を残す（名前を … で切ると全文が読めない）。右の列は右寄せ */
+@media (width < 40rem) {
+  .status-strip {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .status-strip > * {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .status-strip > :nth-child(even) {
+    justify-self: end;
+    max-width: 100%;
+    text-align: end;
+  }
+
+  .status-strip-name {
+    display: block;
+  }
+}
+
 .status-strip-group {
   display: flex;
   align-items: center;

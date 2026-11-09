@@ -18,7 +18,7 @@
 import type { Locator, Page } from '@playwright/test';
 import { expect, test } from '../fixtures/test';
 import { expectFieldsAtLeast16px, expectFocusVisibleOnTab, expectReadable, expectScreenAcrossWidths, expectTouchTargets, scanContrast } from '../support/a11y';
-import { loadSampleAndStart, openAgendaFromHub } from '../support/agenda';
+import { openAgendaFromHub } from '../support/agenda';
 import { chooseMethod, handCard, joinCheckinTool, openCheckinTool } from '../support/checkin';
 import { chooseCard, turnRecordingOn } from '../support/poker';
 import { addRouletteGuest, expectCardNameNotCovered, openRouletteFromHub, openRouletteTool, spinButton } from '../support/roulette';
@@ -306,7 +306,17 @@ test.describe('お題ツールのボタンは部品で、押せる大きさが�
     await expect(page.getByRole('button', { name: 'サンプルから選ぶ', exact: true })).toBeVisible();
     await expectScreenAcrossWidths(page, '進行タイマー（組む）', AGENDA_BUILD_TARGETS);
 
-    await loadSampleAndStart(page);
+    //   ステップがある組む画面（サンプルを下書きへ読み込んだ状態）。「上へ」「下へ」が 43×44 だった（#556 一覧 #23）。
+    //   空の組む画面だけでは、行の中のボタンを 1 つも測らない
+    await page.getByRole('button', { name: 'サンプルから選ぶ', exact: true }).click();
+    await page.getByRole('button', { name: /サンプル：KPT のふりかえり/ }).click();
+    await expect(page.locator('.builder-row').first()).toBeVisible();
+    await expectScreenAcrossWidths(page, '進行タイマー（組む・ステップあり）', AGENDA_BUILD_WITH_STEPS_TARGETS);
+    await page.getByRole('button', { name: 'ルームに読み込む', exact: true }).click();
+    const startButton = page.getByRole('button', { name: '開始', exact: true });
+    await expect(startButton).toBeEnabled();
+    await startButton.click();
+    await expect(page.getByRole('button', { name: '次へ', exact: true })).toBeVisible();
     await expect(page.locator('.dial-name')).toHaveText('K を出す');
     //   進行中の画面は、狭い幅で操作の帯を下端に固定する。帯の下に隠れた操作（「最初から」）は、スクロールして届く位置で押す。
     //   開始を押した本人の画面はページの先頭へ戻る（#455）ので、下端まで送ってから測る（それまでは組む画面の下端の位置のまま来ていた）
@@ -356,6 +366,8 @@ test.describe('お題ツールのボタンは部品で、押せる大きさが�
 
 /** 進行タイマーの組む画面（空のとき）で測る操作の数の下限（サンプルから選ぶ・ステップを追加・戻るリンクなど。実測前の控えめな値） */
 const AGENDA_BUILD_TARGETS = 3;
+/** ステップのある組む画面で測る操作の数の下限（5 ステップ × 上へ・下へ・消す・−・＋・時間切れの 2 択に、上の 3 つが加わる。控えめな値） */
+const AGENDA_BUILD_WITH_STEPS_TARGETS = 20;
 /** 進行タイマーの進行中の画面で測る操作の数の下限（延長 3・一時停止・次へ・映す表示・スキップなど。実測前の控えめな値） */
 const AGENDA_RUN_TARGETS = 8;
 
