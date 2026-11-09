@@ -716,16 +716,30 @@ export const GALLERY_CSS_FILE = "packages/ui/gallery.css";
  */
 export const GALLERY_EXEMPT = new Map();
 
-/** HTML のコメントを消す（コメントに書いた名前は「見本に並べた」ことにしない）。 */
-function stripHtmlComments(html) {
-  return html.replace(/<!--[\s\S]*?-->/g, " ");
+/** HTML のコメントと、`<script>`・`<style>` の中身を消す（そこに書いた名前は「見本に並べた」ことにしない）。 */
+function stripHtmlNonMarkup(html) {
+  return html.replace(/<!--[\s\S]*?-->/g, " ").replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi, " ");
 }
 
-/** 見本の class 属性に現れるクラス名。`data-class=` など属性名の一部は拾わない。 */
+/**
+ * 見本の実際のタグ（`<` に英字が続く開始タグ）の属性を、名前と値の組で返す。文章の中の `class="…"`
+ * （`&lt;div class="x"&gt;` や `title='class="x"'` の値）は、タグの属性ではないので返らない。
+ */
+export function galleryAttributes(html) {
+  const out = [];
+  for (const tag of stripHtmlNonMarkup(html).matchAll(/<[a-zA-Z][^\s/>]*((?:"[^"]*"|'[^']*'|[^'">])*)>/g)) {
+    for (const m of tag[1].matchAll(/([^\s"'=<>/]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+)))?/g)) {
+      out.push({ name: m[1].toLowerCase(), value: m[2] ?? m[3] ?? m[4] ?? "" });
+    }
+  }
+  return out;
+}
+
+/** 見本の class 属性に現れるクラス名（属性名がちょうど `class` のものだけ。`data-class` は数えない）。 */
 export function galleryClassNames(html) {
   const out = new Set();
-  for (const m of stripHtmlComments(html).matchAll(/(?<![\w-])class\s*=\s*(?:"([^"]*)"|'([^']*)')/gi)) {
-    for (const c of (m[1] ?? m[2]).split(/\s+/)) if (c !== "") out.add(c);
+  for (const a of galleryAttributes(html)) {
+    if (a.name === "class") for (const c of a.value.split(/\s+/)) if (c !== "") out.add(c);
   }
   return out;
 }
@@ -737,10 +751,10 @@ const TOKEN_NAME = /(?<![\w-])--[a-z0-9]+(?:-[a-z0-9]+)*(?![\w-])/gi;
  * コメント・`title` 属性・説明文・部品の修飾（`ui-button--danger` の `--danger`）は数えない。
  */
 export function galleryTokenNames(html) {
-  const h = stripHtmlComments(html);
+  const h = stripHtmlNonMarkup(html);
   const out = new Set();
   for (const m of h.matchAll(/<code\b[^>]*>([^<]*)<\/code>/gi)) for (const t of m[1].matchAll(TOKEN_NAME)) out.add(t[0]);
-  for (const v of galleryStyleValues(h)) for (const m of v.matchAll(/var\(\s*(--[a-z0-9-]+)/gi)) out.add(m[1]);
+  for (const v of galleryStyleValues(html)) for (const m of v.matchAll(/var\(\s*(--[a-z0-9-]+)/gi)) out.add(m[1]);
   return out;
 }
 
@@ -763,7 +777,7 @@ export function declaredTokens(css) {
 
 /** 見本の style 属性の値（生の色の検査に使う）。 */
 export function galleryStyleValues(html) {
-  return [...stripHtmlComments(html).matchAll(/(?<![\w-])style\s*=\s*(?:"([^"]*)"|'([^']*)')/gi)].map((m) => m[1] ?? m[2]);
+  return galleryAttributes(html).filter((a) => a.name === "style").map((a) => a.value);
 }
 
 /** 見本に載っていない部品のクラスとトークン、見本の生の色（#558）。 */

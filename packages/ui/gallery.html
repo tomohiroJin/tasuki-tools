@@ -12,6 +12,7 @@
     **この見本の枠（見出し・並び・枠線）は `g-` で始まるクラスだけで書く。`ui-` のクラスは部品の見本の中にだけ現れる。**
     scripts/audit-ui-components.mjs が、部品層の `.ui-*`（修飾を含む）とトークン層の `--*` が、
     この HTML の class 属性と本文に現れるかを機械的に確かめる。部品かトークンを足して見本に載せ忘れると落ちる。
+    **部品の見本の中の見出しは、実物と同じ段で置く（ページの見出しの段とは別）。** 要素層は h1〜h3 にだけ字と余白を当てるので、段を変えると見た目が実物と違う。
     色は style 属性でも `var(--…)` だけを書く（生の色は同じ検査が落とす）。
   -->
   <link rel="stylesheet" href="./src/index.css">
@@ -258,10 +259,10 @@
     <h2>面と並び</h2>
     <div class="g-demo">
       <h3 class="g-h2"><code>.ui-panel</code>（見出しを持つまとまりの面）</h3>
-      <section class="ui-panel"><h4>パネルの見出し</h4><p>パネルの中身。地・枠・角丸・内側の余白を部品が持つ。</p></section>
+      <section class="ui-panel"><h2>パネルの見出し</h2><p>パネルの中身。地・枠・角丸・内側の余白を部品が持つ。</p></section>
       <h3 class="g-h2"><code>.ui-section-head</code>（見出しと操作の行。--beside は操作を見出しの隣へ寄せる）</h3>
-      <div class="ui-section-head"><h4>区画の見出し</h4><button class="ui-button ui-button--secondary ui-button--sm" type="button">操作</button></div>
-      <div class="ui-section-head ui-section-head--beside"><h4>隣へ寄せる見出し</h4><button class="ui-button ui-button--secondary ui-button--sm" type="button">操作</button></div>
+      <div class="ui-section-head"><h2>区画の見出し</h2><button class="ui-button ui-button--secondary ui-button--sm" type="button">操作</button></div>
+      <div class="ui-section-head ui-section-head--beside"><h2>隣へ寄せる見出し</h2><button class="ui-button ui-button--secondary ui-button--sm" type="button">操作</button></div>
       <h3 class="g-h2"><code>.ui-stack</code>（縦に積む。--tight は間を詰める）</h3>
       <div class="g-row">
         <div class="ui-stack g-cell"><p>通常 1</p><p>通常 2</p><p>通常 3</p></div>
@@ -295,7 +296,7 @@
     <h2>見出しと招待</h2>
     <div class="g-demo">
       <h3 class="g-h2"><code>.ui-page-header</code>（見出しと戻る導線を 1 行の両端に）</h3>
-      <div class="ui-page-header"><h4>画面の見出し</h4><a class="ui-page-header-back ui-button ui-button--quiet" href="#parts-header">戻る</a></div>
+      <div class="ui-page-header"><h1>画面の見出し</h1><a class="ui-page-header-back ui-button ui-button--quiet" href="#parts-header">戻る</a></div>
       <h3 class="g-h2"><code>.ui-invite</code>（参加用 URL とコピー）</h3>
       <div class="ui-invite"><span class="ui-invite-url">https://example.invalid/room/ABCD-1234</span><button class="ui-button ui-button--secondary ui-button--sm" type="button">コピー</button></div>
       <h3 class="g-h2"><code>.ui-room-header</code>（ルーム画面の見出し。通常は招待の欄が開いた形で載せる。QR のカードは浮かぶので、下に余白を取る）</h3>
@@ -365,7 +366,7 @@
     <div class="g-demo">
       <h3 class="g-h2"><code>.ui-reader</code>（象牙の札。64rem 未満は 3 行の写し＋続きを読む、以上は本文）</h3>
       <div class="ui-reader">
-        <h4 class="g-reader-head">お題の説明</h4>
+        <h2 class="g-reader-head">お題の説明</h2>
         <p class="ui-reader-preview" inert>64rem 未満で見せる 3 行の写し。長い文章はここで 3 行に切られ、続きは下のボタンから開くシートに出る。長い文章の見本の文。長い文章の見本の文。長い文章の見本の文。長い文章の見本の文。長い文章の見本の文。長い文章の見本の文。</p>
         <button class="ui-button ui-button--secondary ui-button--sm ui-reader-more" type="button">続きを読む</button>
         <div class="ui-reader-body">64rem 以上で見せる本文。札の中でスクロールする。</div>
@@ -373,7 +374,7 @@
       <h3 class="g-h2"><code>.ui-drawer</code>（下からのシート。<code>&lt;dialog open&gt;</code> で静的に見せる）</h3>
       <div class="g-frame g-frame--drawer">
         <dialog class="ui-drawer" open>
-          <div class="ui-drawer-head"><h4>お題の説明</h4><button class="ui-button ui-button--quiet ui-button--sm" type="button">閉じる</button></div>
+          <div class="ui-drawer-head"><h3>お題の説明</h3><button class="ui-button ui-button--quiet ui-button--sm" type="button">閉じる</button></div>
           <div class="ui-drawer-body">シートの本文。スクロールする。</div>
         </dialog>
       </div>

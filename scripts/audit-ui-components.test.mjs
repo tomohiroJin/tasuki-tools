@@ -725,6 +725,17 @@ describe("見本の網羅（#558）", () => {
     assert.deepEqual([...galleryClassNames(html)].sort(), ["g-x", "ui-button", "ui-button--sm", "ui-note"]);
   });
 
+  test("タグの class 属性だけを数える（文章・title の値・script・style・data-class は数えない）", () => {
+    for (const h of [
+      `<p class="g-note">本文は <code>&lt;div class="ui-x"&gt;</code> に入れる</p>`,
+      `<i title='a class="ui-x"'></i>`,
+      `<script>const s = '<i class="ui-x"></i>'; const t = 'class="ui-x"';</script>`,
+      `<style>.a::after { content: 'class="ui-x"' }</style>`,
+      `<i data-class="ui-x"></i>`,
+    ]) assert.equal(galleryClassNames(h).has("ui-x"), false, h);
+    assert.deepEqual([...galleryClassNames(`<i CLASS=ui-x data-a='1' class='ui-y'></i>`)].sort(), ["ui-x", "ui-y"]);
+  });
+
   test("HTML のコメントの中と data-class= のクラスは数えない", () => {
     assert.equal(galleryClassNames(`<!-- <p class="ui-panel"> --><i data-class="ui-note"></i><i xclass="ui-md"></i>`).size, 0);
   });
