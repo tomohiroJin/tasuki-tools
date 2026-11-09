@@ -8119,4 +8119,28 @@ export const MUTATIONS = [
     tests: ["audit-ui-components.test.mjs"],
     note: RESERVED_1130_1139 + " " + "#558。見本に載っていない部品が出て、新しい機能が選べない。",
   },
+  {
+    id: 1134,
+    label: "見本の検査が、トークン名を本文のどこに書いても載っているとみなす（<code> と var() だけを数えない）",
+    patch: "m1134-gallery-token-counted-anywhere.patch",
+    pkg: "scripts",
+    tests: ["audit-ui-components.test.mjs"],
+    note: RESERVED_1130_1139 + " " + "#558 のレビュー。コメントや説明文に名前を書いただけで、並べていないトークンが載っていることになる。",
+  },
+  {
+    id: 1135,
+    label: "見本の検査の CLI が、載っていないトークンを問題に積まない",
+    patch: "m1135-gallery-cli-ignores-missing-tokens.patch",
+    pkg: "scripts",
+    tests: ["audit-ui-components.test.mjs"],
+    note: RESERVED_1130_1139 + " " + "#558 のレビュー。関数は正しくても配線が外れ、トークンの載せ忘れで CI が緑になる。",
+  },
+  {
+    id: 1136,
+    label: "見本の検査が、gallery.css の .ui- のセレクタを見ない",
+    patch: "m1136-gallery-css-ui-selector-ignored.patch",
+    pkg: "scripts",
+    tests: ["audit-ui-components.test.mjs"],
+    note: RESERVED_1130_1139 + " " + "#558 のレビュー。見本の枠が部品の値を上書きしても気づけない。",
+  },
 ];

@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-ui-components.mjs b/scripts/audit-ui-components.mjs
+index bef63eb1..d09ec2ad 100644
+--- a/scripts/audit-ui-components.mjs
++++ b/scripts/audit-ui-components.mjs
+@@ -771,7 +771,7 @@ export function findGalleryGaps({ html, parts, tokens, exempt = GALLERY_EXEMPT }
+   const classes = galleryClassNames(html);
+   const missingParts = [...parts].filter((c) => !classes.has(c) && !exempt.has(c)).sort();
+   const placed = galleryTokenNames(html);
+-  const missingTokens = [...tokens].filter((t) => !placed.has(t) && !exempt.has(t)).sort();
++  const missingTokens = [...tokens].filter((t) => !html.includes(t) && !exempt.has(t)).sort();
+   const rawColors = galleryStyleValues(html).flatMap((v) => findRawColors(v));
+   return { missingParts, missingTokens, rawColors };
+ }
