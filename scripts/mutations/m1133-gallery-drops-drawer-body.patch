@@ -1,13 +1,13 @@
 diff --git a/packages/ui/gallery.html b/packages/ui/gallery.html
-index 204a3eb6..b19b2443 100644
+index b568b229..4bfdb570 100644
 --- a/packages/ui/gallery.html
 +++ b/packages/ui/gallery.html
-@@ -347,7 +347,7 @@
+@@ -374,7 +374,7 @@
        <div class="g-frame g-frame--drawer">
          <dialog class="ui-drawer" open>
-           <div class="ui-drawer-head"><h3>お題の説明</h3><button class="ui-button ui-button--quiet ui-button--sm" type="button">閉じる</button></div>
+           <div class="ui-drawer-head"><h4>お題の説明</h4><button class="ui-button ui-button--quiet ui-button--sm" type="button">閉じる</button></div>
 -          <div class="ui-drawer-body">シートの本文。スクロールする。</div>
-+          <div class="x-drawer-body">シートの本文。スクロールする。</div>
++          <div class="x">シートの本文。スクロールする。</div>
          </dialog>
        </div>
      </div>

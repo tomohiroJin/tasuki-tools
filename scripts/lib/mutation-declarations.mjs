@@ -8097,11 +8097,11 @@ export const MUTATIONS = [
   },
   {
     id: 1131,
-    label: "見本の検査が、トークン名の前方一致（--gold が --gold-bright に当たる）を載っているとみなす",
+    label: "見本の検査が、トークン名の前の境界を見ない（部品の修飾 ui-button--danger の --danger を載っているとみなす）",
     patch: "m1131-gallery-token-prefix-match.patch",
     pkg: "scripts",
     tests: ["audit-ui-components.test.mjs"],
-    note: RESERVED_1130_1139 + " " + "#558。別のトークンの名前の一部として現れるだけで、載せていないトークンが載っていることになる。",
+    note: RESERVED_1130_1139 + " " + "#558。部品の修飾に同じ綴りがあるだけで、載せていないトークンが載っていることになる。",
   },
   {
     id: 1132,

@@ -1,13 +1,13 @@
 diff --git a/scripts/audit-ui-components.mjs b/scripts/audit-ui-components.mjs
-index 2f7d5f60..bb72a3c4 100644
+index bef63eb1..9d5ccdc8 100644
 --- a/scripts/audit-ui-components.mjs
 +++ b/scripts/audit-ui-components.mjs
-@@ -740,7 +740,7 @@ export function findGalleryGaps({ html, parts, tokens, exempt = GALLERY_EXEMPT }
-   const classes = galleryClassNames(html);
-   const missingParts = [...parts].filter((c) => !classes.has(c) && !exempt.has(c)).sort();
-   const missingTokens = [...tokens]
--    .filter((t) => !exempt.has(t) && !new RegExp(`${t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\w-])`).test(html))
-+    .filter((t) => !exempt.has(t) && !new RegExp(`${t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`).test(html))
-     .sort();
-   const rawColors = galleryStyleValues(html).flatMap((v) => findRawColors(v));
-   return { missingParts, missingTokens, rawColors };
+@@ -730,7 +730,7 @@ export function galleryClassNames(html) {
+   return out;
+ }
+ 
+-const TOKEN_NAME = /(?<![\w-])--[a-z0-9]+(?:-[a-z0-9]+)*(?![\w-])/gi;
++const TOKEN_NAME = /--[a-z0-9]+(?:-[a-z0-9]+)*(?![\w-])/gi;
+ 
+ /**
+  * 見本に並べたトークンの名前。**数える場所は 2 つだけ**: `<code>` の本文（名前の札）と、style 属性の `var(--…)`（実際に使った所）。
