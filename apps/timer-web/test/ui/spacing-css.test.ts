@@ -106,4 +106,9 @@ describe('余白の持ち主の約束（画面の CSS）', () => {
     foundBody(rulesOf(css, '.section-header'), '.section-header');
     for (const body of rulesMatching(css, /(^|[\s>+~])\.section-header$/)) expect(body).not.toMatch(/gap\s*:/);
   });
+
+  it('Given timer のロビーの参加者の行（折り返し可） / When .lobby-participant を読む / Then 折り返した段の間を --space-2 で持つ。名前の段と操作の段が 6px に詰まらない（#557 のレビューで block-gaps が見つけた）', () => {
+    const body = foundBody(rulesOf(read('src/styles/lobby.css'), '.lobby-participant'), '.lobby-participant');
+    expect(body).toMatch(/row-gap:\s*var\(--space-2\);/);
+  });
 });
