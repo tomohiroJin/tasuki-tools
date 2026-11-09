@@ -1,0 +1,12 @@
+diff --git a/apps/checkin-web/src/table.css b/apps/checkin-web/src/table.css
+index be8b524d..b9489622 100644
+--- a/apps/checkin-web/src/table.css
++++ b/apps/checkin-web/src/table.css
+@@ -360,7 +360,6 @@
+   grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
+   max-width: calc(var(--seat-count, 1000) * (6.5rem + var(--space-4)));
+   width: 100%;
+-  margin-inline: auto;
+   align-items: start;
+   gap: var(--space-4);
+   margin-block: 0;

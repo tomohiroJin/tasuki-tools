@@ -1,0 +1,12 @@
+diff --git a/packages/web-kit/src/room/clamped-name.tsx b/packages/web-kit/src/room/clamped-name.tsx
+index 07f24da8..b21ab9bb 100644
+--- a/packages/web-kit/src/room/clamped-name.tsx
++++ b/packages/web-kit/src/room/clamped-name.tsx
+@@ -73,7 +73,6 @@ function ClampedNameInner({ label, className }: Props) {
+     if (el === null || expandedRef.current) return;
+     const next = el.scrollHeight > el.clientHeight + 1;
+     // フォーカスのある要素は、省略が無くなってもボタンのまま残す（外れるとフォーカスが body へ落ちる）。ぼかしたあとに測り直す
+-    if (!next && document.activeElement === el) return;
+     setClipped(next);
+   };
+   const measureRef = useRef(measure);

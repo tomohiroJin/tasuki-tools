@@ -191,6 +191,9 @@ const RESERVED_1100_1109 =
 const RESERVED_1390_1399 =
   "**対応表より後に足した変異。** 1390〜1399 は #555 に追加で割り当てた範囲（1100〜1109 を使い切ったため。PR #575 の指摘で足した。#556 は 1380〜1389 を使う）。";
 
+const RESERVED_1400_1409 =
+  "**対応表より後に足した変異。** 1400〜1409 は #555 に追加で割り当てた範囲（1390〜1399 を使い切ったため。PR #575 の最後のレビューの指摘で足した）。";
+
 export const MUTATIONS = [
   {
     id: 1,
@@ -7891,7 +7894,7 @@ export const MUTATIONS = [
   },
   {
     id: 1100,
-    label: "poker の席の並びを grid の auto-fill から flex の折り返しに戻す",
+    label: "poker の席の並びを grid から flex の折り返しに戻す",
     patch: "m1100-poker-seats-not-grid.patch",
     pkg: "packages/ui",
     tests: ["tests/card-rows.test.mjs"],
@@ -7987,19 +7990,19 @@ export const MUTATIONS = [
   },
   {
     id: 1392,
-    label: "poker の席の並びを auto-fit の 6.5rem〜10rem から auto-fill の 1fr に戻す",
-    patch: "m1392-poker-seats-auto-fill.patch",
+    label: "poker の席の列を auto-fill の 6.5rem から auto-fit の 6.5rem〜10rem に戻す",
+    patch: "m1392-poker-seats-auto-fit-10rem.patch",
     pkg: "packages/ui",
     tests: ["tests/card-rows.test.mjs"],
-    note: RESERVED_1390_1399 + " " + "#555。人数が少ないと右の端数が空く（390px で 2 人のとき右 1/3・D2）。",
+    note: RESERVED_1390_1399 + " " + "#555。列の数が 10rem で数えられ、1 行の席の数が main の約半分になる（320px・12 人で 1 列・高さ 1372px・G1）。",
   },
   {
     id: 1393,
-    label: "checkin の席の並びを auto-fit の 6.5rem〜10rem から auto-fill の 1fr に戻す",
-    patch: "m1393-checkin-seats-auto-fill.patch",
+    label: "checkin の席の列を auto-fill の 6.5rem から auto-fit の 6.5rem〜10rem に戻す",
+    patch: "m1393-checkin-seats-auto-fit-10rem.patch",
     pkg: "packages/ui",
     tests: ["tests/card-rows.test.mjs"],
-    note: RESERVED_1390_1399 + " " + "#555。人数が少ないと右の端数が空き、人数の行の中央と席の並びの中央がずれる（D2）。",
+    note: RESERVED_1390_1399 + " " + "#555。列の数が 10rem で数えられ、1 行の席の数が main の約半分になり、手札が押し下げられる（G1）。",
   },
   {
     id: 1394,
@@ -8019,11 +8022,11 @@ export const MUTATIONS = [
   },
   {
     id: 1396,
-    label: "poker の席の並びの justify-content: center を外す",
-    patch: "m1396-poker-seats-not-centered.patch",
+    label: "poker の席の並びの幅を人数までに絞る max-width を外す",
+    patch: "m1396-poker-seats-no-cap.patch",
     pkg: "packages/ui",
     tests: ["tests/card-rows.test.mjs"],
-    note: RESERVED_1390_1399 + " " + "#555。人数が列の数より少ないとき席が左に寄り、右が空く（D2）。",
+    note: RESERVED_1390_1399 + " " + "#555。人数が列の数より少ないとき席が全幅に伸びて、右の端数が空く（390px・2 人で右 1/3・D2）。",
   },
   {
     id: 1397,
@@ -8032,5 +8035,53 @@ export const MUTATIONS = [
     pkg: "packages/ui",
     tests: ["tests/card-rows.test.mjs"],
     note: RESERVED_1390_1399 + " " + "#555。名前を読み上げが二度読む（名前と説明・D4）。",
+  },
+  {
+    id: 1398,
+    label: "checkin の席の並びの幅を人数までに絞る max-width を外す",
+    patch: "m1398-checkin-seats-no-cap.patch",
+    pkg: "packages/ui",
+    tests: ["tests/card-rows.test.mjs"],
+    note: RESERVED_1390_1399 + " " + "#555。人数が少ないとき席が全幅に伸びて右が空き、人数の行の中央と席の並びの中央がずれる（D2）。",
+  },
+  {
+    id: 1399,
+    label: "checkin の席の並びの margin-inline: auto を外す",
+    patch: "m1399-checkin-seats-not-centered.patch",
+    pkg: "packages/ui",
+    tests: ["tests/card-rows.test.mjs"],
+    note: RESERVED_1390_1399 + " " + "#555。絞った席の並びが左に寄り、人数の行の中央とずれる（D2）。",
+  },
+  {
+    id: 1400,
+    label: "poker の席の並びへ --seat-count を渡さない（常に 1000）",
+    patch: "m1400-poker-seat-count-not-passed.patch",
+    pkg: "packages/ui",
+    tests: ["tests/card-rows.test.mjs"],
+    note: RESERVED_1400_1409 + " " + "#555。幅が絞られず、人数が少ないと右が空く（D2）。",
+  },
+  {
+    id: 1401,
+    label: "ClampedName が書体の完了（loadingdone）で測り直さない",
+    patch: "m1401-clamped-name-no-font-remeasure.patch",
+    pkg: "packages/web-kit",
+    tests: ["tests/clamped-name.test.tsx"],
+    note: RESERVED_1400_1409 + " " + "#555。書体が届いて行数が変わっても省略の有無が古いままで、全文に開けない（G3）。",
+  },
+  {
+    id: 1402,
+    label: "ClampedName が省略の無くなったフォーカス中の名前をボタンのまま残さない",
+    patch: "m1402-clamped-name-loses-focus.patch",
+    pkg: "packages/web-kit",
+    tests: ["tests/clamped-name.test.tsx"],
+    note: RESERVED_1400_1409 + " " + "#555。開いたまま幅を変えて閉じるとフォーカスが body へ落ちる（G4）。",
+  },
+  {
+    id: 1403,
+    label: "ClampedName が名前の変わりで状態を作り直さない",
+    patch: "m1403-clamped-name-keeps-open-on-rename.patch",
+    pkg: "packages/web-kit",
+    tests: ["tests/clamped-name.test.tsx"],
+    note: RESERVED_1400_1409 + " " + "#555。開いたまま別の名前になる（G4）。",
   },
 ];

@@ -1,16 +1,15 @@
 diff --git a/apps/poker-web/src/index.css b/apps/poker-web/src/index.css
-index c4c3943b..b8341842 100644
+index 696aef18..e4de8a90 100644
 --- a/apps/poker-web/src/index.css
 +++ b/apps/poker-web/src/index.css
-@@ -206,9 +206,8 @@
-      人数が列の数より少ないとき、席が全幅に引き伸ばされず、余りは並びの両側へ均等に出る（`justify-content: center`）。
-      行が埋まる人数では、列が 10rem に届くまで引き伸ばして右端が揃う。
+@@ -207,8 +207,8 @@
+      人数が列の数より少ないとき右が空かないよう、並び自体の幅を「人数 × (席の最小幅 + 間)」までに絞って中央に置く
+      （`--seat-count` は `ParticipantList` が渡す。この幅だと列の数はちょうど人数で、席は伸びすぎない）。
       名前が長い席が同じ行の席を引き伸ばさないよう、行の中では上に揃える（`align-items: start`・一覧 #4）。 */
 -  display: grid;
--  grid-template-columns: repeat(auto-fit, minmax(6.5rem, 10rem));
--  justify-content: center;
+-  grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
 +  display: flex;
 +  flex-wrap: wrap;
-   align-items: start;
-   gap: 0.45rem;
- }
+   max-width: calc(var(--seat-count, 1000) * (6.5rem + 0.45rem));
+   width: 100%;
+   margin-inline: auto;
