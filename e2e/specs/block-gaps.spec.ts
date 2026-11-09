@@ -14,7 +14,7 @@
  */
 import type { Page } from '@playwright/test';
 import { expect, test } from '../fixtures/test';
-import { expectBlocksSeparated as scanOnce, type BlockScanOptions } from '../support/block-gaps';
+import { expectBlocksSeparated as scanOnce, settleAnimations, type BlockScanOptions } from '../support/block-gaps';
 import { openAgendaTool } from '../support/agenda';
 import { chooseMethod, handCard, joinCheckinTool, openCheckinTool } from '../support/checkin';
 import { chooseCard, createRoom as createPokerRoom, joinRoom as joinPokerRoom } from '../support/poker';
@@ -127,6 +127,45 @@ test.describe('主な画面は隣り合うブロックが重ならず、縦の�
     await page.getByRole('button', { name: '開始', exact: true }).click();
     await expect(page.getByRole('button', { name: '次へ', exact: true })).toBeVisible();
     await expectBlocksSeparated(page, 'agenda（進行中）');
+  });
+
+  test('Given agenda の進行中の帯 / When 640〜1280 の幅・文字 100%・150%・200% で開く / Then 延長の 3 つのボタンは隣と重ならず、ボタンは帯の外へ出ず、ページは横に溢れない（#557 レビューの 6）', async ({ page }) => {
+    test.setTimeout(120_000);
+    await openAgendaTool(page, 'block-agenda-band');
+    await page.getByRole('button', { name: 'サンプルから選ぶ', exact: true }).click();
+    await page.getByRole('button', { name: /サンプル：KPT のふりかえり/ }).click();
+    await page.getByRole('button', { name: 'ルームに読み込む', exact: true }).click();
+    await expect(page.getByRole('button', { name: '開始', exact: true })).toBeEnabled();
+    await page.getByRole('button', { name: '開始', exact: true }).click();
+    await expect(page.getByRole('button', { name: '次へ', exact: true })).toBeVisible();
+    const problems: string[] = [];
+    for (const scale of [100, 150, 200]) {
+      await page.evaluate((v) => { document.documentElement.style.fontSize = `${String(v)}%`; }, scale);
+      for (const width of [640, 660, 700, 767, 768, 1024, 1280]) {
+        await page.setViewportSize({ width, height: 900 });
+        await settleAnimations(page);
+        const m = await page.evaluate(() => {
+          const bar = document.querySelector('.run-controls')!.getBoundingClientRect();
+          const buttons = [...document.querySelectorAll('.run-controls button')].map((b) => b.getBoundingClientRect());
+          const extend = [...document.querySelectorAll('.run-extend-button')].map((b) => b.getBoundingClientRect());
+          let overlap = 0;
+          for (let i = 1; i < extend.length; i += 1) overlap = Math.max(overlap, extend[i - 1]!.right - extend[i]!.left);
+          return {
+            overflow: document.documentElement.scrollWidth - innerWidth,
+            outside: Math.max(0, ...buttons.map((b) => Math.max(bar.left - b.left, b.right - bar.right))),
+            overlap,
+            bar: bar.width,
+          };
+        });
+        const where = `文字 ${String(scale)}%・${String(width)}`;
+        if (m.overlap > 0.5) problems.push(`${where}: 延長のボタンが ${m.overlap.toFixed(1)}px 重なる`);
+        // 文字 200% の 64rem 以上は、脇の帯が 46〜282px まで潰れる既知の壊れ（main も同じ。一覧の補遺の記録）。重なりだけ見て、帯の外・溢れは 200% の 640〜768 と 100%・150% で見る
+        const known = scale === 200 && width >= 1024;
+        if (!known && m.outside > 0.5) problems.push(`${where}: ボタンが帯の外へ ${m.outside.toFixed(1)}px 出る（帯 ${m.bar.toFixed(0)}px）`);
+        if (!known && m.overflow > 0.5) problems.push(`${where}: ページが ${String(m.overflow)}px 横に溢れる`);
+      }
+    }
+    expect(problems).toEqual([]);
   });
 
   test('Given topic のルーム（お題なし・長いお題あり） / When 5 つの幅で開く / Then 隣り合うブロックが重ならず、縦の間が 8px 以上', async ({ page }) => {

@@ -83,9 +83,12 @@ describe('余白の持ち主の約束（画面の CSS）', () => {
     expect(read('src/components/SavedScenarioList.tsx')).not.toMatch(/className="[^"]*\bbuilder-saved\b(?!-)[^"]*"/);
   });
 
-  it('Given agenda の進行中の延長の群（40rem 以上） / When 規則を読む / Then 3 つのボタンの列は中身の幅（min-content）まで縮まず、文字 200% でも「+1 分」「+3 分」「+5 分」が重ならない（#557）', () => {
+  it('Given agenda の進行中の延長の群 / When 規則を読む / Then 見出しを左に並べる 4 列は、帯の幅（容器クエリ・em）が 20em 以上のときだけ。画面の幅（@media）で決めない（文字 200% で「+1 分」が隣と重なった・#557）', () => {
     const css = read('src/run.css');
-    const bodies = rulesOf(css, '.run-extend').filter((b) => /grid-template-columns:\s*auto /.test(b));
-    expect(foundBody(bodies, '.run-extend（auto を含む列）')).toMatch(/grid-template-columns:\s*auto repeat\(3, minmax\(min-content, 1fr\)\);/);
+    expect(foundBody(rulesOf(css, '.run-controls'), '.run-controls')).toMatch(/container:\s*run-controls \/ inline-size;/);
+    const four = rulesOf(css, '.run-extend').filter((b) => /grid-template-columns:\s*auto /.test(b));
+    expect(foundBody(four, '.run-extend（見出しを左に置く 4 列）')).toMatch(/grid-template-columns:\s*auto repeat\(3, minmax\(0, 1fr\)\);/);
+    // 4 列の規則は @container の中にある。@media の中や外にあると、画面の幅で決まって文字 200% で崩れる
+    expect(css).toMatch(/@container run-controls \(min-width: 20em\) \{\s*\.run-extend \{\s*grid-template-columns:\s*auto /);
   });
 });

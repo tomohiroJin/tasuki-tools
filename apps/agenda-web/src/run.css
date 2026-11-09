@@ -205,8 +205,14 @@
     border-top: 0;
   }
 }
-/* 延長の群。狭い幅（〜40rem）では見出し「このステップに」を 1 行目に置き、3 つのボタンを 2 行目で等分する
-   （幅 320 で見出しと並べると 1 つ約 57px しか残らず「+1 分」が 2 行に折れた）。40rem 以上は見出しを左に並べる */
+/* 延長の群。帯が狭いとき（〜20em）は、見出し「このステップに」を 1 行目に置き、3 つのボタンを 2 行目で等分する
+   （幅 320 で見出しと並べると 1 つ約 57px しか残らず「+1 分」が 2 行に折れた）。帯が 20em 以上あるときは見出しを左に並べる。
+   境目は画面の幅（`@media`・rem）でなく**帯の幅（em）**で決める: 文字を大きくすると帯の em が減り、字を折らない「+1 分」「+3 分」「+5 分」が
+   等分した列からはみ出して隣と重なる（文字 200%・1280 で 17〜18px。#557 の重なりの検査が見つけた）。`min-content` で列の下限を持たせると、
+   64rem 以上の狭い脇の帯（1024・文字 150%）で列が帯の外へ出るので採らない */
+.run-controls {
+  container: run-controls / inline-size;
+}
 .run-extend {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -219,9 +225,9 @@
   font-size: var(--font-size-xs);
   white-space: nowrap;
 }
-@media (width >= 40rem) {
+@container run-controls (min-width: 20em) {
   .run-extend {
-    grid-template-columns: auto repeat(3, minmax(min-content, 1fr));
+    grid-template-columns: auto repeat(3, minmax(0, 1fr));
   }
   .run-extend-label {
     grid-column: auto;
