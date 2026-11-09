@@ -89,7 +89,32 @@ export interface BlockProblem {
 }
 
 /** ブラウザから集めた生の要素。`textOnly` はまだ決めていない（{@link classifyTextOnly} が決める）。`paints` は自分が背景・枠・影を塗る。 */
-export type RawBlockNode = Omit<BlockNode, 'textOnly'> & { readonly paints: boolean };
+export type RawBlockNode = Omit<BlockNode, 'textOnly' | 'transformed' | 'distorted'> & {
+  readonly paints: boolean;
+  /** 変形の計算値（文字列のまま）。判定は {@link classifyTransform}（ブラウザの要らない純関数） */
+  readonly css: { readonly transform: string; readonly translate: string; readonly rotate: string; readonly scale: string };
+};
+
+/**
+ * 変形の計算値から、実際に動かすか（`moved`）・形を歪めるか（`distorted`）を決める。純関数。
+ * 何も動かさない変形（恒等の `matrix(1, 0, 0, 1, 0, 0)`・`0px` の translate・`scale: 1`・`rotate: 0deg`）はどちらでもない。
+ * 平行移動だけは `moved` だけ（兄弟どうしの位置関係が変わらないので、子孫は測る）。回転・3D・拡大縮小・傾きは `distorted`。
+ */
+export function classifyTransform(css: RawBlockNode['css']): { moved: boolean; distorted: boolean } {
+  let moved = false;
+  let distorted = false;
+  if (css.transform !== 'none') {
+    const nums = /^matrix(3d)?\((.*)\)$/.exec(css.transform);
+    const v = nums === null ? [] : (nums[2] ?? '').split(',').map((x) => Number.parseFloat(x));
+    if (nums === null || nums[1] !== undefined) distorted = true;
+    else if (v[0] !== 1 || v[1] !== 0 || v[2] !== 0 || v[3] !== 1) distorted = true;
+    else if (v[4] !== 0 || v[5] !== 0) moved = true;
+  }
+  if (css.translate !== 'none' && css.translate.split(' ').some((x) => Number.parseFloat(x) !== 0)) moved = true;
+  if (css.rotate !== 'none' && Number.parseFloat(css.rotate) !== 0) distorted = true;
+  if (css.scale !== 'none' && css.scale.split(' ').some((x) => Number.parseFloat(x) !== 1)) distorted = true;
+  return { moved, distorted };
+}
 
 /** 字を入れるブロックの要素（許可リスト）。`div` は中が inline の字だけのときに限る（下の {@link classifyTextOnly}）。 */
 export const TEXT_BLOCK_TAGS: ReadonlySet<string> = new Set(['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'label', 'li', 'dt', 'dd', 'figcaption', 'blockquote', 'pre', 'div']);
@@ -115,7 +140,10 @@ export function classifyTextOnly(raw: readonly RawBlockNode[]): BlockNode[] {
     const divOk = n.tag !== 'div' || kids.every((k) => TEXT_INLINE_TAGS.has(k.tag));
     textOnly.set(n.id, allowed && !n.paints && kidsOk && divOk);
   }
-  return raw.map((n) => ({ ...n, textOnly: textOnly.get(n.id) === true }));
+  return raw.map((n) => {
+    const { moved, distorted } = classifyTransform(n.css);
+    return { ...n, textOnly: textOnly.get(n.id) === true, transformed: moved || distorted, distorted };
+  });
 }
 
 /** 除く規則 1 つ。`reason` は理由。`test` が真なら、その子は隣り合う判定に入れない。 */
@@ -301,7 +329,7 @@ export async function collectBlocks(page: Page, scope: string): Promise<BlockNod
   const raw = await page.evaluate(({ scope, textBlock, textInline }) => {
     const out: {
       id: number; parent: number; path: string; left: number; top: number; right: number; bottom: number;
-      position: string; display: string; transformed: boolean; distorted: boolean; truncates: boolean; paints: boolean; parentWidth: number; visTop: number; visBottom: number;
+      position: string; display: string; css: { transform: string; translate: string; rotate: string; scale: string }; truncates: boolean; paints: boolean; parentWidth: number; visTop: number; visBottom: number;
       lines: number; ink: { left: number; top: number; right: number; bottom: number }; tag: string; role: string; ruledTop: boolean; ruledBottom: boolean;
     }[] = [];
     const root = document.querySelector(scope);
@@ -378,18 +406,6 @@ export async function collectBlocks(page: Page, scope: string): Promise<BlockNod
         // 読み上げ専用に潰した箱（`ui-visually-hidden`・`clip-path: inset(50%)`）は見えない
         if (cs.clipPath === 'inset(50%)') continue;
         const id = nextId++;
-        // 変形を調べる。恒等の行列・0px の translate・scale 1 は「何も動かさない」ので変形と見なさない
-        let moved = false;
-        let distorted = false;
-        if (cs.transform !== 'none') {
-          const m = new DOMMatrix(cs.transform);
-          if (!m.is2D || m.a !== 1 || m.b !== 0 || m.c !== 0 || m.d !== 1) distorted = true;
-          else if (m.e !== 0 || m.f !== 0) moved = true;
-        }
-        if (cs.translate !== 'none' && cs.translate.split(' ').some((v) => parseFloat(v) !== 0)) moved = true;
-        if (cs.rotate !== 'none' && parseFloat(cs.rotate) !== 0) distorted = true;
-        if (cs.scale !== 'none' && cs.scale.split(' ').some((v) => parseFloat(v) !== 1)) distorted = true;
-        const transformed = moved || distorted;
         const truncates = cs.textOverflow === 'ellipsis' || (cs.getPropertyValue('-webkit-line-clamp') !== 'none' && cs.getPropertyValue('-webkit-line-clamp') !== '');
         const ink = wantsInk(child) ? inkOf(child) : null;
         const sn = snippet(child);
@@ -398,7 +414,7 @@ export async function collectBlocks(page: Page, scope: string): Promise<BlockNod
         out.push({
           id, parent: parentId, path: `${label(child)}${sn === '' ? '' : `「${sn}」`}`,
           left: r.left, top: r.top, right: r.right, bottom: r.bottom,
-          position: cs.position, display: cs.display, transformed, distorted, truncates, paints, parentWidth,
+          position: cs.position, display: cs.display, css: { transform: cs.transform, translate: cs.translate, rotate: cs.rotate, scale: cs.scale }, truncates, paints, parentWidth,
           visTop: paints ? r.top : r.top + inset('top'), visBottom: paints ? r.bottom : r.bottom - inset('bottom'),
           lines: ink?.lines ?? 0,
           ink: ink === null ? { left: r.left, top: r.top, right: r.right, bottom: r.bottom } : { left: ink.left, top: ink.top, right: ink.right, bottom: ink.bottom },

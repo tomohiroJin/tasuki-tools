@@ -8,7 +8,7 @@
  *     その隣の子まで測らなくならない（規則を広げすぎると、検査が黙って何も測らなくなる）
  */
 import { describe, expect, it } from 'vitest';
-import { classifyTextOnly, findBlockProblems, type BlockNode, type RawBlockNode } from '../support/block-gaps';
+import { classifyTextOnly, classifyTransform, findBlockProblems, type BlockNode, type RawBlockNode } from '../support/block-gaps';
 
 /** ADR 0035 決定 2 の値（`--space-2` ＝ 0.5rem ＝ 8px・`--space-1` ＝ 4px）。**定数を import せず値を直書きする**（下限の定数を緩める変異に、テストが一緒に動いて緑になるのを防ぐ） */
 const SPACE_2 = 8;
@@ -42,9 +42,10 @@ function raw(id: number, parent: number, tag: string, top: number, height: numbe
   return {
     id, parent, path: `${tag}#${String(id)}`,
     left: 0, top, right: 300, bottom: top + height,
-    position: 'static', display: 'block', transformed: false, truncates: false,
+    position: 'static', display: 'block', truncates: false,
     lines: 1, ink: { left: 0, top, right: 300, bottom: top + height },
-    tag, role: '', ruledTop: false, ruledBottom: false, parentWidth: 1000, paints: false, distorted: false,
+    tag, role: '', ruledTop: false, ruledBottom: false, parentWidth: 1000, paints: false,
+    css: { transform: 'none', translate: 'none', rotate: 'none', scale: 'none' },
     visTop: top, visBottom: top + height,
     ...over,
   };
@@ -96,6 +97,38 @@ describe('許可リストにした後の本物の崩れ（レビューで素通�
   it('Given 見出し（h2）に button が箱で重なる / When 判定する / Then 重なりとして出る（見出しの行）', () => {
     const nodes = classifyTextOnly([raw(1, -1, 'h2', 0, 30, { right: 200 }), raw(2, -1, 'button', 0, 44, { left: 172, right: 300 })]);
     expect(findBlockProblems(nodes).map((p) => p.kind)).toEqual(['overlap']);
+  });
+});
+
+describe('変形の計算値の読み方', () => {
+  const css = (over: Partial<RawBlockNode['css']> = {}) => ({ transform: 'none', translate: 'none', rotate: 'none', scale: 'none', ...over });
+
+  it('Given 恒等の行列・0px の translate・scale 1・rotate 0deg / When 読む / Then 動かさず歪めない（終わった入場の演出）', () => {
+    expect(classifyTransform(css({ transform: 'matrix(1, 0, 0, 1, 0, 0)' }))).toEqual({ moved: false, distorted: false });
+    expect(classifyTransform(css({ translate: '0px 0px', scale: '1', rotate: '0deg' }))).toEqual({ moved: false, distorted: false });
+  });
+
+  it('Given 平行移動だけ（行列の e・f、translate） / When 読む / Then 動かすが歪めない', () => {
+    expect(classifyTransform(css({ transform: 'matrix(1, 0, 0, 1, 0, -8)' }))).toEqual({ moved: true, distorted: false });
+    expect(classifyTransform(css({ translate: '0px -6%' }))).toEqual({ moved: true, distorted: false });
+  });
+
+  it('Given 回転・拡大縮小・傾き・3D / When 読む / Then 歪める', () => {
+    expect(classifyTransform(css({ transform: 'matrix(0.99, -0.03, 0.03, 0.99, 0, 0)' })).distorted).toBe(true);
+    expect(classifyTransform(css({ transform: 'matrix(1.1, 0, 0, 1.1, 0, 0)' })).distorted).toBe(true);
+    expect(classifyTransform(css({ transform: 'matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)' })).distorted).toBe(true);
+    expect(classifyTransform(css({ rotate: '-1.5deg' })).distorted).toBe(true);
+    expect(classifyTransform(css({ scale: '1.2' })).distorted).toBe(true);
+  });
+
+  it('Given 恒等の行列の区画の子孫が詰まる / When 集めた生の木を判定する / Then 外れず測る。回転の区画の子孫は外れる', () => {
+    const rows = (parent: RawBlockNode) => [parent, raw(2, 1, 'p', 0, 24), raw(3, 1, 'p', 24, 24)];
+    const identity = classifyTextOnly(rows(raw(1, -1, 'div', 0, 200, { css: css({ transform: 'matrix(1, 0, 0, 1, 0, 0)' }) })));
+    expect(findBlockProblems(identity).map((x) => x.kind)).toEqual(['gap']);
+    const rotated = classifyTextOnly(rows(raw(1, -1, 'div', 0, 200, { css: css({ transform: 'matrix(0.99, -0.03, 0.03, 0.99, 0, 0)' }) })));
+    expect(findBlockProblems(rotated)).toEqual([]);
+    const moved = classifyTextOnly(rows(raw(1, -1, 'div', 0, 200, { css: css({ translate: '0px -6%' }) })));
+    expect(findBlockProblems(moved).map((x) => x.kind)).toEqual(['gap']);
   });
 });
 
