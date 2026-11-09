@@ -10,6 +10,9 @@ import { createRoom, joinAsDriver, lobbyRotationRow } from '../support/timer';
 const HOST = 'e2e-a';
 const GUEST = 'e2e-b';
 
+type BreakReadings = { before: string | null; after: string | null };
+type ObservedWindow = Window & { __breakReadings: BreakReadings };
+
 /** ロビーの詳細設定を開き、休憩の条件を「経過時間」にする。 */
 async function chooseElapsedBreak(page: Page): Promise<void> {
   await page.getByText('詳細設定').click();
@@ -58,8 +61,30 @@ test.describe('timer の休憩は全員の画面で時計を止め、元の残�
     await page.getByRole('button', { name: 'セッションを開始' }).click();
 
     // When: 休憩する
-    const before = await page.getByRole('timer').getAttribute('aria-label');
-    await page.getByRole('button', { name: /休憩する/ }).click();
+    await expect(page.getByRole('timer')).toBeVisible();
+    const startBreak = page.getByRole('button', { name: /休憩する/ });
+    // 操作直前と、再開の最初の描画をブラウザ内で採る。Playwright の往復や
+    // 両画面の確認に掛かった時間を、休憩中に消費した時間として数えない（#574）。
+    await startBreak.evaluate((button) => {
+      const readings: BreakReadings = { before: null, after: null };
+      (window as ObservedWindow).__breakReadings = readings;
+      button.addEventListener('click', () => {
+        readings.before = document.querySelector('[role="timer"]')?.getAttribute('aria-label') ?? null;
+        let hidden = false;
+        const observer = new MutationObserver(() => {
+          const timer = document.querySelector('[role="timer"]');
+          if (timer === null) hidden = true;
+          else if (hidden) {
+            readings.after = timer.getAttribute('aria-label');
+            observer.disconnect();
+          }
+        });
+        observer.observe(document.body, { childList: true, subtree: true, attributes: true });
+      }, { once: true, capture: true });
+    });
+    // 検査側が遅れる場合を毎回作る。修正前は前後の 1.2 秒ずつも差に入り赤になる。
+    await page.waitForTimeout(1200);
+    await startBreak.click();
 
     // Then その1: 両方の画面が覆われ、覆いの下に残り時間が描かれていない
     for (const [label, target] of screens(page, guest.page)) {
@@ -76,8 +101,9 @@ test.describe('timer の休憩は全員の画面で時計を止め、元の残�
       await expect(target.getByRole('dialog', { name: '休憩中' }), `${label}の画面`).toHaveCount(0);
       await expect(target.getByRole('timer'), `${label}の画面`).toBeVisible();
     }
-    const after = await page.getByRole('timer').getAttribute('aria-label');
-    // -1 は「減っていない」の意味（休憩に入る前と終えた後の描画の差 1 秒まで）。
+    await page.waitForTimeout(1200);
+    const { before, after } = await page.evaluate(() => (window as ObservedWindow).__breakReadings);
+    // 元の下限は変えない。クリック時と再開の最初の描画の秒の境目は 1 秒まで。
     // 止まっていなければ 3 秒以上減るので、この判定は赤になる
     expect(secondsOf(after) - secondsOf(before)).toBeGreaterThanOrEqual(-1);
   });
