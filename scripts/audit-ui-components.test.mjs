@@ -820,6 +820,15 @@ describe("見本の網羅（#558）", () => {
     assert.deepEqual(galleryViolations(`<ul><li>a<ul hidden><li>b</li></ul></li><li><i class="ui-x">x</i></li></ul><br><input>`), []);
   });
 
+  test("svg の中の自己閉じ要素（<path />）は積まない（違反 0 件で、外側の class は数える）", () => {
+    const h = `<button class="ui-a" type="button"><svg viewBox="0 0 16 16"><path d="M0 0h16v16H0z"/><circle r="1" /></svg>x</button><svg class="g-b"/>`;
+    assert.deepEqual(galleryViolations(h), []);
+    assert.equal(galleryClassNames(h).has("ui-a"), true);
+    assert.equal(galleryClassNames(h).has("g-b"), true);
+    assert.equal(galleryClassNames(`<svg hidden><path class="ui-x"/></svg><i class="ui-y"></i>`).has("ui-x"), false);
+    assert.ok(galleryViolations(`<div/>`).length > 0, "HTML の要素の /> は閉じない");
+  });
+
   test("生の要素（textarea）は積まない: 閉じた後ろの兄弟は数える", () => {
     const h = `<div><textarea hidden></textarea><i class="ui-x"></i></div>`;
     assert.deepEqual(galleryViolations(h), []);

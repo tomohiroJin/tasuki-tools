@@ -805,10 +805,12 @@ export function scanGallery(html) {
     const seen = new Set();
     const tagAttrs = [];
     let closed = false;
+    let selfClosing = false;
     while (j < n) {
       while (j < n && /[\t\n\f\r /]/.test(html[j])) j++;
       if (html[j] === ">") {
         closed = true;
+        selfClosing = html[j - 1] === "/";
         j++;
         break;
       }
@@ -872,7 +874,9 @@ export function scanGallery(html) {
         /(?:^|;)[\t\n\f\r ]*display[\t\n\f\r ]*:[\t\n\f\r ]*none\b/i.test(style);
       for (const a of tagAttrs) attrs.push({ ...a, rendered: !hidden });
       // 生の要素（textarea）は、閉じタグごと読み飛ばして消費するので、積まない
-      if (!GALLERY_VOID_ELEMENTS.has(name) && !GALLERY_RAW_ELEMENTS.has(name)) stack.push({ name, hidden, closedDetails: name === "details" && !has("open") });
+      // 外来要素（svg とその子孫）の自己閉じ `/>` は、HTML でも閉じたものとして扱われる（積まない）。HTML の要素の `/>` は無視される
+      const foreignSelfClosed = selfClosing && (name === "svg" || stack.some((e) => e.name === "svg"));
+      if (!foreignSelfClosed && !GALLERY_VOID_ELEMENTS.has(name) && !GALLERY_RAW_ELEMENTS.has(name)) stack.push({ name, hidden, closedDetails: name === "details" && !has("open") });
       if (name === "head") inHead = true;
       if (name === "code") codeDepth++;
     }
