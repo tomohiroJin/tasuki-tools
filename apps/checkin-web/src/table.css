@@ -353,15 +353,17 @@
 }
 
 .seat-list {
-  /* 席は行の幅を等分して並べる。poker の席と同じ型（#555 一覧 #9・#28）。
-     `auto-fit` で空の列を畳み、列の幅は 6.5rem 以上・10rem 以下にする。人数が列の数より少ないとき、席が全幅に引き伸ばされず、
-     余りは並びの両側へ均等に出る（`justify-content: center`）。行が埋まる人数では、列が 10rem に届くまで引き伸ばして右端が揃う。 */
+  /* 席は行の幅を等分して並べる。poker の席と同じ型（#555 一覧 #9・#28）。列の数は席の最小幅（6.5rem）で数える（`auto-fill`）ので、
+     1 行の席の数は main と変わらない。人数が少ないとき右が空かないよう、並びの幅を「人数 × (席の最小幅 + 間)」までに絞って中央に置く
+     （`--seat-count` は `SeatRow` が渡す）。 */
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(6.5rem, 10rem));
-  justify-content: center;
+  grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
+  max-width: calc(var(--seat-count, 1000) * (6.5rem + var(--space-4)));
+  width: 100%;
+  margin-inline: auto;
   align-items: start;
   gap: var(--space-4);
-  margin: 0;
+  margin-block: 0;
   padding: 0;
   list-style: none;
 }
@@ -388,7 +390,9 @@
   border-radius: 7px;
 }
 
-/* 名前は 2 行まで折り返し、超えたら省略（全名は title）。席の幅は一定で、長い名前でも列が伸びない */
+/* 名前は 2 行まで折り返し、超えたら省略する。席は最小幅（6.5rem）の列に並ぶので、長い名前でも列が伸びない。
+   全文は DOM に残り（`title` は付けない）、省略されている名前を押す（Enter・Space）と全文に開く
+   （`data-expanded`・`@tasuki/web-kit/room` の `ClampedName`） */
 .seat-name {
   display: -webkit-box;
   max-inline-size: 100%;
@@ -397,6 +401,17 @@
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   line-clamp: 2;
+}
+
+.seat-name[role='button'] {
+  cursor: pointer;
+}
+
+.seat-name[data-expanded] {
+  display: block;
+  overflow: visible;
+  -webkit-line-clamp: unset;
+  line-clamp: none;
 }
 
 /* 「（あなた）」の印。名前の省略の外にあるので、長い名前でも切れない */

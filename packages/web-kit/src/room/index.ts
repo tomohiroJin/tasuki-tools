@@ -4,6 +4,7 @@
  *
  * **`export *` を書かない**（`scripts/audit-public-surface.mjs`）。
  */
+export { ClampedName } from './clamped-name.js';
 export { ConnectionBanner } from './connection-banner.js';
 export { connectionNotice, type ConnectionNotice } from './connection-notice.js';
 export { LoadingView } from './loading-view.js';

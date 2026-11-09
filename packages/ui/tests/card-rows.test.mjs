@@ -42,14 +42,17 @@ function assertNoFixedWidth(map, where) {
 const POKER = read('apps/poker-web/src/index.css');
 const LANDING = read('apps/landing/src/index.css');
 const CHECKIN = read('apps/checkin-web/src/table.css');
-const SEAT_COLUMNS = 'repeat(auto-fit, minmax(6.5rem, 10rem))';
+const SEAT_COLUMNS = 'repeat(auto-fill, minmax(6.5rem, 1fr))';
 
-test('Given poker の席の並び / When 規則を読む / Then 空の列を畳んだ 6.5rem〜10rem の列を中央に置き、行の中は上に揃う（#9・#4）', () => {
+test('Given poker の席の並び / When 規則を読む / Then 列は 6.5rem の下限で数え（main と同じ数）、幅を人数までに絞って中央に置き、行の中は上に揃う（#9・#4）', () => {
   const d = ruleDecls(rules(outsideMedia(POKER)), '.participants');
   assert.equal(d.get('display'), 'grid');
   assert.equal(d.get('grid-template-columns'), SEAT_COLUMNS);
-  assert.equal(d.get('justify-content'), 'center');
+  assert.equal(d.get('max-width'), 'calc(var(--seat-count, 1000) * (6.5rem + 0.45rem))');
+  assert.equal(d.get('margin-inline'), 'auto');
+  assert.equal(d.get('width'), '100%');
   assert.equal(d.get('align-items'), 'start');
+  assert.match(read('apps/poker-web/src/components/ParticipantList.tsx'), /'--seat-count': ordered\.length/);
 });
 
 test('Given poker の席 / When 規則を読む / Then 幅を固定しない（固定すると右に端数の空きが残る・#9）', () => {
@@ -67,10 +70,12 @@ test('Given poker の席の名前 / When 規則を読む / Then 3 行で省略�
   assert.equal(open.get('line-clamp'), 'none');
   assert.equal(open.get('-webkit-line-clamp'), 'unset');
   const tsx = read('apps/poker-web/src/components/ParticipantList.tsx');
-  assert.match(tsx, /<SeatName label=\{label\} \/>/);
-  assert.match(tsx, /role: 'button'/);
-  assert.match(tsx, /'aria-expanded': expanded/);
+  assert.match(tsx, /<ClampedName className="name-text" label=\{label\} \/>/);
   assert.doesNotMatch(tsx, /title=\{label\}/, '名前に title を付けない（名前と説明で二度読まれる）');
+  const part = read('packages/web-kit/src/room/clamped-name.tsx');
+  assert.match(part, /role: 'button'/);
+  assert.match(part, /'aria-expanded': expanded/);
+  assert.match(part, /document\.fonts\.addEventListener\('loadingdone'/);
 });
 
 test('Given お題も記録も無い poker のルーム / When 規則を読む / Then 操作の面を細い列に絞らない（見出しと左右の端が揃う・#8）', () => {
@@ -104,12 +109,15 @@ test('Given landing の道具の札 / When 札の幅が 16rem に満たない（
   assert.equal(ruleDecls(list, '.hub-tools .tool-name, .hub-tools .tool-summary').get('grid-column'), '1');
 });
 
-test('Given checkin の席の並び / When 規則を読む / Then poker と同じ列（6.5rem〜10rem・空の列を畳む）を中央に置く（#9・#28）', () => {
+test('Given checkin の席の並び / When 規則を読む / Then poker と同じ列（6.5rem の下限で数える）を、人数までに絞った幅で中央に置く（#9・#28）', () => {
   const d = ruleDecls(rules(outsideMedia(CHECKIN)), '.seat-list');
   assert.equal(d.get('display'), 'grid');
   assert.equal(d.get('grid-template-columns'), SEAT_COLUMNS);
-  assert.equal(d.get('justify-content'), 'center');
+  assert.equal(d.get('max-width'), 'calc(var(--seat-count, 1000) * (6.5rem + var(--space-4)))');
+  assert.equal(d.get('margin-inline'), 'auto');
+  assert.equal(d.get('width'), '100%');
   assert.equal(d.get('align-items'), 'start');
+  assert.match(read('apps/checkin-web/src/components/SeatRow.tsx'), /'--seat-count': seats\.length/);
   assertNoFixedWidth(ruleDecls(rules(outsideMedia(CHECKIN)), '.seat'), '.seat');
 });
 
@@ -133,4 +141,17 @@ test('Given checkin のやり方の説明 / When 規則を読む / Then 行の�
   const d = ruleDecls(rules(outsideMedia(CHECKIN)), '.method-prompt');
   assert.equal(d.get('text-wrap'), 'balance');
   assert.equal(d.has('word-break'), false);
+});
+
+test('Given checkin の席の名前 / When 規則を読む / Then 2 行で省略し、押して全文に開ける・title は付けない（poker と同じ作り・#4）', () => {
+  const list = rules(outsideMedia(CHECKIN));
+  const d = ruleDecls(list, '.seat-name');
+  assert.equal(d.get('-webkit-line-clamp'), '2');
+  assert.equal(d.get('overflow'), 'hidden');
+  const open = ruleDecls(list, '.seat-name[data-expanded]');
+  assert.equal(open.get('overflow'), 'visible');
+  assert.equal(open.get('line-clamp'), 'none');
+  const tsx = read('apps/checkin-web/src/components/SeatRow.tsx');
+  assert.match(tsx, /<ClampedName className="seat-name" label=\{seat\.name\} \/>/);
+  assert.doesNotMatch(tsx, /title=/);
 });

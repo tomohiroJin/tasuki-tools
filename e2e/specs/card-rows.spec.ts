@@ -29,32 +29,59 @@ async function settle(page: Page): Promise<void> {
   });
 }
 
-/** 席の並びの矩形から、1 行目の左右の空き・席の幅を測る（poker・checkin 共通）。 */
-async function seatRowMetrics(page: Page, listSelector: string): Promise<{ leftGap: number; rightGap: number; maxSeatWidth: number; firstRowCount: number; count: number }> {
+/** 席の最小幅（6.5rem）。1 行の席の数はこれで数える（main の固定幅の折り返しと同じ数）。 */
+const SEAT_MIN_REM = 6.5;
+/** 席の最大の幅（10rem）。これを超えて引き伸ばされない（席が 1 枚で全幅、などにならない）。 */
+const SEAT_MAX_REM = 10;
+/** 席の並びを測る幅。 */
+const SEAT_WIDTHS = [320, 390, 768, 1280, 1920];
+
+interface SeatRowMetrics {
+  /** 1 行目の席の数 */
+  firstRowCount: number;
+  /** main（固定幅 6.5rem の折り返し）が 1 行目に並べる席の数。人数で頭打ち */
+  expectedCount: number;
+  /** 親の内側の左端から 1 行目の左端まで・1 行目の右端から親の内側の右端まで */
+  leftGap: number;
+  rightGap: number;
+  maxSeatWidth: number;
+  rem: number;
+}
+
+/** 席の並びの矩形から、1 行目の席の数・左右の空き・席の幅を測る（poker・checkin 共通）。長さは rem から計算する（文字を大きくしても赤にならない）。 */
+async function seatRowMetrics(page: Page, listSelector: string): Promise<SeatRowMetrics> {
   return page.locator(listSelector).evaluate((ul) => {
     const lis = [...ul.querySelectorAll(':scope > li')].map((li) => li.getBoundingClientRect());
-    if (lis.length === 0) throw new Error('席が描かれていない（判定が空振りする）');
-    const list = ul.getBoundingClientRect();
+    const parent = ul.parentElement;
+    if (lis.length === 0 || parent === null) throw new Error('席が描かれていない（判定が空振りする）');
+    const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
+    const box = parent.getBoundingClientRect();
+    const ps = getComputedStyle(parent);
+    const innerLeft = box.left + parseFloat(ps.paddingLeft);
+    const innerRight = box.right - parseFloat(ps.paddingRight);
+    const gap = parseFloat(getComputedStyle(ul).columnGap);
     const top = lis[0]!.top;
     const row = lis.filter((r) => Math.abs(r.top - top) < 1);
+    const fits = Math.floor((innerRight - innerLeft + gap) / (6.5 * rem + gap));
     return {
-      leftGap: Math.min(...row.map((r) => r.left)) - list.left,
-      rightGap: list.right - Math.max(...row.map((r) => r.right)),
-      maxSeatWidth: Math.max(...lis.map((r) => r.width)),
       firstRowCount: row.length,
-      count: lis.length,
+      expectedCount: Math.min(lis.length, Math.max(1, fits)),
+      leftGap: Math.min(...row.map((r) => r.left)) - innerLeft,
+      rightGap: innerRight - Math.max(...row.map((r) => r.right)),
+      maxSeatWidth: Math.max(...lis.map((r) => r.width)),
+      rem,
     };
   });
 }
 
-/** 席の最大の幅（10rem）。これを超えて引き伸ばされない（席が 1 枚で全幅、などにならない）。 */
-const SEAT_MAX = 10 * 16;
-
-/** 人数ごとの席の並びの合否: 左右の空きが等しい（中央）・席は 10rem まで・列が 10rem に届かない行は右端まで埋まる。 */
-function expectSeatRow(m: Awaited<ReturnType<typeof seatRowMetrics>>, where: string): void {
-  expect(m.maxSeatWidth, `${where}: 席は 10rem を超えて引き伸ばされない`).toBeLessThanOrEqual(SEAT_MAX + 1);
-  expect(Math.abs(m.leftGap - m.rightGap), `${where}: 1 行目は並びの中央（左 ${String(m.leftGap)}・右 ${String(m.rightGap)}）`).toBeLessThanOrEqual(2);
-  if (m.maxSeatWidth < SEAT_MAX - 1) expect(m.rightGap, `${where}: 席が上限に届かないなら右端まで埋まる`).toBeLessThanOrEqual(1);
+/**
+ * 席の並びの合否（常に判定する。条件で飛ばさない）:
+ * 1 行目の席の数が main と同じ（入る数まで並ぶ）・左右の空きが等しい（中央）・席が 10rem を超えて伸びない。
+ */
+function expectSeatRow(m: SeatRowMetrics, where: string): void {
+  expect(m.firstRowCount, `${where}: 1 行目の席の数（その幅で入る数。main と同じ）`).toBeGreaterThanOrEqual(m.expectedCount);
+  expect(Math.abs(m.leftGap - m.rightGap), `${where}: 1 行目は親の中央（左 ${String(m.leftGap)}・右 ${String(m.rightGap)}）`).toBeLessThanOrEqual(2);
+  expect(m.maxSeatWidth, `${where}: 席は 10rem を超えて引き伸ばされない`).toBeLessThanOrEqual(SEAT_MAX_REM * m.rem + 1);
 }
 
 /** 席（`.participants li`）の外寸と、名前の字の行数の上限に収まっているか。 */
@@ -124,19 +151,19 @@ test.describe('poker の席の札の並び', () => {
     await expect(long).toHaveAttribute('aria-expanded', 'true');
   });
 
-  test('Given 1・2・3・6・12 人 / When 幅 320・390 で開く / Then 席は 10rem まで・1 行目は並びの中央・上限に届かない行は右端まで埋まる（右の空きが出ない・#9）', async ({ page, openPeer }) => {
-    test.setTimeout(240_000);
+  test('Given 1・2・3・6・12・20 人 / When 幅 320〜1920 で開く / Then 1 行目の席の数は main と同じで、左右の空きが等しく、席は 10rem まで（右の空きが出ない・#9）', async ({ page, openPeer }) => {
+    test.setTimeout(480_000);
     await page.setViewportSize({ width: 390, height: 900 });
     const url = await createPokerRoom(page, 'ホスト');
     let joined = 1;
-    for (const target of [1, 2, 3, 6, 12]) {
+    for (const target of [1, 2, 3, 6, 12, 20]) {
       while (joined < target) {
         joined += 1;
         const peer = await (openPeer as OpenPeer)(`cards-n${String(joined)}`);
         await joinPokerRoom(peer.page, url, `さんか${String(joined)}`);
       }
       await expect(page.getByRole('heading', { name: `参加者（${String(target)}人）` })).toBeVisible();
-      for (const width of [320, 390]) {
+      for (const width of SEAT_WIDTHS) {
         await page.setViewportSize({ width, height: 900 });
         await settle(page);
         expectSeatRow(await seatRowMetrics(page, '.participants'), `${String(target)} 人・幅 ${String(width)}`);
@@ -279,20 +306,20 @@ test.describe('landing の道具の札（文字 200%）', () => {
 });
 
 test.describe('checkin の札の並びと行', () => {
-  test('Given 1・2・3・6・12 人 / When 幅 320・390 で開く / Then 席は 10rem まで・1 行目は並びの中央・人数の行は席の並びの中央にある（右の空きと中央のずれが出ない・#9・#28）', async ({ page, openPeer }) => {
-    test.setTimeout(240_000);
+  test('Given 1・2・3・6・12・20 人 / When 幅 320〜1920 で開く / Then 1 行目の席の数は main と同じで、左右の空きが等しく、人数の行は席の並びの中央にある（右の空きと中央のずれが出ない・#9・#28）', async ({ page, openPeer }) => {
+    test.setTimeout(480_000);
     await page.setViewportSize({ width: 390, height: 900 });
     const url = await openCheckinTool(page, 'ホスト');
     await chooseMethod(page, 'チェックイン', '今日の天気');
     let joined = 1;
-    for (const target of [1, 2, 3, 6, 12]) {
+    for (const target of [1, 2, 3, 6, 12, 20]) {
       while (joined < target) {
         joined += 1;
         const p = await (openPeer as OpenPeer)(`checkin-n${String(joined)}`);
         await joinCheckinTool(p.page, url, `さんか${String(joined)}`);
       }
       await expect(page.locator('.seat-list > li')).toHaveCount(target);
-      for (const width of [320, 390]) {
+      for (const width of SEAT_WIDTHS) {
         await page.setViewportSize({ width, height: 900 });
         await settle(page);
         const where = `${String(target)} 人・幅 ${String(width)}`;
@@ -326,6 +353,7 @@ test.describe('checkin の札の並びと行', () => {
     await expect(page.locator('.seat-count')).toContainText('2 / 6');
     for (const width of [320, 390]) {
       await page.setViewportSize({ width, height: 900 });
+      await settle(page);
       const m = await page.evaluate(() => {
         const hand = document.querySelector('.hand')?.getBoundingClientRect();
         const list = document.querySelector('.seat-list')?.getBoundingClientRect();
