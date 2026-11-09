@@ -2,6 +2,7 @@
 // 投票済みは「伏せたカード」で表現し、公開で同じ札がその場でめくれて表の値を見せる（#348）
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { participantLabel } from '@tasuki/room-core';
+import { ClampedName } from '@tasuki/web-kit/room';
 import type { Card, ParticipantView } from '@tasuki/poker-core';
 import { cardLabel } from './CardHand';
 import { holdsSeatCard } from '../room-view';
@@ -100,6 +101,7 @@ export function ParticipantList({ participants, you, votes, onRemove, offline = 
           // 見学者は札を持たない。ただし開票後に票が残っているときは、集計に入った札を隠さない
           const showCard = holdsSeatCard(p, votes);
           const order = showCard ? seatOrder++ : 0;
+          const label = participantLabel(p.name, p.id, everyone);
           return (
             <li key={p.id} className={p.connected ? '' : 'disconnected'}>
               {showCard ? (
@@ -111,7 +113,7 @@ export function ParticipantList({ participants, you, votes, onRemove, offline = 
                 </span>
               )}
               <span className="name">
-                {participantLabel(p.name, p.id, everyone)}
+                <ClampedName className="name-text" label={label} />
                 {p.id === you && <span className="you-mark">（あなた）</span>}
               </span>
               {/* 開票後の票が札として残る見学者は、札のあとに印を出す（札を持たない席は上の枠の中） */}

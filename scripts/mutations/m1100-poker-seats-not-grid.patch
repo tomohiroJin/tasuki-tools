@@ -1,0 +1,15 @@
+diff --git a/apps/poker-web/src/index.css b/apps/poker-web/src/index.css
+index e18fa5b0..5d88f889 100644
+--- a/apps/poker-web/src/index.css
++++ b/apps/poker-web/src/index.css
+@@ -208,8 +208,8 @@
+      幅を人数で絞る（`max-width`）と、列が中身の幅で決まる `.room-main` の中では、列の数がいつも人数になり、
+      3 人以上で席が 1 行に並び続けてルーム全体が横にはみ出した（390px・6 人で 302px）ので、絞らない。
+      名前が長い席が同じ行の席を引き伸ばさないよう、行の中では上に揃える（`align-items: start`・一覧 #4）。 */
+-  display: grid;
+-  grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
++  display: flex;
++  flex-wrap: wrap;
+   align-items: start;
+   gap: 0.45rem;
+ }

@@ -1,0 +1,12 @@
+diff --git a/packages/web-kit/src/room/clamped-name.tsx b/packages/web-kit/src/room/clamped-name.tsx
+index 07f24da8..6b8bcd51 100644
+--- a/packages/web-kit/src/room/clamped-name.tsx
++++ b/packages/web-kit/src/room/clamped-name.tsx
+@@ -30,7 +30,6 @@ function subscribe(el: Element, measure: Measure): () => void {
+     }
+     // 書体が届いたあと（行数が変わっても箱の大きさは変わらないことがある）に測り直す
+     if (typeof document !== 'undefined' && document.fonts !== undefined) {
+-      document.fonts.addEventListener('loadingdone', measureAll);
+     }
+   }
+   subscribers.set(el, measure);

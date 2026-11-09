@@ -1,0 +1,13 @@
+diff --git a/apps/checkin-web/src/table.css b/apps/checkin-web/src/table.css
+index be8b524d..5ade69cf 100644
+--- a/apps/checkin-web/src/table.css
++++ b/apps/checkin-web/src/table.css
+@@ -357,7 +357,7 @@
+      1 行の席の数は main と変わらない。人数が少ないとき右が空かないよう、並びの幅を「人数 × (席の最小幅 + 間)」までに絞って中央に置く
+      （`--seat-count` は `SeatRow` が渡す）。 */
+   display: grid;
+-  grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
++  grid-template-columns: repeat(auto-fit, minmax(6.5rem, 10rem));
+   max-width: calc(var(--seat-count, 1000) * (6.5rem + var(--space-4)));
+   width: 100%;
+   margin-inline: auto;

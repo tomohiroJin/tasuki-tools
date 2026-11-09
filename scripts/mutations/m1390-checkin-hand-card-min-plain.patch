@@ -1,0 +1,13 @@
+diff --git a/apps/checkin-web/src/table.css b/apps/checkin-web/src/table.css
+index 05c1d9ae..d693a22e 100644
+--- a/apps/checkin-web/src/table.css
++++ b/apps/checkin-web/src/table.css
+@@ -459,7 +459,7 @@
+ .hand {
+   /* 札は行の幅を等分して並べる。固定幅を左から詰めると、390px で 2 枚の右に約 1/3 の空きが残った（#555 一覧 #27）。
+      最小幅は札の幅（下の `.hand-card`）と同じ式 */
+-  --hand-card-min: max(7rem, calc(var(--font-size-sm) * 8 + 0.25rem));
++  --hand-card-min: 7rem;
+   display: grid;
+   grid-template-columns: repeat(auto-fill, minmax(var(--hand-card-min), 1fr));
+   align-items: stretch; /* 同じ行の札のボタンは高さを揃える（添え書きの行数が違っても） */

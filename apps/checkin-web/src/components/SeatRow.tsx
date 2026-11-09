@@ -3,6 +3,8 @@
  * **開く前なので札の中身は載せない**（サーバーも送らない・設計 §6）。出したかどうかの印だけを描く。
  * 「n / m 人が出しました」は開く前だけ（`progress`）。開いた後の席は名簿どおりに変わり、凍った山の合計と食い違うので出さない。
  */
+import type { CSSProperties } from 'react';
+import { ClampedName } from '@tasuki/web-kit/room';
 import type { SeatView } from '@tasuki/checkin-core';
 import { SEATS_LABEL, SEAT_PLAYED_SR, SEAT_WAITING_SR, YOU_MARK, playedCountText, spectatorCountText } from '../copy';
 
@@ -17,13 +19,11 @@ interface Props {
 export function SeatRow({ seats, selfId, progress, spectatorCount }: Props) {
   return (
     <div className="seat-row">
-      <ul className="seat-list" aria-label={SEATS_LABEL}>
+      <ul className="seat-list" aria-label={SEATS_LABEL} style={{ '--seat-count': seats.length } as CSSProperties}>
         {seats.map((seat) => (
           <li key={seat.id} className={`seat${seat.id === selfId ? ' seat--me' : ''}`}>
             <span className={`seat-slot${seat.played ? ' seat-slot--down' : ''}`} aria-hidden="true" />
-            <span className="seat-name" title={seat.name}>
-              {seat.name}
-            </span>
+            <ClampedName className="seat-name" label={seat.name} />
             {/* 印は名前の外に置く（名前が 2 行で省略されても「（あなた）」が切れない） */}
             {seat.id === selfId && <span className="seat-you">{YOU_MARK}</span>}
             <span className="ui-visually-hidden">{seat.played ? SEAT_PLAYED_SR : SEAT_WAITING_SR}</span>

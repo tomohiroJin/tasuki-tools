@@ -1,0 +1,12 @@
+diff --git a/apps/checkin-web/src/table.css b/apps/checkin-web/src/table.css
+index 05c1d9ae..0f00d39b 100644
+--- a/apps/checkin-web/src/table.css
++++ b/apps/checkin-web/src/table.css
+@@ -217,6 +217,7 @@
+   /* 行の長さを揃える。最後の 1〜2 字だけが 2 行目へ落ちない（#555 一覧 #30）。
+      `word-break: auto-phrase`（文節で折る）は足さない。320・640 で「…持ち帰りたいです／か？」と最後の行が 2 字になった */
+   overflow-wrap: anywhere;
++  word-break: auto-phrase;
+   text-wrap: balance;
+   color: var(--ivory-dim);
+   font-size: var(--font-size-xs);

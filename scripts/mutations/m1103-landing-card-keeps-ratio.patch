@@ -1,0 +1,13 @@
+diff --git a/apps/landing/src/index.css b/apps/landing/src/index.css
+index 2a19de82..38c45bc1 100644
+--- a/apps/landing/src/index.css
++++ b/apps/landing/src/index.css
+@@ -478,7 +478,7 @@
+   }
+   .hub-tools .tool-card {
+     width: 100%;
+-    aspect-ratio: auto;
++    aspect-ratio: 5 / 7;
+     grid-template-columns: auto minmax(0, 1fr);
+     grid-template-rows: auto auto;
+     align-items: center;

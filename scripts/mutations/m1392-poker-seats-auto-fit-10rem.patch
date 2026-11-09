@@ -1,0 +1,13 @@
+diff --git a/apps/poker-web/src/index.css b/apps/poker-web/src/index.css
+index e18fa5b0..d9b9a0fb 100644
+--- a/apps/poker-web/src/index.css
++++ b/apps/poker-web/src/index.css
+@@ -209,7 +209,7 @@
+      3 人以上で席が 1 行に並び続けてルーム全体が横にはみ出した（390px・6 人で 302px）ので、絞らない。
+      名前が長い席が同じ行の席を引き伸ばさないよう、行の中では上に揃える（`align-items: start`・一覧 #4）。 */
+   display: grid;
+-  grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr));
++  grid-template-columns: repeat(auto-fit, minmax(6.5rem, 10rem));
+   align-items: start;
+   gap: 0.45rem;
+ }
