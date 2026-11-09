@@ -48,8 +48,13 @@ export interface BlockNode {
   readonly bottom: number;
   readonly position: string;
   readonly display: string;
-  /** 変形（`transform`・`translate`・`rotate`・`scale`）のどれかがある */
+  /**
+   * 実際に動かす変形がある（`transform`・`translate`・`rotate`・`scale`）。**何も動かさない変形（恒等の行列・`0px` の translate・`scale: 1`）は含めない**
+   * （終わった入場の演出 `animation: … both` は、終わった後も恒等の `matrix(1, 0, 0, 1, 0, 0)` を計算値に残す）。
+   */
   readonly transformed: boolean;
+  /** 形を歪める変形（回転・3D・拡大縮小・傾き）。平行移動だけなら偽（兄弟どうしの位置関係は変わらないので、子孫は測る） */
+  readonly distorted: boolean;
   /** 字を切る面（`text-overflow: ellipsis` か `-webkit-line-clamp`）。字の矩形が見えている範囲より広い */
   readonly truncates: boolean;
   /**
@@ -194,10 +199,10 @@ export const SPACING_SKIP_RULES: readonly { readonly name: string; readonly reas
  * `minGap` は縦の間の下限（既定 {@link MIN_BLOCK_GAP}）。
  */
 export function findBlockProblems(nodes: readonly BlockNode[], minGap: number = MIN_BLOCK_GAP, captionGap: number = MIN_CAPTION_GAP): BlockProblem[] {
-  // 変形した部品の子孫は、親の変形（傾き・3D の回転・拡大）で矩形が射影され、箱の間も重なりも意味を持たない
+  // 形を歪める変形（回転・3D・拡大縮小・傾き）の下の子孫は、親の変形で矩形が射影され、箱の間も重なりも意味を持たない。平行移動だけの下は測る
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const underTransform = (n: BlockNode): boolean => {
-    for (let p = byId.get(n.parent); p !== undefined; p = byId.get(p.parent)) if (p.transformed) return true;
+    for (let p = byId.get(n.parent); p !== undefined; p = byId.get(p.parent)) if (p.distorted) return true;
     return false;
   };
   const byParent = new Map<number, BlockNode[]>();
@@ -296,7 +301,7 @@ export async function collectBlocks(page: Page, scope: string): Promise<BlockNod
   const raw = await page.evaluate(({ scope, textBlock, textInline }) => {
     const out: {
       id: number; parent: number; path: string; left: number; top: number; right: number; bottom: number;
-      position: string; display: string; transformed: boolean; truncates: boolean; paints: boolean; parentWidth: number; visTop: number; visBottom: number;
+      position: string; display: string; transformed: boolean; distorted: boolean; truncates: boolean; paints: boolean; parentWidth: number; visTop: number; visBottom: number;
       lines: number; ink: { left: number; top: number; right: number; bottom: number }; tag: string; role: string; ruledTop: boolean; ruledBottom: boolean;
     }[] = [];
     const root = document.querySelector(scope);
@@ -373,7 +378,18 @@ export async function collectBlocks(page: Page, scope: string): Promise<BlockNod
         // 読み上げ専用に潰した箱（`ui-visually-hidden`・`clip-path: inset(50%)`）は見えない
         if (cs.clipPath === 'inset(50%)') continue;
         const id = nextId++;
-        const transformed = cs.transform !== 'none' || cs.translate !== 'none' || !['none', '0deg'].includes(cs.rotate) || !['none', '1'].includes(cs.scale);
+        // 変形を調べる。恒等の行列・0px の translate・scale 1 は「何も動かさない」ので変形と見なさない
+        let moved = false;
+        let distorted = false;
+        if (cs.transform !== 'none') {
+          const m = new DOMMatrix(cs.transform);
+          if (!m.is2D || m.a !== 1 || m.b !== 0 || m.c !== 0 || m.d !== 1) distorted = true;
+          else if (m.e !== 0 || m.f !== 0) moved = true;
+        }
+        if (cs.translate !== 'none' && cs.translate.split(' ').some((v) => parseFloat(v) !== 0)) moved = true;
+        if (cs.rotate !== 'none' && parseFloat(cs.rotate) !== 0) distorted = true;
+        if (cs.scale !== 'none' && cs.scale.split(' ').some((v) => parseFloat(v) !== 1)) distorted = true;
+        const transformed = moved || distorted;
         const truncates = cs.textOverflow === 'ellipsis' || (cs.getPropertyValue('-webkit-line-clamp') !== 'none' && cs.getPropertyValue('-webkit-line-clamp') !== '');
         const ink = wantsInk(child) ? inkOf(child) : null;
         const sn = snippet(child);
@@ -382,7 +398,7 @@ export async function collectBlocks(page: Page, scope: string): Promise<BlockNod
         out.push({
           id, parent: parentId, path: `${label(child)}${sn === '' ? '' : `「${sn}」`}`,
           left: r.left, top: r.top, right: r.right, bottom: r.bottom,
-          position: cs.position, display: cs.display, transformed, truncates, paints, parentWidth,
+          position: cs.position, display: cs.display, transformed, distorted, truncates, paints, parentWidth,
           visTop: paints ? r.top : r.top + inset('top'), visBottom: paints ? r.bottom : r.bottom - inset('bottom'),
           lines: ink?.lines ?? 0,
           ink: ink === null ? { left: r.left, top: r.top, right: r.right, bottom: r.bottom } : { left: ink.left, top: ink.top, right: ink.right, bottom: ink.bottom },
@@ -401,6 +417,24 @@ export async function collectBlocks(page: Page, scope: string): Promise<BlockNod
 
 /** 終わりのある演出が終わるのを待つ（途中の箱は縮んでいたり動いていたりして、間と重なりを誤る）。`a11y.ts` の {@link settleFiniteAnimations} と同じもの。 */
 export const settleAnimations = settleFiniteAnimations;
+
+/**
+ * 箱の位置が 2 回続けて同じになるまで集め直す（最大 20 回）。幅や字の大きさを変えた直後は、ResizeObserver や容器クエリ・書体の到着で
+ * 数フレームのあいだ配置が動き、貼りつく帯などが途中の位置で測られて偽の赤になる（文字 200%・320 の roulette で 5 回に 1 回出た）。
+ * 時間では待たない。
+ */
+async function collectStable(page: Page, scope: string): Promise<BlockNode[]> {
+  const key = (nodes: readonly BlockNode[]): string => nodes.map((n) => `${n.path}|${n.left.toFixed(1)},${n.top.toFixed(1)},${n.right.toFixed(1)},${n.bottom.toFixed(1)}`).join(';');
+  let nodes = await collectBlocks(page, scope);
+  for (let i = 0; i < 20; i += 1) {
+    await page.evaluate(() => new Promise<void>((resolve) => { requestAnimationFrame(() => { requestAnimationFrame(() => { resolve(); }); }); }));
+    const next = await collectBlocks(page, scope);
+    const same = key(next) === key(nodes);
+    nodes = next;
+    if (same) break;
+  }
+  return nodes;
+}
 
 export interface BlockScanOptions {
   /** 測る幅。既定は {@link BLOCK_WIDTHS} */
@@ -435,7 +469,7 @@ export async function expectBlocksSeparated(page: Page, label: string, opts: Blo
     await settleAnimations(page);
     // 先頭へ戻す（貼りつく帯は除くが、スクロールした位置で測らない）
     await page.evaluate(() => window.scrollTo(0, 0));
-    const nodes = await collectBlocks(page, scope);
+    const nodes = await collectStable(page, scope);
     expect(nodes.length, `${scaleLabel}（${String(width)}）: 測った要素が少ない（描かれる前に測っていないか）`).toBeGreaterThanOrEqual(minNodes);
     for (const p of findBlockProblems(nodes, minGap, captionGap)) all.push(`${String(width)}: ${p.message}`);
   }

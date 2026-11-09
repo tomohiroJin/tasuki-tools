@@ -24,7 +24,7 @@ function box(parent: number, left: number, top: number, width: number, height: n
     left, top, right: left + width, bottom: top + height,
     position: 'static', display: 'block', transformed: false, truncates: false,
     textOnly: false, lines: 0, ink: { left, top, right: left + width, bottom: top + height },
-    tag: 'div', role: '', ruledTop: false, ruledBottom: false, parentWidth: 1000,
+    tag: 'div', role: '', ruledTop: false, ruledBottom: false, parentWidth: 1000, distorted: false,
     visTop: top, visBottom: top + height,
     ...over,
   };
@@ -44,7 +44,7 @@ function raw(id: number, parent: number, tag: string, top: number, height: numbe
     left: 0, top, right: 300, bottom: top + height,
     position: 'static', display: 'block', transformed: false, truncates: false,
     lines: 1, ink: { left: 0, top, right: 300, bottom: top + height },
-    tag, role: '', ruledTop: false, ruledBottom: false, parentWidth: 1000, paints: false,
+    tag, role: '', ruledTop: false, ruledBottom: false, parentWidth: 1000, paints: false, distorted: false,
     visTop: top, visBottom: top + height,
     ...over,
   };
@@ -107,8 +107,17 @@ describe('字の組・変形の子孫・塗らない入れ物', () => {
     expect(findBlockProblems([text(0, 0, 0, 300, 24, 1, { tag: 'h2' }), text(0, 0, 24, 300, 24, 1, { tag: 'p' })]).map((x) => x.kind)).toEqual(['gap']);
   });
 
+  it('Given 何も動かさない変形（恒等の行列・0px の translate）の区画の中が詰まる / When 判定する / Then 外れず測る。平行移動だけの区画の子孫も測る', () => {
+    // 計算値の判定は collectBlocks（ブラウザ）の仕事。ここでは「distorted が偽なら子孫を測る」を固定する
+    for (const over of [{ transformed: false, distorted: false }, { transformed: true, distorted: false }]) {
+      const parent = box(0, 0, 0, 300, 200, over);
+      const kids = [text(parent.id, 0, 0, 300, 24, 1, { tag: 'p' }), text(parent.id, 0, 24, 300, 24, 1, { tag: 'p' })];
+      expect(findBlockProblems([parent, ...kids]).map((x) => x.kind), JSON.stringify(over)).toEqual(['gap']);
+    }
+  });
+
   it('Given 変形した部品の子孫（3D の回転で射影された札の中）が詰まる / When 判定する / Then 測らない。変形の外の兄弟は測る', () => {
-    const card = box(0, 0, 0, 300, 200, { transformed: true });
+    const card = box(0, 0, 0, 300, 200, { transformed: true, distorted: true });
     const inner = [text(card.id, 0, 0, 300, 24, 1, { tag: 'p' }), text(card.id, 0, 24, 300, 24, 1, { tag: 'p' })];
     expect(findBlockProblems([card, ...inner])).toEqual([]);
     // 変形していない親の下なら同じ配置が出る

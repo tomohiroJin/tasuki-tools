@@ -150,7 +150,16 @@ test.describe('主な画面は隣り合うブロックが重ならず、縦の�
           const extend = [...document.querySelectorAll('.run-extend-button')].map((b) => b.getBoundingClientRect());
           let overlap = 0;
           for (let i = 1; i < extend.length; i += 1) overlap = Math.max(overlap, extend[i - 1]!.right - extend[i]!.left);
+          // 字がボタンからはみ出す（箱が縮んで、字を折らない `nowrap` の字が外へ出る）。箱どうしは重ならないので、重なりでは拾えない
+          const clipped = [...document.querySelectorAll('.run-controls button')].filter((b) => {
+            const r = document.createRange();
+            r.selectNodeContents(b);
+            const t = r.getBoundingClientRect();
+            const box = b.getBoundingClientRect();
+            return b.scrollWidth - b.clientWidth > 0.5 || t.right > box.right + 0.5 || t.left < box.left - 0.5;
+          }).map((b) => `${(b.textContent ?? '').trim()}（箱 ${Math.round(b.getBoundingClientRect().width)}px）`);
           return {
+            clipped,
             overflow: document.documentElement.scrollWidth - innerWidth,
             outside: Math.max(0, ...buttons.map((b) => Math.max(bar.left - b.left, b.right - bar.right))),
             overlap,
@@ -161,6 +170,7 @@ test.describe('主な画面は隣り合うブロックが重ならず、縦の�
         if (m.overlap > 0.5) problems.push(`${where}: 延長のボタンが ${m.overlap.toFixed(1)}px 重なる`);
         // 文字 200% の 64rem 以上は、脇の帯が 46〜282px まで潰れる既知の壊れ（main も同じ。一覧の補遺の記録）。重なりだけ見て、帯の外・溢れは 200% の 640〜768 と 100%・150% で見る
         const known = scale === 200 && width >= 1024;
+        if (!known && m.clipped.length > 0) problems.push(`${where}: 字がボタンからはみ出す: ${m.clipped.join('・')}`);
         if (!known && m.outside > 0.5) problems.push(`${where}: ボタンが帯の外へ ${m.outside.toFixed(1)}px 出る（帯 ${m.bar.toFixed(0)}px）`);
         if (!known && m.overflow > 0.5) problems.push(`${where}: ページが ${String(m.overflow)}px 横に溢れる`);
       }
