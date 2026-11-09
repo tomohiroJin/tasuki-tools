@@ -1,8 +1,8 @@
 diff --git a/e2e/support/block-gaps.ts b/e2e/support/block-gaps.ts
-index f88dd1f0..9e8959f0 100644
+index 25f636f2..ca65c971 100644
 --- a/e2e/support/block-gaps.ts
 +++ b/e2e/support/block-gaps.ts
-@@ -202,7 +202,7 @@ export function findBlockProblems(nodes: readonly BlockNode[], minGap: number =
+@@ -230,7 +230,7 @@ export function findBlockProblems(nodes: readonly BlockNode[], minGap: number =
    // 形を歪める変形（回転・3D・拡大縮小・傾き）の下の子孫は、親の変形で矩形が射影され、箱の間も重なりも意味を持たない。平行移動だけの下は測る
    const byId = new Map(nodes.map((n) => [n.id, n]));
    const underTransform = (n: BlockNode): boolean => {

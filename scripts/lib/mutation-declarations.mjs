@@ -8311,11 +8311,11 @@ export const MUTATIONS = [
   },
   {
     id: 1427,
-    label: "恒等の行列（matrix(1, 0, 0, 1, 0, 0)）も変形として数える（子孫を測らなくなる）",
+    label: "恒等の行列（matrix(1, 0, 0, 1, 0, 0)）や平行移動の行列も、形を歪める変形として読む（子孫を測らなくなる）",
     patch: "m1427-identity-transform-counted.patch",
     pkg: "e2e",
     tests: ["tests/block-gaps.test.ts"],
-    note: RESERVED_1420_1429 + " " + "#557 のレビュー。終わった入場の演出（timer の .boot-reveal）の区画とその子孫が判定から外れ、セッションの 2 つの部品が 80px 重なっても緑になる。判定の純関数には変形の計算値が届かないので、E2E の block-gaps.spec.ts が見る（単体の試験は distorted が偽なら子孫を測ることを固定する）。",
+    note: RESERVED_1420_1429 + " " + "#557 のレビュー。終わった入場の演出（timer の .boot-reveal）の区画とその子孫が判定から外れ、セッションの 2 つの部品が 80px 重なっても緑になる。",
   },
   {
     id: 1428,
