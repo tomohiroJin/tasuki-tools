@@ -80,6 +80,7 @@ describe("useTopBandHeight", () => {
   });
 
   it("休憩が有効になった最初の描画より前に、帯の下端を反映する（#574）", () => {
+    // Given
     const beforePaint: string[] = [];
     function PaintProbe({ enabled }: { enabled: boolean }) {
       const ref = useRef<HTMLDivElement>(null);
@@ -88,8 +89,10 @@ describe("useTopBandHeight", () => {
       return <div ref={ref} />;
     }
     const { rerender } = render(<PaintProbe enabled={false} />);
+    // When
     bottom = 200;
     rerender(<PaintProbe enabled />);
+    // Then
     expect(beforePaint).toEqual(["", "200px"]);
   });
 

@@ -3,6 +3,7 @@ import { test, expect } from '../fixtures/test';
 import { settleFiniteAnimations } from '../support/a11y';
 
 test('有限の演出は終端を測り、無限・一時停止の演出は進めない', async ({ page }) => {
+  // Given
   await page.setContent('<button style="width:100px;height:44px">測る</button>');
   await page.evaluate(() => {
     const button = document.querySelector('button')!;
@@ -12,7 +13,9 @@ test('有限の演出は終端を測り、無限・一時停止の演出は進�
     paused.pause();
     Object.assign(window, { testAnimations: { finite, infinite, paused } });
   });
+  // When
   await settleFiniteAnimations(page);
+  // Then
   const result = await page.evaluate(() => {
     const animations = (window as unknown as { testAnimations: Record<string, Animation> }).testAnimations;
     return {
