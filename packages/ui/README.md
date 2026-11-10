@@ -414,7 +414,7 @@ node scripts/audit-ui-components.mjs  # 部品層の写しと規則・画面の 
 - **コントラストの E2E は、測ったこと自体を固定する。** `expectReadable` の第 3 引数（最も薄い組）を空で呼ぶと、要素が走査の外へ変わっても緑のままになる
 - **玄関の入力欄は `font: inherit` で `label`（要素層の規則）から継承する。** `label` を動かすと入力欄の実寸も動く。16px を下回らせない（iOS Safari が自動拡大する）
 - **生の色の禁止・α の語彙・stylelint の `overrides`（トークン層に要素セレクタを置かせない）・`accent-color` による卓の色は、維持するもの。**
-  生の色は `apps/timer-web/test/ui/design-tokens.test.ts` と `scripts/audit-ui-components.mjs` が禁じる。例外は「色がパレットに属さない」ものだけ（QR の白地・黒い影）。「直すのが面倒」は理由にしない。語彙は上の「トークン」の表
+  生の色は `apps/timer-web/test/ui/design-tokens.test.ts` と `scripts/audit-ui-components.mjs` が禁じる。例外は「色がパレットに属さない」ものだけで、いまは無い（足すときは `ALLOW` に理由つきで書く）。「直すのが面倒」は理由にしない。語彙は上の「トークン」の表
 - **部品へ移した値は、移した先の持ち主の名前でも `grep` する。** 元の名前だけで引くと、移した後の残りを見落とす
 - **属性選択子は属性を見る。** `type` を省いた `<input>` に `input[type=text]` は当たらない。`:not()` は引数の詳細度を取る
 - **ARIA の `role` は、暗黙の役割を上書きする。** `<h2 role="status">` は見出しではなくなる。区画に常設した `role="status"` は、既存の E2E の `getByRole('status')` を二重に一致させる

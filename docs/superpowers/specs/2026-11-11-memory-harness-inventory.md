@@ -16,7 +16,7 @@ Codex への接続（本番デプロイの歯止め・入口の検査の拡張�
 
 ## 集計
 
-数え方: 各表の行は `grep -c '^| .*\.md |' <このファイル>` に近い形で数えた（表ごとに範囲を区切る）。(c) は表を持たないので件数だけを書く。
+数え方: 表ごとの行数は、見出しごとに数えられる: `awk '/^## /{s=$0} /^\| .*\.md \|/{c[s]++} END{for(k in c) print c[k], k}' <このファイル>`。(c) は表を持たないので件数だけを書く。
 
 - (c) 手元に残す: 36 件（分類に (c) を含む行を数えた件数。中身とファイル名は書かない）
   - うち 10 件は、(b) の断片（サブエージェントへの指示・往復の終わり方など）を手順書へ書いた。書いた先は `docs/guides/procedures/orchestration.md`・`docs/guides/procedures/adversarial-review.md`・`docs/guides/procedures/mutations.md`・`docs/guides/pr-granularity.md`
@@ -27,7 +27,7 @@ Codex への接続（本番デプロイの歯止め・入口の検査の拡張�
 
 ## (b) を書いた
 
-「範囲」の「全部」は、棚卸しの行にあった (b) の項目をすべて書いた、の意味。経緯・製品の事実・古い事実（(d)）は書いていない。
+「範囲」の「全部」は、そのメモリの (b) の項目（手順書・ガイドに書くべき教訓）をすべて書いた、の意味。書かなかった部分があるものは「一部」とし、下の「(b) の一部」の表に理由を書いた。経緯・製品の事実・古い事実（(d)）は書いていない。
 
 | メモリ | 書いた先 | 範囲 |
 |---|---|---|
@@ -141,38 +141,39 @@ Codex への接続（本番デプロイの歯止め・入口の検査の拡張�
 ## (d)・済（書かない）
 
 経緯は振り返り・ADR・`git log` に、規則は既存のガイド・検査・コードにある。古くなった事実は書かない。
-記号は `(d)` か `済` にそろえた。他の分類（(a) など）を含むものは、元の分類を右に添えた。(a) を含むものは下の「PR 2」の一覧に載せた。
+分類は行ごとに、元の棚卸しのとおり `(d)`（経緯か古い事実）・`済`（既にリポジトリにある）・`(d)・済` のどれかで示す。
+(a) を含む行は「＋ (a)（PR 2）」と添え、下の「PR 2」の一覧に載せた。
 
 | メモリ | 分類 |
 |---|---|
-| caddy-fragment-evaluation-order.md | (d) または済 |
-| checks-need-a-control-run.md | (d) または済 |
-| ci-mutation-offline-install-flake.md | (d) または済 |
-| e2e-serves-prebuilt-dist.md | (d) または済 |
-| free-dev-ports-when-done.md | (d) または済 |
-| local-green-is-not-ci-green.md | (d) または済 |
-| mutation-changed-falls-back-when-declarations-touched.md | (d) または済（他の分類を含む行は下の注） |
-| poker-sync-heartbeat-test-is-flaky.md | (d) または済 |
-| poker-web-copy-link-test-is-flaky.md | (d) または済 |
-| tasuki-e2e-design.md | (d) または済 |
-| tasuki-issue136-security-norms.md | (d) または済 |
-| tasuki-issue182-public-contract-membership.md | (d) または済 |
-| tasuki-issue223-self-only-public-symbols.md | (d) または済 |
-| tasuki-issue254-fast-uri-advisory.md | (d) または済 |
-| tasuki-issue265-dependency-advisories.md | (d) または済 |
-| tasuki-issue283-server-authoritative-generating.md | (d) または済 |
-| tasuki-issue296-pseudo-and-unreadable-layers.md | (d) または済 |
-| tasuki-issue402-timer-break.md | (d) または済 |
-| tasuki-issue447-1-room-header.md | (d) または済 |
-| tasuki-issue447-2-timer-room-header.md | (d) または済 |
-| tasuki-issue455-agenda-long-meetings.md | (d) または済 |
-| tasuki-issue465-checkin-more-methods.md | (d) または済 |
-| tasuki-issue491-two-place-trial.md | (d) または済 |
-| tasuki-issue508-check-fast-signals.md | (d) または済 |
-| tasuki-issue91-shared-topic.md | (d) または済（他の分類を含む行は下の注） ＋ (a)（PR 2） |
-| tasuki-issue93-estimate-log.md | (d) または済 |
-| tasuki-issue95-shared-identity-and-rooms.md | (d) または済 |
-| tasuki-node-pnpm-version-floor.md | (d) または済 |
+| caddy-fragment-evaluation-order.md | (d) |
+| checks-need-a-control-run.md | (d) |
+| ci-mutation-offline-install-flake.md | (d) |
+| e2e-serves-prebuilt-dist.md | (d) |
+| free-dev-ports-when-done.md | (d) |
+| local-green-is-not-ci-green.md | (d) |
+| mutation-changed-falls-back-when-declarations-touched.md | 済（機械化も済） |
+| poker-sync-heartbeat-test-is-flaky.md | (d) |
+| poker-web-copy-link-test-is-flaky.md | (d) |
+| tasuki-e2e-design.md | (d) |
+| tasuki-issue136-security-norms.md | (d) |
+| tasuki-issue182-public-contract-membership.md | (d)・済 |
+| tasuki-issue223-self-only-public-symbols.md | (d) |
+| tasuki-issue254-fast-uri-advisory.md | (d)・済 |
+| tasuki-issue265-dependency-advisories.md | 済 |
+| tasuki-issue283-server-authoritative-generating.md | (d)・済 |
+| tasuki-issue296-pseudo-and-unreadable-layers.md | (d)・済 |
+| tasuki-issue402-timer-break.md | (d) |
+| tasuki-issue447-1-room-header.md | (d)・済 |
+| tasuki-issue447-2-timer-room-header.md | (d)・済 |
+| tasuki-issue455-agenda-long-meetings.md | (d)・済 |
+| tasuki-issue465-checkin-more-methods.md | (d)・済 |
+| tasuki-issue491-two-place-trial.md | (d)・済 |
+| tasuki-issue508-check-fast-signals.md | (d)・済 |
+| tasuki-issue91-shared-topic.md | (d) ＋ (a)（PR 2） |
+| tasuki-issue93-estimate-log.md | (d)・済 |
+| tasuki-issue95-shared-identity-and-rooms.md | (d)・済 |
+| tasuki-node-pnpm-version-floor.md | (d)・済 |
 | ui-text-must-fit-font-base-subset.md | 済（機械化済み） |
 | vitest-worker-timeout-under-load.md | 済（機械化済み） |
 
@@ -188,6 +189,9 @@ Codex への接続（本番デプロイの歯止め・入口の検査の拡張�
 - 合否の無い指標の基準値との比較
 - `pnpm --filter <名前>` の名前が workspace に無いときに止める（偽の緑を防ぐ。tasuki-issue91-shared-topic.md が元）
 - detached HEAD の知らせ、未 push・マージ済み PR への push の知らせ（AGENTS.md「作業の終わりに」の確かめは文章で、機械化できる）
+
+## 機械化しないもの
+
 - ISSUE 本文の件数・不在の主張を実行して確かめること（`AGENTS.md` の 1 行）は、判断を要するので機械化しない
 
 ## PR 3 へ回すもの
