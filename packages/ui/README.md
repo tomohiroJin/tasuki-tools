@@ -407,6 +407,17 @@ node scripts/audit-ui-components.mjs  # 部品層の写しと規則・画面の 
 
 `build` と `typecheck` は持たない（TS を足すまで不要）。
 
+## 書くときの罠
+
+- **コントラストの検査（`e2e/support/a11y.ts` の `scanContrast`）が測る要素は限られる**（`button`・`a`・`h1`〜`h3`・`label`・`p`・`span`）。
+  `h4`〜`h6`・`li`・`code`・`div` の字は測らない。そこに字を置いたら、自分で色を測る
+- **部品へ移した値は、移した先の持ち主の名前でも `grep` する。** 元の名前だけで引くと、移した後の残りを見落とす
+- **属性選択子は属性を見る。** `type` を省いた `<input>` に `input[type=text]` は当たらない。`:not()` は引数の詳細度を取る
+- **ARIA の `role` は、暗黙の役割を上書きする。** `<h2 role="status">` は見出しではなくなる。区画に常設した `role="status"` は、既存の E2E の `getByRole('status')` を二重に一致させる
+- **`overflow: hidden` の親は、`position: sticky` を閉じ込める**（`overflow: clip` を使う）。同じ詳細度の部品どうしは `@import` の順で勝ち負けが決まる（読み込み順の記述を見る）
+- **ショートハンド（`background:`）は、後から書くと `background-image` を初期値へ戻す。** 壊し方や上書きの規則を書くときは、ショートハンドが長い形を巻き込まないかを見る
+- **Markdown から出すクラス名は字面で書く。** `md-${kind}` のような組み立ては、死んだ部品の検査が数えない
+
 ## ここに**入れていない**もの
 
 - **伏せ札の裏模様とめくり**（`.seat-card`）: 現時点で poker の座席の札でしか

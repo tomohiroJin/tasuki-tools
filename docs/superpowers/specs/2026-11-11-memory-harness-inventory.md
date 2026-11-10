@@ -18,9 +18,9 @@ Codex への接続（本番デプロイの歯止め・入口の検査の拡張�
 
 - (c) 手元に残す: 36 件
   - 件数は、分類に (c) を含む行を数えたもの。うち 10 件は、(b) の断片（サブエージェントへの指示・往復の終わり方など）を手順書へ書いた
-- (b) を書いた: 52 件（全部書いたもの、一部だけ書いたものを含む。下の表）
-- (b) を書かずに残した: 39 件（下の表。**PR 1 の追補で書く**）
-- (d) と済（書かない）: 31 件
+- (b) を書いた: 92 件（下の表。一部だけ書いたものは「範囲」に「一部」と書いた）
+- (b) の書き残し: 4 件（下の表。すべて、書いた範囲と書かなかった理由つき）
+- (d) と済（書かない）: 30 件
 
 ## (b) を書いた
 
@@ -30,103 +30,108 @@ Codex への接続（本番デプロイの歯止め・入口の検査の拡張�
 | appending-a-section-reparents-the-next-one.md | `docs/guides/counting-and-writing.md` | 全部 |
 | assertions-must-sit-where-implementations-differ.md | `docs/guides/procedures/adversarial-review.md` | 全部 |
 | bare-spec-reference-means-the-0813-spec.md | `docs/guides/counting-and-writing.md` | 全部 |
+| bun-test-migration-findings.md | `docs/guides/development.md` | 全部 |
 | check-pr-comments-after-push.md | `docs/guides/procedures/orchestration.md` | 全部 |
 | closes-keyword-must-not-be-in-backticks.md | `docs/guides/procedures/orchestration.md` | 全部 |
 | code-review-targets-the-current-branch.md | `docs/guides/procedures/orchestration.md` | 全部 |
 | count-by-running-not-grepping.md | `docs/guides/counting-and-writing.md`、`AGENTS.md` | 全部 |
 | countermeasures-carry-the-flaw-they-fix.md | `docs/guides/procedures/adversarial-review.md` | 全部 |
 | count-in-prose-goes-stale.md | `docs/guides/counting-and-writing.md` | 全部 |
-| dated-obligations-need-their-own-home.md | `docs/guides/counting-and-writing.md` | 一部 |
+| dated-obligations-need-their-own-home.md | `docs/guides/development.md`、`docs/guides/counting-and-writing.md` | 全部 |
+| defineproperty-stubs-survive-unstuballglobals.md | `docs/guides/development.md` | 全部 |
 | deleted-symbols-live-on-in-declarations.md | `docs/guides/procedures/adversarial-review.md` | 全部 |
+| design-system-invariants.md | `packages/ui/README.md` | 全部 |
 | docs-issues-must-not-grow-into-implementation.md | `docs/guides/pr-granularity.md` | 全部 |
 | dont-embed-formatted-text-in-briefs.md | `docs/guides/procedures/orchestration.md` | 全部 |
 | dont-fix-while-scoring-runs.md | `docs/guides/procedures/orchestration.md` | 全部 |
 | dont-restate-numbers-across-own-docs.md | `docs/guides/counting-and-writing.md` | 全部 |
 | dont-scatter-issueless-prs.md | `docs/guides/pr-granularity.md` | 全部 |
 | dont-truncate-tool-output-when-counting.md | `docs/guides/counting-and-writing.md` | 全部 |
+| dotenv-follows-the-working-directory.md | `docs/guides/development.md` | 全部 |
 | enumerations-rot-name-the-mechanism.md | `docs/guides/counting-and-writing.md` | 全部 |
+| estimate-verification-time-in-plans.md | `docs/guides/plan-writing.md` | 全部 |
+| fixed-version-present-is-not-old-version-gone.md | `docs/guides/development.md` | 全部 |
 | fixes-often-touch-only-one-side.md | `docs/guides/procedures/adversarial-review.md` | 全部 |
 | issue-bodies-had-factual-errors.md | `docs/guides/counting-and-writing.md`、`AGENTS.md` | 全部 |
 | issue-sprawl-means-deferral-chains.md | `docs/guides/pr-granularity.md` | 全部 |
+| layout-must-fit-real-content.md | `docs/guides/definition-of-done.md` | 全部 |
+| markdown-perf-test-ci-slowness.md | `docs/guides/development.md` | 全部 |
 | metric-and-norm-can-disagree.md | `docs/guides/counting-and-writing.md` | 全部 |
 | metrics-without-a-verdict-need-a-baseline.md | `docs/guides/counting-and-writing.md` | 一部 |
+| mutate-after-rewriting.md | `docs/guides/procedures/mutations.md` | 全部 |
 | mutation-ids-collide-in-parallel-work.md | `docs/guides/procedures/orchestration.md`、`docs/guides/procedures/mutations.md` | 全部 |
 | never-write-identifiers-from-memory.md | `docs/guides/counting-and-writing.md`、`AGENTS.md` | 全部 |
-| operator-only-norms-need-no-enforcement.md | `docs/guides/counting-and-writing.md` | 一部 |
-| oracles-must-be-wider-than-the-implementation.md | `docs/guides/procedures/adversarial-review.md` | 一部 |
+| old-vs-new-comparison-finds-what-tests-cannot.md | `docs/guides/procedures/adversarial-review.md` | 全部 |
+| operator-only-norms-need-no-enforcement.md | `docs/guides/security.md`、`docs/guides/counting-and-writing.md` | 全部 |
+| oracles-must-be-wider-than-the-implementation.md | `docs/guides/procedures/adversarial-review.md` | 全部 |
 | parallel-agents-need-isolated-worktrees.md | `docs/guides/procedures/orchestration.md` | 全部 |
 | pgrep-self-match-in-waiters.md | `docs/guides/procedures/orchestration.md` | 全部 |
+| plans-defects-outnumber-implementation-defects.md | `docs/guides/plan-writing.md` | 全部 |
+| playwright-assertion-traps.md | `docs/guides/procedures/live-check.md` | 全部 |
+| pnpm-virtual-store-off-9p.md | `docs/guides/development.md` | 全部 |
+| push-before-announcing-done.md | `AGENTS.md` | 全部 |
 | read-ci-by-head-sha.md | `docs/guides/procedures/orchestration.md`、`docs/guides/development.md` | 全部 |
 | record-decisions-not-completed-state.md | `docs/guides/counting-and-writing.md` | 全部 |
 | review-loops-need-a-stop-criterion.md | `docs/guides/procedures/orchestration.md`、`docs/guides/procedures/adversarial-review.md` | 全部 |
+| runner-completions-hide-missing-deps.md | `docs/guides/development.md` | 全部 |
 | sdd-final-phase-burns-tokens.md | `docs/guides/procedures/orchestration.md` | 全部 |
 | simple-checks-beat-clever-ones.md | `docs/guides/counting-and-writing.md` | 一部 |
-| spec-errors-get-ratified-downstream.md | `docs/guides/procedures/adversarial-review.md` | 一部 |
+| spec-errors-get-ratified-downstream.md | `docs/guides/design-doc-revision.md`、`docs/guides/procedures/adversarial-review.md` | 全部 |
+| specs-pin-the-method-not-just-the-claim.md | `docs/guides/definition-of-done.md` | 全部 |
 | subagents-must-not-merge.md | `docs/guides/procedures/orchestration.md` | 全部 |
 | subagents-must-not-touch-processes-or-branches.md | `docs/guides/procedures/orchestration.md` | 全部 |
-| tasuki-issue142-e2e-error-paths.md | `docs/guides/counting-and-writing.md` | 一部 |
-| tasuki-issue157-log-hygiene-tsx-scope.md | `docs/guides/procedures/adversarial-review.md` | 一部 |
-| tasuki-issue250-epic95-retrospective.md | `docs/guides/counting-and-writing.md` | 一部 |
+| tasuki-issue103-ip-rate-limit.md | `docs/guides/development.md`、`docs/guides/definition-of-done.md` | 全部 |
+| tasuki-issue135-scan-target-integrity.md | `docs/guides/procedures/live-check.md` | 全部 |
+| tasuki-issue142-e2e-error-paths.md | `docs/guides/counting-and-writing.md` | 全部 |
+| tasuki-issue154-supply-chain-config-integrity.md | `docs/guides/development.md` | 全部 |
+| tasuki-issue155-plan-constitution-gate.md | `docs/guides/development.md`、`docs/guides/procedures/adversarial-review.md` | 全部 |
+| tasuki-issue157-log-hygiene-tsx-scope.md | `docs/guides/design-doc-revision.md`、`docs/guides/procedures/adversarial-review.md` | 全部 |
+| tasuki-issue162-e2e-from-vscode-extension.md | `docs/guides/development.md` | 全部 |
+| tasuki-issue173-tests-in-typecheck-scope.md | `docs/guides/development.md` | 全部 |
+| tasuki-issue220-timer-core-public-contract.md | `docs/guides/development.md` | 全部 |
+| tasuki-issue221-rate-limit-public-contract.md | `docs/guides/design-doc-revision.md`、`docs/guides/counting-and-writing.md` | 全部 |
+| tasuki-issue246-identity-and-presence.md | `docs/guides/architecture.md` | 全部 |
+| tasuki-issue248-poker-via-hub.md | `docs/guides/architecture.md`、`docs/guides/procedures/live-check.md` | 全部 |
+| tasuki-issue250-epic95-retrospective.md | `docs/guides/counting-and-writing.md` | 全部 |
+| tasuki-issue271-lobby-problem-server-side.md | `docs/guides/development.md` | 全部 |
+| tasuki-issue274-name-before-absence.md | `docs/guides/architecture.md`、`packages/ui/README.md` | 全部 |
+| tasuki-issue276-rotation-seats.md | `docs/guides/architecture.md` | 全部 |
+| tasuki-issue279-contrast-gradient.md | `packages/ui/README.md` | 全部 |
+| tasuki-issue280-ui-typography-scale.md | `packages/ui/README.md`、`docs/guides/procedures/live-check.md` | 全部 |
 | tasuki-issue284-display-name-hardening.md | `docs/guides/procedures/adversarial-review.md` | 全部 |
-| tasuki-issue297-ivory-faint-margin.md | `docs/guides/procedures/orchestration.md` | 一部 |
-| tasuki-issue387-test-weight.md | `docs/guides/procedures/orchestration.md`、`docs/guides/development.md` | 一部 |
+| tasuki-issue290-leaving-a-room.md | `docs/guides/architecture.md`、`docs/guides/procedures/mutations.md`、`docs/guides/plan-writing.md` | 全部 |
+| tasuki-issue294-fold-config-members.md | `docs/guides/architecture.md` | 全部 |
+| tasuki-issue297-ivory-faint-margin.md | `docs/guides/procedures/orchestration.md` | 全部 |
+| tasuki-issue321-timer-without-tailwind.md | `docs/guides/procedures/live-check.md`、`docs/guides/procedures/orchestration.md` | 全部 |
+| tasuki-issue387-test-weight.md | `docs/guides/procedures/orchestration.md`、`docs/guides/development.md` | 全部 |
+| tasuki-issue429-agenda-timer.md | `docs/guides/procedures/orchestration.md` | 全部 |
+| tasuki-issue429-stage2-repeat.md | `docs/guides/architecture.md`、`docs/guides/definition-of-done.md`、`docs/guides/procedures/adversarial-review.md` | 全部 |
+| tasuki-issue439-444-pnpm-and-advisories.md | `docs/guides/development.md` | 全部 |
 | tasuki-issue458-roulette-regulars.md | `docs/guides/procedures/adversarial-review.md` | 全部 |
 | tasuki-issues-352-348-94-parallel-run.md | `docs/guides/procedures/orchestration.md` | 全部 |
 | tasuki-parallel-two-issues-run.md | `docs/guides/procedures/orchestration.md` | 全部 |
-| tasuki-real-usage-and-positioning.md | `docs/guides/product-positioning.md` |  |
+| tasuki-real-usage-and-positioning.md | `docs/guides/product-positioning.md` | 全部 |
 | typecheck-misses-test-fixtures.md | `docs/guides/procedures/adversarial-review.md` | 全部 |
+| valibot-paths-are-not-a-classifier.md | `docs/guides/architecture.md` | 全部 |
 | verify-artifacts-adversarially.md | `docs/guides/procedures/adversarial-review.md` | 全部 |
 | verify-the-break-itself.md | `docs/guides/procedures/adversarial-review.md` | 一部 |
+| verify-the-live-path.md | `docs/guides/definition-of-done.md` | 全部 |
 | verify-with-redirects-followed.md | `docs/guides/counting-and-writing.md` | 一部 |
+| zsh-path-variable-clobbers-PATH.md | `docs/guides/development.md` | 全部 |
 
 (b) の断片を書いたもの（上の (c) の件数に含む）の書き先は、`docs/guides/procedures/orchestration.md`・`docs/guides/procedures/adversarial-review.md`・
 `docs/guides/procedures/mutations.md`・`docs/guides/pr-granularity.md`。
 
-## (b) を書かずに残した
+## (b) の書き残し
 
-書き先の欄は、棚卸しで挙げた候補の置き場である。
+一部だけ書いたもの。書かなかった部分と理由を示す。
 
-| メモリ | 棚卸しの分類 | 候補の置き場 |
-|---|---|---|
-| bun-test-migration-findings.md | (b)(d) | development.md |
-| defineproperty-stubs-survive-unstuballglobals.md | (b)(a) | development.md、audit- |
-| design-system-invariants.md | (d)(b) | packages/ui/README.md |
-| dotenv-follows-the-working-directory.md | (d)(b) | development.md |
-| estimate-verification-time-in-plans.md | (b)(a) | plan-writing.md、audit- |
-| fixed-version-present-is-not-old-version-gone.md | (b) | development.md |
-| layout-must-fit-real-content.md | (b) | definition-of-done.md |
-| markdown-perf-test-ci-slowness.md | (b) | development.md |
-| mutate-after-rewriting.md | b（済（一部）） | mutations.md、definition-of-done.md |
-| mutation-changed-falls-back-when-declarations-touched.md | b（済） | （各ガイドの該当節） |
-| old-vs-new-comparison-finds-what-tests-cannot.md | b（済（一部）） | adversarial-review.md |
-| plans-defects-outnumber-implementation-defects.md | b | plan-writing.md |
-| playwright-assertion-traps.md | b | live-check.md、e2e/README.md |
-| pnpm-virtual-store-off-9p.md | b / a（済（一部）） | development.md |
-| push-before-announcing-done.md | a / b | AGENTS.md、フック |
-| runner-completions-hide-missing-deps.md | b | development.md |
-| specs-pin-the-method-not-just-the-claim.md | b | definition-of-done.md、ears-writing.md |
-| tasuki-issue103-ip-rate-limit.md | 経緯 (d)・教訓 (a)(b) | development.md、security.md、ears-writing.md、audit- |
-| tasuki-issue154-supply-chain-config-integrity.md | (b)・一部済 | development.md、audit- |
-| tasuki-issue155-plan-constitution-gate.md | (d)・教訓 (b) | development.md、mutations.md、adversarial-review.md、plan-writing.md、audit- |
-| tasuki-issue162-e2e-from-vscode-extension.md | 済・一部 (b) | development.md、e2e/README.md |
-| tasuki-issue173-tests-in-typecheck-scope.md | (d)・教訓 (b) | architecture.md、definition-of-done.md |
-| tasuki-issue220-timer-core-public-contract.md | 済・一部 (b) | development.md |
-| tasuki-issue246-identity-and-presence.md | 経緯 (d)・教訓 (a)(b) | architecture.md、mutations.md、check:fast |
-| tasuki-issue248-poker-via-hub.md | 経緯 (d)・教訓 (a)(b) | architecture.md、live-check.md、agent-guard、check:fast、フック |
-| tasuki-issue271-lobby-problem-server-side.md | (d)・教訓 (b) | development.md、e2e/README.md |
-| tasuki-issue274-name-before-absence.md | (d)・教訓 (b)・済 | architecture.md、packages/ui/README.md |
-| tasuki-issue276-rotation-seats.md | 済・教訓 (b) | architecture.md、mutations.md、audit- |
-| tasuki-issue279-contrast-gradient.md | (d)・教訓 (a)(b)・済 | （各ガイドの該当節） |
-| tasuki-issue280-ui-typography-scale.md | (d)・教訓 (b) | packages/ui/README.md、live-check.md |
-| tasuki-issue290-leaving-a-room.md | 経緯 (d)・教訓 (a)(b)・済 | architecture.md、mutations.md、plan-writing.md |
-| tasuki-issue294-fold-config-members.md | (d)・教訓 (a)(b) | architecture.md |
-| tasuki-issue321-timer-without-tailwind.md | 経緯 (d)・教訓 (b) | development.md、live-check.md |
-| tasuki-issue429-agenda-timer.md | d（経緯）＋ b | check:fast |
-| tasuki-issue429-stage2-repeat.md | d（経緯）＋ b | architecture.md、adversarial-review.md、definition-of-done.md |
-| tasuki-issue439-444-pnpm-and-advisories.md | b（一部済） | development.md、audit- |
-| valibot-paths-are-not-a-classifier.md | b | architecture.md |
-| verify-the-live-path.md | b（大半は済） | definition-of-done.md、procedures/README.md |
-| zsh-path-variable-clobbers-PATH.md | b | development.md |
+| メモリ | 書かなかった部分と理由 |
+|---|---|
+| metrics-without-a-verdict-need-a-baseline.md | 基準値との比較は (a) として PR 2。SC029・SC032 の書き方の 2 点は、ADR 0006 の現物と突き合わせていないため、1 行（`// Given / When`）だけ書いた |
+| simple-checks-beat-clever-ones.md | 倒す条件は書いた。検査の個別の例（無状態＋許可リスト）は、現物の検査で確かめられていないため書いていない |
+| verify-the-break-itself.md | 置換の前後の件数・抑制レベルのある道具の見方は書いていない。現物の道具で確かめられていないため。壊す前に落ちるものを書く点は書いた |
+| verify-with-redirects-followed.md | 測る場所を先に疑う点だけ書いた。ANSI・パイプの落ち・`--is-ancestor` の個別の罠は、重複する記述が既にあるため書いていない |
 
 ## (d)・済（書かない）
 
@@ -140,13 +145,12 @@ Codex への接続（本番デプロイの歯止め・入口の検査の拡張�
 | e2e-serves-prebuilt-dist.md | (d) |
 | free-dev-ports-when-done.md | (d) |
 | local-green-is-not-ci-green.md | (d) |
+| mutation-changed-falls-back-when-declarations-touched.md | 済（機械化も済） |
 | poker-sync-heartbeat-test-is-flaky.md | d |
 | poker-web-copy-link-test-is-flaky.md | d |
 | tasuki-e2e-design.md | d |
-| tasuki-issue135-scan-target-integrity.md | (d) |
 | tasuki-issue136-security-norms.md | (d) |
 | tasuki-issue182-public-contract-membership.md | 済・(d) |
-| tasuki-issue221-rate-limit-public-contract.md | (d) |
 | tasuki-issue223-self-only-public-symbols.md | (d) |
 | tasuki-issue254-fast-uri-advisory.md | 済・(d) |
 | tasuki-issue265-dependency-advisories.md | 済 |
