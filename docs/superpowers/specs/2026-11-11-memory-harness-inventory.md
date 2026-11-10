@@ -130,7 +130,7 @@ Codex への接続（本番デプロイの歯止め・入口の検査の拡張�
 
 | メモリ | 書かなかった部分と理由 |
 |---|---|
-| metrics-without-a-verdict-need-a-baseline.md | 基準値との比較は (a) として PR 2 へ回した。SC029・SC031（計画への逐語の書き方、ADR 0006 が出典）は `plan-writing.md` に、`// When / Then（理由）` の 1 行の書き方は `development.md` に書いた。SC032 の書き方の残りは書いていない |
+| metrics-without-a-verdict-need-a-baseline.md | 基準値との比較は (a) として PR 2 へ回した。SC029・SC032 の書き方の 2 点は、ADR 0006 に既にあるので書いていない（`plan-writing.md` の SC029・SC031 と `development.md` の `// When / Then（理由）` は、別のメモリ（issue290・issue103）由来） |
 | simple-checks-beat-clever-ones.md | 倒す条件は書いた。検査の個別の例（無状態＋許可リスト）は、現物の検査で確かめられていないため書いていない |
 | tasuki-issue142-e2e-error-paths.md | `routeWebSocket` を掛けたページが同期を取りこぼす件は、`e2e/README.md` に既にある（済）。書いたのは「ISSUE が指定した解法も疑う」 |
 | tasuki-issue271-lobby-problem-server-side.md | 製品の事実（輪と名簿は別の帳簿・`problem: null` の出どころ・委譲は必ず確定する）はコードと ADR にある（d）。書いたのは、確定的に作る最小の WS クライアントの方法 |

@@ -803,7 +803,7 @@ pnpm turbo test --force      # キャッシュを無効にして実際に走ら�
   網羅（全角度×全席のような組）は、描き方を純粋関数へ切り出してその上で回し、DOM は代表の局面だけにする。減らした後も、関係する変異が赤のままか確かめる
 - **ブラウザで作りにくい状態**（時間に依存する・サーバー側の状態）は、最小の WebSocket クライアントで確定的に作り、サーバーを実際に起動する試験（`apps/tasuki-sync/test/support/` のヘルパ）で受ける
 - **ヘルパを作る前に、既存を探す。** `grep -rn "export function" apps/tasuki-sync/test/support/` のように、置き場を引いてから作る（同名のものを作り直して多数のテストを壊した例がある）
-- **アプリに関わる検証は E2E 側へ置く。** `@tasuki/e2e#test` は `turbo.json` で `inputs` を宣言しておらず、既定でパッケージ（`e2e/`）の中だけを見る。`apps/` の変更は入力に入らない。
+- **アプリに関わる検証は、Playwright の `e2e` タスク（`cache: false`）へ置く。** `@tasuki/e2e#test`（`e2e/` の単体テスト）は `turbo.json` で `inputs` を宣言しておらず、既定でパッケージ（`e2e/`）の中だけを見るので、`apps/` の変更ではキャッシュが外れず、偽の緑になる。
   ユニットテストから、引数なしの `turbo run build` を呼ばない
 - **`// Given / When` を 1 行に書くと、When と数えられない。** ADR 0006 が許す 1 行の形は `// When / Then（理由）` だけ。区切りは行を分ける
 - **bun test の癖**（Bun 1.3.14 での実測。いまの版は `toolchain.json`。版が変わったら測り直す）:
