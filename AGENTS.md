@@ -47,7 +47,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 
 **作業の終わりに**
 
-- push を求められた作業では、コミットしたらすぐ push し、報告の前に `git log -1 origin/<枝>` で着いたことを確かめる（保留中にマージされ、修正が落ちた例がある）
+- push を求められた作業では、コミットしたらすぐ push する。報告の前に、`git ls-remote origin <枝>` が手元の HEAD と一致することと、PR が open のままであること（`gh pr view <番号> --json state,mergedAt`）を確かめる。保留中に PR がマージされ、修正が落ちた例がある
 - 触った範囲の検査を流す（下の「基本コマンド」。段ごとの使い分けは `docs/guides/development.md`）
 - 誤字・リンク・記録の状態の書き換え**だけ**の変更を除く、すべての変更は、**終わりを報告する前に**、実装したのとは別のエージェントの敵対的レビューを通す（`docs/guides/procedures/adversarial-review.md`）。PR を立てるかどうかに依らない。差分とコードを渡し、実装した側の結論は渡さない。通せない理由は別のエージェントを起こせない環境に限る。その時は報告の**前に**人へ聞く（「PR が無い」「時間が無い」は理由にしない。`docs/adr/0030` 決定 5）
 - 報告は次の 3 つに分けて書く（PR 本文・ISSUE・会話のどれでも）
@@ -76,7 +76,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 - ADR: [`docs/adr/`](docs/adr/)（横断）・`docs/<app>/adr/`（アプリ固有） —
   なぜそう決まっているか。参照は置き場つき（例: `docs/adr/0002`）
 - ガイド: [`docs/guides/`](docs/guides/) —
-  今日どう書くか（DoD・EARS・振り返り・アーキテクチャ・開発手順・セキュリティ・PR の粒度・数える書く規律・機能を選ぶ物差し）
+  今日どう書くか（DoD・EARS・振り返り・アーキテクチャ・開発手順・セキュリティ・PR の粒度）。件数の数え方・文書の書き方は [`counting-and-writing.md`](docs/guides/counting-and-writing.md)、機能を選ぶ物差しは [`product-positioning.md`](docs/guides/product-positioning.md)
 - 手順書: [`docs/guides/procedures/`](docs/guides/procedures/README.md) —
   繰り返す作業の手順（敵対的レビュー・実画面で確かめる・変異の足し方・並行実装のまとめ役）。
   `.claude/skills/` のスキルはここへ向ける薄い入口で、手順を書かない

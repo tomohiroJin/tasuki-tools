@@ -10,8 +10,8 @@
 
 ## 1. 分ける前に
 
-- 依頼の ISSUE・関係する ADR を読み、分け方を決める。**計画には、検証 1 回あたりの時間と回数の見積もりを書く**
-  （想定の 2 倍を超えたら人へ報告する。網羅系の検査は、最初は合否にせず参考値にする）
+- 依頼の ISSUE・関係する ADR を読み、分け方を決める。**計画には、検証の時間の見積もりを書く**
+  （`docs/guides/plan-writing.md`「計画に書く数値・期待値・時間」）
 - 同じ ISSUE の開いた PR・マージ済みの PR・リモートの枝を確かめる（`AGENTS.md`「作業の始めに」）
 - 変異 ID の帯を、**分けた作業ごとに多めに**先に予約する（`docs/guides/procedures/mutations.md` の「2. 番号を決める」）。
   どの作業も `MUTATIONS` の末尾へ足すので、後から入る側は末尾で衝突する。両側を残して解き、番号は付け直す
@@ -23,10 +23,12 @@
 
 - 作業ごとに専用の作業ツリー（`git worktree add`）を切る。**同じ作業ツリーを 2 者が触る形にしない**
   （片方の復元が、もう片方の実験の途中を消す。読むだけのつもりのレビューも変異検査を流すと書き換える）
-- 依存は `pnpm install --frozen-lockfile --offline --store-dir "$(pnpm -C <元の作業ツリー> store path)"` で入れる
-  （`docs/guides/procedures/mutations.md` の手順 5・`docs/guides/development.md`「9p 越しで実行するとき」）。
-  作業ツリーを切る前に、**置き場が 9p かどうかを、実際の置き場に対して `stat -f` で測る**（マウント点は 1 階層深いことがある）
-- サブエージェントに素の `pnpm install` を打たせない（既定の置き場に戻り、また遅くなる）
+- 依存の入れ方は、置き場で分かれる。作業ツリーを切る前に、**置き場が 9p かどうかを、実際の置き場そのものに対して `stat -f` で測る**
+  （`docs/guides/development.md`「9p 越しで実行するときは依存の実体を逃がす」）。
+  - **9p の上**: 依存の実体を逃がす手順に従う。逃がし先は作業ツリーごとに分ける（同「落とし穴 5 つ」）。`--store-dir` だけでは実体は 9p に作られ、遅い
+  - **9p でない置き場**（コンテナ側に切った作業ツリー）: ストアを共有して `pnpm install --frozen-lockfile --offline --store-dir "$(pnpm -C <元の作業ツリー> store path)"`
+    （`docs/guides/procedures/mutations.md` の手順 5）
+  - どちらの場合も、サブエージェントに素の `pnpm install` を打たせない（置き場が既定に戻る）
 - 長い実行（E2E 全件・変異の全件・撮影の比較）は**まとめ役が流す**。ポートが衝突するのは E2E と dev サーバーだけで、
   単体テストは並べて流せる。サブエージェントに禁じた作業（E2E・実画面・PR・マージ）は、禁じた側の TODO になる
 - 一時ファイルの置き場は作業ツリー内の `tmp/` と決めて指示に書く
@@ -74,7 +76,7 @@
 
 ## 5. レビューの往復の終わり方
 
-始める前に基準を決める。決めずに回すと収束しない（15 回回った例がある）。基準は
+始める前に基準を決める。決めずに回すと収束しない。基準は
 [敵対的レビュー](./adversarial-review.md)の「往復の終わり方」。レビュー役への指示に、そのまま書く。
 
 ## 6. PR を立てたあと
@@ -83,10 +85,9 @@
   （`gh api repos/<owner>/<repo>/pulls/<番号>/comments`・`.../reviews`）。指摘ごとに返信する
 - 閉鎖キーワード（Closes ほか）は **PR 本文に裸で 1 行**書く。バッククォートの中では効かず、コミットメッセージの地の文に書くと squash で勝手に閉じる。
   マージ後に ISSUE の state を見る
-- 積み上げの PR があるときは `gh pr merge --delete-branch` を使わない（base が消えた PR は再オープンできない）
+- 積み上げの PR の扱い（`--delete-branch` を使わない）は [`docs/guides/pr-granularity.md`](../pr-granularity.md) の「派生した作業の扱い」
 - squash マージした PR は、`git merge-base --is-ancestor` では未マージに見える。`gh pr view` の state で見る
-- CI の結果は、枝の名前でなく **headSha** から読む（古いコミットの赤を新しい赤と読まない）。マージの前に、そのコミットの check-runs が全部 completed かを API で見る
-  （`gh run view` が成功でも、ジョブが待機のままのことがある）
+- CI の結果の読み方（headSha から読む・check-runs が全部 completed か）は [`docs/guides/development.md`](../development.md) の「CI の結果を読むとき」
 - 採点を伴うレビュー（Claude Code の `/code-review`）が走っている間は、指摘を直さない。直ったあとの状態が採点され、指摘が空振りになる
 
 ## 7. 長い実行を待つとき

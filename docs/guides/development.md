@@ -803,12 +803,15 @@ pnpm turbo test --force      # キャッシュを無効にして実際に走ら�
   網羅（全角度×全席のような組）は、描き方を純粋関数へ切り出してその上で回し、DOM は代表の局面だけにする。減らした後も、関係する変異が赤のままか確かめる
 - **ブラウザで作りにくい状態**（時間に依存する・サーバー側の状態）は、最小の WebSocket クライアントで確定的に作り、サーバーを実際に起動する試験（`apps/tasuki-sync/test/support/` のヘルパ）で受ける
 - **ヘルパを作る前に、既存を探す。** `grep -rn "export function" apps/tasuki-sync/test/support/` のように、置き場を引いてから作る（同名のものを作り直して多数のテストを壊した例がある）
-- **アプリに関わる検証は E2E 側へ置く。** `@tasuki/e2e#test` の turbo の入力に `apps/` は含まれない（`turbo.json`）。
+- **アプリに関わる検証は E2E 側へ置く。** `@tasuki/e2e#test` は `turbo.json` で `inputs` を宣言しておらず、既定でパッケージ（`e2e/`）の中だけを見る。`apps/` の変更は入力に入らない。
   ユニットテストから、引数なしの `turbo run build` を呼ばない
 - **`// Given / When` を 1 行に書くと、When と数えられない。** ADR 0006 が許す 1 行の形は `// When / Then（理由）` だけ。区切りは行を分ける
 - **bun test の癖**（Bun 1.3.14 での実測。いまの版は `toolchain.json`。版が変わったら測り直す）:
   fake timer は一部だけを選べず全部が偽になる。偽の間は `setImmediate` と `Bun.sleep` が止まるので、実 I/O の完了を待つ試験と両立しない。
-  非 TTY では `(pass)` の行が出ないので、grep で件数を数えると 0 件になる
+  非 TTY では `(pass)` の行が出ないので、grep で件数を数えると 0 件になる。
+  `Bun.serve` の `server.stop()` の Promise は、サーバー側から閉じた接続が 1 つでもあると解決しないので待たない（`server.stop(true)` は同期的に効く）。
+  bind の失敗（EADDRINUSE）は `Bun.serve` が同期的に throw する。`maxPayloadLength` の既定は 16MB（`ws` は 100MB）。`ws` の `pause()` と `autoPong: false` は効かない。
+  WS の防御（Origin・半開き接続）を試すなら、通常のクライアントでは作れないので、ハンドシェイクを手で行う生の TCP クライアントを使う
 
 ### 9p 越しで実行するときは依存の実体を逃がす（任意）
 
@@ -1194,7 +1197,7 @@ stdout / stderr がパイプ（CI・子プロセスとして呼ぶテスト）�
 `uncaughtException` のハンドラだけは、`scripts/lib/exit-after-flush.mjs` の `exitAfterFlush`（書き出しが終わるのを待ってから
 `exit`）で終わります。この関数だけが `EXIT_ALLOWED` に載っています。
 
-**`scripts/audit-*.mjs` と名付けると、名前だけで `scripts/scan-target-wiring.test.mjs` の対象になり、「走査対象: 」の出力が求められます。**
+**`scripts/audit-*.mjs` と名付けると、名前だけで `scripts/scan-target-wiring.test.mjs` の対象になり、「走査対象: 」の出力と、`ci.yml` から呼ばれていることが求められます。**
 重い処理や、検査でないものは `audit-` で始めません。起動が重くて外すものは、`scripts/entry-point-wiring.test.mjs` の `LAUNCH_EXCLUSIONS` に理由つきで載せます。
 
 **子プロセスを使って依存の解決を確かめる検査は、環境変数を絞ります。** vitest のワーカーは `NODE_PATH` を積んでいて、
