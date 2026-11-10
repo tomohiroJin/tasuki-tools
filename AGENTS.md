@@ -29,6 +29,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 
 - 依頼の ISSUE・関係する ADR とガイドを読む。作業ブランチを確かめる
 - 繰り返す作業（レビュー・実画面での確認・変異）は、記憶でなく手順書（`docs/guides/procedures/`）に従う
+- ISSUE 本文の件数・「無い」という主張・仮説は、実行して確かめてから設計に使う。件数は実行して数え、識別子（SHA・番号）は出力から写す（[`docs/guides/counting-and-writing.md`](docs/guides/counting-and-writing.md)）
 - 同じブランチ・作業ツリーを別のエージェントが触っていないか確かめる。並行するなら分ける
 - 同じ ISSUE の開いた PR・マージ済みの PR・リモートの枝を確かめる。確かめる時は、**始め**と、**PR を立てる前・終わりを報告する前**。見つけたら（途中でも）、続ける前に人へ伝える
   - PR: `gh pr list --state all --limit 1000 --search "#<番号> in:title,body" --json number,title,body -q 'length as $t|"\($t) 件中:",(.[]|select((.title+.body)|test("#<番号>([^0-9]|$)"))|"\(.number) \(.title)")'`（件数が 1000 に近ければ切れている）
@@ -74,9 +75,9 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 - ADR: [`docs/adr/`](docs/adr/)（横断）・`docs/<app>/adr/`（アプリ固有） —
   なぜそう決まっているか。参照は置き場つき（例: `docs/adr/0002`）
 - ガイド: [`docs/guides/`](docs/guides/) —
-  今日どう書くか（DoD・EARS・振り返り・アーキテクチャ・開発手順・セキュリティ・PR の粒度）
+  今日どう書くか（DoD・EARS・振り返り・アーキテクチャ・開発手順・セキュリティ・PR の粒度・数える書く規律・機能を選ぶ物差し）
 - 手順書: [`docs/guides/procedures/`](docs/guides/procedures/README.md) —
-  繰り返す作業の手順（敵対的レビュー・実画面で確かめる・変異の足し方）。
+  繰り返す作業の手順（敵対的レビュー・実画面で確かめる・変異の足し方・並行実装のまとめ役）。
   `.claude/skills/` のスキルはここへ向ける薄い入口で、手順を書かない
 - 設計文書: [`docs/superpowers/`](docs/superpowers/) —
   機能ごとの設計経緯（日付つきファイル）
