@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index adccf005..b7de29ec 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -631,7 +631,7 @@ function heredocIsData(prefix, quotedTag, body) {
+   const inner = at === -1 ? prefix : prefix.slice(at + 2);
+   if ((inner.match(/(?<!\\)"/g) ?? []).length % 2 === 1 || (inner.match(/'/g) ?? []).length % 2 === 1) return false;
+   if (/(?:^|\s)#/.test(inner)) return false;
+-  if (!/(?:^|[\s;&|(])cat(?:\s+-\S+)*\s+$/.test(inner)) return false;
++  if (true) return false;
+   if (!quotedTag && /\$\(|`/.test(body)) return false;
+   return true;
+ }

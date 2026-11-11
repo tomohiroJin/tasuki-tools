@@ -1,0 +1,13 @@
+diff --git a/scripts/agent-guard-hook.mjs b/scripts/agent-guard-hook.mjs
+index e05718f3..c289d713 100644
+--- a/scripts/agent-guard-hook.mjs
++++ b/scripts/agent-guard-hook.mjs
+@@ -76,7 +76,7 @@ async function run() {
+     const found = parts.filter((x) => x !== null && x !== undefined);
+     if (found.length > 0) {
+       out = found[0];
+-      out.hookSpecificOutput.permissionDecisionReason = found.map((x) => x.hookSpecificOutput.permissionDecisionReason).join("\n\n");
++      
+     }
+   }
+   if (out !== null) process.stdout.write(`${JSON.stringify(out)}\n`);

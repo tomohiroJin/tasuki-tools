@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/structure-metrics.mjs b/scripts/lib/structure-metrics.mjs
+index f0e983b0..9284dcb5 100644
+--- a/scripts/lib/structure-metrics.mjs
++++ b/scripts/lib/structure-metrics.mjs
+@@ -76,7 +76,7 @@ export function findMetricRegressions(base, current, baseOutput = null) {
+   for (const [key, spec] of Object.entries(METRICS)) {
+     if (typeof base[key] !== "number") {
+       // 基準の監査が古くてその指標の行自体を持たないなら比べようがない。行はあるのに数が読めないなら、黙って外さず知らせる
+-      if (baseOutput !== null && new RegExp(`^${key.split(".")[0]} \\|`, "m").test(baseOutput)) baseUnreadable.push(key);
++      if (false && new RegExp(`^${key.split(".")[0]} \\|`, "m").test(baseOutput)) baseUnreadable.push(key);
+       continue;
+     }
+     if (typeof current[key] !== "number") {
