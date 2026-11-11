@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/discard-guard.mjs b/scripts/lib/discard-guard.mjs
+index 06c718c9..c6a7fd1a 100644
+--- a/scripts/lib/discard-guard.mjs
++++ b/scripts/lib/discard-guard.mjs
+@@ -112,7 +112,7 @@ function classify({ sub, rest }, exists) {
+     return UNKNOWN_FORM;
+   }
+   // 下の 5 つは -f/--force（や --reset）が無ければ変更があると git 自身が拒む。ある形は対象を絞れないので聞く（コードレビュー 5）
+-  if (sub === "rm") return rest.some((w) => w === "--force" || hasShort(w, "f")) ? UNKNOWN_FORM : SAFE;
++  if (sub === "rm") return SAFE;
+   if (sub === "mv" || sub === "checkout-index") return rest.some((w) => w === "--force" || hasShort(w, "f")) ? UNKNOWN_FORM : SAFE;
+   if (sub === "read-tree") return rest.some((w) => w === "--reset" || hasShort(w, "u") || w === "--reset") ? UNKNOWN_FORM : SAFE;
+   if (sub === "submodule") return rest.some((w) => w === "--force" || hasShort(w, "f")) ? UNKNOWN_FORM : SAFE;

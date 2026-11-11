@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index 5977b177..6a823dd6 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -786,7 +786,7 @@ function isSafeSimpleGit(command) {
+  */
+ export function findSubagentCommands(command) {
+   // データとして使われる heredoc の本文（git commit -m "$(cat <<'EOF' …)"）は文章なので、宣言を当てる前に取り除く（コードレビュー 2）
+-  return analyzeString(stripHeredocBodies(command) ?? command, 0, SUBAGENT_GUARDED_COMMANDS);
++  return analyzeString(command, 0, SUBAGENT_GUARDED_COMMANDS);
+ }
+ 
+ const RULE_REF = "AGENTS.md「AI 運用規則」の「人の明示の指示か承認を待つ操作」に当たります（docs/adr/0032）。";

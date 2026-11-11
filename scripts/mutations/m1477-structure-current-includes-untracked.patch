@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/structure-metrics.mjs b/scripts/lib/structure-metrics.mjs
+index ea00211d..2e7eda0f 100644
+--- a/scripts/lib/structure-metrics.mjs
++++ b/scripts/lib/structure-metrics.mjs
+@@ -147,7 +147,7 @@ function run(command, args, options) {
+ export function defaultCurrentOutput(root, tmp = os.tmpdir()) {
+   const dir = fs.mkdtempSync(path.join(tmp, "tasuki-structure-cur-"));
+   try {
+-    const files = execFileSync("git", ["ls-files", "-z", "--cached"], { cwd: root, maxBuffer: 256 * 1024 * 1024 });
++    const files = execFileSync("git", ["ls-files", "-z", "--cached", "--others"], { cwd: root, maxBuffer: 256 * 1024 * 1024 });
+     // 削除済みで追跡下のファイルは写せないので読み飛ばす（tar の警告のみ）
+     execFileSync("bash", ["-c", 'tar --null -T - --ignore-failed-read -cf - 2>/dev/null | tar -x -C "$1"', "copy", dir], { cwd: root, input: files, maxBuffer: 1024 * 1024 * 1024 });
+   } catch (error) {

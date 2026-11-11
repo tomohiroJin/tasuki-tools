@@ -1,11 +1,11 @@
 diff --git a/scripts/local-check.mjs b/scripts/local-check.mjs
-index 9b2480b2..739823e7 100644
+index 47bf3736..604436ca 100644
 --- a/scripts/local-check.mjs
 +++ b/scripts/local-check.mjs
-@@ -236,7 +236,7 @@ async function run() {
-     const checks = deriveChecks(fs.readFileSync(path.join(ROOT, ".github/workflows/ci.yml"), "utf8"));
+@@ -259,7 +259,7 @@ async function run() {
      const hasCode = mode === "full" || hasCodeChanges();
      const plan = planChecks(checks, mode, hasCode);
+     const structurePending = mode === "fast" && !args.includes("--list") ? startStructureMetrics(hasCode) : null;
 -    const notices = mode === "fast" ? forecastMutations(plan) : [];
 +    const notices = [];
      const priorNotices = mode === "fast" && !args.includes("--list") ? await priorWorkNotices() : [];
