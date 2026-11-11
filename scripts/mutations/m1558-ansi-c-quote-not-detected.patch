@@ -1,12 +1,12 @@
 diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
-index fc2e426e..bf01ca26 100644
+index dafbabb5..ca6c8e5f 100644
 --- a/scripts/lib/agent-guard.mjs
 +++ b/scripts/lib/agent-guard.mjs
-@@ -919,7 +919,7 @@ export function hasUnreadableQuote(command) {
-   const text = stripHeredocBodies(joined) ?? joined;
-   // 語の先頭（文字列の先頭・空白・区切り・`=`・括弧・引用符の直後）に来る `$'`・`$"` だけが ANSI-C・ロケールの引用。
-   // `grep "main$"` の行末の錨 `$` の直後の閉じる引用符は違う（直前が語の文字）
--  return /(^|[\s;&|()=<>"'`{}])\$['"]/.test(text);
+@@ -918,7 +918,7 @@ export function hasUnreadableQuote(command) {
+   const text = stripHeredocBodies(command) ?? command;
+   // ② 行の継続（`\` と改行）をつなぐ。③ `$'`・`$"` が**どこかに 1 つでも**あれば読めない（前の文字は問わない。
+   //    `echo x$'\''` のように語の途中でも、`grep "main$"` の行末の錨の直後の引用符でも。見分けようとせず、判定の食い違いを避ける）
+-  return /\$['"]/.test(text.replace(/\\\r?\n/g, ""));
 +  return false;
  }
  

@@ -8960,11 +8960,11 @@ export const MUTATIONS = [
   },
   {
     id: 1560,
-    label: '$\'・$" を語の先頭に限らず、行末の錨 $ の直後の閉じる引用符にも当てる',
-    patch: "m1560-ansi-c-quote-matches-closing-quote.patch",
+    label: "$'・$\" を語の先頭に来るときだけ読めない引用とする（語の途中の echo x$'\'' ; git push がすり抜ける）",
+    patch: "m1560-ansi-c-quote-requires-word-start.patch",
     pkg: "scripts",
     tests: ["lib/agent-guard.test.mjs", "lib/discard-guard.test.mjs"],
-    note: RESERVED_1500_1569 + " " + '#578 PR #583 の再レビュー。grep "main$" ・ grep -E \'reset$\' を含む読むだけのコマンドが、両方の立場で毎回聞かれる。',
+    note: RESERVED_1500_1569 + " " + "#578 PR #583 の自動レビュー。語の途中の $' で lex が git push を引用符の中と読み、サブエージェントの git push が聞かれずに通る。",
   },
   {
     id: 1561,
@@ -8973,5 +8973,13 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["lib/agent-guard.test.mjs", "lib/discard-guard.test.mjs"],
     note: RESERVED_1500_1569 + " " + '#578 PR #583 の再レビュー。$\'…\' を題に含むコミットメッセージの git commit -m "$(cat <<\'EOF\' …)" が毎回聞かれる。',
+  },
+  {
+    id: 1562,
+    label: "$'・$\" の検出の前に、行の継続（\\ と改行）をつながない",
+    patch: "m1562-ansi-c-quote-line-continuation-not-joined.patch",
+    pkg: "scripts",
+    tests: ["lib/agent-guard.test.mjs"],
+    note: RESERVED_1500_1569 + " " + "#578 PR #583 の自動レビュー。$ と引用符の間に行の継続を挟むと、$'…' の検出をすり抜け、サブエージェントの git push が聞かれずに通る。",
   },
 ];
