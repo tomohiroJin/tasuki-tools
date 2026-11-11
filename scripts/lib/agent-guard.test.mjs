@@ -466,6 +466,254 @@ describe("サブエージェントの危ない操作（#578・docs/adr/0037）",
     for (const m of messages) assert.equal(isTameCommand(asCommit(m)), true, m.slice(0, 120));
   });
 
+  test("7 回目: heredoc の行の .* に区切り・コメント・引用符を含められない／終端の後ろに別のコマンドがあれば tame でない", () => {
+    for (const c of [
+      "git commit -m x; git push && echo \"$(cat <<'EOF'\nx\nEOF\n)\"".replace('echo "$(','git commit --message "$('),
+      "git commit -m x # y -m \"$(cat <<'EOF'\ngit push\nEOF\n)\"", "git commit -m 'a \"$(cat <<'EOF'\ngit push\nEOF\n)\"",
+      "git commit -m $(echo) | tee -m \"$(cat <<'EOF'\ngit push\nEOF\n)\"",
+      "git commit -m \"$(cat <<'EOF'\ngit push\nEOF\n)\" && git push", "git commit -m \"$(cat <<'EOF'\ngit push\nEOF\n)\"\ngit push",
+      "git commit -m \"$(cat <<'EOF'\ngit push\nEOF\n)\" # x\n",
+      // 行の可変部が単一引用符・コメントを含む（形を広げない。読めない形は聞く側に倒す）
+      "git commit -m \"a\" --author='b' -m \"$(cat <<'EOF'\ngit push\nEOF\n)\"", "git commit -m a --author=b # c -m \"$(cat <<'EOF'\ngit push\nEOF\n)\"\n", "gh pr create --body-file x -m; git push; echo --body \"$(cat <<'EOF'\ngit push\nEOF\n)\"",
+    ]) assert.equal(isTameCommand(c), false, c);
+    // 題などの引用符つきの文字列は、対の中なら許す
+    assert.equal(isTameCommand("gh pr create --title \"feat: x（#9）\" --body \"$(cat <<'EOF'\ngit push する\nEOF\n)\"\n"), true);
+  });
+
+  test("7 回目: --output（ファイルへ書く）は git のどの下位コマンドでも tame でない。reflog・stash show は既知の読む選択肢だけ", () => {
+    for (const c of [
+      "git reflog --output=x", "git reflog show --output x", "git stash show --output=x", "git log --output=x", "git diff --output x", "git show --outp=x", "git status --output=x", "git branch --output=x", "git add --output=x f",
+      "git reflog expire --all", "git reflog --expire=now", "git reflog show --unknown", "git stash list --output=x", "git stash show --unknown", "git stash show -p --exec x", "git reflog -d HEAD", "git reflog drop", "git reflog list", "git reflog foo", "git reflog HEAD", "git reflog delete x", "git reflog show foo bar --exec x",
+    ]) assert.equal(isTameCommand(c), false, c);
+    for (const c of ["git reflog", "git reflog show HEAD", "git reflog -n 5", "git reflog --date=iso", "git reflog show --oneline", "git stash list", "git stash list --oneline", "git stash show", "git stash show -p stash@{0}".replace("stash@{0}", "'stash@{0}'"), "git stash show --stat"]) assert.equal(isTameCommand(c), true, c);
+  });
+
+  test("コードレビュー 2: サブエージェントの宣言は、データとして使われる heredoc の本文を取り除いてから当てる", () => {
+    const askSub = (c) => decideHookOutput(JSON.stringify({ tool_name: "Bash", agent_id: "a1", tool_input: { command: c } }))?.hookSpecificOutput?.permissionDecision ?? null;
+    assert.equal(askSub("git commit -m \"$(cat <<'EOF'\nfeat: x\n\ngit push は止める\nEOF\n)\""), null);
+    assert.equal(askSub("gh pr create --title x --body \"$(cat <<'EOF'\nkill と gh pr merge の話\nEOF\n)\""), null);
+    // 本文を隠さない形では今までどおり当たる
+    assert.equal(askSub("bash <<'EOF'\ngit push origin x\nEOF"), "ask");
+    assert.equal(askSub("git commit -m \"$(cat <<'EOF'\nx\nEOF\n)\" && git push"), "ask");
+  });
+
+  test("コードレビュー 10: 危ない操作の名前の一覧は 1 か所の定数から作る。discard の候補を広げた分（rm・mv・checkout-index ほか）も含む", () => {
+    for (const c of ["git push", "git worktree remove x", "gh pr merge 3", "kill 1", "pkill x"]) assert.equal(mentionsSubagentOperation(c), true, c);
+    for (const c of ["git stash", "git restore a", "git rm -f a", "git mv -f a b", "git checkout-index -f -a", "git read-tree --reset -u HEAD", "git submodule update --force", "git worktree remove -f x"]) assert.equal(mentionsDiscardOperation(c), true, c);
+    for (const c of ["git status", "git commit -m x", "git log", "echo hi", "grep -rn pushed docs"]) {
+      assert.equal(mentionsSubagentOperation(c), false, c);
+      assert.equal(mentionsDiscardOperation(c), false, c);
+      assert.equal(mentionsGuardedOperation(c), false, c);
+    }
+    assert.equal(mentionsGuardedOperation("git rm -f a"), true);
+    assert.equal(mentionsGuardedOperation("kill 1"), true);
+  });
+
+  test("コメント 3: 枝の削除・改名・付け替え、別のプロセス停止、GitHub への書き込みもサブエージェントでは聞く。merge・rebase・commit --amend は聞かない", () => {
+    for (const c of [
+      "git branch -D other", "git branch -d other", "git branch -m old new", "git branch -M a b", "git branch -f other HEAD", "git branch --delete x", "git branch --move a b", "git branch --force x HEAD", "git -C ../w branch -D x",
+      "npx kill-port 5173", "npx -y kill-port 5173", "bunx kill-port 5173", "pnpm dlx kill-port 5173", "fuser -k 5173/tcp", "tmux kill-server", "tmux kill-session -t x", "tmux -L s kill-session",
+      "gh api repos/o/r/pulls/3 -X DELETE", "gh api repos/o/r/issues -f title=x", "gh pr review 3 --approve", "gh pr review 3 --request-changes", "gh pr review 3 -a", "gh pr review 3 -r -b x",
+    ]) assert.ok(findSubagentCommands(c).length > 0, c);
+    for (const c of ["git branch", "git branch newbranch", "git branch -a", "git merge other", "git rebase origin/main", "git commit --amend --no-edit", "gh api repos/o/r/pulls/3", "gh pr review 3 --comment -b x", "tmux ls", "fuser 5173/tcp", "npx vitest run"]) {
+      assert.equal(findSubagentCommands(c).length, 0, c);
+    }
+  });
+
+  test("自動レビュー: 新しい操作の名前も OPERATION_WORDS にあり、heredoc の中の git branch -D・gh api -X DELETE・gh pr review --approve は隠れず当たる", () => {
+    for (const c of ["git branch -D x", "gh api -X DELETE repos/o/r", "gh pr review 3 --approve", "tmux kill-session"]) assert.equal(mentionsSubagentOperation(c), true, c);
+    for (const c of [
+      "bash <<'EOF'\ngit branch -D x\nEOF", "bash <<'EOF'\ngh api -X DELETE repos/o/r/pulls/3\nEOF", "bash <<'EOF'\ngh pr review 3 --approve\nEOF",
+      "git commit -m x && bash <<'EOF'\ngit branch -D x\nEOF",
+    ]) {
+      assert.equal(isTameCommand(c), false, c);
+      assert.ok(findSubagentCommands(c).length > 0, c);
+    }
+    // データとして使われる heredoc の本文は今までどおり文章
+    assert.equal(isTameCommand("git commit -m \"$(cat <<'EOF'\nfix: git branch -D と gh pr review --approve の説明\nEOF\n)\""), true);
+  });
+
+  test("自動レビュー: gh pr review の短い選択肢の束（-ab・-rb・-ar）も聞く（fail closed）", () => {
+    for (const c of ["gh pr review 3 -ab x", "gh pr review 3 -rb x", "gh pr review 3 -ar", "gh pr review 3 -cr -b x", "gh pr review 3 -Rowner/repo -a"]) assert.ok(findSubagentCommands(c).length > 0, c);
+    for (const c of ["gh pr review 3 -c -b x", "gh pr review 3 --comment -b x", "gh pr review 3"]) assert.equal(findSubagentCommands(c).length, 0, c);
+  });
+
+  test("自動レビュー（許可リスト）: gh pr review は判定を決めない既知の選択肢だけ通し、ほかの - で始まる語が 1 つでもあれば聞く", () => {
+    for (const c of [
+      "gh pr review 3 -a=true", "gh pr review 3 -ca=true", "gh pr review 3 -r=1", "gh pr review 3 --approve=true", "gh pr review 3 -ab x", "gh pr review 3 --unknown",
+      "gh pr review 3 --request-changes", "gh pr review 3 --appr", "gh pr review 3 --comment --approve", "gh pr review 3 -c -x", "gh pr review 3 -cb x", "gh pr review --body x -a",
+      "gh pr review 3 -R owner/repo --approve",
+    ]) assert.ok(findSubagentCommands(c).length > 0, c);
+    for (const c of [
+      'gh pr review 583 --comment -b "x y"', "gh pr review 583 -c --body-file x.md", "gh pr review 583 -R owner/repo -c -b x", "gh pr review 583 --body=x -c", "gh pr review 583 -bfoo",
+      "gh pr review 583 -F x.md", "gh pr review 583 -Fx.md", "gh pr review 583 --repo=o/r -c", "gh pr review 583 --repo o/r --comment", "gh pr review https://github.com/o/r/pull/3 -c -b x", "gh pr review feature-branch -c -b x",
+    ]) assert.equal(findSubagentCommands(c).length, 0, c);
+  });
+
+  const subOut = (c) => decideSubagentOutput(JSON.stringify({ tool_name: "Bash", agent_id: "a1", tool_input: { command: c } }));
+
+  test("再レビュー I-1: ADR が通すと書く読む形・作る形は、入口の判定（agent_id つき）で通る。&& でつないだ形・git -C つきも", () => {
+    for (const c of [
+      "git branch newbr", "git branch --list 'feat*'", "git branch --show-current", "git -C /workspaces/x/wt branch --show-current", "git -C ../w branch -a",
+      "pnpm test && git branch --show-current", "cd ../wt && git branch -vv && pnpm lint", "git branch feat/x origin/main",
+      "fuser 5173/tcp", "pnpm test; fuser 5173/tcp", "gh pr review 583 --comment", "gh pr review 583 -c --body-file x.md", "gh pr review 583 -R o/r -c -b x",
+      "gh api repos/o/r/pulls/3", "gh api repos/o/r/pulls --paginate --jq '.[].number'", "pnpm test && gh api -X GET repos/o/r/issues",
+    ]) assert.equal(subOut(c), null, c);
+    // 宣言の当たりと「迷う形」は今までどおり聞く
+    for (const c of ["git branch -D x", "git -C ../w branch -f x HEAD", "pnpm test && git branch -D x", "fuser -k 5173/tcp", "gh pr review 583 --approve", "gh api -X DELETE repos/o/r", "a=push; git $a origin x", "eval 'git branch -D x'"]) {
+      assert.equal(subOut(c)?.hookSpecificOutput.permissionDecision, "ask", c);
+    }
+  });
+
+  test("PR コメント I-1/自動: おとなしい形は許可リストだけ。環境変数の代入・git の -C 以外の全体の選択肢・branch の変更系（-u ほか）は通さない", () => {
+    for (const c of [
+      "git branch feat/new", "git branch --list 'fix-*'", "git branch --sort -committerdate", "git branch --sort=-committerdate", "git branch --show-current && pnpm test",
+      "git -C ../wt branch --show-current", "git branch -a", "git branch -vv", "git branch --contains abc123", "git branch --merged main", "git branch --no-merged", "git branch feat/x origin/main", "git branch",
+      "fuser 5173/tcp",
+    ]) assert.equal(subOut(c), null, c);
+    for (const c of [
+      "git branch -u origin/x", "git branch --set-upstream-to=origin/x", "git branch --unset-upstream", "git branch --edit-description", "git branch -a foo", "git branch a b c",
+      "GIT_SSH_COMMAND=x git branch", "GIT_DIR=/x git branch newbr", "FOO=1 fuser 5173/tcp", "git -c core.sshCommand=x branch", "git --config-env a=B branch", "git --exec-path=/x branch", "git --no-pager branch", "git --git-dir=/x branch",
+      "git -C ../w -c a=b branch",
+    ]) assert.equal(subOut(c)?.hookSpecificOutput.permissionDecision, "ask", c);
+  });
+
+  test("自動レビュー: 行の継続（行末の \\）の次の行に cat > f <<'TAG' を置いても、継続された 1 つのコマンドの heredoc をデータとみなさない", () => {
+    for (const c of ["echo x \\\ncat > f <<'EOF'\ngit push\nEOF", "git commit -m x \\\ncat >> f <<'EOF'\ngit branch -D a\nEOF"]) {
+      assert.equal(isTameCommand(c), false, c);
+      assert.equal(subOut(c)?.hookSpecificOutput.permissionDecision, "ask", c);
+    }
+    assert.equal(subOut("echo x\ncat > f <<'EOF'\ngit branch -a\nEOF"), null);
+  });
+
+  test("PR コメント 2: gh api の GET にはフィールドも付けられる（-X GET 明示の REST）。graphql は query でも全部聞く（判定の食い違いを避ける）。--input・GET 以外・方法が不明は聞く", () => {
+    for (const c of [
+      "gh api -X GET search/code -f q=foo", "gh api --method GET search/code -F q=foo -f per_page=5", "gh api -XGET repos/o/r/issues -f state=open",
+    ]) assert.equal(subOut(c), null, c);
+    for (const c of [
+      "gh api search/code -f q=foo", "gh api repos/o/r/issues -f title=x", "gh api -X POST repos/o/r/issues -f title=x", "gh api -X GET repos/o/r --input body.json", "gh api graphql --input q.json",
+      "gh api graphql -f query='query { viewer { login } }'", "gh api graphql -F query='query { repository(owner:\"o\", name:\"r\") { id } }' -F owner=o", "gh api graphql --paginate -f query='query($n:Int){ x }'",
+      "gh api -X GET graphql -f query='query { viewer { login } }'", "gh api graphql",
+      "gh api graphql -f query=$'mut\\x61tion { addStar }'", "gh api graphql -f query=$'\\155utation { x }'", "gh api graphql -f query={mut,ation}", "gh api graphql -f query=mut\\ation",
+      "gh api graphql -f query='MUTATION{x}'", "gh api graphql -F query=@q.graphql", "gh api -X POST graphql -f query='{ viewer { login } }'",
+      "gh api -X DELETE repos/o/r/issues/1", "gh api -X GET repos/o/r --unknown-flag",
+    ]) assert.equal(subOut(c)?.hookSpecificOutput.permissionDecision, "ask", c);
+  });
+
+  test("再レビュー M-1: cat > <パス> <<'TAG' の本文は、引用符つきの終端なら文章。終端の後ろの行は別のコマンドとして判定する", () => {
+    for (const c of ["cat > /tmp/notes.md <<'EOF'\nuse git branch -a here\nEOF", "cat >> notes.md <<'EOF'\nran gh pr view; the review found nothing\nEOF", "cat > notes.md << 'EOF'\ngit push と kill の話\nEOF", "cat <<'EOF' > notes.md\ngit branch -D の話\nEOF", "mkdir -p /tmp/x && cat > /tmp/x/r.md <<'EOF'\ngit push しない\nEOF", "cat >> a.md <<'EOF'\ngit push\nEOF\n"]) {
+      assert.equal(subOut(c), null, c);
+    }
+    for (const c of [
+      "cat > notes.md <<'EOF'\nx\nEOF\ngit push origin x", "cat > notes.md <<EOF\ngit push $(git push)\nEOF", "cat > \"$F\" <<'EOF'\ngit push\nEOF", "cat > a.md; git push <<'EOF'\ngit push\nEOF", "cat | sh <<'EOF'\ngit push\nEOF", "cat > a.md <<'EOF' && git push\nx\nEOF",
+    ]) assert.equal(subOut(c)?.hookSpecificOutput.permissionDecision, "ask", c);
+  });
+
+  test("再レビュー M-2: 理由の文が、どの操作に当たったか（宣言の id）を示す", () => {
+    const why = (c) => subOut(c).hookSpecificOutput.permissionDecisionReason;
+    assert.match(why("git branch -D x"), /git-branch-modify/);
+    assert.match(why("git -C ../w branch -f x HEAD"), /git-branch-modify/);
+    assert.match(why("gh api -X DELETE repos/o/r"), /gh-api-write/);
+    assert.match(why("gh api repos/o/r/issues -f title=x"), /gh-api-write/);
+    assert.match(why("gh pr review 3 --approve"), /gh-pr-review-decide/);
+    assert.match(why("tmux kill-session -t x"), /tmux-kill/);
+    assert.doesNotMatch(why("git branch -D x"), /読み切れない/);
+  });
+
+  test("再々レビュー M-1: cat の heredoc の本文を隠すのは、終端の後ろに何も続かないときだけ。書いたスクリプトを同じコマンドで走らせる形は隠さない", () => {
+    for (const c of [
+      "cat > /tmp/x.sh <<'EOF'\ngit push origin x\nEOF\nbash /tmp/x.sh", "cat > /tmp/x.sh <<'EOF'\ngit branch -D a\nEOF\nsh /tmp/x.sh", "mkdir -p /tmp/x && cat > /tmp/x/r.sh <<'EOF'\nkill 1\nEOF\nbash /tmp/x/r.sh",
+      "cat > notes.md <<'EOF'\ngit push と kill の話\nEOF\nls", "cat <<'EOF' > x.sh\ngit push\nEOF\nbash x.sh",
+    ]) assert.equal(subOut(c)?.hookSpecificOutput.permissionDecision, "ask", c);
+  });
+
+  test("再々レビュー M-5: 日常の書き方（<< の後ろの空白・リダイレクトが後ろ・mkdir -p … &&）の cat の heredoc も、後ろに何も続かなければ通る。git branch の値を取る選択肢（--format <値>・--column・--abbrev）も", () => {
+    for (const c of [
+      "cat > f << 'EOF'\nuse git branch -a here\nEOF", "cat <<'EOF' > f\nuse git branch -a here\nEOF", "cat << 'EOF' >> f\ngit push の話\nEOF", "mkdir -p /tmp/a/b && cat > /tmp/a/b/f <<'EOF'\ngit reset の話\nEOF",
+      "git branch --format '%(refname)'", "git branch -l 'docs/*' --format '%(refname)'", "git branch --column", "git branch -v --abbrev=7", "git branch --format=%(refname)", "git branch --no-column",
+    ]) assert.equal(subOut(c), null, c);
+    // 形を広げすぎない: 引用符つきでない終端・コマンド置換のパス・パイプ・別のコマンドとの連結
+    for (const c of [
+      "cat > f << EOF\ngit push $(git push)\nEOF", "cat <<'EOF' | sh\ngit push\nEOF", "mkdir -p /tmp/x; cat > f <<'EOF'\ngit push\nEOF", "cat <<'EOF' > $F\ngit push\nEOF", "git branch --format '%(refname)' -D x",
+    ]) assert.equal(subOut(c)?.hookSpecificOutput.permissionDecision, "ask", c);
+  });
+
+  test("再々レビュー（コメント 4）: 引用符の中の区切り文字（| ; &&）の後ろの kill・checkout などを、別のコマンドと読み直さない。引用符の外の区切りは聞く", () => {
+    for (const c of [
+      'grep -E "kill|pkill" notes.md', 'grep -rn "git push; git reset" docs', 'git commit -m "fix: reset; kill the timer"', 'git commit -m "fix: branch && checkout の説明"', 'git log --grep="push|reset" --oneline',
+      // 受け皿より前で除く形（git branch）と組み合わせても、残りの引用符は保たれる
+      'git branch --show-current && grep -E "kill|pkill" notes.md', 'git branch feat/x && git commit -m "fix: reset; kill the timer"',
+    ]) assert.equal(subOut(c), null, c);
+    for (const c of ['grep -rn "x" docs; git push origin x', 'git commit -m "fix: x" && git push', 'git branch --show-current && git push', 'git branch --show-current; kill 1', 'echo "a|b" | git push'])
+      assert.equal(subOut(c)?.hookSpecificOutput.permissionDecision, "ask", c);
+  });
+
+  test("自動レビュー（$'…'）: lex が読めない ANSI-C の引用（$'・$\"）は、前の文字を問わずどこかに 1 つでもあれば信じない。操作の名前があれば聞く", () => {
+    const bad = [
+      "echo $'\\'' ; git push ; echo $'\\''", "git branch --show-current && echo $'\\'' ; git push ; echo $'\\''", "echo $\"x\" ; git push", "fuser 5173/tcp && echo $'\\'' ; kill 1 ; echo $'\\''",
+      // 語の途中（直前が普通の文字）
+      "echo x$'\\'' ; git push ; echo x$'\\''", "git branch --show-current && echo a$'\\'' ; git push ; echo b$'\\''", "echo main$\"x\" ; git push",
+      "git push $'origin' HEAD", "echo $'x' ; git push", "grep $'\\t' file; git checkout main",
+    ];
+    for (const c of bad) assert.equal(subOut(c)?.hookSpecificOutput.permissionDecision, "ask", c);
+    // 行の継続（$ と引用符の間の \\ と改行）、継続と heredoc の組み合わせ
+    for (const c of [
+      "echo $\\\n'\\'' ; git push ; echo $'\\''", "git branch --show-current && echo $\\\n'\\'' ; git push ; echo $'\\''", "echo $\\\r\n\"x\" ; git push", "echo $\\\n'\\'' ; git push ; echo $\\\n'\\''",
+      "git branch --show-current && echo $\\\n'\\'' ; git push ; echo $\\\n'\\''", "echo x \\\ncat > f <<'EOF'\nbody\nEOF\necho $'\\'' ; git push ; echo $'\\''", "git commit -m \"$(cat <<'EOF'\nfix: x\nEOF\n)\" && echo x$\\\n'\\'' ; git push ; echo $'\\''",
+    ]) {
+      assert.equal(subOut(c)?.hookSpecificOutput.permissionDecision, "ask", c);
+      assert.equal(isTameCommand(c), false, c);
+    }
+    for (const c of ["echo $'a'", "grep $'x' f", "git commit -m $'fix'", "echo x$'a'"]) assert.equal(isTameCommand(c), false, c);
+    // 行末の錨 $ の直後の閉じる引用符も、判定の食い違いを避けるため聞く（残余。`grep -E 'main[$]'` と書けば通る）
+    for (const c of ['git branch -a | grep "main$"', "git log --oneline | grep -E 'reset$'", 'git status --short | grep -E "^ M.*checkout\\.mjs$"', 'echo "cost: 5$" && git stash list']) {
+      assert.equal(hasUnreadableQuote(c), true, c);
+      assert.equal(isTameCommand(c), false, c);
+    }
+    // サブエージェントでは、操作の名前（reset・checkout）が文字列にあるものが聞かれる（stash は未コミットの判定の側）
+    for (const c of ['git branch -a | grep "main$" ; git push', "git log --oneline | grep -E 'reset$'", 'git status --short | grep -E "^ M.*checkout\\.mjs$"']) {
+      assert.equal(subOut(c)?.hookSpecificOutput.permissionDecision, "ask", c);
+    }
+    assert.equal(subOut("git branch -a | grep 'main[$]'"), null);
+    // $'…' を使わない日常の形は通ったまま
+    for (const c of ['grep -E "kill|pkill" notes.md', 'git commit -m "fix: reset; kill the timer"', 'git log --grep="push|reset" --oneline', "git branch --show-current && grep -E 'kill|x' notes.md", "echo 'cost $5'"]) {
+      assert.equal(subOut(c), null, c);
+    }
+    // データの heredoc の本文の中の $'…' は、取り除いた後の文字列に当てるので聞かない（履歴に頼らない固定の入力）
+    const withAnsi = "git add -A && git commit -m \"$(cat <<'EOF'\nfix: $'\\n' を読めない引用として扱う\n\n- git push と git reset の説明\nEOF\n)\"";
+    assert.equal(subOut(withAnsi), null);
+    assert.equal(isTameCommand(withAnsi), true);
+    assert.equal(hasUnreadableQuote(withAnsi), false);
+    assert.equal(hasUnreadableQuote("bash <<'EOF'\necho $'x'\ngit push\nEOF"), true); // データでない本文は取り除かない
+  });
+
+  test("再レビュー: mkdir -p … && cat > … << 'EOF'（本文に操作の名前）はサブエージェントでも通る。mkdir の後ろの git push は聞く", () => {
+    assert.equal(subOut("mkdir -p /tmp/x && cat > /tmp/x/f << 'EOF'\ngit checkout -- file で戻す。git push しない\nEOF"), null);
+    assert.equal(isTameCommand("mkdir -p /tmp/x && cat > /tmp/x/f << 'EOF'\ngit checkout -- file で戻す\nEOF"), true);
+    for (const c of ["mkdir -p x && git push", "mkdir -p x && git branch -D y", "mkdir -p x; kill 1"]) assert.equal(subOut(c)?.hookSpecificOutput.permissionDecision, "ask", c);
+  });
+
+  test("再々レビュー M-2: tmux の send-keys ^C（C-c の別の綴り）・respawn-pane -k・respawn-window -k も聞く。-k の無い respawn は通す", () => {
+    for (const c of ["tmux send-keys -t dev ^C", "tmux send-keys -t dev '^c'", "tmux send -t dev C-C", "tmux respawn-pane -k -t dev", "tmux respawn-window -k -t dev", "tmux respawn-pane -t dev -k 'pnpm dev'", "tmux respawnp -k -t dev", "tmux respawn-pane -kc /tmp -t dev"]) {
+      assert.ok(findSubagentCommands(c).length > 0, c);
+      assert.match(subOut(c).hookSpecificOutput.permissionDecisionReason, /tmux-kill/, c);
+    }
+    for (const c of ["tmux respawn-pane -t dev", "tmux send-keys -t dev '^x' Enter"]) assert.equal(subOut(c), null, c);
+  });
+
+  test("再レビュー M-3: tmux の kill-*・別名（killw・killp）・前方一致の省略・send-keys の C-c も聞く。ls・capture-pane は通す", () => {
+    for (const c of [
+      "tmux kill-window -t dev", "tmux killw -t dev", "tmux kill-pane -t dev", "tmux killp -t dev", "tmux kill-ses -t x", "tmux kill-ser", "tmux kill-server", "tmux -L s kill-session",
+      "tmux send-keys -t dev C-c", "tmux send -t dev C-c Enter", "tmux send-k -t dev C-c",
+    ]) assert.ok(findSubagentCommands(c).length > 0, c);
+    for (const c of ["tmux ls", "tmux list-sessions", "tmux capture-pane -p -t dev", "tmux send-keys -t dev 'pnpm test' Enter", "tmux new-session -d -s x"]) assert.equal(subOut(c), null, c);
+  });
+
+  test("コードレビュー 5: tame の git mv は -f/--force を含まない", () => {
+    assert.equal(isTameCommand("git mv a b"), true);
+    for (const c of ["git mv -f a b", "git mv --force a b", "git mv -kf a b"]) assert.equal(isTameCommand(c), false, c);
+  });
+
   test("M3: git branch / fetch / tag / remote / reflog は、選択肢と引数が既知の読む形のときだけ tame（拒否リストでなく許可リスト）", () => {
     for (const c of [
       "git branch -D chore/578", "git branch -f main HEAD", "git branch -d x", "git branch -m a b", "git branch --delete x", "git branch --del x", "git branch --dele x", "git branch newbranch", "git branch --set-upstream-to=o/x", "git branch -c a b", "git branch --list 'fix/*'",

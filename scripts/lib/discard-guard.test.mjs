@@ -147,9 +147,9 @@ describe("単純でない形は、変更の有無にかかわらず全部聞く�
     assert.equal((await decide(`${body}\ngit checkout -- a.ts`, { dirty: "yes" })).ask, true);
   });
 
-  test("自動レビュー: 閉じる引用符の $（grep の行末の錨）は読めない引用でない。データの heredoc の本文の $'…' も聞かない", async () => {
-    for (const c of ['git log --oneline | grep -E \'reset$\'', 'git status --short | grep -E "^ M.*checkout\\.mjs$"', 'echo "cost: 5$" && git stash list']) {
-      assert.equal((await decide(c, { dirty: "yes" })).ask, false, c);
+  test("自動レビュー: $'・$\" は前の文字を問わず読めない引用として、単純でない形に倒す（grep の行末の錨でも聞く）。データの heredoc の本文の $'…' は聞かない", async () => {
+    for (const c of ['git log --oneline | grep -E \'reset$\'', 'git status --short | grep -E "^ M.*checkout\\.mjs$"', 'echo "cost: 5$" && git stash list', "echo x$'a' && git stash"]) {
+      assert.equal((await decide(c, { dirty: "no" })).ask, true, c);
     }
     assert.equal((await decide("git commit -m \"$(cat <<'EOF'\nfix: $'\\n' と git stash の説明\nEOF\n)\"", { dirty: "yes" })).ask, false);
     assert.equal((await decide("git stash $'x'", { dirty: "no" })).ask, true);
