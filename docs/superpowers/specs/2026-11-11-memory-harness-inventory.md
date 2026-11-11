@@ -21,7 +21,7 @@ Codex への接続（本番デプロイの歯止め・入口の検査の拡張�
 - (c) 手元に残す: 36 件（分類に (c) を含む行を数えた件数。中身とファイル名は書かない）
   - うち 10 件は、(b) の断片（サブエージェントへの指示・往復の終わり方など）を手順書へ書いた。書いた先は `docs/guides/procedures/orchestration.md`・`docs/guides/procedures/adversarial-review.md`・`docs/guides/procedures/mutations.md`・`docs/guides/pr-granularity.md`
 - (b) を書いた: 92 件
-  - うち 7 件は一部だけ書いた（「(b) の一部」の表。**この 7 件は上の 92 件の内数**）
+  - うち 8 件は一部だけ書いた（「(b) の一部」の表。**この 8 件は上の 92 件の内数**）
 - (d)・済（書かない）: 30 件
 - 合計: (c) 36 + (b) 92 + (d)・済 30 = 158 件（手元のメモリは `MEMORY.md` を除いて 158 件）
 
@@ -59,7 +59,7 @@ Codex への接続（本番デプロイの歯止め・入口の検査の拡張�
 | fixes-often-touch-only-one-side.md | `docs/guides/procedures/adversarial-review.md` | 全部 |
 | issue-bodies-had-factual-errors.md | `docs/guides/counting-and-writing.md`、`AGENTS.md` | 全部 |
 | issue-sprawl-means-deferral-chains.md | `docs/guides/pr-granularity.md` | 全部 |
-| layout-must-fit-real-content.md | `docs/guides/definition-of-done.md` | 全部 |
+| layout-must-fit-real-content.md | `docs/guides/definition-of-done.md` | 一部 |
 | markdown-perf-test-ci-slowness.md | `docs/guides/development.md` | 全部 |
 | metric-and-norm-can-disagree.md | `docs/guides/counting-and-writing.md` | 全部 |
 | metrics-without-a-verdict-need-a-baseline.md | `docs/guides/counting-and-writing.md` | 一部 |
@@ -130,6 +130,7 @@ Codex への接続（本番デプロイの歯止め・入口の検査の拡張�
 
 | メモリ | 書かなかった部分と理由 |
 |---|---|
+| layout-must-fit-real-content.md | 「段組みを当てる前に、実際の中身で案を描いて利用者に見てもらう」は書いていない。DoD に置くと、ADR を通さない新しい義務になるため（PR #582 のレビュー）。中身の量で決める点・撮影を目で見る点は DoD の補足に書いた |
 | metrics-without-a-verdict-need-a-baseline.md | 基準値との比較は (a) として PR 2 へ回した。SC029・SC032 の書き方の 2 点は、ADR 0006 に既にあるので書いていない（`plan-writing.md` の SC029・SC031 と `development.md` の `// When / Then（理由）` は、別のメモリ（issue290・issue103）由来） |
 | simple-checks-beat-clever-ones.md | 倒す条件は書いた。検査の個別の例（無状態＋許可リスト）は、現物の検査で確かめられていないため書いていない |
 | tasuki-issue142-e2e-error-paths.md | `routeWebSocket` を掛けたページが同期を取りこぼす件は、`e2e/README.md` に既にある（済）。書いたのは「ISSUE が指定した解法も疑う」 |
