@@ -8582,4 +8582,12 @@ export const MUTATIONS = [
     tests: ["codex-guard-hook.test.mjs"],
     note: RESERVED_1480_1499 + " " + "#584 の再レビュー 4。どのリポジトリにも属さない場所で、歯止めが無いまま Bash が通る（① が外れても気づけない）。",
   },
+  {
+    id: 1493,
+    label: "Codex のフックのコマンドで、.codex/hooks.json の有無を見ずに、入口が無ければ何も出さず通す",
+    patch: "m1493-codex-hooks-entry-missing-allows.patch",
+    pkg: "scripts",
+    tests: ["codex-guard-hook.test.mjs"],
+    note: RESERVED_1480_1499 + " " + "#584 の再レビュー（3 回目のコメント）1。いまの版で入口だけが欠けた（git mv・作業ツリーから消した・ディレクトリや壊れた symlink）とき、本番デプロイが黙って通る（fail open）。",
+  },
 ];
