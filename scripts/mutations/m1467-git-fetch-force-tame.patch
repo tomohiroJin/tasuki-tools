@@ -1,8 +1,8 @@
 diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
-index aa773605..db77b98d 100644
+index 7027c933..baf6f3e4 100644
 --- a/scripts/lib/agent-guard.mjs
 +++ b/scripts/lib/agent-guard.mjs
-@@ -599,7 +599,7 @@ function isTameWords(words) {
+@@ -617,7 +617,7 @@ function isTameWords(words) {
      if (words.some((w) => isLongOption(w, "--output"))) return false;
      // 読むだけの下位コマンドも、選択肢と引数が既知の読む形のときだけ（拒否リストでなく許可リスト。省略形 `--del`・`+refspec` を通さない）
      if (sub === "branch") return isReadOnlyGitBranch(words.slice(2));
@@ -10,4 +10,4 @@ index aa773605..db77b98d 100644
 +    if (sub === "fetch") return true;
      if (sub === "tag") return isReadOnlyGitTag(words.slice(2));
      if (sub === "remote") return words.slice(2).every((w) => w === "-v" || w === "--verbose") || ["show", "get-url"].includes(words[2]);
-     if (sub === "reflog") return words[2] !== undefined && ["expire", "delete", "exists", "write"].includes(words[2]) ? false : hasOnlyReadFlags(words.slice(2));
+     if (sub === "reflog") return isReadOnlyGitReflog(words.slice(2));
