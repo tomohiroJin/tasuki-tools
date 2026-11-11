@@ -397,12 +397,16 @@ describe("サブエージェントの危ない操作（#578・docs/adr/0037）",
       "gh api repos/o/r/pulls/3/merge -f merge_method=squash", "gh api graphql -F query=@q.graphql", "gh api x --input body.json", "gh pr merge 3", "gh -R a/b pr close 3",
       "gh repo delete x", "gh workflow run x.yml", "gh alias set x 'pr merge'",
       "git -c core.sshCommand=x log", "git config push.default simple", "git -C ../wt log --grep=push", "git apply x.patch", "git --no-pager log",
+      // 5 回目: 引用符・コメントの中の << を本文の始まりと拾い、続く行を隠す形（飛ばしたテキストに危ない操作の名前があれば読めない）
+      "echo \"<<EOF\"\ngit stash\nEOF", "# <<EOF\ngit checkout -- .\nEOF", "echo '<<EOF'\ngit push origin x\nEOF", "echo \"<<EOF\"\nkill 1\nEOF", "cat <<'EOF'\nkill reset\nEOF",
+      // gh の短い選択肢の束・未知の選択肢
+      "gh api -XPUT repos/o/r/pulls/3/merge", "gh api -fmerge_method=squash repos/o/r/pulls/3/merge", "gh api -XGET -fx=y repos/o/r", "gh pr view 3 -Ra/b", "gh pr view 3 --unknown-flag", "gh pr list -vS x", "gh issue list --merge-it",
       "sed -n 'w out.txt' f.md", "sed -i s/push/x/ f.md", "sed -f script.sed f.md", "sed 's/push/x/e' f.md", "sed -n '1e git push' f.md", "sed 's/a/b/' f.md", "sed --expression=p f.md",
     ]) assert.equal(isTameCommand(c), false, c);
     // 協力的なエージェントが書く、読む・印字する形は通す
     for (const c of ["gh api repos/o/r/pulls/3", "gh api -X GET repos/o/r/pulls", "gh api --method=GET repos/o/r/pulls", "gh pr view 3 --json state", "gh pr list --search 'close merge'",
       "gh -R a/b pr create --title x", "gh issue comment 5 --body 'closed by push'", "sed -n '1,5p' push.md", "sed -n '/kill/p' f.md", "sed -n '$p' f.md",
-      "git fetch origin && git log --oneline origin/main..HEAD", "cat <<EOF > f\nbody about push\nEOF", "cat <<'EOF'\nkill reset\nEOF", "git commit -m \"$(cat <<'EOF'\nfix: push\nEOF\n)\""]) assert.equal(isTameCommand(c), true, c);
+      "git fetch origin && git log --oneline origin/main..HEAD", "cat <<EOF > f\nbody about push\nEOF", "git commit -m \"$(cat <<'EOF'\nfix: push\nEOF\n)\""]) assert.equal(isTameCommand(c), true, c);
     // 終端の後ろのコマンドは、サブエージェントでは宣言にも当たって ask
     const askSub = (c) => decideHookOutput(JSON.stringify({ tool_name: "Bash", agent_id: "a1", tool_input: { command: c } }))?.hookSpecificOutput?.permissionDecision ?? null;
     assert.equal(askSub("cat <<EOF > f\nbody\nEOF\ngit push"), "ask");

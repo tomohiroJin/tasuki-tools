@@ -519,16 +519,37 @@ function isPrintOnlySed(words) {
   return script !== undefined && /^(\d+|\$|\/[^/]*\/)?(,(\d+|\$|\/[^/]*\/))?p$/.test(script);
 }
 
-/** `gh api` が読む形（GET のまま・書き込みの引数なし）か。 */
+/** gh の選択肢のうち、既知のもの（許可リスト）。未知の選択肢と、2 文字を超える短い選択肢の束（`-XPUT`・`-Ra/b`）は読み切れない。 */
+const GH_LONG = [
+  "--json", "--jq", "--template", "--repo", "--state", "--limit", "--search", "--title", "--body", "--body-file", "--base", "--head",
+  "--label", "--assignee", "--reviewer", "--milestone", "--draft", "--web", "--comments", "--fill", "--project", "--author", "--app",
+  "--mention", "--branch", "--workflow", "--status", "--event", "--user", "--log", "--log-failed", "--interval", "--exit-status", "--name-only", "--color",
+];
+const GH_SHORT = ["-R", "-s", "-L", "-S", "-t", "-b", "-B", "-H", "-l", "-a", "-r", "-m", "-d", "-w", "-q", "-p", "-A", "-e", "-c", "-F"];
+const GH_API_LONG = ["--method", "--header", "--jq", "--include", "--template", "--paginate", "--slurp", "--cache", "--hostname", "--silent", "--verbose"];
+const GH_API_SHORT = ["-X", "-H", "-q", "-i", "-t"];
+
+/** `from` 以降の選択肢が、すべて既知か。 */
+function ghOptionsKnown(words, from, long, short) {
+  for (let i = from; i < words.length; i += 1) {
+    const w = words[i];
+    if (!w.startsWith("-") || w === "-" || w === "--") continue;
+    if (w.startsWith("--")) {
+      if (!long.includes(w.split("=")[0])) return false;
+    } else if (w.length > 2 || !short.includes(w)) return false;
+  }
+  return true;
+}
+
+/** `gh api` が読む形（既知の選択肢だけ・メソッドは GET のまま）か。 */
 function isReadOnlyGhApi(words, from) {
+  if (!ghOptionsKnown(words, from, GH_API_LONG, GH_API_SHORT)) return false;
   for (let i = from; i < words.length; i += 1) {
     const w = words[i];
     if (w === "-X" || w === "--method") {
       if ((words[i + 1] ?? "").toUpperCase() !== "GET") return false;
       i += 1;
-    } else if (/^-X./.test(w) || w.startsWith("--method=")) {
-      if (w.replace(/^-X|^--method=/, "").toUpperCase() !== "GET") return false;
-    } else if (/^(-f|-F|--field|--raw-field|--input)/.test(w)) return false;
+    } else if (w.startsWith("--method=") && w.slice("--method=".length).toUpperCase() !== "GET") return false;
   }
   return true;
 }
@@ -553,9 +574,19 @@ function isTameWords(words) {
     const group = words[at];
     if (group === "api") return isReadOnlyGhApi(words, at + 1);
     if (!Object.hasOwn(TAME_GH, group)) return false;
-    return TAME_GH[group] === null || TAME_GH[group].includes(words[at + 1]);
+    if (!(TAME_GH[group] === null || TAME_GH[group].includes(words[at + 1]))) return false;
+    return ghOptionsKnown(words, at + 2, GH_LONG, GH_SHORT);
   }
   return false;
+}
+
+/** 危ない操作の名前がそろっているか（コマンドの名前と操作の名前。サブエージェントの候補と、未コミットの変更を消す git の候補の和）。 */
+function looksLikeGuardedOperation(text) {
+  return (
+    (/\bgit\b/.test(text) && /\b(push|checkout|switch|reset|worktree|stash|restore|clean)\b/.test(text)) ||
+    (/\bgh\b/.test(text) && /\b(merge|close)\b/.test(text)) ||
+    /(?<![\w-])(kill|pkill|killall)(?![\w-])/.test(text)
+  );
 }
 
 /**
@@ -575,6 +606,8 @@ export function stripHeredocBodies(src) {
       const tag = m[2] ?? m[3] ?? m[4];
       const end = lines.findIndex((l, k) => k > i && (m[1] === "-" ? l.trim() === tag : l === tag));
       if (end === -1) return null;
+      // 引用符やコメントの中の `<<` を本文の始まりと誤って拾っても、飛ばしたテキストが危ない操作の名前を含むなら読めないとする（fail closed）
+      if (looksLikeGuardedOperation(lines.slice(i + 1, end).join("\n"))) return null;
       i = end; // 本文と終端の行を飛ばす
     }
   }

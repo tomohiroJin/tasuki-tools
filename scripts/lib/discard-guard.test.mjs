@@ -100,6 +100,8 @@ describe("単純でない形は、変更の有無にかかわらず全部聞く�
     // ヒアドキュメントの終端の後ろに続く・閉じていない・gh api の書き込み
     "cat <<EOF > f\nbody\nEOF\ngit stash", "cat <<EOF\nunterminated\ngit stash", "echo \"a << b\"\ngit restore a.ts", "gh api -X PUT repos/o/r/pulls/3/merge && git stash",
     "git -C ../wt log --grep=stash", "git config x.y z && git stash",
+    // 5 回目: 引用符・コメントの中の << で続く行を隠す形
+    "echo \"<<EOF\"\ngit stash\nEOF", "# <<EOF\ngit checkout -- .\nEOF",
   ];
   for (const command of forms) {
     test(command.replaceAll("\n", "\\n"), async () => {
