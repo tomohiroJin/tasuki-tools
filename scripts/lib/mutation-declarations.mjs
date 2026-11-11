@@ -8942,4 +8942,12 @@ export const MUTATIONS = [
     tests: ["lib/agent-guard.test.mjs"],
     note: RESERVED_1500_1559 + " " + "#578 PR #583 の再レビュー。grep -E \"kill|pkill\" や git commit -m \"fix: reset; kill\" のように引用符の中に区切り文字がある読むだけのコマンドが、サブエージェントで毎回聞かれる。",
   },
+  {
+    id: 1558,
+    label: "$'…'・$\"…\" を lex が読めない引用として検出しない",
+    patch: "m1558-ansi-c-quote-not-detected.patch",
+    pkg: "scripts",
+    tests: ["lib/agent-guard.test.mjs"],
+    note: RESERVED_1500_1559 + " " + "#578 PR #583 の自動レビュー。echo $'\\'' ; git push ; echo $'\\'' で lex が git push を引用符の中と読み、サブエージェントの git push が聞かれずに通る。",
+  },
 ];

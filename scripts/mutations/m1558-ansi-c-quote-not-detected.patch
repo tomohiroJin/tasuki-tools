@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index c93c794f..8c3b497e 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -913,7 +913,7 @@ function isListOrCreateGitBranch(args) {
+ 
+ /** `lex` が読めない引用（`$'…'`・`$"…"`）を含むか。含めば lex の結果を信じない（引用符の内外が食い違い、`git push` が引用符の中と読まれる）。 */
+ export function hasUnreadableQuote(command) {
+-  return /\$['"]/.test(command);
++  return false;
+ }
+ 
+ /** 「迷う形は聞く」の対象から、上の読む・作る形の単純なコマンドを除いた残り。入れ子（置換・`bash -c`）があれば元のまま（fail closed）。 */
