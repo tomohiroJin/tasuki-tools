@@ -101,3 +101,71 @@ test("入口: 孫が出力の管を握ったままでも、子の上限（10 秒
   assert.equal(JSON.parse(r.stdout).hookSpecificOutput.permissionDecision, "ask");
   assert.ok(elapsed < 16_000, `終わるまでに ${elapsed} ms かかった（フックの時間切れを超えうる）`);
 });
+
+/** 本物の git で作った作業ツリーの cwd と、偽の gh（先行 PR は無い）で入口を起動する（#578 の判定の配線）。 */
+function runInRepo(t, input, { files = {} } = {}) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "hook-repo-"));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const sh = (...a) => spawnSync("git", a, { cwd: dir, encoding: "utf8" });
+  sh("init", "-q");
+  sh("config", "user.email", "t@example.com");
+  sh("config", "user.name", "t");
+  for (const [name, body] of Object.entries({ "a.ts": "1", ...files })) {
+    fs.mkdirSync(path.dirname(path.join(dir, name)), { recursive: true });
+    fs.writeFileSync(path.join(dir, name), body);
+  }
+  sh("add", ".");
+  sh("commit", "-qm", "init");
+  const bin = fs.mkdtempSync(path.join(os.tmpdir(), "hook-bin-"));
+  t.after(() => fs.rmSync(bin, { recursive: true, force: true }));
+  fs.writeFileSync(path.join(bin, "gh"), `#!${process.execPath}\nprocess.stdout.write("[]");\n`, { mode: 0o755 });
+  const r = spawnSync(process.execPath, [HOOK], {
+    input: JSON.stringify({ tool_name: "Bash", cwd: dir, ...input }),
+    encoding: "utf8",
+    env: { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH}` },
+  });
+  assert.equal(r.status, 0, r.stderr);
+  return { dir, out: r.stdout.trim() === "" ? null : JSON.parse(r.stdout), reason: r.stdout.trim() === "" ? "" : JSON.parse(r.stdout).hookSpecificOutput.permissionDecisionReason };
+}
+
+test("入口: サブエージェント（agent_id あり）の git push は ask、まとめ役（agent_id なし）は通す（#578）", (t) => {
+  const sub = runInRepo(t, { agent_id: "a1", agent_type: "general-purpose", tool_input: { command: "git push origin HEAD" } });
+  assert.equal(sub.out?.hookSpecificOutput.permissionDecision, "ask");
+  assert.match(sub.reason, /サブエージェント/);
+  assert.equal(runInRepo(t, { tool_input: { command: "git push origin HEAD" } }).out, null);
+});
+
+test("入口: 未コミットの変更を消す git は、変更があるときだけ ask（#578）", (t) => {
+  assert.equal(runInRepo(t, { tool_input: { command: "git checkout -- a.ts" } }).out, null);
+  assert.equal(runInRepo(t, { tool_input: { command: "git stash" } }).out, null);
+  // 変更を作ってから同じコマンドを流す
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "hook-dirty-"));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const sh = (...a) => spawnSync("git", a, { cwd: dir, encoding: "utf8" });
+  sh("init", "-q");
+  sh("config", "user.email", "t@example.com");
+  sh("config", "user.name", "t");
+  fs.writeFileSync(path.join(dir, "a.ts"), "1");
+  sh("add", ".");
+  sh("commit", "-qm", "init");
+  fs.writeFileSync(path.join(dir, "a.ts"), "2");
+  for (const command of ["git checkout -- a.ts", "git restore a.ts", "git stash"]) {
+    const r = spawnSync(process.execPath, [HOOK], { input: JSON.stringify({ tool_name: "Bash", cwd: dir, tool_input: { command } }), encoding: "utf8" });
+    assert.equal(JSON.parse(r.stdout).hookSpecificOutput.permissionDecision, "ask", command);
+  }
+  const staged = spawnSync(process.execPath, [HOOK], { input: JSON.stringify({ tool_name: "Bash", cwd: dir, tool_input: { command: "git restore --staged a.ts" } }), encoding: "utf8" });
+  assert.equal(staged.stdout.trim(), "");
+});
+
+test("入口: どのパッケージにも当たらない pnpm --filter は ask、当たれば通す（#578）", (t) => {
+  const files = { "pnpm-workspace.yaml": 'packages:\n  - "apps/*"\n', "apps/sync/package.json": '{"name":"@s/sync"}' };
+  assert.equal(runInRepo(t, { tool_input: { command: "pnpm --filter @s/tasuki-sync test" } }, { files }).out?.hookSpecificOutput.permissionDecision, "ask");
+  assert.equal(runInRepo(t, { tool_input: { command: "pnpm --filter @s/sync test" } }, { files }).out, null);
+});
+
+test("入口: gh pr create の本文・コミットの閉鎖キーワードを ask で知らせる。単独の閉鎖は通す（#578）", (t) => {
+  const bad = runInRepo(t, { tool_input: { command: 'gh pr create --title "x（#9）" --body "説明に Fixes #5 と書いた"' } });
+  assert.equal(bad.out?.hookSpecificOutput.permissionDecision, "ask");
+  assert.match(bad.reason, /閉鎖キーワード/);
+  assert.equal(runInRepo(t, { tool_input: { command: 'gh pr create --title x --body "Closes #5"' } }).out, null);
+});

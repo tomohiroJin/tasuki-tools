@@ -74,9 +74,38 @@ describe("discardTargets: 未コミットの変更を消しうる git の呼び�
 
   test("すり抜け: 値を別の語に取るグローバルオプションを飛ばして下位コマンドを読む", () => {
     for (const g of ["--config-env a.b=HOME", "--config-env=a.b=HOME", "--attr-source HEAD", "-c core.x=y"]) {
-      assert.deepEqual(targets(`git ${g} stash`), [{ kind: "all" }], g);
-      assert.deepEqual(targets(`git ${g} restore a.ts`), [{ kind: "paths", paths: ["a.ts"] }], g);
+      // --config-env は設定を環境変数から読むので別の場所を指しうる（elsewhere）。ここで見るのは下位コマンドを読み違えないこと
+      const strip = ({ elsewhere, ...t }) => t;
+      assert.deepEqual(targets(`git ${g} stash`).map(strip), [{ kind: "all" }], g);
+      assert.deepEqual(targets(`git ${g} restore a.ts`).map(strip), [{ kind: "paths", paths: ["a.ts"] }], g);
     }
+  });
+
+  test("すり抜け: -- 無しで枝と path が並ぶ形（git checkout <枝> <path>）は、並ぶ語をすべて pathspec として確かめる", () => {
+    assert.deepEqual(targets("git checkout main a.ts"), [{ kind: "paths", paths: ["main", "a.ts"] }]);
+    assert.deepEqual(targets("git checkout a.ts b.ts"), [{ kind: "paths", paths: ["a.ts", "b.ts"] }]);
+    assert.deepEqual(targets("git checkout src/a.ts", (p) => p === "src/a.ts"), [{ kind: "paths", paths: ["src/a.ts"] }]);
+    // 枝 1 つだけは枝の切り替えで、このガードの対象でない
+    assert.deepEqual(targets("git checkout main"), []);
+  });
+
+  test("すり抜け: git の見る場所が変わる形は読めないとして elsewhere（cd・pushd・GIT_DIR ほか・core.worktree・--config-env）", () => {
+    const els = (c) => targets(c).map((t) => t.elsewhere === true);
+    for (const c of [
+      "cd ../other && git checkout -- a.ts", "pushd ../other; git restore a.ts", "cd /x; git stash",
+      "GIT_DIR=/x/.git git checkout -- a.ts", "GIT_WORK_TREE=/x git restore a.ts", "GIT_INDEX_FILE=/tmp/i git stash",
+      "export GIT_DIR=/x/.git; git stash", "env GIT_DIR=/x git stash",
+      "git -c core.worktree=/x checkout -- a.ts", "git -c core.bare=true stash", "git --config-env core.worktree=W stash",
+    ]) assert.deepEqual(els(c), [true], c);
+    for (const c of ["git checkout -- a.ts", "echo hi && git stash", "GIT_AUTHOR_NAME=x git stash"]) assert.deepEqual(els(c), [false], c);
+  });
+
+  test("すり抜け: stash のサブコマンドは先頭の語だけで決める（git stash -m list は保存）", () => {
+    assert.deepEqual(targets("git stash -m list"), [{ kind: "all" }]);
+    assert.deepEqual(targets("git stash push -m pop"), [{ kind: "all" }]);
+    assert.deepEqual(targets("git stash -m drop -u"), [{ kind: "all", untracked: true }]);
+    assert.deepEqual(targets("git stash list"), []);
+    assert.deepEqual(targets("git stash pop"), []);
   });
 
   test("-C 付きは別の場所を指す（elsewhere）。読み取りコマンド内の文字列には当てない", () => {
@@ -161,10 +190,16 @@ describe("defaultIsDirty: 実際の git で", () => {
     assert.equal(await defaultIsDirty(dir, { kind: "all", untracked: true }), "yes");
   });
 
-  test("git の作業ツリーでない場所は no（消すものが無い）。無い場所は unknown", async (t) => {
+  test("git の作業ツリーでない場所（not a git repository）は no。それ以外の 128（所有者の不一致ほか）は確かめられなかった", async (t) => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "discard-nogit-"));
     t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-    assert.equal(await defaultIsDirty(dir, { kind: "all" }), "no");
+    assert.equal(await defaultIsDirty(dir, { kind: "all" }, { GIT_CEILING_DIRECTORIES: path.dirname(dir) }), "no");
+    // 設定が壊れていて 128 で落ちる git は、変更なしと言い切れない
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), "discard-home-"));
+    t.after(() => fs.rmSync(home, { recursive: true, force: true }));
+    fs.writeFileSync(path.join(home, ".gitconfig"), "[core\n");
+    const repoDir = repo(t);
+    assert.equal(await defaultIsDirty(repoDir, { kind: "all" }, { HOME: home, XDG_CONFIG_HOME: home, GIT_CONFIG_GLOBAL: path.join(home, ".gitconfig") }), "unknown");
     assert.equal(await defaultIsDirty(path.join(dir, "missing"), { kind: "all" }), "unknown");
   });
 });

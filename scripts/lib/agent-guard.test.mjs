@@ -347,6 +347,15 @@ describe("サブエージェントの危ない操作（#578・docs/adr/0037）",
     }
   });
 
+  test("すり抜け: 包むコマンド・引用符・環境変数・入れ子を経ても当たる（共通の読み方）", () => {
+    for (const c of [
+      "sudo git push", "env GIT_DIR=.git git push", "GIT_SSH_COMMAND=x git push", "command git push", "timeout 5 git push", "bash -c 'git push origin x'",
+      "sh -c \"cd x && git push\"", "eval 'git push'", "echo ok; git 'push'", "git \"push\"", "\\git push", "echo $(git push)", "xargs git push", "true && git push || true",
+      "git push\n", "ssh host git push",
+    ]) assert.deepEqual(sub(c), ["git-push"], c);
+    for (const c of ["sudo xargs kill", "timeout 3 pkill -f x", "bash -c 'kill 1'", "find . -exec kill {} ;", "nohup killall node &"]) assert.equal(sub(c).length, 1, c);
+  });
+
   test("すり抜け: gh の -R / --repo は --opt 値 と --opt=値 の両形", () => {
     for (const g of ["-R a/b", "--repo a/b", "--repo=a/b", "-Ra/b"]) {
       assert.deepEqual(sub(`gh ${g} pr merge 3`), ["gh-pr-merge"], g);

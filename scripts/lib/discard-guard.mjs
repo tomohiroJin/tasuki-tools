@@ -16,7 +16,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execFile } from "node:child_process";
-import { findCommandsMatching, GIT_ARG_OPTS, SHELL_TOOLS, isLongOption, beforeDashDash } from "./agent-guard.mjs";
+import { findCommandsMatching, GIT_ARG_OPTS, SHELL_TOOLS, isLongOption, beforeDashDash, lex } from "./agent-guard.mjs";
 
 /** 対象にする git の下位コマンドの宣言。 */
 export const DISCARD_COMMANDS = [
@@ -36,13 +36,21 @@ const afterDashDash = (rest) => {
   return k === -1 ? null : rest.slice(k + 1);
 };
 
-/** git の全体の選択肢（`-C`・`--git-dir`・`--work-tree`）で別の場所を指しているか。 */
-function pointsElsewhere(words, start) {
-  return words.slice(0, start).some((w) => w === "-C" || /^-C./.test(w) || /^--(git-dir|work-tree)(=|$)/.test(w));
+/** git が見る場所を変える環境変数（`GIT_DIR=…`・`export GIT_WORK_TREE=…`・`env GIT_INDEX_FILE=… git …`）。 */
+const GIT_PLACE_ENV = /^GIT_(DIR|WORK_TREE|INDEX_FILE|COMMON_DIR|OBJECT_DIRECTORY|NAMESPACE)=/;
+
+/**
+ * git が入力の `cwd` と別の場所を見うるか。`git -C`・`--git-dir`・`--work-tree`・`-c core.worktree`/`core.bare`・`--config-env` と、
+ * コマンドのどこかにある `cd`・`pushd`・`popd`・`GIT_DIR` ほかの代入。見うるなら変更の有無を `cwd` で確かめても当てにならない（fail open）ので、読めないとして聞く。
+ */
+function pointsElsewhere(command, words, start) {
+  const before = words.slice(0, start);
+  if (before.some((w) => w === "-C" || /^--(git-dir|work-tree|config-env)(=|$)/.test(w) || /^core\.(worktree|bare)(=|$)/i.test(w))) return true;
+  return lex(command).commands.some((c) => c.some((w) => GIT_PLACE_ENV.test(w)) || ["cd", "pushd", "popd"].includes(c.find((w) => !/^[A-Za-z_][A-Za-z0-9_]*=/.test(w))));
 }
 
 /** 1 つの当たりから、確かめる対象を取り出す。消さない形は null。 */
-function targetOf(hit, exists) {
+function targetOf(hit, exists, command) {
   const { words, start, id } = hit;
   const rest = words.slice(start + 1);
   let target = null;
@@ -51,16 +59,17 @@ function targetOf(hit, exists) {
     if (dd !== null) target = dd.length > 0 ? { kind: "paths", paths: dd } : null;
     else if (beforeDashDash(rest).some((w) => hasShort(w, "f") || isLongOption(w, "--force"))) target = { kind: "all" };
     else {
-      // `-- ` の無い `git checkout <x>` は、実在するパスのときだけファイルの取り出しと読む（それ以外は枝の切り替え）
+      // `--` の無い `git checkout <x>…`。語が 1 つなら、実在するパスのときだけファイルの取り出し（それ以外は枝の切り替え）。
+      // 2 つ以上は `<枝> <path>` か path の並びなので、並ぶ語をすべて pathspec として確かめる（枝の名前は何にも当たらないだけ）
       const operands = rest.filter((w) => !w.startsWith("-"));
-      if (operands.length > 0 && operands.every((w) => exists(w))) target = { kind: "paths", paths: operands };
+      if (operands.length >= 2 || (operands.length === 1 && exists(operands[0]))) target = { kind: "paths", paths: operands };
     }
   } else if (id === "git-restore-discard") {
     const opts = beforeDashDash(rest);
     const staged = opts.some((w) => hasShort(w, "S") || isLongOption(w, "--staged"));
     const worktree = opts.some((w) => hasShort(w, "W") || isLongOption(w, "--worktree"));
     if (staged && !worktree) return null;
-    if (opts.some((w) => isLongOption(w, "--pathspec-from-file"))) return withElsewhere({ kind: "all" }, words, start);
+    if (opts.some((w) => isLongOption(w, "--pathspec-from-file"))) return withElsewhere({ kind: "all" }, command, words, start);
     const dd = afterDashDash(rest);
     let paths = dd;
     if (paths === null) {
@@ -73,18 +82,18 @@ function targetOf(hit, exists) {
     }
     if (paths.length > 0) target = { kind: "paths", paths };
   } else if (id === "git-stash-discard") {
-    const sub = rest.find((w) => !w.startsWith("-"));
-    if (sub !== undefined && STASH_NON_SAVING.has(sub)) return null;
+    // サブコマンドは先頭の語だけ。先頭が選択肢なら暗黙の push（`git stash -m list` の list は -m の値）
+    if (rest[0] !== undefined && STASH_NON_SAVING.has(rest[0])) return null;
     const dd = afterDashDash(rest);
     const untracked = beforeDashDash(rest).some((w) => hasShort(w, "u") || hasShort(w, "a") || isLongOption(w, "--include-untracked") || isLongOption(w, "--all"));
     target = dd !== null && dd.length > 0 ? { kind: "paths", paths: dd } : { kind: "all", ...(untracked ? { untracked: true } : {}) };
   }
-  return target === null ? null : withElsewhere(target, words, start);
+  return target === null ? null : withElsewhere(target, command, words, start);
 }
 
 /** 別の場所を指す git（`-C`・`--git-dir`・`--work-tree`）なら印を付ける。 */
-function withElsewhere(target, words, start) {
-  return pointsElsewhere(words, start) ? { ...target, elsewhere: true } : target;
+function withElsewhere(target, command, words, start) {
+  return pointsElsewhere(command, words, start) ? { ...target, elsewhere: true } : target;
 }
 
 /**
@@ -95,7 +104,7 @@ function withElsewhere(target, words, start) {
  */
 export function discardTargets(command, { exists = () => false } = {}) {
   return findCommandsMatching(command, DISCARD_COMMANDS)
-    .map((hit) => targetOf(hit, exists))
+    .map((hit) => targetOf(hit, exists, command))
     .filter((t) => t !== null);
 }
 
@@ -141,14 +150,14 @@ const GIT_TIMEOUT_MS = 5000;
  * 対象に未コミットの変更があるか。本番の `isDirty`。
  * @returns {Promise<"yes" | "no" | "unknown">}
  */
-export function defaultIsDirty(cwd, target) {
+export function defaultIsDirty(cwd, target, env = {}) {
   const args = ["status", "--porcelain", `--untracked-files=${target.untracked ? "normal" : "no"}`];
   if (target.kind === "paths") args.push("--", ...target.paths);
   return new Promise((resolve) => {
-    const child = execFile("git", args, { cwd, timeout: GIT_TIMEOUT_MS, encoding: "utf8", windowsHide: true }, (error, stdout) => {
+    const child = execFile("git", args, { cwd, timeout: GIT_TIMEOUT_MS, encoding: "utf8", windowsHide: true, env: { ...process.env, ...env } }, (error, stdout, stderr) => {
       if (!error) return resolve(stdout.trim() === "" ? "no" : "yes");
-      // 作業ツリーでない場所（git は 128 で終わる）は、消すものが無い。場所が無い・git が無い・時間切れは確かめられなかった
-      if (!error.killed && error.code === 128 && fs.existsSync(cwd)) return resolve("no");
+      // 作業ツリーでない場所だけが、消すものが無い。ほかの 128（所有者の不一致・壊れた設定）・git が無い・場所が無い・時間切れは、確かめられなかった
+      if (!error.killed && error.code === 128 && /not a git repository/i.test(String(stderr))) return resolve("no");
       return resolve("unknown");
     });
     child.stdin?.end();

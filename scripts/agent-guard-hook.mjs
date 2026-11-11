@@ -9,11 +9,17 @@
  * 続けて、`gh pr create` の直前に同じ ISSUE の先行 PR・枝があれば同じく `ask` を書く（#504・
  * `scripts/lib/prior-pr-hook.mjs`）。本番デプロイの判定が先で、その振る舞いは変えない。
  *
+ * 本番デプロイの判定の後に、#578 の判定を順に流す（docs/adr/0037）: サブエージェントの危ない操作（本番デプロイの判定の中）・
+ * 未コミットの変更を消す git・どこにも当たらない `pnpm --filter`・閉鎖キーワード（`gh pr create` の直前。先行 PR の確認と理由を 1 つにまとめる）。
+ *
  * 常に exit 0 で終わる（exit 2 は「拒む」になり、人が承認して進める道が無くなる）。
  */
 import fs from "node:fs";
 import { isDirectRun } from "./lib/direct-run.mjs";
 import { decideHookOutput } from "./lib/agent-guard.mjs";
+import { decideDiscardOutput, defaultIsDirty } from "./lib/discard-guard.mjs";
+import { decidePnpmFilterOutput } from "./lib/pnpm-filter-guard.mjs";
+import { decideClosingKeywordOutput } from "./lib/closing-keywords.mjs";
 import {
   decidePriorPrOutputWithin,
   defaultCurrentBranch,
@@ -52,17 +58,43 @@ async function run() {
     }
   } else {
     try {
-      out = await decidePriorPrOutputWithin(raw, {
-        cwd,
-        currentBranch: defaultCurrentBranch(),
-        registeredWorktrees: defaultRegisteredWorktrees(),
-        lookup: defaultLookup(),
-      });
+      // 速い判定（git status 1 回・ファイル読み）を先に。当たればネットワークを使う先行 PR の確認は流さずに返す
+      out =
+        (await decideDiscardOutput(raw, { isDirty: defaultIsDirty, cwd })) ??
+        decidePnpmFilterOutput(raw);
     } catch {
       out = null; // 想定外の失敗でも exit 0 で終わる
     }
+    if (out === null) {
+      let closing = null;
+      try {
+        closing = decideClosingKeywordOutput(raw, { cwd });
+      } catch {
+        closing = null;
+      }
+      out = await priorPr(raw, cwd);
+      if (closing !== null) {
+        const note = closing.hookSpecificOutput.permissionDecisionReason;
+        if (out === null) out = closing;
+        else out.hookSpecificOutput.permissionDecisionReason = `${note}\n\n${out.hookSpecificOutput.permissionDecisionReason}`;
+      }
+    }
   }
   if (out !== null) process.stdout.write(`${JSON.stringify(out)}\n`);
+}
+
+/** 先行 PR の確認。想定外の失敗でも null で終わる。 */
+async function priorPr(raw, cwd) {
+  try {
+    return await decidePriorPrOutputWithin(raw, {
+      cwd,
+      currentBranch: defaultCurrentBranch(),
+      registeredWorktrees: defaultRegisteredWorktrees(),
+      lookup: defaultLookup(),
+    });
+  } catch {
+    return null; // 想定外の失敗でも exit 0 で終わる
+  }
 }
 
 function main() {
