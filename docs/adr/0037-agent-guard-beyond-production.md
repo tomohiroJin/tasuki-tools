@@ -37,14 +37,14 @@ ADR-0032 の範囲の外にある。
 
 - 一覧の正本は `scripts/lib/agent-guard.mjs` の `SUBAGENT_GUARDED_COMMANDS`（ADR-0032 決定 1 の `GUARDED_COMMANDS` と同じ置き場・同じ読み方）。
   本番デプロイの判定が先で、当たらなかったときだけ見る
-- 複数の判定（未コミットの変更・`pnpm --filter`・閉鎖キーワード・先行 PR）が当たるときは、`ask` の理由を**全部まとめて**出す（先に返して後を捨てない。#578 PR 2 のレビュー I1）
+- 入口の束ね方（`scripts/lib/hook-combine.mjs`）: 本番デプロイに当たったときだけ他を省いて返す（ADR-0032）。それ以外は、判定（サブエージェント・未コミットの変更・`pnpm --filter`・閉鎖キーワード・先行 PR）ごとに try を分け、**投げた判定は `ask`（判定に失敗しました）に倒し**、当たった理由を**全部まとめて**出す（先に返して後を捨てない・通る側に倒さない。PR 2 のレビュー I1・/code-review 583 の 3・4）
 - **迷う形は聞く**: 危ない操作の名前（`push`・`merge`・`kill` ほか）が文字列にあるのに、宣言で読み切れず、
   許可リストの「読むだけ・記録するだけ」（`grep`・`git log`・`git commit -m …`・`gh pr view` ほか。`isTameCommand`）でも
   単純な安全な形（`git checkout [<rev>] -- <path>`・`git reset` の `--soft`/`--mixed`・`git worktree add|list`）でもなければ `ask`
 
 ### 3. 未コミットの変更を消す git は、変更があるときだけ `ask`（許可リスト・fail closed）
 
-`scripts/lib/discard-guard.mjs`。対象は `git checkout -- <path>`・`git restore`・`git stash`・`git reset --hard`・`git clean`・`git switch -f`。
+`scripts/lib/discard-guard.mjs`。対象は `git checkout -- <path>`・`git restore`・`git stash`・`git reset --hard`・`git clean`・`git switch -f`、`git rm -f`・`git mv -f`・`git checkout-index -f`・`git read-tree --reset/-u`・`git submodule … --force`・`git worktree … -f`（`git help -a` の下位コマンドを洗った。候補の語の一覧は `scripts/lib/agent-guard.mjs` の `OPERATION_WORDS` が唯一の置き場）。`merge`・`pull`・`rebase`・`apply` は変更があると git 自身が拒むので含めない。シェルが展開する pathspec（`{a,b}`・先頭の `~`）は展開前の文字では確かめられないので聞く。
 
 - ヒアドキュメントの本文は、**データとして使われる形**（消費者が `cat`・`<<` が引用符とコメントの外・終端の語が引用符つきか本文に `$(`・バッククォートが無い。`git commit -m "$(cat <<'EOF' …)"`）だけ文章として隠す。
   `bash <<EOF`・パイプで渡す形・終端の後ろに続く行・引用符の中の `<<` で、本文に危ない操作の名前があれば読めないとして聞く
@@ -75,7 +75,7 @@ GitHub が閉鎖と読む形（`Closes`/`Fixes`/`Resolves` の活用形＋`#N`�
 ### 6. 構造監査の合否の無い指標の後退を `pnpm check:fast` の最後に知らせる
 
 `scripts/lib/structure-metrics.mjs`。比べる指標の一覧は同ファイルの `METRICS` が持つ（ここに写さない）。merge-base の構造監査を `git archive` した一時ディレクトリで走らせた値（SHA で控える）と今の値を比べ、
-後退（小さいほど良い指標の増加・大きいほど良い指標の減少）を `⚠` の知らせにする。**落とさない。** コードの差分が無ければ比べない。
+今の側も基準と同じく**追跡下のファイルだけ**（未コミットの変更は含む。新しいファイルは `git add` した後から）を一時ディレクトリへ写して測り、追跡外のファイルで偽の後退を出さない。比較は `pnpm check:fast` の開始と同時に別プロセス（`scripts/structure-metrics-notices.mjs`）で走らせ、最後に待つ（検査の後ろに直列で足さない）。後退（小さいほど良い指標の増加・大きいほど良い指標の減少）を `⚠` の知らせにする。**落とさない。** コードの差分が無ければ比べない。
 表の形が変わって読めなくなった指標も、今の側・基準の側のどちらでも `⚠` で知らせる（検査が黙って外れない）。基準の控え（OS の一時ディレクトリに SHA ごと）は、一時ファイルへ書いて rename し、読むときも宣言した指標の過半が読めなければ捨てて取り直す。空の控えで偽の緑を出さない。
 
 ### 7. 脅威の範囲 —— 事故の防止であり、悪意への境界ではない
