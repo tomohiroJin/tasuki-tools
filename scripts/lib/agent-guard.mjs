@@ -913,7 +913,8 @@ function isListOrCreateGitBranch(args) {
 
 /** `lex` が読めない引用（`$'…'`・`$"…"`）を含むか。含めば lex の結果を信じない（引用符の内外が食い違い、`git push` が引用符の中と読まれる）。 */
 export function hasUnreadableQuote(command) {
-  return /\$['"]/.test(command);
+  // 行の継続（`$\` と改行のあとの引用符）をつないでから見る
+  return /\$['"]/.test(command.replace(/\\\r?\n/g, ""));
 }
 
 /** 「迷う形は聞く」の対象から、上の読む・作る形の単純なコマンドを除いた残り。入れ子（置換・`bash -c`）があれば元のまま（fail closed）。 */

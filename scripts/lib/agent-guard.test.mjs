@@ -640,6 +640,11 @@ describe("サブエージェントの危ない操作（#578・docs/adr/0037）",
   test("自動レビュー（$'…'）: lex が読めない ANSI-C の引用（$' ・$\"）を含む文字列は信じない。除くものが無い道・除く道の両方で、操作の名前があれば聞く", () => {
     const bad = ["echo $'\\'' ; git push ; echo $'\\''", "git branch --show-current && echo $'\\'' ; git push ; echo $'\\''", "echo $\"x\" ; git push", "fuser 5173/tcp && echo $'\\'' ; kill 1 ; echo $'\\''"];
     for (const c of bad) assert.equal(subOut(c)?.hookSpecificOutput.permissionDecision, "ask", c);
+    // 行の継続（$ と引用符の間の \\ と改行）を挟んでも検出をすり抜けない
+    for (const c of ["echo $\\\n'\\'' ; git push ; echo $'\\''", "git branch --show-current && echo $\\\n'\\'' ; git push ; echo $'\\''", "echo $\\\r\n\"x\" ; git push", "echo $\\\n'\\'' ; git push ; echo $\\\n'\\''", "git branch --show-current && echo $\\\n'\\'' ; git push ; echo $\\\n'\\''"]) {
+      assert.equal(subOut(c)?.hookSpecificOutput.permissionDecision, "ask", c);
+      assert.equal(isTameCommand(c), false, c);
+    }
     for (const c of ["echo $'a'", "grep $'x' f", "git commit -m $'fix'"]) {
       assert.equal(isTameCommand(c), false, c);
     }
