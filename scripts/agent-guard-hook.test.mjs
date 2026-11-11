@@ -196,3 +196,12 @@ test("入口 コードレビュー 3: サブエージェントの ask が出て�
   assert.match(reason, /PR #501/);
   assert.match(reason, /閉鎖キーワード/);
 });
+
+test("入口 再レビュー I-1: サブエージェント（agent_id つき）の読む形・作る形は、入口でも通る。変更する形は聞く", (t) => {
+  for (const c of ["git branch newbr", "git -C ../wt branch --show-current", "pnpm test && git branch --show-current", "fuser 5173/tcp", "gh pr review 583 --comment -b x", "gh api repos/o/r/pulls/3"]) {
+    assert.equal(run(t, c, { agentId: "a1" }), null, c);
+  }
+  for (const c of ["git branch -D x", "fuser -k 5173/tcp", "gh pr review 583 --approve", "tmux kill-window -t dev"]) {
+    assert.equal(run(t, c, { agentId: "a1" })?.hookSpecificOutput.permissionDecision, "ask", c);
+  }
+});

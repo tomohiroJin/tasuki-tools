@@ -131,8 +131,19 @@ export const SUBAGENT_GUARDED_COMMANDS = [
   { id: "bunx-kill-port", program: "bunx", args: ["kill-port"], why: "ポートを握るプロセスの停止は、利用者の dev サーバーを止めうる" },
   { id: "pnpm-dlx-kill-port", program: "pnpm", args: ["dlx", "kill-port"], why: "ポートを握るプロセスの停止は、利用者の dev サーバーを止めうる" },
   { id: "fuser-kill", program: "fuser", args: [], when: (words) => words.some((w) => /^-[A-Za-z]*k/.test(w) || w === "--kill"), why: "ポートを握るプロセスの停止は、利用者の dev サーバーを止めうる" },
-  { id: "tmux-kill-server", program: "tmux", args: ["kill-server"], argOpts: ["-L", "-S", "-f", "-c", "-T"], why: "tmux の停止は、利用者のセッション（ログ・サーバー）を落としうる" },
-  { id: "tmux-kill-session", program: "tmux", args: ["kill-session"], argOpts: ["-L", "-S", "-f", "-c", "-T"], why: "tmux の停止は、利用者のセッション（ログ・サーバー）を落としうる" },
+  {
+    id: "tmux-kill", program: "tmux", args: [], argOpts: ["-L", "-S", "-f", "-c", "-T"],
+    // サブコマンドが kill で始まる（kill-server・kill-session・kill-window・kill-pane・別名 killw・killp・前方一致の省略 kill-ses）、
+    // または send-keys（別名 send・省略 send-k）に C-c を含む（tmux 3.4 の list-commands で確かめた）
+    when: (words, start) => {
+      const sub = words[start];
+      if (sub === undefined) return false;
+      if (sub.startsWith("kill")) return true;
+      const sendKeys = sub === "send" || (sub.length >= 6 && "send-keys".startsWith(sub));
+      return sendKeys && words.slice(start + 1).some((w) => w === "C-c" || w === "C-\\");
+    },
+    why: "tmux の停止・窓やペインの kill・Ctrl-C の送信は、利用者のセッション（ログ・dev サーバー）を落としうる",
+  },
   { id: "gh-api-write", program: "gh", args: ["api"], argOpts: GH_ARG_OPTS, when: (words, start) => !isReadOnlyGhApi(words, start + 1), why: "GitHub への書き込み（GET 以外・フィールド付き）は、人の承認の後にまとめ役が行う" },
   { id: "gh-pr-review-decide", program: "gh", args: ["pr", "review"], argOpts: GH_ARG_OPTS, when: (words, start) => !isNonDecidingGhReview(words.slice(start + 2)), why: "PR の承認・変更要求は、人の判断" },
   { id: "kill", program: "kill", why: "プロセスの停止は、利用者の dev サーバーなどを止めうる" },
@@ -689,7 +700,7 @@ export const OPERATION_WORDS = Object.freeze({
    */
   gitDiscard: ["checkout", "restore", "stash", "reset", "clean", "switch", "rm", "mv", "checkout-index", "read-tree", "submodule", "worktree"],
   gh: ["merge", "close", "api", "review"],
-  kill: ["kill", "pkill", "killall", "kill-port", "fuser", "kill-server", "kill-session"],
+  kill: ["kill", "pkill", "killall", "kill-port", "fuser", "kill-server", "kill-session", "kill-window", "kill-pane", "killw", "killp"],
 });
 
 const wordsRe = (words) => new RegExp(`(?<![\\w-])(?:${words.join("|")})(?![\\w-])`);
@@ -760,10 +771,15 @@ const DATA_HEREDOC_LINE = new RegExp(
 );
 
 /** @param {string[]} after 終端の行より後ろの行 */
+const CAT_HEREDOC_LINE = /^\s*cat\s+>>?\s+[^\s"'$`;&|()<>\\]+\s+<<'([A-Za-z_]+)'$/;
+
 function heredocIsData(line, tag, after) {
   const m = DATA_HEREDOC_LINE.exec(line);
   // 終端の次の行は `)"` と空白だけ。その後ろに別のコマンドがあれば隠さない
-  return m !== null && m[1] === tag && after.length > 0 && /^\)"\s*$/.test(after[0]) && after.slice(1).every((l) => l.trim() === "");
+  if (m !== null && m[1] === tag && after.length > 0 && /^\)"\s*$/.test(after[0]) && after.slice(1).every((l) => l.trim() === "")) return true;
+  // `cat > <パス>`・`cat >> <パス>` に引用符つきの終端だけの行。終端の後ろの行は、別のコマンドとしていつもどおり判定される
+  const c = CAT_HEREDOC_LINE.exec(line);
+  return c !== null && c[1] === tag;
 }
 
 /**
@@ -798,6 +814,35 @@ export function simpleGitCommand(command) {
  */
 function hasSubagentCandidate(command) {
   return mentionsSubagentOperation(command);
+}
+
+/**
+ * 宣言（{@link SUBAGENT_GUARDED_COMMANDS}）に当たらず、読む・作る形と読み切れた単純なコマンド（`git [-C …] branch`〈変更の選択肢は宣言が先に当たる〉・
+ * `fuser`〈-k は宣言〉・`gh pr review` の決めない形・`gh api` の GET の形）か。「迷う形は聞く」の受け皿へ落とさない（再レビュー I-1）。
+ */
+function isBenignSubagentWords(words) {
+  let i = 0;
+  while (i < words.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(words[i])) i += 1;
+  const w = words.slice(i);
+  if (w.length === 0 || findSubagentCommands(w.join(" ")).length > 0) return false;
+  const name = path.posix.basename(w[0]);
+  if (name === "git") return w[skipOptions(w, 1, GIT_ARG_OPTS)] === "branch";
+  if (name === "fuser") return true;
+  if (name === "gh") {
+    const at = skipOptions(w, 1, GH_ARG_OPTS);
+    if (w[at] === "api") return isReadOnlyGhApi(w, at + 1);
+    if (w[at] === "pr" && w[at + 1] === "review") return isNonDecidingGhReview(w.slice(at + 2));
+  }
+  return false;
+}
+
+/** 「迷う形は聞く」の対象から、上の読む・作る形の単純なコマンドを除いた残り。入れ子（置換・`bash -c`）があれば元のまま（fail closed）。 */
+function residualForSubagent(command) {
+  const stripped = stripHeredocBodies(command);
+  if (stripped === null) return command;
+  const { commands, nested } = lex(stripped);
+  if (nested.length > 0) return command;
+  return commands.filter((words) => !isBenignSubagentWords(words)).map((words) => words.join(" ")).join("\n");
 }
 
 /** サブエージェントでも通してよい単純な git の形（ファイルの取り出し・安全な reset・worktree の追加と一覧）。 */
@@ -892,7 +937,8 @@ export function decideSubagentOutput(raw) {
     return ask(`サブエージェントからの呼び出しです: ${list}。まとめ役か人が行う操作です。人が任せたときだけ承認してください（docs/adr/0037）。`);
   }
   // 迷う形は聞く: 危ない操作の名前が文字列にあるのに、宣言に当たらず、読むだけでも単純な安全な形でもない（変数・別名・入れ子ほか）
-  if (hasSubagentCandidate(command) && !isTameCommand(command) && !isSafeSimpleGit(command)) {
+  const rest = residualForSubagent(command);
+  if (hasSubagentCandidate(rest) && !isTameCommand(rest) && !isSafeSimpleGit(rest)) {
     return ask(`サブエージェントからの呼び出しで、push・マージ・枝の切り替え・reset・worktree・kill に当たるかを読み切れない形です。まとめ役か人が行う操作かもしれないので、人の確認が要ります（docs/adr/0037）。`);
   }
   return null;

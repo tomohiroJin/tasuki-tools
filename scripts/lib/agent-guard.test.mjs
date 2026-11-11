@@ -15,6 +15,7 @@ import {
   findCommandsMatching,
   findSubagentCommands,
   decideHookOutput,
+  decideSubagentOutput,
   isTameCommand,
   mentionsSubagentOperation,
   mentionsDiscardOperation,
@@ -536,6 +537,49 @@ describe("サブエージェントの危ない操作（#578・docs/adr/0037）",
       'gh pr review 583 --comment -b "x y"', "gh pr review 583 -c --body-file x.md", "gh pr review 583 -R owner/repo -c -b x", "gh pr review 583 --body=x -c", "gh pr review 583 -bfoo",
       "gh pr review 583 -F x.md", "gh pr review 583 -Fx.md", "gh pr review 583 --repo=o/r -c", "gh pr review 583 --repo o/r --comment", "gh pr review https://github.com/o/r/pull/3 -c -b x", "gh pr review feature-branch -c -b x",
     ]) assert.equal(findSubagentCommands(c).length, 0, c);
+  });
+
+  const subOut = (c) => decideSubagentOutput(JSON.stringify({ tool_name: "Bash", agent_id: "a1", tool_input: { command: c } }));
+
+  test("再レビュー I-1: ADR が通すと書く読む形・作る形は、入口の判定（agent_id つき）で通る。&& でつないだ形・git -C つきも", () => {
+    for (const c of [
+      "git branch newbr", "git branch --list 'feat*'", "git branch --show-current", "git -C /workspaces/x/wt branch --show-current", "git -C ../w branch -a",
+      "pnpm test && git branch --show-current", "cd ../wt && git branch -vv && pnpm lint", "git branch feat/x origin/main",
+      "fuser 5173/tcp", "pnpm test; fuser 5173/tcp", "gh pr review 583 --comment", "gh pr review 583 -c --body-file x.md", "gh pr review 583 -R o/r -c -b x",
+      "gh api repos/o/r/pulls/3", "gh api repos/o/r/pulls --paginate --jq '.[].number'", "pnpm test && gh api -X GET repos/o/r/issues",
+    ]) assert.equal(subOut(c), null, c);
+    // 宣言の当たりと「迷う形」は今までどおり聞く
+    for (const c of ["git branch -D x", "git -C ../w branch -f x HEAD", "pnpm test && git branch -D x", "fuser -k 5173/tcp", "gh pr review 583 --approve", "gh api -X DELETE repos/o/r", "a=push; git $a origin x", "eval 'git branch -D x'"]) {
+      assert.equal(subOut(c)?.hookSpecificOutput.permissionDecision, "ask", c);
+    }
+  });
+
+  test("再レビュー M-1: cat > <パス> <<'TAG' の本文は、引用符つきの終端なら文章。終端の後ろの行は別のコマンドとして判定する", () => {
+    for (const c of ["cat > /tmp/notes.md <<'EOF'\nuse git branch -a here\nEOF", "cat >> notes.md <<'EOF'\nran gh pr view; the review found nothing\nEOF", "cat > notes.md <<'EOF'\ngit push と kill の話\nEOF\nls"]) {
+      assert.equal(subOut(c), null, c);
+    }
+    for (const c of [
+      "cat > notes.md <<'EOF'\nx\nEOF\ngit push origin x", "cat > notes.md <<EOF\ngit push $(git push)\nEOF", "cat > \"$F\" <<'EOF'\ngit push\nEOF", "cat > a.md; git push <<'EOF'\ngit push\nEOF", "cat | sh <<'EOF'\ngit push\nEOF", "cat > a.md <<'EOF' && git push\nx\nEOF",
+    ]) assert.equal(subOut(c)?.hookSpecificOutput.permissionDecision, "ask", c);
+  });
+
+  test("再レビュー M-2: 理由の文が、どの操作に当たったか（宣言の id）を示す", () => {
+    const why = (c) => subOut(c).hookSpecificOutput.permissionDecisionReason;
+    assert.match(why("git branch -D x"), /git-branch-modify/);
+    assert.match(why("git -C ../w branch -f x HEAD"), /git-branch-modify/);
+    assert.match(why("gh api -X DELETE repos/o/r"), /gh-api-write/);
+    assert.match(why("gh api repos/o/r/issues -f title=x"), /gh-api-write/);
+    assert.match(why("gh pr review 3 --approve"), /gh-pr-review-decide/);
+    assert.match(why("tmux kill-session -t x"), /tmux-kill/);
+    assert.doesNotMatch(why("git branch -D x"), /読み切れない/);
+  });
+
+  test("再レビュー M-3: tmux の kill-*・別名（killw・killp）・前方一致の省略・send-keys の C-c も聞く。ls・capture-pane は通す", () => {
+    for (const c of [
+      "tmux kill-window -t dev", "tmux killw -t dev", "tmux kill-pane -t dev", "tmux killp -t dev", "tmux kill-ses -t x", "tmux kill-ser", "tmux kill-server", "tmux -L s kill-session",
+      "tmux send-keys -t dev C-c", "tmux send -t dev C-c Enter", "tmux send-k -t dev C-c",
+    ]) assert.ok(findSubagentCommands(c).length > 0, c);
+    for (const c of ["tmux ls", "tmux list-sessions", "tmux capture-pane -p -t dev", "tmux send-keys -t dev 'pnpm test' Enter", "tmux new-session -d -s x"]) assert.equal(subOut(c), null, c);
   });
 
   test("コードレビュー 5: tame の git mv は -f/--force を含まない", () => {
