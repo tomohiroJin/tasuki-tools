@@ -1,13 +1,13 @@
 diff --git a/scripts/lib/codex-guard.mjs b/scripts/lib/codex-guard.mjs
-index 73328ae2..200d2af4 100644
+index 35b8b632..aa808c7f 100644
 --- a/scripts/lib/codex-guard.mjs
 +++ b/scripts/lib/codex-guard.mjs
-@@ -42,7 +42,7 @@ export const CODEX_HOOK_SCRIPT = "scripts/codex-guard-hook.mjs";
+@@ -57,7 +57,7 @@ export const ENTRY_MISSING_OUTPUT = JSON.stringify(
  export const CODEX_HOOK_COMMAND = [
    `r="$(git rev-parse --show-toplevel)" || { printf '%s' '${ROOT_FAILURE_OUTPUT}'; exit 0; }`,
-   `[ -f "$r/${CODEX_HOOK_SCRIPT}" ] || exit 0`,
+   `[ -f "$r/${CODEX_HOOK_SCRIPT}" ] || { { [ -e "$r/${CODEX_HOOKS_FILE}" ] || [ -L "$r/${CODEX_HOOKS_FILE}" ]; } && printf '%s' '${ENTRY_MISSING_OUTPUT}'; exit 0; }`,
 -  `out="$(node "$r/${CODEX_HOOK_SCRIPT}")" && printf '%s' "$out" || printf '%s' '${LAUNCH_FAILURE_OUTPUT}'`,
 +  `out="$(node "$r/${CODEX_HOOK_SCRIPT}")" && printf '%s' "$out"`,
  ].join("; ");
- /** hooks.json の中身（.codex/hooks.json）として許す形。**これと構造ごと完全一致のものだけ**を通す（許可リスト。#578）。 */
+ /** hooks.json の中身（.codex/hooks.json）として許す形。**これから作った正準の文字列（`scripts/audit-codex-guard.mjs` の `CANONICAL_CODEX_HOOKS_TEXT`）と文字列ごと比べて一致するものだけ**を通す（許可リスト。#578）。 */
  export const EXPECTED_CODEX_HOOKS = Object.freeze({
