@@ -1,10 +1,10 @@
 diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
-index 3e185193..94a9ab8a 100644
+index aa773605..721f9188 100644
 --- a/scripts/lib/agent-guard.mjs
 +++ b/scripts/lib/agent-guard.mjs
-@@ -591,7 +591,7 @@ function isTameWords(words) {
-     if (words[1] === undefined || words[1].startsWith("-")) return false; // 全体の選択肢（-C・-c ほか）があれば読み切れない
-     const sub = words[1];
+@@ -598,7 +598,7 @@ function isTameWords(words) {
+     // 全部の下位コマンドに共通: ファイルへ書く選択肢（--output と、その省略形）は読むだけでない
+     if (words.some((w) => isLongOption(w, "--output"))) return false;
      // 読むだけの下位コマンドも、選択肢と引数が既知の読む形のときだけ（拒否リストでなく許可リスト。省略形 `--del`・`+refspec` を通さない）
 -    if (sub === "branch") return isReadOnlyGitBranch(words.slice(2));
 +    if (sub === "branch") return true;

@@ -8640,7 +8640,7 @@ export const MUTATIONS = [
   },
   {
     id: 1463,
-    label: 'heredoc の終端の次の行が )" で始まるかを見ず、後ろに続く行がある形の本文も文章として隠す',
+    label: 'heredoc の終端の後ろが )" と空白だけかを見ず、後ろに続く行がある形の本文も文章として隠す',
     patch: "m1463-heredoc-data-any-consumer.patch",
     pkg: "scripts",
     tests: ["lib/agent-guard.test.mjs"],
@@ -8677,5 +8677,21 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["lib/agent-guard.test.mjs"],
     note: RESERVED_1440_1469 + " " + "#578 PR 2 のレビュー。サブエージェントの git fetch origin +main:main や --prune が聞かれず、他の作業ツリーの参照が消える。",
+  },
+  {
+    id: 1468,
+    label: "--output（ファイルへ書く）を、git のサブコマンド共通では拒まない",
+    patch: "m1468-git-output-option-not-rejected.patch",
+    pkg: "scripts",
+    tests: ["lib/agent-guard.test.mjs"],
+    note: RESERVED_1440_1469 + " " + "#578 PR 2 のレビュー。git reflog --output=ファイル や stash show --output が読むだけとして通り、ファイルを上書きする。",
+  },
+  {
+    id: 1469,
+    label: "heredoc の行の可変部が、区切り・コメント・引用符を含められる（改行以外なら何でも）",
+    patch: "m1469-heredoc-line-allows-separators.patch",
+    pkg: "scripts",
+    tests: ["lib/agent-guard.test.mjs"],
+    note: RESERVED_1440_1469 + " " + "#578 PR 2 のレビュー。git commit -m x; git push && … のように別のコマンドを混ぜた行の heredoc 本文が隠れ、git push が通る。",
   },
 ];

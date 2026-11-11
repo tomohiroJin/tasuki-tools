@@ -1,13 +1,13 @@
 diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
-index 3e185193..995fff6d 100644
+index aa773605..7963b555 100644
 --- a/scripts/lib/agent-guard.mjs
 +++ b/scripts/lib/agent-guard.mjs
-@@ -658,7 +658,7 @@ const DATA_HEREDOC_LINE = /^\s*(?:git add [^;&|$`"'()<>\n]* && )?(?:git commit\b
- 
- function heredocIsData(line, tag, afterTerminator) {
+@@ -672,7 +672,7 @@ const DATA_HEREDOC_LINE = new RegExp(
+ function heredocIsData(line, tag, after) {
    const m = DATA_HEREDOC_LINE.exec(line);
--  return m !== null && m[1] === tag && typeof afterTerminator === "string" && afterTerminator.startsWith(')"');
-+  return false;
+   // 終端の次の行は `)"` と空白だけ。その後ろに別のコマンドがあれば隠さない
+-  return m !== null && m[1] === tag && after.length > 0 && /^\)"\s*$/.test(after[0]) && after.slice(1).every((l) => l.trim() === "");
++  return false && m !== null && m[1] === tag && after.length > 0 && /^\)"\s*$/.test(after[0]) && after.slice(1).every((l) => l.trim() === "");
  }
  
  /**
