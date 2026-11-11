@@ -493,7 +493,7 @@ const TAME_HEADS = new Set([
   "file", "stat", "which", "type", "true", "false", "test", "[", "pwd", "basename", "dirname", "date", "sleep", "tr", "cut", "jq", "column",
   "cd", "pushd", "popd",
 ]);
-/** 先頭が git（全体の選択肢なし）のとき、下位コマンドがこれなら読むだけ・記録するだけ（消さない・枝を動かさない）。 */
+/** 先頭が git（全体の選択肢なし）のとき、下位コマンドがこれなら読むだけ・記録するだけ。branch と fetch は、消す・動かす形（-D・-f・--prune）を別に除く。 */
 const TAME_GIT_SUBS = new Set([
   "status", "log", "diff", "show", "blame", "grep", "branch", "tag", "remote", "rev-parse", "ls-files", "ls-remote", "ls-tree",
   "describe", "shortlog", "reflog", "cat-file", "for-each-ref", "merge-base", "rev-list", "name-rev", "fetch", "add", "commit", "mv",
@@ -564,6 +564,9 @@ function isTameWords(words) {
   if (name === "git") {
     if (words[1] === undefined || words[1].startsWith("-")) return false; // 全体の選択肢（-C・-c ほか）があれば読み切れない
     const sub = words[1];
+    // 枝・参照を消す・動かす形は読むだけでない（branch の -d/-D/-f/-m/-c、fetch の --prune）
+    if (sub === "branch" && words.slice(2).some((w) => /^-[A-Za-z]*[dDfmMcCu]/.test(w) && !w.startsWith("--") || /^--(delete|force|move|copy|set-upstream-to|unset-upstream|edit-description)/.test(w))) return false;
+    if (sub === "fetch" && words.slice(2).some((w) => w === "-p" || /^--prune/.test(w))) return false;
     if (TAME_GIT_SUBS.has(sub)) return true;
     if (sub === "stash") return ["list", "show"].includes(words[2]);
     if (sub === "worktree") return ["list", "add"].includes(words[2]);
@@ -606,12 +609,31 @@ export function stripHeredocBodies(src) {
       const tag = m[2] ?? m[3] ?? m[4];
       const end = lines.findIndex((l, k) => k > i && (m[1] === "-" ? l.trim() === tag : l === tag));
       if (end === -1) return null;
-      // 引用符やコメントの中の `<<` を本文の始まりと誤って拾っても、飛ばしたテキストが危ない操作の名前を含むなら読めないとする（fail closed）
-      if (looksLikeGuardedOperation(lines.slice(i + 1, end).join("\n"))) return null;
+      const body = lines.slice(i + 1, end).join("\n");
+      // 本文が危ない操作の名前を含むとき、本文がデータとして使われる形（下）だけ文章として隠す。それ以外は読めないとする（fail closed）
+      if (looksLikeGuardedOperation(body) && !heredocIsData(lines[i].slice(0, m.index), m[2] !== undefined || m[3] !== undefined, body)) return null;
       i = end; // 本文と終端の行を飛ばす
     }
   }
   return out.join("\n");
+}
+
+/**
+ * ヒアドキュメントの本文が、実行されずに引数・ファイルの文章として使われる形か。
+ * 条件（すべて）: `<<` が引用符・コメントの外にある / 消費者が `cat`（`git commit -m "$(cat <<'EOF' …)"`・`cat <<'EOF' > f`）/
+ * 行の後ろにパイプ・区切りが無い（`cat <<'EOF' | sh`）/ 終端の語が引用符つきか、本文に `$(`・バッククォートが無い（展開されて実行されない）。
+ * @param {string} prefix その行の `<<` より前
+ * @param {boolean} quotedTag 終端の語が引用符つき
+ */
+function heredocIsData(prefix, quotedTag, body) {
+  // `$(` の中は引用符の数え直し
+  const at = prefix.lastIndexOf("$(");
+  const inner = at === -1 ? prefix : prefix.slice(at + 2);
+  if ((inner.match(/(?<!\\)"/g) ?? []).length % 2 === 1 || (inner.match(/'/g) ?? []).length % 2 === 1) return false;
+  if (/(?:^|\s)#/.test(inner)) return false;
+  if (!/(?:^|[\s;&|(])cat(?:\s+-\S+)*\s+$/.test(inner)) return false;
+  if (!quotedTag && /\$\(|`/.test(body)) return false;
+  return true;
 }
 
 /**

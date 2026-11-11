@@ -1,6 +1,10 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { METRICS, parseMetrics, findMetricRegressions, structureNotices } from "./structure-metrics.mjs";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { execFileSync } from "node:child_process";
+import { METRICS, parseMetrics, findMetricRegressions, structureNotices, defaultBaselineOutput, isUsableBaseline } from "./structure-metrics.mjs";
 
 const TABLE = (over = {}) => {
   const v = { SC027: "0 | 0 | PASS", SC028: "1 | 0 | 未達", SC029: "86 | 0 | 未達", SC030: "17 | 0 | 未達", SC031: "13 | 0 | 未達",
@@ -33,7 +37,7 @@ describe("parseMetrics", () => {
 describe("findMetricRegressions: 小さいほど良い指標は増えたら、大きいほど良い指標は減ったら後退", () => {
   const base = parseMetrics(TABLE());
   test("同じなら何もない", () => {
-    assert.deepEqual(findMetricRegressions(base, base), { regressions: [], unreadable: [] });
+    assert.deepEqual(findMetricRegressions(base, base), { regressions: [], unreadable: [], baseUnreadable: [] });
   });
   test("増えた SC029 と、減った SC032・SC036 を後退として挙げる。良くなった側は挙げない", () => {
     const cur = parseMetrics(TABLE({ SC029: "90 | 0 | 未達", SC032: "2400/3800（63.1%） | 100% | —", SC036: "4000 | x | —", SC030: "10 | 0 | 未達" }));
@@ -55,7 +59,7 @@ describe("findMetricRegressions: 小さいほど良い指標は増えたら、�
     const cur = parseMetrics(TABLE({ SC029: "?? | 0 | 未達" }));
     assert.deepEqual(findMetricRegressions(base, cur).unreadable, ["SC029"]);
     const { SC029, ...noSc029 } = base;
-    assert.deepEqual(findMetricRegressions(noSc029, base), { regressions: [], unreadable: [] });
+    assert.deepEqual(findMetricRegressions(noSc029, base), { regressions: [], unreadable: [], baseUnreadable: [] });
   });
 });
 
@@ -83,5 +87,73 @@ describe("structureNotices", () => {
   test("表が読めない（形が変わった）ときも ⚠ で知らせる", async () => {
     const lines = await structureNotices({ baseline: async () => ({ output: TABLE(), label: "x" }), current: async () => TABLE({ SC029: "?? | 0 | 未達" }) });
     assert.match(lines.join("\n"), /⚠.*SC029.*読めません/);
+  });
+});
+
+describe("I3: 基準の控えと、基準の側で読めない指標", () => {
+  test("基準の側で読めない指標（行はあるが数が読めない）は黙って外さず、⚠ で比べられないと知らせる", async () => {
+    const lines = await structureNotices({
+      baseline: async () => ({ output: TABLE({ SC029: "?? | 0 | 未達" }), label: "abc" }),
+      current: async () => TABLE({ SC029: "999 | 0 | 未達" }),
+    });
+    assert.match(lines.join("\n"), /⚠.*SC029.*基準.*比べられません/);
+  });
+
+  test("基準が空・指標がほとんど読めないときは、後退なしと言わず ⚠ で比べられないと知らせる", async () => {
+    for (const output of ["", "SC | 現状値 | 目標値 | 判定\n---\n", "途中まで\nSC027 | 0 | 0 | PASS"]) {
+      const lines = await structureNotices({ baseline: async () => ({ output, label: "abc" }), current: async () => TABLE({ SC029: "999 | 0 | 未達" }) });
+      assert.ok(lines.some((l) => l.startsWith("⚠") && /比べられません/.test(l)), JSON.stringify(output));
+      assert.ok(!lines.some((l) => /後退していません/.test(l)));
+    }
+  });
+
+  test("基準の監査が古くてその指標の行自体を持たないときは、比べようがないので外す（⚠ にしない）", async () => {
+    const old = TABLE().split("\n").filter((l) => !l.startsWith("SC035")).join("\n");
+    const lines = await structureNotices({ baseline: async () => ({ output: old, label: "abc" }), current: async () => TABLE() });
+    assert.equal(lines.filter((l) => l.startsWith("⚠")).length, 0);
+  });
+
+  test("isUsableBaseline: 宣言した指標の過半が読める控えだけ使う", () => {
+    assert.equal(isUsableBaseline(TABLE()), true);
+    assert.equal(isUsableBaseline(""), false);
+    assert.equal(isUsableBaseline("SC027 | 0 | 0 | PASS"), false);
+  });
+
+  function repo(t) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "sm-repo-"));
+    const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "sm-tmp-"));
+    t.after(() => { fs.rmSync(dir, { recursive: true, force: true }); fs.rmSync(tmp, { recursive: true, force: true }); });
+    const git = (...a) => execFileSync("git", a, { cwd: dir, encoding: "utf8", stdio: "pipe" });
+    git("init", "-q", "-b", "main");
+    fs.mkdirSync(path.join(dir, "scripts"));
+    fs.writeFileSync(path.join(dir, "scripts/audit-structure.mjs"), `console.log(${JSON.stringify(TABLE())});`);
+    git("add", ".");
+    git("-c", "user.name=t", "-c", "user.email=t@e.x", "commit", "-qm", "i");
+    git("update-ref", "refs/remotes/origin/main", "HEAD");
+    return { dir, tmp, sha: git("rev-parse", "HEAD").trim() };
+  }
+
+  test("空の控えがあっても捨てて取り直し、控えを正しい中身で置き換える（偽の緑にしない）", async (t) => {
+    const r = repo(t);
+    const cache = path.join(r.tmp, `tasuki-structure-baseline-${r.sha}.txt`);
+    fs.writeFileSync(cache, "");
+    const base = await defaultBaselineOutput(r.dir, r.tmp);
+    assert.equal(isUsableBaseline(base.output), true);
+    assert.equal(isUsableBaseline(fs.readFileSync(cache, "utf8")), true);
+    const lines = await structureNotices({ baseline: async () => base, current: async () => "SC029 | 999 | 0 | 未達\nSC036 | 1 | x | —" });
+    assert.match(lines.join("\n"), /SC029.*86.*999/);
+  });
+
+  test("控えは一時ファイルに書いてから rename する（途中までの控えが他から見えない）。一時ファイルは残らない", async (t) => {
+    const r = repo(t);
+    await defaultBaselineOutput(r.dir, r.tmp);
+    assert.deepEqual(fs.readdirSync(r.tmp).filter((f) => f.startsWith("tasuki-structure-baseline-")), [`tasuki-structure-baseline-${r.sha}.txt`]);
+  });
+
+  test("別々の作業ツリーが同じ SHA を同時に測っても衝突しない（どちらも使える控えを得る）", async (t) => {
+    const r = repo(t);
+    const results = await Promise.all([defaultBaselineOutput(r.dir, r.tmp), defaultBaselineOutput(r.dir, r.tmp), defaultBaselineOutput(r.dir, r.tmp)]);
+    for (const x of results) assert.equal(isUsableBaseline(x.output), true);
+    assert.equal(isUsableBaseline(fs.readFileSync(path.join(r.tmp, `tasuki-structure-baseline-${r.sha}.txt`), "utf8")), true);
   });
 });

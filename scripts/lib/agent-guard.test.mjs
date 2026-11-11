@@ -6,6 +6,7 @@
  */
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import {
   GUARDED_COMMANDS,
   SHELL_TOOLS,
@@ -385,7 +386,7 @@ describe("サブエージェントの危ない操作（#578・docs/adr/0037）",
       "git checkout origin/main -- a.test.ts", "git checkout HEAD -- a.ts b.ts", "git checkout -- a.ts", "git commit -m 'fix push'", 'echo "git push"',
       "grep -rn kill docs", "git commit -m \"$(cat <<'EOF'\nfix: push handling\nEOF\n)\"", "git log --grep=reset", "gh pr create --body 'close the loop, merge it'",
       "git reset HEAD~1", "git reset --soft HEAD~1", "git worktree add ../x -b fix/reset", "git worktree list", "git status && git diff | head", "git stash list",
-      "sed -n '1,5p' push.md", "find . -name '*kill*'", "git branch -D old-switch",
+      "sed -n '1,5p' push.md", "find . -name '*kill*'", "git branch -a",
     ]) assert.equal(askSub(c), null, c);
   });
 
@@ -398,7 +399,7 @@ describe("サブエージェントの危ない操作（#578・docs/adr/0037）",
       "gh repo delete x", "gh workflow run x.yml", "gh alias set x 'pr merge'",
       "git -c core.sshCommand=x log", "git config push.default simple", "git -C ../wt log --grep=push", "git apply x.patch", "git --no-pager log",
       // 5 回目: 引用符・コメントの中の << を本文の始まりと拾い、続く行を隠す形（飛ばしたテキストに危ない操作の名前があれば読めない）
-      "echo \"<<EOF\"\ngit stash\nEOF", "# <<EOF\ngit checkout -- .\nEOF", "echo '<<EOF'\ngit push origin x\nEOF", "echo \"<<EOF\"\nkill 1\nEOF", "cat <<'EOF'\nkill reset\nEOF",
+      "echo \"<<EOF\"\ngit stash\nEOF", "# <<EOF\ngit checkout -- .\nEOF", "echo '<<EOF'\ngit push origin x\nEOF", "echo \"<<EOF\"\nkill 1\nEOF",
       // gh の短い選択肢の束・未知の選択肢
       "gh api -XPUT repos/o/r/pulls/3/merge", "gh api -fmerge_method=squash repos/o/r/pulls/3/merge", "gh api -XGET -fx=y repos/o/r", "gh pr view 3 -Ra/b", "gh pr view 3 --unknown-flag", "gh pr list -vS x", "gh issue list --merge-it",
       "sed -n 'w out.txt' f.md", "sed -i s/push/x/ f.md", "sed -f script.sed f.md", "sed 's/push/x/e' f.md", "sed -n '1e git push' f.md", "sed 's/a/b/' f.md", "sed --expression=p f.md",
@@ -411,6 +412,43 @@ describe("サブエージェントの危ない操作（#578・docs/adr/0037）",
     const askSub = (c) => decideHookOutput(JSON.stringify({ tool_name: "Bash", agent_id: "a1", tool_input: { command: c } }))?.hookSpecificOutput?.permissionDecision ?? null;
     assert.equal(askSub("cat <<EOF > f\nbody\nEOF\ngit push"), "ask");
     assert.equal(askSub("cat <<EOF > f\nbody about push\nEOF"), null);
+  });
+
+  test("I2: 本文がデータとして使われる heredoc（$(cat <<'EOF' …) など）は、本文に git push 等があっても tame。実行されうる形は tame でない", () => {
+    for (const c of [
+      "git add scripts && git commit -m \"$(cat <<'EOF'\nfix: git checkout の判定を直す\n\n- git reset --hard の省略形\nEOF\n)\"",
+      "gh pr create --title x --body \"$(cat <<'EOF'\n## 概要\ngit push と git stash を止める。gh pr merge も\nEOF\n)\"",
+      "gh issue comment 3 --body \"$(cat <<\"EOF\"\ngit worktree remove と kill の話\nEOF\n)\"",
+      "cat <<'EOF' > memo.md\ngit push して git reset --hard\nEOF",
+      "git commit -m \"$(cat <<-'EOF'\n\tgit stash の説明\n\tEOF\n)\"",
+    ]) assert.equal(isTameCommand(c), true, c);
+    for (const c of [
+      "bash <<EOF\ngit push origin x\nEOF", "sh <<'EOF'\ngit stash\nEOF", "cat <<'EOF' | sh\ngit push\nEOF",
+      "git commit -m \"$(cat <<EOF\nfix: $(git push) だ git push\nEOF\n)\"", "git commit -m \"$(cat <<EOF\n`git stash` git push\nEOF\n)\"",
+      "echo \"<<EOF\"\ngit stash\nEOF", "# <<EOF\ngit checkout -- .\nEOF", "ssh host <<'EOF'\ngit push\nEOF", "cat <<'EOF'\nx\nEOF\ngit push",
+    ]) assert.equal(isTameCommand(c), false, c);
+  });
+
+  test("I2 対照: このリポジトリの直近のコミットメッセージを heredoc の本文にした git commit は、サブエージェントでもまとめ役でも聞かれない", () => {
+    let log = "";
+    try {
+      log = execFileSync("git", ["log", "-n", "400", "--format=%B%x1e"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+    } catch {
+      return; // git の履歴が無い環境（アーカイブの展開先）では見ない
+    }
+    const messages = log.split("\x1e").map((m) => m.trim()).filter((m) => m !== "" && !m.split("\n").includes("EOF"));
+    const withOps = messages.filter((m) => /\bgit\b/.test(m) && /\b(push|checkout|switch|reset|worktree|stash|restore|clean)\b/.test(m));
+    for (const m of messages) {
+      const c = `git add -A && git commit -m "$(cat <<'EOF'\n${m}\nEOF\n)"`;
+      assert.equal(isTameCommand(c), true, c.slice(0, 120));
+    }
+    assert.ok(messages.length > 0);
+    assert.ok(withOps.length >= 0);
+  });
+
+  test("M3: tame の git は、枝・参照を消す形（branch -D・-f・fetch --prune）を含まない", () => {
+    for (const c of ["git branch -D chore/578", "git branch -f main HEAD", "git branch -d x", "git branch -m a b", "git branch --delete x", "git fetch --prune", "git fetch -p origin", "git fetch --prune-tags"]) assert.equal(isTameCommand(c), false, c);
+    for (const c of ["git branch", "git branch -a", "git branch --show-current", "git branch --list 'fix/*'", "git fetch origin", "git fetch --all"]) assert.equal(isTameCommand(c), true, c);
   });
 
   test("decideHookOutput: agent_id があるときだけ聞く。まとめ役（agent_id なし）は止めない", () => {

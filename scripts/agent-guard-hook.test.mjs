@@ -17,6 +17,8 @@ function run(t, command, { prs = "[]", branch = "docs/9-x", ghMarker = null } = 
   const bin = fs.mkdtempSync(path.join(os.tmpdir(), "hook-bin-"));
   t.after(() => fs.rmSync(bin, { recursive: true, force: true }));
   const tool = (name, body) => fs.writeFileSync(path.join(bin, name), `#!${process.execPath}\n${body}\n`, { mode: 0o755 });
+  fs.writeFileSync(path.join(bin, "pnpm-workspace.yaml"), 'packages:\n  - "apps/*"\n');
+  fs.writeFileSync(path.join(bin, "package.json"), '{"name":"root"}');
   tool("gh", `${ghMarker ? `require("node:fs").writeFileSync(${JSON.stringify(ghMarker)}, "x");` : ""}process.stdout.write(${JSON.stringify(prs)});`);
   tool("git", `const a = process.argv.slice(2); if (a[0] === 'rev-parse') process.stdout.write(${JSON.stringify(`${branch}\n`)}); else if (a[0] === 'worktree') process.stdout.write('worktree ' + process.cwd() + '\\n'); else process.stdout.write('');`);
   const r = spawnSync(process.execPath, [HOOK], {
@@ -168,4 +170,20 @@ test("入口: gh pr create の本文・コミットの閉鎖キーワードを a
   assert.equal(bad.out?.hookSpecificOutput.permissionDecision, "ask");
   assert.match(bad.reason, /閉鎖キーワード/);
   assert.equal(runInRepo(t, { tool_input: { command: 'gh pr create --title x --body "Closes #5"' } }).out, null);
+});
+
+test("入口 I1: 未コミットの判定が当たっても、gh pr create の先行 PR の知らせと閉鎖キーワードの知らせを捨てず、理由を全部まとめる", (t) => {
+  const out = run(t, 'GIT_DIR=x git stash; gh pr create --title "x（#9）" --body "説明に Fixes #9 と書く"', { prs: pr });
+  assert.equal(out?.hookSpecificOutput.permissionDecision, "ask");
+  const reason = out.hookSpecificOutput.permissionDecisionReason;
+  assert.match(reason, /未コミットの変更/);
+  assert.match(reason, /PR #501/);
+  assert.match(reason, /閉鎖キーワード/);
+});
+
+test("入口 I1: pnpm --filter の判定が当たっても先行 PR の知らせを捨てない", (t) => {
+  const out = run(t, 'pnpm --filter @nope/none test; gh pr create --title "x（#9）"', { prs: pr });
+  const reason = out.hookSpecificOutput.permissionDecisionReason;
+  assert.match(reason, /--filter/);
+  assert.match(reason, /PR #501/);
 });

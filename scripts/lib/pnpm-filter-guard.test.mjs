@@ -45,6 +45,8 @@ describe("patternMatchesAny: pnpm の名前の照合", () => {
     assert.equal(patternMatchesAny("@tasuki/nope*", NAMES), false);
     assert.ok(patternMatchesAny("...@tasuki/sync", NAMES));
     assert.ok(patternMatchesAny("@tasuki/sync^...", NAMES));
+    assert.ok(patternMatchesAny("...^@tasuki/sync", NAMES));
+    assert.equal(patternMatchesAny("...^@tasuki/nope", NAMES), false);
     assert.equal(patternMatchesAny("...@tasuki/nope", NAMES), false);
     for (const p of ["!@tasuki/nope", "./packages/ui", "../x", "{packages/ui}", "[origin/main]", "...[origin/main]"]) {
       assert.ok(patternMatchesAny(p, NAMES), p);

@@ -40,7 +40,7 @@ export function filterPatterns(command) {
 }
 
 /** 依存の印（`...` と `^`）を外した名前の部分。 */
-const core = (pattern) => pattern.replace(/^\.\.\./, "").replace(/\.\.\.$/, "").replace(/\^$/, "");
+const core = (pattern) => pattern.replace(/^\.\.\.\^?/, "").replace(/\.\.\.$/, "").replace(/\^$/, "");
 
 /** 名前の一覧のどれかに当たるか。名前でない形（除外・パス・git の参照）は当てに行かず true（通す）。 */
 export function patternMatchesAny(pattern, names) {

@@ -1,7 +1,7 @@
 /**
  * 構造監査（`scripts/audit-structure.mjs`）の、合否を持たない指標の後退を知らせる（#578・docs/adr/0037）。
  *
- * 構造監査の表の SC028〜SC031（目標 0 に届かない「未達」）・SC032（割合）・SC036（基準値以上）・SC039（4 つの内訳）は、
+ * 構造監査の表の、合否を持たない指標・未達でも落ちない指標（一覧は {@link METRICS}）は、
  * 悪くなっても監査は緑のままである（合否の列が「—」か、未達でも落ちない）。そこで `pnpm check:fast` が、
  * merge-base（`origin/main` と HEAD の共通の祖先）での値と今の値を比べ、後退していれば最後の知らせに出す。**落とさない。**
  *
@@ -60,15 +60,25 @@ export function parseMetrics(output) {
   return metrics;
 }
 
+/** 基準（控え）として使える出力か。宣言した指標の過半が読めること（空・途中までの控えを使い続けない）。 */
+export function isUsableBaseline(output) {
+  return Object.keys(parseMetrics(output)).length * 2 > Object.keys(METRICS).length;
+}
+
 /**
  * 基準と今の値を比べる。
- * @returns {{ regressions: string[], unreadable: string[] }} 後退した指標の説明と、今の側で読めなかった指標
+ * @returns {{ regressions: string[], unreadable: string[], baseUnreadable: string[] }} 後退した指標の説明と、今の側・基準の側で読めなかった指標
  */
-export function findMetricRegressions(base, current) {
+export function findMetricRegressions(base, current, baseOutput = null) {
   const regressions = [];
   const unreadable = [];
+  const baseUnreadable = [];
   for (const [key, spec] of Object.entries(METRICS)) {
-    if (typeof base[key] !== "number") continue; // 基準に無い指標は比べようがない
+    if (typeof base[key] !== "number") {
+      // 基準の監査が古くてその指標の行自体を持たないなら比べようがない。行はあるのに数が読めないなら、黙って外さず知らせる
+      if (baseOutput !== null && new RegExp(`^${key.split(".")[0]} \\|`, "m").test(baseOutput)) baseUnreadable.push(key);
+      continue;
+    }
     if (typeof current[key] !== "number") {
       unreadable.push(key);
       continue;
@@ -79,7 +89,7 @@ export function findMetricRegressions(base, current) {
       regressions.push(`${key} ${base[key]}${unit} → ${current[key]}${unit}（${spec.better === "lower" ? "増えた。小さいほど良い" : "減った。大きいほど良い"}）`);
     }
   }
-  return { regressions, unreadable };
+  return { regressions, unreadable, baseUnreadable };
 }
 
 /**
@@ -96,8 +106,14 @@ export async function structureNotices({ baseline, current }) {
   } catch (error) {
     return [`⚠ 構造監査の指標の比較は未実行です（${String(error.message).trim().split("\n")[0]}）`];
   }
-  const { regressions, unreadable } = findMetricRegressions(parseMetrics(base.output), parseMetrics(now));
+  if (!isUsableBaseline(base.output)) {
+    return [`⚠ 構造監査の指標は、基準 ${base.label} の出力から読めないため比べられません（空か途中までの可能性。後退の有無は分かりません）`];
+  }
+  const { regressions, unreadable, baseUnreadable } = findMetricRegressions(parseMetrics(base.output), parseMetrics(now), base.output);
   const lines = [];
+  if (baseUnreadable.length > 0) {
+    lines.push(`⚠ 構造監査の指標 ${baseUnreadable.join("・")} は、基準 ${base.label} の側で数が読めないため比べられません`);
+  }
   if (regressions.length > 0) {
     lines.push(`⚠ 構造監査の合否の無い指標が後退しています（merge-base ${base.label} と比べて。落とさない）: ${regressions.join(" / ")}`);
   }
@@ -132,7 +148,9 @@ export async function defaultBaselineOutput(root, tmp = os.tmpdir()) {
   const label = sha.slice(0, 7);
   const cache = path.join(tmp, `tasuki-structure-baseline-${sha}.txt`);
   try {
-    return { output: fs.readFileSync(cache, "utf8"), label };
+    const cached = fs.readFileSync(cache, "utf8");
+    if (isUsableBaseline(cached)) return { output: cached, label };
+    // 空・途中までの控えは捨てて取り直す
   } catch {
     // 控えが無ければ測る
   }
@@ -147,7 +165,12 @@ export async function defaultBaselineOutput(root, tmp = os.tmpdir()) {
       tar.on("close", (code) => (code === 0 ? resolve() : reject(new Error(`tar が ${code} で終わりました`))));
     });
     const output = await run(process.execPath, ["scripts/audit-structure.mjs"], { cwd: dir });
-    fs.writeFileSync(cache, output);
+    // 使える出力だけを控え、一時ファイルへ書いてから rename する（途中までの控えが他の作業ツリーから見えない。pid と乱数で衝突しない）
+    if (isUsableBaseline(output)) {
+      const part = `${cache}.${process.pid}.${Math.random().toString(36).slice(2)}.part`;
+      fs.writeFileSync(part, output);
+      fs.renameSync(part, cache);
+    }
     return { output, label };
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });

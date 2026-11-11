@@ -70,7 +70,7 @@ describe("確かめなくてよい形（消さない・git 自身が上書きを
     "grep 'git stash' docs/a.md", "rg -n 'git checkout --' docs", "echo git restore a.ts", "cat checkout.txt",
     "git commit -m \"$(cat <<'EOF'\nfix: restore the reset handling\nEOF\n)\"",
     "gh pr create --title 'x' --body 'git stash と git reset --hard の説明'", "git log --grep='git clean' | head",
-    "git branch -D old-switch", "git push origin fix/reset-handling", "git rebase origin/main -x 'echo restore'", "\\git status", "git worktree add ../wt -b fix/reset-x", "pnpm test", "ls",
+    "git branch -a", "git push origin fix/reset-handling", "git rebase origin/main -x 'echo restore'", "\\git status", "git worktree add ../wt -b fix/reset-x", "pnpm test", "ls",
   ]) {
     test(command.split("\n")[0], async () => {
       const r = await decide(command, { dirty: "yes" });

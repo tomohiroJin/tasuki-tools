@@ -246,7 +246,7 @@ test("速い段は、構造監査の合否の無い指標が merge-base から�
   fs.writeFileSync(
     path.join(f.dir, "scripts/audit-structure.mjs"),
     "import fs from 'node:fs'; const v = fs.readFileSync('metric.txt', 'utf8').trim();\n" +
-      "console.log('SC | 現状値 | 目標値 | 判定'); console.log('---'); console.log('SC029 | ' + v + ' | 0 | 未達');\n",
+      "console.log('SC | 現状値 | 目標値 | 判定'); console.log('---'); for (const id of ['SC027','SC028','SC030','SC031','SC035']) console.log(id + ' | 0 | 0 | PASS'); console.log('SC029 | ' + v + ' | 0 | 未達'); console.log('SC032 | 10/20（50.0%） | 100% | —'); console.log('SC036 | 100 | x | —');\n",
   );
   fs.writeFileSync(path.join(f.dir, "metric.txt"), "86\n");
   f.git("add", "."); f.commit();

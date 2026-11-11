@@ -57,27 +57,26 @@ async function run() {
       h.permissionDecisionReason = `${h.permissionDecisionReason}\n（このコマンドには gh pr create も含まれますが、先行 PR の確認は省きました。）`;
     }
   } else {
+    // 判定はどれも ask を返す。複数が当たるときは**理由を全部まとめる**（先に返して後を捨てない。#578 のレビュー I1:
+    // 本文に git の語がある gh pr create で、先行 PR と閉鎖キーワードの知らせが消えた）
+    const parts = [];
     try {
-      // 速い判定（git status 1 回・ファイル読み）を先に。当たればネットワークを使う先行 PR の確認は流さずに返す
-      out =
-        (await decideDiscardOutput(raw, { isDirty: defaultIsDirty, cwd })) ??
-        decidePnpmFilterOutput(raw);
+      // 速い判定（git status 1 回・ファイル読み）
+      parts.push(await decideDiscardOutput(raw, { isDirty: defaultIsDirty, cwd }), decidePnpmFilterOutput(raw));
     } catch {
-      out = null; // 想定外の失敗でも exit 0 で終わる
+      // 想定外の失敗でも exit 0 で終わる
     }
-    if (out === null) {
-      let closing = null;
-      try {
-        closing = decideClosingKeywordOutput(raw, { cwd });
-      } catch {
-        closing = null;
-      }
-      out = await priorPr(raw, cwd);
-      if (closing !== null) {
-        const note = closing.hookSpecificOutput.permissionDecisionReason;
-        if (out === null) out = closing;
-        else out.hookSpecificOutput.permissionDecisionReason = `${note}\n\n${out.hookSpecificOutput.permissionDecisionReason}`;
-      }
+    try {
+      parts.push(decideClosingKeywordOutput(raw, { cwd }));
+    } catch {
+      // 同上
+    }
+    // 先行 PR の確認（ネットワークを使う）は gh pr create のときだけ
+    if (mentionsPrCreate(raw)) parts.push(await priorPr(raw, cwd));
+    const found = parts.filter((x) => x !== null && x !== undefined);
+    if (found.length > 0) {
+      out = found[0];
+      out.hookSpecificOutput.permissionDecisionReason = found.map((x) => x.hookSpecificOutput.permissionDecisionReason).join("\n\n");
     }
   }
   if (out !== null) process.stdout.write(`${JSON.stringify(out)}\n`);
