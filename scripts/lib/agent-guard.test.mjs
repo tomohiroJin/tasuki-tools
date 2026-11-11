@@ -414,18 +414,23 @@ describe("サブエージェントの危ない操作（#578・docs/adr/0037）",
     assert.equal(askSub("cat <<EOF > f\nbody about push\nEOF"), null);
   });
 
-  test("I2: 本文がデータとして使われる heredoc（$(cat <<'EOF' …) など）は、本文に git push 等があっても tame。実行されうる形は tame でない", () => {
+  test("I2: 本文を隠すのは決まった形（git commit -m / gh pr|issue … --body の \"$(cat <<'TAG' … TAG\n)\"）だけ。ほかの heredoc は本文に危ない操作の名前があれば tame でない", () => {
     for (const c of [
       "git add scripts && git commit -m \"$(cat <<'EOF'\nfix: git checkout の判定を直す\n\n- git reset --hard の省略形\nEOF\n)\"",
+      "git commit -m \"$(cat <<'EOF'\nfix: git push の判定\nEOF\n)\"",
       "gh pr create --title x --body \"$(cat <<'EOF'\n## 概要\ngit push と git stash を止める。gh pr merge も\nEOF\n)\"",
-      "gh issue comment 3 --body \"$(cat <<\"EOF\"\ngit worktree remove と kill の話\nEOF\n)\"",
-      "cat <<'EOF' > memo.md\ngit push して git reset --hard\nEOF",
-      "git commit -m \"$(cat <<-'EOF'\n\tgit stash の説明\n\tEOF\n)\"",
+      "gh issue comment 3 --body \"$(cat <<'MSG'\ngit worktree remove と kill の話\nMSG\n)\"",
     ]) assert.equal(isTameCommand(c), true, c);
     for (const c of [
       "bash <<EOF\ngit push origin x\nEOF", "sh <<'EOF'\ngit stash\nEOF", "cat <<'EOF' | sh\ngit push\nEOF",
+      "cat <<'EOF' > memo.md\ngit push して git reset --hard\nEOF", "git commit -m \"$(cat <<-'EOF'\n\tgit stash の説明\n\tEOF\n)\"",
+      "gh issue comment 3 --body \"$(cat <<\"EOF\"\ngit worktree remove と kill の話\nEOF\n)\"",
       "git commit -m \"$(cat <<EOF\nfix: $(git push) だ git push\nEOF\n)\"", "git commit -m \"$(cat <<EOF\n`git stash` git push\nEOF\n)\"",
       "echo \"<<EOF\"\ngit stash\nEOF", "# <<EOF\ngit checkout -- .\nEOF", "ssh host <<'EOF'\ngit push\nEOF", "cat <<'EOF'\nx\nEOF\ngit push",
+      // 自動レビュー: 引用符・コメントの中の $(cat <<EOF
+      "echo '$(cat <<EOF'\ngit push\nEOF", "# $(cat <<EOF\ngit stash\nEOF", "echo \"$(cat <<'EOF'\ngit push\nEOF\n)\"",
+      // 終端の次の行が )" でない
+      "git commit -m \"$(cat <<'EOF'\ngit push\nEOF\n", "git commit -m \"$(cat <<'EOF'\ngit push\nEOF\nx)\"",
     ]) assert.equal(isTameCommand(c), false, c);
   });
 
@@ -446,9 +451,14 @@ describe("サブエージェントの危ない操作（#578・docs/adr/0037）",
     assert.ok(withOps.length >= 0);
   });
 
-  test("M3: tame の git は、枝・参照を消す形（branch -D・-f・fetch --prune）を含まない", () => {
-    for (const c of ["git branch -D chore/578", "git branch -f main HEAD", "git branch -d x", "git branch -m a b", "git branch --delete x", "git fetch --prune", "git fetch -p origin", "git fetch --prune-tags"]) assert.equal(isTameCommand(c), false, c);
-    for (const c of ["git branch", "git branch -a", "git branch --show-current", "git branch --list 'fix/*'", "git fetch origin", "git fetch --all"]) assert.equal(isTameCommand(c), true, c);
+  test("M3: git branch / fetch / tag / remote / reflog は、選択肢と引数が既知の読む形のときだけ tame（拒否リストでなく許可リスト）", () => {
+    for (const c of [
+      "git branch -D chore/578", "git branch -f main HEAD", "git branch -d x", "git branch -m a b", "git branch --delete x", "git branch --del x", "git branch --dele x", "git branch newbranch", "git branch --set-upstream-to=o/x", "git branch -c a b", "git branch --list 'fix/*'",
+      "git fetch --prune", "git fetch -p origin", "git fetch --prune-tags", "git fetch --force origin", "git fetch -f", "git fetch origin +refs/heads/*:refs/heads/*", "git fetch origin main:main", "git fetch origin +main", "git fetch --update-head-ok origin", "git fetch --refmap= origin",
+      "git tag -d v1", "git tag v1", "git tag --delete v1", "git tag -f v1", "git remote remove origin", "git remote add x y", "git remote set-url origin z", "git reflog expire --all", "git reflog delete HEAD@{1}", "git log --output=out.txt",
+    ]) assert.equal(isTameCommand(c), false, c);
+    for (const c of ["git branch", "git branch -a", "git branch -vv", "git branch --show-current", "git branch -r --contains abc123", "git branch --merged main", "git branch --format='%(refname)' --sort=-committerdate",
+      "git fetch", "git fetch origin", "git fetch origin main", "git fetch --all", "git fetch -q --depth=1 origin main", "git tag", "git tag -l", "git remote -v", "git remote show origin", "git reflog", "git reflog show HEAD"]) assert.equal(isTameCommand(c), true, c);
   });
 
   test("decideHookOutput: agent_id があるときだけ聞く。まとめ役（agent_id なし）は止めない", () => {

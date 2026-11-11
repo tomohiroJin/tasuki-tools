@@ -493,7 +493,7 @@ const TAME_HEADS = new Set([
   "file", "stat", "which", "type", "true", "false", "test", "[", "pwd", "basename", "dirname", "date", "sleep", "tr", "cut", "jq", "column",
   "cd", "pushd", "popd",
 ]);
-/** 先頭が git（全体の選択肢なし）のとき、下位コマンドがこれなら読むだけ・記録するだけ。branch と fetch は、消す・動かす形（-D・-f・--prune）を別に除く。 */
+/** 先頭が git（全体の選択肢なし）のとき、下位コマンドがこれなら読むだけ・記録するだけ。branch・fetch・tag・remote・reflog は選択肢が既知の読む形のときだけ（isReadOnly…）。 */
 const TAME_GIT_SUBS = new Set([
   "status", "log", "diff", "show", "blame", "grep", "branch", "tag", "remote", "rev-parse", "ls-files", "ls-remote", "ls-tree",
   "describe", "shortlog", "reflog", "cat-file", "for-each-ref", "merge-base", "rev-list", "name-rev", "fetch", "add", "commit", "mv",
@@ -554,6 +554,32 @@ function isReadOnlyGhApi(words, from) {
   return true;
 }
 
+const BRANCH_FLAGS = new Set(["-a", "-r", "-l", "--list", "-v", "-vv", "--verbose", "--show-current", "--no-color", "--color", "--all", "--remotes"]);
+const BRANCH_VALUED = new Set(["--contains", "--merged", "--no-merged", "--points-at"]);
+/** `git branch` の読む形: 選択肢がすべて既知で、名前の引数が無い。 */
+function isReadOnlyGitBranch(args) {
+  for (let i = 0; i < args.length; i += 1) {
+    const w = args[i];
+    if (BRANCH_FLAGS.has(w) || /^--(format|sort|contains|merged|no-merged|points-at|color)=\S*$/.test(w)) continue;
+    if (BRANCH_VALUED.has(w) && args[i + 1] !== undefined && !args[i + 1].startsWith("-")) {
+      i += 1;
+      continue;
+    }
+    return false;
+  }
+  return true;
+}
+const TAG_FLAGS = new Set(["-l", "--list", "-n", "--no-color", "--color"]);
+/** `git tag` の読む形: 一覧の選択肢だけ（作る・消す引数が無い）。 */
+function isReadOnlyGitTag(args) {
+  return args.every((w) => TAG_FLAGS.has(w) || /^--(sort|format|contains|merged|no-merged|points-at)=\S*$/.test(w) || /^-n\d+$/.test(w));
+}
+const FETCH_FLAGS = new Set(["-q", "--quiet", "-v", "--verbose", "--all", "--dry-run"]);
+/** `git fetch` の安全な形: 既知の選択肢（`--prune`・`--force` を含まない）と、`:` も先頭の `+` も無い remote・枝名だけ。 */
+function isSafeGitFetch(args) {
+  return args.every((w) => FETCH_FLAGS.has(w) || /^--depth=\d+$/.test(w) || (!w.startsWith("-") && !w.startsWith("+") && !w.includes(":")));
+}
+
 /** 1 つの単純なコマンド（語の並び）が、許可リストの「読むだけ・記録するだけ」か。 */
 function isTameWords(words) {
   if (words.length === 0) return true;
@@ -564,9 +590,13 @@ function isTameWords(words) {
   if (name === "git") {
     if (words[1] === undefined || words[1].startsWith("-")) return false; // 全体の選択肢（-C・-c ほか）があれば読み切れない
     const sub = words[1];
-    // 枝・参照を消す・動かす形は読むだけでない（branch の -d/-D/-f/-m/-c、fetch の --prune）
-    if (sub === "branch" && words.slice(2).some((w) => /^-[A-Za-z]*[dDfmMcCu]/.test(w) && !w.startsWith("--") || /^--(delete|force|move|copy|set-upstream-to|unset-upstream|edit-description)/.test(w))) return false;
-    if (sub === "fetch" && words.slice(2).some((w) => w === "-p" || /^--prune/.test(w))) return false;
+    // 読むだけの下位コマンドも、選択肢と引数が既知の読む形のときだけ（拒否リストでなく許可リスト。省略形 `--del`・`+refspec` を通さない）
+    if (sub === "branch") return isReadOnlyGitBranch(words.slice(2));
+    if (sub === "fetch") return isSafeGitFetch(words.slice(2));
+    if (sub === "tag") return isReadOnlyGitTag(words.slice(2));
+    if (sub === "remote") return words.slice(2).every((w) => w === "-v" || w === "--verbose") || ["show", "get-url"].includes(words[2]);
+    if (sub === "reflog") return words[2] === undefined || words[2].startsWith("-") || words[2] === "show";
+    if (["diff", "log", "show", "grep"].includes(sub) && words.some((w) => w.startsWith("--output"))) return false;
     if (TAME_GIT_SUBS.has(sub)) return true;
     if (sub === "stash") return ["list", "show"].includes(words[2]);
     if (sub === "worktree") return ["list", "add"].includes(words[2]);
@@ -610,8 +640,8 @@ export function stripHeredocBodies(src) {
       const end = lines.findIndex((l, k) => k > i && (m[1] === "-" ? l.trim() === tag : l === tag));
       if (end === -1) return null;
       const body = lines.slice(i + 1, end).join("\n");
-      // 本文が危ない操作の名前を含むとき、本文がデータとして使われる形（下）だけ文章として隠す。それ以外は読めないとする（fail closed）
-      if (looksLikeGuardedOperation(body) && !heredocIsData(lines[i].slice(0, m.index), m[2] !== undefined || m[3] !== undefined, body)) return null;
+      // 本文が危ない操作の名前を含むとき、データとして使われる決まった形（DATA_HEREDOC_LINE）だけ文章として隠す。それ以外は読めないとする（fail closed）
+      if (looksLikeGuardedOperation(body) && !heredocIsData(lines[i], tag, lines[end + 1])) return null;
       i = end; // 本文と終端の行を飛ばす
     }
   }
@@ -619,21 +649,16 @@ export function stripHeredocBodies(src) {
 }
 
 /**
- * ヒアドキュメントの本文が、実行されずに引数・ファイルの文章として使われる形か。
- * 条件（すべて）: `<<` が引用符・コメントの外にある / 消費者が `cat`（`git commit -m "$(cat <<'EOF' …)"`・`cat <<'EOF' > f`）/
- * 行の後ろにパイプ・区切りが無い（`cat <<'EOF' | sh`）/ 終端の語が引用符つきか、本文に `$(`・バッククォートが無い（展開されて実行されない）。
- * @param {string} prefix その行の `<<` より前
- * @param {boolean} quotedTag 終端の語が引用符つき
+ * 本文を文章として隠してよい、唯一の形（許可リスト）。行全体が次のどれかに一致し、`'TAG'`（単一引用符つき。展開されない）で終わる:
+ * `git commit … -m|--message "$(cat <<'TAG'`、`gh pr|issue create|edit|comment … --body "$(cat <<'TAG'`（前に `git add … &&` を置いてよい）。
+ * 続けて終端の行が `TAG`、その次の行が `)"` で始まる。それ以外のヒアドキュメントは、本文に危ない操作の名前があれば読めないとして聞く。
+ * 状態機械で引用符を追う作りは、`echo '$(cat <<EOF'` や `# $(cat <<EOF` で穴が出たので退けた（#578 の自動レビュー）。
  */
-function heredocIsData(prefix, quotedTag, body) {
-  // `$(` の中は引用符の数え直し
-  const at = prefix.lastIndexOf("$(");
-  const inner = at === -1 ? prefix : prefix.slice(at + 2);
-  if ((inner.match(/(?<!\\)"/g) ?? []).length % 2 === 1 || (inner.match(/'/g) ?? []).length % 2 === 1) return false;
-  if (/(?:^|\s)#/.test(inner)) return false;
-  if (!/(?:^|[\s;&|(])cat(?:\s+-\S+)*\s+$/.test(inner)) return false;
-  if (!quotedTag && /\$\(|`/.test(body)) return false;
-  return true;
+const DATA_HEREDOC_LINE = /^\s*(?:git add [^;&|$`"'()<>\n]* && )?(?:git commit\b.*\s(?:-m|--message)|gh (?:pr|issue) (?:create|edit|comment)\b.*\s--body)\s+"\$\(cat <<'([A-Za-z_]+)'$/;
+
+function heredocIsData(line, tag, afterTerminator) {
+  const m = DATA_HEREDOC_LINE.exec(line);
+  return m !== null && m[1] === tag && typeof afterTerminator === "string" && afterTerminator.startsWith(')"');
 }
 
 /**

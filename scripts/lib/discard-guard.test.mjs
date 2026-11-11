@@ -68,7 +68,7 @@ describe("確かめなくてよい形（消さない・git 自身が上書きを
     "git clean -n", "git clean --dry-run -d", "git switch main", "git switch -c feat/x", "git switch -c feat/x origin/main",
     "git status", "git diff -- a.ts", "git log --oneline -- a.ts", "git add . && git commit -m 'restore the stash'",
     "grep 'git stash' docs/a.md", "rg -n 'git checkout --' docs", "echo git restore a.ts", "cat checkout.txt",
-    "git commit -m \"$(cat <<'EOF'\nfix: restore the reset handling\nEOF\n)\"",
+    "git commit -m \"$(cat <<'EOF'\nfix: restore the reset handling\nEOF\n)\"", "git add -A && git commit -m \"$(cat <<'EOF'\nfix: git stash と git reset --hard の説明\nEOF\n)\"",
     "gh pr create --title 'x' --body 'git stash と git reset --hard の説明'", "git log --grep='git clean' | head",
     "git branch -a", "git push origin fix/reset-handling", "git rebase origin/main -x 'echo restore'", "\\git status", "git worktree add ../wt -b fix/reset-x", "pnpm test", "ls",
   ]) {
@@ -101,7 +101,7 @@ describe("単純でない形は、変更の有無にかかわらず全部聞く�
     "cat <<EOF > f\nbody\nEOF\ngit stash", "cat <<EOF\nunterminated\ngit stash", "echo \"a << b\"\ngit restore a.ts", "gh api -X PUT repos/o/r/pulls/3/merge && git stash",
     "git -C ../wt log --grep=stash", "git config x.y z && git stash",
     // 5 回目: 引用符・コメントの中の << で続く行を隠す形
-    "echo \"<<EOF\"\ngit stash\nEOF", "# <<EOF\ngit checkout -- .\nEOF",
+    "echo \"<<EOF\"\ngit stash\nEOF", "# <<EOF\ngit checkout -- .\nEOF", "echo '$(cat <<EOF'\ngit stash\nEOF", "# $(cat <<EOF\ngit stash\nEOF",
   ];
   for (const command of forms) {
     test(command.replaceAll("\n", "\\n"), async () => {
