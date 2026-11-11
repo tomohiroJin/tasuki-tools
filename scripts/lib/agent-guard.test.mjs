@@ -637,6 +637,18 @@ describe("サブエージェントの危ない操作（#578・docs/adr/0037）",
       assert.equal(subOut(c)?.hookSpecificOutput.permissionDecision, "ask", c);
   });
 
+  test("自動レビュー（$'…'）: lex が読めない ANSI-C の引用（$' ・$\"）を含む文字列は信じない。除くものが無い道・除く道の両方で、操作の名前があれば聞く", () => {
+    const bad = ["echo $'\\'' ; git push ; echo $'\\''", "git branch --show-current && echo $'\\'' ; git push ; echo $'\\''", "echo $\"x\" ; git push", "fuser 5173/tcp && echo $'\\'' ; kill 1 ; echo $'\\''"];
+    for (const c of bad) assert.equal(subOut(c)?.hookSpecificOutput.permissionDecision, "ask", c);
+    for (const c of ["echo $'a'", "grep $'x' f", "git commit -m $'fix'"]) {
+      assert.equal(isTameCommand(c), false, c);
+    }
+    // $'…' を使わない日常の形は通ったまま
+    for (const c of ['grep -E "kill|pkill" notes.md', 'git commit -m "fix: reset; kill the timer"', 'git log --grep="push|reset" --oneline', "git branch --show-current && grep -E 'kill|x' notes.md", "echo 'cost $5'"]) {
+      assert.equal(subOut(c), null, c);
+    }
+  });
+
   test("再々レビュー M-2: tmux の send-keys ^C（C-c の別の綴り）・respawn-pane -k・respawn-window -k も聞く。-k の無い respawn は通す", () => {
     for (const c of ["tmux send-keys -t dev ^C", "tmux send-keys -t dev '^c'", "tmux send -t dev C-C", "tmux respawn-pane -k -t dev", "tmux respawn-window -k -t dev", "tmux respawn-pane -t dev -k 'pnpm dev'", "tmux respawnp -k -t dev", "tmux respawn-pane -kc /tmp -t dev"]) {
       assert.ok(findSubagentCommands(c).length > 0, c);

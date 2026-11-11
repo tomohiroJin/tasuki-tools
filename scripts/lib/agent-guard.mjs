@@ -830,7 +830,7 @@ function heredocIsData(line, tag, after, continued = false) {
  * 名前に当たる語が文字列にあっても、これが true なら引数の文字列にすぎない。
  */
 export function isTameCommand(command, depth = 0) {
-  if (depth > MAX_DEPTH) return false;
+  if (depth > MAX_DEPTH || hasUnreadableQuote(command)) return false;
   const stripped = stripHeredocBodies(command);
   if (stripped === null) return false;
   const { commands, nested } = lex(stripped);
@@ -842,6 +842,7 @@ export function isTameCommand(command, depth = 0) {
  * 全体の選択肢（`-C`・`-c` ほか）が無いなら、`{ sub, rest }`。それ以外は null（確かめてよい単純な形ではない）。
  */
 export function simpleGitCommand(command) {
+  if (hasUnreadableQuote(command)) return null;
   const { commands, nested } = lex(command);
   if (commands.length !== 1 || nested.length > 0) return null;
   const words = commands[0];
@@ -910,8 +911,15 @@ function isListOrCreateGitBranch(args) {
   return flags === 0 && positional.length <= 2;
 }
 
+/** `lex` が読めない引用（`$'…'`・`$"…"`）を含むか。含めば lex の結果を信じない（引用符の内外が食い違い、`git push` が引用符の中と読まれる）。 */
+export function hasUnreadableQuote(command) {
+  return /\$['"]/.test(command);
+}
+
 /** 「迷う形は聞く」の対象から、上の読む・作る形の単純なコマンドを除いた残り。入れ子（置換・`bash -c`）があれば元のまま（fail closed）。 */
 function residualForSubagent(command) {
+  // `$'…'`・`$"…"`（ANSI-C・ロケールの引用）は lex が読めず、引用符の内外が食い違う。lex の結果を信じず、除かずに元のまま返す（fail closed）
+  if (hasUnreadableQuote(command)) return command;
   const stripped = stripHeredocBodies(command);
   if (stripped === null) return command;
   const { commands, nested } = lex(stripped);
