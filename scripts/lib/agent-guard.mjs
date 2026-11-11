@@ -480,6 +480,98 @@ export function findCommandsMatching(command, decls) {
 }
 
 /**
+ * 「読むだけ・記録するだけ」と分かる語の許可リスト（#578・docs/adr/0037）。コマンドの文字列に危ない操作の名前（`push`・`stash` ほか）が
+ * 出ても、先頭がこれらの語だけなら、名前は引数の文字列にすぎない（`grep 'git stash' docs`・`git commit -m "…restore…"`）。
+ * 許可リストに書くのは「当てない」側の例外だけで、載っていない語は読めないものとして扱う（fail closed）。
+ */
+const TAME_HEADS = new Set([
+  "grep", "egrep", "fgrep", "rg", "cat", "echo", "printf", "ls", "head", "tail", "wc", "less", "more", "diff", "sort", "uniq", "nl",
+  "file", "stat", "which", "type", "true", "false", "test", "[", "pwd", "basename", "dirname", "date", "sleep", "tr", "cut", "jq", "column",
+  "cd", "pushd", "popd", "sed", "find",
+]);
+/** 先頭が git のとき、下位コマンドがこれなら読むだけ・記録するだけ。 */
+const TAME_GIT_SUBS = new Set([
+  "status", "log", "diff", "show", "blame", "grep", "branch", "tag", "remote", "config", "rev-parse", "ls-files", "ls-remote", "ls-tree",
+  "describe", "shortlog", "reflog", "cat-file", "for-each-ref", "merge-base", "rev-list", "name-rev", "fetch", "add", "commit", "mv", "apply",
+]);
+
+/** 1 つの単純なコマンド（語の並び）が、許可リストの「読むだけ・記録するだけ」か。 */
+function isTameWords(words) {
+  if (words.length === 0) return true;
+  const name = path.posix.basename(words[0]);
+  if (name === "sed") return !words.some((w) => /^-[A-Za-z]*i/.test(w) || w.startsWith("--in-place"));
+  if (name === "find") return !words.some((w) => FIND_EXEC.has(w) || w === "-delete");
+  if (TAME_HEADS.has(name)) return true;
+  if (name === "git") {
+    const at = skipOptions(words, 1, GIT_ARG_OPTS);
+    const sub = words[at];
+    if (TAME_GIT_SUBS.has(sub)) return true;
+    if (sub === "stash") return ["list", "show"].includes(words[at + 1]);
+    if (sub === "worktree") return ["list", "add"].includes(words[at + 1]);
+    return false;
+  }
+  if (name === "gh") {
+    const at = skipOptions(words, 1, GH_ARG_OPTS);
+    return !(words[at] === "pr" && ["merge", "close"].includes(words[at + 1]));
+  }
+  return false;
+}
+
+/** ヒアドキュメントで文字列を作るだけの置換（`$(cat <<'EOF' … EOF)`）。中身は文章で、実行されない。 */
+const HEREDOC_DATA = /^\s*cat\s+<<-?\s*['"]?\w+['"]?/;
+
+/**
+ * コマンドの文字列が、すべて「読むだけ・記録するだけ」（許可リスト）か。読み切れない（置換・入れ子の実行・未知の語）ものは false。
+ * 名前に当たる語が文字列にあっても、これが true なら引数の文字列にすぎない。
+ */
+export function isTameCommand(command, depth = 0) {
+  if (depth > MAX_DEPTH) return false;
+  const { commands, nested } = lex(command);
+  return commands.every(isTameWords) && nested.every((inner) => HEREDOC_DATA.test(inner) || isTameCommand(inner, depth + 1));
+}
+
+/**
+ * コマンドの文字列が、先頭が `git`（前に環境変数・`cd`・`sudo` ほかが無い）の**単一の単純なコマンド**で、
+ * 全体の選択肢（`-C`・`-c` ほか）が無いなら、`{ sub, rest }`。それ以外は null（確かめてよい単純な形ではない）。
+ */
+export function simpleGitCommand(command) {
+  const { commands, nested } = lex(command);
+  if (commands.length !== 1 || nested.length > 0) return null;
+  const words = commands[0];
+  if (words[0] !== "git" || words.length < 2 || words[1].startsWith("-")) return null;
+  // 展開されていない変数（`-- $F`）は、何を指すか分からない
+  if (words.some((w) => /[$`]/.test(w))) return null;
+  return { sub: words[1], rest: words.slice(2) };
+}
+
+/**
+ * サブエージェントのガードの候補: コマンドの文字列のどこかに、危ない操作の名前が出るか（入れ子も含め、素朴な文字列の走査）。
+ * 名前が出て、宣言に当たらず、許可リストの「読むだけ」でも単純な安全な形でもなければ、読めないとして聞く。
+ */
+function hasSubagentCandidate(command) {
+  return (
+    (/\bgit\b/.test(command) && /\b(push|checkout|switch|reset|worktree)\b/.test(command)) ||
+    (/\bgh\b/.test(command) && /\b(merge|close)\b/.test(command)) ||
+    /(?<![\w-])(kill|pkill|killall)(?![\w-])/.test(command)
+  );
+}
+
+/** サブエージェントでも通してよい単純な git の形（ファイルの取り出し・安全な reset・worktree の追加と一覧）。 */
+function isSafeSimpleGit(command) {
+  const g = simpleGitCommand(command);
+  if (g === null) return false;
+  const opts = beforeDashDash(g.rest);
+  if (g.sub === "checkout") {
+    const k = g.rest.indexOf("--");
+    // `git checkout [rev] -- path…`: rev は高々 1 語、枝を作る・切り離す選択肢は無く、pathspec が 1 つ以上
+    return k !== -1 && k <= 1 && k < g.rest.length - 1 && g.rest.slice(0, k).every((w) => !w.startsWith("-"));
+  }
+  if (g.sub === "reset") return opts.every((w) => !w.startsWith("-") || ["--soft", "--mixed", "-q", "--quiet"].includes(w));
+  if (g.sub === "worktree") return ["add", "list"].includes(g.rest[0]);
+  return false;
+}
+
+/**
  * サブエージェントから呼ばれたときに人に聞くコマンド（{@link SUBAGENT_GUARDED_COMMANDS}）のうち、コマンドの文字列が走らせうるもの。
  * @param {string} command
  */
@@ -538,6 +630,10 @@ export function decideHookOutput(raw) {
     if (sub.length > 0) {
       const list = sub.map((h) => `${h.id}（${h.why}）`).join("・");
       return ask(`サブエージェントからの呼び出しです: ${list}。まとめ役か人が行う操作です。人が任せたときだけ承認してください（docs/adr/0037）。`);
+    }
+    // 迷う形は聞く: 危ない操作の名前が文字列にあるのに、宣言に当たらず、読むだけでも単純な安全な形でもない（変数・別名・入れ子ほか）
+    if (hasSubagentCandidate(command) && !isTameCommand(command) && !isSafeSimpleGit(command)) {
+      return ask(`サブエージェントからの呼び出しで、push・マージ・枝の切り替え・reset・worktree・kill に当たるかを読み切れない形です。まとめ役か人が行う操作かもしれないので、人の確認が要ります（docs/adr/0037）。`);
     }
   }
   return null;

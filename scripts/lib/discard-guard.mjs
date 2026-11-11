@@ -1,121 +1,129 @@
 /**
- * 未コミットの変更を消すコマンドの手前で人に聞く判定（#578・docs/adr/0037）。
+ * 未コミットの変更を消しうる git の手前で人に聞く判定（#578・docs/adr/0037）。
  *
- * 対象は `git checkout -- <path>`・`git checkout -f`・`git restore <path>`（`--staged` だけは除く）・`git stash`（保存する形）。
- * **対象に未コミットの変更があるときだけ** `ask` を返す。変更が無ければ消えるものが無いので通す
- * （`docs/guides/procedures/adversarial-review.md` の「別の版から取り出す」手順は、取り出す先が無傷なら止まらない）。
+ * ## 作り（許可リスト・fail closed）
  *
- * - 読み方は `scripts/lib/agent-guard.mjs` の字句の読み（`findCommandsMatching`）を使う。コマンドの**起動の位置**にある
- *   `git` だけを見るので、`grep 'git stash' …`・`echo git restore a.ts` のような読み取りの中の文字列には当てない
- * - 変更の有無は `git status --porcelain` を、入力の `cwd`（Claude Code が信用を確かめた作業場所）で引く。
- *   `git -C <dir>`・`--git-dir`・`--work-tree` で別の場所を指す形は、その場所を確かめない（許可の前に信用できない場所の
- *   git 設定を走らせないため。`docs/adr/0032` の追記と同じ）ので、読めないとして `ask` に倒す
- * - 確かめられなかった（git が無い・時間切れ・作業場所が無い）ときも `ask` に倒す。git の作業ツリーでない場所は消すものが無いので通す
- * - 歯止めであって壁ではない: `git reset --hard`（サブエージェントには別に聞く）・`git clean`・`rm`・エディタでの上書きは対象外
+ * 禁止の形を数え上げる作りは、`cd`・`GIT_DIR`・`-c core.worktree`・入れ子の文字列・省略形ほか、すり抜けの形が尽きなかった
+ * （3 回の敵対的レビューで穴が出た）ので、**確かめてよい単純な形だけを許可リストに書き、ほかは全部聞く**作りにした。
+ *
+ * 1. **候補**: コマンドの文字列のどこかに `git` と、`checkout`・`restore`・`stash`・`reset`・`clean`・`switch` のどれかがある（入れ子の中も含め、素朴な文字列の走査）
+ * 2. **読むだけ・記録するだけ**（`grep 'git stash' …`・`git commit -m "…"`・`git log`・`git stash list`）なら通す（許可リスト。`agent-guard.mjs` の `isTameCommand`）
+ * 3. **確かめてよい単純な形**だけ、`cwd` で未コミットの変更を見る: 1 つのコマンドだけ（`;`・`&&`・`|`・置換・入れ子の文字列が無い）、
+ *    先頭が `git`（前に環境変数・`cd`・`sudo` が無い）、全体の選択肢（`-C`・`-c`・`--git-dir` ほか）が無く、下位コマンドの選択肢が既知の少数だけ。
+ *    変更があれば聞き、無ければ通す。**確かめ自体が失敗したら聞く**
+ * 4. **それ以外の候補は全部聞く**（理由は「形が単純でないので確かめられない」）。誤って聞くのは許容し、誤って通すのをなくす
+ *
+ * ## 確かめてよい単純な形
+ *
+ * - `git checkout [<rev>] -- <path>…`・`git checkout <path>`（実在するパス 1 つ）: そのパスの**作業ツリーの未コミットの変更**（index との差）を見る。
+ *   `git checkout -b|-B <名前> [<開始点>]`・`git checkout <枝>`（実在するパスでない 1 語）は枝の操作で、git 自身が上書きを拒むので通す
+ * - `git restore [--] <path>…`: 同じく作業ツリーの変更。`git restore --staged|-S [--] <path>…` は作業ツリーを消さないので通す
+ * - `git stash [push|save] [-u|--include-untracked] [-m <文>]`: 追跡中の変更（index も含む。`-u` は追跡外も）を見る。
+ *   `stash list|show`・`pop`・`apply`（引数なし）は通す。`drop`・`clear`・`branch` ほかは聞く
+ * - `git reset --hard [<rev>]`: 追跡中の変更を見る。`--soft`・`--mixed`・`-q` と rev・path だけの reset は通す。ほかの選択肢（`--merge`・`--keep`・省略形）は聞く
+ * - `git clean`: `-n`・`--dry-run` があれば通す。ほかは聞く
+ * - `git switch <枝>`・`git switch -c <名前> [<開始点>]` は通す。ほかの選択肢（`-f`・`--discard-changes`・`-C`）は聞く
+ *
+ * ## 手順書との関係
+ *
+ * `docs/guides/procedures/adversarial-review.md` の `git checkout origin/main -- <テスト>` → `git checkout HEAD -- <テスト>` は、
+ * 1 回目で index と作業ツリーを書き換える（HEAD との差は **ステージ済みの変更**になる）ので、2 回目を止めないよう、
+ * `checkout`・`restore` では**作業ツリーの未コミットの変更（index との差）だけ**を見る。ステージ済みだけの変更を
+ * `git checkout <rev> -- <path>` が上書きするときは聞かない（ADR-0037 の残余）。stash と reset --hard は index の変更も見る。
+ *
+ * 歯止めであって壁ではない: `rm`・エディタでの上書き・`git checkout -- .` 以外の別の言語からの呼び出しは対象外。
  */
 import fs from "node:fs";
 import path from "node:path";
 import { execFile } from "node:child_process";
-import { findCommandsMatching, GIT_ARG_OPTS, SHELL_TOOLS, isLongOption, beforeDashDash, lex } from "./agent-guard.mjs";
+import { isTameCommand, simpleGitCommand, SHELL_TOOLS } from "./agent-guard.mjs";
 
-/** 対象にする git の下位コマンドの宣言。 */
-export const DISCARD_COMMANDS = [
-  { id: "git-checkout-discard", program: "git", args: ["checkout"], argOpts: GIT_ARG_OPTS, why: "checkout で作業ツリーのファイルを上書きする" },
-  { id: "git-restore-discard", program: "git", args: ["restore"], argOpts: GIT_ARG_OPTS, why: "restore で作業ツリーのファイルを上書きする" },
-  { id: "git-stash-discard", program: "git", args: ["stash"], argOpts: GIT_ARG_OPTS, why: "stash で未コミットの変更を作業ツリーから外す" },
-];
+/** 候補の判定に使う、消しうる下位コマンドの語。 */
+const CANDIDATE_SUBS = /\b(checkout|restore|stash|reset|clean|switch)\b/;
 
-/** 単独または束ねた短い選択肢に、文字 `c` があるか（`-fq` の f）。 */
+/** 通す（確かめなくてよい）ときの結果。 */
+const SAFE = Object.freeze({ verdict: "safe" });
+/** 形が単純でなく、確かめられないときの結果。 */
+const UNKNOWN_FORM = Object.freeze({ verdict: "unknown-form" });
+
+/** 候補の語が引数に出るだけの組み込みの下位コマンド（`git push origin fix/reset-x`・`git rebase …`）。作業ツリーの未コミットの変更は、git 自身が上書きを拒む。 */
+const NON_DISCARDING_SUBS = new Set([
+  "push", "pull", "fetch", "merge", "rebase", "cherry-pick", "revert", "clone", "init", "notes", "archive", "am", "format-patch",
+  "submodule", "bisect", "gc", "maintenance", "fsck", "count-objects", "sparse-checkout", "pack-refs", "update-ref", "symbolic-ref",
+]);
+
 const hasShort = (w, c) => /^-[A-Za-z]+$/.test(w) && w.includes(c);
-/** 保存しない stash の下位コマンド。 */
-const STASH_NON_SAVING = new Set(["list", "show", "pop", "apply", "drop", "clear", "branch", "create", "store"]);
-
-/** `--` の後ろ。無ければ null。 */
-const afterDashDash = (rest) => {
-  const k = rest.indexOf("--");
-  return k === -1 ? null : rest.slice(k + 1);
-};
-
-/** git が見る場所を変える環境変数（`GIT_DIR=…`・`export GIT_WORK_TREE=…`・`env GIT_INDEX_FILE=… git …`）。 */
-const GIT_PLACE_ENV = /^GIT_(DIR|WORK_TREE|INDEX_FILE|COMMON_DIR|OBJECT_DIRECTORY|NAMESPACE)=/;
 
 /**
- * git が入力の `cwd` と別の場所を見うるか。`git -C`・`--git-dir`・`--work-tree`・`-c core.worktree`/`core.bare`・`--config-env` と、
- * コマンドのどこかにある `cd`・`pushd`・`popd`・`GIT_DIR` ほかの代入。見うるなら変更の有無を `cwd` で確かめても当てにならない（fail open）ので、読めないとして聞く。
+ * 単純な git の形（{ sub, rest }）を、許可リストで分類する。
+ * @returns {{ verdict: "safe" } | { verdict: "unknown-form" } | { verdict: "check", target: object }}
  */
-function pointsElsewhere(command, words, start) {
-  const before = words.slice(0, start);
-  if (before.some((w) => w === "-C" || /^--(git-dir|work-tree|config-env)(=|$)/.test(w) || /^core\.(worktree|bare)(=|$)/i.test(w))) return true;
-  return lex(command).commands.some((c) => c.some((w) => GIT_PLACE_ENV.test(w)) || ["cd", "pushd", "popd"].includes(c.find((w) => !/^[A-Za-z_][A-Za-z0-9_]*=/.test(w))));
-}
-
-/** 1 つの当たりから、確かめる対象を取り出す。消さない形は null。 */
-function targetOf(hit, exists, command) {
-  const { words, start, id } = hit;
-  const rest = words.slice(start + 1);
-  let target = null;
-  if (id === "git-checkout-discard") {
-    const dd = afterDashDash(rest);
-    if (dd !== null) target = dd.length > 0 ? { kind: "paths", paths: dd } : null;
-    else if (beforeDashDash(rest).some((w) => hasShort(w, "f") || isLongOption(w, "--force"))) target = { kind: "all" };
-    else {
-      // `--` の無い `git checkout <x>…`。語が 1 つなら、実在するパスのときだけファイルの取り出し（それ以外は枝の切り替え）。
-      // 2 つ以上は `<枝> <path>` か path の並びなので、並ぶ語をすべて pathspec として確かめる（枝の名前は何にも当たらないだけ）
-      const operands = rest.filter((w) => !w.startsWith("-"));
-      if (operands.length >= 2 || (operands.length === 1 && exists(operands[0]))) target = { kind: "paths", paths: operands };
+function classify({ sub, rest }, exists) {
+  const quiet = (w) => w === "-q" || w === "--quiet";
+  if (sub === "checkout") {
+    const words = rest.filter((w) => !quiet(w));
+    const dd = words.indexOf("--");
+    if (dd !== -1) {
+      const before = words.slice(0, dd);
+      const paths = words.slice(dd + 1);
+      if (before.length > 1 || before.some((w) => w.startsWith("-")) || paths.length === 0) return UNKNOWN_FORM;
+      return { verdict: "check", target: { kind: "paths", paths, scope: "worktree" } };
     }
-  } else if (id === "git-restore-discard") {
-    const opts = beforeDashDash(rest);
-    const staged = opts.some((w) => hasShort(w, "S") || isLongOption(w, "--staged"));
-    const worktree = opts.some((w) => hasShort(w, "W") || isLongOption(w, "--worktree"));
-    if (staged && !worktree) return null;
-    if (opts.some((w) => isLongOption(w, "--pathspec-from-file"))) return withElsewhere({ kind: "all" }, command, words, start);
-    const dd = afterDashDash(rest);
-    let paths = dd;
-    if (paths === null) {
-      paths = [];
-      for (let i = 0; i < rest.length; i += 1) {
-        const w = rest[i];
-        if (w === "-s" || (isLongOption(w, "--source") && !w.includes("="))) i += 1;
-        else if (!w.startsWith("-")) paths.push(w);
-      }
+    if ((words[0] === "-b" || words[0] === "-B") && words.length >= 2 && words.length <= 3 && words.slice(1).every((w) => !w.startsWith("-"))) return SAFE;
+    if (words.length === 1 && (words[0] === "-" || !words[0].startsWith("-"))) {
+      return words[0] !== "-" && exists(words[0]) ? { verdict: "check", target: { kind: "paths", paths: words, scope: "worktree" } } : SAFE;
     }
-    if (paths.length > 0) target = { kind: "paths", paths };
-  } else if (id === "git-stash-discard") {
-    // サブコマンドは先頭の語だけ。先頭が選択肢なら暗黙の push（`git stash -m list` の list は -m の値）
-    if (rest[0] !== undefined && STASH_NON_SAVING.has(rest[0])) return null;
-    const dd = afterDashDash(rest);
-    const untracked = beforeDashDash(rest).some((w) => hasShort(w, "u") || hasShort(w, "a") || isLongOption(w, "--include-untracked") || isLongOption(w, "--all"));
-    target = dd !== null && dd.length > 0 ? { kind: "paths", paths: dd } : { kind: "all", ...(untracked ? { untracked: true } : {}) };
+    return UNKNOWN_FORM;
   }
-  return target === null ? null : withElsewhere(target, command, words, start);
+  if (sub === "restore") {
+    const staged = rest.some((w) => w === "--staged" || w === "-S");
+    const other = rest.filter((w) => w !== "--staged" && w !== "-S" && w !== "--");
+    if (other.length === 0 || other.some((w) => w.startsWith("-") && w !== "--staged" && w !== "-S")) return UNKNOWN_FORM;
+    return staged ? SAFE : { verdict: "check", target: { kind: "paths", paths: other, scope: "worktree" } };
+  }
+  if (sub === "stash") {
+    const [first, ...tail] = rest;
+    if (first === "list" || first === "show") return SAFE;
+    if (first === "pop" || first === "apply") return tail.length === 0 ? SAFE : UNKNOWN_FORM;
+    const body = first === "push" || first === "save" ? tail : rest;
+    let untracked = false;
+    for (let i = 0; i < body.length; i += 1) {
+      const w = body[i];
+      if (w === "-u" || w === "--include-untracked") untracked = true;
+      else if (w === "-m" || w === "--message") i += 1;
+      else if (first === "save" && !w.startsWith("-")) continue; // save <文>
+      else return UNKNOWN_FORM;
+    }
+    return { verdict: "check", target: { kind: "all", scope: "any", ...(untracked ? { untracked: true } : {}) } };
+  }
+  if (sub === "reset") {
+    if (rest.includes("--hard")) {
+      const others = rest.filter((w) => w !== "--hard");
+      return others.length <= 1 && others.every((w) => !w.startsWith("-")) ? { verdict: "check", target: { kind: "all", scope: "any" } } : UNKNOWN_FORM;
+    }
+    return rest.every((w) => !w.startsWith("-") || ["--soft", "--mixed", "-q", "--quiet", "--"].includes(w)) ? SAFE : UNKNOWN_FORM;
+  }
+  if (sub === "clean") {
+    return rest.some((w) => w === "-n" || w === "--dry-run" || hasShort(w, "n")) && !rest.some((w) => w === "-f" || w === "--force") ? SAFE : UNKNOWN_FORM;
+  }
+  if (sub === "switch") {
+    const words = rest;
+    if (words.length === 1 && !words[0].startsWith("-")) return SAFE;
+    if (words[0] === "-c" && words.length >= 2 && words.length <= 3 && words.slice(1).every((w) => !w.startsWith("-"))) return SAFE;
+    return UNKNOWN_FORM;
+  }
+  // 作業ツリーの変更を上書きしない git 組み込みの下位コマンド（別名は組み込みの名前を覆えない）。それ以外（別名・未知）は読めない
+  return NON_DISCARDING_SUBS.has(sub) ? SAFE : UNKNOWN_FORM;
 }
-
-/** 別の場所を指す git（`-C`・`--git-dir`・`--work-tree`）なら印を付ける。 */
-function withElsewhere(target, command, words, start) {
-  return pointsElsewhere(command, words, start) ? { ...target, elsewhere: true } : target;
-}
-
-/**
- * コマンドの文字列から、未コミットの変更を消しうる対象を取り出す。
- * @param {string} command
- * @param {{ exists?: (p: string) => boolean }} [deps] `git checkout <x>` の `<x>` が実在するパスかを返す
- * @returns {({ kind: "all", untracked?: true, elsewhere?: true } | { kind: "paths", paths: string[], elsewhere?: true })[]}
- */
-export function discardTargets(command, { exists = () => false } = {}) {
-  return findCommandsMatching(command, DISCARD_COMMANDS)
-    .map((hit) => targetOf(hit, exists, command))
-    .filter((t) => t !== null);
-}
-
-const describeTarget = (t) => (t.kind === "paths" ? t.paths.join("・") : "作業ツリー全体");
 
 function ask(reason) {
   return { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "ask", permissionDecisionReason: reason } };
 }
 
+const describeTarget = (t) => (t.kind === "paths" ? t.paths.join("・") : "作業ツリー全体");
+
 /**
- * Claude Code の PreToolUse フックの入力から、未コミットの変更を消す操作なら `ask` を返す。当たらなければ null。
+ * Claude Code の PreToolUse フックの入力から、未コミットの変更を消しうる git なら `ask` を返す。当たらなければ null。
  * @param {string} raw
  * @param {{ exists?: (p: string) => boolean, isDirty: (cwd: string, target: object) => Promise<"yes" | "no" | "unknown"> | "yes" | "no" | "unknown", cwd?: string }} deps
  */
@@ -129,25 +137,33 @@ export async function decideDiscardOutput(raw, { exists, isDirty, cwd: defaultCw
   if (input === null || typeof input !== "object" || !SHELL_TOOLS.includes(input.tool_name)) return null;
   const command = input.tool_input?.command;
   if (typeof command !== "string") return null;
+  // 1. 候補（素朴な文字列の走査。入れ子の中も含む）
+  if (!/\bgit\b/.test(command) || !CANDIDATE_SUBS.test(command)) return null;
+  // 2. 読むだけ・記録するだけ（許可リスト）
+  if (isTameCommand(command)) return null;
+  // 3. 確かめてよい単純な形
   const cwd = typeof input.cwd === "string" && input.cwd !== "" ? input.cwd : defaultCwd;
-  const found = discardTargets(command, { exists: exists ?? ((p) => fs.existsSync(path.resolve(cwd, p))) });
-  for (const target of found) {
-    const state = target.elsewhere ? "unknown" : await isDirty(cwd, target);
-    if (state === "no") continue;
-    const why =
-      state === "yes"
-        ? `${describeTarget(target)} に未コミットの変更があります。消える前にコミットするか、退避してください。`
-        : `${describeTarget(target)} に未コミットの変更があるか確かめられませんでした（別の場所を指す・git が答えなかった）。`;
-    return ask(`未コミットの変更を消しうる操作です: ${why}消してよいと人が決めたときだけ承認してください（docs/adr/0037）。`);
+  const simple = simpleGitCommand(command);
+  const result = simple === null ? UNKNOWN_FORM : classify(simple, exists ?? ((p) => fs.existsSync(path.resolve(cwd, p))));
+  if (result.verdict === "safe") return null;
+  if (result.verdict === "unknown-form") {
+    return ask("未コミットの変更を消しうる git かもしれませんが、形が単純でないので（複数のコマンド・入れ子・環境変数や -C/-c・未知の選択肢ほか）確かめられません。消えてよいか人の確認が要ります（docs/adr/0037）。");
   }
-  return null;
+  // 4. 変更を見る。確かめ自体が失敗したら聞く
+  const state = await isDirty(cwd, result.target);
+  if (state === "no") return null;
+  const why =
+    state === "yes"
+      ? `${describeTarget(result.target)} に未コミットの変更があります。消える前にコミットするか、退避してください。`
+      : `${describeTarget(result.target)} に未コミットの変更があるか確かめられませんでした（git が答えなかった）。`;
+  return ask(`未コミットの変更を消しうる操作です: ${why}消してよいと人が決めたときだけ承認してください（docs/adr/0037）。`);
 }
 
 /** git の問い合わせの上限（ミリ秒）。 */
 const GIT_TIMEOUT_MS = 5000;
 
 /**
- * 対象に未コミットの変更があるか。本番の `isDirty`。
+ * 対象に未コミットの変更があるか。本番の `isDirty`。`scope: "worktree"` は作業ツリーの変更（index との差）だけ、`"any"` はステージ済みも。
  * @returns {Promise<"yes" | "no" | "unknown">}
  */
 export function defaultIsDirty(cwd, target, env = {}) {
@@ -155,7 +171,10 @@ export function defaultIsDirty(cwd, target, env = {}) {
   if (target.kind === "paths") args.push("--", ...target.paths);
   return new Promise((resolve) => {
     const child = execFile("git", args, { cwd, timeout: GIT_TIMEOUT_MS, encoding: "utf8", windowsHide: true, env: { ...process.env, ...env } }, (error, stdout, stderr) => {
-      if (!error) return resolve(stdout.trim() === "" ? "no" : "yes");
+      if (!error) {
+        const lines = stdout.split("\n").filter((l) => l !== "");
+        return resolve((target.scope === "worktree" ? lines.filter((l) => l[1] !== " ") : lines).length > 0 ? "yes" : "no");
+      }
       // 作業ツリーでない場所だけが、消すものが無い。ほかの 128（所有者の不一致・壊れた設定）・git が無い・場所が無い・時間切れは、確かめられなかった
       if (!error.killed && error.code === 128 && /not a git repository/i.test(String(stderr))) return resolve("no");
       return resolve("unknown");

@@ -363,6 +363,25 @@ describe("サブエージェントの危ない操作（#578・docs/adr/0037）",
     }
   });
 
+  test("迷う形は聞く: 危ない操作の名前が出るのに宣言で読み切れない形（変数・別名・入れ子）は、サブエージェントでは ask", () => {
+    const askSub = (c) => decideHookOutput(JSON.stringify({ tool_name: "Bash", agent_id: "a1", tool_input: { command: c } }))?.hookSpecificOutput?.permissionDecision;
+    for (const c of [
+      'eval "$(echo git push)"', "git -c alias.p=push p origin", "a=push; git $a origin", "x=$(echo kill); $x 1; kill $PID2",
+      "git checkout -b x -- a.ts", "git reset --merge", "git worktree prune && git worktree remove x", "cat x | xargs -I{} sh -c 'git push {}'",
+      "sh -c \"$CMD && git push\"", "git switch -", "git checkout $BRANCH", "git checkout -- ", "git -C x checkout main", "env GIT_DIR=x git reset --hard",
+    ]) assert.equal(askSub(c), "ask", c);
+  });
+
+  test("迷う形は聞く、ただし読むだけ・記録するだけの語と単純な安全な形は通す（誤検出を避ける）", () => {
+    const askSub = (c) => decideHookOutput(JSON.stringify({ tool_name: "Bash", agent_id: "a1", tool_input: { command: c } }))?.hookSpecificOutput?.permissionDecision ?? null;
+    for (const c of [
+      "git checkout origin/main -- a.test.ts", "git checkout HEAD -- a.ts b.ts", "git checkout -- a.ts", "git commit -m 'fix push'", 'echo "git push"',
+      "grep -rn kill docs", "git commit -m \"$(cat <<'EOF'\nfix: push handling\nEOF\n)\"", "git log --grep=reset", "gh pr create --body 'close the loop, merge it'",
+      "git reset HEAD~1", "git reset --soft HEAD~1", "git worktree add ../x -b fix/reset", "git worktree list", "git status && git diff | head", "git stash list",
+      "sed -n '1,5p' push.md", "find . -name '*kill*'", "git branch -D old-switch",
+    ]) assert.equal(askSub(c), null, c);
+  });
+
   test("decideHookOutput: agent_id があるときだけ聞く。まとめ役（agent_id なし）は止めない", () => {
     const mk = (command, extra = {}) => JSON.stringify({ tool_name: "Bash", tool_input: { command }, ...extra });
     const out = decideHookOutput(mk("git push origin x", { agent_id: "a1", agent_type: "general-purpose" }));
