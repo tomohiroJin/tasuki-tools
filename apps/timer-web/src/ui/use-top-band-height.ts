@@ -21,7 +21,13 @@ import type { RefObject } from "react";
 const VAR = "--top-band-height";
 
 export function useTopBandHeight(ref: RefObject<HTMLElement | null>, enabled: boolean): void {
-  // 覆いの最初の描画に間に合わせる。通常の effect では帯が見出しを一瞬覆う（#574）。
+  // 知らせが休憩開始とは別のコミットで届く場合も、DOM更新ごとに描画前に測る。
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!enabled || el === null) return;
+    document.documentElement.style.setProperty(VAR, `${Math.max(0, el.getBoundingClientRect().bottom)}px`);
+  });
+  // 継続的な位置・サイズの観測は、描き直すたびには張り直さない。
   useLayoutEffect(() => {
     if (!enabled) return;
     const el = ref.current;
@@ -36,7 +42,6 @@ export function useTopBandHeight(ref: RefObject<HTMLElement | null>, enabled: bo
         write();
       });
     };
-    write();
     window.addEventListener("scroll", schedule, { passive: true });
     window.addEventListener("resize", schedule);
     const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(write);

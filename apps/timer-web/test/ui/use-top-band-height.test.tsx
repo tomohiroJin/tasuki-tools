@@ -96,6 +96,24 @@ describe("useTopBandHeight", () => {
     expect(beforePaint).toEqual(["", "200px"]);
   });
 
+  it("休憩中に知らせが別の描画で増えても、その描画前に帯の下端を反映する", () => {
+    // Given
+    const beforePaint: string[] = [];
+    function NoticeProbe({ notice }: { notice: string }) {
+      const ref = useRef<HTMLDivElement>(null);
+      useTopBandHeight(ref, true);
+      useLayoutEffect(() => { beforePaint.push(read()); });
+      return <div ref={ref}>{notice}</div>;
+    }
+    const { rerender } = render(<NoticeProbe notice="" />);
+    // When: ResizeObserverの通知より前に、同じenabledのまま知らせを描く。
+    bottom = 200;
+    rerender(<NoticeProbe notice="長い名前の人が休憩を始めました" />);
+    // Then
+    expect(beforePaint).toEqual(["95px", "200px"]);
+    expect(observers).toHaveLength(1);
+  });
+
   it("帯の下端が変わると --top-band-height が変わる", () => {
     // Given
     render(<Band />);
