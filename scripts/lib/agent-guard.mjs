@@ -123,8 +123,18 @@ export const SUBAGENT_GUARDED_COMMANDS = [
   {
     id: "git-branch-modify", program: "git", args: ["branch"], argOpts: GIT_ARG_OPTS,
     // -d/-D/-m/-M/-f/-c/-C（束ねた短い選択肢・長い選択肢の省略形も）。一覧・作成は読む形・日常の形として通す
-    when: (words, start) =>
-      words.slice(start + 1).some((w) => (/^-[A-Za-z]*[dDmMfcC]/.test(w) && !w.startsWith("--")) || ["--delete", "--move", "--force", "--copy"].some((f) => isLongOption(w, f))),
+    when: (words, start) => {
+      const args = words.slice(start + 1);
+      for (let i = 0; i < args.length; i += 1) {
+        const w = args[i];
+        if (w === "--sort") {
+          i += 1; // 値（`-committerdate` のように - で始まりうる）は選択肢でない
+          continue;
+        }
+        if ((/^-[A-Za-z]*[dDmMfcC]/.test(w) && !w.startsWith("--")) || ["--delete", "--move", "--force", "--copy"].some((f) => isLongOption(w, f))) return true;
+      }
+      return false;
+    },
     why: "枝の削除・改名・付け替えは、まとめ役の枝や他の作業の枝を壊す",
   },
   { id: "npx-kill-port", program: "npx", args: ["kill-port"], why: "ポートを握るプロセスの停止は、利用者の dev サーバーを止めうる" },
@@ -587,17 +597,39 @@ function ghOptionsKnown(words, from, long, short) {
   return true;
 }
 
-/** `gh api` が読む形（既知の選択肢だけ・メソッドは GET のまま）か。 */
+/**
+ * `gh api` が読む形か（許可リスト）: 既知の選択肢だけ・`--input` なし。
+ * - フィールド（`-f`・`-F`・`--field`・`--raw-field`）なし: メソッドは GET のまま（明示するなら GET）
+ * - フィールドあり: `-X GET`／`--method GET` を明示したときだけ（GET ではフィールドは問い合わせの値になる）。
+ *   `gh api graphql` は既定が POST だが、どのフィールドの値にも `mutation` の語が無く、`@ファイル` の値も無いときだけ読む形（query）
+ */
 function isReadOnlyGhApi(words, from) {
-  if (!ghOptionsKnown(words, from, GH_API_LONG, GH_API_SHORT)) return false;
+  const valued = new Set(["-H", "--header", "-q", "--jq", "-t", "--template", "--cache", "--hostname"]);
+  let method = null;
+  let endpoint = null;
+  const fields = [];
   for (let i = from; i < words.length; i += 1) {
     const w = words[i];
+    if (w === "--input" || w.startsWith("--input=")) return false;
     if (w === "-X" || w === "--method") {
-      if ((words[i + 1] ?? "").toUpperCase() !== "GET") return false;
+      method = words[i + 1] ?? "";
       i += 1;
-    } else if (w.startsWith("--method=") && w.slice("--method=".length).toUpperCase() !== "GET") return false;
+    } else if (/^-X./.test(w) || w.startsWith("--method=")) method = w.replace(/^-X|^--method=/, "");
+    else if (w === "-f" || w === "-F" || w === "--field" || w === "--raw-field") {
+      fields.push(words[i + 1] ?? "");
+      i += 1;
+    } else if (/^-[fF]./.test(w) && !w.startsWith("--")) fields.push(w.slice(2));
+    else if (/^--(field|raw-field)=/.test(w)) fields.push(w.slice(w.indexOf("=") + 1));
+    else if (valued.has(w)) i += 1;
+    else if (w.startsWith("--") && valued.has(w.split("=")[0])) continue;
+    else if (w.startsWith("-")) {
+      if (!(GH_API_LONG.includes(w.split("=")[0]) || (w.length === 2 && GH_API_SHORT.includes(w)))) return false;
+    } else if (endpoint === null) endpoint = w;
   }
-  return true;
+  if (method !== null && method.toUpperCase() !== "GET") return false;
+  if (fields.length === 0) return true;
+  if (endpoint === "graphql") return !fields.some((f) => /mutation/i.test(f) || /(^|=)@/.test(f)); // query だけ（メソッド未指定は既定の POST だが、読む形）
+  return method !== null; // GET を明示したときだけ（ここまで来て method があれば GET）
 }
 
 const READ_FLAGS = new Set(["-p", "--patch", "--stat", "--name-only", "--name-status", "--oneline", "--abbrev-commit", "--no-abbrev-commit", "-q", "--quiet", "--no-color", "--color"]);
@@ -749,7 +781,7 @@ export function stripHeredocBodies(src) {
       if (end === -1) return null;
       const body = lines.slice(i + 1, end).join("\n");
       // 本文が危ない操作の名前を含むとき、データとして使われる決まった形（DATA_HEREDOC_LINE）だけ文章として隠す。それ以外は読めないとする（fail closed）
-      if (looksLikeGuardedOperation(body) && !heredocIsData(lines[i], tag, lines.slice(end + 1))) return null;
+      if (looksLikeGuardedOperation(body) && !heredocIsData(lines[i], tag, lines.slice(end + 1), i > 0 && lines[i - 1].endsWith("\\"))) return null;
       i = end; // 本文と終端の行を飛ばす
     }
   }
@@ -773,7 +805,9 @@ const DATA_HEREDOC_LINE = new RegExp(
 /** @param {string[]} after 終端の行より後ろの行 */
 const CAT_HEREDOC_LINE = /^\s*cat\s+>>?\s+[^\s"'$`;&|()<>\\]+\s+<<'([A-Za-z_]+)'$/;
 
-function heredocIsData(line, tag, after) {
+function heredocIsData(line, tag, after, continued = false) {
+  // 前の行が `\` で終わるとき、この行は前の行から続く 1 つのコマンドの一部なので、決まった形として隠さない
+  if (continued) return false;
   const m = DATA_HEREDOC_LINE.exec(line);
   // 終端の次の行は `)"` と空白だけ。その後ろに別のコマンドがあれば隠さない
   if (m !== null && m[1] === tag && after.length > 0 && /^\)"\s*$/.test(after[0]) && after.slice(1).every((l) => l.trim() === "")) return true;
@@ -821,19 +855,50 @@ function hasSubagentCandidate(command) {
  * `fuser`〈-k は宣言〉・`gh pr review` の決めない形・`gh api` の GET の形）か。「迷う形は聞く」の受け皿へ落とさない（再レビュー I-1）。
  */
 function isBenignSubagentWords(words) {
-  let i = 0;
-  while (i < words.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(words[i])) i += 1;
-  const w = words.slice(i);
-  if (w.length === 0 || findSubagentCommands(w.join(" ")).length > 0) return false;
-  const name = path.posix.basename(w[0]);
-  if (name === "git") return w[skipOptions(w, 1, GIT_ARG_OPTS)] === "branch";
+  // 許可リストの形だけ: 先頭の環境変数の代入が 1 つでもあれば通さない（`GIT_SSH_COMMAND=… git branch`）
+  if (words.length === 0 || /^[A-Za-z_][A-Za-z0-9_]*=/.test(words[0])) return false;
+  if (findSubagentCommands(words.join(" ")).length > 0) return false;
+  const name = path.posix.basename(words[0]);
+  if (name === "git") {
+    // 全体の選択肢は `-C <dir>`（作業ツリーの指定）だけ許す。`-c`・`--config-env`・`--exec-path`・`--git-dir` ほかが 1 つでもあれば通さない
+    let at = 1;
+    while (words[at] === "-C" && at + 1 < words.length) at += 2;
+    if (words[at] === undefined || words[at].startsWith("-")) return false;
+    return words[at] === "branch" && isListOrCreateGitBranch(words.slice(at + 1));
+  }
   if (name === "fuser") return true;
   if (name === "gh") {
-    const at = skipOptions(w, 1, GH_ARG_OPTS);
-    if (w[at] === "api") return isReadOnlyGhApi(w, at + 1);
-    if (w[at] === "pr" && w[at + 1] === "review") return isNonDecidingGhReview(w.slice(at + 2));
+    const at = skipOptions(words, 1, GH_ARG_OPTS);
+    if (words[at] === "api") return isReadOnlyGhApi(words, at + 1);
+    if (words[at] === "pr" && words[at + 1] === "review") return isNonDecidingGhReview(words.slice(at + 2));
   }
   return false;
+}
+
+/**
+ * `git branch` の、一覧・現在の枝・作成だけ（許可リスト）: 引数なし／`--list [<pattern>]`・`-l`／`--show-current`／`-a`・`-r`・`-v`・`-vv`／
+ * `--sort=<…>`・`--sort <…>`／`--contains|--merged|--no-merged [<rev>]`／`<name> [<start>]`（作成）。
+ * `-u`・`--set-upstream-to`・`--unset-upstream`・`--edit-description`・ほかの選択肢と、選択肢に続く名前は通さない（上流の付け替えは含まない）。
+ */
+function isListOrCreateGitBranch(args) {
+  let list = false;
+  let flags = 0;
+  const positional = [];
+  for (let i = 0; i < args.length; i += 1) {
+    const w = args[i];
+    if (w === "--list" || w === "-l") list = true;
+    else if (["-a", "-r", "-v", "-vv", "--all", "--remotes", "--verbose", "--show-current", "--no-color", "--color"].includes(w) || /^--(sort|contains|merged|no-merged|points-at|format|color)=\S*$/.test(w)) flags += 1;
+    else if (w === "--sort") {
+      flags += 1;
+      i += 1; // 値は次の語（`-committerdate` のように - で始まりうる）
+    } else if (["--contains", "--merged", "--no-merged"].includes(w)) {
+      flags += 1;
+      if (args[i + 1] !== undefined && !args[i + 1].startsWith("-")) i += 1;
+    } else if (w.startsWith("-")) return false;
+    else positional.push(w);
+  }
+  if (positional.length === 0 || list) return true;
+  return flags === 0 && positional.length <= 2;
 }
 
 /** 「迷う形は聞く」の対象から、上の読む・作る形の単純なコマンドを除いた残り。入れ子（置換・`bash -c`）があれば元のまま（fail closed）。 */

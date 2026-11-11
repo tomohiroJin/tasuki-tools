@@ -66,7 +66,7 @@ function classify({ sub, rest }, exists) {
       const before = words.slice(0, dd);
       const paths = words.slice(dd + 1);
       if (before.length > 1 || before.some((w) => w.startsWith("-")) || paths.length === 0) return UNKNOWN_FORM;
-      return { verdict: "check", target: { kind: "paths", paths, scope: "worktree" } };
+      return { verdict: "check", target: { kind: "paths", paths, scope: "worktree", ...(before.length === 1 ? { withRev: true } : {}) } };
     }
     if ((words[0] === "-b" || words[0] === "-B") && words.length >= 2 && words.length <= 3 && words.slice(1).every((w) => !w.startsWith("-"))) return SAFE;
     if (words.length === 1 && (words[0] === "-" || !words[0].startsWith("-"))) {
@@ -75,10 +75,25 @@ function classify({ sub, rest }, exists) {
     return UNKNOWN_FORM;
   }
   if (sub === "restore") {
-    const staged = rest.some((w) => w === "--staged" || w === "-S");
-    const other = rest.filter((w) => w !== "--staged" && w !== "-S" && w !== "--");
-    if (other.length === 0 || other.some((w) => w.startsWith("-") && w !== "--staged" && w !== "-S")) return UNKNOWN_FORM;
-    return staged ? SAFE : { verdict: "check", target: { kind: "paths", paths: other, scope: "worktree" } };
+    // 許可リスト: --staged/-S・--source <rev>/-s <rev>（`=`・つなげた形も）・`--`・path だけ。ほかの選択肢は聞く
+    let staged = false;
+    let withRev = false;
+    const paths = [];
+    let ended = false;
+    for (let i = 0; i < rest.length; i += 1) {
+      const w = rest[i];
+      if (ended || !w.startsWith("-")) paths.push(w);
+      else if (w === "--") ended = true;
+      else if (w === "--staged" || w === "-S") staged = true;
+      else if (w === "-s" || w === "--source") {
+        withRev = true;
+        i += 1; // 値は次の語
+      } else if (/^--source=./.test(w) || /^-s[^-\s]/.test(w)) withRev = true;
+      else return UNKNOWN_FORM;
+    }
+    if (paths.length === 0) return UNKNOWN_FORM;
+    if (staged) return SAFE;
+    return { verdict: "check", target: { kind: "paths", paths, scope: "worktree", ...(withRev ? { withRev: true } : {}) } };
   }
   if (sub === "stash") {
     const [first, ...tail] = rest;
@@ -158,7 +173,9 @@ export async function decideDiscardOutput(raw, { exists, isDirty, cwd: defaultCw
   const state = await isDirty(cwd, result.target);
   if (state === "no") return null;
   const why =
-    state === "yes"
+    state === "untracked"
+      ? `${describeTarget(result.target)} と同じ名前の追跡外のファイルを上書きします。必要ならコミットか退避してください。`
+      : state === "yes"
       ? `${describeTarget(result.target)} に未コミットの変更があります。消える前にコミットするか、退避してください。`
       : `${describeTarget(result.target)} に未コミットの変更があるか確かめられませんでした（git が答えなかった）。`;
   return ask(`未コミットの変更を消しうる操作です: ${why}消してよいと人が決めたときだけ承認してください（docs/adr/0037）。`);
@@ -169,12 +186,12 @@ const GIT_TIMEOUT_MS = 5000;
 
 /**
  * 対象に未コミットの変更があるか。本番の `isDirty`。`scope: "worktree"` は作業ツリーの変更（index との差）だけ、`"any"` はステージ済みも。
- * @returns {Promise<"yes" | "no" | "unknown">}
+ * @returns {Promise<"yes" | "untracked" | "no" | "unknown">}
  */
 export function defaultIsDirty(cwd, target, env = {}) {
-  // path 指定の checkout/restore は、同じ名前の追跡外のファイル（ignore されないもの）も上書きしうるので、追跡外も見る（PR コメント 2）。
-  // ignore されたファイルを上書きする形は見ない（残余。ADR-0037）
-  const untrackedMode = target.untracked || target.kind === "paths" ? "normal" : "no";
+  // rev つきの checkout/restore（`git checkout <rev> -- <path>`・`git restore --source <rev>`）は、同じ名前の追跡外のファイル（ignore されないもの）も
+  // 上書きしうるので、追跡外も見る。rev の無い形は index から戻すので追跡外に触れない（PR コメント 1）。ignore されたファイルを上書きする形は見ない（残余。ADR-0037）
+  const untrackedMode = target.untracked || target.withRev ? "normal" : "no";
   const args = ["status", "--porcelain", `--untracked-files=${untrackedMode}`];
   if (target.kind === "paths") args.push("--", ...target.paths);
   return new Promise((resolve) => {
@@ -182,7 +199,10 @@ export function defaultIsDirty(cwd, target, env = {}) {
       if (!error) {
         const lines = stdout.split("\n").filter((l) => l !== "");
         // worktree 範囲: 作業ツリー側の変更（` M`・`??` ほか）。index だけの変更（`M `）は数えない
-        return resolve((target.scope === "worktree" ? lines.filter((l) => l[1] !== " " || l.startsWith("??")) : lines).length > 0 ? "yes" : "no");
+        const relevant = target.scope === "worktree" ? lines.filter((l) => l[1] !== " " || l.startsWith("??")) : lines;
+        if (relevant.length === 0) return resolve("no");
+        // 追跡下の変更があれば "yes"、追跡外のファイルだけなら "untracked"（上書きされるのは追跡外のファイル。理由の文を分ける）
+        return resolve(relevant.every((l) => l.startsWith("??")) && !target.untracked ? "untracked" : "yes");
       }
       // 作業ツリーでない場所だけが、消すものが無い。ほかの 128（所有者の不一致・壊れた設定）・git が無い・場所が無い・時間切れは、確かめられなかった
       if (!error.killed && error.code === 128 && /not a git repository/i.test(String(stderr))) return resolve("no");

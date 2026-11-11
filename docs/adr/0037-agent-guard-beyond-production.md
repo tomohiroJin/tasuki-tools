@@ -42,12 +42,13 @@ ADR-0032 の範囲の外にある。
   許可リストの「読むだけ・記録するだけ」（`grep`・`git log`・`git commit -m …`・`gh pr view` ほか。`isTameCommand`）でも
   単純な安全な形（`git checkout [<rev>] -- <path>`・`git reset` の `--soft`/`--mixed`・`git worktree add|list`）でもなければ `ask`
 
-背景の事故の型に合わせ、次も一覧に足した: 枝の削除・改名・付け替え（`git branch -d/-D/-m/-M/-f/-c/-C`。一覧と作成は通す）、プロセスを止める別の道（`npx|bunx|pnpm dlx kill-port`・`fuser -k`・`tmux kill-server|kill-session`）、GitHub への書き込み（`gh api` の GET 以外・フィールド付き、`gh pr review --approve|--request-changes`）。**`git merge`・`git rebase`・`git commit --amend` は足さない**（実装役が自分の枝でふつうに使うので、聞くと日常の作業を止める。他人の枝・main へのそれらは push とマージの歯止めが守る）。
+背景の事故の型に合わせ、次も一覧に足した: 枝の削除・改名・付け替え（`git branch -d/-D/-m/-M/-f/-c/-C`。一覧・現在の枝・作成〈`git branch <名前> [<開始点>]`〉は通す。**上流の付け替え**〈`-u`・`--set-upstream-to`・`--unset-upstream`〉と `--edit-description` は通す形に含めない）、プロセスを止める別の道（`npx|bunx|pnpm dlx kill-port`・`fuser -k`・`tmux kill-server|kill-session`）、GitHub への書き込み（`gh api` の GET 以外・フィールド付き。**ただし** `-X GET`／`--method GET` を明示したフィールド付きの検索と、`gh api graphql` でどのフィールドの値にも `mutation` の語も `@ファイル` も無いもの〈query〉は読む形として通す。`--input`・方法が不明・mutation は聞く、`gh pr review --approve|--request-changes`）。**`git merge`・`git rebase`・`git commit --amend` は足さない**（実装役が自分の枝でふつうに使うので、聞くと日常の作業を止める。他人の枝・main へのそれらは push とマージの歯止めが守る）。
 
 ### 3. 未コミットの変更を消す git は、変更があるときだけ `ask`（許可リスト・fail closed）
 
 `scripts/lib/discard-guard.mjs`。対象は `git checkout -- <path>`・`git restore`・`git stash`・`git reset --hard`・`git clean`・`git switch -f`、`git rm -f`・`git mv -f`・`git checkout-index -f`・`git read-tree --reset/-u`・`git submodule … --force`・`git worktree … -f`（`git help -a` の下位コマンドを洗った。候補の語の一覧は `scripts/lib/agent-guard.mjs` の `OPERATION_WORDS` が唯一の置き場）。`merge`・`pull`・`rebase`・`apply` は変更があると git 自身が拒むので含めない。シェルが展開する pathspec（`{a,b}`・先頭の `~`）は展開前の文字では確かめられないので聞く。
 
+- 許可リストの「おとなしい形」（サブエージェントの受け皿より前で通す形）は、先頭に環境変数の代入が無く、git の全体の選択肢が `-C <dir>` だけの `git branch`（一覧・作成）、`fuser`（`-k` 無し）、`gh pr review` の決めない形、`gh api` の読む形だけ。`cat > <パス> <<'TAG'`（パスは引用符・`$`・区切りを含まない）の本文も文章として扱い、終端の後ろの行は別のコマンドとして判定する。前の行が `\` で終わる行（継続）は決まった形として隠さない
 - ヒアドキュメントの本文は、**データとして使われる形**（消費者が `cat`・`<<` が引用符とコメントの外・終端の語が引用符つきか本文に `$(`・バッククォートが無い。`git commit -m "$(cat <<'EOF' …)"`）だけ文章として隠す。
   `bash <<EOF`・パイプで渡す形・終端の後ろに続く行・引用符の中の `<<` で、本文に危ない操作の名前があれば読めないとして聞く
 - 「読むだけ」の許可リストの `git branch`・`git fetch` は、枝・参照を消す・動かす形（`-d/-D/-f/-m`・`--prune`）を除く
@@ -59,6 +60,7 @@ ADR-0032 の範囲の外にある。
   `checkout`・`restore` は**作業ツリーの未コミットの変更（index との差）だけ**を見る。1 回目で index に載った変更は、2 回目では変更に数えない。
   `stash`・`reset --hard` は index の変更も見る
 - path 指定の `checkout`/`restore` は、同じ名前の追跡外のファイル（ignore されないもの）も変更に数えて聞く。**残余**: `.gitignore` の対象のファイルを上書きする形は聞かない
+- 追跡外のファイルを数えるのは **rev つきの形**（`git checkout <rev> -- <path>`・`git restore --source <rev>`）だけ。rev の無い `checkout -- .`・`restore .` は index から戻すので追跡外に触れない。理由の文は「追跡外のファイルを上書きします」と「未コミットの変更があります」で分ける
 - 残余: ステージ済みだけの変更を `git checkout <rev> -- <path>` が上書きするときは聞かない。
   `docs/guides/procedures/mutations.md` の `git checkout -- <壊したファイル>` は、壊したファイルに未コミットの変更があるので**聞かれる**（意図した破棄なので承認する）。同じ手順書の `kill -KILL -- -<PGID>`・`kill -TERM <PID>` も、サブエージェントが流すと聞かれる（承認する人がいない走り方では変異検査を止められない。止めるのはまとめ役か人）
 

@@ -405,7 +405,7 @@ describe("サブエージェントの危ない操作（#578・docs/adr/0037）",
       // 5 回目: 引用符・コメントの中の << を本文の始まりと拾い、続く行を隠す形（飛ばしたテキストに危ない操作の名前があれば読めない）
       "echo \"<<EOF\"\ngit stash\nEOF", "# <<EOF\ngit checkout -- .\nEOF", "echo '<<EOF'\ngit push origin x\nEOF", "echo \"<<EOF\"\nkill 1\nEOF",
       // gh の短い選択肢の束・未知の選択肢
-      "gh api -XPUT repos/o/r/pulls/3/merge", "gh api -fmerge_method=squash repos/o/r/pulls/3/merge", "gh api -XGET -fx=y repos/o/r", "gh pr view 3 -Ra/b", "gh pr view 3 --unknown-flag", "gh pr list -vS x", "gh issue list --merge-it",
+      "gh api -XPUT repos/o/r/pulls/3/merge", "gh api -fmerge_method=squash repos/o/r/pulls/3/merge", "gh pr view 3 -Ra/b", "gh pr view 3 --unknown-flag", "gh pr list -vS x", "gh issue list --merge-it",
       "sed -n 'w out.txt' f.md", "sed -i s/push/x/ f.md", "sed -f script.sed f.md", "sed 's/push/x/e' f.md", "sed -n '1e git push' f.md", "sed 's/a/b/' f.md", "sed --expression=p f.md",
     ]) assert.equal(isTameCommand(c), false, c);
     // 協力的なエージェントが書く、読む・印字する形は通す
@@ -552,6 +552,39 @@ describe("サブエージェントの危ない操作（#578・docs/adr/0037）",
     for (const c of ["git branch -D x", "git -C ../w branch -f x HEAD", "pnpm test && git branch -D x", "fuser -k 5173/tcp", "gh pr review 583 --approve", "gh api -X DELETE repos/o/r", "a=push; git $a origin x", "eval 'git branch -D x'"]) {
       assert.equal(subOut(c)?.hookSpecificOutput.permissionDecision, "ask", c);
     }
+  });
+
+  test("PR コメント I-1/自動: おとなしい形は許可リストだけ。環境変数の代入・git の -C 以外の全体の選択肢・branch の変更系（-u ほか）は通さない", () => {
+    for (const c of [
+      "git branch feat/new", "git branch --list 'fix-*'", "git branch --sort -committerdate", "git branch --sort=-committerdate", "git branch --show-current && pnpm test",
+      "git -C ../wt branch --show-current", "git branch -a", "git branch -vv", "git branch --contains abc123", "git branch --merged main", "git branch --no-merged", "git branch feat/x origin/main", "git branch",
+      "fuser 5173/tcp",
+    ]) assert.equal(subOut(c), null, c);
+    for (const c of [
+      "git branch -u origin/x", "git branch --set-upstream-to=origin/x", "git branch --unset-upstream", "git branch --edit-description", "git branch -a foo", "git branch a b c",
+      "GIT_SSH_COMMAND=x git branch", "GIT_DIR=/x git branch newbr", "FOO=1 fuser 5173/tcp", "git -c core.sshCommand=x branch", "git --config-env a=B branch", "git --exec-path=/x branch", "git --no-pager branch", "git --git-dir=/x branch",
+      "git -C ../w -c a=b branch",
+    ]) assert.equal(subOut(c)?.hookSpecificOutput.permissionDecision, "ask", c);
+  });
+
+  test("自動レビュー: 行の継続（行末の \\）の次の行に cat > f <<'TAG' を置いても、継続された 1 つのコマンドの heredoc をデータとみなさない", () => {
+    for (const c of ["echo x \\\ncat > f <<'EOF'\ngit push\nEOF", "git commit -m x \\\ncat >> f <<'EOF'\ngit branch -D a\nEOF"]) {
+      assert.equal(isTameCommand(c), false, c);
+      assert.equal(subOut(c)?.hookSpecificOutput.permissionDecision, "ask", c);
+    }
+    assert.equal(subOut("echo x\ncat > f <<'EOF'\ngit branch -a\nEOF"), null);
+  });
+
+  test("PR コメント 2: gh api の GET にはフィールドも付けられる（-X GET 明示）。graphql は query に mutation が無ければ通す。--input・GET 以外・方法が不明・mutation は聞く", () => {
+    for (const c of [
+      "gh api -X GET search/code -f q=foo", "gh api --method GET search/code -F q=foo -f per_page=5", "gh api -XGET repos/o/r/issues -f state=open",
+      "gh api graphql -f query='{ viewer { login } }'", "gh api graphql -F query='query { repository(owner:\"o\", name:\"r\") { id } }' -F owner=o", "gh api graphql --paginate -f query='query($n:Int){ x }'",
+    ]) assert.equal(subOut(c), null, c);
+    for (const c of [
+      "gh api search/code -f q=foo", "gh api repos/o/r/issues -f title=x", "gh api -X POST repos/o/r/issues -f title=x", "gh api -X GET repos/o/r --input body.json", "gh api graphql --input q.json",
+      "gh api graphql -f query='mutation { addStar(input:{starrableId:\"x\"}) { clientMutationId } }'", "gh api graphql -f query='MUTATION{x}'", "gh api graphql -F query=@q.graphql", "gh api -X POST graphql -f query='{ viewer { login } }'",
+      "gh api -X DELETE repos/o/r/issues/1", "gh api -X GET repos/o/r --unknown-flag",
+    ]) assert.equal(subOut(c)?.hookSpecificOutput.permissionDecision, "ask", c);
   });
 
   test("再レビュー M-1: cat > <パス> <<'TAG' の本文は、引用符つきの終端なら文章。終端の後ろの行は別のコマンドとして判定する", () => {

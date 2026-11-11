@@ -28,8 +28,11 @@ describe("確かめてよい単純な形: 変更があれば聞き、無けれ�
   const cases = [
     ["git checkout -- a.ts", { kind: "paths", paths: ["a.ts"], scope: "worktree" }],
     ["git checkout -- a.ts b.ts", { kind: "paths", paths: ["a.ts", "b.ts"], scope: "worktree" }],
-    ["git checkout HEAD -- a.ts", { kind: "paths", paths: ["a.ts"], scope: "worktree" }],
-    ["git checkout origin/main -- a.test.mjs", { kind: "paths", paths: ["a.test.mjs"], scope: "worktree" }],
+    ["git checkout HEAD -- a.ts", { kind: "paths", paths: ["a.ts"], scope: "worktree", withRev: true }],
+    ["git checkout origin/main -- a.test.mjs", { kind: "paths", paths: ["a.test.mjs"], scope: "worktree", withRev: true }],
+    ["git restore --source=HEAD~1 a.ts", { kind: "paths", paths: ["a.ts"], scope: "worktree", withRev: true }],
+    ["git restore -sHEAD~1 a.ts", { kind: "paths", paths: ["a.ts"], scope: "worktree", withRev: true }],
+    ["git restore -s HEAD~1 a.ts", { kind: "paths", paths: ["a.ts"], scope: "worktree", withRev: true }],
     ["git checkout -q -- a.ts", { kind: "paths", paths: ["a.ts"], scope: "worktree" }],
     ["git checkout .", { kind: "paths", paths: ["."], scope: "worktree" }, ["."]],
     ["git restore a.ts", { kind: "paths", paths: ["a.ts"], scope: "worktree" }],
@@ -85,7 +88,7 @@ describe("単純でない形は、変更の有無にかかわらず全部聞く�
     // 3 回の敵対的レビューで出たすり抜けの形
     "git checkout main a.ts", "git checkout a.ts b.ts", "git checkout --force main", "git checkout -f -- a.ts", "git checkout -b x -- a.ts",
     "git restore --pathspec-from-file=list.txt", "git restore --pathspec-from-file list.txt", "git restore -p a.ts", "git restore --patch a.ts",
-    "git restore --stag --work a.ts", "git restore -SW a.ts", "git restore --staged --worktree a.ts", "git restore --source=HEAD~1 a.ts", "git restore -s HEAD~1 a.ts", "git restore -sHEAD~1 a.ts",
+    "git restore --stag --work a.ts", "git restore -SW a.ts", "git restore --staged --worktree a.ts",
     "git stash drop", "git stash clear", "git stash branch x", "git stash --include-untr", "git stash push -- a.ts",
     "git reset --har", "git reset --h", "git reset --merge", "git reset --keep", "git reset --hard HEAD~1 extra", "git clean -fd", "git clean -n -f", "git switch -f main", "git switch --discard-changes main", "git switch -C x",
     "cd ../other && git checkout -- a.ts", "pushd ../other; git restore a.ts", "cd /x; git stash", "git checkout -- a.ts; git stash", "git stash && git stash pop", "git checkout -- a.ts | cat",
@@ -125,6 +128,15 @@ describe("単純でない形は、変更の有無にかかわらず全部聞く�
     for (const c of ["git rm a.ts", "git rm --cached a.ts", "git mv a b", "git checkout-index a", "git worktree remove ../x", "git worktree add ../x", "git worktree list", "git submodule status", "git submodule update --init"]) {
       assert.equal((await decide(c, { dirty: "yes" })).ask, false, c);
     }
+  });
+
+  test("PR コメント 1: 理由の文は「追跡外のファイルを上書きします」と「未コミットの変更があります」で分ける", async () => {
+    const yes = await decide("git checkout HEAD -- a.ts", { dirty: "yes" });
+    assert.match(yes.reason, /未コミットの変更があります/);
+    const un = await decide("git checkout HEAD -- a.ts", { dirty: "untracked" });
+    assert.equal(un.ask, true);
+    assert.match(un.reason, /追跡外のファイルを上書きします/);
+    assert.doesNotMatch(un.reason, /未コミットの変更があります/);
   });
 
   test("理由に「形が単純でない」と書く", async () => {
@@ -200,16 +212,21 @@ describe("defaultIsDirty: 実際の git で", () => {
     assert.equal(await defaultIsDirty(dir, wt(["a.ts"])), "yes");
   });
 
-  test("コメント 2: path 指定は、同じ名前の追跡外のファイル（ignore されない）も変更に数える。ignore されたものは数えない（残余）", async (t) => {
+  test("PR コメント 1: 追跡外のファイルを数えるのは rev つきの形だけ（rev の無い checkout -- ・restore は index から戻すので触れない）。ignore されたものは数えない", async (t) => {
     const dir = repo(t);
     fs.writeFileSync(path.join(dir, ".gitignore"), "ign.ts\n");
     git(dir, "add", ".gitignore");
     git(dir, "commit", "-qm", "ig");
     fs.writeFileSync(path.join(dir, "new.ts"), "x");
     fs.writeFileSync(path.join(dir, "ign.ts"), "x");
-    assert.equal(await defaultIsDirty(dir, wt(["new.ts"])), "yes");
-    assert.equal(await defaultIsDirty(dir, wt(["ign.ts"])), "no");
-    assert.equal(await defaultIsDirty(dir, wt(["a.ts"])), "no");
+    const rev = (paths) => ({ ...wt(paths), withRev: true });
+    assert.equal(await defaultIsDirty(dir, rev(["new.ts"])), "untracked");
+    assert.equal(await defaultIsDirty(dir, wt(["new.ts"])), "no");
+    assert.equal(await defaultIsDirty(dir, wt(["."])), "no");
+    assert.equal(await defaultIsDirty(dir, rev(["ign.ts"])), "no");
+    assert.equal(await defaultIsDirty(dir, rev(["a.ts"])), "no");
+    fs.writeFileSync(path.join(dir, "a.ts"), "2");
+    assert.equal(await defaultIsDirty(dir, rev(["a.ts", "new.ts"])), "yes"); // 追跡下の変更が先
   });
 
   test("追跡していない新規ファイルは、-u の stash だけが対象", async (t) => {
