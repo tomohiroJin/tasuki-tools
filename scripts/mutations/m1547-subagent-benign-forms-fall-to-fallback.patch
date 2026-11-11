@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index 9f13fd51..4bc9f30a 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -842,7 +842,7 @@ function residualForSubagent(command) {
+   if (stripped === null) return command;
+   const { commands, nested } = lex(stripped);
+   if (nested.length > 0) return command;
+-  return commands.filter((words) => !isBenignSubagentWords(words)).map((words) => words.join(" ")).join("\n");
++  return commands.map((words) => words.join(" ")).join("\n");
+ }
+ 
+ /** サブエージェントでも通してよい単純な git の形（ファイルの取り出し・安全な reset・worktree の追加と一覧）。 */

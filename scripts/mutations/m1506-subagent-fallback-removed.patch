@@ -1,12 +1,12 @@
 diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
-index 5977b177..5a27a06b 100644
+index 9f13fd51..78c40ea8 100644
 --- a/scripts/lib/agent-guard.mjs
 +++ b/scripts/lib/agent-guard.mjs
-@@ -857,7 +857,7 @@ export function decideSubagentOutput(raw) {
-     return ask(`サブエージェントからの呼び出しです: ${list}。まとめ役か人が行う操作です。人が任せたときだけ承認してください（docs/adr/0037）。`);
+@@ -938,7 +938,7 @@ export function decideSubagentOutput(raw) {
    }
    // 迷う形は聞く: 危ない操作の名前が文字列にあるのに、宣言に当たらず、読むだけでも単純な安全な形でもない（変数・別名・入れ子ほか）
--  if (hasSubagentCandidate(command) && !isTameCommand(command) && !isSafeSimpleGit(command)) {
+   const rest = residualForSubagent(command);
+-  if (hasSubagentCandidate(rest) && !isTameCommand(rest) && !isSafeSimpleGit(rest)) {
 +  if (false) {
      return ask(`サブエージェントからの呼び出しで、push・マージ・枝の切り替え・reset・worktree・kill に当たるかを読み切れない形です。まとめ役か人が行う操作かもしれないので、人の確認が要ります（docs/adr/0037）。`);
    }

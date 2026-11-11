@@ -1,13 +1,13 @@
 diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
-index aa773605..aae4b6bc 100644
+index 9f13fd51..270afaf3 100644
 --- a/scripts/lib/agent-guard.mjs
 +++ b/scripts/lib/agent-guard.mjs
-@@ -672,7 +672,7 @@ const DATA_HEREDOC_LINE = new RegExp(
+@@ -776,7 +776,7 @@ const CAT_HEREDOC_LINE = /^\s*cat\s+>>?\s+[^\s"'$`;&|()<>\\]+\s+<<'([A-Za-z_]+)'
  function heredocIsData(line, tag, after) {
    const m = DATA_HEREDOC_LINE.exec(line);
    // 終端の次の行は `)"` と空白だけ。その後ろに別のコマンドがあれば隠さない
--  return m !== null && m[1] === tag && after.length > 0 && /^\)"\s*$/.test(after[0]) && after.slice(1).every((l) => l.trim() === "");
-+  return m !== null && m[1] === tag && true;
- }
- 
- /**
+-  if (m !== null && m[1] === tag && after.length > 0 && /^\)"\s*$/.test(after[0]) && after.slice(1).every((l) => l.trim() === "")) return true;
++  if (m !== null && m[1] === tag) return true;
+   // `cat > <パス>`・`cat >> <パス>` に引用符つきの終端だけの行。終端の後ろの行は、別のコマンドとしていつもどおり判定される
+   const c = CAT_HEREDOC_LINE.exec(line);
+   return c !== null && c[1] === tag;

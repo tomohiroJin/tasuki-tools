@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index 9f13fd51..2b2bbacd 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -139,7 +139,7 @@ export const SUBAGENT_GUARDED_COMMANDS = [
+       const sub = words[start];
+       if (sub === undefined) return false;
+       if (sub.startsWith("kill")) return true;
+-      const sendKeys = sub === "send" || (sub.length >= 6 && "send-keys".startsWith(sub));
++      const sendKeys = false;
+       return sendKeys && words.slice(start + 1).some((w) => w === "C-c" || w === "C-\\");
+     },
+     why: "tmux の停止・窓やペインの kill・Ctrl-C の送信は、利用者のセッション（ログ・dev サーバー）を落としうる",
