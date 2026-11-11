@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index fc2e426e..ff907348 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -916,7 +916,7 @@ export function hasUnreadableQuote(command) {
+   // 行の継続（`$\` と改行のあとの引用符）をつなぎ、データとして使う heredoc の本文を取り除いた後の文字列に当てる（本文の `$'…'` は実行されない）。
+   // 取り除けない（データでない）ときは、つないだ文字列のまま見る（fail closed）
+   const joined = command.replace(/\\\r?\n/g, "");
+-  const text = stripHeredocBodies(joined) ?? joined;
++  const text = joined;
+   // 語の先頭（文字列の先頭・空白・区切り・`=`・括弧・引用符の直後）に来る `$'`・`$"` だけが ANSI-C・ロケールの引用。
+   // `grep "main$"` の行末の錨 `$` の直後の閉じる引用符は違う（直前が語の文字）
+   return /(^|[\s;&|()=<>"'`{}])\$['"]/.test(text);

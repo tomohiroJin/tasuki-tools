@@ -1,12 +1,12 @@
 diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
-index 4b34b04d..9b4d1fdb 100644
+index fc2e426e..bf01ca26 100644
 --- a/scripts/lib/agent-guard.mjs
 +++ b/scripts/lib/agent-guard.mjs
-@@ -914,7 +914,7 @@ function isListOrCreateGitBranch(args) {
- /** `lex` が読めない引用（`$'…'`・`$"…"`）を含むか。含めば lex の結果を信じない（引用符の内外が食い違い、`git push` が引用符の中と読まれる）。 */
- export function hasUnreadableQuote(command) {
-   // 行の継続（`$\` と改行のあとの引用符）をつないでから見る
--  return /\$['"]/.test(command.replace(/\\\r?\n/g, ""));
+@@ -919,7 +919,7 @@ export function hasUnreadableQuote(command) {
+   const text = stripHeredocBodies(joined) ?? joined;
+   // 語の先頭（文字列の先頭・空白・区切り・`=`・括弧・引用符の直後）に来る `$'`・`$"` だけが ANSI-C・ロケールの引用。
+   // `grep "main$"` の行末の錨 `$` の直後の閉じる引用符は違う（直前が語の文字）
+-  return /(^|[\s;&|()=<>"'`{}])\$['"]/.test(text);
 +  return false;
  }
  

@@ -8958,4 +8958,20 @@ export const MUTATIONS = [
     tests: ["lib/discard-guard.test.mjs", "lib/agent-guard.test.mjs"],
     note: RESERVED_1500_1569 + " " + "#578 PR #583 の再レビュー。mkdir -p … && cat > … << 'EOF' の本文に操作の名前があると、まとめ役もサブエージェントも「形が単純でない」で毎回聞かれる。",
   },
+  {
+    id: 1560,
+    label: '$\'・$" を語の先頭に限らず、行末の錨 $ の直後の閉じる引用符にも当てる',
+    patch: "m1560-ansi-c-quote-matches-closing-quote.patch",
+    pkg: "scripts",
+    tests: ["lib/agent-guard.test.mjs", "lib/discard-guard.test.mjs"],
+    note: RESERVED_1500_1569 + " " + '#578 PR #583 の再レビュー。grep "main$" ・ grep -E \'reset$\' を含む読むだけのコマンドが、両方の立場で毎回聞かれる。',
+  },
+  {
+    id: 1561,
+    label: "$'…' の検出を、データの heredoc の本文を取り除かずに当てる",
+    patch: "m1561-ansi-c-quote-not-stripped-of-heredoc-body.patch",
+    pkg: "scripts",
+    tests: ["lib/agent-guard.test.mjs", "lib/discard-guard.test.mjs"],
+    note: RESERVED_1500_1569 + " " + '#578 PR #583 の再レビュー。$\'…\' を題に含むコミットメッセージの git commit -m "$(cat <<\'EOF\' …)" が毎回聞かれる。',
+  },
 ];
