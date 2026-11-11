@@ -10,6 +10,14 @@ import { createRoom, joinAsDriver, lobbyRotationRow } from '../support/timer';
 const HOST = 'e2e-a';
 const GUEST = 'e2e-b';
 
+type BreakReadings = { before: string | null; after: string | null };
+type ObservedWindow = Window & { __breakReadings: BreakReadings };
+type NoticeWindow = Window & {
+  __breakNoticeHeld: boolean;
+  __releaseBreakNotice: () => void;
+  __noticeLayout: { bottom: number; reserved: number; headingHit: boolean } | null;
+};
+
 /** ロビーの詳細設定を開き、休憩の条件を「経過時間」にする。 */
 async function chooseElapsedBreak(page: Page): Promise<void> {
   await page.getByText('詳細設定').click();
@@ -58,8 +66,28 @@ test.describe('timer の休憩は全員の画面で時計を止め、元の残�
     await page.getByRole('button', { name: 'セッションを開始' }).click();
 
     // When: 休憩する
-    const before = await page.getByRole('timer').getAttribute('aria-label');
-    await page.getByRole('button', { name: /休憩する/ }).click();
+    await expect(page.getByRole('timer')).toBeVisible();
+    const startBreak = page.getByRole('button', { name: /休憩する/ });
+    // 操作直前と、再開の最初の描画をブラウザ内で採る。Playwright の往復や
+    // 両画面の確認に掛かった時間を、休憩中に消費した時間として数えない（#574）。
+    await startBreak.evaluate((button) => {
+      const readings: BreakReadings = { before: null, after: null };
+      (window as unknown as ObservedWindow).__breakReadings = readings;
+      button.addEventListener('click', () => {
+        readings.before = document.querySelector('[role="timer"]')?.getAttribute('aria-label') ?? null;
+        let hidden = false;
+        const observer = new MutationObserver(() => {
+          const timer = document.querySelector('[role="timer"]');
+          if (timer === null) hidden = true;
+          else if (hidden) {
+            readings.after = timer.getAttribute('aria-label');
+            observer.disconnect();
+          }
+        });
+        observer.observe(document.body, { childList: true, subtree: true, attributes: true });
+      }, { once: true, capture: true });
+    });
+    await startBreak.click();
 
     // Then その1: 両方の画面が覆われ、覆いの下に残り時間が描かれていない
     for (const [label, target] of screens(page, guest.page)) {
@@ -67,17 +95,17 @@ test.describe('timer の休憩は全員の画面で時計を止め、元の残�
       await expect(target.getByRole('timer'), `${label}の画面に残り時間が残っている`).toHaveCount(0);
     }
 
-    // Then その2: 3 秒待って、休憩を終える。残りは休憩に入る前と一致する。
+    // Then その2: 秒境界に揃わない3.5秒の休憩を終えても、元の残りから再開する。
     // `waitForTimeout` を使うのは待ちの代わりではなく、**休憩中に時間が経っても残りが減らない**
     // ことを見るため（時間が経たないと、止まっていなくても緑になる）
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(3500);
     await guest.page.getByRole('button', { name: '休憩を終える' }).click();
     for (const [label, target] of screens(page, guest.page)) {
       await expect(target.getByRole('dialog', { name: '休憩中' }), `${label}の画面`).toHaveCount(0);
       await expect(target.getByRole('timer'), `${label}の画面`).toBeVisible();
     }
-    const after = await page.getByRole('timer').getAttribute('aria-label');
-    // -1 は「減っていない」の意味（休憩に入る前と終えた後の描画の差 1 秒まで）。
+    const { before, after } = await page.evaluate(() => (window as unknown as ObservedWindow).__breakReadings);
+    // 元の下限は変えない。クリック時と再開の最初の描画の秒の境目は 1 秒まで。
     // 止まっていなければ 3 秒以上減るので、この判定は赤になる
     expect(secondsOf(after) - secondsOf(before)).toBeGreaterThanOrEqual(-1);
   });
@@ -210,6 +238,42 @@ test.describe('timer の休憩は全員の画面で時計を止め、元の残�
       const code = await createRoom(page, hostName);
       const guest = await openPeer('timer-guest');
       await guest.page.setViewportSize({ width: 320, height: 568 });
+      // 実サーバーの知らせだけを保留し、休憩のsnapshotとは別のコミットで届ける。
+      // 接続そのものは差し替えず、ほかのフレームはそのままアプリへ渡す。
+      await guest.page.addInitScript(() => {
+        const observed = window as unknown as NoticeWindow;
+        let held: { socket: WebSocket; data: string } | null = null;
+        let releasing = false;
+        Object.assign(observed, {
+          __breakNoticeHeld: false,
+          __noticeLayout: null,
+          __releaseBreakNotice: () => {
+            if (held === null) throw new Error('休憩の知らせが保留されていない');
+            releasing = true;
+            held.socket.dispatchEvent(new MessageEvent('message', { data: held.data }));
+            releasing = false;
+            held = null;
+            observed.__breakNoticeHeld = false;
+          },
+        });
+        const Original = window.WebSocket;
+        window.WebSocket = class extends Original {
+          constructor(url: string | URL, protocols?: string | string[]) {
+            super(url, protocols);
+            this.addEventListener('message', (event: MessageEvent) => {
+              if (releasing || typeof event.data !== 'string') return;
+              let frame: unknown;
+              try { frame = JSON.parse(event.data); } catch { return; }
+              if (typeof frame !== 'object' || frame === null) return;
+              const notice = frame as { type?: unknown; signal?: unknown; action?: unknown };
+              if (notice.type !== 'signal' || notice.signal !== 'notice' || notice.action !== 'break-started') return;
+              held = { socket: this, data: event.data };
+              observed.__breakNoticeHeld = true;
+              event.stopImmediatePropagation();
+            });
+          }
+        };
+      });
       await joinAsDriver(guest.page, code, GUEST);
       await expect(lobbyRotationRow(page, GUEST, 2)).toHaveCount(1);
       await chooseElapsedBreak(page);
@@ -222,7 +286,31 @@ test.describe('timer の休憩は全員の画面で時計を止め、元の残�
       // Then
       const dialog = guest.page.getByRole('dialog', { name: '休憩中' });
       await expect(dialog).toBeVisible();
+      await guest.page.waitForFunction(() => (window as unknown as NoticeWindow).__breakNoticeHeld);
+      await expect(guest.page.locator('.app-banner')).toHaveCount(0);
+      await guest.page.evaluate(() => {
+        const observed = window as unknown as NoticeWindow;
+        const observer = new MutationObserver(() => {
+          const banner = document.querySelector('.app-banner');
+          if (!banner?.textContent?.includes('休憩を始めました')) return;
+          const heading = document.querySelector('#break-overlay-heading')!;
+          const r = heading.getBoundingClientRect();
+          const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+          observed.__noticeLayout = {
+            bottom: document.querySelector('.app-top')!.getBoundingClientRect().bottom,
+            reserved: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--top-band-height')),
+            headingHit: hit !== null && heading.contains(hit),
+          };
+          observer.disconnect();
+        });
+        observer.observe(document.body, { subtree: true, childList: true, characterData: true });
+        observed.__releaseBreakNotice();
+      });
       await expect(guest.page.locator('.app-banner').filter({ hasText: '休憩を始めました' })).toBeVisible();
+      const firstNotice = await guest.page.evaluate(() => (window as unknown as NoticeWindow).__noticeLayout);
+      expect(firstNotice, '知らせの最初のDOM更新を採れていない').not.toBeNull();
+      expect(firstNotice!.reserved, '別コミットの知らせの高さが描画前に反映されていない').toBeGreaterThanOrEqual(firstNotice!.bottom);
+      expect(firstNotice!.headingHit, '知らせの最初のDOM更新で見出しが隠れている').toBe(true);
       // 見出しは覆いが開いたときの位置で測る（初期フォーカスが置かれる所）
       const measure = (selector: string) =>
         guest.page.evaluate((sel) => {

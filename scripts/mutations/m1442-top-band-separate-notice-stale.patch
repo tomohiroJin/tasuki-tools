@@ -1,0 +1,11 @@
+--- a/apps/timer-web/src/ui/use-top-band-height.ts
++++ b/apps/timer-web/src/ui/use-top-band-height.ts
+@@ -26,7 +26,7 @@
+     const el = ref.current;
+     if (!enabled || el === null) return;
+     document.documentElement.style.setProperty(VAR, `${Math.max(0, el.getBoundingClientRect().bottom)}px`);
+-  });
++  }, [ref, enabled]);
+   // 継続的な位置・サイズの観測は、描き直すたびには張り直さない。
+   useLayoutEffect(() => {
+     if (!enabled) return;
