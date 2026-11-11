@@ -8590,4 +8590,20 @@ export const MUTATIONS = [
     tests: ["codex-guard-hook.test.mjs"],
     note: RESERVED_1480_1499 + " " + "#584 の再レビュー（3 回目のコメント）1。いまの版で入口だけが欠けた（git mv・作業ツリーから消した・ディレクトリや壊れた symlink）とき、本番デプロイが黙って通る（fail open）。",
   },
+  {
+    id: 1494,
+    label: "audit-codex-guard の main が、必須ファイルが作業ツリーに在るかを見ない（常に在るとみなす）",
+    patch: "m1494-audit-codex-guard-ignores-worktree.patch",
+    pkg: "scripts",
+    tests: ["wiring-audit-codex-guard.test.mjs"],
+    note: RESERVED_1480_1499 + " " + "#584 の再レビュー 2 回目の 1。入口を作業ツリーから消しても検査が緑のまま（純粋関数のテストだけでは main の配線を覆えない）。",
+  },
+  {
+    id: 1495,
+    label: "Codex のフックのコマンドで、.codex/hooks.json が壊れた symlink のときの分岐（[ -L ]）を外す",
+    patch: "m1495-codex-hooks-broken-symlink-hooks-allows.patch",
+    pkg: "scripts",
+    tests: ["codex-guard-hook.test.mjs"],
+    note: RESERVED_1480_1499 + " " + "#584 の再レビュー 2 回目の 2。hooks.json が壊れた symlink で入口も無いとき、本番デプロイが通る。",
+  },
 ];
