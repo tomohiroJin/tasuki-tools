@@ -199,6 +199,8 @@ pnpm update <pkg>  # 宣言済み semver 範囲内で更新
   却下（Dismiss）しないでください**（却下すると、直る版が出ても知らせが来ません）
 - **直る版が出ても取り込まないと判断した**（開発時だけの依存で配布されない・脆弱な関数を使っていない など）:
   アラートを却下し、**経路・配布されるか・判断の理由をコメントに書きます**
+- **直ったと言う前に**: lockfile は同じパッケージの複数の版を持てる。修正版が入っただけでは直ったと言わない。
+  旧版が lockfile に 0 件（`pnpm why <パッケージ>@<旧版>` が空）で、`pnpm audit` から勧告が消え、alert の state が fixed になってから言う
 
 Dependabot security updates（Dependabot が修正の PR を立てる機能）は使いません。修正の提案は
 Renovate に一本化しています。
@@ -207,6 +209,9 @@ Renovate に一本化しています。
 
 7 日未満の版をどうしても取り込む必要がある場合のみ、対象パッケージだけを
 `minimumReleaseAgeExclude` で除外します。
+
+**期限のある例外は、専用の ISSUE を立て、タイトルに解除日を書きます。** 先に閉じる ISSUE へ預けない（解除が忘れられる）。
+設定の側にも `# 解除予定: <日付>` を書きます（下の例）。この日付を読んで落とす検査は、今は無い。
 
 ```yaml
 # pnpm-workspace.yaml
@@ -518,6 +523,12 @@ pnpm install --frozen-lockfile
 zsh が exit 1 で何も消さず、bash では同じ行が全部消しました。同じ理由で
 [検査系](#検査系)のコマンドも `bash -c` で包んでいます。
 
+**zsh で書くときの注意は、グロブのほかに 3 つあります。**
+
+- ループ変数に `path` を使わない。zsh の `path` は `PATH` と連動していて、代入すると `PATH` が壊れる
+- 未クォートの変数展開は、bash と違って単語に分割されない。複数のパスを 1 つの変数に入れて渡すと、1 つのパスとして扱われる（「変更なし」に見える偽の緑になる）
+- `$H:e2e/…` の `:e` は修飾子として読まれる。`${H}:e2e/…` と書く。空文字どうしの比較で判定しない（両辺が非空かを先に見る）
+
 **捨てる範囲で答えが変わることは実測で確認しています**（2026-08-29・
 pnpm 11.5.0 / Node v22.23.2。リポジトリの複製と pnpm のキャッシュを隔離した環境で、
 捨てる範囲だけを変えて実行）。`postcss` は `overrides` を置いていないパッケージですが、
@@ -737,6 +748,10 @@ major は Dependency Dashboard の Issue に提示。決定は ADR 0008）。脆
 - **Renovate の有効化にはリポジトリ管理者による GitHub App の許可が別途必要です。**
   `renovate.json` をコミットするだけでは動きません。脆弱性の PR は、加えて GitHub の
   Dependabot alerts が有効であることを要します（Renovate はそこから勧告を読みます）
+- **Renovate の設定は手元で検査できます。** `npx --package renovate@<公開から 7 日以上たった版> -- renovate-config-validator --strict`
+  （待機期間より新しい版を手元で動かさない）
+- **`audit-supply-chain-config` を手元で確かめるときは、環境変数を外します**（`env -u pnpm_config_hoist_workspace_packages node scripts/audit-supply-chain-config.mjs`）。
+  設定ファイルの値でなく、環境変数が効いた結果を見てしまうためです
 
 ## テスト
 
@@ -777,6 +792,26 @@ pnpm turbo test --force      # キャッシュを無効にして実際に走ら�
 `Running test in N packages` の行を読んでください。
 
 所要時間は実行環境で桁が変わります。実測値は下の[効果](#効果)を参照してください。
+
+### テストを書くときの注意
+
+- **グローバルの差し替えは、戻る経路を確かめる。** `vi.stubGlobal` は `vi.unstubAllGlobals()` で戻るが、
+  `Object.defineProperty(document, …)` で入れた値は戻らず、後続のテストへ漏れる（偽の緑になる）。
+  記述子を `Object.getOwnPropertyDescriptor` で控えて `afterEach` で戻す（例: `apps/poker-web/tests/room-page-back.test.tsx` の `restoreExecCommand`）
+- **時間の上限を持つテストは、線形の実装と、遅くなった実装（O(N²) など）の両方を実測してから上限を置く。** 入力を倍にして差を開ける。
+  CI は手元より 10 倍以上遅いことがあり、手元で緑でも CI の既定の時間切れに掛かる。**timeout は延ばさない。**
+  網羅（全角度×全席のような組）は、描き方を純粋関数へ切り出してその上で回し、DOM は代表の局面だけにする。減らした後も、関係する変異が赤のままか確かめる
+- **ブラウザで作りにくい状態**（時間に依存する・サーバー側の状態）は、最小の WebSocket クライアントで確定的に作り、サーバーを実際に起動する試験（`apps/tasuki-sync/test/support/` のヘルパ）で受ける
+- **ヘルパを作る前に、既存を探す。** `grep -rn "export function" apps/tasuki-sync/test/support/` のように、置き場を引いてから作る（同名のものを作り直して多数のテストを壊した例がある）
+- **アプリに関わる検証は、Playwright の `e2e` タスク（`cache: false`）へ置く。** `@tasuki/e2e#test`（`e2e/` の単体テスト）は `turbo.json` で `inputs` を宣言しておらず、既定でパッケージ（`e2e/`）の中だけを見るので、`apps/` の変更ではキャッシュが外れず、偽の緑になる。
+  ユニットテストから、引数なしの `turbo run build` を呼ばない
+- **`// Given / When` を 1 行に書くと、When と数えられない。** ADR 0006 が許す 1 行の形は `// When / Then（理由）` だけ。区切りは行を分ける
+- **bun test の癖**（Bun 1.3.14 での実測。いまの版は `toolchain.json`。版が変わったら測り直す）:
+  fake timer は一部だけを選べず全部が偽になる。偽の間は `setImmediate` と `Bun.sleep` が止まるので、実 I/O の完了を待つ試験と両立しない。
+  非 TTY では `(pass)` の行が出ないので、grep で件数を数えると 0 件になる。
+  `Bun.serve` の `server.stop()` の Promise は、サーバー側から閉じた接続が 1 つでもあると解決しないので待たない（`server.stop(true)` は同期的に効く）。
+  bind の失敗（EADDRINUSE）は `Bun.serve` が同期的に throw する。`maxPayloadLength` の既定は 16MB（`ws` は 100MB）。`ws` の `pause()` と `autoPong: false` は効かない。
+  WS の防御（Origin・半開き接続）を試すなら、通常のクライアントでは作れないので、ハンドシェイクを手で行う生の TCP クライアントを使う
 
 ### 9p 越しで実行するときは依存の実体を逃がす（任意）
 
@@ -845,6 +880,8 @@ find node_modules -type f | wc -l       # 桁違いに減っていれば実体�
    同じ逃がし先を 2 つのチェックアウトで共有すると、後から `pnpm install` した側の
    内容で上書きされます。依存が同一のうちは動きますが（実測）、
    ブランチ間で依存が食い違うと壊れます。
+   作業ツリー（`git worktree`）で逃がせているかは、`node_modules/.modules.yaml` の `virtualStoreDir` が逃がし先を指しているかで確かめます。
+   9p かどうかは、置き場そのものに対して `stat -f` で見ます（マウント点は `/workspaces` の 1 階層下にあることがある）。
 
 #### 効果
 
@@ -870,6 +907,15 @@ find node_modules -type f | wc -l       # 桁違いに減っていれば実体�
 コンテナのファイルシステムと CI は区別します。**つまり import の綴りが実ファイルと
 大小で食い違っていても 9p 上では緑になり、CI で落ちます。**
 9p 上の緑は CI の緑を保証しません。
+
+### 9p 上でディレクトリを移さない・消さない
+
+9p 上では、ディレクトリの移動（`git mv <dir>`）の直後に、移動先が一時的に存在しないように見える（statx が ENOENT を返す）ことがあります。
+その状態で `rm -rf <親のディレクトリ>` を実行すると、別の場所のファイルまで巻き込んで消えた例があります。
+
+- ディレクトリを移す大きな構造変更は、コンテナ側のファイルシステムにクローンして行い、枝を push して、作業コピーへは `git fetch` と `checkout` で取り込む
+- `/workspaces` 配下のリポジトリの中で、`node_modules` 以外に `rm -rf <ディレクトリ>` を使わない。退避が必要なら、トップレベルの `mv` にする
+- 壊れても、コミット済みなら `git reset --hard` で戻せる。慌てて追加の削除をしない
 
 ## E2E
 
@@ -1151,6 +1197,15 @@ stdout / stderr がパイプ（CI・子プロセスとして呼ぶテスト）�
 `uncaughtException` のハンドラだけは、`scripts/lib/exit-after-flush.mjs` の `exitAfterFlush`（書き出しが終わるのを待ってから
 `exit`）で終わります。この関数だけが `EXIT_ALLOWED` に載っています。
 
+**`scripts/audit-*.mjs` と名付けると、名前だけで `scripts/scan-target-wiring.test.mjs` の対象になり、「走査対象: 」の出力と、`ci.yml` から呼ばれていることが求められます。**
+重い処理や、検査でないものは `audit-` で始めません。起動が重くて外すものは、`scripts/entry-point-wiring.test.mjs` の `LAUNCH_EXCLUSIONS` に理由つきで載せます。
+
+**子プロセスを使って依存の解決を確かめる検査は、環境変数を絞ります。** vitest のワーカーは `NODE_PATH` を積んでいて、
+そのまま継承すると、`package.json` に宣言が無くても解決できてしまいます。素の Node の解決規則だけで見る形
+（`env -i PATH=$PATH node …`）にします。`pnpm test` が緑でも、依存の宣言が足りている証拠にはなりません（ランナーを経由しない経路で初めて落ちる）。
+
+**`*.md` を見る検査は、`ci.yml` の `docs` ジョブへ置きます。** `quality` は `*.md` 以外の変更が無いと走りません（`docs/adr/0009`）。
+
 ### 新しいパッケージを足すと検査が赤くなる
 
 構造監査（`scripts/audit-structure.mjs`）とログ衛生（`scripts/audit-log-hygiene.mjs`）は、
@@ -1198,6 +1253,10 @@ workspace の実体（`pnpm -r list --depth -1 --json`）と全単射で照合�
 （Issue #158。決定の根拠は [`docs/adr/0014`](../adr/0014-scan-target-integrity.md) 決定 1・
 決定 9）。
 
+**ディレクトリ（cwd）を変えたら、`.env` を置いて全テストを流します。** 作業ディレクトリが変わると、テストのプロセスに `.env` が流れ込みます
+（Bun はテストランナーも `.env` を読みます）。塞ぎ方は 2 経路あります（`--env-file` による明示と、継承する環境変数）。
+`apps/tasuki-sync/test/poker/helpers.ts` が両方を塞いでいます。移設後は、濃い値の `.env` を置いた状態で流して確かめます。
+
 **ドメインエラー型を改名・削除しても検査が赤くなります。**
 `scripts/audit-domain-error-shape.mjs` は core のドメインエラー型を
 `DOMAIN_ERROR_TARGETS` として**ファイル名と型名で宣言**し、宣言した型宣言が実在するか
@@ -1234,6 +1293,8 @@ SC-039 の参照元からも静かに外れるためです（外れても走査�
 検査の素朴さと引き換えになるためです。型の妥当性はレビューが見ます。
 判定は `index.ts` の書き方だけで行うので、`export type { … }` かインラインの `type` を
 書き忘れた型は値として数えられます（過剰報告＝赤へ倒れます）。
+**値を `index.ts` から落とす前に、その値が残す型の位置（`typeof X`）に現れないかを見ます。**
+値を落としても、型が `typeof X` でその値を指していると、型が壊れます（値として数える検査は、型の位置の参照を見ません）。
 
 **サブパスから取り込まれている値は、`index.ts` に載せません。**
 `@tasuki/timer-core/aggregate` のようなモジュール単位の入口は `index.ts` を通らないため、
@@ -1385,6 +1446,13 @@ GitHub Actions 自体を解釈するものではなく、CI 固有の条件の�
 
 (a) ではジョブが常に `success` を報告するので、この事故が原理的に起きません。
 決定の記録は [`docs/adr/0009`](../adr/0009-ci-scope-and-checks.md) の D4 にあります。
+
+### CI の結果を読むとき
+
+- 結果は枝の名前でなく、**コミットの headSha** から引く。古いコミットの赤を、新しい赤と読まない
+- ジョブの内訳は `gh run view --job <id> --log` の行頭の時刻から出せる
+- `gh run view` が成功を示していても、ジョブが待機のままのことがある。マージの前に、そのコミットの check-runs が全部 completed かを API で見る
+- 手元の `pnpm test` の緑は CI の緑ではない。全件は `pnpm check:full` で流す
 
 ## 関連
 
