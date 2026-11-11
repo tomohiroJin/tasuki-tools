@@ -181,14 +181,18 @@ Codex への接続（本番デプロイの歯止め・入口の検査の拡張�
 
 (a) を含む行のうち、効果が大きいと棚卸しで挙げたもの。実装は PR 2 で選ぶ。
 
-- PR 本文・コミット本文の閉鎖キーワードの検査（`gh pr create` 直前のフックに足す）
-- 9p 上のディレクトリ移動・削除、作業ツリーを巻き戻す git 操作の歯止め
-- 期限つき例外の期限超過を落とす検査
-- PR の未返信コメントの知らせ（`check:fast` の最初と最後の知らせ）
-- 計画の見積もり節を plan-gate で求める
-- 合否の無い指標の基準値との比較
-- `pnpm --filter <名前>` の名前が workspace に無いときに止める（偽の緑を防ぐ。tasuki-issue91-shared-topic.md が元）
-- detached HEAD の知らせ、未 push・マージ済み PR への push の知らせ（AGENTS.md「作業の終わりに」の確かめは文章で、機械化できる）
+括弧の中は元のメモリ。
+
+- PR 本文・コミット本文の閉鎖キーワードの検査（`gh pr create` 直前のフックに足す）（closes-keyword-must-not-be-in-backticks）
+- 9p 上のディレクトリ移動・削除の歯止め（9p-mount-breaks-directory-moves）
+- 作業ツリーを巻き戻す git 操作の歯止め（verify-the-break-itself・tasuki-issue135・142・157・247・248 の破壊検証の事故）
+- サブエージェントのマージ・巻き戻し・プロセスの停止の歯止め（subagents-must-not-merge・subagents-must-not-touch-processes-or-branches・tasuki-parallel-two-issues-run）
+- 期限つき例外の期限超過を落とす検査（dated-obligations-need-their-own-home）
+- PR の未返信コメントの知らせ（`check:fast` の最初と最後の知らせ）（check-pr-comments-after-push）
+- 計画の見積もり節を plan-gate で求める（estimate-verification-time-in-plans）
+- 合否の無い指標の基準値との比較（metrics-without-a-verdict-need-a-baseline）
+- `pnpm --filter <名前>` の名前が workspace に無いときに止める（偽の緑を防ぐ）（tasuki-issue91-shared-topic）
+- detached HEAD の知らせ、未 push・マージ済み PR への push の知らせ（code-review-targets-the-current-branch・push-before-announcing-done）
 
 ## 機械化しないもの
 
