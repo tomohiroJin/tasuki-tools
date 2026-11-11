@@ -10,7 +10,9 @@
  * （ask が使えず、deny にすると日常の作業を止めるため。docs/adr/0032 の追記）。
  *
  * 常に exit 0 で終わる（止めるのは標準出力の JSON。exit 2 でも止まるが、理由を返せる JSON に揃える）。
- * この入口を起動できない場合は、`.codex/hooks.json` のコマンドの `||` の後ろが `scripts/lib/codex-guard.mjs` の `LAUNCH_FAILURE_OUTPUT` を返す。
+ * この入口の前後は `.codex/hooks.json` のコマンド（`scripts/lib/codex-guard.mjs` の `CODEX_HOOK_COMMAND`）が受け持つ:
+ * Git のルートが引けなければ `ROOT_FAILURE_OUTPUT`（deny）、入口が通常のファイルとして無いときは `.codex/hooks.json` が在れば
+ * `ENTRY_MISSING_OUTPUT`（deny）・無ければ何も出さない（歯止めの無い版）、入口が起動に失敗したら `LAUNCH_FAILURE_OUTPUT`（deny）。
  */
 import fs from "node:fs";
 import { isDirectRun } from "./lib/direct-run.mjs";
