@@ -776,6 +776,9 @@ export function stripHeredocBodies(src) {
   const operator = /<<(?!<)(-?)\s*(?:'([^']+)'|"([^"]+)"|([A-Za-z_][\w-]*))/g;
   for (let i = 0; i < lines.length; i += 1) {
     const tags = [...lines[i].matchAll(operator)];
+    // 演算子の行が `\` で終わる、または前の行の継続の続きのとき、bash は継続されたコマンドが終わってから本文を始める。
+    // 行の分け方が食い違い、本文でない部分を取り除いてしまうので、取り除かない（fail closed。本文の語の有無に依らない）
+    if (tags.length > 0 && (lines[i].endsWith("\\") || (i > 0 && lines[i - 1].endsWith("\\")))) return null;
     // 演算子そのものも取り除く（取り除いた後の文字列を読み直しても、終端の行を探さなくてよい）
     out.push(lines[i].replace(operator, ""));
     for (const m of tags) {

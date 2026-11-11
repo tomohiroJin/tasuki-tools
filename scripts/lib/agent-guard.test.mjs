@@ -18,6 +18,7 @@ import {
   decideSubagentOutput,
   isTameCommand,
   hasUnreadableQuote,
+  stripHeredocBodies,
   mentionsSubagentOperation,
   mentionsDiscardOperation,
   mentionsGuardedOperation,
@@ -685,6 +686,20 @@ describe("サブエージェントの危ない操作（#578・docs/adr/0037）",
     assert.equal(isTameCommand(withAnsi), true);
     assert.equal(hasUnreadableQuote(withAnsi), false);
     assert.equal(hasUnreadableQuote("bash <<'EOF'\necho $'x'\ngit push\nEOF"), true); // データでない本文は取り除かない
+    // heredoc の演算子の行が `\` で終わる・前の行の継続の続きのときは、bash の本文の始まりと行の分け方が食い違うので、本文を取り除かない（null）
+    const cont = [
+      "cat <<'EOF' \\\n; echo $'a'\nEOF\nrm x", "echo x \\\ncat <<'EOF'\nfoo $'a'\nEOF", "cat > f <<'EOF' \\\n; echo $'a'\nEOF",
+      "git commit -m \"$(cat <<'EOF' \\\n; echo $'a'\nEOF\n)\"",
+    ];
+    for (const c of cont) {
+      assert.equal(stripHeredocBodies(c), null, c);
+      assert.equal(hasUnreadableQuote(c), true, c);
+      assert.equal(isTameCommand(c), false, c);
+    }
+    // 継続の無い普通の形は今までどおり本文を取り除く
+    assert.notEqual(stripHeredocBodies("cat > f <<'EOF'\nfoo\nEOF"), null);
+    // 取り除かない道（residual は元の文字列）でも、サブエージェントの操作の名前があれば聞く
+    assert.equal(subOut("echo x \\\ncat <<'EOF'\nfoo\nEOF\ngit push origin x")?.hookSpecificOutput.permissionDecision, "ask");
   });
 
   test("再レビュー: mkdir -p … && cat > … << 'EOF'（本文に操作の名前）はサブエージェントでも通る。mkdir の後ろの git push は聞く", () => {
