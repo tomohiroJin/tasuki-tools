@@ -1,3 +1,8 @@
+/**
+ * 脅威の範囲（docs/adr/0037）: この歯止めは**協力的なエージェントの事故を止めるもの**で、悪意への境界ではない
+ * （docs/adr/0032 の限界と同じ。最後の壁は資格情報がエージェントの環境に無いこと）。誤って聞くのは許容し、協力的なエージェントが
+ * 実際に書きうる形で誤って通すのを無くす。意図的な回避（sed の e・w コマンド、git の --upload-pack や -c で別のプログラムを走らせる形）は範囲外。
+ */
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -92,6 +97,9 @@ describe("単純でない形は、変更の有無にかかわらず全部聞く�
     "find . -exec git checkout -- {} ;", "xargs git checkout --", "echo $(git stash)", "echo `git restore a.ts`", "git stash $(echo)", "git checkout -- $F",
     "watch git stash", "nohup git stash", "timeout 5 git stash", "sh <<EOF\ngit stash\nEOF",
     "git checkout -- a.ts\ngit stash", "git alias-co -- a.ts git restore",
+    // ヒアドキュメントの終端の後ろに続く・閉じていない・gh api の書き込み
+    "cat <<EOF > f\nbody\nEOF\ngit stash", "cat <<EOF\nunterminated\ngit stash", "echo \"a << b\"\ngit restore a.ts", "gh api -X PUT repos/o/r/pulls/3/merge && git stash",
+    "git -C ../wt log --grep=stash", "git config x.y z && git stash",
   ];
   for (const command of forms) {
     test(command.replaceAll("\n", "\\n"), async () => {

@@ -483,51 +483,114 @@ export function findCommandsMatching(command, decls) {
  * 「読むだけ・記録するだけ」と分かる語の許可リスト（#578・docs/adr/0037）。コマンドの文字列に危ない操作の名前（`push`・`stash` ほか）が
  * 出ても、先頭がこれらの語だけなら、名前は引数の文字列にすぎない（`grep 'git stash' docs`・`git commit -m "…restore…"`）。
  * 許可リストに書くのは「当てない」側の例外だけで、載っていない語は読めないものとして扱う（fail closed）。
+ *
+ * **脅威の範囲**: 協力的なエージェントの事故を止める歯止めであって、悪意への境界ではない（docs/adr/0032 の限界と同じ。最後の壁は
+ * 資格情報がエージェントの環境に無いこと）。誤って聞くのは許容し、**協力的なエージェントが実際に書きうる形**で誤って通すのを無くす。
+ * 意図的な回避（sed の `e`・`w` コマンド、git の `--upload-pack`・`-c` で別のプログラムを走らせる形）は範囲外。
  */
 const TAME_HEADS = new Set([
   "grep", "egrep", "fgrep", "rg", "cat", "echo", "printf", "ls", "head", "tail", "wc", "less", "more", "diff", "sort", "uniq", "nl",
   "file", "stat", "which", "type", "true", "false", "test", "[", "pwd", "basename", "dirname", "date", "sleep", "tr", "cut", "jq", "column",
-  "cd", "pushd", "popd", "sed", "find",
+  "cd", "pushd", "popd",
 ]);
-/** 先頭が git のとき、下位コマンドがこれなら読むだけ・記録するだけ。 */
+/** 先頭が git（全体の選択肢なし）のとき、下位コマンドがこれなら読むだけ・記録するだけ（消さない・枝を動かさない）。 */
 const TAME_GIT_SUBS = new Set([
-  "status", "log", "diff", "show", "blame", "grep", "branch", "tag", "remote", "config", "rev-parse", "ls-files", "ls-remote", "ls-tree",
-  "describe", "shortlog", "reflog", "cat-file", "for-each-ref", "merge-base", "rev-list", "name-rev", "fetch", "add", "commit", "mv", "apply",
+  "status", "log", "diff", "show", "blame", "grep", "branch", "tag", "remote", "rev-parse", "ls-files", "ls-remote", "ls-tree",
+  "describe", "shortlog", "reflog", "cat-file", "for-each-ref", "merge-base", "rev-list", "name-rev", "fetch", "add", "commit", "mv",
 ]);
+/** gh の、読む・投稿する形（マージ・閉じる・API の書き込みを含まない）。`api` は別に見る。 */
+const TAME_GH = {
+  pr: ["view", "list", "status", "checks", "diff", "create", "edit", "comment", "ready"],
+  issue: ["view", "list", "status", "create", "comment", "edit"],
+  run: ["view", "list", "watch"],
+  repo: ["view"],
+  auth: ["status"],
+  release: ["view", "list"],
+  workflow: ["view", "list"],
+  search: null, // どの下位コマンドも読む
+  browse: null,
+};
+
+/** `sed` の印字だけの形（`-n` と `1,5p`・`/re/p`・`$p`）。`-i`・`-f`・`e`/`w` コマンドは tame でない。 */
+function isPrintOnlySed(words) {
+  const args = words.slice(1);
+  if (!args.includes("-n") || args.some((w) => /^-[A-Za-z]*[ifsz]/.test(w) && w !== "-n" && !/^-n$/.test(w)) || args.some((w) => w.startsWith("--"))) return false;
+  const script = args.find((w) => !w.startsWith("-"));
+  return script !== undefined && /^(\d+|\$|\/[^/]*\/)?(,(\d+|\$|\/[^/]*\/))?p$/.test(script);
+}
+
+/** `gh api` が読む形（GET のまま・書き込みの引数なし）か。 */
+function isReadOnlyGhApi(words, from) {
+  for (let i = from; i < words.length; i += 1) {
+    const w = words[i];
+    if (w === "-X" || w === "--method") {
+      if ((words[i + 1] ?? "").toUpperCase() !== "GET") return false;
+      i += 1;
+    } else if (/^-X./.test(w) || w.startsWith("--method=")) {
+      if (w.replace(/^-X|^--method=/, "").toUpperCase() !== "GET") return false;
+    } else if (/^(-f|-F|--field|--raw-field|--input)/.test(w)) return false;
+  }
+  return true;
+}
 
 /** 1 つの単純なコマンド（語の並び）が、許可リストの「読むだけ・記録するだけ」か。 */
 function isTameWords(words) {
   if (words.length === 0) return true;
   const name = path.posix.basename(words[0]);
-  if (name === "sed") return !words.some((w) => /^-[A-Za-z]*i/.test(w) || w.startsWith("--in-place"));
-  if (name === "find") return !words.some((w) => FIND_EXEC.has(w) || w === "-delete");
+  if (name === "sed") return isPrintOnlySed(words);
+  if (name === "find") return !words.some((w) => FIND_EXEC.has(w) || w === "-delete" || w.startsWith("-fprint") || w.startsWith("-fls"));
   if (TAME_HEADS.has(name)) return true;
   if (name === "git") {
-    const at = skipOptions(words, 1, GIT_ARG_OPTS);
-    const sub = words[at];
+    if (words[1] === undefined || words[1].startsWith("-")) return false; // 全体の選択肢（-C・-c ほか）があれば読み切れない
+    const sub = words[1];
     if (TAME_GIT_SUBS.has(sub)) return true;
-    if (sub === "stash") return ["list", "show"].includes(words[at + 1]);
-    if (sub === "worktree") return ["list", "add"].includes(words[at + 1]);
+    if (sub === "stash") return ["list", "show"].includes(words[2]);
+    if (sub === "worktree") return ["list", "add"].includes(words[2]);
     return false;
   }
   if (name === "gh") {
     const at = skipOptions(words, 1, GH_ARG_OPTS);
-    return !(words[at] === "pr" && ["merge", "close"].includes(words[at + 1]));
+    const group = words[at];
+    if (group === "api") return isReadOnlyGhApi(words, at + 1);
+    if (!Object.hasOwn(TAME_GH, group)) return false;
+    return TAME_GH[group] === null || TAME_GH[group].includes(words[at + 1]);
   }
   return false;
 }
 
-/** ヒアドキュメントで文字列を作るだけの置換（`$(cat <<'EOF' … EOF)`）。中身は文章で、実行されない。 */
-const HEREDOC_DATA = /^\s*cat\s+<<-?\s*['"]?\w+['"]?/;
+/**
+ * ヒアドキュメントの本文（`<<TAG` の次の行から、`TAG` だけの行まで）を取り除く。本文は文章で、実行されない。
+ * 終端が見つからないとき（`<<` が文字列の中にあるだけの可能性）は null — 後ろの行を本文として隠さない（fail closed）。
+ * `<<<`（ヒアストリング）は対象外。
+ */
+export function stripHeredocBodies(src) {
+  const lines = src.split("\n");
+  const out = [];
+  const operator = /<<(?!<)(-?)\s*(?:'([^']+)'|"([^"]+)"|([A-Za-z_][\w-]*))/g;
+  for (let i = 0; i < lines.length; i += 1) {
+    const tags = [...lines[i].matchAll(operator)];
+    // 演算子そのものも取り除く（取り除いた後の文字列を読み直しても、終端の行を探さなくてよい）
+    out.push(lines[i].replace(operator, ""));
+    for (const m of tags) {
+      const tag = m[2] ?? m[3] ?? m[4];
+      const end = lines.findIndex((l, k) => k > i && (m[1] === "-" ? l.trim() === tag : l === tag));
+      if (end === -1) return null;
+      i = end; // 本文と終端の行を飛ばす
+    }
+  }
+  return out.join("\n");
+}
 
 /**
- * コマンドの文字列が、すべて「読むだけ・記録するだけ」（許可リスト）か。読み切れない（置換・入れ子の実行・未知の語）ものは false。
+ * コマンドの文字列が、すべて「読むだけ・記録するだけ」（許可リスト）か。読み切れない（置換・入れ子の実行・未知の語・閉じないヒアドキュメント）ものは false。
  * 名前に当たる語が文字列にあっても、これが true なら引数の文字列にすぎない。
  */
 export function isTameCommand(command, depth = 0) {
   if (depth > MAX_DEPTH) return false;
-  const { commands, nested } = lex(command);
-  return commands.every(isTameWords) && nested.every((inner) => HEREDOC_DATA.test(inner) || isTameCommand(inner, depth + 1));
+  const stripped = stripHeredocBodies(command);
+  if (stripped === null) return false;
+  const { commands, nested } = lex(stripped);
+  return commands.every(isTameWords) && nested.every((inner) => isTameCommand(inner, depth + 1));
 }
 
 /**

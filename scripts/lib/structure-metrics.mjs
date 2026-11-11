@@ -91,8 +91,8 @@ export async function structureNotices({ baseline, current }) {
   let base;
   let now;
   try {
-    base = await baseline();
-    now = await current();
+    // 基準と今は互いに待たない（どちらも構造監査 1 回分の時間がかかる）
+    [base, now] = await Promise.all([baseline(), current()]);
   } catch (error) {
     return [`⚠ 構造監査の指標の比較は未実行です（${String(error.message).trim().split("\n")[0]}）`];
   }

@@ -1,3 +1,9 @@
+/**
+ * 脅威の範囲（docs/adr/0037）: サブエージェントの操作と未コミットの変更を消す操作の歯止めは、**協力的なエージェントの事故を止めるもの**で、
+ * 悪意への境界ではない（docs/adr/0032 の限界と同じ。最後の壁は資格情報がエージェントの環境に無いこと）。誤って聞くのは許容し、
+ * 協力的なエージェントが実際に書きうる形で誤って通すのを無くす。意図的な回避（sed の e・w コマンド、git の --upload-pack や -c で
+ * 別のプログラムを走らせる形）は範囲外。指摘をこの基準で振り分ける。
+ */
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -8,6 +14,7 @@ import {
   findCommandsMatching,
   findSubagentCommands,
   decideHookOutput,
+  isTameCommand,
 } from "./agent-guard.mjs";
 
 /** 当たった宣言の id を並べる（順序は出現順）。 */
@@ -380,6 +387,26 @@ describe("サブエージェントの危ない操作（#578・docs/adr/0037）",
       "git reset HEAD~1", "git reset --soft HEAD~1", "git worktree add ../x -b fix/reset", "git worktree list", "git status && git diff | head", "git stash list",
       "sed -n '1,5p' push.md", "find . -name '*kill*'", "git branch -D old-switch",
     ]) assert.equal(askSub(c), null, c);
+  });
+
+  test("tame の穴（4 回目のレビュー）: ヒアドキュメントの終端の後ろのコマンド・gh api の書き込み・git の全体の選択肢と書き込み・sed の e/w/-f は「読むだけ」に数えない", () => {
+    for (const c of [
+      "cat <<EOF > f\nbody\nEOF\ngit push", "cat <<'EOF'\nx\nEOF\ngit push origin x", "cat <<EOF\nunterminated\ngit push",
+      "echo \"a << b\"\ngit push origin x", "git commit -m \"$(cat <<'EOF'\nx\nEOF\n)\" && git push",
+      "gh api -X PUT repos/o/r/pulls/3/merge", "gh api repos/o/r/pulls/3/merge -X PUT", "gh api --method PUT repos/o/r/pulls/3/merge", "gh api -XPUT repos/o/r/pulls/3/merge",
+      "gh api repos/o/r/pulls/3/merge -f merge_method=squash", "gh api graphql -F query=@q.graphql", "gh api x --input body.json", "gh pr merge 3", "gh -R a/b pr close 3",
+      "gh repo delete x", "gh workflow run x.yml", "gh alias set x 'pr merge'",
+      "git -c core.sshCommand=x log", "git config push.default simple", "git -C ../wt log --grep=push", "git apply x.patch", "git --no-pager log",
+      "sed -n 'w out.txt' f.md", "sed -i s/push/x/ f.md", "sed -f script.sed f.md", "sed 's/push/x/e' f.md", "sed -n '1e git push' f.md", "sed 's/a/b/' f.md", "sed --expression=p f.md",
+    ]) assert.equal(isTameCommand(c), false, c);
+    // 協力的なエージェントが書く、読む・印字する形は通す
+    for (const c of ["gh api repos/o/r/pulls/3", "gh api -X GET repos/o/r/pulls", "gh api --method=GET repos/o/r/pulls", "gh pr view 3 --json state", "gh pr list --search 'close merge'",
+      "gh -R a/b pr create --title x", "gh issue comment 5 --body 'closed by push'", "sed -n '1,5p' push.md", "sed -n '/kill/p' f.md", "sed -n '$p' f.md",
+      "git fetch origin && git log --oneline origin/main..HEAD", "cat <<EOF > f\nbody about push\nEOF", "cat <<'EOF'\nkill reset\nEOF", "git commit -m \"$(cat <<'EOF'\nfix: push\nEOF\n)\""]) assert.equal(isTameCommand(c), true, c);
+    // 終端の後ろのコマンドは、サブエージェントでは宣言にも当たって ask
+    const askSub = (c) => decideHookOutput(JSON.stringify({ tool_name: "Bash", agent_id: "a1", tool_input: { command: c } }))?.hookSpecificOutput?.permissionDecision ?? null;
+    assert.equal(askSub("cat <<EOF > f\nbody\nEOF\ngit push"), "ask");
+    assert.equal(askSub("cat <<EOF > f\nbody about push\nEOF"), null);
   });
 
   test("decideHookOutput: agent_id があるときだけ聞く。まとめ役（agent_id なし）は止めない", () => {
