@@ -433,22 +433,22 @@ export async function expectTouchTargets(page: Page, label: string, minTargets: 
 }
 
 /**
- * 終わりのある演出（ホバーの遷移・行の登場の拡大）が終わるのを待つ。演出の途中の箱は縮んでいたり動いていたりして、
- * 当たりの大きさと重なりを誤る（タブを切り替えた直後の名簿の行で、実測 32×34 と読んだ）。終わりの無い演出（脈打ちなど）と止まっている演出は待たない。
- * 描かれていない要素（`display: none` の中・閉じた `<details>` の中身のように描画を飛ばす部分木）の演出も待たない。
- * Chromium はそこの演出を更新しないので、`playState` が `finished` に変わっても `finished` は解けず、待ちが永久に続く
- * （#402: 閉じた「詳細設定」の中の休憩の選択肢の `transition: all` が、幅を変えたときの font-size で走り、60 秒で落ちた・実測）。
- * 描かれていない要素には当たりが無いので、待たなくても測りは誤らない
+ * 箱を測る前に、走っている有限の演出を終端へ送る（#574）。
+ * 各画面・各幅で演出の実時間を待つと、その累計が負荷でテスト全体の制限を超える。
+ * `finished` の通知にも依存しない（描画されない部分木では playState が finished でも解けない）。
+ * 最終状態の当たりを測る検査なので、CSS の終端を適用し、無限・一時停止・非表示の演出は触らない。
  */
 export async function settleFiniteAnimations(page: Page): Promise<void> {
-  await page.evaluate(() => Promise.all(document.getAnimations()
-    // 止まっている演出の `finished` は解けないので、走っているものだけを待つ
-    .filter((a) => a.playState === 'running' && a.effect?.getComputedTiming().endTime !== Infinity)
-    .filter((a) => {
-      const target = a.effect instanceof KeyframeEffect ? a.effect.target : null;
-      return target === null || target.checkVisibility();
-    })
-    .map((a) => a.finished.catch(() => undefined))));
+  await page.evaluate(async () => {
+    for (const animation of document.getAnimations()) {
+      if (animation.playState !== 'running' || animation.effect?.getComputedTiming().endTime === Infinity) continue;
+      const target = animation.effect instanceof KeyframeEffect ? animation.effect.target : null;
+      if (target !== null && !target.checkVisibility()) continue;
+      animation.finish();
+    }
+    // finish イベントと、それを受けた画面の更新を描いてから箱を測る。
+    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+  });
 }
 
 /**

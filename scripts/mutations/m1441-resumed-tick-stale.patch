@@ -1,0 +1,10 @@
+--- a/apps/timer-web/src/ui/use-now-tick.ts
++++ b/apps/timer-web/src/ui/use-now-tick.ts
+@@ -19,7 +19,6 @@
+   const [now, setNow] = useState(() => Date.now());
+   useLayoutEffect(() => {
+     // 休憩の1秒刻みの時刻を再開の最初の描画へ持ち越さない（#574のレビュー）。
+-    setNow(Date.now());
+     if (!ticking) return;
+     const id = setInterval(() => setNow(Date.now()), intervalMs);
+     return () => clearInterval(id);
