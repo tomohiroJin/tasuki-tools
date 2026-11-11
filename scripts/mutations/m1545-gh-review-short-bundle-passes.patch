@@ -1,13 +1,12 @@
 diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
-index 80e159e0..cab682ac 100644
+index b54ae46c..dcdc1e5a 100644
 --- a/scripts/lib/agent-guard.mjs
 +++ b/scripts/lib/agent-guard.mjs
-@@ -114,7 +114,7 @@ export const SUBAGENT_GUARDED_COMMANDS = [
-   { id: "tmux-kill-server", program: "tmux", args: ["kill-server"], argOpts: ["-L", "-S", "-f", "-c", "-T"], why: "tmux の停止は、利用者のセッション（ログ・サーバー）を落としうる" },
-   { id: "tmux-kill-session", program: "tmux", args: ["kill-session"], argOpts: ["-L", "-S", "-f", "-c", "-T"], why: "tmux の停止は、利用者のセッション（ログ・サーバー）を落としうる" },
-   { id: "gh-api-write", program: "gh", args: ["api"], argOpts: GH_ARG_OPTS, when: (words, start) => !isReadOnlyGhApi(words, start + 1), why: "GitHub への書き込み（GET 以外・フィールド付き）は、人の承認の後にまとめ役が行う" },
--  { id: "gh-pr-review-decide", program: "gh", args: ["pr", "review"], argOpts: GH_ARG_OPTS, when: (words, start) => words.slice(start + 2).some((w) => isLongOption(w, "--approve") || isLongOption(w, "--request-changes") || (/^-[A-Za-z]+$/.test(w) && /[ar]/.test(w) && !/^-[cb]$/.test(w))), why: "PR の承認・変更要求は、人の判断" },
-+  { id: "gh-pr-review-decide", program: "gh", args: ["pr", "review"], argOpts: GH_ARG_OPTS, when: (words, start) => words.slice(start + 2).some((w) => isLongOption(w, "--approve") || isLongOption(w, "--request-changes") || (w === "-a" || w === "-r")), why: "PR の承認・変更要求は、人の判断" },
-   { id: "kill", program: "kill", why: "プロセスの停止は、利用者の dev サーバーなどを止めうる" },
-   { id: "pkill", program: "pkill", why: "プロセスの停止は、利用者の dev サーバーなどを止めうる" },
-   { id: "killall", program: "killall", why: "プロセスの停止は、利用者の dev サーバーなどを止めうる" },
+@@ -97,6 +97,7 @@ function isNonDecidingGhReview(args) {
+       continue;
+     }
+     if (/^--(body|body-file|repo)=/.test(w) || /^-[bFR][^=\s]/.test(w)) continue;
++    if (!/^-[A-Za-z]+$/.test(w) || !/[ar]/.test(w)) continue;
+     return false;
+   }
+   return true;

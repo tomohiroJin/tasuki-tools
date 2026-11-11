@@ -8840,10 +8840,10 @@ export const MUTATIONS = [
   },
   {
     id: 1545,
-    label: 'gh pr review の -a・-r を単独の語でしか見ない',
+    label: 'gh pr review の許可リストが、a・r を含まない未知の選択肢（-x ほか）を通す',
     patch: "m1545-gh-review-short-bundle-passes.patch",
     pkg: "scripts",
     tests: ["lib/agent-guard.test.mjs"],
-    note: RESERVED_1500_1559 + " " + '#578 自動レビュー。-ab・-rb の束で承認・変更要求がすり抜ける。',
+    note: RESERVED_1500_1559 + " " + '#578 自動レビュー。-a=true・--approve=true などの未知の形で承認・変更要求がすり抜ける。',
   },
 ];
