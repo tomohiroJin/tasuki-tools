@@ -1,12 +1,12 @@
 diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
-index c93c794f..8c3b497e 100644
+index 4b34b04d..9b4d1fdb 100644
 --- a/scripts/lib/agent-guard.mjs
 +++ b/scripts/lib/agent-guard.mjs
-@@ -913,7 +913,7 @@ function isListOrCreateGitBranch(args) {
- 
+@@ -914,7 +914,7 @@ function isListOrCreateGitBranch(args) {
  /** `lex` が読めない引用（`$'…'`・`$"…"`）を含むか。含めば lex の結果を信じない（引用符の内外が食い違い、`git push` が引用符の中と読まれる）。 */
  export function hasUnreadableQuote(command) {
--  return /\$['"]/.test(command);
+   // 行の継続（`$\` と改行のあとの引用符）をつないでから見る
+-  return /\$['"]/.test(command.replace(/\\\r?\n/g, ""));
 +  return false;
  }
  
