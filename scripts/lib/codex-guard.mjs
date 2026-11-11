@@ -46,8 +46,8 @@ export const ENTRY_MISSING_OUTPUT = JSON.stringify(
  * hooks.json に書くフックのコマンド。3 つに分ける。
  * ① `git rev-parse --show-toplevel` が失敗 → deny（`ROOT_FAILURE_OUTPUT`）
  * ② 成功したが、そのルートに入口が無い →
- *    - `.codex/hooks.json` も無い → **何も出さず exit 0**。その版には歯止めがそもそも無い（歯止めが入る前のコミット・bisect・
- *      入れ子の git リポジトリ・`GIT_DIR` で別のリポジトリを指すとき）。deny にすると `ls` や `git switch -` まで止まり、Codex 自身では戻れない
+ *    - `.codex/hooks.json` も無い → **何も出さず exit 0**。その版には歯止めがそもそも無い（歯止めが入る前のコミット・bisect）。deny にすると
+ *      `ls` や `git switch -` まで止まり、Codex 自身では戻れない。入れ子の git リポジトリ・`GIT_DIR` で別のリポジトリを指すときもここを通るが、残余（ADR-0032）
  *    - `.codex/hooks.json` は在る（いまの版で入口だけが欠けた: `git mv`・作業ツリーから消した・入口の場所がディレクトリ／壊れた symlink・
  *      古いコミットの部分的な書き戻し）→ **deny**（`ENTRY_MISSING_OUTPUT`）。ここで通すと、本番デプロイが黙って通る（fail open。#584 の再レビュー）
  * ③ 在る → 入口の出力を一度受け、入口が**成功したときだけ**それを出し、失敗したら deny だけを出す
