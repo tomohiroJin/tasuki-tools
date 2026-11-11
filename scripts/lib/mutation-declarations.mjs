@@ -8950,4 +8950,12 @@ export const MUTATIONS = [
     tests: ["lib/agent-guard.test.mjs"],
     note: RESERVED_1500_1559 + " " + "#578 PR #583 の自動レビュー。echo $'\\'' ; git push ; echo $'\\'' で lex が git push を引用符の中と読み、サブエージェントの git push が聞かれずに通る。",
   },
+  {
+    id: 1559,
+    label: "読むだけ・記録するだけの許可リストから mkdir を外す",
+    patch: "m1559-tame-heads-miss-mkdir.patch",
+    pkg: "scripts",
+    tests: ["lib/discard-guard.test.mjs", "lib/agent-guard.test.mjs"],
+    note: RESERVED_1500_1559 + " " + "#578 PR #583 の再レビュー。mkdir -p … && cat > … << 'EOF' の本文に操作の名前があると、まとめ役もサブエージェントも「形が単純でない」で毎回聞かれる。",
+  },
 ];
