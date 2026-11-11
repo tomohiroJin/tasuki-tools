@@ -125,7 +125,7 @@ test("turbo が打ち切ったタスクがあれば、パッケージだけで�
 function fixture(t, { failPreflight = false, failCheck = false } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "local-check-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-  for (const file of ["local-check.mjs", "audit-toolchain.mjs", "ci-scope.mjs", "lib/direct-run.mjs", "lib/check-outcome.mjs", "lib/prior-work.mjs", "lib/toolchain.mjs", "lib/scan-targets.mjs", "lib/workflow.mjs", "lib/ci-scope.mjs"]) {
+  for (const file of ["local-check.mjs", "audit-toolchain.mjs", "ci-scope.mjs", "lib/direct-run.mjs", "lib/check-outcome.mjs", "lib/prior-work.mjs", "lib/structure-metrics.mjs", "lib/toolchain.mjs", "lib/scan-targets.mjs", "lib/workflow.mjs", "lib/ci-scope.mjs"]) {
     const target = path.join(dir, "scripts", file);
     fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.copyFileSync(new URL(file, import.meta.url), target);
@@ -237,6 +237,39 @@ test("fast の実 git 差分: コードの削除と、基準が無いときは�
   fs.writeFileSync(path.join(f.dir, "note.md"), "edited\n");
   f.git("update-ref", "-d", "refs/remotes/origin/main");
   assert.match(f.check(true), /差分を判定できない/);
+});
+
+test("速い段は、構造監査の合否の無い指標が merge-base から後退していれば ⚠ で知らせ、落とさない（#578）", (t) => {
+  const f = gitFixture(t);
+  fs.writeFileSync(path.join(f.dir, ".github/workflows/ci.yml"), FAST_CI);
+  // 偽の構造監査: 作業場所の metric.txt の値を SC029 として出す
+  fs.writeFileSync(
+    path.join(f.dir, "scripts/audit-structure.mjs"),
+    "import fs from 'node:fs'; const v = fs.readFileSync('metric.txt', 'utf8').trim();\n" +
+      "console.log('SC | 現状値 | 目標値 | 判定'); console.log('---'); console.log('SC029 | ' + v + ' | 0 | 未達');\n",
+  );
+  fs.writeFileSync(path.join(f.dir, "metric.txt"), "86\n");
+  f.git("add", "."); f.commit();
+  f.git("update-ref", "refs/remotes/origin/main", "HEAD");
+  const env = { ...process.env, TMPDIR: fs.mkdtempSync(path.join(os.tmpdir(), "metrics-tmp-")) };
+  t.after(() => fs.rmSync(env.TMPDIR, { recursive: true, force: true }));
+  const run = () => spawnSync(process.execPath, [path.join(f.dir, "scripts/local-check.mjs"), "fast"], { encoding: "utf8", env });
+  // コードの差分あり・値が増えた（後退）
+  fs.writeFileSync(path.join(f.dir, "metric.txt"), "90\n");
+  fs.writeFileSync(path.join(f.dir, "new.ts"), "export {};\n");
+  const bad = run();
+  assert.equal(bad.status, 0, bad.stdout + bad.stderr); // 落とさない
+  assert.ok(bad.stdout.lastIndexOf("⚠ 構造監査の合否の無い指標が後退しています") > bad.stdout.indexOf("実行結果"), bad.stdout);
+  assert.match(bad.stdout, /SC029 86 → 90/);
+  // 同じ値なら後退なし
+  fs.writeFileSync(path.join(f.dir, "metric.txt"), "86\n");
+  const ok = run();
+  assert.doesNotMatch(ok.stdout, /⚠ 構造監査/);
+  assert.match(ok.stdout, /後退していません/);
+  // コードの差分が無ければ比べない
+  fs.unlinkSync(path.join(f.dir, "new.ts"));
+  fs.writeFileSync(path.join(f.dir, "note.md"), "edited\n");
+  assert.doesNotMatch(run().stdout, /構造監査の合否の無い指標/);
 });
 
 test("--list も複数行のコマンドを一行で表示する", (t) => {
