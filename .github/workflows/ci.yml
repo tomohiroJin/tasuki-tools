@@ -259,6 +259,9 @@ jobs:
       # 絞り込みのある quality ジョブへ置かない。pnpm install も要らない（git ls-files とファイル読み取りだけ）。
       - run: node scripts/audit-agent-guard.mjs
 
+      # Codex の設定（.codex/hooks.json）が、本番デプロイを deny で止める入口へ配線されているか（#578・docs/adr/0032 の追記）。
+      - run: node scripts/audit-codex-guard.mjs
+
   # 変異検査。**全件を毎回流す**（PR でも main でも。絞り込まない）。
   # 1 本で直列に流すと 13〜19 分かかり CI 全体の律速だった（#481）。そこで 2 段に分ける
   # （決定は docs/adr/0029・設計正本 docs/superpowers/specs/2026-10-31-ci-wait-design.md）。

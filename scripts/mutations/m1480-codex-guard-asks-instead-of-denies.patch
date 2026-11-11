@@ -1,0 +1,13 @@
+diff --git a/scripts/codex-guard-hook.mjs b/scripts/codex-guard-hook.mjs
+index 6608d29e..86c80512 100644
+--- a/scripts/codex-guard-hook.mjs
++++ b/scripts/codex-guard-hook.mjs
+@@ -19,7 +19,7 @@ import { decideHookOutput } from "./lib/agent-guard.mjs";
+ const CODEX_NOTE =
+   "Codex には人に聞く道が無いため、拒みます。人の明示の指示があるときは、人が自分の端末で実行するか、人がフックを外した上でやり直してください（docs/adr/0032）。";
+ 
+-const deny = (reason) => ({ hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: reason } });
++const deny = (reason) => ({ hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "ask", permissionDecisionReason: reason } });
+ 
+ /**
+  * 入口が起動できなかったとき（node が無い・入口のファイルが無い・Git のルートが引けない）に、`.codex/hooks.json` のコマンドが
