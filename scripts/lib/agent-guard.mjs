@@ -559,6 +559,24 @@ const READ_FLAGS = new Set(["-p", "--patch", "--stat", "--name-only", "--name-st
 function hasOnlyReadFlags(args) {
   return args.every((w) => !w.startsWith("-") || READ_FLAGS.has(w) || /^--(date|format|pretty|max-count)=\S*$/.test(w) || /^-n\d*$/.test(w) || /^-\d+$/.test(w));
 }
+/**
+ * `git reflog` の読む形（許可リスト）: 引数なし／読む選択肢だけ（`-n 5` を含む。裸の語は無い）／`show [<ref>…]` と読む選択肢。
+ * 裸の語は下位コマンド（`expire`・`delete`・`drop`・`list` ほか、版で増える）でありうるので、`show` の後ろ以外では通さない。
+ */
+function isReadOnlyGitReflog(args) {
+  const [first, ...rest] = args;
+  if (first === "show") return hasOnlyReadFlags(rest);
+  const flags = [];
+  for (let i = 0; i < args.length; i += 1) {
+    if (args[i] === "-n" && /^\d+$/.test(args[i + 1] ?? "")) {
+      i += 1;
+      continue;
+    }
+    if (!args[i].startsWith("-")) return false;
+    flags.push(args[i]);
+  }
+  return hasOnlyReadFlags(flags);
+}
 const BRANCH_FLAGS = new Set(["-a", "-r", "-l", "--list", "-v", "-vv", "--verbose", "--show-current", "--no-color", "--color", "--all", "--remotes"]);
 const BRANCH_VALUED = new Set(["--contains", "--merged", "--no-merged", "--points-at"]);
 /** `git branch` の読む形: 選択肢がすべて既知で、名前の引数が無い。 */
@@ -602,7 +620,7 @@ function isTameWords(words) {
     if (sub === "fetch") return isSafeGitFetch(words.slice(2));
     if (sub === "tag") return isReadOnlyGitTag(words.slice(2));
     if (sub === "remote") return words.slice(2).every((w) => w === "-v" || w === "--verbose") || ["show", "get-url"].includes(words[2]);
-    if (sub === "reflog") return words[2] !== undefined && ["expire", "delete", "exists", "write"].includes(words[2]) ? false : hasOnlyReadFlags(words.slice(2));
+    if (sub === "reflog") return isReadOnlyGitReflog(words.slice(2));
     if (TAME_GIT_SUBS.has(sub)) return true;
     if (sub === "stash") return ["list", "show"].includes(words[2]) && hasOnlyReadFlags(words.slice(3));
     if (sub === "worktree") return ["list", "add"].includes(words[2]);

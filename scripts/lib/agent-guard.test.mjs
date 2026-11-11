@@ -457,7 +457,9 @@ describe("サブエージェントの危ない操作（#578・docs/adr/0037）",
       "git commit -m x # y -m \"$(cat <<'EOF'\ngit push\nEOF\n)\"", "git commit -m 'a \"$(cat <<'EOF'\ngit push\nEOF\n)\"",
       "git commit -m $(echo) | tee -m \"$(cat <<'EOF'\ngit push\nEOF\n)\"",
       "git commit -m \"$(cat <<'EOF'\ngit push\nEOF\n)\" && git push", "git commit -m \"$(cat <<'EOF'\ngit push\nEOF\n)\"\ngit push",
-      "git commit -m \"$(cat <<'EOF'\ngit push\nEOF\n)\" # x\n", "gh pr create --body-file x -m; git push; echo --body \"$(cat <<'EOF'\ngit push\nEOF\n)\"",
+      "git commit -m \"$(cat <<'EOF'\ngit push\nEOF\n)\" # x\n",
+      // 行の可変部が単一引用符・コメントを含む（形を広げない。読めない形は聞く側に倒す）
+      "git commit -m \"a\" --author='b' -m \"$(cat <<'EOF'\ngit push\nEOF\n)\"", "git commit -m a --author=b # c -m \"$(cat <<'EOF'\ngit push\nEOF\n)\"\n", "gh pr create --body-file x -m; git push; echo --body \"$(cat <<'EOF'\ngit push\nEOF\n)\"",
     ]) assert.equal(isTameCommand(c), false, c);
     // 題などの引用符つきの文字列は、対の中なら許す
     assert.equal(isTameCommand("gh pr create --title \"feat: x（#9）\" --body \"$(cat <<'EOF'\ngit push する\nEOF\n)\"\n"), true);
@@ -466,7 +468,7 @@ describe("サブエージェントの危ない操作（#578・docs/adr/0037）",
   test("7 回目: --output（ファイルへ書く）は git のどの下位コマンドでも tame でない。reflog・stash show は既知の読む選択肢だけ", () => {
     for (const c of [
       "git reflog --output=x", "git reflog show --output x", "git stash show --output=x", "git log --output=x", "git diff --output x", "git show --outp=x", "git status --output=x", "git branch --output=x", "git add --output=x f",
-      "git reflog expire --all", "git reflog --expire=now", "git reflog show --unknown", "git stash list --output=x", "git stash show --unknown", "git stash show -p --exec x", "git reflog -d HEAD",
+      "git reflog expire --all", "git reflog --expire=now", "git reflog show --unknown", "git stash list --output=x", "git stash show --unknown", "git stash show -p --exec x", "git reflog -d HEAD", "git reflog drop", "git reflog list", "git reflog foo", "git reflog HEAD", "git reflog delete x", "git reflog show foo bar --exec x",
     ]) assert.equal(isTameCommand(c), false, c);
     for (const c of ["git reflog", "git reflog show HEAD", "git reflog -n 5", "git reflog --date=iso", "git reflog show --oneline", "git stash list", "git stash list --oneline", "git stash show", "git stash show -p stash@{0}".replace("stash@{0}", "'stash@{0}'"), "git stash show --stat"]) assert.equal(isTameCommand(c), true, c);
   });
