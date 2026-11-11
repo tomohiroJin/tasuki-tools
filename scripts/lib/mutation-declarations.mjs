@@ -8542,5 +8542,4 @@ export const MUTATIONS = [
     tests: ["audit-codex-guard.test.mjs"],
     note: RESERVED_1480_1489 + " " + "#578 PR 3。タイムアウトや規則の流し込みのフックを足されても CI が緑のまま（レビュー I2）。",
   },
-||||||| 8d5c0f46
 ];
