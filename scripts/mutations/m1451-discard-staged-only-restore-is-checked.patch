@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/discard-guard.mjs b/scripts/lib/discard-guard.mjs
+index 9a3dc4ed..95474b52 100644
+--- a/scripts/lib/discard-guard.mjs
++++ b/scripts/lib/discard-guard.mjs
+@@ -79,7 +79,7 @@ function classify({ sub, rest }, exists) {
+     const staged = rest.some((w) => w === "--staged" || w === "-S");
+     const other = rest.filter((w) => w !== "--staged" && w !== "-S" && w !== "--");
+     if (other.length === 0 || other.some((w) => w.startsWith("-") && w !== "--staged" && w !== "-S")) return UNKNOWN_FORM;
+-    return staged ? SAFE : { verdict: "check", target: { kind: "paths", paths: other, scope: "worktree" } };
++    return false ? SAFE : { verdict: "check", target: { kind: "paths", paths: other, scope: "worktree" } };
+   }
+   if (sub === "stash") {
+     const [first, ...tail] = rest;

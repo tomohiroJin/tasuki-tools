@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index 635c9ee9..57efd87f 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -572,7 +572,7 @@ function isTameWords(words) {
+   if (name === "gh") {
+     const at = skipOptions(words, 1, GH_ARG_OPTS);
+     const group = words[at];
+-    if (group === "api") return isReadOnlyGhApi(words, at + 1);
++    if (group === "api") return true;
+     if (!Object.hasOwn(TAME_GH, group)) return false;
+     if (!(TAME_GH[group] === null || TAME_GH[group].includes(words[at + 1]))) return false;
+     return ghOptionsKnown(words, at + 2, GH_LONG, GH_SHORT);

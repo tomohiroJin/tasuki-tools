@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index 635c9ee9..e68f7c7b 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -607,7 +607,7 @@ export function stripHeredocBodies(src) {
+       const end = lines.findIndex((l, k) => k > i && (m[1] === "-" ? l.trim() === tag : l === tag));
+       if (end === -1) return null;
+       // 引用符やコメントの中の `<<` を本文の始まりと誤って拾っても、飛ばしたテキストが危ない操作の名前を含むなら読めないとする（fail closed）
+-      if (looksLikeGuardedOperation(lines.slice(i + 1, end).join("\n"))) return null;
++      if (false) return null;
+       i = end; // 本文と終端の行を飛ばす
+     }
+   }

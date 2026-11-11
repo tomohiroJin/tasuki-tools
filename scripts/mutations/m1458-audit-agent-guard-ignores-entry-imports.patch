@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-agent-guard.mjs b/scripts/audit-agent-guard.mjs
+index 5d616b4b..953306d4 100644
+--- a/scripts/audit-agent-guard.mjs
++++ b/scripts/audit-agent-guard.mjs
+@@ -154,7 +154,7 @@ function main() {
+       return null;
+     }
+   };
+-  const dependencies = collectEntryDependencies(HOOK_SCRIPT, read);
++  const dependencies = [];
+   const REQUIRED_FILES = [...new Set([SETTINGS_PATH, HOOK_SCRIPT, GUARD_LIB, ...PRIOR_PR_LIBS, ...dependencies])];
+   const tracked = new Set(listTrackedFiles(REPO_ROOT, REQUIRED_FILES));
+   for (const rel of REQUIRED_FILES) {

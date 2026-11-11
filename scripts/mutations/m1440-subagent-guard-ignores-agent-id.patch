@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index 635c9ee9..422d413b 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -721,7 +721,7 @@ export function decideHookOutput(raw) {
+     return ask(`本番デプロイに当たるコマンドです: ${list}。人の明示の指示があるときだけ承認してください。${RULE_REF}`);
+   }
+   // サブエージェントの呼び出しだけ（入力に agent_id がある。まとめ役の呼び出しには無い）。本番デプロイの判定の後に見る
+-  if (typeof input.agent_id === "string" && input.agent_id !== "") {
++  if (true) {
+     const sub = findSubagentCommands(command);
+     if (sub.length > 0) {
+       const list = sub.map((h) => `${h.id}（${h.why}）`).join("・");

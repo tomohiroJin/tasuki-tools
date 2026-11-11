@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/pnpm-filter-guard.mjs b/scripts/lib/pnpm-filter-guard.mjs
+index 89f243a4..69d4440b 100644
+--- a/scripts/lib/pnpm-filter-guard.mjs
++++ b/scripts/lib/pnpm-filter-guard.mjs
+@@ -51,7 +51,7 @@ export function patternMatchesAny(pattern, names) {
+     return names.some((n) => re.test(n));
+   }
+   if (p.startsWith("@")) return names.includes(p);
+-  return names.some((n) => n === p || n.replace(/^@[^/]+\//, "") === p);
++  return names.some((n) => n === p);
+ }
+ 
+ /** `pnpm-workspace.yaml` の `packages:` の項目（クォートを外した glob）。 */

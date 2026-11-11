@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/structure-metrics.mjs b/scripts/lib/structure-metrics.mjs
+index 8967524c..eff69a32 100644
+--- a/scripts/lib/structure-metrics.mjs
++++ b/scripts/lib/structure-metrics.mjs
+@@ -73,7 +73,7 @@ export function findMetricRegressions(base, current) {
+       unreadable.push(key);
+       continue;
+     }
+-    const worse = spec.better === "lower" ? current[key] > base[key] : current[key] < base[key];
++    const worse = current[key] > base[key];
+     if (worse) {
+       const unit = spec.unit ?? "";
+       regressions.push(`${key} ${base[key]}${unit} → ${current[key]}${unit}（${spec.better === "lower" ? "増えた。小さいほど良い" : "減った。大きいほど良い"}）`);

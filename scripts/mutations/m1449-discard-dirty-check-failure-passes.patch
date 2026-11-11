@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/discard-guard.mjs b/scripts/lib/discard-guard.mjs
+index 9a3dc4ed..db2664be 100644
+--- a/scripts/lib/discard-guard.mjs
++++ b/scripts/lib/discard-guard.mjs
+@@ -151,7 +151,7 @@ export async function decideDiscardOutput(raw, { exists, isDirty, cwd: defaultCw
+   }
+   // 4. 変更を見る。確かめ自体が失敗したら聞く
+   const state = await isDirty(cwd, result.target);
+-  if (state === "no") return null;
++  if (state === "no" || state === "unknown") return null;
+   const why =
+     state === "yes"
+       ? `${describeTarget(result.target)} に未コミットの変更があります。消える前にコミットするか、退避してください。`
