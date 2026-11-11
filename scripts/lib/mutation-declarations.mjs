@@ -8880,11 +8880,11 @@ export const MUTATIONS = [
   },
   {
     id: 1550,
-    label: 'gh api graphql の mutation も読む形として通す',
-    patch: "m1550-gh-api-graphql-mutation-passes.patch",
+    label: "gh api graphql を全部聞く判定を外す（query でも mutation でも通る）",
+    patch: "m1550-gh-api-graphql-not-asked.patch",
     pkg: "scripts",
     tests: ["lib/agent-guard.test.mjs"],
-    note: RESERVED_1500_1559 + " " + '#578 PR #583 のコメント・自動レビュー。gh api graphql の mutation（書き込み）がサブエージェントから聞かれずに通る。',
+    note: RESERVED_1500_1559 + " " + "#578 自動レビュー。gh api graphql が、$'…' や波括弧で mutation を組み立てた形を含めて、聞かれずに通る。",
   },
   {
     id: 1551,
