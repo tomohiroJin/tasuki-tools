@@ -8982,4 +8982,12 @@ export const MUTATIONS = [
     tests: ["lib/agent-guard.test.mjs"],
     note: RESERVED_1500_1569 + " " + "#578 PR #583 の自動レビュー。$ と引用符の間に行の継続を挟むと、$'…' の検出をすり抜け、サブエージェントの git push が聞かれずに通る。",
   },
+  {
+    id: 1563,
+    label: "heredoc の演算子の行が行の継続のとき（行末の \\・前の行の継続の続き）も本文を取り除く",
+    patch: "m1563-heredoc-strip-ignores-operator-line-continuation.patch",
+    pkg: "scripts",
+    tests: ["lib/agent-guard.test.mjs"],
+    note: RESERVED_1500_1569 + " " + "#578 PR #583 の自動レビュー。bash は継続されたコマンドが終わってから本文を始めるので、行の分け方が食い違い、実行される行を「データ」として取り除き、$'…' の検出や操作の名前の判定をすり抜ける。",
+  },
 ];
