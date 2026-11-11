@@ -526,6 +526,18 @@ describe("サブエージェントの危ない操作（#578・docs/adr/0037）",
     for (const c of ["gh pr review 3 -c -b x", "gh pr review 3 --comment -b x", "gh pr review 3"]) assert.equal(findSubagentCommands(c).length, 0, c);
   });
 
+  test("自動レビュー（許可リスト）: gh pr review は判定を決めない既知の選択肢だけ通し、ほかの - で始まる語が 1 つでもあれば聞く", () => {
+    for (const c of [
+      "gh pr review 3 -a=true", "gh pr review 3 -ca=true", "gh pr review 3 -r=1", "gh pr review 3 --approve=true", "gh pr review 3 -ab x", "gh pr review 3 --unknown",
+      "gh pr review 3 --request-changes", "gh pr review 3 --appr", "gh pr review 3 --comment --approve", "gh pr review 3 -c -x", "gh pr review 3 -cb x", "gh pr review --body x -a",
+      "gh pr review 3 -R owner/repo --approve",
+    ]) assert.ok(findSubagentCommands(c).length > 0, c);
+    for (const c of [
+      'gh pr review 583 --comment -b "x y"', "gh pr review 583 -c --body-file x.md", "gh pr review 583 -R owner/repo -c -b x", "gh pr review 583 --body=x -c", "gh pr review 583 -bfoo",
+      "gh pr review 583 -F x.md", "gh pr review 583 -Fx.md", "gh pr review 583 --repo=o/r -c", "gh pr review 583 --repo o/r --comment", "gh pr review https://github.com/o/r/pull/3 -c -b x", "gh pr review feature-branch -c -b x",
+    ]) assert.equal(findSubagentCommands(c).length, 0, c);
+  });
+
   test("コードレビュー 5: tame の git mv は -f/--force を含まない", () => {
     assert.equal(isTameCommand("git mv a b"), true);
     for (const c of ["git mv -f a b", "git mv --force a b", "git mv -kf a b"]) assert.equal(isTameCommand(c), false, c);

@@ -83,6 +83,26 @@ export function checkoutIsBranchOperation(words, start) {
 }
 
 /**
+ * `gh pr review` の引数が、承認・差し戻しを決めない既知のものだけか（許可リスト・fail closed）。
+ * 許す: `-c`/`--comment`、`-b`/`--body`・`-F`/`--body-file`・`-R`/`--repo`（値は次の語。`--opt=値`・`-b値` の形も）、先頭が `-` でない位置引数（PR の番号・URL・枝名）。
+ * それ以外の `-` で始まる語（`-a`・`-r`・`-ab`・`-a=true`・`--approve=true`・未知の選択肢ほか）が 1 つでもあれば、承認・差し戻しの恐れがあるとして false（聞く）。
+ */
+function isNonDecidingGhReview(args) {
+  for (let i = 0; i < args.length; i += 1) {
+    const w = args[i];
+    if (!w.startsWith("-")) continue;
+    if (w === "-c" || w === "--comment") continue;
+    if (["-b", "--body", "-F", "--body-file", "-R", "--repo"].includes(w)) {
+      i += 1; // 値は次の語
+      continue;
+    }
+    if (/^--(body|body-file|repo)=/.test(w) || /^-[bFR][^=\s]/.test(w)) continue;
+    return false;
+  }
+  return true;
+}
+
+/**
  * サブエージェントから呼ばれたときだけ人に聞くコマンドの宣言（#578・docs/adr/0037）。
  * 呼び出し元がサブエージェントかは、PreToolUse フックの入力の `agent_id` で見分ける（実測は docs/adr/0037）。
  * まとめ役（親）の呼び出しには `agent_id` が無く、止めない。サブエージェントに任せない操作を、
@@ -114,7 +134,7 @@ export const SUBAGENT_GUARDED_COMMANDS = [
   { id: "tmux-kill-server", program: "tmux", args: ["kill-server"], argOpts: ["-L", "-S", "-f", "-c", "-T"], why: "tmux の停止は、利用者のセッション（ログ・サーバー）を落としうる" },
   { id: "tmux-kill-session", program: "tmux", args: ["kill-session"], argOpts: ["-L", "-S", "-f", "-c", "-T"], why: "tmux の停止は、利用者のセッション（ログ・サーバー）を落としうる" },
   { id: "gh-api-write", program: "gh", args: ["api"], argOpts: GH_ARG_OPTS, when: (words, start) => !isReadOnlyGhApi(words, start + 1), why: "GitHub への書き込み（GET 以外・フィールド付き）は、人の承認の後にまとめ役が行う" },
-  { id: "gh-pr-review-decide", program: "gh", args: ["pr", "review"], argOpts: GH_ARG_OPTS, when: (words, start) => words.slice(start + 2).some((w) => isLongOption(w, "--approve") || isLongOption(w, "--request-changes") || (/^-[A-Za-z]+$/.test(w) && /[ar]/.test(w) && !/^-[cb]$/.test(w))), why: "PR の承認・変更要求は、人の判断" },
+  { id: "gh-pr-review-decide", program: "gh", args: ["pr", "review"], argOpts: GH_ARG_OPTS, when: (words, start) => !isNonDecidingGhReview(words.slice(start + 2)), why: "PR の承認・変更要求は、人の判断" },
   { id: "kill", program: "kill", why: "プロセスの停止は、利用者の dev サーバーなどを止めうる" },
   { id: "pkill", program: "pkill", why: "プロセスの停止は、利用者の dev サーバーなどを止めうる" },
   { id: "killall", program: "killall", why: "プロセスの停止は、利用者の dev サーバーなどを止めうる" },
