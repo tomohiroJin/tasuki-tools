@@ -1,0 +1,103 @@
+# ADR-0037: AI の事故を止める歯止めを、本番デプロイの外へ広げる
+
+- **ステータス**: Proposed（採択は人が行う。`docs/adr/0030` 決定 1）
+- **関連**: [#578](https://github.com/tomohiroJin/tasuki-tools/issues/578) /
+  [ADR-0032](./0032-agent-guard-for-production-commands.md)（本番デプロイの歯止め。この ADR は決定 1 の「止める範囲」を広げる） /
+  [ADR-0030](./0030-ai-driven-development-operations.md)（決定 1・2・5） /
+  [ADR-0011](./0011-threat-model-and-data-classification.md)（資格情報の分類）
+
+## 背景
+
+ADR-0032 は、`AGENTS.md`「人の明示の指示か承認を待つ操作」のうち**本番デプロイ**だけを、PreToolUse フックで人に聞くと決めた。
+#578（メモリの棚卸し）で、繰り返し起きた事故のうち文章だけで守っているものが見つかった。どれも本番デプロイではないので、
+ADR-0032 の範囲の外にある。
+
+- サブエージェントが `git push`・`gh pr merge`・枝の切り替え・`git reset --hard`・`git worktree remove`・`kill`/`pkill` を走らせ、
+  まとめ役の枝・作業ツリー・利用者の dev サーバーが壊れた（メモリ「サブエージェントにプロセスと枝を触らせない」「サブエージェントにマージさせない」）
+- `git checkout -- <path>`・`git restore`・`git stash` で、別のエージェントや自分の未コミットの変更が消えた
+- `pnpm --filter @tasuki/tasuki-sync`（実在しない名前）が 0 件に当たり、何も走らずに緑になった
+- 閉鎖キーワードの事故が両方向にある。バッククォートで囲むと効かず、説明のつもりで地の文に書くと squash マージで ISSUE を勝手に閉じる
+- 構造監査の合否の無い指標（SC028〜SC032・SC036・SC039）は、悪くなっても監査が緑のままで、後退に誰も気づかない
+
+## 決定
+
+### 1. サブエージェントの呼び出しは、フックの入力の `agent_id` で見分ける
+
+- **実測**（2026-11-11・Claude Code 2.1.321・`claude -p --setting-sources ""` に確かめ用の PreToolUse フックだけを渡し、入力をそのまま書き出した）:
+  サブエージェント（Agent ツールで起こした `general-purpose`）の中の Bash 呼び出しの入力には `agent_id`（例 `aa2c43bc26cb36705`）と
+  `agent_type`（例 `general-purpose`）がある。まとめ役（メインのセッション）の同じ Bash 呼び出しの入力には**どちらも無い**。
+  そのほかの項目は同じ（`session_id`・`transcript_path`・`cwd`・`permission_mode`・`tool_name`・`tool_input`・`tool_use_id`・`effort`）
+- **MUST**: `agent_id` が空でない文字列のときだけ「サブエージェントの呼び出し」と扱う。無ければ（まとめ役・人の端末）止めない
+- 残余: `agent_id` を持たない形で呼ばれるサブエージェント（将来の版・チームメイトの形）は見分けられない。版が変わったら実測し直す
+
+### 2. サブエージェントからの次の操作は `ask` で人に聞く
+
+`git push`・`gh pr merge|close`・`git switch`・`git checkout`（`--` の後ろに pathspec が無い形・`-b`/`-B`/`--orphan`/`--detach` の形＝枝の操作）・
+`git reset --hard`（`--h` などの省略形も）・`git worktree remove`・`kill`/`pkill`/`killall`。
+
+- 一覧の正本は `scripts/lib/agent-guard.mjs` の `SUBAGENT_GUARDED_COMMANDS`（ADR-0032 決定 1 の `GUARDED_COMMANDS` と同じ置き場・同じ読み方）。
+  本番デプロイの判定が先で、当たらなかったときだけ見る
+- **迷う形は聞く**: 危ない操作の名前（`push`・`merge`・`kill` ほか）が文字列にあるのに、宣言で読み切れず、
+  許可リストの「読むだけ・記録するだけ」（`grep`・`git log`・`git commit -m …`・`gh pr view` ほか。`isTameCommand`）でも
+  単純な安全な形（`git checkout [<rev>] -- <path>`・`git reset` の `--soft`/`--mixed`・`git worktree add|list`）でもなければ `ask`
+
+### 3. 未コミットの変更を消す git は、変更があるときだけ `ask`（許可リスト・fail closed）
+
+`scripts/lib/discard-guard.mjs`。対象は `git checkout -- <path>`・`git restore`・`git stash`・`git reset --hard`・`git clean`・`git switch -f`。
+
+- 作りは**許可リスト**: ①候補（`git` と対象の下位コマンドの語が文字列のどこかにある）→ ②読むだけ・記録するだけなら通す →
+  ③**確かめてよい単純な形**（単一のコマンド・先頭が `git`・全体の選択肢なし・既知の少数の選択肢）だけ `cwd` で未コミットの変更を見て、あれば `ask`・無ければ通す →
+  ④**それ以外の候補は全部 `ask`**（「形が単純でないので確かめられない」）。確かめ自体が失敗しても `ask`。
+  禁止の形を数え上げる作りは、`cd`・`GIT_DIR`・`-c core.worktree`・入れ子の文字列・省略形ほか、3 回の敵対的レビューで穴が尽きなかったので退けた
+- 手順書の往復（`docs/guides/procedures/adversarial-review.md` の `git checkout origin/main -- <テスト>` → `git checkout HEAD -- <テスト>`）を止めないため、
+  `checkout`・`restore` は**作業ツリーの未コミットの変更（index との差）だけ**を見る。1 回目で index に載った変更は、2 回目では変更に数えない。
+  `stash`・`reset --hard` は index の変更も見る
+- 残余: ステージ済みだけの変更を `git checkout <rev> -- <path>` が上書きするときは聞かない。
+  `docs/guides/procedures/mutations.md` の `git checkout -- <壊したファイル>` は、壊したファイルに未コミットの変更があるので**聞かれる**（意図した破棄なので承認する）
+
+### 4. 名前が当たらない `pnpm --filter` は `ask`
+
+`scripts/lib/pnpm-filter-guard.mjs`。pnpm は filter が 0 件に当たっても成功で終わる。`--filter`・`-F`・`--filter-prod` の値を、
+`pnpm-workspace.yaml` の `packages:` から読んだパッケージ名と突き合わせる（完全一致・スコープ無しは `@*/名前`・`*` は全文への glob。pnpm 11 で確かめた）。
+どれにも当たらなければ `ask`。パス（`./dir`）・git の参照・除外・読めない glob の workspace は通す（pnpm に任せる）。
+
+### 5. `gh pr create` の直前に、閉鎖キーワードの事故を `ask` で知らせる
+
+`scripts/lib/closing-keywords.mjs`。コマンドの全文（ヒアドキュメントの中を含む）・`--body-file`・枝のコミットメッセージ（`git log origin/main..HEAD`）に、
+GitHub が閉鎖と読む形（`Closes`/`Fixes`/`Resolves` の活用形＋`#N`・`owner/repo#N`・URL）があるとき、
+バッククォートの中（効かない）と地の文（squash で勝手に閉じる）を分けて知らせる。PR 本文の行頭の単独の閉鎖（`Closes #578`）は意図した閉鎖として通す。
+コミットメッセージは行頭でも知らせる（squash が全コミットの本文を連結するため）。先行 PR の確認（ADR-0032 の追記・#504）と理由を 1 つにまとめる。
+
+### 6. 構造監査の合否の無い指標の後退を `pnpm check:fast` の最後に知らせる
+
+`scripts/lib/structure-metrics.mjs`。merge-base の構造監査を `git archive` した一時ディレクトリで走らせた値（SHA で控える）と今の値を比べ、
+後退（小さいほど良い指標の増加・大きいほど良い指標の減少）を `⚠` の知らせにする。**落とさない。** コードの差分が無ければ比べない。
+表の形が変わって読めなくなった指標も `⚠` で知らせる（検査が黙って外れない）。
+
+### 7. 脅威の範囲 —— 事故の防止であり、悪意への境界ではない
+
+決定 2〜5 の歯止めは、ADR-0032 と同じく**協力的なエージェントの事故を止めるもの**である。悪意のあるエージェントへの境界ではない
+（最後の壁は、資格情報がエージェントの環境に無いこと。ADR-0011）。
+
+- **誤って聞くのは許容する。協力的なエージェントが実際に書きうる形で、誤って通すのを無くす。**
+- 範囲外（意図的な回避）: sed の `e`・`w` コマンド、git の `--upload-pack`・`-c` で別のプログラムを走らせる形、変数・別名・別の言語・
+  エージェントが書いたスクリプトの中の呼び出し（ADR-0032 の「何を止めないか」と同じ）。`agent_id` を外した呼び出し、`disableAllHooks`
+- 指摘をこの基準で振り分ける。テストの冒頭に同じ一文を置いた（`scripts/lib/agent-guard.test.mjs`・`scripts/lib/discard-guard.test.mjs`）
+
+### 8. 配線の検査
+
+`scripts/audit-agent-guard.mjs` は、入口（`scripts/agent-guard-hook.mjs`）が `import` でたどる部品を**すべて**追跡下にあるかを見る
+（一覧を手で持たず import をたどるので、部品を足して一覧に足し忘れない）。`.claude/settings.json` の配線（matcher `Bash|Monitor`・入口のコマンド）は
+ADR-0032 のまま変えない。判定は入口の中で順に流れる（本番デプロイ → サブエージェント → 未コミットの変更を消す git → `pnpm --filter` → 閉鎖キーワードと先行 PR）。
+いずれも `ask`（人が承認すれば進める）で、`deny` にはしない。
+
+## 影響
+
+- Claude Code のサブエージェントが決定 2 の操作を走らせようとすると、承認を求められる（承認する人がいない走り方では走らない）。
+  まとめ役の操作は変わらない
+- 未コミットの変更があるのに `git stash`・`git restore` などを使うと、聞かれる。単純でない形（`cd x && git stash`・`git -C …`）は、変更の有無にかかわらず聞かれる
+- 誤って聞く例: サブエージェントの `pnpm run kill-dev` のように、危ない操作の名前が文字列に出て、許可リストに載らない語のコマンド。許可リストは足す
+- 確かめたこと（2026-11-11）: 上の判定は `scripts/lib/*.test.mjs` と入口を実際に起動する `scripts/agent-guard-hook.test.mjs` で守り、
+  変異 1440〜 で壊して赤になることを確かめた。`agent_id` の実測は決定 1。
+- 確かめていないこと: Claude Code が実際のセッションで、サブエージェントの `git push` のフックの `ask` を人に提示すること（入力の JSON を渡した確認まで）。
+  `agent_id` を持たない呼び出しの形が将来あること。`pnpm --filter` の照合は pnpm 11.28 での確認で、他の版の規則は確かめていない
