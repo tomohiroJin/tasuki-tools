@@ -8934,4 +8934,12 @@ export const MUTATIONS = [
     tests: ["lib/agent-guard.test.mjs"],
     note: RESERVED_1500_1559 + " " + "#578 PR #583 の再々レビュー。git branch --format '%(refname)' が名前の引数と読まれ、毎回聞かれる。",
   },
+  {
+    id: 1557,
+    label: "受け皿の読み直しで、除くものが無いときも語を引用符なしでつなぎ直す（quote の保存をやめる）",
+    patch: "m1557-residual-rejoins-quoted-words.patch",
+    pkg: "scripts",
+    tests: ["lib/agent-guard.test.mjs"],
+    note: RESERVED_1500_1559 + " " + "#578 PR #583 の再レビュー。grep -E \"kill|pkill\" や git commit -m \"fix: reset; kill\" のように引用符の中に区切り文字がある読むだけのコマンドが、サブエージェントで毎回聞かれる。",
+  },
 ];
