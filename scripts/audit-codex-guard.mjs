@@ -4,7 +4,7 @@
  *
  * ## 何を見るか
  *
- * 1. **`.codex/hooks.json` が追跡下にあり、期待する形（Bash の PreToolUse に Codex の入口 1 つだけ）と構造ごと完全一致する。**
+ * 1. **`.codex/hooks.json` が追跡下にあり、期待する形（Bash の PreToolUse に Codex の入口 1 つだけ）から作った正準の文字列と、文字列ごと比べて一致する。**
  *    併記・`timeout`・`async`・別のフック・`SessionStart` などの書き足しは落とす
  * 2. **Codex の入口と、それが読み込む判定の部品が追跡下にある**
  *
@@ -38,7 +38,7 @@ export const CODEX_HOOK_LIBS = ["scripts/lib/agent-guard.mjs", "scripts/lib/dire
 export const CANONICAL_CODEX_HOOKS_TEXT = `${JSON.stringify(EXPECTED_CODEX_HOOKS, null, 2)}\n`;
 
 /**
- * `.codex/hooks.json` の中身を見る。**期待する形から作った正準の文字列と、文字列ごと完全一致**のものだけを通す
+ * `.codex/hooks.json` の中身を見る。**期待する形から作った正準の文字列と、文字列ごと比べて一致**するものだけを通す
  * （期待の形は `scripts/lib/codex-guard.mjs` の `EXPECTED_CODEX_HOOKS`）。構造の比較では、キーが重複したファイルが通る
  * （`JSON.parse` は後ろのキーを採り、Codex がどう読むかは未実測）。Claude Code の入口の併記・`timeout`・`async`・`allow` を返す別のフック・
  * `SessionStart` で規則を流すフック（`additionalContext`）など、歯止めを外す・規則を流し込む書き足しも全部落とす。

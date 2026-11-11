@@ -140,7 +140,7 @@ describe(".codex/hooks.json のコマンドを実際に走らせる（起動の�
     assert.equal(runWired(t, { cwd: REPO, command: "cat deploy/README.md" }), null);
   });
 
-  test("cwd が Git のリポジトリの外なら deny（Git のルートが引けない）", (t) => {
+  test("cwd がどのリポジトリにも属さない場所なら deny（Git のルートが引けない。親のリポジトリの中・GIT_WORK_TREE だけの設定は固定しない）", (t) => {
     assert.equal(decision(runWired(t, { cwd: tmp(t) })), "deny");
     // 外では ordinary なコマンドも止まる（安全側に倒す判断。ADR-0032 の追記・#578 のレビュー）
     assert.equal(decision(runWired(t, { cwd: tmp(t), command: "ls" })), "deny");

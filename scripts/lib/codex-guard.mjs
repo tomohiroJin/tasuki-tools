@@ -44,7 +44,7 @@ export const CODEX_HOOK_COMMAND = [
   `[ -f "$r/${CODEX_HOOK_SCRIPT}" ] || exit 0`,
   `out="$(node "$r/${CODEX_HOOK_SCRIPT}")" && printf '%s' "$out" || printf '%s' '${LAUNCH_FAILURE_OUTPUT}'`,
 ].join("; ");
-/** hooks.json の中身（.codex/hooks.json）として許す形。**これと構造ごと完全一致のものだけ**を通す（許可リスト。#578）。 */
+/** hooks.json の中身（.codex/hooks.json）として許す形。**これから作った正準の文字列（`scripts/audit-codex-guard.mjs` の `CANONICAL_CODEX_HOOKS_TEXT`）と文字列ごと比べて一致するものだけ**を通す（許可リスト。#578）。 */
 export const EXPECTED_CODEX_HOOKS = Object.freeze({
   hooks: { PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: CODEX_HOOK_COMMAND }] }] },
 });

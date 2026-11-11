@@ -8574,4 +8574,12 @@ export const MUTATIONS = [
     tests: ["codex-guard-hook.test.mjs"],
     note: RESERVED_1480_1499 + " " + "#584 の 2 回目のレビュー 1。歯止めの無い古い版・bisect で ls・git switch - まで deny になり、Codex 自身では戻れない。",
   },
+  {
+    id: 1492,
+    label: "Codex のフックのコマンドから、Git のルートが引けないときの deny を外す",
+    patch: "m1492-codex-hooks-root-failure-allows.patch",
+    pkg: "scripts",
+    tests: ["codex-guard-hook.test.mjs"],
+    note: RESERVED_1480_1499 + " " + "#584 の再レビュー 4。どのリポジトリにも属さない場所で、歯止めが無いまま Bash が通る（① が外れても気づけない）。",
+  },
 ];
