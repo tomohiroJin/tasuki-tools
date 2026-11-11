@@ -47,6 +47,36 @@ export const GUARDED_COMMANDS = [
   { id: "caddy-reload", program: "caddy", subcommands: ["reload", "stop"], why: "Caddy の設定の入れ替え・停止" },
 ];
 
+/** `git` の、値を次の語に取る全体の選択肢（`git -C dir push`・`git -c k=v push`）。 */
+export const GIT_ARG_OPTS = ["-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path", "--super-prefix"];
+const GH_ARG_OPTS = ["-R", "--repo"];
+
+/** `--` より前に `--` の無い checkout（枝の切り替え。`git checkout <枝>`・`-b`）。 */
+const checkoutWithoutDashDash = (words, start) => !words.slice(start + 1).includes("--");
+
+/**
+ * サブエージェントから呼ばれたときだけ人に聞くコマンドの宣言（#578・docs/adr/0037）。
+ * 呼び出し元がサブエージェントかは、PreToolUse フックの入力の `agent_id` で見分ける（実測は docs/adr/0037）。
+ * まとめ役（親）の呼び出しには `agent_id` が無く、止めない。サブエージェントに任せない操作を、
+ * 一覧の正本のここに置く（`GUARDED_COMMANDS` と同じ読み方・同じ「歯止めであって壁ではない」限界）。
+ * `when(words, start)` は、`args` に当たった後の絞り込み（`start` は `args` の先頭の語の位置）。
+ */
+export const SUBAGENT_GUARDED_COMMANDS = [
+  { id: "git-push", program: "git", args: ["push"], argOpts: GIT_ARG_OPTS, why: "push は、まとめ役か人が行う" },
+  { id: "gh-pr-merge", program: "gh", args: ["pr", "merge"], argOpts: GH_ARG_OPTS, why: "PR のマージは、人の承認の後にまとめ役が行う" },
+  { id: "gh-pr-close", program: "gh", args: ["pr", "close"], argOpts: GH_ARG_OPTS, why: "PR を閉じるのは、まとめ役か人が行う" },
+  { id: "git-switch", program: "git", args: ["switch"], argOpts: GIT_ARG_OPTS, why: "枝の切り替えは、同じ作業ツリーを使う他の作業を壊す" },
+  { id: "git-checkout-branch", program: "git", args: ["checkout"], argOpts: GIT_ARG_OPTS, when: checkoutWithoutDashDash, why: "枝の切り替えは、同じ作業ツリーを使う他の作業を壊す" },
+  {
+    id: "git-reset-hard", program: "git", args: ["reset"], argOpts: GIT_ARG_OPTS,
+    when: (words, start) => words.slice(start + 1).includes("--hard"), why: "reset --hard は、未コミットの変更と履歴を消す",
+  },
+  { id: "git-worktree-remove", program: "git", args: ["worktree", "remove"], argOpts: GIT_ARG_OPTS, why: "作業ツリーの削除は、まとめ役が棚卸しの後に行う" },
+  { id: "kill", program: "kill", why: "プロセスの停止は、利用者の dev サーバーなどを止めうる" },
+  { id: "pkill", program: "pkill", why: "プロセスの停止は、利用者の dev サーバーなどを止めうる" },
+  { id: "killall", program: "killall", why: "プロセスの停止は、利用者の dev サーバーなどを止めうる" },
+];
+
 /**
  * シェルのコマンド（`tool_input.command`）を走らせる Claude Code の道具。`.claude/settings.json` の matcher は
  * これを全部覆う（`scripts/audit-agent-guard.mjs` が見る）。Monitor は PR #498 のレビュー 2 で足した。
@@ -305,7 +335,9 @@ function matchHead(words, i, decls) {
     // 当たった語を `words` に持たせる（題の取り出しに使う。#504）
     if (g.program && g.args && name === g.program) {
       const start = skipOptions(words, i + 1, g.argOpts ?? []);
-      if (g.args.every((a, k) => words[start + k] === a)) hits.push({ ...g, words });
+      if (g.args.every((a, k) => words[start + k] === a) && (g.when === undefined || g.when(words, start))) {
+        hits.push({ ...g, words, start });
+      }
     }
   }
   return hits;
@@ -419,6 +451,14 @@ export function findCommandsMatching(command, decls) {
   return analyzeString(command, 0, decls);
 }
 
+/**
+ * サブエージェントから呼ばれたときに人に聞くコマンド（{@link SUBAGENT_GUARDED_COMMANDS}）のうち、コマンドの文字列が走らせうるもの。
+ * @param {string} command
+ */
+export function findSubagentCommands(command) {
+  return analyzeString(command, 0, SUBAGENT_GUARDED_COMMANDS);
+}
+
 const RULE_REF = "AGENTS.md「AI 運用規則」の「人の明示の指示か承認を待つ操作」に当たります（docs/adr/0032）。";
 
 function ask(reason) {
@@ -460,7 +500,17 @@ export function decideHookOutput(raw) {
     return ask(`${input.tool_name} のコマンドを読めませんでした。念のため人に確かめます。${RULE_REF}`);
   }
   const hits = findGuardedCommands(command);
-  if (hits.length === 0) return null;
-  const list = hits.map((h) => `${h.id}（${h.why}）`).join("・");
-  return ask(`本番デプロイに当たるコマンドです: ${list}。人の明示の指示があるときだけ承認してください。${RULE_REF}`);
+  if (hits.length > 0) {
+    const list = hits.map((h) => `${h.id}（${h.why}）`).join("・");
+    return ask(`本番デプロイに当たるコマンドです: ${list}。人の明示の指示があるときだけ承認してください。${RULE_REF}`);
+  }
+  // サブエージェントの呼び出しだけ（入力に agent_id がある。まとめ役の呼び出しには無い）。本番デプロイの判定の後に見る
+  if (typeof input.agent_id === "string" && input.agent_id !== "") {
+    const sub = findSubagentCommands(command);
+    if (sub.length > 0) {
+      const list = sub.map((h) => `${h.id}（${h.why}）`).join("・");
+      return ask(`サブエージェントからの呼び出しです: ${list}。まとめ役か人が行う操作です。人が任せたときだけ承認してください（docs/adr/0037）。`);
+    }
+  }
+  return null;
 }

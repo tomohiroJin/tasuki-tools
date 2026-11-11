@@ -1,6 +1,14 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { GUARDED_COMMANDS, SHELL_TOOLS, findGuardedCommands, findCommandsMatching, decideHookOutput } from "./agent-guard.mjs";
+import {
+  GUARDED_COMMANDS,
+  SHELL_TOOLS,
+  SUBAGENT_GUARDED_COMMANDS,
+  findGuardedCommands,
+  findCommandsMatching,
+  findSubagentCommands,
+  decideHookOutput,
+} from "./agent-guard.mjs";
 
 /** 当たった宣言の id を並べる（順序は出現順）。 */
 function ids(command) {
@@ -261,5 +269,64 @@ describe("args の宣言（先行 PR の確認で使う。#504）", () => {
 
   test("当たりは語の並び（words）を持つ", () => {
     assert.deepEqual(match("gh pr create -t x")[0].words, ["gh", "pr", "create", "-t", "x"]);
+  });
+});
+
+describe("サブエージェントの危ない操作（#578・docs/adr/0037）", () => {
+  const sub = (c) => findSubagentCommands(c).map((h) => h.id);
+
+  test("宣言: id は重複せず、どれも理由と program を持つ", () => {
+    const seen = new Set();
+    for (const g of SUBAGENT_GUARDED_COMMANDS) {
+      assert.ok(!seen.has(g.id), g.id);
+      seen.add(g.id);
+      assert.ok(g.why && g.program, g.id);
+    }
+  });
+
+  test("git push・gh pr merge|close・git reset --hard・git worktree remove・kill 系に当たる", () => {
+    assert.deepEqual(sub("git push origin HEAD"), ["git-push"]);
+    assert.deepEqual(sub("git -C ../wt push --force-with-lease"), ["git-push"]);
+    assert.deepEqual(sub("cd x && git -c core.x=y push"), ["git-push"]);
+    assert.deepEqual(sub("gh pr merge 12 --squash"), ["gh-pr-merge"]);
+    assert.deepEqual(sub("gh -R a/b pr close 3"), ["gh-pr-close"]);
+    assert.deepEqual(sub("git reset --hard origin/main"), ["git-reset-hard"]);
+    assert.deepEqual(sub("git worktree remove ../wt"), ["git-worktree-remove"]);
+    assert.deepEqual(sub("kill -9 123"), ["kill"]);
+    assert.deepEqual(sub("sudo pkill -f vite"), ["pkill"]);
+    assert.deepEqual(sub("killall node"), ["killall"]);
+  });
+
+  test("枝の切り替え（switch と、-- の無い checkout）に当たる。-- 付きのファイル取り出しは枝の切り替えではない", () => {
+    assert.deepEqual(sub("git switch main"), ["git-switch"]);
+    assert.deepEqual(sub("git checkout main"), ["git-checkout-branch"]);
+    assert.deepEqual(sub("git checkout -b new"), ["git-checkout-branch"]);
+    assert.deepEqual(sub("git checkout origin/main -- a.test.ts"), []);
+    assert.deepEqual(sub("git checkout -- a.ts"), []);
+  });
+
+  test("当てない: 読むだけのコマンド・名前を口にするだけ・別の下位コマンド", () => {
+    for (const c of [
+      "git status", "git log --oneline", "git reset --soft HEAD~1", "git reset HEAD a.ts", "git worktree list", "git worktree add ../x -b y",
+      "gh pr view 3", "gh pr list", "gh pr create --title x", "grep 'git push' docs/a.md", "echo kill", "cat kill.txt", "git push-helper",
+    ]) {
+      assert.deepEqual(sub(c), [], c);
+    }
+  });
+
+  test("decideHookOutput: agent_id があるときだけ聞く。まとめ役（agent_id なし）は止めない", () => {
+    const mk = (command, extra = {}) => JSON.stringify({ tool_name: "Bash", tool_input: { command }, ...extra });
+    const out = decideHookOutput(mk("git push origin x", { agent_id: "a1", agent_type: "general-purpose" }));
+    assert.equal(out?.hookSpecificOutput?.permissionDecision, "ask");
+    assert.match(out.hookSpecificOutput.permissionDecisionReason, /サブエージェント/);
+    assert.match(out.hookSpecificOutput.permissionDecisionReason, /git-push/);
+    assert.equal(decideHookOutput(mk("git push origin x")), null);
+    assert.equal(decideHookOutput(mk("git push origin x", { agent_id: "" })), null);
+    assert.equal(decideHookOutput(mk("pnpm test", { agent_id: "a1" })), null);
+  });
+
+  test("decideHookOutput: 本番デプロイの判定が先（サブエージェントでも理由は本番デプロイ）", () => {
+    const out = decideHookOutput(JSON.stringify({ tool_name: "Bash", agent_id: "a1", tool_input: { command: "systemctl restart x; git push" } }));
+    assert.match(out.hookSpecificOutput.permissionDecisionReason, /本番デプロイ/);
   });
 });
