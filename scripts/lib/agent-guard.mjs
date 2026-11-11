@@ -913,8 +913,13 @@ function isListOrCreateGitBranch(args) {
 
 /** `lex` が読めない引用（`$'…'`・`$"…"`）を含むか。含めば lex の結果を信じない（引用符の内外が食い違い、`git push` が引用符の中と読まれる）。 */
 export function hasUnreadableQuote(command) {
-  // 行の継続（`$\` と改行のあとの引用符）をつないでから見る
-  return /\$['"]/.test(command.replace(/\\\r?\n/g, ""));
+  // 行の継続（`$\` と改行のあとの引用符）をつなぎ、データとして使う heredoc の本文を取り除いた後の文字列に当てる（本文の `$'…'` は実行されない）。
+  // 取り除けない（データでない）ときは、つないだ文字列のまま見る（fail closed）
+  const joined = command.replace(/\\\r?\n/g, "");
+  const text = stripHeredocBodies(joined) ?? joined;
+  // 語の先頭（文字列の先頭・空白・区切り・`=`・括弧・引用符の直後）に来る `$'`・`$"` だけが ANSI-C・ロケールの引用。
+  // `grep "main$"` の行末の錨 `$` の直後の閉じる引用符は違う（直前が語の文字）
+  return /(^|[\s;&|()=<>"'`{}])\$['"]/.test(text);
 }
 
 /** 「迷う形は聞く」の対象から、上の読む・作る形の単純なコマンドを除いた残り。入れ子（置換・`bash -c`）があれば元のまま（fail closed）。 */

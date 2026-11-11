@@ -147,6 +147,14 @@ describe("単純でない形は、変更の有無にかかわらず全部聞く�
     assert.equal((await decide(`${body}\ngit checkout -- a.ts`, { dirty: "yes" })).ask, true);
   });
 
+  test("自動レビュー: 閉じる引用符の $（grep の行末の錨）は読めない引用でない。データの heredoc の本文の $'…' も聞かない", async () => {
+    for (const c of ['git log --oneline | grep -E \'reset$\'', 'git status --short | grep -E "^ M.*checkout\\.mjs$"', 'echo "cost: 5$" && git stash list']) {
+      assert.equal((await decide(c, { dirty: "yes" })).ask, false, c);
+    }
+    assert.equal((await decide("git commit -m \"$(cat <<'EOF'\nfix: $'\\n' と git stash の説明\nEOF\n)\"", { dirty: "yes" })).ask, false);
+    assert.equal((await decide("git stash $'x'", { dirty: "no" })).ask, true);
+  });
+
   test("理由に「形が単純でない」と書く", async () => {
     assert.match((await decide("cd x && git stash")).reason, /形が単純でない/);
   });
