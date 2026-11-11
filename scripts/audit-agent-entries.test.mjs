@@ -520,12 +520,12 @@ describe("isEntryCandidate: Codex が規則として読む置き場（#578）", 
   });
 
   test(".codex/hooks.json は宣言した配線として許す。名前が似るだけのものも候補にしない", () => {
-    for (const rel of [".codex/hooks.json", ".codex/rules/default.rules", "docs/.agentsx/skills/a.md", "notes/agents/skills/a.md"])
+    for (const rel of [".codex/hooks.json", "docs/.agentsx/skills/a.md", "notes/agents/skills/a.md"])
       assert.equal(isEntryCandidate(rel), false, rel);
   });
 
   test("入れ子の階層の .codex/ は、下のものを全部候補にする（hooks.json も。ルートの hooks.json だけを許す）", () => {
-    for (const rel of ["packages/x/.codex/config.toml", "packages/x/.codex/agents/r.toml", "packages/x/.codex/skills/a/SKILL.md", "packages/x/.codex/hooks.json", "a/b/.codex/rules/d.rules"])
+    for (const rel of ["packages/x/.codex/config.toml", "packages/x/.codex/agents/r.toml", "packages/x/.codex/skills/a/SKILL.md", "packages/x/.codex/hooks.json", "a/b/.codex/rules/d.rules", ".codex/rules/default.rules", ".codex/anything.txt"])
       assert.equal(isEntryCandidate(rel), true, rel);
   });
 
@@ -543,6 +543,7 @@ describe("isEntryCandidate: Codex が規則として読む置き場（#578）", 
       "pkg/.codex/agents/r.toml",
       "pkg/.codex/skills/d/SKILL.md",
       "pkg/.codex/hooks.json",
+      ".codex/rules/default.rules",
     ];
     for (const rel of files) {
       fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true });

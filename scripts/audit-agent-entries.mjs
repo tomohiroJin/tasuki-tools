@@ -62,13 +62,13 @@ const CANDIDATE_BASENAMES = new Set(["AGENTS.md", "AGENTS.override.md", "CLAUDE.
  * `.github/copilot-instructions.md` は入口の宣言から外した（利用者が Copilot を使わないと決めた。docs/adr/0030 決定 3 の追記・#507）が、
  * ツールが規則として読む置き場なので候補には残す。黙って戻されたら「宣言されていない入口」として止まる。
  */
-const CANDIDATE_PATHS = new Set([".github/copilot-instructions.md", ".cursorrules", ".windsurfrules", ".codex/config.toml"]);
+const CANDIDATE_PATHS = new Set([".github/copilot-instructions.md", ".cursorrules", ".windsurfrules"]);
 /** 配下のどのファイルもツールが規則として読む置き場（前方一致）。 */
-const CANDIDATE_DIRS = [".claude/rules/", ".cursor/rules/", ".github/instructions/", ".codex/skills/", ".codex/agents/"];
+const CANDIDATE_DIRS = [".claude/rules/", ".cursor/rules/", ".github/instructions/"];
 /**
  * どの階層にあっても、配下のファイルをツールが規則として読む置き場（Codex のスキル。cwd から Git のルートまでの各階層を読む）。
  * `.codex/hooks.json` は候補にしない（本番デプロイを止める配線の宣言であり、規則の本文を持たない。中身は scripts/audit-codex-guard.mjs が見る。#578）。
- * `.codex/config.toml` は `developer_instructions` のような規則の置き場を持ちうるので、置いたら止める。
+ * `.codex/` の下のほかのもの（config.toml は `developer_instructions` を持てる）は、どの階層でも置いたら止める。
  */
 const CANDIDATE_NESTED_DIRS = [".agents/skills/"];
 
@@ -86,9 +86,7 @@ export const ENTRY_CANDIDATE_PATTERNS = [
   ".github/instructions/*",
   ".agents/skills/*",
   "*/.agents/skills/*",
-  ".codex/skills/*",
-  ".codex/agents/*",
-  ".codex/config.toml",
+  ".codex/*",
   "*/.codex/*",
 ];
 
@@ -99,8 +97,8 @@ export function isEntryCandidate(rel) {
     CANDIDATE_PATHS.has(rel) ||
     CANDIDATE_DIRS.some((dir) => rel.startsWith(dir)) ||
     CANDIDATE_NESTED_DIRS.some((dir) => rel.startsWith(dir) || rel.includes(`/${dir}`)) ||
-    // 入れ子の階層の .codex/ は、下のものを全部候補にする（Codex は cwd からルートまで近い層の config.toml を重ねて読む。#578 のレビュー I3）
-    rel.includes("/.codex/")
+    // どの階層の .codex/ の下も全部候補にする。ただしルートの .codex/hooks.json だけは許す（配線の宣言。#578 のレビュー I3・#584 のレビュー 5）
+    ((rel.startsWith(".codex/") || rel.includes("/.codex/")) && rel !== ".codex/hooks.json")
   );
 }
 

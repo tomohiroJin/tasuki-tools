@@ -35,14 +35,18 @@ export function decideCodexHookOutput(raw, decide = productionDenyReason) {
 }
 
 function main() {
-  let raw = "";
   try {
-    raw = fs.readFileSync(0, "utf8");
+    let raw = "";
+    try {
+      raw = fs.readFileSync(0, "utf8");
+    } catch {
+      // 標準入力が無い・閉じている。空として扱い、deny に倒す
+    }
+    const out = decideCodexHookOutput(raw);
+    if (out !== null) process.stdout.write(`${JSON.stringify(out)}\n`);
   } catch {
-    // 標準入力が無い・閉じている。空として扱い、deny に倒す
+    // 書いた後に投げても exit 0 で終わる（フックの失敗は Codex ではコマンドが走る。出力が途中なら、配線側の包みが deny に倒す）
   }
-  const out = decideCodexHookOutput(raw);
-  if (out !== null) process.stdout.write(`${JSON.stringify(out)}\n`);
 }
 
 if (isDirectRun(import.meta.url, process.argv[1])) main();

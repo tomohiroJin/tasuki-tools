@@ -177,9 +177,10 @@ Copilot は、いまは文章の入口も無い。決定 4 の見出しと「文
 - **配線**: `.codex/hooks.json`（追跡する。`.codex/` は無視の対象ではない）の `hooks.PreToolUse` に、matcher `Bash` で
   `node "$(git rev-parse --show-toplevel)/scripts/codex-guard-hook.mjs"` を置く。配線は `scripts/audit-codex-guard.mjs` が見る（決定 3 と同じ型）
   - **起動の失敗も deny に倒す**: Codex は入口を起動できない（node が無い・入口のファイルが無い・Git のルートが引けない）と、フックの失敗として
-    コマンドをそのまま走らせる（`ask` と同じ扱い）。そのためコマンドは `… || printf '%s' '<deny の JSON>'` と包み、入口が失敗したときだけ deny を返す。
-    入口が「当たらない」と何も出さず exit 0 で終わるときは、`||` の後ろは走らない。Codex がルートを環境変数で渡すかは、
-    codex-cli 0.154.0 のバイナリの文字列で調べたが見つからなかった（Claude Code の `CLAUDE_PROJECT_DIR` に当たるものは無い）ので、`git rev-parse` で引く
+    コマンドをそのまま走らせる（`ask` と同じ扱い）。そのためコマンドは `out="$(node …)" && printf '%s' "$out" || printf '%s' '<deny の JSON>'` と包み、
+    入口が**成功したときだけ**その出力を出し、失敗したら deny だけを出す（`node … || printf` だと、入口が deny を書いた後に非ゼロで終わったとき JSON が 2 つ連なり、
+    Codex は失敗とみなして通す）。入口が「当たらない」と何も出さず exit 0 で終わるときは何も出さない。入口の main は例外を全部捕まえて exit 0 で終わる。
+    Codex がルートを環境変数で渡すかは、codex-cli 0.154.0 のバイナリの文字列で調べたが見つからなかった（Claude Code の `CLAUDE_PROJECT_DIR` に当たるものは無い）ので、`git rev-parse` で引く
 - **決定 4 の表の Codex の行**（改定前の表に Codex の行は無かった）:
 
 | ツール | 仕組みはあるか（2026-11-10 の実測） | いまの扱い |
@@ -197,6 +198,15 @@ Copilot は、いまは文章の入口も無い。決定 4 の見出しと「文
   （`agent_id` つきの `git push` が deny にならないテストで固定した）
 - **配線の検査は完全一致**: `.codex/hooks.json` は期待する形（`scripts/lib/codex-guard.mjs` の `EXPECTED_CODEX_HOOKS`）と構造ごと一致するものだけを通す。
   併記・`timeout`・`async`・別のフック・`SessionStart`（`additionalContext` で規則を流し込める）の書き足しは落とす。入れ子の階層の `.codex/` は下を全部候補として止める
+- **判定は `tool_name` で絞らない**: matcher が Bash に絞っており、二重のふるいは名前が変わったときに黙って外れる道になるだけ。
+  `tool_input.command` があれば必ず判定し、無い・文字列でないときは deny（この入口は Bash の matcher からしか呼ばれない前提）
+- **フックの cwd がこのリポジトリの外のとき**: `git rev-parse` が外れて deny に倒れ、`ls` のような ordinary なコマンドも止まる。直さない。
+  プロジェクトの `.codex/hooks.json` は Codex がこのリポジトリの中で起動したときだけ読まれる（文書の調べ。未実測）ので、ふつうは起きない。
+  起きたら全部止まる側（安全側）で、人がフックを外すか起動し直す。この挙動はテストで固定した
+- **意図的な回避は範囲外**: エージェントが `scripts/` の判定のコードを書き換えれば、`.codex/hooks.json` の信頼は保たれたまま歯止めを外せる。
+  ADR-0037 と同じく、悪意への境界ではなく事故を止める歯止めである（残る穴の一つ）
+- **所要時間**: フック 1 回（sh → git → node の起動）は、この 9p 上で `ls` の入力を 20 回流して中央値 152 ms（最小 139・最大 178。2026-11-11）。Bash の呼び出しごとに足される
+- **`.codex/` の候補の規則**: どの階層の `.codex/` の下も全部候補にし、ルートの `.codex/hooks.json` だけを許す（ルートの `.codex/rules/*` も止まる）
 - **必須ファイルの一覧**: `scripts/audit-codex-guard.mjs` の手書きの一覧は、PR #583 のマージ後に `audit-agent-guard.mjs` の import をたどる関数へ寄せる
 - **実測していないこと**: この環境では `codex exec` を走らせる許可が得られず、実際の Codex に `.codex/hooks.json` 経由でデプロイのダミーを走らせて
   止まることは**確かめられていない**（入口の単体テストと、実測済みの `deny` の出力の形の突き合わせのみ）。次の点は文書の調べか推測で、**未実測**: Codex がフックのコマンドを**シェルに通すか**（`$(git rev-parse …)` と `||` が効く前提）、

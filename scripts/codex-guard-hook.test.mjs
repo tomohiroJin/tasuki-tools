@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { decideCodexHookOutput } from "./codex-guard-hook.mjs";
+import { CODEX_HOOK_COMMAND } from "./lib/codex-guard.mjs";
 
 /**
  * Codex の入口（scripts/codex-guard-hook.mjs・#578・docs/adr/0032 の追記）の自己テスト。
@@ -40,8 +41,15 @@ describe("decideCodexHookOutput: 当たらなければ何も出さない", () =>
   for (const cmd of ["grep deploy.sh README.md", "cat deploy/README.md", "ls deploy", "git status"]) {
     test(cmd, () => assert.equal(decideCodexHookOutput(input(cmd)), null));
   }
-  test("シェルでない道具は何も出さない", () => {
-    assert.equal(decideCodexHookOutput(JSON.stringify({ tool_name: "apply_patch", tool_input: { command: "systemctl" } })), null);
+  test("tool_name で絞らない（matcher が Bash に絞っているので二重のふるいにしない）: 名前が違う・欠けていても command があれば判定する", () => {
+    for (const extra of [{ tool_name: "exec_command" }, { tool_name: undefined }, { tool_name: "Monitor" }])
+      assert.equal(decideCodexHookOutput(input("systemctl restart tasuki", extra))?.hookSpecificOutput.permissionDecision, "deny", JSON.stringify(extra));
+    assert.equal(decideCodexHookOutput(input("ls", { tool_name: "exec_command" })), null);
+  });
+
+  test("command が無い・文字列でないときは deny（Bash の matcher からしか呼ばれない前提）", () => {
+    for (const raw of [JSON.stringify({ tool_name: "apply_patch", tool_input: {} }), JSON.stringify({ tool_name: "Bash" }), JSON.stringify({ tool_input: { command: ["ls"] } })])
+      assert.equal(decideCodexHookOutput(raw)?.hookSpecificOutput.permissionDecision, "deny", raw);
   });
 });
 
@@ -97,7 +105,11 @@ describe("判定が想定外に投げても deny に倒す（fail-open にしな
 
 describe(".codex/hooks.json のコマンドを実際に走らせる（起動の失敗も deny）", () => {
   const REPO = new URL("../", import.meta.url).pathname;
-  const hooksCommand = JSON.parse(fs.readFileSync(path.join(REPO, ".codex/hooks.json"), "utf8")).hooks.PreToolUse[0].hooks[0].command;
+  // 配線のコマンドの正本は lib の CODEX_HOOK_COMMAND。hooks.json が同じ値であることは下の 1 件で見る（audit-codex-guard も完全一致で見る）
+  const hooksCommand = CODEX_HOOK_COMMAND;
+  test("実リポジトリの .codex/hooks.json のコマンドは lib の値と同じ", () => {
+    assert.equal(JSON.parse(fs.readFileSync(path.join(REPO, ".codex/hooks.json"), "utf8")).hooks.PreToolUse[0].hooks[0].command, CODEX_HOOK_COMMAND);
+  });
 
   /** 配線のコマンドを sh -c で走らせる。Codex が同じように走らせるかは未実測（文書の調べ。cwd もセッションの作業場所と仮定している）。 */
   function runWired(t, { cwd, command = "bash deploy/deploy.sh", env = {} }) {
@@ -110,6 +122,16 @@ describe(".codex/hooks.json のコマンドを実際に走らせる（起動の�
     t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
     return dir;
   };
+  /** 指定のコマンドだけを持つ PATH（node の代わりを置ける）。git・sh・printf は本物へ symlink する。 */
+  const pathWith = (t, nodeScript) => {
+    const bin = tmp(t);
+    for (const name of ["git", "sh", "printf"]) {
+      const found = spawnSync("sh", ["-c", `command -v ${name}`], { encoding: "utf8" }).stdout.trim();
+      if (found.startsWith("/")) fs.symlinkSync(found, path.join(bin, name));
+    }
+    if (nodeScript !== undefined) fs.writeFileSync(path.join(bin, "node"), nodeScript, { mode: 0o755 });
+    return bin;
+  };
   const decision = (out) => out?.hookSpecificOutput.permissionDecision;
 
   test("対照実行: リポジトリの中（サブディレクトリでも）なら、デプロイは deny・読み取りは何も出さない", (t) => {
@@ -120,6 +142,8 @@ describe(".codex/hooks.json のコマンドを実際に走らせる（起動の�
 
   test("cwd が Git のリポジトリの外なら deny（入口が見つからない）", (t) => {
     assert.equal(decision(runWired(t, { cwd: tmp(t) })), "deny");
+    // 外では ordinary なコマンドも止まる（安全側に倒す判断。ADR-0032 の追記・#578 のレビュー）
+    assert.equal(decision(runWired(t, { cwd: tmp(t), command: "ls" })), "deny");
   });
 
   test("リポジトリの中でも入口のファイルが無ければ deny", (t) => {
@@ -129,23 +153,32 @@ describe(".codex/hooks.json のコマンドを実際に走らせる（起動の�
   });
 
   test("node が起動に失敗しても（PATH に node が無い）deny", (t) => {
-    const bin = tmp(t);
-    // node だけ無い PATH。sh・git・printf は絶対パスで引けるよう、既存の PATH から node を除いた bin を作る
-    for (const name of ["git", "sh", "printf"]) {
-      const found = spawnSync("sh", ["-c", `command -v ${name}`], { encoding: "utf8" }).stdout.trim();
-      if (found.startsWith("/")) fs.symlinkSync(found, path.join(bin, name));
-    }
-    assert.equal(decision(runWired(t, { cwd: REPO, env: { PATH: bin } })), "deny");
+    assert.equal(decision(runWired(t, { cwd: REPO, env: { PATH: pathWith(t) } })), "deny");
   });
 
   test("node が投げて非ゼロで終わっても deny（入口の代わりの node）", (t) => {
-    const bin = tmp(t);
-    fs.writeFileSync(path.join(bin, "node"), "#!/bin/sh\necho oops >&2\nexit 1\n", { mode: 0o755 });
-    for (const name of ["git", "sh", "printf"]) {
-      const found = spawnSync("sh", ["-c", `command -v ${name}`], { encoding: "utf8" }).stdout.trim();
-      if (found.startsWith("/")) fs.symlinkSync(found, path.join(bin, name));
-    }
-    assert.equal(decision(runWired(t, { cwd: REPO, env: { PATH: bin } })), "deny");
+    assert.equal(decision(runWired(t, { cwd: REPO, env: { PATH: pathWith(t, "#!/bin/sh\necho oops >&2\nexit 1\n") } })), "deny");
+  });
+
+  test("node が出力を書いた後に非ゼロで終わっても、JSON は 1 つだけ（2 つ連なると Codex が失敗とみなして通す）", (t) => {
+    const stub = `#!/bin/sh\nprintf '%s' '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"first"}}'\nexit 1\n`;
+    const r = spawnSync("sh", ["-c", hooksCommand], { cwd: REPO, input: input("ls"), encoding: "utf8", env: { ...process.env, PATH: pathWith(t, stub) } });
+    const parsed = JSON.parse(r.stdout);
+    assert.equal(parsed.hookSpecificOutput.permissionDecision, "deny");
+    assert.doesNotMatch(parsed.hookSpecificOutput.permissionDecisionReason, /first/);
+  });
+
+  test("node が成功したときは、その出力をそのまま返す", (t) => {
+    const stub = `#!/bin/sh\nprintf '%s' '{"ok":1}'\n`;
+    const r = spawnSync("sh", ["-c", hooksCommand], { cwd: REPO, input: input("ls"), encoding: "utf8", env: { ...process.env, PATH: pathWith(t, stub) } });
+    assert.equal(r.stdout, '{"ok":1}');
+  });
+
+  test("書き込みが投げても入口は exit 0（例外を全部捕まえる）", (t) => {
+    const preload = path.join(tmp(t), "throw-write.mjs");
+    fs.writeFileSync(preload, 'process.stdout.write = () => { throw new Error("x"); };\n');
+    const r = spawnSync(process.execPath, ["--import", preload, HOOK], { input: input("bash deploy/deploy.sh"), encoding: "utf8" });
+    assert.equal(r.status, 0, r.stderr);
   });
 });
 

@@ -19,6 +19,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import { fileURLToPath } from "node:url";
 import { listTrackedFiles } from "./lib/scan-targets.mjs";
 import { isDirectRun } from "./lib/direct-run.mjs";
@@ -34,16 +35,6 @@ export const CODEX_HOOKS_PATH = ".codex/hooks.json";
  * 手書きの一覧。PR #583 のマージ後に、`audit-agent-guard.mjs` の `collectEntryDependencies`（入口の import をたどる）へ寄せる（#578 のレビュー Minor 2）。
  */
 export const CODEX_HOOK_LIBS = ["scripts/lib/agent-guard.mjs", "scripts/lib/direct-run.mjs", "scripts/lib/codex-guard.mjs"];
-/** 値を構造ごと比べる（キーの順は問わない）。 */
-function sameJson(a, b) {
-  if (a === b) return true;
-  if (typeof a !== "object" || typeof b !== "object" || a === null || b === null) return false;
-  if (Array.isArray(a) !== Array.isArray(b)) return false;
-  const ka = Object.keys(a);
-  const kb = Object.keys(b);
-  return ka.length === kb.length && ka.every((k) => Object.hasOwn(b, k) && sameJson(a[k], b[k]));
-}
-
 /**
  * `.codex/hooks.json` の中身を見る。**期待する形 1 つと構造ごと完全一致のものだけ**を通す（許可リスト。期待の形は
  * `scripts/lib/codex-guard.mjs` の `EXPECTED_CODEX_HOOKS`）。Claude Code の入口の併記・`timeout`・`async`・`allow` を返す別のフック・
@@ -59,7 +50,7 @@ export function checkCodexHooks(text) {
   } catch (e) {
     return [`JSON として読めません（${e.message}）`];
   }
-  if (sameJson(json, EXPECTED_CODEX_HOOKS)) return [];
+  if (isDeepStrictEqual(json, EXPECTED_CODEX_HOOKS)) return [];
   return [
     `期待する形（scripts/lib/codex-guard.mjs の EXPECTED_CODEX_HOOKS）と一致しません。hooks.PreToolUse に matcher "Bash" で ${JSON.stringify(CODEX_HOOK_COMMAND)} を 1 つだけ置き、ほかのキー・フックを足さないでください（Claude Code の入口は ask を返すので Codex では止まらない。timeout・async・allow・SessionStart は歯止めを外すか規則を流し込む。docs/adr/0032 の追記）`,
   ];

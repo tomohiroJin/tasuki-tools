@@ -21,7 +21,7 @@ describe("checkCodexHooks: .codex/hooks.json は期待する形と構造ごと�
   });
 
   test("期待の形は起動の失敗を deny に倒す包みを含む", () => {
-    assert.match(CODEX_HOOK_COMMAND, /scripts\/codex-guard-hook\.mjs" \|\| printf '%s' '\{"hookSpecificOutput":\{.*"permissionDecision":"deny"/);
+    assert.match(CODEX_HOOK_COMMAND, /^out="\$\(node .*codex-guard-hook\.mjs"\)" && printf '%s' "\$out" \|\| printf '%s' '\{"hookSpecificOutput":\{.*"permissionDecision":"deny"/);
   });
 
   test("JSON として読めなければ落とす", () => {
@@ -33,7 +33,8 @@ describe("checkCodexHooks: .codex/hooks.json は期待する形と構造ごと�
     "matcher が Bash でない": (j) => (j.hooks.PreToolUse[0].matcher = "Edit"),
     "matcher が * （広い）": (j) => (j.hooks.PreToolUse[0].matcher = "*"),
     "コマンドが違う": (j) => (entry(j).command = "node scripts/other.mjs"),
-    "起動の失敗の包みを外した": (j) => (entry(j).command = 'node "$(git rev-parse --show-toplevel)/scripts/codex-guard-hook.mjs"'),
+
+    "node の出力の後に非ゼロで終わると JSON が 2 つ連なる旧い包み（|| だけ）": (j) => (entry(j).command = entry(j).command.replace(/^out="\$\((.*?)\)" && printf '%s' "\$out" \|\|/, "$1 ||")),
     "Claude Code の入口（ask）へ置き換えた": (j) => (entry(j).command = 'node "${CLAUDE_PROJECT_DIR}/scripts/agent-guard-hook.mjs"'),
     "Claude Code の入口を併記した": (j) => j.hooks.PreToolUse[0].hooks.push({ type: "command", command: 'node "${CLAUDE_PROJECT_DIR}/scripts/agent-guard-hook.mjs"' }),
     "timeout: 0 を足した": (j) => (entry(j).timeout = 0),

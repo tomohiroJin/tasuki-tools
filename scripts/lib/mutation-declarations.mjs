@@ -8536,10 +8536,26 @@ export const MUTATIONS = [
   },
   {
     id: 1487,
-    label: "audit-codex-guard の構造の比較が、期待に無い余計なキー（timeout・SessionStart ほか）を許す",
+    label: "audit-codex-guard の比較が、PreToolUse の先頭のフックだけを見て、余計なキー・フック（timeout・SessionStart ほか）を許す",
     patch: "m1487-audit-codex-guard-ignores-extra-keys.patch",
     pkg: "scripts",
     tests: ["audit-codex-guard.test.mjs"],
     note: RESERVED_1480_1489 + " " + "#578 PR 3。タイムアウトや規則の流し込みのフックを足されても CI が緑のまま（レビュー I2）。",
+  },
+  {
+    id: 1488,
+    label: "Codex のフックのコマンドを、入口の出力を受けずに node … || printf の形へ戻す（node が書いた後に落ちると JSON が 2 つ連なる）",
+    patch: "m1488-codex-hooks-double-json-wrapper.patch",
+    pkg: "scripts",
+    tests: ["codex-guard-hook.test.mjs"],
+    note: RESERVED_1480_1489 + " " + "#578 PR 3。#584 のレビュー。JSON が 2 つ連なると Codex は失敗とみなしてコマンドを通す。",
+  },
+  {
+    id: 1489,
+    label: "Codex の入口が、command が文字列でないとき deny でなく通す",
+    patch: "m1489-codex-guard-passes-when-command-missing.patch",
+    pkg: "scripts",
+    tests: ["codex-guard-hook.test.mjs"],
+    note: RESERVED_1480_1489 + " " + "#578 PR 3。#584 のレビュー。入力の形が変わったとき歯止めが黙って外れる（fail-open）。",
   },
 ];
