@@ -508,6 +508,24 @@ describe("サブエージェントの危ない操作（#578・docs/adr/0037）",
     }
   });
 
+  test("自動レビュー: 新しい操作の名前も OPERATION_WORDS にあり、heredoc の中の git branch -D・gh api -X DELETE・gh pr review --approve は隠れず当たる", () => {
+    for (const c of ["git branch -D x", "gh api -X DELETE repos/o/r", "gh pr review 3 --approve", "tmux kill-session"]) assert.equal(mentionsSubagentOperation(c), true, c);
+    for (const c of [
+      "bash <<'EOF'\ngit branch -D x\nEOF", "bash <<'EOF'\ngh api -X DELETE repos/o/r/pulls/3\nEOF", "bash <<'EOF'\ngh pr review 3 --approve\nEOF",
+      "git commit -m x && bash <<'EOF'\ngit branch -D x\nEOF",
+    ]) {
+      assert.equal(isTameCommand(c), false, c);
+      assert.ok(findSubagentCommands(c).length > 0, c);
+    }
+    // データとして使われる heredoc の本文は今までどおり文章
+    assert.equal(isTameCommand("git commit -m \"$(cat <<'EOF'\nfix: git branch -D と gh pr review --approve の説明\nEOF\n)\""), true);
+  });
+
+  test("自動レビュー: gh pr review の短い選択肢の束（-ab・-rb・-ar）も聞く（fail closed）", () => {
+    for (const c of ["gh pr review 3 -ab x", "gh pr review 3 -rb x", "gh pr review 3 -ar", "gh pr review 3 -cr -b x", "gh pr review 3 -Rowner/repo -a"]) assert.ok(findSubagentCommands(c).length > 0, c);
+    for (const c of ["gh pr review 3 -c -b x", "gh pr review 3 --comment -b x", "gh pr review 3"]) assert.equal(findSubagentCommands(c).length, 0, c);
+  });
+
   test("コードレビュー 5: tame の git mv は -f/--force を含まない", () => {
     assert.equal(isTameCommand("git mv a b"), true);
     for (const c of ["git mv -f a b", "git mv --force a b", "git mv -kf a b"]) assert.equal(isTameCommand(c), false, c);

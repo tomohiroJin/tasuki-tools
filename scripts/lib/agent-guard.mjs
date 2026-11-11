@@ -114,7 +114,7 @@ export const SUBAGENT_GUARDED_COMMANDS = [
   { id: "tmux-kill-server", program: "tmux", args: ["kill-server"], argOpts: ["-L", "-S", "-f", "-c", "-T"], why: "tmux の停止は、利用者のセッション（ログ・サーバー）を落としうる" },
   { id: "tmux-kill-session", program: "tmux", args: ["kill-session"], argOpts: ["-L", "-S", "-f", "-c", "-T"], why: "tmux の停止は、利用者のセッション（ログ・サーバー）を落としうる" },
   { id: "gh-api-write", program: "gh", args: ["api"], argOpts: GH_ARG_OPTS, when: (words, start) => !isReadOnlyGhApi(words, start + 1), why: "GitHub への書き込み（GET 以外・フィールド付き）は、人の承認の後にまとめ役が行う" },
-  { id: "gh-pr-review-decide", program: "gh", args: ["pr", "review"], argOpts: GH_ARG_OPTS, when: (words, start) => words.slice(start + 2).some((w) => w === "-a" || w === "-r" || isLongOption(w, "--approve") || isLongOption(w, "--request-changes")), why: "PR の承認・変更要求は、人の判断" },
+  { id: "gh-pr-review-decide", program: "gh", args: ["pr", "review"], argOpts: GH_ARG_OPTS, when: (words, start) => words.slice(start + 2).some((w) => isLongOption(w, "--approve") || isLongOption(w, "--request-changes") || (/^-[A-Za-z]+$/.test(w) && /[ar]/.test(w) && !/^-[cb]$/.test(w))), why: "PR の承認・変更要求は、人の判断" },
   { id: "kill", program: "kill", why: "プロセスの停止は、利用者の dev サーバーなどを止めうる" },
   { id: "pkill", program: "pkill", why: "プロセスの停止は、利用者の dev サーバーなどを止めうる" },
   { id: "killall", program: "killall", why: "プロセスの停止は、利用者の dev サーバーなどを止めうる" },
@@ -660,7 +660,7 @@ function isTameWords(words) {
  */
 export const OPERATION_WORDS = Object.freeze({
   /** サブエージェントがまとめ役か人に任せる git の操作。 */
-  gitSubagent: ["push", "checkout", "switch", "reset", "worktree"],
+  gitSubagent: ["push", "checkout", "switch", "reset", "worktree", "branch"],
   /**
    * 未コミットの変更を消しうる git の操作。`git help -a` の下位コマンドを洗った（2026-11-11・git 2.43）:
    * 作業ツリーのファイルを上書き・削除するもの（checkout・restore・switch・reset・clean・stash・rm -f・mv -f・checkout-index -f・
@@ -668,7 +668,7 @@ export const OPERATION_WORDS = Object.freeze({
    * 変更があると git 自身が拒む（`--abort`・`--quit` は消すが日常の作業を止めるので含めない）。
    */
   gitDiscard: ["checkout", "restore", "stash", "reset", "clean", "switch", "rm", "mv", "checkout-index", "read-tree", "submodule", "worktree"],
-  gh: ["merge", "close"],
+  gh: ["merge", "close", "api", "review"],
   kill: ["kill", "pkill", "killall", "kill-port", "fuser", "kill-server", "kill-session"],
 });
 
