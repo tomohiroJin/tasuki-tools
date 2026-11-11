@@ -100,6 +100,21 @@ export const SUBAGENT_GUARDED_COMMANDS = [
     when: (words, start) => beforeDashDash(words.slice(start + 1)).some((w) => isLongOption(w, "--hard")), why: "reset --hard は、未コミットの変更と履歴を消す",
   },
   { id: "git-worktree-remove", program: "git", args: ["worktree", "remove"], argOpts: GIT_ARG_OPTS, why: "作業ツリーの削除は、まとめ役が棚卸しの後に行う" },
+  {
+    id: "git-branch-modify", program: "git", args: ["branch"], argOpts: GIT_ARG_OPTS,
+    // -d/-D/-m/-M/-f/-c/-C（束ねた短い選択肢・長い選択肢の省略形も）。一覧・作成は読む形・日常の形として通す
+    when: (words, start) =>
+      words.slice(start + 1).some((w) => (/^-[A-Za-z]*[dDmMfcC]/.test(w) && !w.startsWith("--")) || ["--delete", "--move", "--force", "--copy"].some((f) => isLongOption(w, f))),
+    why: "枝の削除・改名・付け替えは、まとめ役の枝や他の作業の枝を壊す",
+  },
+  { id: "npx-kill-port", program: "npx", args: ["kill-port"], why: "ポートを握るプロセスの停止は、利用者の dev サーバーを止めうる" },
+  { id: "bunx-kill-port", program: "bunx", args: ["kill-port"], why: "ポートを握るプロセスの停止は、利用者の dev サーバーを止めうる" },
+  { id: "pnpm-dlx-kill-port", program: "pnpm", args: ["dlx", "kill-port"], why: "ポートを握るプロセスの停止は、利用者の dev サーバーを止めうる" },
+  { id: "fuser-kill", program: "fuser", args: [], when: (words) => words.some((w) => /^-[A-Za-z]*k/.test(w) || w === "--kill"), why: "ポートを握るプロセスの停止は、利用者の dev サーバーを止めうる" },
+  { id: "tmux-kill-server", program: "tmux", args: ["kill-server"], argOpts: ["-L", "-S", "-f", "-c", "-T"], why: "tmux の停止は、利用者のセッション（ログ・サーバー）を落としうる" },
+  { id: "tmux-kill-session", program: "tmux", args: ["kill-session"], argOpts: ["-L", "-S", "-f", "-c", "-T"], why: "tmux の停止は、利用者のセッション（ログ・サーバー）を落としうる" },
+  { id: "gh-api-write", program: "gh", args: ["api"], argOpts: GH_ARG_OPTS, when: (words, start) => !isReadOnlyGhApi(words, start + 1), why: "GitHub への書き込み（GET 以外・フィールド付き）は、人の承認の後にまとめ役が行う" },
+  { id: "gh-pr-review-decide", program: "gh", args: ["pr", "review"], argOpts: GH_ARG_OPTS, when: (words, start) => words.slice(start + 2).some((w) => w === "-a" || w === "-r" || isLongOption(w, "--approve") || isLongOption(w, "--request-changes")), why: "PR の承認・変更要求は、人の判断" },
   { id: "kill", program: "kill", why: "プロセスの停止は、利用者の dev サーバーなどを止めうる" },
   { id: "pkill", program: "pkill", why: "プロセスの停止は、利用者の dev サーバーなどを止めうる" },
   { id: "killall", program: "killall", why: "プロセスの停止は、利用者の dev サーバーなどを止めうる" },
@@ -654,7 +669,7 @@ export const OPERATION_WORDS = Object.freeze({
    */
   gitDiscard: ["checkout", "restore", "stash", "reset", "clean", "switch", "rm", "mv", "checkout-index", "read-tree", "submodule", "worktree"],
   gh: ["merge", "close"],
-  kill: ["kill", "pkill", "killall"],
+  kill: ["kill", "pkill", "killall", "kill-port", "fuser", "kill-server", "kill-session"],
 });
 
 const wordsRe = (words) => new RegExp(`(?<![\\w-])(?:${words.join("|")})(?![\\w-])`);

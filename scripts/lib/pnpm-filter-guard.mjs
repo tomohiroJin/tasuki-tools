@@ -9,7 +9,7 @@
  *   `./dir`・`{dir}`・`[git ref]` は名前でないので当てに行かない（通す）
  * - workspace は `pnpm-workspace.yaml` の `packages:` の glob（`dir/*` と `dir`）を展開して、各 `package.json` の `name` を読む
  * - 一覧を引けないとき（workspace が見つからない）は通す。pnpm 自身が失敗する
- * - 歯止めであって壁ではない: `package.json` の scripts の中の `pnpm --filter` は読まない。turbo の `--filter` は文法が違うので対象外
+ * - 歯止めであって壁ではない: `package.json` の scripts の中の `pnpm --filter` は読まない。`pnpm exec turbo run … --filter=…`・`pnpm turbo …` のように pnpm を経て turbo へ渡る `--filter` も pnpm の規則で照合する（turbo の文法とは違うので、名前が合わなければ聞く側に倒れる。実害のある誤検知は見つかっていない）
  */
 import fs from "node:fs";
 import path from "node:path";

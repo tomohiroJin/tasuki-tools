@@ -138,16 +138,18 @@ function run(command, args, options) {
 }
 
 /**
- * 今の作業ツリーの構造監査の出力。基準（`git archive` = 追跡下のファイルだけ）と揃えるため、**追跡下のファイルだけ**
- * （未コミットの変更を含む。`git ls-files` が挙げる現在の中身）を一時ディレクトリへ写して測る。追跡外のファイル（試しの .ts・coverage ほか）で
- * 偽の後退を出さない（コードレビュー 7）。新しいファイルは `git add` した後から数える。
+ * 今の作業ツリーの構造監査の出力。基準（`git archive` = 追跡下のファイルだけ）に近づけるため、**追跡下のファイルと、
+ * 追跡外で .gitignore の対象でないファイル**（未コミットの変更・`git add` 前の新しいファイルを含む。
+ * `git ls-files --cached --others --exclude-standard`）を一時ディレクトリへ写して測る。.gitignore の対象（coverage ほか）で
+ * 偽の後退を出さず、新しいファイルによる後退を `git add` 前に見落とさない（コードレビュー 7・PR コメント 1）。
+ * ignore されない試しの .ts は数えられる（残余。ADR-0037）。
  * 写しは**呼んだ時点で同期的に**取る（背景で測っている間に、後続の検査が作業ツリーを書き換えても影響しない。コードレビュー 8）。
  * @returns {Promise<string>}
  */
 export function defaultCurrentOutput(root, tmp = os.tmpdir()) {
   const dir = fs.mkdtempSync(path.join(tmp, "tasuki-structure-cur-"));
   try {
-    const files = execFileSync("git", ["ls-files", "-z", "--cached"], { cwd: root, maxBuffer: 256 * 1024 * 1024 });
+    const files = execFileSync("git", ["ls-files", "-z", "--cached", "--others", "--exclude-standard"], { cwd: root, maxBuffer: 256 * 1024 * 1024 });
     // 削除済みで追跡下のファイルは写せないので読み飛ばす（tar の警告のみ）
     execFileSync("bash", ["-c", 'tar --null -T - --ignore-failed-read -cf - 2>/dev/null | tar -x -C "$1"', "copy", dir], { cwd: root, input: files, maxBuffer: 1024 * 1024 * 1024 });
   } catch (error) {

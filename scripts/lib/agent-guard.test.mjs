@@ -497,6 +497,17 @@ describe("サブエージェントの危ない操作（#578・docs/adr/0037）",
     assert.equal(mentionsGuardedOperation("kill 1"), true);
   });
 
+  test("コメント 3: 枝の削除・改名・付け替え、別のプロセス停止、GitHub への書き込みもサブエージェントでは聞く。merge・rebase・commit --amend は聞かない", () => {
+    for (const c of [
+      "git branch -D other", "git branch -d other", "git branch -m old new", "git branch -M a b", "git branch -f other HEAD", "git branch --delete x", "git branch --move a b", "git branch --force x HEAD", "git -C ../w branch -D x",
+      "npx kill-port 5173", "npx -y kill-port 5173", "bunx kill-port 5173", "pnpm dlx kill-port 5173", "fuser -k 5173/tcp", "tmux kill-server", "tmux kill-session -t x", "tmux -L s kill-session",
+      "gh api repos/o/r/pulls/3 -X DELETE", "gh api repos/o/r/issues -f title=x", "gh pr review 3 --approve", "gh pr review 3 --request-changes", "gh pr review 3 -a", "gh pr review 3 -r -b x",
+    ]) assert.ok(findSubagentCommands(c).length > 0, c);
+    for (const c of ["git branch", "git branch newbranch", "git branch -a", "git merge other", "git rebase origin/main", "git commit --amend --no-edit", "gh api repos/o/r/pulls/3", "gh pr review 3 --comment -b x", "tmux ls", "fuser 5173/tcp", "npx vitest run"]) {
+      assert.equal(findSubagentCommands(c).length, 0, c);
+    }
+  });
+
   test("コードレビュー 5: tame の git mv は -f/--force を含まない", () => {
     assert.equal(isTameCommand("git mv a b"), true);
     for (const c of ["git mv -f a b", "git mv --force a b", "git mv -kf a b"]) assert.equal(isTameCommand(c), false, c);

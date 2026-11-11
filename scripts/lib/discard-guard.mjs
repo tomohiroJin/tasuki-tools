@@ -172,13 +172,17 @@ const GIT_TIMEOUT_MS = 5000;
  * @returns {Promise<"yes" | "no" | "unknown">}
  */
 export function defaultIsDirty(cwd, target, env = {}) {
-  const args = ["status", "--porcelain", `--untracked-files=${target.untracked ? "normal" : "no"}`];
+  // path 指定の checkout/restore は、同じ名前の追跡外のファイル（ignore されないもの）も上書きしうるので、追跡外も見る（PR コメント 2）。
+  // ignore されたファイルを上書きする形は見ない（残余。ADR-0037）
+  const untrackedMode = target.untracked || target.kind === "paths" ? "normal" : "no";
+  const args = ["status", "--porcelain", `--untracked-files=${untrackedMode}`];
   if (target.kind === "paths") args.push("--", ...target.paths);
   return new Promise((resolve) => {
     const child = execFile("git", args, { cwd, timeout: GIT_TIMEOUT_MS, encoding: "utf8", windowsHide: true, env: { ...process.env, ...env } }, (error, stdout, stderr) => {
       if (!error) {
         const lines = stdout.split("\n").filter((l) => l !== "");
-        return resolve((target.scope === "worktree" ? lines.filter((l) => l[1] !== " ") : lines).length > 0 ? "yes" : "no");
+        // worktree 範囲: 作業ツリー側の変更（` M`・`??` ほか）。index だけの変更（`M `）は数えない
+        return resolve((target.scope === "worktree" ? lines.filter((l) => l[1] !== " " || l.startsWith("??")) : lines).length > 0 ? "yes" : "no");
       }
       // 作業ツリーでない場所だけが、消すものが無い。ほかの 128（所有者の不一致・壊れた設定）・git が無い・場所が無い・時間切れは、確かめられなかった
       if (!error.killed && error.code === 128 && /not a git repository/i.test(String(stderr))) return resolve("no");

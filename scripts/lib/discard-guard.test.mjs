@@ -200,6 +200,18 @@ describe("defaultIsDirty: 実際の git で", () => {
     assert.equal(await defaultIsDirty(dir, wt(["a.ts"])), "yes");
   });
 
+  test("コメント 2: path 指定は、同じ名前の追跡外のファイル（ignore されない）も変更に数える。ignore されたものは数えない（残余）", async (t) => {
+    const dir = repo(t);
+    fs.writeFileSync(path.join(dir, ".gitignore"), "ign.ts\n");
+    git(dir, "add", ".gitignore");
+    git(dir, "commit", "-qm", "ig");
+    fs.writeFileSync(path.join(dir, "new.ts"), "x");
+    fs.writeFileSync(path.join(dir, "ign.ts"), "x");
+    assert.equal(await defaultIsDirty(dir, wt(["new.ts"])), "yes");
+    assert.equal(await defaultIsDirty(dir, wt(["ign.ts"])), "no");
+    assert.equal(await defaultIsDirty(dir, wt(["a.ts"])), "no");
+  });
+
   test("追跡していない新規ファイルは、-u の stash だけが対象", async (t) => {
     const dir = repo(t);
     fs.writeFileSync(path.join(dir, "new.ts"), "x");

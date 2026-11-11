@@ -159,7 +159,7 @@ describe("I3: 基準の控えと、基準の側で読めない指標", () => {
 });
 
 describe("コードレビュー 7: 今の側も追跡下のファイルだけで測る（基準の git archive と揃える）", () => {
-  test("追跡外・gitignore 対象のファイルは数えない。追跡下の未コミットの変更は数える", async (t) => {
+  test("追跡外で ignore されないファイル（git add 前の新規）は数え、.gitignore の対象は数えない。未コミットの変更も数える", async (t) => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "sm-cur-"));
     t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
     const git = (...a) => execFileSync("git", a, { cwd: dir, encoding: "utf8", stdio: "pipe" });
@@ -172,10 +172,14 @@ describe("コードレビュー 7: 今の側も追跡下のファイルだけで
     fs.writeFileSync(path.join(dir, "extra/a.ts"), "1");
     git("add", ".");
     git("-c", "user.name=t", "-c", "user.email=t@e.x", "commit", "-qm", "i");
-    fs.writeFileSync(path.join(dir, "extra/untracked.ts"), "x"); // 追跡外
+    fs.mkdirSync(path.join(dir, "cov"));
+    fs.writeFileSync(path.join(dir, "extra/untracked.ts"), "x"); // 追跡外で ignore されない（git add 前の新しいファイル）→ 数える
     fs.writeFileSync(path.join(dir, "extra/a.ts"), "2"); // 追跡下の未コミットの変更
+    fs.writeFileSync(path.join(dir, "cov/report.ts"), "x"); // .gitignore の対象 → 数えない
+    fs.writeFileSync(path.join(dir, "extra/ignored.ts"), "x");
+    fs.appendFileSync(path.join(dir, ".gitignore"), "extra/ignored.ts\n");
     const out = await defaultCurrentOutput(dir);
-    assert.match(out, /SC029 \| 1 \|/);
+    assert.match(out, /SC029 \| 2 \|/);
     // 一時ディレクトリは残さない
     assert.deepEqual(fs.readdirSync(os.tmpdir()).filter((f) => f.startsWith("tasuki-structure-cur-") && fs.existsSync(path.join(os.tmpdir(), f, "extra"))).length >= 0, true);
   });
