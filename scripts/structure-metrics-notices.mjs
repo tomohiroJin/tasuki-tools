@@ -11,13 +11,15 @@ import { structureNotices, defaultBaselineOutput, defaultCurrentOutput } from ".
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-async function main() {
+async function run() {
   const lines = await structureNotices({ baseline: () => defaultBaselineOutput(ROOT), current: () => defaultCurrentOutput(ROOT) });
   process.stdout.write(`${JSON.stringify(lines)}\n`);
 }
 
-if (isDirectRun(import.meta.url, process.argv[1])) {
-  main().catch((error) => {
+function main() {
+  run().catch((error) => {
     process.stdout.write(`${JSON.stringify([`⚠ 構造監査の指標の比較は未実行です（${String(error.message).trim().split("\n")[0]}）`])}\n`);
   });
 }
+
+if (isDirectRun(import.meta.url, process.argv[1])) main();
