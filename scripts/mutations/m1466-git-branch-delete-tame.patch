@@ -1,13 +1,13 @@
 diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
-index adccf005..06221565 100644
+index 3e185193..94a9ab8a 100644
 --- a/scripts/lib/agent-guard.mjs
 +++ b/scripts/lib/agent-guard.mjs
-@@ -565,7 +565,7 @@ function isTameWords(words) {
+@@ -591,7 +591,7 @@ function isTameWords(words) {
      if (words[1] === undefined || words[1].startsWith("-")) return false; // 全体の選択肢（-C・-c ほか）があれば読み切れない
      const sub = words[1];
-     // 枝・参照を消す・動かす形は読むだけでない（branch の -d/-D/-f/-m/-c、fetch の --prune）
--    if (sub === "branch" && words.slice(2).some((w) => /^-[A-Za-z]*[dDfmMcCu]/.test(w) && !w.startsWith("--") || /^--(delete|force|move|copy|set-upstream-to|unset-upstream|edit-description)/.test(w))) return false;
-+    if (false && words.slice(2).some((w) => /^-[A-Za-z]*[dDfmMcCu]/.test(w) && !w.startsWith("--") || /^--(delete|force|move|copy|set-upstream-to|unset-upstream|edit-description)/.test(w))) return false;
-     if (sub === "fetch" && words.slice(2).some((w) => w === "-p" || /^--prune/.test(w))) return false;
-     if (TAME_GIT_SUBS.has(sub)) return true;
-     if (sub === "stash") return ["list", "show"].includes(words[2]);
+     // 読むだけの下位コマンドも、選択肢と引数が既知の読む形のときだけ（拒否リストでなく許可リスト。省略形 `--del`・`+refspec` を通さない）
+-    if (sub === "branch") return isReadOnlyGitBranch(words.slice(2));
++    if (sub === "branch") return true;
+     if (sub === "fetch") return isSafeGitFetch(words.slice(2));
+     if (sub === "tag") return isReadOnlyGitTag(words.slice(2));
+     if (sub === "remote") return words.slice(2).every((w) => w === "-v" || w === "--verbose") || ["show", "get-url"].includes(words[2]);

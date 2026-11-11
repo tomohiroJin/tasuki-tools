@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index 3e185193..9b7bb4f3 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -592,7 +592,7 @@ function isTameWords(words) {
+     const sub = words[1];
+     // 読むだけの下位コマンドも、選択肢と引数が既知の読む形のときだけ（拒否リストでなく許可リスト。省略形 `--del`・`+refspec` を通さない）
+     if (sub === "branch") return isReadOnlyGitBranch(words.slice(2));
+-    if (sub === "fetch") return isSafeGitFetch(words.slice(2));
++    if (sub === "fetch") return true;
+     if (sub === "tag") return isReadOnlyGitTag(words.slice(2));
+     if (sub === "remote") return words.slice(2).every((w) => w === "-v" || w === "--verbose") || ["show", "get-url"].includes(words[2]);
+     if (sub === "reflog") return words[2] === undefined || words[2].startsWith("-") || words[2] === "show";

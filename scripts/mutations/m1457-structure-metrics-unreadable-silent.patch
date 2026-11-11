@@ -1,10 +1,10 @@
 diff --git a/scripts/lib/structure-metrics.mjs b/scripts/lib/structure-metrics.mjs
-index 8967524c..7c310fbc 100644
+index f0e983b0..ac159dc6 100644
 --- a/scripts/lib/structure-metrics.mjs
 +++ b/scripts/lib/structure-metrics.mjs
-@@ -70,7 +70,6 @@ export function findMetricRegressions(base, current) {
-   for (const [key, spec] of Object.entries(METRICS)) {
-     if (typeof base[key] !== "number") continue; // 基準に無い指標は比べようがない
+@@ -80,7 +80,6 @@ export function findMetricRegressions(base, current, baseOutput = null) {
+       continue;
+     }
      if (typeof current[key] !== "number") {
 -      unreadable.push(key);
        continue;

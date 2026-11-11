@@ -1,13 +1,13 @@
 diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
-index adccf005..8860d736 100644
+index 3e185193..5a9ac24a 100644
 --- a/scripts/lib/agent-guard.mjs
 +++ b/scripts/lib/agent-guard.mjs
-@@ -631,7 +631,7 @@ function heredocIsData(prefix, quotedTag, body) {
-   const inner = at === -1 ? prefix : prefix.slice(at + 2);
-   if ((inner.match(/(?<!\\)"/g) ?? []).length % 2 === 1 || (inner.match(/'/g) ?? []).length % 2 === 1) return false;
-   if (/(?:^|\s)#/.test(inner)) return false;
--  if (!/(?:^|[\s;&|(])cat(?:\s+-\S+)*\s+$/.test(inner)) return false;
-+
-   if (!quotedTag && /\$\(|`/.test(body)) return false;
-   return true;
+@@ -658,7 +658,7 @@ const DATA_HEREDOC_LINE = /^\s*(?:git add [^;&|$`"'()<>\n]* && )?(?:git commit\b
+ 
+ function heredocIsData(line, tag, afterTerminator) {
+   const m = DATA_HEREDOC_LINE.exec(line);
+-  return m !== null && m[1] === tag && typeof afterTerminator === "string" && afterTerminator.startsWith(')"');
++  return m !== null && m[1] === tag;
  }
+ 
+ /**

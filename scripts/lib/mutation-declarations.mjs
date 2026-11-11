@@ -8640,11 +8640,11 @@ export const MUTATIONS = [
   },
   {
     id: 1463,
-    label: 'heredoc の消費者が cat かを見ず、シェルへ渡す形の本文も文章として隠す',
+    label: 'heredoc の終端の次の行が )" で始まるかを見ず、後ろに続く行がある形の本文も文章として隠す',
     patch: "m1463-heredoc-data-any-consumer.patch",
     pkg: "scripts",
     tests: ["lib/agent-guard.test.mjs"],
-    note: RESERVED_1440_1469 + " " + '#578 PR 2 のレビュー。bash <<EOF の中の git push が本文として隠れ、通る。',
+    note: RESERVED_1440_1469 + " " + '#578 PR 2 のレビュー。終端の後ろに続く行（git push など）があっても、本文を隠した形として通る。',
   },
   {
     id: 1464,
@@ -8669,5 +8669,13 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["lib/agent-guard.test.mjs"],
     note: RESERVED_1440_1469 + " " + '#578 PR 2 のレビュー。サブエージェントの git branch -D が聞かれずに枝を消す。',
+  },
+  {
+    id: 1467,
+    label: "git fetch の選択肢・refspec を見ず、読むだけとして通す（--force・+refspec・--prune）",
+    patch: "m1467-git-fetch-force-tame.patch",
+    pkg: "scripts",
+    tests: ["lib/agent-guard.test.mjs"],
+    note: RESERVED_1440_1469 + " " + "#578 PR 2 のレビュー。サブエージェントの git fetch origin +main:main や --prune が聞かれず、他の作業ツリーの参照が消える。",
   },
 ];
