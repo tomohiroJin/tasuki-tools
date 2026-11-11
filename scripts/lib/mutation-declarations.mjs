@@ -8451,4 +8451,28 @@ export const MUTATIONS = [
     tests: ["tests/block-gaps.test.ts"],
     note: RESERVED_1420_1429 + " " + "#557 のレビュー。translate だけの区画（agenda の盤の読み取り）の子孫が判定から外れる。",
   },
+  {
+    id: 1440,
+    label: "上端の帯の下端を描画後に測り、休憩の最初の描画で覆いの見出しを隠す",
+    patch: "m1440-top-band-after-paint.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/use-top-band-height.test.tsx"],
+    note: "#574 のレビュー。通常の effect では初回の描画前に --top-band-height が空のままで、320px の長い名前の休憩の知らせが見出しを覆う。",
+  },
+  {
+    id: 1441,
+    label: "休憩から再開した最初の表示へ、休憩中の古い時刻を持ち越す",
+    patch: "m1441-resumed-tick-stale.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/use-now-tick.test.tsx"],
+    note: "#574 のレビュー。秒境界に揃わない休憩で2秒の不正消費が1秒に見え、E2Eの下限を通る。",
+  },
+  {
+    id: 1442,
+    label: "休憩中の別コミットで知らせが増えても、描画前に帯の下端を測り直さない",
+    patch: "m1442-top-band-separate-notice-stale.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/use-top-band-height.test.tsx"],
+    note: "#574 のレビュー。enabledが変わらない知らせの更新ではResizeObserverの通知前に古い余白が残る。",
+  },
 ];
