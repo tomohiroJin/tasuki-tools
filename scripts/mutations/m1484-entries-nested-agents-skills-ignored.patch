@@ -1,13 +1,13 @@
 diff --git a/scripts/audit-agent-entries.mjs b/scripts/audit-agent-entries.mjs
-index b3a0f151..986159aa 100644
+index a67413cf..c0595957 100644
 --- a/scripts/audit-agent-entries.mjs
 +++ b/scripts/audit-agent-entries.mjs
-@@ -97,7 +97,7 @@ export function isEntryCandidate(rel) {
+@@ -98,7 +98,7 @@ export function isEntryCandidate(rel) {
      CANDIDATE_BASENAMES.has(path.posix.basename(rel)) ||
      CANDIDATE_PATHS.has(rel) ||
      CANDIDATE_DIRS.some((dir) => rel.startsWith(dir)) ||
--    CANDIDATE_NESTED_DIRS.some((dir) => rel.startsWith(dir) || rel.includes(`/${dir}`))
-+    CANDIDATE_NESTED_DIRS.some((dir) => rel.startsWith(dir))
+-    CANDIDATE_NESTED_DIRS.some((dir) => rel.startsWith(dir) || rel.includes(`/${dir}`)) ||
++    CANDIDATE_NESTED_DIRS.some((dir) => rel.startsWith(dir)) ||
+     // 入れ子の階層の .codex/ は、下のものを全部候補にする（Codex は cwd からルートまで近い層の config.toml を重ねて読む。#578 のレビュー I3）
+     rel.includes("/.codex/")
    );
- }
- 

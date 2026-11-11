@@ -1,13 +1,13 @@
-diff --git a/scripts/audit-codex-guard.mjs b/scripts/audit-codex-guard.mjs
-index 9c8e9c89..cb36de71 100644
---- a/scripts/audit-codex-guard.mjs
-+++ b/scripts/audit-codex-guard.mjs
-@@ -36,7 +36,7 @@ export const CODEX_HOOK_LIBS = ["scripts/lib/agent-guard.mjs", "scripts/lib/dire
-  * `||` の後ろで deny を返す。入口が「当たらない」と何も出さず exit 0 で終わるときは、`||` の後ろは走らない。
-  * Codex は hooks.json の場所やルートを環境変数で渡さない（codex-cli 0.154.0 のバイナリを調べた）ので、`git rev-parse` で引く。
-  */
+diff --git a/scripts/lib/codex-guard.mjs b/scripts/lib/codex-guard.mjs
+index 05acd6db..f1bc9c54 100644
+--- a/scripts/lib/codex-guard.mjs
++++ b/scripts/lib/codex-guard.mjs
+@@ -21,7 +21,7 @@ export const LAUNCH_FAILURE_OUTPUT = JSON.stringify(deny("本番デプロイの
+ 
+ /** hooks.json の中身（.codex/hooks.json）として許す形。**これと構造ごと完全一致のものだけ**を通す（許可リスト。#578）。 */
+ export const CODEX_HOOK_SCRIPT = "scripts/codex-guard-hook.mjs";
 -export const CODEX_HOOK_COMMAND = `node "$(git rev-parse --show-toplevel)/${CODEX_HOOK_SCRIPT}" || printf '%s' '${LAUNCH_FAILURE_OUTPUT}'`;
 +export const CODEX_HOOK_COMMAND = `node "$(git rev-parse --show-toplevel)/${CODEX_HOOK_SCRIPT}"`;
- 
- /** Codex の matcher（空・`*`・正規表現）が、その道具の名前に当たるか。 */
- function matcherHits(matcher, tool) {
+ export const EXPECTED_CODEX_HOOKS = Object.freeze({
+   hooks: { PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: CODEX_HOOK_COMMAND }] }] },
+ });

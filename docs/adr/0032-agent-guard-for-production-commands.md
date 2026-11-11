@@ -190,8 +190,18 @@ Copilot は、いまは文章の入口も無い。決定 4 の見出しと「文
   ②プロジェクトを信頼していない場所（クラウド・別の機械）では `.codex/` ごと読まれない、③`[features] hooks = false`（`--disable hooks`）で全部切れる、
   ④走っているシェルへ `write_stdin` で流し込んだ分は見ない、⑤決定 2 の迂回（変数・別の言語・スクリプトの中ほど）は同じく素通りする。
   本番への最後の壁は、デプロイの資格情報がエージェントの環境に無いこと（`docs/adr/0011`）のまま
+- **範囲の注意（レビュー Minor 4）**: Codex では当たりが「聞く」でなく「拒む」になるので、Claude Code の ask で人が通せた読む形
+  （`systemctl status`・`systemctl --version`・`bash -n deploy/deploy.sh`）も止まる。読む必要があるときは、人が自分の端末で実行する
+- **本番デプロイの判定だけを直接使う**: 入口は `findGuardedCommands` を使い、`decideHookOutput` は使わない。PR #583 のあと
+  `decideHookOutput` は入力の `agent_id` で、サブエージェントの判定（git push・枝の切り替えほか）も返すようになり、Codex では deny になって日常の作業を止めるため
+  （`agent_id` つきの `git push` が deny にならないテストで固定した）
+- **配線の検査は完全一致**: `.codex/hooks.json` は期待する形（`scripts/lib/codex-guard.mjs` の `EXPECTED_CODEX_HOOKS`）と構造ごと一致するものだけを通す。
+  併記・`timeout`・`async`・別のフック・`SessionStart`（`additionalContext` で規則を流し込める）の書き足しは落とす。入れ子の階層の `.codex/` は下を全部候補として止める
+- **必須ファイルの一覧**: `scripts/audit-codex-guard.mjs` の手書きの一覧は、PR #583 のマージ後に `audit-agent-guard.mjs` の import をたどる関数へ寄せる
 - **実測していないこと**: この環境では `codex exec` を走らせる許可が得られず、実際の Codex に `.codex/hooks.json` 経由でデプロイのダミーを走らせて
-  止まることは**確かめられていない**（入口の単体テストと、実測済みの `deny` の出力の形の突き合わせのみ）。採択の前に、一時のリポジトリ
+  止まることは**確かめられていない**（入口の単体テストと、実測済みの `deny` の出力の形の突き合わせのみ）。次の点は文書の調べか推測で、**未実測**: Codex がフックのコマンドを**シェルに通すか**（`$(git rev-parse …)` と `||` が効く前提）、
+  どの cwd で走らせるか、出力なしの非ゼロ終了をどう扱うか、信頼がパスごとで作業ツリー（`Tasuki-wt-*`）でも効くか、入れ子の `.codex/` を読むか、
+  サブエージェントの呼び出しで `agent_id` が入るか。採択の前に、サブディレクトリ・作業ツリーから起動することと、入口のファイルを一時的に読めなくすることも含めて、一時のリポジトリ
   （中の `deploy/deploy.sh` は `echo` だけ）で、止まることと配線を外すと走ることを実機で確かめる
 - 退けた案: `.codex/rules/*.rules`（execpolicy）で止める。`sudo`・`env`・`ssh`・`bash deploy/deploy.sh` を取りこぼし（`codex execpolicy check` で確認）、
   一覧が 2 か所になる（決定 2 の MUST NOT と同じ理由）

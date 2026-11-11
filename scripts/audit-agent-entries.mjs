@@ -89,6 +89,7 @@ export const ENTRY_CANDIDATE_PATTERNS = [
   ".codex/skills/*",
   ".codex/agents/*",
   ".codex/config.toml",
+  "*/.codex/*",
 ];
 
 /** ツールが規則として読みうるファイルか。宣言に無いものが追跡下に現れたら落とす。 */
@@ -97,7 +98,9 @@ export function isEntryCandidate(rel) {
     CANDIDATE_BASENAMES.has(path.posix.basename(rel)) ||
     CANDIDATE_PATHS.has(rel) ||
     CANDIDATE_DIRS.some((dir) => rel.startsWith(dir)) ||
-    CANDIDATE_NESTED_DIRS.some((dir) => rel.startsWith(dir) || rel.includes(`/${dir}`))
+    CANDIDATE_NESTED_DIRS.some((dir) => rel.startsWith(dir) || rel.includes(`/${dir}`)) ||
+    // 入れ子の階層の .codex/ は、下のものを全部候補にする（Codex は cwd からルートまで近い層の config.toml を重ねて読む。#578 のレビュー I3）
+    rel.includes("/.codex/")
   );
 }
 

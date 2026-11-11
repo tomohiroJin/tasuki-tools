@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-codex-guard.mjs b/scripts/audit-codex-guard.mjs
+index cb4e1647..5c195e5c 100644
+--- a/scripts/audit-codex-guard.mjs
++++ b/scripts/audit-codex-guard.mjs
+@@ -41,7 +41,7 @@ function sameJson(a, b) {
+   if (Array.isArray(a) !== Array.isArray(b)) return false;
+   const ka = Object.keys(a);
+   const kb = Object.keys(b);
+-  return ka.length === kb.length && ka.every((k) => Object.hasOwn(b, k) && sameJson(a[k], b[k]));
++  return ka.every((k) => Object.hasOwn(b, k) && sameJson(a[k], b[k]));
+ }
+ 
+ /**

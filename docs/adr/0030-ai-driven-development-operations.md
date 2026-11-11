@@ -144,10 +144,12 @@ DoD の項目をガイドに置いたのと同じ書き分け。`docs/adr/0002` 
 
 - Codex は `CLAUDE.md` を読まず、`AGENTS.md`（`AGENTS.override.md` が先）を Git のルートから cwd まで各階層で読む（codex-cli 0.154.0 の実測）。
   よって決定 3 のとおり、Codex のための入口ファイルは足さない
-- Codex が規則として読む置き場のうち、`.agents/skills/`（どの階層でも）・`.codex/skills/`・`.codex/agents/`（`developer_instructions` を持てる）・
-  `.codex/config.toml`（同じく `developer_instructions` を持てる）を、`scripts/audit-agent-entries.mjs` の候補（宣言の無いものが追跡下に現れたら止める）に足す。
+- Codex が規則として読む置き場のうち、`.agents/skills/`（どの階層でも）・`.codex/skills/`・`.codex/agents/`・`.codex/config.toml`
+  （`developer_instructions` を持てる）を、`scripts/audit-agent-entries.mjs` の候補（宣言の無いものが追跡下に現れたら止める）に足す。
+  入れ子の階層の `.codex/` は、下のものを全部候補にする（Codex が入れ子を読むかは文書の調べで未実測。拾う側に倒す）。
   `AGENTS.override.md` は候補に入っていた。Codex 用のスキルは置かない（手順書は `AGENTS.md` から辿れる）
-- `.codex/hooks.json` は規則の本文を持たない配線の宣言なので候補にしない。中身は `scripts/audit-codex-guard.mjs` が見る（`docs/adr/0032` の追記（#578））
+- ルートの `.codex/hooks.json` だけは候補にしない。ただし規則の本文を持たない保証は無い（`SessionStart` などのフックは `additionalContext` で
+  モデルへ文を流し込める）ので、`scripts/audit-codex-guard.mjs` が**期待する形と構造ごと完全一致**のものだけを通す。ほかのフックを足したくなったら、期待の形を広げて ADR に書く
 - 残余: 検査は置き場の名前を見るだけで、Codex が将来読む置き場を増やしたら追いつかない。信頼した人の手元の `~/.codex/AGENTS.md` は検査の外
 
 ### 4. AI の成果の記録

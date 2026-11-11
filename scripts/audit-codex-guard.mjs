@@ -4,8 +4,8 @@
  *
  * ## 何を見るか
  *
- * 1. **`.codex/hooks.json` が追跡下にあり、Bash の PreToolUse フックに Codex の入口（{@link CODEX_HOOK_COMMAND}）を置いている。**
- *    Claude Code の入口（`agent-guard-hook.mjs`）を置いていたら落とす（`ask` を返すので、Codex ではコマンドが走る）
+ * 1. **`.codex/hooks.json` が追跡下にあり、期待する形（Bash の PreToolUse に Codex の入口 1 つだけ）と構造ごと完全一致する。**
+ *    併記・`timeout`・`async`・別のフック・`SessionStart` などの書き足しは落とす
  * 2. **Codex の入口と、それが読み込む判定の部品が追跡下にある**
  *
  * ## 何を見ていないか
@@ -22,35 +22,33 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { listTrackedFiles } from "./lib/scan-targets.mjs";
 import { isDirectRun } from "./lib/direct-run.mjs";
-import { LAUNCH_FAILURE_OUTPUT } from "./lib/codex-guard.mjs";
+import { CODEX_HOOK_COMMAND, CODEX_HOOK_SCRIPT, EXPECTED_CODEX_HOOKS } from "./lib/codex-guard.mjs";
+
+export { CODEX_HOOK_COMMAND, CODEX_HOOK_SCRIPT };
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 export const CODEX_HOOKS_PATH = ".codex/hooks.json";
-export const CODEX_HOOK_SCRIPT = "scripts/codex-guard-hook.mjs";
-/** Codex の入口が読み込む部品。欠けると入口が起動せず、判定も働かない。 */
-export const CODEX_HOOK_LIBS = ["scripts/lib/agent-guard.mjs", "scripts/lib/direct-run.mjs", "scripts/lib/codex-guard.mjs"];
 /**
- * hooks.json に書くフックのコマンド。作業場所がどこでも、Git のルートの入口を指す。
- * 入口の起動に失敗したら（node が無い・入口が無い・Git のルートが引けない）、Codex はフックの失敗としてコマンドを走らせてしまうので、
- * `||` の後ろで deny を返す。入口が「当たらない」と何も出さず exit 0 で終わるときは、`||` の後ろは走らない。
- * Codex は hooks.json の場所やルートを環境変数で渡さない（codex-cli 0.154.0 のバイナリを調べた）ので、`git rev-parse` で引く。
+ * Codex の入口が読み込む部品。欠けると入口が起動せず、判定も働かない（`||` の deny に倒れるので fail open ではない）。
+ * 手書きの一覧。PR #583 のマージ後に、`audit-agent-guard.mjs` の `collectEntryDependencies`（入口の import をたどる）へ寄せる（#578 のレビュー Minor 2）。
  */
-export const CODEX_HOOK_COMMAND = `node "$(git rev-parse --show-toplevel)/${CODEX_HOOK_SCRIPT}" || printf '%s' '${LAUNCH_FAILURE_OUTPUT}'`;
-
-/** Codex の matcher（空・`*`・正規表現）が、その道具の名前に当たるか。 */
-function matcherHits(matcher, tool) {
-  if (matcher === undefined || matcher === "" || matcher === "*") return true;
-  if (typeof matcher !== "string") return false;
-  try {
-    return new RegExp(`^(?:${matcher})$`).test(tool);
-  } catch {
-    return false;
-  }
+export const CODEX_HOOK_LIBS = ["scripts/lib/agent-guard.mjs", "scripts/lib/direct-run.mjs", "scripts/lib/codex-guard.mjs"];
+/** 値を構造ごと比べる（キーの順は問わない）。 */
+function sameJson(a, b) {
+  if (a === b) return true;
+  if (typeof a !== "object" || typeof b !== "object" || a === null || b === null) return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  const ka = Object.keys(a);
+  const kb = Object.keys(b);
+  return ka.length === kb.length && ka.every((k) => Object.hasOwn(b, k) && sameJson(a[k], b[k]));
 }
 
 /**
- * `.codex/hooks.json` の中身を見る。
+ * `.codex/hooks.json` の中身を見る。**期待する形 1 つと構造ごと完全一致のものだけ**を通す（許可リスト。期待の形は
+ * `scripts/lib/codex-guard.mjs` の `EXPECTED_CODEX_HOOKS`）。Claude Code の入口の併記・`timeout`・`async`・`allow` を返す別のフック・
+ * `SessionStart` で規則を流すフック（`additionalContext`）など、歯止めを外す・規則を流し込む書き足しを全部落とすため。
+ * ほかのフックを足したくなったら、期待の形を広げて ADR に書く。
  * @param {string} text
  * @returns {string[]} 問題（空なら通る）
  */
@@ -61,19 +59,10 @@ export function checkCodexHooks(text) {
   } catch (e) {
     return [`JSON として読めません（${e.message}）`];
   }
-  const groups = Array.isArray(json?.hooks?.PreToolUse) ? json.hooks.PreToolUse : [];
-  const wired = groups.some(
-    (g) =>
-      matcherHits(g?.matcher, "Bash") &&
-      Array.isArray(g?.hooks) &&
-      g.hooks.some((h) => h?.type === "command" && h?.command === CODEX_HOOK_COMMAND),
-  );
-  if (!wired) {
-    return [
-      `hooks.PreToolUse に、Bash に当たる matcher で ${JSON.stringify(CODEX_HOOK_COMMAND)} を置いてください（Claude Code の入口は ask を返すので、Codex では止まりません。docs/adr/0032 の追記）`,
-    ];
-  }
-  return [];
+  if (sameJson(json, EXPECTED_CODEX_HOOKS)) return [];
+  return [
+    `期待する形（scripts/lib/codex-guard.mjs の EXPECTED_CODEX_HOOKS）と一致しません。hooks.PreToolUse に matcher "Bash" で ${JSON.stringify(CODEX_HOOK_COMMAND)} を 1 つだけ置き、ほかのキー・フックを足さないでください（Claude Code の入口は ask を返すので Codex では止まらない。timeout・async・allow・SessionStart は歯止めを外すか規則を流し込む。docs/adr/0032 の追記）`,
+  ];
 }
 
 function main() {

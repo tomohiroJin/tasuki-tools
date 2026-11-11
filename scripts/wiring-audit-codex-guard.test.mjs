@@ -37,7 +37,7 @@ test("対照実行: 配線が揃っていれば緑", (t) => {
 test("実リポジトリの .codex/hooks.json を実際に読む（配線が外れていれば赤）", (t) => {
   const r = fixture(t, { hooksText: JSON.stringify({ hooks: { PreToolUse: [] } }) }).run();
   assert.notEqual(r.status, 0, r.stdout);
-  assert.match(r.stderr, /\.codex\/hooks\.json: hooks\.PreToolUse/);
+  assert.match(r.stderr, /\.codex\/hooks\.json: 期待する形/);
 });
 
 test("Codex の入口が追跡下から外れたら赤", (t) => {

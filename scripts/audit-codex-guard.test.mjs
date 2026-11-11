@@ -1,44 +1,53 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import { CODEX_HOOK_COMMAND, checkCodexHooks } from "./audit-codex-guard.mjs";
+import { EXPECTED_CODEX_HOOKS } from "./lib/codex-guard.mjs";
 
-function hooks(overrides = {}, command = CODEX_HOOK_COMMAND, matcher = "Bash") {
-  return JSON.stringify({ hooks: { PreToolUse: [{ matcher, hooks: [{ type: "command", command }] }] }, ...overrides });
-}
+const clone = () => structuredClone(EXPECTED_CODEX_HOOKS);
+const entry = (j) => j.hooks.PreToolUse[0].hooks[0];
+const problems = (j) => checkCodexHooks(JSON.stringify(j));
 
-test("コマンドは起動の失敗を deny に倒す包み（入口が失敗したときだけ || の後ろが走る）", () => {
-  assert.match(CODEX_HOOK_COMMAND, /scripts\/codex-guard-hook\.mjs" \|\| printf '%s' '\{"hookSpecificOutput":\{.*"permissionDecision":"deny"/);
-});
-
-describe("checkCodexHooks: .codex/hooks.json が Codex の入口へ配線されているか", () => {
-  test("Bash の PreToolUse に Codex の入口があれば問題なし", () => {
-    assert.deepEqual(checkCodexHooks(hooks()), []);
+describe("checkCodexHooks: .codex/hooks.json は期待する形と構造ごと完全一致のものだけ通す", () => {
+  test("期待する形は通る。キーの順が違っても通る", () => {
+    assert.deepEqual(problems(clone()), []);
+    const reordered = { hooks: { PreToolUse: [{ hooks: [{ command: CODEX_HOOK_COMMAND, type: "command" }], matcher: "Bash" }] } };
+    assert.deepEqual(problems(reordered), []);
   });
 
-  test("matcher が * や空・Bash を含む正規表現でも通る", () => {
-    for (const m of ["*", "", "Bash|apply_patch"]) assert.deepEqual(checkCodexHooks(hooks({}, CODEX_HOOK_COMMAND, m)), [], m);
+  test("実リポジトリの .codex/hooks.json は通る", () => {
+    const text = fs.readFileSync(new URL("../.codex/hooks.json", import.meta.url), "utf8");
+    assert.deepEqual(checkCodexHooks(text), []);
+  });
+
+  test("期待の形は起動の失敗を deny に倒す包みを含む", () => {
+    assert.match(CODEX_HOOK_COMMAND, /scripts\/codex-guard-hook\.mjs" \|\| printf '%s' '\{"hookSpecificOutput":\{.*"permissionDecision":"deny"/);
   });
 
   test("JSON として読めなければ落とす", () => {
     assert.equal(checkCodexHooks("{ hooks: ").length, 1);
   });
 
-  test("PreToolUse が無い・空なら落とす", () => {
-    assert.equal(checkCodexHooks("{}").length, 1);
-    assert.equal(checkCodexHooks(JSON.stringify({ hooks: { PreToolUse: [] } })).length, 1);
-  });
-
-  test("matcher が Bash に当たらなければ落とす", () => {
-    for (const m of ["Edit", "Bashx", "apply_patch"]) assert.equal(checkCodexHooks(hooks({}, CODEX_HOOK_COMMAND, m)).length, 1, m);
-  });
-
-  test("Claude Code の入口（ask を返す）を配線していたら落とす（Codex では止まらない）", () => {
-    assert.equal(checkCodexHooks(hooks({}, 'node "${CLAUDE_PROJECT_DIR}/scripts/agent-guard-hook.mjs"')).length, 1);
-  });
-
-  test("コマンドが違う・PostToolUse に置いたら落とす", () => {
-    assert.equal(checkCodexHooks(hooks({}, "node scripts/other.mjs")).length, 1);
-    const post = JSON.stringify({ hooks: { PostToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: CODEX_HOOK_COMMAND }] }] } });
-    assert.equal(checkCodexHooks(post).length, 1);
-  });
+  const broken = {
+    "PreToolUse が空": (j) => (j.hooks.PreToolUse = []),
+    "matcher が Bash でない": (j) => (j.hooks.PreToolUse[0].matcher = "Edit"),
+    "matcher が * （広い）": (j) => (j.hooks.PreToolUse[0].matcher = "*"),
+    "コマンドが違う": (j) => (entry(j).command = "node scripts/other.mjs"),
+    "起動の失敗の包みを外した": (j) => (entry(j).command = 'node "$(git rev-parse --show-toplevel)/scripts/codex-guard-hook.mjs"'),
+    "Claude Code の入口（ask）へ置き換えた": (j) => (entry(j).command = 'node "${CLAUDE_PROJECT_DIR}/scripts/agent-guard-hook.mjs"'),
+    "Claude Code の入口を併記した": (j) => j.hooks.PreToolUse[0].hooks.push({ type: "command", command: 'node "${CLAUDE_PROJECT_DIR}/scripts/agent-guard-hook.mjs"' }),
+    "timeout: 0 を足した": (j) => (entry(j).timeout = 0),
+    "async: true を足した": (j) => (entry(j).async = true),
+    "allow を返す別の PreToolUse のフックを足した": (j) => j.hooks.PreToolUse.push({ matcher: "Bash", hooks: [{ type: "command", command: "echo allow" }] }),
+    "SessionStart で規則を流すフックを足した": (j) => (j.hooks.SessionStart = [{ hooks: [{ type: "command", command: "cat docs/rules.md" }] }]),
+    "PostToolUse を足した": (j) => (j.hooks.PostToolUse = []),
+    "トップのキーを足した": (j) => (j.disabled = true),
+  };
+  for (const [name, mutate] of Object.entries(broken)) {
+    test(`落とす: ${name}`, () => {
+      const j = clone();
+      mutate(j);
+      assert.equal(problems(j).length, 1, name);
+    });
+  }
 });

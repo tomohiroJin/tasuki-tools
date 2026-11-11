@@ -1,5 +1,10 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { execFileSync } from "node:child_process";
+import { listTrackedFiles } from "./lib/scan-targets.mjs";
 import {
   SOURCE_PATH,
   ENTRY_FILES,
@@ -519,8 +524,33 @@ describe("isEntryCandidate: Codex が規則として読む置き場（#578）", 
       assert.equal(isEntryCandidate(rel), false, rel);
   });
 
-  test("列挙のパターンが、置き場の候補を全部拾う", () => {
-    for (const p of [".agents/skills/*", "*/.agents/skills/*", ".codex/skills/*", ".codex/agents/*", ".codex/config.toml"])
-      assert.ok(ENTRY_CANDIDATE_PATTERNS.includes(p), p);
+  test("入れ子の階層の .codex/ は、下のものを全部候補にする（hooks.json も。ルートの hooks.json だけを許す）", () => {
+    for (const rel of ["packages/x/.codex/config.toml", "packages/x/.codex/agents/r.toml", "packages/x/.codex/skills/a/SKILL.md", "packages/x/.codex/hooks.json", "a/b/.codex/rules/d.rules"])
+      assert.equal(isEntryCandidate(rel), true, rel);
+  });
+
+  test("列挙（git ls-files）が実際に候補を拾う。ルートの .codex/hooks.json は候補にならない", (t) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "entries-enum-"));
+    t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+    const files = [
+      ".agents/skills/a/SKILL.md",
+      "pkg/.agents/skills/b/SKILL.md",
+      ".codex/skills/c/SKILL.md",
+      ".codex/agents/r.toml",
+      ".codex/config.toml",
+      ".codex/hooks.json",
+      "pkg/.codex/config.toml",
+      "pkg/.codex/agents/r.toml",
+      "pkg/.codex/skills/d/SKILL.md",
+      "pkg/.codex/hooks.json",
+    ];
+    for (const rel of files) {
+      fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true });
+      fs.writeFileSync(path.join(dir, rel), "x");
+    }
+    execFileSync("git", ["init", "-q"], { cwd: dir });
+    execFileSync("git", ["add", "-f", "."], { cwd: dir });
+    const found = listTrackedFiles(dir, ENTRY_CANDIDATE_PATTERNS).filter(isEntryCandidate).sort();
+    assert.deepEqual(found, files.filter((f) => f !== ".codex/hooks.json").sort());
   });
 });

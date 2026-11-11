@@ -99,7 +99,7 @@ describe(".codex/hooks.json のコマンドを実際に走らせる（起動の�
   const REPO = new URL("../", import.meta.url).pathname;
   const hooksCommand = JSON.parse(fs.readFileSync(path.join(REPO, ".codex/hooks.json"), "utf8")).hooks.PreToolUse[0].hooks[0].command;
 
-  /** 配線のコマンドを sh -c で走らせる。Codex は同じように走らせる（cwd はセッションの作業場所）。 */
+  /** 配線のコマンドを sh -c で走らせる。Codex が同じように走らせるかは未実測（文書の調べ。cwd もセッションの作業場所と仮定している）。 */
   function runWired(t, { cwd, command = "bash deploy/deploy.sh", env = {} }) {
     const r = spawnSync("sh", ["-c", hooksCommand], { cwd, input: input(command), encoding: "utf8", env: { ...process.env, ...env } });
     assert.equal(r.status, 0, r.stderr);
@@ -146,5 +146,20 @@ describe(".codex/hooks.json のコマンドを実際に走らせる（起動の�
       if (found.startsWith("/")) fs.symlinkSync(found, path.join(bin, name));
     }
     assert.equal(decision(runWired(t, { cwd: REPO, env: { PATH: bin } })), "deny");
+  });
+});
+
+describe("範囲は本番デプロイだけ（サブエージェントの判定を持ち込まない。PR #583 とのマージ後も）", () => {
+  for (const cmd of ["git push origin HEAD", "git switch -c x", "git checkout -b x", "git reset --hard", "pnpm --filter foo test"]) {
+    test(`agent_id つきの ${cmd} は何も出さない`, () => {
+      assert.equal(decideCodexHookOutput(input(cmd, { agent_id: "a1", agent_type: "worker" })), null);
+    });
+  }
+  test("agent_id つきでも本番デプロイは deny", () => {
+    assert.equal(decideCodexHookOutput(input("bash deploy/deploy.sh", { agent_id: "a1" }))?.hookSpecificOutput.permissionDecision, "deny");
+  });
+  test("読む形の systemctl status・bash -n deploy.sh も deny（Codex では聞く道が無く、Claude Code の ask で通せた形も拒む。ADR-0032 の追記）", () => {
+    for (const cmd of ["systemctl status tasuki", "systemctl --version", "bash -n deploy/deploy.sh"])
+      assert.equal(decideCodexHookOutput(input(cmd))?.hookSpecificOutput.permissionDecision, "deny", cmd);
   });
 });

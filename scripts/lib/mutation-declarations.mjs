@@ -8472,7 +8472,7 @@ export const MUTATIONS = [
   },
   {
     id: 1482,
-    label: "audit-codex-guard が hooks.json のコマンドを見ない（type が command なら通す）",
+    label: "audit-codex-guard が hooks.json を期待の形と比べず、PreToolUse があれば通す",
     patch: "m1482-audit-codex-guard-ignores-command.patch",
     pkg: "scripts",
     tests: ["audit-codex-guard.test.mjs"],
@@ -8493,5 +8493,29 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["audit-agent-entries.test.mjs"],
     note: RESERVED_1480_1489 + " " + "#578 PR 3。Codex は cwd から Git のルートまでの各階層の .agents/skills を規則として読むのに、サブディレクトリへ置かれても検査が見逃す。",
+  },
+  {
+    id: 1485,
+    label: "Codex の入口が、読めない入力を deny でなく通す",
+    patch: "m1485-codex-guard-unreadable-input-passes.patch",
+    pkg: "scripts",
+    tests: ["codex-guard-hook.test.mjs"],
+    note: RESERVED_1480_1489 + " " + "#578 PR 3。入力の形が変わったとき、歯止めが黙って外れる（fail-open）。",
+  },
+  {
+    id: 1486,
+    label: "audit-agent-entries が、入れ子の階層の .codex/ を候補にしない",
+    patch: "m1486-entries-nested-codex-dir-ignored.patch",
+    pkg: "scripts",
+    tests: ["audit-agent-entries.test.mjs"],
+    note: RESERVED_1480_1489 + " " + "#578 PR 3。入れ子の .codex/config.toml（developer_instructions・hooks の無効化）が検査を素通りする（レビュー I3）。",
+  },
+  {
+    id: 1487,
+    label: "audit-codex-guard の構造の比較が、期待に無い余計なキー（timeout・SessionStart ほか）を許す",
+    patch: "m1487-audit-codex-guard-ignores-extra-keys.patch",
+    pkg: "scripts",
+    tests: ["audit-codex-guard.test.mjs"],
+    note: RESERVED_1480_1489 + " " + "#578 PR 3。タイムアウトや規則の流し込みのフックを足されても CI が緑のまま（レビュー I2）。",
   },
 ];
