@@ -22,14 +22,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { listTrackedFiles } from "./lib/scan-targets.mjs";
 import { isDirectRun } from "./lib/direct-run.mjs";
-import { LAUNCH_FAILURE_OUTPUT } from "./codex-guard-hook.mjs";
+import { LAUNCH_FAILURE_OUTPUT } from "./lib/codex-guard.mjs";
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 export const CODEX_HOOKS_PATH = ".codex/hooks.json";
 export const CODEX_HOOK_SCRIPT = "scripts/codex-guard-hook.mjs";
 /** Codex の入口が読み込む部品。欠けると入口が起動せず、判定も働かない。 */
-export const CODEX_HOOK_LIBS = ["scripts/lib/agent-guard.mjs", "scripts/lib/direct-run.mjs"];
+export const CODEX_HOOK_LIBS = ["scripts/lib/agent-guard.mjs", "scripts/lib/direct-run.mjs", "scripts/lib/codex-guard.mjs"];
 /**
  * hooks.json に書くフックのコマンド。作業場所がどこでも、Git のルートの入口を指す。
  * 入口の起動に失敗したら（node が無い・入口が無い・Git のルートが引けない）、Codex はフックの失敗としてコマンドを走らせてしまうので、
