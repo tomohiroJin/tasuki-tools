@@ -26,7 +26,7 @@ function fixture(t, { hooksText } = {}) {
   const git = (...a) => execFileSync("git", a, { cwd: dir, stdio: "pipe", encoding: "utf8" });
   git("init", "-q");
   git("add", "-f", ".");
-  return { git, run: () => spawnSync(process.execPath, [path.join(dir, AUDIT)], { cwd: dir, encoding: "utf8" }) };
+  return { dir, git, run: () => spawnSync(process.execPath, [path.join(dir, AUDIT)], { cwd: dir, encoding: "utf8" }) };
 }
 
 test("対照実行: 配線が揃っていれば緑", (t) => {
@@ -62,4 +62,21 @@ test("hooks.json が追跡下に無ければ赤", (t) => {
   const r = f.run();
   assert.notEqual(r.status, 0, r.stdout);
   assert.match(r.stderr, /\.codex\/hooks\.json が追跡下にありません/);
+});
+
+test("入口が追跡下のまま作業ツリーから消えたら赤（main が作業ツリーを実際に見る）", (t) => {
+  const f = fixture(t);
+  fs.unlinkSync(path.join(f.dir, CODEX_HOOK_SCRIPT));
+  const r = f.run();
+  assert.notEqual(r.status, 0, r.stdout);
+  assert.match(r.stderr, /scripts\/codex-guard-hook\.mjs が作業ツリーに通常のファイルとして在りません/);
+});
+
+test("入口が追跡下のまま作業ツリーでディレクトリに置き換わったら赤", (t) => {
+  const f = fixture(t);
+  fs.unlinkSync(path.join(f.dir, CODEX_HOOK_SCRIPT));
+  fs.mkdirSync(path.join(f.dir, CODEX_HOOK_SCRIPT));
+  const r = f.run();
+  assert.notEqual(r.status, 0, r.stdout);
+  assert.match(r.stderr, /scripts\/codex-guard-hook\.mjs が作業ツリーに通常のファイルとして在りません/);
 });

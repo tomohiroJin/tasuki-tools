@@ -177,6 +177,15 @@ describe(".codex/hooks.json のコマンドを実際に走らせる（起動の�
         });
       }
     }
+    test(".codex/hooks.json が壊れた symlink で入口も無いときも deny（[ -L ] の分岐）", (t) => {
+      const dir = tmp(t);
+      spawnSync("git", ["init", "-q"], { cwd: dir });
+      fs.mkdirSync(path.join(dir, ".codex"));
+      fs.symlinkSync("/nonexistent-target", path.join(dir, ".codex/hooks.json"));
+      const out = runWired(t, { cwd: dir, command: "bash deploy/deploy.sh" });
+      assert.equal(decision(out), "deny");
+      assert.match(out.hookSpecificOutput.permissionDecisionReason, /入口（scripts\/codex-guard-hook\.mjs）が欠けています/);
+    });
     test("対照実行: .codex/hooks.json も入口も無い古い版では、同じコマンドも何も出さない（戻れる）", (t) => {
       const dir = tmp(t);
       spawnSync("git", ["init", "-q"], { cwd: dir });
