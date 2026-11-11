@@ -601,7 +601,7 @@ function ghOptionsKnown(words, from, long, short) {
  * `gh api` が読む形か（許可リスト）: 既知の選択肢だけ・`--input` なし。
  * - フィールド（`-f`・`-F`・`--field`・`--raw-field`）なし: メソッドは GET のまま（明示するなら GET）
  * - フィールドあり: `-X GET`／`--method GET` を明示したときだけ（GET ではフィールドは問い合わせの値になる）。
- *   `gh api graphql` は既定が POST だが、どのフィールドの値にも `mutation` の語が無く、`@ファイル` の値も無いときだけ読む形（query）
+ * - `gh api graphql` は query でも読む形に含めない（全部聞く）
  */
 function isReadOnlyGhApi(words, from) {
   const valued = new Set(["-H", "--header", "-q", "--jq", "-t", "--template", "--cache", "--hostname"]);
@@ -627,8 +627,9 @@ function isReadOnlyGhApi(words, from) {
     } else if (endpoint === null) endpoint = w;
   }
   if (method !== null && method.toUpperCase() !== "GET") return false;
+  // graphql は query でも全部聞く（POST で、種類を部分文字列で判定すると、シェルが渡す文字列との食い違い〈`$'…'`・`{a,b}`・`\\` ほか〉で mutation が通る）
+  if (endpoint === "graphql") return false;
   if (fields.length === 0) return true;
-  if (endpoint === "graphql") return !fields.some((f) => /mutation/i.test(f) || /(^|=)@/.test(f)); // query だけ（メソッド未指定は既定の POST だが、読む形）
   return method !== null; // GET を明示したときだけ（ここまで来て method があれば GET）
 }
 

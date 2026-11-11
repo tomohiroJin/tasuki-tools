@@ -575,14 +575,16 @@ describe("サブエージェントの危ない操作（#578・docs/adr/0037）",
     assert.equal(subOut("echo x\ncat > f <<'EOF'\ngit branch -a\nEOF"), null);
   });
 
-  test("PR コメント 2: gh api の GET にはフィールドも付けられる（-X GET 明示）。graphql は query に mutation が無ければ通す。--input・GET 以外・方法が不明・mutation は聞く", () => {
+  test("PR コメント 2: gh api の GET にはフィールドも付けられる（-X GET 明示の REST）。graphql は query でも全部聞く（判定の食い違いを避ける）。--input・GET 以外・方法が不明は聞く", () => {
     for (const c of [
       "gh api -X GET search/code -f q=foo", "gh api --method GET search/code -F q=foo -f per_page=5", "gh api -XGET repos/o/r/issues -f state=open",
-      "gh api graphql -f query='{ viewer { login } }'", "gh api graphql -F query='query { repository(owner:\"o\", name:\"r\") { id } }' -F owner=o", "gh api graphql --paginate -f query='query($n:Int){ x }'",
     ]) assert.equal(subOut(c), null, c);
     for (const c of [
       "gh api search/code -f q=foo", "gh api repos/o/r/issues -f title=x", "gh api -X POST repos/o/r/issues -f title=x", "gh api -X GET repos/o/r --input body.json", "gh api graphql --input q.json",
-      "gh api graphql -f query='mutation { addStar(input:{starrableId:\"x\"}) { clientMutationId } }'", "gh api graphql -f query='MUTATION{x}'", "gh api graphql -F query=@q.graphql", "gh api -X POST graphql -f query='{ viewer { login } }'",
+      "gh api graphql -f query='query { viewer { login } }'", "gh api graphql -F query='query { repository(owner:\"o\", name:\"r\") { id } }' -F owner=o", "gh api graphql --paginate -f query='query($n:Int){ x }'",
+      "gh api -X GET graphql -f query='query { viewer { login } }'", "gh api graphql",
+      "gh api graphql -f query=$'mut\\x61tion { addStar }'", "gh api graphql -f query=$'\\155utation { x }'", "gh api graphql -f query={mut,ation}", "gh api graphql -f query=mut\\ation",
+      "gh api graphql -f query='MUTATION{x}'", "gh api graphql -F query=@q.graphql", "gh api -X POST graphql -f query='{ viewer { login } }'",
       "gh api -X DELETE repos/o/r/issues/1", "gh api -X GET repos/o/r --unknown-flag",
     ]) assert.equal(subOut(c)?.hookSpecificOutput.permissionDecision, "ask", c);
   });

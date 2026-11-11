@@ -42,7 +42,7 @@ ADR-0032 の範囲の外にある。
   許可リストの「読むだけ・記録するだけ」（`grep`・`git log`・`git commit -m …`・`gh pr view` ほか。`isTameCommand`）でも
   単純な安全な形（`git checkout [<rev>] -- <path>`・`git reset` の `--soft`/`--mixed`・`git worktree add|list`）でもなければ `ask`
 
-背景の事故の型に合わせ、次も一覧に足した: 枝の削除・改名・付け替え（`git branch -d/-D/-m/-M/-f/-c/-C`。一覧・現在の枝・作成〈`git branch <名前> [<開始点>]`〉は通す。**上流の付け替え**〈`-u`・`--set-upstream-to`・`--unset-upstream`〉と `--edit-description` は通す形に含めない）、プロセスを止める別の道（`npx|bunx|pnpm dlx kill-port`・`fuser -k`・`tmux kill-server|kill-session`）、GitHub への書き込み（`gh api` の GET 以外・フィールド付き。**ただし** `-X GET`／`--method GET` を明示したフィールド付きの検索と、`gh api graphql` でどのフィールドの値にも `mutation` の語も `@ファイル` も無いもの〈query〉は読む形として通す。`--input`・方法が不明・mutation は聞く、`gh pr review --approve|--request-changes`）。**`git merge`・`git rebase`・`git commit --amend` は足さない**（実装役が自分の枝でふつうに使うので、聞くと日常の作業を止める。他人の枝・main へのそれらは push とマージの歯止めが守る）。
+背景の事故の型に合わせ、次も一覧に足した: 枝の削除・改名・付け替え（`git branch -d/-D/-m/-M/-f/-c/-C`。一覧・現在の枝・作成〈`git branch <名前> [<開始点>]`〉は通す。**上流の付け替え**〈`-u`・`--set-upstream-to`・`--unset-upstream`〉と `--edit-description` は通す形に含めない）、プロセスを止める別の道（`npx|bunx|pnpm dlx kill-port`・`fuser -k`・`tmux kill-server|kill-session`）、GitHub への書き込み（`gh api` の GET 以外・フィールド付き。**ただし** `-X GET`／`--method GET` を明示したフィールド付きの検索は読む形として通す。`gh api graphql` は query でも聞く（POST で、`mutation` の語を部分文字列で判定すると、シェルが渡す文字列との食い違い〈`$'…'`・波括弧の展開・バックスラッシュ〉で素通りしうるので、判定を賢くせず狭くした）。`--input`・方法が不明は聞く、`gh pr review --approve|--request-changes`）。**`git merge`・`git rebase`・`git commit --amend` は足さない**（実装役が自分の枝でふつうに使うので、聞くと日常の作業を止める。他人の枝・main へのそれらは push とマージの歯止めが守る）。
 
 ### 3. 未コミットの変更を消す git は、変更があるときだけ `ask`（許可リスト・fail closed）
 
