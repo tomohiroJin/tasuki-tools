@@ -787,7 +787,7 @@ export function stripHeredocBodies(src) {
       if (end === -1) return null;
       const body = lines.slice(i + 1, end).join("\n");
       // 本文が危ない操作の名前を含むとき、データとして使われる決まった形（DATA_HEREDOC_LINE）だけ文章として隠す。それ以外は読めないとする（fail closed）
-      if (looksLikeGuardedOperation(body) && !heredocIsData(lines[i], tag, lines.slice(end + 1), i > 0 && lines[i - 1].endsWith("\\"))) return null;
+      if (looksLikeGuardedOperation(body) && !heredocIsData(lines[i], tag, lines.slice(end + 1))) return null;
       i = end; // 本文と終端の行を飛ばす
     }
   }
@@ -816,9 +816,8 @@ const CAT_HEREDOC_LINES = [
   new RegExp(`^\\s*${CAT_PREFIX}cat\\s+<<\\s*'([A-Za-z_]+)'\\s+>>?\\s+${CAT_PATH}$`), // cat <<'TAG' > f
 ];
 
-function heredocIsData(line, tag, after, continued = false) {
-  // 前の行が `\` で終わるとき、この行は前の行から続く 1 つのコマンドの一部なので、決まった形として隠さない
-  if (continued) return false;
+function heredocIsData(line, tag, after) {
+  // 演算子の行の継続は、呼び出し元の stripHeredocBodies が先に null（取り除かない）にしている
   const m = DATA_HEREDOC_LINE.exec(line);
   // 終端の次の行は `)"` と空白だけ。その後ろに別のコマンドがあれば隠さない
   if (m !== null && m[1] === tag && after.length > 0 && /^\)"\s*$/.test(after[0]) && after.slice(1).every((l) => l.trim() === "")) return true;
