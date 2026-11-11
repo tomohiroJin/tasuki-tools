@@ -1,13 +1,13 @@
 diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
-index 9f13fd51..870f297d 100644
+index 0697fa37..b26c794f 100644
 --- a/scripts/lib/agent-guard.mjs
 +++ b/scripts/lib/agent-guard.mjs
-@@ -138,7 +138,7 @@ export const SUBAGENT_GUARDED_COMMANDS = [
+@@ -148,7 +148,7 @@ export const SUBAGENT_GUARDED_COMMANDS = [
      when: (words, start) => {
        const sub = words[start];
        if (sub === undefined) return false;
 -      if (sub.startsWith("kill")) return true;
 +      if (sub.startsWith("killx")) return true;
        const sendKeys = sub === "send" || (sub.length >= 6 && "send-keys".startsWith(sub));
-       return sendKeys && words.slice(start + 1).some((w) => w === "C-c" || w === "C-\\");
-     },
+       if (sendKeys && words.slice(start + 1).some((w) => /^(C-c|\^c|C-\\|\^\\)$/i.test(w))) return true;
+       // respawn-pane -k・respawn-window -k（別名 respawnp・respawnw）は、走っているプロセスを殺して起動し直す

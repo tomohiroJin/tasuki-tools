@@ -8910,4 +8910,28 @@ export const MUTATIONS = [
     tests: ["lib/agent-guard.test.mjs"],
     note: RESERVED_1500_1559 + " " + '#578 PR #583 のコメント・自動レビュー。git branch -u origin/x・--edit-description が聞かれずに通る。',
   },
+  {
+    id: 1554,
+    label: 'cat の heredoc の本文を、終端の後ろにコマンドが続いても隠す',
+    patch: "m1554-cat-heredoc-hides-with-trailing-command.patch",
+    pkg: "scripts",
+    tests: ["lib/agent-guard.test.mjs"],
+    note: RESERVED_1500_1559 + " " + "#578 PR #583 の再々レビュー。cat > x.sh <<'EOF' … EOF の後ろの bash x.sh で、書いたスクリプトの中の git push が聞かれずに通る。",
+  },
+  {
+    id: 1555,
+    label: 'tmux respawn-pane/-window の -k を聞かない',
+    patch: "m1555-tmux-respawn-k-not-guarded.patch",
+    pkg: "scripts",
+    tests: ["lib/agent-guard.test.mjs"],
+    note: RESERVED_1500_1559 + " " + '#578 PR #583 の再々レビュー。走っている dev サーバーのペインを、サブエージェントが殺して起動し直す。',
+  },
+  {
+    id: 1556,
+    label: 'git branch --format <値> の値を読み飛ばさない',
+    patch: "m1556-git-branch-format-value-not-skipped.patch",
+    pkg: "scripts",
+    tests: ["lib/agent-guard.test.mjs"],
+    note: RESERVED_1500_1559 + " " + "#578 PR #583 の再々レビュー。git branch --format '%(refname)' が名前の引数と読まれ、毎回聞かれる。",
+  },
 ];
