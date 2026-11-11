@@ -61,6 +61,7 @@ ADR-0032 の範囲の外にある。
   `stash`・`reset --hard` は index の変更も見る
 - path 指定の `checkout`/`restore` は、同じ名前の追跡外のファイル（ignore されないもの）も変更に数えて聞く。**残余**: `.gitignore` の対象のファイルを上書きする形は聞かない
 - 追跡外のファイルを数えるのは **rev つきの形**（`git checkout <rev> -- <path>`・`git restore --source <rev>`）だけ。rev の無い `checkout -- .`・`restore .` は index から戻すので追跡外に触れない。理由の文は「追跡外のファイルを上書きします」と「未コミットの変更があります」で分ける
+- 残余: rev つきの `checkout` が、rev の側に無い名前の追跡外のファイルでも聞く（追跡外の同名ファイルがあるだけで、上書きされるか分からないので聞く側に倒れる）
 - 残余: ステージ済みだけの変更を `git checkout <rev> -- <path>` が上書きするときは聞かない。
   `docs/guides/procedures/mutations.md` の `git checkout -- <壊したファイル>` は、壊したファイルに未コミットの変更があるので**聞かれる**（意図した破棄なので承認する）。同じ手順書の `kill -KILL -- -<PGID>`・`kill -TERM <PID>` も、サブエージェントが流すと聞かれる（承認する人がいない走り方では変異検査を止められない。止めるのはまとめ役か人）
 

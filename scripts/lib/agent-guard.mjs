@@ -916,7 +916,12 @@ function residualForSubagent(command) {
   if (stripped === null) return command;
   const { commands, nested } = lex(stripped);
   if (nested.length > 0) return command;
-  return commands.filter((words) => !isBenignSubagentWords(words)).map((words) => words.join(" ")).join("\n");
+  const keep = commands.filter((words) => !isBenignSubagentWords(words));
+  // 何も除かなければ（データの heredoc の本文だけ取り除いた）元の文字列のまま読む（語をつなぎ直すと、引用符の中の `|`・`;`・`&&` が区切りになる）
+  if (keep.length === commands.length) return stripped;
+  // 除いたときは、語を 1 つずつ単一引用符で包み直して、読み直しても同じ語の並びになるようにする
+  const quote = (w) => `'${w.replaceAll("'", "'\\''")}'`;
+  return keep.map((words) => words.map(quote).join(" ")).join("\n");
 }
 
 /** サブエージェントでも通してよい単純な git の形（ファイルの取り出し・安全な reset・worktree の追加と一覧）。 */

@@ -627,6 +627,16 @@ describe("サブエージェントの危ない操作（#578・docs/adr/0037）",
     ]) assert.equal(subOut(c)?.hookSpecificOutput.permissionDecision, "ask", c);
   });
 
+  test("再々レビュー（コメント 4）: 引用符の中の区切り文字（| ; &&）の後ろの kill・checkout などを、別のコマンドと読み直さない。引用符の外の区切りは聞く", () => {
+    for (const c of [
+      'grep -E "kill|pkill" notes.md', 'grep -rn "git push; git reset" docs', 'git commit -m "fix: reset; kill the timer"', 'git commit -m "fix: branch && checkout の説明"', 'git log --grep="push|reset" --oneline',
+      // 受け皿より前で除く形（git branch）と組み合わせても、残りの引用符は保たれる
+      'git branch --show-current && grep -E "kill|pkill" notes.md', 'git branch feat/x && git commit -m "fix: reset; kill the timer"',
+    ]) assert.equal(subOut(c), null, c);
+    for (const c of ['grep -rn "x" docs; git push origin x', 'git commit -m "fix: x" && git push', 'git branch --show-current && git push', 'git branch --show-current; kill 1', 'echo "a|b" | git push'])
+      assert.equal(subOut(c)?.hookSpecificOutput.permissionDecision, "ask", c);
+  });
+
   test("再々レビュー M-2: tmux の send-keys ^C（C-c の別の綴り）・respawn-pane -k・respawn-window -k も聞く。-k の無い respawn は通す", () => {
     for (const c of ["tmux send-keys -t dev ^C", "tmux send-keys -t dev '^c'", "tmux send -t dev C-C", "tmux respawn-pane -k -t dev", "tmux respawn-window -k -t dev", "tmux respawn-pane -t dev -k 'pnpm dev'", "tmux respawnp -k -t dev", "tmux respawn-pane -kc /tmp -t dev"]) {
       assert.ok(findSubagentCommands(c).length > 0, c);
