@@ -185,7 +185,7 @@ Codex への接続（本番デプロイの歯止め・入口の検査の拡張�
 
 - PR 本文・コミット本文の閉鎖キーワードの検査（`gh pr create` 直前のフックに足す）（closes-keyword-must-not-be-in-backticks）
 - 9p 上のディレクトリ移動・削除の歯止め（9p-mount-breaks-directory-moves）
-- 作業ツリーを巻き戻す git 操作の歯止め（verify-the-break-itself・tasuki-issue135・142・157・247・248 の破壊検証の事故）
+- 作業ツリーを巻き戻す git 操作の歯止め（verify-the-break-itself ほか、完了した ISSUE の記録にある破壊検証の事故）
 - サブエージェントのマージ・巻き戻し・プロセスの停止の歯止め（subagents-must-not-merge・subagents-must-not-touch-processes-or-branches・tasuki-parallel-two-issues-run）
 - 期限つき例外の期限超過を落とす検査（dated-obligations-need-their-own-home）
 - PR の未返信コメントの知らせ（`check:fast` の最初と最後の知らせ）（check-pr-comments-after-push）
