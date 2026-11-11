@@ -819,7 +819,7 @@ function heredocIsData(line, tag, after, continued = false) {
   const m = DATA_HEREDOC_LINE.exec(line);
   // 終端の次の行は `)"` と空白だけ。その後ろに別のコマンドがあれば隠さない
   if (m !== null && m[1] === tag && after.length > 0 && /^\)"\s*$/.test(after[0]) && after.slice(1).every((l) => l.trim() === "")) return true;
-  // `cat > <パス>`・`cat >> <パス>` に引用符つきの終端だけの行。終端の後ろの行は、別のコマンドとしていつもどおり判定される
+  // `cat > <パス>`・`cat <<'TAG' > <パス>` の行（前に `mkdir -p <パス> &&` 可）
   // 隠すのは、終端の行の後ろに何も続かないときだけ（書いたスクリプトを同じコマンドで走らせる形は、本文も隠さず判定する）
   if (!after.every((l) => l.trim() === "")) return false;
   return CAT_HEREDOC_LINES.some((re) => re.exec(line)?.[1] === tag);
