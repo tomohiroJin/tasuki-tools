@@ -8830,4 +8830,20 @@ export const MUTATIONS = [
     tests: ["lib/agent-guard.test.mjs"],
     note: RESERVED_1500_1559 + " " + '#578 PR #583 のレビュー。利用者の tmux セッションをサブエージェントが落とす。',
   },
+  {
+    id: 1544,
+    label: 'OPERATION_WORDS の gh から api・review を外す',
+    patch: "m1544-operation-words-miss-gh-api-review.patch",
+    pkg: "scripts",
+    tests: ["lib/agent-guard.test.mjs"],
+    note: RESERVED_1500_1559 + " " + '#578 自動レビュー。heredoc の中の gh api -X DELETE・gh pr review --approve が文章として隠れ、サブエージェントから通る。',
+  },
+  {
+    id: 1545,
+    label: 'gh pr review の -a・-r を単独の語でしか見ない',
+    patch: "m1545-gh-review-short-bundle-passes.patch",
+    pkg: "scripts",
+    tests: ["lib/agent-guard.test.mjs"],
+    note: RESERVED_1500_1559 + " " + '#578 自動レビュー。-ab・-rb の束で承認・変更要求がすり抜ける。',
+  },
 ];

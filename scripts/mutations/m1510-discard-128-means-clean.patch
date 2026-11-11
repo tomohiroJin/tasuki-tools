@@ -1,9 +1,9 @@
 diff --git a/scripts/lib/discard-guard.mjs b/scripts/lib/discard-guard.mjs
-index 9a3dc4ed..8b570df1 100644
+index 8d86d4c8..b5f7f9b2 100644
 --- a/scripts/lib/discard-guard.mjs
 +++ b/scripts/lib/discard-guard.mjs
-@@ -176,7 +176,7 @@ export function defaultIsDirty(cwd, target, env = {}) {
-         return resolve((target.scope === "worktree" ? lines.filter((l) => l[1] !== " ") : lines).length > 0 ? "yes" : "no");
+@@ -185,7 +185,7 @@ export function defaultIsDirty(cwd, target, env = {}) {
+         return resolve((target.scope === "worktree" ? lines.filter((l) => l[1] !== " " || l.startsWith("??")) : lines).length > 0 ? "yes" : "no");
        }
        // 作業ツリーでない場所だけが、消すものが無い。ほかの 128（所有者の不一致・壊れた設定）・git が無い・場所が無い・時間切れは、確かめられなかった
 -      if (!error.killed && error.code === 128 && /not a git repository/i.test(String(stderr))) return resolve("no");

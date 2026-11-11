@@ -1,12 +1,12 @@
 diff --git a/scripts/lib/discard-guard.mjs b/scripts/lib/discard-guard.mjs
-index 9a3dc4ed..87ac074e 100644
+index 8d86d4c8..2b2873a5 100644
 --- a/scripts/lib/discard-guard.mjs
 +++ b/scripts/lib/discard-guard.mjs
-@@ -173,7 +173,7 @@ export function defaultIsDirty(cwd, target, env = {}) {
-     const child = execFile("git", args, { cwd, timeout: GIT_TIMEOUT_MS, encoding: "utf8", windowsHide: true, env: { ...process.env, ...env } }, (error, stdout, stderr) => {
+@@ -182,7 +182,7 @@ export function defaultIsDirty(cwd, target, env = {}) {
        if (!error) {
          const lines = stdout.split("\n").filter((l) => l !== "");
--        return resolve((target.scope === "worktree" ? lines.filter((l) => l[1] !== " ") : lines).length > 0 ? "yes" : "no");
+         // worktree 範囲: 作業ツリー側の変更（` M`・`??` ほか）。index だけの変更（`M `）は数えない
+-        return resolve((target.scope === "worktree" ? lines.filter((l) => l[1] !== " " || l.startsWith("??")) : lines).length > 0 ? "yes" : "no");
 +        return resolve(lines.length > 0 ? "yes" : "no");
        }
        // 作業ツリーでない場所だけが、消すものが無い。ほかの 128（所有者の不一致・壊れた設定）・git が無い・場所が無い・時間切れは、確かめられなかった

@@ -1,13 +1,13 @@
 diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
-index 5977b177..008a31ef 100644
+index 80e159e0..3ac115aa 100644
 --- a/scripts/lib/agent-guard.mjs
 +++ b/scripts/lib/agent-guard.mjs
-@@ -652,7 +652,7 @@ export const OPERATION_WORDS = Object.freeze({
+@@ -667,7 +667,7 @@ export const OPERATION_WORDS = Object.freeze({
     * read-tree --reset -u・submodule update --force・worktree remove -f）。merge・pull・rebase・cherry-pick・revert・apply・am は
     * 変更があると git 自身が拒む（`--abort`・`--quit` は消すが日常の作業を止めるので含めない）。
     */
 -  gitDiscard: ["checkout", "restore", "stash", "reset", "clean", "switch", "rm", "mv", "checkout-index", "read-tree", "submodule", "worktree"],
 +  gitDiscard: ["checkout", "restore", "stash", "reset", "clean", "switch", "mv", "checkout-index", "read-tree", "submodule", "worktree"],
-   gh: ["merge", "close"],
-   kill: ["kill", "pkill", "killall"],
+   gh: ["merge", "close", "api", "review"],
+   kill: ["kill", "pkill", "killall", "kill-port", "fuser", "kill-server", "kill-session"],
  });
