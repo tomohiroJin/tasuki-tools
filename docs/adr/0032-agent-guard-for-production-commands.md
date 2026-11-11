@@ -160,6 +160,42 @@ Copilot は、いまは文章の入口も無い。決定 4 の見出しと「文
 - 実測していないこと: `check:fast` の 1 回の所要時間は、この決め直しのために測っていない。全件に倒れたときの時間は、#491 の振り返りの
   罠 5 の記録（走り切っていない）による。pre-commit から速い段を流して止まることは、コードを読んで確かめたもので、実際には流していない
 
+#### 追記（2026-11-11・#578）: Codex には、本番デプロイだけを `deny` で拒む入口を置く
+
+**ステータス: Proposed（採択は人。`docs/adr/0030` 決定 1）。** この追記は決定 2 の一部（「拒まない」）と決定 4 の表を Codex の分だけ変えるので、
+マージ前に利用者の承認が要る。承認までは、決定 2・4 の本文のとおり Codex は文章だけで守る扱いのまま。
+
+- **実測（codex-cli 0.154.0・2026-11-10）**: Codex にも PreToolUse フックがあり、入力は Claude Code と同じ形（`tool_name: "Bash"`・`tool_input.command`・`cwd`）。
+  だが `permissionDecision: "ask"` は扱われず、フックの失敗として**コマンドがそのまま走る**。止まるのは `deny`（か exit 2）だけ。
+  つまり `agent-guard-hook.mjs` を Codex へ配線しても止まらない（fail-open）。
+- **決定の変更（決定 2 の「拒まない」）**: Codex のときだけ、本番デプロイに当たるコマンドを `deny` で拒む。判定は決定 1 の
+  `scripts/lib/agent-guard.mjs` をそのまま使い（写さない）、返す値だけを `scripts/codex-guard-hook.mjs` で `deny` に換える。入力が読めないときも `deny` に倒す。
+  Claude Code の入口（`agent-guard-hook.mjs`）は変えない。Codex には「人が承認して進む」道が無いので、人が明示に指示したときは、
+  人が自分の端末で叩く（フックの外）か、人がフックを外してやり直す
+- **範囲は本番デプロイだけ。** `gh pr create` の先行 PR の確認（#504）ほか、Claude Code の入口が持つ `ask` の判定は Codex に配線しない。
+  `ask` が使えず、`deny` にすると日常の作業（PR を立てる・ブランチを整理する）を止めるため。それらは文章（`AGENTS.md`）だけで守る
+- **配線**: `.codex/hooks.json`（追跡する。`.codex/` は無視の対象ではない）の `hooks.PreToolUse` に、matcher `Bash` で
+  `node "$(git rev-parse --show-toplevel)/scripts/codex-guard-hook.mjs"` を置く。配線は `scripts/audit-codex-guard.mjs` が見る（決定 3 と同じ型）
+  - **起動の失敗も deny に倒す**: Codex は入口を起動できない（node が無い・入口のファイルが無い・Git のルートが引けない）と、フックの失敗として
+    コマンドをそのまま走らせる（`ask` と同じ扱い）。そのためコマンドは `… || printf '%s' '<deny の JSON>'` と包み、入口が失敗したときだけ deny を返す。
+    入口が「当たらない」と何も出さず exit 0 で終わるときは、`||` の後ろは走らない。Codex がルートを環境変数で渡すかは、
+    codex-cli 0.154.0 のバイナリの文字列で調べたが見つからなかった（Claude Code の `CLAUDE_PROJECT_DIR` に当たるものは無い）ので、`git rev-parse` で引く
+- **決定 4 の表の Codex の行**（改定前の表に Codex の行は無かった）:
+
+| ツール | 仕組みはあるか（2026-11-10 の実測） | いまの扱い |
+|---|---|---|
+| Codex | PreToolUse フック（`.codex/hooks.json`）。`ask` は失敗扱いで止まらず、`deny` で止まる。プロジェクトの `.codex/` は、プロジェクトを信頼したときだけ読まれ、フックは `/hooks` で信頼するまで走らない | 本番デプロイだけ `deny`（`scripts/codex-guard-hook.mjs`）。ほかは文章（`AGENTS.md`） |
+
+- **残る穴（歯止めであって壁ではない。決定 2 と同じ型）**: ①フックの信頼（`/hooks` で信頼するまで新しいフック・変わったフックは黙って飛ばされる）、
+  ②プロジェクトを信頼していない場所（クラウド・別の機械）では `.codex/` ごと読まれない、③`[features] hooks = false`（`--disable hooks`）で全部切れる、
+  ④走っているシェルへ `write_stdin` で流し込んだ分は見ない、⑤決定 2 の迂回（変数・別の言語・スクリプトの中ほど）は同じく素通りする。
+  本番への最後の壁は、デプロイの資格情報がエージェントの環境に無いこと（`docs/adr/0011`）のまま
+- **実測していないこと**: この環境では `codex exec` を走らせる許可が得られず、実際の Codex に `.codex/hooks.json` 経由でデプロイのダミーを走らせて
+  止まることは**確かめられていない**（入口の単体テストと、実測済みの `deny` の出力の形の突き合わせのみ）。採択の前に、一時のリポジトリ
+  （中の `deploy/deploy.sh` は `echo` だけ）で、止まることと配線を外すと走ることを実機で確かめる
+- 退けた案: `.codex/rules/*.rules`（execpolicy）で止める。`sudo`・`env`・`ssh`・`bash deploy/deploy.sh` を取りこぼし（`codex execpolicy check` で確認）、
+  一覧が 2 か所になる（決定 2 の MUST NOT と同じ理由）
+
 ### 退けた案
 
 | 案 | 退けた理由 |

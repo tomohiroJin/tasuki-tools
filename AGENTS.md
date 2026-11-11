@@ -38,6 +38,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 **人の明示の指示か承認を待つ操作**（基準は `docs/adr/0030` 決定 1。一覧に無くても基準に当たれば聞く）
 
 - 本番デプロイ（deploy.sh / systemctl / Caddy reload）。Claude Code ではフックが人に聞く（一覧の正本は `scripts/lib/agent-guard.mjs`。`docs/adr/0032`）
+  - Codex ではフックが `deny` で拒む。プロジェクトを信頼し、`/hooks` でフックを信頼しないと効かない（[`docs/guides/development.md`](docs/guides/development.md) の「Codex で作業するとき」）
 - ADR の採択・却下（Proposed → Accepted / Rejected）・憲法の改版
 - 検査を飛ばす・無効にする・弱める変更（テストの skip・変異の宣言の削除・走査対象の除外の追加）
 - 依頼に含まれない ISSUE・PR・コメントの投稿、外部のサービスへの送信
@@ -99,6 +100,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 - `node scripts/check-toolchain.mjs <test|e2e|mutation>` — 開発環境の版（Node・pnpm・Bun・Chromium・ffmpeg・Caddy）が宣言と合うか。`pnpm test`・`pnpm e2e`・変異検査は先にこれを通し、合わなければ始めない（`docs/adr/0031`）
 - `node scripts/audit-toolchain.mjs` — 版の宣言（`toolchain.json` ほか）と、それを読む CI・ハーネスのずれ
 - `node scripts/audit-agent-guard.mjs` — AI ツールの設定（`.claude/settings.json`）が本番デプロイのコマンドを止めるフックへ配線されているか・止める一覧（`scripts/lib/agent-guard.mjs`）と `deploy/` の実体が合うか（`docs/adr/0032`）
+- `node scripts/audit-codex-guard.mjs` — Codex の設定（`.codex/hooks.json`）が本番デプロイを `deny` で止める入口へ配線されているか（`docs/adr/0032` の追記（#578））
 - `node scripts/mutation-check.mjs` — 変異検査（全件。手元の実装中は `--changed` / `--pkg <dir>` / `--id <番号,…>` で絞る。`--jobs <数>` で作業ツリーを分けて並列に流せる。CI は `--shard k/n` で分ける。段ごとの使い分けは `docs/guides/development.md`）
 - `bash -c 'set -euo pipefail; targets="$(node scripts/list-scan-targets.mjs script-tests)"; node --test $targets'` — scripts の自己テスト
 

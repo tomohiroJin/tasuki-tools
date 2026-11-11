@@ -191,6 +191,9 @@ const RESERVED_1100_1109 =
 const RESERVED_1390_1399 =
   "**対応表より後に足した変異。** 1390〜1399 は #555 に追加で割り当てた範囲（1100〜1109 を使い切ったため。PR #575 の指摘で足した。#556 は 1380〜1389 を使う）。";
 
+const RESERVED_1480_1489 =
+  "**対応表より後に足した変異。** 1480〜1489 は #578 の PR 3（Codex）に割り当てた予約の範囲（1440〜1479 は PR #583 が予約）。";
+
 const RESERVED_1400_1409 =
   "**対応表より後に足した変異。** 1400〜1409 は #555 に追加で割り当てた範囲（1390〜1399 を使い切ったため。PR #575 の最後のレビューの指摘で足した）。";
 
@@ -8450,5 +8453,45 @@ export const MUTATIONS = [
     pkg: "e2e",
     tests: ["tests/block-gaps.test.ts"],
     note: RESERVED_1420_1429 + " " + "#557 のレビュー。translate だけの区画（agenda の盤の読み取り）の子孫が判定から外れる。",
+  },
+  {
+    id: 1480,
+    label: "Codex の入口が、本番デプロイに deny でなく ask を返す",
+    patch: "m1480-codex-guard-asks-instead-of-denies.patch",
+    pkg: "scripts",
+    tests: ["codex-guard-hook.test.mjs"],
+    note: RESERVED_1480_1489 + " " + "#578 PR 3。Codex は ask を扱わず、コマンドがそのまま走る（実測）。止まる出力は deny だけ。",
+  },
+  {
+    id: 1481,
+    label: "Codex の入口が、判定の失敗を握りつぶして何も出さない（通す）",
+    patch: "m1481-codex-guard-swallows-decide-failure.patch",
+    pkg: "scripts",
+    tests: ["codex-guard-hook.test.mjs"],
+    note: RESERVED_1480_1489 + " " + "#578 PR 3。判定が想定外に投げたとき、歯止めが黙って外れる（fail-open）。",
+  },
+  {
+    id: 1482,
+    label: "audit-codex-guard が hooks.json のコマンドを見ない（type が command なら通す）",
+    patch: "m1482-audit-codex-guard-ignores-command.patch",
+    pkg: "scripts",
+    tests: ["audit-codex-guard.test.mjs"],
+    note: RESERVED_1480_1489 + " " + "#578 PR 3。Claude Code の入口（ask を返す）を配線しても CI が緑のまま、Codex では止まらない。",
+  },
+  {
+    id: 1483,
+    label: "Codex のフックのコマンドから、起動の失敗を deny に倒す || の後ろを外す",
+    patch: "m1483-codex-hooks-launch-failure-allows.patch",
+    pkg: "scripts",
+    tests: ["audit-codex-guard.test.mjs"],
+    note: RESERVED_1480_1489 + " " + "#578 PR 3。入口を起動できないとき Codex はコマンドを走らせる。包みが無いと歯止めが黙って外れる（自動のセキュリティレビューの指摘）。",
+  },
+  {
+    id: 1484,
+    label: "audit-agent-entries が、入れ子の階層の .agents/skills を候補にしない（直下だけ）",
+    patch: "m1484-entries-nested-agents-skills-ignored.patch",
+    pkg: "scripts",
+    tests: ["audit-agent-entries.test.mjs"],
+    note: RESERVED_1480_1489 + " " + "#578 PR 3。Codex は cwd から Git のルートまでの各階層の .agents/skills を規則として読むのに、サブディレクトリへ置かれても検査が見逃す。",
   },
 ];

@@ -138,6 +138,18 @@ DoD の項目をガイドに置いたのと同じ書き分け。`docs/adr/0002` 
 - 影響欄は採択時の記録なので、中身は書き換えていない。消したファイルの名前のバッククォートだけを外した（表記だけの変更。上の改定のなお書き）
 - この追記は規範を足すので、採択は PR のマージで利用者が行う（利用者は 2026-11-04 に、この PR の変更を、マージに先立って会話の中で承認した）
 
+#### 追記（2026-11-11・#578）: Codex の置き場を入口の検査の範囲に入れる
+
+**ステータス: Proposed（採択は人。決定 1）。**
+
+- Codex は `CLAUDE.md` を読まず、`AGENTS.md`（`AGENTS.override.md` が先）を Git のルートから cwd まで各階層で読む（codex-cli 0.154.0 の実測）。
+  よって決定 3 のとおり、Codex のための入口ファイルは足さない
+- Codex が規則として読む置き場のうち、`.agents/skills/`（どの階層でも）・`.codex/skills/`・`.codex/agents/`（`developer_instructions` を持てる）・
+  `.codex/config.toml`（同じく `developer_instructions` を持てる）を、`scripts/audit-agent-entries.mjs` の候補（宣言の無いものが追跡下に現れたら止める）に足す。
+  `AGENTS.override.md` は候補に入っていた。Codex 用のスキルは置かない（手順書は `AGENTS.md` から辿れる）
+- `.codex/hooks.json` は規則の本文を持たない配線の宣言なので候補にしない。中身は `scripts/audit-codex-guard.mjs` が見る（`docs/adr/0032` の追記（#578））
+- 残余: 検査は置き場の名前を見るだけで、Codex が将来読む置き場を増やしたら追いつかない。信頼した人の手元の `~/.codex/AGENTS.md` は検査の外
+
 ### 4. AI の成果の記録
 
 - **MUST**: AI が作業を終えたときの報告（PR 本文・ISSUE へのコメント・会話での完了の報告）は、
