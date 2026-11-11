@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/codex-guard.mjs b/scripts/lib/codex-guard.mjs
+index 73328ae2..490256a8 100644
+--- a/scripts/lib/codex-guard.mjs
++++ b/scripts/lib/codex-guard.mjs
+@@ -41,7 +41,7 @@ export const CODEX_HOOK_SCRIPT = "scripts/codex-guard-hook.mjs";
+  */
+ export const CODEX_HOOK_COMMAND = [
+   `r="$(git rev-parse --show-toplevel)" || { printf '%s' '${ROOT_FAILURE_OUTPUT}'; exit 0; }`,
+-  `[ -f "$r/${CODEX_HOOK_SCRIPT}" ] || exit 0`,
++  `true`,
+   `out="$(node "$r/${CODEX_HOOK_SCRIPT}")" && printf '%s' "$out" || printf '%s' '${LAUNCH_FAILURE_OUTPUT}'`,
+ ].join("; ");
+ /** hooks.json の中身（.codex/hooks.json）として許す形。**これと構造ごと完全一致のものだけ**を通す（許可リスト。#578）。 */

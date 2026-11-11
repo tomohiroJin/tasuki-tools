@@ -19,7 +19,6 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { isDeepStrictEqual } from "node:util";
 import { fileURLToPath } from "node:url";
 import { listTrackedFiles } from "./lib/scan-targets.mjs";
 import { isDirectRun } from "./lib/direct-run.mjs";
@@ -35,24 +34,27 @@ export const CODEX_HOOKS_PATH = ".codex/hooks.json";
  * 手書きの一覧。PR #583 のマージ後に、`audit-agent-guard.mjs` の `collectEntryDependencies`（入口の import をたどる）へ寄せる（#578 のレビュー Minor 2）。
  */
 export const CODEX_HOOK_LIBS = ["scripts/lib/agent-guard.mjs", "scripts/lib/direct-run.mjs", "scripts/lib/codex-guard.mjs"];
+/** `.codex/hooks.json` の正準の文字列（2 字下げ・末尾に改行）。期待する形から作る。 */
+export const CANONICAL_CODEX_HOOKS_TEXT = `${JSON.stringify(EXPECTED_CODEX_HOOKS, null, 2)}\n`;
+
 /**
- * `.codex/hooks.json` の中身を見る。**期待する形 1 つと構造ごと完全一致のものだけ**を通す（許可リスト。期待の形は
- * `scripts/lib/codex-guard.mjs` の `EXPECTED_CODEX_HOOKS`）。Claude Code の入口の併記・`timeout`・`async`・`allow` を返す別のフック・
- * `SessionStart` で規則を流すフック（`additionalContext`）など、歯止めを外す・規則を流し込む書き足しを全部落とすため。
+ * `.codex/hooks.json` の中身を見る。**期待する形から作った正準の文字列と、文字列ごと完全一致**のものだけを通す
+ * （期待の形は `scripts/lib/codex-guard.mjs` の `EXPECTED_CODEX_HOOKS`）。構造の比較では、キーが重複したファイルが通る
+ * （`JSON.parse` は後ろのキーを採り、Codex がどう読むかは未実測）。Claude Code の入口の併記・`timeout`・`async`・`allow` を返す別のフック・
+ * `SessionStart` で規則を流すフック（`additionalContext`）など、歯止めを外す・規則を流し込む書き足しも全部落とす。
  * ほかのフックを足したくなったら、期待の形を広げて ADR に書く。
  * @param {string} text
  * @returns {string[]} 問題（空なら通る）
  */
 export function checkCodexHooks(text) {
-  let json;
+  if (text === CANONICAL_CODEX_HOOKS_TEXT) return [];
   try {
-    json = JSON.parse(text);
+    JSON.parse(text);
   } catch (e) {
     return [`JSON として読めません（${e.message}）`];
   }
-  if (isDeepStrictEqual(json, EXPECTED_CODEX_HOOKS)) return [];
   return [
-    `期待する形（scripts/lib/codex-guard.mjs の EXPECTED_CODEX_HOOKS）と一致しません。hooks.PreToolUse に matcher "Bash" で ${JSON.stringify(CODEX_HOOK_COMMAND)} を 1 つだけ置き、ほかのキー・フックを足さないでください（Claude Code の入口は ask を返すので Codex では止まらない。timeout・async・allow・SessionStart は歯止めを外すか規則を流し込む。docs/adr/0032 の追記）`,
+    `期待する形（scripts/lib/codex-guard.mjs の EXPECTED_CODEX_HOOKS を 2 字下げ・末尾改行で書いた文字列）と一致しません。hooks.PreToolUse に matcher "Bash" で ${JSON.stringify(CODEX_HOOK_COMMAND)} を 1 つだけ置き、ほかのキー・フック・重複したキーを足さないでください（Claude Code の入口は ask を返すので Codex では止まらない。timeout・async・allow・SessionStart は歯止めを外すか規則を流し込む。docs/adr/0032 の追記）`,
   ];
 }
 

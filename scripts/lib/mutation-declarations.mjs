@@ -191,8 +191,8 @@ const RESERVED_1100_1109 =
 const RESERVED_1390_1399 =
   "**対応表より後に足した変異。** 1390〜1399 は #555 に追加で割り当てた範囲（1100〜1109 を使い切ったため。PR #575 の指摘で足した。#556 は 1380〜1389 を使う）。";
 
-const RESERVED_1480_1489 =
-  "**対応表より後に足した変異。** 1480〜1489 は #578 の PR 3（Codex）に割り当てた予約の範囲（1440〜1479 は PR #583 が予約）。";
+const RESERVED_1480_1499 =
+  "**対応表より後に足した変異。** 1480〜1499 は #578 の PR 3（Codex）に割り当てた予約の範囲（1440〜1479 は PR #583 が予約）。";
 
 const RESERVED_1400_1409 =
   "**対応表より後に足した変異。** 1400〜1409 は #555 に追加で割り当てた範囲（1390〜1399 を使い切ったため。PR #575 の最後のレビューの指摘で足した）。";
@@ -8484,7 +8484,7 @@ export const MUTATIONS = [
     patch: "m1480-codex-guard-asks-instead-of-denies.patch",
     pkg: "scripts",
     tests: ["codex-guard-hook.test.mjs"],
-    note: RESERVED_1480_1489 + " " + "#578 PR 3。Codex は ask を扱わず、コマンドがそのまま走る（実測）。止まる出力は deny だけ。",
+    note: RESERVED_1480_1499 + " " + "#578 PR 3。Codex は ask を扱わず、コマンドがそのまま走る（実測）。止まる出力は deny だけ。",
   },
   {
     id: 1481,
@@ -8492,7 +8492,7 @@ export const MUTATIONS = [
     patch: "m1481-codex-guard-swallows-decide-failure.patch",
     pkg: "scripts",
     tests: ["codex-guard-hook.test.mjs"],
-    note: RESERVED_1480_1489 + " " + "#578 PR 3。判定が想定外に投げたとき、歯止めが黙って外れる（fail-open）。",
+    note: RESERVED_1480_1499 + " " + "#578 PR 3。判定が想定外に投げたとき、歯止めが黙って外れる（fail-open）。",
   },
   {
     id: 1482,
@@ -8500,7 +8500,7 @@ export const MUTATIONS = [
     patch: "m1482-audit-codex-guard-ignores-command.patch",
     pkg: "scripts",
     tests: ["audit-codex-guard.test.mjs"],
-    note: RESERVED_1480_1489 + " " + "#578 PR 3。Claude Code の入口（ask を返す）を配線しても CI が緑のまま、Codex では止まらない。",
+    note: RESERVED_1480_1499 + " " + "#578 PR 3。Claude Code の入口（ask を返す）を配線しても CI が緑のまま、Codex では止まらない。",
   },
   {
     id: 1483,
@@ -8508,7 +8508,7 @@ export const MUTATIONS = [
     patch: "m1483-codex-hooks-launch-failure-allows.patch",
     pkg: "scripts",
     tests: ["audit-codex-guard.test.mjs"],
-    note: RESERVED_1480_1489 + " " + "#578 PR 3。入口を起動できないとき Codex はコマンドを走らせる。包みが無いと歯止めが黙って外れる（自動のセキュリティレビューの指摘）。",
+    note: RESERVED_1480_1499 + " " + "#578 PR 3。入口を起動できないとき Codex はコマンドを走らせる。包みが無いと歯止めが黙って外れる（自動のセキュリティレビューの指摘）。",
   },
   {
     id: 1484,
@@ -8516,7 +8516,7 @@ export const MUTATIONS = [
     patch: "m1484-entries-nested-agents-skills-ignored.patch",
     pkg: "scripts",
     tests: ["audit-agent-entries.test.mjs"],
-    note: RESERVED_1480_1489 + " " + "#578 PR 3。Codex は cwd から Git のルートまでの各階層の .agents/skills を規則として読むのに、サブディレクトリへ置かれても検査が見逃す。",
+    note: RESERVED_1480_1499 + " " + "#578 PR 3。Codex は cwd から Git のルートまでの各階層の .agents/skills を規則として読むのに、サブディレクトリへ置かれても検査が見逃す。",
   },
   {
     id: 1485,
@@ -8524,7 +8524,7 @@ export const MUTATIONS = [
     patch: "m1485-codex-guard-unreadable-input-passes.patch",
     pkg: "scripts",
     tests: ["codex-guard-hook.test.mjs"],
-    note: RESERVED_1480_1489 + " " + "#578 PR 3。入力の形が変わったとき、歯止めが黙って外れる（fail-open）。",
+    note: RESERVED_1480_1499 + " " + "#578 PR 3。入力の形が変わったとき、歯止めが黙って外れる（fail-open）。",
   },
   {
     id: 1486,
@@ -8532,15 +8532,15 @@ export const MUTATIONS = [
     patch: "m1486-entries-nested-codex-dir-ignored.patch",
     pkg: "scripts",
     tests: ["audit-agent-entries.test.mjs"],
-    note: RESERVED_1480_1489 + " " + "#578 PR 3。入れ子の .codex/config.toml（developer_instructions・hooks の無効化）が検査を素通りする（レビュー I3）。",
+    note: RESERVED_1480_1499 + " " + "#578 PR 3。入れ子の .codex/config.toml（developer_instructions・hooks の無効化）が検査を素通りする（レビュー I3）。",
   },
   {
     id: 1487,
-    label: "audit-codex-guard の比較が、PreToolUse の先頭のフックだけを見て、余計なキー・フック（timeout・SessionStart ほか）を許す",
+    label: "audit-codex-guard が hooks.json を文字列でなく構造（JSON.parse 後）で比べ、キーの重複を通す",
     patch: "m1487-audit-codex-guard-ignores-extra-keys.patch",
     pkg: "scripts",
     tests: ["audit-codex-guard.test.mjs"],
-    note: RESERVED_1480_1489 + " " + "#578 PR 3。タイムアウトや規則の流し込みのフックを足されても CI が緑のまま（レビュー I2）。",
+    note: RESERVED_1480_1499 + " " + "#578 PR 3。キーが重複したファイルで Codex が先のキーを採ると、歯止めが無いまま CI が緑になる（#584 の 2 回目のレビュー 4）。",
   },
   {
     id: 1488,
@@ -8548,7 +8548,7 @@ export const MUTATIONS = [
     patch: "m1488-codex-hooks-double-json-wrapper.patch",
     pkg: "scripts",
     tests: ["codex-guard-hook.test.mjs"],
-    note: RESERVED_1480_1489 + " " + "#578 PR 3。#584 のレビュー。JSON が 2 つ連なると Codex は失敗とみなしてコマンドを通す。",
+    note: RESERVED_1480_1499 + " " + "#578 PR 3。#584 のレビュー。JSON が 2 つ連なると Codex は失敗とみなしてコマンドを通す。",
   },
   {
     id: 1489,
@@ -8556,6 +8556,22 @@ export const MUTATIONS = [
     patch: "m1489-codex-guard-passes-when-command-missing.patch",
     pkg: "scripts",
     tests: ["codex-guard-hook.test.mjs"],
-    note: RESERVED_1480_1489 + " " + "#578 PR 3。#584 のレビュー。入力の形が変わったとき歯止めが黙って外れる（fail-open）。",
+    note: RESERVED_1480_1499 + " " + "#578 PR 3。#584 のレビュー。入力の形が変わったとき歯止めが黙って外れる（fail-open）。",
+  },
+  {
+    id: 1490,
+    label: "audit-agent-entries の列挙のパターンから .agents/skills/ の 2 行（直下・入れ子）を消す",
+    patch: "m1490-entries-agents-skills-patterns-dropped.patch",
+    pkg: "scripts",
+    tests: ["audit-agent-entries.test.mjs"],
+    note: RESERVED_1480_1499 + " " + "#584 の 2 回目のレビュー 2。.md 以外のファイル（run.sh・openai.yaml）が列挙から漏れ、入口の検査を素通りする。",
+  },
+  {
+    id: 1491,
+    label: "Codex のフックのコマンドから、入口の無い版では何も出さず終わる分岐を外す",
+    patch: "m1491-codex-hooks-no-entry-denies.patch",
+    pkg: "scripts",
+    tests: ["codex-guard-hook.test.mjs"],
+    note: RESERVED_1480_1499 + " " + "#584 の 2 回目のレビュー 1。歯止めの無い古い版・bisect で ls・git switch - まで deny になり、Codex 自身では戻れない。",
   },
 ];

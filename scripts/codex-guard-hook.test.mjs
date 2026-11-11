@@ -140,16 +140,29 @@ describe(".codex/hooks.json のコマンドを実際に走らせる（起動の�
     assert.equal(runWired(t, { cwd: REPO, command: "cat deploy/README.md" }), null);
   });
 
-  test("cwd が Git のリポジトリの外なら deny（入口が見つからない）", (t) => {
+  test("cwd が Git のリポジトリの外なら deny（Git のルートが引けない）", (t) => {
     assert.equal(decision(runWired(t, { cwd: tmp(t) })), "deny");
     // 外では ordinary なコマンドも止まる（安全側に倒す判断。ADR-0032 の追記・#578 のレビュー）
     assert.equal(decision(runWired(t, { cwd: tmp(t), command: "ls" })), "deny");
   });
 
-  test("リポジトリの中でも入口のファイルが無ければ deny", (t) => {
+  test("入口のファイルが無い版（歯止めが入る前のコミット・bisect）の作業ツリーでは、何も出さない（ls・git switch - まで deny にして Codex 自身で戻れなくしない）", (t) => {
     const dir = tmp(t);
     spawnSync("git", ["init", "-q"], { cwd: dir });
+    for (const command of ["ls", "git switch -", "git status", "bash deploy/deploy.sh"]) assert.equal(runWired(t, { cwd: dir, command }), null, command);
+  });
+
+  test("入口が在って node が失敗したら deny（入口の無い版の許しは、入口が在るときには効かない）", (t) => {
+    const dir = tmp(t);
+    spawnSync("git", ["init", "-q"], { cwd: dir });
+    fs.mkdirSync(path.join(dir, "scripts"));
+    fs.writeFileSync(path.join(dir, "scripts/codex-guard-hook.mjs"), "throw new Error('broken');\n");
     assert.equal(decision(runWired(t, { cwd: dir })), "deny");
+  });
+
+  test("Git のルートが引けないときの deny の理由に、人が端末で戻す方法がある", (t) => {
+    const out = runWired(t, { cwd: tmp(t) });
+    assert.match(out.hookSpecificOutput.permissionDecisionReason, /端末/);
   });
 
   test("node が起動に失敗しても（PATH に node が無い）deny", (t) => {

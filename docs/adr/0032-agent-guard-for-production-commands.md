@@ -163,7 +163,7 @@ Copilot は、いまは文章の入口も無い。決定 4 の見出しと「文
 #### 追記（2026-11-11・#578）: Codex には、本番デプロイだけを `deny` で拒む入口を置く
 
 **ステータス: Proposed（採択は人。`docs/adr/0030` 決定 1）。** この追記は決定 2 の一部（「拒まない」）と決定 4 の表を Codex の分だけ変えるので、
-マージ前に利用者の承認が要る。承認までは、決定 2・4 の本文のとおり Codex は文章だけで守る扱いのまま。
+マージ前に利用者の承認が要る。**この PR をマージすると、`.codex/hooks.json` の配線は効き始める**（プロジェクトとフックを信頼した Codex で）。追記は Proposed のままで、Codex の実機では止まることを未確認。採択の判断は人（マージを採択とみなすかも含め）。
 
 - **実測（codex-cli 0.154.0・2026-11-10）**: Codex にも PreToolUse フックがあり、入力は Claude Code と同じ形（`tool_name: "Bash"`・`tool_input.command`・`cwd`）。
   だが `permissionDecision: "ask"` は扱われず、フックの失敗として**コマンドがそのまま走る**。止まるのは `deny`（か exit 2）だけ。
@@ -176,11 +176,17 @@ Copilot は、いまは文章の入口も無い。決定 4 の見出しと「文
   `ask` が使えず、`deny` にすると日常の作業（PR を立てる・ブランチを整理する）を止めるため。それらは文章（`AGENTS.md`）だけで守る
 - **配線**: `.codex/hooks.json`（追跡する。`.codex/` は無視の対象ではない）の `hooks.PreToolUse` に、matcher `Bash` で
   `node "$(git rev-parse --show-toplevel)/scripts/codex-guard-hook.mjs"` を置く。配線は `scripts/audit-codex-guard.mjs` が見る（決定 3 と同じ型）
-  - **起動の失敗も deny に倒す**: Codex は入口を起動できない（node が無い・入口のファイルが無い・Git のルートが引けない）と、フックの失敗として
-    コマンドをそのまま走らせる（`ask` と同じ扱い）。そのためコマンドは `out="$(node …)" && printf '%s' "$out" || printf '%s' '<deny の JSON>'` と包み、
+  - **コマンドは 3 つに分ける**: ①`git rev-parse --show-toplevel` が失敗 → deny（理由に、リポジトリの中で起動し直す・人が端末で実行する・フックを外す、を添える）。
+    ②成功したが、そのルートに `scripts/codex-guard-hook.mjs` が無い → **何も出さず exit 0**。その版には歯止めがそもそも無いので、deny にすると
+    `ls` や `git switch -` まで止まり、Codex 自身では戻れなくなる（歯止めが入る前の古いコミット・bisect で起きる）。③在る → 入口の出力を一度受け、
     入口が**成功したときだけ**その出力を出し、失敗したら deny だけを出す（`node … || printf` だと、入口が deny を書いた後に非ゼロで終わったとき JSON が 2 つ連なり、
     Codex は失敗とみなして通す）。入口が「当たらない」と何も出さず exit 0 で終わるときは何も出さない。入口の main は例外を全部捕まえて exit 0 で終わる。
+    **②を許す判断により、歯止めが外れる場面**: 古いコミット・bisect、リポジトリの中の入れ子の git リポジトリ、`GIT_DIR` で別のリポジトリを指すとき
+    （どれもそのルートに入口が無い）。人が意図して入れ子・別のリポジトリへ移る操作は、歯止めの外になる（残余）
     Codex がルートを環境変数で渡すかは、codex-cli 0.154.0 のバイナリの文字列で調べたが見つからなかった（Claude Code の `CLAUDE_PROJECT_DIR` に当たるものは無い）ので、`git rev-parse` で引く
+  - **`.codex/hooks.json` は文字列ごと比べる**: 期待する形から作った正準の文字列（2 字下げ・末尾改行）と一致するものだけを通す。構造の比較では、キーが重複したファイルが通る
+    （`JSON.parse` は後ろのキーを採る。Codex がどちらを採るかは未実測）
+- **symlink は素通りする**: symlink で置いた `.agents/skills`・入れ子の `.codex` は、入口の検査（`git ls-files` の列挙）に拾われない。Codex が symlink を辿るかは未実測。既存の `.claude/rules` も同じ形（残余）
 - **決定 4 の表の Codex の行**（改定前の表に Codex の行は無かった）:
 
 | ツール | 仕組みはあるか（2026-11-10 の実測） | いまの扱い |

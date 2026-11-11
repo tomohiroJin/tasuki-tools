@@ -6,13 +6,26 @@ import { EXPECTED_CODEX_HOOKS } from "./lib/codex-guard.mjs";
 
 const clone = () => structuredClone(EXPECTED_CODEX_HOOKS);
 const entry = (j) => j.hooks.PreToolUse[0].hooks[0];
-const problems = (j) => checkCodexHooks(JSON.stringify(j));
+/** .codex/hooks.json の書式（2 字下げ・末尾に改行）。 */
+const fmt = (j) => `${JSON.stringify(j, null, 2)}\n`;
+const problems = (j) => checkCodexHooks(fmt(j));
 
 describe("checkCodexHooks: .codex/hooks.json は期待する形と構造ごと完全一致のものだけ通す", () => {
-  test("期待する形は通る。キーの順が違っても通る", () => {
+  test("期待する形は通る", () => {
     assert.deepEqual(problems(clone()), []);
-    const reordered = { hooks: { PreToolUse: [{ hooks: [{ command: CODEX_HOOK_COMMAND, type: "command" }], matcher: "Bash" }] } };
-    assert.deepEqual(problems(reordered), []);
+  });
+
+  test("キーが重複したファイルは落とす（JSON.parse は後ろのキーを採るので、構造の比較だけでは通ってしまう）", () => {
+    const text = fmt(clone());
+    const dup = text.replace('{\n  "hooks"', '{\n  "hooks": { "PreToolUse": [] },\n  "hooks"');
+    assert.notEqual(dup, text);
+    assert.equal(checkCodexHooks(dup).length, 1);
+    assert.equal(checkCodexHooks(text.replace('"type": "command"', '"type": "command", "type": "command"')).length, 1);
+  });
+
+  test("書式が違う（キーの順・字下げ・末尾の改行なし）ものも落とす（文字列ごとの比較）", () => {
+    assert.equal(checkCodexHooks(JSON.stringify(clone())).length, 1);
+    assert.equal(checkCodexHooks(fmt(clone()).trimEnd()).length, 1);
   });
 
   test("実リポジトリの .codex/hooks.json は通る", () => {
@@ -21,7 +34,7 @@ describe("checkCodexHooks: .codex/hooks.json は期待する形と構造ごと�
   });
 
   test("期待の形は起動の失敗を deny に倒す包みを含む", () => {
-    assert.match(CODEX_HOOK_COMMAND, /^out="\$\(node .*codex-guard-hook\.mjs"\)" && printf '%s' "\$out" \|\| printf '%s' '\{"hookSpecificOutput":\{.*"permissionDecision":"deny"/);
+    assert.match(CODEX_HOOK_COMMAND, /out="\$\(node .*codex-guard-hook\.mjs"\)" && printf '%s' "\$out" \|\| printf '%s' '\{"hookSpecificOutput":\{.*"permissionDecision":"deny"/);
   });
 
   test("JSON として読めなければ落とす", () => {
@@ -34,7 +47,9 @@ describe("checkCodexHooks: .codex/hooks.json は期待する形と構造ごと�
     "matcher が * （広い）": (j) => (j.hooks.PreToolUse[0].matcher = "*"),
     "コマンドが違う": (j) => (entry(j).command = "node scripts/other.mjs"),
 
-    "node の出力の後に非ゼロで終わると JSON が 2 つ連なる旧い包み（|| だけ）": (j) => (entry(j).command = entry(j).command.replace(/^out="\$\((.*?)\)" && printf '%s' "\$out" \|\|/, "$1 ||")),
+    "node の出力の後に非ゼロで終わると JSON が 2 つ連なる旧い包み（|| だけ）": (j) => (entry(j).command = entry(j).command.replace(/out="\$\((node [^)]*)\)" && printf '%s' "\$out" \|\|/, "$1 ||")),
+    "入口の無い版の許し（exit 0）を外した": (j) => (entry(j).command = entry(j).command.replace(/\[ -f [^;]*; /, "")),
+    "ルートが引けないときの deny を外した": (j) => (entry(j).command = entry(j).command.replace(/ \|\| \{ printf [^}]*\}/, "")),
     "Claude Code の入口（ask）へ置き換えた": (j) => (entry(j).command = 'node "${CLAUDE_PROJECT_DIR}/scripts/agent-guard-hook.mjs"'),
     "Claude Code の入口を併記した": (j) => j.hooks.PreToolUse[0].hooks.push({ type: "command", command: 'node "${CLAUDE_PROJECT_DIR}/scripts/agent-guard-hook.mjs"' }),
     "timeout: 0 を足した": (j) => (entry(j).timeout = 0),

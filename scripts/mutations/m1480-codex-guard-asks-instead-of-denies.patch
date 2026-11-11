@@ -1,8 +1,8 @@
 diff --git a/scripts/lib/codex-guard.mjs b/scripts/lib/codex-guard.mjs
-index 2ede916a..d325b063 100644
+index 73328ae2..880d7e4a 100644
 --- a/scripts/lib/codex-guard.mjs
 +++ b/scripts/lib/codex-guard.mjs
-@@ -8,7 +8,7 @@ export const CODEX_NOTE =
+@@ -10,7 +10,7 @@ export const CODEX_NOTE =
    "Codex には人に聞く道が無いため、拒みます。人の明示の指示があるときは、人が自分の端末で実行するか、人がフックを外した上でやり直してください（docs/adr/0032）。";
  
  /** Codex が止まる形の PreToolUse の出力（`ask` は Codex では失敗扱いでコマンドが走る）。 */
@@ -10,4 +10,4 @@ index 2ede916a..d325b063 100644
 +export const deny = (reason) => ({ hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "ask", permissionDecisionReason: reason } });
  
  /**
-  * 入口が起動できなかったとき（node が無い・入口のファイルが無い・Git のルートが引けない）に、`.codex/hooks.json` のコマンドが
+  * 入口が起動できなかったとき（node が無い・入口が失敗した）に、`.codex/hooks.json` のコマンドが標準出力へ書く JSON。

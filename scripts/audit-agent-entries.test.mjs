@@ -534,7 +534,9 @@ describe("isEntryCandidate: Codex が規則として読む置き場（#578）", 
     t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
     const files = [
       ".agents/skills/a/SKILL.md",
+      ".agents/skills/a/run.sh",
       "pkg/.agents/skills/b/SKILL.md",
+      "pkg/.agents/skills/b/openai.yaml",
       ".codex/skills/c/SKILL.md",
       ".codex/agents/r.toml",
       ".codex/config.toml",

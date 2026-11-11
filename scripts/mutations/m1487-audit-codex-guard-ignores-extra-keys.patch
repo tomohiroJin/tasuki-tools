@@ -1,13 +1,12 @@
 diff --git a/scripts/audit-codex-guard.mjs b/scripts/audit-codex-guard.mjs
-index edd9efa0..99a6f281 100644
+index 95286650..89239c76 100644
 --- a/scripts/audit-codex-guard.mjs
 +++ b/scripts/audit-codex-guard.mjs
-@@ -50,7 +50,7 @@ export function checkCodexHooks(text) {
-   } catch (e) {
-     return [`JSON として読めません（${e.message}）`];
-   }
--  if (isDeepStrictEqual(json, EXPECTED_CODEX_HOOKS)) return [];
-+  if (isDeepStrictEqual(json?.hooks?.PreToolUse?.[0]?.hooks?.[0], EXPECTED_CODEX_HOOKS.hooks.PreToolUse[0].hooks[0])) return [];
-   return [
-     `期待する形（scripts/lib/codex-guard.mjs の EXPECTED_CODEX_HOOKS）と一致しません。hooks.PreToolUse に matcher "Bash" で ${JSON.stringify(CODEX_HOOK_COMMAND)} を 1 つだけ置き、ほかのキー・フックを足さないでください（Claude Code の入口は ask を返すので Codex では止まらない。timeout・async・allow・SessionStart は歯止めを外すか規則を流し込む。docs/adr/0032 の追記）`,
-   ];
+@@ -47,6 +47,7 @@ export const CANONICAL_CODEX_HOOKS_TEXT = `${JSON.stringify(EXPECTED_CODEX_HOOKS
+  * @returns {string[]} 問題（空なら通る）
+  */
+ export function checkCodexHooks(text) {
++  try { if (JSON.stringify(JSON.parse(text)) === JSON.stringify(EXPECTED_CODEX_HOOKS)) return []; } catch {}
+   if (text === CANONICAL_CODEX_HOOKS_TEXT) return [];
+   try {
+     JSON.parse(text);

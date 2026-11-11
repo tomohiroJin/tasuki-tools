@@ -13,19 +13,37 @@ export const CODEX_NOTE =
 export const deny = (reason) => ({ hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: reason } });
 
 /**
- * 入口が起動できなかったとき（node が無い・入口のファイルが無い・Git のルートが引けない）に、`.codex/hooks.json` のコマンドが
- * `||` の後ろで標準出力へ書く JSON。起動の失敗は、Codex では「フックの失敗」として**コマンドが走る**ので、ここでも deny に倒す。
+ * 入口が起動できなかったとき（node が無い・入口が失敗した）に、`.codex/hooks.json` のコマンドが標準出力へ書く JSON。
+ * 起動の失敗は、Codex では「フックの失敗」として**コマンドが走る**ので、ここでも deny に倒す。
  * 引用符（'）を含めないこと（シェルの単引用符で包んで書くため）。
  */
 export const LAUNCH_FAILURE_OUTPUT = JSON.stringify(deny("本番デプロイの歯止め（scripts/codex-guard-hook.mjs）を起動できなかったため、念のため拒みます。docs/adr/0032"));
 
+/**
+ * Git のルートが引けなかったとき（cwd がリポジトリの外）の deny の出力。人が端末で戻す方法を添える。
+ * 引用符（'）を含めないこと。
+ */
+export const ROOT_FAILURE_OUTPUT = JSON.stringify(
+  deny(
+    "Git のルートを引けなかったため、本番デプロイの歯止めを確かめられず、念のため拒みます。リポジトリの中で Codex を起動し直すか、人が自分の端末でこのコマンドを実行するか、フックを外してください（docs/adr/0032）。",
+  ),
+);
+
 export const CODEX_HOOK_SCRIPT = "scripts/codex-guard-hook.mjs";
 /**
- * hooks.json に書くフックのコマンド。入口の出力を一度受け、入口が**成功したときだけ**それを出す。失敗したら deny だけを出す。
- * `node … || printf '<deny>'` だと、入口が deny を書いた後に非ゼロで終わると JSON が 2 つ連なり、Codex は失敗とみなしてコマンドを通す（#584 のレビュー）。
- * 入口が「当たらない」と何も出さず exit 0 で終わるときは、何も出さない。
+ * hooks.json に書くフックのコマンド。3 つに分ける。
+ * ① `git rev-parse --show-toplevel` が失敗 → deny（`ROOT_FAILURE_OUTPUT`）
+ * ② 成功したが、そのルートに入口が無い → **何も出さず exit 0**。その版には歯止めがそもそも無い（歯止めが入る前のコミット・bisect・
+ *    入れ子の git リポジトリ・`GIT_DIR` で別のリポジトリを指すとき）。deny にすると `ls` や `git switch -` まで止まり、Codex 自身では戻れない
+ * ③ 在る → 入口の出力を一度受け、入口が**成功したときだけ**それを出し、失敗したら deny だけを出す
+ *    （`node … || printf` だと、入口が deny を書いた後に非ゼロで終わったとき JSON が 2 つ連なり、Codex は失敗とみなして通す。#584 のレビュー）。
+ *    入口が「当たらない」と何も出さず exit 0 で終わるときは何も出さない
  */
-export const CODEX_HOOK_COMMAND = `out="$(node "$(git rev-parse --show-toplevel)/${CODEX_HOOK_SCRIPT}")" && printf '%s' "$out" || printf '%s' '${LAUNCH_FAILURE_OUTPUT}'`;
+export const CODEX_HOOK_COMMAND = [
+  `r="$(git rev-parse --show-toplevel)" || { printf '%s' '${ROOT_FAILURE_OUTPUT}'; exit 0; }`,
+  `[ -f "$r/${CODEX_HOOK_SCRIPT}" ] || exit 0`,
+  `out="$(node "$r/${CODEX_HOOK_SCRIPT}")" && printf '%s' "$out" || printf '%s' '${LAUNCH_FAILURE_OUTPUT}'`,
+].join("; ");
 /** hooks.json の中身（.codex/hooks.json）として許す形。**これと構造ごと完全一致のものだけ**を通す（許可リスト。#578）。 */
 export const EXPECTED_CODEX_HOOKS = Object.freeze({
   hooks: { PreToolUse: [{ matcher: "Bash", hooks: [{ type: "command", command: CODEX_HOOK_COMMAND }] }] },

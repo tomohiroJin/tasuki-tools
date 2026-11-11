@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-agent-entries.mjs b/scripts/audit-agent-entries.mjs
+index 1ada569d..86b802e1 100644
+--- a/scripts/audit-agent-entries.mjs
++++ b/scripts/audit-agent-entries.mjs
+@@ -84,8 +84,6 @@ export const ENTRY_CANDIDATE_PATTERNS = [
+   ".cursor/rules/*",
+   ".claude/rules/*",
+   ".github/instructions/*",
+-  ".agents/skills/*",
+-  "*/.agents/skills/*",
+   ".codex/*",
+   "*/.codex/*",
+ ];
