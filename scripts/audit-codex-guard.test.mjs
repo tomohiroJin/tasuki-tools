@@ -1,7 +1,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { CODEX_HOOK_COMMAND, checkCodexHooks } from "./audit-codex-guard.mjs";
+import { CODEX_HOOK_COMMAND, checkCodexHooks, checkWorktreeFiles } from "./audit-codex-guard.mjs";
 import { EXPECTED_CODEX_HOOKS, ROOT_FAILURE_OUTPUT } from "./lib/codex-guard.mjs";
 import { spawnSync } from "node:child_process";
 
@@ -49,7 +49,8 @@ describe("checkCodexHooks: .codex/hooks.json は正準の文字列と文字列�
     "コマンドが違う": (j) => (entry(j).command = "node scripts/other.mjs"),
 
     "node の出力の後に非ゼロで終わると JSON が 2 つ連なる旧い包み（|| だけ）": (j) => (entry(j).command = entry(j).command.replace(/out="\$\((node [^)]*)\)" && printf '%s' "\$out" \|\|/, "$1 ||")),
-    "入口の無い版の許し（exit 0）を外した": (j) => (entry(j).command = entry(j).command.replace(/\[ -f [^;]*; /, "")),
+    "入口の無い版の許し（exit 0）を外した": (j) => (entry(j).command = entry(j).command.replace(/\[ -f "\$r[^"]*" \] \|\| \{ \{.*?exit 0; \}; /, "")),
+    ".codex/hooks.json の有無を見ずに、入口が無ければ通す": (j) => (entry(j).command = entry(j).command.replace(/\[ -f "\$r([^"]*)" \] \|\| \{ \{.*?exit 0; \}; /, '[ -f "$r$1" ] || exit 0; ')),
     "ルートが引けないときの deny を外した": (j) => (entry(j).command = entry(j).command.replace(` || { printf '%s' '${ROOT_FAILURE_OUTPUT}'; exit 0; }`, "")),
     "Claude Code の入口（ask）へ置き換えた": (j) => (entry(j).command = 'node "${CLAUDE_PROJECT_DIR}/scripts/agent-guard-hook.mjs"'),
     "Claude Code の入口を併記した": (j) => j.hooks.PreToolUse[0].hooks.push({ type: "command", command: 'node "${CLAUDE_PROJECT_DIR}/scripts/agent-guard-hook.mjs"' }),
@@ -72,4 +73,25 @@ describe("checkCodexHooks: .codex/hooks.json は正準の文字列と文字列�
       }
     });
   }
+});
+
+describe("checkWorktreeFiles: 必須ファイルが作業ツリーに通常のファイルとして在る", () => {
+  test("全部在れば問題なし", () => assert.deepEqual(checkWorktreeFiles(["a", "b"], () => true), []));
+  test("在らないものを名指しで落とす（追跡下でも作業ツリーから消した状態）", () => {
+    const out = checkWorktreeFiles(["a", "b"], (rel) => rel === "a");
+    assert.equal(out.length, 1);
+    assert.match(out[0], /^b /);
+  });
+  test("実リポジトリ: 必須ファイルは作業ツリーに在る（対照実行）", () => {
+    const root = new URL("../", import.meta.url).pathname;
+    const isFile = (rel) => {
+      try {
+        return fs.statSync(root + rel).isFile();
+      } catch {
+        return false;
+      }
+    };
+    assert.deepEqual(checkWorktreeFiles([".codex/hooks.json", "scripts/codex-guard-hook.mjs"], isFile), []);
+    assert.equal(checkWorktreeFiles(["scripts", "scripts/no-such-file.mjs"], isFile).length, 2);
+  });
 });

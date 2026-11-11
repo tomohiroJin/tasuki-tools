@@ -152,6 +152,38 @@ describe(".codex/hooks.json のコマンドを実際に走らせる（起動の�
     for (const command of ["ls", "git switch -", "git status", "bash deploy/deploy.sh"]) assert.equal(runWired(t, { cwd: dir, command }), null, command);
   });
 
+  describe("いまの版（.codex/hooks.json が在る）で入口だけが欠けたときは deny（通さない）", () => {
+    /** .codex/hooks.json だけがある git リポジトリ。入口の状態は mutate で作る。 */
+    const repoWithHooks = (t, mutate) => {
+      const dir = tmp(t);
+      spawnSync("git", ["init", "-q"], { cwd: dir });
+      fs.mkdirSync(path.join(dir, ".codex"));
+      fs.writeFileSync(path.join(dir, ".codex/hooks.json"), "{}\n");
+      fs.mkdirSync(path.join(dir, "scripts"));
+      mutate(path.join(dir, "scripts/codex-guard-hook.mjs"));
+      return dir;
+    };
+    const states = {
+      "入口が無い（git mv・作業ツリーから消した・古いコミットの部分的な書き戻し）": () => {},
+      "入口の場所がディレクトリ": (f) => fs.mkdirSync(f),
+      "入口が壊れた symlink": (f) => fs.symlinkSync("/nonexistent-target", f),
+    };
+    for (const [name, mutate] of Object.entries(states)) {
+      for (const command of ["bash deploy/deploy.sh", "sudo systemctl restart tasuki"]) {
+        test(`${name}: ${command}`, (t) => {
+          const out = runWired(t, { cwd: repoWithHooks(t, mutate), command });
+          assert.equal(decision(out), "deny");
+          assert.match(out.hookSpecificOutput.permissionDecisionReason, /入口（scripts\/codex-guard-hook\.mjs）が欠けています/);
+        });
+      }
+    }
+    test("対照実行: .codex/hooks.json も入口も無い古い版では、同じコマンドも何も出さない（戻れる）", (t) => {
+      const dir = tmp(t);
+      spawnSync("git", ["init", "-q"], { cwd: dir });
+      assert.equal(runWired(t, { cwd: dir, command: "sudo systemctl restart tasuki" }), null);
+    });
+  });
+
   test("入口が在って node が失敗したら deny（入口の無い版の許しは、入口が在るときには効かない）", (t) => {
     const dir = tmp(t);
     spawnSync("git", ["init", "-q"], { cwd: dir });

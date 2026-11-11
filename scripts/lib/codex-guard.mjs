@@ -30,18 +30,33 @@ export const ROOT_FAILURE_OUTPUT = JSON.stringify(
 );
 
 export const CODEX_HOOK_SCRIPT = "scripts/codex-guard-hook.mjs";
+/** `.codex/hooks.json` の場所（リポジトリのルートから）。 */
+export const CODEX_HOOKS_FILE = ".codex/hooks.json";
+
+/**
+ * いまの版（`.codex/hooks.json` が在る）なのに入口だけが欠けているときの deny の出力。人が端末で戻す方法を添える。
+ * 引用符（'）を含めないこと。
+ */
+export const ENTRY_MISSING_OUTPUT = JSON.stringify(
+  deny(
+    `本番デプロイの歯止めの入口（${CODEX_HOOK_SCRIPT}）が欠けています。.codex/hooks.json は在るのに入口が無い状態なので、念のため拒みます。人が自分の端末で git checkout HEAD -- ${CODEX_HOOK_SCRIPT} などで戻してください（docs/adr/0032）。`,
+  ),
+);
 /**
  * hooks.json に書くフックのコマンド。3 つに分ける。
  * ① `git rev-parse --show-toplevel` が失敗 → deny（`ROOT_FAILURE_OUTPUT`）
- * ② 成功したが、そのルートに入口が無い → **何も出さず exit 0**。その版には歯止めがそもそも無い（歯止めが入る前のコミット・bisect・
- *    入れ子の git リポジトリ・`GIT_DIR` で別のリポジトリを指すとき）。deny にすると `ls` や `git switch -` まで止まり、Codex 自身では戻れない
+ * ② 成功したが、そのルートに入口が無い →
+ *    - `.codex/hooks.json` も無い → **何も出さず exit 0**。その版には歯止めがそもそも無い（歯止めが入る前のコミット・bisect・
+ *      入れ子の git リポジトリ・`GIT_DIR` で別のリポジトリを指すとき）。deny にすると `ls` や `git switch -` まで止まり、Codex 自身では戻れない
+ *    - `.codex/hooks.json` は在る（いまの版で入口だけが欠けた: `git mv`・作業ツリーから消した・入口の場所がディレクトリ／壊れた symlink・
+ *      古いコミットの部分的な書き戻し）→ **deny**（`ENTRY_MISSING_OUTPUT`）。ここで通すと、本番デプロイが黙って通る（fail open。#584 の再レビュー）
  * ③ 在る → 入口の出力を一度受け、入口が**成功したときだけ**それを出し、失敗したら deny だけを出す
  *    （`node … || printf` だと、入口が deny を書いた後に非ゼロで終わったとき JSON が 2 つ連なり、Codex は失敗とみなして通す。#584 のレビュー）。
  *    入口が「当たらない」と何も出さず exit 0 で終わるときは何も出さない
  */
 export const CODEX_HOOK_COMMAND = [
   `r="$(git rev-parse --show-toplevel)" || { printf '%s' '${ROOT_FAILURE_OUTPUT}'; exit 0; }`,
-  `[ -f "$r/${CODEX_HOOK_SCRIPT}" ] || exit 0`,
+  `[ -f "$r/${CODEX_HOOK_SCRIPT}" ] || { { [ -e "$r/${CODEX_HOOKS_FILE}" ] || [ -L "$r/${CODEX_HOOKS_FILE}" ]; } && printf '%s' '${ENTRY_MISSING_OUTPUT}'; exit 0; }`,
   `out="$(node "$r/${CODEX_HOOK_SCRIPT}")" && printf '%s' "$out" || printf '%s' '${LAUNCH_FAILURE_OUTPUT}'`,
 ].join("; ");
 /** hooks.json の中身（.codex/hooks.json）として許す形。**これから作った正準の文字列（`scripts/audit-codex-guard.mjs` の `CANONICAL_CODEX_HOOKS_TEXT`）と文字列ごと比べて一致するものだけ**を通す（許可リスト。#578）。 */

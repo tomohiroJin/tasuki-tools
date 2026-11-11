@@ -7,6 +7,7 @@
  * 1. **`.codex/hooks.json` が追跡下にあり、期待する形（Bash の PreToolUse に Codex の入口 1 つだけ）から作った正準の文字列と、文字列ごと比べて一致する。**
  *    併記・`timeout`・`async`・別のフック・`SessionStart` などの書き足しは落とす
  * 2. **Codex の入口と、それが読み込む判定の部品が追跡下にある**
+ * 3. **上の必須ファイルが作業ツリーに通常のファイルとして在る**（追跡下でも、作業ツリーから消した状態は配線が動かない）
  *
  * ## 何を見ていないか
  *
@@ -58,6 +59,17 @@ export function checkCodexHooks(text) {
   ];
 }
 
+/**
+ * 必須ファイルが作業ツリーに通常のファイルとして在るかを見る。追跡下にあっても、作業ツリーから消した・ディレクトリや壊れた symlink に
+ * 置き換えた状態では、配線の入口が動かない（#584 の再レビュー）。
+ * @param {string[]} required
+ * @param {(rel: string) => boolean} isFile 作業ツリーに通常のファイルとして在るか
+ * @returns {string[]} 問題
+ */
+export function checkWorktreeFiles(required, isFile) {
+  return required.filter((rel) => !isFile(rel)).map((rel) => `${rel} が作業ツリーに通常のファイルとして在りません（消した・ディレクトリや壊れた symlink に置き換えた）`);
+}
+
 function main() {
   const problems = [];
   const required = [CODEX_HOOKS_PATH, CODEX_HOOK_SCRIPT, ...CODEX_HOOK_LIBS];
@@ -65,7 +77,16 @@ function main() {
   for (const rel of required) {
     if (!tracked.has(rel)) problems.push(`${rel} が追跡下にありません`);
   }
-  if (tracked.has(CODEX_HOOKS_PATH)) {
+  problems.push(
+    ...checkWorktreeFiles(required, (rel) => {
+      try {
+        return fs.statSync(path.join(REPO_ROOT, rel)).isFile();
+      } catch {
+        return false;
+      }
+    }),
+  );
+  if (tracked.has(CODEX_HOOKS_PATH) && fs.existsSync(path.join(REPO_ROOT, CODEX_HOOKS_PATH))) {
     problems.push(...checkCodexHooks(fs.readFileSync(path.join(REPO_ROOT, CODEX_HOOKS_PATH), "utf8")).map((p) => `${CODEX_HOOKS_PATH}: ${p}`));
   }
   console.log(`[audit-codex-guard] 走査対象: 必須ファイル ${required.length} 件`);
