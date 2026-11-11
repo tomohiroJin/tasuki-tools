@@ -1,12 +1,13 @@
 diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
-index 73e9fcfb..ccb2e462 100644
+index 84c7193f..6dc920fc 100644
 --- a/scripts/lib/agent-guard.mjs
 +++ b/scripts/lib/agent-guard.mjs
-@@ -807,7 +807,6 @@ const CAT_HEREDOC_LINE = /^\s*cat\s+>>?\s+[^\s"'$`;&|()<>\\]+\s+<<'([A-Za-z_]+)'
- 
- function heredocIsData(line, tag, after, continued = false) {
-   // 前の行が `\` で終わるとき、この行は前の行から続く 1 つのコマンドの一部なので、決まった形として隠さない
--  if (continued) return false;
-   const m = DATA_HEREDOC_LINE.exec(line);
-   // 終端の次の行は `)"` と空白だけ。その後ろに別のコマンドがあれば隠さない
-   if (m !== null && m[1] === tag && after.length > 0 && /^\)"\s*$/.test(after[0]) && after.slice(1).every((l) => l.trim() === "")) return true;
+@@ -778,7 +778,7 @@ export function stripHeredocBodies(src) {
+     const tags = [...lines[i].matchAll(operator)];
+     // 演算子の行が `\` で終わる、または前の行の継続の続きのとき、bash は継続されたコマンドが終わってから本文を始める。
+     // 行の分け方が食い違い、本文でない部分を取り除いてしまうので、取り除かない（fail closed。本文の語の有無に依らない）
+-    if (tags.length > 0 && (lines[i].endsWith("\\") || (i > 0 && lines[i - 1].endsWith("\\")))) return null;
++    if (tags.length > 0 && (lines[i].endsWith("\\"))) return null;
+     // 演算子そのものも取り除く（取り除いた後の文字列を読み直しても、終端の行を探さなくてよい）
+     out.push(lines[i].replace(operator, ""));
+     for (const m of tags) {

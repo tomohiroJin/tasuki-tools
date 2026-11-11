@@ -8888,11 +8888,11 @@ export const MUTATIONS = [
   },
   {
     id: 1551,
-    label: "行の継続（行末の \\）を見ず、続く行の cat > f <<'TAG' をデータとみなす",
+    label: "heredoc の演算子の行が前の行の継続の続きでも本文を取り除く（行末の \ だけを見る）",
     patch: "m1551-heredoc-continuation-ignored.patch",
     pkg: "scripts",
     tests: ["lib/agent-guard.test.mjs"],
-    note: RESERVED_1500_1569 + " " + '#578 PR #583 のコメント・自動レビュー。継続された 1 つのコマンドの heredoc が文章として隠れ、本文の git push が通る。',
+    note: RESERVED_1500_1569 + " " + "#578 PR #583 の自動レビュー。echo x \ の次の行の cat <<'EOF' の本文を、継続された 1 つのコマンドの heredoc として取り除き、本文の $'…' や操作の名前の判定をすり抜ける。",
   },
   {
     id: 1552,
