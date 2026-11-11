@@ -204,7 +204,7 @@ const RESERVED_1120_1129 =
   "**対応表より後に足した変異。** 1120〜1129 は #557 に割り当てた範囲。";
 
 const RESERVED_1440_1469 =
-  "**対応表より後に足した変異。** 1440〜1469 は #578（PR 2 機械化）に割り当てた範囲（1434 までを使い切った現物の末尾に余裕を足した。PR #582 は変異を足さない）。";
+  "**対応表より後に足した変異。** 1440〜1479 は #578（PR 2 機械化）に割り当てた範囲（1434 までを使い切った現物の末尾に余裕を足した。PR #582 は変異を足さない）。";
 
 const RESERVED_1420_1429 =
   "**対応表より後に足した変異。** 1420〜1429 は #557 に追加で割り当てた範囲（1120〜1129・1410〜1419 を使い切ったため。PR #580 のレビューの指摘で足した）。";
@@ -8693,5 +8693,13 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["lib/agent-guard.test.mjs"],
     note: RESERVED_1440_1469 + " " + "#578 PR 2 のレビュー。git commit -m x; git push && … のように別のコマンドを混ぜた行の heredoc 本文が隠れ、git push が通る。",
+  },
+  {
+    id: 1470,
+    label: "git reflog を拒否リスト（expire・delete ほか）で判定し、drop・list・裸の語を通す",
+    patch: "m1470-git-reflog-denylist.patch",
+    pkg: "scripts",
+    tests: ["lib/agent-guard.test.mjs"],
+    note: RESERVED_1440_1469 + " " + "#578 PR 2 のレビュー。新しい git の git reflog drop のように、拒否リストに無いサブコマンドが読むだけとして通り、reflog を消す。",
   },
 ];
