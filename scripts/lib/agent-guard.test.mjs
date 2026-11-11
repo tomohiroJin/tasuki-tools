@@ -649,6 +649,12 @@ describe("サブエージェントの危ない操作（#578・docs/adr/0037）",
     }
   });
 
+  test("再レビュー: mkdir -p … && cat > … << 'EOF'（本文に操作の名前）はサブエージェントでも通る。mkdir の後ろの git push は聞く", () => {
+    assert.equal(subOut("mkdir -p /tmp/x && cat > /tmp/x/f << 'EOF'\ngit checkout -- file で戻す。git push しない\nEOF"), null);
+    assert.equal(isTameCommand("mkdir -p /tmp/x && cat > /tmp/x/f << 'EOF'\ngit checkout -- file で戻す\nEOF"), true);
+    for (const c of ["mkdir -p x && git push", "mkdir -p x && git branch -D y", "mkdir -p x; kill 1"]) assert.equal(subOut(c)?.hookSpecificOutput.permissionDecision, "ask", c);
+  });
+
   test("再々レビュー M-2: tmux の send-keys ^C（C-c の別の綴り）・respawn-pane -k・respawn-window -k も聞く。-k の無い respawn は通す", () => {
     for (const c of ["tmux send-keys -t dev ^C", "tmux send-keys -t dev '^c'", "tmux send -t dev C-C", "tmux respawn-pane -k -t dev", "tmux respawn-window -k -t dev", "tmux respawn-pane -t dev -k 'pnpm dev'", "tmux respawnp -k -t dev", "tmux respawn-pane -kc /tmp -t dev"]) {
       assert.ok(findSubagentCommands(c).length > 0, c);

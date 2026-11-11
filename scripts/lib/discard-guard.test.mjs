@@ -139,6 +139,14 @@ describe("単純でない形は、変更の有無にかかわらず全部聞く�
     assert.doesNotMatch(un.reason, /未コミットの変更があります/);
   });
 
+  test("再レビュー: mkdir -p <パス> && cat > <パス> << 'EOF' の本文に操作の名前があっても通る（mkdir は作るだけ）。mkdir の後ろの別のコマンドは別に判定する", async () => {
+    const body = "mkdir -p /tmp/x && cat > /tmp/x/f << 'EOF'\ngit checkout -- file で戻す\nEOF";
+    assert.equal((await decide(body, { dirty: "yes" })).ask, false);
+    assert.equal((await decide("mkdir -p x && git checkout -- .", { dirty: "yes" })).ask, true);
+    assert.equal((await decide("mkdir -p x && git stash", { dirty: "no" })).ask, true); // 単純でない形は聞く
+    assert.equal((await decide(`${body}\ngit checkout -- a.ts`, { dirty: "yes" })).ask, true);
+  });
+
   test("理由に「形が単純でない」と書く", async () => {
     assert.match((await decide("cd x && git stash")).reason, /形が単純でない/);
   });

@@ -549,7 +549,7 @@ export function findCommandsMatching(command, decls) {
 const TAME_HEADS = new Set([
   "grep", "egrep", "fgrep", "rg", "cat", "echo", "printf", "ls", "head", "tail", "wc", "less", "more", "diff", "sort", "uniq", "nl",
   "file", "stat", "which", "type", "true", "false", "test", "[", "pwd", "basename", "dirname", "date", "sleep", "tr", "cut", "jq", "column",
-  "cd", "pushd", "popd",
+  "cd", "pushd", "popd", "mkdir", // mkdir は作るだけ（消さない・戻さない）。後ろに && で続くコマンドは別に判定される
 ]);
 /** 先頭が git（全体の選択肢なし）のとき、下位コマンドがこれなら読むだけ・記録するだけ。branch・fetch・tag・remote・reflog は選択肢が既知の読む形のときだけ（isReadOnly…）。 */
 const TAME_GIT_SUBS = new Set([
