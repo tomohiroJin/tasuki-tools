@@ -42,6 +42,8 @@ ADR-0032 の範囲の外にある。
   許可リストの「読むだけ・記録するだけ」（`grep`・`git log`・`git commit -m …`・`gh pr view` ほか。`isTameCommand`）でも
   単純な安全な形（`git checkout [<rev>] -- <path>`・`git reset` の `--soft`/`--mixed`・`git worktree add|list`）でもなければ `ask`
 
+背景の事故の型に合わせ、次も一覧に足した: 枝の削除・改名・付け替え（`git branch -d/-D/-m/-M/-f/-c/-C`。一覧と作成は通す）、プロセスを止める別の道（`npx|bunx|pnpm dlx kill-port`・`fuser -k`・`tmux kill-server|kill-session`）、GitHub への書き込み（`gh api` の GET 以外・フィールド付き、`gh pr review --approve|--request-changes`）。**`git merge`・`git rebase`・`git commit --amend` は足さない**（実装役が自分の枝でふつうに使うので、聞くと日常の作業を止める。他人の枝・main へのそれらは push とマージの歯止めが守る）。
+
 ### 3. 未コミットの変更を消す git は、変更があるときだけ `ask`（許可リスト・fail closed）
 
 `scripts/lib/discard-guard.mjs`。対象は `git checkout -- <path>`・`git restore`・`git stash`・`git reset --hard`・`git clean`・`git switch -f`、`git rm -f`・`git mv -f`・`git checkout-index -f`・`git read-tree --reset/-u`・`git submodule … --force`・`git worktree … -f`（`git help -a` の下位コマンドを洗った。候補の語の一覧は `scripts/lib/agent-guard.mjs` の `OPERATION_WORDS` が唯一の置き場）。`merge`・`pull`・`rebase`・`apply` は変更があると git 自身が拒むので含めない。シェルが展開する pathspec（`{a,b}`・先頭の `~`）は展開前の文字では確かめられないので聞く。
@@ -56,6 +58,7 @@ ADR-0032 の範囲の外にある。
 - 手順書の往復（`docs/guides/procedures/adversarial-review.md` の `git checkout origin/main -- <テスト>` → `git checkout HEAD -- <テスト>`）を止めないため、
   `checkout`・`restore` は**作業ツリーの未コミットの変更（index との差）だけ**を見る。1 回目で index に載った変更は、2 回目では変更に数えない。
   `stash`・`reset --hard` は index の変更も見る
+- path 指定の `checkout`/`restore` は、同じ名前の追跡外のファイル（ignore されないもの）も変更に数えて聞く。**残余**: `.gitignore` の対象のファイルを上書きする形は聞かない
 - 残余: ステージ済みだけの変更を `git checkout <rev> -- <path>` が上書きするときは聞かない。
   `docs/guides/procedures/mutations.md` の `git checkout -- <壊したファイル>` は、壊したファイルに未コミットの変更があるので**聞かれる**（意図した破棄なので承認する）。同じ手順書の `kill -KILL -- -<PGID>`・`kill -TERM <PID>` も、サブエージェントが流すと聞かれる（承認する人がいない走り方では変異検査を止められない。止めるのはまとめ役か人）
 
@@ -75,7 +78,7 @@ GitHub が閉鎖と読む形（`Closes`/`Fixes`/`Resolves` の活用形＋`#N`�
 ### 6. 構造監査の合否の無い指標の後退を `pnpm check:fast` の最後に知らせる
 
 `scripts/lib/structure-metrics.mjs`。比べる指標の一覧は同ファイルの `METRICS` が持つ（ここに写さない）。merge-base の構造監査を `git archive` した一時ディレクトリで走らせた値（SHA で控える）と今の値を比べ、
-今の側も基準と同じく**追跡下のファイルだけ**（未コミットの変更は含む。新しいファイルは `git add` した後から）を一時ディレクトリへ写して測り、追跡外のファイルで偽の後退を出さない。比較は `pnpm check:fast` の開始と同時に別プロセス（`scripts/structure-metrics-notices.mjs`）で走らせ、最後に待つ（検査の後ろに直列で足さない）。後退（小さいほど良い指標の増加・大きいほど良い指標の減少）を `⚠` の知らせにする。**落とさない。** コードの差分が無ければ比べない。
+今の側は**追跡下のファイルと、追跡外で ignore されないファイル**（未コミットの変更は含む。新しいファイルは `git add` 前でも）を一時ディレクトリへ写して測る（`git ls-files --cached --others --exclude-standard`）。`.gitignore` の対象（coverage ほか）で偽の後退を出さず、新しいファイルによる後退を `git add` 前に見落とさない。残余: ignore されない試しのファイルは数えられる（偽の後退が出うる）。比較は `pnpm check:fast` の開始と同時に別プロセス（`scripts/structure-metrics-notices.mjs`）で走らせ、最後に待つ（検査の後ろに直列で足さない）。後退（小さいほど良い指標の増加・大きいほど良い指標の減少）を `⚠` の知らせにする。**落とさない。** コードの差分が無ければ比べない。
 表の形が変わって読めなくなった指標も、今の側・基準の側のどちらでも `⚠` で知らせる（検査が黙って外れない）。基準の控え（OS の一時ディレクトリに SHA ごと）は、一時ファイルへ書いて rename し、読むときも宣言した指標の過半が読めなければ捨てて取り直す。空の控えで偽の緑を出さない。
 
 ### 7. 脅威の範囲 —— 事故の防止であり、悪意への境界ではない
@@ -96,6 +99,9 @@ ADR-0032 のまま変えない。判定は入口の中で順に流れる（本�
 いずれも `ask`（人が承認すれば進める）で、`deny` にはしない。
 
 ## 影響
+- 記録のみ（PR #583 の敵対的レビュー 5・6）:
+  - 行頭の閉鎖キーワードは、説明文でも意図した閉鎖として通す（機械では見分けられない。「閉じないつもりで行頭に書く」事故は防げない）
+  - 複合コマンド（`&&`・`;`）は、まとめ役でも変更の有無にかかわらず聞かれる（単純な形だけ確かめるため）。承認する人がいない走り方（クラウドのセッション・`claude -p`）では、その操作は止まる
 
 - Claude Code のサブエージェントが決定 2 の操作を走らせようとすると、承認を求められる（承認する人がいない走り方では走らない）。
   まとめ役の操作は変わらない

@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index 4e8c2802..b615163c 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -103,7 +103,7 @@ export const SUBAGENT_GUARDED_COMMANDS = [
+   {
+     id: "git-branch-modify", program: "git", args: ["branch"], argOpts: GIT_ARG_OPTS,
+     // -d/-D/-m/-M/-f/-c/-C（束ねた短い選択肢・長い選択肢の省略形も）。一覧・作成は読む形・日常の形として通す
+-    when: (words, start) =>
++    when: (words, start) => false &&
+       words.slice(start + 1).some((w) => (/^-[A-Za-z]*[dDmMfcC]/.test(w) && !w.startsWith("--")) || ["--delete", "--move", "--force", "--copy"].some((f) => isLongOption(w, f))),
+     why: "枝の削除・改名・付け替えは、まとめ役の枝や他の作業の枝を壊す",
+   },

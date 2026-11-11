@@ -203,8 +203,8 @@ const RESERVED_1430_1439 =
 const RESERVED_1120_1129 =
   "**対応表より後に足した変異。** 1120〜1129 は #557 に割り当てた範囲。";
 
-const RESERVED_1500_1539 =
-  "**対応表より後に足した変異。** 1500〜1539 は #578（PR 2 機械化）に割り当てた範囲（main の #574 が 1440〜1442 を使ったので付け替えた。PR 3 は 1480〜1489）。";
+const RESERVED_1500_1559 =
+  "**対応表より後に足した変異。** 1500〜1559 は #578（PR 2 機械化）に割り当てた範囲（main の #574 が 1440〜1442 を使ったので付け替えた。PR 3 は 1480〜1489）。";
 
 const RESERVED_1420_1429 =
   "**対応表より後に足した変異。** 1420〜1429 は #557 に追加で割り当てた範囲（1120〜1129・1410〜1419 を使い切ったため。PR #580 のレビューの指摘で足した）。";
@@ -8460,7 +8460,7 @@ export const MUTATIONS = [
     patch: "m1500-subagent-guard-ignores-agent-id.patch",
     pkg: "scripts",
     tests: ["lib/agent-guard.test.mjs"],
-    note: RESERVED_1500_1539 + " " + '#578。サブエージェントでないまとめ役の git push・枝の切り替えまで毎回聞かれ、まとめ役が作業できない。',
+    note: RESERVED_1500_1559 + " " + '#578。サブエージェントでないまとめ役の git push・枝の切り替えまで毎回聞かれ、まとめ役が作業できない。',
   },
   {
     id: 1501,
@@ -8468,7 +8468,7 @@ export const MUTATIONS = [
     patch: "m1501-reset-hard-abbrev-exact-only.patch",
     pkg: "scripts",
     tests: ["lib/agent-guard.test.mjs", "lib/discard-guard.test.mjs"],
-    note: RESERVED_1500_1539 + " " + '#578。git reset --har がサブエージェントの reset --hard の歯止めをすり抜ける。',
+    note: RESERVED_1500_1559 + " " + '#578。git reset --har がサブエージェントの reset --hard の歯止めをすり抜ける。',
   },
   {
     id: 1502,
@@ -8476,7 +8476,7 @@ export const MUTATIONS = [
     patch: "m1502-checkout-empty-pathspec-is-restore.patch",
     pkg: "scripts",
     tests: ["lib/agent-guard.test.mjs"],
-    note: RESERVED_1500_1539 + " " + '#578。git checkout main -- が枝の切り替えとして聞かれず、サブエージェントが枝を動かす。',
+    note: RESERVED_1500_1559 + " " + '#578。git checkout main -- が枝の切り替えとして聞かれず、サブエージェントが枝を動かす。',
   },
   {
     id: 1503,
@@ -8484,7 +8484,7 @@ export const MUTATIONS = [
     patch: "m1503-git-global-option-config-env-not-skipped.patch",
     pkg: "scripts",
     tests: ["lib/agent-guard.test.mjs", "lib/discard-guard.test.mjs"],
-    note: RESERVED_1500_1539 + " " + '#578。git --config-env a.b=X push の値を下位コマンドと読み違え、サブエージェントの push が素通りする。',
+    note: RESERVED_1500_1559 + " " + '#578。git --config-env a.b=X push の値を下位コマンドと読み違え、サブエージェントの push が素通りする。',
   },
   {
     id: 1504,
@@ -8492,7 +8492,7 @@ export const MUTATIONS = [
     patch: "m1504-tame-heredoc-body-not-stripped-to-end.patch",
     pkg: "scripts",
     tests: ["lib/agent-guard.test.mjs"],
-    note: RESERVED_1500_1539 + " " + '#578。閉じないヒアドキュメントの後ろの git push が読むだけの形として通る。',
+    note: RESERVED_1500_1559 + " " + '#578。閉じないヒアドキュメントの後ろの git push が読むだけの形として通る。',
   },
   {
     id: 1505,
@@ -8500,7 +8500,7 @@ export const MUTATIONS = [
     patch: "m1505-tame-gh-api-write-allowed.patch",
     pkg: "scripts",
     tests: ["lib/agent-guard.test.mjs"],
-    note: RESERVED_1500_1539 + " " + '#578。gh api -X PUT …/merge がサブエージェントのマージとして聞かれない。',
+    note: RESERVED_1500_1559 + " " + '#578。gh api -X PUT …/merge がサブエージェントのマージとして聞かれない。',
   },
   {
     id: 1506,
@@ -8508,7 +8508,7 @@ export const MUTATIONS = [
     patch: "m1506-subagent-fallback-removed.patch",
     pkg: "scripts",
     tests: ["lib/agent-guard.test.mjs"],
-    note: RESERVED_1500_1539 + " " + '#578。変数・別名・入れ子の経由で push・kill がサブエージェントから素通りする。',
+    note: RESERVED_1500_1559 + " " + '#578。変数・別名・入れ子の経由で push・kill がサブエージェントから素通りする。',
   },
   {
     id: 1507,
@@ -8516,7 +8516,7 @@ export const MUTATIONS = [
     patch: "m1507-discard-unknown-form-passes.patch",
     pkg: "scripts",
     tests: ["lib/discard-guard.test.mjs", "agent-guard-hook.test.mjs"],
-    note: RESERVED_1500_1539 + " " + '#578。cd 先や GIT_DIR を使った git stash・restore が、変更の有無を確かめられずに素通りし、別の作業の未コミットの変更が消える。',
+    note: RESERVED_1500_1559 + " " + '#578。cd 先や GIT_DIR を使った git stash・restore が、変更の有無を確かめられずに素通りし、別の作業の未コミットの変更が消える。',
   },
   {
     id: 1508,
@@ -8524,7 +8524,7 @@ export const MUTATIONS = [
     patch: "m1508-discard-worktree-scope-counts-staged.patch",
     pkg: "scripts",
     tests: ["lib/discard-guard.test.mjs"],
-    note: RESERVED_1500_1539 + " " + '#578。adversarial-review の git checkout HEAD -- <テスト> が毎回聞かれ、手順が進まない。',
+    note: RESERVED_1500_1559 + " " + '#578。adversarial-review の git checkout HEAD -- <テスト> が毎回聞かれ、手順が進まない。',
   },
   {
     id: 1509,
@@ -8532,7 +8532,7 @@ export const MUTATIONS = [
     patch: "m1509-discard-dirty-check-failure-passes.patch",
     pkg: "scripts",
     tests: ["lib/discard-guard.test.mjs"],
-    note: RESERVED_1500_1539 + " " + '#578。git が答えなかったとき（所有者の不一致・時間切れ）に、変更があるか分からないまま消す操作が通る。',
+    note: RESERVED_1500_1559 + " " + '#578。git が答えなかったとき（所有者の不一致・時間切れ）に、変更があるか分からないまま消す操作が通る。',
   },
   {
     id: 1510,
@@ -8540,7 +8540,7 @@ export const MUTATIONS = [
     patch: "m1510-discard-128-means-clean.patch",
     pkg: "scripts",
     tests: ["lib/discard-guard.test.mjs"],
-    note: RESERVED_1500_1539 + " " + '#578。壊れた git 設定・所有者の不一致で確かめられないのに、変更なしと誤って通る。',
+    note: RESERVED_1500_1559 + " " + '#578。壊れた git 設定・所有者の不一致で確かめられないのに、変更なしと誤って通る。',
   },
   {
     id: 1511,
@@ -8548,7 +8548,7 @@ export const MUTATIONS = [
     patch: "m1511-discard-staged-only-restore-is-checked.patch",
     pkg: "scripts",
     tests: ["lib/discard-guard.test.mjs"],
-    note: RESERVED_1500_1539 + " " + '#578。ステージを外すだけの git restore --staged が、作業ツリーに変更があると毎回聞かれる。',
+    note: RESERVED_1500_1559 + " " + '#578。ステージを外すだけの git restore --staged が、作業ツリーに変更があると毎回聞かれる。',
   },
   {
     id: 1512,
@@ -8556,7 +8556,7 @@ export const MUTATIONS = [
     patch: "m1512-pnpm-filter-unscoped-name-not-matched.patch",
     pkg: "scripts",
     tests: ["lib/pnpm-filter-guard.test.mjs"],
-    note: RESERVED_1500_1539 + " " + '#578。pnpm --filter sync が実在するのに聞かれる（誤検出）。',
+    note: RESERVED_1500_1559 + " " + '#578。pnpm --filter sync が実在するのに聞かれる（誤検出）。',
   },
   {
     id: 1513,
@@ -8564,7 +8564,7 @@ export const MUTATIONS = [
     patch: "m1513-pnpm-filter-nonmatching-passes.patch",
     pkg: "scripts",
     tests: ["lib/pnpm-filter-guard.test.mjs", "agent-guard-hook.test.mjs"],
-    note: RESERVED_1500_1539 + " " + '#578。@tasuki/tasuki-sync のような実在しない名前で、テストが 1 本も走らずに緑になる。',
+    note: RESERVED_1500_1559 + " " + '#578。@tasuki/tasuki-sync のような実在しない名前で、テストが 1 本も走らずに緑になる。',
   },
   {
     id: 1514,
@@ -8572,7 +8572,7 @@ export const MUTATIONS = [
     patch: "m1514-closing-keyword-code-span-as-prose.patch",
     pkg: "scripts",
     tests: ["lib/closing-keywords.test.mjs"],
-    note: RESERVED_1500_1539 + " " + '#578。`Closes #N` と書いた PR をマージしても ISSUE が閉じない事故を、PR を立てる前に知らせない。',
+    note: RESERVED_1500_1559 + " " + '#578。`Closes #N` と書いた PR をマージしても ISSUE が閉じない事故を、PR を立てる前に知らせない。',
   },
   {
     id: 1515,
@@ -8580,7 +8580,7 @@ export const MUTATIONS = [
     patch: "m1515-closing-keyword-commit-standalone-skipped.patch",
     pkg: "scripts",
     tests: ["lib/closing-keywords.test.mjs"],
-    note: RESERVED_1500_1539 + " " + '#578。squash で連結されるコミットメッセージの閉鎖キーワードが、ISSUE を勝手に閉じるのを知らせない。',
+    note: RESERVED_1500_1559 + " " + '#578。squash で連結されるコミットメッセージの閉鎖キーワードが、ISSUE を勝手に閉じるのを知らせない。',
   },
   {
     id: 1516,
@@ -8588,7 +8588,7 @@ export const MUTATIONS = [
     patch: "m1516-structure-metrics-regression-direction-flipped.patch",
     pkg: "scripts",
     tests: ["lib/structure-metrics.test.mjs"],
-    note: RESERVED_1500_1539 + " " + '#578。テスト対象の割合（SC032）が下がっても知らせず、上がると誤って知らせる。',
+    note: RESERVED_1500_1559 + " " + '#578。テスト対象の割合（SC032）が下がっても知らせず、上がると誤って知らせる。',
   },
   {
     id: 1517,
@@ -8596,7 +8596,7 @@ export const MUTATIONS = [
     patch: "m1517-structure-metrics-unreadable-silent.patch",
     pkg: "scripts",
     tests: ["lib/structure-metrics.test.mjs"],
-    note: RESERVED_1500_1539 + " " + '#578。監査の表の形が変わると、指標の比較が黙って効かなくなる（検査が死んだまま緑）。',
+    note: RESERVED_1500_1559 + " " + '#578。監査の表の形が変わると、指標の比較が黙って効かなくなる（検査が死んだまま緑）。',
   },
   {
     id: 1518,
@@ -8604,7 +8604,7 @@ export const MUTATIONS = [
     patch: "m1518-audit-agent-guard-ignores-entry-imports.patch",
     pkg: "scripts",
     tests: ["wiring-audit-agent-guard.test.mjs"],
-    note: RESERVED_1500_1539 + " " + '#578。入口が読む判定の部品が追跡下から外れても検査が緑のまま、入口が起動せず本番デプロイの判定も働かない。',
+    note: RESERVED_1500_1559 + " " + '#578。入口が読む判定の部品が追跡下から外れても検査が緑のまま、入口が起動せず本番デプロイの判定も働かない。',
   },
   {
     id: 1519,
@@ -8612,7 +8612,7 @@ export const MUTATIONS = [
     patch: "m1519-tame-heredoc-body-with-operation-names-skipped.patch",
     pkg: "scripts",
     tests: ["lib/agent-guard.test.mjs", "lib/discard-guard.test.mjs"],
-    note: RESERVED_1500_1539 + " " + '#578。echo "<<EOF" の後ろの git stash・git push が本文として隠れ、読むだけの形として通る。',
+    note: RESERVED_1500_1559 + " " + '#578。echo "<<EOF" の後ろの git stash・git push が本文として隠れ、読むだけの形として通る。',
   },
   {
     id: 1520,
@@ -8620,7 +8620,7 @@ export const MUTATIONS = [
     patch: "m1520-tame-gh-short-option-bundle-allowed.patch",
     pkg: "scripts",
     tests: ["lib/agent-guard.test.mjs"],
-    note: RESERVED_1500_1539 + " " + '#578。gh api -XPUT …/merge が -X として既知と読まれ、サブエージェントのマージが素通りする。',
+    note: RESERVED_1500_1559 + " " + '#578。gh api -XPUT …/merge が -X として既知と読まれ、サブエージェントのマージが素通りする。',
   },
   {
     id: 1521,
@@ -8628,7 +8628,7 @@ export const MUTATIONS = [
     patch: "m1521-hook-reasons-not-merged.patch",
     pkg: "scripts",
     tests: ["agent-guard-hook.test.mjs"],
-    note: RESERVED_1500_1539 + " " + '#578 PR 2 のレビュー。本文に git の語がある gh pr create で、先行 PR と閉鎖キーワードの知らせが的外れの理由に隠れる。',
+    note: RESERVED_1500_1559 + " " + '#578 PR 2 のレビュー。本文に git の語がある gh pr create で、先行 PR と閉鎖キーワードの知らせが的外れの理由に隠れる。',
   },
   {
     id: 1522,
@@ -8636,7 +8636,7 @@ export const MUTATIONS = [
     patch: "m1522-heredoc-data-never.patch",
     pkg: "scripts",
     tests: ["lib/agent-guard.test.mjs"],
-    note: RESERVED_1500_1539 + " " + '#578 PR 2 のレビュー。本文に git push の語がある普通の git commit・gh pr create が毎回聞かれる。',
+    note: RESERVED_1500_1559 + " " + '#578 PR 2 のレビュー。本文に git push の語がある普通の git commit・gh pr create が毎回聞かれる。',
   },
   {
     id: 1523,
@@ -8644,7 +8644,7 @@ export const MUTATIONS = [
     patch: "m1523-heredoc-data-any-consumer.patch",
     pkg: "scripts",
     tests: ["lib/agent-guard.test.mjs"],
-    note: RESERVED_1500_1539 + " " + '#578 PR 2 のレビュー。終端の後ろに続く行（git push など）があっても、本文を隠した形として通る。',
+    note: RESERVED_1500_1559 + " " + '#578 PR 2 のレビュー。終端の後ろに続く行（git push など）があっても、本文を隠した形として通る。',
   },
   {
     id: 1524,
@@ -8652,7 +8652,7 @@ export const MUTATIONS = [
     patch: "m1524-baseline-cache-not-validated.patch",
     pkg: "scripts",
     tests: ["lib/structure-metrics.test.mjs"],
-    note: RESERVED_1500_1539 + " " + '#578 PR 2 のレビュー。空・途中までの控えで、後退があっても「後退していません」と出る。',
+    note: RESERVED_1500_1559 + " " + '#578 PR 2 のレビュー。空・途中までの控えで、後退があっても「後退していません」と出る。',
   },
   {
     id: 1525,
@@ -8660,7 +8660,7 @@ export const MUTATIONS = [
     patch: "m1525-baseline-unreadable-silent.patch",
     pkg: "scripts",
     tests: ["lib/structure-metrics.test.mjs"],
-    note: RESERVED_1500_1539 + " " + '#578 PR 2 のレビュー。基準の表の形が壊れていても、比べずに緑になる。',
+    note: RESERVED_1500_1559 + " " + '#578 PR 2 のレビュー。基準の表の形が壊れていても、比べずに緑になる。',
   },
   {
     id: 1526,
@@ -8668,7 +8668,7 @@ export const MUTATIONS = [
     patch: "m1526-git-branch-delete-tame.patch",
     pkg: "scripts",
     tests: ["lib/agent-guard.test.mjs"],
-    note: RESERVED_1500_1539 + " " + '#578 PR 2 のレビュー。サブエージェントの git branch -D が聞かれずに枝を消す。',
+    note: RESERVED_1500_1559 + " " + '#578 PR 2 のレビュー。サブエージェントの git branch -D が聞かれずに枝を消す。',
   },
   {
     id: 1527,
@@ -8676,7 +8676,7 @@ export const MUTATIONS = [
     patch: "m1527-git-fetch-force-tame.patch",
     pkg: "scripts",
     tests: ["lib/agent-guard.test.mjs"],
-    note: RESERVED_1500_1539 + " " + "#578 PR 2 のレビュー。サブエージェントの git fetch origin +main:main や --prune が聞かれず、他の作業ツリーの参照が消える。",
+    note: RESERVED_1500_1559 + " " + "#578 PR 2 のレビュー。サブエージェントの git fetch origin +main:main や --prune が聞かれず、他の作業ツリーの参照が消える。",
   },
   {
     id: 1528,
@@ -8684,7 +8684,7 @@ export const MUTATIONS = [
     patch: "m1528-git-output-option-not-rejected.patch",
     pkg: "scripts",
     tests: ["lib/agent-guard.test.mjs"],
-    note: RESERVED_1500_1539 + " " + "#578 PR 2 のレビュー。git reflog --output=ファイル や stash show --output が読むだけとして通り、ファイルを上書きする。",
+    note: RESERVED_1500_1559 + " " + "#578 PR 2 のレビュー。git reflog --output=ファイル や stash show --output が読むだけとして通り、ファイルを上書きする。",
   },
   {
     id: 1529,
@@ -8692,7 +8692,7 @@ export const MUTATIONS = [
     patch: "m1529-heredoc-line-allows-separators.patch",
     pkg: "scripts",
     tests: ["lib/agent-guard.test.mjs"],
-    note: RESERVED_1500_1539 + " " + "#578 PR 2 のレビュー。git commit -m x; git push && … のように別のコマンドを混ぜた行の heredoc 本文が隠れ、git push が通る。",
+    note: RESERVED_1500_1559 + " " + "#578 PR 2 のレビュー。git commit -m x; git push && … のように別のコマンドを混ぜた行の heredoc 本文が隠れ、git push が通る。",
   },
   {
     id: 1530,
@@ -8700,7 +8700,7 @@ export const MUTATIONS = [
     patch: "m1530-git-reflog-denylist.patch",
     pkg: "scripts",
     tests: ["lib/agent-guard.test.mjs"],
-    note: RESERVED_1500_1539 + " " + "#578 PR 2 のレビュー。新しい git の git reflog drop のように、拒否リストに無いサブコマンドが読むだけとして通り、reflog を消す。",
+    note: RESERVED_1500_1559 + " " + "#578 PR 2 のレビュー。新しい git の git reflog drop のように、拒否リストに無いサブコマンドが読むだけとして通り、reflog を消す。",
   },
   {
     id: 1531,
@@ -8708,7 +8708,7 @@ export const MUTATIONS = [
     patch: "m1531-combine-throw-passes.patch",
     pkg: "scripts",
     tests: ["lib/hook-combine.test.mjs"],
-    note: RESERVED_1500_1539 + " " + '#578 /code-review 583。1 つの判定が投げると通る側に倒れ、ほかの ask の理由も黙って消える。',
+    note: RESERVED_1500_1559 + " " + '#578 /code-review 583。1 つの判定が投げると通る側に倒れ、ほかの ask の理由も黙って消える。',
   },
   {
     id: 1532,
@@ -8716,7 +8716,7 @@ export const MUTATIONS = [
     patch: "m1532-subagent-heredoc-body-not-stripped.patch",
     pkg: "scripts",
     tests: ["lib/agent-guard.test.mjs"],
-    note: RESERVED_1500_1539 + " " + '#578 /code-review 583。本文に git push と書いた普通の git commit が、サブエージェントでは毎回聞かれる。',
+    note: RESERVED_1500_1559 + " " + '#578 /code-review 583。本文に git push と書いた普通の git commit が、サブエージェントでは毎回聞かれる。',
   },
   {
     id: 1533,
@@ -8724,7 +8724,7 @@ export const MUTATIONS = [
     patch: "m1533-discard-brace-expansion-checked-literally.patch",
     pkg: "scripts",
     tests: ["lib/discard-guard.test.mjs"],
-    note: RESERVED_1500_1539 + " " + '#578 /code-review 583。git checkout -- {a,b}.ts が 0 件で「変更なし」と読まれ、シェルが展開した a.ts b.ts の未コミットの変更が消える。',
+    note: RESERVED_1500_1559 + " " + '#578 /code-review 583。git checkout -- {a,b}.ts が 0 件で「変更なし」と読まれ、シェルが展開した a.ts b.ts の未コミットの変更が消える。',
   },
   {
     id: 1534,
@@ -8732,7 +8732,7 @@ export const MUTATIONS = [
     patch: "m1534-discard-rm-force-safe.patch",
     pkg: "scripts",
     tests: ["lib/discard-guard.test.mjs"],
-    note: RESERVED_1500_1539 + " " + '#578 /code-review 583。git rm -f が未コミットの変更のあるファイルを聞かずに削除する。',
+    note: RESERVED_1500_1559 + " " + '#578 /code-review 583。git rm -f が未コミットの変更のあるファイルを聞かずに削除する。',
   },
   {
     id: 1535,
@@ -8740,7 +8740,7 @@ export const MUTATIONS = [
     patch: "m1535-workspace-globs-dash-ends-section.patch",
     pkg: "scripts",
     tests: ["lib/pnpm-filter-guard.test.mjs"],
-    note: RESERVED_1500_1539 + " " + '#578 /code-review 583。packages: の下を行頭に置いた workspace で名前の一覧が root だけになり、実在する --filter まで毎回聞かれる。',
+    note: RESERVED_1500_1559 + " " + '#578 /code-review 583。packages: の下を行頭に置いた workspace で名前の一覧が root だけになり、実在する --filter まで毎回聞かれる。',
   },
   {
     id: 1536,
@@ -8748,15 +8748,15 @@ export const MUTATIONS = [
     patch: "m1536-closing-numbered-bullet-is-prose.patch",
     pkg: "scripts",
     tests: ["lib/closing-keywords.test.mjs"],
-    note: RESERVED_1500_1539 + " " + '#578 /code-review 583。PR 本文の 1. Fixes #5 が、意図した閉鎖なのに毎回地の文として知らされる。',
+    note: RESERVED_1500_1559 + " " + '#578 /code-review 583。PR 本文の 1. Fixes #5 が、意図した閉鎖なのに毎回地の文として知らされる。',
   },
   {
     id: 1537,
-    label: '今の側の構造監査に追跡外のファイルも写す',
+    label: "今の側の構造監査に追跡外で ignore されないファイルを写さない（git add 前の新しいファイルを見落とす）",
     patch: "m1537-structure-current-includes-untracked.patch",
     pkg: "scripts",
     tests: ["lib/structure-metrics.test.mjs"],
-    note: RESERVED_1500_1539 + " " + '#578 /code-review 583。試しの .ts などの追跡外のファイルで、構造監査の指標が偽の後退になる。',
+    note: RESERVED_1500_1559 + " " + "#578 PR #583 のレビュー。git add 前の新しいテストによる指標の後退が、check:fast では知らされない（偽の緑）。",
   },
   {
     id: 1538,
@@ -8764,7 +8764,7 @@ export const MUTATIONS = [
     patch: "m1538-structure-metrics-awaited-serially.patch",
     pkg: "scripts",
     tests: ["local-check.test.mjs"],
-    note: RESERVED_1500_1539 + " " + '#578 /code-review 583。check:fast が構造監査の比較の分（十数秒）だけ毎回延びる。',
+    note: RESERVED_1500_1559 + " " + '#578 /code-review 583。check:fast が構造監査の比較の分（十数秒）だけ毎回延びる。',
   },
   {
     id: 1539,
@@ -8772,7 +8772,7 @@ export const MUTATIONS = [
     patch: "m1539-discard-words-miss-rm.patch",
     pkg: "scripts",
     tests: ["lib/agent-guard.test.mjs"],
-    note: RESERVED_1500_1539 + " " + '#578 /code-review 583。git rm -f が候補にならず、聞かれずに通る。',
+    note: RESERVED_1500_1559 + " " + '#578 /code-review 583。git rm -f が候補にならず、聞かれずに通る。',
   },
   {
     id: 1440,
@@ -8797,5 +8797,37 @@ export const MUTATIONS = [
     pkg: "apps/timer-web",
     tests: ["test/ui/use-top-band-height.test.tsx"],
     note: "#574 のレビュー。enabledが変わらない知らせの更新ではResizeObserverの通知前に古い余白が残る。",
+  },
+  {
+    id: 1540,
+    label: 'path 指定の未コミットの確かめで追跡外のファイルを見ない',
+    patch: "m1540-discard-ignores-untracked-same-name.patch",
+    pkg: "scripts",
+    tests: ["lib/discard-guard.test.mjs"],
+    note: RESERVED_1500_1559 + " " + '#578 PR #583 のレビュー。git checkout <rev> -- <path> が、同名の追跡外のファイルを聞かずに上書きする。',
+  },
+  {
+    id: 1541,
+    label: 'サブエージェントの git branch -D/-m/-f を聞かない',
+    patch: "m1541-subagent-branch-modify-not-guarded.patch",
+    pkg: "scripts",
+    tests: ["lib/agent-guard.test.mjs"],
+    note: RESERVED_1500_1559 + " " + '#578 PR #583 のレビュー。サブエージェントが枝を消す・改名する・付け替える。',
+  },
+  {
+    id: 1542,
+    label: 'サブエージェントの gh api の書き込み（-X PUT/DELETE・-f）を聞かない',
+    patch: "m1542-subagent-gh-api-write-not-guarded.patch",
+    pkg: "scripts",
+    tests: ["lib/agent-guard.test.mjs"],
+    note: RESERVED_1500_1559 + " " + '#578 PR #583 のレビュー。gh api でマージ・削除がサブエージェントから素通りする。',
+  },
+  {
+    id: 1543,
+    label: 'サブエージェントの tmux kill-session を聞かない',
+    patch: "m1543-subagent-tmux-kill-session-not-guarded.patch",
+    pkg: "scripts",
+    tests: ["lib/agent-guard.test.mjs"],
+    note: RESERVED_1500_1559 + " " + '#578 PR #583 のレビュー。利用者の tmux セッションをサブエージェントが落とす。',
   },
 ];
