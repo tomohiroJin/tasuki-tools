@@ -554,6 +554,11 @@ function isReadOnlyGhApi(words, from) {
   return true;
 }
 
+const READ_FLAGS = new Set(["-p", "--patch", "--stat", "--name-only", "--name-status", "--oneline", "--abbrev-commit", "--no-abbrev-commit", "-q", "--quiet", "--no-color", "--color"]);
+/** 選択肢（`-` で始まる語）がすべて既知の読む選択肢か。`reflog`・`stash list|show` の引数に使う（`-` で始まる語を何でも通さない）。 */
+function hasOnlyReadFlags(args) {
+  return args.every((w) => !w.startsWith("-") || READ_FLAGS.has(w) || /^--(date|format|pretty|max-count)=\S*$/.test(w) || /^-n\d*$/.test(w) || /^-\d+$/.test(w));
+}
 const BRANCH_FLAGS = new Set(["-a", "-r", "-l", "--list", "-v", "-vv", "--verbose", "--show-current", "--no-color", "--color", "--all", "--remotes"]);
 const BRANCH_VALUED = new Set(["--contains", "--merged", "--no-merged", "--points-at"]);
 /** `git branch` の読む形: 選択肢がすべて既知で、名前の引数が無い。 */
@@ -590,15 +595,16 @@ function isTameWords(words) {
   if (name === "git") {
     if (words[1] === undefined || words[1].startsWith("-")) return false; // 全体の選択肢（-C・-c ほか）があれば読み切れない
     const sub = words[1];
+    // 全部の下位コマンドに共通: ファイルへ書く選択肢（--output と、その省略形）は読むだけでない
+    if (words.some((w) => isLongOption(w, "--output"))) return false;
     // 読むだけの下位コマンドも、選択肢と引数が既知の読む形のときだけ（拒否リストでなく許可リスト。省略形 `--del`・`+refspec` を通さない）
     if (sub === "branch") return isReadOnlyGitBranch(words.slice(2));
     if (sub === "fetch") return isSafeGitFetch(words.slice(2));
     if (sub === "tag") return isReadOnlyGitTag(words.slice(2));
     if (sub === "remote") return words.slice(2).every((w) => w === "-v" || w === "--verbose") || ["show", "get-url"].includes(words[2]);
-    if (sub === "reflog") return words[2] === undefined || words[2].startsWith("-") || words[2] === "show";
-    if (["diff", "log", "show", "grep"].includes(sub) && words.some((w) => w.startsWith("--output"))) return false;
+    if (sub === "reflog") return words[2] !== undefined && ["expire", "delete", "exists", "write"].includes(words[2]) ? false : hasOnlyReadFlags(words.slice(2));
     if (TAME_GIT_SUBS.has(sub)) return true;
-    if (sub === "stash") return ["list", "show"].includes(words[2]);
+    if (sub === "stash") return ["list", "show"].includes(words[2]) && hasOnlyReadFlags(words.slice(3));
     if (sub === "worktree") return ["list", "add"].includes(words[2]);
     return false;
   }
@@ -641,7 +647,7 @@ export function stripHeredocBodies(src) {
       if (end === -1) return null;
       const body = lines.slice(i + 1, end).join("\n");
       // 本文が危ない操作の名前を含むとき、データとして使われる決まった形（DATA_HEREDOC_LINE）だけ文章として隠す。それ以外は読めないとする（fail closed）
-      if (looksLikeGuardedOperation(body) && !heredocIsData(lines[i], tag, lines[end + 1])) return null;
+      if (looksLikeGuardedOperation(body) && !heredocIsData(lines[i], tag, lines.slice(end + 1))) return null;
       i = end; // 本文と終端の行を飛ばす
     }
   }
@@ -654,11 +660,19 @@ export function stripHeredocBodies(src) {
  * 続けて終端の行が `TAG`、その次の行が `)"` で始まる。それ以外のヒアドキュメントは、本文に危ない操作の名前があれば読めないとして聞く。
  * 状態機械で引用符を追う作りは、`echo '$(cat <<EOF'` や `# $(cat <<EOF` で穴が出たので退けた（#578 の自動レビュー）。
  */
-const DATA_HEREDOC_LINE = /^\s*(?:git add [^;&|$`"'()<>\n]* && )?(?:git commit\b.*\s(?:-m|--message)|gh (?:pr|issue) (?:create|edit|comment)\b.*\s--body)\s+"\$\(cat <<'([A-Za-z_]+)'$/;
+// 区切り・コメント・引用符・展開（$ とバッククォート）・リダイレクト・バックスラッシュ・改行を含まない 1 文字
+const PLAIN = "[^;&|$" + "`" + "\"'()<>#\\\\\\n]";
+// 平文か、展開を含まない対の "…" の並び
+const WORDS = "(?:" + PLAIN + "|\"[^\"$" + "`" + "\\\\\\n]*\")*";
+const DATA_HEREDOC_LINE = new RegExp(
+  "^\\s*(?:git add " + PLAIN + "* && )?(?:git commit\\b" + WORDS + "\\s(?:-m|--message)|gh (?:pr|issue) (?:create|edit|comment)\\b" + WORDS + "\\s--body)\\s+\"\\$\\(cat <<'([A-Za-z_]+)'$",
+);
 
-function heredocIsData(line, tag, afterTerminator) {
+/** @param {string[]} after 終端の行より後ろの行 */
+function heredocIsData(line, tag, after) {
   const m = DATA_HEREDOC_LINE.exec(line);
-  return m !== null && m[1] === tag && typeof afterTerminator === "string" && afterTerminator.startsWith(')"');
+  // 終端の次の行は `)"` と空白だけ。その後ろに別のコマンドがあれば隠さない
+  return m !== null && m[1] === tag && after.length > 0 && /^\)"\s*$/.test(after[0]) && after.slice(1).every((l) => l.trim() === "");
 }
 
 /**
