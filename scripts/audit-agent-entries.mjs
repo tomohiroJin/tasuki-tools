@@ -62,23 +62,42 @@ const CANDIDATE_BASENAMES = new Set(["AGENTS.md", "AGENTS.override.md", "CLAUDE.
  * `.github/copilot-instructions.md` は入口の宣言から外した（利用者が Copilot を使わないと決めた。docs/adr/0030 決定 3 の追記・#507）が、
  * ツールが規則として読む置き場なので候補には残す。黙って戻されたら「宣言されていない入口」として止まる。
  */
-const CANDIDATE_PATHS = new Set([".github/copilot-instructions.md", ".cursorrules", ".windsurfrules"]);
+const CANDIDATE_PATHS = new Set([".github/copilot-instructions.md", ".cursorrules", ".windsurfrules", ".codex/config.toml"]);
 /** 配下のどのファイルもツールが規則として読む置き場（前方一致）。 */
-const CANDIDATE_DIRS = [".claude/rules/", ".cursor/rules/", ".github/instructions/"];
+const CANDIDATE_DIRS = [".claude/rules/", ".cursor/rules/", ".github/instructions/", ".codex/skills/", ".codex/agents/"];
+/**
+ * どの階層にあっても、配下のファイルをツールが規則として読む置き場（Codex のスキル。cwd から Git のルートまでの各階層を読む）。
+ * `.codex/hooks.json` は候補にしない（本番デプロイを止める配線の宣言であり、規則の本文を持たない。中身は scripts/audit-codex-guard.mjs が見る。#578）。
+ * `.codex/config.toml` は `developer_instructions` のような規則の置き場を持ちうるので、置いたら止める。
+ */
+const CANDIDATE_NESTED_DIRS = [".agents/skills/"];
 
 /**
  * 候補を絞る前の列挙。**ここは広く取り、判定は {@link isEntryCandidate} に寄せる。**
  * git の pathspec の `*` は `/` を跨ぐので、`*CLAUDE.md` は `docs/NOTCLAUDE.md` まで拾う。
  * 名前の判定をパターンに任せると、その取り違えをテストで見られない。
  */
-export const ENTRY_CANDIDATE_PATTERNS = ["*.md", ".cursorrules", ".windsurfrules", ".cursor/rules/*", ".claude/rules/*", ".github/instructions/*"];
+export const ENTRY_CANDIDATE_PATTERNS = [
+  "*.md",
+  ".cursorrules",
+  ".windsurfrules",
+  ".cursor/rules/*",
+  ".claude/rules/*",
+  ".github/instructions/*",
+  ".agents/skills/*",
+  "*/.agents/skills/*",
+  ".codex/skills/*",
+  ".codex/agents/*",
+  ".codex/config.toml",
+];
 
 /** ツールが規則として読みうるファイルか。宣言に無いものが追跡下に現れたら落とす。 */
 export function isEntryCandidate(rel) {
   return (
     CANDIDATE_BASENAMES.has(path.posix.basename(rel)) ||
     CANDIDATE_PATHS.has(rel) ||
-    CANDIDATE_DIRS.some((dir) => rel.startsWith(dir))
+    CANDIDATE_DIRS.some((dir) => rel.startsWith(dir)) ||
+    CANDIDATE_NESTED_DIRS.some((dir) => rel.startsWith(dir) || rel.includes(`/${dir}`))
   );
 }
 

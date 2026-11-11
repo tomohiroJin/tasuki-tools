@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-agent-entries.mjs b/scripts/audit-agent-entries.mjs
+index b3a0f151..986159aa 100644
+--- a/scripts/audit-agent-entries.mjs
++++ b/scripts/audit-agent-entries.mjs
+@@ -97,7 +97,7 @@ export function isEntryCandidate(rel) {
+     CANDIDATE_BASENAMES.has(path.posix.basename(rel)) ||
+     CANDIDATE_PATHS.has(rel) ||
+     CANDIDATE_DIRS.some((dir) => rel.startsWith(dir)) ||
+-    CANDIDATE_NESTED_DIRS.some((dir) => rel.startsWith(dir) || rel.includes(`/${dir}`))
++    CANDIDATE_NESTED_DIRS.some((dir) => rel.startsWith(dir))
+   );
+ }
+ 

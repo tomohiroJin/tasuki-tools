@@ -6,6 +6,7 @@ import {
   MAX_ENTRY_LINES,
   MAX_ENTRY_CHARS,
   isEntryCandidate,
+  ENTRY_CANDIDATE_PATTERNS,
   extractAgentsPrinciples,
   comparePrinciples,
   linksToSource,
@@ -496,5 +497,30 @@ describe("checkSkill: スキルは手順書へ向ける薄い入口", () => {
     const problems = checkSkill(".claude/skills/SKILL.md", skill(GOOD_BODY), PROCEDURES);
     assert.equal(problems.length, 1);
     assert.match(problems[0], /SKILL\.md 以外/);
+  });
+});
+
+describe("isEntryCandidate: Codex が規則として読む置き場（#578）", () => {
+  test("どの階層の .agents/skills・リポジトリ直下の .codex/skills・.codex/agents・.codex/config.toml も候補", () => {
+    for (const rel of [
+      ".agents/skills/x/SKILL.md",
+      "apps/x/.agents/skills/y/SKILL.md",
+      ".codex/skills/x/SKILL.md",
+      ".codex/agents/reviewer.toml",
+      ".codex/config.toml",
+      "AGENTS.override.md",
+      "apps/x/AGENTS.override.md",
+    ])
+      assert.equal(isEntryCandidate(rel), true, rel);
+  });
+
+  test(".codex/hooks.json は宣言した配線として許す。名前が似るだけのものも候補にしない", () => {
+    for (const rel of [".codex/hooks.json", ".codex/rules/default.rules", "docs/.agentsx/skills/a.md", "notes/agents/skills/a.md"])
+      assert.equal(isEntryCandidate(rel), false, rel);
+  });
+
+  test("列挙のパターンが、置き場の候補を全部拾う", () => {
+    for (const p of [".agents/skills/*", "*/.agents/skills/*", ".codex/skills/*", ".codex/agents/*", ".codex/config.toml"])
+      assert.ok(ENTRY_CANDIDATE_PATTERNS.includes(p), p);
   });
 });
