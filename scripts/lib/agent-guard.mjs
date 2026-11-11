@@ -47,12 +47,40 @@ export const GUARDED_COMMANDS = [
   { id: "caddy-reload", program: "caddy", subcommands: ["reload", "stop"], why: "Caddy の設定の入れ替え・停止" },
 ];
 
-/** `git` の、値を次の語に取る全体の選択肢（`git -C dir push`・`git -c k=v push`）。 */
-export const GIT_ARG_OPTS = ["-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path", "--super-prefix"];
+/**
+ * `git` の、値を次の語に取る全体の選択肢（`git -C dir push`）。`git --help` の一覧と `man git` で洗った
+ * （`--exec-path`・`--list-cmds` は `=` でしか値を取らない。全体の選択肢は省略形を受け付けない。2.43 で確認）。
+ */
+export const GIT_ARG_OPTS = ["-C", "-c", "--git-dir", "--work-tree", "--namespace", "--config-env", "--attr-source", "--super-prefix"];
 const GH_ARG_OPTS = ["-R", "--repo"];
 
-/** `--` より前に `--` の無い checkout（枝の切り替え。`git checkout <枝>`・`-b`）。 */
-const checkoutWithoutDashDash = (words, start) => !words.slice(start + 1).includes("--");
+/**
+ * 語が長いオプション `full` の（省略形を含む）綴りか。git の parse-options は、一意に決まる前方一致の省略形を受け付ける
+ * （`git reset --h` は `--hard`）。`--opt=値` の `=` より前を見る。曖昧な短い形（`--s`）は git が拒むので、3 文字以上を前方一致で拾う。
+ */
+export function isLongOption(word, full) {
+  if (!word.startsWith("--")) return false;
+  const name = word.split("=")[0];
+  return name.length >= 3 && full.startsWith(name);
+}
+
+/** 語の並びのうち `--` より前（選択肢の部分）。 */
+export function beforeDashDash(words) {
+  const k = words.indexOf("--");
+  return k === -1 ? words : words.slice(0, k);
+}
+
+/**
+ * `git checkout` が枝の操作か。`--` の後ろに pathspec が 1 つ以上あり、枝を作る・切り離す選択肢（`-b`・`-B`・`--orphan`・`--detach`）が
+ * 無いときだけ、ファイルの取り出し（枝の操作でない）。
+ */
+export function checkoutIsBranchOperation(words, start) {
+  const rest = words.slice(start + 1);
+  const opts = beforeDashDash(rest);
+  if (opts.some((w) => (/^-[A-Za-z]*[bBd]/.test(w) && !w.startsWith("--")) || isLongOption(w, "--orphan") || isLongOption(w, "--detach"))) return true;
+  const k = rest.indexOf("--");
+  return k === -1 || k === rest.length - 1;
+}
 
 /**
  * サブエージェントから呼ばれたときだけ人に聞くコマンドの宣言（#578・docs/adr/0037）。
@@ -66,10 +94,10 @@ export const SUBAGENT_GUARDED_COMMANDS = [
   { id: "gh-pr-merge", program: "gh", args: ["pr", "merge"], argOpts: GH_ARG_OPTS, why: "PR のマージは、人の承認の後にまとめ役が行う" },
   { id: "gh-pr-close", program: "gh", args: ["pr", "close"], argOpts: GH_ARG_OPTS, why: "PR を閉じるのは、まとめ役か人が行う" },
   { id: "git-switch", program: "git", args: ["switch"], argOpts: GIT_ARG_OPTS, why: "枝の切り替えは、同じ作業ツリーを使う他の作業を壊す" },
-  { id: "git-checkout-branch", program: "git", args: ["checkout"], argOpts: GIT_ARG_OPTS, when: checkoutWithoutDashDash, why: "枝の切り替えは、同じ作業ツリーを使う他の作業を壊す" },
+  { id: "git-checkout-branch", program: "git", args: ["checkout"], argOpts: GIT_ARG_OPTS, when: checkoutIsBranchOperation, why: "枝の切り替えは、同じ作業ツリーを使う他の作業を壊す" },
   {
     id: "git-reset-hard", program: "git", args: ["reset"], argOpts: GIT_ARG_OPTS,
-    when: (words, start) => words.slice(start + 1).includes("--hard"), why: "reset --hard は、未コミットの変更と履歴を消す",
+    when: (words, start) => beforeDashDash(words.slice(start + 1)).some((w) => isLongOption(w, "--hard")), why: "reset --hard は、未コミットの変更と履歴を消す",
   },
   { id: "git-worktree-remove", program: "git", args: ["worktree", "remove"], argOpts: GIT_ARG_OPTS, why: "作業ツリーの削除は、まとめ役が棚卸しの後に行う" },
   { id: "kill", program: "kill", why: "プロセスの停止は、利用者の dev サーバーなどを止めうる" },

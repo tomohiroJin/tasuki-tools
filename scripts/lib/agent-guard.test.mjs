@@ -314,6 +314,46 @@ describe("サブエージェントの危ない操作（#578・docs/adr/0037）",
     }
   });
 
+  test("すり抜け: reset --hard の長いオプションの省略形（git は --h・--ha・--har も --hard と読む）", () => {
+    for (const o of ["--h", "--ha", "--har", "--hard"]) assert.deepEqual(sub(`git reset ${o} HEAD~1`), ["git-reset-hard"], o);
+    assert.deepEqual(sub("git reset --soft HEAD~1"), []);
+    assert.deepEqual(sub("git reset --mixed"), []);
+    // -- より後ろはパス。--hard という名前のファイルは対象外
+    assert.deepEqual(sub("git reset HEAD -- --hard"), []);
+  });
+
+  test("すり抜け: checkout の判定は -- の後ろに pathspec があるときだけファイルの取り出し", () => {
+    assert.deepEqual(sub("git checkout main --"), ["git-checkout-branch"]);
+    assert.deepEqual(sub("git checkout -b feat -- a.ts"), ["git-checkout-branch"]);
+    assert.deepEqual(sub("git checkout -B feat origin/main -- a.ts"), ["git-checkout-branch"]);
+    assert.deepEqual(sub("git checkout --orphan x -- a.ts"), ["git-checkout-branch"]);
+    assert.deepEqual(sub("git checkout --orph x -- a.ts"), ["git-checkout-branch"]);
+    assert.deepEqual(sub("git checkout --detach origin/main"), ["git-checkout-branch"]);
+    assert.deepEqual(sub("git checkout --deta origin/main -- "), ["git-checkout-branch"]);
+    assert.deepEqual(sub("git checkout -d origin/main"), ["git-checkout-branch"]);
+    assert.deepEqual(sub("git checkout origin/main -- a.ts"), []);
+    assert.deepEqual(sub("git checkout HEAD -- a.ts b.ts"), []);
+  });
+
+  test("すり抜け: 値を別の語に取るグローバルオプション（git --help の一覧）をサブコマンドと読み違えない", () => {
+    for (const g of [
+      "-C ../wt", "-c core.x=y", "--git-dir .git", "--git-dir=.git", "--work-tree .", "--work-tree=.", "--namespace ns", "--namespace=ns",
+      "--config-env a.b=HOME", "--config-env=a.b=HOME", "--attr-source HEAD", "--attr-source=HEAD", "--no-pager", "-p", "--exec-path=/x", "--bare",
+    ]) {
+      assert.deepEqual(sub(`git ${g} push origin x`), ["git-push"], g);
+      assert.deepEqual(sub(`git ${g} switch main`), ["git-switch"], g);
+      assert.deepEqual(sub(`git ${g} worktree remove ../x`), ["git-worktree-remove"], g);
+      assert.deepEqual(sub(`git ${g} reset --hard`), ["git-reset-hard"], g);
+    }
+  });
+
+  test("すり抜け: gh の -R / --repo は --opt 値 と --opt=値 の両形", () => {
+    for (const g of ["-R a/b", "--repo a/b", "--repo=a/b", "-Ra/b"]) {
+      assert.deepEqual(sub(`gh ${g} pr merge 3`), ["gh-pr-merge"], g);
+      assert.deepEqual(sub(`gh ${g} pr close 3`), ["gh-pr-close"], g);
+    }
+  });
+
   test("decideHookOutput: agent_id があるときだけ聞く。まとめ役（agent_id なし）は止めない", () => {
     const mk = (command, extra = {}) => JSON.stringify({ tool_name: "Bash", tool_input: { command }, ...extra });
     const out = decideHookOutput(mk("git push origin x", { agent_id: "a1", agent_type: "general-purpose" }));
