@@ -13,7 +13,7 @@ import { spawnSync } from "node:child_process";
 
 const HOOK = new URL("./agent-guard-hook.mjs", import.meta.url).pathname;
 
-function run(t, command, { prs = "[]", branch = "docs/9-x", ghMarker = null } = {}) {
+function run(t, command, { prs = "[]", branch = "docs/9-x", ghMarker = null, agentId = undefined } = {}) {
   const bin = fs.mkdtempSync(path.join(os.tmpdir(), "hook-bin-"));
   t.after(() => fs.rmSync(bin, { recursive: true, force: true }));
   const tool = (name, body) => fs.writeFileSync(path.join(bin, name), `#!${process.execPath}\n${body}\n`, { mode: 0o755 });
@@ -22,7 +22,7 @@ function run(t, command, { prs = "[]", branch = "docs/9-x", ghMarker = null } = 
   tool("gh", `${ghMarker ? `require("node:fs").writeFileSync(${JSON.stringify(ghMarker)}, "x");` : ""}process.stdout.write(${JSON.stringify(prs)});`);
   tool("git", `const a = process.argv.slice(2); if (a[0] === 'rev-parse') process.stdout.write(${JSON.stringify(`${branch}\n`)}); else if (a[0] === 'worktree') process.stdout.write('worktree ' + process.cwd() + '\\n'); else process.stdout.write('');`);
   const r = spawnSync(process.execPath, [HOOK], {
-    input: JSON.stringify({ tool_name: "Bash", cwd: bin, tool_input: { command } }),
+    input: JSON.stringify({ tool_name: "Bash", cwd: bin, ...(agentId ? { agent_id: agentId } : {}), tool_input: { command } }),
     encoding: "utf8",
     env: { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH}` },
   });
@@ -186,4 +186,13 @@ test("入口 I1: pnpm --filter の判定が当たっても先行 PR の知らせ
   const reason = out.hookSpecificOutput.permissionDecisionReason;
   assert.match(reason, /--filter/);
   assert.match(reason, /PR #501/);
+});
+
+test("入口 コードレビュー 3: サブエージェントの ask が出ても、先行 PR・閉鎖キーワードの知らせを捨てない（近道は本番デプロイだけ）", (t) => {
+  const bin = null;
+  const out = run(t, 'git push -u origin x && gh pr create --title "x（#9）" --body "説明に fixes #5 と書く"', { prs: pr, agentId: "a1" });
+  const reason = out.hookSpecificOutput.permissionDecisionReason;
+  assert.match(reason, /サブエージェント/);
+  assert.match(reason, /PR #501/);
+  assert.match(reason, /閉鎖キーワード/);
 });

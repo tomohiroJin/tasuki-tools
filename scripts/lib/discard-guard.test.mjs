@@ -109,6 +109,24 @@ describe("単純でない形は、変更の有無にかかわらず全部聞く�
       assert.equal(r.ask, true, "聞かずに通った");
     });
   }
+  test("コードレビュー 1: シェルが展開する語（{a,b}・~）を含む pathspec は、展開前の文字のままでは確かめられないので聞く", async () => {
+    for (const c of ["git checkout -- {a,b}.ts", "git restore {a,b}.ts", "git restore ~/x.ts", "git checkout HEAD -- {a..c}.ts", "git stash push -- {a,b}"]) {
+      assert.equal((await decide(c, { dirty: "no" })).ask, true, c);
+    }
+    // 展開されない形（HEAD~1・stash@{0}・* の glob は git 側の pathspec）は今までどおり確かめる
+    assert.equal((await decide("git reset --hard HEAD~1", { dirty: "no" })).ask, false);
+    assert.equal((await decide("git checkout -- 'src/*.ts'", { dirty: "yes" })).calls.length, 1);
+  });
+
+  test("コードレビュー 5: 未コミットの変更を消しうるほかの git（rm -f・mv -f・checkout-index -f・read-tree --reset・submodule --force・worktree remove -f）は聞く。-f の無い形は通す", async () => {
+    for (const c of ["git rm -f a.ts", "git rm --force a.ts", "git rm -rf dir", "git mv -f a b", "git checkout-index -f -a", "git read-tree --reset -u HEAD", "git submodule update --force", "git submodule deinit -f x", "git worktree remove -f ../x", "git worktree remove --force ../x"]) {
+      assert.equal((await decide(c, { dirty: "no" })).ask, true, c);
+    }
+    for (const c of ["git rm a.ts", "git rm --cached a.ts", "git mv a b", "git checkout-index a", "git worktree remove ../x", "git worktree add ../x", "git worktree list", "git submodule status", "git submodule update --init"]) {
+      assert.equal((await decide(c, { dirty: "yes" })).ask, false, c);
+    }
+  });
+
   test("理由に「形が単純でない」と書く", async () => {
     assert.match((await decide("cd x && git stash")).reason, /形が単純でない/);
   });

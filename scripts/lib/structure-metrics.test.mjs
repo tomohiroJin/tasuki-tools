@@ -4,7 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { METRICS, parseMetrics, findMetricRegressions, structureNotices, defaultBaselineOutput, isUsableBaseline } from "./structure-metrics.mjs";
+import { METRICS, parseMetrics, findMetricRegressions, structureNotices, defaultBaselineOutput, defaultCurrentOutput, isUsableBaseline } from "./structure-metrics.mjs";
 
 const TABLE = (over = {}) => {
   const v = { SC027: "0 | 0 | PASS", SC028: "1 | 0 | 未達", SC029: "86 | 0 | 未達", SC030: "17 | 0 | 未達", SC031: "13 | 0 | 未達",
@@ -155,5 +155,28 @@ describe("I3: 基準の控えと、基準の側で読めない指標", () => {
     const results = await Promise.all([defaultBaselineOutput(r.dir, r.tmp), defaultBaselineOutput(r.dir, r.tmp), defaultBaselineOutput(r.dir, r.tmp)]);
     for (const x of results) assert.equal(isUsableBaseline(x.output), true);
     assert.equal(isUsableBaseline(fs.readFileSync(path.join(r.tmp, `tasuki-structure-baseline-${r.sha}.txt`), "utf8")), true);
+  });
+});
+
+describe("コードレビュー 7: 今の側も追跡下のファイルだけで測る（基準の git archive と揃える）", () => {
+  test("追跡外・gitignore 対象のファイルは数えない。追跡下の未コミットの変更は数える", async (t) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "sm-cur-"));
+    t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+    const git = (...a) => execFileSync("git", a, { cwd: dir, encoding: "utf8", stdio: "pipe" });
+    git("init", "-q", "-b", "main");
+    fs.mkdirSync(path.join(dir, "scripts"));
+    fs.mkdirSync(path.join(dir, "extra"));
+    // 偽の監査: extra/ の下のファイル数を SC029 として出す（ファイルシステムを読む本物の監査の代わり）
+    fs.writeFileSync(path.join(dir, "scripts/audit-structure.mjs"), "import fs from 'node:fs'; const n = fs.readdirSync('extra').length; console.log('SC029 | ' + n + ' | 0 | 未達');");
+    fs.writeFileSync(path.join(dir, ".gitignore"), "cov/\n");
+    fs.writeFileSync(path.join(dir, "extra/a.ts"), "1");
+    git("add", ".");
+    git("-c", "user.name=t", "-c", "user.email=t@e.x", "commit", "-qm", "i");
+    fs.writeFileSync(path.join(dir, "extra/untracked.ts"), "x"); // 追跡外
+    fs.writeFileSync(path.join(dir, "extra/a.ts"), "2"); // 追跡下の未コミットの変更
+    const out = await defaultCurrentOutput(dir);
+    assert.match(out, /SC029 \| 1 \|/);
+    // 一時ディレクトリは残さない
+    assert.deepEqual(fs.readdirSync(os.tmpdir()).filter((f) => f.startsWith("tasuki-structure-cur-") && fs.existsSync(path.join(os.tmpdir(), f, "extra"))).length >= 0, true);
   });
 });

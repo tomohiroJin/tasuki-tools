@@ -92,6 +92,9 @@ describe("readWorkspaceNames: 実際の workspace から名前を読む", () => 
     }
     fs.mkdirSync(path.join(root, "packages/no-pkg"), { recursive: true });
     assert.deepEqual(readWorkspaceNames(path.join(root, "packages/a")).sort(), ["@s/a", "@s/b", "@s/e2e", "root"]);
+    // 行頭に置いた配列（`packages:` と同じ桁の `- "apps/*"`）も節の中
+    fs.writeFileSync(path.join(root, "pnpm-workspace.yaml"), 'packages:\n- "packages/*"\n- "apps/*"\n- "e2e"\n\nallowBuilds:\n  x: true\n');
+    assert.deepEqual(readWorkspaceNames(root).sort(), ["@s/a", "@s/b", "@s/e2e", "root"]);
     // 読めない glob（** や除外）があるときは、名前の一覧を言い切れないので null（pnpm に任せる）
     fs.writeFileSync(path.join(root, "pnpm-workspace.yaml"), 'packages:\n  - "packages/**"\n');
     assert.equal(readWorkspaceNames(root), null);

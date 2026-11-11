@@ -16,6 +16,9 @@ import {
   findSubagentCommands,
   decideHookOutput,
   isTameCommand,
+  mentionsSubagentOperation,
+  mentionsDiscardOperation,
+  mentionsGuardedOperation,
 } from "./agent-guard.mjs";
 
 /** 当たった宣言の id を並べる（順序は出現順）。 */
@@ -471,6 +474,32 @@ describe("サブエージェントの危ない操作（#578・docs/adr/0037）",
       "git reflog expire --all", "git reflog --expire=now", "git reflog show --unknown", "git stash list --output=x", "git stash show --unknown", "git stash show -p --exec x", "git reflog -d HEAD", "git reflog drop", "git reflog list", "git reflog foo", "git reflog HEAD", "git reflog delete x", "git reflog show foo bar --exec x",
     ]) assert.equal(isTameCommand(c), false, c);
     for (const c of ["git reflog", "git reflog show HEAD", "git reflog -n 5", "git reflog --date=iso", "git reflog show --oneline", "git stash list", "git stash list --oneline", "git stash show", "git stash show -p stash@{0}".replace("stash@{0}", "'stash@{0}'"), "git stash show --stat"]) assert.equal(isTameCommand(c), true, c);
+  });
+
+  test("コードレビュー 2: サブエージェントの宣言は、データとして使われる heredoc の本文を取り除いてから当てる", () => {
+    const askSub = (c) => decideHookOutput(JSON.stringify({ tool_name: "Bash", agent_id: "a1", tool_input: { command: c } }))?.hookSpecificOutput?.permissionDecision ?? null;
+    assert.equal(askSub("git commit -m \"$(cat <<'EOF'\nfeat: x\n\ngit push は止める\nEOF\n)\""), null);
+    assert.equal(askSub("gh pr create --title x --body \"$(cat <<'EOF'\nkill と gh pr merge の話\nEOF\n)\""), null);
+    // 本文を隠さない形では今までどおり当たる
+    assert.equal(askSub("bash <<'EOF'\ngit push origin x\nEOF"), "ask");
+    assert.equal(askSub("git commit -m \"$(cat <<'EOF'\nx\nEOF\n)\" && git push"), "ask");
+  });
+
+  test("コードレビュー 10: 危ない操作の名前の一覧は 1 か所の定数から作る。discard の候補を広げた分（rm・mv・checkout-index ほか）も含む", () => {
+    for (const c of ["git push", "git worktree remove x", "gh pr merge 3", "kill 1", "pkill x"]) assert.equal(mentionsSubagentOperation(c), true, c);
+    for (const c of ["git stash", "git restore a", "git rm -f a", "git mv -f a b", "git checkout-index -f -a", "git read-tree --reset -u HEAD", "git submodule update --force", "git worktree remove -f x"]) assert.equal(mentionsDiscardOperation(c), true, c);
+    for (const c of ["git status", "git commit -m x", "git log", "echo hi", "grep -rn pushed docs"]) {
+      assert.equal(mentionsSubagentOperation(c), false, c);
+      assert.equal(mentionsDiscardOperation(c), false, c);
+      assert.equal(mentionsGuardedOperation(c), false, c);
+    }
+    assert.equal(mentionsGuardedOperation("git rm -f a"), true);
+    assert.equal(mentionsGuardedOperation("kill 1"), true);
+  });
+
+  test("コードレビュー 5: tame の git mv は -f/--force を含まない", () => {
+    assert.equal(isTameCommand("git mv a b"), true);
+    for (const c of ["git mv -f a b", "git mv --force a b", "git mv -kf a b"]) assert.equal(isTameCommand(c), false, c);
   });
 
   test("M3: git branch / fetch / tag / remote / reflog は、選択肢と引数が既知の読む形のときだけ tame（拒否リストでなく許可リスト）", () => {

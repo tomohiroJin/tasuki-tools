@@ -36,10 +36,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execFile } from "node:child_process";
-import { isTameCommand, simpleGitCommand, SHELL_TOOLS } from "./agent-guard.mjs";
-
-/** 候補の判定に使う、消しうる下位コマンドの語。 */
-const CANDIDATE_SUBS = /\b(checkout|restore|stash|reset|clean|switch)\b/;
+import { isTameCommand, simpleGitCommand, mentionsDiscardOperation, SHELL_TOOLS } from "./agent-guard.mjs";
 
 /** 通す（確かめなくてよい）ときの結果。 */
 const SAFE = Object.freeze({ verdict: "safe" });
@@ -59,6 +56,8 @@ const hasShort = (w, c) => /^-[A-Za-z]+$/.test(w) && w.includes(c);
  * @returns {{ verdict: "safe" } | { verdict: "unknown-form" } | { verdict: "check", target: object }}
  */
 function classify({ sub, rest }, exists) {
+  // シェルが展開する語（`{a,b}`・`{a..c}`・先頭の `~`）は、展開前の文字のままでは git status に渡せない（コードレビュー 1）
+  if (rest.some((w) => /\{[^}]*(?:,|\.\.)[^}]*\}/.test(w) || /(?:^|[:=])~/.test(w))) return UNKNOWN_FORM;
   const quiet = (w) => w === "-q" || w === "--quiet";
   if (sub === "checkout") {
     const words = rest.filter((w) => !quiet(w));
@@ -112,6 +111,12 @@ function classify({ sub, rest }, exists) {
     if (words[0] === "-c" && words.length >= 2 && words.length <= 3 && words.slice(1).every((w) => !w.startsWith("-"))) return SAFE;
     return UNKNOWN_FORM;
   }
+  // 下の 5 つは -f/--force（や --reset）が無ければ変更があると git 自身が拒む。ある形は対象を絞れないので聞く（コードレビュー 5）
+  if (sub === "rm") return rest.some((w) => w === "--force" || hasShort(w, "f")) ? UNKNOWN_FORM : SAFE;
+  if (sub === "mv" || sub === "checkout-index") return rest.some((w) => w === "--force" || hasShort(w, "f")) ? UNKNOWN_FORM : SAFE;
+  if (sub === "read-tree") return rest.some((w) => w === "--reset" || hasShort(w, "u") || w === "--reset") ? UNKNOWN_FORM : SAFE;
+  if (sub === "submodule") return rest.some((w) => w === "--force" || hasShort(w, "f")) ? UNKNOWN_FORM : SAFE;
+  if (sub === "worktree") return rest.some((w) => w === "--force" || hasShort(w, "f")) ? UNKNOWN_FORM : SAFE;
   // 作業ツリーの変更を上書きしない git 組み込みの下位コマンド（別名は組み込みの名前を覆えない）。それ以外（別名・未知）は読めない
   return NON_DISCARDING_SUBS.has(sub) ? SAFE : UNKNOWN_FORM;
 }
@@ -138,7 +143,7 @@ export async function decideDiscardOutput(raw, { exists, isDirty, cwd: defaultCw
   const command = input.tool_input?.command;
   if (typeof command !== "string") return null;
   // 1. 候補（素朴な文字列の走査。入れ子の中も含む）
-  if (!/\bgit\b/.test(command) || !CANDIDATE_SUBS.test(command)) return null;
+  if (!mentionsDiscardOperation(command)) return null;
   // 2. 読むだけ・記録するだけ（許可リスト）
   if (isTameCommand(command)) return null;
   // 3. 確かめてよい単純な形

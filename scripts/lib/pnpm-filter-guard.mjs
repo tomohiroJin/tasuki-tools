@@ -60,7 +60,7 @@ function workspaceGlobs(text) {
   let inPackages = false;
   for (const line of text.split("\n")) {
     if (/^packages\s*:/.test(line)) inPackages = true;
-    else if (/^\S/.test(line)) inPackages = false;
+    else if (/^\S/.test(line) && !/^-/.test(line)) inPackages = false;
     else if (inPackages) {
       const m = /^\s*-\s*["']?([^"'#]+?)["']?\s*(?:#.*)?$/.exec(line);
       if (m) globs.push(m[1]);

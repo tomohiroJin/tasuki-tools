@@ -16,7 +16,8 @@
  */
 import fs from "node:fs";
 import { isDirectRun } from "./lib/direct-run.mjs";
-import { decideHookOutput } from "./lib/agent-guard.mjs";
+import { decideProductionOutput, decideSubagentOutput } from "./lib/agent-guard.mjs";
+import { combineDecisions } from "./lib/hook-combine.mjs";
 import { decideDiscardOutput, defaultIsDirty } from "./lib/discard-guard.mjs";
 import { decidePnpmFilterOutput } from "./lib/pnpm-filter-guard.mjs";
 import { decideClosingKeywordOutput } from "./lib/closing-keywords.mjs";
@@ -49,7 +50,7 @@ async function run() {
   const cwd = workingDirectory(raw);
   // 本番デプロイの判定を最初に評価する。当たったら先行 PR の確認は流さず、その ask をすぐ返す
   // （確認が遅れたり時間切れになったりしても、本番のガードが fail-open にならない。docs/adr/0032 の追記）
-  const deploy = decideHookOutput(raw);
+  const deploy = decideProductionOutput(raw);
   let out = deploy;
   if (deploy !== null) {
     if (mentionsPrCreate(raw)) {
@@ -57,27 +58,15 @@ async function run() {
       h.permissionDecisionReason = `${h.permissionDecisionReason}\n（このコマンドには gh pr create も含まれますが、先行 PR の確認は省きました。）`;
     }
   } else {
-    // 判定はどれも ask を返す。複数が当たるときは**理由を全部まとめる**（先に返して後を捨てない。#578 のレビュー I1:
-    // 本文に git の語がある gh pr create で、先行 PR と閉鎖キーワードの知らせが消えた）
-    const parts = [];
-    try {
-      // 速い判定（git status 1 回・ファイル読み）
-      parts.push(await decideDiscardOutput(raw, { isDirty: defaultIsDirty, cwd }), decidePnpmFilterOutput(raw));
-    } catch {
-      // 想定外の失敗でも exit 0 で終わる
-    }
-    try {
-      parts.push(decideClosingKeywordOutput(raw, { cwd }));
-    } catch {
-      // 同上
-    }
-    // 先行 PR の確認（ネットワークを使う）は gh pr create のときだけ
-    if (mentionsPrCreate(raw)) parts.push(await priorPr(raw, cwd));
-    const found = parts.filter((x) => x !== null && x !== undefined);
-    if (found.length > 0) {
-      out = found[0];
-      out.hookSpecificOutput.permissionDecisionReason = found.map((x) => x.hookSpecificOutput.permissionDecisionReason).join("\n\n");
-    }
+    // 近道は本番デプロイだけ。ほかの判定は判定ごとに try を分け（投げたら ask）、理由を全部まとめる（docs/adr/0037）
+    out = await combineDecisions([
+      { name: "サブエージェントの操作", run: () => decideSubagentOutput(raw) },
+      { name: "未コミットの変更を消す git", run: () => decideDiscardOutput(raw, { isDirty: defaultIsDirty, cwd }) },
+      { name: "pnpm --filter", run: () => decidePnpmFilterOutput(raw) },
+      { name: "閉鎖キーワード", run: () => decideClosingKeywordOutput(raw, { cwd }) },
+      // 先行 PR の確認（ネットワークを使う）は gh pr create のときだけ
+      { name: "先行 PR の確認", run: () => (mentionsPrCreate(raw) ? priorPr(raw, cwd) : null) },
+    ]);
   }
   if (out !== null) process.stdout.write(`${JSON.stringify(out)}\n`);
 }

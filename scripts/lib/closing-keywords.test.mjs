@@ -27,6 +27,16 @@ describe("findClosingKeywords: 本文での分類", () => {
     }
   });
 
+  test("コードレビュー 9: 番号つきの箇条書き（1. Fixes #5）は行頭の単独。行の途中の -b・--body は印にしない", () => {
+    for (const t of ["1. Fixes #5", "2) Closes #6", "- 1. Closes #7", "10. Resolves #8"]) assert.deepEqual(kinds(t), [], t);
+    assert.deepEqual(kinds("使い方は -b Closes #5 のように"), ["prose:#5"]);
+    assert.deepEqual(kinds("説明 --body Fixes #6 の話"), ["prose:#6"]);
+    assert.deepEqual(kinds("1. 説明 Fixes #5"), ["prose:#5"]);
+    // gh / git のコマンドの行の --body・-m の直後は今までどおり単独
+    assert.deepEqual(kinds('gh pr create --title "feat: x" --body "Closes #578'), []);
+    assert.deepEqual(kinds('git commit -m "Closes #578'), []);
+  });
+
   test("文の途中の閉鎖は地の文（squash で勝手に閉じる）", () => {
     assert.deepEqual(kinds("ADR の PR を Closes #241 とした。"), ["prose:#241"]);
     assert.deepEqual(kinds("Part of #5。後で Fixes #6 にする"), ["prose:#6"]);

@@ -10,13 +10,12 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { splitJobs, splitSteps, topLevelEnvBlock } from "./lib/workflow.mjs";
 import { decideScope } from "./lib/ci-scope.mjs";
 import { isDirectRun } from "./lib/direct-run.mjs";
 import { classifyFailure } from "./lib/check-outcome.mjs";
 import { checkPriorWork, defaultRunners } from "./lib/prior-work.mjs";
-import { structureNotices, defaultBaselineOutput, defaultCurrentOutput } from "./lib/structure-metrics.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -204,15 +203,38 @@ async function priorWorkNotices() {
 }
 
 /**
- * 構造監査の合否の無い指標（SC028〜SC032・SC036・SC039）の後退の知らせ（#578・docs/adr/0037）。
+ * 構造監査の合否の無い指標（`scripts/lib/structure-metrics.mjs` の `METRICS`）の後退の知らせ（#578・docs/adr/0037）。
  * merge-base の値（そのコミットの構造監査を一時ディレクトリで走らせて得る。SHA で控える）と今の値を比べる。
- * 止めない。⚠ の行は最後の一覧でもう一度出す。コードの差分が無いときは指標が動かないので比べない。
+ * **検査の開始と同時に背景で始め、最後に待つ**（検査の後ろに直列で足さない。コードレビュー 8）。止めない。
+ * コードの差分が無いときは指標が動かないので比べない（null を返す）。
  */
-async function structureMetricNotices(hasCode) {
-  if (!hasCode) return [];
+function startStructureMetrics(hasCode) {
+  if (!hasCode) return null;
   const started = Date.now();
-  const lines = await structureNotices({ baseline: () => defaultBaselineOutput(ROOT), current: () => defaultCurrentOutput(ROOT) });
-  console.log(`\n[local-check] 構造監査の合否の無い指標（merge-base と比較・${Math.round((Date.now() - started) / 1000)} 秒）`);
+  // 別プロセスで走らせる（このプロセスは検査を spawnSync で待つので、同じプロセスの非同期処理は進まない）
+  const child = spawn(process.execPath, [path.join(ROOT, "scripts/structure-metrics-notices.mjs")], { cwd: ROOT, stdio: ["ignore", "pipe", "pipe"] });
+  return new Promise((resolve) => {
+    let out = "";
+    child.stdout.on("data", (d) => (out += d));
+    child.stderr.resume();
+    const fail = (why) => resolve({ lines: [`⚠ 構造監査の指標の比較は未実行です（${why}）`], started });
+    child.on("error", (e) => fail(e.message));
+    child.on("close", (code) => {
+      try {
+        resolve({ lines: JSON.parse(out.trim().split("\n").at(-1)), started });
+      } catch {
+        fail(`子プロセスが ${code} で終わり、結果を読めませんでした`);
+      }
+    });
+  });
+}
+
+/** 背景の比較を待って、知らせを出す。⚠ の行は最後の一覧でもう一度出す。 */
+async function finishStructureMetrics(pending) {
+  if (pending === null) return [];
+  const waitStart = Date.now();
+  const { lines, started } = await pending;
+  console.log(`\n[local-check] 構造監査の合否の無い指標（merge-base と比較。全体 ${Math.round((Date.now() - started) / 1000)} 秒・最後の待ち ${Math.round((Date.now() - waitStart) / 100) / 10} 秒）`);
   for (const line of lines) console.log(line);
   return lines.filter((l) => l.startsWith("⚠"));
 }
@@ -236,6 +258,7 @@ async function run() {
     const checks = deriveChecks(fs.readFileSync(path.join(ROOT, ".github/workflows/ci.yml"), "utf8"));
     const hasCode = mode === "full" || hasCodeChanges();
     const plan = planChecks(checks, mode, hasCode);
+    const structurePending = mode === "fast" && !args.includes("--list") ? startStructureMetrics(hasCode) : null;
     const notices = mode === "fast" ? forecastMutations(plan) : [];
     const priorNotices = mode === "fast" && !args.includes("--list") ? await priorWorkNotices() : [];
     if (args.includes("--list")) {
@@ -249,7 +272,7 @@ async function run() {
     });
     console.log("\n[local-check] 実行結果（CI の run から導出）");
     for (const c of results) console.log(`[${{ passed: "成功", failed: "失敗", skipped: "省略", "not-run": "未実行" }[c.status]}] ${c.job}: ${c.command.replaceAll("\n", " / ")}${c.env ? ` ${JSON.stringify(c.env)}` : ""}${c.reason ? ` — ${c.reason}` : ""}`);
-    const structureLines = mode === "fast" && ready ? await structureMetricNotices(hasCode) : [];
+    const structureLines = await finishStructureMetrics(structurePending);
     for (const line of [...priorNotices, ...notices, ...structureLines]) console.log(`[local-check] ${line}`);
     const count = (status) => results.filter((c) => c.status === status).length;
     if (count("not-run") > 0) console.log(`[local-check] 失敗 ${count("failed")} 件・未実行 ${count("not-run")} 件（未実行はテストの失敗ではなく、走らなかったもの）`);

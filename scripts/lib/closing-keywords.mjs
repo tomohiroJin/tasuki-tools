@@ -23,8 +23,11 @@ const KEYWORD = /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\b:?[ \t]+((?:https?
 
 /** 閉鎖キーワードの行頭の単独（箇条書き・引用・`--body` の引用符の直後を含む）か。 */
 function isStandalone(prefix) {
-  const stripped = prefix.replace(/^.*(?:^|\s)(?:--body|-b)[=\s]*/, "");
-  return /^[\s"'\-*>$()]*$/.test(stripped);
+  // gh / git のコマンドの行で、--body・-b・--message・-m の値の引用符が始まった直後（行の途中の -b は印にしない）
+  const inline = /^\s*(?:(?:gh|git)\s(?:[^"'`]|"[^"]*"|'[^']*')*?\s)?(?:--body|-b|--message|-m)[=\s]*["']?$/;
+  // 行頭（引用符・箇条書き・引用・`$(` の後）、番号つきの箇条書き（`1.`・`2)`）
+  const lead = /^[\s"'\-*>$()]*(?:\d+[.)][\s"'\-*>$()]*)?$/;
+  return inline.test(prefix) || lead.test(prefix);
 }
 
 /**

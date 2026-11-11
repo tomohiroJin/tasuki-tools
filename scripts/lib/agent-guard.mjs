@@ -616,6 +616,7 @@ function isTameWords(words) {
     // 全部の下位コマンドに共通: ファイルへ書く選択肢（--output と、その省略形）は読むだけでない
     if (words.some((w) => isLongOption(w, "--output"))) return false;
     // 読むだけの下位コマンドも、選択肢と引数が既知の読む形のときだけ（拒否リストでなく許可リスト。省略形 `--del`・`+refspec` を通さない）
+    if (sub === "mv") return !words.slice(2).some((w) => w === "--force" || (/^-[A-Za-z]+$/.test(w) && w.includes("f")));
     if (sub === "branch") return isReadOnlyGitBranch(words.slice(2));
     if (sub === "fetch") return isSafeGitFetch(words.slice(2));
     if (sub === "tag") return isReadOnlyGitTag(words.slice(2));
@@ -637,13 +638,50 @@ function isTameWords(words) {
   return false;
 }
 
-/** 危ない操作の名前がそろっているか（コマンドの名前と操作の名前。サブエージェントの候補と、未コミットの変更を消す git の候補の和）。 */
+/**
+ * 危ない操作の名前の一覧（唯一の置き場。サブエージェントの候補・未コミットの変更を消す git の候補・ヒアドキュメント本文の確かめが、
+ * ここから正規表現を作る。コードレビュー 10: 3 か所に写していた）。
+ * git の語は `git` が文字列にあるときだけ、gh の語は `gh` があるときだけ、kill 系は単独の語として当てる。
+ */
+export const OPERATION_WORDS = Object.freeze({
+  /** サブエージェントがまとめ役か人に任せる git の操作。 */
+  gitSubagent: ["push", "checkout", "switch", "reset", "worktree"],
+  /**
+   * 未コミットの変更を消しうる git の操作。`git help -a` の下位コマンドを洗った（2026-11-11・git 2.43）:
+   * 作業ツリーのファイルを上書き・削除するもの（checkout・restore・switch・reset・clean・stash・rm -f・mv -f・checkout-index -f・
+   * read-tree --reset -u・submodule update --force・worktree remove -f）。merge・pull・rebase・cherry-pick・revert・apply・am は
+   * 変更があると git 自身が拒む（`--abort`・`--quit` は消すが日常の作業を止めるので含めない）。
+   */
+  gitDiscard: ["checkout", "restore", "stash", "reset", "clean", "switch", "rm", "mv", "checkout-index", "read-tree", "submodule", "worktree"],
+  gh: ["merge", "close"],
+  kill: ["kill", "pkill", "killall"],
+});
+
+const wordsRe = (words) => new RegExp(`(?<![\\w-])(?:${words.join("|")})(?![\\w-])`);
+const RE = {
+  gitSubagent: wordsRe(OPERATION_WORDS.gitSubagent),
+  gitDiscard: wordsRe(OPERATION_WORDS.gitDiscard),
+  gitAny: wordsRe([...new Set([...OPERATION_WORDS.gitSubagent, ...OPERATION_WORDS.gitDiscard])]),
+  gh: wordsRe(OPERATION_WORDS.gh),
+  kill: wordsRe(OPERATION_WORDS.kill),
+};
+const hasGit = (t) => /\bgit\b/.test(t);
+const hasGh = (t) => /\bgh\b/.test(t);
+
+/** サブエージェントが任せる操作の名前が出るか（入れ子も含め、素朴な文字列の走査）。 */
+export function mentionsSubagentOperation(text) {
+  return (hasGit(text) && RE.gitSubagent.test(text)) || (hasGh(text) && RE.gh.test(text)) || RE.kill.test(text);
+}
+/** 未コミットの変更を消しうる git の操作の名前が出るか。 */
+export function mentionsDiscardOperation(text) {
+  return hasGit(text) && RE.gitDiscard.test(text);
+}
+/** どちらかの危ない操作の名前が出るか（ヒアドキュメント本文の確かめ）。 */
+export function mentionsGuardedOperation(text) {
+  return (hasGit(text) && RE.gitAny.test(text)) || (hasGh(text) && RE.gh.test(text)) || RE.kill.test(text);
+}
 function looksLikeGuardedOperation(text) {
-  return (
-    (/\bgit\b/.test(text) && /\b(push|checkout|switch|reset|worktree|stash|restore|clean)\b/.test(text)) ||
-    (/\bgh\b/.test(text) && /\b(merge|close)\b/.test(text)) ||
-    /(?<![\w-])(kill|pkill|killall)(?![\w-])/.test(text)
-  );
+  return mentionsGuardedOperation(text);
 }
 
 /**
@@ -724,11 +762,7 @@ export function simpleGitCommand(command) {
  * 名前が出て、宣言に当たらず、許可リストの「読むだけ」でも単純な安全な形でもなければ、読めないとして聞く。
  */
 function hasSubagentCandidate(command) {
-  return (
-    (/\bgit\b/.test(command) && /\b(push|checkout|switch|reset|worktree)\b/.test(command)) ||
-    (/\bgh\b/.test(command) && /\b(merge|close)\b/.test(command)) ||
-    /(?<![\w-])(kill|pkill|killall)(?![\w-])/.test(command)
-  );
+  return mentionsSubagentOperation(command);
 }
 
 /** サブエージェントでも通してよい単純な git の形（ファイルの取り出し・安全な reset・worktree の追加と一覧）。 */
@@ -751,7 +785,8 @@ function isSafeSimpleGit(command) {
  * @param {string} command
  */
 export function findSubagentCommands(command) {
-  return analyzeString(command, 0, SUBAGENT_GUARDED_COMMANDS);
+  // データとして使われる heredoc の本文（git commit -m "$(cat <<'EOF' …)"）は文章なので、宣言を当てる前に取り除く（コードレビュー 2）
+  return analyzeString(stripHeredocBodies(command) ?? command, 0, SUBAGENT_GUARDED_COMMANDS);
 }
 
 const RULE_REF = "AGENTS.md「AI 運用規則」の「人の明示の指示か承認を待つ操作」に当たります（docs/adr/0032）。";
@@ -767,49 +802,72 @@ function ask(reason) {
 }
 
 /**
- * Claude Code の PreToolUse フックの入力（標準入力の JSON）から、返す JSON を決める。
- *
- * - シェルを走らせる道具（{@link SHELL_TOOLS}）で宣言に当たれば `ask`（人に聞く）。理由に当たったものと規則の置き場を書く
- * - 当たらなければ `null`（何も返さない。ほかの許可の仕組みに任せる）
- * - それ以外の道具は `null`
- * - 入力が読めない・`command` が文字列でないときは `ask` に倒す（黙って通さない）
- *
- * @param {string} raw 標準入力の中身
- * @returns {object | null}
+ * 入力（標準入力の JSON）を読み、シェルのコマンドの文字列を取り出す。
+ * @returns {{ ask: object } | { skip: true } | { input: object, command: string }}
  */
-export function decideHookOutput(raw) {
+function readShellCommand(raw) {
   let input;
   try {
     input = JSON.parse(raw);
   } catch {
-    return ask(`フックの入力を読めませんでした。念のため人に確かめます。${RULE_REF}`);
+    return { ask: ask(`フックの入力を読めませんでした。念のため人に確かめます。${RULE_REF}`) };
   }
   if (input === null || typeof input !== "object") {
-    return ask(`フックの入力の形が想定と違います。念のため人に確かめます。${RULE_REF}`);
+    return { ask: ask(`フックの入力の形が想定と違います。念のため人に確かめます。${RULE_REF}`) };
   }
-  if (!SHELL_TOOLS.includes(input.tool_name)) return null;
+  if (!SHELL_TOOLS.includes(input.tool_name)) return { skip: true };
   const command = input.tool_input?.command;
   // Monitor の WebSocket の形はシェルを走らせない（PR #498 の再レビュー 3）
-  if (input.tool_name === "Monitor" && command === undefined && input.tool_input?.ws !== undefined) return null;
+  if (input.tool_name === "Monitor" && command === undefined && input.tool_input?.ws !== undefined) return { skip: true };
   if (typeof command !== "string") {
-    return ask(`${input.tool_name} のコマンドを読めませんでした。念のため人に確かめます。${RULE_REF}`);
+    return { ask: ask(`${input.tool_name} のコマンドを読めませんでした。念のため人に確かめます。${RULE_REF}`) };
   }
-  const hits = findGuardedCommands(command);
-  if (hits.length > 0) {
-    const list = hits.map((h) => `${h.id}（${h.why}）`).join("・");
-    return ask(`本番デプロイに当たるコマンドです: ${list}。人の明示の指示があるときだけ承認してください。${RULE_REF}`);
+  return { input, command };
+}
+
+/**
+ * 本番デプロイの判定（{@link GUARDED_COMMANDS}）。入力が読めない・command が文字列でないときも `ask`（黙って通さない）。
+ * 入口はこれに当たったときだけ、ほかの判定を流さずにすぐ返す（docs/adr/0032 の追記）。
+ * @param {string} raw 標準入力の中身
+ * @returns {object | null}
+ */
+export function decideProductionOutput(raw) {
+  const r = readShellCommand(raw);
+  if (r.ask) return r.ask;
+  if (r.skip) return null;
+  const hits = findGuardedCommands(r.command);
+  if (hits.length === 0) return null;
+  const list = hits.map((h) => `${h.id}（${h.why}）`).join("・");
+  return ask(`本番デプロイに当たるコマンドです: ${list}。人の明示の指示があるときだけ承認してください。${RULE_REF}`);
+}
+
+/**
+ * サブエージェントの呼び出しだけ（入力に `agent_id` がある。まとめ役の呼び出しには無い）の判定（docs/adr/0037）。
+ * @param {string} raw
+ * @returns {object | null}
+ */
+export function decideSubagentOutput(raw) {
+  const r = readShellCommand(raw);
+  if (r.ask || r.skip) return null; // 読めない入力は本番デプロイの判定が ask に倒している
+  const { input, command } = r;
+  if (typeof input.agent_id !== "string" || input.agent_id === "") return null;
+  const sub = findSubagentCommands(command);
+  if (sub.length > 0) {
+    const list = sub.map((h) => `${h.id}（${h.why}）`).join("・");
+    return ask(`サブエージェントからの呼び出しです: ${list}。まとめ役か人が行う操作です。人が任せたときだけ承認してください（docs/adr/0037）。`);
   }
-  // サブエージェントの呼び出しだけ（入力に agent_id がある。まとめ役の呼び出しには無い）。本番デプロイの判定の後に見る
-  if (typeof input.agent_id === "string" && input.agent_id !== "") {
-    const sub = findSubagentCommands(command);
-    if (sub.length > 0) {
-      const list = sub.map((h) => `${h.id}（${h.why}）`).join("・");
-      return ask(`サブエージェントからの呼び出しです: ${list}。まとめ役か人が行う操作です。人が任せたときだけ承認してください（docs/adr/0037）。`);
-    }
-    // 迷う形は聞く: 危ない操作の名前が文字列にあるのに、宣言に当たらず、読むだけでも単純な安全な形でもない（変数・別名・入れ子ほか）
-    if (hasSubagentCandidate(command) && !isTameCommand(command) && !isSafeSimpleGit(command)) {
-      return ask(`サブエージェントからの呼び出しで、push・マージ・枝の切り替え・reset・worktree・kill に当たるかを読み切れない形です。まとめ役か人が行う操作かもしれないので、人の確認が要ります（docs/adr/0037）。`);
-    }
+  // 迷う形は聞く: 危ない操作の名前が文字列にあるのに、宣言に当たらず、読むだけでも単純な安全な形でもない（変数・別名・入れ子ほか）
+  if (hasSubagentCandidate(command) && !isTameCommand(command) && !isSafeSimpleGit(command)) {
+    return ask(`サブエージェントからの呼び出しで、push・マージ・枝の切り替え・reset・worktree・kill に当たるかを読み切れない形です。まとめ役か人が行う操作かもしれないので、人の確認が要ります（docs/adr/0037）。`);
   }
   return null;
+}
+
+/**
+ * 本番デプロイとサブエージェントの判定をまとめた形（本番デプロイが先）。入口は両方を別々に呼ぶ（束ね方は `scripts/lib/hook-combine.mjs`）。
+ * @param {string} raw 標準入力の中身
+ * @returns {object | null}
+ */
+export function decideHookOutput(raw) {
+  return decideProductionOutput(raw) ?? decideSubagentOutput(raw);
 }

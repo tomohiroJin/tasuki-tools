@@ -137,9 +137,24 @@ function run(command, args, options) {
   });
 }
 
-/** 今の作業ツリーの構造監査の出力。 */
-export function defaultCurrentOutput(root) {
-  return run(process.execPath, ["scripts/audit-structure.mjs"], { cwd: root });
+/**
+ * 今の作業ツリーの構造監査の出力。基準（`git archive` = 追跡下のファイルだけ）と揃えるため、**追跡下のファイルだけ**
+ * （未コミットの変更を含む。`git ls-files` が挙げる現在の中身）を一時ディレクトリへ写して測る。追跡外のファイル（試しの .ts・coverage ほか）で
+ * 偽の後退を出さない（コードレビュー 7）。新しいファイルは `git add` した後から数える。
+ * 写しは**呼んだ時点で同期的に**取る（背景で測っている間に、後続の検査が作業ツリーを書き換えても影響しない。コードレビュー 8）。
+ * @returns {Promise<string>}
+ */
+export function defaultCurrentOutput(root, tmp = os.tmpdir()) {
+  const dir = fs.mkdtempSync(path.join(tmp, "tasuki-structure-cur-"));
+  try {
+    const files = execFileSync("git", ["ls-files", "-z", "--cached"], { cwd: root, maxBuffer: 256 * 1024 * 1024 });
+    // 削除済みで追跡下のファイルは写せないので読み飛ばす（tar の警告のみ）
+    execFileSync("bash", ["-c", 'tar --null -T - --ignore-failed-read -cf - 2>/dev/null | tar -x -C "$1"', "copy", dir], { cwd: root, input: files, maxBuffer: 1024 * 1024 * 1024 });
+  } catch (error) {
+    fs.rmSync(dir, { recursive: true, force: true });
+    return Promise.reject(error);
+  }
+  return run(process.execPath, ["scripts/audit-structure.mjs"], { cwd: dir }).finally(() => fs.rmSync(dir, { recursive: true, force: true }));
 }
 
 /** merge-base の構造監査の出力（SHA で控える）。 */
