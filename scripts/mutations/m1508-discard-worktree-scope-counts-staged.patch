@@ -1,13 +1,13 @@
 diff --git a/scripts/lib/discard-guard.mjs b/scripts/lib/discard-guard.mjs
-index 8d86d4c8..2b2873a5 100644
+index d0b4e14c..95aed1df 100644
 --- a/scripts/lib/discard-guard.mjs
 +++ b/scripts/lib/discard-guard.mjs
-@@ -182,7 +182,7 @@ export function defaultIsDirty(cwd, target, env = {}) {
+@@ -199,7 +199,7 @@ export function defaultIsDirty(cwd, target, env = {}) {
        if (!error) {
          const lines = stdout.split("\n").filter((l) => l !== "");
          // worktree 範囲: 作業ツリー側の変更（` M`・`??` ほか）。index だけの変更（`M `）は数えない
--        return resolve((target.scope === "worktree" ? lines.filter((l) => l[1] !== " " || l.startsWith("??")) : lines).length > 0 ? "yes" : "no");
-+        return resolve(lines.length > 0 ? "yes" : "no");
-       }
-       // 作業ツリーでない場所だけが、消すものが無い。ほかの 128（所有者の不一致・壊れた設定）・git が無い・場所が無い・時間切れは、確かめられなかった
-       if (!error.killed && error.code === 128 && /not a git repository/i.test(String(stderr))) return resolve("no");
+-        const relevant = target.scope === "worktree" ? lines.filter((l) => l[1] !== " " || l.startsWith("??")) : lines;
++        const relevant = lines;
+         if (relevant.length === 0) return resolve("no");
+         // 追跡下の変更があれば "yes"、追跡外のファイルだけなら "untracked"（上書きされるのは追跡外のファイル。理由の文を分ける）
+         return resolve(relevant.every((l) => l.startsWith("??")) && !target.untracked ? "untracked" : "yes");
