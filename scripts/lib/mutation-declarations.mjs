@@ -8812,7 +8812,7 @@ export const MUTATIONS = [
     patch: "m1541-subagent-branch-modify-not-guarded.patch",
     pkg: "scripts",
     tests: ["lib/agent-guard.test.mjs"],
-    note: RESERVED_1500_1559 + " " + '#578 PR #583 のレビュー。宣言が外れると、git branch の変更も「読む・作る形」として受け皿の前で通り、サブエージェントが枝を消す・改名する・付け替える。',
+    note: RESERVED_1500_1559 + " " + "#578 PR #583 のレビュー。宣言が外れても迷う形の受け皿で聞かれるが、理由の文が「読み切れない形」に変わり、どの操作に当たったか（git-branch-modify）が分からなくなる（テストは理由の id を見る）。",
   },
   {
     id: 1542,

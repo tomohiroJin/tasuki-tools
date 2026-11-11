@@ -427,7 +427,7 @@ describe("サブエージェントの危ない操作（#578・docs/adr/0037）",
     ]) assert.equal(isTameCommand(c), true, c);
     for (const c of [
       "bash <<EOF\ngit push origin x\nEOF", "sh <<'EOF'\ngit stash\nEOF", "cat <<'EOF' | sh\ngit push\nEOF",
-      "cat <<'EOF' > memo.md\ngit push して git reset --hard\nEOF", "git commit -m \"$(cat <<-'EOF'\n\tgit stash の説明\n\tEOF\n)\"",
+      "git commit -m \"$(cat <<-'EOF'\n\tgit stash の説明\n\tEOF\n)\"",
       "gh issue comment 3 --body \"$(cat <<\"EOF\"\ngit worktree remove と kill の話\nEOF\n)\"",
       "git commit -m \"$(cat <<EOF\nfix: $(git push) だ git push\nEOF\n)\"", "git commit -m \"$(cat <<EOF\n`git stash` git push\nEOF\n)\"",
       "echo \"<<EOF\"\ngit stash\nEOF", "# <<EOF\ngit checkout -- .\nEOF", "ssh host <<'EOF'\ngit push\nEOF", "cat <<'EOF'\nx\nEOF\ngit push",
@@ -590,7 +590,7 @@ describe("サブエージェントの危ない操作（#578・docs/adr/0037）",
   });
 
   test("再レビュー M-1: cat > <パス> <<'TAG' の本文は、引用符つきの終端なら文章。終端の後ろの行は別のコマンドとして判定する", () => {
-    for (const c of ["cat > /tmp/notes.md <<'EOF'\nuse git branch -a here\nEOF", "cat >> notes.md <<'EOF'\nran gh pr view; the review found nothing\nEOF", "cat > notes.md <<'EOF'\ngit push と kill の話\nEOF\nls"]) {
+    for (const c of ["cat > /tmp/notes.md <<'EOF'\nuse git branch -a here\nEOF", "cat >> notes.md <<'EOF'\nran gh pr view; the review found nothing\nEOF", "cat > notes.md << 'EOF'\ngit push と kill の話\nEOF", "cat <<'EOF' > notes.md\ngit branch -D の話\nEOF", "mkdir -p /tmp/x && cat > /tmp/x/r.md <<'EOF'\ngit push しない\nEOF", "cat >> a.md <<'EOF'\ngit push\nEOF\n"]) {
       assert.equal(subOut(c), null, c);
     }
     for (const c of [
@@ -607,6 +607,32 @@ describe("サブエージェントの危ない操作（#578・docs/adr/0037）",
     assert.match(why("gh pr review 3 --approve"), /gh-pr-review-decide/);
     assert.match(why("tmux kill-session -t x"), /tmux-kill/);
     assert.doesNotMatch(why("git branch -D x"), /読み切れない/);
+  });
+
+  test("再々レビュー M-1: cat の heredoc の本文を隠すのは、終端の後ろに何も続かないときだけ。書いたスクリプトを同じコマンドで走らせる形は隠さない", () => {
+    for (const c of [
+      "cat > /tmp/x.sh <<'EOF'\ngit push origin x\nEOF\nbash /tmp/x.sh", "cat > /tmp/x.sh <<'EOF'\ngit branch -D a\nEOF\nsh /tmp/x.sh", "mkdir -p /tmp/x && cat > /tmp/x/r.sh <<'EOF'\nkill 1\nEOF\nbash /tmp/x/r.sh",
+      "cat > notes.md <<'EOF'\ngit push と kill の話\nEOF\nls", "cat <<'EOF' > x.sh\ngit push\nEOF\nbash x.sh",
+    ]) assert.equal(subOut(c)?.hookSpecificOutput.permissionDecision, "ask", c);
+  });
+
+  test("再々レビュー M-5: 日常の書き方（<< の後ろの空白・リダイレクトが後ろ・mkdir -p … &&）の cat の heredoc も、後ろに何も続かなければ通る。git branch の値を取る選択肢（--format <値>・--column・--abbrev）も", () => {
+    for (const c of [
+      "cat > f << 'EOF'\nuse git branch -a here\nEOF", "cat <<'EOF' > f\nuse git branch -a here\nEOF", "cat << 'EOF' >> f\ngit push の話\nEOF", "mkdir -p /tmp/a/b && cat > /tmp/a/b/f <<'EOF'\ngit reset の話\nEOF",
+      "git branch --format '%(refname)'", "git branch -l 'docs/*' --format '%(refname)'", "git branch --column", "git branch -v --abbrev=7", "git branch --format=%(refname)", "git branch --no-column",
+    ]) assert.equal(subOut(c), null, c);
+    // 形を広げすぎない: 引用符つきでない終端・コマンド置換のパス・パイプ・別のコマンドとの連結
+    for (const c of [
+      "cat > f << EOF\ngit push $(git push)\nEOF", "cat <<'EOF' | sh\ngit push\nEOF", "mkdir -p /tmp/x; cat > f <<'EOF'\ngit push\nEOF", "cat <<'EOF' > $F\ngit push\nEOF", "git branch --format '%(refname)' -D x",
+    ]) assert.equal(subOut(c)?.hookSpecificOutput.permissionDecision, "ask", c);
+  });
+
+  test("再々レビュー M-2: tmux の send-keys ^C（C-c の別の綴り）・respawn-pane -k・respawn-window -k も聞く。-k の無い respawn は通す", () => {
+    for (const c of ["tmux send-keys -t dev ^C", "tmux send-keys -t dev '^c'", "tmux send -t dev C-C", "tmux respawn-pane -k -t dev", "tmux respawn-window -k -t dev", "tmux respawn-pane -t dev -k 'pnpm dev'", "tmux respawnp -k -t dev", "tmux respawn-pane -kc /tmp -t dev"]) {
+      assert.ok(findSubagentCommands(c).length > 0, c);
+      assert.match(subOut(c).hookSpecificOutput.permissionDecisionReason, /tmux-kill/, c);
+    }
+    for (const c of ["tmux respawn-pane -t dev", "tmux send-keys -t dev '^x' Enter"]) assert.equal(subOut(c), null, c);
   });
 
   test("再レビュー M-3: tmux の kill-*・別名（killw・killp）・前方一致の省略・send-keys の C-c も聞く。ls・capture-pane は通す", () => {

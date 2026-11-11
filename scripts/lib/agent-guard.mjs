@@ -144,13 +144,15 @@ export const SUBAGENT_GUARDED_COMMANDS = [
   {
     id: "tmux-kill", program: "tmux", args: [], argOpts: ["-L", "-S", "-f", "-c", "-T"],
     // サブコマンドが kill で始まる（kill-server・kill-session・kill-window・kill-pane・別名 killw・killp・前方一致の省略 kill-ses）、
-    // または send-keys（別名 send・省略 send-k）に C-c を含む（tmux 3.4 の list-commands で確かめた）
+    // または send-keys（別名 send・省略 send-k）に C-c・^C（別の綴り）を含む、respawn-pane/-window の -k（tmux 3.4 の list-commands で確かめた）
     when: (words, start) => {
       const sub = words[start];
       if (sub === undefined) return false;
       if (sub.startsWith("kill")) return true;
       const sendKeys = sub === "send" || (sub.length >= 6 && "send-keys".startsWith(sub));
-      return sendKeys && words.slice(start + 1).some((w) => w === "C-c" || w === "C-\\");
+      if (sendKeys && words.slice(start + 1).some((w) => /^(C-c|\^c|C-\\|\^\\)$/i.test(w))) return true;
+      // respawn-pane -k・respawn-window -k（別名 respawnp・respawnw）は、走っているプロセスを殺して起動し直す
+      return sub.startsWith("respawn") && words.slice(start + 1).some((w) => /^-[A-Za-z]*k/.test(w));
     },
     why: "tmux の停止・窓やペインの kill・Ctrl-C の送信は、利用者のセッション（ログ・dev サーバー）を落としうる",
   },
@@ -804,7 +806,12 @@ const DATA_HEREDOC_LINE = new RegExp(
 );
 
 /** @param {string[]} after 終端の行より後ろの行 */
-const CAT_HEREDOC_LINE = /^\s*cat\s+>>?\s+[^\s"'$`;&|()<>\\]+\s+<<'([A-Za-z_]+)'$/;
+const CAT_PATH = "[^\\s\"'$`;&|()<>\\\\]+";
+const CAT_PREFIX = "(?:mkdir -p [^;&|$`\"'()<>#\\\\\\n]+ && )?"; // 前に置いてよいのは `mkdir -p <パス> &&` だけ
+const CAT_HEREDOC_LINES = [
+  new RegExp(`^\\s*${CAT_PREFIX}cat\\s+>>?\\s+${CAT_PATH}\\s+<<\\s*'([A-Za-z_]+)'$`), // cat > f <<'TAG'（<< の後ろの空白も）
+  new RegExp(`^\\s*${CAT_PREFIX}cat\\s+<<\\s*'([A-Za-z_]+)'\\s+>>?\\s+${CAT_PATH}$`), // cat <<'TAG' > f
+];
 
 function heredocIsData(line, tag, after, continued = false) {
   // 前の行が `\` で終わるとき、この行は前の行から続く 1 つのコマンドの一部なので、決まった形として隠さない
@@ -813,8 +820,9 @@ function heredocIsData(line, tag, after, continued = false) {
   // 終端の次の行は `)"` と空白だけ。その後ろに別のコマンドがあれば隠さない
   if (m !== null && m[1] === tag && after.length > 0 && /^\)"\s*$/.test(after[0]) && after.slice(1).every((l) => l.trim() === "")) return true;
   // `cat > <パス>`・`cat >> <パス>` に引用符つきの終端だけの行。終端の後ろの行は、別のコマンドとしていつもどおり判定される
-  const c = CAT_HEREDOC_LINE.exec(line);
-  return c !== null && c[1] === tag;
+  // 隠すのは、終端の行の後ろに何も続かないときだけ（書いたスクリプトを同じコマンドで走らせる形は、本文も隠さず判定する）
+  if (!after.every((l) => l.trim() === "")) return false;
+  return CAT_HEREDOC_LINES.some((re) => re.exec(line)?.[1] === tag);
 }
 
 /**
@@ -888,8 +896,8 @@ function isListOrCreateGitBranch(args) {
   for (let i = 0; i < args.length; i += 1) {
     const w = args[i];
     if (w === "--list" || w === "-l") list = true;
-    else if (["-a", "-r", "-v", "-vv", "--all", "--remotes", "--verbose", "--show-current", "--no-color", "--color"].includes(w) || /^--(sort|contains|merged|no-merged|points-at|format|color)=\S*$/.test(w)) flags += 1;
-    else if (w === "--sort") {
+    else if (["-a", "-r", "-v", "-vv", "--all", "--remotes", "--verbose", "--show-current", "--no-color", "--color", "--column", "--no-column", "--abbrev", "--no-abbrev"].includes(w) || /^--(sort|contains|merged|no-merged|points-at|format|color|column|abbrev)=\S*$/.test(w)) flags += 1;
+    else if (w === "--sort" || w === "--format") {
       flags += 1;
       i += 1; // 値は次の語（`-committerdate` のように - で始まりうる）
     } else if (["--contains", "--merged", "--no-merged"].includes(w)) {
