@@ -1,9 +1,9 @@
 diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
-index 0697fa37..27123666 100644
+index 84c7193f..b51c10a1 100644
 --- a/scripts/lib/agent-guard.mjs
 +++ b/scripts/lib/agent-guard.mjs
-@@ -818,7 +818,7 @@ function heredocIsData(line, tag, after, continued = false) {
-   if (continued) return false;
+@@ -820,7 +820,7 @@ function heredocIsData(line, tag, after) {
+   // 演算子の行の継続は、呼び出し元の stripHeredocBodies が先に null（取り除かない）にしている
    const m = DATA_HEREDOC_LINE.exec(line);
    // 終端の次の行は `)"` と空白だけ。その後ろに別のコマンドがあれば隠さない
 -  if (m !== null && m[1] === tag && after.length > 0 && /^\)"\s*$/.test(after[0]) && after.slice(1).every((l) => l.trim() === "")) return true;
