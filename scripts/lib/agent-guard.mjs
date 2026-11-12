@@ -940,7 +940,7 @@ export function hasUnreadableQuote(command) {
  * @returns {boolean | null}
  */
 export function unquotedDollarQuote(text) {
-  if (/(^|[^<])<<(?!<)/.test(text) || text.includes("${")) return null;
+  if (/(^|[^<])<<(?!<)/.test(text) || text.includes("${") || text.includes("\r")) return null;
   const stack = [{ kind: "top" }];
   const top = () => stack[stack.length - 1];
   /** j から、行の継続（`\` と改行）を読み飛ばした次の字の位置。bash は継続をつないでから読むので、`$` の次の字はこれで見る。 */
@@ -999,12 +999,20 @@ export function unquotedDollarQuote(text) {
     if (c === "'") stack.push({ kind: "sq" });
     else if (c === '"') stack.push({ kind: "dq" });
     else if (c === "`") {
-      if (ctx.kind === "bt") stack.pop();
-      else stack.push({ kind: "bt" });
+      if (ctx.kind === "bt") {
+        stack.pop();
+        prev = "x"; // バッククォートの閉じも語の途中
+        continue;
+      }
+      stack.push({ kind: "bt" });
     } else if (c === "(" && ctx.kind === "sub") ctx.depth += 1;
     else if (c === ")" && ctx.kind === "sub") {
       if (ctx.depth > 0) ctx.depth -= 1;
-      else stack.pop();
+      else {
+        stack.pop();
+        prev = "x"; // 置換の閉じは語の途中（echo $(true)#… の # はコメントにならない）
+        continue;
+      }
     }
     prev = c;
   }

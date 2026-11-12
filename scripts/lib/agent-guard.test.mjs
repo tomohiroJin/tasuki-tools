@@ -707,6 +707,13 @@ describe("サブエージェントの危ない操作（#578・docs/adr/0037）",
       assert.equal(hasUnreadableQuote(c), true, c);
       assert.equal(subOut(c)?.hookSpecificOutput.permissionDecision, "ask", c);
     }
+    // 置換・バッククォートの閉じの直後の # は語の途中（コメントと読むと次の $'…' を見落とす）
+    for (const c of ["echo $(true)#$'\\'' ; git push ; echo $'\\''", "echo `true`#$'\\'' ; git push ; echo $'\\''"]) {
+      assert.equal(hasUnreadableQuote(c), true, c);
+      assert.equal(subOut(c)?.hookSpecificOutput.permissionDecision, "ask", c);
+    }
+    // CR を含む文字列は、継続とコメントの境が食い違いうるので、たどらずに読めない側へ倒す
+    for (const c of ["echo a\\\r#\n$'x' ; git push", "ls \\\r\n# x\necho $'x' ; git push"]) assert.equal(hasUnreadableQuote(c), true, c);
     const commentSkew = "# don't\necho $'x' ; git push # '";
     assert.equal(hasUnreadableQuote(commentSkew), true);
     assert.equal(subOut(commentSkew)?.hookSpecificOutput.permissionDecision, "ask");
