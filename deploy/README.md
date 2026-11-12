@@ -20,12 +20,16 @@ Tasuki の各アプリは「自分の systemd ユニット + 固有ポート + C
 | `checkin` | （無し・静的） | — | `/var/www/tasuki-checkin` | `/checkin/` | 公開中 |
 
 > **#479（画面の崩れ）・#480・#465・#468・#469・#574 ほか、v4.5.0 以降の 66 PR は 2026-11-12 にまとめて配った**（`v4.6.0`）。
-> 新しいアプリは無く、`deploy/` の差分も文書だけなので root 作業は無し。標準の順は同期サーバーが先・画面が後
-> （[`../docs/guides/architecture.md`](../docs/guides/architecture.md)・`docs/adr/0026`）だが、この回は wire が変わっておらず
-> 互換の窓が無いので、例外として poker → topic → roulette → agenda → checkin → landing → timer の順に続けて流し、
-> 同期サーバーの再起動（ルームが消える）を最後の 1 回にした。7 本のハッシュ一致・NRestarts=0・e2e:prod 62 passed。
-> 配布のコマンドは人が端末で流した（Claude Code の手元の設定（追跡外の `settings.local.json`）が `ssh` と配布のスクリプトを
-> deny していたため。`docs/adr/0032` のフックは人に聞く作りで、deny ではない）。
+> 新しいアプリは無く、`deploy/` の差分も文書だけなので root 作業は無し。poker → topic → roulette → agenda → checkin → landing → timer
+> の順に続けて流し、同期サーバーの再起動（ルームが消える）を最後の 1 回にした。7 本のハッシュ一致・NRestarts=0・e2e:prod 62 passed。
+> ⚠ **この順は標準（同期サーバーが先・画面が後。[`../docs/guides/architecture.md`](../docs/guides/architecture.md)・`docs/adr/0026`・
+> PR #466 の「配布の注意」）から外れていた。** `apps/tasuki-sync/src` に差分が無いことを「wire が変わっていない」と取り違えたためで、
+> 実際には checkin のやり方の ID（`packages/checkin-core` の `METHOD_IDS`。コマンドとフレームの picklist）が 4 つ増えており、
+> 新しい checkin 画面 × 旧い同期サーバーの窓では新しいやり方を選ぶと `INVALID_COMMAND` になる。接続 0 本の時間帯に数十秒で
+> 続けて流したので害は無かった。次からは timer を先にし、wire の変化は `packages/*-core/src` のスキーマと各 PR 本文の
+> 「配布の注意」で見る（敵対的レビューで見つかった）。配布のコマンドは人が端末で流した（Claude Code の手元の設定（追跡外の
+> `settings.local.json`）が `ssh` と配布のスクリプトを deny していたため。`docs/adr/0032` の Claude Code のフックは人に聞く作りで、
+> deny ではない。Codex の入口は deny）。
 
 > **#406（Check-in Cards）・#447・#455・#403・#458 は 2026-10-30 にまとめて配った**（`v4.5.0`）。初回の用意（web root と
 > `/checkin/` の断片）を root で済ませてから、timer → checkin → roulette → agenda → poker → topic → landing の順に流した。
