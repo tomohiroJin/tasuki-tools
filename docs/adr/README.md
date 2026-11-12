@@ -65,4 +65,4 @@ Michael Nygard 形式（背景 / 決定 / 影響 / ステータス）に従い�
 | [0034](./0034-scheduled-mutation-survey.md) | 自動の変異は CI の合否にせず、定期の調査として流し、生き残りをテストと手書きの変異に起こす | Rejected |
 | [0035](./0035-spacing-owner-and-stack-components.md) | 縦に並ぶブロックの間は親が持ち、並びの部品を部品層に足す | Accepted |
 | [0036](./0036-dock-grid-layout.md) | 下端に留める帯は 40rem 未満で 2 列の格子に並べる | Accepted |
-| [0037](./0037-agent-guard-beyond-production.md) | AI の事故を止める歯止めを、本番デプロイの外へ広げる | Proposed |
+| [0037](./0037-agent-guard-beyond-production.md) | AI の事故を止める歯止めを、本番デプロイの外へ広げる | Accepted |
