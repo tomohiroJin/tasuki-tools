@@ -19,6 +19,11 @@ Tasuki の各アプリは「自分の systemd ユニット + 固有ポート + C
 | `agenda` | （無し・静的） | — | `/var/www/tasuki-agenda` | `/agenda/` | 公開中 |
 | `checkin` | （無し・静的） | — | `/var/www/tasuki-checkin` | `/checkin/` | 公開中 |
 
+> **#479（画面の崩れ）・#480・#465・#468・#469・#574 ほか、v4.5.0 以降の 66 PR は 2026-11-12 にまとめて配った**（`v4.6.0`）。
+> 新しいアプリは無く、`deploy/` の差分も文書だけなので root 作業は無し。poker → topic → roulette → agenda → checkin → landing → timer
+> の順に続けて流した（同期サーバーの再起動は最後の 1 回。wire は変わっていないので配る順に互換の窓は無い）。7 本のハッシュ一致・
+> NRestarts=0・e2e:prod 62 passed。AI のエージェントの設定が `ssh` と配布のスクリプトを拒むので（`docs/adr/0032`）、配布のコマンドは人が端末で流した。
+
 > **#406（Check-in Cards）・#447・#455・#403・#458 は 2026-10-30 にまとめて配った**（`v4.5.0`）。初回の用意（web root と
 > `/checkin/` の断片）を root で済ませてから、timer → checkin → roulette → agenda → poker → topic → landing の順に流した。
 > #455・#458 の「同期サーバーが先」に合わせて timer を先頭にした。記録は [`checkin/NOTES.md`](checkin/NOTES.md)。
