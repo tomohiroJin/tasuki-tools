@@ -917,11 +917,13 @@ function isListOrCreateGitBranch(args) {
 export function hasUnreadableQuote(command) {
   // ① 元のコマンド（`lex`・`isTameCommand` と同じ行の分け方）から、データとして証明できる heredoc の本文だけを取り除く
   //    （取り除けないときは元のまま。fail closed）。本文の中の `$'…'` は実行されない。
-  const text = (stripHeredocBodies(command) ?? command).replace(/\\\r?\n/g, "");
-  // ② 行の継続（`\` と改行）をつなぐ。③ `$'`・`$"` が**引用符の外に**あれば読めない（`echo $'x'`・語の途中の `echo x$'\''` も）。
-  //    引用符の中の `$` に続く引用符（`grep "main$"`・`grep -E 'reset$'` の行末の錨）は、bash でも ANSI-C の引用にならないので聞かない（2026-11-12 の利用者の決定）。
-  //    引用符の内外を前の文字で見分けると食い違うので、内外の状態をたどる（`unquotedDollarQuote`）。たどれない形では、どこかに 1 つでもあれば読めないとする（fail closed）
-  if (!/\$['"]/.test(text)) return false;
+  const text = stripHeredocBodies(command) ?? command;
+  // ② 行の継続（`\` と改行）は**つながずに**、状態をたどる中で扱う（コメントの中・単一引用符の中の `\` と改行は継続にならない。
+  //    先につなぐと、`# x\` の次の行がコメントに飲まれて読み飛ばされる）。③ `$'`・`$"` が**引用符の外に**あれば読めない（`echo $'x'`・語の途中の `echo x$'\''`・
+  //    `$` と引用符の間に継続を挟んだ形も）。引用符の中の `$` に続く引用符（`grep "main$"`・`grep -E 'reset$'` の行末の錨）は、bash でも ANSI-C の引用にならないので
+  //    聞かない（2026-11-12 の利用者の決定）。引用符の内外を前の文字で見分けると食い違うので、内外の状態をたどる（`unquotedDollarQuote`）。
+  //    たどれない形では、どこかに 1 つでもあれば読めないとする（fail closed）
+  if (!/\$['"]/.test(text.replace(/\\\r?\n/g, ""))) return false;
   const found = unquotedDollarQuote(text);
   return found === null ? true : found;
 }
@@ -932,7 +934,9 @@ export function hasUnreadableQuote(command) {
  * 閉じない引用符・閉じない置換・対応しない `)`。
  * たどる状態: 外（`top`）・単一引用符（`sq`。`'` でだけ閉じる）・二重引用符（`dq`。`\` が次の 1 字を守る。`$(`・バッククォートで外へ入れ子）・
  * 置換 `$(…)`（外と同じ規則。括弧の深さを数える）・バッククォート（外と同じ規則）。外の `#` は、語の頭なら行末までコメント。
- * @param {string} text 行の継続をつなぎ、データの heredoc の本文を取り除いた後の文字列
+ * 行の継続（`\` と改行）は、外・二重引用符・置換の中では `\` が次の 1 字（改行）を守る規則で読み飛ばす。コメントの中では改行でコメントが終わる
+ * （bash はコメントの末尾の `\` を継続にしない）。単一引用符の中では `\` も改行もそのまま。
+ * @param {string} text データの heredoc の本文を取り除いた後の文字列（行の継続はつながない）
  * @returns {boolean | null}
  */
 export function unquotedDollarQuote(text) {
@@ -966,7 +970,12 @@ export function unquotedDollarQuote(text) {
       i = nl;
       continue;
     }
-    if (c === "$" && (text[i + 1] === "'" || text[i + 1] === '"')) return true;
+    if (c === "$") {
+      // `$` と引用符の間に挟んだ行の継続（`\` と改行）は読み飛ばして次の字を見る
+      let j = i + 1;
+      while (text[j] === "\\" && (text[j + 1] === "\n" || (text[j + 1] === "\r" && text[j + 2] === "\n"))) j += text[j + 1] === "\n" ? 2 : 3;
+      if (text[j] === "'" || text[j] === '"') return true;
+    }
     if (c === "'") stack.push({ kind: "sq" });
     else if (c === '"') stack.push({ kind: "dq" });
     else if (c === "$" && text[i + 1] === "(") {

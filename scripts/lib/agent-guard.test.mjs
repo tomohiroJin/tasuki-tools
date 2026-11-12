@@ -689,6 +689,14 @@ describe("サブエージェントの危ない操作（#578・docs/adr/0037）",
     }
     assert.equal(subOut("# don't\necho $'\\'' ; git push ; echo $'\\''")?.hookSpecificOutput.permissionDecision, "ask");
     // コメントの中の ' で状態がずれても、最後に釣り合ってしまう形（コメントを読み飛ばさないと $'x' が引用符の中と読まれ、すり抜ける）
+    // コメントの末尾の \ は行の継続にならない（bash は改行でコメントを終える）。先につなぐと、次の行がコメントに飲まれて読み飛ばされる
+    for (const c of ["# x\\\necho $'\\'' ; git push ; echo $'\\''", "ls # x\\\necho $'x' ; git push", "# x\\\r\necho $'x' ; git push"]) {
+      assert.equal(hasUnreadableQuote(c), true, c);
+      assert.equal(subOut(c)?.hookSpecificOutput.permissionDecision, "ask", c);
+    }
+    // 二重引用符の中・外の \ と改行は継続（守られる 1 字）。$ と引用符の間の継続も見つける
+    for (const c of ["echo \"a\\\nb\" ; echo $'x' ; git push", "echo $\\\n'x' ; git push"]) assert.equal(hasUnreadableQuote(c), true, c);
+    assert.equal(hasUnreadableQuote("echo \"main$\\\n\" | grep x"), false);
     const commentSkew = "# don't\necho $'x' ; git push # '";
     assert.equal(hasUnreadableQuote(commentSkew), true);
     assert.equal(subOut(commentSkew)?.hookSpecificOutput.permissionDecision, "ask");
