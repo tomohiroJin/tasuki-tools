@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index 3b883704..9017e6c2 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -961,7 +961,7 @@ export function unquotedDollarQuote(text) {
+     }
+     if (c === "\\") {
+       const n = text[i + 1];
+-      if (n === "\n") i += 1; // 行の継続: 語の切れ目にしない（prev はそのまま）
++      if (n === "\n") { i += 1; prev = "\n"; }
+       else if (n === "\r" && text[i + 2] === "\n") i += 2;
+       else {
+         i += 1; // 次の 1 字は守られる（外・二重引用符・置換の中とも）

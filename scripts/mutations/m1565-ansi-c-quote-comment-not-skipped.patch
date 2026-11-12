@@ -1,13 +1,13 @@
 diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
-index a3bada34..48888763 100644
+index 3b883704..7a366ddf 100644
 --- a/scripts/lib/agent-guard.mjs
 +++ b/scripts/lib/agent-guard.mjs
-@@ -960,7 +960,7 @@ export function unquotedDollarQuote(text) {
+@@ -979,7 +979,7 @@ export function unquotedDollarQuote(text) {
        continue; // 二重引用符の中の `$'`・`$"` は ANSI-C の引用にならない
      }
      // 外・置換・バッククォートの中は、外と同じ規則
--    if (c === "#" && wordStart(i)) {
+-    if (c === "#" && wordStart()) {
 +    if (false) {
-       const nl = text.indexOf("\n", i);
+       const nl = text.indexOf("\n", i); // コメントは改行で終わる（末尾の \ は継続にしない）
        if (nl === -1) break;
        i = nl;

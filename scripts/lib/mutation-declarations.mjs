@@ -9014,4 +9014,12 @@ export const MUTATIONS = [
     tests: ["lib/agent-guard.test.mjs"],
     note: RESERVED_1500_1569 + " " + "#578 PR #583 の自動レビュー（HIGH）。bash はコメントの末尾の \\ を継続にしないのに、先につなぐと # x\\ の次の行がコメントに飲まれ、続く $'…' ; git push がすり抜ける。",
   },
+  {
+    id: 1567,
+    label: "引用の状態をたどるとき、行の継続（\\ と改行）を語の切れ目にする",
+    patch: "m1567-ansi-c-quote-continuation-breaks-word.patch",
+    pkg: "scripts",
+    tests: ["lib/agent-guard.test.mjs"],
+    note: RESERVED_1500_1569 + " " + "#578 PR #583 の自動レビュー（HIGH）。bash は echo a\\<改行>#… を語の途中として読むのに、コメントと読んで次の $'…' ; git push を見落とす。",
+  },
 ];
