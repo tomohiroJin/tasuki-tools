@@ -72,7 +72,7 @@
 
 同じ層・同じパッケージの中の import は常に可。対応表に「ドメインへ依存」と書かれていない層（web/screen→domain など）は、**そのまま表どおりに**違反として数えた（1.5 を見よ）。
 
-**対応表の中の食い違い（判定の前提）**: `docs/guides/architecture.md` の対応表の「アダプタ」行は、置き場に `apps/*-sync/src/adapters` と並べて「web アプリ」を挙げ、依存してよいものを「上のすべて」（ドメイン・プロトコル契約・ポート・アプリケーション・`packages/rate-limit`）とする。同じ表の「web の画面」行はドメインを挙げず、「web の純粋判断」行は「ドメインの型のみ」とする。web アプリのファイルについて、表の行どうしで答えが割れている。**画面→ドメインの 62 辺を違反と数えたのは、「web の画面」行だけを読んだ判断**で、「アダプタ」行を web アプリ全体に当てる読みなら違反にならない（純粋判断→protocol の 4 辺も同じ。読み方の判断なので、決まりを変える候補として 1.4・節 8 #1 に送った）。
+**対応表の中の食い違い（判定の前提）**: `docs/guides/architecture.md` の対応表の「アダプタ」行は、置き場に `apps/*-sync/src/adapters` と並べて「web アプリ」を挙げ、依存してよいものを「上のすべて」（ドメイン・プロトコル契約・ポート・アプリケーション・`packages/rate-limit`）とする。同じ表の「web の画面」行はドメインを挙げず、「web の純粋判断」行は「ドメインの型のみ」とする。web アプリのファイルについて、表の行どうしで答えが割れている。**画面→ドメインの 62 辺を違反と数えたのは、「web の画面」行だけを読んだ判断**で、「アダプタ」行を web アプリ全体に当てる読みなら違反にならない。その読みでは A1 の 4 辺（純粋判断・同期フック→画面）も同じ層の中の import になり違反でなくなる（純粋判断→protocol の 4 辺も同じ。読み方の判断なので、決まりを変える候補として 1.4・節 8 #1 に送った）。
 入口の判定: `@tasuki/<pkg>/<sub>` は、その package の `package.json` の `exports`（`main` だけの package は `.` のみ）に無ければ `deep-import`。
 
 ### 1.3 違反（監査の外）の一覧
@@ -181,7 +181,7 @@ JSON はリポジトリの外に残した（置き場は README のとおり、�
 
 - 実測時点: `f4ffbb96`（枝 `wt/587-b`。コードは main `df9b4f5e` と同じ）
 - スクリプト: `b-duplicates.mjs`（node 標準だけ。母集合は `git ls-files` の `.ts`/`.tsx` 1,124 ファイル。`.d.ts` は除く）
-- 流したもの: `node b-duplicates.mjs . > tmp/dup-1.json` と同じものをもう 1 回 → `diff` が空（同じ出力）。所要は 1 回 約 4 秒
+- 流したもの: `node b-duplicates.mjs . > tmp/dup-1.json`（当時はリポジトリの中の `tmp/` に出したが、README のとおり外へ出す）と同じものをもう 1 回 → `diff` が空（同じ出力）。所要は 1 回 約 4 秒
 - 正規化: trim・空行・コメント行・`import` / `export … from` 行・`}` `)` だけの行を落とす。窓は正規化後の連続 20 行、重なる窓は 1 塊に連結
 - 件数（スクリプトが数えた）: **塊 10・名前 28・文言と定数 268（定数 5・文言 263）**。塊は **すべてテスト**（ソースどうしの 20 行以上の写しは 0 件）。内訳はテスト・パッケージをまたぐ 3・テスト・同一パッケージ内 7
 
@@ -367,7 +367,7 @@ JSON はリポジトリの外に残した（置き場は README のとおり、�
 | `node d-dead-exports.mjs .`（2 回） | 5.1 秒 | 2 回の出力が一致。export 1,992 件のうち「自分以外のコードに現れない」196 件 |
 | `node 2026-11-01-test-gap-survey/conventions.mjs <主の作業ツリー>` | 11.7 秒 | 下の「#496 の流し直し」 |
 
-既知の値との突き合わせ: ソースの行数の上位 8 本は **748・701・603・577・562・551・535・520 で既知の値の表と一致**（`poker-handlers.ts`・`handlers.ts`・`use-timer-sync.ts`・`create-sync-server.ts`・`RosterPanel.tsx`・`ws-adapter.ts`・`Session.tsx`・`evolve.ts`）。`apps/tasuki-sync/test/support/live-sync-server.ts` 1,068 も一致。パッケージごとの `apps/tasuki-sync` 10,745 は一致。`timer-web` 8,153・`agenda-web` 3,922・`roulette-web` 3,486・`packages/timer-core` 2,910・`poker-web` 2,726 は既知の値（8,065・3,873・3,441・2,890・2,661）より多いが、既知の値は `src/` 配下だけで、こちらはパッケージ直下の設定ファイル（`vite.config.ts`・`vitest.config.ts` など）を含むため。`src/` だけに絞ると `timer-web` 8,065・`agenda-web` 3,873・`roulette-web` 3,441・`packages/timer-core` 2,890（差は `vitest.config.ts`）・`poker-web` 2,661 に一致する（`git ls-files '<pkg>/src/*.ts' '<pkg>/src/*.tsx'` からテストを除いて `wc -l` で確認。`src/` の全ファイルでは CSS を含み一致しない）。
+既知の値との突き合わせ: ソースの行数の上位 8 本は **748・701・603・577・562・551・535・520 で既知の値の表と一致**（`poker-handlers.ts`・`handlers.ts`・`use-timer-sync.ts`・`create-sync-server.ts`・`RosterPanel.tsx`・`ws-adapter.ts`・`Session.tsx`・`evolve.ts`）。`apps/tasuki-sync/test/support/live-sync-server.ts` 1,068 も一致。パッケージごとの `apps/tasuki-sync` 10,745 は一致。`timer-web` 8,153・`agenda-web` 3,922・`roulette-web` 3,486・`packages/timer-core` 2,910・`poker-web` 2,726 は既知の値（8,065・3,873・3,441・2,890・2,661）より多いが、既知の値は `src/` 配下だけで、こちらはパッケージ直下の設定ファイル（`vite.config.ts`・`vitest.config.ts` など）を含むため。`src/` だけに絞ると `timer-web` 8,065・`agenda-web` 3,873・`roulette-web` 3,441・`packages/timer-core` 2,890（差は `vitest.config.ts`）・`poker-web` 2,661 に一致する（`git ls-files '<pkg>/src/*.ts' '<pkg>/src/*.tsx'` からテストを除いて `wc -l` で確認。timer-core は CSS が無く `src/` の全ファイルでも 2,890 で一致するが、他の 4 つは CSS を含み一致しない）。
 
 ### 5.1 大きさ
 
@@ -475,7 +475,7 @@ JSON はリポジトリの外に残した（置き場は README のとおり、�
 - 残り 191 件は「export を外せば済む」類（`export` が余計）。型（158 件）は特に、`export` を足すのが習慣になっている可能性が高い。
 - **型だけの export**（158 件）は、型の位置で外部が `import type` していなくても、宣言ファイルの公開面（`.d.ts` へ出る型）として意図して置いてある場合がある。判断は個別に要る。
 - 動的な参照（文字列で名前を引く・`import()` の分割代入）や、文書の中の言及は見ていない（`.md` は参照に含めない）。`scripts/` 以外の `.mjs` が名前で引く場合は拾う。
-- 本番のコードの値の定数・関数の死んだ export の一覧は `tmp/d-dead-exports-1.json`（`deadExports`）。テスト支援の `export` が使われなくなっているものは 47 件。
+- 本番のコードの値の定数・関数の死んだ export の一覧はスクリプトの出力の `deadExports`（リポジトリの外に流し直して見る）。テスト支援の `export` が使われなくなっているものは 47 件。
 
 | 場所 | 観点 | 何が問題か | 直すと何がよくなるか | 直す量 |
 |---|---|---|---|---|
@@ -542,7 +542,7 @@ JSON はリポジトリの外に残した（置き場は README のとおり、�
 
 ## 6. 一覧（効果 × 直す量）
 
-**尺度**。効果は 2 つで表す: **目標**（4 つのうち効くものの数。読 = 読みやすい・速 = 足すのが速い・続 = 続けられる・バ = バグが減る）と **範囲**（同じ直しが要る場所の数、または触るファイル数が減る見込み）。直す量は触るファイル数で **S（5 未満）／M（5〜15）／L（16 以上）**。**並びは目標の数の降順 → 範囲の降順 → 量の昇順**。範囲は「範囲」欄の数で比べる（「道具 7 系統 × 8 か所」は 56、「やり方 8」は 8、「1 フック」「1 関数」は 1、「15＋29」は 44、「2〜3」「4〜6」のような幅は下限、「S／M」は S）。同じ順位はもとの番号の順。**節 8 の判断を待つものは末尾にまとめる**（A3・A6・B7・C1。直すかどうか・ADR を入れるかが節 8 の判断で決まる）。その中も同じ規則で並べる。B1・B2 は置き場だけが節 8 の判断を待ち、直すこと自体は決まっているので本体の順に入れた。番号は節 1〜5 の本（A〜D）と通し番号。
+**尺度**。効果は 2 つで表す: **目標**（4 つのうち効くものの数。読 = 読みやすい・速 = 足すのが速い・続 = 続けられる・バ = バグが減る）と **範囲**（同じ直しが要る場所の数、または触るファイル数が減る見込み）。直す量は触るファイル数で **S（5 未満）／M（5〜15）／L（16 以上）**。**並びは目標の数の降順 → 範囲の降順 → 量の昇順**。範囲は「範囲」欄の数で比べる（「道具 7 系統 × 8 か所」は 56、「やり方 8」は 8、「1 フック」「1 関数」は 1、「15＋29」は 44、「2〜3」「4〜6」のような幅は下限）。量が「S／M」のように 2 つ並ぶものは小さい方（S）で比べる。同じ順位はもとの番号の順。**節 8 の判断を待つものは末尾にまとめる**（A3・A6・B7・C1。直すかどうか・ADR を入れるかが節 8 の判断で決まる）。その中も同じ規則で並べる。B1・B2 は置き場だけが節 8 の判断を待ち、直すこと自体は決まっているので本体の順に入れた。番号は節 1〜5 の本（A〜D）と通し番号。
 
 | # | 場所 | 観点 | 何が問題か | 目標 | 範囲 | 量 | 出どころ |
 |---|---|---|---|---|---|---|---|
@@ -561,29 +561,29 @@ JSON はリポジトリの外に残した（置き場は README のとおり、�
 | A1 | `apps/timer-web/src/ui/Summary.tsx`・`StatusStrip.tsx` の型を `records/persist.ts`・`sync/snapshot-intents.ts`・`sync/use-timer-sync.ts`・`ui/connection-status.ts` が読む（4 辺） | 依存の向き | 内側が画面の `.tsx` の型を import。画面を分けると内側が巻き込まれる | 読・続 | 4 辺 | M | 節 1.3 |
 | A5 | `@tasuki/timer-core/aggregate` への入口外の参照 4 辺（`timer-snapshot-dto.ts`・`Session.tsx`・`SessionConfigPanel.tsx`・`SharedMemo.tsx`）。`timer-core` に `exports` が無く vite の alias が支える | 公開の入口 | 解決経路が 2 つに割れている。サーバー側の解決は未確認 | 続・バ | 4 辺 | M | 節 1.3 |
 | D16 | `e2e/specs/layout.spec.ts:798`（238 行）・`buttons.spec.ts:469`（169 行）・`header-and-dock.spec.ts:650`（110 行） | クリーンコード | 1 つの `test` が複数の画面を見る。落ちた画面が題名から読めない | 読・バ | 3 | S | 節 5.4 |
+| A2 | `apps/tasuki-sync/src/application/log/vocabulary.ts:12`（`AcceptedProtocol` を adapters から `import type`） | 依存の向き | 内向きの依存が型 1 本だけ逆。置き場を application へ寄せられる | 読・続 | 1 辺 | S | 節 1.3 |
 | D1 | `apps/timer-web/src/sync/use-timer-sync.ts`（603 行・state 11・ref 5） | 単一責任 | 接続・snapshot の反映・エラー種別の処理（136 行）・再試行・IndexedDB への保存・復帰の識別子の 6 責務 | 読・バ | 1 フック | S | 節 5.2 |
 | D2 | `apps/landing/src/hub/use-hub-sync.ts`（442 行・effect 155 行） | 単一責任 | 接続・10 個の state の反映・URL の書き換え・復帰・再試行が 1 つの effect に | 読・バ | 1 フック | S | 節 5.2 |
-| D10 | `apps/poker-web/src/hooks/useRoomEntry.ts`（140 行に effect 8） | 単一責任 | 入口の判断が effect の連鎖。依存配列と ref の取り違えが起きやすい | 読・バ | 1 フック | S | 節 5.2 |
 | D3 | `apps/tasuki-sync/src/application/poker-handlers.ts`（`makePokerHandlers` 1 関数 約 540 行） | 単一責任 | 名簿の写し・保管と確定・制限時間・入室 3 ユースケース・退出の後始末が 1 関数に。境目（`admit`・`completeJoin`）は既にある | 読・速 | 1 関数 | S | 節 5.2 |
 | D4 | `apps/tasuki-sync/src/application/handlers.ts`（`makeHandlers` 約 410 行） | 単一責任 | 読み書き・振り分け・準備・退出・通知文・開閉・解放が同居。`command-handlers/` に分けた先例がある | 読・速 | 1 関数 | S | 節 5.2 |
-| A2 | `apps/tasuki-sync/src/application/log/vocabulary.ts:12`（`AcceptedProtocol` を adapters から `import type`） | 依存の向き | 内向きの依存が型 1 本だけ逆。置き場を application へ寄せられる | 読・続 | 1 辺 | S | 節 1.3 |
+| D10 | `apps/poker-web/src/hooks/useRoomEntry.ts`（140 行に effect 8） | 単一責任 | 入口の判断が effect の連鎖。依存配列と ref の取り違えが起きやすい | 読・バ | 1 フック | S | 節 5.2 |
 | D17 | `apps/tasuki-sync/test/support/live-sync-server.ts`（1,068 行・export 14） | 単一責任 | テスト支援としては最大。起動・接続・待ち・各道具の送受信が 1 ファイル | 読・続 | 1 | S | 節 5.4 |
 | A15 | poker のデッキ（`FIBONACCI_DECK` 1 つ。`coffee` を直接読む場所 29 ファイル） | 開放閉鎖 | 山を差し替える口が無い。#92（T シャツサイズ）を始めるなら先にここ | 速 | 15＋29 | L（振る舞いを変える #92 の前提。#482 の範囲外） | 節 1.6 |
 | C4 | 非 null 断定 `!` 17 か所（6 か所: application と 5 つの core） | DbC | 添字・先頭要素の非空という前提を `!` で押し通す（`noUncheckedIndexedAccess` は有効） | バ | 9 ファイル | M | 節 4.2 |
 | A8 | `apps/tasuki-sync/src/adapters/ws-adapter.ts:104,184-228,380-450` | 開放閉鎖 | 道具ごとに `options.<tool>`・`rawTextChannel`・`send*`/`broadcast*` を 2 メソッドずつ足す | 速 | 道具 7 | S | 節 1.6・節 5.2 |
 | A13 | `scripts/audit-*.mjs` の許可リスト 7 本 | 開放閉鎖 | 道具ごとに手で足す。足し忘れは「0 件」で落ちるものと落ちないものがある | 続 | 7 | M | 節 1.6 |
-| C3 | 同じ型の ID が 2 つ並ぶ関数 6（`removeFromRoom`・`attach`/`detach`・`attachConnection`・`removalNotificationFor`・`sendJoined`） | DbC | 引数の順序が前提（型の外） | バ | 6 関数 | M | 節 4.2 |
 | B4 | `apps/poker-web/tests/room-page-*.test.tsx` 6 本（22 行） | DRY（テスト） | 画面を出す前の設定が同じ | 読 | 6 | M | 節 3.1 |
+| C3 | 同じ型の ID が 2 つ並ぶ関数 6（`removeFromRoom`・`attach`/`detach`・`attachConnection`・`removalNotificationFor`・`sendJoined`） | DbC | 引数の順序が前提（型の外） | バ | 6 関数 | M | 節 4.2 |
 | B3 | `tests/spacing-css.test.ts` の補助 4 か所（44 行） | DRY | CSS を読む補助の写し。`packages/test-css` が置き場の候補 | 続 | 4 | M | 節 3.1 |
 | D11 | `RosterPanel.tsx`・`handlers.ts`・`ws-adapter.ts` 冒頭の作業番号（`T057: FR-046…`） | クリーンコード | 現在の仕様書・ADR で引けない番号が残る | 読 | 3（名を挙げた `RosterPanel.tsx`・`handlers.ts`・`ws-adapter.ts`。ほかは未確認） | S | 節 5.2 |
 | A10 | `apps/tasuki-sync/src/application/tool-id.ts:44-50`・`log/vocabulary.ts:88-90` | 開放閉鎖 | 道具の列挙が 2 か所に同じ綴りで並ぶ | 速 | 2 | S | 節 1.6 |
 | A12 | `apps/landing/src/tools.ts:15,70-74`・`dev-hub-redirect/src/index.ts` のコメント | 開放閉鎖 | `id` の共用体と配列を足す。コメントの道具名の列挙が古くなる | 速 | 2 | S | 節 1.6 |
-| D12 | `poker-handlers.ts` 冒頭の docstring（範囲が狭い）・`ws-adapter.ts:8`（「5 つの層」が実際 7） | クリーンコード | コメントと実装のずれ | 読 | 2 | S | 節 5.2 |
 | B5・B6 | timer-web の `Session.*.test.tsx`・`App.connection.*.test.tsx`、tasuki-sync の `live-ws.*.test.ts` の前提の組み立て | DRY（テスト） | 同じ前提が 2〜3 本 | 読 | 2〜3 | S（優先は低い） | 節 3.1 |
+| D12 | `poker-handlers.ts` 冒頭の docstring（範囲が狭い）・`ws-adapter.ts:8`（「5 つの層」が実際 7） | クリーンコード | コメントと実装のずれ | 読 | 2 | S | 節 5.2 |
+| C2 | `packages/room-core/src/display-name.ts:283`（`skeletonCache`） | 関数型 | 最上位の `const` の `Map` が書き換わる。純関数のメモで害は無いが監査の外 | 続 | 1 | S（宣言するだけでも可） | 節 4.2 |
 | D7 | `apps/timer-web/src/ui/components/RosterPanel.tsx`（約 480 行） | 単一責任 | 行の表示・改名・退出・並べ替え・代理追加・2 つのセクション。行を切り出せる境目がある | 読 | 1 | S | 節 5.2 |
 | D8 | `apps/agenda-web/src/components/ScenarioBuilder.tsx`（`SampleMenu` :317） | 単一責任 | 下書き・組み立て・サンプルのメニューが 1 ファイル | 読 | 1 | S | 節 5.2 |
 | D9 | `apps/roulette-web/src/components/RegularsSection.tsx`（state 10） | 単一責任 | 一覧・保存フォーム・検証・入力の state が集まる | 読 | 1 | S | 節 5.2 |
-| C2 | `packages/room-core/src/display-name.ts:283`（`skeletonCache`） | 関数型 | 最上位の `const` の `Map` が書き換わる。純関数のメモで害は無いが監査の外 | 続 | 1 | S（宣言するだけでも可） | 節 4.2 |
 | C1 | ID の型 202 か所（引数 141・型の欄 61）がすべて `string` か別名 | DbC | `participantId` と `connId`・`roomCode` を取り違えても型が通る | バ・読 | 50 ファイル超 | L（決まり次第: ADR） | 節 4.2 |
 | B7 | 4 アプリの `copy.ts` の文言 3 定数・4 つの core の `error-messages.ts` と同期サーバーの `connection-errors.ts` の 4〜5 文・`invite-ui` と landing の QR の文言 | DRY | 知識の重複だが各 1 行で ADR 0007 基準 2 の下 | バ・速 | 4〜6 | 決まり次第（節 8） | 節 3.3 |
 | A3 | 純粋判断→`@tasuki/protocol` 4 辺（4 アプリの `server-message.ts`） | 依存の向き | 表と実体のどちらかが古い | 読 | 4 | 決まり次第（節 8） | 節 1.3 |
