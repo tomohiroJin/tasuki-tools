@@ -688,6 +688,10 @@ describe("サブエージェントの危ない操作（#578・docs/adr/0037）",
       assert.equal(hasUnreadableQuote(c), true, c);
     }
     assert.equal(subOut("# don't\necho $'\\'' ; git push ; echo $'\\''")?.hookSpecificOutput.permissionDecision, "ask");
+    // コメントの中の ' で状態がずれても、最後に釣り合ってしまう形（コメントを読み飛ばさないと $'x' が引用符の中と読まれ、すり抜ける）
+    const commentSkew = "# don't\necho $'x' ; git push # '";
+    assert.equal(hasUnreadableQuote(commentSkew), true);
+    assert.equal(subOut(commentSkew)?.hookSpecificOutput.permissionDecision, "ask");
     // $'…' を使わない日常の形は通ったまま
     for (const c of ['grep -E "kill|pkill" notes.md', 'git commit -m "fix: reset; kill the timer"', 'git log --grep="push|reset" --oneline', "git branch --show-current && grep -E 'kill|x' notes.md", "echo 'cost $5'"]) {
       assert.equal(subOut(c), null, c);
