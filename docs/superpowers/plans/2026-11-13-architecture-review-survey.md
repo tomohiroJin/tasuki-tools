@@ -76,11 +76,11 @@
 
 | もの | 値 | 数え方 |
 |---|---|---|
-| PR #460（checkin の初回 PR）の差分 | 100 ファイル: `apps/checkin-web` 51・`apps/tasuki-sync` 34・`apps/landing` 10・`deploy/caddy` 2・`deploy/checkin` 1・`deploy/README.md` 1・`README.md` 1 | `gh pr view 460 --json files` |
+| PR #460（checkin の初回 PR）の差分 | ~~100 ファイル~~ → **199 ファイル**（訂正 2026-11-13: `gh pr view --json files` は 100 件で打ち切る。`changedFiles` と `git show --stat 4ed78e21` が 199 で一致。内訳は調査文書の節 2） | `gh pr view 460 --json changedFiles`・`git show --stat --format= 4ed78e21` |
 | PR #466（やり方を各側 2 つ足した）の差分 | 20 ファイル: コード 8・テストと変異パッチ 7・文書 2・資材（woff2）3 | 同上。4 欄の分け方の実例 |
 | `METHOD_IDS` を持つファイル | 9（`packages/checkin-core` src 3・tests 2、`apps/checkin-web` src 1・tests 3） | `grep -rl` |
 | `FIBONACCI_DECK` を持つファイル | 5（`packages/poker-core/src/deck.ts`・`estimate-log.ts`・`index.ts`、`apps/poker-web/src/components/CardHand.tsx`、`packages/poker-core/tests/deck.test.ts`） | 同上。デッキの抽象は無い（#92 は未着手） |
-| `checkin` を単語として含み、`apps/checkin-web`・`packages/checkin-core`・`docs/` の外にあるファイル | 115 | `grep -rl -w`。A の「道具を足すと触る場所」の上限の目安 |
+| `checkin` を単語として含み、`apps/checkin-web`・`packages/checkin-core`・`docs/` の外にあるファイル | ~~115~~（訂正 2026-11-13: 拡張子を `.ts` `.tsx` `.mjs` `.yml` `.json` `.sh` に絞った `grep -rl -w` の値で、追跡下の全ファイルを母集合にする A の試算（139）とは母集合が違い、比べられない。A が同じ範囲を `git grep -l -w` で引き直して 139 と一致） | — |
 | ソースの行数（テストを除く）の上位 | `apps/tasuki-sync/src/application/poker-handlers.ts` 748・`handlers.ts` 701・`apps/timer-web/src/sync/use-timer-sync.ts` 603・`apps/tasuki-sync/src/create-sync-server.ts` 577・`apps/timer-web/src/ui/components/RosterPanel.tsx` 562・`adapters/ws-adapter.ts` 551・`apps/timer-web/src/ui/Session.tsx` 535・`packages/timer-core/src/evolve.ts` 520 | `wc -l`。テスト支援では `apps/tasuki-sync/test/support/live-sync-server.ts` 1,068 |
 | パッケージごとのソース行数 | `apps/tasuki-sync` 10,745・`apps/timer-web` 8,065・`apps/agenda-web` 3,873・`apps/roulette-web` 3,441・`packages/timer-core` 2,890・`apps/poker-web` 2,661（ほかは 2,000 未満） | `find`＋`wc -l` |
 
