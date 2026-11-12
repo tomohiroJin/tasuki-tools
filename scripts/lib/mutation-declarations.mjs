@@ -9006,4 +9006,12 @@ export const MUTATIONS = [
     tests: ["lib/agent-guard.test.mjs"],
     note: RESERVED_1500_1569 + " " + "#578 2026-11-12 の利用者の決定の直し。コメントの中の ' で状態がずれ、続く $'…' ; git push がすり抜ける。",
   },
+  {
+    id: 1566,
+    label: "引用の状態をたどる前に、行の継続（\\ と改行）を先につなぐ",
+    patch: "m1566-ansi-c-quote-continuation-joined-before-tracking.patch",
+    pkg: "scripts",
+    tests: ["lib/agent-guard.test.mjs"],
+    note: RESERVED_1500_1569 + " " + "#578 PR #583 の自動レビュー（HIGH）。bash はコメントの末尾の \\ を継続にしないのに、先につなぐと # x\\ の次の行がコメントに飲まれ、続く $'…' ; git push がすり抜ける。",
+  },
 ];

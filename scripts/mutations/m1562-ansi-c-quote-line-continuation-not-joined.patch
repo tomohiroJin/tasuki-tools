@@ -1,13 +1,13 @@
 diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
-index a3bada34..e94e0bd5 100644
+index 13a5a195..77181e35 100644
 --- a/scripts/lib/agent-guard.mjs
 +++ b/scripts/lib/agent-guard.mjs
-@@ -917,7 +917,7 @@ function isListOrCreateGitBranch(args) {
- export function hasUnreadableQuote(command) {
-   // ① 元のコマンド（`lex`・`isTameCommand` と同じ行の分け方）から、データとして証明できる heredoc の本文だけを取り除く
-   //    （取り除けないときは元のまま。fail closed）。本文の中の `$'…'` は実行されない。
--  const text = (stripHeredocBodies(command) ?? command).replace(/\\\r?\n/g, "");
-+  const text = stripHeredocBodies(command) ?? command;
-   // ② 行の継続（`\` と改行）をつなぐ。③ `$'`・`$"` が**引用符の外に**あれば読めない（`echo $'x'`・語の途中の `echo x$'\''` も）。
-   //    引用符の中の `$` に続く引用符（`grep "main$"`・`grep -E 'reset$'` の行末の錨）は、bash でも ANSI-C の引用にならないので聞かない（2026-11-12 の利用者の決定）。
-   //    引用符の内外を前の文字で見分けると食い違うので、内外の状態をたどる（`unquotedDollarQuote`）。たどれない形では、どこかに 1 つでもあれば読めないとする（fail closed）
+@@ -973,7 +973,7 @@ export function unquotedDollarQuote(text) {
+     if (c === "$") {
+       // `$` と引用符の間に挟んだ行の継続（`\` と改行）は読み飛ばして次の字を見る
+       let j = i + 1;
+-      while (text[j] === "\\" && (text[j + 1] === "\n" || (text[j + 1] === "\r" && text[j + 2] === "\n"))) j += text[j + 1] === "\n" ? 2 : 3;
++
+       if (text[j] === "'" || text[j] === '"') return true;
+     }
+     if (c === "'") stack.push({ kind: "sq" });
