@@ -1,0 +1,12 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index b54ae46c..dcdc1e5a 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -97,6 +97,7 @@ function isNonDecidingGhReview(args) {
+       continue;
+     }
+     if (/^--(body|body-file|repo)=/.test(w) || /^-[bFR][^=\s]/.test(w)) continue;
++    if (!/^-[A-Za-z]+$/.test(w) || !/[ar]/.test(w)) continue;
+     return false;
+   }
+   return true;

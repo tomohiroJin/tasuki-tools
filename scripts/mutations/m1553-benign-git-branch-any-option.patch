@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index 73e9fcfb..e7717936 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -864,7 +864,7 @@ function isBenignSubagentWords(words) {
+     let at = 1;
+     while (words[at] === "-C" && at + 1 < words.length) at += 2;
+     if (words[at] === undefined || words[at].startsWith("-")) return false;
+-    return words[at] === "branch" && isListOrCreateGitBranch(words.slice(at + 1));
++    return words[at] === "branch";
+   }
+   if (name === "fuser") return true;
+   if (name === "gh") {

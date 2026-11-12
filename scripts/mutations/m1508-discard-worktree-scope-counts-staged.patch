@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/discard-guard.mjs b/scripts/lib/discard-guard.mjs
+index d0b4e14c..95aed1df 100644
+--- a/scripts/lib/discard-guard.mjs
++++ b/scripts/lib/discard-guard.mjs
+@@ -199,7 +199,7 @@ export function defaultIsDirty(cwd, target, env = {}) {
+       if (!error) {
+         const lines = stdout.split("\n").filter((l) => l !== "");
+         // worktree 範囲: 作業ツリー側の変更（` M`・`??` ほか）。index だけの変更（`M `）は数えない
+-        const relevant = target.scope === "worktree" ? lines.filter((l) => l[1] !== " " || l.startsWith("??")) : lines;
++        const relevant = lines;
+         if (relevant.length === 0) return resolve("no");
+         // 追跡下の変更があれば "yes"、追跡外のファイルだけなら "untracked"（上書きされるのは追跡外のファイル。理由の文を分ける）
+         return resolve(relevant.every((l) => l.startsWith("??")) && !target.untracked ? "untracked" : "yes");

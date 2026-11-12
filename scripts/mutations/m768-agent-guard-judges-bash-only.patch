@@ -1,13 +1,13 @@
 diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
-index 9284749..6c5190e 100644
+index 5977b177..b4b821bc 100644
 --- a/scripts/lib/agent-guard.mjs
 +++ b/scripts/lib/agent-guard.mjs
-@@ -426,7 +426,7 @@ export function decideHookOutput(raw) {
+@@ -815,7 +815,7 @@ function readShellCommand(raw) {
    if (input === null || typeof input !== "object") {
-     return ask(`フックの入力の形が想定と違います。念のため人に確かめます。${RULE_REF}`);
+     return { ask: ask(`フックの入力の形が想定と違います。念のため人に確かめます。${RULE_REF}`) };
    }
--  if (!SHELL_TOOLS.includes(input.tool_name)) return null;
-+  if (input.tool_name !== "Bash") return null;
+-  if (!SHELL_TOOLS.includes(input.tool_name)) return { skip: true };
++  if (input.tool_name !== "Bash") return { skip: true };
    const command = input.tool_input?.command;
    // Monitor の WebSocket の形はシェルを走らせない（PR #498 の再レビュー 3）
-   if (input.tool_name === "Monitor" && command === undefined && input.tool_input?.ws !== undefined) return null;
+   if (input.tool_name === "Monitor" && command === undefined && input.tool_input?.ws !== undefined) return { skip: true };

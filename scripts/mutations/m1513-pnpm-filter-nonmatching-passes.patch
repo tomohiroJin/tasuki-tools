@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/pnpm-filter-guard.mjs b/scripts/lib/pnpm-filter-guard.mjs
+index 89f243a4..b48afbcc 100644
+--- a/scripts/lib/pnpm-filter-guard.mjs
++++ b/scripts/lib/pnpm-filter-guard.mjs
+@@ -136,7 +136,7 @@ export function decidePnpmFilterOutput(raw, { names = readWorkspaceNames } = {})
+   const all = Array.isArray(names) ? names : names(cwd);
+   if (all === null) return null;
+   const missing = patterns.filter((p) => !patternMatchesAny(p, all));
+-  if (missing.length === 0) return null;
++  if (true) return null;
+   const hints = (p) => {
+     const tail = core(p).replace(/^@[^/]+\//, "").replace(/^tasuki-/, "");
+     return all.filter((n) => tail !== "" && n.includes(tail)).slice(0, 5);

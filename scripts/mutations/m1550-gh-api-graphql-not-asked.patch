@@ -1,0 +1,12 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index 6b76037a..b0b29263 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -628,7 +628,6 @@ function isReadOnlyGhApi(words, from) {
+   }
+   if (method !== null && method.toUpperCase() !== "GET") return false;
+   // graphql は query でも全部聞く（POST で、種類を部分文字列で判定すると、シェルが渡す文字列との食い違い〈`$'…'`・`{a,b}`・`\\` ほか〉で mutation が通る）
+-  if (endpoint === "graphql") return false;
+   if (fields.length === 0) return true;
+   return method !== null; // GET を明示したときだけ（ここまで来て method があれば GET）
+ }

@@ -1,0 +1,12 @@
+diff --git a/scripts/lib/discard-guard.mjs b/scripts/lib/discard-guard.mjs
+index 06c718c9..50fbdd69 100644
+--- a/scripts/lib/discard-guard.mjs
++++ b/scripts/lib/discard-guard.mjs
+@@ -57,7 +57,6 @@ const hasShort = (w, c) => /^-[A-Za-z]+$/.test(w) && w.includes(c);
+  */
+ function classify({ sub, rest }, exists) {
+   // シェルが展開する語（`{a,b}`・`{a..c}`・先頭の `~`）は、展開前の文字のままでは git status に渡せない（コードレビュー 1）
+-  if (rest.some((w) => /\{[^}]*(?:,|\.\.)[^}]*\}/.test(w) || /(?:^|[:=])~/.test(w))) return UNKNOWN_FORM;
+   const quiet = (w) => w === "-q" || w === "--quiet";
+   if (sub === "checkout") {
+     const words = rest.filter((w) => !quiet(w));

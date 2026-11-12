@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index 635c9ee9..39dc8b5f 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -51,7 +51,7 @@ export const GUARDED_COMMANDS = [
+  * `git` の、値を次の語に取る全体の選択肢（`git -C dir push`）。`git --help` の一覧と `man git` で洗った
+  * （`--exec-path`・`--list-cmds` は `=` でしか値を取らない。全体の選択肢は省略形を受け付けない。2.43 で確認）。
+  */
+-export const GIT_ARG_OPTS = ["-C", "-c", "--git-dir", "--work-tree", "--namespace", "--config-env", "--attr-source", "--super-prefix"];
++export const GIT_ARG_OPTS = ["-C", "-c", "--git-dir", "--work-tree", "--namespace", "--attr-source", "--super-prefix"];
+ const GH_ARG_OPTS = ["-R", "--repo"];
+ 
+ /**

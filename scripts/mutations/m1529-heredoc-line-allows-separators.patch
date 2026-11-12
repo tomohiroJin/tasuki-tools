@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index aa773605..ffafa1b0 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -661,7 +661,7 @@ export function stripHeredocBodies(src) {
+  * 状態機械で引用符を追う作りは、`echo '$(cat <<EOF'` や `# $(cat <<EOF` で穴が出たので退けた（#578 の自動レビュー）。
+  */
+ // 区切り・コメント・引用符・展開（$ とバッククォート）・リダイレクト・バックスラッシュ・改行を含まない 1 文字
+-const PLAIN = "[^;&|$" + "`" + "\"'()<>#\\\\\\n]";
++const PLAIN = "[^\n]";
+ // 平文か、展開を含まない対の "…" の並び
+ const WORDS = "(?:" + PLAIN + "|\"[^\"$" + "`" + "\\\\\\n]*\")*";
+ const DATA_HEREDOC_LINE = new RegExp(

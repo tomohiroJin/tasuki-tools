@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/discard-guard.mjs b/scripts/lib/discard-guard.mjs
+index d0b4e14c..1591e24c 100644
+--- a/scripts/lib/discard-guard.mjs
++++ b/scripts/lib/discard-guard.mjs
+@@ -92,7 +92,7 @@ function classify({ sub, rest }, exists) {
+       else return UNKNOWN_FORM;
+     }
+     if (paths.length === 0) return UNKNOWN_FORM;
+-    if (staged) return SAFE;
++    if (false) return SAFE;
+     return { verdict: "check", target: { kind: "paths", paths, scope: "worktree", ...(withRev ? { withRev: true } : {}) } };
+   }
+   if (sub === "stash") {

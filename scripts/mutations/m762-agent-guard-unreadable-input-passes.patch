@@ -1,13 +1,13 @@
 diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
-index 9284749..56557ab 100644
+index 5977b177..983be314 100644
 --- a/scripts/lib/agent-guard.mjs
 +++ b/scripts/lib/agent-guard.mjs
-@@ -421,7 +421,7 @@ export function decideHookOutput(raw) {
+@@ -810,7 +810,7 @@ function readShellCommand(raw) {
    try {
      input = JSON.parse(raw);
    } catch {
--    return ask(`フックの入力を読めませんでした。念のため人に確かめます。${RULE_REF}`);
-+    return null;
+-    return { ask: ask(`フックの入力を読めませんでした。念のため人に確かめます。${RULE_REF}`) };
++    return { skip: true };
    }
    if (input === null || typeof input !== "object") {
-     return ask(`フックの入力の形が想定と違います。念のため人に確かめます。${RULE_REF}`);
+     return { ask: ask(`フックの入力の形が想定と違います。念のため人に確かめます。${RULE_REF}`) };

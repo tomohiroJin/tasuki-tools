@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index 13a5a195..ff6aa53f 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -923,7 +923,7 @@ export function hasUnreadableQuote(command) {
+   //    `$` と引用符の間に継続を挟んだ形も）。引用符の中の `$` に続く引用符（`grep "main$"`・`grep -E 'reset$'` の行末の錨）は、bash でも ANSI-C の引用にならないので
+   //    聞かない（2026-11-12 の利用者の決定）。引用符の内外を前の文字で見分けると食い違うので、内外の状態をたどる（`unquotedDollarQuote`）。
+   //    たどれない形では、どこかに 1 つでもあれば読めないとする（fail closed）
+-  if (!/\$['"]/.test(text.replace(/\\\r?\n/g, ""))) return false;
++  return false;
+   const found = unquotedDollarQuote(text);
+   return found === null ? true : found;
+ }

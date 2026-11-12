@@ -1,13 +1,13 @@
 diff --git a/scripts/agent-guard-hook.mjs b/scripts/agent-guard-hook.mjs
-index 50003a96..d0c66eb4 100644
+index cbe06cd9..51d8f3a6 100644
 --- a/scripts/agent-guard-hook.mjs
 +++ b/scripts/agent-guard-hook.mjs
-@@ -52,7 +52,7 @@ async function main() {
-     }
-   } else {
-     try {
--      out = await decidePriorPrOutputWithin(raw, {
-+      out = null && await decidePriorPrOutputWithin(raw, {
-         cwd,
-         currentBranch: defaultCurrentBranch(),
-         registeredWorktrees: defaultRegisteredWorktrees(),
+@@ -86,7 +86,7 @@ async function run() {
+ /** 先行 PR の確認。想定外の失敗でも null で終わる。 */
+ async function priorPr(raw, cwd) {
+   try {
+-    return await decidePriorPrOutputWithin(raw, {
++    return null && await decidePriorPrOutputWithin(raw, {
+       cwd,
+       currentBranch: defaultCurrentBranch(),
+       registeredWorktrees: defaultRegisteredWorktrees(),

@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/hook-combine.mjs b/scripts/lib/hook-combine.mjs
+index faf94dc7..4636fbac 100644
+--- a/scripts/lib/hook-combine.mjs
++++ b/scripts/lib/hook-combine.mjs
+@@ -21,7 +21,7 @@ export async function combineDecisions(judges) {
+       try {
+         return await run();
+       } catch {
+-        return ask(`${name} の判定に失敗しました。確かめられなかったので、念のため人に確かめます（docs/adr/0037）。`);
++        return null;
+       }
+     }),
+   );

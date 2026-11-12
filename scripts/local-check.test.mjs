@@ -125,7 +125,7 @@ test("turbo が打ち切ったタスクがあれば、パッケージだけで�
 function fixture(t, { failPreflight = false, failCheck = false } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "local-check-"));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
-  for (const file of ["local-check.mjs", "audit-toolchain.mjs", "ci-scope.mjs", "lib/direct-run.mjs", "lib/check-outcome.mjs", "lib/prior-work.mjs", "lib/toolchain.mjs", "lib/scan-targets.mjs", "lib/workflow.mjs", "lib/ci-scope.mjs"]) {
+  for (const file of ["local-check.mjs", "audit-toolchain.mjs", "ci-scope.mjs", "lib/direct-run.mjs", "lib/check-outcome.mjs", "lib/prior-work.mjs", "lib/structure-metrics.mjs", "structure-metrics-notices.mjs", "lib/toolchain.mjs", "lib/scan-targets.mjs", "lib/workflow.mjs", "lib/ci-scope.mjs"]) {
     const target = path.join(dir, "scripts", file);
     fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.copyFileSync(new URL(file, import.meta.url), target);
@@ -237,6 +237,67 @@ test("fast の実 git 差分: コードの削除と、基準が無いときは�
   fs.writeFileSync(path.join(f.dir, "note.md"), "edited\n");
   f.git("update-ref", "-d", "refs/remotes/origin/main");
   assert.match(f.check(true), /差分を判定できない/);
+});
+
+test("速い段は、構造監査の合否の無い指標が merge-base から後退していれば ⚠ で知らせ、落とさない（#578）", (t) => {
+  const f = gitFixture(t);
+  fs.writeFileSync(path.join(f.dir, ".github/workflows/ci.yml"), FAST_CI);
+  // 偽の構造監査: 作業場所の metric.txt の値を SC029 として出す
+  fs.writeFileSync(
+    path.join(f.dir, "scripts/audit-structure.mjs"),
+    "import fs from 'node:fs'; const v = fs.readFileSync('metric.txt', 'utf8').trim();\n" +
+      "console.log('SC | 現状値 | 目標値 | 判定'); console.log('---'); for (const id of ['SC027','SC028','SC030','SC031','SC035']) console.log(id + ' | 0 | 0 | PASS'); console.log('SC029 | ' + v + ' | 0 | 未達'); console.log('SC032 | 10/20（50.0%） | 100% | —'); console.log('SC036 | 100 | x | —');\n",
+  );
+  fs.writeFileSync(path.join(f.dir, "metric.txt"), "86\n");
+  f.git("add", "."); f.commit();
+  f.git("update-ref", "refs/remotes/origin/main", "HEAD");
+  const env = { ...process.env, TMPDIR: fs.mkdtempSync(path.join(os.tmpdir(), "metrics-tmp-")) };
+  t.after(() => fs.rmSync(env.TMPDIR, { recursive: true, force: true }));
+  const run = () => spawnSync(process.execPath, [path.join(f.dir, "scripts/local-check.mjs"), "fast"], { encoding: "utf8", env });
+  // コードの差分あり・値が増えた（後退）
+  fs.writeFileSync(path.join(f.dir, "metric.txt"), "90\n");
+  fs.writeFileSync(path.join(f.dir, "new.ts"), "export {};\n");
+  const bad = run();
+  assert.equal(bad.status, 0, bad.stdout + bad.stderr); // 落とさない
+  assert.ok(bad.stdout.lastIndexOf("⚠ 構造監査の合否の無い指標が後退しています") > bad.stdout.indexOf("実行結果"), bad.stdout);
+  assert.match(bad.stdout, /SC029 86 → 90/);
+  // 同じ値なら後退なし
+  fs.writeFileSync(path.join(f.dir, "metric.txt"), "86\n");
+  const ok = run();
+  assert.doesNotMatch(ok.stdout, /⚠ 構造監査/);
+  assert.match(ok.stdout, /後退していません/);
+  // コードの差分が無ければ比べない
+  fs.unlinkSync(path.join(f.dir, "new.ts"));
+  fs.writeFileSync(path.join(f.dir, "note.md"), "edited\n");
+  assert.doesNotMatch(run().stdout, /構造監査の合否の無い指標/);
+});
+
+test("コードレビュー 8: 構造監査の比較は検査の開始と同時に背景で始め、最後に待つ（検査の後ろに直列で足さない）", (t) => {
+  const f = gitFixture(t);
+  const stamp = path.join(f.dir, "stamps.txt");
+  fs.writeFileSync(path.join(f.dir, ".github/workflows/ci.yml"), `jobs:
+  ci:
+    steps:
+      - run: node -e 'setTimeout(() => require("node:fs").appendFileSync(${JSON.stringify(stamp)}, "CHECK " + Date.now() + "\\n"), 1500)'
+`);
+  fs.writeFileSync(
+    path.join(f.dir, "scripts/audit-structure.mjs"),
+    `import fs from 'node:fs'; fs.appendFileSync(${JSON.stringify(stamp)}, 'AUDIT ' + Date.now() + '\\n');\n` +
+      "console.log('SC | 現状値 | 目標値 | 判定'); for (const id of ['SC027','SC028','SC030','SC031','SC035']) console.log(id + ' | 0 | 0 | PASS'); console.log('SC029 | 86 | 0 | 未達'); console.log('SC032 | 10/20（50.0%） | 100% | —'); console.log('SC036 | 100 | x | —');\n",
+  );
+  f.git("add", "."); f.commit();
+  f.git("update-ref", "refs/remotes/origin/main", "HEAD");
+  fs.writeFileSync(path.join(f.dir, "new.ts"), "export {};\n");
+  f.git("add", "new.ts");
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "metrics-tmp-"));
+  t.after(() => fs.rmSync(tmp, { recursive: true, force: true }));
+  const r = spawnSync(process.execPath, [path.join(f.dir, "scripts/local-check.mjs"), "fast"], { encoding: "utf8", env: { ...process.env, TMPDIR: tmp } });
+  assert.equal(r.status, 0, r.stdout + r.stderr);
+  const lines = fs.readFileSync(stamp, "utf8").trim().split("\n");
+  const check = Number(lines.find((l) => l.startsWith("CHECK")).split(" ")[1]);
+  const audits = lines.filter((l) => l.startsWith("AUDIT")).map((l) => Number(l.split(" ")[1]));
+  assert.equal(audits.length, 2); // 基準と今
+  for (const a of audits) assert.ok(a < check, `構造監査(${a})が検査(${check})より後に始まった`);
 });
 
 test("--list も複数行のコマンドを一行で表示する", (t) => {

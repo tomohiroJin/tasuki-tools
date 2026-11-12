@@ -1,0 +1,183 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index cf1facd7..1cee6439 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -978,8 +978,177 @@ export function unquotedDollarQuote(text) {
+         stack.push({ kind: "sub", depth: 0 });
+         i = nextSig(i + 1);
+       } else if (c === "`") stack.push({ kind: "bt" });
++      if (c === "$" && (text[i + 1] === "'" || text[i + 1] === '"')) return true;
+       prev = c;
+-      continue; // 二重引用符の中の `$'`・`$"` は ANSI-C の引用にならない
++      continue; // 二重引用符の中の `
++    }
++    // 外・置換・バッククォートの中は、外と同じ規則
++    // バッククォートの中の # は、語の頭かどうかに依らずたどらない（コメントは閉じのバッククォートで終わり、開いた直後の `#'` もコメント。読み違えると内外が反転する）
++    if (c === "#" && stack.some((f) => f.kind === "bt")) return null;
++    if (c === "#" && wordStart()) {
++      const nl = text.indexOf("\n", i); // コメントは改行で終わる（末尾の \ は継続にしない）
++      if (nl === -1) break;
++      i = nl;
++      prev = "\n";
++      continue;
++    }
++    if (c === "$") {
++      const j = nextSig(i + 1);
++      if (text[j] === "'" || text[j] === '"') return true;
++      if (text[j] === "(") {
++        stack.push({ kind: "sub", depth: 0 });
++        i = j;
++        prev = "(";
++        continue;
++      }
++    }
++    if (c === "'") stack.push({ kind: "sq" });
++    else if (c === '"') stack.push({ kind: "dq" });
++    else if (c === "`") {
++      if (ctx.kind === "bt") {
++        stack.pop();
++        prev = "x"; // バッククォートの閉じも語の途中
++        continue;
++      }
++      stack.push({ kind: "bt" });
++    } else if (c === "(" && ctx.kind === "sub") ctx.depth += 1;
++    else if (c === ")" && ctx.kind === "sub") {
++      if (ctx.depth > 0) ctx.depth -= 1;
++      else {
++        stack.pop();
++        prev = "x"; // 置換の閉じは語の途中（echo $(true)#… の # はコメントにならない）
++        continue;
++      }
++    }
++    prev = c;
++  }
++  return stack.length === 1 ? false : null;
++}
++
++/** 「迷う形は聞く」の対象から、上の読む・作る形の単純なコマンドを除いた残り。入れ子（置換・`bash -c`）があれば元のまま（fail closed）。 */
++function residualForSubagent(command) {
++  // `$'…'`・`$"…"`（ANSI-C・ロケールの引用）は lex が読めず、引用符の内外が食い違う。lex の結果を信じず、除かずに元のまま返す（fail closed）
++  if (hasUnreadableQuote(command)) return command;
++  const stripped = stripHeredocBodies(command);
++  if (stripped === null) return command;
++  const { commands, nested } = lex(stripped);
++  if (nested.length > 0) return command;
++  const keep = commands.filter((words) => !isBenignSubagentWords(words));
++  // 何も除かなければ（データの heredoc の本文だけ取り除いた）元の文字列のまま読む（語をつなぎ直すと、引用符の中の `|`・`;`・`&&` が区切りになる）
++  if (keep.length === commands.length) return stripped;
++  // 除いたときは、語を 1 つずつ単一引用符で包み直して、読み直しても同じ語の並びになるようにする
++  const quote = (w) => `'${w.replaceAll("'", "'\\''")}'`;
++  return keep.map((words) => words.map(quote).join(" ")).join("\n");
++}
++
++/** サブエージェントでも通してよい単純な git の形（ファイルの取り出し・安全な reset・worktree の追加と一覧）。 */
++function isSafeSimpleGit(command) {
++  const g = simpleGitCommand(command);
++  if (g === null) return false;
++  const opts = beforeDashDash(g.rest);
++  if (g.sub === "checkout") {
++    const k = g.rest.indexOf("--");
++    // `git checkout [rev] -- path…`: rev は高々 1 語、枝を作る・切り離す選択肢は無く、pathspec が 1 つ以上
++    return k !== -1 && k <= 1 && k < g.rest.length - 1 && g.rest.slice(0, k).every((w) => !w.startsWith("-"));
++  }
++  if (g.sub === "reset") return opts.every((w) => !w.startsWith("-") || ["--soft", "--mixed", "-q", "--quiet"].includes(w));
++  if (g.sub === "worktree") return ["add", "list"].includes(g.rest[0]);
++  return false;
++}
++
++/**
++ * サブエージェントから呼ばれたときに人に聞くコマンド（{@link SUBAGENT_GUARDED_COMMANDS}）のうち、コマンドの文字列が走らせうるもの。
++ * @param {string} command
++ */
++export function findSubagentCommands(command) {
++  // データとして使われる heredoc の本文（git commit -m "$(cat <<'EOF' …)"）は文章なので、宣言を当てる前に取り除く（コードレビュー 2）
++  return analyzeString(stripHeredocBodies(command) ?? command, 0, SUBAGENT_GUARDED_COMMANDS);
++}
++
++const RULE_REF = "AGENTS.md「AI 運用規則」の「人の明示の指示か承認を待つ操作」に当たります（docs/adr/0032）。";
++
++function ask(reason) {
++  return {
++    hookSpecificOutput: {
++      hookEventName: "PreToolUse",
++      permissionDecision: "ask",
++      permissionDecisionReason: reason,
++    },
++  };
++}
++
++/**
++ * 入力（標準入力の JSON）を読み、シェルのコマンドの文字列を取り出す。
++ * @returns {{ ask: object } | { skip: true } | { input: object, command: string }}
++ */
++function readShellCommand(raw) {
++  let input;
++  try {
++    input = JSON.parse(raw);
++  } catch {
++    return { ask: ask(`フックの入力を読めませんでした。念のため人に確かめます。${RULE_REF}`) };
++  }
++  if (input === null || typeof input !== "object") {
++    return { ask: ask(`フックの入力の形が想定と違います。念のため人に確かめます。${RULE_REF}`) };
++  }
++  if (!SHELL_TOOLS.includes(input.tool_name)) return { skip: true };
++  const command = input.tool_input?.command;
++  // Monitor の WebSocket の形はシェルを走らせない（PR #498 の再レビュー 3）
++  if (input.tool_name === "Monitor" && command === undefined && input.tool_input?.ws !== undefined) return { skip: true };
++  if (typeof command !== "string") {
++    return { ask: ask(`${input.tool_name} のコマンドを読めませんでした。念のため人に確かめます。${RULE_REF}`) };
++  }
++  return { input, command };
++}
++
++/**
++ * 本番デプロイの判定（{@link GUARDED_COMMANDS}）。入力が読めない・command が文字列でないときも `ask`（黙って通さない）。
++ * 入口はこれに当たったときだけ、ほかの判定を流さずにすぐ返す（docs/adr/0032 の追記）。
++ * @param {string} raw 標準入力の中身
++ * @returns {object | null}
++ */
++export function decideProductionOutput(raw) {
++  const r = readShellCommand(raw);
++  if (r.ask) return r.ask;
++  if (r.skip) return null;
++  const hits = findGuardedCommands(r.command);
++  if (hits.length === 0) return null;
++  const list = hits.map((h) => `${h.id}（${h.why}）`).join("・");
++  return ask(`本番デプロイに当たるコマンドです: ${list}。人の明示の指示があるときだけ承認してください。${RULE_REF}`);
++}
++
++/**
++ * サブエージェントの呼び出しだけ（入力に `agent_id` がある。まとめ役の呼び出しには無い）の判定（docs/adr/0037）。
++ * @param {string} raw
++ * @returns {object | null}
++ */
++export function decideSubagentOutput(raw) {
++  const r = readShellCommand(raw);
++  if (r.ask || r.skip) return null; // 読めない入力は本番デプロイの判定が ask に倒している
++  const { input, command } = r;
++  if (typeof input.agent_id !== "string" || input.agent_id === "") return null;
++  const sub = findSubagentCommands(command);
++  if (sub.length > 0) {
++    const list = sub.map((h) => `${h.id}（${h.why}）`).join("・");
++    return ask(`サブエージェントからの呼び出しです: ${list}。まとめ役か人が行う操作です。人が任せたときだけ承認してください（docs/adr/0037）。`);
++  }
++  // 迷う形は聞く: 危ない操作の名前が文字列にあるのに、宣言に当たらず、読むだけでも単純な安全な形でもない（変数・別名・入れ子ほか）
++  const rest = residualForSubagent(command);
++  if (hasSubagentCandidate(rest) && !isTameCommand(rest) && !isSafeSimpleGit(rest)) {
++    return ask(`サブエージェントからの呼び出しで、push・マージ・枝の切り替え・reset・worktree・kill に当たるかを読み切れない形です。まとめ役か人が行う操作かもしれないので、人の確認が要ります（docs/adr/0037）。`);
++  }
++  return null;
++}
++
++/**
++ * 本番デプロイとサブエージェントの判定をまとめた形（本番デプロイが先）。入口は両方を別々に呼ぶ（束ね方は `scripts/lib/hook-combine.mjs`）。
++ * @param {string} raw 標準入力の中身
++ * @returns {object | null}
++ */
++export function decideHookOutput(raw) {
++  return decideProductionOutput(raw) ?? decideSubagentOutput(raw);
++}
++`・`$"` は ANSI-C の引用にならない
+     }
+     // 外・置換・バッククォートの中は、外と同じ規則
+     // バッククォートの中の # は、語の頭かどうかに依らずたどらない（コメントは閉じのバッククォートで終わり、開いた直後の `#'` もコメント。読み違えると内外が反転する）

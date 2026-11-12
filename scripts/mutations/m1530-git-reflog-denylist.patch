@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index 7027c933..68d64178 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -620,7 +620,7 @@ function isTameWords(words) {
+     if (sub === "fetch") return isSafeGitFetch(words.slice(2));
+     if (sub === "tag") return isReadOnlyGitTag(words.slice(2));
+     if (sub === "remote") return words.slice(2).every((w) => w === "-v" || w === "--verbose") || ["show", "get-url"].includes(words[2]);
+-    if (sub === "reflog") return isReadOnlyGitReflog(words.slice(2));
++    if (sub === "reflog") return !["expire", "delete", "exists", "write"].includes(words[2]);
+     if (TAME_GIT_SUBS.has(sub)) return true;
+     if (sub === "stash") return ["list", "show"].includes(words[2]) && hasOnlyReadFlags(words.slice(3));
+     if (sub === "worktree") return ["list", "add"].includes(words[2]);

@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index 635c9ee9..9b471fe4 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -61,7 +61,7 @@ const GH_ARG_OPTS = ["-R", "--repo"];
+ export function isLongOption(word, full) {
+   if (!word.startsWith("--")) return false;
+   const name = word.split("=")[0];
+-  return name.length >= 3 && full.startsWith(name);
++  return name === full;
+ }
+ 
+ /** 語の並びのうち `--` より前（選択肢の部分）。 */

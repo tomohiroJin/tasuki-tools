@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index 84c7193f..d2f449f7 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -784,7 +784,7 @@ export function stripHeredocBodies(src) {
+     for (const m of tags) {
+       const tag = m[2] ?? m[3] ?? m[4];
+       const end = lines.findIndex((l, k) => k > i && (m[1] === "-" ? l.trim() === tag : l === tag));
+-      if (end === -1) return null;
++      if (end === -1) { i = lines.length; continue; }
+       const body = lines.slice(i + 1, end).join("\n");
+       // 本文が危ない操作の名前を含むとき、データとして使われる決まった形（DATA_HEREDOC_LINE）だけ文章として隠す。それ以外は読めないとする（fail closed）
+       if (looksLikeGuardedOperation(body) && !heredocIsData(lines[i], tag, lines.slice(end + 1))) return null;

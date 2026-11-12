@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/discard-guard.mjs b/scripts/lib/discard-guard.mjs
+index d0b4e14c..5eef34ab 100644
+--- a/scripts/lib/discard-guard.mjs
++++ b/scripts/lib/discard-guard.mjs
+@@ -191,7 +191,7 @@ const GIT_TIMEOUT_MS = 5000;
+ export function defaultIsDirty(cwd, target, env = {}) {
+   // rev つきの checkout/restore（`git checkout <rev> -- <path>`・`git restore --source <rev>`）は、同じ名前の追跡外のファイル（ignore されないもの）も
+   // 上書きしうるので、追跡外も見る。rev の無い形は index から戻すので追跡外に触れない（PR コメント 1）。ignore されたファイルを上書きする形は見ない（残余。ADR-0037）
+-  const untrackedMode = target.untracked || target.withRev ? "normal" : "no";
++  const untrackedMode = target.untracked || target.kind === "paths" ? "normal" : "no";
+   const args = ["status", "--porcelain", `--untracked-files=${untrackedMode}`];
+   if (target.kind === "paths") args.push("--", ...target.paths);
+   return new Promise((resolve) => {
