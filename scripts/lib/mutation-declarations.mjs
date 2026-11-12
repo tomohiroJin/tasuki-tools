@@ -206,6 +206,9 @@ const RESERVED_1120_1129 =
 const RESERVED_1500_1569 =
   "**対応表より後に足した変異。** 1500〜1569 は #578（PR 2 機械化）に割り当てた範囲（main の #574 が 1440〜1442 を使ったので付け替えた。PR 3 は 1480〜1489）。";
 
+const RESERVED_1570_1579 =
+  "**対応表より後に足した変異。** 1570〜1579 は #578（PR 2 機械化）の続き（1500〜1569 を使い切った）。PR 3 は 1480〜1499。";
+
 const RESERVED_1420_1429 =
   "**対応表より後に足した変異。** 1420〜1429 は #557 に追加で割り当てた範囲（1120〜1129・1410〜1419 を使い切ったため。PR #580 のレビューの指摘で足した）。";
 
@@ -9037,5 +9040,29 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["lib/agent-guard.test.mjs"],
     note: RESERVED_1500_1569 + " " + "#578 PR #583 の自動レビュー（HIGH）。echo $(true)#$'…' の # をコメントと読み、続く $'…' ; git push を見落とす。",
+  },
+  {
+    id: 1570,
+    label: "バッククォートの中の \\ でも、引用の状態をたどる",
+    patch: "m1570-ansi-c-quote-backslash-in-backtick-tracked.patch",
+    pkg: "scripts",
+    tests: ["lib/agent-guard.test.mjs"],
+    note: RESERVED_1570_1579 + " " + "#578 bash との差分テストの型 A。bash はバッククォートの中で先に \\$ を $ に戻すので、守られる 1 字の規則と食い違い、$'…' を見落とす。",
+  },
+  {
+    id: 1571,
+    label: "置換・バッククォートと case が同じ文字列にあっても、引用の状態をたどる",
+    patch: "m1571-ansi-c-quote-case-in-substitution-tracked.patch",
+    pkg: "scripts",
+    tests: ["lib/agent-guard.test.mjs"],
+    note: RESERVED_1570_1579 + " " + "#578 bash との差分テストの型 B。case のパターンの ) を置換の閉じと取り違え、続く $'…' を二重引用符の中と読む。",
+  },
+  {
+    id: 1572,
+    label: "バッククォートの中の # も、語の頭なら改行までのコメントとして読み飛ばす",
+    patch: "m1572-ansi-c-quote-comment-in-backtick-tracked.patch",
+    pkg: "scripts",
+    tests: ["lib/agent-guard.test.mjs"],
+    note: RESERVED_1570_1579 + " " + "#578 bash との差分テストの型 C と PR #583 の再レビュー 8 回目。バッククォートの中のコメントは閉じのバッククォートで終わり、開いた直後の `#'` もコメント。読み違えると内外が反転し、$'…' ; git push がすり抜ける。",
   },
 ];
