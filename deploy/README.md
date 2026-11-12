@@ -20,9 +20,12 @@ Tasuki の各アプリは「自分の systemd ユニット + 固有ポート + C
 | `checkin` | （無し・静的） | — | `/var/www/tasuki-checkin` | `/checkin/` | 公開中 |
 
 > **#479（画面の崩れ）・#480・#465・#468・#469・#574 ほか、v4.5.0 以降の 66 PR は 2026-11-12 にまとめて配った**（`v4.6.0`）。
-> 新しいアプリは無く、`deploy/` の差分も文書だけなので root 作業は無し。poker → topic → roulette → agenda → checkin → landing → timer
-> の順に続けて流した（同期サーバーの再起動は最後の 1 回。wire は変わっていないので配る順に互換の窓は無い）。7 本のハッシュ一致・
-> NRestarts=0・e2e:prod 62 passed。AI のエージェントの設定が `ssh` と配布のスクリプトを拒むので（`docs/adr/0032`）、配布のコマンドは人が端末で流した。
+> 新しいアプリは無く、`deploy/` の差分も文書だけなので root 作業は無し。標準の順は同期サーバーが先・画面が後
+> （[`../docs/guides/architecture.md`](../docs/guides/architecture.md)・`docs/adr/0026`）だが、この回は wire が変わっておらず
+> 互換の窓が無いので、例外として poker → topic → roulette → agenda → checkin → landing → timer の順に続けて流し、
+> 同期サーバーの再起動（ルームが消える）を最後の 1 回にした。7 本のハッシュ一致・NRestarts=0・e2e:prod 62 passed。
+> 配布のコマンドは人が端末で流した（Claude Code の手元の設定（追跡外の `settings.local.json`）が `ssh` と配布のスクリプトを
+> deny していたため。`docs/adr/0032` のフックは人に聞く作りで、deny ではない）。
 
 > **#406（Check-in Cards）・#447・#455・#403・#458 は 2026-10-30 にまとめて配った**（`v4.5.0`）。初回の用意（web root と
 > `/checkin/` の断片）を root で済ませてから、timer → checkin → roulette → agenda → poker → topic → landing の順に流した。
