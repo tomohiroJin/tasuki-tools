@@ -728,6 +728,12 @@ describe("サブエージェントの危ない操作（#578・docs/adr/0037）",
       assert.equal(unquotedDollarQuote(c), null, c);
       assert.equal(hasUnreadableQuote(c), true, c);
     }
+    // バッククォートを開いた直後の # もコメント（PR #583 の再レビュー 8 回目）。語の頭かどうかに依らず、バッククォートの中の # はたどらない
+    const btComment = "echo `#'` $'\\'' ; git push ; echo $'\\'' `#'`";
+    assert.equal(unquotedDollarQuote(btComment), null);
+    assert.equal(subOut(btComment)?.hookSpecificOutput.permissionDecision, "ask");
+    // 行の継続で割った case も bash は case と読む
+    assert.equal(unquotedDollarQuote("echo \"$(ca\\\nse x in x) echo $'\\x41';; esac)\""), null);
     // case でも、置換やバッククォートが無ければたどる。$' ・$" が無ければ、置換の中の case でも読めない引用にしない
     assert.equal(unquotedDollarQuote("case x in x) echo \"main$\";; esac"), false);
     assert.equal(hasUnreadableQuote("echo \"$(case x in x) echo hi;; esac)\""), false);
