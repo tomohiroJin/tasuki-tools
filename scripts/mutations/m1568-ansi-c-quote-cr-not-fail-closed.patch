@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index 56abd5e4..bcff80be 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -940,7 +940,7 @@ export function hasUnreadableQuote(command) {
+  * @returns {boolean | null}
+  */
+ export function unquotedDollarQuote(text) {
+-  if (/(^|[^<])<<(?!<)/.test(text) || text.includes("${") || text.includes("\r")) return null;
++  if (/(^|[^<])<<(?!<)/.test(text) || text.includes("${")) return null;
+   const stack = [{ kind: "top" }];
+   const top = () => stack[stack.length - 1];
+   /** j から、行の継続（`\` と改行）を読み飛ばした次の字の位置。bash は継続をつないでから読むので、`$` の次の字はこれで見る。 */

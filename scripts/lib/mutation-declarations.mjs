@@ -9022,4 +9022,20 @@ export const MUTATIONS = [
     tests: ["lib/agent-guard.test.mjs"],
     note: RESERVED_1500_1569 + " " + "#578 PR #583 の自動レビュー（HIGH）。bash は echo a\\<改行>#… を語の途中として読むのに、コメントと読んで次の $'…' ; git push を見落とす。",
   },
+  {
+    id: 1568,
+    label: "CR を含む文字列でも、引用の状態をたどる（読めない側へ倒さない）",
+    patch: "m1568-ansi-c-quote-cr-not-fail-closed.patch",
+    pkg: "scripts",
+    tests: ["lib/agent-guard.test.mjs"],
+    note: RESERVED_1500_1569 + " " + "#578 PR #583 の自動レビュー（HIGH）。\\<CR> の扱いで継続とコメントの境が bash と食い違い、続く $'…' ; git push がすり抜ける。",
+  },
+  {
+    id: 1569,
+    label: "置換 $( … ) の閉じを語の切れ目にする",
+    patch: "m1569-ansi-c-quote-substitution-close-breaks-word.patch",
+    pkg: "scripts",
+    tests: ["lib/agent-guard.test.mjs"],
+    note: RESERVED_1500_1569 + " " + "#578 PR #583 の自動レビュー（HIGH）。echo $(true)#$'…' の # をコメントと読み、続く $'…' ; git push を見落とす。",
+  },
 ];
