@@ -697,6 +697,16 @@ describe("サブエージェントの危ない操作（#578・docs/adr/0037）",
     // 二重引用符の中・外の \ と改行は継続（守られる 1 字）。$ と引用符の間の継続も見つける
     for (const c of ["echo \"a\\\nb\" ; echo $'x' ; git push", "echo $\\\n'x' ; git push"]) assert.equal(hasUnreadableQuote(c), true, c);
     assert.equal(hasUnreadableQuote("echo \"main$\\\n\" | grep x"), false);
+    // 行の継続のすぐ後の # は語の途中（bash は継続をつないで a#… と読む）。コメントと読むと次の $'…' を見落とす
+    for (const c of ["echo a\\\n#$'\\'' ; git push ; echo $'\\''", "echo a\\\r\n#$'x' ; git push"]) {
+      assert.equal(hasUnreadableQuote(c), true, c);
+      assert.equal(subOut(c)?.hookSpecificOutput.permissionDecision, "ask", c);
+    }
+    // 二重引用符の中で $ と ( の間に継続を挟んでも置換（その中の $'…' は読めない引用）
+    for (const c of ["echo \"$\\\n(echo $'x')\" ; git push"]) {
+      assert.equal(hasUnreadableQuote(c), true, c);
+      assert.equal(subOut(c)?.hookSpecificOutput.permissionDecision, "ask", c);
+    }
     const commentSkew = "# don't\necho $'x' ; git push # '";
     assert.equal(hasUnreadableQuote(commentSkew), true);
     assert.equal(subOut(commentSkew)?.hookSpecificOutput.permissionDecision, "ask");

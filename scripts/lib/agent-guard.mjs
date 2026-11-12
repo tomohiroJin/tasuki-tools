@@ -943,56 +943,70 @@ export function unquotedDollarQuote(text) {
   if (/(^|[^<])<<(?!<)/.test(text) || text.includes("${")) return null;
   const stack = [{ kind: "top" }];
   const top = () => stack[stack.length - 1];
-  const wordStart = (i) => i === 0 || /[\s;&|()]/.test(text[i - 1]);
+  /** j から、行の継続（`\` と改行）を読み飛ばした次の字の位置。bash は継続をつないでから読むので、`$` の次の字はこれで見る。 */
+  const nextSig = (j) => {
+    while (text[j] === "\\" && (text[j + 1] === "\n" || (text[j + 1] === "\r" && text[j + 2] === "\n"))) j += text[j + 1] === "\n" ? 2 : 3;
+    return j;
+  };
+  // 直前の意味のある字（行の継続は語の切れ目にしない。`echo a\<改行>#…` は語の途中で、コメントではない）
+  let prev = "";
+  const wordStart = () => prev === "" || /[\s;&|()]/.test(prev);
   for (let i = 0; i < text.length; i += 1) {
     const ctx = top();
     const c = text[i];
     if (ctx.kind === "sq") {
       if (c === "'") stack.pop();
+      prev = c;
       continue;
     }
     if (c === "\\") {
-      i += 1; // 次の 1 字は守られる（外・二重引用符・置換の中とも）
+      const n = text[i + 1];
+      if (n === "\n") i += 1; // 行の継続: 語の切れ目にしない（prev はそのまま）
+      else if (n === "\r" && text[i + 2] === "\n") i += 2;
+      else {
+        i += 1; // 次の 1 字は守られる（外・二重引用符・置換の中とも）
+        prev = "x";
+      }
       continue;
     }
     if (ctx.kind === "dq") {
       if (c === '"') stack.pop();
-      else if (c === "$" && text[i + 1] === "(") {
+      else if (c === "$" && text[nextSig(i + 1)] === "(") {
         stack.push({ kind: "sub", depth: 0 });
-        i += 1;
+        i = nextSig(i + 1);
       } else if (c === "`") stack.push({ kind: "bt" });
+      prev = c;
       continue; // 二重引用符の中の `$'`・`$"` は ANSI-C の引用にならない
     }
     // 外・置換・バッククォートの中は、外と同じ規則
-    if (c === "#" && wordStart(i)) {
-      const nl = text.indexOf("\n", i);
+    if (c === "#" && wordStart()) {
+      const nl = text.indexOf("\n", i); // コメントは改行で終わる（末尾の \ は継続にしない）
       if (nl === -1) break;
       i = nl;
+      prev = "\n";
       continue;
     }
     if (c === "$") {
-      // `$` と引用符の間に挟んだ行の継続（`\` と改行）は読み飛ばして次の字を見る
-      let j = i + 1;
-      while (text[j] === "\\" && (text[j + 1] === "\n" || (text[j + 1] === "\r" && text[j + 2] === "\n"))) j += text[j + 1] === "\n" ? 2 : 3;
+      const j = nextSig(i + 1);
       if (text[j] === "'" || text[j] === '"') return true;
+      if (text[j] === "(") {
+        stack.push({ kind: "sub", depth: 0 });
+        i = j;
+        prev = "(";
+        continue;
+      }
     }
     if (c === "'") stack.push({ kind: "sq" });
     else if (c === '"') stack.push({ kind: "dq" });
-    else if (c === "$" && text[i + 1] === "(") {
-      stack.push({ kind: "sub", depth: 0 });
-      i += 1;
-    } else if (c === "`") {
+    else if (c === "`") {
       if (ctx.kind === "bt") stack.pop();
       else stack.push({ kind: "bt" });
     } else if (c === "(" && ctx.kind === "sub") ctx.depth += 1;
-    else if (c === ")") {
-      if (ctx.kind === "sub") {
-        if (ctx.depth > 0) ctx.depth -= 1;
-        else stack.pop();
-      } else if (ctx.kind === "top") {
-        // サブシェルの閉じ `( … )` はここでは数えない（引用の状態に関わらない）
-      }
+    else if (c === ")" && ctx.kind === "sub") {
+      if (ctx.depth > 0) ctx.depth -= 1;
+      else stack.pop();
     }
+    prev = c;
   }
   return stack.length === 1 ? false : null;
 }
