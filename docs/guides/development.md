@@ -81,8 +81,8 @@ rm -rf "$d"
 ### Codex で作業するとき
 
 Codex は `AGENTS.md` をそのまま読む（`CLAUDE.md` は読まない）。`.codex/hooks.json` の PreToolUse フックで、本番デプロイに当たるコマンドを
-`deny` で拒む歯止めを置いている（`scripts/codex-guard-hook.mjs`。判定の正本は `scripts/lib/agent-guard.mjs`）。ただし決めた ADR（`docs/adr/0032` の追記（#578））は
-**Proposed で、Codex の実機では止まることを未確認**。Claude Code と違い Codex は `ask` を扱えないので、当たれば拒む（人が承認して進む道は無い）。
+`deny` で拒む歯止めを置いている（`scripts/codex-guard-hook.mjs`。判定の正本は `scripts/lib/agent-guard.mjs`）。決めた ADR は `docs/adr/0032` の追記（#578）。
+**信頼した状態の Codex の実機で止まることは未確認で、信頼していない場所ではフックが読まれず効かない（実測）**。Claude Code と違い Codex は `ask` を扱えないので、当たれば拒む（人が承認して進む道は無い）。
 **効いていても、本番デプロイは人の承認を待つ操作のまま**（`AGENTS.md`「AI 運用規則」）。
 
 **フックが効くための手元の用意**（リポジトリからは見えない状態なので、検査も見ない）:
