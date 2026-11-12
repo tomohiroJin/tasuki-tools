@@ -917,10 +917,75 @@ function isListOrCreateGitBranch(args) {
 export function hasUnreadableQuote(command) {
   // ① 元のコマンド（`lex`・`isTameCommand` と同じ行の分け方）から、データとして証明できる heredoc の本文だけを取り除く
   //    （取り除けないときは元のまま。fail closed）。本文の中の `$'…'` は実行されない。
-  const text = stripHeredocBodies(command) ?? command;
-  // ② 行の継続（`\` と改行）をつなぐ。③ `$'`・`$"` が**どこかに 1 つでも**あれば読めない（前の文字は問わない。
-  //    `echo x$'\''` のように語の途中でも、`grep "main$"` の行末の錨の直後の引用符でも。見分けようとせず、判定の食い違いを避ける）
-  return /\$['"]/.test(text.replace(/\\\r?\n/g, ""));
+  const text = (stripHeredocBodies(command) ?? command).replace(/\\\r?\n/g, "");
+  // ② 行の継続（`\` と改行）をつなぐ。③ `$'`・`$"` が**引用符の外に**あれば読めない（`echo $'x'`・語の途中の `echo x$'\''` も）。
+  //    引用符の中の `$` に続く引用符（`grep "main$"`・`grep -E 'reset$'` の行末の錨）は、bash でも ANSI-C の引用にならないので聞かない（2026-11-12 の利用者の決定）。
+  //    引用符の内外を前の文字で見分けると食い違うので、内外の状態をたどる（`unquotedDollarQuote`）。たどれない形では、どこかに 1 つでもあれば読めないとする（fail closed）
+  if (!/\$['"]/.test(text)) return false;
+  const found = unquotedDollarQuote(text);
+  return found === null ? true : found;
+}
+
+/**
+ * 引用符の外に `$'`・`$"` があるかを、bash の引用の状態をたどって決める。たどれない形では `null`（呼び手は読めない側へ倒す）。
+ * たどれない形: 取り除けなかった heredoc の演算子（本文に `'` があると状態がずれる）・`${…}`（中の引用の扱いが別）・
+ * 閉じない引用符・閉じない置換・対応しない `)`。
+ * たどる状態: 外（`top`）・単一引用符（`sq`。`'` でだけ閉じる）・二重引用符（`dq`。`\` が次の 1 字を守る。`$(`・バッククォートで外へ入れ子）・
+ * 置換 `$(…)`（外と同じ規則。括弧の深さを数える）・バッククォート（外と同じ規則）。外の `#` は、語の頭なら行末までコメント。
+ * @param {string} text 行の継続をつなぎ、データの heredoc の本文を取り除いた後の文字列
+ * @returns {boolean | null}
+ */
+export function unquotedDollarQuote(text) {
+  if (/(^|[^<])<<(?!<)/.test(text) || text.includes("${")) return null;
+  const stack = [{ kind: "top" }];
+  const top = () => stack[stack.length - 1];
+  const wordStart = (i) => i === 0 || /[\s;&|()]/.test(text[i - 1]);
+  for (let i = 0; i < text.length; i += 1) {
+    const ctx = top();
+    const c = text[i];
+    if (ctx.kind === "sq") {
+      if (c === "'") stack.pop();
+      continue;
+    }
+    if (c === "\\") {
+      i += 1; // 次の 1 字は守られる（外・二重引用符・置換の中とも）
+      continue;
+    }
+    if (ctx.kind === "dq") {
+      if (c === '"') stack.pop();
+      else if (c === "$" && text[i + 1] === "(") {
+        stack.push({ kind: "sub", depth: 0 });
+        i += 1;
+      } else if (c === "`") stack.push({ kind: "bt" });
+      continue; // 二重引用符の中の `$'`・`$"` は ANSI-C の引用にならない
+    }
+    // 外・置換・バッククォートの中は、外と同じ規則
+    if (c === "#" && wordStart(i)) {
+      const nl = text.indexOf("\n", i);
+      if (nl === -1) break;
+      i = nl;
+      continue;
+    }
+    if (c === "$" && (text[i + 1] === "'" || text[i + 1] === '"')) return true;
+    if (c === "'") stack.push({ kind: "sq" });
+    else if (c === '"') stack.push({ kind: "dq" });
+    else if (c === "$" && text[i + 1] === "(") {
+      stack.push({ kind: "sub", depth: 0 });
+      i += 1;
+    } else if (c === "`") {
+      if (ctx.kind === "bt") stack.pop();
+      else stack.push({ kind: "bt" });
+    } else if (c === "(" && ctx.kind === "sub") ctx.depth += 1;
+    else if (c === ")") {
+      if (ctx.kind === "sub") {
+        if (ctx.depth > 0) ctx.depth -= 1;
+        else stack.pop();
+      } else if (ctx.kind === "top") {
+        // サブシェルの閉じ `( … )` はここでは数えない（引用の状態に関わらない）
+      }
+    }
+  }
+  return stack.length === 1 ? false : null;
 }
 
 /** 「迷う形は聞く」の対象から、上の読む・作る形の単純なコマンドを除いた残り。入れ子（置換・`bash -c`）があれば元のまま（fail closed）。 */

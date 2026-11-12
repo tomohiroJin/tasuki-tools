@@ -666,16 +666,28 @@ describe("サブエージェントの危ない操作（#578・docs/adr/0037）",
       assert.equal(isTameCommand(c), false, c);
     }
     for (const c of ["echo $'a'", "grep $'x' f", "git commit -m $'fix'", "echo x$'a'"]) assert.equal(isTameCommand(c), false, c);
-    // 行末の錨 $ の直後の閉じる引用符も、判定の食い違いを避けるため聞く（残余。`grep -E 'main[$]'` と書けば通る）
-    for (const c of ['git branch -a | grep "main$"', "git log --oneline | grep -E 'reset$'", 'git status --short | grep -E "^ M.*checkout\\.mjs$"', 'echo "cost: 5$" && git stash list']) {
-      assert.equal(hasUnreadableQuote(c), true, c);
-      assert.equal(isTameCommand(c), false, c);
+    // 引用符の**中**の `$` に続く引用符（正規表現の行末の錨）は ANSI-C の引用ではないので聞かない（2026-11-12 の利用者の決定。bash でも引用にならない）
+    for (const c of ['git branch -a | grep "main$"', "git log --oneline | grep -E 'reset$'", 'git status --short | grep -E "^ M.*checkout\\.mjs$"', 'echo "cost: 5$" && git stash list', "git branch -a | grep 'main[$]'"]) {
+      assert.equal(hasUnreadableQuote(c), false, c);
+      assert.equal(subOut(c), null, c);
     }
-    // サブエージェントでは、操作の名前（reset・checkout）が文字列にあるものが聞かれる（stash は未コミットの判定の側）
-    for (const c of ['git branch -a | grep "main$" ; git push', "git log --oneline | grep -E 'reset$'", 'git status --short | grep -E "^ M.*checkout\\.mjs$"']) {
+    // 引用符の中の錨でも、引用符の外に危ない操作が続けば聞く
+    assert.equal(subOut('git branch -a | grep "main$" ; git push')?.hookSpecificOutput.permissionDecision, "ask");
+    // 二重引用符の中の `$(…)` は外と同じ規則なので、その中の `$'…'` は読めない引用
+    for (const c of ['echo "$(echo $\'x\')" ; git push', "echo \"`echo $'x'`\" ; git push"]) {
+      assert.equal(hasUnreadableQuote(c), true, c);
       assert.equal(subOut(c)?.hookSpecificOutput.permissionDecision, "ask", c);
     }
-    assert.equal(subOut("git branch -a | grep 'main[$]'"), null);
+    // 引用の状態をたどれない形は、どこかに 1 つでもあれば読めない側へ倒す（コメントの中の ' ・取り除けない heredoc・${…}・閉じない引用符）
+    for (const c of [
+      "# don't\necho $'\\'' ; git push ; echo $'\\''",
+      "cat <<EOF\ndon't\nEOF\necho $'\\'' ; git push ; echo $'\\''",
+      "echo ${x:-$'\\''} ; git push",
+      "echo \"main$\" '",
+    ]) {
+      assert.equal(hasUnreadableQuote(c), true, c);
+    }
+    assert.equal(subOut("# don't\necho $'\\'' ; git push ; echo $'\\''")?.hookSpecificOutput.permissionDecision, "ask");
     // $'…' を使わない日常の形は通ったまま
     for (const c of ['grep -E "kill|pkill" notes.md', 'git commit -m "fix: reset; kill the timer"', 'git log --grep="push|reset" --oneline', "git branch --show-current && grep -E 'kill|x' notes.md", "echo 'cost $5'"]) {
       assert.equal(subOut(c), null, c);
