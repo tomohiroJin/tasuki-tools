@@ -4,7 +4,11 @@
 **検査ではない**（CI にも `pnpm test` にもつながない。#587 のスコープ外）。直したあとに同じ物差しで測り直すときに使う。
 
 どれもリポジトリのルートを第 1 引数で受け取り、結果は標準出力へ JSON で書く。**パスの引数は相対パスでよい**。
-走査の母集合は `git ls-files` の `.ts` / `.tsx`（この環境の FS は大文字小文字を区別しないので `readdirSync` で歩かない）。
+走査の母集合は `git ls-files`（この環境の FS は大文字小文字を区別しないので `readdirSync` で歩かない）。拡張子はスクリプトごとに違う:
+`a-dependency-edges.mjs` は `.ts` `.tsx` `.mjs`、`a-extension-cost.mjs` は全追跡ファイル（バイナリは名前だけ）、`b-duplicates.mjs` と `d-size.mjs` は `.ts` `.tsx`、
+`c-contracts.mjs` は core・protocol・sync-client と同期サーバーの application・ports の `.ts` `.tsx` `.mjs`、`d-dead-exports.mjs` は export の側が `.ts` `.tsx`・参照の側が `.ts` `.tsx` `.mjs` `.cjs` `.js`。
+`a-dependency-edges.mjs`・`a-extension-cost.mjs`・`d-dead-exports.mjs` は、このディレクトリ（`2026-11-13-architecture-review-survey*`）を母集合から外す（スクリプト自身の語・変数名を数えると、マージ後の木で基準値がずれる）。
+**結果の置き場はリポジトリの外を渡す**（作業ツリーの中に `tmp/` を作ると、変異検査が「未コミットの変更」として止まる）。
 node 標準ライブラリだけで動く（依存を入れずに流せる）。
 
 | ファイル | 節 | 使い方 | 所要（2026-11-13・本体の作業ツリーで流し直した値） |

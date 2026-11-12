@@ -4,6 +4,8 @@
  * 使い方: node a-dependency-edges.mjs <ルート>
  * 出力: { edges, violations, summary }（標準出力へ JSON。整列済みで、同じ入力は同じ出力）
  * 母集合は git ls-files。node 標準ライブラリだけ。読むだけで何も書かない。
+ * 調査のディレクトリ（docs/superpowers/specs/2026-11-13-architecture-review-survey*。このスクリプト自身を含む）は、
+ * マージ後の木で測り直しても基準値がずれないよう母集合から外す（a-extension-cost.mjs と同じ）。
  */
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
@@ -12,7 +14,8 @@ import { pathToFileURL } from "node:url";
 
 const root = path.resolve(process.argv[2] ?? ".");
 const tracked = execFileSync("git", ["ls-files", "-z"], { cwd: root, maxBuffer: 1 << 28 })
-  .toString("utf8").split("\0").filter(Boolean);
+  .toString("utf8").split("\0").filter(Boolean)
+  .filter((f) => !f.includes("2026-11-13-architecture-review-survey"));
 const trackedSet = new Set(tracked);
 const SRC_EXT = /\.(ts|tsx|mjs)$/;
 const files = tracked.filter((f) => SRC_EXT.test(f)).sort();

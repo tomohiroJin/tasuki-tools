@@ -1,13 +1,16 @@
 // #587 D: 自分以外の追跡ファイルのどこにも単語として現れない export を数える（node 標準ライブラリだけ）
 // 使い方: node d-dead-exports.mjs <ルート>   出力: JSON（整列済み）
 // 参照の母集合は追跡下の .ts .tsx .mjs .cjs .js（文書・JSON は含めない）。単語境界は識別子の字句で取る。
+// 調査のディレクトリ（2026-11-13-architecture-review-survey*。このスクリプト自身を含む）は母集合から外す
+// （自分の変数名が参照に数えられ、マージ後の木で基準値がずれるため。a-extension-cost.mjs と同じ）。
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 
 const root = resolve(process.argv[2] ?? ".");
 const tracked = execFileSync("git", ["ls-files", "-z"], { cwd: root, maxBuffer: 1 << 28 })
-  .toString("utf8").split("\0").filter(Boolean).sort();
+  .toString("utf8").split("\0").filter(Boolean).sort()
+  .filter((f) => !f.includes("2026-11-13-architecture-review-survey"));
 const isCode = (p) => /\.(ts|tsx|mjs|cjs|js)$/.test(p);
 const isTest = (p) => /\.(test|spec)\.[a-z]+$/.test(p) || /(^|\/)(tests?|e2e)\//.test(p);
 const isEntry = (p) => /(^|\/)(index\.ts|main\.tsx|server\.ts|vite\.config\.ts)$/.test(p) || p.endsWith(".d.ts");
