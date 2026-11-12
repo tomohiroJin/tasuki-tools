@@ -1,6 +1,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { HOOK_COMMAND, checkClaudeSettings, checkDeclarations } from "./audit-agent-guard.mjs";
+import { HOOK_COMMAND, HOOK_SCRIPT, checkClaudeSettings, checkDeclarations, findRelativeImports, collectEntryDependencies } from "./audit-agent-guard.mjs";
+import fs from "node:fs";
 
 const MATCHER = "Bash|Monitor";
 
@@ -81,5 +82,37 @@ describe("リポジトリの実物", () => {
     const { fileURLToPath } = await import("node:url");
     const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
     assert.deepEqual(checkClaudeSettings(fs.readFileSync(path.join(root, ".claude/settings.json"), "utf8")), []);
+  });
+});
+
+describe("入口が読み込む部品を import からたどる（#578）", () => {
+  test("相対 import の指定子を拾う。パッケージ名・node: は拾わない", () => {
+    const text = 'import fs from "node:fs";\nimport { a } from "./lib/a.mjs";\nimport {\n  b,\n  c,\n} from "./lib/b.mjs";\nexport { d } from "../d.mjs";\nimport x from "pkg";\n// import y from "./comment.mjs";\n';
+    assert.deepEqual(findRelativeImports(text), ["./lib/a.mjs", "./lib/b.mjs", "../d.mjs"]);
+  });
+
+  test("入口から間接の import もたどり、循環しても止まる", () => {
+    const files = {
+      "scripts/hook.mjs": 'import "./lib/a.mjs";\nimport { x } from "./lib/b.mjs";',
+      "scripts/lib/a.mjs": 'import { y } from "./c.mjs";\nimport { z } from "../hook.mjs";',
+      "scripts/lib/b.mjs": 'import fs from "node:fs";',
+      "scripts/lib/c.mjs": "export const y = 1;",
+    };
+    const read = (rel) => files[rel] ?? null;
+    assert.deepEqual(collectEntryDependencies("scripts/hook.mjs", read), ["scripts/lib/a.mjs", "scripts/lib/b.mjs", "scripts/lib/c.mjs"]);
+  });
+
+  test("現物の入口は、未コミットの変更を消す git・pnpm --filter・閉鎖キーワードの部品を読み込む", () => {
+    const read = (rel) => {
+      try {
+        return fs.readFileSync(new URL(`../${rel}`, import.meta.url), "utf8");
+      } catch {
+        return null;
+      }
+    };
+    const deps = collectEntryDependencies(HOOK_SCRIPT, read);
+    for (const lib of ["agent-guard", "discard-guard", "pnpm-filter-guard", "closing-keywords", "prior-pr-hook", "prior-work"]) {
+      assert.ok(deps.some((d) => d.endsWith(`${lib}.mjs`)), lib);
+    }
   });
 });

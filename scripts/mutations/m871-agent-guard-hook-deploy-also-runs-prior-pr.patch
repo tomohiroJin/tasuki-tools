@@ -1,10 +1,10 @@
 diff --git a/scripts/agent-guard-hook.mjs b/scripts/agent-guard-hook.mjs
-index 982c0c23..ac0c05eb 100644
+index 59351cd1..023de6ba 100644
 --- a/scripts/agent-guard-hook.mjs
 +++ b/scripts/agent-guard-hook.mjs
-@@ -45,7 +45,7 @@ async function run() {
+@@ -52,7 +52,7 @@ async function run() {
    // （確認が遅れたり時間切れになったりしても、本番のガードが fail-open にならない。docs/adr/0032 の追記）
-   const deploy = decideHookOutput(raw);
+   const deploy = decideProductionOutput(raw);
    let out = deploy;
 -  if (deploy !== null) {
 +  if (false) {

@@ -1,13 +1,13 @@
 diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
-index 70ff7e88..a0450dc0 100644
+index 635c9ee9..24d14781 100644
 --- a/scripts/lib/agent-guard.mjs
 +++ b/scripts/lib/agent-guard.mjs
-@@ -305,7 +305,7 @@ function matchHead(words, i, decls) {
+@@ -363,7 +363,7 @@ function matchHead(words, i, decls) {
      // 当たった語を `words` に持たせる（題の取り出しに使う。#504）
      if (g.program && g.args && name === g.program) {
        const start = skipOptions(words, i + 1, g.argOpts ?? []);
--      if (g.args.every((a, k) => words[start + k] === a)) hits.push({ ...g, words });
-+      if (words.some((_, j) => g.args.every((a, k) => words[j + k] === a))) hits.push({ ...g, words });
+-      if (g.args.every((a, k) => words[start + k] === a) && (g.when === undefined || g.when(words, start))) {
++      if (words.some((_, j) => g.args.every((a, k) => words[j + k] === a)) && (g.when === undefined || g.when(words, start))) {
+         hits.push({ ...g, words, start });
+       }
      }
-   }
-   return hits;

@@ -1,9 +1,9 @@
 diff --git a/scripts/local-check.mjs b/scripts/local-check.mjs
-index f60e7a26..f787ec52 100644
+index 9b2480b2..2d30f570 100644
 --- a/scripts/local-check.mjs
 +++ b/scripts/local-check.mjs
-@@ -235,7 +235,7 @@ function main() {
-     for (const line of [...priorNotices, ...notices]) console.log(`[local-check] ${line}`);
+@@ -253,7 +253,7 @@ async function run() {
+     for (const line of [...priorNotices, ...notices, ...structureLines]) console.log(`[local-check] ${line}`);
      const count = (status) => results.filter((c) => c.status === status).length;
      if (count("not-run") > 0) console.log(`[local-check] 失敗 ${count("failed")} 件・未実行 ${count("not-run")} 件（未実行はテストの失敗ではなく、走らなかったもの）`);
 -    process.exitCode = !ready || results.some((c) => c.status === "failed" || c.status === "not-run") ? 1 : 0;

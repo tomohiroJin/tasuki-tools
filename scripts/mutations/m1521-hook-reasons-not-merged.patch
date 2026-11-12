@@ -1,0 +1,12 @@
+diff --git a/scripts/lib/hook-combine.mjs b/scripts/lib/hook-combine.mjs
+index faf94dc7..f097c0bd 100644
+--- a/scripts/lib/hook-combine.mjs
++++ b/scripts/lib/hook-combine.mjs
+@@ -28,6 +28,6 @@ export async function combineDecisions(judges) {
+   const found = results.filter((x) => x !== null && x !== undefined);
+   if (found.length === 0) return null;
+   const out = structuredClone(found[0]);
+-  out.hookSpecificOutput.permissionDecisionReason = found.map((x) => x.hookSpecificOutput.permissionDecisionReason).join("\n\n");
++
+   return out;
+ }

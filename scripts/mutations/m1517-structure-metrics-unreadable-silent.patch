@@ -1,0 +1,12 @@
+diff --git a/scripts/lib/structure-metrics.mjs b/scripts/lib/structure-metrics.mjs
+index f0e983b0..ac159dc6 100644
+--- a/scripts/lib/structure-metrics.mjs
++++ b/scripts/lib/structure-metrics.mjs
+@@ -80,7 +80,6 @@ export function findMetricRegressions(base, current, baseOutput = null) {
+       continue;
+     }
+     if (typeof current[key] !== "number") {
+-      unreadable.push(key);
+       continue;
+     }
+     const worse = spec.better === "lower" ? current[key] > base[key] : current[key] < base[key];

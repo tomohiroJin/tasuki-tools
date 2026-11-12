@@ -1,0 +1,12 @@
+diff --git a/scripts/lib/discard-guard.mjs b/scripts/lib/discard-guard.mjs
+index 9a3dc4ed..ea88a835 100644
+--- a/scripts/lib/discard-guard.mjs
++++ b/scripts/lib/discard-guard.mjs
+@@ -147,6 +147,7 @@ export async function decideDiscardOutput(raw, { exists, isDirty, cwd: defaultCw
+   const result = simple === null ? UNKNOWN_FORM : classify(simple, exists ?? ((p) => fs.existsSync(path.resolve(cwd, p))));
+   if (result.verdict === "safe") return null;
+   if (result.verdict === "unknown-form") {
++    return null;
+     return ask("未コミットの変更を消しうる git かもしれませんが、形が単純でないので（複数のコマンド・入れ子・環境変数や -C/-c・未知の選択肢ほか）確かめられません。消えてよいか人の確認が要ります（docs/adr/0037）。");
+   }
+   // 4. 変更を見る。確かめ自体が失敗したら聞く

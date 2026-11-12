@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index cf1facd7..93cc250f 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -940,7 +940,7 @@ export function hasUnreadableQuote(command) {
+  * @returns {boolean | null}
+  */
+ export function unquotedDollarQuote(text) {
+-  if (/(^|[^<])<<(?!<)/.test(text) || text.includes("${") || text.includes("\r")) return null;
++  if (/(^|[^<])<<(?!<)/.test(text) || text.includes("${")) return null;
+   // `$( … )`・バッククォートの中の `case x in x) …` は、パターンの `)` を置換の閉じと取り違えうる（bash との差分テストで見つかった食い違い）
+   if (/(^|[^A-Za-z0-9_])case([^A-Za-z0-9_]|$)/.test(text.replace(/\\\r?\n/g, "")) && (text.includes("$(") || text.includes("`"))) return null; // ca\<改行>se も bash は case と読む
+   const stack = [{ kind: "top" }];

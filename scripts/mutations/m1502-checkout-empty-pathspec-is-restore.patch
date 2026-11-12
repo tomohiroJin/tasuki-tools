@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index 635c9ee9..3d42d74d 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -79,7 +79,7 @@ export function checkoutIsBranchOperation(words, start) {
+   const opts = beforeDashDash(rest);
+   if (opts.some((w) => (/^-[A-Za-z]*[bBd]/.test(w) && !w.startsWith("--")) || isLongOption(w, "--orphan") || isLongOption(w, "--detach"))) return true;
+   const k = rest.indexOf("--");
+-  return k === -1 || k === rest.length - 1;
++  return k === -1;
+ }
+ 
+ /**

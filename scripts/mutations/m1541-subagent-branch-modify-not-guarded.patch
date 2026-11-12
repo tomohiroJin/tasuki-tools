@@ -1,0 +1,12 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index 73e9fcfb..01c7bbfa 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -124,6 +124,7 @@ export const SUBAGENT_GUARDED_COMMANDS = [
+     id: "git-branch-modify", program: "git", args: ["branch"], argOpts: GIT_ARG_OPTS,
+     // -d/-D/-m/-M/-f/-c/-C（束ねた短い選択肢・長い選択肢の省略形も）。一覧・作成は読む形・日常の形として通す
+     when: (words, start) => {
++      if (true) return false;
+       const args = words.slice(start + 1);
+       for (let i = 0; i < args.length; i += 1) {
+         const w = args[i];

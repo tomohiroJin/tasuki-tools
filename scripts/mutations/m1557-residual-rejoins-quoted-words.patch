@@ -1,0 +1,16 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index 2a6fe520..4b01181b 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -918,9 +918,9 @@ function residualForSubagent(command) {
+   if (nested.length > 0) return command;
+   const keep = commands.filter((words) => !isBenignSubagentWords(words));
+   // 何も除かなければ（データの heredoc の本文だけ取り除いた）元の文字列のまま読む（語をつなぎ直すと、引用符の中の `|`・`;`・`&&` が区切りになる）
+-  if (keep.length === commands.length) return stripped;
++  if (false) return stripped;
+   // 除いたときは、語を 1 つずつ単一引用符で包み直して、読み直しても同じ語の並びになるようにする
+-  const quote = (w) => `'${w.replaceAll("'", "'\\''")}'`;
++  const quote = (w) => w;
+   return keep.map((words) => words.map(quote).join(" ")).join("\n");
+ }
+ 

@@ -1,0 +1,12 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index 5977b177..cdfd050a 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -850,7 +850,6 @@ export function decideSubagentOutput(raw) {
+   const r = readShellCommand(raw);
+   if (r.ask || r.skip) return null; // 読めない入力は本番デプロイの判定が ask に倒している
+   const { input, command } = r;
+-  if (typeof input.agent_id !== "string" || input.agent_id === "") return null;
+   const sub = findSubagentCommands(command);
+   if (sub.length > 0) {
+     const list = sub.map((h) => `${h.id}（${h.why}）`).join("・");

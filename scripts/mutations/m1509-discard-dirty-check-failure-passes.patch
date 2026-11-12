@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/discard-guard.mjs b/scripts/lib/discard-guard.mjs
+index d0b4e14c..f6190c23 100644
+--- a/scripts/lib/discard-guard.mjs
++++ b/scripts/lib/discard-guard.mjs
+@@ -171,7 +171,7 @@ export async function decideDiscardOutput(raw, { exists, isDirty, cwd: defaultCw
+   }
+   // 4. 変更を見る。確かめ自体が失敗したら聞く
+   const state = await isDirty(cwd, result.target);
+-  if (state === "no") return null;
++  if (state === "no" || state === "unknown") return null;
+   const why =
+     state === "untracked"
+       ? `${describeTarget(result.target)} と同じ名前の追跡外のファイルを上書きします。必要ならコミットか退避してください。`

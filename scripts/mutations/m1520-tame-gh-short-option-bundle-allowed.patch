@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index 635c9ee9..811b4a6d 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -536,7 +536,7 @@ function ghOptionsKnown(words, from, long, short) {
+     if (!w.startsWith("-") || w === "-" || w === "--") continue;
+     if (w.startsWith("--")) {
+       if (!long.includes(w.split("=")[0])) return false;
+-    } else if (w.length > 2 || !short.includes(w)) return false;
++    } else if (!short.includes(w.slice(0, 2))) return false;
+   }
+   return true;
+ }

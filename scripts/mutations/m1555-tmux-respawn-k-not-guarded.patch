@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index 0697fa37..df14aa01 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -152,7 +152,7 @@ export const SUBAGENT_GUARDED_COMMANDS = [
+       const sendKeys = sub === "send" || (sub.length >= 6 && "send-keys".startsWith(sub));
+       if (sendKeys && words.slice(start + 1).some((w) => /^(C-c|\^c|C-\\|\^\\)$/i.test(w))) return true;
+       // respawn-pane -k・respawn-window -k（別名 respawnp・respawnw）は、走っているプロセスを殺して起動し直す
+-      return sub.startsWith("respawn") && words.slice(start + 1).some((w) => /^-[A-Za-z]*k/.test(w));
++      return false;
+     },
+     why: "tmux の停止・窓やペインの kill・Ctrl-C の送信は、利用者のセッション（ログ・dev サーバー）を落としうる",
+   },

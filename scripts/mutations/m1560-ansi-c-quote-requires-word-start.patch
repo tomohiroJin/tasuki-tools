@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index cf1facd7..f0e81e36 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -993,7 +993,7 @@ export function unquotedDollarQuote(text) {
+     }
+     if (c === "$") {
+       const j = nextSig(i + 1);
+-      if (text[j] === "'" || text[j] === '"') return true;
++      if (wordStart() && (text[j] === "'" || text[j] === '"')) return true;
+       if (text[j] === "(") {
+         stack.push({ kind: "sub", depth: 0 });
+         i = j;

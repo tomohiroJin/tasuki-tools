@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/closing-keywords.mjs b/scripts/lib/closing-keywords.mjs
+index fd349923..a1a8cb01 100644
+--- a/scripts/lib/closing-keywords.mjs
++++ b/scripts/lib/closing-keywords.mjs
+@@ -45,7 +45,7 @@ export function findClosingKeywords(text, source = "body") {
+     for (const m of line.matchAll(KEYWORD)) {
+       const prefix = line.slice(0, m.index);
+       const inCode = fenced || (prefix.match(/`/g) ?? []).length % 2 === 1;
+-      if (!inCode && source === "body" && isStandalone(prefix)) continue;
++      if (!inCode && isStandalone(prefix)) continue;
+       found.push({ kind: inCode ? "code" : "prose", ref: m[1], keyword: m[0].trim(), line: index + 1 });
+     }
+   });

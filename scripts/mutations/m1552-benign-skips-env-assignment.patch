@@ -1,0 +1,14 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index 73e9fcfb..450d030d 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -856,7 +856,8 @@ function hasSubagentCandidate(command) {
+  */
+ function isBenignSubagentWords(words) {
+   // 許可リストの形だけ: 先頭の環境変数の代入が 1 つでもあれば通さない（`GIT_SSH_COMMAND=… git branch`）
+-  if (words.length === 0 || /^[A-Za-z_][A-Za-z0-9_]*=/.test(words[0])) return false;
++  if (words.length === 0) return false;
++  while (/^[A-Za-z_][A-Za-z0-9_]*=/.test(words[0] ?? "")) words = words.slice(1);
+   if (findSubagentCommands(words.join(" ")).length > 0) return false;
+   const name = path.posix.basename(words[0]);
+   if (name === "git") {

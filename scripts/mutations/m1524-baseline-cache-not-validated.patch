@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/structure-metrics.mjs b/scripts/lib/structure-metrics.mjs
+index f0e983b0..ca10f3c1 100644
+--- a/scripts/lib/structure-metrics.mjs
++++ b/scripts/lib/structure-metrics.mjs
+@@ -149,7 +149,7 @@ export async function defaultBaselineOutput(root, tmp = os.tmpdir()) {
+   const cache = path.join(tmp, `tasuki-structure-baseline-${sha}.txt`);
+   try {
+     const cached = fs.readFileSync(cache, "utf8");
+-    if (isUsableBaseline(cached)) return { output: cached, label };
++    return { output: cached, label };
+     // 空・途中までの控えは捨てて取り直す
+   } catch {
+     // 控えが無ければ測る

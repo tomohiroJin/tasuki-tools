@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index 9f13fd51..70841f0b 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -144,7 +144,7 @@ export const SUBAGENT_GUARDED_COMMANDS = [
+     },
+     why: "tmux の停止・窓やペインの kill・Ctrl-C の送信は、利用者のセッション（ログ・dev サーバー）を落としうる",
+   },
+-  { id: "gh-api-write", program: "gh", args: ["api"], argOpts: GH_ARG_OPTS, when: (words, start) => !isReadOnlyGhApi(words, start + 1), why: "GitHub への書き込み（GET 以外・フィールド付き）は、人の承認の後にまとめ役が行う" },
++  { id: "gh-api-write", program: "gh", args: ["api"], argOpts: GH_ARG_OPTS, when: () => false, why: "GitHub への書き込み（GET 以外・フィールド付き）は、人の承認の後にまとめ役が行う" },
+   { id: "gh-pr-review-decide", program: "gh", args: ["pr", "review"], argOpts: GH_ARG_OPTS, when: (words, start) => !isNonDecidingGhReview(words.slice(start + 2)), why: "PR の承認・変更要求は、人の判断" },
+   { id: "kill", program: "kill", why: "プロセスの停止は、利用者の dev サーバーなどを止めうる" },
+   { id: "pkill", program: "pkill", why: "プロセスの停止は、利用者の dev サーバーなどを止めうる" },

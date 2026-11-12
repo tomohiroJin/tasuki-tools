@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/closing-keywords.mjs b/scripts/lib/closing-keywords.mjs
+index 3c2b1695..e5e68109 100644
+--- a/scripts/lib/closing-keywords.mjs
++++ b/scripts/lib/closing-keywords.mjs
+@@ -26,7 +26,7 @@ function isStandalone(prefix) {
+   // gh / git のコマンドの行で、--body・-b・--message・-m の値の引用符が始まった直後（行の途中の -b は印にしない）
+   const inline = /^\s*(?:(?:gh|git)\s(?:[^"'`]|"[^"]*"|'[^']*')*?\s)?(?:--body|-b|--message|-m)[=\s]*["']?$/;
+   // 行頭（引用符・箇条書き・引用・`$(` の後）、番号つきの箇条書き（`1.`・`2)`）
+-  const lead = /^[\s"'\-*>$()]*(?:\d+[.)][\s"'\-*>$()]*)?$/;
++  const lead = /^[\s"'\-*>$()]*(?:)?$/;
+   return inline.test(prefix) || lead.test(prefix);
+ }
+ 

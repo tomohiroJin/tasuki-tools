@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index cf1facd7..72933c89 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -1015,7 +1015,7 @@ export function unquotedDollarQuote(text) {
+       if (ctx.depth > 0) ctx.depth -= 1;
+       else {
+         stack.pop();
+-        prev = "x"; // 置換の閉じは語の途中（echo $(true)#… の # はコメントにならない）
++        prev = ")"; // 置換の閉じは語の途中（echo $(true)#… の # はコメントにならない）
+         continue;
+       }
+     }
