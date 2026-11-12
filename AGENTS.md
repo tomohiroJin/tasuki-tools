@@ -39,7 +39,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 **人の明示の指示か承認を待つ操作**（基準は `docs/adr/0030` 決定 1。一覧に無くても基準に当たれば聞く）
 
 - 本番デプロイ（deploy.sh / systemctl / Caddy reload）。Claude Code ではフックが人に聞く（一覧の正本は `scripts/lib/agent-guard.mjs`。`docs/adr/0032`）
-  - Codex には `.codex/hooks.json` で本番デプロイを `deny` する歯止めを置いている（`docs/adr/0032` の追記。信頼した状態の Codex の実機で止まることを確かめた（2026-11-12））。プロジェクトとフックを信頼しないと効かない（信頼していない場所では読まれないことを実測した）。効いていても、人の承認を待つ操作のまま（[`docs/guides/development.md`](docs/guides/development.md) の「Codex で作業するとき」）
+  - Codex には `.codex/hooks.json` で本番デプロイを `deny` する歯止めを置いている（`docs/adr/0032` の追記。プロジェクトを信頼した状態の Codex の実機で止まることを確かめた（2026-11-12。フックの信頼は `--dangerously-bypass-hook-trust` で飛ばした 1 回。`/hooks` で信頼した経路は未実測））。プロジェクトとフックを信頼しないと効かない（信頼していない場所では読まれないことを実測した）。効いていても、人の承認を待つ操作のまま（[`docs/guides/development.md`](docs/guides/development.md) の「Codex で作業するとき」）
 - ADR の採択・却下（Proposed → Accepted / Rejected）・憲法の改版
 - 検査を飛ばす・無効にする・弱める変更（テストの skip・変異の宣言の削除・走査対象の除外の追加）
 - 依頼に含まれない ISSUE・PR・コメントの投稿、外部のサービスへの送信

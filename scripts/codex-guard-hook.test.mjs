@@ -111,7 +111,7 @@ describe(".codex/hooks.json のコマンドを実際に走らせる（起動の�
     assert.equal(JSON.parse(fs.readFileSync(path.join(REPO, ".codex/hooks.json"), "utf8")).hooks.PreToolUse[0].hooks[0].command, CODEX_HOOK_COMMAND);
   });
 
-  /** 配線のコマンドを sh -c で走らせる。Codex が同じように走らせるかは未実測（文書の調べ。cwd もセッションの作業場所と仮定している）。 */
+  /** 配線のコマンドを sh -c で走らせる。実測（2026-11-12）で、Codex は `$(git rev-parse …)` を展開した（コマンドはシェルを通る）。まだ分からないのは、フックを走らせる cwd（ここではセッションの作業場所と仮定している）など。 */
   function runWired(t, { cwd, command = "bash deploy/deploy.sh", env = {} }) {
     const r = spawnSync("sh", ["-c", hooksCommand], { cwd, input: input(command), encoding: "utf8", env: { ...process.env, ...env } });
     assert.equal(r.status, 0, r.stderr);
