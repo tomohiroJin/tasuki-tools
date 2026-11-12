@@ -1,13 +1,13 @@
 diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
-index dafbabb5..2c7fd220 100644
+index a3bada34..ecb7d455 100644
 --- a/scripts/lib/agent-guard.mjs
 +++ b/scripts/lib/agent-guard.mjs
-@@ -915,7 +915,7 @@ function isListOrCreateGitBranch(args) {
+@@ -917,7 +917,7 @@ function isListOrCreateGitBranch(args) {
  export function hasUnreadableQuote(command) {
    // ① 元のコマンド（`lex`・`isTameCommand` と同じ行の分け方）から、データとして証明できる heredoc の本文だけを取り除く
    //    （取り除けないときは元のまま。fail closed）。本文の中の `$'…'` は実行されない。
--  const text = stripHeredocBodies(command) ?? command;
-+  const text = command;
-   // ② 行の継続（`\` と改行）をつなぐ。③ `$'`・`$"` が**どこかに 1 つでも**あれば読めない（前の文字は問わない。
-   //    `echo x$'\''` のように語の途中でも、`grep "main$"` の行末の錨の直後の引用符でも。見分けようとせず、判定の食い違いを避ける）
-   return /\$['"]/.test(text.replace(/\\\r?\n/g, ""));
+-  const text = (stripHeredocBodies(command) ?? command).replace(/\\\r?\n/g, "");
++  const text = command.replace(/\\\r?\n/g, "");
+   // ② 行の継続（`\` と改行）をつなぐ。③ `$'`・`$"` が**引用符の外に**あれば読めない（`echo $'x'`・語の途中の `echo x$'\''` も）。
+   //    引用符の中の `$` に続く引用符（`grep "main$"`・`grep -E 'reset$'` の行末の錨）は、bash でも ANSI-C の引用にならないので聞かない（2026-11-12 の利用者の決定）。
+   //    引用符の内外を前の文字で見分けると食い違うので、内外の状態をたどる（`unquotedDollarQuote`）。たどれない形では、どこかに 1 つでもあれば読めないとする（fail closed）

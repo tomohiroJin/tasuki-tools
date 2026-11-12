@@ -8990,4 +8990,20 @@ export const MUTATIONS = [
     tests: ["lib/agent-guard.test.mjs"],
     note: RESERVED_1500_1569 + " " + "#578 PR #583 の自動レビュー。bash は継続されたコマンドが終わってから本文を始めるので、行の分け方が食い違い、実行される行を「データ」として取り除き、$'…' の検出や操作の名前の判定をすり抜ける。",
   },
+  {
+    id: 1564,
+    label: "二重引用符の中の $'・$\" も読めない引用とする",
+    patch: "m1564-ansi-c-quote-flags-inside-double-quotes.patch",
+    pkg: "scripts",
+    tests: ["lib/agent-guard.test.mjs"],
+    note: RESERVED_1500_1569 + " " + "#578 2026-11-12 の利用者の決定。正規表現の行末の錨（grep \"main$\"・grep -E \"^ M.*x\\\\.mjs$\"）の $ に続く閉じる引用符で、サブエージェントの日常の読む形が聞かれる。",
+  },
+  {
+    id: 1565,
+    label: "引用の状態をたどるとき、語の頭の # からのコメントを読み飛ばさない",
+    patch: "m1565-ansi-c-quote-comment-not-skipped.patch",
+    pkg: "scripts",
+    tests: ["lib/agent-guard.test.mjs"],
+    note: RESERVED_1500_1569 + " " + "#578 2026-11-12 の利用者の決定の直し。コメントの中の ' で状態がずれ、続く $'…' ; git push がすり抜ける。",
+  },
 ];

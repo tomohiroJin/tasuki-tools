@@ -1,13 +1,13 @@
 diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
-index dafbabb5..ca6c8e5f 100644
+index a3bada34..045ab943 100644
 --- a/scripts/lib/agent-guard.mjs
 +++ b/scripts/lib/agent-guard.mjs
-@@ -918,7 +918,7 @@ export function hasUnreadableQuote(command) {
-   const text = stripHeredocBodies(command) ?? command;
-   // ② 行の継続（`\` と改行）をつなぐ。③ `$'`・`$"` が**どこかに 1 つでも**あれば読めない（前の文字は問わない。
-   //    `echo x$'\''` のように語の途中でも、`grep "main$"` の行末の錨の直後の引用符でも。見分けようとせず、判定の食い違いを避ける）
--  return /\$['"]/.test(text.replace(/\\\r?\n/g, ""));
+@@ -921,7 +921,7 @@ export function hasUnreadableQuote(command) {
+   // ② 行の継続（`\` と改行）をつなぐ。③ `$'`・`$"` が**引用符の外に**あれば読めない（`echo $'x'`・語の途中の `echo x$'\''` も）。
+   //    引用符の中の `$` に続く引用符（`grep "main$"`・`grep -E 'reset$'` の行末の錨）は、bash でも ANSI-C の引用にならないので聞かない（2026-11-12 の利用者の決定）。
+   //    引用符の内外を前の文字で見分けると食い違うので、内外の状態をたどる（`unquotedDollarQuote`）。たどれない形では、どこかに 1 つでもあれば読めないとする（fail closed）
+-  if (!/\$['"]/.test(text)) return false;
 +  return false;
+   const found = unquotedDollarQuote(text);
+   return found === null ? true : found;
  }
- 
- /** 「迷う形は聞く」の対象から、上の読む・作る形の単純なコマンドを除いた残り。入れ子（置換・`bash -c`）があれば元のまま（fail closed）。 */
