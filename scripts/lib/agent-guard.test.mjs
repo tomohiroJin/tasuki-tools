@@ -714,6 +714,10 @@ describe("サブエージェントの危ない操作（#578・docs/adr/0037）",
     }
     // CR を含む文字列は、継続とコメントの境が食い違いうるので、たどらずに読めない側へ倒す
     for (const c of ["echo a\\\r#\n$'x' ; git push", "ls \\\r\n# x\necho $'x' ; git push"]) assert.equal(hasUnreadableQuote(c), true, c);
+    // bash は \<CR> を継続にしない（LF で行が終わり、次の行の # はコメント）。継続と読むと、コメントの ' で状態がずれて釣り合い、次の $'…' を見落とす
+    const crSkew = "echo a\\\r\n# don't\necho $'x' ; git push # '";
+    assert.equal(hasUnreadableQuote(crSkew), true);
+    assert.equal(subOut(crSkew)?.hookSpecificOutput.permissionDecision, "ask");
     const commentSkew = "# don't\necho $'x' ; git push # '";
     assert.equal(hasUnreadableQuote(commentSkew), true);
     assert.equal(subOut(commentSkew)?.hookSpecificOutput.permissionDecision, "ask");
