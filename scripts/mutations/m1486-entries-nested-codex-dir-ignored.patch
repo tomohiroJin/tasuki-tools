@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-agent-entries.mjs b/scripts/audit-agent-entries.mjs
+index 1ada569d..0ccd28bd 100644
+--- a/scripts/audit-agent-entries.mjs
++++ b/scripts/audit-agent-entries.mjs
+@@ -98,7 +98,7 @@ export function isEntryCandidate(rel) {
+     CANDIDATE_DIRS.some((dir) => rel.startsWith(dir)) ||
+     CANDIDATE_NESTED_DIRS.some((dir) => rel.startsWith(dir) || rel.includes(`/${dir}`)) ||
+     // どの階層の .codex/ の下も全部候補にする。ただしルートの .codex/hooks.json だけは許す（配線の宣言。#578 のレビュー I3・#584 のレビュー 5）
+-    ((rel.startsWith(".codex/") || rel.includes("/.codex/")) && rel !== ".codex/hooks.json")
++    (rel.startsWith(".codex/") && rel !== ".codex/hooks.json")
+   );
+ }
+ 

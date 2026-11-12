@@ -1,0 +1,13 @@
+diff --git a/scripts/codex-guard-hook.mjs b/scripts/codex-guard-hook.mjs
+index 01723fe5..912f38f8 100644
+--- a/scripts/codex-guard-hook.mjs
++++ b/scripts/codex-guard-hook.mjs
+@@ -28,7 +28,7 @@ export function decideCodexHookOutput(raw, decide = productionDenyReason) {
+   try {
+     reason = decide(raw);
+   } catch {
+-    return deny(`判定が失敗したため、念のため拒みます。${CODEX_NOTE}`);
++    return null;
+   }
+   if (reason === null) return null;
+   return deny(`${reason}\n${CODEX_NOTE}`);

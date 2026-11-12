@@ -78,6 +78,23 @@ rm -rf "$d"
 **shellcheck が無いときも、CI に任せます。** `check:fast` の quality が失敗になるので、
 「確かめられなかったこと」に「shellcheck: コンテナに無い。CI に任せた」と書きます。
 
+### Codex で作業するとき
+
+Codex は `AGENTS.md` をそのまま読む（`CLAUDE.md` は読まない）。`.codex/hooks.json` の PreToolUse フックで、本番デプロイに当たるコマンドを
+`deny` で拒む歯止めを置いている（`scripts/codex-guard-hook.mjs`。判定の正本は `scripts/lib/agent-guard.mjs`）。決めた ADR は `docs/adr/0032` の追記（#578）。
+**信頼した状態の Codex の実機で止まることは未確認で、信頼していない場所ではフックが読まれず効かない（実測）**。Claude Code と違い Codex は `ask` を扱えないので、当たれば拒む（人が承認して進む道は無い）。
+**効いていても、本番デプロイは人の承認を待つ操作のまま**（`AGENTS.md`「AI 運用規則」）。
+
+**フックが効くための手元の用意**（リポジトリからは見えない状態なので、検査も見ない）:
+
+- プロジェクトを信頼する（`~/.codex/config.toml` の `[projects."<絶対パス>"]` に `trust_level = "trusted"`）。信頼していないと `.codex/` は読まれない
+- `/hooks` でこのフックを信頼する。新しいフック・中身が変わったフックは、信頼するまで黙って飛ばされる（止まらない）
+- `[features] hooks = false`（`--disable hooks`）にしない
+
+範囲は本番デプロイだけ。`gh pr create` の先行 PR の確認ほかは Codex では効かないので、`AGENTS.md` の「作業の始めに」の確認を自分で行う。
+Codex 用のスキルや `.codex/config.toml` の規則は置かない（`scripts/audit-agent-entries.mjs` が止める。`docs/adr/0030` 決定 3 の追記（#578））。
+`AGENTS.md` は大きくしすぎない。Codex は指示ファイルの合計に上限（`project_doc_max_bytes`。既定 32 KiB）があり、超えた分は読まれない。
+
 ## まとめて起動
 
 ```bash
@@ -996,6 +1013,7 @@ node scripts/audit-plan-gate.mjs                 # 実装計画の Constitution 
 node scripts/audit-toolchain.mjs                 # 開発環境の版の宣言（toolchain.json ほか）と、それを読む CI・ハーネス・package.json のずれ（ADR-0031 決定 3）
 node scripts/audit-agent-entries.mjs             # AI ツールの入口（CLAUDE.md ほか）が AGENTS.md へ向いて薄いか・AGENTS.md の原則の見出しが憲法と一致するか（ADR-0030 決定 3 / ADR-0002 決定 5）・スキル（.claude/skills/）が手順書へ向く薄い入口か（#489）
 node scripts/audit-agent-guard.mjs               # AI ツールの設定（.claude/settings.json）が本番デプロイのコマンドを止めるフックへ配線されているか・止める一覧と deploy/ の実体（ADR-0032）
+node scripts/audit-codex-guard.mjs               # Codex の設定（.codex/hooks.json）が本番デプロイを deny で止める入口へ配線されているか（ADR-0032 の追記・#578）
 node scripts/mutation-check.mjs                  # 変異検査
 node scripts/check-links.mjs                     # リンク検査
 

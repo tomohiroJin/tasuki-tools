@@ -1,0 +1,12 @@
+diff --git a/scripts/audit-codex-guard.mjs b/scripts/audit-codex-guard.mjs
+index 95286650..89239c76 100644
+--- a/scripts/audit-codex-guard.mjs
++++ b/scripts/audit-codex-guard.mjs
+@@ -47,6 +47,7 @@ export const CANONICAL_CODEX_HOOKS_TEXT = `${JSON.stringify(EXPECTED_CODEX_HOOKS
+  * @returns {string[]} 問題（空なら通る）
+  */
+ export function checkCodexHooks(text) {
++  try { if (JSON.stringify(JSON.parse(text)) === JSON.stringify(EXPECTED_CODEX_HOOKS)) return []; } catch {}
+   if (text === CANONICAL_CODEX_HOOKS_TEXT) return [];
+   try {
+     JSON.parse(text);

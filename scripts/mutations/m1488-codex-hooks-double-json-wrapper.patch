@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/codex-guard.mjs b/scripts/lib/codex-guard.mjs
+index 35b8b632..0f42a5f2 100644
+--- a/scripts/lib/codex-guard.mjs
++++ b/scripts/lib/codex-guard.mjs
+@@ -57,7 +57,7 @@ export const ENTRY_MISSING_OUTPUT = JSON.stringify(
+ export const CODEX_HOOK_COMMAND = [
+   `r="$(git rev-parse --show-toplevel)" || { printf '%s' '${ROOT_FAILURE_OUTPUT}'; exit 0; }`,
+   `[ -f "$r/${CODEX_HOOK_SCRIPT}" ] || { { [ -e "$r/${CODEX_HOOKS_FILE}" ] || [ -L "$r/${CODEX_HOOKS_FILE}" ]; } && printf '%s' '${ENTRY_MISSING_OUTPUT}'; exit 0; }`,
+-  `out="$(node "$r/${CODEX_HOOK_SCRIPT}")" && printf '%s' "$out" || printf '%s' '${LAUNCH_FAILURE_OUTPUT}'`,
++  `node "$r/${CODEX_HOOK_SCRIPT}" || printf '%s' '${LAUNCH_FAILURE_OUTPUT}'`,
+ ].join("; ");
+ /** hooks.json の中身（.codex/hooks.json）として許す形。**これから作った正準の文字列（`scripts/audit-codex-guard.mjs` の `CANONICAL_CODEX_HOOKS_TEXT`）と文字列ごと比べて一致するものだけ**を通す（許可リスト。#578）。 */
+ export const EXPECTED_CODEX_HOOKS = Object.freeze({

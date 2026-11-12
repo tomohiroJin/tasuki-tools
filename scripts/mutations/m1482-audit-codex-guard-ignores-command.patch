@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-codex-guard.mjs b/scripts/audit-codex-guard.mjs
+index 95286650..99061839 100644
+--- a/scripts/audit-codex-guard.mjs
++++ b/scripts/audit-codex-guard.mjs
+@@ -47,7 +47,7 @@ export const CANONICAL_CODEX_HOOKS_TEXT = `${JSON.stringify(EXPECTED_CODEX_HOOKS
+  * @returns {string[]} 問題（空なら通る）
+  */
+ export function checkCodexHooks(text) {
+-  if (text === CANONICAL_CODEX_HOOKS_TEXT) return [];
++  if (text.includes("PreToolUse")) return [];
+   try {
+     JSON.parse(text);
+   } catch (e) {

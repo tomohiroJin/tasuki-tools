@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "r=\"$(git rev-parse --show-toplevel)\" || { printf '%s' '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Git のルートを引けなかったため、本番デプロイの歯止めを確かめられず、念のため拒みます。リポジトリの中で Codex を起動し直すか、人が自分の端末でこのコマンドを実行するか、フックを外してください（docs/adr/0032）。\"}}'; exit 0; }; [ -f \"$r/scripts/codex-guard-hook.mjs\" ] || { { [ -e \"$r/.codex/hooks.json\" ] || [ -L \"$r/.codex/hooks.json\" ]; } && printf '%s' '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"本番デプロイの歯止めの入口（scripts/codex-guard-hook.mjs）が欠けています。.codex/hooks.json は在るのに入口が無い状態なので、念のため拒みます。人が自分の端末で git checkout HEAD -- scripts/codex-guard-hook.mjs などで戻してください（docs/adr/0032）。\"}}'; exit 0; }; out=\"$(node \"$r/scripts/codex-guard-hook.mjs\")\" && printf '%s' \"$out\" || printf '%s' '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"本番デプロイの歯止め（scripts/codex-guard-hook.mjs）を起動できなかったため、念のため拒みます。docs/adr/0032\"}}'"
+          }
+        ]
+      }
+    ]
+  }
+}

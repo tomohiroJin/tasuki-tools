@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/codex-guard.mjs b/scripts/lib/codex-guard.mjs
+index aa658147..2d3a122c 100644
+--- a/scripts/lib/codex-guard.mjs
++++ b/scripts/lib/codex-guard.mjs
+@@ -44,7 +44,7 @@ export function productionDenyReason(raw, find = findGuardedCommands) {
+   try {
+     input = JSON.parse(raw);
+   } catch {
+-    return "フックの入力を読めませんでした。念のため拒みます。";
++    return null;
+   }
+   if (input === null || typeof input !== "object") return "フックの入力の形が想定と違います。念のため拒みます。";
+   // tool_name では絞らない。matcher が Bash に絞っており、二重のふるいは名前が変わったときに黙って外れる道になるだけ（#584 のレビュー）。

@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-codex-guard.mjs b/scripts/audit-codex-guard.mjs
+index 36df5b0a..b3c09948 100644
+--- a/scripts/audit-codex-guard.mjs
++++ b/scripts/audit-codex-guard.mjs
+@@ -80,7 +80,7 @@ function main() {
+   problems.push(
+     ...checkWorktreeFiles(required, (rel) => {
+       try {
+-        return fs.statSync(path.join(REPO_ROOT, rel)).isFile();
++        return true;
+       } catch {
+         return false;
+       }
