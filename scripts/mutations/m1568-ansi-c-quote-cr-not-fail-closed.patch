@@ -1,5 +1,5 @@
 diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
-index 56abd5e4..bcff80be 100644
+index cf1facd7..93cc250f 100644
 --- a/scripts/lib/agent-guard.mjs
 +++ b/scripts/lib/agent-guard.mjs
 @@ -940,7 +940,7 @@ export function hasUnreadableQuote(command) {
@@ -8,6 +8,6 @@ index 56abd5e4..bcff80be 100644
  export function unquotedDollarQuote(text) {
 -  if (/(^|[^<])<<(?!<)/.test(text) || text.includes("${") || text.includes("\r")) return null;
 +  if (/(^|[^<])<<(?!<)/.test(text) || text.includes("${")) return null;
+   // `$( … )`・バッククォートの中の `case x in x) …` は、パターンの `)` を置換の閉じと取り違えうる（bash との差分テストで見つかった食い違い）
+   if (/(^|[^A-Za-z0-9_])case([^A-Za-z0-9_]|$)/.test(text.replace(/\\\r?\n/g, "")) && (text.includes("$(") || text.includes("`"))) return null; // ca\<改行>se も bash は case と読む
    const stack = [{ kind: "top" }];
-   const top = () => stack[stack.length - 1];
-   /** j から、行の継続（`\` と改行）を読み飛ばした次の字の位置。bash は継続をつないでから読むので、`$` の次の字はこれで見る。 */

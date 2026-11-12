@@ -1,10 +1,10 @@
 diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
-index 3b883704..9017e6c2 100644
+index cf1facd7..e57c5716 100644
 --- a/scripts/lib/agent-guard.mjs
 +++ b/scripts/lib/agent-guard.mjs
-@@ -961,7 +961,7 @@ export function unquotedDollarQuote(text) {
-     }
+@@ -964,7 +964,7 @@ export function unquotedDollarQuote(text) {
      if (c === "\\") {
+       if (stack.some((f) => f.kind === "bt")) return null; // バッククォートの中の \ は bash が先に外してから読む（食い違う）
        const n = text[i + 1];
 -      if (n === "\n") i += 1; // 行の継続: 語の切れ目にしない（prev はそのまま）
 +      if (n === "\n") { i += 1; prev = "\n"; }

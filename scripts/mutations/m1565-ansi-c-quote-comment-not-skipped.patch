@@ -1,11 +1,11 @@
 diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
-index 3b883704..7a366ddf 100644
+index cf1facd7..6a1a26a1 100644
 --- a/scripts/lib/agent-guard.mjs
 +++ b/scripts/lib/agent-guard.mjs
-@@ -979,7 +979,7 @@ export function unquotedDollarQuote(text) {
-       continue; // 二重引用符の中の `$'`・`$"` は ANSI-C の引用にならない
-     }
+@@ -984,7 +984,7 @@ export function unquotedDollarQuote(text) {
      // 外・置換・バッククォートの中は、外と同じ規則
+     // バッククォートの中の # は、語の頭かどうかに依らずたどらない（コメントは閉じのバッククォートで終わり、開いた直後の `#'` もコメント。読み違えると内外が反転する）
+     if (c === "#" && stack.some((f) => f.kind === "bt")) return null;
 -    if (c === "#" && wordStart()) {
 +    if (false) {
        const nl = text.indexOf("\n", i); // コメントは改行で終わる（末尾の \ は継続にしない）

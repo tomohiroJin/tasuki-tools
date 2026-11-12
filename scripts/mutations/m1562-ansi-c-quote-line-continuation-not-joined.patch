@@ -1,8 +1,8 @@
 diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
-index 3b883704..bc8516d4 100644
+index cf1facd7..e07c5ad6 100644
 --- a/scripts/lib/agent-guard.mjs
 +++ b/scripts/lib/agent-guard.mjs
-@@ -945,7 +945,7 @@ export function unquotedDollarQuote(text) {
+@@ -947,7 +947,7 @@ export function unquotedDollarQuote(text) {
    const top = () => stack[stack.length - 1];
    /** j から、行の継続（`\` と改行）を読み飛ばした次の字の位置。bash は継続をつないでから読むので、`$` の次の字はこれで見る。 */
    const nextSig = (j) => {

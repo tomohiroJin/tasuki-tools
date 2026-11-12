@@ -1,8 +1,8 @@
 diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
-index 3b883704..6804930c 100644
+index cf1facd7..f0e81e36 100644
 --- a/scripts/lib/agent-guard.mjs
 +++ b/scripts/lib/agent-guard.mjs
-@@ -988,7 +988,7 @@ export function unquotedDollarQuote(text) {
+@@ -993,7 +993,7 @@ export function unquotedDollarQuote(text) {
      }
      if (c === "$") {
        const j = nextSig(i + 1);

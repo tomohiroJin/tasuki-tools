@@ -1,8 +1,8 @@
 diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
-index 3b883704..e370a081 100644
+index cf1facd7..1cee6439 100644
 --- a/scripts/lib/agent-guard.mjs
 +++ b/scripts/lib/agent-guard.mjs
-@@ -975,8 +975,167 @@ export function unquotedDollarQuote(text) {
+@@ -978,8 +978,177 @@ export function unquotedDollarQuote(text) {
          stack.push({ kind: "sub", depth: 0 });
          i = nextSig(i + 1);
        } else if (c === "`") stack.push({ kind: "bt" });
@@ -12,6 +12,8 @@ index 3b883704..e370a081 100644
 +      continue; // 二重引用符の中の `
 +    }
 +    // 外・置換・バッククォートの中は、外と同じ規則
++    // バッククォートの中の # は、語の頭かどうかに依らずたどらない（コメントは閉じのバッククォートで終わり、開いた直後の `#'` もコメント。読み違えると内外が反転する）
++    if (c === "#" && stack.some((f) => f.kind === "bt")) return null;
 +    if (c === "#" && wordStart()) {
 +      const nl = text.indexOf("\n", i); // コメントは改行で終わる（末尾の \ は継続にしない）
 +      if (nl === -1) break;
@@ -32,12 +34,20 @@ index 3b883704..e370a081 100644
 +    if (c === "'") stack.push({ kind: "sq" });
 +    else if (c === '"') stack.push({ kind: "dq" });
 +    else if (c === "`") {
-+      if (ctx.kind === "bt") stack.pop();
-+      else stack.push({ kind: "bt" });
++      if (ctx.kind === "bt") {
++        stack.pop();
++        prev = "x"; // バッククォートの閉じも語の途中
++        continue;
++      }
++      stack.push({ kind: "bt" });
 +    } else if (c === "(" && ctx.kind === "sub") ctx.depth += 1;
 +    else if (c === ")" && ctx.kind === "sub") {
 +      if (ctx.depth > 0) ctx.depth -= 1;
-+      else stack.pop();
++      else {
++        stack.pop();
++        prev = "x"; // 置換の閉じは語の途中（echo $(true)#… の # はコメントにならない）
++        continue;
++      }
 +    }
 +    prev = c;
 +  }
@@ -170,4 +180,4 @@ index 3b883704..e370a081 100644
 +`・`$"` は ANSI-C の引用にならない
      }
      // 外・置換・バッククォートの中は、外と同じ規則
-     if (c === "#" && wordStart()) {
+     // バッククォートの中の # は、語の頭かどうかに依らずたどらない（コメントは閉じのバッククォートで終わり、開いた直後の `#'` もコメント。読み違えると内外が反転する）

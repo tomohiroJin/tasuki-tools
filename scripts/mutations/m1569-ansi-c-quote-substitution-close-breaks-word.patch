@@ -1,8 +1,8 @@
 diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
-index 56abd5e4..20d3b669 100644
+index cf1facd7..72933c89 100644
 --- a/scripts/lib/agent-guard.mjs
 +++ b/scripts/lib/agent-guard.mjs
-@@ -1010,7 +1010,7 @@ export function unquotedDollarQuote(text) {
+@@ -1015,7 +1015,7 @@ export function unquotedDollarQuote(text) {
        if (ctx.depth > 0) ctx.depth -= 1;
        else {
          stack.pop();
