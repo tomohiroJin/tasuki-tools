@@ -18,6 +18,7 @@ import {
   decideSubagentOutput,
   isTameCommand,
   hasUnreadableQuote,
+  unquotedDollarQuote,
   stripHeredocBodies,
   mentionsSubagentOperation,
   mentionsDiscardOperation,
@@ -718,6 +719,18 @@ describe("サブエージェントの危ない操作（#578・docs/adr/0037）",
     const crSkew = "echo a\\\r\n# don't\necho $'x' ; git push # '";
     assert.equal(hasUnreadableQuote(crSkew), true);
     assert.equal(subOut(crSkew)?.hookSpecificOutput.permissionDecision, "ask");
+    // bash との差分テスト（目印 $'\x41' を echo で確かめた）で見つかった食い違いの 3 つの型は、たどらずに読めない側へ倒す
+    for (const c of [
+      "echo `echo \\$'\\x41'`", "echo \"`echo \\$'\\x41'`\"", // 型 A: バッククォートの中の \（bash は先に \$ を外す）
+      "echo \"$(case x in x) echo $'\\x41';; esac)\"", "echo \"$(case x in x|y) echo $'\\x41';; esac)\"", // 型 B: 置換の中の case のパターンの )
+      "echo `echo hi #` $'\\x41'\necho `echo #`", // 型 C: バッククォートの中のコメント（閉じのバッククォートで終わる）
+    ]) {
+      assert.equal(unquotedDollarQuote(c), null, c);
+      assert.equal(hasUnreadableQuote(c), true, c);
+    }
+    // case でも、置換やバッククォートが無ければたどる。$' ・$" が無ければ、置換の中の case でも読めない引用にしない
+    assert.equal(unquotedDollarQuote("case x in x) echo \"main$\";; esac"), false);
+    assert.equal(hasUnreadableQuote("echo \"$(case x in x) echo hi;; esac)\""), false);
     const commentSkew = "# don't\necho $'x' ; git push # '";
     assert.equal(hasUnreadableQuote(commentSkew), true);
     assert.equal(subOut(commentSkew)?.hookSpecificOutput.permissionDecision, "ask");

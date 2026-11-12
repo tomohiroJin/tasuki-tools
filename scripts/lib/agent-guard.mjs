@@ -941,6 +941,8 @@ export function hasUnreadableQuote(command) {
  */
 export function unquotedDollarQuote(text) {
   if (/(^|[^<])<<(?!<)/.test(text) || text.includes("${") || text.includes("\r")) return null;
+  // `$( … )`・バッククォートの中の `case x in x) …` は、パターンの `)` を置換の閉じと取り違えうる（bash との差分テストで見つかった食い違い）
+  if (/(^|[^A-Za-z0-9_])case([^A-Za-z0-9_]|$)/.test(text) && (text.includes("$(") || text.includes("`"))) return null;
   const stack = [{ kind: "top" }];
   const top = () => stack[stack.length - 1];
   /** j から、行の継続（`\` と改行）を読み飛ばした次の字の位置。bash は継続をつないでから読むので、`$` の次の字はこれで見る。 */
@@ -960,6 +962,7 @@ export function unquotedDollarQuote(text) {
       continue;
     }
     if (c === "\\") {
+      if (stack.some((f) => f.kind === "bt")) return null; // バッククォートの中の \ は bash が先に外してから読む（食い違う）
       const n = text[i + 1];
       if (n === "\n") i += 1; // 行の継続: 語の切れ目にしない（prev はそのまま）
       else if (n === "\r" && text[i + 2] === "\n") i += 2;
@@ -980,6 +983,7 @@ export function unquotedDollarQuote(text) {
     }
     // 外・置換・バッククォートの中は、外と同じ規則
     if (c === "#" && wordStart()) {
+      if (stack.some((f) => f.kind === "bt")) return null; // バッククォートの中のコメントは、閉じのバッククォートで終わる（改行まで読むと食い違う）
       const nl = text.indexOf("\n", i); // コメントは改行で終わる（末尾の \ は継続にしない）
       if (nl === -1) break;
       i = nl;
