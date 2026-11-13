@@ -32,6 +32,7 @@ describe("protocolFromRequestUrl（?tool= の判定）", () => {
     ["?tool=checkin", "checkin"],
     ["?tool=hub", "unknown"],
     ["?tool=Timer", "unknown"],
+    ["?tool=timerx", "unknown"],
     ["?tool=", "unknown"],
   ] as const) {
     it(`Given /ws${query} / When 判定する / Then ${expected}`, () => {

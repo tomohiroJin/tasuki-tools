@@ -5,10 +5,11 @@
  * として扱い（設計正本 §5.1）、どのツールが実在するかを知らない。知っているのは
  * 合成ルートであるこのアプリだけなので、リテラルをここへ集める。
  *
- * **道具の列挙もここの一覧（`TOOL_IDS`）から導く。** `Protocol`（`adapters/ws/connection-gate.ts`）・
- * `TOPIC_RECIPIENT_TOOLS`・`PROTOCOL_LOG_NAMES` の鍵は一覧から導かれるので、道具を足すときは
- * 定数とこの配列に足せばよい。手で足す場所は残り 2 つ（`create-sync-server.ts` と `ws-adapter.ts` の
- * チャンネル。#591 で直す）。
+ * **道具の列挙もここの一覧（`TOOL_IDS`）から導く。** `Protocol`（`adapters/ws/connection-gate.ts`）と
+ * `TOPIC_RECIPIENT_TOOLS` は一覧に自動で追従する。ログの語彙 `PROTOCOL_LOG_NAMES` は手で 1 行足すが、
+ * 鍵の網羅を型（`Record<AcceptedProtocol, …>`）が要求するので、足し忘れは型検査が落とす。
+ * そのほか手で足す場所は `ws-adapter.ts`（受け口の表とチャンネル）と `create-sync-server.ts` の組み立て
+ * （#591 で直す）。
  *
  * ## 誰がこの値を決めるのか
  *
