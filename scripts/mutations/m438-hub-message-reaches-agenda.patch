@@ -9,20 +9,20 @@
 #       git apply scripts/mutations/m438-*.patch
 # 復元: git apply -R scripts/mutations/m438-*.patch
 diff --git a/apps/tasuki-sync/src/create-sync-server.ts b/apps/tasuki-sync/src/create-sync-server.ts
-index a9a0728d..c8b79e09 100644
+index d6f348fb..afc5d31f 100644
 --- a/apps/tasuki-sync/src/create-sync-server.ts
 +++ b/apps/tasuki-sync/src/create-sync-server.ts
-@@ -458,7 +458,12 @@ export function createSyncServer(config: SyncConfig): SyncServer {
+@@ -277,7 +277,12 @@ export function createSyncServer(config: SyncConfig): SyncServer {
      logger,
      deriveClientKey,
      requireClientAddress: config.requireClientAddress,
--    hub: hubHandlers,
+-    hub,
 +    hub: {
 +      handleMessage: async (connId, raw) => {
-+        await hubHandlers.handleMessage(connId, raw);
-+        await agendaHandlers.handleMessage(connId, raw);
++        await hub.handleMessage(connId, raw);
++        await agenda.layer.handleMessage(connId, raw);
 +      },
 +    },
-     topic: topicHandlers,
-     roulette: rouletteHandlers,
-     agenda: agendaHandlers,
+     topic: topic.layer,
+     roulette: roulette.layer,
+     agenda: agenda.layer,
