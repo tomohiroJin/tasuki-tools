@@ -8,9 +8,9 @@
  * **道具の列挙もここの一覧（`TOOL_IDS`）から導く。** `Protocol`（`adapters/ws/connection-gate.ts`）と
  * `TOPIC_RECIPIENT_TOOLS` は一覧に自動で追従する。ログの語彙 `PROTOCOL_LOG_NAMES` は手で 1 行足すが、
  * 鍵の網羅を型（`Record<AcceptedProtocol, …>`）が要求するので、足し忘れは型検査が落とす。
- * このアプリの中で残る手の場所は `ws-adapter.ts`（受け口の表とチャンネル）・`tool-channel.ts`（poker 固有の受け口）・
- * `create-sync-server.ts`（組み立て。#591 で直す）。玄関（`apps/landing/src/tools.ts` の `TOOLS` と、そのテストの置き場の表）と
- * E2E（`e2e/specs/site-exterior.spec.ts` の `PAGES`）は別に足す。
+ * このアプリの中で残る手の場所は `ws-adapter.ts`（受け口の表とチャンネル）・`create-sync-server.ts`（組み立て）・
+ * `destroy-room.ts`（状態を持つ道具の後始末）で、#591 で直す。アプリの外では、玄関（`apps/landing/src/tools.ts` の `TOOLS` と
+ * そのテストの置き場の表）・E2E（`e2e/specs/site-exterior.spec.ts` の `PAGES`）・監査の許可リスト（`scripts/audit-*.mjs`）を別に足す。
  *
  * **一覧に足した道具は、お題の配信先（`TOPIC_RECIPIENT_TOOLS`）に自動で入る。** つまりその道具の web には
  * `type: "topic"` のフレームが届くので、web 側は `@tasuki/topic-core` の `TopicFrameSchema` を自分のスキーマより
