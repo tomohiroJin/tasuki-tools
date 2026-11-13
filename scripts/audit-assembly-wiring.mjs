@@ -7,7 +7,7 @@
  * エントリポイント（`server.ts`）とテストの両方が、この関数を経由して組み立てる」と
  * 定めている。この検査はその MUST のうち**機械で見える部分**を見る。
  *
- * ## 何を見るか（4 つ）
+ * ## 何を見るか（7 つ）
  *
  * 宣言した組（`ASSEMBLY_TARGETS`）ごとに、次を見る。
  *
@@ -15,6 +15,15 @@
  *   2. エントリ（`server.ts`）が実在する
  *   3. エントリが組み立て関数を **import して呼んでいる**
  *   4. エントリに `Bun.serve` が現れない（組み立てが集約されている証拠）
+ *
+ * **#591 で、組み立て関数が道具ごとの組み立て（`assembly/<道具>.ts`）へ分かれた。** 分けた先は組の
+ * `parts` に宣言し、次の 3 つを足して見る（集約の単位が「1 ファイル」から「1 つの組み立て関数とその部品」になった）。
+ *
+ *   5. 分けた先のファイルが実在する
+ *   6. 組み立て関数が分けた先を **import して、宣言した関数を呼んでいる**（呼ばれない部品は配線から落ちている）
+ *   7. 分けた先に `new WsAdapter(` と `Bun.serve` が現れない（サーバーを起こすのは組み立て関数 1 か所だけ）
+ *
+ * 5〜7 は 3・4 と同じ見方（行単位・無状態）を使う。分けた先の**中身**（どう配線したか）は見ない。
  *
  * ## 何を見ていないか — **「足りる」とは言わない**
  *
@@ -124,11 +133,29 @@ export const ASSEMBLY_TARGETS = [
     entry: "apps/tasuki-sync/src/server.ts",
     assembler: "apps/tasuki-sync/src/create-sync-server.ts",
     fn: "createSyncServer",
+    /**
+     * 分けた先（#591）。`file` は組み立て関数が import するファイル、`fns` は組み立て関数が呼ぶ関数。
+     * `assembly/` の実体との全単射は `audit-assembly-wiring.test.mjs` が見る（足し忘れは赤）。
+     */
+    parts: [
+      { file: "apps/tasuki-sync/src/assembly/hub.ts", fns: ["assembleHub"] },
+      { file: "apps/tasuki-sync/src/assembly/topic.ts", fns: ["createAiBudget", "createTopicResources", "assembleTopic"] },
+      { file: "apps/tasuki-sync/src/assembly/roulette.ts", fns: ["assembleRoulette"] },
+      { file: "apps/tasuki-sync/src/assembly/agenda.ts", fns: ["assembleAgenda"] },
+      { file: "apps/tasuki-sync/src/assembly/checkin.ts", fns: ["assembleCheckin"] },
+      { file: "apps/tasuki-sync/src/assembly/poker.ts", fns: ["assemblePoker"] },
+    ],
   },
 ];
 
 /** エントリに現れてはならない構文。組み立てがエントリに残っている証拠になる。 */
 export const FORBIDDEN_IN_ENTRY = [{ name: "Bun.serve", re: /\bBun\s*\.\s*serve\b/ }];
+
+/** 分けた先に現れてはならない構文（#591）。サーバーを起こす出口は組み立て関数の 1 か所だけにする。 */
+export const FORBIDDEN_IN_PARTS = [
+  { name: "Bun.serve", re: /\bBun\s*\.\s*serve\b/ },
+  { name: "new WsAdapter(", re: /\bnew\s+WsAdapter\s*\(/ },
+];
 
 /** 行が import 文か（インデントは無視。行単位・無状態）。 */
 function isImportLine(line) {
@@ -163,6 +190,40 @@ export function findAssemblyProblems(target, sources) {
 
   if (!sources.has(assembler)) {
     problems.push(`組み立て関数のファイルがありません → ${assembler}（ADR-0004 決定 4）`);
+  }
+
+  const { parts = [] } = target;
+  const assemblerSource = sources.get(assembler);
+  for (const { file, fns } of parts) {
+    const partSource = sources.get(file);
+    if (partSource === undefined) {
+      problems.push(`分けた先のファイルがありません → ${file}（ADR-0004 決定 4・#591）`);
+      continue;
+    }
+    if (assemblerSource !== undefined) {
+      const assemblerLines = assemblerSource.split("\n");
+      const partModule = path.basename(file).replace(/\.ts$/, "");
+      for (const f of fns) {
+        const imported = assemblerLines.some(
+          (l) => isEvidenceLine(l) && isImportLine(l) && l.includes(f) && l.includes(`/${partModule}.`),
+        );
+        if (!imported) {
+          problems.push(`${assembler} が ${partModule} から ${f} を import していません（ADR-0004 決定 4・#591）`);
+        }
+        const called = assemblerLines.some((l) => isEvidenceLine(l) && !isImportLine(l) && l.includes(`${f}(`));
+        if (!called) problems.push(`${assembler} が ${f}() を呼んでいません（ADR-0004 決定 4・#591）`);
+      }
+    }
+    for (const { name, re } of FORBIDDEN_IN_PARTS) {
+      // 禁止構文はコメント行も読む（見落とすより余計に赤くなるほうが安全な向き）。
+      const hit = partSource.split("\n").findIndex((l) => re.test(l));
+      if (hit >= 0) {
+        problems.push(
+          `${file}:${hit + 1} 分けた先に ${name} が現れています。` +
+            `サーバーを起こすのは ${path.basename(assembler)} の 1 か所だけです（ADR-0004 決定 4・#591）`,
+        );
+      }
+    }
   }
 
   const entrySource = sources.get(entry);
@@ -210,7 +271,7 @@ export function findAssemblyProblems(target, sources) {
 function readDeclaredSources(targets) {
   const sources = new Map();
   for (const t of targets) {
-    for (const rel of [t.entry, t.assembler]) {
+    for (const rel of [t.entry, t.assembler, ...(t.parts ?? []).map((p) => p.file)]) {
       const abs = path.join(REPO_ROOT, rel);
       if (fs.existsSync(abs)) sources.set(rel, fs.readFileSync(abs, "utf8"));
     }

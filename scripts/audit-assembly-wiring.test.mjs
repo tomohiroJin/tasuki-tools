@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import {
   ASSEMBLY_TARGETS,
   FORBIDDEN_IN_ENTRY,
+  FORBIDDEN_IN_PARTS,
   findAssemblyProblems,
   isEvidenceLine,
 } from "./audit-assembly-wiring.mjs";
@@ -193,6 +194,73 @@ describe("findAssemblyProblems", () => {
   });
 });
 
+/** 分けた先（#591）を持つ組。組み立て関数は分けた先を import して呼ぶ。 */
+const PART_FILE = "apps/x-sync/src/assembly/topic.ts";
+const TARGET_WITH_PARTS = { ...TARGET, parts: [{ file: PART_FILE, fns: ["assembleTopic"] }] };
+const GOOD_ASSEMBLER = [
+  'import { assembleTopic } from "./assembly/topic.js";',
+  "export function createSyncServer() {",
+  "  const topic = assembleTopic(base);",
+  "}",
+].join("\n");
+const GOOD_PART = "export function assembleTopic(base) { return {}; }";
+
+function sourcesWithParts({ assembler = GOOD_ASSEMBLER, part = GOOD_PART } = {}) {
+  const m = new Map([[TARGET.entry, GOOD_ENTRY]]);
+  if (assembler !== null) m.set(TARGET.assembler, assembler);
+  if (part !== null) m.set(PART_FILE, part);
+  return m;
+}
+
+describe("findAssemblyProblems（分けた先・#591）", () => {
+  test("健全な分けた先では問題を返さない", () => {
+    assert.deepEqual(findAssemblyProblems(TARGET_WITH_PARTS, sourcesWithParts()), []);
+  });
+
+  test("分けた先のファイルが無ければ赤", () => {
+    const problems = findAssemblyProblems(TARGET_WITH_PARTS, sourcesWithParts({ part: null }));
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /分けた先のファイルがありません/);
+  });
+
+  test("組み立て関数が分けた先を import していなければ赤", () => {
+    const assembler = ["export function createSyncServer() {", "  const topic = assembleTopic(base);", "}"].join("\n");
+    const problems = findAssemblyProblems(TARGET_WITH_PARTS, sourcesWithParts({ assembler }));
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /import していません/);
+  });
+
+  test("組み立て関数が分けた先の関数を呼んでいなければ赤（import だけでは証拠にならない）", () => {
+    const assembler = ['import { assembleTopic } from "./assembly/topic.js";', "export function createSyncServer() {}"].join("\n");
+    const problems = findAssemblyProblems(TARGET_WITH_PARTS, sourcesWithParts({ assembler }));
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /assembleTopic\(\) を呼んでいません/);
+  });
+
+  test("呼び出しがコメント行にしか無いなら赤", () => {
+    const assembler = [
+      'import { assembleTopic } from "./assembly/topic.js";',
+      "export function createSyncServer() {",
+      "  // const topic = assembleTopic(base);",
+      "}",
+    ].join("\n");
+    const problems = findAssemblyProblems(TARGET_WITH_PARTS, sourcesWithParts({ assembler }));
+    assert.equal(problems.length, 1);
+  });
+
+  test("分けた先で WsAdapter を起こしていれば赤（サーバーを起こすのは組み立て関数 1 か所）", () => {
+    const part = `${GOOD_PART}\nconst ws = new WsAdapter({ port: 0 });`;
+    const problems = findAssemblyProblems(TARGET_WITH_PARTS, sourcesWithParts({ part }));
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /new WsAdapter\(/);
+  });
+
+  test("分けた先の Bun.serve はコメント行でも赤", () => {
+    const part = `${GOOD_PART}\n// Bun.serve は使わない`;
+    assert.equal(findAssemblyProblems(TARGET_WITH_PARTS, sourcesWithParts({ part })).length, 1);
+  });
+});
+
 describe("宣言（ASSEMBLY_TARGETS / FORBIDDEN_IN_ENTRY）", () => {
   test("宣言した組は 1 つ以上あり、すべて実在する", () => {
     // Given / When / Then: 宣言が空なら検査は空振りする
@@ -244,5 +312,31 @@ describe("宣言（ASSEMBLY_TARGETS / FORBIDDEN_IN_ENTRY）", () => {
     assert.ok(re.test("Bun.serve({})"));
     assert.ok(re.test("Bun . serve({})"));
     assert.ok(!re.test("createBunServer()"));
+  });
+});
+
+describe("宣言（parts・#591）", () => {
+  test("宣言した分けた先はすべて実在し、assembly/ の実体と全単射（足し忘れは赤）", () => {
+    // Given: assembly/ の実体（context.ts は部品ではなく共有の型）
+    const dir = "apps/tasuki-sync/src/assembly";
+    const actual = fs
+      .readdirSync(path.join(REPO_ROOT, dir))
+      .filter((name) => name.endsWith(".ts") && name !== "context.ts")
+      .map((name) => `${dir}/${name}`)
+      .sort();
+    // When
+    const target = ASSEMBLY_TARGETS.find((t) => t.assembler === "apps/tasuki-sync/src/create-sync-server.ts");
+    const declared = (target?.parts ?? []).map((p) => p.file).sort();
+    // Then
+    assert.deepEqual(declared, actual);
+    for (const p of target.parts) assert.ok(p.fns.length > 0, `呼ぶ関数が空です: ${p.file}`);
+  });
+
+  test("分けた先の禁止構文は WsAdapter の生成と Bun.serve", () => {
+    assert.deepEqual(FORBIDDEN_IN_PARTS.map((f) => f.name), ["Bun.serve", "new WsAdapter("]);
+    const re = FORBIDDEN_IN_PARTS[1].re;
+    assert.ok(re.test("new WsAdapter({})"));
+    assert.ok(re.test("new  WsAdapter ({})"));
+    assert.ok(!re.test("type WsAdapter = ..."));
   });
 });
