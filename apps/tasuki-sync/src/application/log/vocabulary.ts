@@ -79,14 +79,15 @@ export const RANDOM_VIOLATION_REASONS = {
 /**
  * `on-message-error` に添える、どの接続の失敗かを示す名前（`protocol` 項目。#381）。
  * 受け口の表（`ws-adapter.ts` の `buildChannels`）の鍵と 1 対 1 の固定の語彙で、自由文は載せない。
- * 受け口の表の鍵（`AcceptedProtocol`。型だけを取り込む）が語彙に欠けると、型検査が落ちる。
+ * 鍵は `AcceptedProtocol` 経由で `TOOL_IDS` から導かれるので、道具を足して語彙を足し忘れると型検査が落ちる。
+ * 並びは `hub` → `TOOL_IDS` の順。
  */
 export const PROTOCOL_LOG_NAMES = {
-  timer: publicText("timer"), // log-hygiene:allow 語彙定義
   hub: publicText("hub"), // log-hygiene:allow 語彙定義
+  timer: publicText("timer"), // log-hygiene:allow 語彙定義
+  poker: publicText("poker"), // log-hygiene:allow 語彙定義
   topic: publicText("topic"), // log-hygiene:allow 語彙定義
   roulette: publicText("roulette"), // log-hygiene:allow 語彙定義
   agenda: publicText("agenda"), // log-hygiene:allow 語彙定義
   checkin: publicText("checkin"), // log-hygiene:allow 語彙定義
-  poker: publicText("poker"), // log-hygiene:allow 語彙定義
 } as const satisfies Record<AcceptedProtocol, LogSafe>;
