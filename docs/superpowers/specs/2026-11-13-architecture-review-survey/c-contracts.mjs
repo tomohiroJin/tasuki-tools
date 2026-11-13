@@ -26,8 +26,8 @@ const AUDITED_DOMAIN = new Set([
 ]);
 const FORBIDDEN = ["Date.now(", "Math.random(", "new Date(", "performance.now(", "crypto.", "process.env"];
 
-const isTestPath = (p) =>
-  /\.(test|spec)\.[a-z]+$/.test(p) || /(^|\/)(tests?|e2e)\//.test(p);
+// テストの判定は 6 本で同じ正規表現
+const isTestPath = (p) => /\.(test|spec)\.[cm]?[tj]sx?$/.test(p) || /(^|\/)(tests?|e2e)\//.test(p);
 const isCodeExt = (p) => /\.(ts|tsx|mjs)$/.test(p);
 
 const all = execFileSync("git", ["ls-files", "-z"], { cwd: root, maxBuffer: 1 << 28 })
@@ -54,7 +54,11 @@ function strip(src) {
       out += c + blank(src.slice(i + 1, j - 1)) + (src[j - 1] === c ? c : " "); i = j;
     } else { out += c; i++; }
   }
-  return out;
+  // import / export の宣言（複数行を含む）も空白へ。`import type { A as B, }` の `as` を型アサーションに数えないため
+  const blankAll = (m) => m.replace(/[^\n]/g, " ");
+  return out
+    .replace(/^[ \t]*import\s[^;]*?\bfrom\s*["'`][^"'`\n]*["'`][ \t]*;?/gm, blankAll)
+    .replace(/^[ \t]*export\s+(?:type\s+)?(?:\*(?:\s+as\s+\w+)?|\{[^}]*\})(?:\s*from\s*["'`][^"'`\n]*["'`])?[ \t]*;?/gm, blankAll);
 }
 const lineOf = (text, idx) => { let l = 1; for (let k = 0; k < idx; k++) if (text.charCodeAt(k) === 10) l++; return l; };
 const pkgOf = (p) => p.startsWith("apps/tasuki-sync/") ? p.split("/").slice(0, 4).join("/") : p.split("/").slice(0, 2).join("/");
@@ -150,10 +154,11 @@ for (const p of files) {
     ["ts-expect-error", /@ts-expect-error/g, raw],
     ["as-assertion", /\bas\s+(?!const\b|unknown\b|any\b)[A-Za-z_{(\[]/g, code],
   ];
+  const codeLines = code.split("\n"); // ループの外で 1 回だけ分ける
   for (const [kind, re, text] of castPats) {
     for (const m of text.matchAll(re)) {
       const ln = lineOf(text, m.index);
-      const lineText = code.split("\n")[ln - 1];
+      const lineText = codeLines[ln - 1];
       if (kind === "as-assertion" && /^\s*(import|export)\b/.test(lineText)) continue;
       if (kind === "non-null-!" && /^\s*(import|export)\b/.test(lineText)) continue;
       casts.push({ file: p, line: ln, kind });

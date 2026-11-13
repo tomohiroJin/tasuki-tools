@@ -40,7 +40,7 @@
 - **走査の母集合は `git ls-files`**（`readdirSync` で歩かない）。この環境の FS は大文字小文字を区別せず、`node_modules`・`dist` を除く手間も省ける
 - 走査対象の拡張子は `.ts` `.tsx` `.mjs`。テストは `*.test.*` `*.spec.*` と `tests/` `test/` `e2e/` 配下で、ソースと分けて数える
 - スクリプトは node 標準ライブラリだけで書き、リポジトリのルートを第 1 引数に取る（`node <script> <ルート>`）。相対パスでよい。結果は標準出力へ JSON（#496 と同じ型）
-- 一時ファイルは各作業ツリーの `tmp/`（追跡外。`.gitignore` には `*.tmp` しか無いので、`tmp/` を `git add` しない）
+- 一時ファイルは~~各作業ツリーの `tmp/`（追跡外。`.gitignore` には `*.tmp` しか無いので、`tmp/` を `git add` しない）~~ → 訂正 2026-11-13: リポジトリの外に置く。中に `tmp/` を作ると `pnpm check:fast` の変異の段が未コミットの変更として止まる（1 回目の check:fast で踏んだ）。README（`docs/superpowers/specs/2026-11-13-architecture-review-survey/README.md`）のとおり
 - 一覧の各項目は **場所・観点・何が問題か・直すと何がよくなるか（4 つの目標のどれに効くか: 読みやすい／足すのが速い／続けられる／バグが減る）・直す量（触るファイル数）** の 5 欄
 - 測る役（A〜D）は **commit・push・マージ・ブランチ削除・PR と ISSUE への書き込み・`checkout`/`switch`/`stash`/`reset`/`restore`・`rm`・`pnpm install`・dev サーバーと E2E の起動・プロセスの停止をしない**（`docs/guides/procedures/orchestration.md` 3）
 - 文書は `docs/superpowers/specs/2026-11-13-architecture-review-survey.md`、スクリプトは同名ディレクトリ `docs/superpowers/specs/2026-11-13-architecture-review-survey/`。どちらも `check-links` の `DORMANT_DOCS`（接頭辞 `docs/superpowers/specs/`）に自動で入る。登録は不要。eslint は `.ts`/`.tsx` だけを見るので `.mjs` は lint されない
@@ -170,6 +170,7 @@ Task A〜D を、それぞれ別のサブエージェント（Sonnet）へ、`BR
 
 ```bash
 cd /workspaces/claym/local/Tasuki-wt-587a && mkdir -p tmp
+# 訂正 2026-11-13: ~~作業ツリーの `tmp/`~~ → リポジトリの外に置く（README のとおり）。中に `tmp/` を作ると `pnpm check:fast` の変異の段が未コミットの変更として止まる（1 回目の check:fast で踏んだ）。下の `tmp/` は外の置き場に読み替える
 node docs/superpowers/specs/2026-11-13-architecture-review-survey/a-dependency-edges.mjs . > tmp/edges-1.json
 node docs/superpowers/specs/2026-11-13-architecture-review-survey/a-dependency-edges.mjs . > tmp/edges-2.json
 diff tmp/edges-1.json tmp/edges-2.json && echo same
@@ -231,6 +232,7 @@ Expected: `method` は 9 以上（`METHOD_IDS` の 9 ファイルを含む。id 
 
 ```bash
 cd /workspaces/claym/local/Tasuki-wt-587b && mkdir -p tmp
+# 訂正 2026-11-13: ~~作業ツリーの `tmp/`~~ → リポジトリの外に置く（README のとおり）。中に `tmp/` を作ると `pnpm check:fast` の変異の段が未コミットの変更として止まる（1 回目の check:fast で踏んだ）。下の `tmp/` は外の置き場に読み替える
 node docs/superpowers/specs/2026-11-13-architecture-review-survey/b-duplicates.mjs . > tmp/dup-1.json
 node docs/superpowers/specs/2026-11-13-architecture-review-survey/b-duplicates.mjs . > tmp/dup-2.json
 diff tmp/dup-1.json tmp/dup-2.json && echo same
@@ -274,6 +276,7 @@ Expected: `same`。書体の base 層の判定の写し（`packages/web-kit/test
 
 ```bash
 cd /workspaces/claym/local/Tasuki-wt-587c && mkdir -p tmp
+# 訂正 2026-11-13: ~~作業ツリーの `tmp/`~~ → リポジトリの外に置く（README のとおり）。中に `tmp/` を作ると `pnpm check:fast` の変異の段が未コミットの変更として止まる（1 回目の check:fast で踏んだ）。下の `tmp/` は外の置き場に読み替える
 node docs/superpowers/specs/2026-11-13-architecture-review-survey/c-contracts.mjs . > tmp/c-1.json
 node docs/superpowers/specs/2026-11-13-architecture-review-survey/c-contracts.mjs . > tmp/c-2.json
 diff tmp/c-1.json tmp/c-2.json && echo same
@@ -324,6 +327,7 @@ Step 1 の 1〜4 に当たったファイルを読み、**前提を口頭・コ�
 
 ```bash
 cd /workspaces/claym/local/Tasuki-wt-587d && mkdir -p tmp
+# 訂正 2026-11-13: ~~作業ツリーの `tmp/`~~ → リポジトリの外に置く（README のとおり）。中に `tmp/` を作ると `pnpm check:fast` の変異の段が未コミットの変更として止まる（1 回目の check:fast で踏んだ）。下の `tmp/` は外の置き場に読み替える
 for s in d-size d-dead-exports; do node docs/superpowers/specs/2026-11-13-architecture-review-survey/$s.mjs . > tmp/$s-1.json; node docs/superpowers/specs/2026-11-13-architecture-review-survey/$s.mjs . > tmp/$s-2.json; diff tmp/$s-1.json tmp/$s-2.json && echo "$s same"; done
 node -e 'const r=JSON.parse(require("fs").readFileSync("tmp/d-size-1.json"));for(const f of r.files.filter(f=>f.kind==="src").slice(0,8))console.log(f.lines,f.path)'
 node docs/superpowers/specs/2026-11-01-test-gap-survey/conventions.mjs . > tmp/conventions-now.json
@@ -358,6 +362,7 @@ Expected: `same` ×2。ソースの上位 8 本が既知の値の表（748・701
 cd /workspaces/claym/local/Tasuki
 for x in a b c d; do cp /workspaces/claym/local/Tasuki-wt-587$x/docs/superpowers/specs/2026-11-13-architecture-review-survey/{$x-*.mjs,report-$x.md} docs/superpowers/specs/2026-11-13-architecture-review-survey/; done
 mkdir -p tmp && for s in a-dependency-edges b-duplicates c-contracts d-size d-dead-exports; do node docs/superpowers/specs/2026-11-13-architecture-review-survey/$s.mjs . > tmp/$s.json; done
+# 訂正 2026-11-13: ~~作業ツリーの `tmp/`~~ → リポジトリの外に置く（README のとおり）。中に `tmp/` を作ると `pnpm check:fast` の変異の段が未コミットの変更として止まる（1 回目の check:fast で踏んだ）。下の `tmp/` は外の置き場に読み替える
 for t in tool method deck; do node docs/superpowers/specs/2026-11-13-architecture-review-survey/a-extension-cost.mjs . $t > tmp/a-$t.json; done
 ```
 Expected: 報告の件数と一致。ずれたら、報告ではなく流し直した数を採り、ずれを節 10 に書く

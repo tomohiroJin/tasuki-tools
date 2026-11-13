@@ -44,7 +44,8 @@ const ALLOWED = audit.ALLOWED;
 const TEST_ONLY = audit.TEST_ONLY;
 
 // ---- 層の判定（パスの規則。report-a.md に表で残す） ----
-const isTestFile = (f) => /\.(test|spec)\.[cm]?[tj]sx?$/.test(f) || /(^|\/)(tests?|e2e)\//.test(f) || /^e2e\//.test(f);
+// テストの判定は 6 本で同じ正規表現
+const isTestFile = (f) => /\.(test|spec)\.[cm]?[tj]sx?$/.test(f) || /(^|\/)(tests?|e2e)\//.test(f);
 const webApps = new Set(tracked.filter((f) => /^apps\/[^/]+\/vite\.config\.ts$/.test(f)).map((f) => pkgOf(f)));
 
 const CORE = /^packages\/[a-z-]+-core$|^packages\/room-core$/;
@@ -202,7 +203,6 @@ for (const file of files) {
       continue;
     }
     if (t.toLayer === "test" || t.toLayer === "scripts" || t.toLayer === "other" || t.toLayer === "web/config") {
-      if (t.kind === "relative" && t.toPkg === fromPkg && fromLayer.startsWith("web/") === false) continue;
       continue;
     }
     if (!layerAllows(file, fromLayer, t.toLayer, t.toPkg)) {

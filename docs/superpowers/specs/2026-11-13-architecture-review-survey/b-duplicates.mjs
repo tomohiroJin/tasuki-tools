@@ -10,7 +10,8 @@ const root = process.argv[2] ?? ".";
 const files = execFileSync("git", ["ls-files", "-z"], { cwd: root, maxBuffer: 1 << 28 })
   .toString("utf8").split("\0").filter((f) => /\.(ts|tsx)$/.test(f) && !f.endsWith(".d.ts")).sort();
 
-const isTest = (f) => /\.(test|spec)\.[cm]?[jt]sx?$/.test(f) || /(^|\/)(tests?|e2e)\//.test(f);
+// テストの判定は 6 本で同じ正規表現
+const isTest = (p) => /\.(test|spec)\.[cm]?[tj]sx?$/.test(p) || /(^|\/)(tests?|e2e)\//.test(p);
 const unitOf = (f) => {
   const p = f.split("/");
   return p[0] === "apps" || p[0] === "packages" ? `${p[0]}/${p[1]}` : p[0];
@@ -26,7 +27,7 @@ function normalize(src) {
     let t = lines[i].trim();
     if (inBlock) { if (t.includes("*/")) inBlock = false; continue; }
     if (t.startsWith("/*")) { if (!t.includes("*/")) inBlock = true; continue; }
-    if (inImport) { if (/\bfrom\s+["']/.test(t) || /^["'][^"']+["'];?$/.test(t)) inImport = false; continue; }
+    if (inImport) { if (/\bfrom\s+["']/.test(t) || /^["'][^"']+["'];?$/.test(t) || /^\};?$/.test(t)) inImport = false; continue; }
     if (t === "" || t.startsWith("//") || t.startsWith("*")) continue;
     if (/^import\b/.test(t)) { if (!/\bfrom\s+["']/.test(t) && !/^import\s+["']/.test(t)) inImport = true; continue; }
     if (/^export\s+(type\s+)?(\*|\{[^}]*\})\s+from\b/.test(t)) continue;

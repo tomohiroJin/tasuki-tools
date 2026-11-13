@@ -8,12 +8,16 @@ const root = resolve(process.argv[2] ?? ".");
 const tracked = execFileSync("git", ["ls-files", "-z"], { cwd: root, maxBuffer: 1 << 28 })
   .toString("utf8").split("\0").filter(Boolean).sort();
 
-const isTest = (p) => /\.(test|spec)\.[a-z]+$/.test(p) || /(^|\/)(tests?|e2e)\//.test(p);
+// テストの判定は 6 本で同じ正規表現（*.test.*・*.spec.*・tests/ test/ e2e/ 配下）
+const isTest = (p) => /\.(test|spec)\.[cm]?[tj]sx?$/.test(p) || /(^|\/)(tests?|e2e)\//.test(p);
 const isSupport = (p) => /(^|\/)(tests?|e2e)\/support\//.test(p) || /(^|\/)(tests?)\/(helpers?|fixtures?)\//.test(p);
-const isTestCaseFile = (p) => /\.(test|spec)\.[a-z]+$/.test(p);
+const isTestCaseFile = (p) => /\.(test|spec)\.[cm]?[tj]sx?$/.test(p);
 // wc -l と同じ数え方（改行の数。空行・コメントを含む）
 const wcl = (t) => { let n = 0; for (let i = 0; i < t.length; i++) if (t.charCodeAt(i) === 10) n++; return n; };
 const count = (t, re) => (t.match(re) ?? []).length;
+// フックは呼び出しの形（`useState(`・`useState<`）で数える。import の行（複数行を含む）は落とす（語の出現で数えると import や docstring の言及まで足される）
+const dropImports = (t) => t.replace(/^\s*import\b[\s\S]*?(?:\bfrom\s*["'][^"']*["']|^\s*["'][^"']*["'])\s*;?/gm, "");
+const calls = (t, name) => count(t, new RegExp(`\\b${name}\\s*[(<]`, "g"));
 const pkgOf = (p) => { const s = p.split("/"); return (s[0] === "apps" || s[0] === "packages") ? s.slice(0, 2).join("/") : s[0]; };
 
 const files = [];
@@ -23,13 +27,14 @@ for (const p of tracked) {
   const text = readFileSync(join(root, p), "utf8");
   const lines = wcl(text);
   const kind = isTest(p) ? "test" : "src";
+  const code = dropImports(text);
   files.push({
     path: p, pkg: pkgOf(p), lines, kind,
     hooks: {
-      useState: count(text, /\buseState\b/g),
-      useEffect: count(text, /\buseEffect\b/g),
-      useRef: count(text, /\buseRef\b/g),
-      useCallback: count(text, /\buseCallback\b/g),
+      useState: calls(code, "useState"),
+      useEffect: calls(code, "useEffect"),
+      useRef: calls(code, "useRef"),
+      useCallback: calls(code, "useCallback"),
     },
     exports: count(text, /^export\s/gm),
   });

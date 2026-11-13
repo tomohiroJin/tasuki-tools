@@ -12,9 +12,10 @@ const tracked = execFileSync("git", ["ls-files", "-z"], { cwd: root, maxBuffer: 
   .toString("utf8").split("\0").filter(Boolean).sort()
   .filter((f) => !f.includes("2026-11-13-architecture-review-survey"));
 const isCode = (p) => /\.(ts|tsx|mjs|cjs|js)$/.test(p);
-const isTest = (p) => /\.(test|spec)\.[a-z]+$/.test(p) || /(^|\/)(tests?|e2e)\//.test(p);
+// テストの判定は 6 本で同じ正規表現
+const isTest = (p) => /\.(test|spec)\.[cm]?[tj]sx?$/.test(p) || /(^|\/)(tests?|e2e)\//.test(p);
 const isEntry = (p) => /(^|\/)(index\.ts|main\.tsx|server\.ts|vite\.config\.ts)$/.test(p) || p.endsWith(".d.ts");
-const isBarrel = (p) => /(^|\/)index\.ts$/.test(p) || /(^|\/)(\w+\/)?sync\.ts$/.test(p) && false;
+const isBarrel = (p) => /(^|\/)index\.ts$/.test(p);
 
 const tokens = new Map(); // path -> Set<識別子>
 const texts = new Map();

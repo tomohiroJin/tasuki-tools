@@ -18,15 +18,18 @@ if (!["tool", "method", "deck"].includes(trial)) {
 }
 const tracked = execFileSync("git", ["ls-files", "-z"], { cwd: root, maxBuffer: 1 << 28 })
   .toString("utf8").split("\0").filter(Boolean).sort();
-const SELF = "docs/superpowers/specs/2026-11-13-architecture-review-survey";
-const candidates = tracked.filter((f) => !f.startsWith(SELF) && !f.includes("2026-11-13-architecture-review-survey"));
+const candidates = tracked.filter((f) => !f.includes("2026-11-13-architecture-review-survey"));
+// tool の試算で本体（と docs）として別に数えるもの。2 か所（本走査と綴りの揺れ）から同じ述語を使う
+const isBody = (f) => f.startsWith("apps/checkin-web/") || f.startsWith("packages/checkin-core/") || f.startsWith("docs/");
 
 const ASSET = /\.(woff2?|ttf|otf|png|jpe?g|gif|webp|ico|svg|mp4|webm|mp3|wav|pdf)$/i;
-const TEST = /(\.(test|spec)\.[cm]?[tj]sx?$)|((^|\/)(tests?|e2e)\/)|(^scripts\/mutations\/)|(^scripts\/lib\/mutation-declarations)/;
+// テストの判定は 6 本で同じ正規表現。この試算では変異パッチと変異の宣言も test の欄に入れる
+const isTest = (p) => /\.(test|spec)\.[cm]?[tj]sx?$/.test(p) || /(^|\/)(tests?|e2e)\//.test(p);
+const isTestColumn = (p) => isTest(p) || /^scripts\/mutations\//.test(p) || /^scripts\/lib\/mutation-declarations/.test(p);
 function columnOf(f) {
   if (ASSET.test(f)) return "asset";
   if (/\.md$/i.test(f) || f.startsWith("docs/")) return "docs";
-  if (TEST.test(f)) return "test";
+  if (isTestColumn(f)) return "test";
   return "code";
 }
 const CONFIG_FILE = /(\.(json|ya?ml|toml|env|conf)$)|(^|\/)(Caddyfile[^/]*|\.gitignore|\.dockerignore|Dockerfile[^/]*|[^/]*\.service)$/;
@@ -84,6 +87,7 @@ if (trial === "tool") {
 }
 
 const files = [];
+const textOf = new Map(); // 本走査で読んだ本文（綴りの揺れ・METHOD_IDS の引き直しで再利用し、全ファイルを読み直さない）
 for (const f of candidates) {
   const col = columnOf(f);
   if (col === "asset") {
@@ -92,6 +96,7 @@ for (const f of candidates) {
     continue;
   }
   const text = readText(f);
+  textOf.set(f, text);
   if (text === null) continue;
   const lines = text.split("\n");
   const reasons = new Set();
@@ -111,14 +116,14 @@ for (const f of candidates) {
   if (reasons.size === 0) continue;
   if (trial === "tool") {
     // 本体と docs は別に数える（本体 = apps/checkin-web・packages/checkin-core）
-    if (f.startsWith("apps/checkin-web/") || f.startsWith("packages/checkin-core/") || f.startsWith("docs/")) continue;
+    if (isBody(f)) continue;
   }
   files.push({ path: f, column: col, reason: [...reasons].sort().join(" / "), firstLine: first });
 }
 if (trial === "tool") {
   // 資材のうち本体の外のもの
   for (let i = files.length - 1; i >= 0; i--) {
-    if (files[i].path.startsWith("apps/checkin-web/") || files[i].path.startsWith("packages/checkin-core/") || files[i].path.startsWith("docs/")) files.splice(i, 1);
+    if (isBody(files[i].path)) files.splice(i, 1);
   }
   const body = tracked.filter((f) => f.startsWith("apps/checkin-web/") || f.startsWith("packages/checkin-core/"));
   extra.bodyFiles = { "apps/checkin-web": body.filter((f) => f.startsWith("apps/checkin-web/")).length, "packages/checkin-core": body.filter((f) => f.startsWith("packages/checkin-core/")).length };
@@ -129,8 +134,8 @@ if (trial === "tool") {
   const loose = [];
   for (const f of candidates) {
     if (hit.has(f) || ASSET.test(f)) continue;
-    if (f.startsWith("apps/checkin-web/") || f.startsWith("packages/checkin-core/") || f.startsWith("docs/")) continue;
-    const t = readText(f);
+    if (isBody(f)) continue;
+    const t = textOf.get(f);
     if (t === null || !/checkin/i.test(t)) continue;
     const ln = t.split("\n").findIndex((l) => /checkin/i.test(l)) + 1;
     loose.push({ path: f, column: columnOf(f), reason: "綴りの揺れ（単語では当たらない）", firstLine: ln });
@@ -139,7 +144,7 @@ if (trial === "tool") {
 }
 if (trial === "method") {
   // 参考: METHOD_IDS という識別子そのものを持つファイル（既知の値 9）
-  extra.methodIdsSymbolFiles = candidates.filter((f) => !ASSET.test(f) && (readText(f) ?? "").match(/\bMETHOD_IDS\b/)).sort();
+  extra.methodIdsSymbolFiles = candidates.filter((f) => !ASSET.test(f) && (textOf.get(f) ?? "").match(/\bMETHOD_IDS\b/)).sort();
 }
 files.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
 const totals = { code: 0, test: 0, docs: 0, asset: 0 };
