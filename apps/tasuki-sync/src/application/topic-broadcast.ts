@@ -16,8 +16,10 @@ import { TOOL_HUB, TOOL_IDS } from "./tool-id.js";
 /**
  * お題の状態を受け取る接続のツール。**ルームの全接続である**（spec T3・E2）。
  *
- * ハブ＋`tool-id.ts` の一覧の全道具。道具を足すと自動で入る（かつては道具ごとに手で足していた）。
- * 並びは契約ではない。
+ * ハブ＋`tool-id.ts` の一覧の全道具。道具を足すと自動で入る（かつては道具ごとに手で足していた。
+ * timer・poker は契約に合わないフレームを捨てたことを利用者へ通知する（#209・#212）ので、両者が `topic`
+ * フレームを先に見分けるようになってから足した経緯がある）。**新しい道具の web も `TopicFrameSchema` を
+ * 先に見分けること**（`tool-id.ts` の docstring）。並びは契約ではない。
  */
 export const TOPIC_RECIPIENT_TOOLS: readonly (ToolId | null)[] = [TOOL_HUB, ...TOOL_IDS];
 
