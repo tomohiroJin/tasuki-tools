@@ -31,19 +31,18 @@ import { createCommands, type TimerCommands } from "./commands.js";
 import { decideSnapshotIntents } from "./snapshot-intents.js";
 import { buildNoticeMessage, type NoticeSignal } from "./notice-message.js";
 import { buildSyncUrl } from "./sync-url.js";
-import { indicatesStaleRoom } from "./stale-frame.js";
+import { applySnapshotIntents } from "./apply-snapshot-intents.js";
 import { hubRoomPath } from "../ui/entry.js";
 import { errorAction } from "../ui/error-action.js";
 import { redirectTo } from "../platform/location.js";
 import {
   buildInviteUrl,
   clearResumeIdentity,
-  loadResumeIdentity,
   saveResumeIdentity,
   type ResumeIdentity,
 } from "@tasuki/sync-client";
-import { useJoinRetry } from "@tasuki/web-kit/sync";
-import { useJoinDeadline } from "./use-join-deadline.js";
+import { useJoinRecovery } from "./use-join-recovery.js";
+import { useStaleFrameNotice } from "./use-stale-frame-notice.js";
 import { useTimerEntry } from "./use-timer-entry.js";
 import { createTimerActions, type TimerActions } from "./timer-actions.js";
 import type { AppMode } from "./app-mode.js";
@@ -56,20 +55,6 @@ import { persistRecordIfComplete } from "../records/persist.js";
 import { displayMessageFor } from "@tasuki/timer-core";
 import type { CompletionRecord, Room } from "@tasuki/timer-core";
 import type { Topic } from "@tasuki/topic-core";
-
-/** 混雑で入室を拒まれ、自動で入り直している間の案内（#147）。 */
-const JOIN_RETRY_WAITING_TEXT = "混み合っています。自動で入り直しています…";
-/** 自動で入り直しても入れなかったときの案内（#147）。 */
-const JOIN_RETRY_EXHAUSTED_TEXT = "混雑が続いています。時間をおいてから再読込してください";
-/**
- * ルームに入る前に同期フレームを捨てたときの案内（#209）。
- *
- * **StatusStrip はルームに入るまで描画されない**ので、その間だけバナーで補う。
- * 再読込を促さないのは、継続する棄却の原因がサーバー側のルームに残った値で、
- * 再読込しても直らないため（`docs/timer/adr/0006` の追記）。
- */
-const SYNC_STALE_BEFORE_ROOM_TEXT =
-  "同期できていません。ルームの状態が読み込めないため、先へ進めません。";
 
 /** ルームの中で表示する画面（正本は `app-mode.ts`）。 */
 export type { AppMode } from "./app-mode.js";
@@ -161,16 +146,10 @@ export function useTimerSync(banner: BannerController): TimerSync {
   // だけで、確立前は何も来ない —— `online` から始めると、繋がっていないのに
   // 「接続中」と断言する（`ui/connection-status.ts` の注記）。
   const [connState, setConnState] = useState<ClientConnState>("connecting");
-  // 契約に合わない同期フレームを捨てて以降、新しい状態を受け取れていない（#209）。
-  // 立てるのは棄却時、下ろすのは**有効な snapshot を受け取ったとき**だけ（下の注記）。
-  const [syncStale, setSyncStale] = useState(false);
-  // `room.join` の答えを待つ期限（#292。`use-join-deadline.ts`）。
-  const {
-    timedOut: joinTimedOut,
-    arm: armJoinDeadline,
-    cancel: cancelJoinDeadline,
-    giveUp: giveUpJoinWait,
-  } = useJoinDeadline();
+  // 契約に合わない同期フレームを捨てた印とバナー（#209。`use-stale-frame-notice.ts`）。
+  // 立てるのは棄却時、下ろすのは**有効な snapshot を受け取ったとき**だけ。
+  const staleNotice = useStaleFrameNotice(banner);
+  const { syncStale } = staleNotice;
   // ルームのいまのお題（#91）。`topic` フレームで届く。setter だけなので handlersRef に
   // 載せる必要は無い（onConnectionChange と同じ理由。makeClient で直接渡す）。
   const [topic, setTopic] = useState<Topic | null>(null);
@@ -184,14 +163,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
   // 値を受け渡したいため（両者は別々の WS メッセージから来る）。ハンドラの closure から
   // 読む値ではないので、handlersRef 経由の仕組みには乗らない。
   const pendingResumeRef = useRef<{ participantId: string; resumeToken: string } | null>(null);
-  // 混雑で入室を拒まれたときの自動再試行（#147）。**即時に送り直してはならない** —
-  // 同一 NAT の利用者はレート制限のバケツを共有するため、素朴な再試行は
-  // 自分たちで自分たちを締め出す。待ち時間とばらつきは @tasuki/sync-client の join-retry.ts が決め、
-  // 回数とタイマーは `@tasuki/web-kit/sync` の `useJoinRetry` が持つ（#369）。案内はバナーで出すので、
-  // 知らせの文言は渡さない。
-  const { rateLimited, cancel: cancelJoinRetry, reset: resetJoinRetry } = useJoinRetry(null);
-  // ルームに入る前に出した「同期できていません」のバナーを、自分が出したときだけ消すための印（#209）。
-  const staleBannerShownRef = useRef(false);
   // 参加時に名乗った表示名。resumeToken 再送の room.join に必要
   // （サーバー側スキーマで displayName は必須項目のため・Issue #24）。
   // **入れるのは入口の effect 1 箇所だけ**（#272 で作成経路が消えたため）。
@@ -203,6 +174,20 @@ export function useTimerSync(banner: BannerController): TimerSync {
   // 届いていない時点でも走る。参加を試みた時点と snapshot を受け取った時点の
   // 両方で入れる。
   const roomCodeRef = useRef<string | null>(null);
+  // 混雑の自動再試行（#147）と、`room.join` の答えを待つ期限（#292）。
+  // 復帰の組を読む鍵は「いま話しているルーム」で決まるので、送る時点の値を都度引く。
+  const {
+    joinTimedOut,
+    armJoinDeadline,
+    cancelJoinDeadline,
+    cancelJoinRetry,
+    resetJoinRetry,
+    handleRetryLater,
+    handleReconnected,
+  } = useJoinRecovery({
+    showBanner,
+    currentRoomCode: () => room?.code ?? roomCodeRef.current,
+  });
 
   // ⚠ **65 秒の安全弁はここに戻さない**（#283）。安全弁が要ったのは、降ろす契機が
   //    お題の内容差分しか無く、それが成立しない場合があったからである。生成中が
@@ -216,45 +201,12 @@ export function useTimerSync(banner: BannerController): TimerSync {
   // client インスタンスだけは第1引数で受け取る。`client` state は `makeClient` 直後の
   // メッセージ処理時点ではまだ `null` のため、ここから読んではいけない。
 
-  /**
-   * 契約に合わないフレームを捨てたことを受け取る（#181・#209）。
-   *
-   * **利用者へは StatusStrip の「同期できていません」として出す。** ただし
-   * StatusStrip はルームに入るまで描画されないので、`room` がまだ無い間は
-   * バナーで補う（この経路が無いと、**壊れた値の残ったルームへ入ろうとした人には
-   * 何も表示されない**）。
-   *
-   * **立てるのは「画面が古くなる棄却」だけ。** 判定は `indicatesStaleRoom` が
-   * スキーマの診断（落ちた項目の経路）から行う。サーバーに定期 `snapshot` 配信は
-   * 無いため、一度立てると次に誰かが操作するまで下りない。一過性の棄却で立てると
-   * 静止したロビーでは警告が延々と残る。
-   *
-   * devtools へは落ちた項目の経路だけを残す（値は出さない・ADR 0012）。
-   *
-   * **`room.join` の答えを待つ期限はここでは畳まない**（#292）。捨てた以上その
-   * `snapshot` は届かなかったのと同じで、ルームに入る前ならこの人は先へ進めない。
-   * バナーは起きていることを述べるだけ（再読込を促さない）なので、**次にできることを
-   * 示すのは期限の側の仕事**である。
-   */
-  const handleInvalidFrame = (paths: string[]) => {
-    console.warn("契約に合わない同期フレームを捨てました:", paths); // log-hygiene:allow 項目の経路のみ（値は出さない）
-    if (!indicatesStaleRoom(paths)) return;
-    setSyncStale(true);
-    if (room === null) {
-      staleBannerShownRef.current = true;
-      showBanner(SYNC_STALE_BEFORE_ROOM_TEXT, "warn", { autoDismiss: false });
-    }
-  };
+  /** 契約に合わないフレームを捨てたことを受け取る（#181・#209。中身は `use-stale-frame-notice.ts`）。 */
+  const handleInvalidFrame = (paths: string[]) => staleNotice.onInvalidFrame(paths, room !== null);
 
   const handleRoom = (r: Room) => {
     // **画面が実際に新しい状態を得た。** ここだけが「古い」の解除点である（#209）。
-    setSyncStale(false);
-    // ルームに入る前に出したバナーは、入れた時点で役目を終える。
-    // **この解除だけを行う**（無条件の clearBanner は他の通知まで消す）。
-    if (staleBannerShownRef.current) {
-      staleBannerShownRef.current = false;
-      clearBanner();
-    }
+    staleNotice.onFreshSnapshot();
     // 入室できたら再試行の数え直し（#147）。次に混雑へ当たったときは 1 回目から始める。
     cancelJoinRetry();
     resetJoinRetry();
@@ -275,44 +227,33 @@ export function useTimerSync(banner: BannerController): TimerSync {
       resumeDisplayName: resumeDisplayNameRef.current,
     });
 
-    for (const intent of intents) {
-      switch (intent.kind) {
-        case "save-resume":
-          saveResumeIdentity(intent.identity);
-          pendingResumeRef.current = null;
-          break;
-        case "clear-completion":
-          // 完了から抜けた。前のセッションの記録・終了種別を畳む
-          // （#95 S5c・レビュー ②）。**押した人の端末だけでなく全端末で降りる。**
-          setRecord(null);
-          setEndType("complete");
-          break;
-        case "set-screen":
-          setMode(intent.screen);
-          break;
-        case "set-end":
-          // 終わり方は snapshot が決める（#91 PR 3）。押した本人も、押していない端末も同じ値になる。
-          setEndType(intent.endType);
-          break;
-        case "persist-completion":
-          // 完了へ入った遷移（`snapshot-intents.ts` の手順 4）でだけ届く。ただし再描画の前に
-          // celebration の snapshot が 2 通続くと、2 通とも「前 = 直前の描画の snapshot（未完了）」で
-          // 判定されて 2 回届きうる。**それでも実害が無いのは、保存するのがサーバーの記録そのもので
-          // ID が同じだからである** —— IndexedDB の `put` は同じ鍵を上書きするので 1 件のまま残る。
-          // 端末が記録を組み立てていた頃は ID が毎回変わったので、印（`recordSavedRef`）で防いでいた。
-          setRecord(intent.record);
-          // 完成記録を端末ローカルに自動保存（押し忘れ防止・FR-020「達成を記録」）。
-          persistRecordIfComplete("complete", intent.record, saveRecord).catch((e) =>
-            console.error("完成記録の保存に失敗しました:", e), // log-hygiene:allow ブラウザの devtools 向け
-          );
-          break;
-        default: {
-          // 網羅チェック: 新しい意図が増えたらここで型検査が落ちる（DbC）。
-          const exhaustive: never = intent;
-          return exhaustive;
-        }
-      }
-    }
+    applySnapshotIntents(intents, {
+      saveResume: (identity) => {
+        saveResumeIdentity(identity);
+        pendingResumeRef.current = null;
+      },
+      // 完了から抜けた。前のセッションの記録・終了種別を畳む
+      // （#95 S5c・レビュー ②）。**押した人の端末だけでなく全端末で降りる。**
+      clearCompletion: () => {
+        setRecord(null);
+        setEndType("complete");
+      },
+      setScreen: setMode,
+      // 終わり方は snapshot が決める（#91 PR 3）。押した本人も、押していない端末も同じ値になる。
+      setEnd: setEndType,
+      // 完了へ入った遷移（`snapshot-intents.ts` の手順 4）でだけ届く。ただし再描画の前に
+      // celebration の snapshot が 2 通続くと、2 通とも「前 = 直前の描画の snapshot（未完了）」で
+      // 判定されて 2 回届きうる。**それでも実害が無いのは、保存するのがサーバーの記録そのもので
+      // ID が同じだからである** —— IndexedDB の `put` は同じ鍵を上書きするので 1 件のまま残る。
+      // 端末が記録を組み立てていた頃は ID が毎回変わったので、印（`recordSavedRef`）で防いでいた。
+      persistCompletion: (rec) => {
+        setRecord(rec);
+        // 完成記録を端末ローカルに自動保存（押し忘れ防止・FR-020「達成を記録」）。
+        persistRecordIfComplete("complete", rec, saveRecord).catch((e) =>
+          console.error("完成記録の保存に失敗しました:", e), // log-hygiene:allow ブラウザの devtools 向け
+        );
+      },
+    });
   };
 
   const handleIdentity = ({ participantId: pid, resumeToken }: Identity) => {
@@ -375,8 +316,7 @@ export function useTimerSync(banner: BannerController): TimerSync {
         setRecord(null);
         // 捨てた同期フレームの警告もルーム由来なので畳む（#209）。
         // ここで残すと、次に入った別ルームで前のルームの警告が出る。
-        setSyncStale(false);
-        staleBannerShownRef.current = false;
+        staleNotice.reset();
         // 明示的に退出が成立した以上、この参加者としてのリジュームはもう意味を持たない
         // （次に別ルームへ入ったときに誤って古いルームへ復帰しようとしないため・Issue #24・FR-004）。
         // 捨てるのは**退出したルームの分だけ**である（#95 S4b・D12）。
@@ -402,39 +342,8 @@ export function useTimerSync(banner: BannerController): TimerSync {
       case "retry-later": {
         // 混雑で弾かれただけで、待てば入れる（#147）。利用者の操作なしに入り直す。
         // バナーは自動消去しない — 4 秒で消えると「待てば入れる」ことが伝わらない。
-        cancelJoinRetry();
-        // **待ち時間はこの期限より長くなりうる**（`joinRetryDelayMs` は最大 30 秒＋
-        // ばらつき）。畳まないと、待てば入れる人を「読み込めていません」と断じる（#292）。
-        // 次の期限は入り直しを送った時点（`sendResumeJoin`）で張り直す。
-        cancelJoinDeadline();
-        const scheduled = rateLimited(() => {
-          // 保存が無いと自動では入り直せないので、手立てを示して終わる。
-          //
-          // **「招待リンクで来た初回」はもう通らない**（#272）。旧入口（`Join`）を
-          // 撤去したので、入るには入口の effect が復帰の組を読めていることが前提になった。
-          // 残っている経路は**別タブが同じルームの組を捨てたとき**である ——
-          // 鍵は `localStorage`・ルームコード別（#95 S4b・D12）で、選択画面や poker を
-          // 別タブで開くのは現実的な使い方なので、向こうで退出されるとここが成立する。
-          if (!sendResumeJoin(syncClient)) {
-            showBanner(JOIN_RETRY_EXHAUSTED_TEXT, "warn", { autoDismiss: false });
-            // 送れなかったので期限も張られていない（`sendResumeJoin` は送れたときだけ
-            // 張る）。下の使い切りと同じく、ここで待つのをやめる（#292 のレビュー）。
-            giveUpJoinWait();
-          }
-        });
-        if (!scheduled) {
-          // 試行を使い切った。**際限なく送り続けない**（混雑が解消しない状況で
-          // バケツを消費し続けると、自分たちで自分たちを締め出す）。
-          // **数え直さない。** 数え直すのは入室できたときと、接続し直したときだけ
-          // （`resetJoinRetry`）。ここで戻すと「諦めた」はずが送り続ける形になる。
-          showBanner(JOIN_RETRY_EXHAUSTED_TEXT, "warn", { autoDismiss: false });
-          // **ここで待つのをやめる**（#292 のレビュー）。送り直さない以上、期限を
-          // 張り直す相手が居ない —— 印を立てないと、諦めのバナーの下で本文が
-          // 「読み込んでいます…」と言い続け、次にできることも出ない。
-          giveUpJoinWait();
-          return;
-        }
-        showBanner(JOIN_RETRY_WAITING_TEXT, "warn", { autoDismiss: false });
+        // 畳み方・待ち方・諦め方は `use-join-recovery.ts`。
+        handleRetryLater(syncClient);
         return;
       }
       case "transient": {
@@ -453,38 +362,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
         return exhaustive;
       }
     }
-  };
-
-  // WS が切断後に自動再接続したとき、保存済みの resumeToken で room.join を
-  // 利用者の操作なしに再送する（Issue #24・FR-002/FR-003）。初回 connect() では
-  // 呼ばれないため、ここでの二重送信は起きない。
-  const sendResumeJoin = (syncClient: SyncClient): boolean => {
-    // **どのルームの復帰の組を読むかは、いま話しているルームで決まる**
-    // （#95 S4b・D12 で鍵がルームコード別になった）。S4a まではタブに 1 組しか
-    // 無かったので引数が要らなかった。
-    const code = room?.code ?? roomCodeRef.current;
-    if (code === null) return false;
-    const saved = loadResumeIdentity(code);
-    if (!saved) return false;
-    syncClient.send({
-      command: "room.join",
-      code: saved.code,
-      displayName: saved.displayName,
-      resumeToken: saved.resumeToken,
-    });
-    // 送ったところから、また答えを待つ（#292）。**送れたときだけ張る** ——
-    // 保存が無くて送れなかった場合（`false` を返す下の経路）は、呼び出し側が
-    // 手立てを示して終わるので、期限を測る相手が居ない。
-    armJoinDeadline();
-    return true;
-  };
-
-  const handleReconnected = (syncClient: SyncClient) => {
-    // 接続し直したところなので、混雑の数え直しをする（#147）。前の接続で諦めていても、
-    // 新しい接続では改めて入り直しを試みてよい。
-    cancelJoinRetry();
-    resetJoinRetry();
-    sendResumeJoin(syncClient);
   };
 
   // 破壊的操作の実行者を全員へ伝える（Issue #22・FR-077）。
