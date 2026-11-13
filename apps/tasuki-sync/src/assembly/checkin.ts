@@ -29,7 +29,7 @@ export interface CheckinPart extends ToolPartBase {
 export function assembleCheckin(base: AssemblyBase, timer: TimerSide): CheckinPart {
   const { config, store, timers, clock, codeGen, tokens, monotonicClock, random, ws } = base;
   const checkins = new InMemoryCheckinStore();
-  const send = (connId: string, msg: CheckinServerMsg): void => ws.get().sendCheckin(connId, msg);
+  const send = (connId: string, msg: CheckinServerMsg): void => ws.get().to.checkin.send(connId, msg);
   const broadcaster = makeCheckinBroadcaster({ store, checkins, send });
   const layer = makeCheckinHandlers({
     store,

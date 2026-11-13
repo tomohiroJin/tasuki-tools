@@ -35,7 +35,7 @@ export function assembleAgenda(base: AssemblyBase, timer: TimerSide): AgendaPart
     store,
     agendas,
     clock: monotonicClock,
-    send: (connIds, msg) => ws.get().broadcastAgenda(connIds, msg),
+    send: (connIds, msg) => ws.get().to.agenda.broadcast(connIds, msg),
   });
   const layer = makeAgendaHandlers({
     store,
@@ -48,7 +48,7 @@ export function assembleAgenda(base: AssemblyBase, timer: TimerSide): AgendaPart
     hub: base.hubBroadcaster,
     agendas,
     broadcaster,
-    send: (connId, msg) => ws.get().sendAgenda(connId, msg),
+    send: (connId, msg) => ws.get().to.agenda.send(connId, msg),
     monotonicClock,
     deadlines: agendaDeadlines,
     logger,

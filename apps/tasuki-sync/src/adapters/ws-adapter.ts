@@ -29,19 +29,21 @@
  * | `ws/connection-gate.ts` | `?tool=` の判定・入場の判定（順番も） |
  * | `ws/heartbeat.ts` | ping/pong と欠落の数え上げ |
  * | `ws/tool-channel.ts` | ツールごとの受け口（大きさの上限・解析・渡す先・失敗の隔離とエラーフレーム） |
+ * | `ws/raw-tools.ts` | 生テキストを受けるツールの表（受け口の並び・送る口・エラーフレームの型の鍵。#591） |
  * | `ws/ws-send.ts` | OPEN のときだけ送る |
  * | `ws/error-log.ts` | ログへ出す例外の分類 |
  * | `ws/connection-data.ts` | 接続ごとに持ち回る値 |
  *
- * **新しいツールを足すときは、受け口の定義（{@link buildChannels} の表の 1 行）と
- * `?tool=` の許可リストを足す。**
+ * **新しいツールを足すときは、`application/tool-id.ts` の一覧に足し、生テキストを受けるなら
+ * `ws/raw-tools.ts` の表（{@link RawToolFrames}）に 1 行足す**（#591）。受け口の並び（{@link buildChannels}）・
+ * メッセージ層の鍵（`WsAdapterOptions.raw`）・送る口（{@link WsAdapter.to}）はその表から導かれ、
+ * 足し忘れは型検査が落とす。`?tool=` の許可リストも同じ一覧から導かれる。
  */
 
 import { ok, type Result } from "neverthrow";
 import { CommandSchema } from "@tasuki/timer-core";
 import type { Command, ServerMsg } from "@tasuki/timer-core";
 import { parseBoundaryMessage } from "@tasuki/protocol";
-import type { HubServerMsg } from "@tasuki/room-core";
 import type { Logger } from "../application/log/logger.js";
 import type { TimerCommandReceiver } from "../application/timer-command-receiver.js";
 // 接続層が自分で返す文言の正本（#362）。**コードごとに 1 つだけ**にする（SC-035）。
@@ -62,22 +64,17 @@ import {
   type ToolChannel,
 } from "./ws/tool-channel.js";
 import { sendIfOpen, sendToEach } from "./ws/ws-send.js";
-import type { AgendaOwnFrame, AgendaServerMsg } from "../ports/agenda-server-msg.js";
-import type { CheckinOwnFrame, CheckinServerMsg } from "../ports/checkin-server-msg.js";
-import type { RouletteOwnFrame, RouletteServerMsg } from "../ports/roulette-server-msg.js";
-import type { TopicOwnFrame, TopicServerMsg } from "../ports/topic-server-msg.js";
+import {
+  RAW_TOOL_IDS,
+  type RawHandlers,
+  type RawMessageHandler,
+  type RawOutbound,
+  type RawToolFrames,
+  type RawToolId,
+} from "./ws/raw-tools.js";
 
 export type { PokerMessageHandlers } from "./ws/tool-channel.js";
-
-/**
- * 生テキストを受けるメッセージ層（ハブ・お題・ルーレット）。
- *
- * **パース前の文字列を渡す。** 境界の検証はメッセージ層（`application/{hub,topic,roulette}-handlers.ts`）に
- * 置き、接続層は経路とサイズだけを見る。
- */
-export interface RawMessageHandler {
-  handleMessage(connId: string, raw: string): Promise<void>;
-}
+export type { RawHandlers, RawMessageHandler, RawToolId } from "./ws/raw-tools.js";
 
 export interface WsAdapterOptions {
   port: number;
@@ -92,16 +89,12 @@ export interface WsAdapterOptions {
    * 落とすため**（正規化を接続層から移しても、どの入口も正規化を飛ばせないことを保つ）。
    */
   timer: TimerCommandReceiver;
-  /** ハブ（選択画面。`?tool=` 無し）のメッセージ層（#95 S5a）。 */
-  hub: RawMessageHandler;
-  /** お題（`?tool=topic`）のメッセージ層（#91）。 */
-  topic: RawMessageHandler;
-  /** ルーレット（`?tool=roulette`）のメッセージ層（#94）。 */
-  roulette: RawMessageHandler;
-  /** 進行タイマー（`?tool=agenda`）のメッセージ層（#429）。 */
-  agenda: RawMessageHandler;
-  /** チェックイン（`?tool=checkin`）のメッセージ層（#406）。 */
-  checkin: RawMessageHandler;
+  /**
+   * 生テキストを受けるツール（ハブ・お題・ルーレット・進行タイマー・チェックイン）のメッセージ層。
+   * 鍵は `ws/raw-tools.ts` の表（#591）。**パース前の文字列を渡す**（境界の検証はメッセージ層が持つ）。
+   * ハブは `?tool=` 無し（#95 S5a）。
+   */
+  raw: RawHandlers;
   /**
    * poker（`?tool=poker`）のメッセージ層。**ほかのツールと形が違う**: 接続そのもの（接続ごとの
    * 参加者・ルーム）を渡し、受理を `onConnect` へ知らせず、切断の後始末を自分で持つ。
@@ -174,54 +167,63 @@ function parseTimerCommand(text: string): Result<Command, ServerMsg> {
 }
 
 /**
- * 「プロトコル → 受け口」の表（#368 Task 7）。**新しいツールはここに 1 行足す。**
+ * 生テキストを渡すツール（ハブ・お題・ルーレット・進行タイマー・チェックイン）の、超過・内部エラーのフレーム。
+ * 文言はどのツールも同じ（`connectionErrorFrame` が 1 か所で決める。#381）。
+ */
+const RAW_ERROR_FRAMES = {
+  tooLarge: connectionErrorFrame("MESSAGE_TOO_LARGE"),
+  internalError: connectionErrorFrame("INTERNAL_ERROR"),
+} as const;
+
+/**
+ * 上のフレームが**どの生テキストのツールの `own` の型にも収まる**ことを型で見る（表の行ごとの検査。
+ * 以前は行ごとに型引数を書いて検査させていた）。収まらないツールの鍵がここに残り、`never` ではなくなって落ちる。
+ */
+type FramesNotFitting = {
+  [T in RawToolId]: typeof RAW_ERROR_FRAMES extends { tooLarge: RawToolFrames[T]["own"]; internalError: RawToolFrames[T]["own"] }
+    ? never
+    : T;
+}[RawToolId];
+const RAW_ERROR_FRAMES_FIT: [FramesNotFitting] extends [never] ? true : never = true;
+
+/**
+ * 「プロトコル → 受け口」の表（#368 Task 7）。**新しいツールは `ws/raw-tools.ts` の表に 1 行足す**（#591）。
+ * timer と poker だけが個別の行を持つ。
  *
- * timer・ハブ・お題・ルーレットは、超過・内部エラーのフレーム（文言も）もログも同じ（#381 でそろえた。
- * 文は `connectionErrorFrame`、ログは `createTextChannel` が 1 か所で決める）。**返し方が違うのは poker だけ**
+ * timer・ハブ・お題・ルーレット・進行タイマー・チェックインは、超過・内部エラーのフレーム（文言も）もログも同じ
+ * （#381 でそろえた。文は `connectionErrorFrame`、ログは `createTextChannel` が 1 か所で決める）。**返し方が違うのは poker だけ**
  * （エラーコードがケバブ記法で、内部エラーは 1011 で閉じる。wire に載る値なので、片方へ寄せると相手の web が
  * 知らないコードを受け取る）。
  */
 function buildChannels(options: WsAdapterOptions): Readonly<Record<AcceptedProtocol, ToolChannel>> {
   const { maxMessageBytes, logger } = options;
-  /**
-   * 生テキストを渡すツール（ハブ・お題・ルーレット）の受け口。違いはエラーフレームの型だけで、
-   * フレームは行ごとに渡す（キャストせず、その行の型で検査させる）。
-   */
-  const rawTextChannel = <Frame>(protocol: AcceptedProtocol, handler: RawMessageHandler, frames: { tooLarge: Frame; internalError: Frame }): ToolChannel =>
-    createTextChannel<string, Frame>({
+  void RAW_ERROR_FRAMES_FIT;
+  /** 生テキストを渡すツールの受け口。違いは `protocol`（ログに出る名前）と渡す先だけ。 */
+  const rawTextChannel = (protocol: RawToolId, handler: RawMessageHandler): ToolChannel =>
+    createTextChannel<string, (typeof RAW_ERROR_FRAMES)[keyof typeof RAW_ERROR_FRAMES]>({
       maxMessageBytes,
       logger,
       protocol,
       parse: (text) => ok(text),
       deliver: (connId, raw) => handler.handleMessage(connId, raw),
-      tooLargeFrame: frames.tooLarge,
-      internalErrorFrame: frames.internalError,
+      tooLargeFrame: RAW_ERROR_FRAMES.tooLarge,
+      internalErrorFrame: RAW_ERROR_FRAMES.internalError,
     });
-  const frames = {
-    tooLarge: connectionErrorFrame("MESSAGE_TOO_LARGE"),
-    internalError: connectionErrorFrame("INTERNAL_ERROR"),
-  };
-  // 各行は自分の鍵の名前を `protocol` に渡す。戻り値の型が鍵の過不足を守るが、**行の鍵と渡す名前の取り違えは
-  // 型では止まらない**（どれも `AcceptedProtocol`）。取り違えは `test/ws-adapter.message.test.ts` と
-  // `test/connection-error-text.test.ts` が、接続ごとの `protocol=` の値で止める。
+  // 行の鍵と渡す名前の取り違えは、鍵そのものを `protocol` に渡すので起きない（以前は行ごとに手で書いていた）。
+  const raw = Object.fromEntries(
+    RAW_TOOL_IDS.map((id) => [id, rawTextChannel(id, options.raw[id])]),
+  ) as Readonly<Record<RawToolId, ToolChannel>>;
   return {
+    ...raw,
     timer: createTextChannel<Command, ServerMsg>({
       maxMessageBytes,
       logger,
       protocol: "timer",
       parse: parseTimerCommand,
       deliver: (connId, cmd) => options.timer.handleMessage(connId, cmd),
-      tooLargeFrame: frames.tooLarge,
-      internalErrorFrame: frames.internalError,
+      tooLargeFrame: RAW_ERROR_FRAMES.tooLarge,
+      internalErrorFrame: RAW_ERROR_FRAMES.internalError,
     }),
-    hub: rawTextChannel<HubServerMsg>("hub", options.hub, frames),
-    // エラーフレームの型は広い `TopicServerMsg` ではなく狭い `TopicOwnFrame`（#91 R18）。
-    // `TopicServerMsg` は `HubServerMsg` を合併しており、その `error` は `code: string`（無制約）なので、
-    // 契約に無いコードでも通ってしまう。ルーレットも同じ理由で `RouletteOwnFrame`。
-    topic: rawTextChannel<TopicOwnFrame>("topic", options.topic, frames),
-    roulette: rawTextChannel<RouletteOwnFrame>("roulette", options.roulette, frames),
-    agenda: rawTextChannel<AgendaOwnFrame>("agenda", options.agenda, frames),
-    checkin: rawTextChannel<CheckinOwnFrame>("checkin", options.checkin, frames),
     poker: createPokerChannel(options.poker, maxMessageBytes, logger),
   };
 }
@@ -382,70 +384,28 @@ export class WsAdapter {
   }
 
   /**
-   * ハブ（選択画面）の接続へ送る（#95 S5a）。
+   * ハブ・お題・ルーレット・進行タイマー・チェックインの接続へ送る口（`to.<ツール>.send` / `to.<ツール>.broadcast`）。
+   * 表は `ws/raw-tools.ts`（#591）から導く。
    *
-   * **timer の {@link send} と分けてある。** 型が違う（`HubServerMsg`）だけでなく、
-   * 混ぜると「timer の snapshot をハブへ送る」経路が型検査を通ってしまう。
+   * **timer の {@link send} と分けてある。** 型が違う（例: `HubServerMsg`）だけでなく、混ぜると
+   * 「timer の snapshot をハブへ送る」経路が型検査を通ってしまう。ツールごとに受けるフレームの型も違う
+   * （`TopicServerMsg` はハブ・timer・poker の接続へ送るときも使う。配信先はルームの全接続・#91 spec §9）。
+   * **チェックインに `broadcast` は無い**: 受け手ごとに中身が違う（匿名を送らないことで守る）ので、
+   * 全員へ同じものを送る口は作らない（#406）。
    */
-  sendHub(connId: string, data: HubServerMsg): void {
-    sendIfOpen(this.connections.get(connId), JSON.stringify(data));
-  }
-
-  /** ハブの接続へ一斉に送る。 */
-  broadcastHub(connIds: string[], data: HubServerMsg): void {
-    sendToEach(this.connections, connIds, JSON.stringify(data));
-  }
-
-  /**
-   * お題（topic）の接続へ送る（#91）。
-   *
-   * **`TopicServerMsg` はハブ・timer・poker の接続へ送るときも使う**
-   * （配信先はルームの全接続・spec §9）。{@link sendHub} と分けてあるのは、`sendHub` の型
-   * （`HubServerMsg`）ではお題のフレーム（`topic` / `error`（お題のコード体系））を
-   * 型検査が拒むためである。
-   */
-  sendTopic(connId: string, data: TopicServerMsg): void {
-    sendIfOpen(this.connections.get(connId), JSON.stringify(data));
-  }
-
-  /** お題（topic）の接続へ一斉に送る。 */
-  broadcastTopic(connIds: string[], data: TopicServerMsg): void {
-    sendToEach(this.connections, connIds, JSON.stringify(data));
-  }
-
-  /**
-   * ルーレット（roulette）の接続へ送る（#94）。{@link sendTopic} と同じく、`sendHub` の型
-   * （`HubServerMsg`）ではルーレットのフレームを型検査が拒むため分けてある。
-   */
-  sendRoulette(connId: string, data: RouletteServerMsg): void {
-    sendIfOpen(this.connections.get(connId), JSON.stringify(data));
-  }
-
-  /** ルーレット（roulette）の接続へ一斉に送る。 */
-  broadcastRoulette(connIds: string[], data: RouletteServerMsg): void {
-    sendToEach(this.connections, connIds, JSON.stringify(data));
-  }
-
-  /**
-   * 進行タイマー（agenda）の接続へ送る（#429）。{@link sendRoulette} と同じく、`sendHub` の型では
-   * agenda のフレームを型検査が拒むため分けてある。
-   */
-  sendAgenda(connId: string, data: AgendaServerMsg): void {
-    sendIfOpen(this.connections.get(connId), JSON.stringify(data));
-  }
-
-  /** 進行タイマー（agenda）の接続へ一斉に送る。 */
-  broadcastAgenda(connIds: string[], data: AgendaServerMsg): void {
-    sendToEach(this.connections, connIds, JSON.stringify(data));
-  }
-
-  /**
-   * チェックイン（checkin）の接続へ**1 本だけ**送る（#406）。受け手ごとに中身が違う（匿名を送らないことで守る）ので、
-   * 全員へ同じものを送る口は**作らない**。
-   */
-  sendCheckin(connId: string, data: CheckinServerMsg): void {
-    sendIfOpen(this.connections.get(connId), JSON.stringify(data));
-  }
+  readonly to: RawOutbound = Object.fromEntries(
+    RAW_TOOL_IDS.map((id) => [
+      id,
+      {
+        send: (connId: string, data: unknown): void => {
+          sendIfOpen(this.connections.get(connId), JSON.stringify(data));
+        },
+        broadcast: (connIds: string[], data: unknown): void => {
+          sendToEach(this.connections, connIds, JSON.stringify(data));
+        },
+      },
+    ]),
+  ) as unknown as RawOutbound;
 
   broadcast(connIds: string[], data: ServerMsg): void {
     sendToEach(this.connections, connIds, JSON.stringify(data));

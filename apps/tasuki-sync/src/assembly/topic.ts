@@ -51,7 +51,7 @@ export function createTopicResources(
   const broadcaster = makeTopicBroadcaster({
     store,
     topics,
-    send: (connIds, msg) => ws.get().broadcastTopic(connIds, msg),
+    send: (connIds, msg) => ws.get().to.topic.broadcast(connIds, msg),
   });
   const generator = new TopicGenerator({
     topics,
@@ -107,7 +107,7 @@ export function assembleTopic(
     topics: resources.topics,
     generator: resources.generator,
     broadcaster: resources.broadcaster,
-    send: (connId, msg) => ws.get().sendTopic(connId, msg),
+    send: (connId, msg) => ws.get().to.topic.send(connId, msg),
     // トークン未設定なら合言葉も渡さない＝解錠は常に失敗（存在秘匿）
     aiUnlockKey: ai.aiReady ? config.aiUnlockKey : undefined,
   });

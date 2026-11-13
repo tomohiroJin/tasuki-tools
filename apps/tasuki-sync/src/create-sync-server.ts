@@ -277,11 +277,8 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     logger,
     deriveClientKey,
     requireClientAddress: config.requireClientAddress,
-    hub,
-    topic: topic.layer,
-    roulette: roulette.layer,
-    agenda: agenda.layer,
-    checkin: checkin.layer,
+    // 生テキストを受けるツールのメッセージ層（鍵は `adapters/ws/raw-tools.ts` の表）。
+    raw: { hub, topic: topic.layer, roulette: roulette.layer, agenda: agenda.layer, checkin: checkin.layer },
     // cmd は ws-adapter 側で CommandSchema（valibot）に通した検証済みの値で、型も Command のまま届く（#363）。
     // 表示名の正規化は受け口のアプリケーション側が掛ける（#368）。
     timer: createTimerCommandReceiver({

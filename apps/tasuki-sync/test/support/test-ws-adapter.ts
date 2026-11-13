@@ -29,8 +29,10 @@ import {
   WsAdapter,
   type PokerMessageHandlers,
   type RawMessageHandler,
+  type RawToolId,
   type WsAdapterOptions,
 } from "../../src/adapters/ws-adapter.js";
+import { RAW_TOOL_IDS } from "../../src/adapters/ws/raw-tools.js";
 import type { TimerCommandReceiver } from "../../src/application/timer-command-receiver.js";
 import type { Command } from "@tasuki/timer-core";
 
@@ -55,83 +57,18 @@ export function unwiredPokerHandlers(): PokerMessageHandlers {
 }
 
 /**
- * 呼ばれたら失敗するハブのメッセージ層（#95 S5a）。「ここへ来るはずがない」を赤で示す。
+ * 呼ばれたら失敗する、生テキストを受けるツール（ハブ・お題・ルーレット・進行タイマー・チェックイン）の
+ * メッセージ層。「ここへ来るはずがない」を赤で示す。
  *
- * poker と同じ規律にしてある —— 既定を「何もしない」にすると、`/ws` へ繋いだ接続が
- * 黙って無視され、経路の取り違えがテストから見えなくなる。
+ * poker と同じ規律にしてある —— 既定を「何もしない」にすると、接続が黙って無視され、経路の取り違えが
+ * テストから見えなくなる。ツールの一覧は `src/adapters/ws/raw-tools.ts` の表から導く（#591）。
  */
-export function unwiredHubHandler(): RawMessageHandler {
+export function unwiredRawHandler(tool: RawToolId): RawMessageHandler {
   return {
     handleMessage: () => {
       throw new Error(
-        "ハブのメッセージ層が呼ばれました。" +
-          "接続層のテストは /ws へ繋がない想定です（test/support/test-ws-adapter.ts）。",
-      );
-    },
-  };
-}
-
-/**
- * 呼ばれたら失敗するお題（topic）のメッセージ層（#91）。「ここへ来るはずがない」を赤で示す。
- *
- * ハブ・poker と同じ規律にしてある —— 既定を「何もしない」にすると、`?tool=topic` で
- * 繋いだ接続が黙って無視され、経路の取り違えがテストから見えなくなる。
- */
-export function unwiredTopicHandler(): RawMessageHandler {
-  return {
-    handleMessage: () => {
-      throw new Error(
-        "お題（topic）のメッセージ層が呼ばれました。" +
-          "接続層のテストは ?tool=topic で繋がない想定です（test/support/test-ws-adapter.ts）。",
-      );
-    },
-  };
-}
-
-/**
- * 呼ばれたら失敗するルーレットのメッセージ層（#94）。「ここへ来るはずがない」を赤で示す。
- *
- * ハブ・poker・お題と同じ規律にしてある —— 既定を「何もしない」にすると、`?tool=roulette` で
- * 繋いだ接続が黙って無視され、経路の取り違えがテストから見えなくなる。
- */
-export function unwiredRouletteHandler(): RawMessageHandler {
-  return {
-    handleMessage: () => {
-      throw new Error(
-        "ルーレットのメッセージ層が呼ばれました。" +
-          "接続層のテストは ?tool=roulette で繋がない想定です（test/support/test-ws-adapter.ts）。",
-      );
-    },
-  };
-}
-
-/**
- * 呼ばれたら失敗する進行タイマーのメッセージ層（#429）。「ここへ来るはずがない」を赤で示す。
- *
- * ルーレット等と同じ規律 —— 既定を「何もしない」にすると経路の取り違えが見えなくなる。
- */
-export function unwiredAgendaHandler(): RawMessageHandler {
-  return {
-    handleMessage: () => {
-      throw new Error(
-        "進行タイマーのメッセージ層が呼ばれました。" +
-          "接続層のテストは ?tool=agenda で繋がない想定です（test/support/test-ws-adapter.ts）。",
-      );
-    },
-  };
-}
-
-/**
- * 呼ばれたら失敗するチェックインのメッセージ層（#406）。「ここへ来るはずがない」を赤で示す。
- *
- * 進行タイマー等と同じ規律 —— 既定を「何もしない」にすると経路の取り違えが見えなくなる。
- */
-export function unwiredCheckinHandler(): RawMessageHandler {
-  return {
-    handleMessage: () => {
-      throw new Error(
-        "チェックインのメッセージ層が呼ばれました。" +
-          "接続層のテストは ?tool=checkin で繋がない想定です（test/support/test-ws-adapter.ts）。",
+        `${tool} のメッセージ層が呼ばれました。` +
+          `接続層のテストは ${tool === "hub" ? "/ws" : `?tool=${tool}`} へ繋がない想定です（test/support/test-ws-adapter.ts）。`,
       );
     },
   };
@@ -146,29 +83,30 @@ export function unwiredCheckinHandler(): RawMessageHandler {
  */
 export type TestTimerHandler = { handleMessage(connId: string, cmd: Command): Promise<void> };
 
-/** 必須オプションのうち、接続層のテストが関心を持たない 6 つだけを任意にし、timer を素の関数で受けるもの。 */
+/**
+ * 必須オプションのうち、接続層のテストが関心を持たないもの（上限・poker・生テキストのメッセージ層）を任意にし、
+ * timer を素の関数で受けるもの。生テキストのメッセージ層は**ツール名のまま**（`hub` `topic` …）渡せる。
+ */
 export type TestWsAdapterOptions = Omit<
   WsAdapterOptions,
-  "maxMessageBytes" | "maxFrameBytes" | "poker" | "hub" | "topic" | "roulette" | "agenda" | "checkin" | "timer"
+  "maxMessageBytes" | "maxFrameBytes" | "poker" | "raw" | "timer"
 > & { timer: TestTimerHandler } &
-  Partial<
-    Pick<
-      WsAdapterOptions,
-      "maxMessageBytes" | "maxFrameBytes" | "poker" | "hub" | "topic" | "roulette" | "agenda" | "checkin"
-    >
-  >;
+  Partial<Pick<WsAdapterOptions, "maxMessageBytes" | "maxFrameBytes" | "poker">> &
+  Partial<Record<RawToolId, RawMessageHandler>>;
 
 export function newTestWsAdapter(options: TestWsAdapterOptions): WsAdapter {
+  const raw = Object.fromEntries(
+    RAW_TOOL_IDS.map((id) => [id, options[id] ?? unwiredRawHandler(id)]),
+  ) as unknown as WsAdapterOptions["raw"];
+  // 生テキストのメッセージ層の鍵（hub など）は WsAdapter のオプションではないので、ここで外す。
+  const rest: Record<string, unknown> = { ...options };
+  for (const id of RAW_TOOL_IDS) delete rest[id];
   return new WsAdapter({
-    ...options,
+    ...(rest as Omit<TestWsAdapterOptions, RawToolId>),
     timer: options.timer as TimerCommandReceiver,
     maxMessageBytes: options.maxMessageBytes ?? DEFAULT_MAX_MESSAGE_BYTES,
     maxFrameBytes: options.maxFrameBytes ?? DEFAULT_MAX_FRAME_BYTES,
     poker: options.poker ?? unwiredPokerHandlers(),
-    hub: options.hub ?? unwiredHubHandler(),
-    topic: options.topic ?? unwiredTopicHandler(),
-    roulette: options.roulette ?? unwiredRouletteHandler(),
-    agenda: options.agenda ?? unwiredAgendaHandler(),
-    checkin: options.checkin ?? unwiredCheckinHandler(),
+    raw,
   });
 }

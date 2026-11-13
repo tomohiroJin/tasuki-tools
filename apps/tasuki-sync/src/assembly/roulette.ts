@@ -34,7 +34,7 @@ export function assembleRoulette(base: AssemblyBase, timer: TimerSide): Roulette
     store,
     roulettes,
     clock: rouletteClock,
-    send: (connIds, msg) => ws.get().broadcastRoulette(connIds, msg),
+    send: (connIds, msg) => ws.get().to.roulette.broadcast(connIds, msg),
   });
   const layer = makeRouletteHandlers({
     store,
@@ -47,7 +47,7 @@ export function assembleRoulette(base: AssemblyBase, timer: TimerSide): Roulette
     hub: base.hubBroadcaster,
     roulettes,
     broadcaster,
-    send: (connId, msg) => ws.get().sendRoulette(connId, msg),
+    send: (connId, msg) => ws.get().to.roulette.send(connId, msg),
     monotonicClock: rouletteClock,
     random: createCryptoRandomSource(),
     logger,
