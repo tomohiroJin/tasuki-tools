@@ -6,13 +6,14 @@
  * `vite.config.ts` の `base`・`deploy/<app>/app.env` の `PUBLIC_PATH`・
  * Caddy 断片を必ず揃える（1 つでも取り残すと白画面か 404 になる）。
  */
-export interface Tool {
+/** 札 1 枚の形。`TOOLS` の要素がこれを満たすことを `satisfies` で確かめる。 */
+interface ToolSpec {
   /**
    * ツール ID。**綴りの正本は同期サーバー**（`apps/tasuki-sync/src/application/tool-id.ts`）で、
    * 名簿の `tools` に載る値と同じ。在席の表示（`RoomChoice.tsx`）はこれで名前を引く
    * —— 並び順で引くと、札を足したときに名前がずれる（#91 PR 2 で直した）。
    */
-  readonly id: "timer" | "poker" | "topic" | "roulette" | "agenda" | "checkin";
+  readonly id: string;
   /** 札の左上に出る一語。そのツールが扱うもの。 */
   readonly pip: string;
   /** ツール名（札の下端） */
@@ -25,7 +26,7 @@ export interface Tool {
   readonly mark: "ring" | "spade" | "flag" | "wheel" | "watch" | "cards";
 }
 
-export const TOOLS: readonly Tool[] = [
+export const TOOLS = [
   {
     id: "timer",
     pip: "交代",
@@ -74,4 +75,9 @@ export const TOOLS: readonly Tool[] = [
     href: "/checkin/",
     mark: "cards",
   },
-];
+] as const satisfies readonly ToolSpec[];
+
+/** 札（`TOOLS` の要素）。`id`・`href` などはリテラルの型になる。 */
+export type Tool = (typeof TOOLS)[number];
+/** 玄関に並ぶ道具の識別子。`TOOLS` の `id` から導く（手で共用体を書かない）。 */
+export type ToolId = Tool["id"];
