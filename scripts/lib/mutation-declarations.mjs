@@ -212,6 +212,9 @@ const RESERVED_1500_1569 =
 const RESERVED_1570_1579 =
   "**対応表より後に足した変異。** 1570〜1579 は #578（PR 2 機械化）の続き（1500〜1569 を使い切った）。PR 3 は 1480〜1499。";
 
+const RESERVED_1600_1619 =
+  "**対応表より後に足した変異。** 1600〜1619 は #590（道具の列挙を 1 か所から）に割り当てた範囲。";
+
 const RESERVED_1420_1429 =
   "**対応表より後に足した変異。** 1420〜1429 は #557 に追加で割り当てた範囲（1120〜1129・1410〜1419 を使い切ったため。PR #580 のレビューの指摘で足した）。";
 
@@ -519,7 +522,7 @@ export const MUTATIONS = [
       "お題の接続だけへ配る。ハブ（玄関の選択画面）はお題の掲げ直しを見られなくなり、" +
       "「玄関で待っている間もお題が読める」という契約（spec §9・E2・E4）が壊れる。" +
       "#91 PR 3 で配信先に timer・poker が加わり行が変わったので作り直した" +
-      "（timer を落とす形は m96）。",
+      "（timer を落とす形は m96）。#590 で一覧から導く形に作り直した。",
   },
   {
     id: 86,
@@ -1181,7 +1184,8 @@ export const MUTATIONS = [
     note:
       "#91 PR 3・spec T3・E2。`TOPIC_RECIPIENT_TOOLS` から `TOOL_TIMER` を落とす。" +
       "timer を開いている人には、お題の掲げ直しも取り下げも届かなくなる" +
-      "（参加の直後の 1 通だけが届き、そのあと古いお題を読み続ける）。",
+      "（参加の直後の 1 通だけが届き、そのあと古いお題を読み続ける）。" +
+      "#590 で一覧から導く形に作り直した。",
   },
   {
     id: 97,
@@ -9195,5 +9199,21 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["codex-guard-hook.test.mjs"],
     note: RESERVED_1480_1499 + " " + "#584 の再レビュー 2 回目の 2。hooks.json が壊れた symlink で入口も無いとき、本番デプロイが通る。",
+  },
+  {
+    id: 1600,
+    label: "isKnownToolId が常に true を返す（?tool= の許可リストが消える）",
+    patch: "m1600-is-known-tool-id-always-true.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/ws/connection-gate.test.ts"],
+    note: RESERVED_1600_1619 + " " + "#590。許可リストに無い宣言（?tool=hub・?tool=Timer）が unknown にならず、「繋がるのにコマンドが通らない」静かな壊れ方になる。",
+  },
+  {
+    id: 1601,
+    label: "TOOL_IDS から TOOL_CHECKIN を落とす",
+    patch: "m1601-tool-ids-drops-checkin.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/ws/connection-gate.test.ts"],
+    note: RESERVED_1600_1619 + " " + "#590。一覧から導く許可リストが checkin を知らなくなり、チェックインの接続が unknown に落ちて拒否される。",
   },
 ];
