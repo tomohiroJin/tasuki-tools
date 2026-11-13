@@ -1,0 +1,22 @@
+# 変異 1625: destroy-drops-checkin-part
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/live-ws.checkin.test.ts
+#
+# #591。破棄の共通経路へ渡す束からチェックインの分を落とす。チェックインの保管と猶予が破棄で解放されない（型検査は落ちるが、実行時にも検出される）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1625-*.patch
+# 復元: git apply -R scripts/mutations/m1625-*.patch
+diff --git a/apps/tasuki-sync/src/create-sync-server.ts b/apps/tasuki-sync/src/create-sync-server.ts
+index 2f293a17..cf82d3c2 100644
+--- a/apps/tasuki-sync/src/create-sync-server.ts
++++ b/apps/tasuki-sync/src/create-sync-server.ts
+@@ -237,7 +237,6 @@ export function createSyncServer(config: SyncConfig): SyncServer {
+       ...topic.destroy,
+       ...roulette.destroy,
+       ...agenda.destroy,
+-      ...checkin.destroy,
+       ...poker.destroy,
+       scheduler,
+       presence: presenceManager,

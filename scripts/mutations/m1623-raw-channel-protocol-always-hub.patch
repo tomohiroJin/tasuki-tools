@@ -1,0 +1,23 @@
+# 変異 1623: raw-channel-protocol-always-hub
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/connection-error-text.test.ts
+#
+# #591。表から作る受け口が、ログに出す protocol を常に hub にする。接続ごとの `protocol=` が取り違えられる（以前は行ごとに手で書いていた名前を、鍵から渡すようにした部分）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1623-*.patch
+# 復元: git apply -R scripts/mutations/m1623-*.patch
+diff --git a/apps/tasuki-sync/src/adapters/ws-adapter.ts b/apps/tasuki-sync/src/adapters/ws-adapter.ts
+index 37621b0a..625d5d90 100644
+--- a/apps/tasuki-sync/src/adapters/ws-adapter.ts
++++ b/apps/tasuki-sync/src/adapters/ws-adapter.ts
+@@ -203,7 +203,7 @@ function buildChannels(options: WsAdapterOptions): Readonly<Record<AcceptedProto
+     createTextChannel<string, (typeof RAW_ERROR_FRAMES)[keyof typeof RAW_ERROR_FRAMES]>({
+       maxMessageBytes,
+       logger,
+-      protocol,
++      protocol: "hub",
+       parse: (text) => ok(text),
+       deliver: (connId, raw) => handler.handleMessage(connId, raw),
+       tooLargeFrame: RAW_ERROR_FRAMES.tooLarge,

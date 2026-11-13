@@ -1,0 +1,23 @@
+# 変異 1620: late-get-returns-undefined
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/assembly-late.test.ts
+#
+# #591。値が入る前に前方参照を引いても落ちず undefined を返す。組み立ての順序の誤りが、名前つきの例外ではなく後ろの TypeError になる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1620-*.patch
+# 復元: git apply -R scripts/mutations/m1620-*.patch
+diff --git a/apps/tasuki-sync/src/assembly/context.ts b/apps/tasuki-sync/src/assembly/context.ts
+index c419ffb5..aab6b602 100644
+--- a/apps/tasuki-sync/src/assembly/context.ts
++++ b/apps/tasuki-sync/src/assembly/context.ts
+@@ -55,7 +55,7 @@ export function late<T>(name: string): Late<T> {
+   let slot: { readonly value: T } | undefined;
+   return {
+     get: () => {
+-      if (slot === undefined) throw new LateReferenceError(`前方参照「${name}」は、値が入る前に引かれました`);
++      if (slot === undefined) return undefined as T;
+       return slot.value;
+     },
+     set: (value) => {

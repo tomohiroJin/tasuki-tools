@@ -9,20 +9,15 @@
 #       git apply scripts/mutations/m150-*.patch
 # 復元: git apply -R scripts/mutations/m150-*.patch
 diff --git a/apps/tasuki-sync/src/create-sync-server.ts b/apps/tasuki-sync/src/create-sync-server.ts
-index d6f348fb..725d49e6 100644
+index 2f293a17..c66de1f4 100644
 --- a/apps/tasuki-sync/src/create-sync-server.ts
 +++ b/apps/tasuki-sync/src/create-sync-server.ts
-@@ -277,7 +277,12 @@ export function createSyncServer(config: SyncConfig): SyncServer {
-     logger,
+@@ -278,7 +278,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
      deriveClientKey,
      requireClientAddress: config.requireClientAddress,
--    hub,
-+    hub: {
-+      handleMessage: async (connId, raw) => {
-+        await hub.handleMessage(connId, raw);
-+        await roulette.layer.handleMessage(connId, raw);
-+      },
-+    },
-     topic: topic.layer,
-     roulette: roulette.layer,
-     agenda: agenda.layer,
+     // 生テキストを受けるツールのメッセージ層（鍵は `adapters/ws/raw-tools.ts` の表）。
+-    raw: { hub, topic: topic.layer, roulette: roulette.layer, agenda: agenda.layer, checkin: checkin.layer },
++    raw: { hub: { handleMessage: async (connId, raw) => { await hub.handleMessage(connId, raw); await roulette.layer.handleMessage(connId, raw); } }, topic: topic.layer, roulette: roulette.layer, agenda: agenda.layer, checkin: checkin.layer },
+     // cmd は ws-adapter 側で CommandSchema（valibot）に通した検証済みの値で、型も Command のまま届く（#363）。
+     // 表示名の正規化は受け口のアプリケーション側が掛ける（#368）。
+     timer: createTimerCommandReceiver({

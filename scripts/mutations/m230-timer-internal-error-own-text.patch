@@ -10,14 +10,15 @@
 # #381。timer の内部エラーのフレームを正本（connectionErrorFrame）から取らず、
 # 旧い timer だけの文を直書きする。4 つの接続で文が違う状態に戻る。
 diff --git a/apps/tasuki-sync/src/adapters/ws-adapter.ts b/apps/tasuki-sync/src/adapters/ws-adapter.ts
+index 37621b0a..0c896206 100644
 --- a/apps/tasuki-sync/src/adapters/ws-adapter.ts
 +++ b/apps/tasuki-sync/src/adapters/ws-adapter.ts
-@@ -206,7 +206,7 @@
+@@ -222,7 +222,7 @@ function buildChannels(options: WsAdapterOptions): Readonly<Record<AcceptedProto
        parse: parseTimerCommand,
        deliver: (connId, cmd) => options.timer.handleMessage(connId, cmd),
-       tooLargeFrame: frames.tooLarge,
--      internalErrorFrame: frames.internalError,
+       tooLargeFrame: RAW_ERROR_FRAMES.tooLarge,
+-      internalErrorFrame: RAW_ERROR_FRAMES.internalError,
 +      internalErrorFrame: { type: "error", code: "INTERNAL_ERROR", message: "内部エラーが発生しました" },
      }),
-     hub: rawTextChannel<HubServerMsg>("hub", options.hub, frames),
-     // エラーフレームの型は広い `TopicServerMsg` ではなく狭い `TopicOwnFrame`（#91 R18）。
+     poker: createPokerChannel(options.poker, maxMessageBytes, logger),
+   };
