@@ -177,12 +177,21 @@ describe("手順書の正当な形（現物から）", () => {
   const read = (rel) => fs.readFileSync(new URL(`../../${rel}`, import.meta.url), "utf8");
   const docs = {
     "docs/guides/procedures/adversarial-review.md": ["git checkout origin/main -- <テストのファイル>", "git checkout HEAD -- <テストのファイル>"],
-    "docs/guides/procedures/mutations.md": ["git checkout -- <壊したファイル>"],
     "docs/guides/procedures/live-check.md": ["git restore --staged -- <一時ファイル>"],
     "docs/guides/development.md": ["git checkout -- pnpm-lock.yaml <書き換わった package.json>", "git checkout -- pnpm-workspace.yaml pnpm-lock.yaml"],
   };
+  // 変更があっても聞かない戻し方（#603: mutations.md は git checkout -- をやめ、作ったパッチを git apply -R で逆に当てる）
+  const passing = {
+    "docs/guides/procedures/mutations.md": ["git apply -R scripts/mutations/m<ID>-<短い名前>.patch"],
+  };
   test("手順書にいまもその行がある（表が古びたら赤にする）", () => {
-    for (const [rel, lines] of Object.entries(docs)) for (const line of lines) assert.ok(read(rel).includes(line), `${rel}: ${line}`);
+    for (const [rel, lines] of Object.entries({ ...docs, ...passing })) for (const line of lines) assert.ok(read(rel).includes(line), `${rel}: ${line}`);
+  });
+  test("手順書の git apply -R の戻し方は、変更があっても聞かない（#603）", async () => {
+    for (const line of Object.values(passing).flat()) {
+      const command = line.replace(/<[^>]+>/g, "x");
+      assert.equal((await decide(command, { dirty: "yes" })).ask, false, command);
+    }
   });
   test("取り出し・復元は、変更が無ければ通り、作業ツリーに未コミットの変更があれば聞く。--staged だけの外しは通る", async () => {
     for (const line of Object.values(docs).flat().filter((l) => !l.includes("--staged"))) {
