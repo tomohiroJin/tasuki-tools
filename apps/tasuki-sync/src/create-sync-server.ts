@@ -14,11 +14,10 @@
  * ツールの状態（`TimerStore` / `RoundStore`）・時計・ID 生成・配信はそれぞれ別のまま
  * であり、単一の巨大ストアにはしない（設計正本 §5.5 / D16）。
  *
- * store / clock / codeGen / scheduler / broadcaster / handlers /
- * presenceManager / reclaimer / WsAdapter の相互参照は、順序と受け渡しに
- * 暗黙の前提がいくつもある（broadcaster が wsAdapter を前方参照する、
- * reclaimer を wsAdapter より先に宣言して TDZ を避ける、presence の
- * onDriverAbsence に handlers.advanceForAbsence を挿す、など）。
+ * 道具ごとの組み立て（ストア・配信・ハンドラ・猶予・破棄）は `assembly/` の道具ごとの関数にあり（#591）、
+ * この関数は共有の部品を作って**道具の表を畳む**（メッセージ層を WS アダプタへ渡し、破棄・止める処理・
+ * 名簿配信の契機を表から集める）。順序と前方参照は `assembly/context.ts` の docstring に書いてある
+ * （共有の部品 → お題の保管 → timer のハンドラ → 各道具のメッセージ層の順。循環は名前つきの前方参照 `late` で解く）。
  *
  * ⚠ **本番（`server.ts`）とテストが必ずこの関数を通ることが要点である。**
  * テスト側で同じ組み立てを書き写すと、写しが本番からずれた瞬間に
@@ -36,47 +35,33 @@ import {
   DEFAULT_CAPACITY,
   DEFAULT_REFILL_PER_SEC,
 } from "@tasuki/rate-limit";
-import { makeHubHandlers } from "./application/hub-handlers.js";
-import { makeTopicBroadcaster } from "./application/topic-broadcast.js";
-import { makeTopicHandlers } from "./application/topic-handlers.js";
-import { TopicGenerator } from "./application/topic-generation.js";
-import { InMemoryTopicStore } from "./adapters/in-memory-topic-store.js";
-import { InMemoryRouletteStore } from "./adapters/in-memory-roulette-store.js";
-import { InMemoryAgendaStore } from "./adapters/in-memory-agenda-store.js";
-import { InMemoryCheckinStore } from "./adapters/in-memory-checkin-store.js";
-import { makeCheckinBroadcaster } from "./application/checkin-broadcast.js";
-import { makeCheckinHandlers } from "./application/checkin-handlers.js";
-import { makeAgendaBroadcaster } from "./application/agenda-broadcast.js";
-import { makeAgendaHandlers } from "./application/agenda-handlers.js";
-import { makeAgendaDeadlines } from "./application/agenda-deadlines.js";
-import { createCryptoRandomSource } from "./adapters/crypto-random-source.js";
-import { makeRouletteBroadcaster } from "./application/roulette-broadcast.js";
-import { makeRouletteHandlers } from "./application/roulette-handlers.js";
-import { ClaudeCliTopicProvider } from "./adapters/claude-cli-topic-provider.js";
-import { makeHandlers } from "./application/handlers.js";
-import { PresenceManager } from "./application/presence.js";
-import { Scheduler } from "./application/schedule.js";
-import { WsAdapter } from "./adapters/ws-adapter.js";
-import { createTimerCommandReceiver } from "./application/timer-command-receiver.js";
 import { InMemoryRoomStore } from "./adapters/in-memory-room-store.js";
 import { InMemoryTimerStore } from "./adapters/in-memory-timer-store.js";
-import { SystemWallClock } from "./adapters/system-clock.js";
-import { NanoidCodeGen } from "./adapters/nanoid-code-gen.js";
-import { RoomReclaimer } from "./application/room-reclaimer.js";
-import { createRoomDestroyer } from "./application/destroy-room.js";
-import { buildAdminReport, handleAdminHttp } from "./application/admin.js";
-import { AiLimiter } from "./application/ai-limits.js";
-import { createLogger } from "./application/log/logger.js";
-import { createTokenStore } from "./application/token-store.js";
-import { createRefEncoder } from "./application/log/ref-encoder.js";
+import { createCryptoRandomSource } from "./adapters/crypto-random-source.js";
 import { consoleLogSink } from "./adapters/console-log-sink.js";
-import { InMemoryRoundStore } from "./adapters/poker-in-memory-round-store.js";
 import { createPerformanceClock } from "./adapters/performance-clock.js";
-import { createCryptoIdGen } from "./adapters/poker-crypto-id-gen.js";
-import { createWsBroadcaster } from "./adapters/poker-ws-broadcaster.js";
 import { createTimerWsBroadcaster } from "./adapters/timer-ws-broadcaster.js";
-import { makePokerHandlers } from "./application/poker-handlers.js";
-import type { CheckinServerMsg } from "./ports/checkin-server-msg.js";
+import { NanoidCodeGen } from "./adapters/nanoid-code-gen.js";
+import { SystemWallClock } from "./adapters/system-clock.js";
+import { WsAdapter } from "./adapters/ws-adapter.js";
+import { buildAdminReport, handleAdminHttp } from "./application/admin.js";
+import { createRoomDestroyer } from "./application/destroy-room.js";
+import { makeHandlers } from "./application/handlers.js";
+import { createLogger } from "./application/log/logger.js";
+import { createRefEncoder } from "./application/log/ref-encoder.js";
+import { PresenceManager } from "./application/presence.js";
+import { RoomReclaimer } from "./application/room-reclaimer.js";
+import { Scheduler } from "./application/schedule.js";
+import { createTimerCommandReceiver } from "./application/timer-command-receiver.js";
+import { createTokenStore } from "./application/token-store.js";
+import type { KnownToolId } from "./application/tool-id.js";
+import { assembleAgenda } from "./assembly/agenda.js";
+import { assembleCheckin } from "./assembly/checkin.js";
+import { late, type AssemblyBase, type TimerSide, type ToolPartBase } from "./assembly/context.js";
+import { assembleHub } from "./assembly/hub.js";
+import { assemblePoker } from "./assembly/poker.js";
+import { assembleRoulette } from "./assembly/roulette.js";
+import { assembleTopic, createAiBudget, createTopicResources } from "./assembly/topic.js";
 import type { SyncConfig } from "./config.js";
 
 /** アイドルルーム回収の sweep 間隔（ms）。 */
@@ -94,7 +79,7 @@ export interface SyncServer {
    * poker の状態（投票ラウンド）の保管。**名簿は `store` に統合済み**（#95 S4a）。
    * timer の `timers` と同じ位置づけで、名簿とはルームコードで対になる。
    */
-  readonly rounds: InMemoryRoundStore;
+  readonly rounds: ReturnType<typeof assemblePoker>["rounds"];
   /** 実際に bind したポート。`PORT=0` 起動のときはここが正しい値。 */
   readonly port: number;
   /**
@@ -106,126 +91,28 @@ export interface SyncServer {
   close(): Promise<void>;
 }
 
+/**
+ * 道具ごとの組み立ての表。**道具の一覧（`application/tool-id.ts` の `TOOL_IDS`）から timer を除いた全部**が
+ * 鍵になる（timer は `makeHandlers` が持つので表の外）。道具を足して表へ足し忘れると、型検査が落ちる。
+ */
+type ToolPartTable = Readonly<Record<Exclude<KnownToolId, "timer">, ToolPartBase>>;
+
 /** 設定から同期サーバー一式を組み立てて起動する。 */
 export function createSyncServer(config: SyncConfig): SyncServer {
+  // ── 1. 共有の部品 ──────────────────────────────────────────────────
   const store = new InMemoryRoomStore();
   const timers = new InMemoryTimerStore();
-  const rounds = new InMemoryRoundStore();
-  /**
-   * お題の状態の保管（#91）。**ツールではなくルームに属する**ので、timer・poker の保管とは
-   * 別に 1 つ持ち、名簿とはルームコードで対になる（破棄は `destroy-room.ts` が揃えて行う）。
-   */
-  const topics = new InMemoryTopicStore();
-  /**
-   * ルーレットの状態の保管（#94）。お題と同じく**ルームに属する**ので 1 つ持ち、名簿とは
-   * ルームコードで対になる（破棄は `destroy-room.ts` が揃えて行う）。
-   */
-  const roulettes = new InMemoryRouletteStore();
-  // 単調時計は 1 つを共有する（進行タイマーの予約とハンドラが同じ時計で測る）。
-  const monotonicClock = createPerformanceClock();
-  const agendas = new InMemoryAgendaStore();
-  const checkins = new InMemoryCheckinStore();
-  // 進行タイマーの期限の予約（#429）。timer の `scheduler` とは別のインスタンス。**単調時計**で測る。
-  const agendaDeadlines = makeAgendaDeadlines({
-    clock: monotonicClock,
-    timer: { set: (fn, ms) => setTimeout(fn, ms), clear: (h) => clearTimeout(h as ReturnType<typeof setTimeout>) },
-  });
-  const clock = new SystemWallClock();
-  // レート制限の時刻（timer・ハブ・お題の入口）を読む単調時計と、member.shuffle の乱数（#367。以前は
-  // アプリケーション層が大域の時計・乱数を直接読んでいた）。
-  const random = createCryptoRandomSource();
-  /**
-   * 復帰トークンとパスフレーズの保管。**timer と poker で 1 個を共有する**（#95 S4a）。
-   *
-   * poker の復帰トークンが `Participant.token` から `token-store` へ寄ったため、
-   * 別々に持つと `destroyRoom` / `releaseRoom` が片方しか解放しない
-   * （名簿は 1 つなのに、ルームを消してももう片方のトークンが残る）。
-   */
-  const tokens = createTokenStore();
-
-  const codeGen = new NanoidCodeGen();
-  const scheduler = new Scheduler(clock);
-
   // ログの出口はここで 1 本に決める（ADR 0012 D1）。
   // ソルトはプロセス起動ごと。再起動で相関が切れるのは揮発設計と整合する（D2）。
   const logger = createLogger(consoleLogSink);
   const refEncoder = createRefEncoder(randomBytes(32));
-
-  /** Broadcaster 実装（WS アダプタへの橋渡し） */
-  let wsAdapter: WsAdapter;
-
-  // timer とハブの配信（宛先の選び方を含む）は `adapters/timer-ws-broadcaster.ts`（#367 で組み立てから出した）。
-  // `wsAdapter` は下で代入する（前方参照。WS アダプタはハンドラを受け、ハンドラは配信を受けるので循環する）。
-  const { broadcaster, hubBroadcaster } = createTimerWsBroadcaster({
-    store,
-    ws: () => wsAdapter,
-    // 名簿が変わったらチェックインが席と自動開票を測り直す（#406）。`checkinHandlers` は下で組み立てる。
-    onRosterBroadcast: (roomCode) => checkinHandlers.rosterChanged(roomCode),
-  });
-
-  // AI お題生成（トークンと合言葉が両方あるときだけ有効。spec 2026-06-12 参照）
-  const aiReady = Boolean(config.claudeOauthToken && config.aiUnlockKey);
-  const aiLimiter = aiReady
-    ? new AiLimiter({ clock, dailyLimit: config.aiDailyLimit })
-    : undefined;
+  const clock = new SystemWallClock();
+  // 単調時計は 1 つを共有する（進行タイマーの予約とハンドラが同じ時計で測る）。
+  const monotonicClock = createPerformanceClock();
+  const scheduler = new Scheduler(clock);
 
   /**
-   * お題の状態の配信（#91）。**ツールごとの broadcaster の外に 1 つ置く**（spec §5.3 の T3）。
-   * 宛先の選別（ルームの全接続 —— お題・ハブ・timer・poker）は `topic-broadcast.ts` が持つ。
-   * `wsAdapter` は下で代入する（上の broadcaster と同じ前方参照）。
-   */
-  const topicBroadcaster = makeTopicBroadcaster({
-    store,
-    topics,
-    send: (connIds, msg) => wsAdapter.broadcastTopic(connIds, msg),
-  });
-
-  /**
-   * お題の生成（#91）。AI が使えるとき（`aiReady`）だけ provider を渡す。
-   *
-   * ⚠ **`aiLimiter` はサーバー全体で 1 つの予算である**（上で 1 個だけ作る）。日次上限と
-   * 同時実行数を AI を使う箇所ごとに作ると、その分だけ予算が黙って増える。
-   */
-  const topicGenerator = new TopicGenerator({
-    topics,
-    clock,
-    publish: (roomCode) => topicBroadcaster.publish(roomCode),
-    provider: aiReady
-      ? new ClaudeCliTopicProvider({
-          token: config.claudeOauthToken!,
-          model: config.aiProblemModel,
-        })
-      : undefined,
-    aiLimiter,
-    aiTimeoutMs: config.aiGenerationTimeoutMs,
-    logger,
-    refEncoder,
-  });
-
-  /**
-   * ルーレットの状態の配信（#94）。宛先はルーレットの接続だけ（`roulette-broadcast.ts`）。
-   * **時計は単調時計**（poker の `createPerformanceClock` と同じもの。`elapsedMs` を計る）。
-   * `wsAdapter` は下で代入する（上の broadcaster と同じ前方参照）。
-   */
-  const rouletteClock = createPerformanceClock();
-  const rouletteBroadcaster = makeRouletteBroadcaster({
-    store,
-    roulettes,
-    clock: rouletteClock,
-    send: (connIds, msg) => wsAdapter.broadcastRoulette(connIds, msg),
-  });
-
-  /**
-   * ルーム破棄の共通経路（`destroy-room.ts`。Issue #79）。
-   *
-   * 後始末は `presenceManager` と `handlers.releaseRoom` に依存する一方、
-   * `handlers` 自身が在室者 0 人の退出でこれを必要とするため相互依存になる。
-   * `wsAdapter` と同じく「後から代入するクロージャ」で解く（TDZ 回避）。
-   */
-  let destroyRoom: (roomCode: string) => void;
-
-  /**
-   * 入室失敗のレート制限のバケツ（#103）。**timer と poker で 1 本を共有する**（#95 S4a）。
+   * 入室失敗のレート制限のバケツ（#103）。**全道具で 1 本を共有する**（#95 S4a）。
    *
    * 数える単位は接続ではなくクライアント（IP の HMAC）である。接続単位だと再接続で
    * 窓がリセットされ、ルームコードの総当たりを止められない。
@@ -236,41 +123,77 @@ export function createSyncServer(config: SyncConfig): SyncServer {
    * S4a で poker の入口からも timer のルームコードを試せるようになり、別のままなら
    * 1 IP あたりの実効予算が単純に 2 倍になる（ADR 0004 の追記・#103 設計正本 D22）。
    *
-   * **入室と合言葉の照合を行う経路は、入口をまたいですべてこれを消費する**（timer・poker・
-   * ハブ・お題（#91）の各入口。経路の一覧はここに書かない —— 入口を足すたびに腐る）。
+   * **入室と合言葉の照合を行う経路は、入口をまたいですべてこれを消費する**（経路の一覧はここに書かない ——
+   * 入口を足すたびに腐る）。
    */
   const rateLimiter = createTokenBucketLimiter({
     capacity: DEFAULT_CAPACITY,
     refillPerSec: DEFAULT_REFILL_PER_SEC,
   });
 
-  // ⚠ かつてここに**入口ごとの門**（`application/tool-gate.ts`）を組み立てる節があった。
-  // **#95 S5b で廃止した** —— ツール状態を遅延生成にした（D8）ので「そのツールの状態が
-  // あるか」は参加の可否を意味しなくなり、越境を止めるのは合言葉の関門
-  // （`application/room-entry.ts`）になった。関門は配線を要らない（トークン保管を見るだけ）。
+  // 前方参照（組み立ての循環）。値を入れる前に引くと名前つきで落ちる（`assembly/context.ts`）。
+  const ws = late<WsAdapter>("wsAdapter");
+  const destroyRoom = late<(roomCode: string) => void>("destroyRoom");
+  const toolParts = late<ToolPartTable>("toolParts");
+  const pokerLayer = late<ReturnType<typeof assemblePoker>["layer"]>("pokerHandlers");
 
+  // timer とハブの配信（宛先の選び方を含む）は `adapters/timer-ws-broadcaster.ts`（#367 で組み立てから出した）。
+  const { broadcaster, hubBroadcaster } = createTimerWsBroadcaster({
+    store,
+    ws: () => ws.get(),
+    // 名簿が変わったら各道具が測り直す（チェックインが席と自動開票を。#406）。表は下で決まる。
+    onRosterBroadcast: (roomCode) => {
+      for (const part of Object.values(toolParts.get())) part.onRosterBroadcast?.(roomCode);
+    },
+  });
+
+  const base: AssemblyBase = {
+    config,
+    store,
+    timers,
+    // 復帰トークンとパスフレーズの保管。**全道具で 1 個を共有する**（#95 S4a）。別々に持つと
+    // `destroyRoom` / `releaseRoom` が片方しか解放せず、ルームを消してももう片方のトークンが残る。
+    tokens: createTokenStore(),
+    clock,
+    monotonicClock,
+    // レート制限の時刻を読む単調時計と、member.shuffle の乱数（#367）。
+    random: createCryptoRandomSource(),
+    codeGen: new NanoidCodeGen(),
+    logger,
+    refEncoder,
+    rateLimiter,
+    timerBroadcaster: broadcaster,
+    hubBroadcaster,
+    ws,
+  };
+
+  // ── 2. お題の保管と配信（timer のハンドラが先に要る） ────────────────────
+  const ai = createAiBudget(base);
+  const topicResources = createTopicResources(base, ai);
+
+  // ── 3. timer のハンドラ ─────────────────────────────────────────────
   const handlers = makeHandlers({
     store,
     monotonicClock,
-    random,
+    random: base.random,
     timers,
-    tokens,
+    tokens: base.tokens,
     hub: hubBroadcaster,
     rateLimiter,
     clock,
     broadcaster,
-    codeGen,
+    codeGen: base.codeGen,
     scheduler,
     maxRooms: config.maxRooms,
-    destroyRoom: (roomCode) => destroyRoom(roomCode),
+    destroyRoom: (roomCode) => destroyRoom.get()(roomCode),
     // **退出した人の票を捨てる**（R8・#95 S5b）。timer の文脈は poker の保管を知らないので、
-    // ここで繋ぐ。`pokerHandlers` はこの下で組み立てるが、呼ばれるのは要求が届いてからである。
+    // ここで繋ぐ。poker の層は下で組み立てるが、呼ばれるのは要求が届いてからである。
     discardPokerVote: (roomCode, participantId) =>
-      pokerHandlers.handleParticipantRemoved(roomCode, participantId),
+      pokerLayer.get().handleParticipantRemoved(roomCode, participantId),
     // お題の状態を参加・作成した本人へ 1 通送る（#91・E4）。配信先はルームの全接続。
-    topicBroadcaster,
+    topicBroadcaster: topicResources.broadcaster,
     // 完成記録にお題のタイトルを写すために読む（#91・spec T9）。お題の配信・破棄と同じ 1 個。
-    topics,
+    topics: topicResources.topics,
   });
   const presenceManager = new PresenceManager({
     store,
@@ -282,40 +205,55 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     onDriverAbsence: handlers.advanceForAbsence,
   });
 
+  // ── 4. 各道具のメッセージ層（timer のゲートを受ける） ─────────────────────
+  /**
+   * **ゲートは `makeHandlers` が 1 度だけ包んだものを、全道具で共有する。新しく作らない**
+   * （別に作ると `connId → クライアント鍵` の対応が空になり、鍵が connId へ落ちて、
+   * 参加の総当たりが張り直すだけで枠を回避できる）。
+   */
+  const timerSide: TimerSide = {
+    rateLimitGate: handlers.rateLimitGate,
+    removeFromRoom: handlers.removeFromRoom,
+  };
+  const hub = assembleHub(base, timerSide, topicResources.broadcaster);
+  const topic = assembleTopic(base, timerSide, topicResources, ai);
+  const roulette = assembleRoulette(base, timerSide);
+  const agenda = assembleAgenda(base, timerSide);
+  const checkin = assembleCheckin(base, timerSide);
+  const poker = assemblePoker(base, timerSide, topicResources.broadcaster);
+  const parts = { topic, roulette, agenda, checkin, poker } satisfies ToolPartTable;
+  toolParts.set(parts);
+  pokerLayer.set(poker.layer);
+
   // 後始末を契機ごとに並べ直すと片方だけが更新されて必ずずれるため、内容と順序は
   // `destroy-room.ts` の 1 箇所にしか持たない。契機はアイドル回収（TTL）と
   // 在室者 0 人の退出（Issue #79）の 2 つで、どちらもこの同じ関数を通る。
-  //
-  // **#95 S4a で `rounds`（poker のラウンド）もここが解放するようになった。**
-  // 寿命はツールごとではなくルームごとに 1 つなので、poker 側に別の破棄経路は無い
-  // （旧 `application/poker-handlers.ts` の即時破棄は撤去した・R10・D8）。
-  destroyRoom = createRoomDestroyer({
-    store,
-    timers,
-    rounds,
-    // **#91 でお題の状態と生成もここが解放・中断する**（寿命はルームごとに 1 つ）。
-    topics,
-    roulettes,
-    agendas,
-    checkins,
-    agendaDeadlines,
-    // チェックインの猶予のタイマー（#406）。`checkinHandlers` は下で組み立てる（呼ぶのは破棄のときだけ）。
-    checkinGrace: { clearRoom: (roomCode) => checkinHandlers.clearRoom(roomCode) },
-    scheduler,
-    topicGenerator,
-    presence: presenceManager,
-    releaseRoom: handlers.releaseRoom,
-  });
+  // 各道具の保管は、道具ごとの組み立てが `destroy` として返したものを並べる
+  // （必須の鍵が 1 つでも欠ければ型検査が落ちる。寿命はツールごとではなくルームごとに 1 つ・#95 S4a）。
+  destroyRoom.set(
+    createRoomDestroyer({
+      store,
+      timers,
+      ...topic.destroy,
+      ...roulette.destroy,
+      ...agenda.destroy,
+      ...checkin.destroy,
+      ...poker.destroy,
+      scheduler,
+      presence: presenceManager,
+      releaseRoom: handlers.releaseRoom,
+    }),
+  );
 
   // httpHandler クロージャが reclaimer.reclaimedCount を参照するため、
-  // wsAdapter 生成（クロージャ定義）より前に reclaimer を宣言する（TDZ 回避）。
+  // WS アダプタ生成（クロージャ定義）より前に reclaimer を宣言する。
   const reclaimer = new RoomReclaimer({
     store,
     clock,
     idleTtlMs: config.roomIdleTtlMs,
     onReclaim: (code, idleMs) => {
       // 後始末は共通の破棄経路へ委ねる（二重に並べるとずれる）。
-      destroyRoom(code);
+      destroyRoom.get()(code);
       // 運用ログ（journalctl -u tasuki-sync | grep reclaimed で追える・R3-1）。
       // ルームコードは資格情報なので相関 ID へ置き換える（ADR 0012 D2）。
       logger.info("reclaimed", { room: refEncoder.room(code), idleMs });
@@ -326,192 +264,28 @@ export function createSyncServer(config: SyncConfig): SyncServer {
   // （ADR 0012 D3）。再起動で鍵が変わるのは揮発インメモリ設計と整合するので受け入れる。
   const deriveClientKey = createClientKeyDeriver(randomBytes(32));
 
-  // ── poker（見積もり文脈）の組み立て ─────────────────────────────────
-  // **#95 S4a で名簿・復帰トークン・レート制限のバケツ・入口の門が timer と 1 つになった。**
-  // poker だけのものは、ラウンドの保管（`rounds`）・単調時計・ID 生成・配信の 4 つである。
-  const pokerClock = createPerformanceClock();
-  const pokerIdGen = createCryptoIdGen();
-  const pokerBroadcaster = createWsBroadcaster();
-  const pokerGameTimer = new Scheduler(clock);
-  const pokerHandlers = makePokerHandlers({
-    store,
-    timers,
-    timerBroadcaster: broadcaster,
-    rounds,
-    tokens,
-    hub: hubBroadcaster,
-    broadcaster: pokerBroadcaster,
-    idGen: pokerIdGen,
-    clock: pokerClock,
-    wallClock: clock,
-    rateLimiter,
-    // 隠しモードの山を切る（#403）。timer のシャッフル・ルーレットと同じ乱数源
-    random,
-    // 隠しモードの切断の猶予が切れる時刻の予約（#403 G-8）。timer の `scheduler` とは別のインスタンス
-    gameTimer: pokerGameTimer,
-    maxRooms: config.maxRooms,
-    // お題の状態を参加した本人へ 1 通送る（#91・E4）。配信先はルームの全接続。
-    topicBroadcaster,
-    // 人をルームから外す（#419）。`handlers` は上で組み立て済み。
-    removeFromRoom: (roomCode, actorId, targetId) =>
-      handlers.removeFromRoom(roomCode, actorId, targetId),
-  });
-
-  /**
-   * ハブ（選択画面）のメッセージ層（#95 S5a）。
-   *
-   * **守り（レート制限・合言葉の関門・復帰）は timer と共有する** ——
-   * `join-room.ts` / `create-room.ts` を timer の入口と同じ引数で呼ぶ。
-   * **レート制限のゲートも同じインスタンスを渡す** —— 別に作ると `connId → 鍵` の
-   * 対応が空になり、`/ws` は再接続で回避できる抜け道になる。
-   */
-  const hubHandlers = makeHubHandlers({
-    store,
-    timerBroadcaster: broadcaster,
-    monotonicClock,
-    timers,
-    clock,
-    codeGen,
-    tokenStore: tokens,
-    rateLimitGate: handlers.rateLimitGate,
-    maxRooms: config.maxRooms,
-    hub: hubBroadcaster,
-    // 作成・参加の成功時に、いまのお題を本人へ 1 通送る（#91・E4）。
-    topicBroadcaster,
-  });
-
-  /**
-   * お題ツール（`?tool=topic`）のメッセージ層（#91）。
-   *
-   * **参加の守り（レート制限・合言葉の関門・復帰）はハブと同じく `join-room.ts` を通す。**
-   * **レート制限のゲートも `handlers.rateLimitGate` を渡す。新しく作らない** ——
-   * 別に作ると `connId → クライアント鍵` の対応が空になり、鍵が connId へ落ちる。
-   * そうなると `ai.unlock` の総当たりが**張り直すだけで**枠を回避でき、`room.join` とも
-   * 別の枠になる（`handlers.ts` の「★取り違えないこと」）。お題の接続も `onConnect` を
-   * 通るので（`ws-adapter.ts`）、同じゲートなら鍵が登録済みである。
-   */
-  const topicHandlers = makeTopicHandlers({
-    store,
-    timerBroadcaster: broadcaster,
-    monotonicClock,
-    timers,
-    clock,
-    codeGen,
-    tokenStore: tokens,
-    rateLimitGate: handlers.rateLimitGate,
-    hub: hubBroadcaster,
-    topics,
-    generator: topicGenerator,
-    broadcaster: topicBroadcaster,
-    send: (connId, msg) => wsAdapter.sendTopic(connId, msg),
-    // トークン未設定なら合言葉も渡さない＝解錠は常に失敗（存在秘匿）
-    aiUnlockKey: aiReady ? config.aiUnlockKey : undefined,
-  });
-
-  /**
-   * ルーレット（`?tool=roulette`）のメッセージ層（#94）。
-   *
-   * **参加の守りはお題と同じく `join-room.ts` を通し、レート制限のゲートも `handlers.rateLimitGate`
-   * を渡す。新しく作らない**（別に作ると `connId → クライアント鍵` の対応が空になり、
-   * 参加の総当たりが張り直すだけで枠を回避できる）。ルーレットの接続も `onConnect` を通る
-   * （`ws-adapter.ts`）ので、同じゲートなら鍵が登録済みである。
-   */
-  const rouletteHandlers = makeRouletteHandlers({
-    store,
-    timerBroadcaster: broadcaster,
-    timers,
-    clock,
-    codeGen,
-    tokenStore: tokens,
-    rateLimitGate: handlers.rateLimitGate,
-    hub: hubBroadcaster,
-    roulettes,
-    broadcaster: rouletteBroadcaster,
-    send: (connId, msg) => wsAdapter.sendRoulette(connId, msg),
-    monotonicClock: rouletteClock,
-    random: createCryptoRandomSource(),
-    logger,
-  });
-
-  /**
-   * 進行タイマー（`?tool=agenda`）のメッセージ層（#429）。
-   *
-   * **参加の守りはルーレットと同じく `join-room.ts` を通し、レート制限のゲートも `handlers.rateLimitGate`
-   * を渡す。新しく作らない**（別に作ると `connId → クライアント鍵` の対応が空になり、参加の総当たりが
-   * 張り直すだけで枠を回避できる）。時計は期限の予約と同じ単調時計を共有する。
-   */
-  const agendaBroadcaster = makeAgendaBroadcaster({
-    store,
-    agendas,
-    clock: monotonicClock,
-    send: (connIds, msg) => wsAdapter.broadcastAgenda(connIds, msg),
-  });
-  const agendaHandlers = makeAgendaHandlers({
-    store,
-    timerBroadcaster: broadcaster,
-    timers,
-    clock,
-    codeGen,
-    tokenStore: tokens,
-    rateLimitGate: handlers.rateLimitGate,
-    hub: hubBroadcaster,
-    agendas,
-    broadcaster: agendaBroadcaster,
-    send: (connId, msg) => wsAdapter.sendAgenda(connId, msg),
-    monotonicClock,
-    deadlines: agendaDeadlines,
-    logger,
-  });
-
-  /**
-   * チェックイン（`?tool=checkin`）のメッセージ層と配信（#406）。
-   *
-   * **参加の守りはルーレットと同じく `join-room.ts` を通し、レート制限のゲートも `handlers.rateLimitGate`
-   * を渡す。新しく作らない**（別に作ると `connId → クライアント鍵` の対応が空になり、参加の総当たりが
-   * 張り直すだけで枠を回避できる）。配信は受け手ごとに中身が違う投影で、接続 1 本ずつへ送る。
-   */
-  const send = (connId: string, msg: CheckinServerMsg): void => wsAdapter.sendCheckin(connId, msg);
-  const checkinBroadcaster = makeCheckinBroadcaster({ store, checkins, send });
-  const checkinHandlers = makeCheckinHandlers({
-    store,
-    timerBroadcaster: broadcaster,
-    monotonicClock,
-    timers,
-    clock,
-    codeGen,
-    tokenStore: tokens,
-    rateLimitGate: handlers.rateLimitGate,
-    hub: hubBroadcaster,
-    checkins,
-    broadcaster: checkinBroadcaster,
-    send,
-    random,
-    // 切断による自動公開の猶予（ADR 0028）。実 WS の試験だけが設定で縮める。
-    disconnectRevealGraceMs: config.checkinRevealGraceMs,
-  });
-
-  wsAdapter = new WsAdapter({
+  const wsAdapter = new WsAdapter({
     port: config.port,
     host: config.host,
     allowedOrigins: config.allowedOrigins,
     maxConnections: config.maxConnections,
     maxMessageBytes: config.maxMessageBytes,
     maxFrameBytes: config.maxFrameBytes,
-    poker: pokerHandlers,
+    poker: poker.layer,
     heartbeatIntervalMs: config.heartbeatIntervalMs,
     heartbeatMaxMisses: config.heartbeatMaxMisses,
     logger,
     deriveClientKey,
     requireClientAddress: config.requireClientAddress,
-    hub: hubHandlers,
-    topic: topicHandlers,
-    roulette: rouletteHandlers,
-    agenda: agendaHandlers,
-    checkin: checkinHandlers,
+    hub,
+    topic: topic.layer,
+    roulette: roulette.layer,
+    agenda: agenda.layer,
+    checkin: checkin.layer,
     // cmd は ws-adapter 側で CommandSchema（valibot）に通した検証済みの値で、型も Command のまま届く（#363）。
     // 表示名の正規化は受け口のアプリケーション側が掛ける（#368）。
     timer: createTimerCommandReceiver({
-      reply: (connId, msg) => wsAdapter.send(connId, msg),
+      reply: (connId, msg) => ws.get().send(connId, msg),
       route: async (connId, cmd) => {
         if (cmd.command === "presence.ping") {
           presenceManager.handlePing(connId);
@@ -543,10 +317,11 @@ export function createSyncServer(config: SyncConfig): SyncServer {
             store.list(),
             new Map(timers.list().map((t) => [t.code, t])),
             reclaimer.reclaimedCount,
-            aiLimiter ? { today: aiLimiter.todayCount, total: aiLimiter.totalCount } : undefined,
+            ai.aiLimiter ? { today: ai.aiLimiter.todayCount, total: ai.aiLimiter.totalCount } : undefined,
           ),
       }),
   });
+  ws.set(wsAdapter);
 
   reclaimer.start(RECLAIM_SWEEP_MS);
 
@@ -554,23 +329,19 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     wsAdapter,
     store,
     timers,
-    rounds,
+    rounds: poker.rounds,
     port: wsAdapter.port,
-    aiReady,
+    aiReady: ai.aiReady,
     close: async () => {
       reclaimer.stop();
       scheduler.clearAll();
-      pokerGameTimer.clearAll();
-      agendaDeadlines.clearAll();
-      // お題の生成も止める（子プロセスを残さない。#91）。
-      topicGenerator.cancelAll();
+      // 各道具の後始末（予約・猶予・子プロセスの解放）。お題の生成も止める（子プロセスを残さない・#91）。
+      for (const part of Object.values(parts)) part.close?.();
       // 不在猶予タイマー（ドライバー繰り上げ）も解放する。
       // 本番は直後に process.exit(0) するため観測できる差は無いが、
       // 同一プロセスでサーバーを何度も起動し直すテストでは、放置すると
       // 閉じたはずのサーバーのタイマーが後から発火してしまう。
       presenceManager.clearAllTimers();
-      // チェックインの切断による自動公開の猶予も同じ理由で解放する（#406）。
-      checkinHandlers.clearAll();
       await wsAdapter.close();
     },
   };
