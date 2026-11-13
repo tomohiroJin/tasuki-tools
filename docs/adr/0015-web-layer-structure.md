@@ -131,3 +131,91 @@ timer-web が後者を持たないためである。
 > **表は 2026-08-17 時点の実測なのでそのまま残す**（`docs/adr/0002` の「ADR は追記のみ」）。
 > 現時点で残っているのは 5 本であり、**背景の観察も決定の MUST 1 も変わっていない。**
 
+## 追記（2026-11-14・#598）: 対応表の web の行を実体に合わせる（画面→ドメイン、純粋判断→protocol を許す）
+
+- **ステータス**: **Proposed**（2026-11-14 起案。採択は人。冒頭のステータス「Accepted（2026-08-17）」は、この追記より前の決定を指す）
+- **関連**: [#598](https://github.com/tomohiroJin/tasuki-tools/issues/598)（#482-9）/
+  [#592](https://github.com/tomohiroJin/tasuki-tools/issues/592)（#482-3。層の向きの監査）/
+  [`docs/superpowers/specs/2026-11-13-architecture-review-survey.md`](../superpowers/specs/2026-11-13-architecture-review-survey.md)（#587 の調査。節 1.2・1.3・1.4・節 8 #1）/
+  [`docs/guides/architecture.md`](../guides/architecture.md)（層とディレクトリの対応表の正本）
+
+### 背景
+
+本 ADR の決定は「web 層を純粋判断・同期フック・画面に分ける」で、置き場と依存してよいものは
+`docs/guides/architecture.md` の対応表が持つ。#587 の調査で、その表と実体が食い違い、表の中でも行どうしが食い違うと分かった。
+
+1. **「web の画面」行は、依存してよいものにドメインを挙げていない。** 実体は全アプリの画面（`.tsx`）がドメインの core の型と関数を読む
+2. **「web の純粋判断」行は「ドメインの型のみ」とする。** 実体はお題・ルーレット・進行タイマー・チェックインの `src/server-message.ts` が `@tasuki/protocol` を読む
+3. **「アダプタ」行は、置き場に `apps/*-sync/src/adapters` と並べて「web アプリ」を挙げ、依存してよいものを「上のすべて」（ドメインを含む）とする。**
+   web アプリのファイルに、この行と上の 2 行で別の答えが出る
+
+どちらの行が正しいかを決めないと、層の向きの監査（#592）の物差しが決まらない。決まりを変える話なので ADR を通す（憲法 原則 II）。
+件数は下の「実測」にまとめる。
+
+### 選択肢
+
+- **(a) 表を実体に合わせる。** 「web の画面」行にドメイン（型と値）を、「web の純粋判断」行に `packages/protocol` を足す。
+  「アダプタ」行の置き場から「web アプリ」を外し、web アプリの中は「web の…」の行だけで決める（行どうしの食い違いを消す）
+- **(b) 実体を表に合わせる。** 画面が読むドメインの型・関数を、アプリごとの純粋判断へ写すか包み直し、画面はそれだけを読む。
+  `server-message.ts` の protocol の読み込みは同期フックへ移す
+- **(c) 「アダプタ」行の読みに揃える。** 置き場の「web アプリ」を残し、web アプリのファイル全体が「上のすべて」に依存してよいとする。
+  web の 3 行は責務の分け方だけを示し、依存の制限は持たない
+
+### 決定（案）
+
+**(a) を採る。**
+
+- **(b) を採らない理由**: 画面が読んでいるのはドメインの語彙そのもの（参加者・札・ステップ・お題などの型と、それを表示用に引く関数）で、
+  包み直しても同じ知識の写しが増えるだけになる。写しは揃え続ける手間と食い違いの元を足し、得るものが無い（憲法 原則 X「抽象は実需で」）。
+  ドメインは純粋関数と型だけで I/O を持たない（対応表の「ドメイン」行）ので、画面が直接読んでも内向きの依存（憲法 原則 VI）は崩れない
+- **(c) を採らない理由**: いま違反と数えている辺については (a) と同じ結果になる。ただし「上のすべて」には同期サーバーのポート・アプリケーション・
+  `packages/rate-limit` も入り、画面や純粋判断がそれらを読むことまで許してしまう。実体が要るのはドメインと protocol だけなので、
+  許す範囲を実需に絞る (a) を採る。行どうしの食い違いは、(a) でアダプタ行から「web アプリ」を外して消す
+
+(a) で直す対応表の行（正本は `docs/guides/architecture.md`。ここは決めた中身だけを書く）:
+
+| 行 | いまの表 | (a) で直した後 |
+|---|---|---|
+| アダプタ | 置き場「`apps/*-sync/src/adapters`・web アプリ」 | 置き場「`apps/*-sync/src/adapters`」。web アプリの中は「web の…」の行で決める |
+| web の純粋判断 | ドメインの型のみ | ドメインの型と関数・`packages/protocol`（React・I/O に依存しない点は変えない） |
+| web の画面 | 同期フック・純粋判断・`@tasuki/web-kit/reader`・`@tasuki/web-kit/room`・`packages/invite-ui`・`packages/ui` のみ | 左に加えて、ドメインの型と関数（同期クライアントと `@tasuki/web-kit/sync` を直接読まない点は変えない） |
+
+**この追記で決めないこと**
+
+- 「web の同期フック」行の「上のすべて」の読み方。調査の判定（節 1.2）の読み（ドメイン・protocol・純粋判断・同期クライアント・web-kit・markdown・invite-ui）はそのまま
+- 純粋判断の `.ts` が `@tasuki/protocol` を読むときの、型だけか値もかの区別。いまの 4 本は値を読んでおり、両方を許す
+- 調査で見つけた他の違反（下の「実測」で残る辺）。直すのは #592 である
+
+### 実測（`layerOf` の許可表を (a) に合わせたとき）
+
+ISSUE #598 の完了条件「許可表を新しい対応表に合わせると、62 辺・4 辺が違反から消える」を確かめた。
+測ったのは 2026-11-14・main `882f7954` の作業ツリー。
+
+- **今の許可表**: `node docs/superpowers/specs/2026-11-13-architecture-review-survey/a-dependency-edges.mjs .` を流した。
+  違反（`violations`）は 79 辺（監査の外。`covered: true` は 0）。そのうち
+  - 画面→ドメイン（`web/screen -> domain`）: 62 辺（値 29・型 33）。読む側は 54 ファイル。
+    アプリ別は agenda-web 10・checkin-web 7・landing 3・poker-web 14・roulette-web 8・timer-web 17・topic-web 3
+  - 純粋判断→protocol（`web/pure -> protocol`）: 4 辺。`apps/agenda-web/src/server-message.ts:9`・`apps/checkin-web/src/server-message.ts:12`・
+    `apps/roulette-web/src/server-message.ts:9`・`apps/topic-web/src/server-message.ts:9`
+
+  調査（節 1.3。測ったのは `f4ffbb96`）と同じ数だった。辺の総数は調査の 5,242 から 5,251 に増えたが、違反の数と内訳は変わっていない
+- **(a) に合わせた許可表**: スクリプトを作業ツリーの外へ写し、`RULES` の 2 行だけを書き換えて同じ引数で流した（スクリプト本体は変えていない）。
+
+  ```js
+  "web/pure": [...DOMAIN_LIKE, "protocol"],
+  "web/screen": [...DOMAIN_LIKE, "web/hook", "web/pure", "web-kit/reader", "web-kit/room", "invite-ui", "ui"],
+  ```
+
+  違反は 13 辺になった。前後の違反を（規則・ファイル・行・読む先）の組で突き合わせると、**消えたのは 66 辺で、内訳は画面→ドメイン 62・純粋判断→protocol 4。
+  新しく出た違反は 0**。辺の総数（5,251）は変わらない
+- **残る 13 辺**は #592 が直す側の辺である（`deep-import` 4・`sync/application -> sync/adapters`（型）1・
+  `web/pure -> sync-client` 4（値 1・型 3）・`web/hook -> web/screen`（型）2・`web/pure -> web/screen`（型）2）。
+  なお `@tasuki/timer-core/aggregate` を読む画面 3 辺は、層の対では画面→ドメインだが、入口外の参照（`deep-import`）として数えられており、(a) でも違反のまま残る
+
+### 影響
+
+- **コード（`apps/` `packages/` `scripts/`）は変えない。** 直すのは対応表（`docs/guides/architecture.md`）の 3 行だけ
+- **#592 の監査への反映**: 採択されたら、#592 が層の向きの監査を作るときに、画面→ドメイン（型と値）と純粋判断→`packages/protocol` を許す側に入れる。
+  上の 66 辺は違反に数えない。反映は #592 側で行う（この追記では監査を置かない）
+- 採択されなかったとき（Rejected）は、`docs/guides/architecture.md` の 3 行を元に戻し、(b) か (c) を別に決める
+

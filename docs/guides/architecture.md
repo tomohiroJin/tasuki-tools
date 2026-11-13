@@ -38,18 +38,24 @@ S2〜S4a では poker 側の入れ子（src/poker 配下。**S4b で畳みまし
 | 共有ユーティリティ（sync 専用） | `packages/rate-limit` | なし（node 標準ライブラリのみ。ドメインの型にも依存しない） |
 | アプリケーション | `apps/*-sync/src/application` | ドメイン・プロトコル契約・ポート・`packages/rate-limit` |
 | ポート | `apps/*-sync/src/ports` | ドメインの型 |
-| アダプタ | `apps/*-sync/src/adapters`・web アプリ | 上のすべて |
-| web の純粋判断 | web アプリ配下で React・I/O に依存しない `.ts`（例: `apps/timer-web/src/ui/screen.ts`・`apps/poker-web/src/router.ts` の `parseRoute`・`apps/landing/src/hub/hub-state.ts`） | ドメインの型のみ（React・I/O に依存しない） |
+| アダプタ | `apps/*-sync/src/adapters`（web アプリの中は下の「web の…」の行で決める。#598 の案 ※） | 上のすべて |
+| web の純粋判断 | web アプリ配下で React・I/O に依存しない `.ts`（例: `apps/timer-web/src/ui/screen.ts`・`apps/poker-web/src/router.ts` の `parseRoute`・`apps/landing/src/hub/hub-state.ts`） | ドメインの型と関数・`packages/protocol`（React・I/O に依存しない。#598 の案 ※） |
 | web の同期フック | web アプリの同期フック（例: `apps/poker-web/src/hooks/useSync.ts`・`apps/landing/src/hub/use-hub-sync.ts`）。大きくなったら同じ層のサブフックに分けてよい（例: `apps/timer-web/src/sync/use-timer-entry.ts`・`apps/poker-web/src/hooks/useRoomEntry.ts`。#369） | 上のすべて ＋ WebSocket |
 | web の同期クライアント | `packages/sync-client` | なし（ツールの語彙を持たない。WS の保持と再接続・参加の失敗の判断・端末の同一性。同期フックだけが読む） |
 | web の同期の共有部品 | `packages/web-kit` の入口 `@tasuki/web-kit/sync`（`useJoinRetry`・`useToolRoomSync`。#369） | `react`（peer）・`@tasuki/sync-client` のみ。ドメインの core には依存しない。**同期フックの側として扱い、画面は直接読まない**（お題・ルーレット・進行タイマーの `screens-do-not-import-sync-client` のテスト） |
-| web の画面 | web アプリの `.tsx` | 同期フック・純粋判断・`@tasuki/web-kit/reader`・`@tasuki/web-kit/room`・`packages/invite-ui`・`packages/ui` のみ（同期クライアントと `@tasuki/web-kit/sync` を直接 import しない） |
+| web の画面 | web アプリの `.tsx` | 同期フック・純粋判断・ドメインの型と関数（#598 の案 ※）・`@tasuki/web-kit/reader`・`@tasuki/web-kit/room`・`packages/invite-ui`・`packages/ui` のみ（同期クライアントと `@tasuki/web-kit/sync` を直接 import しない） |
 | UI 資産 | `packages/ui` | なし（CSS のトークン・要素・部品と静的資産。ADR 0022） |
 | 招待のブラウザ操作 | `packages/invite-ui` | React・ブラウザ API・既存の qrcode。ドメイン・同期クライアントには依存しない（[ADR-0020](../adr/0020-invite-browser-operations.md)） |
 | Markdown の解析 | `packages/markdown` | なし（純粋関数のみ。React を知らない）。描画は `@tasuki/web-kit/reader` の `Markdown` が持つ（[ADR-0021](../adr/0021-topic-as-shared-context.md) 決定 7 と 2026-10-14 の追記・#371） |
 | web のルーム画面の共有部品 | `packages/web-kit` の入口 `@tasuki/web-kit/room`（`ConnectionBanner`・`connectionNotice`（#471）、`LoadingView`・`RoomGoneView`・`RoomJoiningView`・`useHubRedirect`・`usePrefersReducedMotion`・`ROOM_GATE_TEXT`（#472）） | `react`（peer）・`@tasuki/sync-client` は型（`import type`）だけ。**画面から読んでよい**。接続の告知（再接続中・最新でない・届かない）の文 3 つの正本と帯（届かないは `role="alert"`、それ以外は `role="status"`、無いときは描かない）。種類を決める規則は `@tasuki/sync-client` の `connectionNoticeKind` で、同期フックが引く。入室の門（読み込み中・ルームが無い・参加中）の画面と文言（`ROOM_GATE_TEXT`）の正本もここ 1 か所（agenda・checkin・roulette・topic）。参加中の画面の帯の位置（`<main>` の前か、見出しの後か）はアプリごとに違い、揃えていないので呼ぶ側が選ぶ。timer の `use-reduced-motion` は書き方が違うので寄せていない |
 | web の読む面の共有部品 | `packages/web-kit` の入口 `@tasuki/web-kit/reader`（`Markdown`・`useReaderDrawer`。#371） | `react`（peer）・`@tasuki/markdown`。**画面から読んでよい**（同期の入口 `./sync` とは別） |
 | 開発用の設定 | `packages/dev-hub-redirect` | なし（dev サーバー専用の Vite プラグインと玄関のポートの正本。各アプリの `vite.config.ts` だけが読む。層の外） |
+
+> **※ #598 の案（採択前）**: 「アダプタ」「web の純粋判断」「web の画面」の 3 行は、
+> [`docs/adr/0015`](../adr/0015-web-layer-structure.md) の追記（2026-11-14・#598）の案 (a) に合わせて直した。
+> **その追記はまだ Proposed で、採択は人が行う。** 直す前は、アダプタ行の置き場が「`apps/*-sync/src/adapters`・web アプリ」、
+> 純粋判断行が「ドメインの型のみ」、画面行にドメインが無かった。採択されなかったときはこの 3 行を元に戻す。
+> 表と実体の差（違反と数えていた辺の数）と、直した後の測り直しの結果は、その追記の「実測」にある。
 
 **#371 で寄せなかったもの（#470 で一部を寄せた・下記）**: 玄関への道（`hubPathFor` など）・`parseRoute`・招待の表示・タブ・timer の確認のダイアログは、
 各アプリに写しのまま置く（理由は [`2026-10-14-refactor-r11-shared-display-parts.md`](../superpowers/plans/2026-10-14-refactor-r11-shared-display-parts.md) §9）。
