@@ -9217,4 +9217,12 @@ export const MUTATIONS = [
     tests: ["test/ws/connection-gate.test.ts"],
     note: RESERVED_1600_1619 + " " + "#590。一覧から導く許可リストが checkin を知らなくなり、チェックインの接続が unknown に落ちて拒否される。",
   },
+  {
+    id: 1602,
+    label: "isKnownToolId を前方一致（startsWith）にする",
+    patch: "m1602-is-known-tool-id-prefix-match.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/ws/connection-gate.test.ts"],
+    note: RESERVED_1600_1619 + " " + "#590 の敵対的レビュー（記録 4）。綴りの末尾に余計な字がついた宣言（?tool=timerx）が unknown にならずに通る。述語にした今は 1 行で開く穴。",
+  },
 ];
