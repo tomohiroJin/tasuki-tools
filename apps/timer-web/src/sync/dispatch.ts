@@ -1,6 +1,6 @@
 /**
  * サーバーメッセージの純粋な振り分け
- * T055(フロント): FR-025, FR-026
+ * 要件（`docs/plans/tdd-mob-pro-timer/spec.md`）: FR-025, FR-026
  * WebSocket に依存しないため単体テスト可能。client.ts から利用する。
  */
 

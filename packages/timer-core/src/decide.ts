@@ -1,6 +1,6 @@
 /**
  * decide 関数 — コマンドから DomainEvent[] を生成する純粋関数
- * T011: FR-002, FR-003, FR-004, FR-005, FR-009, FR-010
+ * 要件（`docs/plans/tdd-mob-pro-timer/spec.md`）: FR-002, FR-003, FR-004, FR-005, FR-009, FR-010
  */
 
 import { ok, err, type Result } from "neverthrow";

@@ -1,6 +1,6 @@
 /**
  * セッション画面
- * T057: FR-007, FR-017, FR-030 ＋ デザインシステム適用
+ * 要件（`docs/plans/tdd-mob-pro-timer-v2-experience/spec.md`）: FR-007, FR-017, FR-030 ＋ デザインシステム適用
  */
 
 import React, { useMemo, useState } from "react";

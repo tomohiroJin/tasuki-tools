@@ -1,6 +1,6 @@
 /**
  * サーバー権威タイマー スケジューラ
- * T038: FR-003, FR-007
+ * 要件（`docs/plans/tdd-mob-pro-timer/spec.md`）: FR-003, FR-007
  * 1本の setTimeout で次交代のみ待つ（1Hz TICK 廃止）
  */
 
