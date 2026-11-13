@@ -13,12 +13,12 @@
 #       git apply scripts/mutations/m85-*.patch
 # 復元: git apply -R scripts/mutations/m85-*.patch
 diff --git a/apps/tasuki-sync/src/application/topic-broadcast.ts b/apps/tasuki-sync/src/application/topic-broadcast.ts
-index 81aed67a..72725349 100644
+index 370a71c0..1a6c554d 100644
 --- a/apps/tasuki-sync/src/application/topic-broadcast.ts
 +++ b/apps/tasuki-sync/src/application/topic-broadcast.ts
-@@ -19,7 +19,7 @@ import { TOOL_HUB, TOOL_IDS } from "./tool-id.js";
-  * ハブ＋`tool-id.ts` の一覧の全道具。道具を足すと自動で入る（かつては道具ごとに手で足していた）。
-  * 並びは契約ではない。
+@@ -21,7 +21,7 @@ import { TOOL_HUB, TOOL_IDS } from "./tool-id.js";
+  * フレームを先に見分けるようになってから足した経緯がある）。**新しい道具の web も `TopicFrameSchema` を
+  * 先に見分けること**（`tool-id.ts` の docstring）。並びは契約ではない。
   */
 -export const TOPIC_RECIPIENT_TOOLS: readonly (ToolId | null)[] = [TOOL_HUB, ...TOOL_IDS];
 +export const TOPIC_RECIPIENT_TOOLS: readonly (ToolId | null)[] = [...TOOL_IDS];
