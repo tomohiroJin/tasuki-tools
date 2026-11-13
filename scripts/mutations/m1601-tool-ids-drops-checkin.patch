@@ -11,10 +11,10 @@
 #       git apply scripts/mutations/m1601-*.patch
 # 復元: git apply -R scripts/mutations/m1601-*.patch
 diff --git a/apps/tasuki-sync/src/application/tool-id.ts b/apps/tasuki-sync/src/application/tool-id.ts
-index 027f569f..8ec7a3ae 100644
+index e6cace40..292429e8 100644
 --- a/apps/tasuki-sync/src/application/tool-id.ts
 +++ b/apps/tasuki-sync/src/application/tool-id.ts
-@@ -64,7 +64,7 @@ export const TOOL_CHECKIN = "checkin";
+@@ -70,7 +70,7 @@ export const TOOL_CHECKIN = "checkin";
  export const TOOL_HUB: ToolId | null = null;
  
  /** このサーバーが載せている道具の一覧。綴りの正本。道具を足すときは定数とこの配列に足す。 */
