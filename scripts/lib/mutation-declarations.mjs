@@ -9273,7 +9273,7 @@ export const MUTATIONS = [
     label: "破棄の共通経路へ渡す束からチェックインの分を落とす",
     patch: "m1625-destroy-drops-checkin-part.patch",
     pkg: "apps/tasuki-sync",
-    tests: ["test/live-ws.checkin.test.ts"],
+    tests: ["test/live-ws.topic.test.ts"],
     note: RESERVED_1620_1639 + " " + "#591。各道具の組み立てが返す `destroy` を展開して渡す形にしたので、展開の行を落とすと実行時にも検出される（型検査も落ちる）。",
   },
 ];

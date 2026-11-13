@@ -1,7 +1,8 @@
 # 変異 1625: destroy-drops-checkin-part
 #
 # 検出を期待するテスト:
-#   - apps/tasuki-sync/test/live-ws.checkin.test.ts
+#   - apps/tasuki-sync/test/live-ws.topic.test.ts
+#     「最後の 1 人が timer から抜けてルームが消えると、お題の接続の参加は ROOM_NOT_FOUND になる」（破棄が途中で落ちる）
 #
 # #591。破棄の共通経路へ渡す束からチェックインの分を落とす。チェックインの保管と猶予が破棄で解放されない（型検査は落ちるが、実行時にも検出される）。
 #
