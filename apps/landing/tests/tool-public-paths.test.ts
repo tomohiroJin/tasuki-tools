@@ -9,18 +9,10 @@ import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { TOOLS } from '../src/tools.js';
+import { LOCATIONS } from './support/tool-locations.js';
 
 const REPO_ROOT = path.resolve(__dirname, '../../..');
 
-/** ツール ID → アプリと配備資材のディレクトリ（名前の形で導出しない。載っていない ID は下のテストで落ちる）。 */
-const LOCATIONS: Record<string, { app: string; deploy: string }> = {
-  timer: { app: 'timer-web', deploy: 'timer' },
-  poker: { app: 'poker-web', deploy: 'poker' },
-  topic: { app: 'topic-web', deploy: 'topic' },
-  roulette: { app: 'roulette-web', deploy: 'roulette' },
-  agenda: { app: 'agenda-web', deploy: 'agenda' },
-  checkin: { app: 'checkin-web', deploy: 'checkin' },
-};
 
 const read = (rel: string): string => readFileSync(path.join(REPO_ROOT, rel), 'utf8');
 
@@ -30,13 +22,13 @@ const read = (rel: string): string => readFileSync(path.join(REPO_ROOT, rel), 'u
 describe.each(TOOLS.map((tool) => [tool.id, tool.href] as const))('%s の公開パス', (id, href) => {
   const where = LOCATIONS[id];
 
-  it('Given tools.ts の札 / When 置き場を引く / Then アプリと配備資材の対応がある', () => {
+  it('Given tools.ts の札 / When 置き場を引く / Then アプリと配備資材の対応がある（鍵は ToolId なので足し忘れは型でも落ちる）', () => {
     expect(where).toBeDefined();
   });
 
   it('Given 札の href / When vite の base・app.env・Caddy 断片を読む / Then どれも同じ公開パスを指す', () => {
     // Given
-    const { app, deploy } = where!;
+    const { app, deploy } = where;
     // When
     // 引用符は一重・二重の両方を拾う（timer は `base: "/timer/"`、poker と topic は一重）
     const base = /base:\s*['"]([^'"]+)['"]/.exec(read(`apps/${app}/vite.config.ts`))?.[1];

@@ -8,15 +8,27 @@
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m511-*.patch
 # 復元: git apply -R scripts/mutations/m511-*.patch
+#
+# #590 で一覧から導く形に作り直した。
 diff --git a/apps/tasuki-sync/src/application/topic-broadcast.ts b/apps/tasuki-sync/src/application/topic-broadcast.ts
-index 47f581e1..5a5c07d2 100644
+index 370a71c0..75fbfe21 100644
 --- a/apps/tasuki-sync/src/application/topic-broadcast.ts
 +++ b/apps/tasuki-sync/src/application/topic-broadcast.ts
-@@ -29,7 +29,6 @@ export const TOPIC_RECIPIENT_TOOLS: readonly (ToolId | null)[] = [
-   TOOL_POKER,
-   TOOL_ROULETTE,
-   TOOL_AGENDA,
--  TOOL_CHECKIN,
- ];
+@@ -11,7 +11,7 @@ import { INITIAL_TOPIC_STATE, type TopicState } from "@tasuki/topic-core";
+ import type { RoomStore } from "../ports/room-store.js";
+ import type { TopicStore } from "../ports/topic-store.js";
+ import type { TopicServerMsg } from "../ports/topic-server-msg.js";
+-import { TOOL_HUB, TOOL_IDS } from "./tool-id.js";
++import { TOOL_HUB, TOOL_IDS, TOOL_CHECKIN } from "./tool-id.js";
+ 
+ /**
+  * お題の状態を受け取る接続のツール。**ルームの全接続である**（spec T3・E2）。
+@@ -21,7 +21,7 @@ import { TOOL_HUB, TOOL_IDS } from "./tool-id.js";
+  * フレームを先に見分けるようになってから足した経緯がある）。**新しい道具の web も `TopicFrameSchema` を
+  * 先に見分けること**（`tool-id.ts` の docstring）。並びは契約ではない。
+  */
+-export const TOPIC_RECIPIENT_TOOLS: readonly (ToolId | null)[] = [TOOL_HUB, ...TOOL_IDS];
++export const TOPIC_RECIPIENT_TOOLS: readonly (ToolId | null)[] = [TOOL_HUB, ...TOOL_IDS.filter((id) => id !== TOOL_CHECKIN)];
  
  export interface TopicBroadcasterDeps {
+   store: Pick<RoomStore, "get">;

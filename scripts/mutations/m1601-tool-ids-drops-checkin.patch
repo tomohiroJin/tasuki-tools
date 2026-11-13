@@ -1,0 +1,25 @@
+# 変異 1601: tool-ids-drops-checkin
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/ws/connection-gate.test.ts
+#     `?tool=checkin` が unknown に落ちる
+#
+# #590。`TOOL_IDS` から `TOOL_CHECKIN` を落とす。一覧から導く許可リストが
+# checkin を知らなくなり、チェックインの接続が拒否される。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1601-*.patch
+# 復元: git apply -R scripts/mutations/m1601-*.patch
+diff --git a/apps/tasuki-sync/src/application/tool-id.ts b/apps/tasuki-sync/src/application/tool-id.ts
+index fd9ba5bb..fb43b3bc 100644
+--- a/apps/tasuki-sync/src/application/tool-id.ts
++++ b/apps/tasuki-sync/src/application/tool-id.ts
+@@ -70,7 +70,7 @@ export const TOOL_CHECKIN = "checkin";
+ export const TOOL_HUB: ToolId | null = null;
+ 
+ /** このサーバーが載せている道具の一覧。綴りの正本。道具を足すときは定数とこの配列に足す。 */
+-export const TOOL_IDS = [TOOL_TIMER, TOOL_POKER, TOOL_TOPIC, TOOL_ROULETTE, TOOL_AGENDA, TOOL_CHECKIN] as const;
++export const TOOL_IDS = [TOOL_TIMER, TOOL_POKER, TOOL_TOPIC, TOOL_ROULETTE, TOOL_AGENDA] as const;
+ 
+ /** 一覧にある道具の識別子（リテラルの共用体）。`ToolId`（room-core・不透明な string）の部分型。 */
+ export type KnownToolId = (typeof TOOL_IDS)[number];

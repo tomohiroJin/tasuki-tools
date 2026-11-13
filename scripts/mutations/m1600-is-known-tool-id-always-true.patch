@@ -1,0 +1,23 @@
+# 変異 1600: is-known-tool-id-always-true
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/ws/connection-gate.test.ts
+#     `?tool=hub` と `?tool=Timer` が unknown にならない（許可リストが消える）
+#
+# #590。`isKnownToolId` が常に true を返す。許可リストに無い宣言が通り、
+# 「繋がるのにコマンドが通らない」静かな壊れ方になる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1600-*.patch
+# 復元: git apply -R scripts/mutations/m1600-*.patch
+diff --git a/apps/tasuki-sync/src/application/tool-id.ts b/apps/tasuki-sync/src/application/tool-id.ts
+index fd9ba5bb..72b7e034 100644
+--- a/apps/tasuki-sync/src/application/tool-id.ts
++++ b/apps/tasuki-sync/src/application/tool-id.ts
+@@ -77,5 +77,5 @@ export type KnownToolId = (typeof TOOL_IDS)[number];
+ 
+ /** 文字列が一覧の道具か（`?tool=` の許可リスト）。大文字小文字を区別する。 */
+ export function isKnownToolId(value: string): value is KnownToolId {
+-  return TOOL_IDS.some((id) => id === value);
++  return value.length >= 0;
+ }

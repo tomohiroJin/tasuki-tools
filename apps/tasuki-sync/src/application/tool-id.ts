@@ -5,6 +5,17 @@
  * として扱い（設計正本 §5.1）、どのツールが実在するかを知らない。知っているのは
  * 合成ルートであるこのアプリだけなので、リテラルをここへ集める。
  *
+ * **道具の列挙もここの一覧（`TOOL_IDS`）から導く。** `Protocol`（`adapters/ws/connection-gate.ts`）と
+ * `TOPIC_RECIPIENT_TOOLS` は一覧に自動で追従する。ログの語彙 `PROTOCOL_LOG_NAMES` は手で 1 行足すが、
+ * 鍵の網羅を型（`Record<AcceptedProtocol, …>`）が要求するので、足し忘れは型検査が落とす。
+ * このアプリの中で残る手の場所は `ws-adapter.ts`（受け口の表とチャンネル）・`create-sync-server.ts`（組み立て）・
+ * `destroy-room.ts`（状態を持つ道具の後始末）で、#591 で直す。アプリの外では、玄関（`apps/landing/src/tools.ts` の `TOOLS` と
+ * そのテストの置き場の表）・E2E（`e2e/specs/site-exterior.spec.ts` の `PAGES`）・監査の許可リスト（`scripts/audit-*.mjs`）を別に足す。
+ *
+ * **一覧に足した道具は、お題の配信先（`TOPIC_RECIPIENT_TOOLS`）に自動で入る。** つまりその道具の web には
+ * `type: "topic"` のフレームが届くので、web 側は `@tasuki/topic-core` の `TopicFrameSchema` を自分のスキーマより
+ * 先に見分けなければならない（#209・#212。契約に合わないフレームを「捨てた」と利用者へ通知する道具がある）。
+ *
  * ## 誰がこの値を決めるのか
  *
  * **接続 URL のクエリ（`?tool=`）が宣言そのものである**（設計正本 D14 の S4b 追記・
@@ -57,3 +68,14 @@ export const TOOL_CHECKIN = "checkin";
  * （`topic-broadcast.ts` がハンドラから取っていて、アプリケーション層の中で向きが逆だった）。
  */
 export const TOOL_HUB: ToolId | null = null;
+
+/** このサーバーが載せている道具の一覧。綴りの正本。道具を足すときは定数とこの配列に足す。 */
+export const TOOL_IDS = [TOOL_TIMER, TOOL_POKER, TOOL_TOPIC, TOOL_ROULETTE, TOOL_AGENDA, TOOL_CHECKIN] as const;
+
+/** 一覧にある道具の識別子（リテラルの共用体）。`ToolId`（room-core・不透明な string）の部分型。 */
+export type KnownToolId = (typeof TOOL_IDS)[number];
+
+/** 文字列が一覧の道具か（`?tool=` の許可リスト）。大文字小文字を区別する。 */
+export function isKnownToolId(value: string): value is KnownToolId {
+  return TOOL_IDS.some((id) => id === value);
+}
