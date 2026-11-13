@@ -11,7 +11,7 @@
 #       git apply scripts/mutations/m1600-*.patch
 # 復元: git apply -R scripts/mutations/m1600-*.patch
 diff --git a/apps/tasuki-sync/src/application/tool-id.ts b/apps/tasuki-sync/src/application/tool-id.ts
-index e6cace40..6e892b40 100644
+index fd9ba5bb..72b7e034 100644
 --- a/apps/tasuki-sync/src/application/tool-id.ts
 +++ b/apps/tasuki-sync/src/application/tool-id.ts
 @@ -77,5 +77,5 @@ export type KnownToolId = (typeof TOOL_IDS)[number];

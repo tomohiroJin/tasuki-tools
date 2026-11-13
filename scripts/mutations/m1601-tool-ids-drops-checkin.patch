@@ -11,7 +11,7 @@
 #       git apply scripts/mutations/m1601-*.patch
 # 復元: git apply -R scripts/mutations/m1601-*.patch
 diff --git a/apps/tasuki-sync/src/application/tool-id.ts b/apps/tasuki-sync/src/application/tool-id.ts
-index e6cace40..292429e8 100644
+index fd9ba5bb..fb43b3bc 100644
 --- a/apps/tasuki-sync/src/application/tool-id.ts
 +++ b/apps/tasuki-sync/src/application/tool-id.ts
 @@ -70,7 +70,7 @@ export const TOOL_CHECKIN = "checkin";
