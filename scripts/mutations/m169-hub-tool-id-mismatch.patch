@@ -11,22 +11,13 @@
 #
 # #94 spec §7.3。在席の表示（`whereLabel`）は、名簿の `tools` に載るサーバーの綴り（`roulette`）で
 # 札を `id` から引く。札の `id` がずれると引けず、知らない綴りは隠さずそのまま出す設計なので
-# 「roulette にいます」と生の綴りが出る。型の綴りも合わせて変えてあるので型検査は通る
-# （綴りのずれを型は拾えない）。
+# 「roulette にいます」と生の綴りが出る。綴りのずれは型が拾えない。
+# #590 で一覧から導く形に作り直した（型は TOOLS から導かれるので、配列の id の 1 行だけ変える）。
 diff --git a/apps/landing/src/tools.ts b/apps/landing/src/tools.ts
-index be5763f1..3b230909 100644
+index 49f22801..87733047 100644
 --- a/apps/landing/src/tools.ts
 +++ b/apps/landing/src/tools.ts
-@@ -12,7 +12,7 @@ export interface Tool {
-    * 名簿の `tools` に載る値と同じ。在席の表示（`RoomChoice.tsx`）はこれで名前を引く
-    * —— 並び順で引くと、札を足したときに名前がずれる（#91 PR 2 で直した）。
-    */
--  readonly id: "timer" | "poker" | "topic" | "roulette" | "agenda" | "checkin";
-+  readonly id: "timer" | "poker" | "topic" | "wheel" | "agenda" | "checkin";
-   /** 札の左上に出る一語。そのツールが扱うもの。 */
-   readonly pip: string;
-   /** ツール名（札の下端） */
-@@ -43,7 +43,7 @@ export const TOOLS: readonly Tool[] = [
+@@ -44,7 +44,7 @@ export const TOOLS = [
      mark: "spade",
    },
    {

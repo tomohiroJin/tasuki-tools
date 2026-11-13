@@ -892,7 +892,8 @@ export const MUTATIONS = [
       "#95 S5c（#249）。入口を `/ws` の 1 本に畳んだので、**経路ではツールを決められない**。" +
       "振り分けの根拠はクエリだけになった。無視すると poker のコマンドが timer の " +
       "メッセージ層へ落ち、**繋がるのにコマンドが通らない**という静かな壊れ方をする。" +
-      "`?tool=` 無し（ハブ）は変えないので、**ハブの接続を見るテストでは緑のまま**である。",
+      "`?tool=` 無し（ハブ）は変えないので、**ハブの接続を見るテストでは緑のまま**である。" +
+      "#590 で一覧から導く形に作り直した。",
   },
   {
     id: 37,
@@ -1610,7 +1611,7 @@ export const MUTATIONS = [
     patch: "m159-topic-excludes-roulette.patch",
     pkg: "apps/tasuki-sync",
     tests: ["test/live-ws.roulette.test.ts"],
-    note: "#94 E12・spec R15。ルーレットの画面が『お題「…」の進行役を決めます』を出せない。",
+    note: "#94 E12・spec R15。ルーレットの画面が『お題「…」の進行役を決めます』を出せない。#590 で一覧から導く形に作り直した。",
   },
   {
     id: 167,
@@ -1666,7 +1667,7 @@ export const MUTATIONS = [
     patch: "m169-hub-tool-id-mismatch.patch",
     pkg: "apps/landing",
     tests: ["tests/room-choice-layout.test.tsx"],
-    note: "#94 spec §7.3。在席の表示がルーレットに居る人を札の名前で出せず、「roulette にいます」と生の綴りが出る。型は綴りのずれを拾わない。",
+    note: "#94 spec §7.3。在席の表示がルーレットに居る人を札の名前で出せず、「roulette にいます」と生の綴りが出る。型は綴りのずれを拾わない。#590 で一覧から導く形に作り直した。",
   },
   {
     id: 162,
@@ -3045,7 +3046,7 @@ export const MUTATIONS = [
     patch: "m441-topic-excludes-agenda.patch",
     pkg: "apps/tasuki-sync",
     tests: ["test/live-ws.agenda.test.ts"],
-    note: "#429 進行タイマーを開いている人に、お題の掲げ直しも取り下げも届かなくなる。",
+    note: "#429 進行タイマーを開いている人に、お題の掲げ直しも取り下げも届かなくなる。#590 で一覧から導く形に作り直した。",
   },
   {
     id: 442,
@@ -3117,7 +3118,7 @@ export const MUTATIONS = [
     patch: "m449-hub-tool-id-mismatch-agenda.patch",
     pkg: "apps/landing",
     tests: ["tests/room-choice-layout.test.tsx"],
-    note: "#429。在席の表示が進行タイマーに居る人を札の名前で出せず、「agenda にいます」と生の綴りが出る。型は綴りのずれを拾わない。",
+    note: "#429。在席の表示が進行タイマーに居る人を札の名前で出せず、「agenda にいます」と生の綴りが出る。型は綴りのずれを拾わない。#590 で一覧から導く形に作り直した。",
   },
   {
     id: 451,
@@ -3622,7 +3623,7 @@ export const MUTATIONS = [
     patch: "m511-topic-excludes-checkin.patch",
     pkg: "apps/tasuki-sync",
     tests: ["test/live-ws.checkin.test.ts"],
-    note: "#406 段 2。チェックインを開いている人に、お題の掲げ直しも取り下げも届かなくなる。",
+    note: "#406 段 2。チェックインを開いている人に、お題の掲げ直しも取り下げも届かなくなる。#590 で一覧から導く形に作り直した。",
   },
   {
     id: 512,
@@ -3731,7 +3732,7 @@ export const MUTATIONS = [
     pkg: "apps/landing",
     tests: ["tests/room-choice-layout.test.tsx"],
     note:
-      "#406 段 4。m169・m449 と同じ型。札の id を引く在席の表示が、知らない綴りを生のまま「checkin にいます」と出す。型の綴りも合わせて変えるので型検査は通る。",
+      "#406 段 4。m169・m449 と同じ型。札の id を引く在席の表示が、知らない綴りを生のまま「checkin にいます」と出す。型の綴りも合わせて変えるので型検査は通る。#590 で一覧から導く形に作り直した。",
   },
   {
     id: 540,

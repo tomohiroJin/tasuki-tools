@@ -1,17 +1,23 @@
+# 変異 36: 接続 URL の ?tool= を無視して常に timer の層へ流す
+# #590 で一覧から導く形に作り直した。
 diff --git a/apps/tasuki-sync/src/adapters/ws/connection-gate.ts b/apps/tasuki-sync/src/adapters/ws/connection-gate.ts
-index a5c4984..4f7a03f 100644
+index 556ac170..a80b61fd 100644
 --- a/apps/tasuki-sync/src/adapters/ws/connection-gate.ts
 +++ b/apps/tasuki-sync/src/adapters/ws/connection-gate.ts
-@@ -46,13 +46,7 @@ const TOOL_QUERY_KEY = "tool";
+@@ -7,7 +7,7 @@
+  */
+ import type { LogSafe } from "../../application/log/log-safe.js";
+ import { CONN_REJECT_REASONS } from "../../application/log/vocabulary.js";
+-import { isKnownToolId, type KnownToolId } from "../../application/tool-id.js";
++import { isKnownToolId, TOOL_TIMER, type KnownToolId } from "../../application/tool-id.js";
+ 
+ /**
+  * 接続層の選択子。`tool-id.ts` の一覧にある道具に、`"hub"`（宣言なし）と `"unknown"`（許可リストに無い）を
+@@ -48,8 +48,7 @@ const TOOL_QUERY_KEY = "tool";
  export function protocolFromRequestUrl(url: URL): Protocol {
    const declared = url.searchParams.get(TOOL_QUERY_KEY);
    if (declared === null) return "hub";
--  if (declared === TOOL_TIMER) return TOOL_TIMER;
--  if (declared === TOOL_POKER) return TOOL_POKER;
--  if (declared === TOOL_TOPIC) return TOOL_TOPIC;
--  if (declared === TOOL_ROULETTE) return TOOL_ROULETTE;
--  if (declared === TOOL_AGENDA) return TOOL_AGENDA;
--  if (declared === TOOL_CHECKIN) return TOOL_CHECKIN;
+-  if (isKnownToolId(declared)) return declared;
 -  return "unknown";
 +  return TOOL_TIMER;
  }
