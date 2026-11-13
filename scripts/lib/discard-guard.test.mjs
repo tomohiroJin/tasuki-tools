@@ -183,6 +183,7 @@ describe("手順書の正当な形（現物から）", () => {
   // 変更があっても聞かない戻し方（#603: mutations.md は git checkout -- をやめ、作ったパッチを git apply -R で逆に当てる）
   const passing = {
     "docs/guides/procedures/mutations.md": ["git apply -R scripts/mutations/m<ID>-<短い名前>.patch"],
+    "docs/guides/procedures/adversarial-review.md": ["git apply -R <作業ツリーの外>/break.patch"],
   };
   test("手順書にいまもその行がある（表が古びたら赤にする）", () => {
     for (const [rel, lines] of Object.entries({ ...docs, ...passing })) for (const line of lines) assert.ok(read(rel).includes(line), `${rel}: ${line}`);
