@@ -1,6 +1,6 @@
 /**
  * WS アダプタ — 薄い WebSocket 抽象層
- * 要件（`docs/plans/tdd-mob-pro-timer/spec.md`）: FR-013, NFRセキュリティ(S2/S3)
+ * 要件: `docs/plans/tdd-mob-pro-timer/spec.md` の FR-013、セキュリティ(S2/S3)は同 `plan.md`
  *
  * 実装は `Bun.serve`（S5・#20）。
  * 外から見える振る舞い（close コード・エラーコード・426）は ws 実装のときと同じ。

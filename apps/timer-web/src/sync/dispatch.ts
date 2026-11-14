@@ -1,6 +1,7 @@
 /**
  * サーバーメッセージの純粋な振り分け
- * 要件（`docs/plans/tdd-mob-pro-timer/spec.md`）: FR-025, FR-026
+ * 当時の要件は `docs/plans/tdd-mob-pro-timer/tasks.md` の T055（代表者によるお題の生成と委譲）だったが、
+ * いまは `snapshot`・`room.*`・`signal`・`time.pong`・`error`・お題のフレームの振り分けだけを持つ。
  * WebSocket に依存しないため単体テスト可能。client.ts から利用する。
  */
 
