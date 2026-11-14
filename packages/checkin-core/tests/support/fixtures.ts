@@ -4,7 +4,6 @@ import { INITIAL_CHECKIN_STATE, chooseMethod, type CheckinState, type MethodId }
 export const a = "a";
 export const b = "b";
 export const c = "c";
-export const trio = [a, b, c] as const;
 
 export const empty: CheckinState = INITIAL_CHECKIN_STATE;
 

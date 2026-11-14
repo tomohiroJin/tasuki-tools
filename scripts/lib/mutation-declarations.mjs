@@ -107,9 +107,6 @@ const RESERVED_1010_1019 =
 const RESERVED_1020_1029 =
   "**対応表より後に足した変異。** 1020〜1029 は #547 に割り当てた範囲。";
 
-const RESERVED_1660_1679 =
-  "**対応表より後に足した変異。** 1660〜1679 は #595（#482-6）に割り当てた範囲。";
-
 const RESERVED_1360_1369 =
   "**対応表より後に足した変異。** 1360〜1369 は #554 に追加で割り当てた範囲（1350〜1359 を使い切ったため。1340〜1349 は #553 の予約を避けた）。";
 
@@ -217,6 +214,12 @@ const RESERVED_1570_1579 =
 
 const RESERVED_1600_1619 =
   "**対応表より後に足した変異。** 1600〜1619 は #590（道具の列挙を 1 か所から）に割り当てた範囲。";
+
+const RESERVED_1640_1659 =
+  "**対応表より後に足した変異。** 1640〜1659 は #593（checkin のやり方の分岐を Record に寄せる）に割り当てた範囲。";
+
+const RESERVED_1660_1679 =
+  "**対応表より後に足した変異。** 1660〜1679 は #595（#482-6）に割り当てた範囲。";
 
 const RESERVED_1420_1429 =
   "**対応表より後に足した変異。** 1420〜1429 は #557 に追加で割り当てた範囲（1120〜1129・1410〜1419 を使い切ったため。PR #580 のレビューの指摘で足した）。";
@@ -9228,6 +9231,22 @@ export const MUTATIONS = [
     pkg: "apps/tasuki-sync",
     tests: ["test/ws/connection-gate.test.ts"],
     note: RESERVED_1600_1619 + " " + "#590 の敵対的レビュー（記録 4）。綴りの末尾に余計な字がついた宣言（?tool=timerx）が unknown にならずに通る。述語にした今は 1 行で開く穴。",
+  },
+  {
+    id: 1640,
+    label: "focus の顔が割の数でなく札の ID をそのまま出す",
+    patch: "m1640-focus-numeral-shows-card-id.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/card-face.test.tsx"],
+    note: RESERVED_1640_1659 + " " + "#593。表の値に持たせた focus の特例（20…100 を 2・5・8・10 に割る）が落ち、数字の札が 20・50・80・100 と出る。",
+  },
+  {
+    id: 1641,
+    label: "ROTI の顔が数字でなく絵になる（数のやり方の正本 CARD_FACES の kind がずれる）",
+    patch: "m1641-roti-face-not-numeral.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/card-face.test.tsx", "tests/reveal-view.test.ts"],
+    note: RESERVED_1640_1659 + " " + "#593。NUMERIC_METHODS を顔の表から導くので、顔が絵に変わると開いた後の要約の言い方も変わる。顔と要約のずれを突く。",
   },
   {
     id: 1660,

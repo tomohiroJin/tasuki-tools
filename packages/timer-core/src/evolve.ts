@@ -1,6 +1,6 @@
 /**
  * evolve 関数 — DomainEvent を適用して集約を更新する純粋関数
- * T013: FR-003, FR-007, FR-008
+ * 要件（`docs/plans/tdd-mob-pro-timer/spec.md`）: FR-003, FR-007, FR-008
  */
 
 import type { Aggregate, BreakMark, TimerConfig, RotationEntry, ServerClock } from "./aggregate.js";
