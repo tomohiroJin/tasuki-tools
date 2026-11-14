@@ -9276,4 +9276,20 @@ export const MUTATIONS = [
     tests: ["test/live-ws.topic.test.ts"],
     note: RESERVED_1620_1639 + " " + "#591。各道具の組み立てが返す `destroy` を展開して渡す形にしたので、展開の行を落とすと実行時にも検出される（型検査も落ちる）。",
   },
+  {
+    id: 1626,
+    label: "組み立ての監査が、組の parts（分けた先）を読み飛ばす",
+    patch: "m1626-assembly-audit-ignores-parts.patch",
+    pkg: "scripts",
+    tests: ["audit-assembly-wiring.test.mjs"],
+    note: RESERVED_1620_1639 + " " + "#591。分けた先が実在しなくても、組み立て関数が呼ばなくても緑になる。",
+  },
+  {
+    id: 1627,
+    label: "組み立ての監査が、組み立て関数が分けた先の関数を呼んでいるかを見ない",
+    patch: "m1627-assembly-audit-skips-part-call-check.patch",
+    pkg: "scripts",
+    tests: ["audit-assembly-wiring.test.mjs"],
+    note: RESERVED_1620_1639 + " " + "#591。import だけで通る。呼ばれない部品は配線から落ちる。",
+  },
 ];
