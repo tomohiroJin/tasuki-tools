@@ -1,7 +1,7 @@
 # ADR-0015: web 層は「純粋関数・同期フック・画面」に責務を分ける
 
 - **ステータス**: Accepted（2026-08-17）
-  - 末尾の追記（2026-11-14・#598。対応表の web の行を実体に合わせる）は **Proposed**（採択は人）
+  - 末尾の追記（2026-11-14・#598。対応表の web の行を実体に合わせる）は **Accepted**（2026-11-14）
 - **関連**: [#72](https://github.com/tomohiroJin/tasuki-tools/issues/72)（ADR に沿ったリファクタリング、
   親 epic [#67](https://github.com/tomohiroJin/tasuki-tools/issues/67)）/
   [`docs/adr/0004`](./0004-sync-server-ports-and-adapters.md)（同期サーバー側の対応する標準）/
@@ -134,7 +134,7 @@ timer-web が後者を持たないためである。
 
 ## 追記（2026-11-14・#598）: 対応表の web の行を実体に合わせる（画面→ドメイン、純粋判断→protocol を許す）
 
-- **ステータス**: **Proposed**（2026-11-14 起案。採択は人。冒頭のステータス「Accepted（2026-08-17）」は、この追記より前の決定を指す）
+- **ステータス**: **Accepted**（2026-11-14 起案・同日に利用者が採択。冒頭のステータス「Accepted（2026-08-17）」は、この追記より前の決定を指す）
 - **関連**: [#598](https://github.com/tomohiroJin/tasuki-tools/issues/598)（#482-9）/
   [#592](https://github.com/tomohiroJin/tasuki-tools/issues/592)（#482-3。層の向きの監査）/
   [`docs/superpowers/specs/2026-11-13-architecture-review-survey.md`](../superpowers/specs/2026-11-13-architecture-review-survey.md)（#587 の調査。節 1.2・1.3・1.4・節 8 #1）/
@@ -254,8 +254,8 @@ ISSUE #598 の完了条件「許可表を新しい対応表に合わせると、
 ### 影響
 
 - **コード（`apps/` `packages/` `scripts/`）は変えない。** この追記と同じ PR で、対応表（`docs/guides/architecture.md`）の行を上の表のとおりに直した
-  （アダプタ・web の純粋判断・web の画面の 3 行を書き換え、web の端末 I/O の行を足した。採択前の案であることを表の下に注記した）
-- **#592 の監査への反映**: 採択されたら、#592 が層の向きの監査を作るときに、画面→ドメインの型と値と、純粋判断→`packages/protocol` を許す側に入れる。
+  （アダプタ・web の純粋判断・web の画面の 3 行を書き換え、web の端末 I/O の行を足した。表の下に、この追記で書き換えたことを注記した）
+- **#592 の監査への反映**: #592 が層の向きの監査を作るときに、画面→ドメインの型と値と、純粋判断→`packages/protocol` を許す側に入れる。
   上の 66 辺は違反に数えない。あわせて、「web の端末 I/O」の行を `layerOf` で分ける（名前の規則では分けられないので、許可リストで倒す）。
   そのとき上の 2 辺（`web/pure -> web/io`）が違反として見える。反映は #592 側で行う（この追記では監査を置かない）
 - 採択されなかったとき（Rejected）は、`docs/guides/architecture.md` で直した行を元に戻し、(b) か (c) を別に決める
