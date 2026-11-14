@@ -1,6 +1,6 @@
 /**
  * IndexedDB を使った完成記録の永続化
- * T029: FR-028
+ * 要件（`docs/plans/tdd-mob-pro-timer/spec.md`）: FR-028
  */
 
 import type { CompletionRecord } from "@tasuki/timer-core";

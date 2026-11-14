@@ -1,6 +1,7 @@
 /**
  * セッション画面
- * T057: FR-007, FR-017, FR-030 ＋ デザインシステム適用
+ * 要件: 当初は `docs/plans/tdd-mob-pro-timer/spec.md` の FR-007・FR-017（役割ごとの操作は #95 S3 で消えた）。
+ * いまの構成は `docs/plans/tdd-mob-pro-timer-v2-experience/spec.md` の FR-022・FR-026・FR-028・FR-030・FR-060（T038 で焦点ゾーン隔離へ再構成）
  */
 
 import React, { useMemo, useState } from "react";

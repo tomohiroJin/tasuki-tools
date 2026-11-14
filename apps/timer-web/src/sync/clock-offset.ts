@@ -1,6 +1,6 @@
 /**
  * clockOffset 推定
- * T042: FR-007, SC-001
+ * 要件（`docs/plans/tdd-mob-pro-timer/spec.md`）: FR-007, SC-001
  * time.ping を複数回送り、round-trip 補正 + 中央値で offset を推定する
  */
 

@@ -151,6 +151,31 @@ WS の置き場と、URL・接続状態の写しは `scripts/audit-web-sync-boun
 | 進行タイマー | **会の進行表（名前と長さを持つステップの並び）を全員で同じ盤に映して順に計るツール**（`packages/agenda-core`・接続の種類 `?tool=agenda`・公開パス `/agenda/`）。定義（シナリオ・`ScenarioInput`）と展開済みの並び（`PlannedStep[]`・`expand`）を分け、進行の遷移（開始・次へ・一時停止・延長・飛ばす・最初から）は純粋関数で、操作はステップの ID で指す。**押し巻き**は実時間の経過と予定の差（一時停止中も増える）。「自動で次へ」の判断と期限の予約はサーバーが単調時計で持ち、画面へは送る時点で計った経過を配る。懐中時計の盤・映す表示・端末の保存は `apps/agenda-web` が持つ（[ADR-0027](../adr/0027-agenda-timer.md)） |
 | チェックイン・チェックアウト | **会の始まりと終わりに、全員が絞り込んだ札から 1 枚を伏せて出し、一斉に開くツール**（`packages/checkin-core`・接続の種類 `?tool=checkin`・公開パス `/checkin/`）。**匿名はサーバーが送らないことで守る**: 写し（`toView`）は受け手ごとに作り、開く前は他人の札の中身を、匿名で開いた後は誰がどの山かを載せない。操作は回の番号 `seq` で指し、違う回の操作は何もしない。「全員」はこの道具に在席し見学でない人で、名簿の変化は `hub.broadcastRoster` の口で受けて測り直す。見学者はこの道具が自前で持つ。やり方の札の絵・開く動きは `apps/checkin-web` が持つ（[ADR-0028](../adr/0028-checkin-cards.md)） |
 
+### 語と識別子の対応（#597）
+
+**識別子は変えない。** 同じ概念に複数の語が残っている所を、実装を読む人のために対応づけて記録します。
+新しい名前を足すときは、まずここの既存の語に寄せられないかを確かめてください。
+
+| 概念 | 識別子（置き場） | 備考 |
+|---|---|---|
+| 参加者（ルームに居る人） | `Participant`（`packages/room-core`・名簿の正本） | 用語集の「参加者」。DTO・画面・コマンドの語もこれ（`participant.remove` など） |
+| 参加者（timer の画面の行） | `Occupant`（`apps/tasuki-sync/src/application/timer-snapshot-dto.ts`） | 名簿の `Participant` と timer の状態を合わせた、配信用の 1 行。`occupants()` が作る |
+| 参加者（checkin の席） | `seats` / `SeatView`（`packages/checkin-core`） | 札を出す側の見え方。`playersOf` は「在席かつ見学でない人」 |
+| 参加者（timer の wire） | `Participant` / `Seat`（`packages/timer-core/src/wire.ts`） | 配信する DTO。`Participant` は名簿の 1 人かローテーション上の代理。`Seat` は交代の輪（`rotation`）の席 1 つで、`rotation` と同じ順・同じ長さ（離席した人の席も残る） |
+| 参加者（ルーレットの入る人） | `Member`（`packages/roulette-core`） | 在室者に、足したゲストが加わる。`poolOf` が入る人を決める |
+| 玄関（道具を選ぶ入口の画面） | `apps/landing`（`App.tsx`・`tools.ts`・`hub/`） | アプリの置き場は `landing`。選択画面の状態・配信は `hub`（`use-hub-sync`・`HubServerMsg`・`hub-handlers.ts`） |
+| 玄関（道具へ入る手続き） | `entry`（`apps/tasuki-sync/src/application/room-entry.ts`・`join-tool-room.ts`） | 合言葉の関門・復帰の組の照合。「入ること」を指し、画面の名前ではない。web 側の `useRoomEntry.ts`・`ui/entry.ts`・`use-timer-entry.ts` は各アプリの入室の画面・接続の処理で、別物 |
+| 回（poker の 1 回の投票） | `Round`（`packages/poker-core`） | 用語集の「ラウンド（poker）」 |
+| 回（checkin の 1 回の札出し） | `Round` と `seq`（`packages/checkin-core`） | `seq` は新しい回ごとに +1 する番号 |
+| 回（進行タイマーの繰り返し） | `round` / `rounds`（`packages/agenda-core`） | シナリオ全体を繰り返す回数と、各ステップが何回目か |
+| 回（timer のセッション） | `session`（`SessionState`・`SessionAction`。`packages/timer-core`） | 開始から締めくくりまで。poker の `Round` とは別物 |
+| 回（進行タイマーの進行） | `run`（`apps/agenda-web/src/hooks/use-run-signals.ts`） | 「進行」の意味。繰り返しの `round` とは別 |
+| 回（ルーレットの順番回し） | `OrderRound`（`packages/roulette-core`） | 順番に回す 1 周 |
+| 回（ルーレットの 1 回の抽選） | `Spin`（`packages/roulette-core`） | 1 回ぶんの結果・止め方を持つ。`seq` は回した通し番号 |
+
+「玄関」と「回」は、道具ごとに意味が違うので 1 つの語へ統一しない。参加者の識別子は、
+持っている情報の範囲が違う（名簿の 1 行・timer の状態・配信の形・画面の都合）ため別の型のまま保つ。
+
 ## 一般的な方法論との対応
 
 この体系は、方法論の名前ではなく**このプロジェクト固有の判断**として原則を立てている
