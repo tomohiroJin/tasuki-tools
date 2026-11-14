@@ -39,7 +39,7 @@ S2〜S4a では poker 側の入れ子（src/poker 配下。**S4b で畳みまし
 | アプリケーション | `apps/*-sync/src/application` | ドメイン・プロトコル契約・ポート・`packages/rate-limit` |
 | ポート | `apps/*-sync/src/ports` | ドメインの型 |
 | アダプタ | `apps/*-sync/src/adapters`（web アプリの中は下の「web の…」の行で決める。#598 の案 ※） | 上のすべて |
-| web の純粋判断 | web アプリ配下で React・I/O に依存しない `.ts`（例: `apps/timer-web/src/ui/screen.ts`・`apps/poker-web/src/router.ts` の `parseRoute`・`apps/landing/src/hub/hub-state.ts`） | ドメインの型と値（関数・定数・スキーマ）・`packages/protocol`（React・I/O に依存しない。下の「web の端末 I/O」も読まない。#598 の案 ※） |
+| web の純粋判断 | web アプリ配下で React・I/O に依存しない `.ts`（例: `apps/timer-web/src/ui/screen.ts`・`apps/timer-web/src/ui/error-action.ts`・`apps/landing/src/hub/hub-state.ts`。`router.ts` の `parseRoute` は関数としては純粋だが、同じファイルに `redirectTo` があるのでファイルとしては下の「web の端末 I/O」に置く） | ドメインの型と値（関数・定数・スキーマ）・`packages/protocol`（React・I/O に依存しない。下の「web の端末 I/O」も読まない。#598 の案 ※） |
 | web の端末 I/O（#598 の案 ※） | web アプリの `src` の `.ts` で、同期フックでも画面でもなく、ブラウザの I/O（`localStorage`・IndexedDB・音・`location`・`document` など）・時計・乱数に触るもの（例: `apps/timer-web/src/platform/sound.ts`・`apps/roulette-web/src/storage/regulars.ts`・`apps/timer-web/src/prefs/local-prefs.ts`・各アプリの `router.ts`）。純粋な関数と I/O が同じファイルにあるとき（`router.ts` の `parseRoute` と `redirectTo`）は、ファイルとしてはこの行に置く | ドメインの型と値・純粋判断（React と WebSocket は持たない。WebSocket は同期フックの持ち物） |
 | web の同期フック | web アプリの同期フック（例: `apps/poker-web/src/hooks/useSync.ts`・`apps/landing/src/hub/use-hub-sync.ts`）。大きくなったら同じ層のサブフックに分けてよい（例: `apps/timer-web/src/sync/use-timer-entry.ts`・`apps/poker-web/src/hooks/useRoomEntry.ts`。#369） | 上のすべて ＋ WebSocket |
 | web の同期クライアント | `packages/sync-client` | なし（ツールの語彙を持たない。WS の保持と再接続・参加の失敗の判断・端末の同一性。同期フックだけが読む） |
