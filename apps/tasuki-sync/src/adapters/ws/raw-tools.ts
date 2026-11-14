@@ -10,7 +10,7 @@
  *
  * 鍵の集合 {@link RawToolId} は**一覧（`application/tool-id.ts` の `TOOL_IDS`）から導く**
  * （`hub` + 一覧から timer・poker を除いたもの）。表（{@link RawToolFrames}・{@link RAW_BROADCAST}）は
- * この集合と**両向きに**照合される —— 行が足りなければ型検査が落ち（`extends Record<RawToolId, …>`・
+ * この集合と**両向きに**照合される —— 行が足りなければ型検査が落ち（{@link RawToolFramesCoverIds}・
  * `satisfies Record<RawToolId, …>`）、余計な行があっても落ちる（{@link NoExtraRawToolFrames}・`satisfies` の余剰検査）。
  * 実行時の並び（{@link RAW_TOOL_IDS}）は同じ一覧から作り、値の側は `test/ws/raw-tools.test.ts` がリテラルで固定する。
  *
@@ -50,15 +50,18 @@ export type RawToolId = "hub" | Exclude<KnownToolId, "timer" | "poker">;
  *   `own` より広い。{@link RawToolOutbound} の `send` / `broadcast` が受ける。
  *
  * 全員へ同じものを送る口（`broadcast`）を持つかは {@link RAW_BROADCAST} が決める。
- * **`extends Record<RawToolId, …>` が足りない行を、{@link NoExtraRawToolFrames} が余計な行を落とす。**
+ * **{@link RawToolFramesCoverIds} が足りない行を、{@link NoExtraRawToolFrames} が余計な行を落とす。**
  */
-export interface RawToolFrames extends Record<RawToolId, { own: unknown; out: unknown }> {
+export interface RawToolFrames {
   hub: { own: HubServerMsg; out: HubServerMsg };
   topic: { own: TopicOwnFrame; out: TopicServerMsg };
   roulette: { own: RouletteOwnFrame; out: RouletteServerMsg };
   agenda: { own: AgendaOwnFrame; out: AgendaServerMsg };
   checkin: { own: CheckinOwnFrame; out: CheckinServerMsg };
 }
+
+/** 一覧から導いた鍵のすべてに、表の行があること（型だけの断言）。 */
+export type RawToolFramesCoverIds = AssertNever<Exclude<RawToolId, keyof RawToolFrames>>;
 
 /** 表に、一覧から導いた鍵に無い行が残っていないこと（型だけの断言）。 */
 export type NoExtraRawToolFrames = AssertNever<Exclude<keyof RawToolFrames, RawToolId>>;
