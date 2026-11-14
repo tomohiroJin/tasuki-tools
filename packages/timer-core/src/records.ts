@@ -1,6 +1,6 @@
 /**
  * 完成記録の生成
- * T021: FR-028
+ * 要件（`docs/plans/tdd-mob-pro-timer/spec.md`）: FR-028
  */
 
 import type { CompletionRecord, ServerClock } from "./aggregate.js";

@@ -1,6 +1,7 @@
 /**
  * アプリケーションハンドラ
- * T034, T036, T040c, T045, T047, T049, T053, T055
+ * （timer のルームスコープコマンドの入口。要件は `docs/plans/tdd-mob-pro-timer/spec.md` と
+ * `docs/plans/tdd-mob-pro-timer-v2-experience/spec.md`）
  * フロー: validate → decide → evolve → store → broadcast
  *
  * #95 S3 で役割とホストを廃止したため、かつて validate と decide の間にあった
@@ -276,7 +277,7 @@ export function makeHandlers(deps: HandlerDeps) {
    *
    * **`sendError(connId, "CODE", errorMessageFor("CODE"))` という、コードを
    * 2 回書く形（30 箇所超）を 1 引数のヘルパー（例 `rejectWith(connId, code)`）へ
-   * 寄せることは検討したが、あえて寄せていない（T119）。理由は
+   * 寄せることは検討したが、あえて寄せていない（`docs/plans/error-message-specificity/tasks.md` の T119）。理由は
    * `apps/tasuki-sync/test/error-code-coverage.test.ts` の `collectServerErrorCodes()` が
    * `code:\s*"CODE"` / `err\(\s*"CODE"` という**リテラルの形**だけを正規表現で
    * 走査して「利用者に見せる文言が決まっているか」を検出しているためである。
