@@ -17,23 +17,35 @@ import type { RouletteOwnFrame, RouletteServerMsg } from "../../ports/roulette-s
 import type { TopicOwnFrame, TopicServerMsg } from "../../ports/topic-server-msg.js";
 
 /**
- * 行ごとに 3 つの型を持つ。
+ * 行ごとに 2 つの型を持つ。
  *
  * - `own`: **その受け口が自分で返すエラーフレームの型**。広い `*ServerMsg` ではなく狭い `*OwnFrame`（#91 R18）。
  *   `TopicServerMsg` は `HubServerMsg` を合併しており、その `error` は `code: string`（無制約）なので、
  *   契約に無いコードでも通ってしまう。ルーレットほかも同じ理由で `*OwnFrame`。
  * - `out`: その道具の接続へ送れるフレームの型。**ハブ・timer・poker の接続へも配るもの**（お題）があるため
  *   `own` より広い。{@link RawToolOutbound} の `send` / `broadcast` が受ける。
- * - `broadcast`: 全員へ同じものを送る口を持つか。チェックインは受け手ごとに中身が違う（匿名を送らないことで守る）ので、
- *   全員へ同じものを送る口は**作らない**（#406）。
+ * - 全員へ同じものを送る口（`broadcast`）を持つかは、実行時にも読める値 {@link RAW_BROADCAST} が決める（型も実行時の形も同じ値から導く）。
  */
 export interface RawToolFrames {
-  hub: { own: HubServerMsg; out: HubServerMsg; broadcast: true };
-  topic: { own: TopicOwnFrame; out: TopicServerMsg; broadcast: true };
-  roulette: { own: RouletteOwnFrame; out: RouletteServerMsg; broadcast: true };
-  agenda: { own: AgendaOwnFrame; out: AgendaServerMsg; broadcast: true };
-  checkin: { own: CheckinOwnFrame; out: CheckinServerMsg; broadcast: false };
+  hub: { own: HubServerMsg; out: HubServerMsg };
+  topic: { own: TopicOwnFrame; out: TopicServerMsg };
+  roulette: { own: RouletteOwnFrame; out: RouletteServerMsg };
+  agenda: { own: AgendaOwnFrame; out: AgendaServerMsg };
+  checkin: { own: CheckinOwnFrame; out: CheckinServerMsg };
 }
+
+/**
+ * 全員へ同じものを送る口（`broadcast`）を持つか。**型と実行時の形（`WsAdapter#to`）の両方がこの 1 つの値から導かれる。**
+ * チェックインは受け手ごとに中身が違う（匿名を送らないことで守る）ので、全員へ同じものを送る口は**作らない**（#406）。
+ * 鍵の過不足は {@link RawToolFrames} の鍵と照合される（道具を足して書き忘れると型検査が落ちる）。
+ */
+export const RAW_BROADCAST = {
+  hub: true,
+  topic: true,
+  roulette: true,
+  agenda: true,
+  checkin: false,
+} as const satisfies Record<keyof RawToolFrames, boolean>;
 
 /** 生テキストを受けるツールの識別子（表の鍵）。 */
 export type RawToolId = keyof RawToolFrames;
@@ -59,7 +71,7 @@ export const RAW_TOOL_IDS: readonly RawToolId[] = [
 export type RawToolOutbound<T extends RawToolId> = {
   /** 1 本へ送る。接続が無い・OPEN でなければ黙って飛ばす。 */
   send(connId: string, data: RawToolFrames[T]["out"]): void;
-} & (RawToolFrames[T]["broadcast"] extends true
+} & ((typeof RAW_BROADCAST)[T] extends true
   ? {
       /** 宛先の接続へ一斉に送る。知らない接続 ID は黙って飛ばす。 */
       broadcast(connIds: string[], data: RawToolFrames[T]["out"]): void;

@@ -65,6 +65,7 @@ import {
 } from "./ws/tool-channel.js";
 import { sendIfOpen, sendToEach } from "./ws/ws-send.js";
 import {
+  RAW_BROADCAST,
   RAW_TOOL_IDS,
   type RawHandlers,
   type RawMessageHandler,
@@ -401,8 +402,8 @@ export class WsAdapter {
       const broadcast = (connIds: string[], data: unknown): void => {
         sendToEach(this.connections, connIds, JSON.stringify(data));
       };
-      // 全員へ同じものを送る口は、受け手ごとに中身が違うツール（チェックイン）には**実行時にも作らない**（#406）。
-      return [id, id === "checkin" ? { send } : { send, broadcast }];
+      // 全員へ同じものを送る口を持たないツール（チェックイン。#406）には**実行時にも作らない**。旗は `RAW_BROADCAST` が 1 か所で持つ。
+      return [id, RAW_BROADCAST[id] ? { send, broadcast } : { send }];
     }),
   ) as unknown as RawOutbound;
 

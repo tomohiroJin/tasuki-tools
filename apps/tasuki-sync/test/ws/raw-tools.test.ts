@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { RAW_TOOL_IDS, type RawToolId } from "../../src/adapters/ws/raw-tools.js";
+import { RAW_BROADCAST, RAW_TOOL_IDS, type RawToolId } from "../../src/adapters/ws/raw-tools.js";
 import { TOOL_IDS } from "../../src/application/tool-id.js";
 
 /** 期待値は一覧から導かず、リテラルで固定する（導くと恒真になる）。 */
@@ -30,6 +30,27 @@ describe("生テキストを受けるツールの表（raw-tools）", () => {
     try {
       expect("broadcast" in adapter.to.checkin).toBe(false);
       expect(typeof adapter.to.topic.broadcast).toBe("function");
+    } finally {
+      await adapter.close();
+    }
+  });
+
+  it("broadcast の有無は旗の表（RAW_BROADCAST）の値のとおりに、実行時の口へ現れる", async () => {
+    const { newTestWsAdapter } = await import("../support/test-ws-adapter.js");
+    const adapter = newTestWsAdapter({
+      port: 0,
+      host: "127.0.0.1",
+      allowedOrigins: [],
+      timer: { handleMessage: async () => {} },
+      onDisconnect: () => {},
+      logger: { info: () => {}, warn: () => {}, error: () => {} },
+    });
+    try {
+      for (const id of RAW_TOOL_IDS) {
+        expect("broadcast" in adapter.to[id]).toBe(RAW_BROADCAST[id]);
+      }
+      // 期待値はリテラルで固定する（旗の表から導くと恒真になる）
+      expect(RAW_BROADCAST).toEqual({ hub: true, topic: true, roulette: true, agenda: true, checkin: false });
     } finally {
       await adapter.close();
     }
