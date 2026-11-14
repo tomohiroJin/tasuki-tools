@@ -394,17 +394,16 @@ export class WsAdapter {
    * 全員へ同じものを送る口は作らない（#406）。
    */
   readonly to: RawOutbound = Object.fromEntries(
-    RAW_TOOL_IDS.map((id) => [
-      id,
-      {
-        send: (connId: string, data: unknown): void => {
-          sendIfOpen(this.connections.get(connId), JSON.stringify(data));
-        },
-        broadcast: (connIds: string[], data: unknown): void => {
-          sendToEach(this.connections, connIds, JSON.stringify(data));
-        },
-      },
-    ]),
+    RAW_TOOL_IDS.map((id) => {
+      const send = (connId: string, data: unknown): void => {
+        sendIfOpen(this.connections.get(connId), JSON.stringify(data));
+      };
+      const broadcast = (connIds: string[], data: unknown): void => {
+        sendToEach(this.connections, connIds, JSON.stringify(data));
+      };
+      // 全員へ同じものを送る口は、受け手ごとに中身が違うツール（チェックイン）には**実行時にも作らない**（#406）。
+      return [id, id === "checkin" ? { send } : { send, broadcast }];
+    }),
   ) as unknown as RawOutbound;
 
   broadcast(connIds: string[], data: ServerMsg): void {

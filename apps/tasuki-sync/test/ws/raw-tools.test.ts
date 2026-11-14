@@ -16,4 +16,22 @@ describe("生テキストを受けるツールの表（raw-tools）", () => {
       else expect(RAW_TOOL_IDS).toContain(id);
     }
   });
+
+  it("チェックインの送る口は、実行時にも broadcast を持たない（受け手ごとに中身が違う）", async () => {
+    const { newTestWsAdapter } = await import("../support/test-ws-adapter.js");
+    const adapter = newTestWsAdapter({
+      port: 0,
+      host: "127.0.0.1",
+      allowedOrigins: [],
+      timer: { handleMessage: async () => {} },
+      onDisconnect: () => {},
+      logger: { info: () => {}, warn: () => {}, error: () => {} },
+    });
+    try {
+      expect("broadcast" in adapter.to.checkin).toBe(false);
+      expect(typeof adapter.to.topic.broadcast).toBe("function");
+    } finally {
+      await adapter.close();
+    }
+  });
 });

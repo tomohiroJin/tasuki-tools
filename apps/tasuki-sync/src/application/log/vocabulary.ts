@@ -78,7 +78,7 @@ export const RANDOM_VIOLATION_REASONS = {
 
 /**
  * `on-message-error` に添える、どの接続の失敗かを示す名前（`protocol` 項目。#381）。
- * 受け口の表（`ws-adapter.ts` の `buildChannels`）の鍵と 1 対 1 の固定の語彙で、自由文は載せない。
+ * 受け口の表（`ws-adapter.ts` の `buildChannels`。生テキストの道具は `ws/raw-tools.ts`）の鍵と 1 対 1 の固定の語彙で、自由文は載せない。
  * 項目は手で足す（`publicText` の呼び出しは行ごとに許可マーカーが要るので、一覧から生成しない）。
  * 鍵の網羅は `AcceptedProtocol`（`tool-id.ts` の `TOOL_IDS` から導かれる）の型の制約が要求するので、
  * 道具を足して語彙を足し忘れると型検査が落ちる。並びは `hub` → `TOOL_IDS` の順。
