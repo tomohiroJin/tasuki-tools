@@ -1,0 +1,23 @@
+# 変異 1631: assembly-audit-import-single-line-only
+#
+# 検出を期待するテスト:
+#   - scripts/audit-assembly-wiring.test.mjs
+#
+# #591。import の判定が複数行に折り返した import を読まない（[^}] を改行なしに限る）。折り返した正しい import が偽の赤になる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1631-*.patch
+# 復元: git apply -R scripts/mutations/m1631-*.patch
+diff --git a/scripts/audit-assembly-wiring.mjs b/scripts/audit-assembly-wiring.mjs
+index e91c39cb..a453f772 100644
+--- a/scripts/audit-assembly-wiring.mjs
++++ b/scripts/audit-assembly-wiring.mjs
+@@ -191,7 +191,7 @@ export function importedNamesFrom(assemblerSource, assembler, target) {
+     .filter((l) => isEvidenceLine(l))
+     .join("\n");
+   const names = new Set();
+-  const re = /\bimport\s+(type\s+)?\{([^}]*)\}\s*from\s*["']([^"']+)["']/g;
++  const re = /\bimport\s+(type\s+)?\{([^}\n]*)\}\s*from\s*["']([^"']+)["']/g;
+   for (let m = re.exec(code); m !== null; m = re.exec(code)) {
+     const [, isType, list, spec] = m;
+     if (!spec.startsWith(".")) continue;

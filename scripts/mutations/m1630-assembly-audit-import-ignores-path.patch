@@ -1,0 +1,22 @@
+# 変異 1630: assembly-audit-import-ignores-path
+#
+# 検出を期待するテスト:
+#   - scripts/audit-assembly-wiring.test.mjs
+#
+# #591。import の判定が指定子の解き先を見ない。別のディレクトリの同名ファイルからの import が、分けた先の import として通る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1630-*.patch
+# 復元: git apply -R scripts/mutations/m1630-*.patch
+diff --git a/scripts/audit-assembly-wiring.mjs b/scripts/audit-assembly-wiring.mjs
+index e91c39cb..0c143d0e 100644
+--- a/scripts/audit-assembly-wiring.mjs
++++ b/scripts/audit-assembly-wiring.mjs
+@@ -196,7 +196,6 @@ export function importedNamesFrom(assemblerSource, assembler, target) {
+     const [, isType, list, spec] = m;
+     if (!spec.startsWith(".")) continue;
+     const resolved = path.posix.normalize(path.posix.join(path.posix.dirname(assembler), spec)).replace(/\.js$/, ".ts");
+-    if (resolved !== target) continue;
+     for (const item of list.split(",")) {
+       const t = item.trim();
+       if (t === "" || isType || /^type\s/.test(t)) continue;

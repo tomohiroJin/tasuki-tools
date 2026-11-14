@@ -8,6 +8,7 @@ import {
   FORBIDDEN_IN_ENTRY,
   FORBIDDEN_IN_PARTS,
   findAssemblyProblems,
+  importedNamesFrom,
   isEvidenceLine,
 } from "./audit-assembly-wiring.mjs";
 
@@ -246,6 +247,44 @@ describe("findAssemblyProblems（分けた先・#591）", () => {
     ].join("\n");
     const problems = findAssemblyProblems(TARGET_WITH_PARTS, sourcesWithParts({ assembler }));
     assert.equal(problems.length, 1);
+  });
+
+  test("複数行に折り返した import でも、分けた先から取り込んだ名前として読む（偽の赤にしない）", () => {
+    const assembler = [
+      "import {",
+      "  type TopicPart,",
+      "  assembleTopic,",
+      '} from "./assembly/topic.js";',
+      "export function createSyncServer() {",
+      "  const topic = assembleTopic(base);",
+      "}",
+    ].join("\n");
+    assert.deepEqual(findAssemblyProblems(TARGET_WITH_PARTS, sourcesWithParts({ assembler })), []);
+  });
+
+  test("別のディレクトリの同名ファイルから import しても、分けた先の import とは数えない（偽の緑にしない）", () => {
+    const assembler = [
+      'import { assembleTopic } from "./other/topic.js";',
+      "export function createSyncServer() {",
+      "  const topic = assembleTopic(base);",
+      "}",
+    ].join("\n");
+    const problems = findAssemblyProblems(TARGET_WITH_PARTS, sourcesWithParts({ assembler }));
+    assert.equal(problems.length, 1);
+    assert.match(problems[0], /import していません/);
+  });
+
+  test("import type は名前を数えない・as の別名は元の名前で数える", () => {
+    const names = importedNamesFrom(
+      [
+        'import type { assembleTopic } from "./assembly/topic.js";',
+        'import { assembleRoulette as ar } from "./assembly/topic.js";',
+        '// import { assembleHub } from "./assembly/topic.js";',
+      ].join("\n"),
+      TARGET.assembler,
+      PART_FILE,
+    );
+    assert.deepEqual([...names], ["assembleRoulette"]);
   });
 
   test("分けた先で WsAdapter を起こしていれば赤（サーバーを起こすのは組み立て関数 1 か所）", () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { late, LateReferenceError } from "../src/assembly/context.js";
+import { DuplicateKeyError, late, LateReferenceError, mergeDisjoint } from "../src/assembly/context.js";
 
 describe("late（組み立ての前方参照）", () => {
   it("値を入れたあとは入れた値を返す", () => {
@@ -25,5 +25,16 @@ describe("late（組み立ての前方参照）", () => {
     const ref = late<undefined>("nothing");
     ref.set(undefined);
     expect(ref.get()).toBeUndefined();
+  });
+});
+
+describe("mergeDisjoint（破棄の束）", () => {
+  it("鍵が重ならない部品を 1 つの束に合わせる", () => {
+    expect(mergeDisjoint({ a: 1 }, { b: 2 }, { c: 3 })).toEqual({ a: 1, b: 2, c: 3 });
+  });
+
+  it("同じ鍵を 2 つの部品が返したら、後勝ちにせず DuplicateKeyError で落ちる（鍵の名前を含む）", () => {
+    expect(() => mergeDisjoint({ topics: 1 }, { topics: 2 })).toThrow(DuplicateKeyError);
+    expect(() => mergeDisjoint({ topics: 1 }, { topics: 2 })).toThrow("topics");
   });
 });

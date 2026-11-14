@@ -1,5 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import { RAW_BROADCAST, RAW_TOOL_IDS, type RawToolId } from "../../src/adapters/ws/raw-tools.js";
+import { mapRawTools, RAW_BROADCAST, RAW_TOOL_IDS, type RawToolId } from "../../src/adapters/ws/raw-tools.js";
 import { TOOL_IDS } from "../../src/application/tool-id.js";
 
 /** 期待値は一覧から導かず、リテラルで固定する（導くと恒真になる）。 */
@@ -54,5 +54,15 @@ describe("生テキストを受けるツールの表（raw-tools）", () => {
     } finally {
       await adapter.close();
     }
+  });
+
+  it("旗の表（RAW_BROADCAST）の鍵と実行時の並び（RAW_TOOL_IDS）は同じ集合（型の両向きの網羅の、実行時の裏づけ）", () => {
+    expect(Object.keys(RAW_BROADCAST).sort()).toEqual([...RAW_TOOL_IDS].sort());
+  });
+
+  it("mapRawTools は、並びの鍵ごとに 1 つずつ値を作る", () => {
+    const table = mapRawTools((id) => id.toUpperCase());
+    expect(Object.keys(table)).toEqual([...EXPECTED]);
+    expect(table.checkin).toBe("CHECKIN");
   });
 });

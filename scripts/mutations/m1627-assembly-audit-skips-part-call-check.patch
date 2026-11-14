@@ -9,11 +9,11 @@
 #       git apply scripts/mutations/m1627-*.patch
 # 復元: git apply -R scripts/mutations/m1627-*.patch
 diff --git a/scripts/audit-assembly-wiring.mjs b/scripts/audit-assembly-wiring.mjs
-index 9f3baee4..746e8d61 100644
+index e91c39cb..0d0a56eb 100644
 --- a/scripts/audit-assembly-wiring.mjs
 +++ b/scripts/audit-assembly-wiring.mjs
-@@ -211,7 +211,7 @@ export function findAssemblyProblems(target, sources) {
-           problems.push(`${assembler} が ${partModule} から ${f} を import していません（ADR-0004 決定 4・#591）`);
+@@ -239,7 +239,7 @@ export function findAssemblyProblems(target, sources) {
+           problems.push(`${assembler} が ${file} から ${f} を import していません（ADR-0004 決定 4・#591）`);
          }
          const called = assemblerLines.some((l) => isEvidenceLine(l) && !isImportLine(l) && l.includes(`${f}(`));
 -        if (!called) problems.push(`${assembler} が ${f}() を呼んでいません（ADR-0004 決定 4・#591）`);

@@ -1873,7 +1873,7 @@ export const MUTATIONS = [
     tests: ["test/connection-error-text.test.ts", "test/connection-error-text-sources.test.ts"],
     note:
       "#381。**対応表より後に足した変異。** timer の内部エラーのフレームを正本（`connectionErrorFrame`）から" +
-      "取らず「内部エラーが発生しました」を直書きすると、timer だけ文が違う状態（#381 以前）に戻る。 #591 で、エラーフレームが定数（RAW_ERROR_FRAMES）になったのでパッチを作り直した（壊し方は同じ）。",
+      "取らず「内部エラーが発生しました」を直書きすると、timer だけ文が違う状態（#381 以前）に戻る。 #591 で、エラーフレームが定数（RAW_ERROR_FRAMES）になったのでパッチを作り直した（壊し方は同じ）。 #591 の見直しで、エラーフレームの定数名が CONNECTION_ERROR_FRAMES に変わったのでパッチを作り直した（壊し方は同じ）。",
   },
   {
     id: 231,
@@ -3610,7 +3610,7 @@ export const MUTATIONS = [
     patch: "m509-hub-message-reaches-checkin.patch",
     pkg: "apps/tasuki-sync",
     tests: ["test/ws-adapter-tool-query.test.ts", "test/live-ws.checkin.test.ts"],
-    note: "#406 段 2。?tool=checkin の振り分けを崩す。チェックインの接続の札の操作がハブの層で拒まれる。 #591 で、受け口を表から作る形になったのでパッチを作り直した（壊し方は同じ）。",
+    note: "#406 段 2。?tool=checkin の振り分けを崩す。チェックインの接続の札の操作がハブの層で拒まれる。 #591 で、受け口を表から作る形になったのでパッチを作り直した（壊し方は同じ）。 #591 の見直しで、受け口を作る行が mapRawTools になったのでパッチを作り直した（壊し方は同じ）。",
   },
   {
     id: 510,
@@ -9273,7 +9273,7 @@ export const MUTATIONS = [
     label: "破棄の共通経路へ渡す束からチェックインの分を落とす",
     patch: "m1625-destroy-drops-checkin-part.patch",
     pkg: "apps/tasuki-sync",
-    tests: ["test/live-ws.topic.test.ts"],
+    tests: ["test/live-ws.checkin.test.ts", "test/live-ws.topic.test.ts"],
     note: RESERVED_1620_1639 + " " + "#591。各道具の組み立てが返す `destroy` を展開して渡す形にしたので、展開の行を落とすと実行時にも検出される（型検査も落ちる）。",
   },
   {
@@ -9299,5 +9299,29 @@ export const MUTATIONS = [
     pkg: "apps/tasuki-sync",
     tests: ["test/ws/raw-tools.test.ts"],
     note: RESERVED_1620_1639 + " " + "#591。型は表のままなので型検査は緑で、実行時にだけ全員へ同じものを送る口ができる（チェックインは受け手ごとに中身が違う・#406）。",
+  },
+  {
+    id: 1629,
+    label: "破棄の束の合成（mergeDisjoint）が、重なった鍵を後勝ちで黙って上書きする",
+    patch: "m1629-merge-disjoint-last-wins.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/assembly-late.test.ts"],
+    note: RESERVED_1620_1639 + " " + "#591。片方の道具の保管が破棄から黙って外れる。",
+  },
+  {
+    id: 1630,
+    label: "組み立ての監査の import 判定が、指定子の解き先を見ない（別のディレクトリの同名ファイルでも通る）",
+    patch: "m1630-assembly-audit-import-ignores-path.patch",
+    pkg: "scripts",
+    tests: ["audit-assembly-wiring.test.mjs"],
+    note: RESERVED_1620_1639 + " " + "#591。別のディレクトリの同名ファイルからの import が、分けた先の import として通る（偽の緑）。",
+  },
+  {
+    id: 1631,
+    label: "組み立ての監査の import 判定が、複数行に折り返した import を読まない",
+    patch: "m1631-assembly-audit-import-single-line-only.patch",
+    pkg: "scripts",
+    tests: ["audit-assembly-wiring.test.mjs"],
+    note: RESERVED_1620_1639 + " " + "#591。折り返した正しい import が偽の赤になる。",
   },
 ];

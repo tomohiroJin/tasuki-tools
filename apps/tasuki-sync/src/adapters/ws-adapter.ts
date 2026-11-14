@@ -34,10 +34,9 @@
  * | `ws/error-log.ts` | ログへ出す例外の分類 |
  * | `ws/connection-data.ts` | 接続ごとに持ち回る値 |
  *
- * **新しいツールを足すときは、`application/tool-id.ts` の一覧に足し、生テキストを受けるなら
- * `ws/raw-tools.ts` の表（{@link RawToolFrames}）に 1 行足す**（#591）。受け口の並び（{@link buildChannels}）・
- * メッセージ層の鍵（`WsAdapterOptions.raw`）・送る口（{@link WsAdapter.to}）はその表から導かれ、
- * 足し忘れは型検査が落とす。`?tool=` の許可リストも同じ一覧から導かれる。
+ * **生テキストを受ける道具を足す手順は `ws/raw-tools.ts` の docstring が正本**（#591）。受け口の並び（{@link buildChannels}）・
+ * メッセージ層の鍵（`WsAdapterOptions.raw`）・送る口（{@link WsAdapter.to}）はその表と `TOOL_IDS` から導かれる。
+ * `?tool=` の許可リストも同じ一覧から導かれる。
  */
 
 import { ok, type Result } from "neverthrow";
@@ -65,8 +64,9 @@ import {
 } from "./ws/tool-channel.js";
 import { sendIfOpen, sendToEach } from "./ws/ws-send.js";
 import {
-  RAW_BROADCAST,
-  RAW_TOOL_IDS,
+  makeRawOutbound,
+  mapRawTools,
+  type AssertNever,
   type RawHandlers,
   type RawMessageHandler,
   type RawOutbound,
@@ -168,27 +168,31 @@ function parseTimerCommand(text: string): Result<Command, ServerMsg> {
 }
 
 /**
- * 生テキストを渡すツール（ハブ・お題・ルーレット・進行タイマー・チェックイン）の、超過・内部エラーのフレーム。
- * 文言はどのツールも同じ（`connectionErrorFrame` が 1 か所で決める。#381）。
+ * 接続層が自分で返す、超過・内部エラーのフレーム。文言はどのツール（timer・poker を除く全部）も同じ
+ * （`connectionErrorFrame` が 1 か所で決める。#381）。
  */
-const RAW_ERROR_FRAMES = {
+const CONNECTION_ERROR_FRAMES = {
   tooLarge: connectionErrorFrame("MESSAGE_TOO_LARGE"),
   internalError: connectionErrorFrame("INTERNAL_ERROR"),
 } as const;
 
 /**
- * 上のフレームが**どの生テキストのツールの `own` の型にも収まる**ことを型で見る（表の行ごとの検査。
- * 以前は行ごとに型引数を書いて検査させていた）。収まらないツールの鍵がここに残り、`never` ではなくなって落ちる。
+ * 上のフレームが**どの生テキストのツールの `own` の型にも収まる**こと（型だけの断言。実行時には何も残らない）。
+ * 収まらないツールの鍵が残り、`never` ではなくなって型検査が落ちる。
  */
-type FramesNotFitting = {
-  [T in RawToolId]: typeof RAW_ERROR_FRAMES extends { tooLarge: RawToolFrames[T]["own"]; internalError: RawToolFrames[T]["own"] }
-    ? never
-    : T;
-}[RawToolId];
-const RAW_ERROR_FRAMES_FIT: [FramesNotFitting] extends [never] ? true : never = true;
+export type ConnectionErrorFramesFitRawTools = AssertNever<
+  {
+    [T in RawToolId]: typeof CONNECTION_ERROR_FRAMES extends {
+      tooLarge: RawToolFrames[T]["own"];
+      internalError: RawToolFrames[T]["own"];
+    }
+      ? never
+      : T;
+  }[RawToolId]
+>;
 
 /**
- * 「プロトコル → 受け口」の表（#368 Task 7）。**新しいツールは `ws/raw-tools.ts` の表に 1 行足す**（#591）。
+ * 「プロトコル → 受け口」の表（#368 Task 7）。**生テキストを受ける道具は `ws/raw-tools.ts` の表から受け口が作られる**（足す手順はそのファイルの docstring が正本・#591）。
  * timer と poker だけが個別の行を持つ。
  *
  * timer・ハブ・お題・ルーレット・進行タイマー・チェックインは、超過・内部エラーのフレーム（文言も）もログも同じ
@@ -198,22 +202,19 @@ const RAW_ERROR_FRAMES_FIT: [FramesNotFitting] extends [never] ? true : never = 
  */
 function buildChannels(options: WsAdapterOptions): Readonly<Record<AcceptedProtocol, ToolChannel>> {
   const { maxMessageBytes, logger } = options;
-  void RAW_ERROR_FRAMES_FIT;
   /** 生テキストを渡すツールの受け口。違いは `protocol`（ログに出る名前）と渡す先だけ。 */
   const rawTextChannel = (protocol: RawToolId, handler: RawMessageHandler): ToolChannel =>
-    createTextChannel<string, (typeof RAW_ERROR_FRAMES)[keyof typeof RAW_ERROR_FRAMES]>({
+    createTextChannel<string, (typeof CONNECTION_ERROR_FRAMES)[keyof typeof CONNECTION_ERROR_FRAMES]>({
       maxMessageBytes,
       logger,
       protocol,
       parse: (text) => ok(text),
       deliver: (connId, raw) => handler.handleMessage(connId, raw),
-      tooLargeFrame: RAW_ERROR_FRAMES.tooLarge,
-      internalErrorFrame: RAW_ERROR_FRAMES.internalError,
+      tooLargeFrame: CONNECTION_ERROR_FRAMES.tooLarge,
+      internalErrorFrame: CONNECTION_ERROR_FRAMES.internalError,
     });
   // 行の鍵と渡す名前の取り違えは、鍵そのものを `protocol` に渡すので起きない（以前は行ごとに手で書いていた）。
-  const raw = Object.fromEntries(
-    RAW_TOOL_IDS.map((id) => [id, rawTextChannel(id, options.raw[id])]),
-  ) as Readonly<Record<RawToolId, ToolChannel>>;
+  const raw = mapRawTools((id) => rawTextChannel(id, options.raw[id]));
   return {
     ...raw,
     timer: createTextChannel<Command, ServerMsg>({
@@ -222,8 +223,8 @@ function buildChannels(options: WsAdapterOptions): Readonly<Record<AcceptedProto
       protocol: "timer",
       parse: parseTimerCommand,
       deliver: (connId, cmd) => options.timer.handleMessage(connId, cmd),
-      tooLargeFrame: RAW_ERROR_FRAMES.tooLarge,
-      internalErrorFrame: RAW_ERROR_FRAMES.internalError,
+      tooLargeFrame: CONNECTION_ERROR_FRAMES.tooLarge,
+      internalErrorFrame: CONNECTION_ERROR_FRAMES.internalError,
     }),
     poker: createPokerChannel(options.poker, maxMessageBytes, logger),
   };
@@ -394,18 +395,15 @@ export class WsAdapter {
    * **チェックインに `broadcast` は無い**: 受け手ごとに中身が違う（匿名を送らないことで守る）ので、
    * 全員へ同じものを送る口は作らない（#406）。
    */
-  readonly to: RawOutbound = Object.fromEntries(
-    RAW_TOOL_IDS.map((id) => {
-      const send = (connId: string, data: unknown): void => {
-        sendIfOpen(this.connections.get(connId), JSON.stringify(data));
-      };
-      const broadcast = (connIds: string[], data: unknown): void => {
-        sendToEach(this.connections, connIds, JSON.stringify(data));
-      };
-      // 全員へ同じものを送る口を持たないツール（チェックイン。#406）には**実行時にも作らない**。旗は `RAW_BROADCAST` が 1 か所で持つ。
-      return [id, RAW_BROADCAST[id] ? { send, broadcast } : { send }];
-    }),
-  ) as unknown as RawOutbound;
+  readonly to: RawOutbound = makeRawOutbound(
+    () => (connId: string, data: unknown): void => {
+      sendIfOpen(this.connections.get(connId), JSON.stringify(data));
+    },
+    // `broadcast` は旗（`RAW_BROADCAST`）が true のツールにだけ付く。チェックインには**実行時にも作らない**（#406）。
+    () => (connIds: string[], data: unknown): void => {
+      sendToEach(this.connections, connIds, JSON.stringify(data));
+    },
+  );
 
   broadcast(connIds: string[], data: ServerMsg): void {
     sendToEach(this.connections, connIds, JSON.stringify(data));

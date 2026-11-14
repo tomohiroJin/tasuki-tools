@@ -8,9 +8,9 @@
  * **道具の列挙もここの一覧（`TOOL_IDS`）から導く。** `Protocol`（`adapters/ws/connection-gate.ts`）と
  * `TOPIC_RECIPIENT_TOOLS` は一覧に自動で追従する。ログの語彙 `PROTOCOL_LOG_NAMES` は手で 1 行足すが、
  * 鍵の網羅を型（`Record<AcceptedProtocol, …>`）が要求するので、足し忘れは型検査が落とす。
- * このアプリの中で残る手の場所は、生テキストを受ける道具なら `adapters/ws/raw-tools.ts` の `RawToolFrames`（1 行。受け口の並び・
- * メッセージ層の鍵・送る口はここから導かれる）・`assembly/<道具>.ts`（道具ごとの組み立て）・`create-sync-server.ts`（表への 1 行と
- * メッセージ層・破棄の束の受け渡し）・`destroy-room.ts`（状態を持つ道具の後始末）・`application/log/vocabulary.ts`（ログの語彙）である（#591 で分けた）。アプリの外では、玄関（`apps/landing/src/tools.ts` の `TOOLS` と
+ * このアプリの中で道具を足すときに手で足す場所は、生テキストを受ける道具なら `adapters/ws/raw-tools.ts` の docstring に手順（7 つ）で書いてある
+ * （`RawToolFrames`・`RAW_BROADCAST`・`log/vocabulary.ts`・`assembly/<道具>.ts`・`create-sync-server.ts` の `ToolParts` ほか・監査の `parts`）。
+ * 足し忘れの多くは型検査が落とす。アプリの外では、玄関（`apps/landing/src/tools.ts` の `TOOLS` と
  * そのテストの置き場の表）・E2E（`e2e/specs/site-exterior.spec.ts` の `PAGES`）・監査の許可リスト（`scripts/audit-*.mjs`）を別に足す。
  *
  * **一覧に足した道具は、お題の配信先（`TOPIC_RECIPIENT_TOOLS`）に自動で入る。** つまりその道具の web には

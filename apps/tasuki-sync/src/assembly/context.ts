@@ -114,3 +114,26 @@ export interface ToolPartBase {
   /** サーバーを止めるときの後始末（猶予・予約・子プロセスの解放）。無ければ置かない。 */
   readonly close?: () => void;
 }
+
+type UnionToIntersection<U> = (U extends unknown ? (arg: U) => void : never) extends (arg: infer I) => void ? I : never;
+
+/** 破棄の束で、2 つの部品が同じ鍵を返したときの失敗（後勝ちで黙って上書きしない）。 */
+export class DuplicateKeyError extends Error {
+  override readonly name = "DuplicateKeyError";
+}
+
+/**
+ * 各部品が返す `destroy` を 1 つの束に合わせる。**同じ鍵を 2 つの部品が返したら落ちる**
+ * （展開 `...a, ...b` は後勝ちで、片方の保管が破棄から黙って外れる）。型は全部品の積。
+ * 余計な鍵（受け側の型に無い鍵）は、呼ぶ側が `AssertNever<Exclude<keyof 束, keyof 受け側>>` で型検査に落とす。
+ */
+export function mergeDisjoint<T extends readonly object[]>(...parts: T): UnionToIntersection<T[number]> {
+  const merged: Record<string, unknown> = {};
+  for (const part of parts) {
+    for (const [key, value] of Object.entries(part)) {
+      if (key in merged) throw new DuplicateKeyError(`破棄の束で鍵「${key}」が重複しています`);
+      merged[key] = value;
+    }
+  }
+  return merged as UnionToIntersection<T[number]>;
+}

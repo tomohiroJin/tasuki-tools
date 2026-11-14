@@ -56,13 +56,16 @@ import { Scheduler } from "./application/schedule.js";
 import { createTimerCommandReceiver } from "./application/timer-command-receiver.js";
 import { createTokenStore } from "./application/token-store.js";
 import type { KnownToolId } from "./application/tool-id.js";
-import { assembleAgenda } from "./assembly/agenda.js";
-import { assembleCheckin } from "./assembly/checkin.js";
-import { late, type AssemblyBase, type TimerSide, type ToolPartBase } from "./assembly/context.js";
+import type { RoomDestroyerDeps } from "./application/destroy-room.js";
+import type { InMemoryRoundStore } from "./adapters/poker-in-memory-round-store.js";
+import type { AssertNever } from "./adapters/ws/raw-tools.js";
+import { assembleAgenda, type AgendaPart } from "./assembly/agenda.js";
+import { assembleCheckin, type CheckinPart } from "./assembly/checkin.js";
+import { late, mergeDisjoint, type AssemblyBase, type TimerSide } from "./assembly/context.js";
 import { assembleHub } from "./assembly/hub.js";
-import { assemblePoker } from "./assembly/poker.js";
-import { assembleRoulette } from "./assembly/roulette.js";
-import { assembleTopic, createAiBudget, createTopicResources } from "./assembly/topic.js";
+import { assemblePoker, type PokerPart } from "./assembly/poker.js";
+import { assembleRoulette, type RoulettePart } from "./assembly/roulette.js";
+import { assembleTopic, createAiBudget, createTopicResources, type TopicPart } from "./assembly/topic.js";
 import type { SyncConfig } from "./config.js";
 
 /** アイドルルーム回収の sweep 間隔（ms）。 */
@@ -80,7 +83,7 @@ export interface SyncServer {
    * poker の状態（投票ラウンド）の保管。**名簿は `store` に統合済み**（#95 S4a）。
    * timer の `timers` と同じ位置づけで、名簿とはルームコードで対になる。
    */
-  readonly rounds: ReturnType<typeof assemblePoker>["rounds"];
+  readonly rounds: InMemoryRoundStore;
   /** 実際に bind したポート。`PORT=0` 起動のときはここが正しい値。 */
   readonly port: number;
   /**
@@ -93,10 +96,19 @@ export interface SyncServer {
 }
 
 /**
- * 道具ごとの組み立ての表。**道具の一覧（`application/tool-id.ts` の `TOOL_IDS`）から timer を除いた全部**が
- * 鍵になる（timer は `makeHandlers` が持つので表の外）。道具を足して表へ足し忘れると、型検査が落ちる。
+ * 道具ごとの組み立ての表（具体の部品の型で持つ。poker の層もここから引くので、別の前方参照は要らない）。
+ * **鍵は道具の一覧（`application/tool-id.ts` の `TOOL_IDS`）から timer を除いた全部**（timer は `makeHandlers` が持つので表の外）。
+ * 道具を足して表へ足し忘れる（{@link ToolPartsCoverTools}）、一覧に無い鍵を足す（{@link NoExtraToolParts}）と、型検査が落ちる。
  */
-type ToolPartTable = Readonly<Record<Exclude<KnownToolId, "timer">, ToolPartBase>>;
+interface ToolParts {
+  readonly topic: TopicPart;
+  readonly roulette: RoulettePart;
+  readonly agenda: AgendaPart;
+  readonly checkin: CheckinPart;
+  readonly poker: PokerPart;
+}
+export type ToolPartsCoverTools = AssertNever<Exclude<Exclude<KnownToolId, "timer">, keyof ToolParts>>;
+export type NoExtraToolParts = AssertNever<Exclude<keyof ToolParts, Exclude<KnownToolId, "timer">>>;
 
 /** 設定から同期サーバー一式を組み立てて起動する。 */
 export function createSyncServer(config: SyncConfig): SyncServer {
@@ -135,8 +147,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
   // 前方参照（組み立ての循環）。値を入れる前に引くと名前つきで落ちる（`assembly/context.ts`）。
   const ws = late<WsAdapter>("wsAdapter");
   const destroyRoom = late<(roomCode: string) => void>("destroyRoom");
-  const toolParts = late<ToolPartTable>("toolParts");
-  const pokerLayer = late<ReturnType<typeof assemblePoker>["layer"]>("pokerHandlers");
+  const toolParts = late<ToolParts>("toolParts");
 
   // timer とハブの配信（宛先の選び方を含む）は `adapters/timer-ws-broadcaster.ts`（#367 で組み立てから出した）。
   const { broadcaster, hubBroadcaster } = createTimerWsBroadcaster({
@@ -190,7 +201,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
     // **退出した人の票を捨てる**（R8・#95 S5b）。timer の文脈は poker の保管を知らないので、
     // ここで繋ぐ。poker の層は下で組み立てるが、呼ばれるのは要求が届いてからである。
     discardPokerVote: (roomCode, participantId) =>
-      pokerLayer.get().handleParticipantRemoved(roomCode, participantId),
+      toolParts.get().poker.layer.handleParticipantRemoved(roomCode, participantId),
     // お題の状態を参加・作成した本人へ 1 通送る（#91・E4）。配信先はルームの全接続。
     topicBroadcaster: topicResources.broadcaster,
     // 完成記録にお題のタイトルを写すために読む（#91・spec T9）。お題の配信・破棄と同じ 1 個。
@@ -222,29 +233,25 @@ export function createSyncServer(config: SyncConfig): SyncServer {
   const agenda = assembleAgenda(base, timerSide);
   const checkin = assembleCheckin(base, timerSide);
   const poker = assemblePoker(base, timerSide, topicResources.broadcaster);
-  const parts = { topic, roulette, agenda, checkin, poker } satisfies ToolPartTable;
+  const parts: ToolParts = { topic, roulette, agenda, checkin, poker };
   toolParts.set(parts);
-  pokerLayer.set(poker.layer);
 
   // 後始末を契機ごとに並べ直すと片方だけが更新されて必ずずれるため、内容と順序は
   // `destroy-room.ts` の 1 箇所にしか持たない。契機はアイドル回収（TTL）と
   // 在室者 0 人の退出（Issue #79）の 2 つで、どちらもこの同じ関数を通る。
   // 各道具の保管は、道具ごとの組み立てが `destroy` として返したものを並べる
   // （必須の鍵が 1 つでも欠ければ型検査が落ちる。寿命はツールごとではなくルームごとに 1 つ・#95 S4a）。
-  destroyRoom.set(
-    createRoomDestroyer({
-      store,
-      timers,
-      ...topic.destroy,
-      ...roulette.destroy,
-      ...agenda.destroy,
-      ...checkin.destroy,
-      ...poker.destroy,
-      scheduler,
-      presence: presenceManager,
-      releaseRoom: handlers.releaseRoom,
-    }),
-  );
+  // 各部品の `destroy` は鍵が重なれば落ちる（後勝ちで黙って外れない）。受け側に無い余計な鍵は、型が `never` を要求して落とす。
+  const toolDestroy = mergeDisjoint(topic.destroy, roulette.destroy, agenda.destroy, checkin.destroy, poker.destroy);
+  const destroyDeps: RoomDestroyerDeps & Record<Exclude<keyof typeof toolDestroy, keyof RoomDestroyerDeps>, never> = {
+    store,
+    timers,
+    ...toolDestroy,
+    scheduler,
+    presence: presenceManager,
+    releaseRoom: handlers.releaseRoom,
+  };
+  destroyRoom.set(createRoomDestroyer(destroyDeps));
 
   // httpHandler クロージャが reclaimer.reclaimedCount を参照するため、
   // WS アダプタ生成（クロージャ定義）より前に reclaimer を宣言する。

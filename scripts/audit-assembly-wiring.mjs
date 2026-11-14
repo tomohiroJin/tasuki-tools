@@ -178,6 +178,35 @@ export function isEvidenceLine(line) {
 }
 
 /**
+ * `assemblerSource` の import のうち、`target`（リポジトリ相対）へ解ける指定子から取り込む名前の集合を返す（純粋）。
+ *
+ * - 複数行に折り返した `import { a,\n b } from "…"` も読む（ソース全体に対する正規表現。コメント行は先に落とす）。
+ * - 指定子は `assembler` のあるディレクトリからの相対パスとして解き、`.js` は `.ts` に読み替えて `target` と比べる
+ *   （別のディレクトリの同名ファイルは、解いた先が違うので数えない）。
+ * - `import type` は名前を数えない（呼べないので証拠にならない）。`as` の別名は元の名前で数える。
+ */
+export function importedNamesFrom(assemblerSource, assembler, target) {
+  const code = assemblerSource
+    .split("\n")
+    .filter((l) => isEvidenceLine(l))
+    .join("\n");
+  const names = new Set();
+  const re = /\bimport\s+(type\s+)?\{([^}]*)\}\s*from\s*["']([^"']+)["']/g;
+  for (let m = re.exec(code); m !== null; m = re.exec(code)) {
+    const [, isType, list, spec] = m;
+    if (!spec.startsWith(".")) continue;
+    const resolved = path.posix.normalize(path.posix.join(path.posix.dirname(assembler), spec)).replace(/\.js$/, ".ts");
+    if (resolved !== target) continue;
+    for (const item of list.split(",")) {
+      const t = item.trim();
+      if (t === "" || isType || /^type\s/.test(t)) continue;
+      names.add(t.split(/\s+as\s+/)[0].trim());
+    }
+  }
+  return names;
+}
+
+/**
  * 1 組ぶんの問題を返す（純粋）。問題が無ければ空配列。
  *
  * @param target `{ entry, assembler, fn }`
@@ -202,13 +231,12 @@ export function findAssemblyProblems(target, sources) {
     }
     if (assemblerSource !== undefined) {
       const assemblerLines = assemblerSource.split("\n");
-      const partModule = path.basename(file).replace(/\.ts$/, "");
+      // import は複数行に折り返されていても読み、指定子を組み立て関数からの相対パスとして解いた先が
+      // 分けた先のファイルそのものであるものだけを数える（別のディレクトリの同名ファイルは数えない）。
+      const importedNames = importedNamesFrom(assemblerSource, assembler, file);
       for (const f of fns) {
-        const imported = assemblerLines.some(
-          (l) => isEvidenceLine(l) && isImportLine(l) && l.includes(f) && l.includes(`/${partModule}.`),
-        );
-        if (!imported) {
-          problems.push(`${assembler} が ${partModule} から ${f} を import していません（ADR-0004 決定 4・#591）`);
+        if (!importedNames.has(f)) {
+          problems.push(`${assembler} が ${file} から ${f} を import していません（ADR-0004 決定 4・#591）`);
         }
         const called = assemblerLines.some((l) => isEvidenceLine(l) && !isImportLine(l) && l.includes(`${f}(`));
         if (!called) problems.push(`${assembler} が ${f}() を呼んでいません（ADR-0004 決定 4・#591）`);
