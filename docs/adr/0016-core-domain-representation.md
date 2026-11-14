@@ -344,7 +344,16 @@ core・アプリケーション層・ポートの ID は、どれも `string` �
 | ブランド型の ID | 0 | 0 | — |
 | 同じ関数に ID の引数が 2 つ以上並ぶもの | 6 | 15 | 下の表 |
 
-関数の数え方: `stringIds` の引数を、関数名・ファイルが同じで行が近い（4 行以内）ものに束ね、2 つ以上のものを数えた。型の宣言と実装の二重取り（`handleParticipantRemoved` の 2 か所）は 1 つと数えた。
+関数の数え方: `stringIds` の引数を、関数名・ファイルが同じで行が近い（4 行以内）ものに束ね、2 つ以上のものを数えた。
+名前のある組は 15 組で、型の宣言と実装の二重取り（`handleParticipantRemoved` の 190 行と 708 行）を 1 つと数えて 14 関数になる。
+名前の無い組（関数名が `<anon>`）は 7 組あり、1 つずつ本物に当てて次のように扱った。
+
+- **表に足した 1 関数**: `discardPokerVote: (roomCode: string, participantId: string) => void`。依存の型のプロパティとして書かれているのでスクリプトが名前を拾えない。
+  同じ署名が `command-handlers/participant-remove.ts:56`・`handlers.ts:191`・`room-removal.ts:144` の 3 か所にあり、1 つと数えた
+- **除いた 2 組（重複）**: `poker-commit-room-action.ts:153-155` と `poker-handlers.ts:166-168` の `removeFromRoom: (roomCode, actorId, targetId) => …`。依存の型のプロパティで、表の `removeFromRoom`（`handlers.ts`）と同じ関数の型である
+- **除いた 2 組（誤検出）**: `participant-remove.ts:45/47`（`sendError(connId, …)` と `destroyRoom(roomCode)` の別々のプロパティ）と `destroy-room.ts:106/110`（`releaseRoom(roomCode)` と `createRoomDestroyer` の戻りの型の `roomCode`）。行が近いだけで、1 つの関数に ID が並んでいない
+
+したがって表は 14 ＋ 1 ＝ 15 関数である。
 
 | 関数 | 並ぶ ID | ブランド型で止まるか |
 |---|---|---|
@@ -356,6 +365,7 @@ core・アプリケーション層・ポートの ID は、どれも `string` �
 | `scheduleDriverAbsence`（`presence.ts`） | 参加者・ルームのコード | 同上 |
 | `findResumeToken`（`token-store.ts`） | 参加者・ルームのコード | 同上 |
 | `handleAiUnlock`（`topic-handlers.ts`） | 接続・ルームのコード | 同上 |
+| `discardPokerVote`（`participant-remove.ts`・`handlers.ts`・`room-removal.ts` の依存の型。名前の無い組から足した） | ルームのコード・参加者 | 同上 |
 | `removeFromRoom`（`handlers.ts`） | ルームのコード・参加者（する人）・参加者（される人） | ルームのコードと参加者の取り違えは止まる。する人とされる人の取り違えは止まらない |
 | `removalNotificationFor`（`removal-notification.ts`） | 参加者（する人）・参加者（される人） | 止まらない |
 
