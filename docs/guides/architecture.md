@@ -153,7 +153,7 @@ WS の置き場と、URL・接続状態の写しは `scripts/audit-web-sync-boun
 | 参加者（ルームに居る人） | `Participant`（`packages/room-core`・名簿の正本） | 用語集の「参加者」。DTO・画面・コマンドの語もこれ（`participant.remove` など） |
 | 参加者（timer の画面の行） | `Occupant`（`apps/tasuki-sync/src/application/timer-snapshot-dto.ts`） | 名簿の `Participant` と timer の状態を合わせた、配信用の 1 行。`occupants()` が作る |
 | 参加者（checkin の席） | `seats` / `SeatView`（`packages/checkin-core`） | 札を出す側の見え方。`playersOf` は「在席かつ見学でない人」 |
-| 参加者（timer の wire） | `Participant` / `Seat`（`packages/timer-core/src/wire.ts`） | 配信する DTO。名簿の 1 人かローテーション上の代理。`Seat` は参加者の 1 行 |
+| 参加者（timer の wire） | `Participant` / `Seat`（`packages/timer-core/src/wire.ts`） | 配信する DTO。`Participant` は名簿の 1 人かローテーション上の代理。`Seat` は交代の輪（`rotation`）の席 1 つで、`rotation` と同じ順・同じ長さ（離席した人の席も残る） |
 | 参加者（ルーレットの入る人） | `Member`（`packages/roulette-core`） | 在室者に、足したゲストが加わる。`poolOf` が入る人を決める |
 | 玄関（道具を選ぶ入口の画面） | `apps/landing`（`App.tsx`・`tools.ts`・`hub/`） | アプリの置き場は `landing`。選択画面の状態・配信は `hub`（`use-hub-sync`・`HubServerMsg`・`hub-handlers.ts`） |
 | 玄関（道具へ入る手続き） | `entry`（`apps/tasuki-sync/src/application/room-entry.ts`・`join-tool-room.ts`） | 合言葉の関門・復帰の組の照合。「入ること」を指し、画面の名前ではない。web 側の `useRoomEntry.ts`・`ui/entry.ts`・`use-timer-entry.ts` は各アプリの入室の画面・接続の処理で、別物 |
@@ -165,8 +165,8 @@ WS の置き場と、URL・接続状態の写しは `scripts/audit-web-sync-boun
 | 回（ルーレットの順番回し） | `OrderRound`（`packages/roulette-core`） | 順番に回す 1 周 |
 | 回（ルーレットの 1 回の抽選） | `Spin`（`packages/roulette-core`） | 1 回ぶんの結果・止め方を持つ。`seq` は回した通し番号 |
 
-「玄関」と「回」は、道具ごとに意味が違うので 1 つの語へ統一しない。参加者の 4 つの識別子は、
-持っている情報の範囲が違う（名簿の 1 行 ＋ timer の状態 ＋ 画面の都合）ため別の型のまま保つ。
+「玄関」と「回」は、道具ごとに意味が違うので 1 つの語へ統一しない。参加者の識別子は、
+持っている情報の範囲が違う（名簿の 1 行・timer の状態・配信の形・画面の都合）ため別の型のまま保つ。
 
 ## 一般的な方法論との対応
 
