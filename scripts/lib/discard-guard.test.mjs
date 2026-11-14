@@ -136,7 +136,13 @@ describe("単純でない形は、変更の有無にかかわらず全部聞く�
   });
 
   test("敵対的レビュー（#612・main からの穴）: checkout のグロブを含む 1 語は、文字どおりに実在しなくても枝とみなさず、パスとして変更を確かめる", async () => {
-    for (const w of ["a.t*", "a.t?", "[a].ts", "src/*"]) {
+    // 再レビュー: `:` で始まる魔法の pathspec（`:/a.ts`・`:(icase)A.TS`）も同じ（文字どおりには実在しないが、git はパスとして取り出す）
+    // 引用符で包んだ `:(icase)A.TS` も 1 語の魔法の pathspec として変更を確かめる
+    const icase = await decide("git checkout ':(icase)A.TS'", { dirty: "yes" });
+    assert.equal(icase.ask, true);
+    assert.deepEqual(icase.calls, [{ dir: "/w", target: { kind: "paths", paths: [":(icase)A.TS"], scope: "worktree" } }]);
+    assert.equal((await decide("git checkout ':(icase)A.TS'", { dirty: "no" })).ask, false);
+    for (const w of ["a.t*", "a.t?", "[a].ts", "src/*", ":/a.ts", ":!b.ts"]) {
       const r = await decide(`git checkout ${w}`, { dirty: "yes" });
       assert.equal(r.ask, true, w);
       assert.deepEqual(r.calls, [{ dir: "/w", target: { kind: "paths", paths: [w], scope: "worktree" } }], w);
