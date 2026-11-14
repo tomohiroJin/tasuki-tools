@@ -9292,4 +9292,12 @@ export const MUTATIONS = [
     tests: ["audit-assembly-wiring.test.mjs"],
     note: RESERVED_1620_1639 + " " + "#591。import だけで通る。呼ばれない部品は配線から落ちる。",
   },
+  {
+    id: 1628,
+    label: "チェックインにも実行時に broadcast を作る（旗の表を読まない）",
+    patch: "m1628-outbound-always-has-broadcast.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/ws/raw-tools.test.ts"],
+    note: RESERVED_1620_1639 + " " + "#591。型は表のままなので型検査は緑で、実行時にだけ全員へ同じものを送る口ができる（チェックインは受け手ごとに中身が違う・#406）。",
+  },
 ];

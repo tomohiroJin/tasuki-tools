@@ -9,15 +9,15 @@
 #       git apply scripts/mutations/m1624-*.patch
 # 復元: git apply -R scripts/mutations/m1624-*.patch
 diff --git a/apps/tasuki-sync/src/adapters/ws-adapter.ts b/apps/tasuki-sync/src/adapters/ws-adapter.ts
-index ffda6bbf..0359f468 100644
+index 4a1c83c9..f41895ae 100644
 --- a/apps/tasuki-sync/src/adapters/ws-adapter.ts
 +++ b/apps/tasuki-sync/src/adapters/ws-adapter.ts
-@@ -399,7 +399,7 @@ export class WsAdapter {
+@@ -400,7 +400,7 @@ export class WsAdapter {
          sendIfOpen(this.connections.get(connId), JSON.stringify(data));
        };
        const broadcast = (connIds: string[], data: unknown): void => {
 -        sendToEach(this.connections, connIds, JSON.stringify(data));
 +        sendToEach(this.connections, connIds.slice(0, 1), JSON.stringify(data));
        };
-       // 全員へ同じものを送る口は、受け手ごとに中身が違うツール（チェックイン）には**実行時にも作らない**（#406）。
-       return [id, id === "checkin" ? { send } : { send, broadcast }];
+       // 全員へ同じものを送る口を持たないツール（チェックイン。#406）には**実行時にも作らない**。旗は `RAW_BROADCAST` が 1 か所で持つ。
+       return [id, RAW_BROADCAST[id] ? { send, broadcast } : { send }];
