@@ -13,7 +13,6 @@
  */
 import { loadResumeIdentity } from "@tasuki/sync-client";
 import { useJoinRetry } from "@tasuki/web-kit/sync";
-import type { SyncClient } from "./client.js";
 import { useJoinDeadline } from "./use-join-deadline.js";
 import type { BannerController } from "../ui/use-banner.js";
 
@@ -22,8 +21,18 @@ const JOIN_RETRY_WAITING_TEXT = "混み合っています。自動で入り直�
 /** 自動で入り直しても入れなかったときの案内（#147）。 */
 const JOIN_RETRY_EXHAUSTED_TEXT = "混雑が続いています。時間をおいてから再読込してください";
 
-/** 入り直しが送るのに使う接続（`send` だけ）。 */
-type JoinSender = Pick<SyncClient, "send">;
+/**
+ * 入り直しが送るのに使う接続（`send` だけ）。同期クライアントそのものは
+ * このフックでは import しない（`use-timer-sync.ts` だけが持つ・`docs/adr/0015`）。
+ */
+interface JoinSender {
+  send(command: {
+    command: "room.join";
+    code: string;
+    displayName: string;
+    resumeToken: string;
+  }): unknown;
+}
 
 export interface JoinRecoveryOptions {
   readonly showBanner: BannerController["show"];

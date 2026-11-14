@@ -202,7 +202,11 @@ export function useTimerSync(banner: BannerController): TimerSync {
   // メッセージ処理時点ではまだ `null` のため、ここから読んではいけない。
 
   /** 契約に合わないフレームを捨てたことを受け取る（#181・#209。中身は `use-stale-frame-notice.ts`）。 */
-  const handleInvalidFrame = (paths: string[]) => staleNotice.onInvalidFrame(paths, room !== null);
+  const handleInvalidFrame = (paths: string[]) => {
+    // devtools へは落ちた項目の経路だけを残す（値は出さない・ADR 0012）。
+    console.warn("契約に合わない同期フレームを捨てました:", paths); // log-hygiene:allow 項目の経路のみ（値は出さない）
+    staleNotice.onInvalidFrame(paths, room !== null);
+  };
 
   const handleRoom = (r: Room) => {
     // **画面が実際に新しい状態を得た。** ここだけが「古い」の解除点である（#209）。

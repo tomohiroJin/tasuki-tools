@@ -49,7 +49,6 @@ export function useStaleFrameNotice(banner: BannerController): StaleFrameNotice 
   const bannerShownRef = useRef(false);
 
   const onInvalidFrame = (paths: string[], hasRoom: boolean) => {
-    console.warn("契約に合わない同期フレームを捨てました:", paths); // log-hygiene:allow 項目の経路のみ（値は出さない）
     if (!indicatesStaleRoom(paths)) return;
     setSyncStale(true);
     if (!hasRoom) {
