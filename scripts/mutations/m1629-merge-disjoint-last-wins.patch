@@ -1,0 +1,22 @@
+# 変異 1629: merge-disjoint-last-wins
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/assembly-late.test.ts
+#
+# #591。破棄の束の合成が、重なった鍵を後勝ちで黙って上書きする（片方の保管が破棄から外れる）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1629-*.patch
+# 復元: git apply -R scripts/mutations/m1629-*.patch
+diff --git a/apps/tasuki-sync/src/assembly/context.ts b/apps/tasuki-sync/src/assembly/context.ts
+index 7a482c42..e28e3221 100644
+--- a/apps/tasuki-sync/src/assembly/context.ts
++++ b/apps/tasuki-sync/src/assembly/context.ts
+@@ -131,7 +131,6 @@ export function mergeDisjoint<T extends readonly object[]>(...parts: T): UnionTo
+   const merged: Record<string, unknown> = {};
+   for (const part of parts) {
+     for (const [key, value] of Object.entries(part)) {
+-      if (key in merged) throw new DuplicateKeyError(`破棄の束で鍵「${key}」が重複しています`);
+       merged[key] = value;
+     }
+   }

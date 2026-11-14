@@ -880,17 +880,17 @@ describe("ハブ・お題・ルーレットへの送り出し", () => {
   const frame = { type: "error", code: "TEST_ONLY", message: "テスト用" } as const;
 
   for (const [label, send, broadcast] of [
-    ["ハブ", (a: WsAdapter, id: string) => a.sendHub(id, frame), (a: WsAdapter, ids: string[]) => a.broadcastHub(ids, frame)],
-    ["お題", (a: WsAdapter, id: string) => a.sendTopic(id, frame), (a: WsAdapter, ids: string[]) => a.broadcastTopic(ids, frame)],
+    ["ハブ", (a: WsAdapter, id: string) => a.to.hub.send(id, frame), (a: WsAdapter, ids: string[]) => a.to.hub.broadcast(ids, frame)],
+    ["お題", (a: WsAdapter, id: string) => a.to.topic.send(id, frame), (a: WsAdapter, ids: string[]) => a.to.topic.broadcast(ids, frame)],
     [
       "ルーレット",
-      (a: WsAdapter, id: string) => a.sendRoulette(id, frame),
-      (a: WsAdapter, ids: string[]) => a.broadcastRoulette(ids, frame),
+      (a: WsAdapter, id: string) => a.to.roulette.send(id, frame),
+      (a: WsAdapter, ids: string[]) => a.to.roulette.broadcast(ids, frame),
     ],
     [
       "進行タイマー",
-      (a: WsAdapter, id: string) => a.sendAgenda(id, frame),
-      (a: WsAdapter, ids: string[]) => a.broadcastAgenda(ids, frame),
+      (a: WsAdapter, id: string) => a.to.agenda.send(id, frame),
+      (a: WsAdapter, ids: string[]) => a.to.agenda.broadcast(ids, frame),
     ],
   ] as const) {
     it(`Given 3 つの接続 / When ${label}へ 1 本に送り、2 本と知らない ID へ一斉に送る / Then 宛先にだけ 1 通ずつ届く`, async () => {

@@ -2,7 +2,7 @@
  * お題の接続へ送るフレーム（#91）。`room.joined` はハブと同じ形を返すので `HubServerMsg` を含む。
  *
  * **ハブ・timer・poker の接続へ `topic` フレームを送るときもこの型で送る**
- * （配信先はルームの全接続・spec §9）。`WsAdapter#sendTopic` / `#broadcastTopic` は
+ * （配信先はルームの全接続・spec §9）。`WsAdapter#to.topic.send` / `#to.topic.broadcast` は
  * どの接続へも同じ型で送れるようにしてある（timer・poker は Task 3・4 で `topic`
  * フレームを先に見分けるようになっているので、契約に無い形として捨てられない）。
  *
@@ -27,7 +27,7 @@ export type TopicServerMsg =
  * アダプタが自分の判断でエラーフレームを組み立てて送る経路（`sendTopicFrame`）は
  * この狭い型へ絞り、契約に無いコードをコンパイルエラーにする。
  *
- * `sendTopic` / `broadcastTopic`（公開 API・Task 9 が `room.joined` 等のハブ形の
+ * `to.topic.send` / `to.topic.broadcast`（公開 API・Task 9 が `room.joined` 等のハブ形の
  * 応答に使う）は引き続き広い `TopicServerMsg` を使う。ここを狭めるのはアダプタが
  * 自分でエラーを組み立てる経路だけである。
  */

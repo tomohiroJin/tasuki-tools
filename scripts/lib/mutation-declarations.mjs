@@ -215,6 +215,9 @@ const RESERVED_1570_1579 =
 const RESERVED_1600_1619 =
   "**対応表より後に足した変異。** 1600〜1619 は #590（道具の列挙を 1 か所から）に割り当てた範囲。";
 
+const RESERVED_1620_1639 =
+  "**対応表より後に足した変異。** 1620〜1639 は #591（同期サーバーの組み立てを道具ごとに分ける）に割り当てた範囲。";
+
 const RESERVED_1640_1659 =
   "**対応表より後に足した変異。** 1640〜1659 は #593（checkin のやり方の分岐を Record に寄せる）に割り当てた範囲。";
 
@@ -477,7 +480,7 @@ export const MUTATIONS = [
       "`createRateLimitGate(rateLimiter)` で新しく作った別インスタンスにする。" +
       "バケツが connId→clientKey の登録ごと分かれるため、room.join を枯渇させても" +
       "ai.unlock は素通りし（逆も同様）、同じ IP からの総当たりが片方のツールを" +
-      "迂回すれば通ってしまう。",
+      "迂回すれば通ってしまう。 #591 で、ゲートを渡す行が `assembly/topic.ts` へ移ったのでパッチを作り直した（壊し方は同じ）。",
   },
   {
     id: 82,
@@ -502,7 +505,7 @@ export const MUTATIONS = [
       "メッセージも、生 JSON が `TopicCommandSchema` に通ればお題の経路" +
       "（`onTopicMessage`）へ回してしまう。2 段目（`roomCodeOf` がお題ツールの接続だけを" +
       "数える。m86 が壊す）があるのでお題そのものは変わらないが、timer 側の INVALID_COMMAND" +
-      "ではなくお題の経路の NOT_IN_ROOM が返り、テストは応答コードの違いで検出する。",
+      "ではなくお題の経路の NOT_IN_ROOM が返り、テストは応答コードの違いで検出する。 #591 で、メッセージ層が `options.raw` へ畳まれたのでパッチを作り直した（壊し方は同じ）。",
   },
   {
     id: 84,
@@ -1602,7 +1605,7 @@ export const MUTATIONS = [
     patch: "m150-hub-message-reaches-roulette.patch",
     pkg: "apps/tasuki-sync",
     tests: ["test/live-ws.roulette.test.ts"],
-    note: "#94 E9・spec R11。ルーレットの層は『ルーレットとして在席しているか』で 2 段目を守るので状態は変わらないが、ハブの接続が 2 通目の拒否を受け取る。4 種の接続で拒否が 1 通ずつであることを見る。",
+    note: "#94 E9・spec R11。ルーレットの層は『ルーレットとして在席しているか』で 2 段目を守るので状態は変わらないが、ハブの接続が 2 通目の拒否を受け取る。4 種の接続で拒否が 1 通ずつであることを見る。 #591 で、WsAdapter へ渡す表（`raw`）に合わせてパッチを作り直した（壊し方は同じ）。",
   },
   {
     id: 158,
@@ -1877,7 +1880,7 @@ export const MUTATIONS = [
     tests: ["test/connection-error-text.test.ts", "test/connection-error-text-sources.test.ts"],
     note:
       "#381。**対応表より後に足した変異。** timer の内部エラーのフレームを正本（`connectionErrorFrame`）から" +
-      "取らず「内部エラーが発生しました」を直書きすると、timer だけ文が違う状態（#381 以前）に戻る。",
+      "取らず「内部エラーが発生しました」を直書きすると、timer だけ文が違う状態（#381 以前）に戻る。 #591 で、エラーフレームが定数（RAW_ERROR_FRAMES）になったのでパッチを作り直した（壊し方は同じ）。 #591 の見直しで、エラーフレームの定数名が CONNECTION_ERROR_FRAMES に変わったのでパッチを作り直した（壊し方は同じ）。",
   },
   {
     id: 231,
@@ -3045,7 +3048,7 @@ export const MUTATIONS = [
     patch: "m438-hub-message-reaches-agenda.patch",
     pkg: "apps/tasuki-sync",
     tests: ["test/live-ws.agenda.test.ts"],
-    note: "#429 進行タイマーの層は『進行タイマーとして在席しているか』で 2 段目を守るので状態は変わらないが、ハブの接続が 2 通目の拒否を受け取る。5 種の接続で拒否が 1 通ずつであることを見る。",
+    note: "#429 進行タイマーの層は『進行タイマーとして在席しているか』で 2 段目を守るので状態は変わらないが、ハブの接続が 2 通目の拒否を受け取る。5 種の接続で拒否が 1 通ずつであることを見る。 #591 で、WsAdapter へ渡す表（`raw`）に合わせてパッチを作り直した（壊し方は同じ）。",
   },
   {
     id: 441,
@@ -3606,7 +3609,7 @@ export const MUTATIONS = [
     patch: "m508-roster-hook-unwired.patch",
     pkg: "apps/tasuki-sync",
     tests: ["test/live-ws.checkin.test.ts"],
-    note: "#406 段 2。ハンドラの試験は rosterChanged を直に呼ぶので緑のまま。実 WS で、まだの人が閉じても開かないことを見る（Review Focus 3）。",
+    note: "#406 段 2。ハンドラの試験は rosterChanged を直に呼ぶので緑のまま。実 WS で、まだの人が閉じても開かないことを見る（Review Focus 3）。 #591 で、名簿配信の契機が道具の表を回す形になったのでパッチを作り直した（壊し方は同じ）。",
   },
   {
     id: 509,
@@ -3614,7 +3617,7 @@ export const MUTATIONS = [
     patch: "m509-hub-message-reaches-checkin.patch",
     pkg: "apps/tasuki-sync",
     tests: ["test/ws-adapter-tool-query.test.ts", "test/live-ws.checkin.test.ts"],
-    note: "#406 段 2。?tool=checkin の振り分けを崩す。チェックインの接続の札の操作がハブの層で拒まれる。",
+    note: "#406 段 2。?tool=checkin の振り分けを崩す。チェックインの接続の札の操作がハブの層で拒まれる。 #591 で、受け口を表から作る形になったのでパッチを作り直した（壊し方は同じ）。 #591 の見直しで、受け口を作る行が mapRawTools になったのでパッチを作り直した（壊し方は同じ）。",
   },
   {
     id: 510,
@@ -9231,6 +9234,102 @@ export const MUTATIONS = [
     pkg: "apps/tasuki-sync",
     tests: ["test/ws/connection-gate.test.ts"],
     note: RESERVED_1600_1619 + " " + "#590 の敵対的レビュー（記録 4）。綴りの末尾に余計な字がついた宣言（?tool=timerx）が unknown にならずに通る。述語にした今は 1 行で開く穴。",
+  },
+  {
+    id: 1620,
+    label: "前方参照（late）が、値が入る前に引かれても落ちずに undefined を返す",
+    patch: "m1620-late-get-returns-undefined.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/assembly-late.test.ts"],
+    note: RESERVED_1620_1639 + " " + "#591。組み立ての順序の誤りが、名前つきの例外ではなく後ろの TypeError になる。",
+  },
+  {
+    id: 1621,
+    label: "前方参照（late）が、2 度目の値の差し替えを許す",
+    patch: "m1621-late-set-allows-overwrite.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/assembly-late.test.ts"],
+    note: RESERVED_1620_1639 + " " + "#591。組み立ての誤りで、先に入れた値が黙って差し替わる。",
+  },
+  {
+    id: 1622,
+    label: "生テキストのツールの表からハブを落とす",
+    patch: "m1622-raw-tool-ids-drops-hub.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/ws/raw-tools.test.ts"],
+    note: RESERVED_1620_1639 + " " + "#591。ハブの受け口が作られず、`?tool=` 無しの接続が受け口を持たない。",
+  },
+  {
+    id: 1623,
+    label: "表から作る生テキストの受け口が、ログの protocol を常に hub にする",
+    patch: "m1623-raw-channel-protocol-always-hub.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/connection-error-text.test.ts"],
+    note: RESERVED_1620_1639 + " " + "#591。受け口を表から作るとき、鍵をそのまま `protocol` へ渡す部分（以前は行ごとに手で書いていた名前）。取り違えると接続ごとの `protocol=` の値がずれる。",
+  },
+  {
+    id: 1624,
+    label: "表から導く to.<ツール>.broadcast が、宛先の先頭 1 本にしか送らない",
+    patch: "m1624-outbound-broadcast-first-only.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/ws-adapter.message.test.ts"],
+    note: RESERVED_1620_1639 + " " + "#591。以前は 8 つの手書きのメソッドが持っていた「宛先にだけ全員届く」を、表から導く 1 つの実装が持つ。",
+  },
+  {
+    id: 1625,
+    label: "破棄の共通経路へ渡す束からチェックインの分を落とす",
+    patch: "m1625-destroy-drops-checkin-part.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/live-ws.checkin.test.ts", "test/live-ws.topic.test.ts"],
+    note: RESERVED_1620_1639 + " " + "#591。各道具の組み立てが返す `destroy` を展開して渡す形にしたので、展開の行を落とすと実行時にも検出される（型検査も落ちる）。",
+  },
+  {
+    id: 1626,
+    label: "組み立ての監査が、組の parts（分けた先）を読み飛ばす",
+    patch: "m1626-assembly-audit-ignores-parts.patch",
+    pkg: "scripts",
+    tests: ["audit-assembly-wiring.test.mjs"],
+    note: RESERVED_1620_1639 + " " + "#591。分けた先が実在しなくても、組み立て関数が呼ばなくても緑になる。",
+  },
+  {
+    id: 1627,
+    label: "組み立ての監査が、組み立て関数が分けた先の関数を呼んでいるかを見ない",
+    patch: "m1627-assembly-audit-skips-part-call-check.patch",
+    pkg: "scripts",
+    tests: ["audit-assembly-wiring.test.mjs"],
+    note: RESERVED_1620_1639 + " " + "#591。import だけで通る。呼ばれない部品は配線から落ちる。",
+  },
+  {
+    id: 1628,
+    label: "チェックインにも実行時に broadcast を作る（旗の表を読まない）",
+    patch: "m1628-outbound-always-has-broadcast.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/ws/raw-tools.test.ts"],
+    note: RESERVED_1620_1639 + " " + "#591。型は表のままなので型検査は緑で、実行時にだけ全員へ同じものを送る口ができる（チェックインは受け手ごとに中身が違う・#406）。",
+  },
+  {
+    id: 1629,
+    label: "破棄の束の合成（mergeDisjoint）が、重なった鍵を後勝ちで黙って上書きする",
+    patch: "m1629-merge-disjoint-last-wins.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/assembly-late.test.ts"],
+    note: RESERVED_1620_1639 + " " + "#591。片方の道具の保管が破棄から黙って外れる。",
+  },
+  {
+    id: 1630,
+    label: "組み立ての監査の import 判定が、指定子の解き先を見ない（別のディレクトリの同名ファイルでも通る）",
+    patch: "m1630-assembly-audit-import-ignores-path.patch",
+    pkg: "scripts",
+    tests: ["audit-assembly-wiring.test.mjs"],
+    note: RESERVED_1620_1639 + " " + "#591。別のディレクトリの同名ファイルからの import が、分けた先の import として通る（偽の緑）。",
+  },
+  {
+    id: 1631,
+    label: "組み立ての監査の import 判定が、複数行に折り返した import を読まない",
+    patch: "m1631-assembly-audit-import-single-line-only.patch",
+    pkg: "scripts",
+    tests: ["audit-assembly-wiring.test.mjs"],
+    note: RESERVED_1620_1639 + " " + "#591。折り返した正しい import が偽の赤になる。",
   },
   {
     id: 1640,

@@ -1,0 +1,22 @@
+# 変異 1622: raw-tool-ids-drops-hub
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/ws/raw-tools.test.ts
+#
+# #591。生テキストのツールの表からハブを落とす。ハブの受け口が作られず、`?tool=` 無しの接続が受け口を持たない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1622-*.patch
+# 復元: git apply -R scripts/mutations/m1622-*.patch
+diff --git a/apps/tasuki-sync/src/adapters/ws/raw-tools.ts b/apps/tasuki-sync/src/adapters/ws/raw-tools.ts
+index da5963cb..d1775b6d 100644
+--- a/apps/tasuki-sync/src/adapters/ws/raw-tools.ts
++++ b/apps/tasuki-sync/src/adapters/ws/raw-tools.ts
+@@ -89,7 +89,6 @@ export type RawHandlers = { readonly [T in RawToolId]: RawMessageHandler };
+  * 型は {@link RawToolId}（同じ一覧から導いた集合）。
+  */
+ export const RAW_TOOL_IDS: readonly RawToolId[] = [
+-  "hub",
+   ...TOOL_IDS.filter((id): id is Exclude<KnownToolId, "timer" | "poker"> => id !== "timer" && id !== "poker"),
+ ];
+ 

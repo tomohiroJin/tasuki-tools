@@ -3,7 +3,7 @@
  *
  * `room.joined` はハブと同じ形を返すので `HubServerMsg` から取り込む（先例: `roulette-server-msg.ts`）。
  * **`state` は受け手ごとに中身が違う**（匿名は送らないことで守る。設計 §6）。そのためアダプタには
- * 1 本だけ送る口（`sendCheckin`）しか作らず、全員へ同じものを送る口は作らない。
+ * 1 本だけ送る口（`WsAdapter#to.checkin.send`）しか作らず、全員へ同じものを送る口は作らない。
  *
  * アダプタ（`adapters/ws-adapter.ts`）とアプリ層の両方が使うので、どちらにも依存しないポートに置く。
  */
