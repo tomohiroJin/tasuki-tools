@@ -175,6 +175,9 @@ test("入口: git -C <パス> の未コミットの変更は、cwd でなく -C 
   assert.equal(toDirty.out?.hookSpecificOutput.permissionDecision, "ask");
   assert.match(toDirty.reason, /未コミットの変更があります/);
   assert.equal(runInRepo(t, { tool_input: { command: `git -C ${dirty} checkout -q --detach HEAD` } }).out, null);
+  // 敵対的レビュー 1: -C の先をグロブで書くと、文字どおりには実在しない。a.ts を枝と取り違えて通さず、聞く（実際の git は展開した先の変更を消す）
+  const globbed = runInRepo(t, { tool_input: { command: `git -C ${dirty.slice(0, -2)}* checkout a.ts` } });
+  assert.equal(globbed.out?.hookSpecificOutput.permissionDecision, "ask");
   // 逆向き: cwd に変更があっても、-C の先がきれいなら通す
   const clean = runInRepo(t, { tool_input: { command: "git stash" } });
   assert.equal(clean.out, null);

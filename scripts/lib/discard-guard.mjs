@@ -24,7 +24,8 @@
  * - `git clean`: `-n`・`--dry-run` があれば通す。ほかは聞く
  * - `git switch <枝>`・`git switch -c <名前> [<開始点>]`・`git switch --detach|-d [<rev>]`（どれも `-q` 可）は通す。ほかの選択肢（`-f`・`--discard-changes`・`-C`）は聞く
  * - 先頭の `git -C <リテラルのパス>` は 1 つだけ読み、そのパスを作業ツリーとして上の形を確かめる（#612。兄弟の作業ツリーでは
- *   Claude Code の `cd` が次の呼び出しに残らないため）。`-C` が 2 つ以上・ほかの全体の選択肢・`$`・先頭の `~`・波括弧のある形は聞く
+ *   Claude Code の `cd` が次の呼び出しに残らないため）。`-C` が 2 つ以上・ほかの全体の選択肢・`$`・先頭の `~`・波括弧のある形と、
+ *   `-C` の先が実在するディレクトリでない形（グロブほか、シェルが展開する語）は聞く
  *
  * ## 手順書との関係
  *
@@ -74,7 +75,8 @@ function classify({ sub, rest }, exists) {
     // `git checkout --detach [<rev>]`: HEAD を切り離すだけ。枝の切り替えと同じく、git 自身が上書きを拒む（#612）
     if (words[0] === "--detach" && words.length <= 2 && words.slice(1).every((w) => !w.startsWith("-"))) return SAFE;
     if (words.length === 1 && (words[0] === "-" || !words[0].startsWith("-"))) {
-      return words[0] !== "-" && exists(words[0]) ? { verdict: "check", target: { kind: "paths", paths: words, scope: "worktree" } } : SAFE;
+      // グロブ（`*`・`?`・`[`）を含む語は、文字どおりには実在しなくてもシェルが実在するパスへ展開しうるので、枝とみなさずパスとして確かめる（#612 の敵対的レビュー）
+      return words[0] !== "-" && (/[*?[]/.test(words[0]) || exists(words[0])) ? { verdict: "check", target: { kind: "paths", paths: words, scope: "worktree" } } : SAFE;
     }
     return UNKNOWN_FORM;
   }
@@ -142,6 +144,15 @@ function classify({ sub, rest }, exists) {
   return NON_DISCARDING_SUBS.has(sub) ? SAFE : UNKNOWN_FORM;
 }
 
+/** 実在するディレクトリか（`git -C` の先の確かめ。本番の `dirExists`）。 */
+function isDirectory(p) {
+  try {
+    return fs.statSync(p).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
 function ask(reason) {
   return { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "ask", permissionDecisionReason: reason } };
 }
@@ -151,9 +162,9 @@ const describeTarget = (t) => (t.kind === "paths" ? t.paths.join("・") : "作�
 /**
  * Claude Code の PreToolUse フックの入力から、未コミットの変更を消しうる git なら `ask` を返す。当たらなければ null。
  * @param {string} raw
- * @param {{ exists?: (p: string, cwd: string) => boolean, isDirty: (cwd: string, target: object) => Promise<"yes" | "no" | "unknown"> | "yes" | "no" | "unknown", cwd?: string }} deps
+ * @param {{ exists?: (p: string, cwd: string) => boolean, dirExists?: (dir: string) => boolean, isDirty: (cwd: string, target: object) => Promise<"yes" | "no" | "unknown"> | "yes" | "no" | "unknown", cwd?: string }} deps
  */
-export async function decideDiscardOutput(raw, { exists, isDirty, cwd: defaultCwd = process.cwd() }) {
+export async function decideDiscardOutput(raw, { exists, isDirty, cwd: defaultCwd = process.cwd(), dirExists = isDirectory }) {
   let input;
   try {
     input = JSON.parse(raw);
@@ -173,7 +184,9 @@ export async function decideDiscardOutput(raw, { exists, isDirty, cwd: defaultCw
   // `git -C <パス>` は、そのパスを作業ツリーとして確かめる（#612。パスの存在も変更もそこで見る）
   const cwd = simple?.dir === undefined ? baseCwd : path.resolve(baseCwd, simple.dir);
   const existsIn = exists ? (p) => exists(p, cwd) : (p) => fs.existsSync(path.resolve(cwd, p));
-  const result = simple === null ? UNKNOWN_FORM : classify(simple, existsIn);
+  // -C の先が実在するディレクトリでなければ（グロブ・zsh の =cmd ほかシェルが展開する語・誤った場所）、git が実際に動く場所が分からない（#612 の敵対的レビュー 1）
+  const dirKnown = simple?.dir === undefined || dirExists(cwd);
+  const result = simple === null || !dirKnown ? UNKNOWN_FORM : classify(simple, existsIn);
   if (result.verdict === "safe") return null;
   if (result.verdict === "unknown-form") {
     return ask("未コミットの変更を消しうる git かもしれませんが、形が単純でないので（複数のコマンド・入れ子・環境変数や -C/-c・未知の選択肢ほか）確かめられません。消えてよいか人の確認が要ります（docs/adr/0037）。");

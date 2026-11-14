@@ -15,10 +15,12 @@ import { decideDiscardOutput, defaultIsDirty } from "./discard-guard.mjs";
  * 判定を `isDirty` の答え（yes / no / unknown）ごとに流し、ask か通すか（null）と、確かめた対象を返す。
  * exists は「実在するパス」の集合を与える。
  */
-async function decide(command, { dirty = "no", existing = [], cwd = "/w", tool = "Bash" } = {}) {
+async function decide(command, { dirty = "no", existing = [], cwd = "/w", tool = "Bash", dirs = null } = {}) {
   const calls = [];
   const out = await decideDiscardOutput(JSON.stringify({ tool_name: tool, cwd, tool_input: { command } }), {
     exists: (p) => existing.includes(p),
+    // -C の先のディレクトリが実在するか。既定は実在する（dirs を渡したら、その集合だけが実在する）
+    dirExists: (d) => dirs === null || dirs.includes(d),
     isDirty: async (dir, target) => (calls.push({ dir, target }), dirty),
   });
   return { ask: out?.hookSpecificOutput?.permissionDecision === "ask", reason: out?.hookSpecificOutput?.permissionDecisionReason ?? "", calls };
@@ -133,6 +135,15 @@ describe("単純でない形は、変更の有無にかかわらず全部聞く�
     }
   });
 
+  test("敵対的レビュー（#612・main からの穴）: checkout のグロブを含む 1 語は、文字どおりに実在しなくても枝とみなさず、パスとして変更を確かめる", async () => {
+    for (const w of ["a.t*", "a.t?", "[a].ts", "src/*"]) {
+      const r = await decide(`git checkout ${w}`, { dirty: "yes" });
+      assert.equal(r.ask, true, w);
+      assert.deepEqual(r.calls, [{ dir: "/w", target: { kind: "paths", paths: [w], scope: "worktree" } }], w);
+      assert.equal((await decide(`git checkout ${w}`, { dirty: "no" })).ask, false, w);
+    }
+  });
+
   test("PR コメント 1: 理由の文は「追跡外のファイルを上書きします」と「未コミットの変更があります」で分ける", async () => {
     const yes = await decide("git checkout HEAD -- a.ts", { dirty: "yes" });
     assert.match(yes.reason, /未コミットの変更があります/);
@@ -204,10 +215,22 @@ describe("#612: git -C <リテラルのパス> が 1 つだけの形は、その
     const seen = [];
     const out = await decideDiscardOutput(JSON.stringify({ tool_name: "Bash", cwd: "/w", tool_input: { command: "git -C ../wt checkout a.ts" } }), {
       isDirty: async () => "yes",
+      dirExists: () => true,
       exists: (p, dir) => (seen.push([p, dir]), true),
     });
     assert.equal(out?.hookSpecificOutput?.permissionDecision, "ask");
     assert.deepEqual(seen, [["a.ts", "/wt"]]);
+  });
+
+  test("敵対的レビュー 1: -C の先が実在するディレクトリでない（グロブ・実在しない場所）なら、変更を確かめられないので聞く", async () => {
+    for (const c of ["git -C ../wt-6* checkout a.ts", "git -C ../wt-61? checkout -- a.ts", "git -C ../wt-612[x] stash", "git -C /nonexistent checkout a.ts", "git -C ../wt switch -q main"]) {
+      const r = await decide(c, { dirty: "no", dirs: ["/w"] });
+      assert.equal(r.ask, true, c);
+      assert.match(r.reason, /形が単純でない/, c);
+      assert.deepEqual(r.calls, [], c);
+    }
+    // 実在すれば今までどおり確かめる
+    assert.equal((await decide("git -C ../wt checkout -- a.ts", { dirty: "no", dirs: ["/wt"] })).ask, false);
   });
 
   test("パスが読み切れない・-C が 2 つ以上・ほかの全体の選択肢がある形は、今までどおり聞く", async () => {
