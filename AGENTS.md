@@ -36,6 +36,21 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
   - 枝: `git ls-remote --heads origin | grep -E 'refs/heads/.*[/-]<番号>([^0-9]|$)'`（`git fetch --prune` はしない。他の作業ツリーの参照を消す）
   - 検査もある（`pnpm check:fast` の最初と最後の知らせ・Claude Code の `gh pr create` 直前のフック。`docs/adr/0030` 決定 5）。人が確かめる操作は残る
 
+**コマンドの書き方**（フックの確認で作業が止まらないため。まとめ役もサブエージェントも同じ。#612）
+
+- Bash は 1 呼び出しに 1 操作。確認（`git status --porcelain`・`git log`）と操作（`checkout`・`stash`・`worktree remove`）を `&&`・`;`・for でつながない。
+  つなぐと、未コミットの変更を消す git の判定（`docs/adr/0037` 決定 3）が形を読み切れず、変更の有無にかかわらず人に聞く
+  （#612 の実測: 2026-11-12〜11-14 に止まった 117 件のうち、1 行の連鎖が 59 件で、そのうち 29 件は分けるだけで通る形だった。残りは複数行のシェル・heredoc で書いて同じ呼び出しで走らせる形。記録は `docs/adr/0037` 決定 3 の追記）
+- ファイルは編集の道具（Claude Code なら Write・Edit）で書く。heredoc で書いて同じ呼び出しで走らせない。
+  スクリプトはファイルに置き、別の呼び出しで `node <パス>`・`python3 -I <パス>` を流す。**フックが止める操作（git・gh の書き込み・`kill`・本番デプロイ）はスクリプトに入れず、Bash で 1 つずつ流す**（スクリプトの中はフックが見ない。回避の道に使わない）
+- 別の作業ツリーの git は `cd <パス> && git …` でなく `git -C <パス> …` と書く。パスは実在する作業ツリーをそのまま書き（変数・`~`・グロブ・波括弧を使わない）、`-C` は 1 つだけ（それ以外の形は聞かれる。条件の正本は `docs/adr/0037` 決定 3 の追記）。
+  Claude Code の `cd` は作業ディレクトリの外（兄弟の作業ツリー）では次の呼び出しに残らない。`-C` が 1 つの形は、判定がその作業ツリーの変更を確かめる（`docs/adr/0037` 決定 3 の追記）。
+  **ただしサブエージェントでは、`-C` があっても `checkout`・`switch`・`reset`・`worktree` は止まる**（決定 2 は `-C` を読まない。`-C` を外すと本体の作業ツリーで動くので外さない。その操作はまとめ役が流す。`docs/guides/procedures/orchestration.md`）
+- 別の作業ツリーで検査やテストを流すときも、相対パスにしない（cwd は本体なので、本体のスクリプトが本体を見て、比べないまま緑になる）。
+  `node <作業ツリー>/scripts/<スクリプト>`・`pnpm -C <作業ツリー> …` と書く。ただし `audit-agent-entries.mjs` など呼び出しの cwd で根を決めるスクリプトは、
+  パスを付けても本体を見るので、別の作業ツリーではまとめ役が流す（#612 の 3 回目のレビュー）
+- サブエージェントへの指示に写す細目（heredoc で本文を文章として扱う形・`node -e` の語ほか）は [`docs/guides/procedures/orchestration.md`](docs/guides/procedures/orchestration.md) の共通の指示
+
 **人の明示の指示か承認を待つ操作**（基準は `docs/adr/0030` 決定 1。一覧に無くても基準に当たれば聞く）
 
 - 本番デプロイ（deploy.sh / systemctl / Caddy reload）。Claude Code ではフックが人に聞く（一覧の正本は `scripts/lib/agent-guard.mjs`。`docs/adr/0032`）
