@@ -1,5 +1,5 @@
 diff --git a/scripts/lib/discard-guard.mjs b/scripts/lib/discard-guard.mjs
-index 68da536c..e532c935 100644
+index 9e1a5bbb..bacc7421 100644
 --- a/scripts/lib/discard-guard.mjs
 +++ b/scripts/lib/discard-guard.mjs
 @@ -76,7 +76,7 @@ function classify({ sub, rest }, exists) {
@@ -9,5 +9,5 @@ index 68da536c..e532c935 100644
 -    if (words[0] === "--detach" && words.length <= 2 && words.slice(1).every((w) => !w.startsWith("-"))) return SAFE;
 +    if (words[0] === "--detach" && words.length <= 2) return SAFE;
      if (words.length === 1 && (words[0] === "-" || !words[0].startsWith("-"))) {
-       // グロブ（`*`・`?`・`[`）を含む語は、文字どおりには実在しなくてもシェルや git が実在するパスへ展開しうるので、枝とみなさずパスとして確かめる（#612 の敵対的レビュー）
-       return words[0] !== "-" && (/[*?[]/.test(words[0]) || isMagicPathspec(words[0]) || exists(words[0])) ? { verdict: "check", target: { kind: "paths", paths: words, scope: "worktree" } } : SAFE;
+       // グロブ（`*`・`?`・`[`、zsh の extendedglob の `^`・`~`）を含む語は、文字どおりには実在しなくてもシェルや git が実在するパスへ展開しうるので、
+       // 枝とみなさずパスとして確かめる（#612 の敵対的レビュー・/code-review）。どの字も git の枝の名前には使えないので、枝を誤って聞くことはない

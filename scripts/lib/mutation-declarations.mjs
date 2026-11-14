@@ -9308,4 +9308,12 @@ export const MUTATIONS = [
     tests: ["lib/discard-guard.test.mjs"],
     note: RESERVED_1700_1719 + " " + "#612 の再レビュー（main からの穴）。git checkout :/a.ts が最上位の a.ts を取り出し、未コミットの変更が聞かずに消える。",
   },
+  {
+    id: 1710,
+    label: "git checkout <1 語> のグロブの字から zsh の extendedglob の ^・~ を落とす",
+    patch: "m1710-discard-checkout-extendedglob-as-branch.patch",
+    pkg: "scripts",
+    tests: ["lib/discard-guard.test.mjs"],
+    note: RESERVED_1700_1719 + " " + "#612 の /code-review。extendedglob の zsh で git checkout ^b.ts が b.ts 以外を取り出し、未コミットの変更が聞かずに消える。",
+  },
 ];
