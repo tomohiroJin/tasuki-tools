@@ -213,7 +213,8 @@ S4a（#245）が外したのは**名簿そのもの**（`Participant` の保管�
   [#594](https://github.com/tomohiroJin/tasuki-tools/issues/594)（写しを寄せる。この追記が前提）/
   [調査の記録](../superpowers/specs/2026-11-13-architecture-review-survey.md) 節 3.1・節 8 の 3 /
   [`docs/adr/0007`](./0007-abstraction-criteria.md)（抽象の導入基準）/
-  [`docs/adr/0014`](./0014-scan-target-integrity.md)（走査対象は宣言と実体の照合で決める）
+  [`docs/adr/0014`](./0014-scan-target-integrity.md)（走査対象は宣言と実体の照合で決める）/
+  [`docs/adr/0026`](./0026-facilitator-roulette.md) 決定 1・[`docs/adr/0027`](./0027-agenda-timer.md)・[`docs/adr/0028`](./0028-checkin-cards.md)、本 ADR の追記（2026-10-12・2026-10-20・2026-10-28）（「どの `@tasuki/*` にも依存しない（MUST NOT）」の範囲を決まり 5 で絞る）
 
 ### 背景
 
@@ -221,8 +222,8 @@ S4a（#245）が外したのは**名簿そのもの**（`Participant` の保管�
 
 | 写し | 本数 | 数えたコマンド | 持つ知識 |
 |---|---|---|---|
-| `tests/support/font-base.ts`（timer-web は `test/support/`） | 12 | `git ls-files \| grep -cE '/font-base\.ts$'` | 書体の常用の層（base）の範囲に字が収まるかの判定。12 本で 628 行（`wc -l`）。md5 は 3 通り（7＋4＋1）で、違いは `fonts.css` への相対パスの深さと、web-kit だけの `/// <reference types="node" />` |
-| `tests/support/scripted-web-socket.ts` | 5 | `git ls-files \| grep -cE '/scripted-web-socket\.ts$'` | 台本つきの偽の WebSocket（先頭の約 25 行が同じ。残りはアプリごとの固定データ） |
+| `tests/support/font-base.ts`（timer-web は `test/support/`） | 12 | `git ls-files \| grep -cE '/font-base\.ts$'` | 書体の常用の層（base）の範囲に字が収まるかの判定。12 本で 628 行（`wc -l`）。md5 は 3 通り（7＋4＋1）。違いは `fonts.css` への相対パスの深さと、web-kit 版の書き方（`/// <reference types="node" />` と注記のコメント 2 行・`baseFaces()` の結果を変数に出してループの外へ移したこと）など |
+| `tests/support/scripted-web-socket.ts` | 5 | `git ls-files \| grep -cE '/scripted-web-socket\.ts$'` | 台本つきの偽の WebSocket。`export class ScriptedWebSocket` の 42 行（宣言の行から閉じ括弧まで。4 アプリは 2〜43 行目・web-kit は 5〜46 行目）が 5 本で同じ（md5 が一致）。4 アプリどうしは 1〜53 行目が同じ（`cmp`）。残りはアプリごとの固定データ。行数は 94・91・87・54・52（agenda-web・checkin-web・roulette-web・topic-web・web-kit。`wc -l`）。調査の記録の「25 行」は正規化後の数 |
 | `tests/spacing-css.test.ts`（timer-web は `test/ui/`）の補助 | 4 | `git ls-files \| grep -cE '/spacing-css\.test\.ts$'` | CSS を字で読む補助（`read`・規則の切り出しなど）。検査の本体はアプリごとに別物 |
 
 写す側の 12 パッケージは次のとおり（`scripted-web-socket.ts` と `spacing-css` の 9 本は、すべて `font-base.ts` を持つパッケージの中にある）。
@@ -263,7 +264,7 @@ apps が agenda-web・checkin-web・landing・poker-web・roulette-web・timer-w
 2. **読む側は `devDependencies` にだけ書く（MUST）。** `dependencies` に書くと、宣言の上では製品の依存と見分けがつかなくなる。**いまの監査はこれを見ていない**（`observe` は `dependencies` と `devDependencies` を区別せずに集める）。採択後に検査を足す（下の「監査への反映」）
 3. **`@tasuki/test-css` 自身は `@tasuki/*` に依存しない（MUST）。** `ALLOWED` の `"packages/test-css": []` のまま保つ。書体の判定が読む `packages/ui/src/tokens/fonts.css` は、import でなくファイルとして読む（いまの 12 本の写しと同じ）。この読み方は依存の向きの監査の 4 つの経路の外にある。読む先が動いたときは、`baseFaces()` が 3 面を返すことを見る試験（いま各アプリにある）が赤くなる
 4. **`@types/node` は読む側に求めない。** 実装は `.mjs` に書き、型は `.d.mts` に手で書く。`.d.mts` は node の型を出さない（引数・戻り値に node の型を使わない・`/// <reference types="node" />` を書かない）。node の API（`node:fs` など）は `.mjs` の中だけで使う。web-kit の写しが持つ `/// <reference types="node" />` は、寄せると要らなくなる
-5. **ツールのドメインの試験が読むのは、決定 2 に当たらない。** agenda-core・checkin-core・roulette-core の `ALLOWED` に `@tasuki/test-css` が入る。決定 2 が禁じるのは、ツールのドメインが上流の**文脈**へ依存することである。`@tasuki/test-css` は文脈を持たず、決まり 1 によって `src` からは読めない。`ALLOWED` の各行のコメント「`@tasuki/*` に依存しない」は「製品コードは `@tasuki/*` に依存しない（試験だけが `@tasuki/test-css` を読む）」と書き直す
+5. **「どの `@tasuki/*` にも依存しない（MUST NOT）」は、製品の依存について言うものと読む。試験専用の `@tasuki/test-css` は除く。** agenda-core・checkin-core・roulette-core の試験が書体の判定を読むので、この 3 つの `ALLOWED` に `@tasuki/test-css` が入る。一方、`docs/adr/0026` 決定 1・`docs/adr/0027`・`docs/adr/0028` と本 ADR の追記（2026-10-12・2026-10-20・2026-10-28）は、これらの core が「`room-core` を含むどの `@tasuki/*` にも依存しない（MUST NOT）」と書く。監査は `devDependencies` も依存に数える（`audit-dependency-direction.mjs` の `observe`）ので、devDependency にしても字面の上では MUST NOT に当たる。**この追記を採択することは、上の MUST NOT の範囲を「製品の依存（`src` と設定ファイルから読むもの・`dependencies`）」に絞り、`TEST_ONLY` のパッケージを試験から読むことを除く、と認めることを含む。** 採択する人は、0026・0027・0028 の該当の文もこの読みで読むことを認める（各 ADR は書き換えない。`docs/adr/0002` の追記のみの決まり）。絞ってよい理由: MUST NOT が守っているのは、ツールのドメインが他の文脈（名簿・お題など）の知識を取り込まないことである（決定 2）。`@tasuki/test-css` は文脈を持たず、決まり 1 によって `src` からは読めないので、文脈の知識は入らない。絞らずに 3 つの core だけ写しを残す道もあるが、それでは書体の判定の写しが 3 本残り、#594 の目的（判定を 1 か所にする）を果たせない。`ALLOWED` の各行のコメント「`@tasuki/*` に依存しない」は「製品コードは `@tasuki/*` に依存しない（試験だけが `@tasuki/test-css` を読む）」と書き直す
 6. **判定を壊したら赤くなる試験が要る。** 寄せた判定は 1 つになるので、それを読む試験すべてが同じ判定に頼る。いま「外れる字を拾う」ことを確かめる試験（`outsideBase(['議論'])` が空でない、など）は agenda-web・checkin-web・landing にある（`git grep -n -A4 "outsideBase(" -- '*.test.ts' '*.test.tsx'` で読んだ範囲）。寄せたあとも、判定を壊すと赤くなることを #594 で確かめる（憲法 原則 VII）
 
 ### 監査への反映（(b) の場合）
