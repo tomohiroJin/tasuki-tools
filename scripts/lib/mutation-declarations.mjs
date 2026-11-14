@@ -646,6 +646,7 @@ export const MUTATIONS = [
     tests: ["test/sync/use-timer-sync.test.tsx"],
     note:
       "#209 で新設した解除点。plan.md の対応表より後に書いたので、そちらには載っていない。" +
+      "（#595 で解除点は `use-stale-frame-notice.ts` の `onFreshSnapshot` へ移り、パッチはそちらを壊す。label は `handleRoom` のまま）" +
       "落とすと「同期できていません」が一度立ったきり二度と下りない。" +
       "**立てる側だけを変異させても、この欠陥は捕まらない。**",
   },
@@ -9235,5 +9236,29 @@ export const MUTATIONS = [
     pkg: "apps/timer-web",
     tests: ["test/sync/apply-snapshot-intents.test.ts"],
     note: RESERVED_1660_1679 + " " + "#595。意図の実行を use-timer-sync から分けた先。終わり方（完成／中断）が画面へ届かず、中断した回が完成として見える。",
+  },
+  {
+    id: 1661,
+    label: "handleRoom が終わり方（set-end）を state へ反映しない",
+    patch: "m1661-handle-room-drops-set-end.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/sync/use-timer-sync.test.tsx"],
+    note: RESERVED_1660_1679 + " " + "#595 のレビュー。分けた先の純粋な実行（1660）ではなく、handleRoom から受け皿への配線を突く。",
+  },
+  {
+    id: 1662,
+    label: "handleRoom が画面遷移（set-screen）を state へ反映しない",
+    patch: "m1662-handle-room-drops-set-screen.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/sync/use-timer-sync.test.tsx"],
+    note: RESERVED_1660_1679 + " " + "#595 のレビュー。受け皿 setScreen の配線を突く。",
+  },
+  {
+    id: 1663,
+    label: "完了から抜けたとき終了種別を complete へ戻さない",
+    patch: "m1663-handle-room-clear-completion-keeps-end-type.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/sync/use-timer-sync.test.tsx"],
+    note: RESERVED_1660_1679 + " " + "#595 のレビュー。受け皿 clearCompletion の配線を突く。",
   },
 ];

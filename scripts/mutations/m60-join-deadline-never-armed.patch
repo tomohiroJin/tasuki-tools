@@ -7,15 +7,14 @@
 #       git apply scripts/mutations/m60-*.patch
 # 復元: git checkout -- <対象ファイル>
 #
-diff --git a/apps/timer-web/src/sync/use-timer-sync.ts b/apps/timer-web/src/sync/use-timer-sync.ts
-index 677c492..226241e 100644
---- a/apps/timer-web/src/sync/use-timer-sync.ts
-+++ b/apps/timer-web/src/sync/use-timer-sync.ts
-@@ -582,7 +582,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
-     // 送ったところから答えを待つ期限を測る（#292）。**ここが本来の入口である** ——
-     // `sendResumeJoin` を通るのは再接続と混雑の入り直しだけで、初回の読み込みは
-     // ここが直接組み立てて送っている。
+diff --git a/apps/timer-web/src/sync/use-join-recovery.ts b/apps/timer-web/src/sync/use-join-recovery.ts
+--- a/apps/timer-web/src/sync/use-join-recovery.ts
++++ b/apps/timer-web/src/sync/use-join-recovery.ts
+@@ -91,7 +91,6 @@
+     // 送ったところから、また答えを待つ（#292）。**送れたときだけ張る** ——
+     // 保存が無くて送れなかった場合（`sendResumeJoin` が `false` を返す経路）は、
+     // 呼び出し側が手立てを示して終わるので、期限を測る相手が居ない。
 -    armJoinDeadline();
    };
-   useTimerEntry(resumeOnLoad);
  
+   const onJoined = () => {

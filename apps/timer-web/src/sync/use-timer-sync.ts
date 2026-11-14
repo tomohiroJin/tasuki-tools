@@ -175,17 +175,17 @@ export function useTimerSync(banner: BannerController): TimerSync {
   // 両方で入れる。
   const roomCodeRef = useRef<string | null>(null);
   // 混雑の自動再試行（#147）と、`room.join` の答えを待つ期限（#292）。
-  // 復帰の組を読む鍵は「いま話しているルーム」で決まるので、送る時点の値を都度引く。
   const {
     joinTimedOut,
-    armJoinDeadline,
-    cancelJoinDeadline,
-    cancelJoinRetry,
-    resetJoinRetry,
+    sendJoin,
+    onJoined,
+    abandon,
     handleRetryLater,
     handleReconnected,
   } = useJoinRecovery({
-    showBanner,
+    banner,
+    // 復帰の組の鍵に使うコード。呼ばれた時点のこのレンダーの `room?.code` を優先し、
+    // 無ければ ref（入口の effect が先に入れた値）を使う。
     currentRoomCode: () => room?.code ?? roomCodeRef.current,
   });
 
@@ -211,11 +211,8 @@ export function useTimerSync(banner: BannerController): TimerSync {
   const handleRoom = (r: Room) => {
     // **画面が実際に新しい状態を得た。** ここだけが「古い」の解除点である（#209）。
     staleNotice.onFreshSnapshot();
-    // 入室できたら再試行の数え直し（#147）。次に混雑へ当たったときは 1 回目から始める。
-    cancelJoinRetry();
-    resetJoinRetry();
-    // 画面が決まった以上、答えを待つ期限はもう測らない（#292）。
-    cancelJoinDeadline();
+    // 入室できた。再試行の数え直し（#147）と、答えを待つ期限の解除（#292）。
+    onJoined();
     // `room` はこのハンドラを作ったレンダーの const なので、下で `setRoom(r)` しても
     // このスコープ内では変わらない。値は「直前のレンダー時点の snapshot」である。
     const prevRoom = room;
@@ -278,10 +275,9 @@ export function useTimerSync(banner: BannerController): TimerSync {
         // ローカル記録は保持され、再接続では消えないよう sessionLost を立てる。
         // 再試行の待機中でも、ルームが消えた以上は入り直せない（#147）。
         // 止めないと、待ち時間の経過後に無関係な諦めのバナーが後から出る。
-        cancelJoinRetry();
         // 答えを待つ期限も同じ（#292）。説明は `SessionLost` が担うので、
         // 「読み込めていません」を後から重ねない。
-        cancelJoinDeadline();
+        abandon();
         setSessionLost(true);
         // 説明は SessionLost 画面が担う（#76 F-4）。バナーは再接続のたびに
         // onConnected で消えるため、喪失のような「消えては困る事実」には向かない。
@@ -301,11 +297,10 @@ export function useTimerSync(banner: BannerController): TimerSync {
         // **ここで `friendlyError` は呼ばない** —— 文言は玄関が引く（下の注記）。
         // 退室が成立した以上、待機中の再試行も畳む（#147）。残すと、抜けたはずの
         // ルームへ入り直そうとする送信が、玄関へ去るまでの間に走る。
-        cancelJoinRetry();
         // 答えを待つ期限も畳む（#292）。ここは `mode` を `null` に戻すので、
         // 玄関へ遷移し終えるまでの間この受け皿が出る —— 残すと、抜けたはずの人が
         // 「ルームの情報を読み込めませんでした」を最後に見ることになる。
-        cancelJoinDeadline();
+        abandon();
         const removedFrom = room?.code ?? roomCodeRef.current;
         syncClient.dispose();
         setRoom(null);
@@ -344,9 +339,7 @@ export function useTimerSync(banner: BannerController): TimerSync {
         return;
       }
       case "retry-later": {
-        // 混雑で弾かれただけで、待てば入れる（#147）。利用者の操作なしに入り直す。
-        // バナーは自動消去しない — 4 秒で消えると「待てば入れる」ことが伝わらない。
-        // 畳み方・待ち方・諦め方は `use-join-recovery.ts`。
+        // 混雑で弾かれただけで、待てば入れる（#147）。理由と段取りは `use-join-recovery.ts`。
         handleRetryLater(syncClient);
         return;
       }
@@ -446,16 +439,8 @@ export function useTimerSync(banner: BannerController): TimerSync {
     // サーバーが identity を再発行すれば上書きされる。
     setParticipantId(saved.participantId);
     const c = makeClient();
-    c.send({
-      command: "room.join",
-      code: saved.code,
-      displayName: saved.displayName,
-      resumeToken: saved.resumeToken,
-    });
-    // 送ったところから答えを待つ期限を測る（#292）。**ここが本来の入口である** ——
-    // `sendResumeJoin` を通るのは再接続と混雑の入り直しだけで、初回の読み込みは
-    // ここが直接組み立てて送っている。
-    armJoinDeadline();
+    // 送って、答えを待つ期限を測る（#292）。**ここが本来の入口である**。
+    sendJoin(c, saved);
   };
   useTimerEntry(resumeOnLoad);
 

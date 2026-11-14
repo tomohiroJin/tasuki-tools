@@ -21,7 +21,7 @@ import type { BannerController } from "../ui/use-banner.js";
 import { indicatesStaleRoom } from "./stale-frame.js";
 
 /** ルームに入る前に同期フレームを捨てたときの案内（#209）。 */
-export const SYNC_STALE_BEFORE_ROOM_TEXT =
+const SYNC_STALE_BEFORE_ROOM_TEXT =
   "同期できていません。ルームの状態が読み込めないため、先へ進めません。";
 
 export interface StaleFrameNotice {

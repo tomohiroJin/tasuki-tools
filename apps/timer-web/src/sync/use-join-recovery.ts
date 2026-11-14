@@ -11,7 +11,7 @@
  *
  * ⚠ 期限のコールバックの中で closure の値を読まない（`use-join-deadline.ts` の注記・#283）。
  */
-import { loadResumeIdentity } from "@tasuki/sync-client";
+import { loadResumeIdentity, type ResumeIdentity } from "@tasuki/sync-client";
 import { useJoinRetry } from "@tasuki/web-kit/sync";
 import { useJoinDeadline } from "./use-join-deadline.js";
 import type { BannerController } from "../ui/use-banner.js";
@@ -35,7 +35,7 @@ interface JoinSender {
 }
 
 export interface JoinRecoveryOptions {
-  readonly showBanner: BannerController["show"];
+  readonly banner: BannerController;
   /**
    * **いま話しているルームのコード**（#95 S4b）。復帰の組の鍵がルームコード別なので、
    * どのルームの組を読むかを送る時点で知る必要がある。呼び出し側はハンドラを作ったレンダーの値（`room?.code`）を優先し、無ければ ref の値を返す（退出では両方が同時に null へ戻る）。
@@ -46,21 +46,29 @@ export interface JoinRecoveryOptions {
 export interface JoinRecovery {
   /** 答えを待つ期限が切れた（または、待っても入れないと確定した）。 */
   readonly joinTimedOut: boolean;
-  /** `room.join` を送った直後に呼ぶ。期限を張り直す。 */
-  readonly armJoinDeadline: () => void;
-  /** 答えを待つのをやめる（印も降ろす）。 */
-  readonly cancelJoinDeadline: () => void;
-  /** 待機中の入り直しを畳む。 */
-  readonly cancelJoinRetry: () => void;
-  /** 入り直しの回数を数え直す。 */
-  readonly resetJoinRetry: () => void;
+  /**
+   * `room.join` を送り、送ったところから答えを待つ期限を張る（#292）。
+   * 初回の読み込み（`resumeOnLoad`）と入り直し（再接続・混雑）の共通の送り口。
+   */
+  readonly sendJoin: (client: JoinSender, identity: ResumeIdentity) => void;
+  /**
+   * 入室できた（snapshot が届いた）。入り直しの待機を畳み、回数を数え直し、
+   * 答えを待つ期限も畳む（#147・#292）。次に混雑へ当たったときは 1 回目から始める。
+   */
+  readonly onJoined: () => void;
+  /**
+   * 入り直せない・入り直さない（ルーム喪失・退出の成立）。待機中の入り直しと
+   * 答えを待つ期限を畳む。数え直しはしない。
+   */
+  readonly abandon: () => void;
   /** 混雑で弾かれたとき（`retry-later`）。自動で入り直す段取りを組む。 */
   readonly handleRetryLater: (client: JoinSender) => void;
   /** 切断後に自動再接続したとき。数え直して復帰の組で入り直す。 */
   readonly handleReconnected: (client: JoinSender) => void;
 }
 
-export function useJoinRecovery({ showBanner, currentRoomCode }: JoinRecoveryOptions): JoinRecovery {
+export function useJoinRecovery({ banner, currentRoomCode }: JoinRecoveryOptions): JoinRecovery {
+  const { show: showBanner } = banner;
   // `room.join` の答えを待つ期限（#292。`use-join-deadline.ts`）。
   const {
     timedOut: joinTimedOut,
@@ -73,21 +81,36 @@ export function useJoinRecovery({ showBanner, currentRoomCode }: JoinRecoveryOpt
   // WS が切断後に自動再接続したとき、保存済みの resumeToken で room.join を
   // 利用者の操作なしに再送する（Issue #24・FR-002/FR-003）。初回 connect() では
   // 呼ばれないため、ここでの二重送信は起きない。
+  const sendJoin = (client: JoinSender, identity: ResumeIdentity) => {
+    client.send({
+      command: "room.join",
+      code: identity.code,
+      displayName: identity.displayName,
+      resumeToken: identity.resumeToken,
+    });
+    // 送ったところから、また答えを待つ（#292）。**送れたときだけ張る** ——
+    // 保存が無くて送れなかった場合（`sendResumeJoin` が `false` を返す経路）は、
+    // 呼び出し側が手立てを示して終わるので、期限を測る相手が居ない。
+    armJoinDeadline();
+  };
+
+  const onJoined = () => {
+    cancelJoinRetry();
+    resetJoinRetry();
+    cancelJoinDeadline();
+  };
+
+  const abandon = () => {
+    cancelJoinRetry();
+    cancelJoinDeadline();
+  };
+
   const sendResumeJoin = (client: JoinSender): boolean => {
     const code = currentRoomCode();
     if (code === null) return false;
     const saved = loadResumeIdentity(code);
     if (!saved) return false;
-    client.send({
-      command: "room.join",
-      code: saved.code,
-      displayName: saved.displayName,
-      resumeToken: saved.resumeToken,
-    });
-    // 送ったところから、また答えを待つ（#292）。**送れたときだけ張る** ——
-    // 保存が無くて送れなかった場合（`false` を返す経路）は、呼び出し側が
-    // 手立てを示して終わるので、期限を測る相手が居ない。
-    armJoinDeadline();
+    sendJoin(client, saved);
     return true;
   };
 
@@ -139,10 +162,9 @@ export function useJoinRecovery({ showBanner, currentRoomCode }: JoinRecoveryOpt
 
   return {
     joinTimedOut,
-    armJoinDeadline,
-    cancelJoinDeadline,
-    cancelJoinRetry,
-    resetJoinRetry,
+    sendJoin,
+    onJoined,
+    abandon,
     handleRetryLater,
     handleReconnected,
   };
