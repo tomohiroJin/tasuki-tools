@@ -78,9 +78,8 @@ export function useJoinRecovery({ banner, currentRoomCode }: JoinRecoveryOptions
   } = useJoinDeadline();
   const { rateLimited, cancel: cancelJoinRetry, reset: resetJoinRetry } = useJoinRetry(null);
 
-  // WS が切断後に自動再接続したとき、保存済みの resumeToken で room.join を
-  // 利用者の操作なしに再送する（Issue #24・FR-002/FR-003）。初回 connect() では
-  // 呼ばれないため、ここでの二重送信は起きない。
+  // 保存済みの組で room.join を送り、送ったところから答えを待つ（#292）。
+  // 初回の読み込み（`resumeOnLoad`）と、再接続の再送（下の `sendResumeJoin`）の両方が通る。
   const sendJoin = (client: JoinSender, identity: ResumeIdentity) => {
     client.send({
       command: "room.join",
@@ -88,9 +87,6 @@ export function useJoinRecovery({ banner, currentRoomCode }: JoinRecoveryOptions
       displayName: identity.displayName,
       resumeToken: identity.resumeToken,
     });
-    // 送ったところから、また答えを待つ（#292）。**送れたときだけ張る** ——
-    // 保存が無くて送れなかった場合（`sendResumeJoin` が `false` を返す経路）は、
-    // 呼び出し側が手立てを示して終わるので、期限を測る相手が居ない。
     armJoinDeadline();
   };
 
@@ -105,6 +101,11 @@ export function useJoinRecovery({ banner, currentRoomCode }: JoinRecoveryOptions
     cancelJoinDeadline();
   };
 
+  // WS が切断後に自動再接続したとき、保存済みの resumeToken で room.join を
+  // 利用者の操作なしに再送する（Issue #24・FR-002/FR-003）。初回 connect() では
+  // 呼ばれないため、ここでの二重送信は起きない。期限は**送れたときだけ張る** ——
+  // 保存が無くて送れなかった場合（`false` を返す経路）は、呼び出し側が手立てを
+  // 示して終わるので、期限を測る相手が居ない。
   const sendResumeJoin = (client: JoinSender): boolean => {
     const code = currentRoomCode();
     if (code === null) return false;
