@@ -107,6 +107,9 @@ const RESERVED_1010_1019 =
 const RESERVED_1020_1029 =
   "**対応表より後に足した変異。** 1020〜1029 は #547 に割り当てた範囲。";
 
+const RESERVED_1660_1679 =
+  "**対応表より後に足した変異。** 1660〜1679 は #595（#482-6）に割り当てた範囲。";
+
 const RESERVED_1360_1369 =
   "**対応表より後に足した変異。** 1360〜1369 は #554 に追加で割り当てた範囲（1350〜1359 を使い切ったため。1340〜1349 は #553 の予約を避けた）。";
 
@@ -9225,4 +9228,13 @@ export const MUTATIONS = [
     tests: ["test/ws/connection-gate.test.ts"],
     note: RESERVED_1600_1619 + " " + "#590 の敵対的レビュー（記録 4）。綴りの末尾に余計な字がついた宣言（?tool=timerx）が unknown にならずに通る。述語にした今は 1 行で開く穴。",
   },
+  {
+    id: 1660,
+    label: "applySnapshotIntents が set-end（終わり方）を受け皿へ渡さない",
+    patch: "m1660-apply-snapshot-intents-drops-set-end.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/sync/apply-snapshot-intents.test.ts"],
+    note: RESERVED_1660_1679 + " " + "#595。意図の実行を use-timer-sync から分けた先。終わり方（完成／中断）が画面へ届かず、中断した回が完成として見える。",
+  },
 ];
+
