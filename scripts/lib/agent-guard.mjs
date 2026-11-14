@@ -840,6 +840,15 @@ export function isTameCommand(command, depth = 0) {
 }
 
 /**
+ * シェルが展開する語か（`{a,b}`・`{a..c}`・先頭か `:`・`=` の後ろの `~`）。展開前の文字のままでは場所もパスも決められない。
+ * 未コミットの変更の判定（`discard-guard.mjs` の pathspec）と `git -C` のパスが共有する唯一の置き場（#612 の /code-review）。
+ * @param {string} word
+ */
+export function hasShellExpansion(word) {
+  return /\{[^}]*(?:,|\.\.)[^}]*\}/.test(word) || /(?:^|[:=])~/.test(word);
+}
+
+/**
  * コマンドの文字列が、先頭が `git`（前に環境変数・`cd`・`sudo` ほかが無い）の**単一の単純なコマンド**で、
  * 全体の選択肢（`-C`・`-c` ほか）が無いなら、`{ sub, rest }`。それ以外は null（確かめてよい単純な形ではない）。
  *
@@ -862,7 +871,7 @@ export function simpleGitCommand(command, { allowDir = false } = {}) {
   if (allowDir && words[1] === "-C") {
     dir = words[2];
     // シェルが展開する語（先頭の `~`・`{a,b}`・`{a..c}`）は、展開前の文字のままでは場所を決められない
-    if (dir === undefined || dir === "" || dir.startsWith("~") || /\{[^}]*(?:,|\.\.)[^}]*\}/.test(dir)) return null;
+    if (dir === undefined || dir === "" || hasShellExpansion(dir)) return null;
     at = 3;
   }
   if (words.length < at + 1 || words[at].startsWith("-")) return null;

@@ -142,7 +142,8 @@ describe("単純でない形は、変更の有無にかかわらず全部聞く�
     assert.equal(icase.ask, true);
     assert.deepEqual(icase.calls, [{ dir: "/w", target: { kind: "paths", paths: [":(icase)A.TS"], scope: "worktree" } }]);
     assert.equal((await decide("git checkout ':(icase)A.TS'", { dirty: "no" })).ask, false);
-    for (const w of ["a.t*", "a.t?", "[a].ts", "src/*", ":/a.ts", ":!b.ts"]) {
+    // /code-review: zsh の extendedglob の `^b.ts`（b.ts 以外）・`a~b`（除外）も。どちらの字も枝の名前に使えない
+    for (const w of ["a.t*", "a.t?", "[a].ts", "src/*", ":/a.ts", ":!b.ts", "^b.ts", "*.ts~b.ts"]) {
       const r = await decide(`git checkout ${w}`, { dirty: "yes" });
       assert.equal(r.ask, true, w);
       assert.deepEqual(r.calls, [{ dir: "/w", target: { kind: "paths", paths: [w], scope: "worktree" } }], w);
@@ -232,7 +233,8 @@ describe("#612: git -C <リテラルのパス> が 1 つだけの形は、その
     for (const c of ["git -C ../wt-6* checkout a.ts", "git -C ../wt-61? checkout -- a.ts", "git -C ../wt-612[x] stash", "git -C /nonexistent checkout a.ts", "git -C ../wt switch -q main"]) {
       const r = await decide(c, { dirty: "no", dirs: ["/w"] });
       assert.equal(r.ask, true, c);
-      assert.match(r.reason, /形が単純でない/, c);
+      // /code-review: 理由は「形が単純でない」ではなく、-C の先が見つからないこと
+      assert.match(r.reason, /git -C の先（.+）が実在するディレクトリでない/, c);
       assert.deepEqual(r.calls, [], c);
     }
     // 実在すれば今までどおり確かめる

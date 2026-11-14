@@ -39,7 +39,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execFile } from "node:child_process";
-import { isTameCommand, simpleGitCommand, mentionsDiscardOperation, SHELL_TOOLS } from "./agent-guard.mjs";
+import { isTameCommand, simpleGitCommand, mentionsDiscardOperation, hasShellExpansion, SHELL_TOOLS } from "./agent-guard.mjs";
 
 /** 通す（確かめなくてよい）ときの結果。 */
 const SAFE = Object.freeze({ verdict: "safe" });
@@ -63,7 +63,7 @@ const hasShort = (w, c) => /^-[A-Za-z]+$/.test(w) && w.includes(c);
  */
 function classify({ sub, rest }, exists) {
   // シェルが展開する語（`{a,b}`・`{a..c}`・先頭の `~`）は、展開前の文字のままでは git status に渡せない（コードレビュー 1）
-  if (rest.some((w) => /\{[^}]*(?:,|\.\.)[^}]*\}/.test(w) || /(?:^|[:=])~/.test(w))) return UNKNOWN_FORM;
+  if (rest.some(hasShellExpansion)) return UNKNOWN_FORM;
   const quiet = (w) => w === "-q" || w === "--quiet";
   if (sub === "checkout") {
     const words = rest.filter((w) => !quiet(w));
@@ -78,8 +78,9 @@ function classify({ sub, rest }, exists) {
     // `git checkout --detach [<rev>]`: HEAD を切り離すだけ。枝の切り替えと同じく、git 自身が上書きを拒む（#612）
     if (words[0] === "--detach" && words.length <= 2 && words.slice(1).every((w) => !w.startsWith("-"))) return SAFE;
     if (words.length === 1 && (words[0] === "-" || !words[0].startsWith("-"))) {
-      // グロブ（`*`・`?`・`[`）を含む語は、文字どおりには実在しなくてもシェルや git が実在するパスへ展開しうるので、枝とみなさずパスとして確かめる（#612 の敵対的レビュー）
-      return words[0] !== "-" && (/[*?[]/.test(words[0]) || isMagicPathspec(words[0]) || exists(words[0])) ? { verdict: "check", target: { kind: "paths", paths: words, scope: "worktree" } } : SAFE;
+      // グロブ（`*`・`?`・`[`、zsh の extendedglob の `^`・`~`）を含む語は、文字どおりには実在しなくてもシェルや git が実在するパスへ展開しうるので、
+      // 枝とみなさずパスとして確かめる（#612 の敵対的レビュー・/code-review）。どの字も git の枝の名前には使えないので、枝を誤って聞くことはない
+      return words[0] !== "-" && (/[*?[^~]/.test(words[0]) || isMagicPathspec(words[0]) || exists(words[0])) ? { verdict: "check", target: { kind: "paths", paths: words, scope: "worktree" } } : SAFE;
     }
     return UNKNOWN_FORM;
   }
@@ -189,7 +190,12 @@ export async function decideDiscardOutput(raw, { exists, isDirty, cwd: defaultCw
   const existsIn = exists ? (p) => exists(p, cwd) : (p) => fs.existsSync(path.resolve(cwd, p));
   // -C の先が実在するディレクトリでなければ（グロブ・zsh の =cmd ほかシェルが展開する語・誤った場所）、git が実際に動く場所が分からない（#612 の敵対的レビュー 1）
   const dirKnown = simple?.dir === undefined || dirExists(cwd);
-  const result = simple === null || !dirKnown ? UNKNOWN_FORM : classify(simple, existsIn);
+  if (!dirKnown) {
+    return ask(`git -C の先（${simple.dir}）が実在するディレクトリでないので、どの作業ツリーの変更が消えるか確かめられません（グロブ・誤った場所ほか）。パスをそのまま書き直すか、消えてよいか人が確かめてください（docs/adr/0037）。`);
+  }
+  // 残余: -C のとき、後ろの引数のグロブはシェルが呼び出しの cwd（baseCwd）で展開するが、ここは -C の先でパスを見る。
+  // 今はグロブの語を確かめる側（聞く側）に倒しているので誤って通さない。グロブを存在だけで判定する形に縮めるときは、この食い違いを先に塞ぐ
+  const result = simple === null ? UNKNOWN_FORM : classify(simple, existsIn);
   if (result.verdict === "safe") return null;
   if (result.verdict === "unknown-form") {
     return ask("未コミットの変更を消しうる git かもしれませんが、形が単純でないので（複数のコマンド・入れ子・環境変数や -C/-c・未知の選択肢ほか）確かめられません。消えてよいか人の確認が要ります（docs/adr/0037）。");
