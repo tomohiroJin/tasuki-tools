@@ -212,6 +212,9 @@ const RESERVED_1500_1569 =
 const RESERVED_1570_1579 =
   "**対応表より後に足した変異。** 1570〜1579 は #578（PR 2 機械化）の続き（1500〜1569 を使い切った）。PR 3 は 1480〜1499。";
 
+const RESERVED_1640_1659 =
+  "**対応表より後に足した変異。** 1640〜1659 は #593（checkin のやり方の分岐を Record に寄せる）に割り当てた範囲。";
+
 const RESERVED_1600_1619 =
   "**対応表より後に足した変異。** 1600〜1619 は #590（道具の列挙を 1 か所から）に割り当てた範囲。";
 
@@ -9224,5 +9227,21 @@ export const MUTATIONS = [
     pkg: "apps/tasuki-sync",
     tests: ["test/ws/connection-gate.test.ts"],
     note: RESERVED_1600_1619 + " " + "#590 の敵対的レビュー（記録 4）。綴りの末尾に余計な字がついた宣言（?tool=timerx）が unknown にならずに通る。述語にした今は 1 行で開く穴。",
+  },
+  {
+    id: 1640,
+    label: "focus の顔が割の数でなく札の ID をそのまま出す",
+    patch: "m1640-focus-numeral-shows-card-id.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/card-face.test.tsx"],
+    note: RESERVED_1640_1659 + " " + "#593。表の値に持たせた focus の特例（20…100 を 2・5・8・10 に割る）が落ち、数字の札が 20・50・80・100 と出る。",
+  },
+  {
+    id: 1641,
+    label: "ROTI が数のやり方でなくなる（METHODS の numeric を false にする）",
+    patch: "m1641-roti-not-numeric.patch",
+    pkg: "packages/checkin-core",
+    tests: ["tests/methods.test.ts"],
+    note: RESERVED_1640_1659 + " " + "#593。数のやり方の正本（METHODS の numeric）が顔の表とずれ、開いた後の要約の言い方が変わる。",
   },
 ];

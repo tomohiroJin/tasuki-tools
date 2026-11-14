@@ -1,0 +1,21 @@
+# 変異 1640: focus-numeral-shows-card-id
+#
+# 検出を期待するテスト:
+#   - apps/checkin-web/tests/card-face.test.tsx「focus: 数字だけを持つ」
+#
+# #593。focus の顔が割の数（2・5・8・10）でなく札の ID（20…100）をそのまま出す。表の値に持たせた特例が落ちる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1640-*.patch
+
+--- a/apps/checkin-web/src/components/CardFace.tsx
++++ b/apps/checkin-web/src/components/CardFace.tsx
+@@ -32,7 +32,7 @@
+ export const CARD_FACES: Readonly<Record<MethodId, Face>> = {
+   weather: art(WeatherArt),
+   energy: cardIdNumeral,
+-  focus: { kind: 'numeral', numeral: (card) => String(Number(card) / 10) },
++  focus: { kind: 'numeral', numeral: (card) => card },
+   'takeaway-goal': art(TakeawayGoalArt),
+   role: art(RoleArt),
+   expectation: cardIdNumeral,
