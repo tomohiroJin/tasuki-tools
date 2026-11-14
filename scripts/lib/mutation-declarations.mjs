@@ -9237,4 +9237,3 @@ export const MUTATIONS = [
     note: RESERVED_1660_1679 + " " + "#595。意図の実行を use-timer-sync から分けた先。終わり方（完成／中断）が画面へ届かず、中断した回が完成として見える。",
   },
 ];
-

@@ -38,7 +38,7 @@ export interface JoinRecoveryOptions {
   readonly showBanner: BannerController["show"];
   /**
    * **いま話しているルームのコード**（#95 S4b）。復帰の組の鍵がルームコード別なので、
-   * どのルームの組を読むかを送る時点で知る必要がある。呼ぶたびに最新を返すこと。
+   * どのルームの組を読むかを送る時点で知る必要がある。呼び出し側はハンドラを作ったレンダーの値（`room?.code`）を優先し、無ければ ref の値を返す（退出では両方が同時に null へ戻る）。
    */
   readonly currentRoomCode: () => string | null;
 }
