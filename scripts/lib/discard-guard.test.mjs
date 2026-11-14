@@ -74,6 +74,9 @@ describe("確かめなくてよい形（消さない・git 自身が上書きを
     "git commit -m \"$(cat <<'EOF'\nfix: restore the reset handling\nEOF\n)\"", "git add -A && git commit -m \"$(cat <<'EOF'\nfix: git stash と git reset --hard の説明\nEOF\n)\"",
     "gh pr create --title 'x' --body 'git stash と git reset --hard の説明'", "git log --grep='git clean' | head",
     "git branch -a", "git push origin fix/reset-handling", "git rebase origin/main -x 'echo restore'", "\\git status", "git worktree add ../wt -b fix/reset-x", "pnpm test", "ls",
+    // #612: HEAD を切り離す・-q つきの枝の切り替えも、git 自身が上書きを拒む（-f・-m・--discard-changes が無い）
+    "git checkout --detach", "git checkout --detach abc1234", "git checkout -q --detach origin/main", "git checkout --quiet --detach refactor/591-x",
+    "git switch -q main", "git switch --quiet main", "git switch --detach abc1234", "git switch -d abc1234", "git switch -q --detach origin/main", "git switch -q -c feat/x origin/main",
   ]) {
     test(command.split("\n")[0], async () => {
       const r = await decide(command, { dirty: "yes" });
@@ -94,7 +97,7 @@ describe("単純でない形は、変更の有無にかかわらず全部聞く�
     "cd ../other && git checkout -- a.ts", "pushd ../other; git restore a.ts", "cd /x; git stash", "git checkout -- a.ts; git stash", "git stash && git stash pop", "git checkout -- a.ts | cat",
     "GIT_DIR=/x/.git git checkout -- a.ts", "GIT_WORK_TREE=/x git restore a.ts", "GIT_INDEX_FILE=/tmp/i git stash", "GIT_CONFIG_GLOBAL=/x git stash", "GIT_CEILING_DIRECTORIES=/ git stash",
     "export GIT_DIR=/x/.git; git stash", "env GIT_DIR=/x git stash", "env -S 'git stash'", "sudo git stash", "command git stash", "time git stash", "/usr/bin/git stash",
-    "git -C ../wt checkout -- a.ts", "git -c core.worktree=/x checkout -- a.ts", "git -c core.bare=true stash", "git --config-env core.worktree=W stash", "git -c include.path=/x stash",
+    "git -c core.worktree=/x checkout -- a.ts", "git -c core.bare=true stash", "git --config-env core.worktree=W stash", "git -c include.path=/x stash",
     "git --git-dir=/x/.git stash", "git --work-tree=/x checkout -- a.ts", "git --no-pager stash",
     "sh -c 'cd x && git stash'", "bash -c \"git checkout -- a.ts\"", "eval 'git stash'", "ssh host git stash", "echo ok && sh -c 'git restore a.ts'",
     "find . -exec git checkout -- {} ;", "xargs git checkout --", "echo $(git stash)", "echo `git restore a.ts`", "git stash $(echo)", "git checkout -- $F",
@@ -158,8 +161,63 @@ describe("単純でない形は、変更の有無にかかわらず全部聞く�
     assert.equal((await decide("git stash $'x'", { dirty: "no" })).ask, true);
   });
 
+  test("#612: --detach・-q を足しても、ほかの選択肢・余分な語・pathspec がある形は今までどおり聞く", async () => {
+    for (const c of [
+      "git checkout --detach -f abc1234", "git checkout -f --detach abc1234", "git checkout --detach abc1234 extra", "git checkout --detach -- a.ts", "git checkout -m --detach x",
+      "git switch -q -f main", "git switch --detach -f abc1234", "git switch -q --discard-changes main", "git switch --detach abc1234 extra", "git switch -q -C x",
+    ]) {
+      assert.equal((await decide(c, { dirty: "no" })).ask, true, c);
+    }
+  });
+
   test("理由に「形が単純でない」と書く", async () => {
     assert.match((await decide("cd x && git stash")).reason, /形が単純でない/);
+  });
+});
+
+describe("#612: git -C <リテラルのパス> が 1 つだけの形は、そのパスを作業ツリーとして確かめる", () => {
+  test("確かめる形は、-C のパス（cwd からの相対は解決する）で変更を見て、あれば聞き、無ければ通す", async () => {
+    const cases = [
+      ["git -C ../wt checkout -- a.ts", "/wt", { kind: "paths", paths: ["a.ts"], scope: "worktree" }],
+      ["git -C /x/Tasuki-review-591 stash", "/x/Tasuki-review-591", { kind: "all", scope: "any" }],
+      ["git -C sub reset --hard", "/w/sub", { kind: "all", scope: "any" }],
+      ["git -C /x restore a.ts", "/x", { kind: "paths", paths: ["a.ts"], scope: "worktree" }],
+    ];
+    for (const [command, dir, target] of cases) {
+      const yes = await decide(command, { dirty: "yes" });
+      assert.equal(yes.ask, true, command);
+      assert.deepEqual(yes.calls, [{ dir, target }], command);
+      assert.equal((await decide(command, { dirty: "no" })).ask, false, command);
+      assert.match((await decide(command, { dirty: "unknown" })).reason, /確かめられませんでした/, command);
+    }
+  });
+
+  test("確かめなくてよい形は、-C があっても何も確かめずに通す", async () => {
+    for (const c of ["git -C /x/Tasuki-review-591 checkout -q --detach d4aff35f", "git -C ../wt switch -q main", "git -C ../wt worktree list", "git -C /x reset --soft HEAD~1"]) {
+      const r = await decide(c, { dirty: "yes" });
+      assert.equal(r.ask, false, `${c}: ${r.reason}`);
+      assert.deepEqual(r.calls, [], c);
+    }
+  });
+
+  test("-C の 1 語が実在するパスかどうかは、-C の先で見る（git checkout <path> を枝と取り違えない）", async () => {
+    const seen = [];
+    const out = await decideDiscardOutput(JSON.stringify({ tool_name: "Bash", cwd: "/w", tool_input: { command: "git -C ../wt checkout a.ts" } }), {
+      isDirty: async () => "yes",
+      exists: (p, dir) => (seen.push([p, dir]), true),
+    });
+    assert.equal(out?.hookSpecificOutput?.permissionDecision, "ask");
+    assert.deepEqual(seen, [["a.ts", "/wt"]]);
+  });
+
+  test("パスが読み切れない・-C が 2 つ以上・ほかの全体の選択肢がある形は、今までどおり聞く", async () => {
+    for (const c of [
+      "git -C ../a -C b stash", "git -C ~/wt stash", "git -C {a,b} stash", "git -C $W stash", "git -C \"$W\" stash", "git -C ../wt -c core.worktree=/x stash",
+      "git -C ../wt --git-dir=/x/.git stash", "git -c x=y -C ../wt stash", "git -C ../wt -- stash", "git -C '' stash",
+      "cd ../wt && git -C . stash", "git -C ../wt stash && git -C ../wt stash pop", "GIT_DIR=/x git -C ../wt stash", "git -C ../wt log --grep=stash",
+    ]) {
+      assert.equal((await decide(c, { dirty: "no" })).ask, true, c);
+    }
   });
 });
 

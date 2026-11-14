@@ -159,6 +159,29 @@ test("入口: 未コミットの変更を消す git は、変更があるとき�
   assert.equal(staged.stdout.trim(), "");
 });
 
+test("入口: git -C <パス> の未コミットの変更は、cwd でなく -C の先で見る（#612）", (t) => {
+  // cwd は変更の無い作業ツリー、-C の先は変更のある作業ツリー
+  const dirty = fs.mkdtempSync(path.join(os.tmpdir(), "hook-c-dirty-"));
+  t.after(() => fs.rmSync(dirty, { recursive: true, force: true }));
+  const sh = (...a) => spawnSync("git", a, { cwd: dirty, encoding: "utf8" });
+  sh("init", "-q");
+  sh("config", "user.email", "t@example.com");
+  sh("config", "user.name", "t");
+  fs.writeFileSync(path.join(dirty, "a.ts"), "1");
+  sh("add", ".");
+  sh("commit", "-qm", "init");
+  fs.writeFileSync(path.join(dirty, "a.ts"), "2");
+  const toDirty = runInRepo(t, { tool_input: { command: `git -C ${dirty} checkout -- a.ts` } });
+  assert.equal(toDirty.out?.hookSpecificOutput.permissionDecision, "ask");
+  assert.match(toDirty.reason, /未コミットの変更があります/);
+  assert.equal(runInRepo(t, { tool_input: { command: `git -C ${dirty} checkout -q --detach HEAD` } }).out, null);
+  // 逆向き: cwd に変更があっても、-C の先がきれいなら通す
+  const clean = runInRepo(t, { tool_input: { command: "git stash" } });
+  assert.equal(clean.out, null);
+  const r = spawnSync(process.execPath, [HOOK], { input: JSON.stringify({ tool_name: "Bash", cwd: dirty, tool_input: { command: `git -C ${clean.dir} stash` } }), encoding: "utf8" });
+  assert.equal(r.stdout.trim(), "", r.stdout);
+});
+
 test("入口: どのパッケージにも当たらない pnpm --filter は ask、当たれば通す（#578）", (t) => {
   const files = { "pnpm-workspace.yaml": 'packages:\n  - "apps/*"\n', "apps/sync/package.json": '{"name":"@s/sync"}' };
   assert.equal(runInRepo(t, { tool_input: { command: "pnpm --filter @s/tasuki-sync test" } }, { files }).out?.hookSpecificOutput.permissionDecision, "ask");

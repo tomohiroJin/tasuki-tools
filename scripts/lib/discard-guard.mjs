@@ -16,13 +16,15 @@
  * ## 確かめてよい単純な形
  *
  * - `git checkout [<rev>] -- <path>…`・`git checkout <path>`（実在するパス 1 つ）: そのパスの**作業ツリーの未コミットの変更**（index との差）を見る。
- *   `git checkout -b|-B <名前> [<開始点>]`・`git checkout <枝>`（実在するパスでない 1 語）は枝の操作で、git 自身が上書きを拒むので通す
+ *   `git checkout -b|-B <名前> [<開始点>]`・`git checkout <枝>`（実在するパスでない 1 語）・`git checkout --detach [<rev>]` は枝の操作で、git 自身が上書きを拒むので通す
  * - `git restore [--] <path>…`: 同じく作業ツリーの変更。`git restore --staged|-S [--] <path>…` は作業ツリーを消さないので通す
  * - `git stash [push|save] [-u|--include-untracked] [-m <文>]`: 追跡中の変更（index も含む。`-u` は追跡外も）を見る。
  *   `stash list|show`・`pop`・`apply`（引数なし）は通す。`drop`・`clear`・`branch` ほかは聞く
  * - `git reset --hard [<rev>]`: 追跡中の変更を見る。`--soft`・`--mixed`・`-q` と rev・path だけの reset は通す。ほかの選択肢（`--merge`・`--keep`・省略形）は聞く
  * - `git clean`: `-n`・`--dry-run` があれば通す。ほかは聞く
- * - `git switch <枝>`・`git switch -c <名前> [<開始点>]` は通す。ほかの選択肢（`-f`・`--discard-changes`・`-C`）は聞く
+ * - `git switch <枝>`・`git switch -c <名前> [<開始点>]`・`git switch --detach|-d [<rev>]`（どれも `-q` 可）は通す。ほかの選択肢（`-f`・`--discard-changes`・`-C`）は聞く
+ * - 先頭の `git -C <リテラルのパス>` は 1 つだけ読み、そのパスを作業ツリーとして上の形を確かめる（#612。兄弟の作業ツリーでは
+ *   Claude Code の `cd` が次の呼び出しに残らないため）。`-C` が 2 つ以上・ほかの全体の選択肢・`$`・先頭の `~`・波括弧のある形は聞く
  *
  * ## 手順書との関係
  *
@@ -69,6 +71,8 @@ function classify({ sub, rest }, exists) {
       return { verdict: "check", target: { kind: "paths", paths, scope: "worktree", ...(before.length === 1 ? { withRev: true } : {}) } };
     }
     if ((words[0] === "-b" || words[0] === "-B") && words.length >= 2 && words.length <= 3 && words.slice(1).every((w) => !w.startsWith("-"))) return SAFE;
+    // `git checkout --detach [<rev>]`: HEAD を切り離すだけ。枝の切り替えと同じく、git 自身が上書きを拒む（#612）
+    if (words[0] === "--detach" && words.length <= 2 && words.slice(1).every((w) => !w.startsWith("-"))) return SAFE;
     if (words.length === 1 && (words[0] === "-" || !words[0].startsWith("-"))) {
       return words[0] !== "-" && exists(words[0]) ? { verdict: "check", target: { kind: "paths", paths: words, scope: "worktree" } } : SAFE;
     }
@@ -121,9 +125,11 @@ function classify({ sub, rest }, exists) {
     return rest.some((w) => w === "-n" || w === "--dry-run" || hasShort(w, "n")) && !rest.some((w) => w === "-f" || w === "--force") ? SAFE : UNKNOWN_FORM;
   }
   if (sub === "switch") {
-    const words = rest;
+    const words = rest.filter((w) => !quiet(w));
     if (words.length === 1 && !words[0].startsWith("-")) return SAFE;
     if (words[0] === "-c" && words.length >= 2 && words.length <= 3 && words.slice(1).every((w) => !w.startsWith("-"))) return SAFE;
+    // `git switch --detach|-d [<rev>]`（#612）
+    if ((words[0] === "--detach" || words[0] === "-d") && words.length <= 2 && words.slice(1).every((w) => !w.startsWith("-"))) return SAFE;
     return UNKNOWN_FORM;
   }
   // 下の 5 つは -f/--force（や --reset）が無ければ変更があると git 自身が拒む。ある形は対象を絞れないので聞く（コードレビュー 5）
@@ -145,7 +151,7 @@ const describeTarget = (t) => (t.kind === "paths" ? t.paths.join("・") : "作�
 /**
  * Claude Code の PreToolUse フックの入力から、未コミットの変更を消しうる git なら `ask` を返す。当たらなければ null。
  * @param {string} raw
- * @param {{ exists?: (p: string) => boolean, isDirty: (cwd: string, target: object) => Promise<"yes" | "no" | "unknown"> | "yes" | "no" | "unknown", cwd?: string }} deps
+ * @param {{ exists?: (p: string, cwd: string) => boolean, isDirty: (cwd: string, target: object) => Promise<"yes" | "no" | "unknown"> | "yes" | "no" | "unknown", cwd?: string }} deps
  */
 export async function decideDiscardOutput(raw, { exists, isDirty, cwd: defaultCwd = process.cwd() }) {
   let input;
@@ -162,9 +168,12 @@ export async function decideDiscardOutput(raw, { exists, isDirty, cwd: defaultCw
   // 2. 読むだけ・記録するだけ（許可リスト）
   if (isTameCommand(command)) return null;
   // 3. 確かめてよい単純な形
-  const cwd = typeof input.cwd === "string" && input.cwd !== "" ? input.cwd : defaultCwd;
-  const simple = simpleGitCommand(command);
-  const result = simple === null ? UNKNOWN_FORM : classify(simple, exists ?? ((p) => fs.existsSync(path.resolve(cwd, p))));
+  const baseCwd = typeof input.cwd === "string" && input.cwd !== "" ? input.cwd : defaultCwd;
+  const simple = simpleGitCommand(command, { allowDir: true });
+  // `git -C <パス>` は、そのパスを作業ツリーとして確かめる（#612。パスの存在も変更もそこで見る）
+  const cwd = simple?.dir === undefined ? baseCwd : path.resolve(baseCwd, simple.dir);
+  const existsIn = exists ? (p) => exists(p, cwd) : (p) => fs.existsSync(path.resolve(cwd, p));
+  const result = simple === null ? UNKNOWN_FORM : classify(simple, existsIn);
   if (result.verdict === "safe") return null;
   if (result.verdict === "unknown-form") {
     return ask("未コミットの変更を消しうる git かもしれませんが、形が単純でないので（複数のコマンド・入れ子・環境変数や -C/-c・未知の選択肢ほか）確かめられません。消えてよいか人の確認が要ります（docs/adr/0037）。");
