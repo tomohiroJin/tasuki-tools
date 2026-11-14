@@ -206,9 +206,9 @@ S4a（#245）が外したのは**名簿そのもの**（`Participant` の保管�
 決定 1 の見出しは「3 つに割る」のまま残す（決定当時の記録である）。**依存の向きの現況は
 `scripts/audit-dependency-direction.mjs` の `ALLOWED` を見ること。** ここへ表を写さない。
 
-## 追記（2026-11-14・#599） — テスト支援の共有先（Proposed）
+## 追記（2026-11-14・#599） — テスト支援の共有先（Accepted）
 
-- **この追記の状態**: **Proposed**。採択は人が決める（`docs/adr/0030` 決定 1）。採択されるまで、下の「決定」は効かない
+- **この追記の状態**: **Accepted**（2026-11-14 起案・同日に利用者が採択。決まり 5 の MUST NOT の読み替えと、完了条件の「`audit-structure` の対象」の読み替えを含めて認めた）
 - **関連**: [#599](https://github.com/tomohiroJin/tasuki-tools/issues/599)（親 #482）/
   [#594](https://github.com/tomohiroJin/tasuki-tools/issues/594)（写しを寄せる。この追記が前提）/
   [調査の記録](../superpowers/specs/2026-11-13-architecture-review-survey.md) 節 3.1・節 8 の 3 /
