@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/discard-guard.mjs b/scripts/lib/discard-guard.mjs
+index 68da536c..c9eac352 100644
+--- a/scripts/lib/discard-guard.mjs
++++ b/scripts/lib/discard-guard.mjs
+@@ -53,7 +53,7 @@ const NON_DISCARDING_SUBS = new Set([
+ ]);
+ 
+ /** `:` で始まる魔法の pathspec（`:/a.ts`・`:(icase)A.TS`）。枝の名前は `:` で始まれない（#612 の再レビュー）。 */
+-const isMagicPathspec = (w) => w.startsWith(":");
++const isMagicPathspec = (w) => false;
+ 
+ const hasShort = (w, c) => /^-[A-Za-z]+$/.test(w) && w.includes(c);
+ 
