@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index f72c0b85..dda3465e 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -849,7 +849,7 @@ export function isTameCommand(command, depth = 0) {
+  * @param {string} command
+  * @param {{ allowDir?: boolean }} [options]
+  */
+-export function simpleGitCommand(command, { allowDir = false } = {}) {
++export function simpleGitCommand(command, { allowDir = true } = {}) {
+   if (hasUnreadableQuote(command)) return null;
+   const { commands, nested } = lex(command);
+   if (commands.length !== 1 || nested.length > 0) return null;

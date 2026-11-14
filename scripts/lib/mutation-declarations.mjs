@@ -215,6 +215,9 @@ const RESERVED_1570_1579 =
 const RESERVED_1600_1619 =
   "**対応表より後に足した変異。** 1600〜1619 は #590（道具の列挙を 1 か所から）に割り当てた範囲。";
 
+const RESERVED_1700_1719 =
+  "**対応表より後に足した変異。** 1700〜1719 は #612（ワンライナーが未コミットの変更の判定で止まる形を減らす）に割り当てた範囲（1620〜1699 は #482 の第一陣）。";
+
 const RESERVED_1420_1429 =
   "**対応表より後に足した変異。** 1420〜1429 は #557 に追加で割り当てた範囲（1120〜1129・1410〜1419 を使い切ったため。PR #580 のレビューの指摘で足した）。";
 
@@ -9224,5 +9227,61 @@ export const MUTATIONS = [
     pkg: "apps/tasuki-sync",
     tests: ["test/ws/connection-gate.test.ts"],
     note: RESERVED_1600_1619 + " " + "#590 の敵対的レビュー（記録 4）。綴りの末尾に余計な字がついた宣言（?tool=timerx）が unknown にならずに通る。述語にした今は 1 行で開く穴。",
+  },
+  {
+    id: 1700,
+    label: "git -C <パス> の変更を、-C の先でなく呼び出しの cwd で確かめる",
+    patch: "m1700-discard-dash-c-checks-cwd.patch",
+    pkg: "scripts",
+    tests: ["lib/discard-guard.test.mjs"],
+    note: RESERVED_1700_1719 + " " + "#612。きれいなまとめ役の作業ツリーから、変更のある兄弟の作業ツリーへ git -C … checkout -- を流すと、聞かずに変更が消える。",
+  },
+  {
+    id: 1701,
+    label: "git -C <パス> checkout <1 語> の、語が実在するパスかを cwd で見る",
+    patch: "m1701-discard-dash-c-exists-in-cwd.patch",
+    pkg: "scripts",
+    tests: ["lib/discard-guard.test.mjs"],
+    note: RESERVED_1700_1719 + " " + "#612。-C の先にだけあるファイルを枝の名前と取り違え、git -C ../wt checkout a.ts の変更を確かめずに通す。",
+  },
+  {
+    id: 1702,
+    label: "git checkout --detach の後ろの選択肢を見ない",
+    patch: "m1702-discard-checkout-detach-takes-options.patch",
+    pkg: "scripts",
+    tests: ["lib/discard-guard.test.mjs"],
+    note: RESERVED_1700_1719 + " " + "#612。git checkout --detach -f が、未コミットの変更を捨てる形なのに聞かずに通る。",
+  },
+  {
+    id: 1703,
+    label: "git switch --detach|-d の後ろの選択肢を見ない",
+    patch: "m1703-discard-switch-detach-takes-options.patch",
+    pkg: "scripts",
+    tests: ["lib/discard-guard.test.mjs"],
+    note: RESERVED_1700_1719 + " " + "#612。git switch -d --discard-changes・git switch --detach -f が、変更を捨てる形なのに聞かずに通る。",
+  },
+  {
+    id: 1704,
+    label: "simpleGitCommand が -C を 2 つ以上読み、最後のパスを作業ツリーにする",
+    patch: "m1704-simple-git-reads-repeated-dash-c.patch",
+    pkg: "scripts",
+    tests: ["lib/discard-guard.test.mjs"],
+    note: RESERVED_1700_1719 + " " + "#612。git -C a -C b は a/b を指すのに b で確かめ、別の作業ツリーの変更を見落とす。",
+  },
+  {
+    id: 1705,
+    label: "simpleGitCommand が -C のパスの先頭の ~ と波括弧の展開を通す",
+    patch: "m1705-simple-git-dash-c-allows-shell-expansion.patch",
+    pkg: "scripts",
+    tests: ["lib/discard-guard.test.mjs"],
+    note: RESERVED_1700_1719 + " " + "#612。シェルが展開する前の文字（~/wt・{a,b}）のまま場所を解決し、実際に操作される作業ツリーとは別の場所の変更を見る。",
+  },
+  {
+    id: 1706,
+    label: "simpleGitCommand が既定で -C を読む（サブエージェントの単純な安全な形にも -C が入る）",
+    patch: "m1706-subagent-safe-git-reads-dash-c.patch",
+    pkg: "scripts",
+    tests: ["lib/agent-guard.test.mjs"],
+    note: RESERVED_1700_1719 + " " + "#612。-C を読むのは未コミットの変更の判定だけのはずが、サブエージェントの git -C ../wt checkout -- a.ts まで聞かずに通る。",
   },
 ];

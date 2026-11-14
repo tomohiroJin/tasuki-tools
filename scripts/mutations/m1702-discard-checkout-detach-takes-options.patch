@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/discard-guard.mjs b/scripts/lib/discard-guard.mjs
+index 894a4b5c..94459130 100644
+--- a/scripts/lib/discard-guard.mjs
++++ b/scripts/lib/discard-guard.mjs
+@@ -72,7 +72,7 @@ function classify({ sub, rest }, exists) {
+     }
+     if ((words[0] === "-b" || words[0] === "-B") && words.length >= 2 && words.length <= 3 && words.slice(1).every((w) => !w.startsWith("-"))) return SAFE;
+     // `git checkout --detach [<rev>]`: HEAD を切り離すだけ。枝の切り替えと同じく、git 自身が上書きを拒む（#612）
+-    if (words[0] === "--detach" && words.length <= 2 && words.slice(1).every((w) => !w.startsWith("-"))) return SAFE;
++    if (words[0] === "--detach" && words.length <= 2) return SAFE;
+     if (words.length === 1 && (words[0] === "-" || !words[0].startsWith("-"))) {
+       return words[0] !== "-" && exists(words[0]) ? { verdict: "check", target: { kind: "paths", paths: words, scope: "worktree" } } : SAFE;
+     }

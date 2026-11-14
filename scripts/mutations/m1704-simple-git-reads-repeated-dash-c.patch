@@ -1,0 +1,12 @@
+diff --git a/scripts/lib/agent-guard.mjs b/scripts/lib/agent-guard.mjs
+index f72c0b85..aea5f10d 100644
+--- a/scripts/lib/agent-guard.mjs
++++ b/scripts/lib/agent-guard.mjs
+@@ -864,6 +864,7 @@ export function simpleGitCommand(command, { allowDir = false } = {}) {
+     // シェルが展開する語（先頭の `~`・`{a,b}`・`{a..c}`）は、展開前の文字のままでは場所を決められない
+     if (dir === undefined || dir === "" || dir.startsWith("~") || /\{[^}]*(?:,|\.\.)[^}]*\}/.test(dir)) return null;
+     at = 3;
++    while (words[at] === "-C" && words[at + 1] !== undefined) [dir, at] = [words[at + 1], at + 2];
+   }
+   if (words.length < at + 1 || words[at].startsWith("-")) return null;
+   return { sub: words[at], rest: words.slice(at + 1), ...(dir === undefined ? {} : { dir }) };
