@@ -1,13 +1,13 @@
 diff --git a/scripts/lib/discard-guard.mjs b/scripts/lib/discard-guard.mjs
-index 894a4b5c..e6ae0168 100644
+index 733929dc..81d39060 100644
 --- a/scripts/lib/discard-guard.mjs
 +++ b/scripts/lib/discard-guard.mjs
-@@ -171,7 +171,7 @@ export async function decideDiscardOutput(raw, { exists, isDirty, cwd: defaultCw
+@@ -182,7 +182,7 @@ export async function decideDiscardOutput(raw, { exists, isDirty, cwd: defaultCw
    const baseCwd = typeof input.cwd === "string" && input.cwd !== "" ? input.cwd : defaultCwd;
    const simple = simpleGitCommand(command, { allowDir: true });
    // `git -C <パス>` は、そのパスを作業ツリーとして確かめる（#612。パスの存在も変更もそこで見る）
 -  const cwd = simple?.dir === undefined ? baseCwd : path.resolve(baseCwd, simple.dir);
 +  const cwd = baseCwd;
    const existsIn = exists ? (p) => exists(p, cwd) : (p) => fs.existsSync(path.resolve(cwd, p));
-   const result = simple === null ? UNKNOWN_FORM : classify(simple, existsIn);
-   if (result.verdict === "safe") return null;
+   // -C の先が実在するディレクトリでなければ（グロブ・zsh の =cmd ほかシェルが展開する語・誤った場所）、git が実際に動く場所が分からない（#612 の敵対的レビュー 1）
+   const dirKnown = simple?.dir === undefined || dirExists(cwd);

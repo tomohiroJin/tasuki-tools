@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/discard-guard.mjs b/scripts/lib/discard-guard.mjs
+index 733929dc..52936b16 100644
+--- a/scripts/lib/discard-guard.mjs
++++ b/scripts/lib/discard-guard.mjs
+@@ -185,7 +185,7 @@ export async function decideDiscardOutput(raw, { exists, isDirty, cwd: defaultCw
+   const cwd = simple?.dir === undefined ? baseCwd : path.resolve(baseCwd, simple.dir);
+   const existsIn = exists ? (p) => exists(p, cwd) : (p) => fs.existsSync(path.resolve(cwd, p));
+   // -C の先が実在するディレクトリでなければ（グロブ・zsh の =cmd ほかシェルが展開する語・誤った場所）、git が実際に動く場所が分からない（#612 の敵対的レビュー 1）
+-  const dirKnown = simple?.dir === undefined || dirExists(cwd);
++  const dirKnown = true;
+   const result = simple === null || !dirKnown ? UNKNOWN_FORM : classify(simple, existsIn);
+   if (result.verdict === "safe") return null;
+   if (result.verdict === "unknown-form") {
