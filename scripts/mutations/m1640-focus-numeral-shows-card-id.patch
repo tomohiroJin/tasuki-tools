@@ -8,9 +8,9 @@
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m1640-*.patch
 
---- a/apps/checkin-web/src/components/CardFace.tsx
-+++ b/apps/checkin-web/src/components/CardFace.tsx
-@@ -32,7 +32,7 @@
+--- a/apps/checkin-web/src/components/card-faces.ts
++++ b/apps/checkin-web/src/components/card-faces.ts
+@@ -29,7 +29,7 @@
  export const CARD_FACES: Readonly<Record<MethodId, Face>> = {
    weather: art(WeatherArt),
    energy: cardIdNumeral,

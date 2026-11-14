@@ -212,11 +212,11 @@ const RESERVED_1500_1569 =
 const RESERVED_1570_1579 =
   "**対応表より後に足した変異。** 1570〜1579 は #578（PR 2 機械化）の続き（1500〜1569 を使い切った）。PR 3 は 1480〜1499。";
 
-const RESERVED_1640_1659 =
-  "**対応表より後に足した変異。** 1640〜1659 は #593（checkin のやり方の分岐を Record に寄せる）に割り当てた範囲。";
-
 const RESERVED_1600_1619 =
   "**対応表より後に足した変異。** 1600〜1619 は #590（道具の列挙を 1 か所から）に割り当てた範囲。";
+
+const RESERVED_1640_1659 =
+  "**対応表より後に足した変異。** 1640〜1659 は #593（checkin のやり方の分岐を Record に寄せる）に割り当てた範囲。";
 
 const RESERVED_1420_1429 =
   "**対応表より後に足した変異。** 1420〜1429 は #557 に追加で割り当てた範囲（1120〜1129・1410〜1419 を使い切ったため。PR #580 のレビューの指摘で足した）。";
@@ -9238,10 +9238,10 @@ export const MUTATIONS = [
   },
   {
     id: 1641,
-    label: "ROTI が数のやり方でなくなる（METHODS の numeric を false にする）",
-    patch: "m1641-roti-not-numeric.patch",
-    pkg: "packages/checkin-core",
-    tests: ["tests/methods.test.ts"],
-    note: RESERVED_1640_1659 + " " + "#593。数のやり方の正本（METHODS の numeric）が顔の表とずれ、開いた後の要約の言い方が変わる。",
+    label: "ROTI の顔が数字でなく絵になる（数のやり方の正本 CARD_FACES の kind がずれる）",
+    patch: "m1641-roti-face-not-numeral.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/card-face.test.tsx", "tests/reveal-view.test.ts"],
+    note: RESERVED_1640_1659 + " " + "#593。NUMERIC_METHODS を顔の表から導くので、顔が絵に変わると開いた後の要約の言い方も変わる。顔と要約のずれを突く。",
   },
 ];

@@ -9,20 +9,20 @@ describe("METHODS（やり方の表）", () => {
 
   it("side・札の並び・既定の公開の仕方が設計どおり", () => {
     expect(METHODS).toEqual({
-      weather: { side: "checkin", cards: ["sunny", "cloudy", "rain", "thunder"], defaultVisibility: "named", numeric: false },
-      energy: { side: "checkin", cards: ["1", "2", "3", "4", "5"], defaultVisibility: "anonymous", numeric: true },
-      focus: { side: "checkin", cards: ["20", "50", "80", "100"], defaultVisibility: "named", numeric: true },
-      "takeaway-goal": { side: "checkin", cards: ["decide", "learn", "discuss", "listen"], defaultVisibility: "named", numeric: false },
-      role: { side: "checkin", cards: ["listener", "questioner", "summarizer", "energizer"], defaultVisibility: "named", numeric: false },
-      expectation: { side: "checkin", cards: ["1", "2", "3", "4", "5"], defaultVisibility: "anonymous", numeric: true },
-      "mood-start": { side: "checkin", cards: ["eager", "calm", "sleepy", "restless"], defaultVisibility: "named", numeric: false },
-      roti: { side: "checkout", cards: ["1", "2", "3", "4", "5"], defaultVisibility: "anonymous", numeric: true },
-      "takeaway-done": { side: "checkout", cards: ["yes", "half", "no"], defaultVisibility: "named", numeric: false },
-      "best-part": { side: "checkout", cards: ["decided", "talked", "learned", "nothing"], defaultVisibility: "named", numeric: false },
-      mood: { side: "checkout", cards: ["clear", "foggy", "tired", "excited"], defaultVisibility: "named", numeric: false },
-      "next-meeting": { side: "checkout", cards: ["keep", "shorter", "fewer", "skip"], defaultVisibility: "anonymous", numeric: false },
-      "weather-end": { side: "checkout", cards: ["sunny", "cloudy", "rain", "thunder"], defaultVisibility: "named", numeric: false },
-      understanding: { side: "checkout", cards: ["1", "2", "3", "4", "5"], defaultVisibility: "anonymous", numeric: true },
+      weather: { side: "checkin", cards: ["sunny", "cloudy", "rain", "thunder"], defaultVisibility: "named" },
+      energy: { side: "checkin", cards: ["1", "2", "3", "4", "5"], defaultVisibility: "anonymous" },
+      focus: { side: "checkin", cards: ["20", "50", "80", "100"], defaultVisibility: "named" },
+      "takeaway-goal": { side: "checkin", cards: ["decide", "learn", "discuss", "listen"], defaultVisibility: "named" },
+      role: { side: "checkin", cards: ["listener", "questioner", "summarizer", "energizer"], defaultVisibility: "named" },
+      expectation: { side: "checkin", cards: ["1", "2", "3", "4", "5"], defaultVisibility: "anonymous" },
+      "mood-start": { side: "checkin", cards: ["eager", "calm", "sleepy", "restless"], defaultVisibility: "named" },
+      roti: { side: "checkout", cards: ["1", "2", "3", "4", "5"], defaultVisibility: "anonymous" },
+      "takeaway-done": { side: "checkout", cards: ["yes", "half", "no"], defaultVisibility: "named" },
+      "best-part": { side: "checkout", cards: ["decided", "talked", "learned", "nothing"], defaultVisibility: "named" },
+      mood: { side: "checkout", cards: ["clear", "foggy", "tired", "excited"], defaultVisibility: "named" },
+      "next-meeting": { side: "checkout", cards: ["keep", "shorter", "fewer", "skip"], defaultVisibility: "anonymous" },
+      "weather-end": { side: "checkout", cards: ["sunny", "cloudy", "rain", "thunder"], defaultVisibility: "named" },
+      understanding: { side: "checkout", cards: ["1", "2", "3", "4", "5"], defaultVisibility: "anonymous" },
     });
   });
 
