@@ -308,9 +308,9 @@ Result のエラー型、`ParticipantIds` は `createRoom` の引数型…）。
   `packages/topic-core` がある（宣言の正本は同スクリプト）
 - **決定 1 が MUST とする表現の記録**は、`topic-core` については `docs/adr/0021` 決定 5（直接遷移関数 ＋ `Result`）である
 
-## 追記（2026-11-14・#600）— ID をブランド型にするか（Proposed）
+## 追記（2026-11-14・#600）— ID をブランド型にするか（Rejected）
 
-- **この追記のステータス**: Proposed（採択は利用者。ADR 本体の Accepted は変わらない）
+- **この追記のステータス**: **Rejected**（2026-11-14 起案・同日に利用者が勧めのとおり「今は入れない」と決めた。ADR 本体の Accepted は変わらない。決め直す条件は下の「決め直す条件」）
 - **関連**: [#600](https://github.com/tomohiroJin/tasuki-tools/issues/600)（親 [#482](https://github.com/tomohiroJin/tasuki-tools/issues/482)）/
   [調査の記録](../superpowers/specs/2026-11-13-architecture-review-survey.md) 節 4.1・4.2・節 6 の C1・節 8 の #4 /
   [`docs/adr/0007`](./0007-abstraction-criteria.md) 基準 3 /
