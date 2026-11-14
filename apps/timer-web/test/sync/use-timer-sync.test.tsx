@@ -958,3 +958,33 @@ describe("useTimerSync: 答えを待つ期限が切れた後の再接続", () =>
     }
   });
 });
+
+describe("useTimerSync: 終わり方の反映（handleRoom から state への配線・#595）", () => {
+  function connected() {
+    return enterRoom(fakeBanner());
+  }
+
+  it("記録が増えずに完了へ入ると、終わり方は abort になる", () => {
+    // Given: セッション中
+    const { result, deliver } = connected();
+    deliver({ type: "snapshot", room: aRoomView({ phase: "session" }) });
+    expect(result.current.endType).toBe("complete");
+    // When: 記録が増えないまま完了へ入る（中断）
+    deliver({ type: "snapshot", room: aRoomView({ phase: "celebration" }) });
+    // Then
+    expect(result.current.endType).toBe("abort");
+  });
+
+  it("完了から抜けると、終わり方を complete へ戻し記録を畳む", () => {
+    // Given: 中断で完了へ入った
+    const { result, deliver } = connected();
+    deliver({ type: "snapshot", room: aRoomView({ phase: "session" }) });
+    deliver({ type: "snapshot", room: aRoomView({ phase: "celebration" }) });
+    expect(result.current.endType).toBe("abort");
+    // When: ロビーへ戻る
+    deliver({ type: "snapshot", room: aRoomView({ phase: "setup" }) });
+    // Then
+    expect(result.current.endType).toBe("complete");
+    expect(result.current.record).toBeNull();
+  });
+});

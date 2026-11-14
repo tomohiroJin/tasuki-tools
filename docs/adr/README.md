@@ -43,9 +43,9 @@ Michael Nygard 形式（背景 / 決定 / 影響 / ステータス）に従い�
 | [0012](./0012-logging-secrets-and-disclosure.md) | ログ・秘密・開示の取り扱い | Accepted |
 | [0013](./0013-pr-granularity.md) | PR の粒度 | Accepted |
 | [0014](./0014-scan-target-integrity.md) | 検査の走査対象は宣言と実体の照合で決める | Accepted |
-| [0015](./0015-web-layer-structure.md) | web 層は「純粋関数・同期フック・画面」に責務を分ける | Accepted |
-| [0016](./0016-core-domain-representation.md) | ドメインの表現は選択制とし、揃える点を定める | Accepted |
-| [0017](./0017-bounded-contexts-and-packages.md) | 文脈を 3 つに割り、メンバーシップを上流に置く | Accepted |
+| [0015](./0015-web-layer-structure.md) | web 層は「純粋関数・同期フック・画面」に責務を分ける | Accepted（追記（2026-11-14・#598）も Accepted） |
+| [0016](./0016-core-domain-representation.md) | ドメインの表現は選択制とし、揃える点を定める | Accepted（追記（2026-11-14・#600）は Rejected） |
+| [0017](./0017-bounded-contexts-and-packages.md) | 文脈を 3 つに割り、メンバーシップを上流に置く | Accepted（追記（2026-11-14・#599）も Accepted） |
 | [0018](./0018-single-entry-and-url-scheme.md) | 入口を LP に一本化し、URL 体系を揃える | Accepted |
 | [0019](./0019-web-layer-scope-includes-landing.md) | web 層の規範の適用範囲に landing を含める | Accepted |
 | [0020](./0020-invite-browser-operations.md) | 招待のブラウザ操作を共有フックに集める | Accepted |

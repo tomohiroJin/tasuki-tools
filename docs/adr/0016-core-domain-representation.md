@@ -308,3 +308,211 @@ Result のエラー型、`ParticipantIds` は `createRoom` の引数型…）。
   `packages/topic-core` がある（宣言の正本は同スクリプト）
 - **決定 1 が MUST とする表現の記録**は、`topic-core` については `docs/adr/0021` 決定 5（直接遷移関数 ＋ `Result`）である
 
+## 追記（2026-11-14・#600）— ID をブランド型にするか（Rejected）
+
+- **この追記のステータス**: **Rejected**（2026-11-14 起案・同日に利用者が勧めのとおり「今は入れない」と決めた。ADR 本体の Accepted は変わらない。決め直す条件は下の「決め直す条件」）
+- **関連**: [#600](https://github.com/tomohiroJin/tasuki-tools/issues/600)（親 [#482](https://github.com/tomohiroJin/tasuki-tools/issues/482)）/
+  [調査の記録](../superpowers/specs/2026-11-13-architecture-review-survey.md) 節 4.1・4.2・節 6 の C1・節 8 の #4 /
+  [`docs/adr/0007`](./0007-abstraction-criteria.md) 基準 3 /
+  [`docs/adr/0017`](./0017-bounded-contexts-and-packages.md) 決定 4 /
+  `docs/constitution.md` 原則 IV・原則 X
+
+### 問い
+
+core・アプリケーション層・ポートの ID は、どれも `string` か `string` の別名である。
+別名は型検査では `string` と同じなので、参加者 ID と接続 ID・ルームのコードを取り違えても型が通る。
+これを型で止めるために ID をブランド型にするか、入れないならなぜかを決める。
+原則 IV（境界の型安全）は wire の入口の検証を定めており、内側の ID の型は定めていない。
+表現の決まりなので本 ADR に足す。
+
+### 実測（2026-11-14・`882f7954`）
+
+数えたコマンド: `node docs/superpowers/specs/2026-11-13-architecture-review-survey/c-contracts.mjs .`（exit 0・走査 164 ファイル）。
+数は出力の `stringIds`・`aliasOfString`・`summary.stringIdsByPkgKind` から写した。調査の記録（節 4.1）と同じ数で、#590 のマージのあとも変わっていない。
+
+**このスクリプトが拾うのは、名前が `id`・`…Id`・`…Ids` の ID だけである**（`ID_RE`。調査の記録の 4.1 も「`code`・`token`・`key` は拾わない」と書く）。
+ルームのコードは名前が `roomCode` なので、202 には入っていない。そこで、スクリプトを作業ツリーの外へ写し、`ID_RE` の名前に `roomCode`・`roomCodes` を足して同じ引数で流した（下の表の「`roomCode` を含む」の列。exit 0）。
+名前が `code` だけのもの（エラーの `code` と混ざる）は、どちらの列にも入れていない。
+
+| 項目 | スクリプトのまま | `roomCode` を含む | 出どころ |
+|---|---:|---:|---|
+| `string`（別名を含む）の ID | 202 か所（引数 141・型の欄 61）・59 ファイル | 288 か所（引数 225・型の欄 63）・67 ファイル | `stringIds` の `kind` と `file` |
+| うち名前が `connId`／`connIds` | 84 か所・27 ファイル | 同じ | `stringIds` の `param` |
+| うち名前が `participantId` | 57 か所 | 同じ | 同上 |
+| うち名前が `roomCode` | 0 | 86 か所・25 ファイル | 同上 |
+| `string` の別名 | 6（`ParticipantId`・`ConnId`・`RoomCode`・`ToolId`（`packages/room-core/src/room.ts`）・`EntryId`（`packages/roulette-core/src/types.ts`）・`CardId`（`packages/checkin-core/src/methods.ts`）） | 同じ | `aliasOfString` |
+| ブランド型の ID | 0 | 0 | — |
+| 同じ関数に ID の引数が 2 つ以上並ぶもの | 6 | 12 | 下の表 |
+
+関数の数え方: `stringIds` の引数を、関数名・ファイルが同じで行が近い（4 行以内）ものに束ね、2 つ以上のものを拾った。
+そのうえで **「名前と署名（ID の並び）が同じものは、置き場（ファイル・型の宣言・実装）がいくつあっても 1 つ」** と数えた。
+名前のある組は 15 組で、この規則で次の 11 関数になる。
+
+- `handleParticipantRemoved` の 190 行と 708 行（型の宣言と実装）は 1 つ
+- `sendCurrent(connId, roomCode)` は 4 つの道具の配信の型（`agenda-broadcast.ts`・`checkin-broadcast.ts`・`roulette-broadcast.ts`・`topic-broadcast.ts`）に同じ署名で置かれており、1 つ
+- `attach` と `detach` は名前が違うので 2 つ
+
+名前の無い組（関数名が `<anon>`）は 7 組あり、1 つずつ本物に当てて次のように扱った。
+
+- **表に足した 1 関数**: `discardPokerVote: (roomCode: string, participantId: string) => void`。依存の型のプロパティとして書かれているのでスクリプトが名前を拾えない。
+  同じ署名が `command-handlers/participant-remove.ts:56`・`handlers.ts:191`・`room-removal.ts:144` の 3 か所にあり、上の規則で 1 つ
+- **除いた 2 組（重複）**: `poker-commit-room-action.ts:153-155` と `poker-handlers.ts:166-168` の `removeFromRoom: (roomCode, actorId, targetId) => …`。依存の型のプロパティで、表の `removeFromRoom`（`handlers.ts`）と名前も署名も同じなので、上の規則で数えない
+- **除いた 2 組（誤検出）**: `participant-remove.ts:45/47`（`sendError(connId, …)` と `destroyRoom(roomCode)` の別々のプロパティ）と `destroy-room.ts:106/110`（`releaseRoom(roomCode)` と `createRoomDestroyer` の戻りの型の `roomCode`）。行が近いだけで、1 つの関数に ID が並んでいない
+
+したがって表は 11 ＋ 1 ＝ 12 関数である。
+
+**この数え方の限界**（どれも少なく数える側に倒れる）:
+
+- **4 行以内で束ねる経験則**は、引数が 5 行以上に分かれた署名と、ID をオブジェクトの欄で受ける引数（`({ roomCode, participantId }: …)`。スクリプトは型の欄に数える）を拾えない
+- **`<anon>` の当て方**は、スクリプトが拾った組を目で見ただけである。プロパティとして書かれた関数のうち、引数が離れた行にあるものは組にならず、ここに出てこないので漏れうる
+- **復帰のトークン・合言葉の鍵は数えていない。** `rt_…` の復帰のトークン（`nanoid-code-gen.ts`）・poker の `token`（`poker-crypto-id-gen.ts`）・topic の `key` は、
+  名前が `…Id` でないのでスクリプトが拾わない（数えない理由はこれだけ。`docs/adr/0011` の分類ではルームのコードも同じ資格情報で、ここではルームのコードは ID として数えている）。ただし型はどれも `string` なので、ID と取り違えても型は通る。
+  表の関数のうち `sendJoined(ws, roomId, participantId, token)` と `handleAiUnlock(connId, roomCode, key)` は、ID のほかにこの値も `string` で並ぶ。
+  資格情報の型を分けるかは、ログに出さない値の扱い（`LogSafe`・`docs/adr/0012`）と一緒に考えることで、この追記の範囲外とする
+
+| 関数 | 並ぶ ID | ブランド型で止まるか |
+|---|---|---|
+| `attach`・`detach`（`apps/tasuki-sync/src/ports/poker-broadcaster.ts`） | ルーム・参加者 | 止まる |
+| `sendJoined`（`poker-handlers.ts`） | ルーム・参加者（ほかに復帰のトークンも `string` で並ぶ） | 止まる |
+| `attachConnection`（`room.ts`） | 参加者・接続 | 止まる |
+| `sendCurrent`（`agenda-broadcast.ts`・`checkin-broadcast.ts`・`roulette-broadcast.ts`・`topic-broadcast.ts` の 4 か所に同じ署名） | 接続・ルームのコード | 止まる（`roomCode` を含めたときだけ見える） |
+| `handleParticipantRemoved`（`poker-handlers.ts`） | ルームのコード・参加者 | 同上 |
+| `scheduleDriverAbsence`（`presence.ts`） | 参加者・ルームのコード | 同上 |
+| `findResumeToken`（`token-store.ts`） | 参加者・ルームのコード | 同上 |
+| `handleAiUnlock`（`topic-handlers.ts`） | 接続・ルームのコード（ほかに合言葉の鍵 `key` も `string` で並ぶ） | 同上 |
+| `discardPokerVote`（`participant-remove.ts`・`handlers.ts`・`room-removal.ts` の 3 か所に同じ署名の依存の型。名前の無い組から足した） | ルームのコード・参加者 | 同上 |
+| `removeFromRoom`（`handlers.ts`） | ルームのコード・参加者（する人）・参加者（される人） | ルームのコードと参加者の取り違えは止まる。する人とされる人の取り違えは止まらない |
+| `removalNotificationFor`（`packages/timer-core/src/removal-notification.ts`） | 参加者（する人）・参加者（される人） | 型では止まらないが、取り違えても結果は変わらない（2 つが等しいかを比べるだけで、引数に対して対称） |
+
+12 関数のうち、ブランド型で全部止まるのは 10、一部だけ止まるのが 1（`removeFromRoom`）、取り違えても実害の無いものが 1（`removalNotificationFor`）である。
+**型で止まらず実害もありうるのは、`removeFromRoom` のする人とされる人（参加者 ID どうし）だけである。**
+
+走査の外: 接続層（`apps/tasuki-sync/src/adapters`。`ws-adapter.ts` の `connId: string` ほか）と web アプリは数えていない。入れるならここも動く。
+
+型で順序や出どころを守る形は、同期サーバーに既に 3 つある。どれも `unique symbol` の目印である
+（`apps/tasuki-sync/src/application/` の `apply-room-level-event.ts` の `StateWithAggregate`・`log/log-safe.ts` の `LogSafe`・`timer-command-receiver.ts` の `TimerCommandReceiver`）。
+`LogSafe` は `string & { readonly [logSafeBrand]: true }` で、文字列のブランド型そのものである。
+
+### 取り違えの実害（履歴を引いた結果）
+
+引いたもの: `git log -E --grep='^(\* )?fix'`（本文に `fix` か、squash の本文の `* fix` で始まる行を持つコミット 324 本）のうち、本文に `connId`・`participantId`・`roomCode`・`roomId`・「参加者 ID」・「接続 ID」・「ルームのコード」・「ID を」を含む 30 本を読んだ。
+30 本の `* fix` の行のうち ID・接続・参加者・トークンに触れるものは本文まで読んだ。ID に近いのは `7689fb5e` の `* fix: poker の配信レジストリを接続単位にする`（参加者 ID とソケットを 1 対 1 で持っていたので 2 つ目のタブが前のタブを置き換えた）で、これは対応の持ち方の誤りであり、ID の取り違えではない。
+（最初は `--grep='^fix'` の 235 本・16 本で引いていた。squash の本文の `* fix` に当たらないとレビューで指摘され、引き直した）
+加えて `git log` の本文の「取り違」・「逆に渡」・「引数の順」・「固定値」・「表示名」、`gh issue list --state all --search '取り違え'`、`docs/` の「取り違」と「ブランド」を引いた。
+これより外の語（例「入れ違い」「別人」）で書かれた記録は拾えていない。
+下の `04d6440a` と `c4bc955b` は、最初の引き方では拾えず、敵対的レビューの指摘で見つけて本文を読んで確かめた（`04d6440a` は「participantId ではなく」と「表示名」が行をまたいでおり、行ごとの grep に当たらない）。
+
+- **ID と ID の取り違え（参加者 ID と接続 ID など）で出た不具合の記録は、この範囲では 0 件。**
+- **ID と表示名の取り違えは 3 件ある。製品の不具合は 1 件で、残る 2 件はテストの固定値の誤りである。**
+  - `2e1f4f2c`（#22・2026-07-28・製品の不具合）。交代の輪（`rotation`）の中身を表示名から参加者 ID に替えたとき、
+    `decideAddProxy` の重複名の確かめが ID と表示名を比べたままになり、同名の代理を足せた。コミットは「型は `string[]` のまま変わらないため、コンパイラも 1400 件のテストも検出できなかった」と書く。
+    実機での確かめ（Playwright）で見つかった。同じコミットは、表示名を React の key にしていた退行も直している。
+    **この 2 つは、ブランド型でも止まらない。** 直す前の形は `rotation.map((n) => n.toLowerCase())` で作った配列に `includes(trimmed.toLowerCase())` を当てていた。
+    `toLowerCase()` は `string` を返すので、輪が `ParticipantId[]` でも目印はそこで外れる。React の key も `string` を受ける。
+    作業ツリーの外に小さな `.ts` を書き、本体の `node_modules/.bin/tsc --noEmit --strict` で確かめた: 直す前の形は exit 0（通る）、対照として `rotation.includes(trimmed)`（`toLowerCase` を挟まない形）は exit 2（落ちる）
+  - `04d6440a`（#276・2026-09-19・テストの固定値）。`Lobby.invite.test.tsx` の造作が、輪に参加者 ID ではなく表示名を入れていた。席が別人として同名判定に混ざっていた
+  - `c4bc955b`（#95 S3・2026-09-09・テストの固定値）。`Session.restart`・`Session.handoff` のテストの固定値で、識別子と表示名が交差していた
+  - テストの 2 件は、固定値をブランド型の作り手（例 `pid("p_alice")`）で書いていれば、表示名を ID の欄に入れた所で型で落ちる種類である。どちらも製品の不具合ではなく、テストを直した
+- **取り違えを防ぐ手当は 2 回、手で打っている。**
+  - `7689fb5e`（#95 S4b・PR #264）: `detachConnection` を `removeConnection`（接続 ID で外す）へ改名した。コミットは「引数がどちらも string で取り違えが型検査を通るため、旧名を残さない」と書く。
+    改名で古い呼び出しをコンパイルで落とした（R4 の計画 `docs/superpowers/plans/2026-10-13-refactor-r4-invariants.md` はこれを S4a と書くが、改名したコミットは S4b である）
+  - S4b の計画（`docs/superpowers/plans/2026-09-11-shared-identity-s4b-identity-and-presence.md`）は「最大の危険」として、`connId` を読む約 200 か所に名簿の接続 ID と接続そのものの ID が混ざることを挙げ、「置換ではなく 1 箇所ずつ意味を見て直す」とした
+- **一度、見送っている。** #360 の R4（2026-10-13）は「room-core の ID をブランド型にする」をやらないことにした。理由は「同期サーバーの全体に広がる」「取り違えは関数名で既に防いでいる」「`docs/adr/0007` 基準 3」
+  （`docs/superpowers/plans/2026-10-13-refactor-r4-invariants.md` の「やらないこと」・`docs/superpowers/specs/2026-10-13-large-refactoring-design.md`）。この判断のあとに、ID の取り違えの不具合は記録されていない
+
+### 入れる場合の形
+
+**形は、名前を鍵にした構造の目印を勧める。** 具体的には valibot の `Brand`（`type ParticipantId = string & v.Brand<"ParticipantId">`）か、
+同じ性質を持つ字面の目印（`string & { readonly __brand: "ParticipantId" }`）。`unique symbol` は文脈をまたぐ ID には使わない。
+
+- **`unique symbol` は宣言ごとに別の型になる。** 文脈どうしは依存しない（`docs/adr/0017` 決定 4。`scripts/audit-dependency-direction.mjs` の `ALLOWED` で `room-core`・`roulette-core`・`checkin-core` ほかは `[]`）。
+  `room-core` の `ParticipantId` を `roulette-core` は取り込めないので、各文脈が自分の目印を宣言することになり、互いに代入できない。
+  文脈をつなぐアプリ層の全部に `as` が要り、調査が既に問題にしている `as T`（節 6 の C5）が増える。
+  `LogSafe` などの 3 つは同期サーバーの中だけで閉じているので、この問題が無い
+- **名前を鍵にした目印は、同じ名前なら別のパッケージで宣言しても同じ型になる。** 依存を足さずに文脈をまたげる。
+  valibot の `Brand` を使えば、wire の入口のスキーマ（`v.pipe(v.string(), v.minLength(1), v.brand("ParticipantId"))`）が `as` 無しでブランド型を返す。
+  core のうち valibot に依存していないのは `sync-client` だけ（ID の欄は 1）。ただし、valibot の目印は `BrandSymbol`（`unique symbol`）を鍵にしており、
+  版が 2 つ入ると記号が割れて代入できなくなる（いまのロックは 1 版）。同じ版でも、型の宣言は `index.d.mts` と `index.d.cts` で別々に `BrandSymbol` を宣言している（本体の `node_modules` の valibot 1.5.0 で確かめた）。
+  ESM と CJS の宣言が混ざる解決になると同じことが起きうる（未測）。この心配を避けたいなら字面の目印にする
+- 字面の目印は valibot に依らないが、入口のスキーマの出力に `as` が 1 か所ずつ要る
+
+**ブランド型を付ける場所（作る口）は次に限る。** 内側の関数は付いた値を受け渡すだけにする。
+
+1. **wire の入口**: valibot のスキーマ（`packages/room-core/src/wire.ts`・`packages/timer-core/src/schemas.ts`・`packages/poker-core/src/protocol.ts` など、クライアントが ID を送ってくる欄）
+2. **ID を採番する口**: `apps/tasuki-sync/src/adapters/nanoid-code-gen.ts`（参加者 ID・ルームのコード）・`poker-crypto-id-gen.ts`（poker のルーム ID の `roomIdCandidate`・参加者 ID）・`ws-adapter.ts` の接続 ID
+3. **ストア**: ポートの鍵の型をブランド型にする。読み出しはブランド型を返す（ストアに入るのは 1・2 で付いた値だけ）
+
+`as` で付ける口は、valibot の `Brand` を使うなら 2 だけ、字面の目印を使うなら 1 と 2（入口のスキーマの出力ごとに 1 か所）になる。どちらでも、内側の関数とストア（3）では `as` を書かない。`LogSafe` と同じく、`as` を使ってよいファイルを監査で縛るかは段の 1 本目で決める。
+テストは ID を字面で書く（例 `"p_alice"`）ので、テスト用の小さな作り手（例 `pid("p_alice")`）を通す書き換えが要る。件数は未測。
+
+### 別名 6 つの扱い（入れる場合）
+
+| 別名 | 扱い | 理由 |
+|---|---|---|
+| `ParticipantId` | ブランド型にする | 取り違えの危険の中心（接続 ID・ルームのコード・表示名と並ぶ） |
+| `ConnId` | ブランド型にする | 名前の数が最多（84 か所）。S4b が「最大の危険」と書いた。作る口が `ws-adapter.ts` の 1 か所で、wire から来ない |
+| `RoomCode` | ブランド型にする | 名前が `roomCode` の所が 86 か所。上の 12 関数のうち 10 で接続 ID か参加者 ID と並ぶ（名前が `roomId` のものを含む）。wire からも来る |
+| `ToolId` | 別名のまま | `room-core` は「中身を解釈しない」と決めている（`room.ts` の注記）。綴りの正本は同期サーバーの `tool-id.ts`（#590）で、型を締めるならそちらの字面の共用体にする |
+| `EntryId` | `ParticipantId \| GuestId` にする | 参加者 ID かゲストの ID（`g-` で始まる）。名前を鍵にした目印なら `roulette-core` が `room-core` に依存せず `ParticipantId` を書ける。ただし `roulette-core/src/types.ts` は「この文脈は参加者 ID の中身を解釈しない」と注記している。目印を書くのは中身を解釈することではないが、`room-core` と同じ名前の約束を持つことになる。入れるならこの注記も書き直す |
+| `CardId` | 別名のまま | 人の ID と並ぶ引数が無い。値はやり方ごとの閉じた集合（`METHODS`）で、締めるなら字面の共用体が先。ただし `packages/checkin-core/src/types.ts` の `cards: ReadonlyMap<string, CardId>`（参加者 ID を鍵、札を値に持つ形）は鍵と値がどちらも `string` で、ここだけは取り違えが型を通る |
+
+### 段の切り方（入れる場合）
+
+ISSUE の案（`room-core` → `roulette-core` → …）は、**パッケージの順ではそのまま切れない。**
+`room-core` の関数の ID をブランド型にすると、それを呼ぶ同期サーバーが `string` を渡している所が全部コンパイルで落ちる
+（`@tasuki/room-core` の字面を含む製品のファイルは 95、うち同期サーバー 47。`git grep -l '@tasuki/room-core' -- apps packages` からテストと `package.json`・`.md` を除いて数えた）。
+そこで、**ID の種類ごとに、作る口から使う側へ**流す。1 段 = 1 PR（`docs/adr/0013`）。
+
+1. `ConnId`（作る口が 1 つ・wire から来ない。`room-core` の `attachConnection`・`removeConnection`・`findParticipantByConnId` と同期サーバーの接続 ID の引数）
+2. `RoomCode`（採番の口 2 つ（`nanoid-code-gen.ts` のルームのコード・`poker-crypto-id-gen.ts` の `roomIdCandidate`。後者は poker のルーム ID で、`removeFromRoom` の `roomCode` にも渡る）と wire の入口）
+3. `ParticipantId`（採番の口 2 つと wire の入口 3 つ。`timer-core` の交代の輪を含む）
+4. `roulette-core` の `EntryId`
+5. 残る core（`poker-core`・`checkin-core`・`agenda-core` の `id`／`stepId` など）
+
+どの段を終えても、参加者 ID どうしが並ぶ所（`removeFromRoom` のする人とされる人）は型では止まらない（`removalNotificationFor` も止まらないが、引数に対称なので実害が無い）。
+引数を名前つきの 1 つのオブジェクトにするかは、この追記の範囲外とする。
+
+### 変異の作り直しの見込み
+
+数え方: `scripts/mutations/*.patch` の `+++ b/` の行を集め、ID のあるファイルに当たるパッチと、そのうち差分の範囲（`@@ -a,b`）が ID の注釈の行（`stringIds` と `aliasOfString` の行番号）にかかるものを数えた（全 1,046 本）。
+2 つの列は上の実測の 2 つの列（59 ファイル・67 ファイル）に対応する。
+
+| 範囲 | スクリプトのまま: ファイルに当たる | うち ID の行にかかる | `roomCode` を含む: ファイルに当たる | うち ID の行にかかる |
+|---|---:|---:|---:|---:|
+| 全部 | 188 | 15 | 195 | 18 |
+| `room-core` | 10 | 1（`m397`） | 12 | 2（`m397`・`m601`） |
+| `roulette-core` | 27 | 0 | 27 | 0 |
+
+ID の行にかかる本数（`roomCode` を含めて 18）は当たらなくなる見込みが高い。名前が `code` だけの ID まで含めればさらに増える（未測）。残りは、作る口や呼び出し側を書き換えた結果、前後の行がずれたときだけ当たらなくなる。
+本当の数は、各段で `docs/guides/procedures/mutations.md` の全件の当たり確認を流して数える。ブランド型は実行時に何もしないので、作り直したパッチが壊す振る舞いは変わらない。
+
+### 入れない場合の理由
+
+- **実需の記録が無い。** ID と ID の取り違えで出た不具合は、引いた範囲で 0 件。原則 X と `docs/adr/0007` 基準 3 は「変更が現に困難になっている事実」を求める。
+  記録にある製品の不具合 1 件（`2e1f4f2c`）は ID と表示名の取り違えで、しかも `toLowerCase()` で目印が外れる形だったので、ブランド型でも止まらなかった（上の tsc の確かめ）。
+  ブランド型で止まる種類はテストの固定値の誤り 2 件（`04d6440a`・`c4bc955b`）だけで、どちらもテストを直して済んでいる
+- **同じ問いを 1 か月前に見送っている**（R4）。その後、前提（同期サーバーの全体に広がる・関数名で防いでいる）は変わっていない
+- **量が大きい。** `roomCode` を含めて 67 ファイル・288 か所に加えて、接続層・web アプリ・テストの字面・変異の作り直しが動く。5 段の PR になり、そのあいだ #482 のほかの子（#591 の `createSyncServer` の分割・#596 の契約の型など）と同じファイルで衝突する
+- **止められるのは一部。** ID が並ぶ 12 関数のうち、参加者 ID どうしが並ぶ `removeFromRoom` のする人とされる人は止まらない。
+  記録にある製品の不具合 1 件のように、`toLowerCase()` などで `string` に戻した値どうしを比べる形も止まらない
+
+### 勧め: 今は入れない（Rejected を勧める）。決め直す条件を残す
+
+利用者の物差しに照らすと次のとおり。
+
+| 物差し | 入れたとき | 判断 |
+|---|---|---|
+| 読みやすい | 署名が意味を持つ。ただし別名で既に名前は読める | 少し良くなる |
+| 足すのが速い | 道具を足すたびに、作る口とテストの作り手を通す手間が増える | 少し悪くなる |
+| 続けられる | `as` の口を縛る監査が 1 つ増える。valibot の版が割れると型が壊れる | 変わらないか少し悪くなる |
+| バグが減る | 種類の違う ID の取り違えは型で落ちる。ただし過去の記録では、その種類の不具合は 0 件。記録にある製品の不具合 1 件はブランド型でも止まらない形で、止まるのはテストの固定値の誤り 2 件だけ | 見込みはあるが、実績が無い |
+
+効くのが「バグが減る」の 1 つで、その根拠が予測に留まる。原則 X「抽象は実需で」と `docs/adr/0007` 基準 3 に照らして、今は入れないことを勧める。
+別名 6 つは名前の手がかりとして今のまま残す。
+
+**決め直す条件**（どれか 1 つで、この追記を下敷きに起こし直す）:
+
+1. 種類の違う ID の取り違えで、不具合が 1 件でも記録された（fix のコミットか ISSUE）
+2. 新しい種類の ID が、既存の ID と同じ関数の引数に並ぶ形で増える（例: ゲストの ID が `roulette-core` の外へ広がる）
+3. ID の引数を広く書き換える変更を別の理由で行う（#95 S4b のような同一性の作り直し）。書き換える費用をすでに払うので、そのときに上の「入れる場合の形」と段の 1 本目を一緒に入れる
+

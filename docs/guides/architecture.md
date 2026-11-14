@@ -38,18 +38,26 @@ S2〜S4a では poker 側の入れ子（src/poker 配下。**S4b で畳みまし
 | 共有ユーティリティ（sync 専用） | `packages/rate-limit` | なし（node 標準ライブラリのみ。ドメインの型にも依存しない） |
 | アプリケーション | `apps/*-sync/src/application` | ドメイン・プロトコル契約・ポート・`packages/rate-limit` |
 | ポート | `apps/*-sync/src/ports` | ドメインの型 |
-| アダプタ | `apps/*-sync/src/adapters`・web アプリ | 上のすべて |
-| web の純粋判断 | web アプリ配下で React・I/O に依存しない `.ts`（例: `apps/timer-web/src/ui/screen.ts`・`apps/poker-web/src/router.ts` の `parseRoute`・`apps/landing/src/hub/hub-state.ts`） | ドメインの型のみ（React・I/O に依存しない） |
+| アダプタ | `apps/*-sync/src/adapters`（web アプリの中は下の「web の…」の行で決める。#598 ※） | 上のすべて |
+| web の純粋判断 | web アプリ配下で React・I/O に依存しない `.ts`（例: `apps/timer-web/src/ui/screen.ts`・`apps/timer-web/src/ui/error-action.ts`・`apps/landing/src/hub/hub-state.ts`。`router.ts` の `parseRoute` は関数としては純粋だが、同じファイルに `redirectTo` があるのでファイルとしては下の「web の端末 I/O」に置く） | ドメインの型と値（関数・定数・スキーマ）・`packages/protocol`（React・I/O に依存しない。下の「web の端末 I/O」も読まない。#598 ※） |
+| web の端末 I/O（#598 ※） | web アプリの `src` の `.ts` で、同期フックでも画面でもなく、ブラウザの I/O（`localStorage`・IndexedDB・音・`location`・`document` など）・時計・乱数に触るもの（例: `apps/timer-web/src/platform/sound.ts`・`apps/roulette-web/src/storage/regulars.ts`・`apps/timer-web/src/prefs/local-prefs.ts`・各アプリの `router.ts`）。純粋な関数と I/O が同じファイルにあるとき（`router.ts` の `parseRoute` と `redirectTo`）は、ファイルとしてはこの行に置く | ドメインの型と値・純粋判断（React と WebSocket は持たない。WebSocket は同期フックの持ち物） |
 | web の同期フック | web アプリの同期フック（例: `apps/poker-web/src/hooks/useSync.ts`・`apps/landing/src/hub/use-hub-sync.ts`）。大きくなったら同じ層のサブフックに分けてよい（例: `apps/timer-web/src/sync/use-timer-entry.ts`・`apps/poker-web/src/hooks/useRoomEntry.ts`。#369） | 上のすべて ＋ WebSocket |
 | web の同期クライアント | `packages/sync-client` | なし（ツールの語彙を持たない。WS の保持と再接続・参加の失敗の判断・端末の同一性。同期フックだけが読む） |
 | web の同期の共有部品 | `packages/web-kit` の入口 `@tasuki/web-kit/sync`（`useJoinRetry`・`useToolRoomSync`。#369） | `react`（peer）・`@tasuki/sync-client` のみ。ドメインの core には依存しない。**同期フックの側として扱い、画面は直接読まない**（お題・ルーレット・進行タイマーの `screens-do-not-import-sync-client` のテスト） |
-| web の画面 | web アプリの `.tsx` | 同期フック・純粋判断・`@tasuki/web-kit/reader`・`@tasuki/web-kit/room`・`packages/invite-ui`・`packages/ui` のみ（同期クライアントと `@tasuki/web-kit/sync` を直接 import しない） |
+| web の画面 | web アプリの `.tsx` | 同期フック・純粋判断・ドメインの型と値（関数・定数・スキーマ）・web の端末 I/O（#598 ※）・`@tasuki/web-kit/reader`・`@tasuki/web-kit/room`・`packages/invite-ui`・`packages/ui` のみ（同期クライアントと `@tasuki/web-kit/sync` を直接 import しない） |
 | UI 資産 | `packages/ui` | なし（CSS のトークン・要素・部品と静的資産。ADR 0022） |
 | 招待のブラウザ操作 | `packages/invite-ui` | React・ブラウザ API・既存の qrcode。ドメイン・同期クライアントには依存しない（[ADR-0020](../adr/0020-invite-browser-operations.md)） |
 | Markdown の解析 | `packages/markdown` | なし（純粋関数のみ。React を知らない）。描画は `@tasuki/web-kit/reader` の `Markdown` が持つ（[ADR-0021](../adr/0021-topic-as-shared-context.md) 決定 7 と 2026-10-14 の追記・#371） |
 | web のルーム画面の共有部品 | `packages/web-kit` の入口 `@tasuki/web-kit/room`（`ConnectionBanner`・`connectionNotice`（#471）、`LoadingView`・`RoomGoneView`・`RoomJoiningView`・`useHubRedirect`・`usePrefersReducedMotion`・`ROOM_GATE_TEXT`（#472）） | `react`（peer）・`@tasuki/sync-client` は型（`import type`）だけ。**画面から読んでよい**。接続の告知（再接続中・最新でない・届かない）の文 3 つの正本と帯（届かないは `role="alert"`、それ以外は `role="status"`、無いときは描かない）。種類を決める規則は `@tasuki/sync-client` の `connectionNoticeKind` で、同期フックが引く。入室の門（読み込み中・ルームが無い・参加中）の画面と文言（`ROOM_GATE_TEXT`）の正本もここ 1 か所（agenda・checkin・roulette・topic）。参加中の画面の帯の位置（`<main>` の前か、見出しの後か）はアプリごとに違い、揃えていないので呼ぶ側が選ぶ。timer の `use-reduced-motion` は書き方が違うので寄せていない |
 | web の読む面の共有部品 | `packages/web-kit` の入口 `@tasuki/web-kit/reader`（`Markdown`・`useReaderDrawer`。#371） | `react`（peer）・`@tasuki/markdown`。**画面から読んでよい**（同期の入口 `./sync` とは別） |
 | 開発用の設定 | `packages/dev-hub-redirect` | なし（dev サーバー専用の Vite プラグインと玄関のポートの正本。各アプリの `vite.config.ts` だけが読む。層の外） |
+
+> **※ #598（2026-11-14 採択）**: 「アダプタ」「web の純粋判断」「web の画面」の 3 行を書き換え、「web の端末 I/O」の行を足した。
+> [`docs/adr/0015`](../adr/0015-web-layer-structure.md) の追記（2026-11-14・#598）の案 (a) に合わせたもの。
+> 直す前は、アダプタ行の置き場が「`apps/*-sync/src/adapters`・web アプリ」、
+> 純粋判断行が「ドメインの型のみ」、画面行にドメインが無く、端末 I/O の行は無かった（I/O に触る web の `.ts` はアダプタ行の「web アプリ」に入っていた）。
+> アダプタ行から「web アプリ」が外れたので、「web の同期フック」行の「上のすべて」はもう画面に届かない（同期フック→画面の参照は違反と読む）。
+> 表と実体の差（違反と数えていた辺の数）と、直した後の測り直しの結果は、その追記の「実測」にある。
 
 **#371 で寄せなかったもの（#470 で一部を寄せた・下記）**: 玄関への道（`hubPathFor` など）・`parseRoute`・招待の表示・タブ・timer の確認のダイアログは、
 各アプリに写しのまま置く（理由は [`2026-10-14-refactor-r11-shared-display-parts.md`](../superpowers/plans/2026-10-14-refactor-r11-shared-display-parts.md) §9）。
@@ -142,6 +150,31 @@ WS の置き場と、URL・接続状態の写しは `scripts/audit-web-sync-boun
 | 進行役ルーレット | **ルームの入る人から次の進行役を 1 人引くツール**（`packages/roulette-core`）。入る人（`poolOf`・在室者＋足したゲスト）・一周の規則（`drawWinner`・#427 で撤回。いまは入る人から一様に引く）・回転（`startSpin`）は純粋関数で、当たりと止まる位置はサーバーが引き、全画面に同じ値を配る。円盤の角度・指し針・札のめくりは `apps/roulette-web` が持つ（[ADR-0026](../adr/0026-facilitator-roulette.md)） |
 | 進行タイマー | **会の進行表（名前と長さを持つステップの並び）を全員で同じ盤に映して順に計るツール**（`packages/agenda-core`・接続の種類 `?tool=agenda`・公開パス `/agenda/`）。定義（シナリオ・`ScenarioInput`）と展開済みの並び（`PlannedStep[]`・`expand`）を分け、進行の遷移（開始・次へ・一時停止・延長・飛ばす・最初から）は純粋関数で、操作はステップの ID で指す。**押し巻き**は実時間の経過と予定の差（一時停止中も増える）。「自動で次へ」の判断と期限の予約はサーバーが単調時計で持ち、画面へは送る時点で計った経過を配る。懐中時計の盤・映す表示・端末の保存は `apps/agenda-web` が持つ（[ADR-0027](../adr/0027-agenda-timer.md)） |
 | チェックイン・チェックアウト | **会の始まりと終わりに、全員が絞り込んだ札から 1 枚を伏せて出し、一斉に開くツール**（`packages/checkin-core`・接続の種類 `?tool=checkin`・公開パス `/checkin/`）。**匿名はサーバーが送らないことで守る**: 写し（`toView`）は受け手ごとに作り、開く前は他人の札の中身を、匿名で開いた後は誰がどの山かを載せない。操作は回の番号 `seq` で指し、違う回の操作は何もしない。「全員」はこの道具に在席し見学でない人で、名簿の変化は `hub.broadcastRoster` の口で受けて測り直す。見学者はこの道具が自前で持つ。やり方の札の絵・開く動きは `apps/checkin-web` が持つ（[ADR-0028](../adr/0028-checkin-cards.md)） |
+
+### 語と識別子の対応（#597）
+
+**識別子は変えない。** 同じ概念に複数の語が残っている所を、実装を読む人のために対応づけて記録します。
+新しい名前を足すときは、まずここの既存の語に寄せられないかを確かめてください。
+
+| 概念 | 識別子（置き場） | 備考 |
+|---|---|---|
+| 参加者（ルームに居る人） | `Participant`（`packages/room-core`・名簿の正本） | 用語集の「参加者」。DTO・画面・コマンドの語もこれ（`participant.remove` など） |
+| 参加者（timer の画面の行） | `Occupant`（`apps/tasuki-sync/src/application/timer-snapshot-dto.ts`） | 名簿の `Participant` と timer の状態を合わせた、配信用の 1 行。`occupants()` が作る |
+| 参加者（checkin の席） | `seats` / `SeatView`（`packages/checkin-core`） | 札を出す側の見え方。`playersOf` は「在席かつ見学でない人」 |
+| 参加者（timer の wire） | `Participant` / `Seat`（`packages/timer-core/src/wire.ts`） | 配信する DTO。`Participant` は名簿の 1 人かローテーション上の代理。`Seat` は交代の輪（`rotation`）の席 1 つで、`rotation` と同じ順・同じ長さ（離席した人の席も残る） |
+| 参加者（ルーレットの入る人） | `Member`（`packages/roulette-core`） | 在室者に、足したゲストが加わる。`poolOf` が入る人を決める |
+| 玄関（道具を選ぶ入口の画面） | `apps/landing`（`App.tsx`・`tools.ts`・`hub/`） | アプリの置き場は `landing`。選択画面の状態・配信は `hub`（`use-hub-sync`・`HubServerMsg`・`hub-handlers.ts`） |
+| 玄関（道具へ入る手続き） | `entry`（`apps/tasuki-sync/src/application/room-entry.ts`・`join-tool-room.ts`） | 合言葉の関門・復帰の組の照合。「入ること」を指し、画面の名前ではない。web 側の `useRoomEntry.ts`・`ui/entry.ts`・`use-timer-entry.ts` は各アプリの入室の画面・接続の処理で、別物 |
+| 回（poker の 1 回の投票） | `Round`（`packages/poker-core`） | 用語集の「ラウンド（poker）」 |
+| 回（checkin の 1 回の札出し） | `Round` と `seq`（`packages/checkin-core`） | `seq` は新しい回ごとに +1 する番号 |
+| 回（進行タイマーの繰り返し） | `round` / `rounds`（`packages/agenda-core`） | シナリオ全体を繰り返す回数と、各ステップが何回目か |
+| 回（timer のセッション） | `session`（`SessionState`・`SessionAction`。`packages/timer-core`） | 開始から締めくくりまで。poker の `Round` とは別物 |
+| 回（進行タイマーの進行） | `run`（`apps/agenda-web/src/hooks/use-run-signals.ts`） | 「進行」の意味。繰り返しの `round` とは別 |
+| 回（ルーレットの順番回し） | `OrderRound`（`packages/roulette-core`） | 順番に回す 1 周 |
+| 回（ルーレットの 1 回の抽選） | `Spin`（`packages/roulette-core`） | 1 回ぶんの結果・止め方を持つ。`seq` は回した通し番号 |
+
+「玄関」と「回」は、道具ごとに意味が違うので 1 つの語へ統一しない。参加者の識別子は、
+持っている情報の範囲が違う（名簿の 1 行・timer の状態・配信の形・画面の都合）ため別の型のまま保つ。
 
 ## 一般的な方法論との対応
 

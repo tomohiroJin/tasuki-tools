@@ -41,12 +41,6 @@ export async function joinCheckinTool(page: Page, url: string, name: string): Pr
   await expectCheckinOpen(page);
 }
 
-/** 選択画面（玄関の道具選び）から Check-in Cards の札を開く。**同じルームのまま**別のツールから移るときに使う。 */
-export async function openCheckinFromHub(page: Page): Promise<void> {
-  await toolCard(page, 'Check-in Cards').click();
-  await expectCheckinOpen(page);
-}
-
 /** やり方の選択（側の切り替え → やり方の名前）。選択画面が出ているときに使う。 */
 export async function chooseMethod(page: Page, side: 'チェックイン' | 'チェックアウト', title: string): Promise<void> {
   await page.getByRole('group', { name: 'やり方を選んでください' }).getByRole('button', { name: side, exact: true }).click();
