@@ -163,7 +163,7 @@ describe("単純でない形は、変更の有無にかかわらず全部聞く�
 
   test("#612: --detach・-q を足しても、ほかの選択肢・余分な語・pathspec がある形は今までどおり聞く", async () => {
     for (const c of [
-      "git checkout --detach -f abc1234", "git checkout -f --detach abc1234", "git checkout --detach abc1234 extra", "git checkout --detach -- a.ts", "git checkout -m --detach x",
+      "git checkout --detach -f abc1234", "git checkout --detach -f", "git checkout -f --detach abc1234", "git switch --detach -f", "git switch -d --discard-changes", "git checkout --detach abc1234 extra", "git checkout --detach -- a.ts", "git checkout -m --detach x",
       "git switch -q -f main", "git switch --detach -f abc1234", "git switch -q --discard-changes main", "git switch --detach abc1234 extra", "git switch -q -C x",
     ]) {
       assert.equal((await decide(c, { dirty: "no" })).ask, true, c);
