@@ -8,12 +8,13 @@
 # 復元: git checkout -- <対象ファイル>
 #
 diff --git a/apps/timer-web/src/sync/use-join-recovery.ts b/apps/timer-web/src/sync/use-join-recovery.ts
+index d110a7f1..be5f5fbb 100644
 --- a/apps/timer-web/src/sync/use-join-recovery.ts
 +++ b/apps/timer-web/src/sync/use-join-recovery.ts
-@@ -91,7 +91,6 @@
-     // 送ったところから、また答えを待つ（#292）。**送れたときだけ張る** ——
-     // 保存が無くて送れなかった場合（`sendResumeJoin` が `false` を返す経路）は、
-     // 呼び出し側が手立てを示して終わるので、期限を測る相手が居ない。
+@@ -87,7 +87,6 @@ export function useJoinRecovery({ banner, currentRoomCode }: JoinRecoveryOptions
+       displayName: identity.displayName,
+       resumeToken: identity.resumeToken,
+     });
 -    armJoinDeadline();
    };
  
