@@ -160,6 +160,7 @@ WS の置き場と、URL・接続状態の写しは `scripts/audit-web-sync-boun
 | 回（checkin の 1 回の札出し） | `Round` と `seq`（`packages/checkin-core`） | `seq` は新しい回ごとに +1 する番号 |
 | 回（進行タイマーの繰り返し） | `round` / `rounds`（`packages/agenda-core`） | シナリオ全体を繰り返す回数と、各ステップが何回目か |
 | 回（timer のセッション） | `session`（`SessionState`・`SessionAction`。`packages/timer-core`） | 開始から締めくくりまで。poker の `Round` とは別物 |
+| 回（進行タイマーの進行） | `run`（`apps/agenda-web/src/hooks/use-run-signals.ts`） | 「進行」の意味。繰り返しの `round` とは別 |
 | 回（ルーレットの 1 回の抽選） | `Spin`（`packages/roulette-core`） | 1 回ぶんの結果・止め方を持つ。`seq` は回した通し番号 |
 
 「玄関」と「回」は、道具ごとに意味が違うので 1 つの語へ統一しない。参加者の 4 つの識別子は、
