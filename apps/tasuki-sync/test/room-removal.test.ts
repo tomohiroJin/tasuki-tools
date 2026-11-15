@@ -143,3 +143,58 @@ describe("removeFromRoom の二段目の守り", () => {
     expect(store.get(code)!.participants.map((p) => p.id)).toEqual([ids["Host"]!]);
   });
 });
+
+/**
+ * 「輪（rotation）を空にしない」不変条件（#596・`room-removal.ts` の BelowMinMembers のガード）。
+ *
+ * 契約: 名簿に人が残るなら、退出の結果の輪は空にならない（担当の居ない輪を作らない）。ソロの部屋の退出だけは
+ * 名簿が空になるのでルームごと破棄する。`timer-core` の席の配列は非空の型ではない（型で持つには全入口の
+ * 書き換えが要る）ので、**有限の形を全部数える**ことで守る: 名簿 1〜4 人 × 輪に載せる人の部分集合（空でないもの）
+ * × 外す対象（名簿の全員）の全組。例のテスト（#79・#376）が個別に見る性質を、組み合わせで取りこぼさない。
+ */
+describe("planRemoval: 輪を空にしない（全組の数え上げ）", () => {
+  /** 0..n-1 の空でない部分集合（小さい順の添字の配列） */
+  function nonEmptySubsets(n: number): number[][] {
+    const subsets: number[][] = [];
+    for (let mask = 1; mask < 1 << n; mask++) {
+      subsets.push([...Array(n).keys()].filter((i) => (mask & (1 << i)) !== 0));
+    }
+    return subsets;
+  }
+
+  it("WHEN 名簿に人が残る退出 THE planRemoval SHALL 輪が空の removed を返さない（返すなら拒否か破棄）", async () => {
+    let removedCases = 0;
+    for (const size of [1, 2, 3, 4]) {
+      const names = ["Host", ...["B", "C", "D"].slice(0, size - 1)];
+      const { store, timers, code, ids } = await aRoom()
+        .withParticipants(...names.slice(1))
+        .build();
+      const membership = store.get(code)!;
+      const timer = timers.get(code)!;
+      const seats = timer.session.rotation;
+      expect(seats.length, "前提: 全員が輪に居る").toBe(size);
+
+      for (const subset of nonEmptySubsets(size)) {
+        const shaped = {
+          ...timer,
+          session: { ...timer.session, rotation: subset.map((i) => seats[i]!), currentIndex: 0 },
+        };
+        for (const name of names) {
+          const result = planRemoval({ membership, timer: shaped }, ids[name]!, NOW);
+          const label = `名簿 ${size} 人・輪 [${subset.join(",")}]・対象 ${name}`;
+          if (result.isErr()) continue; // 拒否は不変条件を守っている
+          const outcome = result.value;
+          if (outcome.kind === "destroy") {
+            expect(size, `${label}: 破棄は名簿が空になるときだけ`).toBe(1);
+            continue;
+          }
+          removedCases += 1;
+          expect(outcome.membership.participants.length, `${label}: 名簿に人が残る`).toBeGreaterThan(0);
+          expect(outcome.timer?.session.rotation.length ?? 1, `${label}: 輪が空になっていない`).toBeGreaterThan(0);
+        }
+      }
+    }
+    // 前提の確認: 数え上げが空振りしていない（removed の組が実在した）
+    expect(removedCases).toBeGreaterThan(0);
+  });
+});
