@@ -16,13 +16,16 @@
  * ## 確かめてよい単純な形
  *
  * - `git checkout [<rev>] -- <path>…`・`git checkout <path>`（実在するパス 1 つ）: そのパスの**作業ツリーの未コミットの変更**（index との差）を見る。
- *   `git checkout -b|-B <名前> [<開始点>]`・`git checkout <枝>`（実在するパスでない 1 語）は枝の操作で、git 自身が上書きを拒むので通す
+ *   `git checkout -b|-B <名前> [<開始点>]`・`git checkout <枝>`（実在するパスでない 1 語）・`git checkout --detach [<rev>]` は枝の操作で、git 自身が上書きを拒むので通す
  * - `git restore [--] <path>…`: 同じく作業ツリーの変更。`git restore --staged|-S [--] <path>…` は作業ツリーを消さないので通す
  * - `git stash [push|save] [-u|--include-untracked] [-m <文>]`: 追跡中の変更（index も含む。`-u` は追跡外も）を見る。
  *   `stash list|show`・`pop`・`apply`（引数なし）は通す。`drop`・`clear`・`branch` ほかは聞く
  * - `git reset --hard [<rev>]`: 追跡中の変更を見る。`--soft`・`--mixed`・`-q` と rev・path だけの reset は通す。ほかの選択肢（`--merge`・`--keep`・省略形）は聞く
  * - `git clean`: `-n`・`--dry-run` があれば通す。ほかは聞く
- * - `git switch <枝>`・`git switch -c <名前> [<開始点>]` は通す。ほかの選択肢（`-f`・`--discard-changes`・`-C`）は聞く
+ * - `git switch <枝>`・`git switch -c <名前> [<開始点>]`・`git switch --detach|-d [<rev>]`（どれも `-q` 可）は通す。ほかの選択肢（`-f`・`--discard-changes`・`-C`）は聞く
+ * - 先頭の `git -C <リテラルのパス>` は 1 つだけ読み、そのパスを作業ツリーとして上の形を確かめる（#612。兄弟の作業ツリーでは
+ *   Claude Code の `cd` が次の呼び出しに残らないため）。`-C` が 2 つ以上・ほかの全体の選択肢・`$`・先頭の `~`・波括弧のある形と、
+ *   `-C` の先が実在するディレクトリでない形（グロブほか、シェルが展開する語）は聞く
  *
  * ## 手順書との関係
  *
@@ -36,7 +39,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execFile } from "node:child_process";
-import { isTameCommand, simpleGitCommand, mentionsDiscardOperation, SHELL_TOOLS } from "./agent-guard.mjs";
+import { isTameCommand, simpleGitCommand, mentionsDiscardOperation, hasShellExpansion, SHELL_TOOLS } from "./agent-guard.mjs";
 
 /** 通す（確かめなくてよい）ときの結果。 */
 const SAFE = Object.freeze({ verdict: "safe" });
@@ -49,6 +52,28 @@ const NON_DISCARDING_SUBS = new Set([
   "submodule", "bisect", "gc", "maintenance", "fsck", "count-objects", "sparse-checkout", "pack-refs", "update-ref", "symbolic-ref",
 ]);
 
+/** `:` で始まる魔法の pathspec（`:/a.ts`・`:(icase)A.TS`）。枝の名前は `:` で始まれない（#612 の再レビュー）。 */
+const isMagicPathspec = (w) => w.startsWith(":");
+
+/**
+ * 通してよい rev の接尾辞の形（ref に使える字だけの名前の後ろに `~<数>` が 1 つ以上）。`HEAD~1`・`origin/main~3`。
+ * `^` は extendedglob では途中でも否定になる（`a.t^x` は a.ts に当たる）ので、SINGLE_WORD に含めない（`main^` も聞く側に倒す）。
+ * 前の部分にグロブの字（`*.ts~1`）があれば当たらない。前の部分が実在するパス（`a.ts~1`）のときは、呼び出し元が別に聞く（#612 の自動のセキュリティレビュー 3 回）。
+ */
+const REV_SUFFIX = /^[A-Za-z0-9._/@-]+(?:~\d*)+$/;
+
+/**
+ * 1 語の `git checkout <語>` に使ってよい字（許可リスト）。ref とパスの字・`@{-1}` の波括弧・`~`（上の REV_SUFFIX で絞る）と、
+ * git の pathspec もグロブとして読む `*`・`?`・`[`・`]`。先頭の `=`（zsh の =cmd）と、どこにあっても `^`・`#`・`(`・`|`・`<` ほかは含めない（#612 の 4・5 回目のレビュー）。
+ */
+const SINGLE_WORD = /^(?!=)[A-Za-z0-9._/@{}+,%=~*?[\]-]+$/;
+
+/**
+ * pathspec の語（`checkout -- <path>`・`restore <path>`）に、zsh だけが展開する字（`#`・`^`・`|`・`(`・`~`、先頭の `=`）があるか。
+ * git の pathspec の字ではないので、`git status` で確かめても当たらない（#612 の 5 回目のレビュー。main からの穴）。rev（`HEAD~1`）は pathspec の語ではないので見ない。
+ */
+const hasZshOnlyPattern = (w) => /[#^|(~]/.test(w) || w.startsWith("=");
+
 const hasShort = (w, c) => /^-[A-Za-z]+$/.test(w) && w.includes(c);
 
 /**
@@ -57,7 +82,7 @@ const hasShort = (w, c) => /^-[A-Za-z]+$/.test(w) && w.includes(c);
  */
 function classify({ sub, rest }, exists) {
   // シェルが展開する語（`{a,b}`・`{a..c}`・先頭の `~`）は、展開前の文字のままでは git status に渡せない（コードレビュー 1）
-  if (rest.some((w) => /\{[^}]*(?:,|\.\.)[^}]*\}/.test(w) || /(?:^|[:=])~/.test(w))) return UNKNOWN_FORM;
+  if (rest.some(hasShellExpansion)) return UNKNOWN_FORM;
   const quiet = (w) => w === "-q" || w === "--quiet";
   if (sub === "checkout") {
     const words = rest.filter((w) => !quiet(w));
@@ -65,12 +90,21 @@ function classify({ sub, rest }, exists) {
     if (dd !== -1) {
       const before = words.slice(0, dd);
       const paths = words.slice(dd + 1);
-      if (before.length > 1 || before.some((w) => w.startsWith("-")) || paths.length === 0) return UNKNOWN_FORM;
+      if (before.length > 1 || before.some((w) => w.startsWith("-")) || paths.length === 0 || paths.some(hasZshOnlyPattern)) return UNKNOWN_FORM;
       return { verdict: "check", target: { kind: "paths", paths, scope: "worktree", ...(before.length === 1 ? { withRev: true } : {}) } };
     }
     if ((words[0] === "-b" || words[0] === "-B") && words.length >= 2 && words.length <= 3 && words.slice(1).every((w) => !w.startsWith("-"))) return SAFE;
+    // `git checkout --detach [<rev>]`: HEAD を切り離すだけ。枝の切り替えと同じく、git 自身が上書きを拒む（#612）
+    if (words[0] === "--detach" && words.length <= 2 && words.slice(1).every((w) => !w.startsWith("-"))) return SAFE;
     if (words.length === 1 && (words[0] === "-" || !words[0].startsWith("-"))) {
-      return words[0] !== "-" && exists(words[0]) ? { verdict: "check", target: { kind: "paths", paths: words, scope: "worktree" } } : SAFE;
+      // 1 語の字は許可リストに倒す（#612 の 3・4 回目のレビュー・自動のセキュリティレビュー）。シェルの展開（zsh の `^`・`#`・`(a|b)`・先頭の `=` ほか）は
+      // git の pathspec の字ではないので、git status で確かめても当たらない。許可リストの外の字を含む語は、確かめずに聞く
+      if (words[0] !== "-" && !SINGLE_WORD.test(words[0]) && !isMagicPathspec(words[0])) return UNKNOWN_FORM;
+      // `~` は zsh の extendedglob では除外（`*.ts~b.ts`）。通すのは `~<数>` の接尾辞の形（`HEAD~1`・`origin/main~3`）だけで、前の部分が実在するパスでないもの
+      if (words[0].includes("~") && (!REV_SUFFIX.test(words[0]) || exists(words[0].replace(/~.*$/, "")))) return UNKNOWN_FORM;
+      // グロブ（`*`・`?`・`[`）を含む語は、文字どおりには実在しなくてもシェルや git が実在するパスへ展開しうるので、
+      // 枝とみなさずパスとして確かめる（#612 の敵対的レビュー）。git の pathspec も同じ字をグロブとして読むので、git status が当たる
+      return words[0] !== "-" && (/[*?[]/.test(words[0]) || isMagicPathspec(words[0]) || exists(words[0])) ? { verdict: "check", target: { kind: "paths", paths: words, scope: "worktree" } } : SAFE;
     }
     return UNKNOWN_FORM;
   }
@@ -91,7 +125,7 @@ function classify({ sub, rest }, exists) {
       } else if (/^--source=./.test(w) || /^-s[^-\s]/.test(w)) withRev = true;
       else return UNKNOWN_FORM;
     }
-    if (paths.length === 0) return UNKNOWN_FORM;
+    if (paths.length === 0 || paths.some(hasZshOnlyPattern)) return UNKNOWN_FORM;
     if (staged) return SAFE;
     return { verdict: "check", target: { kind: "paths", paths, scope: "worktree", ...(withRev ? { withRev: true } : {}) } };
   }
@@ -121,9 +155,11 @@ function classify({ sub, rest }, exists) {
     return rest.some((w) => w === "-n" || w === "--dry-run" || hasShort(w, "n")) && !rest.some((w) => w === "-f" || w === "--force") ? SAFE : UNKNOWN_FORM;
   }
   if (sub === "switch") {
-    const words = rest;
+    const words = rest.filter((w) => !quiet(w));
     if (words.length === 1 && !words[0].startsWith("-")) return SAFE;
     if (words[0] === "-c" && words.length >= 2 && words.length <= 3 && words.slice(1).every((w) => !w.startsWith("-"))) return SAFE;
+    // `git switch --detach|-d [<rev>]`（#612）
+    if ((words[0] === "--detach" || words[0] === "-d") && words.length <= 2 && words.slice(1).every((w) => !w.startsWith("-"))) return SAFE;
     return UNKNOWN_FORM;
   }
   // 下の 5 つは -f/--force（や --reset）が無ければ変更があると git 自身が拒む。ある形は対象を絞れないので聞く（コードレビュー 5）
@@ -136,6 +172,15 @@ function classify({ sub, rest }, exists) {
   return NON_DISCARDING_SUBS.has(sub) ? SAFE : UNKNOWN_FORM;
 }
 
+/** 実在するディレクトリか（`git -C` の先の確かめ。本番の `dirExists`）。 */
+function isDirectory(p) {
+  try {
+    return fs.statSync(p).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
 function ask(reason) {
   return { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "ask", permissionDecisionReason: reason } };
 }
@@ -145,9 +190,9 @@ const describeTarget = (t) => (t.kind === "paths" ? t.paths.join("・") : "作�
 /**
  * Claude Code の PreToolUse フックの入力から、未コミットの変更を消しうる git なら `ask` を返す。当たらなければ null。
  * @param {string} raw
- * @param {{ exists?: (p: string) => boolean, isDirty: (cwd: string, target: object) => Promise<"yes" | "no" | "unknown"> | "yes" | "no" | "unknown", cwd?: string }} deps
+ * @param {{ exists?: (p: string, cwd: string) => boolean, dirExists?: (dir: string) => boolean, isDirty: (cwd: string, target: object) => Promise<"yes" | "no" | "unknown"> | "yes" | "no" | "unknown", cwd?: string }} deps
  */
-export async function decideDiscardOutput(raw, { exists, isDirty, cwd: defaultCwd = process.cwd() }) {
+export async function decideDiscardOutput(raw, { exists, isDirty, cwd: defaultCwd = process.cwd(), dirExists = isDirectory }) {
   let input;
   try {
     input = JSON.parse(raw);
@@ -162,9 +207,19 @@ export async function decideDiscardOutput(raw, { exists, isDirty, cwd: defaultCw
   // 2. 読むだけ・記録するだけ（許可リスト）
   if (isTameCommand(command)) return null;
   // 3. 確かめてよい単純な形
-  const cwd = typeof input.cwd === "string" && input.cwd !== "" ? input.cwd : defaultCwd;
-  const simple = simpleGitCommand(command);
-  const result = simple === null ? UNKNOWN_FORM : classify(simple, exists ?? ((p) => fs.existsSync(path.resolve(cwd, p))));
+  const baseCwd = typeof input.cwd === "string" && input.cwd !== "" ? input.cwd : defaultCwd;
+  const simple = simpleGitCommand(command, { allowDir: true });
+  // `git -C <パス>` は、そのパスを作業ツリーとして確かめる（#612。パスの存在も変更もそこで見る）
+  const cwd = simple?.dir === undefined ? baseCwd : path.resolve(baseCwd, simple.dir);
+  const existsIn = exists ? (p) => exists(p, cwd) : (p) => fs.existsSync(path.resolve(cwd, p));
+  // -C の先が実在するディレクトリでなければ（グロブ・zsh の =cmd ほかシェルが展開する語・誤った場所）、git が実際に動く場所が分からない（#612 の敵対的レビュー 1）
+  const dirKnown = simple?.dir === undefined || dirExists(cwd);
+  if (!dirKnown) {
+    return ask(`git -C の先（${simple.dir}）が実在するディレクトリでないので、どの作業ツリーの変更が消えるか確かめられません（グロブ・誤った場所ほか）。パスをそのまま書き直すか、消えてよいか人が確かめてください（docs/adr/0037）。`);
+  }
+  // 残余: -C のとき、後ろの引数のグロブはシェルが呼び出しの cwd（baseCwd）で展開するが、ここは -C の先でパスを見る。
+  // 今はグロブの語を確かめる側（聞く側）に倒しているので誤って通さない。グロブを存在だけで判定する形に縮めるときは、この食い違いを先に塞ぐ
+  const result = simple === null ? UNKNOWN_FORM : classify(simple, existsIn);
   if (result.verdict === "safe") return null;
   if (result.verdict === "unknown-form") {
     return ask("未コミットの変更を消しうる git かもしれませんが、形が単純でないので（複数のコマンド・入れ子・環境変数や -C/-c・未知の選択肢ほか）確かめられません。消えてよいか人の確認が要ります（docs/adr/0037）。");

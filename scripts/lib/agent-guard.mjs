@@ -840,18 +840,43 @@ export function isTameCommand(command, depth = 0) {
 }
 
 /**
+ * シェルが展開する語か（`{a,b}`・`{a..c}`・先頭か `:`・`=` の後ろの `~`）。展開前の文字のままでは場所もパスも決められない。
+ * 未コミットの変更の判定（`discard-guard.mjs` の pathspec）と `git -C` のパスが共有する唯一の置き場（#612 の /code-review）。
+ * @param {string} word
+ */
+export function hasShellExpansion(word) {
+  return /\{[^}]*(?:,|\.\.)[^}]*\}/.test(word) || /(?:^|[:=])~/.test(word);
+}
+
+/**
  * コマンドの文字列が、先頭が `git`（前に環境変数・`cd`・`sudo` ほかが無い）の**単一の単純なコマンド**で、
  * 全体の選択肢（`-C`・`-c` ほか）が無いなら、`{ sub, rest }`。それ以外は null（確かめてよい単純な形ではない）。
+ *
+ * `allowDir` のときだけ、先頭の `-C <パス>` を 1 つに限って読み、`{ sub, rest, dir }` を返す（#612。未コミットの変更の判定が、
+ * そのパスを作業ツリーとして確かめるため）。パスが空・先頭の `~`・波括弧の展開を含む形と、`-C` が 2 つ以上・ほかの全体の選択肢が続く形は null。
+ * サブエージェントの判定（`isSafeSimpleGit`）は `allowDir` を渡さない（`-C` の形は今までどおり聞く）。
+ * @param {string} command
+ * @param {{ allowDir?: boolean }} [options]
  */
-export function simpleGitCommand(command) {
-  if (hasUnreadableQuote(command)) return null;
+export function simpleGitCommand(command, { allowDir = false } = {}) {
+  // `<` は入力のリダイレクトか zsh の数の範囲（`file<1-9>.ts`）。字句の段で語が欠けて見えるので、単純な形にしない（#612 の 4 回目のレビュー）
+  if (hasUnreadableQuote(command) || command.includes("<")) return null;
   const { commands, nested } = lex(command);
   if (commands.length !== 1 || nested.length > 0) return null;
   const words = commands[0];
-  if (words[0] !== "git" || words.length < 2 || words[1].startsWith("-")) return null;
+  if (words[0] !== "git") return null;
   // 展開されていない変数（`-- $F`）は、何を指すか分からない
   if (words.some((w) => /[$`]/.test(w))) return null;
-  return { sub: words[1], rest: words.slice(2) };
+  let at = 1;
+  let dir;
+  if (allowDir && words[1] === "-C") {
+    dir = words[2];
+    // シェルが展開する語（先頭の `~`・`{a,b}`・`{a..c}`）は、展開前の文字のままでは場所を決められない
+    if (dir === undefined || dir === "" || hasShellExpansion(dir)) return null;
+    at = 3;
+  }
+  if (words.length < at + 1 || words[at].startsWith("-")) return null;
+  return { sub: words[at], rest: words.slice(at + 1), ...(dir === undefined ? {} : { dir }) };
 }
 
 /**

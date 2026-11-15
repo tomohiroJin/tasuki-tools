@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/discard-guard.mjs b/scripts/lib/discard-guard.mjs
+index 894a4b5c..169f03e4 100644
+--- a/scripts/lib/discard-guard.mjs
++++ b/scripts/lib/discard-guard.mjs
+@@ -129,7 +129,7 @@ function classify({ sub, rest }, exists) {
+     if (words.length === 1 && !words[0].startsWith("-")) return SAFE;
+     if (words[0] === "-c" && words.length >= 2 && words.length <= 3 && words.slice(1).every((w) => !w.startsWith("-"))) return SAFE;
+     // `git switch --detach|-d [<rev>]`（#612）
+-    if ((words[0] === "--detach" || words[0] === "-d") && words.length <= 2 && words.slice(1).every((w) => !w.startsWith("-"))) return SAFE;
++    if ((words[0] === "--detach" || words[0] === "-d") && words.length <= 2) return SAFE;
+     return UNKNOWN_FORM;
+   }
+   // 下の 5 つは -f/--force（や --reset）が無ければ変更があると git 自身が拒む。ある形は対象を絞れないので聞く（コードレビュー 5）

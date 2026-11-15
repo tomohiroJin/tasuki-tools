@@ -384,6 +384,8 @@ describe("サブエージェントの危ない操作（#578・docs/adr/0037）",
       'eval "$(echo git push)"', "git -c alias.p=push p origin", "a=push; git $a origin", "x=$(echo kill); $x 1; kill $PID2",
       "git checkout -b x -- a.ts", "git reset --merge", "git worktree prune && git worktree remove x", "cat x | xargs -I{} sh -c 'git push {}'",
       "sh -c \"$CMD && git push\"", "git switch -", "git checkout $BRANCH", "git checkout -- ", "git -C x checkout main", "env GIT_DIR=x git reset --hard",
+      // #612: -C を読むのは未コミットの変更の判定だけ。サブエージェントの「単純な安全な形」は -C の形を含めない
+      "git -C ../wt checkout -- a.ts", "git -C ../wt reset --soft HEAD~1", "git -C ../wt worktree list",
     ]) assert.equal(askSub(c), "ask", c);
   });
 
