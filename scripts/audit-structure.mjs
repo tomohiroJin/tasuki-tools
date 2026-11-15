@@ -149,7 +149,7 @@ export const SCANNED_PACKAGES = [
 /** 走査から外すパッケージ。**理由が要る。** */
 export const EXCLUDED_PACKAGES = [
   { pkg: "packages/ui", reason: "src・tests とも TS を 1 つも持たない（CSS トークンとフォント）" },
-  { pkg: "packages/test-css", reason: "試験の共有支援のパッケージ（CSS を字で読む・書体の判定・偽の WebSocket。#554・#599）。製品コードを持たず、ドメインも実行時の副作用も持たない。いまは .mjs と型宣言（.d.mts）だけで、#594 で偽の WebSocket の .ts が入ったら、この理由と lint の有無を見直す。読めるのは各パッケージの試験だけ（audit-dependency-direction）" },
+  { pkg: "packages/test-css", reason: "試験の共有支援のパッケージ（いまは CSS を字で読む解析器。書体の判定・偽の WebSocket は #594 で移す予定。#554・#599）。製品コードを持たず、ドメインも実行時の副作用も持たない。いまは .mjs と型宣言（.d.mts）だけで、#594 で偽の WebSocket の .ts が入ったら、この理由と lint の有無を見直す。読めるのは各パッケージの試験だけ（audit-dependency-direction）" },
 ];
 
 /**

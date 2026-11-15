@@ -111,7 +111,7 @@ export const ALLOWED = {
   "packages/poker-core": ["@tasuki/protocol"], // 既存。境界のパースを protocol に一本化
   "packages/protocol": [],
   "packages/rate-limit": [],
-  // 試験専用の私的なパッケージ（試験の共有支援: CSS を字で読む・書体の判定・偽の WebSocket。#554・#599）。@tasuki/* に依存しない。読めるのは {@link TEST_ONLY} の側だけ（試験から、devDependencies で）。
+  // 試験専用の私的なパッケージ（試験の共有支援。いまは CSS を字で読む解析器。#554・#599）。@tasuki/* に依存しない。読めるのは {@link TEST_ONLY} の側だけ（試験から、devDependencies で）。
   "packages/test-css": [],
   "packages/ui": ["@tasuki/test-css"], // devDependency（tests/ だけが読む）
   "packages/invite-ui": [], // ADR-0020: ブラウザ操作のみ。ドメイン・同期への依存なし。
