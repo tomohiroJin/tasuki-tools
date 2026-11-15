@@ -13,7 +13,6 @@ import type { MonotonicClock } from "../ports/monotonic-clock.js";
 /**
  * 待ちの予約の口。**`set` が返したハンドルをそのまま `clear` が受ける**（#596。`H` がそれを型で結ぶ）。
  * 呼び出し側はハンドルの中身を知らない。実物は `setTimeout` のハンドル、偽物は数字など。
- * 関数の型の欄で持つ（メソッド記法だと引数が緩く比べられ、別の型のハンドルを渡しても通る）。
  */
 export interface TimerPort<H = unknown> {
   readonly set: (fn: () => void, ms: number) => H;
