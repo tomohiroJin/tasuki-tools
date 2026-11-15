@@ -1,13 +1,13 @@
 diff --git a/scripts/lib/discard-guard.mjs b/scripts/lib/discard-guard.mjs
-index 9e1a5bbb..bacc7421 100644
+index 8c484ac5..116ad26f 100644
 --- a/scripts/lib/discard-guard.mjs
 +++ b/scripts/lib/discard-guard.mjs
-@@ -76,7 +76,7 @@ function classify({ sub, rest }, exists) {
+@@ -82,7 +82,7 @@ function classify({ sub, rest }, exists) {
      }
      if ((words[0] === "-b" || words[0] === "-B") && words.length >= 2 && words.length <= 3 && words.slice(1).every((w) => !w.startsWith("-"))) return SAFE;
      // `git checkout --detach [<rev>]`: HEAD を切り離すだけ。枝の切り替えと同じく、git 自身が上書きを拒む（#612）
 -    if (words[0] === "--detach" && words.length <= 2 && words.slice(1).every((w) => !w.startsWith("-"))) return SAFE;
 +    if (words[0] === "--detach" && words.length <= 2) return SAFE;
      if (words.length === 1 && (words[0] === "-" || !words[0].startsWith("-"))) {
-       // グロブ（`*`・`?`・`[`、zsh の extendedglob の `^`・`~`）を含む語は、文字どおりには実在しなくてもシェルや git が実在するパスへ展開しうるので、
-       // 枝とみなさずパスとして確かめる（#612 の敵対的レビュー・/code-review）。どの字も git の枝の名前には使えないので、枝を誤って聞くことはない
+       // `^`・`~` は zsh の extendedglob では否定・除外（`^b.ts`・`src/^b.ts`・`*.ts~b.ts`）に展開される。git の pathspec の字ではないので
+       // git status で確かめても当たらない。rev の接尾辞の形（`HEAD~1`・`main^`・`HEAD~2^`）だけを今までどおり扱い、ほかは確かめずに聞く

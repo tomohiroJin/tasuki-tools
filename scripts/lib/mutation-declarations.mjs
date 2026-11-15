@@ -9310,10 +9310,26 @@ export const MUTATIONS = [
   },
   {
     id: 1710,
-    label: "git checkout <1 語> のグロブの字から zsh の extendedglob の ^・~ を落とす",
+    label: "git checkout <~・^ を含む 1 語> を、rev の接尾辞の形でなくても聞かずに確かめる側へ回す",
     patch: "m1710-discard-checkout-extendedglob-as-branch.patch",
     pkg: "scripts",
     tests: ["lib/discard-guard.test.mjs"],
-    note: RESERVED_1700_1719 + " " + "#612 の /code-review。extendedglob の zsh で git checkout ^b.ts が b.ts 以外を取り出し、未コミットの変更が聞かずに消える。",
+    note: RESERVED_1700_1719 + " " + "#612 の /code-review・3 回目のレビュー（この PR の中で、偽の緑だった ^・~ の確かめから壊し方を置き換えた）。extendedglob の zsh で git checkout ^b.ts が b.ts 以外を取り出し、git status は当たらないので聞かずに消える。",
+  },
+  {
+    id: 1711,
+    label: "git checkout <名前>~<数> の、前の部分が実在するパスかを見ない",
+    patch: "m1711-discard-rev-suffix-ignores-existing-prefix.patch",
+    pkg: "scripts",
+    tests: ["lib/discard-guard.test.mjs"],
+    note: RESERVED_1700_1719 + " " + "#612 の自動のセキュリティレビュー。extendedglob の zsh で git checkout a.ts~1 が a.ts に展開され、未コミットの変更が聞かずに消える。",
+  },
+  {
+    id: 1712,
+    label: "rev の接尾辞の形の前の部分にグロブの字と ^ を許す",
+    patch: "m1712-discard-rev-suffix-allows-glob-prefix.patch",
+    pkg: "scripts",
+    tests: ["lib/discard-guard.test.mjs"],
+    note: RESERVED_1700_1719 + " " + "#612 の自動のセキュリティレビュー。*.ts~1・a.t^x・main^ が rev とみなされ、extendedglob の zsh で .ts のファイルを取り出す形を聞かずに通す。",
   },
 ];
