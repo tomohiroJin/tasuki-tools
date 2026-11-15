@@ -12,6 +12,16 @@ export interface LastJoin {
   readonly passphrase?: string;
 }
 
+/** 名乗りの引数から直近の名乗りを作る。合言葉が無ければ鍵を持たない。 */
+export function lastJoinOf(displayName: string, passphrase?: string): LastJoin {
+  return { displayName, ...(passphrase !== undefined ? { passphrase } : {}) };
+}
+
+/** ルームを作る。 */
+export function createCommand(roomName: string, displayName: string): HubCommand {
+  return { command: 'room.create', roomName, displayName };
+}
+
 /** 保存済みの組で入り直す（再接続・読み込み時の復帰）。 */
 export function resumeCommand(
   code: string,

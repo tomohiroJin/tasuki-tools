@@ -6,7 +6,7 @@
  */
 import { parseBoundaryMessage } from '@tasuki/protocol';
 import { HubServerMsgSchema, type HubServerMsg } from '@tasuki/room-core';
-import { planForJoinError } from '@tasuki/sync-client';
+import type { JoinErrorPlan } from '@tasuki/sync-client';
 import { TopicFrameSchema } from '@tasuki/topic-core';
 
 /** 受信した 1 通の分類。 */
@@ -56,13 +56,15 @@ export interface HubErrorContext {
  * サーバーのエラーから、次の一手を決める。
  *
  * 判断の元は他のツールと同じ `planForJoinError`（`REMOVED_BY_HOST` も同じ扱い）。
+ * **同期クライアントの値は読まない**（`docs/adr/0015`・原則 VI）ので、その結果（{@link JoinErrorPlan}）は
+ * 同期フックが呼んで渡す。
  * 「どのエラーでも復帰の待ちを終わらせる」は呼ぶ側の仕事で、この関数の結果に依らない。
  */
 export function planHubError(
   err: { readonly code: string; readonly message: string },
+  plan: JoinErrorPlan,
   { currentCode, initialCode }: HubErrorContext,
 ): HubErrorIntent {
-  const plan = planForJoinError(err.code, err.message, err.message);
   if (plan.kind === 'left') {
     return currentCode === null ? { kind: 'ignore' } : { kind: 'leave', target: currentCode, reason: plan.reason };
   }

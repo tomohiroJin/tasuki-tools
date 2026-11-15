@@ -8,7 +8,7 @@
  *
  * 1. `/ws` へ繋ぐ（唯一の WS 入口。`?tool=` を付けない接続はハブとして扱われる。
  *    `apps/tasuki-sync/src/adapters/ws-adapter.ts` の `protocolFromRequestUrl`）
- * 2. 受信は `HubServerMsgSchema` で検める（**境界の検証**・原則 IV）。合わないフレームは捨てる
+ * 2. 受信は `classifyHubFrame`（`hub-frames.ts`）が `HubServerMsgSchema` などで検める（**境界の検証**・原則 IV）。合わないフレームは捨てる
  * 3. `room.created` / `room.joined` を受けたら、復帰の組と既定の表示名を端末へ保存する
  * 4. 読み込み時、URL の `?room=` に対応する組があれば**名乗らずに復帰する**（R16）
  * 5. 再接続したら、保存済みの組で入り直す
@@ -22,6 +22,7 @@ import {
   buildSyncUrl,
   clearResumeIdentity,
   loadResumeIdentity,
+  planForJoinError,
   saveDefaultDisplayName,
   saveResumeIdentity,
 } from '@tasuki/sync-client';
@@ -29,7 +30,15 @@ import type { HubCommand, RosterRoom } from '@tasuki/room-core';
 import { readRoomParam } from './room-param.js';
 import { departureHubPath, redirectTo } from './departure.js';
 import { classifyHubFrame, planHubError } from './hub-frames.js';
-import { checkCommand, resumeCommand, retryCommand, joinCommand, type LastJoin } from './hub-commands.js';
+import {
+  checkCommand,
+  createCommand,
+  joinCommand,
+  lastJoinOf,
+  resumeCommand,
+  retryCommand,
+  type LastJoin,
+} from './hub-commands.js';
 import { useDefaultDisplayName } from './use-default-display-name.js';
 import { useJoinRetry } from '@tasuki/web-kit/sync';
 
@@ -236,7 +245,10 @@ export function useHubSync(): HubSync {
         // （合言葉を求められた・混雑で弾かれた場合も、参加画面で文言を読ませて操作させる）。
         setResuming(false);
         // 次の一手の決め方は `hub-frames.ts` の `planHubError`。ここは実行だけを受け持つ。
-        const intent = planHubError(msg, { currentCode: codeRef.current, initialCode });
+        const intent = planHubError(msg, planForJoinError(msg.code, msg.message, msg.message), {
+          currentCode: codeRef.current,
+          initialCode,
+        });
         switch (intent.kind) {
           case 'leave':
             // 抜けた・外された（別のタブ・別のツールの操作でも届く）。組を捨てて接続を畳み、
@@ -325,7 +337,7 @@ export function useHubSync(): HubSync {
       cancelRetry();
       lastJoinRef.current = { displayName };
       setError(null);
-      send({ command: 'room.create', roomName, displayName });
+      send(createCommand(roomName, displayName));
     },
     [send, cancelRetry],
   );
@@ -336,7 +348,7 @@ export function useHubSync(): HubSync {
       // **利用者が自分で名乗った。** 待ち時間の間に仕掛かっていた再試行（名乗る前の
       // 状態を捕まえている）を取り消さないと、名乗った後に幽霊の照会が飛ぶ（#274）。
       cancelRetry();
-      const last: LastJoin = { displayName, ...(passphrase !== undefined ? { passphrase } : {}) };
+      const last = lastJoinOf(displayName, passphrase);
       lastJoinRef.current = last;
       setError(null);
       resetRetry();

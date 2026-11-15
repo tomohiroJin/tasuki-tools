@@ -5,7 +5,26 @@
  * 配線（フックがこの判断を使っていること）は `use-hub-sync.test.tsx` が受け持つ。
  */
 import { describe, it, expect } from 'vitest';
-import { classifyHubFrame, planHubError } from '../../src/hub/hub-frames.js';
+import type { JoinErrorPlan } from '@tasuki/sync-client';
+import { classifyHubFrame, planHubError as plan } from '../../src/hub/hub-frames.js';
+
+/**
+ * `planForJoinError` の結果の写し（同期クライアントの値は純粋判断の検査にも持ち込まない）。
+ * 対応は `packages/sync-client/src/join-error-plan.ts` と同じ。
+ */
+function joinPlan(code: string, message: string): JoinErrorPlan {
+  if (code === 'ROOM_NOT_FOUND') return { kind: 'gone' };
+  if (code === 'LEFT_ROOM') return { kind: 'left', reason: 'self' };
+  if (code === 'REMOVED_FROM_ROOM' || code === 'REMOVED_BY_HOST') return { kind: 'left', reason: 'removed' };
+  if (code === 'PASSPHRASE_REQUIRED' || code === 'PASSPHRASE_MISMATCH') return { kind: 'to-hub' };
+  if (code === 'JOIN_RATE_LIMITED') return { kind: 'retry' };
+  return { kind: 'show', message };
+}
+
+const planHubError = (
+  err: { code: string; message: string },
+  ctx: { currentCode: string | null; initialCode: string | null },
+) => plan(err, joinPlan(err.code, err.message), ctx);
 
 const topicFrame = (title: string | null) =>
   JSON.stringify({
