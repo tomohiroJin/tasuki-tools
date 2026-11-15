@@ -247,15 +247,13 @@ describe("RoomSchema の後方互換（未知の項目を落とさず受ける�
  */
 describe("RoomSchema: presence の値域は wire が広い（idle を受ける）", () => {
   it.each(["online", "idle", "offline"] as const)("WHEN 参加者の presence が %s THE RoomSchema SHALL 受ける", (presence) => {
-    const room = baseRoom();
-    const withPresence = { ...room, participants: [{ ...room.participants[0]!, presence }] };
+    const withPresence = { ...baseRoom(), participants: [{ participantId: "p1", displayName: "A", presence, joinedAt: 1 }] };
 
     expect(v.safeParse(RoomSchema, withPresence).success).toBe(true);
   });
 
   it("WHEN 参加者の presence が値域の外 THE RoomSchema SHALL 拒む（広いのは idle までである）", () => {
-    const room = baseRoom();
-    const bad = { ...room, participants: [{ ...room.participants[0]!, presence: "away" }] };
+    const bad = { ...baseRoom(), participants: [{ participantId: "p1", displayName: "A", presence: "away", joinedAt: 1 }] };
 
     expect(v.safeParse(RoomSchema, bad).success).toBe(false);
   });
