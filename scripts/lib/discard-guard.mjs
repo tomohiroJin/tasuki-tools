@@ -57,10 +57,16 @@ const isMagicPathspec = (w) => w.startsWith(":");
 
 /**
  * 通してよい rev の接尾辞の形（ref に使える字だけの名前の後ろに `~<数>` が 1 つ以上）。`HEAD~1`・`origin/main~3`。
- * `^` は extendedglob では途中でも否定になる（`a.t^x` は a.ts に当たる）ので、どこにあっても当てない（`main^` も聞く側に倒す）。
+ * `^` は extendedglob では途中でも否定になる（`a.t^x` は a.ts に当たる）ので、SINGLE_WORD に含めない（`main^` も聞く側に倒す）。
  * 前の部分にグロブの字（`*.ts~1`）があれば当たらない。前の部分が実在するパス（`a.ts~1`）のときは、呼び出し元が別に聞く（#612 の自動のセキュリティレビュー 3 回）。
  */
 const REV_SUFFIX = /^[A-Za-z0-9._/@-]+(?:~\d*)+$/;
+
+/**
+ * 1 語の `git checkout <語>` に使ってよい字（許可リスト）。ref とパスの字・`@{-1}` の波括弧・`~`（上の REV_SUFFIX で絞る）と、
+ * git の pathspec もグロブとして読む `*`・`?`・`[`・`]`。先頭の `=`（zsh の =cmd）・`^`・`#`・`(`・`|`・`<` ほかは含めない（#612 の 4 回目のレビュー）。
+ */
+const SINGLE_WORD = /^(?!=)[A-Za-z0-9._/@{}+,%=~*?[\]-]+$/;
 
 const hasShort = (w, c) => /^-[A-Za-z]+$/.test(w) && w.includes(c);
 
@@ -85,10 +91,11 @@ function classify({ sub, rest }, exists) {
     // `git checkout --detach [<rev>]`: HEAD を切り離すだけ。枝の切り替えと同じく、git 自身が上書きを拒む（#612）
     if (words[0] === "--detach" && words.length <= 2 && words.slice(1).every((w) => !w.startsWith("-"))) return SAFE;
     if (words.length === 1 && (words[0] === "-" || !words[0].startsWith("-"))) {
-      // `^`・`~` は zsh の extendedglob では否定・除外（`^b.ts`・`src/^b.ts`・`*.ts~b.ts`）に展開される。git の pathspec の字ではないので
-      // git status で確かめても当たらない。rev の接尾辞の形（`HEAD~1`・`main^`・`HEAD~2^`）だけを今までどおり扱い、ほかは確かめずに聞く
-      // （#612 の 3 回目のレビュー・自動のセキュリティレビュー）
-      if (/[~^]/.test(words[0]) && (!REV_SUFFIX.test(words[0]) || exists(words[0].replace(/[~^].*$/, "")))) return UNKNOWN_FORM;
+      // 1 語の字は許可リストに倒す（#612 の 3・4 回目のレビュー・自動のセキュリティレビュー）。シェルの展開（zsh の `^`・`#`・`(a|b)`・先頭の `=` ほか）は
+      // git の pathspec の字ではないので、git status で確かめても当たらない。許可リストの外の字を含む語は、確かめずに聞く
+      if (words[0] !== "-" && !SINGLE_WORD.test(words[0]) && !isMagicPathspec(words[0])) return UNKNOWN_FORM;
+      // `~` は zsh の extendedglob では除外（`*.ts~b.ts`）。通すのは `~<数>` の接尾辞の形（`HEAD~1`・`origin/main~3`）だけで、前の部分が実在するパスでないもの
+      if (words[0].includes("~") && (!REV_SUFFIX.test(words[0]) || exists(words[0].replace(/~.*$/, "")))) return UNKNOWN_FORM;
       // グロブ（`*`・`?`・`[`）を含む語は、文字どおりには実在しなくてもシェルや git が実在するパスへ展開しうるので、
       // 枝とみなさずパスとして確かめる（#612 の敵対的レビュー）。git の pathspec も同じ字をグロブとして読むので、git status が当たる
       return words[0] !== "-" && (/[*?[]/.test(words[0]) || isMagicPathspec(words[0]) || exists(words[0])) ? { verdict: "check", target: { kind: "paths", paths: words, scope: "worktree" } } : SAFE;

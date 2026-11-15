@@ -859,7 +859,8 @@ export function hasShellExpansion(word) {
  * @param {{ allowDir?: boolean }} [options]
  */
 export function simpleGitCommand(command, { allowDir = false } = {}) {
-  if (hasUnreadableQuote(command)) return null;
+  // `<` は入力のリダイレクトか zsh の数の範囲（`file<1-9>.ts`）。字句の段で語が欠けて見えるので、単純な形にしない（#612 の 4 回目のレビュー）
+  if (hasUnreadableQuote(command) || command.includes("<")) return null;
   const { commands, nested } = lex(command);
   if (commands.length !== 1 || nested.length > 0) return null;
   const words = commands[0];

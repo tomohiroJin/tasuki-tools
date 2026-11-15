@@ -159,7 +159,16 @@ describe("単純でない形は、変更の有無にかかわらず全部聞く�
       assert.equal(r.ask, true, c);
       assert.deepEqual(r.calls, [], c);
     }
-    for (const c of ["git checkout HEAD~1", "git checkout main", "git checkout origin/main~3", "git checkout HEAD~"]) {
+    // 4 回目のレビュー: 許可リストの字の外（zsh の # ・ 先頭の = ・ 括弧の選択 ・ |）も、確かめずに聞く
+    for (const c of ["git checkout b.tss#", "git checkout 'b#.ts'", "git checkout =git", "git checkout '(b.ts|x)'", "git checkout 'b.ts|x'"]) {
+      const r = await decide(c, { dirty: "no" });
+      assert.equal(r.ask, true, c);
+      assert.deepEqual(r.calls, [], c);
+    }
+    // zsh の数の範囲 <1-9> は字句の段でリダイレクトに見える。< を含む形は単純な形にしない
+    assert.equal((await decide("git checkout file<1-9>.ts", { dirty: "no" })).ask, true);
+    // 許可リストの字だけの名前・@{-1}・パスの区切りは今までどおり
+    for (const c of ["git checkout HEAD~1", "git checkout main", "git checkout origin/main~3", "git checkout HEAD~", "git checkout feat/x-1.2_y", "git checkout @{-1}"]) {
       assert.equal((await decide(c, { dirty: "yes" })).ask, false, c);
     }
   });
