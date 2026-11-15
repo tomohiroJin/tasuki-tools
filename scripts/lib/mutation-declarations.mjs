@@ -9625,4 +9625,12 @@ export const MUTATIONS = [
     tests: ["lib/layer-direction.test.mjs"],
     note: RESERVED_1720_1739 + " " + "#592。画面が同期クライアントを直接触る入口になる（型の許しが純粋判断だけという取り決めが崩れる）。",
   },
+  {
+    id: 1734,
+    label: "純粋判断・端末 I/O が react・react-dom を読む辺を許す",
+    patch: "m1734-layer-external-react-allowed.patch",
+    pkg: "scripts",
+    tests: ["lib/layer-direction.test.mjs"],
+    note: RESERVED_1720_1739 + " " + "#592。純粋判断が React に依存し、React なしの単体テストの前提が崩れる。",
+  },
 ];

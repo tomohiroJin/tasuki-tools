@@ -9,7 +9,8 @@
  * 無状態の許可リスト。「型だけなら許す」「テストだけは別」のような例外を足さない。
  * 層の決め方は**パスの規則**（拡張子・置き場・名前）と、**名指しの宣言**（{@link WEB_IO_FILES}）だけで、
  * 本文の字面から「I/O をしていそうか」を推し量らない。
- * 許可表（{@link LAYER_ALLOWED}）に無い層を読む辺は、未知の層も含めてすべて違反に倒す。
+ * 許可表（{@link LAYER_ALLOWED}）に無い**層**（`@tasuki/*` と相対 import の読み先）は、未知の層も含めて違反に倒す。
+ * 外部パッケージは別で、純粋判断・端末 I/O が `react`・`react-dom`・`partysocket` を読む辺だけを止める（rule `external`）。
  *
  * ## 何を見るか
  *
@@ -20,6 +21,7 @@
  *
  * ## 何を見ていないか
  *
+ * - 上の 3 つ以外の外部パッケージ（`neverthrow`・`valibot` など）。純粋判断・端末 I/O に何を入れてよいかは、ここでは決めない
  * - テスト・`e2e/`・設定ファイル（`vite.config.ts` など）。層で裁いていない
  * - 同期サーバーの組み立て（`src` 直下）。組み立ては `audit-assembly-wiring.mjs` の管轄で、全層を読んでよい
  * - 動的な指定子（変数）・`require`・CSS の `@import`
@@ -71,6 +73,13 @@ export const LAYER_ALLOWED = {
 export const LAYER_TYPE_ONLY_ALLOWED = {
   "web/pure": ["sync-client"],
 };
+
+/**
+ * 純粋判断・端末 I/O が読んではいけない外部パッケージ（React と WebSocket の持ち物は画面・同期フックだけ。ADR 0015 の追記の表）。
+ * `react`・`react-dom`（サブパス含む）・`partysocket`。**これ以外の外部パッケージは見ない**。
+ */
+const FORBIDDEN_EXTERNAL_LAYERS = new Set(["web/pure", "web/io"]);
+const FORBIDDEN_EXTERNAL = /^(react|react-dom|partysocket)(\/|$)/;
 
 const CORE_DIR = /^packages\/[a-z-]+-core$/;
 const SYNC_DIR = "apps/tasuki-sync";
@@ -159,7 +168,7 @@ function resolveRelative(file, spec, tracked) {
  * @param {{ webApps: Set<string>, ioFiles: Set<string>, nameToDir: Map<string, string>,
  *           exportsOf: Map<string, Set<string>>, tracked: Set<string> }} ctx
  *   `exportsOf` は package のディレクトリ → `exports` のキー集合（`.` を含む）。`exports` を持たない package は載せない（入口を検めない）
- * @returns {{ rule: "layer" | "deep-import", file: string, line: number, to: string, fromLayer: string | null, toLayer: string | null }[]}
+ * @returns {{ rule: "layer" | "deep-import" | "external", file: string, line: number, to: string, fromLayer: string | null, toLayer: string | null }[]}
  */
 export function findLayerViolations(files, ctx) {
   const violations = [];
@@ -174,7 +183,12 @@ export function findLayerViolations(files, ctx) {
         if (target !== null) toLayer = layerOfFile(target, ctx);
       } else {
         const m = /^(@tasuki\/[a-z0-9-]+)(\/.*)?$/.exec(spec);
-        if (!m) continue;
+        if (!m) {
+          if (fromLayer !== null && FORBIDDEN_EXTERNAL_LAYERS.has(fromLayer) && FORBIDDEN_EXTERNAL.test(spec)) {
+            violations.push({ rule: "external", file, line, to: spec, fromLayer, toLayer: null });
+          }
+          continue;
+        }
         const dir = ctx.nameToDir.get(m[1]);
         if (dir === undefined) continue;
         const sub = m[2] ? `.${m[2]}` : ".";

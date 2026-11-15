@@ -225,3 +225,29 @@ test("宣言の形: 許可表は ADR 0015 の追記の行を持ち、I/O の宣�
   for (const f of WEB_IO_FILES) assert.match(f, /^apps\/[^/]+\/src\/.+\.ts$/, f);
   assert.equal(WEB_IO_FILES.size, 14);
 });
+
+test("純粋判断と端末 I/O が react・react-dom（サブパス含む）・partysocket を読むと赤", () => {
+  const vs = check({
+    [`${APP}/src/a.ts`]: "import { useState } from 'react';",
+    [`${APP}/src/b.ts`]: "import { createRoot } from 'react-dom/client';",
+    [`${APP}/src/c.ts`]: "import X from 'partysocket';",
+    [`${APP}/src/d.ts`]: "import { jsx } from 'react/jsx-runtime';",
+    [`${APP}/src/storage/saved.ts`]: "import { useState } from 'react';",
+  });
+  assert.deepEqual(brief(vs), [
+    `external ${APP}/src/a.ts:1 -> react`,
+    `external ${APP}/src/b.ts:1 -> react-dom/client`,
+    `external ${APP}/src/c.ts:1 -> partysocket`,
+    `external ${APP}/src/d.ts:1 -> react/jsx-runtime`,
+    `external ${APP}/src/storage/saved.ts:1 -> react`,
+  ]);
+});
+
+test("react は画面・同期フックなら緑。react-dom-extra のような別名の外部パッケージは止めない", () => {
+  const vs = check({
+    [`${APP}/src/Screen.tsx`]: "import { useState } from 'react';",
+    [`${APP}/src/hooks/useX.ts`]: "import { useState } from 'react';\nimport P from 'partysocket';",
+    [`${APP}/src/view.ts`]: "import x from 'react-dom-extra';\nimport y from 'reactive';",
+  });
+  assert.deepEqual(brief(vs), []);
+});

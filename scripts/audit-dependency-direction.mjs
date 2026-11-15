@@ -514,7 +514,9 @@ function main() {
   if (layerViolations.length > 0) console.error("層の向きに違反があります（docs/adr/0015 の追記の許可表。scripts/lib/layer-direction.mjs）:");
   for (const v of layerViolations) {
     console.error(
-      v.rule === "deep-import"
+      v.rule === "external"
+        ? `  ${v.file}:${v.line}: ${v.fromLayer} が React・WebSocket の外部パッケージを読んでいます ${v.to}`
+        : v.rule === "deep-import"
         ? `  ${v.file}:${v.line}: package.json の exports に無い入口を取り込んでいます ${v.to}`
         : v.rule === "stale-io"
           ? `  ${v.file}: 端末 I/O の宣言（WEB_IO_FILES）が実在しないファイルを指しています`
