@@ -9310,7 +9310,7 @@ export const MUTATIONS = [
   },
   {
     id: 1710,
-    label: "git checkout <~・^ を含む 1 語> を、rev の接尾辞の形でなくても聞かずに確かめる側へ回す",
+    label: "git checkout <~ を含む 1 語> を、~<数> の接尾辞の形でなくても聞かずに確かめる側へ回す",
     patch: "m1710-discard-checkout-extendedglob-as-branch.patch",
     pkg: "scripts",
     tests: ["lib/discard-guard.test.mjs"],
@@ -9330,6 +9330,22 @@ export const MUTATIONS = [
     patch: "m1712-discard-rev-suffix-allows-glob-prefix.patch",
     pkg: "scripts",
     tests: ["lib/discard-guard.test.mjs"],
-    note: RESERVED_1700_1719 + " " + "#612 の自動のセキュリティレビュー。*.ts~1・a.t^x・main^ が rev とみなされ、extendedglob の zsh で .ts のファイルを取り出す形を聞かずに通す。",
+    note: RESERVED_1700_1719 + " " + "#612 の自動のセキュリティレビュー。*.ts~1 が rev とみなされ、extendedglob の zsh で .ts のファイルを取り出す形を聞かずに通す。",
+  },
+  {
+    id: 1713,
+    label: "git checkout <1 語> の字の許可リストを外す",
+    patch: "m1713-discard-checkout-single-word-any-chars.patch",
+    pkg: "scripts",
+    tests: ["lib/discard-guard.test.mjs"],
+    note: RESERVED_1700_1719 + " " + "#612 の 4 回目のレビュー。zsh の b.tss#・^b.ts・(b.ts|x) が b.ts に展開され、git status は当たらないので聞かずに変更が消える。",
+  },
+  {
+    id: 1714,
+    label: "simpleGitCommand が < を含むコマンドを単純な形として読む",
+    patch: "m1714-simple-git-allows-input-redirect.patch",
+    pkg: "scripts",
+    tests: ["lib/discard-guard.test.mjs"],
+    note: RESERVED_1700_1719 + " " + "#612 の 4 回目のレビュー。git checkout file<1-9>.ts が字句の段で git checkout file に見え、zsh が file1.ts に展開した変更が聞かずに消える。",
   },
 ];

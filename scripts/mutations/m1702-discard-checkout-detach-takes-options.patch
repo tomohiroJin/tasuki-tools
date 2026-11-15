@@ -1,13 +1,13 @@
 diff --git a/scripts/lib/discard-guard.mjs b/scripts/lib/discard-guard.mjs
-index 8c484ac5..116ad26f 100644
+index f49d07a2..791df5fe 100644
 --- a/scripts/lib/discard-guard.mjs
 +++ b/scripts/lib/discard-guard.mjs
-@@ -82,7 +82,7 @@ function classify({ sub, rest }, exists) {
+@@ -89,7 +89,7 @@ function classify({ sub, rest }, exists) {
      }
      if ((words[0] === "-b" || words[0] === "-B") && words.length >= 2 && words.length <= 3 && words.slice(1).every((w) => !w.startsWith("-"))) return SAFE;
      // `git checkout --detach [<rev>]`: HEAD を切り離すだけ。枝の切り替えと同じく、git 自身が上書きを拒む（#612）
 -    if (words[0] === "--detach" && words.length <= 2 && words.slice(1).every((w) => !w.startsWith("-"))) return SAFE;
 +    if (words[0] === "--detach" && words.length <= 2) return SAFE;
      if (words.length === 1 && (words[0] === "-" || !words[0].startsWith("-"))) {
-       // `^`・`~` は zsh の extendedglob では否定・除外（`^b.ts`・`src/^b.ts`・`*.ts~b.ts`）に展開される。git の pathspec の字ではないので
-       // git status で確かめても当たらない。rev の接尾辞の形（`HEAD~1`・`main^`・`HEAD~2^`）だけを今までどおり扱い、ほかは確かめずに聞く
+       // 1 語の字は許可リストに倒す（#612 の 3・4 回目のレビュー・自動のセキュリティレビュー）。シェルの展開（zsh の `^`・`#`・`(a|b)`・先頭の `=` ほか）は
+       // git の pathspec の字ではないので、git status で確かめても当たらない。許可リストの外の字を含む語は、確かめずに聞く

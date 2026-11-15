@@ -1,9 +1,9 @@
 diff --git a/scripts/lib/discard-guard.mjs b/scripts/lib/discard-guard.mjs
-index 8c484ac5..7ba50cc2 100644
+index f49d07a2..0b68d4f6 100644
 --- a/scripts/lib/discard-guard.mjs
 +++ b/scripts/lib/discard-guard.mjs
-@@ -90,7 +90,7 @@ function classify({ sub, rest }, exists) {
-       if (/[~^]/.test(words[0]) && (!REV_SUFFIX.test(words[0]) || exists(words[0].replace(/[~^].*$/, "")))) return UNKNOWN_FORM;
+@@ -98,7 +98,7 @@ function classify({ sub, rest }, exists) {
+       if (words[0].includes("~") && (!REV_SUFFIX.test(words[0]) || exists(words[0].replace(/~.*$/, "")))) return UNKNOWN_FORM;
        // グロブ（`*`・`?`・`[`）を含む語は、文字どおりには実在しなくてもシェルや git が実在するパスへ展開しうるので、
        // 枝とみなさずパスとして確かめる（#612 の敵対的レビュー）。git の pathspec も同じ字をグロブとして読むので、git status が当たる
 -      return words[0] !== "-" && (/[*?[]/.test(words[0]) || isMagicPathspec(words[0]) || exists(words[0])) ? { verdict: "check", target: { kind: "paths", paths: words, scope: "worktree" } } : SAFE;

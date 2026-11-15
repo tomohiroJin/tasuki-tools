@@ -1,12 +1,12 @@
 diff --git a/scripts/lib/discard-guard.mjs b/scripts/lib/discard-guard.mjs
-index 8c484ac5..c19920f8 100644
+index f49d07a2..1ca05406 100644
 --- a/scripts/lib/discard-guard.mjs
 +++ b/scripts/lib/discard-guard.mjs
-@@ -87,7 +87,6 @@ function classify({ sub, rest }, exists) {
-       // `^`・`~` は zsh の extendedglob では否定・除外（`^b.ts`・`src/^b.ts`・`*.ts~b.ts`）に展開される。git の pathspec の字ではないので
-       // git status で確かめても当たらない。rev の接尾辞の形（`HEAD~1`・`main^`・`HEAD~2^`）だけを今までどおり扱い、ほかは確かめずに聞く
-       // （#612 の 3 回目のレビュー・自動のセキュリティレビュー）
--      if (/[~^]/.test(words[0]) && (!REV_SUFFIX.test(words[0]) || exists(words[0].replace(/[~^].*$/, "")))) return UNKNOWN_FORM;
+@@ -95,7 +95,6 @@ function classify({ sub, rest }, exists) {
+       // git の pathspec の字ではないので、git status で確かめても当たらない。許可リストの外の字を含む語は、確かめずに聞く
+       if (words[0] !== "-" && !SINGLE_WORD.test(words[0]) && !isMagicPathspec(words[0])) return UNKNOWN_FORM;
+       // `~` は zsh の extendedglob では除外（`*.ts~b.ts`）。通すのは `~<数>` の接尾辞の形（`HEAD~1`・`origin/main~3`）だけで、前の部分が実在するパスでないもの
+-      if (words[0].includes("~") && (!REV_SUFFIX.test(words[0]) || exists(words[0].replace(/~.*$/, "")))) return UNKNOWN_FORM;
        // グロブ（`*`・`?`・`[`）を含む語は、文字どおりには実在しなくてもシェルや git が実在するパスへ展開しうるので、
        // 枝とみなさずパスとして確かめる（#612 の敵対的レビュー）。git の pathspec も同じ字をグロブとして読むので、git status が当たる
        return words[0] !== "-" && (/[*?[]/.test(words[0]) || isMagicPathspec(words[0]) || exists(words[0])) ? { verdict: "check", target: { kind: "paths", paths: words, scope: "worktree" } } : SAFE;

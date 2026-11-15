@@ -1,13 +1,13 @@
 diff --git a/scripts/lib/discard-guard.mjs b/scripts/lib/discard-guard.mjs
-index 5de6aaf2..387d243d 100644
+index f49d07a2..b0a8a8a9 100644
 --- a/scripts/lib/discard-guard.mjs
 +++ b/scripts/lib/discard-guard.mjs
 @@ -60,7 +60,7 @@ const isMagicPathspec = (w) => w.startsWith(":");
-  * `^` は extendedglob では途中でも否定になる（`a.t^x` は a.ts に当たる）ので、どこにあっても当てない（`main^` も聞く側に倒す）。
+  * `^` は extendedglob では途中でも否定になる（`a.t^x` は a.ts に当たる）ので、SINGLE_WORD に含めない（`main^` も聞く側に倒す）。
   * 前の部分にグロブの字（`*.ts~1`）があれば当たらない。前の部分が実在するパス（`a.ts~1`）のときは、呼び出し元が別に聞く（#612 の自動のセキュリティレビュー 3 回）。
   */
 -const REV_SUFFIX = /^[A-Za-z0-9._/@-]+(?:~\d*)+$/;
 +const REV_SUFFIX = /^[^~^]+(?:[~^]\d*)+$/;
  
- const hasShort = (w, c) => /^-[A-Za-z]+$/.test(w) && w.includes(c);
- 
+ /**
+  * 1 語の `git checkout <語>` に使ってよい字（許可リスト）。ref とパスの字・`@{-1}` の波括弧・`~`（上の REV_SUFFIX で絞る）と、
