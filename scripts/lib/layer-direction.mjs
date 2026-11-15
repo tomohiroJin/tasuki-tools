@@ -63,6 +63,15 @@ export const LAYER_ALLOWED = {
   "sync/adapters": ["domain", "protocol", "sync/ports", "sync/application", "rate-limit"],
 };
 
+/**
+ * 層 → **型だけの import（`import type`）なら読んでよい**層。値の import は {@link LAYER_ALLOWED} だけで決まる。
+ * 純粋判断が `@tasuki/sync-client` の接続状態の型を取る形（#369: 型の正本は sync-client で、web アプリが書き直すのは
+ * `audit-web-sync-boundary.mjs` が止める）。型だけの import は実行時の依存を持たない。**ここに足す行は最小に保つ**。
+ */
+export const LAYER_TYPE_ONLY_ALLOWED = {
+  "web/pure": ["sync-client"],
+};
+
 const CORE_DIR = /^packages\/[a-z-]+-core$/;
 const SYNC_DIR = "apps/tasuki-sync";
 // テストの判定は他の検査と同じ形
@@ -118,7 +127,7 @@ const STMT = /(?:^|[;\n}])\s*(import|export)\s+(type\s+)?((?:[\w$*\s,]|\{[^}]*\}
 const SIDE = /(?:^|[;\n}])\s*import\s*["']([^"'\n]+)["']/g;
 const DYN = /\bimport\s*\(\s*["']([^"'\n]+)["']\s*\)/g;
 
-/** import / export-from / 副作用 import / 文字列リテラルの動的 import の指定子と行を取る。 */
+/** import / export-from / 副作用 import / 文字列リテラルの動的 import の指定子・行・型だけか（`import type`。`export type … from` は再 export なので値と同じに扱う）を取る。 */
 export function extractSpecifiers(text) {
   const t = stripComments(text);
   const lineAt = (idx) => {
@@ -127,9 +136,9 @@ export function extractSpecifiers(text) {
     return n;
   };
   const out = [];
-  for (const m of t.matchAll(STMT)) out.push({ spec: m[4], line: lineAt(m.index + m[0].lastIndexOf(m[4])) });
-  for (const m of t.matchAll(SIDE)) out.push({ spec: m[1], line: lineAt(m.index + m[0].lastIndexOf(m[1])) });
-  for (const m of t.matchAll(DYN)) out.push({ spec: m[1], line: lineAt(m.index + m[0].indexOf(m[1])) });
+  for (const m of t.matchAll(STMT)) out.push({ spec: m[4], line: lineAt(m.index + m[0].lastIndexOf(m[4])), typeOnly: m[1] === "import" && !!m[2] });
+  for (const m of t.matchAll(SIDE)) out.push({ spec: m[1], line: lineAt(m.index + m[0].lastIndexOf(m[1])), typeOnly: false });
+  for (const m of t.matchAll(DYN)) out.push({ spec: m[1], line: lineAt(m.index + m[0].indexOf(m[1])), typeOnly: false });
   return out;
 }
 
@@ -158,7 +167,7 @@ export function findLayerViolations(files, ctx) {
     if (isTestFile(file) || file.endsWith(".d.ts")) continue;
     const fromLayer = layerOfFile(file, ctx);
     const allowed = fromLayer === null ? null : LAYER_ALLOWED[fromLayer];
-    for (const { spec, line } of extractSpecifiers(text)) {
+    for (const { spec, line, typeOnly } of extractSpecifiers(text)) {
       let toLayer = null;
       if (spec.startsWith(".")) {
         const target = resolveRelative(file, spec, ctx.tracked);
@@ -177,7 +186,7 @@ export function findLayerViolations(files, ctx) {
         toLayer = layerOfPackageDir(dir, sub);
       }
       if (allowed === null || toLayer === null || toLayer === fromLayer) continue;
-      if (!allowed.includes(toLayer)) {
+      if (!allowed.includes(toLayer) && !(typeOnly && (LAYER_TYPE_ONLY_ALLOWED[fromLayer] ?? []).includes(toLayer))) {
         violations.push({ rule: "layer", file, line, to: spec.startsWith(".") ? resolveRelative(file, spec, ctx.tracked) : spec, fromLayer, toLayer });
       }
     }

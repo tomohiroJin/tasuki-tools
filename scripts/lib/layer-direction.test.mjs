@@ -102,14 +102,29 @@ test("同期フックが画面を読むと赤", () => {
   assert.deepEqual(brief(vs), [`layer ${APP}/src/sync/use-sync.ts:1 -> ${APP}/src/ui/Summary.tsx`]);
 });
 
-test("純粋判断が同期クライアントを読むと赤（値でも型でも）", () => {
+test("純粋判断が同期クライアントの値を読むと赤、型だけ（import type）は緑（A4 の読み）", () => {
+  // 接続状態の型の正本は sync-client で、web アプリが書き直すのは audit-web-sync-boundary が止める。
+  // 型だけの import は実行時の依存を持たないので、純粋判断にだけ許す
   const vs = check({
     [`${APP}/src/plan.ts`]: "import { delay } from '@tasuki/sync-client';",
     [`${APP}/src/view.ts`]: "import type { S } from '@tasuki/sync-client';",
+    [`${APP}/src/mixed.ts`]: "import { type S, delay } from '@tasuki/sync-client';",
   });
   assert.deepEqual(brief(vs), [
+    `layer ${APP}/src/mixed.ts:1 -> @tasuki/sync-client`,
     `layer ${APP}/src/plan.ts:1 -> @tasuki/sync-client`,
-    `layer ${APP}/src/view.ts:1 -> @tasuki/sync-client`,
+  ]);
+});
+
+test("型だけの許しは純粋判断の同期クライアントだけ。画面・application の型の逆流は型でも赤", () => {
+  const vs = check({
+    [`${APP}/src/Screen.tsx`]: "import type { S } from '@tasuki/sync-client';",
+    "apps/tasuki-sync/src/application/a.ts": "import type { P } from '../adapters/g';",
+    "apps/tasuki-sync/src/adapters/g.ts": "export type P = 1;",
+  });
+  assert.deepEqual(brief(vs), [
+    `layer ${APP}/src/Screen.tsx:1 -> @tasuki/sync-client`,
+    "layer apps/tasuki-sync/src/application/a.ts:1 -> apps/tasuki-sync/src/adapters/g.ts",
   ]);
 });
 
