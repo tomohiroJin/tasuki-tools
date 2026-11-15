@@ -19,7 +19,7 @@ import {
   tooManyInPoolText,
 } from './copy';
 import { stateOf, type PersonRow } from './roulette-view';
-import { parseMemberLines, sameMemberName } from './storage/regulars';
+import { parseMemberLines, sameMemberName } from './regulars-rules';
 
 export interface BatchPlan {
   /** 足した人数 */
