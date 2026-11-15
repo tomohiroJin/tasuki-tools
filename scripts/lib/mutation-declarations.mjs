@@ -9359,6 +9359,14 @@ export const MUTATIONS = [
     note: RESERVED_1700_1719 + " " + "#612 の 4 回目のレビュー。git checkout file<1-9>.ts が字句の段で git checkout file に見え、zsh が file1.ts に展開した変更が聞かずに消える。",
   },
   {
+    id: 1715,
+    label: "checkout -- <path>・restore <path> の pathspec の zsh だけの字を見ない",
+    patch: "m1715-discard-pathspec-ignores-zsh-patterns.patch",
+    pkg: "scripts",
+    tests: ["lib/discard-guard.test.mjs"],
+    note: RESERVED_1700_1719 + " " + "#612 の 5 回目のレビュー（main からの穴）。extendedglob の zsh で git checkout -- b.tss# が b.ts に展開され、git status は当たらないので聞かずに変更が消える。",
+  },
+  {
     id: 1620,
     label: "前方参照（late）が、値が入る前に引かれても落ちずに undefined を返す",
     patch: "m1620-late-get-returns-undefined.patch",

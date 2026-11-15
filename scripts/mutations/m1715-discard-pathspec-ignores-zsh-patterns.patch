@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/discard-guard.mjs b/scripts/lib/discard-guard.mjs
+index 7f07133c..25e9261e 100644
+--- a/scripts/lib/discard-guard.mjs
++++ b/scripts/lib/discard-guard.mjs
+@@ -72,7 +72,7 @@ const SINGLE_WORD = /^(?!=)[A-Za-z0-9._/@{}+,%=~*?[\]-]+$/;
+  * pathspec の語（`checkout -- <path>`・`restore <path>`）に、zsh だけが展開する字（`#`・`^`・`|`・`(`・`~`、先頭の `=`）があるか。
+  * git の pathspec の字ではないので、`git status` で確かめても当たらない（#612 の 5 回目のレビュー。main からの穴）。rev（`HEAD~1`）は pathspec の語ではないので見ない。
+  */
+-const hasZshOnlyPattern = (w) => /[#^|(~]/.test(w) || w.startsWith("=");
++const hasZshOnlyPattern = (w) => false;
+ 
+ const hasShort = (w, c) => /^-[A-Za-z]+$/.test(w) && w.includes(c);
+ 
