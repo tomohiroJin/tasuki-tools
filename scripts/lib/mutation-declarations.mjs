@@ -1116,10 +1116,10 @@ export const MUTATIONS = [
   },
   {
     id: 88,
-    label: "玄関の use-hub-sync.ts が topic フレームを検めずに捨てる",
+    label: "玄関の classifyHubFrame（hub-frames.ts）が topic フレームを検めずに捨てる",
     patch: "m88-hub-topic-frame-not-checked.patch",
     pkg: "apps/landing",
-    tests: ["tests/hub/use-hub-sync.test.tsx"],
+    tests: ["tests/hub/use-hub-sync.test.tsx", "tests/hub/hub-frames.test.ts"],
     note:
       "#91 PR 2・spec T3。`TopicFrameSchema` で見分ける分岐を消し、`topic` フレームを" +
       "ハブのスキーマにしか通さなくなる。ハブの契約に合わないので黙って捨てられ、" +
@@ -9560,5 +9560,13 @@ export const MUTATIONS = [
     pkg: "apps/landing",
     tests: ["tests/default-display-name.test.tsx"],
     note: RESERVED_1780_1799 + " " + "#595・#284。分けた先の小さなフック。玄関を開くたびに同じ値で弾かれ続ける。",
+  },
+  {
+    id: 1786,
+    label: "use-hub-sync が合言葉を求められたときサーバーの文言を表示しない",
+    patch: "m1786-hub-sync-passphrase-message-dropped.patch",
+    pkg: "apps/landing",
+    tests: ["tests/hub/use-hub-sync.test.tsx"],
+    note: RESERVED_1780_1799 + " " + "#595。use-hub-sync から planHubError の passphrase への配線。入力欄だけが出て、なぜ求められたかが伝わらない。",
   },
 ];
