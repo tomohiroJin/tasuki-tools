@@ -238,6 +238,29 @@ describe("RoomSchema の後方互換（未知の項目を落とさず受ける�
   });
 });
 
+/**
+ * presence の値域: wire は広く、ドメインは狭い（#596・`packages/room-core/src/room.ts` の注記）。
+ *
+ * 契約: ドメインの `presenceOf` が返すのは `"online" | "offline"` だけで、`"idle"` を作る経路は無い。
+ * 一方 wire の契約（`RoomSchema`）は `"idle"` を**意図して残している**（古い送り手の snapshot を壊さない）。
+ * 型の値域が狭いので、wire を狭めても型検査では分からない。狭めると古い snapshot が拒まれるので、テストで止める。
+ */
+describe("RoomSchema: presence の値域は wire が広い（idle を受ける）", () => {
+  it.each(["online", "idle", "offline"] as const)("WHEN 参加者の presence が %s THE RoomSchema SHALL 受ける", (presence) => {
+    const room = baseRoom();
+    const withPresence = { ...room, participants: [{ ...room.participants[0]!, presence }] };
+
+    expect(v.safeParse(RoomSchema, withPresence).success).toBe(true);
+  });
+
+  it("WHEN 参加者の presence が値域の外 THE RoomSchema SHALL 拒む（広いのは idle までである）", () => {
+    const room = baseRoom();
+    const bad = { ...room, participants: [{ ...room.participants[0]!, presence: "away" }] };
+
+    expect(v.safeParse(RoomSchema, bad).success).toBe(false);
+  });
+});
+
 // ─── signal: "notice"（Issue #22 G4・FR-077） ─────────────────────────────────
 // 破壊的操作の実行者を全員に伝えるためのシグナル。サーバーは「意味」だけを運び、
 // 日本語の文言化は UI 側が行う（plan.md「API / インターフェース契約」1）。
