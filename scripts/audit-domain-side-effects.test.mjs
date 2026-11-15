@@ -1,6 +1,8 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import {
+  ALLOWED_TOP_LEVEL_MUTABLE,
+  findStaleAllowances,
   DOMAIN_PACKAGES,
   EXCLUDED_PACKAGES,
   FORBIDDEN,
@@ -196,5 +198,94 @@ describe("FORBIDDEN_PATTERNS: 投げない・モジュールの状態を持た�
     const src = ["export function make() {", "  let counter = 0;", "  return () => ++counter;", "}"].join("\n");
     // When / Then
     assert.deepEqual(findForbiddenCalls(src, "a.ts"), []);
+  });
+});
+
+/**
+ * 最上位の `const` の可変な `Map` / `Set`（#596・#587 節 8 の 5）。
+ *
+ * `const` なので `let` の検査をすり抜けるが、中身は書き換えられる。**ドメインがモジュールの状態を持つ**
+ * 点では `let` と同じである。`ReadonlyMap` / `ReadonlySet` の型で宣言した定数の表は対象にしない。
+ * 例外は宣言（{@link ALLOWED_TOP_LEVEL_MUTABLE}・理由つき）で持つ。
+ */
+describe("最上位の const の可変な Map/Set（#596）", () => {
+  const TOKEN = "トップレベルの可変な Map/Set";
+
+  test("射程の写し: この語が FORBIDDEN_PATTERNS から落ちていない", () => {
+    assert.ok(FORBIDDEN_PATTERNS.map((p) => p.token).includes(TOKEN));
+  });
+
+  test("最上位の const の new Map / new Set / WeakMap / WeakSet を拾う（export も・型の注釈つきも）", () => {
+    // Given
+    const src = [
+      "const a = new Map<string, string>();",
+      "export const b = new Set<number>();",
+      "const c: Map<string, () => void> = new Map();",
+      "const d = new WeakMap<object, number>();",
+      "const e = new WeakSet<object>();",
+    ].join("\n");
+    // When
+    const found = findForbiddenCalls(src, "a.ts", []);
+    // Then
+    assert.deepEqual(
+      found.map((f) => [f.line, f.token]),
+      [1, 2, 3, 4, 5].map((n) => [n, TOKEN]),
+    );
+  });
+
+  test("ReadonlyMap / ReadonlySet の型の定数の表は拾わない", () => {
+    // Given
+    const src = [
+      "const DECK: ReadonlyMap<string, number> = new Map([[\"a\", 1]]);",
+      "const KEYS: ReadonlySet<string> = new Set([\"a\"]);",
+    ].join("\n");
+    // When / Then
+    assert.deepEqual(findForbiddenCalls(src, "a.ts", []), []);
+  });
+
+  test("関数の内側（字下げあり）の Map は拾わない", () => {
+    // Given
+    const src = ["export function make() {", "  const cache = new Map<string, string>();", "  return cache;", "}"].join("\n");
+    // When / Then
+    assert.deepEqual(findForbiddenCalls(src, "a.ts", []), []);
+  });
+
+  test("宣言した例外（パスと名前が両方合う）だけを通す", () => {
+    // Given
+    const src = "const skeletonCache = new Map<string, string>();\n";
+    const allowed = [{ path: "a.ts", name: "skeletonCache", reason: "純関数のメモ" }];
+    // When / Then
+    assert.deepEqual(findForbiddenCalls(src, "a.ts", allowed), []);
+    assert.equal(findForbiddenCalls(src, "b.ts", allowed).length, 1, "別のパスは通さない");
+    assert.equal(findForbiddenCalls(src.replace("skeletonCache", "other"), "a.ts", allowed).length, 1, "別の名前は通さない");
+  });
+
+  test("例外の宣言には理由があり、実物（display-name.ts の skeletonCache）が 1 件入っている", () => {
+    // Given / When
+    const entry = ALLOWED_TOP_LEVEL_MUTABLE.find(
+      (a) => a.path === "packages/room-core/src/display-name.ts" && a.name === "skeletonCache",
+    );
+    // Then
+    assert.ok(entry !== undefined);
+    for (const a of ALLOWED_TOP_LEVEL_MUTABLE) {
+      assert.ok(typeof a.reason === "string" && a.reason.length > 0, `${a.path} ${a.name} に理由が無い`);
+    }
+  });
+
+  test("例外の既定値で実物の宣言は通る（既定の第 3 引数が宣言を見る）", () => {
+    // Given
+    const src = "const skeletonCache = new Map<string, string>();\n";
+    // When / Then
+    assert.deepEqual(findForbiddenCalls(src, "packages/room-core/src/display-name.ts"), []);
+    assert.equal(findForbiddenCalls(src, "packages/room-core/src/other.ts").length, 1);
+  });
+
+  test("findStaleAllowances: 宣言が実物から消えた例外を拾う（腐った例外を残さない）", () => {
+    // Given
+    const allowed = [{ path: "a.ts", name: "cache", reason: "r" }];
+    // When / Then
+    assert.deepEqual(findStaleAllowances(new Map([["a.ts", "const cache = new Map();\n"]]), allowed), []);
+    assert.deepEqual(findStaleAllowances(new Map([["a.ts", "const other = new Map();\n"]]), allowed), allowed);
+    assert.deepEqual(findStaleAllowances(new Map([["b.ts", "const cache = new Map();\n"]]), allowed), allowed);
   });
 });
