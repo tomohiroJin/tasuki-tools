@@ -9575,7 +9575,7 @@ export const MUTATIONS = [
     patch: "m1747-turbo-test-unit-inputs-no-test-css.patch",
     pkg: "scripts",
     tests: ["turbo-test-inputs.test.mjs"],
-    note: RESERVED_1740_1759 + " " + "#599 のレビュー。test-css を直しても timer-web の test:unit のハッシュが変わらず、手元で古い緑が再生される（test-css は build を持たない）。",
+    note: RESERVED_1740_1759 + " " + "#599 のレビュー。test-css/src を test:unit の入力の決まりから外すと、決まりを見る自己テストが落ちる（決まりは docs/adr/0017 の追記（#599）決まり 3）。",
   },
   {
     id: 1748,

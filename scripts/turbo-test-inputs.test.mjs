@@ -1,10 +1,10 @@
 /**
  * `turbo.json` の `test` 系タスクの入力を見る自己テスト（`docs/adr/0017` の追記（2026-11-14・#599）決まり 3）。
  *
- * 試験は `packages/ui/src/tokens/fonts.css` と `packages/test-css/src/` をファイルとして読む（読む側の依存は
- * devDependency で、build を持たない）ので、どちらを変えても読む側の `test` のハッシュが変わるよう、
- * `test`・`test:unit` と、個別に定義した `<パッケージ>#test`・`<パッケージ>#test:unit` の `inputs` に入れる。
- * `package#task` は基底を継承しないので、個別の定義にも要る。足し忘れた 1 つだけが穴に戻るのを、ここで止める。
+ * 決まり: `test`・`test:unit` と、個別に定義した `<パッケージ>#test`・`<パッケージ>#test:unit` は、`inputs` に
+ * `$TURBO_DEFAULT$`・`packages/ui/src/tokens/fonts.css`・`packages/test-css/src/**` を必ず持つ
+ * （パッケージの外で試験が読むファイルを、キャッシュの鍵に入れるため）。
+ * `package#task` は基底を継承しないので、個別の定義にも要る。足し忘れた 1 つを、ここで止める。
  * 比べるのは「基準の入力をすべて含む」こと。1 つのタスクだけに入力を足すのは正当なので、完全一致にはしない。
  */
 import { test } from "node:test";
