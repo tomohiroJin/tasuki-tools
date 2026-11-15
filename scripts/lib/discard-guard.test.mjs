@@ -142,12 +142,22 @@ describe("単純でない形は、変更の有無にかかわらず全部聞く�
     assert.equal(icase.ask, true);
     assert.deepEqual(icase.calls, [{ dir: "/w", target: { kind: "paths", paths: [":(icase)A.TS"], scope: "worktree" } }]);
     assert.equal((await decide("git checkout ':(icase)A.TS'", { dirty: "no" })).ask, false);
-    // /code-review: zsh の extendedglob の `^b.ts`（b.ts 以外）・`a~b`（除外）も。どちらの字も枝の名前に使えない
-    for (const w of ["a.t*", "a.t?", "[a].ts", "src/*", ":/a.ts", ":!b.ts", "^b.ts", "*.ts~b.ts"]) {
+    for (const w of ["a.t*", "a.t?", "[a].ts", "src/*", ":/a.ts", ":!b.ts"]) {
       const r = await decide(`git checkout ${w}`, { dirty: "yes" });
       assert.equal(r.ask, true, w);
       assert.deepEqual(r.calls, [{ dir: "/w", target: { kind: "paths", paths: [w], scope: "worktree" } }], w);
       assert.equal((await decide(`git checkout ${w}`, { dirty: "no" })).ask, false, w);
+    }
+  });
+
+  test("/code-review・3 回目のレビュー: ^ で始まる 1 語（zsh の extendedglob の否定）は、git status が当たらないので確かめず、変更の有無にかかわらず聞く。~ を含む rev（HEAD~1）は今までどおり", async () => {
+    for (const c of ["git checkout ^b.ts", "git checkout ^src"]) {
+      const r = await decide(c, { dirty: "no" });
+      assert.equal(r.ask, true, c);
+      assert.deepEqual(r.calls, [], c);
+    }
+    for (const c of ["git checkout HEAD~1", "git checkout HEAD^", "git checkout main"]) {
+      assert.equal((await decide(c, { dirty: "yes" })).ask, false, c);
     }
   });
 

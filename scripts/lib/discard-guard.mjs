@@ -78,9 +78,12 @@ function classify({ sub, rest }, exists) {
     // `git checkout --detach [<rev>]`: HEAD を切り離すだけ。枝の切り替えと同じく、git 自身が上書きを拒む（#612）
     if (words[0] === "--detach" && words.length <= 2 && words.slice(1).every((w) => !w.startsWith("-"))) return SAFE;
     if (words.length === 1 && (words[0] === "-" || !words[0].startsWith("-"))) {
-      // グロブ（`*`・`?`・`[`、zsh の extendedglob の `^`・`~`）を含む語は、文字どおりには実在しなくてもシェルや git が実在するパスへ展開しうるので、
-      // 枝とみなさずパスとして確かめる（#612 の敵対的レビュー・/code-review）。どの字も git の枝の名前には使えないので、枝を誤って聞くことはない
-      return words[0] !== "-" && (/[*?[^~]/.test(words[0]) || isMagicPathspec(words[0]) || exists(words[0])) ? { verdict: "check", target: { kind: "paths", paths: words, scope: "worktree" } } : SAFE;
+      // `^` で始まる語は、zsh の extendedglob では否定（その名前以外の全部）に展開される。git の pathspec の字ではないので
+      // git status で確かめても当たらない。枝の名前は `^` で始まれないので、確かめずに聞く（#612 の 3 回目のレビュー）
+      if (words[0].startsWith("^")) return UNKNOWN_FORM;
+      // グロブ（`*`・`?`・`[`）を含む語は、文字どおりには実在しなくてもシェルや git が実在するパスへ展開しうるので、
+      // 枝とみなさずパスとして確かめる（#612 の敵対的レビュー）。git の pathspec も同じ字をグロブとして読むので、git status が当たる
+      return words[0] !== "-" && (/[*?[]/.test(words[0]) || isMagicPathspec(words[0]) || exists(words[0])) ? { verdict: "check", target: { kind: "paths", paths: words, scope: "worktree" } } : SAFE;
     }
     return UNKNOWN_FORM;
   }
