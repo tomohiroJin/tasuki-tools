@@ -7,11 +7,11 @@
 
 --- a/scripts/lib/layer-direction.mjs
 +++ b/scripts/lib/layer-direction.mjs
-@@ -70,6 +70,7 @@ export const LAYER_ALLOWED = {
+@@ -72,6 +72,7 @@ export const LAYER_ALLOWED = {
   */
  export const LAYER_TYPE_ONLY_ALLOWED = {
    "web/pure": ["sync-client"],
 +  "web/screen": ["sync-client"],
  };
  
- const CORE_DIR = /^packages\/[a-z-]+-core$/;
+ /**
