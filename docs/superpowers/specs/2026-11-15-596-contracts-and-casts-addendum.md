@@ -14,7 +14,7 @@
 | 4 | `poker-handlers.ts` `handleParticipantRemoved` | 名簿を更新し終えた後に呼ぶ | **テスト** 同上（変異 1765） | 幽霊を外した後の `room-state` が幽霊を載せず、保管の名簿へ書き戻さない |
 | 5 | `topic-generation.ts` `cancel` | 帳簿を触らない | **テスト** `test/topic-generation.test.ts`（変異 1766） | cancel の前後で保管の値と publish の回数が同じ |
 | 6 | `normalize-command-names.ts` | 一覧の正本・失敗は呼び出し側が `INVALID_COMMAND` へ | **テスト** `test/normalize-command-names.test.ts`（一覧と `CommandSchema` の突き合わせ・変異 1767）。失敗の合流は既存の `test/timer-command-receiver.test.ts`・`live-ws.display-name.test.ts` が見ている | 一覧の足し忘れ・腐り |
-| 7 | `display-name.ts` | 正規化後は空がありうる。空の可否は呼び出し側で判定する | **テスト** `test/display-name-rule-sources.test.ts`（変異 1768）。空文字になること自体は既存の `packages/room-core/tests/display-name.test.ts` | 判定を持つ `applyDisplayNameRule` が唯一の呼び出し元であること（型は `string` のまま。非空の型は全入口の書き換えが要るので入れない） |
+| 7 | `display-name.ts` | 正規化後は空がありうる。空の可否は呼び出し側で判定する | **テスト** `test/display-name-rule-sources.test.ts`（変異 1768）。空文字になること自体は既存の `packages/room-core/tests/display-name.test.ts` | `apps/tasuki-sync/src` では、判定を持つ `applyDisplayNameRule` が唯一の呼び出し元であること（型は `string` のまま。非空の型は全入口の書き換えが要るので入れない）。テストが見るのは `apps/tasuki-sync/src` だけで、web 側には `normalizeDisplayName` の呼び出しが 6 か所ある（landing `default-display-name.ts:61`・roulette-web `regulars-view.ts:137,138` と `storage/regulars.ts:59,144`・timer-web `ui/name-request.ts:152`）。web 側は各自で空を扱っており、このテストの対象外 |
 | 8 | `room-removal.ts` | 名簿に人が残るなら輪を空にしない | **テスト** `test/room-removal.test.ts` の全組の数え上げ（名簿 1〜4 人 × 輪の部分集合 × 対象。変異 1769） | 非空の配列型は `timer-core` の全体に及ぶので入れない（`git grep NonEmpty` は 0 件） |
 | 9 | `room.ts` | presence の値域に `idle` は無いが wire には残る | **テスト** `packages/timer-core/test/schemas.test.ts`（変異 1770） | ドメインの型の値域は既に狭い（`"online" \| "offline"`）。wire が広いままであること |
 
@@ -43,8 +43,9 @@
 | `timer-core/decide.ts` 411 | B | 許可リストの `includes` |
 | `topic-core/fallback.ts` 42 | B | 許可リストの `includes` |
 
-合計: A 11（`room-entry.ts` の新しい 1 件を含む）・B 10・C 1・直した 1 件（`initial-timer-state.ts`）。
-**未検証（C）は 1 件**で、`TimerPort` の型消去である。ISSUE の予想より少ない。
+合計: 枝の `as T` は 23 件で、A 12・B 10・C 1（表の 24 行は、直した `initial-timer-state.ts` の 1 行を含むため）。
+main の 23 件から `initial-timer-state.ts` の 1 件が消え、`room-entry.ts` の 1 件が増えたので、件数は 23 のまま。
+**未検証（C）は 1 件**で、`TimerPort` の型消去である。
 
 ## 3. `!` 17 件の仕分け
 
@@ -60,7 +61,7 @@
 | `room-core/display-name.ts` 218・219 | A | `from`・`to` は `view` の UTF-16 単位ごとに 1 つずつ積む。コメントに根拠（#364） |
 | `room-core/participant-label.ts` 50 | A | `lookAlike.length === 1` の直後 |
 | `timer-core/evolve.ts` 503 | A | 直前に `isPermutation(order, oldRotation.length)` を確かめた |
-| `topic-core/fallback.ts` 36 | A | `pool` は `remaining` が空なら `candidates`、`candidates` は絞った結果が空でなければそれ、空なら `TOPIC_BANK`（非空の定数）。`pool.length > 0` |
+| `topic-core/fallback.ts` 36 | A | `pool` は `remaining` が空なら `candidates`、`candidates` は絞った結果が空でなければそれ、空なら `TOPIC_BANK`（非空の定数）。`pool.length > 0`。**前提: `now` が整数であること**（呼び手は `WallClock` の整数の ms）。小数や NaN では `Math.abs(now) % length` が整数にならず、添字が範囲外になる |
 
 合計: A 17・C 0。**`!` に未検証は無かった。**
 
