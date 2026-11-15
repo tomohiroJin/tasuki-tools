@@ -43,8 +43,11 @@ import { applyDisplayNameRule, type DisplayNameRejection } from "./display-name-
  * 足し忘れると**その入口だけが正規化を通らない**。`Command` の判別可能 union から
  * 機械的に導けそうに見えるが、型から「表示名という意味の項目」は決められない
  * （`code` や `key` と区別が付かない）ので、宣言で持つ。
+ *
+ * **足し忘れはテストが落とす**（#596）。`CommandSchema` の枝のうち `displayName` を持つものと
+ * この一覧が同じ集合であることを `test/normalize-command-names.test.ts` が見る。
  */
-const COMMANDS_WITH_DISPLAY_NAME = [
+export const COMMANDS_WITH_DISPLAY_NAME = [
   "room.create",
   "room.join",
   "participant.addProxy",
