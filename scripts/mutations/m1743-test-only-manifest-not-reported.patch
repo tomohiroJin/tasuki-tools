@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-dependency-direction.mjs b/scripts/audit-dependency-direction.mjs
+index 7bb4b599..aa119f3c 100644
+--- a/scripts/audit-dependency-direction.mjs
++++ b/scripts/audit-dependency-direction.mjs
+@@ -332,7 +332,7 @@ export function findViolations(observed) {
+       violations.push({ pkg, dep, via: "試験専用" });
+     }
+     // 試験専用のパッケージを devDependencies 以外の欄に書くのも違反（宣言の上で製品の依存と見分けがつかない）。
+-    for (const dep of new Set(testOnlyInManifest)) {
++    for (const dep of new Set([])) {
+       violations.push({ pkg, dep, via: "試験専用の依存欄" });
+     }
+   }
