@@ -9561,4 +9561,12 @@ export const MUTATIONS = [
     tests: ["turbo-test-inputs.test.mjs"],
     note: RESERVED_1740_1759 + " " + "#599。inputs に既定の入力を含めないと、パッケージ自身のソースを変えても test のハッシュが変わらず、古い緑が再生される。",
   },
+  {
+    id: 1746,
+    label: "test:unit の inputs から fonts.css を外す",
+    patch: "m1746-turbo-test-unit-inputs-no-fonts.patch",
+    pkg: "scripts",
+    tests: ["turbo-test-inputs.test.mjs"],
+    note: RESERVED_1740_1759 + " " + "#599 のレビュー。fonts.css を変えても timer-web などの test:unit のハッシュが変わらず、手元で古い緑が再生される。",
+  },
 ];

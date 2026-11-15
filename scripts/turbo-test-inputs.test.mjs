@@ -18,9 +18,11 @@ const TURBO = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, "turbo.json"), "ut
 /** 基底の `test` と個別の `<パッケージ>#test` が持つべき入力の並び。 */
 export const EXPECTED_TEST_INPUTS = ["$TURBO_DEFAULT$", "$TURBO_ROOT$/packages/ui/src/tokens/fonts.css"];
 
-/** `test` 系のタスク（基底 `test` と `<パッケージ>#test`）の名前。`test:unit` と `@tasuki/e2e#test` は除く。 */
+/** `test` 系のタスク（基底 `test`・`test:unit` と `<パッケージ>#test`）の名前。`@tasuki/e2e#test` は除く。 */
 export function testTaskNames(tasks) {
-  return Object.keys(tasks).filter((name) => name === "test" || (name.endsWith("#test") && name !== "@tasuki/e2e#test"));
+  return Object.keys(tasks).filter(
+    (name) => name === "test" || name === "test:unit" || (name.endsWith("#test") && name !== "@tasuki/e2e#test"),
+  );
 }
 
 test("fonts.css のファイルが実在する（入力に足した相対パスが空振りしない）", () => {
@@ -36,9 +38,9 @@ test("基底の test と、個別に定義した <パッケージ>#test がす�
   }
 });
 
-test("testTaskNames は e2e の test と test:unit を数えない", () => {
+test("testTaskNames は e2e の test を数えず、test:unit を数える", () => {
   assert.deepEqual(
     testTaskNames({ test: {}, "test:unit": {}, "@tasuki/e2e#test": {}, "@tasuki/a#test": {}, lint: {} }),
-    ["test", "@tasuki/a#test"],
+    ["test", "test:unit", "@tasuki/a#test"],
   );
 });
