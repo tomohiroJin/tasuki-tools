@@ -33,8 +33,25 @@ import { constantTimeEqual } from "./secure-compare.js";
 /** 合言葉の関門を通らなかった理由。**入口ごとに wire への畳み方が違う。** */
 export type PassphraseRejection = "PASSPHRASE_REQUIRED" | "PASSPHRASE_MISMATCH";
 
+/** 復帰を試みて成立しなかった印。型の上にしか存在しない（実行時の値は {@link findResumableParticipant} が作る）。 */
+declare const resumeAttempted: unique symbol;
+
 /**
- * 復帰の組が指す参加者を返す（無効なら `undefined`）。
+ * **復帰を試みて成立しなかった**ことを表す型（#596）。
+ *
+ * {@link checkPassphrase} はこの型しか受け付けない。「復帰が成立した人は合言葉の関門を通さない」
+ * という順序を、呼び出し側の注意ではなく型で強制する —— 復帰の判定を飛ばして関門だけを呼ぶ
+ * 配線は、この値が手に入らないのでコンパイルが通らない（`apply-room-level-event.ts` の
+ * `StateWithAggregate` と同じ手）。値を作れるのは {@link findResumableParticipant} だけである。
+ */
+export type ResumeMiss = { readonly kind: "miss"; readonly [resumeAttempted]: true };
+
+/** 復帰の判定の結果。成立なら参加者、成立しなければ {@link ResumeMiss}。 */
+export type ResumeOutcome = { readonly kind: "resumed"; readonly participant: Participant; readonly resumeToken: string }
+  | ResumeMiss;
+
+/**
+ * 復帰の組が指す参加者を返す（無効なら {@link ResumeMiss}）。
  *
  * 判定は 2 段ある。**いま実際に越境を止めているのは後段の `findParticipant` である。**
  * トークンが指す参加者 ID が、要求されたルームの名簿に居なければ復帰は成立しない。
@@ -51,15 +68,18 @@ export function findResumableParticipant(
   room: Room,
   code: string,
   resumeToken: string | undefined,
-): Participant | undefined {
-  if (resumeToken === undefined) return undefined;
+): ResumeOutcome {
+  const miss = { kind: "miss" } as ResumeMiss; // 印を付けるのはここだけ
+  if (resumeToken === undefined) return miss;
   const tokenData = tokenStore.getResume(resumeToken);
-  if (tokenData === undefined || tokenData.roomCode !== code) return undefined;
-  return findParticipant(room, tokenData.participantId);
+  if (tokenData === undefined || tokenData.roomCode !== code) return miss;
+  const participant = findParticipant(room, tokenData.participantId);
+  return participant === undefined ? miss : { kind: "resumed", participant, resumeToken };
 }
 
 /**
- * 合言葉の関門（R4-2）。**復帰が成立した人は呼び出し側が先に通すこと。**
+ * 合言葉の関門（R4-2）。**復帰が成立した人は先に通す** —— 第 3 引数に {@link ResumeMiss} を要求するので、
+ * 復帰の判定（{@link findResumableParticipant}）を経ない呼び出しは型で止まる（#596）。
  *
  * 保持側と同じく前後空白を正規化して比較する。秘密の照合は定数時間で行う
  * （`docs/adr/0012`・管理トークン／AI 解錠と同じ規律）。
@@ -69,6 +89,7 @@ export function findResumableParticipant(
 export function checkPassphrase(
   required: string | undefined,
   provided: string | undefined,
+  _afterResume: ResumeMiss,
 ): Result<undefined, PassphraseRejection> {
   if (required === undefined) return ok(undefined);
   const given = (provided ?? "").trim();

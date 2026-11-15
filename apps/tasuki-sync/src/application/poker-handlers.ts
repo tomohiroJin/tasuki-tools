@@ -305,8 +305,9 @@ export function makePokerHandlers(deps: PokerHandlerDeps): PokerHandlers {
     roomId: string,
     token: string | undefined,
   ): boolean {
-    if (findResumableParticipant(tokens, room, roomId, token) !== undefined) return true;
-    return checkPassphrase(tokens.getPassphrase(roomId), undefined).isOk();
+    const resumed = findResumableParticipant(tokens, room, roomId, token);
+    if (resumed.kind === "resumed") return true;
+    return checkPassphrase(tokens.getPassphrase(roomId), undefined, resumed).isOk();
   }
 
   /**
@@ -632,9 +633,10 @@ export function makePokerHandlers(deps: PokerHandlerDeps): PokerHandlers {
     //
     // **判定は `../application/room-entry.ts` が持つ**（#95 S5b）。timer の入口と同じ
     // 関数を通す —— 2 つの入口で判定の形が違うと、片方だけが直る。
-    const presented = msg.token;
-    const existing = findResumableParticipant(tokens, live.room, msg.roomId, presented);
-    if (existing !== undefined && presented !== undefined) {
+    const resumed = findResumableParticipant(tokens, live.room, msg.roomId, msg.token);
+    if (resumed.kind === "resumed") {
+      const existing = resumed.participant;
+      const presented = resumed.resumeToken;
       // **接続を足す。前の接続を奪わない**（#95 S4b・D14）。
       // existing は `live.room` から引いた参加者なので Err にはならない（なっても名簿は変えない）。
       const room = attachConnection(live.room, existing.id, ws.data.connId, TOOL_POKER).unwrapOr(live.room);
