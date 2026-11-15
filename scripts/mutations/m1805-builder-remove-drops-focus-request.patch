@@ -1,0 +1,21 @@
+# 変異 1805: builder-remove-drops-focus-request
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/scenario-builder.test.tsx
+#
+# #595。ScenarioBuilder の remove が focusAfterRemove の置き先を state へ渡さない（配線）。消した後にフォーカスが文書の先頭へ落ちる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1805-*.patch
+diff --git a/apps/agenda-web/src/components/ScenarioBuilder.tsx b/apps/agenda-web/src/components/ScenarioBuilder.tsx
+index f625b813..f03cde6c 100644
+--- a/apps/agenda-web/src/components/ScenarioBuilder.tsx
++++ b/apps/agenda-web/src/components/ScenarioBuilder.tsx
+@@ -101,7 +101,6 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
+ 
+   const remove = (i: number): void => {
+     setDraft(removeStep(draft, i));
+-    setFocusRequest(focusAfterRemove(draft, i));
+   };
+   const move = (i: number, delta: -1 | 1): void => {
+     const request = focusAfterMove(draft, i, delta);

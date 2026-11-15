@@ -1,0 +1,22 @@
+# 変異 1800: reconcile-overwrites-touched-draft
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/scenario-draft-sync.test.ts
+#
+# #595。ルームが変わると、手元で変えた下書きも黙って上書きする。組みかけの下書きが消える。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1800-*.patch
+diff --git a/apps/agenda-web/src/scenario-draft-sync.ts b/apps/agenda-web/src/scenario-draft-sync.ts
+index a557b477..50759ccd 100644
+--- a/apps/agenda-web/src/scenario-draft-sync.ts
++++ b/apps/agenda-web/src/scenario-draft-sync.ts
+@@ -28,7 +28,7 @@ export function reconcileRoom(state: DraftState, room: ScenarioInput): DraftStat
+   if (state.roomKey === key) return state;
+   const draftKey = scenarioKey(inputFromDraft(state.draft));
+   // 回数の欄を空にした下書きは `rounds` キーを落とし、回数 1 のルームと同じ鍵になる。触った下書きとして扱う
+-  const untouched = isEmptyDraft(state.draft) || (roundsOfDraft(state.draft) !== null && draftKey === state.roomKey);
++  const untouched = true;
+   return untouched
+     ? { ...state, draft: draftFromInput(room), roomKey: key, changed: false }
+     : { ...state, roomKey: key, changed: key !== state.sentKey && draftKey !== key };
