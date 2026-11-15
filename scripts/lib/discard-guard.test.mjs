@@ -153,12 +153,13 @@ describe("単純でない形は、変更の有無にかかわらず全部聞く�
   test("/code-review・3 回目のレビュー: ^ で始まる 1 語（zsh の extendedglob の否定）は、git status が当たらないので確かめず、変更の有無にかかわらず聞く。~ を含む rev（HEAD~1）は今までどおり", async () => {
     // 自動のセキュリティレビュー: 途中の ^（src/^b.ts）・rev の接尾辞でない ~（a.ts~zz・*.ts~b.ts）も
     // 2 回目の自動レビュー: 接尾辞の形でも、前がグロブ（*.ts~1）か実在するパス（a.ts~1。extendedglob では a.ts に展開）なら聞く
-    for (const c of ["git checkout ^b.ts", "git checkout ^src", "git checkout src/^b.ts", "git checkout a.ts~zz", "git checkout '*.ts~b.ts'", "git checkout '*.ts~1'", "git checkout a.ts~1", "git checkout a.ts^"]) {
+    // 3 回目の自動レビュー: 途中の ^ は前の部分が実在しなくても否定（a.t^x は a.ts に当たる）。^ はどこにあっても聞く（main^ も聞く側に倒す）
+    for (const c of ["git checkout ^b.ts", "git checkout ^src", "git checkout src/^b.ts", "git checkout a.ts~zz", "git checkout '*.ts~b.ts'", "git checkout '*.ts~1'", "git checkout a.ts~1", "git checkout a.ts^", "git checkout a.t^x", "git checkout HEAD^", "git checkout main^2", "git checkout HEAD~2^"]) {
       const r = await decide(c, { dirty: "no", existing: ["a.ts"] });
       assert.equal(r.ask, true, c);
       assert.deepEqual(r.calls, [], c);
     }
-    for (const c of ["git checkout HEAD~1", "git checkout HEAD^", "git checkout main", "git checkout HEAD~2^", "git checkout origin/main~3", "git checkout main^2"]) {
+    for (const c of ["git checkout HEAD~1", "git checkout main", "git checkout origin/main~3", "git checkout HEAD~"]) {
       assert.equal((await decide(c, { dirty: "yes" })).ask, false, c);
     }
   });

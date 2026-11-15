@@ -56,10 +56,11 @@ const NON_DISCARDING_SUBS = new Set([
 const isMagicPathspec = (w) => w.startsWith(":");
 
 /**
- * rev の接尾辞の形（ref に使える字だけの名前の後ろに `~<数>`・`^<数>` が 1 つ以上）。`HEAD~1`・`main^`・`origin/main~3`・`HEAD~2^`。
- * 前の部分にグロブの字（`*.ts~1`）があれば当たらない。前の部分が実在するパス（`a.ts~1`）のときは、呼び出し元が別に聞く（#612 の自動のセキュリティレビュー）。
+ * 通してよい rev の接尾辞の形（ref に使える字だけの名前の後ろに `~<数>` が 1 つ以上）。`HEAD~1`・`origin/main~3`。
+ * `^` は extendedglob では途中でも否定になる（`a.t^x` は a.ts に当たる）ので、どこにあっても当てない（`main^` も聞く側に倒す）。
+ * 前の部分にグロブの字（`*.ts~1`）があれば当たらない。前の部分が実在するパス（`a.ts~1`）のときは、呼び出し元が別に聞く（#612 の自動のセキュリティレビュー 3 回）。
  */
-const REV_SUFFIX = /^[A-Za-z0-9._/@-]+(?:[~^]\d*)+$/;
+const REV_SUFFIX = /^[A-Za-z0-9._/@-]+(?:~\d*)+$/;
 
 const hasShort = (w, c) => /^-[A-Za-z]+$/.test(w) && w.includes(c);
 
