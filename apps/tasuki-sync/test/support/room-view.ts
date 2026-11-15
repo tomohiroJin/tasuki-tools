@@ -50,11 +50,6 @@ export function participantIdOfConn(store: RoomStore, connId: string): string {
   throw new Error(`participantIdOfConn(): 接続 ${connId} の持ち主が名簿に居ない`);
 }
 
-/** その接続が名簿のどこにも居ないこと（切断・退出の確認用）。 */
-export function hasNoOwner(store: RoomStore, connId: string): boolean {
-  return store.list().every((room) => findParticipantByConnId(room, connId) === undefined);
-}
-
 /** 揃っていなければ undefined を返す版（破棄されたことを確かめるテスト用）。 */
 export function maybeRoomViewOf(
   store: RoomStore,

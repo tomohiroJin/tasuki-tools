@@ -1,0 +1,26 @@
+# 変異 1625: destroy-drops-checkin-part
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/live-ws.checkin.test.ts
+#     「最後の 1 人が timer から抜けてルームが消えると、チェックインの接続の参加は ROOM_NOT_FOUND になる」
+#   - apps/tasuki-sync/test/live-ws.topic.test.ts
+#     「最後の 1 人が timer から抜けてルームが消えると、お題の接続の参加は ROOM_NOT_FOUND になる」（破棄が途中で落ちる）
+#
+# #591。破棄の共通経路へ渡す束からチェックインの分を落とす。チェックインの保管と猶予が破棄で解放されない（型検査は落ちるが、実行時にも検出される）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1625-*.patch
+# 復元: git apply -R scripts/mutations/m1625-*.patch
+diff --git a/apps/tasuki-sync/src/create-sync-server.ts b/apps/tasuki-sync/src/create-sync-server.ts
+index 905485ff..e80c5c17 100644
+--- a/apps/tasuki-sync/src/create-sync-server.ts
++++ b/apps/tasuki-sync/src/create-sync-server.ts
+@@ -242,7 +242,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
+   // 各道具の保管は、道具ごとの組み立てが `destroy` として返したものを並べる
+   // （必須の鍵が 1 つでも欠ければ型検査が落ちる。寿命はツールごとではなくルームごとに 1 つ・#95 S4a）。
+   // 各部品の `destroy` は鍵が重なれば落ちる（後勝ちで黙って外れない）。受け側に無い余計な鍵は、型が `never` を要求して落とす。
+-  const toolDestroy = mergeDisjoint(topic.destroy, roulette.destroy, agenda.destroy, checkin.destroy, poker.destroy);
++  const toolDestroy = mergeDisjoint(topic.destroy, roulette.destroy, agenda.destroy, poker.destroy);
+   const destroyDeps: RoomDestroyerDeps & Record<Exclude<keyof typeof toolDestroy, keyof RoomDestroyerDeps>, never> = {
+     store,
+     timers,

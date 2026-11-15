@@ -75,7 +75,6 @@ export const TEST_RESULTS_DIR = path.join(REPO_ROOT, 'e2e/test-results', ...(run
 
 /** 実行専用の設定。生成コピーの import をここへ向ける。 */
 export const CADDY_ETC_DIR = path.join(TEST_RESULTS_DIR, 'config');
-export const CADDY_APPS_DIR = path.join(CADDY_ETC_DIR, 'apps');
 
 
 export const LOG_DIR = path.join(TEST_RESULTS_DIR, 'logs');

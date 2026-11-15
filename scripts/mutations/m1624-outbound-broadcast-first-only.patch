@@ -1,0 +1,23 @@
+# 変異 1624: outbound-broadcast-first-only
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/ws-adapter.message.test.ts
+#
+# #591。表から導く `to.<ツール>.broadcast` が、宛先の先頭 1 本にしか送らない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1624-*.patch
+# 復元: git apply -R scripts/mutations/m1624-*.patch
+diff --git a/apps/tasuki-sync/src/adapters/ws-adapter.ts b/apps/tasuki-sync/src/adapters/ws-adapter.ts
+index ccb8aea0..9bb214d4 100644
+--- a/apps/tasuki-sync/src/adapters/ws-adapter.ts
++++ b/apps/tasuki-sync/src/adapters/ws-adapter.ts
+@@ -401,7 +401,7 @@ export class WsAdapter {
+     },
+     // `broadcast` は旗（`RAW_BROADCAST`）が true のツールにだけ付く。チェックインには**実行時にも作らない**（#406）。
+     () => (connIds: string[], data: unknown): void => {
+-      sendToEach(this.connections, connIds, JSON.stringify(data));
++      sendToEach(this.connections, connIds.slice(0, 1), JSON.stringify(data));
+     },
+   );
+ 

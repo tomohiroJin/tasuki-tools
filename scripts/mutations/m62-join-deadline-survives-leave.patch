@@ -8,14 +8,13 @@
 # 復元: git checkout -- <対象ファイル>
 #
 diff --git a/apps/timer-web/src/sync/use-timer-sync.ts b/apps/timer-web/src/sync/use-timer-sync.ts
-index fe0a18b..bf2f0d7 100644
 --- a/apps/timer-web/src/sync/use-timer-sync.ts
 +++ b/apps/timer-web/src/sync/use-timer-sync.ts
-@@ -457,7 +457,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
+@@ -300,7 +300,6 @@
          // 答えを待つ期限も畳む（#292）。ここは `mode` を `null` に戻すので、
          // 玄関へ遷移し終えるまでの間この受け皿が出る —— 残すと、抜けたはずの人が
          // 「ルームの情報を読み込めませんでした」を最後に見ることになる。
--        cancelJoinDeadline();
+-        abandon();
          const removedFrom = room?.code ?? roomCodeRef.current;
          syncClient.dispose();
          setRoom(null);

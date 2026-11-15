@@ -1,6 +1,8 @@
 /**
- * ユースケース（アプリケーション層）。`create-room` / `join-room` / `check-room` と、
- * それらが共用する切り離し・join 完了処理を持つ。
+ * poker のユースケース（アプリケーション層）。入口は `create-room` / `join-room` / `check-room` に加え、
+ * 投票・公開・リセット・退室などのルーム内の操作（`dispatch` が `poker-commit-room-action.ts` の `commitRoomAction` へ渡す）、
+ * 名簿からの退出の後始末（`handleParticipantRemoved`）、切り離し・join 完了処理まで持つ。
+ * 外へ出す入口の一覧は {@link PokerHandlers}（`commitRoomAction` は別ファイルで、その成員ではない）。
  *
  * **依存はすべて引数で受け取る**（`docs/adr/0004` 決定 2・3。アダプタはポートの型で
  * 注入し、ユースケースはポートにのみ依存する）。以前は `server.ts` の

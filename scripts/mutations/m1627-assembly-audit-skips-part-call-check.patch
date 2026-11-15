@@ -1,0 +1,23 @@
+# 変異 1627: assembly-audit-skips-part-call-check
+#
+# 検出を期待するテスト:
+#   - scripts/audit-assembly-wiring.test.mjs
+#
+# #591。組み立て関数が分けた先の関数を呼んでいるかを見ない（import だけで通る）。呼ばれない部品は配線から落ちる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1627-*.patch
+# 復元: git apply -R scripts/mutations/m1627-*.patch
+diff --git a/scripts/audit-assembly-wiring.mjs b/scripts/audit-assembly-wiring.mjs
+index e91c39cb..0d0a56eb 100644
+--- a/scripts/audit-assembly-wiring.mjs
++++ b/scripts/audit-assembly-wiring.mjs
+@@ -239,7 +239,7 @@ export function findAssemblyProblems(target, sources) {
+           problems.push(`${assembler} が ${file} から ${f} を import していません（ADR-0004 決定 4・#591）`);
+         }
+         const called = assemblerLines.some((l) => isEvidenceLine(l) && !isImportLine(l) && l.includes(`${f}(`));
+-        if (!called) problems.push(`${assembler} が ${f}() を呼んでいません（ADR-0004 決定 4・#591）`);
++        if (false) problems.push(`${assembler} が ${f}() を呼んでいません（ADR-0004 決定 4・#591）`);
+       }
+     }
+     for (const { name, re } of FORBIDDEN_IN_PARTS) {

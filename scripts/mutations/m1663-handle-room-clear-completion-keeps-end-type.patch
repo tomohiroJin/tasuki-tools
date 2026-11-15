@@ -1,0 +1,20 @@
+# 変異 1663: handle-room-clear-completion-keeps-end-type
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/sync/use-timer-sync.test.tsx
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1663-*.patch
+# 復元: git checkout -- <対象ファイル>
+#
+diff --git a/apps/timer-web/src/sync/use-timer-sync.ts b/apps/timer-web/src/sync/use-timer-sync.ts
+--- a/apps/timer-web/src/sync/use-timer-sync.ts
++++ b/apps/timer-web/src/sync/use-timer-sync.ts
+@@ -237,7 +237,6 @@
+       // （#95 S5c・レビュー ②）。**押した人の端末だけでなく全端末で降りる。**
+       clearCompletion: () => {
+         setRecord(null);
+-        setEndType("complete");
+       },
+       setScreen: setMode,
+       // 終わり方は snapshot が決める（#91 PR 3）。押した本人も、押していない端末も同じ値になる。

@@ -221,7 +221,7 @@ WS message
 - `ui/`: 画面（Lobby / Session / Summary / History / SessionLost / Loading）。`screenForPhase` で `room.phase` に追従。
   `Loading` だけは `room.phase` に対応せず、**ルームの画面がまだ決まっていない間**（`mode === null`）の
   受け皿です。ここは `StatusStrip` が描かれないので、**接続状態を出すのも `Loading` の役目**です。
-  さらに `room.join` の答えには期限があり（`sync/use-timer-sync.ts` の `JOIN_RESPONSE_DEADLINE_MS`）、
+  さらに `room.join` の答えには期限があり（`sync/use-join-deadline.ts` の `JOIN_RESPONSE_DEADLINE_MS`。入り直しとの束ねは `sync/use-join-recovery.ts`、捨てたフレームの印は `sync/use-stale-frame-notice.ts`、snapshot の意図の実行は `sync/apply-snapshot-intents.ts`。いずれも `use-timer-sync.ts` から分けた）、
   切れたら次にできること（再読み込み・玄関へ戻る）を示します —— 繋がっているのに
   サーバーが答えない場合、それが無いと無言で永久に待つことになります（#292）。
   **混雑の入り直し（#147）を使い切った枝は、期限の発火を待たずにその場で行き止まりにします** ——

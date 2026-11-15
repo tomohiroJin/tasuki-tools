@@ -198,11 +198,6 @@ export function playChime(soundId: string, volume: number = DEFAULT_VOLUME): voi
   chime?.play(volume);
 }
 
-/** @deprecated playChime("department", DEFAULT_VOLUME) を使う。既存呼び出し互換のため残置。 */
-export function playSwitchChime(): void {
-  playChime("department", DEFAULT_VOLUME);
-}
-
 /** モバイル振動（対応端末のみ）。 */
 export function vibrateSwitch(): void {
   if (typeof navigator !== "undefined" && "vibrate" in navigator) {

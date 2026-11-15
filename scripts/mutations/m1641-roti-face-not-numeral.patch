@@ -1,0 +1,23 @@
+# 変異 1641: roti-face-not-numeral
+#
+# 検出を期待するテスト:
+#   - apps/checkin-web/tests/card-face.test.tsx「数字だけを持つ」「NUMERIC_METHODS が一致する」
+#   - apps/checkin-web/tests/reveal-view.test.ts（ROTI の要約が「いちばん多いのは」でなくなる）
+#
+# #593。ROTI の顔が数字でなく絵になる。数のやり方の正本（CARD_FACES の kind）から導く NUMERIC_METHODS が ROTI を落とし、
+# 開いた後の要約の言い方と札の顔がずれる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1641-*.patch
+
+--- a/apps/checkin-web/src/components/card-faces.ts
++++ b/apps/checkin-web/src/components/card-faces.ts
+@@ -34,7 +34,7 @@
+   role: art(RoleArt),
+   expectation: cardIdNumeral,
+   'mood-start': art(MoodStartArt),
+-  roti: cardIdNumeral,
++  roti: art(WeatherArt),
+   'takeaway-done': art(TakeawayDoneArt),
+   'best-part': art(BestPartArt),
+   mood: art(MoodArt),

@@ -1,6 +1,6 @@
 /**
  * InMemoryRoomStore — **名簿**の揮発インメモリストア
- * T032: FR-013（#95 S4a で保管する型がメンバーシップ文脈の Room になった）
+ * 要件（`docs/plans/tdd-mob-pro-timer/spec.md`）: FR-013（#95 S4a で保管する型がメンバーシップ文脈の Room になった）
  */
 
 import type { Room } from "@tasuki/room-core";

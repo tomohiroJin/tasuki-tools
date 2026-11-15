@@ -15,24 +15,24 @@
 # バケツが connId→clientKey の登録ごと分かれるため、room.join を枯渇させても
 # ai.unlock は素通りし（逆も同様）、同じ IP からの総当たりが片方のツールを
 # 迂回すれば通ってしまう。
-diff --git a/apps/tasuki-sync/src/create-sync-server.ts b/apps/tasuki-sync/src/create-sync-server.ts
-index 5c45629..5999f31 100644
---- a/apps/tasuki-sync/src/create-sync-server.ts
-+++ b/apps/tasuki-sync/src/create-sync-server.ts
-@@ -47,6 +47,7 @@ import { makeRouletteBroadcaster } from "./application/roulette-broadcast.js";
- import { makeRouletteHandlers } from "./application/roulette-handlers.js";
- import { ClaudeCliTopicProvider } from "./adapters/claude-cli-topic-provider.js";
- import { makeHandlers } from "./application/handlers.js";
-+import { createRateLimitGate } from "./application/rate-limit-gate.js";
- import { PresenceManager } from "./application/presence.js";
- import { Scheduler } from "./application/schedule.js";
- import { WsAdapter } from "./adapters/ws-adapter.js";
-@@ -359,7 +360,7 @@ export function createSyncServer(config: SyncConfig): SyncServer {
+diff --git a/apps/tasuki-sync/src/assembly/topic.ts b/apps/tasuki-sync/src/assembly/topic.ts
+index 669aed8e..0e33b92e 100644
+--- a/apps/tasuki-sync/src/assembly/topic.ts
++++ b/apps/tasuki-sync/src/assembly/topic.ts
+@@ -8,6 +8,7 @@
+ import { ClaudeCliTopicProvider } from "../adapters/claude-cli-topic-provider.js";
+ import { InMemoryTopicStore } from "../adapters/in-memory-topic-store.js";
+ import { AiLimiter } from "../application/ai-limits.js";
++import { createRateLimitGate } from "../application/rate-limit-gate.js";
+ import { makeTopicBroadcaster, type TopicBroadcaster } from "../application/topic-broadcast.js";
+ import { TopicGenerator } from "../application/topic-generation.js";
+ import { makeTopicHandlers, type TopicHandlers } from "../application/topic-handlers.js";
+@@ -102,7 +103,7 @@ export function assembleTopic(
      clock,
      codeGen,
      tokenStore: tokens,
--    rateLimitGate: handlers.rateLimitGate,
-+    rateLimitGate: createRateLimitGate(rateLimiter),
-     hub: hubBroadcaster,
-     topics,
-     generator: topicGenerator,
+-    rateLimitGate: timer.rateLimitGate,
++    rateLimitGate: createRateLimitGate(base.rateLimiter),
+     hub: base.hubBroadcaster,
+     topics: resources.topics,
+     generator: resources.generator,

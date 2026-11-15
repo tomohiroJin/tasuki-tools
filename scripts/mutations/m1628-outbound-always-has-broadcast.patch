@@ -1,0 +1,22 @@
+# 変異 1628: outbound-always-has-broadcast
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/ws/raw-tools.test.ts
+#
+# #591。チェックインにも実行時に broadcast を作る（旗の表 RAW_BROADCAST を読まない）。型は表のままなので型検査は緑で、実行時にだけ全員へ送る口ができる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1628-*.patch
+# 復元: git apply -R scripts/mutations/m1628-*.patch
+diff --git a/apps/tasuki-sync/src/adapters/ws/raw-tools.ts b/apps/tasuki-sync/src/adapters/ws/raw-tools.ts
+index da5963cb..70131b67 100644
+--- a/apps/tasuki-sync/src/adapters/ws/raw-tools.ts
++++ b/apps/tasuki-sync/src/adapters/ws/raw-tools.ts
+@@ -127,6 +127,6 @@ export function makeRawOutbound(
+   broadcast: (id: RawToolId) => (connIds: string[], data: never) => void,
+ ): RawOutbound {
+   return mapRawTools((id) =>
+-    RAW_BROADCAST[id] ? { send: send(id), broadcast: broadcast(id) } : { send: send(id) },
++    true ? { send: send(id), broadcast: broadcast(id) } : { send: send(id) },
+   ) as unknown as RawOutbound;
+ }

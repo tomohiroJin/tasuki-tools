@@ -9,6 +9,7 @@ import { connectionsIn, type HubServerMsg } from "@tasuki/room-core";
 import type { Room, ServerMsg } from "@tasuki/timer-core";
 import { buildRoster } from "../application/roster-dto.js";
 import { TOOL_ROULETTE, TOOL_TIMER } from "../application/tool-id.js";
+import type { RawToolOutbound } from "./ws/raw-tools.js";
 import type { Broadcaster } from "../ports/broadcaster.js";
 import type { HubBroadcaster } from "../ports/hub-broadcaster.js";
 import type { RoomStore } from "../ports/room-store.js";
@@ -17,8 +18,8 @@ import type { RoomStore } from "../ports/room-store.js";
 export interface TimerWsOutbound {
   send(connId: string, msg: ServerMsg): void;
   broadcast(connIds: string[], msg: ServerMsg): void;
-  sendHub(connId: string, msg: HubServerMsg): void;
-  broadcastHub(connIds: string[], msg: HubServerMsg): void;
+  /** ツールごとの送る口のうち、ハブのもの（`WsAdapter#to`）。 */
+  readonly to: { readonly hub: RawToolOutbound<"hub"> };
 }
 
 export interface TimerWsBroadcasterDeps {
@@ -87,12 +88,12 @@ export function createTimerWsBroadcaster(deps: TimerWsBroadcasterDeps): {
 
   const hubBroadcaster: HubBroadcaster = {
     sendTo(connId: string, msg: HubServerMsg): void {
-      deps.ws().sendHub(connId, msg);
+      deps.ws().to.hub.send(connId, msg);
     },
     broadcastRoster(roomCode: string): void {
       const room = deps.store.get(roomCode);
       if (!room) return;
-      deps.ws().broadcastHub(rosterRecipientsOf(roomCode), {
+      deps.ws().to.hub.broadcast(rosterRecipientsOf(roomCode), {
         type: "roster",
         room: buildRoster(room),
       });

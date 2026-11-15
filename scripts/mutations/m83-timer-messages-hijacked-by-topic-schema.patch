@@ -19,20 +19,19 @@
 # （timer 自身の ai.unlock コマンドの形が TopicCommandSchema の ai.unlock 分岐と
 # 一致するため、そちらへ奪われる）。ここでは #91 の契約に沿う最小のテストのみを登録する。
 diff --git a/apps/tasuki-sync/src/adapters/ws-adapter.ts b/apps/tasuki-sync/src/adapters/ws-adapter.ts
-index 174bd61..1029e75 100644
+index 37621b0a..1bb9f925 100644
 --- a/apps/tasuki-sync/src/adapters/ws-adapter.ts
 +++ b/apps/tasuki-sync/src/adapters/ws-adapter.ts
-@@ -65,7 +65,9 @@ import {
- import type { AgendaOwnFrame, AgendaServerMsg } from "../ports/agenda-server-msg.js";
- import type { CheckinOwnFrame, CheckinServerMsg } from "../ports/checkin-server-msg.js";
- import type { RouletteOwnFrame, RouletteServerMsg } from "../ports/roulette-server-msg.js";
- import type { TopicOwnFrame, TopicServerMsg } from "../ports/topic-server-msg.js";
+@@ -72,6 +72,8 @@ import {
+   type RawToolFrames,
+   type RawToolId,
+ } from "./ws/raw-tools.js";
 +import * as v from "valibot";
 +import { TopicCommandSchema } from "@tasuki/topic-core";
  
  export type { PokerMessageHandlers } from "./ws/tool-channel.js";
- 
-@@ -498,6 +500,18 @@ export class WsAdapter {
+ export type { RawHandlers, RawMessageHandler, RawToolId } from "./ws/raw-tools.js";
+@@ -477,6 +479,18 @@ export class WsAdapter {
      // ws 実装（Buffer.length）より制限が緩くなってしまう。
      const bytes = typeof raw === "string" ? Buffer.byteLength(raw) : raw.length;
  
@@ -40,7 +39,7 @@ index 174bd61..1029e75 100644
 +      try {
 +        const maybeJson: unknown = JSON.parse(raw.toString());
 +        if (v.is(TopicCommandSchema, maybeJson)) {
-+          void this.options.topic.handleMessage(ws.data.connId, raw.toString());
++          void this.options.raw.topic.handleMessage(ws.data.connId, raw.toString());
 +          return;
 +        }
 +      } catch {

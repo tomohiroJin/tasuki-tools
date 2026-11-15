@@ -1,0 +1,23 @@
+# 変異 1621: late-set-allows-overwrite
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/assembly-late.test.ts
+#
+# #591。前方参照へ 2 度目の値を入れられる。組み立ての誤りで先の値が黙って差し替わる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1621-*.patch
+# 復元: git apply -R scripts/mutations/m1621-*.patch
+diff --git a/apps/tasuki-sync/src/assembly/context.ts b/apps/tasuki-sync/src/assembly/context.ts
+index c419ffb5..739cb171 100644
+--- a/apps/tasuki-sync/src/assembly/context.ts
++++ b/apps/tasuki-sync/src/assembly/context.ts
+@@ -59,7 +59,7 @@ export function late<T>(name: string): Late<T> {
+       return slot.value;
+     },
+     set: (value) => {
+-      if (slot !== undefined) throw new LateReferenceError(`前方参照「${name}」へ 2 度、値を入れようとしました`);
++      if (false as boolean) throw new LateReferenceError(`前方参照「${name}」へ 2 度、値を入れようとしました`);
+       slot = { value };
+     },
+   };

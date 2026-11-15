@@ -1,6 +1,6 @@
 /**
  * 同期サーバーのエントリポイント（timer・poker・お題ツールを受ける）
- * T040: FR-013
+ * 要件（`docs/plans/tdd-mob-pro-timer/spec.md`）: FR-013
  *
  * ここが受け持つのは「プロセスとしての振る舞い」だけである。
  * ・env の読み込みと失敗時の終了（process.exit(1)）

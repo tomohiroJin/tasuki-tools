@@ -36,8 +36,12 @@ function setup() {
   const ws: TimerWsOutbound = {
     send: (connId, msg) => sent.push({ kind: "send", to: [connId], msg }),
     broadcast: (connIds, msg) => sent.push({ kind: "broadcast", to: connIds, msg }),
-    sendHub: (connId, msg) => sent.push({ kind: "sendHub", to: [connId], msg }),
-    broadcastHub: (connIds, msg) => sent.push({ kind: "broadcastHub", to: connIds, msg }),
+    to: {
+      hub: {
+        send: (connId, msg) => sent.push({ kind: "sendHub", to: [connId], msg }),
+        broadcast: (connIds, msg) => sent.push({ kind: "broadcastHub", to: connIds, msg }),
+      },
+    },
   };
   const rosterChanged: string[] = [];
   return {

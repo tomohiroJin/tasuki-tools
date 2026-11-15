@@ -11,6 +11,7 @@ import { DEFAULT_CAPACITY } from "@tasuki/rate-limit";
 import type { HubCommand, HubServerMsg } from "@tasuki/room-core";
 import type { CheckinView } from "@tasuki/checkin-core";
 import {
+  createRoom,
   LiveSetupError,
   startLiveSyncServer,
   type LiveCheckinClient,
@@ -388,5 +389,29 @@ describe("チェックインの接続の参加の総当たり", () => {
 
     // Then: B の最初の試行がいきなり枠切れになる
     expect((await codes(b, 1)).at(-1)).toBe("JOIN_RATE_LIMITED");
+  });
+});
+
+/**
+ * ルームが破棄されたあとは、チェックインの接続からの参加も ROOM_NOT_FOUND になる（m1625）。
+ *
+ * ここで見るのは**ルーム破棄の配線**（破棄の共通経路がチェックインの猶予・保管の解放まで通り、
+ * 名簿を消すところまで届くこと）である。破棄の途中で落ちると名簿が残り、参加できてしまう。
+ */
+describe("ルームが破棄されたあとのチェックインの接続", () => {
+  it("最後の 1 人が timer から抜けてルームが消えると、チェックインの接続の参加は ROOM_NOT_FOUND になる", async () => {
+    // Given: timer の入口で 1 人だけの部屋を作る
+    const solo = await server.connect("solo");
+    const created = await createRoom(solo, "ひとり");
+    // When: 自分自身を退出させる（在室者が 0 人になり、ルームが破棄される）
+    solo.send({ command: "participant.remove", participantId: created.participantId });
+    const left = await solo.take("error");
+    expect(left.code).toBe("LEFT_ROOM");
+    // Then
+    const checkin = await server.connectCheckin("c");
+    checkin.send({ command: "room.join", code: created.code, displayName: "あとから" });
+    const reply = await checkin.take((m) => m.type === "room.joined" || m.type === "error", "参加の応答");
+    if (reply.type !== "error") throw new Error("error ではない");
+    expect(reply.code).toBe("ROOM_NOT_FOUND");
   });
 });

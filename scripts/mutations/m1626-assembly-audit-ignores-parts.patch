@@ -1,0 +1,23 @@
+# 変異 1626: assembly-audit-ignores-parts
+#
+# 検出を期待するテスト:
+#   - scripts/audit-assembly-wiring.test.mjs
+#
+# #591。組の parts（分けた先）を読み飛ばす。分けた先が実在しなくても、組み立て関数が呼ばなくても緑になる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1626-*.patch
+# 復元: git apply -R scripts/mutations/m1626-*.patch
+diff --git a/scripts/audit-assembly-wiring.mjs b/scripts/audit-assembly-wiring.mjs
+index 9f3baee4..32fc0cb5 100644
+--- a/scripts/audit-assembly-wiring.mjs
++++ b/scripts/audit-assembly-wiring.mjs
+@@ -192,7 +192,7 @@ export function findAssemblyProblems(target, sources) {
+     problems.push(`組み立て関数のファイルがありません → ${assembler}（ADR-0004 決定 4）`);
+   }
+ 
+-  const { parts = [] } = target;
++  const parts = [];
+   const assemblerSource = sources.get(assembler);
+   for (const { file, fns } of parts) {
+     const partSource = sources.get(file);

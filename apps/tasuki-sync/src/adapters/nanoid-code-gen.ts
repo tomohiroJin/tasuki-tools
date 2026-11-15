@@ -1,6 +1,6 @@
 /**
  * NanoidCodeGen — nanoid を使ったルームコード生成
- * T032: FR-011
+ * 要件（`docs/plans/tdd-mob-pro-timer/spec.md`）: FR-011
  */
 
 import { nanoid, customAlphabet } from "nanoid";

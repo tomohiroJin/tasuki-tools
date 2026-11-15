@@ -7,15 +7,14 @@
 #       git apply scripts/mutations/m64-*.patch
 # 復元: git checkout -- <対象ファイル>
 #
-diff --git a/apps/timer-web/src/sync/use-timer-sync.ts b/apps/timer-web/src/sync/use-timer-sync.ts
-index 677c492..9995a0d 100644
---- a/apps/timer-web/src/sync/use-timer-sync.ts
-+++ b/apps/timer-web/src/sync/use-timer-sync.ts
-@@ -267,7 +267,6 @@ export function useTimerSync(banner: BannerController): TimerSync {
+diff --git a/apps/timer-web/src/sync/use-join-recovery.ts b/apps/timer-web/src/sync/use-join-recovery.ts
+--- a/apps/timer-web/src/sync/use-join-recovery.ts
++++ b/apps/timer-web/src/sync/use-join-recovery.ts
+@@ -97,7 +97,6 @@
+   const onJoined = () => {
      cancelJoinRetry();
      resetJoinRetry();
-     // 画面が決まった以上、答えを待つ期限はもう測らない（#292）。
 -    cancelJoinDeadline();
-     // `room` はこのハンドラを作ったレンダーの const なので、下で `setRoom(r)` しても
-     // このスコープ内では変わらない。値は「直前のレンダー時点の snapshot」である。
-     const prevRoom = room;
+   };
+ 
+   const abandon = () => {
