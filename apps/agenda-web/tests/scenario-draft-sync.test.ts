@@ -5,7 +5,7 @@
 import type { ScenarioInput } from '@tasuki/agenda-core';
 import { describe, expect, it } from 'vitest';
 import { draftFromInput, scenarioKey, type Draft } from '../src/scenario-draft';
-import { adoptRoom, afterDraftEdit, initDraftState, markSent, reconcileRoom } from '../src/scenario-draft-sync';
+import { adoptRoom, afterDraftEdit, initDraftState, isUntouchedCopy, markSent, reconcileRoom } from '../src/scenario-draft-sync';
 
 const step = (name: string, durationSec: number) => ({ name, durationSec, onTimeout: 'advance' as const });
 const scenario = (title: string, rounds?: number): ScenarioInput =>
@@ -92,5 +92,20 @@ describe('下書きとルームの付き合わせ', () => {
     const back = adoptRoom(changed, scenario('B'));
     expect(back.draft.title).toBe('B');
     expect(back.changed).toBe(false);
+  });
+});
+
+describe('手つかずの写しの判定', () => {
+  it('Given ルームの写しのままの下書き / When 鍵と比べる / Then 手つかずの写し', () => {
+    expect(isUntouchedCopy(draftFromInput(scenario('A')), scenarioKey(scenario('A')))).toBe(true);
+  });
+
+  it('Given 1 文字変えた下書き / When 鍵と比べる / Then 写しではない', () => {
+    expect(isUntouchedCopy(draftFromInput(scenario('A!')), scenarioKey(scenario('A')))).toBe(false);
+  });
+
+  it('Given 回数の欄を空にした下書き / When 回数 1 のルームの鍵と比べる / Then 鍵は同じでも写しではない（触った下書き）', () => {
+    const blank: Draft = { ...draftFromInput(scenario('A')), rounds: '' };
+    expect(isUntouchedCopy(blank, scenarioKey(scenario('A')))).toBe(false);
   });
 });

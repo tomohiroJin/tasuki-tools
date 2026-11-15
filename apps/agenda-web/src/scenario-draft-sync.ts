@@ -22,13 +22,20 @@ export function initDraftState(room: ScenarioInput): DraftState {
   return { draft: draftFromInput(room), roomKey: scenarioKey(room), changed: false, sentKey: null };
 }
 
+/**
+ * 下書きが、鍵 `roomKey` のルームのシナリオの手つかずの写しか。
+ * 回数の欄を空にした下書きは `rounds` キーを落とし、回数 1 のルームと同じ鍵になるので、読める回数があることも条件にする（触った下書きとして扱う）
+ */
+export function isUntouchedCopy(draft: Draft, roomKey: string): boolean {
+  return roundsOfDraft(draft) !== null && scenarioKey(inputFromDraft(draft)) === roomKey;
+}
+
 /** ルームのシナリオが変わっていたら、下書きとの付き合わせの結果を返す。変わっていなければ同じ状態をそのまま返す */
 export function reconcileRoom(state: DraftState, room: ScenarioInput): DraftState {
   const key = scenarioKey(room);
   if (state.roomKey === key) return state;
   const draftKey = scenarioKey(inputFromDraft(state.draft));
-  // 回数の欄を空にした下書きは `rounds` キーを落とし、回数 1 のルームと同じ鍵になる。触った下書きとして扱う
-  const untouched = isEmptyDraft(state.draft) || (roundsOfDraft(state.draft) !== null && draftKey === state.roomKey);
+  const untouched = isEmptyDraft(state.draft) || isUntouchedCopy(state.draft, state.roomKey);
   return untouched
     ? { ...state, draft: draftFromInput(room), roomKey: key, changed: false }
     : { ...state, roomKey: key, changed: key !== state.sentKey && draftKey !== key };

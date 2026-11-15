@@ -1,7 +1,14 @@
 import { useState } from 'react';
 import type { ScenarioInput } from '@tasuki/agenda-core';
 import type { Draft } from '../scenario-draft';
-import { adoptRoom, afterDraftEdit, initDraftState, markSent, reconcileRoom, type DraftState } from '../scenario-draft-sync';
+import {
+  adoptRoom as syncAdoptRoom,
+  afterDraftEdit,
+  initDraftState,
+  markSent as syncMarkSent,
+  reconcileRoom,
+  type DraftState,
+} from '../scenario-draft-sync';
 
 /**
  * 組む画面の下書き（state と、ルームのシナリオとの付き合わせ）。判断は `scenario-draft-sync.ts` の純粋関数に置き、
@@ -15,8 +22,10 @@ export function useScenarioDraft(room: ScenarioInput) {
   return {
     draft: current.draft,
     changed: current.changed,
+    /** 付き合わせ済みのルームのシナリオの鍵（描画ごとに 1 回だけ計算した値を使い回す） */
+    roomKey: current.roomKey,
     setDraft: (draft: Draft): void => setState((s) => afterDraftEdit(s, draft)),
-    adoptRoom: (): void => setState((s) => adoptRoom(s, room)),
-    markSent: (input: ScenarioInput): void => setState((s) => markSent(s, input)),
+    adoptRoom: (): void => setState((s) => syncAdoptRoom(s, room)),
+    markSent: (input: ScenarioInput): void => setState((s) => syncMarkSent(s, input)),
   };
 }

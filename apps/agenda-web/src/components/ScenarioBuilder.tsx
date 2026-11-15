@@ -20,6 +20,7 @@ import {
 } from '../copy';
 import { usePrefersReducedMotion } from '@tasuki/web-kit/room';
 import { useScenarioDraft } from '../hooks/use-scenario-draft';
+import { isUntouchedCopy } from '../scenario-draft-sync';
 import { useWallClock } from '../hooks/use-wall-clock';
 import { focusAfterAdd, focusAfterMove, focusAfterRemove, type FocusRequest } from '../step-focus';
 import {
@@ -30,7 +31,6 @@ import {
   checkDraft,
   clipTitle,
   draftFromInput,
-  inputFromDraft,
   inputFromView,
   isEmptyDraft,
   roundsInRange,
@@ -71,7 +71,7 @@ function actionReason(check: DraftCheck, hasSteps: boolean, sameAsRoom: boolean)
  */
 export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
   const room = inputFromView(view);
-  const { draft, changed, setDraft, adoptRoom, markSent } = useScenarioDraft(room);
+  const { draft, changed, roomKey, setDraft, adoptRoom, markSent } = useScenarioDraft(room);
   const wallNow = useWallClock();
   const reducedMotion = usePrefersReducedMotion();
   const reasonId = useId();
@@ -87,13 +87,13 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
   }, [focusRequest]);
 
   const check = checkDraft(draft, DEFAULT_ERROR_TEXT);
-  const sameAsRoom = check.ok && scenarioKey(check.input) === scenarioKey(room);
+  const sameAsRoom = check.ok && scenarioKey(check.input) === roomKey;
   const roomReady = view.steps.length > 0;
   const canLoad = canOperate && check.ok && !sameAsRoom;
   const canStart = canOperate && roomReady && sameAsRoom;
   const draftIsEmpty = isEmptyDraft(draft);
   // ルームのシナリオの写しのままの下書き（ルームが空なら写しではない）。消えても取り戻せるので確かめない
-  const draftIsRoom = roomReady && roundsOfDraft(draft) !== null && scenarioKey(inputFromDraft(draft)) === scenarioKey(room);
+  const draftIsRoom = roomReady && isUntouchedCopy(draft, roomKey);
   const preview = previewView(draft);
   const reason = actionReason(check, draft.steps.length > 0, sameAsRoom);
   const roundsNow = roundsOfDraft(draft);
