@@ -16,6 +16,9 @@ describe('消した後のフォーカス', () => {
   it('消した行の次の行の名前の欄へ', () => {
     expect(focusAfterRemove(draftOf(3), 0)).toEqual({ key: 101, target: 'name' });
   });
+  it('途中の行を消したら、前でなく次の行の名前の欄へ', () => {
+    expect(focusAfterRemove(draftOf(3), 1)).toEqual({ key: 102, target: 'name' });
+  });
   it('最後の行を消したら、前の行の名前の欄へ', () => {
     expect(focusAfterRemove(draftOf(3), 2)).toEqual({ key: 101, target: 'name' });
   });

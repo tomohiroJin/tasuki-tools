@@ -50,6 +50,15 @@ describe('下書きとルームの付き合わせ', () => {
     expect(next.draft.title).toBe('手元');
   });
 
+  it('Given 送った後に下書きをさらに変えた / When 送ったシナリオが返る / Then 下書きと違っても知らせは出ない（送った鍵だけを見逃す）', () => {
+    const base = initDraftState(scenario('A'));
+    const sent = markSent(afterDraftEdit(base, { ...base.draft, title: '送った' }), scenario('送った'));
+    const touched = afterDraftEdit(sent, { ...sent.draft, title: 'その後' });
+    expect(reconcileRoom(touched, scenario('送った')).changed).toBe(false);
+    // 他の人の置き換えなら知らせる
+    expect(reconcileRoom(touched, scenario('他人')).changed).toBe(true);
+  });
+
   it('Given 手元で変えた下書き / When ルームが下書きと同じになる / Then 知らせは出ない', () => {
     const base = initDraftState(scenario('A'));
     const edited = afterDraftEdit(base, { ...base.draft, title: 'C' });
