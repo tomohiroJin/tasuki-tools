@@ -1,5 +1,7 @@
 # #596 補遺: 前提 9 件の移し先と `as T`（main の 23 件）・`!` 17 件の仕分け
 
+> マージ後の節は書き換えない。後から分かったことは末尾の補遺の節に書き、置き換えた古い節の末尾に改定の印を足す（`docs/guides/design-doc-revision.md`）。
+
 [`2026-11-13-architecture-review-survey.md`](2026-11-13-architecture-review-survey.md) の節 4.2・4.4 の補遺である（#482-7）。
 測ったのは `2026-11-13-architecture-review-survey/c-contracts.mjs`（直す前と後で同じスクリプトを流した）。
 **ガードを足して振る舞いを変えていない**（ISSUE #596 のとおり）。未検証だった 1 件は型で要らなくした（C は 0 件）。
