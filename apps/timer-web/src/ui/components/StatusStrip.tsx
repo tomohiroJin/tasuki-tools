@@ -11,7 +11,10 @@ import React from "react";
 import { NotifySettings } from "./NotifySettings.js";
 import type { AppMode } from "../../sync/use-timer-sync.js";
 
-export type StatusStripState = "connecting" | "online" | "reconnecting" | "lost" | "stale";
+import type { StatusStripState } from "../connection-status.js";
+
+// 型の正本は connection-status.ts（純粋判断。層の向きのため #592）。既存の import 先を変えないよう再 export する
+export type { StatusStripState };
 
 interface StatusStripProps {
   /**

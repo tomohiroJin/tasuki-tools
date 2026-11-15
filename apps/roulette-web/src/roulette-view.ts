@@ -33,8 +33,9 @@ import {
 } from './copy';
 import type { PickSpot } from './wheel-motion';
 import type { WheelSeats } from './wheel-view';
-// 接続状態の型の正本は `@tasuki/sync-client`（#369）。型だけを取る（実行時には同期クライアントを読まない）。
-import type { ConnectionStatus } from '@tasuki/sync-client';
+// 接続状態の綴り。正本は `@tasuki/sync-client` の `ConnectionStatus`（#369）だが、純粋判断は同期クライアントを読まない（層の向き・#592）。
+// 同期フックが sync-client の値をそのまま渡すので、綴りがずれると呼び出し側が型で落ちる。
+type ConnectionStatus = 'connecting' | 'open' | 'closed';
 
 
 /**

@@ -49,7 +49,7 @@ import type { AppMode } from "./app-mode.js";
 import { useLatestRef } from "../ui/use-latest-ref.js";
 import type { BannerController } from "../ui/use-banner.js";
 import type { ClientConnState } from "../ui/connection-status.js";
-import type { EndType } from "../ui/Summary.js";
+import type { EndType } from "../records/end-type.js";
 import { saveRecord } from "../records/indexeddb.js";
 import { persistRecordIfComplete } from "../records/persist.js";
 import { displayMessageFor } from "@tasuki/timer-core";

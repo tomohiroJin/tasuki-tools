@@ -27,7 +27,7 @@
 
 import type { CompletionRecord, Room } from "@tasuki/timer-core";
 import { screenForPhase, type Screen } from "../ui/screen.js";
-import type { EndType } from "../ui/Summary.js";
+import type { EndType } from "../records/end-type.js";
 import type { ResumeIdentity } from "@tasuki/sync-client";
 
 export type SnapshotIntent =

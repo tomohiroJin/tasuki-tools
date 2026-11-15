@@ -350,9 +350,9 @@ export function sc039bUnusedPublicData(packageSrcFiles, productSources) {
  * これは以後どの検査も見ない（ADR-0016 が④で受け入れたのと同じ受容。型の妥当性は
  * レビューが見る）。
  *
- * ⚠ **「index に載らないから外へは出ない」とは言えない。** `packages/timer-core` は
- * `exports` マップを持たず、app 側の `tsconfig` が `@tasuki/timer-core/*` を
- * ワイルドカードで通すため、**index に載っていないモジュールの `export type` も
+ * ⚠ **「index に載らないから外へは出ない」とは言えない。** `packages/timer-core` の `exports` マップ
+ * （#592 で宣言）は、`index.ts` のほかにサブパス入口（`aggregate` など）を列挙しており、app 側の `tsconfig` が
+ * `@tasuki/timer-core/*` をワイルドカードで通すため、**index に載っていないモジュールの `export type` も
  * サブパスで名前ごと取り込める**（#220 で配線を確かめた）。受容の根拠は
  * 「外へ出ないこと」ではなく、**型の妥当性はレビューが見る**という④と同じ割り切りである。
  *

@@ -7,16 +7,16 @@
  */
 import type { LogSafe } from "../../application/log/log-safe.js";
 import { CONN_REJECT_REASONS } from "../../application/log/vocabulary.js";
-import { isKnownToolId, type KnownToolId } from "../../application/tool-id.js";
+import { isKnownToolId, type AcceptedProtocol } from "../../application/tool-id.js";
 
 /**
  * 接続層の選択子。`tool-id.ts` の一覧にある道具に、`"hub"`（宣言なし）と `"unknown"`（許可リストに無い）を
  * 足したもの。{@link protocolFromRequestUrl} の docstring を参照。
  */
-export type Protocol = KnownToolId | "hub" | "unknown";
+export type Protocol = AcceptedProtocol | "unknown";
 
-/** 受け口の表の鍵になる、受理するプロトコル（`unknown` を除く）。 */
-export type AcceptedProtocol = Exclude<Protocol, "unknown">;
+/** 受け口の表の鍵になる、受理するプロトコル（`unknown` を除く）。正本は `application/tool-id.ts`（層の向きのため #592）。 */
+export type { AcceptedProtocol };
 
 /** 接続 URL のクエリでツールを宣言するキー（`/ws?tool=poker`）。 */
 const TOOL_QUERY_KEY = "tool";

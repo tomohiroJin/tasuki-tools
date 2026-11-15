@@ -8,10 +8,9 @@
  * `connectionNoticeKind`（`@tasuki/sync-client`）と同じ形である。配線は `tests/room-page-join-retry.test.tsx` が見る。
  *
  * 待ち時間そのものは `@tasuki/sync-client` の `joinRetryDelayMs` が決める
- * （#95 S5b で写しをやめ、ハブ・timer と同じ 1 つになった）。
+ * （#95 S5b で写しをやめ、ハブ・timer と同じ 1 つになった）。**その呼び出しは同期フック側の
+ * `hooks/plan-join-retry.ts`**（純粋判断は同期クライアントを読まない・#592）。ここは待ち時間が出たあとの分岐だけを持つ。
  */
-import { joinRetryDelayMs } from '@tasuki/sync-client';
-
 /** 入り直せるときの案内。 */
 export const RETRY_WAITING_TEXT = '混み合っています。自動で入り直しています…';
 /**
@@ -35,19 +34,13 @@ export type JoinRetryPlan =
   | { kind: 'give-up'; notice: string };
 
 /**
- * 次の一手を決める。
+ * 待ち時間が決まったあとの一手を決める。
  *
- * @param previousAttempts これまでに試した回数（0 起点）
+ * @param attempt これから数える試行の番号（1 起点）
+ * @param delayMs 待ち時間。使い切った（もう試さない）ときは null
  * @param canRejoin 入り直すのに要る名前を持っているか
- * @param random 0 以上 1 未満を返す関数。テストから固定できるよう引数で受ける
  */
-export function planJoinRetry(
-  previousAttempts: number,
-  canRejoin: boolean,
-  random?: () => number,
-): JoinRetryPlan {
-  const attempt = previousAttempts + 1;
-  const delayMs = joinRetryDelayMs(attempt, random);
+export function decideJoinRetry(attempt: number, delayMs: number | null, canRejoin: boolean): JoinRetryPlan {
   // 使い切ったら諦める。**際限なく送り続けると、混雑が解消しない状況で
   // バケツを消費し続けて自分たちを締め出す。**
   if (delayMs === null) return { kind: 'give-up', notice: RETRY_EXHAUSTED_TEXT };
