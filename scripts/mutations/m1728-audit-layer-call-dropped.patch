@@ -1,0 +1,18 @@
+# 変異 1728: audit-layer-call-dropped
+#
+# #592。監査が層の判定を呼ばない（戻した辺が素通りする）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1728-*.patch
+
+--- a/scripts/audit-dependency-direction.mjs
++++ b/scripts/audit-dependency-direction.mjs
+@@ -493,7 +493,7 @@ function main() {
+   const violations = findViolations(observed);
+ 
+   // 層の向きと入口外の参照（#592・`docs/adr/0015` の追記の許可表）。package 間の向きとは別の観点で、同じ走査対象から導く
+-  const layerViolations = observeLayers(packages, sources);
++  const layerViolations = [];
+ 
+   if (violations.length === 0 && layerViolations.length === 0) {
+     console.log("依存の向き OK（表に無い @tasuki/* の依存は 0 件・層の向きの違反は 0 件）");

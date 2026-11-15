@@ -1,0 +1,18 @@
+# 変異 1725: layer-deep-import-unchecked
+#
+# #592。exports に無い入口の参照（A5）を見ない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1725-*.patch
+
+--- a/scripts/lib/layer-direction.mjs
++++ b/scripts/lib/layer-direction.mjs
+@@ -170,7 +170,7 @@ export function findLayerViolations(files, ctx) {
+         if (dir === undefined) continue;
+         const sub = m[2] ? `.${m[2]}` : ".";
+         const entries = ctx.exportsOf.get(dir);
+-        if (entries !== undefined && !entries.has(sub)) {
++        if (false) {
+           violations.push({ rule: "deep-import", file, line, to: spec, fromLayer, toLayer: null });
+           continue;
+         }

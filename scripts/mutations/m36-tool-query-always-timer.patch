@@ -1,15 +1,15 @@
 # 変異 36: 接続 URL の ?tool= を無視して常に timer の層へ流す
-# #590 で一覧から導く形に作り直した。
+# #590 で一覧から導く形に作り直した。#592 で AcceptedProtocol を tool-id.ts へ移したのに合わせて作り直した。
 diff --git a/apps/tasuki-sync/src/adapters/ws/connection-gate.ts b/apps/tasuki-sync/src/adapters/ws/connection-gate.ts
-index 556ac170..a80b61fd 100644
+index 2863a258..2c525c9d 100644
 --- a/apps/tasuki-sync/src/adapters/ws/connection-gate.ts
 +++ b/apps/tasuki-sync/src/adapters/ws/connection-gate.ts
 @@ -7,7 +7,7 @@
   */
  import type { LogSafe } from "../../application/log/log-safe.js";
  import { CONN_REJECT_REASONS } from "../../application/log/vocabulary.js";
--import { isKnownToolId, type KnownToolId } from "../../application/tool-id.js";
-+import { isKnownToolId, TOOL_TIMER, type KnownToolId } from "../../application/tool-id.js";
+-import { isKnownToolId, type AcceptedProtocol } from "../../application/tool-id.js";
++import { isKnownToolId, TOOL_TIMER, type AcceptedProtocol } from "../../application/tool-id.js";
  
  /**
   * 接続層の選択子。`tool-id.ts` の一覧にある道具に、`"hub"`（宣言なし）と `"unknown"`（許可リストに無い）を

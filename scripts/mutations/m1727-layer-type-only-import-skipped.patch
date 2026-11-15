@@ -1,0 +1,18 @@
+# 変異 1727: layer-type-only-import-skipped
+#
+# #592。`import type` を辺として読まない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1727-*.patch
+
+--- a/scripts/lib/layer-direction.mjs
++++ b/scripts/lib/layer-direction.mjs
+@@ -114,7 +114,7 @@ function stripComments(text) {
+   t = t.replace(/(^|[^:"'`\\])\/\/[^\n]*/g, (m, p) => p + " ".repeat(m.length - p.length));
+   return t;
+ }
+-const STMT = /(?:^|[;\n}])\s*(import|export)\s+(type\s+)?((?:[\w$*\s,]|\{[^}]*\})*?)\s*from\s*["']([^"'\n]+)["']/g;
++const STMT = /(?:^|[;\n}])\s*(import|export)\s+(?!type\s)((?:[\w$*\s,]|\{[^}]*\})*?)\s*from\s*["']([^"'\n]+)["']/g;
+ const SIDE = /(?:^|[;\n}])\s*import\s*["']([^"'\n]+)["']/g;
+ const DYN = /\bimport\s*\(\s*["']([^"'\n]+)["']\s*\)/g;
+ 

@@ -1,0 +1,18 @@
+# 変異 1724: layer-pure-may-read-io
+#
+# #592。純粋判断が端末 I/O の層を読む辺（roulette-web の regulars）を許す。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1724-*.patch
+
+--- a/scripts/lib/layer-direction.mjs
++++ b/scripts/lib/layer-direction.mjs
+@@ -54,7 +54,7 @@ export const WEB_IO_FILES = new Set([
+  * `web-kit/{sync,room,reader,other}`・`web/*`・`sync/*`。
+  */
+ export const LAYER_ALLOWED = {
+-  "web/pure": ["domain", "protocol"],
++  "web/pure": ["domain", "protocol", "web/io"],
+   "web/io": ["domain", "web/pure"],
+   "web/hook": ["domain", "protocol", "web/pure", "web/io", "sync-client", "web-kit/sync", "web-kit/room", "web-kit/reader", "markdown", "invite-ui"],
+   "web/screen": ["domain", "web/hook", "web/pure", "web/io", "web-kit/reader", "web-kit/room", "invite-ui", "ui"],

@@ -1,0 +1,17 @@
+# 変異 1730: poker-join-retry-attempt-not-incremented
+#
+# #592。混雑の入り直しの試行番号が進まない（待ち時間が毎回 1 回目のまま・使い切りに届かない）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1730-*.patch
+
+--- a/apps/poker-web/src/hooks/plan-join-retry.ts
++++ b/apps/poker-web/src/hooks/plan-join-retry.ts
+@@ -18,6 +18,6 @@ export function planJoinRetry(
+   canRejoin: boolean,
+   random?: () => number,
+ ): JoinRetryPlan {
+-  const attempt = previousAttempts + 1;
++  const attempt = previousAttempts;
+   return decideJoinRetry(attempt, joinRetryDelayMs(attempt, random), canRejoin);
+ }

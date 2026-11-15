@@ -1,0 +1,18 @@
+# 変異 1726: layer-screen-may-read-sync-client
+#
+# #592。画面が同期クライアントを直接読む辺を許す。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1726-*.patch
+
+--- a/scripts/lib/layer-direction.mjs
++++ b/scripts/lib/layer-direction.mjs
+@@ -57,7 +57,7 @@ export const LAYER_ALLOWED = {
+   "web/pure": ["domain", "protocol"],
+   "web/io": ["domain", "web/pure"],
+   "web/hook": ["domain", "protocol", "web/pure", "web/io", "sync-client", "web-kit/sync", "web-kit/room", "web-kit/reader", "markdown", "invite-ui"],
+-  "web/screen": ["domain", "web/hook", "web/pure", "web/io", "web-kit/reader", "web-kit/room", "invite-ui", "ui"],
++  "web/screen": ["domain", "sync-client", "web/hook", "web/pure", "web/io", "web-kit/reader", "web-kit/room", "invite-ui", "ui"],
+   "sync/ports": ["domain"],
+   "sync/application": ["domain", "protocol", "sync/ports", "rate-limit"],
+   "sync/adapters": ["domain", "protocol", "sync/ports", "sync/application", "rate-limit"],

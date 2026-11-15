@@ -227,6 +227,9 @@ const RESERVED_1640_1659 =
 const RESERVED_1660_1679 =
   "**対応表より後に足した変異。** 1660〜1679 は #595（#482-6）に割り当てた範囲。";
 
+const RESERVED_1720_1739 =
+  "**対応表より後に足した変異。** 1720〜1739 は #592（層の逆流を直す・web 層の向きの監査）に割り当てた範囲。";
+
 const RESERVED_1420_1429 =
   "**対応表より後に足した変異。** 1420〜1429 は #557 に追加で割り当てた範囲（1120〜1129・1410〜1419 を使い切ったため。PR #580 のレビューの指摘で足した）。";
 
@@ -9472,7 +9475,7 @@ export const MUTATIONS = [
   },
   {
     id: 1641,
-    label: "ROTI の顔が数字でなく絵になる（数のやり方の正本 CARD_FACES の kind がずれる）",
+    label: "ROTI の顔の種類が数字でなく絵になる（数のやり方の正本 FACE_KINDS がずれる）",
     patch: "m1641-roti-face-not-numeral.patch",
     pkg: "apps/checkin-web",
     tests: ["tests/card-face.test.tsx", "tests/reveal-view.test.ts"],
@@ -9509,5 +9512,101 @@ export const MUTATIONS = [
     pkg: "apps/timer-web",
     tests: ["test/sync/use-timer-sync.test.tsx"],
     note: RESERVED_1660_1679 + " " + "#595 のレビュー。受け皿 clearCompletion の配線を突く。",
+  },
+  {
+    id: 1720,
+    label: "純粋判断の許可に画面を足し、純粋判断が画面（.tsx）の型を読む辺を許す",
+    patch: "m1720-layer-pure-may-read-screen.patch",
+    pkg: "scripts",
+    tests: ["lib/layer-direction.test.mjs"],
+    note: RESERVED_1720_1739 + " " + "#592。純粋判断→画面の逆流（EndType・StatusStripState 型）が緑のまま戻る。",
+  },
+  {
+    id: 1721,
+    label: "同期フックの許可に画面を足し、同期フックが画面を読む辺を許す",
+    patch: "m1721-layer-hook-may-read-screen.patch",
+    pkg: "scripts",
+    tests: ["lib/layer-direction.test.mjs"],
+    note: RESERVED_1720_1739 + " " + "#592。同期フック→画面の逆流（EndType 型）が緑のまま戻る。",
+  },
+  {
+    id: 1722,
+    label: "純粋判断の許可に同期クライアントを足し、値でも型でも読む辺を許す",
+    patch: "m1722-layer-pure-may-read-sync-client.patch",
+    pkg: "scripts",
+    tests: ["lib/layer-direction.test.mjs"],
+    note: RESERVED_1720_1739 + " " + "#592。純粋判断が同期クライアントに依存し、層が崩れる（poker・roulette・topic）。",
+  },
+  {
+    id: 1723,
+    label: "application の許可に adapters を足し、application が adapters を読む辺を許す",
+    patch: "m1723-layer-application-may-read-adapters.patch",
+    pkg: "scripts",
+    tests: ["lib/layer-direction.test.mjs"],
+    note: RESERVED_1720_1739 + " " + "#592。同期サーバーの内側が外側の型を読む逆流が戻る（AcceptedProtocol）。",
+  },
+  {
+    id: 1724,
+    label: "純粋判断の許可に端末 I/O の層を足し、純粋判断が localStorage に触るファイルを読む辺を許す",
+    patch: "m1724-layer-pure-may-read-io.patch",
+    pkg: "scripts",
+    tests: ["lib/layer-direction.test.mjs"],
+    note: RESERVED_1720_1739 + " " + "#592。純粋判断が端末 I/O のファイルを読み、テストが保存の環境を要る形に戻る（roulette-web の regulars）。",
+  },
+  {
+    id: 1725,
+    label: "exports に無い入口（サブパス）の参照を見ない",
+    patch: "m1725-layer-deep-import-unchecked.patch",
+    pkg: "scripts",
+    tests: ["lib/layer-direction.test.mjs"],
+    note: RESERVED_1720_1739 + " " + "#592。timer-core の入口外の参照（aggregate 以外の内部ファイル）が緑のまま増える。",
+  },
+  {
+    id: 1726,
+    label: "画面の許可に同期クライアントを足し、画面が同期クライアントを直接読む辺を許す",
+    patch: "m1726-layer-screen-may-read-sync-client.patch",
+    pkg: "scripts",
+    tests: ["lib/layer-direction.test.mjs"],
+    note: RESERVED_1720_1739 + " " + "#592。画面が同期の接続を直接触り、同期フックを迂回する。",
+  },
+  {
+    id: 1727,
+    label: "import type（型だけの import）を辺として読まない",
+    patch: "m1727-layer-type-only-import-skipped.patch",
+    pkg: "scripts",
+    tests: ["lib/layer-direction.test.mjs"],
+    note: RESERVED_1720_1739 + " " + "#592。型の逆流（A1・A2・A4 の大半が型）が検査をすり抜ける。",
+  },
+  {
+    id: 1728,
+    label: "監査が層の判定を呼ばない（結果を空にする）",
+    patch: "m1728-audit-layer-call-dropped.patch",
+    pkg: "scripts",
+    tests: ["wiring-audit-dependency-direction.test.mjs"],
+    note: RESERVED_1720_1739 + " " + "#592。層の判定が定義だけ残って監査から外れ、戻した辺が緑のまま通る。",
+  },
+  {
+    id: 1729,
+    label: "端末 I/O の宣言が実在しないファイルを指す陳腐化を見ない",
+    patch: "m1729-audit-stale-io-unchecked.patch",
+    pkg: "scripts",
+    tests: ["wiring-audit-dependency-direction.test.mjs"],
+    note: RESERVED_1720_1739 + " " + "#592。改名・削除で宣言だけが残り、そのファイルが純粋判断として裁かれ続ける（または検査が黙って弱まる）。",
+  },
+  {
+    id: 1730,
+    label: "混雑の入り直しの試行番号が進まない",
+    patch: "m1730-poker-join-retry-attempt-not-incremented.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/join-retry-plan.test.ts"],
+    note: RESERVED_1720_1739 + " " + "#592。待ち時間が毎回 1 回目のままになり、使い切りに届かず入り直し続けて混雑を悪化させる。",
+  },
+  {
+    id: 1731,
+    label: "試行を使い切っても諦めない（null を判定しない）",
+    patch: "m1731-poker-join-retry-gives-up-never.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/join-retry-plan.test.ts"],
+    note: RESERVED_1720_1739 + " " + "#592。混雑が続いても入り直しを止めず、自分たちを締め出す。",
   },
 ];

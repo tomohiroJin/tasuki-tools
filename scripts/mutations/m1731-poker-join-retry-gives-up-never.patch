@@ -1,0 +1,18 @@
+# 変異 1731: poker-join-retry-gives-up-never
+#
+# #592。試行を使い切っても諦めず、待ち時間 null で待つ案内を返す。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1731-*.patch
+
+--- a/apps/poker-web/src/join-retry-plan.ts
++++ b/apps/poker-web/src/join-retry-plan.ts
+@@ -43,7 +43,7 @@ export type JoinRetryPlan =
+ export function decideJoinRetry(attempt: number, delayMs: number | null, canRejoin: boolean): JoinRetryPlan {
+   // 使い切ったら諦める。**際限なく送り続けると、混雑が解消しない状況で
+   // バケツを消費し続けて自分たちを締め出す。**
+-  if (delayMs === null) return { kind: 'give-up', notice: RETRY_EXHAUSTED_TEXT };
++  if (delayMs === undefined) return { kind: 'give-up', notice: RETRY_EXHAUSTED_TEXT };
+   return {
+     kind: 'wait',
+     attempt,
