@@ -9632,5 +9632,12 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["audit-domain-side-effects.test.mjs"],
     note: RESERVED_1760_1779 + " " + "#596。ファイルの改名・削除で例外が宙に浮いたまま残り、許す根拠が無い宣言が緑で残る。",
+  },  {
+    id: 1775,
+    label: "進行タイマーの期限の解除が、予約したハンドルを TimerPort.clear へ返さない（待ちが残る）",
+    patch: "m1775-agenda-deadline-clear-keeps-timer.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/agenda-deadlines.test.ts"],
+    note: RESERVED_1760_1779 + " " + "#596。TimerPort は set が返したハンドルをそのまま clear が受ける。返さないと解除したはずの期限が後で発火する。",
   },
 ];
