@@ -151,12 +151,13 @@ describe("単純でない形は、変更の有無にかかわらず全部聞く�
   });
 
   test("/code-review・3 回目のレビュー: ^ で始まる 1 語（zsh の extendedglob の否定）は、git status が当たらないので確かめず、変更の有無にかかわらず聞く。~ を含む rev（HEAD~1）は今までどおり", async () => {
-    for (const c of ["git checkout ^b.ts", "git checkout ^src"]) {
+    // 自動のセキュリティレビュー: 途中の ^（src/^b.ts）・rev の接尾辞でない ~（a.ts~zz・*.ts~b.ts）も
+    for (const c of ["git checkout ^b.ts", "git checkout ^src", "git checkout src/^b.ts", "git checkout a.ts~zz", "git checkout '*.ts~b.ts'"]) {
       const r = await decide(c, { dirty: "no" });
       assert.equal(r.ask, true, c);
       assert.deepEqual(r.calls, [], c);
     }
-    for (const c of ["git checkout HEAD~1", "git checkout HEAD^", "git checkout main"]) {
+    for (const c of ["git checkout HEAD~1", "git checkout HEAD^", "git checkout main", "git checkout HEAD~2^", "git checkout origin/main~3", "git checkout main^2"]) {
       assert.equal((await decide(c, { dirty: "yes" })).ask, false, c);
     }
   });

@@ -55,6 +55,9 @@ const NON_DISCARDING_SUBS = new Set([
 /** `:` で始まる魔法の pathspec（`:/a.ts`・`:(icase)A.TS`）。枝の名前は `:` で始まれない（#612 の再レビュー）。 */
 const isMagicPathspec = (w) => w.startsWith(":");
 
+/** rev の接尾辞の形（`~`・`^` を含まない名前の後ろに `~<数>`・`^<数>` が 1 つ以上）。`HEAD~1`・`main^`・`origin/main~3`・`HEAD~2^`。 */
+const REV_SUFFIX = /^[^~^]+(?:[~^]\d*)+$/;
+
 const hasShort = (w, c) => /^-[A-Za-z]+$/.test(w) && w.includes(c);
 
 /**
@@ -78,9 +81,10 @@ function classify({ sub, rest }, exists) {
     // `git checkout --detach [<rev>]`: HEAD を切り離すだけ。枝の切り替えと同じく、git 自身が上書きを拒む（#612）
     if (words[0] === "--detach" && words.length <= 2 && words.slice(1).every((w) => !w.startsWith("-"))) return SAFE;
     if (words.length === 1 && (words[0] === "-" || !words[0].startsWith("-"))) {
-      // `^` で始まる語は、zsh の extendedglob では否定（その名前以外の全部）に展開される。git の pathspec の字ではないので
-      // git status で確かめても当たらない。枝の名前は `^` で始まれないので、確かめずに聞く（#612 の 3 回目のレビュー）
-      if (words[0].startsWith("^")) return UNKNOWN_FORM;
+      // `^`・`~` は zsh の extendedglob では否定・除外（`^b.ts`・`src/^b.ts`・`*.ts~b.ts`）に展開される。git の pathspec の字ではないので
+      // git status で確かめても当たらない。rev の接尾辞の形（`HEAD~1`・`main^`・`HEAD~2^`）だけを今までどおり扱い、ほかは確かめずに聞く
+      // （#612 の 3 回目のレビュー・自動のセキュリティレビュー）
+      if (/[~^]/.test(words[0]) && !REV_SUFFIX.test(words[0])) return UNKNOWN_FORM;
       // グロブ（`*`・`?`・`[`）を含む語は、文字どおりには実在しなくてもシェルや git が実在するパスへ展開しうるので、
       // 枝とみなさずパスとして確かめる（#612 の敵対的レビュー）。git の pathspec も同じ字をグロブとして読むので、git status が当たる
       return words[0] !== "-" && (/[*?[]/.test(words[0]) || isMagicPathspec(words[0]) || exists(words[0])) ? { verdict: "check", target: { kind: "paths", paths: words, scope: "worktree" } } : SAFE;
