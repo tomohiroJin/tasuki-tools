@@ -13,7 +13,7 @@ const scenario = (title: string, rounds?: number): ScenarioInput =>
 const EMPTY: ScenarioInput = { title: '', steps: [] };
 
 describe('下書きとルームの付き合わせ', () => {
-  it('同じ鍵なら状態をそのまま返す（何も変えない）', () => {
+  it('Given ルームが変わっていない / When 付き合わせる / Then 状態をそのまま返す（何も変えない）', () => {
     const state = initDraftState(scenario('A'));
     expect(reconcileRoom(state, scenario('A'))).toBe(state);
   });
@@ -85,7 +85,7 @@ describe('下書きとルームの付き合わせ', () => {
     expect(afterDraftEdit(changed, draftFromInput(scenario('B'))).changed).toBe(false);
   });
 
-  it('「ルームのに戻す」は下書きをルームのものにして知らせを下ろす', () => {
+  it('Given 知らせが出ている / When 「ルームのシナリオに戻す」 / Then 下書きはルームのものになり知らせが下りる', () => {
     const base = initDraftState(scenario('A'));
     const edited = afterDraftEdit(base, { ...base.draft, title: '手元' });
     const changed = reconcileRoom(edited, scenario('B'));

@@ -1,0 +1,22 @@
+# 変異 1808: hook-set-draft-skips-notice-clear
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/scenario-builder.test.tsx
+#
+# #595。use-scenario-draft の setDraft が afterDraftEdit を通さない（配線）。下書きをルームと同じに直しても知らせが下りない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1808-*.patch
+diff --git a/apps/agenda-web/src/hooks/use-scenario-draft.ts b/apps/agenda-web/src/hooks/use-scenario-draft.ts
+index 695d2186..ff6f93f0 100644
+--- a/apps/agenda-web/src/hooks/use-scenario-draft.ts
++++ b/apps/agenda-web/src/hooks/use-scenario-draft.ts
+@@ -15,7 +15,7 @@ export function useScenarioDraft(room: ScenarioInput) {
+   return {
+     draft: current.draft,
+     changed: current.changed,
+-    setDraft: (draft: Draft): void => setState((s) => afterDraftEdit(s, draft)),
++    setDraft: (draft: Draft): void => setState((s) => ({ ...s, draft })),
+     adoptRoom: (): void => setState((s) => adoptRoom(s, room)),
+     markSent: (input: ScenarioInput): void => setState((s) => markSent(s, input)),
+   };

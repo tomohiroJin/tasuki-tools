@@ -1,0 +1,22 @@
+# 変異 1807: hook-skips-catching-up-state
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/scenario-builder.test.tsx
+#
+# #595。use-scenario-draft が付き合わせの結果を state へ書き戻さない（配線）。追いついた下書きを手元で編集すると「シナリオが変わりました」が出る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1807-*.patch
+diff --git a/apps/agenda-web/src/hooks/use-scenario-draft.ts b/apps/agenda-web/src/hooks/use-scenario-draft.ts
+index 695d2186..a204abd8 100644
+--- a/apps/agenda-web/src/hooks/use-scenario-draft.ts
++++ b/apps/agenda-web/src/hooks/use-scenario-draft.ts
+@@ -11,7 +11,7 @@ export function useScenarioDraft(room: ScenarioInput) {
+   const [state, setState] = useState<DraftState>(() => initDraftState(room));
+   // 描画の途中で前の値と比べて直す（React の「props の変化で state を調整する」型。effect を挟むと 1 枚古い画面が出る）
+   const current = reconcileRoom(state, room);
+-  if (current !== state) setState(current);
++  //ZZ
+   return {
+     draft: current.draft,
+     changed: current.changed,

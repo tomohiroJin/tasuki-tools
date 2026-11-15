@@ -9569,4 +9569,28 @@ export const MUTATIONS = [
     tests: ["tests/scenario-builder.test.tsx"],
     note: RESERVED_1800_1819 + " " + "#595。純粋関数（1801）ではなく ScenarioBuilder からフックへの配線を突く。",
   },
+  {
+    id: 1807,
+    label: "useScenarioDraft が付き合わせの結果（追いついた下書き）を state へ書き戻さない",
+    patch: "m1807-hook-skips-catching-up-state.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/scenario-builder.test.tsx"],
+    note: RESERVED_1800_1819 + " " + "#595 のレビュー。フックの配線。追いついた後に手元で編集すると、ルームが変わっていないのに「シナリオが変わりました」が出る。",
+  },
+  {
+    id: 1808,
+    label: "useScenarioDraft の setDraft が afterDraftEdit を通さず、知らせを下ろさない",
+    patch: "m1808-hook-set-draft-skips-notice-clear.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/scenario-builder.test.tsx"],
+    note: RESERVED_1800_1819 + " " + "#595 のレビュー。フックの配線（1802 の純粋関数側に対する組み合わせ側）。",
+  },
+  {
+    id: 1809,
+    label: "useScenarioDraft の adoptRoom が下書きをルームのシナリオへ戻さない",
+    patch: "m1809-hook-adopt-room-keeps-draft.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/scenario-builder.test.tsx"],
+    note: RESERVED_1800_1819 + " " + "#595 のレビュー。フックの配線。「ルームのシナリオに戻す」が効かない。",
+  },
 ];
