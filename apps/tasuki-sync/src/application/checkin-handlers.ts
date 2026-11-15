@@ -55,20 +55,20 @@ const CheckinConnectionMessageSchema = v.union([HubCommandSchema, CheckinCommand
  */
 export const CHECKIN_DISCONNECT_REVEAL_GRACE_MS = 10 * 1000;
 
-export interface CheckinHandlerDeps extends JoinRoomDeps, SaveRosterDeps {
+export interface CheckinHandlerDeps<H = unknown> extends JoinRoomDeps, SaveRosterDeps {
   checkins: CheckinStore;
   broadcaster: CheckinBroadcaster;
   send: (connId: string, msg: CheckinServerMsg) => void;
   random: Pick<RandomSource, "randomInt">;
   /** 猶予のタイマー。既定は setTimeout。試験は偽物を渡して時間を手で進める */
-  graceTimer?: TimerPort | undefined;
+  graceTimer?: TimerPort<H> | undefined;
   /** 猶予の長さ。既定は {@link CHECKIN_DISCONNECT_REVEAL_GRACE_MS}。実 WS の試験が設定で縮める */
   disconnectRevealGraceMs?: number | undefined;
 }
 
-const DEFAULT_GRACE_TIMER: TimerPort = {
+const DEFAULT_GRACE_TIMER: TimerPort<ReturnType<typeof setTimeout>> = {
   set: (fn, ms) => setTimeout(fn, ms),
-  clear: (h) => clearTimeout(h as ReturnType<typeof setTimeout>),
+  clear: (h) => clearTimeout(h),
 };
 
 /** 回の中で一度でもチェックインに在席した人（回の番号ごと）。切断と退出を見分けるのに使う */
@@ -89,7 +89,13 @@ export interface CheckinHandlers {
   clearAll(): void;
 }
 
-export function makeCheckinHandlers(deps: CheckinHandlerDeps): CheckinHandlers {
+export function makeCheckinHandlers<H = unknown>(deps: CheckinHandlerDeps<H>): CheckinHandlers {
+  // 既定のタイマーとテストの偽物はハンドルの型が違うので、型ごと分けて 1 つの組み立てへ渡す（`as` で揃えない）
+  const { graceTimer, ...rest } = deps;
+  return graceTimer === undefined ? buildCheckinHandlers(rest, DEFAULT_GRACE_TIMER) : buildCheckinHandlers(rest, graceTimer);
+}
+
+function buildCheckinHandlers<H>(deps: Omit<CheckinHandlerDeps, "graceTimer">, graceTimer: TimerPort<H>): CheckinHandlers {
   const { checkins, broadcaster, send } = deps;
 
   /** コマンドの失敗。文言は checkin-core の文言表から引く。 */
@@ -119,15 +125,15 @@ export function makeCheckinHandlers(deps: CheckinHandlerDeps): CheckinHandlers {
 
   const idsOf = (room: Room): Set<string> => new Set(room.participants.map((p) => p.id));
 
-  const graceTimer = deps.graceTimer ?? DEFAULT_GRACE_TIMER;
   const graceMs = deps.disconnectRevealGraceMs ?? CHECKIN_DISCONNECT_REVEAL_GRACE_MS;
   /** 猶予のタイマー。ルームごとに 1 本 */
-  const graceHandles = new Map<string, unknown>();
+  const graceHandles = new Map<string, H>();
   const seenInRound = new Map<string, SeenInRound>();
 
   function clearGrace(roomCode: string): void {
-    if (!graceHandles.has(roomCode)) return;
-    graceTimer.clear(graceHandles.get(roomCode));
+    const handle = graceHandles.get(roomCode);
+    if (handle === undefined) return;
+    graceTimer.clear(handle);
     graceHandles.delete(roomCode);
   }
 
