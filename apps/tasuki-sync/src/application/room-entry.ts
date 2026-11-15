@@ -40,9 +40,12 @@ declare const resumeAttempted: unique symbol;
  * **復帰を試みて成立しなかった**ことを表す型（#596）。
  *
  * {@link checkPassphrase} はこの型しか受け付けない。「復帰が成立した人は合言葉の関門を通さない」
- * という順序を、呼び出し側の注意ではなく型で強制する —— 復帰の判定を飛ばして関門だけを呼ぶ
- * 配線は、この値が手に入らないのでコンパイルが通らない（`apply-room-level-event.ts` の
- * `StateWithAggregate` と同じ手）。値を作れるのは {@link findResumableParticipant} だけである。
+ * という呼び出しの順を**型で示す**（復帰の判定を経ずに関門だけを呼ぶ配線は、値が手に入らないので型で止まる）。
+ * 値を作れるのは {@link findResumableParticipant} だけである。
+ *
+ * **ただし迂回はできる。** `findResumableParticipant(…, undefined)` はトークンを示さない人の正当な結果として
+ * 本物の `ResumeMiss` を返す（poker の `mayEnter` はこれを使う）。つまり型が止めるのは
+ * 「判定を忘れる」ことで、「成立した人にも関門を通す」ことではない。後者は `join-room.ts` の分岐の順が守る。
  */
 export type ResumeMiss = { readonly kind: "miss"; readonly [resumeAttempted]: true };
 

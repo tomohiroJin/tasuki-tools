@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   ALLOWED_TOP_LEVEL_MUTABLE,
   findStaleAllowances,
+  collectProblems,
   DOMAIN_PACKAGES,
   EXCLUDED_PACKAGES,
   FORBIDDEN,
@@ -287,5 +288,28 @@ describe("最上位の const の可変な Map/Set（#596）", () => {
     assert.deepEqual(findStaleAllowances(new Map([["a.ts", "const cache = new Map();\n"]]), allowed), []);
     assert.deepEqual(findStaleAllowances(new Map([["a.ts", "const other = new Map();\n"]]), allowed), allowed);
     assert.deepEqual(findStaleAllowances(new Map([["b.ts", "const cache = new Map();\n"]]), allowed), allowed);
+  });
+});
+
+/**
+ * 腐った例外があっても、同じ回の他の違反を隠さない（#596）。
+ * 全部集めてから一度に報告する（`collectProblems` が両方を返し、`main` がまとめて出して exit 1 にする）。
+ */
+describe("collectProblems: 腐った例外と禁止語彙を同じ回に両方返す", () => {
+  test("WHEN 腐った例外と禁止語彙の違反が両方ある THE 検査 SHALL 両方を返す", () => {
+    // Given
+    const scanned = new Map([["a.ts", "const x = Date.now();\n"]]);
+    const allowed = [{ path: "gone.ts", name: "cache", reason: "r" }];
+    // When
+    const { stale, forbidden } = collectProblems(scanned, allowed);
+    // Then
+    assert.deepEqual(stale, allowed);
+    assert.deepEqual(forbidden.map((f) => [f.path, f.line, f.token]), [["a.ts", 1, "Date.now("]]);
+  });
+
+  test("WHEN どちらも無い THE 検査 SHALL 空を返す", () => {
+    const { stale, forbidden } = collectProblems(new Map([["a.ts", "const x = 1;\n"]]), []);
+    assert.deepEqual(stale, []);
+    assert.deepEqual(forbidden, []);
   });
 });

@@ -3,7 +3,7 @@
  *
  * 契約: **復帰が成立した人は合言葉の関門を通さない。** 関門（`checkPassphrase`）は、復帰の判定
  * （`findResumableParticipant`）が成立しなかった印（`ResumeMiss`）を受け取るので、判定を飛ばして
- * 関門だけを呼ぶ配線は型で止まる。ここは、その型の止め方と、判定の結果の形を見る。
+ * 関門だけを呼ぶ配線は型で止まる（呼び出しの順を型で示すもので、トークン無しで判定を呼ぶ迂回までは止めない）。ここは、その型の止め方と、判定の結果の形を見る。
  */
 import { describe, expect, it } from "bun:test";
 import type { Room } from "@tasuki/room-core";
@@ -48,7 +48,7 @@ describe("復帰の判定と合言葉の関門の順序（room-entry）", () => 
     expect(checkPassphrase(undefined, undefined, outcome).isOk()).toBe(true);
   });
 
-  it("WHEN 復帰の判定を経ずに関門を呼ぶ THE コンパイル SHALL 通らない（型が順序を強制する）", () => {
+  it("WHEN 復帰の判定を経ずに関門を呼ぶ THE コンパイル SHALL 通らない（型が呼び出しの順を示す。トークン無しの判定を経る迂回は可能）", () => {
     // 実行時に確かめるものは無い。下の 2 行が「型エラーになること」を typecheck が見張る。
     // `@ts-expect-error` が不要になった（＝型エラーが出なくなった）ら typecheck が赤くなる。
     const skipped = () => {

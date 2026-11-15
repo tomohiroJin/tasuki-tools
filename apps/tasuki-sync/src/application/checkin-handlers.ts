@@ -127,13 +127,13 @@ function buildCheckinHandlers<H>(deps: Omit<CheckinHandlerDeps, "graceTimer">, g
 
   const graceMs = deps.disconnectRevealGraceMs ?? CHECKIN_DISCONNECT_REVEAL_GRACE_MS;
   /** 猶予のタイマー。ルームごとに 1 本 */
-  const graceHandles = new Map<string, H>();
+  const graceHandles = new Map<string, { handle: H }>(); // 箱に入れる（`H` が `undefined` を含んでも「有る」を見分ける）
   const seenInRound = new Map<string, SeenInRound>();
 
   function clearGrace(roomCode: string): void {
-    const handle = graceHandles.get(roomCode);
-    if (handle === undefined) return;
-    graceTimer.clear(handle);
+    const held = graceHandles.get(roomCode);
+    if (held === undefined) return;
+    graceTimer.clear(held.handle);
     graceHandles.delete(roomCode);
   }
 
@@ -143,10 +143,12 @@ function buildCheckinHandlers<H>(deps: Omit<CheckinHandlerDeps, "graceTimer">, g
     clearGrace(roomCode);
     graceHandles.set(
       roomCode,
-      graceTimer.set(() => {
-        graceHandles.delete(roomCode);
-        graceExpired(roomCode);
-      }, graceMs),
+      {
+        handle: graceTimer.set(() => {
+          graceHandles.delete(roomCode);
+          graceExpired(roomCode);
+        }, graceMs),
+      },
     );
   }
 

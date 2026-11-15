@@ -190,7 +190,9 @@ describe("planRemoval: 輪を空にしない（全組の数え上げ）", () => 
           }
           removedCases += 1;
           expect(outcome.membership.participants.length, `${label}: 名簿に人が残る`).toBeGreaterThan(0);
-          expect(outcome.timer?.session.rotation.length ?? 1, `${label}: 輪が空になっていない`).toBeGreaterThan(0);
+          // timer を渡したので、removed の timer は必ずある（無ければ検査が空振りするので、ここで前提として確かめる）
+          expect(outcome.timer, `${label}: removed に timer がある`).toBeDefined();
+          expect(outcome.timer!.session.rotation.length, `${label}: 輪が空になっていない`).toBeGreaterThan(0);
         }
       }
     }

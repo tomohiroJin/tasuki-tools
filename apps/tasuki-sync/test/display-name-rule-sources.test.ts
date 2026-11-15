@@ -16,7 +16,7 @@
  */
 import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
-import { join, relative } from "node:path";
+import { join } from "node:path";
 import { Glob } from "bun";
 
 const SRC_DIR = join(import.meta.dir, "..", "src");
@@ -24,17 +24,23 @@ const CANONICAL = "application/display-name-rule.ts";
 
 /** コメント行を除いた行から、語の出現位置（`ファイル:行`）を返す。 */
 export function findNormalizerUses(text: string, file: string): string[] {
-  return text
-    .split("\n")
-    .flatMap((line, i) =>
-      /^\s*(\/\/|\*|\/\*)/.test(line) || !/\bnormalizeDisplayName\b/.test(line) ? [] : [`${file}:${i + 1}`],
-    );
+  return text.split("\n").flatMap((line, i) => {
+    if (/^\s*(\/\/|\*|\/\*)/.test(line)) return [];
+    // 行末のコメントを外してから見る（コメントの中の語を呼び出しと数えない。文字列の中の `//` は追わない）
+    const code = line.replace(/\/\/.*$/, "");
+    return /\bnormalizeDisplayName\b/.test(code) ? [`${file}:${i + 1}`] : [];
+  });
 }
 
 describe("表示名の正規化の呼び出し元", () => {
   it("Given 検出の書き方 / When コードとコメントを見る / Then コードの行だけを拾う（検出が空振りしないことの確かめ）", () => {
     // Given
-    const text = ["// normalizeDisplayName の説明", " * normalizeDisplayName も", "const n = normalizeDisplayName(raw);"].join("\n");
+    const text = [
+      "// normalizeDisplayName の説明",
+      " * normalizeDisplayName も",
+      "const n = normalizeDisplayName(raw);",
+      "const m = other(raw); // normalizeDisplayName ではない（行末のコメント）",
+    ].join("\n");
     // When / Then
     expect(findNormalizerUses(text, "x.ts")).toEqual(["x.ts:3"]);
   });
@@ -43,7 +49,7 @@ describe("表示名の正規化の呼び出し元", () => {
     // Given
     const files = [...new Glob("**/*.ts").scanSync(SRC_DIR)];
     // When
-    const uses = files.flatMap((f) => findNormalizerUses(readFileSync(join(SRC_DIR, f), "utf8"), relative(SRC_DIR, join(SRC_DIR, f))));
+    const uses = files.flatMap((f) => findNormalizerUses(readFileSync(join(SRC_DIR, f), "utf8"), f));
     // Then: 前提の確認（唯一の呼び出し元が見えている＝走査が空振りしていない）と、外が 0 件であること
     expect(uses.some((u) => u.startsWith(`${CANONICAL}:`))).toBe(true);
     expect(uses.filter((u) => !u.startsWith(`${CANONICAL}:`))).toEqual([]);

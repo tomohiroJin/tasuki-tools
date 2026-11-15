@@ -32,12 +32,14 @@ const MAX_TICK_MS = 1000;
 
 export function makeAgendaDeadlines<H>(deps: { clock: MonotonicClock; timer: TimerPort<H> }): AgendaDeadlines {
   const { clock, timer } = deps;
-  const handles = new Map<string, H>();
+  // ハンドルを箱に入れて持つ。`H` は `undefined` を含みうる（`TimerPort<void>` など）ので、
+  // ハンドルの値が `undefined` かでは「予約が無い」と言えない（箱の有無で見る）
+  const handles = new Map<string, { handle: H }>();
 
   const clear = (roomCode: string): void => {
-    const handle = handles.get(roomCode);
-    if (handle === undefined) return;
-    timer.clear(handle);
+    const held = handles.get(roomCode);
+    if (held === undefined) return;
+    timer.clear(held.handle);
     handles.delete(roomCode);
   };
 
@@ -50,7 +52,7 @@ export function makeAgendaDeadlines<H>(deps: { clock: MonotonicClock; timer: Tim
     }
     handles.set(
       roomCode,
-      timer.set(() => tick(roomCode, atMs, onDue), Math.min(remaining, MAX_TICK_MS)),
+      { handle: timer.set(() => tick(roomCode, atMs, onDue), Math.min(remaining, MAX_TICK_MS)) },
     );
   };
 

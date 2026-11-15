@@ -265,6 +265,18 @@ export function findForbiddenCalls(text, filePath, allowed = ALLOWED_TOP_LEVEL_M
 }
 
 /**
+ * 走査した全ファイルの問題を集める（腐った例外と禁止語彙の違反）。**どちらかで打ち切らない。**
+ *
+ * @param {ReadonlyMap<string, string>} scanned リポジトリ相対パス → 本文
+ * @param {ReadonlyArray<{ path: string, name: string, reason: string }>} allowed
+ */
+export function collectProblems(scanned, allowed = ALLOWED_TOP_LEVEL_MUTABLE) {
+  const forbidden = [];
+  for (const [rel, text] of scanned) forbidden.push(...findForbiddenCalls(text, rel, allowed));
+  return { stale: findStaleAllowances(scanned, allowed), forbidden };
+}
+
+/**
  * ディレクトリ配下の `.ts` を再帰的に集める。戻り値はリポジトリ相対パス → 本文の Map。
  *
  * `dist` と `node_modules` を読み飛ばす。**この除外は再帰の全階層で basename 照合される。**
@@ -358,34 +370,30 @@ function main() {
     return;
   }
 
-  // 例外の宣言が実物から消えていたら赤にする（#596。腐った例外は「許す」の根拠を失う）
-  const stale = findStaleAllowances(scanned);
-  if (stale.length > 0) {
-    console.error("[audit-domain-side-effects] 最上位の可変な Map/Set の例外が、実物に見つかりません");
-    for (const a of stale) console.error(`  ${a.path}  ${a.name}`);
-    console.error("  消えた宣言の例外は ALLOWED_TOP_LEVEL_MUTABLE から外してください");
-    process.exitCode = 1;
-    return;
-  }
+  // 腐った例外（宣言が実物から消えた）と禁止語彙の違反は、**全部集めてから一度に報告する**（#596。
+  // 片方で先に return すると、同じ回のもう片方が隠れる）
+  const { stale, forbidden: problems } = collectProblems(scanned);
 
-  const problems = [];
-  for (const [rel, text] of scanned) {
-    problems.push(...findForbiddenCalls(text, rel));
-  }
-
-  if (problems.length > 0) {
-    console.error(
-      `[audit-domain-side-effects] ドメイン内で環境から直接値を読んでいます（${problems.length} 件）`,
-    );
-    for (const p of problems) {
-      console.error(`  ${p.path}:${p.line}  ${p.token}`);
+  if (stale.length > 0 || problems.length > 0) {
+    if (stale.length > 0) {
+      console.error("[audit-domain-side-effects] 最上位の可変な Map/Set の例外が、実物に見つかりません");
+      for (const a of stale) console.error(`  ${a.path}  ${a.name}`);
+      console.error("  消えた宣言の例外は ALLOWED_TOP_LEVEL_MUTABLE から外してください");
     }
-    console.error(
-      "  時刻・乱数・環境変数は引数で注入し、読み取りはアダプタ（境界）に置いてください",
-    );
-    console.error("  throw は Result で返し、トップレベルの let・可変な Map/Set（モジュールの状態）は呼び出し側に持たせてください（#364・#596）");
-    console.error("  純関数のメモなど持たせない理由があるものは ALLOWED_TOP_LEVEL_MUTABLE へ理由つきで宣言します");
-    console.error("  根拠: 憲法 原則 IV・VI / docs/adr/0005 / docs/adr/0016 決定 2 項目 4 / docs/timer/adr/0002");
+    if (problems.length > 0) {
+      console.error(
+        `[audit-domain-side-effects] ドメイン内で環境から直接値を読んでいます（${problems.length} 件）`,
+      );
+      for (const p of problems) {
+        console.error(`  ${p.path}:${p.line}  ${p.token}`);
+      }
+      console.error(
+        "  時刻・乱数・環境変数は引数で注入し、読み取りはアダプタ（境界）に置いてください",
+      );
+      console.error("  throw は Result で返し、トップレベルの let・可変な Map/Set（モジュールの状態）は呼び出し側に持たせてください（#364・#596）");
+      console.error("  純関数のメモなど持たせない理由があるものは ALLOWED_TOP_LEVEL_MUTABLE へ理由つきで宣言します");
+      console.error("  根拠: 憲法 原則 IV・VI / docs/adr/0005 / docs/adr/0016 決定 2 項目 4 / docs/timer/adr/0002");
+    }
     process.exitCode = 1;
     return;
   }

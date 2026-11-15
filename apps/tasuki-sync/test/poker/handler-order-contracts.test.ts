@@ -104,16 +104,22 @@ describe('poker の退出の後始末の順序（handleParticipantRemoved）', (
         stateOf(m).participants.some((p) => p.id === bJoined.participantId && !p.connected),
       'B が幽霊になった room-state',
     );
-    const mark = a.received.length;
-
     a.send({ type: 'remove-participant', participantId: bJoined.participantId });
-    await a.take(
+    // 順序の基準: 削除を反映した最初の room-state（幽霊を載せていないもの）。それより前に届いた room-state は
+    // 削除の処理より前に送られたものなので、幽霊を載せていてよい（基準にしない）
+    const first = await a.take(
       (m) => m.type === 'room-state' && !stateOf(m).participants.some((p) => p.id === bJoined.participantId),
       '幽霊が消えた room-state',
     );
+    // 少し待って、その後に届くものも集める（古い名簿での配信が遅れて来ないことを見る）
+    a.send({ type: 'vote', card: { kind: 'number', value: 5 } });
+    await a.take(
+      (m) => m.type === 'room-state' && stateOf(m).participants.some((p) => p.id === aJoined.participantId),
+      '削除の後の最初の操作への room-state',
+    );
 
-    // 外した後に届いたどの room-state も幽霊を載せない（古い名簿での配信が混ざらない）
-    const after = a.received.slice(mark).filter((m) => m.type === 'room-state');
+    // 基準から後に届いたどの room-state も幽霊を載せない（古い名簿での配信が混ざらない）
+    const after = a.received.slice(a.received.indexOf(first)).filter((m) => m.type === 'room-state');
     expect(after.length).toBeGreaterThan(0);
     for (const m of after) {
       expect(stateOf(m).participants.map((p) => p.id)).not.toContain(bJoined.participantId);

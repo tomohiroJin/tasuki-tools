@@ -9,7 +9,7 @@
 | # | 場所 | 前提 | 移し先 | 守るもの |
 |---|---|---|---|---|
 | 1 | `rate-limit-gate.ts`・`poker-rate-limit-gate.ts` | `now` は単調時計 | **テスト** `test/rate-limit-monotonic-clock.test.ts`（変異 1760・1761） | 壁時計と単調時計は同じ `number` で、ブランド型（ID の型を入れない方針。ADR 0016 の追記は Rejected）は使わない。ゲートへ届く `now` が単調時計の値であること、poker のゲートが時計を 1 判定 1 度だけ読むこと |
-| 2 | `room-entry.ts` | 復帰が成立した人を先に通す | **型** `ResumeMiss`（`checkPassphrase` が第 3 引数に要求）＋ `test/room-entry.test.ts`（変異 1762） | `apply-room-level-event.ts` の `StateWithAggregate` と同じ手。復帰の判定を経ずに関門だけを呼ぶ配線は型で止まる（`@ts-expect-error` で見張る） |
+| 2 | `room-entry.ts` | 復帰が成立した人を先に通す | **型** `ResumeMiss`（`checkPassphrase` が第 3 引数に要求）＋ `test/room-entry.test.ts`（変異 1762） | `apply-room-level-event.ts` の `StateWithAggregate` と同じ手。復帰の判定を経ずに関門だけを呼ぶ配線は型で止まる（`@ts-expect-error` で見張る）。呼び出しの順を型で示すもので、トークン無しで判定を呼ぶ迂回は止めない |
 | 3 | `poker-handlers.ts` `completeJoin` | socket 登録 → 接続状態 → joined 送信 → 保管と配信 | **テスト** `test/poker/handler-order-contracts.test.ts`（変異 1763・1764） | create・新規 join・復帰の 3 経路で、`joined` が最初の `room-state` より先に届き、その `room-state` が本人を在席で載せる |
 | 4 | `poker-handlers.ts` `handleParticipantRemoved` | 名簿を更新し終えた後に呼ぶ | **テスト** 同上（変異 1765） | 幽霊を外した後の `room-state` が幽霊を載せず、保管の名簿へ書き戻さない |
 | 5 | `topic-generation.ts` `cancel` | 帳簿を触らない | **テスト** `test/topic-generation.test.ts`（変異 1766） | cancel の前後で保管の値と publish の回数が同じ |

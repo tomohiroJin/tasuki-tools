@@ -33,14 +33,14 @@ function fakeTimer() {
   let now = 0;
   let seq = 0;
   const pending = new Map<number, { at: number; fn: () => void }>();
-  const timer: TimerPort = {
+  const timer: TimerPort<number> = {
     set(fn, ms) {
       const id = ++seq;
       pending.set(id, { at: now + ms, fn });
       return id;
     },
     clear(handle) {
-      pending.delete(handle as number);
+      pending.delete(handle);
     },
   };
   const advance = (ms: number): void => {
@@ -57,8 +57,24 @@ function fakeTimer() {
   return { timer, advance, pendingCount: () => pending.size };
 }
 
-function setup(randomInt: (n: number) => number = () => 0) {
+/** ハンドルが `undefined` の偽のタイマー（`TimerPort<undefined>`）。待ちは 1 本だけ持てる（試験は 1 ルーム）。 */
+function voidTimer() {
+  let pending: (() => void) | undefined;
+  const timer: TimerPort<undefined> = {
+    set: (fn) => {
+      pending = fn;
+      return undefined;
+    },
+    clear: () => {
+      pending = undefined;
+    },
+  };
+  return { timer, pendingCount: () => (pending === undefined ? 0 : 1) };
+}
+
+function setup(randomInt: (n: number) => number = () => 0, handleless = false) {
   const grace = fakeTimer();
+  const none = voidTimer();
   const store = new InMemoryRoomStore();
   const checkins = new InMemoryCheckinStore();
   const sent: Sent[] = [];
@@ -66,7 +82,7 @@ function setup(randomInt: (n: number) => number = () => 0) {
     sent.push({ connId, msg });
   };
   const broadcaster = makeCheckinBroadcaster({ store, checkins, send: record });
-  const handlers = makeCheckinHandlers({
+  const make = <H,>(graceTimer: TimerPort<H>) => makeCheckinHandlers({
     store,
     timers: new InMemoryTimerStore(),
     clock: new FakeClock(1_000_000),
@@ -82,8 +98,9 @@ function setup(randomInt: (n: number) => number = () => 0) {
     send: record,
     monotonicClock: { now: () => 5_000 },
     random: { randomInt },
-    graceTimer: grace.timer,
+    graceTimer,
   });
+  const handlers = handleless ? make(none.timer) : make(grace.timer);
   store.put({ code: ROOM, createdAt: 0, participants: [] });
   return {
     handle: (connId: string, msg: unknown) =>
@@ -91,7 +108,7 @@ function setup(randomInt: (n: number) => number = () => 0) {
     rosterChanged: (code: string) => handlers.rosterChanged(code),
     clearRoom: (code: string) => handlers.clearRoom(code),
     advance: grace.advance,
-    pendingGrace: grace.pendingCount,
+    pendingGrace: handleless ? none.pendingCount : grace.pendingCount,
     store,
     checkins,
     sent,
@@ -172,8 +189,8 @@ function addHubOnly(h: Harness, id: string, name: string, connId: string): void 
 }
 
 /** 3 人（a・b と、ここでは入れない c）の用意。重さを避けるため a・b を既定にする。 */
-async function twoPlayers(): Promise<Harness> {
-  const h = setup();
+async function twoPlayers(handleless = false): Promise<Harness> {
+  const h = setup(undefined, handleless);
   await joined(h, "a", "Alice");
   await joined(h, "b", "Bob");
   return h;
@@ -332,8 +349,8 @@ describe("受け手ごとの投影と自動公開", () => {
  */
 describe("切断による自動公開の猶予", () => {
   /** 匿名の回で a だけが出した局面（b はまだ） */
-  async function anonymousAPlayed(): Promise<Harness> {
-    const h = await twoPlayers();
+  async function anonymousAPlayed(handleless = false): Promise<Harness> {
+    const h = await twoPlayers(handleless);
     await choose(h, "a", "energy");
     expect(h.checkins.get(ROOM)!.round!.visibility).toBe("anonymous");
     await h.handle("a", { command: "checkin.card.play", seq: 1, card: "1" });
@@ -401,6 +418,18 @@ describe("切断による自動公開の猶予", () => {
 
   it("猶予の間に「待たずに開く」で開いたら、猶予のタイマーは残らない", async () => {
     const h = await anonymousAPlayed();
+    disconnect(h, "Bob");
+    h.rosterChanged(ROOM);
+    expect(h.pendingGrace()).toBe(1);
+
+    await h.handle("a", { command: "checkin.reveal", seq: 1 });
+
+    expect(h.checkins.get(ROOM)!.round!.status).toBe("revealed");
+    expect(h.pendingGrace()).toBe(0);
+  });
+
+  it("WHEN 猶予のタイマーのハンドルが undefined THE 「待たずに開く」 SHALL それでも猶予を解除する（ハンドルの値で有無を決めない）", async () => {
+    const h = await anonymousAPlayed(true);
     disconnect(h, "Bob");
     h.rosterChanged(ROOM);
     expect(h.pendingGrace()).toBe(1);
