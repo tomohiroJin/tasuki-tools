@@ -9531,7 +9531,7 @@ export const MUTATIONS = [
   },
   {
     id: 1722,
-    label: "純粋判断の許可に同期クライアントを足し、値でも型でも読む辺を許す",
+    label: "純粋判断の許可に同期クライアントを足し、値を読む辺を許す",
     patch: "m1722-layer-pure-may-read-sync-client.patch",
     pkg: "scripts",
     tests: ["lib/layer-direction.test.mjs"],
@@ -9608,5 +9608,21 @@ export const MUTATIONS = [
     pkg: "apps/poker-web",
     tests: ["tests/join-retry-plan.test.ts"],
     note: RESERVED_1720_1739 + " " + "#592。混雑が続いても入り直しを止めず、自分たちを締め出す。",
+  },
+  {
+    id: 1732,
+    label: "値の import も型だけの import として扱い、純粋判断が同期クライアントの値を読む辺を許す",
+    patch: "m1732-layer-value-import-treated-as-type-only.patch",
+    pkg: "scripts",
+    tests: ["lib/layer-direction.test.mjs"],
+    note: RESERVED_1720_1739 + " " + "#592。純粋判断が同期クライアントの値を読み（poker の join-retry）、層が崩れる。",
+  },
+  {
+    id: 1733,
+    label: "型だけの許しを画面にも広げ、画面が同期クライアントの型を直接読む辺を許す",
+    patch: "m1733-layer-type-only-allowed-for-screen.patch",
+    pkg: "scripts",
+    tests: ["lib/layer-direction.test.mjs"],
+    note: RESERVED_1720_1739 + " " + "#592。画面が同期クライアントを直接触る入口になる（型の許しが純粋判断だけという取り決めが崩れる）。",
   },
 ];

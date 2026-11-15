@@ -1,0 +1,18 @@
+# 変異 1732: layer-value-import-treated-as-type-only
+#
+# #592。値の import も型だけの import として扱い、純粋判断が同期クライアントの値を読む辺を許す。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1732-*.patch
+
+--- a/scripts/lib/layer-direction.mjs
++++ b/scripts/lib/layer-direction.mjs
+@@ -136,7 +136,7 @@ export function extractSpecifiers(text) {
+     return n;
+   };
+   const out = [];
+-  for (const m of t.matchAll(STMT)) out.push({ spec: m[4], line: lineAt(m.index + m[0].lastIndexOf(m[4])), typeOnly: m[1] === "import" && !!m[2] });
++  for (const m of t.matchAll(STMT)) out.push({ spec: m[4], line: lineAt(m.index + m[0].lastIndexOf(m[4])), typeOnly: true });
+   for (const m of t.matchAll(SIDE)) out.push({ spec: m[1], line: lineAt(m.index + m[0].lastIndexOf(m[1])), typeOnly: false });
+   for (const m of t.matchAll(DYN)) out.push({ spec: m[1], line: lineAt(m.index + m[0].indexOf(m[1])), typeOnly: false });
+   return out;
