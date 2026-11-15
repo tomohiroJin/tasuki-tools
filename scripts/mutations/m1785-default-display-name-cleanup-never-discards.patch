@@ -1,0 +1,24 @@
+# 変異 1785: default-display-name-cleanup-never-discards
+#
+# 検出を期待するテスト:
+#   - apps/landing/tests/default-display-name.test.tsx
+#     「Given 上限を超える保存値 / When 玄関を開く / Then 空の欄になり、その値は残らない」ほか（#284）
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1785-*.patch
+# 復元: git apply -R scripts/mutations/m1785-*.patch
+#
+# #595・#284。`use-default-display-name.ts` の片付けの条件が反転し、提示できない保存値
+# （既定が空・保存値が非空）を捨てなくなる。玄関を開くたびに同じ値で弾かれ続ける。
+diff --git a/apps/landing/src/hub/use-default-display-name.ts b/apps/landing/src/hub/use-default-display-name.ts
+--- a/apps/landing/src/hub/use-default-display-name.ts
++++ b/apps/landing/src/hub/use-default-display-name.ts
+@@ -50,7 +50,7 @@ export function useDefaultDisplayName(): string {
+   useEffect(() => {
+     clearLegacyPreferences();
+     // 空文字を渡すと鍵ごと消える（`saveDefaultDisplayName` の約束）。
+-    if (defaultDisplayName === '' && storedDisplayName !== '') saveDefaultDisplayName('');
++    if (defaultDisplayName === '' && storedDisplayName === '') saveDefaultDisplayName('');
+   }, [storedDisplayName, defaultDisplayName]);
+
+   return defaultDisplayName;

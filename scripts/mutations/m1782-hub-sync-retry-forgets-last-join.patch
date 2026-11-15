@@ -1,0 +1,25 @@
+# 変異 1782: hub-sync-retry-forgets-last-join
+#
+# 検出を期待するテスト:
+#   - apps/landing/tests/hub/use-hub-sync.test.tsx
+#     混雑で弾かれた名乗りが自動で入り直される例（`joinRetryDelayMs` の待ちの後に room.join が再送される）
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1782-*.patch
+# 復元: git apply -R scripts/mutations/m1782-*.patch
+#
+# #595。`use-hub-sync.ts` が混雑の再試行で、直近の名乗り（`lastJoinRef`）を `retryCommand` へ渡さず
+# 常に null を渡す（配線の変異）。分けた先の `retryCommand` は正しいまま、名乗った人の再試行が
+# 照会に化けて、入室が自動で成立しない。
+diff --git a/apps/landing/src/hub/use-hub-sync.ts b/apps/landing/src/hub/use-hub-sync.ts
+--- a/apps/landing/src/hub/use-hub-sync.ts
++++ b/apps/landing/src/hub/use-hub-sync.ts
+@@ -263,7 +263,7 @@ export function useHubSync(): HubSync {
+               // （載せ替えの前と同じ）。コードは null から決まるだけで戻らないので、このとき
+               // 取り消される予約は無い。
+               if (target === null) return;
+-              send(retryCommand(target, last));
++              send(retryCommand(target, null));
+             });
+             return;
+           }
