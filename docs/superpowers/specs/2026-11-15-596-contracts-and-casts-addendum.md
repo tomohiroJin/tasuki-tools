@@ -1,8 +1,8 @@
-# #596 補遺: 前提 9 件の移し先と `as T` 23 件・`!` 17 件の仕分け
+# #596 補遺: 前提 9 件の移し先と `as T`（main の 23 件）・`!` 17 件の仕分け
 
 [`2026-11-13-architecture-review-survey.md`](2026-11-13-architecture-review-survey.md) の節 4.2・4.4 の補遺である（#482-7）。
 測ったのは `2026-11-13-architecture-review-survey/c-contracts.mjs`（直す前と後で同じスクリプトを流した）。
-**仕分けだけで、ガードを足して振る舞いを変えていない**（ISSUE #596 のとおり）。未検証のものをガードにするかは別に起こす。
+**ガードを足して振る舞いを変えていない**（ISSUE #596 のとおり）。未検証だった 1 件は型で要らなくした（C は 0 件）。
 
 ## 1. 前提をコメントだけで守っていた 9 件の移し先
 
@@ -18,7 +18,7 @@
 | 8 | `room-removal.ts` | 名簿に人が残るなら輪を空にしない | **テスト** `test/room-removal.test.ts` の全組の数え上げ（名簿 1〜4 人 × 輪の部分集合 × 対象。変異 1769） | 非空の配列型は `timer-core` の全体に及ぶので入れない（非空の配列型を定義したコードは無い。`git grep -n "type NonEmpty\|interface NonEmpty" -- apps packages` は 0 件・2026-11-16 実測） |
 | 9 | `room.ts` | presence の値域に `idle` は無いが wire には残る | **テスト** `packages/timer-core/test/schemas.test.ts`（変異 1770） | ドメインの型の値域は既に狭い（`"online" \| "offline"`）。wire が広いままであること |
 
-## 2. `as T` 23 件の仕分け
+## 2. `as T`（main の 23 件。この枝では 22 件）の仕分け
 
 走査範囲は `c-contracts.mjs` の `SCAN_PREFIXES`（`packages/*-core`・`protocol`・`sync-client`・`apps/tasuki-sync/src/application`・`ports`）。
 **`apps/*-web/src` は範囲外**で、数えていない（#592 の範囲）。件数は ISSUE と一致した（23・17）。
@@ -28,7 +28,7 @@
 |---|---|---|
 | `apply-room-level-event.ts` 75・84・190 | A | 目印型 `StateWithAggregate` を付ける場所。型の上にしか無い目印で、付けてよいのは `applyEvents` と同じファイルの 3 か所だけ |
 | `build-domain-command.ts` 32・37・55 | B | `undefined as X \| undefined`・`null as string \| null`。値は変わらず、後で埋める欄の型を広げる |
-| `checkin-handlers.ts` 71 | C | `clear(h)` の `h`（`TimerPort` では `unknown`）を `setTimeout` の戻りの型へ読み替える。`set` が返したものを `clear` へ返す対だが、型に無い。`clearTimeout` は未知の値を黙って無視するので壊れ方は無害。直すなら `TimerPort` を総称にする（別に起こす） |
+| `checkin-handlers.ts` 71 | （直した） | `clear(h)` の `h`（`TimerPort` では `unknown`）を `clearTimeout` の型へ `as` で読み替えていた。`TimerPort<H>` にして `set` が返したハンドルをそのまま `clear` が受ける型にし、`as` を消した（`test/timer-port-handle.test.ts` が取り違えを型で見張る） |
 | `initial-timer-state.ts` 51 | （直した） | `5 as IntervalMinutes` → 型の注釈 `: IntervalMinutes = 5`。リテラル型の和なので `as` は要らず、注釈のほうが 5 が有効値から外れたときに落ちる |
 | `log/log-safe.ts` 34・`log/ref-encoder.ts` 34・35 | A | `LogSafe` を付ける場所。`log-hygiene:allow` の宣言つきで、`audit-log-hygiene` が付ける場所を限っている |
 | `normalize-command-names.ts` 73（旧 70） | B | `readonly [...] as readonly string[]` で `includes` を呼ぶ |
@@ -43,9 +43,10 @@
 | `timer-core/decide.ts` 411 | B | 許可リストの `includes` |
 | `topic-core/fallback.ts` 42 | B | 許可リストの `includes` |
 
-合計: 枝の `as T` は 23 件で、A 12・B 10・C 1（表の 24 行は、直した `initial-timer-state.ts` の 1 行を含むため）。
-main の 23 件から `initial-timer-state.ts` の 1 件が消え、`room-entry.ts` の 1 件が増えたので、件数は 23 のまま。
-**未検証（C）は 1 件**で、`TimerPort` の型消去である。
+合計: 枝の `as T` は 22 件で、A 12・B 10・C 0（`c-contracts.mjs` の `casts` の `as-assertion` が 22 件）。
+表の 24 行は、直した 2 行（`initial-timer-state.ts`・`checkin-handlers.ts`）を含むため（24 − 2 = 22）。
+main の 23 件から `initial-timer-state.ts`・`checkin-handlers.ts` の 2 件が消え、`room-entry.ts` の 1 件が増えたので、23 − 2 + 1 = 22。
+**未検証（C）は 0 件**になった。
 
 ## 3. `!` 17 件の仕分け
 
