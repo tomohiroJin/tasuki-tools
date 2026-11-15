@@ -173,6 +173,17 @@ describe("単純でない形は、変更の有無にかかわらず全部聞く�
     }
   });
 
+  test("5 回目のレビュー: -- の後ろ・restore の pathspec にある zsh だけの字（#・^・|・(・~・先頭の =）は、確かめても当たらないので聞く。メッセージの # は聞かない", async () => {
+    for (const c of ["git checkout -- b.tss#", "git restore b.t#s", "git checkout HEAD -- ^a.ts", "git restore 'a.ts~b'", "git checkout -- =a.ts", "git restore 'a|b.ts'"]) {
+      const r = await decide(c, { dirty: "no" });
+      assert.equal(r.ask, true, c);
+      assert.deepEqual(r.calls, [], c);
+    }
+    for (const c of ["git stash push -m 'wip #612'", "git checkout HEAD~1 -- a.ts", "git restore --source HEAD~2 a.ts"]) {
+      assert.equal((await decide(c, { dirty: "no" })).ask, false, c);
+    }
+  });
+
   test("PR コメント 1: 理由の文は「追跡外のファイルを上書きします」と「未コミットの変更があります」で分ける", async () => {
     const yes = await decide("git checkout HEAD -- a.ts", { dirty: "yes" });
     assert.match(yes.reason, /未コミットの変更があります/);

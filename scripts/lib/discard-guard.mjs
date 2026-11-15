@@ -64,9 +64,15 @@ const REV_SUFFIX = /^[A-Za-z0-9._/@-]+(?:~\d*)+$/;
 
 /**
  * 1 語の `git checkout <語>` に使ってよい字（許可リスト）。ref とパスの字・`@{-1}` の波括弧・`~`（上の REV_SUFFIX で絞る）と、
- * git の pathspec もグロブとして読む `*`・`?`・`[`・`]`。先頭の `=`（zsh の =cmd）・`^`・`#`・`(`・`|`・`<` ほかは含めない（#612 の 4 回目のレビュー）。
+ * git の pathspec もグロブとして読む `*`・`?`・`[`・`]`。先頭の `=`（zsh の =cmd）と、どこにあっても `^`・`#`・`(`・`|`・`<` ほかは含めない（#612 の 4・5 回目のレビュー）。
  */
 const SINGLE_WORD = /^(?!=)[A-Za-z0-9._/@{}+,%=~*?[\]-]+$/;
+
+/**
+ * pathspec の語（`checkout -- <path>`・`restore <path>`）に、zsh だけが展開する字（`#`・`^`・`|`・`(`・`~`、先頭の `=`）があるか。
+ * git の pathspec の字ではないので、`git status` で確かめても当たらない（#612 の 5 回目のレビュー。main からの穴）。rev（`HEAD~1`）は pathspec の語ではないので見ない。
+ */
+const hasZshOnlyPattern = (w) => /[#^|(~]/.test(w) || w.startsWith("=");
 
 const hasShort = (w, c) => /^-[A-Za-z]+$/.test(w) && w.includes(c);
 
@@ -84,7 +90,7 @@ function classify({ sub, rest }, exists) {
     if (dd !== -1) {
       const before = words.slice(0, dd);
       const paths = words.slice(dd + 1);
-      if (before.length > 1 || before.some((w) => w.startsWith("-")) || paths.length === 0) return UNKNOWN_FORM;
+      if (before.length > 1 || before.some((w) => w.startsWith("-")) || paths.length === 0 || paths.some(hasZshOnlyPattern)) return UNKNOWN_FORM;
       return { verdict: "check", target: { kind: "paths", paths, scope: "worktree", ...(before.length === 1 ? { withRev: true } : {}) } };
     }
     if ((words[0] === "-b" || words[0] === "-B") && words.length >= 2 && words.length <= 3 && words.slice(1).every((w) => !w.startsWith("-"))) return SAFE;
@@ -119,7 +125,7 @@ function classify({ sub, rest }, exists) {
       } else if (/^--source=./.test(w) || /^-s[^-\s]/.test(w)) withRev = true;
       else return UNKNOWN_FORM;
     }
-    if (paths.length === 0) return UNKNOWN_FORM;
+    if (paths.length === 0 || paths.some(hasZshOnlyPattern)) return UNKNOWN_FORM;
     if (staged) return SAFE;
     return { verdict: "check", target: { kind: "paths", paths, scope: "worktree", ...(withRev ? { withRev: true } : {}) } };
   }

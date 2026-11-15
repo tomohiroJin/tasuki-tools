@@ -9336,7 +9336,7 @@ export const MUTATIONS = [
   },
   {
     id: 1712,
-    label: "rev の接尾辞の形の前の部分にグロブの字と ^ を許す",
+    label: "rev の接尾辞の形の前の部分にグロブの字を許す",
     patch: "m1712-discard-rev-suffix-allows-glob-prefix.patch",
     pkg: "scripts",
     tests: ["lib/discard-guard.test.mjs"],
