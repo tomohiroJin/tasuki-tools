@@ -9569,4 +9569,20 @@ export const MUTATIONS = [
     tests: ["turbo-test-inputs.test.mjs"],
     note: RESERVED_1740_1759 + " " + "#599 のレビュー。fonts.css を変えても timer-web などの test:unit のハッシュが変わらず、手元で古い緑が再生される。",
   },
+  {
+    id: 1747,
+    label: "test:unit の inputs から test-css/src を外す",
+    patch: "m1747-turbo-test-unit-inputs-no-test-css.patch",
+    pkg: "scripts",
+    tests: ["turbo-test-inputs.test.mjs"],
+    note: RESERVED_1740_1759 + " " + "#599 のレビュー。test-css を直しても timer-web の test:unit のハッシュが変わらず、手元で古い緑が再生される（test-css は build を持たない）。",
+  },
+  {
+    id: 1748,
+    label: "個別に定義した agenda-core の test の inputs から test-css/src を外す",
+    patch: "m1748-turbo-core-test-inputs-no-test-css.patch",
+    pkg: "scripts",
+    tests: ["turbo-test-inputs.test.mjs"],
+    note: RESERVED_1740_1759 + " " + "#599 のレビュー。package#task は基底を継承しないので、この 1 つだけ test-css の変更でハッシュが変わらない穴に戻る。",
+  },
 ];

@@ -1,12 +1,12 @@
 diff --git a/turbo.json b/turbo.json
-index 657018af..e6ebdafd 100644
+index 559df966..f0a5fea2 100644
 --- a/turbo.json
 +++ b/turbo.json
-@@ -43,7 +43,7 @@
+@@ -44,7 +44,7 @@
      },
      "@tasuki/checkin-core#test": {
        "dependsOn": ["^build"],
--      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/packages/ui/src/tokens/fonts.css"],
+-      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/packages/ui/src/tokens/fonts.css", "$TURBO_ROOT$/packages/test-css/src/**"],
 +      "inputs": ["$TURBO_DEFAULT$"],
        "outputs": ["coverage/**"]
      },

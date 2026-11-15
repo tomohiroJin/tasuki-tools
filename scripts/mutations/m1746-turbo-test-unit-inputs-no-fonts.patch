@@ -1,12 +1,12 @@
 diff --git a/turbo.json b/turbo.json
-index bff89530..b33a86ba 100644
+index 559df966..5f689fff 100644
 --- a/turbo.json
 +++ b/turbo.json
 @@ -14,7 +14,7 @@
        "outputs": []
      },
      "test:unit": {
--      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/packages/ui/src/tokens/fonts.css"],
+-      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/packages/ui/src/tokens/fonts.css", "$TURBO_ROOT$/packages/test-css/src/**"],
 +      "inputs": ["$TURBO_DEFAULT$"],
        "outputs": []
      },

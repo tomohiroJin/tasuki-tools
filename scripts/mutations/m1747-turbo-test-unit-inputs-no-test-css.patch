@@ -1,0 +1,13 @@
+diff --git a/turbo.json b/turbo.json
+index 559df966..76f040e7 100644
+--- a/turbo.json
++++ b/turbo.json
+@@ -14,7 +14,7 @@
+       "outputs": []
+     },
+     "test:unit": {
+-      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/packages/ui/src/tokens/fonts.css", "$TURBO_ROOT$/packages/test-css/src/**"],
++      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/packages/ui/src/tokens/fonts.css"],
+       "outputs": []
+     },
+     "@tasuki/timer-core#test": {
