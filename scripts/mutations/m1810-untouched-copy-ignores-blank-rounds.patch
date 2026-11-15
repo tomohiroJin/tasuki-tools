@@ -1,0 +1,22 @@
+# 変異 1810: untouched-copy-ignores-blank-rounds
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/scenario-draft-sync.test.ts
+#
+# #595。手つかずの写しの判定が回数の欄の空を見ない。回数を空にした下書きが写しとして上書き・確かめ省略される。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1810-*.patch
+diff --git a/apps/agenda-web/src/scenario-draft-sync.ts b/apps/agenda-web/src/scenario-draft-sync.ts
+index fc734c7d..99e9b2e8 100644
+--- a/apps/agenda-web/src/scenario-draft-sync.ts
++++ b/apps/agenda-web/src/scenario-draft-sync.ts
+@@ -27,7 +27,7 @@ export function initDraftState(room: ScenarioInput): DraftState {
+  * 回数の欄を空にした下書きは `rounds` キーを落とし、回数 1 のルームと同じ鍵になるので、読める回数があることも条件にする（触った下書きとして扱う）
+  */
+ export function isUntouchedCopy(draft: Draft, roomKey: string): boolean {
+-  return roundsOfDraft(draft) !== null && scenarioKey(inputFromDraft(draft)) === roomKey;
++  return scenarioKey(inputFromDraft(draft)) === roomKey;
+ }
+ 
+ /** ルームのシナリオが変わっていたら、下書きとの付き合わせの結果を返す。変わっていなければ同じ状態をそのまま返す */

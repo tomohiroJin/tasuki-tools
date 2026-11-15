@@ -9593,4 +9593,12 @@ export const MUTATIONS = [
     tests: ["tests/scenario-builder.test.tsx"],
     note: RESERVED_1800_1819 + " " + "#595 のレビュー。フックの配線。「ルームのシナリオに戻す」が効かない。",
   },
+  {
+    id: 1810,
+    label: "手つかずの写しの判定が、回数の欄を空にした下書きを写しと見なす",
+    patch: "m1810-untouched-copy-ignores-blank-rounds.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/scenario-draft-sync.test.ts", "tests/scenario-builder.test.tsx"],
+    note: RESERVED_1800_1819 + " " + "#595 のレビュー。isUntouchedCopy の `roundsOfDraft !== null` の守りだけを外す。回数の欄を空にした下書きは rounds キーを落とし、回数 1 のルームと同じ鍵になるため、守りが無いと上書き・確かめ省略が起きる。",
+  },
 ];

@@ -16,7 +16,7 @@ index 695d2186..a204abd8 100644
    // 描画の途中で前の値と比べて直す（React の「props の変化で state を調整する」型。effect を挟むと 1 枚古い画面が出る）
    const current = reconcileRoom(state, room);
 -  if (current !== state) setState(current);
-+  //ZZ
++  // 付き合わせの結果を state へ書き戻さない
    return {
      draft: current.draft,
      changed: current.changed,
