@@ -271,4 +271,93 @@ describe("宣言と 0 件ガードの配線: scripts/audit-dependency-direction.
     assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
     assert.match(r.stderr, new RegExp(`除外が陳腐化しています[^\\n]*${first}`));
   });
+
+  // ── 層の向きと入口外の参照（#592） ────────────────────────────────────────
+  //
+  // 判定そのもの（許可表）は `lib/layer-direction.test.mjs` が合成した入力で見る。ここは**実リポジトリの本物の辺**で、
+  // 監査の main() が層の判定を呼び、違反を非ゼロで落とすことを見る。直した辺を 1 本戻すと赤くなる、の確認である。
+
+  /** 走査する本文を読む行。ここで、ある 1 ファイルの本文へ 1 行足して「辺を戻した」状態を作る。 */
+  const READ_LINE = 'for (const rel of list) files.set(rel, fs.readFileSync(path.join(REPO_ROOT, rel), "utf8"));';
+  const appendTo = (file, line) => (s) =>
+    s.replace(
+      READ_LINE,
+      `for (const rel of list) files.set(rel, fs.readFileSync(path.join(REPO_ROOT, rel), "utf8") + (rel === ${JSON.stringify(file)} ? ${JSON.stringify("\n" + line + "\n")} : ""));`,
+    );
+
+  test("直した辺を戻すと非ゼロで終了する: 内側（純粋判断）が画面の型を読む（A1）", () => {
+    // Given: 純粋判断の records/persist.ts に、直す前の import を 1 行足す
+    const file = "apps/timer-web/src/records/persist.ts";
+    // When
+    const r = runScriptCopy("audit-dependency-direction.mjs", appendTo(file, 'import type { EndType as Back } from "../ui/Summary.js";'));
+    // Then: まず「壊れたこと自体」を確かめる
+    assertBrokenBy("audit-dependency-direction.mjs", r.source, READ_LINE, "本文の読み込み");
+    // Then
+    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+    assert.match(r.stderr, /apps\/timer-web\/src\/records\/persist\.ts:\d+: web\/pure が web\/screen を読んでいます/);
+  });
+
+  test("直した辺を戻すと非ゼロで終了する: application が adapters を読む（A2）", () => {
+    // Given
+    const file = "apps/tasuki-sync/src/application/log/vocabulary.ts";
+    // When
+    const r = runScriptCopy("audit-dependency-direction.mjs", appendTo(file, 'import type { AcceptedProtocol as Back } from "../../adapters/ws/connection-gate.js";'));
+    // Then
+    assertBrokenBy("audit-dependency-direction.mjs", r.source, READ_LINE, "本文の読み込み");
+    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+    assert.match(r.stderr, /vocabulary\.ts:\d+: sync\/application が sync\/adapters を読んでいます/);
+  });
+
+  test("直した辺を戻すと非ゼロで終了する: 純粋判断が同期クライアントを読む（A4）", () => {
+    // Given
+    const file = "apps/poker-web/src/join-retry-plan.ts";
+    // When
+    const r = runScriptCopy("audit-dependency-direction.mjs", appendTo(file, "import { joinRetryDelayMs as back } from '@tasuki/sync-client';"));
+    // Then
+    assertBrokenBy("audit-dependency-direction.mjs", r.source, READ_LINE, "本文の読み込み");
+    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+    assert.match(r.stderr, /join-retry-plan\.ts:\d+: web\/pure が sync-client を読んでいます/);
+  });
+
+  test("直した辺を戻すと非ゼロで終了する: exports に無い入口を読む（A5）", () => {
+    // Given
+    const file = "apps/timer-web/src/ui/Session.tsx";
+    // When
+    const r = runScriptCopy("audit-dependency-direction.mjs", appendTo(file, "import { nextEligibleIndex as back } from '@tasuki/timer-core/not-an-entry';"));
+    // Then
+    assertBrokenBy("audit-dependency-direction.mjs", r.source, READ_LINE, "本文の読み込み");
+    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+    assert.match(r.stderr, /Session\.tsx:\d+: package\.json の exports に無い入口を取り込んでいます @tasuki\/timer-core\/not-an-entry/);
+  });
+
+  test("層の判定の呼び出しを消すと、戻した辺が素通りする（配線の所在）", () => {
+    // Given: 辺を戻したうえで、層の判定の結果を捨てる
+    const file = "apps/timer-web/src/records/persist.ts";
+    const mutate = (s) =>
+      appendTo(file, 'import type { EndType as Back } from "../ui/Summary.js";')(s).replace(
+        "const layerViolations = observeLayers(packages, sources);",
+        "const layerViolations = [];",
+      );
+    // When
+    const r = runScriptCopy("audit-dependency-direction.mjs", mutate);
+    // Then: 壊れたこと自体と、この呼び出しが唯一の防波堤であること
+    assertBrokenBy("audit-dependency-direction.mjs", r.source, "const layerViolations = observeLayers(packages, sources);", "層の判定の呼び出し");
+    assert.equal(r.status, 0, "呼び出しを消しても落ちないことの確認（配線の所在を固定する）");
+    assert.doesNotMatch(r.stderr, /層の向きに違反があります/);
+  });
+
+  test("端末 I/O の宣言が実在しないファイルを指すと非ゼロで終了する", () => {
+    // Given: 宣言の表へ、実在しないファイルを 1 行足す（lib の複製ではなく宣言を受け取る側を壊す）
+    const mutate = (s) =>
+      s.replace(
+        "const declaredTracked = new Set(listTrackedFiles(REPO_ROOT, [...WEB_IO_FILES]));",
+        'const declaredTracked = new Set(listTrackedFiles(REPO_ROOT, [...WEB_IO_FILES]).filter((f) => !f.endsWith("timer-web/src/platform/sound.ts")));',
+      );
+    // When
+    const r = runScriptCopy("audit-dependency-direction.mjs", mutate);
+    // Then
+    assertBrokenBy("audit-dependency-direction.mjs", r.source, "const declaredTracked = new Set(listTrackedFiles(REPO_ROOT, [...WEB_IO_FILES]));", "宣言の実在の導出");
+    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+    assert.match(r.stderr, /apps\/timer-web\/src\/platform\/sound\.ts: 端末 I\/O の宣言（WEB_IO_FILES）が実在しないファイルを指しています/);
+  });
 });

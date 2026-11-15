@@ -19,6 +19,10 @@
  *   3. **追跡下の `.ts` / `.tsx` の import 文**に、表に無い `@tasuki/*` が無い
  *   4. **同じ import 文に、パッケージの外へ出る相対パスが無い**
  *
+ * 5. **層の向きと入口外の参照**（#592）: web アプリの層（画面・同期フック・端末 I/O・純粋判断）と
+ *    同期サーバーの層（ポート・アプリケーション・アダプタ）が、`docs/adr/0015` の追記の許可表より内側を読まない。
+ *    判定は `lib/layer-direction.mjs`（無状態の許可リスト）が持つ
+ *
  * 2 と 3 の**両方**を見る。片方だけだと、宣言せずに import する経路（あるいは
  * 宣言だけして使わない経路）が抜ける。
  *
@@ -78,6 +82,7 @@ import {
   listTrackedFiles,
   listWorkspacePackages,
 } from "./lib/scan-targets.mjs";
+import { WEB_IO_FILES, findLayerViolations, findStaleIoFiles } from "./lib/layer-direction.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "..");
@@ -487,11 +492,14 @@ function main() {
   );
   const violations = findViolations(observed);
 
-  if (violations.length === 0) {
-    console.log("依存の向き OK（表に無い @tasuki/* の依存は 0 件）");
+  // 層の向きと入口外の参照（#592・`docs/adr/0015` の追記の許可表）。package 間の向きとは別の観点で、同じ走査対象から導く
+  const layerViolations = observeLayers(packages, sources);
+
+  if (violations.length === 0 && layerViolations.length === 0) {
+    console.log("依存の向き OK（表に無い @tasuki/* の依存は 0 件・層の向きの違反は 0 件）");
     return;
   }
-  console.error("依存の向きに違反があります:");
+  if (violations.length > 0) console.error("依存の向きに違反があります:");
   for (const v of violations) {
     console.error(
       v.dep === null
@@ -503,7 +511,48 @@ function main() {
           : `  ${v.pkg} → ${v.dep}（${v.via}）`,
     );
   }
+  if (layerViolations.length > 0) console.error("層の向きに違反があります（docs/adr/0015 の追記の許可表。scripts/lib/layer-direction.mjs）:");
+  for (const v of layerViolations) {
+    console.error(
+      v.rule === "deep-import"
+        ? `  ${v.file}:${v.line}: package.json の exports に無い入口を取り込んでいます ${v.to}`
+        : v.rule === "stale-io"
+          ? `  ${v.file}: 端末 I/O の宣言（WEB_IO_FILES）が実在しないファイルを指しています`
+          : `  ${v.file}:${v.line}: ${v.fromLayer} が ${v.toLayer} を読んでいます ${v.to}`,
+    );
+  }
   process.exitCode = 1;
+}
+
+/**
+ * 層の向きを観測する。入力は走査対象（{@link SCANNED_EXTENSIONS} の追跡下ファイル）と各 package の `package.json`。
+ * web アプリは `vite.config.ts` を持つ `apps/*`（`listWebApps` と同じ導き方）。
+ */
+function observeLayers(packages, sources) {
+  const files = new Map();
+  for (const list of sources.values()) {
+    for (const rel of list) files.set(rel, fs.readFileSync(path.join(REPO_ROOT, rel), "utf8"));
+  }
+  const tracked = new Set(files.keys());
+  const webApps = new Set([...tracked].filter((f) => /^apps\/[^/]+\/vite\.config\.ts$/.test(f)).map((f) => f.split("/").slice(0, 2).join("/")));
+  const nameToDir = new Map();
+  const exportsOf = new Map();
+  for (const pkg of packages) {
+    const manifestPath = path.join(REPO_ROOT, pkg, "package.json");
+    if (!fs.existsSync(manifestPath)) continue;
+    const json = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+    if (typeof json.name !== "string") continue;
+    nameToDir.set(json.name, pkg);
+    if (json.exports && typeof json.exports === "object") exportsOf.set(pkg, new Set(Object.keys(json.exports)));
+    else if (typeof json.exports === "string") exportsOf.set(pkg, new Set(["."]));
+  }
+  const found = findLayerViolations(files, { webApps, ioFiles: WEB_IO_FILES, nameToDir, exportsOf, tracked });
+  // 宣言の実在は走査対象とは独立に、追跡下のファイルへ直接聞く（走査が空振りしたときに宣言の陳腐化と取り違えない）
+  const declaredTracked = new Set(listTrackedFiles(REPO_ROOT, [...WEB_IO_FILES]));
+  for (const file of findStaleIoFiles(WEB_IO_FILES, declaredTracked)) {
+    found.push({ rule: "stale-io", file, line: 0, to: "", fromLayer: null, toLayer: null });
+  }
+  return found;
 }
 
 if (isDirectRun(import.meta.url, process.argv[1])) main();
