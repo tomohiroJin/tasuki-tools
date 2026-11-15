@@ -1,0 +1,13 @@
+diff --git a/apps/tasuki-sync/src/application/checkin-handlers.ts b/apps/tasuki-sync/src/application/checkin-handlers.ts
+index ceedb25f..8970782c 100644
+--- a/apps/tasuki-sync/src/application/checkin-handlers.ts
++++ b/apps/tasuki-sync/src/application/checkin-handlers.ts
+@@ -132,7 +132,7 @@ function buildCheckinHandlers<H>(deps: Omit<CheckinHandlerDeps, "graceTimer">, g
+ 
+   function clearGrace(roomCode: string): void {
+     const held = graceHandles.get(roomCode);
+-    if (held === undefined) return;
++    if (held === undefined || held.handle === undefined) return;
+     graceTimer.clear(held.handle);
+     graceHandles.delete(roomCode);
+   }

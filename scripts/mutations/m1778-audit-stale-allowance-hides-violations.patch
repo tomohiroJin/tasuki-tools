@@ -1,0 +1,14 @@
+diff --git a/scripts/audit-domain-side-effects.mjs b/scripts/audit-domain-side-effects.mjs
+index ada9ddf9..ab9eb28d 100644
+--- a/scripts/audit-domain-side-effects.mjs
++++ b/scripts/audit-domain-side-effects.mjs
+@@ -273,7 +273,8 @@ export function findForbiddenCalls(text, filePath, allowed = ALLOWED_TOP_LEVEL_M
+ export function collectProblems(scanned, allowed = ALLOWED_TOP_LEVEL_MUTABLE) {
+   const forbidden = [];
+   for (const [rel, text] of scanned) forbidden.push(...findForbiddenCalls(text, rel, allowed));
+-  return { stale: findStaleAllowances(scanned, allowed), forbidden };
++  const stale = findStaleAllowances(scanned, allowed);
++  return { stale, forbidden: stale.length > 0 ? [] : forbidden };
+ }
+ 
+ /**

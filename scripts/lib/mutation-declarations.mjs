@@ -9640,5 +9640,28 @@ export const MUTATIONS = [
     pkg: "apps/tasuki-sync",
     tests: ["test/agenda-deadlines.test.ts"],
     note: RESERVED_1760_1779 + " " + "#596。TimerPort は set が返したハンドルをそのまま clear が受ける。返さないと解除したはずの期限が後で発火する。",
+  },  {
+    id: 1776,
+    label: "進行タイマーの期限の解除が、ハンドルの値が undefined の予約を「無い」と見て解除しない",
+    patch: "m1776-agenda-clear-skips-undefined-handle.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/agenda-deadlines.test.ts"],
+    note: RESERVED_1760_1779 + " " + "#596 のレビュー。TimerPort<H> の H は undefined を含みうる。値で有無を決めると、解除も表からの削除もされず待ちが残る。",
+  },
+  {
+    id: 1777,
+    label: "checkin の猶予の解除が、ハンドルの値が undefined のタイマーを「無い」と見て解除しない",
+    patch: "m1777-checkin-grace-clear-skips-undefined-handle.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/checkin-handlers.test.ts"],
+    note: RESERVED_1760_1779 + " " + "#596 のレビュー。解除されない猶予が残り、開いた後や破棄の後に発火して古い回を扱う。",
+  },
+  {
+    id: 1778,
+    label: "audit-domain-side-effects が、腐った例外があると同じ回の禁止語彙の違反を返さない",
+    patch: "m1778-audit-stale-allowance-hides-violations.patch",
+    pkg: "scripts",
+    tests: ["audit-domain-side-effects.test.mjs"],
+    note: RESERVED_1760_1779 + " " + "#596 のレビュー。片方の問題を直すまでもう片方が見えず、直す回数が増える（全部集めてから一度に報告する）。",
   },
 ];
