@@ -1,0 +1,13 @@
+diff --git a/apps/tasuki-sync/src/application/topic-handlers.ts b/apps/tasuki-sync/src/application/topic-handlers.ts
+index cf0c8721..53095788 100644
+--- a/apps/tasuki-sync/src/application/topic-handlers.ts
++++ b/apps/tasuki-sync/src/application/topic-handlers.ts
+@@ -135,7 +135,7 @@ export function makeTopicHandlers(deps: TopicHandlerDeps): TopicHandlers {
+    *   区別できると、サーバーが AI を持っているかどうかを外から探れる
+    */
+   function handleAiUnlock(connId: string, roomCode: string, key: string): void {
+-    const rateNow = deps.monotonicClock.now();
++    const rateNow = deps.clock.now();
+     if (rateLimitGate.shouldReject(connId, rateNow)) {
+       fail(connId, "RATE_LIMITED");
+       return;

@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-domain-side-effects.mjs b/scripts/audit-domain-side-effects.mjs
+index da61d38e..65d0ca23 100644
+--- a/scripts/audit-domain-side-effects.mjs
++++ b/scripts/audit-domain-side-effects.mjs
+@@ -257,7 +257,7 @@ export function findForbiddenCalls(text, filePath, allowed = ALLOWED_TOP_LEVEL_M
+       const m = pattern.exec(lines[i]);
+       if (m === null) continue;
+       // 宣言した例外（パスと名前が両方合うものだけ）。名前を捕捉するのは可変な Map/Set の語だけ
+-      if (token === MUTABLE_COLLECTION_TOKEN && allowed.some((a) => a.path === filePath && a.name === m[1])) continue;
++      if (token === MUTABLE_COLLECTION_TOKEN && allowed.some((a) => a.path === filePath)) continue;
+       found.push({ path: filePath, line: i + 1, token });
+     }
+   }

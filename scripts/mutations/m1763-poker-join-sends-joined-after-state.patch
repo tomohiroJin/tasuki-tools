@@ -1,0 +1,20 @@
+diff --git a/apps/tasuki-sync/src/application/poker-handlers.ts b/apps/tasuki-sync/src/application/poker-handlers.ts
+index df5f775f..ee2e92fa 100644
+--- a/apps/tasuki-sync/src/application/poker-handlers.ts
++++ b/apps/tasuki-sync/src/application/poker-handlers.ts
+@@ -455,7 +455,6 @@ export function makePokerHandlers(deps: PokerHandlerDeps): PokerHandlers {
+     broadcaster.attach(roomId, participantId, ws);
+     ws.data.participantId = participantId;
+     ws.data.roomId = roomId;
+-    sendJoined(ws, roomId, participantId, token);
+     if (persist) {
+       // 戻ってきた人を隠しモードの「切れた人」から外す（#403 G-8。猶予の予約もここで消える）
+       commit({
+@@ -465,6 +464,7 @@ export function makePokerHandlers(deps: PokerHandlerDeps): PokerHandlers {
+     } else {
+       broadcaster.broadcastSnapshot(roomId, state.round, fragmentsOf(state.room));
+     }
++    sendJoined(ws, roomId, participantId, token);
+     // お題の状態を 1 通送る（#91・E4）。`persist` のどちらの枝でも呼ぶ ——
+     // 保管の有無にかかわらず、この接続はルームへ入った本人だから。
+     topicBroadcaster.sendCurrent(ws.data.connId, roomId);

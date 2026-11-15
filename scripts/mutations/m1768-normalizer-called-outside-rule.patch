@@ -1,0 +1,23 @@
+diff --git a/apps/tasuki-sync/src/application/normalize-command-names.ts b/apps/tasuki-sync/src/application/normalize-command-names.ts
+index 7914ce99..dce4e4ca 100644
+--- a/apps/tasuki-sync/src/application/normalize-command-names.ts
++++ b/apps/tasuki-sync/src/application/normalize-command-names.ts
+@@ -34,7 +34,8 @@
+ 
+ import { ok, type Result } from "neverthrow";
+ import type { Command } from "@tasuki/timer-core";
+-import { applyDisplayNameRule, type DisplayNameRejection } from "./display-name-rule.js";
++import { normalizeDisplayName } from "@tasuki/room-core";
++import { type DisplayNameRejection } from "./display-name-rule.js";
+ 
+ /**
+  * 表示名を運ぶコマンド。**この一覧が正本である。**
+@@ -65,7 +66,7 @@ export const COMMANDS_WITH_DISPLAY_NAME = [
+ export function normalizeCommandNames(cmd: Command): Result<Command, DisplayNameRejection> {
+   if (!hasDisplayName(cmd)) return ok(cmd);
+ 
+-  return applyDisplayNameRule(cmd.displayName).map((displayName) => ({ ...cmd, displayName }));
++  return ok(normalizeDisplayName(cmd.displayName)).map((displayName) => ({ ...cmd, displayName }));
+ }
+ 
+ /** そのコマンドが表示名を運ぶか（運ぶなら型を絞る）。 */
