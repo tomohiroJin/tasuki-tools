@@ -89,7 +89,7 @@ export const SCANNED_PACKAGES = [
 /** 走査から外すパッケージ。**理由が要る。** 実在しなくなったら落ちる。 */
 export const EXCLUDED_PACKAGES = [
   { pkg: "packages/ui", reason: "TS を 1 つも持たない（CSS トークンとフォントのみ）" },
-  { pkg: "packages/test-css", reason: "試験専用の私的なパッケージ（CSS を字で読む小さな解析器・#554）。.mjs と型宣言（.d.mts）だけで、ドメインも実行時の副作用も持たない。読めるのは各パッケージの試験だけ（audit-dependency-direction）" },
+  { pkg: "packages/test-css", reason: "試験の共有支援のパッケージ（CSS を字で読む・書体の判定・偽の WebSocket。#554・#599）。製品コードを持たず、ログの経路も持たない。読めるのは各パッケージの試験だけ（audit-dependency-direction）" },
   { pkg: "e2e", reason: "src/ を持たない。テストコードのログ経路は本検査の対象外" },
 ];
 
