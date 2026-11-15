@@ -8,14 +8,14 @@
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m1800-*.patch
 diff --git a/apps/agenda-web/src/scenario-draft-sync.ts b/apps/agenda-web/src/scenario-draft-sync.ts
-index a557b477..50759ccd 100644
+index fc734c7d..92a4349a 100644
 --- a/apps/agenda-web/src/scenario-draft-sync.ts
 +++ b/apps/agenda-web/src/scenario-draft-sync.ts
-@@ -28,7 +28,7 @@ export function reconcileRoom(state: DraftState, room: ScenarioInput): DraftStat
+@@ -35,7 +35,7 @@ export function reconcileRoom(state: DraftState, room: ScenarioInput): DraftStat
+   const key = scenarioKey(room);
    if (state.roomKey === key) return state;
    const draftKey = scenarioKey(inputFromDraft(state.draft));
-   // 回数の欄を空にした下書きは `rounds` キーを落とし、回数 1 のルームと同じ鍵になる。触った下書きとして扱う
--  const untouched = isEmptyDraft(state.draft) || (roundsOfDraft(state.draft) !== null && draftKey === state.roomKey);
+-  const untouched = isEmptyDraft(state.draft) || isUntouchedCopy(state.draft, state.roomKey);
 +  const untouched = true;
    return untouched
      ? { ...state, draft: draftFromInput(room), roomKey: key, changed: false }
