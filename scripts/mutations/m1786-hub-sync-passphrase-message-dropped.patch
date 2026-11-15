@@ -14,7 +14,7 @@
 diff --git a/apps/landing/src/hub/use-hub-sync.ts b/apps/landing/src/hub/use-hub-sync.ts
 --- a/apps/landing/src/hub/use-hub-sync.ts
 +++ b/apps/landing/src/hub/use-hub-sync.ts
-@@ -250,4 +250,3 @@ export function useHubSync(): HubSync {
+@@ -262,5 +262,4 @@ export function useHubSync(): HubSync {
            case 'passphrase':
              setNeedsPassphrase(true);
 -            setError(intent.message);

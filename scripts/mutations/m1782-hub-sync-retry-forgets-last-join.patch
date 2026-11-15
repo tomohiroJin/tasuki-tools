@@ -1,8 +1,10 @@
 # 変異 1782: hub-sync-retry-forgets-last-join
 #
 # 検出を期待するテスト:
-#   - apps/landing/tests/hub/use-hub-sync.test.tsx
-#     混雑で弾かれた名乗りが自動で入り直される例（`joinRetryDelayMs` の待ちの後に room.join が再送される）
+#   - apps/landing/tests/hub/use-hub-sync.test.tsx（3 本が倒れる）
+#     「Given 照会と入室が続けて弾かれる / When 待ち時間が過ぎる / Then room.join の再送は1通だけ（I1）」
+#     「Given 照会の試行を使い切った / When 利用者が名乗って弾かれる / Then 数え直して送り直す」
+#     「Given 試行を使い切った後に入れた / When 再接続で入り直して弾かれる / Then 数え直して送り直す」
 #
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m1782-*.patch
