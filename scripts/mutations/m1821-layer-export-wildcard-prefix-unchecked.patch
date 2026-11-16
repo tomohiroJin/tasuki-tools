@@ -1,0 +1,18 @@
+# 変異 1821: layer-export-wildcard-prefix-unchecked
+#
+# #592。`exports` のワイルドカードの前置きを見ず、別の場所のサブパスも宣言済みと読む。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1821-*.patch
+
+--- a/scripts/lib/layer-direction.mjs
++++ b/scripts/lib/layer-direction.mjs
+@@ -194,7 +194,7 @@ export function isDeclaredEntry(keys, sub) {
+     if (star < 0) continue;
+     const head = k.slice(0, star);
+     const tail = k.slice(star + 1);
+-    if (sub.length > head.length + tail.length && sub.startsWith(head) && sub.endsWith(tail)) return true;
++    if (sub.length > head.length + tail.length && sub.endsWith(tail)) return true;
+   }
+   return false;
+ }

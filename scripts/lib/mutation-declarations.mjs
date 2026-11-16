@@ -230,6 +230,9 @@ const RESERVED_1660_1679 =
 const RESERVED_1720_1739 =
   "**対応表より後に足した変異。** 1720〜1739 は #592（層の逆流を直す・web 層の向きの監査）に割り当てた範囲。";
 
+const RESERVED_1820_1829 =
+  "**対応表より後に足した変異。** 1820〜1829 は #592 の追加（1720〜1739 を使い切ったため。/code-review の直しの性質）に割り当てた範囲。";
+
 const RESERVED_1420_1429 =
   "**対応表より後に足した変異。** 1420〜1429 は #557 に追加で割り当てた範囲（1120〜1129・1410〜1419 を使い切ったため。PR #580 のレビューの指摘で足した）。";
 
@@ -9672,5 +9675,29 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["lib/layer-direction.test.mjs"],
     note: RESERVED_1720_1739 + " " + "#592。宣言済みの入口が入口外と誤られる（またはワイルドカードの入口が検めされない）。",
+  },
+  {
+    id: 1820,
+    label: "`exports` の条件の map（`.` を持たない）を入口 `.` と読まず、キーをそのままサブパスとして扱う",
+    patch: "m1820-layer-export-keys-condition-map-as-subpaths.patch",
+    pkg: "scripts",
+    tests: ["lib/layer-direction.test.mjs"],
+    note: RESERVED_1820_1829 + " " + "#592。`{"types":…,"default":…}` 形の exports の package で、`.` が入口外と誤られる。",
+  },
+  {
+    id: 1821,
+    label: "`exports` のワイルドカードの前置きを見ず、別の場所のサブパスも宣言済みと読む",
+    patch: "m1821-layer-export-wildcard-prefix-unchecked.patch",
+    pkg: "scripts",
+    tests: ["lib/layer-direction.test.mjs"],
+    note: RESERVED_1820_1829 + " " + "#592。`./lib/*` だけを宣言した package の `./other/x` が入口外として検出されない。",
+  },
+  {
+    id: 1822,
+    label: "同期フックの名指しの宣言が実在しないファイルを指しても落ちない",
+    patch: "m1822-audit-stale-hook-unchecked.patch",
+    pkg: "scripts",
+    tests: ["wiring-audit-dependency-direction.test.mjs"],
+    note: RESERVED_1820_1829 + " " + "#592。改名・削除で宣言だけが残り、そのファイルが純粋判断として裁かれ続ける。",
   },
 ];

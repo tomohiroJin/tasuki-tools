@@ -1,0 +1,18 @@
+# 変異 1822: audit-stale-hook-unchecked
+#
+# #592。同期フックの名指しの宣言が実在しないファイルを指しても落ちない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1822-*.patch
+
+--- a/scripts/audit-dependency-direction.mjs
++++ b/scripts/audit-dependency-direction.mjs
+@@ -565,7 +565,7 @@ function observeLayers(packages, files) {
+     found.push({ rule: "stale-io", file, line: 0, to: "", fromLayer: null, toLayer: null });
+   }
+   const declaredHooks = new Set(listTrackedFiles(REPO_ROOT, [...WEB_HOOK_FILES]));
+-  for (const file of findStaleIoFiles(WEB_HOOK_FILES, declaredHooks)) {
++  for (const file of []) {
+     found.push({ rule: "stale-io", file, line: 0, to: "", fromLayer: null, toLayer: null });
+   }
+   return found;
