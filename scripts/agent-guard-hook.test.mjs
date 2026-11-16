@@ -236,9 +236,21 @@ test("入口 再レビュー I-1: サブエージェント（agent_id つき）�
 
 const prOf = (state) => JSON.stringify([{ number: 501, title: "docs: 先行（#9）", body: "", state, headRefName: "x/501" }]);
 
-test("入口（#622）: マージ済み・閉じた PR だけなら何も返さない", (t) => {
-  assert.equal(run(t, 'gh pr create --title "x（#9）"', { prs: prOf("MERGED") }), null);
-  assert.equal(run(t, 'gh pr create --title "x（#9）"', { prs: prOf("CLOSED") }), null);
+test("入口（#622）: マージ済み・閉じた PR だけなら ask にせず、行（PR の番号・状態）を見せる出力を返す", (t) => {
+  for (const [state, label] of [["MERGED", "マージ済み"], ["CLOSED", "閉じた"]]) {
+    const out = run(t, 'gh pr create --title "x（#9）"', { prs: prOf(state) });
+    assert.notEqual(out, null, state);
+    assert.equal("permissionDecision" in out.hookSpecificOutput, false, state);
+    assert.match(out.systemMessage, new RegExp(`PR #501（${label}）`));
+    assert.match(out.hookSpecificOutput.additionalContext, new RegExp(`PR #501（${label}）`));
+  }
+});
+
+test("入口（#622）: マージ済みの知らせと、ほかの ask の要因（閉鎖キーワード）が同時なら ask。知らせは理由に残る", (t) => {
+  const out = run(t, 'gh pr create --title "x（#9）" --body "説明に Fixes #9 と書く"', { prs: prOf("MERGED") });
+  assert.equal(out?.hookSpecificOutput.permissionDecision, "ask");
+  assert.match(out.hookSpecificOutput.permissionDecisionReason, /閉鎖キーワード/);
+  assert.match(out.hookSpecificOutput.permissionDecisionReason, /PR #501（マージ済み）/);
 });
 
 test("入口（#622）: 開いた PR とマージ済みが混ざれば ask", (t) => {

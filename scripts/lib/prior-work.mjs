@@ -103,13 +103,14 @@ export function describePriorWork(r) {
   if (r.state === "unknown") {
     return { state: "not-run", lines: [`⚠ 同じ ISSUE #${r.number} の先行 PR の確認は未実行です（${r.errors.join("・")}）`] };
   }
-  if (r.state === "found") {
-    lines.push(`⚠ 同じ ISSUE #${r.number} の他の PR・枝があります。作業の途中なら、続ける前に人へ伝えてください`);
+  if (r.state === "found" || r.state === "past") {
+    // 見出しは状態だけ書く。止める・止めないは、この行を使う判定の側（フック・check:fast）が 1 回だけ書く
+    // （ask の理由文にも入るので、ここに「止めません」と書くと「人の確認が要ります」と食い違う）
+    lines.push(r.state === "found"
+      ? `⚠ 同じ ISSUE #${r.number} の他の PR・枝があります。作業の途中なら、続ける前に人へ伝えてください`
+      : `同じ ISSUE #${r.number} の他の PR はマージ済みか閉じたものだけです（開いた PR・枝はありません）`);
     for (const p of r.prs) lines.push(`  - PR #${p.number}（${STATE_LABEL[p.state] ?? p.state}）${p.title}`);
     for (const b of r.branches) lines.push(`  - 枝 ${b}`);
-  } else if (r.state === "past") {
-    lines.push(`同じ ISSUE #${r.number} の他の PR はマージ済みか閉じたものだけです（開いた PR・枝は無いので止めません）`);
-    for (const p of r.prs) lines.push(`  - PR #${p.number}（${STATE_LABEL[p.state] ?? p.state}）${p.title}`);
   } else {
     lines.push(`同じ ISSUE #${r.number} の他の PR・枝はありません（検索に当たった ${r.total ?? 0} 件を確認）`);
   }

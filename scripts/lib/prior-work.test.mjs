@@ -266,13 +266,15 @@ test("#622: マージ済みだけでも、枝が引けなかったときは unkn
   assert.equal((await findPriorWork(504, { gh, git, ownBranch: "x" })).state, "unknown");
 });
 
-test("#622: マージ済みだけのとき、知らせの行は PR の状態つきで出る（⚠ の警告ではなく、止めないと書く）", async () => {
+test("#622: マージ済みだけのとき、知らせの行は PR の状態つきで出る（⚠ の警告ではない。止める・止めないは書かず、判定の側が 1 回だけ書く）", async () => {
   const { gh, git } = fakes({ prs: [pr(501, "済（#504）", "", "MERGED")] });
   const r = describePriorWork(await findPriorWork(504, { gh, git, ownBranch: "x" }));
   assert.equal(r.state, "past");
   assert.ok(r.lines.some((l) => l.includes("PR #501（マージ済み）済（#504）")), r.lines.join("\n"));
-  assert.ok(r.lines.some((l) => l.includes("止めません")));
+  assert.ok(r.lines.some((l) => l.includes("開いた PR・枝はありません")));
   assert.equal(r.lines[0].startsWith("⚠"), false);
+  // ask の理由文にも入る行なので、「止めません」と書くと「人の確認が要ります」と食い違う
+  assert.equal(r.lines.some((l) => l.includes("止めません")), false, r.lines.join("\n"));
 });
 
 test("#622: checkPriorWork: マージ済みだけなら past。PR の行は出る", async () => {

@@ -4,6 +4,7 @@
  * - 判定ごとに try を分ける。**投げた判定は `ask`（判定に失敗しました）に倒し**、ほかの判定を捨てない
  *   （通る側に倒さない。ADR-0032 決定 1「読めないときは当てる側に倒す」）
  * - 当たった判定の理由は**全部まとめて** 1 つの `ask` にする（先に返して後を捨てない）
+ * - `permissionDecision` の無い出力（止めずに知らせる。#622）は、ask と同時なら ask の理由に足し、無ければ知らせだけを返す
  * - 本番デプロイの近道（当たったら他を省く）は入口が別に持つ。ここは近道の後の束ねだけ
  */
 
@@ -27,7 +28,14 @@ export async function combineDecisions(judges) {
   );
   const found = results.filter((x) => x !== null && x !== undefined);
   if (found.length === 0) return null;
-  const out = structuredClone(found[0]);
-  out.hookSpecificOutput.permissionDecisionReason = found.map((x) => x.hookSpecificOutput.permissionDecisionReason).join("\n\n");
+  // `permissionDecision` の無い出力は、止めずに知らせるもの（#622。`systemMessage` に本文）。ask と一緒なら、ask の理由に足して落とさない
+  const asks = found.filter((x) => x.hookSpecificOutput?.permissionDecision === "ask");
+  const infos = found.filter((x) => x.hookSpecificOutput?.permissionDecision !== "ask");
+  if (asks.length === 0) {
+    const text = infos.map((x) => x.systemMessage).join("\n\n");
+    return { systemMessage: text, hookSpecificOutput: { hookEventName: "PreToolUse", additionalContext: text } };
+  }
+  const out = structuredClone(asks[0]);
+  out.hookSpecificOutput.permissionDecisionReason = [...asks.map((x) => x.hookSpecificOutput.permissionDecisionReason), ...infos.map((x) => x.systemMessage)].join("\n\n");
   return out;
 }

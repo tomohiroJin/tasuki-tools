@@ -213,14 +213,30 @@ test("本番デプロイのガードの振る舞いは変わらない", async ()
 
 // ---- #622: マージ済み・閉じた PR だけ（state: past）では止めない ----
 
-test("#622: 先行がマージ済み・閉じた PR だけ（past）なら何も返さない", async () => {
-  const past = { state: "past", lines: ["同じ ISSUE #504 の先行 PR はすべてマージ済みか閉じています（止めません）", "  - PR #501（マージ済み）x"] };
-  assert.equal(await decidePriorPrOutput(input("gh pr create"), deps({ result: past })), null);
+test("#622: 先行がマージ済み・閉じた PR だけ（past）なら止めず、行（PR の番号・状態）を見せる出力にする", async () => {
+  const past = { state: "past", lines: ["同じ ISSUE #504 の他の PR はマージ済みか閉じたものだけです（開いた PR・枝はありません）", "  - PR #501（マージ済み）x"] };
+  const out = await decidePriorPrOutput(input("gh pr create"), deps({ result: past }));
+  assert.notEqual(out, null);
+  // permissionDecision を付けない（ask にも allow にもしない。権限の確認の流れを変えない）
+  assert.equal("permissionDecision" in out.hookSpecificOutput, false);
+  assert.equal(out.hookSpecificOutput.hookEventName, "PreToolUse");
+  // 利用者に見せる（systemMessage）・Claude の文脈に入れる（additionalContext）の両方に行が載る
+  for (const text of [out.systemMessage, out.hookSpecificOutput.additionalContext]) {
+    assert.match(text, /PR #501（マージ済み）x/);
+    assert.match(text, /止めずに知らせます/);
+  }
 });
 
 test("#622: past でも検索が切れていれば ask（無いと言い切れない）", async () => {
   const out = await decidePriorPrOutput(input("gh pr create"), deps({ result: { state: "past", truncated: true, lines: ["⚠ 検索が上限に当たりました"] } }));
   assert.equal(out?.hookSpecificOutput.permissionDecision, "ask");
+});
+
+test("#622: past でも検索が切れていれば ask。理由文に「止めません」は無い（人の確認が要ると食い違う）", async () => {
+  const past = { state: "past", truncated: true, lines: ["同じ ISSUE #504 の他の PR はマージ済みか閉じたものだけです（開いた PR・枝はありません）", "  - PR #501（マージ済み）x", "⚠ 検索が上限に当たりました"] };
+  const out = await decidePriorPrOutput(input("gh pr create"), deps({ result: past }));
+  assert.equal(out?.hookSpecificOutput.permissionDecision, "ask");
+  assert.doesNotMatch(out.hookSpecificOutput.permissionDecisionReason, /止めません/);
 });
 
 test("#622: 未実行（not-run）は ask のまま", async () => {

@@ -24,6 +24,24 @@ test("投げた判定は ask（判定に失敗しました）に倒し、ほか�
   assert.match(reason, /先行PR.*判定に失敗しました/);
 });
 
+const inform = (text) => ({ systemMessage: text, hookSpecificOutput: { hookEventName: "PreToolUse", additionalContext: text } });
+
+test("止めずに知らせる出力（permissionDecision なし）だけなら、ask にせず知らせをまとめて返す（#622）", async () => {
+  const one = await combineDecisions([{ name: "a", run: () => null }, { name: "b", run: () => inform("知らせ B") }]);
+  assert.equal("permissionDecision" in one.hookSpecificOutput, false);
+  assert.equal(one.systemMessage, "知らせ B");
+  assert.equal(one.hookSpecificOutput.additionalContext, "知らせ B");
+  const two = await combineDecisions([{ name: "a", run: () => inform("知らせ A") }, { name: "b", run: () => inform("知らせ B") }]);
+  assert.equal(two.systemMessage, "知らせ A\n\n知らせ B");
+  assert.equal(two.hookSpecificOutput.additionalContext, "知らせ A\n\n知らせ B");
+});
+
+test("ask と知らせが同時に当たれば ask。知らせを理由に足し、ask を落とさない（#622）", async () => {
+  const out = await combineDecisions([{ name: "a", run: () => inform("知らせ A") }, { name: "b", run: () => ask("理由 B") }]);
+  assert.equal(out.hookSpecificOutput.permissionDecision, "ask");
+  assert.equal(out.hookSpecificOutput.permissionDecisionReason, "理由 B\n\n知らせ A");
+});
+
 test("全部が投げても ask（通る側に倒さない）", async () => {
   const out = await combineDecisions([{ name: "x", run: () => { throw new Error("1"); } }]);
   assert.equal(out.hookSpecificOutput.permissionDecision, "ask");
