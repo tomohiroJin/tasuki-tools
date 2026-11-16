@@ -67,6 +67,7 @@ export const LAYER_ALLOWED = {
 
 /**
  * 層 → **型だけの import（`import type`）なら読んでよい**層。値の import は {@link LAYER_ALLOWED} だけで決まる。
+ * 根拠は `docs/adr/0015` の追記（2026-11-16・#592。Proposed）。
  * 純粋判断が `@tasuki/sync-client` の接続状態の型を取る形（#369: 型の正本は sync-client で、web アプリが書き直すのは
  * `audit-web-sync-boundary.mjs` が止める）。型だけの import は実行時の依存を持たない。**ここに足す行は最小に保つ**。
  */
