@@ -1,0 +1,18 @@
+# 変異 1739: layer-exports-wildcard-ignored
+#
+# #592。`exports` の `*` のワイルドカードを読まず、宣言された入口を入口外と誤る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1739-*.patch
+
+--- a/scripts/lib/layer-direction.mjs
++++ b/scripts/lib/layer-direction.mjs
+@@ -191,7 +191,7 @@ export function isDeclaredEntry(keys, sub) {
+   if (keys.has(sub)) return true;
+   for (const k of keys) {
+     const star = k.indexOf("*");
+-    if (star < 0) continue;
++    continue;
+     const head = k.slice(0, star);
+     const tail = k.slice(star + 1);
+     if (sub.length > head.length + tail.length && sub.startsWith(head) && sub.endsWith(tail)) return true;

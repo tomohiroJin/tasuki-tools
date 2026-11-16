@@ -1,0 +1,18 @@
+# 変異 1737: layer-sync-assembly-has-no-layer
+#
+# #592。同期サーバーの組み立てを層なしにし、application・adapters が組み立てを読んでも通る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1737-*.patch
+
+--- a/scripts/lib/layer-direction.mjs
++++ b/scripts/lib/layer-direction.mjs
+@@ -121,7 +121,7 @@ export function layerOfFile(file, ctx) {
+     const m = /^apps\/tasuki-sync\/src\/(application|ports|adapters)\//.exec(file);
+     if (m) return `sync/${m[1]}`;
+     // src の下のそれ以外（`src` 直下の config.ts・create-sync-server.ts・assembly/ ほか）は組み立て
+-    return file.startsWith(`${SYNC_DIR}/src/`) && /\.[cm]?tsx?$/.test(file) ? "sync/assembly" : null;
++    return file.startsWith(`${SYNC_DIR}/src/`) && /\.[cm]?tsx?$/.test(file) ? null : null;
+   }
+   if (!ctx.webApps.has(pkg) || !file.startsWith(`${pkg}/src/`)) return null;
+   if (ctx.ioFiles.has(file)) return "web/io";

@@ -1,0 +1,18 @@
+# 変異 1738: layer-hook-by-directory
+#
+# #592。sync/・hooks/ の下の .ts をすべて同期フックにし、純粋なファイルが純粋判断の規則の外に出る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1738-*.patch
+
+--- a/scripts/lib/layer-direction.mjs
++++ b/scripts/lib/layer-direction.mjs
+@@ -127,7 +127,7 @@ export function layerOfFile(file, ctx) {
+   if (ctx.ioFiles.has(file)) return "web/io";
+   if (!/\.tsx?$/.test(file)) return null;
+   // 同期フックは名前の規則だけで決める（`use` で始まる名前。拡張子によらない）。sync/・hooks/ の下でも use で始まらない .ts は純粋判断
+-  if (/^use[-A-Z]/.test(path.posix.basename(file)) || ctx.hookFiles?.has(file)) return "web/hook";
++  if (/^use[-A-Z]/.test(path.posix.basename(file)) || /(^|\/)(sync|hooks)\//.test(file)) return "web/hook";
+   return /\.tsx$/.test(file) ? "web/screen" : "web/pure";
+ }
+ 

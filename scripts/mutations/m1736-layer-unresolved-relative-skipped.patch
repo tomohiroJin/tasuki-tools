@@ -1,0 +1,17 @@
+# 変異 1736: layer-unresolved-relative-skipped
+#
+# #592。解決できない相対 import を黙って飛ばす。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1736-*.patch
+
+--- a/scripts/lib/layer-direction.mjs
++++ b/scripts/lib/layer-direction.mjs
+@@ -230,7 +230,6 @@ export function findLayerViolations(files, ctx) {
+       if (spec.startsWith(".")) {
+         const target = resolveRelative(file, spec, ctx.tracked);
+         if (target === null) {
+-          violations.push({ rule: "unresolved", file, line, to: spec, fromLayer, toLayer: null });
+           continue;
+         }
+         toLayer = layerOfFile(target, ctx);
