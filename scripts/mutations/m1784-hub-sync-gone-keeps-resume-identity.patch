@@ -1,0 +1,23 @@
+# 変異 1784: hub-sync-gone-keeps-resume-identity
+#
+# 検出を期待するテスト:
+#   - apps/landing/tests/hub/use-hub-sync.test.tsx
+#     「Given ルームが消えていた / When ROOM_NOT_FOUND が返る / 保存済みの組を捨てる」
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1784-*.patch
+# 復元: git apply -R scripts/mutations/m1784-*.patch
+#
+# #595。`planHubError` が `gone` を返しても、`use-hub-sync.ts` が保存済みの復帰の組を捨てない
+# （配線の変異）。消えたルームへ毎回入り直そうとして、参加画面に戻れなくなる。
+diff --git a/apps/landing/src/hub/use-hub-sync.ts b/apps/landing/src/hub/use-hub-sync.ts
+--- a/apps/landing/src/hub/use-hub-sync.ts
++++ b/apps/landing/src/hub/use-hub-sync.ts
+@@ -270,7 +270,6 @@ export function useHubSync(): HubSync {
+           case 'gone':
+             // **保存済みの組で入れなかったら捨てる。** 残すと、消えたルームへ
+             // 毎回入り直そうとして参加画面に戻れない（poker の clearIdentity と同じ扱い）。
+-            clearResumeIdentity(intent.target);
+             // **名乗りフォームを出さない**（#274・#76 J-1）。ここで返す。`error` を埋めると、
+             // 不在の画面と参加画面用の文言が同じことを 2 通りの言い方で出すことになる。
+             setGone(true);

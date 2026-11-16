@@ -184,6 +184,21 @@ describe('ハブの同期', () => {
     expect(screen.queryByRole('list', { name: '参加者' })).toBeNull();
   });
 
+  it('Given 合言葉つきのルーム / When 求められる / Then サーバーの文言が表示される', () => {
+    // Given（準備）
+    window.history.replaceState(null, '', '/?room=R1');
+    render(<App />);
+    act(() => socket().open());
+
+    // When（操作）
+    act(() => {
+      socket().deliver({ type: 'error', code: 'PASSPHRASE_REQUIRED', message: '合言葉の文言テスト' });
+    });
+
+    // Then
+    expect(screen.getByText('合言葉の文言テスト')).toBeInTheDocument();
+  });
+
   it('Given 保存済みの復帰の組 / When 参加用 URL を開く / Then 名乗らずに入り直す', () => {
     // Given（準備）: 同じ端末・同じルーム（R16）
     window.history.replaceState(null, '', '/?room=R1');

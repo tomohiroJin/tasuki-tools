@@ -227,6 +227,9 @@ const RESERVED_1640_1659 =
 const RESERVED_1660_1679 =
   "**対応表より後に足した変異。** 1660〜1679 は #595（#482-6）に割り当てた範囲。";
 
+const RESERVED_1780_1799 =
+  "**対応表より後に足した変異。** 1780〜1799 は #595（use-hub-sync を責務で分ける）に割り当てた範囲。";
+
 const RESERVED_1800_1819 =
   "**対応表より後に足した変異。** 1800〜1819 は #595（ScenarioBuilder を責務で分ける）に割り当てた範囲。";
 
@@ -1116,10 +1119,10 @@ export const MUTATIONS = [
   },
   {
     id: 88,
-    label: "玄関の use-hub-sync.ts が topic フレームを検めずに捨てる",
+    label: "玄関の classifyHubFrame（hub-frames.ts）が topic フレームを検めずに捨てる",
     patch: "m88-hub-topic-frame-not-checked.patch",
     pkg: "apps/landing",
-    tests: ["tests/hub/use-hub-sync.test.tsx"],
+    tests: ["tests/hub/use-hub-sync.test.tsx", "tests/hub/hub-frames.test.ts"],
     note:
       "#91 PR 2・spec T3。`TopicFrameSchema` で見分ける分岐を消し、`topic` フレームを" +
       "ハブのスキーマにしか通さなくなる。ハブの契約に合わないので黙って捨てられ、" +
@@ -9512,6 +9515,62 @@ export const MUTATIONS = [
     pkg: "apps/timer-web",
     tests: ["test/sync/use-timer-sync.test.tsx"],
     note: RESERVED_1660_1679 + " " + "#595 のレビュー。受け皿 clearCompletion の配線を突く。",
+  },
+  {
+    id: 1780,
+    label: "planHubError が作成後の古いコードの不在を無視せず新しいルームを巻き添えにする",
+    patch: "m1780-hub-error-plan-stale-code-not-ignored.patch",
+    pkg: "apps/landing",
+    tests: ["tests/hub/hub-frames.test.ts"],
+    note: RESERVED_1780_1799 + " " + "#595・#290。分けた先の純粋な判断。作成でルームが進んだ後に古いコードの ROOM_NOT_FOUND が届くと、新しいルームの復帰の組を消す。",
+  },
+  {
+    id: 1781,
+    label: "retryCommand が名乗る前の再試行でも入室を送る",
+    patch: "m1781-hub-retry-command-never-checks.patch",
+    pkg: "apps/landing",
+    tests: ["tests/hub/hub-commands.test.ts"],
+    note: RESERVED_1780_1799 + " " + "#595・#274。分けた先の純粋な組み立て。名乗る前に混雑で弾かれた人の再試行が、空の名前での入室になる。",
+  },
+  {
+    id: 1782,
+    label: "use-hub-sync が混雑の再試行に直近の名乗りを渡さない",
+    patch: "m1782-hub-sync-retry-forgets-last-join.patch",
+    pkg: "apps/landing",
+    tests: ["tests/hub/use-hub-sync.test.tsx"],
+    note: RESERVED_1780_1799 + " " + "#595。use-hub-sync から retryCommand への配線。名乗った人の自動の入り直しが照会に化ける。",
+  },
+  {
+    id: 1783,
+    label: "use-hub-sync が topic の分類を受けてもタイトルを反映しない",
+    patch: "m1783-hub-sync-topic-title-dropped.patch",
+    pkg: "apps/landing",
+    tests: ["tests/hub/use-hub-sync.test.tsx"],
+    note: RESERVED_1780_1799 + " " + "#595。use-hub-sync から classifyHubFrame の結果への配線。選択画面の「いまのお題」が出ない。",
+  },
+  {
+    id: 1784,
+    label: "use-hub-sync が不在のとき保存済みの復帰の組を捨てない",
+    patch: "m1784-hub-sync-gone-keeps-resume-identity.patch",
+    pkg: "apps/landing",
+    tests: ["tests/hub/use-hub-sync.test.tsx"],
+    note: RESERVED_1780_1799 + " " + "#595。use-hub-sync から planHubError の gone への配線。消えたルームへ毎回入り直そうとして参加画面に戻れない。",
+  },
+  {
+    id: 1785,
+    label: "useDefaultDisplayName が提示できない保存値を鍵ごと捨てない",
+    patch: "m1785-default-display-name-cleanup-never-discards.patch",
+    pkg: "apps/landing",
+    tests: ["tests/default-display-name.test.tsx"],
+    note: RESERVED_1780_1799 + " " + "#595・#284。分けた先の小さなフック。玄関を開くたびに同じ値で弾かれ続ける。",
+  },
+  {
+    id: 1786,
+    label: "use-hub-sync が合言葉を求められたときサーバーの文言を表示しない",
+    patch: "m1786-hub-sync-passphrase-message-dropped.patch",
+    pkg: "apps/landing",
+    tests: ["tests/hub/use-hub-sync.test.tsx"],
+    note: RESERVED_1780_1799 + " " + "#595。use-hub-sync から planHubError の passphrase への配線。入力欄だけが出て、なぜ求められたかが伝わらない。",
   },
   {
     id: 1800,

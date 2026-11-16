@@ -26,7 +26,8 @@
  * 写経した数字をここへ書かない（上限を動かすと画面とテストが揃って古いまま緑になる）。
  *
  * **保管庫には触らない**（`docs/guides/architecture.md` の「web の純粋判断」層）。
- * 読み書きと鍵の綴りは同期フック（`use-hub-sync.ts`）が持つ。
+ * 読む側と端末の片付けは `use-default-display-name.ts`、入室の応答での書き込みは
+ * 同期フック（`use-hub-sync.ts`）が持つ。
  */
 import {
   MAX_DISPLAY_NAME,

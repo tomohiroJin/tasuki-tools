@@ -1,0 +1,22 @@
+# 変異 1781: hub-retry-command-never-checks
+#
+# 検出を期待するテスト:
+#   - apps/landing/tests/hub/hub-commands.test.ts
+#     「Given まだ名乗っていない / When 再試行のコマンドを作る / Then 照会を送り直す」
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1781-*.patch
+# 復元: git apply -R scripts/mutations/m1781-*.patch
+#
+# #595・#274。`retryCommand` が「まだ名乗っていない（last が null）なら照会」の分岐を落とし、
+# 常に入室を送り直す。名乗る前に混雑で弾かれた人の再試行が、空の名前での入室になる。
+diff --git a/apps/landing/src/hub/hub-commands.ts b/apps/landing/src/hub/hub-commands.ts
+--- a/apps/landing/src/hub/hub-commands.ts
++++ b/apps/landing/src/hub/hub-commands.ts
+@@ -42,5 +42,5 @@ export function joinCommand(code: string, last: LastJoin): HubCommand {
+  * エラーのフレームに相関の手がかりが無いので、送った側の状態で見分ける。
+  */
+ export function retryCommand(code: string, last: LastJoin | null): HubCommand {
+-  return last === null ? checkCommand(code) : joinCommand(code, last);
++  return joinCommand(code, last ?? { displayName: '' });
+ }

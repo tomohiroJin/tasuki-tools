@@ -1,0 +1,22 @@
+# 変異 1786: hub-sync-passphrase-message-dropped
+#
+# 検出を期待するテスト:
+#   - apps/landing/tests/hub/use-hub-sync.test.tsx
+#     「Given 合言葉つきのルーム / When 求められる / Then サーバーの文言が表示される」
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1786-*.patch
+# 復元: git apply -R scripts/mutations/m1786-*.patch
+#
+# #595。合言葉を求められたとき（`planHubError` の passphrase）、`use-hub-sync.ts` が
+# サーバーの文言を `error` へ載せない（配線の変異）。入力欄だけが出て、なぜ求められたか
+# （合言葉が違う等）が利用者に伝わらない。
+diff --git a/apps/landing/src/hub/use-hub-sync.ts b/apps/landing/src/hub/use-hub-sync.ts
+--- a/apps/landing/src/hub/use-hub-sync.ts
++++ b/apps/landing/src/hub/use-hub-sync.ts
+@@ -262,5 +262,4 @@ export function useHubSync(): HubSync {
+           case 'passphrase':
+             setNeedsPassphrase(true);
+-            setError(intent.message);
+             return;
+           case 'rate-limited': {
