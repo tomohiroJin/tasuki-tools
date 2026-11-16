@@ -18,7 +18,15 @@ const mk = (id: string, name: string, over: Partial<Participant> = {}): Particip
   ...over,
 });
 
-function renderPanel(handlers: Partial<Record<"onSkip" | "onResume" | "onMove" | "onAssignDriver" | "onRename", ReturnType<typeof vi.fn>>>) {
+interface Handlers {
+  onSkip?: (participantId: string) => void;
+  onResume?: (participantId: string) => void;
+  onMove?: (fromIndex: number, toIndex: number) => void;
+  onAssignDriver?: (participantId: string) => void;
+  onRename?: (participantId: string, displayName: string) => void;
+}
+
+function renderPanel(handlers: Handlers) {
   const participants = [mk("a", "Alice"), mk("b", "Bob"), mk("c", "Carol", { driverEligible: false })];
   render(
     <RosterPanel
