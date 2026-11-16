@@ -251,6 +251,26 @@ test("入口（#622）: マージ済みの知らせと、ほかの ask の要因
   assert.equal(out?.hookSpecificOutput.permissionDecision, "ask");
   assert.match(out.hookSpecificOutput.permissionDecisionReason, /閉鎖キーワード/);
   assert.match(out.hookSpecificOutput.permissionDecisionReason, /PR #501（マージ済み）/);
+  assert.doesNotMatch(out.hookSpecificOutput.permissionDecisionReason, /止めずに/);
+});
+
+test("入口（#622）: 知らせと同時でも、止める判定（未コミットを消す git・サブエージェントの push・当たらない --filter・本番デプロイ）は ask のまま残り、理由に「止めずに」を混ぜない", (t) => {
+  const cases = [
+    ['git checkout -- a.txt && gh pr create --title "x（#9）"', {}, /未コミット|変更/],
+    ['git push && gh pr create --title "x（#9）"', { agentId: "a1" }, /サブエージェント/],
+    ['pnpm --filter @nope/none test && gh pr create --title "x（#9）"', {}, /--filter/],
+  ];
+  for (const [command, opts, expected] of cases) {
+    const out = run(t, command, { prs: prOf("MERGED"), ...opts });
+    assert.equal(out?.hookSpecificOutput.permissionDecision, "ask", command);
+    const reason = out.hookSpecificOutput.permissionDecisionReason;
+    assert.match(reason, expected, command);
+    assert.match(reason, /PR #501（マージ済み）/, command);
+    assert.doesNotMatch(reason, /止めずに/, command);
+  }
+  const deploy = run(t, 'bash deploy/deploy.sh && gh pr create --title "x（#9）"', { prs: prOf("MERGED") });
+  assert.equal(deploy?.hookSpecificOutput.permissionDecision, "ask");
+  assert.doesNotMatch(deploy.hookSpecificOutput.permissionDecisionReason, /止めずに/);
 });
 
 test("入口（#622）: 開いた PR とマージ済みが混ざれば ask", (t) => {

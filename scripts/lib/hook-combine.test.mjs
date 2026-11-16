@@ -42,6 +42,29 @@ test("ask と知らせが同時に当たれば ask。知らせを理由に足し
   assert.equal(out.hookSpecificOutput.permissionDecisionReason, "理由 B\n\n知らせ A");
 });
 
+test("知らせが「止めずに」の文を別に持つなら、ask の理由には行だけを足す（#622）", async () => {
+  const withLines = { ...inform("行 A\n止めずに知らせます"), infoLines: "行 A" };
+  const out = await combineDecisions([{ name: "a", run: () => withLines }, { name: "b", run: () => ask("理由 B") }]);
+  assert.equal(out.hookSpecificOutput.permissionDecisionReason, "理由 B\n\n行 A");
+  const only = await combineDecisions([{ name: "a", run: () => withLines }]);
+  assert.equal(only.systemMessage, "行 A\n止めずに知らせます");
+  assert.equal("infoLines" in only, false);
+});
+
+test("deny・allow など ask 以外の決定は知らせとして落とさない。deny と知らせが同時でも deny が残り、allow は ask に倒す（#622）", async () => {
+  const deny = { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: "禁止 D" } };
+  const allow = { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "allow", permissionDecisionReason: "許可 W" } };
+  const d = await combineDecisions([{ name: "a", run: () => inform("知らせ A") }, { name: "b", run: () => deny }]);
+  assert.equal(d.hookSpecificOutput.permissionDecision, "deny");
+  assert.match(d.hookSpecificOutput.permissionDecisionReason, /禁止 D/);
+  const dAsk = await combineDecisions([{ name: "a", run: () => ask("理由 B") }, { name: "b", run: () => deny }]);
+  assert.equal(dAsk.hookSpecificOutput.permissionDecision, "deny");
+  assert.match(dAsk.hookSpecificOutput.permissionDecisionReason, /理由 B/);
+  const w = await combineDecisions([{ name: "a", run: () => inform("知らせ A") }, { name: "b", run: () => allow }]);
+  assert.equal(w.hookSpecificOutput.permissionDecision, "ask");
+  assert.match(w.hookSpecificOutput.permissionDecisionReason, /許可 W/);
+});
+
 test("全部が投げても ask（通る側に倒さない）", async () => {
   const out = await combineDecisions([{ name: "x", run: () => { throw new Error("1"); } }]);
   assert.equal(out.hookSpecificOutput.permissionDecision, "ask");

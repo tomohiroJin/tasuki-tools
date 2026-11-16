@@ -101,8 +101,10 @@ function ask(reason) {
  * `systemMessage` は利用者に見せる警告、`additionalContext` は Claude の文脈に入る（利用者の画面にはチャットとして出ない）。
  * 出典: https://code.claude.com/docs/en/hooks（PreToolUse の decision control・共通の出力フィールド）
  */
-function inform(text) {
-  return { systemMessage: text, hookSpecificOutput: { hookEventName: "PreToolUse", additionalContext: text } };
+function inform(lines, note) {
+  const text = `${lines}\n${note}`;
+  // `infoLines` は束ね（hook-combine.mjs）だけが読む。ask に足すときは「止めずに」の文を含まない行だけを足す。束ねた出力には残らない
+  return { systemMessage: text, infoLines: lines, hookSpecificOutput: { hookEventName: "PreToolUse", additionalContext: text } };
 }
 
 /** コマンドが `gh pr create`（`gh pr new`）を含むか。デプロイの `ask` に「先行 PR の確認は省いた」と添えるかの判定に使う。 */
@@ -179,7 +181,7 @@ export async function decidePriorPrOutput(raw, { cwd, currentBranch, registeredW
   if (result.state === "none" && result.truncated !== true) return null;
   // マージ済み・閉じた PR だけ（past）は止めず、行を見せて通す（#622・docs/adr/0032 の追記）
   if (result.state === "past" && result.truncated !== true) {
-    return inform(`${result.lines.join("\n")}\n開いた PR・枝は無いので、止めずに知らせます（docs/adr/0032 の追記）。`);
+    return inform(result.lines.join("\n"), "開いた PR・枝は無いので、止めずに知らせます（docs/adr/0032 の追記）。");
   }
   return ask(`${result.lines.join("\n")}\n同じ ISSUE の作業が重なっていないか、人の確認が要ります（AGENTS.md「作業の始めに」・docs/adr/0030 決定 5）。`);
 }
