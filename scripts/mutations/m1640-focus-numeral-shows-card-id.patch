@@ -8,10 +8,10 @@
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m1640-*.patch
 
---- a/apps/checkin-web/src/components/card-faces.ts
-+++ b/apps/checkin-web/src/components/card-faces.ts
-@@ -29,7 +29,7 @@
- export const CARD_FACES: Readonly<Record<MethodId, Face>> = {
+--- a/apps/checkin-web/src/components/card-faces.tsx
++++ b/apps/checkin-web/src/components/card-faces.tsx
+@@ -34,7 +34,7 @@ const art = (Art: ComponentType<{ card: CardId }>): ArtFace => ({ kind: 'art', A
+ export const CARD_FACES: { readonly [M in MethodId]: FaceFor<(typeof FACE_KINDS)[M]> } = {
    weather: art(WeatherArt),
    energy: cardIdNumeral,
 -  focus: { kind: 'numeral', numeral: (card) => String(Number(card) / 10) },

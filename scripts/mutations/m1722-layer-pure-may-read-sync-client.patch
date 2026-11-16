@@ -1,0 +1,18 @@
+# 変異 1722: layer-pure-may-read-sync-client
+#
+# #592。純粋判断が同期クライアントを読む辺（A4）を許す。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1722-*.patch
+
+--- a/scripts/lib/layer-direction.mjs
++++ b/scripts/lib/layer-direction.mjs
+@@ -76,7 +76,7 @@ export const WEB_HOOK_FILES = new Set([
+  * `web-kit/{sync,room,reader,other}`・`web/*`・`sync/*`（`sync/assembly` は組み立て。読み元としては何でも読める）。
+  */
+ export const LAYER_ALLOWED = {
+-  "web/pure": ["domain", "protocol"],
++  "web/pure": ["domain", "protocol", "sync-client"],
+   "web/io": ["domain", "web/pure"],
+   "web/hook": ["domain", "protocol", "web/pure", "web/io", "sync-client", "web-kit/sync", "web-kit/room", "web-kit/reader", "markdown", "invite-ui"],
+   "web/screen": ["domain", "web/hook", "web/pure", "web/io", "web-kit/reader", "web-kit/room", "invite-ui", "ui"],

@@ -1,0 +1,17 @@
+# 変異 1733: layer-type-only-allowed-for-screen
+#
+# #592。型だけの許しを画面にも広げ、画面が同期クライアントの型を直接読む辺を許す。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1733-*.patch
+
+--- a/scripts/lib/layer-direction.mjs
++++ b/scripts/lib/layer-direction.mjs
+@@ -72,6 +72,7 @@ export const LAYER_ALLOWED = {
+  */
+ export const LAYER_TYPE_ONLY_ALLOWED = {
+   "web/pure": ["sync-client"],
++  "web/screen": ["sync-client"],
+ };
+ 
+ /**

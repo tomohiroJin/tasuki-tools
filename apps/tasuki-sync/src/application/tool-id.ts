@@ -76,6 +76,14 @@ export const TOOL_IDS = [TOOL_TIMER, TOOL_POKER, TOOL_TOPIC, TOOL_ROULETTE, TOOL
 /** 一覧にある道具の識別子（リテラルの共用体）。`ToolId`（room-core・不透明な string）の部分型。 */
 export type KnownToolId = (typeof TOOL_IDS)[number];
 
+/**
+ * 受け口の表の鍵になる、受理するプロトコル（一覧の道具と、宣言なしのハブ `"hub"`。#592）。
+ * `adapters/ws/connection-gate.ts` の `Protocol` から `"unknown"`（許可リストに無い）を除いたもの。
+ * ログの語彙（`log/vocabulary.ts`）が鍵の網羅に使うので、application（内側）のここに置く
+ * （application が adapters を読む逆向きを避ける）。`connection-gate.ts` が再 export する。
+ */
+export type AcceptedProtocol = KnownToolId | "hub";
+
 /** 文字列が一覧の道具か（`?tool=` の許可リスト）。大文字小文字を区別する。 */
 export function isKnownToolId(value: string): value is KnownToolId {
   return TOOL_IDS.some((id) => id === value);

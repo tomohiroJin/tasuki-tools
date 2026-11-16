@@ -1,0 +1,18 @@
+# 変異 1824: layer-import-equals-skipped
+#
+# #592。import S = require('…') を辺として読まない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1824-*.patch
+
+--- a/scripts/lib/layer-direction.mjs
++++ b/scripts/lib/layer-direction.mjs
+@@ -169,7 +169,7 @@ export function extractSpecifiers(text, fileName = "x.ts") {
+     } else if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument) && ts.isStringLiteral(node.argument.literal)) {
+       // 型の位置の import('…')（`typeof import('…')` を含む）。型だけの依存
+       out.push({ spec: node.argument.literal.text, line: lineOf(node.argument.literal), typeOnly: true });
+-    } else if (ts.isImportEqualsDeclaration(node) && ts.isExternalModuleReference(node.moduleReference) && ts.isStringLiteral(node.moduleReference.expression)) {
++    } else if (false && ts.isImportEqualsDeclaration(node) && ts.isExternalModuleReference(node.moduleReference) && ts.isStringLiteral(node.moduleReference.expression)) {
+       out.push({ spec: node.moduleReference.expression.text, line: lineOf(node.moduleReference.expression), typeOnly: !!node.isTypeOnly });
+     }
+     ts.forEachChild(node, visit);

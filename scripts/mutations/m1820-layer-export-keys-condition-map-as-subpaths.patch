@@ -1,0 +1,18 @@
+# 変異 1820: layer-export-keys-condition-map-as-subpaths
+#
+# #592。`exports` の条件の map（`.` を持たない）を入口 `.` と読まず、キーをそのままサブパスとして扱う。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1820-*.patch
+
+--- a/scripts/lib/layer-direction.mjs
++++ b/scripts/lib/layer-direction.mjs
+@@ -181,7 +181,7 @@ export function exportKeys(exportsField) {
+   if (typeof exportsField === "string") return new Set(["."]);
+   if (exportsField && typeof exportsField === "object") {
+     const keys = Object.keys(exportsField);
+-    return new Set(keys.some((k) => k.startsWith(".")) ? keys : ["."]);
++    return new Set(true ? keys : ["."]);
+   }
+   return undefined;
+ }

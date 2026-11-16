@@ -1,0 +1,18 @@
+# 変異 1734: layer-external-react-allowed
+#
+# #592。純粋判断・端末 I/O が react・react-dom を読む辺を許す。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1734-*.patch
+
+--- a/scripts/lib/layer-direction.mjs
++++ b/scripts/lib/layer-direction.mjs
+@@ -79,7 +79,7 @@ export const LAYER_TYPE_ONLY_ALLOWED = {
+  * `react`・`react-dom`（サブパス含む）・`partysocket`。**これ以外の外部パッケージは見ない**。
+  */
+ const FORBIDDEN_EXTERNAL_LAYERS = new Set(["web/pure", "web/io"]);
+-const FORBIDDEN_EXTERNAL = /^(react|react-dom|partysocket)(\/|$)/;
++const FORBIDDEN_EXTERNAL = /^(partysocket)(\/|$)/;
+ 
+ const CORE_DIR = /^packages\/[a-z-]+-core$/;
+ const SYNC_DIR = "apps/tasuki-sync";

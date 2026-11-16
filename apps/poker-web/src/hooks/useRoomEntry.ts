@@ -15,7 +15,7 @@
  * 寄せると振る舞いが変わる（`tests/room-page-join-retry.test.tsx` が固定している）。
  */
 import { useEffect, useRef, useState } from 'react';
-import { planJoinRetry } from '../join-retry-plan';
+import { planJoinRetry } from './plan-join-retry';
 import { hubPathFor, redirectTo } from '../router';
 import type { PokerSync } from './useSync';
 

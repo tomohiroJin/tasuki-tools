@@ -1,0 +1,18 @@
+# 変異 1732: layer-value-import-treated-as-type-only
+#
+# #592。値の import も型だけの import として扱い、純粋判断が同期クライアントの値を読む辺を許す。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1732-*.patch
+
+--- a/scripts/lib/layer-direction.mjs
++++ b/scripts/lib/layer-direction.mjs
+@@ -161,7 +161,7 @@ export function extractSpecifiers(text, fileName = "x.ts") {
+   const lineOf = (node) => sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1;
+   const visit = (node) => {
+     if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
+-      out.push({ spec: node.moduleSpecifier.text, line: lineOf(node.moduleSpecifier), typeOnly: !!node.importClause?.isTypeOnly });
++      out.push({ spec: node.moduleSpecifier.text, line: lineOf(node.moduleSpecifier), typeOnly: true });
+     } else if (ts.isExportDeclaration(node) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
+       out.push({ spec: node.moduleSpecifier.text, line: lineOf(node.moduleSpecifier), typeOnly: node.isTypeOnly });
+     } else if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword && node.arguments.length === 1 && ts.isStringLiteralLike(node.arguments[0])) {

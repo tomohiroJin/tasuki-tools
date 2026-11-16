@@ -1,0 +1,18 @@
+# 変異 1727: layer-type-only-import-skipped
+#
+# #592。`import type` を辺として読まない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1727-*.patch
+
+--- a/scripts/lib/layer-direction.mjs
++++ b/scripts/lib/layer-direction.mjs
+@@ -160,7 +160,7 @@ export function extractSpecifiers(text, fileName = "x.ts") {
+   const out = [];
+   const lineOf = (node) => sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1;
+   const visit = (node) => {
+-    if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
++    if (ts.isImportDeclaration(node) && !node.importClause?.isTypeOnly && ts.isStringLiteral(node.moduleSpecifier)) {
+       out.push({ spec: node.moduleSpecifier.text, line: lineOf(node.moduleSpecifier), typeOnly: !!node.importClause?.isTypeOnly });
+     } else if (ts.isExportDeclaration(node) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
+       out.push({ spec: node.moduleSpecifier.text, line: lineOf(node.moduleSpecifier), typeOnly: node.isTypeOnly });

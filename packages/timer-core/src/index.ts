@@ -30,14 +30,11 @@
  * index を通らない。**index の列挙が使われた根拠にならない**ので、2026-09-02 に
  * ここから落とした（利用側は無変更。SC-039④ の判定も同じ理由でサブパスを数えない）。
  *
- * ⚠ **サブパスの配線は app ごとに違い、モジュールごとに揃ってもいない。**
- * `apps/timer-web` は `vite.config.ts` / `vitest.config.ts` の alias で解決するが、
- * **並んでいるのは alias に載っているモジュールだけ**（お題のモジュールは #91 PR 3 で
- * timer-web 側の取り込みが無くなって alias から落ち、その後モジュールごと消えた）。一方 `tsconfig.json` の `paths` は
- * `@tasuki/timer-core/*` のワイルドカードなので、**alias の無いモジュールを
- * timer-web から取り込むと typecheck は緑のまま build と vitest だけが落ちる。**
- * 新しいサブパスを timer-web で使うときは、alias を 2 つの設定へ足すこと。
- * `apps/tasuki-sync` は tsconfig の `paths` で解決する（下の注意書きも読むこと）。
+ * **サブパスの解決の正本は `packages/timer-core/package.json` の `exports` である**（#592。
+ * かつて `apps/timer-web` が持っていた vite/vitest の alias と、各 app の tsconfig の `paths` は消した）。
+ * **`exports` に無いサブパスを import すると tsc・vite・vitest・bun のどれも落ちる**（tsc は TS2307）。
+ * 新しいサブパスを使うときは `exports` に 1 行足すこと。層の向きの監査（`scripts/lib/layer-direction.mjs`）も、
+ * `exports` に無い入口の参照を止める。
  *
  * 同じ理由で、テストだけが取り込む値も載せない（FR-090。テストからの参照は
  * 公開の根拠にしない）。`SYNC_ERROR_CODES` と `DEFAULT_ERROR_MESSAGE` は

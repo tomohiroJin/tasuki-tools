@@ -9,8 +9,13 @@ import * as v from "valibot";
 import { ServerMsgSchema } from "@tasuki/timer-core";
 import type { Room } from "@tasuki/timer-core";
 import { TopicFrameSchema, type TopicState } from "@tasuki/topic-core";
-import type { Identity } from "./client.js";
 import type { NoticeSignal } from "./notice-message.js";
+
+/** 入室で割り当てられた自分の識別子（`room.created`・`room.joined` で届く）。純粋判断のここに置き、同期クライアント（`client.ts`）が読む（層の向き・#592） */
+export interface Identity {
+  participantId: string;
+  resumeToken: string;
+}
 
 export interface ServerMessageCallbacks {
   onRoom?: (room: Room) => void;

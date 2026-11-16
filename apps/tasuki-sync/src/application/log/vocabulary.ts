@@ -9,7 +9,7 @@
  * `publicText` を呼ぶ（`log-safe.ts` の docstring と
  * `scripts/audit-log-hygiene.mjs` の ALLOWED_FILES を参照）。
  */
-import type { AcceptedProtocol } from "../../adapters/ws/connection-gate.js";
+import type { AcceptedProtocol } from "../tool-id.js";
 import { publicText, type LogSafe } from "./log-safe.js";
 
 /** AI 生成をスキップした理由（`AiLimiter.tryAcquire` の `reason` と 1 対 1）。 */

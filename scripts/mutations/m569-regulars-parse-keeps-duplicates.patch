@@ -3,16 +3,16 @@
 # 検出を期待するテスト:
 #   - apps/roulette-web/tests/regulars-storage.test.ts
 #
-# #458。`foldMembers` が `conflictsWithExisting` を使わず、NFKC の後に大小だけが違う同じ名前を 2 人として残す（参加の重複拒否と食い違う）。`parseMemberLines` と `saveGroup` の両方を通る。
+# #458。#592 で foldMembers を regulars-rules.ts へ移したのに合わせて作り直した。`foldMembers` が `conflictsWithExisting` を使わず、NFKC の後に大小だけが違う同じ名前を 2 人として残す（参加の重複拒否と食い違う）。`parseMemberLines` と `saveGroup` の両方を通る。
 #
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m569-*.patch
 # 復元: git apply -R scripts/mutations/m569-*.patch
-diff --git a/apps/roulette-web/src/storage/regulars.ts b/apps/roulette-web/src/storage/regulars.ts
-index 3da50cde..005afe15 100644
---- a/apps/roulette-web/src/storage/regulars.ts
-+++ b/apps/roulette-web/src/storage/regulars.ts
-@@ -143,7 +143,7 @@ function foldMembers(candidates: readonly string[]): string[] {
+diff --git a/apps/roulette-web/src/regulars-rules.ts b/apps/roulette-web/src/regulars-rules.ts
+index d2719477..c0b24ad5 100644
+--- a/apps/roulette-web/src/regulars-rules.ts
++++ b/apps/roulette-web/src/regulars-rules.ts
+@@ -16,7 +16,7 @@ export function foldMembers(candidates: readonly string[]): string[] {
    for (const c of candidates) {
      const n = normalizeDisplayName(c);
      if (n === '' || n.length > MAX_DISPLAY_NAME || rendersAsNothing(n)) continue;

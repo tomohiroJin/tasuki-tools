@@ -259,3 +259,36 @@ ISSUE #598 の完了条件「許可表を新しい対応表に合わせると、
   上の 66 辺は違反に数えない。あわせて、「web の端末 I/O」の行を `layerOf` で分ける（名前の規則では分けられないので、許可リストで倒す）。
   そのとき上の 2 辺（`web/pure -> web/io`）が違反として見える。反映は #592 側で行う（この追記では監査を置かない）
 - 採択されなかったとき（Rejected）は、`docs/guides/architecture.md` で直した行を元に戻し、(b) か (c) を別に決める
+
+## 追記（2026-11-16・#592）: web の純粋判断は同期クライアントの型だけを読んでよい
+
+- **ステータス**: **Accepted**（2026-11-16 起案・同日に利用者が採択（PR #621 の作業の会話で）。冒頭のステータス「Accepted（2026-08-17）」は、この追記より前の決定を指す）
+- **関連**: [#592](https://github.com/tomohiroJin/tasuki-tools/issues/592)（#482-3。層の向きの監査）/
+  [#369](https://github.com/tomohiroJin/tasuki-tools/issues/369)（接続状態の型の正本を `@tasuki/sync-client` へ寄せた）/
+  上の追記（2026-11-14・#598）/
+  [`docs/guides/architecture.md`](../guides/architecture.md)（対応表の正本）
+
+### 背景
+
+- `apps/poker-web/src/room-view.ts`・`apps/roulette-web/src/roulette-view.ts`・`apps/topic-web/src/topic-view.ts`（純粋判断）の 3 本が、`ConnectionStatus`（`"connecting" | "open" | "closed"`）を
+  `import type { ConnectionStatus } from '@tasuki/sync-client'` で読む。型の正本は `@tasuki/sync-client` である（#369）
+- 上の追記（#598）の対応表は、純粋判断が読めるものにドメインと protocol だけを挙げており、同期クライアントを挙げていない。調査のスクリプトの `web/pure -> sync-client`（型）3 辺が違反に残った
+- 型をアプリの側に書き写すと、`scripts/audit-web-sync-boundary.mjs` の検査 4（接続状態の型の写し）が写しとして止める（実際に写して確かめた）
+
+### 選択肢
+
+- **(a) 純粋判断は `@tasuki/sync-client` を `import type` だけ読んでよい（値は読まない）。**
+- **(b) 型を各アプリへ写す。** 検査 4 が止める。通すには検査 4 を弱める必要があり（`AGENTS.md`「検査を弱める変更」は人の承認待ち）、写しが 3 つに増えて綴りの食い違いの元になる（#369 が 5 つの写しを 1 つにした経緯に反する）。採らない
+- **(c) 型を `packages/protocol` などの純粋判断が読める場所へ移す。** `ConnectionStatus` は WebSocket の接続の状態で、プロトコル（wire の契約）ではない。置き場を変えるだけで sync-client が同じ型を再び要り、依存の向きの許可表に無い依存（sync-client → protocol）が増えるか、写しが残る。移す実需が無い（憲法 原則 X）。採らない
+
+### 決定（案）
+
+**(a) を採る。** 純粋判断は `@tasuki/sync-client` を `import type`（型だけ）で読んでよい。値の import は読まない（`joinRetryDelayMs` のような関数は、同期フックが呼ぶ）。
+純粋判断が React と I/O に依存しない点は変えない（型だけの import は実行時の依存を持たない）。同じ許しは画面・端末 I/O には広げない。
+
+### 影響
+
+- 実装の正本は `scripts/lib/layer-direction.mjs` の `LAYER_TYPE_ONLY_ALLOWED`（`"web/pure": ["sync-client"]`）。値の import は従来どおり違反になる
+- 調査のスクリプト（`a-dependency-edges.mjs`）が出す `web/pure -> sync-client`（型）の 3 辺は、許す側として読む（スクリプトは型と値を分けないので、違反の数に残る）
+- この追記と同じ PR で、対応表（`docs/guides/architecture.md`）の「web の純粋判断」の行に、同期クライアントの型だけを許すことを足した
+- 採択されなかったとき（Rejected）は、対応表の行と `LAYER_TYPE_ONLY_ALLOWED` を元に戻し、3 本の型の読み方を別に決める

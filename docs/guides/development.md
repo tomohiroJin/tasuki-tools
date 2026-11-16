@@ -1320,13 +1320,9 @@ SC-039 の参照元からも静かに外れるためです（外れても走査�
 あるなら列挙しない」に当たります（#220 で `packages/timer-core` の上限値の定数が
 これに該当しました。利用側は 1 ファイルも変えずに列挙だけを落としています）。
 
-⚠ **サブパスを新しく使うときは、配線が揃っているかを先に見てください。**
-`apps/timer-web` は `vite.config.ts` と `vitest.config.ts` の alias で解決しますが、
-**並んでいるのは 8 モジュールだけ**です。一方 `tsconfig.json` の `paths` は
-`@tasuki/timer-core/*` のワイルドカードなので、alias の無いモジュールを timer-web から
-取り込むと **`pnpm typecheck` は緑のまま、`pnpm build` と `pnpm test` だけが落ちます**。
-alias は 2 つの設定へ同時に足してください。`apps/tasuki-sync`（bun）は tsconfig の
-`paths` で解決しますが、**その挙動には未解決の食い違いがあります**（同ファイルの注意書き）。
+⚠ **サブパスを新しく使うときは、`packages/timer-core/package.json` の `exports` に入口があるかを先に見てください。**
+解決の正本は `exports` です（#592。`apps/timer-web` の vite・vitest の alias と、`tsconfig.json` の `paths` は消しました）。
+`exports` に無いサブパスを import すると、tsc（TS2307）・vite・vitest・bun のどれも落ちます。使うときは `exports` に 1 行足してください。
 
 **SC-039③ と SC-039④ は別のことを測ります。** ③は宣言ファイルの `export` が要るか、
 ④は公開面に載せる理由があるかです。**どちらも型は数えません**（#223。判定に型解決が要り、

@@ -15,8 +15,8 @@
  * トークンを捨てて**持っていた名乗りを失う**経路である。
  */
 import { describe, it, expect } from 'vitest';
+import { planJoinRetry } from '../src/hooks/plan-join-retry';
 import {
-  planJoinRetry,
   RETRY_WAITING_TEXT,
   RETRY_WAITING_WITHOUT_NAME_TEXT,
   RETRY_EXHAUSTED_TEXT,

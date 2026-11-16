@@ -9,7 +9,7 @@
 import type { ResumeIdentity } from "@tasuki/sync-client";
 import type { CompletionRecord } from "@tasuki/timer-core";
 import type { Screen } from "../ui/screen.js";
-import type { EndType } from "../ui/Summary.js";
+import type { EndType } from "../records/end-type.js";
 import type { SnapshotIntent } from "./snapshot-intents.js";
 
 /** 意図ごとの受け皿。 */

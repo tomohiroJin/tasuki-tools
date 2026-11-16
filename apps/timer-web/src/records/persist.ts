@@ -7,7 +7,7 @@
  */
 
 import type { CompletionRecord } from "@tasuki/timer-core";
-import type { EndType } from "../ui/Summary.js";
+import type { EndType } from "./end-type.js";
 
 /**
  * 終了種別が完成かつ記録があるときのみ saver を呼ぶ。

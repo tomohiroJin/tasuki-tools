@@ -3,7 +3,11 @@
  * 同期の古さから導出する（R5-1 / #209）。
  * banner（接続無関係の通知でも立つ）に結合しない。
  */
-import type { StatusStripState } from "./components/StatusStrip.js";
+/**
+ * 接続表示の状態（StatusStrip が描く。#592）。
+ * 型の置き場は純粋判断のこちら（画面 → 純粋判断の向き。`StatusStrip.tsx` が再 export する）。
+ */
+export type StatusStripState = "connecting" | "online" | "reconnecting" | "lost" | "stale";
 
 /**
  * WS クライアントが知っている接続の状態。

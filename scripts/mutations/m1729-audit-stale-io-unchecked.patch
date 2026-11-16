@@ -1,0 +1,18 @@
+# 変異 1729: audit-stale-io-unchecked
+#
+# #592。端末 I/O の宣言が実在しないファイルを指しても落ちない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1729-*.patch
+
+--- a/scripts/audit-dependency-direction.mjs
++++ b/scripts/audit-dependency-direction.mjs
+@@ -561,7 +561,7 @@ function observeLayers(packages, files) {
+   const found = findLayerViolations(files, { webApps, ioFiles: WEB_IO_FILES, hookFiles: WEB_HOOK_FILES, nameToDir, exportsOf, tracked });
+   // 宣言の実在は走査対象とは独立に、追跡下のファイルへ直接聞く（走査が空振りしたときに宣言の陳腐化と取り違えない）
+   const declaredTracked = new Set(listTrackedFiles(REPO_ROOT, [...WEB_IO_FILES]));
+-  for (const file of findStaleIoFiles(WEB_IO_FILES, declaredTracked)) {
++  for (const file of []) {
+     found.push({ rule: "stale-io", file, line: 0, to: "", fromLayer: null, toLayer: null });
+   }
+   const declaredHooks = new Set(listTrackedFiles(REPO_ROOT, [...WEB_HOOK_FILES]));

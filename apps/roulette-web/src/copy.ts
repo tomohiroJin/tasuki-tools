@@ -1,5 +1,5 @@
 import { MAX_GUESTS, MAX_WHEEL } from '@tasuki/roulette-core';
-import { MAX_GROUPS } from './storage/regulars';
+import { MAX_GROUPS } from './regulars-rules';
 
 /**
  * ルーレットの UI 文言のすべて（#94 spec §6.6）。

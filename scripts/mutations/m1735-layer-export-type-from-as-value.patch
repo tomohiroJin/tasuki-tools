@@ -1,0 +1,18 @@
+# 変異 1735: layer-export-type-from-as-value
+#
+# #592。`export type { X } from` を値の辺として扱う。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1735-*.patch
+
+--- a/scripts/lib/layer-direction.mjs
++++ b/scripts/lib/layer-direction.mjs
+@@ -163,7 +163,7 @@ export function extractSpecifiers(text, fileName = "x.ts") {
+     if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
+       out.push({ spec: node.moduleSpecifier.text, line: lineOf(node.moduleSpecifier), typeOnly: !!node.importClause?.isTypeOnly });
+     } else if (ts.isExportDeclaration(node) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
+-      out.push({ spec: node.moduleSpecifier.text, line: lineOf(node.moduleSpecifier), typeOnly: node.isTypeOnly });
++      out.push({ spec: node.moduleSpecifier.text, line: lineOf(node.moduleSpecifier), typeOnly: false });
+     } else if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword && node.arguments.length === 1 && ts.isStringLiteralLike(node.arguments[0])) {
+       out.push({ spec: node.arguments[0].text, line: lineOf(node.arguments[0]), typeOnly: false });
+     } else if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument) && ts.isStringLiteral(node.argument.literal)) {

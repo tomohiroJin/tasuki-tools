@@ -3,12 +3,9 @@
   "compilerOptions": {
     "target": "ES2020",
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
-    "jsx": "react-jsx",
+    "jsx": "react-jsx"
     // build は vite、typecheck は tsc --noEmit。noEmit はルートの base が既定で true。
-    "paths": {
-      "@tasuki/timer-core": ["../../packages/timer-core/src/index.ts"],
-      "@tasuki/timer-core/*": ["../../packages/timer-core/src/*.ts"]
-    }
+    // @tasuki/timer-core は packages/timer-core/package.json の exports で解決する（#592。paths と vite の alias は消した）。
   },
   "include": ["src/**/*", "test/**/*"],
   "exclude": ["node_modules", "dist"]
