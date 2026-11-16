@@ -10135,7 +10135,7 @@ export const MUTATIONS = [
     label: "RosterPanel から行への配線で、復帰が一時離脱の操作を呼ぶ",
     patch: "m1854-roster-resume-calls-skip.patch",
     pkg: "apps/timer-web",
-    tests: ["test/ui/RosterPanel.test.tsx"],
+    tests: ["test/ui/RosterPanel.row-actions.test.tsx"],
     note: RESERVED_1850_1869 + " " + "#595。RosterPanel.tsx の RosterRow への配線。復帰したつもりが離脱が重なる。",
   },
   {

@@ -1,7 +1,7 @@
 # 変異 1854: roster-resume-calls-skip
 #
 # 検出を期待するテスト:
-#   - apps/timer-web/test/ui/RosterPanel.test.tsx
+#   - apps/timer-web/test/ui/RosterPanel.row-actions.test.tsx
 #
 # #595。RosterPanel から RosterRow への配線で、「復帰」が一時離脱の操作を呼ぶ。復帰したつもりが離脱が重なる。
 #
