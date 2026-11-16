@@ -7,11 +7,11 @@
 
 --- a/scripts/lib/layer-direction.mjs
 +++ b/scripts/lib/layer-direction.mjs
-@@ -170,7 +170,7 @@ export function findLayerViolations(files, ctx) {
+@@ -246,7 +246,7 @@ export function findLayerViolations(files, ctx) {
          if (dir === undefined) continue;
          const sub = m[2] ? `.${m[2]}` : ".";
          const entries = ctx.exportsOf.get(dir);
--        if (entries !== undefined && !entries.has(sub)) {
+-        if (entries !== undefined && !isDeclaredEntry(entries, sub)) {
 +        if (false) {
            violations.push({ rule: "deep-import", file, line, to: spec, fromLayer, toLayer: null });
            continue;

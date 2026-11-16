@@ -7,8 +7,8 @@
 
 --- a/scripts/lib/layer-direction.mjs
 +++ b/scripts/lib/layer-direction.mjs
-@@ -54,7 +54,7 @@ export const WEB_IO_FILES = new Set([
-  * `web-kit/{sync,room,reader,other}`・`web/*`・`sync/*`。
+@@ -76,7 +76,7 @@ export const WEB_HOOK_FILES = new Set([
+  * `web-kit/{sync,room,reader,other}`・`web/*`・`sync/*`（`sync/assembly` は組み立て。読み元としては何でも読める）。
   */
  export const LAYER_ALLOWED = {
 -  "web/pure": ["domain", "protocol"],

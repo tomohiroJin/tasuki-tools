@@ -7,12 +7,12 @@
 
 --- a/scripts/lib/layer-direction.mjs
 +++ b/scripts/lib/layer-direction.mjs
-@@ -136,7 +136,7 @@ export function extractSpecifiers(text) {
-     return n;
-   };
-   const out = [];
--  for (const m of t.matchAll(STMT)) out.push({ spec: m[4], line: lineAt(m.index + m[0].lastIndexOf(m[4])), typeOnly: m[1] === "import" && !!m[2] });
-+  for (const m of t.matchAll(STMT)) out.push({ spec: m[4], line: lineAt(m.index + m[0].lastIndexOf(m[4])), typeOnly: true });
-   for (const m of t.matchAll(SIDE)) out.push({ spec: m[1], line: lineAt(m.index + m[0].lastIndexOf(m[1])), typeOnly: false });
-   for (const m of t.matchAll(DYN)) out.push({ spec: m[1], line: lineAt(m.index + m[0].indexOf(m[1])), typeOnly: false });
-   return out;
+@@ -161,7 +161,7 @@ export function extractSpecifiers(text, fileName = "x.ts") {
+   const lineOf = (node) => sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1;
+   const visit = (node) => {
+     if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier)) {
+-      out.push({ spec: node.moduleSpecifier.text, line: lineOf(node.moduleSpecifier), typeOnly: !!node.importClause?.isTypeOnly });
++      out.push({ spec: node.moduleSpecifier.text, line: lineOf(node.moduleSpecifier), typeOnly: true });
+     } else if (ts.isExportDeclaration(node) && node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
+       out.push({ spec: node.moduleSpecifier.text, line: lineOf(node.moduleSpecifier), typeOnly: node.isTypeOnly });
+     } else if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword && node.arguments.length === 1 && ts.isStringLiteralLike(node.arguments[0])) {

@@ -10,10 +10,10 @@
 # 復元: git apply -R scripts/mutations/m1329-*.patch
 --- a/scripts/audit-dependency-direction.mjs
 +++ b/scripts/audit-dependency-direction.mjs
-@@ -372,7 +372,7 @@
+@@ -377,7 +377,7 @@ export function observe(pkg, files, root = REPO_ROOT, texts = null) {
    const testOnlyInProduct = [];
    for (const rel of files) {
-     const text = fs.readFileSync(path.join(root, rel), "utf8");
+     const text = texts?.get(rel) ?? fs.readFileSync(path.join(root, rel), "utf8");
 -    const isTestSide = pkg === "e2e" || rel.startsWith(`${pkg}/tests/`) || rel.startsWith(`${pkg}/test/`);
 +    const isTestSide = rel.startsWith(`${pkg}/tests/`) || rel.startsWith(`${pkg}/test/`);
      for (const m of text.matchAll(TASUKI_SPECIFIER)) {
