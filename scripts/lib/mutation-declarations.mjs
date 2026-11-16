@@ -9700,4 +9700,20 @@ export const MUTATIONS = [
     tests: ["wiring-audit-dependency-direction.test.mjs"],
     note: RESERVED_1820_1829 + " " + "#592。改名・削除で宣言だけが残り、そのファイルが純粋判断として裁かれ続ける。",
   },
+  {
+    id: 1823,
+    label: "型の位置の import('…')（typeof import を含む）を辺として読まない",
+    patch: "m1823-layer-import-type-node-skipped.patch",
+    pkg: "scripts",
+    tests: ["lib/layer-direction.test.mjs"],
+    note: RESERVED_1820_1829 + " " + "#592。型の位置の import() 経由の逆流（画面の型を読む）が緑のまま入る。",
+  },
+  {
+    id: 1824,
+    label: "import S = require('…') を辺として読まない",
+    patch: "m1824-layer-import-equals-skipped.patch",
+    pkg: "scripts",
+    tests: ["lib/layer-direction.test.mjs"],
+    note: RESERVED_1820_1829 + " " + "#592。require 形の import で層を越える辺が緑のまま入る。",
+  },
 ];
