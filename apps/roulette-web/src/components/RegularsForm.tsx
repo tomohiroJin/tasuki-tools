@@ -11,11 +11,12 @@ import {
   regularEditTitle,
   regularsCountText,
 } from '../copy';
-import type { RegularFormAction, RegularFormState } from '../regulars-form';
-import { orderedMembers } from '../regulars-view';
+import { memberCount, type RegularFormAction, type RegularFormState } from '../regulars-form';
 import type { RegularGroup } from '../storage/regulars';
 
 export const DELETE_ID = 'roulette-regulars-delete';
+/** 名前の欄の id（保存の失敗でフォーカスを戻す先。RegularsSection と共有する） */
+export const NAME_ID = 'roulette-regulars-name';
 
 interface Props {
   form: RegularFormState;
@@ -43,9 +44,9 @@ export function RegularsForm({ form, dispatch, editing, onSubmit, onCancel, onAs
         {editing === undefined ? REGULARS_CREATE_TITLE : regularEditTitle(editing.name)}
       </p>
       <div className="roulette-regulars-field">
-        <label htmlFor="roulette-regulars-name">{REGULARS_NAME_LABEL}</label>
+        <label htmlFor={NAME_ID}>{REGULARS_NAME_LABEL}</label>
         <input
-          id="roulette-regulars-name"
+          id={NAME_ID}
           className="ui-input"
           autoComplete="off"
           maxLength={MAX_DISPLAY_NAME}
@@ -91,7 +92,7 @@ export function RegularsForm({ form, dispatch, editing, onSubmit, onCancel, onAs
         />
       </div>
       <p id={countId} className="roulette-regulars-count">
-        {regularsCountText(orderedMembers([], checkRows.filter((r) => r.checked).map((r) => r.name), text).length)}
+        {regularsCountText(memberCount(checkRows.filter((r) => r.checked).map((r) => r.name), text))}
       </p>
       {error !== '' && (
         <p id={errorId} className="ui-note ui-note--error" role="alert">

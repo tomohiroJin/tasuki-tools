@@ -10,10 +10,10 @@
 diff --git a/apps/roulette-web/src/regulars-form.ts b/apps/roulette-web/src/regulars-form.ts
 --- a/apps/roulette-web/src/regulars-form.ts
 +++ b/apps/roulette-web/src/regulars-form.ts
-@@ -33,5 +33,5 @@
+@@ -37,5 +37,5 @@
  /** 人数・保存の失敗の原因が一覧だけか。手入力がチェックに無い人を 1 人も足していなければ一覧（両方が原因なら入力欄） */
  export function countFieldOf(hasList: boolean, checked: readonly string[], text: string): ErrorField {
-   const manualAdds = orderedMembers([], checked, text).length > orderedMembers([], checked, '').length;
+   const manualAdds = memberCount(checked, text) > memberCount(checked, '');
 -  return hasList && !manualAdds ? 'people' : 'members';
 +  return hasList || manualAdds ? 'people' : 'members';
  }

@@ -19,7 +19,7 @@ import { INITIAL_FORM, REASON_TEXT, countFieldOf, formReducer, validate, type Er
 import { candidatesOf, splitForEdit, type Candidate } from '../regulars-view';
 import type { PersonRow } from '../roulette-view';
 import type { RegularGroup } from '../storage/regulars';
-import { DELETE_ID, RegularsForm } from './RegularsForm';
+import { DELETE_ID, NAME_ID, RegularsForm } from './RegularsForm';
 
 interface Props {
   /** 切断中・回転中。札（入れる）だけ止める。作る・直す・消すは端末の中だけなので止めない */
@@ -94,7 +94,7 @@ export function RegularsSection({ locked, people, onInsert }: Props) {
     dispatch({ type: 'open', name: init.name, text: init.text, rows: init.rows });
     setNotice('');
     setMode({ kind: 'form', id: init.id, opener: init.opener, confirming: false });
-    setFocusId('roulette-regulars-name');
+    setFocusId(NAME_ID);
   };
   const closeForm = (to: string | null): void => {
     setMode({ kind: 'list' });

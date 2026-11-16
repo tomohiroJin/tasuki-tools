@@ -29,9 +29,14 @@ export const REASON_TEXT = {
   'name-taken': REGULARS_ERROR_NAME_TAKEN,
 } as const;
 
+/** チェックと手入力を合わせた人数（保存済みは含めない。欄に表示する人数と、人数の誤りの原因の判定が使う） */
+export function memberCount(checked: readonly string[], text: string): number {
+  return orderedMembers([], checked, text).length;
+}
+
 /** 人数・保存の失敗の原因が一覧だけか。手入力がチェックに無い人を 1 人も足していなければ一覧（両方が原因なら入力欄） */
 export function countFieldOf(hasList: boolean, checked: readonly string[], text: string): ErrorField {
-  const manualAdds = orderedMembers([], checked, text).length > orderedMembers([], checked, '').length;
+  const manualAdds = memberCount(checked, text) > memberCount(checked, '');
   return hasList && !manualAdds ? 'people' : 'members';
 }
 
@@ -86,8 +91,11 @@ export function formReducer(state: RegularFormState, action: RegularFormAction):
     case 'check':
       return { ...state, checkRows: state.checkRows.map((x, j) => (j === action.index ? { name: x.name, checked: action.on } : x)) };
     case 'fail':
+      // 同じ値なら同じ参照を返す（余分な再描画を起こさない）
+      if (state.error === action.message && state.errorField === action.field) return state;
       return { ...state, error: action.message, errorField: action.field };
     case 'clear-error':
+      if (state.error === '') return state;
       return { ...state, error: '' };
   }
 }

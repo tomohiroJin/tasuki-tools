@@ -41,9 +41,6 @@ export const MIGRATIONS: Migrations = {};
 
 const isRecord = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x);
 
-// 組名の規則（isValidGroupName）は純粋判断の `../regulars-rules.ts` へ移した（#595。画面の検証が端末 I/O を読まずに済む）。ここからも再公開する
-export { isValidGroupName };
-
 /**
  * 読み込みで通す名前。保存の関数は正規化してから書くので、正規化済みでない名前は手で書き換えた保存。
  * 参加の重複判定・サーバーの上限（正規化してから比べる）とずれるので、合わない項目として扱う。

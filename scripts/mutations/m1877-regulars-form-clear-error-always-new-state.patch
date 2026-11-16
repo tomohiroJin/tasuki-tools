@@ -1,0 +1,20 @@
+# 変異 1877: regulars-form-clear-error-always-new-state
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/regulars-form.test.ts
+#
+# #595。regulars-form.ts の reducer が、エラーが無いときの clear-error でも新しいオブジェクトを返す。入力のたびに余分な再描画が起きる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1877-*.patch
+diff --git a/apps/roulette-web/src/regulars-form.ts b/apps/roulette-web/src/regulars-form.ts
+--- a/apps/roulette-web/src/regulars-form.ts
++++ b/apps/roulette-web/src/regulars-form.ts
+@@ -95,7 +95,6 @@
+       if (state.error === action.message && state.errorField === action.field) return state;
+       return { ...state, error: action.message, errorField: action.field };
+     case 'clear-error':
+-      if (state.error === '') return state;
+       return { ...state, error: '' };
+   }
+ }

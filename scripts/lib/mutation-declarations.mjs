@@ -233,6 +233,9 @@ const RESERVED_1720_1739 =
 const RESERVED_1820_1829 =
   "**対応表より後に足した変異。** 1820〜1829 は #592 の追加（1720〜1739 を使い切ったため。/code-review の直しの性質）に割り当てた範囲。";
 
+const RESERVED_1870_1889 =
+  "**対応表より後に足した変異。** 1870〜1889 は #595（RegularsSection を責務で分ける）に割り当てた範囲。";
+
 const RESERVED_1740_1759 =
   "**対応表より後に足した変異。** 1740〜1759 は #599（テスト支援の共有先・採択後の最初の PR）に割り当てた範囲。";
 
@@ -241,9 +244,6 @@ const RESERVED_1780_1799 =
 
 const RESERVED_1800_1819 =
   "**対応表より後に足した変異。** 1800〜1819 は #595（ScenarioBuilder を責務で分ける）に割り当てた範囲。";
-
-const RESERVED_1870_1889 =
-  "**対応表より後に足した変異。** 1870〜1889 は #595（RegularsSection を責務で分ける）に割り当てた範囲。";
 
 const RESERVED_1420_1429 =
   "**対応表より後に足した変異。** 1420〜1429 は #557 に追加で割り当てた範囲（1120〜1129・1410〜1419 を使い切ったため。PR #580 のレビューの指摘で足した）。";
@@ -10059,6 +10059,46 @@ export const MUTATIONS = [
     note: RESERVED_1800_1819 + " " + "#595 のレビュー。isUntouchedCopy の `roundsOfDraft !== null` の守りだけを外す。回数の欄を空にした下書きは rounds キーを落とし、回数 1 のルームと同じ鍵になるため、守りが無いと上書き・確かめ省略が起きる。",
   },
   {
+    id: 1820,
+    label: "`exports` の条件の map（`.` を持たない）を入口 `.` と読まず、キーをそのままサブパスとして扱う",
+    patch: "m1820-layer-export-keys-condition-map-as-subpaths.patch",
+    pkg: "scripts",
+    tests: ["lib/layer-direction.test.mjs"],
+    note: RESERVED_1820_1829 + " " + "#592。条件の map（types・default だけのキー）形の exports の package で、`.` が入口外と誤られる。",
+  },
+  {
+    id: 1821,
+    label: "`exports` のワイルドカードの前置きを見ず、別の場所のサブパスも宣言済みと読む",
+    patch: "m1821-layer-export-wildcard-prefix-unchecked.patch",
+    pkg: "scripts",
+    tests: ["lib/layer-direction.test.mjs"],
+    note: RESERVED_1820_1829 + " " + "#592。`./lib/*` だけを宣言した package の `./other/x` が入口外として検出されない。",
+  },
+  {
+    id: 1822,
+    label: "同期フックの名指しの宣言が実在しないファイルを指しても落ちない",
+    patch: "m1822-audit-stale-hook-unchecked.patch",
+    pkg: "scripts",
+    tests: ["wiring-audit-dependency-direction.test.mjs"],
+    note: RESERVED_1820_1829 + " " + "#592。改名・削除で宣言だけが残り、そのファイルが純粋判断として裁かれ続ける。",
+  },
+  {
+    id: 1823,
+    label: "型の位置の import('…')（typeof import を含む）を辺として読まない",
+    patch: "m1823-layer-import-type-node-skipped.patch",
+    pkg: "scripts",
+    tests: ["lib/layer-direction.test.mjs"],
+    note: RESERVED_1820_1829 + " " + "#592。型の位置の import() 経由の逆流（画面の型を読む）が緑のまま入る。",
+  },
+  {
+    id: 1824,
+    label: "import S = require('…') を辺として読まない",
+    patch: "m1824-layer-import-equals-skipped.patch",
+    pkg: "scripts",
+    tests: ["lib/layer-direction.test.mjs"],
+    note: RESERVED_1820_1829 + " " + "#592。require 形の import で層を越える辺が緑のまま入る。",
+  },
+  {
     id: 1870,
     label: "組の欄の検証が、名前の長さ・見えなさの検査（isValidGroupName）を飛ばす",
     patch: "m1870-regulars-validate-skips-name-length.patch",
@@ -10107,43 +10147,19 @@ export const MUTATIONS = [
     note: RESERVED_1870_1889 + " " + "#595。RegularsSection から検証への配線。人数エラーの印が一覧でなく入力欄に付く。",
   },
   {
-    id: 1820,
-    label: "`exports` の条件の map（`.` を持たない）を入口 `.` と読まず、キーをそのままサブパスとして扱う",
-    patch: "m1820-layer-export-keys-condition-map-as-subpaths.patch",
-    pkg: "scripts",
-    tests: ["lib/layer-direction.test.mjs"],
-    note: RESERVED_1820_1829 + " " + "#592。条件の map（types・default だけのキー）形の exports の package で、`.` が入口外と誤られる。",
+    id: 1876,
+    label: "組の欄の reducer が、同じ失敗を重ねても新しいオブジェクトを返す",
+    patch: "m1876-regulars-form-fail-always-new-state.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/regulars-form.test.ts"],
+    note: RESERVED_1870_1889 + " " + "#595 のレビュー。regulars-form.ts の formReducer（fail）。値が同じでも参照が変わり、余分な再描画が起きる。",
   },
   {
-    id: 1821,
-    label: "`exports` のワイルドカードの前置きを見ず、別の場所のサブパスも宣言済みと読む",
-    patch: "m1821-layer-export-wildcard-prefix-unchecked.patch",
-    pkg: "scripts",
-    tests: ["lib/layer-direction.test.mjs"],
-    note: RESERVED_1820_1829 + " " + "#592。`./lib/*` だけを宣言した package の `./other/x` が入口外として検出されない。",
-  },
-  {
-    id: 1822,
-    label: "同期フックの名指しの宣言が実在しないファイルを指しても落ちない",
-    patch: "m1822-audit-stale-hook-unchecked.patch",
-    pkg: "scripts",
-    tests: ["wiring-audit-dependency-direction.test.mjs"],
-    note: RESERVED_1820_1829 + " " + "#592。改名・削除で宣言だけが残り、そのファイルが純粋判断として裁かれ続ける。",
-  },
-  {
-    id: 1823,
-    label: "型の位置の import('…')（typeof import を含む）を辺として読まない",
-    patch: "m1823-layer-import-type-node-skipped.patch",
-    pkg: "scripts",
-    tests: ["lib/layer-direction.test.mjs"],
-    note: RESERVED_1820_1829 + " " + "#592。型の位置の import() 経由の逆流（画面の型を読む）が緑のまま入る。",
-  },
-  {
-    id: 1824,
-    label: "import S = require('…') を辺として読まない",
-    patch: "m1824-layer-import-equals-skipped.patch",
-    pkg: "scripts",
-    tests: ["lib/layer-direction.test.mjs"],
-    note: RESERVED_1820_1829 + " " + "#592。require 形の import で層を越える辺が緑のまま入る。",
+    id: 1877,
+    label: "組の欄の reducer が、エラーが無いときの clear-error でも新しいオブジェクトを返す",
+    patch: "m1877-regulars-form-clear-error-always-new-state.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/regulars-form.test.ts"],
+    note: RESERVED_1870_1889 + " " + "#595 のレビュー。regulars-form.ts の formReducer（clear-error）。入力のたびに余分な再描画が起きる。",
   },
 ];

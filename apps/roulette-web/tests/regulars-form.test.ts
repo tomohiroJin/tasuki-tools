@@ -6,7 +6,7 @@ import {
   REGULARS_ERROR_NO_MEMBERS,
   REGULARS_ERROR_TOO_MANY_MEMBERS,
 } from '../src/copy';
-import { INITIAL_FORM, countFieldOf, formReducer, validate } from '../src/regulars-form';
+import { INITIAL_FORM, countFieldOf, formReducer, memberCount, validate } from '../src/regulars-form';
 
 describe('validate（組の欄の検証）', () => {
   it('名前が空・空白だけ・見えない文字だけなら名前の欄のエラー', () => {
@@ -57,6 +57,13 @@ describe('countFieldOf', () => {
   });
 });
 
+describe('memberCount', () => {
+  it('チェックと手入力を、重複を畳んで数える', () => {
+    expect(memberCount([], '')).toBe(0);
+    expect(memberCount(['a'], 'a\nb')).toBe(2);
+  });
+});
+
 describe('formReducer', () => {
   it('open は入力を差し替えてエラーを消す（エラーの印の欄は残す）', () => {
     const failed = formReducer(INITIAL_FORM, { type: 'fail', message: 'x', field: 'name' });
@@ -81,5 +88,12 @@ describe('formReducer', () => {
     const failed = formReducer(INITIAL_FORM, { type: 'fail', message: 'm', field: 'people' });
     expect(failed).toMatchObject({ error: 'm', errorField: 'people' });
     expect(formReducer(failed, { type: 'clear-error' })).toMatchObject({ error: '', errorField: 'people' });
+  });
+
+  it('fail・clear-error は、値が変わらないなら同じ参照を返す（余分な再描画を起こさない）', () => {
+    const failed = formReducer(INITIAL_FORM, { type: 'fail', message: 'm', field: 'people' });
+    expect(formReducer(failed, { type: 'fail', message: 'm', field: 'people' })).toBe(failed);
+    expect(formReducer(INITIAL_FORM, { type: 'clear-error' })).toBe(INITIAL_FORM);
+    expect(formReducer(failed, { type: 'fail', message: 'm', field: 'name' })).not.toBe(failed);
   });
 });

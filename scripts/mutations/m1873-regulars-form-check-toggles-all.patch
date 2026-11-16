@@ -10,12 +10,12 @@
 diff --git a/apps/roulette-web/src/regulars-form.ts b/apps/roulette-web/src/regulars-form.ts
 --- a/apps/roulette-web/src/regulars-form.ts
 +++ b/apps/roulette-web/src/regulars-form.ts
-@@ -85,7 +85,7 @@
+@@ -89,7 +89,7 @@
      case 'text':
        return { ...state, text: action.value };
      case 'check':
 -      return { ...state, checkRows: state.checkRows.map((x, j) => (j === action.index ? { name: x.name, checked: action.on } : x)) };
 +      return { ...state, checkRows: state.checkRows.map((x) => ({ name: x.name, checked: action.on })) };
      case 'fail':
-       return { ...state, error: action.message, errorField: action.field };
-     case 'clear-error':
+       // 同じ値なら同じ参照を返す（余分な再描画を起こさない）
+       if (state.error === action.message && state.errorField === action.field) return state;
