@@ -11,13 +11,11 @@
  * 現ドライバーをドライバーセクション先頭に固定する。
  */
 
-import React, { useState, useEffect, useId, useReducer } from "react";
-import { Users, ChevronUp, ChevronDown, X } from "lucide-react";
+import { useState, useEffect, useId, useReducer } from "react";
+import { Users } from "lucide-react";
 import type { Participant, Seat } from "@tasuki/timer-core";
-import { MAX_DISPLAY_NAME, participantLabel } from "@tasuki/room-core";
+import { participantLabel } from "@tasuki/room-core";
 import { SectionHeader } from "../primitives.js";
-import { presenceLabel } from "../presence.js";
-import { PresenceDot } from "./PresenceDot.js";
 import { RemovalConfirmDialog } from "./RemovalConfirmDialog.js";
 import { labelPool } from "../participant-label.js";
 import {
@@ -32,7 +30,9 @@ import {
   type RenamePending,
 } from "../name-request.js";
 import { splitRoster } from "../roster-order.js";
-import { MiniButton } from "./MiniButton.js";
+import { planRosterRow } from "../roster-row-plan.js";
+import { RosterRow, type RosterRowEditing } from "./RosterRow.js";
+import { RosterProxyForm } from "./RosterProxyForm.js";
 import { ShuffleButton } from "./ShuffleButton.js";
 
 interface RosterPanelProps {
@@ -236,214 +236,57 @@ export function RosterPanel({
     onRename(participantId, plan.typed);
   };
 
-  /** Enter で送る（レビュー指摘4）。閉じずにその場で直させる形にした以上、直後の自然な操作はこれ。 */
-  const submitOnEnter = (submit: () => void) => (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key !== "Enter") return;
-    e.preventDefault();
-    submit();
-  };
-
   // ドライバー（輪の中・現ドライバー起点の巡回順）と見学（輪の外・元の順）に分ける（`roster-order.ts`）。
   const { drivers, watchers } = splitRoster(participants, rotation, currentDriverId);
 
-  /** 参加者行の共通レンダリング関数。全アクション（改名/離脱/復帰/譲る/外す/並べ替え）を維持する。 */
+  /** 参加者行の共通レンダリング関数。判断は `planRosterRow`、描画は `RosterRow`。 */
   const renderRow = (p: Participant) => {
-    const isCurrentDriver = currentDriverId !== "" && p.participantId === currentDriverId;
-    const isMine = p.participantId === myParticipantId;
-    const isSkipping = p.driverEligible === false;
-    const isEditing = editingId === p.participantId;
-    // ドライバー順での位置。rotation.indexOf(participantId) で算出する
-    // （participants の配列位置とは一致しないため）。-1 なら見学（rotation 外）。
-    const rotationIndex = rotation ? rotation.indexOf(p.participantId) : -1;
-    const inRotation = rotationIndex >= 0;
-    const rotationLen = rotation?.length ?? 0;
+    const plan = planRosterRow({
+      participant: p,
+      currentDriverId,
+      myParticipantId,
+      rotation,
+      selfHasExternalToggle,
+      hasMove: !!onMove,
+      hasRemove: !!onRemove,
+      hasAssignDriver: !!onAssignDriver,
+    });
     // 同名が並ぶときだけ識別子を添える（FR-084・規則は `@tasuki/room-core` の participant-label に1つだけ）。
     // 退出だけでなく全ての操作に使う。同名の行は順番バッジ以外の見た目が同じで、
     // 「どちらに効く操作なのか」を名前だけでは選べない。判定対象は pool
     // （seats と participants の和集合）で、この画面に表示中の participants だけではない。
     const label = participantLabel(p.displayName, p.participantId, pool);
-    // 並べ替えはドライバーが2人以上いるときだけ意味を持つ。
-    const canMove = inRotation && rotationLen > 1 && !!onMove;
-
+    const editing: RosterRowEditing | null =
+      editingId === p.participantId
+        ? {
+            name: editName,
+            onChange: (value) => {
+              setEditName(value);
+              // 打ち直した瞬間に理由を降ろす（直したのに赤いままにしない）。
+              dispatchRename({ type: "retyped" });
+            },
+            onSubmit: () => submitRename(p.participantId),
+            onCancel: cancelRename,
+            rejection: activeRenameRejection,
+            errorId: renameErrorId,
+          }
+        : null;
     return (
-      <li
+      <RosterRow
         // 現ドライバーになった瞬間だけ key を変えて再マウントし、入場アニメ(animate-pop-in)を
         // 再生させる＝交代で先頭に入れ替わった「感」を出す（reduced-motion では index.css で抑制）。
-        key={isCurrentDriver ? `${p.participantId}-current` : p.participantId}
-        className={
-          isCurrentDriver
-            ? "roster-panel-row roster-panel-row-current animate-pop-in"
-            : "roster-panel-row"
-        }
-      >
-        {isEditing ? (
-          /* 改名中は入力＋保存/キャンセルで行を専有する。
-             受け付けられなかった理由も**この行の中**に出す（#291 レビュー指摘2）。 */
-          <div className="roster-panel-edit">
-            <div className="roster-panel-edit-row">
-              <input
-                type="text"
-                value={editName}
-                onChange={(e) => {
-                  setEditName(e.target.value);
-                  // 打ち直した瞬間に理由を降ろす（直したのに赤いままにしない）。
-                  dispatchRename({ type: "retyped" });
-                }}
-                onKeyDown={submitOnEnter(() => submitRename(p.participantId))}
-                aria-label={`${label} の新しい名前`}
-                maxLength={MAX_DISPLAY_NAME}
-                aria-invalid={activeRenameRejection !== null ? true : undefined}
-                aria-describedby={activeRenameRejection !== null ? renameErrorId : undefined}
-                className="ui-input roster-panel-edit-input"
-              />
-              <MiniButton onClick={() => submitRename(p.participantId)}>保存</MiniButton>
-              <MiniButton onClick={cancelRename}>取消</MiniButton>
-            </div>
-            {activeRenameRejection !== null && (
-              <p
-                // `key` を失敗のたびに進めてノードごと張り替える。同じ文言のままだと
-                // 2 度目以降が読み上げられない（#291 レビュー指摘5）。
-                key={activeRenameRejection.attempt}
-                id={renameErrorId}
-                role="alert"
-                className="roster-panel-error"
-              >
-                {`「${activeRenameRejection.typed}」へは変えられませんでした。同じ名前の人がすでに居ます。` +
-                  `所属やイニシャルなどを添えて、呼び分けの付く名前にすると変えられます。`}
-              </p>
-            )}
-          </div>
-        ) : (
-          <>
-            {/* 1段目: 順番＋在席ドット＋名前＋「▶ 今」。
-                名前は text-base font-medium で目立たせる。
-                メタ情報（順番番号）は控えめな色で表示。
-                在席「オンライン」テキストチップは廃止しドット＋ui-visually-hidden のみに（FR-032 色併記は
-                ドットで維持し、スクリーンリーダーには ui-visually-hidden テキストで伝える）。
-                かつてはここに「主催者」「観覧」の役割バッジも並べていた（#95 S3 で廃止）。 */}
-            <div className="roster-panel-meta">
-              {inRotation && (
-                <span
-                  className="roster-panel-order tabular"
-                  aria-label={`順番 ${rotationIndex + 1}`}
-                >
-                  {rotationIndex + 1}
-                </span>
-              )}
-              <PresenceDot presence={p.presence} />
-              {/* 在席状態をスクリーンリーダーへ（可視チップは廃止） */}
-              <span className="ui-visually-hidden">{presenceLabel(p.presence)}</span>
-              {/* 名前: text-base font-medium で情報階層の最上位に。
-                  同名が並ぶときは識別子を添える（目で見ても行を区別できるように）。 */}
-              <span className="roster-panel-name" title={label}>
-                {label}
-              </span>
-              {p.isPlaceholder && (
-                <span className="roster-panel-chip roster-panel-chip-proxy">代理</span>
-              )}
-              {isSkipping && (
-                <span className="roster-panel-chip roster-panel-chip-skipping">離脱中</span>
-              )}
-              {isCurrentDriver && (
-                // 「▶ 今」だけでは読み上げても意味が伝わらないので名前を与える。
-                // role="img" にして中身を名前で置き換えるのは、投票済みの席札
-                // （poker の ParticipantList）と同じ扱い方に揃えたもの。
-                <span
-                  role="img"
-                  aria-label="現在のドライバー"
-                  className="roster-panel-chip roster-panel-chip-current"
-                >
-                  ▶ 今
-                </span>
-              )}
-              {/* アイコンだけの操作（並べ替え・退出）は名前の行の右端へ置く。文字の操作と同じ段に
-                  並べると 22rem の脇の列で 3 段に折れ、1 行が縦に長くなる（#316 PR 3・B2）。 */}
-              {(canMove || (!isMine && onRemove)) && (
-                <span className="roster-panel-icon-actions">
-                  {/* ドライバー順を入れ替えられる（v2.3 #1）。
-                      ドライバー行（rotation に含まれる）にのみ上/下を出す。先頭/末尾は無効化。 */}
-                  {canMove && (
-                    <>
-                      <MiniButton
-                        onClick={() => onMove!(rotationIndex, rotationIndex - 1)}
-                        disabled={rotationIndex === 0}
-                        aria-label={`${label} を前の順番へ`}
-                        title="前の順番へ"
-                      >
-                        <ChevronUp className="roster-panel-icon" aria-hidden="true" />
-                      </MiniButton>
-                      <MiniButton
-                        onClick={() => onMove!(rotationIndex, rotationIndex + 1)}
-                        disabled={rotationIndex === rotationLen - 1}
-                        aria-label={`${label} を後の順番へ`}
-                        title="後の順番へ"
-                      >
-                        <ChevronDown className="roster-panel-icon" aria-hidden="true" />
-                      </MiniButton>
-                    </>
-                  )}
-                  {/* 他の参加者を退出させる（⑪）。誰でも実行できる（#95 S3）。
-                      自分の行には出さない（自己退出は SelfDriverToggle 側・FR-078）。
-                      取り返しがつかない操作なので確認を挟む（FR-075）。
-                      同名が並ぶときはラベルに識別子を添える。二重参加の幽霊は本人と同名なので、
-                      名前だけだと「どちらを消すのか」を選ぶ時点で区別できない（FR-084）。 */}
-                  {!isMine && onRemove && (
-                    <MiniButton
-                      onClick={() => setPendingRemovalId(p.participantId)}
-                      aria-label={`${label} を退出させる`}
-                      title="退出させる"
-                    >
-                      <X className="roster-panel-icon" aria-hidden="true" />
-                    </MiniButton>
-                  )}
-                </span>
-              )}
-            </div>
-
-            {/* 2段目: 操作。バッジと分離し行幅いっぱいで右寄せ＋折返し（flex-wrap）にして、
-                操作が増えても枠からはみ出さないようにする。「外す」はアイコン化して幅を圧縮
-                （Lobby と同じ X）。**操作は全員の行に出す**（#95 S3）。
-                一時離脱/復帰は driver.skip で、自分の分は外部の自己トグルがあるなら出さず重複を避ける（#1）。 */}
-            <div className="roster-panel-actions">
-              <MiniButton
-                onClick={() => startRename(p.participantId, p.displayName)}
-                aria-label={`${label} を改名`}
-              >
-                改名
-              </MiniButton>
-              {/* 一時離脱/復帰の表示可否: 輪に席がある行だけ（#95 S4a）。自分は外部トグルが
-                  無いときのみ（他人は常に出す）。
-                  **見学（rotation 外）の行には出さない。** 一時離脱は「輪の上の席の属性」
-                  （`RotationEntry.eligible`）になったので、席の無い人には効かない。
-                  「ドライバーにする」「並べ替え」と同じ扱いに揃えてある。 */}
-              {inRotation &&
-                (!isMine || !selfHasExternalToggle) &&
-                (isSkipping ? (
-                  <MiniButton onClick={() => onResume(p.participantId)} aria-label={`${label} を復帰させる`}>
-                    復帰
-                  </MiniButton>
-                ) : (
-                  <MiniButton onClick={() => onSkip(p.participantId)} aria-label={`${label} を一時離脱させる`}>
-                    一時離脱
-                  </MiniButton>
-                ))}
-              {/* 現ドライバー以外の rotation メンバーを即ドライバーに指名できる（Issue #13）。
-                  実在（非代理）オフラインの相手は無人ドライバーになるため指名不可。
-                  代理(placeholder)は Web 非接続が常態で対面在席するため offline でも指名可能。 */}
-              {onAssignDriver && inRotation && !isCurrentDriver &&
-                (p.presence !== "offline" || p.isPlaceholder === true) && (
-                <MiniButton
-                  onClick={() => onAssignDriver(p.participantId)}
-                  aria-label={`${label} をドライバーにする`}
-                  title="ドライバーにする"
-                >
-                  ドライバーにする
-                </MiniButton>
-              )}
-            </div>
-          </>
-        )}
-      </li>
+        key={plan.isCurrentDriver ? `${p.participantId}-current` : p.participantId}
+        participant={p}
+        label={label}
+        plan={plan}
+        editing={editing}
+        onStartRename={() => startRename(p.participantId, p.displayName)}
+        onMove={onMove}
+        onRequestRemoval={() => setPendingRemovalId(p.participantId)}
+        onSkip={() => onSkip(p.participantId)}
+        onResume={() => onResume(p.participantId)}
+        onAssignDriver={onAssignDriver ? () => onAssignDriver(p.participantId) : undefined}
+      />
     );
   };
 
@@ -493,42 +336,18 @@ export function RosterPanel({
       <div className="ui-stack panel-stack roster-panel-body">
       {/* 代理追加フォーム。受け付けられなかった理由は**この中**に出す（#291）。 */}
       {showProxyInput && (
-        <div className="roster-panel-proxy-form">
-          <div className="roster-panel-proxy-row">
-            <input
-              type="text"
-              value={proxyName}
-              onChange={(e) => {
-                setProxyName(e.target.value);
-                // 打ち直した瞬間に理由を降ろす。直した名前の横に古い理由が残ると、
-                // 利用者は「まだ駄目なのか」と読む。
-                dispatchProxy({ type: "retyped" });
-              }}
-              onKeyDown={submitOnEnter(handleAddProxy)}
-              placeholder="Web 非接続のメンバー名"
-              aria-label="代理参加者の名前"
-              maxLength={MAX_DISPLAY_NAME}
-              aria-invalid={activeProxyRejection !== null ? true : undefined}
-              aria-describedby={activeProxyRejection !== null ? proxyErrorId : undefined}
-              className="ui-input roster-panel-proxy-input"
-            />
-            <button type="button" onClick={handleAddProxy} className="ui-button ui-button--secondary ui-button--sm">追加</button>
-          </div>
-          {activeProxyRejection !== null && (
-            // `role="alert"` にして、目で追っていない人にも即時に読み上げさせる。
-            // 色だけで伝えないよう、理由と次の手は文言そのものが持つ（FR-032）。
-            // `key` は失敗のたびに進める（同じ文言・同じノードだと再告知されない）。
-            <p
-              key={activeProxyRejection.attempt}
-              id={proxyErrorId}
-              role="alert"
-              className="roster-panel-error"
-            >
-              {`「${activeProxyRejection.typed}」は追加できませんでした。同じ名前の人がすでに居ます。` +
-                `所属やイニシャルなどを添えて、呼び分けの付く名前にすると追加できます。`}
-            </p>
-          )}
-        </div>
+        <RosterProxyForm
+          name={proxyName}
+          onChange={(value) => {
+            setProxyName(value);
+            // 打ち直した瞬間に理由を降ろす。直した名前の横に古い理由が残ると、
+            // 利用者は「まだ駄目なのか」と読む。
+            dispatchProxy({ type: "retyped" });
+          }}
+          onSubmit={handleAddProxy}
+          rejection={activeProxyRejection}
+          errorId={proxyErrorId}
+        />
       )}
 
       {/* ドライバーセクション（rotation 内）: 現ドライバー → rotation 順 */}
