@@ -56,7 +56,7 @@ export function RosterRow({
   onResume,
   onAssignDriver,
 }: RosterRowProps) {
-  const { isCurrentDriver, isSkipping, rotationIndex, inRotation, rotationLen } = plan;
+  const { isCurrentDriver, isSkipping, rotationIndex, inRotation } = plan;
   return (
     <li
       className={
