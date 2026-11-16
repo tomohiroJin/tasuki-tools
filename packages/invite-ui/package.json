@@ -12,6 +12,7 @@
   "dependencies": { "qrcode": "^1.5.4" },
   "peerDependencies": { "react": "^19.1.0" },
   "devDependencies": {
+    "@tasuki/test-css": "workspace:*",
     "@testing-library/react": "^16.1.0",
     "@types/qrcode": "^1.5.5",
     "@types/react": "^19.1.0",

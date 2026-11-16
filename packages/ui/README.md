@@ -28,7 +28,7 @@ src/
 **この境界は stylelint が機械的に守る。** `src/tokens/` では `selector-max-type` /
 `-class` / `-id` を 0 にしてあるので、うっかり `h2 {}` を足すと lint が落ちる。
 
-**試験の共有支援（いまは CSS を字で読む解析器。書体の判定・偽の WebSocket は #594 で移す予定）は、私的なパッケージ `@tasuki/test-css`（`packages/test-css`）に置きます。** 部品の試験（`tests/`）と、アプリの試験（`apps/*/tests/`・`apps/*/test/`）が devDependency として読みます（`dependencies`・`peerDependencies`・`optionalDependencies` に書くと検査が赤くなります）。製品コードは読みません。置き場の決定は `docs/adr/0017` の追記（2026-11-14・#599）です。`scripts/audit-dependency-direction.mjs` が、パッケージの中の `tests/`・`test/` と e2e 以外のファイル（設定ファイルを含む）に取り込みが無いことを、許可の表と同じ仕組みで見ます。
+**試験の共有支援（CSS を字で読む解析器 `@tasuki/test-css`・書体の base 層の判定 `@tasuki/test-css/font-base`・台本つきの偽の WebSocket `@tasuki/test-css/scripted-web-socket`・画面の CSS の契約の補助 `@tasuki/test-css/css-rules`）は、私的なパッケージ `@tasuki/test-css`（`packages/test-css`）に置きます。** 部品の試験（`tests/`）と、アプリの試験（`apps/*/tests/`・`apps/*/test/`）が devDependency として読みます（`dependencies`・`peerDependencies`・`optionalDependencies` に書くと検査が赤くなります）。製品コードは読みません。置き場の決定は `docs/adr/0017` の追記（2026-11-14・#599）です。`scripts/audit-dependency-direction.mjs` が、パッケージの中の `tests/`・`test/` と e2e 以外のファイル（設定ファイルを含む）に取り込みが無いことを、許可の表と同じ仕組みで見ます。
 
 ### 部品層（`components/`・ADR 0022）
 

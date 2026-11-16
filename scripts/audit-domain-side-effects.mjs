@@ -138,7 +138,7 @@ export const EXCLUDED_PACKAGES = [
       "（joinRetryDelayMs の第 2 引数）、テストはそこを固定して判定する（#95 S5a で新設）",
   },
   { pkg: "packages/ui", reason: "CSS トークンと書体のみ。TS を 1 つも持たない" },
-  { pkg: "packages/test-css", reason: "試験の共有支援のパッケージ（いまは CSS を字で読む解析器。書体の判定・偽の WebSocket は #594 で移す予定。#554・#599）。製品コードを持たず、ドメインも実行時の副作用も持たない。読めるのは各パッケージの試験だけ（audit-dependency-direction）" },
+  { pkg: "packages/test-css", reason: "試験の共有支援（CSS を字で読む解析器・書体の base 層の判定・台本つきの偽の WebSocket・画面の CSS の契約の補助。#554・#594・#599）。製品コードを持たず、ドメインも実行時の副作用も持たない。読めるのは各パッケージの試験だけ（audit-dependency-direction）" },
 ];
 
 /**

@@ -102,13 +102,13 @@ export const ALLOWED = {
   // お題の文脈（#91）。**@tasuki/* に依存しない** —— ツールのドメインと同格の文脈であり、
   // 文脈をつなぐのはアプリ層である（docs/adr/0017）。
   "packages/topic-core": [],
-  // ルーレットの文脈（#94）。**@tasuki/* に依存しない**（room-core にも依存しない・spec R3）。
+  // ルーレットの文脈（#94）。製品コードは **@tasuki/* に依存しない**（room-core にも依存しない・spec R3。試験だけが @tasuki/test-css を読む・決まり 5）。
   // 参加者 ID は不透明な文字列で、名簿の断片はアプリ層が引数で渡す（docs/adr/0017 決定 1・2）。
-  "packages/roulette-core": [],
-  // 進行タイマーの文脈（#429）。**@tasuki/* に依存しない**（他の文脈にも依存しない）。
-  "packages/agenda-core": [],
-  // 会の始まりと終わりの札の文脈（#406）。**@tasuki/* に依存しない**（他の文脈にも依存しない）。
-  "packages/checkin-core": [],
+  "packages/roulette-core": ["@tasuki/test-css"], // devDependency（tests/ だけが読む）
+  // 進行タイマーの文脈（#429）。製品コードは **@tasuki/* に依存しない**（他の文脈にも依存しない。試験だけが @tasuki/test-css を読む・docs/adr/0017 の追記（#599）決まり 5）。
+  "packages/agenda-core": ["@tasuki/test-css"], // devDependency（tests/ だけが読む）
+  // 会の始まりと終わりの札の文脈（#406）。製品コードは **@tasuki/* に依存しない**（他の文脈にも依存しない。試験だけが @tasuki/test-css を読む・決まり 5）。
+  "packages/checkin-core": ["@tasuki/test-css"], // devDependency（tests/ だけが読む）
   // 同期クライアントの接続部分（#95 S5a・D18）。**@tasuki/* に依存しない** ——
   // ツールの語彙を持たないことが、4 つの web アプリから使える条件である。
   "packages/sync-client": [],
@@ -116,13 +116,13 @@ export const ALLOWED = {
   "packages/poker-core": ["@tasuki/protocol"], // 既存。境界のパースを protocol に一本化
   "packages/protocol": [],
   "packages/rate-limit": [],
-  // 試験専用の私的なパッケージ（試験の共有支援。いまは CSS を字で読む解析器。#554・#599）。@tasuki/* に依存しない。読めるのは {@link TEST_ONLY} の側だけ（試験から、devDependencies で）。
+  // 試験専用の私的なパッケージ（試験の共有支援。CSS を字で読む解析器・書体の判定・偽の WebSocket・画面の CSS の契約の補助。#554・#594・#599）。@tasuki/* に依存しない。読めるのは {@link TEST_ONLY} の側だけ（試験から、devDependencies で）。
   "packages/test-css": [],
   "packages/ui": ["@tasuki/test-css"], // devDependency（tests/ だけが読む）
-  "packages/invite-ui": [], // ADR-0020: ブラウザ操作のみ。ドメイン・同期への依存なし。
+  "packages/invite-ui": ["@tasuki/test-css"], // ADR-0020: ブラウザ操作のみ。ドメイン・同期への依存なし。@tasuki/test-css は devDependency（tests/ だけが読む）
   // #369: web の同期フックが共有する React の部品（`./sync`）。同期クライアントの上に載り、ドメインには依存しない。
   // #371: 読む面の部品（`./reader`）。Markdown の描画は `@tasuki/markdown` の解析の上に載る（docs/adr/0021 の追記）。
-  "packages/web-kit": ["@tasuki/markdown", "@tasuki/sync-client"],
+  "packages/web-kit": ["@tasuki/markdown", "@tasuki/sync-client", "@tasuki/test-css"], // @tasuki/test-css は devDependency（tests/ だけが読む）
   // #91 PR 3: Markdown サブセットの解析（純粋な関数）。描画は @tasuki/web-kit/reader（#371）。依存 0。
   "packages/markdown": [],
   // dev サーバー専用の Vite プラグインと玄関のポートの正本（#95 S5c 追補・#249）。
@@ -141,6 +141,7 @@ export const ALLOWED = {
     "@tasuki/protocol",
     "@tasuki/room-core",
     "@tasuki/sync-client",
+    "@tasuki/test-css",
     "@tasuki/topic-core",
     "@tasuki/ui",
     "@tasuki/web-kit",
@@ -170,6 +171,7 @@ export const ALLOWED = {
     "@tasuki/protocol",
     "@tasuki/room-core",
     "@tasuki/sync-client",
+    "@tasuki/test-css",
     "@tasuki/topic-core",
     "@tasuki/ui",
     "@tasuki/web-kit",
@@ -183,6 +185,7 @@ export const ALLOWED = {
     "@tasuki/protocol",
     "@tasuki/room-core",
     "@tasuki/sync-client",
+    "@tasuki/test-css",
     "@tasuki/topic-core",
     "@tasuki/ui",
     "@tasuki/web-kit",
@@ -198,6 +201,7 @@ export const ALLOWED = {
     "@tasuki/room-core",
     "@tasuki/roulette-core",
     "@tasuki/sync-client",
+    "@tasuki/test-css",
     "@tasuki/topic-core",
     "@tasuki/ui",
     "@tasuki/web-kit",
@@ -223,6 +227,7 @@ export const ALLOWED = {
     "@tasuki/protocol",
     "@tasuki/room-core",
     "@tasuki/sync-client",
+    "@tasuki/test-css",
     "@tasuki/topic-core",
     "@tasuki/ui",
     "@tasuki/web-kit",
