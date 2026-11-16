@@ -1,0 +1,20 @@
+# 変異 1876: regulars-form-fail-always-new-state
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/regulars-form.test.ts
+#
+# #595。regulars-form.ts の reducer が、同じ失敗を重ねても新しいオブジェクトを返す。余分な再描画が起きる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1876-*.patch
+diff --git a/apps/roulette-web/src/regulars-form.ts b/apps/roulette-web/src/regulars-form.ts
+--- a/apps/roulette-web/src/regulars-form.ts
++++ b/apps/roulette-web/src/regulars-form.ts
+@@ -92,7 +92,6 @@
+       return { ...state, checkRows: state.checkRows.map((x, j) => (j === action.index ? { name: x.name, checked: action.on } : x)) };
+     case 'fail':
+       // 同じ値なら同じ参照を返す（余分な再描画を起こさない）
+-      if (state.error === action.message && state.errorField === action.field) return state;
+       return { ...state, error: action.message, errorField: action.field };
+     case 'clear-error':
+       if (state.error === '') return state;

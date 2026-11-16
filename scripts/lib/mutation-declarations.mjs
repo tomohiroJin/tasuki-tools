@@ -236,6 +236,9 @@ const RESERVED_1890_1929 =
 const RESERVED_1820_1829 =
   "**対応表より後に足した変異。** 1820〜1829 は #592 の追加（1720〜1739 を使い切ったため。/code-review の直しの性質）に割り当てた範囲。";
 
+const RESERVED_1870_1889 =
+  "**対応表より後に足した変異。** 1870〜1889 は #595（RegularsSection を責務で分ける）に割り当てた範囲。";
+
 const RESERVED_1740_1759 =
   "**対応表より後に足した変異。** 1740〜1759 は #599（テスト支援の共有先・採択後の最初の PR）に割り当てた範囲。";
 
@@ -10180,6 +10183,70 @@ export const MUTATIONS = [
     pkg: "apps/poker-web",
     tests: ["tests/room-page-join-retry.test.tsx"],
     note: RESERVED_1830_1849 + " " + "#595。useRoomEntry から shouldResetRetry への配線。前の「開いていたか」が更新されず、最初の値のまま固まる。画面を開いた時点で接続が開いていた場合（試験の既定 `status: 'open'`）は true のまま固まり、接続し直しても「つなぎ直した」と見られず試行回数が戻らない。開く前（実物の初期値 `'connecting'`）に画面を開いた場合は false のまま固まり、数え直しはほぼ同じに動く（等価に近い）。",
+  },
+  {
+    id: 1870,
+    label: "組の欄の検証が、名前の長さ・見えなさの検査（isValidGroupName）を飛ばす",
+    patch: "m1870-regulars-validate-skips-name-length.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/regulars-form.test.ts"],
+    note: RESERVED_1870_1889 + " " + "#595。regulars-form.ts の validate。保存の関数が黙って落とす名前が通り、保存が無反応に見える。",
+  },
+  {
+    id: 1871,
+    label: "人数エラーの印の欄の決め方（countFieldOf）が、手入力が人を足したかを見ない",
+    patch: "m1871-regulars-count-field-ignores-manual.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/regulars-form.test.ts"],
+    note: RESERVED_1870_1889 + " " + "#595。regulars-form.ts の countFieldOf。手入力が原因の人数エラーがチェックの一覧に付く。",
+  },
+  {
+    id: 1872,
+    label: "組の欄の reducer が、欄を開き直してもエラーの文を消さない",
+    patch: "m1872-regulars-form-open-keeps-error.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/regulars-form.test.ts"],
+    note: RESERVED_1870_1889 + " " + "#595。regulars-form.ts の formReducer（open）。前の欄の失敗が次の欄に残る。",
+  },
+  {
+    id: 1873,
+    label: "組の欄の reducer が、チェックを 1 行だけでなく全行へ掛ける",
+    patch: "m1873-regulars-form-check-toggles-all.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/regulars-form.test.ts"],
+    note: RESERVED_1870_1889 + " " + "#595。regulars-form.ts の formReducer（check）。1 人を外すと全員が外れる。",
+  },
+  {
+    id: 1874,
+    label: "保存の配線が、直している組の保存済みの名前を検証へ渡さない",
+    patch: "m1874-regulars-submit-ignores-saved-members.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/regulars-section.test.tsx"],
+    note: RESERVED_1870_1889 + " " + "#595。純粋関数（1870〜1873）ではなく RegularsSection から検証への配線を突く。直すたびに人の並びが組み替わる。",
+  },
+  {
+    id: 1875,
+    label: "保存の配線が、チェックの一覧があることを検証へ渡さない",
+    patch: "m1875-regulars-submit-hides-people-list.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/regulars-section.test.tsx"],
+    note: RESERVED_1870_1889 + " " + "#595。RegularsSection から検証への配線。人数エラーの印が一覧でなく入力欄に付く。",
+  },
+  {
+    id: 1876,
+    label: "組の欄の reducer が、同じ失敗を重ねても新しいオブジェクトを返す",
+    patch: "m1876-regulars-form-fail-always-new-state.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/regulars-form.test.ts"],
+    note: RESERVED_1870_1889 + " " + "#595 のレビュー。regulars-form.ts の formReducer（fail）。値が同じでも参照が変わり、余分な再描画が起きる。",
+  },
+  {
+    id: 1877,
+    label: "組の欄の reducer が、エラーが無いときの clear-error でも新しいオブジェクトを返す",
+    patch: "m1877-regulars-form-clear-error-always-new-state.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/regulars-form.test.ts"],
+    note: RESERVED_1870_1889 + " " + "#595 のレビュー。regulars-form.ts の formReducer（clear-error）。エラーが無い状態で欄を閉じたとき・別のタブで組が消えたときに、余分な再描画が起きる（欄への入力では clear-error を送らない）。",
   },
   {
     id: 1890,

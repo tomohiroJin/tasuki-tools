@@ -1,0 +1,21 @@
+# 変異 1875: regulars-submit-hides-people-list
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/regulars-section.test.tsx
+#
+# #595。RegularsSection の保存の配線が、チェックの一覧があることを検証へ渡さない。人数のエラーの印が一覧でなく入力欄に付く。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1875-*.patch
+diff --git a/apps/roulette-web/src/components/RegularsSection.tsx b/apps/roulette-web/src/components/RegularsSection.tsx
+--- a/apps/roulette-web/src/components/RegularsSection.tsx
++++ b/apps/roulette-web/src/components/RegularsSection.tsx
+@@ -108,7 +108,7 @@
+     const { name, text, checkRows } = form;
+     const checkedNames = checkRows.filter((r) => r.checked).map((r) => r.name);
+     const savedMembers = mode.id === null ? [] : (groups.find((g) => g.id === mode.id)?.members ?? []);
+-    const checked = validate(name, savedMembers, checkedNames, text, checkRows.length > 0);
++    const checked = validate(name, savedMembers, checkedNames, text, false);
+     if ('error' in checked) {
+       fail(checked.error, checked.field);
+       return;
