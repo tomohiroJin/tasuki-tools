@@ -34,7 +34,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 - 同じ ISSUE の開いた PR・マージ済みの PR・リモートの枝を確かめる。確かめる時は、**始め**と、**PR を立てる前・終わりを報告する前**。見つけたら（途中でも）、続ける前に人へ伝える
   - PR: `gh pr list --state all --limit 1000 --search "#<番号> in:title,body" --json number,title,body -q 'length as $t|"\($t) 件中:",(.[]|select((.title+.body)|test("#<番号>([^0-9]|$)"))|"\(.number) \(.title)")'`（件数が 1000 に近ければ切れている）
   - 枝: `git ls-remote --heads origin | grep -E 'refs/heads/.*[/-]<番号>([^0-9]|$)'`（`git fetch --prune` はしない。他の作業ツリーの参照を消す）
-  - 検査もある（`pnpm check:fast` の最初と最後の知らせ・Claude Code の `gh pr create` 直前のフック。`docs/adr/0030` 決定 5）。フックが聞くのは、開いた PR か同じ番号のリモートの枝（PR の有無・状態は問わない）があるとき、または確かめられなかったとき（未実行・上限で切れた・gh か git の失敗）で、マージ済み・閉じた PR だけなら通して知らせの行にとどめる（`docs/adr/0032` の追記（#622））。人が確かめる操作は残る
+  - 検査もある（`pnpm check:fast` の最初と最後の知らせ・Claude Code の `gh pr create` 直前のフック。`docs/adr/0030` 決定 5）。フックが聞くのは、開いた PR か同じ番号のリモートの枝（PR の有無・状態は問わない）があるとき、または確かめられなかったとき（未実行・上限で切れた・gh か git の失敗）で、マージ済み・閉じた PR だけならフックは何も出さずに通す（その行は `pnpm check:fast` の知らせが出す）（`docs/adr/0032` の追記（#622））。人が確かめる操作は残る
 
 **コマンドの書き方**（フックの確認で作業が止まらないため。まとめ役もサブエージェントも同じ。#612）
 
