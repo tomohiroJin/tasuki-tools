@@ -1,13 +1,14 @@
 diff --git a/scripts/lib/prior-pr-hook.mjs b/scripts/lib/prior-pr-hook.mjs
-index bf06cd3a..080f45b5 100644
+index 42299c6a..c9fedddf 100644
 --- a/scripts/lib/prior-pr-hook.mjs
 +++ b/scripts/lib/prior-pr-hook.mjs
-@@ -168,7 +168,7 @@ export async function decidePriorPrOutput(raw, { cwd, currentBranch, registeredW
-   const result = await lookup({ numbers, branch: own, dir });
+@@ -178,9 +178,6 @@ export async function decidePriorPrOutput(raw, { cwd, currentBranch, registeredW
    // 切れているときは「無い」と言い切れないので、先行が無くても聞く（引けなかったときと同じ考え方）
-   // マージ済み・閉じた PR だけ（past）は止めない。知らせの行は check:fast が出す（#622・docs/adr/0032 の追記）
--  if ((result.state === "none" || result.state === "past") && result.truncated !== true) return null;
-+  if (result.state === "none" && result.truncated !== true) return null;
+   if (result.state === "none" && result.truncated !== true) return null;
+   // マージ済み・閉じた PR だけ（past）は止めず、行を見せて通す（#622・docs/adr/0032 の追記）
+-  if (result.state === "past" && result.truncated !== true) {
+-    return inform(`${result.lines.join("\n")}\n開いた PR・枝は無いので、止めずに知らせます（docs/adr/0032 の追記）。`);
+-  }
    return ask(`${result.lines.join("\n")}\n同じ ISSUE の作業が重なっていないか、人の確認が要ります（AGENTS.md「作業の始めに」・docs/adr/0030 決定 5）。`);
  }
  

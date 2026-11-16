@@ -10146,4 +10146,28 @@ export const MUTATIONS = [
     tests: ["lib/prior-work.test.mjs"],
     note: RESERVED_1950_1959 + " " + "#622。gh の出力の形が変わると、読めない状態の PR を黙って通す。",
   },
+  {
+    id: 1956,
+    label: "フックが、マージ済み・閉じた PR だけ（past）のとき、行を見せずに何も出さない",
+    patch: "m1956-prior-pr-hook-past-silent.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-pr-hook.test.mjs", "agent-guard-hook.test.mjs"],
+    note: RESERVED_1950_1959 + " " + "#622 のレビュー。題の番号だけで当たった過去の PR は、どの経路でも行が出ない。",
+  },
+  {
+    id: 1957,
+    label: "check:fast の最後の一覧に、マージ済み・閉じた PR だけ（past）の行を残さない",
+    patch: "m1957-local-check-past-notice-not-repeated.patch",
+    pkg: "scripts",
+    tests: ["local-check.test.mjs"],
+    note: RESERVED_1950_1959 + " " + "#622 のレビュー。⚠ でない知らせが、長い検査の後ろで見えなくなる。",
+  },
+  {
+    id: 1958,
+    label: "入口が、ask と止めずに知らせる出力が同時のとき、知らせを ask の理由に足さず落とす",
+    patch: "m1958-hook-combine-info-dropped-with-ask.patch",
+    pkg: "scripts",
+    tests: ["lib/hook-combine.test.mjs", "agent-guard-hook.test.mjs"],
+    note: RESERVED_1950_1959 + " " + "#622 のレビュー。過去の PR の行が、人の確認の場面でだけ消える。",
+  },
 ];

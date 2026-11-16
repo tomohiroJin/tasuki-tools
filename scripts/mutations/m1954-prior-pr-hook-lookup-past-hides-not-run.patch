@@ -1,13 +1,13 @@
 diff --git a/scripts/lib/prior-pr-hook.mjs b/scripts/lib/prior-pr-hook.mjs
-index 6436debc..8e71ade6 100644
+index 42299c6a..ef703877 100644
 --- a/scripts/lib/prior-pr-hook.mjs
 +++ b/scripts/lib/prior-pr-hook.mjs
-@@ -209,7 +209,7 @@ export function defaultLookup(runnersFor = defaultRunners) {
-   return async ({ numbers, branch, dir }) => {
-     const { gh, git } = runnersFor(dir);
-     const parts = await Promise.all(numbers.map(async (n) => describePriorWork(await findPriorWork(n, { gh, git, ownBranch: branch }))));
--    const state = parts.some((p) => p.state === "found") ? "found" : parts.some((p) => p.state === "not-run") ? "not-run" : parts.some((p) => p.state === "past") ? "past" : "none";
-+    const state = parts.some((p) => p.state === "found") ? "found" : parts.some((p) => p.state === "past") ? "past" : parts.some((p) => p.state === "not-run") ? "not-run" : "none";
-     return { state, lines: parts.flatMap((p) => p.lines), truncated: parts.some((p) => p.truncated === true) };
-   };
+@@ -217,7 +217,7 @@ export function defaultRegisteredWorktrees() {
  }
+ 
+ /** 番号ごとの状態をまとめるときの強さの順（強い方が勝つ）。どれも無ければ none。past は not-run より弱い（確かめられなかった側を隠さない）。 */
+-const STATE_STRENGTH = ["found", "not-run", "past"];
++const STATE_STRENGTH = ["found", "past", "not-run"];
+ 
+ /** 本番の lookup。番号ごとに並列に引き、知らせの行をまとめる。作業場所は問い合わせの `dir`。 */
+ export function defaultLookup(runnersFor = defaultRunners) {

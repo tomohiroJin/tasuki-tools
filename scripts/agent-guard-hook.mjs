@@ -7,7 +7,8 @@
  * 止めるコマンドの一覧と判定の正本は `scripts/lib/agent-guard.mjs`。ここは I/O の薄い配線だけ。
  *
  * 続けて、`gh pr create` の直前に同じ ISSUE の先行 PR・枝があれば同じく `ask` を書く（#504・
- * `scripts/lib/prior-pr-hook.mjs`）。本番デプロイの判定が先で、その振る舞いは変えない。
+ * `scripts/lib/prior-pr-hook.mjs`）。マージ済み・閉じた PR だけなら ask にせず、`permissionDecision` の無い出力（`systemMessage` に行）を書く（#622）。
+ * 本番デプロイの判定が先で、その振る舞いは変えない。
  *
  * 本番デプロイの判定の後に、#578 の判定を順に流す（docs/adr/0037）: サブエージェントの危ない操作（本番デプロイの判定の中）・
  * 未コミットの変更を消す git・どこにも当たらない `pnpm --filter`・閉鎖キーワード（`gh pr create` の直前。先行 PR の確認と理由を 1 つにまとめる）。
