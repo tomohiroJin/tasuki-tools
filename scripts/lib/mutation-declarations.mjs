@@ -10176,6 +10176,6 @@ export const MUTATIONS = [
     patch: "m1839-room-entry-hook-open-not-tracked.patch",
     pkg: "apps/poker-web",
     tests: ["tests/room-page-join-retry.test.tsx"],
-    note: RESERVED_1830_1849 + " " + "#595。useRoomEntry から shouldResetRetry への配線。前の「開いていたか」が更新されず、最初の値のまま固まるので、接続し直しても「つなぎ直した」と見られず試行回数が戻らない。",
+    note: RESERVED_1830_1849 + " " + "#595。useRoomEntry から shouldResetRetry への配線。前の「開いていたか」が更新されず、最初の値のまま固まる。画面を開いた時点で接続が開いていた場合（試験の既定 `status: 'open'`）は true のまま固まり、接続し直しても「つなぎ直した」と見られず試行回数が戻らない。開く前（実物の初期値 `'connecting'`）に画面を開いた場合は false のまま固まり、数え直しはほぼ同じに動く（等価に近い）。",
   },
 ];
