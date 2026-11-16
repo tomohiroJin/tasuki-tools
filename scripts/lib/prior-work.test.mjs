@@ -237,7 +237,7 @@ test("runCommand: 時間切れでは孫（同じグループ）も SIGKILL で�
   }
 });
 
-// ---- #622: 止めるのは開いた PR と PR の無い枝だけ。マージ済み・閉じた PR は知らせの行だけ ----
+// ---- #622: 止めるのは開いた PR と同じ番号のリモートの枝だけ。マージ済み・閉じた PR は知らせの行だけ ----
 
 test("#622: 開いた PR だけでも found（止める側）", async () => {
   const { gh, git } = fakes({ prs: [pr(501, "他（#504）", "", "OPEN")] });
@@ -281,3 +281,17 @@ test("#622: checkPriorWork: マージ済みだけなら past。PR の行は出�
   assert.equal(r.state, "past");
   assert.ok(r.lines.some((l) => l.includes("PR #501（閉じた）")));
 });
+
+// ---- #622: PR の状態は許可の一覧で読む。MERGED か CLOSED のときだけ過去、それ以外は止める側 ----
+
+test("#622: マージ済みの PR があっても、同じ番号のリモートの枝が残っていれば found（PR の有無・状態は問わない）", async () => {
+  const { gh, git } = fakes({ prs: [pr(581, "済（#574）", "", "MERGED")], heads: ["fix/574-e2e-stability"] });
+  assert.equal((await findPriorWork(574, { gh, git, ownBranch: "fix/574-another" })).state, "found");
+});
+
+for (const state of ["open", "Open", "DRAFT", "", null, undefined]) {
+  test(`#622: 想定外の PR の状態 ${JSON.stringify(state)} は過去でなく止める側（found）`, async () => {
+    const { gh, git } = fakes({ prs: [{ number: 501, title: "他（#504）", body: "", state, headRefName: "x/501" }] });
+    assert.equal((await findPriorWork(504, { gh, git, ownBranch: "x" })).state, "found");
+  });
+}

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { decidePriorPrOutput, decidePriorPrOutputWithin, extractTitle, parseCreateOptions, effectiveCwd, mentionsPrCreate } from "./prior-pr-hook.mjs";
+import { decidePriorPrOutput, decidePriorPrOutputWithin, defaultLookup, extractTitle, parseCreateOptions, effectiveCwd, mentionsPrCreate } from "./prior-pr-hook.mjs";
 import { decideHookOutput } from "./agent-guard.mjs";
 
 /** `scripts/lib/prior-pr-hook.mjs` の自己テスト（#504）。引き方は偽物を渡す。 */
@@ -226,4 +226,47 @@ test("#622: past でも検索が切れていれば ask（無いと言い切れ�
 test("#622: 未実行（not-run）は ask のまま", async () => {
   const out = await decidePriorPrOutput(input("gh pr create"), deps({ result: notRun }));
   assert.equal(out?.hookSpecificOutput.permissionDecision, "ask");
+});
+
+// ---- #622: 番号ごとの状態をまとめる順（found > not-run > past > none）。番号ごとに gh の結果を変える偽物で確かめる ----
+
+/** 番号ごとに gh の結果を変える偽物。`byNumber` は番号 → PR の配列、または "fail"（gh が失敗）。git は枝なし。 */
+function runnersByNumber(byNumber) {
+  return () => ({
+    gh: (args) => {
+      const n = Number(/#(\d+) in:/.exec(args[args.indexOf("--search") + 1])[1]);
+      const entry = byNumber[n];
+      if (entry === "fail") throw new Error("gh: not logged in");
+      return JSON.stringify(entry ?? []);
+    },
+    git: () => "",
+  });
+}
+const mergedPr = (n) => ({ number: n * 10, title: `済（#${n}）`, body: "", state: "MERGED", headRefName: `x/${n * 10}` });
+const openPr = (n) => ({ number: n * 10, title: `開（#${n}）`, body: "", state: "OPEN", headRefName: `x/${n * 10}` });
+
+for (const [name, order] of [["past が先の番号", [504, 505]], ["not-run が先の番号", [505, 504]]]) {
+  test(`#622: defaultLookup: 片方が past・もう片方が確かめられない（not-run）なら not-run（${name}）`, async () => {
+    const lookup = defaultLookup(runnersByNumber({ 504: [mergedPr(504)], 505: "fail" }));
+    const r = await lookup({ numbers: order, branch: "x", dir: "/repo" });
+    assert.equal(r.state, "not-run");
+  });
+}
+
+test("#622: defaultLookup: past と not-run の組は、入口でも ask", async () => {
+  const lookup = defaultLookup(runnersByNumber({ 504: [mergedPr(504)], 505: "fail" }));
+  const out = await decidePriorPrOutput(
+    input('gh pr create --title "docs: x（#505）"'),
+    { ...deps({ branch: "docs/504-x" }), lookup },
+  );
+  assert.equal(out?.hookSpecificOutput.permissionDecision, "ask");
+});
+
+test("#622: defaultLookup: found は not-run・past より強い。past だけなら past・どちらも無ければ none", async () => {
+  const withFound = await defaultLookup(runnersByNumber({ 504: [openPr(504)], 505: "fail" }))({ numbers: [505, 504], branch: "x", dir: "/repo" });
+  assert.equal(withFound.state, "found");
+  const pastOnly = await defaultLookup(runnersByNumber({ 504: [mergedPr(504)], 505: [mergedPr(505)] }))({ numbers: [504, 505], branch: "x", dir: "/repo" });
+  assert.equal(pastOnly.state, "past");
+  const noneOnly = await defaultLookup(runnersByNumber({}))({ numbers: [504, 505], branch: "x", dir: "/repo" });
+  assert.equal(noneOnly.state, "none");
 });

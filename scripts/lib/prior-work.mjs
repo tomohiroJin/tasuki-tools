@@ -73,9 +73,10 @@ export async function findPriorWork(number, { gh, git, ownBranch }) {
   } catch (error) {
     errors.push(`git ls-remote: ${firstLine(error.message)}`);
   }
-  // 止める（found）のは、開いた PR と PR の無い枝だけ（#622）。マージ済み・閉じた PR は main に取り込まれたか終わった作業で、
-  // 重なりではない。確かめられなかった側が残るなら、past でなく unknown にする
-  const open = prs.filter((p) => p.state === "OPEN").length + branches.length > 0;
+  // 止める（found）のは、MERGED・CLOSED でない PR（開いた PR・想定外の状態）と、同じ番号のリモートの枝（PR の有無・状態は問わない）（#622）。
+  // マージ済み・閉じた PR は main に取り込まれたか終わった作業で、重なりではない。状態は許可の一覧で読む（読めないときは止める側に倒す）。
+  // 確かめられなかった側が残るなら、past でなく unknown にする
+  const open = prs.filter((p) => p.state !== "MERGED" && p.state !== "CLOSED").length + branches.length > 0;
   const state = open ? "found" : errors.length > 0 ? "unknown" : prs.length > 0 ? "past" : "none";
   return { state, number, prs, branches, total, truncated: total !== null && total >= SEARCH_LIMIT, errors };
 }

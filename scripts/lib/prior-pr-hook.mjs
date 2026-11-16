@@ -10,7 +10,7 @@
  *   ただし許可の前に git・gh を走らせるので、`cd` の先はこのリポジトリに登録された worktree（`git worktree list`）のときだけ使い、
  *   違えば何も流さずに `ask`（`cd` が途中・`~`/変数/`-`・`git -C` は読まない。ADR-0032 の残余）
  * - 先行が無くても、検索が上限に当たって切れていれば「無い」と言い切れないので `ask`
- * - 先行があれば `ask`。ただし**マージ済み・閉じた PR だけ**（開いた PR も PR の無い枝も無い）なら通す（#622。知らせの行は check:fast が出す）。**引けなかったとき（gh が無い・未認証・ネットワークが無い）も `ask`**。
+ * - 先行があれば `ask`。ただし**マージ済み・閉じた PR だけ**（開いた PR も、同じ番号のリモートの枝〔PR の有無・状態は問わない〕も無い）なら通す（#622。知らせの行は check:fast が出す）。**引けなかったとき（gh が無い・未認証・ネットワークが無い）も `ask`**。
  *   読めないときは当てる側に倒す `docs/adr/0032` と同じ。`gh pr create` 自身も gh とネットワークを要するので、
  *   引けない環境で聞いても余計な手間はほぼ増えない
  * - 判定は純粋関数。gh と git を呼ぶ `lookup` と `currentBranch` は引数で受け取る
@@ -205,9 +205,9 @@ export function defaultRegisteredWorktrees() {
 }
 
 /** 本番の lookup。番号ごとに並列に引き、知らせの行をまとめる。作業場所は問い合わせの `dir`。 */
-export function defaultLookup() {
+export function defaultLookup(runnersFor = defaultRunners) {
   return async ({ numbers, branch, dir }) => {
-    const { gh, git } = defaultRunners(dir);
+    const { gh, git } = runnersFor(dir);
     const parts = await Promise.all(numbers.map(async (n) => describePriorWork(await findPriorWork(n, { gh, git, ownBranch: branch }))));
     const state = parts.some((p) => p.state === "found") ? "found" : parts.some((p) => p.state === "not-run") ? "not-run" : parts.some((p) => p.state === "past") ? "past" : "none";
     return { state, lines: parts.flatMap((p) => p.lines), truncated: parts.some((p) => p.truncated === true) };
