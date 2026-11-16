@@ -82,7 +82,7 @@ import {
   listTrackedFiles,
   listWorkspacePackages,
 } from "./lib/scan-targets.mjs";
-import { WEB_IO_FILES, findLayerViolations, findStaleIoFiles } from "./lib/layer-direction.mjs";
+import { WEB_HOOK_FILES, WEB_IO_FILES, exportKeys, findLayerViolations, findStaleIoFiles } from "./lib/layer-direction.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "..");
@@ -361,7 +361,7 @@ function listPackageSources(pkg) {
 }
 
 /** 実体を観測する（`root` は走査の起点。既定はリポジトリ。自己テストは一時のディレクトリを渡す）。 */
-export function observe(pkg, files, root = REPO_ROOT) {
+export function observe(pkg, files, root = REPO_ROOT, texts = null) {
   const manifestPath = path.join(root, pkg, "package.json");
   const manifest = [];
   if (fs.existsSync(manifestPath)) {
@@ -376,7 +376,7 @@ export function observe(pkg, files, root = REPO_ROOT) {
   const escapes = [];
   const testOnlyInProduct = [];
   for (const rel of files) {
-    const text = fs.readFileSync(path.join(root, rel), "utf8");
+    const text = texts?.get(rel) ?? fs.readFileSync(path.join(root, rel), "utf8");
     const isTestSide = pkg === "e2e" || rel.startsWith(`${pkg}/tests/`) || rel.startsWith(`${pkg}/test/`);
     for (const m of text.matchAll(TASUKI_SPECIFIER)) {
       imports.push(m[1]);
@@ -487,13 +487,15 @@ function main() {
     return;
   }
 
+  // 走査対象の本文は 1 回だけ読み、package 間の観測と層の観測で共有する
+  const texts = readSources(sources);
   const observed = Object.fromEntries(
-    packages.map((pkg) => [pkg, observe(pkg, sources.get(pkg))]),
+    packages.map((pkg) => [pkg, observe(pkg, sources.get(pkg), REPO_ROOT, texts)]),
   );
   const violations = findViolations(observed);
 
   // 層の向きと入口外の参照（#592・`docs/adr/0015` の追記の許可表）。package 間の向きとは別の観点で、同じ走査対象から導く
-  const layerViolations = observeLayers(packages, sources);
+  const layerViolations = observeLayers(packages, texts);
 
   if (violations.length === 0 && layerViolations.length === 0) {
     console.log("依存の向き OK（表に無い @tasuki/* の依存は 0 件・層の向きの違反は 0 件）");
@@ -514,29 +516,37 @@ function main() {
   if (layerViolations.length > 0) console.error("層の向きに違反があります（docs/adr/0015 の追記の許可表。scripts/lib/layer-direction.mjs）:");
   for (const v of layerViolations) {
     console.error(
-      v.rule === "external"
+      v.rule === "unresolved"
+        ? `  ${v.file}:${v.line}: 解決できない相対 import です ${v.to}`
+        : v.rule === "external"
         ? `  ${v.file}:${v.line}: ${v.fromLayer} が React・WebSocket の外部パッケージを読んでいます ${v.to}`
         : v.rule === "deep-import"
         ? `  ${v.file}:${v.line}: package.json の exports に無い入口を取り込んでいます ${v.to}`
         : v.rule === "stale-io"
-          ? `  ${v.file}: 端末 I/O の宣言（WEB_IO_FILES）が実在しないファイルを指しています`
+          ? `  ${v.file}: 端末 I/O・同期フックの宣言（WEB_IO_FILES・WEB_HOOK_FILES）が実在しないファイルを指しています`
           : `  ${v.file}:${v.line}: ${v.fromLayer} が ${v.toLayer} を読んでいます ${v.to}`,
     );
   }
   process.exitCode = 1;
 }
 
-/**
- * 層の向きを観測する。入力は走査対象（{@link SCANNED_EXTENSIONS} の追跡下ファイル）と各 package の `package.json`。
- * web アプリは `vite.config.ts` を持つ `apps/*`（`listWebApps` と同じ導き方）。
- */
-function observeLayers(packages, sources) {
+/** 走査対象の本文を読む（リポジトリ相対パス → 本文）。 */
+function readSources(sources) {
   const files = new Map();
   for (const list of sources.values()) {
     for (const rel of list) files.set(rel, fs.readFileSync(path.join(REPO_ROOT, rel), "utf8"));
   }
-  const tracked = new Set(files.keys());
-  const webApps = new Set([...tracked].filter((f) => /^apps\/[^/]+\/vite\.config\.ts$/.test(f)).map((f) => f.split("/").slice(0, 2).join("/")));
+  return files;
+}
+
+/**
+ * 層の向きを観測する。入力は走査対象の本文（{@link SCANNED_EXTENSIONS} の追跡下ファイル）と各 package の `package.json`。
+ * web アプリは `vite.config.ts` を持つ `apps/*`（`listWebApps` と同じ導き方）。
+ */
+function observeLayers(packages, files) {
+  // 相対 import の解決先は、走査対象の拡張子に限らず追跡下の全ファイル（css・json・svg など）から探す
+  const tracked = new Set(listTrackedFiles(REPO_ROOT, []));
+  const webApps = new Set([...files.keys()].filter((f) => /^apps\/[^/]+\/vite\.config\.ts$/.test(f)).map((f) => f.split("/").slice(0, 2).join("/")));
   const nameToDir = new Map();
   const exportsOf = new Map();
   for (const pkg of packages) {
@@ -545,13 +555,17 @@ function observeLayers(packages, sources) {
     const json = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
     if (typeof json.name !== "string") continue;
     nameToDir.set(json.name, pkg);
-    if (json.exports && typeof json.exports === "object") exportsOf.set(pkg, new Set(Object.keys(json.exports)));
-    else if (typeof json.exports === "string") exportsOf.set(pkg, new Set(["."]));
+    const keys = exportKeys(json.exports);
+    if (keys !== undefined) exportsOf.set(pkg, keys);
   }
-  const found = findLayerViolations(files, { webApps, ioFiles: WEB_IO_FILES, nameToDir, exportsOf, tracked });
+  const found = findLayerViolations(files, { webApps, ioFiles: WEB_IO_FILES, hookFiles: WEB_HOOK_FILES, nameToDir, exportsOf, tracked });
   // 宣言の実在は走査対象とは独立に、追跡下のファイルへ直接聞く（走査が空振りしたときに宣言の陳腐化と取り違えない）
   const declaredTracked = new Set(listTrackedFiles(REPO_ROOT, [...WEB_IO_FILES]));
   for (const file of findStaleIoFiles(WEB_IO_FILES, declaredTracked)) {
+    found.push({ rule: "stale-io", file, line: 0, to: "", fromLayer: null, toLayer: null });
+  }
+  const declaredHooks = new Set(listTrackedFiles(REPO_ROOT, [...WEB_HOOK_FILES]));
+  for (const file of findStaleIoFiles(WEB_HOOK_FILES, declaredHooks)) {
     found.push({ rule: "stale-io", file, line: 0, to: "", fromLayer: null, toLayer: null });
   }
   return found;

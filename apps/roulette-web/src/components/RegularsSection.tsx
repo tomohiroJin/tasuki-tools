@@ -35,7 +35,8 @@ import {
 import { useRegulars } from '../hooks/use-regulars';
 import { candidatesOf, orderedMembers, splitForEdit, type Candidate } from '../regulars-view';
 import type { PersonRow } from '../roulette-view';
-import { isValidGroupName, parseMemberLines, type RegularGroup } from '../storage/regulars';
+import { parseMemberLines } from '../regulars-rules';
+import { isValidGroupName, type RegularGroup } from '../storage/regulars';
 
 interface Props {
   /** 切断中・回転中。札（入れる）だけ止める。作る・直す・消すは端末の中だけなので止めない */

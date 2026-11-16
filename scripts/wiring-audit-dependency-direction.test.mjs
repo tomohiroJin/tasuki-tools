@@ -358,6 +358,6 @@ describe("宣言と 0 件ガードの配線: scripts/audit-dependency-direction.
     // Then
     assertBrokenBy("audit-dependency-direction.mjs", r.source, "const declaredTracked = new Set(listTrackedFiles(REPO_ROOT, [...WEB_IO_FILES]));", "宣言の実在の導出");
     assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
-    assert.match(r.stderr, /apps\/timer-web\/src\/platform\/sound\.ts: 端末 I\/O の宣言（WEB_IO_FILES）が実在しないファイルを指しています/);
+    assert.match(r.stderr, /apps\/timer-web\/src\/platform\/sound\.ts: 端末 I\/O・同期フックの宣言（WEB_IO_FILES・WEB_HOOK_FILES）が実在しないファイルを指しています/);
   });
 });

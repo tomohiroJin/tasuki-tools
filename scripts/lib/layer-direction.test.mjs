@@ -7,7 +7,16 @@
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { findLayerViolations, findStaleIoFiles, layerOfFile, WEB_IO_FILES, LAYER_ALLOWED } from "./layer-direction.mjs";
+import {
+  extractSpecifiers,
+  findLayerViolations,
+  findStaleIoFiles,
+  isDeclaredEntry,
+  exportKeys,
+  layerOfFile,
+  WEB_IO_FILES,
+  LAYER_ALLOWED,
+} from "./layer-direction.mjs";
 
 const APP = "apps/demo-web";
 const CTX = {
@@ -39,7 +48,7 @@ test("層の判定: 拡張子と置き場で web の層に分ける", () => {
   assert.equal(layerOfFile(`${APP}/src/Screen.tsx`, CTX), "web/screen");
   assert.equal(layerOfFile(`${APP}/src/view.ts`, CTX), "web/pure");
   assert.equal(layerOfFile(`${APP}/src/hooks/useX.ts`, CTX), "web/hook");
-  assert.equal(layerOfFile(`${APP}/src/sync/dispatch.ts`, CTX), "web/hook");
+  assert.equal(layerOfFile(`${APP}/src/useThing.tsx`, CTX), "web/hook"); // use で始まる名前は拡張子によらず同期フック
   assert.equal(layerOfFile(`${APP}/src/use-thing.ts`, CTX), "web/hook");
   assert.equal(layerOfFile(`${APP}/src/storage/saved.ts`, CTX), "web/io");
 });
@@ -56,7 +65,8 @@ test("層の判定: 同期サーバーは ports・application・adapters に分�
   assert.equal(layerOfFile("apps/tasuki-sync/src/ports/p.ts", CTX), "sync/ports");
   assert.equal(layerOfFile("apps/tasuki-sync/src/application/a.ts", CTX), "sync/application");
   assert.equal(layerOfFile("apps/tasuki-sync/src/adapters/ws/g.ts", CTX), "sync/adapters");
-  assert.equal(layerOfFile("apps/tasuki-sync/src/server.ts", CTX), null);
+  assert.equal(layerOfFile("apps/tasuki-sync/src/server.ts", CTX), "sync/assembly");
+  assert.equal(layerOfFile("apps/tasuki-sync/src/assembly/timer.ts", CTX), "sync/assembly");
 });
 
 test("許される向きは緑: 画面→同期フック・純粋判断・ドメイン・web-kit/room・ui", () => {
@@ -250,4 +260,111 @@ test("react は画面・同期フックなら緑。react-dom-extra のような�
     [`${APP}/src/view.ts`]: "import x from 'react-dom-extra';\nimport y from 'reactive';",
   });
   assert.deepEqual(brief(vs), []);
+});
+
+test("層の判定: sync/・hooks/ の下でも use で始まらない .ts は純粋判断（名前の規則だけで倒す）", () => {
+  assert.equal(layerOfFile(`${APP}/src/sync/snapshot-intents.ts`, CTX), "web/pure");
+  assert.equal(layerOfFile(`${APP}/src/sync/app-mode.ts`, CTX), "web/pure");
+  assert.equal(layerOfFile(`${APP}/src/hooks/helper.ts`, CTX), "web/pure");
+  assert.equal(layerOfFile(`${APP}/src/sync/use-thing.ts`, CTX), "web/hook");
+});
+
+test("純粋なファイルが sync/ の下にあっても、同期クライアントの値を読めば赤（同期フックの扱いにしない）", () => {
+  const vs = check({
+    [`${APP}/src/sync/snapshot-intents.ts`]: "import { delay } from '@tasuki/sync-client';",
+    [`${APP}/src/sync/use-sync.ts`]: "import { delay } from '@tasuki/sync-client';",
+    [`${APP}/src/ui/useBox.tsx`]: "import { delay } from '@tasuki/sync-client';",
+  });
+  assert.deepEqual(brief(vs), [`layer ${APP}/src/sync/snapshot-intents.ts:1 -> @tasuki/sync-client`]);
+});
+
+test("行コメントの中の /* や文字列の中の /* で、後ろの import が消えない", () => {
+  const vs = check({
+    [`${APP}/src/a.ts`]: "// 画面は components/*.tsx に置く\nimport type { X } from './Screen';\n",
+    [`${APP}/src/b.ts`]: "const g = \"a/*b\";\nimport type { Y } from './Screen';\nconst h = \"*/\";\n",
+    [`${APP}/src/c.ts`]: "const t = `x/*y`;\nimport type { Z } from './Screen';\n",
+    [`${APP}/src/Screen.tsx`]: "export type X = 1; export type Y = 1; export type Z = 1;",
+  });
+  assert.deepEqual(brief(vs), [
+    `layer ${APP}/src/a.ts:2 -> ${APP}/src/Screen.tsx`,
+    `layer ${APP}/src/b.ts:2 -> ${APP}/src/Screen.tsx`,
+    `layer ${APP}/src/c.ts:2 -> ${APP}/src/Screen.tsx`,
+  ]);
+});
+
+test("extractSpecifiers: 行番号・型だけ・再 export・動的 import を取る", () => {
+  const got = extractSpecifiers(
+    [
+      "import a from 'a';",
+      "import type { B } from 'b';",
+      "import { type C, d } from 'c';",
+      "export type { E } from 'e';",
+      "export { F } from 'f';",
+      "import 'g';",
+      "const h = await import('h');",
+      "// import x from 'comment';",
+      "const s = \"import y from 'string'\";",
+    ].join("\n"),
+    "x.ts",
+  );
+  assert.deepEqual(got, [
+    { spec: "a", line: 1, typeOnly: false },
+    { spec: "b", line: 2, typeOnly: true },
+    { spec: "c", line: 3, typeOnly: false },
+    { spec: "e", line: 4, typeOnly: true },
+    { spec: "f", line: 5, typeOnly: false },
+    { spec: "g", line: 6, typeOnly: false },
+    { spec: "h", line: 7, typeOnly: false },
+  ]);
+});
+
+test("export type { … } from は import type と同じく型だけ。export { … } from は値", () => {
+  const vs = check({
+    [`${APP}/src/ok.ts`]: "export type { S } from '@tasuki/sync-client';",
+    [`${APP}/src/bad.ts`]: "export { S } from '@tasuki/sync-client';",
+  });
+  assert.deepEqual(brief(vs), [`layer ${APP}/src/bad.ts:1 -> @tasuki/sync-client`]);
+});
+
+test("解決できない相対 import は赤（黙って飛ばさない）。css などの追跡下のファイルは緑", () => {
+  const vs = check({
+    [`${APP}/src/a.ts`]: "import './missing';\nimport './style.css';\nimport u from './x.svg?url';",
+    [`${APP}/src/style.css`]: "",
+    [`${APP}/src/x.svg`]: "",
+  });
+  assert.deepEqual(brief(vs), [`unresolved ${APP}/src/a.ts:1 -> ./missing`]);
+});
+
+test("同期サーバーの ports・application・adapters が組み立て（assembly/・src 直下）を読むと赤。組み立てから内側は緑", () => {
+  const vs = check({
+    "apps/tasuki-sync/src/application/a.ts": "import { c } from '../config';",
+    "apps/tasuki-sync/src/adapters/b.ts": "import { m } from '../assembly/timer';",
+    "apps/tasuki-sync/src/ports/p.ts": "import { s } from '../create-sync-server';",
+    "apps/tasuki-sync/src/config.ts": "export const c = 1;",
+    "apps/tasuki-sync/src/assembly/timer.ts": "import { a } from '../application/a';\nexport const m = a;",
+    "apps/tasuki-sync/src/create-sync-server.ts": "import { b } from './adapters/b';\nexport const s = b;",
+  });
+  assert.deepEqual(brief(vs), [
+    "layer apps/tasuki-sync/src/adapters/b.ts:1 -> apps/tasuki-sync/src/assembly/timer.ts",
+    "layer apps/tasuki-sync/src/application/a.ts:1 -> apps/tasuki-sync/src/config.ts",
+    "layer apps/tasuki-sync/src/ports/p.ts:1 -> apps/tasuki-sync/src/create-sync-server.ts",
+  ]);
+});
+
+test("exportKeys: 文字列・条件の map（. を持たない）は入口 . だけ、サブパスの map はそのキー", () => {
+  assert.deepEqual([...exportKeys("./src/index.ts")], ["."]);
+  assert.deepEqual([...exportKeys({ types: "./a.d.ts", default: "./a.js" })], ["."]);
+  assert.deepEqual([...exportKeys({ ".": "./a.js", "./x": "./x.js" })].sort(), [".", "./x"]);
+  assert.equal(exportKeys(undefined), undefined);
+});
+
+test("isDeclaredEntry: 完全一致と * のワイルドカード（./* は ./x も ./x/y も）", () => {
+  const keys = new Set([".", "./a", "./lib/*"]);
+  assert.equal(isDeclaredEntry(keys, "."), true);
+  assert.equal(isDeclaredEntry(keys, "./a"), true);
+  assert.equal(isDeclaredEntry(keys, "./b"), false);
+  assert.equal(isDeclaredEntry(keys, "./lib/x"), true);
+  assert.equal(isDeclaredEntry(keys, "./lib/x/y"), true);
+  assert.equal(isDeclaredEntry(keys, "./lib"), false);
+  assert.equal(isDeclaredEntry(new Set(["./*"]), "./anything"), true);
 });

@@ -11,10 +11,8 @@ import { Trophy, Sparkles, Check } from "lucide-react";
 import type { CompletionRecord } from "@tasuki/timer-core";
 import { Card } from "./primitives.js";
 
-import type { EndType } from "../records/end-type.js";
-
 // 型の正本は records/end-type.ts（内側。層の向きのため #592）
-export type { EndType };
+import type { EndType } from "../records/end-type.js";
 
 interface SummaryProps {
   endType: EndType;

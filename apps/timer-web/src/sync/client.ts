@@ -11,17 +11,13 @@
 
 import { SyncConnection } from "@tasuki/sync-client";
 import { estimateClockOffset, type PingSample } from "./clock-offset.js";
-import { dispatchServerMessage } from "./dispatch.js";
+import { dispatchServerMessage, type Identity } from "./dispatch.js";
 import type { NoticeSignal } from "./notice-message.js";
 import type { Room } from "@tasuki/timer-core";
 import type { TopicState } from "@tasuki/topic-core";
 
 export type RoomCallback = (room: Room) => void;
 export type ErrorCallback = (code: string, message: string) => void;
-export interface Identity {
-  participantId: string;
-  resumeToken: string;
-}
 export type IdentityCallback = (identity: Identity) => void;
 
 export interface SyncClientOptions {

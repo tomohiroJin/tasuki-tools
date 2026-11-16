@@ -8,8 +8,7 @@ import { MAX_GUESTS } from '@tasuki/roulette-core';
 import { MAX_GROUPS, foldMembers } from '../regulars-rules';
 
 // 純粋な規則（組の数の上限・名前の比べ方と整え方）は `../regulars-rules.ts`（純粋判断）にある。
-// 画面と純粋判断が端末 I/O のこのファイルを読まずに済むよう分けた（層の向き・#592）。ここからも従来どおり取れる
-export { MAX_GROUPS, parseMemberLines, sameMemberName } from '../regulars-rules';
+// 画面と純粋判断が端末 I/O のこのファイルを読まずに済むよう分けた（層の向き・#592）
 
 export const REGULARS_KEY = 'tasuki.roulette.regulars';
 export const CURRENT_VERSION = 1;

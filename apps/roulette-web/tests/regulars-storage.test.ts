@@ -5,15 +5,14 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   CURRENT_VERSION,
-  MAX_GROUPS,
   REGULARS_KEY,
   deleteGroup,
   loadGroups,
-  parseMemberLines,
   safeLocalStorage,
   saveGroup,
   touchGroup,
 } from '../src/storage/regulars';
+import { MAX_GROUPS, parseMemberLines } from '../src/regulars-rules';
 
 const fakeStorage = (): Storage & { setCalls: number } => {
   const m = new Map<string, string>();

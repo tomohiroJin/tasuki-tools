@@ -26,7 +26,8 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { SyncClient, type Identity } from "./client.js";
+import { SyncClient } from "./client.js";
+import type { Identity } from "./dispatch.js";
 import { createCommands, type TimerCommands } from "./commands.js";
 import { decideSnapshotIntents } from "./snapshot-intents.js";
 import { buildNoticeMessage, type NoticeSignal } from "./notice-message.js";
