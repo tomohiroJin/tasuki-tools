@@ -647,8 +647,9 @@ test.describe('timer の休憩つきのセッションの帯', () => {
 });
 
 test.describe('agenda の映す表示の帯', () => {
-  test('Given 映す表示で操作帯を出した / When 帯の地と下の余白を測る / Then 不透明で、帯の字の点を帯が受け、最下部の中身が帯と重ならない', async ({ page }) => {
-    test.setTimeout(120_000);
+  // 以前は 1 つの `test` で全ての幅を続けて測っていた。映す表示は 1 つの画面で、測る幅の組ごとに独立しているので、
+  // 組ごとの `test` に割った（#597）。各 `test` は自分の部屋で映す表示を開く（#387 で E2E の枠は 1000 に広げ、この spec は `local` 専用）。
+  async function openProjection(page: Page): Promise<{ exit: Locator; strip: Locator }> {
     await page.setViewportSize({ width: 1280, height: 800 });
     await openAgendaTool(page, 'header-projection');
     await loadSampleAndStart(page);
@@ -656,7 +657,12 @@ test.describe('agenda の映す表示の帯', () => {
     const exit = page.getByRole('button', { name: '手元の表示に戻る', exact: true });
     await expect(exit).toBeAttached();
     await exit.focus();
-    const strip = page.locator('.projection-strip');
+    return { exit, strip: page.locator('.projection-strip') };
+  }
+
+  test('Given 映す表示で操作帯を出した / When 帯の地と広い画面の盤を測る / Then 不透明で、帯の字の点を帯が受け、広い画面は縦のスクロールが無く盤は中央にある', async ({ page }) => {
+    test.setTimeout(120_000);
+    const { exit, strip } = await openProjection(page);
     await expect(strip).toHaveCSS('opacity', '1');
     const f = await dockFacts(strip);
     expect(f.alpha, `映す表示の帯の地が不透明でない（α=${f.alpha}）。字の後ろに大きな字が透ける`).toBe(1);
@@ -679,6 +685,11 @@ test.describe('agenda の映す表示の帯', () => {
       expect(m.scrollH, `映す表示（${width}×${height}）: 縦のスクロールが出る（scrollHeight ${m.scrollH} > ${m.clientH}）`).toBeLessThanOrEqual(m.clientH);
       expect(Math.abs(m.center - m.half), `映す表示（${width}×${height}）: 盤の中心（${m.center}）が画面の中央（${m.half}）からずれる`).toBeLessThanOrEqual(2);
     }
+  });
+
+  test('Given 映す表示の帯 / When 幅を変えて帯を出し入れする / Then 帯の出し入れで盤が跳ねず、背の低い横向きは縦のスクロールが通常の余白より伸びない', async ({ page }) => {
+    test.setTimeout(120_000);
+    const { strip } = await openProjection(page);
     // 40rem 未満（390×844・320×568）: 帯の出し入れで盤が跳ねない（余白は帯に実際に隠れる量だけ取るので、隠れないときは 0）。帯を消しているときは縦のスクロールが出ない（#471 の既存の測り）。
     // 最下部まで送ると中身が帯の上に出る（下の「隠れない」の測り）
     for (const [width, height] of [[390, 844], [320, 568]] as const) {
@@ -735,6 +746,11 @@ test.describe('agenda の映す表示の帯', () => {
       expect(shown.sh, `映す表示（${width}×${height}）: 帯が出ると縦のスクロールが現れる（${shown.sh} > ${shown.ch}）`).toBeLessThanOrEqual(shown.ch);
       expect(shown.clearance, `映す表示（${width}×${height}）: 帯が出ると余白の hook が余白を足す`).toBe('0px');
     }
+  });
+
+  test('Given 映す表示で操作帯を出した / When 縦長・背の低い・狭い画面で最下部まで送る / Then 下端の中身が帯と重ならない', async ({ page }) => {
+    test.setTimeout(120_000);
+    const { exit, strip } = await openProjection(page);
     // 帯が出ている間、下端の中身（「予定の終わり」など）が帯と重ならない。縦長・背の低い・狭い画面で、最下部までスクロールして測る。帯の高さは変数以下
     for (const [width, height] of [[390, 800], [320, 568], [800, 400], [844, 390], [1000, 700]] as const) {
       await page.setViewportSize({ width, height });
