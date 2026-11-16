@@ -1,0 +1,23 @@
+# 変異 1892: scripted-socket-latest-first
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/agenda-room.test.tsx
+#
+# #594。共有した偽の WebSocket の latestSocket が、最後でなく最初に張った 1 本を返す。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1892-*.patch
+# 復元: git apply -R scripts/mutations/m1892-*.patch
+diff --git a/packages/test-css/src/scripted-web-socket.ts b/packages/test-css/src/scripted-web-socket.ts
+index 259df3f8..00ee40d9 100644
+--- a/packages/test-css/src/scripted-web-socket.ts
++++ b/packages/test-css/src/scripted-web-socket.ts
+@@ -49,7 +49,7 @@ export class ScriptedWebSocket {
+ }
+ 
+ export const latestSocket = (): ScriptedWebSocket => {
+-  const socket = ScriptedWebSocket.instances.at(-1);
++  const socket = ScriptedWebSocket.instances.at(0);
+   if (socket === undefined) throw new Error('WebSocket が 1 本も張られていない');
+   return socket;
+ };

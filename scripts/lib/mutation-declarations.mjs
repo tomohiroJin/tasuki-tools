@@ -230,6 +230,9 @@ const RESERVED_1660_1679 =
 const RESERVED_1720_1739 =
   "**対応表より後に足した変異。** 1720〜1739 は #592（層の逆流を直す・web 層の向きの監査）に割り当てた範囲。";
 
+const RESERVED_1890_1929 =
+  "**対応表より後に足した変異。** 1890〜1929 は #594（テスト支援の写しを寄せる）に割り当てた範囲。";
+
 const RESERVED_1820_1829 =
   "**対応表より後に足した変異。** 1820〜1829 は #592 の追加（1720〜1739 を使い切ったため。/code-review の直しの性質）に割り当てた範囲。";
 
@@ -10094,5 +10097,37 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["lib/layer-direction.test.mjs"],
     note: RESERVED_1820_1829 + " " + "#592。require 形の import で層を越える辺が緑のまま入る。",
+  },
+  {
+    id: 1890,
+    label: "共有した書体の判定 outsideBase が、範囲の比べを反転する",
+    patch: "m1890-font-base-outside-inverted.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/copy-fits-font-base.test.ts"],
+    note: RESERVED_1890_1929 + " " + "#594。12 か所を 1 つに寄せた判定が壊れても、読む試験すべてが同じ判定に頼って緑のまま通る（docs/adr/0017 の追記（#599）決まり 6）。",
+  },
+  {
+    id: 1891,
+    label: "共有した baseFaces が base 層でない面を拾う",
+    patch: "m1891-font-base-faces-not-base.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/copy-fits-font-base.test.ts"],
+    note: RESERVED_1890_1929 + " " + "#594。拾う面が変わり、拡張の層の範囲で文言を判定して、base 層に無い字が画面に出ても緑になる。",
+  },
+  {
+    id: 1892,
+    label: "共有した偽の WebSocket の latestSocket が、最後でなく最初の 1 本を返す",
+    patch: "m1892-scripted-socket-latest-first.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/agenda-room.test.tsx"],
+    note: RESERVED_1890_1929 + " " + "#594。再接続の試験が古い接続を操作して、新しい接続の振る舞いを確かめないまま緑になる。",
+  },
+  {
+    id: 1893,
+    label: "共有した rulesOf が選択子を完全一致でなく部分一致で拾う",
+    patch: "m1893-css-rules-selector-partial-match.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/spacing-css.test.ts"],
+    note: RESERVED_1890_1929 + " " + "#594。別の規則（.builder-saved-list など）を巻き込み、「この選択子の規則は無い」ことを確かめる試験が誤って赤くなる・規則の本体を取り違える。",
   },
 ];
