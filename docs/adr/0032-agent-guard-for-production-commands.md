@@ -146,7 +146,7 @@ Copilot は、いまは文章の入口も無い。決定 4 の見出しと「文
   `permissionDecision` が無いので、権限の確認の流れは変わらない（出典: Claude Code の hooks の文書 <https://code.claude.com/docs/en/hooks> の PreToolUse の決定の制御と JSON 出力の節。
   「`systemMessage` だけ」「`additionalContext` だけ」を名指しした文は文書に無いので、両方を足すのは、権限の流れを変えないことと、文書の記述からの読みであり、実機で確かめていない。文書が明言しているのは、出力の無い exit 0 が通常の権限の流れに進むことだけで、`permissionDecision` を欠いた JSON が同じ扱いになることは、その読みにとどまる）。
   束ねる側（`scripts/lib/hook-combine.mjs`）は、`permissionDecision` を持たない出力だけを知らせとして扱う。ほかの要因で ask になるときは、理由に行（PR の番号・状態・題）だけを足し、「止めずに知らせます」の文は足さない。`permissionDecision` を持つ出力は知らせにせず、`deny` は保ち、それ以外は ask に倒す。
-  `pnpm check:fast` も同じ行を最初と最後の知らせに出す（⚠ にはしない）。入口が本番デプロイ以外の判定と束ねるとき（`scripts/lib/hook-combine.mjs`）、ask の要因があれば ask のまま、知らせの文は理由に足して落とさない
+  `pnpm check:fast` も同じ行を最初と最後の知らせに出す（⚠ にはしない）。入口が本番デプロイ以外の判定と束ねるとき（`scripts/lib/hook-combine.mjs`）、ask・deny の要因があればその決定のまま（上の束ね方）、知らせは行だけを理由に足して落とさない
 - **変わらないこと**: 引けなかったとき（未実行）・検索が上限で切れたとき・マージ済みの PR だけでも枝を引けなかったとき（`unknown`）は、
   確かめていないので `ask` のまま。開いた PR とマージ済みが混ざれば `ask`。`AGENTS.md`「作業の始めに」の人が手で確かめる操作も変えない
 - **根拠**:
