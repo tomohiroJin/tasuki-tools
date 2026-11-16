@@ -1,0 +1,22 @@
+# 変異 1839: room-entry-hook-open-not-tracked
+#
+# 検出を期待するテスト:
+#   - apps/poker-web/tests/room-page-join-retry.test.tsx
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1839-*.patch
+# 復元: git apply -R scripts/mutations/m1839-*.patch
+#
+# #595。数え直しの効果が前の「開いていたか」を更新しない。最初の値（開いている）のまま固まるので、
+# 接続し直しても「つなぎ直した」と見られず、混雑の試行回数が戻らない。
+diff --git a/apps/poker-web/src/hooks/useRoomEntry.ts b/apps/poker-web/src/hooks/useRoomEntry.ts
+--- a/apps/poker-web/src/hooks/useRoomEntry.ts
++++ b/apps/poker-web/src/hooks/useRoomEntry.ts
+@@ -116,7 +116,6 @@ export function useRoomEntry(sync: PokerSync, roomId: string): RoomEntry {
+       setRetryNotice(null);
+     }
+     wasJoinedRef.current = sync.joinedThisConnection;
+-    wasOpenRef.current = isOpen;
+   }, [sync.joinedThisConnection, sync.status]);
+ 
+   useEffect(() => {

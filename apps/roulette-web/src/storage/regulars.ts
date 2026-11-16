@@ -5,7 +5,7 @@
  */
 import { MAX_DISPLAY_NAME, normalizeDisplayName, rendersAsNothing } from '@tasuki/room-core';
 import { MAX_GUESTS } from '@tasuki/roulette-core';
-import { MAX_GROUPS, foldMembers } from '../regulars-rules';
+import { MAX_GROUPS, foldMembers, isValidGroupName } from '../regulars-rules';
 
 // 純粋な規則（組の数の上限・名前の比べ方と整え方）は `../regulars-rules.ts`（純粋判断）にある。
 // 画面と純粋判断が端末 I/O のこのファイルを読まずに済むよう分けた（層の向き・#592）
@@ -40,17 +40,6 @@ export type Migrations = Record<number, (raw: unknown) => unknown>;
 export const MIGRATIONS: Migrations = {};
 
 const isRecord = (x: unknown): x is Record<string, unknown> => typeof x === 'object' && x !== null && !Array.isArray(x);
-
-// eslint-disable-next-line no-control-regex
-const CONTROL_CHARS = /[\u0000-\u001f\u007f]/;
-
-/** 組名として使える名前か（空・長すぎ・制御文字なし）。画面が保存の前に同じ規則で見る */
-export const isValidGroupName = (name: unknown): name is string =>
-  typeof name === 'string' &&
-  name.trim().length > 0 &&
-  name.length <= MAX_DISPLAY_NAME &&
-  !CONTROL_CHARS.test(name) &&
-  !rendersAsNothing(name);
 
 /**
  * 読み込みで通す名前。保存の関数は正規化してから書くので、正規化済みでない名前は手で書き換えた保存。

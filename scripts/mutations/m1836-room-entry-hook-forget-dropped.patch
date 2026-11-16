@@ -1,0 +1,21 @@
+# 変異 1836: room-entry-hook-forget-dropped
+#
+# 検出を期待するテスト:
+#   - apps/poker-web/tests/room-page-redirect.test.tsx・room-page-join-retry.test.tsx
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1836-*.patch
+# 復元: git apply -R scripts/mutations/m1836-*.patch
+#
+# #595。入口の効果が、消滅したルームの保存を捨てず、再試行のループが残る。
+diff --git a/apps/poker-web/src/hooks/useRoomEntry.ts b/apps/poker-web/src/hooks/useRoomEntry.ts
+--- a/apps/poker-web/src/hooks/useRoomEntry.ts
++++ b/apps/poker-web/src/hooks/useRoomEntry.ts
+@@ -126,7 +126,6 @@ export function useRoomEntry(sync: PokerSync, roomId: string): RoomEntry {
+     // `sync.error` はエラーごとに新しいオブジェクトなので、1 回の拒否につき 1 回走る。
+     const errorCode = sync.error?.code;
+     // 消滅したルームのトークンは破棄する（再試行ループ防止）
+-    if (shouldForgetIdentity(errorCode)) syncRef.current.forgetIdentity(roomId);
+     if (!isRateLimited(errorCode)) return;
+     const stored = syncRef.current.storedIdentity(roomId);
+     // **保存が消えていることがある。** 同じ端末の別のタブが、消滅したルームのトークンを

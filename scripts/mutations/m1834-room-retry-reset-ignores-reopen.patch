@@ -1,0 +1,22 @@
+# 変異 1834: room-retry-reset-ignores-reopen
+#
+# 検出を期待するテスト:
+#   - apps/poker-web/tests/room-entry-plan.test.ts
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1834-*.patch
+# 復元: git apply -R scripts/mutations/m1834-*.patch
+#
+# #595。接続し直しても混雑の試行を数え直さず、新しい接続で一度も試みないまま諦め表示に戻る。
+diff --git a/apps/poker-web/src/room-entry-plan.ts b/apps/poker-web/src/room-entry-plan.ts
+--- a/apps/poker-web/src/room-entry-plan.ts
++++ b/apps/poker-web/src/room-entry-plan.ts
+@@ -93,7 +93,7 @@ export interface RetryResetInput {
+  */
+ export function shouldResetRetry(input: RetryResetInput): boolean {
+   const joinedNow = input.joinedThisConnection && !input.wasJoinedThisConnection;
+-  const reopened = input.isOpen && !input.wasOpen;
++  const reopened = false;
+   return joinedNow || reopened;
+ }
+ 
