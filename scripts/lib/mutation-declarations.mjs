@@ -10108,7 +10108,7 @@ export const MUTATIONS = [
   },
   {
     id: 1951,
-    label: "PR の無いリモートの枝を「止める先行」に数えない",
+    label: "同じ番号のリモートの枝を「止める先行」に数えない",
     patch: "m1951-prior-work-branch-not-open.patch",
     pkg: "scripts",
     tests: ["lib/prior-work.test.mjs"],
