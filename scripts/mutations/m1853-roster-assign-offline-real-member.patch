@@ -1,0 +1,21 @@
+# 変異 1853: roster-assign-offline-real-member
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/ui/roster-row-plan.test.ts
+#
+# #595。オフラインの実在の人にも「ドライバーにする」を出す。無人のドライバーができて番が止まる（Issue #13）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1853-*.patch
+diff --git a/apps/timer-web/src/ui/roster-row-plan.ts b/apps/timer-web/src/ui/roster-row-plan.ts
+--- a/apps/timer-web/src/ui/roster-row-plan.ts
++++ b/apps/timer-web/src/ui/roster-row-plan.ts
+@@ -63,7 +63,7 @@ export function planRosterRow(input: RosterRowInput): RosterRowPlan {
+     input.hasAssignDriver &&
+     inRotation &&
+     !isCurrentDriver &&
+-    (p.presence !== "offline" || p.isPlaceholder === true);
++    true;
+   return {
+     isCurrentDriver,
+     isMine,

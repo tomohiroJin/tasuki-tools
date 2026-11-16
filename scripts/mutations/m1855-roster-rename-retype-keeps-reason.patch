@@ -1,0 +1,20 @@
+# 変異 1855: roster-rename-retype-keeps-reason
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/ui/RosterPanel.duplicate-proxy.test.tsx
+#
+# #595。改名の入力を打ち直しても拒否の理由を降ろさない。直したのに赤いままで、「まだ駄目なのか」と読める（#291）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1855-*.patch
+diff --git a/apps/timer-web/src/ui/components/RosterPanel.tsx b/apps/timer-web/src/ui/components/RosterPanel.tsx
+--- a/apps/timer-web/src/ui/components/RosterPanel.tsx
++++ b/apps/timer-web/src/ui/components/RosterPanel.tsx
+@@ -263,7 +263,6 @@ export function RosterPanel({
+             onChange: (value) => {
+               setEditName(value);
+               // 打ち直した瞬間に理由を降ろす（直したのに赤いままにしない）。
+-              dispatchRename({ type: "retyped" });
+             },
+             onSubmit: () => submitRename(p.participantId),
+             onCancel: cancelRename,

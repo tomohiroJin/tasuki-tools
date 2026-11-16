@@ -1,0 +1,21 @@
+# 変異 1852: roster-skip-toggle-for-watcher
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/ui/roster-row-plan.test.ts
+#
+# #595。見学（輪の外）の行にも一時離脱を出す。一時離脱は輪の上の席の属性で、席の無い人には効かない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1852-*.patch
+diff --git a/apps/timer-web/src/ui/roster-row-plan.ts b/apps/timer-web/src/ui/roster-row-plan.ts
+--- a/apps/timer-web/src/ui/roster-row-plan.ts
++++ b/apps/timer-web/src/ui/roster-row-plan.ts
+@@ -57,7 +57,7 @@ export function planRosterRow(input: RosterRowInput): RosterRowPlan {
+   const canMove = inRotation && rotationLen > 1 && input.hasMove;
+   const canRemove = !isMine && input.hasRemove;
+   // 一時離脱は輪の上の席の属性なので、見学の行には出さない。自分の分は外部トグルがあるなら出さない。
+-  const skipToggle = inRotation && (!isMine || !input.selfHasExternalToggle) ? (isSkipping ? "resume" : "skip") : null;
++  const skipToggle = !isMine || !input.selfHasExternalToggle ? (isSkipping ? "resume" : "skip") : null;
+   // 実在のオフラインの相手は無人ドライバーになるので指名不可。代理は対面在席が常態なので offline でも指名可。
+   const canAssign =
+     input.hasAssignDriver &&

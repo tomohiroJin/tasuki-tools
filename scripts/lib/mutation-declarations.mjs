@@ -242,6 +242,9 @@ const RESERVED_1780_1799 =
 const RESERVED_1800_1819 =
   "**対応表より後に足した変異。** 1800〜1819 は #595（ScenarioBuilder を責務で分ける）に割り当てた範囲。";
 
+const RESERVED_1850_1869 =
+  "**対応表より後に足した変異。** 1850〜1869 は #595（RosterPanel を責務で分ける）に割り当てた範囲。";
+
 const RESERVED_1420_1429 =
   "**対応表より後に足した変異。** 1420〜1429 は #557 に追加で割り当てた範囲（1120〜1129・1410〜1419 を使い切ったため。PR #580 のレビューの指摘で足した）。";
 
@@ -10094,5 +10097,61 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["lib/layer-direction.test.mjs"],
     note: RESERVED_1820_1829 + " " + "#592。require 形の import で層を越える辺が緑のまま入る。",
+  },
+  {
+    id: 1850,
+    label: "ドライバーが 1 人だけでも並べ替えの上/下を出す",
+    patch: "m1850-roster-move-for-single-driver.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/roster-row-plan.test.ts"],
+    note: RESERVED_1850_1869 + " " + "#595。roster-row-plan.ts。動かす先が無いボタンが並ぶ。",
+  },
+  {
+    id: 1851,
+    label: "自分の行にも「退出させる」を出す",
+    patch: "m1851-roster-remove-on-own-row.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/roster-row-plan.test.ts"],
+    note: RESERVED_1850_1869 + " " + "#595。roster-row-plan.ts。自己退出は SelfDriverToggle の担当で、ここに出すと二重になる（FR-078）。",
+  },
+  {
+    id: 1852,
+    label: "見学（輪の外）の行にも一時離脱を出す",
+    patch: "m1852-roster-skip-toggle-for-watcher.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/roster-row-plan.test.ts"],
+    note: RESERVED_1850_1869 + " " + "#595。roster-row-plan.ts。一時離脱は輪の上の席の属性で、席の無い人には効かない。",
+  },
+  {
+    id: 1853,
+    label: "オフラインの実在の人にも「ドライバーにする」を出す",
+    patch: "m1853-roster-assign-offline-real-member.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/roster-row-plan.test.ts"],
+    note: RESERVED_1850_1869 + " " + "#595。roster-row-plan.ts。無人のドライバーができて番が止まる（Issue #13）。",
+  },
+  {
+    id: 1854,
+    label: "RosterPanel から行への配線で、復帰が一時離脱の操作を呼ぶ",
+    patch: "m1854-roster-resume-calls-skip.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/RosterPanel.test.tsx"],
+    note: RESERVED_1850_1869 + " " + "#595。RosterPanel.tsx の RosterRow への配線。復帰したつもりが離脱が重なる。",
+  },
+  {
+    id: 1855,
+    label: "改名の入力を打ち直しても拒否の理由を降ろさない",
+    patch: "m1855-roster-rename-retype-keeps-reason.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/RosterPanel.duplicate-proxy.test.tsx"],
+    note: RESERVED_1850_1869 + " " + "#595。RosterPanel.tsx の改名の配線。直したのに赤いままで、「まだ駄目なのか」と読める（#291）。",
+  },
+  {
+    id: 1856,
+    label: "改名の入力で Enter を押しても送られない",
+    patch: "m1856-roster-rename-enter-not-submit.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/RosterPanel.duplicate-proxy.test.tsx"],
+    note: RESERVED_1850_1869 + " " + "#595。RosterRow.tsx。閉じずにその場で直させる形にした以上、直後の自然な操作が効かなくなる。",
   },
 ];
