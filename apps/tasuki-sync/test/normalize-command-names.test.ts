@@ -20,9 +20,10 @@
  * @requirements FR-021, NFR-セキュリティ(A04), R13
  */
 import { describe, expect, it } from "bun:test";
+import { CommandSchema } from "@tasuki/timer-core";
 import { MAX_DISPLAY_NAME, MAX_NFKC_EXPANSION, normalizeDisplayName } from "@tasuki/room-core";
 import type { Command } from "@tasuki/timer-core";
-import { normalizeCommandNames } from "../src/application/normalize-command-names.js";
+import { COMMANDS_WITH_DISPLAY_NAME, normalizeCommandNames } from "../src/application/normalize-command-names.js";
 
 /** 表示名だけを差し替えた `room.join`。 */
 function join(displayName: string): Command {
@@ -191,6 +192,34 @@ describe("NFKC 展開と最大長", () => {
     // When / Then
     for (const raw of visible) {
       expect(normalizeCommandNames(join(raw)).isOk(), JSON.stringify(raw)).toBe(true);
+    }
+  });
+});
+
+/**
+ * 一覧の正本と wire スキーマが同じ集合であること（#596）。
+ *
+ * 契約（`COMMANDS_WITH_DISPLAY_NAME` の docstring）: wire スキーマに `displayName` を持つ枝を足したら、
+ * 一覧へも足す。足し忘れると**その入口だけが正規化を通らない**（S4a 以前の事故）。型では
+ * 「表示名という意味の項目」を決められないので、スキーマの枝の形（`displayName` という項目の有無）と
+ * 一覧をテストで突き合わせる。
+ */
+describe("表示名を運ぶコマンドの一覧と wire スキーマ", () => {
+  const withDisplayName = CommandSchema.options
+    .filter((option) => "displayName" in option.entries)
+    .map((option) => option.entries.command.literal as string);
+
+  it("WHEN wire スキーマの枝が displayName を持つ THE 一覧 SHALL その枝のコマンドをすべて含む", () => {
+    // 前提の確認: スキーマから 1 件以上の枝が読めている（読み方が壊れて空の突き合わせにならない）
+    expect(withDisplayName.length).toBeGreaterThan(0);
+    for (const name of withDisplayName) {
+      expect(COMMANDS_WITH_DISPLAY_NAME as readonly string[], `${name} が一覧に無い（正規化を通らない入口になる）`).toContain(name);
+    }
+  });
+
+  it("WHEN 一覧に載せる THE コマンド SHALL wire スキーマに displayName を持つ枝として実在する", () => {
+    for (const name of COMMANDS_WITH_DISPLAY_NAME) {
+      expect(withDisplayName, `${name} は displayName を持つ枝として実在しない（一覧の腐り）`).toContain(name);
     }
   });
 });

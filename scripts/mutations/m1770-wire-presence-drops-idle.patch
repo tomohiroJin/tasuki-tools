@@ -1,0 +1,13 @@
+diff --git a/packages/timer-core/src/schemas.ts b/packages/timer-core/src/schemas.ts
+index e8f67079..ce0ae2a7 100644
+--- a/packages/timer-core/src/schemas.ts
++++ b/packages/timer-core/src/schemas.ts
+@@ -273,7 +273,7 @@ const ParticipantSchema = v.object({
+   participantId,
+   // ⚠ `connId` は #95 S4b で落とした（多接続では「接続 1 本」が嘘になる。`wire.ts` の注記）。
+   displayName: nonEmptyString,
+-  presence: v.picklist(["online", "idle", "offline"]),
++  presence: v.picklist(["online", "offline"]),
+   joinedAt: v.number(),
+   // v2 追加フィールド（任意化で後方互換）
+   isPlaceholder: v.optional(v.boolean()),

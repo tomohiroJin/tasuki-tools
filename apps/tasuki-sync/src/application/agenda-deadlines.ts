@@ -10,9 +10,13 @@
 
 import type { MonotonicClock } from "../ports/monotonic-clock.js";
 
-export interface TimerPort {
-  set(fn: () => void, ms: number): unknown;
-  clear(handle: unknown): void;
+/**
+ * 待ちの予約の口。**`set` が返したハンドルをそのまま `clear` が受ける**（#596。`H` がそれを型で結ぶ）。
+ * 呼び出し側はハンドルの中身を知らない。実物は `setTimeout` のハンドル、偽物は数字など。
+ */
+export interface TimerPort<H = unknown> {
+  readonly set: (fn: () => void, ms: number) => H;
+  readonly clear: (handle: H) => void;
 }
 
 export interface AgendaDeadlines {
@@ -26,13 +30,16 @@ export interface AgendaDeadlines {
 /** 1 刻みの最大待機(ms)。`Scheduler` の `MAX_TICK_MS` と同じ。 */
 const MAX_TICK_MS = 1000;
 
-export function makeAgendaDeadlines(deps: { clock: MonotonicClock; timer: TimerPort }): AgendaDeadlines {
+export function makeAgendaDeadlines<H>(deps: { clock: MonotonicClock; timer: TimerPort<H> }): AgendaDeadlines {
   const { clock, timer } = deps;
-  const handles = new Map<string, unknown>();
+  // ハンドルを箱に入れて持つ。`H` は `undefined` を含みうる（`TimerPort<void>` など）ので、
+  // ハンドルの値が `undefined` かでは「予約が無い」と言えない（箱の有無で見る）
+  const handles = new Map<string, { handle: H }>();
 
   const clear = (roomCode: string): void => {
-    if (!handles.has(roomCode)) return;
-    timer.clear(handles.get(roomCode));
+    const held = handles.get(roomCode);
+    if (held === undefined) return;
+    timer.clear(held.handle);
     handles.delete(roomCode);
   };
 
@@ -45,7 +52,7 @@ export function makeAgendaDeadlines(deps: { clock: MonotonicClock; timer: TimerP
     }
     handles.set(
       roomCode,
-      timer.set(() => tick(roomCode, atMs, onDue), Math.min(remaining, MAX_TICK_MS)),
+      { handle: timer.set(() => tick(roomCode, atMs, onDue), Math.min(remaining, MAX_TICK_MS)) },
     );
   };
 

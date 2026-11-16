@@ -13,7 +13,7 @@ function fakeWorld() {
   let seq = 0;
   const pending = new Map<number, { at: number; fn: () => void }>();
   const waits: number[] = [];
-  const timer: TimerPort = {
+  const timer: TimerPort<number> = {
     set(fn, ms) {
       waits.push(ms);
       const id = ++seq;
@@ -21,7 +21,7 @@ function fakeWorld() {
       return id;
     },
     clear(handle) {
-      pending.delete(handle as number);
+      pending.delete(handle);
     },
   };
   const advance = (ms: number): void => {
@@ -111,5 +111,40 @@ describe("makeAgendaDeadlines", () => {
     scheduler.clearAll();
     w.advance(500);
     expect(due).toEqual(["R"]);
+  });
+});
+
+/**
+ * ハンドルが `undefined` の TimerPort（`TimerPort<undefined>`）でも、解除が効くこと（#596）。
+ * ハンドルの値で「予約が有るか」を決めると、値が `undefined` の予約は解除も表からの削除もされない。
+ */
+describe("makeAgendaDeadlines: ハンドルが undefined の TimerPort", () => {
+  it("WHEN set が undefined を返す THE clear SHALL それでも TimerPort.clear を呼び、待ちを止める", () => {
+    let now = 0;
+    const pending: Array<() => void> = [];
+    let clears = 0;
+    const timer: TimerPort<undefined> = {
+      set: (fn) => {
+        pending.push(fn);
+        return undefined;
+      },
+      clear: () => {
+        clears += 1;
+        pending.length = 0;
+      },
+    };
+    const d = makeAgendaDeadlines({ clock: { now: () => now }, timer });
+    const due: string[] = [];
+    d.arm("R", 500, (c) => due.push(c));
+    expect(pending.length).toBe(1);
+
+    d.clear("R");
+
+    expect(clears).toBe(1);
+    expect(pending.length).toBe(0);
+    d.clear("R"); // 表からも消えている（2 回目は何もしない）
+    expect(clears).toBe(1);
+    now = 1000;
+    expect(due).toEqual([]);
   });
 });

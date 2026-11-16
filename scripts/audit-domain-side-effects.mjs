@@ -173,6 +173,9 @@ export const FORBIDDEN = [
   "process.env",
 ];
 
+/** 最上位の可変な `Map` / `Set` を指す語（検査の出力と例外の突き合わせに使う） */
+const MUTABLE_COLLECTION_TOKEN = "トップレベルの可変な Map/Set";
+
 /**
  * 行ごとの正規表現で見る禁止（#364）。字面の語（{@link FORBIDDEN}）では書けないものを置く。
  *
@@ -189,7 +192,47 @@ export const FORBIDDEN = [
 export const FORBIDDEN_PATTERNS = [
   { token: "throw", pattern: /\bthrow\b/ },
   { token: "トップレベルの let", pattern: /^(export\s+)?let\s/ },
+  // 最上位の `const` の可変な `Map` / `Set`（#596）。`const` なので上の `let` の検査をすり抜けるが、
+  // 中身は書き換えられる＝モジュールの状態である。行頭（字下げ無し）だけを見る。
+  // 型の注釈が `ReadonlyMap` / `ReadonlySet` のものは定数の表なので拾わない（注釈の先頭で見分ける）。
+  // 例外は {@link ALLOWED_TOP_LEVEL_MUTABLE} で宣言する（名前は 1 つ目の捕捉）。
+  {
+    token: MUTABLE_COLLECTION_TOKEN,
+    pattern:
+      /^(?:export\s+)?const\s+([\w$]+)\s*(?::(?!\s*Readonly(?:Map|Set)\b)[^\n]*?)?=\s*new\s+(?:Map|Set|WeakMap|WeakSet)\b/,
+  },
 ];
+
+/**
+ * 最上位の可変な `Map` / `Set` のうち、宣言して許すもの（#596）。**理由が要る。**
+ * 実物から宣言が消えたら {@link findStaleAllowances} が赤くする（腐った例外を残さない）。
+ *
+ * @type {ReadonlyArray<{ path: string, name: string, reason: string }>}
+ */
+export const ALLOWED_TOP_LEVEL_MUTABLE = [
+  {
+    path: "packages/room-core/src/display-name.ts",
+    name: "skeletonCache",
+    reason:
+      "純関数 `nameSkeleton` の結果のメモ（表示名 → 骨格）。同じ入力には同じ値で、古い値が誤りになることが無く、" +
+      "上限（SKELETON_CACHE_MAX）で打ち切る。呼び出し側の状態にはならず、消えても答えは変わらない",
+  },
+];
+
+/**
+ * 例外の宣言のうち、実物に対応する宣言が無いものを返す。
+ *
+ * @param {ReadonlyMap<string, string>} scanned リポジトリ相対パス → 本文
+ * @param {ReadonlyArray<{ path: string, name: string }>} allowed
+ */
+export function findStaleAllowances(scanned, allowed = ALLOWED_TOP_LEVEL_MUTABLE) {
+  const mutable = FORBIDDEN_PATTERNS.find((p) => p.token === MUTABLE_COLLECTION_TOKEN).pattern;
+  return allowed.filter((a) => {
+    const text = scanned.get(a.path);
+    if (text === undefined) return true;
+    return !text.split("\n").some((line) => mutable.exec(line)?.[1] === a.name);
+  });
+}
 
 /**
  * 本文から禁止語彙の出現を拾う。**状態を持たない純粋関数。**
@@ -201,7 +244,7 @@ export const FORBIDDEN_PATTERNS = [
  * @param {string} filePath 報告に使うリポジトリ相対パス
  * @returns {Array<{ path: string, line: number, token: string }>} 行番号は 1 始まり
  */
-export function findForbiddenCalls(text, filePath) {
+export function findForbiddenCalls(text, filePath, allowed = ALLOWED_TOP_LEVEL_MUTABLE) {
   const found = [];
   const lines = text.split("\n");
   for (let i = 0; i < lines.length; i++) {
@@ -211,12 +254,26 @@ export function findForbiddenCalls(text, filePath) {
       }
     }
     for (const { token, pattern } of FORBIDDEN_PATTERNS) {
-      if (pattern.test(lines[i])) {
-        found.push({ path: filePath, line: i + 1, token });
-      }
+      const m = pattern.exec(lines[i]);
+      if (m === null) continue;
+      // 宣言した例外（パスと名前が両方合うものだけ）。名前を捕捉するのは可変な Map/Set の語だけ
+      if (token === MUTABLE_COLLECTION_TOKEN && allowed.some((a) => a.path === filePath && a.name === m[1])) continue;
+      found.push({ path: filePath, line: i + 1, token });
     }
   }
   return found;
+}
+
+/**
+ * 走査した全ファイルの問題を集める（腐った例外と禁止語彙の違反）。**どちらかで打ち切らない。**
+ *
+ * @param {ReadonlyMap<string, string>} scanned リポジトリ相対パス → 本文
+ * @param {ReadonlyArray<{ path: string, name: string, reason: string }>} allowed
+ */
+export function collectProblems(scanned, allowed = ALLOWED_TOP_LEVEL_MUTABLE) {
+  const forbidden = [];
+  for (const [rel, text] of scanned) forbidden.push(...findForbiddenCalls(text, rel, allowed));
+  return { stale: findStaleAllowances(scanned, allowed), forbidden };
 }
 
 /**
@@ -313,23 +370,30 @@ function main() {
     return;
   }
 
-  const problems = [];
-  for (const [rel, text] of scanned) {
-    problems.push(...findForbiddenCalls(text, rel));
-  }
+  // 腐った例外（宣言が実物から消えた）と禁止語彙の違反は、**全部集めてから一度に報告する**（#596。
+  // 片方で先に return すると、同じ回のもう片方が隠れる）
+  const { stale, forbidden: problems } = collectProblems(scanned);
 
-  if (problems.length > 0) {
-    console.error(
-      `[audit-domain-side-effects] ドメイン内で環境から直接値を読んでいます（${problems.length} 件）`,
-    );
-    for (const p of problems) {
-      console.error(`  ${p.path}:${p.line}  ${p.token}`);
+  if (stale.length > 0 || problems.length > 0) {
+    if (stale.length > 0) {
+      console.error("[audit-domain-side-effects] 最上位の可変な Map/Set の例外が、実物に見つかりません");
+      for (const a of stale) console.error(`  ${a.path}  ${a.name}`);
+      console.error("  消えた宣言の例外は ALLOWED_TOP_LEVEL_MUTABLE から外してください");
     }
-    console.error(
-      "  時刻・乱数・環境変数は引数で注入し、読み取りはアダプタ（境界）に置いてください",
-    );
-    console.error("  throw は Result で返し、トップレベルの let（モジュールの状態）は呼び出し側に持たせてください（#364）");
-    console.error("  根拠: 憲法 原則 IV・VI / docs/adr/0005 / docs/adr/0016 決定 2 項目 4 / docs/timer/adr/0002");
+    if (problems.length > 0) {
+      console.error(
+        `[audit-domain-side-effects] ドメイン内で環境から直接値を読んでいます（${problems.length} 件）`,
+      );
+      for (const p of problems) {
+        console.error(`  ${p.path}:${p.line}  ${p.token}`);
+      }
+      console.error(
+        "  時刻・乱数・環境変数は引数で注入し、読み取りはアダプタ（境界）に置いてください",
+      );
+      console.error("  throw は Result で返し、トップレベルの let・可変な Map/Set（モジュールの状態）は呼び出し側に持たせてください（#364・#596）");
+      console.error("  純関数のメモなど持たせない理由があるものは ALLOWED_TOP_LEVEL_MUTABLE へ理由つきで宣言します");
+      console.error("  根拠: 憲法 原則 IV・VI / docs/adr/0005 / docs/adr/0016 決定 2 項目 4 / docs/timer/adr/0002");
+    }
     process.exitCode = 1;
     return;
   }
