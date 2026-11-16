@@ -10116,11 +10116,11 @@ export const MUTATIONS = [
   },
   {
     id: 1892,
-    label: "共有した偽の WebSocket の latestSocket が、最後でなく最初の 1 本を返す",
-    patch: "m1892-scripted-socket-latest-first.patch",
+    label: "共有した偽の WebSocket の drop が、サーバー側から切っても onclose を起こさない",
+    patch: "m1892-scripted-socket-drop-silent.patch",
     pkg: "apps/agenda-web",
     tests: ["tests/agenda-room.test.tsx"],
-    note: RESERVED_1890_1929 + " " + "#594。再接続の試験が古い接続を操作して、新しい接続の振る舞いを確かめないまま緑になる。",
+    note: RESERVED_1890_1929 + " " + "#594。切断の通知が届かず、再接続の経路を確かめる試験が動かないまま緑になる（偽の WebSocket 自体が壊れても各アプリの試験が気づかない）。",
   },
   {
     id: 1893,
