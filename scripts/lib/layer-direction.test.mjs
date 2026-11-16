@@ -366,5 +366,6 @@ test("isDeclaredEntry: 完全一致と * のワイルドカード（./* は ./x 
   assert.equal(isDeclaredEntry(keys, "./lib/x"), true);
   assert.equal(isDeclaredEntry(keys, "./lib/x/y"), true);
   assert.equal(isDeclaredEntry(keys, "./lib"), false);
+  assert.equal(isDeclaredEntry(keys, "./other/xyzxyz"), false);
   assert.equal(isDeclaredEntry(new Set(["./*"]), "./anything"), true);
 });

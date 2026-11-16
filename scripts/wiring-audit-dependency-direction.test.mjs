@@ -360,4 +360,19 @@ describe("宣言と 0 件ガードの配線: scripts/audit-dependency-direction.
     assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
     assert.match(r.stderr, /apps\/timer-web\/src\/platform\/sound\.ts: 端末 I\/O・同期フックの宣言（WEB_IO_FILES・WEB_HOOK_FILES）が実在しないファイルを指しています/);
   });
+
+  test("同期フックの名指しの宣言が実在しないファイルを指すと非ゼロで終了する", () => {
+    // Given: 同期フックの宣言の実在の導出から 1 ファイルを落とす（宣言だけが残った状態）
+    const mutate = (s) =>
+      s.replace(
+        "const declaredHooks = new Set(listTrackedFiles(REPO_ROOT, [...WEB_HOOK_FILES]));",
+        'const declaredHooks = new Set(listTrackedFiles(REPO_ROOT, [...WEB_HOOK_FILES]).filter((f) => !f.endsWith("timer-web/src/sync/client.ts")));',
+      );
+    // When
+    const r = runScriptCopy("audit-dependency-direction.mjs", mutate);
+    // Then
+    assertBrokenBy("audit-dependency-direction.mjs", r.source, "const declaredHooks = new Set(listTrackedFiles(REPO_ROOT, [...WEB_HOOK_FILES]));", "同期フックの宣言の実在の導出");
+    assert.notEqual(r.status, 0, `落ちていません。stdout:\n${r.stdout}`);
+    assert.match(r.stderr, /apps\/timer-web\/src\/sync\/client\.ts: 端末 I\/O・同期フックの宣言/);
+  });
 });
