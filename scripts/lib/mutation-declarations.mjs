@@ -239,6 +239,9 @@ const RESERVED_1740_1759 =
 const RESERVED_1780_1799 =
   "**対応表より後に足した変異。** 1780〜1799 は #595（use-hub-sync を責務で分ける）に割り当てた範囲。";
 
+const RESERVED_1950_1959 =
+  "**対応表より後に足した変異。** 1950〜1959 は #622（PR 前のフックを開いた先行だけで止める）に割り当てた範囲。";
+
 const RESERVED_1800_1819 =
   "**対応表より後に足した変異。** 1800〜1819 は #595（ScenarioBuilder を責務で分ける）に割り当てた範囲。";
 
@@ -10094,5 +10097,37 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["lib/layer-direction.test.mjs"],
     note: RESERVED_1820_1829 + " " + "#592。require 形の import で層を越える辺が緑のまま入る。",
+  },
+  {
+    id: 1950,
+    label: "先行 PR の探索が、マージ済み・閉じた PR も「止める先行」に数える",
+    patch: "m1950-prior-work-merged-pr-stops.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-work.test.mjs"],
+    note: RESERVED_1950_1959 + " " + "#622。1 ISSUE を複数 PR で回すたびに、マージ済みの PR で毎回止まる。",
+  },
+  {
+    id: 1951,
+    label: "PR の無いリモートの枝を「止める先行」に数えない",
+    patch: "m1951-prior-work-branch-not-open.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-work.test.mjs"],
+    note: RESERVED_1950_1959 + " " + "#622。PR を立てる前の枝（作業中の別の場所）が先行として止めず、重なりを見逃す。",
+  },
+  {
+    id: 1952,
+    label: "マージ済みの PR が見つかると、確かめられなかった側（gh・git の失敗）があっても past にする",
+    patch: "m1952-prior-work-past-hides-unchecked.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-work.test.mjs"],
+    note: RESERVED_1950_1959 + " " + "#622。枝が引けていないのに、開いた先行は無いと読んで通す。",
+  },
+  {
+    id: 1953,
+    label: "フックが、マージ済み・閉じた PR だけ（past）でも ask にする",
+    patch: "m1953-prior-pr-hook-past-asks.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-pr-hook.test.mjs", "agent-guard-hook.test.mjs"],
+    note: RESERVED_1950_1959 + " " + "#622。判定を直したつもりで、入口では止まり続ける。",
   },
 ];

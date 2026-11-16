@@ -1,11 +1,11 @@
 diff --git a/scripts/lib/prior-work.mjs b/scripts/lib/prior-work.mjs
-index 74e92312..2edb8d0a 100644
+index 25bf32cc..80a51c05 100644
 --- a/scripts/lib/prior-work.mjs
 +++ b/scripts/lib/prior-work.mjs
-@@ -64,7 +64,7 @@ export function findPriorWork(number, { gh, git, ownBranch }) {
-     errors.push(`git ls-remote: ${firstLine(error.message)}`);
-   }
-   const state = prs.length + branches.length > 0 ? "found" : errors.length > 0 ? "unknown" : "none";
+@@ -77,7 +77,7 @@ export async function findPriorWork(number, { gh, git, ownBranch }) {
+   // 重なりではない。確かめられなかった側が残るなら、past でなく unknown にする
+   const open = prs.filter((p) => p.state === "OPEN").length + branches.length > 0;
+   const state = open ? "found" : errors.length > 0 ? "unknown" : prs.length > 0 ? "past" : "none";
 -  return { state, number, prs, branches, total, truncated: total !== null && total >= SEARCH_LIMIT, errors };
 +  return { state, number, prs, branches, total, truncated: total !== null && total > SEARCH_LIMIT, errors };
  }

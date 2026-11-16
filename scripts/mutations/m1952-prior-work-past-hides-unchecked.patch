@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/prior-work.mjs b/scripts/lib/prior-work.mjs
+index 25bf32cc..2a1d32dd 100644
+--- a/scripts/lib/prior-work.mjs
++++ b/scripts/lib/prior-work.mjs
+@@ -76,7 +76,7 @@ export async function findPriorWork(number, { gh, git, ownBranch }) {
+   // 止める（found）のは、開いた PR と PR の無い枝だけ（#622）。マージ済み・閉じた PR は main に取り込まれたか終わった作業で、
+   // 重なりではない。確かめられなかった側が残るなら、past でなく unknown にする
+   const open = prs.filter((p) => p.state === "OPEN").length + branches.length > 0;
+-  const state = open ? "found" : errors.length > 0 ? "unknown" : prs.length > 0 ? "past" : "none";
++  const state = open ? "found" : prs.length > 0 ? "past" : errors.length > 0 ? "unknown" : "none";
+   return { state, number, prs, branches, total, truncated: total !== null && total >= SEARCH_LIMIT, errors };
+ }
+ 
