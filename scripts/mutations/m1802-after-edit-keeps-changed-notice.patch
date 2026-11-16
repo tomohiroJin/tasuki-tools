@@ -1,0 +1,22 @@
+# 変異 1802: after-edit-keeps-changed-notice
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/scenario-draft-sync.test.ts
+#
+# #595。下書きをルームと同じに直しても「シナリオが変わりました」が下りない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1802-*.patch
+diff --git a/apps/agenda-web/src/scenario-draft-sync.ts b/apps/agenda-web/src/scenario-draft-sync.ts
+index a557b477..b282e7ef 100644
+--- a/apps/agenda-web/src/scenario-draft-sync.ts
++++ b/apps/agenda-web/src/scenario-draft-sync.ts
+@@ -36,7 +36,7 @@ export function reconcileRoom(state: DraftState, room: ScenarioInput): DraftStat
+ 
+ /** 下書きを編集した後の状態。下書きがルームと同じになれば知らせを下ろす */
+ export function afterDraftEdit(state: DraftState, draft: Draft): DraftState {
+-  return { ...state, draft, changed: state.changed && scenarioKey(inputFromDraft(draft)) !== state.roomKey };
++  return { ...state, draft, changed: state.changed };
+ }
+ 
+ /** 「ルームのに戻す」: 下書きをルームのシナリオにして知らせを下ろす */

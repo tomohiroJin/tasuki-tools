@@ -227,6 +227,9 @@ const RESERVED_1640_1659 =
 const RESERVED_1660_1679 =
   "**対応表より後に足した変異。** 1660〜1679 は #595（#482-6）に割り当てた範囲。";
 
+const RESERVED_1800_1819 =
+  "**対応表より後に足した変異。** 1800〜1819 は #595（ScenarioBuilder を責務で分ける）に割り当てた範囲。";
+
 const RESERVED_1420_1429 =
   "**対応表より後に足した変異。** 1420〜1429 は #557 に追加で割り当てた範囲（1120〜1129・1410〜1419 を使い切ったため。PR #580 のレビューの指摘で足した）。";
 
@@ -9509,5 +9512,93 @@ export const MUTATIONS = [
     pkg: "apps/timer-web",
     tests: ["test/sync/use-timer-sync.test.tsx"],
     note: RESERVED_1660_1679 + " " + "#595 のレビュー。受け皿 clearCompletion の配線を突く。",
+  },
+  {
+    id: 1800,
+    label: "ルームのシナリオが変わると、手元で変えた下書きも黙って上書きする",
+    patch: "m1800-reconcile-overwrites-touched-draft.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/scenario-draft-sync.test.ts"],
+    note: RESERVED_1800_1819 + " " + "#595。下書きとルームの付き合わせ（scenario-draft-sync.ts）。組みかけの下書きが消える（spec §4.2 の 4）。",
+  },
+  {
+    id: 1801,
+    label: "自分が送ったシナリオがルームから返ってきても「シナリオが変わりました」と知らせる",
+    patch: "m1801-reconcile-ignores-sent-key.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/scenario-draft-sync.test.ts"],
+    note: RESERVED_1800_1819 + " " + "#595。送った鍵（sentKey）を見ない。自分の操作に自分で驚く知らせが出る。",
+  },
+  {
+    id: 1802,
+    label: "下書きをルームと同じに直しても「シナリオが変わりました」が下りない",
+    patch: "m1802-after-edit-keeps-changed-notice.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/scenario-draft-sync.test.ts"],
+    note: RESERVED_1800_1819 + " " + "#595。編集後の知らせの降ろし方（afterDraftEdit）。",
+  },
+  {
+    id: 1803,
+    label: "行を端へ動かして押せなくなったボタンにフォーカスを置いたままにする",
+    patch: "m1803-focus-after-move-ignores-edge.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/step-focus.test.ts"],
+    note: RESERVED_1800_1819 + " " + "#595。step-focus.ts。押せなくなったボタンにフォーカスを置くと、フォーカスが文書の先頭へ落ちる。",
+  },
+  {
+    id: 1804,
+    label: "行を消した後のフォーカスが、次の行でなく前の行の名前の欄へ行く",
+    patch: "m1804-focus-after-remove-prefers-previous.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/step-focus.test.ts"],
+    note: RESERVED_1800_1819 + " " + "#595。step-focus.ts。消した行の次を先に探し、無ければ前、それも無ければ「ステップを追加」へ。",
+  },
+  {
+    id: 1805,
+    label: "ScenarioBuilder が行を消した後のフォーカスの置き先を state へ渡さない",
+    patch: "m1805-builder-remove-drops-focus-request.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/scenario-builder.test.tsx"],
+    note: RESERVED_1800_1819 + " " + "#595。純粋関数（1804）ではなく ScenarioBuilder から state への配線を突く。",
+  },
+  {
+    id: 1806,
+    label: "ScenarioBuilder の「ルームに読み込む」が送った鍵を覚えない（markSent を呼ばない）",
+    patch: "m1806-builder-load-skips-mark-sent.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/scenario-builder.test.tsx"],
+    note: RESERVED_1800_1819 + " " + "#595。純粋関数（1801）ではなく ScenarioBuilder からフックへの配線を突く。",
+  },
+  {
+    id: 1807,
+    label: "useScenarioDraft が付き合わせの結果（追いついた下書き）を state へ書き戻さない",
+    patch: "m1807-hook-skips-catching-up-state.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/scenario-builder.test.tsx"],
+    note: RESERVED_1800_1819 + " " + "#595 のレビュー。フックの配線。追いついた後に手元で編集すると、ルームが変わっていないのに「シナリオが変わりました」が出る。",
+  },
+  {
+    id: 1808,
+    label: "useScenarioDraft の setDraft が afterDraftEdit を通さず、知らせを下ろさない",
+    patch: "m1808-hook-set-draft-skips-notice-clear.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/scenario-builder.test.tsx"],
+    note: RESERVED_1800_1819 + " " + "#595 のレビュー。フックの配線（1802 の純粋関数側に対する組み合わせ側）。",
+  },
+  {
+    id: 1809,
+    label: "useScenarioDraft の adoptRoom が下書きをルームのシナリオへ戻さない",
+    patch: "m1809-hook-adopt-room-keeps-draft.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/scenario-builder.test.tsx"],
+    note: RESERVED_1800_1819 + " " + "#595 のレビュー。フックの配線。「ルームのシナリオに戻す」が効かない。",
+  },
+  {
+    id: 1810,
+    label: "手つかずの写しの判定が、回数の欄を空にした下書きを写しと見なす",
+    patch: "m1810-untouched-copy-ignores-blank-rounds.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/scenario-draft-sync.test.ts", "tests/scenario-builder.test.tsx"],
+    note: RESERVED_1800_1819 + " " + "#595 のレビュー。isUntouchedCopy の `roundsOfDraft !== null` の守りだけを外す。回数の欄を空にした下書きは rounds キーを落とし、回数 1 のルームと同じ鍵になるため、守りが無いと上書き・確かめ省略が起きる。",
   },
 ];
