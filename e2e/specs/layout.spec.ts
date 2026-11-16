@@ -794,20 +794,63 @@ test.describe('玄関の器', () => {
   });
 });
 
-test.describe('timer は 1 つのルームでロビー・セッション・お題・まとめの順に画面を見る', () => {
-  test('Given 幅 320 のロビー（参加者 2 人） / When 幅 1920・1280 のロビー・セッション・長いお題・幅 390・まとめ（1920・1280・768・320）と開く / Then ロビーは脇が右・22rem で先頭がお題、セッションの脇は上端が揃い、お題は脇の先頭でタイマーは最初の画面に収まり、器はロビー・セッション・まとめで変わらず、まとめは 64rem 以上で 2 列・未満で 1 列', async ({ page, openPeer }) => {
-    // 以前は同期サーバーのルーム枠が逼迫していたので、timer は 1 室で画面の流れの順に全てを見る（#387 で枠は広げたが、動いている検査なのでほどかない）
-    // （ロビー → セッション → お題の読む面 → まとめ。前の段階を戻す必要がある検査は置かない）。
-    const TIMER_PAGE = 'div.ui-page.stage-inner';
-    // Given 幅 320 のロビー。ホスト + ドライバーで加わる 1 人（以前はルームの枠が逼迫していたので、timer は 1 室で全ての画面を順に見る）
+test.describe('timer は画面ごと（ロビー・セッション・まとめ）に、それぞれ自分の部屋で見る', () => {
+  // 以前は同期サーバーのルーム枠が逼迫していたので 1 室で全てを順に見ていた。#387 で E2E の枠は 1000 に広げ、
+  // この 3 本は `local` 専用（本番の枠 100 を消費しない）なので、画面ごとの `test` に割った（#597）。
+  // 各 `test` は自分の部屋を作り、前の画面を戻す必要が無い（まとめは完成にすると戻れないので、まとめの `test` だけが完成にする）。
+  const TIMER_PAGE = 'div.ui-page.stage-inner';
+
+  /** 幅 320 のロビー。ホスト + ドライバーで加わる 1 人（区切りのない 30 字の名前）。 */
+  async function openLobby(page: Page, openPeer: OpenPeer, label: string): Promise<string> {
     await page.setViewportSize({ width: 320, height: 640 });
-    const code = await createTimerRoom(page, 'layout-timer');
-    const guest = await openPeer('layout-timer-guest');
+    const code = await createTimerRoom(page, label);
+    const guest = await openPeer(`${label}-guest`);
     // 区切りのない 30 字の名前。名前が行の幅を使い切ると、操作が次の行へ折り返す（行の flex-wrap）ので、折り返しが無いと 320 で溢れる
     const guestName = 'W'.repeat(30);
     await joinAsDriver(guest.page, code, guestName);
     await expect(page.getByRole('listitem').filter({ hasText: guestName })).toBeVisible();
     await expect(page.getByLabel('パスフレーズ', { exact: true })).toBeVisible();
+    return code;
+  }
+
+  /** お題ツールで加わり、長いお題（`LINKED_LONG_BODY`）を掲げる。ホストの画面に最後の行まで届くのを待つ。 */
+  async function raiseTopic(page: Page, openPeer: OpenPeer, code: string, label: string): Promise<{ page: Page }> {
+    const tool = await openPeer(`${label}-tool`);
+    await joinTopicTool(tool.page, `/?room=${encodeURIComponent(code)}`, `${label}-t`);
+    await setTopic(tool.page, 'FizzBuzz', LINKED_LONG_BODY);
+    await expect(page.getByRole('region', { name: 'お題', exact: true })).toContainText('40 行目の説明です。');
+    return tool;
+  }
+
+  /** 幅 1280 でお題を掲げたロビーから、セッションを始める。 */
+  async function startSession(page: Page, openPeer: OpenPeer, label: string): Promise<{ page: Page }> {
+    const code = await openLobby(page, openPeer, label);
+    await page.setViewportSize({ width: 1280, height: 900 });
+    const tool = await raiseTopic(page, openPeer, code, label);
+    await page.getByRole('button', { name: 'セッションを開始' }).click();
+    await expect(page.getByRole('timer')).toBeVisible();
+    return tool;
+  }
+
+  /**
+   * まとめの検査に要る準備だけでセッションを始める（30 字の名前のドライバーのゲスト 1 人。
+   * ロビーの 320 の確認もお題ツールの文脈も作らない）。ドライバー別の札が出るにはゲストが輪に要る。
+   */
+  async function startSessionWithGuest(page: Page, openPeer: OpenPeer, label: string): Promise<void> {
+    const code = await createTimerRoom(page, label);
+    const guest = await openPeer(`${label}-guest`);
+    // 区切りの無い 30 字の名前は、まとめのドライバー別に並ぶ。名前の切り詰めが外れると 320 で横に溢れるので、割る前と同じ名前で測る
+    const guestName = 'W'.repeat(30);
+    await joinAsDriver(guest.page, code, guestName);
+    await expect(page.getByRole('listitem').filter({ hasText: guestName })).toBeVisible();
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.getByRole('button', { name: 'セッションを開始' }).click();
+    await expect(page.getByRole('timer')).toBeVisible();
+  }
+
+  test('Given 幅 320 のロビー（参加者 2 人） / When 幅 1920・1280 のロビーと長いお題を開く / Then ロビーは脇が右・22rem で先頭がお題で、行のアイコンの当たりは重ならない', async ({ page, openPeer }) => {
+    // Given 幅 320 のロビー。ホスト + ドライバーで加わる 1 人
+    const code = await openLobby(page, openPeer, 'layout-timer');
 
     // Then 320: ロビーは横に溢れない（B1）。「設定」の字の折れは buttons.spec.ts が全ての部品のボタンで 4 つの幅で見る
     await expectNoHorizontalOverflow(page);
@@ -817,11 +860,8 @@ test.describe('timer は 1 つのルームでロビー・セッション・お�
     expect((await pageBox(page, TIMER_PAGE)).outer).toBe(96 * REM);
     await page.setViewportSize({ width: 1280, height: 900 });
     expect((await pageBox(page, TIMER_PAGE)).inner).toBeGreaterThanOrEqual(72 * REM);
-    const tool = await openPeer('layout-timer-tool');
-    await joinTopicTool(tool.page, `/?room=${encodeURIComponent(code)}`, 'layout-timer-t');
-    await setTopic(tool.page, 'FizzBuzz', LINKED_LONG_BODY);
+    await raiseTopic(page, openPeer, code, 'layout-timer');
     const card = page.getByRole('region', { name: 'お題', exact: true });
-    await expect(card).toContainText('40 行目の説明です。');
     await expectNoHorizontalOverflow(page);
 
     // Then 脇は右・22rem・間 2rem。操作の面に「セッションを開始」、脇に「参加者」
@@ -875,10 +915,12 @@ test.describe('timer は 1 つのルームでロビー・セッション・お�
       }
     }
     expect(sameRowPairs).toBeGreaterThan(0);
+  });
 
-    // 幅 1280 でセッションを始める
-    await page.getByRole('button', { name: 'セッションを開始' }).click();
-    await expect(page.getByRole('timer')).toBeVisible();
+  test('Given 幅 1280 でセッションを始めた / When 長いお題・幅 390・320 と開く / Then セッションの脇は上端が揃い、お題は脇の先頭でタイマーは最初の画面に収まり、札は 3 行で切れ、器は変わらず横に溢れない', async ({ page, openPeer }) => {
+    // 幅 1280 でセッションを始める（ロビーの検査は上の `test`）
+    const tool = await startSession(page, openPeer, 'layout-timer-session');
+    const card = page.getByRole('region', { name: 'お題', exact: true });
     expect((await pageBox(page, TIMER_PAGE)).inner).toBeGreaterThanOrEqual(72 * REM);
 
     // Then セッションの脇は右・22rem・間 2rem で、上端は操作の面の上端に揃う（上に空きを作らない）
@@ -979,8 +1021,11 @@ test.describe('timer は 1 つのルームでロビー・セッション・お�
     // 幅 320 でセッションも横に溢れない
     await page.setViewportSize({ width: 320, height: 640 });
     await expectNoHorizontalOverflowSettled(page);
+  });
 
-    // 最後にまとめ。完成にすると戻れないので末尾に置く。まとめは完了のあと幅を変えても出続けるので、同じルームで 4 つの幅を測る（#352）
+  test('Given 幅 1920 のセッション / When 完成にして幅 1920・1280・768・640・320 のまとめを開く / Then 器と帯は完了で動かず、まとめは 64rem 以上で 2 列・未満で 1 列', async ({ page, openPeer }) => {
+    // まとめは完成にすると戻れないので、この `test` だけが完成にする。完了のあと幅を変えても出続けるので、同じルームで 4 つの幅を測る（#352）
+    await startSessionWithGuest(page, openPeer, 'layout-timer-summary');
     await page.setViewportSize({ width: 1920, height: 1080 });
     // L1 の基準: セッションの器の外寸と、上の帯の位置と幅（段の名前や 96rem の直値とは比べない。跳ねないことだけを見る）
     const frameBefore = { page: (await pageBox(page, TIMER_PAGE)).outer, strip: await boxOf(page, '.app-status-strip') };

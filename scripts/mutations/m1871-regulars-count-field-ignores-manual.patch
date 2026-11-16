@@ -1,0 +1,19 @@
+# 変異 1871: regulars-count-field-ignores-manual
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/regulars-form.test.ts
+#
+# #595。regulars-form.ts の countFieldOf が、手入力が人を足したかを見ず、一覧があれば常に一覧の側へ印を付ける。手入力が原因の人数エラーが、チェックの一覧に付く。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1871-*.patch
+diff --git a/apps/roulette-web/src/regulars-form.ts b/apps/roulette-web/src/regulars-form.ts
+--- a/apps/roulette-web/src/regulars-form.ts
++++ b/apps/roulette-web/src/regulars-form.ts
+@@ -37,5 +37,5 @@
+ /** 人数・保存の失敗の原因が一覧だけか。手入力がチェックに無い人を 1 人も足していなければ一覧（両方が原因なら入力欄） */
+ export function countFieldOf(hasList: boolean, checked: readonly string[], text: string): ErrorField {
+   const manualAdds = memberCount(checked, text) > memberCount(checked, '');
+-  return hasList && !manualAdds ? 'people' : 'members';
++  return hasList || manualAdds ? 'people' : 'members';
+ }
