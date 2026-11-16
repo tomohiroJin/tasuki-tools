@@ -7,7 +7,7 @@
 import { describe, expect, it } from 'vitest';
 import { AGENDA_ERROR_CODES, agendaErrorMessageFor } from '@tasuki/agenda-core';
 import * as copy from '../src/copy';
-import { baseFaces, outsideBase } from './support/font-base';
+import { baseFaces, outsideBase } from '@tasuki/test-css/font-base';
 
 /**
  * 文言の一覧。`copy.ts` の文字列と、名前などを差し込む関数（**ASCII の仮の値で呼んだ結果**。

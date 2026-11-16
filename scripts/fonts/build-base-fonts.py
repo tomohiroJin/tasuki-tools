@@ -16,7 +16,7 @@
   （--cache-dir が別のファイルシステムにあると、そこからの rename は EXDEV で失敗し、途中まで置き換わる）
 - 元の書体の置き場の名前には REV を入れる（--rev を替えたときに、古いコミットの書体を取り違えない）
 - 字を足さない再生成は `--add-chars` を省く（いまの字のまま作り直すだけ）
-- 画面の文言が base 層に収まるかは `outsideBase`（正本は `packages/test-css/src/font-base.mjs`。各パッケージの `tests/support/font-base.ts` が再輸出する）で先に測る
+- 画面の文言が base 層に収まるかは `outsideBase`（正本は `packages/test-css/src/font-base.mjs`。各パッケージの試験は `@tasuki/test-css/font-base` を直接 import する）で先に測る
 """
 import argparse
 import re

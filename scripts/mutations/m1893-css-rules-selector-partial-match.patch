@@ -9,13 +9,12 @@
 #       git apply scripts/mutations/m1893-*.patch
 # 復元: git apply -R scripts/mutations/m1893-*.patch
 diff --git a/packages/test-css/src/css-rules.mjs b/packages/test-css/src/css-rules.mjs
-index f44f5430..27cfb3d4 100644
 --- a/packages/test-css/src/css-rules.mjs
 +++ b/packages/test-css/src/css-rules.mjs
-@@ -54,7 +54,7 @@ export function collectRules(css) {
+@@ -67,7 +67,7 @@ function parseRules(css) {
  /** セレクタの並びに `selector` を（完全一致で）含む規則の本体を、すべて返す。無ければ空。 */
  export function rulesOf(css, selector) {
-   const want = selector.replace(/\s+/g, ' ').trim();
+   const want = normalizeSelector(selector);
 -  return collectRules(css).filter((r) => r.selectors.includes(want)).map((r) => r.body);
 +  return collectRules(css).filter((r) => r.selectors.some((s) => s.includes(want))).map((r) => r.body);
  }

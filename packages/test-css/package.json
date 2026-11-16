@@ -4,6 +4,9 @@
   "description": "試験の共有支援（CSS を字で読む解析器・書体の base 層の判定・台本つきの偽の WebSocket・画面の CSS の契約の補助）。試験専用で、製品コードからは読まない（docs/adr/0017 の追記（#599））",
   "private": true,
   "type": "module",
+  "scripts": {
+    "lint": "eslint src"
+  },
   "exports": {
     ".": {
       "types": "./src/css-text.d.mts",

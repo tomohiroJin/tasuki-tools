@@ -29,28 +29,11 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { MAX_DISPLAY_NAME } from '@tasuki/room-core';
 import { loadDefaultDisplayName, saveDefaultDisplayName } from '@tasuki/sync-client';
 import { App } from '../src/App.js';
-
-/** 開いたことにはせず、届いたメッセージだけを差し込める WebSocket（`App.test.tsx` と同じ作法）。 */
-class SilentWebSocket {
-  static readonly OPEN = 1;
-  static instances: SilentWebSocket[] = [];
-  readyState = 0;
-  onopen: (() => void) | null = null;
-  onclose: (() => void) | null = null;
-  onmessage: ((e: { data: unknown }) => void) | null = null;
-  onerror: (() => void) | null = null;
-
-  constructor() {
-    SilentWebSocket.instances.push(this);
-  }
-
-  send(): void {}
-  close(): void {}
-}
+import { ScriptedWebSocket } from '@tasuki/test-css/scripted-web-socket';
 
 /** いちばん新しい接続（玄関を開き直すと 2 本目が生まれる）。 */
-const socket = (): SilentWebSocket =>
-  SilentWebSocket.instances[SilentWebSocket.instances.length - 1]!;
+const socket = (): ScriptedWebSocket =>
+  ScriptedWebSocket.instances[ScriptedWebSocket.instances.length - 1]!;
 
 /** サーバーからの 1 通を届ける。 */
 const deliver = (msg: unknown): void => {
@@ -72,8 +55,8 @@ const nameField = (): HTMLInputElement => screen.getByLabelText<HTMLInputElement
 const LEGACY_KEY = 'tdd-mob:preferences:v1';
 
 beforeEach(() => {
-  SilentWebSocket.instances = [];
-  vi.stubGlobal('WebSocket', SilentWebSocket);
+  ScriptedWebSocket.instances = [];
+  vi.stubGlobal('WebSocket', ScriptedWebSocket);
   localStorage.clear();
   window.history.replaceState(null, '', '/');
 });

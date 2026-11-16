@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import type { RoundStats } from '@tasuki/poker-core';
 import { Results, SPREAD_COPY } from '../src/components/Results';
-import { baseFaces, outsideBase } from './support/font-base';
+import { baseFaces, outsideBase } from '@tasuki/test-css/font-base';
 
 afterEach(cleanup);
 

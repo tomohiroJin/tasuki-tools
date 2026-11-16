@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CHECKIN_ERROR_CODES, checkinErrorMessageFor } from "../src/index.js";
-import { baseFaces, outsideBase } from "./support/font-base.js";
+import { baseFaces, outsideBase } from "@tasuki/test-css/font-base";
 
 /** 同期サーバーの正本（`apps/tasuki-sync/src/application/connection-errors.ts`）を書き写したもの。 */
 const CONNECTION_TEXT = {

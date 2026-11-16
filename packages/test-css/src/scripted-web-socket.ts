@@ -15,7 +15,11 @@ export class ScriptedWebSocket {
   onmessage: ((e: { data: unknown }) => void) | null = null;
   onerror: (() => void) | null = null;
 
-  constructor(readonly url: string) {
+  readonly url: string;
+
+  // parameter property（`constructor(readonly url)`）は node の型の取り除き（--experimental-strip-types）で読めないので、明示のフィールドと代入で書く
+  constructor(url: string) {
+    this.url = url;
     ScriptedWebSocket.instances.push(this);
   }
 
@@ -48,7 +52,7 @@ export class ScriptedWebSocket {
   }
 }
 
-export const latestSocket = (): ScriptedWebSocket => {
+export const latestSocket =(): ScriptedWebSocket => {
   const socket = ScriptedWebSocket.instances.at(-1);
   if (socket === undefined) throw new Error('WebSocket が 1 本も張られていない');
   return socket;

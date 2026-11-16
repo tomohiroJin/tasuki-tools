@@ -7,6 +7,8 @@
  */
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import process from 'node:process';
+import { normalizeSelector, stripComments } from './css-text.mjs';
 
 /** アプリ自身のファイルを、実行中のディレクトリ（vitest はパッケージの直下で動く）からの相対で読む。 */
 export const readFromCwd = (p) => readFileSync(`${process.cwd()}/${p}`, 'utf8');
@@ -26,12 +28,23 @@ function splitSelectors(prelude) {
     }
   }
   out.push(prelude.slice(from));
-  return out.map((s) => s.replace(/\s+/g, ' ').trim());
+  return out.map(normalizeSelector);
 }
+
+/** 同じ CSS の字に対する `collectRules` の結果（`rulesOf`・`rulesMatching` が呼ぶたびに解析し直さない）。 */
+const collected = new Map();
 
 /** 規則（宣言ブロックを持つもの）を、`@media` などの入れ子の中・字下げした規則・`,` でつないだセレクタも含めてすべて集める。 */
 export function collectRules(css) {
-  const src = css.replace(/\/\*[\s\S]*?\*\//g, '');
+  const cached = collected.get(css);
+  if (cached !== undefined) return cached;
+  const rules = parseRules(css);
+  collected.set(css, rules);
+  return rules;
+}
+
+function parseRules(css) {
+  const src = stripComments(css);
   const rules = [];
   const stack = [];
   let last = 0;
@@ -53,7 +66,7 @@ export function collectRules(css) {
 
 /** セレクタの並びに `selector` を（完全一致で）含む規則の本体を、すべて返す。無ければ空。 */
 export function rulesOf(css, selector) {
-  const want = selector.replace(/\s+/g, ' ').trim();
+  const want = normalizeSelector(selector);
   return collectRules(css).filter((r) => r.selectors.includes(want)).map((r) => r.body);
 }
 
@@ -64,6 +77,6 @@ export function rulesMatching(css, pattern) {
 
 /** 肯定の検査用: 規則が 1 つ以上見つかることを確かめてから、本体をつないで返す（見つからないまま緑にならない）。 */
 export function foundBody(bodies, what) {
-  assert.ok(bodies.length >= 1, `${what} の規則が見つからない（判定が空振りする）`);
+  assert.ok(bodies.length >= 1, `${what} の規則が見つからない（${bodies.length} 件。判定が空振りする）`);
   return bodies.join('\n');
 }

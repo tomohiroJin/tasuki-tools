@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { messageForRoundError } from '@tasuki/poker-core';
-import { outsideBase } from './support/font-base';
+import { outsideBase } from '@tasuki/test-css/font-base';
 import * as copy from '../src/estimate-copy';
 
 describe('見積もりの記録の文言は書体の常用の層に収まる', () => {
