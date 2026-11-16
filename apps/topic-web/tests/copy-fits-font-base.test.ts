@@ -10,7 +10,7 @@
 import { describe, expect, it } from 'vitest';
 import { TOPIC_ERROR_CODES, topicErrorMessageFor } from '@tasuki/topic-core';
 import * as copy from '../src/copy';
-import { baseFaces, outsideBase } from './support/font-base';
+import { baseFaces, outsideBase } from '@tasuki/test-css/font-base';
 
 /** 文言の一覧。`copy.ts` の文字列と、文字列の表（難易度の名前など）の値を平たくする。 */
 function allTexts(): string[] {

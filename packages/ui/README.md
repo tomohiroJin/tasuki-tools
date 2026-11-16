@@ -28,7 +28,7 @@ src/
 **この境界は stylelint が機械的に守る。** `src/tokens/` では `selector-max-type` /
 `-class` / `-id` を 0 にしてあるので、うっかり `h2 {}` を足すと lint が落ちる。
 
-**試験の共有支援（いまは CSS を字で読む解析器。書体の判定・偽の WebSocket は #594 で移す予定）は、私的なパッケージ `@tasuki/test-css`（`packages/test-css`）に置きます。** 部品の試験（`tests/`）と、アプリの試験（`apps/*/tests/`・`apps/*/test/`）が devDependency として読みます（`dependencies`・`peerDependencies`・`optionalDependencies` に書くと検査が赤くなります）。製品コードは読みません。置き場の決定は `docs/adr/0017` の追記（2026-11-14・#599）です。`scripts/audit-dependency-direction.mjs` が、パッケージの中の `tests/`・`test/` と e2e 以外のファイル（設定ファイルを含む）に取り込みが無いことを、許可の表と同じ仕組みで見ます。
+**試験の共有支援（CSS を字で読む解析器 `@tasuki/test-css`・書体の base 層の判定 `@tasuki/test-css/font-base`・台本つきの偽の WebSocket `@tasuki/test-css/scripted-web-socket`・画面の CSS の契約の補助 `@tasuki/test-css/css-rules`）は、私的なパッケージ `@tasuki/test-css`（`packages/test-css`）に置きます。** 部品の試験（`tests/`）と、アプリの試験（`apps/*/tests/`・`apps/*/test/`）が devDependency として読みます（`dependencies`・`peerDependencies`・`optionalDependencies` に書くと検査が赤くなります）。製品コードは読みません。置き場の決定は `docs/adr/0017` の追記（2026-11-14・#599）です。`scripts/audit-dependency-direction.mjs` が、パッケージの中の `tests/`・`test/` と e2e 以外のファイル（設定ファイルを含む）に取り込みが無いことを、許可の表と同じ仕組みで見ます。
 
 ### 部品層（`components/`・ADR 0022）
 
@@ -325,7 +325,7 @@ src/
 - Fraunces は実使用が `font-weight: 600` のみなのでウェイトを固定した。
   `opsz 9–80` は残す（9.6px のコーナーピップと 80px のワードマークで字形を変えるため）
 - **base 層に無い字を画面に出すと、黙って ext 層（+約 210 KB）を引く。** 文言は先に
-  `tests/support/font-base.ts` の `outsideBase` で測る
+  `outsideBase` で測る（正本は `@tasuki/test-css/font-base`。各パッケージの試験はこれを直接 import する）
 - **base 層の作り直し**は `scripts/fonts/build-base-fonts.py`（運用者が手で流す・CI では流さない）。
   字の集合 = いまの base 層の cmap ∪ `--add-chars`。いまの字は 1 字も落とさず（最後に
   古い cmap ⊆ 新しい cmap を確かめて、崩れていたら失敗で終わる）、`fonts.css` の base 3 面の

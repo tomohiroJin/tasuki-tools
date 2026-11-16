@@ -9,62 +9,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { foundBody, rulesOf } from '@tasuki/test-css/css-rules';
 
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 const read = (p) => readFileSync(root + p, 'utf8');
 
-/** `,` で区切る（`:is(a, b)` の括弧の中の `,` では区切らない）。 */
-function splitSelectors(prelude) {
-  const out = [];
-  let depth = 0;
-  let from = 0;
-  for (let i = 0; i < prelude.length; i++) {
-    const c = prelude[i];
-    if (c === '(') depth++;
-    else if (c === ')') depth--;
-    else if (c === ',' && depth === 0) {
-      out.push(prelude.slice(from, i));
-      from = i + 1;
-    }
-  }
-  out.push(prelude.slice(from));
-  return out.map((x) => x.replace(/\s+/g, ' ').trim());
-}
-
-/** 規則（宣言ブロックを持つもの）を、`@media` などの入れ子の中・字下げした規則・`,` でつないだセレクタも含めてすべて集める。 */
-function collectRules(css) {
-  const src = css.replace(/\/\*[\s\S]*?\*\//g, '');
-  const rules = [];
-  const stack = [];
-  let last = 0;
-  for (let i = 0; i < src.length; i++) {
-    const c = src[i];
-    if (c === '{') {
-      stack.push({ prelude: src.slice(last, i).trim(), start: i + 1 });
-      last = i + 1;
-    } else if (c === '}') {
-      const top = stack.pop();
-      if (top !== undefined && !top.prelude.startsWith('@')) rules.push({ selectors: splitSelectors(top.prelude), body: src.slice(top.start, i) });
-      last = i + 1;
-    } else if (c === ';') {
-      last = i + 1;
-    }
-  }
-  return rules;
-}
-
-/** セレクタの並びに `selector` を（完全一致で）含む規則の本体を、すべて返す。無ければ空。 */
-function rulesOf(css, selector) {
-  const want = selector.replace(/\s+/g, ' ').trim();
-  return collectRules(css).filter((r) => r.selectors.includes(want)).map((r) => r.body);
-}
-
 /** 肯定の検査用: 規則が 1 つ以上見つかることを確かめてから、本体をつないで返す（見つからないまま緑にならない）。 */
-function bodyOf(css, selector) {
-  const bodies = rulesOf(css, selector);
-  assert.ok(bodies.length >= 1, `${selector} の規則が見つからない（判定が空振りする）`);
-  return bodies.join('\n');
-}
+const bodyOf = (css, selector) => foundBody(rulesOf(css, selector), selector);
 
 test('Given .ui-stack / When 規則を読む / Then 縦の flex で、間は --space-3 の gap', () => {
   const body = bodyOf(read('packages/ui/src/components/stack.css'), '.ui-stack');

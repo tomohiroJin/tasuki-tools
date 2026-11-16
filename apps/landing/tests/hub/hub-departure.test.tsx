@@ -8,6 +8,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, render } from '@testing-library/react';
 import { App } from '../../src/App.js';
+import { ScriptedWebSocket } from '@tasuki/test-css/scripted-web-socket';
 import { redirectTo } from '../../src/hub/departure.js';
 
 vi.mock('../../src/hub/departure.js', async (importOriginal) => {
@@ -15,34 +16,6 @@ vi.mock('../../src/hub/departure.js', async (importOriginal) => {
   return { ...actual, redirectTo: vi.fn() };
 });
 
-class ScriptedWebSocket {
-  static instances: ScriptedWebSocket[] = [];
-  static readonly OPEN = 1;
-  readyState = 0;
-  sent: string[] = [];
-  closed = false;
-  onopen: (() => void) | null = null;
-  onclose: (() => void) | null = null;
-  onmessage: ((e: { data: unknown }) => void) | null = null;
-  onerror: (() => void) | null = null;
-  constructor(readonly url: string) {
-    ScriptedWebSocket.instances.push(this);
-  }
-  send(data: string): void {
-    this.sent.push(data);
-  }
-  close(): void {
-    this.closed = true;
-    this.readyState = 3;
-  }
-  open(): void {
-    this.readyState = ScriptedWebSocket.OPEN;
-    this.onopen?.();
-  }
-  deliver(msg: unknown): void {
-    this.onmessage?.({ data: JSON.stringify(msg) });
-  }
-}
 const socket = (): ScriptedWebSocket => ScriptedWebSocket.instances[0]!;
 
 function joinedRoom(): void {
@@ -82,7 +55,7 @@ describe('ハブのタブが外された・抜けた', () => {
     act(() => socket().deliver({ type: 'error', code: 'REMOVED_FROM_ROOM', message: 'ルームから外されました' }));
     expect(vi.mocked(redirectTo)).toHaveBeenCalledWith('/?room=R1&left=removed');
     expect(localStorage.getItem('tasuki:resume:R1')).toBeNull();
-    expect(socket().closed).toBe(true);
+    expect(socket().readyState).toBe(3);
   });
 
   it('Given 参加中 / When LEFT_ROOM を受ける / Then ?left=self へ移る', () => {

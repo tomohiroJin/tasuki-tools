@@ -12,38 +12,14 @@ import { TOOLS } from '../src/tools.js';
 import { RoomChoice } from '../src/screens/RoomChoice.js';
 import { SyncConnection, saveDefaultDisplayName } from '@tasuki/sync-client';
 import { MAX_DISPLAY_NAME, type RosterRoom } from '@tasuki/room-core';
-
-/**
- * WebSocket を差し替える。**実物は jsdom に無い**うえ、ここで見たいのは画面だけである。
- * 接続は開いたことにせず、送ったコマンドも捨てる（フックは送信をキューへ積むだけになる）。
- *
- * `instances` は接続の切断を試すテスト（#249）が、生成された 1 本を掴んで
- * `onclose` を発火させるために持つ（`tests/hub/use-hub-sync.test.tsx` の
- * `ScriptedWebSocket` と同じ作法）。
- */
-class SilentWebSocket {
-  static readonly OPEN = 1;
-  static instances: SilentWebSocket[] = [];
-  readyState = 0;
-  onopen: (() => void) | null = null;
-  onclose: (() => void) | null = null;
-  onmessage: ((e: { data: unknown }) => void) | null = null;
-  onerror: (() => void) | null = null;
-
-  constructor() {
-    SilentWebSocket.instances.push(this);
-  }
-
-  send(): void {}
-  close(): void {}
-}
+import { ScriptedWebSocket } from '@tasuki/test-css/scripted-web-socket';
 
 /** 生成された（唯一の）接続。 */
-const socket = (): SilentWebSocket => SilentWebSocket.instances[0]!;
+const socket = (): ScriptedWebSocket => ScriptedWebSocket.instances[0]!;
 
 beforeEach(() => {
-  SilentWebSocket.instances = [];
-  vi.stubGlobal('WebSocket', SilentWebSocket);
+  ScriptedWebSocket.instances = [];
+  vi.stubGlobal('WebSocket', ScriptedWebSocket);
   localStorage.clear();
   window.history.replaceState(null, '', '/');
 });

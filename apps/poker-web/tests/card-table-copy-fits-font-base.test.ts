@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { messageForRoundError } from '@tasuki/poker-core';
-import { outsideBase } from './support/font-base';
+import { outsideBase } from '@tasuki/test-css/font-base';
 import * as copy from '../src/card-table-copy';
 import * as fallback from '../src/card-table-fallback-copy';
 
