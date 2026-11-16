@@ -163,23 +163,43 @@ export class LiveSyncServer {
     return client;
   }
 
-  /** 全クライアントを閉じ、サーバーを停止する（afterEach から呼ぶ）。 */
+  /**
+   * 全クライアントを閉じ、サーバーを停止する（afterEach から呼ぶ）。
+   *
+   * 1 本の close が失敗しても、残りの client とサーバーの停止まで必ず進む。
+   * 失敗があれば、最後にまとめて投げる。
+   */
   async close(): Promise<void> {
-    for (const client of this.clients) await client.close();
+    const all: Array<{ close(): Promise<void> }> = [
+      ...this.clients,
+      ...this.pokerClients,
+      ...this.hubClients,
+      ...this.topicClients,
+      ...this.rouletteClients,
+      ...this.agendaClients,
+      ...this.checkinClients,
+    ];
     this.clients.length = 0;
-    for (const client of this.pokerClients) await client.close();
     this.pokerClients.length = 0;
-    for (const client of this.hubClients) await client.close();
     this.hubClients.length = 0;
-    for (const client of this.topicClients) await client.close();
     this.topicClients.length = 0;
-    for (const client of this.rouletteClients) await client.close();
     this.rouletteClients.length = 0;
-    for (const client of this.agendaClients) await client.close();
     this.agendaClients.length = 0;
-    for (const client of this.checkinClients) await client.close();
     this.checkinClients.length = 0;
-    await this.server.close();
+    const failures: unknown[] = [];
+    try {
+      const results = await Promise.allSettled(all.map((client) => client.close()));
+      for (const r of results) if (r.status === "rejected") failures.push(r.reason);
+    } finally {
+      try {
+        await this.server.close();
+      } catch (e) {
+        failures.push(e);
+      }
+    }
+    if (failures.length > 0) {
+      throw new AggregateError(failures, `live-sync-server: close に失敗（${failures.length} 件）`);
+    }
   }
 }
 

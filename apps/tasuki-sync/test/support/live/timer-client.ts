@@ -12,6 +12,10 @@ export type MsgOf<T extends MsgType> = Extract<ServerMsg, { type: T }>;
  *
  * 届いたフレームは**生のテキスト**（`rawFrames`）と**パース済みの値**（`received`）の
  * 両方で保持する。「JSON の形そのもの」を見たいときは前者を使う。
+ *
+ * 他のツールの client が共有する基底 `LiveWsClient`（`ws-client.ts`）は使わない。
+ * この client は `take` が型名で引く形（`take(type, predicate)`）で、`takeMatching`・
+ * `latestRoom`・`all` も持ち、時間切れの文言も違うため。
  */
 export class LiveClient {
   /** 届いたフレームの生テキスト（順序つき）。 */
@@ -150,11 +154,15 @@ export class LiveClient {
 
   private waitForFrame(timeoutMs: number): Promise<void> {
     return new Promise((resolve) => {
-      const timer = setTimeout(resolve, timeoutMs);
-      this.waiters.push(() => {
+      const notify = (): void => {
         clearTimeout(timer);
         resolve();
-      });
+      };
+      const timer = setTimeout(() => {
+        this.waiters = this.waiters.filter((w) => w !== notify);
+        resolve();
+      }, timeoutMs);
+      this.waiters.push(notify);
     });
   }
 }
