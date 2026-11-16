@@ -11,7 +11,7 @@
  * 押せる大きさ（44px）とボタンの字の折れは、`buttons.spec.ts` が全画面・4 つの幅で合否にする（#316 PR 4・`expectScreenAcrossWidths`）。
  */
 import type { Page } from '@playwright/test';
-import { expect, test, type Peer } from '../fixtures/test';
+import { expect, test } from '../fixtures/test';
 import { chooseCard, createRoom as createPokerRoom, joinRoom as joinPokerRoom, participantRow, turnRecordingOn } from '../support/poker';
 import { createRoom as createTimerRoom, joinAsDriver } from '../support/timer';
 import {
@@ -801,7 +801,7 @@ test.describe('timer は画面ごと（ロビー・セッション・まとめ�
   const TIMER_PAGE = 'div.ui-page.stage-inner';
 
   /** 幅 320 のロビー。ホスト + ドライバーで加わる 1 人（区切りのない 30 字の名前）。 */
-  async function openLobby(page: Page, openPeer: (label: string) => Promise<Peer>, label: string): Promise<string> {
+  async function openLobby(page: Page, openPeer: OpenPeer, label: string): Promise<string> {
     await page.setViewportSize({ width: 320, height: 640 });
     const code = await createTimerRoom(page, label);
     const guest = await openPeer(`${label}-guest`);
@@ -813,23 +813,38 @@ test.describe('timer は画面ごと（ロビー・セッション・まとめ�
     return code;
   }
 
-  /** お題ツールで加わり、お題を掲げる。 */
-  async function raiseTopic(page: Page, openPeer: (label: string) => Promise<Peer>, code: string, label: string, body: string): Promise<Peer> {
+  /** お題ツールで加わり、長いお題（`LINKED_LONG_BODY`）を掲げる。ホストの画面に最後の行まで届くのを待つ。 */
+  async function raiseTopic(page: Page, openPeer: OpenPeer, code: string, label: string): Promise<{ page: Page }> {
     const tool = await openPeer(`${label}-tool`);
     await joinTopicTool(tool.page, `/?room=${encodeURIComponent(code)}`, `${label}-t`);
-    await setTopic(tool.page, 'FizzBuzz', body);
+    await setTopic(tool.page, 'FizzBuzz', LINKED_LONG_BODY);
     await expect(page.getByRole('region', { name: 'お題', exact: true })).toContainText('40 行目の説明です。');
     return tool;
   }
 
   /** 幅 1280 でお題を掲げたロビーから、セッションを始める。 */
-  async function startSession(page: Page, openPeer: (label: string) => Promise<Peer>, label: string): Promise<Peer> {
+  async function startSession(page: Page, openPeer: OpenPeer, label: string): Promise<{ page: Page }> {
     const code = await openLobby(page, openPeer, label);
     await page.setViewportSize({ width: 1280, height: 900 });
-    const tool = await raiseTopic(page, openPeer, code, label, LINKED_LONG_BODY);
+    const tool = await raiseTopic(page, openPeer, code, label);
     await page.getByRole('button', { name: 'セッションを開始' }).click();
     await expect(page.getByRole('timer')).toBeVisible();
     return tool;
+  }
+
+  /**
+   * まとめの検査に要る準備だけでセッションを始める（ドライバーのゲスト 1 人。
+   * ロビーの 320 の確認もお題ツールの文脈も作らない）。ドライバー別の札が出るにはゲストが輪に要る。
+   */
+  async function startSessionWithGuest(page: Page, openPeer: OpenPeer, label: string): Promise<void> {
+    const code = await createTimerRoom(page, label);
+    const guest = await openPeer(`${label}-guest`);
+    const guestName = `${label}-g`;
+    await joinAsDriver(guest.page, code, guestName);
+    await expect(page.getByRole('listitem').filter({ hasText: guestName })).toBeVisible();
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.getByRole('button', { name: 'セッションを開始' }).click();
+    await expect(page.getByRole('timer')).toBeVisible();
   }
 
   test('Given 幅 320 のロビー（参加者 2 人） / When 幅 1920・1280 のロビーと長いお題を開く / Then ロビーは脇が右・22rem で先頭がお題で、行のアイコンの当たりは重ならない', async ({ page, openPeer }) => {
@@ -844,9 +859,8 @@ test.describe('timer は画面ごと（ロビー・セッション・まとめ�
     expect((await pageBox(page, TIMER_PAGE)).outer).toBe(96 * REM);
     await page.setViewportSize({ width: 1280, height: 900 });
     expect((await pageBox(page, TIMER_PAGE)).inner).toBeGreaterThanOrEqual(72 * REM);
-    await raiseTopic(page, openPeer, code, 'layout-timer', LINKED_LONG_BODY);
+    await raiseTopic(page, openPeer, code, 'layout-timer');
     const card = page.getByRole('region', { name: 'お題', exact: true });
-    await expect(card).toContainText('40 行目の説明です。');
     await expectNoHorizontalOverflow(page);
 
     // Then 脇は右・22rem・間 2rem。操作の面に「セッションを開始」、脇に「参加者」
@@ -1010,7 +1024,7 @@ test.describe('timer は画面ごと（ロビー・セッション・まとめ�
 
   test('Given 幅 1920 のセッション / When 完成にして幅 1920・1280・768・640・320 のまとめを開く / Then 器と帯は完了で動かず、まとめは 64rem 以上で 2 列・未満で 1 列', async ({ page, openPeer }) => {
     // まとめは完成にすると戻れないので、この `test` だけが完成にする。完了のあと幅を変えても出続けるので、同じルームで 4 つの幅を測る（#352）
-    await startSession(page, openPeer, 'layout-timer-summary');
+    await startSessionWithGuest(page, openPeer, 'layout-timer-summary');
     await page.setViewportSize({ width: 1920, height: 1080 });
     // L1 の基準: セッションの器の外寸と、上の帯の位置と幅（段の名前や 96rem の直値とは比べない。跳ねないことだけを見る）
     const frameBefore = { page: (await pageBox(page, TIMER_PAGE)).outer, strip: await boxOf(page, '.app-status-strip') };

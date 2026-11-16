@@ -470,13 +470,18 @@ test.describe('timer の各画面（ロビー・セッション・確認・ま�
   // （本番の枠 100 を消費しない）なので、画面ごとの `test` に割った（#597）。各 `test` は自分の部屋を作る
   // （まとめは完成にすると戻れないので、まとめの `test` だけが完成にする）。
 
-  /** 幅 1280 でセッションを始め、参加者を 6 人（30 字の名前を含む）にする。 */
-  async function startSessionWithRoster(page: Page): Promise<void> {
+  /** 幅 1280 でセッションを始める。 */
+  async function startSession(page: Page): Promise<void> {
     await page.setViewportSize({ width: 1280, height: 900 });
     await createTimerRoom(page, 'buttons-timer');
     await expect(page.getByRole('button', { name: 'セッションを開始' })).toBeVisible();
     await page.getByRole('button', { name: 'セッションを開始' }).click();
     await expect(page.getByRole('timer')).toBeVisible();
+  }
+
+  /** 幅 1280 でセッションを始め、参加者を 6 人（30 字の名前を含む）にする。 */
+  async function startSessionWithRoster(page: Page): Promise<void> {
+    await startSession(page);
     await addProxies(page, [LONG_NAME, 'proxy-b', 'proxy-c', 'proxy-e', 'proxy-f']);
     await expect(page.locator('.ui-workspace-side .roster-panel-row'), '名簿は 6 人').toHaveCount(6);
   }
@@ -645,8 +650,8 @@ test.describe('timer の各画面（ロビー・セッション・確認・ま�
     await expect(dialog).toBeHidden();
   });
 
-  test('Given 幅 390 のセッション（参加者 6 人） / When 完成にしてまとめを開く / Then 素のボタンは許可したものだけで、当たりが 44px 以上で重ならない', async ({ page }) => {
-    await startSessionWithRoster(page);
+  test('Given 幅 390 のセッション / When 完成にしてまとめを開く / Then 素のボタンは許可したものだけで、当たりが 44px 以上で重ならない', async ({ page }) => {
+    await startSession(page);
     await page.setViewportSize({ width: 390, height: 800 });
     await expect(page.getByRole('button', { name: '完成!', exact: true })).toBeVisible();
 
