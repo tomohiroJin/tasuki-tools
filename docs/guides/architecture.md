@@ -59,8 +59,8 @@ S2〜S4a では poker 側の入れ子（src/poker 配下。**S4b で畳みまし
 > アダプタ行から「web アプリ」が外れたので、「web の同期フック」行の「上のすべて」はもう画面に届かない（同期フック→画面の参照は違反と読む）。
 > 表と実体の差（違反と数えていた辺の数）と、直した後の測り直しの結果は、その追記の「実測」にある。
 >
-> **※※ #592（Proposed）**: 「web の純粋判断」の行に、`@tasuki/sync-client` の型だけ（`import type`）を足した。
-> [`docs/adr/0015`](../adr/0015-web-layer-structure.md) の追記（2026-11-16・#592）による。採択されなかったときは、この足しを戻す。
+> **※※ #592**: 「web の純粋判断」の行に、`@tasuki/sync-client` の型だけ（`import type`）を足した。
+> [`docs/adr/0015`](../adr/0015-web-layer-structure.md) の追記（2026-11-16・#592・Accepted）による。
 
 **#371 で寄せなかったもの（#470 で一部を寄せた・下記）**: 玄関への道（`hubPathFor` など）・`parseRoute`・招待の表示・タブ・timer の確認のダイアログは、
 各アプリに写しのまま置く（理由は [`2026-10-14-refactor-r11-shared-display-parts.md`](../superpowers/plans/2026-10-14-refactor-r11-shared-display-parts.md) §9）。
