@@ -18,4 +18,4 @@ diff --git a/apps/poker-web/src/hooks/useRoomEntry.ts b/apps/poker-web/src/hooks
 -    if (shouldForgetIdentity(errorCode)) syncRef.current.forgetIdentity(roomId);
      if (!isRateLimited(errorCode)) return;
      const stored = syncRef.current.storedIdentity(roomId);
-     // **保存が消えていることがある。** 同じ端末の別のタブが、消滅したルームの
+     // **保存が消えていることがある。** 同じ端末の別のタブが、消滅したルームのトークンを

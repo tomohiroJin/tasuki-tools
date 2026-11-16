@@ -17,6 +17,6 @@ diff --git a/apps/poker-web/src/room-entry-plan.ts b/apps/poker-web/src/room-ent
    if (status !== 'open') return { attempted: false, join: null };
 -  if (attempted || joinedThisConnection) return { attempted, join: null };
 +  if (attempted) return { attempted, join: null };
-   if (errorCode === ROOM_NOT_FOUND_CODE) return { attempted, join: null };
+   if (errorCode === 'room-not-found') return { attempted, join: null };
    const identity = stored();
    if (!identity) return { attempted, join: null };

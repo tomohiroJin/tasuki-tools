@@ -13,7 +13,7 @@ diff --git a/apps/poker-web/src/hooks/useRoomEntry.ts b/apps/poker-web/src/hooks
 +++ b/apps/poker-web/src/hooks/useRoomEntry.ts
 @@ -84,7 +84,6 @@ export function useRoomEntry(sync: PokerSync, roomId: string): RoomEntry {
        errorCode,
-       stored: () => sync.storedIdentity(roomId),
+       stored: readStored,
      });
 -    attemptedRef.current = rejoin.attempted;
      if (rejoin.join) sync.joinRoom(roomId, rejoin.join.displayName, rejoin.join.resumeToken);

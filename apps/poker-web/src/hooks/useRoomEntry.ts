@@ -69,10 +69,13 @@ export function useRoomEntry(sync: PokerSync, roomId: string): RoomEntry {
   const attemptedRef = useRef(false);
   useEffect(() => {
     const errorCode = sync.error?.code;
+    // 保存先は、要る判断が呼んだ時に 1 回だけ読む（入口の判断と自動復帰で共有する）。
+    let stored: ReturnType<PokerSync['storedIdentity']> | undefined;
+    const readStored = () => (stored === undefined ? (stored = sync.storedIdentity(roomId)) : stored);
     const entry = decideEntryRedirect(
       entryAppliedRef.current,
       errorCode,
-      () => sync.storedIdentity(roomId) !== null,
+      () => readStored() !== null,
     );
     entryAppliedRef.current = entry.applied;
     if (entry.redirect) redirectTo(hubPathFor(roomId));
@@ -82,7 +85,7 @@ export function useRoomEntry(sync: PokerSync, roomId: string): RoomEntry {
       attempted: attemptedRef.current,
       joinedThisConnection: sync.joinedThisConnection,
       errorCode,
-      stored: () => sync.storedIdentity(roomId),
+      stored: readStored,
     });
     attemptedRef.current = rejoin.attempted;
     if (rejoin.join) sync.joinRoom(roomId, rejoin.join.displayName, rejoin.join.resumeToken);
@@ -129,8 +132,8 @@ export function useRoomEntry(sync: PokerSync, roomId: string): RoomEntry {
     if (shouldForgetIdentity(errorCode)) syncRef.current.forgetIdentity(roomId);
     if (!isRateLimited(errorCode)) return;
     const stored = syncRef.current.storedIdentity(roomId);
-    // **保存が消えていることがある。** 同じ端末の別のタブが、消滅したルームの
-    // トークンを捨てる（上の `forgetIdentity`）と、この画面の足元から名乗りが消える。
+    // **保存が消えていることがある。** 同じ端末の別のタブが、消滅したルームのトークンを
+    // 捨てると、共有の localStorage が空になり、この画面の足元から名乗りが消える。
     // 送り直す名前を持たないのに「入り直しています」と出すと、画面の言うことが嘘になる。
     const name = stored?.displayName ?? null;
     const plan = planJoinRetry(rateLimitAttemptRef.current, name !== null);

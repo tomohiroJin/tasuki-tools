@@ -15,7 +15,7 @@ diff --git a/apps/poker-web/src/room-entry-plan.ts b/apps/poker-web/src/room-ent
    hasIdentity: () => boolean,
  ): { readonly applied: boolean; readonly redirect: boolean } {
    if (applied) return { applied, redirect: false };
--  if (errorCode === ROOM_NOT_FOUND_CODE) return { applied, redirect: false };
+-  if (errorCode === 'room-not-found') return { applied, redirect: false };
    return { applied: true, redirect: !hasIdentity() };
  }
  

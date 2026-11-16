@@ -10172,10 +10172,10 @@ export const MUTATIONS = [
   },
   {
     id: 1839,
-    label: "数え直しの効果が前の接続状態を覚えず、開いている間は毎回数え直す",
+    label: "数え直しの効果が前の接続状態を更新せず、接続し直しても試行回数が戻らない",
     patch: "m1839-room-entry-hook-open-not-tracked.patch",
     pkg: "apps/poker-web",
     tests: ["tests/room-page-join-retry.test.tsx"],
-    note: RESERVED_1830_1849 + " " + "#595。useRoomEntry から shouldResetRetry への配線。混雑の試行回数が数え直され続け、使い切って諦めることがなくなる。",
+    note: RESERVED_1830_1849 + " " + "#595。useRoomEntry から shouldResetRetry への配線。前の「開いていたか」が更新されず、最初の値のまま固まるので、接続し直しても「つなぎ直した」と見られず試行回数が戻らない。",
   },
 ];

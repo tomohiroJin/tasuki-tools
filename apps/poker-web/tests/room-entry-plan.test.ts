@@ -12,6 +12,7 @@ import {
   isRateLimited,
   shouldForgetIdentity,
   shouldResetRetry,
+  type AutoRejoinInput,
 } from '../src/room-entry-plan';
 
 describe('decideEntryRedirect', () => {
@@ -42,7 +43,7 @@ describe('decideEntryRedirect', () => {
 
 describe('decideAutoRejoin', () => {
   const stored = { displayName: 'はなこ', resumeToken: 'tok-1' };
-  const base = {
+  const base: AutoRejoinInput = {
     status: 'open',
     attempted: false,
     joinedThisConnection: false,

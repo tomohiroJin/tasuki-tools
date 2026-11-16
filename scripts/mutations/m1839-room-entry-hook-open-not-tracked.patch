@@ -7,7 +7,8 @@
 #       git apply scripts/mutations/m1839-*.patch
 # 復元: git apply -R scripts/mutations/m1839-*.patch
 #
-# #595。数え直しの効果が前の接続状態を覚えず、開いている間は毎回「つなぎ直した」と見て数え直す。
+# #595。数え直しの効果が前の「開いていたか」を更新しない。最初の値（開いている）のまま固まるので、
+# 接続し直しても「つなぎ直した」と見られず、混雑の試行回数が戻らない。
 diff --git a/apps/poker-web/src/hooks/useRoomEntry.ts b/apps/poker-web/src/hooks/useRoomEntry.ts
 --- a/apps/poker-web/src/hooks/useRoomEntry.ts
 +++ b/apps/poker-web/src/hooks/useRoomEntry.ts

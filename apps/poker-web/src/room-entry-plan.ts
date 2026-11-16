@@ -9,16 +9,11 @@
  * ここは待ち時間が出る前後の判断（入る・玄関へ送る・数え直す・入り直すか尋ねるか）だけを持つ。
  */
 
-/** 消滅したルームを受けたときのエラーコード。 */
-export const ROOM_NOT_FOUND_CODE = 'room-not-found';
-/** 混雑で弾かれたときのエラーコード。 */
-export const RATE_LIMITED_CODE = 'rate-limited';
+import type { ConnectionStatus, ResumeIdentity } from '@tasuki/sync-client';
+import type { ErrorCode } from '@tasuki/poker-core';
 
 /** 保存済みの名乗りのうち、入り直しに使う部分。 */
-export interface StoredEntry {
-  readonly displayName: string;
-  readonly resumeToken?: string;
-}
+export type StoredEntry = Pick<ResumeIdentity, 'displayName' | 'resumeToken'>;
 
 /**
  * 端末に同一性が無ければ玄関の参加画面へ送り返すかの判断。
@@ -34,20 +29,20 @@ export interface StoredEntry {
  */
 export function decideEntryRedirect(
   applied: boolean,
-  errorCode: string | null | undefined,
+  errorCode: ErrorCode | null | undefined,
   hasIdentity: () => boolean,
 ): { readonly applied: boolean; readonly redirect: boolean } {
   if (applied) return { applied, redirect: false };
-  if (errorCode === ROOM_NOT_FOUND_CODE) return { applied, redirect: false };
+  if (errorCode === 'room-not-found') return { applied, redirect: false };
   return { applied: true, redirect: !hasIdentity() };
 }
 
 export interface AutoRejoinInput {
-  readonly status: string;
+  readonly status: ConnectionStatus;
   /** この接続で、すでに入り直しを試みたか。 */
   readonly attempted: boolean;
   readonly joinedThisConnection: boolean;
-  readonly errorCode: string | null | undefined;
+  readonly errorCode: ErrorCode | null | undefined;
   /** 保存済みの名乗り（試みる場合にだけ呼ぶ）。 */
   readonly stored: () => StoredEntry | null;
 }
@@ -71,7 +66,7 @@ export function decideAutoRejoin(input: AutoRejoinInput): AutoRejoinDecision {
   const { status, attempted, joinedThisConnection, errorCode, stored } = input;
   if (status !== 'open') return { attempted: false, join: null };
   if (attempted || joinedThisConnection) return { attempted, join: null };
-  if (errorCode === ROOM_NOT_FOUND_CODE) return { attempted, join: null };
+  if (errorCode === 'room-not-found') return { attempted, join: null };
   const identity = stored();
   if (!identity) return { attempted, join: null };
   return { attempted: true, join: identity };
@@ -98,13 +93,13 @@ export function shouldResetRetry(input: RetryResetInput): boolean {
 }
 
 /** 消滅したルームのトークンを捨てるか（再試行ループ防止）。 */
-export function shouldForgetIdentity(errorCode: string | null | undefined): boolean {
-  return errorCode === ROOM_NOT_FOUND_CODE;
+export function shouldForgetIdentity(errorCode: ErrorCode | null | undefined): boolean {
+  return errorCode === 'room-not-found';
 }
 
 /** 混雑で弾かれたか（弾かれた回だけ入り直しを計画する）。 */
-export function isRateLimited(errorCode: string | null | undefined): boolean {
-  return errorCode === RATE_LIMITED_CODE;
+export function isRateLimited(errorCode: ErrorCode | null | undefined): boolean {
+  return errorCode === 'rate-limited';
 }
 
 export type RetryAction =
