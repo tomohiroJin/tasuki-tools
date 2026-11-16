@@ -9682,7 +9682,7 @@ export const MUTATIONS = [
     patch: "m1820-layer-export-keys-condition-map-as-subpaths.patch",
     pkg: "scripts",
     tests: ["lib/layer-direction.test.mjs"],
-    note: RESERVED_1820_1829 + " " + "#592。`{"types":…,"default":…}` 形の exports の package で、`.` が入口外と誤られる。",
+    note: RESERVED_1820_1829 + " " + "#592。条件の map（types・default だけのキー）形の exports の package で、`.` が入口外と誤られる。",
   },
   {
     id: 1821,
