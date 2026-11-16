@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { errorMessageFor } from "@tasuki/timer-core";
-import { baseFaces, outsideBase } from "../support/font-base.js";
+import { baseFaces, outsideBase } from "@tasuki/test-css/font-base";
 import { TOPIC_CARD_HEADING, TOPIC_CLOSE, TOPIC_READ_MORE } from "../../src/ui/components/TopicCard.js";
 
 /**

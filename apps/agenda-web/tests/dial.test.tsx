@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { Dial } from '../src/components/Dial';
 import { needleDeg } from '../src/dial-geometry';
 import { Driver, MIN, idleView } from './support/agenda-states';
-import { outsideBase } from './support/font-base';
+import { outsideBase } from '@tasuki/test-css/font-base';
 
 const WALL = new Date(2026, 9, 20, 14, 0, 0);
 

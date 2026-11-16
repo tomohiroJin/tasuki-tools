@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AGENDA_ERROR_CODES, agendaErrorMessageFor } from "../src/index.js";
-import { baseFaces, outsideBase } from "./support/font-base.js";
+import { baseFaces, outsideBase } from "@tasuki/test-css/font-base";
 
 /** 同期サーバーの正本（`apps/tasuki-sync/src/application/connection-errors.ts`）を書き写したもの。 */
 const CONNECTION_MESSAGE_TOO_LARGE_TEXT = "メッセージが大きすぎます";

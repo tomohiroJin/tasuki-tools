@@ -1,0 +1,22 @@
+# 変異 1892: scripted-socket-drop-silent
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/agenda-room.test.tsx
+#
+# #594。共有した偽の WebSocket の drop が、サーバー側から切っても onclose を起こさない（再接続の経路が動かない）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1892-*.patch
+# 復元: git apply -R scripts/mutations/m1892-*.patch
+diff --git a/packages/test-css/src/scripted-web-socket.ts b/packages/test-css/src/scripted-web-socket.ts
+index 259df3f8..5977e967 100644
+--- a/packages/test-css/src/scripted-web-socket.ts
++++ b/packages/test-css/src/scripted-web-socket.ts
+@@ -35,7 +35,6 @@ export class ScriptedWebSocket {
+   /** サーバー側から切る（`onclose` を起こす）。 */
+   drop(): void {
+     this.readyState = 3;
+-    this.onclose?.();
+   }
+ 
+   deliver(msg: unknown): void {

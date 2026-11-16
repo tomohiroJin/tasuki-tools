@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { errorMessageFor } from "@tasuki/timer-core";
-import { baseFaces } from "../support/font-base.js";
+import { baseFaces } from "@tasuki/test-css/font-base";
 import { BREAK_TEXT } from "../../src/ui/break-view.js";
 import { COMPLETE_BUTTON_LABEL, completeConfirmText } from "../../src/ui/components/EndSessionZone.js";
 import { SELF_SKIP_LABEL } from "../../src/ui/components/SelfDriverToggle.js";

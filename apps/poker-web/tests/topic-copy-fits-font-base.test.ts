@@ -4,7 +4,7 @@
  * @requirements #91 spec §5.4（UI 文言は書体の base 層に収める）
  */
 import { describe, expect, it } from 'vitest';
-import { baseFaces, outsideBase } from './support/font-base';
+import { baseFaces, outsideBase } from '@tasuki/test-css/font-base';
 import { CLOSE, READ_MORE, TOPIC_HEADING, TOPIC_HIDE, TOPIC_SHOW } from '../src/components/CurrentTopic';
 
 describe('いまのお題の文言は書体の常用の層に収まる', () => {

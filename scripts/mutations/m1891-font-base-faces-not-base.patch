@@ -1,0 +1,23 @@
+# 変異 1891: font-base-faces-not-base
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/copy-fits-font-base.test.ts
+#
+# #594。共有した baseFaces が base 層でない面（拡張の層）を拾い、base 層を拾わなくなる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1891-*.patch
+# 復元: git apply -R scripts/mutations/m1891-*.patch
+diff --git a/packages/test-css/src/font-base.mjs b/packages/test-css/src/font-base.mjs
+index a7e25072..adf90692 100644
+--- a/packages/test-css/src/font-base.mjs
++++ b/packages/test-css/src/font-base.mjs
+@@ -21,7 +21,7 @@ export function baseFaces() {
+     const file = /url\('[^']*\/([^'/]+)'\)/.exec(block ?? '')?.[1];
+     const range = /unicode-range:\s*([^;]+);/.exec(block ?? '')?.[1];
+     if (file === undefined || range === undefined) continue;
+-    if (!file.startsWith('zkgn-') || !file.includes('-base')) continue;
++    if (!file.startsWith('zkgn-') || file.includes('-base')) continue;
+     faces.set(
+       file,
+       range.split(',').map((part) => {

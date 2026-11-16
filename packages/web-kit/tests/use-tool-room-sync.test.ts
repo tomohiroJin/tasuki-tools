@@ -8,7 +8,7 @@ import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { joinRetryDelayMs, loadResumeIdentity, saveResumeIdentity } from '@tasuki/sync-client';
 import { useToolRoomSync, type ToolRoomFrameHandlers } from '../src/sync/use-tool-room-sync.js';
-import { ScriptedWebSocket, latestSocket } from './support/scripted-web-socket.js';
+import { ScriptedWebSocket, latestSocket } from '@tasuki/test-css/scripted-web-socket';
 
 type Frame =
   | { type: 'room.joined'; code: string; participantId: string; resumeToken: string }

@@ -1,6 +1,9 @@
 /**
- * 台本どおりに動く WebSocket（テスト用）。サーバーは立てず、開く・切る・届けるをテストが起こす。
- * 各 web アプリのテストの `tests/support/scripted-web-socket.ts` と同じ形。
+ * 台本どおりに動く WebSocket（テスト用・#594）。サーバーは立てず、開く・切る・届けるをテストが起こす。
+ *
+ * 5 か所（agenda-web・checkin-web・roulette-web・topic-web・web-kit）にあった先頭 25 行の写しを 1 つにした。
+ * 各アプリには、そのアプリの固定データ（復帰の組・状態・名簿のフレーム）だけを残す。
+ * node の API を使わないので TypeScript のまま置く（`docs/adr/0017` の追記（#599）決まり 4。型は読む側の型検査が中身まで見る）。
  */
 export class ScriptedWebSocket {
   static instances: ScriptedWebSocket[] = [];
@@ -12,7 +15,11 @@ export class ScriptedWebSocket {
   onmessage: ((e: { data: unknown }) => void) | null = null;
   onerror: (() => void) | null = null;
 
-  constructor(readonly url: string) {
+  readonly url: string;
+
+  // parameter property（`constructor(readonly url)`）は node の型の取り除き（--experimental-strip-types）で読めないので、明示のフィールドと代入で書く
+  constructor(url: string) {
+    this.url = url;
     ScriptedWebSocket.instances.push(this);
   }
 
@@ -45,8 +52,8 @@ export class ScriptedWebSocket {
   }
 }
 
-export function latestSocket(): ScriptedWebSocket {
+export const latestSocket =(): ScriptedWebSocket => {
   const socket = ScriptedWebSocket.instances.at(-1);
-  if (socket === undefined) throw new Error('WebSocket がまだ作られていません');
+  if (socket === undefined) throw new Error('WebSocket が 1 本も張られていない');
   return socket;
-}
+};

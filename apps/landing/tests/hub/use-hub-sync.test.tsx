@@ -9,40 +9,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { joinRetryDelayMs, saveDefaultDisplayName, saveResumeIdentity } from '@tasuki/sync-client';
 import { App } from '../../src/App.js';
-
-/** 送った中身を覚え、サーバーからの応答を差し込める WebSocket。 */
-class ScriptedWebSocket {
-  static instances: ScriptedWebSocket[] = [];
-  static readonly OPEN = 1;
-  readyState = 0;
-  sent: string[] = [];
-  onopen: (() => void) | null = null;
-  onclose: (() => void) | null = null;
-  onmessage: ((e: { data: unknown }) => void) | null = null;
-  onerror: (() => void) | null = null;
-
-  constructor(readonly url: string) {
-    ScriptedWebSocket.instances.push(this);
-  }
-
-  send(data: string): void {
-    this.sent.push(data);
-  }
-
-  close(): void {
-    this.readyState = 3;
-  }
-
-  open(): void {
-    this.readyState = ScriptedWebSocket.OPEN;
-    this.onopen?.();
-  }
-
-  /** サーバーからの 1 通を届ける。 */
-  deliver(msg: unknown): void {
-    this.onmessage?.({ data: JSON.stringify(msg) });
-  }
-}
+import { ScriptedWebSocket } from '@tasuki/test-css/scripted-web-socket';
 
 const socket = (): ScriptedWebSocket => ScriptedWebSocket.instances[0]!;
 

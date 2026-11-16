@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { CHECKIN_ERROR_CODES, checkinErrorMessageFor } from '@tasuki/checkin-core';
 import * as copy from '../src/copy';
 import { METHOD_COPY } from '../src/method-copy';
-import { baseFaces, outsideBase } from './support/font-base';
+import { baseFaces, outsideBase } from '@tasuki/test-css/font-base';
 
 /**
  * 文言の一覧。`copy.ts` の文字列と、名前などを差し込む関数（**ASCII の仮の値で呼んだ結果**。

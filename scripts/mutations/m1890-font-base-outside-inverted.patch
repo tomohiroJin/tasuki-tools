@@ -1,0 +1,23 @@
+# 変異 1890: font-base-outside-inverted
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/copy-fits-font-base.test.ts
+#
+# #594。共有した書体の判定 outsideBase の範囲の比べを反転する。base 層に収まる字を「外れる」、外れる字を「収まる」と読む。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1890-*.patch
+# 復元: git apply -R scripts/mutations/m1890-*.patch
+diff --git a/packages/test-css/src/font-base.mjs b/packages/test-css/src/font-base.mjs
+index a7e25072..c86f21a7 100644
+--- a/packages/test-css/src/font-base.mjs
++++ b/packages/test-css/src/font-base.mjs
+@@ -42,7 +42,7 @@ export function outsideBase(texts) {
+     for (const [file, ranges] of faces) {
+       const outside = [...new Set(text)].filter((ch) => {
+         const cp = ch.codePointAt(0) ?? 0;
+-        return cp > 0x7e && !ranges.some(([from, to]) => cp >= from && cp <= to);
++        return cp > 0x7e && ranges.some(([from, to]) => cp >= from && cp <= to);
+       });
+       if (outside.length > 0) failures.push(`${file}「${text}」: ${outside.join('')}`);
+     }

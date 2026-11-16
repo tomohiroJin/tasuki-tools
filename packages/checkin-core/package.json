@@ -16,6 +16,7 @@
     "valibot": "^1.0.0"
   },
   "devDependencies": {
+    "@tasuki/test-css": "workspace:*",
     "@vitest/coverage-v8": "^4.1.11",
     "vitest": "^4.1.11"
   }
