@@ -31,7 +31,7 @@
  * - 上の 3 つ以外の外部パッケージ（`neverthrow`・`valibot` など）。純粋判断・端末 I/O に何を入れてよいかは、ここでは決めない
  * - テスト・`e2e/`・設定ファイル（`vite.config.ts` など）。層で裁いていない
  * - 同期サーバーの組み立て（`src` 直下）。組み立ては `audit-assembly-wiring.mjs` の管轄で、全層を読んでよい
- * - 動的な指定子（変数）・`require`・CSS の `@import`
+ * - 動的な指定子（変数）・`require()` の呼び出し（`import S = require(…)` は見る）・`import.meta.glob`・CSS の `@import`
  */
 import path from "node:path";
 import ts from "typescript";
@@ -166,6 +166,11 @@ export function extractSpecifiers(text, fileName = "x.ts") {
       out.push({ spec: node.moduleSpecifier.text, line: lineOf(node.moduleSpecifier), typeOnly: node.isTypeOnly });
     } else if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword && node.arguments.length === 1 && ts.isStringLiteralLike(node.arguments[0])) {
       out.push({ spec: node.arguments[0].text, line: lineOf(node.arguments[0]), typeOnly: false });
+    } else if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument) && ts.isStringLiteral(node.argument.literal)) {
+      // 型の位置の import('…')（`typeof import('…')` を含む）。型だけの依存
+      out.push({ spec: node.argument.literal.text, line: lineOf(node.argument.literal), typeOnly: true });
+    } else if (ts.isImportEqualsDeclaration(node) && ts.isExternalModuleReference(node.moduleReference) && ts.isStringLiteral(node.moduleReference.expression)) {
+      out.push({ spec: node.moduleReference.expression.text, line: lineOf(node.moduleReference.expression), typeOnly: !!node.isTypeOnly });
     }
     ts.forEachChild(node, visit);
   };

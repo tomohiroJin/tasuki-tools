@@ -61,7 +61,7 @@ test("層の判定: テスト・型宣言・src の外・web でないパッケ�
   assert.equal(layerOfFile("packages/room-core/src/x.ts", CTX), null);
 });
 
-test("層の判定: 同期サーバーは ports・application・adapters に分け、組み立て（src 直下）は見ない", () => {
+test("層の判定: 同期サーバーは ports・application・adapters に分け、組み立て（src 直下・assembly/）は、読み元としては何を読んでもよい", () => {
   assert.equal(layerOfFile("apps/tasuki-sync/src/ports/p.ts", CTX), "sync/ports");
   assert.equal(layerOfFile("apps/tasuki-sync/src/application/a.ts", CTX), "sync/application");
   assert.equal(layerOfFile("apps/tasuki-sync/src/adapters/ws/g.ts", CTX), "sync/adapters");
@@ -368,4 +368,36 @@ test("isDeclaredEntry: 完全一致と * のワイルドカード（./* は ./x 
   assert.equal(isDeclaredEntry(keys, "./lib"), false);
   assert.equal(isDeclaredEntry(keys, "./other/xyzxyz"), false);
   assert.equal(isDeclaredEntry(new Set(["./*"]), "./anything"), true);
+});
+
+test("型の位置の import('…')（import type 式・typeof import）は型だけの指定子として取る", () => {
+  const got = extractSpecifiers(
+    [
+      "type A = import('./a').X;",
+      "let b: typeof import('./b');",
+      "function f(c: import('./c').Y) {}",
+    ].join("\n"),
+    "x.ts",
+  );
+  assert.deepEqual(got, [
+    { spec: "./a", line: 1, typeOnly: true },
+    { spec: "./b", line: 2, typeOnly: true },
+    { spec: "./c", line: 3, typeOnly: true },
+  ]);
+});
+
+test("import S = require('…') は値の指定子として取る", () => {
+  assert.deepEqual(extractSpecifiers("import S = require('./s');", "x.ts"), [{ spec: "./s", line: 1, typeOnly: false }]);
+});
+
+test("型の位置の import('…') で画面の型を読む辺・require で読む辺も赤になる", () => {
+  const vs = check({
+    [`${APP}/src/a.ts`]: "type T = import('./Screen').X;",
+    [`${APP}/src/b.ts`]: "import S = require('./Screen');",
+    [`${APP}/src/Screen.tsx`]: "export type X = 1;",
+  });
+  assert.deepEqual(brief(vs), [
+    `layer ${APP}/src/a.ts:1 -> ${APP}/src/Screen.tsx`,
+    `layer ${APP}/src/b.ts:1 -> ${APP}/src/Screen.tsx`,
+  ]);
 });
