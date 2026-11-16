@@ -1,0 +1,21 @@
+# 変異 1835: room-retry-action-empty-name-checks
+#
+# 検出を期待するテスト:
+#   - apps/poker-web/tests/room-entry-plan.test.ts
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1835-*.patch
+# 復元: git apply -R scripts/mutations/m1835-*.patch
+#
+# #595。名前の有無を真偽で見て、空の名前を「持たない」と取り違える（案内と送るものがずれる）。
+diff --git a/apps/poker-web/src/room-entry-plan.ts b/apps/poker-web/src/room-entry-plan.ts
+--- a/apps/poker-web/src/room-entry-plan.ts
++++ b/apps/poker-web/src/room-entry-plan.ts
+@@ -118,6 +118,6 @@ export type RetryAction =
+  * 案内が言ったこと（「入り直しています」か否か）と送るものを揃える。
+  */
+ export function decideRetryAction(name: string | null, resumeToken: string | undefined): RetryAction {
+-  if (name !== null) return { kind: 'join', displayName: name, resumeToken };
++  if (name) return { kind: 'join', displayName: name, resumeToken };
+   return { kind: 'check' };
+ }
