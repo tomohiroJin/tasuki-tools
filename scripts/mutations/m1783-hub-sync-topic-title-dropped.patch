@@ -1,0 +1,24 @@
+# 変異 1783: hub-sync-topic-title-dropped
+#
+# 検出を期待するテスト:
+#   - apps/landing/tests/hub/use-hub-sync.test.tsx
+#     「Given 参加の応答 / When お題の状態が届く / Then 選択画面に場のお題のタイトルが出る」
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1783-*.patch
+# 復元: git apply -R scripts/mutations/m1783-*.patch
+#
+# #595。`use-hub-sync.ts` が `classifyHubFrame` の topic 分類を受けても、タイトルを状態へ
+# 反映しない（常に null）。分けた先の見分けは正しいまま、選択画面の「いまのお題」が出ない（配線の変異）。
+diff --git a/apps/landing/src/hub/use-hub-sync.ts b/apps/landing/src/hub/use-hub-sync.ts
+--- a/apps/landing/src/hub/use-hub-sync.ts
++++ b/apps/landing/src/hub/use-hub-sync.ts
+@@ -194,7 +194,7 @@ export function useHubSync(): HubSync {
+         // 受信フレームの見分け（境界の検証・原則 IV）は `hub-frames.ts`。
+         const frame = classifyHubFrame(raw);
+         if (frame.kind === 'topic') {
+-          setTopicTitle(frame.title);
++          setTopicTitle(null);
+           return;
+         }
+         if (frame.kind === 'drop') return;

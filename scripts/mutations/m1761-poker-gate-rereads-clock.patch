@@ -1,0 +1,13 @@
+diff --git a/apps/tasuki-sync/src/application/poker-rate-limit-gate.ts b/apps/tasuki-sync/src/application/poker-rate-limit-gate.ts
+index 95a1da6d..157984a8 100644
+--- a/apps/tasuki-sync/src/application/poker-rate-limit-gate.ts
++++ b/apps/tasuki-sync/src/application/poker-rate-limit-gate.ts
+@@ -75,7 +75,7 @@ export function createPokerRateLimitGate({ clock, rateLimiter }: PokerRateLimitG
+       const now = clock.now();
+       return {
+         rejected: rateLimiter.shouldReject(rateKey, now),
+-        consumeOnMiss: () => rateLimiter.consume(rateKey, now),
++        consumeOnMiss: () => rateLimiter.consume(rateKey, clock.now()),
+       };
+     },
+   };

@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-domain-side-effects.mjs b/scripts/audit-domain-side-effects.mjs
+index da61d38e..58885e39 100644
+--- a/scripts/audit-domain-side-effects.mjs
++++ b/scripts/audit-domain-side-effects.mjs
+@@ -199,7 +199,7 @@ export const FORBIDDEN_PATTERNS = [
+   {
+     token: MUTABLE_COLLECTION_TOKEN,
+     pattern:
+-      /^(?:export\s+)?const\s+([\w$]+)\s*(?::(?!\s*Readonly(?:Map|Set)\b)[^\n]*?)?=\s*new\s+(?:Map|Set|WeakMap|WeakSet)\b/,
++      /^(?:export\s+)?const\s+([\w$]+)\s*(?::(?!\s*Readonly(?:Map|Set)\b)[^\n]*?)?=\s*new\s+(?:Map|WeakMap|WeakSet)\b/,
+   },
+ ];
+ 

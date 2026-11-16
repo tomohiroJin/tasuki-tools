@@ -279,7 +279,12 @@ export function normalizeDisplayName(raw: string): string {
  */
 const SKELETON_CACHE_MAX = 512;
 
-/** 表示名 → 骨格のメモ。純関数なので古い値が誤りになることはない。 */
+/**
+ * 表示名 → 骨格のメモ。純関数なので古い値が誤りになることはない。
+ *
+ * 最上位の可変な `Map` を禁じる検査（`scripts/audit-domain-side-effects.mjs`）の**例外として宣言している**
+ * （`ALLOWED_TOP_LEVEL_MUTABLE`・理由つき）。名前を変えたり別のメモを足したりしたら、そちらも直す。
+ */
 const skeletonCache = new Map<string, string>();
 
 /**

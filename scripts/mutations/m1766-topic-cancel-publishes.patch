@@ -1,0 +1,12 @@
+diff --git a/apps/tasuki-sync/src/application/topic-generation.ts b/apps/tasuki-sync/src/application/topic-generation.ts
+index 649a8b79..ba93d0d2 100644
+--- a/apps/tasuki-sync/src/application/topic-generation.ts
++++ b/apps/tasuki-sync/src/application/topic-generation.ts
+@@ -117,6 +117,7 @@ export class TopicGenerator {
+     clearTimeout(gen.timer);
+     gen.abort.abort();
+     gen.release();
++    this.deps.publish(roomCode);
+   }
+ 
+   cancelAll(): void {

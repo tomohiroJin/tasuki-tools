@@ -154,6 +154,28 @@ describe('組む画面', () => {
     expect(document.body.textContent).not.toContain(SCENARIO_CHANGED_NOTE);
   });
 
+  it('Given ルームのシナリオに追いついた下書き / When 手元で行の名前を変える / Then 「シナリオが変わりました」は出ず、手元の名前が残る', () => {
+    // Given: 空の下書きにルームのシナリオが届いて追いつく
+    joinedRoom();
+    deliverAgenda(idleAgenda('Retro', [['Check', 5]]));
+    // When
+    typeName(1, 'Mine');
+    // Then: 追いついた状態が保持されていれば、ルームは変わっていないので知らせない
+    expect(nameField(1).value).toBe('Mine');
+    expect(document.body.textContent).not.toContain(SCENARIO_CHANGED_NOTE);
+  });
+
+  it('Given 「シナリオが変わりました」が出ている / When 手元の下書きをルームと同じに直す / Then 知らせが下りる', () => {
+    joinedRoom(idleAgenda('Retro', [['Check', 5]]));
+    typeName(1, 'Mine');
+    deliverAgenda(idleAgenda('Retro', [['Theirs', 5]]));
+    expect(document.body.textContent).toContain(SCENARIO_CHANGED_NOTE);
+    // When
+    typeName(1, 'Theirs');
+    // Then: 下書きがルームと同じになったので、知らせは下りる
+    expect(document.body.textContent).not.toContain(SCENARIO_CHANGED_NOTE);
+  });
+
   it('Given サンプルを読んだ / When 名前に改行・タブを貼る / Then 改行は欄が捨て、タブが残れば「ルームに読み込む」は押せず、理由が出る', () => {
     joinedRoom();
     pickSample();

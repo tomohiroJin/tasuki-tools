@@ -1,0 +1,12 @@
+diff --git a/apps/tasuki-sync/src/application/normalize-command-names.ts b/apps/tasuki-sync/src/application/normalize-command-names.ts
+index 7914ce99..b9087ab7 100644
+--- a/apps/tasuki-sync/src/application/normalize-command-names.ts
++++ b/apps/tasuki-sync/src/application/normalize-command-names.ts
+@@ -52,6 +52,7 @@ export const COMMANDS_WITH_DISPLAY_NAME = [
+   "room.join",
+   "participant.addProxy",
+   "participant.rename",
++  "member.add",
+ ] as const;
+ 
+ /**

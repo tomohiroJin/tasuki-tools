@@ -1,0 +1,13 @@
+diff --git a/apps/tasuki-sync/src/application/room-entry.ts b/apps/tasuki-sync/src/application/room-entry.ts
+index 598417fa..d3db15d2 100644
+--- a/apps/tasuki-sync/src/application/room-entry.ts
++++ b/apps/tasuki-sync/src/application/room-entry.ts
+@@ -74,7 +74,7 @@ export function findResumableParticipant(
+   const tokenData = tokenStore.getResume(resumeToken);
+   if (tokenData === undefined || tokenData.roomCode !== code) return miss;
+   const participant = findParticipant(room, tokenData.participantId);
+-  return participant === undefined ? miss : { kind: "resumed", participant, resumeToken };
++  return participant === undefined ? miss : miss;
+ }
+ 
+ /**
