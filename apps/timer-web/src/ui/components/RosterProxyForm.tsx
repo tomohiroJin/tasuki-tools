@@ -5,7 +5,7 @@
 
 import { MAX_DISPLAY_NAME } from "@tasuki/room-core";
 import type { Rejection } from "../name-request.js";
-import { submitOnEnter } from "./submit-on-enter.js";
+import { submitOnEnter } from "../submit-on-enter.js";
 
 interface RosterProxyFormProps {
   name: string;

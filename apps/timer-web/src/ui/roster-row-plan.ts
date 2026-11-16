@@ -3,13 +3,10 @@
  * React にも I/O にも依存しない。判断は移す前のまま。
  */
 
+import type { Participant } from "@tasuki/timer-core";
+
 /** 行を決めるのに要る参加者の項目（`Participant` の部分） */
-export interface RosterRowParticipant {
-  participantId: string;
-  presence: "online" | "idle" | "offline";
-  isPlaceholder?: boolean | undefined;
-  driverEligible?: boolean | undefined;
-}
+export type RosterRowParticipant = Pick<Participant, "participantId" | "presence" | "isPlaceholder" | "driverEligible">;
 
 export interface RosterRowInput {
   participant: RosterRowParticipant;
@@ -27,12 +24,10 @@ export interface RosterRowInput {
 
 export interface RosterRowPlan {
   isCurrentDriver: boolean;
-  isMine: boolean;
   isSkipping: boolean;
   /** ドライバー順での位置。-1 なら見学（rotation 外） */
   rotationIndex: number;
   inRotation: boolean;
-  rotationLen: number;
   canMove: boolean;
   moveUpDisabled: boolean;
   moveDownDisabled: boolean;
@@ -66,11 +61,9 @@ export function planRosterRow(input: RosterRowInput): RosterRowPlan {
     (p.presence !== "offline" || p.isPlaceholder === true);
   return {
     isCurrentDriver,
-    isMine,
     isSkipping,
     rotationIndex,
     inRotation,
-    rotationLen,
     canMove,
     moveUpDisabled: rotationIndex === 0,
     moveDownDisabled: rotationIndex === rotationLen - 1,

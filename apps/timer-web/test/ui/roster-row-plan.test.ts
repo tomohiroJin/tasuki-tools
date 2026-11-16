@@ -19,7 +19,6 @@ describe("planRosterRow", () => {
   it("輪の中の位置は rotation の添字で決まり、現ドライバーは識別子で決まる", () => {
     const plan = planRosterRow(base);
     expect(plan.rotationIndex).toBe(1);
-    expect(plan.rotationLen).toBe(3);
     expect(plan.inRotation).toBe(true);
     expect(plan.isCurrentDriver).toBe(false);
     expect(planRosterRow({ ...base, participant: { ...base.participant, participantId: "a" } }).isCurrentDriver).toBe(true);
@@ -42,7 +41,7 @@ describe("planRosterRow", () => {
   it("rotation が無ければ全員が見学として扱われる", () => {
     const plan = planRosterRow({ ...base, rotation: undefined });
     expect(plan.inRotation).toBe(false);
-    expect(plan.rotationLen).toBe(0);
+    expect(plan.canMove).toBe(false);
   });
 
   it("並べ替えはドライバーが 2 人以上いて onMove があるときだけ", () => {

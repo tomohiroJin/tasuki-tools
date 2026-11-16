@@ -14,7 +14,7 @@ import { PresenceDot } from "./PresenceDot.js";
 import { MiniButton } from "./MiniButton.js";
 import type { Rejection } from "../name-request.js";
 import type { RosterRowPlan } from "../roster-row-plan.js";
-import { submitOnEnter } from "./submit-on-enter.js";
+import { submitOnEnter } from "../submit-on-enter.js";
 
 /** 改名中の行が受け取るもの（改名中でない行には渡さない） */
 export interface RosterRowEditing {
@@ -147,10 +147,10 @@ export function RosterRow({
               <span className="roster-panel-icon-actions">
                 {/* ドライバー順を入れ替えられる（v2.3 #1）。
                     ドライバー行（rotation に含まれる）にのみ上/下を出す。先頭/末尾は無効化。 */}
-                {plan.canMove && (
+                {plan.canMove && onMove && (
                   <>
                     <MiniButton
-                      onClick={() => onMove!(rotationIndex, rotationIndex - 1)}
+                      onClick={() => onMove(rotationIndex, rotationIndex - 1)}
                       disabled={plan.moveUpDisabled}
                       aria-label={`${label} を前の順番へ`}
                       title="前の順番へ"
@@ -158,7 +158,7 @@ export function RosterRow({
                       <ChevronUp className="roster-panel-icon" aria-hidden="true" />
                     </MiniButton>
                     <MiniButton
-                      onClick={() => onMove!(rotationIndex, rotationIndex + 1)}
+                      onClick={() => onMove(rotationIndex, rotationIndex + 1)}
                       disabled={plan.moveDownDisabled}
                       aria-label={`${label} を後の順番へ`}
                       title="後の順番へ"
@@ -211,7 +211,7 @@ export function RosterRow({
             {/* 現ドライバー以外の rotation メンバーを即ドライバーに指名できる（Issue #13）。
                 実在（非代理）オフラインの相手は無人ドライバーになるため指名不可。
                 代理(placeholder)は Web 非接続が常態で対面在席するため offline でも指名可能。 */}
-            {plan.canAssign && (
+            {plan.canAssign && onAssignDriver && (
               <MiniButton
                 onClick={onAssignDriver}
                 aria-label={`${label} をドライバーにする`}
