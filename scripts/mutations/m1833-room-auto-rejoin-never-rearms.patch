@@ -1,0 +1,22 @@
+# 変異 1833: room-auto-rejoin-never-rearms
+#
+# 検出を期待するテスト:
+#   - apps/poker-web/tests/room-entry-plan.test.ts
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1833-*.patch
+# 復元: git apply -R scripts/mutations/m1833-*.patch
+#
+# #595。接続が切れても「試みた」を戻さず、つながり直した接続で自動復帰しない。
+diff --git a/apps/poker-web/src/room-entry-plan.ts b/apps/poker-web/src/room-entry-plan.ts
+--- a/apps/poker-web/src/room-entry-plan.ts
++++ b/apps/poker-web/src/room-entry-plan.ts
+@@ -69,7 +69,7 @@ export interface AutoRejoinDecision {
+  */
+ export function decideAutoRejoin(input: AutoRejoinInput): AutoRejoinDecision {
+   const { status, attempted, joinedThisConnection, errorCode, stored } = input;
+-  if (status !== 'open') return { attempted: false, join: null };
++  if (status !== 'open') return { attempted, join: null };
+   if (attempted || joinedThisConnection) return { attempted, join: null };
+   if (errorCode === 'room-not-found') return { attempted, join: null };
+   const identity = stored();

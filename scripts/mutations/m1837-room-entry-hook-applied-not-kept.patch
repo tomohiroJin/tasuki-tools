@@ -1,0 +1,21 @@
+# 変異 1837: room-entry-hook-applied-not-kept
+#
+# 検出を期待するテスト:
+#   - apps/poker-web/tests/room-page-redirect.test.tsx・room-page-join-retry.test.tsx
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1837-*.patch
+# 復元: git apply -R scripts/mutations/m1837-*.patch
+#
+# #595。入口の効果が「決めた」を保存せず、同期の値が変わるたびに玄関へ送り直す。
+diff --git a/apps/poker-web/src/hooks/useRoomEntry.ts b/apps/poker-web/src/hooks/useRoomEntry.ts
+--- a/apps/poker-web/src/hooks/useRoomEntry.ts
++++ b/apps/poker-web/src/hooks/useRoomEntry.ts
+@@ -74,7 +74,6 @@ export function useRoomEntry(sync: PokerSync, roomId: string): RoomEntry {
+       errorCode,
+       () => readStored() !== null,
+     );
+-    entryAppliedRef.current = entry.applied;
+     if (entry.redirect) redirectTo(hubPathFor(roomId));
+ 
+     const rejoin = decideAutoRejoin({

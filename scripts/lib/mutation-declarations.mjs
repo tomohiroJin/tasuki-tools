@@ -242,6 +242,9 @@ const RESERVED_1780_1799 =
 const RESERVED_1800_1819 =
   "**対応表より後に足した変異。** 1800〜1819 は #595（ScenarioBuilder を責務で分ける）に割り当てた範囲。";
 
+const RESERVED_1830_1849 =
+  "**対応表より後に足した変異。** 1830〜1849 は #595（useRoomEntry を責務で分ける）に割り当てた範囲。";
+
 const RESERVED_1420_1429 =
   "**対応表より後に足した変異。** 1420〜1429 は #557 に追加で割り当てた範囲（1120〜1129・1410〜1419 を使い切ったため。PR #580 のレビューの指摘で足した）。";
 
@@ -10094,5 +10097,85 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["lib/layer-direction.test.mjs"],
     note: RESERVED_1820_1829 + " " + "#592。require 形の import で層を越える辺が緑のまま入る。",
+  },
+  {
+    id: 1830,
+    label: "入口の判断が、消滅したルームを受けている間も決めてしまう",
+    patch: "m1830-room-entry-redirect-ignores-room-gone.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/room-entry-plan.test.ts"],
+    note: RESERVED_1830_1849 + " " + "#595。分けた先の純粋な判断（decideEntryRedirect）。消滅したルームを受けても玄関へ送り、消滅の案内（戻る道つき）を出す前に画面が飛ぶ。",
+  },
+  {
+    id: 1831,
+    label: "入口の判断が 1 回で済まず、決めた後も玄関へ送り直す",
+    patch: "m1831-room-entry-redirect-repeats.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/room-entry-plan.test.ts"],
+    note: RESERVED_1830_1849 + " " + "#595。分けた先の純粋な判断（decideEntryRedirect）。同期の値が変わるたびに送り直す。",
+  },
+  {
+    id: 1832,
+    label: "自動復帰が、この接続で入室済みでも入り直しを送る",
+    patch: "m1832-room-auto-rejoin-ignores-joined.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/room-entry-plan.test.ts"],
+    note: RESERVED_1830_1849 + " " + "#595。分けた先の純粋な判断（decideAutoRejoin）。入室済みの人に入室を重ねて送る（切断前の古い snapshot で判定する誤りと同じ形）。",
+  },
+  {
+    id: 1833,
+    label: "接続が切れても「試みた」を戻さず、つなぎ直した接続で自動復帰しない",
+    patch: "m1833-room-auto-rejoin-never-rearms.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/room-entry-plan.test.ts"],
+    note: RESERVED_1830_1849 + " " + "#595。分けた先の純粋な判断（decideAutoRejoin）。回線が切れて戻った人が、再読込するまでルームへ入り直せない。",
+  },
+  {
+    id: 1834,
+    label: "接続し直しても混雑の試行を数え直さない",
+    patch: "m1834-room-retry-reset-ignores-reopen.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/room-entry-plan.test.ts"],
+    note: RESERVED_1830_1849 + " " + "#595。分けた先の純粋な判断（shouldResetRetry）。新しい接続で一度も再試行しないまま諦め表示に戻る。",
+  },
+  {
+    id: 1835,
+    label: "名前の有無を真偽で見て、空の名前を「持たない」と取り違える",
+    patch: "m1835-room-retry-action-empty-name-checks.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/room-entry-plan.test.ts"],
+    note: RESERVED_1830_1849 + " " + "#595。分けた先の純粋な判断（decideRetryAction）。案内（名前を持つ前提）と、待ったあとに送るものがずれる。",
+  },
+  {
+    id: 1836,
+    label: "入口の効果が、消滅したルームの保存を捨てない",
+    patch: "m1836-room-entry-hook-forget-dropped.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/room-page-join-retry.test.tsx", "tests/room-page-redirect.test.tsx"],
+    note: RESERVED_1830_1849 + " " + "#595。useRoomEntry から shouldForgetIdentity への配線。消えたルームの復帰の組が残り、再試行のループになる。",
+  },
+  {
+    id: 1837,
+    label: "入口の効果が「決めた」を保存せず、同期の値が変わるたびに玄関へ送り直す",
+    patch: "m1837-room-entry-hook-applied-not-kept.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/room-page-join-retry.test.tsx", "tests/room-page-redirect.test.tsx"],
+    note: RESERVED_1830_1849 + " " + "#595。useRoomEntry から decideEntryRedirect への配線（1831 は純粋な判断の側）。",
+  },
+  {
+    id: 1838,
+    label: "入口の効果が「試みた」を保存せず、同期の値が変わるたびに入り直しを送り続ける",
+    patch: "m1838-room-entry-hook-attempted-not-kept.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/room-page-join-retry.test.tsx", "tests/room-page-redirect.test.tsx"],
+    note: RESERVED_1830_1849 + " " + "#595。useRoomEntry から decideAutoRejoin への配線（接続ごとに 1 回だけという約束）。",
+  },
+  {
+    id: 1839,
+    label: "数え直しの効果が前の接続状態を更新せず、接続し直しても試行回数が戻らない",
+    patch: "m1839-room-entry-hook-open-not-tracked.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/room-page-join-retry.test.tsx"],
+    note: RESERVED_1830_1849 + " " + "#595。useRoomEntry から shouldResetRetry への配線。前の「開いていたか」が更新されず、最初の値のまま固まる。画面を開いた時点で接続が開いていた場合（試験の既定 `status: 'open'`）は true のまま固まり、接続し直しても「つなぎ直した」と見られず試行回数が戻らない。開く前（実物の初期値 `'connecting'`）に画面を開いた場合は false のまま固まり、数え直しはほぼ同じに動く（等価に近い）。",
   },
 ];
