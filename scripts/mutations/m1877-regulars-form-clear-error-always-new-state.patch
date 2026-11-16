@@ -3,7 +3,7 @@
 # 検出を期待するテスト:
 #   - apps/roulette-web/tests/regulars-form.test.ts
 #
-# #595。regulars-form.ts の reducer が、エラーが無いときの clear-error でも新しいオブジェクトを返す。入力のたびに余分な再描画が起きる。
+# #595。regulars-form.ts の reducer が、エラーが無いときの clear-error でも新しいオブジェクトを返す。エラーが無い状態で欄を閉じたとき・別のタブで組が消えたときに、余分な再描画が起きる（欄への入力では clear-error を送らない）。
 #
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m1877-*.patch

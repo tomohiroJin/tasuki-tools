@@ -10160,6 +10160,6 @@ export const MUTATIONS = [
     patch: "m1877-regulars-form-clear-error-always-new-state.patch",
     pkg: "apps/roulette-web",
     tests: ["tests/regulars-form.test.ts"],
-    note: RESERVED_1870_1889 + " " + "#595 のレビュー。regulars-form.ts の formReducer（clear-error）。入力のたびに余分な再描画が起きる。",
+    note: RESERVED_1870_1889 + " " + "#595 のレビュー。regulars-form.ts の formReducer（clear-error）。エラーが無い状態で欄を閉じたとき・別のタブで組が消えたときに、余分な再描画が起きる（欄への入力では clear-error を送らない）。",
   },
 ];
