@@ -17,9 +17,7 @@ import {
   stepTimeoutLabel,
 } from '../copy';
 import { MAX_MINUTES, MIN_MINUTES, bumpMinutes, clipStepName, minutesOf, type DraftStep } from '../scenario-draft';
-
-/** 行の中でフォーカスを置ける部品（消す・動かすの後に親が指す） */
-export type RowFocusTarget = 'name' | 'up' | 'down';
+import type { RowFocusTarget } from '../step-focus';
 
 interface Props {
   step: DraftStep;

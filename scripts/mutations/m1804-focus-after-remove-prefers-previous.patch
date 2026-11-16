@@ -1,0 +1,22 @@
+# 変異 1804: focus-after-remove-prefers-previous
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/step-focus.test.ts
+#
+# #595。行を消した後のフォーカスが、次の行でなく前の行へ飛ぶ（先頭の行を消すと次へ行く並びが崩れる）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1804-*.patch
+diff --git a/apps/agenda-web/src/step-focus.ts b/apps/agenda-web/src/step-focus.ts
+index 1b8f083e..baa4e3cd 100644
+--- a/apps/agenda-web/src/step-focus.ts
++++ b/apps/agenda-web/src/step-focus.ts
+@@ -10,7 +10,7 @@ export type FocusRequest = { readonly key: number; readonly target: RowFocusTarg
+ 
+ /** 消した行の次（無ければ前）の名前の欄へ。行が無くなれば「ステップを追加」へ。`draft` は消す前の下書き */
+ export function focusAfterRemove(draft: Draft, i: number): FocusRequest {
+-  const neighbor = draft.steps[i + 1] ?? draft.steps[i - 1];
++  const neighbor = draft.steps[i - 1] ?? draft.steps[i + 1];
+   return neighbor === undefined ? 'add' : { key: neighbor.key, target: 'name' };
+ }
+ 

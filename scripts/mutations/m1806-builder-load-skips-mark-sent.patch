@@ -1,0 +1,21 @@
+# 変異 1806: builder-load-skips-mark-sent
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/scenario-builder.test.tsx
+#
+# #595。ScenarioBuilder の「ルームに読み込む」が markSent を呼ばない（配線）。自分の送ったシナリオが返ると「シナリオが変わりました」と出る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1806-*.patch
+diff --git a/apps/agenda-web/src/components/ScenarioBuilder.tsx b/apps/agenda-web/src/components/ScenarioBuilder.tsx
+index f625b813..11cef198 100644
+--- a/apps/agenda-web/src/components/ScenarioBuilder.tsx
++++ b/apps/agenda-web/src/components/ScenarioBuilder.tsx
+@@ -235,7 +235,6 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
+               aria-describedby={describedBy}
+               onClick={() => {
+                 if (!check.ok) return;
+-                markSent(check.input);
+                 onLoad(check.input);
+               }}
+             >
