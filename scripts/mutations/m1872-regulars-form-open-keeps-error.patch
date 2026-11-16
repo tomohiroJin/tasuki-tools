@@ -1,0 +1,21 @@
+# 変異 1872: regulars-form-open-keeps-error
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/regulars-form.test.ts
+#
+# #595。regulars-form.ts の reducer が、欄を開き直してもエラーの文を消さない。前の欄の失敗が次の欄に残る。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1872-*.patch
+diff --git a/apps/roulette-web/src/regulars-form.ts b/apps/roulette-web/src/regulars-form.ts
+--- a/apps/roulette-web/src/regulars-form.ts
++++ b/apps/roulette-web/src/regulars-form.ts
+@@ -80,7 +80,7 @@
+   switch (action.type) {
+     case 'open':
+-      return { ...state, name: action.name, text: action.text, checkRows: action.rows, error: '' };
++      return { ...state, name: action.name, text: action.text, checkRows: action.rows };
+     case 'name':
+       return { ...state, name: action.value };
+     case 'text':
+       return { ...state, text: action.value };

@@ -1,0 +1,20 @@
+# 変異 1870: regulars-validate-skips-name-length
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/regulars-form.test.ts
+#
+# #595。regulars-form.ts の validate が、名前の長さ・見えなさの検査（isValidGroupName）を飛ばす。保存の関数が黙って落とす名前が通り、保存が無反応に見える。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1870-*.patch
+diff --git a/apps/roulette-web/src/regulars-form.ts b/apps/roulette-web/src/regulars-form.ts
+--- a/apps/roulette-web/src/regulars-form.ts
++++ b/apps/roulette-web/src/regulars-form.ts
+@@ -45,7 +45,6 @@ export function validate(
+   hasList: boolean,
+ ): { error: string; field: ErrorField } | { members: string[] } {
+   if (name.trim() === '' || rendersAsNothing(name)) return { error: REGULARS_ERROR_NAME_EMPTY, field: 'name' };
+-  if (!isValidGroupName(name.trim())) return { error: REGULARS_ERROR_BAD_NAME, field: 'name' };
+   const lines = text.split(/\r?\n/).filter((l) => l.trim() !== '');
+   if (lines.some((l) => parseMemberLines(l).length === 0)) return { error: REGULARS_ERROR_BAD_NAME, field: 'members' };
+   const members = orderedMembers(saved, checked, text);

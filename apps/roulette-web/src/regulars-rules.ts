@@ -7,6 +7,17 @@ import { MAX_DISPLAY_NAME, conflictsWithExisting, normalizeDisplayName, rendersA
 /** 保存できる組の数。直すのは数えない */
 export const MAX_GROUPS = 10;
 
+// eslint-disable-next-line no-control-regex
+const CONTROL_CHARS = /[\u0000-\u001f\u007f]/;
+
+/** 組名として使える名前か（空・長すぎ・制御文字なし）。画面が保存の前に同じ規則で見る */
+export const isValidGroupName = (name: unknown): name is string =>
+  typeof name === 'string' &&
+  name.trim().length > 0 &&
+  name.length <= MAX_DISPLAY_NAME &&
+  !CONTROL_CHARS.test(name) &&
+  !rendersAsNothing(name);
+
 /** 同じ名前か（参加の重複判定と同じ `conflictsWithExisting`: 大小・前後の空白を無視）。画面の比べ方もこれに揃える */
 export const sameMemberName = (a: string, b: string): boolean => conflictsWithExisting([{ participantId: a, displayName: a }], b);
 
