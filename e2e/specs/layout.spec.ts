@@ -833,13 +833,14 @@ test.describe('timer は画面ごと（ロビー・セッション・まとめ�
   }
 
   /**
-   * まとめの検査に要る準備だけでセッションを始める（ドライバーのゲスト 1 人。
+   * まとめの検査に要る準備だけでセッションを始める（30 字の名前のドライバーのゲスト 1 人。
    * ロビーの 320 の確認もお題ツールの文脈も作らない）。ドライバー別の札が出るにはゲストが輪に要る。
    */
   async function startSessionWithGuest(page: Page, openPeer: OpenPeer, label: string): Promise<void> {
     const code = await createTimerRoom(page, label);
     const guest = await openPeer(`${label}-guest`);
-    const guestName = `${label}-g`;
+    // 区切りの無い 30 字の名前は、まとめのドライバー別に並ぶ。名前の切り詰めが外れると 320 で横に溢れるので、割る前と同じ名前で測る
+    const guestName = 'W'.repeat(30);
     await joinAsDriver(guest.page, code, guestName);
     await expect(page.getByRole('listitem').filter({ hasText: guestName })).toBeVisible();
     await page.setViewportSize({ width: 1280, height: 900 });

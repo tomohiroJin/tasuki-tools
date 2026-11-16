@@ -650,8 +650,9 @@ test.describe('timer の各画面（ロビー・セッション・確認・ま�
     await expect(dialog).toBeHidden();
   });
 
-  test('Given 幅 390 のセッション / When 完成にしてまとめを開く / Then 素のボタンは許可したものだけで、当たりが 44px 以上で重ならない', async ({ page }) => {
-    await startSession(page);
+  test('Given 幅 390 のセッション（参加者 6 人・30 字の名前を含む） / When 完成にしてまとめを開く / Then 素のボタンは許可したものだけで、当たりが 44px 以上で重ならない', async ({ page }) => {
+    // 30 字の名前は、まとめのドライバー別に並ぶ（代理も回数を持つ）。名前の切り詰めが外れると横に溢れるので、割る前と同じ名簿で測る
+    await startSessionWithRoster(page);
     await page.setViewportSize({ width: 390, height: 800 });
     await expect(page.getByRole('button', { name: '完成!', exact: true })).toBeVisible();
 
