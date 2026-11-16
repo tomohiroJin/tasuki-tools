@@ -466,8 +466,27 @@ async function expectTabNeverUnderDock(page: Page, target: string, label: string
 }
 
 test.describe('timer の各画面（ロビー・セッション・確認・まとめ）のボタンは部品で、押せる大きさがあり、帯は留まり、名簿は内側でスクロールしない', () => {
-  test('Given 幅 390 の timer のロビー / When セッション（参加者 6 人・30 字の名前を含む。1280 と 390）・「途中で終える」の確認・まとめの順に開く / Then 素のボタンは許可したものだけで、主は 1 つ以下で最後にあり、当たりが 44px 以上で重ならず、名簿に内側のスクロールが無く行は横に溢れず、帯は計器のカードの中で留まり、終える区画の主は最後で危険は左に離れ、Tab は帯に隠れない', async ({ page }) => {
-    // 以前はルームの枠が逼迫していたので、timer は 1 室で画面の流れの順に全てを見る（まとめは戻れないので最後）。#387 で枠は広げたが、動いている検査なのでほどかない。
+  // 以前はルームの枠が逼迫していたので 1 室で全てを順に見ていた。#387 で E2E の枠は 1000 に広げ、この spec は `local` 専用
+  // （本番の枠 100 を消費しない）なので、画面ごとの `test` に割った（#597）。各 `test` は自分の部屋を作る
+  // （まとめは完成にすると戻れないので、まとめの `test` だけが完成にする）。
+
+  /** 幅 1280 でセッションを始める。 */
+  async function startSession(page: Page): Promise<void> {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await createTimerRoom(page, 'buttons-timer');
+    await expect(page.getByRole('button', { name: 'セッションを開始' })).toBeVisible();
+    await page.getByRole('button', { name: 'セッションを開始' }).click();
+    await expect(page.getByRole('timer')).toBeVisible();
+  }
+
+  /** 幅 1280 でセッションを始め、参加者を 6 人（30 字の名前を含む）にする。 */
+  async function startSessionWithRoster(page: Page): Promise<void> {
+    await startSession(page);
+    await addProxies(page, [LONG_NAME, 'proxy-b', 'proxy-c', 'proxy-e', 'proxy-f']);
+    await expect(page.locator('.ui-workspace-side .roster-panel-row'), '名簿は 6 人').toHaveCount(6);
+  }
+
+  test('Given 幅 390 の timer のロビー / When ロビーと詳細設定を開く / Then 素のボタンは許可したものだけで、主は 1 つ以下で最後にあり、当たりが 44px 以上で重ならず、入力欄は 16px 以上', async ({ page }) => {
     // ロビー: 開始ボタンが見えてから測る
     await page.setViewportSize({ width: 390, height: 800 });
     await createTimerRoom(page, 'buttons-timer');
@@ -480,12 +499,10 @@ test.describe('timer の各画面（ロビー・セッション・確認・ま�
     // パスフレーズの欄（文字を入れる欄全体を測る。部品の当て忘れも拾う）
     await expect(page.getByLabel('パスフレーズ', { exact: true })).toBeVisible();
     await expectFieldsAtLeast16px(page);
+  });
 
-    await page.setViewportSize({ width: 1280, height: 900 });
-    await page.getByRole('button', { name: 'セッションを開始' }).click();
-    await expect(page.getByRole('timer')).toBeVisible();
-    await addProxies(page, [LONG_NAME, 'proxy-b', 'proxy-c', 'proxy-e', 'proxy-f']);
-    await expect(page.locator('.ui-workspace-side .roster-panel-row'), '名簿は 6 人').toHaveCount(6);
+  test('Given 幅 1280 のセッション（参加者 6 人・30 字の名前を含む） / When 名簿・入力欄・通知設定・終える区画を開く / Then 名簿に内側のスクロールが無く行は横に溢れず、当たりが 44px 以上で重ならず、終える区画の主は最後で危険は左に離れる', async ({ page }) => {
+    await startSessionWithRoster(page);
 
     // Then 1280（脇 22rem）: 内側のスクロールが無く、行は横に溢れない
     const wide = await measureRoster(page);
@@ -562,6 +579,10 @@ test.describe('timer の各画面（ロビー・セッション・確認・ま�
     expect(endBox.dangersInStart, '危険の 2 つが .ui-actions-start に入っていない').toBe(true);
     expect(Math.abs(endBox.startLeft - endBox.groupLeft), '危険が左端に離れていない').toBeLessThanOrEqual(1);
     expect(Math.abs(endBox.groupRight - endBox.completeRight), '完成! が右端でない').toBeLessThanOrEqual(1);
+  });
+
+  test('Given 幅 390 のセッション（参加者 6 人） / When 帯・ルームのタブ・「途中で終える」の確認を開く / Then 帯は計器のカードの中で留まり、Tab は帯に隠れず、長い名前は切れず、当たりが 44px 以上で重ならない', async ({ page }) => {
+    await startSessionWithRoster(page);
 
     // 390: 操作は下端の帯。順は時間リセット → スキップ → 一時停止（主が最後）
     await page.setViewportSize({ width: 390, height: 460 });
@@ -627,8 +648,15 @@ test.describe('timer の各画面（ロビー・セッション・確認・ま�
     expect((await scanButtons(page, '[role="dialog"]')).hits, '確認ダイアログの当たりは取消と確定の 2 つ').toHaveLength(2);
     await dialog.getByRole('button', { name: 'キャンセル' }).click();
     await expect(dialog).toBeHidden();
+  });
 
-    // まとめ: 完成! → 確認 → まとめ画面（新しいセッション）が見えてから測る
+  test('Given 幅 390 のセッション（参加者 6 人・30 字の名前を含む） / When 完成にしてまとめを開く / Then 素のボタンは許可したものだけで、当たりが 44px 以上で重ならない', async ({ page }) => {
+    // 30 字の名前は、まとめのドライバー別に並ぶ（代理も回数を持つ）。名前の切り詰めが外れると横に溢れるので、割る前と同じ名簿で測る
+    await startSessionWithRoster(page);
+    await page.setViewportSize({ width: 390, height: 800 });
+    await expect(page.getByRole('button', { name: '完成!', exact: true })).toBeVisible();
+
+    // まとめ: 完成! → 確認 → まとめ画面（新しいセッション）が見えてから測る。まとめは完成にすると戻れないので、この test だけが完成にする
     await page.getByRole('button', { name: '完成!', exact: true }).click();
     await page.getByRole('dialog').getByRole('button', { name: '完成として記録する' }).click();
     await expect(page.locator('.summary')).toBeVisible();
