@@ -242,6 +242,9 @@ const RESERVED_1780_1799 =
 const RESERVED_1950_1959 =
   "**対応表より後に足した変異。** 1950〜1959 は #622（PR 前のフックを開いた先行だけで止める）に割り当てた範囲。";
 
+const RESERVED_1960_1969 =
+  "**対応表より後に足した変異。** 1960〜1969 は #622 の追加（1950〜1959 を使い切ったため）に割り当てた範囲。";
+
 const RESERVED_1800_1819 =
   "**対応表より後に足した変異。** 1800〜1819 は #595（ScenarioBuilder を責務で分ける）に割り当てた範囲。";
 
@@ -10169,5 +10172,21 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["lib/hook-combine.test.mjs", "agent-guard-hook.test.mjs"],
     note: RESERVED_1950_1959 + " " + "#622 のレビュー。過去の PR の行が、人の確認の場面でだけ消える。",
+  },
+  {
+    id: 1959,
+    label: "入口が、知らせを ask の理由に足すとき、行だけでなく「止めずに知らせます」の文までそのまま足す",
+    patch: "m1959-hook-combine-info-text-with-stop-note.patch",
+    pkg: "scripts",
+    tests: ["lib/hook-combine.test.mjs", "agent-guard-hook.test.mjs"],
+    note: RESERVED_1950_1959 + " " + "#622 の 2 回目のレビュー。人の確認が要る場面で、理由文が「止めずに」と「人の確認が要ります」を並べて矛盾する。",
+  },
+  {
+    id: 1960,
+    label: "入口が、permissionDecision を持つ出力のうち ask だけを決定とし、deny などを知らせとして扱う",
+    patch: "m1960-hook-combine-non-ask-decision-as-info.patch",
+    pkg: "scripts",
+    tests: ["lib/hook-combine.test.mjs"],
+    note: RESERVED_1960_1969 + " " + "#622 の 2 回目のレビュー。deny が知らせと同時に来ると、止める判定が落ちる。",
   },
 ];

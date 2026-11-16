@@ -1,12 +1,12 @@
 diff --git a/scripts/lib/hook-combine.mjs b/scripts/lib/hook-combine.mjs
-index 43b7dbd4..653d9e34 100644
+index b25e0c20..17f19954 100644
 --- a/scripts/lib/hook-combine.mjs
 +++ b/scripts/lib/hook-combine.mjs
-@@ -36,6 +36,6 @@ export async function combineDecisions(judges) {
-     return { systemMessage: text, hookSpecificOutput: { hookEventName: "PreToolUse", additionalContext: text } };
-   }
-   const out = structuredClone(asks[0]);
--  out.hookSpecificOutput.permissionDecisionReason = [...asks.map((x) => x.hookSpecificOutput.permissionDecisionReason), ...infos.map((x) => x.systemMessage)].join("\n\n");
-+  out.hookSpecificOutput.permissionDecisionReason = [...asks.map((x) => x.hookSpecificOutput.permissionDecisionReason)].join("\n\n");
+@@ -44,7 +44,6 @@ export async function combineDecisions(judges) {
+   // 知らせは `infoLines`（「止めずに」の文を含まない本文）があればそれを理由に足す
+   out.hookSpecificOutput.permissionDecisionReason = [
+     ...decisions.map((x) => x.hookSpecificOutput.permissionDecisionReason),
+-    ...infos.map((x) => x.infoLines ?? x.systemMessage),
+   ].join("\n\n");
    return out;
  }

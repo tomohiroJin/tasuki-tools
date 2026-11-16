@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/hook-combine.mjs b/scripts/lib/hook-combine.mjs
+index b25e0c20..5e5033f8 100644
+--- a/scripts/lib/hook-combine.mjs
++++ b/scripts/lib/hook-combine.mjs
+@@ -44,7 +44,7 @@ export async function combineDecisions(judges) {
+   // 知らせは `infoLines`（「止めずに」の文を含まない本文）があればそれを理由に足す
+   out.hookSpecificOutput.permissionDecisionReason = [
+     ...decisions.map((x) => x.hookSpecificOutput.permissionDecisionReason),
+-    ...infos.map((x) => x.infoLines ?? x.systemMessage),
++    ...infos.map((x) => x.systemMessage),
+   ].join("\n\n");
+   return out;
+ }

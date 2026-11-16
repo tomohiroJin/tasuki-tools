@@ -1,0 +1,15 @@
+diff --git a/scripts/lib/hook-combine.mjs b/scripts/lib/hook-combine.mjs
+index b25e0c20..440130f6 100644
+--- a/scripts/lib/hook-combine.mjs
++++ b/scripts/lib/hook-combine.mjs
+@@ -31,8 +31,8 @@ export async function combineDecisions(judges) {
+   if (found.length === 0) return null;
+   // 知らせにするのは、`permissionDecision` を**持たない**出力だけ（許可の一覧。#622。`systemMessage` に本文）。
+   // 持つ出力（ask・deny・allow・想定外の値）は、すべて決定として扱い、落とさない
+-  const infos = found.filter((x) => x.hookSpecificOutput?.permissionDecision === undefined);
+-  const decisions = found.filter((x) => x.hookSpecificOutput?.permissionDecision !== undefined);
++  const infos = found.filter((x) => x.hookSpecificOutput?.permissionDecision !== "ask");
++  const decisions = found.filter((x) => x.hookSpecificOutput?.permissionDecision === "ask");
+   if (decisions.length === 0) {
+     const text = infos.map((x) => x.systemMessage).join("\n\n");
+     return { systemMessage: text, hookSpecificOutput: { hookEventName: "PreToolUse", additionalContext: text } };

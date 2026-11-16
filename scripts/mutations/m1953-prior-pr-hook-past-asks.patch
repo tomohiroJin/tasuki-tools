@@ -7,7 +7,7 @@ index 42299c6a..c9fedddf 100644
    if (result.state === "none" && result.truncated !== true) return null;
    // マージ済み・閉じた PR だけ（past）は止めず、行を見せて通す（#622・docs/adr/0032 の追記）
 -  if (result.state === "past" && result.truncated !== true) {
--    return inform(`${result.lines.join("\n")}\n開いた PR・枝は無いので、止めずに知らせます（docs/adr/0032 の追記）。`);
+-    return inform(result.lines.join("\n"), "開いた PR・枝は無いので、止めずに知らせます（docs/adr/0032 の追記）。");
 -  }
    return ask(`${result.lines.join("\n")}\n同じ ISSUE の作業が重なっていないか、人の確認が要ります（AGENTS.md「作業の始めに」・docs/adr/0030 決定 5）。`);
  }
