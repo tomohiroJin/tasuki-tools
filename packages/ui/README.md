@@ -325,7 +325,7 @@ src/
 - Fraunces は実使用が `font-weight: 600` のみなのでウェイトを固定した。
   `opsz 9–80` は残す（9.6px のコーナーピップと 80px のワードマークで字形を変えるため）
 - **base 層に無い字を画面に出すと、黙って ext 層（+約 210 KB）を引く。** 文言は先に
-  `tests/support/font-base.ts` の `outsideBase` で測る
+  `outsideBase` で測る（正本は `@tasuki/test-css/font-base`。各パッケージの `tests/support/font-base.ts` はそれを再輸出する入口）
 - **base 層の作り直し**は `scripts/fonts/build-base-fonts.py`（運用者が手で流す・CI では流さない）。
   字の集合 = いまの base 層の cmap ∪ `--add-chars`。いまの字は 1 字も落とさず（最後に
   古い cmap ⊆ 新しい cmap を確かめて、崩れていたら失敗で終わる）、`fonts.css` の base 3 面の
