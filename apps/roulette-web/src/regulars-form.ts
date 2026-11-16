@@ -15,8 +15,7 @@ import {
   REGULARS_ERROR_WRITE_FAILED,
 } from './copy';
 import { orderedMembers, type Candidate } from './regulars-view';
-import { parseMemberLines } from './regulars-rules';
-import { isValidGroupName } from './storage/regulars';
+import { isValidGroupName, parseMemberLines } from './regulars-rules';
 
 /** エラーの印を付ける欄（名前の欄か、複数行の欄か、チェックの一覧か） */
 export type ErrorField = 'name' | 'members' | 'people';
