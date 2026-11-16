@@ -9,14 +9,13 @@
 #       git apply scripts/mutations/m571-*.patch
 # 復元: git apply -R scripts/mutations/m571-*.patch
 diff --git a/apps/roulette-web/src/components/RegularsSection.tsx b/apps/roulette-web/src/components/RegularsSection.tsx
-index e91002f3..bebad399 100644
 --- a/apps/roulette-web/src/components/RegularsSection.tsx
 +++ b/apps/roulette-web/src/components/RegularsSection.tsx
-@@ -175,7 +175,6 @@ export function RegularsSection({ locked, guestNames, onInsert }: Props) {
+@@ -144,7 +144,6 @@ export function RegularsSection({ locked, people, onInsert }: Props) {
      const message = onInsert(group);
      touch(group.id);
      announce(message);
 -    setFocusId(pickId(group.id));
    };
- 
-   const nameInvalid = error !== '' && errorField === 'name';
+
+   const editing = mode.kind === 'form' && mode.id !== null ? groups.find((g) => g.id === mode.id) : undefined;

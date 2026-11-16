@@ -242,6 +242,9 @@ const RESERVED_1780_1799 =
 const RESERVED_1800_1819 =
   "**対応表より後に足した変異。** 1800〜1819 は #595（ScenarioBuilder を責務で分ける）に割り当てた範囲。";
 
+const RESERVED_1870_1889 =
+  "**対応表より後に足した変異。** 1870〜1889 は #595（RegularsSection を責務で分ける）に割り当てた範囲。";
+
 const RESERVED_1420_1429 =
   "**対応表より後に足した変異。** 1420〜1429 は #557 に追加で割り当てた範囲（1120〜1129・1410〜1419 を使い切ったため。PR #580 のレビューの指摘で足した）。";
 
@@ -10054,6 +10057,54 @@ export const MUTATIONS = [
     pkg: "apps/agenda-web",
     tests: ["tests/scenario-draft-sync.test.ts", "tests/scenario-builder.test.tsx"],
     note: RESERVED_1800_1819 + " " + "#595 のレビュー。isUntouchedCopy の `roundsOfDraft !== null` の守りだけを外す。回数の欄を空にした下書きは rounds キーを落とし、回数 1 のルームと同じ鍵になるため、守りが無いと上書き・確かめ省略が起きる。",
+  },
+  {
+    id: 1870,
+    label: "組の欄の検証が、名前の長さ・見えなさの検査（isValidGroupName）を飛ばす",
+    patch: "m1870-regulars-validate-skips-name-length.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/regulars-form.test.ts"],
+    note: RESERVED_1870_1889 + " " + "#595。regulars-form.ts の validate。保存の関数が黙って落とす名前が通り、保存が無反応に見える。",
+  },
+  {
+    id: 1871,
+    label: "人数エラーの印の欄の決め方（countFieldOf）が、手入力が人を足したかを見ない",
+    patch: "m1871-regulars-count-field-ignores-manual.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/regulars-form.test.ts"],
+    note: RESERVED_1870_1889 + " " + "#595。regulars-form.ts の countFieldOf。手入力が原因の人数エラーがチェックの一覧に付く。",
+  },
+  {
+    id: 1872,
+    label: "組の欄の reducer が、欄を開き直してもエラーの文を消さない",
+    patch: "m1872-regulars-form-open-keeps-error.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/regulars-form.test.ts"],
+    note: RESERVED_1870_1889 + " " + "#595。regulars-form.ts の formReducer（open）。前の欄の失敗が次の欄に残る。",
+  },
+  {
+    id: 1873,
+    label: "組の欄の reducer が、チェックを 1 行だけでなく全行へ掛ける",
+    patch: "m1873-regulars-form-check-toggles-all.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/regulars-form.test.ts"],
+    note: RESERVED_1870_1889 + " " + "#595。regulars-form.ts の formReducer（check）。1 人を外すと全員が外れる。",
+  },
+  {
+    id: 1874,
+    label: "保存の配線が、直している組の保存済みの名前を検証へ渡さない",
+    patch: "m1874-regulars-submit-ignores-saved-members.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/regulars-section.test.tsx"],
+    note: RESERVED_1870_1889 + " " + "#595。純粋関数（1870〜1873）ではなく RegularsSection から検証への配線を突く。直すたびに人の並びが組み替わる。",
+  },
+  {
+    id: 1875,
+    label: "保存の配線が、チェックの一覧があることを検証へ渡さない",
+    patch: "m1875-regulars-submit-hides-people-list.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/regulars-section.test.tsx"],
+    note: RESERVED_1870_1889 + " " + "#595。RegularsSection から検証への配線。人数エラーの印が一覧でなく入力欄に付く。",
   },
   {
     id: 1820,
