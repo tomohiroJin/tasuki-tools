@@ -194,9 +194,11 @@ test("試験専用のパッケージを製品コード（src・設定ファイ�
 });
 
 test("試験専用のパッケージを許可表に載せていないパッケージは、試験から読んでも違反（#554）", () => {
-  const seen = observeTemp("apps/topic-web", { "apps/topic-web/test/a.test.ts": `import "@tasuki/test-css";\n` });
-  assert.deepEqual(findViolations({ "apps/topic-web": seen }), [
-    { pkg: "apps/topic-web", dep: "@tasuki/test-css", via: "import" },
+  // 読まない側の例（topic-web は #594 で読む側に入ったので、いまも表に載せていない tasuki-sync で見る）
+  assert.equal(ALLOWED["apps/tasuki-sync"].includes("@tasuki/test-css"), false);
+  const seen = observeTemp("apps/tasuki-sync", { "apps/tasuki-sync/test/a.test.ts": `import "@tasuki/test-css";\n` });
+  assert.deepEqual(findViolations({ "apps/tasuki-sync": seen }), [
+    { pkg: "apps/tasuki-sync", dep: "@tasuki/test-css", via: "import" },
   ]);
 });
 

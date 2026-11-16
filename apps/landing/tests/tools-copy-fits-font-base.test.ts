@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { TOOLS } from '../src/tools';
-import { baseFaces, outsideBase } from './support/font-base';
+import { baseFaces, outsideBase } from '@tasuki/test-css/font-base';
 
 /**
  * @requirements #406 玄関の札（UI 文言は書体の base 層に収める）

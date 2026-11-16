@@ -1,0 +1,22 @@
+# 変異 1893: css-rules-selector-partial-match
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/spacing-css.test.ts
+#
+# #594。共有した rulesOf が選択子を完全一致でなく部分一致で拾う。別の規則（例: .builder-saved-list）を巻き込む。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1893-*.patch
+# 復元: git apply -R scripts/mutations/m1893-*.patch
+diff --git a/packages/test-css/src/css-rules.mjs b/packages/test-css/src/css-rules.mjs
+--- a/packages/test-css/src/css-rules.mjs
++++ b/packages/test-css/src/css-rules.mjs
+@@ -67,7 +67,7 @@ function parseRules(css) {
+ /** セレクタの並びに `selector` を（完全一致で）含む規則の本体を、すべて返す。無ければ空。 */
+ export function rulesOf(css, selector) {
+   const want = normalizeSelector(selector);
+-  return collectRules(css).filter((r) => r.selectors.includes(want)).map((r) => r.body);
++  return collectRules(css).filter((r) => r.selectors.some((s) => s.includes(want))).map((r) => r.body);
+ }
+ 
+ /** セレクタのどれかが `pattern` に当たる規則の本体を、すべて返す。 */

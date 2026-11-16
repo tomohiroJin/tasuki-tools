@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { ROOM_HEADER_TEXT } from '../src/index.js';
-import { baseFaces, outsideBase } from './support/font-base.js';
+import { baseFaces, outsideBase } from '@tasuki/test-css/font-base';
 
 /**
  * @requirements #447 設計 §3（文言は書体の base 層に収める・D6）

@@ -1,6 +1,6 @@
 /**
  * `css-text.mjs` の型。`@tasuki/test-css` は試験の共有支援のパッケージで、読む側の試験が型検査を保って共有する（#554）。
- * 置くのは試験の補助だけ。いま持つのは CSS を字で読む解析器だけで、書体の判定・偽の WebSocket は #594 で移す予定（docs/adr/0017 の追記（#599））。製品コードからは読まない。
+ * 置くのは試験の補助だけ。書体の判定（`font-base`）・偽の WebSocket（`scripted-web-socket`）・画面の CSS の契約の補助（`css-rules`）は #594 で寄せた（docs/adr/0017 の追記（#599））。製品コードからは読まない。
  * 型は node の型を出さない（読む側に `@types/node` を求めない）。
  */
 export declare const stripComments: (css: string) => string;

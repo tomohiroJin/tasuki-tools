@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { ROOM_GATE_TEXT } from '../src/room/index.js';
-import { baseFaces, outsideBase } from './support/font-base.js';
+import { baseFaces, outsideBase } from '@tasuki/test-css/font-base';
 
 /**
  * @requirements #472（文言は書体の base 層に収める）

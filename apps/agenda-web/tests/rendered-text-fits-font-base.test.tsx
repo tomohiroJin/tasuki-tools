@@ -5,7 +5,7 @@ import { App } from '../src/App';
 import { PROJECT_BUTTON, RESET_BUTTON, SAMPLE_MENU_BUTTON, SAMPLE_REPLACE_CONFIRM } from '../src/copy';
 import { SAMPLE_SCENARIOS } from '../src/sample-scenarios';
 import { Driver } from './support/agenda-states';
-import { outsideBase } from './support/font-base';
+import { outsideBase } from '@tasuki/test-css/font-base';
 import { IDLE_AGENDA, RESUME, ROSTER_FRAME, ScriptedWebSocket, latestSocket, runningAgenda } from './support/scripted-web-socket';
 
 vi.mock('../src/router', async (importOriginal) => ({
