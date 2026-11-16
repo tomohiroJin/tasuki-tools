@@ -335,13 +335,13 @@ describe("宣言と 0 件ガードの配線: scripts/audit-dependency-direction.
     const file = "apps/timer-web/src/records/persist.ts";
     const mutate = (s) =>
       appendTo(file, 'import type { EndType as Back } from "../ui/Summary.js";')(s).replace(
-        "const layerViolations = observeLayers(packages, sources);",
+        "const layerViolations = observeLayers(packages, texts);",
         "const layerViolations = [];",
       );
     // When
     const r = runScriptCopy("audit-dependency-direction.mjs", mutate);
     // Then: 壊れたこと自体と、この呼び出しが唯一の防波堤であること
-    assertBrokenBy("audit-dependency-direction.mjs", r.source, "const layerViolations = observeLayers(packages, sources);", "層の判定の呼び出し");
+    assertBrokenBy("audit-dependency-direction.mjs", r.source, "const layerViolations = observeLayers(packages, texts);", "層の判定の呼び出し");
     assert.equal(r.status, 0, "呼び出しを消しても落ちないことの確認（配線の所在を固定する）");
     assert.doesNotMatch(r.stderr, /層の向きに違反があります/);
   });
