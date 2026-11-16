@@ -39,7 +39,7 @@ export function issueNumbersFromTitle(title) {
  * @param {number} number
  * @param {{ gh: (args: string[]) => string | Promise<string>, git: (args: string[]) => string | Promise<string>, ownBranch: string }} deps
  *   gh と git は文字列か Promise を返す（失敗なら投げる／棄却する）。2 つは並列に引く（待ちを長い方の 1 回分にする）
- * @returns {Promise<{ state: "found" | "none" | "unknown", number: number, prs: object[], branches: string[],
+ * @returns {Promise<{ state: "found" | "past" | "none" | "unknown", number: number, prs: object[], branches: string[],
  *   total: number | null, truncated: boolean, errors: string[] }>}
  */
 export async function findPriorWork(number, { gh, git, ownBranch }) {
@@ -73,7 +73,10 @@ export async function findPriorWork(number, { gh, git, ownBranch }) {
   } catch (error) {
     errors.push(`git ls-remote: ${firstLine(error.message)}`);
   }
-  const state = prs.length + branches.length > 0 ? "found" : errors.length > 0 ? "unknown" : "none";
+  // 止める（found）のは、開いた PR と PR の無い枝だけ（#622）。マージ済み・閉じた PR は main に取り込まれたか終わった作業で、
+  // 重なりではない。確かめられなかった側が残るなら、past でなく unknown にする
+  const open = prs.filter((p) => p.state === "OPEN").length + branches.length > 0;
+  const state = open ? "found" : errors.length > 0 ? "unknown" : prs.length > 0 ? "past" : "none";
   return { state, number, prs, branches, total, truncated: total !== null && total >= SEARCH_LIMIT, errors };
 }
 
@@ -83,7 +86,7 @@ const STATE_LABEL = { OPEN: "開いている", MERGED: "マージ済み", CLOSED
  * ブランチ名から番号を取って引き、知らせの行にする。
  * 番号の無い枝（main・renovate/* ほか）は、確かめるつもりが無いので ⚠ を付けない 1 行の案内にする（`no-number`）。
  * 確かめるつもりで確かめられなかったとき（gh の失敗ほか）だけ ⚠ の未実行（`not-run`）にする。
- * @returns {Promise<{ state: "found" | "none" | "not-run" | "no-number", lines: string[] }>}
+ * @returns {Promise<{ state: "found" | "past" | "none" | "not-run" | "no-number", lines: string[] }>}
  */
 export async function checkPriorWork({ branch, gh, git }) {
   const number = issueNumberFromBranch(branch);
@@ -103,6 +106,9 @@ export function describePriorWork(r) {
     lines.push(`⚠ 同じ ISSUE #${r.number} の他の PR・枝があります。作業の途中なら、続ける前に人へ伝えてください`);
     for (const p of r.prs) lines.push(`  - PR #${p.number}（${STATE_LABEL[p.state] ?? p.state}）${p.title}`);
     for (const b of r.branches) lines.push(`  - 枝 ${b}`);
+  } else if (r.state === "past") {
+    lines.push(`同じ ISSUE #${r.number} の他の PR はマージ済みか閉じたものだけです（開いた PR・枝は無いので止めません）`);
+    for (const p of r.prs) lines.push(`  - PR #${p.number}（${STATE_LABEL[p.state] ?? p.state}）${p.title}`);
   } else {
     lines.push(`同じ ISSUE #${r.number} の他の PR・枝はありません（検索に当たった ${r.total ?? 0} 件を確認）`);
   }

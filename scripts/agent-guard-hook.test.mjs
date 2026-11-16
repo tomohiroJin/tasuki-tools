@@ -231,3 +231,22 @@ test("入口 再レビュー I-1: サブエージェント（agent_id つき）�
     assert.equal(run(t, c, { agentId: "a1" })?.hookSpecificOutput.permissionDecision, "ask", c);
   }
 });
+
+// ---- #622: 入口の配線。開いた PR・PR の無い枝では ask、マージ済み・閉じた PR だけなら通す ----
+
+const prOf = (state) => JSON.stringify([{ number: 501, title: "docs: 先行（#9）", body: "", state, headRefName: "x/501" }]);
+
+test("入口（#622）: マージ済み・閉じた PR だけなら何も返さない", (t) => {
+  assert.equal(run(t, 'gh pr create --title "x（#9）"', { prs: prOf("MERGED") }), null);
+  assert.equal(run(t, 'gh pr create --title "x（#9）"', { prs: prOf("CLOSED") }), null);
+});
+
+test("入口（#622）: 開いた PR とマージ済みが混ざれば ask", (t) => {
+  const mixed = JSON.stringify([
+    { number: 501, title: "済（#9）", body: "", state: "MERGED", headRefName: "x/501" },
+    { number: 502, title: "開（#9）", body: "", state: "OPEN", headRefName: "x/502" },
+  ]);
+  const out = run(t, 'gh pr create --title "x（#9）"', { prs: mixed });
+  assert.equal(out?.hookSpecificOutput.permissionDecision, "ask");
+  assert.match(out.hookSpecificOutput.permissionDecisionReason, /PR #502/);
+});

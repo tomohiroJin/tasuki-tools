@@ -236,3 +236,48 @@ test("runCommand: 時間切れでは孫（同じグループ）も SIGKILL で�
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+// ---- #622: 止めるのは開いた PR と PR の無い枝だけ。マージ済み・閉じた PR は知らせの行だけ ----
+
+test("#622: 開いた PR だけでも found（止める側）", async () => {
+  const { gh, git } = fakes({ prs: [pr(501, "他（#504）", "", "OPEN")] });
+  assert.equal((await findPriorWork(504, { gh, git, ownBranch: "x" })).state, "found");
+});
+
+test("#622: PR の無いリモートの枝だけでも found（止める側）", async () => {
+  const { gh, git } = fakes({ heads: ["docs/504-other"] });
+  assert.equal((await findPriorWork(504, { gh, git, ownBranch: "x" })).state, "found");
+});
+
+test("#622: マージ済み・閉じた PR だけなら past（止めない）。PR は結果に残す", async () => {
+  const { gh, git } = fakes({ prs: [pr(501, "済（#504）", "", "MERGED"), pr(502, "閉（#504）", "", "CLOSED")] });
+  const r = await findPriorWork(504, { gh, git, ownBranch: "x" });
+  assert.equal(r.state, "past");
+  assert.deepEqual(r.prs.map((p) => p.number), [501, 502]);
+});
+
+test("#622: 開いた PR とマージ済みが混ざれば found", async () => {
+  const { gh, git } = fakes({ prs: [pr(501, "済（#504）", "", "MERGED"), pr(502, "開（#504）", "", "OPEN")] });
+  assert.equal((await findPriorWork(504, { gh, git, ownBranch: "x" })).state, "found");
+});
+
+test("#622: マージ済みだけでも、枝が引けなかったときは unknown（確かめていない側が残る）", async () => {
+  const { gh, git } = fakes({ prs: [pr(501, "済（#504）", "", "MERGED")], gitFails: true });
+  assert.equal((await findPriorWork(504, { gh, git, ownBranch: "x" })).state, "unknown");
+});
+
+test("#622: マージ済みだけのとき、知らせの行は PR の状態つきで出る（⚠ の警告ではなく、止めないと書く）", async () => {
+  const { gh, git } = fakes({ prs: [pr(501, "済（#504）", "", "MERGED")] });
+  const r = describePriorWork(await findPriorWork(504, { gh, git, ownBranch: "x" }));
+  assert.equal(r.state, "past");
+  assert.ok(r.lines.some((l) => l.includes("PR #501（マージ済み）済（#504）")), r.lines.join("\n"));
+  assert.ok(r.lines.some((l) => l.includes("止めません")));
+  assert.equal(r.lines[0].startsWith("⚠"), false);
+});
+
+test("#622: checkPriorWork: マージ済みだけなら past。PR の行は出る", async () => {
+  const { gh, git } = fakes({ prs: [pr(501, "済（#504）", "", "CLOSED")] });
+  const r = await checkPriorWork({ branch: "docs/504-x", gh, git });
+  assert.equal(r.state, "past");
+  assert.ok(r.lines.some((l) => l.includes("PR #501（閉じた）")));
+});

@@ -210,3 +210,20 @@ test("本番デプロイのガードの振る舞いは変わらない", async ()
   assert.equal(decideHookOutput(raw).hookSpecificOutput.permissionDecision, "ask");
   assert.equal(decideHookOutput(input("gh pr create")), null);
 });
+
+// ---- #622: マージ済み・閉じた PR だけ（state: past）では止めない ----
+
+test("#622: 先行がマージ済み・閉じた PR だけ（past）なら何も返さない", async () => {
+  const past = { state: "past", lines: ["同じ ISSUE #504 の先行 PR はすべてマージ済みか閉じています（止めません）", "  - PR #501（マージ済み）x"] };
+  assert.equal(await decidePriorPrOutput(input("gh pr create"), deps({ result: past })), null);
+});
+
+test("#622: past でも検索が切れていれば ask（無いと言い切れない）", async () => {
+  const out = await decidePriorPrOutput(input("gh pr create"), deps({ result: { state: "past", truncated: true, lines: ["⚠ 検索が上限に当たりました"] } }));
+  assert.equal(out?.hookSpecificOutput.permissionDecision, "ask");
+});
+
+test("#622: 未実行（not-run）は ask のまま", async () => {
+  const out = await decidePriorPrOutput(input("gh pr create"), deps({ result: notRun }));
+  assert.equal(out?.hookSpecificOutput.permissionDecision, "ask");
+});
