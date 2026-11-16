@@ -1,0 +1,12 @@
+diff --git a/apps/tasuki-sync/src/application/agenda-deadlines.ts b/apps/tasuki-sync/src/application/agenda-deadlines.ts
+index 93535a91..792fd52a 100644
+--- a/apps/tasuki-sync/src/application/agenda-deadlines.ts
++++ b/apps/tasuki-sync/src/application/agenda-deadlines.ts
+@@ -39,7 +39,6 @@ export function makeAgendaDeadlines<H>(deps: { clock: MonotonicClock; timer: Tim
+   const clear = (roomCode: string): void => {
+     const held = handles.get(roomCode);
+     if (held === undefined) return;
+-    timer.clear(held.handle);
+     handles.delete(roomCode);
+   };
+ 

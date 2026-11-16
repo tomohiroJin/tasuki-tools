@@ -3,15 +3,15 @@
 # 検出を期待するテスト:
 #   - apps/agenda-web/tests/scenario-builder.test.tsx
 #
-# #429 フィードバック F3。下書きに中身があっても確かめずにサンプルで置き換える。組みかけの下書きが黙って消える。
+# #429 フィードバック F3。下書きに中身があっても確かめずにサンプルで置き換える。組みかけの下書きが黙って消える。（#595 で SampleMenu.tsx へ分けた先へ作り直し）
 #
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m461-*.patch
-diff --git a/apps/agenda-web/src/components/ScenarioBuilder.tsx b/apps/agenda-web/src/components/ScenarioBuilder.tsx
-index 03498a45..27c0a8b4 100644
---- a/apps/agenda-web/src/components/ScenarioBuilder.tsx
-+++ b/apps/agenda-web/src/components/ScenarioBuilder.tsx
-@@ -324,7 +324,7 @@ function SampleMenu({ draftIsDisposable, onPick }: { draftIsDisposable: boolean;
+diff --git a/apps/agenda-web/src/components/SampleMenu.tsx b/apps/agenda-web/src/components/SampleMenu.tsx
+index 1f168fc6..ecd05f17 100644
+--- a/apps/agenda-web/src/components/SampleMenu.tsx
++++ b/apps/agenda-web/src/components/SampleMenu.tsx
+@@ -27,7 +27,7 @@ export function SampleMenu({ draftIsDisposable, onPick }: { draftIsDisposable: b
    const confirmId = useId();
  
    // 中身のある下書きは黙って消さない（ルームの写しのままなら消えても取り戻せるので確かめない）

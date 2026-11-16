@@ -1,6 +1,7 @@
 {
   "name": "@tasuki/test-css",
   "version": "0.0.1",
+  "description": "試験の共有支援（いまは CSS を字で読む解析器。書体の判定・偽の WebSocket は #594 で移す予定）。試験専用で、製品コードからは読まない（docs/adr/0017 の追記（#599））",
   "private": true,
   "type": "module",
   "exports": {

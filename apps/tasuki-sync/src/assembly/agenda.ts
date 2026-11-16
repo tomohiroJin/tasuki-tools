@@ -29,7 +29,7 @@ export function assembleAgenda(base: AssemblyBase, timer: TimerSide): AgendaPart
   const agendas = new InMemoryAgendaStore();
   const agendaDeadlines = makeAgendaDeadlines({
     clock: monotonicClock,
-    timer: { set: (fn, ms) => setTimeout(fn, ms), clear: (h) => clearTimeout(h as ReturnType<typeof setTimeout>) },
+    timer: { set: (fn, ms) => setTimeout(fn, ms), clear: (h) => clearTimeout(h) },
   });
   const broadcaster = makeAgendaBroadcaster({
     store,

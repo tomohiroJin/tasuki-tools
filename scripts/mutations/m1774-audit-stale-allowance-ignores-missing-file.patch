@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-domain-side-effects.mjs b/scripts/audit-domain-side-effects.mjs
+index da61d38e..0e54bb7e 100644
+--- a/scripts/audit-domain-side-effects.mjs
++++ b/scripts/audit-domain-side-effects.mjs
+@@ -229,7 +229,7 @@ export function findStaleAllowances(scanned, allowed = ALLOWED_TOP_LEVEL_MUTABLE
+   const mutable = FORBIDDEN_PATTERNS.find((p) => p.token === MUTABLE_COLLECTION_TOKEN).pattern;
+   return allowed.filter((a) => {
+     const text = scanned.get(a.path);
+-    if (text === undefined) return true;
++    if (text === undefined) return false;
+     return !text.split("\n").some((line) => mutable.exec(line)?.[1] === a.name);
+   });
+ }

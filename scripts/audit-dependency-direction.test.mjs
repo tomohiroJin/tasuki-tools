@@ -217,3 +217,42 @@ test("製品コードが同じパッケージの tests・test を相対パスで
   ]);
   assert.deepEqual(findViolations({ "apps/agenda-web": seen }).map((v) => v.via), ["試験専用", "試験専用", "試験専用", "試験専用"]);
 });
+
+/** 一時のディレクトリに package.json だけを置いて観測する（依存欄の検査用・#599）。 */
+function observeManifest(pkg, manifest) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "dd-"));
+  try {
+    fs.mkdirSync(path.join(root, pkg), { recursive: true });
+    fs.writeFileSync(path.join(root, pkg, "package.json"), JSON.stringify(manifest));
+    return observe(pkg, [], root);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
+
+for (const field of ["dependencies", "peerDependencies", "optionalDependencies"]) {
+  test(`試験専用のパッケージを ${field} に書くと、表にあっても違反（製品の依存と見分けがつかない・#599）`, () => {
+    const seen = observeManifest("apps/timer-web", { [field]: { "@tasuki/test-css": "workspace:*" } });
+    assert.equal(ALLOWED["apps/timer-web"].includes("@tasuki/test-css"), true);
+    assert.deepEqual(seen.testOnlyInManifest, [`${field} → @tasuki/test-css`]);
+    assert.deepEqual(
+      findViolations({ "apps/timer-web": seen }).map((v) => v.via),
+      ["試験専用の依存欄"],
+    );
+  });
+}
+
+test("試験専用のパッケージを devDependencies に書くのは、表にあれば通る（対照・#599）", () => {
+  const seen = observeManifest("apps/timer-web", { devDependencies: { "@tasuki/test-css": "workspace:*" } });
+  assert.deepEqual(seen.testOnlyInManifest, []);
+  assert.deepEqual(findViolations({ "apps/timer-web": seen }), []);
+});
+
+for (const field of ["peerDependencies", "optionalDependencies"]) {
+  test(`${field} に書いた表に無い @tasuki/* も、表で裁く（#599）`, () => {
+    const seen = observeManifest("packages/timer-core", { [field]: { "@tasuki/poker-core": "workspace:*" } });
+    assert.deepEqual(findViolations({ "packages/timer-core": seen }), [
+      { pkg: "packages/timer-core", dep: "@tasuki/poker-core", via: "package.json" },
+    ]);
+  });
+}

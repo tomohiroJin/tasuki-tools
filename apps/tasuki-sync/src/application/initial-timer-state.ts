@@ -48,7 +48,7 @@ export interface InitialTimerStateInput {
 }
 
 /** ルームを作らずに開いた timer の既定設定。 */
-const DEFAULT_INTERVAL_MINUTES = 5 as IntervalMinutes;
+const DEFAULT_INTERVAL_MINUTES: IntervalMinutes = 5;
 
 export function createInitialTimerState(input: InitialTimerStateInput): TimerState {
   const { code, createdAt, participantId } = input;

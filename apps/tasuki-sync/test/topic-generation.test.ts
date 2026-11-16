@@ -414,6 +414,37 @@ describe("TopicGenerator", () => {
     expect(tracker.calls.length).toBe(1);
   });
 
+  // #596: 契約（topic-generation.ts の `cancel` の docstring）「cancel は帳簿を触らない。次の状態は呼び出し側が書く」。
+  // 型では表せない（`cancel` は void を返すだけ）ので、帳簿（保管の値と publish の回数）を前後で比べる。
+  it("WHEN 生成中に cancel する THE TopicGenerator SHALL 帳簿（保管の状態と publish）を触らない", () => {
+    // Given（生成を始めた直後。保管は「生成中」の状態になっている）
+    const clock = new FakeClock();
+    const { provider } = makeManualProvider();
+    const limiter = new AiLimiter({ clock, dailyLimit: 10, cooldownMs: 0 });
+    const tracker = makePublishTracker();
+    const store = new InMemoryTopicStore();
+    store.put("R1", makeState({ aiUnlocked: true, topic: null }));
+    const generator = new TopicGenerator({
+      topics: store,
+      clock,
+      publish: tracker.publish,
+      provider,
+      aiLimiter: limiter,
+      logger: testLogger,
+      refEncoder: testRefEncoder,
+    });
+    generator.request("R1", AI_REQ);
+    const before = store.get("R1");
+    const publishedBefore = tracker.calls.length;
+
+    // When
+    generator.cancel("R1");
+
+    // Then（保管は同じ値のまま・publish も増えない。書くのは次の request を受ける呼び出し側）
+    expect(store.get("R1")).toEqual(before);
+    expect(tracker.calls.length).toBe(publishedBefore);
+  });
+
   it("中断で子プロセスの signal が abort される", () => {
     // Given
     const clock = new FakeClock();

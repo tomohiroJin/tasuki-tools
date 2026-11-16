@@ -1,0 +1,13 @@
+diff --git a/turbo.json b/turbo.json
+index 559df966..ceb1f0ea 100644
+--- a/turbo.json
++++ b/turbo.json
+@@ -10,7 +10,7 @@
+     },
+     "test": {
+       "dependsOn": ["^build"],
+-      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/packages/ui/src/tokens/fonts.css", "$TURBO_ROOT$/packages/test-css/src/**"],
++      "inputs": ["$TURBO_ROOT$/packages/ui/src/tokens/fonts.css", "$TURBO_ROOT$/packages/test-css/src/**"],
+       "outputs": []
+     },
+     "test:unit": {

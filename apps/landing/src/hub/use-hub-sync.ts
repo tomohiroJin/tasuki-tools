@@ -8,7 +8,7 @@
  *
  * 1. `/ws` へ繋ぐ（唯一の WS 入口。`?tool=` を付けない接続はハブとして扱われる。
  *    `apps/tasuki-sync/src/adapters/ws-adapter.ts` の `protocolFromRequestUrl`）
- * 2. 受信は `HubServerMsgSchema` で検める（**境界の検証**・原則 IV）。合わないフレームは捨てる
+ * 2. 受信は `classifyHubFrame`（`hub-frames.ts`）が `HubServerMsgSchema` などで検める（**境界の検証**・原則 IV）。合わないフレームは捨てる
  * 3. `room.created` / `room.joined` を受けたら、復帰の組と既定の表示名を端末へ保存する
  * 4. 読み込み時、URL の `?room=` に対応する組があれば**名乗らずに復帰する**（R16）
  * 5. 再接続したら、保存済みの組で入り直す
@@ -20,22 +20,27 @@ import {
   SyncConnection,
   buildInviteUrl,
   buildSyncUrl,
-  clearLegacyPreferences,
   clearResumeIdentity,
-  planForJoinError,
-  loadDefaultDisplayName,
   loadResumeIdentity,
+  planForJoinError,
   saveDefaultDisplayName,
   saveResumeIdentity,
 } from '@tasuki/sync-client';
-import { parseBoundaryMessage } from '@tasuki/protocol';
-import { HubServerMsgSchema, type HubCommand, type RosterRoom } from '@tasuki/room-core';
-import { TopicFrameSchema } from '@tasuki/topic-core';
+import type { HubCommand, RosterRoom } from '@tasuki/room-core';
 import { readRoomParam } from './room-param.js';
 import { departureHubPath, redirectTo } from './departure.js';
-import { usableDefaultDisplayName } from './default-display-name.js';
+import { classifyHubFrame, planHubError } from './hub-frames.js';
+import {
+  checkCommand,
+  createCommand,
+  joinCommand,
+  lastJoinOf,
+  resumeCommand,
+  retryCommand,
+  type LastJoin,
+} from './hub-commands.js';
+import { useDefaultDisplayName } from './use-default-display-name.js';
 import { useJoinRetry } from '@tasuki/web-kit/sync';
-
 
 /** 同期サーバーへの URL。**ハブの入口は `/ws`** で、LP の base（`/`）直下にある。 */
 export function buildHubSyncUrl(location: { protocol: string; host: string }): string {
@@ -138,50 +143,8 @@ export function useHubSync(): HubSync {
   const [error, setError] = useState<string | null>(null);
   const [needsPassphrase, setNeedsPassphrase] = useState(false);
   const [connection, setConnection] = useState<'online' | 'reconnecting'>('online');
-  /**
-   * 読み込みの時点で端末に入っていた表示名（FR-053 / FR-054・#284）。
-   *
-   * **読むだけで、書かない。** 保管庫への書き込みは下の `useEffect` が受け持つ
-   * （`App.tsx` の `readDepartureNotice` と同じ分け方 —— **初期化子に副作用を混ぜない**）。
-   * ここに `removeItem` / `setItem` を混ぜると、`StrictMode` が初期化子を 2 度走らせる
-   * テストと、`StrictMode` を持たない本番（`main.tsx`）とで**読む対象が変わりうる**。
-   */
-  const storedDisplayName = useMemo(() => loadDefaultDisplayName(), []);
-  /**
-   * 名乗りの欄の既定。**読むのは読み込みの 1 度だけ。**
-   *
-   * 以後の書き換えは画面側の `useState` が持つ（EARS 4）。ここを描画のたびに読み直すと、
-   * 入力中の値を保存値で上書きしてしまう。
-   */
-  const defaultDisplayName = useMemo(
-    () => usableDefaultDisplayName(storedDisplayName),
-    [storedDisplayName],
-  );
-
-  /**
-   * 端末の片付け（#284）。**片付け専用の経路は作らない**（憲法 原則 X）ので、
-   * 玄関を開くたびに通るここへ 2 つを相乗りさせている:
-   *
-   * 1. **提示できない保存値を、その鍵ごと捨てる。** 残すと玄関を開くたびに同じ値で
-   *    弾かれ続ける（`resume-identity.ts` の壊れた組と同じ扱い）
-   * 2. timer 時代の設定を落とす（`clearLegacyPreferences`。鍵の綴りと、保管庫が
-   *    使えない端末での握り潰しは `@tasuki/sync-client` に 1 箇所だけ置いてある）
-   *
-   * **捨てる以外の書き込みはしない**（#284 のレビュー所見 3）。提示できる値まで
-   * 正規形で上書きすると、**利用者の保存値を黙って書き潰す**。`normalizeDisplayName` の
-   * 巻き添え（`display-name.ts` の `LABEL_MARKER` が既知として挙げる
-   * `"会社 (ID: 部署)"` → `"会社"`）を覚えている端末では、玄関を開いた瞬間に
-   * 元の値が失われ、手で直す手掛かりごと消える。EARS 3 が求めているのは
-   * 「**提示できない値を捨てる**」ことだけである。
-   *
-   * **何度走っても同じ結果になる。** することは「消す」だけで、消去は冪等である
-   * （`StrictMode` は effect を 2 度走らせる）。
-   */
-  useEffect(() => {
-    clearLegacyPreferences();
-    // 空文字を渡すと鍵ごと消える（`saveDefaultDisplayName` の約束）。
-    if (defaultDisplayName === '' && storedDisplayName !== '') saveDefaultDisplayName('');
-  }, [storedDisplayName, defaultDisplayName]);
+  /** 名乗るフォームの初期値と端末の片付け（`use-default-display-name.ts`・#284）。 */
+  const defaultDisplayName = useDefaultDisplayName();
 
   const connRef = useRef<SyncConnection | null>(null);
   /**
@@ -202,7 +165,7 @@ export function useHubSync(): HubSync {
    */
   const { rateLimited, cancel: cancelRetry, reset: resetRetry } = useJoinRetry(null);
   /** 自動で入り直すときに使う、直近の名乗り。 */
-  const lastJoinRef = useRef<{ displayName: string; passphrase?: string } | null>(null);
+  const lastJoinRef = useRef<LastJoin | null>(null);
   const send = useCallback((cmd: HubCommand) => {
     connRef.current?.send(cmd as unknown as Record<string, unknown>);
   }, []);
@@ -217,12 +180,7 @@ export function useHubSync(): HubSync {
     if (initialCode === null) return false;
     const saved = loadResumeIdentity(initialCode);
     if (saved === null) return false;
-    send({
-      command: 'room.join',
-      code: initialCode,
-      displayName: saved.displayName,
-      resumeToken: saved.resumeToken,
-    });
+    send(resumeCommand(initialCode, saved));
     return true;
   }, [initialCode, send]);
 
@@ -235,26 +193,21 @@ export function useHubSync(): HubSync {
   const checkIfNeeded = useCallback(() => {
     if (initialCode === null) return;
     if (loadResumeIdentity(initialCode) !== null) return;
-    send({ command: 'room.check', code: initialCode });
+    send(checkCommand(initialCode));
   }, [initialCode, send]);
 
   useEffect(() => {
     const conn = new SyncConnection({
       url: buildHubSyncUrl(window.location),
       onMessage: (raw) => {
-        // お題の状態（spec T3）。ハブの言葉ではないので、ハブのスキーマより先に topic-core の
-        // スキーマで見分ける（見分けるのはアプリ層・spec §5.5）。
-        const topic = parseBoundaryMessage(TopicFrameSchema, raw);
-        if (topic.isOk()) {
-          setTopicTitle(topic.value.state.topic?.title ?? null);
+        // 受信フレームの見分け（境界の検証・原則 IV）は `hub-frames.ts`。
+        const frame = classifyHubFrame(raw);
+        if (frame.kind === 'topic') {
+          setTopicTitle(frame.title);
           return;
         }
-
-        // 境界の検証（原則 IV）。契約に合わないフレームは**捨てる** ——
-        // 画面の状態を壊すより、更新されないほうが害が小さい。
-        const parsed = parseBoundaryMessage(HubServerMsgSchema, raw);
-        if (parsed.isErr()) return;
-        const msg = parsed.value;
+        if (frame.kind === 'drop') return;
+        const msg = frame.msg;
 
         if (msg.type === 'roster') {
           setRoster(msg.room);
@@ -291,71 +244,55 @@ export function useHubSync(): HubSync {
         // 入れなかった」ことが確定しており、待ち続けると読み込み中の表示から抜けられない
         // （合言葉を求められた・混雑で弾かれた場合も、参加画面で文言を読ませて操作させる）。
         setResuming(false);
-        // 抜けた・外された（別のタブ・別のツールの操作でも届く）。組を捨てて接続を畳み、理由を持って
-        // 玄関のそのルームへ置き換えて戻る（#427）。画面に留まると、名簿が古いまま押せる画面が残る。
-        // 判断は他のツールと同じ `planForJoinError`（`REMOVED_BY_HOST` も同じ扱い）。
-        const plan = planForJoinError(msg.code, msg.message, msg.message);
-        if (plan.kind === 'left') {
-          const target = codeRef.current;
-          if (target !== null) {
+        // 次の一手の決め方は `hub-frames.ts` の `planHubError`。ここは実行だけを受け持つ。
+        const intent = planHubError(msg, planForJoinError(msg.code, msg.message, msg.message), {
+          currentCode: codeRef.current,
+          initialCode,
+        });
+        switch (intent.kind) {
+          case 'leave':
+            // 抜けた・外された（別のタブ・別のツールの操作でも届く）。組を捨てて接続を畳み、
+            // 理由を持って玄関のそのルームへ置き換えて戻る（#427）。画面に留まると、名簿が
+            // 古いまま押せる画面が残る。
             cancelRetry();
-            clearResumeIdentity(target);
+            clearResumeIdentity(intent.target);
             conn.dispose();
-            redirectTo(departureHubPath(target, plan.reason));
-          }
-          return;
-        }
-        if (msg.code === 'PASSPHRASE_REQUIRED' || msg.code === 'PASSPHRASE_MISMATCH') {
-          setNeedsPassphrase(true);
-          setError(msg.message);
-          return;
-        }
-        if (msg.code === 'JOIN_RATE_LIMITED') {
-          // 混雑で弾かれた人を、操作なしで先へ運ぶ（#147 と同じ方針）。
-          setError(msg.message);
-          const last = lastJoinRef.current;
-          const target = codeRef.current;
-          // 前の予約は `rateLimited` が捨ててから積む（消さずに上書きすると、消えた側は取り消せない
-          // まま生き残る。最終レビュー I1）。使い切ったら送らない。
-          rateLimited(() => {
-            // **コードが無い（作成が弾かれた）ときは送り直す先が無い。** 回数だけは数える
-            // （載せ替えの前と同じ）。コードは null から決まるだけで戻らないので、このとき
-            // 取り消される予約は無い。
-            if (target === null) return;
-            // **`last === null` は「まだ名乗っていない」** ＝ 送ったのは照会だけである
-            // （#274）。エラーのフレームに相関の手がかりが無いので、送った側の状態で
-            // 見分ける。経路2 の人は復帰を送る前に `lastJoinRef` が埋まっている。
-            if (last === null) {
-              send({ command: 'room.check', code: target });
-              return;
-            }
-            send({
-              command: 'room.join',
-              code: target,
-              displayName: last.displayName,
-              ...(last.passphrase !== undefined ? { passphrase: last.passphrase } : {}),
+            redirectTo(departureHubPath(intent.target, intent.reason));
+            return;
+          case 'passphrase':
+            setNeedsPassphrase(true);
+            setError(intent.message);
+            return;
+          case 'rate-limited': {
+            // 混雑で弾かれた人を、操作なしで先へ運ぶ（#147 と同じ方針）。
+            setError(intent.message);
+            const last = lastJoinRef.current;
+            const target = codeRef.current;
+            // 前の予約は `rateLimited` が捨ててから積む（消さずに上書きすると、消えた側は取り消せない
+            // まま生き残る。最終レビュー I1）。使い切ったら送らない。
+            rateLimited(() => {
+              // **コードが無い（作成が弾かれた）ときは送り直す先が無い。** 回数だけは数える
+              // （載せ替えの前と同じ）。コードは null から決まるだけで戻らないので、このとき
+              // 取り消される予約は無い。
+              if (target === null) return;
+              send(retryCommand(target, last));
             });
-          });
-          return;
+            return;
+          }
+          case 'gone':
+            // **保存済みの組で入れなかったら捨てる。** 残すと、消えたルームへ
+            // 毎回入り直そうとして参加画面に戻れない（poker の clearIdentity と同じ扱い）。
+            clearResumeIdentity(intent.target);
+            // **名乗りフォームを出さない**（#274・#76 J-1）。ここで返す。`error` を埋めると、
+            // 不在の画面と参加画面用の文言が同じことを 2 通りの言い方で出すことになる。
+            setGone(true);
+            return;
+          case 'ignore':
+            return;
+          case 'show':
+            setError(intent.message);
+            return;
         }
-        if (msg.code === 'ROOM_NOT_FOUND' && codeRef.current !== null) {
-          // **作成でルームが進んだ後は、URL 由来の古いコードの不在で新しいルームを巻き添えに
-          // しない**（#290・D4 が「不在＋退出の告知 → 作成画面」を足したことで、initialCode が
-          // 非 null のまま作成画面に居る状態が到達可能になった。作成後は codeRef が新しい
-          // コードを指す一方、尋ねた相手は古い initialCode のままなので、両者が食い違う
-          // ときは新しいルームの復帰の組を消してはいけない）。
-          if (codeRef.current !== initialCode) return;
-          // **保存済みの組で入れなかったら捨てる。** 残すと、消えたルームへ
-          // 毎回入り直そうとして参加画面に戻れない（poker の clearIdentity と同じ扱い）。
-          clearResumeIdentity(codeRef.current);
-          // **名乗りフォームを出さない**（#274・#76 J-1）。照会の答えでも
-          // 入室の答えでも、行き先は同じ画面である。
-          setGone(true);
-          // ここで返す。`error` を埋めると、不在の画面と参加画面用の文言が
-          // 同じことを 2 通りの言い方で出すことになる。
-          return;
-        }
-        setError(msg.message);
       },
       onOpen: () => {
         setConnection('online');
@@ -400,7 +337,7 @@ export function useHubSync(): HubSync {
       cancelRetry();
       lastJoinRef.current = { displayName };
       setError(null);
-      send({ command: 'room.create', roomName, displayName });
+      send(createCommand(roomName, displayName));
     },
     [send, cancelRetry],
   );
@@ -411,15 +348,11 @@ export function useHubSync(): HubSync {
       // **利用者が自分で名乗った。** 待ち時間の間に仕掛かっていた再試行（名乗る前の
       // 状態を捕まえている）を取り消さないと、名乗った後に幽霊の照会が飛ぶ（#274）。
       cancelRetry();
-      lastJoinRef.current = { displayName, ...(passphrase !== undefined ? { passphrase } : {}) };
+      const last = lastJoinOf(displayName, passphrase);
+      lastJoinRef.current = last;
       setError(null);
       resetRetry();
-      send({
-        command: 'room.join',
-        code,
-        displayName,
-        ...(passphrase !== undefined ? { passphrase } : {}),
-      });
+      send(joinCommand(code, last));
     },
     [code, send, cancelRetry, resetRetry],
   );

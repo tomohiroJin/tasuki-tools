@@ -1,0 +1,24 @@
+# 変異 1780: hub-error-plan-stale-code-not-ignored
+#
+# 検出を期待するテスト:
+#   - apps/landing/tests/hub/hub-frames.test.ts
+#     「Given 作成でルームが進んだ後の古いコードの不在 / When 決める / Then 新しいルームを巻き添えにしない」
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1780-*.patch
+# 復元: git apply -R scripts/mutations/m1780-*.patch
+#
+# #595・#290。`planHubError` が、作成でルームが進んだ後の古い URL 由来のコードの不在
+# （currentCode と initialCode の食い違い）を無視する分岐を落とす。新しいルームの
+# 復帰の組を消し、作成した直後の画面が不在の知らせに落ちる。
+diff --git a/apps/landing/src/hub/hub-frames.ts b/apps/landing/src/hub/hub-frames.ts
+--- a/apps/landing/src/hub/hub-frames.ts
++++ b/apps/landing/src/hub/hub-frames.ts
+@@ -74,7 +74,6 @@ export function planHubError(
+     // **作成でルームが進んだ後は、URL 由来の古いコードの不在で新しいルームを巻き添えに
+     // しない**（#290）。作成後は currentCode が新しいコードを指す一方、尋ねた相手は古い
+     // initialCode のままなので、食い違うときは新しいルームの復帰の組を消してはいけない。
+-    if (currentCode !== initialCode) return { kind: 'ignore' };
+     return { kind: 'gone', target: currentCode };
+   }
+   return { kind: 'show', message: err.message };

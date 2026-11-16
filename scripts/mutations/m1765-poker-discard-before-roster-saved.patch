@@ -1,0 +1,14 @@
+diff --git a/apps/tasuki-sync/src/application/handlers.ts b/apps/tasuki-sync/src/application/handlers.ts
+index 9318442c..368f0502 100644
+--- a/apps/tasuki-sync/src/application/handlers.ts
++++ b/apps/tasuki-sync/src/application/handlers.ts
+@@ -553,8 +553,8 @@ export function makeHandlers(deps: HandlerDeps) {
+         { id: targetId, displayName: target.displayName },
+       );
+     } else {
+-      saveRoster({ store, hub: deps.hub, timers, timerBroadcaster: broadcaster }, outcome.membership);
+       deps.discardPokerVote(roomCode, targetId);
++      saveRoster({ store, hub: deps.hub, timers, timerBroadcaster: broadcaster }, outcome.membership);
+     }
+     return ok(undefined);
+   }

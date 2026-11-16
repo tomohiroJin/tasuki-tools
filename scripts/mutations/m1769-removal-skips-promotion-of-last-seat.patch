@@ -1,0 +1,13 @@
+diff --git a/apps/tasuki-sync/src/application/room-removal.ts b/apps/tasuki-sync/src/application/room-removal.ts
+index abe7a63f..ab76d5b6 100644
+--- a/apps/tasuki-sync/src/application/room-removal.ts
++++ b/apps/tasuki-sync/src/application/room-removal.ts
+@@ -110,7 +110,7 @@ export function planRemoval(
+     // 拒否を残すのは候補が居ないときの防御で、**名簿が空でない限りここへは来ない** ——
+     // 退出者が唯一の席を持つなら、残る名簿の全員が見学だからである。
+     let working = { session: timer.session, clock: timer.clock };
+-    if (timer.session.rotation.length <= 1) {
++    if (timer.session.rotation.length < 1) {
+       const seatedIds = new Set(timer.session.rotation.map(rotationEntryId));
+       const promoted = pickPromotionTarget(membership.participants, seatedIds, targetId);
+       if (promoted === null) return err("BelowMinMembers");

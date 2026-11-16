@@ -143,14 +143,14 @@ export function joinRoom(
   // 復帰（同じ端末・同じルーム）。**接続を足す。前の接続を奪わない**（#95 S4b・D14）。
   // 判定は `room-entry.ts` が持つ（poker の入口と同じものを通す）。
   const resumed = findResumableParticipant(tokenStore, room, input.code, input.resumeToken);
-  if (resumed !== undefined && input.resumeToken !== undefined) {
+  if (resumed.kind === "resumed") {
     return ok({
       kind: "resumed",
-      participantId: resumed.id,
-      resumeToken: input.resumeToken,
+      participantId: resumed.participant.id,
+      resumeToken: resumed.resumeToken,
       // resumed は `room` から引いた参加者なので Err にはならない（なっても名簿は変えない）。
-      membership: attachConnection(room, resumed.id, input.connId, input.tool).unwrapOr(room),
-      timer: timerFor(resumed.id),
+      membership: attachConnection(room, resumed.participant.id, input.connId, input.tool).unwrapOr(room),
+      timer: timerFor(resumed.participant.id),
     });
   }
 
@@ -159,7 +159,7 @@ export function joinRoom(
   //
   // **ハブもここを通る**（#95 S5a）。通さないと、合言葉を知らない人が選択画面から
   // 保護ルームの名簿を読めてしまう。
-  const allowed = checkPassphrase(tokenStore.getPassphrase(input.code), input.passphrase);
+  const allowed = checkPassphrase(tokenStore.getPassphrase(input.code), input.passphrase, resumed);
   if (allowed.isErr()) {
     // 失敗をレート制限に積算（総当たりの緩和・既存 join 制限と統合）。
     rateLimitGate.consume(input.connId, rateNow);

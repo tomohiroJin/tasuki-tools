@@ -14,8 +14,9 @@
  *
  *   1. **宣言と実体の全単射照合**（`docs/adr/0014` 決定 1）: {@link ALLOWED} のキーと、
  *      pnpm が答える実在パッケージが一致する
- *   2. **`package.json` の依存宣言**（`dependencies` と `devDependencies` の両方）に、
- *      表に無い `@tasuki/*` が無い
+ *   2. **`package.json` の依存宣言**（`dependencies`・`devDependencies`・`peerDependencies`・
+ *      `optionalDependencies`）に、表に無い `@tasuki/*` が無い。{@link TEST_ONLY} は
+ *      `devDependencies` 以外の欄に書くと、表にあっても違反（#599）
  *   3. **追跡下の `.ts` / `.tsx` の import 文**に、表に無い `@tasuki/*` が無い
  *   4. **同じ import 文に、パッケージの外へ出る相対パスが無い**
  *
@@ -115,7 +116,7 @@ export const ALLOWED = {
   "packages/poker-core": ["@tasuki/protocol"], // 既存。境界のパースを protocol に一本化
   "packages/protocol": [],
   "packages/rate-limit": [],
-  // 試験専用の私的なパッケージ（CSS を字で読む小さな解析器・#554）。@tasuki/* に依存しない。読めるのは {@link TEST_ONLY} の側だけ。
+  // 試験専用の私的なパッケージ（試験の共有支援。いまは CSS を字で読む解析器。#554・#599）。@tasuki/* に依存しない。読めるのは {@link TEST_ONLY} の側だけ（試験から、devDependencies で）。
   "packages/test-css": [],
   "packages/ui": ["@tasuki/test-css"], // devDependency（tests/ だけが読む）
   "packages/invite-ui": [], // ADR-0020: ブラウザ操作のみ。ドメイン・同期への依存なし。
@@ -287,6 +288,12 @@ export function findInvalidExclusions(entries) {
  */
 export const TEST_ONLY = ["@tasuki/test-css"];
 
+/**
+ * 依存宣言として読む `package.json` の欄。`peerDependencies`・`optionalDependencies` も読む
+ * （読まないと、そこへ書いた `@tasuki/*` が表で裁かれない。#599）。
+ */
+const MANIFEST_FIELDS = ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"];
+
 /** `@tasuki/*` の import 指定子を 1 行から拾う。 */
 const TASUKI_SPECIFIER = /["'](@tasuki\/[a-z0-9-]+)/g;
 
@@ -307,7 +314,7 @@ const RELATIVE_SPECIFIER = /(?:from|import)\s*\(?\s*["'](\.[^"']*)["']/g;
  */
 export function findViolations(observed) {
   const violations = [];
-  for (const [pkg, { manifest, imports, escapes = [], testOnlyInProduct = [] }] of Object.entries(observed)) {
+  for (const [pkg, { manifest, imports, escapes = [], testOnlyInProduct = [], testOnlyInManifest = [] }] of Object.entries(observed)) {
     const allowed = ALLOWED[pkg];
     if (allowed === undefined) {
       violations.push({ pkg, dep: null, via: "declaration" });
@@ -328,6 +335,10 @@ export function findViolations(observed) {
     // 試験専用のパッケージを製品コードが読むのは、依存先が表にあるかどうかによらず違反。
     for (const dep of new Set(testOnlyInProduct)) {
       violations.push({ pkg, dep, via: "試験専用" });
+    }
+    // 試験専用のパッケージを devDependencies 以外の欄に書くのも違反（宣言の上で製品の依存と見分けがつかない）。
+    for (const dep of new Set(testOnlyInManifest)) {
+      violations.push({ pkg, dep, via: "試験専用の依存欄" });
     }
   }
   return violations;
@@ -364,11 +375,15 @@ function listPackageSources(pkg) {
 export function observe(pkg, files, root = REPO_ROOT, texts = null) {
   const manifestPath = path.join(root, pkg, "package.json");
   const manifest = [];
+  const testOnlyInManifest = [];
   if (fs.existsSync(manifestPath)) {
     const json = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
-    for (const field of ["dependencies", "devDependencies"]) {
+    for (const field of MANIFEST_FIELDS) {
       for (const dep of Object.keys(json[field] ?? {})) {
-        if (dep.startsWith("@tasuki/")) manifest.push(dep);
+        if (!dep.startsWith("@tasuki/")) continue;
+        manifest.push(dep);
+        // 試験専用のパッケージは devDependencies にだけ書ける（docs/adr/0017 の追記（#599）決まり 2）
+        if (field !== "devDependencies" && TEST_ONLY.includes(dep)) testOnlyInManifest.push(`${field} → ${dep}`);
       }
     }
   }
@@ -391,7 +406,7 @@ export function observe(pkg, files, root = REPO_ROOT, texts = null) {
       if (!isTestSide && (target.startsWith(`${pkg}/tests/`) || target.startsWith(`${pkg}/test/`) || target === `${pkg}/tests` || target === `${pkg}/test`)) testOnlyInProduct.push(`${rel} → ${m[1]}`);
     }
   }
-  return { manifest, imports, escapes, testOnlyInProduct };
+  return { manifest, imports, escapes, testOnlyInProduct, testOnlyInManifest };
 }
 
 function main() {
@@ -510,6 +525,8 @@ function main() {
           ? `  ${v.pkg}: パッケージの外を相対パスで取り込んでいます ${v.dep}`
           : v.via === "試験専用"
             ? `  ${v.pkg}: 製品コードが試験専用のパッケージを読んでいます ${v.dep}`
+            : v.via === "試験専用の依存欄"
+              ? `  ${v.pkg}: 試験専用のパッケージは devDependencies にだけ書けます ${v.dep}`
           : `  ${v.pkg} → ${v.dep}（${v.via}）`,
     );
   }
