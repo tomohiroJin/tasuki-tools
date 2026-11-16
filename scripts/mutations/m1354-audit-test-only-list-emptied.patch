@@ -10,12 +10,12 @@
 # 復元: git apply -R scripts/mutations/m1354-*.patch
 --- a/scripts/audit-dependency-direction.mjs
 +++ b/scripts/audit-dependency-direction.mjs
-@@ -280,7 +280,7 @@
+@@ -281,7 +281,7 @@ export function findInvalidExclusions(entries) {
   * 製品コード（それ以外の全ファイル。設定ファイルを含む）から読むと、依存先が {@link ALLOWED} にあっても違反。
   * 字句の解析は持たない。指定子の拾い方は他の `@tasuki/*` と同じ（{@link TASUKI_SPECIFIER}）。
   */
 -export const TEST_ONLY = ["@tasuki/test-css"];
 +export const TEST_ONLY = [];
  
- /** `@tasuki/*` の import 指定子を 1 行から拾う。 */
- const TASUKI_SPECIFIER = /["'](@tasuki\/[a-z0-9-]+)/g;
+ /**
+  * 依存宣言として読む `package.json` の欄。`peerDependencies`・`optionalDependencies` も読む

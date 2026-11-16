@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-dependency-direction.mjs b/scripts/audit-dependency-direction.mjs
+index 7bb4b599..73cfaab1 100644
+--- a/scripts/audit-dependency-direction.mjs
++++ b/scripts/audit-dependency-direction.mjs
+@@ -287,7 +287,7 @@ export const TEST_ONLY = ["@tasuki/test-css"];
+  * 依存宣言として読む `package.json` の欄。`peerDependencies`・`optionalDependencies` も読む
+  * （読まないと、そこへ書いた `@tasuki/*` が表で裁かれない。#599）。
+  */
+-const MANIFEST_FIELDS = ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"];
++const MANIFEST_FIELDS = ["dependencies", "devDependencies", "peerDependencies"];
+ 
+ /** `@tasuki/*` の import 指定子を 1 行から拾う。 */
+ const TASUKI_SPECIFIER = /["'](@tasuki\/[a-z0-9-]+)/g;

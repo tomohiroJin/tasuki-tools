@@ -1,0 +1,13 @@
+diff --git a/turbo.json b/turbo.json
+index 559df966..aa02d7c7 100644
+--- a/turbo.json
++++ b/turbo.json
+@@ -39,7 +39,7 @@
+     },
+     "@tasuki/agenda-core#test": {
+       "dependsOn": ["^build"],
+-      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/packages/ui/src/tokens/fonts.css", "$TURBO_ROOT$/packages/test-css/src/**"],
++      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/packages/ui/src/tokens/fonts.css"],
+       "outputs": ["coverage/**"]
+     },
+     "@tasuki/checkin-core#test": {

@@ -227,6 +227,9 @@ const RESERVED_1640_1659 =
 const RESERVED_1660_1679 =
   "**対応表より後に足した変異。** 1660〜1679 は #595（#482-6）に割り当てた範囲。";
 
+const RESERVED_1740_1759 =
+  "**対応表より後に足した変異。** 1740〜1759 は #599（テスト支援の共有先・採択後の最初の PR）に割り当てた範囲。";
+
 const RESERVED_1780_1799 =
   "**対応表より後に足した変異。** 1780〜1799 は #595（use-hub-sync を責務で分ける）に割り当てた範囲。";
 
@@ -9518,6 +9521,78 @@ export const MUTATIONS = [
     pkg: "apps/timer-web",
     tests: ["test/sync/use-timer-sync.test.tsx"],
     note: RESERVED_1660_1679 + " " + "#595 のレビュー。受け皿 clearCompletion の配線を突く。",
+  },
+  {
+    id: 1740,
+    label: "package.json の依存欄の読み取りから optionalDependencies を外す",
+    patch: "m1740-manifest-fields-no-optional.patch",
+    pkg: "scripts",
+    tests: ["audit-dependency-direction.test.mjs"],
+    note: RESERVED_1740_1759 + " " + "#599。optionalDependencies に書いた試験専用のパッケージや表に無い @tasuki/* が、依存の向きの監査を素通りする。",
+  },
+  {
+    id: 1741,
+    label: "試験専用のパッケージを devDependencies 以外に書いた違反の判定を dependencies だけに狭める",
+    patch: "m1741-test-only-field-only-dependencies.patch",
+    pkg: "scripts",
+    tests: ["audit-dependency-direction.test.mjs"],
+    note: RESERVED_1740_1759 + " " + "#599。peerDependencies・optionalDependencies に書いた試験専用のパッケージが、宣言の上で製品の依存と見分けがつかないまま通る。",
+  },
+  {
+    id: 1742,
+    label: "試験専用のパッケージを devDependencies に書いた場合も違反にする（欄の条件を外す）",
+    patch: "m1742-test-only-field-includes-dev.patch",
+    pkg: "scripts",
+    tests: ["audit-dependency-direction.test.mjs"],
+    note: RESERVED_1740_1759 + " " + "#599。試験専用のパッケージの正しい書き場所（devDependencies）まで赤くなり、試験から読む 3 パッケージが監査で落ちる。",
+  },
+  {
+    id: 1743,
+    label: "試験専用のパッケージを devDependencies 以外に書いた観測を違反として返さない",
+    patch: "m1743-test-only-manifest-not-reported.patch",
+    pkg: "scripts",
+    tests: ["audit-dependency-direction.test.mjs"],
+    note: RESERVED_1740_1759 + " " + "#599。観測はしても違反に変えず、3 つの欄に書いても監査が緑のまま。",
+  },
+  {
+    id: 1744,
+    label: "個別に定義した checkin-core の test の inputs から fonts.css を外す",
+    patch: "m1744-turbo-core-test-inputs-no-fonts.patch",
+    pkg: "scripts",
+    tests: ["turbo-test-inputs.test.mjs"],
+    note: RESERVED_1740_1759 + " " + "#599。fonts.css を変えても checkin-core の test のハッシュが変わらず、手元で古い緑が再生される（package#task は基底を継承しない）。",
+  },
+  {
+    id: 1745,
+    label: "基底の test の inputs から $TURBO_DEFAULT$ を外す",
+    patch: "m1745-turbo-base-test-inputs-no-default.patch",
+    pkg: "scripts",
+    tests: ["turbo-test-inputs.test.mjs"],
+    note: RESERVED_1740_1759 + " " + "#599。inputs に既定の入力を含めないと、パッケージ自身のソースを変えても test のハッシュが変わらず、古い緑が再生される。",
+  },
+  {
+    id: 1746,
+    label: "test:unit の inputs から fonts.css を外す",
+    patch: "m1746-turbo-test-unit-inputs-no-fonts.patch",
+    pkg: "scripts",
+    tests: ["turbo-test-inputs.test.mjs"],
+    note: RESERVED_1740_1759 + " " + "#599 のレビュー。fonts.css を変えても timer-web などの test:unit のハッシュが変わらず、手元で古い緑が再生される。",
+  },
+  {
+    id: 1747,
+    label: "test:unit の inputs から test-css/src を外す",
+    patch: "m1747-turbo-test-unit-inputs-no-test-css.patch",
+    pkg: "scripts",
+    tests: ["turbo-test-inputs.test.mjs"],
+    note: RESERVED_1740_1759 + " " + "#599 のレビュー。test-css/src を test:unit の入力の決まりから外すと、決まりを見る自己テストが落ちる（決まりは docs/adr/0017 の追記（#599）決まり 3）。",
+  },
+  {
+    id: 1748,
+    label: "個別に定義した agenda-core の test の inputs から test-css/src を外す",
+    patch: "m1748-turbo-core-test-inputs-no-test-css.patch",
+    pkg: "scripts",
+    tests: ["turbo-test-inputs.test.mjs"],
+    note: RESERVED_1740_1759 + " " + "#599 のレビュー。package#task は基底を継承しないので、この 1 つだけ test-css の変更でハッシュが変わらない穴に戻る。",
   },
   {
     id: 1760,

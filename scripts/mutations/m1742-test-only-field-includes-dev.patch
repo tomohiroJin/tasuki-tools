@@ -1,0 +1,13 @@
+diff --git a/scripts/audit-dependency-direction.mjs b/scripts/audit-dependency-direction.mjs
+index 7bb4b599..43728623 100644
+--- a/scripts/audit-dependency-direction.mjs
++++ b/scripts/audit-dependency-direction.mjs
+@@ -378,7 +378,7 @@ export function observe(pkg, files, root = REPO_ROOT) {
+         if (!dep.startsWith("@tasuki/")) continue;
+         manifest.push(dep);
+         // 試験専用のパッケージは devDependencies にだけ書ける（docs/adr/0017 の追記（#599）決まり 2）
+-        if (field !== "devDependencies" && TEST_ONLY.includes(dep)) testOnlyInManifest.push(`${field} → ${dep}`);
++        if (TEST_ONLY.includes(dep)) testOnlyInManifest.push(`${field} → ${dep}`);
+       }
+     }
+   }
