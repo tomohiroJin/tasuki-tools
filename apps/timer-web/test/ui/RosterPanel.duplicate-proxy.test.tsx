@@ -316,6 +316,24 @@ describe("RosterPanel 代理追加の同名拒否（#291）", () => {
     expect(onAddProxy).toHaveBeenCalledWith("Dave");
   });
 
+  it("かな漢字変換の確定の Enter では送らず、確定後の Enter で送る（代理追加）", () => {
+    // Given（変換中の Enter は変換の確定で、送信の合図ではない。isComposing か keyCode 229 で見分ける）
+    const onAddProxy = vi.fn();
+    render(<RosterPanel {...baseProps} participants={participants} onAddProxy={onAddProxy} />);
+    fireEvent.click(screen.getByRole("button", { name: "代理参加者を追加" }));
+    fireEvent.change(proxyInput(), { target: { value: "ダニエル" } });
+    // When（変換の確定）
+    fireEvent.keyDown(proxyInput(), { key: "Enter", isComposing: true });
+    fireEvent.keyDown(proxyInput(), { key: "Enter", keyCode: 229 });
+    // Then
+    expect(onAddProxy).not.toHaveBeenCalled();
+    // When（確定後の Enter）
+    fireEvent.keyDown(proxyInput(), { key: "Enter" });
+    // Then
+    expect(onAddProxy).toHaveBeenCalledTimes(1);
+    expect(onAddProxy).toHaveBeenCalledWith("ダニエル");
+  });
+
   it("Enter で送っても同名なら止まる（押下と同じ関門を通る）", () => {
     // Given
     const onAddProxy = vi.fn();
@@ -537,6 +555,24 @@ describe("RosterPanel 改名の同名拒否（#291）", () => {
     fireEvent.keyDown(editInput(), { key: "Enter" });
     // Then
     expect(onRename).toHaveBeenCalledWith("p1", "Alicia");
+  });
+
+  it("かな漢字変換の確定の Enter では保存せず、確定後の Enter で保存する（改名）", () => {
+    // Given（変換中の Enter は変換の確定で、送信の合図ではない。isComposing か keyCode 229 で見分ける）
+    const onRename = vi.fn();
+    render(<RosterPanel {...baseProps} participants={participants} onRename={onRename} />);
+    fireEvent.click(screen.getByRole("button", { name: "Alice を改名" }));
+    fireEvent.change(editInput(), { target: { value: "アリス" } });
+    // When（変換の確定）
+    fireEvent.keyDown(editInput(), { key: "Enter", isComposing: true });
+    fireEvent.keyDown(editInput(), { key: "Enter", keyCode: 229 });
+    // Then
+    expect(onRename).not.toHaveBeenCalled();
+    // When（確定後の Enter）
+    fireEvent.keyDown(editInput(), { key: "Enter" });
+    // Then
+    expect(onRename).toHaveBeenCalledTimes(1);
+    expect(onRename).toHaveBeenCalledWith("p1", "アリス");
   });
 
   it("2 度目の失敗でも理由のノードを張り替える", () => {

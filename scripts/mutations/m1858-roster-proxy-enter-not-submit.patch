@@ -1,0 +1,20 @@
+# 変異 1858: roster-proxy-enter-not-submit
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/ui/RosterPanel.duplicate-proxy.test.tsx
+#
+# #595。代理追加の入力で Enter を押しても送られない。閉じずにその場で直させる形にした以上、直後の自然な操作が効かなくなる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1858-*.patch
+diff --git a/apps/timer-web/src/ui/components/RosterProxyForm.tsx b/apps/timer-web/src/ui/components/RosterProxyForm.tsx
+--- a/apps/timer-web/src/ui/components/RosterProxyForm.tsx
++++ b/apps/timer-web/src/ui/components/RosterProxyForm.tsx
+@@ -26,7 +26,6 @@
+           type="text"
+           value={name}
+           onChange={(e) => onChange(e.target.value)}
+-          onKeyDown={submitOnEnter(onSubmit)}
+           placeholder="Web 非接続のメンバー名"
+           aria-label="代理参加者の名前"
+           maxLength={MAX_DISPLAY_NAME}

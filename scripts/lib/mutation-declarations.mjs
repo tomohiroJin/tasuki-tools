@@ -10154,4 +10154,28 @@ export const MUTATIONS = [
     tests: ["test/ui/RosterPanel.duplicate-proxy.test.tsx"],
     note: RESERVED_1850_1869 + " " + "#595。RosterRow.tsx。閉じずにその場で直させる形にした以上、直後の自然な操作が効かなくなる。",
   },
+  {
+    id: 1857,
+    label: "かな漢字変換の確定の Enter でも送る",
+    patch: "m1857-roster-enter-during-composition-submits.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/RosterPanel.duplicate-proxy.test.tsx"],
+    note: RESERVED_1850_1869 + " " + "#595。submit-on-enter.ts。変換を確定しただけで、打ちかけの改名・代理の名前が送られる。",
+  },
+  {
+    id: 1858,
+    label: "代理追加の入力で Enter を押しても送られない",
+    patch: "m1858-roster-proxy-enter-not-submit.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/RosterPanel.duplicate-proxy.test.tsx"],
+    note: RESERVED_1850_1869 + " " + "#595。RosterProxyForm.tsx。閉じずにその場で直させる形にした以上、直後の自然な操作が効かなくなる。",
+  },
+  {
+    id: 1859,
+    label: "代理追加の入力を打ち直しても拒否の理由を降ろさない",
+    patch: "m1859-roster-proxy-retype-keeps-reason.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/RosterPanel.duplicate-proxy.test.tsx"],
+    note: RESERVED_1850_1869 + " " + "#595。RosterPanel.tsx の代理追加の配線。直したのに赤いままで、「まだ駄目なのか」と読める（#291）。",
+  },
 ];
