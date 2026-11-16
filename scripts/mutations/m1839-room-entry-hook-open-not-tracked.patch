@@ -1,7 +1,7 @@
 # 変異 1839: room-entry-hook-open-not-tracked
 #
 # 検出を期待するテスト:
-#   - __TEST__
+#   - apps/poker-web/tests/room-page-join-retry.test.tsx
 #
 # 適用: リポジトリルートから
 #       git apply scripts/mutations/m1839-*.patch

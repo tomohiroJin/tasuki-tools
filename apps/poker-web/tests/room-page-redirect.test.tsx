@@ -123,6 +123,27 @@ describe('端末に同一性が無いままルーム画面を開く', () => {
     expect(screen.getByRole('heading', { name: 'ルームが見つかりません' })).toBeTruthy();
   });
 
+  /**
+   * **消えたルームの復帰の組は捨てる**（再試行ループ防止）。捨てないと、次に開いたときも
+   * 消えたルームへ入り直しを送り続ける。保存の読み書きは本物を通しているので、結果で見る。
+   */
+  it('Given 保存済みの組があるルームが消えた / When 消滅を受ける / Then 保存済みの組を捨てる', () => {
+    // Given: 復帰の組を持っている
+    saveResumeIdentity({
+      code: ROOM_ID,
+      participantId: 'p-stored',
+      resumeToken: 'tok-1',
+      displayName: PARTICIPANT_NAME,
+    });
+    const sync = makeSync({ error: { code: 'room-not-found', message: 'ルームが見つかりません' } });
+
+    // When
+    render(<RoomPage roomId={ROOM_ID} sync={sync} />);
+
+    // Then: 組が消える
+    expect(loadResumeIdentity(ROOM_ID)).toBeNull();
+  });
+
   it('Given 端末に同一性がある / When ルーム画面を開く / Then 送り返さずにそのルームへ入る', () => {
     // Given: 玄関で名乗り済み（ハブから札を選んで来た人）
     saveResumeIdentity({
