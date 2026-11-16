@@ -1,0 +1,22 @@
+# 変異 1809: hook-adopt-room-keeps-draft
+#
+# 検出を期待するテスト:
+#   - apps/agenda-web/tests/scenario-builder.test.tsx
+#
+# #595。use-scenario-draft の adoptRoom が下書きをルームのものにしない（配線）。「ルームのシナリオに戻す」を押しても下書きが戻らない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1809-*.patch
+diff --git a/apps/agenda-web/src/hooks/use-scenario-draft.ts b/apps/agenda-web/src/hooks/use-scenario-draft.ts
+index 9aa2c9cc..be9d851c 100644
+--- a/apps/agenda-web/src/hooks/use-scenario-draft.ts
++++ b/apps/agenda-web/src/hooks/use-scenario-draft.ts
+@@ -25,7 +25,7 @@ export function useScenarioDraft(room: ScenarioInput) {
+     /** 付き合わせ済みのルームのシナリオの鍵（描画ごとに 1 回だけ計算した値を使い回す） */
+     roomKey: current.roomKey,
+     setDraft: (draft: Draft): void => setState((s) => afterDraftEdit(s, draft)),
+-    adoptRoom: (): void => setState((s) => syncAdoptRoom(s, room)),
++    adoptRoom: (): void => setState((s) => ({ ...s, changed: false })),
+     markSent: (input: ScenarioInput): void => setState((s) => syncMarkSent(s, input)),
+   };
+ }

@@ -227,6 +227,12 @@ const RESERVED_1640_1659 =
 const RESERVED_1660_1679 =
   "**対応表より後に足した変異。** 1660〜1679 は #595（#482-6）に割り当てた範囲。";
 
+const RESERVED_1780_1799 =
+  "**対応表より後に足した変異。** 1780〜1799 は #595（use-hub-sync を責務で分ける）に割り当てた範囲。";
+
+const RESERVED_1800_1819 =
+  "**対応表より後に足した変異。** 1800〜1819 は #595（ScenarioBuilder を責務で分ける）に割り当てた範囲。";
+
 const RESERVED_1420_1429 =
   "**対応表より後に足した変異。** 1420〜1429 は #557 に追加で割り当てた範囲（1120〜1129・1410〜1419 を使い切ったため。PR #580 のレビューの指摘で足した）。";
 
@@ -1116,10 +1122,10 @@ export const MUTATIONS = [
   },
   {
     id: 88,
-    label: "玄関の use-hub-sync.ts が topic フレームを検めずに捨てる",
+    label: "玄関の classifyHubFrame（hub-frames.ts）が topic フレームを検めずに捨てる",
     patch: "m88-hub-topic-frame-not-checked.patch",
     pkg: "apps/landing",
-    tests: ["tests/hub/use-hub-sync.test.tsx"],
+    tests: ["tests/hub/use-hub-sync.test.tsx", "tests/hub/hub-frames.test.ts"],
     note:
       "#91 PR 2・spec T3。`TopicFrameSchema` で見分ける分岐を消し、`topic` フレームを" +
       "ハブのスキーマにしか通さなくなる。ハブの契約に合わないので黙って捨てられ、" +
@@ -9663,5 +9669,149 @@ export const MUTATIONS = [
     pkg: "scripts",
     tests: ["audit-domain-side-effects.test.mjs"],
     note: RESERVED_1760_1779 + " " + "#596 のレビュー。片方の問題を直すまでもう片方が見えず、直す回数が増える（全部集めてから一度に報告する）。",
+  },
+  {
+    id: 1780,
+    label: "planHubError が作成後の古いコードの不在を無視せず新しいルームを巻き添えにする",
+    patch: "m1780-hub-error-plan-stale-code-not-ignored.patch",
+    pkg: "apps/landing",
+    tests: ["tests/hub/hub-frames.test.ts"],
+    note: RESERVED_1780_1799 + " " + "#595・#290。分けた先の純粋な判断。作成でルームが進んだ後に古いコードの ROOM_NOT_FOUND が届くと、新しいルームの復帰の組を消す。",
+  },
+  {
+    id: 1781,
+    label: "retryCommand が名乗る前の再試行でも入室を送る",
+    patch: "m1781-hub-retry-command-never-checks.patch",
+    pkg: "apps/landing",
+    tests: ["tests/hub/hub-commands.test.ts"],
+    note: RESERVED_1780_1799 + " " + "#595・#274。分けた先の純粋な組み立て。名乗る前に混雑で弾かれた人の再試行が、空の名前での入室になる。",
+  },
+  {
+    id: 1782,
+    label: "use-hub-sync が混雑の再試行に直近の名乗りを渡さない",
+    patch: "m1782-hub-sync-retry-forgets-last-join.patch",
+    pkg: "apps/landing",
+    tests: ["tests/hub/use-hub-sync.test.tsx"],
+    note: RESERVED_1780_1799 + " " + "#595。use-hub-sync から retryCommand への配線。名乗った人の自動の入り直しが照会に化ける。",
+  },
+  {
+    id: 1783,
+    label: "use-hub-sync が topic の分類を受けてもタイトルを反映しない",
+    patch: "m1783-hub-sync-topic-title-dropped.patch",
+    pkg: "apps/landing",
+    tests: ["tests/hub/use-hub-sync.test.tsx"],
+    note: RESERVED_1780_1799 + " " + "#595。use-hub-sync から classifyHubFrame の結果への配線。選択画面の「いまのお題」が出ない。",
+  },
+  {
+    id: 1784,
+    label: "use-hub-sync が不在のとき保存済みの復帰の組を捨てない",
+    patch: "m1784-hub-sync-gone-keeps-resume-identity.patch",
+    pkg: "apps/landing",
+    tests: ["tests/hub/use-hub-sync.test.tsx"],
+    note: RESERVED_1780_1799 + " " + "#595。use-hub-sync から planHubError の gone への配線。消えたルームへ毎回入り直そうとして参加画面に戻れない。",
+  },
+  {
+    id: 1785,
+    label: "useDefaultDisplayName が提示できない保存値を鍵ごと捨てない",
+    patch: "m1785-default-display-name-cleanup-never-discards.patch",
+    pkg: "apps/landing",
+    tests: ["tests/default-display-name.test.tsx"],
+    note: RESERVED_1780_1799 + " " + "#595・#284。分けた先の小さなフック。玄関を開くたびに同じ値で弾かれ続ける。",
+  },
+  {
+    id: 1786,
+    label: "use-hub-sync が合言葉を求められたときサーバーの文言を表示しない",
+    patch: "m1786-hub-sync-passphrase-message-dropped.patch",
+    pkg: "apps/landing",
+    tests: ["tests/hub/use-hub-sync.test.tsx"],
+    note: RESERVED_1780_1799 + " " + "#595。use-hub-sync から planHubError の passphrase への配線。入力欄だけが出て、なぜ求められたかが伝わらない。",
+  },
+  {
+    id: 1800,
+    label: "ルームのシナリオが変わると、手元で変えた下書きも黙って上書きする",
+    patch: "m1800-reconcile-overwrites-touched-draft.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/scenario-draft-sync.test.ts"],
+    note: RESERVED_1800_1819 + " " + "#595。下書きとルームの付き合わせ（scenario-draft-sync.ts）。組みかけの下書きが消える（spec §4.2 の 4）。",
+  },
+  {
+    id: 1801,
+    label: "自分が送ったシナリオがルームから返ってきても「シナリオが変わりました」と知らせる",
+    patch: "m1801-reconcile-ignores-sent-key.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/scenario-draft-sync.test.ts"],
+    note: RESERVED_1800_1819 + " " + "#595。送った鍵（sentKey）を見ない。自分の操作に自分で驚く知らせが出る。",
+  },
+  {
+    id: 1802,
+    label: "下書きをルームと同じに直しても「シナリオが変わりました」が下りない",
+    patch: "m1802-after-edit-keeps-changed-notice.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/scenario-draft-sync.test.ts"],
+    note: RESERVED_1800_1819 + " " + "#595。編集後の知らせの降ろし方（afterDraftEdit）。",
+  },
+  {
+    id: 1803,
+    label: "行を端へ動かして押せなくなったボタンにフォーカスを置いたままにする",
+    patch: "m1803-focus-after-move-ignores-edge.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/step-focus.test.ts"],
+    note: RESERVED_1800_1819 + " " + "#595。step-focus.ts。押せなくなったボタンにフォーカスを置くと、フォーカスが文書の先頭へ落ちる。",
+  },
+  {
+    id: 1804,
+    label: "行を消した後のフォーカスが、次の行でなく前の行の名前の欄へ行く",
+    patch: "m1804-focus-after-remove-prefers-previous.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/step-focus.test.ts"],
+    note: RESERVED_1800_1819 + " " + "#595。step-focus.ts。消した行の次を先に探し、無ければ前、それも無ければ「ステップを追加」へ。",
+  },
+  {
+    id: 1805,
+    label: "ScenarioBuilder が行を消した後のフォーカスの置き先を state へ渡さない",
+    patch: "m1805-builder-remove-drops-focus-request.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/scenario-builder.test.tsx"],
+    note: RESERVED_1800_1819 + " " + "#595。純粋関数（1804）ではなく ScenarioBuilder から state への配線を突く。",
+  },
+  {
+    id: 1806,
+    label: "ScenarioBuilder の「ルームに読み込む」が送った鍵を覚えない（markSent を呼ばない）",
+    patch: "m1806-builder-load-skips-mark-sent.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/scenario-builder.test.tsx"],
+    note: RESERVED_1800_1819 + " " + "#595。純粋関数（1801）ではなく ScenarioBuilder からフックへの配線を突く。",
+  },
+  {
+    id: 1807,
+    label: "useScenarioDraft が付き合わせの結果（追いついた下書き）を state へ書き戻さない",
+    patch: "m1807-hook-skips-catching-up-state.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/scenario-builder.test.tsx"],
+    note: RESERVED_1800_1819 + " " + "#595 のレビュー。フックの配線。追いついた後に手元で編集すると、ルームが変わっていないのに「シナリオが変わりました」が出る。",
+  },
+  {
+    id: 1808,
+    label: "useScenarioDraft の setDraft が afterDraftEdit を通さず、知らせを下ろさない",
+    patch: "m1808-hook-set-draft-skips-notice-clear.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/scenario-builder.test.tsx"],
+    note: RESERVED_1800_1819 + " " + "#595 のレビュー。フックの配線（1802 の純粋関数側に対する組み合わせ側）。",
+  },
+  {
+    id: 1809,
+    label: "useScenarioDraft の adoptRoom が下書きをルームのシナリオへ戻さない",
+    patch: "m1809-hook-adopt-room-keeps-draft.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/scenario-builder.test.tsx"],
+    note: RESERVED_1800_1819 + " " + "#595 のレビュー。フックの配線。「ルームのシナリオに戻す」が効かない。",
+  },
+  {
+    id: 1810,
+    label: "手つかずの写しの判定が、回数の欄を空にした下書きを写しと見なす",
+    patch: "m1810-untouched-copy-ignores-blank-rounds.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/scenario-draft-sync.test.ts", "tests/scenario-builder.test.tsx"],
+    note: RESERVED_1800_1819 + " " + "#595 のレビュー。isUntouchedCopy の `roundsOfDraft !== null` の守りだけを外す。回数の欄を空にした下書きは rounds キーを落とし、回数 1 のルームと同じ鍵になるため、守りが無いと上書き・確かめ省略が起きる。",
   },
 ];
