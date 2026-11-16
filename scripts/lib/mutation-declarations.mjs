@@ -10130,4 +10130,20 @@ export const MUTATIONS = [
     tests: ["lib/prior-pr-hook.test.mjs", "agent-guard-hook.test.mjs"],
     note: RESERVED_1950_1959 + " " + "#622。判定を直したつもりで、入口では止まり続ける。",
   },
+  {
+    id: 1954,
+    label: "フックの lookup が、番号ごとの状態をまとめるとき、past を not-run より先に採る",
+    patch: "m1954-prior-pr-hook-lookup-past-hides-not-run.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-pr-hook.test.mjs", "agent-guard-hook.test.mjs"],
+    note: RESERVED_1950_1959 + " " + "#622。片方の番号を確かめられなかったのに、もう片方が過去だけという理由で通す。",
+  },
+  {
+    id: 1955,
+    label: "PR の状態を OPEN だけで読み、想定外の値（小文字・DRAFT・欠け）を過去に倒す",
+    patch: "m1955-prior-work-unexpected-state-reads-past.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-work.test.mjs"],
+    note: RESERVED_1950_1959 + " " + "#622。gh の出力の形が変わると、読めない状態の PR を黙って通す。",
+  },
 ];
