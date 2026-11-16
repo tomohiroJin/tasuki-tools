@@ -1,0 +1,22 @@
+# 変異 1831: room-entry-redirect-repeats
+#
+# 検出を期待するテスト:
+#   - apps/poker-web/tests/room-entry-plan.test.ts
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1831-*.patch
+# 復元: git apply -R scripts/mutations/m1831-*.patch
+#
+# #595。入口の判断が 1 回で済まず、決めた後も走るたびに玄関へ送り直す。
+diff --git a/apps/poker-web/src/room-entry-plan.ts b/apps/poker-web/src/room-entry-plan.ts
+--- a/apps/poker-web/src/room-entry-plan.ts
++++ b/apps/poker-web/src/room-entry-plan.ts
+@@ -37,7 +37,7 @@ export function decideEntryRedirect(
+   errorCode: string | null | undefined,
+   hasIdentity: () => boolean,
+ ): { readonly applied: boolean; readonly redirect: boolean } {
+-  if (applied) return { applied, redirect: false };
++  if (applied) return { applied, redirect: !hasIdentity() };
+   if (errorCode === ROOM_NOT_FOUND_CODE) return { applied, redirect: false };
+   return { applied: true, redirect: !hasIdentity() };
+ }

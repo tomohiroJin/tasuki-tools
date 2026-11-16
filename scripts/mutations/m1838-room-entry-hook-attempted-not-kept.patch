@@ -1,0 +1,21 @@
+# 変異 1838: room-entry-hook-attempted-not-kept
+#
+# 検出を期待するテスト:
+#   - __TEST__
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1838-*.patch
+# 復元: git apply -R scripts/mutations/m1838-*.patch
+#
+# #595。入口の効果が「試みた」を保存せず、同期の値が変わるたびに入り直しを送り続ける。
+diff --git a/apps/poker-web/src/hooks/useRoomEntry.ts b/apps/poker-web/src/hooks/useRoomEntry.ts
+--- a/apps/poker-web/src/hooks/useRoomEntry.ts
++++ b/apps/poker-web/src/hooks/useRoomEntry.ts
+@@ -84,7 +84,6 @@ export function useRoomEntry(sync: PokerSync, roomId: string): RoomEntry {
+       errorCode,
+       stored: () => sync.storedIdentity(roomId),
+     });
+-    attemptedRef.current = rejoin.attempted;
+     if (rejoin.join) sync.joinRoom(roomId, rejoin.join.displayName, rejoin.join.resumeToken);
+   }, [sync, roomId]);
+ 

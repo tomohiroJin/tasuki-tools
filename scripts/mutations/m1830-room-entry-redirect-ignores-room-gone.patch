@@ -1,0 +1,21 @@
+# 変異 1830: room-entry-redirect-ignores-room-gone
+#
+# 検出を期待するテスト:
+#   - apps/poker-web/tests/room-entry-plan.test.ts
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1830-*.patch
+# 復元: git apply -R scripts/mutations/m1830-*.patch
+#
+# #595。入口の判断が、消滅したルームを受けている間も決めてしまい、消滅の案内を出す前に玄関へ飛ばす。
+diff --git a/apps/poker-web/src/room-entry-plan.ts b/apps/poker-web/src/room-entry-plan.ts
+--- a/apps/poker-web/src/room-entry-plan.ts
++++ b/apps/poker-web/src/room-entry-plan.ts
+@@ -38,7 +38,6 @@ export function decideEntryRedirect(
+   hasIdentity: () => boolean,
+ ): { readonly applied: boolean; readonly redirect: boolean } {
+   if (applied) return { applied, redirect: false };
+-  if (errorCode === ROOM_NOT_FOUND_CODE) return { applied, redirect: false };
+   return { applied: true, redirect: !hasIdentity() };
+ }
+ 
