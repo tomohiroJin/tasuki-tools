@@ -111,7 +111,7 @@
 - squash マージした PR は、`git merge-base --is-ancestor` では未マージに見える。`gh pr view` の state で見る
 - CI の結果の読み方（headSha から読む・check-runs が全部 completed か）は [`docs/guides/development.md`](../development.md) の「CI の結果を読むとき」
 - 採点を伴うレビュー（Claude Code の `/code-review`）が走っている間は、指摘を直さない。直ったあとの状態が採点され、指摘が空振りになる
-- Claude Code では、自前の敵対的レビューが「直す 0 件」で終わった後でも、PR ごとに `/code-review` を流す。#482 で記録を取った第一陣と第三陣の計 13 本すべてで、自前のレビューが拾わなかった実在の指摘が出た（第二陣の 5 本は件数を記録していない）（`docs/retrospectives/2026-11-18-issue-482-architecture-cleanup.md` の罠 1）。
+- Claude Code では、自前の敵対的レビューが「直す 0 件」で終わった後でも、PR ごとに `/code-review` を流す。#482 で `/code-review` の件数を PR 本文に書いた 18 本（#602 と、第一陣 7・第二陣 4・第三陣 6。書いていないのは #615 だけ）のすべてで、自前のレビューが拾わなかった実在の指摘が出た（`docs/retrospectives/2026-11-18-issue-482-architecture-cleanup.md` の罠 1）。
   運びの順は、実装 → 自前の敵対的レビュー → PR → `/code-review` → 直し → 直した差分のレビュー、を最初から計画に入れる
 
 ## 7. 長い実行を待つとき
