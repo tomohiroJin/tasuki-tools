@@ -109,6 +109,8 @@
 - squash マージした PR は、`git merge-base --is-ancestor` では未マージに見える。`gh pr view` の state で見る
 - CI の結果の読み方（headSha から読む・check-runs が全部 completed か）は [`docs/guides/development.md`](../development.md) の「CI の結果を読むとき」
 - 採点を伴うレビュー（Claude Code の `/code-review`）が走っている間は、指摘を直さない。直ったあとの状態が採点され、指摘が空振りになる
+- Claude Code では、自前の敵対的レビューが「直す 0 件」で終わった後でも、PR ごとに `/code-review` を流す。#482 の第一陣と第三陣の計 13 本すべてで、自前のレビューが拾わなかった実在の指摘が出た（`docs/retrospectives/2026-11-18-issue-482-architecture-cleanup.md` の罠 1）。
+  運びの順は、実装 → 自前の敵対的レビュー → PR → `/code-review` → 直し → 直した差分のレビュー、を最初から計画に入れる
 
 ## 7. 長い実行を待つとき
 
@@ -125,6 +127,8 @@ git branch --show-current  # 枝が切り替わっていないか
 ss -tlnp                   # 起動した dev サーバーが残っていないか
 git status --porcelain
 ```
+
+`check:fast` や scripts の自己テストを途中で止めた作業ツリーには、追跡外の `scripts/.wiring-*.mjs` などの一時ファイルが残ることがある。push の前に `git status --porcelain` の `??` を見て、`git ls-files` で追跡下でないことを確かめてから消す（#482 の振り返りの罠 3）。
 
 自分が作った作業ツリーとブランチだけを片付ける。他人のもの、人が使っているプロセスは触らない（止まっていたら、勝手に立て直さず人へ知らせる）。
 報告は `AGENTS.md` の 3 区分（変えたこと・確かめたこと・確かめられなかったこと）で書く。

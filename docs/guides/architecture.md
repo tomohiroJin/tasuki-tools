@@ -209,6 +209,7 @@ WS の置き場と、URL・接続状態の写しは `scripts/audit-web-sync-boun
 - **共有パッケージへ寄せると、既定値が利用者の体感を書き換えることがある。** 実装の共有と、値の変更は別の判断にする
 - **React の state を、接続の `useEffect` の依存に入れない。** URL 由来の不変な値に絞り、現在の値は ref で読む。`setTimeout` を持ち手へ上書きする前に、既存を取り消す。クロージャは送る時点の状態を掴む
 - **`void` を返す関数の `switch` は、`default` が無くても型検査を通る**（網羅の検査にならない）
+- **新しい道具を足すときは、監査スクリプトの道具の列挙も手で確かめる。** `audit-dependency-direction`・`audit-domain-error-shape`・`audit-domain-side-effects`・`audit-log-hygiene`・`audit-structure`・`audit-ui-components`・`audit-web-sync-boundary` の 7 本と `scripts/lib/layer-direction.mjs` は、道具のパッケージ名を手で並べていて、足し忘れると黙って見ないものがある（#482 の A13。`docs/retrospectives/2026-11-18-issue-482-architecture-cleanup.md`）。同期サーバー側の手順の正本は `apps/tasuki-sync/src/adapters/ws/raw-tools.ts` の docstring
 
 ## 関連
 
