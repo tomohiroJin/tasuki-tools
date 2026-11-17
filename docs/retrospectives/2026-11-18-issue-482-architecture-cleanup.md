@@ -8,7 +8,8 @@
 ## 結論
 
 - 子 ISSUE 11 本（#590〜#600）はすべて閉じた。測る PR #589 のほかに、直す PR 15 本と決める ADR の PR 3 本（#605・#606・#608）をマージした。
-  直す PR は、先に単独で出した #602（#590）と、並列に回した 3 つの陣（第一陣 #605〜#611・第二陣 #615〜#621・第三陣 #623〜#628）に分かれる。第三陣の #628 は、運びの中で見つけた #622（PR 前のフック）の直しで、#482 の直す PR 15 本には数えない
+  直す PR 15 本は、先に単独で出した #602（#590）と、並列に回した 3 つの陣に分かれる。第一陣の #607・#609・#610・#611（同じ陣の #605・#606・#608 は ADR の PR）、第二陣の #615・#616・#618・#619・#621、第三陣の #623・#624・#625・#626・#627。
+  第三陣にはほかに、運びの中で見つけた #622（PR 前のフック）の直し #628 があり、#482 の直す PR には数えない
 - 決まりは 4 つ動いた。ADR 0015 の追記 2 本（#598 の対応表を実体に合わせる・#592 の web の純粋判断は同期クライアントの型だけを読んでよい）と ADR 0017 の追記（#599 のテスト支援は `packages/test-css` を広げて置く）は Accepted、ADR 0016 の追記（#600 の ID のブランド型）は Rejected
 - 監査は 3 つ足した。層の向き（`scripts/lib/layer-direction.mjs`・#592）・最上位の可変な表（`audit-domain-side-effects` の `ALLOWED_TOP_LEVEL_MUTABLE`・#596）・試験専用の依存の欄（`audit-dependency-direction` の `TEST_ONLY`・#599）
 - **拡張の試算は、物差しの数としては増えた**（下の表）。足す場所を手で探す数ではなく、語を含むファイルの数を数える物差しだったため。直したことで足し忘れがコンパイル・網羅のテスト・監査で落ちる形になったが、この物差しはそれを数えない（検査の穴 1）
@@ -27,9 +28,12 @@
 
 増えたファイルの中身（ファイル単位で前後を突き合わせた）:
 
-- **tool の code**: 消えたのは `ws-adapter.ts`・`ws/connection-gate.ts`・`dev-hub-redirect/src/index.ts` の 3 本。代わりに、道具の表の正本（`ws/raw-tools.ts`）・道具ごとの組み立て（`assembly/checkin.ts`）・共有したテスト支援（`test-css/src/scripted-web-socket.ts`）・監査 2 本（`audit-assembly-wiring.mjs`・`lib/layer-direction.mjs`）の 5 本が入った。道具を足すときに手で直す場所は、#590 の時点で TypeScript の型の誤りが案内する形になった（PR #602 の本文。139 → 136 を記録）
-- **tool の test**: 変異パッチ（`scripts/mutations/`）が 52 → 58。ほかに 6 本が入り（`live-sync-server` を分けた先 3 本・`tool-id.test.ts`・`raw-tools.test.ts`・`landing/tests/support/tool-locations.ts`）、3 本が消えた（`dev-hub-redirect-wiring.test.ts`・`tool-public-paths.test.ts`・`test-ws-adapter.ts`）
-- **method の code**: `CardFace.tsx` の `switch` が消え、顔の表（`card-faces.tsx`）・顔の種類（`face-kinds.ts`）・`reveal-view.ts` が入った。test には網羅のテスト（`method-exhaustive.test.ts`）が増えた。やり方を 1 つ足し忘れると、いまはコンパイルとこのテストが落ちる
+ここで「数えから外れた」は、ファイルが消えたのではなく、`checkin` の語を含まなくなったという意味である（どれも main に残っている）。
+
+- **tool の code**: 数えから外れたのは `ws-adapter.ts`・`ws/connection-gate.ts`・`dev-hub-redirect/src/index.ts` の 3 本（道具の名前を表から導くようになった）。代わりに、道具の表の正本（`ws/raw-tools.ts`）・道具ごとの組み立て（`assembly/checkin.ts`）・共有したテスト支援（`test-css/src/scripted-web-socket.ts`）・監査 2 本（`audit-assembly-wiring.mjs`・`lib/layer-direction.mjs`）の 5 本が入った。道具を足すときに手で直す場所は、#590 の時点で TypeScript の型の誤りが案内する形になった（PR #602 の本文。139 → 136 を記録）
+- **tool の test**: 変異パッチ（`scripts/mutations/`）が 52 → 58。ほかに 6 本が入り（`live-sync-server` を分けた先 3 本・`tool-id.test.ts`・`raw-tools.test.ts`・`landing/tests/support/tool-locations.ts`）、3 本が数えから外れた（`dev-hub-redirect-wiring.test.ts`・`tool-public-paths.test.ts`・`test-ws-adapter.ts`）
+- **tool の docs**: `packages/dev-hub-redirect/README.md` が数えから外れて 9 → 8
+- **method の code**: `CardFace.tsx` の `switch` が消え、顔の表（`card-faces.tsx`）・顔の種類（`face-kinds.ts`）・`reveal-view.ts` が入った。test には網羅のテスト（`method-exhaustive.test.ts`）と、それを確かめる変異のパッチ（`m1640`）が増えた。やり方を 1 つ足し忘れると、いまはコンパイルとこのテストが落ちる
 - **deck**: 増えたのは `docs/adr/0015` の 1 本だけ。デッキの抽象は #92 の前提で、#482 の範囲外（A15）
 
 ## 節 6 の一覧の扱い
@@ -61,7 +65,7 @@
 - **A13**: 監査スクリプト 7 本（`audit-dependency-direction`・`audit-domain-error-shape`・`audit-domain-side-effects`・`audit-log-hygiene`・`audit-structure`・`audit-ui-components`・`audit-web-sync-boundary`）と `scripts/lib/layer-direction.mjs` が、道具のパッケージ名を手で並べている（`git grep -lw checkin -- scripts` で 2026-11-18 に確かめた。`audit-assembly-wiring.mjs` も道具ごとの組み立ての先を並べるが、自己テストが `assembly/` の実体との一対一を見ていて足し忘れは落ちるので外した）。
   調査の節 6 は「足し忘れは「0 件」で落ちるものと落ちないものがある」としている。
   **残した理由**: #482 の中では道具を足しておらず、実害は出ていない。新しい道具を足す予定も今はない。直すには、監査（`.mjs`）から読める道具の一覧の正本を 1 つ置き、TypeScript の正本（`tool-id.ts`）と突き合わせる仕組みが要り、M の量になる（節 9 の候補 2）。
-  代わりに、道具を足すときに確かめる場所として `docs/guides/architecture.md`「型・境界・部品を書くときの罠」に 8 本を書いた
+  代わりに、道具を足すときに確かめる場所として `docs/guides/architecture.md`「型・境界・部品を書くときの罠」に、確かめる先の引き方を書いた（名前を並べると、それ自体が古くなるため）
 - **D15**: 公開面が実際の依存より広い（型 158・値 33）。価値が低く、直すなら lint の規則で止める方が安い（節 7 の「含めないもの」）
 - **節 9 の監査の候補 2・4・5**: 2 は A13 と同じ。4（Given/When の比率の下限。SC032 は比率を出すが下限が無い）は、比率の後退で困った事例がまだ無い。5（値の死んだ export）は、#597 の PR #607 で 5 件を手で消し、新しく足す仕組みは置いていない。D15 と同じく lint で止める方が安い
 
@@ -93,7 +97,7 @@
   止めた後に `scripts/.wiring-*.mjs`（自己テストの一時ファイル。追跡外）が作業ツリーに残る枝があり、push の前に消した
 - **原因**: 宣言の表は `--changed` の「変異検査の機構」に数える（`scripts/lib/mutation-declarations.mjs` の冒頭）。止め方によっては、自己テストの一時ファイルの後始末が走らない
 - **再発条件**: 変異を足す枝で `check:fast` を最後まで流そうとするとき。並列の陣では、変異を足すすべての枝がこれに当たる
-- **対処**: 全件に倒れたら止めて `--id` に代える進め方は、`docs/guides/development.md` に既にある（#508）。一時ファイルの残りは新しく見つけたので、`docs/guides/procedures/orchestration.md`「8. 終わりの前の棚卸し」に足した（申し送り 3）
+- **対処**: 全件に倒れたら止めて `--id` に代える進め方は、`docs/guides/development.md` に既にある（#508）。一時ファイルの残りは新しく見つけたので、`docs/guides/procedures/orchestration.md`「4. 返ってきた報告を裏取りする」に足した。push の前に読む節で、追跡外かどうかではなく名前の形で見分ける（申し送り 3）
 
 ### 4. マージのたびに、残る枝で宣言の表の末尾がぶつかった
 
@@ -121,10 +125,10 @@
 
 | # | 教訓 | 反映先 | 状態 |
 |---|---|---|---|
-| 1 | `/code-review` は、自前のレビューの後でも毎回実在の指摘を出す（罠 1） | `docs/guides/procedures/orchestration.md`「6. PR を立てたあと」に、自前のレビューの後にも `/code-review` を流すことと、運びの順を足した | 反映済み（この PR） |
+| 1 | `/code-review` は、自前のレビューの後でも実在の指摘を出す（罠 1。記録を取った 13 本すべて） | `docs/guides/procedures/orchestration.md`「6. PR を立てたあと」に、自前のレビューの後にも `/code-review` を流すことと、運びの順を足した | 反映済み（この PR）。並行実装のまとめ役の手順書だけに足した。`/code-review` は Claude Code だけの道具で、`AGENTS.md` は Codex も読む入口なので、単独の作業の決まり（`AGENTS.md`「作業の終わりに」）には入れていない |
 | 2 | テストを割るときは、`expect` の数ではなく、主張が測る局面を突き合わせる（罠 2） | `docs/guides/procedures/adversarial-review.md` の「加えて見ること」が、恒真になる形として「両方が同じ値に落ちる局面で測っている」を既に挙げている。この罠はその形の具体例（準備を縮めると局面が消える） | 既存の項目で足りる。手順は変えない |
-| 3 | 止めた自己テストの一時ファイルが作業ツリーに残る（罠 3） | `docs/guides/procedures/orchestration.md`「8. 終わりの前の棚卸し」 | 反映済み（この PR） |
-| 4 | 監査の許可リストの道具の列挙（A13・検査の穴 2） | `docs/guides/architecture.md`「型・境界・部品を書くときの罠」に、道具を足すときに確かめる 8 本を書いた | 反映済み（この PR）。仕組みでは止めていない |
+| 3 | 止めた自己テストの一時ファイルが作業ツリーに残る（罠 3） | `docs/guides/procedures/orchestration.md`「4. 返ってきた報告を裏取りする」（push の前に、名前の形で見分けて消す） | 反映済み（この PR） |
+| 4 | 監査の許可リストの道具の列挙（A13・検査の穴 2） | `docs/guides/architecture.md`「型・境界・部品を書くときの罠」に、道具を足すときに確かめる先の引き方（`git grep -lw <既存の道具名> -- scripts …`）と、手順の入口（`tool-id.ts` の docstring）を書いた | 反映済み（この PR）。仕組みでは止めていない |
 | 5 | 宣言の表の末尾がぶつかる（罠 4） | `docs/guides/procedures/orchestration.md`「1. 分ける前に」に既にある。「番号は付け直す」を、`mutations.md` と同じ「番号が重なったときだけ付け直す」に揃えた | 反映済み（この PR）。表の作りは変えない |
 | 6 | 拡張の試算は、直す前と後の比較の物差しにならない（検査の穴 1） | 調査の節 10 に限界として書いてある | 記録のみ。次に同じ比較を完了条件に置くなら、語の数ではなく「足すと型・テスト・監査のどれが落ちるか」を数える物差しを先に決める |
 | 7 | PR 前のフックが、マージ済みの PR だけでも毎回止めていた | #622 で直した（PR #628・`docs/adr/0032` の追記）。マージ済み・閉じた PR だけなら止めずに行を見せる | 反映済み |

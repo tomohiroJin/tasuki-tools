@@ -86,6 +86,8 @@
 - 実装役の「検査を通した」は、終了コードを自分で見る。検査の件数は、実行して出る行（`--plan` の件数行ほか）を読み、表を grep で数えない
 - 実装役が申告した Red は、実装だけ戻して赤→戻して緑を自分で再現する。前後で `git status --porcelain` が空かも見る
 - 委譲から戻ったら `git status --porcelain` と `git diff --stat` を見る。`git add -A` は他人が残した変異ごと取り込む
+- 実装役が `check:fast` や scripts の自己テストを途中で止めると、自己テストの複製の一時ファイル（`scripts/.wiring-*.mjs`・`scripts/.scan-target-wiring-*.mjs`・`scripts/.test-focus-wiring-*.mjs` のように、`scripts/` 直下の `.` で始まる `.mjs`）が追跡外で残ることがある。
+  push の前に `git status --porcelain` の `??` を見て、**この名前の形のものだけ**を消す。`??` の行はすべて追跡外なので、追跡外かどうかでは一時ファイルと add し忘れの新しいファイルを見分けられない（#482 の振り返りの罠 3）
 - 黙った push は `git ls-remote origin <枝>` で拾う（`origin/<枝>` は手元の台帳で、ずれる）。実装役が残した `git stash`・終わらない待ち・入力待ちは止める
 - 実装役を長い修正ループで再開し続けない（文脈が尽きて未コミットが消える）。2 回目以降は、指摘をファイルに書き出して新しい実装役へ渡す
 - 依存の向きなどの検査の登録は、タスクごとの検査でなく、**全件の監査（`pnpm check:fast`）で確かめる**。タスク単位では登録漏れが見えない
@@ -109,7 +111,7 @@
 - squash マージした PR は、`git merge-base --is-ancestor` では未マージに見える。`gh pr view` の state で見る
 - CI の結果の読み方（headSha から読む・check-runs が全部 completed か）は [`docs/guides/development.md`](../development.md) の「CI の結果を読むとき」
 - 採点を伴うレビュー（Claude Code の `/code-review`）が走っている間は、指摘を直さない。直ったあとの状態が採点され、指摘が空振りになる
-- Claude Code では、自前の敵対的レビューが「直す 0 件」で終わった後でも、PR ごとに `/code-review` を流す。#482 の第一陣と第三陣の計 13 本すべてで、自前のレビューが拾わなかった実在の指摘が出た（`docs/retrospectives/2026-11-18-issue-482-architecture-cleanup.md` の罠 1）。
+- Claude Code では、自前の敵対的レビューが「直す 0 件」で終わった後でも、PR ごとに `/code-review` を流す。#482 で記録を取った第一陣と第三陣の計 13 本すべてで、自前のレビューが拾わなかった実在の指摘が出た（第二陣の 5 本は件数を記録していない）（`docs/retrospectives/2026-11-18-issue-482-architecture-cleanup.md` の罠 1）。
   運びの順は、実装 → 自前の敵対的レビュー → PR → `/code-review` → 直し → 直した差分のレビュー、を最初から計画に入れる
 
 ## 7. 長い実行を待つとき
@@ -127,8 +129,6 @@ git branch --show-current  # 枝が切り替わっていないか
 ss -tlnp                   # 起動した dev サーバーが残っていないか
 git status --porcelain
 ```
-
-`check:fast` や scripts の自己テストを途中で止めた作業ツリーには、追跡外の `scripts/.wiring-*.mjs` などの一時ファイルが残ることがある。push の前に `git status --porcelain` の `??` を見て、`git ls-files` で追跡下でないことを確かめてから消す（#482 の振り返りの罠 3）。
 
 自分が作った作業ツリーとブランチだけを片付ける。他人のもの、人が使っているプロセスは触らない（止まっていたら、勝手に立て直さず人へ知らせる）。
 報告は `AGENTS.md` の 3 区分（変えたこと・確かめたこと・確かめられなかったこと）で書く。
