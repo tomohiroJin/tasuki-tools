@@ -1,0 +1,21 @@
+# 変異 1854: roster-resume-calls-skip
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/ui/RosterPanel.row-actions.test.tsx
+#
+# #595。RosterPanel から RosterRow への配線で、「復帰」が一時離脱の操作を呼ぶ。復帰したつもりが離脱が重なる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1854-*.patch
+diff --git a/apps/timer-web/src/ui/components/RosterPanel.tsx b/apps/timer-web/src/ui/components/RosterPanel.tsx
+--- a/apps/timer-web/src/ui/components/RosterPanel.tsx
++++ b/apps/timer-web/src/ui/components/RosterPanel.tsx
+@@ -284,7 +284,7 @@ export function RosterPanel({
+         onMove={onMove}
+         onRequestRemoval={() => setPendingRemovalId(p.participantId)}
+         onSkip={() => onSkip(p.participantId)}
+-        onResume={() => onResume(p.participantId)}
++        onResume={() => onSkip(p.participantId)}
+         onAssignDriver={onAssignDriver ? () => onAssignDriver(p.participantId) : undefined}
+       />
+     );

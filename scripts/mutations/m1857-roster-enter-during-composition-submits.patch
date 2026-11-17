@@ -1,0 +1,20 @@
+# 変異 1857: roster-enter-during-composition-submits
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/ui/RosterPanel.duplicate-proxy.test.tsx
+#
+# #595。かな漢字変換の確定の Enter（isComposing / keyCode 229）でも送ってしまう。改名・代理追加の途中の名前が、変換を確定しただけで送られる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1857-*.patch
+diff --git a/apps/timer-web/src/ui/submit-on-enter.ts b/apps/timer-web/src/ui/submit-on-enter.ts
+--- a/apps/timer-web/src/ui/submit-on-enter.ts
++++ b/apps/timer-web/src/ui/submit-on-enter.ts
+@@ -14,7 +14,6 @@
+  */
+ export const submitOnEnter = (submit: () => void) => (e: EnterKeyEvent) => {
+   if (e.key !== "Enter") return;
+-  if (e.nativeEvent?.isComposing || e.keyCode === 229) return;
+   e.preventDefault();
+   submit();
+ };

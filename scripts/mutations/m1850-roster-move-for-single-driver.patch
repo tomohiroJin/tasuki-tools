@@ -1,0 +1,21 @@
+# 変異 1850: roster-move-for-single-driver
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/ui/roster-row-plan.test.ts
+#
+# #595。ドライバーが 1 人だけでも並べ替えの上/下を出す。動かす先が無いボタンが並ぶ。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1850-*.patch
+diff --git a/apps/timer-web/src/ui/roster-row-plan.ts b/apps/timer-web/src/ui/roster-row-plan.ts
+--- a/apps/timer-web/src/ui/roster-row-plan.ts
++++ b/apps/timer-web/src/ui/roster-row-plan.ts
+@@ -54,7 +54,7 @@ export function planRosterRow(input: RosterRowInput): RosterRowPlan {
+   const inRotation = rotationIndex >= 0;
+   const rotationLen = rotation?.length ?? 0;
+   // 並べ替えはドライバーが 2 人以上いるときだけ意味を持つ。
+-  const canMove = inRotation && rotationLen > 1 && input.hasMove;
++  const canMove = inRotation && rotationLen > 0 && input.hasMove;
+   const canRemove = !isMine && input.hasRemove;
+   // 一時離脱は輪の上の席の属性なので、見学の行には出さない。自分の分は外部トグルがあるなら出さない。
+   const skipToggle = inRotation && (!isMine || !input.selfHasExternalToggle) ? (isSkipping ? "resume" : "skip") : null;

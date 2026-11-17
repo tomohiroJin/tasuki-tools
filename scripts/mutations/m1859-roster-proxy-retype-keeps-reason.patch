@@ -1,0 +1,20 @@
+# 変異 1859: roster-proxy-retype-keeps-reason
+#
+# 検出を期待するテスト:
+#   - apps/timer-web/test/ui/RosterPanel.duplicate-proxy.test.tsx
+#
+# #595。代理追加の入力を打ち直しても拒否の理由を降ろさない。直したのに赤いままで、「まだ駄目なのか」と読める（#291）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m1859-*.patch
+diff --git a/apps/timer-web/src/ui/components/RosterPanel.tsx b/apps/timer-web/src/ui/components/RosterPanel.tsx
+--- a/apps/timer-web/src/ui/components/RosterPanel.tsx
++++ b/apps/timer-web/src/ui/components/RosterPanel.tsx
+@@ -342,7 +342,6 @@
+             setProxyName(value);
+             // 打ち直した瞬間に理由を降ろす。直した名前の横に古い理由が残ると、
+             // 利用者は「まだ駄目なのか」と読む。
+-            dispatchProxy({ type: "retyped" });
+           }}
+           onSubmit={handleAddProxy}
+           rejection={activeProxyRejection}
