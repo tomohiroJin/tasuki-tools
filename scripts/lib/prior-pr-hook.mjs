@@ -10,7 +10,7 @@
  *   ただし許可の前に git・gh を走らせるので、`cd` の先はこのリポジトリに登録された worktree（`git worktree list`）のときだけ使い、
  *   違えば何も流さずに `ask`（`cd` が途中・`~`/変数/`-`・`git -C` は読まない。ADR-0032 の残余）
  * - 先行が無くても、検索が上限に当たって切れていれば「無い」と言い切れないので `ask`
- * - 先行があれば `ask`。**引けなかったとき（gh が無い・未認証・ネットワークが無い）も `ask`**。
+ * - 先行があれば `ask`。ただし**マージ済み・閉じた PR だけ**（開いた PR も、同じ番号のリモートの枝〔PR の有無・状態は問わない〕も無い）なら、止めずに行を見せる（#622。`permissionDecision` の無い出力で、`systemMessage` と `additionalContext` に行を載せる）。**引けなかったとき（gh が無い・未認証・ネットワークが無い）も `ask`**。
  *   読めないときは当てる側に倒す `docs/adr/0032` と同じ。`gh pr create` 自身も gh とネットワークを要するので、
  *   引けない環境で聞いても余計な手間はほぼ増えない
  * - 判定は純粋関数。gh と git を呼ぶ `lookup` と `currentBranch` は引数で受け取る
@@ -96,6 +96,17 @@ function ask(reason) {
   return { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "ask", permissionDecisionReason: reason } };
 }
 
+/**
+ * 止めずに知らせる出力。`permissionDecision` を付けない（ask にも allow にもしない）ので、権限の確認の流れは変わらない。
+ * `systemMessage` は利用者に見せる警告、`additionalContext` は Claude の文脈に入る（利用者の画面にはチャットとして出ない）。
+ * 出典: https://code.claude.com/docs/en/hooks（PreToolUse の decision control・共通の出力フィールド）
+ */
+function inform(lines, note) {
+  const text = `${lines}\n${note}`;
+  // `infoLines` は束ね（hook-combine.mjs）だけが読む。ask に足すときは「止めずに」の文を含まない行だけを足す。束ねた出力には残らない
+  return { systemMessage: text, infoLines: lines, hookSpecificOutput: { hookEventName: "PreToolUse", additionalContext: text } };
+}
+
 /** コマンドが `gh pr create`（`gh pr new`）を含むか。デプロイの `ask` に「先行 PR の確認は省いた」と添えるかの判定に使う。 */
 export function mentionsPrCreate(raw) {
   try {
@@ -113,7 +124,7 @@ export function mentionsPrCreate(raw) {
  *   registeredWorktrees: (cwd: string) => string[] | Promise<string[]>,
  *   lookup: (q: { numbers: number[], branch: string, dir: string }) =>
  *     { state: string, lines: string[], truncated?: boolean } | Promise<{ state: string, lines: string[], truncated?: boolean }> }} deps
- * @returns {Promise<object | null>} `ask` の出力か、何も返さないなら null
+ * @returns {Promise<object | null>} `ask` の出力か、止めずに知らせる出力（past）か、何も返さないなら null
  */
 export async function decidePriorPrOutput(raw, { cwd, currentBranch, registeredWorktrees, lookup }) {
   let input;
@@ -168,6 +179,10 @@ export async function decidePriorPrOutput(raw, { cwd, currentBranch, registeredW
   const result = await lookup({ numbers, branch: own, dir });
   // 切れているときは「無い」と言い切れないので、先行が無くても聞く（引けなかったときと同じ考え方）
   if (result.state === "none" && result.truncated !== true) return null;
+  // マージ済み・閉じた PR だけ（past）は止めず、行を見せて通す（#622・docs/adr/0032 の追記）
+  if (result.state === "past" && result.truncated !== true) {
+    return inform(result.lines.join("\n"), "開いた PR・枝は無いので、止めずに知らせます（docs/adr/0032 の追記）。");
+  }
   return ask(`${result.lines.join("\n")}\n同じ ISSUE の作業が重なっていないか、人の確認が要ります（AGENTS.md「作業の始めに」・docs/adr/0030 決定 5）。`);
 }
 
@@ -203,12 +218,15 @@ export function defaultRegisteredWorktrees() {
       .map((l) => l.slice("worktree ".length));
 }
 
+/** 番号ごとの状態をまとめるときの強さの順（強い方が勝つ）。どれも無ければ none。past は not-run より弱い（確かめられなかった側を隠さない）。 */
+const STATE_STRENGTH = ["found", "not-run", "past"];
+
 /** 本番の lookup。番号ごとに並列に引き、知らせの行をまとめる。作業場所は問い合わせの `dir`。 */
-export function defaultLookup() {
+export function defaultLookup(runnersFor = defaultRunners) {
   return async ({ numbers, branch, dir }) => {
-    const { gh, git } = defaultRunners(dir);
+    const { gh, git } = runnersFor(dir);
     const parts = await Promise.all(numbers.map(async (n) => describePriorWork(await findPriorWork(n, { gh, git, ownBranch: branch }))));
-    const state = parts.some((p) => p.state === "found") ? "found" : parts.some((p) => p.state === "not-run") ? "not-run" : "none";
+    const state = STATE_STRENGTH.find((s) => parts.some((p) => p.state === s)) ?? "none";
     return { state, lines: parts.flatMap((p) => p.lines), truncated: parts.some((p) => p.truncated === true) };
   };
 }

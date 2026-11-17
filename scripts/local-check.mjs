@@ -190,14 +190,17 @@ function forecastMutations(plan) {
  */
 async function priorWorkNotices() {
   let lines;
+  let state;
   try {
     const { gh, git } = defaultRunners(ROOT);
-    lines = (await checkPriorWork({ branch: (await git(["rev-parse", "--abbrev-ref", "HEAD"])).trim(), gh, git })).lines;
+    ({ lines, state } = await checkPriorWork({ branch: (await git(["rev-parse", "--abbrev-ref", "HEAD"])).trim(), gh, git }));
   } catch (error) {
     lines = [`⚠ 同じ ISSUE の先行 PR の確認は未実行です（${String(error.message).trim().split("\n")[0]}）`];
   }
   console.log("[local-check] 同じ ISSUE の先行 PR・枝");
   for (const line of lines) console.log(line);
+  // マージ済み・閉じた PR だけ（past）は、PR の行も最後の一覧に残す（フックは止めずに同じ行を見せる。#622）。⚠ にはしない
+  if (state === "past") return lines;
   // 番号の無い枝の案内は ⚠ でないので、最後の一覧では繰り返さない
   return lines.filter((l) => l.startsWith("⚠"));
 }

@@ -397,6 +397,20 @@ test("速い段は、同じ ISSUE の先行 PR・枝を最初に出し、⚠ を
   assert.ok(r.stdout.lastIndexOf("⚠ 同じ ISSUE #504 の他の PR・枝があります") > r.stdout.indexOf("実行結果"), r.stdout);
 });
 
+test("速い段は、マージ済み・閉じた PR だけ（past）の知らせも、最初と最後の 2 回出す。⚠ にはしない（#622）", (t) => {
+  const dir = fixture(t);
+  fs.writeFileSync(path.join(dir, ".github/workflows/ci.yml"), FAST_CI);
+  const prs = JSON.stringify([{ number: 501, title: "docs: 試し（#504）", body: "", state: "MERGED", headRefName: "x/501" }]);
+  const r = spawnSync(process.execPath, [path.join(dir, "scripts/local-check.mjs"), "fast"], { encoding: "utf8", env: fakeTools(t, { branch: "docs/504-x", prs }) });
+  assert.equal(r.status, 0, r.stdout + r.stderr); // 止めない
+  const done = r.stdout.indexOf("実行結果");
+  for (const needle of ["同じ ISSUE #504 の他の PR はマージ済みか閉じたものだけです", "PR #501（マージ済み）"]) {
+    assert.ok(r.stdout.indexOf(needle) < done, `最初に出る: ${needle}\n${r.stdout}`);
+    assert.ok(r.stdout.lastIndexOf(needle) > done, `最後の一覧にも出る: ${needle}\n${r.stdout}`);
+  }
+  assert.doesNotMatch(r.stdout, /⚠ 同じ ISSUE/);
+});
+
 test("速い段は、番号の無い枝では ⚠ なしの案内 1 行で、最後の一覧では繰り返さない（#504）", (t) => {
   const dir = fixture(t);
   fs.writeFileSync(path.join(dir, ".github/workflows/ci.yml"), FAST_CI);

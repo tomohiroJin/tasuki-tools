@@ -39,7 +39,7 @@ export function issueNumbersFromTitle(title) {
  * @param {number} number
  * @param {{ gh: (args: string[]) => string | Promise<string>, git: (args: string[]) => string | Promise<string>, ownBranch: string }} deps
  *   gh と git は文字列か Promise を返す（失敗なら投げる／棄却する）。2 つは並列に引く（待ちを長い方の 1 回分にする）
- * @returns {Promise<{ state: "found" | "none" | "unknown", number: number, prs: object[], branches: string[],
+ * @returns {Promise<{ state: "found" | "past" | "none" | "unknown", number: number, prs: object[], branches: string[],
  *   total: number | null, truncated: boolean, errors: string[] }>}
  */
 export async function findPriorWork(number, { gh, git, ownBranch }) {
@@ -73,7 +73,11 @@ export async function findPriorWork(number, { gh, git, ownBranch }) {
   } catch (error) {
     errors.push(`git ls-remote: ${firstLine(error.message)}`);
   }
-  const state = prs.length + branches.length > 0 ? "found" : errors.length > 0 ? "unknown" : "none";
+  // 止める（found）のは、MERGED・CLOSED でない PR（開いた PR・想定外の状態）と、同じ番号のリモートの枝（PR の有無・状態は問わない）（#622）。
+  // マージ済み・閉じた PR は main に取り込まれたか終わった作業で、重なりではない。状態は許可の一覧で読む（読めないときは止める側に倒す）。
+  // 確かめられなかった側が残るなら、past でなく unknown にする
+  const open = prs.filter((p) => p.state !== "MERGED" && p.state !== "CLOSED").length + branches.length > 0;
+  const state = open ? "found" : errors.length > 0 ? "unknown" : prs.length > 0 ? "past" : "none";
   return { state, number, prs, branches, total, truncated: total !== null && total >= SEARCH_LIMIT, errors };
 }
 
@@ -83,7 +87,7 @@ const STATE_LABEL = { OPEN: "開いている", MERGED: "マージ済み", CLOSED
  * ブランチ名から番号を取って引き、知らせの行にする。
  * 番号の無い枝（main・renovate/* ほか）は、確かめるつもりが無いので ⚠ を付けない 1 行の案内にする（`no-number`）。
  * 確かめるつもりで確かめられなかったとき（gh の失敗ほか）だけ ⚠ の未実行（`not-run`）にする。
- * @returns {Promise<{ state: "found" | "none" | "not-run" | "no-number", lines: string[] }>}
+ * @returns {Promise<{ state: "found" | "past" | "none" | "not-run" | "no-number", lines: string[] }>}
  */
 export async function checkPriorWork({ branch, gh, git }) {
   const number = issueNumberFromBranch(branch);
@@ -99,8 +103,12 @@ export function describePriorWork(r) {
   if (r.state === "unknown") {
     return { state: "not-run", lines: [`⚠ 同じ ISSUE #${r.number} の先行 PR の確認は未実行です（${r.errors.join("・")}）`] };
   }
-  if (r.state === "found") {
-    lines.push(`⚠ 同じ ISSUE #${r.number} の他の PR・枝があります。作業の途中なら、続ける前に人へ伝えてください`);
+  if (r.state === "found" || r.state === "past") {
+    // 見出しは状態だけ書く。止める・止めないは、この行を使う判定の側（フック・check:fast）が 1 回だけ書く
+    // （ask の理由文にも入るので、ここに「止めません」と書くと「人の確認が要ります」と食い違う）
+    lines.push(r.state === "found"
+      ? `⚠ 同じ ISSUE #${r.number} の他の PR・枝があります。作業の途中なら、続ける前に人へ伝えてください`
+      : `同じ ISSUE #${r.number} の他の PR はマージ済みか閉じたものだけです（開いた PR・枝はありません）`);
     for (const p of r.prs) lines.push(`  - PR #${p.number}（${STATE_LABEL[p.state] ?? p.state}）${p.title}`);
     for (const b of r.branches) lines.push(`  - 枝 ${b}`);
   } else {
