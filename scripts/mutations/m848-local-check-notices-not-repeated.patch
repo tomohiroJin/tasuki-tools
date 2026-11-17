@@ -1,10 +1,10 @@
 diff --git a/scripts/local-check.mjs b/scripts/local-check.mjs
-index 9b2480b2..426f4900 100644
+index ecd9d820..804eea8b 100644
 --- a/scripts/local-check.mjs
 +++ b/scripts/local-check.mjs
-@@ -200,7 +200,7 @@ async function priorWorkNotices() {
-   console.log("[local-check] 同じ ISSUE の先行 PR・枝");
-   for (const line of lines) console.log(line);
+@@ -202,7 +202,7 @@ async function priorWorkNotices() {
+   // マージ済み・閉じた PR だけ（past）は、PR の行も最後の一覧に残す（フックは止めずに同じ行を見せる。#622）。⚠ にはしない
+   if (state === "past") return lines;
    // 番号の無い枝の案内は ⚠ でないので、最後の一覧では繰り返さない
 -  return lines.filter((l) => l.startsWith("⚠"));
 +  return [];

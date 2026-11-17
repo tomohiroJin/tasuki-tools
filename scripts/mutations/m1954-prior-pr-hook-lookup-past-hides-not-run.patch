@@ -1,0 +1,13 @@
+diff --git a/scripts/lib/prior-pr-hook.mjs b/scripts/lib/prior-pr-hook.mjs
+index 42299c6a..ef703877 100644
+--- a/scripts/lib/prior-pr-hook.mjs
++++ b/scripts/lib/prior-pr-hook.mjs
+@@ -217,7 +217,7 @@ export function defaultRegisteredWorktrees() {
+ }
+ 
+ /** 番号ごとの状態をまとめるときの強さの順（強い方が勝つ）。どれも無ければ none。past は not-run より弱い（確かめられなかった側を隠さない）。 */
+-const STATE_STRENGTH = ["found", "not-run", "past"];
++const STATE_STRENGTH = ["found", "past", "not-run"];
+ 
+ /** 本番の lookup。番号ごとに並列に引き、知らせの行をまとめる。作業場所は問い合わせの `dir`。 */
+ export function defaultLookup(runnersFor = defaultRunners) {

@@ -245,6 +245,12 @@ const RESERVED_1740_1759 =
 const RESERVED_1780_1799 =
   "**対応表より後に足した変異。** 1780〜1799 は #595（use-hub-sync を責務で分ける）に割り当てた範囲。";
 
+const RESERVED_1950_1959 =
+  "**対応表より後に足した変異。** 1950〜1959 は #622（PR 前のフックを開いた先行だけで止める）に割り当てた範囲。";
+
+const RESERVED_1960_1969 =
+  "**対応表より後に足した変異。** 1960〜1969 は #622 の追加（1950〜1959 を使い切ったため）に割り当てた範囲。";
+
 const RESERVED_1800_1819 =
   "**対応表より後に足した変異。** 1800〜1819 は #595（ScenarioBuilder を責務で分ける）に割り当てた範囲。";
 
@@ -10282,6 +10288,94 @@ export const MUTATIONS = [
     pkg: "apps/agenda-web",
     tests: ["tests/spacing-css.test.ts"],
     note: RESERVED_1890_1929 + " " + "#594。別の規則（.builder-saved-list など）を巻き込み、「この選択子の規則は無い」ことを確かめる試験が誤って赤くなる・規則の本体を取り違える。",
+  },
+  {
+    id: 1950,
+    label: "先行 PR の探索が、マージ済み・閉じた PR も「止める先行」に数える",
+    patch: "m1950-prior-work-merged-pr-stops.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-work.test.mjs"],
+    note: RESERVED_1950_1959 + " " + "#622。1 ISSUE を複数 PR で回すたびに、マージ済みの PR で毎回止まる。",
+  },
+  {
+    id: 1951,
+    label: "同じ番号のリモートの枝を「止める先行」に数えない",
+    patch: "m1951-prior-work-branch-not-open.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-work.test.mjs"],
+    note: RESERVED_1950_1959 + " " + "#622。PR を立てる前の枝（作業中の別の場所）が先行として止めず、重なりを見逃す。",
+  },
+  {
+    id: 1952,
+    label: "マージ済みの PR が見つかると、確かめられなかった側（gh・git の失敗）があっても past にする",
+    patch: "m1952-prior-work-past-hides-unchecked.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-work.test.mjs"],
+    note: RESERVED_1950_1959 + " " + "#622。枝が引けていないのに、開いた先行は無いと読んで通す。",
+  },
+  {
+    id: 1953,
+    label: "フックが、マージ済み・閉じた PR だけ（past）でも ask にする",
+    patch: "m1953-prior-pr-hook-past-asks.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-pr-hook.test.mjs", "agent-guard-hook.test.mjs"],
+    note: RESERVED_1950_1959 + " " + "#622。判定を直したつもりで、入口では止まり続ける。",
+  },
+  {
+    id: 1954,
+    label: "フックの lookup が、番号ごとの状態をまとめるとき、past を not-run より先に採る",
+    patch: "m1954-prior-pr-hook-lookup-past-hides-not-run.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-pr-hook.test.mjs", "agent-guard-hook.test.mjs"],
+    note: RESERVED_1950_1959 + " " + "#622。片方の番号を確かめられなかったのに、もう片方が過去だけという理由で通す。",
+  },
+  {
+    id: 1955,
+    label: "PR の状態を OPEN だけで読み、想定外の値（小文字・DRAFT・欠け）を過去に倒す",
+    patch: "m1955-prior-work-unexpected-state-reads-past.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-work.test.mjs"],
+    note: RESERVED_1950_1959 + " " + "#622。gh の出力の形が変わると、読めない状態の PR を黙って通す。",
+  },
+  {
+    id: 1956,
+    label: "フックが、マージ済み・閉じた PR だけ（past）のとき、行を見せずに何も出さない",
+    patch: "m1956-prior-pr-hook-past-silent.patch",
+    pkg: "scripts",
+    tests: ["lib/prior-pr-hook.test.mjs", "agent-guard-hook.test.mjs"],
+    note: RESERVED_1950_1959 + " " + "#622 のレビュー。題の番号だけで当たった過去の PR は、どの経路でも行が出ない。",
+  },
+  {
+    id: 1957,
+    label: "check:fast の最後の一覧に、マージ済み・閉じた PR だけ（past）の行を残さない",
+    patch: "m1957-local-check-past-notice-not-repeated.patch",
+    pkg: "scripts",
+    tests: ["local-check.test.mjs"],
+    note: RESERVED_1950_1959 + " " + "#622 のレビュー。⚠ でない知らせが、長い検査の後ろで見えなくなる。",
+  },
+  {
+    id: 1958,
+    label: "入口が、ask と止めずに知らせる出力が同時のとき、知らせを ask の理由に足さず落とす",
+    patch: "m1958-hook-combine-info-dropped-with-ask.patch",
+    pkg: "scripts",
+    tests: ["lib/hook-combine.test.mjs", "agent-guard-hook.test.mjs"],
+    note: RESERVED_1950_1959 + " " + "#622 のレビュー。過去の PR の行が、人の確認の場面でだけ消える。",
+  },
+  {
+    id: 1959,
+    label: "入口が、知らせを ask の理由に足すとき、行だけでなく「止めずに知らせます」の文までそのまま足す",
+    patch: "m1959-hook-combine-info-text-with-stop-note.patch",
+    pkg: "scripts",
+    tests: ["lib/hook-combine.test.mjs", "agent-guard-hook.test.mjs"],
+    note: RESERVED_1950_1959 + " " + "#622 の 2 回目のレビュー。人の確認が要る場面で、理由文が「止めずに」と「人の確認が要ります」を並べて矛盾する。",
+  },
+  {
+    id: 1960,
+    label: "入口が、permissionDecision を持つ出力のうち ask だけを決定とし、deny などを知らせとして扱う",
+    patch: "m1960-hook-combine-non-ask-decision-as-info.patch",
+    pkg: "scripts",
+    tests: ["lib/hook-combine.test.mjs"],
+    note: RESERVED_1960_1969 + " " + "#622 の 2 回目のレビュー。deny が知らせと同時に来ると、止める判定が落ちる。",
   },
   {
     id: 1850,

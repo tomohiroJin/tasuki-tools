@@ -1,13 +1,13 @@
 diff --git a/scripts/lib/prior-work.mjs b/scripts/lib/prior-work.mjs
-index 74e92312..ea3afe88 100644
+index 03795e3a..8d7b95bd 100644
 --- a/scripts/lib/prior-work.mjs
 +++ b/scripts/lib/prior-work.mjs
-@@ -63,7 +63,7 @@ export function findPriorWork(number, { gh, git, ownBranch }) {
-   } catch (error) {
-     errors.push(`git ls-remote: ${firstLine(error.message)}`);
-   }
--  const state = prs.length + branches.length > 0 ? "found" : errors.length > 0 ? "unknown" : "none";
-+  const state = prs.length + branches.length > 0 ? "found" : errors.length > 1 ? "unknown" : "none";
+@@ -77,7 +77,7 @@ export async function findPriorWork(number, { gh, git, ownBranch }) {
+   // マージ済み・閉じた PR は main に取り込まれたか終わった作業で、重なりではない。状態は許可の一覧で読む（読めないときは止める側に倒す）。
+   // 確かめられなかった側が残るなら、past でなく unknown にする
+   const open = prs.filter((p) => p.state !== "MERGED" && p.state !== "CLOSED").length + branches.length > 0;
+-  const state = open ? "found" : errors.length > 0 ? "unknown" : prs.length > 0 ? "past" : "none";
++  const state = open ? "found" : errors.length > 1 ? "unknown" : prs.length > 0 ? "past" : "none";
    return { state, number, prs, branches, total, truncated: total !== null && total >= SEARCH_LIMIT, errors };
  }
  

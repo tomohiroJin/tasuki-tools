@@ -231,3 +231,54 @@ test("入口 再レビュー I-1: サブエージェント（agent_id つき）�
     assert.equal(run(t, c, { agentId: "a1" })?.hookSpecificOutput.permissionDecision, "ask", c);
   }
 });
+
+// ---- #622: 入口の配線。開いた PR・PR の無い枝では ask、マージ済み・閉じた PR だけなら通す ----
+
+const prOf = (state) => JSON.stringify([{ number: 501, title: "docs: 先行（#9）", body: "", state, headRefName: "x/501" }]);
+
+test("入口（#622）: マージ済み・閉じた PR だけなら ask にせず、行（PR の番号・状態）を見せる出力を返す", (t) => {
+  for (const [state, label] of [["MERGED", "マージ済み"], ["CLOSED", "閉じた"]]) {
+    const out = run(t, 'gh pr create --title "x（#9）"', { prs: prOf(state) });
+    assert.notEqual(out, null, state);
+    assert.equal("permissionDecision" in out.hookSpecificOutput, false, state);
+    assert.match(out.systemMessage, new RegExp(`PR #501（${label}）`));
+    assert.match(out.hookSpecificOutput.additionalContext, new RegExp(`PR #501（${label}）`));
+  }
+});
+
+test("入口（#622）: マージ済みの知らせと、ほかの ask の要因（閉鎖キーワード）が同時なら ask。知らせは理由に残る", (t) => {
+  const out = run(t, 'gh pr create --title "x（#9）" --body "説明に Fixes #9 と書く"', { prs: prOf("MERGED") });
+  assert.equal(out?.hookSpecificOutput.permissionDecision, "ask");
+  assert.match(out.hookSpecificOutput.permissionDecisionReason, /閉鎖キーワード/);
+  assert.match(out.hookSpecificOutput.permissionDecisionReason, /PR #501（マージ済み）/);
+  assert.doesNotMatch(out.hookSpecificOutput.permissionDecisionReason, /止めずに/);
+});
+
+test("入口（#622）: 知らせと同時でも、止める判定（未コミットを消す git・サブエージェントの push・当たらない --filter・本番デプロイ）は ask のまま残り、理由に「止めずに」を混ぜない", (t) => {
+  const cases = [
+    ['git checkout -- a.txt && gh pr create --title "x（#9）"', {}, /未コミット|変更/],
+    ['git push && gh pr create --title "x（#9）"', { agentId: "a1" }, /サブエージェント/],
+    ['pnpm --filter @nope/none test && gh pr create --title "x（#9）"', {}, /--filter/],
+  ];
+  for (const [command, opts, expected] of cases) {
+    const out = run(t, command, { prs: prOf("MERGED"), ...opts });
+    assert.equal(out?.hookSpecificOutput.permissionDecision, "ask", command);
+    const reason = out.hookSpecificOutput.permissionDecisionReason;
+    assert.match(reason, expected, command);
+    assert.match(reason, /PR #501（マージ済み）/, command);
+    assert.doesNotMatch(reason, /止めずに/, command);
+  }
+  const deploy = run(t, 'bash deploy/deploy.sh && gh pr create --title "x（#9）"', { prs: prOf("MERGED") });
+  assert.equal(deploy?.hookSpecificOutput.permissionDecision, "ask");
+  assert.doesNotMatch(deploy.hookSpecificOutput.permissionDecisionReason, /止めずに/);
+});
+
+test("入口（#622）: 開いた PR とマージ済みが混ざれば ask", (t) => {
+  const mixed = JSON.stringify([
+    { number: 501, title: "済（#9）", body: "", state: "MERGED", headRefName: "x/501" },
+    { number: 502, title: "開（#9）", body: "", state: "OPEN", headRefName: "x/502" },
+  ]);
+  const out = run(t, 'gh pr create --title "x（#9）"', { prs: mixed });
+  assert.equal(out?.hookSpecificOutput.permissionDecision, "ask");
+  assert.match(out.hookSpecificOutput.permissionDecisionReason, /PR #502/);
+});
