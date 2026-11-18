@@ -140,7 +140,9 @@ test.describe('poker の開票の演出（#639）', () => {
       await expect(el).toBeVisible();
       await expect(el).toHaveCSS('opacity', '1');
       // 動きは長さ 0（要素層の一括の手当て）。終わりの姿（枠の色・字の色）が出ている
-      await expect(el).toHaveCSS('animation-duration', '0.01ms');
+      // 計算済みの値は書き方（0.01ms）でなく秒（1e-05s）で返るので、数に直して比べる
+      const seconds = await el.evaluate((node) => parseFloat(getComputedStyle(node).animationDuration));
+      expect(seconds).toBeLessThanOrEqual(0.001);
       expect(await el.evaluate((node) => node.getAnimations().every((a) => a.playState === 'finished'))).toBe(true);
       expect(await el.evaluate((node) => getComputedStyle(node).borderTopColor)).not.toBe('rgba(0, 0, 0, 0)');
     }
