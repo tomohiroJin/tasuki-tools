@@ -88,11 +88,11 @@ async function resultTime(page: Page): Promise<number | null> {
   return page.evaluate(() => (window as unknown as { __resultAt: number | null }).__resultAt);
 }
 
-/** 円盤の回転子の角度（`transform="rotate(…)"`）。無ければ NaN */
 async function spinTime(page: Page): Promise<number | null> {
   return page.evaluate(() => (window as unknown as { __spinAt: number | null }).__spinAt);
 }
 
+/** 円盤の回転子の角度（`transform="rotate(…)"`）。無ければ NaN */
 async function rotorAngle(page: Page): Promise<number> {
   const transform = await page.locator('.wheel-rotor').getAttribute('transform');
   return Number(/rotate\(([-\d.e]+)\)/.exec(transform ?? '')?.[1]);
@@ -154,12 +154,11 @@ test.describe('ルーレットの変わった動きは全員の画面で同じ�
     expect(timeA, 'A の結果の時刻を記録した').not.toBeNull();
     expect(timeB, 'B の結果の時刻を記録した').not.toBeNull();
     expect(Math.abs((timeA ?? 0) - (timeB ?? 0)), 'A と B が結果を言った時刻の差').toBeLessThanOrEqual(SAME_TIME_TOLERANCE_MS);
-    // 延びた長さ（約 6.3 秒）で言う。**A が回し始めを受けてから結果を言うまで**を測る（クリックと往復の遅れを含めない）。
-    //   下限は普通の長さ（4000）+ 500: 普通の長さで止まる実装と分かれる。
-    //   **上限は置かない**: 延びが二重に足される実装（約 8600）と、混んだ環境の正しい実装（8681 を実測）の壁時計の値が重なり、見分けられない。
-    //   「延びは 1 回だけ」は偽の時計の単体が守る: `packages/roulette-core/tests/roulette-motions.test.ts` の
-    //   「wire の durationMs は延びた長さで、動きの名前を載せる」「動きの長さは、止まる時刻（1 人目）の差し引き…」
-    //   （表の値を足し直した期待値と比べる。変異 2108・2109 が突く）
+    // 回し始めを受けてから結果を言うまで（クリックと往復の遅れを含めない）が、普通の長さより長いことを見る。
+    //   **時刻は差し込んだ `durationMs`（`withMotions` が 6300 に上書き）で決まる**（一言の切り替わりは `phaseOf` が wire の `durationMs` だけで決める）。
+    //   だからこの E2E は延びの計算も画面の動きの扱いも見ない。上限も置かない（壁時計の揺れで正しい実装でも越える）。
+    //   延びの計算と動きの角度は単体（`packages/roulette-core/tests/roulette-motions.test.ts`・`apps/roulette-web/tests/spin-motion*.test.ts*`）と
+    //   変異 2098〜2109 が守る
     const spunAt = await spinTime(page);
     expect(spunAt, 'A の回し始めの時刻を記録した').not.toBeNull();
     const stoppedAfter = (timeA ?? 0) - (spunAt ?? 0);
