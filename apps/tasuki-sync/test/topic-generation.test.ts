@@ -845,26 +845,30 @@ describe("TopicGenerator の種類（#634）", () => {
     expect(generate.mock.calls[0]!.slice(0, 3)).toEqual(["Rust", "hard", "refactoring"]);
   });
 
-  it("Given 未解錠 / When 種類 design で AI を求める / Then design の定型へ落ちる", () => {
-    // Given
-    const { clock, store, generator } = setupGenerator({ unlocked: false });
-    // When
-    generator.request("R1", { mode: "ai", language: "TypeScript", difficulty: "medium", category: "design" });
-    // Then
-    expect(store.get("R1")?.topic?.title).toBe(fallbackTitleFor("design", clock.now()));
-    expect(store.get("R1")?.degraded).toBe(true);
-  });
+  // AI が使えないときの落ち先は、型ごとに見る（#634 の完了条件。PR #643 のレビューで、1 つの型だけの
+  // 取り違え（refactoring の AI 依頼だけ TDD へ落とす変異）が 2 つの型だけのテストをすり抜けた）
+  for (const category of CATEGORIES_UNDER_TEST) {
+    it(`Given 未解錠 / When 型 ${category} で AI を求める / Then ${category} の定型へ落ち、縮退を立てる`, () => {
+      // Given
+      const { clock, store, generator } = setupGenerator({ unlocked: false });
+      // When
+      generator.request("R1", { mode: "ai", language: "TypeScript", difficulty: "medium", category });
+      // Then
+      expect(store.get("R1")?.topic?.title).toBe(fallbackTitleFor(category, clock.now()));
+      expect(store.get("R1")?.degraded).toBe(true);
+    });
 
-  it("Given 解錠済み / When 種類 debugging で AI を求めて AI が失敗する / Then debugging の定型へ落ちる", async () => {
-    // Given
-    const { provider, reject } = makeControllableProvider();
-    const { clock, tracker, store, generator } = setupGenerator({ unlocked: true, provider });
-    // When
-    generator.request("R1", { mode: "ai", language: "TypeScript", difficulty: "medium", category: "debugging" });
-    reject(new ProviderFailure("claude -p exit 1", "processError"));
-    await tracker.waitForCount(2);
-    // Then
-    expect(store.get("R1")?.topic?.title).toBe(fallbackTitleFor("debugging", clock.now()));
-    expect(store.get("R1")?.degraded).toBe(true);
-  });
+    it(`Given 解錠済み / When 型 ${category} で AI を求めて AI が失敗する / Then ${category} の定型へ落ち、縮退を立てる`, async () => {
+      // Given
+      const { provider, reject } = makeControllableProvider();
+      const { clock, tracker, store, generator } = setupGenerator({ unlocked: true, provider });
+      // When
+      generator.request("R1", { mode: "ai", language: "TypeScript", difficulty: "medium", category });
+      reject(new ProviderFailure("claude -p exit 1", "processError"));
+      await tracker.waitForCount(2);
+      // Then
+      expect(store.get("R1")?.topic?.title).toBe(fallbackTitleFor(category, clock.now()));
+      expect(store.get("R1")?.degraded).toBe(true);
+    });
+  }
 });

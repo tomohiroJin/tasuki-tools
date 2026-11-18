@@ -218,14 +218,26 @@ describe("お題の型を選んで作ると、その型の定型がルームへ�
     expect(got.state.topic?.body).toContain("\n最初のテストの例:\n```\ntest(");
   });
 
-  it("AI が使えない（未解錠）ときに型 design で AI を求めると、design の定型へ落ち、縮退を知らせる", async () => {
-    const topic = await joinedTopic();
-    topic.send({ command: "topic.generate", mode: "ai", language: "Python", difficulty: "easy", category: "design" });
-    const got = await topic.take((m) => m.type === "topic" && m.state.topic !== null, "定型へ落ちたお題");
-    if (got.type !== "topic") throw new Error("topic ではない");
-    expect(got.state.topic?.body).toContain("\n話し合うこと:\n- ");
-    expect(got.state.degraded).toBe(true);
-  });
+  for (const [category, marker] of [
+    ["tdd", "\n最初のテストの例:\n```\ntest("],
+    ["refactoring", "\n対象のコード:\n```\n"],
+    ["design", "\n話し合うこと:\n- "],
+    ["debugging", "\n落ちるテスト:\n```\ntest("],
+  ] as const) {
+    it(`AI が使えない（未解錠）ときに型 ${category} で AI を求めると、その型の定型へ落ち、縮退を知らせる`, async () => {
+      const topic = await joinedTopic();
+      topic.send({ command: "topic.generate", mode: "ai", language: "Python", difficulty: "easy", category });
+      const got = await topic.take((m) => m.type === "topic" && m.state.topic !== null, "定型へ落ちたお題");
+      if (got.type !== "topic") throw new Error("topic ではない");
+      expect(got.state.topic?.body).toContain(marker);
+      // TDD の目印（最初のテストの例）はリファクタリングの本文にも出うるので、他の型の節が無いことも見る
+      if (category === "tdd") {
+        expect(got.state.topic?.body).not.toContain("\n対象のコード:");
+        expect(got.state.topic?.body).not.toContain("\n話し合うこと:");
+      }
+      expect(got.state.degraded).toBe(true);
+    });
+  }
 
   it("許可リストに無い型は INVALID_COMMAND で拒まれ、お題は変わらない", async () => {
     const topic = await joinedTopic();
