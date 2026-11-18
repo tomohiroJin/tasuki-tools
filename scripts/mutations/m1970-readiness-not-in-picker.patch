@@ -1,13 +1,13 @@
-diff --git a/apps/checkin-web/src/method-groups.ts b/apps/checkin-web/src/method-groups.ts
-index df0f5a4..ad98d7f 100644
---- a/apps/checkin-web/src/method-groups.ts
-+++ b/apps/checkin-web/src/method-groups.ts
-@@ -19,7 +19,7 @@ export interface MethodGroup {
- export const METHOD_GROUPS: { readonly [S in Side]: readonly MethodGroup[] } = {
-   checkin: [
-     { id: 'checkin-mood', title: '気分と元気', methods: ['weather', 'energy', 'mood-start', 'battery', 'busyness', 'worry'] },
--    { id: 'checkin-focus', title: '集中と準備', methods: ['focus', 'readiness', 'clarity'] },
-+    { id: 'checkin-focus', title: '集中と準備', methods: ['focus', 'clarity'] },
-     { id: 'checkin-stance', title: '期待と役割', methods: ['takeaway-goal', 'expectation', 'role', 'talk-wish'] },
-   ],
-   checkout: [
+diff --git a/packages/checkin-core/src/methods.ts b/packages/checkin-core/src/methods.ts
+index 36c4cfe..2d48bb8 100644
+--- a/packages/checkin-core/src/methods.ts
++++ b/packages/checkin-core/src/methods.ts
+@@ -102,7 +102,7 @@ export interface MethodGroup {
+ 
+ export const METHOD_GROUPS: Readonly<Record<GroupId, MethodGroup>> = {
+   "checkin-mood": { side: "checkin", methods: ["weather", "energy", "mood-start", "battery", "busyness", "worry"] },
+-  "checkin-focus": { side: "checkin", methods: ["focus", "readiness", "clarity"] },
++  "checkin-focus": { side: "checkin", methods: ["focus", "clarity"] },
+   "checkin-stance": { side: "checkin", methods: ["takeaway-goal", "expectation", "role", "talk-wish"] },
+   "checkout-value": { side: "checkout", methods: ["roti", "takeaway-done", "best-part", "understanding", "agreement"] },
+   "checkout-mood": { side: "checkout", methods: ["mood", "weather-end", "fatigue"] },

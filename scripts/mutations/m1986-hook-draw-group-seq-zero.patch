@@ -1,0 +1,13 @@
+diff --git a/apps/checkin-web/src/hooks/use-checkin-sync.ts b/apps/checkin-web/src/hooks/use-checkin-sync.ts
+index 4b69147..b54544c 100644
+--- a/apps/checkin-web/src/hooks/use-checkin-sync.ts
++++ b/apps/checkin-web/src/hooks/use-checkin-sync.ts
+@@ -145,7 +145,7 @@ export function useCheckinSync(roomCode: string): CheckinSync {
+     return {
+       chooseMethod: (seq: number, method: MethodId) => sendCommand({ command: 'checkin.method.choose', seq, method }),
+       drawMethod: (seq: number, side: Side) => sendCommand({ command: 'checkin.method.draw', seq, side }),
+-      drawMethodInGroup: (seq: number, group: GroupId) => sendCommand({ command: 'checkin.method.draw-group', seq, group }),
++      drawMethodInGroup: (seq: number, group: GroupId) => sendCommand({ command: 'checkin.method.draw-group', seq: 0, group }),
+       playCard: (seq: number, card: CardId) => sendCommand({ command: 'checkin.card.play', seq, card }),
+       setVisibility: (seq: number, visibility: Visibility) =>
+         sendCommand({ command: 'checkin.visibility.set', seq, visibility }),
