@@ -3,11 +3,13 @@ import { useEffect, useRef, useState } from 'react';
 /** 非セキュアオリジン向け。失敗しても一時欄とフォーカスを元へ戻す。 */
 function legacyCopy(text: string): boolean {
   const focused = document.activeElement;
+  // モーダルの外は操作できず、body に置いた欄の文字を選択できない。
+  const container = focused?.closest('dialog[open]') ?? document.body;
   const textarea = document.createElement('textarea');
   textarea.value = text;
   textarea.style.position = 'fixed';
   textarea.style.opacity = '0';
-  document.body.appendChild(textarea);
+  container.appendChild(textarea);
   try {
     textarea.select();
     return document.execCommand('copy');

@@ -60,11 +60,11 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
         <div className="ui-section-head">
           {labelledBy === undefined && <h2 id={headingId}>{ESTIMATE_LOG_HEADING}</h2>}
           {groups.length > 0 && (
-            <div className="ui-section-head ui-section-head--beside">
+            <div className="estimate-log-copy">
               <button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void copy()}>
                 {ESTIMATE_LOG_COPY}
               </button>
-              <span role="status" className={copyStatus === '' ? 'ui-visually-hidden' : undefined}>{copyStatus}</span>
+              <span role="status" className={copyStatus === '' ? 'ui-visually-hidden' : 'estimate-log-copy-status'}>{copyStatus}</span>
             </div>
           )}
         </div>

@@ -10497,4 +10497,28 @@ export const MUTATIONS = [
     tests: ["tests/estimate-log.test.tsx"],
     note: "#637。狭い画面からコピーすると古い記録が落ちる。",
   },
+  {
+    id: 1975,
+    label: "Markdown の題で自動リンクを始める記号をエスケープしない",
+    patch: "m1975-poker-estimate-copy-autolinks.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/estimate-log.test.tsx"],
+    note: "#637 のレビュー。URL を含む題でエスケープの文字が見えてしまう。",
+  },
+  {
+    id: 1976,
+    label: "記録をコピーした結果を通常の流れに入れる",
+    patch: "m1976-poker-estimate-copy-status-in-flow.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/spacing-css.test.ts"],
+    note: "#637 のレビュー。コピーのボタンと記録の位置が動く。",
+  },
+  {
+    id: 1977,
+    label: "ダイアログからコピーするときも一時欄を body に置く",
+    patch: "m1977-copy-temp-field-outside-dialog.patch",
+    pkg: "packages/invite-ui",
+    tests: ["tests/use-copy-text.test.ts"],
+    note: "#637。モーダルの外にある一時欄では文字を選択できず、記録を持ち出せない。",
+  },
 ];

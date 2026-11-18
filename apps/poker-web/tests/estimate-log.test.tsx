@@ -163,7 +163,10 @@ describe('EstimateLog', () => {
     const previous = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
     try {
-      const groups = [group(104, { item: 'PROJ-[4]', points: 0 }), group(105, { item: '', open: true })];
+      const groups = [
+        group(104, { item: 'PROJ-[4] https://example.com/a#section', points: 0 }),
+        group(105, { item: '', open: true }),
+      ];
       render(<EstimateLog groups={groups} onSetPoints={vi.fn()} onRenameGroup={vi.fn()} disabled={false} limit={1} />);
       expect(screen.getByText('見積もり 105')).toBeTruthy();
       fireEvent.click(screen.getByRole('button', { name: '記録をコピー' }));
@@ -171,7 +174,7 @@ describe('EstimateLog', () => {
       expect(writeText).toHaveBeenCalledExactlyOnceWith([
         '## 見積もりの記録',
         '### 見積もり 105\n見積もり中\n- 1 回め ' + hhmm(AT) + ' 5×4',
-        '### PROJ-\\[4\\]\nポイント: 0\n- 1 回め ' + hhmm(AT) + ' 5×4',
+        '### PROJ-\\[4\\] https\\://example\\.com/a\\#section\nポイント: 0\n- 1 回め ' + hhmm(AT) + ' 5×4',
       ].join('\n\n'));
     } finally {
       if (previous) Object.defineProperty(navigator, 'clipboard', previous);

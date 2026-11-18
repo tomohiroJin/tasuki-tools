@@ -122,8 +122,12 @@ test.describe('poker は見積もりを記録に残す', () => {
       await expect(groups(target).first().getByRole('combobox')).toHaveAccessibleName('見積もり 1 ポイントを変える');
       await expect(currentTitle(target)).toHaveText('見積もり 2');
     }
-    await sideLog(page).getByRole('button', { name: '記録をコピー' }).click();
+    const copy = sideLog(page).getByRole('button', { name: '記録をコピー' });
+    const copyBefore = await copy.boundingBox();
+    expect(copyBefore).not.toBeNull();
+    await copy.click();
     await expect(sideLog(page).getByRole('status')).toHaveText('コピーしました');
+    expect(await copy.boundingBox()).toEqual(copyBefore);
     const markdown = await page.evaluate(() => navigator.clipboard.readText());
     expect(markdown.split('\n')).toContain('### 見積もり 1');
   });
@@ -195,7 +199,10 @@ test.describe('poker は見積もりを記録に残す', () => {
     await turnRecordingOn(page);
     await expect(currentTitle(page)).toHaveText('見積もり 2');
     await chooseCard(page, '8');
-    await expect(groups(page).locator('.estimate-group-item')).toHaveText(['見積もり 2', '見積もり 1']);
+    const recorded = groups(page);
+    await expect(recorded).toHaveCount(2);
+    await expect(recorded.first().locator('.estimate-group-item')).toHaveText('見積もり 2');
+    await expect(recorded.last().getByRole('button', { name: '見積もり 1' })).toBeVisible();
   });
 
   test('Given 閉じた束 / When 2 人目が記録の欄でポイントを 8 に変える / Then 1 人目の画面も 8 になる', async ({ page, openPeer }) => {
@@ -248,6 +255,35 @@ test.describe('poker は見積もりを記録に残す', () => {
     expect(results).not.toBeNull();
     expect(box).not.toBeNull();
     expect(box!.y, '足の記録が結果より下にある').toBeGreaterThanOrEqual(results!.y + results!.height - 1);
+  });
+
+  test('Given コピー API を使えない幅 390 の画面 / When 記録のシートからコピー / Then すべての題がクリップボードに入る', async ({ page, context }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+    await page.addInitScript(() => {
+      const clipboard = navigator.clipboard;
+      Object.defineProperty(navigator, 'clipboard', {
+        value: { readText: clipboard.readText.bind(clipboard) },
+      });
+    });
+    await createRoom(page, HOST);
+    await turnRecordingOn(page);
+    for (const card of ['2', '3', '5', '8']) {
+      await chooseCard(page, card);
+      await expect(resultsSection(page)).toBeVisible();
+      await page.getByRole('button', { name: '次のアイテムへ' }).click();
+      await expect(resultsSection(page)).toHaveCount(0);
+    }
+
+    await page.getByRole('button', { name: '記録をすべて見る' }).click();
+    const drawer = page.getByRole('dialog', { name: '見積もりの記録' });
+    const copy = drawer.getByRole('button', { name: '記録をコピー' });
+    await copy.click();
+    await expect(drawer.getByRole('status')).toHaveText('コピーしました');
+    const markdown = await page.evaluate(() => navigator.clipboard.readText());
+    expect(markdown.split('\n').filter((line) => line.startsWith('### '))).toEqual([
+      '### 見積もり 4', '### 見積もり 3', '### 見積もり 2', '### 見積もり 1',
+    ]);
   });
 
   test('Given 幅 1280・高さ 700 / When 開票と次のアイテムへを 10 回くり返す / Then 手札も脇も画面に収まり、記録は脇の中でスクロールする', async ({ page }) => {

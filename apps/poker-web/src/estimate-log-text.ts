@@ -1,5 +1,5 @@
 import type { EstimateGroupView } from '@tasuki/poker-core';
-import { cardLabel } from './components/CardHand';
+import { cardLabel } from './card-label';
 import {
   ESTIMATE_EXPORT_POINTS,
   ESTIMATE_LOG_HEADING,
@@ -23,7 +23,8 @@ export function estimateEntryCounts(counts: Entry['counts']): string {
 /** 画面と同じ順と題で、今ある記録をすべて書き出す。 */
 export function estimateLogMarkdown(groups: readonly EstimateGroupView[]): string {
   const sections = [...groups].reverse().map((group) => {
-    const title = estimateTitle(group.item, group.id).replace(/[\\\x60*_[\]<>#~&!]/g, '\\$&');
+    // GFM の自動リンクがエスケープ済みの文字を URL として飲み込まないようにする。
+    const title = estimateTitle(group.item, group.id).replace(/[\\\x60*_[\]<>#~&!.:@]/g, '\\$&');
     const points = group.open ? ESTIMATE_OPEN
       : group.points === null ? ESTIMATE_NO_POINTS
       : ESTIMATE_EXPORT_POINTS + ': ' + group.points;

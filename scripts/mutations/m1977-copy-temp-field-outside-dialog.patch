@@ -1,0 +1,8 @@
+diff --git a/packages/invite-ui/src/use-copy-text.ts b/packages/invite-ui/src/use-copy-text.ts
+--- a/packages/invite-ui/src/use-copy-text.ts
++++ b/packages/invite-ui/src/use-copy-text.ts
+@@ -11,3 +11,3 @@
+   textarea.style.opacity = '0';
+-  container.appendChild(textarea);
++  document.body.appendChild(textarea);
+   try {

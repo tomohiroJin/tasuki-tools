@@ -1,12 +1,8 @@
 diff --git a/apps/poker-web/src/estimate-log-text.ts b/apps/poker-web/src/estimate-log-text.ts
 --- a/apps/poker-web/src/estimate-log-text.ts
 +++ b/apps/poker-web/src/estimate-log-text.ts
-@@ -23,7 +23,7 @@
- /** 画面と同じ順と題で、今ある記録をすべて書き出す。 */
- export function estimateLogMarkdown(groups: readonly EstimateGroupView[]): string {
-   const sections = [...groups].reverse().map((group) => {
--    const title = estimateTitle(group.item, group.id).replace(/[\\\x60*_[\]<>#~&!]/g, '\\$&');
-+    const title = group.item.replace(/[\\\x60*_[\]<>#~&!]/g, '\\$&');
+@@ -26,3 +26,3 @@
+     // GFM の自動リンクがエスケープ済みの文字を URL として飲み込まないようにする。
+-    const title = estimateTitle(group.item, group.id).replace(/[\\\x60*_[\]<>#~&!.:@]/g, '\\$&');
++    const title = group.item.replace(/[\\\x60*_[\]<>#~&!.:@]/g, '\\$&');
      const points = group.open ? ESTIMATE_OPEN
-       : group.points === null ? ESTIMATE_NO_POINTS
-       : ESTIMATE_EXPORT_POINTS + ': ' + group.points;
