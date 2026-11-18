@@ -6,25 +6,13 @@
  */
 import { describe, expect, it } from 'vitest';
 import { foundBody, readFromCwd as read, rulesOf } from '@tasuki/test-css/css-rules';
+import { mediaBlock } from '@tasuki/test-css';
 
 const css = read('src/index.css');
 const KINDS = ['unanimous', 'scattered', 'complete'] as const;
 
-/** `@keyframes name { ... }` の中身（波括弧の対応で切り出す） */
-function keyframes(name: string): string {
-  const head = css.indexOf(`@keyframes ${name}`);
-  expect(head, `@keyframes ${name} が無い`).not.toBe(-1);
-  const open = css.indexOf('{', head);
-  let depth = 0;
-  for (let i = open; i < css.length; i += 1) {
-    if (css[i] === '{') depth += 1;
-    if (css[i] === '}') {
-      depth -= 1;
-      if (depth === 0) return css.slice(open + 1, i);
-    }
-  }
-  throw new Error(`@keyframes ${name} が閉じていない`);
-}
+/** `@keyframes name { ... }` の中身（コメントを除き、ちょうど 1 つあることを確かめる） */
+const keyframes = (name: string): string => mediaBlock(css, `@keyframes ${name}`);
 
 const seconds = (value: string): number => (value.endsWith('ms') ? parseFloat(value) / 1000 : parseFloat(value));
 
@@ -37,13 +25,20 @@ describe('開票の演出の帯の CSS（#639）', () => {
     expect(base).not.toMatch(/z-index/);
   });
 
-  it('Given 帯の動き / Then 遅れ + 長さは 2 秒以内（開票から。ひとつの演出は 2 秒以内）', () => {
-    const delay = seconds(/animation-delay:\s*([0-9.]+m?s);/.exec(base)?.[1] ?? 'NaN');
+  it('Given 帯の動き / Then 動きそのものの長さは 2 秒以内で 1 回だけ（遅れは札のめくりの待ちで、演出の長さに数えない）', () => {
     const duration = seconds(/animation-duration:\s*([0-9.]+m?s);/.exec(base)?.[1] ?? 'NaN');
-    expect(delay + duration).toBeLessThanOrEqual(2);
+    expect(duration).toBeLessThanOrEqual(2);
     expect(duration).toBeGreaterThan(0);
     // 1 回だけ（繰り返さない）
     expect(base).not.toMatch(/animation-iteration-count:\s*(infinite|[2-9])/);
+  });
+
+  it('Given 札が順にめくれる公開 / Then 帯の遅れは統計と同じ待ち（最後の札がめくれた後。結果のネタばらしをしない）', () => {
+    const band = foundBody(rulesOf(css, '.results--after-flip .results-effect'), 'めくれる公開の帯');
+    const stats = foundBody(rulesOf(css, '.results--after-flip .stats'), 'めくれる公開の統計');
+    const delayOf = (body: string) => /animation-delay:\s*(calc\([^;]*\));/.exec(body)?.[1];
+    expect(delayOf(band), '帯の遅れ').toBeTruthy();
+    expect(delayOf(band)).toBe(delayOf(stats));
   });
 
   it.each(KINDS)('Given %s の帯 / Then 動きは終わりの姿が見える（動きを減らす設定は長さと遅延を 0 にするので、終わりの姿の文言が残る）', (kind) => {
@@ -62,9 +57,11 @@ describe('開票の演出の帯の CSS（#639）', () => {
     expect(rule).not.toMatch(/prefers-reduced-motion/);
   });
 
-  it('Given 動きの枠 / Then 配置を動かす性質（width・height・margin・top・left）を使わない（札・統計・記録を押さない）', () => {
+  it('Given 動きの枠 / Then レイアウトを変える性質を使わない（折り返し・高さの変化で下の統計を跳ねさせない。transform・opacity・clip-path・filter だけ）', () => {
+    const layout =
+      /\b(width|height|min-width|max-width|min-height|max-height|margin|margin-[a-z-]+|padding|padding-[a-z-]+|top|left|right|bottom|inset|letter-spacing|word-spacing|font-size|font-weight|line-height|gap|border-width|flex|display)\s*:/;
     for (const name of ['effect-cutin', 'effect-scatter', 'effect-settle']) {
-      expect(keyframes(name), name).not.toMatch(/\b(width|height|margin|top|left|right|bottom|padding)\s*:/);
+      expect(keyframes(name), name).not.toMatch(layout);
     }
   });
 });

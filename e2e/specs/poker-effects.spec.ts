@@ -20,8 +20,11 @@ const UNANIMOUS = '全員同じ';
 const SCATTERED = '全員バラバラ';
 const COMPLETE = '全員出そろいました';
 
-/** 結果の節の演出の帯（読み上げの知らせ 1 つ）。 */
-const band = (page: Page, text: string): Locator => resultsSection(page).getByRole('status').filter({ hasText: text });
+/** 結果の節の演出の帯（見える帯。読み上げからは隠してある）。 */
+const band = (page: Page, text: string): Locator => resultsSection(page).locator('.results-effect').filter({ hasText: text });
+
+/** 読み上げの知らせ（空で挿入され、札がめくれた後に文言が入る）。 */
+const announced = (page: Page, text: string): Locator => resultsSection(page).getByRole('status').filter({ hasText: text });
 
 /** 参加者を 1 人ずつ別の文脈で入れる。先頭は作成者。 */
 async function openRoom(
@@ -55,6 +58,9 @@ test.describe('poker の開票の演出（#639）', () => {
     for (const p of pages) {
       await expect(band(p, UNANIMOUS)).toBeVisible();
       await expect(band(p, SCATTERED)).toHaveCount(0);
+      // 読み上げは 1 つだけで、同じ文言が入る（見える帯は読み上げから隠してあり、二重に読まれない）
+      await expect(announced(p, UNANIMOUS)).toHaveCount(1);
+      await expect(resultsSection(p).getByRole('status')).toHaveCount(1);
     }
     // 帯は結果の節の中で、統計（平均・最頻値）の上に置かれる（重ならない）。320・1280px の両方で
     for (const width of [320, 1280]) {

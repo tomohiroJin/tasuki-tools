@@ -1,6 +1,6 @@
 // 公開後の結果表示（平均・最頻値。FR-010）と、見積もりが割れたときの促し（#405・FR-010a）
 // 各自の票は場の席の札がめくれて見せる（#348）。ここは集計だけを持つ
-import type { CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import type { RoundStats } from '@tasuki/poker-core';
 import { cardLabel } from './CardHand';
 import { EFFECT_COPY, type ResultsEffect } from '../effect-copy';
@@ -68,20 +68,42 @@ function SpreadNote({ spread: { high, low } }: { spread: SpreadPrompt }) {
   );
 }
 
+/**
+ * 演出の読み上げを入れるまでの待ち（ms）。集計と同じ待ち（札が順にめくれる公開では最後の札がめくれた後。
+ * CSS の `.results--after-flip .stats` と同じ式）。動きを減らす設定では札はめくれないので待たない。
+ */
+export function effectAnnounceDelay(seatCount: number, afterFlip: boolean): number {
+  return afterFlip ? Math.min(seatCount - 1, 8) * 90 + 450 : 0;
+}
+
 export function Results({ stats, seatCount, afterFlip, spread, effect = null }: Props) {
+  // 読み上げの知らせは、結果の節と一緒に空で挿入しておき、待ちの後に文言を入れる（中身を持って挿入された live region は読まれないことがある）
+  const [announced, setAnnounced] = useState<string>('');
+  useEffect(() => {
+    if (!effect) {
+      setAnnounced('');
+      return undefined;
+    }
+    const reduced = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const timer = setTimeout(() => setAnnounced(EFFECT_COPY[effect]), reduced ? 0 : effectAnnounceDelay(seatCount, afterFlip));
+    return () => clearTimeout(timer);
+  }, [effect, seatCount, afterFlip]);
   return (
     <section
       className={`results${afterFlip ? ' results--after-flip' : ''}`}
       style={{ '--seat-count': seatCount } as CSSProperties}
     >
       <h2>結果</h2>
-      {/* 演出の帯（#639）。見た目だけで、操作は受け付けたまま（ポインタ・フォーカスを奪わない）。
-          読み上げは帯自身の role="status" 1 つ（複製を置かない）。動きを減らす設定では動かず、色と文言が残る */}
+      {/* 演出の帯（#639）。見た目だけで、操作は受け付けたまま（ポインタ・フォーカスを奪わない）。読み上げからは隠し、
+          読み上げは下の status 1 つだけが受け持つ（二重に読ませない）。動きを減らす設定では動かず、色と文言が残る */}
       {effect && (
-        <p className="results-effect" data-effect={effect} role="status">
+        <p className="results-effect" data-effect={effect} aria-hidden="true">
           {EFFECT_COPY[effect]}
         </p>
       )}
+      <p className="ui-visually-hidden results-effect-live" role="status">
+        {announced}
+      </p>
       <dl className="stats">
         <div>
           <dt>平均</dt>

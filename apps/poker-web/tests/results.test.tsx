@@ -5,10 +5,10 @@
  *
  * @requirements #348
  */
-import { afterEach, describe, expect, it } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import type { RoundStats } from '@tasuki/poker-core';
-import { Results, SPREAD_COPY } from '../src/components/Results';
+import { Results, SPREAD_COPY, effectAnnounceDelay } from '../src/components/Results';
 import { EFFECT_COPY } from '../src/effect-copy';
 import { baseFaces, outsideBase } from '@tasuki/test-css/font-base';
 
@@ -63,15 +63,37 @@ describe('Results（#348）', () => {
     ['unanimous', '全員同じ'],
     ['scattered', '全員バラバラ'],
     ['complete', '全員出そろいました'],
-  ] as const)('E1（#639）: Given 演出 %s / When 描く / Then 結果の節の中に読み上げの知らせ 1 つで「%s」が出る', (effect, text) => {
-    const { container } = render(<Results stats={stats} seatCount={3} afterFlip spread={null} effect={effect} />);
-    const bands = container.querySelectorAll('.results .results-effect');
-    expect(bands).toHaveLength(1);
-    expect(bands[0]?.textContent).toBe(text);
-    expect(bands[0]?.getAttribute('role')).toBe('status');
-    expect(bands[0]?.getAttribute('data-effect')).toBe(effect);
-    // 二重に読ませない: 同じ文言の読み上げ専用の複製を置かない
-    expect(container.querySelectorAll('[aria-live], [role="status"], [role="alert"]')).toHaveLength(1);
+  ] as const)('E1（#639）: Given 演出 %s / When 描く / Then 見える帯は読み上げから隠し、読み上げの知らせ（status）は 1 つだけで「%s」を後から受ける', (effect, text) => {
+    vi.useFakeTimers();
+    try {
+      const { container } = render(<Results stats={stats} seatCount={3} afterFlip spread={null} effect={effect} />);
+      const bands = container.querySelectorAll('.results .results-effect');
+      expect(bands).toHaveLength(1);
+      expect(bands[0]?.textContent).toBe(text);
+      expect(bands[0]?.getAttribute('aria-hidden')).toBe('true');
+      expect(bands[0]?.getAttribute('data-effect')).toBe(effect);
+      // 二重に読ませない: 読み上げの知らせは 1 つ。挿入されたときは空（中身を持って挿入された live region は読まれないことがある）
+      const live = container.querySelectorAll('[aria-live], [role="status"], [role="alert"]');
+      expect(live).toHaveLength(1);
+      expect(live[0]?.textContent).toBe('');
+      // 札がめくれ終わった後（統計と同じ待ち）に、文言が入る
+      act(() => {
+        vi.advanceTimersByTime(effectAnnounceDelay(3, true) - 1);
+      });
+      expect(live[0]?.textContent).toBe('');
+      act(() => {
+        vi.advanceTimersByTime(1);
+      });
+      expect(live[0]?.textContent).toBe(text);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('E4（#639）: Given 席の数が多い・札がめくれる公開 / Then 読み上げの待ちは統計と同じ（最後の札がめくれた後）', () => {
+    expect(effectAnnounceDelay(8, true)).toBe(7 * 90 + 450);
+    expect(effectAnnounceDelay(20, true)).toBe(8 * 90 + 450);
+    expect(effectAnnounceDelay(8, false)).toBe(0);
   });
 
   it('E2（#639）: Given 演出なし / When 描く / Then 帯は出ず、結果・統計・記録の中身は同じ', () => {

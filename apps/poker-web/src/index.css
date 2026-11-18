@@ -472,7 +472,8 @@
 }
 
 /* 開票の演出の帯（#639）。結果の節の中の 1 行で、流れの中に置く（重ならない・操作を奪わない: ポインタもフォーカスも受けない）。
-   動きは 0.25s の遅れ + 1.5s の 1 回（開票から 2s 以内）。動きの終わりの姿が、そのまま静かな 1 行として残る（レイアウトが跳ねない）。
+   動きそのものは 1.5s の 1 回（2s 以内）。遅れは統計と同じ待ち（札が順にめくれる公開では最後の札がめくれた後。結果のネタばらしをしない）。
+   動きの終わりの姿が、そのまま静かな 1 行として残る（レイアウトが跳ねない）。動かすのは transform・opacity・clip-path・filter だけ（折り返し・高さを変えない）。
    動きを減らす設定では要素層が長さと遅延を 0 にするので、終わりの姿（色と文言）だけが出る。
    外れた人を名指ししない（結果の呼び名だけ）。色は既存のトークンだけ: 一致は真鍮・バラバラは薔薇・そろいは翡翠。 */
 .results-effect {
@@ -491,10 +492,14 @@
   text-align: center;
   overflow: hidden;
   pointer-events: none;
-  animation-delay: 0.25s;
   animation-duration: 1.5s;
   animation-fill-mode: both;
   animation-timing-function: cubic-bezier(0.2, 0.8, 0.25, 1);
+}
+
+/* 札が順にめくれる公開では、集計（.results--after-flip .stats）と同じ待ち */
+.results--after-flip .results-effect {
+  animation-delay: calc(min(var(--seat-count, 1) - 1, 8) * 90ms + 0.45s);
 }
 
 .results-effect[data-effect='unanimous'] {
@@ -534,18 +539,22 @@
   }
 }
 
-/* バラバラ: 字が散ってから寄る（外へ動かさず字の間だけ。幅が広がっても帯の中に収まる） */
+/* バラバラ: 帯が横にぶれてから寄る（transform と opacity だけ。字間を動かすと狭い画面で折り返して高さが変わる） */
 @keyframes effect-scatter {
   0% {
-    letter-spacing: 0.9em;
     opacity: 0;
+    transform: translateX(-0.8rem) scale(1.06);
   }
   30% {
     opacity: 1;
+    transform: translateX(0.5rem) scale(1.06);
+  }
+  60% {
+    transform: translateX(-0.25rem);
   }
   100% {
-    letter-spacing: 0.12em;
     opacity: 1;
+    transform: none;
   }
 }
 
