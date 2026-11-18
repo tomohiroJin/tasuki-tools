@@ -135,6 +135,31 @@ describe('RoomPage の開票の演出（#639）', () => {
     expect(document.activeElement).not.toBe(band());
   });
 
+  it('Given 3 人のうち 1 人が出さないまま手動で開票 / When その人が切断する / Then 帯は後から出ない（開票の瞬間の事実で決める）', () => {
+    const { rerender } = render(<RoomPage roomId={ROOM_ID} sync={makeSync(voting())} />);
+    const snap = revealed([n(5), n(8), n(8)]);
+    if (snap.round.status !== 'revealed') throw new Error('revealed の造作ではない');
+    snap.round.votes = snap.round.votes.slice(0, 2);
+    rerender(<RoomPage roomId={ROOM_ID} sync={makeSync(snap)} />);
+    expect(band()).toBeNull();
+    const after = { ...snap, participants: people.map((p) => (p.id === 'p3' ? { ...p, connected: false } : p)) };
+    rerender(<RoomPage roomId={ROOM_ID} sync={makeSync(after)} />);
+    expect(band()).toBeNull();
+  });
+
+  it('Given 3 人が出して自動開票（出そろい） / When 4 人目が入室する / Then 帯は消えない', () => {
+    const { rerender } = render(<RoomPage roomId={ROOM_ID} sync={makeSync(voting())} />);
+    const snap = revealed([n(5), n(5), n(13)]);
+    rerender(<RoomPage roomId={ROOM_ID} sync={makeSync(snap)} />);
+    expect(band()?.textContent).toBe('全員出そろいました');
+    const after = {
+      ...snap,
+      participants: [...people, { id: 'p4', name: 'ひなた', connected: true, hasVoted: false, spectator: false }],
+    };
+    rerender(<RoomPage roomId={ROOM_ID} sync={makeSync(after)} />);
+    expect(band()?.textContent).toBe('全員出そろいました');
+  });
+
   it('Given 演出が出る開票 / When 描く / Then 統計と最頻値は演出の有無で変わらない', () => {
     const { rerender } = render(<RoomPage roomId={ROOM_ID} sync={makeSync(voting())} />);
     const snap = revealed([n(5), n(5), n(5)]);

@@ -19,6 +19,7 @@ import { useRoomEntry } from '../hooks/useRoomEntry';
 import { ESTIMATE_POINTS_LABEL, NEXT_ITEM, RECORDING_TOGGLE, REVOTE } from '../estimate-copy';
 import { JOIN_VOTING, SPECTATE, SPECTATING_NOTE, participantsHeading } from '../spectator-copy';
 import type { NumberCardValue } from '@tasuki/poker-core';
+import type { ResultsEffect } from '../effect-copy';
 import { isOffline, revealedLiveAfter, seatCardCount, revealedVoteMap, resultsEffectOf, spreadPromptOf } from '../room-view';
 
 // 隠しモードのテーブル（#403）。ゲームが始まったとき（`room-state.table` が届いたとき）にだけ読み込む
@@ -67,9 +68,14 @@ export function RoomPage({ roomId, sync }: Props) {
   const roundStatus = sync.snapshot?.round.status;
   const [seenStatus, setSeenStatus] = useState(roundStatus);
   const [revealedLive, setRevealedLive] = useState(false);
+  // 開票の演出（#639）。種類は開票の瞬間の名簿で一度だけ決めて持つ（開票の後の入退室・切断で後から出ない・消えない）。
+  // 見届けた開票でなければ null（再読み込み・途中入室）
+  const [effect, setEffect] = useState<ResultsEffect | null>(null);
   if (roundStatus !== seenStatus) {
     setSeenStatus(roundStatus);
-    setRevealedLive(revealedLiveAfter(seenStatus, roundStatus));
+    const live = revealedLiveAfter(seenStatus, roundStatus);
+    setRevealedLive(live);
+    setEffect(live && sync.snapshot ? resultsEffectOf(sync.snapshot.round, sync.snapshot.participants) : null);
   }
   // 入口の振り分け・自動の復帰・混雑の入り直し・消えたルームの組の破棄は同期フックの仕事（#369）。
   const { retryNotice } = useRoomEntry(sync, roomId);
@@ -243,7 +249,7 @@ export function RoomPage({ roomId, sync }: Props) {
               seatCount={seatCount}
               afterFlip={revealedLive}
               spread={spreadPromptOf(snapshot.round, snapshot.participants)}
-              effect={revealedLive ? resultsEffectOf(snapshot.round, snapshot.participants) : null}
+              effect={effect}
             />
           )}
           {/* 下端の帯（sticky）は親の範囲の中でしか留まらないので、帯は操作の面（`.room-main`）の最後の子に置き、

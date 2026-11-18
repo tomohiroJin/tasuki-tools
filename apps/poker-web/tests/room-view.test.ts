@@ -147,6 +147,16 @@ describe('resultsEffectOf（#639）', () => {
     expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(8)]]), three)).toBeNull();
   });
 
+  it('接続中の 5 人のうち 2 人だけが同じ札を出して手動で開票したなら、unanimous にしない（全員が出した回だけ）', () => {
+    const five = [person('a'), person('b'), person('c'), person('d'), person('e')];
+    expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(5)]]), five)).toBeNull();
+  });
+
+  it('接続中の 5 人のうち 3 人だけが違う札を出して手動で開票したなら、scattered にしない', () => {
+    const five = [person('a'), person('b'), person('c'), person('d'), person('e')];
+    expect(resultsEffectOf(revealed([['a', n(1)], ['b', n(5)], ['c', n(8)]]), five)).toBeNull();
+  });
+
   it('出していない人が切断中なら、接続中の全員が出したので complete', () => {
     const people = [person('a'), person('b'), person('c', { connected: false })];
     expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(8)]]), people)).toBe('complete');

@@ -45,7 +45,8 @@ export function isOffline(status: ConnectionStatus): boolean {
 }
 
 /**
- * 開票の演出（#639）。出さないなら null。優先は 全員一致 > 全員バラバラ > 全員の投票完了。
+ * 開票の演出（#639）。出さないなら null。**開票の瞬間の名簿で一度だけ呼ぶ**（画面は公開へ移った描画で決めて持つ。
+ * 開票の後の入退室・切断で種類を変えない）。優先は 全員一致 > 全員バラバラ > 全員の投票完了。
  *
  * - 一致・バラバラの判定は `poker-core` の `judgeAgreement`（数字の札だけ・人数の下限つき）
  * - 全員の投票完了（'complete'）: 接続中の投票者（見学者を除く）が 2 人以上で、全員が票を出して開票された。
@@ -57,11 +58,11 @@ export function resultsEffectOf(
   participants: readonly ParticipantView[],
 ): ResultsEffect | null {
   if (round.status !== 'revealed') return null;
-  const agreement = judgeAgreement(round.votes);
-  if (agreement !== null) return agreement;
+  // どの演出も、開票の瞬間に票を持つ全員（接続中で見学でない）が出していた回だけ。手動で先に開票した回は出さない
   const voted = new Set(round.votes.map((v) => v.participantId));
   const voters = participants.filter((p) => p.connected && !p.spectator);
-  return voters.length >= 2 && voters.every((p) => voted.has(p.id)) ? 'complete' : null;
+  if (voters.length < 2 || !voters.every((p) => voted.has(p.id))) return null;
+  return judgeAgreement(round.votes) ?? 'complete';
 }
 
 /** 割れた見積もりの片側（札と、それを出した人の表示名）。 */
