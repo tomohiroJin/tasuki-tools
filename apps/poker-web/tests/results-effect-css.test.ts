@@ -79,9 +79,18 @@ describe('開票の演出の帯の CSS（#639）', () => {
     },
   );
 
-  it('Given バラバラの動き / Then 帯を大きくしない・外へ動かさない（320px で右端が画面の外へ出ない。scale は 1 以下・translate・rotate・skew を使わない）', () => {
+  it('Given バラバラの動き / Then 帯を大きくしない・外へ動かさない（320px で右端が画面の外へ出ない。scale は 1 以下だけ）', () => {
     const frames = keyframes('effect-scatter');
-    expect(frames).not.toMatch(/translate|rotate|skew/);
-    for (const m of frames.matchAll(/scale\(([0-9.]+)\)/g)) expect(Number(m[1])).toBeLessThanOrEqual(1);
+    // 外へ動かす・大きくする別の書き方を使わない（個別の scale・scaleX/Y/Z・scale3d・matrix・translate・rotate・skew・perspective）
+    expect(frames).not.toMatch(/(^|[\s;{])(scale|translate|rotate)\s*:/);
+    expect(frames).not.toMatch(/\b(scaleX|scaleY|scaleZ|scale3d|matrix|matrix3d|translate\w*|rotate\w*|skew\w*|perspective)\s*\(/);
+    // scale(...) の引数はすべて 1 以下（% も数として読む）
+    for (const m of frames.matchAll(/\bscale\(([^)]*)\)/g)) {
+      for (const arg of m[1]!.split(',')) {
+        const t = arg.trim();
+        const value = t.endsWith('%') ? parseFloat(t) / 100 : parseFloat(t);
+        expect(value, `scale(${m[1]})`).toBeLessThanOrEqual(1);
+      }
+    }
   });
 });

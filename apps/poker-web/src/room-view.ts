@@ -62,10 +62,7 @@ export function resultsEffectOf(
   const voted = new Set(round.votes.map((v) => v.participantId));
   const voters = participants.filter((p) => p.connected && !p.spectator);
   if (voters.length < 2 || !voters.every((p) => voted.has(p.id))) return null;
-  // 卓の外（切断した人・名簿に居ない人）の票が 1 枚でもあれば、一致・バラバラにしない。
-  // 卓には外の票の札も見え、割れの促しや統計にも入るので、「全員同じ」「全員バラバラ」と食い違う。出そろいに落とす
-  const voterIds = new Set(voters.map((p) => p.id));
-  if (round.votes.some((v) => !voterIds.has(v.participantId))) return 'complete';
+  // 一致・バラバラは卓に見える全票で判定する（切断した人の票も札として卓に見え、統計・割れの促しにも入る。帯は札の事実と合わせる）
   return judgeAgreement(round.votes) ?? 'complete';
 }
 

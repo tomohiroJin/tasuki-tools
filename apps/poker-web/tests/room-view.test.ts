@@ -157,24 +157,34 @@ describe('resultsEffectOf（#639）', () => {
     expect(resultsEffectOf(revealed([['a', n(1)], ['b', n(5)], ['c', n(8)]]), five)).toBeNull();
   });
 
-  it('接続中の 2 人が 5・8 で、切断した人が 13 を出して開票されたなら、2 人の卓として scattered にしない（判定も接続中で見学でない人の票だけ）', () => {
+  it('接続中の 2 人が 5・8 で、切断した人が 13 を出して開票されたなら、見える 3 枚がすべて違うので scattered（帯は札の事実と合う）', () => {
     const people = [person('a'), person('b'), person('c', { connected: false })];
-    expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(8)], ['c', n(13)]]), people)).toBe('complete');
+    expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(8)], ['c', n(13)]]), people)).toBe('scattered');
   });
 
-  it('接続中の 2 人が同じ 5 で、切断した人が 13 を出して開票されたなら、unanimous にしない（卓に 13 の札が見え、割れの促しも出るので「出そろい」に落とす）', () => {
+  it('卓の見える札が 3 枚とも 5（切断した人の 5 を含む）なら、unanimous（見える全票で判定する）', () => {
+    const people = [person('a'), person('b'), person('c', { connected: false })];
+    expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(5)], ['c', n(5)]]), people)).toBe('unanimous');
+  });
+
+  it('卓の見える札が 3 枚とも違う（切断した人の 13 を含む）なら、scattered（見える全票で判定する）', () => {
+    const people = [person('a'), person('b'), person('c', { connected: false })];
+    expect(resultsEffectOf(revealed([['a', n(1)], ['b', n(5)], ['c', n(13)]]), people)).toBe('scattered');
+  });
+
+  it('接続中の 2 人が同じ 5 で、切断した人が 13 を出していたなら、見える札は同じでないので complete', () => {
     const people = [person('a'), person('b'), person('c', { connected: false })];
     expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(5)], ['c', n(13)]]), people)).toBe('complete');
   });
 
-  it('接続中の 3 人が 1・5・8 で、切断した人が 5 を出して開票されたなら、scattered にしない（卓に 5 が 2 枚見える）', () => {
+  it('接続中の 3 人が 1・5・8 で、切断した人が 5 を出していたなら、見える札に同じ 5 があるので complete', () => {
     const people = [person('a'), person('b'), person('c'), person('d', { connected: false })];
     expect(resultsEffectOf(revealed([['a', n(1)], ['b', n(5)], ['c', n(8)], ['d', n(5)]]), people)).toBe('complete');
   });
 
-  it('名簿に居ない人の票が混ざる開票も、一致・バラバラにしない', () => {
+  it('名簿に居ない人の票も見える札として判定に入る（接続中の 2 人と 5・5・5）', () => {
     const people = [person('a'), person('b')];
-    expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(5)], ['gone', n(5)]]), people)).toBe('complete');
+    expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(5)], ['gone', n(5)]]), people)).toBe('unanimous');
   });
 
   it('出していない人が切断中なら、接続中の全員が出したので complete', () => {
