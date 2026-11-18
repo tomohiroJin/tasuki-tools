@@ -59,7 +59,8 @@ export function CreateRoom({
     // ボタンの disabled はクリック以外の送信経路（requestSubmit・支援技術）を防がないので、
     // ここでも同じ判定を持つ（#76 の回帰防止）。
     if (connection !== 'online') return;
-    if (creating) return;
+    // 作成の応答待ちの判定はここに写さない。正本は同期フック（`use-hub-sync.ts` の `createRoom`）の 1 か所で、
+    // ここはボタンを止めて見せるだけ（#642 のレビュー。2 か所に持つと、片方が外れても緑のままになる）
     if (displayName.trim() === '') return;
     onCreate(roomName.trim(), displayName.trim());
   };
