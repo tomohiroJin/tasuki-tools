@@ -10662,11 +10662,11 @@ export const MUTATIONS = [
   },
   {
     id: 2105,
-    label: "動き出しの名前を確かめずに描く",
-    patch: "m2105-web-launch-name-unchecked.patch",
+    label: "動き出しの差を開始角に足さない",
+    patch: "m2105-web-launch-offset-not-from-start.patch",
     pkg: "apps/roulette-web",
     tests: ["tests/spin-motion.test.ts"],
-    note: RESERVED_2080_2109 + " " + "#640 決めること 5。知らない動き出しの名前で画面が描けず、止まる。",
+    note: RESERVED_2080_2109 + " " + "#640 動き出し。動き出しの差を開始角に足さず、前の止まった位置から跳ぶ（どの画面も同じ席で止まる前提が崩れる）。",
   },
   {
     id: 2106,

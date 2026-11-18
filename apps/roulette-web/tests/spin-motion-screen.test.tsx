@@ -117,6 +117,17 @@ describe('変わった動きの間は、止まる時刻（core の表）まで�
     expect(goldSeats()).toBe(1);
   });
 
+  it('Given 動き出し・途中で向きを変えるの回転 / When いつもの時刻を過ぎる / Then 札・真鍮の席・結果はまだ出さない（1 人目が止まる時刻は動きの分だけ延びている）', () => {
+    // Given
+    enterRoom(movedSpin({ launchMotion: 'stumble', spinMotion: 'turnback' }));
+    // When
+    advanceTo(PLAIN_STOP + 50);
+    // Then
+    expect(goldSeats()).toBe(0);
+    expect(card()).not.toHaveClass('is-revealed');
+    expect(caption()).toBe(spunByText('ゆう'));
+  });
+
   it('Given 速い回転 / When いつもの時刻になる前に止まる / Then いつもより早く結果を出す', () => {
     // Given
     enterRoom(movedSpin({ spinMotion: 'fast' }));

@@ -1,0 +1,22 @@
+# 変異 2105: web-launch-offset-not-from-start
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/spin-motion.test.ts
+#
+# #640 動き出し。動き出しの差を開始角に足さず、前の止まった位置から跳ぶ（どの画面も同じ席で止まる前提が崩れる）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2105-*.patch
+# 復元: git apply -R scripts/mutations/m2105-*.patch
+diff --git a/apps/roulette-web/src/wheel-motion.ts b/apps/roulette-web/src/wheel-motion.ts
+--- a/apps/roulette-web/src/wheel-motion.ts
++++ b/apps/roulette-web/src/wheel-motion.ts
+@@ -110,7 +110,7 @@
+   const launch = launchMotionOf(names.launchMotion);
+   const spinMotion: SpinMotion | null = isSpinMotion(names.spinMotion) ? names.spinMotion : null;
+   const launchMs = launch === null ? 0 : launchMotionMs(launch, style, spinMotion);
+-  if (launch !== null && elapsedMs < launchMs) return startDeg + launchOffset(launch, elapsedMs, launchMs);
++  if (launch !== null && elapsedMs < launchMs) return launchOffset(launch, elapsedMs, launchMs);
+   const start = launch !== null && launchMs > 0 ? startDeg + launchEndOffset(launch) : startDeg;
+   const u = Math.max(elapsedMs, 0) - launchMs;
+   // 動きの無い本体の長さ（止まり方の表。core の `pickStopsMs` と同じ表を読む）
