@@ -133,6 +133,26 @@ describe('RoomPage の開票の演出（#639）', () => {
     expect(band()?.textContent).toBe('全員同じ');
   });
 
+  it('Given 投票中を見ていて接続が切れ、再接続の直後は切れる前の古い状態のまま / When 入り直した後の最初の状態が開票済みで届く / Then 開票を見届けていないので帯は出ない', () => {
+    const stale = voting();
+    const { rerender } = render(<RoomPage roomId={ROOM_ID} sync={makeSync(stale)} />);
+    rerender(<RoomPage roomId={ROOM_ID} sync={makeSync(stale, 'closed')} />);
+    rerender(<RoomPage roomId={ROOM_ID} sync={makeSync(stale)} />);
+    rerender(<RoomPage roomId={ROOM_ID} sync={makeSync(revealed([n(5), n(5), n(5)]))} />);
+    expect(screen.getByRole('heading', { name: '結果' })).toBeTruthy();
+    expect(band()).toBeNull();
+  });
+
+  it('Given 再接続の後 / When 入り直した後の状態で投票中を見てから開票される / Then 帯は出る', () => {
+    const stale = voting();
+    const { rerender } = render(<RoomPage roomId={ROOM_ID} sync={makeSync(stale)} />);
+    rerender(<RoomPage roomId={ROOM_ID} sync={makeSync(stale, 'closed')} />);
+    rerender(<RoomPage roomId={ROOM_ID} sync={makeSync(stale)} />);
+    rerender(<RoomPage roomId={ROOM_ID} sync={makeSync(voting())} />);
+    rerender(<RoomPage roomId={ROOM_ID} sync={makeSync(revealed([n(5), n(5), n(5)]))} />);
+    expect(band()?.textContent).toBe('全員同じ');
+  });
+
   it('Given 一致の開票を見届けた / When 投票中を挟まず別の回の開票済みが届く / Then 前の回の帯は残らない', () => {
     const { rerender } = render(<RoomPage roomId={ROOM_ID} sync={makeSync(voting())} />);
     rerender(<RoomPage roomId={ROOM_ID} sync={makeSync(revealed([n(5), n(5), n(5)]))} />);

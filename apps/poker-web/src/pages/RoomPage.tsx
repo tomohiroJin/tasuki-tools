@@ -78,7 +78,16 @@ export function RoomPage({ roomId, sync }: Props) {
   //   同じ回で票が減る（退出）のは収まるので捨てない）
   // それ以外（同じ公開のままの名簿の変化・票の削除・状態の届き直し）では変えない。再接続の後は、投票中を見るまで出さない。
   const round = sync.snapshot?.round;
-  const bandStatus = sync.status === 'open' ? round?.status : undefined;
+  // 再接続の直後は、切れる前の古い状態が残ったまま `status` だけが `open` になる（入り直した後の `room-state` で初めて置き換わる）。
+  // 古い状態を見たことにしない: 開いた時点の状態の実体を控え、それと同じ間は見ていない（`undefined`）ものとして扱う。
+  const open = sync.status === 'open';
+  const [seenOpen, setSeenOpen] = useState(open);
+  const [staleSnapshot, setStaleSnapshot] = useState<typeof sync.snapshot>(null);
+  if (open !== seenOpen) {
+    setSeenOpen(open);
+    setStaleSnapshot(open ? sync.snapshot : null);
+  }
+  const bandStatus = open && sync.snapshot !== staleSnapshot ? round?.status : undefined;
   const [bandSeen, setBandSeen] = useState(bandStatus);
   const [band, setBand] = useState<{ votes: ReadonlyMap<string, string>; effect: ResultsEffect | null } | null>(null);
   if (bandStatus !== bandSeen) {
