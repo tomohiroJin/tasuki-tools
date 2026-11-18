@@ -128,7 +128,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 
 ### 前提
 
-- **Node.js 22.22.2 以上**（`package.json` の `engines`。pnpm 11 系が `node:sqlite` を使うため、20 では起動しません）
+- **Node.js 26.13.1 以上**（`package.json` の `engines`。版の正本は `toolchain.json`。pnpm 11 系が `node:sqlite` を使うため、20 では起動しません）
 - pnpm（版は `package.json` の `packageManager` が決める。`corepack enable` すればその版が使われる）
 - **Bun** — 同期サーバー（`apps/tasuki-sync`）の起動とテストに必要
 

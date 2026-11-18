@@ -41,8 +41,10 @@ jobs:
           bun_version="$(jq -er .bun toolchain.json)"
           caddy_version="$(jq -er .caddy toolchain.json)"
           { echo "node=$node_version"; echo "bun=$bun_version"; echo "caddy=$caddy_version"; } >> "$GITHUB_OUTPUT"
-      # Node 22 必須。ルートが宣言する pnpm（11 系）は node:sqlite（Node 22.5 以降）を
-      # 使うため、Node 20 では ERR_UNKNOWN_BUILTIN_MODULE で起動すらしない。
+      # Node は toolchain.json の版（26 系の LTS・#441）に固定する。`node-version: 26` のような
+      # 緩い指定だと runner のキャッシュの古い版（セキュリティ修正前）を使うことがあるため。
+      # 上げるときは手元と同時に上げる（Bun と同じ）。ルートが宣言する pnpm（11 系）は
+      # node:sqlite（Node 22.5 以降）を使うため、Node 20 では起動すらしない。
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ steps.toolchain.outputs.node }}
@@ -168,7 +170,7 @@ jobs:
   # ランダムな順のテスト（#524・#495 の B）。各パッケージの test を --sequence.shuffle（vitest）・
   # --randomize（bun）つきで流し、前のテストの状態に頼る順番依存を見つける。
   # 種は毎回変えてログの先頭に出し、落ちたパッケージごとに同じ種で手元で再現するコマンドを出す。
-  # node --test のパッケージ（packages/ui）は Node 22 に指定が無いので対象外。
+  # node --test のパッケージ（packages/ui）は Node に指定が無いので対象外。
   # ci に混ぜると臨界経路が伸びる（23 パッケージで約 3.5 分）ので、E2E と同じく並列の別ジョブにする。
   # 手元では pnpm check:full に入り、pnpm check:fast には入らない。
   shuffle:

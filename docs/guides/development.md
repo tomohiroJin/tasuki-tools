@@ -32,6 +32,20 @@ corepack enable
 pnpm install
 ```
 
+### 手元のシステムの Node が古いとき
+
+手元（devcontainer など）のシステムの Node が 22 系のままで、`toolchain.json` の `node`（26 系）に届かないときは、
+26 系を別の場所に置き、**PATH の先頭に足して**流します。システムの Node は触りません。
+
+```bash
+# 例: https://nodejs.org/dist/v<版>/ の tar.xz を SHASUMS256.txt で照合して展開した場所
+export PATH="$HOME/.local/node-v<版>-linux-x64/bin:$PATH"
+node -v   # toolchain.json の node と同じ major であることを確かめてから流す
+```
+
+コンテナのシステムの Node を上げるかどうかは claym 側（`.devcontainer/Dockerfile`。同じ Node で動く MCP サーバーや
+Codex CLI に影響する）の判断です。Tasuki の検査は 26 系を前提に流します（`check-toolchain` が止めます）。
+
 ### クラウドのセッションで道具を揃える
 
 claude.ai/code のクラウドのセッションでは、外への通信がプロキシを通り、**届かない取得先があります**
@@ -1128,7 +1142,7 @@ CI では `ci`・`e2e` と並列の別ジョブなので、`ci` の臨界経路�
 
 - 中身は `node scripts/test-shuffled.mjs --all`（指定が無いと何も流さず使い方を出して終わる。`entry-point-wiring.test.mjs` が引数なしで起動するため、重い検査を無指定で走らせない。先に `check-toolchain test` を通し、版が合わなければ始めない。飛ばす指定は無い）（部品は `scripts/lib/shuffled-tests.mjs`）。各パッケージの `test` スクリプトに指定を足して 1 つずつ流します:
   vitest は `--sequence.shuffle --sequence.seed=<種>`、`apps/tasuki-sync`（bun）は `--randomize --seed=<種>`。
-  **`node --test` のパッケージ（`packages/ui`。`scripts/` の自己テストもワークスペースの外で同じ）は対象外**です（Node 22 にランダムな順の指定が無い）。
+  **`node --test` のパッケージ（`packages/ui`。`scripts/` の自己テストもワークスペースの外で同じ）は対象外**です（Node にランダムな順の指定が無い）。
   知らないランナーが足されたら黙って飛ばさず落ちます（指定を決めて `shuffled-tests.mjs` に足す）
 - **種は毎回変えて、ログの先頭に出します**（`--seed <整数>` で固定もできる）。固定すると 1 通りの順しか見ず、新しく入った順番依存を取りこぼすためです。
   代わりに「落ちたら同じ種で手元で再現できる」ことを守ります: 落ちたパッケージごとに `cd <dir> && pnpm exec vitest run --sequence.shuffle --sequence.seed=<種>` の形の再現コマンドが最後に出ます。

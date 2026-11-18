@@ -13,6 +13,8 @@ export default defineConfig({
     restoreMocks: true,
     environment: "jsdom",
     setupFiles: ["./test/setup.ts"],
+    // Node 25 以降の壊れたグローバル `localStorage` が jsdom のものを覆わないよう切る（#441）。
+    execArgv: ["--no-experimental-webstorage"],
     // この実行環境（C:\ の 9p マウントで I/O が遅い）では、多数の jsdom を並列実行すると
     // CPU/IO 競合で userEvent 操作が既定 5 秒の testTimeout を超え、全スイート実行時のみ
     // 偶発的に失敗する（各テストは単独実行では緑）。並列 fork 数を抑え、タイムアウトを

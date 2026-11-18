@@ -35,7 +35,7 @@ timer は Tasuki monorepo の**次のパッケージ**で構成されます（�
 
 ## 前提条件
 
-- **Node.js 22 以上**（pnpm 11.5.0 が `node:sqlite` を使うため、20 では起動しません）
+- **Node.js 26.13.1 以上**（pnpm 11.5.0 が `node:sqlite` を使うため、20 では起動しません）
 - pnpm 11.5.0（`packageManager` 宣言に従う。`corepack enable` でよい）
 - **Bun** — 同期サーバーの起動（`bun run --watch`）とテストに必要
 
