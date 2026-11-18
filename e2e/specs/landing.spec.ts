@@ -527,7 +527,7 @@ test.describe('玄関が前に作ったルーム名を覚えて入れ直す（#6
     // 測る操作: 札 2 枚 × (選ぶ・消す) + ルームを作る = 5 以上
     await expectScreenAcrossWidths(page, '玄関（ルーム名の候補あり）', 5);
 
-    // 覚える上限いっぱい（100 文字。`MAX_REMEMBERED_ROOM_NAME`）の名前の札も、狭い幅で「…」に切れて溢れない。
+    // 覚える上限いっぱい（100 文字。`MAX_REMEMBERED_ROOM_NAME`）の名前の札も、狭い幅で横に溢れず、押せる大きさを保つ（「…」で切れることまでは測っていない）。
     // ルームの枠を使わないよう、端末の保存へ直に置いて開き直す（鍵の綴りは `recent-room-names-store.ts`）
     const longName = 'あ'.repeat(100);
     await page.evaluate(
