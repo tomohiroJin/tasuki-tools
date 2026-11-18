@@ -569,7 +569,7 @@ export const TDD_TOPICS: readonly TopicBankEntry[] = [
         "Ruby": "class AverageTest < Minitest::Test\n  def test_average_is_2_5\n    assert_equal 2.5, average([1, 2, 3, 4])\n  end\nend",
         "Rust": "#[test]\nfn average_is_2_5() {\n    assert_eq!(average(&[1, 2, 3, 4]), 2.5);\n}",
         "C#": "[Fact]\npublic void AverageIsTwoPointFive()\n{\n    Assert.Equal(2.5, Average([1, 2, 3, 4]));\n}",
-        "Kotlin": "@Test\nfun `平均は 2.5`() {\n    assertEquals(2.5, average(listOf(1, 2, 3, 4)))\n}",
+        "Kotlin": "@Test\nfun `平均は 2 点 5`() {\n    assertEquals(2.5, average(listOf(1, 2, 3, 4)))\n}",
         "Swift": "func testAverageIsTwoPointFive() {\n    XCTAssertEqual(average([1, 2, 3, 4]), 2.5)\n}"
       },
       "examples": {
@@ -668,7 +668,7 @@ export const TDD_TOPICS: readonly TopicBankEntry[] = [
   },
   {
     "title": "アナグラム判定",
-    "body": "## 背景\n\n文字列の正規化と、ソート／頻度カウントによる比較を練習するお題です。\n\n2 つの文字列 `a`, `b` が互いにアナグラム（同じ文字を並べ替えたもの）かどうかを判定する `{{slot:fn}}(a, b)` を実装します。\n\n## ルール\n\n- 大文字小文字・空白は無視する\n- 長さ（無視対象を除いた文字数）が違えば `false`\n\n## 例\n\n- `{{slot:fn}}(\"listen\", \"silent\")` → `{{slot:yes}}`\n- `{{slot:fn}}(\"hello\", \"world\")` → `{{slot:no}}`\n\n## 考慮すること\n\n両方の文字を並べ替えて比較するか、各文字の出現回数を数えて一致するか確認します。\n\n満たすこと:\n- 'listen' と 'silent' は true\n- 長さが違えば false\n- 大文字小文字・空白は無視する\n\n最初のテストの例:\n```\n{{slot:firstTest}}\n```\n\nヒント:\n- ソートして比較\n- または文字の出現回数を比較",
+    "body": "## 背景\n\n文字列の正規化と、ソート／頻度カウントによる比較を練習するお題です。\n\n2 つの文字列 `a`, `b` が互いにアナグラム（同じ文字を並べ替えたもの）かどうかを判定する `{{slot:fn}}(a, b)` を実装します。\n\n## ルール\n\n- 大文字小文字・空白は無視する\n- 長さ（無視対象を除いた文字数）が違えば {{slot:falseValue}}\n\n## 例\n\n- `{{slot:fn}}(\"listen\", \"silent\")` → `{{slot:yes}}`\n- `{{slot:fn}}(\"hello\", \"world\")` → `{{slot:no}}`\n\n## 考慮すること\n\n両方の文字を並べ替えて比較するか、各文字の出現回数を数えて一致するか確認します。\n\n満たすこと:\n- 'listen' と 'silent' は true\n- 長さが違えば false\n- 大文字小文字・空白は無視する\n\n最初のテストの例:\n```\n{{slot:firstTest}}\n```\n\nヒント:\n- ソートして比較\n- または文字の出現回数を比較",
     "difficulty": "easy",
     "category": "tdd",
     "slots": {
@@ -719,6 +719,18 @@ export const TDD_TOPICS: readonly TopicBankEntry[] = [
         "C#": "false",
         "Kotlin": "false",
         "Swift": "false"
+      },
+      "falseValue": {
+        "TypeScript": "`false`",
+        "JavaScript": "`false`",
+        "Python": "`False`",
+        "Java": "`false`",
+        "Go": "`false`",
+        "Ruby": "`false`",
+        "Rust": "`false`",
+        "C#": "`false`",
+        "Kotlin": "`false`",
+        "Swift": "`false`"
       }
     }
   },
@@ -1232,7 +1244,7 @@ export const TDD_TOPICS: readonly TopicBankEntry[] = [
   },
   {
     "title": "パスワード強度チェック",
-    "body": "## 背景\n\n複数の独立した条件を組み合わせて判定する練習です。各条件を個別のテストで詰めていけます。\n\nパスワード `pw` が規則を満たすかを判定する `{{slot:fn}}(pw)` を実装します。\n\n## ルール\n\n次のすべてを満たすとき `true`、1 つでも欠ければ `false`。\n\n1. 8 文字以上\n2. 英大文字を 1 文字以上含む\n3. 英小文字を 1 文字以上含む\n4. 数字を 1 文字以上含む\n\n## 例\n\n{{slot:examples}}\n\n## 考慮すること\n\n各条件を個別のフラグ（真偽値）で求め、最後にすべての AND を取ると、要件とテストが 1 対 1 に対応します。\n\n満たすこと:\n- 8 文字以上\n- 大文字・小文字・数字をそれぞれ 1 文字以上含む\n- 条件を満たさなければ false\n\n最初のテストの例:\n```\n{{slot:firstTest}}\n```\n\nヒント:\n- 各条件を個別のフラグで判定して AND を取る",
+    "body": "## 背景\n\n複数の独立した条件を組み合わせて判定する練習です。各条件を個別のテストで詰めていけます。\n\nパスワード `pw` が規則を満たすかを判定する `{{slot:fn}}(pw)` を実装します。\n\n## ルール\n\n次のすべてを満たすとき {{slot:trueValue}}、1 つでも欠ければ {{slot:falseValue}}。\n\n1. 8 文字以上\n2. 英大文字を 1 文字以上含む\n3. 英小文字を 1 文字以上含む\n4. 数字を 1 文字以上含む\n\n## 例\n\n{{slot:examples}}\n\n## 考慮すること\n\n各条件を個別のフラグ（真偽値）で求め、最後にすべての AND を取ると、要件とテストが 1 対 1 に対応します。\n\n満たすこと:\n- 8 文字以上\n- 大文字・小文字・数字をそれぞれ 1 文字以上含む\n- 条件を満たさなければ false\n\n最初のテストの例:\n```\n{{slot:firstTest}}\n```\n\nヒント:\n- 各条件を個別のフラグで判定して AND を取る",
     "difficulty": "medium",
     "category": "tdd",
     "slots": {
@@ -1271,6 +1283,30 @@ export const TDD_TOPICS: readonly TopicBankEntry[] = [
         "C#": "[Fact]\npublic void StrongPassword()\n{\n    Assert.True(IsStrong(\"Abcd1234\"));\n}",
         "Kotlin": "@Test\nfun strongPassword() {\n    assertTrue(isStrong(\"Abcd1234\"))\n}",
         "Swift": "func testStrongPassword() {\n    XCTAssertTrue(isStrong(\"Abcd1234\"))\n}"
+      },
+      "trueValue": {
+        "TypeScript": "`true`",
+        "JavaScript": "`true`",
+        "Python": "`True`",
+        "Java": "`true`",
+        "Go": "`true`",
+        "Ruby": "`true`",
+        "Rust": "`true`",
+        "C#": "`true`",
+        "Kotlin": "`true`",
+        "Swift": "`true`"
+      },
+      "falseValue": {
+        "TypeScript": "`false`",
+        "JavaScript": "`false`",
+        "Python": "`False`",
+        "Java": "`false`",
+        "Go": "`false`",
+        "Ruby": "`false`",
+        "Rust": "`false`",
+        "C#": "`false`",
+        "Kotlin": "`false`",
+        "Swift": "`false`"
       }
     }
   },
@@ -1508,7 +1544,7 @@ export const TDD_TOPICS: readonly TopicBankEntry[] = [
   },
   {
     "title": "レート制限（トークンバケット）",
-    "body": "## 背景\n\n時間に依存するロジックを「時刻を注入してテスト可能にする」設計を学ぶお題です。API のレート制限で実際に使われる方式です。\n\nトークンバケット方式のレート制限器 `RateLimiter` を実装します。バケットには容量があり、一定速度でトークンが補充されます。リクエストごとにトークンを 1 つ消費し、足りなければ拒否します。\n\n## 振る舞い\n\n- {{slot:ctor}}: 容量と補充レートを指定\n- `{{slot:allow}}()`: トークンがあれば消費して `true`、なければ `false`\n- 容量 N まで即時に許可し、それ以降は補充を待つ\n- 経過時間に応じてトークンが補充される（上限は容量）\n\n## 例\n\n```\n{{slot:code1}}\n```\n\n## 考慮すること\n\n現在時刻を引数や注入で渡せるようにすると、時間経過をテストで再現できます。`経過秒 × 補充レート` を加算し、容量で頭打ちにします。\n\n満たすこと:\n- 容量 N まで即時に許可、それ以降は補充待ち\n- 時間経過でトークンが補充される（時刻は注入可能に）\n- 上限を超えるリクエストは拒否される\n\n最初のテストの例:\n```\n{{slot:firstTest}}\n```\n\nヒント:\n- 現在時刻を引数/注入にしてテスト可能にする\n- 経過時間 × 補充レートを加算しつつ容量で頭打ち",
+    "body": "## 背景\n\n時間に依存するロジックを「時刻を注入してテスト可能にする」設計を学ぶお題です。API のレート制限で実際に使われる方式です。\n\nトークンバケット方式のレート制限器 `RateLimiter` を実装します。バケットには容量があり、一定速度でトークンが補充されます。リクエストごとにトークンを 1 つ消費し、足りなければ拒否します。\n\n## 振る舞い\n\n- {{slot:ctor}}: 容量と補充レートを指定\n- `{{slot:allow}}()`: トークンがあれば消費して {{slot:trueValue}}、なければ {{slot:falseValue}}\n- 容量 N まで即時に許可し、それ以降は補充を待つ\n- 経過時間に応じてトークンが補充される（上限は容量）\n\n## 例\n\n```\n{{slot:code1}}\n```\n\n## 考慮すること\n\n現在時刻を引数や注入で渡せるようにすると、時間経過をテストで再現できます。`経過秒 × 補充レート` を加算し、容量で頭打ちにします。\n\n満たすこと:\n- 容量 N まで即時に許可、それ以降は補充待ち\n- 時間経過でトークンが補充される（時刻は注入可能に）\n- 上限を超えるリクエストは拒否される\n\n最初のテストの例:\n```\n{{slot:firstTest}}\n```\n\nヒント:\n- 現在時刻を引数/注入にしてテスト可能にする\n- 経過時間 × 補充レートを加算しつつ容量で頭打ち",
     "difficulty": "hard",
     "category": "tdd",
     "slots": {
@@ -1559,6 +1595,30 @@ export const TDD_TOPICS: readonly TopicBankEntry[] = [
         "C#": "[Fact]\npublic void RejectsWhenCapacityExceeded()\n{\n    var r = new RateLimiter(capacity: 2, refillPerSec: 1, clock: () => 0.0);\n    Assert.True(r.Allow());\n    Assert.True(r.Allow());\n    Assert.False(r.Allow());\n}",
         "Kotlin": "@Test\nfun rejectsWhenCapacityExceeded() {\n    val r = RateLimiter(capacity = 2, refillPerSec = 1.0, clock = { 0.0 })\n    assertTrue(r.allow())\n    assertTrue(r.allow())\n    assertFalse(r.allow())\n}",
         "Swift": "func testRejectsWhenCapacityExceeded() {\n    let r = RateLimiter(capacity: 2, refillPerSec: 1, clock: { 0 })\n    XCTAssertTrue(r.allow())\n    XCTAssertTrue(r.allow())\n    XCTAssertFalse(r.allow())\n}"
+      },
+      "trueValue": {
+        "TypeScript": "`true`",
+        "JavaScript": "`true`",
+        "Python": "`True`",
+        "Java": "`true`",
+        "Go": "`true`",
+        "Ruby": "`true`",
+        "Rust": "`true`",
+        "C#": "`true`",
+        "Kotlin": "`true`",
+        "Swift": "`true`"
+      },
+      "falseValue": {
+        "TypeScript": "`false`",
+        "JavaScript": "`false`",
+        "Python": "`False`",
+        "Java": "`false`",
+        "Go": "`false`",
+        "Ruby": "`false`",
+        "Rust": "`false`",
+        "C#": "`false`",
+        "Kotlin": "`false`",
+        "Swift": "`false`"
       }
     }
   },
@@ -1685,7 +1745,7 @@ export const TDD_TOPICS: readonly TopicBankEntry[] = [
         "Ruby": "class FormatSizeTest < Minitest::Test\n  def test_1024_bytes_is_1_0_kb\n    assert_equal \"1.0 KB\", format_size(1024)\n  end\nend",
         "Rust": "#[test]\nfn one_kilobyte() {\n    assert_eq!(format_size(1024), \"1.0 KB\");\n}",
         "C#": "[Fact]\npublic void OneKilobyte()\n{\n    Assert.Equal(\"1.0 KB\", FormatSize(1024));\n}",
-        "Kotlin": "@Test\nfun `1024 バイトは 1.0 KB`() {\n    assertEquals(\"1.0 KB\", formatSize(1024))\n}",
+        "Kotlin": "@Test\nfun `1024 バイトは 1 KB と表示する`() {\n    assertEquals(\"1.0 KB\", formatSize(1024))\n}",
         "Swift": "func testOneKilobyte() {\n    XCTAssertEqual(try formatSize(1024), \"1.0 KB\")\n}"
       },
       "fn": {
@@ -2398,7 +2458,7 @@ export const TDD_TOPICS: readonly TopicBankEntry[] = [
         "Rust": "#[test]\nfn first_gets_the_extra_yen() {\n    assert_eq!(allocate(100, &[1, 1, 1]), Ok(vec![34, 33, 33]));\n}",
         "C#": "[Fact]\npublic void FirstGetsTheExtraYen()\n{\n    Assert.Equal(new long[] { 34, 33, 33 }, Allocate(100, [1, 1, 1]));\n}",
         "Kotlin": "@Test\nfun firstGetsTheExtraYen() {\n    assertEquals(listOf(34L, 33L, 33L), allocate(100, listOf(1, 1, 1)))\n}",
-        "Swift": "func testFirstGetsTheExtraYen() {\n    XCTAssertEqual(allocate(100, [1, 1, 1]), [34, 33, 33])\n}"
+        "Swift": "func testFirstGetsTheExtraYen() {\n    XCTAssertEqual(try allocate(100, [1, 1, 1]), [34, 33, 33])\n}"
       }
     }
   },
@@ -2546,7 +2606,7 @@ export const TDD_TOPICS: readonly TopicBankEntry[] = [
         "Rust": "#[test]\nfn adjacent_start_and_goal_is_one_step() {\n    assert_eq!(shortest_path(\"SG\"), Ok(1));\n}",
         "C#": "[Fact]\npublic void AdjacentStartAndGoalIsOneStep()\n{\n    Assert.Equal(1, ShortestPath(\"SG\"));\n}",
         "Kotlin": "@Test\nfun adjacentStartAndGoalIsOneStep() {\n    assertEquals(1, shortestPath(\"SG\"))\n}",
-        "Swift": "func testAdjacentStartAndGoalIsOneStep() {\n    XCTAssertEqual(shortestPath(\"SG\"), 1)\n}"
+        "Swift": "func testAdjacentStartAndGoalIsOneStep() {\n    XCTAssertEqual(try shortestPath(\"SG\"), 1)\n}"
       }
     }
   },
@@ -2724,7 +2784,7 @@ export const TDD_TOPICS: readonly TopicBankEntry[] = [
   },
   {
     "title": "バージョン番号の比較と範囲",
-    "body": "## 背景\n\nパッケージ管理の道具が毎日行っている、セマンティックバージョニングの比較と範囲の判定です。規格の細かな規則を 1 つずつテストに落とし込むお題です。\n\nバージョン文字列を比べる `{{slot:compare}}(a, b)` と、範囲を満たすかを返す `{{slot:satisfies}}(version, range)` を実装します。\n\n## ルール（比較）\n\n- 形は `MAJOR.MINOR.PATCH`、後ろに `-` とプレリリースの識別子（`.` 区切り）が付くことがある（例: `1.0.0-alpha.1`）\n- 数の部分は数値として比べる（`1.10.0` は `1.9.0` より大きい）\n- プレリリースが付いた版は、付かない同じ版より小さい\n- プレリリースの識別子は前から順に比べ、数字だけの識別子は数値、それ以外は文字列で比べる。数字だけの識別子は文字列の識別子より小さい。識別子が多い方が大きい（それ以前が等しいとき）\n- `{{slot:compare}}` は `-1`・`0`・`1` を返す。形が不正ならエラー\n\n## ルール（範囲）\n\n- `>=1.2.0`・`<2.0.0`・`=1.2.3` などの比較を空白で並べると、すべてを満たすこと（AND）\n- `^1.2.3` は `>=1.2.3 <2.0.0`、`~1.2.3` は `>=1.2.3 <1.3.0`\n- `||` で区切ると、どれかを満たすこと（OR）\n\n## 例\n\n- `{{slot:compare}}(\"1.10.0\", \"1.9.0\")` → `1`\n- `{{slot:compare}}(\"1.0.0-alpha\", \"1.0.0\")` → `-1`\n- `{{slot:compare}}(\"1.0.0-alpha.2\", \"1.0.0-alpha.10\")` → `-1`\n- `{{slot:satisfies}}(\"1.4.0\", \"^1.2.3\")` → `true`\n- `{{slot:satisfies}}(\"2.0.0\", \"^1.2.3 || >=3.0.0\")` → `false`\n\n## 考慮すること\n\n`^0.2.3` のように 0 から始まる版での `^` の意味は規格で特別扱いされます。扱うかどうかを決めて、扱うならテストを足してください。\n\n満たすこと:\n- 数の部分を数値として比べる\n- プレリリースの順序が規則どおり\n- ^ と ~ を比較の組に展開できる\n- AND と OR を組み合わせて判定できる\n- 不正な形はエラー\n\n最初のテストの例:\n```\n{{slot:firstTest}}\n```\n\nヒント:\n- 文字列を構造（数の配列とプレリリースの配列）へ解析してから比べる\n- 範囲は「OR の配列」の中に「AND の配列」を持つ形に解析する",
+    "body": "## 背景\n\nパッケージ管理の道具が毎日行っている、セマンティックバージョニングの比較と範囲の判定です。規格の細かな規則を 1 つずつテストに落とし込むお題です。\n\nバージョン文字列を比べる `{{slot:compare}}(a, b)` と、範囲を満たすかを返す `{{slot:satisfies}}(version, range)` を実装します。\n\n## ルール（比較）\n\n- 形は `MAJOR.MINOR.PATCH`、後ろに `-` とプレリリースの識別子（`.` 区切り）が付くことがある（例: `1.0.0-alpha.1`）\n- 数の部分は数値として比べる（`1.10.0` は `1.9.0` より大きい）\n- プレリリースが付いた版は、付かない同じ版より小さい\n- プレリリースの識別子は前から順に比べ、数字だけの識別子は数値、それ以外は文字列で比べる。数字だけの識別子は文字列の識別子より小さい。識別子が多い方が大きい（それ以前が等しいとき）\n- `{{slot:compare}}` は `-1`・`0`・`1` を返す。形が不正ならエラー\n\n## ルール（範囲）\n\n- `>=1.2.0`・`<2.0.0`・`=1.2.3` などの比較を空白で並べると、すべてを満たすこと（AND）\n- `^1.2.3` は `>=1.2.3 <2.0.0`、`~1.2.3` は `>=1.2.3 <1.3.0`\n- `||` で区切ると、どれかを満たすこと（OR）\n\n## 例\n\n- `{{slot:compare}}(\"1.10.0\", \"1.9.0\")` → `1`\n- `{{slot:compare}}(\"1.0.0-alpha\", \"1.0.0\")` → `-1`\n- `{{slot:compare}}(\"1.0.0-alpha.2\", \"1.0.0-alpha.10\")` → `-1`\n- `{{slot:satisfies}}(\"1.4.0\", \"^1.2.3\")` → {{slot:trueValue}}\n- `{{slot:satisfies}}(\"2.0.0\", \"^1.2.3 || >=3.0.0\")` → {{slot:falseValue}}\n\n## 考慮すること\n\n`^0.2.3` のように 0 から始まる版での `^` の意味は規格で特別扱いされます。扱うかどうかを決めて、扱うならテストを足してください。\n\n満たすこと:\n- 数の部分を数値として比べる\n- プレリリースの順序が規則どおり\n- ^ と ~ を比較の組に展開できる\n- AND と OR を組み合わせて判定できる\n- 不正な形はエラー\n\n最初のテストの例:\n```\n{{slot:firstTest}}\n```\n\nヒント:\n- 文字列を構造（数の配列とプレリリースの配列）へ解析してから比べる\n- 範囲は「OR の配列」の中に「AND の配列」を持つ形に解析する",
     "difficulty": "hard",
     "category": "tdd",
     "slots": {
@@ -2762,7 +2822,31 @@ export const TDD_TOPICS: readonly TopicBankEntry[] = [
         "Rust": "#[test]\nfn compares_numbers_numerically() {\n    assert_eq!(compare(\"1.10.0\", \"1.9.0\"), Ok(1));\n}",
         "C#": "[Fact]\npublic void ComparesNumbersNumerically()\n{\n    Assert.Equal(1, Compare(\"1.10.0\", \"1.9.0\"));\n}",
         "Kotlin": "@Test\nfun comparesNumbersNumerically() {\n    assertEquals(1, compare(\"1.10.0\", \"1.9.0\"))\n}",
-        "Swift": "func testComparesNumbersNumerically() {\n    XCTAssertEqual(compare(\"1.10.0\", \"1.9.0\"), 1)\n}"
+        "Swift": "func testComparesNumbersNumerically() {\n    XCTAssertEqual(try compare(\"1.10.0\", \"1.9.0\"), 1)\n}"
+      },
+      "trueValue": {
+        "TypeScript": "`true`",
+        "JavaScript": "`true`",
+        "Python": "`True`",
+        "Java": "`true`",
+        "Go": "`true`",
+        "Ruby": "`true`",
+        "Rust": "`true`",
+        "C#": "`true`",
+        "Kotlin": "`true`",
+        "Swift": "`true`"
+      },
+      "falseValue": {
+        "TypeScript": "`false`",
+        "JavaScript": "`false`",
+        "Python": "`False`",
+        "Java": "`false`",
+        "Go": "`false`",
+        "Ruby": "`false`",
+        "Rust": "`false`",
+        "C#": "`false`",
+        "Kotlin": "`false`",
+        "Swift": "`false`"
       }
     }
   },
@@ -2806,7 +2890,7 @@ export const TDD_TOPICS: readonly TopicBankEntry[] = [
         "Rust": "#[test]\nfn every_minute_returns_next_minute() {\n    let from = DateTime { year: 2026, month: 11, day: 18, hour: 10, minute: 7 };\n    assert_eq!(next_run(\"* * * * *\", from), Ok(DateTime { minute: 8, ..from }));\n}",
         "C#": "[Fact]\npublic void EveryMinuteReturnsNextMinute()\n{\n    var from = new DateTime(2026, 11, 18, 10, 7, 0);\n    Assert.Equal(from.AddMinutes(1), NextRun(\"* * * * *\", from));\n}",
         "Kotlin": "@Test\nfun everyMinuteReturnsNextMinute() {\n    val from = LocalDateTime.of(2026, 11, 18, 10, 7)\n    assertEquals(from.plusMinutes(1), nextRun(\"* * * * *\", from))\n}",
-        "Swift": "func testEveryMinuteReturnsNextMinute() {\n    let from = DateComponents(year: 2026, month: 11, day: 18, hour: 10, minute: 7)\n    let next = DateComponents(year: 2026, month: 11, day: 18, hour: 10, minute: 8)\n    XCTAssertEqual(nextRun(\"* * * * *\", from: from), next)\n}"
+        "Swift": "func testEveryMinuteReturnsNextMinute() {\n    let from = DateComponents(year: 2026, month: 11, day: 18, hour: 10, minute: 7)\n    let next = DateComponents(year: 2026, month: 11, day: 18, hour: 10, minute: 8)\n    XCTAssertEqual(try nextRun(\"* * * * *\", from: from), next)\n}"
       }
     }
   },
@@ -3022,7 +3106,7 @@ export const TDD_TOPICS: readonly TopicBankEntry[] = [
         "Rust": "#[test]\nfn high_card_decides() {\n    assert_eq!(compare_hands(\"2H 3D 5S 9C KD\", \"2C 3H 4S 8C AH\"), Ok(\"b\"));\n}",
         "C#": "[Fact]\npublic void HighCardDecides()\n{\n    Assert.Equal(\"b\", CompareHands(\"2H 3D 5S 9C KD\", \"2C 3H 4S 8C AH\"));\n}",
         "Kotlin": "@Test\nfun highCardDecides() {\n    assertEquals(\"b\", compareHands(\"2H 3D 5S 9C KD\", \"2C 3H 4S 8C AH\"))\n}",
-        "Swift": "func testHighCardDecides() {\n    XCTAssertEqual(compareHands(\"2H 3D 5S 9C KD\", \"2C 3H 4S 8C AH\"), \"b\")\n}"
+        "Swift": "func testHighCardDecides() {\n    XCTAssertEqual(try compareHands(\"2H 3D 5S 9C KD\", \"2C 3H 4S 8C AH\"), \"b\")\n}"
       }
     }
   },

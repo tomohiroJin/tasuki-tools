@@ -149,18 +149,27 @@ describe("定型バンクの差し込み口", () => {
     }
   });
 
-  it("コードの囲みの中の差し込み口は、JavaScript と TypeScript 以外の言語で JavaScript のままになっていない（訳し忘れ）", () => {
-    const untranslated: string[] = [];
+  /**
+   * 訳し忘れ（別の言語のコードの写し）を見る。空白（字下げ・改行）を除いて比べる ——
+   * 字下げを変えただけの写しを通さないため（PR #643 の 2 回目のレビューで、字下げを 4 字にした
+   * JavaScript の写しと、Kotlin に置いた Java の写しが緑のまま通った）。
+   * 同じでよいのは JavaScript と TypeScript の組だけ（型を付けるところが無いテストの例がある）。
+   */
+  it("コードの囲みの中の差し込み口は、どの 2 言語でも同じコードの写しになっていない（JavaScript と TypeScript の組を除く）", () => {
+    const squash = (s: string) => s.replace(/\s+/g, "");
+    const copies: string[] = [];
     for (const e of TOPIC_BANK) {
       for (const name of slotsInsideFences(e.body)) {
         const values = e.slots[name]!;
-        for (const language of LANGUAGES) {
-          if (language === "JavaScript" || language === "TypeScript") continue;
-          if (values[language].trim() === values.JavaScript.trim()) untranslated.push(`${e.title} / ${name} / ${language}`);
-        }
+        LANGUAGES.forEach((a, i) => {
+          for (const b of LANGUAGES.slice(i + 1)) {
+            if ((a === "TypeScript" && b === "JavaScript") || (a === "JavaScript" && b === "TypeScript")) continue;
+            if (squash(values[a]) === squash(values[b])) copies.push(`${e.title} / ${name} / ${a} = ${b}`);
+          }
+        });
       }
     }
-    expect(untranslated).toEqual([]);
+    expect(copies).toEqual([]);
   });
 });
 

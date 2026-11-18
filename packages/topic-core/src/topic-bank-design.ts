@@ -122,7 +122,7 @@ export const DESIGN_TOPICS: readonly TopicBankEntry[] = [
         "Rust": "pub enum OrderStatus { Accepted, Paid, Preparing, Shipped, Delivered, PaymentFailed, Cancelled }\npub enum CancelReason { ByCustomer, OutOfStock }\n\npub fn cancel(order: Order, reason: CancelReason, by: Actor) -> Result<(Order, Vec<DomainEvent>), CancelError> {\n    todo!()\n}",
         "C#": "public enum OrderStatus { Accepted, Paid, Preparing, Shipped, Delivered, PaymentFailed, Cancelled }\npublic enum CancelReason { ByCustomer, OutOfStock }\n\npublic interface IOrderCancellation\n{\n    // 取消できなければ null\n    (Order Order, IReadOnlyList<DomainEvent> Events)? Cancel(Order order, CancelReason reason, Actor by);\n}",
         "Kotlin": "enum class OrderStatus { ACCEPTED, PAID, PREPARING, SHIPPED, DELIVERED, PAYMENT_FAILED, CANCELLED }\nenum class CancelReason { BY_CUSTOMER, OUT_OF_STOCK }\n\nfun cancel(order: Order, reason: CancelReason, by: Actor): Result<Pair<Order, List<DomainEvent>>> = TODO()",
-        "Swift": "enum OrderStatus { case accepted, paid, preparing, shipped, delivered, paymentFailed, cancelled }\nenum CancelReason { case byCustomer, outOfStock }\n\nprotocol OrderCancellation {\n    func cancel(_ order: Order, reason: CancelReason, by: Actor) -> Result<(order: Order, events: [DomainEvent]), CancelError>\n}"
+        "Swift": "enum OrderStatus { case accepted, paid, preparing, shipped, delivered, paymentFailed, cancelled }\nenum CancelReason { case byCustomer, outOfStock }\n\nprotocol OrderCancellation {\n    func cancel(_ order: Order, reason: CancelReason, by: Requester) -> Result<(order: Order, events: [DomainEvent]), CancelError>\n}"
       }
     }
   },

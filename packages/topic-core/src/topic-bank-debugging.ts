@@ -66,7 +66,7 @@ export const DEBUGGING_TOPICS: readonly TopicBankEntry[] = [
         "Ruby": "class PriceWithTaxTest < Minitest::Test\n  def test_100_yen_is_110_with_tax\n    assert_equal 110, price_with_tax(100)\n  end\n\n  def test_105_yen_is_115_with_tax\n    # 1 円未満は切り捨て\n    assert_equal 115, price_with_tax(105)\n  end\nend",
         "Rust": "#[test]\nfn tax_included_price_of_100_is_110() {\n    assert_eq!(price_with_tax(100), 110.0);\n}\n\n#[test]\nfn tax_included_price_of_105_is_115() {\n    // 1 円未満は切り捨て\n    assert_eq!(price_with_tax(105), 115.0);\n}",
         "C#": "[Fact]\npublic void TaxIncludedPriceOf100Is110()\n{\n    Assert.Equal(110, PriceWithTax(100));\n}\n\n[Fact]\npublic void TaxIncludedPriceOf105Is115()\n{\n    // 1 円未満は切り捨て\n    Assert.Equal(115, PriceWithTax(105));\n}",
-        "Kotlin": "@Test\nfun `100 円の税込みは 110 円`() {\n    assertEquals(110.0, priceWithTax(100))\n}\n\n@Test\nfun `105 円の税込みは 115 円（1 円未満は切り捨て）`() {\n    assertEquals(115.0, priceWithTax(105))\n}",
+        "Kotlin": "@Test\nfun `100 円の税込みは 110 円`() {\n    assertEquals(110, priceWithTax(100))\n}\n\n@Test\nfun `105 円の税込みは 115 円（1 円未満は切り捨て）`() {\n    assertEquals(115, priceWithTax(105))\n}",
         "Swift": "func testTaxIncludedPriceOf100Is110() {\n    XCTAssertEqual(priceWithTax(100), 110)\n}\n\nfunc testTaxIncludedPriceOf105Is115() {\n    // 1 円未満は切り捨て\n    XCTAssertEqual(priceWithTax(105), 115)\n}"
       }
     }
@@ -501,7 +501,7 @@ export const DEBUGGING_TOPICS: readonly TopicBankEntry[] = [
   },
   {
     "title": "循環を含む深いコピー",
-    "body": "## 背景\n\n画面の編集機能で、元のデータを壊さずに試し編集するため、データ全体を深くコピーする関数です。\n\nデータには、木の各ノードが親を指す参照や、複数の場所から同じオブジェクトを指す参照、金額を表すクラス `Money` のインスタンスが含まれます。コピーは元と同じ形（どこがどこを指しているか）を保ち、`Money` は `Money` のまま（メソッドが使えるまま）写す必要があります。\n\n## 症状\n\n- 数値・文字列・配列・入れ子のオブジェクトだけのデータは、正しくコピーできる\n- 親を指すノードを含む木をコピーしようとすると、呼び出しの深さが上限を超えたというエラーで止まる\n- {{slot:moneySymptom}}\n\n## 調べるときの観点\n\nテストは 3 つあり、落ち方がそれぞれ違います。1 つずつ通してください。\n\n満たすこと:\n- 落ちるテストを流し、3 つのテストの落ち方の違いを確かめる\n- 親を指すノードで止まる理由を、呼び出しの流れで説明する\n- 同じオブジェクトを 2 か所から指していたら、コピーでも同じ 1 つを指す\n- コピーを書き換えても、元のデータは変わらない\n- 直したあと、3 つのテストが通る\n\n対象のコード:\n```\n{{slot:targetCode}}\n```\n\n落ちるテスト:\n```\n{{slot:failingTest}}\n```\n\nヒント:\n- 親を指すノードをコピーするとき、{{slot:deepCloneName}} がどの値で何回呼ばれるかを書き出す\n- コピーした price が何のインスタンスかを、元の price と比べる",
+    "body": "## 背景\n\n画面の編集機能で、元のデータを壊さずに試し編集するため、データ全体を深くコピーする関数です。\n\nデータには、木の各ノードが親を指す参照や、複数の場所から同じオブジェクトを指す参照、金額を表すクラス `Money` のインスタンスが含まれます。コピーは元と同じ形（どこがどこを指しているか）を保ち、`Money` は `Money` のまま（メソッドが使えるまま）写す必要があります。\n\n## 症状\n\n- 数値・文字列・配列・入れ子のオブジェクトだけのデータは、正しくコピーできる\n- {{slot:cycleSymptom}}\n- {{slot:moneySymptom}}\n\n## 調べるときの観点\n\nテストは 3 つあり、落ち方がそれぞれ違います。1 つずつ通してください。\n\n満たすこと:\n- {{slot:runTests}}\n- 親を指すノードで止まる理由を、呼び出しの流れで説明する\n- 同じオブジェクトを 2 か所から指していたら、コピーでも同じ 1 つを指す\n- コピーを書き換えても、元のデータは変わらない\n- 直したあと、3 つのテストが通る\n\n対象のコード:\n```\n{{slot:targetCode}}\n```\n\n落ちるテスト:\n```\n{{slot:failingTest}}\n```\n\nヒント:\n- 親を指すノードをコピーするとき、{{slot:deepCloneName}} がどの値で何回呼ばれるかを書き出す\n- コピーした price が何のインスタンスかを、元の price と比べる",
     "difficulty": "hard",
     "category": "debugging",
     "slots": {
@@ -552,6 +552,30 @@ export const DEBUGGING_TOPICS: readonly TopicBankEntry[] = [
         "C#": "金額を含むデータをコピーし、コピー側の金額を書き換えると、元のデータの金額まで変わる",
         "Kotlin": "金額を含むデータをコピーし、コピー側の金額を書き換えると、元のデータの金額まで変わる",
         "Swift": "金額を含むデータをコピーし、コピー側の金額を書き換えると、元のデータの金額まで変わる"
+      },
+      "cycleSymptom": {
+        "TypeScript": "親を指すノードを含む木をコピーしようとすると、呼び出しの深さが上限を超えたというエラーで止まる",
+        "JavaScript": "親を指すノードを含む木をコピーしようとすると、呼び出しの深さが上限を超えたというエラーで止まる",
+        "Python": "親を指すノードを含む木をコピーしようとすると、呼び出しの深さが上限を超えたというエラーで止まる",
+        "Java": "親を指すノードを含む木をコピーしようとすると、呼び出しの深さが上限を超えたというエラーで止まる",
+        "Go": "親を指すノードを含む木をコピーしようとすると、スタックが溢れてテストの実行そのものが異常終了する（ほかのテストの結果も出ない）",
+        "Ruby": "親を指すノードを含む木をコピーしようとすると、呼び出しの深さが上限を超えたというエラーで止まる",
+        "Rust": "親を指すノードを含む木をコピーしようとすると、スタックが溢れてテストの実行そのものが異常終了する（ほかのテストの結果も出ない）",
+        "C#": "親を指すノードを含む木をコピーしようとすると、スタックが溢れてテストの実行そのものが異常終了する（ほかのテストの結果も出ない）",
+        "Kotlin": "親を指すノードを含む木をコピーしようとすると、呼び出しの深さが上限を超えたというエラーで止まる",
+        "Swift": "親を指すノードを含む木をコピーしようとすると、スタックが溢れてテストの実行そのものが異常終了する（ほかのテストの結果も出ない）"
+      },
+      "runTests": {
+        "TypeScript": "落ちるテストを流し、3 つのテストの落ち方の違いを確かめる",
+        "JavaScript": "落ちるテストを流し、3 つのテストの落ち方の違いを確かめる",
+        "Python": "落ちるテストを流し、3 つのテストの落ち方の違いを確かめる",
+        "Java": "落ちるテストを流し、3 つのテストの落ち方の違いを確かめる",
+        "Go": "落ちるテストを 1 つずつ流し（`go test -run <テスト名>`）、3 つのテストの落ち方の違いを確かめる",
+        "Ruby": "落ちるテストを流し、3 つのテストの落ち方の違いを確かめる",
+        "Rust": "落ちるテストを 1 つずつ流し（`cargo test <テスト名>`）、3 つのテストの落ち方の違いを確かめる",
+        "C#": "落ちるテストを 1 つずつ流し（`dotnet test --filter <テスト名>`）、3 つのテストの落ち方の違いを確かめる",
+        "Kotlin": "落ちるテストを流し、3 つのテストの落ち方の違いを確かめる",
+        "Swift": "落ちるテストを 1 つずつ流し（`swift test --filter <テスト名>`）、3 つのテストの落ち方の違いを確かめる"
       }
     }
   },
