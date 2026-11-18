@@ -18,7 +18,7 @@ import * as v from 'valibot';
 import { rendersAsNothing } from '@tasuki/room-core';
 
 /** 覚える数。新しい順にこれだけ残し、越えたら古いものから落とす（#633 決めること 1）。 */
-export const MAX_RECENT_ROOM_NAMES = 5;
+const MAX_RECENT_ROOM_NAMES = 5;
 
 /**
  * 覚えるルーム名の長さの上限。**ルーム名そのものの上限ではない**（作成の欄も境界も長さを縛らない）。
@@ -27,7 +27,7 @@ export const MAX_RECENT_ROOM_NAMES = 5;
  * ルームコードに使うのは名前の先頭 24 文字ほど（`apps/tasuki-sync/src/adapters/nanoid-code-gen.ts` の
  * `slugify`）なので、これより長い名前を覚えなくても困る場面は少ない。
  */
-export const MAX_REMEMBERED_ROOM_NAME = 100;
+const MAX_REMEMBERED_ROOM_NAME = 100;
 
 // eslint-disable-next-line no-control-regex
 const CONTROL_CHARS = /[\u0000-\u001f\u007f]/;

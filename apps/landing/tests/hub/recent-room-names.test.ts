@@ -2,13 +2,15 @@
  * 前に作ったルーム名の規則（#633）。端末にも React にも触らない純粋な判断だけを見る。
  */
 import { describe, expect, it } from 'vitest';
-import {
-  MAX_RECENT_ROOM_NAMES,
-  MAX_REMEMBERED_ROOM_NAME,
-  forgetRoomName,
-  parseRecentRoomNames,
-  rememberRoomName,
-} from '../../src/hub/recent-room-names.js';
+import { forgetRoomName, parseRecentRoomNames, rememberRoomName } from '../../src/hub/recent-room-names.js';
+
+/**
+ * 上限は**実装の定数を読まず、ここに数で書く**。読むと、定数を書き換えたときにテストも一緒に動いて緑のままになる
+ * （#633 で、上限を 6 にする壊し方が生き残った）。数の正本は ISSUE #633 の「決めること 1」。
+ */
+const RECENT_LIMIT = 5;
+/** 覚える名前の長さの上限（`apps/landing/src/hub/recent-room-names.ts` の決定。同じ理由で数で書く）。 */
+const MAX_REMEMBERED_ROOM_NAME = 100;
 
 describe('rememberRoomName', () => {
   it('Given 空の候補 / When 名前を覚える / Then 先頭に入る', () => {
@@ -27,12 +29,12 @@ describe('rememberRoomName', () => {
     expect(rememberRoomName(['朝会モブ'], '  朝会モブ ')).toEqual(['朝会モブ']);
   });
 
-  it(`Given 候補が ${MAX_RECENT_ROOM_NAMES} 件 / When 新しい名前を覚える / Then 最も古いものが落ちる`, () => {
-    const full = Array.from({ length: MAX_RECENT_ROOM_NAMES }, (_, i) => `会${i}`);
+  it(`Given 候補が 5 件 / When 新しい名前を覚える / Then 最も古いものが落ちる`, () => {
+    const full = Array.from({ length: RECENT_LIMIT }, (_, i) => `会${i}`);
     const next = rememberRoomName(full, '新しい会');
-    expect(next).toHaveLength(MAX_RECENT_ROOM_NAMES);
+    expect(next).toHaveLength(RECENT_LIMIT);
     expect(next[0]).toBe('新しい会');
-    expect(next).not.toContain(`会${MAX_RECENT_ROOM_NAMES - 1}`);
+    expect(next).not.toContain(`会4`);
     expect(next).toContain('会0');
   });
 
@@ -88,8 +90,8 @@ describe('parseRecentRoomNames（端末から読んだ値を検める）', () =>
     expect(parseRecentRoomNames([' 朝会モブ '])).toEqual(['朝会モブ']);
   });
 
-  it(`Given ${MAX_RECENT_ROOM_NAMES} 件を超える保存 / When 読む / Then 新しい ${MAX_RECENT_ROOM_NAMES} 件だけを返す`, () => {
-    const many = Array.from({ length: MAX_RECENT_ROOM_NAMES + 3 }, (_, i) => `会${i}`);
-    expect(parseRecentRoomNames(many)).toEqual(many.slice(0, MAX_RECENT_ROOM_NAMES));
+  it(`Given 5 件を超える保存 / When 読む / Then 新しい 5 件だけを返す`, () => {
+    const many = Array.from({ length: 8 }, (_, i) => `会${i}`);
+    expect(parseRecentRoomNames(many)).toEqual(many.slice(0, RECENT_LIMIT));
   });
 });
