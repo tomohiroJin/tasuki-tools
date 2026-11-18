@@ -518,6 +518,10 @@
   text-align: start;
 }
 
+.estimate-item-title[data-auto-title] {
+  color: var(--ivory-dim);
+}
+
 /* 束の見出しの中の名前（`size="inline"`・#427）。記録の中で一番強く見せるのは添えたポイント（#93 §4.4）なので、
    枠を透かし、字は普通の太さにして、押せることは下線で示す（押せる大きさは部品が保つ）。
    **名前の列の基準幅を決めるのは `.estimate-group-head > .estimate-group-item`（下）だけ**。この包みは、そのなかで名前のボタンの大きさを持つ。
@@ -572,11 +576,12 @@
 .estimate-log {
   /* 札の地・枠・影・字・フォーカスの輪の色は部品（`.ui-reader`）が持つ（札は `ui-reader` を併せ持つ） */
   padding: var(--space-4) var(--space-5);
+  gap: var(--space-3);
 }
 
 /* 札の上なので、要素層の h2 の象牙は読めない。お題の見出しと同じ `--coal-soft` */
 .estimate-log h2 {
-  margin: 0 0 var(--space-3);
+  margin: 0;
   color: var(--coal-soft);
 }
 

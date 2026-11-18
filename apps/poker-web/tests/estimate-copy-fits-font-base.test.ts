@@ -9,13 +9,14 @@ import { outsideBase } from '@tasuki/test-css/font-base';
 import * as copy from '../src/estimate-copy';
 
 describe('見積もりの記録の文言は書体の常用の層に収まる', () => {
-  it('Given estimate-copy の全定数・attemptLabel(2)・サーバーの 2 文言 / When 常用の層の範囲に当てる / Then 外れる字は無い', () => {
+  it('Given 記録の文言・自動の題・開票の回数・サーバーの 2 文言 / When 常用の層の範囲に当てる / Then 外れる字は無い', () => {
     // Given
     const constants: string[] = [];
     for (const v of Object.values(copy)) if (typeof v === 'string') constants.push(v);
     const texts = [
       ...constants,
       copy.attemptLabel(2),
+      copy.estimateTitle('', 1_234_567_890),
       messageForRoundError({ code: 'estimate-not-found' }),
       messageForRoundError({ code: 'estimate-open' }),
     ];
@@ -28,8 +29,8 @@ describe('見積もりの記録の文言は書体の常用の層に収まる', (
   it('Given 文言 / When 読む / Then 計画で決めた値である', () => {
     expect(copy.ESTIMATE_LOG_HEADING).toBe('見積もりの記録');
     expect(copy.ESTIMATE_ITEM_LABEL).toBe('いま見積もっているもの');
-    expect(copy.ESTIMATE_ITEM_PLACEHOLDER).toBe('例: PROJ-123 ログイン画面');
-    expect(copy.ESTIMATE_UNNAMED).toBe('（名前なし）');
+    expect(copy.estimateTitle('', 3)).toBe('見積もり 3');
+    expect(copy.estimateTitle('PROJ-3', 3)).toBe('PROJ-3');
     expect(copy.attemptLabel(2)).toBe('2 回め');
     expect(copy.ESTIMATE_OPEN).toBe('見積もり中');
     expect(copy.ESTIMATE_NO_POINTS).toBe('ポイントなし');

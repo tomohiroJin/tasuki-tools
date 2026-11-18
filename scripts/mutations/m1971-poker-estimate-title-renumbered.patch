@@ -1,0 +1,12 @@
+diff --git a/apps/poker-web/src/components/EstimateLog.tsx b/apps/poker-web/src/components/EstimateLog.tsx
+--- a/apps/poker-web/src/components/EstimateLog.tsx
++++ b/apps/poker-web/src/components/EstimateLog.tsx
+@@ -92,7 +92,7 @@
+                       <div className="estimate-group-item">
+                         <EstimateItemField
+                           item={group.item}
+-                          number={group.id}
++                          number={groups.indexOf(group) + 1}
+                           onCommit={(next) => onRenameGroup(group.id, next)}
+                           disabled={disabled}
+                           label={RENAME_GROUP}

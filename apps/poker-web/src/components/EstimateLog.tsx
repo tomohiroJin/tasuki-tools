@@ -4,20 +4,24 @@
  * wire の束・行は古い順で届く。画面は新しい方を上に出すので、ここで逆順にする。
  * 閉じた束の見出しからは、在室者なら誰でもポイントを入れ直せる（spec §4.3）。
  */
-import { useId } from 'react';
+import { useId, useMemo } from 'react';
 import type { EstimateGroupView, NumberCardValue } from '@tasuki/poker-core';
+import { useCopyText } from '@tasuki/invite-ui';
 import {
   ESTIMATE_CHANGE_POINTS,
+  ESTIMATE_LOG_COPIED,
+  ESTIMATE_LOG_COPY,
+  ESTIMATE_LOG_COPY_FAILED,
   ESTIMATE_LOG_EMPTY,
   ESTIMATE_LOG_HEADING,
   ESTIMATE_NO_POINTS,
   ESTIMATE_OPEN,
-  ESTIMATE_UNNAMED,
   RENAME_GROUP,
   attemptLabel,
+  estimateTitle,
 } from '../estimate-copy';
+import { estimateEntryCounts, estimateEntryTime, estimateLogMarkdown } from '../estimate-log-text';
 import { EstimateItemField } from './EstimateItemField';
-import { cardLabel } from './CardHand';
 import { PointsSelect } from './PointsSelect';
 
 export interface EstimateLogProps {
@@ -37,13 +41,12 @@ export interface EstimateLogProps {
   scrollable?: boolean;
 }
 
-const TIME_FORMAT = new Intl.DateTimeFormat('ja-JP', { hour: '2-digit', minute: '2-digit' });
-
 export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limit, className, labelledBy, scrollable = false }: EstimateLogProps) {
   const headingId = useId();
-  // 束ごとの選択の名前は「アイテム名 + ポイントを変える」。文言の側は記録に 1 つだけ置き、隠して名前にだけ使う
-  const changeId = `${headingId}-change`;
-  const itemIdOf = (groupId: number) => `${headingId}-item-${groupId}`;
+  const markdown = useMemo(() => estimateLogMarkdown(groups), [groups]);
+  const { copy, state: copyState } = useCopyText(markdown);
+  const copyStatus = copyState === 'done' ? ESTIMATE_LOG_COPIED
+    : copyState === 'failed' ? ESTIMATE_LOG_COPY_FAILED : '';
   const newestFirst = [...groups].reverse();
   const shown = limit === undefined ? newestFirst : newestFirst.slice(0, limit);
 
@@ -53,7 +56,19 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
       // スクロールする置き場所では内側の領域が名前を持つ（領域が二重にならない）
       {...(scrollable ? {} : { 'aria-labelledby': labelledBy ?? headingId })}
     >
-      {labelledBy === undefined && <h2 id={headingId}>{ESTIMATE_LOG_HEADING}</h2>}
+      {(labelledBy === undefined || groups.length > 0) && (
+        <div className="ui-section-head">
+          {labelledBy === undefined && <h2 id={headingId}>{ESTIMATE_LOG_HEADING}</h2>}
+          {groups.length > 0 && (
+            <div className="ui-section-head ui-section-head--beside">
+              <button type="button" className="ui-button ui-button--secondary ui-button--sm" onClick={() => void copy()}>
+                {ESTIMATE_LOG_COPY}
+              </button>
+              <span role="status" className={copyStatus === '' ? 'ui-visually-hidden' : undefined}>{copyStatus}</span>
+            </div>
+          )}
+        </div>
+      )}
       {/* スクロールする置き場所では、フォーカスを受ける領域を札（`.ui-reader`）の子にする。
           輪の色を変える部品の規則は子孫にだけ効き、札そのものには効かない */}
       <div
@@ -63,27 +78,21 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
         {groups.length === 0 ? (
           <p className="estimate-log-empty">{ESTIMATE_LOG_EMPTY}</p>
         ) : (
-          <>
-            {/* どの選択も同じ名前だと、読み上げではどの束の選択か分からない（#93 最終レビュー）。
-                `hidden` でも aria-labelledby からは読める */}
-            <span id={changeId} hidden>
-              {ESTIMATE_CHANGE_POINTS}
-            </span>
-            <ol className="estimate-groups">
-              {shown.map((group) => (
-                <li key={group.id} className="estimate-group ui-stack ui-stack--tight" data-group={group.id}>
-                  <div className="estimate-group-head ui-section-head">
-                    {group.open ? (
-                      <>
-                        <span id={itemIdOf(group.id)} className="estimate-group-item">{group.item === '' ? ESTIMATE_UNNAMED : group.item}</span>
-                        <span className="estimate-group-open">{ESTIMATE_OPEN}</span>
-                      </>
-                    ) : (
-                      <>
-                      {/* 閉じた束の名前は押して直せる。ポイントの選択の名前（`labelledBy`）が指す id は、この欄の外側の包みに付ける */}
-                      <div id={itemIdOf(group.id)} className="estimate-group-item">
+          <ol className="estimate-groups">
+            {shown.map((group) => (
+              <li key={group.id} className="estimate-group ui-stack ui-stack--tight" data-group={group.id}>
+                <div className="estimate-group-head ui-section-head">
+                  {group.open ? (
+                    <>
+                      <span className="estimate-group-item">{estimateTitle(group.item, group.id)}</span>
+                      <span className="estimate-group-open">{ESTIMATE_OPEN}</span>
+                    </>
+                  ) : (
+                    <>
+                      <div className="estimate-group-item">
                         <EstimateItemField
                           item={group.item}
+                          number={group.id}
                           onCommit={(next) => onRenameGroup(group.id, next)}
                           disabled={disabled}
                           label={RENAME_GROUP}
@@ -96,28 +105,26 @@ export function EstimateLog({ groups, onSetPoints, onRenameGroup, disabled, limi
                         value={group.points as NumberCardValue | null}
                         onChange={(p) => onSetPoints(group.id, p)}
                         emptyLabel={ESTIMATE_NO_POINTS}
-                        label={ESTIMATE_CHANGE_POINTS}
-                        labelledBy={`${itemIdOf(group.id)} ${changeId}`}
+                        label={`${estimateTitle(group.item, group.id)} ${ESTIMATE_CHANGE_POINTS}`}
                         disabled={disabled}
                       />
-                      </>
-                    )}
-                  </div>
-                  <ul className="estimate-entries">
-                    {[...group.entries].reverse().map((entry) => (
-                      <li key={entry.attempt} className="estimate-entry" data-testid="estimate-entry">
-                        <span className="estimate-entry-attempt">{attemptLabel(entry.attempt)}</span>{' '}
-                        <span className="estimate-entry-time">{TIME_FORMAT.format(new Date(entry.at))}</span>{' '}
-                        <span className="estimate-entry-counts">
-                          {entry.counts.map((c) => `${cardLabel(c.card)}×${c.count}`).join(' ')}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </li>
-              ))}
-            </ol>
-          </>
+                    </>
+                  )}
+                </div>
+                <ul className="estimate-entries">
+                  {[...group.entries].reverse().map((entry) => (
+                    <li key={entry.attempt} className="estimate-entry" data-testid="estimate-entry">
+                      <span className="estimate-entry-attempt">{attemptLabel(entry.attempt)}</span>{' '}
+                      <span className="estimate-entry-time">{estimateEntryTime(entry.at)}</span>{' '}
+                      <span className="estimate-entry-counts">
+                        {estimateEntryCounts(entry.counts)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </li>
+            ))}
+          </ol>
         )}
       </div>
     </section>
