@@ -18,6 +18,7 @@ import {
   checkinErrorMessageFor,
   CheckinCommandSchema,
   drawMethod,
+  drawMethodInGroup,
   INITIAL_CHECKIN_STATE,
   playAgain,
   playCard,
@@ -221,6 +222,9 @@ function buildCheckinHandlers<H>(deps: Omit<CheckinHandlerDeps, "graceTimer">, g
         break;
       case "checkin.method.draw":
         result = drawMethod(state, { seq: cmd.seq, side: cmd.side }, deps.random.randomInt);
+        break;
+      case "checkin.method.draw-group":
+        result = drawMethodInGroup(state, { seq: cmd.seq, group: cmd.group }, deps.random.randomInt);
         break;
       case "checkin.card.play":
         result = playCard(state, { participantId: me.id, seq: cmd.seq, card: cmd.card });

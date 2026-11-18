@@ -36,7 +36,7 @@ import { useMemo, useRef, useState } from 'react';
 import type { DepartureReason, RosterRoom } from '@tasuki/room-core';
 import { buildSyncUrl, type ConnectionNoticeKind, type ConnectionStatus } from '@tasuki/sync-client';
 import { useToolRoomSync } from '@tasuki/web-kit/sync';
-import type { CardId, CheckinCommand, CheckinView, MethodId, Side, Visibility } from '@tasuki/checkin-core';
+import type { CardId, CheckinCommand, CheckinView, GroupId, MethodId, Side, Visibility } from '@tasuki/checkin-core';
 import type { TopicState } from '@tasuki/topic-core';
 import { DEFAULT_ERROR_TEXT, RETRY_EXHAUSTED_TEXT, RETRY_WAITING_TEXT } from '../copy';
 import { parseCheckinWebMessage } from '../server-message';
@@ -84,6 +84,8 @@ export interface CheckinSync {
   chooseMethod(seq: number, method: MethodId): void;
   /** 始まり／終わりの側から 1 つ引く（いまのやり方は除かれる）。`seq` は chooseMethod と同じ */
   drawMethod(seq: number, side: Side): void;
+  /** 小見出しの中から 1 つ引く（いまのやり方は除かれる・#635）。`seq` は chooseMethod と同じ */
+  drawMethodInGroup(seq: number, group: GroupId): void;
   /** 札を出す（出し直すと上書き）。`seq` はいまの回の番号 */
   playCard(seq: number, card: CardId): void;
   setVisibility(seq: number, visibility: Visibility): void;
@@ -143,6 +145,7 @@ export function useCheckinSync(roomCode: string): CheckinSync {
     return {
       chooseMethod: (seq: number, method: MethodId) => sendCommand({ command: 'checkin.method.choose', seq, method }),
       drawMethod: (seq: number, side: Side) => sendCommand({ command: 'checkin.method.draw', seq, side }),
+      drawMethodInGroup: (seq: number, group: GroupId) => sendCommand({ command: 'checkin.method.draw-group', seq, group }),
       playCard: (seq: number, card: CardId) => sendCommand({ command: 'checkin.card.play', seq, card }),
       setVisibility: (seq: number, visibility: Visibility) =>
         sendCommand({ command: 'checkin.visibility.set', seq, visibility }),

@@ -80,6 +80,40 @@ export const METHODS: Readonly<Record<MethodId, MethodRule>> = {
   message: { side: "checkout", cards: ["now", "later", "none"], defaultVisibility: "named" },
 };
 
+/**
+ * 小見出し（#635）。各側のやり方を目的で 3 つに分ける。選択画面の並びと、小見出しから引くくじの候補の正本。
+ * **文言を持たない**（小見出しの題は画面の `method-groups.ts`）。並びは選択画面の順。
+ * 各側のやり方を過不足なく 1 回ずつ含むことは `tests/methods.test.ts` が守る。
+ */
+export const GROUP_IDS = [
+  "checkin-mood",
+  "checkin-focus",
+  "checkin-stance",
+  "checkout-value",
+  "checkout-mood",
+  "checkout-next",
+] as const;
+export type GroupId = (typeof GROUP_IDS)[number];
+
+export interface MethodGroup {
+  readonly side: Side;
+  readonly methods: readonly MethodId[];
+}
+
+export const METHOD_GROUPS: Readonly<Record<GroupId, MethodGroup>> = {
+  "checkin-mood": { side: "checkin", methods: ["weather", "energy", "mood-start", "battery", "busyness", "worry"] },
+  "checkin-focus": { side: "checkin", methods: ["focus", "readiness", "clarity"] },
+  "checkin-stance": { side: "checkin", methods: ["takeaway-goal", "expectation", "role", "talk-wish"] },
+  "checkout-value": { side: "checkout", methods: ["roti", "takeaway-done", "best-part", "understanding", "agreement"] },
+  "checkout-mood": { side: "checkout", methods: ["mood", "weather-end", "fatigue"] },
+  "checkout-next": { side: "checkout", methods: ["next-meeting", "pace", "voice", "next-step", "message"] },
+};
+
+/** 片側の小見出し（`GROUP_IDS` の並びのまま） */
+export function groupsOf(side: Side): readonly GroupId[] {
+  return GROUP_IDS.filter((g) => METHOD_GROUPS[g].side === side);
+}
+
 /** 片側のやり方（`METHOD_IDS` の並びのまま） */
 export function methodsOf(side: Side): readonly MethodId[] {
   return METHOD_IDS.filter((m) => METHODS[m].side === side);

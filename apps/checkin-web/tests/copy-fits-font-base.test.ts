@@ -7,8 +7,9 @@
 import { describe, expect, it } from 'vitest';
 import { CHECKIN_ERROR_CODES, checkinErrorMessageFor } from '@tasuki/checkin-core';
 import * as copy from '../src/copy';
+import { groupRandomLabel } from '../src/copy';
 import { METHOD_COPY } from '../src/method-copy';
-import { METHOD_GROUPS } from '../src/method-groups';
+import { GROUP_TITLES } from '../src/method-groups';
 import { baseFaces, outsideBase } from '@tasuki/test-css/font-base';
 
 /**
@@ -26,7 +27,7 @@ function allTexts(): string[] {
     m.prompt,
     ...Object.values(m.cards).flatMap((c) => [c.name, c.meaning]),
   ]);
-  const fromGroups = Object.values(METHOD_GROUPS).flatMap((groups) => groups.map((g) => g.title));
+  const fromGroups = [...Object.values(GROUP_TITLES), ...Object.values(GROUP_TITLES).map(groupRandomLabel)];
   return [
     ...fromCopy,
     ...Object.values(copy.SIDE_KICKER),

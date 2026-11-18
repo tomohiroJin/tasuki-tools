@@ -7,7 +7,16 @@
  */
 import { err, ok, type Result } from "neverthrow";
 import type { CheckinError } from "./errors.js";
-import { METHODS, methodsOf, type CardId, type MethodId, type Side, type Visibility } from "./methods.js";
+import {
+  METHOD_GROUPS,
+  METHODS,
+  methodsOf,
+  type CardId,
+  type GroupId,
+  type MethodId,
+  type Side,
+  type Visibility,
+} from "./methods.js";
 import type { SeatInput } from "./projection.js";
 import type { CheckinState, Round } from "./types.js";
 
@@ -41,18 +50,40 @@ export function chooseMethod(s: CheckinState, input: { seq: number; method: Meth
   return startRound(s, input.method);
 }
 
+/** 候補の山からくじで選ぶ。いまのやり方は候補から除く。違う回を見ていたら引かずに同じ参照 */
+function drawFrom(
+  s: CheckinState,
+  seq: number,
+  pool: readonly MethodId[],
+  randomInt: (n: number) => number,
+): Result<CheckinState, CheckinError<"CHECKIN_INVALID_RANDOM">> {
+  if (!replacesCurrent(s, seq)) return ok(s);
+  const candidates = pool.filter((m) => m !== s.round?.method);
+  const i = randomInt(candidates.length);
+  const picked = Number.isInteger(i) ? candidates[i] : undefined;
+  if (picked === undefined) return fail("CHECKIN_INVALID_RANDOM");
+  return ok(startRound(s, picked));
+}
+
 /** 片側からくじで選ぶ。いまのやり方は候補から除く（反対側のやり方なら側の全部）。違う回を見ていたら引かずに同じ参照 */
 export function drawMethod(
   s: CheckinState,
   input: { seq: number; side: Side },
   randomInt: (n: number) => number,
 ): Result<CheckinState, CheckinError<"CHECKIN_INVALID_RANDOM">> {
-  if (!replacesCurrent(s, input.seq)) return ok(s);
-  const candidates = methodsOf(input.side).filter((m) => m !== s.round?.method);
-  const i = randomInt(candidates.length);
-  const picked = Number.isInteger(i) ? candidates[i] : undefined;
-  if (picked === undefined) return fail("CHECKIN_INVALID_RANDOM");
-  return ok(startRound(s, picked));
+  return drawFrom(s, input.seq, methodsOf(input.side), randomInt);
+}
+
+/**
+ * 小見出しの中からくじで選ぶ（#635）。いまのやり方が小見出しの中にあれば候補から除く（外なら小見出しの全部）。
+ * 違う回を見ていたら引かずに同じ参照
+ */
+export function drawMethodInGroup(
+  s: CheckinState,
+  input: { seq: number; group: GroupId },
+  randomInt: (n: number) => number,
+): Result<CheckinState, CheckinError<"CHECKIN_INVALID_RANDOM">> {
+  return drawFrom(s, input.seq, METHOD_GROUPS[input.group].methods, randomInt);
 }
 
 type NoRound = CheckinError<"CHECKIN_NO_ROUND">;

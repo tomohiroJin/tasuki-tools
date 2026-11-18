@@ -627,6 +627,16 @@ describe("くじ", () => {
     expect(lastView(h, "b").round).toMatchObject({ method: "weather", seq: 1 });
   });
 
+  it("小見出しから引くくじ（#635）は、その小見出しの中から選び、全員へ配る", async () => {
+    const h = await twoPlayers();
+
+    await h.handle("a", { command: "checkin.method.draw-group", seq: 0, group: "checkin-focus" });
+
+    expect(errorsTo(h, "a")).toEqual([]);
+    expect(lastView(h, "b").round).toMatchObject({ method: "focus", seq: 1 });
+    expect(lastView(h, "a").round).toMatchObject({ method: "focus", seq: 1 });
+  });
+
   it("乱数源が範囲外を返すと INTERNAL_ERROR で、状態は保管も配信もされない", async () => {
     const h = setup(() => 99);
     await joined(h, "a", "Alice");

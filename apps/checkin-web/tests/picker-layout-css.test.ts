@@ -17,15 +17,28 @@ function block(selector: string, from = 0): string {
 }
 
 describe('やり方の選択の札の並び', () => {
-  it('Given 札の並び / Then 行の高さを 1fr で揃え、既定は 2 列', () => {
-    const list = block('.method-list');
-    expect(list).toMatch(/grid-auto-rows:\s*1fr/);
-    expect(list).toMatch(/grid-template-columns:\s*repeat\(2,/);
+  it('Given 外側の格子 / Then 既定は 2 列で、行の並びは画面が渡す 2 列用の変数（札の段は 1fr・#635 の B）', () => {
+    const groups = block('.method-groups');
+    expect(groups).toMatch(/grid-template-columns:\s*repeat\(2,/);
+    expect(groups).toMatch(/grid-template-rows:\s*var\(--rows-narrow\)/);
   });
 
-  it('Given 40rem 以上 / Then 4 列になる', () => {
-    const media = css.indexOf('@media (width >= 40rem) {', css.indexOf('.method-list {'));
-    expect(block('.method-list', media)).toMatch(/grid-template-columns:\s*repeat\(4,/);
+  it('Given 40rem 以上 / Then 4 列になり、行の並びと小見出しの行のまたぎは 4 列用の変数', () => {
+    const media = css.indexOf('@media (width >= 40rem) {', css.indexOf('.method-groups {'));
+    const groups = block('.method-groups', media);
+    expect(groups).toMatch(/grid-template-columns:\s*repeat\(4,/);
+    expect(groups).toMatch(/grid-template-rows:\s*var\(--rows-wide\)/);
+    expect(block('.method-group', media)).toMatch(/grid-row:\s*span var\(--span-wide\)/);
+  });
+
+  it('Given 小見出しと札の並び / Then 列と行を subgrid で外側の格子から受け継ぐ（小見出しをまたいで札の高さが揃う）', () => {
+    const group = block('.method-group');
+    expect(group).toMatch(/grid-row:\s*span var\(--span-narrow\)/);
+    for (const sel of ['.method-group', '.method-list']) {
+      expect(block(sel), sel).toMatch(/grid-template-columns:\s*subgrid/);
+      expect(block(sel), sel).toMatch(/grid-template-rows:\s*subgrid/);
+    }
+    expect(block('.method-list')).toMatch(/grid-row:\s*2 \/ -1/);
   });
 
   it('Given 64rem 以上 / Then 札の中身（扇）を大きくする', () => {

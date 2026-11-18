@@ -133,6 +133,10 @@ export function CheckinRoom({ roomCode }: { roomCode: string }) {
               setPicking(false);
               sync.drawMethod(roundSeq ?? 0, side);
             })}
+            onDrawGroup={own((group) => {
+              setPicking(false);
+              sync.drawMethodInGroup(roundSeq ?? 0, group);
+            })}
             onCancel={round === null ? undefined : own(() => setPicking(false))}
           />
           {round === null && (

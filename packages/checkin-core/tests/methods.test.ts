@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { METHOD_IDS, METHODS, methodsOf } from "../src/methods.js";
+import { GROUP_IDS, METHOD_GROUPS, METHOD_IDS, METHODS, SIDES, groupsOf, methodsOf } from "../src/methods.js";
 
 describe("METHODS（やり方の表）", () => {
   it("26 種のやり方を持つ（各側 13。#635 で各側 6 つ足した）", () => {
@@ -69,6 +69,32 @@ describe("METHODS（やり方の表）", () => {
         expect(c.length).toBeLessThanOrEqual(16);
       }
     }
+  });
+});
+
+describe("METHOD_GROUPS（小見出し・#635）", () => {
+  it("各側の小見出しは 3 つで、その側のやり方を過不足なく 1 回ずつ含む（足し忘れたやり方は選択画面に出ない）", () => {
+    for (const side of SIDES) {
+      const groups = groupsOf(side);
+      expect(groups, side).toHaveLength(3);
+      const listed = groups.flatMap((g) => METHOD_GROUPS[g].methods);
+      expect(new Set(listed).size, `${side} に重複が無い`).toBe(listed.length);
+      expect([...listed].sort()).toEqual([...methodsOf(side)].sort());
+    }
+  });
+
+  it("小見出しのやり方は、小見出しと同じ側に属する。小見出しは 2 つ以上のやり方を持つ（いまのやり方を除いても引ける）", () => {
+    for (const g of GROUP_IDS) {
+      const { side, methods } = METHOD_GROUPS[g];
+      expect(methods.length, g).toBeGreaterThanOrEqual(2);
+      for (const m of methods) expect(METHODS[m].side, `${g}/${m}`).toBe(side);
+    }
+  });
+
+  it("小見出しの並び（選択画面の順）", () => {
+    expect(groupsOf("checkin")).toEqual(["checkin-mood", "checkin-focus", "checkin-stance"]);
+    expect(groupsOf("checkout")).toEqual(["checkout-value", "checkout-mood", "checkout-next"]);
+    expect(METHOD_GROUPS["checkin-focus"].methods).toEqual(["focus", "readiness", "clarity"]);
   });
 });
 

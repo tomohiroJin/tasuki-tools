@@ -3,7 +3,9 @@ import {
   METHODS,
   applyAutoReveal,
   chooseMethod,
+  METHOD_GROUPS,
   drawMethod,
+  drawMethodInGroup,
   playAgain,
   playCard,
   prune,
@@ -11,6 +13,7 @@ import {
   setSpectator,
   setVisibility,
   type CheckinState,
+  type GroupId,
   type MethodId,
   type Side,
 } from "../src/index.js";
@@ -103,6 +106,67 @@ describe("drawMethod", () => {
     for (const v of [12, 1.5, -1, Number.NaN]) {
       const r = draw(base, "checkin", () => v);
       expect(r._unsafeUnwrapErr()).toEqual({ code: "CHECKIN_INVALID_RANDOM" });
+    }
+  });
+});
+
+describe("drawMethodInGroup（小見出しから引く・#635）", () => {
+  const record = (value: number) => {
+    const calls: number[] = [];
+    return { calls, fn: (n: number) => (calls.push(n), value === -1 ? n - 1 : value) };
+  };
+  const drawIn = (s: CheckinState, group: GroupId, randomInt: (n: number) => number) =>
+    drawMethodInGroup(s, { seq: s.round?.seq ?? 0, group }, randomInt);
+
+  it("回が無ければ小見出しの全部が候補。0 番目・n-1 番目は小見出しの先頭・末尾", () => {
+    for (const [v, want] of [[0, "focus"], [-1, "clarity"]] as const) {
+      const r = record(v);
+      const s = drawIn(empty, "checkin-focus", r.fn)._unsafeUnwrap();
+      expect(r.calls).toEqual([3]);
+      expect(roundOf(s).method).toBe(want);
+      expect(roundOf(s).seq).toBe(1);
+    }
+  });
+
+  it("いまのやり方が小見出しの中にあれば除く（3 つの小見出しなら 2 つから引く）", () => {
+    const base = choose(empty, "readiness");
+    for (const v of [0, -1]) {
+      const r = record(v);
+      const s = drawIn(base, "checkin-focus", r.fn)._unsafeUnwrap();
+      expect(r.calls).toEqual([2]);
+      expect(roundOf(s).method).not.toBe("readiness");
+      expect(["focus", "clarity"]).toContain(roundOf(s).method);
+      expect(roundOf(s).seq).toBe(2);
+    }
+  });
+
+  it("いまのやり方が小見出しの外なら、小見出しの全部が候補で、小見出しの外のやり方は引かない", () => {
+    const base = choose(empty, "weather");
+    for (let i = 0; i < 4; i++) {
+      const r = record(i);
+      const s = drawIn(base, "checkin-stance", r.fn)._unsafeUnwrap();
+      expect(r.calls).toEqual([4]);
+      expect(roundOf(s).method).toBe(METHOD_GROUPS["checkin-stance"].methods[i]);
+    }
+  });
+
+  it("引いた回の公開の仕方は、引いたやり方の既定", () => {
+    const s = drawIn(empty, "checkout-mood", () => 2)._unsafeUnwrap();
+    expect(roundOf(s).method).toBe("fatigue");
+    expect(roundOf(s).visibility).toBe("anonymous");
+  });
+
+  it("置き換える回の seq がいまの回と違えば、くじを引かずに ok で同じ参照", () => {
+    const s = choose(choose(empty, "weather"), "weather");
+    const r = record(0);
+    expect(drawMethodInGroup(s, { seq: 1, group: "checkin-mood" }, r.fn)._unsafeUnwrap()).toBe(s);
+    expect(r.calls).toEqual([]);
+  });
+
+  it("[0, n) の整数でない乱数は CHECKIN_INVALID_RANDOM", () => {
+    const base = choose(empty, "readiness");
+    for (const v of [2, 1.5, -1, Number.NaN]) {
+      expect(drawIn(base, "checkin-focus", () => v)._unsafeUnwrapErr()).toEqual({ code: "CHECKIN_INVALID_RANDOM" });
     }
   });
 });

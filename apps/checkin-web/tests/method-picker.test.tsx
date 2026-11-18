@@ -3,10 +3,10 @@
  */
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { SIDES } from '@tasuki/checkin-core';
+import { METHOD_GROUPS, SIDES, groupsOf } from '@tasuki/checkin-core';
 import { MethodPicker } from '../src/components/MethodPicker';
 import { METHOD_COPY } from '../src/method-copy';
-import { METHOD_GROUPS } from '../src/method-groups';
+import { GROUP_TITLES } from '../src/method-groups';
 
 describe('やり方の選択', () => {
   it('Given 初期 / When 描く / Then チェックインの 13 のやり方とランダムの 14 枚が出る（#635）', () => {
@@ -139,12 +139,34 @@ describe('やり方の選択', () => {
     render(<MethodPicker canOperate initialSide={side} onChoose={vi.fn()} onDraw={vi.fn()} />);
 
     const lists = screen.getAllByRole('list');
-    const want = [...METHOD_GROUPS[side].map((g) => ({ title: g.title, items: g.methods.map((m) => METHOD_COPY[m].title) })), { title: 'おまかせ', items: ['ランダム'] }];
+    const want = [...groupsOf(side).map((g) => ({ title: GROUP_TITLES[g], items: METHOD_GROUPS[g].methods.map((m) => METHOD_COPY[m].title) })), { title: 'おまかせ', items: ['ランダム'] }];
     expect(lists.map((l) => ({ title: l.getAttribute('aria-labelledby') && document.getElementById(l.getAttribute('aria-labelledby')!)?.textContent, items: within(l).getAllByRole('button').map((b) => document.getElementById(b.getAttribute('aria-labelledby')!)?.textContent) }))).toEqual(want);
     for (const [i, g] of want.entries()) {
       expect(screen.getByRole('heading', { level: 3, name: g.title })).toBeInTheDocument();
       expect(lists[i]).toHaveAccessibleName(g.title);
     }
+  });
+
+  it.each(SIDES)('Given %s / When 小見出しのランダムを押す / Then onDrawGroup にその小見出しが載り、choose・draw は呼ばれない（#635）', (side) => {
+    const onChoose = vi.fn();
+    const onDraw = vi.fn();
+    const onDrawGroup = vi.fn();
+    render(<MethodPicker canOperate initialSide={side} onChoose={onChoose} onDraw={onDraw} onDrawGroup={onDrawGroup} />);
+    for (const g of groupsOf(side)) {
+      const button = screen.getByRole('button', { name: `${GROUP_TITLES[g]}からランダム` });
+      // 小見出しの行に置く（並びの札ではない）
+      expect(button.closest('.method-list')).toBeNull();
+      expect(button.closest('.method-group-head')).toContainElement(screen.getByRole('heading', { level: 3, name: GROUP_TITLES[g] }));
+      fireEvent.click(button);
+    }
+    expect(onDrawGroup.mock.calls).toEqual(groupsOf(side).map((g) => [g]));
+    expect(onChoose).not.toHaveBeenCalled();
+    expect(onDraw).not.toHaveBeenCalled();
+  });
+
+  it('Given 切断中 / Then 小見出しのランダムも押せない', () => {
+    render(<MethodPicker canOperate={false} initialSide="checkin" onChoose={vi.fn()} onDraw={vi.fn()} onDrawGroup={vi.fn()} />);
+    for (const g of groupsOf('checkin')) expect(screen.getByRole('button', { name: `${GROUP_TITLES[g]}からランダム` })).toBeDisabled();
   });
 
   it('Given 新しいやり方を押す / Then choose にそのやり方の ID が載る（#635）', () => {

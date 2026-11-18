@@ -34,15 +34,13 @@ async function pickerBoxes(page: Page): Promise<Array<{ x: number; y: number; wi
 
 /**
  * 配置の検査は @core の流れの中（今の場所）に置く: ルームを増やさないため（ルームの増分は +1 のまま）。
- * 札が同じ幅で、同じ小見出しの並びの中では同じ高さで、列の数が期待どおりで、横スクロールが無いこと（#468 D1・D2）。
- * 高さは並びごとに揃える（行を 1fr で揃えるのは並びの格子の中だけ。#635 で小見出しごとに並びを分けた）。
+ * 札が小見出しをまたいで全て同じ幅・同じ高さで、列の数が期待どおりで、横スクロールが無いこと（#468 D1・D2・#635 の B）。
  * 小見出しが札の並びの上にあり、並びと重ならないことも見る。 */
 async function expectPickerGrid(page: Page, columns: number): Promise<void> {
   const boxes = await pickerBoxes(page);
   for (const b of boxes) {
     expect(Math.abs(b.width - boxes[0]!.width), '札の幅が揃っている').toBeLessThanOrEqual(1);
-    const first = boxes.find((o) => o.group === b.group)!;
-    expect(Math.abs(b.height - first.height), `並び ${b.group} の札の高さが揃っている`).toBeLessThanOrEqual(1);
+    expect(Math.abs(b.height - boxes[0]!.height), `札の高さが小見出しをまたいで揃っている（並び ${b.group}）`).toBeLessThanOrEqual(1);
   }
   const headingsAbove = await page.locator('.method-group').evaluateAll((groups) =>
     groups.every((g) => {
@@ -278,7 +276,7 @@ async function expectAnonymousRound(page: Page, b: Page, framesA: FrameLog, fram
  * @requirements #406
  */
 test.describe('@core 札を伏せて出し、全員の画面で一斉に開く', () => {
-  test('Given 2 人が同じルームで Check-in Cards を開く / When 今日の天気・もう一回・ROTI といそがしさ（匿名）・待たずに開く・見学する・全てのやり方 / Then 両方の画面が同じ回になり、匿名の札は B のフレームに載らず、足したやり方も出して開ける', async ({
+  test('Given 2 人が同じルームで Check-in Cards を開く / When 今日の天気・もう一回・ROTI といそがしさ（匿名）・待たずに開く・見学する・全てのやり方・小見出しのランダム / Then 両方の画面が同じ回になり、匿名の札は B のフレームに載らず、足したやり方も出して開ける', async ({
     page,
     openPeer,
     consoleWatcher,
@@ -394,6 +392,13 @@ test.describe('@core 札を伏せて出し、全員の画面で一斉に開く',
       }
     }
     await page.setViewportSize(viewHand);
+
+    // When / Then その7（#635）: 小見出し「気分と疲れ」のランダム → その小見出しのやり方のどれかの回になる
+    await page.getByRole('button', { name: '別のやり方', exact: true }).click();
+    await page.getByRole('group', { name: 'やり方を選んでください' }).getByRole('button', { name: 'チェックアウト', exact: true }).click();
+    await page.getByRole('button', { name: '気分と疲れからランダム', exact: true }).click();
+    const drawnPrompt = page.getByRole('heading', { level: 2 }).filter({ hasText: /^(いまの気分は？|終わったいま、あなたの空模様は？|終わったいま、どのくらい疲れていますか？)$/ });
+    await expect(drawnPrompt, '気分と疲れの小見出しのやり方の問い').toHaveCount(1);
 
     // Then 最後: どちらのコンソールにもエラーが出ていない
     expect(consoleWatcher.errors).toEqual([]);
