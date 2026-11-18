@@ -162,9 +162,19 @@ describe('resultsEffectOf（#639）', () => {
     expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(8)], ['c', n(13)]]), people)).toBe('complete');
   });
 
-  it('接続中の 2 人が同じ 5 で、見学者が違う札の票を残していても、unanimous（見学者の票で崩さない）', () => {
-    const people = [person('a'), person('b'), person('w', { spectator: true })];
-    expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(5)], ['w', n(13)]]), people)).toBe('unanimous');
+  it('接続中の 2 人が同じ 5 で、切断した人が 13 を出して開票されたなら、unanimous にしない（卓に 13 の札が見え、割れの促しも出るので「出そろい」に落とす）', () => {
+    const people = [person('a'), person('b'), person('c', { connected: false })];
+    expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(5)], ['c', n(13)]]), people)).toBe('complete');
+  });
+
+  it('接続中の 3 人が 1・5・8 で、切断した人が 5 を出して開票されたなら、scattered にしない（卓に 5 が 2 枚見える）', () => {
+    const people = [person('a'), person('b'), person('c'), person('d', { connected: false })];
+    expect(resultsEffectOf(revealed([['a', n(1)], ['b', n(5)], ['c', n(8)], ['d', n(5)]]), people)).toBe('complete');
+  });
+
+  it('名簿に居ない人の票が混ざる開票も、一致・バラバラにしない', () => {
+    const people = [person('a'), person('b')];
+    expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(5)], ['gone', n(5)]]), people)).toBe('complete');
   });
 
   it('出していない人が切断中なら、接続中の全員が出したので complete', () => {

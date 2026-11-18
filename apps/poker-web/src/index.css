@@ -539,21 +539,22 @@
   }
 }
 
-/* バラバラ: 帯が横にぶれてから寄る（transform と opacity だけ。字間を動かすと狭い画面で折り返して高さが変わる） */
+/* バラバラ: 帯がにじんで小さい所から寄る（opacity・filter・transform だけ。大きくしない・外へ動かさない: 320px で帯の右端が画面の外へ出ない。
+   字間を動かすと狭い画面で折り返して高さが変わる） */
 @keyframes effect-scatter {
   0% {
     opacity: 0;
-    transform: translateX(-0.8rem) scale(1.06);
+    filter: blur(0.5rem);
+    transform: scale(0.9);
   }
-  30% {
+  40% {
     opacity: 1;
-    transform: translateX(0.5rem) scale(1.06);
-  }
-  60% {
-    transform: translateX(-0.25rem);
+    filter: blur(0.2rem);
+    transform: scale(0.97);
   }
   100% {
     opacity: 1;
+    filter: none;
     transform: none;
   }
 }

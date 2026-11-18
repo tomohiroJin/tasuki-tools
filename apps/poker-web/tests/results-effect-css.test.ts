@@ -7,6 +7,7 @@
 import { describe, expect, it } from 'vitest';
 import { foundBody, readFromCwd as read, rulesOf } from '@tasuki/test-css/css-rules';
 import { mediaBlock } from '@tasuki/test-css';
+import { effectAnnounceDelay } from '../src/components/Results';
 
 const css = read('src/index.css');
 const KINDS = ['unanimous', 'scattered', 'complete'] as const;
@@ -63,5 +64,24 @@ describe('開票の演出の帯の CSS（#639）', () => {
     for (const name of ['effect-cutin', 'effect-scatter', 'effect-settle']) {
       expect(keyframes(name), name).not.toMatch(layout);
     }
+  });
+
+  it.each(['.results--after-flip .stats', '.results--after-flip .results-spread', '.results--after-flip .results-effect'])(
+    'Given %s の遅れ / Then JS の読み上げの待ち（effectAnnounceDelay）と同じ式（CSS だけ変えても緑にならない）',
+    (selector) => {
+      const body = foundBody(rulesOf(css, selector), selector);
+      const m = /animation-delay:\s*calc\(min\(var\(--seat-count, 1\) - 1, (\d+)\) \* (\d+)ms \+ ([0-9.]+)s\);/.exec(body);
+      expect(m, `${selector} の遅れの式が読めない`).not.toBeNull();
+      const [cap, perSeat, base] = [Number(m![1]), Number(m![2]), Number(m![3])];
+      for (const seats of [1, 2, 3, 8, 9, 20]) {
+        expect(Math.min(seats - 1, cap) * perSeat + base * 1000, `席 ${seats}`).toBeCloseTo(effectAnnounceDelay(seats, true), 5);
+      }
+    },
+  );
+
+  it('Given バラバラの動き / Then 帯を大きくしない・外へ動かさない（320px で右端が画面の外へ出ない。scale は 1 以下・translate・rotate・skew を使わない）', () => {
+    const frames = keyframes('effect-scatter');
+    expect(frames).not.toMatch(/translate|rotate|skew/);
+    for (const m of frames.matchAll(/scale\(([0-9.]+)\)/g)) expect(Number(m[1])).toBeLessThanOrEqual(1);
   });
 });
