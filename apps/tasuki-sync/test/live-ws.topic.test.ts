@@ -173,6 +173,71 @@ describe("お題の接続に参加すると、いまのお題の状態が届く"
 });
 
 /**
+ * お題の型（#634）を、実 WebSocket の全ホップ（境界のスキーマ → ハンドラ → 生成器 → 定型の選び方 → 配信）で通す。
+ *
+ * 型ごとの本文にしか無い節（`packages/topic-core/tests/topic-bank.test.ts` が型ごとに必須にしている節）で、
+ * どの型の定型が届いたかを見分ける。途中のどこかで型が落ちると、既定の TDD の定型が届いて赤になる。
+ *
+ * @requirements #634（種類を選んで定型を出せる・AI が使えないとき選ばれた種類の定型へ落ちる）
+ */
+describe("お題の型を選んで作ると、その型の定型がルームへ届く（#634）", () => {
+  async function joinedTopic(): Promise<LiveTopicClient> {
+    const hub = await server.connectHub();
+    const created = await hubCreate(hub, "モブ", "あや");
+    const topic = await server.connectTopic();
+    await topicJoin(topic, created.code, "いずみ");
+    await topic.take((m) => m.type === "topic", "参加直後の初期お題");
+    return topic;
+  }
+
+  for (const [category, marker] of [
+    ["refactoring", "\n対象のコード:\n```\n"],
+    ["design", "\n話し合うこと:\n- "],
+    ["debugging", "\n落ちるテスト:\n```\ntest("],
+  ] as const) {
+    it(`型 ${category} で定型から作ると、その型の本文の定型が届き、縮退しない`, async () => {
+      // Given
+      const topic = await joinedTopic();
+      // When
+      topic.send({ command: "topic.generate", mode: "fallback", language: "Go", difficulty: "medium", category });
+      // Then
+      const got = await topic.take((m) => m.type === "topic" && m.state.topic !== null, "定型のお題");
+      if (got.type !== "topic") throw new Error("topic ではない");
+      expect(got.state.topic?.source).toBe("fallback");
+      expect(got.state.topic?.body).toContain(marker);
+      expect(got.state.degraded).toBe(false);
+    });
+  }
+
+  it("型を送らない依頼（型を足す前の画面）は、TDD の定型が届く", async () => {
+    const topic = await joinedTopic();
+    // 型の上では category が要るので、生の JSON で送る（型を足す前の画面が送る形）
+    topic.sendRaw(JSON.stringify({ command: "topic.generate", mode: "fallback", language: "Go", difficulty: "hard" }));
+    const got = await topic.take((m) => m.type === "topic" && m.state.topic !== null, "定型のお題");
+    if (got.type !== "topic") throw new Error("topic ではない");
+    expect(got.state.topic?.body).toContain("\n最初のテストの例:\n```\ntest(");
+  });
+
+  it("AI が使えない（未解錠）ときに型 design で AI を求めると、design の定型へ落ち、縮退を知らせる", async () => {
+    const topic = await joinedTopic();
+    topic.send({ command: "topic.generate", mode: "ai", language: "Python", difficulty: "easy", category: "design" });
+    const got = await topic.take((m) => m.type === "topic" && m.state.topic !== null, "定型へ落ちたお題");
+    if (got.type !== "topic") throw new Error("topic ではない");
+    expect(got.state.topic?.body).toContain("\n話し合うこと:\n- ");
+    expect(got.state.degraded).toBe(true);
+  });
+
+  it("許可リストに無い型は INVALID_COMMAND で拒まれ、お題は変わらない", async () => {
+    const topic = await joinedTopic();
+    topic.sendRaw(JSON.stringify({ command: "topic.generate", mode: "fallback", language: "Go", difficulty: "easy", category: "poetry" }));
+    const got = await topic.take((m) => m.type === "error", "拒否");
+    if (got.type !== "error") throw new Error("error ではない");
+    expect(got.code).toBe("INVALID_COMMAND");
+    expect(topic.received.filter((m) => m.type === "topic" && m.state.topic !== null)).toEqual([]);
+  });
+});
+
+/**
  * お題を掲げると、ルームの全接続（ハブ・timer・poker・お題）へ同じ状態が届く。
  *
  * **timer・poker の接続で見る**（お題の接続だけで見ると、配信先を狭める誤りと
