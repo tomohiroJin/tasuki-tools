@@ -95,6 +95,6 @@ Caddy の版を知る手段は、CI の YAML を読むことだけだった。
 - Node を 26 系の LTS（26.13.1）へ移した。`toolchain.json` の `node` と `package.json` の `engines.node`（`>=26.13.1`）を同じ版にしてある
 - Renovate は `toolchain.json` の `node` と `engines.node` を、**同じ PR で**追う（`renovate.json` の `customManagers`・独立した群 `Node`）。
   片方だけ上がると決定 3 の検査が赤くなるため、2 つを 1 つの PR にしてある
-- major（27 系など）は既存の規則どおり Dependency Dashboard での承認制。Renovate の `node` の versioning は LTS に入った系列だけを安定版と見るので、LTS に入るまで提案されない
+- patch・minor も含めて Dependency Dashboard での承認制（Bun と同じ。下限が上がると決定 2 の事前の検査が手元の古い Node を止めるので、手元を入れ替える準備ができてから承認する）。Renovate の `node` の versioning は LTS に入った系列だけを安定版と見るので、LTS に入るまで提案されない
 - Caddy は今までどおり手で上げる
 - 根拠: ISSUE #441 のコメント（2026-10-25。「26 系へ固定したあとは、その版を Renovate が追う」）
