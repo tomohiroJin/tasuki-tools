@@ -248,6 +248,9 @@ const RESERVED_1780_1799 =
 const RESERVED_1950_1959 =
   "**対応表より後に足した変異。** 1950〜1959 は #622（PR 前のフックを開いた先行だけで止める）に割り当てた範囲。";
 
+const RESERVED_1980_1999 =
+  "**対応表より後に足した変異。** 1980〜1999 は #459（AI お題生成の認証を API キーへ切り替える）に割り当てた範囲。";
+
 const RESERVED_1960_1969 =
   "**対応表より後に足した変異。** 1960〜1969 は #622 の追加（1950〜1959 を使い切ったため）に割り当てた範囲。";
 
@@ -10456,5 +10459,29 @@ export const MUTATIONS = [
     pkg: "apps/timer-web",
     tests: ["test/ui/RosterPanel.duplicate-proxy.test.tsx"],
     note: RESERVED_1850_1869 + " " + "#595。RosterPanel.tsx の代理追加の配線。直したのに赤いままで、「まだ駄目なのか」と読める（#291）。",
+  },
+  {
+    id: 1980,
+    label: "API キーが無いとき、旧 CLAUDE_CODE_OAUTH_TOKEN を API キーとして読む",
+    patch: "m1980-config-falls-back-to-legacy-oauth-token.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/config-ai.test.ts"],
+    note: RESERVED_1980_1999 + " " + "#459。config.ts。旧トークンが残った本番が、API キーに替えたつもりでサブスクの上限を消費し続ける。",
+  },
+  {
+    id: 1981,
+    label: "AI 子プロセスの env に親の環境をそのまま渡す",
+    patch: "m1981-child-env-inherits-parent-env.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/claude-cli-topic-provider.test.ts"],
+    note: RESERVED_1980_1999 + " " + "#459。claude-cli-topic-provider.ts。親の旧 OAuth トークンが子へ漏れ、API キーでなくサブスク側で認証・精算される。",
+  },
+  {
+    id: 1982,
+    label: "AI の有効判定が API キーを見ず、合言葉だけで有効にする",
+    patch: "m1982-ai-ready-ignores-api-key.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/ai-budget.test.ts"],
+    note: RESERVED_1980_1999 + " " + "#459。assembly/topic.ts。キー未設定でも AI が有効に見え、生成のたびに失敗する（定型への縮退が使われない）。",
   },
 ];
