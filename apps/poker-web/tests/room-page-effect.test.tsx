@@ -104,6 +104,13 @@ describe('RoomPage の開票の演出（#639）', () => {
     expect(band()).toBeNull();
   });
 
+  it('Given 接続前（状態がまだ無い）から開票済みの状態が届いた（再読み込み・途中入室） / When 描く / Then 帯は出ない', () => {
+    const { rerender } = render(<RoomPage roomId={ROOM_ID} sync={{ ...makeSync(voting()), snapshot: null }} />);
+    rerender(<RoomPage roomId={ROOM_ID} sync={makeSync(revealed([n(5), n(5), n(5)]))} />);
+    expect(screen.getByRole('heading', { name: '結果' })).toBeTruthy();
+    expect(band()).toBeNull();
+  });
+
   it('Given 一致の開票 / When 再投票して同じ票でもう一度開票する / Then 帯は毎回、新しく出る', () => {
     const { rerender } = render(<RoomPage roomId={ROOM_ID} sync={makeSync(voting())} />);
     rerender(<RoomPage roomId={ROOM_ID} sync={makeSync(revealed([n(5), n(5), n(5)]))} />);
