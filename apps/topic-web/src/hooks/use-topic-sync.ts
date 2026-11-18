@@ -25,7 +25,7 @@ import { useMemo, useState } from 'react';
 import type { DepartureReason } from '@tasuki/room-core';
 import { buildSyncUrl, type ConnectionNoticeKind, type ConnectionStatus } from '@tasuki/sync-client';
 import { useToolRoomSync } from '@tasuki/web-kit/sync';
-import type { Difficulty, Language, TopicCommand, TopicState } from '@tasuki/topic-core';
+import type { Category, Difficulty, Language, TopicCommand, TopicState } from '@tasuki/topic-core';
 import { DEFAULT_ERROR_TEXT, RETRY_EXHAUSTED_TEXT, RETRY_WAITING_TEXT } from '../copy';
 import { parseTopicWebMessage } from '../server-message';
 
@@ -64,7 +64,7 @@ export interface TopicSync {
   clearError(): void;
   setTopic(title: string, body: string): void;
   clearTopic(): void;
-  generate(mode: 'ai' | 'fallback', language: Language, difficulty: Difficulty): void;
+  generate(mode: 'ai' | 'fallback', language: Language, difficulty: Difficulty, category: Category): void;
   unlock(key: string): void;
 }
 
@@ -102,8 +102,8 @@ export function useTopicSync(roomCode: string): TopicSync {
     return {
       setTopic: (title: string, body: string) => sendCommand({ command: 'topic.set', title, body }),
       clearTopic: () => sendCommand({ command: 'topic.clear' }),
-      generate: (mode: 'ai' | 'fallback', language: Language, difficulty: Difficulty) =>
-        sendCommand({ command: 'topic.generate', mode, language, difficulty }),
+      generate: (mode: 'ai' | 'fallback', language: Language, difficulty: Difficulty, category: Category) =>
+        sendCommand({ command: 'topic.generate', mode, language, difficulty, category }),
       unlock: (key: string) => sendCommand({ command: 'ai.unlock', key }),
     };
   }, [send]);

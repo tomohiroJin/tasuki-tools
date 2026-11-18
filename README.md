@@ -57,6 +57,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
   - [`packages/markdown`](packages/markdown/) — お題の本文の Markdown の解析（描画は各アプリ）
 - **特徴**
   - 手入力・定型バンク・AI 生成（任意・運営者の Claude サブスクで実行・未設定時は定型お題へ安全縮退）の 3 つで作る
+  - 定型と AI は、お題の型（TDD・リファクタリング・設計・モデリング・デバッグ）・言語・難易度を選んで作る。定型は 100 件以上
   - お題はルームの持ち物で、timer のセッションをまたいで残る
 - 設計判断: [`docs/adr/0021`](docs/adr/0021-topic-as-shared-context.md)
 

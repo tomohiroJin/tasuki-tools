@@ -34,3 +34,10 @@ export type Language = (typeof LANGUAGES)[number];
 
 export const DIFFICULTIES = ["easy", "medium", "hard"] as const;
 export type Difficulty = (typeof DIFFICULTIES)[number];
+
+/**
+ * お題の種類（#634）。言語・難易度と同じく、プロンプトへ埋め込まれるのはこの中の値だけである
+ * （`docs/adr/0012` D10）。並びは画面の選択肢の並びで、先頭が既定（今までの TDD のお題）。
+ */
+export const CATEGORIES = ["tdd", "refactoring", "design", "debugging"] as const;
+export type Category = (typeof CATEGORIES)[number];

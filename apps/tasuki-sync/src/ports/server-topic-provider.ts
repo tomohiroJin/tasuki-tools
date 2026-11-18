@@ -1,4 +1,4 @@
-import type { Difficulty, Language } from "@tasuki/topic-core";
+import type { Category, Difficulty, Language } from "@tasuki/topic-core";
 
 /**
  * サーバー側の AI お題生成（#91）。戻り値は**未検証の値**であり、呼び出し側が
@@ -6,7 +6,7 @@ import type { Difficulty, Language } from "@tasuki/topic-core";
  * 失敗は下の `ProviderFailure` で投げる。
  */
 export interface ServerTopicProvider {
-  generate(language: Language, difficulty: Difficulty, signal: AbortSignal): Promise<unknown>;
+  generate(language: Language, difficulty: Difficulty, category: Category, signal: AbortSignal): Promise<unknown>;
 }
 
 /**

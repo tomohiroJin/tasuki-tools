@@ -1,120 +1,111 @@
 import { describe, expect, it } from "vitest";
 import {
-  DIFFICULTIES, LANGUAGES, MAX_TOPIC_BODY, MAX_TOPIC_TITLE, pickTopicFallback,
-  type Difficulty, type Language,
+  CATEGORIES, DIFFICULTIES, LANGUAGES, pickTopicFallback,
+  type Category, type Difficulty, type Language,
 } from "../src/index.js";
 import { TOPIC_BANK } from "../src/topic-bank.js";
 
-/**
- * @requirements #91(定型バンクの健全性。spec §10)
- */
-describe("定型バンク", () => {
-  it("33 件すべてが上限に収まり、空白だけのタイトルが無い", () => {
-    expect(TOPIC_BANK).toHaveLength(33);
-    for (const e of TOPIC_BANK) {
-      expect(e.title.trim().length).toBeGreaterThan(0);
-      expect(e.title.length).toBeLessThanOrEqual(MAX_TOPIC_TITLE);
-      expect(e.body.length).toBeLessThanOrEqual(MAX_TOPIC_BODY);
-    }
-  });
+// 定型バンクの健全性（件数・上限・本文の形）は `tests/topic-bank.test.ts` にある（#634 で移した）。
 
-  /**
-   * `topic-core` は依存を持たない（`scripts/audit-dependency-direction.mjs` の許可表が空）ので、
-   * `@tasuki/markdown` の解析には通さず、本文の文字列で囲みの開きと閉じを見る。
-   * 閉じが「ヒント:」より前にあることまで見る —— 開きだけを見ると、閉じ忘れで
-   * 以降の本文が全部コードになる誤りを通してしまう。
-   */
-  it("すべての本文で、最初のテストの例がコードの囲みの中にあり、ヒントより前で閉じる", () => {
-    const OPEN = "最初のテストの例:\n```\n";
-    for (const e of TOPIC_BANK) {
-      // Given: 本文の中の、最初のテストの例の開き
-      const at = e.body.indexOf(OPEN);
-      // When: 開きの後ろで、囲みの閉じとヒントを探す
-      const close = at < 0 ? -1 : e.body.indexOf("\n```", at + OPEN.length);
-      const hint = e.body.indexOf("ヒント:");
-      // Then: 開きがあり、テストのコードを挟んでヒントより前で閉じている。
-      // 閉じが見つからないと indexOf は -1 を返し「ヒントより前」を素通りするので、閉じの在否を先に見る
-      expect({ title: e.title, opened: at >= 0, closed: close >= 0 }).toEqual({
-        title: e.title,
-        opened: true,
-        closed: true,
-      });
-      expect(e.body.slice(at + OPEN.length, close)).toMatch(/^test\(/);
-      expect(close).toBeLessThan(hint < 0 ? e.body.length : hint);
-    }
-  });
-
-  // #365 で言語の欄を外したので、言語の次元は無い（どのお題も全ての言語に当てはまる）。見ている性質は同じ。
-  it("どの難易度でも候補が 2 件以上ある（直前を外しても空にならない）", () => {
-    for (const difficulty of DIFFICULTIES) {
-      const n = TOPIC_BANK.filter((e) => e.difficulty === difficulty).length;
-      expect(n).toBeGreaterThanOrEqual(2);
-    }
-  });
-});
+const entryOf = (title: string) => TOPIC_BANK.find((e) => e.title === title);
+const seedsUpTo = (n: number) => Array.from({ length: n }, (_, i) => i);
 
 /**
- * @requirements #91 E7
+ * @requirements #91 E7・#634（種類を選んだとき、その種類の定型だけから選ぶ）
  */
 describe("pickTopicFallback", () => {
   it("選ばれた難易度のお題を source: fallback で返す", () => {
-    const t = pickTopicFallback("Go", "hard", 0, null);
-    const entry = TOPIC_BANK.find((e) => e.title === t.title);
-    expect(entry?.difficulty).toBe("hard");
+    const t = pickTopicFallback("Go", "hard", "tdd", 0, null);
+    expect(entryOf(t.title)?.difficulty).toBe("hard");
     expect(t.source).toBe("fallback");
   });
 
-  it("直前と同じお題を返さない（どの種でも）", () => {
-    for (let now = 0; now < 50; now++) {
-      const first = pickTopicFallback("Python", "easy", now, null);
-      const second = pickTopicFallback("Python", "easy", now, first);
-      expect(second.title).not.toBe(first.title);
+  for (const category of CATEGORIES) {
+    for (const difficulty of DIFFICULTIES) {
+      it(`Given 種類 ${category}・難易度 ${difficulty} / When 種を候補の数だけ振る / Then その組の定型だけを、すべて返す`, () => {
+        // Given: その組の定型
+        const pool = TOPIC_BANK.filter((e) => e.category === category && e.difficulty === difficulty);
+        // When
+        const got = seedsUpTo(pool.length).map((now) => pickTopicFallback("Python", difficulty, category, now, null).title);
+        // Then: 組の外が混ざらず、組の全件が出そろう（絞り込みが効き、候補を取りこぼさない）
+        expect(got.map((title) => [entryOf(title)?.category, entryOf(title)?.difficulty])).toEqual(
+          got.map(() => [category, difficulty]),
+        );
+        expect(new Set(got).size).toBe(pool.length);
+      });
+    }
+  }
+
+  it("直前と同じお題を返さない（どの種類・難易度・種でも）", () => {
+    for (const category of CATEGORIES) {
+      for (const difficulty of DIFFICULTIES) {
+        for (let now = 0; now < 50; now++) {
+          const first = pickTopicFallback("Python", difficulty, category, now, null);
+          const second = pickTopicFallback("Python", difficulty, category, now, first);
+          expect({ category, difficulty, now, same: second.title === first.title }).toEqual({
+            category, difficulty, now, same: false,
+          });
+        }
+      }
     }
   });
 
-  it("境界を通り抜けて許可リストに無い言語が渡っても、難易度で絞らず全件から返す", () => {
-    // 難易度を "easy" に固定して now を 0..32 で振る。プールが全 33 件なら
-    // ちょうど 33 種のタイトルが出そろい、"easy" 以外の難易度も混ざる。
-    // プールが誤って難易度で絞られたまま(この定型バンクは easy が 12 件)だと、
-    // 33 種そろわず medium / hard も出てこない — その違いで区別する。
+  it("Given 境界を通り抜けて許可リストに無い種類 / When 選ぶ / Then 種類で絞らず、今までどおり難易度で絞った全種類から選ぶ", () => {
+    // Given: 種類を問わない、その難易度の定型
+    const pool = TOPIC_BANK.filter((e) => e.difficulty === "medium");
+    // When
+    const got = seedsUpTo(pool.length).map(
+      (now) => pickTopicFallback("Go", "medium", "poetry" as unknown as Category, now, null).title,
+    );
+    // Then: 難易度は守られ、種類は 1 つに絞られていない（全件が並び順どおりに出る）
+    expect(got).toEqual(pool.map((e) => e.title));
+    expect(new Set(got.map((t) => entryOf(t)?.category)).size).toBeGreaterThan(1);
+  });
+
+  it("境界を通り抜けて許可リストに無い言語が渡っても、種類・難易度で絞らず全件から返す", () => {
+    // 難易度を "easy" に固定して now を 0..全件-1 で振る。プールが全件ならちょうど全件のタイトルが出そろい、
+    // "easy" 以外の難易度も、tdd 以外の種類も混ざる。誤って絞ったままだと出そろわない —— その違いで区別する。
     const seen = new Set<string>();
     for (let now = 0; now < TOPIC_BANK.length; now++) {
-      const t = pickTopicFallback("COBOL" as unknown as Language, "easy", now, null);
+      const t = pickTopicFallback("COBOL" as unknown as Language, "easy", "tdd", now, null);
       expect(t.source).toBe("fallback");
       seen.add(t.title);
     }
     expect(seen.size).toBe(TOPIC_BANK.length);
-    const gotDifficulties = new Set(
-      [...seen].map((title) => TOPIC_BANK.find((e) => e.title === title)?.difficulty),
-    );
-    expect(gotDifficulties.has("medium")).toBe(true);
-    expect(gotDifficulties.has("hard")).toBe(true);
+    const got = [...seen].map(entryOf);
+    expect(new Set(got.map((e) => e?.difficulty))).toEqual(new Set(DIFFICULTIES));
+    expect(new Set(got.map((e) => e?.category))).toEqual(new Set(CATEGORIES));
   });
 });
 
 /**
- * 定型のお題の選び方の特性テスト（#365 Task 1）。
+ * 定型のお題の選び方の特性テスト（#365 Task 1。#634 で種類の次元を足した）。
  *
- * 定型バンクの `languages` の欄を外す前に、選び方の結果を**並びまで**固定する。
+ * 定型バンクの `languages` の欄を外す前に、選び方の結果を**並びまで**固定した。
  * 期待値は欄を外す前の実装で得た並びを直書きしたもの（定型バンクの並びと、種の剰余で決まる）。
+ * #634 で TDD のお題を末尾へ足したので、直書きの並びは **TDD の候補の先頭**として固定する
+ * （旧い 33 件の並びが崩れていないこと）。足した分の並びはバンクの並びと同じであることを見る。
  *
  * - 許可リストの言語では、どの言語でも同じ並びになる（言語の絞り込みが何も除いていない）
- * - 許可リストに無い言語では、難易度で絞らずに全 33 件から選ぶ
+ * - 許可リストに無い言語では、種類・難易度で絞らずに全件から選ぶ
  * - 直前のお題は候補から除く
  */
-describe("pickTopicFallback の選び方の特性（#365）", () => {
+describe("pickTopicFallback の選び方の特性（#365・#634）", () => {
   const titles = (language: string, difficulty: Difficulty, seeds: readonly number[], previous: string | null) =>
     seeds.map(
       (now) =>
         pickTopicFallback(
           language as Language,
           difficulty,
+          "tdd",
           now,
           previous === null ? null : { title: previous, body: "", source: "fallback" },
         ).title,
     );
-  const seedsUpTo = (n: number) => Array.from({ length: n }, (_, i) => i);
+  const tddPool = (difficulty: Difficulty) =>
+    TOPIC_BANK.filter((e) => e.category === "tdd" && e.difficulty === difficulty).map((e) => e.title);
 
+  /** 旧い 33 件（#365 の時点の並び）。TDD の候補の先頭に、この並びのまま居る */
   const BY_DIFFICULTY: Record<Difficulty, readonly string[]> = {
     easy: [
       "FizzBuzz",
@@ -158,117 +149,82 @@ describe("pickTopicFallback の選び方の特性（#365）", () => {
   };
 
   for (const difficulty of DIFFICULTIES) {
-    it(`Given 許可リストのどの言語でも / When ${difficulty} を種 0.. で選ぶ / Then 同じ並びになる`, () => {
+    it(`Given 許可リストのどの言語でも / When tdd の ${difficulty} を種 0.. で選ぶ / Then 同じ並びになり、先頭は旧い並びのまま`, () => {
       // Given
-      const expected = BY_DIFFICULTY[difficulty];
+      const expected = tddPool(difficulty);
       for (const language of LANGUAGES) {
         // When
         const got = titles(language, difficulty, seedsUpTo(expected.length), null);
         // Then
         expect({ language, got }).toEqual({ language, got: expected });
       }
+      expect(expected.slice(0, BY_DIFFICULTY[difficulty].length)).toEqual(BY_DIFFICULTY[difficulty]);
     });
   }
 
   it("Given 種が候補の数を超える・負 / When 選ぶ / Then 剰余（負は絶対値）で同じ並びをたどる", () => {
     // Given
-    const easy = BY_DIFFICULTY.easy;
+    const easy = tddPool("easy");
     // When
     const got = titles("Python", "easy", [easy.length, easy.length + 1, -1, -2], null);
     // Then
     expect(got).toEqual([easy[0], easy[1], easy[1], easy[2]]);
   });
 
-  const AFTER_PREVIOUS: Record<Difficulty, { previous: string; titles: readonly string[] }> = {
-    easy: { previous: "FizzBuzz", titles: [
-        "回文チェッカー",
-        "銀行口座",
-        "二数の和",
-        "文字数カウント",
-        "最大値を探す",
-        "温度変換",
-        "母音カウント",
-        "配列の合計と平均",
-        "重複の除去",
-        "アナグラム判定",
-        "うるう年判定",
-      ] },
-    medium: { previous: "ローマ数字変換", titles: [
-        "テニスゲームスコア",
-        "数値のカンマ区切り",
-        "括弧の対応チェック",
-        "ランレングス圧縮",
-        "シーザー暗号",
-        "二分探索",
-        "2 数の和（Two Sum）",
-        "連結リストの反転",
-        "区間のマージ",
-        "逆ポーランド記法電卓",
-        "ショッピングカート合計",
-        "パスワード強度チェック",
-        "電話番号フォーマット",
-      ] },
-    hard: { previous: "行列の回転", titles: [
-        "ボウリングのスコア計算",
-        "LRU キャッシュ",
-        "三目並べの勝敗判定",
-        "ネストJSONの平坦化",
-        "レート制限（トークンバケット）",
-        "電卓（式の評価）",
-      ] },
-  };
-
   for (const difficulty of DIFFICULTIES) {
-    it(`Given 直前のお題 / When ${difficulty} を種 0.. で選ぶ / Then 直前を除いた並びになる`, () => {
-      // Given
-      const { previous, titles: expected } = AFTER_PREVIOUS[difficulty];
+    it(`Given 直前のお題 / When tdd の ${difficulty} を種 0.. で選ぶ / Then 直前を除いた並びになる`, () => {
+      // Given: 直前は旧い並びの先頭
+      const previous = BY_DIFFICULTY[difficulty][0]!;
+      const expected = tddPool(difficulty).filter((t) => t !== previous);
       // When
       const got = titles("Go", difficulty, seedsUpTo(expected.length), previous);
       // Then
       expect(got).toEqual(expected);
+      expect(got.slice(0, BY_DIFFICULTY[difficulty].length - 1)).toEqual(BY_DIFFICULTY[difficulty].slice(1));
     });
   }
 
-  it("Given 許可リストに無い言語 / When easy を種 0..32 で選ぶ / Then 難易度で絞らず全 33 件の並びになる", () => {
+  it("Given 許可リストに無い言語 / When easy を種 0.. で選ぶ / Then 種類・難易度で絞らず全件の並びになり、先頭は旧い 33 件の並び", () => {
     // Given
-    const expected = [
-    "FizzBuzz",
-    "回文チェッカー",
-    "ローマ数字変換",
-    "銀行口座",
-    "テニスゲームスコア",
-    "行列の回転",
-    "二数の和",
-    "文字数カウント",
-    "最大値を探す",
-    "温度変換",
-    "母音カウント",
-    "配列の合計と平均",
-    "重複の除去",
-    "アナグラム判定",
-    "うるう年判定",
-    "数値のカンマ区切り",
-    "括弧の対応チェック",
-    "ランレングス圧縮",
-    "シーザー暗号",
-    "二分探索",
-    "2 数の和（Two Sum）",
-    "連結リストの反転",
-    "区間のマージ",
-    "逆ポーランド記法電卓",
-    "ショッピングカート合計",
-    "パスワード強度チェック",
-    "電話番号フォーマット",
-    "ボウリングのスコア計算",
-    "LRU キャッシュ",
-    "三目並べの勝敗判定",
-    "ネストJSONの平坦化",
-    "レート制限（トークンバケット）",
-    "電卓（式の評価）",
-  ];
+    const OLD_33 = [
+      "FizzBuzz",
+      "回文チェッカー",
+      "ローマ数字変換",
+      "銀行口座",
+      "テニスゲームスコア",
+      "行列の回転",
+      "二数の和",
+      "文字数カウント",
+      "最大値を探す",
+      "温度変換",
+      "母音カウント",
+      "配列の合計と平均",
+      "重複の除去",
+      "アナグラム判定",
+      "うるう年判定",
+      "数値のカンマ区切り",
+      "括弧の対応チェック",
+      "ランレングス圧縮",
+      "シーザー暗号",
+      "二分探索",
+      "2 数の和（Two Sum）",
+      "連結リストの反転",
+      "区間のマージ",
+      "逆ポーランド記法電卓",
+      "ショッピングカート合計",
+      "パスワード強度チェック",
+      "電話番号フォーマット",
+      "ボウリングのスコア計算",
+      "LRU キャッシュ",
+      "三目並べの勝敗判定",
+      "ネストJSONの平坦化",
+      "レート制限（トークンバケット）",
+      "電卓（式の評価）",
+    ];
     // When
-    const got = titles("COBOL", "easy", seedsUpTo(expected.length), null);
+    const got = titles("COBOL", "easy", seedsUpTo(TOPIC_BANK.length), null);
     // Then
-    expect(got).toEqual(expected);
+    expect(got).toEqual(TOPIC_BANK.map((e) => e.title));
+    expect(got.slice(0, OLD_33.length)).toEqual(OLD_33);
   });
 });

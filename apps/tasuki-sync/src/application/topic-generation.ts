@@ -15,6 +15,7 @@ import {
   settleWithFallback,
   startGeneration,
   validateTopicDraft,
+  type Category,
   type Difficulty,
   type Language,
   type Topic,
@@ -33,6 +34,8 @@ export interface GenerateRequest {
   mode: "ai" | "fallback";
   language: Language;
   difficulty: Difficulty;
+  /** お題の種類（#634）。定型の絞り込みとプロンプトの選択に使う */
+  category: Category;
 }
 
 export interface TopicGeneratorDeps {
@@ -155,7 +158,7 @@ export class TopicGenerator {
     // （実測: 既存テストが red になった）。呼び出しは同期のまま try/catch で包む。
     let pending: Promise<unknown>;
     try {
-      pending = provider.generate(req.language, req.difficulty, abort.signal);
+      pending = provider.generate(req.language, req.difficulty, req.category, abort.signal);
     } catch (e) {
       failover(classifyFailure(e));
       return;
@@ -175,7 +178,7 @@ export class TopicGenerator {
   }
 
   private fallback(req: GenerateRequest, previous: Topic | null): Topic {
-    return pickTopicFallback(req.language, req.difficulty, this.deps.clock.now(), previous);
+    return pickTopicFallback(req.language, req.difficulty, req.category, this.deps.clock.now(), previous);
   }
 
   /** 保管から引き直して遷移を当て、保管してから配る。**ルームが消えていたら書かない** */

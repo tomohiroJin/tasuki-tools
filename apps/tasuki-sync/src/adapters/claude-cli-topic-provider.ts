@@ -7,7 +7,7 @@
  * - OAuth トークンは子プロセスの env にのみ渡す（ログ・snapshot 非混入）
  */
 import { spawn } from "node:child_process";
-import { buildTopicPrompt, type Difficulty, type Language } from "@tasuki/topic-core";
+import { buildTopicPrompt, type Category, type Difficulty, type Language } from "@tasuki/topic-core";
 import { ProviderFailure, type ServerTopicProvider } from "../ports/server-topic-provider.js";
 
 /** spawn 互換の最小インターフェース（テストで差し替える） */
@@ -64,7 +64,15 @@ export class ClaudeCliTopicProvider implements ServerTopicProvider {
     this.maxOutputBytes = opts.maxOutputBytes ?? DEFAULT_MAX_OUTPUT_BYTES;
   }
 
-  generate(language: Language, difficulty: Difficulty, signal: AbortSignal): Promise<unknown> {
+  generate(language: Language, difficulty: Difficulty, category: Category, signal: AbortSignal): Promise<unknown> {
+    // プロンプトは子プロセスを起こす**前に**組む。許可リストの外の値なら `buildTopicPrompt` が
+    // 例外で止まる（`docs/adr/0012` D10）。起こした後に組むと、止まった時に子プロセスが残る。
+    let prompt: string;
+    try {
+      prompt = buildTopicPrompt(language, difficulty, category);
+    } catch {
+      return Promise.reject(new ProviderFailure("prompt input is not in the allowlist", "invalid"));
+    }
     return new Promise((resolve, reject) => {
       if (signal.aborted) {
         reject(new ProviderFailure("aborted before start", "timeout"));
@@ -178,7 +186,7 @@ export class ClaudeCliTopicProvider implements ServerTopicProvider {
       });
 
       // プロンプトは stdin 渡し
-      child.stdin?.write(buildTopicPrompt(language, difficulty));
+      child.stdin?.write(prompt);
       child.stdin?.end();
     });
   }

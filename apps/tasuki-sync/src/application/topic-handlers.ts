@@ -179,6 +179,7 @@ export function makeTopicHandlers(deps: TopicHandlerDeps): TopicHandlers {
           mode: cmd.mode,
           language: cmd.language,
           difficulty: cmd.difficulty,
+          category: cmd.category,
         });
         if (result === "cooldown") fail(connId, "GENERATION_COOLDOWN");
         return;

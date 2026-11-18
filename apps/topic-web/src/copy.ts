@@ -7,7 +7,7 @@
  * spec の「掲げる」「本文」は base 層に無い字（掲・本・文）を含むので、画面では
  * 「場に出す」「説明」と言う（計画「実測で spec から外したこと」・spec §10）。
  */
-import type { Difficulty } from '@tasuki/topic-core';
+import type { Category, Difficulty } from '@tasuki/topic-core';
 
 export const PAGE_HEADING = 'お題';
 
@@ -42,6 +42,16 @@ export const SET_BUTTON = '場に出す';
 export const COPY_TO_DRAFT_BUTTON = '下書きにコピー';
 
 export const MAKE_HEADING = '定型や AI で作る';
+/** お題の種類（#634）。選択肢の値は topic-core の許可リスト（`CATEGORIES`）から引き、名前だけをここに置く */
+/** 「種類」は書体の常用の層に無い（#634 で実測）ので「お題の型」と書く */
+export const CATEGORY_LABEL = 'お題の型';
+export const CATEGORY_NAMES: Record<Category, string> = {
+  tdd: 'TDD',
+  refactoring: 'リファクタリング',
+  design: '設計・モデリング',
+  /** 「探」が常用の層に無いので「バグ探し」と書かない */
+  debugging: 'デバッグ',
+};
 export const LANGUAGE_LABEL = '言語';
 export const DIFFICULTY_LABEL = '難易度';
 export const DIFFICULTY_NAMES: Record<Difficulty, string> = {
