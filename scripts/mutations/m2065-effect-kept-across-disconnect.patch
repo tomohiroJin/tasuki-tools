@@ -1,13 +1,13 @@
 diff --git a/apps/poker-web/src/pages/RoomPage.tsx b/apps/poker-web/src/pages/RoomPage.tsx
-index 7984d1e4..18287efe 100644
+index 0ed42eb4..311c9acd 100644
 --- a/apps/poker-web/src/pages/RoomPage.tsx
 +++ b/apps/poker-web/src/pages/RoomPage.tsx
-@@ -78,7 +78,7 @@ export function RoomPage({ roomId, sync }: Props) {
-   //   同じ回で票が減る（退出）のは収まるので捨てない）
-   // それ以外（同じ公開のままの名簿の変化・票の削除・状態の届き直し）では変えない。再接続の後は、投票中を見るまで出さない。
-   const round = sync.snapshot?.round;
--  const bandStatus = sync.status === 'open' ? round?.status : undefined;
-+  const bandStatus = round?.status;
+@@ -87,7 +87,7 @@ export function RoomPage({ roomId, sync }: Props) {
+     setSeenOpen(open);
+     setStaleSnapshot(open ? sync.snapshot : null);
+   }
+-  const bandStatus = open && sync.snapshot !== staleSnapshot ? round?.status : undefined;
++  const bandStatus = sync.snapshot !== staleSnapshot ? round?.status : undefined;
    const [bandSeen, setBandSeen] = useState(bandStatus);
    const [band, setBand] = useState<{ votes: ReadonlyMap<string, string>; effect: ResultsEffect | null } | null>(null);
    if (bandStatus !== bandSeen) {
