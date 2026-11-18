@@ -10457,4 +10457,28 @@ export const MUTATIONS = [
     tests: ["test/ui/RosterPanel.duplicate-proxy.test.tsx"],
     note: RESERVED_1850_1869 + " " + "#595。RosterPanel.tsx の代理追加の配線。直したのに赤いままで、「まだ駄目なのか」と読める（#291）。",
   },
+  {
+    id: 1961,
+    label: "Markdown の担当回数を次の参加者から取る",
+    patch: "m1961-record-markdown-shift-counts.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/Summary.test.tsx"],
+    note: "#408。コピーしたまとめで、表示名に別の人の担当回数が付く。",
+  },
+  {
+    id: 1962,
+    label: "履歴のどのボタンでも最新の記録をコピーする",
+    patch: "m1962-history-copy-newest-record.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/History.test.tsx"],
+    note: "#408。過去の記録のボタンを押すと、別のセッションのまとめがクリップボードに入る。",
+  },
+  {
+    id: 1963,
+    label: "クリップボードへの書き込みに失敗しても成功と知らせる",
+    patch: "m1963-record-copy-failure-reports-success.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/Summary.test.tsx"],
+    note: "#408。書き込みに失敗した直後も「コピーしました」と表示される。",
+  },
 ];

@@ -1,0 +1,8 @@
+.record-markdown-copy {
+  display: grid;
+  text-align: center;
+}
+
+.record-markdown-copy-status:not(:empty) {
+  margin-top: var(--space-1);
+}

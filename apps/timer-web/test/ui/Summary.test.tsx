@@ -3,8 +3,8 @@
  * @requirements FR-020, FR-021, FR-044, US5
  */
 
-import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { afterEach, describe, it, expect, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
 import React from "react";
 import { Summary } from "../../src/ui/Summary.js";
 
@@ -19,6 +19,56 @@ const baseRecord = {
 
 describe("Summary", () => {
   const noop = vi.fn();
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("完成時、表示名と担当回数を含む Markdown を利用者の操作でコピーする（#408）", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", { clipboard: { writeText } });
+    render(
+      <Summary
+        endType="complete"
+        record={{
+          ...baseRecord,
+          id: "internal-record-id",
+          roomId: "internal-room-id",
+          topicTitle: "Fizz *Buzz*\n# 次のお題",
+          members: ["A_[1]", "Bob"],
+          driverCounts: [2, 0],
+          rounds: 0,
+        }}
+        onNewSession={noop}
+        onSaveRecord={noop}
+      />,
+    );
+
+    expect(writeText).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Markdown をコピー" }));
+    expect(await screen.findByText("コピーしました")).toBeTruthy();
+    expect(writeText).toHaveBeenCalledExactlyOnceWith([
+      "セッションまとめ",
+      "",
+      "- お題：Fizz \\*Buzz\\* # 次のお題",
+      "- 所要時間：5分00秒",
+      "- 交代回数：2回",
+      "- 周回数：0周",
+      "- 参加者（2人）",
+      "  - 「A\\_\\[1\\]」（担当2回）",
+      "  - 「Bob」（担当0回）",
+    ].join("\n"));
+  });
+
+  it("クリップボードへ書き込めなかったときは失敗を表示する（#408）", async () => {
+    const writeText = vi.fn().mockRejectedValue(new Error("denied"));
+    vi.stubGlobal("navigator", { clipboard: { writeText } });
+    render(<Summary endType="complete" record={baseRecord} onNewSession={noop} onSaveRecord={noop} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Markdown をコピー" }));
+
+    expect(await screen.findByText("コピーできませんでした")).toBeTruthy();
+  });
 
   it("完成（endType=complete）では達成を示すタイトルを表示する", () => {
     // Given
@@ -84,6 +134,7 @@ describe("Summary", () => {
     );
     // Then
     expect(screen.queryByRole("button", { name: /保存|save/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Markdown をコピー" })).toBeNull();
   });
 
   /**
