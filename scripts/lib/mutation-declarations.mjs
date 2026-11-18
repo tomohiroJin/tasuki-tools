@@ -10467,4 +10467,14 @@ export const MUTATIONS = [
       "#634 のレビュー（PR #643）。topic-generation.ts の fallback。1 つの型だけの取り違えは、2 つの型しか見ない" +
       "縮退のテストをすり抜けた。壊れると、リファクタリングを選んで AI が使えなかった人に TDD のお題が出る。",
   },
+  {
+    id: 1962,
+    label: "定型の本文を組むとき、選ばれた言語を無視して JavaScript の値を差し込む",
+    patch: "m1962-topic-render-ignores-language.patch",
+    pkg: "packages/topic-core",
+    tests: ["tests/fallback.test.ts"],
+    note:
+      "#634 のレビュー（PR #643 の 2 回目）。topic-render.ts の renderTopicBody。壊れると、言語を選んでも" +
+      "定型のコードが JavaScript で出る（言語を選ぶ意味が無くなる。PR #643 で人が指摘した状態に戻る）。",
+  },
 ];

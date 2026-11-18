@@ -1,0 +1,13 @@
+diff --git a/packages/topic-core/src/topic-render.ts b/packages/topic-core/src/topic-render.ts
+index a4934be..2a8cbf2 100644
+--- a/packages/topic-core/src/topic-render.ts
++++ b/packages/topic-core/src/topic-render.ts
+@@ -11,7 +11,7 @@ import type { TopicBankEntry } from "./topic-bank.js";
+  * - 値の無い差し込み口は残す。空にすると、欠けたお題が黙って配られる（欠けはバンクの検査が見つける）
+  */
+ export function renderTopicBody(entry: TopicBankEntry, language: Language): string {
+-  return entry.body.replace(SLOT, (marker, name: string) => entry.slots[name]?.[language] ?? marker);
++  return entry.body.replace(SLOT, (marker, name: string) => entry.slots[name]?.JavaScript ?? marker);
+ }
+ 
+ const SLOT = /\{\{slot:([A-Za-z][A-Za-z0-9_]*)\}\}/g;
