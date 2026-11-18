@@ -265,7 +265,7 @@ function buildCheckinHandlers<H>(deps: Omit<CheckinHandlerDeps, "graceTimer">, g
         return;
       }
       // ルームは作らず、生死も照会しない（どちらも玄関の仕事）。
-      if (cmd.command === "room.create" || cmd.command === "room.check") {
+      if (cmd.command === "room.create" || cmd.command === "room.check" || cmd.command === "room.passphrase.set") {
         fail(connId, "INVALID_COMMAND");
         return;
       }

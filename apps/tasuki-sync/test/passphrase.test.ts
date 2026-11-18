@@ -1,10 +1,15 @@
 /**
- * room.passphrase.set（任意ルームパスフレーズ）の結合テスト
- * 設定/解除（#95 S3 以降は在室者なら誰でも）・平文 snapshot 非混入
+ * 合言葉の保持と、`room.join` の合言葉の検証の結合テスト。
+ *
+ * 設定のコマンド `room.passphrase.set` は #638 でハブ（玄関）へ移った（実 WS 越しの検証は
+ * `live-ws.hub-passphrase.test.ts`）。ここでは設定の本体（`applyRoomPassphrase`）と、timer の入口の
+ * 検証（保持した合言葉で関門が働くこと）を見る。
  */
 
 import { describe, it, expect, beforeEach } from "bun:test";
 import { makeHandlers } from "../src/application/handlers.js";
+import { applyRoomPassphrase } from "../src/application/room-passphrase.js";
+import { createTokenStore, type TokenStore } from "../src/application/token-store.js";
 import { makeTestHandlers } from "./support/room-builder.js";
 import { InMemoryRoomStore } from "../src/adapters/in-memory-room-store.js";
 import { InMemoryTimerStore } from "../src/adapters/in-memory-timer-store.js";
@@ -13,92 +18,43 @@ import { SpyBroadcaster } from "./support/spy-broadcaster.js";
 import { maybeRoomViewOf } from "./support/room-view.js";
 import { FakeCodeGen } from "./support/fake-code-gen.js";
 
-/**
- * @requirements v2.2 R4-2
- */
-describe("room.passphrase.set", () => {
-  let store: InMemoryRoomStore;
-  let timers: InMemoryTimerStore;
-  let broadcaster: SpyBroadcaster;
-  let handlers: ReturnType<typeof makeHandlers>;
-  let roomCode: string;
-  const hostConn = "host-conn";
-  const guestConn = "guest-conn";
+describe("applyRoomPassphrase", () => {
+  it("設定すると保管され、付いている（true）を返す", () => {
+    const tokens = createTokenStore();
 
-  beforeEach(async () => {
-    store = new InMemoryRoomStore();
-    timers = new InMemoryTimerStore();
-    broadcaster = new SpyBroadcaster();
-    handlers = makeTestHandlers({
-      store,
-      timers,
-      clock: new FakeClock(1000000),
-      broadcaster,
-      codeGen: new FakeCodeGen(),
-    });
+    const protectedNow = applyRoomPassphrase(tokens, "R1", "secret");
 
-    await handlers.handleCommand(hostConn, {
-      command: "room.create",
-      displayName: "Host",
-    });
-    roomCode = broadcaster.createdFor(hostConn).code;
-    broadcaster.snapshots.length = 0;
-    broadcaster.sent.length = 0;
+    expect(protectedNow).toBe(true);
+    expect(tokens.getPassphrase("R1")).toBe("secret");
   });
 
-  it("作成者はパスフレーズを設定でき passphraseProtected が true（平文は snapshot 非混入）", async () => {
-    // Given
-    const command = { command: "room.passphrase.set", passphrase: "secret" } as const;
+  it("前後の空白は落として保持する（設定側と参加側の trim の差で不一致にしない）", () => {
+    const tokens = createTokenStore();
 
-    // When
-    const res = await handlers.handleCommand(hostConn, command);
+    applyRoomPassphrase(tokens, "R1", "  secret ");
 
-    // Then
-    res._unsafeUnwrap();
-    expect(maybeRoomViewOf(store, timers, roomCode)?.passphraseProtected).toBe(true);
-    // 平文 "secret" が Room（snapshot 対象）に混入していないこと
-    expect(JSON.stringify(maybeRoomViewOf(store, timers, roomCode))).not.toContain("secret");
+    expect(tokens.getPassphrase("R1")).toBe("secret");
   });
 
-  it("空文字で解除でき passphraseProtected が false", async () => {
-    // Given
-    await handlers.handleCommand(hostConn, {
-      command: "room.passphrase.set",
-      passphrase: "secret",
-    });
-    expect(maybeRoomViewOf(store, timers, roomCode)?.passphraseProtected).toBe(true);
+  it("空文字・空白のみは解除し、付いていない（false）を返す", () => {
+    const tokens = createTokenStore();
+    applyRoomPassphrase(tokens, "R1", "secret");
 
-    // When
-    const res = await handlers.handleCommand(hostConn, {
-      command: "room.passphrase.set",
-      passphrase: "",
-    });
+    expect(applyRoomPassphrase(tokens, "R1", "")).toBe(false);
+    expect(tokens.getPassphrase("R1")).toBeUndefined();
 
-    // Then
-    res._unsafeUnwrap();
-    expect(maybeRoomViewOf(store, timers, roomCode)?.passphraseProtected).toBe(false);
+    applyRoomPassphrase(tokens, "R1", "secret");
+    expect(applyRoomPassphrase(tokens, "R1", "  ")).toBe(false);
+    expect(tokens.getPassphrase("R1")).toBeUndefined();
   });
 
-  // #95 S3 以前は「ホスト以外のパスフレーズ設定は UNAUTHORIZED で拒否」だった。
-  // 役割の廃止で在室者なら誰でも設定できるようになったため、期待を反転させる。
-  it("作成者以外の参加者もパスフレーズを設定できる", async () => {
-    // Given（別 conn が後から参加する）
-    await handlers.handleCommand(guestConn, {
-      command: "room.join",
-      code: roomCode,
-      displayName: "Guest",
-    });
+  it("別のルームの合言葉には触れない", () => {
+    const tokens = createTokenStore();
+    applyRoomPassphrase(tokens, "R1", "secret");
 
-    // When
-    const result = await handlers.handleCommand(guestConn, {
-      command: "room.passphrase.set",
-      passphrase: "hirakegoma",
-    });
+    applyRoomPassphrase(tokens, "R2", "");
 
-    // Then
-    result._unsafeUnwrap();
-    expect(broadcaster.errorsTo(guestConn)).toEqual([]);
-    expect(maybeRoomViewOf(store, timers, roomCode)?.passphraseProtected).toBe(true);
+    expect(tokens.getPassphrase("R1")).toBe("secret");
   });
 });
 
@@ -110,6 +66,7 @@ describe("room.join のパスフレーズ検証", () => {
   let timers: InMemoryTimerStore;
   let broadcaster: SpyBroadcaster;
   let handlers: ReturnType<typeof makeHandlers>;
+  let tokens: TokenStore;
   let roomCode: string;
   const hostConn = "host-conn";
   const joinerConn = "joiner-conn";
@@ -118,9 +75,11 @@ describe("room.join のパスフレーズ検証", () => {
     store = new InMemoryRoomStore();
     timers = new InMemoryTimerStore();
     broadcaster = new SpyBroadcaster();
+    tokens = createTokenStore();
     handlers = makeTestHandlers({
       store,
       timers,
+      tokens,
       clock: new FakeClock(1000000),
       broadcaster,
       codeGen: new FakeCodeGen(),
@@ -137,10 +96,7 @@ describe("room.join のパスフレーズ検証", () => {
 
   it("パスフレーズ設定済みルームへ正しいパスフレーズで参加できる", async () => {
     // Given（host がパスフレーズを設定する）
-    await handlers.handleCommand(hostConn, {
-      command: "room.passphrase.set",
-      passphrase: "secret",
-    });
+    applyRoomPassphrase(tokens, roomCode, "secret");
     const before = maybeRoomViewOf(store, timers, roomCode)?.participants.length ?? 0;
 
     // When
@@ -158,10 +114,7 @@ describe("room.join のパスフレーズ検証", () => {
 
   it("パスフレーズ未提供は PASSPHRASE_REQUIRED で拒否（参加者数不変）", async () => {
     // Given
-    await handlers.handleCommand(hostConn, {
-      command: "room.passphrase.set",
-      passphrase: "secret",
-    });
+    applyRoomPassphrase(tokens, roomCode, "secret");
     const before = maybeRoomViewOf(store, timers, roomCode)?.participants.length ?? 0;
 
     // When
@@ -179,10 +132,7 @@ describe("room.join のパスフレーズ検証", () => {
 
   it("パスフレーズ不一致は PASSPHRASE_MISMATCH で拒否（参加者数不変）", async () => {
     // Given
-    await handlers.handleCommand(hostConn, {
-      command: "room.passphrase.set",
-      passphrase: "secret",
-    });
+    applyRoomPassphrase(tokens, roomCode, "secret");
     const before = maybeRoomViewOf(store, timers, roomCode)?.participants.length ?? 0;
 
     // When
@@ -217,10 +167,7 @@ describe("room.join のパスフレーズ検証", () => {
 
   it("正規化: 設定側の前後空白は無視され、trim 後一致で参加できる", async () => {
     // Given（host が前後空白付きで設定 → サーバは trim して保持）
-    await handlers.handleCommand(hostConn, {
-      command: "room.passphrase.set",
-      passphrase: "secret ",
-    });
+    applyRoomPassphrase(tokens, roomCode, "secret ");
     const before = maybeRoomViewOf(store, timers, roomCode)?.participants.length ?? 0;
 
     // When（参加側は空白なしの "secret"）
@@ -238,10 +185,7 @@ describe("room.join のパスフレーズ検証", () => {
 
   it("resume（再接続）はパスフレーズ不要で成功する（再認証されない）", async () => {
     // Given（初回参加＝正しいパスフレーズで resumeToken を得る）
-    await handlers.handleCommand(hostConn, {
-      command: "room.passphrase.set",
-      passphrase: "secret",
-    });
+    applyRoomPassphrase(tokens, roomCode, "secret");
     await handlers.handleCommand(joinerConn, {
       command: "room.join",
       code: roomCode,

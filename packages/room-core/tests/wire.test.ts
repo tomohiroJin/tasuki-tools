@@ -148,3 +148,62 @@ describe("生死の照会の wire", () => {
     expect(parsed.success).toBe(false);
   });
 });
+
+/**
+ * 合言葉の設定・解除（#638）。timer のコマンドだった `room.passphrase.set` を、ルーム（ハブ）の言葉へ移した。
+ * 在室の接続から届くので `code` を持たない（宛先は接続が決める）。
+ */
+describe("合言葉の設定の wire", () => {
+  it("Given 合言葉つきの設定 / When 検証する / Then 通る", () => {
+    const parsed = v.safeParse(HubCommandSchema, { command: "room.passphrase.set", passphrase: "ひらけごま" });
+
+    expect(parsed.success).toBe(true);
+  });
+
+  it("Given 空文字（解除） / When 検証する / Then 通る", () => {
+    const parsed = v.safeParse(HubCommandSchema, { command: "room.passphrase.set", passphrase: "" });
+
+    expect(parsed.success).toBe(true);
+  });
+
+  it("Given 上限ちょうど / 上限超え / When 検証する / Then 前者は通り後者は落ちる", () => {
+    const at = v.safeParse(HubCommandSchema, { command: "room.passphrase.set", passphrase: "a".repeat(MAX_PASSPHRASE) });
+    const over = v.safeParse(HubCommandSchema, {
+      command: "room.passphrase.set",
+      passphrase: "a".repeat(MAX_PASSPHRASE + 1),
+    });
+
+    expect(at.success).toBe(true);
+    expect(over.success).toBe(false);
+  });
+
+  it("Given 合言葉の無い設定 / When 検証する / Then 落ちる", () => {
+    expect(v.safeParse(HubCommandSchema, { command: "room.passphrase.set" }).success).toBe(false);
+  });
+
+  it("Given 余剰フィールド（code）を混ぜた設定 / When 検証する / Then 落ちる", () => {
+    // 宛先は接続が決める。コードを受け取ると、別ルームの合言葉を書き換える経路の入口になる
+    const parsed = v.safeParse(HubCommandSchema, { command: "room.passphrase.set", passphrase: "x", code: "R" });
+
+    expect(parsed.success).toBe(false);
+  });
+});
+
+describe("名簿の合言葉の印", () => {
+  it("Given passphraseProtected を持つ名簿 / When 検証する / Then 通り値が残る", () => {
+    const parsed = parseRoster({ ...roster, passphraseProtected: true });
+
+    expect(parsed.success).toBe(true);
+    if (parsed.success && parsed.output.type === "roster") {
+      expect(parsed.output.room.passphraseProtected).toBe(true);
+    }
+  });
+
+  it("Given 印の無い名簿（古いサーバー） / When 検証する / Then 通る", () => {
+    expect(parseRoster(roster).success).toBe(true);
+  });
+
+  it("Given 真偽値でない印 / When 検証する / Then 落ちる", () => {
+    expect(parseRoster({ ...roster, passphraseProtected: "yes" }).success).toBe(false);
+  });
+});

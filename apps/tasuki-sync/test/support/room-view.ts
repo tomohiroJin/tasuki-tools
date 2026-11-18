@@ -161,8 +161,5 @@ export function putRoomView(
     phase: room.phase,
     sessionRecords: room.sessionRecords,
     handoffNote: room.handoffNote,
-    ...(room.passphraseProtected !== undefined
-      ? { passphraseProtected: room.passphraseProtected }
-      : {}),
   });
 }

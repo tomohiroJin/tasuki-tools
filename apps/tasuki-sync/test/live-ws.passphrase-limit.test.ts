@@ -8,7 +8,7 @@
  */
 import { afterEach, describe, expect, it } from "bun:test";
 import { MAX_PASSPHRASE } from "@tasuki/room-core";
-import { createRoom, startLiveSyncServer, type LiveSyncServer } from "./support/live-sync-server.js";
+import { createRoom, setPassphraseViaHub, startLiveSyncServer, type LiveSyncServer } from "./support/live-sync-server.js";
 
 type Entry = "hub" | "topic" | "roulette" | "agenda" | "checkin" | "timer";
 const ENTRIES: readonly Entry[] = ["hub", "topic", "roulette", "agenda", "checkin", "timer"];
@@ -55,9 +55,9 @@ async function joinWithPassphraseOf(entry: Entry, length: number): Promise<strin
   const s = startLiveSyncServer();
   server = s;
   const owner = await s.connect("owner");
-  const { code } = await createRoom(owner, "オーナー");
-  owner.send({ command: "room.passphrase.set", passphrase: "ひみつ" });
-  await settle(owner);
+  const room = await createRoom(owner, "オーナー");
+  const { code } = room;
+  await setPassphraseViaHub(s, room, "オーナー", "ひみつ");
 
   const client = await connect(s, entry);
   const before = client.received.length;
@@ -78,20 +78,6 @@ describe("room.join の合言葉の長さの上限（#377）", () => {
     }, 20_000);
   }
 
-  it("Given timer の入口 / When 上限を 1 字超える合言葉を掛ける / Then INVALID_COMMAND で断る", async () => {
-    // Given
-    const s = startLiveSyncServer();
-    server = s;
-    const owner = await s.connect("owner");
-    await createRoom(owner, "オーナー");
-    const before = owner.received.length;
-
-    // When
-    owner.send({ command: "room.passphrase.set", passphrase: "a".repeat(MAX_PASSPHRASE + 1) });
-    await settle(owner);
-
-    // Then
-    const frames = owner.received.slice(before) as { type?: string; code?: string }[];
-    expect(frames.find((f) => f.type === "error")?.code).toBe("INVALID_COMMAND");
-  }, 20_000);
+  // 合言葉を**設定する**側の上限は、ハブの `room.passphrase.set` が同じ `MAX_PASSPHRASE` を境界で当てる
+  // （#638。`live-ws.hub-passphrase.test.ts`）。
 });

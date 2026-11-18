@@ -66,7 +66,7 @@ import { boundaryErrorCode } from "./connection-errors.js";
 
 /**
  * ルーレットの接続が受け取る言葉。**ハブの言葉（`room.join` のため）とルーレットのコマンドの和**。
- * ハブの言葉のうち `room.create` / `room.check` も境界は通るが、下の振り分けで拒む。
+ * ハブの言葉のうち `room.create` / `room.check` / `room.passphrase.set` も境界は通るが、下の振り分けで拒む。
  */
 const RouletteConnectionMessageSchema = v.union([HubCommandSchema, RouletteCommandSchema]);
 
@@ -310,7 +310,7 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
         return;
       }
       // ルーレットの接続はルームを作らず、生死も照会しない（どちらも玄関の仕事）。
-      if (cmd.command === "room.create" || cmd.command === "room.check") {
+      if (cmd.command === "room.create" || cmd.command === "room.check" || cmd.command === "room.passphrase.set") {
         fail(connId, "INVALID_COMMAND");
         return;
       }

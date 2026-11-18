@@ -11,7 +11,6 @@ import type { Topic } from "@tasuki/topic-core";
 import { Card, SectionHeader } from "./primitives.js";
 import { TopicCard } from "./components/TopicCard.js";
 import { SessionConfigPanel } from "./components/SessionConfigPanel.js";
-import { PassphrasePanel } from "./components/PassphrasePanel.js";
 import { EmptyHint } from "./components/EmptyHint.js";
 import { NotifySettingsPanel } from "./components/NotifySettingsPanel.js";
 import { participantLabel } from "@tasuki/room-core";
@@ -42,8 +41,6 @@ interface LobbyProps {
   onMoveRotation?: (fromIndex: number, toIndex: number) => void;
   /** ドライバー順をランダムに並べ替える（v2.3 #1）。member.shuffle を送る。 */
   onShuffle?: () => void;
-  /** ルームのパスフレーズ設定/解除（R4-2）。空文字で解除。 */
-  onSetPassphrase?: (passphrase: string) => void;
   /**
    * ルームのいまのお題（#91）。**読むだけ**（作る/直すのはお題ツールの仕事・spec T4）。
    * 未接続や `topic` フレーム未到達では無いので、無ければ描かない。
@@ -82,7 +79,6 @@ export function Lobby({
   onRemoveParticipant,
   onMoveRotation,
   onShuffle,
-  onSetPassphrase,
   topic = null,
 }: LobbyProps) {
   // 退出の確認対象（FR-075）。取り返しがつかない操作なので直接は実行しない。
@@ -133,7 +129,7 @@ export function Lobby({
         />
       )}
       {/* 段組みは部品層の `.ui-workspace`（#316 PR 3）。操作の面＝開始・設定・通知（狭い幅でも先に見える）、
-          脇（右・22rem）＝お題・参加者・パスフレーズ（招待は上の共通の見出し）。 */}
+          脇（右・22rem）＝お題・参加者（招待は上の共通の見出し。合言葉の設定は玄関のルームの画面にある・#638）。 */}
       <div className="ui-workspace ui-workspace--side-end">
         <div className="ui-workspace-main lobby-column">
         {startButton}
@@ -294,15 +290,6 @@ export function Lobby({
             </div>
           )}
         </Card>
-        {/* ルームのパスフレーズ設定/解除（R4-2）。設定はまれなので脇の最後に置く（#316 PR 3）。 */}
-        {onSetPassphrase && (
-          <Card>
-            <PassphrasePanel
-              protectedNow={!!room.passphraseProtected}
-              onSet={onSetPassphrase}
-            />
-          </Card>
-        )}
         </div>
       </div>
     </>

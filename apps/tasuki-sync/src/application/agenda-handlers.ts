@@ -55,7 +55,7 @@ import { boundaryErrorCode } from "./connection-errors.js";
 
 /**
  * 進行タイマーの接続が受け取る言葉。**ハブの言葉（`room.join` のため）と進行タイマーのコマンドの和**。
- * ハブの言葉のうち `room.create` / `room.check` も境界は通るが、下の振り分けで拒む。
+ * ハブの言葉のうち `room.create` / `room.check` / `room.passphrase.set` も境界は通るが、下の振り分けで拒む。
  */
 const AgendaConnectionMessageSchema = v.union([HubCommandSchema, AgendaCommandSchema]);
 
@@ -196,7 +196,7 @@ export function makeAgendaHandlers(deps: AgendaHandlerDeps): AgendaHandlers {
         return;
       }
       // 進行タイマーの接続はルームを作らず、生死も照会しない（どちらも玄関の仕事）。
-      if (cmd.command === "room.create" || cmd.command === "room.check") {
+      if (cmd.command === "room.create" || cmd.command === "room.check" || cmd.command === "room.passphrase.set") {
         fail(connId, "INVALID_COMMAND");
         return;
       }
