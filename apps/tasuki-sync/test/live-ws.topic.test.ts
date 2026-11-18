@@ -601,7 +601,7 @@ describe("お題の ai.unlock は room.join と同じレート制限のバケツ
     await server.close();
     server = startLiveSyncServer({
       AI_UNLOCK_KEY: "right",
-      CLAUDE_CODE_OAUTH_TOKEN: "sk-ant-oat01-dummy",
+      ANTHROPIC_API_KEY: "sk-ant-api03-dummy",
     });
   }
 
@@ -736,7 +736,7 @@ describe("お題の ai.unlock は、正しい合言葉で解錠する", () => {
     await server.close();
     server = startLiveSyncServer({
       AI_UNLOCK_KEY: "right",
-      CLAUDE_CODE_OAUTH_TOKEN: "sk-ant-oat01-dummy",
+      ANTHROPIC_API_KEY: "sk-ant-api03-dummy",
     });
     const hub = await server.connectHub("hub");
     const created = await hubCreate(hub, "AI 部屋", "あや");

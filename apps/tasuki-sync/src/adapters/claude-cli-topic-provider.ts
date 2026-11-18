@@ -4,7 +4,8 @@
  * - プロンプトは stdin 渡し（argv 長・エスケープ問題の回避）
  * - --strict-mcp-config 等でユーザー設定を読み込ませない（メモリ実測 726MB→355MB。spec 参照）
  * - `--setting-sources "" --tools ""` で組み込みツールと利用者設定を閉じる（docs/adr/0012 D10）
- * - OAuth トークンは子プロセスの env にのみ渡す（ログ・snapshot 非混入）
+ * - API キー（ANTHROPIC_API_KEY）は子プロセスの env にのみ渡す（ログ・snapshot 非混入）。
+ *   クレジット切れ（`Credit balance is too low`）は非ゼロ終了などの失敗として扱い、呼び出し側が定型へ縮退する
  */
 import { spawn } from "node:child_process";
 import { buildTopicPrompt, type Difficulty, type Language } from "@tasuki/topic-core";
@@ -27,8 +28,8 @@ export type SpawnFn = (
 ) => SpawnedProcess;
 
 export interface ClaudeCliTopicProviderOptions {
-  /** CLAUDE_CODE_OAUTH_TOKEN（sk-ant-oat01-...） */
-  token: string;
+  /** ANTHROPIC_API_KEY（sk-ant-api03-...。Console で発行する API キー。#459） */
+  apiKey: string;
   /** claude -p --model に渡す値 */
   model: string;
   /** テスト用の spawn 差し替え */
@@ -52,13 +53,13 @@ export function extractJsonObject(text: string): unknown {
 }
 
 export class ClaudeCliTopicProvider implements ServerTopicProvider {
-  private readonly token: string;
+  private readonly apiKey: string;
   private readonly model: string;
   private readonly spawnFn: SpawnFn;
   private readonly maxOutputBytes: number;
 
   constructor(opts: ClaudeCliTopicProviderOptions) {
-    this.token = opts.token;
+    this.apiKey = opts.apiKey;
     this.model = opts.model;
     this.spawnFn = opts.spawnFn ?? (spawn as unknown as SpawnFn);
     this.maxOutputBytes = opts.maxOutputBytes ?? DEFAULT_MAX_OUTPUT_BYTES;
@@ -98,10 +99,12 @@ export class ClaudeCliTopicProvider implements ServerTopicProvider {
 
       const child = this.spawnFn("claude", args, {
         env: {
-          // PATH/HOME は必要（バイナリ解決・内部キャッシュ）。トークンはここだけに渡す。
+          // 許可リスト。PATH/HOME は必要（バイナリ解決・内部キャッシュ）。API キーはここだけに渡す。
+          // 親の環境の CLAUDE_CODE_OAUTH_TOKEN・ANTHROPIC_AUTH_TOKEN などは渡さない
+          // （API キーだけで認証させ、クレジット側で精算させる。#459）
           PATH: process.env["PATH"],
           HOME: process.env["HOME"],
-          CLAUDE_CODE_OAUTH_TOKEN: this.token,
+          ANTHROPIC_API_KEY: this.apiKey,
         },
         stdio: ["pipe", "pipe", "pipe"],
       });

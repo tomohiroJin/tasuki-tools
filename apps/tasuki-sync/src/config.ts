@@ -54,8 +54,8 @@ export interface SyncConfig {
   adminToken: string | undefined;
   /** AI お題生成の解錠合言葉。未設定なら AI 機能は無効（解錠は常に失敗＝存在秘匿）。 */
   aiUnlockKey: string | undefined;
-  /** Claude サブスクの OAuth トークン（claude setup-token）。子プロセスの env にのみ渡す。 */
-  claudeOauthToken: string | undefined;
+  /** Anthropic Console の API キー（ANTHROPIC_API_KEY。#459）。子プロセスの env にのみ渡す。未設定なら AI 無効。 */
+  anthropicApiKey: string | undefined;
   /**
    * お題（topic）の AI 生成に使うモデル（`claude -p --model` に渡す）。
    * 名前と env 名（`AI_PROBLEM_MODEL`）は #91 以前からのものを据え置く。
@@ -190,7 +190,7 @@ export function loadSyncConfig(env: Record<string, string | undefined>): SyncCon
     roomIdleTtlMs: intEnv(env["ROOM_IDLE_TTL_MS"], 1_800_000),
     adminToken: (env["ADMIN_TOKEN"] ?? "").trim() || undefined,
     aiUnlockKey: (env["AI_UNLOCK_KEY"] ?? "").trim() || undefined,
-    claudeOauthToken: (env["CLAUDE_CODE_OAUTH_TOKEN"] ?? "").trim() || undefined,
+    anthropicApiKey: (env["ANTHROPIC_API_KEY"] ?? "").trim() || undefined,
     aiProblemModel: (env["AI_PROBLEM_MODEL"] ?? "").trim() || DEFAULT_AI_PROBLEM_MODEL,
     aiGenerationTimeoutMs: intEnv(env["AI_GENERATION_TIMEOUT_MS"], 60_000),
     // 0 を許容（=その日の AI 生成を全面停止）。負数・非数値は既定 100。

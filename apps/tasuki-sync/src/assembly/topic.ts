@@ -27,7 +27,7 @@ export interface AiBudget {
 /** 設定から AI の予算を決める（トークンと合言葉が両方あるときだけ有効。spec 2026-06-12 参照）。 */
 export function createAiBudget(base: Pick<AssemblyBase, "config" | "clock">): AiBudget {
   const { config, clock } = base;
-  const aiReady = Boolean(config.claudeOauthToken && config.aiUnlockKey);
+  const aiReady = Boolean(config.anthropicApiKey && config.aiUnlockKey);
   return { aiReady, aiLimiter: aiReady ? new AiLimiter({ clock, dailyLimit: config.aiDailyLimit }) : undefined };
 }
 
@@ -58,7 +58,7 @@ export function createTopicResources(
     clock,
     publish: (roomCode) => broadcaster.publish(roomCode),
     provider: ai.aiReady
-      ? new ClaudeCliTopicProvider({ token: config.claudeOauthToken!, model: config.aiProblemModel })
+      ? new ClaudeCliTopicProvider({ apiKey: config.anthropicApiKey!, model: config.aiProblemModel })
       : undefined,
     aiLimiter: ai.aiLimiter,
     aiTimeoutMs: config.aiGenerationTimeoutMs,

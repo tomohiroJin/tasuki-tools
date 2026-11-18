@@ -7,6 +7,7 @@ import {
   type SpawnFn,
   type SpawnedProcess,
 } from "../src/adapters/claude-cli-topic-provider.js";
+import { ProviderFailure } from "../src/ports/server-topic-provider.js";
 
 /** spawn の戻り値を模す最小フェイク */
 function makeFakeChild() {
@@ -48,7 +49,7 @@ describe("ClaudeCliTopicProvider", () => {
   function makeProvider(fake: ReturnType<typeof makeFakeChild>) {
     const spawnFn: SpawnFn = jest.fn(() => fake.child);
     const provider = new ClaudeCliTopicProvider({
-      token: "sk-ant-oat01-test",
+      apiKey: "sk-ant-api03-test",
       model: "sonnet",
       spawnFn,
     });
@@ -77,9 +78,9 @@ describe("ClaudeCliTopicProvider", () => {
     expect(args).toContain("--output-format");
     expect(args).toContain("--strict-mcp-config");
     expect(args).toContain("sonnet");
-    // OAuth トークンは子プロセスの env にのみ渡る
+    // API キーは子プロセスの env にのみ渡る
     const opts = call[2] as { env: Record<string, string> };
-    expect(opts.env["CLAUDE_CODE_OAUTH_TOKEN"]).toBe("sk-ant-oat01-test");
+    expect(opts.env["ANTHROPIC_API_KEY"]).toBe("sk-ant-api03-test");
     // プロンプトは stdin 渡し（argv に乗せない）。buildTopicPrompt の出力そのものと一致することを見る
     expect(fake.written.join("")).toBe(buildTopicPrompt("TypeScript", "easy"));
   });
@@ -130,6 +131,79 @@ describe("ClaudeCliTopicProvider", () => {
     expect(fake.child.kill).toHaveBeenCalled();
   });
 
+  it("親の環境の認証情報（旧 OAuth トークン・別の API 設定）は子の env へ漏れない（#459）", async () => {
+    // Given（親の環境に旧トークンなどがある）
+    const saved = { ...process.env };
+    process.env["CLAUDE_CODE_OAUTH_TOKEN"] = "sk-ant-oat01-parent";
+    process.env["ANTHROPIC_AUTH_TOKEN"] = "parent-auth";
+    process.env["ANTHROPIC_BASE_URL"] = "https://example.invalid";
+    try {
+      const fake = makeFakeChild();
+      const { provider, spawnFn } = makeProvider(fake);
+
+      // When
+      const p = provider.generate("TypeScript", "easy", new AbortController().signal);
+      fake.stdout.emit("data", Buffer.from(JSON.stringify({ result: JSON.stringify(TOPIC_JSON) })));
+      (fake.child as unknown as EventEmitter).emit("close", 0);
+      await p;
+
+      // Then（許可リスト: PATH・HOME・ANTHROPIC_API_KEY だけ。API キーだけで認証される）
+      const opts = (spawnFn as ReturnType<typeof jest.fn>).mock.calls[0]![2] as {
+        env: Record<string, string | undefined>;
+      };
+      expect(Object.keys(opts.env).sort()).toEqual(["ANTHROPIC_API_KEY", "HOME", "PATH"]);
+      expect(opts.env["CLAUDE_CODE_OAUTH_TOKEN"]).toBeUndefined();
+    } finally {
+      process.env["CLAUDE_CODE_OAUTH_TOKEN"] = saved["CLAUDE_CODE_OAUTH_TOKEN"];
+      if (saved["CLAUDE_CODE_OAUTH_TOKEN"] === undefined) delete process.env["CLAUDE_CODE_OAUTH_TOKEN"];
+      delete process.env["ANTHROPIC_AUTH_TOKEN"];
+      delete process.env["ANTHROPIC_BASE_URL"];
+    }
+  });
+
+  it("クレジット切れ（非ゼロ exit・stderr）は processError で失敗し、キーは伏せる（#459）", async () => {
+    // Given
+    const fake = makeFakeChild();
+    const { provider } = makeProvider(fake);
+
+    // When
+    const p = provider.generate("TypeScript", "easy", new AbortController().signal);
+    fake.stderr.emit("data", Buffer.from("Credit balance is too low (key sk-ant-api03-secret456)"));
+    (fake.child as unknown as EventEmitter).emit("close", 1);
+
+    // Then
+    const err = await p.then(
+      () => null,
+      (e: unknown) => e,
+    );
+    expect(err).toBeInstanceOf(ProviderFailure);
+    expect((err as ProviderFailure).reason).toBe("processError");
+    expect(String(err)).toContain("Credit balance is too low");
+    expect(String(err)).not.toContain("secret456");
+  });
+
+  it("クレジット切れが exit 0 の JSON（is_error・result が文章）で返っても invalid で失敗する（#459）", async () => {
+    // Given
+    const fake = makeFakeChild();
+    const { provider } = makeProvider(fake);
+
+    // When
+    const p = provider.generate("TypeScript", "easy", new AbortController().signal);
+    fake.stdout.emit(
+      "data",
+      Buffer.from(JSON.stringify({ is_error: true, result: "Credit balance is too low" })),
+    );
+    (fake.child as unknown as EventEmitter).emit("close", 0);
+
+    // Then
+    const err = await p.then(
+      () => null,
+      (e: unknown) => e,
+    );
+    expect(err).toBeInstanceOf(ProviderFailure);
+    expect((err as ProviderFailure).reason).toBe("invalid");
+  });
+
   it("トークンが argv に混入しない", async () => {
     // Given
     const fake = makeFakeChild();
@@ -143,7 +217,7 @@ describe("ClaudeCliTopicProvider", () => {
 
     // Then
     const args = (spawnFn as ReturnType<typeof jest.fn>).mock.calls[0]![1] as string[];
-    expect(args.join(" ")).not.toContain("sk-ant-oat01-test");
+    expect(args.join(" ")).not.toContain("sk-ant-api03-test");
   });
 
   it("stderr 中のトークン様文字列はエラーメッセージで伏せられる", async () => {
@@ -153,7 +227,7 @@ describe("ClaudeCliTopicProvider", () => {
 
     // When
     const p = provider.generate("TypeScript", "easy", new AbortController().signal);
-    fake.stderr.emit("data", Buffer.from("auth failed for sk-ant-oat01-secret123"));
+    fake.stderr.emit("data", Buffer.from("auth failed for sk-ant-api03-secret123"));
     (fake.child as unknown as EventEmitter).emit("close", 1);
 
     // Then
@@ -183,7 +257,7 @@ describe("ClaudeCliTopicProvider", () => {
     const fake = makeFakeChild();
     const spawnFn: SpawnFn = jest.fn(() => fake.child);
     const provider = new ClaudeCliTopicProvider({
-      token: "sk-ant-oat01-test",
+      apiKey: "sk-ant-api03-test",
       model: "sonnet",
       spawnFn,
       maxOutputBytes: 50,

@@ -96,7 +96,7 @@ sync は Bun 起動で **cwd（`apps/tasuki-sync`）の `.env` を自動で読�
 
 ```bash
 cp apps/tasuki-sync/.env.example apps/tasuki-sync/.env
-# apps/tasuki-sync/.env を編集（最低限 CLAUDE_CODE_OAUTH_TOKEN と AI_UNLOCK_KEY。
+# apps/tasuki-sync/.env を編集（最低限 ANTHROPIC_API_KEY と AI_UNLOCK_KEY。
 # 下のログ例に合わせるなら AI_PROBLEM_MODEL=haiku も設定。未設定なら既定 sonnet）
 ```
 
@@ -110,7 +110,7 @@ pnpm dev
 起動ログに `AI お題生成: 有効 (model=haiku)` が出れば設定成功です（無効時は `無効 (トークン/合言葉 未設定)`）。
 モデルは未指定なら `sonnet`。検証では速くて安い `haiku` が便利です。
 
-> コマンドラインに env を直接書いて渡すこともできます（`CLAUDE_CODE_OAUTH_TOKEN=... pnpm dev`）。
+> コマンドラインに env を直接書いて渡すこともできます（`ANTHROPIC_API_KEY=... pnpm dev`）。
 > その場合 `turbo.json` の `dev.passThroughEnv` 経由で透過します（新しい env を足すときは
 > `passThroughEnv` も更新）。ただし `.env` 方式のほうがシェル履歴にトークンが残らず安全です。
 
@@ -118,7 +118,7 @@ AI 関連の環境変数:
 
 | 変数 | 既定 | 説明 |
 |---|---|---|
-| `CLAUDE_CODE_OAUTH_TOKEN` | （空） | `claude setup-token` で発行する OAuth トークン。子プロセスの env にのみ渡る（argv・ログ・snapshot 非混入） |
+| `ANTHROPIC_API_KEY` | （空） | Anthropic Console で発行する API キー（#459。旧 `CLAUDE_CODE_OAUTH_TOKEN` はもう読まない）。子プロセスの env にのみ渡る（argv・ログ・snapshot 非混入） |
 | `AI_UNLOCK_KEY` | （空） | 解錠の合言葉。これを知る在室者なら誰でも AI 生成を有効化できる（#95 S3 以前は host のみ） |
 | `AI_PROBLEM_MODEL` | `sonnet` | `claude -p --model` に渡すモデル名 |
 | `AI_GENERATION_TIMEOUT_MS` | `60000` | 生成のタイムアウト（ms）。超過で定型へ縮退 |

@@ -67,7 +67,7 @@ const server = (() => {
 logger.info("listening", buildListeningLogFields(config, server.port));
 logger.info("admin", { enabled: config.adminToken !== undefined });
 logger.info("ai", {
-  enabled: config.claudeOauthToken !== undefined && config.aiUnlockKey !== undefined,
+  enabled: config.anthropicApiKey !== undefined && config.aiUnlockKey !== undefined,
   // お題（topic）の AI 生成に使うモデル。env 名は #91 以前からのものを据え置く。
   defaultModel: config.aiProblemModel === DEFAULT_AI_PROBLEM_MODEL,
 });
