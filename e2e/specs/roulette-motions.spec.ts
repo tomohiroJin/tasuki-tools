@@ -71,11 +71,15 @@ async function forceMotions(page: Page): Promise<void> {
 async function recordResultTime(page: Page): Promise<void> {
   await page.evaluate(() => {
     const target = document.querySelector('.roulette-caption[role="status"]');
-    const w = window as unknown as { __resultAt: number | null };
+    const w = window as unknown as { __resultAt: number | null; __spinAt: number | null };
     w.__resultAt = null;
+    w.__spinAt = null;
     if (target === null) throw new Error('結果の一言の欄が無い');
     new MutationObserver(() => {
-      if (w.__resultAt === null && /^次の進行役は /.test(target.textContent ?? '')) w.__resultAt = Date.now();
+      const text = target.textContent ?? '';
+      // 回し始めを受けた時刻（「…さんが回しました」が出た時刻）。クリックと往復の遅れを含めずに、回転の長さを測るため
+      if (w.__spinAt === null && /さんが回しました$/.test(text)) w.__spinAt = Date.now();
+      if (w.__resultAt === null && /^次の進行役は /.test(text)) w.__resultAt = Date.now();
     }).observe(target, { childList: true, subtree: true, characterData: true });
   });
 }
@@ -85,6 +89,10 @@ async function resultTime(page: Page): Promise<number | null> {
 }
 
 /** 円盤の回転子の角度（`transform="rotate(…)"`）。無ければ NaN */
+async function spinTime(page: Page): Promise<number | null> {
+  return page.evaluate(() => (window as unknown as { __spinAt: number | null }).__spinAt);
+}
+
 async function rotorAngle(page: Page): Promise<number> {
   const transform = await page.locator('.wheel-rotor').getAttribute('transform');
   return Number(/rotate\(([-\d.e]+)\)/.exec(transform ?? '')?.[1]);
@@ -146,10 +154,15 @@ test.describe('ルーレットの変わった動きは全員の画面で同じ�
     expect(timeA, 'A の結果の時刻を記録した').not.toBeNull();
     expect(timeB, 'B の結果の時刻を記録した').not.toBeNull();
     expect(Math.abs((timeA ?? 0) - (timeB ?? 0)), 'A と B が結果を言った時刻の差').toBeLessThanOrEqual(SAME_TIME_TOLERANCE_MS);
-    // 延びた長さ（約 6.3 秒）で言う: 普通の時刻より後で、延びた長さから大きく外れない
-    const stoppedAfter = (timeA ?? 0) - clickedAt;
+    // 延びた長さ（約 6.3 秒）で言う。**A が回し始めを受けてから結果を言うまで**を測る（クリックと往復の遅れを含めない）。
+    //   下限は普通の長さ（4000）+ 500: 普通の長さで止まる実装（4000）と分かれる。
+    //   上限は延びた長さ + 普通の長さの半分（MOVED_MS + 2000 = 8300）: 二重に延びる実装（動きの分を 2 回足して約 8600）と分かれ、
+    //   壁時計の揺れ（描画・タイマーの遅れ。混んだ環境で 1500ms を越えた）では落ちない
+    const spunAt = await spinTime(page);
+    expect(spunAt, 'A の回し始めの時刻を記録した').not.toBeNull();
+    const stoppedAfter = (timeA ?? 0) - (spunAt ?? 0);
     expect(stoppedAfter, 'A が結果を言うまでの時間は、普通の長さより長い').toBeGreaterThan(PLAIN_MS + 500);
-    expect(stoppedAfter, 'A が結果を言うまでの時間は、延びた長さに近い').toBeLessThan(MOVED_MS + 1500);
+    expect(stoppedAfter, 'A が結果を言うまでの時間は、延びた長さに近い（二重に延びていない）').toBeLessThan(MOVED_MS + PLAIN_MS / 2);
 
     // Then: 動きを差し込んでも、画面は壊れていない（コンソールにエラーが無い）
     expect(consoleWatcher.errors, 'A のコンソールのエラー').toEqual([]);
