@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { METHOD_IDS, METHODS, methodsOf } from "../src/methods.js";
 
 describe("METHODS（やり方の表）", () => {
-  it("14 種のやり方を持つ（各側 7 つ）", () => {
-    expect(METHOD_IDS).toHaveLength(14);
+  it("26 種のやり方を持つ（各側 13。#635 で各側 6 つ足した）", () => {
+    expect(METHOD_IDS).toHaveLength(26);
     expect(Object.keys(METHODS).sort()).toEqual([...METHOD_IDS].sort());
   });
 
@@ -23,12 +23,39 @@ describe("METHODS（やり方の表）", () => {
       "next-meeting": { side: "checkout", cards: ["keep", "shorter", "fewer", "skip"], defaultVisibility: "anonymous" },
       "weather-end": { side: "checkout", cards: ["sunny", "cloudy", "rain", "thunder"], defaultVisibility: "named" },
       understanding: { side: "checkout", cards: ["1", "2", "3", "4", "5"], defaultVisibility: "anonymous" },
+      readiness: { side: "checkin", cards: ["ready", "mostly", "later", "not-yet"], defaultVisibility: "named" },
+      busyness: { side: "checkin", cards: ["roomy", "normal", "packed", "overflow"], defaultVisibility: "anonymous" },
+      "talk-wish": { side: "checkin", cards: ["1", "2", "3", "4", "5"], defaultVisibility: "anonymous" },
+      battery: { side: "checkin", cards: ["full", "half", "low", "empty"], defaultVisibility: "anonymous" },
+      clarity: { side: "checkin", cards: ["both", "purpose", "unclear"], defaultVisibility: "anonymous" },
+      worry: { side: "checkin", cards: ["none", "some", "big"], defaultVisibility: "anonymous" },
+      agreement: { side: "checkout", cards: ["1", "2", "3", "4", "5"], defaultVisibility: "anonymous" },
+      "next-step": { side: "checkout", cards: ["clear", "mostly", "vague", "unknown"], defaultVisibility: "named" },
+      voice: { side: "checkout", cards: ["plenty", "some", "none"], defaultVisibility: "anonymous" },
+      pace: { side: "checkout", cards: ["fast", "right", "slow"], defaultVisibility: "anonymous" },
+      fatigue: { side: "checkout", cards: ["fine", "bit", "very"], defaultVisibility: "anonymous" },
+      message: { side: "checkout", cards: ["now", "later", "none"], defaultVisibility: "named" },
     });
   });
 
-  it("既定が匿名なのは energy・expectation・roti・next-meeting・understanding だけ", () => {
+  it("既定が匿名のやり方（#635 の 12 のうち名前つきは readiness・next-step・message だけ）", () => {
     const anon = METHOD_IDS.filter((m) => METHODS[m].defaultVisibility === "anonymous");
-    expect(anon).toEqual(["energy", "expectation", "roti", "next-meeting", "understanding"]);
+    expect(anon).toEqual([
+      "energy",
+      "expectation",
+      "roti",
+      "next-meeting",
+      "understanding",
+      "busyness",
+      "talk-wish",
+      "battery",
+      "clarity",
+      "worry",
+      "agreement",
+      "voice",
+      "pace",
+      "fatigue",
+    ]);
   });
 
   it("札の ID は 1〜16 字で、やり方の中で重複せず、枚数は 3〜5", () => {
@@ -46,7 +73,7 @@ describe("METHODS（やり方の表）", () => {
 });
 
 describe("methodsOf", () => {
-  it("checkin は weather〜mood-start の 7 つ（METHOD_IDS の並び）", () => {
+  it("checkin は weather〜mood-start の 7 つと #635 の 6 つ（METHOD_IDS の並び）", () => {
     expect(methodsOf("checkin")).toEqual([
       "weather",
       "energy",
@@ -55,10 +82,16 @@ describe("methodsOf", () => {
       "role",
       "expectation",
       "mood-start",
+      "readiness",
+      "busyness",
+      "talk-wish",
+      "battery",
+      "clarity",
+      "worry",
     ]);
   });
 
-  it("checkout は roti〜understanding の 7 つ", () => {
+  it("checkout は roti〜understanding の 7 つと #635 の 6 つ", () => {
     expect(methodsOf("checkout")).toEqual([
       "roti",
       "takeaway-done",
@@ -67,6 +100,12 @@ describe("methodsOf", () => {
       "next-meeting",
       "weather-end",
       "understanding",
+      "agreement",
+      "next-step",
+      "voice",
+      "pace",
+      "fatigue",
+      "message",
     ]);
   });
 });

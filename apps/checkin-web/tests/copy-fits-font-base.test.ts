@@ -1,13 +1,14 @@
 /**
  * UI の文言は書体の常用の層（base）に収める（`packages/ui/README.md`）。
  *
- * **ここが見るのは `src/copy.ts` と checkin-core の文言表だけである。** 画面（`.tsx`）に直書きした
+ * **ここが見るのは `src/copy.ts`・やり方の文言表（`method-copy.ts`）・小見出しの表（`method-groups.ts`）・checkin-core のエラーの文言だけである。** 画面（`.tsx`）に直書きした
  * 文言は、`tests/rendered-text-fits-font-base.test.tsx`（描いた画面の文字を当てる）が拾う。
  */
 import { describe, expect, it } from 'vitest';
 import { CHECKIN_ERROR_CODES, checkinErrorMessageFor } from '@tasuki/checkin-core';
 import * as copy from '../src/copy';
 import { METHOD_COPY } from '../src/method-copy';
+import { METHOD_GROUPS } from '../src/method-groups';
 import { baseFaces, outsideBase } from '@tasuki/test-css/font-base';
 
 /**
@@ -25,7 +26,15 @@ function allTexts(): string[] {
     m.prompt,
     ...Object.values(m.cards).flatMap((c) => [c.name, c.meaning]),
   ]);
-  return [...fromCopy, ...Object.values(copy.SIDE_KICKER), ...Object.values(copy.SIDE_HINT), ...fromMethods, ...CHECKIN_ERROR_CODES.map(checkinErrorMessageFor)];
+  const fromGroups = Object.values(METHOD_GROUPS).flatMap((groups) => groups.map((g) => g.title));
+  return [
+    ...fromCopy,
+    ...Object.values(copy.SIDE_KICKER),
+    ...Object.values(copy.SIDE_HINT),
+    ...fromMethods,
+    ...fromGroups,
+    ...CHECKIN_ERROR_CODES.map(checkinErrorMessageFor),
+  ];
 }
 
 /**

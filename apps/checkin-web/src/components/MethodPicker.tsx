@@ -1,14 +1,25 @@
 /**
- * やり方の選択（#406・設計 §4）。チェックイン／チェックアウトを切り替え、その側の 7 つのやり方か「ランダム」で決める（8 枚で並べる・#465）。
+ * やり方の選択（#406・設計 §4）。チェックイン／チェックアウトを切り替え、その側の 13 のやり方か「ランダム」で決める。
+ * やり方は目的ごとの小見出し（`method-groups.ts`）で 3 つの並びに分け、ランダムは末尾の「おまかせ」に置く（#635）。
  * **手元だけの状態**（側の切り替え）を持つ。送るのは選んだとき（`choose`）か引いたとき（`draw`）だけ。
  * 初めに開く側は呼び出し側が渡す（いまの回の側。回が無ければチェックイン）。
  * 切断中（`canOperate` が偽）はやり方とランダムを押させない（側の切り替えは手元だけなので押せる）。
  */
-import { useState, type CSSProperties, type Ref } from 'react';
-import { METHODS, SIDES, methodsOf, type MethodId, type Side } from '@tasuki/checkin-core';
-import { BACK_LABEL, METHOD_PICKER_HEADING, PICKER_REPLACE_NOTE, RANDOM_HINT, RANDOM_LABEL, SIDE_HINT, SIDE_LABEL } from '../copy';
+import { useState, type CSSProperties, type ReactNode, type Ref } from 'react';
+import { METHODS, SIDES, type MethodId, type Side } from '@tasuki/checkin-core';
+import {
+  BACK_LABEL,
+  METHOD_PICKER_HEADING,
+  PICKER_REPLACE_NOTE,
+  RANDOM_GROUP_TITLE,
+  RANDOM_HINT,
+  RANDOM_LABEL,
+  SIDE_HINT,
+  SIDE_LABEL,
+} from '../copy';
 import { CardFace } from './CardFace';
 import { METHOD_COPY } from '../method-copy';
+import { METHOD_GROUPS } from '../method-groups';
 
 interface Props {
   canOperate: boolean;
@@ -20,6 +31,21 @@ interface Props {
   onDraw: (side: Side) => void;
   /** 回があるときだけ。選ばずに元の画面へ戻る */
   onCancel?: (() => void) | undefined;
+}
+
+/** 小見出しと、その下の札の並び。並びの読み上げ名は小見出し */
+function MethodGroupSection({ id, title, children }: { id: string; title: string; children: ReactNode }) {
+  const headingId = `method-group-${id}`;
+  return (
+    <section className="method-group" aria-labelledby={headingId}>
+      <h3 id={headingId} className="method-group-heading">
+        {title}
+      </h3>
+      <ul className="method-list" aria-labelledby={headingId}>
+        {children}
+      </ul>
+    </section>
+  );
 }
 
 export function MethodPicker({ canOperate, initialSide, headingRef, onChoose, onDraw, onCancel }: Props) {
@@ -51,36 +77,40 @@ export function MethodPicker({ canOperate, initialSide, headingRef, onChoose, on
         ))}
       </div>
       <p id="method-side-hint" className="ui-note method-side-hint">{SIDE_HINT[side]}</p>
-      <ul className="method-list">
-        {methodsOf(side).map((m) => (
-          <li key={m}>
-            <button
-              type="button"
-              className="method-option"
-              aria-labelledby={`method-${m}-title`}
-              aria-describedby={describedBy(`method-${m}-prompt`)}
-              disabled={!canOperate}
-              onClick={() => onChoose(m)}
-            >
-              {/* 札の見本（そのやり方の札を 3 枚まで少し重ねた扇）。飾りなので読み上げない */}
-              <span className="method-fan" aria-hidden="true">
-                {METHODS[m].cards.slice(0, 3).map((card, i) => (
-                  <span key={card} className="method-fan-card" style={{ '--k': i } as CSSProperties}>
-                    <CardFace method={m} card={card} />
+      {METHOD_GROUPS[side].map((group) => (
+        <MethodGroupSection key={group.id} id={group.id} title={group.title}>
+          {group.methods.map((m) => (
+            <li key={m}>
+              <button
+                type="button"
+                className="method-option"
+                aria-labelledby={`method-${m}-title`}
+                aria-describedby={describedBy(`method-${m}-prompt`)}
+                disabled={!canOperate}
+                onClick={() => onChoose(m)}
+              >
+                {/* 札の見本（そのやり方の札を 3 枚まで少し重ねた扇）。飾りなので読み上げない */}
+                <span className="method-fan" aria-hidden="true">
+                  {METHODS[m].cards.slice(0, 3).map((card, i) => (
+                    <span key={card} className="method-fan-card" style={{ '--k': i } as CSSProperties}>
+                      <CardFace method={m} card={card} />
+                    </span>
+                  ))}
+                </span>
+                <span className="method-text">
+                  <span id={`method-${m}-title`} className="method-title">
+                    {METHOD_COPY[m].title}
                   </span>
-                ))}
-              </span>
-              <span className="method-text">
-                <span id={`method-${m}-title`} className="method-title">
-                  {METHOD_COPY[m].title}
+                  <span id={`method-${m}-prompt`} className="method-prompt">
+                    {METHOD_COPY[m].prompt}
+                  </span>
                 </span>
-                <span id={`method-${m}-prompt`} className="method-prompt">
-                  {METHOD_COPY[m].prompt}
-                </span>
-              </span>
-            </button>
-          </li>
-        ))}
+              </button>
+            </li>
+          ))}
+        </MethodGroupSection>
+      ))}
+      <MethodGroupSection id="random" title={RANDOM_GROUP_TITLE}>
         <li>
           <button
             type="button"
@@ -106,7 +136,7 @@ export function MethodPicker({ canOperate, initialSide, headingRef, onChoose, on
             </span>
           </button>
         </li>
-      </ul>
+      </MethodGroupSection>
     </section>
   );
 }

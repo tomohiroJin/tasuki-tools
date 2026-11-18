@@ -26,6 +26,19 @@ export const METHOD_IDS = [
   "next-meeting",
   "weather-end",
   "understanding",
+  // #635 で各側に 6 つ足した（末尾に足す。#465 と同じ）
+  "readiness",
+  "busyness",
+  "talk-wish",
+  "battery",
+  "clarity",
+  "worry",
+  "agreement",
+  "next-step",
+  "voice",
+  "pace",
+  "fatigue",
+  "message",
 ] as const;
 export type MethodId = (typeof METHOD_IDS)[number];
 
@@ -53,6 +66,18 @@ export const METHODS: Readonly<Record<MethodId, MethodRule>> = {
   "next-meeting": { side: "checkout", cards: ["keep", "shorter", "fewer", "skip"], defaultVisibility: "anonymous" },
   "weather-end": { side: "checkout", cards: ["sunny", "cloudy", "rain", "thunder"], defaultVisibility: "named" },
   understanding: { side: "checkout", cards: ["1", "2", "3", "4", "5"], defaultVisibility: "anonymous" },
+  readiness: { side: "checkin", cards: ["ready", "mostly", "later", "not-yet"], defaultVisibility: "named" },
+  busyness: { side: "checkin", cards: ["roomy", "normal", "packed", "overflow"], defaultVisibility: "anonymous" },
+  "talk-wish": { side: "checkin", cards: ["1", "2", "3", "4", "5"], defaultVisibility: "anonymous" },
+  battery: { side: "checkin", cards: ["full", "half", "low", "empty"], defaultVisibility: "anonymous" },
+  clarity: { side: "checkin", cards: ["both", "purpose", "unclear"], defaultVisibility: "anonymous" },
+  worry: { side: "checkin", cards: ["none", "some", "big"], defaultVisibility: "anonymous" },
+  agreement: { side: "checkout", cards: ["1", "2", "3", "4", "5"], defaultVisibility: "anonymous" },
+  "next-step": { side: "checkout", cards: ["clear", "mostly", "vague", "unknown"], defaultVisibility: "named" },
+  voice: { side: "checkout", cards: ["plenty", "some", "none"], defaultVisibility: "anonymous" },
+  pace: { side: "checkout", cards: ["fast", "right", "slow"], defaultVisibility: "anonymous" },
+  fatigue: { side: "checkout", cards: ["fine", "bit", "very"], defaultVisibility: "anonymous" },
+  message: { side: "checkout", cards: ["now", "later", "none"], defaultVisibility: "named" },
 };
 
 /** 片側のやり方（`METHOD_IDS` の並びのまま） */

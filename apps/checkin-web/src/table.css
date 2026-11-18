@@ -104,6 +104,22 @@
   margin-block-start: calc(var(--space-3) * -1); /* 切り替えと一文は一組（段落の間隔 --space-5 を詰める） */
 }
 
+/* 目的ごとの小見出しと、その下の札の並び（#635）。小見出しは札の並びに寄せ（--space-2）、並びどうしは画面の段落の間隔（--space-5）で離す */
+.method-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.method-group-heading {
+  margin: 0;
+  padding-block-end: var(--space-1);
+  border-block-end: 1px solid var(--gold-edge);
+  color: var(--gold-bright);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+
 /* 札は縦長（上に扇・下に題と説明）。全札が同じ幅・同じ高さ（行は 1fr で揃える・#468 D1）。
    40rem 未満は 2 列（4 行）、40rem 以上は 4 列（2 行）。64rem 以上は中身を一段大きくする（会議室の投影・D2） */
 .method-list {

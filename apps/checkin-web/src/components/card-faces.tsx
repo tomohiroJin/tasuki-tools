@@ -7,14 +7,24 @@
 import type { ComponentType } from 'react';
 import type { CardId, MethodId } from '@tasuki/checkin-core';
 import { FACE_KINDS } from '../face-kinds';
+import { BatteryArt } from '../card-art/battery';
 import { BestPartArt } from '../card-art/best-part';
+import { BusynessArt } from '../card-art/busyness';
+import { ClarityArt } from '../card-art/clarity';
+import { FatigueArt } from '../card-art/fatigue';
+import { MessageArt } from '../card-art/message';
 import { MoodArt } from '../card-art/mood';
 import { MoodStartArt } from '../card-art/mood-start';
 import { NextMeetingArt } from '../card-art/next-meeting';
+import { NextStepArt } from '../card-art/next-step';
+import { PaceArt } from '../card-art/pace';
+import { ReadinessArt } from '../card-art/readiness';
 import { RoleArt } from '../card-art/role';
 import { TakeawayDoneArt } from '../card-art/takeaway-done';
 import { TakeawayGoalArt } from '../card-art/takeaway-goal';
+import { VoiceArt } from '../card-art/voice';
 import { WeatherArt } from '../card-art/weather';
+import { WorryArt } from '../card-art/worry';
 
 /** 札の顔の出し方。数字（数のやり方）か、絵（線画） */
 type NumeralFace = { readonly kind: 'numeral'; readonly numeral: (card: CardId) => string };
@@ -46,4 +56,16 @@ export const CARD_FACES: { readonly [M in MethodId]: FaceFor<(typeof FACE_KINDS)
   'next-meeting': art(NextMeetingArt),
   'weather-end': art(WeatherArt),
   understanding: cardIdNumeral,
+  readiness: art(ReadinessArt),
+  busyness: art(BusynessArt),
+  'talk-wish': cardIdNumeral,
+  battery: art(BatteryArt),
+  clarity: art(ClarityArt),
+  worry: art(WorryArt),
+  agreement: cardIdNumeral,
+  'next-step': art(NextStepArt),
+  voice: art(VoiceArt),
+  pace: art(PaceArt),
+  fatigue: art(FatigueArt),
+  message: art(MessageArt),
 };

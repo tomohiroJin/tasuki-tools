@@ -10,6 +10,8 @@ const NUMERIC = {
   roti: ['1', '2', '3', '4', '5'],
   understanding: ['1', '2', '3', '4', '5'],
   focus: ['2', '5', '8', '10'],
+  'talk-wish': ['1', '2', '3', '4', '5'],
+  agreement: ['1', '2', '3', '4', '5'],
 } as const;
 
 const ALL = METHOD_IDS.flatMap((method) => METHODS[method].cards.map((card) => [method, card] as const));
@@ -84,6 +86,17 @@ describe('CardFace', () => {
     const end = new Set(METHODS.mood.cards.map((card) => render(<CardFace method="mood" card={card} />).container.innerHTML));
     for (const card of METHODS['mood-start'].cards) {
       expect(end.has(render(<CardFace method="mood-start" card={card} />).container.innerHTML)).toBe(false);
+    }
+  });
+
+  it('絵の札は、終わりの天気を除き、別のやり方の札と同じ絵を持たない（#635・使い回すと見分けがつかない）', () => {
+    const owner = new Map<string, string>();
+    for (const [method, card] of ALL) {
+      if (method === 'weather-end' || method in NUMERIC) continue;
+      const html = render(<CardFace method={method} card={card} />).container.innerHTML;
+      const seen = owner.get(html);
+      expect(seen === undefined || seen.startsWith(`${method}/`), `${method}/${card} と ${seen}`).toBe(true);
+      owner.set(html, `${method}/${card}`);
     }
   });
 

@@ -18,28 +18,40 @@ import { chooseMethod, handCard, joinCheckinTool, openCheckinTool, pile, visibil
 const NAME_A = 'e2e-checkin-a';
 const NAME_B = 'e2e-checkin-b';
 
-/** やり方の選択の札（ランダムを含む 8 枚）の外接箱。 */
-async function pickerBoxes(page: Page): Promise<Array<{ x: number; y: number; width: number; height: number }>> {
+/** やり方の選択の札（各側 13 のやり方とランダムで 14 枚・#635）の外接箱と、属する小見出しの並びの番号。 */
+async function pickerBoxes(page: Page): Promise<Array<{ x: number; y: number; width: number; height: number; group: number }>> {
   const cards = page.locator('.method-list .method-option');
-  await expect(cards).toHaveCount(8);
-  const boxes = await cards.evaluateAll((els) =>
-    els.map((el) => {
+  await expect(cards).toHaveCount(14);
+  const boxes = await cards.evaluateAll((els) => {
+    const lists = [...document.querySelectorAll('.method-list')];
+    return els.map((el) => {
       const r = el.getBoundingClientRect();
-      return { x: r.x, y: r.y, width: r.width, height: r.height };
-    }),
-  );
+      return { x: r.x, y: r.y, width: r.width, height: r.height, group: lists.indexOf(el.closest('.method-list')!) };
+    });
+  });
   return boxes;
 }
 
 /**
  * 配置の検査は @core の流れの中（今の場所）に置く: ルームを増やさないため（ルームの増分は +1 のまま）。
- * 札が同じ幅・同じ高さで、列の数が期待どおりで、横スクロールが無いこと（#468 D1・D2）。 */
+ * 札が同じ幅で、同じ小見出しの並びの中では同じ高さで、列の数が期待どおりで、横スクロールが無いこと（#468 D1・D2）。
+ * 高さは並びごとに揃える（行を 1fr で揃えるのは並びの格子の中だけ。#635 で小見出しごとに並びを分けた）。
+ * 小見出しが札の並びの上にあり、並びと重ならないことも見る。 */
 async function expectPickerGrid(page: Page, columns: number): Promise<void> {
   const boxes = await pickerBoxes(page);
   for (const b of boxes) {
     expect(Math.abs(b.width - boxes[0]!.width), '札の幅が揃っている').toBeLessThanOrEqual(1);
-    expect(Math.abs(b.height - boxes[0]!.height), '札の高さが揃っている').toBeLessThanOrEqual(1);
+    const first = boxes.find((o) => o.group === b.group)!;
+    expect(Math.abs(b.height - first.height), `並び ${b.group} の札の高さが揃っている`).toBeLessThanOrEqual(1);
   }
+  const headingsAbove = await page.locator('.method-group').evaluateAll((groups) =>
+    groups.every((g) => {
+      const h = g.querySelector('.method-group-heading')!.getBoundingClientRect();
+      const l = g.querySelector('.method-list')!.getBoundingClientRect();
+      return h.height > 0 && h.bottom <= l.top + 0.5;
+    }),
+  );
+  expect(headingsAbove, '小見出しが札の並びの上にあり、重ならない').toBe(true);
   // 扇が札の外へはみ出さない（札の箱の内側に扇の箱が入る）
   const inside = await page.locator('.method-list .method-option').evaluateAll((els) =>
     els.every((el) => {
@@ -58,8 +70,11 @@ async function expectPickerGrid(page: Page, columns: number): Promise<void> {
   expect(overflow, '横スクロールが出ない').toBeLessThanOrEqual(0);
 }
 
-/** 全てのやり方（側・題・札の枚数）。手札の添え書きの検査（#480）で順に選ぶ */
-const ALL_METHODS: ReadonlyArray<readonly ['チェックイン' | 'チェックアウト', string, number]> = [
+/**
+ * 全てのやり方（側・題・札の枚数・#635 で足したものは出して開く札の名前）。手札の添え書きの検査（#480）で順に選ぶ。
+ * 4 つ目があるやり方は、その札を出して開き、その札の山に 1 枚あることまで見る（#635 の完了条件「選び、出し、開ける」）
+ */
+const ALL_METHODS: ReadonlyArray<readonly ['チェックイン' | 'チェックアウト', string, number, string?]> = [
   ['チェックイン', '今日の天気', 4],
   ['チェックイン', '元気メーター', 5],
   ['チェックイン', 'いま頭の何割がここに？', 4],
@@ -74,6 +89,18 @@ const ALL_METHODS: ReadonlyArray<readonly ['チェックイン' | 'チェック�
   ['チェックアウト', '次の打ち合わせは', 4],
   ['チェックアウト', '終わりの天気', 4],
   ['チェックアウト', 'わかった度', 5],
+  ['チェックイン', '準備の度合い', 4, 'だいたい'],
+  ['チェックイン', 'いそがしさ', 4, 'あふれている'],
+  ['チェックイン', '話したい度', 5, '3'],
+  ['チェックイン', '今日のバッテリー', 4, '満タン'],
+  ['チェックイン', 'この会の理解', 3, 'どちらもあいまい'],
+  ['チェックイン', '今日の気がかり', 3, '大きいのがある'],
+  ['チェックアウト', 'なっとく度', 5, '5'],
+  ['チェックアウト', '次の一手', 4, 'はっきりした'],
+  ['チェックアウト', '話せたか', 3, 'たっぷり話せた'],
+  ['チェックアウト', '進むペース', 3, 'ゆっくりすぎ'],
+  ['チェックアウト', '残った疲れ', 3, 'かなり疲れた'],
+  ['チェックアウト', 'だれかに言いたいこと', 3, 'このあと話す'],
 ];
 
 /**
@@ -159,6 +186,94 @@ async function expectNoCardSelected(page: Page, names: readonly string[]): Promi
   for (const name of names) await expect(handCard(page, name)).toHaveAttribute('aria-pressed', 'false');
 }
 
+/** 匿名が既定のやり方の 1 回。選ぶ・A が出す・待たずに開く。 */
+interface AnonymousRound {
+  readonly side: 'チェックイン' | 'チェックアウト';
+  readonly title: string;
+  readonly prompt: string;
+  /** A が出す札の名前 */
+  readonly card: string;
+}
+
+/**
+ * 匿名が既定のやり方で、開く前・開いた後の B の WS フレームに、誰がどの札を出したかが載らないこと（E5・E6・E7）。
+ * 選択画面が出ている状態で呼ぶ。A・B の 2 人が札を出す側にいる前提（B はまだ出さない）。
+ */
+async function expectAnonymousRound(page: Page, b: Page, framesA: FrameLog, framesB: FrameLog, m: AnonymousRound): Promise<void> {
+  await chooseMethod(page, m.side, m.title);
+  for (const p of [page, b]) {
+    await expect(p.getByRole('heading', { level: 2, name: m.prompt })).toBeVisible();
+    await expect(visibilityButton(p, '匿名')).toHaveAttribute('aria-pressed', 'true');
+    await expect(visibilityButton(p, '匿名')).toBeEnabled();
+    await expect(visibilityButton(p, '名前つき')).toBeEnabled();
+  }
+  const idA = selfIdOf(framesA);
+  const markBeforePlay = framesB.payloads.length;
+
+  // A が 1 枚出す。出した後は、A・B の公開の仕方のボタンが押せない（E7）
+  await handCard(page, m.card).click();
+  await expect(b.getByText('1 / 2 人が出しました', { exact: true })).toBeVisible();
+  for (const p of [page, b]) {
+    await expect(visibilityButton(p, '匿名')).toBeDisabled();
+    await expect(visibilityButton(p, '名前つき')).toBeDisabled();
+  }
+
+  // 開く前の B のフレーム: A の札は載っていない。席は id・名前・出したかだけで、B 自身の札は null
+  const before = checkinViews(framesB, markBeforePlay);
+  expect(before.length, '出した後に B が受けた checkin フレーム').toBeGreaterThan(0);
+  for (const view of before) {
+    const round = view['round'] as Record<string, unknown>;
+    expect(Object.keys(round).sort(), '開く前の回の鍵（余分な鍵が増えたら落ちる）').toEqual(
+      ['playedCount', 'playerCount', 'seats', 'seq', 'status', 'visibility', 'locked', 'method', 'yourCard'].sort(),
+    );
+    expect(round['status'], '開く前').toBe('open');
+    expect(round['yourCard'], 'B はまだ出していない').toBeNull();
+    expect('piles' in round, '開く前に山は無い').toBe(false);
+    for (const seat of round['seats'] as Array<Record<string, unknown>>) {
+      expect(Object.keys(seat).sort(), '席は札を持たない').toEqual(['id', 'name', 'played']);
+    }
+  }
+  // A が出したことは席の played に載っている（札の中身ではなく出したかどうかだけ）
+  expect(
+    before.some((v) => {
+      const seats = (v['round'] as { seats: Array<{ id: string; played: boolean }> }).seats;
+      return seats.find((s) => s.id === idA)?.played === true;
+    }),
+    'A が出したことがフレームの席に入っている',
+  ).toBe(true);
+  const markReveal = framesB.payloads.length;
+
+  // A が「待たずに開く」→ 両方開く（E4）
+  await page.getByRole('button', { name: '待たずに開く', exact: true }).click();
+  for (const p of [page, b]) {
+    await expect(p.locator('.piles')).toBeVisible();
+    await expect(pile(p, m.card).locator('.pile-count')).toContainText('1');
+    await expect(p.locator('.pile-chip'), '匿名の山に名前は出ない').toHaveCount(0);
+  }
+
+  // 開いた後の B のフレーム: 山は札と枚数だけで、A の参加者 ID も名前も山に無く、自分の札の鍵も持たない
+  const after = checkinViews(framesB, markReveal).filter((v) => (v['round'] as Record<string, unknown>)['status'] === 'revealed');
+  expect(after.length, '開いた後に B が受けた checkin フレーム').toBeGreaterThan(0);
+  for (const view of after) {
+    const round = view['round'] as Record<string, unknown>;
+    expect(Object.keys(round).sort(), '開いた後の回の鍵（yourCard・names 等の余分な鍵が無い）').toEqual(
+      ['locked', 'method', 'piles', 'seats', 'seq', 'status', 'visibility'].sort(),
+    );
+    expect('yourCard' in round, '匿名で開いた後は yourCard の鍵が無い').toBe(false);
+    for (const seat of round['seats'] as Array<Record<string, unknown>>) {
+      expect(Object.keys(seat).sort(), '開いた後の席も札を持たない').toEqual(['id', 'name', 'played']);
+    }
+    const piles = round['piles'] as Array<Record<string, unknown>>;
+    expect(piles.reduce((n, p) => n + (p['count'] as number), 0), '山の枚数の合計').toBe(1);
+    for (const p of piles) {
+      expect(Object.keys(p).sort(), '山は札と枚数だけ（names の鍵が無い）').toEqual(['card', 'count']);
+    }
+    const pilesJson = JSON.stringify(piles);
+    expect(pilesJson.includes(idA), 'A の参加者 ID が山に無い').toBe(false);
+    expect(pilesJson.includes(NAME_A), 'A の名前が山に無い').toBe(false);
+  }
+}
+
 /**
  * @requirements #406
  */
@@ -234,78 +349,22 @@ test.describe('@core 札を伏せて出し、全員の画面で一斉に開く',
       expect(overflow, `${width}px の横溢れ`).toBeLessThanOrEqual(0);
     }
     await page.setViewportSize(viewBefore);
-    await chooseMethod(page, 'チェックアウト', 'ROTI（時間に見合ったか）');
-    for (const p of [page, b]) {
-      await expect(p.getByRole('heading', { level: 2, name: 'この時間、使った分の価値はありましたか？' })).toBeVisible();
-      await expect(visibilityButton(p, '匿名')).toHaveAttribute('aria-pressed', 'true');
-      await expect(visibilityButton(p, '匿名')).toBeEnabled();
-      await expect(visibilityButton(p, '名前つき')).toBeEnabled();
-    }
-    const idA = selfIdOf(framesA);
-    const markBeforePlay = framesB.payloads.length;
+    // ROTI（既定は匿名）
+    await expectAnonymousRound(page, b, framesA, framesB, {
+      side: 'チェックアウト',
+      title: 'ROTI（時間に見合ったか）',
+      prompt: 'この時間、使った分の価値はありましたか？',
+      card: '4',
+    });
 
-    // A が「4」を出す。出した後は、A・B の公開の仕方のボタンが押せない（E7）
-    await handCard(page, '4').click();
-    await expect(b.getByText('1 / 2 人が出しました', { exact: true })).toBeVisible();
-    for (const p of [page, b]) {
-      await expect(visibilityButton(p, '匿名')).toBeDisabled();
-      await expect(visibilityButton(p, '名前つき')).toBeDisabled();
-    }
-
-    // 開く前の B のフレーム: A の札は載っていない。席は id・名前・出したかだけで、B 自身の札は null
-    const before = checkinViews(framesB, markBeforePlay);
-    expect(before.length, '出した後に B が受けた checkin フレーム').toBeGreaterThan(0);
-    for (const view of before) {
-      const round = view['round'] as Record<string, unknown>;
-      expect(Object.keys(round).sort(), '開く前の回の鍵（余分な鍵が増えたら落ちる）').toEqual(
-        ['playedCount', 'playerCount', 'seats', 'seq', 'status', 'visibility', 'locked', 'method', 'yourCard'].sort(),
-      );
-      expect(round['status'], '開く前').toBe('open');
-      expect(round['yourCard'], 'B はまだ出していない').toBeNull();
-      expect('piles' in round, '開く前に山は無い').toBe(false);
-      for (const seat of round['seats'] as Array<Record<string, unknown>>) {
-        expect(Object.keys(seat).sort(), '席は札を持たない').toEqual(['id', 'name', 'played']);
-      }
-    }
-    // A が出したことは席の played に載っている（札の中身ではなく出したかどうかだけ）
-    expect(
-      before.some((v) => {
-        const seats = (v['round'] as { seats: Array<{ id: string; played: boolean }> }).seats;
-        return seats.find((s) => s.id === idA)?.played === true;
-      }),
-      'A が出したことがフレームの席に入っている',
-    ).toBe(true);
-    const markReveal = framesB.payloads.length;
-
-    // A が「待たずに開く」→ 両方開く（E4）
-    await page.getByRole('button', { name: '待たずに開く', exact: true }).click();
-    for (const p of [page, b]) {
-      await expect(p.locator('.piles')).toBeVisible();
-      await expect(pile(p, '4').locator('.pile-count')).toContainText('1');
-      await expect(p.locator('.pile-chip'), '匿名の山に名前は出ない').toHaveCount(0);
-    }
-
-    // 開いた後の B のフレーム: 山は札と枚数だけで、A の参加者 ID も名前も山に無く、自分の札の鍵も持たない
-    const after = checkinViews(framesB, markReveal).filter((v) => (v['round'] as Record<string, unknown>)['status'] === 'revealed');
-    expect(after.length, '開いた後に B が受けた checkin フレーム').toBeGreaterThan(0);
-    for (const view of after) {
-      const round = view['round'] as Record<string, unknown>;
-      expect(Object.keys(round).sort(), '開いた後の回の鍵（yourCard・names 等の余分な鍵が無い）').toEqual(
-        ['locked', 'method', 'piles', 'seats', 'seq', 'status', 'visibility'].sort(),
-      );
-      expect('yourCard' in round, '匿名で開いた後は yourCard の鍵が無い').toBe(false);
-      for (const seat of round['seats'] as Array<Record<string, unknown>>) {
-        expect(Object.keys(seat).sort(), '開いた後の席も札を持たない').toEqual(['id', 'name', 'played']);
-      }
-      const piles = round['piles'] as Array<Record<string, unknown>>;
-      expect(piles.reduce((n, p) => n + (p['count'] as number), 0), '山の枚数の合計').toBe(1);
-      for (const p of piles) {
-        expect(Object.keys(p).sort(), '山は札と枚数だけ（names の鍵が無い）').toEqual(['card', 'count']);
-      }
-      const pilesJson = JSON.stringify(piles);
-      expect(pilesJson.includes(idA), 'A の参加者 ID が山に無い').toBe(false);
-      expect(pilesJson.includes(NAME_A), 'A の名前が山に無い').toBe(false);
-    }
+    // When / Then その4b（#635）: 足したやり方のうち既定が匿名の「いそがしさ」でも、同じく B のフレームに A の札が載らない
+    await page.getByRole('button', { name: '別のやり方', exact: true }).click();
+    await expectAnonymousRound(page, b, framesA, framesB, {
+      side: 'チェックイン',
+      title: 'いそがしさ',
+      prompt: 'いまのいそがしさは、どのくらいですか？',
+      card: 'つまっている',
+    });
 
     // When / Then その5（E9）: もう一回 → B が「見学する」→ B の手札が消え、A の分母が減る
     await page.getByRole('button', { name: 'もう一回', exact: true }).click();
@@ -318,7 +377,7 @@ test.describe('@core 札を伏せて出し、全員の画面で一斉に開く',
     // When / Then その6（#480）: 全てのやり方で、手札の札の名前・意味と見出しの問いが、要求幅の全てで読める
     // （B は見学中なので、A が選び直しても札は出ない。A の手札だけを測る）
     const viewHand = page.viewportSize() ?? { width: 1280, height: 800 };
-    for (const [side, title, cards] of ALL_METHODS) {
+    for (const [side, title, cards, playCard] of ALL_METHODS) {
       await page.setViewportSize(viewHand);
       await page.getByRole('button', { name: '別のやり方', exact: true }).click();
       await chooseMethod(page, side, title);
@@ -326,6 +385,12 @@ test.describe('@core 札を伏せて出し、全員の画面で一斉に開く',
       for (const width of HAND_WIDTHS) {
         await page.setViewportSize({ width, height: viewHand.height });
         await expectHandReadable(page, `${title} ${width}px`, cards);
+      }
+      if (playCard !== undefined) {
+        // 札を出す人は A だけ（B は見学中）なので、出すと全員が出したことになり自動で開く
+        await page.setViewportSize(viewHand);
+        await handCard(page, playCard).click();
+        await expect(pile(page, playCard).locator('.pile-count'), `${title}: 出した札の山`).toContainText('1');
       }
     }
     await page.setViewportSize(viewHand);
