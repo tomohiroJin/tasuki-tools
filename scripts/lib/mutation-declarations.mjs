@@ -7861,14 +7861,8 @@ export const MUTATIONS = [
     tests: ["tests/rows-alignment.test.mjs"],
     note: RESERVED_1230_1239 + " " + "#556。見出しの下の間を子が持つ形に戻る（ADR 0035 決定 1 の例外の再発）。",
   },
-  {
-    id: 1231,
-    label: "timer のパスフレーズのパネルの根から `panel-stack` を外す",
-    patch: "m1231-passphrase-root-not-stack.patch",
-    pkg: "packages/ui",
-    tests: ["tests/rows-alignment.test.mjs"],
-    note: RESERVED_1230_1239 + " " + "#556。見出しの下の間を誰も持たなくなり、見出しと中身が接する。",
-  },
+  // id 1231（timer のパスフレーズのパネルの根から `panel-stack` を外す）は消した。#638 で timer の合言葉のパネル
+  // （PassphrasePanel）が概念ごと消えたため（設定の口は玄関へ移った）。利用者の承認（2026-11-19）。番号は詰めない。
   {
     id: 1232,
     label: "timer の名簿の根から `panel-stack` を外す",
