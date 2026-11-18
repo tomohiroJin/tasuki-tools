@@ -15,7 +15,7 @@ diff --git a/packages/roulette-core/src/roulette.ts b/packages/roulette-core/src
    const spin = state.lastSpin;
    if (spin === null) return false;
    if (spin.press !== undefined) return pressStopOf(spin, now - spin.startedAt) === null;
--  return now - spin.startedAt < spinDurationMs(spin.picks.length, spin.stopStyle, motionsOf(spin));
+-  return now - spin.startedAt < spinDurationMs(spin.picks.length, spin.stopStyle, motionNamesOf(spin));
 +  return now - spin.startedAt < spinDurationMs(spin.picks.length, spin.stopStyle);
  }
  

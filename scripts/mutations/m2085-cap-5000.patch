@@ -11,8 +11,8 @@
 diff --git a/packages/roulette-core/src/limits.ts b/packages/roulette-core/src/limits.ts
 --- a/packages/roulette-core/src/limits.ts
 +++ b/packages/roulette-core/src/limits.ts
-@@ -97,7 +97,7 @@
- });
+@@ -104,7 +104,7 @@
+ export const FAST_SPAN_MS = 2600;
  
  /** 止まり方・動き出し・回転の延びる長さの合計の上限（ms・#640 決めること 3）。越えるときは動き出しを詰める */
 -export const MOTION_EXTRA_CAP_MS = 4000;

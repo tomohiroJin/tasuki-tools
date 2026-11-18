@@ -11,12 +11,12 @@
 diff --git a/apps/roulette-web/src/wheel-motion.ts b/apps/roulette-web/src/wheel-motion.ts
 --- a/apps/roulette-web/src/wheel-motion.ts
 +++ b/apps/roulette-web/src/wheel-motion.ts
-@@ -125,7 +125,7 @@
+@@ -117,7 +117,7 @@
+ 
    if (spinMotion === 'fast') {
-     // 序盤の FAST_SPAN_MS（本体の時間）を、縮める長さだけ短い時間で進める（速くなる）。後ろは普通の速さ。
-     // 止まり方の細かい動き（終盤の区間）は縮めない（向きの切り返しが詰まって点滅に見えない）
+     // 最初の FAST_SPAN_MS（本体の時間）を、縮める長さだけ短い時間で進める（速くなる）。後ろは普通の速さ
 -    const real = FAST_SPAN_MS + SPIN_MOTION_EXTRA_MS.fast;
 +    const real = FAST_SPAN_MS;
-     return shape(base(u < real ? (u * FAST_SPAN_MS) / real : u - real + FAST_SPAN_MS));
+     return sign * base(u < real ? (u * FAST_SPAN_MS) / real : u - real + FAST_SPAN_MS);
    }
    if (spinMotion === 'turnback') {

@@ -11,7 +11,7 @@
 diff --git a/packages/roulette-core/src/limits.ts b/packages/roulette-core/src/limits.ts
 --- a/packages/roulette-core/src/limits.ts
 +++ b/packages/roulette-core/src/limits.ts
-@@ -127,7 +127,7 @@
+@@ -134,7 +134,7 @@
  export function launchMotionMs(launch: string | null | undefined, style: string | null | undefined, spin: string | null | undefined): number {
    if (!isLaunchMotion(launch)) return 0;
    const room = MOTION_EXTRA_CAP_MS - stopStyleExtraMs(style) - spinMotionExtraMs(spin);
@@ -19,4 +19,4 @@ diff --git a/packages/roulette-core/src/limits.ts b/packages/roulette-core/src/l
 +  return LAUNCH_MOTION_EXTRA_MS[launch];
  }
  
- /** 1 人目が止まる時刻の延び（ms）。止まり方・動き出し（詰めた長さ）・回転の動きの合計 */
+ /** 回転（wire の形でも Spin でもよい）が持つ動きの名前を、長さの表（`pickStopsMs`・`spinDurationMs`）へ渡す形にする */

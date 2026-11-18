@@ -272,6 +272,9 @@ const RESERVED_1760_1779 =
 const RESERVED_2080_2109 =
   "**対応表より後に足した変異。** 2080〜2109 は #640（ルーレットの変わった動き）に割り当てた範囲。";
 
+const RESERVED_2110_2129 =
+  "**対応表より後に足した変異。** 2110〜2129 は #640（ルーレットの変わった動き）の追加（2080〜2109 を使い切ったため）に割り当てた範囲。";
+
 export const MUTATIONS = [
   {
     id: 1,
@@ -10699,5 +10702,69 @@ export const MUTATIONS = [
     pkg: "packages/roulette-core",
     tests: ["tests/roulette-motions.test.ts"],
     note: RESERVED_2080_2109 + " " + "#640 のまとめ役の E2E。動き出しの長さが 2 回足され、止まる時刻・wire の長さが二重に延びる（E2E の壁時計では見分けられない）。",
+  },
+  {
+    id: 2110,
+    label: "速い回転の縮める区間が止まり方の最初の脚を越える",
+    patch: "m2110-fast-span-3000.patch",
+    pkg: "packages/roulette-core",
+    tests: ["tests/roulette-motions.test.ts"],
+    note: RESERVED_2110_2129 + " " + "#640 の /code-review。速い × 一瞬の逆回り（reverse）で、止まり方の脚が詰まり向きの切り返しが約 270ms 間隔になる（1 秒に 3 回までを破る）。",
+  },
+  {
+    id: 2111,
+    label: "速い回転が縮めた後も普通の速さに戻らない",
+    patch: "m2111-web-fast-never-returns-to-normal.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/spin-motion.test.ts"],
+    note: RESERVED_2110_2129 + " " + "#640 の /code-review。速い回転の縮めた区間の後で本体の時刻がずれ、止まる時刻に当たりの席・位置で止まらない。",
+  },
+  {
+    id: 2112,
+    label: "逆回転の鏡の世界で席の中の位置を反転しない",
+    patch: "m2112-web-mirror-keeps-settle.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/spin-motion.test.ts"],
+    note: RESERVED_2110_2129 + " " + "#640 の /code-review。逆回転で二度止め（double）の止まりかける位置が席の中央からずれる・当たりの位置で止まらない。",
+  },
+  {
+    id: 2113,
+    label: "逆回転でも動き出しを順向きに描く",
+    patch: "m2113-web-launch-not-mirrored.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/spin-motion.test.ts"],
+    note: RESERVED_2110_2129 + " " + "#640 の /code-review。逆回転で溜める（windup）の引く向きと回る向きが同じになり、溜めが見えない。",
+  },
+  {
+    id: 2114,
+    label: "途中で向きを変えるの差し込みを本体の速さにつながない",
+    patch: "m2114-web-turnback-speed-zero.patch",
+    pkg: "apps/roulette-web",
+    tests: ["tests/spin-motion.test.ts"],
+    note: RESERVED_2110_2129 + " " + "#640 の /code-review。差し込みの前後で、1 フレームの間に静止と本体の速さの間を跳ぶ。",
+  },
+  {
+    id: 2115,
+    label: "途中で向きを変えるの延びが止まり方と重なって上限を越える",
+    patch: "m2115-turnback-extra-2000.patch",
+    pkg: "packages/roulette-core",
+    tests: ["tests/roulette-motions.test.ts"],
+    note: RESERVED_2110_2129 + " " + "#640 の /code-review。止まり方の最大 + 回転の動きの最大が上限を越え、延びる合計が上限（+4 秒）を越えうる。",
+  },
+  {
+    id: 2116,
+    label: "動きの名前を渡すとき動き出しと回転を取り違える",
+    patch: "m2116-motion-names-swapped.patch",
+    pkg: "packages/roulette-core",
+    tests: ["tests/roulette-motions.test.ts"],
+    note: RESERVED_2110_2129 + " " + "#640 の /code-review。サーバーの回転の長さと画面の止まる時刻が、動き出しと回転を取り違えた長さになる。",
+  },
+  {
+    id: 2117,
+    label: "まれな選びの 2 回目に選択肢の数でなく割合の分母を渡す",
+    patch: "m2117-rare-second-draw-odds.patch",
+    pkg: "packages/roulette-core",
+    tests: ["tests/roulette-motions.test.ts"],
+    note: RESERVED_2110_2129 + " " + "#640 の /code-review。動きの選びが選択肢の数を超えた目になり、選べない・偏る。止まり方の選びも同じ関数を通る。",
   },
 ];

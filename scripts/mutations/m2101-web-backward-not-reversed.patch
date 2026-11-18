@@ -12,12 +12,12 @@
 diff --git a/apps/roulette-web/src/wheel-motion.ts b/apps/roulette-web/src/wheel-motion.ts
 --- a/apps/roulette-web/src/wheel-motion.ts
 +++ b/apps/roulette-web/src/wheel-motion.ts
-@@ -120,7 +120,7 @@
-     style === null ? angleAt(v, normalMs, n, spot.index, spot.settle, pointerDeg, start) : styledAngleAt(style, v, n, spot.index, spot.settle, pointerDeg, start);
-   // 逆回転は、本体の進み具合（0〜1）を逆向きの回転へ写す。逆向きの止まる角度は、正の向きの止まる角度から巡りの整数倍離れる（同じ席）
-   const finalBackward = final - 360 * (2 * TURNS + 1);
--  const shape = (a: number): number => (spinMotion === 'backward' ? start + ((finalBackward - start) * (a - start)) / (final - start) : a);
-+  const shape = (a: number): number => (false ? start + ((finalBackward - start) * (a - start)) / (final - start) : a);
- 
-   if (spinMotion === 'fast') {
-     // 序盤の FAST_SPAN_MS（本体の時間）を、縮める長さだけ短い時間で進める（速くなる）。後ろは普通の速さ。
+@@ -101,7 +101,7 @@
+ ): number {
+   const launch = launchMotionOf(names.launch);
+   const spinMotion = spinMotionOf(names.spin);
+-  const sign = spinMotion === 'backward' ? -1 : 1;
++  const sign = 1;
+   const index = sign === 1 ? spot.index : n - 1 - spot.index;
+   const settle = sign === 1 ? spot.settle : 1 - spot.settle;
+   const pointer = sign * pointerDeg;

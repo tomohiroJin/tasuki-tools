@@ -11,12 +11,12 @@
 diff --git a/apps/roulette-web/src/spin-motion.ts b/apps/roulette-web/src/spin-motion.ts
 --- a/apps/roulette-web/src/spin-motion.ts
 +++ b/apps/roulette-web/src/spin-motion.ts
-@@ -90,7 +90,7 @@
- 
- /** 途中で向きを変える差し込みの経過 `elapsedMs` の、差し込み前の角度からの差（度） */
- export function turnbackOffset(elapsedMs: number): number {
--  return offsetAt(TURNBACK_LEGS, elapsedMs, 1);
+@@ -94,7 +94,7 @@
+  */
+ export function turnbackOffset(elapsedMs: number, speed: number): number {
+   const x = Math.min(Math.max(elapsedMs / TURNBACK_MS, 0), 1);
+-  return TURNBACK_MS * speed * x * (1 - x) * (1 - 2 * x) - TURNBACK_DEPTH * x * x * (1 - x) * (1 - x);
 +  return 0;
  }
  
- /** wire の動き出しの名前を読む。無い・知らない名前は null（いつもの動き） */
+ /** wire の回転の動きの名前を読む。無い・知らない名前は null（いつもの動き） */

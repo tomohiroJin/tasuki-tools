@@ -11,12 +11,12 @@
 diff --git a/apps/roulette-web/src/wheel-motion.ts b/apps/roulette-web/src/wheel-motion.ts
 --- a/apps/roulette-web/src/wheel-motion.ts
 +++ b/apps/roulette-web/src/wheel-motion.ts
-@@ -111,7 +111,7 @@
-   const spinMotion: SpinMotion | null = isSpinMotion(names.spinMotion) ? names.spinMotion : null;
+@@ -108,7 +108,7 @@
+   const from = sign * startDeg;
    const launchMs = launch === null ? 0 : launchMotionMs(launch, style, spinMotion);
-   if (launch !== null && elapsedMs < launchMs) return startDeg + launchOffset(launch, elapsedMs, launchMs);
--  const start = launch !== null && launchMs > 0 ? startDeg + launchEndOffset(launch) : startDeg;
-+  const start = startDeg;
+   if (launch !== null && elapsedMs < launchMs) return sign * (from + launchOffset(launch, elapsedMs, launchMs));
+-  const start = launch !== null && launchMs > 0 ? from + launchEndOffset(launch) : from;
++  const start = from;
    const u = Math.max(elapsedMs, 0) - launchMs;
    // 動きの無い本体の長さ（止まり方の表。core の `pickStopsMs` と同じ表を読む）
    const normalMs = pickStopsMs(1, style)[0] ?? 0;

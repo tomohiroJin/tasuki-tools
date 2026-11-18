@@ -11,11 +11,11 @@
 diff --git a/apps/roulette-web/src/wheel-motion.ts b/apps/roulette-web/src/wheel-motion.ts
 --- a/apps/roulette-web/src/wheel-motion.ts
 +++ b/apps/roulette-web/src/wheel-motion.ts
-@@ -173,7 +173,7 @@
+@@ -169,7 +169,7 @@
  ): number {
    const style = stopStyleOf(stopStyle);
-   const names: WireMotions = motions ?? {};
--  const stops = pickStopsMs(picks.length, style, { launch: names.launchMotion, spin: names.spinMotion });
+   const names: MotionNames = motions ?? {};
+-  const stops = pickStopsMs(picks.length, style, names);
 +  const stops = pickStopsMs(picks.length, style);
    const first = picks[0];
    const firstStop = stops[0];
