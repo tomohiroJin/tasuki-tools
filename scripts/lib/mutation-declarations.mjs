@@ -10481,4 +10481,20 @@ export const MUTATIONS = [
     tests: ["test/ui/Summary.test.tsx"],
     note: "#408。書き込みに失敗した直後も「コピーしました」と表示される。",
   },
+  {
+    id: 1964,
+    label: "記録済みの周回数を Markdown で 0 周に固定する",
+    patch: "m1964-record-markdown-zero-rounds.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/Summary.test.tsx"],
+    note: "#408 のレビュー。1 周以上の記録も 0 周として貼り付けられる。",
+  },
+  {
+    id: 1965,
+    label: "Markdown で文字参照を始めない & までエスケープする",
+    patch: "m1965-record-markdown-escape-plain-ampersand.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/Summary.test.tsx"],
+    note: "#408 のレビュー。Slack などプレーンテキストの貼り付け先で、R&D に不要なバックスラッシュが見える。",
+  },
 ];

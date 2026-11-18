@@ -34,10 +34,11 @@ describe("Summary", () => {
           ...baseRecord,
           id: "internal-record-id",
           roomId: "internal-room-id",
-          topicTitle: "Fizz *Buzz*\n# 次のお題",
+          topicTitle: "R&D *Buzz*\n# 次のお題 &amp;",
           members: ["A_[1]", "Bob"],
-          driverCounts: [2, 0],
-          rounds: 0,
+          driverCounts: [2, 1],
+          totalSwitches: 3,
+          rounds: 1,
         }}
         onNewSession={noop}
         onSaveRecord={noop}
@@ -50,13 +51,13 @@ describe("Summary", () => {
     expect(writeText).toHaveBeenCalledExactlyOnceWith([
       "セッションまとめ",
       "",
-      "- お題：Fizz \\*Buzz\\* # 次のお題",
+      "- お題：R&D \\*Buzz\\* # 次のお題 \\&amp;",
       "- 所要時間：5分00秒",
-      "- 交代回数：2回",
-      "- 周回数：0周",
+      "- 交代回数：3回",
+      "- 周回数：1周",
       "- 参加者（2人）",
       "  - 「A\\_\\[1\\]」（担当2回）",
-      "  - 「Bob」（担当0回）",
+      "  - 「Bob」（担当1回）",
     ].join("\n"));
   });
 

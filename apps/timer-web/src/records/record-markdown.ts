@@ -9,7 +9,11 @@ export function formatDuration(seconds: number): string {
 
 function markdownText(text: string): string {
   // 名前やお題の改行を畳み、Markdown 記法に使う記号をエスケープする。
-  return text.replace(/\s*[\r\n\u2028\u2029]+\s*/g, " ").replace(/[&<>[\]*_`~\\]/g, "\\$&");
+  return text
+    .replace(/\s*[\r\n\u2028\u2029]+\s*/g, " ")
+    .replace(/[<>[\]*_`~\\]/g, "\\$&")
+    // R&D などの & は保ち、Markdown で文字参照として読まれる形だけを保護する。
+    .replace(/&(?=(?:[a-z][a-z0-9]*|#[0-9]+|#x[0-9a-f]+);)/gi, "\\&");
 }
 
 export function formatRecordMarkdown(record: CompletionRecord): string {

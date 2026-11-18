@@ -31,17 +31,17 @@ test('完了画面と保存済み履歴から同じ Markdown をコピーでき�
   await completeCopy.click();
   await expect(page.getByText('コピーしました', { exact: true })).toBeVisible();
   const markdown = await readClipboard();
-  expect(markdown.replace(/所要時間：\d+分\d{2}秒/, '所要時間：計測済み')).toBe([
+  expect(markdown.split('\n')).toEqual([
     'セッションまとめ',
     '',
     '- お題：お題なし',
-    '- 所要時間：計測済み',
+    expect.stringMatching(/^- 所要時間：\d+分\d{2}秒$/),
     '- 交代回数：1回',
     '- 周回数：0周',
     '- 参加者（2人）',
     '  - 「Markdown Host」（担当1回）',
     '  - 「Markdown Guest」（担当0回）',
-  ].join('\n'));
+  ]);
 
   await page.goto('/');
   await page.getByRole('link', { name: '記録を見る' }).click();
