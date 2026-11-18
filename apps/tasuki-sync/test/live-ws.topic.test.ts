@@ -193,7 +193,7 @@ describe("お題の型を選んで作ると、その型の定型がルームへ�
   for (const [category, marker] of [
     ["refactoring", "\n対象のコード:\n```\n"],
     ["design", "\n話し合うこと:\n- "],
-    ["debugging", "\n落ちるテスト:\n```\ntest("],
+    ["debugging", "\n落ちるテスト:\n```\n"],
   ] as const) {
     it(`型 ${category} で定型から作ると、その型の本文の定型が届き、縮退しない`, async () => {
       // Given
@@ -209,20 +209,37 @@ describe("お題の型を選んで作ると、その型の定型がルームへ�
     });
   }
 
+  // 定型は選んだ言語で組む（#634。PR #643 のレビュー）。言語ごとのテストの書き方で見分ける
+  for (const [language, testShape] of [
+    ["Python", /^def test_/m],
+    ["Go", /^func Test\w*\(t \*testing\.T\)/m],
+    ["Rust", /^#\[test\]$/m],
+  ] as const) {
+    it(`言語 ${language} でデバッグの定型を作ると、${language} のテストの定型が届く（JavaScript のテストではない）`, async () => {
+      const topic = await joinedTopic();
+      topic.send({ command: "topic.generate", mode: "fallback", language, difficulty: "easy", category: "debugging" });
+      const got = await topic.take((m) => m.type === "topic" && m.state.topic !== null, "定型のお題");
+      if (got.type !== "topic") throw new Error("topic ではない");
+      expect(got.state.topic?.body).toContain("\n落ちるテスト:\n```\n");
+      expect(got.state.topic?.body).toMatch(testShape);
+      expect(got.state.topic?.body).not.toMatch(/^test\(/m);
+    });
+  }
+
   it("型を送らない依頼（型を足す前の画面）は、TDD の定型が届く", async () => {
     const topic = await joinedTopic();
     // 型の上では category が要るので、生の JSON で送る（型を足す前の画面が送る形）
     topic.sendRaw(JSON.stringify({ command: "topic.generate", mode: "fallback", language: "Go", difficulty: "hard" }));
     const got = await topic.take((m) => m.type === "topic" && m.state.topic !== null, "定型のお題");
     if (got.type !== "topic") throw new Error("topic ではない");
-    expect(got.state.topic?.body).toContain("\n最初のテストの例:\n```\ntest(");
+    expect(got.state.topic?.body).toContain("\n最初のテストの例:\n```\n");
   });
 
   for (const [category, marker] of [
-    ["tdd", "\n最初のテストの例:\n```\ntest("],
+    ["tdd", "\n最初のテストの例:\n```\n"],
     ["refactoring", "\n対象のコード:\n```\n"],
     ["design", "\n話し合うこと:\n- "],
-    ["debugging", "\n落ちるテスト:\n```\ntest("],
+    ["debugging", "\n落ちるテスト:\n```\n"],
   ] as const) {
     it(`AI が使えない（未解錠）ときに型 ${category} で AI を求めると、その型の定型へ落ち、縮退を知らせる`, async () => {
       const topic = await joinedTopic();

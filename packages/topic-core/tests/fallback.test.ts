@@ -4,6 +4,7 @@ import {
   type Category, type Difficulty, type Language,
 } from "../src/index.js";
 import { TOPIC_BANK } from "../src/topic-bank.js";
+import { renderTopicBody } from "../src/topic-render.js";
 
 // 定型バンクの健全性（件数・上限・本文の形）は `tests/topic-bank.test.ts` にある（#634 で移した）。
 
@@ -60,6 +61,32 @@ describe("pickTopicFallback", () => {
     // Then: 難易度は守られ、種類は 1 つに絞られていない（全件が並び順どおりに出る）
     expect(got).toEqual(pool.map((e) => e.title));
     expect(new Set(got.map((t) => entryOf(t)?.category)).size).toBeGreaterThan(1);
+  });
+
+  /** @requirements #634（PR #643 のレビュー: 定型を選んだ言語で出す） */
+  it("Given 言語 / When 定型を選ぶ / Then 本文はその言語で組んだもので、言語が違えば本文も違う", () => {
+    for (const category of CATEGORIES) {
+      const bodies = LANGUAGES.map((language) => {
+        const t = pickTopicFallback(language, "medium", category, 3, null);
+        const entry = entryOf(t.title)!;
+        expect({ category, language, same: t.body === renderTopicBody(entry, language) }).toEqual({ category, language, same: true });
+        return t.body;
+      });
+      // 設計のお題はコードの無いものがあるので、型ごとに「少なくとも 2 通りに分かれる」までを見る
+      expect({ category, distinct: new Set(bodies).size > 1 }).toEqual({ category, distinct: true });
+    }
+  });
+
+  it("Given 言語 Python / When TDD の定型を選ぶ / Then JavaScript の本文ではない", () => {
+    const python = pickTopicFallback("Python", "easy", "tdd", 0, null);
+    const javascript = pickTopicFallback("JavaScript", "easy", "tdd", 0, null);
+    expect(python.title).toBe(javascript.title);
+    expect(python.body).not.toBe(javascript.body);
+  });
+
+  it("Given 境界を通り抜けて許可リストに無い言語 / When 選ぶ / Then 本文は画面の既定の言語（先頭の TypeScript）で組む", () => {
+    const t = pickTopicFallback("COBOL" as unknown as Language, "easy", "tdd", 0, null);
+    expect(t.body).toBe(renderTopicBody(entryOf(t.title)!, LANGUAGES[0]));
   });
 
   it("Given 境界を通り抜けて許可リストに無い難易度 / When 選ぶ / Then 空のプールで落ちずに、全件から返す（必ず 1 件返す）", () => {

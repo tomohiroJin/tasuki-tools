@@ -1,12 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { CATEGORIES, DIFFICULTIES, MAX_TOPIC_BODY, MAX_TOPIC_TITLE, type Category } from "../src/index.js";
+import {
+  CATEGORIES, DIFFICULTIES, LANGUAGES, MAX_TOPIC_BODY, MAX_TOPIC_TITLE,
+  type Category, type Language,
+} from "../src/index.js";
 import { TOPIC_BANK, type TopicBankEntry } from "../src/topic-bank.js";
+import { renderTopicBody } from "../src/topic-render.js";
 
 /**
  * 定型バンクの健全性（#91 spec §10・#634）。
  *
  * `topic-core` は依存を持たない（`scripts/audit-dependency-direction.mjs` の許可表が空）ので、
  * `@tasuki/markdown` の解析には通さず、本文の文字列で囲みの開きと閉じを見る。
+ *
+ * 本文は言語ごとに組む（`topic-render.ts`）。形の検査は、**10 言語それぞれで組んだ本文**に当てる。
  */
 
 /** 本文の行のうち、囲み（```）の開きと閉じの行の位置。数が奇数なら閉じ忘れがある */
@@ -18,38 +24,74 @@ function fenceLines(body: string): number[] {
 }
 
 /**
- * 見出し（例 `最初のテストの例:`）の直後に囲みが開き、その中身が `startsWith` で始まり、
+ * 見出し（例 `最初のテストの例:`）の直後に囲みが開き、その中身が `pattern` に当たり、
  * 「ヒント:」より前で閉じているか。閉じだけでなく開きも見る —— 開きだけを見ると、閉じ忘れで
  * 以降の本文が全部コードになる誤りを通してしまう。
  */
-function fencedAfter(body: string, label: string, startsWith: RegExp | null): { opened: boolean; closedBeforeHint: boolean; head: boolean } {
+function fencedAfter(body: string, label: string, pattern: RegExp | null): { opened: boolean; closedBeforeHint: boolean; matches: boolean } {
   const open = `${label}\n\`\`\`\n`;
   const at = body.indexOf(open);
-  if (at < 0) return { opened: false, closedBeforeHint: false, head: false };
+  if (at < 0) return { opened: false, closedBeforeHint: false, matches: false };
   const from = at + open.length;
   const close = body.indexOf("\n```", from);
   const hint = body.lastIndexOf("ヒント:");
   // 閉じが見つからないと indexOf は -1 を返し「ヒントより前」を素通りするので、閉じの在否を先に見る
   const closedBeforeHint = close >= 0 && hint >= 0 && close < hint;
-  const head = startsWith === null || (close >= 0 && startsWith.test(body.slice(from, close)));
-  return { opened: true, closedBeforeHint, head };
+  const matches = pattern === null || (close >= 0 && pattern.test(body.slice(from, close)));
+  return { opened: true, closedBeforeHint, matches };
 }
 
-const OK = { opened: true, closedBeforeHint: true, head: true };
+const OK = { opened: true, closedBeforeHint: true, matches: true };
 
-/** 種類ごとに、本文が持つべきコードの囲み。設計のお題はコードを必須にしない */
-const REQUIRED_FENCES: Record<Category, readonly { label: string; startsWith: RegExp | null }[]> = {
-  tdd: [{ label: "最初のテストの例:", startsWith: /^test\(/ }],
-  refactoring: [{ label: "対象のコード:", startsWith: null }],
+/**
+ * 言語ごとのテストの書き方（定型の約束。`docs` ではなくここが正本）。テストの囲みの中身はこれに当たること。
+ * 書き方を変えるときは、定型の本文と一緒に変える。
+ */
+const TEST_SHAPE: Record<Language, RegExp> = {
+  TypeScript: /^test\(/m, // Jest / Vitest
+  JavaScript: /^test\(/m, // Jest / Vitest
+  Python: /^def test_\w*\(/m, // pytest
+  Java: /^@Test\s*$/m, // JUnit 5
+  Go: /^func Test\w*\(t \*testing\.T\)/m, // testing
+  Ruby: /^\s*def test_\w*/m, // minitest
+  Rust: /^#\[test\]\s*$/m, // cargo test
+  "C#": /^\[Fact\]\s*$/m, // xUnit
+  Kotlin: /^@Test\s*$/m, // JUnit 5 + kotlin.test
+  Swift: /^func test\w*\(\)/m, // XCTest
+};
+
+/** 種類ごとに、本文が持つべきコードの囲み（`true` はテストの書き方を見る）。設計のお題はコードを必須にしない */
+const REQUIRED_FENCES: Record<Category, readonly { label: string; isTest: boolean }[]> = {
+  tdd: [{ label: "最初のテストの例:", isTest: true }],
+  refactoring: [{ label: "対象のコード:", isTest: false }],
   design: [],
   debugging: [
-    { label: "対象のコード:", startsWith: null },
-    { label: "落ちるテスト:", startsWith: /^test\(/ },
+    { label: "対象のコード:", isTest: false },
+    { label: "落ちるテスト:", isTest: true },
   ],
 };
 
+/** 必須でないが、置いたらテストの書き方を見る囲み */
+const OPTIONAL_TEST_FENCES = ["最初のテストの例:"];
+
 const byCategory = (category: Category): readonly TopicBankEntry[] =>
   TOPIC_BANK.filter((e) => e.category === category);
+
+const SLOT_MARKER = /\{\{slot:([A-Za-z][A-Za-z0-9_]*)\}\}/g;
+
+/** テンプレートのうち、コードの囲みの中に置いた差し込み口の名前 */
+function slotsInsideFences(template: string): Set<string> {
+  const inside = new Set<string>();
+  let fenced = false;
+  for (const line of template.split("\n")) {
+    if (line.startsWith("```")) {
+      fenced = !fenced;
+      continue;
+    }
+    if (fenced) for (const m of line.matchAll(SLOT_MARKER)) inside.add(m[1]!);
+  }
+  return inside;
+}
 
 /**
  * @requirements #634(定型が 100 件以上あり、どの難易度・種類にも、続けて引いて重ならない数がある)
@@ -90,53 +132,106 @@ describe("定型バンクの件数", () => {
 });
 
 /**
+ * @requirements #634（PR #643 のレビュー: 定型を選んだ言語で出す）
+ */
+describe("定型バンクの差し込み口", () => {
+  it("本文の差し込み口と slots の名前が一致し、どの差し込み口も 10 言語すべての値を持つ", () => {
+    for (const e of TOPIC_BANK) {
+      const used = [...new Set([...e.body.matchAll(SLOT_MARKER)].map((m) => m[1]!))].sort();
+      expect({ title: e.title, slots: Object.keys(e.slots).sort() }).toEqual({ title: e.title, slots: used });
+      for (const [name, values] of Object.entries(e.slots)) {
+        expect({ title: e.title, name, languages: Object.keys(values).sort() }).toEqual({
+          title: e.title,
+          name,
+          languages: [...LANGUAGES].sort(),
+        });
+      }
+    }
+  });
+
+  it("コードの囲みの中の差し込み口は、JavaScript と TypeScript 以外の言語で JavaScript のままになっていない（訳し忘れ）", () => {
+    const untranslated: string[] = [];
+    for (const e of TOPIC_BANK) {
+      for (const name of slotsInsideFences(e.body)) {
+        const values = e.slots[name]!;
+        for (const language of LANGUAGES) {
+          if (language === "JavaScript" || language === "TypeScript") continue;
+          if (values[language].trim() === values.JavaScript.trim()) untranslated.push(`${e.title} / ${name} / ${language}`);
+        }
+      }
+    }
+    expect(untranslated).toEqual([]);
+  });
+});
+
+/**
  * @requirements #91(spec §10)・#634(足したお題は、題・本文の上限と Markdown の形を検査で確かめる)
  */
-describe("定型バンクの形", () => {
-  it("すべてが上限に収まり、空白だけのタイトルが無い", () => {
+describe("定型バンクの形（10 言語それぞれで組んだ本文）", () => {
+  it("タイトルが上限に収まり、空白だけのタイトルが無い", () => {
     for (const e of TOPIC_BANK) {
       expect(e.title.trim().length).toBeGreaterThan(0);
       expect(e.title.length).toBeLessThanOrEqual(MAX_TOPIC_TITLE);
-      expect({ title: e.title, fits: e.body.length <= MAX_TOPIC_BODY }).toEqual({ title: e.title, fits: true });
     }
   });
 
-  it("すべての本文が「## 背景」で始まり、「満たすこと:」と、最後の節の「ヒント:」を持つ", () => {
-    for (const e of TOPIC_BANK) {
-      const hint = e.body.lastIndexOf("ヒント:");
-      const fences = fenceLines(e.body);
-      const lastFenceAt = fences.length === 0 ? -1 : e.body.split("\n").slice(0, fences[fences.length - 1]! + 1).join("\n").length;
-      expect({
-        title: e.title,
-        background: e.body.startsWith("## 背景\n"),
-        requirements: e.body.includes("\n満たすこと:\n- "),
-        hint: hint >= 0 && e.body.slice(hint).startsWith("ヒント:\n- "),
-        hintIsLast: hint > lastFenceAt,
-      }).toEqual({ title: e.title, background: true, requirements: true, hint: true, hintIsLast: true });
-    }
-  });
+  for (const language of LANGUAGES) {
+    describe(language, () => {
+      const rendered = TOPIC_BANK.map((e) => ({ e, body: renderTopicBody(e, language) }));
 
-  it("すべての本文で、コードの囲みが閉じている（開きと閉じの行が対になる）", () => {
-    for (const e of TOPIC_BANK) {
-      expect({ title: e.title, balanced: fenceLines(e.body).length % 2 === 0 }).toEqual({ title: e.title, balanced: true });
-    }
-  });
-
-  for (const category of CATEGORIES) {
-    const required = REQUIRED_FENCES[category];
-    if (required.length === 0) continue;
-    it(`${category} の本文は、${required.map((r) => r.label).join("・")}の後ろにコードの囲みを持ち、ヒントより前で閉じる`, () => {
-      for (const e of byCategory(category)) {
-        for (const { label, startsWith } of required) {
-          expect({ title: e.title, label, ...fencedAfter(e.body, label, startsWith) }).toEqual({ title: e.title, label, ...OK });
+      it("本文が上限に収まり、差し込み口が残っていない", () => {
+        for (const { e, body } of rendered) {
+          expect({ title: e.title, fits: body.length <= MAX_TOPIC_BODY, leftover: body.match(SLOT_MARKER) }).toEqual({
+            title: e.title,
+            fits: true,
+            leftover: null,
+          });
         }
+      });
+
+      it("本文が「## 背景」で始まり、「満たすこと:」と、最後の節の「ヒント:」を持ち、囲みが閉じている", () => {
+        for (const { e, body } of rendered) {
+          const hint = body.lastIndexOf("ヒント:");
+          const fences = fenceLines(body);
+          const lastFenceAt = fences.length === 0 ? -1 : body.split("\n").slice(0, fences[fences.length - 1]! + 1).join("\n").length;
+          expect({
+            title: e.title,
+            background: body.startsWith("## 背景\n"),
+            requirements: body.includes("\n満たすこと:\n- "),
+            hint: hint >= 0 && body.slice(hint).startsWith("ヒント:\n- "),
+            hintIsLast: hint > lastFenceAt,
+            balanced: fences.length % 2 === 0,
+          }).toEqual({ title: e.title, background: true, requirements: true, hint: true, hintIsLast: true, balanced: true });
+        }
+      });
+
+      for (const category of CATEGORIES) {
+        const required = REQUIRED_FENCES[category];
+        if (required.length === 0) continue;
+        it(`${category} の本文は、${required.map((r) => r.label).join("・")}の後ろにコードの囲みを持ち、テストは ${language} の書き方で、ヒントより前で閉じる`, () => {
+          for (const { e, body } of rendered.filter((r) => r.e.category === category)) {
+            for (const { label, isTest } of required) {
+              const got = fencedAfter(body, label, isTest ? TEST_SHAPE[language] : null);
+              expect({ title: e.title, label, ...got }).toEqual({ title: e.title, label, ...OK });
+            }
+          }
+        });
       }
+
+      it(`任意で置いたテストの例も ${language} の書き方になっている`, () => {
+        for (const { e, body } of rendered) {
+          for (const label of OPTIONAL_TEST_FENCES) {
+            if (!body.includes(`${label}\n\`\`\`\n`)) continue;
+            expect({ title: e.title, label, ...fencedAfter(body, label, TEST_SHAPE[language]) }).toEqual({ title: e.title, label, ...OK });
+          }
+        }
+      });
+
+      it("design の本文は「話し合うこと:」の箇条書きを持つ", () => {
+        for (const { e, body } of rendered.filter((r) => r.e.category === "design")) {
+          expect({ title: e.title, discuss: body.includes("\n話し合うこと:\n- ") }).toEqual({ title: e.title, discuss: true });
+        }
+      });
     });
   }
-
-  it("design の本文は「話し合うこと:」の箇条書きを持つ", () => {
-    for (const e of byCategory("design")) {
-      expect({ title: e.title, discuss: e.body.includes("\n話し合うこと:\n- ") }).toEqual({ title: e.title, discuss: true });
-    }
-  });
 });

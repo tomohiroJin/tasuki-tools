@@ -1,6 +1,7 @@
 import { LANGUAGES, type Category, type Difficulty, type Language } from "./limits.js";
 import type { Topic } from "./topic.js";
 import { TOPIC_BANK, type TopicBankEntry } from "./topic-bank.js";
+import { renderTopicBody } from "./topic-render.js";
 
 /**
  * 言語・難易度・種類に合った定型のお題を返す（#91。かつて timer-core にあった定型のお題の選び方の
@@ -33,7 +34,9 @@ export function pickTopicFallback(
 
   // `?? TOPIC_BANK[0]!` は置かない。`now` の渡し忘れ（NaN）を黙って飲み込むため
   const entry = pool[Math.abs(now) % pool.length]!;
-  return { title: entry.title, body: entry.body, source: "fallback" };
+  // 本文は選ばれた言語で組む（#634）。許可リストに無い言語（境界をすり抜けた値）は、画面の既定の言語で組む
+  const shownIn = isAllowed(LANGUAGES, language) ? language : LANGUAGES[0];
+  return { title: entry.title, body: renderTopicBody(entry, shownIn), source: "fallback" };
 }
 
 /**
