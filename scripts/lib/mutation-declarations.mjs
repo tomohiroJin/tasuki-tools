@@ -10606,11 +10606,11 @@ export const MUTATIONS = [
   },
   {
     id: 2068,
-    label: "演出の判定を、接続中で見学でない人でなく全員の票で行う",
+    label: "卓の外（切断した人）の票があっても、一致・バラバラの判定をそのまま行う",
     patch: "m2068-effect-judges-all-votes.patch",
     pkg: "apps/poker-web",
     tests: ["tests/room-view.test.ts"],
-    note: RESERVED_2050_2079 + " " + "#639 の /code-review。room-view.ts。切断した人の票で 2 人の卓が「全員バラバラ」になる。",
+    note: RESERVED_2050_2079 + " " + "#639 の /code-review。room-view.ts。切断した人の票が卓に見えるのに「全員同じ」「全員バラバラ」が出て、割れの促し・統計・札と食い違う。",
   },
   {
     id: 2069,
@@ -10651,5 +10651,29 @@ export const MUTATIONS = [
     pkg: "apps/poker-web",
     tests: ["tests/results-effect-css.test.ts"],
     note: RESERVED_2050_2079 + " " + "#639 の /code-review。index.css。狭い画面で帯が折り返して高さが変わり、下の統計が跳ねる。",
+  },
+  {
+    id: 2074,
+    label: "卓の外の票の扱いを「1 枚でもあれば」でなく「全部が外なら」にする",
+    patch: "m2074-effect-outside-votes-only-when-all.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/room-view.test.ts"],
+    note: RESERVED_2050_2079 + " " + "#639 の /code-review の直し。room-view.ts。卓の内と外の票が混ざる開票で、外の札が見えるのに一致・バラバラが出る。",
+  },
+  {
+    id: 2075,
+    label: "バラバラの動きで帯を大きくして外へ動かす（scale 1 超・translateX）",
+    patch: "m2075-effect-scatter-moves-outward.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/results-effect-css.test.ts"],
+    note: RESERVED_2050_2079 + " " + "#639 の /code-review の直し。index.css。320px で帯の右端が画面の外へ出て、横スクロールが出うる。",
+  },
+  {
+    id: 2076,
+    label: "CSS の帯の遅れの式を JS の読み上げの待ちとずらす",
+    patch: "m2076-effect-band-delay-drifts-from-js.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/results-effect-css.test.ts"],
+    note: RESERVED_2050_2079 + " " + "#639 の /code-review の直し。index.css。CSS だけ変えても検査が緑のまま、帯と読み上げの時刻がずれる。",
   },
 ];

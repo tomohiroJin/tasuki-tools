@@ -1,12 +1,12 @@
 diff --git a/apps/poker-web/src/index.css b/apps/poker-web/src/index.css
-index 0e6ef2ad..94af6a27 100644
+index b077cca7..6faa9a24 100644
 --- a/apps/poker-web/src/index.css
 +++ b/apps/poker-web/src/index.css
-@@ -543,6 +543,7 @@
- @keyframes effect-scatter {
+@@ -545,6 +545,7 @@
    0% {
      opacity: 0;
+     filter: blur(0.5rem);
 +    letter-spacing: 0.9em;
-     transform: translateX(-0.8rem) scale(1.06);
+     transform: scale(0.9);
    }
-   30% {
+   40% {

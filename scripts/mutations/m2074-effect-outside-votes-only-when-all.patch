@@ -1,0 +1,13 @@
+diff --git a/apps/poker-web/src/room-view.ts b/apps/poker-web/src/room-view.ts
+index 38448780..4a951d95 100644
+--- a/apps/poker-web/src/room-view.ts
++++ b/apps/poker-web/src/room-view.ts
+@@ -65,7 +65,7 @@ export function resultsEffectOf(
+   // 卓の外（切断した人・名簿に居ない人）の票が 1 枚でもあれば、一致・バラバラにしない。
+   // 卓には外の票の札も見え、割れの促しや統計にも入るので、「全員同じ」「全員バラバラ」と食い違う。出そろいに落とす
+   const voterIds = new Set(voters.map((p) => p.id));
+-  if (round.votes.some((v) => !voterIds.has(v.participantId))) return 'complete';
++  if (round.votes.every((v) => !voterIds.has(v.participantId))) return 'complete';
+   return judgeAgreement(round.votes) ?? 'complete';
+ }
+ 

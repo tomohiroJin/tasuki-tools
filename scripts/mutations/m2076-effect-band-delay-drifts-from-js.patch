@@ -1,0 +1,13 @@
+diff --git a/apps/poker-web/src/index.css b/apps/poker-web/src/index.css
+index b077cca7..4f48a064 100644
+--- a/apps/poker-web/src/index.css
++++ b/apps/poker-web/src/index.css
+@@ -499,7 +499,7 @@
+ 
+ /* 札が順にめくれる公開では、集計（.results--after-flip .stats）と同じ待ち */
+ .results--after-flip .results-effect {
+-  animation-delay: calc(min(var(--seat-count, 1) - 1, 8) * 90ms + 0.45s);
++  animation-delay: calc(min(var(--seat-count, 1) - 1, 8) * 90ms + 0.5s);
+ }
+ 
+ .results-effect[data-effect='unanimous'] {
