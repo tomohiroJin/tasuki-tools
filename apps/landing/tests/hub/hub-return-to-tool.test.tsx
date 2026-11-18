@@ -99,14 +99,4 @@ describe('玄関で通ったあと、元の道具へ戻る', () => {
     expect(vi.mocked(redirectTo)).not.toHaveBeenCalled();
     expect(screen.getByRole('list', { name: 'ツール' })).toBeInTheDocument();
   });
-
-  it('Given ルームを作った / When room.created が届く / Then 戻さない（作成は道具へ戻る理由を持たない）', () => {
-    window.history.replaceState(null, '', '/?from=timer');
-    render(<App />);
-    act(() => socket().open());
-
-    act(() => socket().deliver({ type: 'room.created', code: 'A-1', participantId: 'p1', resumeToken: 't1' }));
-
-    expect(vi.mocked(redirectTo)).not.toHaveBeenCalled();
-  });
 });

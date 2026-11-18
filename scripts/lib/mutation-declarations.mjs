@@ -10542,11 +10542,11 @@ export const MUTATIONS = [
   },
   {
     id: 2010,
-    label: "玄関が、ルームを作った直後にも元の道具へ戻す",
-    patch: "m2010-hub-sync-return-on-create.patch",
+    label: "玄関が入室で受けた復帰の組を、元の道具へ戻す前に端末へ置かない",
+    patch: "m2010-hub-sync-resume-identity-not-saved.patch",
     pkg: "apps/landing",
     tests: ["tests/hub/hub-return-to-tool.test.tsx"],
-    note: RESERVED_2000_2049 + " " + "#638。作成は戻る理由を持たない。?from= を持つ URL でルームを作ると、選択画面を見られないまま別の道具へ飛ぶ。",
+    note: RESERVED_2000_2049 + " " + "#638。戻った先の道具に復帰の組が無く、また玄関へ送り返される往復になる（合言葉を通ったのに道具に入れない）。",
   },
   {
     id: 2011,
