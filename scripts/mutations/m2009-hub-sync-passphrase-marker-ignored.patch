@@ -8,15 +8,15 @@
 #
 # #638。設定した後も画面が「付いていません」のままで、変更・解除の口が出ない。
 diff --git a/apps/landing/src/hub/use-hub-sync.ts b/apps/landing/src/hub/use-hub-sync.ts
-index 9dbfe2d1..6f3ee34c 100644
+index 546e97d7..e93d2843 100644
 --- a/apps/landing/src/hub/use-hub-sync.ts
 +++ b/apps/landing/src/hub/use-hub-sync.ts
-@@ -399,7 +399,7 @@ export function useHubSync(): HubSync {
-     defaultDisplayName,
+@@ -412,7 +412,7 @@ export function useHubSync(): HubSync {
      error,
      needsPassphrase,
--    passphraseProtected: roster?.passphraseProtected === true,
+     // 名簿が届くまで・印の無い名簿（古いサーバー）は null（まだ分からない）。false と取り違えると、付いている合言葉を黙って上書きする。
+-    passphraseProtected: roster?.passphraseProtected ?? null,
 +    passphraseProtected: false,
+     passphraseError,
      connection,
      createRoom,
-     joinRoom,

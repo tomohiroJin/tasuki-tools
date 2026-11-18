@@ -1,4 +1,4 @@
-# 変異 2000: ハブが合言葉を設定・解除しても名簿を配り直さない
+# 変異 2000: ハブが合言葉の有無を変えても名簿を配り直さない
 #
 # 検出を期待するテスト:
 #   - apps/tasuki-sync/test/live-ws.hub-passphrase.test.ts
@@ -8,14 +8,14 @@
 #
 # #638。ハブ（玄関）の合言葉の設定。付いているかの印が画面に届かず、設定したのに「付いていません」のまま残る。
 diff --git a/apps/tasuki-sync/src/application/hub-handlers.ts b/apps/tasuki-sync/src/application/hub-handlers.ts
-index f525aee4..01d2ed0a 100644
+index 22f09bdb..10e17837 100644
 --- a/apps/tasuki-sync/src/application/hub-handlers.ts
 +++ b/apps/tasuki-sync/src/application/hub-handlers.ts
-@@ -182,7 +182,6 @@ export function makeHubHandlers(deps: HubHandlerDeps): HubHandlers {
+@@ -186,7 +186,6 @@ export function makeHubHandlers(deps: HubHandlerDeps): HubHandlers {
+     const nowProtected = applyRoomPassphrase(deps.tokenStore, room.code, cmd.passphrase);
+     if (wasProtected !== nowProtected) {
+       // 名簿に載る印が変わったときだけ全員へ配り直す（各道具の名簿の変化の測り直しも、その時だけ走る）。
+-      hub.broadcastRoster(room.code);
        return;
      }
-     applyRoomPassphrase(deps.tokenStore, room.code, cmd.passphrase);
--    hub.broadcastRoster(room.code);
-   }
- 
-   function handleJoin(connId: string, cmd: Extract<HubCommand, { command: "room.join" }>): void {
+     // A → B の変更や、付いていないものの解除では名簿は変わらない。送った人には成功が分かるよう、名簿を 1 通だけ返す

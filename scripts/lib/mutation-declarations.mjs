@@ -10456,7 +10456,7 @@ export const MUTATIONS = [
   },
   {
     id: 2000,
-    label: "ハブが合言葉を設定・解除しても名簿を配り直さない",
+    label: "ハブが合言葉の有無を変えても名簿を配り直さない",
     patch: "m2000-hub-passphrase-set-no-roster-broadcast.patch",
     pkg: "apps/tasuki-sync",
     tests: ["test/live-ws.hub-passphrase.test.ts"],

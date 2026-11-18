@@ -8,16 +8,16 @@
 #
 # #638。URL に書かれた値のまま遷移先を作る（知らない道具・パスを混ぜた値へ飛ばされる。オープンリダイレクトの入口）。
 diff --git a/apps/landing/src/hub/return-to-tool.ts b/apps/landing/src/hub/return-to-tool.ts
-index fefbf2ab..7fe0f5c4 100644
+index 405fe910..1d5ec75e 100644
 --- a/apps/landing/src/hub/return-to-tool.ts
 +++ b/apps/landing/src/hub/return-to-tool.ts
-@@ -23,7 +23,6 @@ export function returnPathFor(href: string): string | null {
+@@ -28,7 +28,6 @@ export function returnPathFor(href: string, joinedCode: string): string | null {
    if (code === null) return null;
    if (url.searchParams.has(DEPARTURE_PARAM)) return null;
    const from = url.searchParams.get(RETURN_PARAM);
 -  const tool = TOOLS.find((candidate) => candidate.id === from);
 -  if (tool === undefined) return null;
--  return `${tool.href}?room=${encodeURIComponent(code)}`;
+-  return `${tool.href}?room=${encodeURIComponent(joinedCode)}`;
 +  if (from === null || from === '') return null;
-+  return `/${from}/?room=${encodeURIComponent(code)}`;
++  return `/${from}/?room=${encodeURIComponent(joinedCode)}`;
  }
