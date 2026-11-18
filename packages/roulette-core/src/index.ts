@@ -11,6 +11,18 @@ export { pressPositionAt, pressStopOf } from "./press.js";
 // 変わった止まり方（#420）。画面が止まり方の名前を読み、1 人目が止まる時刻（`pickStopsMs` の第 2 引数）をそろえるために載せる
 export { STOP_STYLES, STOP_STYLE_EXTRA_MS, isStopStyle } from "./limits.js";
 export type { StopStyle } from "./limits.js";
+// 変わった動き（#640）。画面が名前を読み、動き出しの長さ・止まる時刻を同じ表から出すために載せる
+export {
+  LAUNCH_MOTIONS,
+  SPIN_MOTIONS,
+  LAUNCH_MOTION_EXTRA_MS,
+  SPIN_MOTION_EXTRA_MS,
+  MOTION_EXTRA_CAP_MS,
+  isLaunchMotion,
+  isSpinMotion,
+  launchMotionMs,
+} from "./limits.js";
+export type { LaunchMotion, SpinMotion, MotionNames } from "./limits.js";
 
 export { INITIAL_ROULETTE_STATE } from "./types.js";
 export type { Entry, EntryId, Member, NameConflict, OrderRound, Pick, PressSpin, PressStop, RouletteMode, RouletteState, Spin } from "./types.js";

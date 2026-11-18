@@ -74,6 +74,9 @@ const RouletteViewSchema = v.object({
       ),
       // 変わった止まり方（#420）。名前は列挙で縛らない（新しいサーバーの知らない名前でフレームごと捨てない）
       stopStyle: v.optional(v.string()),
+      // 変わった動き（#640）。止まり方と同じく名前は列挙で縛らない（新しいサーバーの知らない名前でフレームごと捨てない）
+      launchMotion: v.optional(v.string()),
+      spinMotion: v.optional(v.string()),
       spunBy: v.string(),
       durationMs: v.number(),
       elapsedMs: v.number(),
