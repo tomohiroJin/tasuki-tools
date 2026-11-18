@@ -434,3 +434,14 @@ PR 1（main `3cddcdc`）で実装が入り、PR 3 で timer の旧い生成の�
 **`data:` を外すと招待の QR コードが出なくなる。** favicon を実ファイルにしたことは、`data:` を外す根拠にならない。
 
 本追記は上の「`style-src 'unsafe-inline'` を外す条件」と同じく、決定を覆さずに本文の事実誤認を訂正するものである。
+
+## 追記（2026-11-19・#638） — 合言葉の設定コマンドがハブへ移った（Proposed・採択は人）
+
+[#638](https://github.com/tomohiroJin/tasuki-tools/issues/638) で `room.passphrase.set` が timer のコマンドからハブのコマンドへ移った（`docs/adr/0011` の同日の追記）。
+**ログの規律（D1 の語彙・平文を出さない）は変わらない。** 合言葉は `publicText` の語彙にも載せず、ハブのハンドラ
+（`apps/tasuki-sync/src/application/hub-handlers.ts`）は合言葉を `logger` へ渡さない。`node scripts/audit-log-hygiene.mjs` が通ることで確かめる。
+
+- **レート制限（D2〜D3）**: 設定コマンドは**失敗を数えない**（合言葉の総当たりの的になるのは参加側の `room.join` で、設定ではない）。
+  参加側の枠は今までどおり 1 個のゲートを通る。設定の入口を足しても、入口ごとの枠は増えない
+- **比較（D10 に準じる）**: 合言葉の照合は定時間のまま（`secure-compare.ts`）。保持は前後の空白を落とした値で、参加側も同じ `trim` を掛ける
+- 名簿へ載るのは「付いているか」の真偽値だけで、平文は載らない
