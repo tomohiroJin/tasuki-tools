@@ -103,13 +103,33 @@ describe("toView: 匿名で開いた後", () => {
     }
   });
 
-  // #635 で足したやり方を含む、既定が匿名の全てのやり方で、既定のまま（公開の仕方を触らずに）出して開く
-  it.each(METHOD_IDS.filter((m) => METHODS[m].defaultVisibility === "anonymous"))(
+  // #635 で足したやり方を含む、既定が匿名であるはずの全てのやり方で、既定のまま（公開の仕方を触らずに）出して開く。
+  // 一覧は実装（METHODS）から導かずに書く。導くと、既定が名前つきへ変わったやり方が対象から外れるだけで緑のままになる（#635 のレビュー 2）
+  const ANONYMOUS_BY_DEFAULT = [
+    "energy",
+    "expectation",
+    "roti",
+    "next-meeting",
+    "understanding",
+    "busyness",
+    "talk-wish",
+    "battery",
+    "clarity",
+    "worry",
+    "agreement",
+    "voice",
+    "pace",
+    "fatigue",
+  ] as const;
+  it("既定が匿名であるはずの一覧は、METHODS の既定が匿名のやり方とちょうど一致する", () => {
+    expect([...ANONYMOUS_BY_DEFAULT].sort()).toEqual(METHOD_IDS.filter((m) => METHODS[m].defaultVisibility === "anonymous").sort());
+  });
+  it.each(ANONYMOUS_BY_DEFAULT)(
     "%s: 既定の匿名のまま、開く前は他人の札が無く、開いた後は山に ID も名前も無い（#635）",
     (method) => {
       const cards = METHODS[method].cards;
       let s = choose(empty, method);
-      expect(s.round?.visibility).toBe("anonymous");
+      expect(s.round?.visibility, "既定が匿名").toBe("anonymous");
       s = play(s, a, cards[0]!);
       s = play(s, b, cards[1]!);
       for (const viewer of [b, c]) {

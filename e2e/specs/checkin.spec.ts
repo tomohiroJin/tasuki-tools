@@ -107,7 +107,7 @@ const ALL_METHODS: ReadonlyArray<readonly ['チェックイン' | 'チェック�
  * #480 の要求幅と、40rem の段の境目の手前・上（639・640）。字の大きさは幅で流れる（`--font-size-sm`）ので、
  * 段の手前がいちばん窮屈になる（PR #502 の敵対的レビュー 1: 628〜639px で 8 字の名前が割れていた）
  */
-const HAND_WIDTHS = [320, 390, 639, 640, 768, 1280, 1920] as const;
+const HAND_WIDTHS = [320, 375, 390, 639, 640, 768, 1280, 1920] as const;
 
 /**
  * 手札の札が何を示すかを、絵だけに頼らず読める（#480）。今の幅で、各札の名前と意味が見えていて、札のボタンの中に収まり、
@@ -278,7 +278,7 @@ async function expectAnonymousRound(page: Page, b: Page, framesA: FrameLog, fram
  * @requirements #406
  */
 test.describe('@core 札を伏せて出し、全員の画面で一斉に開く', () => {
-  test('Given 2 人が同じルームで Check-in Cards を開く / When 今日の天気・もう一回・ROTI（匿名）・待たずに開く・見学する / Then 両方の画面が同じ回になり、匿名の札は B のフレームに載らない', async ({
+  test('Given 2 人が同じルームで Check-in Cards を開く / When 今日の天気・もう一回・ROTI といそがしさ（匿名）・待たずに開く・見学する・全てのやり方 / Then 両方の画面が同じ回になり、匿名の札は B のフレームに載らず、足したやり方も出して開ける', async ({
     page,
     openPeer,
     consoleWatcher,
@@ -291,9 +291,9 @@ test.describe('@core 札を伏せて出し、全員の画面で一斉に開く',
     await joinCheckinTool(peer.page, inviteUrl, NAME_B);
     const b = peer.page;
 
-    // When / Then その0（#468）: 選択画面の札は同じ大きさで、320px・39rem 幅（624px）は 2 列、40rem 幅（640px）・1280px は 4 列。両方の側で同じ
+    // When / Then その0（#468）: 選択画面の札は同じ大きさで、320px・375px（#635 の完了条件）・39rem 幅（624px）は 2 列、40rem 幅（640px）・1280px は 4 列。両方の側で同じ
     const original = page.viewportSize() ?? { width: 1280, height: 800 };
-    for (const [width, columns] of [[320, 2], [624, 2], [640, 4], [1280, 4]] as const) {
+    for (const [width, columns] of [[320, 2], [375, 2], [624, 2], [640, 4], [1280, 4]] as const) {
       await page.setViewportSize({ width, height: original.height });
       for (const side of ['チェックイン', 'チェックアウト']) {
         await page.getByRole('group', { name: 'やり方を選んでください' }).getByRole('button', { name: side, exact: true }).click();
