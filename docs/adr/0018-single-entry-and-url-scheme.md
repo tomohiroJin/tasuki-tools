@@ -77,4 +77,7 @@
   - **URL を信じて遷移しない**: 行き先は玄関の札の一覧（`TOOLS`）から引く。知らない値・外部の URL・パスを混ぜた値は戻さない
   - **退出の告知（`?left=`）を持つ人は戻さない**（外された人が入り直してまた外される往復を作らない）。`departed` の送り返しは `?from=` を運ばない
   - ルームの作成（`room.created`）は戻る理由を持たないので戻さない
-- 6 つの道具（timer・poker・topic・roulette・agenda・checkin）はいずれも、復帰の組を持たない人・合言葉を求められた人を、この `?from=` つきで玄関へ送る
+- `?from=` つきで玄関へ送るのは、次の 2 つの場面である。
+  - **復帰の組が無いとき**: 6 つの道具（timer・poker・topic・roulette・agenda・checkin）すべて
+  - **合言葉の失敗（`PASSPHRASE_REQUIRED`・`PASSPHRASE_MISMATCH`）**: topic・roulette・agenda・checkin だけ。
+    timer と poker は、復帰の組で入り直して合言葉を求められても玄関へは送らず、帯にエラーを出すだけである（timer は `error-action.ts` で一時的なエラーとして、poker は `useSync.ts` で帯に）

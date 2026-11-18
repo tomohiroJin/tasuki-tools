@@ -706,7 +706,7 @@ S1（見知らぬ第三者の入室）と S9（権限のなりすまし）は変
   真偽値だけ**（`RosterRoom.passphraseProtected`）で、平文を snapshot・名簿・ログへ出さない。timer の snapshot からは
   `passphraseProtected` を落とした（印の運び先が名簿へ移ったため）
 - **比較・ログ**: 参加側の比較は定時間のまま（`secure-compare.ts`・`room-entry.ts` の `checkPassphrase`）。ログに合言葉を出さない規律（`docs/adr/0012`）は変わらない
-- **他の道具の接続**: timer・poker・topic・roulette・agenda・checkin の接続から届いた `room.passphrase.set` は `INVALID_COMMAND` で拒む
+- **他の道具の接続**: timer・topic・roulette・agenda・checkin の接続から届いた `room.passphrase.set` は `INVALID_COMMAND` で拒む。poker は、スキーマに合わないメッセージを `invalid-message` に畳む（`packages/poker-core/src/protocol.ts`）ので、そちらで拒む
 - **「機能ごと消す」案**: 消すほうが小さいが、公開のルームコードだけで入れる状態を防ぐ手段がほかに無いので、残して移す。移したあとも使われなければ、そのとき消す
 
 配る順と、配布の間に古い timer から設定が失敗する窓については `deploy/README.md` の「合言葉の設定の移設（#638）」に書いた。

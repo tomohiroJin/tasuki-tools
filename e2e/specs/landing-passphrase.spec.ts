@@ -36,8 +36,9 @@ async function submitPassphrase(page: Page, value: string, button: '設定' | '�
 }
 
 test.describe('玄関で合言葉を設定・変更・解除できる', () => {
-  test('Given 作成直後のルーム / When 設定・変更・解除する / Then 状態の表示が追随し、入力欄に平文は残らない', async ({
+  test('Given 作成直後のルーム / When 設定・変更・解除する / Then 状態の表示が追随し、入力欄に平文は残らず、変更は新しい合言葉だけを通す', async ({
     page,
+    openPeer,
   }) => {
     await createHubRoom(page, 'あや');
     await expect(page.getByText('合言葉は付いていません。', { exact: false })).toBeVisible();
@@ -50,6 +51,20 @@ test.describe('玄関で合言葉を設定・変更・解除できる', () => {
     // 変更
     await submitPassphrase(page, 'べつの合言葉', '変更');
     await expect(page.getByText('合言葉を設定中です。', { exact: false })).toBeVisible();
+    // 変更が効いている: 別の人が古い合言葉では入れず、新しい合言葉なら入れる（文言だけを見ない）
+    const code = new URL(page.url()).searchParams.get('room')!;
+    const stranger = await openPeer('passphrase-change');
+    await stranger.page.goto(`/?room=${encodeURIComponent(code)}`);
+    await stranger.page.getByLabel('あなたの名前').fill('いずみ');
+    await stranger.page.getByRole('button', { name: '参加する' }).click();
+    const field = stranger.page.getByLabel('合言葉', { exact: true });
+    await field.fill(SECRET);
+    await stranger.page.getByRole('button', { name: '参加する' }).click();
+    await expect(stranger.page.getByRole('alert'), '古い合言葉は拒まれる').toBeVisible();
+    await expect(stranger.page.getByRole('list', { name: 'ツール' })).toHaveCount(0);
+    await field.fill('べつの合言葉');
+    await stranger.page.getByRole('button', { name: '参加する' }).click();
+    await expect(stranger.page.getByRole('list', { name: 'ツール' }), '新しい合言葉で入れる').toBeVisible();
 
     // 解除
     await page.getByRole('button', { name: '解除', exact: true }).click();
