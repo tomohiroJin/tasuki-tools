@@ -260,12 +260,6 @@ test.describe('poker は見積もりを記録に残す', () => {
   test('Given コピー API を使えない幅 390 の画面 / When 記録のシートからコピー / Then すべての題がクリップボードに入る', async ({ page, context }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
-    await page.addInitScript(() => {
-      const clipboard = navigator.clipboard;
-      Object.defineProperty(navigator, 'clipboard', {
-        value: { readText: clipboard.readText.bind(clipboard) },
-      });
-    });
     await createRoom(page, HOST);
     await turnRecordingOn(page);
     for (const card of ['2', '3', '5', '8']) {
@@ -277,6 +271,13 @@ test.describe('poker は見積もりを記録に残す', () => {
 
     await page.getByRole('button', { name: '記録をすべて見る' }).click();
     const drawer = page.getByRole('dialog', { name: '見積もりの記録' });
+    await page.evaluate(async () => {
+      const clipboard = navigator.clipboard;
+      await clipboard.writeText('前のコピー');
+      Object.defineProperty(navigator, 'clipboard', {
+        value: { readText: clipboard.readText.bind(clipboard) },
+      });
+    });
     const copy = drawer.getByRole('button', { name: '記録をコピー' });
     await copy.click();
     await expect(drawer.getByRole('status')).toHaveText('コピーしました');
