@@ -10521,4 +10521,12 @@ export const MUTATIONS = [
     tests: ["tests/use-copy-text.test.ts"],
     note: "#637。モーダルの外にある一時欄では文字を選択できず、記録を持ち出せない。",
   },
+  {
+    id: 1978,
+    label: "名前を入力した題も自動の題と同じ薄い色にする",
+    patch: "m1978-poker-named-estimate-title-muted.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/room-page-estimate.test.tsx"],
+    note: "#637 のレビュー。入力した名前まで次の題の予告と同じ色になる。",
+  },
 ];

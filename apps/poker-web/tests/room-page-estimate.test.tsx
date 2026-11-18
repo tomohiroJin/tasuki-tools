@@ -166,7 +166,9 @@ describe('アイテム名の欄と記録', () => {
     const sync = makeSync(snapshot('revealed'));
     render(<RoomPage roomId={ROOM_ID} sync={sync} />);
     expect(screen.getByText(ESTIMATE_ITEM_LABEL)).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: /PROJ-1/ }));
+    const title = screen.getByRole('button', { name: 'PROJ-1', description: ESTIMATE_ITEM_LABEL });
+    expect(title.hasAttribute('data-auto-title')).toBe(false);
+    fireEvent.click(title);
     const input = screen.getByRole('textbox');
     fireEvent.change(input, { target: { value: 'PROJ-2' } });
     fireEvent.keyDown(input, { key: 'Enter' });
