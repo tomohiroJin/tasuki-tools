@@ -40,7 +40,7 @@ pnpm install
 ```bash
 # 例: https://nodejs.org/dist/v<版>/ の tar.xz を SHASUMS256.txt で照合して展開した場所
 export PATH="$HOME/.local/node-v<版>-linux-x64/bin:$PATH"
-node -v   # toolchain.json の node と同じ major であることを確かめてから流す
+node -v   # toolchain.json の node 以上で、かつ同じ major であることを確かめてから流す（Renovate が下限を上げたら手元も入れ替える）
 ```
 
 コンテナのシステムの Node を上げるかどうかは claym 側（`.devcontainer/Dockerfile`。同じ Node で動く MCP サーバーや
@@ -774,8 +774,8 @@ major は Dependency Dashboard の Issue に提示。決定は ADR 0008）。脆
   型定義（`@types/bun`）も同じまとまり（`renovate/bun`）に入れ、実行環境より先へ進まないようにしてあります。
   承認したら、本番・手元・CI（`.github/workflows/ci.yml` の `bun-version` すべて）を同時に上げてください。
   手順は [`deploy/README.md` の「Bun を上げる」](../../deploy/README.md#bun-を上げる) にあります。
-  規則は `packageRules` の**末尾**に置いてあります（後の規則が前の規則を上書きするので、前へ動かすと
-  「非破壊的な更新」の `groupName` に負けます）
+  規則は `packageRules` の「非破壊的な更新」の規則**より後ろ**に置いてあります（後の規則が前の規則を上書きするので、前へ動かすと
+  「非破壊的な更新」の `groupName` に負けます。下の Node の規則も同じ理由で後ろに置いています）
 - **Node（`toolchain.json` の `node`）も Renovate が PR を出します**（#441。`customManagers`・`node-version`）。
   Renovate が `toolchain.json` の `node` と `package.json` の `engines.node` を **1 つの PR で**上げます
   （片方だけだと `audit-toolchain` が赤くなるため）。「Node」の独立した群にしてあり、ほかの「非破壊的な更新」を巻き込みません。
