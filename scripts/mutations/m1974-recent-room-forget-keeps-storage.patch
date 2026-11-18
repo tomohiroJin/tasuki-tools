@@ -1,0 +1,11 @@
+diff --git a/apps/landing/src/hub/recent-room-names-store.ts b/apps/landing/src/hub/recent-room-names-store.ts
+index 2e72e5c..d184787 100644
+--- a/apps/landing/src/hub/recent-room-names-store.ts
++++ b/apps/landing/src/hub/recent-room-names-store.ts
+@@ -45,6 +45,5 @@ export function storeRememberedRoomName(name: string): string[] {
+ /** 候補から 1 つを消し、新しい候補を返す。書く直前に読み直す（同上）。 */
+ export function storeForgottenRoomName(name: string): string[] {
+   const next = forgetRoomName(loadRecentRoomNames(), name);
+-  write(next);
+   return next;
+ }

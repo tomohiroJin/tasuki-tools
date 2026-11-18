@@ -1,0 +1,13 @@
+diff --git a/apps/landing/src/hub/use-hub-sync.ts b/apps/landing/src/hub/use-hub-sync.ts
+index 2661252..55438b0 100644
+--- a/apps/landing/src/hub/use-hub-sync.ts
++++ b/apps/landing/src/hub/use-hub-sync.ts
+@@ -243,7 +243,7 @@ export function useHubSync(): HubSync {
+           // 作成したときは URL に `?room=` が無いので、履歴を汚さず差し替える。
+           // **画面の側も同時に進める**（URL を書き換えても状態は追随しない）。
+           if (msg.type === 'room.created') {
+-            if (lastCreateRoomNameRef.current !== null) rememberRoomName(lastCreateRoomNameRef.current);
++            
+             lastCreateRoomNameRef.current = null;
+             codeRef.current = msg.code;
+             setCode(msg.code);

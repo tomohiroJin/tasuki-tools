@@ -1,0 +1,13 @@
+diff --git a/apps/landing/src/hub/recent-room-names-store.ts b/apps/landing/src/hub/recent-room-names-store.ts
+index 2e72e5c..386a578 100644
+--- a/apps/landing/src/hub/recent-room-names-store.ts
++++ b/apps/landing/src/hub/recent-room-names-store.ts
+@@ -26,7 +26,7 @@ export function loadRecentRoomNames(): string[] {
+ function write(names: readonly string[]): void {
+   try {
+     localStorage.setItem(RECENT_ROOM_NAMES_KEY, JSON.stringify(names));
+-  } catch {
++  } finally {
+     // 使えない保管庫（cookie 全面禁止・容量超過）。覚えないまま進む
+   }
+ }

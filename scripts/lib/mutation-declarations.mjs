@@ -251,6 +251,9 @@ const RESERVED_1950_1959 =
 const RESERVED_1960_1969 =
   "**対応表より後に足した変異。** 1960〜1969 は #622 の追加（1950〜1959 を使い切ったため）に割り当てた範囲。";
 
+const RESERVED_1970_1989 =
+  "**対応表より後に足した変異。** 1970〜1989 は #633（玄関が前に作ったルーム名を覚えて入れ直す）に割り当てた範囲。";
+
 const RESERVED_1800_1819 =
   "**対応表より後に足した変異。** 1800〜1819 は #595（ScenarioBuilder を責務で分ける）に割り当てた範囲。";
 
@@ -10456,5 +10459,133 @@ export const MUTATIONS = [
     pkg: "apps/timer-web",
     tests: ["test/ui/RosterPanel.duplicate-proxy.test.tsx"],
     note: RESERVED_1850_1869 + " " + "#595。RosterPanel.tsx の代理追加の配線。直したのに赤いままで、「まだ駄目なのか」と読める（#291）。",
+  },
+  {
+    id: 1970,
+    label: "作成の成功（room.created）でルーム名を覚えない",
+    patch: "m1970-recent-room-not-remembered-on-created.patch",
+    pkg: "apps/landing",
+    tests: ["tests/hub/recent-room-names-screen.test.tsx"],
+    note: RESERVED_1970_1989 + " " + "#633。次に作るとき、また名前を打ち直すことになる。",
+  },
+  {
+    id: 1971,
+    label: "ルーム名を作成の送信の時点で覚える（成功を待たない）",
+    patch: "m1971-recent-room-remembered-on-send.patch",
+    pkg: "apps/landing",
+    tests: ["tests/hub/recent-room-names-screen.test.tsx"],
+    note: RESERVED_1970_1989 + " " + "#633。弾かれた名前が候補に残る（EARS 1 は成功したときに覚える）。",
+  },
+  {
+    id: 1972,
+    label: "作成画面のルーム名の欄を、覚えた名前で埋めずに空から始める",
+    patch: "m1972-create-room-not-prefilled.patch",
+    pkg: "apps/landing",
+    tests: ["tests/hub/recent-room-names-screen.test.tsx"],
+    note: RESERVED_1970_1989 + " " + "#633。開くたびに名前を打ち直すことになる（EARS 2）。",
+  },
+  {
+    id: 1973,
+    label: "ルーム名の候補の札を選んでも欄に入れない",
+    patch: "m1973-recent-room-pick-does-nothing.patch",
+    pkg: "apps/landing",
+    tests: ["tests/hub/recent-room-names-screen.test.tsx"],
+    note: RESERVED_1970_1989 + " " + "#633。札が押せるのに何も起きない（EARS 3）。",
+  },
+  {
+    id: 1974,
+    label: "ルーム名の候補を消しても端末の保存から消さない",
+    patch: "m1974-recent-room-forget-keeps-storage.patch",
+    pkg: "apps/landing",
+    tests: ["tests/hub/recent-room-names-screen.test.tsx"],
+    note: RESERVED_1970_1989 + " " + "#633。消した名前が、開き直すと戻ってくる（EARS 4）。",
+  },
+  {
+    id: 1975,
+    label: "ルーム名の候補を消したあと、フォーカスを欄へ戻さない",
+    patch: "m1975-recent-room-forget-loses-focus.patch",
+    pkg: "apps/landing",
+    tests: ["tests/hub/recent-room-names-screen.test.tsx"],
+    note: RESERVED_1970_1989 + " " + "#633。押した札が消えてフォーカスが文書の頭へ飛び、キーボードで使う人が場所を見失う。",
+  },
+  {
+    id: 1976,
+    label: "ルーム名の候補の上限を 5 件から 6 件にする",
+    patch: "m1976-recent-room-limit-six.patch",
+    pkg: "apps/landing",
+    tests: ["tests/hub/recent-room-names.test.ts"],
+    note: RESERVED_1970_1989 + " " + "#633。決めた数（5 件）を越えて覚える。",
+  },
+  {
+    id: 1977,
+    label: "ルーム名の候補の上限を 5 件から 4 件にする",
+    patch: "m1977-recent-room-limit-four.patch",
+    pkg: "apps/landing",
+    tests: ["tests/hub/recent-room-names.test.ts"],
+    note: RESERVED_1970_1989 + " " + "#633。決めた数（5 件）より早く古い名前が落ちる。",
+  },
+  {
+    id: 1978,
+    label: "覚えるルーム名の長さの上限を 100 文字から 200 文字にする",
+    patch: "m1978-recent-room-length-limit-raised.patch",
+    pkg: "apps/landing",
+    tests: ["tests/hub/recent-room-names.test.ts"],
+    note: RESERVED_1970_1989 + " " + "#633。決めた上限を越える長い名前を札に描く。",
+  },
+  {
+    id: 1979,
+    label: "ルーム名の候補で同じ名前を 1 つにまとめない",
+    patch: "m1979-recent-room-no-dedupe.patch",
+    pkg: "apps/landing",
+    tests: ["tests/hub/recent-room-names.test.ts", "tests/hub/recent-room-names-screen.test.tsx"],
+    note: RESERVED_1970_1989 + " " + "#633。同じ会を作り直すたびに同じ札が増え、上限を同じ名前で食う（EARS 5）。",
+  },
+  {
+    id: 1980,
+    label: "作ったルームの名前を候補の末尾に足す（先頭にしない）",
+    patch: "m1980-recent-room-appended-last.patch",
+    pkg: "apps/landing",
+    tests: ["tests/hub/recent-room-names.test.ts", "tests/hub/recent-room-names-screen.test.tsx"],
+    note: RESERVED_1970_1989 + " " + "#633。最後に作った名前が欄に入らず、満杯なら新しい名前が覚えられない（EARS 2・5）。",
+  },
+  {
+    id: 1981,
+    label: "字面の無いルーム名（ZWJ だけ等）を候補に残す",
+    patch: "m1981-recent-room-invisible-name-kept.patch",
+    pkg: "apps/landing",
+    tests: ["tests/hub/recent-room-names.test.ts"],
+    note: RESERVED_1970_1989 + " " + "#633。空に見える札が並び、何を選ぶのか分からない。",
+  },
+  {
+    id: 1982,
+    label: "覚えるルーム名に長さの上限を課さない",
+    patch: "m1982-recent-room-no-length-limit.patch",
+    pkg: "apps/landing",
+    tests: ["tests/hub/recent-room-names.test.ts"],
+    note: RESERVED_1970_1989 + " " + "#633。保管庫に置かれた巨大な値を札へそのまま描く。",
+  },
+  {
+    id: 1983,
+    label: "保存に文字列でない要素が混ざると、配列ごと捨てる",
+    patch: "m1983-recent-room-drop-all-on-non-string.patch",
+    pkg: "apps/landing",
+    tests: ["tests/hub/recent-room-names.test.ts"],
+    note: RESERVED_1970_1989 + " " + "#633 のレビュー。手で書き換えた 1 件のために残りの名前を失い、次の作成で上書きされて戻らない。",
+  },
+  {
+    id: 1984,
+    label: "壊れた JSON の保存を読むと投げる（握り潰さない）",
+    patch: "m1984-recent-room-load-throws-on-broken-json.patch",
+    pkg: "apps/landing",
+    tests: ["tests/hub/recent-room-names-screen.test.tsx"],
+    note: RESERVED_1970_1989 + " " + "#633。保存が壊れていると玄関が真っ白になり、ルームを作れない（EARS 6）。",
+  },
+  {
+    id: 1985,
+    label: "書けない保管庫（cookie 禁止・容量超過）で書き込みが投げる",
+    patch: "m1985-recent-room-write-throws.patch",
+    pkg: "apps/landing",
+    tests: ["tests/hub/recent-room-names-screen.test.tsx"],
+    note: RESERVED_1970_1989 + " " + "#633。作成の応答を受けた処理が途中で落ち、画面が先へ進まない。",
   },
 ];

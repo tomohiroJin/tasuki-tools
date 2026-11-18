@@ -1,0 +1,13 @@
+diff --git a/apps/landing/src/hub/recent-room-names.ts b/apps/landing/src/hub/recent-room-names.ts
+index c124e36..0e27061 100644
+--- a/apps/landing/src/hub/recent-room-names.ts
++++ b/apps/landing/src/hub/recent-room-names.ts
+@@ -79,7 +79,7 @@ export function parseRecentRoomNames(raw: unknown): string[] {
+ export function rememberRoomName(names: readonly string[], name: string): string[] {
+   const usable = usableRoomName(name);
+   if (usable === null) return [...names];
+-  return tidy([usable, ...names]);
++  return tidy([...names, usable]);
+ }
+ 
+ /** 候補から 1 つを外す。並びは保つ。 */
