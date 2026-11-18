@@ -106,3 +106,10 @@ Claude サブスク月次 Agent SDK クレジットにより、運営者負担�
   日次上限・同時実行数の超過は従来どおり定型へ落とす
 - **子プロセスのツールを起動引数で閉じた**（`docs/adr/0012` D10。同 ADR の追記 2026-09-25）
 
+
+## 追記（2026-11-19・#459・状態 Proposed） — 認証は API キーへ替わった
+
+上の決定が名指しする `CLAUDE_CODE_OAUTH_TOKEN`（サブスクの OAuth トークン）は、[#459](https://github.com/tomohiroJin/tasuki-tools/issues/459) で
+`ANTHROPIC_API_KEY`（Console で発行する API キー）へ替わった。決定と理由・本番で利用者が確かめる項目は
+[`docs/adr/0012`](../../adr/0012-logging-secrets-and-disclosure.md) の追記（2026-11-19・#459）にある。
+上の本文は当時の記録なので書き換えない。生成がサーバー常駐の `claude -p` であること・合言葉解錠・縮退は変わらない。

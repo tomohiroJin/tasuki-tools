@@ -15,7 +15,7 @@ import type { AssemblyBase, TimerSide, ToolPartBase } from "./context.js";
 
 /** AI お題生成の予算。 */
 export interface AiBudget {
-  /** AI お題生成が有効か（OAuth トークンと解錠合言葉が**両方**あるときだけ true）。 */
+  /** AI お題生成が有効か（API キーと解錠合言葉が**両方**あるときだけ true）。 */
   readonly aiReady: boolean;
   /**
    * **サーバー全体で 1 つの予算である。** 日次上限と同時実行数を AI を使う箇所ごとに作ると、

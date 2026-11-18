@@ -70,23 +70,20 @@ Vite の開発サーバーは `/ws` を同期サーバー（`ws://127.0.0.1:8787
 
 ### AI お題生成をローカルで試す
 
-AI お題生成は、サーバー env に **OAuth トークン**と**解錠の合言葉**の両方を設定したときだけ有効になります。
+AI お題生成は、サーバー env に **API キー**（`ANTHROPIC_API_KEY`）と**解錠の合言葉**の両方を設定したときだけ有効になります。
 どちらかが欠けると AI 機能は丸ごと無効で、お題は定型バンクのみになります（解錠も常に失敗＝機能の存在を秘匿）。
 設計の詳細は [../docs/superpowers/specs/2026-06-12-ai-problem-generation-design.md](../superpowers/specs/2026-06-12-ai-problem-generation-design.md)、
 本番デプロイ手順は [deploy/timer/NOTES.md](../../deploy/timer/NOTES.md) と [deploy/README.md](../../deploy/README.md)を参照してください。
 
-#### 1. OAuth トークンを用意する
+#### 1. API キーを用意する
 
 AI 生成は `claude -p` 子プロセス（スタンドアロンの claude バイナリ）で行い、運営者（あなた）の
-Claude サブスクの月次 Agent SDK クレジットを使います。Claude Agent SDK 専用の OAuth トークンを
-以下のコマンドで発行してください。
+API キーで認証します。Anthropic Console（https://platform.claude.com）で、プランに連携した組織の
+API キーを発行してください（#459。自動チャージは無効にしておく）。
 
-```bash
-claude setup-token      # → sk-ant-oat01-... が出力される
-```
-
-> ⚠ このトークンは個人アカウントのサブスク・クレジットを実際に消費します（共有・プール不可）。
-> 第三者から読める場所には置かず、自己ホストで自分の契約の範囲に限って使ってください。
+> ⚠ このキーは呼んだ分だけ Console のクレジットを実際に消費します。クレジットを使い切ると生成は失敗し、
+> お題は定型バンクへ縮退します。第三者から読める場所には置かず、ローカルでは次の手順で
+> `apps/tasuki-sync/.env`（gitignore 済み）にのみ書きます。
 > ローカルでは次の手順で `apps/tasuki-sync/.env`（gitignore 済み）にのみ書きます。
 
 #### 2. `.env` に設定して起動する

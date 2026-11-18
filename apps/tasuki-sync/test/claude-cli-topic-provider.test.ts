@@ -154,10 +154,11 @@ describe("ClaudeCliTopicProvider", () => {
       expect(Object.keys(opts.env).sort()).toEqual(["ANTHROPIC_API_KEY", "HOME", "PATH"]);
       expect(opts.env["CLAUDE_CODE_OAUTH_TOKEN"]).toBeUndefined();
     } finally {
-      process.env["CLAUDE_CODE_OAUTH_TOKEN"] = saved["CLAUDE_CODE_OAUTH_TOKEN"];
-      if (saved["CLAUDE_CODE_OAUTH_TOKEN"] === undefined) delete process.env["CLAUDE_CODE_OAUTH_TOKEN"];
-      delete process.env["ANTHROPIC_AUTH_TOKEN"];
-      delete process.env["ANTHROPIC_BASE_URL"];
+      // 3 つとも、保存した元の値へ戻す（無かったものは消す）
+      for (const k of ["CLAUDE_CODE_OAUTH_TOKEN", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_BASE_URL"]) {
+        if (saved[k] === undefined) delete process.env[k];
+        else process.env[k] = saved[k];
+      }
     }
   });
 
