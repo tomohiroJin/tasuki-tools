@@ -143,6 +143,26 @@ export const HubCommandSchema: v.GenericSchema<HubCommand> = v.variant("command"
 ]);
 
 /**
+ * ハブの言葉の名前の全件。**鍵が `HubCommand["command"]` の全件を要求する**（`Record`）ので、ハブのコマンドを足して
+ * ここを足し忘れると型検査が落ちる。
+ */
+const HUB_COMMAND_NAMES: Record<HubCommand["command"], true> = {
+  "room.create": true,
+  "room.join": true,
+  "room.check": true,
+  "room.passphrase.set": true,
+};
+
+/**
+ * ハブの言葉か。道具の接続（topic・roulette・agenda・checkin）は、ハブの言葉との和を受けるが、
+ * 受けてよいのは `room.join` だけである。**`room.join` 以外のハブの言葉は、この関数で見分けて既定で拒む**
+ * （新しいハブのコマンドを足しても、道具の接続側の一覧を直さずに拒まれる）。
+ */
+export function isHubCommand(cmd: { readonly command: string }): cmd is HubCommand {
+  return Object.hasOwn(HUB_COMMAND_NAMES, cmd.command);
+}
+
+/**
  * サーバーがハブへ送るメッセージ。
  *
  * `room.created` / `room.joined` は**自分の接続にだけ**返る（復帰の組は本人のもの）。

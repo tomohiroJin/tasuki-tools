@@ -6,7 +6,7 @@
  */
 import { describe, it, expect } from "vitest";
 import * as v from "valibot";
-import { HubCommandSchema, HubServerMsgSchema, type RosterRoom } from "../src/wire.js";
+import { HubCommandSchema, HubServerMsgSchema, isHubCommand, type RosterRoom } from "../src/wire.js";
 import { MAX_PASSPHRASE } from "../src/passphrase.js";
 
 /**
@@ -205,5 +205,26 @@ describe("名簿の合言葉の印", () => {
 
   it("Given 真偽値でない印 / When 検証する / Then 落ちる", () => {
     expect(parseRoster({ ...roster, passphraseProtected: "yes" }).success).toBe(false);
+  });
+});
+
+/**
+ * 道具の接続（timer 以外）が受ける言葉は、ハブの言葉との和である。ハブの言葉のうち道具の接続が受けてよいのは
+ * `room.join` だけで、残りは「ハブだけの言葉」として既定で拒む。新しいハブのコマンドを足したら、ここに載る
+ * （`HUB_COMMAND_NAMES` が `HubCommand` の全件を要求するので、足し忘れは型検査で落ちる）。
+ */
+describe("isHubCommand", () => {
+  it.each([
+    ["room.create", { command: "room.create", roomName: "r", displayName: "d" }],
+    ["room.join", { command: "room.join", code: "R", displayName: "d" }],
+    ["room.check", { command: "room.check", code: "R" }],
+    ["room.passphrase.set", { command: "room.passphrase.set", passphrase: "p" }],
+  ])("Given ハブの言葉 %s / When 見分ける / Then true", (_name, cmd) => {
+    expect(isHubCommand(cmd as { command: string })).toBe(true);
+  });
+
+  it("Given 道具の言葉 / When 見分ける / Then false", () => {
+    expect(isHubCommand({ command: "topic.set" })).toBe(false);
+    expect(isHubCommand({ command: "checkin.method.choose" })).toBe(false);
   });
 });

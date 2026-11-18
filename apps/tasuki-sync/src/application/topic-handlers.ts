@@ -26,6 +26,7 @@
 import * as v from "valibot";
 import {
   HubCommandSchema,
+  isHubCommand,
   type HubCommand,
 } from "@tasuki/room-core";
 import { parseBoundaryMessage } from "@tasuki/protocol";
@@ -54,7 +55,7 @@ import { boundaryErrorCode } from "./connection-errors.js";
 /**
  * お題の接続が受け取る言葉。**ハブの言葉（`room.join` のため）とお題のコマンドの和**である。
  *
- * ハブの言葉のうち `room.create` / `room.check` / `room.passphrase.set` も境界は通るが、下の振り分けで拒む
+ * ハブの言葉のうち `room.join` 以外（`isHubCommand`）も境界は通るが、下の振り分けで既定で拒む
  * （お題の接続はルームを作らない。生死の照会は名乗る前の玄関の仕事である）。
  */
 const TopicConnectionMessageSchema = v.union([HubCommandSchema, TopicCommandSchema]);
@@ -204,7 +205,7 @@ export function makeTopicHandlers(deps: TopicHandlerDeps): TopicHandlers {
         return;
       }
       // お題の接続はルームを作らず、生死も照会しない（どちらも玄関の仕事）。
-      if (cmd.command === "room.create" || cmd.command === "room.check" || cmd.command === "room.passphrase.set") {
+      if (isHubCommand(cmd)) {
         fail(connId, "INVALID_COMMAND");
         return;
       }

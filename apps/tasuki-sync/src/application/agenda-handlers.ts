@@ -20,7 +20,7 @@
  * ステップの名前・会の名前・表示名は利用者の入力である（`docs/adr/0012`）。**このファイルはログを書かない。**
  */
 import * as v from "valibot";
-import { HubCommandSchema, type HubCommand } from "@tasuki/room-core";
+import { HubCommandSchema, isHubCommand, type HubCommand } from "@tasuki/room-core";
 import { parseBoundaryMessage } from "@tasuki/protocol";
 import {
   advanceIfDue,
@@ -55,7 +55,7 @@ import { boundaryErrorCode } from "./connection-errors.js";
 
 /**
  * 進行タイマーの接続が受け取る言葉。**ハブの言葉（`room.join` のため）と進行タイマーのコマンドの和**。
- * ハブの言葉のうち `room.create` / `room.check` / `room.passphrase.set` も境界は通るが、下の振り分けで拒む。
+ * ハブの言葉のうち `room.join` 以外（`isHubCommand`）も境界は通るが、下の振り分けで既定で拒む。
  */
 const AgendaConnectionMessageSchema = v.union([HubCommandSchema, AgendaCommandSchema]);
 
@@ -196,7 +196,7 @@ export function makeAgendaHandlers(deps: AgendaHandlerDeps): AgendaHandlers {
         return;
       }
       // 進行タイマーの接続はルームを作らず、生死も照会しない（どちらも玄関の仕事）。
-      if (cmd.command === "room.create" || cmd.command === "room.check" || cmd.command === "room.passphrase.set") {
+      if (isHubCommand(cmd)) {
         fail(connId, "INVALID_COMMAND");
         return;
       }
