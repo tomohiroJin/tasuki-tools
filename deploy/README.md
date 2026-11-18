@@ -19,6 +19,12 @@ Tasuki の各アプリは「自分の systemd ユニット + 固有ポート + C
 | `agenda` | （無し・静的） | — | `/var/www/tasuki-agenda` | `/agenda/` | 公開中 |
 | `checkin` | （無し・静的） | — | `/var/www/tasuki-checkin` | `/checkin/` | 公開中 |
 
+> **#482（アーキテクチャと設計原則の見直し）・#627（名簿の欄の IME の Enter）ほか、v4.6.0 以降の 29 PR は 2026-11-18 にまとめて配った**（`v4.6.1`）。
+> 新しいアプリは無く、`deploy/` の差分も文書だけなので root 作業は無し。wire は `packages/*-core/src` のスキーマに差分が無く、
+> 各 PR も「振る舞いと wire は変えない」としていたが、標準どおり同期サーバーを先にした（timer → poker → topic → roulette →
+> agenda → checkin → landing）。443・8787 とも接続 0 本の時間帯に流し、7 本のハッシュ一致・NRestarts=0・`/ws` 426・
+> e2e:prod 62 passed。配布のコマンドは v4.6.0 と同じく人が端末で流した（手元の設定の deny のため）。
+
 > **#479（画面の崩れ）・#480・#465・#468・#469・#574 ほか、v4.5.0 以降の 66 PR は 2026-11-12 にまとめて配った**（`v4.6.0`）。
 > 新しいアプリは無く、`deploy/` の差分も文書だけなので root 作業は無し。poker → topic → roulette → agenda → checkin → landing → timer
 > の順に続けて流し、同期サーバーの再起動（ルームが消える）を最後の 1 回にした。7 本のハッシュ一致・NRestarts=0・e2e:prod 62 passed。
