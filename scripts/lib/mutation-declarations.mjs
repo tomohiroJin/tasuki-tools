@@ -10606,11 +10606,11 @@ export const MUTATIONS = [
   },
   {
     id: 2068,
-    label: "卓の外（切断した人）の票があっても、一致・バラバラの判定をそのまま行う",
+    label: "一致・バラバラの判定を、卓に見える全票でなく接続中で見学でない人の票だけで行う",
     patch: "m2068-effect-judges-all-votes.patch",
     pkg: "apps/poker-web",
     tests: ["tests/room-view.test.ts"],
-    note: RESERVED_2050_2079 + " " + "#639 の /code-review。room-view.ts。切断した人の票が卓に見えるのに「全員同じ」「全員バラバラ」が出て、割れの促し・統計・札と食い違う。",
+    note: RESERVED_2050_2079 + " " + "#639 の /code-review の直し。room-view.ts。切断した人の札が卓に見えているのに、帯が接続中の人の票だけで決まり、見える札（3 枚とも 5 など）と食い違う。",
   },
   {
     id: 2069,
@@ -10654,11 +10654,11 @@ export const MUTATIONS = [
   },
   {
     id: 2074,
-    label: "卓の外の票の扱いを「1 枚でもあれば」でなく「全部が外なら」にする",
+    label: "一致でもバラバラでもない開票（出そろい）で帯を出さない（complete に落とさず null）",
     patch: "m2074-effect-outside-votes-only-when-all.patch",
     pkg: "apps/poker-web",
     tests: ["tests/room-view.test.ts"],
-    note: RESERVED_2050_2079 + " " + "#639 の /code-review の直し。room-view.ts。卓の内と外の票が混ざる開票で、外の札が見えるのに一致・バラバラが出る。",
+    note: RESERVED_2050_2079 + " " + "#639 の /code-review の直し。room-view.ts（2074 は、卓の外の票の概念が消えたため、出そろいの帯の有無を守る変異へ作り直した）。全員が出したのに帯が出ない。",
   },
   {
     id: 2075,
@@ -10675,5 +10675,21 @@ export const MUTATIONS = [
     pkg: "apps/poker-web",
     tests: ["tests/results-effect-css.test.ts"],
     note: RESERVED_2050_2079 + " " + "#639 の /code-review の直し。index.css。CSS だけ変えても検査が緑のまま、帯と読み上げの時刻がずれる。",
+  },
+  {
+    id: 2077,
+    label: "バラバラの動きに個別の scale プロパティで大きくする書き方を足す",
+    patch: "m2077-effect-scatter-scale-property.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/results-effect-css.test.ts"],
+    note: RESERVED_2050_2079 + " " + "#639 の /code-review の直し。index.css。scale(x) 以外の書き方で帯が大きくなり、320px で右端が画面の外へ出る。",
+  },
+  {
+    id: 2078,
+    label: "バラバラの動きの scale を % で 100% 超にする",
+    patch: "m2078-effect-scatter-scale-percent.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/results-effect-css.test.ts"],
+    note: RESERVED_2050_2079 + " " + "#639 の /code-review の直し。index.css。% の書き方で帯が大きくなり、320px で右端が画面の外へ出る。",
   },
 ];
