@@ -108,29 +108,82 @@
    **札は小見出しをまたいで全て同じ幅・同じ高さ**（#468 D1・#635 の B）。小見出しごとの並びを、外側の 1 つの格子（.method-groups）の
    行へ subgrid で載せる。外側の行の並び（--rows-narrow / --rows-wide）は画面が小見出しの札の数から作り、小見出しの行は auto、
    札の段は全て 1fr にする（高さの決まらない格子では、1fr の行はどれも一番高い札に揃う）。
-   40rem 未満は 2 列、40rem 以上は 4 列（列の数は MethodPicker.tsx の COLUMNS と合わせる）。64rem 以上は中身を一段大きくする（会議室の投影・D2） */
+   40rem 未満は 2 列、40rem 以上は 4 列（列の数は MethodPicker.tsx の COLUMNS と合わせる）。64rem 以上は中身を一段大きくする（会議室の投影・D2）。
+   **subgrid を読めないブラウザ**（Chrome 117・Safari 16・Firefox 71 より前）では、小見出しごとの格子に戻す（高さは並びの中でだけ揃う）。
+   subgrid の宣言が捨てられたまま外側の格子に載ると、札が 1 列になり小見出しが並びの下へずれる（#635 の 2 回目の敵対的レビュー 3） */
 .method-groups {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  grid-template-rows: var(--rows-narrow);
   gap: var(--space-3);
 }
 
-/* 小見出し 1 つ: 外側の格子の全ての列と、自分の行（小見出しの行＋札の段）にまたがり、両方を subgrid で受け継ぐ */
-.method-group {
-  display: grid;
-  grid-column: 1 / -1;
-  grid-row: span var(--span-narrow);
-  grid-template-columns: subgrid;
-  grid-template-rows: subgrid;
+@supports not (grid-template-rows: subgrid) {
+  .method-groups,
+  .method-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+
+  .method-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: 1fr;
+    gap: var(--space-3);
+  }
+
+  @media (width >= 40rem) {
+    .method-list {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
 }
 
-/* 小見出しの行: 題と、その小見出しの中から引くランダム。前の並びとは段落の間隔で離す */
+@supports (grid-template-rows: subgrid) {
+  .method-groups {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: var(--rows-narrow);
+  }
+
+  /* 小見出し 1 つ: 外側の格子の全ての列と、自分の行（小見出しの行＋札の段）にまたがり、両方を subgrid で受け継ぐ */
+  .method-group {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-row: span var(--span-narrow);
+    grid-template-columns: subgrid;
+    grid-template-rows: subgrid;
+  }
+
+  /* 小見出しの行は全ての列にまたがる（1 列目だけに入ると、狭い幅で題が折れ、下線も 1 列目の下にしか引かれない） */
+  .method-group-head {
+    grid-column: 1 / -1;
+  }
+
+  /* 並びは小見出しの札の段（2 行目から最後まで）に載り、列と行を subgrid で受け継ぐ */
+  .method-list {
+    grid-column: 1 / -1;
+    grid-row: 2 / -1;
+    grid-template-columns: subgrid;
+    grid-template-rows: subgrid;
+  }
+
+  @media (width >= 40rem) {
+    .method-groups {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-rows: var(--rows-wide);
+    }
+
+    .method-group {
+      grid-row: span var(--span-wide);
+    }
+  }
+}
+
+/* 小見出しの行: 題と、その小見出しの中から引くランダム。前の並びとは段落の間隔で離す。
+   狭い幅や大きな字で入りきらなければ、ランダムを次の行へ回す（題を 1 字ずつ折らない・#635 の 2 回目の敵対的レビュー 2） */
 .method-group-head {
   display: flex;
-  grid-column: 1 / -1;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2) var(--space-3);
   padding-block-end: var(--space-1);
   border-block-end: 1px solid var(--gold-edge);
 }
@@ -152,7 +205,7 @@
   white-space: nowrap;
 }
 
-/* 札は縦長（上に扇・下に題と説明）。並びは小見出しの札の段（2 行目から最後まで）に載り、列と行を subgrid で受け継ぐ */
+/* 札は縦長（上に扇・下に題と説明）。列と行の決め方は上の @supports の 2 つ */
 .method-list {
   --fan-w: 2.6rem;
   --fan-h: 3.6rem;
@@ -160,10 +213,6 @@
   --fan-art: 1.7rem;
   --fan-numeral: 1.6rem; /* scale-exempt: 札の見本の小さな数字（絵の代わり） */
   display: grid;
-  grid-column: 1 / -1;
-  grid-row: 2 / -1;
-  grid-template-columns: subgrid;
-  grid-template-rows: subgrid;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -280,15 +329,6 @@
 
   .method-picker .seg-button {
     flex: none;
-  }
-
-  .method-groups {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    grid-template-rows: var(--rows-wide);
-  }
-
-  .method-group {
-    grid-row: span var(--span-wide);
   }
 }
 
