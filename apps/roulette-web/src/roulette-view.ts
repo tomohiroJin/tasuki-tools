@@ -5,7 +5,7 @@
  * 1 度だけ取る基準）。**回転の経過 = サーバーが送った `elapsedMs` + 受け取ってからの時間。**
  */
 import { conflictsWithExisting, type RosterRoom } from '@tasuki/room-core';
-import { MAX_WHEEL, pickStopsMs, poolOf, type Entry, type Member, type RouletteMode, type RouletteState, type RouletteView } from '@tasuki/roulette-core';
+import { MAX_WHEEL, motionNamesOf, pickStopsMs, poolOf, type Entry, type Member, type RouletteMode, type RouletteState, type RouletteView } from '@tasuki/roulette-core';
 import {
   CAPTION_IDLE,
   ORDER_ALL_DONE,
@@ -48,11 +48,6 @@ export function canOperate(status: ConnectionStatus, joined: boolean): boolean {
 }
 
 type Spin = NonNullable<RouletteView['spin']>;
-
-/** 回転が持つ変わった動きの名前（#640）。止まる時刻の表（core の `pickStopsMs`）へ渡す。古いサーバーのフレームは持たない */
-export function motionsOf(spin: Spin): { launch: string | undefined; spin: string | undefined } {
-  return { launch: spin.launchMotion, spin: spin.spinMotion };
-}
 
 /**
  * 回転の経過（ms）。サーバーが送った経過に、受け取ってからの時間を足す（0〜`durationMs`）。
@@ -146,7 +141,7 @@ export function revealedCountOf(input: { view: RouletteView; receivedAt: number;
   // 古いサーバー（1 人・picks 無し）は wire の長さで止まる。表と食い違っても終わったら全員にする
   if (elapsed >= spin.durationMs) return k;
   // 変わった止まり方（#420）は 1 人目が止まる時刻が延びる（2 人目からはその分だけ後ろへずれる）
-  return pickStopsMs(k, spin.stopStyle, motionsOf(spin)).filter((stop) => elapsed >= stop).length;
+  return pickStopsMs(k, spin.stopStyle, motionNamesOf(spin)).filter((stop) => elapsed >= stop).length;
 }
 
 /** 決まった人（止まった順・`revealed` 人まで）。 */

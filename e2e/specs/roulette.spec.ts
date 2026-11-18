@@ -28,8 +28,8 @@ import {
   openRouletteTool,
   roulettePhrase,
   spinButton,
-  SPIN_EXTRA_MAX_MS,
-  SPIN_MS,
+  SPIN_WAIT_MS,
+  spinWaitMs,
 } from '../support/roulette';
 
 const NAME_A = 'e2e-roulette-a';
@@ -37,8 +37,6 @@ const NAME_B = 'e2e-roulette-b';
 const RESULT = /^次の進行役は (.+) さんです$/;
 /** 2 人以上の結果（#401）。止まった順に「{名前} さん」を「、」でつなぐ */
 const GROUP_RESULT = /^選ばれたのは (.+) さんです$/;
-/** 2 人目からの「置く」＋「送る」（`STOP_HOLD_MS` + `NEXT_MOVE_MS`）。k 人の回転は SPIN_MS + (k − 1) × これ */
-const NEXT_STOP_MS = 1600;
 
 /**
  * @requirements #94 E7 E17 E19
@@ -106,7 +104,7 @@ test.describe('@core ルーレットは全員の画面で同じ人に止まる',
       await expect(spinButton(page)).toBeDisabled();
 
       // その3: 回転が終わると A も同じ人を言う（全員の画面で同じ席に止まる）
-      await expect(roulettePhrase(page), `${round} 回目: A の結果`).toHaveText(RESULT, { timeout: SPIN_MS + SPIN_EXTRA_MAX_MS + 2000 });
+      await expect(roulettePhrase(page), `${round} 回目: A の結果`).toHaveText(RESULT, { timeout: SPIN_WAIT_MS });
       const winnerOnA = RESULT.exec((await roulettePhrase(page).textContent()) ?? '')?.[1];
       expect(winnerOnA, `${round} 回目: A と B で同じ人`).toBe(winnerOnB);
       winners.push(winnerOnA ?? '');
@@ -149,7 +147,7 @@ test.describe('@core ルーレットは全員の画面で同じ人に止まる',
       await spinButton(page).click();
       //   前の回の結果の一言が残っているので、先に回し始めたことを見る（見ないと回っている最中を測る）
       await expect(roulettePhrase(page), `${label}: 回し始める`).toHaveText(`${NAME_A} さんが回しました`);
-      await expect(roulettePhrase(page), `${label}: 止まる`).toHaveText(RESULT, { timeout: SPIN_MS + SPIN_EXTRA_MAX_MS + 2000 });
+      await expect(roulettePhrase(page), `${label}: 止まる`).toHaveText(RESULT, { timeout: SPIN_WAIT_MS });
     };
     await spinAndSettle('欧文 6 席・1280');
     await expectWheelGlyphsUpright(page, 1);
@@ -219,7 +217,7 @@ test.describe('@core ルーレットは全員の画面で同じ人に止まる',
         { message: '2 人: B に 1 秒以内に 2 人の結果が出ない', timeout: 1000 },
       )
       .toBeTruthy();
-    await expect(roulettePhrase(page), '2 人: A の結果').toHaveText(GROUP_RESULT, { timeout: SPIN_MS + SPIN_EXTRA_MAX_MS + NEXT_STOP_MS + 2000 });
+    await expect(roulettePhrase(page), '2 人: A の結果').toHaveText(GROUP_RESULT, { timeout: spinWaitMs(2) });
     expect(await roulettePhrase(page).textContent(), '2 人: A と B で同じ人たちが同じ順').toBe(groupOnB);
     const pair = (GROUP_RESULT.exec(groupOnB)?.[1] ?? '').split(' さん、');
     expect(pair, '2 人: 選ばれたのは 2 人').toHaveLength(2);
@@ -231,7 +229,7 @@ test.describe('@core ルーレットは全員の画面で同じ人に止まる',
     await expect(pickButton(page, 4)).toHaveAttribute('aria-pressed', 'true');
     await spinButton(page).click();
     await expect(roulettePhrase(page), '4 人: 回し始める').toHaveText(`${NAME_A} さんが回しました`);
-    await expect(roulettePhrase(page), '4 人: 止まる').toHaveText(GROUP_RESULT, { timeout: SPIN_MS + SPIN_EXTRA_MAX_MS + 3 * NEXT_STOP_MS + 2000 });
+    await expect(roulettePhrase(page), '4 人: 止まる').toHaveText(GROUP_RESULT, { timeout: spinWaitMs(4) });
     await expect(page.locator('.roulette-group-row.is-filled')).toHaveCount(4);
     await expectGroupCardNotCovered(page);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), '4 人・320: 横に溢れない').toBe(true);
@@ -252,7 +250,7 @@ test.describe('@core ルーレットは全員の画面で同じ人に止まる',
     for (const turn of [1, 2]) {
       await orderButton(page, '次の人を決める').click();
       const result = new RegExp(`^${turn} 番は (.+) さんです$`);
-      await expect(roulettePhrase(page), `${turn} 番: A の結果`).toHaveText(result, { timeout: SPIN_MS + SPIN_EXTRA_MAX_MS + 2000 });
+      await expect(roulettePhrase(page), `${turn} 番: A の結果`).toHaveText(result, { timeout: SPIN_WAIT_MS });
       const text = (await roulettePhrase(page).textContent()) ?? '';
       await expect(roulettePhrase(peer.page), `${turn} 番: B も同じ人`).toHaveText(text);
       turns.push(result.exec(text)?.[1] ?? '');

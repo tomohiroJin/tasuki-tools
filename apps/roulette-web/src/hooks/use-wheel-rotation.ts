@@ -22,7 +22,7 @@
  *   局面が「止まった」に変わる瞬間に跳ばない（動きを減らす設定では局面が先に止まるので描かない）
  */
 import { useEffect, useRef, useState, type RefObject } from 'react';
-import type { RouletteView } from '@tasuki/roulette-core';
+import { motionNamesOf, type RouletteView } from '@tasuki/roulette-core';
 import { elapsedOf, picksOf } from '../roulette-view';
 import { angleAtPicks, finalAngleOfPicks } from '../wheel-motion';
 
@@ -79,7 +79,7 @@ export function useWheelRotation(input: {
     // 受け取った直後に古い「いま」を使うと経過が負になる。基準の組より前には戻さない
     angle = settled
       ? finalAngleOfPicks(picks, n, pointerDeg, a.startDeg)
-      : angleAtPicks(elapsedOf(spin, receivedAt, Math.max(now, receivedAt)), picks, n, pointerDeg, a.startDeg, spin.stopStyle, spin);
+      : angleAtPicks(elapsedOf(spin, receivedAt, Math.max(now, receivedAt)), picks, n, pointerDeg, a.startDeg, spin.stopStyle, motionNamesOf(spin));
   }
   shown.current = angle;
   const spinning = spin !== null && !settled;

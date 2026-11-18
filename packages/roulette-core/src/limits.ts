@@ -88,13 +88,20 @@ export const LAUNCH_MOTION_EXTRA_MS: Readonly<Record<LaunchMotion, number>> = Ob
 
 /**
  * 回転の動きごとに、1 人目が止まる時刻を延ばす長さ（ms）。逆回転は同じ長さ・途中で向きを変えるは延び・速いは縮む（負の値）。
- * 画面は途中で向きを変えるのとき、この長さぶんを回転の途中に差し込み、速いのとき残りの動きをこの比で詰める。
+ * 画面は、途中で向きを変えるのとき、この長さぶんを回転の途中（本体の `TURNBACK_AT_MS`）に差し込み、速いのとき
+ * 本体の最初の {@link FAST_SPAN_MS} だけをこの長さ縮めて進める（そこから先は普通の速さ）。
  */
 export const SPIN_MOTION_EXTRA_MS: Readonly<Record<SpinMotion, number>> = Object.freeze({
   backward: 0,
   turnback: 1000,
   fast: -1000,
 });
+
+/**
+ * 速い回転で、縮めて進める本体の最初の区間の長さ（本体の ms）。**止まり方の最初の脚の最短（`reverse` の 2600ms）以内**にする
+ * （止まり方の細かい動き＝向きの切り返しの間隔を詰めない。1 秒に 3 回まで・WCAG 2.3.1）。縮める長さは {@link SPIN_MOTION_EXTRA_MS}.fast
+ */
+export const FAST_SPAN_MS = 2600;
 
 /** 止まり方・動き出し・回転の延びる長さの合計の上限（ms・#640 決めること 3）。越えるときは動き出しを詰める */
 export const MOTION_EXTRA_CAP_MS = 4000;
@@ -128,6 +135,11 @@ export function launchMotionMs(launch: string | null | undefined, style: string 
   if (!isLaunchMotion(launch)) return 0;
   const room = MOTION_EXTRA_CAP_MS - stopStyleExtraMs(style) - spinMotionExtraMs(spin);
   return Math.max(0, Math.min(LAUNCH_MOTION_EXTRA_MS[launch], room));
+}
+
+/** 回転（wire の形でも Spin でもよい）が持つ動きの名前を、長さの表（`pickStopsMs`・`spinDurationMs`）へ渡す形にする */
+export function motionNamesOf(spin: { launchMotion?: string | undefined; spinMotion?: string | undefined }): MotionNames {
+  return { launch: spin.launchMotion, spin: spin.spinMotion };
 }
 
 /** 1 人目が止まる時刻の延び（ms）。止まり方・動き出し（詰めた長さ）・回転の動きの合計 */

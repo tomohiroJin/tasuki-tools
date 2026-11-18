@@ -21,6 +21,8 @@ export {
   isLaunchMotion,
   isSpinMotion,
   launchMotionMs,
+  motionNamesOf,
+  FAST_SPAN_MS,
 } from "./limits.js";
 export type { LaunchMotion, SpinMotion, MotionNames } from "./limits.js";
 

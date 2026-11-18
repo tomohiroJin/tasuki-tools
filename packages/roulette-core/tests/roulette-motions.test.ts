@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   LAUNCH_MOTIONS,
   LAUNCH_MOTION_EXTRA_MS,
+  FAST_SPAN_MS,
   LAUNCH_MOTION_ODDS,
   MOTION_EXTRA_CAP_MS,
   NEXT_MOVE_MS,
@@ -144,6 +145,22 @@ describe("延びる時間の合計は上限（+4 秒）に収まる", () => {
     // 収まる組み合わせは詰めない
     expect(launchMotionMs("stumble", null, null)).toBe(LAUNCH_MOTION_EXTRA_MS.stumble);
     expect(launchMotionMs("shake", "nudge", "backward")).toBe(LAUNCH_MOTION_EXTRA_MS.shake);
+  });
+
+  it("表の値で、止まり方の最大 + 回転の動きの最大は上限に収まる（詰めるのは動き出しだけなので、表を変えた人がここで気づく）", () => {
+    // Given
+    const maxStyle = Math.max(...STOP_STYLES.map((s) => STOP_STYLE_EXTRA_MS[s]));
+    const maxSpin = Math.max(...SPIN_MOTIONS.map((m) => SPIN_MOTION_EXTRA_MS[m]));
+    // When / Then
+    expect(maxStyle + maxSpin).toBeLessThanOrEqual(MOTION_EXTRA_CAP_MS);
+    // 動き出しを 0 まで詰めても収まるので、どの組み合わせでも上限を越えない
+    for (const style of styles) for (const spin of spins) expect(launchMotionMs(null, style, spin)).toBe(0);
+  });
+
+  it("速い回転で縮める区間（FAST_SPAN_MS）は、縮める長さより長く、止まり方の最初の脚の最短（2600ms）以内", () => {
+    // Given / When / Then
+    expect(FAST_SPAN_MS).toBeGreaterThan(-SPIN_MOTION_EXTRA_MS.fast);
+    expect(FAST_SPAN_MS).toBeLessThanOrEqual(2600);
   });
 
   it("動きの長さは、止まる時刻（1 人目）の差し引き。2 人目からはその分だけ後ろへずれる", () => {

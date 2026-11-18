@@ -26,7 +26,6 @@ import {
   orderCaptionOf,
   orderProgressOf,
   orderStageOf,
-  motionsOf,
   peopleOf,
   phaseOf,
   pickCountOf,
@@ -36,7 +35,7 @@ import {
   spinButtonOf,
   stageViewOf,
 } from '../roulette-view';
-import { pickStopsMs } from '@tasuki/roulette-core';
+import { motionNamesOf, pickStopsMs } from '@tasuki/roulette-core';
 import { batchNoticeText, planBatch, restoreOf } from '../regulars-view';
 import type { RegularGroup } from '../storage/regulars';
 import { usePressMotion } from '../hooks/use-press-motion';
@@ -76,7 +75,7 @@ export function RouletteRoom({ roomCode }: { roomCode: string }) {
   const wakeAts =
     spin === null
       ? []
-      : [...pickStopsMs(picksOf(spin).length, spin.stopStyle, motionsOf(spin)), spin.durationMs].map((at) => sync.receivedAt + at - spin.elapsedMs);
+      : [...pickStopsMs(picksOf(spin).length, spin.stopStyle, motionNamesOf(spin)), spin.durationMs].map((at) => sync.receivedAt + at - spin.elapsedMs);
   const nowMs = useNowMs(sync.receivedAt, wakeAts);
 
   // 押して止める（#401）。位置と「止まって寄せ終わったか」は画面の時計で動くので、早い return より前で持つ

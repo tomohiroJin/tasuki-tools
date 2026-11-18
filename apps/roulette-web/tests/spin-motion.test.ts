@@ -44,7 +44,7 @@ const stopOf = (style: string | null, launch: string | null, spin: string | null
 
 /** 1 人目の回転の角度（1 人・席 `index`・`settle`）。動きの名前は wire の文字列のまま渡す */
 function angle(t: number, style: string | null, launch: string | null, spin: string | null, n = 6, index = 2, settle = 0.5, pointerDeg = 180, startDeg = 0): number {
-  return angleAtPicks(t, [{ index, settle }], n, pointerDeg, startDeg, style, { launchMotion: launch, spinMotion: spin });
+  return angleAtPicks(t, [{ index, settle }], n, pointerDeg, startDeg, style, { launch, spin });
 }
 
 describe('動きの長さは core の表と同じ', () => {
@@ -303,9 +303,152 @@ describe('2 人以上を選ぶ回転: 1 人目の大きな回転にだけ動き�
       { index: 0, settle: 0.3 },
     ];
     const stops = pickStopsMs(2, null, { launch: 'windup', spin: 'turnback' });
-    const at = (t: number): number => angleAtPicks(t, picks, 6, 180, 0, null, { launchMotion: 'windup', spinMotion: 'turnback' });
+    const at = (t: number): number => angleAtPicks(t, picks, 6, 180, 0, null, { launch: 'windup', spin: 'turnback' });
     // When / Then: 1 人目の席で止まり、2 人目の席で止まる
     expect(positionAt(at(stops[0]! + 50), 6, 180)).toBeCloseTo(2.5, 6);
     expect(positionAt(at(stops[1]! + 50), 6, 180)).toBeCloseTo(0.3, 6);
+  });
+});
+
+/** 向きが変わった時刻（ms）の一覧。止まっている間は数えない */
+function reversalTimes(stop: number, at: (t: number) => number): number[] {
+  const times: number[] = [];
+  let dir = 0;
+  let prev = at(0);
+  for (let t = 1; t <= stop; t++) {
+    const a = at(t);
+    const d = a - prev;
+    prev = a;
+    if (Math.abs(d) < 1e-9) continue;
+    if (dir !== 0 && Math.sign(d) !== dir) times.push(t);
+    dir = Math.sign(d);
+  }
+  return times;
+}
+
+/** 当たりの席の位置（席の単位）からの差を、-n/2〜n/2 に巻いたもの */
+function deviation(theta: number, n: number, index: number, settle: number, pointerDeg: number): number {
+  const d = (positionAt(theta, n, pointerDeg) - (index + settle)) % n;
+  const w = ((d % n) + n) % n;
+  return w > n / 2 ? w - n : w;
+}
+
+/**
+ * @requirements #640 /code-review 指摘 1（速い × 止まり方で、止まり方の向きの切り返しを詰めない）
+ */
+describe('速い: 止まり方の脚を詰めない', () => {
+  it('速いと全止まり方の組で、向きの切り返しの間隔は 333ms 以上（1 秒に 3 回まで・WCAG 2.3.1）', () => {
+    for (const style of STYLES) {
+      for (const launch of LAUNCHES) {
+        const stop = stopOf(style, launch, 'fast');
+        const times = reversalTimes(stop, (t) => angle(t, style, launch, 'fast'));
+        for (let i = 1; i < times.length; i++) {
+          expect(times[i]! - times[i - 1]!, `${String(style)}/${String(launch)}/fast`).toBeGreaterThanOrEqual(333);
+        }
+      }
+    }
+  });
+
+  it('速い × 一瞬の逆回り（reverse）の 2 回の切り返しは、速くないときと同じ間隔', () => {
+    // Given
+    const plain = reversalTimes(stopOf('reverse', null, null), (t) => angle(t, 'reverse', null, null));
+    const fast = reversalTimes(stopOf('reverse', null, 'fast'), (t) => angle(t, 'reverse', null, 'fast'));
+    // When / Then
+    expect(fast).toHaveLength(plain.length);
+    expect(fast[1]! - fast[0]!).toBe(plain[1]! - plain[0]!);
+  });
+});
+
+/**
+ * @requirements #640 /code-review 指摘 2・3（逆回転は止まり方・動き出しとも 1:1 の鏡写し）
+ */
+describe('逆回転: 止まり方と動き出しも逆向きの鏡写し', () => {
+  const NS = [3, 6, 12, 24];
+  const SETTLES = [0.2, 0.5, 0.8];
+  /** 止まり方の最初の脚が終わる本体の時刻（これ以後は当たりの席からのずれだけで動く） */
+  const TAIL_FROM: Record<string, number> = { nudge: 3800, overshoot: 4000, creep: 4000, reverse: 2600, linger: 3700, swing: 4000 };
+
+  it('当たりの席からのずれが符号だけ反転し、大きさは保つ（settle に依らない止まり方）', () => {
+    const bad: string[] = [];
+    for (const [style, from] of Object.entries(TAIL_FROM)) {
+      for (const n of NS) {
+        for (const settle of SETTLES) {
+          const idx = n - 1;
+          const stop = stopOf(style, null, 'backward');
+          for (let t = from; t <= stop; t += 7) {
+            const f = deviation(angle(t, style, null, null, n, idx, settle), n, idx, settle, 180);
+            const b = deviation(angle(t, style, null, 'backward', n, idx, settle), n, idx, settle, 180);
+            // 席の数で巡る（半周ちょうどは ±n/2 のどちらにも巻ける）ので、和を n で巻いて 0 かを見る
+            const sum = (((b + f) % n) + n) % n;
+            if (Math.min(sum, n - sum) > 1e-6) bad.push(`${style} n=${n} settle=${settle} t=${t} f=${f.toFixed(3)} b=${b.toFixed(3)}`);
+          }
+        }
+      }
+    }
+    expect(bad.slice(0, 5), `ずれた ${bad.length} 件`).toEqual([]);
+  });
+
+  it('二度止め（double）: 逆回転でも止まりかける位置は別の席の中央（席の数・settle を変えても）', () => {
+    const bad: string[] = [];
+    for (const n of [4, 6, 12, 24]) {
+      for (const settle of SETTLES) {
+        const idx = n - 1;
+        // 止まりかけの間（角度が動かない 700ms）の位置を取る
+        const stop = stopOf('double', null, 'backward');
+        const held: number[] = [];
+        let prev = angle(0, 'double', null, 'backward', n, idx, settle);
+        let run = 0;
+        for (let t = 1; t <= stop; t++) {
+          const a = angle(t, 'double', null, 'backward', n, idx, settle);
+          run = a === prev ? run + 1 : 0;
+          if (run === 300) held.push(positionAt(a, n, 180));
+          prev = a;
+        }
+        if (held.length !== 1) {
+          bad.push(`n=${n} settle=${settle}: 止まりかけが ${held.length} 回`);
+          continue;
+        }
+        const pos = held[0]!;
+        const frac = pos - Math.floor(pos);
+        if (Math.abs(frac - 0.5) > 1e-6) bad.push(`n=${n} settle=${settle}: 席の中の位置 ${frac.toFixed(3)}`);
+        if (Math.floor(pos + 1e-9) % n === idx) bad.push(`n=${n} settle=${settle}: 当たりの席で止まりかけた`);
+      }
+    }
+    expect(bad.slice(0, 5)).toEqual([]);
+  });
+
+  it('動き出し: 逆回転では溜める（windup）は回転と逆（正）へ引き、つまずく（stumble）は負の向きに進む', () => {
+    // Given
+    const windupMs = launchMotionMs('windup', null, 'backward');
+    const stumbleMs = launchMotionMs('stumble', null, 'backward');
+    // When / Then: 開始角 0 からの差
+    expect(angle(windupMs, null, 'windup', null)).toBeLessThan(-10);
+    expect(angle(windupMs, null, 'windup', 'backward')).toBeGreaterThan(10);
+    expect(angle(stumbleMs, null, 'stumble', null)).toBeGreaterThan(20);
+    expect(angle(stumbleMs, null, 'stumble', 'backward')).toBeLessThan(-20);
+    // 動き出しの後は、回転の向き（負）へ大きく回る
+    expect(angle(windupMs + 500, null, 'windup', 'backward')).toBeLessThan(angle(windupMs, null, 'windup', 'backward') - 300);
+  });
+});
+
+/**
+ * @requirements #640 /code-review 指摘 4（途中で向きを変える: 差し込みの前後で速さが跳ばない）
+ */
+describe('途中で向きを変える: 差し込みの前後で速さがつながる', () => {
+  it('差し込みの始まりと終わりで、1ms ごとの角度の差が急に変わらない（0.1°/ms 以内）', () => {
+    const bad: string[] = [];
+    for (const style of [null, 'nudge', 'swing', 'double']) {
+      for (const launch of [null, 'stumble']) {
+        const launchMs = launchMotionMs(launch, style, 'turnback');
+        for (const boundary of [launchMs + 1200, launchMs + 2200]) {
+          for (let t = boundary - 3; t <= boundary + 3; t++) {
+            const a = (k: number): number => angle(k, style, launch, 'turnback');
+            const second = Math.abs(a(t + 1) - 2 * a(t) + a(t - 1));
+            if (second > 0.1) bad.push(`${String(style)}/${String(launch)} t=${t} ${second.toFixed(3)}`);
+          }
+        }
+      }
+    }
+    expect(bad.slice(0, 5), `急に変わった ${bad.length} 件`).toEqual([]);
   });
 });

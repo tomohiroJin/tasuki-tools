@@ -7,7 +7,7 @@
 import { err, ok, type Result } from "neverthrow";
 import { drawPicks } from "./draw.js";
 import type { RouletteError } from "./errors.js";
-import { MAX_GUESTS, MAX_PICK, MAX_WHEEL, PRESS_AUTO_STOP_MS, PRESS_SEATS_PER_SEC, SETTLE_MAX, SETTLE_MIN, spinDurationMs, type MotionNames } from "./limits.js";
+import { MAX_GUESTS, MAX_PICK, MAX_WHEEL, PRESS_AUTO_STOP_MS, PRESS_SEATS_PER_SEC, SETTLE_MAX, SETTLE_MIN, motionNamesOf, spinDurationMs } from "./limits.js";
 import { pressStopOf } from "./press.js";
 import { poolOf } from "./pool.js";
 import { drawLaunchMotion, drawSpinMotion } from "./motion.js";
@@ -56,7 +56,7 @@ function isSpinning(state: RouletteState, now: number): boolean {
   const spin = state.lastSpin;
   if (spin === null) return false;
   if (spin.press !== undefined) return pressStopOf(spin, now - spin.startedAt) === null;
-  return now - spin.startedAt < spinDurationMs(spin.picks.length, spin.stopStyle, motionsOf(spin));
+  return now - spin.startedAt < spinDurationMs(spin.picks.length, spin.stopStyle, motionNamesOf(spin));
 }
 
 /**
@@ -86,11 +86,6 @@ function withMotions(spin: Spin, randomMotion: SpinInput["randomMotion"]): Resul
 /** 止まり方・動きを引いて回転に載せる（止まり方 → 動き出し → 回転の順に乱数を引く） */
 function withVariety(spin: Spin, input: SpinInput): Result<Spin, RouletteError<"INVALID_RANDOM">> {
   return withStopStyle(spin, input.randomStyle).andThen((styled) => withMotions(styled, input.randomMotion));
-}
-
-/** 回転が持つ動きの名前（長さの表 `pickStopsMs`・`spinDurationMs` へ渡す） */
-function motionsOf(spin: Spin): MotionNames {
-  return { launch: spin.launchMotion, spin: spin.spinMotion };
 }
 
 /**
@@ -426,7 +421,7 @@ export function toView(state: RouletteState, now: number): RouletteView {
   const press = stored?.press;
   const auto = stored !== null && press !== undefined && press.stop === null ? pressStopOf(stored, now - stored.startedAt) : null;
   const spin = stored !== null && press !== undefined && auto !== null ? withStop({ ...stored, press }, auto) : stored;
-  const durationMs = spin === null ? 0 : spin.press !== undefined ? PRESS_AUTO_STOP_MS : spinDurationMs(spin.picks.length, spin.stopStyle, motionsOf(spin));
+  const durationMs = spin === null ? 0 : spin.press !== undefined ? PRESS_AUTO_STOP_MS : spinDurationMs(spin.picks.length, spin.stopStyle, motionNamesOf(spin));
   return {
     pickCount: state.pickCount,
     mode: state.mode,

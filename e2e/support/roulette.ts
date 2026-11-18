@@ -18,6 +18,13 @@ export const SPIN_EXTRA_MAX_MS = 4000;
 export const SPIN_WAIT_SLACK_MS = 2000;
 /** 1 人を選ぶ回転が終わるまで待つ時間の上限 */
 export const SPIN_WAIT_MS = SPIN_MS + SPIN_EXTRA_MAX_MS + SPIN_WAIT_SLACK_MS;
+/** 2 人目からの「置く」＋「送る」（`STOP_HOLD_MS` + `NEXT_MOVE_MS`）。k 人の回転は SPIN_MS + (k − 1) × これ */
+export const NEXT_STOP_MS = 1600;
+
+/** `pickCount` 人を選ぶ回転が終わるまで待つ時間の上限 */
+export function spinWaitMs(pickCount: number): number {
+  return SPIN_WAIT_MS + (pickCount - 1) * NEXT_STOP_MS;
+}
 
 /** 選択画面のツールの札（poker・timer・お題の支援と同じ引き方）。 */
 function toolCard(page: Page, name: string): Locator {
