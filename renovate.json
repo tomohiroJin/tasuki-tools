@@ -19,6 +19,15 @@
       "packageNameTemplate": "oven-sh/bun",
       "datasourceTemplate": "github-releases",
       "extractVersionTemplate": "^bun-v(?<version>.+)$"
+    },
+    {
+      "customType": "regex",
+      "description": "toolchain.json の Node（#441・docs/adr/0031）。CI と手元はこの版で流す。versioning は node（偶数の major だけ安定版として扱う）。major の更新は下の major の規則（承認制）にかかる",
+      "managerFilePatterns": ["/^toolchain\\.json$/"],
+      "matchStrings": ["\"node\":\\s*\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""],
+      "depNameTemplate": "node",
+      "datasourceTemplate": "node-version",
+      "versioningTemplate": "node"
     }
   ],
   "packageRules": [

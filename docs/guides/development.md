@@ -776,6 +776,9 @@ major は Dependency Dashboard の Issue に提示。決定は ADR 0008）。脆
   手順は [`deploy/README.md` の「Bun を上げる」](../../deploy/README.md#bun-を上げる) にあります。
   規則は `packageRules` の**末尾**に置いてあります（後の規則が前の規則を上書きするので、前へ動かすと
   「非破壊的な更新」の `groupName` に負けます）
+- **Node（`toolchain.json` の `node`）も Renovate が PR を出します**（#441。`customManagers`・`node-version`）。
+  minor / patch は「非破壊的な更新」に入り、major は Dependency Dashboard での承認制です。
+  上げるときは `package.json` の `engines.node` も同じ版に揃えてください（`audit-toolchain` が食い違いを止めます）
 - **Renovate の有効化にはリポジトリ管理者による GitHub App の許可が別途必要です。**
   `renovate.json` をコミットするだけでは動きません。脆弱性の PR は、加えて GitHub の
   Dependabot alerts が有効であることを要します（Renovate はそこから勧告を読みます）
@@ -1142,7 +1145,7 @@ CI では `ci`・`e2e` と並列の別ジョブなので、`ci` の臨界経路�
 
 - 中身は `node scripts/test-shuffled.mjs --all`（指定が無いと何も流さず使い方を出して終わる。`entry-point-wiring.test.mjs` が引数なしで起動するため、重い検査を無指定で走らせない。先に `check-toolchain test` を通し、版が合わなければ始めない。飛ばす指定は無い）（部品は `scripts/lib/shuffled-tests.mjs`）。各パッケージの `test` スクリプトに指定を足して 1 つずつ流します:
   vitest は `--sequence.shuffle --sequence.seed=<種>`、`apps/tasuki-sync`（bun）は `--randomize --seed=<種>`。
-  **`node --test` のパッケージ（`packages/ui`。`scripts/` の自己テストもワークスペースの外で同じ）は対象外**です（Node にランダムな順の指定が無い）。
+  **`node --test` のパッケージ（`packages/ui`。`scripts/` の自己テストもワークスペースの外で同じ）は対象外**です（Node 26 には `--test-randomize` があるが、まだ入れていない）。
   知らないランナーが足されたら黙って飛ばさず落ちます（指定を決めて `shuffled-tests.mjs` に足す）
 - **種は毎回変えて、ログの先頭に出します**（`--seed <整数>` で固定もできる）。固定すると 1 通りの順しか見ず、新しく入った順番依存を取りこぼすためです。
   代わりに「落ちたら同じ種で手元で再現できる」ことを守ります: 落ちたパッケージごとに `cd <dir> && pnpm exec vitest run --sequence.shuffle --sequence.seed=<種>` の形の再現コマンドが最後に出ます。
