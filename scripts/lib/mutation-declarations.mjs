@@ -10530,7 +10530,7 @@ export const MUTATIONS = [
     patch: "m2058-effect-band-takes-pointer.patch",
     pkg: "apps/poker-web",
     tests: ["tests/results-effect-css.test.ts"],
-    note: RESERVED_2050_2079 + " " + "#639。index.css。演出の最中に帯の下の操作（札・統計・記録）が押せなくなる。",
+    note: RESERVED_2050_2079 + " " + "#639。index.css。演出の帯がクリックを受ける約束（pointer-events: none）が外れ、帯に重なる操作を横取りしうる（帯は流れの中の 1 行なので今は重ならないが、後で位置を変えたときの守り）。",
   },
   {
     id: 2059,
@@ -10547,5 +10547,21 @@ export const MUTATIONS = [
     pkg: "apps/poker-web",
     tests: ["tests/results-effect-css.test.ts"],
     note: RESERVED_2050_2079 + " " + "#639。index.css。動きを減らす設定（長さ 0）で終わりの姿が出ず、文言が消えて何も伝わらない。",
+  },
+  {
+    id: 2061,
+    label: "出していない人が居る手動の開票でも、一致・バラバラの演出を出す",
+    patch: "m2061-effect-agreement-on-manual-reveal.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/room-view.test.ts"],
+    note: RESERVED_2050_2079 + " " + "#639 のレビュー。room-view.ts。5 人中 2 人が 5・5 で手動の開票でも「全員同じ」が出て、全員が同じだったと誤って伝える。",
+  },
+  {
+    id: 2062,
+    label: "演出の種類を開票の瞬間で持たず、描くたびに名簿から求め直す",
+    patch: "m2062-effect-recomputed-every-render.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/room-page-effect.test.tsx"],
+    note: RESERVED_2050_2079 + " " + "#639 のレビュー。RoomPage.tsx。開票の後の入退室・切断で帯が後から出る・消え、統計の位置が跳ねる。",
   },
 ];

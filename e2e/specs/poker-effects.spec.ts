@@ -89,7 +89,7 @@ test.describe('poker の開票の演出（#639）', () => {
     }
   });
 
-  test('Given 2 人が同じ数字と ? / When 開票 / Then 「全員同じ」にならない', async ({ page, openPeer }) => {
+  test('Given 3 人のうち 2 人が同じ数字・1 人が ? / When 開票 / Then 「全員同じ」にならない', async ({ page, openPeer }) => {
     const pages = await openRoom(page, openPeer, 'fx-d', 3);
     await everyoneVotes(pages, ['5', '5', '?']);
     for (const p of pages) {
@@ -103,9 +103,10 @@ test.describe('poker の開票の演出（#639）', () => {
     const pages = await openRoom(page, openPeer, 'fx-e', 2);
     const other = pages[1]!;
     await everyoneVotes(pages, ['3', '3']);
-    await expect(band(page, UNANIMOUS)).toBeVisible();
-    // 演出の最中（帯が見えている間）に、帯の下の操作が通る（帯は操作を奪わない）。待たずに押す
+    // 演出の最中に押す: 開票の直後（帯の動きが終わる 1.75 秒より前）に、帯の出現を待たずに押す（帯は操作を奪わない）
+    const clickedAt = Date.now();
     await page.getByRole('button', { name: '再投票' }).click();
+    expect(Date.now() - clickedAt, '押せるまでが動きの終わりより前').toBeLessThan(1750);
     for (const p of pages) await expect(p.getByRole('heading', { name: 'あなたのカード' })).toBeVisible();
     await expect(band(page, UNANIMOUS)).toHaveCount(0);
     // 同じアイテム・同じ票でも毎回出る
