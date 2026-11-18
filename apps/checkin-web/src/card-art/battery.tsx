@@ -1,13 +1,13 @@
 /** 今日のバッテリーの絵: 電池の目盛り。金の目盛りの数で残りを示す（満タン 4・半分 2・少ない 1・切れそう は細い金の線だけ）。 */
-const BARS = [12, 22, 32, 42] as const;
+const BARS = [9, 20, 31, 42] as const;
 
 function Battery({ bars }: { bars: number }) {
   return (
     <>
-      <rect x="8" y="20" width="44" height="26" rx="4" className="ca-ink" />
-      <path className="ca-ink" d="M52 28h4v10h-4" />
-      {bars > 0 && <path className="ca-gold" d={BARS.slice(0, bars).map((x) => `M${x} 24h7v18h-7z`).join('')} />}
-      {bars === 0 && <path className="ca-gold-line" d="M13 26v14" />}
+      <rect x="4" y="16" width="51" height="32" rx="4" className="ca-ink" />
+      <path className="ca-ink" d="M55 25h5v14h-5" />
+      {bars > 0 && <path className="ca-gold" d={BARS.slice(0, bars).map((x) => `M${x} 21h8v22h-8z`).join('')} />}
+      {bars === 0 && <path className="ca-gold-line" d="M10 23v18" />}
     </>
   );
 }
