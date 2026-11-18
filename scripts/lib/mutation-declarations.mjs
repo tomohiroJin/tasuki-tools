@@ -10497,4 +10497,12 @@ export const MUTATIONS = [
     tests: ["test/ui/Summary.test.tsx"],
     note: "#408 のレビュー。Slack などプレーンテキストの貼り付け先で、R&D に不要なバックスラッシュが見える。",
   },
+  {
+    id: 1966,
+    label: "Markdown の数値文字参照をエスケープしない",
+    patch: "m1966-record-markdown-numeric-references.patch",
+    pkg: "apps/timer-web",
+    tests: ["test/ui/Summary.test.tsx"],
+    note: "#408 のレビュー。お題に含まれる数値文字参照を、Markdown の貼り付け先が別の字に置き換える。",
+  },
 ];

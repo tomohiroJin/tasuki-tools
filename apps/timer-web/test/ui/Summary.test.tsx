@@ -34,7 +34,7 @@ describe("Summary", () => {
           ...baseRecord,
           id: "internal-record-id",
           roomId: "internal-room-id",
-          topicTitle: "R&D *Buzz*\n# 次のお題 &amp;",
+          topicTitle: "R&D *Buzz*\n# 次のお題 &amp; &#65; &#x41;",
           members: ["A_[1]", "Bob"],
           driverCounts: [2, 1],
           totalSwitches: 3,
@@ -51,7 +51,7 @@ describe("Summary", () => {
     expect(writeText).toHaveBeenCalledExactlyOnceWith([
       "セッションまとめ",
       "",
-      "- お題：R&D \\*Buzz\\* # 次のお題 \\&amp;",
+      "- お題：R&D \\*Buzz\\* # 次のお題 \\&amp; \\&#65; \\&#x41;",
       "- 所要時間：5分00秒",
       "- 交代回数：3回",
       "- 周回数：1周",
