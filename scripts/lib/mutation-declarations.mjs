@@ -10684,4 +10684,20 @@ export const MUTATIONS = [
     tests: ["tests/spin-motion.test.ts"],
     note: RESERVED_2080_2109 + " " + "#640 決めること 3。重なった回で、動き出しが詰まらず本体の始まりがずれる（止まる時刻とずれる）。",
   },
+  {
+    id: 2108,
+    label: "止まる時刻が回転の動きの延びを 2 回足す",
+    patch: "m2108-extra-counts-spin-motion-twice.patch",
+    pkg: "packages/roulette-core",
+    tests: ["tests/roulette-motions.test.ts"],
+    note: RESERVED_2080_2109 + " " + "#640 のまとめ役の E2E。途中で向きを変える・速いの長さが 2 回足され、止まる時刻・wire の長さが二重に延びる（E2E の壁時計では見分けられない）。",
+  },
+  {
+    id: 2109,
+    label: "止まる時刻が動き出しの延びを 2 回足す",
+    patch: "m2109-extra-counts-launch-twice.patch",
+    pkg: "packages/roulette-core",
+    tests: ["tests/roulette-motions.test.ts"],
+    note: RESERVED_2080_2109 + " " + "#640 のまとめ役の E2E。動き出しの長さが 2 回足され、止まる時刻・wire の長さが二重に延びる（E2E の壁時計では見分けられない）。",
+  },
 ];

@@ -155,14 +155,15 @@ test.describe('ルーレットの変わった動きは全員の画面で同じ�
     expect(timeB, 'B の結果の時刻を記録した').not.toBeNull();
     expect(Math.abs((timeA ?? 0) - (timeB ?? 0)), 'A と B が結果を言った時刻の差').toBeLessThanOrEqual(SAME_TIME_TOLERANCE_MS);
     // 延びた長さ（約 6.3 秒）で言う。**A が回し始めを受けてから結果を言うまで**を測る（クリックと往復の遅れを含めない）。
-    //   下限は普通の長さ（4000）+ 500: 普通の長さで止まる実装（4000）と分かれる。
-    //   上限は延びた長さ + 普通の長さの半分（MOVED_MS + 2000 = 8300）: 二重に延びる実装（動きの分を 2 回足して約 8600）と分かれ、
-    //   壁時計の揺れ（描画・タイマーの遅れ。混んだ環境で 1500ms を越えた）では落ちない
+    //   下限は普通の長さ（4000）+ 500: 普通の長さで止まる実装と分かれる。
+    //   **上限は置かない**: 延びが二重に足される実装（約 8600）と、混んだ環境の正しい実装（8681 を実測）の壁時計の値が重なり、見分けられない。
+    //   「延びは 1 回だけ」は偽の時計の単体が守る: `packages/roulette-core/tests/roulette-motions.test.ts` の
+    //   「wire の durationMs は延びた長さで、動きの名前を載せる」「動きの長さは、止まる時刻（1 人目）の差し引き…」
+    //   （表の値を足し直した期待値と比べる。変異 2108・2109 が突く）
     const spunAt = await spinTime(page);
     expect(spunAt, 'A の回し始めの時刻を記録した').not.toBeNull();
     const stoppedAfter = (timeA ?? 0) - (spunAt ?? 0);
     expect(stoppedAfter, 'A が結果を言うまでの時間は、普通の長さより長い').toBeGreaterThan(PLAIN_MS + 500);
-    expect(stoppedAfter, 'A が結果を言うまでの時間は、延びた長さに近い（二重に延びていない）').toBeLessThan(MOVED_MS + PLAIN_MS / 2);
 
     // Then: 動きを差し込んでも、画面は壊れていない（コンソールにエラーが無い）
     expect(consoleWatcher.errors, 'A のコンソールのエラー').toEqual([]);
