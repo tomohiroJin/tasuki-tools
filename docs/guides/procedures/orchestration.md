@@ -14,7 +14,7 @@
   （`docs/guides/plan-writing.md`「計画に書く数値・期待値・時間」）
 - 同じ ISSUE の開いた PR・マージ済みの PR・リモートの枝を確かめる（`AGENTS.md`「作業の始めに」）
 - 変異 ID の帯を、**分けた作業ごとに多めに**先に予約する（`docs/guides/procedures/mutations.md` の「2. 番号を決める」）。
-  どの作業も `MUTATIONS` の末尾へ足すので、後から入る側は末尾で衝突する。両側を残して解き、番号は付け直す
+  どの作業も `MUTATIONS` の末尾へ足すので、後から入る側は末尾で衝突する。両側を残して解き、番号が重なったときだけ付け直す（`mutations.md` の「2. 番号を決める」と同じ。予約した帯の中に収まっていれば重ならない）
 - 実装役への指示（ブリーフ）に、完了条件を**機械で確かめられる形**で書く。その検査コマンドは、先に自分で流して期待値を確かめる
 - 積み上げの作業（下の PR が上の PR の土台）は、土台がマージされたら
   `git rebase --onto origin/main <旧い土台の先頭>` で載せ直す
@@ -86,6 +86,8 @@
 - 実装役の「検査を通した」は、終了コードを自分で見る。検査の件数は、実行して出る行（`--plan` の件数行ほか）を読み、表を grep で数えない
 - 実装役が申告した Red は、実装だけ戻して赤→戻して緑を自分で再現する。前後で `git status --porcelain` が空かも見る
 - 委譲から戻ったら `git status --porcelain` と `git diff --stat` を見る。`git add -A` は他人が残した変異ごと取り込む
+- 実装役が `check:fast` や scripts の自己テストを途中で止めると、自己テストの複製の一時ファイル（`scripts/.wiring-*.mjs`・`scripts/.scan-target-wiring-*.mjs`・`scripts/.test-focus-wiring-*.mjs` のように、`scripts/` 直下の `.` で始まる `.mjs`）が追跡外で残ることがある。
+  push の前に `git status --porcelain` の `??` を見て、**この名前の形のものだけ**を消す。`??` の行はすべて追跡外なので、追跡外かどうかでは一時ファイルと add し忘れの新しいファイルを見分けられない（#482 の振り返りの罠 3）
 - 黙った push は `git ls-remote origin <枝>` で拾う（`origin/<枝>` は手元の台帳で、ずれる）。実装役が残した `git stash`・終わらない待ち・入力待ちは止める
 - 実装役を長い修正ループで再開し続けない（文脈が尽きて未コミットが消える）。2 回目以降は、指摘をファイルに書き出して新しい実装役へ渡す
 - 依存の向きなどの検査の登録は、タスクごとの検査でなく、**全件の監査（`pnpm check:fast`）で確かめる**。タスク単位では登録漏れが見えない
@@ -109,6 +111,8 @@
 - squash マージした PR は、`git merge-base --is-ancestor` では未マージに見える。`gh pr view` の state で見る
 - CI の結果の読み方（headSha から読む・check-runs が全部 completed か）は [`docs/guides/development.md`](../development.md) の「CI の結果を読むとき」
 - 採点を伴うレビュー（Claude Code の `/code-review`）が走っている間は、指摘を直さない。直ったあとの状態が採点され、指摘が空振りになる
+- Claude Code では、自前の敵対的レビューが「直す 0 件」で終わった後でも、PR ごとに `/code-review` を流す。#482 で `/code-review` の結果（件数か、直した中身）を PR 本文に書いた 18 本（#602 と、第一陣 7・第二陣 4・第三陣 6。書いていないのは #615 だけ）のすべてで、自前のレビューが拾わなかった実在の指摘が出た（`docs/retrospectives/2026-11-18-issue-482-architecture-cleanup.md` の罠 1）。
+  運びの順は、実装 → 自前の敵対的レビュー → PR → `/code-review` → 直し → 直した差分のレビュー、を最初から計画に入れる
 
 ## 7. 長い実行を待つとき
 
