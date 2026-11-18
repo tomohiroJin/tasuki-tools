@@ -471,6 +471,96 @@
   overflow-wrap: anywhere;
 }
 
+/* 開票の演出の帯（#639）。結果の節の中の 1 行で、流れの中に置く（重ならない・操作を奪わない: ポインタもフォーカスも受けない）。
+   動きは 0.25s の遅れ + 1.5s の 1 回（開票から 2s 以内）。動きの終わりの姿が、そのまま静かな 1 行として残る（レイアウトが跳ねない）。
+   動きを減らす設定では要素層が長さと遅延を 0 にするので、終わりの姿（色と文言）だけが出る。
+   外れた人を名指ししない（結果の呼び名だけ）。色は既存のトークンだけ: 一致は真鍮・バラバラは薔薇・そろいは翡翠。 */
+.results-effect {
+  box-sizing: border-box;
+  margin: 0.9rem 0 0;
+  padding: var(--space-2) var(--space-4);
+  max-width: 24rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--ivory-inset);
+  color: var(--ivory-dim);
+  font-family: var(--font-display);
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-align: center;
+  overflow: hidden;
+  pointer-events: none;
+  animation-delay: 0.25s;
+  animation-duration: 1.5s;
+  animation-fill-mode: both;
+  animation-timing-function: cubic-bezier(0.2, 0.8, 0.25, 1);
+}
+
+.results-effect[data-effect='unanimous'] {
+  border-color: var(--gold-edge);
+  background: var(--gold-tint);
+  color: var(--gold-bright);
+  animation-name: effect-cutin;
+}
+
+.results-effect[data-effect='scattered'] {
+  border-color: var(--rose-edge);
+  background: var(--rose-tint);
+  color: var(--rose-pale);
+  animation-name: effect-scatter;
+}
+
+.results-effect[data-effect='complete'] {
+  border-color: var(--jade-edge);
+  background: var(--jade-tint);
+  color: var(--jade-pale);
+  animation-name: effect-settle;
+}
+
+/* 一致: 帯が左から横切り、光ってから落ち着く */
+@keyframes effect-cutin {
+  0% {
+    clip-path: inset(0 100% 0 0);
+    filter: brightness(1.7);
+  }
+  35% {
+    clip-path: inset(0);
+    filter: brightness(1.7);
+  }
+  100% {
+    clip-path: inset(0);
+    filter: none;
+  }
+}
+
+/* バラバラ: 字が散ってから寄る（外へ動かさず字の間だけ。幅が広がっても帯の中に収まる） */
+@keyframes effect-scatter {
+  0% {
+    letter-spacing: 0.9em;
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    letter-spacing: 0.12em;
+    opacity: 1;
+  }
+}
+
+/* そろい: 小さく浮いて落ち着く */
+@keyframes effect-settle {
+  0% {
+    opacity: 0;
+    transform: translateY(0.4rem) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* ---------- エラーの一言の枠（色は部品の .ui-note--error が持つ） ---------- */
 
 .error-note {

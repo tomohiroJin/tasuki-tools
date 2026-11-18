@@ -3,7 +3,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import type { RoomStateMessage } from '@tasuki/poker-core';
-import { holdsSeatCard, isOffline, revealedLiveAfter, seatCardCount, revealedVoteMap, spreadPromptOf } from '../src/room-view';
+import { holdsSeatCard, isOffline, revealedLiveAfter, seatCardCount, revealedVoteMap, resultsEffectOf, spreadPromptOf } from '../src/room-view';
 
 type Round = RoomStateMessage['round'];
 
@@ -101,6 +101,68 @@ describe('spreadPromptOf（#405）', () => {
       high: { card: n(8), names: ['あお'] },
       low: { card: n(2), names: ['きい'] },
     });
+  });
+});
+
+describe('resultsEffectOf（#639）', () => {
+  type Card = { kind: 'number'; value: 1 | 3 | 5 | 8 } | { kind: 'question' } | { kind: 'coffee' };
+  const n = (value: 1 | 3 | 5 | 8): Card => ({ kind: 'number', value });
+  const person = (id: string, over: Partial<{ connected: boolean; spectator: boolean }> = {}) => ({
+    id,
+    name: id,
+    connected: true,
+    hasVoted: true,
+    spectator: false,
+    ...over,
+  });
+  const revealed = (votes: [string, Card][]) =>
+    ({
+      status: 'revealed',
+      votes: votes.map(([participantId, card]) => ({ participantId, card })),
+      stats: { average: 0, modes: [] },
+    }) as Round;
+  const three = [person('a'), person('b'), person('c')];
+
+  it('投票中は null', () => {
+    expect(resultsEffectOf({ status: 'voting' } as Round, three)).toBeNull();
+  });
+
+  it('全員が同じ数字なら unanimous', () => {
+    expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(5)], ['c', n(5)]]), three)).toBe('unanimous');
+  });
+
+  it('同じ札が 1 組も無ければ scattered', () => {
+    expect(resultsEffectOf(revealed([['a', n(1)], ['b', n(5)], ['c', n(8)]]), three)).toBe('scattered');
+  });
+
+  it('全員が出したが一致でもバラバラでもなければ complete（全員の投票完了。投票完了は自動で開票されるので、開票と同時に届く）', () => {
+    expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(5)], ['c', n(8)]]), three)).toBe('complete');
+  });
+
+  it('? が混ざれば、全員が出していても complete（一致・バラバラにはならない）', () => {
+    expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(5)], ['c', { kind: 'question' }]]), three)).toBe('complete');
+  });
+
+  it('接続中の投票者に出していない人が居る（手動の開票）なら null', () => {
+    expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(8)]]), three)).toBeNull();
+  });
+
+  it('出していない人が切断中なら、接続中の全員が出したので complete', () => {
+    const people = [person('a'), person('b'), person('c', { connected: false })];
+    expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(8)]]), people)).toBe('complete');
+  });
+
+  it('見学者は出していなくてよい', () => {
+    const people = [person('a'), person('b'), person('w', { spectator: true })];
+    expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(8)]]), people)).toBe('complete');
+  });
+
+  it('投票者が 1 人だけなら complete にしない（そろうも何もない）', () => {
+    expect(resultsEffectOf(revealed([['a', n(5)]]), [person('a')])).toBeNull();
+  });
+
+  it('全員が ☕ なら unanimous にはならず complete（休憩の演出は第 2 段。テーブルが出る間は結果の節ごと描かれない）', () => {
+    expect(resultsEffectOf(revealed([['a', { kind: 'coffee' }], ['b', { kind: 'coffee' }]]), [person('a'), person('b')])).toBe('complete');
   });
 });
 

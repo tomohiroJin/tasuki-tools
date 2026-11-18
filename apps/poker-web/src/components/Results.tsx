@@ -3,6 +3,7 @@
 import type { CSSProperties } from 'react';
 import type { RoundStats } from '@tasuki/poker-core';
 import { cardLabel } from './CardHand';
+import { EFFECT_COPY, type ResultsEffect } from '../effect-copy';
 import type { SpreadPrompt } from '../room-view';
 
 interface Props {
@@ -16,6 +17,11 @@ interface Props {
   afterFlip: boolean;
   /** 見積もりが割れたときの最大と最小を出した人（割れていなければ null） */
   spread: SpreadPrompt | null;
+  /**
+   * 開票の演出（#639）。出さないなら null（省略も同じ）。公開を投票中から見届けたときだけ渡す
+   * （再読み込み・途中入室で最初から公開済みのときは出さない。毎回の開票で結果の節が作り直されるので、再投票でも毎回動く）
+   */
+  effect?: ResultsEffect | null;
 }
 
 /** 平均は小数 1 桁に丸めて表示（core は生値を返す。data-model 集計ルール） */
@@ -62,13 +68,20 @@ function SpreadNote({ spread: { high, low } }: { spread: SpreadPrompt }) {
   );
 }
 
-export function Results({ stats, seatCount, afterFlip, spread }: Props) {
+export function Results({ stats, seatCount, afterFlip, spread, effect = null }: Props) {
   return (
     <section
       className={`results${afterFlip ? ' results--after-flip' : ''}`}
       style={{ '--seat-count': seatCount } as CSSProperties}
     >
       <h2>結果</h2>
+      {/* 演出の帯（#639）。見た目だけで、操作は受け付けたまま（ポインタ・フォーカスを奪わない）。
+          読み上げは帯自身の role="status" 1 つ（複製を置かない）。動きを減らす設定では動かず、色と文言が残る */}
+      {effect && (
+        <p className="results-effect" data-effect={effect} role="status">
+          {EFFECT_COPY[effect]}
+        </p>
+      )}
       <dl className="stats">
         <div>
           <dt>平均</dt>

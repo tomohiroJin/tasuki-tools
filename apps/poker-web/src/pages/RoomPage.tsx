@@ -19,7 +19,7 @@ import { useRoomEntry } from '../hooks/useRoomEntry';
 import { ESTIMATE_POINTS_LABEL, NEXT_ITEM, RECORDING_TOGGLE, REVOTE } from '../estimate-copy';
 import { JOIN_VOTING, SPECTATE, SPECTATING_NOTE, participantsHeading } from '../spectator-copy';
 import type { NumberCardValue } from '@tasuki/poker-core';
-import { isOffline, revealedLiveAfter, seatCardCount, revealedVoteMap, spreadPromptOf } from '../room-view';
+import { isOffline, revealedLiveAfter, seatCardCount, revealedVoteMap, resultsEffectOf, spreadPromptOf } from '../room-view';
 
 // 隠しモードのテーブル（#403）。ゲームが始まったとき（`room-state.table` が届いたとき）にだけ読み込む
 // （普段の初回の読み込みを増やさない・設計 §5.5）。入口は見積もりの操作だけで、判定はサーバーが行う
@@ -243,6 +243,7 @@ export function RoomPage({ roomId, sync }: Props) {
               seatCount={seatCount}
               afterFlip={revealedLive}
               spread={spreadPromptOf(snapshot.round, snapshot.participants)}
+              effect={revealedLive ? resultsEffectOf(snapshot.round, snapshot.participants) : null}
             />
           )}
           {/* 下端の帯（sticky）は親の範囲の中でしか留まらないので、帯は操作の面（`.room-main`）の最後の子に置き、
