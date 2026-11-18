@@ -159,7 +159,7 @@ const HUB_COMMAND_NAMES: Record<HubCommand["command"], true> = {
  * （新しいハブのコマンドを足しても、道具の接続側の一覧を直さずに拒まれる）。
  */
 export function isHubCommand(cmd: { readonly command: string }): cmd is HubCommand {
-  return Object.hasOwn(HUB_COMMAND_NAMES, cmd.command);
+  return Object.prototype.hasOwnProperty.call(HUB_COMMAND_NAMES, cmd.command);
 }
 
 /**

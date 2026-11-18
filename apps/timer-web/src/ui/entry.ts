@@ -9,7 +9,7 @@
  * ルームへ入ってしまい履歴へ着けない。戻り先は開いた元 —— 玄関から来たなら `/`、
  * 選択画面から来たなら `/?room=CODE` —— を URL 自身が運ぶ。
  */
-import { DEPARTURE_PARAM, RETURN_PARAM, type DepartureReason } from "@tasuki/room-core";
+import { DEPARTURE_PARAM, RETURN_PARAM, roomHubPath, type DepartureReason } from "@tasuki/room-core";
 
 export type Entry =
   | { kind: "history"; backTo: string }
@@ -40,8 +40,10 @@ export function decideEntry(search: string): Entry {
  * 通ったあとに玄関が元の道具へ戻す。
  */
 export function hubRoomPath(code: string | null, departure?: DepartureReason, returnTo?: string): string {
+  // コードがあるときは、各道具と同じ `@tasuki/room-core` の `roomHubPath` に任せる（写しを持たない）。
+  if (code !== null && code !== "") return roomHubPath(code, departure, returnTo);
+  // コードを失っている（退出の印だけを運ぶ）ときだけ、ここで組む。
   const params = new URLSearchParams();
-  if (code !== null && code !== "") params.set("room", code);
   if (departure !== undefined) params.set(DEPARTURE_PARAM, departure);
   if (returnTo !== undefined) params.set(RETURN_PARAM, returnTo);
   const query = params.toString();
