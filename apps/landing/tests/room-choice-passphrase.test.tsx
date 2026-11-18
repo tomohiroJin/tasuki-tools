@@ -118,7 +118,7 @@ describe('選択画面の合言葉', () => {
 describe('合言葉の文言は書体の常用の層に収まる', () => {
   it('Given 設定中・未設定の両方の画面 / When 描かれた文字を base 層に当てる / Then 外れる字は無い', () => {
     const texts: string[] = [];
-    for (const protectedNow of [false, true]) {
+    for (const protectedNow of [false, true, null]) {
       const { container, unmount } = render(
         <RoomChoice
           code="朝会-ab12"

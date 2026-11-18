@@ -16,8 +16,13 @@ import { DEPARTURE_PARAM, RETURN_PARAM } from '@tasuki/room-core';
 import { TOOLS } from '../tools.js';
 import { readRoomParam } from './room-param.js';
 
-/** 戻す行き先（道具の公開パス＋`?room=`）。戻さないなら null。 */
-export function returnPathFor(href: string): string | null {
+/**
+ * 戻す行き先（道具の公開パス＋`?room=`）。戻さないなら null。
+ *
+ * `joinedCode` は**サーバーが `room.joined` で確かめたコード**である。URL の生の値で作ると、復帰の組が
+ * サーバーのコードで保存されるのと食い違い、道具で組が見つからず玄関へ戻される。
+ */
+export function returnPathFor(href: string, joinedCode: string): string | null {
   const url = new URL(href);
   const code = readRoomParam(href);
   if (code === null) return null;
@@ -25,5 +30,5 @@ export function returnPathFor(href: string): string | null {
   const from = url.searchParams.get(RETURN_PARAM);
   const tool = TOOLS.find((candidate) => candidate.id === from);
   if (tool === undefined) return null;
-  return `${tool.href}?room=${encodeURIComponent(code)}`;
+  return `${tool.href}?room=${encodeURIComponent(joinedCode)}`;
 }

@@ -91,6 +91,7 @@ export function App() {
           connection={hub.connection}
           topicTitle={hub.topicTitle}
           passphraseProtected={hub.passphraseProtected}
+          passphraseError={hub.passphraseError}
           onSetPassphrase={hub.setPassphrase}
         />
       );

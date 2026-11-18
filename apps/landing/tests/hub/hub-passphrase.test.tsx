@@ -46,6 +46,7 @@ afterEach(() => {
 describe('玄関の合言葉', () => {
   it('Given 参加済み / When 合言葉を入れて設定する / Then コードを持たない room.passphrase.set が 1 通だけ送られる', () => {
     joinedRoom();
+    act(() => socket().deliver(ROSTER(false)));
 
     fireEvent.change(screen.getByLabelText('新しい合言葉', { selector: 'input' }), { target: { value: 'ひみつ' } });
     fireEvent.click(screen.getByRole('button', { name: '設定' }));
@@ -92,10 +93,53 @@ describe('玄関の合言葉', () => {
     ]);
   });
 
-  it('Given 印の無い名簿（古いサーバー） / When 選択画面を見る / Then 「付いていない」として映す', () => {
+  it('Given 名簿がまだ届かない / When 選択画面を見る / Then 「確かめています」で、設定も解除も押せない（付いている合言葉を黙って上書きしない）', () => {
+    joinedRoom();
+
+    expect(screen.getByText('合言葉の状態を調べています', { exact: false })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('新しい合言葉', { selector: 'input' }), { target: { value: 'ひみつ' } });
+    expect(screen.getByRole('button', { name: '設定' })).toBeDisabled();
+    expect(sentCommands().filter((c) => c['command'] === 'room.passphrase.set')).toEqual([]);
+  });
+
+  it('Given 印の無い名簿（古いサーバー） / When 選択画面を見る / Then 確かめられないままで、押せない', () => {
     joinedRoom();
     act(() => socket().deliver(ROSTER()));
 
-    expect(screen.getByText('合言葉は付いていません。', { exact: false })).toBeInTheDocument();
+    expect(screen.getByText('合言葉の状態を調べています', { exact: false })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '設定' })).toBeDisabled();
+  });
+
+  it('Given 設定を送った / When サーバーが NOT_IN_ROOM を返す / Then 合言葉の節にエラーが出る（黙らない）', () => {
+    joinedRoom();
+    act(() => socket().deliver(ROSTER(false)));
+    fireEvent.change(screen.getByLabelText('新しい合言葉', { selector: 'input' }), { target: { value: 'ひみつ' } });
+    fireEvent.click(screen.getByRole('button', { name: '設定' }));
+
+    act(() => socket().deliver({ type: 'error', code: 'NOT_IN_ROOM', message: 'ルームに入っていません。' }));
+
+    expect(screen.getByRole('alert')).toHaveTextContent('ルームに入っていません。');
+  });
+
+  it('Given 合言葉の節にエラーが出ている / When 次の設定を送る / Then エラーは消える', () => {
+    joinedRoom();
+    act(() => socket().deliver(ROSTER(false)));
+    act(() => socket().deliver({ type: 'error', code: 'NOT_IN_ROOM', message: 'ルームに入っていません。' }));
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('新しい合言葉', { selector: 'input' }), { target: { value: 'ひみつ' } });
+    fireEvent.click(screen.getByRole('button', { name: '設定' }));
+
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('Given 合言葉の節にエラーが出ている / When 名簿が届く（成功） / Then エラーは消える', () => {
+    joinedRoom();
+    act(() => socket().deliver(ROSTER(false)));
+    act(() => socket().deliver({ type: 'error', code: 'NOT_IN_ROOM', message: 'ルームに入っていません。' }));
+
+    act(() => socket().deliver(ROSTER(true)));
+
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 });

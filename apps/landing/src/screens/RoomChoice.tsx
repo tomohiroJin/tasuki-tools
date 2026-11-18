@@ -26,12 +26,14 @@ export interface RoomChoiceProps {
    */
   readonly topicTitle: string | null;
   /** そのルームに合言葉が付いているか（名簿の印。同期フックが持つ・#638）。 */
-  readonly passphraseProtected: boolean;
+  readonly passphraseProtected: boolean | null;
+  /** 合言葉の設定の失敗の文言（無ければ null）。 */
+  readonly passphraseError?: string | null;
   /** 合言葉の設定・変更・解除（空文字で解除）。ルームに居る誰でも実行できる（#638）。 */
   onSetPassphrase(passphrase: string): void;
 }
 
-export function RoomChoice({ code, inviteUrl, roster, connection, topicTitle, passphraseProtected, onSetPassphrase }: RoomChoiceProps) {
+export function RoomChoice({ code, inviteUrl, roster, connection, topicTitle, passphraseProtected, passphraseError = null, onSetPassphrase }: RoomChoiceProps) {
   const participants = roster?.participants ?? [];
   const copy = useCopyText(inviteUrl);
   const [showQr, setShowQr] = useState(false);
@@ -117,7 +119,7 @@ export function RoomChoice({ code, inviteUrl, roster, connection, topicTitle, pa
               )}
             </div>
           </section>
-          <RoomPassphrase protectedNow={passphraseProtected} connection={connection} onSet={onSetPassphrase} />
+          <RoomPassphrase protectedNow={passphraseProtected} error={passphraseError} connection={connection} onSet={onSetPassphrase} />
         </div>
       </div>
 

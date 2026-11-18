@@ -129,6 +129,27 @@ describe("ハブの合言葉の設定（#638）", () => {
     expect(accepted.type).toBe("room.joined");
   });
 
+  it("Given 設定中のルーム / When 合言葉を変更する（印は変わらない） / Then 送った人にだけ名簿が返り、ほかの人へは配り直さない", async () => {
+    const owner = await server.connectHub("owner");
+    const created = await hubCreate(owner, "あや");
+    const guest = await server.connectHub("guest");
+    guest.send({ command: "room.join", code: created.code, displayName: "いずみ" });
+    await guest.take((m) => m.type === "room.joined", "参加");
+    owner.send({ command: "room.passphrase.set", passphrase: "ふるい" });
+    await nextProtected(owner, true);
+    await guest.take((m) => m.type === "roster" && m.room.passphraseProtected === true, "設定の名簿");
+    const guestRosters = () => guest.received.filter((m) => m.type === "roster").length;
+    const before = guestRosters();
+
+    owner.send({ command: "room.passphrase.set", passphrase: "あたらしい" });
+
+    // 送った人には成功が分かる応答（名簿）が返る
+    await nextProtected(owner, true);
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    // 名簿は変わっていないので、ほかの人へは配らない（各道具の名簿の変化の測り直しも走らせない）
+    expect(guestRosters()).toBe(before);
+  });
+
   it.each(["topic", "roulette", "agenda", "checkin"] as const)(
     "Given %s の接続 / When 合言葉の設定を送る / Then INVALID_COMMAND で拒み、設定されない",
     async (tool) => {

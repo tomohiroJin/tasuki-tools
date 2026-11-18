@@ -99,4 +99,22 @@ describe('玄関で通ったあと、元の道具へ戻る', () => {
     expect(vi.mocked(redirectTo)).not.toHaveBeenCalled();
     expect(screen.getByRole('list', { name: 'ツール' })).toBeInTheDocument();
   });
+
+  it('Given 道具から送り返された / When 入れた / Then 接続を先に閉じてから戻る（道具の復帰の接続と重ならない）', () => {
+    openFrom('?room=R1&from=topic');
+    submitName('あや');
+
+    act(() => socket().deliver({ type: 'room.joined', code: 'R1', participantId: 'p1', resumeToken: 't1' }));
+
+    expect(socket().readyState).toBe(3);
+  });
+
+  it('Given URL の room とサーバーが返したコードが違う / When 入れた / Then サーバーのコードで戻す', () => {
+    openFrom('?room=r1&from=topic');
+    submitName('あや');
+
+    act(() => socket().deliver({ type: 'room.joined', code: 'R1', participantId: 'p1', resumeToken: 't1' }));
+
+    expect(vi.mocked(redirectTo)).toHaveBeenCalledWith('/topic/?room=R1');
+  });
 });

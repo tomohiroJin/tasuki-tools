@@ -14,17 +14,20 @@ import { MAX_PASSPHRASE } from '@tasuki/room-core';
  * - 同期サーバーに繋がっていない間は押せない。繋がっていないと送信が黙って積まれる（参加画面と同じ扱い・#76）。
  */
 export interface RoomPassphraseProps {
-  /** そのルームに合言葉が付いているか（名簿の印）。 */
-  readonly protectedNow: boolean;
+  /** そのルームに合言葉が付いているか（名簿の印）。null は「まだ分からない」（名簿が届くまで・古いサーバー）。 */
+  readonly protectedNow: boolean | null;
+  /** 設定の失敗の文言（無ければ null）。 */
+  readonly error: string | null;
   readonly connection: 'online' | 'reconnecting';
   /** 設定・変更。空文字で解除。 */
   onSet(passphrase: string): void;
 }
 
-export function RoomPassphrase({ protectedNow, connection, onSet }: RoomPassphraseProps) {
+export function RoomPassphrase({ protectedNow, error, connection, onSet }: RoomPassphraseProps) {
   const [value, setValue] = useState('');
   const headingId = useId();
-  const online = connection === 'online';
+  // 状態が分かるまでは押せない。付いている合言葉を、付いていないと思って黙って上書きしないため。
+  const online = connection === 'online' && protectedNow !== null;
   // 空白だけの値は解除と同じ意味になる（サーバーが前後の空白を落とす）。設定の口からは送らせない —— 解除は専用の
   // ボタンから。取り違えて外してしまわないため。
   const canSubmit = online && value.trim() !== '';
@@ -42,10 +45,17 @@ export function RoomPassphrase({ protectedNow, connection, onSet }: RoomPassphra
       {/* 状態の変化（設定した・外れた）を読み上げる。`role="status"` にしない —— 招待のコピーの結果（`role="status"`）と
             並ぶと、画面に status が 2 つ在って取り違える（既存の検査も 1 つを前提にする）。 */}
       <p className="hub-passphrase-status ui-note" aria-live="polite">
-        {protectedNow
-          ? '合言葉を設定中です。新しく入る人には合言葉が要ります。'
-          : '合言葉は付いていません。ルームコードを知っている人は、だれでも入れます。'}
+        {protectedNow === null
+          ? '合言葉の状態を調べています…'
+          : protectedNow
+            ? '合言葉を設定中です。新しく入る人には合言葉が要ります。'
+            : '合言葉は付いていません。ルームコードを知っている人は、だれでも入れます。'}
       </p>
+      {error !== null && (
+        <p className="hub-error ui-note ui-note--error" role="alert">
+          {error}
+        </p>
+      )}
       <form className="hub-passphrase-form" onSubmit={submit}>
         <label className="hub-field">
           <span className="hub-label">新しい合言葉</span>
@@ -59,7 +69,7 @@ export function RoomPassphrase({ protectedNow, connection, onSet }: RoomPassphra
           />
         </label>
         <div className="ui-actions">
-          {protectedNow && (
+          {protectedNow === true && (
             <div className="ui-actions-start">
               <button type="button" className="ui-button ui-button--secondary" disabled={!online} onClick={() => onSet('')}>
                 解除
@@ -67,7 +77,7 @@ export function RoomPassphrase({ protectedNow, connection, onSet }: RoomPassphra
             </div>
           )}
           <button type="submit" className="ui-button ui-button--secondary" disabled={!canSubmit}>
-            {protectedNow ? '変更' : '設定'}
+            {protectedNow === true ? '変更' : '設定'}
           </button>
         </div>
       </form>

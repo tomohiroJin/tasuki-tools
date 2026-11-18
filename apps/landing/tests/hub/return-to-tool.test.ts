@@ -16,12 +16,12 @@ describe('returnPathFor', () => {
   it.each(TOOLS.map((tool) => [tool.id, tool.href] as const))(
     'Given from=%s / When 行き先を引く / Then 札の公開パスへ同じルームで戻す（%s）',
     (id, href) => {
-      expect(returnPathFor(`${ORIGIN}/?room=R1&from=${id}`)).toBe(`${href}?room=R1`);
+      expect(returnPathFor(`${ORIGIN}/?room=R1&from=${id}`, 'R1')).toBe(`${href}?room=R1`);
     },
   );
 
   it('Given 道具が運んだ URL / When 行き先を引く / Then 道具の送り方（roomHubPath）と対で読める', () => {
-    expect(returnPathFor(ORIGIN + roomHubPath('朝会モブ-a1b2', undefined, 'poker'))).toBe(
+    expect(returnPathFor(ORIGIN + roomHubPath('朝会モブ-a1b2', undefined, 'poker'), '朝会モブ-a1b2')).toBe(
       `/poker/?room=${encodeURIComponent('朝会モブ-a1b2')}`,
     );
   });
@@ -35,10 +35,14 @@ describe('returnPathFor', () => {
     ['ルームコードが無い', `${ORIGIN}/?from=timer`],
     ['空のルームコード', `${ORIGIN}/?room=&from=timer`],
   ])('Given %s / When 行き先を引く / Then 戻さない（null）', (_label, href) => {
-    expect(returnPathFor(href)).toBeNull();
+    expect(returnPathFor(href, 'R1')).toBeNull();
   });
 
   it('Given 退出の告知を持つ URL / When 行き先を引く / Then 戻さない（外された人が入り直して外される往復を作らない）', () => {
-    expect(returnPathFor(`${ORIGIN}/?room=R1&left=removed&from=timer`)).toBeNull();
+    expect(returnPathFor(`${ORIGIN}/?room=R1&left=removed&from=timer`, 'R1')).toBeNull();
+  });
+
+  it('Given URL の room と、サーバーが確かめたコードが違う / When 行き先を引く / Then サーバーが確かめたコードで戻す（復帰の組はそのコードで保存される）', () => {
+    expect(returnPathFor(`${ORIGIN}/?room=r1&from=topic`, 'R1')).toBe('/topic/?room=R1');
   });
 });

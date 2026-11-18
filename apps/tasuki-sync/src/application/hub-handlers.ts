@@ -38,6 +38,7 @@ import { joinFailureMessage, type JoinRoomDeps } from "./join-room.js";
 import { saveRoster, type SaveRosterDeps } from "./save-roster.js";
 import { findRoomByConnId, findRoomByToolConnection } from "./room-lookup.js";
 import { applyRoomPassphrase } from "./room-passphrase.js";
+import { buildRoster } from "./roster-dto.js";
 import { joinToolRoom } from "./join-tool-room.js";
 import { TOOL_HUB } from "./tool-id.js";
 import type { TopicBroadcaster } from "./topic-broadcast.js";
@@ -181,8 +182,16 @@ export function makeHubHandlers(deps: HubHandlerDeps): HubHandlers {
       fail(connId, "NOT_IN_ROOM", errorMessageFor("NOT_IN_ROOM"));
       return;
     }
-    applyRoomPassphrase(deps.tokenStore, room.code, cmd.passphrase);
-    hub.broadcastRoster(room.code);
+    const wasProtected = deps.tokenStore.getPassphrase(room.code) !== undefined;
+    const nowProtected = applyRoomPassphrase(deps.tokenStore, room.code, cmd.passphrase);
+    if (wasProtected !== nowProtected) {
+      // 名簿に載る印が変わったときだけ全員へ配り直す（各道具の名簿の変化の測り直しも、その時だけ走る）。
+      hub.broadcastRoster(room.code);
+      return;
+    }
+    // A → B の変更や、付いていないものの解除では名簿は変わらない。送った人には成功が分かるよう、名簿を 1 通だけ返す
+    // （玄関は名簿の到着で設定の失敗の表示を消す）。
+    hub.sendTo(connId, { type: "roster", room: buildRoster(room, nowProtected) });
   }
 
   function handleJoin(connId: string, cmd: Extract<HubCommand, { command: "room.join" }>): void {
