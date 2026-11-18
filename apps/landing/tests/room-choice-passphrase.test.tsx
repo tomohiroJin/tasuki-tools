@@ -9,6 +9,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { MAX_PASSPHRASE } from '@tasuki/room-core';
 import { RoomChoice } from '../src/screens/RoomChoice.js';
+import { outsideBase } from '@tasuki/test-css/font-base';
 
 afterEach(cleanup);
 
@@ -110,5 +111,30 @@ describe('選択画面の合言葉', () => {
     expect(screen.getByRole('button', { name: '変更' })).toBeDisabled();
     fireEvent.submit(input().closest('form')!);
     expect(onSetPassphrase).not.toHaveBeenCalled();
+  });
+});
+
+// 文言の字は書体の常用の層（base）に収める（`packages/ui/README.md`）。外れると拡張の層を取りに行き、代替字形が一瞬見える。
+describe('合言葉の文言は書体の常用の層に収まる', () => {
+  it('Given 設定中・未設定の両方の画面 / When 描かれた文字を base 層に当てる / Then 外れる字は無い', () => {
+    const texts: string[] = [];
+    for (const protectedNow of [false, true]) {
+      const { container, unmount } = render(
+        <RoomChoice
+          code="朝会-ab12"
+          inviteUrl="https://example.test/?room=ab12"
+          roster={null}
+          connection="online"
+          topicTitle={null}
+          passphraseProtected={protectedNow}
+          onSetPassphrase={() => undefined}
+        />,
+      );
+      const panel = container.querySelector('.hub-passphrase-form')?.closest('section');
+      texts.push(panel?.textContent ?? '');
+      unmount();
+    }
+    expect(texts.every((t) => t.length > 20)).toBe(true);
+    expect(outsideBase(texts)).toEqual([]);
   });
 });

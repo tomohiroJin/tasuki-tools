@@ -44,7 +44,7 @@ export function RoomPassphrase({ protectedNow, connection, onSet }: RoomPassphra
       <p className="hub-passphrase-status ui-note" aria-live="polite">
         {protectedNow
           ? '合言葉を設定中です。新しく入る人には合言葉が要ります。'
-          : '合言葉は付いていません。ルームコードを知っている人は誰でも入れます。'}
+          : '合言葉は付いていません。ルームコードを知っている人は、だれでも入れます。'}
       </p>
       <form className="hub-passphrase-form" onSubmit={submit}>
         <label className="hub-field">
@@ -72,7 +72,7 @@ export function RoomPassphrase({ protectedNow, connection, onSet }: RoomPassphra
         </div>
       </form>
       <p className="hub-passphrase-note ui-note">
-        ルームに居る誰でも設定・変更・解除できます。すでに入っている人は、変えても入り直す必要はありません。
+        ルームに参加している人なら、だれでも設定・変更・解除できます。すでに入っている人は、変えても入り直す必要はありません。
       </p>
     </section>
   );
