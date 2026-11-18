@@ -20,7 +20,7 @@ import { ESTIMATE_POINTS_LABEL, NEXT_ITEM, RECORDING_TOGGLE, REVOTE } from '../e
 import { JOIN_VOTING, SPECTATE, SPECTATING_NOTE, participantsHeading } from '../spectator-copy';
 import type { NumberCardValue } from '@tasuki/poker-core';
 import type { ResultsEffect } from '../effect-copy';
-import { isOffline, revealedLiveAfter, seatCardCount, revealedVoteMap, resultsEffectOf, revealKey, spreadPromptOf } from '../room-view';
+import { isOffline, revealedLiveAfter, seatCardCount, revealedVoteMap, revealedVotesOf, resultsEffectOf, sameRevealRound, spreadPromptOf } from '../room-view';
 
 // 隠しモードのテーブル（#403）。ゲームが始まったとき（`room-state.table` が届いたとき）にだけ読み込む
 // （普段の初回の読み込みを増やさない・設計 §5.5）。入口は見積もりの操作だけで、判定はサーバーが行う
@@ -63,27 +63,35 @@ export function RoomPage({ roomId, sync }: Props) {
   // お題の札を見せるか。**手元だけの状態**で、他の人の画面には影響しない。お題が差し替わっても保つ
   // （お題は無いことが多く、あれば見られる程度でよい・#316 PR 1 の利用者の指摘）。
   const [topicOpen, setTopicOpen] = useState(true);
-  // 公開を投票中から見届けたか（#348 のレビュー。判断と理由は `room-view.ts` の `revealedLiveAfter`）と、開票の演出の種類（#639）。
-  // **条件は 1 つ**: この画面が投票中を途切れなく見ていて、そのまま公開を見たときだけ（再読み込み・途中入室・接続の途切れの後に届いた公開済みは見届けていない）。
-  // 見届けた公開は票の組（`revealKey`）で覚える。接続が切れていた間に別の回が進み、投票中を挟まず公開済みが届いたら（再接続・投票中を挟まない更新）外れる。
-  // （切れている間に同じ票の回が回り直した場合は見分けられないが、画面の中身が同じなので帯が残っても誤りにならない）
-  // 演出の種類は見届けた瞬間の名簿で一度だけ決める（開票の後の入退室・切断で後から出ない・消えない）。
+  // 公開を投票中から見届けたか（#348 のレビュー。判断と理由は `room-view.ts` の `revealedLiveAfter`）。
   // 前の描画の状態と比べて決める（描画中に状態を調整する React の型。状態が変わったときだけ書き換える）。
+  const roundStatus = sync.snapshot?.round.status;
+  const [seenStatus, setSeenStatus] = useState(roundStatus);
+  const [revealedLive, setRevealedLive] = useState(false);
+  if (roundStatus !== seenStatus) {
+    setSeenStatus(roundStatus);
+    setRevealedLive(revealedLiveAfter(seenStatus, roundStatus));
+  }
+  // 開票の演出の帯（#639）。**この画面が実際に見た出来事だけ**で決める（状態の中身から回を推し量らない）。
+  // - 出す: 接続が開いている間に、投票中の次の描画で公開を見た。種類はその瞬間の名簿と票で一度だけ決める
+  // - 捨てる: 回が投票中へ戻った・接続が開いていない状態になった・投票中を挟まず別の回の公開済みが届いた（票が見届けた票に収まらない。
+  //   同じ回で票が減る（退出）のは収まるので捨てない）
+  // それ以外（同じ公開のままの名簿の変化・票の削除・状態の届き直し）では変えない。再接続の後は、投票中を見るまで出さない。
   const round = sync.snapshot?.round;
-  const watching = round?.status;
-  const [seenStatus, setSeenStatus] = useState(watching);
-  const [live, setLive] = useState<{ key: string; effect: ResultsEffect | null } | null>(null);
-  if (watching !== seenStatus) {
-    setSeenStatus(watching);
-    setLive(
-      revealedLiveAfter(seenStatus, watching) && sync.snapshot
-        ? { key: revealKey(sync.snapshot.round), effect: resultsEffectOf(sync.snapshot.round, sync.snapshot.participants) }
+  const bandStatus = sync.status === 'open' ? round?.status : undefined;
+  const [bandSeen, setBandSeen] = useState(bandStatus);
+  const [band, setBand] = useState<{ votes: ReadonlyMap<string, string>; effect: ResultsEffect | null } | null>(null);
+  if (bandStatus !== bandSeen) {
+    setBandSeen(bandStatus);
+    setBand(
+      revealedLiveAfter(bandSeen, bandStatus) && sync.snapshot
+        ? { votes: revealedVotesOf(sync.snapshot.round), effect: resultsEffectOf(sync.snapshot.round, sync.snapshot.participants) }
         : null,
     );
+  } else if (band !== null && !(round !== undefined && sameRevealRound(band.votes, round))) {
+    setBand(null);
   }
-  const liveNow = live !== null && round !== undefined && live.key === revealKey(round);
-  const revealedLive = liveNow;
-  const effect = liveNow ? live.effect : null;
+  const effect = band?.effect ?? null;
   // 入口の振り分け・自動の復帰・混雑の入り直し・消えたルームの組の破棄は同期フックの仕事（#369）。
   const { retryNotice } = useRoomEntry(sync, roomId);
 

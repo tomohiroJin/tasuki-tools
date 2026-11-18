@@ -128,6 +128,23 @@ describe('RoomPage の開票の演出（#639）', () => {
     expect(band()).toBeNull();
   });
 
+  it('Given 3 人が出して開票（出そろい） / When 開票後に切れた人が名簿から外され、票が減った開票済みが届く / Then 同じ回なので帯は消えない', () => {
+    const { rerender } = render(<RoomPage roomId={ROOM_ID} sync={makeSync(voting())} />);
+    const snap = revealed([n(5), n(5), n(13)]);
+    rerender(<RoomPage roomId={ROOM_ID} sync={makeSync(snap)} />);
+    expect(band()?.textContent).toBe('全員出そろいました');
+    if (snap.round.status !== 'revealed') throw new Error('revealed の造作ではない');
+    const cut = { ...snap, participants: people.map((p) => (p.id === 'p3' ? { ...p, connected: false } : p)) };
+    rerender(<RoomPage roomId={ROOM_ID} sync={makeSync(cut)} />);
+    const removed = {
+      ...snap,
+      participants: people.filter((p) => p.id !== 'p3'),
+      round: { ...snap.round, votes: snap.round.votes.filter((v) => v.participantId !== 'p3') },
+    } as RoomStateMessage;
+    rerender(<RoomPage roomId={ROOM_ID} sync={makeSync(removed)} />);
+    expect(band()?.textContent).toBe('全員出そろいました');
+  });
+
   it('Given 一致の開票を見届けた / When 同じ回の開票済みが名簿だけ変わって届く / Then 帯は残る', () => {
     const { rerender } = render(<RoomPage roomId={ROOM_ID} sync={makeSync(voting())} />);
     rerender(<RoomPage roomId={ROOM_ID} sync={makeSync(revealed([n(5), n(5), n(5)]))} />);

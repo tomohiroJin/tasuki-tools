@@ -65,12 +65,18 @@ export function resultsEffectOf(
   return judgeAgreement(round.votes) ?? 'complete';
 }
 
+/** 公開済みの票（参加者 ID → 札の鍵）。投票中は空（#639） */
+export function revealedVotesOf(round: RoomStateMessage['round']): ReadonlyMap<string, string> {
+  return new Map(round.status === 'revealed' ? round.votes.map((v) => [v.participantId, cardKey(v.card)]) : []);
+}
+
 /**
- * 公開済みの票の組の鍵（投票中は空）。投票中を挟まず別の回の公開済みが届いたことを見分ける（#639）。
- * 同じ回の名簿だけの変化では変わらない。
+ * 公開済みの今の票が、見届けた公開の票の中に収まるか（#639）。同じ回の中で票は減りうる（退出で票が消える）が、
+ * 増えたり札が変わったりはしない。収まらなければ別の回の公開済みが投票中を挟まず届いたので、見届けた帯は外す。
  */
-export function revealKey(round: RoomStateMessage['round']): string {
-  return round.status === 'revealed' ? round.votes.map((v) => `${v.participantId}:${cardKey(v.card)}`).join('|') : '';
+export function sameRevealRound(seen: ReadonlyMap<string, string>, round: RoomStateMessage['round']): boolean {
+  if (round.status !== 'revealed') return false;
+  return round.votes.every((v) => seen.get(v.participantId) === cardKey(v.card));
 }
 
 /** 割れた見積もりの片側（札と、それを出した人の表示名）。 */
