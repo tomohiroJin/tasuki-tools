@@ -10596,4 +10596,12 @@ export const MUTATIONS = [
     tests: ["tests/room-page-effect.test.tsx"],
     note: RESERVED_2050_2079 + " " + "#639 の 3 回目のレビュー。room-view.ts。開票後に切れた人を外す（票が消える）と、同じ回なのに帯が消えて統計の位置が跳ねる。",
   },
+  {
+    id: 2067,
+    label: "再接続の直後の古い状態を見届けた状態として扱う（入り直した後の状態を待たない）",
+    patch: "m2067-effect-trusts-stale-snapshot.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/room-page-effect.test.tsx"],
+    note: RESERVED_2050_2079 + " " + "#639 の 4 回目のレビュー。RoomPage.tsx。切れている間に済んだ開票が、再接続の直後に見届けた開票として「全員同じ」などの帯を出す。",
+  },
 ];
