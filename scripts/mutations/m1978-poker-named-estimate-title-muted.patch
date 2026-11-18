@@ -1,0 +1,8 @@
+diff --git a/apps/poker-web/src/components/EstimateItemField.tsx b/apps/poker-web/src/components/EstimateItemField.tsx
+--- a/apps/poker-web/src/components/EstimateItemField.tsx
++++ b/apps/poker-web/src/components/EstimateItemField.tsx
+@@ -62,3 +62,3 @@
+           aria-describedby={labelId}
+-          data-auto-title={size === 'title' && item === '' ? '' : undefined}
++          data-auto-title={size === 'title' ? '' : undefined}
+           disabled={disabled}

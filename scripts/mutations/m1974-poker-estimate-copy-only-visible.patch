@@ -1,0 +1,8 @@
+diff --git a/apps/poker-web/src/components/EstimateLog.tsx b/apps/poker-web/src/components/EstimateLog.tsx
+--- a/apps/poker-web/src/components/EstimateLog.tsx
++++ b/apps/poker-web/src/components/EstimateLog.tsx
+@@ -45,3 +45,3 @@
+   const headingId = useId();
+-  const markdown = useMemo(() => estimateLogMarkdown(groups), [groups]);
++  const markdown = useMemo(() => estimateLogMarkdown(limit === undefined ? groups : groups.slice(-limit)), [groups, limit]);
+   const { copy, state: copyState } = useCopyText(markdown);
