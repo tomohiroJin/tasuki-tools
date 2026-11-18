@@ -65,7 +65,7 @@ describe("ClaudeCliTopicProvider", () => {
     (fake.child as unknown as EventEmitter).emit("close", 0);
     // Then
     await expect(p).resolves.toEqual(TOPIC_JSON);
-    expect(fake.written.join("")).toBe(buildTopicPrompt("Python", "medium", "debugging"));
+    expect(fake.written.join("")).toBe(buildTopicPrompt("Python", "medium", "debugging")._unsafeUnwrap());
   });
 
   /** `docs/adr/0012` D10。境界をすり抜けた値は、子プロセスを起こす前に止める（#634） */
@@ -107,7 +107,7 @@ describe("ClaudeCliTopicProvider", () => {
     const opts = call[2] as { env: Record<string, string> };
     expect(opts.env["CLAUDE_CODE_OAUTH_TOKEN"]).toBe("sk-ant-oat01-test");
     // プロンプトは stdin 渡し（argv に乗せない）。buildTopicPrompt の出力そのものと一致することを見る
-    expect(fake.written.join("")).toBe(buildTopicPrompt("TypeScript", "easy", "tdd"));
+    expect(fake.written.join("")).toBe(buildTopicPrompt("TypeScript", "easy", "tdd")._unsafeUnwrap());
   });
 
   it("日本語の 1 文字がチャンクの境目で割れても化けずに受け取る", async () => {

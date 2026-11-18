@@ -1,4 +1,14 @@
+import { err, ok, type Result } from "neverthrow";
 import { CATEGORIES, DIFFICULTIES, LANGUAGES, type Category, type Difficulty, type Language } from "./limits.js";
+
+/**
+ * {@link buildTopicPrompt} の失敗。許可リストの外だった材料の名前だけを持つ
+ * （**渡された値そのものは持たない** —— ログへ流れうる。`docs/adr/0012` D5・D12）。
+ */
+export interface TopicPromptInputError {
+  readonly kind: "notAllowed";
+  readonly field: "language" | "difficulty" | "category";
+}
 
 /**
  * AI へ渡すプロンプト（#91。種類ごとに分けたのは #634）。
@@ -13,19 +23,24 @@ import { CATEGORIES, DIFFICULTIES, LANGUAGES, type Category, type Difficulty, ty
  *
  * **埋め込むのは許可リストの値だけである**（`docs/adr/0012` D10）。引数の型が
  * `Language` / `Difficulty` / `Category` なのはそのためで、利用者が手で書いたタイトル・本文は
- * ここへ入らない。境界をすり抜けた値が来たら、埋め込まずに例外で止める（型の外の値は
+ * ここへ入らない。境界をすり抜けた値が来たら、埋め込まずに失敗を返す（型の外の値は
  * 境界の検証が拒むので、ここへ届くのは配線の誤りである。呼び出し側は失敗として定型へ落ちる）。
+ * **表（`PROMPTS`）を引く前に許可リストで見る** —— 先に引くと `"constructor"` のような
+ * プロトタイプの鍵が関数として当たる。
  */
-export function buildTopicPrompt(language: Language, difficulty: Difficulty, category: Category): string {
-  assertAllowed(LANGUAGES, language, "language");
-  assertAllowed(DIFFICULTIES, difficulty, "difficulty");
-  assertAllowed(CATEGORIES, category, "category");
-  return PROMPTS[category](language, difficulty);
+export function buildTopicPrompt(
+  language: Language,
+  difficulty: Difficulty,
+  category: Category,
+): Result<string, TopicPromptInputError> {
+  if (!isAllowed(LANGUAGES, language)) return err({ kind: "notAllowed", field: "language" });
+  if (!isAllowed(DIFFICULTIES, difficulty)) return err({ kind: "notAllowed", field: "difficulty" });
+  if (!isAllowed(CATEGORIES, category)) return err({ kind: "notAllowed", field: "category" });
+  return ok(PROMPTS[category](language, difficulty));
 }
 
-function assertAllowed(allowed: readonly string[], value: string, name: string): void {
-  // 値そのものは例外の文言へ入れない（ログへ流れうる。`docs/adr/0012` D5・D12）
-  if (!allowed.includes(value)) throw new Error(`${name} is not in the allowlist`);
+function isAllowed(allowed: readonly string[], value: string): boolean {
+  return allowed.includes(value);
 }
 
 const PROMPTS: Record<Category, (language: Language, difficulty: Difficulty) => string> = {

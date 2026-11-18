@@ -1,4 +1,4 @@
-import { CATEGORIES, LANGUAGES, type Category, type Difficulty, type Language } from "./limits.js";
+import { LANGUAGES, type Category, type Difficulty, type Language } from "./limits.js";
 import type { Topic } from "./topic.js";
 import { TOPIC_BANK, type TopicBankEntry } from "./topic-bank.js";
 
@@ -47,7 +47,8 @@ function candidatesFor(language: Language, difficulty: Difficulty, category: Cat
   if (!isAllowed(LANGUAGES, language)) return TOPIC_BANK;
   const byDifficulty = TOPIC_BANK.filter((e) => e.difficulty === difficulty);
   if (byDifficulty.length === 0) return TOPIC_BANK;
-  const byCategory = isAllowed(CATEGORIES, category) ? byDifficulty.filter((e) => e.category === category) : [];
+  // 許可リストに無い種類（境界をすり抜けた値）は、どのお題にも一致せず空になり、難易度だけの候補へ落ちる
+  const byCategory = byDifficulty.filter((e) => e.category === category);
   return byCategory.length > 0 ? byCategory : byDifficulty;
 }
 

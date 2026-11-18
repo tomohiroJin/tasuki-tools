@@ -66,13 +66,12 @@ export class ClaudeCliTopicProvider implements ServerTopicProvider {
 
   generate(language: Language, difficulty: Difficulty, category: Category, signal: AbortSignal): Promise<unknown> {
     // プロンプトは子プロセスを起こす**前に**組む。許可リストの外の値なら `buildTopicPrompt` が
-    // 例外で止まる（`docs/adr/0012` D10）。起こした後に組むと、止まった時に子プロセスが残る。
-    let prompt: string;
-    try {
-      prompt = buildTopicPrompt(language, difficulty, category);
-    } catch {
+    // 失敗を返す（`docs/adr/0012` D10）ので、子プロセスを起こさずに失敗する。
+    const built = buildTopicPrompt(language, difficulty, category);
+    if (built.isErr()) {
       return Promise.reject(new ProviderFailure("prompt input is not in the allowlist", "invalid"));
     }
+    const prompt = built.value;
     return new Promise((resolve, reject) => {
       if (signal.aborted) {
         reject(new ProviderFailure("aborted before start", "timeout"));

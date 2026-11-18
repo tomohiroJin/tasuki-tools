@@ -34,7 +34,7 @@ const CONCURRENCY = 1; // claude -p の並列起動は認証/設定競合で落�
 
 // アダプタと同じ起動方法で claude -p を呼ぶ。
 function generate(model, language, difficulty, category) {
-  const prompt = buildTopicPrompt(language, difficulty, category);
+  const prompt = buildTopicPrompt(language, difficulty, category)._unsafeUnwrap(); // COMBOS は許可リストの値だけ
   return new Promise((resolve) => {
     const started = Date.now();
     const args = [

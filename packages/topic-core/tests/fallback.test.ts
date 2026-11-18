@@ -62,6 +62,13 @@ describe("pickTopicFallback", () => {
     expect(new Set(got.map((t) => entryOf(t)?.category)).size).toBeGreaterThan(1);
   });
 
+  it("Given 境界を通り抜けて許可リストに無い難易度 / When 選ぶ / Then 空のプールで落ちずに、全件から返す（必ず 1 件返す）", () => {
+    const got = seedsUpTo(TOPIC_BANK.length).map(
+      (now) => pickTopicFallback("Go", "expert" as unknown as Difficulty, "tdd", now, null).title,
+    );
+    expect(got).toEqual(TOPIC_BANK.map((e) => e.title));
+  });
+
   it("境界を通り抜けて許可リストに無い言語が渡っても、種類・難易度で絞らず全件から返す", () => {
     // 難易度を "easy" に固定して now を 0..全件-1 で振る。プールが全件ならちょうど全件のタイトルが出そろい、
     // "easy" 以外の難易度も、tdd 以外の種類も混ざる。誤って絞ったままだと出そろわない —— その違いで区別する。

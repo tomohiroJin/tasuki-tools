@@ -12,7 +12,7 @@
 # 任意の非空文字列（v.pipe(v.string(), v.minLength(1))）へ戻す。プロンプトへ
 # 任意の文字列が届く——2026-08-13 に持ち出し経路が本番で成立した入口。
 diff --git a/packages/topic-core/src/schemas.ts b/packages/topic-core/src/schemas.ts
-index 0d48c8f..1a67d09 100644
+index 124204f..be7280c 100644
 --- a/packages/topic-core/src/schemas.ts
 +++ b/packages/topic-core/src/schemas.ts
 @@ -54,7 +54,7 @@ export const TopicCommandSchema = v.variant("command", [
@@ -22,5 +22,5 @@ index 0d48c8f..1a67d09 100644
 -    language: v.picklist(LANGUAGES),
 +    language: v.pipe(v.string(), v.minLength(1)),
      difficulty: v.picklist(DIFFICULTIES),
-   }),
-   v.strictObject({
+     // 種類も同じ列挙検証を通す（#634。プロンプトの選択に使い、値は埋め込まない）。
+     // **省いたら TDD として読む** —— 種類を足す前の画面（配布の切り替えの間に開いたままのタブ）は
