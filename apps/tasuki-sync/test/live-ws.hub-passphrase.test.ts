@@ -110,6 +110,52 @@ describe("ハブの合言葉の設定（#638）", () => {
     await nextProtected(owner, false);
   });
 
+  it("Given 設定中のルーム / When 別の合言葉へ変更する / Then 古い合言葉では PASSPHRASE_MISMATCH、新しい合言葉なら入れる", async () => {
+    const owner = await server.connectHub("owner");
+    const created = await hubCreate(owner, "あや");
+    owner.send({ command: "room.passphrase.set", passphrase: "ふるい" });
+    await nextProtected(owner, true);
+
+    owner.send({ command: "room.passphrase.set", passphrase: "あたらしい" });
+    // 変更は「付いている」まま印が変わらないので、新しい合言葉で入れるまで待たずに、順に確かめる（同じ接続の順序で処理される）
+    const oldOne = await server.connectHub("old");
+    oldOne.send({ command: "room.join", code: created.code, displayName: "古", passphrase: "ふるい" });
+    const rejected = await oldOne.take((m) => m.type === "room.joined" || m.type === "error", "古い合言葉の応答");
+    expect(rejected.type === "error" && rejected.code).toBe("PASSPHRASE_MISMATCH");
+
+    const newOne = await server.connectHub("new");
+    newOne.send({ command: "room.join", code: created.code, displayName: "新", passphrase: "あたらしい" });
+    const accepted = await newOne.take((m) => m.type === "room.joined" || m.type === "error", "新しい合言葉の応答");
+    expect(accepted.type).toBe("room.joined");
+  });
+
+  it.each(["topic", "roulette", "agenda", "checkin"] as const)(
+    "Given %s の接続 / When 合言葉の設定を送る / Then INVALID_COMMAND で拒み、設定されない",
+    async (tool) => {
+      const owner = await server.connectHub("owner");
+      const created = await hubCreate(owner, "あや");
+      const conn =
+        tool === "topic"
+          ? await server.connectTopic("t")
+          : tool === "roulette"
+            ? await server.connectRoulette("t")
+            : tool === "agenda"
+              ? await server.connectAgenda("t")
+              : await server.connectCheckin("t");
+      conn.send({ command: "room.join", code: created.code, displayName: "あや", resumeToken: created.resumeToken } as never);
+      await conn.take((m: { type: string }) => m.type === "room.joined", "参加");
+
+      conn.send({ command: "room.passphrase.set", passphrase: "ひみつ" } as never);
+      const reply = await conn.take((m: { type: string }) => m.type === "error", "応答");
+      expect((reply as { code?: string }).code).toBe("INVALID_COMMAND");
+
+      const guest = await server.connectHub("guest");
+      guest.send({ command: "room.join", code: created.code, displayName: "いずみ" });
+      const joined = await guest.take((m) => m.type === "room.joined" || m.type === "error", "参加の応答");
+      expect(joined.type).toBe("room.joined");
+    },
+  );
+
   it("Given 後から入った参加者 / When その人が合言葉を設定する / Then 通る（役割は無く、在室者なら誰でも）", async () => {
     const owner = await server.connectHub("owner");
     const created = await hubCreate(owner, "あや");
