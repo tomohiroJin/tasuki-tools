@@ -52,6 +52,16 @@ export function extractJsonObject(text: string): unknown {
   return JSON.parse(text.slice(start, end + 1));
 }
 
+/** stdout が外殻の JSON で、文字列の result を持つなら、その文を返す（無ければ空文字）。 */
+function outerResultText(stdout: string): string {
+  try {
+    const outer = JSON.parse(stdout) as { result?: unknown };
+    return typeof outer.result === "string" ? outer.result : "";
+  } catch {
+    return "";
+  }
+}
+
 export class ClaudeCliTopicProvider implements ServerTopicProvider {
   private readonly apiKey: string;
   private readonly model: string;
@@ -153,9 +163,14 @@ export class ClaudeCliTopicProvider implements ServerTopicProvider {
       child.on("error", (err) => settle(() => reject(new ProviderFailure(err.message, "spawnFailed"))));
       child.on("close", (code) => {
         if (code !== 0) {
-          // stderr にトークン様文字列が混入しても外へ出さない（ログ衛生・多層防御）
+          // 実行中の失敗（クレジット切れ・認証の欠落など）は、--output-format json では
+          // 外殻 { is_error, result } として stdout に出る（公式の headless の文書）。stderr は空のことがある。
+          // 理由は stderr と stdout の result の両方から作る。キー様文字列は伏せ、長さを切る（多層防御）
           const stderr = Buffer.concat(stderrChunks).toString("utf8");
-          const redacted = stderr.replace(/sk-ant-[\w-]+/g, "[redacted]");
+          const reason = [stderr, outerResultText(Buffer.concat(stdoutChunks).toString("utf8"))]
+            .filter((s) => s !== "")
+            .join(" / ");
+          const redacted = reason.replace(/sk-ant-[\w-]+/g, "[redacted]");
           settle(() =>
             reject(new ProviderFailure(`claude -p exit ${code}: ${redacted.slice(0, 200)}`, "processError")),
           );
@@ -166,7 +181,19 @@ export class ClaudeCliTopicProvider implements ServerTopicProvider {
         let parsed: unknown;
         try {
           // --output-format json の外殻 { result: "...", ... } から本文を取り出す
-          const outer = JSON.parse(Buffer.concat(stdoutChunks).toString("utf8")) as { result?: unknown };
+          const outer = JSON.parse(Buffer.concat(stdoutChunks).toString("utf8")) as {
+            result?: unknown;
+            is_error?: unknown;
+          };
+          if (outer.is_error === true) {
+            // API のエラー。result は文章であり、お題の下書きとして解釈しない（埋め込みの JSON を拾わない）
+            const text = typeof outer.result === "string" ? outer.result : "";
+            const redacted = text.replace(/sk-ant-[\w-]+/g, "[redacted]");
+            settle(() =>
+              reject(new ProviderFailure(`claude -p API error: ${redacted.slice(0, 200)}`, "processError")),
+            );
+            return;
+          }
           if (typeof outer.result !== "string") {
             throw new Error(
               `--output-format json の result フィールドが文字列ではありません: ${JSON.stringify(outer).slice(0, 200)}`,

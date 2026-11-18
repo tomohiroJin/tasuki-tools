@@ -30,6 +30,18 @@ describe("AI お題生成の設定", () => {
     expect(c.anthropicApiKey).toBeUndefined();
   });
 
+  it("旧 OAuth トークンだけがあるとき、無視したことを知らせる印が立つ（#459 の /code-review。黙って AI 無効にしない）", () => {
+    expect(loadSyncConfig({ CLAUDE_CODE_OAUTH_TOKEN: "sk-ant-oat01-old" }).legacyOauthTokenIgnored).toBe(true);
+    // API キーがあれば、旧トークンが残っていても警告しない
+    expect(
+      loadSyncConfig({ CLAUDE_CODE_OAUTH_TOKEN: "sk-ant-oat01-old", ANTHROPIC_API_KEY: "sk-ant-api03-x" })
+        .legacyOauthTokenIgnored,
+    ).toBe(false);
+    // 旧トークンが空白だけなら警告しない
+    expect(loadSyncConfig({ CLAUDE_CODE_OAUTH_TOKEN: "  " }).legacyOauthTokenIgnored).toBe(false);
+    expect(loadSyncConfig({}).legacyOauthTokenIgnored).toBe(false);
+  });
+
   it("設定値が反映される（trim 込み）", () => {
     // Given
     const env = {

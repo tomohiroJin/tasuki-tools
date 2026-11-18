@@ -183,7 +183,65 @@ describe("ClaudeCliTopicProvider", () => {
     expect(String(err)).not.toContain("secret456");
   });
 
-  it("クレジット切れが exit 0 の JSON（is_error・result が文章）で返っても invalid で失敗する（#459）", async () => {
+  it("クレジット切れの理由が stdout の JSON（stderr は空）で来ても、理由が失敗の文に残る（#459 の /code-review）", async () => {
+    // Given（公式の headless の文書: 「実行中の失敗（認証の欠落など）は、失敗を result として stdout に出す」。
+    // 項目名 is_error・result は --output-format json の外殻の形。stderr には何も出ない）
+    const fake = makeFakeChild();
+    const { provider } = makeProvider(fake);
+
+    // When
+    const p = provider.generate("TypeScript", "easy", new AbortController().signal);
+    fake.stdout.emit(
+      "data",
+      Buffer.from(
+        JSON.stringify({
+          is_error: true,
+          result: "Credit balance is too low (key sk-ant-api03-secret789)",
+        }),
+      ),
+    );
+    (fake.child as unknown as EventEmitter).emit("close", 1);
+
+    // Then
+    const err = await p.then(
+      () => null,
+      (e: unknown) => e,
+    );
+    expect(err).toBeInstanceOf(ProviderFailure);
+    expect((err as ProviderFailure).reason).toBe("processError");
+    expect(String(err)).toContain("Credit balance is too low");
+    expect(String(err)).not.toContain("secret789");
+  });
+
+  it("exit 0 でも外側の is_error が true なら、result を解釈せず API のエラーとして失敗する（#459 の /code-review）", async () => {
+    // Given（result の文章に {...} があっても、お題の下書きとして取り出さない）
+    const fake = makeFakeChild();
+    const { provider } = makeProvider(fake);
+
+    // When
+    const p = provider.generate("TypeScript", "easy", new AbortController().signal);
+    fake.stdout.emit(
+      "data",
+      Buffer.from(
+        JSON.stringify({
+          is_error: true,
+          result: 'API Error: 400 {"title":"x","body":"y","message":"Credit balance is too low"}',
+        }),
+      ),
+    );
+    (fake.child as unknown as EventEmitter).emit("close", 0);
+
+    // Then
+    const err = await p.then(
+      () => null,
+      (e: unknown) => e,
+    );
+    expect(err).toBeInstanceOf(ProviderFailure);
+    expect((err as ProviderFailure).reason).toBe("processError");
+    expect(String(err)).toContain("Credit balance is too low");
+  });
+
+  it("クレジット切れが exit 0 の JSON（is_error・result が文章）で返っても失敗する（#459）", async () => {
     // Given
     const fake = makeFakeChild();
     const { provider } = makeProvider(fake);
@@ -202,7 +260,7 @@ describe("ClaudeCliTopicProvider", () => {
       (e: unknown) => e,
     );
     expect(err).toBeInstanceOf(ProviderFailure);
-    expect((err as ProviderFailure).reason).toBe("invalid");
+    expect((err as ProviderFailure).reason).toBe("processError");
   });
 
   it("トークンが argv に混入しない", async () => {

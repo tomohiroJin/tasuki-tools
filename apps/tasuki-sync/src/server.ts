@@ -67,10 +67,14 @@ const server = (() => {
 logger.info("listening", buildListeningLogFields(config, server.port));
 logger.info("admin", { enabled: config.adminToken !== undefined });
 logger.info("ai", {
-  enabled: config.anthropicApiKey !== undefined && config.aiUnlockKey !== undefined,
+  enabled: server.aiReady,
   // お題（topic）の AI 生成に使うモデル。env 名は #91 以前からのものを据え置く。
   defaultModel: config.aiProblemModel === DEFAULT_AI_PROBLEM_MODEL,
 });
+if (config.legacyOauthTokenIgnored) {
+  // 旧 CLAUDE_CODE_OAUTH_TOKEN だけが残っている。もう読まないので AI は無効（変数名だけ。値は出さない。#459）
+  logger.warn("ai-legacy-oauth-token-ignored");
+}
 if (config.allowedOrigins.length === 0) {
   logger.warn("origins-unset");
 }

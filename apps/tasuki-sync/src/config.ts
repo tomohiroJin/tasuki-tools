@@ -57,6 +57,11 @@ export interface SyncConfig {
   /** Anthropic Console の API キー（ANTHROPIC_API_KEY。#459）。子プロセスの env にのみ渡す。未設定なら AI 無効。 */
   anthropicApiKey: string | undefined;
   /**
+   * 旧 CLAUDE_CODE_OAUTH_TOKEN だけが残り、ANTHROPIC_API_KEY が無い（読まずに無視した）とき true。
+   * 黙って AI 無効にならないよう、起動時に警告を 1 行出すための印（値は持たない。#459）。
+   */
+  legacyOauthTokenIgnored: boolean;
+  /**
    * お題（topic）の AI 生成に使うモデル（`claude -p --model` に渡す）。
    * 名前と env 名（`AI_PROBLEM_MODEL`）は #91 以前からのものを据え置く。
    */
@@ -191,6 +196,8 @@ export function loadSyncConfig(env: Record<string, string | undefined>): SyncCon
     adminToken: (env["ADMIN_TOKEN"] ?? "").trim() || undefined,
     aiUnlockKey: (env["AI_UNLOCK_KEY"] ?? "").trim() || undefined,
     anthropicApiKey: (env["ANTHROPIC_API_KEY"] ?? "").trim() || undefined,
+    legacyOauthTokenIgnored:
+      (env["ANTHROPIC_API_KEY"] ?? "").trim() === "" && (env["CLAUDE_CODE_OAUTH_TOKEN"] ?? "").trim() !== "",
     aiProblemModel: (env["AI_PROBLEM_MODEL"] ?? "").trim() || DEFAULT_AI_PROBLEM_MODEL,
     aiGenerationTimeoutMs: intEnv(env["AI_GENERATION_TIMEOUT_MS"], 60_000),
     // 0 を許容（=その日の AI 生成を全面停止）。負数・非数値は既定 100。

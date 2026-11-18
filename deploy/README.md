@@ -424,6 +424,8 @@ sudo journalctl -u rb-test.service --no-pager -n 30   # 発火の証拠はここ
 3. `sudo systemctl restart tasuki-sync`（ルームが全消滅するので利用者のいない時間帯に）
 4. 旧 OAuth トークン（`claude setup-token` で発行したもの）を失効させる
 5. 本番で確かめる:
+   - 起動ログ（`journalctl -u tasuki-sync`）に `ai-legacy-oauth-token-ignored` の警告が出ない
+     （出たら旧 `CLAUDE_CODE_OAUTH_TOKEN` だけが残り、`ANTHROPIC_API_KEY` が無い。AI は無効のまま）
    - AI の生成が成功する（お題ツールで解錠して生成する）
    - Console の使用量（クレジット）が減り、プラン側の Claude Code 使用量が増えない
    - Console の自動チャージが無効（または意図した上限）である

@@ -6,6 +6,10 @@ import { spawn } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 
 const TOKEN = process.env.ANTHROPIC_API_KEY;
+if (!TOKEN) {
+  console.error("ANTHROPIC_API_KEY が未設定です（apps/tasuki-sync/.env を確認）");
+  process.exit(1);
+}
 const results = JSON.parse(readFileSync("/tmp/tasuki-quality-results.json", "utf8"));
 
 function judge(language, difficulty, topic) {
