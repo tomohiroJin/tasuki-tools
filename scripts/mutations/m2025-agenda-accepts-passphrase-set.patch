@@ -8,14 +8,14 @@
 #
 # #638 のレビュー。進行タイマーの接続から届いた合言葉の設定が、進行タイマーのコマンドの処理へ流れる。
 diff --git a/apps/tasuki-sync/src/application/agenda-handlers.ts b/apps/tasuki-sync/src/application/agenda-handlers.ts
-index 780df2b8..d3c52dc1 100644
+index 17816f64..fb1a5991 100644
 --- a/apps/tasuki-sync/src/application/agenda-handlers.ts
 +++ b/apps/tasuki-sync/src/application/agenda-handlers.ts
 @@ -196,7 +196,7 @@ export function makeAgendaHandlers(deps: AgendaHandlerDeps): AgendaHandlers {
          return;
        }
        // 進行タイマーの接続はルームを作らず、生死も照会しない（どちらも玄関の仕事）。
--      if (cmd.command === "room.create" || cmd.command === "room.check" || cmd.command === "room.passphrase.set") {
+-      if (isHubCommand(cmd)) {
 +      if (cmd.command === "room.create" || cmd.command === "room.check") {
          fail(connId, "INVALID_COMMAND");
          return;
