@@ -1,13 +1,13 @@
 diff --git a/apps/poker-web/src/pages/RoomPage.tsx b/apps/poker-web/src/pages/RoomPage.tsx
-index 77d3a1d8..f52d35e9 100644
+index 40694416..ac7da707 100644
 --- a/apps/poker-web/src/pages/RoomPage.tsx
 +++ b/apps/poker-web/src/pages/RoomPage.tsx
-@@ -75,7 +75,7 @@ export function RoomPage({ roomId, sync }: Props) {
-     setSeenStatus(roundStatus);
-     const live = revealedLiveAfter(seenStatus, roundStatus);
-     setRevealedLive(live);
--    setEffect(live && sync.snapshot ? resultsEffectOf(sync.snapshot.round, sync.snapshot.participants) : null);
-+    setEffect(sync.snapshot ? resultsEffectOf(sync.snapshot.round, sync.snapshot.participants) : null);
-   }
-   // 入口の振り分け・自動の復帰・混雑の入り直し・消えたルームの組の破棄は同期フックの仕事（#369）。
-   const { retryNotice } = useRoomEntry(sync, roomId);
+@@ -76,7 +76,7 @@ export function RoomPage({ roomId, sync }: Props) {
+   if (watching !== seenStatus) {
+     setSeenStatus(watching);
+     setLive(
+-      revealedLiveAfter(seenStatus, watching) && sync.snapshot
++      watching === 'revealed' && sync.snapshot
+         ? { key: revealKey(sync.snapshot.round), effect: resultsEffectOf(sync.snapshot.round, sync.snapshot.participants) }
+         : null,
+     );
