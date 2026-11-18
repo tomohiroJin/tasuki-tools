@@ -105,8 +105,8 @@ describe('spreadPromptOf（#405）', () => {
 });
 
 describe('resultsEffectOf（#639）', () => {
-  type Card = { kind: 'number'; value: 1 | 3 | 5 | 8 } | { kind: 'question' } | { kind: 'coffee' };
-  const n = (value: 1 | 3 | 5 | 8): Card => ({ kind: 'number', value });
+  type Card = { kind: 'number'; value: 1 | 3 | 5 | 8 | 13 } | { kind: 'question' } | { kind: 'coffee' };
+  const n = (value: 1 | 3 | 5 | 8 | 13): Card => ({ kind: 'number', value });
   const person = (id: string, over: Partial<{ connected: boolean; spectator: boolean }> = {}) => ({
     id,
     name: id,
