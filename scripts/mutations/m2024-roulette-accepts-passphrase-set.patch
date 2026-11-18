@@ -1,0 +1,22 @@
+# 変異 2024: ルーレットの接続が合言葉の設定を受け付ける
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/live-ws.hub-passphrase.test.ts
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m2024-*.patch
+# 復元: git apply -R scripts/mutations/m2024-*.patch
+#
+# #638 のレビュー。合言葉の設定はハブだけの言葉。ルーレットの接続から届くと、振り分けの想定外の形がルーレットのコマンドの処理へ流れる。
+diff --git a/apps/tasuki-sync/src/application/roulette-handlers.ts b/apps/tasuki-sync/src/application/roulette-handlers.ts
+index 8881762f..fcd45694 100644
+--- a/apps/tasuki-sync/src/application/roulette-handlers.ts
++++ b/apps/tasuki-sync/src/application/roulette-handlers.ts
+@@ -310,7 +310,7 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
+         return;
+       }
+       // ルーレットの接続はルームを作らず、生死も照会しない（どちらも玄関の仕事）。
+-      if (cmd.command === "room.create" || cmd.command === "room.check" || cmd.command === "room.passphrase.set") {
++      if (cmd.command === "room.create" || cmd.command === "room.check") {
+         fail(connId, "INVALID_COMMAND");
+         return;
+       }
