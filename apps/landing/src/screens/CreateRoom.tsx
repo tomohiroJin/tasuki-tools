@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useId, useRef, useState, type FormEvent } from 'react';
 import { MAX_DISPLAY_NAME } from '@tasuki/room-core';
 import { HistoryLink } from './HistoryLink.js';
 
@@ -13,21 +13,39 @@ export interface CreateRoomProps {
   readonly departure: string | null;
   /** 前に名乗った名前（初期値に使う。D12 の後半）。 */
   readonly defaultDisplayName: string;
+  /**
+   * 前に作ったルーム名（新しい順・#633）。先頭を欄の初期値にし、全部を候補の札に並べる。
+   * 1 つだけでも札は出す —— 要らなければ消せるようにするため。
+   */
+  readonly recentRoomNames: readonly string[];
   readonly error: string | null;
   /** 同期サーバーへ繋がっているか。繋がっていなければ作成も参加もできない（#76 の回帰防止）。 */
   readonly connection: 'online' | 'reconnecting';
   onCreate(roomName: string, displayName: string): void;
+  /** 候補から 1 つを消す（端末からも消える・#633）。 */
+  onForgetRoomName(roomName: string): void;
 }
 
 export function CreateRoom({
   departure,
   defaultDisplayName,
+  recentRoomNames,
   error,
   connection,
   onCreate,
+  onForgetRoomName,
 }: CreateRoomProps) {
-  const [roomName, setRoomName] = useState('');
+  // 初期値は開いたときの 1 度だけ。以後は利用者の入力が持つ（候補を消しても欄には触らない）
+  const [roomName, setRoomName] = useState(() => recentRoomNames[0] ?? '');
   const [displayName, setDisplayName] = useState(defaultDisplayName);
+  const roomNameRef = useRef<HTMLInputElement>(null);
+  const recentHeadingId = useId();
+
+  const forget = (name: string): void => {
+    onForgetRoomName(name);
+    // 押した札が消えると、フォーカスが行き場を失って文書の頭へ飛ぶ。入力の手を止めないよう欄へ戻す
+    roomNameRef.current?.focus();
+  };
 
   const submit = (event: FormEvent): void => {
     event.preventDefault();
@@ -67,16 +85,50 @@ export function CreateRoom({
 
       <form className="hub-form ui-panel" aria-labelledby="hub-form-heading" onSubmit={submit}>
         <h2 className="hub-section-title" id="hub-form-heading">ルームを作る</h2>
-        <label className="hub-field">
-          <span className="hub-label">ルーム名</span>
-          <input
-            className="ui-input"
-            value={roomName}
-            onChange={(e) => setRoomName(e.target.value)}
-            placeholder="朝会モブ"
-            autoComplete="off"
-          />
-        </label>
+        <div className="hub-room-name">
+          <label className="hub-field">
+            <span className="hub-label">ルーム名</span>
+            <input
+              ref={roomNameRef}
+              className="ui-input"
+              value={roomName}
+              onChange={(e) => setRoomName(e.target.value)}
+              placeholder="朝会モブ"
+              autoComplete="off"
+            />
+          </label>
+
+          {/* 前に作ったルーム名の候補（#633）。選ぶと欄に入るだけで、作成はしない。
+              札は `<label>` の外に置く —— 中に置くと、札を押すたびにラベルの働きで欄へ飛ぶ。 */}
+          {recentRoomNames.length > 0 && (
+            <div className="hub-recent">
+              <span className="hub-label" id={recentHeadingId}>
+                前に作ったルーム
+              </span>
+              <ul className="hub-recent-list" aria-labelledby={recentHeadingId}>
+                {recentRoomNames.map((name) => (
+                  <li key={name} className="hub-recent-item">
+                    <button
+                      type="button"
+                      className="ui-button ui-button--secondary ui-button--sm hub-recent-pick"
+                      onClick={() => setRoomName(name)}
+                    >
+                      <span className="hub-recent-name">{name}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="ui-button ui-button--quiet hub-recent-forget"
+                      aria-label={`「${name}」を候補から消す`}
+                      onClick={() => forget(name)}
+                    >
+                      <span aria-hidden="true">×</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
 
         <label className="hub-field">
           <span className="hub-label">あなたの名前</span>

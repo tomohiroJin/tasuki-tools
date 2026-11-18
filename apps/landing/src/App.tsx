@@ -56,9 +56,11 @@ export function App() {
         <CreateRoom
           departure={departure.notice}
           defaultDisplayName={hub.defaultDisplayName}
+          recentRoomNames={hub.recentRoomNames}
           error={hub.error}
           connection={hub.connection}
           onCreate={hub.createRoom}
+          onForgetRoomName={hub.forgetRoomName}
         />
       );
     case 'join':

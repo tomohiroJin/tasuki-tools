@@ -9,7 +9,8 @@
  * 1. `/ws` へ繋ぐ（唯一の WS 入口。`?tool=` を付けない接続はハブとして扱われる。
  *    `apps/tasuki-sync/src/adapters/ws-adapter.ts` の `protocolFromRequestUrl`）
  * 2. 受信は `classifyHubFrame`（`hub-frames.ts`）が `HubServerMsgSchema` などで検める（**境界の検証**・原則 IV）。合わないフレームは捨てる
- * 3. `room.created` / `room.joined` を受けたら、復帰の組と既定の表示名を端末へ保存する
+ * 3. `room.created` / `room.joined` を受けたら、復帰の組と既定の表示名を端末へ保存する。
+ *    `room.created` ではルーム名も覚える（#633。次に作るときの候補）
  * 4. 読み込み時、URL の `?room=` に対応する組があれば**名乗らずに復帰する**（R16）
  * 5. 再接続したら、保存済みの組で入り直す
  * 6. 合言葉を求められたら、画面に入力を促す
@@ -40,6 +41,7 @@ import {
   type LastJoin,
 } from './hub-commands.js';
 import { useDefaultDisplayName } from './use-default-display-name.js';
+import { useRecentRoomNames } from './use-recent-room-names.js';
 import { useJoinRetry } from '@tasuki/web-kit/sync';
 
 /** 同期サーバーへの URL。**ハブの入口は `/ws`** で、LP の base（`/`）直下にある。 */
@@ -70,6 +72,8 @@ export interface HubSync {
   readonly roster: RosterRoom | null;
   /** 名乗るフォームの初期値（前に名乗った名前）。 */
   readonly defaultDisplayName: string;
+  /** 前に作ったルーム名（新しい順・#633）。作成画面の初期値と候補に使う。 */
+  readonly recentRoomNames: readonly string[];
   /** 直前のエラーの文言（無ければ null）。 */
   readonly error: string | null;
   /** 合言葉の入力を求められているか。 */
@@ -92,6 +96,8 @@ export interface HubSync {
   readonly topicTitle: string | null;
   createRoom(roomName: string, displayName: string): void;
   joinRoom(displayName: string, passphrase?: string): void;
+  /** 前に作ったルーム名の候補から 1 つを消す（#633）。 */
+  forgetRoomName(roomName: string): void;
 }
 
 export function useHubSync(): HubSync {
@@ -145,6 +151,13 @@ export function useHubSync(): HubSync {
   const [connection, setConnection] = useState<'online' | 'reconnecting'>('online');
   /** 名乗るフォームの初期値と端末の片付け（`use-default-display-name.ts`・#284）。 */
   const defaultDisplayName = useDefaultDisplayName();
+  /** 前に作ったルーム名（`use-recent-room-names.ts`・#633）。 */
+  const { names: recentRoomNames, remember: rememberRoomName, forget: forgetRoomName } = useRecentRoomNames();
+  /**
+   * 直近の作成で送ったルーム名。**覚えるのは `room.created` を受けてから**である
+   * （送っただけでは覚えない —— 弾かれた名前を候補に残さない。#633 EARS 1）。
+   */
+  const lastCreateRoomNameRef = useRef<string | null>(null);
 
   const connRef = useRef<SyncConnection | null>(null);
   /**
@@ -230,6 +243,8 @@ export function useHubSync(): HubSync {
           // 作成したときは URL に `?room=` が無いので、履歴を汚さず差し替える。
           // **画面の側も同時に進める**（URL を書き換えても状態は追随しない）。
           if (msg.type === 'room.created') {
+            if (lastCreateRoomNameRef.current !== null) rememberRoomName(lastCreateRoomNameRef.current);
+            lastCreateRoomNameRef.current = null;
             codeRef.current = msg.code;
             setCode(msg.code);
             const url = new URL(window.location.href);
@@ -328,7 +343,7 @@ export function useHubSync(): HubSync {
     // **依存は URL 由来の値だけにする。** 入口の URL はページ読み込みで決まり
     // （全ページ読み込みで WS が張り直しになる・D14）、作成で得たコードをここへ混ぜると
     // 作成のたびに接続が張り直る（`tests/hub/use-hub-sync.test.tsx` が固定している）。
-  }, [initialCode, resumeIfPossible, checkIfNeeded, send, cancelRetry, rateLimited, resetRetry]);
+  }, [initialCode, resumeIfPossible, checkIfNeeded, send, cancelRetry, rateLimited, resetRetry, rememberRoomName]);
 
   const createRoom = useCallback(
     (roomName: string, displayName: string) => {
@@ -336,6 +351,7 @@ export function useHubSync(): HubSync {
       // もう意味を持たないので取り消す。
       cancelRetry();
       lastJoinRef.current = { displayName };
+      lastCreateRoomNameRef.current = roomName;
       setError(null);
       send(createCommand(roomName, displayName));
     },
@@ -366,10 +382,12 @@ export function useHubSync(): HubSync {
     roster,
     topicTitle,
     defaultDisplayName,
+    recentRoomNames,
     error,
     needsPassphrase,
     connection,
     createRoom,
     joinRoom,
+    forgetRoomName,
   };
 }
