@@ -1,0 +1,12 @@
+diff --git a/apps/landing/src/hub/use-hub-sync.ts b/apps/landing/src/hub/use-hub-sync.ts
+index 3f405af..1f0960c 100644
+--- a/apps/landing/src/hub/use-hub-sync.ts
++++ b/apps/landing/src/hub/use-hub-sync.ts
+@@ -333,7 +333,6 @@ export function useHubSync(): HubSync {
+         // **作成の応答は前の接続と一緒に失われた。** 待ちを降ろさないと、作るボタンが止まったまま戻らない
+         // （#642 のレビューの直し）。画面は繋がっていない間は作成を送らせないので、溜めた作成が
+         // 繋ぎ直しで後から流れて応答が来る、ということは無い（`SyncConnection.send` の溜め置きは使われない）。
+-        settleCreate();
+         // 切断中に名簿が変わっているので、入り直して新しい名簿を受け取る。
+         resumeIfPossible();
+         // **切断中にルームが終わっていることがある。** 名乗りフォームの前で

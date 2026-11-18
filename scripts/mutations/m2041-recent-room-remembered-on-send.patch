@@ -1,13 +1,13 @@
 diff --git a/apps/landing/src/hub/use-hub-sync.ts b/apps/landing/src/hub/use-hub-sync.ts
-index 2661252..7511859 100644
+index 3f405af..7ebeccd 100644
 --- a/apps/landing/src/hub/use-hub-sync.ts
 +++ b/apps/landing/src/hub/use-hub-sync.ts
-@@ -351,7 +351,7 @@ export function useHubSync(): HubSync {
+@@ -374,7 +374,7 @@ export function useHubSync(): HubSync {
        // もう意味を持たないので取り消す。
        cancelRetry();
        lastJoinRef.current = { displayName };
--      lastCreateRoomNameRef.current = roomName;
-+      lastCreateRoomNameRef.current = roomName; rememberRoomName(roomName);
+-      pendingCreateRoomNameRef.current = roomName;
++      pendingCreateRoomNameRef.current = roomName; rememberRoomName(roomName);
+       setCreating(true);
        setError(null);
        send(createCommand(roomName, displayName));
-     },

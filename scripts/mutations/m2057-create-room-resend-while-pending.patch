@@ -1,0 +1,14 @@
+diff --git a/apps/landing/src/hub/use-hub-sync.ts b/apps/landing/src/hub/use-hub-sync.ts
+index 3f405af..202729e 100644
+--- a/apps/landing/src/hub/use-hub-sync.ts
++++ b/apps/landing/src/hub/use-hub-sync.ts
+@@ -369,8 +369,7 @@ export function useHubSync(): HubSync {
+     (roomName: string, displayName: string) => {
+       // **待っている作成があれば送らない**（{@link pendingCreateRoomNameRef}・#642 のレビュー）。
+       // 画面のボタンも止めるが、クリック以外の送信経路（requestSubmit・支援技術）はここで止める。
+-      if (pendingCreateRoomNameRef.current !== null) return;
+-      // **利用者が別の道を選んだ。** 仕掛かっていた再試行（照会の可能性がある）は
++            // **利用者が別の道を選んだ。** 仕掛かっていた再試行（照会の可能性がある）は
+       // もう意味を持たないので取り消す。
+       cancelRetry();
+       lastJoinRef.current = { displayName };

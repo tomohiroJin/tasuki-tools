@@ -251,8 +251,8 @@ const RESERVED_1950_1959 =
 const RESERVED_1960_1969 =
   "**対応表より後に足した変異。** 1960〜1969 は #622 の追加（1950〜1959 を使い切ったため）に割り当てた範囲。";
 
-const RESERVED_2040_2059 =
-  "**対応表より後に足した変異。** 2040〜2059 は #633（玄関が前に作ったルーム名を覚えて入れ直す）に割り当てた範囲。";
+const RESERVED_2040_2069 =
+  "**対応表より後に足した変異。** 2040〜2069 は #633（玄関が前に作ったルーム名を覚えて入れ直す）に割り当てた範囲。1970〜1989 から振り直した（並行する PR と番号がぶつかったため。#642 のレビュー）。";
 
 const RESERVED_1800_1819 =
   "**対応表より後に足した変異。** 1800〜1819 は #595（ScenarioBuilder を責務で分ける）に割り当てた範囲。";
@@ -10466,7 +10466,7 @@ export const MUTATIONS = [
     patch: "m2040-recent-room-not-remembered-on-created.patch",
     pkg: "apps/landing",
     tests: ["tests/hub/recent-room-names-screen.test.tsx"],
-    note: RESERVED_2040_2059 + " " + "#633。次に作るとき、また名前を打ち直すことになる。",
+    note: RESERVED_2040_2069 + " " + "#633。次に作るとき、また名前を打ち直すことになる。",
   },
   {
     id: 2041,
@@ -10474,7 +10474,7 @@ export const MUTATIONS = [
     patch: "m2041-recent-room-remembered-on-send.patch",
     pkg: "apps/landing",
     tests: ["tests/hub/recent-room-names-screen.test.tsx"],
-    note: RESERVED_2040_2059 + " " + "#633。弾かれた名前が候補に残る（EARS 1 は成功したときに覚える）。",
+    note: RESERVED_2040_2069 + " " + "#633。弾かれた名前が候補に残る（EARS 1 は成功したときに覚える）。",
   },
   {
     id: 2042,
@@ -10482,7 +10482,7 @@ export const MUTATIONS = [
     patch: "m2042-create-room-not-prefilled.patch",
     pkg: "apps/landing",
     tests: ["tests/hub/recent-room-names-screen.test.tsx"],
-    note: RESERVED_2040_2059 + " " + "#633。開くたびに名前を打ち直すことになる（EARS 2）。",
+    note: RESERVED_2040_2069 + " " + "#633。開くたびに名前を打ち直すことになる（EARS 2）。",
   },
   {
     id: 2043,
@@ -10490,7 +10490,7 @@ export const MUTATIONS = [
     patch: "m2043-recent-room-pick-does-nothing.patch",
     pkg: "apps/landing",
     tests: ["tests/hub/recent-room-names-screen.test.tsx"],
-    note: RESERVED_2040_2059 + " " + "#633。札が押せるのに何も起きない（EARS 3）。",
+    note: RESERVED_2040_2069 + " " + "#633。札が押せるのに何も起きない（EARS 3）。",
   },
   {
     id: 2044,
@@ -10498,7 +10498,7 @@ export const MUTATIONS = [
     patch: "m2044-recent-room-forget-keeps-storage.patch",
     pkg: "apps/landing",
     tests: ["tests/hub/recent-room-names-screen.test.tsx"],
-    note: RESERVED_2040_2059 + " " + "#633。消した名前が、開き直すと戻ってくる（EARS 4）。",
+    note: RESERVED_2040_2069 + " " + "#633。消した名前が、開き直すと戻ってくる（EARS 4）。",
   },
   {
     id: 2045,
@@ -10506,7 +10506,7 @@ export const MUTATIONS = [
     patch: "m2045-recent-room-forget-loses-focus.patch",
     pkg: "apps/landing",
     tests: ["tests/hub/recent-room-names-screen.test.tsx"],
-    note: RESERVED_2040_2059 + " " + "#633。押した札が消えてフォーカスが文書の頭へ飛び、キーボードで使う人が場所を見失う。",
+    note: RESERVED_2040_2069 + " " + "#633。押した札が消えてフォーカスが文書の頭へ飛び、キーボードで使う人が場所を見失う。",
   },
   {
     id: 2046,
@@ -10514,7 +10514,7 @@ export const MUTATIONS = [
     patch: "m2046-recent-room-limit-six.patch",
     pkg: "apps/landing",
     tests: ["tests/hub/recent-room-names.test.ts"],
-    note: RESERVED_2040_2059 + " " + "#633。決めた数（5 件）を越えて覚える。",
+    note: RESERVED_2040_2069 + " " + "#633。決めた数（5 件）を越えて覚える。",
   },
   {
     id: 2047,
@@ -10522,7 +10522,7 @@ export const MUTATIONS = [
     patch: "m2047-recent-room-limit-four.patch",
     pkg: "apps/landing",
     tests: ["tests/hub/recent-room-names.test.ts"],
-    note: RESERVED_2040_2059 + " " + "#633。決めた数（5 件）より早く古い名前が落ちる。",
+    note: RESERVED_2040_2069 + " " + "#633。決めた数（5 件）より早く古い名前が落ちる。",
   },
   {
     id: 2048,
@@ -10530,7 +10530,7 @@ export const MUTATIONS = [
     patch: "m2048-recent-room-length-limit-raised.patch",
     pkg: "apps/landing",
     tests: ["tests/hub/recent-room-names.test.ts"],
-    note: RESERVED_2040_2059 + " " + "#633。決めた上限を越える長い名前を札に描く。",
+    note: RESERVED_2040_2069 + " " + "#633。決めた上限を越える長い名前を札に描く。",
   },
   {
     id: 2049,
@@ -10538,7 +10538,7 @@ export const MUTATIONS = [
     patch: "m2049-recent-room-no-dedupe.patch",
     pkg: "apps/landing",
     tests: ["tests/hub/recent-room-names.test.ts", "tests/hub/recent-room-names-screen.test.tsx"],
-    note: RESERVED_2040_2059 + " " + "#633。同じ会を作り直すたびに同じ札が増え、上限を同じ名前で食う（EARS 5）。",
+    note: RESERVED_2040_2069 + " " + "#633。同じ会を作り直すたびに同じ札が増え、上限を同じ名前で食う（EARS 5）。",
   },
   {
     id: 2050,
@@ -10546,7 +10546,7 @@ export const MUTATIONS = [
     patch: "m2050-recent-room-appended-last.patch",
     pkg: "apps/landing",
     tests: ["tests/hub/recent-room-names.test.ts", "tests/hub/recent-room-names-screen.test.tsx"],
-    note: RESERVED_2040_2059 + " " + "#633。最後に作った名前が欄に入らず、満杯なら新しい名前が覚えられない（EARS 2・5）。",
+    note: RESERVED_2040_2069 + " " + "#633。最後に作った名前が欄に入らず、満杯なら新しい名前が覚えられない（EARS 2・5）。",
   },
   {
     id: 2051,
@@ -10554,7 +10554,7 @@ export const MUTATIONS = [
     patch: "m2051-recent-room-invisible-name-kept.patch",
     pkg: "apps/landing",
     tests: ["tests/hub/recent-room-names.test.ts"],
-    note: RESERVED_2040_2059 + " " + "#633。空に見える札が並び、何を選ぶのか分からない。",
+    note: RESERVED_2040_2069 + " " + "#633。空に見える札が並び、何を選ぶのか分からない。",
   },
   {
     id: 2052,
@@ -10562,7 +10562,7 @@ export const MUTATIONS = [
     patch: "m2052-recent-room-no-length-limit.patch",
     pkg: "apps/landing",
     tests: ["tests/hub/recent-room-names.test.ts"],
-    note: RESERVED_2040_2059 + " " + "#633。保管庫に置かれた巨大な値を札へそのまま描く。",
+    note: RESERVED_2040_2069 + " " + "#633。保管庫に置かれた巨大な値を札へそのまま描く。",
   },
   {
     id: 2053,
@@ -10570,7 +10570,7 @@ export const MUTATIONS = [
     patch: "m2053-recent-room-drop-all-on-non-string.patch",
     pkg: "apps/landing",
     tests: ["tests/hub/recent-room-names.test.ts"],
-    note: RESERVED_2040_2059 + " " + "#633 のレビュー。手で書き換えた 1 件のために残りの名前を失い、次の作成で上書きされて戻らない。",
+    note: RESERVED_2040_2069 + " " + "#633 のレビュー。手で書き換えた 1 件のために残りの名前を失い、次の作成で上書きされて戻らない。",
   },
   {
     id: 2054,
@@ -10578,7 +10578,7 @@ export const MUTATIONS = [
     patch: "m2054-recent-room-load-throws-on-broken-json.patch",
     pkg: "apps/landing",
     tests: ["tests/hub/recent-room-names-screen.test.tsx"],
-    note: RESERVED_2040_2059 + " " + "#633。保存が壊れていると玄関が真っ白になり、ルームを作れない（EARS 6）。",
+    note: RESERVED_2040_2069 + " " + "#633。保存が壊れていると玄関が真っ白になり、ルームを作れない（EARS 6）。",
   },
   {
     id: 2055,
@@ -10586,7 +10586,7 @@ export const MUTATIONS = [
     patch: "m2055-recent-room-write-throws.patch",
     pkg: "apps/landing",
     tests: ["tests/hub/recent-room-names-screen.test.tsx"],
-    note: RESERVED_2040_2059 + " " + "#633。作成の応答を受けた処理が途中で落ち、画面が先へ進まない。",
+    note: RESERVED_2040_2069 + " " + "#633。作成の応答を受けた処理が途中で落ち、画面が先へ進まない。",
   },
   {
     id: 2056,
@@ -10594,6 +10594,38 @@ export const MUTATIONS = [
     patch: "m2056-recent-room-length-limit-lowered.patch",
     pkg: "apps/landing",
     tests: ["tests/hub/recent-room-names.test.ts"],
-    note: RESERVED_2040_2059 + " " + "#633 の 2 回目のレビュー（2048 の逆向き）。上限ちょうどの名前を覚えない。",
+    note: RESERVED_2040_2069 + " " + "#633 の 2 回目のレビュー（2048 の逆向き）。上限ちょうどの名前を覚えない。",
+  },
+  {
+    id: 2057,
+    label: "作成の応答を待つ間も、次の作成を送る（同期フックの止めを外す）",
+    patch: "m2057-create-room-resend-while-pending.patch",
+    pkg: "apps/landing",
+    tests: ["tests/hub/recent-room-names-screen.test.tsx"],
+    note: RESERVED_2040_2069 + " " + "#642 のレビュー。待つ間に別の名前で送り直すと、成功した 1 つ目の応答で 2 つ目の名前を覚える。",
+  },
+  {
+    id: 2058,
+    label: "作成の応答待ちを、エラーを受けても降ろさない",
+    patch: "m2058-create-pending-kept-on-error.patch",
+    pkg: "apps/landing",
+    tests: ["tests/hub/recent-room-names-screen.test.tsx"],
+    note: RESERVED_2040_2069 + " " + "#642 のレビュー。作成を弾かれたあと、名前を直しても作るボタンが戻らない。",
+  },
+  {
+    id: 2059,
+    label: "作成の応答待ちを、繋ぎ直しても降ろさない",
+    patch: "m2059-create-pending-kept-on-reconnect.patch",
+    pkg: "apps/landing",
+    tests: ["tests/hub/recent-room-names-screen.test.tsx"],
+    note: RESERVED_2040_2069 + " " + "#642 のレビュー。応答が前の接続と一緒に失われると、作るボタンが止まったまま戻らない。",
+  },
+  {
+    id: 2060,
+    label: "作成の応答を待つ間も、作るボタンを押せるままにする",
+    patch: "m2060-create-button-enabled-while-pending.patch",
+    pkg: "apps/landing",
+    tests: ["tests/hub/recent-room-names-screen.test.tsx"],
+    note: RESERVED_2040_2069 + " " + "#642 のレビュー。待っていることが画面から分からず、押しても何も起きない。",
   },
 ];

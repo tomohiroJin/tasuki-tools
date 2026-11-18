@@ -1,0 +1,13 @@
+diff --git a/apps/landing/src/screens/CreateRoom.tsx b/apps/landing/src/screens/CreateRoom.tsx
+index ac609c6..e021626 100644
+--- a/apps/landing/src/screens/CreateRoom.tsx
++++ b/apps/landing/src/screens/CreateRoom.tsx
+@@ -163,7 +163,7 @@ export function CreateRoom({
+           </p>
+         )}
+ 
+-        <button className="ui-button ui-button--lg" type="submit" disabled={connection !== 'online' || creating}>
++        <button className="ui-button ui-button--lg" type="submit" disabled={connection !== 'online'}>
+           ルームを作る
+         </button>
+       </form>
