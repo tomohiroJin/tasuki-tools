@@ -1,5 +1,5 @@
 diff --git a/apps/poker-web/src/room-view.ts b/apps/poker-web/src/room-view.ts
-index 13a78a61..e5d78076 100644
+index 360f9614..66307e65 100644
 --- a/apps/poker-web/src/room-view.ts
 +++ b/apps/poker-web/src/room-view.ts
 @@ -62,7 +62,7 @@ export function resultsEffectOf(
@@ -10,4 +10,4 @@ index 13a78a61..e5d78076 100644
 +  return judgeAgreement(round.votes) === 'scattered' ? 'scattered' : 'complete';
  }
  
- /**
+ /** 公開済みの票（参加者 ID → 札の鍵）。投票中は空（#639） */

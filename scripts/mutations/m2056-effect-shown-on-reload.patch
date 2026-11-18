@@ -1,13 +1,13 @@
 diff --git a/apps/poker-web/src/pages/RoomPage.tsx b/apps/poker-web/src/pages/RoomPage.tsx
-index 40694416..ac7da707 100644
+index 7984d1e4..1bc13107 100644
 --- a/apps/poker-web/src/pages/RoomPage.tsx
 +++ b/apps/poker-web/src/pages/RoomPage.tsx
-@@ -76,7 +76,7 @@ export function RoomPage({ roomId, sync }: Props) {
-   if (watching !== seenStatus) {
-     setSeenStatus(watching);
-     setLive(
--      revealedLiveAfter(seenStatus, watching) && sync.snapshot
-+      watching === 'revealed' && sync.snapshot
-         ? { key: revealKey(sync.snapshot.round), effect: resultsEffectOf(sync.snapshot.round, sync.snapshot.participants) }
+@@ -84,7 +84,7 @@ export function RoomPage({ roomId, sync }: Props) {
+   if (bandStatus !== bandSeen) {
+     setBandSeen(bandStatus);
+     setBand(
+-      revealedLiveAfter(bandSeen, bandStatus) && sync.snapshot
++      bandStatus === 'revealed' && sync.snapshot
+         ? { votes: revealedVotesOf(sync.snapshot.round), effect: resultsEffectOf(sync.snapshot.round, sync.snapshot.participants) }
          : null,
      );
