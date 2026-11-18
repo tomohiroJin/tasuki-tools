@@ -174,6 +174,34 @@ describe("定型バンクの差し込み口", () => {
 });
 
 /**
+ * 言語ごとの書き方の取り違えのうち、機械で見られるもの（PR #643 のレビューで見つかった型）。
+ *
+ * @requirements #634（PR #643 のレビュー: 定型を選んだ言語で出す）
+ */
+describe("定型バンクの言語ごとの書き方", () => {
+  it("Python で組んだ地の文（囲みの外）に、JavaScript の真偽値 true / false が無い（Python は True / False）", () => {
+    const found: string[] = [];
+    for (const e of TOPIC_BANK) {
+      const prose = renderTopicBody(e, "Python").split(/\n```\n[\s\S]*?\n```/).join("\n");
+      for (const m of prose.matchAll(/(?<![A-Za-z_])(true|false)(?![A-Za-z_])/g)) found.push(`${e.title}: ${m[0]}`);
+    }
+    expect(found).toEqual([]);
+  });
+
+  it("Kotlin のバッククォートで書いたテスト名に、JVM の名前に使えない字（. ; [ ] / < > : \\）が無い", () => {
+    const found: string[] = [];
+    for (const e of TOPIC_BANK) {
+      for (const [name, values] of Object.entries(e.slots)) {
+        for (const m of values.Kotlin.matchAll(/fun `([^`]*)`/g)) {
+          if (/[.;[\]/<>:\\]/.test(m[1]!)) found.push(`${e.title} / ${name}: ${m[1]}`);
+        }
+      }
+    }
+    expect(found).toEqual([]);
+  });
+});
+
+/**
  * @requirements #91(spec §10)・#634(足したお題は、題・本文の上限と Markdown の形を検査で確かめる)
  */
 describe("定型バンクの形（10 言語それぞれで組んだ本文）", () => {

@@ -105,7 +105,7 @@ export const DEBUGGING_TOPICS: readonly TopicBankEntry[] = [
   },
   {
     "title": "全員合格の判定",
-    "body": "## 背景\n\nチームの全員が合格点に達しているかを判定する関数です。1 人でも合格点に届かなければ {{slot:falseValue}} を返します。\n\nメンバーが 0 人のときは、取り決めで {{slot:trueValue}} を返します。\n\n## 症状\n\n- 全員が合格のチームは {{slot:trueValue}} になる\n- 先頭の人が不合格のチームも、正しく {{slot:falseValue}} になる\n- ところが、先頭の人が合格で、2 人目以降に不合格の人がいるチームが {{slot:trueValue}} になってしまう\n\n満たすこと:\n- 落ちるテストを流し、どの入力で誤るかを確かめる\n- ループが何回まわっているかを確かめてから直す\n- 0 人のときは true のまま\n- 直したあと、落ちるテストが通る\n\n対象のコード:\n```\n{{slot:targetCode}}\n```\n\n落ちるテスト:\n```\n{{slot:failingTest}}\n```\n\nヒント:\n- ループの中に表示を入れて、何人目まで見ているかを数える",
+    "body": "## 背景\n\nチームの全員が合格点に達しているかを判定する関数です。1 人でも合格点に届かなければ {{slot:falseValue}} を返します。\n\nメンバーが 0 人のときは、取り決めで {{slot:trueValue}} を返します。\n\n## 症状\n\n- 全員が合格のチームは {{slot:trueValue}} になる\n- 先頭の人が不合格のチームも、正しく {{slot:falseValue}} になる\n- ところが、先頭の人が合格で、2 人目以降に不合格の人がいるチームが {{slot:trueValue}} になってしまう\n\n満たすこと:\n- 落ちるテストを流し、どの入力で誤るかを確かめる\n- ループが何回まわっているかを確かめてから直す\n- 0 人のときは {{slot:trueWord}} のまま\n- 直したあと、落ちるテストが通る\n\n対象のコード:\n```\n{{slot:targetCode}}\n```\n\n落ちるテスト:\n```\n{{slot:failingTest}}\n```\n\nヒント:\n- ループの中に表示を入れて、何人目まで見ているかを数える",
     "difficulty": "easy",
     "category": "debugging",
     "slots": {
@@ -156,6 +156,18 @@ export const DEBUGGING_TOPICS: readonly TopicBankEntry[] = [
         "C#": "`true`",
         "Kotlin": "`true`",
         "Swift": "`true`"
+      },
+      "trueWord": {
+        "TypeScript": "true",
+        "JavaScript": "true",
+        "Python": "True",
+        "Java": "true",
+        "Go": "true",
+        "Ruby": "true",
+        "Rust": "true",
+        "C#": "true",
+        "Kotlin": "true",
+        "Swift": "true"
       }
     }
   },

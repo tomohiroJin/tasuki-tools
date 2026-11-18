@@ -668,7 +668,7 @@ export const TDD_TOPICS: readonly TopicBankEntry[] = [
   },
   {
     "title": "アナグラム判定",
-    "body": "## 背景\n\n文字列の正規化と、ソート／頻度カウントによる比較を練習するお題です。\n\n2 つの文字列 `a`, `b` が互いにアナグラム（同じ文字を並べ替えたもの）かどうかを判定する `{{slot:fn}}(a, b)` を実装します。\n\n## ルール\n\n- 大文字小文字・空白は無視する\n- 長さ（無視対象を除いた文字数）が違えば {{slot:falseValue}}\n\n## 例\n\n- `{{slot:fn}}(\"listen\", \"silent\")` → `{{slot:yes}}`\n- `{{slot:fn}}(\"hello\", \"world\")` → `{{slot:no}}`\n\n## 考慮すること\n\n両方の文字を並べ替えて比較するか、各文字の出現回数を数えて一致するか確認します。\n\n満たすこと:\n- 'listen' と 'silent' は true\n- 長さが違えば false\n- 大文字小文字・空白は無視する\n\n最初のテストの例:\n```\n{{slot:firstTest}}\n```\n\nヒント:\n- ソートして比較\n- または文字の出現回数を比較",
+    "body": "## 背景\n\n文字列の正規化と、ソート／頻度カウントによる比較を練習するお題です。\n\n2 つの文字列 `a`, `b` が互いにアナグラム（同じ文字を並べ替えたもの）かどうかを判定する `{{slot:fn}}(a, b)` を実装します。\n\n## ルール\n\n- 大文字小文字・空白は無視する\n- 長さ（無視対象を除いた文字数）が違えば {{slot:falseValue}}\n\n## 例\n\n- `{{slot:fn}}(\"listen\", \"silent\")` → `{{slot:yes}}`\n- `{{slot:fn}}(\"hello\", \"world\")` → `{{slot:no}}`\n\n## 考慮すること\n\n両方の文字を並べ替えて比較するか、各文字の出現回数を数えて一致するか確認します。\n\n満たすこと:\n- 'listen' と 'silent' は {{slot:trueWord}}\n- 長さが違えば {{slot:falseWord}}\n- 大文字小文字・空白は無視する\n\n最初のテストの例:\n```\n{{slot:firstTest}}\n```\n\nヒント:\n- ソートして比較\n- または文字の出現回数を比較",
     "difficulty": "easy",
     "category": "tdd",
     "slots": {
@@ -731,12 +731,36 @@ export const TDD_TOPICS: readonly TopicBankEntry[] = [
         "C#": "`false`",
         "Kotlin": "`false`",
         "Swift": "`false`"
+      },
+      "trueWord": {
+        "TypeScript": "true",
+        "JavaScript": "true",
+        "Python": "True",
+        "Java": "true",
+        "Go": "true",
+        "Ruby": "true",
+        "Rust": "true",
+        "C#": "true",
+        "Kotlin": "true",
+        "Swift": "true"
+      },
+      "falseWord": {
+        "TypeScript": "false",
+        "JavaScript": "false",
+        "Python": "False",
+        "Java": "false",
+        "Go": "false",
+        "Ruby": "false",
+        "Rust": "false",
+        "C#": "false",
+        "Kotlin": "false",
+        "Swift": "false"
       }
     }
   },
   {
     "title": "うるう年判定",
-    "body": "## 背景\n\n複合的な条件を正しい順序・優先度で組み立てる練習です。条件の境界値テストが効くお題です。\n\n西暦年 `y` を受け取り、うるう年かどうかを判定する `{{slot:fn}}(y)` を実装します。\n\n## ルール\n\nうるう年は次の条件を満たす年です。\n\n1. 4 で割り切れる、かつ\n2. 100 で割り切れない、ただし\n3. 400 で割り切れる年はうるう年\n\n## 例\n\n- `{{slot:fn}}(2000)` → `{{slot:yes}}`（400 で割り切れる）\n- `{{slot:fn}}(1900)` → `{{slot:no}}`（100 で割り切れるが 400 では割り切れない）\n- `{{slot:fn}}(2024)` → `{{slot:yes}}`\n- `{{slot:fn}}(2023)` → `{{slot:no}}`\n\n## 考慮すること\n\n`400 → 100 → 4` の順で判定すると、例外規則が綺麗に表現できます。\n\n満たすこと:\n- 2000 は true（400 で割り切れる）\n- 1900 は false（100 で割り切れるが 400 では割り切れない）\n- 2024 は true、2023 は false\n\n最初のテストの例:\n```\n{{slot:firstTest}}\n```\n\nヒント:\n- 条件の順序に注意（400 → 100 → 4）",
+    "body": "## 背景\n\n複合的な条件を正しい順序・優先度で組み立てる練習です。条件の境界値テストが効くお題です。\n\n西暦年 `y` を受け取り、うるう年かどうかを判定する `{{slot:fn}}(y)` を実装します。\n\n## ルール\n\nうるう年は次の条件を満たす年です。\n\n1. 4 で割り切れる、かつ\n2. 100 で割り切れない、ただし\n3. 400 で割り切れる年はうるう年\n\n## 例\n\n- `{{slot:fn}}(2000)` → `{{slot:yes}}`（400 で割り切れる）\n- `{{slot:fn}}(1900)` → `{{slot:no}}`（100 で割り切れるが 400 では割り切れない）\n- `{{slot:fn}}(2024)` → `{{slot:yes}}`\n- `{{slot:fn}}(2023)` → `{{slot:no}}`\n\n## 考慮すること\n\n`400 → 100 → 4` の順で判定すると、例外規則が綺麗に表現できます。\n\n満たすこと:\n- 2000 は {{slot:trueWord}}（400 で割り切れる）\n- 1900 は {{slot:falseWord}}（100 で割り切れるが 400 では割り切れない）\n- 2024 は {{slot:trueWord}}、2023 は {{slot:falseWord}}\n\n最初のテストの例:\n```\n{{slot:firstTest}}\n```\n\nヒント:\n- 条件の順序に注意（400 → 100 → 4）",
     "difficulty": "easy",
     "category": "tdd",
     "slots": {
@@ -777,6 +801,30 @@ export const TDD_TOPICS: readonly TopicBankEntry[] = [
         "Swift": "true"
       },
       "no": {
+        "TypeScript": "false",
+        "JavaScript": "false",
+        "Python": "False",
+        "Java": "false",
+        "Go": "false",
+        "Ruby": "false",
+        "Rust": "false",
+        "C#": "false",
+        "Kotlin": "false",
+        "Swift": "false"
+      },
+      "trueWord": {
+        "TypeScript": "true",
+        "JavaScript": "true",
+        "Python": "True",
+        "Java": "true",
+        "Go": "true",
+        "Ruby": "true",
+        "Rust": "true",
+        "C#": "true",
+        "Kotlin": "true",
+        "Swift": "true"
+      },
+      "falseWord": {
         "TypeScript": "false",
         "JavaScript": "false",
         "Python": "False",
@@ -836,7 +884,7 @@ export const TDD_TOPICS: readonly TopicBankEntry[] = [
   },
   {
     "title": "括弧の対応チェック",
-    "body": "## 背景\n\nスタックを使った定番のお題です。コンパイラやエディタの括弧チェック機能の縮図でもあります。\n\n`()`, `{}`, `[]` の 3 種類の括弧が正しく対応・ネストしているかを判定する `{{slot:fn}}(s)` を実装します。\n\n## ルール\n\n- 開いた括弧は、対応する種類の閉じ括弧で閉じる\n- 交差したネストは不正\n- 閉じ括弧が先に来た場合や、閉じ忘れがある場合も不正\n\n## 例\n\n{{slot:examples}}\n\n## 考慮すること\n\n開き括弧をスタックに push し、閉じ括弧が来たら pop して種類が一致するか照合します。最後にスタックが空なら対応が取れています。\n\n満たすこと:\n- '([]{})' は true\n- '([)]' は false（交差はNG）\n- 閉じ括弧が先に来たら false、未閉じも false\n\n最初のテストの例:\n```\n{{slot:firstTest}}\n```\n\nヒント:\n- スタックを使う\n- 開き括弧を push、閉じで対応を pop して照合",
+    "body": "## 背景\n\nスタックを使った定番のお題です。コンパイラやエディタの括弧チェック機能の縮図でもあります。\n\n`()`, `{}`, `[]` の 3 種類の括弧が正しく対応・ネストしているかを判定する `{{slot:fn}}(s)` を実装します。\n\n## ルール\n\n- 開いた括弧は、対応する種類の閉じ括弧で閉じる\n- 交差したネストは不正\n- 閉じ括弧が先に来た場合や、閉じ忘れがある場合も不正\n\n## 例\n\n{{slot:examples}}\n\n## 考慮すること\n\n開き括弧をスタックに push し、閉じ括弧が来たら pop して種類が一致するか照合します。最後にスタックが空なら対応が取れています。\n\n満たすこと:\n- '([]{})' は {{slot:trueWord}}\n- '([)]' は {{slot:falseWord}}（交差はNG）\n- 閉じ括弧が先に来たら {{slot:falseWord}}、未閉じも {{slot:falseWord}}\n\n最初のテストの例:\n```\n{{slot:firstTest}}\n```\n\nヒント:\n- スタックを使う\n- 開き括弧を push、閉じで対応を pop して照合",
     "difficulty": "medium",
     "category": "tdd",
     "slots": {
@@ -875,6 +923,30 @@ export const TDD_TOPICS: readonly TopicBankEntry[] = [
         "C#": "[Fact]\npublic void MixedBracketsAreBalanced()\n{\n    Assert.True(IsBalanced(\"([]{})\"));\n}",
         "Kotlin": "@Test\nfun mixedBracketsAreBalanced() {\n    assertTrue(isBalanced(\"([]{})\"))\n}",
         "Swift": "func testMixedBracketsAreBalanced() {\n    XCTAssertTrue(isBalanced(\"([]{})\"))\n}"
+      },
+      "trueWord": {
+        "TypeScript": "true",
+        "JavaScript": "true",
+        "Python": "True",
+        "Java": "true",
+        "Go": "true",
+        "Ruby": "true",
+        "Rust": "true",
+        "C#": "true",
+        "Kotlin": "true",
+        "Swift": "true"
+      },
+      "falseWord": {
+        "TypeScript": "false",
+        "JavaScript": "false",
+        "Python": "False",
+        "Java": "false",
+        "Go": "false",
+        "Ruby": "false",
+        "Rust": "false",
+        "C#": "false",
+        "Kotlin": "false",
+        "Swift": "false"
       }
     }
   },
@@ -1244,7 +1316,7 @@ export const TDD_TOPICS: readonly TopicBankEntry[] = [
   },
   {
     "title": "パスワード強度チェック",
-    "body": "## 背景\n\n複数の独立した条件を組み合わせて判定する練習です。各条件を個別のテストで詰めていけます。\n\nパスワード `pw` が規則を満たすかを判定する `{{slot:fn}}(pw)` を実装します。\n\n## ルール\n\n次のすべてを満たすとき {{slot:trueValue}}、1 つでも欠ければ {{slot:falseValue}}。\n\n1. 8 文字以上\n2. 英大文字を 1 文字以上含む\n3. 英小文字を 1 文字以上含む\n4. 数字を 1 文字以上含む\n\n## 例\n\n{{slot:examples}}\n\n## 考慮すること\n\n各条件を個別のフラグ（真偽値）で求め、最後にすべての AND を取ると、要件とテストが 1 対 1 に対応します。\n\n満たすこと:\n- 8 文字以上\n- 大文字・小文字・数字をそれぞれ 1 文字以上含む\n- 条件を満たさなければ false\n\n最初のテストの例:\n```\n{{slot:firstTest}}\n```\n\nヒント:\n- 各条件を個別のフラグで判定して AND を取る",
+    "body": "## 背景\n\n複数の独立した条件を組み合わせて判定する練習です。各条件を個別のテストで詰めていけます。\n\nパスワード `pw` が規則を満たすかを判定する `{{slot:fn}}(pw)` を実装します。\n\n## ルール\n\n次のすべてを満たすとき {{slot:trueValue}}、1 つでも欠ければ {{slot:falseValue}}。\n\n1. 8 文字以上\n2. 英大文字を 1 文字以上含む\n3. 英小文字を 1 文字以上含む\n4. 数字を 1 文字以上含む\n\n## 例\n\n{{slot:examples}}\n\n## 考慮すること\n\n各条件を個別のフラグ（真偽値）で求め、最後にすべての AND を取ると、要件とテストが 1 対 1 に対応します。\n\n満たすこと:\n- 8 文字以上\n- 大文字・小文字・数字をそれぞれ 1 文字以上含む\n- 条件を満たさなければ {{slot:falseWord}}\n\n最初のテストの例:\n```\n{{slot:firstTest}}\n```\n\nヒント:\n- 各条件を個別のフラグで判定して AND を取る",
     "difficulty": "medium",
     "category": "tdd",
     "slots": {
@@ -1307,6 +1379,18 @@ export const TDD_TOPICS: readonly TopicBankEntry[] = [
         "C#": "`false`",
         "Kotlin": "`false`",
         "Swift": "`false`"
+      },
+      "falseWord": {
+        "TypeScript": "false",
+        "JavaScript": "false",
+        "Python": "False",
+        "Java": "false",
+        "Go": "false",
+        "Ruby": "false",
+        "Rust": "false",
+        "C#": "false",
+        "Kotlin": "false",
+        "Swift": "false"
       }
     }
   },
@@ -1852,7 +1936,7 @@ export const TDD_TOPICS: readonly TopicBankEntry[] = [
   },
   {
     "title": "素数判定",
-    "body": "## 背景\n\nループの終わりの条件と、小さな入力（0・1・2）の扱いを丁寧に詰める練習です。素朴な実装から始め、テストを保ったまま速くしていけます。\n\n整数 `n` を受け取り、素数かどうかを返す `{{slot:fn}}(n)` を実装します。続けて、`n` 以下の素数を昇順の配列で返す `{{slot:fn2}}(n)` も実装します。\n\n## ルール\n\n- 素数は 1 とそれ自身でしか割り切れない 2 以上の整数\n- 0・1・負の数は素数でない\n- 2 は素数（唯一の偶数の素数）\n\n## 例\n\n{{slot:examples}}\n\n## 考慮すること\n\n割る数を √n まで試せば十分です。`{{slot:fn2}}` は `{{slot:fn}}` を繰り返し呼ぶ形で通してから、エラトステネスのふるいへ置き換えても、テストはそのまま使えます。\n\n満たすこと:\n- 0・1・負の数は false\n- 2 と 3 は true\n- 平方数（9・25・49）を正しく false にする\n- {{slot:fn2}} が昇順の配列を返す\n\n最初のテストの例:\n```\n{{slot:firstTest}}\n```\n\nヒント:\n- i * i <= n をループの条件にする\n- 平方数のテストは「√n ちょうど」の境界を確かめる",
+    "body": "## 背景\n\nループの終わりの条件と、小さな入力（0・1・2）の扱いを丁寧に詰める練習です。素朴な実装から始め、テストを保ったまま速くしていけます。\n\n整数 `n` を受け取り、素数かどうかを返す `{{slot:fn}}(n)` を実装します。続けて、`n` 以下の素数を昇順の配列で返す `{{slot:fn2}}(n)` も実装します。\n\n## ルール\n\n- 素数は 1 とそれ自身でしか割り切れない 2 以上の整数\n- 0・1・負の数は素数でない\n- 2 は素数（唯一の偶数の素数）\n\n## 例\n\n{{slot:examples}}\n\n## 考慮すること\n\n割る数を √n まで試せば十分です。`{{slot:fn2}}` は `{{slot:fn}}` を繰り返し呼ぶ形で通してから、エラトステネスのふるいへ置き換えても、テストはそのまま使えます。\n\n満たすこと:\n- 0・1・負の数は {{slot:falseWord}}\n- 2 と 3 は {{slot:trueWord}}\n- 平方数（9・25・49）を正しく {{slot:falseWord}} にする\n- {{slot:fn2}} が昇順の配列を返す\n\n最初のテストの例:\n```\n{{slot:firstTest}}\n```\n\nヒント:\n- i * i <= n をループの条件にする\n- 平方数のテストは「√n ちょうど」の境界を確かめる",
     "difficulty": "easy",
     "category": "tdd",
     "slots": {
@@ -1903,6 +1987,30 @@ export const TDD_TOPICS: readonly TopicBankEntry[] = [
         "C#": "PrimesUpTo",
         "Kotlin": "primesUpTo",
         "Swift": "primesUpTo"
+      },
+      "trueWord": {
+        "TypeScript": "true",
+        "JavaScript": "true",
+        "Python": "True",
+        "Java": "true",
+        "Go": "true",
+        "Ruby": "true",
+        "Rust": "true",
+        "C#": "true",
+        "Kotlin": "true",
+        "Swift": "true"
+      },
+      "falseWord": {
+        "TypeScript": "false",
+        "JavaScript": "false",
+        "Python": "False",
+        "Java": "false",
+        "Go": "false",
+        "Ruby": "false",
+        "Rust": "false",
+        "C#": "false",
+        "Kotlin": "false",
+        "Swift": "false"
       }
     }
   },
