@@ -1,0 +1,13 @@
+diff --git a/apps/checkin-web/src/card-art/pace.tsx b/apps/checkin-web/src/card-art/pace.tsx
+index a4ca814..bbd9fe4 100644
+--- a/apps/checkin-web/src/card-art/pace.tsx
++++ b/apps/checkin-web/src/card-art/pace.tsx
+@@ -16,7 +16,7 @@ export function PaceArt({ card }: { card: string }) {
+     case 'right':
+       return <Gauge needle="M32 46V26" />;
+     case 'slow':
+-      return <Gauge needle="M32 46L17 31" />;
++      return <Gauge needle="M32 46V26" />;
+     default:
+       return null;
+   }

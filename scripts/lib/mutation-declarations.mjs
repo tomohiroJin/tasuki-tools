@@ -269,6 +269,9 @@ const RESERVED_1410_1419 =
 const RESERVED_1760_1779 =
   "**対応表より後に足した変異。** 1760〜1779 は #596（契約を型とテストの題に移す）に割り当てた範囲。";
 
+const RESERVED_1970_1989 =
+  "**対応表より後に足した変異。** 1970〜1989 は #635（checkin のやり方を各側 6 つ足す）に割り当てた範囲。";
+
 export const MUTATIONS = [
   {
     id: 1,
@@ -10456,5 +10459,101 @@ export const MUTATIONS = [
     pkg: "apps/timer-web",
     tests: ["test/ui/RosterPanel.duplicate-proxy.test.tsx"],
     note: RESERVED_1850_1869 + " " + "#595。RosterPanel.tsx の代理追加の配線。直したのに赤いままで、「まだ駄目なのか」と読める（#291）。",
+  },
+  {
+    id: 1970,
+    label: "選択画面の小見出しの並びから「準備の度合い」（readiness）が抜ける",
+    patch: "m1970-readiness-not-in-picker.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/method-groups.test.ts", "tests/method-picker.test.tsx"],
+    note: RESERVED_1970_1989 + " " + "#635。規則にはあるのに選択画面に出ず、足したやり方を選べない。",
+  },
+  {
+    id: 1971,
+    label: "「いそがしさ」（busyness）の既定の公開の仕方が匿名でなく名前つきになる",
+    patch: "m1971-busyness-default-named.patch",
+    pkg: "packages/checkin-core",
+    tests: ["tests/methods.test.ts", "tests/projection.test.ts"],
+    note: RESERVED_1970_1989 + " " + "#635。匿名のつもりで出した忙しさが、開いた後に誰の札か分かる。",
+  },
+  {
+    id: 1972,
+    label: "「話したい度」（talk-wish）の顔の種類が数字でなく絵になる（FACE_KINDS と顔の表がずれる）",
+    patch: "m1972-talk-wish-face-kind-art.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/card-face.test.tsx"],
+    note: RESERVED_1970_1989 + " " + "#635。札の顔は数字なのに、開いた後の要約が数のやり方の言い方にならない。",
+  },
+  {
+    id: 1973,
+    label: "「今日のバッテリー」（battery）の既定の公開の仕方が匿名でなく名前つきになる",
+    patch: "m1973-battery-default-named.patch",
+    pkg: "packages/checkin-core",
+    tests: ["tests/methods.test.ts", "tests/projection.test.ts"],
+    note: RESERVED_1970_1989 + " " + "#635。体の具合を、開いた後に名前つきで晒す。",
+  },
+  {
+    id: 1974,
+    label: "「この会の理解」（clarity）の既定の公開の仕方が匿名でなく名前つきになる",
+    patch: "m1974-clarity-default-named.patch",
+    pkg: "packages/checkin-core",
+    tests: ["tests/methods.test.ts", "tests/projection.test.ts"],
+    note: RESERVED_1970_1989 + " " + "#635。わかっていない人が、開いた後に名前つきで分かる。",
+  },
+  {
+    id: 1975,
+    label: "「今日の気がかり」の「少しある」の絵が「無い」と同じになる",
+    patch: "m1975-worry-some-same-art-as-none.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/card-face.test.tsx"],
+    note: RESERVED_1970_1989 + " " + "#635。手札の 2 枚の顔が同じで、絵では見分けられない。",
+  },
+  {
+    id: 1976,
+    label: "「なっとく度」（agreement）の既定の公開の仕方が匿名でなく名前つきになる",
+    patch: "m1976-agreement-default-named.patch",
+    pkg: "packages/checkin-core",
+    tests: ["tests/methods.test.ts", "tests/projection.test.ts"],
+    note: RESERVED_1970_1989 + " " + "#635。なっとくしていない人が、開いた後に名前つきで分かる。",
+  },
+  {
+    id: 1977,
+    label: "選択画面の小見出しの並びから「次の一手」（next-step）が抜ける",
+    patch: "m1977-next-step-not-in-picker.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/method-groups.test.ts", "tests/method-picker.test.tsx"],
+    note: RESERVED_1970_1989 + " " + "#635。チェックアウトの側で、足したやり方を選べない。",
+  },
+  {
+    id: 1978,
+    label: "「話せたか」（voice）の既定の公開の仕方が匿名でなく名前つきになる",
+    patch: "m1978-voice-default-named.patch",
+    pkg: "packages/checkin-core",
+    tests: ["tests/methods.test.ts", "tests/projection.test.ts"],
+    note: RESERVED_1970_1989 + " " + "#635。話せなかった人が、開いた後に名前つきで分かる。",
+  },
+  {
+    id: 1979,
+    label: "「進むペース」の「ゆっくりすぎ」の針が「ちょうど」と同じ向きになる",
+    patch: "m1979-pace-slow-same-needle-as-right.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/card-face.test.tsx"],
+    note: RESERVED_1970_1989 + " " + "#635。手札の 2 枚の顔が同じで、絵では見分けられない。",
+  },
+  {
+    id: 1980,
+    label: "「残った疲れ」（fatigue）の既定の公開の仕方が匿名でなく名前つきになる",
+    patch: "m1980-fatigue-default-named.patch",
+    pkg: "packages/checkin-core",
+    tests: ["tests/methods.test.ts", "tests/projection.test.ts"],
+    note: RESERVED_1970_1989 + " " + "#635。疲れた人が、開いた後に名前つきで分かる。",
+  },
+  {
+    id: 1981,
+    label: "「だれかに言いたいこと」の「あとで言う」の札の名前が「このあと話す」と重なる",
+    patch: "m1981-message-later-same-name-as-now.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/method-copy.test.ts"],
+    note: RESERVED_1970_1989 + " " + "#635。手札・山・読み上げで 2 枚の札を区別できない。",
   },
 ];

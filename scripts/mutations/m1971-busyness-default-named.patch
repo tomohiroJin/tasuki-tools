@@ -1,0 +1,13 @@
+diff --git a/packages/checkin-core/src/methods.ts b/packages/checkin-core/src/methods.ts
+index fe3e36c..7289f25 100644
+--- a/packages/checkin-core/src/methods.ts
++++ b/packages/checkin-core/src/methods.ts
+@@ -67,7 +67,7 @@ export const METHODS: Readonly<Record<MethodId, MethodRule>> = {
+   "weather-end": { side: "checkout", cards: ["sunny", "cloudy", "rain", "thunder"], defaultVisibility: "named" },
+   understanding: { side: "checkout", cards: ["1", "2", "3", "4", "5"], defaultVisibility: "anonymous" },
+   readiness: { side: "checkin", cards: ["ready", "mostly", "later", "not-yet"], defaultVisibility: "named" },
+-  busyness: { side: "checkin", cards: ["roomy", "normal", "packed", "overflow"], defaultVisibility: "anonymous" },
++  busyness: { side: "checkin", cards: ["roomy", "normal", "packed", "overflow"], defaultVisibility: "named" },
+   "talk-wish": { side: "checkin", cards: ["1", "2", "3", "4", "5"], defaultVisibility: "anonymous" },
+   battery: { side: "checkin", cards: ["full", "half", "low", "empty"], defaultVisibility: "anonymous" },
+   clarity: { side: "checkin", cards: ["both", "purpose", "unclear"], defaultVisibility: "anonymous" },

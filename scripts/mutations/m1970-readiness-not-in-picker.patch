@@ -1,0 +1,13 @@
+diff --git a/apps/checkin-web/src/method-groups.ts b/apps/checkin-web/src/method-groups.ts
+index df0f5a4..ad98d7f 100644
+--- a/apps/checkin-web/src/method-groups.ts
++++ b/apps/checkin-web/src/method-groups.ts
+@@ -19,7 +19,7 @@ export interface MethodGroup {
+ export const METHOD_GROUPS: { readonly [S in Side]: readonly MethodGroup[] } = {
+   checkin: [
+     { id: 'checkin-mood', title: '気分と元気', methods: ['weather', 'energy', 'mood-start', 'battery', 'busyness', 'worry'] },
+-    { id: 'checkin-focus', title: '集中と準備', methods: ['focus', 'readiness', 'clarity'] },
++    { id: 'checkin-focus', title: '集中と準備', methods: ['focus', 'clarity'] },
+     { id: 'checkin-stance', title: '期待と役割', methods: ['takeaway-goal', 'expectation', 'role', 'talk-wish'] },
+   ],
+   checkout: [

@@ -1,0 +1,12 @@
+diff --git a/apps/checkin-web/src/method-groups.ts b/apps/checkin-web/src/method-groups.ts
+index df0f5a4..88082c6 100644
+--- a/apps/checkin-web/src/method-groups.ts
++++ b/apps/checkin-web/src/method-groups.ts
+@@ -25,6 +25,6 @@ export const METHOD_GROUPS: { readonly [S in Side]: readonly MethodGroup[] } = {
+   checkout: [
+     { id: 'checkout-value', title: '時間の価値', methods: ['roti', 'takeaway-done', 'best-part', 'understanding', 'agreement'] },
+     { id: 'checkout-mood', title: '気分と疲れ', methods: ['mood', 'weather-end', 'fatigue'] },
+-    { id: 'checkout-next', title: '進め方と次へ', methods: ['next-meeting', 'pace', 'voice', 'next-step', 'message'] },
++    { id: 'checkout-next', title: '進め方と次へ', methods: ['next-meeting', 'pace', 'voice', 'message'] },
+   ],
+ };
