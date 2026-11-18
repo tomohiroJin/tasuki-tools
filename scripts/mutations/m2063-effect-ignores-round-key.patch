@@ -1,0 +1,13 @@
+diff --git a/apps/poker-web/src/pages/RoomPage.tsx b/apps/poker-web/src/pages/RoomPage.tsx
+index 40694416..3802d378 100644
+--- a/apps/poker-web/src/pages/RoomPage.tsx
++++ b/apps/poker-web/src/pages/RoomPage.tsx
+@@ -81,7 +81,7 @@ export function RoomPage({ roomId, sync }: Props) {
+         : null,
+     );
+   }
+-  const liveNow = live !== null && round !== undefined && live.key === revealKey(round);
++  const liveNow = live !== null && round !== undefined;
+   const revealedLive = liveNow;
+   const effect = liveNow ? live.effect : null;
+   // 入口の振り分け・自動の復帰・混雑の入り直し・消えたルームの組の破棄は同期フックの仕事（#369）。

@@ -111,9 +111,10 @@ test.describe('poker の開票の演出（#639）', () => {
     await expect(band(page, UNANIMOUS)).toHaveCount(0);
     // 同じアイテム・同じ票でも毎回出る
     await everyoneVotes(pages, ['3', '3']);
-    for (const p of pages) await expect(band(p, UNANIMOUS)).toBeVisible();
-    // 次のアイテムへ（演出の最中。もう一方の画面から）
+    // 次のアイテムへ（演出の最中。もう一方の画面から）。開票の直後（帯の動きが終わる 1.75 秒より前）に、帯の出現を待たずに押す
+    const nextClickedAt = Date.now();
     await other.getByRole('button', { name: '次のアイテムへ' }).click();
+    expect(Date.now() - nextClickedAt, '押せるまでが動きの終わりより前').toBeLessThan(1750);
     for (const p of pages) await expect(p.getByRole('heading', { name: 'あなたのカード' })).toBeVisible();
     await expect(band(other, UNANIMOUS)).toHaveCount(0);
   });

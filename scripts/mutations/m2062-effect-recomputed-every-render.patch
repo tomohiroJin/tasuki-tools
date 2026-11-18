@@ -1,13 +1,13 @@
 diff --git a/apps/poker-web/src/pages/RoomPage.tsx b/apps/poker-web/src/pages/RoomPage.tsx
-index 77d3a1d8..371babef 100644
+index 40694416..9300ffe1 100644
 --- a/apps/poker-web/src/pages/RoomPage.tsx
 +++ b/apps/poker-web/src/pages/RoomPage.tsx
-@@ -249,7 +249,7 @@ export function RoomPage({ roomId, sync }: Props) {
-               seatCount={seatCount}
-               afterFlip={revealedLive}
-               spread={spreadPromptOf(snapshot.round, snapshot.participants)}
--              effect={effect}
-+              effect={revealedLive ? resultsEffectOf(snapshot.round, snapshot.participants) : null}
-             />
-           )}
-           {/* 下端の帯（sticky）は親の範囲の中でしか留まらないので、帯は操作の面（`.room-main`）の最後の子に置き、
+@@ -83,7 +83,7 @@ export function RoomPage({ roomId, sync }: Props) {
+   }
+   const liveNow = live !== null && round !== undefined && live.key === revealKey(round);
+   const revealedLive = liveNow;
+-  const effect = liveNow ? live.effect : null;
++  const effect = liveNow && sync.snapshot ? resultsEffectOf(sync.snapshot.round, sync.snapshot.participants) : null;
+   // 入口の振り分け・自動の復帰・混雑の入り直し・消えたルームの組の破棄は同期フックの仕事（#369）。
+   const { retryNotice } = useRoomEntry(sync, roomId);
+ 

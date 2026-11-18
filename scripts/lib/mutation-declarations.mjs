@@ -10564,4 +10564,20 @@ export const MUTATIONS = [
     tests: ["tests/room-page-effect.test.tsx"],
     note: RESERVED_2050_2079 + " " + "#639 のレビュー。RoomPage.tsx。開票の後の入退室・切断で帯が後から出る・消え、統計の位置が跳ねる。",
   },
+  {
+    id: 2063,
+    label: "見届けた公開を票の組で覚えず、別の回の公開済みが届いても前の回の帯を残す",
+    patch: "m2063-effect-ignores-round-key.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/room-page-effect.test.tsx"],
+    note: RESERVED_2050_2079 + " " + "#639 の 2 回目のレビュー。RoomPage.tsx。再接続や投票中を挟まない更新で、別の回の結果に前の回の「全員同じ」が残る。",
+  },
+  {
+    id: 2064,
+    label: "公開の票の組の鍵が札を見ず、同じ顔ぶれの別の回を同じ回と見る",
+    patch: "m2064-reveal-key-ignores-cards.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/room-page-effect.test.tsx"],
+    note: RESERVED_2050_2079 + " " + "#639 の 2 回目のレビュー。room-view.ts。同じ顔ぶれで札だけ違う別の回が届いても、前の回の帯が残る。",
+  },
 ];

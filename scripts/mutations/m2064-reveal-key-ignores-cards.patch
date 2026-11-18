@@ -1,0 +1,13 @@
+diff --git a/apps/poker-web/src/room-view.ts b/apps/poker-web/src/room-view.ts
+index 13a78a61..b299d6b7 100644
+--- a/apps/poker-web/src/room-view.ts
++++ b/apps/poker-web/src/room-view.ts
+@@ -70,7 +70,7 @@ export function resultsEffectOf(
+  * 同じ回の名簿だけの変化では変わらない。
+  */
+ export function revealKey(round: RoomStateMessage['round']): string {
+-  return round.status === 'revealed' ? round.votes.map((v) => `${v.participantId}:${cardKey(v.card)}`).join('|') : '';
++  return round.status === 'revealed' ? round.votes.map((v) => `${v.participantId}`).join('|') : '';
+ }
+ 
+ /** 割れた見積もりの片側（札と、それを出した人の表示名）。 */
