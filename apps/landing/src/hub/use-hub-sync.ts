@@ -80,6 +80,8 @@ export interface HubSync {
   readonly needsPassphrase: boolean;
   /** 接続の状態。 */
   readonly connection: 'online' | 'reconnecting';
+  /** ルームの作成を送って、応答を待っているか（#642 のレビュー）。待つ間は次の作成を送らない。 */
+  readonly creating: boolean;
   /**
    * いま映しているルームの参加用 URL（未参加なら null）。
    *
@@ -154,10 +156,21 @@ export function useHubSync(): HubSync {
   /** 前に作ったルーム名（`use-recent-room-names.ts`・#633）。 */
   const { names: recentRoomNames, remember: rememberRoomName, forget: forgetRoomName } = useRecentRoomNames();
   /**
-   * 直近の作成で送ったルーム名。**覚えるのは `room.created` を受けてから**である
-   * （送っただけでは覚えない —— 弾かれた名前を候補に残さない。#633 EARS 1）。
+   * 応答を待っている作成で送ったルーム名（待っていなければ null）。**覚えるのは `room.created` を
+   * 受けてから**である（送っただけでは覚えない —— 弾かれた名前を候補に残さない。#633 EARS 1）。
+   *
+   * **null でない間は次の作成を送らない**（{@link creating}）。応答（`room.created`）は送った名前を
+   * 持たないので、待つ間に別の名前で送り直せると、成功した 1 つ目の応答で 2 つ目の名前を覚えてしまう
+   * （#642 のレビュー。2 つ目はサーバーが弾く）。ハブのエラーも作成のものとは限らないので、送った名前と
+   * 応答を数で対応づけるのではなく、**待つ作成を 1 つに限る**。
    */
-  const lastCreateRoomNameRef = useRef<string | null>(null);
+  const pendingCreateRoomNameRef = useRef<string | null>(null);
+  /** 作成の応答待ちか。画面は作るボタンを止める（{@link pendingCreateRoomNameRef} の写し）。 */
+  const [creating, setCreating] = useState(false);
+  const settleCreate = useCallback(() => {
+    pendingCreateRoomNameRef.current = null;
+    setCreating(false);
+  }, []);
 
   const connRef = useRef<SyncConnection | null>(null);
   /**
@@ -243,8 +256,8 @@ export function useHubSync(): HubSync {
           // 作成したときは URL に `?room=` が無いので、履歴を汚さず差し替える。
           // **画面の側も同時に進める**（URL を書き換えても状態は追随しない）。
           if (msg.type === 'room.created') {
-            if (lastCreateRoomNameRef.current !== null) rememberRoomName(lastCreateRoomNameRef.current);
-            lastCreateRoomNameRef.current = null;
+            if (pendingCreateRoomNameRef.current !== null) rememberRoomName(pendingCreateRoomNameRef.current);
+            settleCreate();
             codeRef.current = msg.code;
             setCode(msg.code);
             const url = new URL(window.location.href);
@@ -259,6 +272,9 @@ export function useHubSync(): HubSync {
         // 入れなかった」ことが確定しており、待ち続けると読み込み中の表示から抜けられない
         // （合言葉を求められた・混雑で弾かれた場合も、参加画面で文言を読ませて操作させる）。
         setResuming(false);
+        // **作成の待ちも終わらせる**（#642 のレビュー）。作成を弾かれたら送り直せるようにする。
+        // 作成と無関係のエラーで降りても、覚える名前は捨てるだけなので、弾かれた名前は残らない。
+        settleCreate();
         // 次の一手の決め方は `hub-frames.ts` の `planHubError`。ここは実行だけを受け持つ。
         const intent = planHubError(msg, planForJoinError(msg.code, msg.message, msg.message), {
           currentCode: codeRef.current,
@@ -314,6 +330,10 @@ export function useHubSync(): HubSync {
       },
       onConnectionChange: (state) => setConnection(state),
       onReconnected: () => {
+        // **作成の応答は前の接続と一緒に失われた。** 待ちを降ろさないと、作るボタンが止まったまま戻らない
+        // （#642 のレビューの直し）。画面は繋がっていない間は作成を送らせないので、溜めた作成が
+        // 繋ぎ直しで後から流れて応答が来る、ということは無い（`SyncConnection.send` の溜め置きは使われない）。
+        settleCreate();
         // 切断中に名簿が変わっているので、入り直して新しい名簿を受け取る。
         resumeIfPossible();
         // **切断中にルームが終わっていることがある。** 名乗りフォームの前で
@@ -343,15 +363,19 @@ export function useHubSync(): HubSync {
     // **依存は URL 由来の値だけにする。** 入口の URL はページ読み込みで決まり
     // （全ページ読み込みで WS が張り直しになる・D14）、作成で得たコードをここへ混ぜると
     // 作成のたびに接続が張り直る（`tests/hub/use-hub-sync.test.tsx` が固定している）。
-  }, [initialCode, resumeIfPossible, checkIfNeeded, send, cancelRetry, rateLimited, resetRetry, rememberRoomName]);
+  }, [initialCode, resumeIfPossible, checkIfNeeded, send, cancelRetry, rateLimited, resetRetry, rememberRoomName, settleCreate]);
 
   const createRoom = useCallback(
     (roomName: string, displayName: string) => {
+      // **待っている作成があれば送らない**（{@link pendingCreateRoomNameRef}・#642 のレビュー）。
+      // 画面のボタンも止めるが、クリック以外の送信経路（requestSubmit・支援技術）はここで止める。
+      if (pendingCreateRoomNameRef.current !== null) return;
       // **利用者が別の道を選んだ。** 仕掛かっていた再試行（照会の可能性がある）は
       // もう意味を持たないので取り消す。
       cancelRetry();
       lastJoinRef.current = { displayName };
-      lastCreateRoomNameRef.current = roomName;
+      pendingCreateRoomNameRef.current = roomName;
+      setCreating(true);
       setError(null);
       send(createCommand(roomName, displayName));
     },
@@ -386,6 +410,7 @@ export function useHubSync(): HubSync {
     error,
     needsPassphrase,
     connection,
+    creating,
     createRoom,
     joinRoom,
     forgetRoomName,

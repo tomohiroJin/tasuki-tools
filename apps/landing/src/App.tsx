@@ -59,6 +59,7 @@ export function App() {
           recentRoomNames={hub.recentRoomNames}
           error={hub.error}
           connection={hub.connection}
+          creating={hub.creating}
           onCreate={hub.createRoom}
           onForgetRoomName={hub.forgetRoomName}
         />

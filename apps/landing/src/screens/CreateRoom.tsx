@@ -21,6 +21,11 @@ export interface CreateRoomProps {
   readonly error: string | null;
   /** 同期サーバーへ繋がっているか。繋がっていなければ作成も参加もできない（#76 の回帰防止）。 */
   readonly connection: 'online' | 'reconnecting';
+  /**
+   * 作成の応答を待っているか（#642 のレビュー）。待つ間は作るボタンを止める ——
+   * 名前を変えて送り直せると、成功した 1 つ目の応答で 2 つ目の名前を覚えてしまう。
+   */
+  readonly creating: boolean;
   onCreate(roomName: string, displayName: string): void;
   /** 候補から 1 つを消す（端末からも消える・#633）。 */
   onForgetRoomName(roomName: string): void;
@@ -32,6 +37,7 @@ export function CreateRoom({
   recentRoomNames,
   error,
   connection,
+  creating,
   onCreate,
   onForgetRoomName,
 }: CreateRoomProps) {
@@ -53,6 +59,7 @@ export function CreateRoom({
     // ボタンの disabled はクリック以外の送信経路（requestSubmit・支援技術）を防がないので、
     // ここでも同じ判定を持つ（#76 の回帰防止）。
     if (connection !== 'online') return;
+    if (creating) return;
     if (displayName.trim() === '') return;
     onCreate(roomName.trim(), displayName.trim());
   };
@@ -156,7 +163,7 @@ export function CreateRoom({
           </p>
         )}
 
-        <button className="ui-button ui-button--lg" type="submit" disabled={connection !== 'online'}>
+        <button className="ui-button ui-button--lg" type="submit" disabled={connection !== 'online' || creating}>
           ルームを作る
         </button>
       </form>
