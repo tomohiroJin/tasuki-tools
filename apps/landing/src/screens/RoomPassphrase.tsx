@@ -48,7 +48,7 @@ export function RoomPassphrase({ protectedNow, connection, onSet }: RoomPassphra
       </p>
       <form className="hub-passphrase-form" onSubmit={submit}>
         <label className="hub-field">
-          <span className="hub-label">合言葉</span>
+          <span className="hub-label">新しい合言葉</span>
           <input
             className="ui-input"
             type="password"

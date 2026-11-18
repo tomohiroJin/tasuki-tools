@@ -31,7 +31,7 @@ async function createHubRoom(page: Page, name: string): Promise<string> {
 
 /** 選択画面の合言葉の欄に書いて、押すボタンを押す。 */
 async function submitPassphrase(page: Page, value: string, button: '設定' | '変更'): Promise<void> {
-  await page.getByLabel('合言葉', { exact: true }).fill(value);
+  await page.getByRole('textbox', { name: '新しい合言葉' }).fill(value);
   await page.getByRole('button', { name: button, exact: true }).click();
 }
 
@@ -45,7 +45,7 @@ test.describe('玄関で合言葉を設定・変更・解除できる', () => {
     // 設定
     await submitPassphrase(page, SECRET, '設定');
     await expect(page.getByText('合言葉を設定中です。', { exact: false })).toBeVisible();
-    await expect(page.getByLabel('合言葉', { exact: true }), '平文を画面に残さない').toHaveValue('');
+    await expect(page.getByRole('textbox', { name: '新しい合言葉' }), '平文を画面に残さない').toHaveValue('');
 
     // 変更
     await submitPassphrase(page, 'べつの合言葉', '変更');

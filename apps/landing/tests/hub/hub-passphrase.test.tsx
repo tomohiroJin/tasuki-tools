@@ -47,7 +47,7 @@ describe('玄関の合言葉', () => {
   it('Given 参加済み / When 合言葉を入れて設定する / Then コードを持たない room.passphrase.set が 1 通だけ送られる', () => {
     joinedRoom();
 
-    fireEvent.change(screen.getByLabelText('合言葉', { selector: 'input' }), { target: { value: 'ひみつ' } });
+    fireEvent.change(screen.getByLabelText('新しい合言葉', { selector: 'input' }), { target: { value: 'ひみつ' } });
     fireEvent.click(screen.getByRole('button', { name: '設定' }));
 
     expect(sentCommands().filter((c) => c['command'] === 'room.passphrase.set')).toEqual([
@@ -84,7 +84,7 @@ describe('玄関の合言葉', () => {
     joinedRoom();
     act(() => socket().deliver(ROSTER(true)));
 
-    fireEvent.change(screen.getByLabelText('合言葉', { selector: 'input' }), { target: { value: 'べつ' } });
+    fireEvent.change(screen.getByLabelText('新しい合言葉', { selector: 'input' }), { target: { value: 'べつ' } });
     fireEvent.click(screen.getByRole('button', { name: '変更' }));
 
     expect(sentCommands().filter((c) => c['command'] === 'room.passphrase.set')).toEqual([

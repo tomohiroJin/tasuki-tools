@@ -29,7 +29,7 @@ function showChoice(overrides: { protectedNow?: boolean; connection?: 'online' |
   return { onSetPassphrase };
 }
 
-const input = () => screen.getByLabelText('合言葉', { selector: 'input' }) as HTMLInputElement;
+const input = () => screen.getByLabelText('新しい合言葉', { selector: 'input' }) as HTMLInputElement;
 
 describe('選択画面の合言葉', () => {
   it('Given 合言葉が付いていないルーム / When 選択画面を見る / Then 見出しと「付いていない」状態と入力欄が出る', () => {
