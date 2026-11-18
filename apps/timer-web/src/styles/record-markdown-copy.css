@@ -3,6 +3,13 @@
   text-align: center;
 }
 
-.record-markdown-copy-status:not(:empty) {
+.record-markdown-copy-status {
+  min-block-size: 1lh;
   margin-top: var(--space-1);
+}
+
+.record-markdown-copy-text {
+  inline-size: 100%;
+  margin-top: var(--space-1);
+  text-align: start;
 }

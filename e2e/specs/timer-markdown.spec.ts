@@ -25,11 +25,23 @@ test('完了画面と保存済み履歴から同じ Markdown をコピーでき�
   const readClipboard = () => page.evaluate(() => navigator.clipboard.readText());
 
   const completeCopy = page.getByRole('button', { name: 'Markdown をコピー', exact: true });
+  const copied = page.getByText('コピーしました', { exact: true });
   await expect(completeCopy).toBeVisible();
   await expectScreenAcrossWidths(page, 'timer 完了画面', 3, '.summary');
-  await prepareClipboard();
-  await completeCopy.click();
-  await expect(page.getByText('コピーしました', { exact: true })).toBeVisible();
+  const nextSession = page.getByRole('button', { name: /新しいセッション/ });
+  const nextSessionPosition = () => nextSession.evaluate((button) => {
+    const rect = button.getBoundingClientRect();
+    return { x: rect.x + window.scrollX, y: rect.y + window.scrollY, width: rect.width, height: rect.height };
+  });
+  for (const width of [320, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(copied).toBeHidden();
+    await prepareClipboard();
+    const before = await nextSessionPosition();
+    await completeCopy.click();
+    await expect(copied).toBeVisible();
+    expect(await nextSessionPosition()).toEqual(before);
+  }
   const markdown = await readClipboard();
   expect(markdown.split('\n')).toEqual([
     'セッションまとめ',
@@ -53,4 +65,20 @@ test('完了画面と保存済み履歴から同じ Markdown をコピーでき�
   await page.keyboard.press('Enter');
   await expect(page.getByText('コピーしました', { exact: true })).toBeVisible();
   expect(await readClipboard()).toBe(markdown);
+
+  // ブラウザーの両方のコピー経路が使えないときも、手動で同じ内容を取り出せる。
+  await page.clock.install();
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined });
+    document.execCommand = () => false;
+  });
+  await historyCopy.click();
+  await expect(page.getByText('コピーできませんでした', { exact: true })).toBeVisible();
+  const manual = page.getByRole('textbox', { name: '手動コピー用の Markdown' });
+  await page.clock.fastForward(3_000);
+  await expect(manual).toHaveValue(markdown);
+  await manual.focus();
+  expect(await manual.evaluate((field: HTMLTextAreaElement) =>
+    field.value.slice(field.selectionStart, field.selectionEnd),
+  )).toBe(markdown);
 });

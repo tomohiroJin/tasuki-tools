@@ -73,6 +73,25 @@ describe('共有コピー操作', () => {
     expect(document.querySelector('textarea')).toBeNull();
   });
 
+  it.each([
+    { keepFailure: true, afterTimeout: 'failed' },
+    { keepFailure: false, afterTimeout: 'idle' },
+  ])('コピー失敗の通知を 2 秒後に $afterTimeout にする', async ({ keepFailure, afterTimeout }) => {
+    vi.useFakeTimers();
+    vi.stubGlobal('navigator', {});
+    Object.defineProperty(document, 'execCommand', { configurable: true, value: () => false });
+    const { result, rerender } = renderHook(({ text }) => useCopyText(text, { keepFailure }), {
+      initialProps: { text: '元の記録' },
+    });
+
+    await act(() => result.current.copy());
+    expect(result.current.state).toBe('failed');
+    act(() => vi.advanceTimersByTime(3000));
+    expect(result.current.state).toBe(afterTimeout);
+    rerender({ text: '次の記録' });
+    expect(result.current.state).toBe('idle');
+  });
+
   it('Given コピーが未完了 / When 対象 URL が変わる / Then 古い成功を新しい URL の成功として見せない', async () => {
     // Given: 以前の URL のコピーが保留されている。
     let finish!: () => void;

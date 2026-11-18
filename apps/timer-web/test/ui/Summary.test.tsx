@@ -34,8 +34,8 @@ describe("Summary", () => {
           ...baseRecord,
           id: "internal-record-id",
           roomId: "internal-room-id",
-          topicTitle: "R&D *Buzz*\n# 次のお題 &amp; &#65; &#x41;",
-          members: ["A_[1]", "Bob"],
+          topicTitle: "R&D *Buzz*\r\n# 次のお題\r<tag>\u2028`code`\u2029~~test~~\n\\path &amp; &#65; &#x41; https://example.com/a_b",
+          members: ["A_[1]", "taro_y"],
           driverCounts: [2, 1],
           totalSwitches: 3,
           rounds: 1,
@@ -51,24 +51,38 @@ describe("Summary", () => {
     expect(writeText).toHaveBeenCalledExactlyOnceWith([
       "セッションまとめ",
       "",
-      "- お題：R&D \\*Buzz\\* # 次のお題 \\&amp; \\&#65; \\&#x41;",
+      "- お題：R&D \\*Buzz\\* # 次のお題 \\<tag\\> \\`code\\` \\~\\~test\\~\\~ \\\\path \\&amp; \\&#65; \\&#x41; https://example.com/a_b",
       "- 所要時間：5分00秒",
       "- 交代回数：3回",
       "- 周回数：1周",
       "- 参加者（2人）",
       "  - 「A\\_\\[1\\]」（担当2回）",
-      "  - 「Bob」（担当1回）",
+      "  - 「taro_y」（担当1回）",
     ].join("\n"));
   });
 
-  it("クリップボードへ書き込めなかったときは失敗を表示する（#408）", async () => {
+  it("コピーに失敗したときは本文を選択でき、再試行の成功で入力欄を閉じる（#408）", async () => {
     const writeText = vi.fn().mockRejectedValue(new Error("denied"));
     vi.stubGlobal("navigator", { clipboard: { writeText } });
     render(<Summary endType="complete" record={baseRecord} onNewSession={noop} onSaveRecord={noop} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Markdown をコピー" }));
+    const copyButton = screen.getByRole("button", { name: "Markdown をコピー" });
+    expect(screen.queryByRole("textbox", { name: "手動コピー用の Markdown" })).toBeNull();
+    fireEvent.click(copyButton);
 
     expect(await screen.findByText("コピーできませんでした")).toBeTruthy();
+    const field = screen.getByRole<HTMLTextAreaElement>("textbox", { name: "手動コピー用の Markdown" });
+    expect(field.readOnly).toBe(true);
+    expect(field.value).toContain("- お題：FizzBuzz");
+    expect(writeText).toHaveBeenCalledExactlyOnceWith(field.value);
+    fireEvent.focus(field);
+    expect(field.selectionStart).toBe(0);
+    expect(field.selectionEnd).toBe(field.value.length);
+
+    writeText.mockResolvedValueOnce(undefined);
+    fireEvent.click(copyButton);
+    expect(await screen.findByText("コピーしました")).toBeTruthy();
+    expect(screen.queryByRole("textbox", { name: "手動コピー用の Markdown" })).toBeNull();
   });
 
   it("完成（endType=complete）では達成を示すタイトルを表示する", () => {

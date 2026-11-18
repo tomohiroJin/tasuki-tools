@@ -11,7 +11,8 @@ interface RecordMarkdownCopyProps {
 }
 
 export function RecordMarkdownCopy({ record, recordLabel }: RecordMarkdownCopyProps) {
-  const { copy, state } = useCopyText(formatRecordMarkdown(record));
+  const markdown = formatRecordMarkdown(record);
+  const { copy, state } = useCopyText(markdown, { keepFailure: true });
   const message = state === "done" ? "コピーしました" : state === "failed" ? "コピーできませんでした" : "";
 
   return (
@@ -25,6 +26,16 @@ export function RecordMarkdownCopy({ record, recordLabel }: RecordMarkdownCopyPr
         {COPY_LABEL}
       </button>
       <p className="ui-note record-markdown-copy-status" aria-live="polite">{message}</p>
+      {state === "failed" && (
+        <textarea
+          aria-label="手動コピー用の Markdown"
+          className="ui-input record-markdown-copy-text"
+          readOnly
+          rows={5}
+          value={markdown}
+          onFocus={(event) => event.currentTarget.select()}
+        />
+      )}
     </div>
   );
 }

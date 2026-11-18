@@ -11,7 +11,10 @@ function markdownText(text: string): string {
   // 名前やお題の改行を畳み、Markdown 記法に使う記号をエスケープする。
   return text
     .replace(/\s*[\r\n\u2028\u2029]+\s*/g, " ")
-    .replace(/[<>[\]*_`~\\]/g, "\\$&")
+    // 単語中の下線は強調にならない。表示名や URL をそのまま保つ。
+    .replace(/(?<=[\p{L}\p{N}])(_+)(?=[\p{L}\p{N}])|[<>[\]*_`~\\]/gu, (symbol, wordUnderscores: string | undefined) =>
+      wordUnderscores ?? `\\${symbol}`,
+    )
     // R&D などの & は保ち、Markdown で文字参照として読まれる形だけを保護する。
     .replace(/&(?=(?:[a-z][a-z0-9]*|#[0-9]+|#x[0-9a-f]+);)/gi, "\\&");
 }
