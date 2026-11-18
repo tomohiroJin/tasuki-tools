@@ -1,0 +1,21 @@
+# 変異 2000: ハブが合言葉を設定・解除しても名簿を配り直さない
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/live-ws.hub-passphrase.test.ts
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m2000-*.patch
+# 復元: git apply -R scripts/mutations/m2000-*.patch
+#
+# #638。ハブ（玄関）の合言葉の設定。付いているかの印が画面に届かず、設定したのに「付いていません」のまま残る。
+diff --git a/apps/tasuki-sync/src/application/hub-handlers.ts b/apps/tasuki-sync/src/application/hub-handlers.ts
+index f525aee4..01d2ed0a 100644
+--- a/apps/tasuki-sync/src/application/hub-handlers.ts
++++ b/apps/tasuki-sync/src/application/hub-handlers.ts
+@@ -182,7 +182,6 @@ export function makeHubHandlers(deps: HubHandlerDeps): HubHandlers {
+       return;
+     }
+     applyRoomPassphrase(deps.tokenStore, room.code, cmd.passphrase);
+-    hub.broadcastRoster(room.code);
+   }
+ 
+   function handleJoin(connId: string, cmd: Extract<HubCommand, { command: "room.join" }>): void {

@@ -1,0 +1,22 @@
+# 変異 2008: 玄関の合言葉の「解除」が何も送らない
+#
+# 検出を期待するテスト:
+#   - apps/landing/tests/room-choice-passphrase.test.tsx
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m2008-*.patch
+# 復元: git apply -R scripts/mutations/m2008-*.patch
+#
+# #638。解除を押しても合言葉が外れず、押した人は外れたと思う。
+diff --git a/apps/landing/src/screens/RoomPassphrase.tsx b/apps/landing/src/screens/RoomPassphrase.tsx
+index fac89b1a..7050535f 100644
+--- a/apps/landing/src/screens/RoomPassphrase.tsx
++++ b/apps/landing/src/screens/RoomPassphrase.tsx
+@@ -61,7 +61,7 @@ export function RoomPassphrase({ protectedNow, connection, onSet }: RoomPassphra
+         <div className="ui-actions">
+           {protectedNow && (
+             <div className="ui-actions-start">
+-              <button type="button" className="ui-button ui-button--secondary" disabled={!online} onClick={() => onSet('')}>
++              <button type="button" className="ui-button ui-button--secondary" disabled={!online} onClick={() => undefined}>
+                 解除
+               </button>
+             </div>

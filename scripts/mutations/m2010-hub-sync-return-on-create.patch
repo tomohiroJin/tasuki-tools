@@ -1,0 +1,22 @@
+# 変異 2010: 玄関が、ルームを作った直後にも元の道具へ戻す
+#
+# 検出を期待するテスト:
+#   - apps/landing/tests/hub/hub-return-to-tool.test.tsx
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m2010-*.patch
+# 復元: git apply -R scripts/mutations/m2010-*.patch
+#
+# #638。作成は戻る理由を持たない。?from= を持つ URL でルームを作ると、選択画面を見られないまま別の道具へ飛ぶ。
+diff --git a/apps/landing/src/hub/use-hub-sync.ts b/apps/landing/src/hub/use-hub-sync.ts
+index 9dbfe2d1..bec071a4 100644
+--- a/apps/landing/src/hub/use-hub-sync.ts
++++ b/apps/landing/src/hub/use-hub-sync.ts
+@@ -240,7 +240,7 @@ export function useHubSync(): HubSync {
+           // 道具から送り返された人は、通ったら元の道具へ戻す（#638）。**選択画面へ進めない**
+           // （一瞬映ると、戻る先を持つ人に別の画面を見せる）。復帰の組は置いてあるので、道具が復帰できる。
+           // 作成（`room.created`）は戻る理由を持たない。
+-          if (msg.type === 'room.joined' && returnPath !== null) {
++          if (returnPath !== null) {
+             cancelRetry();
+             redirectTo(returnPath);
+             return;

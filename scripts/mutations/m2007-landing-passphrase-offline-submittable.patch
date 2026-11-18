@@ -1,0 +1,22 @@
+# 変異 2007: 玄関の合言葉の設定が、同期サーバーに繋がっていなくても送れる
+#
+# 検出を期待するテスト:
+#   - apps/landing/tests/room-choice-passphrase.test.tsx
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m2007-*.patch
+# 復元: git apply -R scripts/mutations/m2007-*.patch
+#
+# #638。繋がっていない間の送信は黙って積まれるだけで、設定したつもりで付いていないルームのままになる。
+diff --git a/apps/landing/src/screens/RoomPassphrase.tsx b/apps/landing/src/screens/RoomPassphrase.tsx
+index fac89b1a..9497c7cb 100644
+--- a/apps/landing/src/screens/RoomPassphrase.tsx
++++ b/apps/landing/src/screens/RoomPassphrase.tsx
+@@ -27,7 +27,7 @@ export function RoomPassphrase({ protectedNow, connection, onSet }: RoomPassphra
+   const online = connection === 'online';
+   // 空白だけの値は解除と同じ意味になる（サーバーが前後の空白を落とす）。設定の口からは送らせない —— 解除は専用の
+   // ボタンから。取り違えて外してしまわないため。
+-  const canSubmit = online && value.trim() !== '';
++  const canSubmit = value.trim() !== '';
+ 
+   const submit = (event: FormEvent): void => {
+     event.preventDefault();
