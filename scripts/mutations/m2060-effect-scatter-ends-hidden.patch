@@ -1,0 +1,13 @@
+diff --git a/apps/poker-web/src/index.css b/apps/poker-web/src/index.css
+index 28cce873..c59ca842 100644
+--- a/apps/poker-web/src/index.css
++++ b/apps/poker-web/src/index.css
+@@ -545,7 +545,7 @@
+   }
+   100% {
+     letter-spacing: 0.12em;
+-    opacity: 1;
++    opacity: 0;
+   }
+ }
+ 

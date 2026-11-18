@@ -251,6 +251,9 @@ const RESERVED_1950_1959 =
 const RESERVED_1960_1969 =
   "**対応表より後に足した変異。** 1960〜1969 は #622 の追加（1950〜1959 を使い切ったため）に割り当てた範囲。";
 
+const RESERVED_2050_2079 =
+  "**対応表より後に足した変異。** 2050〜2079 は #639（poker の開票の演出）に割り当てた範囲。";
+
 const RESERVED_1800_1819 =
   "**対応表より後に足した変異。** 1800〜1819 は #595（ScenarioBuilder を責務で分ける）に割り当てた範囲。";
 
@@ -10456,5 +10459,93 @@ export const MUTATIONS = [
     pkg: "apps/timer-web",
     tests: ["test/ui/RosterPanel.duplicate-proxy.test.tsx"],
     note: RESERVED_1850_1869 + " " + "#595。RosterPanel.tsx の代理追加の配線。直したのに赤いままで、「まだ駄目なのか」と読める（#291）。",
+  },
+  {
+    id: 2050,
+    label: "全員一致の下限（2 票）を外し、1 票だけでも一致にする",
+    patch: "m2050-agreement-unanimous-single-vote.patch",
+    pkg: "packages/poker-core",
+    tests: ["tests/agreement.test.ts"],
+    note: RESERVED_2050_2079 + " " + "#639。agreement.ts。1 人だけの開票で「全員同じ」の演出が出る。",
+  },
+  {
+    id: 2051,
+    label: "全員バラバラの下限（3 票）を 2 票へ下げる",
+    patch: "m2051-agreement-scatter-two-votes.patch",
+    pkg: "packages/poker-core",
+    tests: ["tests/agreement.test.ts"],
+    note: RESERVED_2050_2079 + " " + "#639。agreement.ts。2 人で違うだけ（よくある）のに「全員バラバラ」の演出が出る。",
+  },
+  {
+    id: 2052,
+    label: "? と ☕ が混ざっていても判定する（数字の札だけにしない）",
+    patch: "m2052-agreement-question-coffee-allowed.patch",
+    pkg: "packages/poker-core",
+    tests: ["tests/agreement.test.ts"],
+    note: RESERVED_2050_2079 + " " + "#639。agreement.ts。全員が ? や ☕ のときに「全員同じ」と祝う。",
+  },
+  {
+    id: 2053,
+    label: "全員の投票完了の人数の下限（2 人）を 1 人へ下げる",
+    patch: "m2053-effect-complete-single-voter.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/room-view.test.ts"],
+    note: RESERVED_2050_2079 + " " + "#639。room-view.ts。1 人だけの部屋で「全員出そろいました」が出る。",
+  },
+  {
+    id: 2054,
+    label: "全員の投票完了の判定に切断中の人も数える",
+    patch: "m2054-effect-complete-ignores-connection.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/room-view.test.ts"],
+    note: RESERVED_2050_2079 + " " + "#639。room-view.ts。サーバーの自動開票の分母（接続中の投票者）とずれ、切断した人が居ると出そろいが出ない。",
+  },
+  {
+    id: 2055,
+    label: "全員一致が演出の優先で落ち、全員の投票完了になる",
+    patch: "m2055-effect-unanimous-falls-to-complete.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/room-view.test.ts"],
+    note: RESERVED_2050_2079 + " " + "#639。room-view.ts。いちばん祝うべき全員一致で、控えめな帯が出る。",
+  },
+  {
+    id: 2056,
+    label: "再読み込み・途中入室の公開済みの状態でも演出を出す",
+    patch: "m2056-effect-shown-on-reload.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/room-page-effect.test.tsx"],
+    note: RESERVED_2050_2079 + " " + "#639。RoomPage.tsx。見届けていない開票で演出が出て、再読み込みのたびに帯が動く。",
+  },
+  {
+    id: 2057,
+    label: "演出の帯を読み上げの知らせ（role=status）にしない",
+    patch: "m2057-effect-band-not-announced.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/results.test.tsx"],
+    note: RESERVED_2050_2079 + " " + "#639。Results.tsx。画面の演出が読み上げに届かず、見える人だけが結果の山場を知る。",
+  },
+  {
+    id: 2058,
+    label: "演出の帯がポインタを受ける（pointer-events: none を外す）",
+    patch: "m2058-effect-band-takes-pointer.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/results-effect-css.test.ts"],
+    note: RESERVED_2050_2079 + " " + "#639。index.css。演出の最中に帯の下の操作（札・統計・記録）が押せなくなる。",
+  },
+  {
+    id: 2059,
+    label: "演出の長さを 2 秒の上限を超える 2.5 秒にする",
+    patch: "m2059-effect-band-too-long.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/results-effect-css.test.ts"],
+    note: RESERVED_2050_2079 + " " + "#639。index.css。演出が会を待たせる長さになる。",
+  },
+  {
+    id: 2060,
+    label: "バラバラの動きの終わりの姿を透明にする",
+    patch: "m2060-effect-scatter-ends-hidden.patch",
+    pkg: "apps/poker-web",
+    tests: ["tests/results-effect-css.test.ts"],
+    note: RESERVED_2050_2079 + " " + "#639。index.css。動きを減らす設定（長さ 0）で終わりの姿が出ず、文言が消えて何も伝わらない。",
   },
 ];

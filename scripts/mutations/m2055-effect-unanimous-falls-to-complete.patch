@@ -1,0 +1,13 @@
+diff --git a/apps/poker-web/src/room-view.ts b/apps/poker-web/src/room-view.ts
+index 272c1150..1594406e 100644
+--- a/apps/poker-web/src/room-view.ts
++++ b/apps/poker-web/src/room-view.ts
+@@ -58,7 +58,7 @@ export function resultsEffectOf(
+ ): ResultsEffect | null {
+   if (round.status !== 'revealed') return null;
+   const agreement = judgeAgreement(round.votes);
+-  if (agreement !== null) return agreement;
++  if (agreement === 'scattered') return agreement;
+   const voted = new Set(round.votes.map((v) => v.participantId));
+   const voters = participants.filter((p) => p.connected && !p.spectator);
+   return voters.length >= 2 && voters.every((p) => voted.has(p.id)) ? 'complete' : null;
