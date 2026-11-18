@@ -28,7 +28,7 @@ Tasuki の各アプリは「自分の systemd ユニット + 固有ポート + C
 > 配布のコマンドは v4.6.0 と同じく人が端末で流した（手元の設定の deny のため）。
 > ⚠ タグ `v4.6.1` の本文の「timer の画面の大きいフックと部品（…）」は誤り。責務で分けた 6 つのフックと部品は、
 > timer（use-timer-sync・RosterPanel）・玄関（use-hub-sync）・poker（useRoomEntry）・agenda（ScenarioBuilder）・
-> roulette（RegularsSection）の 5 つの道具にまたがる（敵対的レビューで見つかった）。
+> roulette（RegularsSection）の 4 つの道具と玄関にまたがる（敵対的レビューで見つかった）。
 
 > **#479（画面の崩れ）・#480・#465・#468・#469・#574 ほか、v4.5.0 以降の 66 PR は 2026-11-12 にまとめて配った**（`v4.6.0`）。
 > 新しいアプリは無く、`deploy/` の差分も文書だけなので root 作業は無し。poker → topic → roulette → agenda → checkin → landing → timer
