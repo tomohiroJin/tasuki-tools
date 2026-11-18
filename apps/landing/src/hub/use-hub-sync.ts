@@ -331,8 +331,11 @@ export function useHubSync(): HubSync {
       onConnectionChange: (state) => setConnection(state),
       onReconnected: () => {
         // **作成の応答は前の接続と一緒に失われた。** 待ちを降ろさないと、作るボタンが止まったまま戻らない
-        // （#642 のレビューの直し）。画面は繋がっていない間は作成を送らせないので、溜めた作成が
-        // 繋ぎ直しで後から流れて応答が来る、ということは無い（`SyncConnection.send` の溜め置きは使われない）。
+        // （#642 のレビューの直し）。
+        //
+        // 既知の隙間: `SyncConnection` は溜めた送信を流してから `onReconnected` を呼ぶ。接続が閉じかけ
+        // （CLOSING）で close がまだ届いていない数ミリ秒の間に押した作成は溜められ、ここで流れたあとに
+        // 待ちが降りる。その応答では名前を覚えない（覚え損ねるだけで、弾かれた名前は残らない）。
         settleCreate();
         // 切断中に名簿が変わっているので、入り直して新しい名簿を受け取る。
         resumeIfPossible();
