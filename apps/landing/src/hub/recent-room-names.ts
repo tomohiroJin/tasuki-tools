@@ -32,8 +32,13 @@ export const MAX_REMEMBERED_ROOM_NAME = 100;
 // eslint-disable-next-line no-control-regex
 const CONTROL_CHARS = /[\u0000-\u001f\u007f]/;
 
-/** 端末の保存の形。**文字列の配列**（新しい順）。 */
-const StoredRecentRoomNamesSchema = v.array(v.string());
+/**
+ * 端末の保存の形。**配列**（新しい順）。要素は 1 つずつ検める（下の {@link parseRecentRoomNames}）ので、
+ * ここで `v.string()` を課さない —— 課すと、文字列でない要素が 1 つ混ざっただけで配列ごと落ち、
+ * 次の作成でまともな名前まで上書きで失われる（#633 のレビュー指摘 1）。
+ */
+const StoredRecentRoomNamesSchema = v.array(v.unknown());
+const isString = (x: unknown): x is string => typeof x === 'string';
 
 /** 覚えてよい形に整えた名前。覚えられないなら null。 */
 function usableRoomName(name: string): string | null {
@@ -61,12 +66,13 @@ function tidy(names: readonly string[]): string[] {
 /**
  * 端末から読んだ値を候補にする。**形が違えば空**（作成を妨げない。EARS 6）。
  *
- * 配列としては読めても、使えない要素は 1 つずつ外す（手で書き換えた 1 件のために残りを失わせない）。
+ * 配列としては読めても、使えない要素（文字列でない・空・字面の無い・長すぎる・制御文字）は 1 つずつ外す
+ * （手で書き換えた 1 件のために残りを失わせない）。
  */
 export function parseRecentRoomNames(raw: unknown): string[] {
   const parsed = v.safeParse(StoredRecentRoomNamesSchema, raw);
   if (!parsed.success) return [];
-  return tidy(parsed.output);
+  return tidy(parsed.output.filter(isString));
 }
 
 /** 作ったルームの名前を先頭に足す。同じ名前は 1 つにまとめ、覚えられない名前なら候補を変えない。 */

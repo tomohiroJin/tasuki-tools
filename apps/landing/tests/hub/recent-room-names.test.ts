@@ -72,9 +72,12 @@ describe('parseRecentRoomNames（端末から読んだ値を検める）', () =>
     ['文字列', '朝会モブ'],
     ['数', 3],
     ['オブジェクト', { items: ['朝会モブ'] }],
-    ['文字列でない要素を含む配列', ['朝会モブ', 3]],
   ])('Given 形の違う保存（%s） / When 読む / Then 空を返す', (_label, raw) => {
     expect(parseRecentRoomNames(raw)).toEqual([]);
+  });
+
+  it('Given 文字列でない要素が混ざった配列 / When 読む / Then その要素だけを外し、残りの名前は失わない', () => {
+    expect(parseRecentRoomNames(['朝会モブ', 3, null, { name: 'x' }, '定例'])).toEqual(['朝会モブ', '定例']);
   });
 
   it('Given 使えない名前と重複を含む / When 読む / Then 使えるものだけを、最初に出た順で 1 つずつ返す', () => {

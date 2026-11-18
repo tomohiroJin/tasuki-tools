@@ -10,6 +10,8 @@
  * - タグ無し #10 — 札を選ぶと各ツールが開くこと（`local` 専用の回帰）。
  * - タグ無し #249 — 端末の記録への入口（`?view=history`）と、繋がらないときの玄関
  *   （`local` 専用。実ルームの枠を使い、WS を成立させない細工も要る）。
+ * - タグ無し #633 — 前に作ったルーム名を覚えて作成画面に入れ直し、候補から選べて消せること
+ *   （`local` 専用。実ルームを 3 つ作る）。
  */
 import { expect, test } from '../fixtures/test';
 import { expectScreenAcrossWidths } from '../support/a11y';
@@ -488,7 +490,7 @@ test.describe('@core 見つからないルームの参加用 URL', () => {
 });
 
 /**
- * 前に作ったルーム名を覚えて入れ直す（#633・タグ無し = `local` 専用。実ルームの枠を 2 つ使う）。
+ * 前に作ったルーム名を覚えて入れ直す（#633・タグ無し = `local` 専用。実ルームを 3 つ作る）。
  *
  * 単体（`apps/landing/tests/hub/recent-room-names-screen.test.tsx`）は保管庫と画面を jsdom で見る。
  * ここは**実ブラウザの `localStorage` が読み込みをまたいで残り、札が狭い幅でも崩れない**ことを見る。
@@ -524,6 +526,25 @@ test.describe('玄関が前に作ったルーム名を覚えて入れ直す（#6
     // 札と消すボタンが 320px〜1920px で溢れず、押せる大きさで重ならない（docs/guides/procedures/live-check.md）
     // 測る操作: 札 2 枚 × (選ぶ・消す) + ルームを作る = 5 以上
     await expectScreenAcrossWidths(page, '玄関（ルーム名の候補あり）', 5);
+
+    // 覚える上限いっぱい（100 文字。`MAX_REMEMBERED_ROOM_NAME`）の名前の札も、狭い幅で「…」に切れて溢れない。
+    // ルームの枠を使わないよう、端末の保存へ直に置いて開き直す（鍵の綴りは `recent-room-names-store.ts`）
+    const longName = 'あ'.repeat(100);
+    await page.evaluate(
+      (names) => localStorage.setItem('tasuki:recent-room-names', JSON.stringify(names)),
+      [longName, '朝会モブ', '定例のモブ'],
+    );
+    await page.reload();
+    await expect(candidates(page).getByRole('button', { name: longName, exact: true })).toBeVisible();
+    // 測る操作: 札 3 枚 × (選ぶ・消す) + ルームを作る = 7 以上
+    await expectScreenAcrossWidths(page, '玄関（100 文字の名前の札あり）', 7);
+    // 後の手順のため、作った 2 つだけの保存へ戻す
+    await page.evaluate(
+      (names) => localStorage.setItem('tasuki:recent-room-names', JSON.stringify(names)),
+      ['朝会モブ', '定例のモブ'],
+    );
+    await page.reload();
+    await expect(page.getByLabel('ルーム名')).toHaveValue('朝会モブ');
 
     // When: 古いほうを選ぶ
     await candidates(page).getByRole('button', { name: '定例のモブ', exact: true }).click();
