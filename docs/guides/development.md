@@ -777,8 +777,9 @@ major は Dependency Dashboard の Issue に提示。決定は ADR 0008）。脆
   規則は `packageRules` の**末尾**に置いてあります（後の規則が前の規則を上書きするので、前へ動かすと
   「非破壊的な更新」の `groupName` に負けます）
 - **Node（`toolchain.json` の `node`）も Renovate が PR を出します**（#441。`customManagers`・`node-version`）。
-  minor / patch は「非破壊的な更新」に入り、major は Dependency Dashboard での承認制です。
-  上げるときは `package.json` の `engines.node` も同じ版に揃えてください（`audit-toolchain` が食い違いを止めます）
+  Renovate が `toolchain.json` の `node` と `package.json` の `engines.node` を **1 つの PR で**上げます
+  （片方だけだと `audit-toolchain` が赤くなるため）。「Node」の独立した群にしてあり、ほかの「非破壊的な更新」を巻き込みません。
+  major は Dependency Dashboard での承認制です。npm の manager が `engines` を拾って別の PR を出さないよう、無効にする規則を置いてあります
 - **Renovate の有効化にはリポジトリ管理者による GitHub App の許可が別途必要です。**
   `renovate.json` をコミットするだけでは動きません。脆弱性の PR は、加えて GitHub の
   Dependabot alerts が有効であることを要します（Renovate はそこから勧告を読みます）
