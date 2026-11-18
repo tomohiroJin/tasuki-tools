@@ -93,7 +93,7 @@ sync は Bun 起動で **cwd（`apps/tasuki-sync`）の `.env` を自動で読�
 ```bash
 cp apps/tasuki-sync/.env.example apps/tasuki-sync/.env
 # apps/tasuki-sync/.env を編集（最低限 ANTHROPIC_API_KEY と AI_UNLOCK_KEY。
-# 下のログ例に合わせるなら AI_PROBLEM_MODEL=haiku も設定。未設定なら既定 sonnet）
+# 速くて安く試すなら AI_PROBLEM_MODEL=haiku も設定。未設定なら既定 sonnet）
 ```
 
 ルートから `pnpm dev` を起動すると、turbo が各ワークスペースを適切な作業ディレクトリで回し、
@@ -108,7 +108,7 @@ pnpm dev
 
 > コマンドラインに env を直接書いて渡すこともできます（`ANTHROPIC_API_KEY=... pnpm dev`）。
 > その場合 `turbo.json` の `dev.passThroughEnv` 経由で透過します（新しい env を足すときは
-> `passThroughEnv` も更新）。ただし `.env` 方式のほうがシェル履歴にトークンが残らず安全です。
+> `passThroughEnv` も更新）。ただし `.env` 方式のほうがシェル履歴に API キーが残らず安全です。
 
 AI 関連の環境変数:
 

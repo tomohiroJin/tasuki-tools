@@ -263,7 +263,7 @@ curl -H "x-admin-token: $ADMIN_TOKEN" http://127.0.0.1:8787/admin/rooms
 4. `/opt/tasuki/tasuki-sync.env` に `ANTHROPIC_API_KEY` と `AI_UNLOCK_KEY` を追記
    （パーミッション 600 を維持）
 5. `sudo systemctl daemon-reload && sudo systemctl restart tasuki-sync`
-   → 起動ログに「AI お題生成: 有効」が出れば OK
+   → 起動ログの `ai` の行に `enabled=true` が出れば OK（`journalctl -u tasuki-sync` で見る）
 
 ### 運用
 
