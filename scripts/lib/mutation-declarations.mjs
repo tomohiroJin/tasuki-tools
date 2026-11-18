@@ -10588,4 +10588,12 @@ export const MUTATIONS = [
     tests: ["tests/hub/recent-room-names-screen.test.tsx"],
     note: RESERVED_1970_1989 + " " + "#633。作成の応答を受けた処理が途中で落ち、画面が先へ進まない。",
   },
+  {
+    id: 1986,
+    label: "覚えるルーム名の長さの上限を 100 文字から 99 文字にする",
+    patch: "m1986-recent-room-length-limit-lowered.patch",
+    pkg: "apps/landing",
+    tests: ["tests/hub/recent-room-names.test.ts"],
+    note: RESERVED_1970_1989 + " " + "#633 の 2 回目のレビュー（1978 の逆向き）。上限ちょうどの名前を覚えない。",
+  },
 ];
