@@ -4,7 +4,7 @@
  * @requirements #93
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type { EstimateGroupView } from '@tasuki/poker-core';
 import { EstimateLog } from '../src/components/EstimateLog';
 import {
@@ -13,7 +13,6 @@ import {
   ESTIMATE_LOG_HEADING,
   ESTIMATE_NO_POINTS,
   ESTIMATE_OPEN,
-  ESTIMATE_UNNAMED,
   RENAME_GROUP,
 } from '../src/estimate-copy';
 
@@ -135,14 +134,52 @@ describe('EstimateLog', () => {
     expect(names).toHaveLength(2);
     expect(new Set(names).size).toBe(2);
     // 新しい束が上（名前なしの束 2 が先）
-    expect(names[0]).toContain(ESTIMATE_UNNAMED);
+    expect(names[0]).toContain('見積もり 2');
     expect(names[1]).toContain('ITEM-1');
     for (const name of names) expect(name).toContain(ESTIMATE_CHANGE_POINTS);
   });
 
-  it('Given item が空 / When 描く / Then （名前なし）', () => {
-    render(<EstimateLog groups={[group(1, { item: '' })]} onSetPoints={vi.fn()} onRenameGroup={vi.fn()} disabled={false} />);
-    expect(screen.getByText(ESTIMATE_UNNAMED)).toBeTruthy();
+  it('Given 古い束が上限で消えた記録 / When 名前を変更して空へ戻す / Then 元の通し番号で表示する', () => {
+    const props = { onSetPoints: vi.fn(), onRenameGroup: vi.fn(), disabled: false, limit: 1 };
+    const groups = [group(104), group(105, { item: '' })];
+    const { rerender } = render(<EstimateLog {...props} groups={groups} />);
+    fireEvent.click(screen.getByRole('button', { name: '見積もり 105' }));
+    const input = screen.getByRole('textbox', { name: RENAME_GROUP });
+    fireEvent.change(input, { target: { value: '新しい名前' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(props.onRenameGroup).toHaveBeenLastCalledWith(105, '新しい名前');
+    rerender(<EstimateLog {...props} groups={[group(104), group(105, { item: '新しい名前' })]} />);
+    fireEvent.click(screen.getByRole('button', { name: '新しい名前' }));
+    const namedInput = screen.getByRole('textbox', { name: RENAME_GROUP });
+    fireEvent.change(namedInput, { target: { value: '' } });
+    fireEvent.keyDown(namedInput, { key: 'Enter' });
+    expect(props.onRenameGroup).toHaveBeenLastCalledWith(105, '');
+    rerender(<EstimateLog {...props} groups={groups} />);
+    expect(screen.getByRole('button', { name: '見積もり 105' })).toBeTruthy();
+  });
+
+  it('Given 名前ありと名前なしの記録 / When 直近表示からコピー / Then 全記録に画面と同じ題を使う', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    const previous = Object.getOwnPropertyDescriptor(navigator, 'clipboard');
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
+    try {
+      const groups = [
+        group(104, { item: 'PROJ-[4] https://example.com/a#section', points: 0 }),
+        group(105, { item: '', open: true }),
+      ];
+      render(<EstimateLog groups={groups} onSetPoints={vi.fn()} onRenameGroup={vi.fn()} disabled={false} limit={1} />);
+      expect(screen.getByText('見積もり 105')).toBeTruthy();
+      fireEvent.click(screen.getByRole('button', { name: '記録をコピー' }));
+      await waitFor(() => expect(screen.getByRole('status').textContent).toBe('コピーしました'));
+      expect(writeText).toHaveBeenCalledExactlyOnceWith([
+        '## 見積もりの記録',
+        '### 見積もり 105\n見積もり中\n- 1 回め ' + hhmm(AT) + ' 5×4',
+        '### PROJ-\\[4\\] https\\://example\\.com/a\\#section\nポイント: 0\n- 1 回め ' + hhmm(AT) + ' 5×4',
+      ].join('\n\n'));
+    } finally {
+      if (previous) Object.defineProperty(navigator, 'clipboard', previous);
+      else Reflect.deleteProperty(navigator, 'clipboard');
+    }
   });
 
   it('Given 束 5 つ・limit 3 / When 描く / Then 新しい 3 束だけ', () => {

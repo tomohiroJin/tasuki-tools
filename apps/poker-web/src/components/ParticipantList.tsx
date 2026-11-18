@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties } from 're
 import { participantLabel } from '@tasuki/room-core';
 import { ClampedName } from '@tasuki/web-kit/room';
 import type { Card, ParticipantView } from '@tasuki/poker-core';
-import { cardLabel } from './CardHand';
+import { cardLabel } from '../card-label';
 import { holdsSeatCard } from '../room-view';
 import { REMOVE, SPECTATOR_BADGE, removalTitle } from '../spectator-copy';
 import { RemovalConfirm } from './RemovalConfirm';

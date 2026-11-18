@@ -214,7 +214,7 @@ test.describe('poker の席の札の並び', () => {
     }
   });
 
-  test('Given 記録を入れて「次のアイテムへ」を押した後 / When 幅 320 で開く / Then 束の見出しの「（名前なし）」は 1 行に収まる（#10）', async ({ page, openPeer }) => {
+  test('Given 記録を入れて「次のアイテムへ」を押した後 / When 幅 320 で開く / Then 束の自動の題は 1 行に収まる（#10）', async ({ page, openPeer }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     const url = await createPokerRoom(page, 'ホスト');
     const guest = await (openPeer as OpenPeer)('cards-log');
@@ -237,12 +237,13 @@ test.describe('poker の席の札の並び', () => {
       await settle(page);
       const title = page.locator('.estimate-group:has(select) .estimate-group-item .estimate-item-title:visible').first();
       await expect(title).toBeVisible();
+      await expect(title).toHaveText('見積もり 1');
       const lines = await title.evaluate((el) => {
         const range = document.createRange();
         range.selectNodeContents(el);
         return new Set([...range.getClientRects()].map((r) => Math.round(r.top))).size;
       });
-      expect(lines, `幅 ${String(width)}: （名前なし）の字の行は 1 つ`).toBe(1);
+      expect(lines, `幅 ${String(width)}: 自動の題の字の行は 1 つ`).toBe(1);
     }
   });
 });
