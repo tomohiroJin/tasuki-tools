@@ -157,6 +157,16 @@ describe('resultsEffectOf（#639）', () => {
     expect(resultsEffectOf(revealed([['a', n(1)], ['b', n(5)], ['c', n(8)]]), five)).toBeNull();
   });
 
+  it('接続中の 2 人が 5・8 で、切断した人が 13 を出して開票されたなら、2 人の卓として scattered にしない（判定も接続中で見学でない人の票だけ）', () => {
+    const people = [person('a'), person('b'), person('c', { connected: false })];
+    expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(8)], ['c', n(13)]]), people)).toBe('complete');
+  });
+
+  it('接続中の 2 人が同じ 5 で、見学者が違う札の票を残していても、unanimous（見学者の票で崩さない）', () => {
+    const people = [person('a'), person('b'), person('w', { spectator: true })];
+    expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(5)], ['w', n(13)]]), people)).toBe('unanimous');
+  });
+
   it('出していない人が切断中なら、接続中の全員が出したので complete', () => {
     const people = [person('a'), person('b'), person('c', { connected: false })];
     expect(resultsEffectOf(revealed([['a', n(5)], ['b', n(8)]]), people)).toBe('complete');

@@ -18,9 +18,9 @@ import type { PokerSync } from '../hooks/useSync';
 import { useRoomEntry } from '../hooks/useRoomEntry';
 import { ESTIMATE_POINTS_LABEL, NEXT_ITEM, RECORDING_TOGGLE, REVOTE } from '../estimate-copy';
 import { JOIN_VOTING, SPECTATE, SPECTATING_NOTE, participantsHeading } from '../spectator-copy';
-import type { NumberCardValue } from '@tasuki/poker-core';
+import type { Card, NumberCardValue } from '@tasuki/poker-core';
 import type { ResultsEffect } from '../effect-copy';
-import { isOffline, revealedLiveAfter, seatCardCount, revealedVoteMap, revealedVotesOf, resultsEffectOf, sameRevealRound, spreadPromptOf } from '../room-view';
+import { isOffline, revealedLiveAfter, seatCardCount, revealedVoteMap, resultsEffectOf, sameRevealRound, spreadPromptOf } from '../room-view';
 
 // 隠しモードのテーブル（#403）。ゲームが始まったとき（`room-state.table` が届いたとき）にだけ読み込む
 // （普段の初回の読み込みを増やさない・設計 §5.5）。入口は見積もりの操作だけで、判定はサーバーが行う
@@ -83,18 +83,20 @@ export function RoomPage({ roomId, sync }: Props) {
   const open = sync.status === 'open';
   const [seenOpen, setSeenOpen] = useState(open);
   const [staleSnapshot, setStaleSnapshot] = useState<typeof sync.snapshot>(null);
+  // この描画で決まる次の控えから計算する（`set` は予約されるだけなので、古い控えで計算した値を `setBandSeen` へ渡さない）
+  const nextStale = open !== seenOpen ? (open ? sync.snapshot : null) : staleSnapshot;
   if (open !== seenOpen) {
     setSeenOpen(open);
-    setStaleSnapshot(open ? sync.snapshot : null);
+    setStaleSnapshot(nextStale);
   }
-  const bandStatus = open && sync.snapshot !== staleSnapshot ? round?.status : undefined;
+  const bandStatus = open && sync.snapshot !== nextStale ? round?.status : undefined;
   const [bandSeen, setBandSeen] = useState(bandStatus);
-  const [band, setBand] = useState<{ votes: ReadonlyMap<string, string>; effect: ResultsEffect | null } | null>(null);
+  const [band, setBand] = useState<{ votes: ReadonlyMap<string, Card>; effect: ResultsEffect | null } | null>(null);
   if (bandStatus !== bandSeen) {
     setBandSeen(bandStatus);
     setBand(
       revealedLiveAfter(bandSeen, bandStatus) && sync.snapshot
-        ? { votes: revealedVotesOf(sync.snapshot.round), effect: resultsEffectOf(sync.snapshot.round, sync.snapshot.participants) }
+        ? { votes: revealedVoteMap(sync.snapshot.round) ?? new Map(), effect: resultsEffectOf(sync.snapshot.round, sync.snapshot.participants) }
         : null,
     );
   } else if (band !== null && !(round !== undefined && sameRevealRound(band.votes, round))) {

@@ -62,21 +62,21 @@ export function resultsEffectOf(
   const voted = new Set(round.votes.map((v) => v.participantId));
   const voters = participants.filter((p) => p.connected && !p.spectator);
   if (voters.length < 2 || !voters.every((p) => voted.has(p.id))) return null;
-  return judgeAgreement(round.votes) ?? 'complete';
-}
-
-/** 公開済みの票（参加者 ID → 札の鍵）。投票中は空（#639） */
-export function revealedVotesOf(round: RoomStateMessage['round']): ReadonlyMap<string, string> {
-  return new Map(round.status === 'revealed' ? round.votes.map((v) => [v.participantId, cardKey(v.card)]) : []);
+  // 判定に渡す票も、出したかを見た人と同じ集合（切断した人・見学者の票は卓の顔ぶれに入れない）
+  const voterIds = new Set(voters.map((p) => p.id));
+  return judgeAgreement(round.votes.filter((v) => voterIds.has(v.participantId))) ?? 'complete';
 }
 
 /**
  * 公開済みの今の票が、見届けた公開の票の中に収まるか（#639）。同じ回の中で票は減りうる（退出で票が消える）が、
  * 増えたり札が変わったりはしない。収まらなければ別の回の公開済みが投票中を挟まず届いたので、見届けた帯は外す。
  */
-export function sameRevealRound(seen: ReadonlyMap<string, string>, round: RoomStateMessage['round']): boolean {
+export function sameRevealRound(seen: ReadonlyMap<string, Card>, round: RoomStateMessage['round']): boolean {
   if (round.status !== 'revealed') return false;
-  return round.votes.every((v) => seen.get(v.participantId) === cardKey(v.card));
+  return round.votes.every((v) => {
+    const card = seen.get(v.participantId);
+    return card !== undefined && cardKey(card) === cardKey(v.card);
+  });
 }
 
 /** 割れた見積もりの片側（札と、それを出した人の表示名）。 */
