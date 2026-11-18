@@ -24,7 +24,7 @@ export interface AiBudget {
   readonly aiLimiter: AiLimiter | undefined;
 }
 
-/** 設定から AI の予算を決める（トークンと合言葉が両方あるときだけ有効。spec 2026-06-12 参照）。 */
+/** 設定から AI の予算を決める（API キーと合言葉が両方あるときだけ有効。spec 2026-06-12 参照）。 */
 export function createAiBudget(base: Pick<AssemblyBase, "config" | "clock">): AiBudget {
   const { config, clock } = base;
   const aiReady = Boolean(config.anthropicApiKey && config.aiUnlockKey);
@@ -108,7 +108,7 @@ export function assembleTopic(
     generator: resources.generator,
     broadcaster: resources.broadcaster,
     send: (connId, msg) => ws.get().to.topic.send(connId, msg),
-    // トークン未設定なら合言葉も渡さない＝解錠は常に失敗（存在秘匿）
+    // API キー未設定なら合言葉も渡さない＝解錠は常に失敗（存在秘匿）
     aiUnlockKey: ai.aiReady ? config.aiUnlockKey : undefined,
   });
   return {

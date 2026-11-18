@@ -732,7 +732,7 @@ describe("ルームが破棄されたあとのお題の接続", () => {
  */
 describe("お題の ai.unlock は、正しい合言葉で解錠する", () => {
   it("正しい合言葉で ai.unlock すると aiUnlocked が届き、合言葉そのものはどのフレームにも載らない", async () => {
-    // Given: AI が有効な構成（トークンと合言葉が両方ある）でお題の接続が参加している
+    // Given: AI が有効な構成（API キーと合言葉が両方ある）でお題の接続が参加している
     await server.close();
     server = startLiveSyncServer({
       AI_UNLOCK_KEY: "right",
