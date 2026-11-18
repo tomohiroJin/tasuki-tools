@@ -42,6 +42,14 @@ export const METHOD_IDS = [
 ] as const;
 export type MethodId = (typeof METHOD_IDS)[number];
 
+/**
+ * #635 より前の画面が知っているやり方（`METHOD_IDS` の先頭 14）。
+ * 古い画面は受けるフレームを `METHOD_IDS` の `picklist` で検めるので、知らないやり方の回のフレームを丸ごと捨てて止まる。
+ * 古い画面が送る側のくじ（`checkin.method.draw`）は、ここからだけ引く（#635 の PR の敵対的検証 1）。
+ * 古い画面が残らなくなったら、`checkin.method.draw` ごと外す。
+ */
+export const METHOD_IDS_BEFORE_635: readonly MethodId[] = METHOD_IDS.slice(0, 14);
+
 /** 札の ID（1〜16 字）。やり方ごとの集合は `METHODS` が正本 */
 export type CardId = string;
 

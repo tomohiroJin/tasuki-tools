@@ -4,7 +4,10 @@ import {
   applyAutoReveal,
   chooseMethod,
   METHOD_GROUPS,
+  METHOD_IDS,
+  METHOD_IDS_BEFORE_635,
   drawMethod,
+  drawMethodForOldClients,
   drawMethodInGroup,
   playAgain,
   playCard,
@@ -60,6 +63,45 @@ describe("chooseMethod の置き換える回", () => {
     expect(chooseMethod(s, { seq: 1, method: "roti" })).toBe(s);
     expect(chooseMethod(s, { seq: 0, method: "roti" })).toBe(s);
     expect(chooseMethod(s, { seq: 2, method: "roti" }).round).toMatchObject({ seq: 3, method: "roti" });
+  });
+});
+
+describe("drawMethodForOldClients（#635 より前の画面の側のくじ）", () => {
+  const drawOld = (s: CheckinState, side: Side, randomInt: (n: number) => number) =>
+    drawMethodForOldClients(s, { seq: s.round?.seq ?? 0, side }, randomInt);
+
+  it("#635 より前の 14（各側 7）のやり方だけから引く。どの乱数でも、古い画面が知らないやり方を引かない", () => {
+    for (const side of ["checkin", "checkout"] as const) {
+      const seen = new Set<MethodId>();
+      const calls: number[] = [];
+      for (let i = 0; i < 7; i++) {
+        const s = drawOld(empty, side, (n) => (calls.push(n), i))._unsafeUnwrap();
+        seen.add(roundOf(s).method);
+      }
+      expect(calls.every((n) => n === 7), side).toBe(true);
+      expect([...seen].sort()).toEqual(METHOD_IDS_BEFORE_635.filter((m) => METHODS[m].side === side).sort());
+    }
+  });
+
+  it("いまのやり方が古い 7 つの中にあれば除く（6 から引く）", () => {
+    const calls: number[] = [];
+    const s = drawOld(choose(empty, "weather"), "checkin", (n) => (calls.push(n), n - 1))._unsafeUnwrap();
+    expect(calls).toEqual([6]);
+    expect(roundOf(s).method).toBe("mood-start");
+  });
+
+  it("違う回を見ていたら引かずに同じ参照", () => {
+    const s = choose(choose(empty, "weather"), "weather");
+    expect(drawMethodForOldClients(s, { seq: 1, side: "checkin" }, () => 0)._unsafeUnwrap()).toBe(s);
+  });
+});
+
+describe("METHOD_IDS_BEFORE_635", () => {
+  it("METHOD_IDS の先頭 14 で、各側 7 つ（#635 で足した 12 を含まない）", () => {
+    expect(METHOD_IDS_BEFORE_635).toEqual(METHOD_IDS.slice(0, 14));
+    for (const m of ["readiness", "busyness", "talk-wish", "battery", "clarity", "worry", "agreement", "next-step", "voice", "pace", "fatigue", "message"] as const) {
+      expect(METHOD_IDS_BEFORE_635, m).not.toContain(m);
+    }
   });
 });
 

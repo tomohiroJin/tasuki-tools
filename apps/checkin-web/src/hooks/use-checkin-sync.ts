@@ -144,7 +144,8 @@ export function useCheckinSync(roomCode: string): CheckinSync {
     };
     return {
       chooseMethod: (seq: number, method: MethodId) => sendCommand({ command: 'checkin.method.choose', seq, method }),
-      drawMethod: (seq: number, side: Side) => sendCommand({ command: 'checkin.method.draw', seq, side }),
+      // 側の全部から引く新しいコマンド。`checkin.method.draw` は #635 より前の画面のもので、#635 より前のやり方からしか引かない
+      drawMethod: (seq: number, side: Side) => sendCommand({ command: 'checkin.method.draw-side', seq, side }),
       drawMethodInGroup: (seq: number, group: GroupId) => sendCommand({ command: 'checkin.method.draw-group', seq, group }),
       playCard: (seq: number, card: CardId) => sendCommand({ command: 'checkin.card.play', seq, card }),
       setVisibility: (seq: number, visibility: Visibility) =>

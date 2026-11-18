@@ -1,4 +1,14 @@
-export { SIDES, VISIBILITIES, METHOD_IDS, METHODS, methodsOf, GROUP_IDS, METHOD_GROUPS, groupsOf } from "./methods.js";
+export {
+  SIDES,
+  VISIBILITIES,
+  METHOD_IDS,
+  METHOD_IDS_BEFORE_635,
+  METHODS,
+  methodsOf,
+  GROUP_IDS,
+  METHOD_GROUPS,
+  groupsOf,
+} from "./methods.js";
 export type { Side, Visibility, MethodId, CardId, MethodRule, GroupId, MethodGroup } from "./methods.js";
 
 export { INITIAL_CHECKIN_STATE } from "./types.js";
@@ -10,6 +20,7 @@ export type { CheckinDomainErrorCode, CheckinError } from "./errors.js";
 export {
   chooseMethod,
   drawMethod,
+  drawMethodForOldClients,
   drawMethodInGroup,
   playCard,
   setVisibility,

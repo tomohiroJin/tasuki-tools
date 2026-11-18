@@ -181,7 +181,7 @@ describe('Check-in Cards の操作', () => {
     });
     expect(latestSocket().sentJson().slice(1)).toEqual([
       { command: 'checkin.method.choose', seq: 0, method: 'weather' },
-      { command: 'checkin.method.draw', seq: 2, side: 'checkin' },
+      { command: 'checkin.method.draw-side', seq: 2, side: 'checkin' },
       { command: 'checkin.method.draw-group', seq: 2, group: 'checkout-mood' },
       { command: 'checkin.card.play', seq: 3, card: 'sunny' },
       { command: 'checkin.visibility.set', seq: 3, visibility: 'anonymous' },

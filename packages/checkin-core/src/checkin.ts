@@ -9,6 +9,7 @@ import { err, ok, type Result } from "neverthrow";
 import type { CheckinError } from "./errors.js";
 import {
   METHOD_GROUPS,
+  METHOD_IDS_BEFORE_635,
   METHODS,
   methodsOf,
   type CardId,
@@ -72,6 +73,18 @@ export function drawMethod(
   randomInt: (n: number) => number,
 ): Result<CheckinState, CheckinError<"CHECKIN_INVALID_RANDOM">> {
   return drawFrom(s, input.seq, methodsOf(input.side), randomInt);
+}
+
+/**
+ * #635 より前の画面のための側のくじ。側のやり方のうち `METHOD_IDS_BEFORE_635` だけから引く
+ * （古い画面は知らないやり方の回のフレームを捨てて止まるため）。いまのやり方は候補から除く。違う回を見ていたら引かずに同じ参照
+ */
+export function drawMethodForOldClients(
+  s: CheckinState,
+  input: { seq: number; side: Side },
+  randomInt: (n: number) => number,
+): Result<CheckinState, CheckinError<"CHECKIN_INVALID_RANDOM">> {
+  return drawFrom(s, input.seq, methodsOf(input.side).filter((m) => METHOD_IDS_BEFORE_635.includes(m)), randomInt);
 }
 
 /**
