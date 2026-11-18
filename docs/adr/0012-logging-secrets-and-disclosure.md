@@ -444,7 +444,7 @@ PR 1（main `3cddcdc`）で実装が入り、PR 3 で timer の旧い生成の�
 | D10 の MUST | 満たしている場所 |
 |---|---|
 | `category` を境界で列挙検証する | `packages/topic-core/src/schemas.ts` の `topic.generate` が `v.picklist(CATEGORIES)` で検証する。許可リストの正本は `packages/topic-core/src/limits.ts` の `CATEGORIES`。省いた要求（種類を足す前の画面）は `tdd` として読む |
-| 境界をすり抜けた値を埋め込まない | `buildTopicPrompt`（`packages/topic-core/src/prompt.ts`）が、言語・難易度・種類のどれかが許可リストの外なら例外で止まる（値は例外の文言に入れない）。`ClaudeCliTopicProvider` は子プロセスを起こす前にプロンプトを組み、止まったら起こさずに `invalid` で失敗する（呼び出し側は定型へ落ちる） |
+| 境界をすり抜けた値を埋め込まない | `buildTopicPrompt`（`packages/topic-core/src/prompt.ts`）が、言語・難易度・種類のどれかが許可リストの外なら、プロンプトを組まずに失敗（`Result` の err。どの欄かだけを持ち、渡された値は持たない）を返す。`ClaudeCliTopicProvider` は子プロセスを起こす前にプロンプトを組み、失敗なら起こさずに `invalid` で失敗する（呼び出し側は定型へ落ちる） |
 
 種類の値そのものはプロンプトの本文に埋め込まず、種類ごとに持つプロンプト（1 種類 1 本）を選ぶ鍵にだけ使う。
 **決定 D10 そのものは変えていない。** 守る対象の値が 1 つ増えたことを記録する。
