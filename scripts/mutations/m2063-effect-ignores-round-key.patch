@@ -1,9 +1,9 @@
 diff --git a/apps/poker-web/src/pages/RoomPage.tsx b/apps/poker-web/src/pages/RoomPage.tsx
-index 7984d1e4..3894062b 100644
+index 5f1d0020..964357dc 100644
 --- a/apps/poker-web/src/pages/RoomPage.tsx
 +++ b/apps/poker-web/src/pages/RoomPage.tsx
-@@ -88,7 +88,7 @@ export function RoomPage({ roomId, sync }: Props) {
-         ? { votes: revealedVotesOf(sync.snapshot.round), effect: resultsEffectOf(sync.snapshot.round, sync.snapshot.participants) }
+@@ -99,7 +99,7 @@ export function RoomPage({ roomId, sync }: Props) {
+         ? { votes: revealedVoteMap(sync.snapshot.round) ?? new Map(), effect: resultsEffectOf(sync.snapshot.round, sync.snapshot.participants) }
          : null,
      );
 -  } else if (band !== null && !(round !== undefined && sameRevealRound(band.votes, round))) {

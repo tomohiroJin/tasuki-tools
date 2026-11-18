@@ -1,5 +1,5 @@
 diff --git a/apps/poker-web/src/room-view.ts b/apps/poker-web/src/room-view.ts
-index 117fb7d0..95e0718f 100644
+index a36fb2a7..bda99ba3 100644
 --- a/apps/poker-web/src/room-view.ts
 +++ b/apps/poker-web/src/room-view.ts
 @@ -61,7 +61,7 @@ export function resultsEffectOf(
@@ -8,6 +8,6 @@ index 117fb7d0..95e0718f 100644
    const voters = participants.filter((p) => p.connected && !p.spectator);
 -  if (voters.length < 2 || !voters.every((p) => voted.has(p.id))) return null;
 +  if (voters.length < 1 || !voters.every((p) => voted.has(p.id))) return null;
-   return judgeAgreement(round.votes) ?? 'complete';
- }
- 
+   // 判定に渡す票も、出したかを見た人と同じ集合（切断した人・見学者の票は卓の顔ぶれに入れない）
+   const voterIds = new Set(voters.map((p) => p.id));
+   return judgeAgreement(round.votes.filter((v) => voterIds.has(v.participantId))) ?? 'complete';

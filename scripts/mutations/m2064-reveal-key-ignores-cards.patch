@@ -1,13 +1,13 @@
 diff --git a/apps/poker-web/src/room-view.ts b/apps/poker-web/src/room-view.ts
-index 360f9614..ed3eddb4 100644
+index a36fb2a7..c0093412 100644
 --- a/apps/poker-web/src/room-view.ts
 +++ b/apps/poker-web/src/room-view.ts
-@@ -76,7 +76,7 @@ export function revealedVotesOf(round: RoomStateMessage['round']): ReadonlyMap<s
-  */
- export function sameRevealRound(seen: ReadonlyMap<string, string>, round: RoomStateMessage['round']): boolean {
+@@ -75,7 +75,7 @@ export function sameRevealRound(seen: ReadonlyMap<string, Card>, round: RoomStat
    if (round.status !== 'revealed') return false;
--  return round.votes.every((v) => seen.get(v.participantId) === cardKey(v.card));
-+  return round.votes.every((v) => seen.has(v.participantId));
+   return round.votes.every((v) => {
+     const card = seen.get(v.participantId);
+-    return card !== undefined && cardKey(card) === cardKey(v.card);
++    return card !== undefined;
+   });
  }
  
- /** 割れた見積もりの片側（札と、それを出した人の表示名）。 */

@@ -1,13 +1,13 @@
 diff --git a/apps/poker-web/src/pages/RoomPage.tsx b/apps/poker-web/src/pages/RoomPage.tsx
-index 0ed42eb4..a2e00ac2 100644
+index 5f1d0020..0269a062 100644
 --- a/apps/poker-web/src/pages/RoomPage.tsx
 +++ b/apps/poker-web/src/pages/RoomPage.tsx
-@@ -87,7 +87,7 @@ export function RoomPage({ roomId, sync }: Props) {
+@@ -89,7 +89,7 @@ export function RoomPage({ roomId, sync }: Props) {
      setSeenOpen(open);
-     setStaleSnapshot(open ? sync.snapshot : null);
+     setStaleSnapshot(nextStale);
    }
--  const bandStatus = open && sync.snapshot !== staleSnapshot ? round?.status : undefined;
+-  const bandStatus = open && sync.snapshot !== nextStale ? round?.status : undefined;
 +  const bandStatus = open ? round?.status : undefined;
    const [bandSeen, setBandSeen] = useState(bandStatus);
-   const [band, setBand] = useState<{ votes: ReadonlyMap<string, string>; effect: ResultsEffect | null } | null>(null);
+   const [band, setBand] = useState<{ votes: ReadonlyMap<string, Card>; effect: ResultsEffect | null } | null>(null);
    if (bandStatus !== bandSeen) {
