@@ -2,7 +2,7 @@
  * ルーム画面の判断（#370 で `pages/RoomPage.tsx` から出した。`docs/adr/0015` 決定 1）。
  * React にも I/O にも依存しない。
  */
-import { findSpread, judgeAgreement, type Card, type ParticipantView, type RoomStateMessage, type SpreadEnd } from '@tasuki/poker-core';
+import { cardKey, findSpread, judgeAgreement, type Card, type ParticipantView, type RoomStateMessage, type SpreadEnd } from '@tasuki/poker-core';
 import type { ConnectionStatus } from '@tasuki/sync-client';
 import type { ResultsEffect } from './effect-copy';
 
@@ -63,6 +63,14 @@ export function resultsEffectOf(
   const voters = participants.filter((p) => p.connected && !p.spectator);
   if (voters.length < 2 || !voters.every((p) => voted.has(p.id))) return null;
   return judgeAgreement(round.votes) ?? 'complete';
+}
+
+/**
+ * 公開済みの票の組の鍵（投票中は空）。投票中を挟まず別の回の公開済みが届いたことを見分ける（#639）。
+ * 同じ回の名簿だけの変化では変わらない。
+ */
+export function revealKey(round: RoomStateMessage['round']): string {
+  return round.status === 'revealed' ? round.votes.map((v) => `${v.participantId}:${cardKey(v.card)}`).join('|') : '';
 }
 
 /** 割れた見積もりの片側（札と、それを出した人の表示名）。 */

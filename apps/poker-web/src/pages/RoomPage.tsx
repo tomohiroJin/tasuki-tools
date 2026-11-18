@@ -20,7 +20,7 @@ import { ESTIMATE_POINTS_LABEL, NEXT_ITEM, RECORDING_TOGGLE, REVOTE } from '../e
 import { JOIN_VOTING, SPECTATE, SPECTATING_NOTE, participantsHeading } from '../spectator-copy';
 import type { NumberCardValue } from '@tasuki/poker-core';
 import type { ResultsEffect } from '../effect-copy';
-import { isOffline, revealedLiveAfter, seatCardCount, revealedVoteMap, resultsEffectOf, spreadPromptOf } from '../room-view';
+import { isOffline, revealedLiveAfter, seatCardCount, revealedVoteMap, resultsEffectOf, revealKey, spreadPromptOf } from '../room-view';
 
 // 隠しモードのテーブル（#403）。ゲームが始まったとき（`room-state.table` が届いたとき）にだけ読み込む
 // （普段の初回の読み込みを増やさない・設計 §5.5）。入口は見積もりの操作だけで、判定はサーバーが行う
@@ -63,20 +63,27 @@ export function RoomPage({ roomId, sync }: Props) {
   // お題の札を見せるか。**手元だけの状態**で、他の人の画面には影響しない。お題が差し替わっても保つ
   // （お題は無いことが多く、あれば見られる程度でよい・#316 PR 1 の利用者の指摘）。
   const [topicOpen, setTopicOpen] = useState(true);
-  // 公開を投票中から見届けたか（#348 のレビュー。判断と理由は `room-view.ts` の `revealedLiveAfter`）。
+  // 公開を投票中から見届けたか（#348 のレビュー。判断と理由は `room-view.ts` の `revealedLiveAfter`）と、開票の演出の種類（#639）。
+  // **条件は 1 つ**: この画面が投票中を途切れなく見ていて、そのまま公開を見たときだけ（再読み込み・途中入室・接続の途切れの後に届いた公開済みは見届けていない）。
+  // 見届けた公開は票の組（`revealKey`）で覚える。接続が切れていた間に別の回が進み、投票中を挟まず公開済みが届いたら（再接続・投票中を挟まない更新）外れる。
+  // （切れている間に同じ票の回が回り直した場合は見分けられないが、画面の中身が同じなので帯が残っても誤りにならない）
+  // 演出の種類は見届けた瞬間の名簿で一度だけ決める（開票の後の入退室・切断で後から出ない・消えない）。
   // 前の描画の状態と比べて決める（描画中に状態を調整する React の型。状態が変わったときだけ書き換える）。
-  const roundStatus = sync.snapshot?.round.status;
-  const [seenStatus, setSeenStatus] = useState(roundStatus);
-  const [revealedLive, setRevealedLive] = useState(false);
-  // 開票の演出（#639）。種類は開票の瞬間の名簿で一度だけ決めて持つ（開票の後の入退室・切断で後から出ない・消えない）。
-  // 見届けた開票でなければ null（再読み込み・途中入室）
-  const [effect, setEffect] = useState<ResultsEffect | null>(null);
-  if (roundStatus !== seenStatus) {
-    setSeenStatus(roundStatus);
-    const live = revealedLiveAfter(seenStatus, roundStatus);
-    setRevealedLive(live);
-    setEffect(live && sync.snapshot ? resultsEffectOf(sync.snapshot.round, sync.snapshot.participants) : null);
+  const round = sync.snapshot?.round;
+  const watching = round?.status;
+  const [seenStatus, setSeenStatus] = useState(watching);
+  const [live, setLive] = useState<{ key: string; effect: ResultsEffect | null } | null>(null);
+  if (watching !== seenStatus) {
+    setSeenStatus(watching);
+    setLive(
+      revealedLiveAfter(seenStatus, watching) && sync.snapshot
+        ? { key: revealKey(sync.snapshot.round), effect: resultsEffectOf(sync.snapshot.round, sync.snapshot.participants) }
+        : null,
+    );
   }
+  const liveNow = live !== null && round !== undefined && live.key === revealKey(round);
+  const revealedLive = liveNow;
+  const effect = liveNow ? live.effect : null;
   // 入口の振り分け・自動の復帰・混雑の入り直し・消えたルームの組の破棄は同期フックの仕事（#369）。
   const { retryNotice } = useRoomEntry(sync, roomId);
 
