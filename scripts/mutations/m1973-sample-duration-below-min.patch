@@ -1,0 +1,7 @@
+--- a/apps/agenda-web/src/sample-scenarios.ts
++++ b/apps/agenda-web/src/sample-scenarios.ts
+@@ -29,3 +29,3 @@
+         title: '30 分の定例',
+-        steps: [step('チェックイン', 3), step('話題', 20), step('決めたことをたしかめる', 5), step('予備', 2)],
++        steps: [step('チェックイン', 3), step('話題', 20), step('決めたことをたしかめる', 5), step('予備', 0)],
+       },

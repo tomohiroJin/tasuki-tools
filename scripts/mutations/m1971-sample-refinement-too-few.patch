@@ -1,0 +1,7 @@
+--- a/apps/agenda-web/src/sample-scenarios.ts
++++ b/apps/agenda-web/src/sample-scenarios.ts
+@@ -42,3 +42,3 @@
+         title: 'リファインメント（PBR）',
+-        steps: [...repeatSteps(3, step('説明', 3), step('質問', 5), step('見積もり', 2)), step('まとめ', 5)],
++        steps: [...repeatSteps(2, step('説明', 3), step('質問', 5), step('見積もり', 2)), step('まとめ', 5)],
+       },

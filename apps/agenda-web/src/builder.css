@@ -13,15 +13,34 @@
   min-width: 0;
 }
 
-/* ── サンプルから選ぶ（組む画面の下に小さく。押したときだけ 3 行の一覧）───────── */
+/* ── サンプルから選ぶ（組む画面の下に小さく。押したときだけ会の種類ごとの一覧）─── */
 .builder-sample-menu {
   display: grid;
   gap: var(--space-2);
-  justify-items: start;
 }
+.builder-sample-toggle {
+  justify-self: start;
+}
+.builder-sample-groups,
+.builder-sample-group,
 .builder-sample-list {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+.builder-sample-groups {
+  gap: var(--space-4);
+}
+.builder-sample-group,
+.builder-sample-list {
   gap: var(--space-2);
+}
+.builder-sample-heading {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--ivory);
+  overflow-wrap: anywhere;
+}
+.builder-sample-list {
   margin: 0;
   padding: 0;
   list-style: none;
@@ -32,6 +51,7 @@
   flex-wrap: wrap;
   align-items: baseline;
   gap: var(--space-1) var(--space-3);
+  width: 100%;
   min-height: var(--tap-target);
   padding: var(--space-2) var(--space-4);
   border: 1px solid var(--line-strong);
@@ -39,6 +59,7 @@
   background: transparent;
   color: var(--ivory);
   text-align: start;
+  overflow-wrap: anywhere;
   cursor: pointer;
 }
 .builder-sample-row:hover {
