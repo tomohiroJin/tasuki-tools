@@ -97,8 +97,25 @@ describe("drawMethodForOldClients（#635 より前の画面の側のくじ）", 
 });
 
 describe("METHOD_IDS_BEFORE_635", () => {
-  it("METHOD_IDS の先頭 14 で、各側 7 つ（#635 で足した 12 を含まない）", () => {
-    expect(METHOD_IDS_BEFORE_635).toEqual(METHOD_IDS.slice(0, 14));
+  it("#635 より前の画面（main 7e0e6f7）の METHOD_IDS と同じ 14 で、各側 7 つ（#635 で足した 12 を含まない）", () => {
+    // 実装（slice）をなぞらず、古い画面が知っているやり方を書き下して比べる。METHOD_IDS の途中に足すと、ここが落ちる
+    expect(METHOD_IDS_BEFORE_635).toEqual([
+      "weather",
+      "energy",
+      "focus",
+      "takeaway-goal",
+      "role",
+      "expectation",
+      "mood-start",
+      "roti",
+      "takeaway-done",
+      "best-part",
+      "mood",
+      "next-meeting",
+      "weather-end",
+      "understanding",
+    ]);
+    for (const m of METHOD_IDS_BEFORE_635) expect(METHOD_IDS, m).toContain(m);
     for (const m of ["readiness", "busyness", "talk-wish", "battery", "clarity", "worry", "agreement", "next-step", "voice", "pace", "fatigue", "message"] as const) {
       expect(METHOD_IDS_BEFORE_635, m).not.toContain(m);
     }
