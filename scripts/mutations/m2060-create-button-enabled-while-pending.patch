@@ -1,8 +1,8 @@
 diff --git a/apps/landing/src/screens/CreateRoom.tsx b/apps/landing/src/screens/CreateRoom.tsx
-index ac609c6..e021626 100644
+index 01301ec..fcbe08b 100644
 --- a/apps/landing/src/screens/CreateRoom.tsx
 +++ b/apps/landing/src/screens/CreateRoom.tsx
-@@ -163,7 +163,7 @@ export function CreateRoom({
+@@ -164,7 +164,7 @@ export function CreateRoom({
            </p>
          )}
  

@@ -1,8 +1,8 @@
 diff --git a/apps/landing/src/hub/use-hub-sync.ts b/apps/landing/src/hub/use-hub-sync.ts
-index 3f405af..7ebeccd 100644
+index 8f6cda6..4caa094 100644
 --- a/apps/landing/src/hub/use-hub-sync.ts
 +++ b/apps/landing/src/hub/use-hub-sync.ts
-@@ -374,7 +374,7 @@ export function useHubSync(): HubSync {
+@@ -377,7 +377,7 @@ export function useHubSync(): HubSync {
        // もう意味を持たないので取り消す。
        cancelRetry();
        lastJoinRef.current = { displayName };
