@@ -6,7 +6,7 @@
  * 期待は実装の写しではなく、URL として何が正しいかを文字列で書く。
  */
 import { describe, it, expect } from "vitest";
-import { parseRoomRoute, roomHubPath } from "../src/room-route.js";
+import { RETURN_PARAM, parseRoomRoute, roomHubPath } from "../src/room-route.js";
 import { DEPARTURE_PARAM } from "../src/departure.js";
 
 const BASES = ["/agenda", "/checkin", "/roulette", "/topic"] as const;
@@ -138,5 +138,20 @@ describe("roomHubPath", () => {
 
   it("理由が無ければ ?left= は付かない", () => {
     expect(roomHubPath("R1")).toBe("/?room=R1");
+  });
+
+  // #638: 名乗り・合言葉は玄関に 1 つだけある。道具の入口から送り返された人が、通ったあとに元の道具へ
+  // 戻れるよう、どの道具から来たかを ?from= で運ぶ（行き先の解決と検証は玄関が持つ）。
+  it("元の道具は ?from= で運ぶ", () => {
+    expect(roomHubPath("R1", undefined, "poker")).toBe("/?room=R1&from=poker");
+  });
+
+  it("元の道具と抜けた理由は並べて運べる", () => {
+    expect(roomHubPath("R1", "self", "timer")).toBe("/?room=R1&left=self&from=timer");
+  });
+
+  it("元の道具の印は RETURN_PARAM の綴りで付く", () => {
+    const url = new URL(roomHubPath("R1", undefined, "topic"), "http://x");
+    expect(url.searchParams.get(RETURN_PARAM)).toBe("topic");
   });
 });

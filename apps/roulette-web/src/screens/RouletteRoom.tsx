@@ -68,7 +68,7 @@ export function RouletteRoom({ roomCode }: { roomCode: string }) {
   const reducedMotion = usePrefersReducedMotion();
 
   // 玄関へ戻す。抜けた・外されたときは理由を運ぶ（玄関が告知を出す・#290）。
-  useHubRedirect({ departed: sync.departed, needsHub: sync.needsHub, roomCode, hubPathFor, redirectTo });
+  useHubRedirect({ departed: sync.departed, needsHub: sync.needsHub, roomCode, returnTo: 'roulette', hubPathFor, redirectTo });
 
   const view = sync.roulette;
   const spin = view?.spin ?? null;
