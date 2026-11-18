@@ -247,8 +247,8 @@ describe('シナリオの端末への保存', () => {
 describe('同梱のサンプル', () => {
   const scenarios = SAMPLE_GROUPS.flatMap((group) => group.scenarios);
 
-  it.each(scenarios)('「$title」は境界スキーマの上限に収まる', (scenario) => {
-    expect(v.safeParse(ScenarioInputSchema, scenario).success).toBe(true);
+  it.each(scenarios)('「$title」は境界スキーマの上限に収まる', ({ title, steps, rounds }) => {
+    expect(v.safeParse(ScenarioInputSchema, { title, steps, rounds }).success).toBe(true);
   });
 
   it('KPT のふりかえりが検証を通り、合計が 3600 秒', () => {

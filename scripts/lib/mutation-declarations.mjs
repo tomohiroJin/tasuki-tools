@@ -10497,4 +10497,20 @@ export const MUTATIONS = [
     tests: ["tests/rendered-text-fits-font-base.test.tsx"],
     note: "#636。下書きを表示するときに拡張の書体を読み込む。",
   },
+  {
+    id: 1975,
+    label: "サンプルのくりかえしを変えたときに末尾の区切りを落とす",
+    patch: "m1975-sample-repeat-drops-tail.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/scenario-builder.test.tsx"],
+    note: "#636。回数を変えるだけで、まとめなどの区切りが消える。",
+  },
+  {
+    id: 1976,
+    label: "サンプルのくりかえしより前の行を削除しても組の開始位置をずらさない",
+    patch: "m1976-sample-repeat-keeps-old-start.patch",
+    pkg: "apps/agenda-web",
+    tests: ["tests/scenario-builder.test.tsx"],
+    note: "#636。回数を変えたとき、編集後の組と関係ない区切りに手が入る。",
+  },
 ];

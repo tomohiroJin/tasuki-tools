@@ -13,6 +13,7 @@ import {
   ROUNDS_UNIT,
   roundsMinusLabel,
   roundsPlusLabel,
+  SAMPLE_REPEAT_LABEL,
   SCENARIO_CHANGED_NOTE,
   SCENARIO_TITLE_LABEL,
   START_BUTTON,
@@ -28,11 +29,13 @@ import {
   bumpRounds,
   addBlockedByItems,
   canAddStep,
+  changeSampleRepeats,
   checkDraft,
   clipTitle,
   draftFromInput,
   inputFromView,
   isEmptyDraft,
+  maxSampleRepeats,
   roundsInRange,
   moveStep,
   perRoundMinutes,
@@ -76,6 +79,7 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
   const reducedMotion = usePrefersReducedMotion();
   const reasonId = useId();
   const titleId = useId();
+  const sampleRepeatId = useId();
   const roundsId = useId();
   const addRef = useRef<HTMLButtonElement>(null);
   const [focusRequest, setFocusRequest] = useState<FocusRequest>(null);
@@ -143,6 +147,24 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
               onChange={(event) => setDraft({ ...draft, title: clipTitle(event.target.value) })}
             />
           </div>
+          {draft.sampleRepeat !== undefined && (
+            <div className="builder-rounds">
+              <label htmlFor={sampleRepeatId}>{SAMPLE_REPEAT_LABEL}</label>
+              <div className="builder-minutes">
+                <select
+                  id={sampleRepeatId}
+                  className="ui-input builder-minutes-input"
+                  value={draft.sampleRepeat.count}
+                  onChange={(event) => setDraft(changeSampleRepeats(draft, Number(event.target.value)))}
+                >
+                  {Array.from({ length: maxSampleRepeats(draft, draft.sampleRepeat) }, (_, index) => (
+                    <option key={index + 1} value={index + 1}>{index + 1}</option>
+                  ))}
+                </select>
+                <span className="builder-minutes-unit" aria-hidden="true">{ROUNDS_UNIT}</span>
+              </div>
+            </div>
+          )}
           {draft.steps.length > 0 && (
             <ol className="builder-rows">
               {draft.steps.map((step, i) => (
@@ -208,7 +230,10 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
           </div>
         </section>
         {/* 主の欄（会の名前・ステップ・くりかえし）の下に控えめに置く（主役を押しのけない） */}
-        <SampleMenu draftIsDisposable={draftIsEmpty || draftIsRoom} onPick={(s) => setDraft(draftFromInput(s))} />
+        <SampleMenu
+          draftIsDisposable={draftIsEmpty || draftIsRoom}
+          onPick={(sample) => setDraft({ ...draftFromInput(sample), sampleRepeat: sample.repeat })}
+        />
       </div>
       <div className="ui-workspace-side builder-side">
         <section className="ui-panel builder-preview">

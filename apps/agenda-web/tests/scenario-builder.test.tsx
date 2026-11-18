@@ -557,6 +557,37 @@ describe('サンプルから選ぶ', () => {
     }]);
   });
 
+  it('リファインメントの件数を変えると、編集した行を保ちながら対象の組だけが増減する', () => {
+    joinedRoom();
+    pickRow(/リファインメント/);
+    const count = screen.getByRole('combobox', { name: 'サンプルのくりかえし' });
+    expect(count).toHaveValue('3');
+    typeName(1, '実際のお題');
+    fireEvent.change(count, { target: { value: '4' } });
+    expect(nameField(1)).toHaveValue('実際のお題');
+    expect(nameField(10)).toHaveValue('説明');
+    expect(nameField(13)).toHaveValue('まとめ');
+    fireEvent.change(count, { target: { value: '2' } });
+    expect(nameField(1)).toHaveValue('実際のお題');
+    expect(nameField(7)).toHaveValue('まとめ');
+    expect(screen.getAllByRole('textbox', { name: /^ステップ \d+ の名前$/ })).toHaveLength(7);
+    expect(roundsField()).toHaveValue(1);
+  });
+
+  it('くりかえしの前の行を消してから回数を変えても、その後ろのまとめは残る', () => {
+    joinedRoom();
+    pickRow(/読書会/);
+    fireEvent.click(screen.getByRole('button', { name: stepRemoveLabel(1) }));
+    const count = screen.getByRole('combobox', { name: 'サンプルのくりかえし' });
+    fireEvent.change(count, { target: { value: '1' } });
+    expect(nameField(1)).toHaveValue('かんそう');
+    expect(nameField(2)).toHaveValue('話し合い');
+    expect(nameField(3)).toHaveValue('まとめ');
+    fireEvent.click(screen.getByRole('button', { name: stepMoveDownLabel(1) }));
+    expect(screen.queryByRole('combobox', { name: 'サンプルのくりかえし' })).toBeNull();
+    expect(nameField(1)).toHaveValue('話し合い');
+  });
+
   it('Given 一覧は閉じている / When 押す・もう一度押す / Then aria-expanded が true、false になり、aria-controls が一覧を指す', () => {
     joinedRoom();
     fireEvent.click(menuButton());

@@ -140,6 +140,7 @@ test.describe('主な画面は隣り合うブロックが重ならず、縦の�
     for (const width of [320, 1280]) {
       await page.setViewportSize({ width, height: 900 });
       await settleAnimations(page);
+      await expect(samples).toHaveCount(13);
       await expect(samples.last()).toBeVisible();
       const overflow = await samples.evaluateAll((buttons) => Math.max(
         document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -155,6 +156,10 @@ test.describe('主な画面は隣り合うブロックが重ならず、縦の�
     await expect(firstStep).toHaveValue('説明');
     await expect(page.getByRole('textbox', { name: 'ステップ 10 の名前' })).toHaveValue('まとめ');
     await firstStep.fill('お題の説明');
+    const sampleRepeat = page.getByRole('combobox', { name: 'サンプルのくりかえし' });
+    await expect(sampleRepeat).toHaveValue('3');
+    await sampleRepeat.selectOption('2');
+    await expect(page.getByRole('textbox', { name: 'ステップ 7 の名前' })).toHaveValue('まとめ');
     await expect(firstStep).toHaveValue('お題の説明');
     await expect(page.getByRole('button', { name: 'ルームに読み込む', exact: true })).toBeEnabled();
   });
