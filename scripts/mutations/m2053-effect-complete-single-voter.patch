@@ -1,5 +1,5 @@
 diff --git a/apps/poker-web/src/room-view.ts b/apps/poker-web/src/room-view.ts
-index 38448780..9859adbd 100644
+index ba17e3f6..85969eb0 100644
 --- a/apps/poker-web/src/room-view.ts
 +++ b/apps/poker-web/src/room-view.ts
 @@ -61,7 +61,7 @@ export function resultsEffectOf(
@@ -8,6 +8,6 @@ index 38448780..9859adbd 100644
    const voters = participants.filter((p) => p.connected && !p.spectator);
 -  if (voters.length < 2 || !voters.every((p) => voted.has(p.id))) return null;
 +  if (voters.length < 1 || !voters.every((p) => voted.has(p.id))) return null;
-   // 卓の外（切断した人・名簿に居ない人）の票が 1 枚でもあれば、一致・バラバラにしない。
-   // 卓には外の票の札も見え、割れの促しや統計にも入るので、「全員同じ」「全員バラバラ」と食い違う。出そろいに落とす
-   const voterIds = new Set(voters.map((p) => p.id));
+   // 一致・バラバラは卓に見える全票で判定する（切断した人の票も札として卓に見え、統計・割れの促しにも入る。帯は札の事実と合わせる）
+   return judgeAgreement(round.votes) ?? 'complete';
+ }
