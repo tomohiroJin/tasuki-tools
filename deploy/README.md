@@ -21,8 +21,8 @@ Tasuki の各アプリは「自分の systemd ユニット + 固有ポート + C
 
 > **#482（アーキテクチャと設計原則の見直し）・#595（名簿の欄の IME の Enter・PR #627）ほか、v4.6.0 以降の 29 PR は 2026-11-18 にまとめて配った**（`v4.6.1`）。
 > 新しいアプリは無く、`deploy/` の差分も文書だけなので root 作業は無し。wire は `packages/*-core/src` のスキーマに差分が無く、
-> 同期サーバーを分けた各 PR（#602・#611・#619・#621）も「振る舞いと wire は変えない」としていたが、標準どおり同期サーバーを
-> 先にした（timer → poker → topic → roulette → agenda → checkin → landing）。443・8787 とも接続 0 本の時間帯に流し、
+> 同期サーバーを分けた PR（#602・#611 ほか）もスキーマに触れておらず（#602 で変わるのはお題フレームの接続間の送信順だけ。
+> #611 は「振る舞いと wire は変えない」としていた）、順を選ぶ必要は無かったが、標準どおり同期サーバーを先にした（timer → poker → topic → roulette → agenda → checkin → landing）。443・8787 とも接続 0 本の時間帯に流し、
 > 7 本のハッシュ一致・NRestarts=0・`/ws` 426・e2e:prod 62 passed。配布のコマンドは v4.6.0 と同じく人が端末で流した（手元の設定の deny のため）。
 > ⚠ タグ `v4.6.1` の本文の「timer の画面の大きいフックと部品（…）」は誤り。責務で分けたのは timer（use-timer-sync・RosterPanel）・
 > 玄関（use-hub-sync）・poker（useRoomEntry）・agenda（ScenarioBuilder）・roulette（RegularsSection）の 6 つ（敵対的レビューで見つかった）。
