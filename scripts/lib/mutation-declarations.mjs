@@ -10457,4 +10457,14 @@ export const MUTATIONS = [
     tests: ["test/ui/RosterPanel.duplicate-proxy.test.tsx"],
     note: RESERVED_1850_1869 + " " + "#595。RosterPanel.tsx の代理追加の配線。直したのに赤いままで、「まだ駄目なのか」と読める（#291）。",
   },
+  {
+    id: 1961,
+    label: "AI が使えないときの定型の落ち先で、型 refactoring の依頼だけを TDD の定型へ落とす",
+    patch: "m1961-topic-ai-fallback-refactoring-to-tdd.patch",
+    pkg: "apps/tasuki-sync",
+    tests: ["test/topic-generation.test.ts"],
+    note:
+      "#634 のレビュー（PR #643）。topic-generation.ts の fallback。1 つの型だけの取り違えは、2 つの型しか見ない" +
+      "縮退のテストをすり抜けた。壊れると、リファクタリングを選んで AI が使えなかった人に TDD のお題が出る。",
+  },
 ];

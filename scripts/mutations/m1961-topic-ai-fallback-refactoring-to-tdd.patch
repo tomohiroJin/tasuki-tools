@@ -1,0 +1,14 @@
+diff --git a/apps/tasuki-sync/src/application/topic-generation.ts b/apps/tasuki-sync/src/application/topic-generation.ts
+index 57d8c3d..3c8de26 100644
+--- a/apps/tasuki-sync/src/application/topic-generation.ts
++++ b/apps/tasuki-sync/src/application/topic-generation.ts
+@@ -178,7 +178,8 @@ export class TopicGenerator {
+   }
+ 
+   private fallback(req: GenerateRequest, previous: Topic | null): Topic {
+-    return pickTopicFallback(req.language, req.difficulty, req.category, this.deps.clock.now(), previous);
++    const category = req.mode === "ai" && req.category === "refactoring" ? "tdd" : req.category;
++    return pickTopicFallback(req.language, req.difficulty, category, this.deps.clock.now(), previous);
+   }
+ 
+   /** 保管から引き直して遷移を当て、保管してから配る。**ルームが消えていたら書かない** */
