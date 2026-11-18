@@ -269,6 +269,9 @@ const RESERVED_1410_1419 =
 const RESERVED_1760_1779 =
   "**対応表より後に足した変異。** 1760〜1779 は #596（契約を型とテストの題に移す）に割り当てた範囲。";
 
+const RESERVED_1990_1999 =
+  "**対応表より後に足した変異。** 1990〜1999 は #635 に追加で割り当てた範囲（1970〜1989 を使い切ったため。2 回目の敵対的レビューの直しの変異）。";
+
 const RESERVED_1970_1989 =
   "**対応表より後に足した変異。** 1970〜1989 は #635（checkin のやり方を各側 6 つ足す）に割り当てた範囲。";
 
@@ -10611,5 +10614,29 @@ export const MUTATIONS = [
     pkg: "apps/checkin-web",
     tests: ["tests/method-picker.test.tsx"],
     note: RESERVED_1970_1989 + " " + "#635 の B。広い幅で余分な 1fr の段ができ、空の段が札の高さで空く。",
+  },
+  {
+    id: 1989,
+    label: "subgrid ありの形で、小見出しの行が全ての列にまたがらない",
+    patch: "m1989-picker-group-head-not-full-width.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/picker-layout-css.test.ts"],
+    note: RESERVED_1970_1989 + " " + "#635 の 2 回目のレビュー 4。小見出しの行が 1 列目だけに入り、320px で題が 3 行に折れ、下線も 1 列目の下にしか引かれない。",
+  },
+  {
+    id: 1990,
+    label: "小見出しの行が折り返さない（入りきらないときもランダムを同じ行に置く）",
+    patch: "m1990-picker-group-head-no-wrap.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/picker-layout-css.test.ts"],
+    note: RESERVED_1990_1999 + " " + "#635 の 2 回目のレビュー 2。字 200%・320px で題が 1 字ずつ縦に折れる。",
+  },
+  {
+    id: 1991,
+    label: "subgrid を読めないブラウザの形で、並びの札の行を 1fr で揃えない",
+    patch: "m1991-picker-fallback-rows-not-equalized.patch",
+    pkg: "apps/checkin-web",
+    tests: ["tests/picker-layout-css.test.ts"],
+    note: RESERVED_1990_1999 + " " + "#635 の 2 回目のレビュー 3。古いブラウザで、同じ並びの中でも札の高さがばらつく。",
   },
 ];

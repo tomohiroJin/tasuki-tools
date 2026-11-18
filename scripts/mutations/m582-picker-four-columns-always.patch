@@ -9,15 +9,15 @@
 #       git apply scripts/mutations/m582-*.patch
 # 復元: git apply -R scripts/mutations/m582-*.patch
 diff --git a/apps/checkin-web/src/table.css b/apps/checkin-web/src/table.css
-index 63a2bee..19962f1 100644
+index 27485f1..9c2a633 100644
 --- a/apps/checkin-web/src/table.css
 +++ b/apps/checkin-web/src/table.css
-@@ -111,7 +111,7 @@
-    40rem 未満は 2 列、40rem 以上は 4 列（列の数は MethodPicker.tsx の COLUMNS と合わせる）。64rem 以上は中身を一段大きくする（会議室の投影・D2） */
- .method-groups {
-   display: grid;
--  grid-template-columns: repeat(2, minmax(0, 1fr));
-+  grid-template-columns: repeat(4, minmax(0, 1fr));
-   grid-template-rows: var(--rows-narrow);
-   gap: var(--space-3);
- }
+@@ -139,7 +139,7 @@
+ @supports (grid-template-rows: subgrid) {
+   .method-groups {
+     display: grid;
+-    grid-template-columns: repeat(2, minmax(0, 1fr));
++    grid-template-columns: repeat(4, minmax(0, 1fr));
+     grid-template-rows: var(--rows-narrow);
+   }
+ 

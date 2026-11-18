@@ -9,14 +9,14 @@
 #       git apply scripts/mutations/m580-*.patch
 # 復元: git apply -R scripts/mutations/m580-*.patch
 diff --git a/apps/checkin-web/src/table.css b/apps/checkin-web/src/table.css
-index 63a2bee..81e403b 100644
+index 27485f1..d0b87ce 100644
 --- a/apps/checkin-web/src/table.css
 +++ b/apps/checkin-web/src/table.css
-@@ -163,7 +163,6 @@
-   grid-column: 1 / -1;
-   grid-row: 2 / -1;
-   grid-template-columns: subgrid;
--  grid-template-rows: subgrid;
-   margin: 0;
-   padding: 0;
-   list-style: none;
+@@ -162,7 +162,6 @@
+     grid-column: 1 / -1;
+     grid-row: 2 / -1;
+     grid-template-columns: subgrid;
+-    grid-template-rows: subgrid;
+   }
+ 
+   @media (width >= 40rem) {
