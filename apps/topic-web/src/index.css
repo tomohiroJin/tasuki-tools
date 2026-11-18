@@ -225,6 +225,11 @@
     inline-size: 14rem;
   }
 
+  /* 言語の欄の説明（PR #643 のレビュー）は帯の 1 行を占める（操作の並びに割り込ませない） */
+  .topic-make .topic-make-note {
+    flex-basis: 100%;
+  }
+
   .topic-make-difficulty {
     inline-size: 10rem;
   }
@@ -396,6 +401,10 @@
   .topic-make .topic-make-category {
     grid-column: 1 / -1;
     inline-size: min(100%, 14rem);
+  }
+
+  .topic-make .topic-make-note {
+    grid-column: 1 / -1;
   }
 
   .topic-make .topic-unlock {

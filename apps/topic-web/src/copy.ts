@@ -53,6 +53,8 @@ export const CATEGORY_NAMES: Record<Category, string> = {
   debugging: 'デバッグ',
 };
 export const LANGUAGE_LABEL = '言語';
+/** 言語の欄の説明（PR #643 のレビュー）。定型のコードは選んだ言語に依らず JavaScript で書いてある */
+export const LANGUAGE_NOTE = '定型のコード例は JavaScript です。選んだ言語は AI で作るときに使います。';
 export const DIFFICULTY_LABEL = '難易度';
 export const DIFFICULTY_NAMES: Record<Difficulty, string> = {
   easy: '初級',

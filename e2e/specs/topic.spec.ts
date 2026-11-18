@@ -451,6 +451,9 @@ test.describe('作るを横帯に（#313 構成案 1）', () => {
     const category = await page.getByLabel('お題の型', { exact: true }).boundingBox();
     const language = await page.getByLabel('言語', { exact: true }).boundingBox();
     expect(category!.y + category!.height, 'お題の型が言語の行の上に無い').toBeLessThanOrEqual(language!.y);
+    // Then その2d: 言語の欄の説明（PR #643 のレビュー）は、言語の行に割り込まず、その下に置く
+    const note = await page.getByText('定型のコード例は JavaScript です。').boundingBox();
+    expect(note!.y, '言語の欄の説明が言語の行の下に無い').toBeGreaterThanOrEqual(Math.max(...bottoms));
     // Then その3: 帯に詰めても、ボタンは潰れて折り返さない（「解錠する」が 2 行になった・実画面で発見）
     const fallback = await page.getByRole('button', { name: '定型から選ぶ' }).boundingBox();
     const unlock = await page.getByRole('button', { name: '解錠する' }).boundingBox();

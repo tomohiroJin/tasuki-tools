@@ -8,6 +8,7 @@ import {
   DIFFICULTY_NAMES,
   FALLBACK_BUTTON,
   LANGUAGE_LABEL,
+  LANGUAGE_NOTE,
   MAKE_HEADING,
   UNLOCK_BUTTON,
   UNLOCK_LABEL,
@@ -72,6 +73,7 @@ export function TopicMaker({ aiUnlocked, enabled, onGenerate, onUnlock }: Props)
             <select
               id={`${id}-language`}
               className="ui-select"
+              aria-describedby={`${id}-language-note`}
               value={language}
               onChange={(e) => {
                 const next = LANGUAGES.find((l) => l === e.target.value);
@@ -113,6 +115,10 @@ export function TopicMaker({ aiUnlocked, enabled, onGenerate, onUnlock }: Props)
               {FALLBACK_BUTTON}
             </button>
           </div>
+          {/* 定型のコードは言語に依らない（PR #643 のレビュー）。言語の欄の説明として読み上げにもつなぐ */}
+          <p id={`${id}-language-note`} className="ui-note topic-make-note">
+            {LANGUAGE_NOTE}
+          </p>
           {!aiUnlocked && (
             <form
               className="topic-unlock"

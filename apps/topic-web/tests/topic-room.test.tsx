@@ -527,6 +527,20 @@ describe('作る', () => {
     ]);
   });
 
+  /**
+   * 定型のコードは選んだ言語に依らず JavaScript で書いてある（PR #643 のレビュー）。
+   * 言語を選んでから定型を引いた人が、移植が要ることを引く前に知れるよう、言語の欄の説明として示す。
+   */
+  it('Given 画面 / When 言語の欄を見る / Then 定型のコードは JavaScript で、言語は AI で作るときに使うと説明が付いている', () => {
+    // Given
+    enterWith();
+    // When
+    const language = screen.getByLabelText(copy.LANGUAGE_LABEL);
+    // Then
+    expect(language).toHaveAccessibleDescription(copy.LANGUAGE_NOTE);
+    expect(screen.getByText(copy.LANGUAGE_NOTE)).toBeInTheDocument();
+  });
+
   for (const [category, mode] of [['refactoring', 'fallback'], ['design', 'ai'], ['debugging', 'fallback']] as const) {
     it(`Given 解錠済み / When 種類 ${category} を選んで ${mode} で作る / Then 選んだ種類で topic.generate が送られる`, () => {
       // Given
