@@ -128,6 +128,38 @@ describe('変わった動きの間は、止まる時刻（core の表）まで�
     expect(caption()).toBe(spunByText('ゆう'));
   });
 
+  it('Given 動きの載った 2 人を選ぶ回転 / When 時刻を進める / Then 1 人目は延びた時刻に決まり、2 人目はその分だけ後ろで決まる', () => {
+    // Given
+    const motions = { launch: 'windup', spin: 'turnback' };
+    const stops = pickStopsMs(2, null, motions);
+    enterRoom({
+      pickCount: 2,
+      excluded: [],
+      guests: [],
+      drawn: [],
+      spin: {
+        seq: 1,
+        wheel: WHEEL,
+        winnerIndex: 2,
+        settle: 0.5,
+        picks: [
+          { index: 2, settle: 0.5 },
+          { index: 0, settle: 0.3 },
+        ],
+        launchMotion: 'windup',
+        spinMotion: 'turnback',
+        spunBy: 'ゆう',
+        durationMs: stops.at(-1)!,
+        elapsedMs: 0,
+      },
+    });
+    // When / Then
+    advanceTo(stops[0]! + 50);
+    expect(goldSeats()).toBe(1);
+    advanceTo(stops[1]! + 50);
+    expect(goldSeats()).toBe(2);
+  });
+
   it('Given 速い回転 / When いつもの時刻になる前に止まる / Then いつもより早く結果を出す', () => {
     // Given
     enterRoom(movedSpin({ spinMotion: 'fast' }));
