@@ -153,7 +153,7 @@ export function ScenarioBuilder({ view, canOperate, onLoad, onStart }: Props) {
               <div className="builder-minutes">
                 <select
                   id={sampleRepeatId}
-                  className="ui-input builder-minutes-input"
+                  className="ui-select builder-minutes-input"
                   value={draft.sampleRepeat.count}
                   onChange={(event) => setDraft(changeSampleRepeats(draft, Number(event.target.value)))}
                 >
