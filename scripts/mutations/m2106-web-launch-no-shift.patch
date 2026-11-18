@@ -1,0 +1,22 @@
+# 変異 2106: web-launch-no-shift
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/spin-motion.test.ts
+#
+# #640 動き出し。溜める・つまずくの終わりで円盤が跳ぶ。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2106-*.patch
+# 復元: git apply -R scripts/mutations/m2106-*.patch
+diff --git a/apps/roulette-web/src/wheel-motion.ts b/apps/roulette-web/src/wheel-motion.ts
+--- a/apps/roulette-web/src/wheel-motion.ts
++++ b/apps/roulette-web/src/wheel-motion.ts
+@@ -111,7 +111,7 @@
+   const spinMotion: SpinMotion | null = isSpinMotion(names.spinMotion) ? names.spinMotion : null;
+   const launchMs = launch === null ? 0 : launchMotionMs(launch, style, spinMotion);
+   if (launch !== null && elapsedMs < launchMs) return startDeg + launchOffset(launch, elapsedMs, launchMs);
+-  const start = launch !== null && launchMs > 0 ? startDeg + launchEndOffset(launch) : startDeg;
++  const start = startDeg;
+   const u = Math.max(elapsedMs, 0) - launchMs;
+   // 動きの無い本体の長さ（止まり方の表。core の `pickStopsMs` と同じ表を読む）
+   const normalMs = pickStopsMs(1, style)[0] ?? 0;

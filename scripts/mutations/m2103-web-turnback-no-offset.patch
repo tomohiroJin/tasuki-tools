@@ -1,0 +1,22 @@
+# 変異 2103: web-turnback-no-offset
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/spin-motion.test.ts
+#
+# #640 回転の動き。途中で向きを変えるの回で、円盤が逆向きに回り直さず、差し込みの間は止まって見える。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2103-*.patch
+# 復元: git apply -R scripts/mutations/m2103-*.patch
+diff --git a/apps/roulette-web/src/spin-motion.ts b/apps/roulette-web/src/spin-motion.ts
+--- a/apps/roulette-web/src/spin-motion.ts
++++ b/apps/roulette-web/src/spin-motion.ts
+@@ -90,7 +90,7 @@
+ 
+ /** 途中で向きを変える差し込みの経過 `elapsedMs` の、差し込み前の角度からの差（度） */
+ export function turnbackOffset(elapsedMs: number): number {
+-  return offsetAt(TURNBACK_LEGS, elapsedMs, 1);
++  return 0;
+ }
+ 
+ /** wire の動き出しの名前を読む。無い・知らない名前は null（いつもの動き） */

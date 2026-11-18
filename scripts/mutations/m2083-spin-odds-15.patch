@@ -1,0 +1,22 @@
+# 変異 2083: spin-odds-15
+#
+# 検出を期待するテスト:
+#   - packages/roulette-core/tests/roulette-motions.test.ts
+#
+# #640 決めること 1。回転の動きの出る割合が 1/16 でなくなる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2083-*.patch
+# 復元: git apply -R scripts/mutations/m2083-*.patch
+diff --git a/packages/roulette-core/src/limits.ts b/packages/roulette-core/src/limits.ts
+--- a/packages/roulette-core/src/limits.ts
++++ b/packages/roulette-core/src/limits.ts
+@@ -74,7 +74,7 @@
+ /** 動き出しが出る割合の分母（#640 決めること 1）。1/12。実際に回して調整する */
+ export const LAUNCH_MOTION_ODDS = 12;
+ /** 回転の動きが出る割合の分母（#640 決めること 1）。1/16。実際に回して調整する */
+-export const SPIN_MOTION_ODDS = 16;
++export const SPIN_MOTION_ODDS = 15;
+ 
+ /**
+  * 動き出しごとに、1 人目が止まる時刻を延ばす長さ（ms）。ほかの動きと重なって上限（{@link MOTION_EXTRA_CAP_MS}）を越えるときは

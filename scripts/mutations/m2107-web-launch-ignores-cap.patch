@@ -1,0 +1,22 @@
+# 変異 2107: web-launch-ignores-cap
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/spin-motion.test.ts
+#
+# #640 決めること 3。重なった回で、動き出しが詰まらず本体の始まりがずれる（止まる時刻とずれる）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2107-*.patch
+# 復元: git apply -R scripts/mutations/m2107-*.patch
+diff --git a/apps/roulette-web/src/wheel-motion.ts b/apps/roulette-web/src/wheel-motion.ts
+--- a/apps/roulette-web/src/wheel-motion.ts
++++ b/apps/roulette-web/src/wheel-motion.ts
+@@ -109,7 +109,7 @@
+ ): number {
+   const launch = launchMotionOf(names.launchMotion);
+   const spinMotion: SpinMotion | null = isSpinMotion(names.spinMotion) ? names.spinMotion : null;
+-  const launchMs = launch === null ? 0 : launchMotionMs(launch, style, spinMotion);
++  const launchMs = launch === null ? 0 : launchMotionMs(launch, null, null);
+   if (launch !== null && elapsedMs < launchMs) return startDeg + launchOffset(launch, elapsedMs, launchMs);
+   const start = launch !== null && launchMs > 0 ? startDeg + launchEndOffset(launch) : startDeg;
+   const u = Math.max(elapsedMs, 0) - launchMs;
