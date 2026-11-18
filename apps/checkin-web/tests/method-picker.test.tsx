@@ -164,6 +164,23 @@ describe('やり方の選択', () => {
     expect(onDraw).not.toHaveBeenCalled();
   });
 
+  it('Given チェックイン（6・3・4 とおまかせ 1） / Then 外側の格子の行の並びと、小見出しの行のまたぎを列の数ごとに渡す（#635 の B）', () => {
+    const { container } = render(<MethodPicker canOperate initialSide="checkin" onChoose={vi.fn()} onDraw={vi.fn()} />);
+    const groups = container.querySelector('.method-groups') as HTMLElement;
+    expect(groups.style.getPropertyValue('--rows-narrow')).toBe('auto repeat(3, 1fr) auto repeat(2, 1fr) auto repeat(2, 1fr) auto repeat(1, 1fr)');
+    expect(groups.style.getPropertyValue('--rows-wide')).toBe('auto repeat(2, 1fr) auto repeat(1, 1fr) auto repeat(1, 1fr) auto repeat(1, 1fr)');
+    const spans = [...container.querySelectorAll<HTMLElement>('.method-group')].map((g) => [
+      g.style.getPropertyValue('--span-narrow'),
+      g.style.getPropertyValue('--span-wide'),
+    ]);
+    expect(spans).toEqual([
+      ['4', '3'],
+      ['3', '2'],
+      ['3', '2'],
+      ['2', '2'],
+    ]);
+  });
+
   it('Given 切断中 / Then 小見出しのランダムも押せない', () => {
     render(<MethodPicker canOperate={false} initialSide="checkin" onChoose={vi.fn()} onDraw={vi.fn()} onDrawGroup={vi.fn()} />);
     for (const g of groupsOf('checkin')) expect(screen.getByRole('button', { name: `${GROUP_TITLES[g]}からランダム` })).toBeDisabled();
