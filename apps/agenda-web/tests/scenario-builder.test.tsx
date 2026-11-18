@@ -588,6 +588,51 @@ describe('サンプルから選ぶ', () => {
     expect(nameField(1)).toHaveValue('話し合い');
   });
 
+  it('くりかえしの組の途中の行を消すと、残りの行を保ってサンプルの回数欄を閉じる', () => {
+    joinedRoom();
+    pickRow(/リファインメント/);
+    const name = 'サンプルのくりかえし';
+    expect(screen.getByRole('combobox', { name })).toHaveValue('3');
+    fireEvent.click(screen.getByRole('button', { name: stepRemoveLabel(2) }));
+    expect(screen.queryByRole('combobox', { name })).toBeNull();
+    expect(nameField(2)).toHaveValue('見積もり');
+    expect(nameField(9)).toHaveValue('まとめ');
+  });
+
+  it.each([
+    [1, 13],
+    [3, 6],
+  ])('リファインメントを会全体で %i 回行うとき、組の選択肢は %i 件まで', (rounds, max) => {
+    joinedRoom();
+    pickRow(/リファインメント/);
+    fireEvent.change(roundsField(), { target: { value: String(rounds) } });
+    const count = screen.getByRole('combobox', { name: 'サンプルのくりかえし' });
+    const options = within(count).getAllByRole('option');
+    expect(options.map((option) => option.textContent)).toEqual(
+      Array.from({ length: max }, (_, index) => String(index + 1)),
+    );
+    fireEvent.change(count, { target: { value: String(max) } });
+    expect(loadButton()).toBeEnabled();
+  });
+
+  it('ポモドーロの回数は編集済みの分と会全体の回数を含めて720分に収まる範囲まで増やせる', () => {
+    joinedRoom();
+    pickRow(/ポモドーロ/);
+    fireEvent.change(roundsField(), { target: { value: '2' } });
+    const count = screen.getByRole('combobox', { name: 'サンプルのくりかえし' });
+    expect(within(count).getAllByRole('option')).toHaveLength(11);
+    fireEvent.change(screen.getByRole('spinbutton', { name: stepMinutesLabel(1) }), { target: { value: '100' } });
+    expect(within(count).getAllByRole('option')).toHaveLength(9);
+    fireEvent.change(count, { target: { value: '9' } });
+    expect(loadButton()).toBeEnabled();
+    fireEvent.change(roundsField(), { target: { value: '6' } });
+    expect(count).toHaveValue('9');
+    expect(loadButton()).toBeDisabled();
+    fireEvent.change(count, { target: { value: '1' } });
+    fireEvent.change(screen.getByRole('spinbutton', { name: stepMinutesLabel(1) }), { target: { value: '25' } });
+    expect(loadButton()).toBeEnabled();
+  });
+
   it('Given 一覧は閉じている / When 押す・もう一度押す / Then aria-expanded が true、false になり、aria-controls が一覧を指す', () => {
     joinedRoom();
     fireEvent.click(menuButton());

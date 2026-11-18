@@ -23,6 +23,7 @@ import {
   type StepInput,
   type TimeoutBehavior,
   roundsOf,
+  totalPlannedSec,
 } from '@tasuki/agenda-core';
 import * as v from 'valibot';
 import {
@@ -215,9 +216,14 @@ export function updateStep(d: Draft, index: number, patch: Partial<Omit<DraftSte
 }
 
 export function maxSampleRepeats(d: Draft, repeat: SampleRepeat): number {
+  const rounds = effectiveRounds(d);
   const otherSteps = d.steps.length - repeat.count * repeat.steps.length;
-  const stepLimit = Math.min(MAX_ITEMS, Math.floor(MAX_PLANNED_STEPS / effectiveRounds(d)));
-  return Math.max(repeat.count, Math.floor((stepLimit - otherSteps) / repeat.steps.length));
+  const stepLimit = Math.min(MAX_ITEMS, Math.floor(MAX_PLANNED_STEPS / rounds));
+  const countBySteps = Math.floor((stepLimit - otherSteps) / repeat.steps.length);
+  const remainingSec = MAX_TOTAL_SEC / rounds - perRoundMinutes(d) * 60;
+  const countByTime = repeat.count + Math.floor(remainingSec / totalPlannedSec(repeat.steps));
+  // 他の欄を編集して上限を超えた場合も、現在値を表示し、回数を減らせるようにする。
+  return Math.max(repeat.count, Math.min(countBySteps, countByTime));
 }
 
 /** 増やすときは元のサンプルから新しい組を足し、減らすときは末尾の組から取り除く。 */
