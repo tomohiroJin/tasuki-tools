@@ -21,7 +21,7 @@ import { expectFieldsAtLeast16px, expectFocusVisibleOnTab, expectReadable, expec
 import { openAgendaFromHub } from '../support/agenda';
 import { chooseMethod, handCard, joinCheckinTool, openCheckinTool } from '../support/checkin';
 import { chooseCard, turnRecordingOn } from '../support/poker';
-import { addRouletteGuest, expectCardNameNotCovered, openRouletteFromHub, openRouletteTool, spinButton } from '../support/roulette';
+import { SPIN_WAIT_MS, addRouletteGuest, expectCardNameNotCovered, openRouletteFromHub, openRouletteTool, spinButton } from '../support/roulette';
 import { openTopicTool, setTopic } from '../support/topic';
 import { createRoom as createTimerRoom } from '../support/timer';
 
@@ -284,7 +284,7 @@ test.describe('お題ツールのボタンは部品で、押せる大きさが�
 
     // 回して止まった後（札の表・当たりの席が描かれてから測る）
     await spinButton(page).click();
-    await expect(page.locator('.roulette-card.is-revealed')).toBeVisible({ timeout: 8000 });
+    await expect(page.locator('.roulette-card.is-revealed')).toBeVisible({ timeout: SPIN_WAIT_MS });
     await expect(spinButton(page)).toBeEnabled();
     await expectScreen(page, 'ルーレット（止まった後）', ROULETTE_BUTTONS);
 
@@ -296,7 +296,7 @@ test.describe('お題ツールのボタンは部品で、押せる大きさが�
     //   `click()` は押す前に自分でボタンを見える位置へ寄せてしまい、札も一緒に見えて検査が空振りする。DOM の click で押す
     await spinButton(page).evaluate((el) => (el as HTMLElement).click());
     await expect(spinButton(page)).toBeDisabled();
-    await expect(spinButton(page)).toBeEnabled({ timeout: 8000 });
+    await expect(spinButton(page)).toBeEnabled({ timeout: SPIN_WAIT_MS });
     await expectCardNameNotCovered(page);
 
     // 同じルームで進行タイマー（#429・ルームは足さない）。組む画面 → 進行中 → 映す表示を 4 つの幅で測る
