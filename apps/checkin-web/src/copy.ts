@@ -27,6 +27,12 @@ export const CARD_MARK = '始終';
 export const SIDE_LABEL = { checkin: 'チェックイン', checkout: 'チェックアウト' } as const;
 export const METHOD_PICKER_HEADING = 'やり方を選んでください';
 export const RANDOM_LABEL = 'ランダム';
+/** ランダムの札を置く、選択画面の末尾の小見出し（#635。やり方の小見出しは `method-groups.ts`） */
+export const RANDOM_GROUP_TITLE = 'おまかせ';
+/** 小見出しの行の、その小見出しの中から引くボタンの見える字（#635）。読み上げ名は `groupRandomLabel` */
+export const GROUP_RANDOM_TEXT = 'ランダム';
+/** 小見出しの中から引くボタンの読み上げ名（見える字「ランダム」を含む）。例「気分と元気からランダム」 */
+export const groupRandomLabel = (groupTitle: string): string => `${groupTitle}から${GROUP_RANDOM_TEXT}`;
 /** ランダムの箱に添える一言（伏せ札の見本の下） */
 export const RANDOM_HINT = '引いて決める';
 /** 選択画面から卓の画面へ戻るボタン。回は変わらない（#468） */

@@ -1,0 +1,13 @@
+diff --git a/apps/timer-web/src/records/record-markdown.ts b/apps/timer-web/src/records/record-markdown.ts
+index 9aff6085..89955008 100644
+--- a/apps/timer-web/src/records/record-markdown.ts
++++ b/apps/timer-web/src/records/record-markdown.ts
+@@ -14,7 +14,7 @@ function markdownText(text: string): string {
+
+ export function formatRecordMarkdown(record: CompletionRecord): string {
+   const participants = record.members.map((name, index) => {
+-    const count = record.driverCounts?.[index];
++    const count = record.driverCounts?.[index + 1];
+     const assignment = count === undefined ? "担当回数は未記録" : `担当${count}回`;
+     return `  - 「${markdownText(name)}」（${assignment}）`;
+   });

@@ -129,6 +129,41 @@ test.describe('主な画面は隣り合うブロックが重ならず、縦の�
     await expectBlocksSeparated(page, 'agenda（進行中）');
   });
 
+  test('agenda のサンプル一覧は 5 つの幅で収まり、サンプルから下書きを編集できる（#636）', async ({ page }) => {
+    await openAgendaTool(page, 'block-agenda-samples');
+    const toggle = page.getByRole('button', { name: 'サンプルから選ぶ', exact: true });
+    await toggle.click();
+    const samples = page.getByRole('button', { name: /^サンプル：/ });
+    await expect(samples).toHaveCount(13);
+    await expectBlocksSeparated(page, 'agenda（サンプル一覧）');
+
+    for (const width of [320, 1280]) {
+      await page.setViewportSize({ width, height: 900 });
+      await settleAnimations(page);
+      await expect(samples).toHaveCount(13);
+      await expect(samples.last()).toBeVisible();
+      const overflow = await samples.evaluateAll((buttons) => Math.max(
+        document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        ...buttons.map((button) => button.scrollWidth - button.clientWidth),
+      ));
+      expect(overflow, `${width}px で横にはみ出した量`).toBe(0);
+    }
+
+    await samples.filter({ hasText: 'リファインメント（PBR）' }).click();
+    await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.getByRole('textbox', { name: '会の名前' })).toHaveValue('リファインメント（PBR）');
+    const firstStep = page.getByRole('textbox', { name: 'ステップ 1 の名前' });
+    await expect(firstStep).toHaveValue('説明');
+    await expect(page.getByRole('textbox', { name: 'ステップ 10 の名前' })).toHaveValue('まとめ');
+    await firstStep.fill('お題の説明');
+    const sampleRepeat = page.getByRole('combobox', { name: 'サンプルのくりかえし' });
+    await expect(sampleRepeat).toHaveValue('3');
+    await sampleRepeat.selectOption('2');
+    await expect(page.getByRole('textbox', { name: 'ステップ 7 の名前' })).toHaveValue('まとめ');
+    await expect(firstStep).toHaveValue('お題の説明');
+    await expect(page.getByRole('button', { name: 'ルームに読み込む', exact: true })).toBeEnabled();
+  });
+
   test('Given agenda の進行中の帯 / When 640〜1280 の幅・文字 100%・150%・200% で開く / Then 延長の 3 つのボタンは隣と重ならず、ボタンは帯の外へ出ず、ページは横に溢れない（#557 レビューの 6）', async ({ page }) => {
     test.setTimeout(120_000);
     await openAgendaTool(page, 'block-agenda-band');

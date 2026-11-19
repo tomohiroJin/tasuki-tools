@@ -1,0 +1,7 @@
+--- a/apps/agenda-web/src/scenario-draft.ts
++++ b/apps/agenda-web/src/scenario-draft.ts
+@@ -220,3 +220,3 @@
+   const otherSteps = d.steps.length - repeat.count * repeat.steps.length;
+-  const stepLimit = Math.min(MAX_ITEMS, Math.floor(MAX_PLANNED_STEPS / rounds));
++  const stepLimit = MAX_ITEMS;
+   const countBySteps = Math.floor((stepLimit - otherSteps) / repeat.steps.length);

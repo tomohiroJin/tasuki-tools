@@ -1,0 +1,13 @@
+diff --git a/apps/checkin-web/src/face-kinds.ts b/apps/checkin-web/src/face-kinds.ts
+index e7c1561..d3f2547 100644
+--- a/apps/checkin-web/src/face-kinds.ts
++++ b/apps/checkin-web/src/face-kinds.ts
+@@ -31,7 +31,7 @@ export const FACE_KINDS = {
+   understanding: 'numeral',
+   readiness: 'art',
+   busyness: 'art',
+-  'talk-wish': 'numeral',
++  'talk-wish': 'art',
+   battery: 'art',
+   clarity: 'art',
+   worry: 'art',

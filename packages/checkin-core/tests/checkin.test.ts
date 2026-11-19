@@ -3,7 +3,12 @@ import {
   METHODS,
   applyAutoReveal,
   chooseMethod,
+  METHOD_GROUPS,
+  METHOD_IDS,
+  METHOD_IDS_BEFORE_635,
   drawMethod,
+  drawMethodForOldClients,
+  drawMethodInGroup,
   playAgain,
   playCard,
   prune,
@@ -11,6 +16,7 @@ import {
   setSpectator,
   setVisibility,
   type CheckinState,
+  type GroupId,
   type MethodId,
   type Side,
 } from "../src/index.js";
@@ -60,34 +66,90 @@ describe("chooseMethod の置き換える回", () => {
   });
 });
 
+describe("drawMethodForOldClients（#635 より前の画面の側のくじ）", () => {
+  const drawOld = (s: CheckinState, side: Side, randomInt: (n: number) => number) =>
+    drawMethodForOldClients(s, { seq: s.round?.seq ?? 0, side }, randomInt);
+
+  it("#635 より前の 14（各側 7）のやり方だけから引く。どの乱数でも、古い画面が知らないやり方を引かない", () => {
+    for (const side of ["checkin", "checkout"] as const) {
+      const seen = new Set<MethodId>();
+      const calls: number[] = [];
+      for (let i = 0; i < 7; i++) {
+        const s = drawOld(empty, side, (n) => (calls.push(n), i))._unsafeUnwrap();
+        seen.add(roundOf(s).method);
+      }
+      expect(calls.every((n) => n === 7), side).toBe(true);
+      expect([...seen].sort()).toEqual(METHOD_IDS_BEFORE_635.filter((m) => METHODS[m].side === side).sort());
+    }
+  });
+
+  it("いまのやり方が古い 7 つの中にあれば除く（6 から引く）", () => {
+    const calls: number[] = [];
+    const s = drawOld(choose(empty, "weather"), "checkin", (n) => (calls.push(n), n - 1))._unsafeUnwrap();
+    expect(calls).toEqual([6]);
+    expect(roundOf(s).method).toBe("mood-start");
+  });
+
+  it("違う回を見ていたら引かずに同じ参照", () => {
+    const s = choose(choose(empty, "weather"), "weather");
+    expect(drawMethodForOldClients(s, { seq: 1, side: "checkin" }, () => 0)._unsafeUnwrap()).toBe(s);
+  });
+});
+
+describe("METHOD_IDS_BEFORE_635", () => {
+  it("#635 より前の画面（main 7e0e6f7）の METHOD_IDS と同じ 14 で、各側 7 つ（#635 で足した 12 を含まない）", () => {
+    // 実装（slice）をなぞらず、古い画面が知っているやり方を書き下して比べる。METHOD_IDS の途中に足すと、ここが落ちる
+    expect(METHOD_IDS_BEFORE_635).toEqual([
+      "weather",
+      "energy",
+      "focus",
+      "takeaway-goal",
+      "role",
+      "expectation",
+      "mood-start",
+      "roti",
+      "takeaway-done",
+      "best-part",
+      "mood",
+      "next-meeting",
+      "weather-end",
+      "understanding",
+    ]);
+    for (const m of METHOD_IDS_BEFORE_635) expect(METHOD_IDS, m).toContain(m);
+    for (const m of ["readiness", "busyness", "talk-wish", "battery", "clarity", "worry", "agreement", "next-step", "voice", "pace", "fatigue", "message"] as const) {
+      expect(METHOD_IDS_BEFORE_635, m).not.toContain(m);
+    }
+  });
+});
+
 describe("drawMethod", () => {
   const record = (value: number) => {
     const calls: number[] = [];
     return { calls, fn: (n: number) => (calls.push(n), value === -1 ? n - 1 : value) };
   };
 
-  it("いまのやり方を除いた 6 つから選ぶ。0 番目も n-1 番目も weather ではない（E2）〈m501〉", () => {
+  it("いまのやり方を除いた 12 から選ぶ。0 番目も n-1 番目も weather ではない（E2）〈m501〉", () => {
     const base = choose(empty, "weather");
     for (const v of [0, -1]) {
       const r = record(v);
       const s = draw(base, "checkin", r.fn)._unsafeUnwrap();
-      expect(r.calls).toEqual([6]);
+      expect(r.calls).toEqual([12]);
       expect(roundOf(s).method).not.toBe("weather");
       expect(METHODS[roundOf(s).method].side).toBe("checkin");
       expect(roundOf(s).seq).toBe(2);
     }
   });
 
-  it("いまのやり方が反対側なら 7 つ全部が候補", () => {
+  it("いまのやり方が反対側なら 13 全部が候補", () => {
     const r = record(0);
     draw(choose(empty, "roti"), "checkin", r.fn)._unsafeUnwrap();
-    expect(r.calls).toEqual([7]);
+    expect(r.calls).toEqual([13]);
   });
 
-  it("回が無いときも 7 つ全部が候補。0 番目は側の先頭", () => {
+  it("回が無いときも 13 全部が候補。0 番目は側の先頭", () => {
     const r = record(0);
     const s = draw(empty, "checkout", r.fn)._unsafeUnwrap();
-    expect(r.calls).toEqual([7]);
+    expect(r.calls).toEqual([13]);
     expect(roundOf(s).method).toBe("roti");
   });
 
@@ -100,9 +162,70 @@ describe("drawMethod", () => {
 
   it("[0, n) の整数でない乱数は CHECKIN_INVALID_RANDOM", () => {
     const base = choose(empty, "weather");
-    for (const v of [6, 1.5, -1, Number.NaN]) {
+    for (const v of [12, 1.5, -1, Number.NaN]) {
       const r = draw(base, "checkin", () => v);
       expect(r._unsafeUnwrapErr()).toEqual({ code: "CHECKIN_INVALID_RANDOM" });
+    }
+  });
+});
+
+describe("drawMethodInGroup（小見出しから引く・#635）", () => {
+  const record = (value: number) => {
+    const calls: number[] = [];
+    return { calls, fn: (n: number) => (calls.push(n), value === -1 ? n - 1 : value) };
+  };
+  const drawIn = (s: CheckinState, group: GroupId, randomInt: (n: number) => number) =>
+    drawMethodInGroup(s, { seq: s.round?.seq ?? 0, group }, randomInt);
+
+  it("回が無ければ小見出しの全部が候補。0 番目・n-1 番目は小見出しの先頭・末尾", () => {
+    for (const [v, want] of [[0, "focus"], [-1, "clarity"]] as const) {
+      const r = record(v);
+      const s = drawIn(empty, "checkin-focus", r.fn)._unsafeUnwrap();
+      expect(r.calls).toEqual([3]);
+      expect(roundOf(s).method).toBe(want);
+      expect(roundOf(s).seq).toBe(1);
+    }
+  });
+
+  it("いまのやり方が小見出しの中にあれば除く（3 つの小見出しなら 2 つから引く）", () => {
+    const base = choose(empty, "readiness");
+    for (const v of [0, -1]) {
+      const r = record(v);
+      const s = drawIn(base, "checkin-focus", r.fn)._unsafeUnwrap();
+      expect(r.calls).toEqual([2]);
+      expect(roundOf(s).method).not.toBe("readiness");
+      expect(["focus", "clarity"]).toContain(roundOf(s).method);
+      expect(roundOf(s).seq).toBe(2);
+    }
+  });
+
+  it("いまのやり方が小見出しの外なら、小見出しの全部が候補で、小見出しの外のやり方は引かない", () => {
+    const base = choose(empty, "weather");
+    for (let i = 0; i < 4; i++) {
+      const r = record(i);
+      const s = drawIn(base, "checkin-stance", r.fn)._unsafeUnwrap();
+      expect(r.calls).toEqual([4]);
+      expect(roundOf(s).method).toBe(METHOD_GROUPS["checkin-stance"].methods[i]);
+    }
+  });
+
+  it("引いた回の公開の仕方は、引いたやり方の既定", () => {
+    const s = drawIn(empty, "checkout-mood", () => 2)._unsafeUnwrap();
+    expect(roundOf(s).method).toBe("fatigue");
+    expect(roundOf(s).visibility).toBe("anonymous");
+  });
+
+  it("置き換える回の seq がいまの回と違えば、くじを引かずに ok で同じ参照", () => {
+    const s = choose(choose(empty, "weather"), "weather");
+    const r = record(0);
+    expect(drawMethodInGroup(s, { seq: 1, group: "checkin-mood" }, r.fn)._unsafeUnwrap()).toBe(s);
+    expect(r.calls).toEqual([]);
+  });
+
+  it("[0, n) の整数でない乱数は CHECKIN_INVALID_RANDOM", () => {
+    const base = choose(empty, "readiness");
+    for (const v of [2, 1.5, -1, Number.NaN]) {
+      expect(drawIn(base, "checkin-focus", () => v)._unsafeUnwrapErr()).toEqual({ code: "CHECKIN_INVALID_RANDOM" });
     }
   });
 });

@@ -1,0 +1,7 @@
+--- a/apps/agenda-web/src/scenario-draft.ts
++++ b/apps/agenda-web/src/scenario-draft.ts
+@@ -238,3 +238,3 @@
+   // 組の途中を削除したら、残りは利用者が独立に編集する区切りとして扱う。
+-  const sampleRepeat = index < repeat.start ? { ...repeat, start: repeat.start - 1 } : undefined;
++  const sampleRepeat = index < repeat.start ? repeat : undefined;
+   return { ...d, steps, sampleRepeat };

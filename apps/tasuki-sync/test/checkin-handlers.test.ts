@@ -627,6 +627,30 @@ describe("くじ", () => {
     expect(lastView(h, "b").round).toMatchObject({ method: "weather", seq: 1 });
   });
 
+  it("古い画面の側のくじ（method.draw）は #635 より前のやり方から、新しい画面の側のくじ（method.draw-side）は側の全部から引く", async () => {
+    // 乱数は候補の末尾。古い画面の候補（7）の末尾は mood-start、側の全部（13）の末尾は worry
+    const old = setup((n) => n - 1);
+    await joined(old, "a", "Alice");
+    await old.handle("a", { command: "checkin.method.draw", seq: 0, side: "checkin" });
+    expect(lastView(old, "a").round).toMatchObject({ method: "mood-start", seq: 1 });
+
+    const all = setup((n) => n - 1);
+    await joined(all, "a", "Alice");
+    await all.handle("a", { command: "checkin.method.draw-side", seq: 0, side: "checkin" });
+    expect(errorsTo(all, "a")).toEqual([]);
+    expect(lastView(all, "a").round).toMatchObject({ method: "worry", seq: 1 });
+  });
+
+  it("小見出しから引くくじ（#635）は、その小見出しの中から選び、全員へ配る", async () => {
+    const h = await twoPlayers();
+
+    await h.handle("a", { command: "checkin.method.draw-group", seq: 0, group: "checkin-focus" });
+
+    expect(errorsTo(h, "a")).toEqual([]);
+    expect(lastView(h, "b").round).toMatchObject({ method: "focus", seq: 1 });
+    expect(lastView(h, "a").round).toMatchObject({ method: "focus", seq: 1 });
+  });
+
   it("乱数源が範囲外を返すと INTERNAL_ERROR で、状態は保管も配信もされない", async () => {
     const h = setup(() => 99);
     await joined(h, "a", "Alice");

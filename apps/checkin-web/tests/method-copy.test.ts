@@ -3,7 +3,7 @@ import { METHOD_IDS, METHODS } from '@tasuki/checkin-core';
 import { METHOD_COPY } from '../src/method-copy';
 
 /**
- * @requirements #406 E1（やり方の種類・札の並び）・#465（各側 7 つ）
+ * @requirements #406 E1（やり方の種類・札の並び）・#465（各側 7 つ）・#635（各側 13）
  */
 describe('やり方ごとの文言の表', () => {
   it('鍵が METHOD_IDS と過不足なく一致する', () => {
@@ -50,6 +50,28 @@ describe('やり方ごとの文言の表', () => {
     expect(METHOD_COPY['mood-start'].title).toBe('始まりの気分');
     expect(METHOD_COPY['weather-end'].title).toBe('終わりの天気');
     expect(METHOD_COPY.understanding.title).toBe('わかった度');
+  });
+
+  it('#635 で足した 12 の名前（設計 §15）', () => {
+    expect(METHOD_COPY.readiness.title).toBe('準備の度合い');
+    expect(METHOD_COPY.busyness.title).toBe('いそがしさ');
+    expect(METHOD_COPY['talk-wish'].title).toBe('話したい度');
+    expect(METHOD_COPY.battery.title).toBe('今日のバッテリー');
+    expect(METHOD_COPY.clarity.title).toBe('この会の理解');
+    expect(METHOD_COPY.worry.title).toBe('今日の気がかり');
+    expect(METHOD_COPY.agreement.title).toBe('なっとく度');
+    expect(METHOD_COPY['next-step'].title).toBe('次の一手');
+    expect(METHOD_COPY.voice.title).toBe('話せたか');
+    expect(METHOD_COPY.pace.title).toBe('進むペース');
+    expect(METHOD_COPY.fatigue.title).toBe('残った疲れ');
+    expect(METHOD_COPY.message.title).toBe('だれかに言いたいこと');
+  });
+
+  it('同じ側の中でやり方の名前は重ならない（選択画面とお題の小見出しで区別できる）', () => {
+    for (const side of ['checkin', 'checkout'] as const) {
+      const titles = METHOD_IDS.filter((m) => METHODS[m].side === side).map((m) => METHOD_COPY[m].title);
+      expect(new Set(titles).size, side).toBe(titles.length);
+    }
   });
 
   it('終わりの天気の札は今日の天気と同じ名前と意味（口頭で比べやすい）', () => {

@@ -1,0 +1,9 @@
+diff --git a/apps/timer-web/src/records/record-markdown.ts b/apps/timer-web/src/records/record-markdown.ts
+--- a/apps/timer-web/src/records/record-markdown.ts
++++ b/apps/timer-web/src/records/record-markdown.ts
+@@ -44,4 +44,4 @@
+     // URL として消費しなかった部分は、続く本文とまとめてエスケープする。
+-    markdown += escapeMarkdownText(line.slice(plainTextStart, match.index)) + `<${url}>`;
++    markdown += escapeMarkdownText(line.slice(plainTextStart, match.index + url.length));
+     plainTextStart = match.index + url.length;
+   }

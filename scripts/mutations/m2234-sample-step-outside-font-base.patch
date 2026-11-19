@@ -1,0 +1,7 @@
+--- a/apps/agenda-web/src/sample-scenarios.ts
++++ b/apps/agenda-web/src/sample-scenarios.ts
+@@ -21,3 +21,3 @@
+           step('前回のしゅくだい', 10),
+-          step('話題 A', 15),
++          step('議題 A', 15),
+           step('話題 B', 15),

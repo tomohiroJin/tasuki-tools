@@ -1,0 +1,13 @@
+diff --git a/apps/tasuki-sync/src/application/checkin-handlers.ts b/apps/tasuki-sync/src/application/checkin-handlers.ts
+index 492f015..9be0623 100644
+--- a/apps/tasuki-sync/src/application/checkin-handlers.ts
++++ b/apps/tasuki-sync/src/application/checkin-handlers.ts
+@@ -223,7 +223,7 @@ function buildCheckinHandlers<H>(deps: Omit<CheckinHandlerDeps, "graceTimer">, g
+         break;
+       case "checkin.method.draw":
+         // #635 より前の画面が送る。知らないやり方を引くと、その画面はフレームを捨てて止まる
+-        result = drawMethodForOldClients(state, { seq: cmd.seq, side: cmd.side }, deps.random.randomInt);
++        result = drawMethod(state, { seq: cmd.seq, side: cmd.side }, deps.random.randomInt);
+         break;
+       case "checkin.method.draw-side":
+         result = drawMethod(state, { seq: cmd.seq, side: cmd.side }, deps.random.randomInt);

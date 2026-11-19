@@ -1,0 +1,13 @@
+diff --git a/packages/checkin-core/src/checkin.ts b/packages/checkin-core/src/checkin.ts
+index 0790f87..85dbf44 100644
+--- a/packages/checkin-core/src/checkin.ts
++++ b/packages/checkin-core/src/checkin.ts
+@@ -84,7 +84,7 @@ export function drawMethodForOldClients(
+   input: { seq: number; side: Side },
+   randomInt: (n: number) => number,
+ ): Result<CheckinState, CheckinError<"CHECKIN_INVALID_RANDOM">> {
+-  return drawFrom(s, input.seq, methodsOf(input.side).filter((m) => METHOD_IDS_BEFORE_635.includes(m)), randomInt);
++  return drawFrom(s, input.seq, methodsOf(input.side), randomInt);
+ }
+ 
+ /**

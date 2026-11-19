@@ -1,0 +1,13 @@
+diff --git a/packages/checkin-core/src/methods.ts b/packages/checkin-core/src/methods.ts
+index 36c4cfe..2d48bb8 100644
+--- a/packages/checkin-core/src/methods.ts
++++ b/packages/checkin-core/src/methods.ts
+@@ -102,7 +102,7 @@ export interface MethodGroup {
+ 
+ export const METHOD_GROUPS: Readonly<Record<GroupId, MethodGroup>> = {
+   "checkin-mood": { side: "checkin", methods: ["weather", "energy", "mood-start", "battery", "busyness", "worry"] },
+-  "checkin-focus": { side: "checkin", methods: ["focus", "readiness", "clarity"] },
++  "checkin-focus": { side: "checkin", methods: ["focus", "clarity"] },
+   "checkin-stance": { side: "checkin", methods: ["takeaway-goal", "expectation", "role", "talk-wish"] },
+   "checkout-value": { side: "checkout", methods: ["roti", "takeaway-done", "best-part", "understanding", "agreement"] },
+   "checkout-mood": { side: "checkout", methods: ["mood", "weather-end", "fatigue"] },

@@ -44,10 +44,16 @@ describe('回が無いとき', () => {
     expect(commands()).toEqual([{ command: 'checkin.method.choose', seq: 0, method: 'weather' }]);
   });
 
-  it('Given 回が無い / When ランダムを押す / Then draw に側を載せる', () => {
+  it('Given 回が無い / When ランダムを押す / Then draw-side に側を載せる（古い画面の draw とは別のコマンド・#635）', () => {
     enter(IDLE_CHECKIN);
     fireEvent.click(screen.getByRole('button', { name: 'ランダム' }));
-    expect(commands()).toEqual([{ command: 'checkin.method.draw', seq: 0, side: 'checkin' }]);
+    expect(commands()).toEqual([{ command: 'checkin.method.draw-side', seq: 0, side: 'checkin' }]);
+  });
+
+  it('Given 回が無い / When 小見出しのランダムを押す / Then draw-group にその小見出しを載せる（#635）', () => {
+    enter(IDLE_CHECKIN);
+    fireEvent.click(screen.getByRole('button', { name: '集中と準備からランダム' }));
+    expect(commands()).toEqual([{ command: 'checkin.method.draw-group', seq: 0, group: 'checkin-focus' }]);
   });
 });
 
@@ -180,6 +186,9 @@ describe('切断中（B1・B2）', () => {
     act(() => latestSocket().drop());
     expect(screen.getByRole('button', { name: /今日の天気/ })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'ランダム' })).toBeDisabled();
+    for (const name of ['気分と元気からランダム', '集中と準備からランダム', '期待と役割からランダム']) {
+      expect(screen.getByRole('button', { name })).toBeDisabled();
+    }
     expect(screen.getByRole('button', { name: '見学する' })).toBeDisabled();
   });
 
@@ -264,9 +273,12 @@ describe('やり方の選択の初期の側と閉じ方（B5・B6）', () => {
     fireEvent.click(screen.getByRole('button', { name: /今日の天気/ }));
     fireEvent.click(screen.getByRole('button', { name: '別のやり方' }));
     fireEvent.click(screen.getByRole('button', { name: 'ランダム' }));
+    fireEvent.click(screen.getByRole('button', { name: '別のやり方' }));
+    fireEvent.click(screen.getByRole('button', { name: '気分と元気からランダム' }));
     expect(commands()).toEqual([
       { command: 'checkin.method.choose', seq: 3, method: 'weather' },
-      { command: 'checkin.method.draw', seq: 3, side: 'checkin' },
+      { command: 'checkin.method.draw-side', seq: 3, side: 'checkin' },
+      { command: 'checkin.method.draw-group', seq: 3, group: 'checkin-mood' },
     ]);
   });
 

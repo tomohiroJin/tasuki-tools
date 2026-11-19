@@ -1,0 +1,13 @@
+diff --git a/apps/checkin-web/src/card-art/worry.tsx b/apps/checkin-web/src/card-art/worry.tsx
+index ff515f3..b737d30 100644
+--- a/apps/checkin-web/src/card-art/worry.tsx
++++ b/apps/checkin-web/src/card-art/worry.tsx
+@@ -14,7 +14,7 @@ export function WorryArt({ card }: { card: string }) {
+       return (
+         <>
+           <path className="ca-ink" d={GROUND} />
+-          <path className="ca-gold" d="M23 52c0-7 4-11 9-11s9 4 9 11z" />
++          <path className="ca-gold" d="M32 18l3 8 8 3-8 3-3 8-3-8-8-3 8-3z" />
+         </>
+       );
+     case 'big':

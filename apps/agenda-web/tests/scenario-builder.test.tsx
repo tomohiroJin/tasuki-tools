@@ -6,6 +6,7 @@ import { flushSync } from 'react-dom';
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { saveResumeIdentity } from '@tasuki/sync-client';
+import type { TimeoutBehavior } from '@tasuki/agenda-core';
 import { App } from '../src/App';
 import {
   ADD_STEP_BUTTON,
@@ -359,12 +360,11 @@ describe('組む画面', () => {
     expect(document.activeElement).toBe(screen.getByRole('button', { name: stepMoveUpLabel(5) }));
   });
 
-  it('Given ルームも下書きも空 / When 一覧を開く / Then 3 行が名前と全部の分・回数を 1 行ずつ出す', () => {
+  it('Given ルームも下書きも空 / When 一覧を開く / Then サンプルの名前と区切り・時間の要約が同じボタンにある', () => {
     joinedRoom();
     openSamples();
-    const rows = screen.getAllByRole('button', { name: /^サンプル：/ });
-    expect(rows).toHaveLength(3);
-    expect(within(rows[0] as HTMLElement).getByText('5 ステップ・60 分')).toBeDefined();
+    const kpt = screen.getByRole('button', { name: /^サンプル：KPT のふりかえり/ });
+    expect(within(kpt).getByText('5 ステップ・60 分')).toBeDefined();
   });
 
   it('Given サンプルを読んだ / When くりかえしを 6 にする / Then 合計が「1 回あたり 2 分 × 6 回 ＝ 全部で 12 分」になる', () => {
@@ -494,17 +494,143 @@ describe('組む画面', () => {
 describe('サンプルから選ぶ', () => {
   const rowNames = () => screen.queryAllByRole('button', { name: /^サンプル：/ });
 
-  it('Given 空のルーム / When 組む画面を開く / Then 札は出ず、閉じた「サンプルから選ぶ」が 1 つだけあり、押すと 3 行が開く', () => {
+  it('Given 空のルーム / When 一覧を開く / Then 13 件が会の種類でまとまっている', () => {
     joinedRoom();
     expect(screen.getAllByRole('button', { name: SAMPLE_MENU_BUTTON })).toHaveLength(1);
     expect(menuButton().getAttribute('aria-expanded')).toBe('false');
     expect(rowNames()).toHaveLength(0);
     fireEvent.click(menuButton());
-    expect(rowNames().map((b) => b.textContent)).toEqual([
-      expect.stringContaining('KPT のふりかえり'),
-      expect.stringContaining('朝会'),
-      expect.stringContaining('LT 会'),
-    ]);
+    const groups = [
+      ['ミーティング', ['1 時間の定例', '30 分の定例', '1on1']],
+      ['スクラム', ['リファインメント（PBR）', 'スプリントプランニング', 'スプリントレビュー', '朝会', 'KPT のふりかえり']],
+      ['学ぶ・作る', ['モブの学習会', '読書会', 'LT 会', 'ポモドーロ', 'ワークショップ（アイデアを出してまとめる）']],
+    ] as const;
+    for (const [heading, titles] of groups) {
+      const list = screen.getByRole('list', { name: heading });
+      expect(within(list).getAllByRole('button').map((button) => button.textContent)).toEqual(
+        titles.map((title) => expect.stringContaining(`サンプル：${title}`)),
+      );
+    }
+    expect(rowNames()).toHaveLength(13);
+  });
+
+  const refine = [['説明', 3, 'wait'], ['質問', 5, 'wait'], ['見積もり', 2, 'wait']] as const;
+  const review = [['デモ', 10, 'advance'], ['質問', 5, 'wait']] as const;
+  const mob = [['モブ', 25, 'wait'], ['ひとやすみ', 5, 'advance']] as const;
+  const reading = [['かんそう', 3, 'wait']] as const;
+  const pomodoro = [['さぎょう', 25, 'advance'], ['ひとやすみ', 5, 'advance']] as const;
+  const addedSamples: readonly (readonly [string, readonly (readonly [string, number, TimeoutBehavior])[]])[] = [
+    ['1 時間の定例', [
+      ['チェックイン', 5, 'wait'], ['前回のしゅくだい', 10, 'wait'], ['話題 A', 15, 'wait'], ['話題 B', 15, 'wait'],
+      ['決めたことをたしかめる', 10, 'wait'], ['予備', 5, 'wait'],
+    ]],
+    ['30 分の定例', [['チェックイン', 3, 'wait'], ['話題', 20, 'wait'], ['決めたことをたしかめる', 5, 'wait'], ['予備', 2, 'wait']]],
+    ['リファインメント（PBR）', [...refine, ...refine, ...refine, ['まとめ', 5, 'wait']]],
+    ['スプリントプランニング', [
+      ['ゴールをたしかめる', 10, 'wait'], ['こうほを見る', 20, 'wait'], ['計画', 40, 'wait'], ['合意', 10, 'wait'],
+    ]],
+    ['スプリントレビュー', [['開会', 5, 'wait'], ...review, ...review, ...review, ['次の方しん', 10, 'wait']]],
+    ['モブの学習会', [['お題の説明', 5, 'wait'], ...mob, ...mob, ...mob, ['ふりかえり', 10, 'wait']]],
+    ['読書会', [['ひとりで読む', 15, 'advance'], ...reading, ...reading, ...reading, ['話し合い', 20, 'wait'], ['まとめ', 5, 'wait']]],
+    ['1on1', [['このごろの話', 5, 'wait'], ['相手の話', 15, 'wait'], ['こちらの話', 5, 'wait'], ['次までにやること', 5, 'wait']]],
+    ['ポモドーロ', [...pomodoro, ...pomodoro, ...pomodoro, ...pomodoro, ['まとめのひとやすみ', 15, 'advance']]],
+    ['ワークショップ（アイデアを出してまとめる）', [
+      ['説明', 5, 'wait'], ['ひとりで書く', 10, 'advance'], ['共有', 15, 'wait'], ['まとめる', 15, 'wait'], ['決める', 10, 'wait'],
+    ]],
+  ];
+
+  it.each(addedSamples)('「%s」を選ぶと予定どおりの区切りが下書きに入る', (title, steps) => {
+    joinedRoom();
+    openSamples();
+    fireEvent.click(screen.getByText(`サンプル：${title}`, { exact: true }));
+    expect(screen.getByRole('textbox', { name: '会の名前' })).toHaveValue(title);
+    expect(screen.getAllByRole('textbox', { name: /^ステップ \d+ の名前$/ })).toHaveLength(steps.length);
+    steps.forEach(([name, minutes], index) => {
+      expect(nameField(index + 1)).toHaveValue(name);
+      expect(screen.getByRole('spinbutton', { name: stepMinutesLabel(index + 1) })).toHaveValue(minutes);
+    });
+    expect(sentCommands('agenda.scenario.set')).toHaveLength(0);
+    fireEvent.click(loadButton());
+    expect(sentCommands('agenda.scenario.set')).toEqual([{
+      command: 'agenda.scenario.set',
+      scenario: { title, steps: steps.map(([name, minutes, onTimeout]) => ({ name, durationSec: minutes * 60, onTimeout })) },
+    }]);
+  });
+
+  it('リファインメントの件数を変えると、編集した行を保ちながら対象の組だけが増減する', () => {
+    joinedRoom();
+    pickRow(/リファインメント/);
+    const count = screen.getByRole('combobox', { name: 'サンプルのくりかえし' });
+    expect(count).toHaveValue('3');
+    typeName(1, '実際のお題');
+    fireEvent.change(count, { target: { value: '4' } });
+    expect(nameField(1)).toHaveValue('実際のお題');
+    expect(nameField(10)).toHaveValue('説明');
+    expect(nameField(13)).toHaveValue('まとめ');
+    fireEvent.change(count, { target: { value: '2' } });
+    expect(nameField(1)).toHaveValue('実際のお題');
+    expect(nameField(7)).toHaveValue('まとめ');
+    expect(screen.getAllByRole('textbox', { name: /^ステップ \d+ の名前$/ })).toHaveLength(7);
+    expect(roundsField()).toHaveValue(1);
+  });
+
+  it('くりかえしの前の行を消してから回数を変えても、その後ろのまとめは残る', () => {
+    joinedRoom();
+    pickRow(/読書会/);
+    fireEvent.click(screen.getByRole('button', { name: stepRemoveLabel(1) }));
+    const count = screen.getByRole('combobox', { name: 'サンプルのくりかえし' });
+    fireEvent.change(count, { target: { value: '1' } });
+    expect(nameField(1)).toHaveValue('かんそう');
+    expect(nameField(2)).toHaveValue('話し合い');
+    expect(nameField(3)).toHaveValue('まとめ');
+    fireEvent.click(screen.getByRole('button', { name: stepMoveDownLabel(1) }));
+    expect(screen.queryByRole('combobox', { name: 'サンプルのくりかえし' })).toBeNull();
+    expect(nameField(1)).toHaveValue('話し合い');
+  });
+
+  it('くりかえしの組の途中の行を消すと、残りの行を保ってサンプルの回数欄を閉じる', () => {
+    joinedRoom();
+    pickRow(/リファインメント/);
+    const name = 'サンプルのくりかえし';
+    expect(screen.getByRole('combobox', { name })).toHaveValue('3');
+    fireEvent.click(screen.getByRole('button', { name: stepRemoveLabel(2) }));
+    expect(screen.queryByRole('combobox', { name })).toBeNull();
+    expect(nameField(2)).toHaveValue('見積もり');
+    expect(nameField(9)).toHaveValue('まとめ');
+  });
+
+  it.each([
+    [1, 13],
+    [3, 6],
+  ])('リファインメントを会全体で %i 回行うとき、組の選択肢は %i 件まで', (rounds, max) => {
+    joinedRoom();
+    pickRow(/リファインメント/);
+    fireEvent.change(roundsField(), { target: { value: String(rounds) } });
+    const count = screen.getByRole('combobox', { name: 'サンプルのくりかえし' });
+    const options = within(count).getAllByRole('option');
+    expect(options.map((option) => option.textContent)).toEqual(
+      Array.from({ length: max }, (_, index) => String(index + 1)),
+    );
+    fireEvent.change(count, { target: { value: String(max) } });
+    expect(loadButton()).toBeEnabled();
+  });
+
+  it('ポモドーロの回数は編集済みの分と会全体の回数を含めて720分に収まる範囲まで増やせる', () => {
+    joinedRoom();
+    pickRow(/ポモドーロ/);
+    fireEvent.change(roundsField(), { target: { value: '2' } });
+    const count = screen.getByRole('combobox', { name: 'サンプルのくりかえし' });
+    expect(within(count).getAllByRole('option')).toHaveLength(11);
+    fireEvent.change(screen.getByRole('spinbutton', { name: stepMinutesLabel(1) }), { target: { value: '100' } });
+    expect(within(count).getAllByRole('option')).toHaveLength(9);
+    fireEvent.change(count, { target: { value: '9' } });
+    expect(loadButton()).toBeEnabled();
+    fireEvent.change(roundsField(), { target: { value: '6' } });
+    expect(count).toHaveValue('9');
+    expect(loadButton()).toBeDisabled();
+    fireEvent.change(count, { target: { value: '1' } });
+    fireEvent.change(screen.getByRole('spinbutton', { name: stepMinutesLabel(1) }), { target: { value: '25' } });
+    expect(loadButton()).toBeEnabled();
   });
 
   it('Given 一覧は閉じている / When 押す・もう一度押す / Then aria-expanded が true、false になり、aria-controls が一覧を指す', () => {
@@ -513,7 +639,7 @@ describe('サンプルから選ぶ', () => {
     expect(menuButton().getAttribute('aria-expanded')).toBe('true');
     const target = document.getElementById(menuButton().getAttribute('aria-controls') ?? '');
     expect(target).not.toBeNull();
-    expect(rowNames()).toHaveLength(3);
+    expect(rowNames()).toHaveLength(13);
     fireEvent.click(menuButton());
     expect(menuButton().getAttribute('aria-expanded')).toBe('false');
     expect(rowNames()).toHaveLength(0);
@@ -523,7 +649,7 @@ describe('サンプルから選ぶ', () => {
     joinedRoom(idleAgenda('Retro', [['Check', 5]]));
     expect(screen.getAllByRole('button', { name: SAMPLE_MENU_BUTTON })).toHaveLength(1);
     fireEvent.click(menuButton());
-    expect(rowNames()).toHaveLength(3);
+    expect(rowNames()).toHaveLength(13);
   });
 
   it('Given 下書きに中身がある / When 描く / Then 「サンプルから選ぶ」がある', () => {
@@ -680,7 +806,7 @@ describe('サンプルから選ぶ', () => {
     openSamples();
     deliverAgenda(idleAgenda('Other', [['Theirs', 10]]));
     expect(menuButton().getAttribute('aria-expanded')).toBe('true');
-    expect(rowNames()).toHaveLength(3);
+    expect(rowNames()).toHaveLength(13);
     expect(screen.getAllByRole('status').some((el) => el.textContent?.includes(SCENARIO_CHANGED_NOTE))).toBe(true);
   });
 });
