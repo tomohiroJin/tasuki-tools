@@ -1,0 +1,21 @@
+# 変異 2005: 玄関の合言葉の欄が、送ったあとも入力を残す
+#
+# 検出を期待するテスト:
+#   - apps/landing/tests/room-choice-passphrase.test.tsx
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m2005-*.patch
+# 復元: git apply -R scripts/mutations/m2005-*.patch
+#
+# #638。送った合言葉の平文が画面に残り、離席した画面を覗いた人に読める。
+diff --git a/apps/landing/src/screens/RoomPassphrase.tsx b/apps/landing/src/screens/RoomPassphrase.tsx
+index fac89b1a..f263880d 100644
+--- a/apps/landing/src/screens/RoomPassphrase.tsx
++++ b/apps/landing/src/screens/RoomPassphrase.tsx
+@@ -33,7 +33,6 @@ export function RoomPassphrase({ protectedNow, connection, onSet }: RoomPassphra
+     event.preventDefault();
+     if (!canSubmit) return;
+     onSet(value);
+-    setValue('');
+   };
+ 
+   return (

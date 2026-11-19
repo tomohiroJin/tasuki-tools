@@ -26,7 +26,7 @@ beforeEach(async () => {
 });
 
 function showChoice() {
-  return render(<RoomChoice code="朝会-ab12" inviteUrl={URL} roster={null} connection="online" topicTitle={null} />);
+  return render(<RoomChoice code="朝会-ab12" inviteUrl={URL} roster={null} connection="online" topicTitle={null} passphraseProtected={false} onSetPassphrase={() => undefined} />);
 }
 
 describe('選択画面で参加 URL を配る', () => {

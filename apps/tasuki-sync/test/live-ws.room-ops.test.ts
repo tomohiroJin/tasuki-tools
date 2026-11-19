@@ -21,6 +21,7 @@ import {
   createRoom,
   joinRoom,
   addToRotation,
+  setPassphraseViaHub,
   type LiveClient,
   type LiveSyncServer,
 } from "./support/live-sync-server.js";
@@ -123,17 +124,13 @@ describe("実 WS 越しのルーム操作（在室者は全員同格）", () => 
   });
 });
 
-describe("実 WS 越しの合言葉（room.passphrase.set と join の検証）", () => {
+describe("実 WS 越しの合言葉（玄関で設定した合言葉と join の検証）", () => {
   it("合言葉つきルームは、未指定なら PASSPHRASE_REQUIRED、誤りなら PASSPHRASE_MISMATCH、一致なら参加できる", async () => {
-    // Given: ホストが合言葉を設定する
+    // Given: 作成者が玄関から合言葉を設定する（設定は #638 でハブの言葉へ移った）
     server = startLiveSyncServer();
     const creator = await server.connect("creator");
     const created = await createRoom(creator, "作成者");
-    await creator.take("snapshot");
-    creator.send({ command: "room.passphrase.set", passphrase: "あいことば" });
-    const protectedRoom = await creator.take("snapshot", (m) => m.room.passphraseProtected === true);
-    // 平文は snapshot に載らない（サーバー側の tokenStore にだけ在る）
-    expect(JSON.stringify(protectedRoom)).not.toContain("あいことば");
+    await setPassphraseViaHub(server, created, "作成者", "あいことば");
 
     // When 1: 合言葉なしで参加を試みる
     const noPass = await server.connect("no-pass");
@@ -163,18 +160,15 @@ describe("実 WS 越しの合言葉（room.passphrase.set と join の検証）"
     expect(joined.participantId).toMatch(/\S/);
   });
 
-  it("空文字の room.passphrase.set は保護を解除する", async () => {
+  it("玄関で合言葉を解除すると、合言葉なしで参加できる", async () => {
     // Given: 合言葉つきのルーム
     server = startLiveSyncServer();
     const creator = await server.connect("creator");
     const created = await createRoom(creator, "作成者");
-    await creator.take("snapshot");
-    creator.send({ command: "room.passphrase.set", passphrase: "あいことば" });
-    await creator.take("snapshot", (m) => m.room.passphraseProtected === true);
+    await setPassphraseViaHub(server, created, "作成者", "あいことば");
 
     // When
-    creator.send({ command: "room.passphrase.set", passphrase: "" });
-    await creator.take("snapshot", (m) => m.room.passphraseProtected === false);
+    await setPassphraseViaHub(server, created, "作成者", "");
 
     // Then: 合言葉なしで参加できる
     const guest = await server.connect("guest");

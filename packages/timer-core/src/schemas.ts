@@ -38,12 +38,12 @@ const displayNameStr = v.string();
 //
 // 上限（`MAX_PASSPHRASE`）は `@tasuki/room-core` に 1 つだけ置き、timer の入口では
 // アプリケーション層（`apps/tasuki-sync/src/application/passphrase-rule.ts`）が当てる。
+// timer の wire が合言葉を運ぶのは `room.join` だけである（設定の `room.passphrase.set` は #638 で玄関のコマンドへ移った）。
 // かつてはここで 128 を掛けていたが、玄関の `room.join` は上限なしで、入口ごとに契約が
 // 違っていた。`timer-core` は `@tasuki/*` に依存しない（`docs/adr/0017` 決定 4）ので、
 // 正本を room-core に置くとここからは参照できない。超過は同じ `INVALID_COMMAND` で返る。
 //
 // ⚠ **ここに上限を書き戻さないこと。** 書き戻すと上限の正本が 2 つになる。
-// 空文字（解除）を許すため下限も置かない。
 const passphraseStr = v.string();
 
 // ─── SessionConfig スキーマ ─────────────────────────────────────────────────
@@ -210,11 +210,6 @@ const DriverAssignCommand = v.object({
   participantId,
 });
 
-const RoomPassphraseSetCommand = v.object({
-  command: v.literal("room.passphrase.set"),
-  passphrase: passphraseStr,
-});
-
 const PresencePingCommand = v.object({
   command: v.literal("presence.ping"),
 });
@@ -254,7 +249,6 @@ export const CommandSchema = v.variant("command", [
   DriverSkipCommand,
   DriverResumeCommand,
   DriverAssignCommand,
-  RoomPassphraseSetCommand,
   PresencePingCommand,
   TimePingCommand,
 ]);
@@ -363,8 +357,9 @@ export const RoomSchema = v.object({
   // #402 で状態は集約の `session.break` へ移った。この項目は `session.break.since !== null`
   // から導いて載せる。古い画面の `RoomSchema` が必須で読むので、wire からは消さない。
   onBreak: v.boolean(),
-  // v2 追加フィールド（任意化で後方互換）
-  passphraseProtected: v.optional(v.boolean()),
+  // ⚠ かつてここに `passphraseProtected`（合言葉が付いているか）があった。**#638 で落とした。**
+  // 合言葉の設定の口が玄関へ移り、「付いているか」の印は名簿（`@tasuki/room-core` の `RosterRoom`）が運ぶ。
+  // 古いサーバーの snapshot がこの項目を載せていても、非 strict のスキーマが読み捨てる。
   // お題の 4 項目（`problem`・`problemMode`・`aiUnlocked`・`problemGeneration`）は
   // #91 PR 3 で落とした（`wire.ts` 末尾の注記）。**`problem` は必須だった**が、落とす向きなので
   // 旧いサーバーの snapshot（これらを載せている）は今までどおり通る。

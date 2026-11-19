@@ -496,8 +496,8 @@ test.describe('timer の各画面（ロビー・セッション・確認・ま�
     await page.locator('summary', { hasText: '詳細設定' }).click();
     await expect(page.locator('.session-config-toggles')).toBeVisible();
     await expectScreen(page, 'timer ロビー（詳細設定を開いた）', 2, { minTargets: LOBBY_TARGETS });
-    // パスフレーズの欄（文字を入れる欄全体を測る。部品の当て忘れも拾う）
-    await expect(page.getByLabel('パスフレーズ', { exact: true })).toBeVisible();
+    // 合言葉の設定は玄関のルームの画面へ移った（#638）。timer のロビーには無い
+    await expect(page.getByLabel('パスフレーズ', { exact: true })).toHaveCount(0);
     await expectFieldsAtLeast16px(page);
   });
 

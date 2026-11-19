@@ -1,6 +1,6 @@
 /**
  * Session の「ルーム」タブ
- * 招待は共通の見出し（App.tsx の RoomHeader・#447 段 2）へ移った。ここにはパスフレーズ等が残る
+ * 招待は共通の見出し（App.tsx の RoomHeader・#447 段 2）へ移った。ここには自己退出等が残る（合言葉の設定は #638 で玄関へ移った）
  */
 
 import { describe, it, expect, vi } from "vitest";
@@ -85,13 +85,16 @@ describe("Session の「ルーム」タブ（招待は共通の見出しへ移�
     expect(screen.queryByText("ABC123")).toBeNull();
   });
 
-  it("「ルーム」タブにパスフレーズの設定は残る", async () => {
+  it("「ルーム」タブにパスフレーズの設定は無い（設定は玄関のルームの画面へ移った・#638）", async () => {
     // Given
     const user = userEvent.setup();
-    render(<Session room={makeRoom()} participantId="p-alice" {...baseHandlers()} onSetPassphrase={vi.fn()} />);
+    render(<Session room={makeRoom()} participantId="p-alice" {...baseHandlers()} />);
+
     // When
     await user.click(screen.getByRole("tab", { name: "ルーム" }));
+
     // Then
-    expect(screen.getByText(/パスフレーズ/, { selector: "*" })).toBeTruthy();
+    expect(screen.queryByText(/パスフレーズ/, { selector: "*" })).toBeNull();
+    expect(screen.queryByLabelText(/パスフレーズ|合言葉/)).toBeNull();
   });
 });

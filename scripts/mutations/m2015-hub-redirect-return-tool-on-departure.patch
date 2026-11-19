@@ -1,0 +1,22 @@
+# 変異 2015: 抜けた・外されたときの送り返しにも、元の道具を運ぶ
+#
+# 検出を期待するテスト:
+#   - packages/web-kit/tests/use-hub-redirect.test.tsx
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m2015-*.patch
+# 復元: git apply -R scripts/mutations/m2015-*.patch
+#
+# #638。外された人が玄関で入り直すと、外された道具へ戻される。
+diff --git a/packages/web-kit/src/room/use-hub-redirect.ts b/packages/web-kit/src/room/use-hub-redirect.ts
+index ba8adae5..a289979d 100644
+--- a/packages/web-kit/src/room/use-hub-redirect.ts
++++ b/packages/web-kit/src/room/use-hub-redirect.ts
+@@ -26,7 +26,7 @@ export function useHubRedirect<Departure extends string>({ departed, needsHub, r
+   });
+   useEffect(() => {
+     const { hubPathFor: pathFor, redirectTo: go, returnTo: from } = latest.current;
+-    if (departed !== null) go(pathFor(roomCode, departed));
++    if (departed !== null) go(pathFor(roomCode, departed, from));
+     else if (needsHub) go(pathFor(roomCode, undefined, from));
+   }, [departed, needsHub, roomCode]);
+ }

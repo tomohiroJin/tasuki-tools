@@ -15,6 +15,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import {
   createRoom,
+  setPassphraseViaHub,
   startLiveSyncServer,
   type LiveHubClient,
   type LivePokerClient,
@@ -112,8 +113,7 @@ describe("合言葉の関門（#95 S5b・門の置き換え）", () => {
   async function protectedRoom(passphrase: string): Promise<string> {
     const owner = await server.connect("owner");
     const room = await createRoom(owner, "ぬし");
-    owner.send({ command: "room.passphrase.set", passphrase });
-    await owner.take("snapshot");
+    await setPassphraseViaHub(server, room, "ぬし", passphrase);
     return room.code;
   }
 

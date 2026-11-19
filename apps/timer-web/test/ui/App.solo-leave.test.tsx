@@ -155,7 +155,7 @@ describe("ソロ退出後の復帰（Issue #79）", () => {
 
     // Then: join も飛ばず、玄関の名乗りへ送り直されるだけ
     expect(sentCommands.filter((c) => c.command === "room.join")).toEqual([]);
-    expect(redirectTo).toHaveBeenCalledWith("/?room=ROOM01");
+    expect(redirectTo).toHaveBeenCalledWith("/?room=ROOM01&from=timer");
   });
 
   it("退出前の招待リンクを開き直しても、自動復帰せず玄関の名乗りから始まる", () => {
@@ -174,6 +174,6 @@ describe("ソロ退出後の復帰（Issue #79）", () => {
     // Then: 保存済み識別情報は消えているので、勝手に resumeToken 付きで join し直さない。
     // 名乗りはハブに 1 つだけあり、**コードは落とさずに運ぶ**（#95 S5c・R9）
     expect(sentCommands.filter((c) => c.command === "room.join")).toEqual([]);
-    expect(redirectTo).toHaveBeenCalledWith("/?room=ROOM01");
+    expect(redirectTo).toHaveBeenCalledWith("/?room=ROOM01&from=timer");
   });
 });

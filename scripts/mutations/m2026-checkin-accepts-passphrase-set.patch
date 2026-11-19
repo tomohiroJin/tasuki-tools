@@ -1,0 +1,22 @@
+# 変異 2026: チェックインの接続が合言葉の設定を受け付ける
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/live-ws.hub-passphrase.test.ts
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m2026-*.patch
+# 復元: git apply -R scripts/mutations/m2026-*.patch
+#
+# #638 のレビュー。チェックインの接続から届いた合言葉の設定が、チェックインのコマンドの処理へ流れる。
+diff --git a/apps/tasuki-sync/src/application/checkin-handlers.ts b/apps/tasuki-sync/src/application/checkin-handlers.ts
+index 47333ca9..b9ea0fee 100644
+--- a/apps/tasuki-sync/src/application/checkin-handlers.ts
++++ b/apps/tasuki-sync/src/application/checkin-handlers.ts
+@@ -265,7 +265,7 @@ function buildCheckinHandlers<H>(deps: Omit<CheckinHandlerDeps, "graceTimer">, g
+         return;
+       }
+       // ルームは作らず、生死も照会しない（どちらも玄関の仕事）。
+-      if (isHubCommand(cmd)) {
++      if (cmd.command === "room.create" || cmd.command === "room.check") {
+         fail(connId, "INVALID_COMMAND");
+         return;
+       }

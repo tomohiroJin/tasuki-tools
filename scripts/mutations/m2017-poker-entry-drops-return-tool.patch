@@ -1,0 +1,22 @@
+# 変異 2017: poker が玄関へ送るとき、元の道具を運ばない
+#
+# 検出を期待するテスト:
+#   - apps/poker-web/tests/room-page-redirect.test.tsx
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m2017-*.patch
+# 復元: git apply -R scripts/mutations/m2017-*.patch
+#
+# #638。poker の URL から合言葉つきのルームへ入った人が、玄関で通っても poker へ戻らない。
+diff --git a/apps/poker-web/src/hooks/useRoomEntry.ts b/apps/poker-web/src/hooks/useRoomEntry.ts
+index 3b76396b..7c1f127a 100644
+--- a/apps/poker-web/src/hooks/useRoomEntry.ts
++++ b/apps/poker-web/src/hooks/useRoomEntry.ts
+@@ -78,7 +78,7 @@ export function useRoomEntry(sync: PokerSync, roomId: string): RoomEntry {
+       () => readStored() !== null,
+     );
+     entryAppliedRef.current = entry.applied;
+-    if (entry.redirect) redirectTo(hubPathFor(roomId, undefined, 'poker'));
++    if (entry.redirect) redirectTo(hubPathFor(roomId));
+ 
+     const rejoin = decideAutoRejoin({
+       status: sync.status,

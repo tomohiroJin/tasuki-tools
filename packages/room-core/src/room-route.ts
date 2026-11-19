@@ -10,6 +10,17 @@
  * 遷移は各アプリの `router.ts` の `redirectTo` に残す（テストが差し替える）。
  */
 import { DEPARTURE_PARAM, type DepartureReason } from "./departure.js";
+import type { ToolId } from "./room.js";
+
+/**
+ * 「どの道具から玄関へ送られてきたか」を運ぶクエリの名前（#638）。
+ *
+ * 合言葉の付いたルームへ道具の URL から入ると、道具は玄関の参加画面へ送り返す（名乗りと合言葉は
+ * 玄関に 1 つだけ・`docs/adr/0018`）。通ったあとに**元の道具へ戻す**ための印である。値は道具の ID で、
+ * 玄関が自分の札の一覧と照らして行き先を決める（URL をそのまま信じて遷移しない）。
+ * 退出の理由（{@link DEPARTURE_PARAM}）とは別の印で、並べて運べる。
+ */
+export const RETURN_PARAM = "from";
 
 export type RoomRoute = { name: "room"; roomCode: string } | { name: "redirect"; to: string };
 
@@ -40,9 +51,11 @@ export function parseRoomRoute(base: string, pathname: string, search = ""): Roo
  * 玄関のそのルーム（参加用 URL と同じ形・`docs/adr/0018` 決定 2）。
  *
  * 抜けた・外されたときは理由を `?left=` で運ぶ（#290）。文言は玄関が引く。
+ * 名乗り・合言葉のために送り返すときは、元の道具を `?from=` で運ぶ（#638。通ったら玄関が元の道具へ戻す）。
  */
-export function roomHubPath(roomCode: string, departure?: DepartureReason): string {
+export function roomHubPath(roomCode: string, departure?: DepartureReason, returnTo?: ToolId): string {
   const params = new URLSearchParams({ room: roomCode });
   if (departure !== undefined) params.set(DEPARTURE_PARAM, departure);
+  if (returnTo !== undefined) params.set(RETURN_PARAM, returnTo);
   return `/?${params.toString()}`;
 }

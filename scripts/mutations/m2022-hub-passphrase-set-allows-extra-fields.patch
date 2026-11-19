@@ -1,0 +1,22 @@
+# 変異 2022: ハブの合言葉の設定が、余剰フィールドを通す
+#
+# 検出を期待するテスト:
+#   - packages/room-core/tests/wire.test.ts
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m2022-*.patch
+# 復元: git apply -R scripts/mutations/m2022-*.patch
+#
+# #638。宛先は接続が決める。コード（宛先）を受け取ると、別ルームの合言葉を書き換える経路の入口になる（`docs/adr/0011` 決定 2 の脅威 S3）。
+diff --git a/packages/room-core/src/wire.ts b/packages/room-core/src/wire.ts
+index 6af950c5..6552b596 100644
+--- a/packages/room-core/src/wire.ts
++++ b/packages/room-core/src/wire.ts
+@@ -136,7 +136,7 @@ export const HubCommandSchema: v.GenericSchema<HubCommand> = v.variant("command"
+   }),
+   // 新設のコマンドなので古いクライアントは居ない。`room.check` と同じく strict から始める。
+   // 上限は参加の `room.join` と同じ 1 つの値（`./passphrase.ts`）。
+-  v.strictObject({
++  v.object({
+     command: v.literal("room.passphrase.set"),
+     passphrase: v.pipe(v.string(), v.maxLength(MAX_PASSPHRASE)),
+   }),

@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it } from "bun:test";
 import { findParticipantByConnId } from "@tasuki/room-core";
 import {
   createRoom,
+  setPassphraseViaHub,
   startLiveSyncServer,
   type LiveHubClient,
   type LiveSyncServer,
@@ -78,8 +79,7 @@ describe("ハブの入口（#95 S5a）", () => {
     // Given: timer の入口でルームを作り、合言葉を掛ける
     const owner = await server.connect("owner");
     const room = await createRoom(owner, "ぬし");
-    owner.send({ command: "room.passphrase.set", passphrase: "ひみつ" });
-    await owner.take("snapshot");
+    await setPassphraseViaHub(server, room, "ぬし", "ひみつ");
 
     // When: 合言葉を知らない人がハブから入ろうとする
     const hub = await server.connectHub("stranger");
@@ -194,15 +194,10 @@ describe("ハブの入口（#95 S5a）", () => {
     // Given: timer の入口でルームを作り、合言葉を掛ける
     const owner = await server.connect("owner");
     const room = await createRoom(owner, "ぬし");
-    owner.send({ command: "room.passphrase.set", passphrase: "ひみつ" });
-    // **関門を本物にする。** `createRoom` は `room.created` で止まるので、素の
-    // `take("snapshot")` は**作成時の** snapshot に当たってその場で返り、
-    // 合言葉が適用されたことを何も保証しない（2026-09-18 の最終レビューで判明）。
-    // `passphraseProtected` が立った snapshot を待って、前提を主張する。
-    await owner.takeMatching(
-      (m) => m.type === "snapshot" && m.room.passphraseProtected === true,
-      "合言葉が掛かった snapshot",
-    );
+    // **関門を本物にする。** `createRoom` は `room.created` で止まるので、設定が適用されたことを
+    // 待たずに進むと、前提が何も保証されない（2026-09-18 の最終レビューで判明）。
+    // `setPassphraseViaHub` は名簿の `passphraseProtected` が立つのを待ってから返る（#638）。
+    await setPassphraseViaHub(server, room, "ぬし", "ひみつ");
 
     // When: 合言葉を知らない人が生死だけを尋ね、続けて在らぬコードも尋ねる
     const hub = await server.connectHub("asker");

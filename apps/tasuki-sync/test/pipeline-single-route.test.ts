@@ -2,7 +2,7 @@
  * パイプライン単一経路の回帰テスト（フェーズ7・FR-155・SC-053）。
  *
  * 目的: 在室を前提とするコマンドが、旧専用ハンドラ由来のコマンド
- * （`room.passphrase.set`）も含め、
+ * （`participant.remove`）も含め、
  * すべて `handleCommand` の `default`（共通パイプライン）へ合流することを機械的に固定する。
  * 個別 `case` を復活させると、在室確認とアクター解決を迂回する経路が生まれる。
  *
@@ -44,11 +44,11 @@ function readApplicationSources(): Array<{ file: string; source: string }> {
 
 /**
  * 旧専用ハンドラを持っていたコマンド（Issue #26 前提節参照）。
- * 元は6件だったが、`role.set` と `host.transfer` は #95 S3 でコマンドごと廃止された。
+ * 元は6件だったが、`role.set` と `host.transfer` は #95 S3 でコマンドごと廃止された。`room.passphrase.set` は #638 で玄関（ハブ）のコマンドへ移った。
  * `ai.unlock` / `problem.request` / `problem.submit` は #91 PR 3 で timer の経路ごと撤去した
  * （お題の `ai.unlock` はお題ツールの接続 `topic-handlers.ts` が持つ）。
  */
-const FORMERLY_DEDICATED_COMMANDS = ["room.passphrase.set"] as const;
+const FORMERLY_DEDICATED_COMMANDS = ["participant.remove"] as const;
 
 /** 在室を前提としないコマンド（`handleCommand` の switch に個別 case を持ってよい唯一の例外）。 */
 const PRE_ROOM_CASE_LABELS = ["room.create", "room.join", "time.ping"];

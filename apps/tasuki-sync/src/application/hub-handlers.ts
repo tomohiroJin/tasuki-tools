@@ -36,7 +36,9 @@ import { createRoom, type CreateRoomDeps } from "./create-room.js";
 import { applyDisplayNameRule, INVALID_DISPLAY_NAME_MESSAGE } from "./display-name-rule.js";
 import { joinFailureMessage, type JoinRoomDeps } from "./join-room.js";
 import { saveRoster, type SaveRosterDeps } from "./save-roster.js";
-import { findRoomByConnId } from "./room-lookup.js";
+import { findRoomByConnId, findRoomByToolConnection } from "./room-lookup.js";
+import { applyRoomPassphrase } from "./room-passphrase.js";
+import { buildRoster } from "./roster-dto.js";
 import { joinToolRoom } from "./join-tool-room.js";
 import { TOOL_HUB } from "./tool-id.js";
 import type { TopicBroadcaster } from "./topic-broadcast.js";
@@ -160,6 +162,39 @@ export function makeHubHandlers(deps: HubHandlerDeps): HubHandlers {
     }
   }
 
+  /**
+   * 合言葉を設定・解除する（#638。もと timer のコマンド）。**ルーム全体の関門**を操作するので、
+   * どの道具にも属さないこの層が受ける。
+   *
+   * 宛先は**接続が在席しているルーム**から決める（コマンドはコードを持たない）。ハブとして在席して
+   * いない接続（他の道具の接続・どこにも居ない接続）からは操作させない。在室者なら誰でも実行できる
+   * （役割は無い・#95）。上限（`MAX_PASSPHRASE`）は wire のスキーマが境界で当てている。
+   *
+   * 名簿の保管は変わらない（合言葉は名簿の外にある）。名簿に載る「付いているか」の印が変わったときだけ、
+   * ハブ（と名簿の受け手）へ配り直す（**受け手の画面が古い印のまま残らない**）。印が変わらないとき
+   * （A → B の変更・付いていないものの解除）は、送った人にだけ名簿を 1 通返す（成功が分かるように）。
+   */
+  function handlePassphraseSet(
+    connId: string,
+    cmd: Extract<HubCommand, { command: "room.passphrase.set" }>,
+  ): void {
+    const room = findRoomByToolConnection(deps.store, connId, TOOL_HUB);
+    if (room === undefined) {
+      fail(connId, "NOT_IN_ROOM", errorMessageFor("NOT_IN_ROOM"));
+      return;
+    }
+    const wasProtected = deps.tokenStore.getPassphrase(room.code) !== undefined;
+    const nowProtected = applyRoomPassphrase(deps.tokenStore, room.code, cmd.passphrase);
+    if (wasProtected !== nowProtected) {
+      // 名簿に載る印が変わったときだけ全員へ配り直す（各道具の名簿の変化の測り直しも、その時だけ走る）。
+      hub.broadcastRoster(room.code);
+      return;
+    }
+    // A → B の変更や、付いていないものの解除では名簿は変わらない。送った人には成功が分かるよう、名簿を 1 通だけ返す
+    // （玄関は名簿の到着で設定の失敗の表示を消す）。
+    hub.sendTo(connId, { type: "roster", room: buildRoster(room, nowProtected) });
+  }
+
   function handleJoin(connId: string, cmd: Extract<HubCommand, { command: "room.join" }>): void {
     // 参加の流れは topic・roulette と共有する（`join-tool-room.ts`）。2 度目の参加の拒否・表示名の規約・
     // 失敗の文言（ハブは「存在しないルーム」と「合言葉が要るルーム」を区別して返す）もそちらが持つ。
@@ -196,6 +231,10 @@ export function makeHubHandlers(deps: HubHandlerDeps): HubHandlers {
       }
       if (cmd.command === "room.check") {
         handleCheck(connId, cmd);
+        return;
+      }
+      if (cmd.command === "room.passphrase.set") {
+        handlePassphraseSet(connId, cmd);
         return;
       }
       handleJoin(connId, cmd);

@@ -1,0 +1,20 @@
+# 変異 2029: 玄関が戻る行き先を、サーバーが確かめたコードでなく URL の生の値で作る
+#
+# 検出を期待するテスト:
+#   - apps/landing/tests/hub/return-to-tool.test.ts
+#
+# 適用: リポジトリルートから git apply scripts/mutations/m2029-*.patch
+# 復元: git apply -R scripts/mutations/m2029-*.patch
+#
+# #638 の code-review。復帰の組はサーバーのコードで保存されるので、食い違うと道具で組が見つからず玄関へ戻される。
+diff --git a/apps/landing/src/hub/return-to-tool.ts b/apps/landing/src/hub/return-to-tool.ts
+index 405fe910..92222ba3 100644
+--- a/apps/landing/src/hub/return-to-tool.ts
++++ b/apps/landing/src/hub/return-to-tool.ts
+@@ -30,5 +30,5 @@ export function returnPathFor(href: string, joinedCode: string): string | null {
+   const from = url.searchParams.get(RETURN_PARAM);
+   const tool = TOOLS.find((candidate) => candidate.id === from);
+   if (tool === undefined) return null;
+-  return `${tool.href}?room=${encodeURIComponent(joinedCode)}`;
++  return `${tool.href}?room=${encodeURIComponent(code)}`;
+ }
