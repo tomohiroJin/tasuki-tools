@@ -1,0 +1,7 @@
+--- a/apps/agenda-web/src/scenario-draft.ts
++++ b/apps/agenda-web/src/scenario-draft.ts
+@@ -230,3 +230,3 @@
+   const tail = d.steps.slice(repeat.start + repeat.count * repeat.steps.length);
+-  return { ...d, steps: [...kept, ...added, ...tail], sampleRepeat: { ...repeat, count } };
++  return { ...d, steps: [...kept, ...added, ...tail.slice(1)], sampleRepeat: { ...repeat, count } };
+ }
