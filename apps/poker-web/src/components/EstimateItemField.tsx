@@ -2,18 +2,18 @@
  * いま見積もっているアイテムの名前の欄（#93・spec §4.1）。
  *
  * 見た目は「題」のボタンで、押すと `<input>` に替わる。Enter かフォーカス外れで確定し、
- * Escape で元に戻す。名前は任意なので、空でも入力を促す表示（`required`・`aria-invalid`）は出さず
- * 「（名前なし）」と出すだけにする。
+ * Escape で元に戻す。名前が空なら通し番号から作った題を表示する。
  *
  * **編集中に `item` の props が変わっても打ちかけの値は消さない。**（アイテムの境目を越えたときだけ、呼び出し側が `key` で作り直して捨てる） 下書きは編集を始めた
  * 瞬間の `item` から取り、以後は props を読み直さない（他の参加者の入力で上書きされるのを防ぐ）。
  */
 import { useEffect, useId, useRef, useState } from 'react';
 import { MAX_ESTIMATE_ITEM } from '@tasuki/poker-core';
-import { ESTIMATE_ITEM_LABEL, ESTIMATE_ITEM_PLACEHOLDER, ESTIMATE_UNNAMED } from '../estimate-copy';
+import { ESTIMATE_ITEM_LABEL, estimateTitle } from '../estimate-copy';
 
 export interface EstimateItemFieldProps {
   item: string;
+  number: number;
   onCommit: (item: string) => void;
   disabled: boolean;
   /** 欄のラベル。省略で「いま見積もっているもの」（#427・束の見出しは「アイテム名を変える」を渡す） */
@@ -22,7 +22,7 @@ export interface EstimateItemFieldProps {
   size?: 'title' | 'inline';
 }
 
-export function EstimateItemField({ item, onCommit, disabled, label = ESTIMATE_ITEM_LABEL, size = 'title' }: EstimateItemFieldProps) {
+export function EstimateItemField({ item, number, onCommit, disabled, label = ESTIMATE_ITEM_LABEL, size = 'title' }: EstimateItemFieldProps) {
   const labelId = useId();
   const [draft, setDraft] = useState<string | null>(null);
   // Escape で畳んだあとにアンマウントの blur が確定として働かないための印
@@ -60,6 +60,7 @@ export function EstimateItemField({ item, onCommit, disabled, label = ESTIMATE_I
           className="ui-button ui-button--secondary estimate-item-title"
           ref={buttonRef}
           aria-describedby={labelId}
+          data-auto-title={size === 'title' && item === '' ? '' : undefined}
           disabled={disabled}
           onClick={() => {
             cancelledRef.current = false;
@@ -67,7 +68,7 @@ export function EstimateItemField({ item, onCommit, disabled, label = ESTIMATE_I
             setDraft(item);
           }}
         >
-          {item === '' ? ESTIMATE_UNNAMED : item}
+          {estimateTitle(item, number)}
         </button>
       ) : (
         <>
@@ -75,7 +76,7 @@ export function EstimateItemField({ item, onCommit, disabled, label = ESTIMATE_I
             入力はその上に重ねる。入力の固有の幅に引かれて名前の列の基準幅が変わり、選択欄の行が跳ぶのを防ぐ（短い名前も長い名前も） */}
         {size === 'inline' && (
           <button type="button" className="ui-button ui-button--secondary estimate-item-sizer" aria-hidden="true" tabIndex={-1} disabled>
-            {start === '' ? ESTIMATE_UNNAMED : start}
+            {estimateTitle(start, number)}
           </button>
         )}
         <input
@@ -84,7 +85,7 @@ export function EstimateItemField({ item, onCommit, disabled, label = ESTIMATE_I
           aria-labelledby={labelId}
           value={draft}
           maxLength={MAX_ESTIMATE_ITEM}
-          placeholder={ESTIMATE_ITEM_PLACEHOLDER}
+          placeholder={estimateTitle('', number)}
           // 押して替わった直後なので、続けて打てるようにする
           autoFocus
           disabled={disabled}

@@ -129,6 +129,9 @@ export function RoomPage({ roomId, sync }: Props) {
   const revealedVotes = revealedVoteMap(snapshot.round);
   const inviteUrl = sync.inviteUrl(roomId);
   const estimateLog = snapshot.estimate?.log ?? [];
+  // 束の ID は記録した順に増える。末尾が開いている間は再投票でも同じ束を使う。
+  const lastGroup = estimateLog.at(-1);
+  const currentEstimateNumber = lastGroup ? lastGroup.id + (lastGroup.open ? 0 : 1) : 1;
   // 記録するか。estimate が無い（古いサーバー）・recording が無いときは「する」と読む（#427・J9）
   const recording = snapshot.estimate?.recording ?? true;
   // ポイントを添えられるのは、記録していて、点を付ける open の束があるときだけ（J8）
@@ -235,11 +238,11 @@ export function RoomPage({ roomId, sync }: Props) {
           {/* 欄と足の記録は投票中と開票後で同じ位置に置き、描き分けるのは本体（手札か結果）と帯だけにする。
               状態ごとに別の部品で包むと、替わるたびに欄と足が作り直され、打ちかけの名前・フォーカス・
               開いていたシートが消える（#93 最終レビュー）。 */}
-          {/* key は閉じた束の最大 ID（束の ID は振り直されず増えるだけなので、上限で古い束が落ちても束が閉じるたびに変わる）。編集中に境目を越えたら欄を作り直し、
-              前のアイテムの打ちかけを新しいアイテムへ送らない。名前だけの変更では変わらない */}
+          {/* 通し番号が進んだときは欄を作り直し、前のアイテムの打ちかけを新しいアイテムへ送らない */}
           {recording && (
             <EstimateItemField
-              key={(snapshot.estimate?.log ?? []).reduce((max, g) => (g.open ? max : Math.max(max, g.id)), 0)}
+              key={currentEstimateNumber}
+              number={currentEstimateNumber}
               item={snapshot.estimate?.item ?? ''}
               onCommit={sync.setItem}
               disabled={offline}
