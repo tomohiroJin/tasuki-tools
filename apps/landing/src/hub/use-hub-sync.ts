@@ -166,18 +166,28 @@ export function useHubSync(): HubSync {
    */
   const pendingCreateRoomNameRef = useRef<string | null>(null);
   /**
-   * 待っている作成が、接続に**溜められた**ままか（#642 の再確認）。
+   * 接続が開いた回数（初回を含む）。**いま開いている接続の番号**として使う（#642 の再確認と 4 回目のレビュー）。
    *
-   * 閉じかけ（CLOSING）の接続へ送った作成は `SyncConnection` に溜められ、繋ぎ直しで新しい接続へ流れる。
-   * その応答は新しい接続に届くので、繋ぎ直しで待ちを降ろしてはいけない —— 降ろすと、応答を待つ間に
-   * 別の名前で送り直せて、名前を取り違える。その場で送った作成は、切れたら応答ごと失われるので降ろす。
+   * `onOpen` が溜めた送信を流す前に数えるので、溜めた送信は「次に開く接続」＝この番号が 1 つ進んだ接続で流れる。
    */
-  const pendingCreateQueuedRef = useRef(false);
+  const openCountRef = useRef(0);
+  /**
+   * 待っている作成が流れる（流れた）接続の番号（待っていなければ null）。
+   *
+   * 閉じかけ（CLOSING）や確立前の接続へ送った作成は `SyncConnection` に溜められ、次に開く接続で流れる。
+   * その応答はその接続に届くので、**その接続が開いた繋ぎ直しでは待ちを降ろさない** —— 降ろすと、応答を待つ間に
+   * 別の名前で送り直せて、名前を取り違える。それより前の接続で送った作成は、切れたら応答ごと失われているので降ろす。
+   *
+   * 「溜めたか」の真偽で持たないのは、初回の open（`onReconnected` が呼ばれない）で流れた作成の印を
+   * 下ろし損ね、次の繋ぎ直しで待ちが降りなくなるためである（4 回目のレビュー）。番号なら、何回目の open で
+   * 流れても同じ比べ方で済む。
+   */
+  const pendingCreateConnRef = useRef<number | null>(null);
   /** 作成の応答待ちか。画面は作るボタンを止める（{@link pendingCreateRoomNameRef} の写し）。 */
   const [creating, setCreating] = useState(false);
   const settleCreate = useCallback(() => {
     pendingCreateRoomNameRef.current = null;
-    pendingCreateQueuedRef.current = false;
+    pendingCreateConnRef.current = null;
     setCreating(false);
   }, []);
 
@@ -338,20 +348,17 @@ export function useHubSync(): HubSync {
         }
       },
       onOpen: () => {
+        // 溜めた送信が流れる前に数える（`SyncConnection` は onOpen の後に流す）。{@link openCountRef}
+        openCountRef.current += 1;
         setConnection('online');
       },
       onConnectionChange: (state) => setConnection(state),
       onReconnected: () => {
-        // 作成の待ちの扱い（#642 のレビューと再確認）。`SyncConnection` は溜めた送信を流してから
-        // ここを呼ぶ。
-        // - **溜めた作成**（閉じかけの接続へ送った）は、いま新しい接続へ流れた。応答はこれから届くので
-        //   待ちを続け、「その場で送った」扱いに変える（この接続も切れたら、次の繋ぎ直しで降ろす）
-        // - **その場で送った作成**は、応答が前の接続と一緒に失われた。降ろさないと、作るボタンが止まったまま戻らない
-        if (pendingCreateQueuedRef.current) {
-          pendingCreateQueuedRef.current = false;
-        } else {
-          settleCreate();
-        }
+        // 作成の待ちの扱い（{@link pendingCreateConnRef}・#642 のレビューと再確認）。`SyncConnection` は
+        // 溜めた送信を流してからここを呼ぶ。
+        // - **いま開いた接続で流れた作成**（溜めていた）は、応答がこれから届くので待ちを続ける
+        // - **それより前の接続で送った作成**は、応答が前の接続と一緒に失われた。降ろさないと、作るボタンが止まったまま戻らない
+        if (pendingCreateConnRef.current !== openCountRef.current) settleCreate();
         // 切断中に名簿が変わっているので、入り直して新しい名簿を受け取る。
         resumeIfPossible();
         // **切断中にルームが終わっていることがある。** 名乗りフォームの前で
@@ -396,9 +403,10 @@ export function useHubSync(): HubSync {
       setCreating(true);
       setError(null);
       const delivery = send(createCommand(roomName, displayName));
-      // 溜めたなら、繋ぎ直しで流れて応答が来る（{@link pendingCreateQueuedRef}）。捨てたなら応答は来ないので待たない
-      if (delivery === 'queued') pendingCreateQueuedRef.current = true;
+      // どの接続で流れるかを控える（{@link pendingCreateConnRef}）。溜めたなら次に開く接続、その場で送ったならいまの接続。
+      // 捨てたなら応答は来ないので待たない
       if (delivery === 'dropped') settleCreate();
+      else pendingCreateConnRef.current = openCountRef.current + (delivery === 'queued' ? 1 : 0);
     },
     [send, cancelRetry, settleCreate],
   );

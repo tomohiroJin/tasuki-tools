@@ -206,6 +206,88 @@ describe('ルームの作成に成功したとき、ルーム名を端末に保�
     }
   });
 
+  it('Given 初回の接続が開く前に作成を送った / When 初回で流れたあと応答の前に切れて繋ぎ直す / Then 作るボタンが戻る（#642 の 4 回目のレビュー）', () => {
+    vi.useFakeTimers();
+    try {
+      render(<App />);
+      // 初回の接続が開く前（CONNECTING）に作成を送る → 溜められ、初回の open で流れる
+      fireEvent.change(roomNameInput(), { target: { value: 'first-room' } });
+      fireEvent.change(screen.getByLabelText('あなたの名前'), { target: { value: 'あや' } });
+      fireEvent.click(screen.getByRole('button', { name: 'ルームを作る' }));
+      act(() => socket().open());
+      expect(socket().sentJson()).toContainEqual({ command: 'room.create', roomName: 'first-room', displayName: 'あや' });
+
+      // 応答の前に切れて、繋ぎ直す（応答は前の接続と一緒に失われた）
+      act(() => socket().drop());
+      act(() => {
+        vi.advanceTimersByTime(60_000);
+      });
+      act(() => latestSocket().open());
+
+      expect(screen.getByRole('button', { name: 'ルームを作る' })).toBeEnabled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('Given 初回の接続が開かずに切れ、2 本目で初めて開いて作成が流れた / When 応答の前に切れて繋ぎ直す / Then 作るボタンが戻る', () => {
+    vi.useFakeTimers();
+    try {
+      render(<App />);
+      fireEvent.change(roomNameInput(), { target: { value: 'first-room' } });
+      fireEvent.change(screen.getByLabelText('あなたの名前'), { target: { value: 'あや' } });
+      fireEvent.click(screen.getByRole('button', { name: 'ルームを作る' }));
+      // 1 本目は開かずに切れる
+      act(() => socket().drop());
+      act(() => {
+        vi.advanceTimersByTime(60_000);
+      });
+      // 2 本目で初めて開き、溜めた作成が流れる
+      act(() => latestSocket().open());
+      expect(latestSocket().sentJson()).toContainEqual({ command: 'room.create', roomName: 'first-room', displayName: 'あや' });
+      // 応答の前に切れて、3 本目で繋ぎ直す
+      act(() => latestSocket().drop());
+      act(() => {
+        vi.advanceTimersByTime(60_000);
+      });
+      act(() => latestSocket().open());
+
+      expect(screen.getByRole('button', { name: 'ルームを作る' })).toBeEnabled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('Given 閉じかけで溜めた作成が繋ぎ直しで流れた / When その接続も応答の前に切れて繋ぎ直す / Then 作るボタンが戻る', () => {
+    vi.useFakeTimers();
+    try {
+      render(<App />);
+      act(() => socket().open());
+      fireEvent.change(screen.getByLabelText('あなたの名前'), { target: { value: 'あや' } });
+      socket().readyState = 2;
+      fireEvent.change(roomNameInput(), { target: { value: 'first-room' } });
+      fireEvent.click(screen.getByRole('button', { name: 'ルームを作る' }));
+      act(() => socket().drop());
+      act(() => {
+        vi.advanceTimersByTime(60_000);
+      });
+      act(() => latestSocket().open());
+      // 流れた作成を待っている
+      expect(screen.getByRole('button', { name: 'ルームを作る' })).toBeDisabled();
+
+      // その接続も応答の前に切れて、繋ぎ直す
+      act(() => latestSocket().drop());
+      act(() => {
+        vi.advanceTimersByTime(60_000);
+      });
+      act(() => latestSocket().open());
+
+      expect(screen.getByRole('button', { name: 'ルームを作る' })).toBeEnabled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('Given 参加（作成ではない） / When room.joined が届く / Then ルーム名は覚えない', () => {
     window.history.replaceState(null, '', '/?room=room-a1b2c3d4');
     render(<App />);
