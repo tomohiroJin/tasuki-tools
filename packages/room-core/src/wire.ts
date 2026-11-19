@@ -166,7 +166,8 @@ export function isHubCommand(cmd: { readonly command: string }): cmd is HubComma
  * サーバーがハブへ送るメッセージ。
  *
  * `room.created` / `room.joined` は**自分の接続にだけ**返る（復帰の組は本人のもの）。
- * `roster` はそのルームのハブ接続すべてへ配信される（R3）。
+ * `roster` はそのルームのハブ接続すべてへ配信される（R3）。ただし合言葉の設定で印が変わらないときは、
+ * 送った人にだけ 1 通返す（#638）。
  */
 export type HubServerMsg =
   | { type: "room.created"; code: string; participantId: string; resumeToken: string }
