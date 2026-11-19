@@ -1,0 +1,13 @@
+diff --git a/apps/poker-web/src/room-view.ts b/apps/poker-web/src/room-view.ts
+index ba17e3f6..07b8a9d9 100644
+--- a/apps/poker-web/src/room-view.ts
++++ b/apps/poker-web/src/room-view.ts
+@@ -60,7 +60,7 @@ export function resultsEffectOf(
+   if (round.status !== 'revealed') return null;
+   // どの演出も、開票の瞬間に票を持つ全員（接続中で見学でない）が出していた回だけ。手動で先に開票した回は出さない
+   const voted = new Set(round.votes.map((v) => v.participantId));
+-  const voters = participants.filter((p) => p.connected && !p.spectator);
++  const voters = participants.filter((p) => !p.spectator);
+   if (voters.length < 2 || !voters.every((p) => voted.has(p.id))) return null;
+   // 一致・バラバラは卓に見える全票で判定する（切断した人の票も札として卓に見え、統計・割れの促しにも入る。帯は札の事実と合わせる）
+   return judgeAgreement(round.votes) ?? 'complete';

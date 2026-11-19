@@ -1,0 +1,13 @@
+diff --git a/apps/poker-web/src/room-view.ts b/apps/poker-web/src/room-view.ts
+index a36fb2a7..c0093412 100644
+--- a/apps/poker-web/src/room-view.ts
++++ b/apps/poker-web/src/room-view.ts
+@@ -75,7 +75,7 @@ export function sameRevealRound(seen: ReadonlyMap<string, Card>, round: RoomStat
+   if (round.status !== 'revealed') return false;
+   return round.votes.every((v) => {
+     const card = seen.get(v.participantId);
+-    return card !== undefined && cardKey(card) === cardKey(v.card);
++    return card !== undefined;
+   });
+ }
+ 

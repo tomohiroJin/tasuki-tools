@@ -1,0 +1,12 @@
+diff --git a/packages/poker-core/src/agreement.ts b/packages/poker-core/src/agreement.ts
+index 7257477e..e3502e22 100644
+--- a/packages/poker-core/src/agreement.ts
++++ b/packages/poker-core/src/agreement.ts
+@@ -21,6 +21,6 @@ export function judgeAgreement(votes: readonly VoteView[]): Agreement | null {
+   if (votes.some((v) => v.card.kind !== 'number')) return null;
+   const distinct = new Set(votes.map((v) => cardKey(v.card))).size;
+   if (distinct === 1) return votes.length >= UNANIMOUS_MIN_VOTES ? 'unanimous' : null;
+-  if (distinct === votes.length) return votes.length >= SCATTER_MIN_VOTES ? 'scattered' : null;
++  if (distinct === votes.length) return votes.length >= 2 ? 'scattered' : null;
+   return null;
+ }
