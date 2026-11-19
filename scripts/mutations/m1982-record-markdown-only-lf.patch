@@ -1,0 +1,10 @@
+diff --git a/apps/timer-web/src/records/record-markdown.ts b/apps/timer-web/src/records/record-markdown.ts
+--- a/apps/timer-web/src/records/record-markdown.ts
++++ b/apps/timer-web/src/records/record-markdown.ts
+@@ -11,5 +11,5 @@
+   // 名前やお題の改行を畳み、Markdown 記法に使う記号をエスケープする。
+   return text
+-    .replace(/\s*[\r\n\u2028\u2029]+\s*/g, " ")
++    .replace(/\s*\n+\s*/g, " ")
+     // 単語中の下線は強調にならない。表示名や URL をそのまま保つ。
+     .replace(/(?<=[\p{L}\p{N}])(_+)(?=[\p{L}\p{N}])|[<>[\]*_`~\\]/gu, (symbol, wordUnderscores: string | undefined) =>

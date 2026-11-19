@@ -1,0 +1,10 @@
+diff --git a/apps/timer-web/src/records/record-markdown.ts b/apps/timer-web/src/records/record-markdown.ts
+--- a/apps/timer-web/src/records/record-markdown.ts
++++ b/apps/timer-web/src/records/record-markdown.ts
+@@ -14,5 +14,5 @@
+     // 単語中の下線は強調にならない。表示名や URL をそのまま保つ。
+     .replace(/(?<=[\p{L}\p{N}])(_+)(?=[\p{L}\p{N}])|[<>[\]*_`~\\]/gu, (symbol, wordUnderscores: string | undefined) =>
+-      wordUnderscores ?? `\\${symbol}`,
++      `\\${symbol}`,
+     )
+     // R&D などの & は保ち、Markdown で文字参照として読まれる形だけを保護する。
