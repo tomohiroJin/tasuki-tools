@@ -1,0 +1,11 @@
+diff --git a/apps/timer-web/src/records/record-markdown.ts b/apps/timer-web/src/records/record-markdown.ts
+--- a/apps/timer-web/src/records/record-markdown.ts
++++ b/apps/timer-web/src/records/record-markdown.ts
+@@ -23,6 +23,6 @@ export function formatRecordMarkdown(record: CompletionRecord): string {
+     return `  - 「${markdownText(name)}」（${assignment}）`;
+   });
+-  const rounds = record.rounds === undefined ? "未記録" : `${record.rounds}周`;
++  const rounds = record.rounds === undefined ? "未記録" : "0周";
+
+   return [
+     "セッションまとめ",

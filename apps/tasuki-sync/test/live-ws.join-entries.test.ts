@@ -13,7 +13,13 @@
  */
 import { afterEach, describe, expect, it } from "bun:test";
 import { DEFAULT_CAPACITY } from "@tasuki/rate-limit";
-import { createRoom, startLiveSyncServer, type LiveClient, type LiveSyncServer } from "./support/live-sync-server.js";
+import {
+  createRoom,
+  setPassphraseViaHub,
+  startLiveSyncServer,
+  type LiveClient,
+  type LiveSyncServer,
+} from "./support/live-sync-server.js";
 
 type Entry = "hub" | "topic" | "roulette" | "agenda" | "checkin" | "timer";
 type Scene =
@@ -119,7 +125,8 @@ async function play(entry: Entry, scene: Scene): Promise<unknown> {
   const s = startLiveSyncServer();
   server = s;
   const owner: LiveClient = await s.connect("owner");
-  const { code } = await createRoom(owner, "オーナー");
+  const room = await createRoom(owner, "オーナー");
+  const { code } = room;
   const client = await connect(s, entry);
 
   switch (scene) {
@@ -143,8 +150,7 @@ async function play(entry: Entry, scene: Scene): Promise<unknown> {
       return normalize(await sendAndCollect(client, JOIN("ZZZZZZ")), code);
     case "合言葉が要る":
     case "合言葉が違う": {
-      owner.send({ command: "room.passphrase.set", passphrase: "ひみつ" });
-      await new Promise((resolve) => setTimeout(resolve, 150));
+      await setPassphraseViaHub(s, room, "オーナー", "ひみつ");
       const extra = scene === "合言葉が違う" ? { passphrase: "ちがう" } : {};
       return normalize(await sendAndCollect(client, JOIN(code, extra)), code);
     }
@@ -188,6 +194,7 @@ const EXPECTED: Record<string, unknown> = {
       "type": "roster",
       "room": {
         "code": "<room>",
+        "passphraseProtected": false,
         "participants": [
           {
             "participantId": "<p2>",
@@ -227,6 +234,7 @@ const EXPECTED: Record<string, unknown> = {
       "type": "roster",
       "room": {
         "code": "<room>",
+        "passphraseProtected": false,
         "participants": [
           {
             "participantId": "<p2>",
@@ -384,6 +392,7 @@ const EXPECTED: Record<string, unknown> = {
       "type": "roster",
       "room": {
         "code": "<room>",
+        "passphraseProtected": false,
         "participants": [
           {
             "participantId": "<p2>",
@@ -428,6 +437,7 @@ const EXPECTED: Record<string, unknown> = {
       "type": "roster",
       "room": {
         "code": "<room>",
+        "passphraseProtected": false,
         "participants": [
           {
             "participantId": "<p2>",

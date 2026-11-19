@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { saveResumeIdentity } from '@tasuki/sync-client';
 import { App } from '../src/App';
 import { PROJECT_BUTTON, RESET_BUTTON, SAMPLE_MENU_BUTTON, SAMPLE_REPLACE_CONFIRM } from '../src/copy';
-import { SAMPLE_SCENARIOS } from '../src/sample-scenarios';
+import { SAMPLE_GROUPS } from '../src/sample-scenarios';
 import { Driver } from './support/agenda-states';
 import { outsideBase } from '@tasuki/test-css/font-base';
 import { IDLE_AGENDA, RESUME, ROSTER_FRAME, ScriptedWebSocket, latestSocket, runningAgenda } from './support/scripted-web-socket';
@@ -30,12 +30,10 @@ function renderedText(): string {
 }
 
 /**
- * 判定に掛ける文字。**同梱のサンプルの名前（会・ステップ）は利用者の入力と同じく判定の外**（spec §7.6）。
- * 描いた文字から取り除いてから当てる（サンプルの一覧は開くと名前を並べる）。
+ * KPT に元からある「Try の議論」は利用者の入力と同じく判定の外（spec §7.6）。
  */
 function checkedText(): string {
-  const bundled = SAMPLE_SCENARIOS.flatMap((s) => [s.scenario.title, ...s.scenario.steps.map((x) => x.name)]);
-  return bundled.reduce((text, name) => text.split(name).join(''), renderedText());
+  return renderedText().replaceAll('Try の議論', '');
 }
 
 /**
@@ -44,6 +42,13 @@ function checkedText(): string {
 describe('描いた進行タイマーの文字は書体の常用の層に収まる', () => {
   it('対照: 検査は base 層に無い字を拾う（拾えない検査は常に緑になる）', () => {
     expect(outsideBase(['議論'])).not.toEqual([]);
+  });
+
+  it('同梱のサンプルの区切りも書体の base 層に収まる', () => {
+    const names = SAMPLE_GROUPS.flatMap((group) => group.scenarios.flatMap((scenario) =>
+      scenario.steps.map((step) => step.name),
+    ));
+    expect(outsideBase(names.filter((name) => name !== 'Try の議論'))).toEqual([]);
   });
 
   it.each([
@@ -70,7 +75,7 @@ describe('描いた進行タイマーの文字は書体の常用の層に収ま�
     expect(renderedText().length).toBeGreaterThan(5);
   });
 
-  it('Given 組む前 / When サンプルの一覧を開く / Then 同梱の名前（会の名前）が並び、それを除けば外れる字は無い', () => {
+  it('Given 組む前 / When サンプルの一覧を開く / Then 見出しや名前に base 層から外れる字は無い', () => {
     saveResumeIdentity(RESUME);
     render(<App />);
     act(() => {

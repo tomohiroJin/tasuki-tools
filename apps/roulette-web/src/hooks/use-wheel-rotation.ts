@@ -16,11 +16,13 @@
  * - 指し針の位置は並び（`useStageLayout`）から来る。並びは回っている間は変わらないので、回転の途中で
  *   指し針が動くことは無い
  * - 止まったら、札が見えていなければ寄せる（見えていれば動かさない）
+ * - 変わった動き（#640・`spin.launchMotion`・`spin.spinMotion`）も 1 人目の回転の描き方だけを変える（止まり方と重なってよい）。
+ *   知らない名前・無いときはいつもの動き。止まる角度は同じ
  * - 変わった止まり方（#420・`spin.stopStyle`）は 1 人目の回転の描き方だけを変える。止まる角度は同じなので、
  *   局面が「止まった」に変わる瞬間に跳ばない（動きを減らす設定では局面が先に止まるので描かない）
  */
 import { useEffect, useRef, useState, type RefObject } from 'react';
-import type { RouletteView } from '@tasuki/roulette-core';
+import { motionNamesOf, type RouletteView } from '@tasuki/roulette-core';
 import { elapsedOf, picksOf } from '../roulette-view';
 import { angleAtPicks, finalAngleOfPicks } from '../wheel-motion';
 
@@ -77,7 +79,7 @@ export function useWheelRotation(input: {
     // 受け取った直後に古い「いま」を使うと経過が負になる。基準の組より前には戻さない
     angle = settled
       ? finalAngleOfPicks(picks, n, pointerDeg, a.startDeg)
-      : angleAtPicks(elapsedOf(spin, receivedAt, Math.max(now, receivedAt)), picks, n, pointerDeg, a.startDeg, spin.stopStyle);
+      : angleAtPicks(elapsedOf(spin, receivedAt, Math.max(now, receivedAt)), picks, n, pointerDeg, a.startDeg, spin.stopStyle, motionNamesOf(spin));
   }
   shown.current = angle;
   const spinning = spin !== null && !settled;

@@ -12,13 +12,13 @@
 diff --git a/packages/web-kit/src/room/use-hub-redirect.ts b/packages/web-kit/src/room/use-hub-redirect.ts
 --- a/packages/web-kit/src/room/use-hub-redirect.ts
 +++ b/packages/web-kit/src/room/use-hub-redirect.ts
-@@ -21,7 +21,7 @@ export function useHubRedirect<Departure extends string>({ departed, needsHub, r
+@@ -26,7 +26,7 @@ export function useHubRedirect<Departure extends string>({ departed, needsHub, roomCode, returnTo, hubPathFor, redirectTo }: HubRedirectOptions<Departure>): void {
    });
    useEffect(() => {
-     const { hubPathFor: pathFor, redirectTo: go } = latest.current;
+     const { hubPathFor: pathFor, redirectTo: go, returnTo: from } = latest.current;
 -    if (departed !== null) go(pathFor(roomCode, departed));
--    else if (needsHub) go(pathFor(roomCode));
-+    if (needsHub) go(pathFor(roomCode));
+-    else if (needsHub) go(pathFor(roomCode, undefined, from));
++    if (needsHub) go(pathFor(roomCode, undefined, from));
 +    else if (departed !== null) go(pathFor(roomCode, departed));
    }, [departed, needsHub, roomCode]);
  }

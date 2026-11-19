@@ -11,11 +11,11 @@
 diff --git a/apps/poker-web/src/hooks/useRoomEntry.ts b/apps/poker-web/src/hooks/useRoomEntry.ts
 --- a/apps/poker-web/src/hooks/useRoomEntry.ts
 +++ b/apps/poker-web/src/hooks/useRoomEntry.ts
-@@ -74,7 +74,6 @@ export function useRoomEntry(sync: PokerSync, roomId: string): RoomEntry {
+@@ -77,7 +77,6 @@ export function useRoomEntry(sync: PokerSync, roomId: string): RoomEntry {
        errorCode,
        () => readStored() !== null,
      );
 -    entryAppliedRef.current = entry.applied;
-     if (entry.redirect) redirectTo(hubPathFor(roomId));
+     if (entry.redirect) redirectTo(hubPathFor(roomId, undefined, 'poker'));
  
      const rejoin = decideAutoRejoin({

@@ -3,11 +3,13 @@ import { useEffect, useRef, useState } from 'react';
 /** 非セキュアオリジン向け。失敗しても一時欄とフォーカスを元へ戻す。 */
 function legacyCopy(text: string): boolean {
   const focused = document.activeElement;
+  // モーダルの外は操作できず、body に置いた欄の文字を選択できない。
+  const container = focused?.closest('dialog[open]') ?? document.body;
   const textarea = document.createElement('textarea');
   textarea.value = text;
   textarea.style.position = 'fixed';
   textarea.style.opacity = '0';
-  document.body.appendChild(textarea);
+  container.appendChild(textarea);
   try {
     textarea.select();
     return document.execCommand('copy');
@@ -17,8 +19,8 @@ function legacyCopy(text: string): boolean {
   }
 }
 
-/** URL とコードのコピー。失敗時に手動で拾えるよう、呼び手は文字列を常時表示する。 */
-export function useCopyText(text: string) {
+/** テキストのコピー。失敗時は呼び手から手動で選択できるようにする。 */
+export function useCopyText(text: string, { keepFailure = false } = {}) {
   const [result, setResult] = useState<{ text: string; state: 'idle' | 'done' | 'failed' }>({ text, state: 'idle' });
   const request = useRef(0);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -46,9 +48,11 @@ export function useCopyText(text: string) {
       try { done = legacyCopy(text); } catch { /* 手動選択へ */ }
     }
     setResult({ text, state: done ? 'done' : 'failed' });
-    timer.current = setTimeout(() => {
-      if (current === request.current) setResult({ text, state: 'idle' });
-    }, 2000);
+    if (done || !keepFailure) {
+      timer.current = setTimeout(() => {
+        if (current === request.current) setResult({ text, state: 'idle' });
+      }, 2000);
+    }
   };
 
   return { copy, state: result.text === text ? result.state : 'idle' } as const;

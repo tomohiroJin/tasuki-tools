@@ -1,16 +1,6 @@
 // カード手札（フィボナッチデッキ 10 種。FR-005〜007）
 import { FIBONACCI_DECK, cardEquals, cardKey, type Card } from '@tasuki/poker-core';
-
-export function cardLabel(card: Card): string {
-  switch (card.kind) {
-    case 'number':
-      return String(card.value);
-    case 'question':
-      return '?';
-    case 'coffee':
-      return '☕';
-  }
-}
+import { cardLabel } from '../card-label';
 
 interface Props {
   selected: Card | null;

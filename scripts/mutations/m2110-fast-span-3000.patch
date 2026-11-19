@@ -1,0 +1,22 @@
+# 変異 2110: fast-span-3000
+#
+# 検出を期待するテスト:
+#   - packages/roulette-core/tests/roulette-motions.test.ts
+#
+# #640 の /code-review。速い × 一瞬の逆回り（reverse）で、止まり方の脚が詰まり向きの切り返しが約 270ms 間隔になる（1 秒に 3 回までを破る）。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2110-*.patch
+# 復元: git apply -R scripts/mutations/m2110-*.patch
+diff --git a/packages/roulette-core/src/limits.ts b/packages/roulette-core/src/limits.ts
+--- a/packages/roulette-core/src/limits.ts
++++ b/packages/roulette-core/src/limits.ts
+@@ -101,7 +101,7 @@
+  * 速い回転で、縮めて進める本体の最初の区間の長さ（本体の ms）。**止まり方の最初の脚の最短（`reverse` の 2600ms）以内**にする
+  * （止まり方の細かい動き＝向きの切り返しの間隔を詰めない。1 秒に 3 回まで・WCAG 2.3.1）。縮める長さは {@link SPIN_MOTION_EXTRA_MS}.fast
+  */
+-export const FAST_SPAN_MS = 2600;
++export const FAST_SPAN_MS = 3000;
+ 
+ /** 止まり方・動き出し・回転の延びる長さの合計の上限（ms・#640 決めること 3）。越えるときは動き出しを詰める */
+ export const MOTION_EXTRA_CAP_MS = 4000;

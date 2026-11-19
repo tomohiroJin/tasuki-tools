@@ -82,7 +82,6 @@ const TRANSLATIONS: Record<RoomScopedCommand["command"], readonly Case[]> = {
   ],
   // 名簿（Room レベル）の操作で、decide を通らない（handleRoomCommand の専用処理）
   "participant.remove": [{ input: { command: "participant.remove", participantId: "p1" }, expected: null }],
-  "room.passphrase.set": [{ input: { command: "room.passphrase.set", passphrase: "aikotoba" }, expected: null }],
   "driver.skip": [
     { input: { command: "driver.skip", participantId: "p1" }, expected: { command: "driver.skip", participantId: "p1" } },
   ],

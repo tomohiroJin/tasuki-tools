@@ -1,0 +1,13 @@
+diff --git a/apps/timer-web/src/records/record-markdown.ts b/apps/timer-web/src/records/record-markdown.ts
+--- a/apps/timer-web/src/records/record-markdown.ts
++++ b/apps/timer-web/src/records/record-markdown.ts
+@@ -42,4 +42,8 @@
+     const url = urlWithoutTrailingPunctuation(match[0]);
+-    if (!URL.canParse(url)) continue;
++    if (!URL.canParse(url)) {
++      markdown += escapeMarkdownText(line.slice(plainTextStart, match.index)) + escapeMarkdownText(url);
++      plainTextStart = match.index + url.length;
++      continue;
++    }
+     // URL として消費しなかった部分は、続く本文とまとめてエスケープする。
+     markdown += escapeMarkdownText(line.slice(plainTextStart, match.index)) + `<${url}>`;

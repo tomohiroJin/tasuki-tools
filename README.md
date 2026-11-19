@@ -56,7 +56,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
   - [`apps/tasuki-sync`](apps/tasuki-sync/) — リアルタイム同期サーバー（timer・poker と共用）
   - [`packages/markdown`](packages/markdown/) — お題の本文の Markdown の解析（描画は各アプリ）
 - **特徴**
-  - 手入力・定型バンク・AI 生成（任意・運営者の Claude サブスクで実行・未設定時は定型お題へ安全縮退）の 3 つで作る
+  - 手入力・定型バンク・AI 生成（任意・運営者の Console の API キーで認証し、クレジット切れ・失敗時は定型へ縮退・未設定時は定型お題へ安全縮退）の 3 つで作る
   - お題はルームの持ち物で、timer のセッションをまたいで残る
 - 設計判断: [`docs/adr/0021`](docs/adr/0021-topic-as-shared-context.md)
 
@@ -85,7 +85,8 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 - **特徴**
   - 時間切れの振る舞いをステップごとに選べる（押すまで待ってオーバーを数える／自動で次へ）。会の最中は延長（+1 / +3 / +5 分）と飛ばすだけで組み替える
   - 盤は 1 周が予定の合計。12 時の竜頭（予定の終わり）と終了見込みの印の位置で押し巻きが読める。スクリーンに映す表示を持つ
-  - シナリオは端末に保存して読み直せる。サンプル（KPT のふりかえり・朝会・LT 会）から始められる
+  - シナリオは端末に保存して読み直せる。「サンプルから選ぶ」で、定例・リファインメント・学習会などの型を下書きに入れて編集できる
+  - 会の一部をくりかえすサンプルでは、下書きの「サンプルのくりかえし」で、その部分だけの回数を変えられる
   - 「くりかえし」でシナリオ全体を指定の回数だけ繰り返せる（朝会の 6 回、LT 会の 5 回など。回ごとの見出しで進行表を区切る）
 - 設計判断: [`docs/adr/0027`](docs/adr/0027-agenda-timer.md)・設計正本 [`docs/superpowers/specs/2026-10-19-agenda-timer-design.md`](docs/superpowers/specs/2026-10-19-agenda-timer-design.md)
 
@@ -128,7 +129,7 @@ Tasuki は二本柱で成り立つ。**実用ツール集**（timer・poker 等�
 
 ### 前提
 
-- **Node.js 22.22.2 以上**（`package.json` の `engines`。pnpm 11 系が `node:sqlite` を使うため、20 では起動しません）
+- **Node.js 26.13.1 以上（26 系）**（`package.json` の `engines`。版の正本は `toolchain.json`。pnpm 11 系が `node:sqlite` を使うため、20 では起動しません）
 - pnpm（版は `package.json` の `packageManager` が決める。`corepack enable` すればその版が使われる）
 - **Bun** — 同期サーバー（`apps/tasuki-sync`）の起動とテストに必要
 

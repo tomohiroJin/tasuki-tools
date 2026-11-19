@@ -96,6 +96,7 @@ export const stepMinutesRangeText = (n: number): string =>
 export const totalTooLongText = (minutes: number): string => `合計は ${MAX_TOTAL_SEC / 60} 分までです（いま ${minutes} 分）`;
 // くりかえし（回数）
 export const ROUNDS_LABEL = 'くりかえし';
+export const SAMPLE_REPEAT_LABEL = 'サンプルのくりかえし';
 export const ROUNDS_UNIT = '回';
 export const roundsMinusLabel = `${ROUNDS_LABEL}を 1 回へらす`;
 export const roundsPlusLabel = `${ROUNDS_LABEL}を 1 回ふやす`;

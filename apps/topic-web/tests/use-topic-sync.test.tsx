@@ -56,7 +56,7 @@ describe('お題ツールのルームへの入り方', () => {
     render(<App />);
     // Then
     expect(ScriptedWebSocket.instances).toHaveLength(0);
-    expect(redirectTo).toHaveBeenCalledWith('/?room=R1');
+    expect(redirectTo).toHaveBeenCalledWith('/?room=R1&from=topic');
   });
 
   /**
@@ -106,7 +106,7 @@ describe('お題ツールのルームへの入り方', () => {
     // When
     act(() => latestSocket().deliver({ type: 'error', code: 'PASSPHRASE_REQUIRED', message: 'x' }));
     // Then
-    expect(redirectTo).toHaveBeenCalledWith('/?room=R1');
+    expect(redirectTo).toHaveBeenCalledWith('/?room=R1&from=topic');
   });
 
   it('Given 混雑で拒まれた / When 待ち時間が過ぎる / Then 待つ間は送らず、過ぎたら入り直す', () => {
@@ -241,7 +241,7 @@ describe('お題ツールのルームへの入り方', () => {
     act(() => latestSocket().open());
     // Then
     expect(latestSocket().sentJson().filter((m) => m['command'] === 'room.join')).toHaveLength(0);
-    expect(redirectTo).toHaveBeenCalledWith('/?room=R1');
+    expect(redirectTo).toHaveBeenCalledWith('/?room=R1&from=topic');
   });
 
   it('Given 入れた / When 別のタブで抜けた知らせが届く / Then 組を捨て、接続を畳んで理由を持って玄関へ戻る', () => {

@@ -42,6 +42,13 @@ export interface RosterParticipant {
 export interface RosterRoom {
   code: string;
   participants: RosterParticipant[];
+  /**
+   * 合言葉が付いているか（#638）。**合言葉そのものは載せない。**
+   *
+   * 玄関の設定の口が「設定中／未設定」を映すための印である。省略は「付いていない」と同じに読む
+   * （古いサーバーはこの項目を送らない。非 strict のスキーマで受ける理由と同じ）。
+   */
+  passphraseProtected?: boolean | undefined;
 }
 
 /**
@@ -62,6 +69,7 @@ const RosterParticipantSchema = v.object({
 const RosterRoomSchema: v.GenericSchema<RosterRoom> = v.object({
   code: nonEmptyString,
   participants: v.array(RosterParticipantSchema),
+  passphraseProtected: v.optional(v.boolean()),
 });
 
 /**
@@ -90,7 +98,14 @@ export type HubCommand =
    * 応答は**無いときだけ**返る（`HubServerMsg` の `error` / `ROOM_NOT_FOUND`）。
    * 在るときの肯定は返さない —— 無音で足りるうえ、確定的な肯定は開示が大きい。
    */
-  | { command: "room.check"; code: string };
+  | { command: "room.check"; code: string }
+  /**
+   * 合言葉を設定・解除する（#638。もとは timer のコマンド）。**空文字で解除。**
+   *
+   * ルームに居る接続から届く。**宛先は接続が決める**ので `code` を持たない（持つと、別ルームの
+   * 合言葉を書き換える経路の入口になる）。役割は無いので（#95）、在室者なら誰でも実行できる。
+   */
+  | { command: "room.passphrase.set"; passphrase: string };
 
 export const HubCommandSchema: v.GenericSchema<HubCommand> = v.variant("command", [
   v.object({
@@ -119,13 +134,40 @@ export const HubCommandSchema: v.GenericSchema<HubCommand> = v.variant("command"
     command: v.literal("room.check"),
     code: nonEmptyString,
   }),
+  // 新設のコマンドなので古いクライアントは居ない。`room.check` と同じく strict から始める。
+  // 上限は参加の `room.join` と同じ 1 つの値（`./passphrase.ts`）。
+  v.strictObject({
+    command: v.literal("room.passphrase.set"),
+    passphrase: v.pipe(v.string(), v.maxLength(MAX_PASSPHRASE)),
+  }),
 ]);
+
+/**
+ * ハブの言葉の名前の全件。**鍵が `HubCommand["command"]` の全件を要求する**（`Record`）ので、ハブのコマンドを足して
+ * ここを足し忘れると型検査が落ちる。
+ */
+const HUB_COMMAND_NAMES: Record<HubCommand["command"], true> = {
+  "room.create": true,
+  "room.join": true,
+  "room.check": true,
+  "room.passphrase.set": true,
+};
+
+/**
+ * ハブの言葉か。道具の接続（topic・roulette・agenda・checkin）は、ハブの言葉との和を受けるが、
+ * 受けてよいのは `room.join` だけである。**`room.join` 以外のハブの言葉は、この関数で見分けて既定で拒む**
+ * （新しいハブのコマンドを足しても、道具の接続側の一覧を直さずに拒まれる）。
+ */
+export function isHubCommand(cmd: { readonly command: string }): cmd is HubCommand {
+  return Object.prototype.hasOwnProperty.call(HUB_COMMAND_NAMES, cmd.command);
+}
 
 /**
  * サーバーがハブへ送るメッセージ。
  *
  * `room.created` / `room.joined` は**自分の接続にだけ**返る（復帰の組は本人のもの）。
- * `roster` はそのルームのハブ接続すべてへ配信される（R3）。
+ * `roster` はそのルームのハブ接続すべてへ配信される（R3）。ただし合言葉の設定で印が変わらないときは、
+ * 送った人にだけ 1 通返す（#638）。
  */
 export type HubServerMsg =
   | { type: "room.created"; code: string; participantId: string; resumeToken: string }

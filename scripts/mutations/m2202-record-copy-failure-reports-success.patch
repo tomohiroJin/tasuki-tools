@@ -1,0 +1,10 @@
+diff --git a/apps/timer-web/src/ui/components/RecordMarkdownCopy.tsx b/apps/timer-web/src/ui/components/RecordMarkdownCopy.tsx
+--- a/apps/timer-web/src/ui/components/RecordMarkdownCopy.tsx
++++ b/apps/timer-web/src/ui/components/RecordMarkdownCopy.tsx
+@@ -14,5 +14,5 @@
+   const markdown = formatRecordMarkdown(record);
+   const { copy, state } = useCopyText(markdown, { keepFailure: true });
+-  const message = state === "done" ? "コピーしました" : state === "failed" ? "コピーできませんでした" : "";
++  const message = state === "idle" ? "" : "コピーしました";
+
+   return (

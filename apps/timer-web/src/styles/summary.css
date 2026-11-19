@@ -201,6 +201,13 @@
   justify-content: center;
 }
 
+@media (width >= 40rem) {
+  .summary-actions {
+    /* コピー結果の表示行があっても、操作ボタンは同じ上端に揃える。 */
+    align-items: flex-start;
+  }
+}
+
 .summary-button-label {
   display: flex;
   align-items: center;

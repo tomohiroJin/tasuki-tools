@@ -5,6 +5,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { saveResumeIdentity } from '@tasuki/sync-client';
 import { CheckinRoom } from '../src/screens/CheckinRoom';
+import { redirectTo } from '../src/router';
 import { IDLE_CHECKIN, RESUME, ROSTER_FRAME, ScriptedWebSocket, latestSocket, openCheckin } from './support/scripted-web-socket';
 
 vi.mock('../src/router', async (importOriginal) => ({
@@ -315,5 +316,16 @@ describe('理由の添え書き（B7・B8）', () => {
   it('Given 回が無い / When 描く / Then ランダムの箱に「引いて決める」が添えられる', () => {
     enter(IDLE_CHECKIN);
     expect(screen.getByRole('button', { name: 'ランダム' })).toHaveAccessibleDescription('引いて決める');
+  });
+});
+
+// #638: 名乗り・合言葉は玄関に 1 つだけある。復帰の組を持たない人は玄関へ送られ、通ったあとに玄関が
+// 元の道具へ戻す。そのために、どの道具から来たかを運ぶ。
+describe('玄関へ送るとき', () => {
+  it('Given 復帰の組が無い / When 開く / Then 繋がずに、元の道具を運んで玄関のそのルームへ送る', () => {
+    render(<CheckinRoom roomCode="R1" />);
+
+    expect(ScriptedWebSocket.instances).toHaveLength(0);
+    expect(redirectTo).toHaveBeenCalledWith('/?room=R1&from=checkin');
   });
 });

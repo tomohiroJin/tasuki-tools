@@ -18,15 +18,14 @@ import { isPassphraseWithinLimit } from "@tasuki/room-core";
 /**
  * コマンドが運ぶ合言葉が上限に収まるか。合言葉を運ばないコマンドは `true`。
  *
- * 合言葉を運ぶのは `room.join`（任意）と `room.passphrase.set`（必須）の 2 つである。
+ * timer の wire が合言葉を運ぶのは `room.join`（任意）だけである。合言葉の設定（`room.passphrase.set`）は
+ * #638 でハブの言葉へ移り、上限は room-core の wire スキーマが当てる。
  * wire スキーマ側に `passphrase` を持つ枝を足したら、ここへも足すこと。
  */
 export function passphraseWithinLimit(cmd: Command): boolean {
   switch (cmd.command) {
     case "room.join":
       return cmd.passphrase === undefined || isPassphraseWithinLimit(cmd.passphrase);
-    case "room.passphrase.set":
-      return isPassphraseWithinLimit(cmd.passphrase);
     default:
       return true;
   }

@@ -278,6 +278,39 @@ describe("変わった止まり方（wire）", () => {
 });
 
 /**
+ * @requirements #640 決めること 5（新旧の wire の混在）
+ */
+describe("変わった動き（wire）", () => {
+  const spin = { seq: 1, wheel: [{ id: "a", name: "A" }], winnerIndex: 0, settle: 0.5, spunBy: "A", durationMs: 4000, elapsedMs: 0 };
+  const parse = (extra: object) => v.safeParse(RouletteFrameSchema, { type: "roulette", state: { excluded: [], guests: [], drawn: [], spin: { ...spin, ...extra } } });
+
+  it("動きの項目が無い（古いサーバーの）フレームを受ける。出力にも項目は現れない", () => {
+    // Given / When
+    const old = parse({});
+    // Then
+    expect(old.success).toBe(true);
+    expect(old.success && old.output.state.spin).not.toHaveProperty("launchMotion");
+    expect(old.success && old.output.state.spin).not.toHaveProperty("spinMotion");
+  });
+
+  it("動きの名前を読む。知らない名前でもフレームを捨てない（画面がいつもの動きで描く）", () => {
+    // Given / When
+    const known = parse({ launchMotion: "windup", spinMotion: "fast" });
+    const unknown = parse({ launchMotion: "spiral", spinMotion: "teleport" });
+    // Then
+    expect(known.success && known.output.state.spin?.launchMotion).toBe("windup");
+    expect(known.success && known.output.state.spin?.spinMotion).toBe("fast");
+    expect(unknown.success).toBe(true);
+  });
+
+  it("名前が文字列でなければ落ちる", () => {
+    // Given / When / Then
+    expect(parse({ launchMotion: 3 }).success).toBe(false);
+    expect(parse({ spinMotion: null }).success).toBe(false);
+  });
+});
+
+/**
  * @requirements #458（名前をまとめて足す。束の大きさは境界で縛る）
  */
 describe("ルーレットのコマンド（guest.addMany の境界）", () => {

@@ -10,7 +10,7 @@
  * - **ログを書かない。** 表示名・札は利用者の入力で、ログへ出さない
  */
 import * as v from "valibot";
-import { findParticipantByConnId, HubCommandSchema, isPresentIn, type HubCommand, type Room } from "@tasuki/room-core";
+import { findParticipantByConnId, HubCommandSchema, isHubCommand, isPresentIn, type HubCommand, type Room } from "@tasuki/room-core";
 import { parseBoundaryMessage } from "@tasuki/protocol";
 import {
   applyAutoReveal,
@@ -274,7 +274,7 @@ function buildCheckinHandlers<H>(deps: Omit<CheckinHandlerDeps, "graceTimer">, g
         return;
       }
       // ルームは作らず、生死も照会しない（どちらも玄関の仕事）。
-      if (cmd.command === "room.create" || cmd.command === "room.check") {
+      if (isHubCommand(cmd)) {
         fail(connId, "INVALID_COMMAND");
         return;
       }
