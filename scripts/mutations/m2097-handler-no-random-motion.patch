@@ -1,0 +1,21 @@
+# 変異 2097: handler-no-random-motion
+#
+# 検出を期待するテスト:
+#   - apps/tasuki-sync/test/roulette-handlers.test.ts
+#
+# #640 振る舞い 1。同期サーバーが動きの乱数を渡さず、変わった動きが一度も出ない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2097-*.patch
+# 復元: git apply -R scripts/mutations/m2097-*.patch
+diff --git a/apps/tasuki-sync/src/application/roulette-handlers.ts b/apps/tasuki-sync/src/application/roulette-handlers.ts
+--- a/apps/tasuki-sync/src/application/roulette-handlers.ts
++++ b/apps/tasuki-sync/src/application/roulette-handlers.ts
+@@ -181,7 +181,6 @@
+           // 変わった止まり方（#420）も同じ乱数源から引く（乱数の権威はサーバー。全画面が同じ止まり方になる）
+           randomStyle: random.randomInt,
+           // 変わった動き（#640・動き出しと回転）も同じ乱数源から引く。止まり方とは別に・独立に引く
+-          randomMotion: random.randomInt,
+         });
+         if (next.isErr()) {
+           const code = next.error.code;
