@@ -165,10 +165,19 @@ export function useHubSync(): HubSync {
    * 応答を数で対応づけるのではなく、**待つ作成を 1 つに限る**。
    */
   const pendingCreateRoomNameRef = useRef<string | null>(null);
+  /**
+   * 待っている作成が、接続に**溜められた**ままか（#642 の再確認）。
+   *
+   * 閉じかけ（CLOSING）の接続へ送った作成は `SyncConnection` に溜められ、繋ぎ直しで新しい接続へ流れる。
+   * その応答は新しい接続に届くので、繋ぎ直しで待ちを降ろしてはいけない —— 降ろすと、応答を待つ間に
+   * 別の名前で送り直せて、名前を取り違える。その場で送った作成は、切れたら応答ごと失われるので降ろす。
+   */
+  const pendingCreateQueuedRef = useRef(false);
   /** 作成の応答待ちか。画面は作るボタンを止める（{@link pendingCreateRoomNameRef} の写し）。 */
   const [creating, setCreating] = useState(false);
   const settleCreate = useCallback(() => {
     pendingCreateRoomNameRef.current = null;
+    pendingCreateQueuedRef.current = false;
     setCreating(false);
   }, []);
 
@@ -192,9 +201,12 @@ export function useHubSync(): HubSync {
   const { rateLimited, cancel: cancelRetry, reset: resetRetry } = useJoinRetry(null);
   /** 自動で入り直すときに使う、直近の名乗り。 */
   const lastJoinRef = useRef<LastJoin | null>(null);
-  const send = useCallback((cmd: HubCommand) => {
-    connRef.current?.send(cmd as unknown as Record<string, unknown>);
-  }, []);
+  /** 送る。その場で送ったか・溜めたか・捨てたかを返す（`SyncConnection.send`。接続が無ければ捨てた扱い）。 */
+  const send = useCallback(
+    (cmd: HubCommand): 'sent' | 'queued' | 'dropped' =>
+      connRef.current?.send(cmd as unknown as Record<string, unknown>) ?? 'dropped',
+    [],
+  );
 
   /**
    * 保存済みの組で入り直す（再接続・読み込み時の復帰）。
@@ -330,13 +342,16 @@ export function useHubSync(): HubSync {
       },
       onConnectionChange: (state) => setConnection(state),
       onReconnected: () => {
-        // **作成の応答は前の接続と一緒に失われた。** 待ちを降ろさないと、作るボタンが止まったまま戻らない
-        // （#642 のレビューの直し）。
-        //
-        // 既知の隙間: `SyncConnection` は溜めた送信を流してから `onReconnected` を呼ぶ。接続が閉じかけ
-        // （CLOSING）で close がまだ届いていない数ミリ秒の間に押した作成は溜められ、ここで流れたあとに
-        // 待ちが降りる。その応答では名前を覚えない（覚え損ねるだけで、弾かれた名前は残らない）。
-        settleCreate();
+        // 作成の待ちの扱い（#642 のレビューと再確認）。`SyncConnection` は溜めた送信を流してから
+        // ここを呼ぶ。
+        // - **溜めた作成**（閉じかけの接続へ送った）は、いま新しい接続へ流れた。応答はこれから届くので
+        //   待ちを続け、「その場で送った」扱いに変える（この接続も切れたら、次の繋ぎ直しで降ろす）
+        // - **その場で送った作成**は、応答が前の接続と一緒に失われた。降ろさないと、作るボタンが止まったまま戻らない
+        if (pendingCreateQueuedRef.current) {
+          pendingCreateQueuedRef.current = false;
+        } else {
+          settleCreate();
+        }
         // 切断中に名簿が変わっているので、入り直して新しい名簿を受け取る。
         resumeIfPossible();
         // **切断中にルームが終わっていることがある。** 名乗りフォームの前で
@@ -380,9 +395,12 @@ export function useHubSync(): HubSync {
       pendingCreateRoomNameRef.current = roomName;
       setCreating(true);
       setError(null);
-      send(createCommand(roomName, displayName));
+      const delivery = send(createCommand(roomName, displayName));
+      // 溜めたなら、繋ぎ直しで流れて応答が来る（{@link pendingCreateQueuedRef}）。捨てたなら応答は来ないので待たない
+      if (delivery === 'queued') pendingCreateQueuedRef.current = true;
+      if (delivery === 'dropped') settleCreate();
     },
-    [send, cancelRetry],
+    [send, cancelRetry, settleCreate],
   );
 
   const joinRoom = useCallback(
