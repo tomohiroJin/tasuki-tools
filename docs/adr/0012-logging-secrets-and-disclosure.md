@@ -434,3 +434,44 @@ PR 1（main `3cddcdc`）で実装が入り、PR 3 で timer の旧い生成の�
 **`data:` を外すと招待の QR コードが出なくなる。** favicon を実ファイルにしたことは、`data:` を外す根拠にならない。
 
 本追記は上の「`style-src 'unsafe-inline'` を外す条件」と同じく、決定を覆さずに本文の事実誤認を訂正するものである。
+
+## 追記（2026-11-19・#459） — AI 子プロセスの認証を OAuth トークンから API キーへ替える（Accepted）
+
+**状態: Accepted（2026-11-19・利用者が採択）。** 決定 D4 は秘密の例に「OAuth トークン」を挙げ、決定 D10 は `claude -p` の権限を閉じる。
+[#459](https://github.com/tomohiroJin/tasuki-tools/issues/459) で、**認証だけを `claude setup-token` のサブスクの OAuth トークン
+（`CLAUDE_CODE_OAUTH_TOKEN`）から、Console で発行する API キー（`ANTHROPIC_API_KEY`）へ替える。**
+
+### 決めたこと（案 A）
+
+- `claude` CLI の子プロセスはそのまま使い、認証の env だけを `ANTHROPIC_API_KEY` に替える。
+  **D10 のツール封じ（`--setting-sources "" --tools ""`）・D4 の「env のみ・argv に載せない・600」はそのまま残す。**
+  D4 の「OAuth トークン」は「API キー」と読み替える
+- 子プロセスの env は許可リスト（`PATH`・`HOME`・`ANTHROPIC_API_KEY` だけ）である。親の環境に旧 `CLAUDE_CODE_OAUTH_TOKEN`
+  などがあっても子へは渡らない（`apps/tasuki-sync/test/claude-cli-topic-provider.test.ts` が固定する）
+- `CLAUDE_CODE_OAUTH_TOKEN` は設定の読み込み・`turbo.json` の `passThroughEnv`・品質実験のスクリプト・手順書から外した。**もう読まない**
+- キー未設定のときは AI 無効（定型バンクへ縮退）のまま。クレジット切れ（CLI の `Credit balance is too low`）は
+  非ゼロ終了（`processError`）か解析失敗（`invalid`）の失敗として扱われ、定型へ縮退する（`apps/tasuki-sync/test/topic-generation.test.ts` ほかが固定する）
+
+### 理由
+
+- OAuth トークンは生成のたびに開発者本人の Claude Code の利用上限を消費する
+- tasuki はルームを共有し、他の参加者の操作から生成が走る。サブスクのトークンは個人利用の想定で、他者が使うサービスの認証として筋が良くない
+- Max / Team プランの月次 API クレジットは、プランに連携した Console 組織の API キーで呼んだ分だけから引かれる（`claude -p` も API キーで実行すればクレジット側で精算される）。
+  使い切ると、自動チャージを入れない限り次の付与まで止まり、プランへは課金されない。失敗時に定型へ縮退する作りなので、公開サービスの上限として都合が良い
+
+### 案 B（Anthropic SDK で Messages API を直接呼ぶ）を選ばなかった理由
+
+子プロセスとツール封じが不要になり、メモリも減る見込みはあるが、差分が大きい（adapter の書き換え・依存の追加・D10 の再設計）。
+認証だけを替えれば公開サービスの上限という目的は果たせるので、まず案 A とする。案 B は、メモリや CLI の版の追随が問題になったときに別の ISSUE で再検討する（依存の追加は原則 II の ADR を通す）。
+
+### 利用者が本番で確かめる項目（リポジトリ側からは測れない）
+
+手順は [`deploy/README.md`](../../deploy/README.md) の「AI お題生成を OAuth トークンから API キーへ切り替える」。
+
+- 本番の HOME（`/opt/tasuki/claude-home`）の資格情報があっても、API キーで認証されていること
+  （CLI が HOME の資格情報を先に使うかは手元で測っていない。プラン側へ精算されるなら、HOME の資格情報を外す）
+- Console のクレジットが減り、プラン側の使用量が増えないこと
+- Console の自動チャージが無効（または意図した上限）であること
+- 旧 OAuth トークンを失効させたこと
+
+本追記は決定 D4・D10 を覆さない（秘密の種類と認証の経路を替える）。

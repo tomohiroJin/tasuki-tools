@@ -385,7 +385,7 @@ sudo journalctl -u rb-test.service --no-pager -n 30   # 発火の証拠はここ
 
 | 秘密 | 置き場 | 用途 |
 |---|---|---|
-| `CLAUDE_CODE_OAUTH_TOKEN` | `/opt/tasuki/tasuki-sync.env`（600） | AI お題生成の子プロセスへ渡す |
+| `ANTHROPIC_API_KEY` | `/opt/tasuki/tasuki-sync.env`（600） | AI お題生成の子プロセスへ渡す（Console の API キー。#459） |
 | `AI_UNLOCK_KEY` | 同上 | AI 生成の解錠合言葉。**一様乱数で生成する**（`openssl rand -hex 20`）。長さ・文字種の規範は `docs/adr/0011-threat-model-and-data-classification.md` 決定5 |
 | `ADMIN_TOKEN` | 同上 | 管理エンドポイントの認証 |
 
@@ -402,15 +402,36 @@ sudo journalctl -u rb-test.service --no-pager -n 30   # 発火の証拠はここ
 
 | 秘密 | 失効のしかた |
 |---|---|
-| `CLAUDE_CODE_OAUTH_TOKEN` | Anthropic のコンソールでトークンを失効させ、`claude setup-token` で再発行して env を更新 |
+| `ANTHROPIC_API_KEY` | Anthropic Console（API keys）でキーを失効させ、新しいキーを発行して env を更新 |
 | `AI_UNLOCK_KEY` | env の値を変えて `sudo systemctl restart tasuki-sync`。**利用者へ新しい合言葉を配り直す** |
 | `ADMIN_TOKEN` | 同上（配り直しは運用者のみ） |
 
 いずれも再起動を伴う。影響は前述の「[⚠ 再起動でルームは全消滅する](#-再起動でルームは全消滅する)」のとおり。緊急でなければ利用者のいない時間帯に行う。
 
-**AI 機能を丸ごと止めたいとき**は `CLAUDE_CODE_OAUTH_TOKEN` か `AI_UNLOCK_KEY` の
+**AI 機能を丸ごと止めたいとき**は `ANTHROPIC_API_KEY` か `AI_UNLOCK_KEY` の
 どちらかを消して再起動する。どちらかが未設定なら AI は無効になり、解錠も常に失敗する
 （`docs/timer/adr/0008`）。
+
+### AI お題生成を OAuth トークンから API キーへ切り替える（#459・利用者の作業）
+
+リポジトリは `CLAUDE_CODE_OAUTH_TOKEN` を読まなくなった。本番で次を**利用者が**行う
+（Claude はサーバーの env を触らない）。決定の記録は `docs/adr/0012` の追記（2026-11-19・#459）。
+
+1. Anthropic Console で、Max（または Team）プランに連携した組織の API キーを発行する。
+   **自動チャージは無効**にする（クレジット切れで生成が止まり、定型へ縮退する。プランへの追加課金は無い）
+2. `ssh -t "$TASUKI_SSH_HOST" 'sudo -e /opt/tasuki/tasuki-sync.env'` で `ANTHROPIC_API_KEY` を追記し、
+   `CLAUDE_CODE_OAUTH_TOKEN` の行を消す（600 を維持）
+3. `sudo systemctl restart tasuki-sync`（ルームが全消滅するので利用者のいない時間帯に）
+4. 旧 OAuth トークン（`claude setup-token` で発行したもの）を失効させる
+5. 本番で確かめる:
+   - 起動ログ（`journalctl -u tasuki-sync`）に `ai-legacy-oauth-token-ignored` の警告が出ない
+     （出たら旧 `CLAUDE_CODE_OAUTH_TOKEN` だけが残り、`ANTHROPIC_API_KEY` が無い。AI は無効のまま）
+   - AI の生成が成功する（お題ツールで解錠して生成する）
+   - Console の使用量（クレジット）が減り、プラン側の Claude Code 使用量が増えない
+   - Console の自動チャージが無効（または意図した上限）である
+   - **API キーだけで認証されていること**: `claude` の子プロセスは本番の HOME（`/opt/tasuki/claude-home`）の
+     資格情報を持ち得る。それが先に使われてプラン側へ精算されていないかを、上の使用量の増減で見る
+     （手元では測れない。プラン側へ付くなら、HOME の資格情報を外す）
 
 ## SSH の準備
 
