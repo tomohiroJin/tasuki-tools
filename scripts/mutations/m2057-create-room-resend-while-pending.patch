@@ -1,8 +1,8 @@
 diff --git a/apps/landing/src/hub/use-hub-sync.ts b/apps/landing/src/hub/use-hub-sync.ts
-index 4da16e2..967f800 100644
+index ab64236..6e2b7ef 100644
 --- a/apps/landing/src/hub/use-hub-sync.ts
 +++ b/apps/landing/src/hub/use-hub-sync.ts
-@@ -387,8 +387,7 @@ export function useHubSync(): HubSync {
+@@ -394,8 +394,7 @@ export function useHubSync(): HubSync {
      (roomName: string, displayName: string) => {
        // **待っている作成があれば送らない**（{@link pendingCreateRoomNameRef}・#642 のレビュー）。
        // 画面のボタンも止めるが、クリック以外の送信経路（requestSubmit・支援技術）はここで止める。

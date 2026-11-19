@@ -10645,6 +10645,14 @@ export const MUTATIONS = [
     note: RESERVED_2040_2069 + " " + "#642 の再確認。呼び手が、繋ぎ直しで流れる送信と応答ごと失われた送信を区別できない。",
   },
   {
+    id: 2063,
+    label: "玄関の同期フックが、接続の開いた回数を数えない",
+    patch: "m2063-open-count-not-advanced.patch",
+    pkg: "apps/landing",
+    tests: ["tests/hub/recent-room-names-screen.test.tsx"],
+    note: RESERVED_2040_2069 + " " + "#642 の 4 回目のレビュー。前の接続で応答ごと失われた作成を待ち続け、作るボタンが戻らない。",
+  },
+  {
     id: 1970,
     label: "見積もり中の束があっても次の番号を表示する",
     patch: "m1970-poker-estimate-preview-always-next.patch",
