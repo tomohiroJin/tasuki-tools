@@ -18,6 +18,8 @@ import {
   checkinErrorMessageFor,
   CheckinCommandSchema,
   drawMethod,
+  drawMethodForOldClients,
+  drawMethodInGroup,
   INITIAL_CHECKIN_STATE,
   playAgain,
   playCard,
@@ -220,7 +222,14 @@ function buildCheckinHandlers<H>(deps: Omit<CheckinHandlerDeps, "graceTimer">, g
         result = ok(chooseMethod(state, { seq: cmd.seq, method: cmd.method }));
         break;
       case "checkin.method.draw":
+        // #635 より前の画面が送る。知らないやり方を引くと、その画面はフレームを捨てて止まる
+        result = drawMethodForOldClients(state, { seq: cmd.seq, side: cmd.side }, deps.random.randomInt);
+        break;
+      case "checkin.method.draw-side":
         result = drawMethod(state, { seq: cmd.seq, side: cmd.side }, deps.random.randomInt);
+        break;
+      case "checkin.method.draw-group":
+        result = drawMethodInGroup(state, { seq: cmd.seq, group: cmd.group }, deps.random.randomInt);
         break;
       case "checkin.card.play":
         result = playCard(state, { participantId: me.id, seq: cmd.seq, card: cmd.card });

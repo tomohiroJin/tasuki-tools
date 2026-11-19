@@ -1,0 +1,13 @@
+diff --git a/apps/tasuki-sync/src/application/checkin-handlers.ts b/apps/tasuki-sync/src/application/checkin-handlers.ts
+index 9f11b12..25cc9dd 100644
+--- a/apps/tasuki-sync/src/application/checkin-handlers.ts
++++ b/apps/tasuki-sync/src/application/checkin-handlers.ts
+@@ -224,7 +224,7 @@ function buildCheckinHandlers<H>(deps: Omit<CheckinHandlerDeps, "graceTimer">, g
+         result = drawMethod(state, { seq: cmd.seq, side: cmd.side }, deps.random.randomInt);
+         break;
+       case "checkin.method.draw-group":
+-        result = drawMethodInGroup(state, { seq: cmd.seq, group: cmd.group }, deps.random.randomInt);
++        result = drawMethodInGroup(state, { seq: cmd.seq, group: "checkin-mood" }, deps.random.randomInt);
+         break;
+       case "checkin.card.play":
+         result = playCard(state, { participantId: me.id, seq: cmd.seq, card: cmd.card });

@@ -166,4 +166,122 @@ export const METHOD_COPY: Readonly<Record<MethodId, MethodCopy>> = {
       '5': { name: '5', meaning: 'よくわかった' },
     },
   },
+  // ---- #635 で足したチェックイン ----
+  readiness: {
+    title: '準備の度合い',
+    prompt: 'この会のための準備は、できていますか？',
+    cards: {
+      ready: { name: 'できている', meaning: '準備は済んでいる' },
+      mostly: { name: 'だいたい', meaning: '大切なところは済んだ' },
+      later: { name: 'これから', meaning: 'これから見ておく' },
+      'not-yet': { name: 'まだ', meaning: '手をつけていない' },
+    },
+  },
+  busyness: {
+    title: 'いそがしさ',
+    prompt: 'いまのいそがしさは、どのくらいですか？',
+    cards: {
+      roomy: { name: '余裕', meaning: '手が空いている' },
+      normal: { name: 'ふつう', meaning: 'いつもどおり' },
+      packed: { name: 'つまっている', meaning: '予定でいっぱい' },
+      overflow: { name: 'あふれている', meaning: '手が回らない' },
+    },
+  },
+  'talk-wish': {
+    title: '話したい度',
+    prompt: '今日は、どのくらい話したいですか？',
+    cards: {
+      '1': { name: '1', meaning: '聞いていたい' },
+      '2': { name: '2', meaning: '少しなら' },
+      '3': { name: '3', meaning: 'ふつう' },
+      '4': { name: '4', meaning: '話したい' },
+      '5': { name: '5', meaning: 'たくさん話したい' },
+    },
+  },
+  battery: {
+    title: '今日のバッテリー',
+    prompt: 'あなたのバッテリーは、どのくらい残っていますか？',
+    cards: {
+      full: { name: '満タン', meaning: '元気いっぱい' },
+      half: { name: '半分', meaning: 'ふつうに動ける' },
+      low: { name: '少ない', meaning: '少し無理している' },
+      empty: { name: '切れそう', meaning: 'もう動けない' },
+    },
+  },
+  clarity: {
+    title: 'この会の理解',
+    prompt: 'この会のねらいと進め方は、わかっていますか？',
+    cards: {
+      both: { name: 'どちらもわかる', meaning: 'ねらいも進め方もわかる' },
+      purpose: { name: 'ねらいだけ', meaning: '進め方はまだあいまい' },
+      unclear: { name: 'どちらもあいまい', meaning: '何をする会かわからない' },
+    },
+  },
+  worry: {
+    title: '今日の気がかり',
+    prompt: 'いま、気になっていることはありますか？',
+    cards: {
+      none: { name: '無い', meaning: '気がかりはない' },
+      some: { name: '少しある', meaning: '頭のすみにある' },
+      big: { name: '大きいのがある', meaning: '頭から離れない' },
+    },
+  },
+  // ---- #635 で足したチェックアウト ----
+  agreement: {
+    title: 'なっとく度',
+    prompt: '決まったことに、どのくらいなっとくしていますか？',
+    cards: {
+      '1': { name: '1', meaning: 'なっとくしていない' },
+      '2': { name: '2', meaning: '少し引っかかる' },
+      '3': { name: '3', meaning: '半分くらい' },
+      '4': { name: '4', meaning: 'だいたいなっとく' },
+      '5': { name: '5', meaning: 'しっかりなっとく' },
+    },
+  },
+  'next-step': {
+    title: '次の一手',
+    prompt: 'このあと自分が何をするか、見えていますか？',
+    cards: {
+      clear: { name: 'はっきりした', meaning: 'やることが決まった' },
+      mostly: { name: 'だいたい', meaning: 'おおよそ見えている' },
+      vague: { name: 'ぼんやり', meaning: '形だけ見えている' },
+      unknown: { name: 'わからない', meaning: '何をするか見えない' },
+    },
+  },
+  voice: {
+    title: '話せたか',
+    prompt: '言いたいことは、話せましたか？',
+    cards: {
+      plenty: { name: 'たっぷり話せた', meaning: '言いたいことを言えた' },
+      some: { name: '少し話せた', meaning: '一部は言えた' },
+      none: { name: '話せなかった', meaning: '言いそびれた' },
+    },
+  },
+  pace: {
+    title: '進むペース',
+    prompt: 'この会の進み方は、どうでしたか？',
+    cards: {
+      fast: { name: 'はやすぎ', meaning: 'ついていけなかった' },
+      right: { name: 'ちょうど', meaning: 'ほどよかった' },
+      slow: { name: 'ゆっくりすぎ', meaning: 'もっと進めたかった' },
+    },
+  },
+  fatigue: {
+    title: '残った疲れ',
+    prompt: '終わったいま、どのくらい疲れていますか？',
+    cards: {
+      fine: { name: '元気', meaning: 'まだまだ動ける' },
+      bit: { name: '少し疲れた', meaning: '少しのんびりしたい' },
+      very: { name: 'かなり疲れた', meaning: 'もう動けない' },
+    },
+  },
+  message: {
+    title: 'だれかに言いたいこと',
+    prompt: 'だれかに言っておきたいことは、ありますか？',
+    cards: {
+      now: { name: 'このあと話す', meaning: '終わる前にこの場で話す' },
+      later: { name: 'あとで言う', meaning: '会のあとで相手に言う' },
+      none: { name: '無い', meaning: '言いたいことはない' },
+    },
+  },
 };

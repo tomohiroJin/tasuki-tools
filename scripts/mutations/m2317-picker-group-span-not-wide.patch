@@ -1,0 +1,14 @@
+diff --git a/apps/checkin-web/src/table.css b/apps/checkin-web/src/table.css
+index 27485f1..430f91d 100644
+--- a/apps/checkin-web/src/table.css
++++ b/apps/checkin-web/src/table.css
+@@ -171,9 +171,6 @@
+       grid-template-rows: var(--rows-wide);
+     }
+ 
+-    .method-group {
+-      grid-row: span var(--span-wide);
+-    }
+   }
+ }
+ 

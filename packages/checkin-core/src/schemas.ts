@@ -7,7 +7,7 @@
  */
 import * as v from "valibot";
 import { CHECKIN_DOMAIN_ERROR_CODES } from "./errors.js";
-import { METHOD_IDS, SIDES, VISIBILITIES } from "./methods.js";
+import { GROUP_IDS, METHOD_IDS, SIDES, VISIBILITIES } from "./methods.js";
 
 /** 回の番号（1 から） */
 const seqNum = v.pipe(v.number(), v.integer(), v.minValue(1));
@@ -19,7 +19,11 @@ const cardStr = v.pipe(v.string(), v.minLength(1), v.maxLength(16));
 // **余計なフィールドは拒む**（`v.strictObject`）。`docs/adr/0011` 決定 2 S3 の MUST。
 export const CheckinCommandSchema = v.variant("command", [
   v.strictObject({ command: v.literal("checkin.method.choose"), seq: replacedSeqNum, method: v.picklist(METHOD_IDS) }),
+  // 側のくじ。`draw` は #635 より前の画面が送る（#635 より前の 14 から引く）。`draw-side` は新しい画面が送る（側の全部から引く）
   v.strictObject({ command: v.literal("checkin.method.draw"), seq: replacedSeqNum, side: v.picklist(SIDES) }),
+  v.strictObject({ command: v.literal("checkin.method.draw-side"), seq: replacedSeqNum, side: v.picklist(SIDES) }),
+  // 小見出しから引く（#635）。側は小見出しから決まるので持たない
+  v.strictObject({ command: v.literal("checkin.method.draw-group"), seq: replacedSeqNum, group: v.picklist(GROUP_IDS) }),
   v.strictObject({ command: v.literal("checkin.card.play"), seq: seqNum, card: cardStr }),
   v.strictObject({
     command: v.literal("checkin.visibility.set"),

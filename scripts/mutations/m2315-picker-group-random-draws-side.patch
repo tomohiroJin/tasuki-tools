@@ -1,0 +1,13 @@
+diff --git a/apps/checkin-web/src/components/MethodPicker.tsx b/apps/checkin-web/src/components/MethodPicker.tsx
+index da94ede..4a22c25 100644
+--- a/apps/checkin-web/src/components/MethodPicker.tsx
++++ b/apps/checkin-web/src/components/MethodPicker.tsx
+@@ -136,7 +136,7 @@ export function MethodPicker({ canOperate, initialSide, headingRef, onChoose, on
+                 aria-label={groupRandomLabel(GROUP_TITLES[group])}
+                 aria-describedby={onCancel ? 'method-picker-note' : undefined}
+                 disabled={!canOperate}
+-                onClick={() => onDrawGroup?.(group)}
++                onClick={() => onDraw(side)}
+               >
+                 {GROUP_RANDOM_TEXT}
+               </button>
