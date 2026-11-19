@@ -2,7 +2,7 @@
 // 各自の票は場の席の札がめくれて見せる（#348）。ここは集計だけを持つ
 import type { CSSProperties } from 'react';
 import type { RoundStats } from '@tasuki/poker-core';
-import { cardLabel } from './CardHand';
+import { cardLabel } from '../card-label';
 import type { SpreadPrompt } from '../room-view';
 
 interface Props {
