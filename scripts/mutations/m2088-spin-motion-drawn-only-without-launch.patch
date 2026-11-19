@@ -1,0 +1,22 @@
+# 変異 2088: spin-motion-drawn-only-without-launch
+#
+# 検出を期待するテスト:
+#   - packages/roulette-core/tests/roulette-motions.test.ts
+#
+# #640 決めること 2。動き出しと回転が独立でなくなり、重なる回が出ない。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2088-*.patch
+# 復元: git apply -R scripts/mutations/m2088-*.patch
+diff --git a/packages/roulette-core/src/roulette.ts b/packages/roulette-core/src/roulette.ts
+--- a/packages/roulette-core/src/roulette.ts
++++ b/packages/roulette-core/src/roulette.ts
+@@ -75,7 +75,7 @@
+ function withMotions(spin: Spin, randomMotion: SpinInput["randomMotion"]): Result<Spin, RouletteError<"INVALID_RANDOM">> {
+   if (randomMotion === undefined) return ok(spin);
+   return drawLaunchMotion(randomMotion).andThen((launchMotion) =>
+-    drawSpinMotion(randomMotion).map((spinMotion) => ({
++    (launchMotion === null ? drawSpinMotion(randomMotion) : ok(null)).map((spinMotion) => ({
+       ...spin,
+       ...(launchMotion === null ? {} : { launchMotion }),
+       ...(spinMotion === null ? {} : { spinMotion }),

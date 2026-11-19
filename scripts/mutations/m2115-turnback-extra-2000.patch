@@ -1,0 +1,22 @@
+# 変異 2115: turnback-extra-2000
+#
+# 検出を期待するテスト:
+#   - packages/roulette-core/tests/roulette-motions.test.ts
+#
+# #640 の /code-review。止まり方の最大 + 回転の動きの最大が上限を越え、延びる合計が上限（+4 秒）を越えうる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2115-*.patch
+# 復元: git apply -R scripts/mutations/m2115-*.patch
+diff --git a/packages/roulette-core/src/limits.ts b/packages/roulette-core/src/limits.ts
+--- a/packages/roulette-core/src/limits.ts
++++ b/packages/roulette-core/src/limits.ts
+@@ -93,7 +93,7 @@
+  */
+ export const SPIN_MOTION_EXTRA_MS: Readonly<Record<SpinMotion, number>> = Object.freeze({
+   backward: 0,
+-  turnback: 1000,
++  turnback: 2000,
+   fast: -1000,
+ });
+ 

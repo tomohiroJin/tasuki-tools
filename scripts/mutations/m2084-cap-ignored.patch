@@ -1,0 +1,22 @@
+# 変異 2084: cap-ignored
+#
+# 検出を期待するテスト:
+#   - packages/roulette-core/tests/roulette-motions.test.ts
+#
+# #640 決めること 3。止まり方・動き出し・回転が重なると、延びる合計が上限（+4 秒）を越える。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2084-*.patch
+# 復元: git apply -R scripts/mutations/m2084-*.patch
+diff --git a/packages/roulette-core/src/limits.ts b/packages/roulette-core/src/limits.ts
+--- a/packages/roulette-core/src/limits.ts
++++ b/packages/roulette-core/src/limits.ts
+@@ -134,7 +134,7 @@
+ export function launchMotionMs(launch: string | null | undefined, style: string | null | undefined, spin: string | null | undefined): number {
+   if (!isLaunchMotion(launch)) return 0;
+   const room = MOTION_EXTRA_CAP_MS - stopStyleExtraMs(style) - spinMotionExtraMs(spin);
+-  return Math.max(0, Math.min(LAUNCH_MOTION_EXTRA_MS[launch], room));
++  return LAUNCH_MOTION_EXTRA_MS[launch];
+ }
+ 
+ /** 回転（wire の形でも Spin でもよい）が持つ動きの名前を、長さの表（`pickStopsMs`・`spinDurationMs`）へ渡す形にする */

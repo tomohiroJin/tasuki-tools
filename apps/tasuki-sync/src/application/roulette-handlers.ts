@@ -181,6 +181,8 @@ export function makeRouletteHandlers(deps: RouletteHandlerDeps): RouletteHandler
           conflicts: conflictsWithExisting,
           // 変わった止まり方（#420）も同じ乱数源から引く（乱数の権威はサーバー。全画面が同じ止まり方になる）
           randomStyle: random.randomInt,
+          // 変わった動き（#640・動き出しと回転）も同じ乱数源から引く。止まり方とは別に・独立に引く
+          randomMotion: random.randomInt,
         });
         if (next.isErr()) {
           const code = next.error.code;

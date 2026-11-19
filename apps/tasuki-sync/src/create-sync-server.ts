@@ -87,7 +87,7 @@ export interface SyncServer {
   /** 実際に bind したポート。`PORT=0` 起動のときはここが正しい値。 */
   readonly port: number;
   /**
-   * AI お題生成が有効か（OAuth トークンと解錠合言葉が**両方**あるときだけ true）。
+   * AI お題生成が有効か（API キーと解錠合言葉が**両方**あるときだけ true）。
    * 起動ログの表示に使う。
    */
   readonly aiReady: boolean;

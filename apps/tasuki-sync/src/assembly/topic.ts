@@ -15,7 +15,7 @@ import type { AssemblyBase, TimerSide, ToolPartBase } from "./context.js";
 
 /** AI お題生成の予算。 */
 export interface AiBudget {
-  /** AI お題生成が有効か（OAuth トークンと解錠合言葉が**両方**あるときだけ true）。 */
+  /** AI お題生成が有効か（API キーと解錠合言葉が**両方**あるときだけ true）。 */
   readonly aiReady: boolean;
   /**
    * **サーバー全体で 1 つの予算である。** 日次上限と同時実行数を AI を使う箇所ごとに作ると、
@@ -24,10 +24,10 @@ export interface AiBudget {
   readonly aiLimiter: AiLimiter | undefined;
 }
 
-/** 設定から AI の予算を決める（トークンと合言葉が両方あるときだけ有効。spec 2026-06-12 参照）。 */
+/** 設定から AI の予算を決める（API キーと合言葉が両方あるときだけ有効。spec 2026-06-12 参照）。 */
 export function createAiBudget(base: Pick<AssemblyBase, "config" | "clock">): AiBudget {
   const { config, clock } = base;
-  const aiReady = Boolean(config.claudeOauthToken && config.aiUnlockKey);
+  const aiReady = Boolean(config.anthropicApiKey && config.aiUnlockKey);
   return { aiReady, aiLimiter: aiReady ? new AiLimiter({ clock, dailyLimit: config.aiDailyLimit }) : undefined };
 }
 
@@ -58,7 +58,7 @@ export function createTopicResources(
     clock,
     publish: (roomCode) => broadcaster.publish(roomCode),
     provider: ai.aiReady
-      ? new ClaudeCliTopicProvider({ token: config.claudeOauthToken!, model: config.aiProblemModel })
+      ? new ClaudeCliTopicProvider({ apiKey: config.anthropicApiKey!, model: config.aiProblemModel })
       : undefined,
     aiLimiter: ai.aiLimiter,
     aiTimeoutMs: config.aiGenerationTimeoutMs,
@@ -108,7 +108,7 @@ export function assembleTopic(
     generator: resources.generator,
     broadcaster: resources.broadcaster,
     send: (connId, msg) => ws.get().to.topic.send(connId, msg),
-    // トークン未設定なら合言葉も渡さない＝解錠は常に失敗（存在秘匿）
+    // API キー未設定なら合言葉も渡さない＝解錠は常に失敗（存在秘匿）
     aiUnlockKey: ai.aiReady ? config.aiUnlockKey : undefined,
   });
   return {

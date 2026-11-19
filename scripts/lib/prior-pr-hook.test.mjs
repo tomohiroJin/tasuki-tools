@@ -113,7 +113,8 @@ test("cd の無いコマンドでは、登録の一覧を引かない（入力�
   assert.deepEqual(d.asked, []);
 });
 
-test("全体の上限: lookup が終わらなくても、上限の内に ask を返す", async () => {
+// timeout: 上限が効かず永久に待つ形（変異 872）を、Node 26 でも数秒で失敗にする（#441）。
+test("全体の上限: lookup が終わらなくても、上限の内に ask を返す", { timeout: 5000 }, async () => {
   const d = { ...deps(), lookup: () => new Promise(() => {}) };
   const t0 = Date.now();
   const out = await decidePriorPrOutputWithin(input("gh pr create"), d, 50);
@@ -122,7 +123,7 @@ test("全体の上限: lookup が終わらなくても、上限の内に ask を
   assert.match(out.hookSpecificOutput.permissionDecisionReason, /上限/);
 });
 
-test("全体の上限: gh pr create でないコマンドは待たずに null", async () => {
+test("全体の上限: gh pr create でないコマンドは待たずに null", { timeout: 5000 }, async () => {
   const d = { ...deps(), lookup: () => new Promise(() => {}) };
   assert.equal(await decidePriorPrOutputWithin(input("git status"), d, 50), null);
 });

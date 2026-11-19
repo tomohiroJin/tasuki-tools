@@ -53,7 +53,7 @@ pnpm + turbo のモノレポ（詳細は [plan.md](./specs/001-planning-poker-mv
 
 ## 開発
 
-前提: Bun 1.x / **Node.js 22 以上** / pnpm 11.5.0（`corepack enable` で宣言どおりに入る）
+前提: Bun 1.x / **Node.js 26.13.1 以上（26 系）** / pnpm 11.5.0（`corepack enable` で宣言どおりに入る）
 
 ```bash
 pnpm install

@@ -1,0 +1,22 @@
+# 変異 2100: web-stops-ignore-motions
+#
+# 検出を期待するテスト:
+#   - apps/roulette-web/tests/spin-motion.test.ts
+#
+# #640 振る舞い 2。円盤がいつもの時刻に止まり、結果の時刻とずれる。
+#
+# 適用: リポジトリルートから
+#       git apply scripts/mutations/m2100-*.patch
+# 復元: git apply -R scripts/mutations/m2100-*.patch
+diff --git a/apps/roulette-web/src/wheel-motion.ts b/apps/roulette-web/src/wheel-motion.ts
+--- a/apps/roulette-web/src/wheel-motion.ts
++++ b/apps/roulette-web/src/wheel-motion.ts
+@@ -169,7 +169,7 @@
+ ): number {
+   const style = stopStyleOf(stopStyle);
+   const names: MotionNames = motions ?? {};
+-  const stops = pickStopsMs(picks.length, style, names);
++  const stops = pickStopsMs(picks.length, style);
+   const first = picks[0];
+   const firstStop = stops[0];
+   if (first === undefined || firstStop === undefined) return startDeg;
